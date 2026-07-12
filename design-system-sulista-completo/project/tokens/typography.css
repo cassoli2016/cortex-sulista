@@ -1,0 +1,17 @@
+/* Austral — tipografia */
+/* Fontes via Google Fonts (sem binários locais — ver readme) */
+@import url('https://fonts.googleapis.com/css2?family=Saira:wght@400;500;600;700;800&family=IBM+Plex+Mono:wght@400;500;600&display=swap');
+:root{
+  --font-display:'Saira',system-ui,sans-serif;
+  --font-body:'Saira',system-ui,sans-serif;
+  --font-mono:'IBM Plex Mono',ui-monospace,monospace;
+  /* Escala */
+  --text-xs:12px; --text-sm:13px; --text-base:15px; --text-md:17px;
+  --text-lg:20px; --text-xl:24px; --text-2xl:30px; --text-3xl:38px;
+  --text-4xl:48px; --text-5xl:62px;
+  --leading-tight:1.1; --leading-snug:1.3; --leading-normal:1.55;
+  --tracking-kicker:0.12em;
+  /* Pesos */
+  --weight-regular:400; --weight-medium:500; --weight-semibold:600; --weight-bold:700; --weight-extrabold:800;
+}
+body{font-family:var(--font-body);font-size:var(--text-base);line-height:var(--leading-normal);color:var(--text-body);}

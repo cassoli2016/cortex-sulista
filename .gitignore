@@ -1,0 +1,13 @@
+# segredos — NUNCA versionar
+.env
+
+# python
+.venv/
+__pycache__/
+*.pyc
+
+# sistema
+.DS_Store
+
+# sessões locais do claude
+.claude/settings.local.json

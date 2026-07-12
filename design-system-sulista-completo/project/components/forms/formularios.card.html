@@ -1,0 +1,42 @@
+<!-- @dsCard group="Components" viewport="700x360" subtitle="Button, IconButton, Input, Select, Checkbox, Radio, Switch" name="Formulários" -->
+<link rel="stylesheet" href="../../styles.css">
+<style>body{margin:0;padding:16px;background:var(--surface-page);font-family:var(--font-body);}</style>
+<script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+<script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+<script src="https://unpkg.com/@babel/standalone@7.26.4/babel.min.js"></script>
+<script src="../../_dev_loader.js"></script>
+<div id="root"></div>
+<script type="text/babel">
+window.__dsReady.then((NS)=>{
+const {Button,IconButton,Input,Select,Checkbox,Radio,Switch} = NS;
+const Row = ({children})=><div style={{display:'flex',gap:10,alignItems:'center',flexWrap:'wrap'}}>{children}</div>;
+ReactDOM.createRoot(document.getElementById('root')).render(
+  <div style={{display:'flex',flexDirection:'column',gap:16}}>
+    <Row>
+      <Button variant="primary">Solicitar cotação</Button>
+      <Button variant="secondary">Falar com vendas</Button>
+      <Button variant="outline">Exportar</Button>
+      <Button variant="ghost">Cancelar</Button>
+      <Button variant="danger">Excluir</Button>
+      <Button variant="primary" disabled>Enviando…</Button>
+      <IconButton label="Editar" variant="outline"><span style={{fontWeight:700}}>✎</span></IconButton>
+    </Row>
+    <Row>
+      <Button size="sm">Pequeno</Button><Button size="md">Médio</Button><Button size="lg">Grande</Button>
+    </Row>
+    <div style={{display:'grid',gridTemplateColumns:'1fr 1fr 1fr',gap:12}}>
+      <Input label="Placa do veículo" placeholder="ABC-1D23" mono hint="Formato Mercosul" />
+      <Input label="Valor da carga" prefix="R$" placeholder="0,00" error="Informe o valor" />
+      <Select label="Filial" options={['Porto Alegre','Curitiba','São Paulo']} />
+    </div>
+    <Row>
+      <Checkbox label="Incluir seguro" defaultChecked />
+      <Checkbox label="Carga frágil" />
+      <Radio name="t" label="Fracionada" defaultChecked />
+      <Radio name="t" label="Lotação" />
+      <Switch label="Alertas de velocidade" defaultChecked />
+    </Row>
+  </div>
+);
+});
+</script>

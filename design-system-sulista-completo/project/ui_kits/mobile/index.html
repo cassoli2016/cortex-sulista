@@ -1,0 +1,101 @@
+<!-- @dsCard group="App mobile" viewport="1300x820" subtitle="Início, viagem e alertas — 390px" name="Mobile — 3 telas" -->
+<link rel="stylesheet" href="../../styles.css">
+<style>body{margin:0;background:var(--surface-page);font-family:var(--font-body);color:var(--text-body);} a{color:var(--navy-600);} a:hover{color:var(--brand-accent);}</style>
+<script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+<script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+<script src="https://unpkg.com/@babel/standalone@7.26.4/babel.min.js"></script>
+<script src="https://unpkg.com/lucide@latest"></script>
+<script src="../../_dev_loader.js"></script>
+<div id="root"></div>
+<script type="text/babel">
+window.__dsReady.then((NS)=>{
+const Icon = ({name,size=20,color='currentColor',style})=><i data-lucide={name} style={{width:size,height:size,display:'inline-block',color,...style}}></i>;
+const Marca = ({dark})=>(<span style={{display:'inline-flex',alignItems:'center',gap:10}}>
+  <img src="../../assets/marca.svg" width="30" height="22" alt=""/>
+  <span style={{fontFamily:'var(--font-display)',fontWeight:800,fontSize:20,letterSpacing:'.02em',color:dark?'#fff':'var(--navy-800)'}}>AUSTRAL</span></span>);
+setTimeout(()=>lucide.createIcons(),400);
+const {Button,Card,Badge,Switch,Input} = NS;
+const Phone = ({title,children})=>(
+  <div style={{width:390,flexShrink:0}}>
+    <div style={{background:'var(--surface-card)',border:'1px solid var(--border-default)',borderRadius:24,overflow:'hidden',boxShadow:'var(--shadow-md)',height:760,display:'flex',flexDirection:'column'}}>
+      {children}
+    </div>
+    <div style={{textAlign:'center',fontSize:12,color:'var(--text-muted)',marginTop:8}}>{title}</div>
+  </div>);
+const TopBar = ({label})=>(
+  <div style={{background:'var(--navy-900)',color:'#fff',padding:'14px 18px',display:'flex',alignItems:'center',gap:10}}>
+    <img src="../../assets/marca.svg" width="24" height="18" alt=""/>
+    <span style={{fontFamily:'var(--font-display)',fontWeight:700,fontSize:16,flex:1}}>{label}</span>
+    <Icon name="bell" size={20}/>
+  </div>);
+const TabBar = ({active})=>(
+  <div style={{marginTop:'auto',display:'flex',borderTop:'1px solid var(--border-default)',background:'var(--surface-card)'}}>
+    {[['home','Início'],['route','Viagens'],['map-pin','Mapa'],['user','Perfil']].map(([ic,l])=>
+      <div key={l} style={{flex:1,display:'flex',flexDirection:'column',alignItems:'center',gap:3,padding:'10px 0 12px',minHeight:44,
+        color:l===active?'var(--brand-accent)':'var(--neutral-500)',fontSize:11,fontWeight:l===active?600:400}}>
+        <Icon name={ic} size={22}/>{l}</div>)}
+  </div>);
+function App(){
+  return <div style={{display:'flex',gap:36,padding:28,justifyContent:'center'}}>
+    <Phone title="Início — viagem atual">
+      <TopBar label="Olá, João"/>
+      <div style={{padding:16,display:'flex',flexDirection:'column',gap:12,overflow:'hidden'}}>
+        <Card kicker="Viagem atual" title={<span style={{fontFamily:'var(--font-mono)'}}>POA → CWB</span>} padding={16}>
+          <div style={{display:'flex',flexDirection:'column',gap:10}}>
+            <div style={{display:'flex',gap:8,alignItems:'center'}}><Badge tone="success">Em trânsito</Badge><span style={{fontSize:13,color:'var(--text-muted)'}}>ETA 16:40</span></div>
+            <div style={{height:6,background:'var(--neutral-100)',borderRadius:999}}><div style={{width:'62%',height:6,background:'var(--brand-accent)',borderRadius:999}}/></div>
+            <div style={{display:'flex',justifyContent:'space-between',fontSize:12,color:'var(--text-muted)'}}><span>412 km rodados</span><span>248 km restantes</span></div>
+            <Button variant="primary" block>Registrar parada</Button>
+          </div>
+        </Card>
+        <Card title="Próxima coleta" padding={16}>
+          <div style={{display:'flex',gap:10,alignItems:'center',fontSize:14}}>
+            <span style={{width:36,height:36,borderRadius:'var(--radius-md)',background:'var(--orange-50)',color:'var(--orange-600)',display:'inline-flex',alignItems:'center',justifyContent:'center'}}><Icon name="package" size={18}/></span>
+            <div><div style={{fontWeight:600}}>CD Curitiba — doca 4</div><div style={{fontSize:12,color:'var(--text-muted)'}}>Amanhã, 08:00</div></div>
+          </div>
+        </Card>
+      </div>
+      <TabBar active="Início"/>
+    </Phone>
+    <Phone title="Detalhe da viagem">
+      <TopBar label="Viagem RTX-4B21"/>
+      <div style={{padding:16,display:'flex',flexDirection:'column',gap:12,overflow:'hidden'}}>
+        <div style={{height:140,background:'var(--navy-50)',border:'1px dashed var(--navy-200)',borderRadius:'var(--radius-md)',display:'flex',alignItems:'center',justifyContent:'center',color:'var(--navy-400)',fontSize:13,gap:8}}><Icon name="map" size={18}/> mapa</div>
+        <Card title="Checklist de saída" padding={16}>
+          <div style={{display:'flex',flexDirection:'column',gap:10,fontSize:14}}>
+            {[['Pneus e calibragem',true],['Lacres da carroceria',true],['Documentação CT-e',false]].map(([l,ok])=>
+              <div key={l} style={{display:'flex',alignItems:'center',gap:10}}>
+                <Icon name={ok?'check-circle-2':'circle'} size={18} color={ok?'var(--status-success)':'var(--neutral-400)'}/>
+                <span style={{color:ok?'var(--text-body)':'var(--text-muted)'}}>{l}</span></div>)}
+          </div>
+        </Card>
+        <Button variant="secondary" block>Reportar ocorrência</Button>
+      </div>
+      <TabBar active="Viagens"/>
+    </Phone>
+    <Phone title="Alertas e preferências">
+      <TopBar label="Alertas"/>
+      <div style={{padding:16,display:'flex',flexDirection:'column',gap:12,overflow:'hidden'}}>
+        {[['danger','Veículo sem sinal','BWX-9A05 há 35 min sem telemetria.'],['warning','Excesso de velocidade','96 km/h na BR-116, km 214.'],['success','Entrega concluída','QSA-2E77 · CT-e 35.512.']].map(([tone,t,d])=>
+          <Card key={t} padding={14}>
+            <div style={{display:'flex',gap:10}}>
+              <Icon name={tone==='danger'?'alert-octagon':tone==='warning'?'alert-triangle':'check-circle-2'} size={20}
+                color={'var(--status-'+tone+')'} style={{flexShrink:0,marginTop:2}}/>
+              <div><div style={{fontWeight:600,fontSize:14}}>{t}</div><div style={{fontSize:13,color:'var(--text-muted)'}}>{d}</div></div>
+            </div>
+          </Card>)}
+        <Card title="Notificações" padding={16}>
+          <div style={{display:'flex',flexDirection:'column',gap:12}}>
+            <Switch label="Alertas críticos" defaultChecked/>
+            <Switch label="Resumo diário" defaultChecked/>
+            <Switch label="Novidades da Austral"/>
+          </div>
+        </Card>
+      </div>
+      <TabBar active="Perfil"/>
+    </Phone>
+  </div>;
+}
+ReactDOM.createRoot(document.getElementById('root')).render(<App/>);
+});
+</script>

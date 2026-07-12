@@ -1,0 +1,11 @@
+<!-- @dsCard group="Marca" viewport="700x130" subtitle="Lucide, traço 2px, 20–24px" name="Iconografia" -->
+<link rel="stylesheet" href="../styles.css"><style>body{margin:0;padding:16px;background:transparent;font-family:var(--font-body);}</style>
+<div id="row" style="display:flex;gap:22px;align-items:center;color:var(--navy-700)"></div>
+<script src="https://unpkg.com/lucide@latest"></script>
+<script>
+['truck','map-pin','route','gauge','warehouse','package','radio-tower','clipboard-check','fuel','wrench'].forEach(n=>{
+  const d=document.createElement('div');d.setAttribute('data-lucide',n);d.style.width='24px';d.style.height='24px';
+  const w=document.createElement('div');w.appendChild(d);document.getElementById('row').appendChild(w);
+});
+lucide.createIcons();
+</script>
