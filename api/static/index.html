@@ -270,6 +270,33 @@ tr.forn-det td{padding:7px 12px}
 #cop-send{display:flex;align-items:center;gap:6px}
 @media(max-width:860px){.cop-card{min-height:calc(100vh - 300px)}.cop-b{max-width:92%}}
 
+/* ---- DRE gerencial ---- */
+#dre-tab{border-collapse:separate;border-spacing:0;min-width:100%}
+#dre-tab th:first-child,#dre-tab td:first-child{position:sticky;left:0;background:var(--n0);z-index:2;min-width:280px;box-shadow:2px 0 0 var(--n200)}
+#dre-tab thead th{position:sticky;top:0;background:var(--n0);z-index:3;border-bottom:2px solid var(--navy-700)}
+#dre-tab thead th:first-child{z-index:4}
+#dre-tab td,#dre-tab th{padding:7px 12px;white-space:nowrap}
+tr.dre-tot td{font-weight:700}
+tr.dre-tot td:first-child{color:var(--navy-700)}
+tr.dre-res td{background:var(--navy-50,#EEF4FA) !important;font-weight:800;border-top:2px solid var(--navy-200,#C9DAEB);border-bottom:2px solid var(--navy-200,#C9DAEB)}
+tr.dre-res td:first-child{color:var(--navy-800,#122A42);font-size:14.5px}
+tr.dre-final td{background:var(--navy-700) !important;color:#fff !important;font-weight:800;font-size:14.5px}
+tr.dre-final td:first-child{color:#fff}
+tr.dre-final td .neg{color:#FCA5A5 !important}
+tr.dre-nv1>td:first-child{padding-left:34px;color:var(--n700)}
+tr.dre-item{display:none;background:var(--n50,#F7F9FA)}
+tr.dre-item.on{display:table-row}
+tr.dre-item>td:first-child{padding-left:56px;color:var(--n500);font-size:12.5px;background:var(--n50,#F7F9FA)}
+tr.dre-item>td{font-size:12.5px;color:var(--n600)}
+tr.dre-sobra td{background:var(--yellow-100) !important}
+#dre-tab .exp{display:inline-block;width:14px;transition:transform .15s;color:var(--n400);margin-right:4px}
+tr[data-aberto="1"] .exp{transform:rotate(90deg)}
+#dre-tab tbody tr:not(.dre-item):not(.dre-res):not(.dre-final):hover td{background:var(--navy-25,#F4F8FC)}
+#dre-tab .num{font-variant-numeric:tabular-nums}
+#dre-tab .neg{color:var(--red)}
+#dre-tab .zero{color:var(--n300)}
+#dre-tab .av{color:var(--n500);font-size:11px;font-weight:400}
+
 /* ---- Painéis TV ---- */
 body.tvmode{background:#0B1926}
 body.tvfull #sidebar,body.tvfull aside,body.tvfull .topbar,body.tvfull #topbar,body.tvfull header,body.tvfull .bottomnav,body.tvfull .drawer{display:none !important}
@@ -4337,35 +4364,43 @@ function renderDre(d){
   const rl=por['RECEITA LIQUIDA'], lb=por['LUCRO BRUTO'], lop=por['RESULTADO OPERACIONAL (LOP 1)'], re_=por['RESULTADO DO EXERCICIO'];
   const pctRL=v=>rl&&rl.total?(100*v/Math.abs(rl.total)).toFixed(1)+'% da RL':'';
   document.getElementById('kpis-dre').innerHTML=[
-    kpi('Receita líquida', rl?BRL.format(rl.total):'—', d.meses.length+' meses', ''),
-    kpi('Lucro bruto', lb?BRL.format(lb.total):'—', lb?pctRL(lb.total):'', lb&&lb.total<0?'neg':'pos'),
-    kpi('Resultado operacional', lop?BRL.format(lop.total):'—', lop?pctRL(lop.total):'', lop&&lop.total<0?'neg':'pos'),
-    kpi('Resultado do exercício', re_?BRL.format(re_.total):'—', re_?pctRL(re_.total):'', re_&&re_.total<0?'neg':'pos'),
+    kpi('Receita líquida', BRL.format(rl?rl.total:0), d.meses.length+' meses', ''),
+    kpi('Lucro bruto', BRL.format(lb?lb.total:0), lb?pctRL(lb.total):'', lb&&lb.total<0?'neg':'pos'),
+    kpi('Resultado operacional', BRL.format(lop?lop.total:0), lop?pctRL(lop.total):'', lop&&lop.total<0?'neg':'pos'),
+    kpi('Resultado do exercício', BRL.format(re_?re_.total:0), re_?pctRL(re_.total):'', re_&&re_.total<0?'neg':'pos'),
   ].join('');
   document.getElementById('dreHint').textContent=
-    'valores em R$ mil · '+(d.ajustes_locais>0?d.ajustes_locais+' ajuste(s) local(is) aplicado(s) · ':'')+'clique nas linhas com ▸ para abrir a composição';
-  const fm=v=>{ const m=v/1000;
-    return `<span style="color:${v<-0.5?'var(--red)':'inherit'}">${m.toLocaleString('pt-BR',{maximumFractionDigits:0})}</span>`; };
+    'R$ mil · % = análise vertical sobre a receita líquida'+(d.ajustes_locais>0?' · '+d.ajustes_locais+' ajuste(s) local(is)':'')+' · linhas com ▸ abrem a composição';
+  const fm=v=>{
+    if(Math.abs(v)<500) return '<span class="zero">–</span>';
+    const t=(v/1000).toLocaleString('pt-BR',{maximumFractionDigits:0});
+    return v<0?`<span class="neg">${t}</span>`:t;
+  };
+  const RES=new Set(['RECEITA LIQUIDA','LUCRO BRUTO','RESULTADO OPERACIONAL (LOP 1)']);
   document.getElementById('dre-head').innerHTML='<tr><th>Linha</th>'+
-    d.meses.map(mm=>`<th class="num">${periodoLabel(mm)}</th>`).join('')+'<th class="num" style="border-left:2px solid var(--n300)">Total</th></tr>';
+    d.meses.map(mm=>`<th class="num">${periodoLabel(mm)}</th>`).join('')+
+    '<th class="num" style="border-left:2px solid var(--n300)">Total</th><th class="num">% RL</th></tr>';
   let html='';
   d.linhas.forEach((l,i)=>{
-    const forte=l.tipo==='formula'||l.nivel===0;
     const temDet=(l.detalhe||[]).length>0;
-    const sobra=l.tipo==='sobra';
-    html+=`<tr class="${temDet?'forn-row':''}" ${temDet?`onclick="dreToggle(${i})" style="cursor:pointer"`:''}
-      ${sobra?'style="background:var(--yellow-100)"':''}>
-      <td style="font-weight:${forte?700:400};padding-left:${12+l.nivel*22}px">${temDet?'<span class="expander" style="margin-right:6px">▸</span>':''}${esc(l.rotulo)}</td>
+    const av=(rl&&rl.total&&l.rotulo!=='RECEITA LIQUIDA')?`<span class="av">${(100*l.total/Math.abs(rl.total)).toFixed(1)}%</span>`:'';
+    const cls=[
+      l.rotulo==='RESULTADO DO EXERCICIO'?'dre-final':'',
+      RES.has(l.rotulo)?'dre-res':'',
+      l.tipo==='sobra'?'dre-sobra':'',
+      l.nivel===1?'dre-nv1':'',
+      (l.nivel===0&&!RES.has(l.rotulo)&&l.rotulo!=='RESULTADO DO EXERCICIO')?'dre-tot':'',
+    ].filter(Boolean).join(' ');
+    html+=`<tr class="${cls}" data-aberto="0" ${temDet?`onclick="dreToggle(${i})" style="cursor:pointer" title="clique para abrir a composição"`:''} id="dre-l-${i}">
+      <td>${temDet?'<span class="exp">▸</span>':'<span class="exp"></span>'}${esc(l.rotulo)}</td>
       ${d.meses.map(mm=>`<td class="num">${fm(l.meses[mm]||0)}</td>`).join('')}
-      <td class="num" style="font-weight:700;border-left:2px solid var(--n300)">${fm(l.total)}</td></tr>`;
+      <td class="num" style="font-weight:700;border-left:2px solid var(--n300)">${fm(l.total)}</td>
+      <td class="num">${av}</td></tr>`;
     if(temDet){
-      html+=`<tr class="forn-det" id="dre-det-${i}"><td colspan="${d.meses.length+2}">
-        <div class="tablewrap"><table><tbody>`+
-        l.detalhe.map(dd=>`<tr>
-          <td style="padding-left:44px;color:var(--n600)">${esc(dd.agrupador)}</td>
-          ${d.meses.map(mm=>`<td class="num">${fm(dd.meses[mm]||0)}</td>`).join('')}
-          <td class="num">${fm(dd.total)}</td></tr>`).join('')+
-        `</tbody></table></div></td></tr>`;
+      html+=l.detalhe.map(dd=>`<tr class="dre-item dre-g-${i}">
+        <td>${esc(dd.agrupador)}</td>
+        ${d.meses.map(mm=>`<td class="num">${fm(dd.meses[mm]||0)}</td>`).join('')}
+        <td class="num" style="border-left:2px solid var(--n300)">${fm(dd.total)}</td><td></td></tr>`).join('');
     }
   });
   document.getElementById('dre-corpo').innerHTML=html;
@@ -4373,8 +4408,10 @@ function renderDre(d){
   document.getElementById('meta').innerHTML='<b>Atualizado '+ts.toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'})+'</b><br>'+ts.toLocaleDateString('pt-BR');
 }
 function dreToggle(i){
-  const det=document.getElementById('dre-det-'+i);
-  if(det) det.classList.toggle('open');
+  const linha=document.getElementById('dre-l-'+i);
+  const aberto=linha.getAttribute('data-aberto')==='1';
+  linha.setAttribute('data-aberto', aberto?'0':'1');
+  document.querySelectorAll('.dre-g-'+i).forEach(tr=>tr.classList.toggle('on', !aberto));
 }
 
 /* ---------------- Contabilidade (ajustes) ---------------- */
