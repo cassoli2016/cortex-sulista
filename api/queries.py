@@ -585,15 +585,25 @@ def _dre_aloca(agrupador: str) -> str | None:
 @cached(ttl=300)
 def get_dre(comp_de: str, comp_ate: str) -> dict:
     de, ate = _comp_bounds(comp_de, comp_ate)
+    # mesmo intervalo, um ano antes (comparativo a/a)
+    comp_de_aa = f"{int(comp_de[:4]) - 1}{comp_de[4:]}"
+    comp_ate_aa = f"{int(comp_ate[:4]) - 1}{comp_ate[4:]}"
+    de_aa, ate_aa = _comp_bounds(comp_de_aa, comp_ate_aa)
     ajustes = ler_ajustes()
     with db.get_conn() as conn, conn.cursor() as cur:
         cur.execute(DRE_AG_SQL, {"de": de, "ate": ate})
         rows = cur.fetchall()
+        cur.execute(DRE_AG_SQL, {"de": de_aa, "ate": ate_aa})
+        rows_aa = cur.fetchall()
         mudancas = []
+        mudancas_aa = []
         if ajustes:
             cur.execute(DRE_AJUSTADAS_SQL,
                         {"de": de, "ate": ate, "chaves": list(ajustes.keys())})
             mudancas = cur.fetchall()
+            cur.execute(DRE_AJUSTADAS_SQL,
+                        {"de": de_aa, "ate": ate_aa, "chaves": list(ajustes.keys())})
+            mudancas_aa = cur.fetchall()
         cur.execute("SELECT current_timestamp AS ts")
         meta = cur.fetchone()
 
@@ -608,8 +618,18 @@ def get_dre(comp_de: str, comp_ate: str) -> dict:
         val[(mrow["mes"], mrow["agrupador_orig"])] = val.get((mrow["mes"], mrow["agrupador_orig"]), 0.0) - mrow["valor"]
         val[(mrow["mes"], novo)] = val.get((mrow["mes"], novo), 0.0) + mrow["valor"]
 
+    val_aa: dict = {}
+    for r in rows_aa:
+        val_aa[r["agrupador"]] = val_aa.get(r["agrupador"], 0.0) + r["valor"]
+    for mrow in mudancas_aa:
+        novo = ajustes[mrow["chave"]]["agrupador"]
+        if novo == mrow["agrupador_orig"]:
+            continue
+        val_aa[mrow["agrupador_orig"]] = val_aa.get(mrow["agrupador_orig"], 0.0) - mrow["valor"]
+        val_aa[novo] = val_aa.get(novo, 0.0) + mrow["valor"]
+
     meses = sorted({m for m, _ in val})
-    agrupadores = sorted({a for _, a in val})
+    agrupadores = sorted({a for _, a in val} | set(val_aa))
 
     import unicodedata
     def _norm(s):
@@ -627,15 +647,29 @@ def get_dre(comp_de: str, comp_ate: str) -> dict:
                     break
         return total
 
+    def soma_sel_aa(tipo, sel):
+        total = 0.0
+        for a, v in val_aa.items():
+            na = _norm(a)
+            for s in sel:
+                ns = _norm(s)
+                if (tipo == "nome" and na == ns) or (tipo == "pref" and na.startswith(ns)):
+                    total += v
+                    break
+        return total
+
     # 1ª passada: linhas diretas (nome/prefixo); 2ª: fórmulas em ordem
     por_rotulo: dict = {}
+    aa_rotulo: dict = {}
     for rotulo, _nivel, tipo, sel in DRE_MODELO:
         if tipo != "formula":
             por_rotulo[rotulo] = {mes: soma_sel(tipo, sel, mes) for mes in meses}
+            aa_rotulo[rotulo] = soma_sel_aa(tipo, sel)
     for rotulo, _nivel, tipo, sel in DRE_MODELO:
         if tipo == "formula":
             por_rotulo[rotulo] = {mes: sum(por_rotulo.get(r, {}).get(mes, 0.0) for r in sel)
                                   for mes in meses}
+            aa_rotulo[rotulo] = sum(aa_rotulo.get(r, 0.0) for r in sel)
 
     linhas = []
     usados: set = set()
@@ -649,12 +683,14 @@ def get_dre(comp_de: str, comp_ate: str) -> dict:
                 if any((tipo == "nome" and na == _norm(s)) or (tipo == "pref" and na.startswith(_norm(s))) for s in sel):
                     usados.add(a)
                     dvals = {m: val.get((m, a), 0.0) for m in meses}
-                    if any(abs(v) > 0.005 for v in dvals.values()):
+                    if any(abs(v) > 0.005 for v in dvals.values()) or abs(val_aa.get(a, 0.0)) > 0.005:
                         detalhe.append({"agrupador": a, "meses": dvals,
-                                        "total": sum(dvals.values())})
+                                        "total": sum(dvals.values()),
+                                        "total_aa": val_aa.get(a, 0.0)})
             detalhe.sort(key=lambda d: -abs(d["total"]))
         linhas.append({"rotulo": rotulo, "nivel": nivel, "tipo": tipo,
                        "meses": vals, "total": sum(vals.values()),
+                       "total_aa": aa_rotulo.get(rotulo, 0.0),
                        "detalhe": detalhe if len(detalhe) > 1 else []})
 
     # transparência: o que não entrou em nenhuma linha (inclui CLASSIFICAR)
@@ -669,11 +705,13 @@ def get_dre(comp_de: str, comp_ate: str) -> dict:
         vals = {m: sum(s["meses"][m] for s in sobras) for m in meses}
         linhas.append({"rotulo": "NAO ALOCADO / CLASSIFICAR", "nivel": 0,
                        "tipo": "sobra", "meses": vals, "total": sum(vals.values()),
+                       "total_aa": sum(val_aa.get(s["agrupador"], 0.0) for s in sobras),
                        "detalhe": sobras})
 
     return {
         "linhas": linhas, "meses": meses,
         "comp_de": comp_de, "comp_ate": comp_ate,
+        "comp_de_aa": comp_de_aa, "comp_ate_aa": comp_ate_aa,
         "ajustes_locais": len(ajustes),
         "atualizado_em": meta["ts"].isoformat(),
         "fonte": "ERP AVA · razão × agrupador gerencial (sulista.agrupadorgerencial) · leitura",

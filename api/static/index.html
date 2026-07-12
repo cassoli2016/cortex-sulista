@@ -4370,7 +4370,7 @@ function renderDre(d){
     kpi('Resultado do exercício', BRL.format(re_?re_.total:0), re_?pctRL(re_.total):'', re_&&re_.total<0?'neg':'pos'),
   ].join('');
   document.getElementById('dreHint').textContent=
-    'R$ mil · % = análise vertical sobre a receita líquida'+(d.ajustes_locais>0?' · '+d.ajustes_locais+' ajuste(s) local(is)':'')+' · linhas com ▸ abrem a composição';
+    'R$ mil · Ano ant. = mesmo período do ano anterior · % RL = análise vertical'+(d.ajustes_locais>0?' · '+d.ajustes_locais+' ajuste(s) local(is)':'')+' · linhas com ▸ abrem a composição';
   const fm=v=>{
     if(Math.abs(v)<500) return '<span class="zero">–</span>';
     const t=(v/1000).toLocaleString('pt-BR',{maximumFractionDigits:0});
@@ -4383,7 +4383,16 @@ function renderDre(d){
     d.meses.map(mm=>`<th class="num">${periodoLabel(mm)}</th>`).join('')+
     '<th class="num" style="border-left:2px solid var(--n300)">Total</th>'+
     (temDelta?`<th class="num" title="variação de ${periodoLabel(ultM)} sobre ${periodoLabel(antM)} — verde melhora o resultado, vermelho piora">Δ m/m</th>`:'')+
+    `<th class="num" title="mesmo período do ano anterior (${d.comp_de_aa} a ${d.comp_ate_aa})">Ano ant.</th>`+
+    '<th class="num" title="variação sobre o mesmo período do ano anterior — verde melhora o resultado, vermelho piora">Δ a/a</th>'+
     '<th class="num" title="participação do total da linha sobre a receita líquida do período">% RL</th></tr>';
+  const deltaAA=(u,a)=>{
+    if(Math.abs(a)<500 && Math.abs(u)<500) return '<td class="num"><span class="zero">–</span></td>';
+    if(Math.abs(a)<500) return '<td class="num"><span class="av">novo</span></td>';
+    const p=100*(u-a)/Math.abs(a);
+    const melhora=u>a;
+    return `<td class="num" style="color:${melhora?'var(--green,#1E7B3C)':'var(--red)'};font-weight:600;font-size:12px">${melhora?'▲':'▼'} ${Math.abs(p)>=1000?'999+':Math.abs(p).toFixed(0)}%</td>`;
+  };
   const delta=(vs)=>{
     if(!temDelta) return '';
     const a=vs[antM]||0, u=vs[ultM]||0;
@@ -4411,6 +4420,8 @@ function renderDre(d){
       ${d.meses.map(mm=>`<td class="num">${fm(l.meses[mm]||0)}</td>`).join('')}
       <td class="num" style="font-weight:700;border-left:2px solid var(--n300)">${fm(l.total)}</td>
       ${delta(l.meses)}
+      <td class="num" style="color:var(--n500)">${fm(l.total_aa||0)}</td>
+      ${deltaAA(l.total, l.total_aa||0)}
       <td class="num">${av}</td></tr>`;
     if(temDet){
       html+=l.detalhe.map(dd=>`<tr class="dre-item dre-g-${i}">
@@ -4418,6 +4429,8 @@ function renderDre(d){
         ${d.meses.map(mm=>`<td class="num">${fm(dd.meses[mm]||0)}</td>`).join('')}
         <td class="num" style="border-left:2px solid var(--n300)">${fm(dd.total)}</td>
         ${delta(dd.meses)}
+        <td class="num" style="color:var(--n500)">${fm(dd.total_aa||0)}</td>
+        ${deltaAA(dd.total, dd.total_aa||0)}
         <td class="num">${(rl&&rl.total)?`<span class="av">${(100*dd.total/Math.abs(rl.total)).toFixed(1)}%</span>`:''}</td></tr>`).join('');
     }
   });
