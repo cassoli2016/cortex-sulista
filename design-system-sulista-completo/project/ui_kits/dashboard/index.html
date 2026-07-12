@@ -1,0 +1,91 @@
+<!-- @dsCard group="Dashboard" viewport="1366x760" subtitle="Torre de controle — KPIs, viagens, alertas" name="Dashboard — Frota" -->
+<link rel="stylesheet" href="../../styles.css">
+<style>body{margin:0;background:var(--surface-page);font-family:var(--font-body);color:var(--text-body);} a{color:var(--navy-600);} a:hover{color:var(--brand-accent);}</style>
+<script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+<script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+<script src="https://unpkg.com/@babel/standalone@7.26.4/babel.min.js"></script>
+<script src="https://unpkg.com/lucide@latest"></script>
+<script src="../../_dev_loader.js"></script>
+<div id="root"></div>
+<script type="text/babel">
+window.__dsReady.then((NS)=>{
+const Icon = ({name,size=20,color='currentColor',style})=><i data-lucide={name} style={{width:size,height:size,display:'inline-block',color,...style}}></i>;
+const Marca = ({dark})=>(<span style={{display:'inline-flex',alignItems:'center',gap:10}}>
+  <img src="../../assets/marca.svg" width="30" height="22" alt=""/>
+  <span style={{fontFamily:'var(--font-display)',fontWeight:800,fontSize:20,letterSpacing:'.02em',color:dark?'#fff':'var(--navy-800)'}}>AUSTRAL</span></span>);
+setTimeout(()=>lucide.createIcons(),400);
+const {Button,IconButton,Card,Badge,Tag,Tabs,Input,Toast} = NS;
+const rows=[
+ ['RTX-4B21','POA → CWB','J. Almeida','success','Em trânsito','82 km/h'],
+ ['KPD-7C10','CWB → SP','M. Ferreira','warning','Aguardando doca','—'],
+ ['QSA-2E77','SP → RJ','R. Santos','success','Em trânsito','74 km/h'],
+ ['BWX-9A05','POA → FLN','C. Oliveira','danger','Atrasado 1 h 20','66 km/h'],
+ ['LTM-3F48','FLN → CWB','A. Souza','info','Programada 14:00','—']];
+function App(){
+  return <div style={{display:'flex',minHeight:'100vh'}}>
+    {/* Sidebar */}
+    <aside style={{width:232,background:'var(--navy-900)',color:'var(--neutral-300)',display:'flex',flexDirection:'column',padding:'20px 14px',gap:4,flexShrink:0}}>
+      <div style={{padding:'4px 10px 18px'}}><Marca dark/></div>
+      {[['layout-dashboard','Visão geral',true],['map','Mapa da frota'],['route','Viagens'],['truck','Veículos'],['users','Motoristas'],['wrench','Manutenção'],['bar-chart-3','Relatórios'],['settings','Configurações']].map(([ic,l,act])=>
+        <a key={l} href="#" style={{display:'flex',alignItems:'center',gap:10,padding:'9px 10px',borderRadius:'var(--radius-md)',textDecoration:'none',fontSize:14,fontWeight:act?600:400,
+          color:act?'#fff':'var(--neutral-400)',background:act?'var(--navy-700)':'transparent',borderLeft:act?'3px solid var(--brand-accent)':'3px solid transparent'}}>
+          <Icon name={ic} size={18}/>{l}</a>)}
+    </aside>
+    <main style={{flex:1,minWidth:0}}>
+      {/* Topbar */}
+      <div style={{display:'flex',alignItems:'center',gap:16,background:'var(--surface-card)',borderBottom:'1px solid var(--border-default)',padding:'12px 24px'}}>
+        <div style={{fontFamily:'var(--font-display)',fontWeight:700,fontSize:'var(--text-lg)'}}>Torre de controle</div>
+        <div style={{flex:1}}/>
+        <Input placeholder="Buscar placa, viagem, motorista…" style={{width:320}}/>
+        <IconButton label="Notificações"><Icon name="bell" size={18}/></IconButton>
+        <span style={{width:34,height:34,borderRadius:'50%',background:'var(--navy-200)',color:'var(--navy-800)',display:'inline-flex',alignItems:'center',justifyContent:'center',fontWeight:600,fontSize:13}}>GB</span>
+      </div>
+      <div style={{padding:24,display:'flex',flexDirection:'column',gap:20}}>
+        {/* KPIs */}
+        <div style={{display:'grid',gridTemplateColumns:'repeat(4,1fr)',gap:16}}>
+          {[['truck','Veículos em rota','218',''],['route','Viagens hoje','46','+8 vs ontem'],['clock','Pontualidade','98,4%',''],['alert-triangle','Alertas ativos','7','3 críticos']].map(([ic,l,v,s])=>
+            <Card key={l} padding={16}>
+              <div style={{display:'flex',gap:12,alignItems:'center'}}>
+                <span style={{width:38,height:38,borderRadius:'var(--radius-md)',background:'var(--navy-50)',color:'var(--navy-700)',display:'inline-flex',alignItems:'center',justifyContent:'center'}}><Icon name={ic} size={18}/></span>
+                <div><div style={{fontSize:12,color:'var(--text-muted)'}}>{l}</div>
+                <div style={{fontFamily:'var(--font-display)',fontSize:24,fontWeight:800,lineHeight:1.1}}>{v}</div>
+                {s&&<div style={{fontSize:11,color:'var(--text-muted)'}}>{s}</div>}</div>
+              </div>
+            </Card>)}
+        </div>
+        <div style={{display:'grid',gridTemplateColumns:'2fr 1fr',gap:20,alignItems:'start'}}>
+          {/* Viagens */}
+          <Card padding={0}>
+            <div style={{padding:'14px 18px 0',display:'flex',alignItems:'center'}}>
+              <div style={{fontFamily:'var(--font-display)',fontWeight:700,fontSize:16,flex:1}}>Viagens em andamento</div>
+              <Button variant="outline" size="sm">Exportar</Button>
+            </div>
+            <div style={{padding:'8px 18px 0'}}><Tabs tabs={['Todas','Em trânsito','Programadas','Atrasadas']}/></div>
+            <table style={{width:'100%',borderCollapse:'collapse',fontSize:14}}>
+              <thead><tr>{['Placa','Rota','Motorista','Status','Velocidade'].map(h=><th key={h} style={{textAlign:'left',padding:'10px 18px',fontSize:11,textTransform:'uppercase',letterSpacing:'.08em',color:'var(--text-muted)',borderBottom:'1px solid var(--border-default)'}}>{h}</th>)}</tr></thead>
+              <tbody>{rows.map(([p,r,m,tone,st,v])=><tr key={p}>
+                <td style={{padding:'11px 18px',fontFamily:'var(--font-mono)',fontWeight:600,borderBottom:'1px solid var(--neutral-100)'}}>{p}</td>
+                <td style={{padding:'11px 18px',borderBottom:'1px solid var(--neutral-100)'}}>{r}</td>
+                <td style={{padding:'11px 18px',color:'var(--neutral-600)',borderBottom:'1px solid var(--neutral-100)'}}>{m}</td>
+                <td style={{padding:'11px 18px',borderBottom:'1px solid var(--neutral-100)'}}><Badge tone={tone}>{st}</Badge></td>
+                <td style={{padding:'11px 18px',fontFamily:'var(--font-mono)',borderBottom:'1px solid var(--neutral-100)'}}>{v}</td></tr>)}</tbody>
+            </table>
+          </Card>
+          {/* Alertas */}
+          <div style={{display:'flex',flexDirection:'column',gap:12}}>
+            <Card title="Mapa da frota" padding={16}>
+              <div style={{height:150,background:'var(--navy-50)',border:'1px dashed var(--navy-200)',borderRadius:'var(--radius-md)',display:'flex',alignItems:'center',justifyContent:'center',color:'var(--navy-400)',fontSize:13,gap:8}}>
+                <Icon name="map" size={18}/> mapa (integração)</div>
+            </Card>
+            <Toast tone="danger" title="Veículo sem sinal">BWX-9A05 há 35 min sem telemetria.</Toast>
+            <Toast tone="warning" title="Excesso de velocidade">RTX-4B21 a 96 km/h na BR-116.</Toast>
+            <Toast tone="success" title="Entrega concluída" onClose={()=>{}}>QSA-2E77 · CT-e 35.512.</Toast>
+          </div>
+        </div>
+      </div>
+    </main>
+  </div>;
+}
+ReactDOM.createRoot(document.getElementById('root')).render(<App/>);
+});
+</script>

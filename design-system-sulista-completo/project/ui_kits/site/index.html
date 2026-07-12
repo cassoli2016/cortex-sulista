@@ -1,0 +1,101 @@
+<!-- @dsCard group="Site institucional" viewport="1280x760" subtitle="Home de marketing — herói, serviços, telemetria, CTA" name="Site — Home" -->
+<link rel="stylesheet" href="../../styles.css">
+<style>body{margin:0;background:var(--surface-page);font-family:var(--font-body);color:var(--text-body);} a{color:var(--navy-600);} a:hover{color:var(--brand-accent);}</style>
+<script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+<script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+<script src="https://unpkg.com/@babel/standalone@7.26.4/babel.min.js"></script>
+<script src="https://unpkg.com/lucide@latest"></script>
+<script src="../../_dev_loader.js"></script>
+<div id="root"></div>
+<script type="text/babel">
+window.__dsReady.then((NS)=>{
+const Icon = ({name,size=20,color='currentColor',style})=><i data-lucide={name} style={{width:size,height:size,display:'inline-block',color,...style}}></i>;
+const Marca = ({dark})=>(<span style={{display:'inline-flex',alignItems:'center',gap:10}}>
+  <img src="../../assets/marca.svg" width="30" height="22" alt=""/>
+  <span style={{fontFamily:'var(--font-display)',fontWeight:800,fontSize:20,letterSpacing:'.02em',color:dark?'#fff':'var(--navy-800)'}}>AUSTRAL</span></span>);
+setTimeout(()=>lucide.createIcons(),400);
+const {Button,Card,Badge,Tag,Input} = NS;
+const Kicker = ({children,color='var(--brand-accent)'})=><div style={{fontSize:'var(--text-xs)',fontWeight:600,letterSpacing:'var(--tracking-kicker)',textTransform:'uppercase',color}}>{children}</div>;
+const Wrap = ({children,style})=><div style={{maxWidth:'var(--container-max)',margin:'0 auto',padding:'0 32px',...style}}>{children}</div>;
+
+function App(){
+  return <div>
+    {/* Header */}
+    <header style={{background:'var(--surface-card)',borderBottom:'1px solid var(--border-default)'}}>
+      <Wrap style={{display:'flex',alignItems:'center',gap:32,height:68}}>
+        <Marca/>
+        <nav style={{display:'flex',gap:24,fontSize:15,fontWeight:500,flex:1}}>
+          {['Serviços','Frota','Tecnologia','Sobre nós','Contato'].map(l=><a key={l} href="#" style={{textDecoration:'none',color:'var(--neutral-700)'}}>{l}</a>)}
+        </nav>
+        <div style={{display:'flex',gap:10}}>
+          <Button variant="ghost">Área do cliente</Button>
+          <Button variant="primary">Solicitar cotação</Button>
+        </div>
+      </Wrap>
+    </header>
+    {/* Herói */}
+    <section style={{background:'linear-gradient(rgba(11,25,38,.55),rgba(11,25,38,.75)), var(--navy-800)',color:'#fff'}}>
+      <Wrap style={{padding:'88px 32px',display:'grid',gridTemplateColumns:'1.2fr 1fr',gap:48,alignItems:'center'}}>
+        <div style={{display:'flex',flexDirection:'column',gap:20,alignItems:'flex-start'}}>
+          <Kicker>Transporte rodoviário de cargas</Kicker>
+          <h1 style={{margin:0,fontFamily:'var(--font-display)',fontSize:'var(--text-5xl)',fontWeight:800,lineHeight:1.05}}>Sua carga no rumo certo.</h1>
+          <p style={{margin:0,fontSize:'var(--text-md)',color:'var(--neutral-300)',maxWidth:480}}>Transporte, armazenagem e telemetria de frota integrados. Rastreabilidade de ponta a ponta nas regiões Sul e Sudeste.</p>
+          <div style={{display:'flex',gap:12}}>
+            <Button variant="primary" size="lg">Solicitar cotação</Button>
+            <Button variant="outline" size="lg" style={{color:'#fff',borderColor:'rgba(255,255,255,.4)'}}>Rastrear carga</Button>
+          </div>
+        </div>
+        <div style={{height:320,background:'var(--navy-700)',borderRadius:'var(--radius-lg)',display:'flex',alignItems:'center',justifyContent:'center',flexDirection:'column',gap:8,color:'var(--navy-300)',border:'1px dashed var(--navy-500)'}}>
+          <Icon name="image" size={32}/>
+          <span style={{fontSize:13}}>Foto: caminhão na estrada (fornecer)</span>
+        </div>
+      </Wrap>
+    </section>
+    {/* Números */}
+    <section style={{background:'var(--surface-card)',borderBottom:'1px solid var(--border-default)'}}>
+      <Wrap style={{display:'grid',gridTemplateColumns:'repeat(4,1fr)',gap:24,padding:'36px 32px'}}>
+        {[['320+','veículos monitorados'],['98,4%','entregas no prazo'],['12','filiais Sul e Sudeste'],['24 h','torre de controle']].map(([n,l])=>
+          <div key={l}><div style={{fontFamily:'var(--font-display)',fontSize:'var(--text-3xl)',fontWeight:800,color:'var(--navy-800)'}}>{n}</div>
+          <div style={{fontSize:14,color:'var(--text-muted)'}}>{l}</div></div>)}
+      </Wrap>
+    </section>
+    {/* Serviços */}
+    <section>
+      <Wrap style={{padding:'72px 32px'}}>
+        <Kicker color="var(--text-muted)">Nossos serviços</Kicker>
+        <h2 style={{margin:'8px 0 32px',fontFamily:'var(--font-display)',fontSize:'var(--text-3xl)',fontWeight:700}}>Operação completa, um só contrato</h2>
+        <div style={{display:'grid',gridTemplateColumns:'repeat(3,1fr)',gap:20}}>
+          {[['truck','Transporte fracionado','Consolidação de cargas com prazos auditáveis e coleta programada.'],
+            ['warehouse','Armazenagem','Centros logísticos com gestão de estoque e cross-docking.'],
+            ['radio-tower','Telemetria de frota','Posição, velocidade e sensores da carroceria em tempo real.']].map(([ic,t,d])=>
+            <Card key={t} hoverable title={t} footer={<a href="#" style={{fontWeight:600,textDecoration:'none'}}>Saiba mais →</a>}>
+              <div style={{display:'flex',flexDirection:'column',gap:10}}>
+                <span style={{width:40,height:40,borderRadius:'var(--radius-md)',background:'var(--orange-50)',color:'var(--orange-600)',display:'inline-flex',alignItems:'center',justifyContent:'center'}}><Icon name={ic}/></span>
+                <span style={{fontSize:14,color:'var(--neutral-600)'}}>{d}</span>
+              </div>
+            </Card>)}
+        </div>
+      </Wrap>
+    </section>
+    {/* CTA final */}
+    <section style={{background:'var(--surface-inverse)',color:'#fff'}}>
+      <Wrap style={{padding:'56px 32px',display:'flex',alignItems:'center',gap:32}}>
+        <div style={{flex:1}}>
+          <h2 style={{margin:0,fontFamily:'var(--font-display)',fontSize:'var(--text-2xl)',fontWeight:700}}>Fale com nosso time comercial</h2>
+          <p style={{margin:'6px 0 0',color:'var(--neutral-300)',fontSize:15}}>Resposta em até um dia útil.</p>
+        </div>
+        <div style={{display:'flex',gap:10,alignItems:'flex-end'}}>
+          <Input placeholder="seu@email.com.br" style={{width:280}} />
+          <Button variant="primary" size="md">Quero uma proposta</Button>
+        </div>
+      </Wrap>
+      <Wrap style={{borderTop:'1px solid var(--navy-700)',padding:'20px 32px',display:'flex',justifyContent:'space-between',alignItems:'center'}}>
+        <Marca dark/>
+        <span style={{fontSize:13,color:'var(--neutral-400)'}}>© 2026 Austral Transportes & Logística — marca fictícia</span>
+      </Wrap>
+    </section>
+  </div>;
+}
+ReactDOM.createRoot(document.getElementById('root')).render(<App/>);
+});
+</script>

@@ -1,0 +1,47 @@
+# Infra local de referência do CÓRTEX (PostgreSQL-only). Ajuste recursos ao servidor.
+services:
+  postgres:
+    image: timescale/timescaledb-ha:pg16   # Postgres 16 + TimescaleDB + pgvector
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB}
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+    volumes: [pgdata:/home/postgres/pgdata/data]
+    restart: unless-stopped
+
+  redis:
+    image: redis:7-alpine
+    restart: unless-stopped
+
+  ollama:
+    image: ollama/ollama:latest
+    volumes: [ollama:/root/.ollama]
+    # GPU: deploy: {resources: {reservations: {devices: [{capabilities: [gpu]}]}}}
+    restart: unless-stopped
+
+  api:
+    build: ./api
+    env_file: .env
+    depends_on: [postgres, redis, ollama]
+    restart: unless-stopped
+
+  web:
+    build: ./web
+    env_file: .env
+    depends_on: [api]
+    restart: unless-stopped
+
+  integrations-worker:
+    build: ./api
+    command: python -m integrations.worker
+    env_file: .env
+    depends_on: [postgres, redis]
+    restart: unless-stopped
+
+  cloudflared:
+    image: cloudflare/cloudflared:latest
+    command: tunnel --no-autoupdate run --token ${CLOUDFLARE_TUNNEL_TOKEN}
+    depends_on: [web]
+    restart: unless-stopped
+
+volumes: {pgdata: {}, ollama: {}}

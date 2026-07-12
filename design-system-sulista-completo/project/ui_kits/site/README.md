@@ -1,0 +1,2 @@
+# UI kit — Site institucional Austral
+Página única de marketing: header, herói marinho, faixa de números, serviços em cards, seção de telemetria e CTA final. Compõe os componentes de `components/` via bundle. Placeholders no lugar de fotografia real.

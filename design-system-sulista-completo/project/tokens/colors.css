@@ -1,0 +1,37 @@
+/* Austral — cores */
+:root{
+  /* Marinho (primária) */
+  --navy-50:#EEF3F8; --navy-100:#DCE6F0; --navy-200:#B9CDE0; --navy-300:#8FADC9;
+  --navy-400:#5F87AC; --navy-500:#38648D; --navy-600:#24496C; --navy-700:#17344F;
+  --navy-800:#102538; --navy-900:#0B1926;
+  /* Laranja (acento) */
+  --orange-50:#FFF3EB; --orange-100:#FFE3D1; --orange-200:#FFC5A3; --orange-300:#FB9F6B;
+  --orange-400:#F47B39; --orange-500:#E85D10; --orange-600:#C74D0A; --orange-700:#A03E08;
+  --orange-800:#7A2F06; --orange-900:#571F04;
+  /* Neutros */
+  --neutral-0:#FFFFFF; --neutral-50:#F6F7F8; --neutral-100:#ECEEF1; --neutral-200:#DCE0E5;
+  --neutral-300:#C2C8D0; --neutral-400:#9AA3AE; --neutral-500:#6E7883; --neutral-600:#4F5860;
+  --neutral-700:#39414A; --neutral-800:#242B33; --neutral-900:#14181D;
+  /* Semânticas */
+  --green-500:#1E7F4F; --green-100:#DCF2E6; --green-700:#14593A;
+  --yellow-500:#B97709; --yellow-100:#FBEED3; --yellow-700:#7E5106;
+  --red-500:#C03221; --red-100:#F9E0DD; --red-700:#8A2216;
+  /* Aliases semânticos */
+  --surface-page:var(--neutral-50);
+  --surface-card:var(--neutral-0);
+  --surface-sunken:var(--neutral-100);
+  --surface-inverse:var(--navy-800);
+  --text-body:var(--neutral-900);
+  --text-muted:var(--neutral-500);
+  --text-inverse:#FFFFFF;
+  --text-on-accent:#FFFFFF;
+  --brand-primary:var(--navy-700);
+  --brand-accent:var(--orange-500);
+  --border-default:var(--neutral-200);
+  --border-strong:var(--neutral-300);
+  --focus-ring:var(--orange-500);
+  --status-success:var(--green-500);
+  --status-warning:var(--yellow-500);
+  --status-danger:var(--red-500);
+  --status-info:var(--navy-500);
+}

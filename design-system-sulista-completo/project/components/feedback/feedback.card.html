@@ -1,0 +1,31 @@
+<!-- @dsCard group="Components" viewport="700x340" subtitle="Dialog, Toast, Tooltip" name="Feedback" -->
+<link rel="stylesheet" href="../../styles.css">
+<style>body{margin:0;padding:16px;background:var(--surface-page);font-family:var(--font-body);}</style>
+<script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+<script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+<script src="https://unpkg.com/@babel/standalone@7.26.4/babel.min.js"></script>
+<script src="../../_dev_loader.js"></script>
+<div id="root"></div>
+<script type="text/babel">
+window.__dsReady.then((NS)=>{
+const {Dialog,Toast,Tooltip} = NS;
+ReactDOM.createRoot(document.getElementById('root')).render(
+  <div style={{display:'flex',gap:16,alignItems:'flex-start'}}>
+    <div style={{position:'relative',flex:'0 0 380px',height:290,background:'var(--neutral-100)',borderRadius:'var(--radius-lg)',overflow:'hidden'}}>
+      <Dialog title="Encerrar viagem?" danger confirmLabel="Encerrar" width={330}>
+        A viagem <span style={{fontFamily:'var(--font-mono)'}}>RTX-4B21</span> será finalizada e o CT-e emitido.
+      </Dialog>
+    </div>
+    <div style={{display:'flex',flexDirection:'column',gap:10}}>
+      <Toast tone="success" title="Coleta confirmada" onClose={()=>{}}>CT-e 35.512 emitido.</Toast>
+      <Toast tone="danger" title="Veículo sem sinal">RTX-4B21 há 35 min sem telemetria.</Toast>
+      <div style={{paddingTop:28,paddingLeft:8}}>
+        <Tooltip content="Última posição há 2 min">
+          <span style={{textDecoration:'underline dotted',color:'var(--brand-primary)',fontSize:14,cursor:'default'}}>passe o mouse</span>
+        </Tooltip>
+      </div>
+    </div>
+  </div>
+);
+});
+</script>
