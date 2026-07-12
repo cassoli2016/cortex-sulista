@@ -4377,13 +4377,28 @@ function renderDre(d){
     return v<0?`<span class="neg">${t}</span>`:t;
   };
   const RES=new Set(['RECEITA LIQUIDA','LUCRO BRUTO','RESULTADO OPERACIONAL (LOP 1)']);
+  const temDelta=d.meses.length>=2;
+  const ultM=d.meses[d.meses.length-1], antM=d.meses[d.meses.length-2];
   document.getElementById('dre-head').innerHTML='<tr><th>Linha</th>'+
     d.meses.map(mm=>`<th class="num">${periodoLabel(mm)}</th>`).join('')+
-    '<th class="num" style="border-left:2px solid var(--n300)">Total</th><th class="num">% RL</th></tr>';
+    '<th class="num" style="border-left:2px solid var(--n300)">Total</th>'+
+    (temDelta?`<th class="num" title="variação de ${periodoLabel(ultM)} sobre ${periodoLabel(antM)} — verde melhora o resultado, vermelho piora">Δ m/m</th>`:'')+
+    '<th class="num" title="participação do total da linha sobre a receita líquida do período">% RL</th></tr>';
+  const delta=(vs)=>{
+    if(!temDelta) return '';
+    const a=vs[antM]||0, u=vs[ultM]||0;
+    if(Math.abs(a)<500 && Math.abs(u)<500) return '<td class="num"><span class="zero">–</span></td>';
+    if(Math.abs(a)<500) return '<td class="num"><span class="av">novo</span></td>';
+    const p=100*(u-a)/Math.abs(a);
+    const melhora=u>a;                     // valores assinados: subir melhora o resultado
+    const seta=melhora?'▲':'▼';
+    const cor=melhora?'var(--green,#1E7B3C)':'var(--red)';
+    return `<td class="num" style="color:${cor};font-weight:600;font-size:12px">${seta} ${Math.abs(p)>=1000?'999+':Math.abs(p).toFixed(0)}%</td>`;
+  };
   let html='';
   d.linhas.forEach((l,i)=>{
     const temDet=(l.detalhe||[]).length>0;
-    const av=(rl&&rl.total&&l.rotulo!=='RECEITA LIQUIDA')?`<span class="av">${(100*l.total/Math.abs(rl.total)).toFixed(1)}%</span>`:'';
+    const av=(rl&&rl.total)?`<span class="av">${(100*l.total/Math.abs(rl.total)).toFixed(1)}%</span>`:'';
     const cls=[
       l.rotulo==='RESULTADO DO EXERCICIO'?'dre-final':'',
       RES.has(l.rotulo)?'dre-res':'',
@@ -4395,12 +4410,15 @@ function renderDre(d){
       <td>${temDet?'<span class="exp">▸</span>':'<span class="exp"></span>'}${esc(l.rotulo)}</td>
       ${d.meses.map(mm=>`<td class="num">${fm(l.meses[mm]||0)}</td>`).join('')}
       <td class="num" style="font-weight:700;border-left:2px solid var(--n300)">${fm(l.total)}</td>
+      ${delta(l.meses)}
       <td class="num">${av}</td></tr>`;
     if(temDet){
       html+=l.detalhe.map(dd=>`<tr class="dre-item dre-g-${i}">
         <td>${esc(dd.agrupador)}</td>
         ${d.meses.map(mm=>`<td class="num">${fm(dd.meses[mm]||0)}</td>`).join('')}
-        <td class="num" style="border-left:2px solid var(--n300)">${fm(dd.total)}</td><td></td></tr>`).join('');
+        <td class="num" style="border-left:2px solid var(--n300)">${fm(dd.total)}</td>
+        ${delta(dd.meses)}
+        <td class="num">${(rl&&rl.total)?`<span class="av">${(100*dd.total/Math.abs(rl.total)).toFixed(1)}%</span>`:''}</td></tr>`).join('');
     }
   });
   document.getElementById('dre-corpo').innerHTML=html;
