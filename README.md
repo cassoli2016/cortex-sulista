@@ -47,3 +47,18 @@ Roadmap em CLAUDE.md §10. Fase 1 = auth + RBAC + RLS + audit + financeiro.
 4. Login obrigatório. O **primeiro administrador** só pode ser criado no acesso
    local (`127.0.0.1:8010`); usuários/perfis/permissões ficam na área **Gestão**
    (SQLite local `data/auth.db` — o ERP segue somente leitura).
+
+## Deploy contínuo a partir do GitHub
+Esta máquina espelha `origin/main`. Tarefas agendadas (todas no logon, ocultas):
+
+| Tarefa | Função |
+|---|---|
+| `Cortex Sulista - API` | uvicorn em 127.0.0.1:8010 |
+| `Cortex Sulista - Tunnel` | túnel Cloudflare (`cortex.cassolitech.com.br`) |
+| `Cortex Sulista - Tunnel ERP` | túnel SSH ao ERP (por chave) |
+| `Cortex Sulista - AutoDeploy` | a cada 2 min: `git fetch`; se há commit novo em `origin/main`, faz fast-forward, `uv sync` (se deps mudaram) e reinicia a API |
+
+`scripts/autodeploy.ps1` só aplica **fast-forward** — se o histórico local divergir
+do remoto, ele registra em `logs/autodeploy.log` e não força nada (não destrói
+trabalho nem dados de runtime; `data/` e `.env` nunca são versionados).
+Fluxo: faça o push para o GitHub e em até 2 min esta máquina reflete a mudança.
