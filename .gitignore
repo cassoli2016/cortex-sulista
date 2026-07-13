@@ -1,5 +1,9 @@
 # segredos — NUNCA versionar
 .env
+# dados de runtime (auth.db, ajustes contábeis locais) — não versionar
+data/
+# logs locais do deploy
+logs/
 
 # python
 .venv/
