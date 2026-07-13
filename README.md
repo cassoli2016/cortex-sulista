@@ -31,3 +31,19 @@ torre/área. Tempo real via WebSocket (LISTEN/NOTIFY); analítico via views mate
 ## Começar a desenvolver
 Siga `docs/GUIA_CLAUDE_CODE.md` (ou rode `bash scripts/bootstrap.sh`).
 Roadmap em CLAUDE.md §10. Fase 1 = auth + RBAC + RLS + audit + financeiro.
+
+## Rodar nesta máquina (Windows — produção local)
+1. Túnel SSH ao ERP AVA. **Uma vez**, instale a chave (pede a senha só nesta vez):
+   `powershell -ExecutionPolicy Bypass -File scripts\instalar_chave_erp.ps1`
+   Depois o túnel roda **sem janela**, automático no logon, pela tarefa agendada
+   "Cortex Sulista - Tunnel ERP". Para rodar em janela (debug):
+   `powershell -ExecutionPolicy Bypass -File scripts\tunel_erp.ps1`
+2. API (porta **8010**; a 3000 é do HS Sistema):
+   `powershell -ExecutionPolicy Bypass -File scripts\run_api.ps1`
+   — ou automático no logon pelas tarefas agendadas "Cortex Sulista - API" e
+   "Cortex Sulista - Tunnel" (VBS em `scripts\win\`).
+3. Acesso: local `http://127.0.0.1:8010` · internet `https://cortex.cassolitech.com.br`
+   (Cloudflare Tunnel `cortex`, config em `%USERPROFILE%\.cloudflared\config-cortex.yml`).
+4. Login obrigatório. O **primeiro administrador** só pode ser criado no acesso
+   local (`127.0.0.1:8010`); usuários/perfis/permissões ficam na área **Gestão**
+   (SQLite local `data/auth.db` — o ERP segue somente leitura).

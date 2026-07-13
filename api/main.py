@@ -13,16 +13,21 @@ from datetime import date
 from pathlib import Path
 
 import psycopg
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
 from fastapi.middleware.gzip import GZipMiddleware
 from fastapi.responses import FileResponse, JSONResponse, PlainTextResponse, StreamingResponse
 from fastapi.staticfiles import StaticFiles
 
-from . import alertas, copiloto, db, queries
+from . import alertas, auth, copiloto, db, queries
 
 log = logging.getLogger("cortex.financeiro")
-app = FastAPI(title="Cortex Sulista — Financeiro (MVP)")
+# docs/openapi desligados: o painel é exposto na internet via Cloudflare Tunnel
+app = FastAPI(title="Cortex Sulista — Financeiro (MVP)",
+              docs_url=None, redoc_url=None, openapi_url=None)
 app.add_middleware(GZipMiddleware, minimum_size=2048)
+app.add_middleware(auth.AuthMiddleware)
+app.include_router(auth.router_auth)
+app.include_router(auth.router_gestao)
 STATIC = Path(__file__).resolve().parent / "static"
 
 
@@ -38,14 +43,14 @@ app.mount("/static", StaticFiles(directory=STATIC), name="static")
 
 @app.get("/api/health")
 def health() -> JSONResponse:
+    # rota pública (monitoramento pelo túnel): não expor detalhe da exceção,
+    # que revela host/porta internos do túnel do ERP a qualquer anônimo.
     try:
         db.query("SELECT 1 AS ok")
         return JSONResponse({"status": "ok", "db": "conectado"})
     except Exception as exc:  # noqa: BLE001
-        return JSONResponse(
-            status_code=503,
-            content={"status": "erro", "db": "sem_conexao", "detalhe": str(exc)},
-        )
+        log.warning("health: banco inacessível: %s", exc)
+        return JSONResponse(status_code=503, content={"status": "erro", "db": "sem_conexao"})
 
 
 @app.get("/api/financeiro/filtros")
@@ -515,7 +520,7 @@ def contabil(comp_de: str | None = None, comp_ate: str | None = None,
 
 
 @app.post("/api/financeiro/contabil/ajuste")
-def contabil_ajuste(payload: dict) -> JSONResponse:
+def contabil_ajuste(payload: dict, request: Request) -> JSONResponse:
     grupo, reduzido = payload.get("grupo"), payload.get("reduzido")
     agrupador = (payload.get("agrupador") or "").strip()
     if not isinstance(grupo, int) or not isinstance(reduzido, int):
@@ -530,12 +535,18 @@ def contabil_ajuste(payload: dict) -> JSONResponse:
                                   conta=str(payload.get("conta") or ""))
         else:
             queries.remover_ajuste(grupo, reduzido)
-        return JSONResponse({"ok": True, "ajustes": len(queries.ler_ajustes())})
     except Exception as exc:  # noqa: BLE001
         log.warning("ajuste falhou: %s", exc)
         return JSONResponse(status_code=500, content={
             "erro": "erro_ajuste", "mensagem": "Não foi possível salvar o ajuste.",
             "detalhe": str(exc)})
+    # ajuste já persistido — a auditoria é best-effort e não pode reverter a resposta
+    try:
+        auth.audit(request.state.sessao["email"], "contabil_ajuste",
+                   alvo=f"{grupo}|{reduzido}", detalhe=agrupador or "removido")
+    except Exception as exc:  # noqa: BLE001
+        log.warning("audit do ajuste falhou (ajuste foi salvo): %s", exc)
+    return JSONResponse({"ok": True, "ajustes": len(queries.ler_ajustes())})
 
 
 @app.get("/api/financeiro/contabil/export-sql", response_class=PlainTextResponse)
