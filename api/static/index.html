@@ -3285,9 +3285,9 @@ async function loadCop(){
   if(!COP_STATUS.configurado){
     hint.textContent='⚠️ não configurado';
     if(!COP_MSGS.length && !document.getElementById('cop-msgs').innerHTML)
-      document.getElementById('cop-msgs').innerHTML='<div class="cop-b ai">Para ativar o copiloto, crie uma chave gratuita em <b>openrouter.ai/keys</b>, adicione <code>OPENROUTER_API_KEY=…</code> ao arquivo <code>.env</code> do projeto e reinicie a API. A chave não deve ser colada em conversas nem versionada.</div>';
+      document.getElementById('cop-msgs').innerHTML='<div class="cop-b ai">Para ativar o copiloto, inicie o <b>Ollama</b> nesta máquina com o modelo <code>gemma4</code> (<code>ollama pull gemma4</code>). Alternativa: chave gratuita em <b>openrouter.ai/keys</b> como <code>OPENROUTER_API_KEY=…</code> no <code>.env</code> (nunca colada em conversas nem versionada) e reinicie a API.</div>';
   } else {
-    hint.innerHTML='<span class="cop-status"><span class="pulse"></span>online</span>';
+    hint.innerHTML='<span class="cop-status"><span class="pulse"></span>'+(COP_STATUS.local?'IA local · '+(COP_STATUS.modelo||''):'online')+'</span>';
   }
   copTokensRender();
 }
@@ -3361,9 +3361,9 @@ async function copSend(){
         } else if(ev.tipo==='fim'){
           tokens=ev.tokens||null;
         } else if(ev.tipo==='erro'){
-          throw new Error(ev.erro==='sem_chave'?'Copiloto não configurado (OPENROUTER_API_KEY no .env).':
+          throw new Error(ev.erro==='sem_backend'?'Copiloto sem motor de IA: inicie o Ollama local (gemma4) ou configure OPENROUTER_API_KEY no .env.':
                           ev.erro==='chave_invalida'?'A chave do OpenRouter foi recusada.':
-                          'Modelos gratuitos indisponíveis agora — tente de novo em instantes.');
+                          'IA indisponível agora — tente de novo em instantes.');
         }
       }
     }
