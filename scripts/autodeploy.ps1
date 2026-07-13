@@ -1,10 +1,14 @@
 ﻿# CÓRTEX — auto-deploy: sincroniza esta máquina com o GitHub e reinicia a API
-# quando há commit novo em origin/main. Roda em background pela tarefa
+# quando o código em execução ficou para trás. Roda em background pela tarefa
 # "Cortex Sulista - AutoDeploy" (a cada 2 min). Log em logs\autodeploy.log.
 #
 # Estratégia SEGURA: só aplica fast-forward. Se o histórico local divergir do
 # remoto (commits locais não enviados), NÃO force nada — apenas registra e sai,
 # para nunca destruir trabalho ou dados de runtime (data\, .env são ignorados).
+#
+# O reinício da API é decidido pelo arquivo logs\deployed.txt (commit com que
+# a API foi reiniciada pela última vez): qualquer HEAD diferente dele reinicia,
+# inclusive commits feitos NESTA máquina (local == origin, sem pull).
 
 $ErrorActionPreference = 'Stop'
 $repo = Split-Path -Parent $PSScriptRoot
@@ -25,21 +29,34 @@ try {
   & $git fetch --quiet origin main
   $local  = (& $git rev-parse HEAD).Trim()
   $remoto = (& $git rev-parse origin/main).Trim()
-  if ($local -eq $remoto) { exit 0 }   # nada novo — silêncio (não polui o log)
 
-  # só aplica se for fast-forward (remoto é descendente do local)
-  $base = (& $git merge-base HEAD origin/main).Trim()
-  if ($base -ne $local) {
-    Registrar "DIVERGENCIA: local=$($local.Substring(0,7)) origin=$($remoto.Substring(0,7)); pull nao aplicado (resolver manualmente)."
-    exit 1
+  if ($local -ne $remoto) {
+    # só aplica se for fast-forward (remoto é descendente do local)
+    $base = (& $git merge-base HEAD origin/main).Trim()
+    if ($base -ne $local) {
+      Registrar "DIVERGENCIA: local=$($local.Substring(0,7)) origin=$($remoto.Substring(0,7)); pull nao aplicado (resolver manualmente)."
+      exit 1
+    }
+    & $git merge --ff-only --quiet origin/main
+    Registrar "atualizado $($local.Substring(0,7)) -> $($remoto.Substring(0,7))"
   }
 
-  # detecta se dependências mudaram (uv sync só quando necessário)
-  $depsMud = (& $git diff --name-only $local $remoto) -match '(^pyproject\.toml$|^uv\.lock$)'
+  # a API precisa reiniciar? compara o HEAD com o commit em execução
+  $head = (& $git rev-parse HEAD).Trim()
+  $estadoArq = Join-Path $logDir 'deployed.txt'
+  $rodando = ''
+  if (Test-Path $estadoArq) { $rodando = (Get-Content $estadoArq -Raw).Trim() }
+  if ($rodando -eq $head) { exit 0 }   # nada novo — silêncio (não polui o log)
 
-  & $git merge --ff-only --quiet origin/main
-  Registrar "atualizado $($local.Substring(0,7)) -> $($remoto.Substring(0,7))"
-
+  # detecta se dependências mudaram desde o commit em execução (uv sync só
+  # quando necessário; commit desconhecido/podado = assume que não mudaram)
+  $depsMud = $false
+  if ($rodando) {
+    & $git cat-file -e "$rodando^{commit}"
+    if ($LASTEXITCODE -eq 0) {
+      $depsMud = (& $git diff --name-only $rodando $head) -match '(^pyproject\.toml$|^uv\.lock$)'
+    }
+  }
   if ($depsMud) {
     Registrar "dependencias mudaram -> uv sync"
     if (Test-Path $uvExe) { & $uvExe sync 2>&1 | Out-Null }
@@ -53,7 +70,8 @@ try {
   foreach ($c in $conns) { Stop-Process -Id $c.OwningProcess -Force -ErrorAction SilentlyContinue }
   Start-Sleep -Milliseconds 800
   Start-ScheduledTask -TaskName 'Cortex Sulista - API'
-  Registrar "API reiniciada"
+  Set-Content -Path $estadoArq -Value $head -Encoding Ascii
+  Registrar "API reiniciada em $($head.Substring(0,7))"
 }
 catch {
   Registrar ("ERRO: " + $_.Exception.Message)
