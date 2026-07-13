@@ -210,14 +210,16 @@ tr.forn-det td{padding:7px 12px}
   /* gaveta "mais" */
   .drawer.aberto{display:block;position:fixed;inset:0;z-index:70;background:rgba(11,25,38,.55)}
   .drawer .painel{position:absolute;bottom:0;left:0;right:0;background:var(--n0);
-    border-radius:16px 16px 0 0;max-height:75vh;overflow-y:auto;
-    padding:10px 16px calc(20px + env(safe-area-inset-bottom))}
-  .drawer .alca{width:42px;height:4px;border-radius:2px;background:var(--n300);margin:6px auto 12px}
-  .drawer h3{font-size:11px;text-transform:uppercase;letter-spacing:.08em;color:var(--n500);margin:14px 0 6px}
-  .drawer a{display:flex;align-items:center;gap:12px;padding:12px 8px;border-radius:10px;
-    text-decoration:none;color:var(--n900);font-size:15px;min-height:48px}
+    border-radius:16px 16px 0 0;max-height:78vh;overflow-y:auto;
+    padding:10px 14px calc(20px + env(safe-area-inset-bottom));
+    display:grid;grid-template-columns:1fr 1fr;gap:8px;align-content:start}
+  .drawer .alca{width:42px;height:4px;border-radius:2px;background:var(--n300);margin:6px auto 8px;grid-column:1/-1}
+  .drawer h3{font-size:11px;text-transform:uppercase;letter-spacing:.08em;color:var(--n500);margin:10px 2px 0;grid-column:1/-1}
+  .drawer a{display:flex;align-items:center;gap:10px;padding:10px 12px;border-radius:12px;
+    text-decoration:none;color:var(--n900);font-size:13.5px;line-height:1.25;min-height:52px;
+    background:var(--n50,#F7F9FA);border:1px solid var(--n200,#E4E7EB)}
   .drawer a:active{background:var(--navy-50)}
-  .drawer a .ic{width:20px;height:20px;color:var(--navy-600)}
+  .drawer a .ic{width:20px;height:20px;min-width:20px;color:var(--navy-600)}
 }
 .btn-filtros{display:none;font-family:var(--font);font-size:12px;font-weight:600;color:var(--navy-700);
   background:var(--navy-50);border:1px solid var(--navy-200);border-radius:var(--radius-md);
@@ -1532,6 +1534,8 @@ const ICONS = {
   chevl:IC('<path d="M11 17l-5-5 5-5M18 17l-5-5 5-5"/>'),
   chevr:IC('<path d="M13 17l5-5-5-5M6 17l5-5-5-5"/>'),
   chevr2:IC('<path d="M9 18l6-6-6-6"/>'),
+  chave:IC('<circle cx="7.5" cy="15.5" r="4.5"/><path d="M10.8 12.2 21 2M15 8l3 3M18.5 4.5l2 2"/>'),
+  sair: IC('<path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><path d="M16 17l5-5-5-5M21 12H9"/>'),
 };
 function injectIcons(){ document.querySelectorAll('[data-ic]').forEach(el=>{ if(!el.firstChild) el.innerHTML = ICONS[el.dataset.ic]||''; }); }
 injectIcons();
@@ -1815,7 +1819,7 @@ function router(){
   // mobile: estado da navegação inferior + fecha gaveta/painel de filtros
   document.querySelectorAll('.bottomnav [data-bview]').forEach(a=>a.classList.toggle('ativo', a.dataset.bview===v));
   const btnMais=document.getElementById('btnMais');
-  if(btnMais) btnMais.classList.toggle('ativo', !['home','fluxo','torre','km'].includes(v));
+  if(btnMais) btnMais.classList.toggle('ativo', !['home','fluxo','torre','cop'].includes(v));
   fecharDrawer();
   const fb=document.getElementById('filterbar'); if(fb) fb.classList.remove('aberto');
   hideTips();
@@ -5043,12 +5047,15 @@ boot();
   <a href="#home" data-bview="home"><span class="ic" data-ic="home"></span>Início</a>
   <a href="#fluxo" data-bview="fluxo"><span class="ic" data-ic="flx"></span>Caixa</a>
   <a href="#torre" data-bview="torre"><span class="ic" data-ic="tor"></span>Torre</a>
-  <a href="#km" data-bview="km"><span class="ic" data-ic="kmv"></span>KM</a>
+  <a href="#cop" data-bview="cop"><span class="ic" data-ic="cop"></span>Copiloto</a>
   <button id="btnMais" onclick="document.getElementById('drawer').classList.add('aberto')"><span class="ic" data-ic="chev"></span>Mais</button>
 </nav>
 <div class="drawer" id="drawer" onclick="if(event.target===this)this.classList.remove('aberto')">
   <div class="painel">
     <div class="alca"></div>
+    <h3>Geral</h3>
+    <a href="#home" onclick="fecharDrawer()"><span class="ic" data-ic="home"></span>Visão Geral</a>
+    <a href="#cop" onclick="fecharDrawer()"><span class="ic" data-ic="cop"></span>Copiloto Cortex</a>
     <h3>Financeiro</h3>
     <a href="#receber" onclick="fecharDrawer()"><span class="ic" data-ic="rec"></span>Contas a Receber</a>
     <a href="#cob" onclick="fecharDrawer()"><span class="ic" data-ic="cob"></span>Cobrança</a>
@@ -5077,6 +5084,9 @@ boot();
     <a href="#tvope" onclick="fecharDrawer()"><span class="ic" data-ic="tv"></span>Operação (TV)</a>
     <h3>Gestão</h3>
     <a href="#gestao" onclick="fecharDrawer()"><span class="ic" data-ic="ges"></span>Usuários e acesso</a>
+    <h3>Conta</h3>
+    <a href="#" onclick="event.preventDefault();fecharDrawer();abrirTrocarSenha(false)"><span class="ic" data-ic="chave"></span>Trocar senha</a>
+    <a href="#" onclick="event.preventDefault();sair()"><span class="ic" data-ic="sair"></span>Sair</a>
   </div>
 </div>
 </body>
