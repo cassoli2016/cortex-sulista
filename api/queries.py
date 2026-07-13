@@ -807,6 +807,10 @@ def get_ordens_compra(filial: int | None, dt_de: str, dt_ate: str,
               "criador": criador, "aprovador": aprovador}
     MAX_OCS_POR_FORN = 50
     with db.get_conn() as conn, conn.cursor() as cur:
+        # o planner do 9.3 escolhe merge join por (grupo,empresa) — quase
+        # constantes — e o join OC×recebimentos vira O(n×m) (~50s); com hash
+        # join a mesma consulta sai em <1s
+        cur.execute("SET LOCAL enable_mergejoin = off")
         cur.execute(OC_ROWS_SQL, params)
         rows = cur.fetchall()
         nomes = _usuarios_cache(cur)
@@ -1669,8 +1673,42 @@ WHERE p.dtcancelamento IS NULL AND p.semaforo = 1 AND p.tipo <> 3
 GROUP BY 1 ORDER BY 1
 """
 
+# Contadores de OC agregados no banco (mesma regra de _oc_status): a Visão
+# Geral só precisa de 3 números — trazer as linhas de 12 meses pelo túnel
+# era o item mais caro da tela.
+VG_OC_SQL = """
+WITH oc AS (
+  SELECT o.grupo, o.empresa, o.filial, o.diferenciadornumero, o.numero,
+         o.dtprevisaoentrega, o.dtaprovador, coalesce(o.valortotal,0) AS valortotal
+  FROM ordemcompra o
+  WHERE o.dtemissao >= current_date - 365 AND o.dtemissao < current_date + 1
+),
+rec AS (
+  SELECT r.grupo, r.empresa, r.filialordemcompra AS filial,
+         r.diferenciadornumeroordemcompra AS diferenciadornumero,
+         r.numeroordemcompra AS numero,
+         sum(coalesce(r.valortotal,0)) AS valor_recebido
+  FROM notafiscalentrada_item_ordemcomprarecebida r
+  JOIN oc ON oc.grupo=r.grupo AND oc.empresa=r.empresa AND oc.filial=r.filialordemcompra
+         AND oc.diferenciadornumero=r.diferenciadornumeroordemcompra AND oc.numero=r.numeroordemcompra
+  GROUP BY 1,2,3,4,5
+),
+base AS (
+  SELECT (oc.dtaprovador IS NULL) AS sem_aprovacao,
+         coalesce(oc.dtprevisaoentrega < current_date, false) AS previsao_vencida,
+         greatest(oc.valortotal - coalesce(rec.valor_recebido,0), 0) AS valor_pendente
+  FROM oc LEFT JOIN rec ON rec.grupo=oc.grupo AND rec.empresa=oc.empresa AND rec.filial=oc.filial
+       AND rec.diferenciadornumero=oc.diferenciadornumero AND rec.numero=oc.numero
+)
+SELECT
+  coalesce(sum(CASE WHEN NOT sem_aprovacao AND valor_pendente > 1 AND previsao_vencida
+                    THEN 1 ELSE 0 END),0)::int                                        AS oc_atrasadas,
+  coalesce(sum(CASE WHEN NOT sem_aprovacao AND valor_pendente > 1 AND previsao_vencida
+                    THEN valor_pendente ELSE 0 END),0)::float8                        AS oc_atraso_valor,
+  coalesce(sum(CASE WHEN sem_aprovacao THEN 1 ELSE 0 END),0)::int                    AS oc_aprovacao
+FROM base
+"""
 
-@cached(ttl=60)
 
 def _ponto_equilibrio(g: dict) -> dict | None:
     """Faturamento bruto mensal mínimo para resultado zero (média 12m)."""
@@ -1691,35 +1729,45 @@ def _ponto_equilibrio(g: dict) -> dict | None:
     }
 
 
+@cached(ttl=60)
 def get_visao_geral() -> dict:
+    from concurrent.futures import ThreadPoolExecutor
+
     fin_params = {"filial": None, "data_ref": None, "venc_de": None, "venc_ate": None}
-    with db.get_conn() as conn, conn.cursor() as cur:
-        cur.execute(KPI_SQL, fin_params)
-        fin = cur.fetchone()
-        cur.execute(SALDO_SQL, fin_params)
-        saldo = cur.fetchone()
-        cur.execute(RUNRATE_SQL, fin_params)
-        runrate = (cur.fetchone() or {}).get("runrate") or 0.0
-        cur.execute(FLUXO_SQL, fin_params)
-        fluxo = cur.fetchall()[:13]
-        de_be = (date.today().replace(day=1) - __import__("datetime").timedelta(days=365)).replace(day=1).isoformat()
-        ate_be = date.today().replace(day=1).isoformat()
-        cur.execute(BREAKEVEN_SQL, {"de": de_be, "ate": ate_be})
-        be_rows = {r["grupo"]: r["valor"] for r in cur.fetchall()}
-        cur.execute(VG_MES_SQL)
-        mes = cur.fetchone()
-        cur.execute(VG_DIARIO_SQL)
-        diario = cur.fetchall()
-        cur.execute(VG_MODAL_KM_SQL)
-        modal_km = cur.fetchall()
-        cur.execute(VG_REC12_SQL)
-        receita_12m = cur.fetchall()
-        cur.execute(OC_ROWS_SQL, {
-            "dt_de": (date.today() - __import__("datetime").timedelta(days=365)).isoformat(),
-            "dt_ate": date.today().isoformat(), "filial": None})
-        oc_rows = cur.fetchall()
-        cur.execute("SELECT current_timestamp AS ts")
-        meta = cur.fetchone()
+    de_be = (date.today().replace(day=1) - __import__("datetime").timedelta(days=365)).replace(day=1).isoformat()
+    ate_be = date.today().replace(day=1).isoformat()
+
+    # A tela consolida ~12 consultas num banco atrás de túnel SSH: rodar em
+    # série soma todas as latências. Grupos independentes em conexões
+    # próprias (o pool do db.py reusa) derrubam o tempo para o pior grupo.
+    def _roda(lote):
+        out = []
+        with db.get_conn() as conn, conn.cursor() as cur:
+            for sql, params, um in lote:
+                cur.execute(sql, params)
+                if um is not None:
+                    out.append(cur.fetchone() if um else cur.fetchall())
+        return out
+
+    grupos = [
+        [(KPI_SQL, fin_params, True), (SALDO_SQL, fin_params, True),
+         (RUNRATE_SQL, fin_params, True)],
+        [(FLUXO_SQL, fin_params, False), (BREAKEVEN_SQL, {"de": de_be, "ate": ate_be}, False)],
+        [(VG_MES_SQL, None, True), (VG_DIARIO_SQL, None, False)],
+        # o SET LOCAL evita o merge join degenerado do 9.3 no join OC×recebimentos
+        [("SET LOCAL enable_mergejoin = off", None, None),
+         (VG_MODAL_KM_SQL, None, False), (VG_REC12_SQL, None, False),
+         (VG_OC_SQL, None, True), ("SELECT current_timestamp AS ts", None, True)],
+    ]
+    with ThreadPoolExecutor(max_workers=len(grupos)) as ex:
+        g_fin, g_fluxo, g_mes, g_series = list(ex.map(_roda, grupos))
+
+    fin, saldo, rr = g_fin
+    runrate = (rr or {}).get("runrate") or 0.0
+    fluxo = g_fluxo[0][:13]
+    be_rows = {r["grupo"]: r["valor"] for r in g_fluxo[1]}
+    mes, diario = g_mes
+    modal_km, receita_12m, oc, meta = g_series
 
     bancos = (saldo.get("bancos") or 0.0) + (saldo.get("caixa") or 0.0)
     acc = bancos
@@ -1734,13 +1782,6 @@ def get_visao_geral() -> dict:
     meta_acum = sum(r["meta"] for r in diario if r["dia"] <= hoje_dia)
     real_acum = sum(r["realizado"] for r in diario)
     atingimento = (real_acum / meta_acum) if meta_acum else None
-    for r in oc_rows:
-        r["status"] = _oc_status(r)
-    oc = {
-        "oc_atrasadas": sum(1 for r in oc_rows if r["status"] == "atrasada"),
-        "oc_atraso_valor": sum(r["valor_pendente"] for r in oc_rows if r["status"] == "atrasada"),
-        "oc_aprovacao": sum(1 for r in oc_rows if r["status"] == "aprovacao"),
-    }
 
     return {
         "saldo_atual": bancos,
