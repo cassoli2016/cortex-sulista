@@ -168,7 +168,13 @@ tr.forn-det td{padding:7px 12px}
 .drawer{display:none}
 @media(max-width:880px){
   body{font-size:14px}
-  .layout{flex-direction:column}
+  /* sem isto o Chrome mobile ALARGA o viewport de layout para caber o
+     min-width dos SVGs (página inteira encolhida/deslocada no celular) */
+  html,body{overflow-x:hidden}
+  /* no desktop o layout é linha e o flex-start é inócuo; em coluna ele
+     impede o main de esticar para a largura da tela */
+  .layout{flex-direction:column;align-items:stretch}
+  main,.content,.view,.card,.kpis,.grid2{min-width:0}
   aside{display:none}
   main{padding-bottom:calc(64px + env(safe-area-inset-bottom))}
   .topbar{position:sticky;top:0;z-index:40;padding:10px 14px;gap:10px}
@@ -197,8 +203,11 @@ tr.forn-det td{padding:7px 12px}
   .filterbar .field,.filterbar .rangegrp{width:100%}
   .filterbar .rangegrp{flex-wrap:wrap}
   .btn-filtros{display:inline-flex !important}
+  .btn-filtros.oculto{display:none !important}
   /* barra inferior de navegação (app) */
-  .bottomnav{display:flex;position:fixed;bottom:0;left:0;right:0;z-index:60;
+  /* flex-direction/gap explícitos: o seletor genérico `nav` (sidebar) põe
+     column e empilhava a barra inteira na vertical */
+  .bottomnav{display:flex;flex-direction:row;gap:0;position:fixed;bottom:0;left:0;right:0;z-index:60;
     background:var(--navy-900);padding:6px 4px calc(6px + env(safe-area-inset-bottom));
     justify-content:space-around;border-top:1px solid var(--navy-800)}
   .bottomnav a,.bottomnav button{flex:1;display:flex;flex-direction:column;align-items:center;gap:3px;
@@ -1796,7 +1805,8 @@ function router(){
   const ges = (v==='gestao');
   const fbar=document.getElementById('filterbar'); if(fbar) fbar.style.display = (cop||ges||v==='home') ? 'none' : '';
   const metaEl=document.getElementById('meta'); if(metaEl) metaEl.style.display = (cop||ges) ? 'none' : '';
-  const bfil=document.getElementById('btnFiltros'); if(bfil) bfil.style.display = (cop||ges||v==='home') ? 'none' : '';
+  // classe em vez de style: o CSS mobile usa !important no display
+  const bfil=document.getElementById('btnFiltros'); if(bfil){ bfil.classList.toggle('oculto', cop||ges||v==='home'); bfil.style.display=''; }
   document.getElementById('grpKm').style.display = kmv ? 'flex' : 'none';
   document.getElementById('grpComFil').style.display = com ? 'flex' : 'none';
   document.getElementById('grpOc').style.display = oc ? 'flex' : 'none';
