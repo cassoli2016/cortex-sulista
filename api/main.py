@@ -565,14 +565,18 @@ def tv_estradas() -> JSONResponse:
 
 @app.get("/api/copiloto/status")
 def copiloto_status() -> JSONResponse:
+    st = copiloto.ollama_status()
+    if st["ok"]:
+        return JSONResponse({"configurado": True, "local": True,
+                             "modelo": f"{st['modelo']} (local)"})
     modelo = None
     try:
         lista = copiloto.modelos_free()
         modelo = lista[0] if lista else None
     except Exception as exc:  # noqa: BLE001
         log.warning("catalogo openrouter indisponivel: %s", exc)
-    return JSONResponse({"configurado": bool(copiloto.api_key()), "modelo": modelo,
-                         "chave": copiloto.status_chave()})
+    return JSONResponse({"configurado": bool(copiloto.api_key()), "local": False,
+                         "modelo": modelo, "chave": copiloto.status_chave()})
 
 
 @app.post("/api/copiloto/chat-stream")
@@ -610,10 +614,11 @@ def copiloto_chat(payload: dict) -> JSONResponse:
         return JSONResponse(status_code=500, content={
             "erro": "erro_copiloto", "mensagem": "Erro inesperado no copiloto.",
             "detalhe": str(exc)})
-    if r.get("erro") == "sem_chave":
+    if r.get("erro") == "sem_backend":
         return JSONResponse(status_code=503, content={
-            "erro": "sem_chave",
-            "mensagem": "Copiloto não configurado: adicione OPENROUTER_API_KEY ao .env e reinicie a API."})
+            "erro": "sem_backend",
+            "mensagem": "Copiloto sem motor de IA: inicie o Ollama local (modelo gemma4) "
+                        "ou adicione OPENROUTER_API_KEY ao .env e reinicie a API."})
     if r.get("erro") == "chave_invalida":
         return JSONResponse(status_code=503, content={
             "erro": "chave_invalida",

@@ -1,12 +1,14 @@
-"""Copiloto Cortex — chat sobre os dados do painel via OpenRouter.
+"""Copiloto Cortex — chat sobre os dados do painel via IA LOCAL (Ollama).
 
-Usa modelos FREE do OpenRouter com escolha automática: uma lista de
-preferência (maiores/mais capazes) cruzada com o catálogo ao vivo, e
-fallback em cadeia quando um modelo estoura rate limit ou falha.
+Motor principal: Ollama rodando na própria máquina (modelo gemma4) —
+nenhum dado sai do servidor. Fallback: se o Ollama estiver fora do ar e
+houver OPENROUTER_API_KEY no .env, cai para os modelos FREE do OpenRouter
+(catálogo ao vivo + cadeia de fallback), enviando apenas o snapshot de
+KPIs agregados (escalares) — nenhuma lista com nomes, placas, CNPJs ou
+motoristas sai daqui.
 
-O contexto enviado é um snapshot só de KPIs agregados (escalares) das
-telas do painel — nenhuma lista com nomes, placas, CNPJs ou motoristas
-sai daqui. A chave vem de OPENROUTER_API_KEY no .env (nunca no código).
+Config no .env: OLLAMA_URL (padrão http://127.0.0.1:11434) e
+OLLAMA_MODEL (padrão gemma4). Chaves nunca no código.
 """
 from __future__ import annotations
 
@@ -24,6 +26,38 @@ from . import queries
 log = logging.getLogger("cortex.copiloto")
 
 OR_BASE = "https://openrouter.ai/api/v1"
+
+# ---- IA local (Ollama) ------------------------------------------------------
+# gemma4 tem janela maior, mas o Ollama corta em num_ctx: 16k cobre o snapshot
+# de KPIs + histórico sem estourar a RAM da máquina.
+_OLLAMA_OPTS = {"temperature": 0.3, "num_predict": 1200, "num_ctx": 16384}
+_OLLAMA_KEEP = "2h"          # mantém o modelo carregado entre perguntas
+_OLLAMA_ST = {"ts": 0.0, "ok": False, "modelo": ""}
+
+
+def ollama_url() -> str:
+    return os.environ.get("OLLAMA_URL", "http://127.0.0.1:11434").rstrip("/")
+
+
+def ollama_modelo() -> str:
+    return os.environ.get("OLLAMA_MODEL", "gemma4").strip()
+
+
+def ollama_status(max_age: float = 60.0) -> dict:
+    """Verifica se o Ollama responde e se o modelo configurado existe (cache)."""
+    if time.time() - _OLLAMA_ST["ts"] < max_age:
+        return dict(_OLLAMA_ST)
+    ok, modelo = False, ollama_modelo()
+    try:
+        st, corpo = _http(f"{ollama_url()}/api/tags", timeout=5)
+        nomes = [m.get("name", "") for m in (corpo.get("models") or [])] if st == 200 else []
+        ok = any(n == modelo or n.split(":")[0] == modelo for n in nomes)
+        if st == 200 and not ok:
+            log.warning("ollama ativo mas sem o modelo %s (tem: %s)", modelo, nomes)
+    except Exception as exc:  # noqa: BLE001
+        log.info("ollama indisponível: %s", exc)
+    _OLLAMA_ST.update(ts=time.time(), ok=ok, modelo=modelo)
+    return dict(_OLLAMA_ST)
 
 # Ordem de preferência (melhores free primeiro); o que não existir mais
 # no catálogo é ignorado e o resto do catálogo entra por contexto.
@@ -185,32 +219,96 @@ def status_chave() -> dict:
         return {}
 
 
-def _montar(mensagens: list[dict], chave: str) -> tuple[list, dict]:
+def _mensagens(mensagens: list[dict]) -> list[dict]:
     msgs = [{"role": "system", "content": _SISTEMA + _snapshot()}]
     for m in mensagens[-12:]:
         if m.get("role") in ("user", "assistant") and isinstance(m.get("content"), str):
             msgs.append({"role": m["role"], "content": m["content"][:4000]})
-    headers = {
+    if msgs and msgs[-1]["role"] == "user":
+        msgs[-1]["content"] += ("\n\n(Lembrete do sistema: termine a resposta com a linha "
+                                "`SUGESTOES: p1 | p2 | p3` com 3 perguntas curtas de acompanhamento.)")
+    return msgs
+
+
+def _headers_or(chave: str) -> dict:
+    return {
         "Authorization": f"Bearer {chave}",
         "HTTP-Referer": "http://127.0.0.1:8000",
         "X-Title": "Cortex Sulista",
     }
-    if msgs and msgs[-1]["role"] == "user":
-        msgs[-1]["content"] += ("\n\n(Lembrete do sistema: termine a resposta com a linha "
-                                "`SUGESTOES: p1 | p2 | p3` com 3 perguntas curtas de acompanhamento.)")
-    return msgs, headers
+
+
+def _stream_ollama(msgs: list[dict]):
+    """Deltas do Ollama local (NDJSON). Levanta exceção em falha."""
+    corpo = _json.dumps({"model": ollama_modelo(), "messages": msgs, "stream": True,
+                         "options": _OLLAMA_OPTS, "keep_alive": _OLLAMA_KEEP}).encode()
+    req = urllib.request.Request(f"{ollama_url()}/api/chat", data=corpo, method="POST")
+    req.add_header("Content-Type", "application/json")
+    resp = urllib.request.urlopen(req, timeout=300)
+    for raw in resp:
+        try:
+            d = _json.loads(raw.decode("utf-8", "ignore"))
+        except ValueError:
+            continue
+        if d.get("error"):
+            raise RuntimeError(d["error"])
+        delta = (d.get("message") or {}).get("content")
+        if delta:
+            yield {"tipo": "delta", "texto": delta}
+        if d.get("done"):
+            ent, sai = d.get("prompt_eval_count"), d.get("eval_count")
+            tokens = ({"entrada": ent, "saida": sai, "total": (ent or 0) + (sai or 0)}
+                      if (ent or sai) else None)
+            yield {"tipo": "fim", "tokens": tokens}
+            return
+
+
+def _chat_ollama(msgs: list[dict]) -> dict:
+    status, d = _http(f"{ollama_url()}/api/chat", timeout=300,
+                      payload={"model": ollama_modelo(), "messages": msgs, "stream": False,
+                               "options": _OLLAMA_OPTS, "keep_alive": _OLLAMA_KEEP})
+    if status != 200 or d.get("error"):
+        raise RuntimeError(f"ollama HTTP {status}: {d.get('error', '')}")
+    texto = ((d.get("message") or {}).get("content") or "").strip()
+    if not texto:
+        raise RuntimeError("resposta vazia do ollama")
+    ent, sai = d.get("prompt_eval_count"), d.get("eval_count")
+    return {"resposta": texto, "modelo": f"{ollama_modelo()} (local)",
+            "tokens": {"entrada": ent, "saida": sai, "total": (ent or 0) + (sai or 0)}}
 
 
 def stream(mensagens: list[dict]):
-    """Gera eventos {tipo: modelo|delta|fim|erro} com a resposta em streaming."""
-    chave = api_key()
-    if not chave:
-        yield {"tipo": "erro", "erro": "sem_chave"}
-        return
+    """Gera eventos {tipo: modelo|delta|fim|erro} com a resposta em streaming.
+
+    Ordem: Ollama local (gemma4) primeiro; se indisponível/falhar sem emitir
+    nada, cai para os modelos free do OpenRouter (se houver chave).
+    """
     if not (_SNAP["texto"] and time.time() - _SNAP["ts"] < 600):
         yield {"tipo": "status", "texto": "consultando o ERP para montar o contexto…"}
-    msgs, headers = _montar(mensagens, chave)
+    msgs = _mensagens(mensagens)
     yield {"tipo": "status", "texto": "pensando…"}
+    st = ollama_status()
+    if st["ok"]:
+        emitiu = False
+        try:
+            yield {"tipo": "modelo", "modelo": f"{st['modelo']} (local)"}
+            for ev in _stream_ollama(msgs):
+                emitiu = emitiu or ev["tipo"] == "delta"
+                yield ev
+                if ev["tipo"] == "fim":
+                    return
+        except Exception as exc:  # noqa: BLE001
+            log.warning("ollama stream falhou: %s", exc)
+            if emitiu:                # caiu no meio: entrega o que veio
+                yield {"tipo": "fim", "truncado": True}
+                return
+        _OLLAMA_ST["ts"] = 0.0        # força rechecagem na próxima pergunta
+        yield {"tipo": "status", "texto": "IA local indisponível — tentando a nuvem…"}
+    chave = api_key()
+    if not chave:
+        yield {"tipo": "erro", "erro": "sem_backend"}
+        return
+    headers = _headers_or(chave)
     erros = []
     for modelo in modelos_free()[:6]:
         corpo = _json.dumps({
@@ -271,11 +369,19 @@ def stream(mensagens: list[dict]):
 
 
 def chat(mensagens: list[dict]) -> dict:
-    """Envia a conversa ao melhor modelo free disponível, com fallback."""
+    """Resposta completa: Ollama local primeiro; fallback OpenRouter free."""
+    msgs = _mensagens(mensagens)
+    st = ollama_status()
+    if st["ok"]:
+        try:
+            return _chat_ollama(msgs)
+        except Exception as exc:  # noqa: BLE001
+            log.warning("ollama chat falhou: %s", exc)
+            _OLLAMA_ST["ts"] = 0.0
     chave = api_key()
     if not chave:
-        return {"erro": "sem_chave"}
-    msgs, headers = _montar(mensagens, chave)
+        return {"erro": "sem_backend"}
+    headers = _headers_or(chave)
     erros = []
     for modelo in modelos_free()[:6]:
         try:
