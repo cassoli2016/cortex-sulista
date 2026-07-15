@@ -782,7 +782,7 @@ button.avatar{border:0;cursor:pointer}
         <div class="card">
           <div class="head"><h2>Faturamento diário × meta</h2><span class="hint" id="hintHomeDia">mês corrente · CT-e + KMM + NFS-e vs meta diária</span></div>
           <div class="legend">
-            <span class="k"><i class="sw" style="background:var(--green)"></i>Realizado</span>
+            <span class="k"><i class="sw" style="width:26px;background:linear-gradient(90deg,#DC2626,#E0A400,#16A34A)"></i>Realizado (cor = % da meta do dia)</span>
             <span class="k"><i class="sw" style="background:var(--navy-500)"></i>Meta</span>
           </div>
           <div class="chartwrap" id="wrapHdia">
@@ -1947,6 +1947,8 @@ const KPI_HELP = {
   'Faturamento do mês':'Faturas emitidas no mês corrente (não canceladas). Média 6m = média dos últimos 6 meses fechados.',
   'A receber (aberto)':'Saldo de faturas não canceladas com valor a receber, no recorte dos filtros.',
   'A pagar (aberto)':'Títulos com valor pendente de pagamento, no recorte dos filtros.',
+  'A receber (30 dias)':'Saldo de faturas em aberto que vence entre hoje e os próximos 30 dias (a vencer, pela data de vencimento). Não inclui vencidos.',
+  'A pagar (30 dias)':'Títulos com valor pendente que vencem entre hoje e os próximos 30 dias (a vencer, pela data de vencimento). Não inclui vencidos.',
   'Vencido':'Parcela do valor em aberto cujo vencimento já passou da data de referência.',
   'A vencer':'Parcela do valor em aberto que ainda vai vencer.',
   'CKM próprio marginal':'Custos variáveis (combustível, manutenção, pneus, pedágio…) + motoristas, divididos pelo km carregado da frota própria. Régua para decisão de curto prazo.',
@@ -2576,6 +2578,8 @@ function renderHome(d){
   document.getElementById('kpis-home-fin').innerHTML=[
     kpiLink('A receber', BRL.format(d.receber_aberto), BRL.format(d.receber_vencido)+' vencido', d.receber_vencido>0?'neg':'', '#receber'),
     kpiLink('A pagar', BRL.format(d.pagar_aberto), BRL.format(d.pagar_vencido)+' vencido', '', '#pagar'),
+    kpiLink('A receber (30 dias)', BRL.format(d.receber_prox30), 'a vencer · próximos 30 dias', '', '#receber'),
+    kpiLink('A pagar (30 dias)', BRL.format(d.pagar_prox30), 'a vencer · próximos 30 dias', '', '#pagar'),
     kpiLink('Receita CT-e no mês', BRL.format(d.receita_mes_cte), 'frete faturado (comercial)', '', '#com'),
     kpiLink('Frete contratado no mês', BRL.format(d.frete_contratado_mes), 'agregados e terceiros', '', '#agr'),
     d.ponto_equilibrio ? kpi('Ponto de equilíbrio', BRL.format(d.ponto_equilibrio.faturamento_minimo_mes)+'/mês',
@@ -2607,6 +2611,20 @@ function renderHome(d){
 
 
 /* gráficos da visão geral */
+/* Cor da barra de realizado num degradê contínuo vermelho→amarelo→verde
+   conforme o atingimento da meta do dia (realizado÷meta): ≤50%=vermelho,
+   85%=amarelo, ≥100%=verde, interpolando os tons entre esses pontos.
+   Sem meta no dia (meta=0) → cinza neutro. */
+function corAtingimento(ratio){
+  if(ratio==null || !isFinite(ratio)) return '#94A3B8';
+  const stops=[[0.50,[220,38,38]],[0.85,[224,164,0]],[1.00,[22,163,74]]];
+  const t=Math.max(stops[0][0],Math.min(1,ratio));
+  let a=stops[0], b=stops[stops.length-1];
+  for(let k=0;k<stops.length-1;k++){ if(t>=stops[k][0]&&t<=stops[k+1][0]){ a=stops[k]; b=stops[k+1]; break; } }
+  const f=(b[0]-a[0])?(t-a[0])/(b[0]-a[0]):0;
+  const c=i=>Math.round(a[1][i]+(b[1][i]-a[1][i])*f);
+  return 'rgb('+c(0)+','+c(1)+','+c(2)+')';
+}
 function chartHomeDiario(diario){
   const svg=document.getElementById('chartHdia');
   GEOM['chartHdia']=null; ACTIVE['chartHdia']=-1;
@@ -2625,7 +2643,8 @@ function chartHomeDiario(diario){
     s+=`<line x1="${mL}" y1="${yy}" x2="${W-mR}" y2="${yy}" stroke="${v===0?'#C2C8D0':'#ECEEF1'}" stroke-width="1"/>`;
     s+=`<text x="${mL-8}" y="${yy+4}" text-anchor="end" font-size="10" fill="#6E7883" font-family="IBM Plex Mono,monospace">${NMI.format(v/u.d)}</text>`; });
   diario.forEach((r,i)=>{ const cx=px(i);
-    s+=colPath(cx-barW-1,barW,y(r.realizado||0),y0,3,'#1E7F4F');
+    const rat=(r.meta>0)?(r.realizado||0)/r.meta:null;
+    s+=colPath(cx-barW-1,barW,y(r.realizado||0),y0,3,corAtingimento(rat));
     s+=colPath(cx+1,barW,y(r.meta||0),y0,3,'#38648D'); });
   diario.forEach((r,i)=>{ if(i%2===0||n<=16) s+=`<text x="${px(i)}" y="${H-mB+16}" text-anchor="middle" font-size="10" fill="#4F5860">${r.dia}</text>`; });
   s+=`<line id="chartHdia-xhair" x1="0" x2="0" y1="${mT-8}" y2="${y0}" stroke="#5F87AC" stroke-width="1" opacity="0"/>`;

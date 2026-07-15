@@ -70,7 +70,13 @@ SELECT
      WHERE valorpendente > 0 AND dtvencimento < {DREF} {FIL} {RNG})                AS pagar_vencido,
   (SELECT coalesce(sum(valortitulo),0)::float8 FROM fatura
      WHERE dtcancelamento IS NULL
-       AND date_trunc('month', dtemissao) = date_trunc('month', {DREF}) {FIL})     AS faturamento_mes
+       AND date_trunc('month', dtemissao) = date_trunc('month', {DREF}) {FIL})     AS faturamento_mes,
+  (SELECT coalesce(sum(valorsaldoreceber),0)::float8 FROM fatura
+     WHERE valorsaldoreceber > 0 AND dtcancelamento IS NULL
+       AND dtvencimento >= {DREF} AND dtvencimento <= {DREF} + 30 {FIL})           AS receber_prox30,
+  (SELECT coalesce(sum(valorpendente),0)::float8 FROM contaapagar
+     WHERE valorpendente > 0
+       AND dtvencimento >= {DREF} AND dtvencimento <= {DREF} + 30 {FIL})           AS pagar_prox30
 """
 
 AGING_AR_SQL = f"""
@@ -1791,6 +1797,8 @@ def get_visao_geral() -> dict:
         "receber_vencido": fin["receber_vencido"],
         "pagar_aberto": fin["pagar_aberto"],
         "pagar_vencido": fin["pagar_vencido"],
+        "receber_prox30": fin["receber_prox30"],
+        "pagar_prox30": fin["pagar_prox30"],
         "faturamento_mes": fin["faturamento_mes"],
         "faturamento_medio_6m": runrate,
         "receita_mes_cte": mes["receita_mes"],
