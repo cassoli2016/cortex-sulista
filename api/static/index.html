@@ -584,7 +584,7 @@ button.avatar{border:0;cursor:pointer}
       <div class="filterbar" id="filterbar">
         <div class="field">
           <label for="fFilial">Filial</label>
-          <select id="fFilial" onchange="load()"><option value="">Todas</option></select>
+          <select id="fFilial" onchange="reloadCurrent()"><option value="">Todas</option></select>
         </div>
         <div class="field">
           <label for="fData">Data de referência</label>
@@ -1768,6 +1768,9 @@ function qsView(k){
     if(T('fMulPlaca'))p.set('placa',T('fMulPlaca'));
   } else if(k==='tvfat' || k==='tvope'){
   } else if(k==='cont'){
+    if(V('fCompDe'))p.set('comp_de',V('fCompDe'));
+    if(V('fCompAte'))p.set('comp_ate',V('fCompAte'));
+    if(T('fContBusca'))p.set('busca',T('fContBusca'));
   } else if(k==='rent'){
     if(V('fFilial'))p.set('filial',V('fFilial'));
     if(V('fEmiDe'))p.set('dt_de',V('fEmiDe'));
@@ -1862,7 +1865,9 @@ function router(){
   document.getElementById('fFilial').parentElement.style.display = (dre||mvb||comb||veic||mul||prog||cop||contab) ? 'none' : (document.getElementById('fFilial').parentElement.style.display);
   // filial some onde a fonte não tem esse recorte (DRE/MvB consolidados; CTA Plus sem filial)
   const fFil = document.getElementById('fFilial');
-  fFil.parentElement.style.display = (dre||mvb||comb) ? 'none' : 'flex';
+  // Filial some onde a fonte não tem esse recorte OU a API não aceita o parâmetro
+  // (DRE/MvB consolidados; Veículos/Multas/Programação/Contabilidade não filtram por filial).
+  fFil.parentElement.style.display = (dre||mvb||comb||veic||mul||prog||contab) ? 'none' : 'flex';
   // carga da vista: dispara se não há dados OU se os filtros visíveis
   // divergem dos usados na última carga (nunca mostrar dado velho com filtro novo)
   const key=viewKey(v);
@@ -2462,8 +2467,13 @@ function hideTip(svgId){
 }
 function hideTips(){ ['chart','chartAr','chartAp','chartDre','chartOc','chartAgr','chartMvb','chartComb','chartMan','chartCom','chartKm','chartMul'].forEach(hideTip); }
 function reloadCurrent(){
-  const v=currentView();
-  if(v==='home') loadHome(); else if(v==='dre') loadDre(); else if(v==='oc') loadOc(); else if(v==='agr') loadAgr(); else if(v==='mvb') loadMvb(); else if(v==='comb') loadComb(); else if(v==='man') loadMan(); else if(v==='com') loadCom(); else if(v==='gestao') loadGestao(); else load();
+  // mapa COMPLETO: qualquer filtro compartilhado (Filial, datas, competência)
+  // recarrega a TELA ATUAL — antes caía em load() (Financeiro) para várias telas.
+  const M={home:loadHome,fluxo:load,receber:load,pagar:load,dre:loadDre,oc:loadOc,
+    agr:loadAgr,mvb:loadMvb,comb:loadComb,man:loadMan,com:loadCom,km:loadKm,
+    torre:loadTorre,veic:loadVeic,mul:loadMul,prog:loadProg,cob:loadCob,rent:loadRent,
+    cont:loadCont,gestao:loadGestao,srv:loadSrv,cop:loadCop,tvfat:loadTvFat,tvope:loadTvOpe};
+  (M[currentView()]||load)();
 }
 
 /* ---------------- Ordens de Compra ---------------- */
