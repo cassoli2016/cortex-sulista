@@ -72,6 +72,9 @@ TELAS: dict[str, tuple[str, str]] = {  # chave -> (rótulo, grupo do menu)
 
 # Rota (prefixo) -> telas que a consomem. Prefixos mais específicos primeiro.
 ROTA_TELAS: list[tuple[str, frozenset[str]]] = [
+    # metadados de filtro (empresa/filiais) usados por todas as telas com filtro:
+    # basta ter QUALQUER tela atribuída — nunca fica aberto a usuário sem acesso.
+    ("/api/financeiro/filtros",       frozenset(TELAS)),
     ("/api/financeiro/contabil",      frozenset({"cont"})),
     ("/api/financeiro/overview",      frozenset({"fluxo", "receber", "pagar"})),
     ("/api/financeiro/dre",           frozenset({"dre"})),
