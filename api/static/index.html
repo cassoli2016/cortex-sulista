@@ -532,6 +532,7 @@ button.avatar{border:0;cursor:pointer}
       </button>
       <div class="subs closed" id="subsCom">
         <a href="#com" class="sub" data-view="com" title="Clientes e RKM"><span class="ic" data-ic="com"></span><span>Clientes e RKM</span></a>
+        <a href="#clif" class="sub" data-view="clif" title="Consulta de Cliente por nome"><span class="ic" data-ic="com"></span><span>Consulta de Cliente</span></a>
         <a href="#drecli" class="sub" data-view="drecli" title="DRE por Cliente"><span class="ic" data-ic="rent"></span><span>DRE por Cliente</span></a>
       </div>
       <button class="group" id="grpFin" aria-expanded="false" aria-controls="subsFin" onclick="toggleGroup('grpFin','subsFin','cs.finGroup')" title="Financeiro">
@@ -1327,6 +1328,21 @@ button.avatar{border:0;cursor:pointer}
       </section>
 
       <!-- ===================== MULTAS ===================== -->
+      <section class="view" id="view-clif">
+        <div class="card">
+          <div class="head"><h2>Consulta de Cliente</h2><span class="hint">digite o cliente e veja a ficha 360 · margem reconciliada (DRE por Cliente) + recebíveis</span></div>
+          <div style="padding:0 16px 14px;display:flex;gap:10px;flex-wrap:wrap;align-items:center">
+            <input type="search" id="fClifNome" placeholder="Cliente (ex.: TUPY)" autocomplete="off"
+                   style="min-width:220px;font-size:16px;padding:10px 12px;border:1px solid var(--n200,#E4E7EB);border-radius:10px"
+                   onkeydown="if(event.key==='Enter')loadClif(true)">
+            <input type="month" id="fClifDe" style="font-size:15px;padding:9px 10px;border:1px solid var(--n200,#E4E7EB);border-radius:10px">
+            <span style="color:var(--n500)">até</span>
+            <input type="month" id="fClifAte" style="font-size:15px;padding:9px 10px;border:1px solid var(--n200,#E4E7EB);border-radius:10px">
+            <button class="btn" onclick="loadClif(true)">Buscar</button>
+          </div>
+        </div>
+        <div id="clif-conteudo"></div>
+      </section>
       <section class="view" id="view-veicf">
         <div class="card">
           <div class="head"><h2>Consulta de Veículo</h2><span class="hint">digite a placa e veja a ficha completa · indicadores dos últimos 30 dias</span></div>
@@ -1696,7 +1712,7 @@ const FAIXAS = {
   '4_vencido_91_365':['Vencido 91–365d','b-dang'],
   '5_vencido_mais_365':['Vencido > 365d','b-dang'],
 };
-const VIEWS = { home:'Visão Geral', fluxo:'Fluxo de Caixa e Bancos', receber:'Contas a Receber', pagar:'Contas a Pagar', oc:'Ordens de Compra', agr:'Agregados e Terceiros', mvb:'Make vs Buy', comb:'Combustível', man:'Manutenção', com:'Clientes e RKM', km:'Análise de KM', torre:'Torre de Controle', veic:'Veículos', veicf:'Consulta de Veículo', mul:'Multas', prog:'Programação Inteligente', cop:'Copiloto Cortex', cob:'Régua de Cobrança', cont:'Contabilidade', dre:'DRE Gerencial', drecli:'DRE por Cliente', tvfat:'Painel TV — Faturamento', tvope:'Painel TV — Operação', gestao:'Gestão', srv:'Saúde do Servidor' };
+const VIEWS = { home:'Visão Geral', fluxo:'Fluxo de Caixa e Bancos', receber:'Contas a Receber', pagar:'Contas a Pagar', oc:'Ordens de Compra', agr:'Agregados e Terceiros', mvb:'Make vs Buy', comb:'Combustível', man:'Manutenção', com:'Clientes e RKM', clif:'Consulta de Cliente', km:'Análise de KM', torre:'Torre de Controle', veic:'Veículos', veicf:'Consulta de Veículo', mul:'Multas', prog:'Programação Inteligente', cop:'Copiloto Cortex', cob:'Régua de Cobrança', cont:'Contabilidade', dre:'DRE Gerencial', drecli:'DRE por Cliente', tvfat:'Painel TV — Faturamento', tvope:'Painel TV — Operação', gestao:'Gestão', srv:'Saúde do Servidor' };
 const periodoLabel = p => { if(p==='atrasado') return 'Atrasado'; const [y,m]=p.split('-'); return MES[+m-1]+'/'+y.slice(2); };
 const fmtD = s => { if(!s) return ''; const [y,m,dd]=s.split('-'); return dd+'/'+m+'/'+y; };
 const esc  = s => (s??'').toString().replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
@@ -1722,6 +1738,8 @@ let dreSeq = 0;
 let dreCliSeq = 0;
 let veicfSeq = 0;
 let DATAVEICF = null;
+let clifSeq = 0;
+let DATACLIF = null;
 let ocSeq = 0;
 let agrSeq = 0;
 let mvbSeq = 0;
@@ -1805,7 +1823,7 @@ function toggleGroup(gid,sid,key){
 })();
 
 const VIEW_GROUP = {home:'',cop:'',
-  com:'Com',rent:'Com',drecli:'Com',
+  com:'Com',clif:'Com',rent:'Com',drecli:'Com',
   fluxo:'Fin',receber:'Fin',pagar:'Fin',cob:'Fin',
   dre:'Ctr',cont:'Ctr',
   torre:'Ope',prog:'Ope',km:'Ope',agr:'Ope',mvb:'Ope',
@@ -1962,8 +1980,8 @@ function router(){
   document.getElementById('grpCob').style.display = cob ? 'flex' : 'none';
   document.getElementById('grpRent').style.display = rent ? 'flex' : 'none';
   const ges = (v==='gestao');
-  const fbar=document.getElementById('filterbar'); if(fbar) fbar.style.display = (cop||ges||v==='srv'||v==='veicf'||v==='home') ? 'none' : '';
-  const metaEl=document.getElementById('meta'); if(metaEl) metaEl.style.display = (cop||ges||v==='srv'||v==='veicf') ? 'none' : '';
+  const fbar=document.getElementById('filterbar'); if(fbar) fbar.style.display = (cop||ges||v==='srv'||v==='veicf'||v==='clif'||v==='home') ? 'none' : '';
+  const metaEl=document.getElementById('meta'); if(metaEl) metaEl.style.display = (cop||ges||v==='srv'||v==='veicf'||v==='clif') ? 'none' : '';
   // classe em vez de style: o CSS mobile usa !important no display
   const bfil=document.getElementById('btnFiltros'); if(bfil){ bfil.classList.toggle('oculto', cop||ges||v==='srv'||v==='home'); bfil.style.display=''; }
   document.getElementById('grpKm').style.display = kmv ? 'flex' : 'none';
@@ -1984,8 +2002,8 @@ function router(){
   // carga da vista: dispara se não há dados OU se os filtros visíveis
   // divergem dos usados na última carga (nunca mostrar dado velho com filtro novo)
   const key=viewKey(v);
-  const DATAMAP={fin:DATA,oc:DATAOC,agr:DATAAGR,mvb:DATAMVB,comb:DATACOMB,man:DATAMAN,com:DATACOM,dre:DATADRE,drecli:DATADRECLI,home:DATAHOME,km:DATAKM,torre:DATATORRE,veic:DATAVEIC,veicf:DATAVEICF,mul:DATAMUL,prog:DATAPROG,cob:DATACOB,rent:DATARENT,cont:DATACONT,gestao:DATAGES,srv:DATASRV,tvfat:null,tvope:null,cop:(COP_MSGS.length?{}:null)};
-  const LOADMAP={fin:load,oc:loadOc,agr:loadAgr,mvb:loadMvb,comb:loadComb,man:loadMan,com:loadCom,dre:loadDre,drecli:loadDreCli,home:loadHome,km:loadKm,torre:loadTorre,veic:loadVeic,veicf:loadVeicf,mul:loadMul,prog:loadProg,cob:loadCob,rent:loadRent,cont:loadCont,gestao:loadGestao,srv:loadSrv,cop:loadCop,tvfat:loadTvFat,tvope:loadTvOpe};
+  const DATAMAP={fin:DATA,oc:DATAOC,agr:DATAAGR,mvb:DATAMVB,comb:DATACOMB,man:DATAMAN,com:DATACOM,clif:DATACLIF,dre:DATADRE,drecli:DATADRECLI,home:DATAHOME,km:DATAKM,torre:DATATORRE,veic:DATAVEIC,veicf:DATAVEICF,mul:DATAMUL,prog:DATAPROG,cob:DATACOB,rent:DATARENT,cont:DATACONT,gestao:DATAGES,srv:DATASRV,tvfat:null,tvope:null,cop:(COP_MSGS.length?{}:null)};
+  const LOADMAP={fin:load,oc:loadOc,agr:loadAgr,mvb:loadMvb,comb:loadComb,man:loadMan,com:loadCom,clif:loadClif,dre:loadDre,drecli:loadDreCli,home:loadHome,km:loadKm,torre:loadTorre,veic:loadVeic,veicf:loadVeicf,mul:loadMul,prog:loadProg,cob:loadCob,rent:loadRent,cont:loadCont,gestao:loadGestao,srv:loadSrv,cop:loadCop,tvfat:loadTvFat,tvope:loadTvOpe};
   if(!DATAMAP[key] || (key!=='home' && LOADEDQS[key]!==qsView(key))) LOADMAP[key]();
   // mobile: estado da navegação inferior + fecha gaveta/painel de filtros
   document.querySelectorAll('.bottomnav [data-bview]').forEach(a=>a.classList.toggle('ativo', a.dataset.bview===v));
@@ -2631,7 +2649,7 @@ function reloadCurrent(){
   // mapa COMPLETO: qualquer filtro compartilhado (Filial, datas, competência)
   // recarrega a TELA ATUAL — antes caía em load() (Financeiro) para várias telas.
   const M={home:loadHome,fluxo:load,receber:load,pagar:load,dre:loadDre,drecli:loadDreCli,oc:loadOc,
-    agr:loadAgr,mvb:loadMvb,comb:loadComb,man:loadMan,com:loadCom,km:loadKm,
+    agr:loadAgr,mvb:loadMvb,comb:loadComb,man:loadMan,com:loadCom,clif:loadClif,km:loadKm,
     torre:loadTorre,veic:loadVeic,veicf:loadVeicf,mul:loadMul,prog:loadProg,cob:loadCob,rent:loadRent,
     cont:loadCont,gestao:loadGestao,srv:loadSrv,cop:loadCop,tvfat:loadTvFat,tvope:loadTvOpe};
   (M[currentView()]||load)();
@@ -3997,6 +4015,61 @@ async function veicfMapa(pos, placa){
   L.circleMarker([pos.lat,pos.lng],{radius:9,color:'#E85D10',weight:2,fillColor:'#E85D10',fillOpacity:.85})
     .addTo(veicfMap).bindPopup(`<b>${esc(placa)}</b><br>${esc(pos.posicao_em)} · ${pos.velocidade} km/h`);
   setTimeout(()=>{ if(veicfMap) veicfMap.invalidateSize(); },200);
+}
+/* ---------------- Consulta de Cliente (ficha 360) ---------------- */
+async function loadClif(buscar){
+  const inp=document.getElementById('fClifNome');
+  const nome=(inp?inp.value:'').trim();
+  const cont=document.getElementById('clif-conteudo');
+  const hoje=new Date(), yyyy=hoje.getFullYear(), mm=String(hoje.getMonth()+1).padStart(2,'0');
+  const de=document.getElementById('fClifDe'), ate=document.getElementById('fClifAte');
+  if(de && !de.value) de.value=yyyy+'-01';
+  if(ate && !ate.value) ate.value=yyyy+'-'+mm;
+  if(!nome){ if(cont) cont.innerHTML='<div class="card"><div style="padding:28px 18px;color:var(--n500)">Digite um cliente acima e clique em Buscar.</div></div>'; DATACLIF={}; return; }
+  const seq=++clifSeq, btn=document.getElementById('btnRefresh'); if(btn) btn.disabled=true;
+  document.getElementById('content').classList.add('loading');
+  try{
+    const q='cliente='+encodeURIComponent(nome)+'&comp_de='+de.value+'&comp_ate='+ate.value;
+    const r=await fetch('/api/comercial/cliente?'+q,{cache:'no-store'});
+    const d=await r.json(); if(seq!==clifSeq) return;
+    if(!r.ok){ showBanner(d.mensagem||'Erro ao consultar o cliente.', d.detalhe); return; }
+    hideBanner(); DATACLIF=d; LOADEDQS.clif=q; renderClif(d);
+  }catch(e){ if(seq===clifSeq) showBanner('Não foi possível falar com a API.', e.message); }
+  finally{ if(seq===clifSeq){ if(btn) btn.disabled=false; document.getElementById('content').classList.remove('loading'); } }
+}
+function renderClif(d){
+  const cont=document.getElementById('clif-conteudo'); if(!cont) return;
+  if(!d || !d.encontrado){ cont.innerHTML=`<div class="card"><div style="padding:28px 18px;color:var(--n500)">Cliente ${esc((d&&d.busca)||'')} não encontrado.</div></div>`; return; }
+  const k=d.kpis||{}, rc=d.recebiveis||{};
+  const mcpct=k.mc_pct!=null?(100*k.mc_pct).toFixed(1)+'%':'—';
+  let h=`<div class="card"><div style="padding:16px 18px;display:flex;flex-wrap:wrap;gap:16px;align-items:baseline">
+    <div style="font-size:24px;font-weight:800">${esc(d.cliente)}</div>
+    <div style="color:var(--n600)">grupo econômico · ${d.cnpjs} CNPJ(s) · ${esc(compLabel(d.comp_de))} a ${esc(compLabel(d.comp_ate))}</div>
+  </div></div>`;
+  h+=`<div class="kpis">`+[
+    kpi('Receita líquida', BRL.format(k.receita_liquida||0), 'bruta '+BRL.format(k.receita_bruta||0),''),
+    kpi('Margem de contribuição', BRL.format(k.mc||0), mcpct+' da RL', (k.mc||0)<0?'neg':'pos'),
+    kpi('Margem direta', BRL.format(k.margem_direta||0), 'após custo fixo do ativo', (k.margem_direta||0)<0?'neg':''),
+    kpi('Viagens', (k.viagens||0).toLocaleString('pt-BR'), (k.km_carregado||0).toLocaleString('pt-BR',{maximumFractionDigits:0})+' km carregado',''),
+  ].join('')+`</div>`;
+  h+=`<div class="kpis">`+[
+    kpi('% km vazio', ((k.pct_vazio||0)*100).toFixed(0)+'%', (k.km_vazio||0).toLocaleString('pt-BR',{maximumFractionDigits:0})+' km vazio', (k.pct_vazio||0)>0.2?'neg':''),
+    kpi('A receber (aberto)', BRL.format(rc.aberto||0), (rc.titulos||0)+' títulos',''),
+    kpi('Vencido', BRL.format(rc.vencido||0), 'mais antigo: '+(rc.venc_mais_antigo?fmtD(rc.venc_mais_antigo):'—'), (rc.vencido||0)>0?'neg':'pos'),
+    kpi('Vencido > 90d', BRL.format(rc.vencido_mais_90||0), 'a vencer: '+BRL.format(rc.a_vencer||0), (rc.vencido_mais_90||0)>0?'neg':''),
+  ].join('')+`</div>`;
+  const tr=(d.top_rotas||[]).map(r=>`<tr><td>${esc(r.rota)}</td><td class="num">${r.viagens}</td><td class="num">${Math.round(r.km).toLocaleString('pt-BR')}</td><td class="num">${BRL.format(r.receita)}</td><td class="num">${r.km>0?(r.receita/r.km).toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2}):'—'}</td></tr>`).join('')||'<tr><td colspan="5" style="color:var(--n500)">sem viagens no período</td></tr>';
+  const tv=(d.top_veiculos||[]).map(v=>`<tr><td>${esc(v.placa)}</td><td>${esc(v.modalidade)}</td><td class="num">${v.viagens}</td><td class="num">${Math.round(v.km).toLocaleString('pt-BR')}</td><td class="num">${BRL.format(v.receita)}</td></tr>`).join('')||'<tr><td colspan="5" style="color:var(--n500)">sem veículos no período</td></tr>';
+  h+=`<div class="grid2">
+    <div class="card"><div class="head"><h2>Top rotas</h2><span class="hint">por receita</span></div>
+      <div class="tablewrap"><table><thead><tr><th>Rota</th><th class="num">Viagens</th><th class="num">Km</th><th class="num">Receita</th><th class="num">RKM</th></tr></thead><tbody>${tr}</tbody></table></div></div>
+    <div class="card"><div class="head"><h2>Veículos que atendem</h2><span class="hint">por receita</span></div>
+      <div class="tablewrap"><table><thead><tr><th>Placa</th><th>Modalidade</th><th class="num">Viagens</th><th class="num">Km</th><th class="num">Receita</th></tr></thead><tbody>${tv}</tbody></table></div></div>
+  </div>`;
+  const uv=(d.ultimas_viagens||[]).map(v=>`<tr><td>${esc(v.data)}</td><td>${esc(v.origem)} → ${esc(v.destino)}</td><td>${esc(v.placa||'—')}</td><td class="num">${Math.round(v.km).toLocaleString('pt-BR')}</td><td class="num">${BRL.format(v.valorfrete||0)}</td></tr>`).join('')||'<tr><td colspan="5" style="color:var(--n500)">sem viagens</td></tr>';
+  h+=`<div class="card"><div class="head"><h2>Últimas viagens</h2><span class="hint">no período</span></div>
+    <div class="tablewrap"><table><thead><tr><th>Data</th><th>Rota</th><th>Placa</th><th class="num">Km</th><th class="num">Frete</th></tr></thead><tbody>${uv}</tbody></table></div></div>`;
+  cont.innerHTML=h;
 }
 async function loadTorre(){
   skelKpis('kpis-torre',4);
@@ -5644,6 +5717,7 @@ boot();
       <button class="dgrp-h" onclick="toggleDGrp(this)"><span>Comercial</span><span class="dchev">›</span></button>
       <div class="dgrp-b">
         <a href="#com" onclick="fecharDrawer()"><span class="ic" data-ic="com"></span>Clientes e RKM</a>
+        <a href="#clif" onclick="fecharDrawer()"><span class="ic" data-ic="com"></span>Consulta de Cliente</a>
         <a href="#drecli" onclick="fecharDrawer()"><span class="ic" data-ic="rent"></span>DRE por Cliente</a>
       </div>
     </div>

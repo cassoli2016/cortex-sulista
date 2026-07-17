@@ -2689,6 +2689,124 @@ def get_veiculo_ficha(placa: str) -> dict:
 
 
 # ============================================================================
+# Consulta de Cliente — ficha 360 por cliente (agrupamento): margem/km da DRE
+# por Cliente (reuso, sem 3o numero divergente) + rotas, veiculos, ultimas
+# viagens e recebiveis (aging). Cliente = agrupamentocliente (grupo economico).
+# ============================================================================
+CLIF_RESOLVE_SQL = """
+SELECT codigo, descricao FROM agrupamentocliente
+WHERE descricao ILIKE '%%'||%(q)s||'%%'
+ORDER BY (upper(descricao)=upper(%(q)s)) DESC, length(descricao) LIMIT 1
+"""
+
+CLIF_CNPJS_SQL = "SELECT cnpjcpfcodigo FROM agrupamentocliente_cnpjcpfcodigo WHERE codigo = %(ag)s"
+
+CLIF_VIAGENS_SQL = """
+SELECT DISTINCT ON (p.grupo,p.empresa,p.filial,p.diferenciadornumero,p.numero)
+       to_char(coalesce(p.dtchegada,p.dtsaida,p.dtemissao),'YYYY-MM-DD') AS data,
+       coalesce(p.kmfretecompra,0)::float8 AS km, coalesce(p.valorfrete,0)::float8 AS valorfrete,
+       coalesce(nullif(trim(p.cidadeorigem),''),'?')||'/'||coalesce(p.uforigem,'?') AS origem,
+       coalesce(nullif(trim(p.cidadedestino),''),'?')||'/'||coalesce(p.ufdestino,'?') AS destino,
+       p.veiculo AS placa, coalesce(u.descricao,'(sem)') AS modalidade
+FROM programacaoembarque p
+LEFT JOIN veiculo v ON v.placa = p.veiculo
+LEFT JOIN utilizacaoveiculo u ON u.codigo = v.utilizacaoveiculo
+JOIN coleta co ON co.grupo=p.grupo AND co.empresa=p.empresa
+  AND co.filial=p.filialdocumentoorigem AND co.unidade=p.unidadedocumentoorigem
+  AND co.diferenciadornumero=p.diferenciadornumerodocumentoorigem
+  AND co.numero=p.numerodocumentoorigem
+JOIN agrupamentocliente_cnpjcpfcodigo av ON av.cnpjcpfcodigo = co.cnpjcpfcodigopagadorfrete
+WHERE av.codigo = %(ag)s AND p.dtcancelamento IS NULL AND p.semaforo = 1 AND p.tipo <> 3
+  AND coalesce(p.dtchegada,p.dtsaida,p.dtemissao) >= %(de)s::date
+  AND coalesce(p.dtchegada,p.dtsaida,p.dtemissao) < %(ate)s::date
+ORDER BY p.grupo,p.empresa,p.filial,p.diferenciadornumero,p.numero,
+         coalesce(p.dtchegada,p.dtsaida,p.dtemissao) DESC
+"""
+
+CLIF_RECEB_SQL = """
+SELECT coalesce(sum(f.valorsaldoreceber),0)::float8 AS aberto,
+       coalesce(sum(CASE WHEN f.dtvencimento < current_date THEN f.valorsaldoreceber ELSE 0 END),0)::float8 AS vencido,
+       coalesce(sum(CASE WHEN f.dtvencimento >= current_date THEN f.valorsaldoreceber ELSE 0 END),0)::float8 AS a_vencer,
+       coalesce(sum(CASE WHEN f.dtvencimento < current_date-90 THEN f.valorsaldoreceber ELSE 0 END),0)::float8 AS vencido_mais_90,
+       count(*)::int AS titulos, min(f.dtvencimento)::text AS venc_mais_antigo
+FROM fatura f
+WHERE f.valorsaldoreceber > 0 AND f.dtcancelamento IS NULL AND f.cliente = ANY(%(cnpjs)s)
+"""
+
+
+@cached(ttl=120)
+def get_cliente_ficha(cliente: str, comp_de: str, comp_ate: str) -> dict:
+    from collections import defaultdict as _dd
+    import unicodedata as _ud
+    q = (cliente or "").strip()
+    if not q:
+        return {"encontrado": False, "busca": ""}
+    de, ate = _comp_bounds(comp_de, comp_ate)
+    with db.get_conn() as conn, conn.cursor() as cur:
+        cur.execute(CLIF_RESOLVE_SQL, {"q": q})
+        ag = cur.fetchone()
+        if not ag:
+            return {"encontrado": False, "busca": q}
+        cur.execute(CLIF_CNPJS_SQL, {"ag": ag["codigo"]})
+        cnpjs = [r["cnpjcpfcodigo"] for r in cur.fetchall()]
+        cur.execute(CLIF_VIAGENS_SQL, {"ag": ag["codigo"], "de": de, "ate": ate})
+        vgs = cur.fetchall()
+        receb = {}
+        if cnpjs:
+            cur.execute(CLIF_RECEB_SQL, {"cnpjs": cnpjs})
+            receb = cur.fetchone() or {}
+        cur.execute("SELECT current_timestamp AS ts")
+        meta = cur.fetchone()
+
+    nome = ag["descricao"]
+
+    # margem/km/%vazio da DRE por Cliente (reuso, sem 3o numero)
+    def _norm(s):
+        return _ud.normalize("NFKD", (s or "").upper()).encode("ascii", "ignore").decode().strip()
+    from . import dre_cliente as _dc  # lazy: evita import circular (dre_cliente importa queries)
+    dre = _dc.get_dre_cliente(comp_de, comp_ate)
+    cli_dre = next((c for c in dre.get("clientes", []) if _norm(c.get("cliente")) == _norm(nome)), None)
+    linhas = (cli_dre or {}).get("linhas", {})
+    ind = (cli_dre or {}).get("indicadores", {})
+
+    # rotas, veiculos, ultimas — do foco (carregadas do periodo)
+    rotas: dict = _dd(lambda: {"viagens": 0, "km": 0.0, "receita": 0.0})
+    veic: dict = _dd(lambda: {"viagens": 0, "km": 0.0, "receita": 0.0, "modalidade": ""})
+    for v in vgs:
+        rk = f'{v["origem"]} → {v["destino"]}'
+        rotas[rk]["viagens"] += 1; rotas[rk]["km"] += v["km"]; rotas[rk]["receita"] += v["valorfrete"]
+        vp = v["placa"] or "(sem placa)"
+        veic[vp]["viagens"] += 1; veic[vp]["km"] += v["km"]; veic[vp]["receita"] += v["valorfrete"]
+        veic[vp]["modalidade"] = v["modalidade"]
+    top_rotas = sorted(({"rota": k, **val} for k, val in rotas.items()), key=lambda x: -x["receita"])[:10]
+    top_veic = sorted(({"placa": k, **val} for k, val in veic.items()), key=lambda x: -x["receita"])[:10]
+    ultimas = sorted(vgs, key=lambda v: v["data"] or "", reverse=True)[:15]
+    receita_bruta_viagens = sum(v["valorfrete"] for v in vgs)
+
+    return {
+        "encontrado": True, "cliente": nome, "codigo": ag["codigo"], "cnpjs": len(cnpjs),
+        "kpis": {
+            "receita_liquida": linhas.get("RECEITA LIQUIDA", 0.0),
+            "receita_bruta": linhas.get("RECEITA BRUTA", receita_bruta_viagens),
+            "mc": ind.get("mc", 0.0), "mc_pct": ind.get("mc_pct"),
+            "margem_direta": linhas.get("MARGEM DIRETA DO CLIENTE", 0.0),
+            "km_carregado": ind.get("km_carregado", 0.0), "km_vazio": ind.get("km_vazio", 0.0),
+            "pct_vazio": ind.get("pct_km_vazio", 0.0), "viagens": ind.get("viagens", len(vgs)),
+            "mix": ind.get("mix", {}),
+        },
+        "recebiveis": {
+            "aberto": receb.get("aberto", 0.0), "vencido": receb.get("vencido", 0.0),
+            "a_vencer": receb.get("a_vencer", 0.0), "vencido_mais_90": receb.get("vencido_mais_90", 0.0),
+            "titulos": receb.get("titulos", 0), "venc_mais_antigo": receb.get("venc_mais_antigo"),
+        },
+        "top_rotas": top_rotas, "top_veiculos": top_veic, "ultimas_viagens": ultimas,
+        "comp_de": comp_de, "comp_ate": comp_ate,
+        "atualizado_em": meta["ts"].isoformat(),
+        "fonte": "ERP AVA - DRE por Cliente (margem) + programacaoembarque (rotas/veiculos) + fatura (recebiveis)",
+    }
+
+
+# ============================================================================
 # Multas — infracaotransito_registro × infracaotransito (tipo/gravidade).
 # Paga = dtliquidacao ou dtbaixa preenchida.
 # ============================================================================

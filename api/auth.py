@@ -53,6 +53,7 @@ TELAS: dict[str, tuple[str, str]] = {  # chave -> (rótulo, grupo do menu)
     "cob":     ("Régua de Cobrança", "Financeiro"),
     "pagar":   ("Contas a Pagar", "Financeiro"),
     "com":     ("Clientes e RKM", "Comercial"),
+    "clif":    ("Consulta de Cliente", "Comercial"),
     "drecli":  ("DRE por Cliente", "Comercial"),
     "dre":     ("DRE Gerencial", "Controladoria"),
     "cont":    ("Contabilidade", "Controladoria"),
@@ -96,6 +97,7 @@ ROTA_TELAS: list[tuple[str, frozenset[str]]] = [
     ("/api/operacao/analise-km",      frozenset({"km", "tvope"})),
     ("/api/operacao/make-vs-buy",     frozenset({"mvb"})),
     ("/api/comercial/clientes",       frozenset({"com"})),
+    ("/api/comercial/cliente",        frozenset({"clif"})),
     ("/api/copiloto",                 frozenset({"cop"})),
     ("/api/tv",                       frozenset({"tvfat", "tvope"})),
 ]
@@ -147,8 +149,8 @@ _CONFIG_PADRAO = {
 # ficam fora dos perfis de área e só entram no perfil amplo "Diretoria".
 # Perfis-modelo alinhados aos grupos do menu (reorg 2026-07-17).
 _PERFIS_MODELO = [
-    ("Comercial",   "Clientes/RKM e DRE por cliente.",
-     ["com", "drecli"]),
+    ("Comercial",   "Clientes/RKM, consulta por cliente e DRE por cliente.",
+     ["com", "clif", "drecli"]),
     ("Financeiro",  "Caixa, recebíveis, pagáveis e cobrança.",
      ["fluxo", "receber", "pagar", "cob"]),
     ("Controladoria", "DRE gerencial, contabilidade e DRE/margem por cliente.",
