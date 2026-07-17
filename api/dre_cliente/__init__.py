@@ -146,6 +146,11 @@ def _calcular(cur, comp_de: str, comp_ate: str, filial: int | None, params) -> d
     }
 
 
+# versao do formato do snapshot: mudou o schema (ex.: v2 add CUSTO FIXO/MARGEM
+# DIRETA) -> snapshots antigos sao ignorados e recalculados.
+_SNAP_VER = 2
+
+
 def _periodo_fechado(comp_ate: str) -> bool:
     _, ate = _comp_bounds(comp_ate, comp_ate)
     hoje = date.today()
@@ -157,11 +162,12 @@ def get_dre_cliente(comp_de: str, comp_ate: str, filial: int | None = None) -> d
     chave = f"{comp_de}_{comp_ate}_{filial if filial is not None else 'all'}"
     if _periodo_fechado(comp_ate):
         snap = snapshot.ler(chave)
-        if snap is not None:
+        if snap is not None and snap.get("_snap_ver") == _SNAP_VER:
             return snap
     params = carregar_params()
     with db.get_conn() as conn, conn.cursor() as cur:
         resultado = _calcular(cur, comp_de, comp_ate, filial, params)
+    resultado["_snap_ver"] = _SNAP_VER
     if _periodo_fechado(comp_ate):
         snapshot.gravar(chave, resultado)
     return resultado
