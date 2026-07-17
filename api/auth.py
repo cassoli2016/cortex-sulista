@@ -72,6 +72,9 @@ TELAS: dict[str, tuple[str, str]] = {  # chave -> (rótulo, grupo do menu)
 
 # Rota (prefixo) -> telas que a consomem. Prefixos mais específicos primeiro.
 ROTA_TELAS: list[tuple[str, frozenset[str]]] = [
+    # metadados de filtro (empresa/filiais) usados por todas as telas com filtro:
+    # basta ter QUALQUER tela atribuída — nunca fica aberto a usuário sem acesso.
+    ("/api/financeiro/filtros",       frozenset(TELAS)),
     ("/api/financeiro/contabil",      frozenset({"cont"})),
     ("/api/financeiro/overview",      frozenset({"fluxo", "receber", "pagar"})),
     ("/api/financeiro/dre",           frozenset({"dre"})),
@@ -135,6 +138,28 @@ _CONFIG_PADRAO = {
     "senha_min": "8",
 }
 
+# Perfis-modelo por área (não-admin), semeados UMA vez (flag em config) para
+# agilizar o cadastro de usuários. O admin pode editar/excluir à vontade — a
+# exclusão NÃO ressuscita no restart (o flag impede o reseed). Telas cross-área
+# (home/cop/TV) vazam dados de outras áreas (ex.: snapshot do copiloto), então
+# ficam fora dos perfis de área e só entram no perfil amplo "Diretoria".
+_PERFIS_MODELO = [
+    ("Financeiro",  "Caixa, recebíveis, pagáveis, DRE e contabilidade.",
+     ["fluxo", "receber", "cob", "rent", "pagar", "dre", "cont"]),
+    ("Comercial",   "Clientes, RKM e rentabilidade por cliente.",
+     ["com", "rent"]),
+    ("Operação",    "Agregados, make-vs-buy, análise de KM, programação e torre de controle.",
+     ["agr", "mvb", "km", "prog", "torre"]),
+    ("Frota",       "Combustível, manutenção, veículos e multas.",
+     ["comb", "man", "veic", "mul"]),
+    ("Suprimentos", "Ordens de compra.",
+     ["oc"]),
+    ("Painéis TV",  "Apenas os painéis de TV (faturamento e operação) — para telão/quiosque.",
+     ["tvfat", "tvope"]),
+    ("Diretoria",   "Visão executiva ampla: consolidado, copiloto e principais indicadores.",
+     ["home", "cop", "fluxo", "dre", "rent", "km", "torre", "com", "mvb", "veic"]),
+]
+
 
 def init_db() -> None:
     with _conn() as c:
@@ -187,6 +212,25 @@ def init_db() -> None:
             "INSERT OR IGNORE INTO perfis(nome, descricao, admin, criado_em) VALUES(?,?,1,?)",
             ("Administrador", "Acesso total, inclusive à área de Gestão.", _agora()),
         )
+        _seed_perfis_modelo(c)
+
+
+def _seed_perfis_modelo(c: sqlite3.Connection) -> None:
+    """Semeia os perfis-modelo por área UMA única vez (idempotente via flag).
+
+    Não recria perfis que o admin tenha excluído: o flag 'perfis_modelo_v1'
+    marca que o seed já rodou, independentemente do que exista depois.
+    """
+    if c.execute("SELECT 1 FROM config WHERE chave='perfis_modelo_v1'").fetchone():
+        return
+    for nome, desc, telas in _PERFIS_MODELO:
+        cur = c.execute(
+            "INSERT OR IGNORE INTO perfis(nome, descricao, admin, criado_em) VALUES(?,?,0,?)",
+            (nome, desc, _agora()))
+        if cur.rowcount:  # inserido agora (nome ainda não existia)
+            c.executemany("INSERT OR IGNORE INTO perfil_telas(perfil_id, tela) VALUES(?,?)",
+                          [(cur.lastrowid, t) for t in telas])
+    c.execute("INSERT OR IGNORE INTO config(chave, valor) VALUES('perfis_modelo_v1', '1')")
 
 
 def _agora() -> str:

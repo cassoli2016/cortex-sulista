@@ -18,7 +18,7 @@ from fastapi.middleware.gzip import GZipMiddleware
 from fastapi.responses import FileResponse, JSONResponse, PlainTextResponse, StreamingResponse
 from fastapi.staticfiles import StaticFiles
 
-from . import alertas, auth, copiloto, db, queries
+from . import alertas, auth, copiloto, db, queries, servidor
 
 log = logging.getLogger("cortex.financeiro")
 # docs/openapi desligados: o painel é exposto na internet via Cloudflare Tunnel
@@ -51,6 +51,18 @@ def health() -> JSONResponse:
     except Exception as exc:  # noqa: BLE001
         log.warning("health: banco inacessível: %s", exc)
         return JSONResponse(status_code=503, content={"status": "erro", "db": "sem_conexao"})
+
+
+@app.get("/api/gestao/servidor")
+def gestao_servidor() -> JSONResponse:
+    # /api/gestao/* já é restrito a admin pelo AuthMiddleware
+    try:
+        return JSONResponse(servidor.coletar())
+    except Exception as exc:  # noqa: BLE001
+        log.warning("saude do servidor falhou: %s", exc)
+        return JSONResponse(status_code=500, content={
+            "erro": "erro_coleta", "mensagem": "Erro ao coletar a saúde do servidor.",
+            "detalhe": str(exc)})
 
 
 @app.get("/api/financeiro/filtros")
