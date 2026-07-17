@@ -131,6 +131,52 @@ def fetch_taxa_km(cur, de_janela: str, ate: str) -> dict[str, float]:
     return {pl: (custo[pl] / km[pl]) for pl in custo if km.get(pl, 0.0) > 0}
 
 
+# Heuristica por viagem: recupera o cliente das viagens SEM coleta pelo CT-e
+# autorizado do MESMO veiculo na janela de saida (adaptado de HEUR_SEMCLI_SQL,
+# que agrega por cliente; aqui retorna por viagem para atribuicao 1:1).
+HEUR_VIAGEM_SQL = f"""
+SELECT s.grupo, s.empresa, s.filial, s.diferenciadornumero, s.numero,
+       coalesce('AG'||ag.codigo::text, s.pagador) AS cliente_codigo,
+       coalesce(nullif(trim(ag.descricao),''), nullif(trim(cp.nomefantasia),''),
+                nullif(trim(cp.razaosocial),'')) AS cliente_nome
+FROM (
+  SELECT DISTINCT ON ({_PK})
+         p.grupo, p.empresa, p.filial, p.diferenciadornumero, p.numero,
+         c.cnpjcpfcodigopagadorfrete AS pagador
+  FROM programacaoembarque p
+  LEFT JOIN coleta co ON co.grupo=p.grupo AND co.empresa=p.empresa
+    AND co.filial=p.filialdocumentoorigem AND co.unidade=p.unidadedocumentoorigem
+    AND co.diferenciadornumero=p.diferenciadornumerodocumentoorigem
+    AND co.numero=p.numerodocumentoorigem
+  LEFT JOIN conhecimento c ON c.veiculo = p.veiculo
+    AND c.situacaocte = 3 AND c.tipo IN (1,4)
+    AND c.dtemissao >= %(de)s::date - 4
+    AND c.dtemissao BETWEEN coalesce(p.dtsaida, p.dtemissao) - interval '1 day'
+                        AND coalesce(p.dtsaida, p.dtemissao) + interval '2 days'
+  WHERE p.dtcancelamento IS NULL AND p.semaforo = 1 AND p.tipo <> 3
+    AND {_COMPET} >= %(de)s::date AND {_COMPET} < %(ate)s::date
+    AND (p.filial = %(filial)s OR %(filial)s::int IS NULL)
+    AND co.numero IS NULL
+  ORDER BY {_PK}, abs(extract(epoch FROM (c.dtemissao - coalesce(p.dtsaida, p.dtemissao))))
+) s
+LEFT JOIN agrupamentocliente_cnpjcpfcodigo av ON av.cnpjcpfcodigo = s.pagador
+LEFT JOIN agrupamentocliente ag ON ag.codigo = av.codigo
+LEFT JOIN cadastro cp ON cp.codigo = s.pagador
+WHERE s.pagador IS NOT NULL
+"""
+
+
+def fetch_heuristica_cliente(cur, de: str, ate: str, filial: int | None) -> dict[str, str]:
+    """viagem_id -> nome/codigo do cliente recuperado por CT-e (viagens sem coleta)."""
+    cur.execute(HEUR_VIAGEM_SQL, {"de": de, "ate": ate, "filial": filial})
+    out: dict[str, str] = {}
+    for r in cur.fetchall():
+        nome = r.get("cliente_nome") or r.get("cliente_codigo")
+        if nome:
+            out[viagem_id(r)] = nome
+    return out
+
+
 def fetch_dre_oficial(comp_de: str, comp_ate: str) -> dict[str, float]:
     """Total por linha-folha do backbone, da DRE oficial (get_dre)."""
     dre = queries.get_dre(comp_de, comp_ate)
