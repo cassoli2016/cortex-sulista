@@ -18,7 +18,7 @@ from fastapi.middleware.gzip import GZipMiddleware
 from fastapi.responses import FileResponse, JSONResponse, PlainTextResponse, StreamingResponse
 from fastapi.staticfiles import StaticFiles
 
-from . import alertas, auth, copiloto, db, queries, servidor
+from . import alertas, auth, copiloto, db, dre_cliente, queries, servidor
 
 log = logging.getLogger("cortex.financeiro")
 # docs/openapi desligados: o painel é exposto na internet via Cloudflare Tunnel
@@ -100,6 +100,38 @@ def dre(comp_de: str | None = None, comp_ate: str | None = None) -> JSONResponse
         return JSONResponse(status_code=500, content={
             "erro": "erro_consulta",
             "mensagem": "Erro ao executar a consulta da DRE.",
+            "detalhe": str(exc),
+        })
+
+
+@app.get("/api/financeiro/dre-cliente")
+def dre_por_cliente(comp_de: str | None = None, comp_ate: str | None = None,
+                    filial: int | None = None) -> JSONResponse:
+    import re
+    hoje = date.today()
+    comp_ate = comp_ate or f"{hoje.year}-{hoje.month:02d}"
+    comp_de = comp_de or f"{hoje.year}-01"
+    for nome, valor in (("comp_de", comp_de), ("comp_ate", comp_ate)):
+        if not re.match(r"^\d{4}-(0[1-9]|1[0-2])$", valor):
+            return JSONResponse(status_code=422, content={
+                "erro": "parametro_invalido",
+                "mensagem": f"Parâmetro {nome} inválido: use o formato AAAA-MM.",
+            })
+    if comp_de > comp_ate:
+        comp_de, comp_ate = comp_ate, comp_de
+    try:
+        return JSONResponse(dre_cliente.get_dre_cliente(comp_de, comp_ate, filial))
+    except psycopg.OperationalError as exc:
+        return JSONResponse(status_code=503, content={
+            "erro": "banco_inacessivel",
+            "mensagem": "Sem conexão com o banco. O túnel SSH está aberto?",
+            "detalhe": str(exc),
+        })
+    except Exception as exc:  # noqa: BLE001
+        log.warning("dre-cliente falhou: %s", exc)
+        return JSONResponse(status_code=500, content={
+            "erro": "erro_consulta",
+            "mensagem": "Erro ao calcular a DRE por cliente.",
             "detalhe": str(exc),
         })
 
