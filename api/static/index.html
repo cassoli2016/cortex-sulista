@@ -95,10 +95,10 @@ button.ghost[aria-pressed="true"]{background:var(--navy-700);color:#fff;border-c
 .card .head h2{font-size:16px;font-weight:700;margin:0;flex:1}
 .card .head .hint{font-size:11px;color:var(--n500);text-align:right}
 .kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:16px}
-.kpi{padding:16px}
+.kpi{padding:16px;min-width:0}
 .kpi .label{font-size:12px;color:var(--n500)}
-.kpi .val{font-size:24px;font-weight:800;line-height:1.15;margin-top:2px}
-.kpi .sub{font-size:11px;color:var(--n500);margin-top:3px}
+.kpi .val{font-size:24px;font-weight:800;line-height:1.15;margin-top:2px;overflow-wrap:anywhere}
+.kpi .sub{font-size:11px;color:var(--n500);margin-top:3px;overflow-wrap:anywhere}
 .kpi.pos .val{color:var(--green)} .kpi.neg .val{color:var(--red)}
 .grid2{display:grid;grid-template-columns:1fr 1fr;gap:18px;align-items:start}
 .view{display:none;flex-direction:column;gap:18px}
@@ -2814,8 +2814,8 @@ function renderHome(d){
     kpiLink('A pagar (30 dias)', BRL.format(d.pagar_prox30), 'a vencer · próximos 30 dias', '', '#pagar'),
     kpiLink('Receita CT-e no mês', BRL.format(d.receita_mes_cte), 'frete faturado (comercial)', '', '#com'),
     kpiLink('Frete contratado no mês', BRL.format(d.frete_contratado_mes), 'agregados e terceiros', '', '#agr'),
-    d.ponto_equilibrio ? kpi('Ponto de equilíbrio', BRL.format(d.ponto_equilibrio.faturamento_minimo_mes)+'/mês',
-      'MC '+d.ponto_equilibrio.mc_pct.toFixed(1)+'% · fixos '+BRL.format(d.ponto_equilibrio.fixos_mes)+'/mês · média 6m '+BRL.format(d.faturamento_medio_6m),
+    d.ponto_equilibrio ? kpi('Ponto de equilíbrio', BRL.format(d.ponto_equilibrio.faturamento_minimo_mes),
+      'por mês · MC '+d.ponto_equilibrio.mc_pct.toFixed(1)+'% · fixos '+BRL.format(d.ponto_equilibrio.fixos_mes)+'/mês · média 6m '+BRL.format(d.faturamento_medio_6m),
       d.faturamento_medio_6m < d.ponto_equilibrio.faturamento_minimo_mes ? 'neg' : 'pos') : '',
   ].join('');
   document.getElementById('kpis-home-op').innerHTML=[
