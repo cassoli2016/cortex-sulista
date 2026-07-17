@@ -974,6 +974,22 @@ button.avatar{border:0;cursor:pointer}
             <div class="tip" id="tipComb"></div>
           </div>
         </div>
+        <div class="grid2">
+          <div class="card">
+            <div class="head"><h2>Consumo por dia</h2><span class="hint">litros abastecidos · no período filtrado</span></div>
+            <div class="chartwrap">
+              <svg id="chartCombDia" viewBox="0 0 960 250" preserveAspectRatio="xMidYMid meet"
+                   role="img" aria-label="Litros consumidos por dia no período filtrado."></svg>
+            </div>
+          </div>
+          <div class="card">
+            <div class="head"><h2>Consumo por semana</h2><span class="hint">litros abastecidos · semana ISO</span></div>
+            <div class="chartwrap">
+              <svg id="chartCombSem" viewBox="0 0 960 250" preserveAspectRatio="xMidYMid meet"
+                   role="img" aria-label="Litros consumidos por semana no período filtrado."></svg>
+            </div>
+          </div>
+        </div>
         <div class="card">
           <div class="head"><h2>Veículos do período</h2><span class="hint">top 30 por custo · clique para ver os abastecimentos</span></div>
           <div class="tablewrap"><table><thead><tr>
@@ -4095,6 +4111,8 @@ function renderComb(d){
     kpi('Consumo médio', fmtKmL(k.km_l), k.veiculos+' veículos · exclui ARLA · distâncias válidas', ''),
   ].join('');
   chartCombRender(d.mensal||[]);
+  chartLitrosRender('chartCombDia',(d.diario||[]),r=>{const p=(r.dia||'').split('-');return p.length===3?p[2]+'/'+p[1]:(r.dia||'');});
+  chartLitrosRender('chartCombSem',(d.semanal||[]),r=>'S'+((r.semana||'').split('-')[1]||''));
   // select de combustível (preserva seleção)
   {
     const sel=document.getElementById('fCombTipo'), atual=sel.value;
@@ -4189,6 +4207,30 @@ function chartCombRender(mensal){
   svg.innerHTML=s;
   GEOM['chartComb']={kind:'comb',rows:mensal,n,bandW,mL,W,px,topY:mT-14,botY:y0,wrap:'wrapComb',tip:'tipComb'};
   bindHover('chartComb');
+}
+// Barras de litros (consumo por dia/semana). Tooltip nativo <title>, sem GEOM.
+function chartLitrosRender(svgId, rows, labelFn){
+  const svg=document.getElementById(svgId);
+  if(!svg) return;
+  if(!rows||!rows.length){ svg.innerHTML='<text x="480" y="120" text-anchor="middle" fill="#6E7883" font-size="14">sem dados</text>'; return; }
+  const W=960,H=250,mL=64,mR=16,mT=28,mB=34, iw=W-mL-mR, ih=H-mT-mB;
+  const n=rows.length, bandW=iw/n;
+  const maxV=Math.max(1,...rows.map(r=>r.litros||0));
+  const div=maxV>=1.5e6?1e6:(maxV>=1500?1e3:1), utL=div===1e6?'MI L':(div===1e3?'MIL L':'L');
+  const tks=niceTicks(0,maxV,4), top=tks[tks.length-1];
+  const y=v=>mT+ih-(v/top)*ih, y0=y(0);
+  const px=i=>mL+bandW*i+bandW/2;
+  const barW=Math.min(26,bandW*0.6);
+  let s=`<text x="${mL}" y="${mT-12}" font-size="11" fill="#6E7883" font-weight="600" letter-spacing="1.5">${utL}</text>`;
+  tks.forEach(v=>{ const yy=y(v);
+    s+=`<line x1="${mL}" y1="${yy}" x2="${W-mR}" y2="${yy}" stroke="${v===0?'#C2C8D0':'#ECEEF1'}" stroke-width="1"/>`;
+    s+=`<text x="${mL-8}" y="${yy+4}" text-anchor="end" font-size="11" fill="#6E7883" font-family="IBM Plex Mono,monospace">${NMI.format(v/div)}</text>`; });
+  rows.forEach((r,i)=>{ s+=colPath(px(i)-barW/2,barW,y(r.litros||0),y0,4,'#E85D10'); });
+  rows.forEach((r,i)=>{ // banda transparente por ponto para o tooltip nativo
+    s+=`<rect x="${mL+bandW*i}" y="${mT-14}" width="${bandW}" height="${ih+14}" fill="transparent"><title>${esc(labelFn(r))}: ${fmtL(r.litros||0)}</title></rect>`; });
+  const step=Math.max(1,Math.ceil(n/12));
+  rows.forEach((r,i)=>{ if(i%step===0||n<=12) s+=`<text x="${px(i)}" y="${H-mB+18}" text-anchor="middle" font-size="10" fill="#4F5860">${esc(labelFn(r))}</text>`; });
+  svg.innerHTML=s;
 }
 
 /* ---------------- Manutenção ---------------- */
