@@ -88,6 +88,19 @@ def build_alertas() -> list[dict]:
     except Exception as exc:  # noqa: BLE001
         log.warning("alertas seguranca: %s", exc)
 
+    try:
+        hoje = date.today()
+        mes = f"{hoje.year}-{hoje.month:02d}"
+        j = queries.get_jornada(mes, mes)["kpis"]
+        if j["viol_direcao"]:
+            nivel = "critico" if j["viol_direcao"] >= 20 else "atencao"
+            add(nivel, "Excesso de direção contínua no mês",
+                f"{j['viol_direcao']} jornada(s) acima de 5h30 de direção contínua neste mês "
+                f"(Lei 13.103), entre {j['motoristas']} motorista(s) com controle de jornada. "
+                "Detalhe: Operação > Jornada do Motorista.")
+    except Exception as exc:  # noqa: BLE001
+        log.warning("alertas jornada: %s", exc)
+
     ordem = {"critico": 0, "atencao": 1, "info": 2}
     itens.sort(key=lambda i: ordem.get(i["nivel"], 9))
     return itens
