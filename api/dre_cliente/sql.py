@@ -53,22 +53,23 @@ WHERE p.dtcancelamento IS NULL AND p.semaforo = 1
 ORDER BY {_PK}
 """
 
-# Combustivel proprio por placa (CTA Plus). VALIDAR: incluir/excluir ARLA para
-# casar com a linha CV-COMBUSTIVEL do razao e a semantica de custo.
+# Combustivel proprio por placa (CTA Plus). So frota propria (TRA/LOC); o
+# combustivel de AGR/TER esta no repasse. VALIDAR: ARLA entra no custo do razao?
 ABASTEC_SQL = """
-SELECT a.placa, sum(coalesce(a.custo,0))::float8 AS custo
-FROM ctaplus_abastecimentos a
-JOIN veiculo v ON v.placa = a.placa AND v.utilizacaoveiculo IN ('TRA','LOC')
-WHERE a.data >= %(de)s::date AND a.data < %(ate)s::date
-GROUP BY a.placa
+SELECT a.veiculo_placa AS placa, sum(coalesce(a.custo,0))::float8 AS custo
+FROM sulista.ctaplus_abastecimentos a
+JOIN veiculo v ON v.placa = a.veiculo_placa AND v.utilizacaoveiculo IN ('TRA','LOC')
+WHERE a.data_inicio_abastecimento >= %(de)s::date
+  AND a.data_inicio_abastecimento < %(ate)s::date
+GROUP BY a.veiculo_placa
 """
 
-# Custo de manutencao/pneus por placa na janela rolling (ordemservico).
+# Custo de manutencao/pneus por placa na janela rolling (ordemservico; placa = o.veiculo).
 OS_CUSTO_SQL = """
-SELECT o.placa, sum(coalesce(o.valortotal,0))::float8 AS custo
+SELECT o.veiculo AS placa, sum(coalesce(o.valortotal,0))::float8 AS custo
 FROM ordemservico o
-WHERE o.dtabertura >= %(de)s::date AND o.dtabertura < %(ate)s::date
-GROUP BY o.placa
+WHERE o.dtemissao >= %(de)s::date AND o.dtemissao < %(ate)s::date
+GROUP BY o.veiculo
 """
 
 # Km rodado por placa na janela rolling (base da taxa R$/km).

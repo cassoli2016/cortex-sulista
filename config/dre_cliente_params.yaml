@@ -4,19 +4,24 @@
 # contra o razao (get_dre) para minimizar o NAO_ALOCADO das linhas parametricas.
 
 # Aliquota efetiva por grupo de imposto, sobre a receita bruta do CT-e/viagem.
+# CALIBRADO na Fase 4 (2026-07-17) = |linha do razao| / receita bruta, periodo
+# fechado jan-jun/2026 (get_dre). Reconcilia ~96% (limitado pela cobertura da
+# receita descida via programacaoembarque).
 deducoes_pct:
-  federais: 0.0365        # PIS/COFINS cumulativo (estimativa)
-  estaduais: 0.12         # ICMS transporte (estimativa)
-  municipais: 0.0         # transporte interestadual normalmente sem ISS
-  previdenciaria: 0.015   # CPRB sobre receita bruta (estimativa)
+  federais: 0.0778        # IMPOSTOS FEDERAIS / RB (jan-jun/26)
+  estaduais: 0.0983       # IMPOSTOS ESTADUAIS / RB
+  municipais: 0.0013      # IMPOSTOS MUNICIPAIS / RB
+  previdenciaria: 0.0085  # CONTRIBUICAO PREVIDENCIARIA / RB
 
 # Percentual de credito tributario (redutor) por natureza de custo gerador,
-# aplicado sobre o custo descido ao cliente. Valores negativos no resultado.
+# aplicado sobre o custo descido ao cliente. Valores positivos (redutor).
+# Creditos totais do razao ~19,7% do CV; base descida (comb+manut+frete) e
+# menor que o CV, entao a cobertura fica parcial (plug em NAO_ALOCADO). v1.
 creditos_pct:
-  combustivel: 0.12       # credito de ICMS sobre diesel (estimativa)
-  pneus: 0.12
-  manutencao: 0.08
-  frete_contratado: 0.12
+  combustivel: 0.24       # diesel: ICMS + PIS/COFINS creditaveis
+  pneus: 0.24
+  manutencao: 0.15
+  frete_contratado: 0.12  # ICMS sobre frete subcontratado
 
 # Base de rateio de custos de uma viagem entre varios CT-es (multi-cliente).
 rateio_intra_viagem: peso   # peso | receita
