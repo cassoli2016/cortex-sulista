@@ -222,6 +222,9 @@ tr.forn-det td{padding:7px 12px}
     border-radius:16px 16px 0 0;max-height:82vh;overflow-y:auto;
     padding:8px 14px calc(16px + env(safe-area-inset-bottom));display:block}
   .drawer .alca{width:42px;height:4px;border-radius:2px;background:var(--n300);margin:6px auto 10px}
+  .drawer .dbusca{width:100%;box-sizing:border-box;font-family:var(--font);font-size:16px;
+    padding:11px 14px;margin:0 0 6px;border:1px solid var(--n200,#E4E7EB);border-radius:12px;
+    background:var(--n50,#F7F9FA);color:var(--n900)}
   .dgrp{border-bottom:1px solid var(--n100,#EEF1F4)}
   .dgrp-h{width:100%;display:flex;align-items:center;justify-content:space-between;
     background:none;border:0;cursor:pointer;font-family:var(--font);
@@ -1971,8 +1974,17 @@ function toggleDGrp(h){
   document.querySelectorAll('#drawer .dgrp').forEach(x=>x.classList.remove('aberto'));
   if(abrir) g.classList.add('aberto');
 }
-function abrirDrawer(){
-  const d=document.getElementById('drawer'); if(!d) return;
+const _normDG = s => (s||'').normalize('NFD').replace(/[̀-ͯ]/g,'').toLowerCase();
+function _drawerVisibPermissao(){   // itens/seções conforme permissão do usuário
+  document.querySelectorAll('#drawer .dgrp-b a').forEach(a=>{
+    const v=(a.getAttribute('href')||'').replace('#','');
+    a.style.display = (!VIEWS[v]||podeVer(v)) ? '' : 'none';
+  });
+  document.querySelectorAll('#drawer .dgrp').forEach(g=>{
+    g.style.display = [...g.querySelectorAll('.dgrp-b a')].some(a=>a.style.display!=='none') ? '' : 'none';
+  });
+}
+function _drawerAbreAtivo(){         // accordion: abre so a seção da tela atual + destaca
   const v=currentView(), grp=(VIEW_GROUP[v]||'Ger');
   let algum=false;
   document.querySelectorAll('#drawer .dgrp').forEach(g=>{
@@ -1981,6 +1993,26 @@ function abrirDrawer(){
   });
   if(!algum){ const f=[...document.querySelectorAll('#drawer .dgrp')].find(g=>g.style.display!=='none'); if(f) f.classList.add('aberto'); }
   document.querySelectorAll('#drawer a[href^="#"]').forEach(a=>a.classList.toggle('ativo', a.getAttribute('href')==='#'+v));
+}
+function filtrarDrawer(q){
+  const n=_normDG(q.trim());
+  if(!n){ _drawerVisibPermissao(); _drawerAbreAtivo(); return; }
+  document.querySelectorAll('#drawer .dgrp').forEach(g=>{
+    let tem=false;
+    g.querySelectorAll('.dgrp-b a').forEach(a=>{
+      const v=(a.getAttribute('href')||'').replace('#','');
+      const match=(!VIEWS[v]||podeVer(v)) && _normDG(a.textContent).includes(n);
+      a.style.display = match ? '' : 'none'; if(match) tem=true;
+    });
+    g.style.display = tem ? '' : 'none';
+    g.classList.toggle('aberto', tem);   // expande seções com resultado
+  });
+}
+function abrirDrawer(){
+  const d=document.getElementById('drawer'); if(!d) return;
+  const bq=document.getElementById('dbusca'); if(bq) bq.value='';   // reseta a busca
+  _drawerVisibPermissao();
+  _drawerAbreAtivo();
   d.classList.add('aberto');
   const p=d.querySelector('.painel'); if(p) p.scrollTop=0;
 }
@@ -5431,6 +5463,7 @@ boot();
 <div class="drawer" id="drawer" onclick="if(event.target===this)this.classList.remove('aberto')">
   <div class="painel">
     <div class="alca"></div>
+    <input type="search" class="dbusca" id="dbusca" placeholder="Buscar tela…" oninput="filtrarDrawer(this.value)" autocomplete="off" aria-label="Buscar tela">
     <div class="dgrp" data-grp="Ger">
       <button class="dgrp-h" onclick="toggleDGrp(this)"><span>Geral</span><span class="dchev">›</span></button>
       <div class="dgrp-b">
