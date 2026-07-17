@@ -219,14 +219,23 @@ tr.forn-det td{padding:7px 12px}
   /* gaveta "mais" */
   .drawer.aberto{display:block;position:fixed;inset:0;z-index:70;background:rgba(11,25,38,.55)}
   .drawer .painel{position:absolute;bottom:0;left:0;right:0;background:var(--n0);
-    border-radius:16px 16px 0 0;max-height:78vh;overflow-y:auto;
-    padding:10px 14px calc(20px + env(safe-area-inset-bottom));
-    display:grid;grid-template-columns:1fr 1fr;gap:8px;align-content:start}
-  .drawer .alca{width:42px;height:4px;border-radius:2px;background:var(--n300);margin:6px auto 8px;grid-column:1/-1}
-  .drawer h3{font-size:11px;text-transform:uppercase;letter-spacing:.08em;color:var(--n500);margin:10px 2px 0;grid-column:1/-1}
+    border-radius:16px 16px 0 0;max-height:82vh;overflow-y:auto;
+    padding:8px 14px calc(16px + env(safe-area-inset-bottom));display:block}
+  .drawer .alca{width:42px;height:4px;border-radius:2px;background:var(--n300);margin:6px auto 10px}
+  .dgrp{border-bottom:1px solid var(--n100,#EEF1F4)}
+  .dgrp-h{width:100%;display:flex;align-items:center;justify-content:space-between;
+    background:none;border:0;cursor:pointer;font-family:var(--font);
+    font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;
+    color:var(--navy-700);padding:14px 4px}
+  .dgrp-h .dchev{font-size:18px;color:var(--n400);transition:transform .2s;line-height:1}
+  .dgrp.aberto .dgrp-h .dchev{transform:rotate(90deg);color:var(--orange-500)}
+  .dgrp-b{display:grid;grid-template-columns:1fr 1fr;gap:8px;padding:0 0 12px}
+  .dgrp:not(.aberto) .dgrp-b{display:none}
+  .dconta{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:12px}
   .drawer a{display:flex;align-items:center;gap:10px;padding:10px 12px;border-radius:12px;
     text-decoration:none;color:var(--n900);font-size:13.5px;line-height:1.25;min-height:52px;
     background:var(--n50,#F7F9FA);border:1px solid var(--n200,#E4E7EB)}
+  .drawer a.ativo{border-color:var(--orange-500);background:var(--navy-50);font-weight:600}
   .drawer a:active{background:var(--navy-50)}
   .drawer a .ic{width:20px;height:20px;min-width:20px;color:var(--navy-600)}
 }
@@ -1956,6 +1965,25 @@ function router(){
   hideTips();
 }
 function fecharDrawer(){ const d=document.getElementById('drawer'); if(d) d.classList.remove('aberto'); }
+// gaveta mobile em accordion: abrir uma seção fecha as demais
+function toggleDGrp(h){
+  const g=h.parentElement, abrir=!g.classList.contains('aberto');
+  document.querySelectorAll('#drawer .dgrp').forEach(x=>x.classList.remove('aberto'));
+  if(abrir) g.classList.add('aberto');
+}
+function abrirDrawer(){
+  const d=document.getElementById('drawer'); if(!d) return;
+  const v=currentView(), grp=(VIEW_GROUP[v]||'Ger');
+  let algum=false;
+  document.querySelectorAll('#drawer .dgrp').forEach(g=>{
+    const on=(g.dataset.grp===grp && g.style.display!=='none');
+    g.classList.toggle('aberto', on); if(on) algum=true;
+  });
+  if(!algum){ const f=[...document.querySelectorAll('#drawer .dgrp')].find(g=>g.style.display!=='none'); if(f) f.classList.add('aberto'); }
+  document.querySelectorAll('#drawer a[href^="#"]').forEach(a=>a.classList.toggle('ativo', a.getAttribute('href')==='#'+v));
+  d.classList.add('aberto');
+  const p=d.querySelector('.painel'); if(p) p.scrollTop=0;
+}
 window.addEventListener('hashchange', router);
 
 /* ---------------- Filtros ---------------- */
@@ -4957,10 +4985,9 @@ function aplicarPermissoes(){
     const v=(a.getAttribute('href')||'').replace('#','');
     if(VIEWS[v]) a.style.display = podeVer(v) ? '' : 'none';
   });
-  document.querySelectorAll('#drawer .painel h3').forEach(h=>{
-    let el=h.nextElementSibling, tem=false;
-    while(el && el.tagName==='A'){ if(el.style.display!=='none') tem=true; el=el.nextElementSibling; }
-    h.style.display = tem ? '' : 'none';
+  document.querySelectorAll('#drawer .dgrp').forEach(g=>{
+    const tem=[...g.querySelectorAll('.dgrp-b a')].some(a=>a.style.display!=='none');
+    g.style.display = tem ? '' : 'none';
   });
 }
 function lgHTML(modo){
@@ -5399,48 +5426,85 @@ boot();
   <a href="#fluxo" data-bview="fluxo"><span class="ic" data-ic="flx"></span>Caixa</a>
   <a href="#torre" data-bview="torre"><span class="ic" data-ic="tor"></span>Torre</a>
   <a href="#cop" data-bview="cop"><span class="ic" data-ic="cop"></span>Copiloto</a>
-  <button id="btnMais" onclick="document.getElementById('drawer').classList.add('aberto')"><span class="ic" data-ic="chev"></span>Mais</button>
+  <button id="btnMais" onclick="abrirDrawer()"><span class="ic" data-ic="chev"></span>Mais</button>
 </nav>
 <div class="drawer" id="drawer" onclick="if(event.target===this)this.classList.remove('aberto')">
   <div class="painel">
     <div class="alca"></div>
-    <h3>Geral</h3>
-    <a href="#home" onclick="fecharDrawer()"><span class="ic" data-ic="home"></span>Visão Geral</a>
-    <a href="#cop" onclick="fecharDrawer()"><span class="ic" data-ic="cop"></span>Copiloto Cortex</a>
-    <h3>Comercial</h3>
-    <a href="#com" onclick="fecharDrawer()"><span class="ic" data-ic="com"></span>Clientes e RKM</a>
-    <a href="#rent" onclick="fecharDrawer()"><span class="ic" data-ic="rent"></span>Rentabilidade</a>
-    <a href="#drecli" onclick="fecharDrawer()"><span class="ic" data-ic="rent"></span>DRE por Cliente</a>
-    <h3>Financeiro</h3>
-    <a href="#fluxo" onclick="fecharDrawer()"><span class="ic" data-ic="flx"></span>Fluxo de Caixa e Bancos</a>
-    <a href="#receber" onclick="fecharDrawer()"><span class="ic" data-ic="rec"></span>Contas a Receber</a>
-    <a href="#pagar" onclick="fecharDrawer()"><span class="ic" data-ic="pag"></span>Contas a Pagar</a>
-    <a href="#cob" onclick="fecharDrawer()"><span class="ic" data-ic="cob"></span>Cobrança</a>
-    <h3>Controladoria</h3>
-    <a href="#dre" onclick="fecharDrawer()"><span class="ic" data-ic="dre"></span>DRE Gerencial</a>
-    <a href="#cont" onclick="fecharDrawer()"><span class="ic" data-ic="ctb"></span>Contabilidade</a>
-    <h3>Operação</h3>
-    <a href="#torre" onclick="fecharDrawer()"><span class="ic" data-ic="tor"></span>Torre de Controle</a>
-    <a href="#prog" onclick="fecharDrawer()"><span class="ic" data-ic="prog"></span>Programação Intel.</a>
-    <a href="#km" onclick="fecharDrawer()"><span class="ic" data-ic="kmv"></span>Análise de KM</a>
-    <a href="#agr" onclick="fecharDrawer()"><span class="ic" data-ic="agr"></span>Agregados e Terceiros</a>
-    <a href="#mvb" onclick="fecharDrawer()"><span class="ic" data-ic="mvb"></span>Make vs Buy</a>
-    <h3>Frota</h3>
-    <a href="#veic" onclick="fecharDrawer()"><span class="ic" data-ic="veic"></span>Veículos</a>
-    <a href="#comb" onclick="fecharDrawer()"><span class="ic" data-ic="comb"></span>Combustível</a>
-    <a href="#man" onclick="fecharDrawer()"><span class="ic" data-ic="man"></span>Manutenção</a>
-    <a href="#mul" onclick="fecharDrawer()"><span class="ic" data-ic="mul"></span>Multas</a>
-    <h3>Suprimentos</h3>
-    <a href="#oc" onclick="fecharDrawer()"><span class="ic" data-ic="oc"></span>Ordens de Compra</a>
-    <h3>Painéis TV</h3>
-    <a href="#tvfat" onclick="fecharDrawer()"><span class="ic" data-ic="tv"></span>Faturamento (TV)</a>
-    <a href="#tvope" onclick="fecharDrawer()"><span class="ic" data-ic="tv"></span>Operação (TV)</a>
-    <h3>Administração</h3>
-    <a href="#gestao" onclick="fecharDrawer()"><span class="ic" data-ic="ges"></span>Usuários e acesso</a>
-    <a href="#srv" onclick="fecharDrawer()"><span class="ic" data-ic="srv"></span>Saúde do Servidor</a>
-    <h3>Conta</h3>
-    <a href="#" onclick="event.preventDefault();fecharDrawer();abrirTrocarSenha(false)"><span class="ic" data-ic="chave"></span>Trocar senha</a>
-    <a href="#" onclick="event.preventDefault();sair()"><span class="ic" data-ic="sair"></span>Sair</a>
+    <div class="dgrp" data-grp="Ger">
+      <button class="dgrp-h" onclick="toggleDGrp(this)"><span>Geral</span><span class="dchev">›</span></button>
+      <div class="dgrp-b">
+        <a href="#home" onclick="fecharDrawer()"><span class="ic" data-ic="home"></span>Visão Geral</a>
+        <a href="#cop" onclick="fecharDrawer()"><span class="ic" data-ic="cop"></span>Copiloto Cortex</a>
+      </div>
+    </div>
+    <div class="dgrp" data-grp="Com">
+      <button class="dgrp-h" onclick="toggleDGrp(this)"><span>Comercial</span><span class="dchev">›</span></button>
+      <div class="dgrp-b">
+        <a href="#com" onclick="fecharDrawer()"><span class="ic" data-ic="com"></span>Clientes e RKM</a>
+        <a href="#rent" onclick="fecharDrawer()"><span class="ic" data-ic="rent"></span>Rentabilidade</a>
+        <a href="#drecli" onclick="fecharDrawer()"><span class="ic" data-ic="rent"></span>DRE por Cliente</a>
+      </div>
+    </div>
+    <div class="dgrp" data-grp="Fin">
+      <button class="dgrp-h" onclick="toggleDGrp(this)"><span>Financeiro</span><span class="dchev">›</span></button>
+      <div class="dgrp-b">
+        <a href="#fluxo" onclick="fecharDrawer()"><span class="ic" data-ic="flx"></span>Fluxo de Caixa e Bancos</a>
+        <a href="#receber" onclick="fecharDrawer()"><span class="ic" data-ic="rec"></span>Contas a Receber</a>
+        <a href="#pagar" onclick="fecharDrawer()"><span class="ic" data-ic="pag"></span>Contas a Pagar</a>
+        <a href="#cob" onclick="fecharDrawer()"><span class="ic" data-ic="cob"></span>Cobrança</a>
+      </div>
+    </div>
+    <div class="dgrp" data-grp="Ctr">
+      <button class="dgrp-h" onclick="toggleDGrp(this)"><span>Controladoria</span><span class="dchev">›</span></button>
+      <div class="dgrp-b">
+        <a href="#dre" onclick="fecharDrawer()"><span class="ic" data-ic="dre"></span>DRE Gerencial</a>
+        <a href="#cont" onclick="fecharDrawer()"><span class="ic" data-ic="ctb"></span>Contabilidade</a>
+      </div>
+    </div>
+    <div class="dgrp" data-grp="Ope">
+      <button class="dgrp-h" onclick="toggleDGrp(this)"><span>Operação</span><span class="dchev">›</span></button>
+      <div class="dgrp-b">
+        <a href="#torre" onclick="fecharDrawer()"><span class="ic" data-ic="tor"></span>Torre de Controle</a>
+        <a href="#prog" onclick="fecharDrawer()"><span class="ic" data-ic="prog"></span>Programação Intel.</a>
+        <a href="#km" onclick="fecharDrawer()"><span class="ic" data-ic="kmv"></span>Análise de KM</a>
+        <a href="#agr" onclick="fecharDrawer()"><span class="ic" data-ic="agr"></span>Agregados e Terceiros</a>
+        <a href="#mvb" onclick="fecharDrawer()"><span class="ic" data-ic="mvb"></span>Make vs Buy</a>
+      </div>
+    </div>
+    <div class="dgrp" data-grp="Fro">
+      <button class="dgrp-h" onclick="toggleDGrp(this)"><span>Frota</span><span class="dchev">›</span></button>
+      <div class="dgrp-b">
+        <a href="#veic" onclick="fecharDrawer()"><span class="ic" data-ic="veic"></span>Veículos</a>
+        <a href="#comb" onclick="fecharDrawer()"><span class="ic" data-ic="comb"></span>Combustível</a>
+        <a href="#man" onclick="fecharDrawer()"><span class="ic" data-ic="man"></span>Manutenção</a>
+        <a href="#mul" onclick="fecharDrawer()"><span class="ic" data-ic="mul"></span>Multas</a>
+      </div>
+    </div>
+    <div class="dgrp" data-grp="Sup">
+      <button class="dgrp-h" onclick="toggleDGrp(this)"><span>Suprimentos</span><span class="dchev">›</span></button>
+      <div class="dgrp-b">
+        <a href="#oc" onclick="fecharDrawer()"><span class="ic" data-ic="oc"></span>Ordens de Compra</a>
+      </div>
+    </div>
+    <div class="dgrp" data-grp="Tv">
+      <button class="dgrp-h" onclick="toggleDGrp(this)"><span>Painéis TV</span><span class="dchev">›</span></button>
+      <div class="dgrp-b">
+        <a href="#tvfat" onclick="fecharDrawer()"><span class="ic" data-ic="tv"></span>Faturamento (TV)</a>
+        <a href="#tvope" onclick="fecharDrawer()"><span class="ic" data-ic="tv"></span>Operação (TV)</a>
+      </div>
+    </div>
+    <div class="dgrp" data-grp="Adm">
+      <button class="dgrp-h" onclick="toggleDGrp(this)"><span>Administração</span><span class="dchev">›</span></button>
+      <div class="dgrp-b">
+        <a href="#gestao" onclick="fecharDrawer()"><span class="ic" data-ic="ges"></span>Usuários e acesso</a>
+        <a href="#srv" onclick="fecharDrawer()"><span class="ic" data-ic="srv"></span>Saúde do Servidor</a>
+      </div>
+    </div>
+    <div class="dconta">
+      <a href="#" onclick="event.preventDefault();fecharDrawer();abrirTrocarSenha(false)"><span class="ic" data-ic="chave"></span>Trocar senha</a>
+      <a href="#" onclick="event.preventDefault();sair()"><span class="ic" data-ic="sair"></span>Sair</a>
+    </div>
   </div>
 </div>
 </body>
