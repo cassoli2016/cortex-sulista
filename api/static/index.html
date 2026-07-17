@@ -516,6 +516,7 @@ button.avatar{border:0;cursor:pointer}
         <a href="#pagar" class="sub" data-view="pagar" title="Contas a Pagar"><span class="ic" data-ic="pag"></span><span>Contas a Pagar</span></a>
         <a href="#fluxo" class="sub" data-view="fluxo" title="Fluxo de Caixa e Bancos"><span class="ic" data-ic="flx"></span><span>Fluxo de Caixa e Bancos</span></a>
         <a href="#dre" class="sub" data-view="dre" title="DRE Gerencial"><span class="ic" data-ic="dre"></span><span>DRE Gerencial</span></a>
+        <a href="#drecli" class="sub" data-view="drecli" title="DRE por Cliente"><span class="ic" data-ic="rent"></span><span>DRE por Cliente</span></a>
         <a href="#cont" class="sub" data-view="cont" title="Contabilidade — ajuste de agrupadores"><span class="ic" data-ic="ctb"></span><span>Contabilidade</span></a>
       </div>
       <button class="group" id="grpCom" aria-expanded="true" aria-controls="subsCom" onclick="toggleGroup('grpCom','subsCom','cs.comGroup')" title="Comercial">
@@ -1418,6 +1419,33 @@ button.avatar{border:0;cursor:pointer}
       </section>
 
       <!-- ===================== DRE GERENCIAL ===================== -->
+      <section class="view" id="view-drecli">
+        <div class="kpis" id="kpis-drecli"></div>
+        <div class="card">
+          <div class="head"><h2>DRE por Cliente</h2><span class="hint" id="drecliHint">custeada por viagem/CT-e · reconciliada com a DRE oficial · R$ mil · v1 até Margem de Contribuição</span></div>
+          <div style="padding:0 16px 10px">
+            <label for="fDreCli" style="font-size:13px;color:var(--n600)">Cliente:&nbsp;</label>
+            <select id="fDreCli" onchange="renderDreCli(DATADRECLI)" style="min-width:280px;max-width:100%"></select>
+          </div>
+          <div class="tablewrap"><table>
+            <thead id="drecli-head"></thead><tbody id="drecli-body"></tbody>
+          </table></div>
+        </div>
+        <div class="grid2">
+          <div class="card">
+            <div class="head"><h2>Ranking por margem de contribuição</h2><span class="hint">MC% · maior primeiro</span></div>
+            <div class="tablewrap"><table><thead><tr>
+              <th>Cliente</th><th class="num">Receita líq.</th><th class="num">MC</th><th class="num">MC%</th><th class="num">% km vazio</th><th class="num">Viagens</th>
+            </tr></thead><tbody id="drecli-rank"></tbody></table></div>
+          </div>
+          <div class="card">
+            <div class="head"><h2>Reconciliação vs DRE oficial</h2><span class="hint">Σ clientes + não alocado + variação = DRE · cobertura por linha</span></div>
+            <div class="tablewrap"><table><thead><tr>
+              <th>Linha</th><th class="num">Descido</th><th class="num">Não alocado</th><th class="num">Var. absorção</th><th class="num">DRE oficial</th><th class="num">Cobertura</th>
+            </tr></thead><tbody id="drecli-recon"></tbody></table></div>
+          </div>
+        </div>
+      </section>
       <section class="view" id="view-dre">
         <div class="kpis" id="kpis-dre"></div>
         <div class="card">
@@ -1600,7 +1628,7 @@ const FAIXAS = {
   '4_vencido_91_365':['Vencido 91–365d','b-dang'],
   '5_vencido_mais_365':['Vencido > 365d','b-dang'],
 };
-const VIEWS = { home:'Visão Geral', fluxo:'Fluxo de Caixa e Bancos', receber:'Contas a Receber', pagar:'Contas a Pagar', oc:'Ordens de Compra', agr:'Agregados e Terceiros', mvb:'Make vs Buy', comb:'Combustível', man:'Manutenção', com:'Clientes e RKM', km:'Análise de KM', torre:'Torre de Controle', veic:'Veículos', mul:'Multas', prog:'Programação Inteligente', cop:'Copiloto Cortex', cob:'Régua de Cobrança', rent:'Rentabilidade por Cliente', cont:'Contabilidade', dre:'DRE Gerencial', tvfat:'Painel TV — Faturamento', tvope:'Painel TV — Operação', gestao:'Gestão', srv:'Saúde do Servidor' };
+const VIEWS = { home:'Visão Geral', fluxo:'Fluxo de Caixa e Bancos', receber:'Contas a Receber', pagar:'Contas a Pagar', oc:'Ordens de Compra', agr:'Agregados e Terceiros', mvb:'Make vs Buy', comb:'Combustível', man:'Manutenção', com:'Clientes e RKM', km:'Análise de KM', torre:'Torre de Controle', veic:'Veículos', mul:'Multas', prog:'Programação Inteligente', cop:'Copiloto Cortex', cob:'Régua de Cobrança', rent:'Rentabilidade por Cliente', cont:'Contabilidade', dre:'DRE Gerencial', drecli:'DRE por Cliente', tvfat:'Painel TV — Faturamento', tvope:'Painel TV — Operação', gestao:'Gestão', srv:'Saúde do Servidor' };
 const periodoLabel = p => { if(p==='atrasado') return 'Atrasado'; const [y,m]=p.split('-'); return MES[+m-1]+'/'+y.slice(2); };
 const fmtD = s => { if(!s) return ''; const [y,m,dd]=s.split('-'); return dd+'/'+m+'/'+y; };
 const esc  = s => (s??'').toString().replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
@@ -1608,6 +1636,7 @@ const unitOf = m => m>=1.5e6 ? {d:1e6,t:'R$ MI'} : (m>=1500 ? {d:1e3,t:'R$ MIL'}
 
 let DATA = null;
 let DATADRE = null;
+let DATADRECLI = null;
 let DATAOC = null;
 let DATAAGR = null;
 let DATAMVB = null;
@@ -1622,6 +1651,7 @@ let DATAPROG = null;
 let DATAMUL = null;
 let loadSeq = 0;              // token: só a última requisição renderiza
 let dreSeq = 0;
+let dreCliSeq = 0;
 let ocSeq = 0;
 let agrSeq = 0;
 let mvbSeq = 0;
@@ -1698,7 +1728,7 @@ function toggleGroup(gid,sid,key){
   });
 })();
 
-const VIEW_GROUP = {home:'',cop:'',cob:'Fin',rent:'Fin',cont:'Fin',tvfat:'Tv',tvope:'Tv',km:'Ope',prog:'Ope',torre:'Ope',veic:'Fro',mul:'Fro',receber:'Fin',pagar:'Fin',fluxo:'Fin',dre:'Fin',com:'Com',agr:'Ope',mvb:'Ope',oc:'Sup',comb:'Fro',man:'Fro',gestao:''};
+const VIEW_GROUP = {home:'',cop:'',cob:'Fin',rent:'Fin',cont:'Fin',tvfat:'Tv',tvope:'Tv',km:'Ope',prog:'Ope',torre:'Ope',veic:'Fro',mul:'Fro',receber:'Fin',pagar:'Fin',fluxo:'Fin',dre:'Fin',drecli:'Fin',com:'Com',agr:'Ope',mvb:'Ope',oc:'Sup',comb:'Fro',man:'Fro',gestao:''};
 function syncGroups(v){
   const ativo = VIEW_GROUP[v];
   [['Fin','cs.finGroup'],['Com','cs.comGroup'],['Ope','cs.opeGroup'],['Tor','cs.torGroup'],['Sup','cs.supGroup'],['Fro','cs.froGroup'],['Tv','cs.tvGroup']].forEach(([k,key])=>{
@@ -1783,7 +1813,7 @@ function qsView(k){
   } else if(k==='prog'){
   } else if(k==='torre'){
     if(V('fFilial'))p.set('filial',V('fFilial'));
-  } else if(k==='mvb'||k==='dre'){
+  } else if(k==='mvb'||k==='dre'||k==='drecli'){
     if(V('fCompDe'))p.set('comp_de',V('fCompDe'));
     if(V('fCompAte'))p.set('comp_ate',V('fCompAte'));
   }
@@ -1831,7 +1861,7 @@ function router(){
   document.querySelectorAll('nav a[data-view]').forEach(a=>a.classList.toggle('active', a.dataset.view===v));
   document.getElementById('viewTitle').textContent = VIEWS[v];
   syncGroups(v);
-  const dre = (v==='dre'), oc = (v==='oc'), agr = (v==='agr'), mvb = (v==='mvb'), comb = (v==='comb'), man = (v==='man'), com = (v==='com'), home = (v==='home'), kmv = (v==='km'), torre = (v==='torre'), veic = (v==='veic'), mul = (v==='mul'), prog = (v==='prog'), cop = (v==='cop'), cob = (v==='cob'), rent = (v==='rent'), contab = (v==='cont');
+  const dre = (v==='dre'), oc = (v==='oc'), agr = (v==='agr'), mvb = (v==='mvb'), comb = (v==='comb'), man = (v==='man'), com = (v==='com'), home = (v==='home'), kmv = (v==='km'), torre = (v==='torre'), veic = (v==='veic'), mul = (v==='mul'), prog = (v==='prog'), cop = (v==='cop'), cob = (v==='cob'), rent = (v==='rent'), contab = (v==='cont'), dreCli = (v==='drecli');
   document.getElementById('filterbar').style.display = (home || v==='tvfat' || v==='tvope') ? 'none' : 'flex';
   // torre: só filial; auto-refresh de 120s enquanto ativa
   if(torreTimer){ clearInterval(torreTimer); torreTimer=null; }
@@ -1843,7 +1873,7 @@ function router(){
   document.getElementById('lblEmiDe').textContent =
     comb ? 'Abastecimento de' : mul ? 'Infração de' : man ? 'Emissão da OS de' : (agr||kmv||com||rent) ? 'Emissão da viagem de' : 'Emissão da OC de';
   document.getElementById('grpHor').style.display = (v==='fluxo') ? 'flex' : 'none';
-  document.getElementById('grpComp').style.display = (dre||mvb||contab) ? 'flex' : 'none';
+  document.getElementById('grpComp').style.display = (dre||mvb||contab||dreCli) ? 'flex' : 'none';
   document.getElementById('grpEmi').style.display = (oc||agr||comb||man||com||kmv||mul||rent) ? 'flex' : 'none';
   document.getElementById('grpMul').style.display = mul ? 'flex' : 'none';
   document.getElementById('grpCob').style.display = cob ? 'flex' : 'none';
@@ -1860,19 +1890,19 @@ function router(){
   document.getElementById('grpComb').style.display = comb ? 'flex' : 'none';
   document.getElementById('grpMan').style.display = man ? 'flex' : 'none';
   document.getElementById('grpVeic').style.display = veic ? 'flex' : 'none';
-  document.getElementById('grpVenc').style.display = (dre||oc||agr||mvb||comb||man||com||kmv||torre||veic||mul||prog||cop||cob||rent||contab) ? 'none' : 'flex';
-  document.getElementById('fData').parentElement.style.display = (dre||oc||agr||mvb||comb||man||com||kmv||torre||veic||mul||prog||cop||cob||rent||contab) ? 'none' : 'flex';
+  document.getElementById('grpVenc').style.display = (dre||oc||agr||mvb||comb||man||com||kmv||torre||veic||mul||prog||cop||cob||rent||contab||dreCli) ? 'none' : 'flex';
+  document.getElementById('fData').parentElement.style.display = (dre||oc||agr||mvb||comb||man||com||kmv||torre||veic||mul||prog||cop||cob||rent||contab||dreCli) ? 'none' : 'flex';
   document.getElementById('fFilial').parentElement.style.display = (dre||mvb||comb||veic||mul||prog||cop||contab) ? 'none' : (document.getElementById('fFilial').parentElement.style.display);
   // filial some onde a fonte não tem esse recorte (DRE/MvB consolidados; CTA Plus sem filial)
   const fFil = document.getElementById('fFilial');
   // Filial some onde a fonte não tem esse recorte OU a API não aceita o parâmetro
   // (DRE/MvB consolidados; Veículos/Multas/Programação/Contabilidade não filtram por filial).
-  fFil.parentElement.style.display = (dre||mvb||comb||veic||mul||prog||contab) ? 'none' : 'flex';
+  fFil.parentElement.style.display = (dre||mvb||comb||veic||mul||prog||contab||dreCli) ? 'none' : 'flex';
   // carga da vista: dispara se não há dados OU se os filtros visíveis
   // divergem dos usados na última carga (nunca mostrar dado velho com filtro novo)
   const key=viewKey(v);
-  const DATAMAP={fin:DATA,oc:DATAOC,agr:DATAAGR,mvb:DATAMVB,comb:DATACOMB,man:DATAMAN,com:DATACOM,dre:DATADRE,home:DATAHOME,km:DATAKM,torre:DATATORRE,veic:DATAVEIC,mul:DATAMUL,prog:DATAPROG,cob:DATACOB,rent:DATARENT,cont:DATACONT,gestao:DATAGES,srv:DATASRV,tvfat:null,tvope:null,cop:(COP_MSGS.length?{}:null)};
-  const LOADMAP={fin:load,oc:loadOc,agr:loadAgr,mvb:loadMvb,comb:loadComb,man:loadMan,com:loadCom,dre:loadDre,home:loadHome,km:loadKm,torre:loadTorre,veic:loadVeic,mul:loadMul,prog:loadProg,cob:loadCob,rent:loadRent,cont:loadCont,gestao:loadGestao,srv:loadSrv,cop:loadCop,tvfat:loadTvFat,tvope:loadTvOpe};
+  const DATAMAP={fin:DATA,oc:DATAOC,agr:DATAAGR,mvb:DATAMVB,comb:DATACOMB,man:DATAMAN,com:DATACOM,dre:DATADRE,drecli:DATADRECLI,home:DATAHOME,km:DATAKM,torre:DATATORRE,veic:DATAVEIC,mul:DATAMUL,prog:DATAPROG,cob:DATACOB,rent:DATARENT,cont:DATACONT,gestao:DATAGES,srv:DATASRV,tvfat:null,tvope:null,cop:(COP_MSGS.length?{}:null)};
+  const LOADMAP={fin:load,oc:loadOc,agr:loadAgr,mvb:loadMvb,comb:loadComb,man:loadMan,com:loadCom,dre:loadDre,drecli:loadDreCli,home:loadHome,km:loadKm,torre:loadTorre,veic:loadVeic,mul:loadMul,prog:loadProg,cob:loadCob,rent:loadRent,cont:loadCont,gestao:loadGestao,srv:loadSrv,cop:loadCop,tvfat:loadTvFat,tvope:loadTvOpe};
   if(!DATAMAP[key] || (key!=='home' && LOADEDQS[key]!==qsView(key))) LOADMAP[key]();
   // mobile: estado da navegação inferior + fecha gaveta/painel de filtros
   document.querySelectorAll('.bottomnav [data-bview]').forEach(a=>a.classList.toggle('ativo', a.dataset.bview===v));
@@ -2469,7 +2499,7 @@ function hideTips(){ ['chart','chartAr','chartAp','chartDre','chartOc','chartAgr
 function reloadCurrent(){
   // mapa COMPLETO: qualquer filtro compartilhado (Filial, datas, competência)
   // recarrega a TELA ATUAL — antes caía em load() (Financeiro) para várias telas.
-  const M={home:loadHome,fluxo:load,receber:load,pagar:load,dre:loadDre,oc:loadOc,
+  const M={home:loadHome,fluxo:load,receber:load,pagar:load,dre:loadDre,drecli:loadDreCli,oc:loadOc,
     agr:loadAgr,mvb:loadMvb,comb:loadComb,man:loadMan,com:loadCom,km:loadKm,
     torre:loadTorre,veic:loadVeic,mul:loadMul,prog:loadProg,cob:loadCob,rent:loadRent,
     cont:loadCont,gestao:loadGestao,srv:loadSrv,cop:loadCop,tvfat:loadTvFat,tvope:loadTvOpe};
@@ -4555,6 +4585,64 @@ const GRUPO_LBL = {
   fixo:['Fixo','b-warn'], depreciacao:['Deprec.','b-warn'],
   adm:['Adm','b-warn'], fin:['Financeiro','b-warn'], outras:['Outras','b-info'],
 };
+/* ---------------- DRE por Cliente ---------------- */
+const DRECLI_LINHAS = [
+  ['RECEITA BRUTA',0],['DEDUCOES DA RECEITA',0],['IMPOSTOS FEDERAIS',1],['IMPOSTOS ESTADUAIS',1],
+  ['IMPOSTOS MUNICIPAIS',1],['CONTRIBUICAO PREVIDENCIARIA',1],['ANULACOES',1],['DESCONTOS',1],
+  ['RECEITA LIQUIDA',0],['CUSTO VARIAVEL',0],['CREDITOS TRIBUTARIOS',0],['MARGEM DE CONTRIBUICAO',0]
+];
+async function loadDreCli(){
+  const seq = ++dreCliSeq;
+  const btn=document.getElementById('btnRefresh'); btn.disabled=true;
+  document.getElementById('content').classList.add('loading');
+  try{
+    const q=qsView('drecli');
+    const r=await fetch('/api/financeiro/dre-cliente?'+q,{cache:'no-store'});
+    const d=await r.json();
+    if(seq!==dreCliSeq) return;
+    if(!r.ok){ showBanner(d.mensagem||'Erro ao consultar a DRE por cliente.', d.detalhe); return; }
+    hideBanner(); DATADRECLI=d; LOADEDQS.drecli=q; renderDreCli(d);
+  }catch(e){ if(seq===dreCliSeq) showBanner('Não foi possível falar com a API.', e.message); }
+  finally{ if(seq===dreCliSeq){ btn.disabled=false; document.getElementById('content').classList.remove('loading'); } }
+}
+function renderDreCli(d){
+  if(!d) return;
+  if(!document.getElementById('fCompDe').value) document.getElementById('fCompDe').value=d.comp_de;
+  if(!document.getElementById('fCompAte').value) document.getElementById('fCompAte').value=d.comp_ate;
+  const clientes=d.clientes||[];
+  const somaLinha=rot=>clientes.reduce((s,c)=>s+((c.linhas||{})[rot]||0),0);
+  const rl=somaLinha('RECEITA LIQUIDA'), mc=somaLinha('MARGEM DE CONTRIBUICAO');
+  const cobRB=(d.cobertura&&d.cobertura['RECEITA BRUTA']!=null)?(100*d.cobertura['RECEITA BRUTA']).toFixed(0)+'%':'—';
+  document.getElementById('kpis-drecli').innerHTML=[
+    kpi('Receita líquida', BRL.format(rl), clientes.length+' clientes', ''),
+    kpi('Margem de contribuição', BRL.format(mc), rl?(100*mc/rl).toFixed(1)+'% da RL':'', mc<0?'neg':'pos'),
+    kpi('Clientes', clientes.length.toLocaleString('pt-BR'), compLabel(d.comp_de)+' a '+compLabel(d.comp_ate), ''),
+    kpi('Cobertura da receita', cobRB, 'atribuído a cliente vs DRE oficial', ''),
+  ].join('');
+  const sel=document.getElementById('fDreCli'), atual=sel.value;
+  sel.innerHTML=clientes.map(c=>`<option value="${esc(c.cliente)}">${esc(c.cliente)}</option>`).join('');
+  if(atual && clientes.some(c=>c.cliente===atual)) sel.value=atual;
+  const alvo=clientes.find(c=>c.cliente===sel.value)||clientes[0];
+  const fm=v=>{ if(Math.abs(v)<500) return '<span class="zero">–</span>'; const t=(v/1000).toLocaleString('pt-BR',{maximumFractionDigits:0}); return v<0?`<span class="neg">${t}</span>`:t; };
+  const RES=new Set(['RECEITA LIQUIDA','MARGEM DE CONTRIBUICAO']);
+  document.getElementById('drecli-head').innerHTML='<tr><th>Linha</th><th class="num">'+(alvo?esc(alvo.cliente):'—')+' (R$ mil)</th></tr>';
+  document.getElementById('drecli-body').innerHTML=(alvo?DRECLI_LINHAS:[]).map(([rot,niv])=>{
+    const v=(alvo.linhas||{})[rot]||0;
+    const tdL=niv===1?'style="padding-left:24px;color:var(--n600)"':(RES.has(rot)?'style="font-weight:700"':'');
+    const tdV=RES.has(rot)?'style="font-weight:700"':'';
+    return `<tr><td ${tdL}>${rot}</td><td class="num" ${tdV}>${fm(v)}</td></tr>`;
+  }).join('') || '<tr><td colspan="2" style="color:var(--n500)">sem dados</td></tr>';
+  document.getElementById('drecli-rank').innerHTML=clientes.slice(0,30).map(c=>{
+    const i=c.indicadores||{};
+    return `<tr><td>${esc(c.cliente)}</td><td class="num">${BRL.format((c.linhas||{})['RECEITA LIQUIDA']||0)}</td><td class="num">${BRL.format(i.mc||0)}</td><td class="num">${i.mc_pct!=null?(100*i.mc_pct).toFixed(1)+'%':'—'}</td><td class="num">${i.pct_km_vazio!=null?(100*i.pct_km_vazio).toFixed(1)+'%':'—'}</td><td class="num">${(i.viagens||0).toLocaleString('pt-BR')}</td></tr>`;
+  }).join('') || '<tr><td colspan="6" style="color:var(--n500)">sem dados</td></tr>';
+  const rec=d.reconciliacao||{};
+  document.getElementById('drecli-recon').innerHTML=DRECLI_LINHAS.filter(([rot])=>rec[rot]).map(([rot])=>{
+    const x=rec[rot], cob=x.cobertura_pct!=null?(100*x.cobertura_pct).toFixed(0)+'%':'—';
+    const cobcls=x.cobertura_pct>=0.98?'pos':(x.cobertura_pct>=0.8?'':'neg');
+    return `<tr><td>${rot}</td><td class="num">${BRL.format(x.descido||0)}</td><td class="num">${BRL.format(x.nao_alocado||0)}</td><td class="num">${BRL.format(x.variacao_absorcao||0)}</td><td class="num">${BRL.format(x.oficial||0)}</td><td class="num ${cobcls}">${cob}</td></tr>`;
+  }).join('') || '<tr><td colspan="6" style="color:var(--n500)">sem dados</td></tr>';
+}
 async function loadDre(){
   const seq = ++dreSeq;
   const btn=document.getElementById('btnRefresh');
