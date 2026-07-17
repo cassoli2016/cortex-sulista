@@ -1,30 +1,38 @@
-"""Testes do modelo de linhas da DRE por cliente (espelho ate MC)."""
+"""Testes do modelo de linhas da DRE por cliente (espelho ate Margem Direta)."""
 from __future__ import annotations
 
 from api.dre_cliente.modelo import (
     LINHAS_CLIENTE,
+    classificar_cf,
     classificar_cv,
     metodo_da_linha,
     rotulos,
 )
 from api.queries import DRE_MODELO
 
+# linhas ate MC seguem a ordem da DRE oficial; CUSTO FIXO e reordenado (apos MC,
+# formato por-cliente do spec) e as linhas MARGEM sao novas.
+_PRE_MC = ["RECEITA BRUTA", "DEDUCOES DA RECEITA", "IMPOSTOS FEDERAIS",
+           "IMPOSTOS ESTADUAIS", "IMPOSTOS MUNICIPAIS", "CONTRIBUICAO PREVIDENCIARIA",
+           "ANULACOES", "DESCONTOS", "RECEITA LIQUIDA", "CUSTO VARIAVEL",
+           "CREDITOS TRIBUTARIOS"]
 
-def test_lista_termina_em_margem_de_contribuicao():
-    assert rotulos()[-1] == "MARGEM DE CONTRIBUICAO"
+
+def test_lista_termina_em_margem_direta():
+    assert rotulos()[-1] == "MARGEM DIRETA DO CLIENTE"
+    assert "MARGEM DE CONTRIBUICAO" in rotulos()
+    assert "CUSTO FIXO" in rotulos()
 
 
-def test_backbone_e_subsequencia_da_dre_oficial():
-    """As linhas (menos a MC, que e nova) aparecem na MESMA ordem da DRE_MODELO."""
+def test_pre_mc_e_subsequencia_da_dre_oficial():
     oficiais = [l[0] for l in DRE_MODELO]
-    backbone = [r for r in rotulos() if r != "MARGEM DE CONTRIBUICAO"]
-    filtradas = [o for o in oficiais if o in set(backbone)]
-    assert filtradas == backbone
+    filtradas = [o for o in oficiais if o in set(_PRE_MC)]
+    assert filtradas == _PRE_MC
 
 
-def test_nao_desce_custo_fixo_no_v1():
-    assert "CUSTO FIXO" not in rotulos()
+def test_nao_desce_estrutura_nem_lucro_bruto():
     assert "LUCRO BRUTO" not in rotulos()
+    assert "CSP" not in rotulos()
 
 
 def test_metodo_por_linha():
@@ -33,6 +41,8 @@ def test_metodo_por_linha():
     assert metodo_da_linha("CREDITOS TRIBUTARIOS") == "credito_pct"
     assert metodo_da_linha("RECEITA LIQUIDA") == "formula"
     assert metodo_da_linha("RECEITA BRUTA") == "direto_viagem"
+    assert metodo_da_linha("CUSTO FIXO") == "fixo_dia_veiculo"
+    assert metodo_da_linha("MARGEM DIRETA DO CLIENTE") == "formula"
 
 
 def test_classificar_cv():
@@ -44,6 +54,19 @@ def test_classificar_cv():
     assert classificar_cv("CV - PEDAGIO") == "direto_viagem"
 
 
-def test_formula_componentes_da_mc():
-    linha = next(l for l in LINHAS_CLIENTE if l.rotulo == "MARGEM DE CONTRIBUICAO")
-    assert linha.componentes == ["RECEITA LIQUIDA", "CUSTO VARIAVEL", "CREDITOS TRIBUTARIOS"]
+def test_classificar_cf():
+    assert classificar_cf("CF - LOCACAO DE EQUIPAMENTOS") == "locado"
+    assert classificar_cf("CF - DEPRECIACAO OPERACIONAL") == "proprio"
+    assert classificar_cf("CF - JUROS DE FINANCIAMENTOS") == "proprio"
+    assert classificar_cf("CF - FOLHA MOT") == "ativo"
+    assert classificar_cf("CF - RASTREAMENTO") == "ativo"
+    assert classificar_cf("CF - IPVA/LICENCIAMENTOS") == "ativo"
+    assert classificar_cf("CF - SEGURO DE VEICULOS") == "ativo"
+    assert classificar_cf("CF - PESSOAL OPERACIONAL") == "nao_desce"
+    assert classificar_cf("CF - DESPESAS ADM") == "nao_desce"
+    assert classificar_cf("CF - SEGURO PATRIMONIAL") == "nao_desce"
+
+
+def test_formula_componentes_da_margem_direta():
+    linha = next(l for l in LINHAS_CLIENTE if l.rotulo == "MARGEM DIRETA DO CLIENTE")
+    assert linha.componentes == ["MARGEM DE CONTRIBUICAO", "CUSTO FIXO"]
