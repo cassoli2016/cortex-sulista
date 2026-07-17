@@ -1568,6 +1568,10 @@ button.avatar{border:0;cursor:pointer}
             <div style="padding:16px" id="srv-cpu"></div>
           </div>
         </div>
+        <div class="card" id="srv-gpu-card">
+          <div class="head"><h2>Placa de vídeo (GPU)</h2><span class="hint" id="srv-gpu-hint"></span></div>
+          <div style="padding:16px" id="srv-gpu"></div>
+        </div>
         <div class="card">
           <div class="head"><h2>Discos</h2><span class="hint">uso por volume</span></div>
           <div class="tablewrap"><table><thead><tr>
@@ -5131,6 +5135,20 @@ function renderSrv(){
     ? `<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:10px">`+
       nuc.map((p,i)=>`<div><div style="font-size:11px;color:var(--n500);display:flex;justify-content:space-between"><span>núcleo ${i+1}</span><span>${p}%</span></div>${srvBarra(p)}</div>`).join('')+`</div>`
     : '<div style="color:var(--n500)">psutil indisponível</div>';
+  const gpus=d.gpus||[];
+  document.getElementById('srv-gpu-hint').textContent = gpus.length ? gpus.length+' GPU'+(gpus.length>1?'s':'')+' · via nvidia-smi' : '';
+  document.getElementById('srv-gpu').innerHTML = gpus.length
+    ? gpus.map(g=>{
+        const mem = g.mem_percent!=null ? g.mem_percent : (g.mem_total_mb ? Math.round(100*g.mem_usado_mb/g.mem_total_mb) : null);
+        const extra=[g.temp_c!=null?g.temp_c+'°C':'', g.potencia_w!=null?Math.round(g.potencia_w)+(g.potencia_limite_w?'/'+Math.round(g.potencia_limite_w):'')+' W':''].filter(Boolean).join(' · ');
+        return `<div style="margin-bottom:16px">
+          <div style="font-weight:600;margin-bottom:6px">${esc(g.nome||'GPU')}</div>
+          <div style="font-size:13px;color:var(--n600);display:flex;justify-content:space-between"><span>Uso</span><b style="color:${srvCor(g.util_percent)}">${g.util_percent!=null?g.util_percent+'%':'—'}</b></div>${srvBarra(g.util_percent)}
+          <div style="font-size:13px;color:var(--n600);display:flex;justify-content:space-between;margin-top:10px"><span>Memória${g.mem_usado_mb!=null?' — '+Math.round(g.mem_usado_mb)+' de '+Math.round(g.mem_total_mb)+' MB':''}</span><b style="color:${srvCor(mem)}">${mem!=null?mem+'%':'—'}</b></div>${srvBarra(mem)}
+          ${extra?`<div style="font-size:12px;color:var(--n500);margin-top:8px">${extra}</div>`:''}
+        </div>`;
+      }).join('')
+    : '<div style="color:var(--n500)">sem GPU NVIDIA detectada (nvidia-smi ausente)</div>';
   document.getElementById('srv-discos').innerHTML=(d.discos||[]).map(x=>`<tr>
     <td>${esc(x.montagem)}</td><td>${esc(x.fs)}</td>
     <td class="num">${fmtBytes(x.total)}</td><td class="num">${fmtBytes(x.usado)}</td><td class="num">${fmtBytes(x.livre)}</td>
