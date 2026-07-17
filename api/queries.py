@@ -1437,10 +1437,40 @@ GROUP BY 1
 HAVING sum(m.valor) > 0
 """
 
-COM_REAL_MES_SQL = f"""
-SELECT {_COM_KEY} AS codigo, sum(coalesce(p.valorfrete,0))::float8 AS realizado
-{_COM_BASE} {_COM_PERIODO}
-GROUP BY {_COM_KEY}
+# Realizado do mês por cliente = faturamento OFICIAL (3 fontes por dtemissao:
+# conhecimento + notafiscalservico + sulista.faturamentokmm), agrupado por
+# agrupamentocliente — chave 'AG'||codigo, casando com COM_META_SQL. Antes
+# usava p.valorfrete (viagens), que diverge do faturamento oficial da empresa.
+COM_REAL_MES_SQL = """
+SELECT codigo, sum(realizado)::float8 AS realizado FROM (
+  SELECT 'AG'||ac.codigo::text AS codigo, sum(c.valortotalprestacao) AS realizado
+  FROM conhecimento c
+  JOIN agrupamentocliente_cnpjcpfcodigo acc ON acc.grupo=c.grupo AND acc.empresa=c.empresa
+     AND acc.cnpjcpfcodigo=c.cnpjcpfcodigopagadorfrete AND acc.vinculo=1
+  JOIN agrupamentocliente ac ON ac.grupo=acc.grupo AND ac.empresa=acc.empresa AND ac.codigo=acc.codigo
+  WHERE c.grupo=1 AND c.empresa=1 AND c.unidade=1 AND c.numero<1000000
+    AND c.dtcancelamento IS NULL AND c.situacaocte=3 AND c.tipo IN (1,4)
+    AND c.dtemissao::date BETWEEN %(dt_de)s AND %(dt_ate)s
+  GROUP BY 1
+  UNION ALL
+  SELECT 'AG'||ac.codigo::text, sum(n.valortotalbruto)
+  FROM notafiscalservico n
+  JOIN agrupamentocliente_cnpjcpfcodigo acc ON acc.grupo=n.grupo AND acc.empresa=n.empresa
+     AND acc.cnpjcpfcodigo=n.cnpjcpfcodigo AND acc.vinculo=1
+  JOIN agrupamentocliente ac ON ac.grupo=acc.grupo AND ac.empresa=acc.empresa AND ac.codigo=acc.codigo
+  WHERE n.grupo=1 AND n.empresa=1 AND n.numero<1000000 AND n.dtcancelamento IS NULL
+    AND (n.emissaoeletronica=2 OR (n.emissaoeletronica=1 AND n.situacaonfse=3))
+    AND n.dtemissao::date BETWEEN %(dt_de)s AND %(dt_ate)s
+  GROUP BY 1
+  UNION ALL
+  SELECT 'AG'||ac.codigo::text, sum(k.valor_cte)
+  FROM sulista.faturamentokmm k
+  JOIN agrupamentocliente_cnpjcpfcodigo acc ON acc.grupo=k.grupo AND acc.empresa=k.empresa
+     AND acc.cnpjcpfcodigo=k.pagadorfrete_cnpj AND acc.vinculo=1
+  JOIN agrupamentocliente ac ON ac.grupo=acc.grupo AND ac.empresa=acc.empresa AND ac.codigo=acc.codigo
+  WHERE k.dtemissao::date BETWEEN %(dt_de)s AND %(dt_ate)s
+  GROUP BY 1
+) t GROUP BY codigo
 """
 
 
@@ -1481,10 +1511,6 @@ def get_comercial(filial: int | None, dt_de: str, dt_ate: str,
                       "dt_de": mes_ini, "dt_ate": date.today().isoformat()}
         cur.execute(COM_REAL_MES_SQL, mes_params)
         real_mes = {r["codigo"]: r["realizado"] for r in cur.fetchall()}
-        cur.execute(HEUR_SEMCLI_SQL, mes_params)
-        for h in cur.fetchall():
-            if h["codigo"] != "(sem)":
-                real_mes[h["codigo"]] = real_mes.get(h["codigo"], 0.0) + h["receita"]
         cur.execute("SELECT current_timestamp AS ts")
         meta = cur.fetchone()
 
@@ -1639,6 +1665,7 @@ SELECT dia, sum(realizado)::float8 AS realizado, sum(meta)::float8 AS meta FROM 
          coalesce(valortotalprestacao,0) AS realizado, 0::numeric AS meta
   FROM conhecimento
   WHERE dtemissao >= date_trunc('month', current_date)
+    AND grupo = 1 AND empresa = 1 AND unidade = 1 AND numero < 1000000
     AND dtcancelamento IS NULL AND situacaocte = 3 AND tipo IN (1,4)
   UNION ALL
   SELECT extract(day from dtemissao)::int, coalesce(valor_cte,0), 0
@@ -1648,6 +1675,7 @@ SELECT dia, sum(realizado)::float8 AS realizado, sum(meta)::float8 AS meta FROM 
   SELECT extract(day from dtemissao)::int, coalesce(valortotalbruto,0), 0
   FROM notafiscalservico
   WHERE dtemissao >= date_trunc('month', current_date)
+    AND grupo = 1 AND empresa = 1 AND numero < 1000000
     AND dtcancelamento IS NULL
     AND (emissaoeletronica = 2 OR (emissaoeletronica = 1 AND situacaonfse = 3))
   UNION ALL
