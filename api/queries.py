@@ -1885,6 +1885,39 @@ WHERE a.data_inicio_abastecimento >= %(dt_de)s::date
 GROUP BY 1 ORDER BY 1
 """
 
+# Consumo (litros) por dia e por semana ISO, mesmos filtros da serie mensal.
+_COMB_PERIODO_FILTROS = """
+FROM sulista.ctaplus_abastecimentos a
+LEFT JOIN veiculo v ON v.placa = a.veiculo_placa
+WHERE a.data_inicio_abastecimento >= %(dt_de)s::date
+  AND a.data_inicio_abastecimento <= %(dt_ate)s::date
+  AND (%(modalidade)s::text IS NULL
+       OR (%(modalidade)s = 'proprio' AND coalesce(v.utilizacaoveiculo,'') NOT IN ('AGR','TER') AND v.placa IS NOT NULL)
+       OR (%(modalidade)s = 'terceiros' AND (v.utilizacaoveiculo IN ('AGR','TER') OR v.placa IS NULL)))
+  AND (%(placa)s::text IS NULL OR a.veiculo_placa ILIKE '%%'||%(placa)s||'%%')
+  AND (%(posto)s::text IS NULL
+       OR (%(posto)s = 'comercial' AND a.posto_comercial)
+       OR (%(posto)s = 'interno' AND NOT a.posto_comercial))
+  AND (%(combustivel)s::text IS NULL OR a.combustivel_descricao = %(combustivel)s)
+"""
+
+COMB_DIARIO_SQL = f"""
+SELECT to_char(a.data_inicio_abastecimento,'YYYY-MM-DD') AS dia,
+       sum(a.volume)::float8 AS litros,
+       sum(a.custo)::float8 AS custo
+{_COMB_PERIODO_FILTROS}
+GROUP BY 1 ORDER BY 1
+"""
+
+COMB_SEMANAL_SQL = f"""
+SELECT to_char(a.data_inicio_abastecimento,'IYYY-IW') AS semana,
+       min(a.data_inicio_abastecimento)::date AS inicio,
+       sum(a.volume)::float8 AS litros,
+       sum(a.custo)::float8 AS custo
+{_COMB_PERIODO_FILTROS}
+GROUP BY 1 ORDER BY 1
+"""
+
 COMB_VEIC_SQL = f"""
 SELECT a.veiculo_placa AS placa,
        min(coalesce(a.veiculo_categoria,'')) AS categoria,
@@ -1954,6 +1987,10 @@ def get_combustivel(dt_de: str, dt_ate: str, modalidade: str | None = None,
                 det.setdefault(r.pop("placa_t"), []).append(r)
         cur.execute(COMB_MENSAL_SQL, params)
         mensal = cur.fetchall()
+        cur.execute(COMB_DIARIO_SQL, params)
+        diario = cur.fetchall()
+        cur.execute(COMB_SEMANAL_SQL, params)
+        semanal = cur.fetchall()
         cur.execute(COMB_POSTO_SQL, params)
         postos = cur.fetchall()
         cur.execute(COMB_TIPO_SQL, params)
@@ -1979,6 +2016,7 @@ def get_combustivel(dt_de: str, dt_ate: str, modalidade: str | None = None,
 
     return {
         "kpis": kpis, "veiculos": veiculos, "postos": postos, "mensal": mensal,
+        "diario": diario, "semanal": semanal,
         "combustiveis": combustiveis,
         "dt_de": dt_de, "dt_ate": dt_ate,
         "modalidade": modalidade, "placa": placa, "posto": posto, "combustivel": combustivel,
