@@ -13,11 +13,11 @@ def _mock_fetch(monkeypatch):
         {"id": "v1", "placa": "AAA", "dtsaida": date(2026, 1, 2),
          "dtchegada": date(2026, 1, 3), "tipo": 1, "km": 1000.0,
          "valorfrete": 10000.0, "valorfretecompra": 0.0, "is_proprio": True,
-         "tipo_operacao": "FROTA", "cliente_codigo": "AG1", "cliente_nome": "ACME"},
+         "tipo_operacao": "TRA", "cliente_codigo": "AG1", "cliente_nome": "ACME"},
         {"id": "v2", "placa": "AAA", "dtsaida": date(2026, 1, 4),
          "dtchegada": date(2026, 1, 4), "tipo": 3, "km": 200.0,
          "valorfrete": 0.0, "valorfretecompra": 0.0, "is_proprio": True,
-         "tipo_operacao": "FROTA", "cliente_codigo": None, "cliente_nome": None},
+         "tipo_operacao": "TRA", "cliente_codigo": None, "cliente_nome": None},
         {"id": "v3", "placa": "BBB", "dtsaida": date(2026, 1, 5),
          "dtchegada": date(2026, 1, 6), "tipo": 1, "km": 500.0,
          "valorfrete": 4000.0, "valorfretecompra": 2500.0, "is_proprio": False,
@@ -31,11 +31,16 @@ def _mock_fetch(monkeypatch):
         "RECEITA BRUTA": 14000.0, "IMPOSTOS FEDERAIS": -511.0,
         "IMPOSTOS ESTADUAIS": -1680.0, "IMPOSTOS MUNICIPAIS": 0.0,
         "CONTRIBUICAO PREVIDENCIARIA": -210.0, "ANULACOES": 0.0, "DESCONTOS": 0.0,
-        "CUSTO VARIAVEL": -6500.0, "CREDITOS TRIBUTARIOS": 700.0,
+        "CUSTO VARIAVEL": -6500.0, "CREDITOS TRIBUTARIOS": 700.0, "CUSTO FIXO": -4000.0,
     })
     monkeypatch.setattr(sql, "fetch_cv_detalhe", lambda *a, **k: [
         {"agrupador": "CV - MANUTENCAO", "total": -600.0},
         {"agrupador": "CV - COMBUSTIVEL", "total": -3000.0},
+    ])
+    monkeypatch.setattr(sql, "fetch_cf_detalhe", lambda *a, **k: [
+        {"agrupador": "CF - FOLHA MOT", "total": -1500.0},
+        {"agrupador": "CF - DEPRECIACAO OPERACIONAL", "total": -500.0},
+        {"agrupador": "CF - PESSOAL OPERACIONAL", "total": -2000.0},  # nao desce
     ])
 
 
@@ -58,6 +63,15 @@ def test_calcular_reconcilia_e_lista_clientes(monkeypatch):
     for linha, rec in r["reconciliacao"].items():
         assert abs(rec["descido"] + rec["nao_alocado"] + rec["variacao_absorcao"]
                    - rec["oficial"]) < 1e-6
+
+    # v2: CF alocado e Margem Direta presentes; CF do ACME <= MC (custo reduz)
+    assert "CUSTO FIXO" in acme["linhas"]
+    assert "MARGEM DIRETA DO CLIENTE" in acme["linhas"]
+    assert acme["linhas"]["CUSTO FIXO"] <= 0.0
+    assert abs(acme["linhas"]["MARGEM DIRETA DO CLIENTE"]
+               - (acme["linhas"]["MARGEM DE CONTRIBUICAO"] + acme["linhas"]["CUSTO FIXO"])) < 1e-6
+    # CF descido reconciliado: so o alocavel (folha+deprec=-2000) desce; pessoal (-2000) nao
+    assert abs(r["reconciliacao"]["CUSTO FIXO"]["descido"] - (-2000.0)) < 1e-6
 
 
 def test_repasse_agregado_desce_em_custo_variavel(monkeypatch):

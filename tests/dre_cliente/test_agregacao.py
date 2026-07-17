@@ -13,8 +13,8 @@ def _cenario_um_cliente():
     }
     viagem_cliente = {1: "A", 2: "A"}
     viagem_meta = {
-        1: {"km": 800.0, "tipo": 1, "is_proprio": True, "tipo_operacao": "FROTA", "dias": 2},
-        2: {"km": 200.0, "tipo": 3, "is_proprio": True, "tipo_operacao": "FROTA", "dias": 0},
+        1: {"km": 800.0, "tipo": 1, "is_proprio": True, "tipo_operacao": "TRA", "dias": 2},
+        2: {"km": 200.0, "tipo": 3, "is_proprio": True, "tipo_operacao": "TRA", "dias": 0},
     }
     return linhas, viagem_cliente, viagem_meta
 
@@ -51,8 +51,8 @@ def test_ranking_por_mc_pct_desc():
     }
     viagem_cliente = {1: "Bom", 2: "Ruim"}
     meta = {
-        1: {"km": 100.0, "tipo": 1, "is_proprio": True, "tipo_operacao": "FROTA", "dias": 1},
-        2: {"km": 100.0, "tipo": 1, "is_proprio": True, "tipo_operacao": "FROTA", "dias": 1},
+        1: {"km": 100.0, "tipo": 1, "is_proprio": True, "tipo_operacao": "TRA", "dias": 1},
+        2: {"km": 100.0, "tipo": 1, "is_proprio": True, "tipo_operacao": "TRA", "dias": 1},
     }
     r = agregar(linhas, viagem_cliente, meta)
     nomes = [c["cliente"] for c in r["clientes"]]
@@ -63,8 +63,8 @@ def test_consolidado_leaf_inclui_sem_cliente():
     linhas = {"RECEITA BRUTA": {1: 1000.0, 2: 500.0}, "CUSTO VARIAVEL": {1: -100.0, 2: -50.0}}
     viagem_cliente = {1: "A", 2: None}
     meta = {
-        1: {"km": 100.0, "tipo": 1, "is_proprio": True, "tipo_operacao": "FROTA", "dias": 1},
-        2: {"km": 50.0, "tipo": 1, "is_proprio": True, "tipo_operacao": "FROTA", "dias": 1},
+        1: {"km": 100.0, "tipo": 1, "is_proprio": True, "tipo_operacao": "TRA", "dias": 1},
+        2: {"km": 50.0, "tipo": 1, "is_proprio": True, "tipo_operacao": "TRA", "dias": 1},
     }
     r = agregar(linhas, viagem_cliente, meta)
     assert abs(r["consolidado_leaf"]["RECEITA BRUTA"] - 1500.0) < 1e-6
