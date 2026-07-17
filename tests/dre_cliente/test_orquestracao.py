@@ -24,6 +24,7 @@ def _mock_fetch(monkeypatch):
          "tipo_operacao": "AGR", "cliente_codigo": "AG2", "cliente_nome": "BETA"},
     ]
     monkeypatch.setattr(sql, "fetch_viagens", lambda *a, **k: viagens)
+    monkeypatch.setattr(sql, "fetch_heuristica_cliente", lambda *a, **k: {})
     monkeypatch.setattr(sql, "fetch_abastecimentos", lambda *a, **k: {"AAA": 3000.0})
     monkeypatch.setattr(sql, "fetch_taxa_km", lambda *a, **k: {"AAA": 0.5})
     monkeypatch.setattr(sql, "fetch_dre_oficial", lambda *a, **k: {

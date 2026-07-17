@@ -65,15 +65,18 @@ def _calcular(cur, comp_de: str, comp_ate: str, filial: int | None, params) -> d
     dre_oficial = sql.fetch_dre_oficial(comp_de, comp_ate)
     cv_detalhe = sql.fetch_cv_detalhe(comp_de, comp_ate)
 
-    # cliente por viagem: carregadas via join; vazias via atribuicao ao originador
+    # cliente por viagem: (1) join direto da coleta; (2) heuristica por CT-e do
+    # mesmo veiculo p/ carregadas sem coleta; (3) km vazio -> cliente originador.
+    heur = sql.fetch_heuristica_cliente(cur, de, ate, filial)
     viagem_cliente: dict[Any, Any] = {}
-    base_vazio = []
     for v in viagens:
         nome = v["cliente_nome"] or v["cliente_codigo"]
+        if nome is None and v["tipo"] != 3:
+            nome = heur.get(v["id"])
         viagem_cliente[v["id"]] = nome
-        base_vazio.append({"id": v["id"], "veiculo": v["placa"],
-                           "dtsaida": v["dtsaida"], "tipo": v["tipo"],
-                           "cliente": nome, "km": v["km"]})
+    base_vazio = [{"id": v["id"], "veiculo": v["placa"], "dtsaida": v["dtsaida"],
+                   "tipo": v["tipo"], "cliente": viagem_cliente[v["id"]], "km": v["km"]}
+                  for v in viagens]
     for vid, cli in atribuir_vazio(base_vazio).items():
         if viagem_cliente.get(vid) is None:
             viagem_cliente[vid] = cli
