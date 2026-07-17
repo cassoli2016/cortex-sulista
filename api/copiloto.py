@@ -29,8 +29,9 @@ OR_BASE = "https://openrouter.ai/api/v1"
 
 # ---- IA local (Ollama) ------------------------------------------------------
 # gemma4 tem janela maior, mas o Ollama corta em num_ctx: 16k cobre o snapshot
-# de KPIs + histórico sem estourar a RAM da máquina.
-_OLLAMA_OPTS = {"temperature": 0.3, "num_predict": 1200, "num_ctx": 16384}
+# de KPIs + histórico sem estourar a RAM da máquina. num_predict = teto de saída
+# (2048 evita cortar respostas mais longas no meio; ainda cabe folgado no ctx).
+_OLLAMA_OPTS = {"temperature": 0.3, "num_predict": 2048, "num_ctx": 16384}
 _OLLAMA_KEEP = "2h"          # mantém o modelo carregado entre perguntas
 _OLLAMA_ST = {"ts": 0.0, "ok": False, "modelo": ""}
 
@@ -312,7 +313,7 @@ def stream(mensagens: list[dict]):
     erros = []
     for modelo in modelos_free()[:6]:
         corpo = _json.dumps({
-            "model": modelo, "messages": msgs, "max_tokens": 1200,
+            "model": modelo, "messages": msgs, "max_tokens": 2048,
             "temperature": 0.3, "stream": True,
             "stream_options": {"include_usage": True},
         }).encode()
@@ -388,7 +389,7 @@ def chat(mensagens: list[dict]) -> dict:
             status, d = _http(
                 f"{OR_BASE}/chat/completions", headers=headers, timeout=90,
                 payload={"model": modelo, "messages": msgs,
-                         "max_tokens": 1200, "temperature": 0.3})
+                         "max_tokens": 2048, "temperature": 0.3})
             if status == 401:
                 return {"erro": "chave_invalida"}
             if status != 200:
