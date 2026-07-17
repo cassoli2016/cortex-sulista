@@ -51,12 +51,12 @@ TELAS: dict[str, tuple[str, str]] = {  # chave -> (rótulo, grupo do menu)
     "fluxo":   ("Fluxo de Caixa e Bancos", "Financeiro"),
     "receber": ("Contas a Receber", "Financeiro"),
     "cob":     ("Régua de Cobrança", "Financeiro"),
-    "rent":    ("Rentabilidade por Cliente", "Financeiro"),
     "pagar":   ("Contas a Pagar", "Financeiro"),
-    "dre":     ("DRE Gerencial", "Financeiro"),
-    "drecli":  ("DRE por Cliente", "Financeiro"),
-    "cont":    ("Contabilidade", "Financeiro"),
     "com":     ("Clientes e RKM", "Comercial"),
+    "rent":    ("Rentabilidade por Cliente", "Comercial"),
+    "drecli":  ("DRE por Cliente", "Comercial"),
+    "dre":     ("DRE Gerencial", "Controladoria"),
+    "cont":    ("Contabilidade", "Controladoria"),
     "agr":     ("Agregados e Terceiros", "Operação"),
     "mvb":     ("Make vs Buy", "Operação"),
     "km":      ("Análise de KM", "Operação"),
@@ -145,21 +145,24 @@ _CONFIG_PADRAO = {
 # exclusão NÃO ressuscita no restart (o flag impede o reseed). Telas cross-área
 # (home/cop/TV) vazam dados de outras áreas (ex.: snapshot do copiloto), então
 # ficam fora dos perfis de área e só entram no perfil amplo "Diretoria".
+# Perfis-modelo alinhados aos grupos do menu (reorg 2026-07-17).
 _PERFIS_MODELO = [
-    ("Financeiro",  "Caixa, recebíveis, pagáveis, DRE e contabilidade.",
-     ["fluxo", "receber", "cob", "rent", "pagar", "dre", "cont"]),
-    ("Comercial",   "Clientes, RKM e rentabilidade por cliente.",
-     ["com", "rent"]),
-    ("Operação",    "Agregados, make-vs-buy, análise de KM, programação e torre de controle.",
-     ["agr", "mvb", "km", "prog", "torre"]),
-    ("Frota",       "Combustível, manutenção, veículos e multas.",
-     ["comb", "man", "veic", "mul"]),
+    ("Comercial",   "Clientes/RKM, rentabilidade e DRE por cliente.",
+     ["com", "rent", "drecli"]),
+    ("Financeiro",  "Caixa, recebíveis, pagáveis e cobrança.",
+     ["fluxo", "receber", "pagar", "cob"]),
+    ("Controladoria", "DRE gerencial, contabilidade e análises de margem por cliente.",
+     ["dre", "cont", "drecli", "rent"]),
+    ("Operação",    "Torre de controle, programação, análise de KM, agregados e make-vs-buy.",
+     ["torre", "prog", "km", "agr", "mvb"]),
+    ("Frota",       "Veículos, combustível, manutenção e multas.",
+     ["veic", "comb", "man", "mul"]),
     ("Suprimentos", "Ordens de compra.",
      ["oc"]),
     ("Painéis TV",  "Apenas os painéis de TV (faturamento e operação) — para telão/quiosque.",
      ["tvfat", "tvope"]),
     ("Diretoria",   "Visão executiva ampla: consolidado, copiloto e principais indicadores.",
-     ["home", "cop", "fluxo", "dre", "rent", "km", "torre", "com", "mvb", "veic"]),
+     ["home", "cop", "fluxo", "dre", "drecli", "rent", "com", "km", "torre", "mvb", "veic"]),
 ]
 
 
@@ -223,7 +226,9 @@ def _seed_perfis_modelo(c: sqlite3.Connection) -> None:
     Não recria perfis que o admin tenha excluído: o flag 'perfis_modelo_v1'
     marca que o seed já rodou, independentemente do que exista depois.
     """
-    if c.execute("SELECT 1 FROM config WHERE chave='perfis_modelo_v1'").fetchone():
+    # v2 (reorg de menu 2026-07-17): adiciona perfis-modelo novos (ex.: Controladoria)
+    # sem tocar nos existentes/editados pelo admin (INSERT OR IGNORE por nome).
+    if c.execute("SELECT 1 FROM config WHERE chave='perfis_modelo_v2'").fetchone():
         return
     for nome, desc, telas in _PERFIS_MODELO:
         cur = c.execute(
@@ -233,6 +238,7 @@ def _seed_perfis_modelo(c: sqlite3.Connection) -> None:
             c.executemany("INSERT OR IGNORE INTO perfil_telas(perfil_id, tela) VALUES(?,?)",
                           [(cur.lastrowid, t) for t in telas])
     c.execute("INSERT OR IGNORE INTO config(chave, valor) VALUES('perfis_modelo_v1', '1')")
+    c.execute("INSERT OR IGNORE INTO config(chave, valor) VALUES('perfis_modelo_v2', '1')")
 
 
 def _agora() -> str:

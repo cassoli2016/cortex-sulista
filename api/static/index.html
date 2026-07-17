@@ -506,49 +506,54 @@ button.avatar{border:0;cursor:pointer}
     <nav>
       <a href="#home" class="sub" data-view="home" title="Visão Geral" style="padding-left:12px;font-weight:600"><span class="ic" data-ic="home"></span><span>Visão Geral</span></a>
       <a href="#cop" class="sub" data-view="cop" title="Copiloto Cortex" style="padding-left:12px;font-weight:600"><span class="ic" data-ic="cop"></span><span>Copiloto Cortex</span></a>
-      <button class="group" id="grpFin" aria-expanded="true" aria-controls="subsFin" onclick="toggleGroup('grpFin','subsFin','cs.finGroup')" title="Financeiro">
-        <span class="ic" data-ic="fin"></span><span>Financeiro</span><span class="ic chev" data-ic="chev"></span>
-      </button>
-      <div class="subs" id="subsFin">
-        <a href="#receber" class="sub" data-view="receber" title="Contas a Receber"><span class="ic" data-ic="rec"></span><span>Contas a Receber</span></a>
-        <a href="#cob" class="sub" data-view="cob" title="Régua de Cobrança"><span class="ic" data-ic="cob"></span><span>Cobrança</span></a>
-        <a href="#rent" class="sub" data-view="rent" title="Rentabilidade por Cliente"><span class="ic" data-ic="rent"></span><span>Rentabilidade</span></a>
-        <a href="#pagar" class="sub" data-view="pagar" title="Contas a Pagar"><span class="ic" data-ic="pag"></span><span>Contas a Pagar</span></a>
-        <a href="#fluxo" class="sub" data-view="fluxo" title="Fluxo de Caixa e Bancos"><span class="ic" data-ic="flx"></span><span>Fluxo de Caixa e Bancos</span></a>
-        <a href="#dre" class="sub" data-view="dre" title="DRE Gerencial"><span class="ic" data-ic="dre"></span><span>DRE Gerencial</span></a>
-        <a href="#drecli" class="sub" data-view="drecli" title="DRE por Cliente"><span class="ic" data-ic="rent"></span><span>DRE por Cliente</span></a>
-        <a href="#cont" class="sub" data-view="cont" title="Contabilidade — ajuste de agrupadores"><span class="ic" data-ic="ctb"></span><span>Contabilidade</span></a>
-      </div>
-      <button class="group" id="grpCom" aria-expanded="true" aria-controls="subsCom" onclick="toggleGroup('grpCom','subsCom','cs.comGroup')" title="Comercial">
+      <button class="group" id="grpCom" aria-expanded="false" aria-controls="subsCom" onclick="toggleGroup('grpCom','subsCom','cs.comGroup')" title="Comercial">
         <span class="ic" data-ic="com"></span><span>Comercial</span><span class="ic chev" data-ic="chev"></span>
       </button>
-      <div class="subs" id="subsCom">
+      <div class="subs closed" id="subsCom">
         <a href="#com" class="sub" data-view="com" title="Clientes e RKM"><span class="ic" data-ic="com"></span><span>Clientes e RKM</span></a>
+        <a href="#rent" class="sub" data-view="rent" title="Rentabilidade por Cliente"><span class="ic" data-ic="rent"></span><span>Rentabilidade</span></a>
+        <a href="#drecli" class="sub" data-view="drecli" title="DRE por Cliente"><span class="ic" data-ic="rent"></span><span>DRE por Cliente</span></a>
       </div>
-      <button class="group" id="grpOpe" aria-expanded="true" aria-controls="subsOpe" onclick="toggleGroup('grpOpe','subsOpe','cs.opeGroup')" title="Operação">
+      <button class="group" id="grpFin" aria-expanded="false" aria-controls="subsFin" onclick="toggleGroup('grpFin','subsFin','cs.finGroup')" title="Financeiro">
+        <span class="ic" data-ic="fin"></span><span>Financeiro</span><span class="ic chev" data-ic="chev"></span>
+      </button>
+      <div class="subs closed" id="subsFin">
+        <a href="#fluxo" class="sub" data-view="fluxo" title="Fluxo de Caixa e Bancos"><span class="ic" data-ic="flx"></span><span>Fluxo de Caixa e Bancos</span></a>
+        <a href="#receber" class="sub" data-view="receber" title="Contas a Receber"><span class="ic" data-ic="rec"></span><span>Contas a Receber</span></a>
+        <a href="#pagar" class="sub" data-view="pagar" title="Contas a Pagar"><span class="ic" data-ic="pag"></span><span>Contas a Pagar</span></a>
+        <a href="#cob" class="sub" data-view="cob" title="Régua de Cobrança"><span class="ic" data-ic="cob"></span><span>Cobrança</span></a>
+      </div>
+      <button class="group" id="grpCtr" aria-expanded="false" aria-controls="subsCtr" onclick="toggleGroup('grpCtr','subsCtr','cs.ctrGroup')" title="Controladoria">
+        <span class="ic" data-ic="dre"></span><span>Controladoria</span><span class="ic chev" data-ic="chev"></span>
+      </button>
+      <div class="subs closed" id="subsCtr">
+        <a href="#dre" class="sub" data-view="dre" title="DRE Gerencial"><span class="ic" data-ic="dre"></span><span>DRE Gerencial</span></a>
+        <a href="#cont" class="sub" data-view="cont" title="Contabilidade — ajuste de agrupadores"><span class="ic" data-ic="ctb"></span><span>Contabilidade</span></a>
+      </div>
+      <button class="group" id="grpOpe" aria-expanded="false" aria-controls="subsOpe" onclick="toggleGroup('grpOpe','subsOpe','cs.opeGroup')" title="Operação">
         <span class="ic" data-ic="ope"></span><span>Operação</span><span class="ic chev" data-ic="chev"></span>
       </button>
-      <div class="subs" id="subsOpe">
+      <div class="subs closed" id="subsOpe">
+        <a href="#torre" class="sub" data-view="torre" title="Torre de Controle"><span class="ic" data-ic="tor"></span><span>Torre de Controle</span></a>
+        <a href="#prog" class="sub" data-view="prog" title="Programação Inteligente"><span class="ic" data-ic="prog"></span><span>Programação Intel.</span></a>
+        <a href="#km" class="sub" data-view="km" title="Análise de KM"><span class="ic" data-ic="kmv"></span><span>Análise de KM</span></a>
         <a href="#agr" class="sub" data-view="agr" title="Agregados e Terceiros"><span class="ic" data-ic="agr"></span><span>Agregados e Terceiros</span></a>
         <a href="#mvb" class="sub" data-view="mvb" title="Make vs Buy"><span class="ic" data-ic="mvb"></span><span>Make vs Buy</span></a>
-        <a href="#km" class="sub" data-view="km" title="Análise de KM"><span class="ic" data-ic="kmv"></span><span>Análise de KM</span></a>
-        <a href="#prog" class="sub" data-view="prog" title="Programação Inteligente"><span class="ic" data-ic="prog"></span><span>Programação Intel.</span></a>
-        <a href="#torre" class="sub" data-view="torre" title="Torre de Controle"><span class="ic" data-ic="tor"></span><span>Torre de Controle</span></a>
       </div>
-      <button class="group" id="grpSup" aria-expanded="true" aria-controls="subsSup" onclick="toggleGroup('grpSup','subsSup','cs.supGroup')" title="Suprimentos">
-        <span class="ic" data-ic="sup"></span><span>Suprimentos</span><span class="ic chev" data-ic="chev"></span>
-      </button>
-      <div class="subs" id="subsSup">
-        <a href="#oc" class="sub" data-view="oc" title="Ordens de Compra"><span class="ic" data-ic="oc"></span><span>Ordens de Compra</span></a>
-      </div>
-      <button class="group" id="grpFro" aria-expanded="true" aria-controls="subsFro" onclick="toggleGroup('grpFro','subsFro','cs.froGroup')" title="Frota">
+      <button class="group" id="grpFro" aria-expanded="false" aria-controls="subsFro" onclick="toggleGroup('grpFro','subsFro','cs.froGroup')" title="Frota">
         <span class="ic" data-ic="fro"></span><span>Frota</span><span class="ic chev" data-ic="chev"></span>
       </button>
-      <div class="subs" id="subsFro">
+      <div class="subs closed" id="subsFro">
+        <a href="#veic" class="sub" data-view="veic" title="Veículos"><span class="ic" data-ic="veic"></span><span>Veículos</span></a>
         <a href="#comb" class="sub" data-view="comb" title="Combustível"><span class="ic" data-ic="comb"></span><span>Combustível</span></a>
         <a href="#man" class="sub" data-view="man" title="Manutenção"><span class="ic" data-ic="man"></span><span>Manutenção</span></a>
-        <a href="#veic" class="sub" data-view="veic" title="Veículos"><span class="ic" data-ic="veic"></span><span>Veículos</span></a>
         <a href="#mul" class="sub" data-view="mul" title="Multas"><span class="ic" data-ic="mul"></span><span>Multas</span></a>
+      </div>
+      <button class="group" id="grpSup" aria-expanded="false" aria-controls="subsSup" onclick="toggleGroup('grpSup','subsSup','cs.supGroup')" title="Suprimentos">
+        <span class="ic" data-ic="sup"></span><span>Suprimentos</span><span class="ic chev" data-ic="chev"></span>
+      </button>
+      <div class="subs closed" id="subsSup">
+        <a href="#oc" class="sub" data-view="oc" title="Ordens de Compra"><span class="ic" data-ic="oc"></span><span>Ordens de Compra</span></a>
       </div>
       <button class="group" id="grpTv" aria-expanded="false" aria-controls="subsTv" onclick="toggleGroup('grpTv','subsTv','cs.tvGroup')" title="Painéis TV">
         <span class="ic" data-ic="tv"></span><span>Painéis TV</span><span class="ic chev" data-ic="chev"></span>
@@ -557,8 +562,13 @@ button.avatar{border:0;cursor:pointer}
         <a href="#tvfat" class="sub" data-view="tvfat" title="Painel de Faturamento para TV"><span class="ic" data-ic="tv"></span><span>Faturamento</span></a>
         <a href="#tvope" class="sub" data-view="tvope" title="Painel de Operação para TV"><span class="ic" data-ic="tv"></span><span>Operação</span></a>
       </div>
-      <a href="#gestao" class="sub" data-view="gestao" title="Gestão — usuários, perfis e segurança" style="padding-left:12px;font-weight:600"><span class="ic" data-ic="ges"></span><span>Gestão</span></a>
-      <a href="#srv" class="sub" data-view="srv" title="Saúde do Servidor — CPU, memória, disco e serviços" style="padding-left:12px;font-weight:600"><span class="ic" data-ic="srv"></span><span>Saúde do Servidor</span></a>
+      <button class="group" id="grpAdm" aria-expanded="false" aria-controls="subsAdm" onclick="toggleGroup('grpAdm','subsAdm','cs.admGroup')" title="Administração">
+        <span class="ic" data-ic="ges"></span><span>Administração</span><span class="ic chev" data-ic="chev"></span>
+      </button>
+      <div class="subs closed" id="subsAdm">
+        <a href="#gestao" class="sub" data-view="gestao" title="Gestão — usuários, perfis e segurança"><span class="ic" data-ic="ges"></span><span>Gestão</span></a>
+        <a href="#srv" class="sub" data-view="srv" title="Saúde do Servidor — CPU, memória, disco e serviços"><span class="ic" data-ic="srv"></span><span>Saúde do Servidor</span></a>
+      </div>
     </nav>
     <div class="side-foot">CÓRTEX · Sulista</div>
   </aside>
@@ -1727,37 +1737,50 @@ function toggleMini(){
   localStorage.setItem('cs.sidebar', mini?'mini':'full');
   document.getElementById('miniIcon').innerHTML = ICONS[mini?'chevr':'chevl'];
 }
+// grupos do menu (botão, submenu). Ordem = ordem visual da sidebar.
+const GRUPOS = [['grpCom','subsCom'],['grpFin','subsFin'],['grpCtr','subsCtr'],
+  ['grpOpe','subsOpe'],['grpFro','subsFro'],['grpSup','subsSup'],
+  ['grpTv','subsTv'],['grpAdm','subsAdm']];
+function fecharGrupos(exceto){
+  GRUPOS.forEach(([gid,sid])=>{
+    if(gid===exceto) return;
+    const g=document.getElementById(gid), s=document.getElementById(sid);
+    if(g&&s){ g.setAttribute('aria-expanded','false'); s.classList.add('closed'); }
+  });
+}
 function toggleGroup(gid,sid,key){
   if(document.body.classList.contains('mini')){ toggleMini(); return; }
   const g=document.getElementById(gid), s=document.getElementById(sid);
-  const open = g.getAttribute('aria-expanded')==='true';
-  g.setAttribute('aria-expanded', String(!open));
-  s.classList.toggle('closed', open);
-  localStorage.setItem(key, open?'closed':'open');
+  const abrir = g.getAttribute('aria-expanded')!=='true';
+  if(abrir) fecharGrupos(gid);          // accordion: abrir um fecha os demais
+  g.setAttribute('aria-expanded', String(abrir));
+  s.classList.toggle('closed', !abrir);
 }
 (function restoreSidebar(){
   if(localStorage.getItem('cs.sidebar')==='mini'){
     document.body.classList.add('mini');
     document.getElementById('miniIcon').innerHTML = ICONS['chevr'];
   }
-  [['cs.finGroup','grpFin','subsFin'],['cs.comGroup','grpCom','subsCom'],['cs.opeGroup','grpOpe','subsOpe'],['cs.supGroup','grpSup','subsSup'],['cs.froGroup','grpFro','subsFro']].forEach(([key,gid,sid])=>{
-    if(localStorage.getItem(key)==='closed'){
-      document.getElementById(gid).setAttribute('aria-expanded','false');
-      document.getElementById(sid).classList.add('closed');
-    }
-  });
+  // grupos iniciam fechados no HTML; syncGroups(currentView) abre o do view ativo.
 })();
 
-const VIEW_GROUP = {home:'',cop:'',cob:'Fin',rent:'Fin',cont:'Fin',tvfat:'Tv',tvope:'Tv',km:'Ope',prog:'Ope',torre:'Ope',veic:'Fro',mul:'Fro',receber:'Fin',pagar:'Fin',fluxo:'Fin',dre:'Fin',drecli:'Fin',com:'Com',agr:'Ope',mvb:'Ope',oc:'Sup',comb:'Fro',man:'Fro',gestao:''};
+const VIEW_GROUP = {home:'',cop:'',
+  com:'Com',rent:'Com',drecli:'Com',
+  fluxo:'Fin',receber:'Fin',pagar:'Fin',cob:'Fin',
+  dre:'Ctr',cont:'Ctr',
+  torre:'Ope',prog:'Ope',km:'Ope',agr:'Ope',mvb:'Ope',
+  veic:'Fro',comb:'Fro',man:'Fro',mul:'Fro',
+  oc:'Sup',
+  tvfat:'Tv',tvope:'Tv',
+  gestao:'Adm',srv:'Adm'};
 function syncGroups(v){
-  const ativo = VIEW_GROUP[v];
-  [['Fin','cs.finGroup'],['Com','cs.comGroup'],['Ope','cs.opeGroup'],['Tor','cs.torGroup'],['Sup','cs.supGroup'],['Fro','cs.froGroup'],['Tv','cs.tvGroup']].forEach(([k,key])=>{
+  const ativo = VIEW_GROUP[v];   // accordion: abre o grupo do view ativo, fecha os demais
+  ['Com','Fin','Ctr','Ope','Fro','Sup','Tv','Adm'].forEach(k=>{
     const btn=document.getElementById('grp'+k), subs=document.getElementById('subs'+k);
     if(!btn||!subs) return;
     const open = (k===ativo);
     btn.setAttribute('aria-expanded', String(open));
     subs.classList.toggle('closed', !open);
-    localStorage.setItem(key, open?'open':'closed');
   });
 }
 
@@ -4923,7 +4946,7 @@ function podeVer(v){ return !!USER && ((v==='gestao'||v==='srv') ? USER.admin : 
 function primeiraTela(){ return USER ? (Object.keys(VIEWS).find(podeVer) || 'home') : 'home'; }
 function aplicarPermissoes(){
   document.querySelectorAll('nav a[data-view]').forEach(a=>{ a.style.display = podeVer(a.dataset.view) ? '' : 'none'; });
-  [['grpFin','subsFin'],['grpCom','subsCom'],['grpOpe','subsOpe'],['grpSup','subsSup'],['grpFro','subsFro'],['grpTv','subsTv']].forEach(([g,s])=>{
+  [['grpCom','subsCom'],['grpFin','subsFin'],['grpCtr','subsCtr'],['grpOpe','subsOpe'],['grpFro','subsFro'],['grpSup','subsSup'],['grpTv','subsTv'],['grpAdm','subsAdm']].forEach(([g,s])=>{
     const subs=document.getElementById(s); if(!subs) return;
     const tem=[...subs.querySelectorAll('a[data-view]')].some(a=>a.style.display!=='none');
     const btn=document.getElementById(g); if(btn) btn.style.display = tem ? '' : 'none';
@@ -5384,33 +5407,35 @@ boot();
     <h3>Geral</h3>
     <a href="#home" onclick="fecharDrawer()"><span class="ic" data-ic="home"></span>Visão Geral</a>
     <a href="#cop" onclick="fecharDrawer()"><span class="ic" data-ic="cop"></span>Copiloto Cortex</a>
-    <h3>Financeiro</h3>
-    <a href="#receber" onclick="fecharDrawer()"><span class="ic" data-ic="rec"></span>Contas a Receber</a>
-    <a href="#cob" onclick="fecharDrawer()"><span class="ic" data-ic="cob"></span>Cobrança</a>
-    <a href="#rent" onclick="fecharDrawer()"><span class="ic" data-ic="rent"></span>Rentabilidade</a>
-    <a href="#dre" onclick="fecharDrawer()"><span class="ic" data-ic="dre"></span>DRE Gerencial</a>
-    <a href="#cont" onclick="fecharDrawer()"><span class="ic" data-ic="ctb"></span>Contabilidade</a>
-    <a href="#pagar" onclick="fecharDrawer()"><span class="ic" data-ic="pag"></span>Contas a Pagar</a>
-    <a href="#fluxo" onclick="fecharDrawer()"><span class="ic" data-ic="flx"></span>Fluxo de Caixa e Bancos</a>
     <h3>Comercial</h3>
     <a href="#com" onclick="fecharDrawer()"><span class="ic" data-ic="com"></span>Clientes e RKM</a>
+    <a href="#rent" onclick="fecharDrawer()"><span class="ic" data-ic="rent"></span>Rentabilidade</a>
+    <a href="#drecli" onclick="fecharDrawer()"><span class="ic" data-ic="rent"></span>DRE por Cliente</a>
+    <h3>Financeiro</h3>
+    <a href="#fluxo" onclick="fecharDrawer()"><span class="ic" data-ic="flx"></span>Fluxo de Caixa e Bancos</a>
+    <a href="#receber" onclick="fecharDrawer()"><span class="ic" data-ic="rec"></span>Contas a Receber</a>
+    <a href="#pagar" onclick="fecharDrawer()"><span class="ic" data-ic="pag"></span>Contas a Pagar</a>
+    <a href="#cob" onclick="fecharDrawer()"><span class="ic" data-ic="cob"></span>Cobrança</a>
+    <h3>Controladoria</h3>
+    <a href="#dre" onclick="fecharDrawer()"><span class="ic" data-ic="dre"></span>DRE Gerencial</a>
+    <a href="#cont" onclick="fecharDrawer()"><span class="ic" data-ic="ctb"></span>Contabilidade</a>
     <h3>Operação</h3>
+    <a href="#torre" onclick="fecharDrawer()"><span class="ic" data-ic="tor"></span>Torre de Controle</a>
+    <a href="#prog" onclick="fecharDrawer()"><span class="ic" data-ic="prog"></span>Programação Intel.</a>
+    <a href="#km" onclick="fecharDrawer()"><span class="ic" data-ic="kmv"></span>Análise de KM</a>
     <a href="#agr" onclick="fecharDrawer()"><span class="ic" data-ic="agr"></span>Agregados e Terceiros</a>
     <a href="#mvb" onclick="fecharDrawer()"><span class="ic" data-ic="mvb"></span>Make vs Buy</a>
-    <a href="#km" onclick="fecharDrawer()"><span class="ic" data-ic="kmv"></span>Análise de KM</a>
-    <a href="#prog" onclick="fecharDrawer()"><span class="ic" data-ic="prog"></span>Programação Intel.</a>
-    <a href="#torre" onclick="fecharDrawer()"><span class="ic" data-ic="tor"></span>Torre de Controle</a>
-    <h3>Suprimentos</h3>
-    <a href="#oc" onclick="fecharDrawer()"><span class="ic" data-ic="oc"></span>Ordens de Compra</a>
     <h3>Frota</h3>
+    <a href="#veic" onclick="fecharDrawer()"><span class="ic" data-ic="veic"></span>Veículos</a>
     <a href="#comb" onclick="fecharDrawer()"><span class="ic" data-ic="comb"></span>Combustível</a>
     <a href="#man" onclick="fecharDrawer()"><span class="ic" data-ic="man"></span>Manutenção</a>
-    <a href="#veic" onclick="fecharDrawer()"><span class="ic" data-ic="veic"></span>Veículos</a>
     <a href="#mul" onclick="fecharDrawer()"><span class="ic" data-ic="mul"></span>Multas</a>
+    <h3>Suprimentos</h3>
+    <a href="#oc" onclick="fecharDrawer()"><span class="ic" data-ic="oc"></span>Ordens de Compra</a>
     <h3>Painéis TV</h3>
     <a href="#tvfat" onclick="fecharDrawer()"><span class="ic" data-ic="tv"></span>Faturamento (TV)</a>
     <a href="#tvope" onclick="fecharDrawer()"><span class="ic" data-ic="tv"></span>Operação (TV)</a>
-    <h3>Gestão</h3>
+    <h3>Administração</h3>
     <a href="#gestao" onclick="fecharDrawer()"><span class="ic" data-ic="ges"></span>Usuários e acesso</a>
     <a href="#srv" onclick="fecharDrawer()"><span class="ic" data-ic="srv"></span>Saúde do Servidor</a>
     <h3>Conta</h3>
