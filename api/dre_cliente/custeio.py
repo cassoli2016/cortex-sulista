@@ -83,3 +83,43 @@ def custear_creditos(
         for vid, custo in por_viagem.items():
             creditos[vid] += abs(custo) * p
     return dict(creditos)
+
+
+# campo direto da viagem -> linha da DRE (todos custos/deducoes = negativos)
+_DIRETOS_CV = ("pedagio", "diarias", "carga_desc", "motoristas_px", "seguro_carga")
+
+
+def custear_diretos(viagens: list[dict[str, Any]]) -> dict[str, dict[Any, float]]:
+    """Linhas diretas por viagem: receita bruta (valorfrete), repasse de frete
+    para AGR/TER (valorfretecompra, so quando NAO proprio) e campos diretos
+    opcionais. Tudo que nao existir na viagem vira residuo (NAO_ALOCADO na
+    reconciliacao). Repasse e campos de custo rolam em CUSTO VARIAVEL."""
+    receita: dict[Any, float] = {}
+    custo_var: dict[Any, float] = {}
+    anulacoes: dict[Any, float] = {}
+    descontos: dict[Any, float] = {}
+
+    for v in viagens:
+        vid = v["id"]
+        receita[vid] = float(v.get("valorfrete", 0.0) or 0.0)
+        cv = 0.0
+        if not v.get("is_proprio", True):
+            cv += -float(v.get("valorfretecompra", 0.0) or 0.0)
+        for campo in _DIRETOS_CV:
+            if v.get(campo):
+                cv += -float(v[campo])
+        custo_var[vid] = cv
+        if v.get("anulacoes"):
+            anulacoes[vid] = -float(v["anulacoes"])
+        if v.get("descontos"):
+            descontos[vid] = -float(v["descontos"])
+
+    out: dict[str, dict[Any, float]] = {
+        "RECEITA BRUTA": receita,
+        "CUSTO VARIAVEL": custo_var,
+    }
+    if anulacoes:
+        out["ANULACOES"] = anulacoes
+    if descontos:
+        out["DESCONTOS"] = descontos
+    return out
