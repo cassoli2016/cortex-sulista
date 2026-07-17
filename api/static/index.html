@@ -532,7 +532,6 @@ button.avatar{border:0;cursor:pointer}
       </button>
       <div class="subs closed" id="subsCom">
         <a href="#com" class="sub" data-view="com" title="Clientes e RKM"><span class="ic" data-ic="com"></span><span>Clientes e RKM</span></a>
-        <a href="#rent" class="sub" data-view="rent" title="Rentabilidade por Cliente"><span class="ic" data-ic="rent"></span><span>Rentabilidade</span></a>
         <a href="#drecli" class="sub" data-view="drecli" title="DRE por Cliente"><span class="ic" data-ic="rent"></span><span>DRE por Cliente</span></a>
       </div>
       <button class="group" id="grpFin" aria-expanded="false" aria-controls="subsFin" onclick="toggleGroup('grpFin','subsFin','cs.finGroup')" title="Financeiro">
@@ -1506,6 +1505,10 @@ button.avatar{border:0;cursor:pointer}
             </tr></thead><tbody id="drecli-recon"></tbody></table></div>
           </div>
         </div>
+        <div class="card">
+          <div class="head"><h2>Matriz margem × receita</h2><span class="hint">cada bolha é um cliente · X = receita líquida (escala raiz) · Y = MC% · linhas: mediana de receita e MC 25% · passe o mouse para o nome</span></div>
+          <div class="chartwrap"><svg id="chartDrecliMat" viewBox="0 0 960 400" preserveAspectRatio="xMidYMid meet" role="img" aria-label="Matriz de margem de contribuição por receita, por cliente."></svg></div>
+        </div>
       </section>
       <section class="view" id="view-dre">
         <div class="kpis" id="kpis-dre"></div>
@@ -1693,7 +1696,7 @@ const FAIXAS = {
   '4_vencido_91_365':['Vencido 91–365d','b-dang'],
   '5_vencido_mais_365':['Vencido > 365d','b-dang'],
 };
-const VIEWS = { home:'Visão Geral', fluxo:'Fluxo de Caixa e Bancos', receber:'Contas a Receber', pagar:'Contas a Pagar', oc:'Ordens de Compra', agr:'Agregados e Terceiros', mvb:'Make vs Buy', comb:'Combustível', man:'Manutenção', com:'Clientes e RKM', km:'Análise de KM', torre:'Torre de Controle', veic:'Veículos', veicf:'Consulta de Veículo', mul:'Multas', prog:'Programação Inteligente', cop:'Copiloto Cortex', cob:'Régua de Cobrança', rent:'Rentabilidade por Cliente', cont:'Contabilidade', dre:'DRE Gerencial', drecli:'DRE por Cliente', tvfat:'Painel TV — Faturamento', tvope:'Painel TV — Operação', gestao:'Gestão', srv:'Saúde do Servidor' };
+const VIEWS = { home:'Visão Geral', fluxo:'Fluxo de Caixa e Bancos', receber:'Contas a Receber', pagar:'Contas a Pagar', oc:'Ordens de Compra', agr:'Agregados e Terceiros', mvb:'Make vs Buy', comb:'Combustível', man:'Manutenção', com:'Clientes e RKM', km:'Análise de KM', torre:'Torre de Controle', veic:'Veículos', veicf:'Consulta de Veículo', mul:'Multas', prog:'Programação Inteligente', cop:'Copiloto Cortex', cob:'Régua de Cobrança', cont:'Contabilidade', dre:'DRE Gerencial', drecli:'DRE por Cliente', tvfat:'Painel TV — Faturamento', tvope:'Painel TV — Operação', gestao:'Gestão', srv:'Saúde do Servidor' };
 const periodoLabel = p => { if(p==='atrasado') return 'Atrasado'; const [y,m]=p.split('-'); return MES[+m-1]+'/'+y.slice(2); };
 const fmtD = s => { if(!s) return ''; const [y,m,dd]=s.split('-'); return dd+'/'+m+'/'+y; };
 const esc  = s => (s??'').toString().replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
@@ -4897,6 +4900,48 @@ function renderDreCli(d){
     const cobcls=x.cobertura_pct>=0.98?'pos':(x.cobertura_pct>=0.8?'':'neg');
     return `<tr><td>${rot}</td><td class="num">${BRL.format(x.descido||0)}</td><td class="num">${BRL.format(x.nao_alocado||0)}</td><td class="num">${BRL.format(x.variacao_absorcao||0)}</td><td class="num">${BRL.format(x.oficial||0)}</td><td class="num ${cobcls}">${cob}</td></tr>`;
   }).join('') || '<tr><td colspan="6" style="color:var(--n500)">sem dados</td></tr>';
+  chartDreCliMatriz(clientes);
+}
+// matriz margem x receita por cliente (X=receita liquida raiz, Y=MC%)
+function chartDreCliMatriz(clientes){
+  const svg=document.getElementById('chartDrecliMat'); if(!svg) return;
+  const pts=(clientes||[]).filter(c=>c.cliente!=='(sem cliente)').map(c=>({
+    cliente:c.cliente, receita:(c.linhas||{})['RECEITA LIQUIDA']||0,
+    margem_pct:(c.indicadores&&c.indicadores.mc_pct!=null)?100*c.indicadores.mc_pct:null
+  })).filter(c=>c.margem_pct!=null && c.receita>0);
+  if(!pts.length){ svg.innerHTML='<text x="480" y="200" text-anchor="middle" fill="#6E7883" font-size="14">sem dados</text>'; return; }
+  const W=960,H=400,mL=70,mR=24,mT=24,mB=44, iw=W-mL-mR, ih=H-mT-mB;
+  const maxR=Math.max(...pts.map(p=>p.receita));
+  const margs=pts.map(p=>Math.max(-10,Math.min(95,p.margem_pct)));
+  const loM=Math.min(0,...margs)-5, hiM=Math.max(60,...margs)+5;
+  const recs=[...pts.map(p=>p.receita)].sort((a,b)=>a-b);
+  const medR=recs[Math.floor(recs.length/2)];
+  const X=v=>mL+Math.sqrt(v/maxR)*iw;
+  const Y=v=>mT+ih-((Math.max(-10,Math.min(95,v))-loM)/(hiM-loM))*ih;
+  const yLim=Y(25), xMed=X(medR);
+  let s='';
+  s+=`<rect x="${mL}" y="${mT}" width="${xMed-mL}" height="${yLim-mT}" fill="#38648D" opacity="0.05"/>`;
+  s+=`<rect x="${xMed}" y="${mT}" width="${W-mR-xMed}" height="${yLim-mT}" fill="#1E7B3C" opacity="0.06"/>`;
+  s+=`<rect x="${mL}" y="${yLim}" width="${xMed-mL}" height="${mT+ih-yLim}" fill="#6E7883" opacity="0.05"/>`;
+  s+=`<rect x="${xMed}" y="${yLim}" width="${W-mR-xMed}" height="${mT+ih-yLim}" fill="#C03221" opacity="0.06"/>`;
+  s+=`<line x1="${mL}" y1="${yLim}" x2="${W-mR}" y2="${yLim}" stroke="#C2C8D0" stroke-dasharray="5 4"/>`;
+  s+=`<line x1="${xMed}" y1="${mT}" x2="${xMed}" y2="${mT+ih}" stroke="#C2C8D0" stroke-dasharray="5 4"/>`;
+  s+=`<text x="${W-mR-4}" y="${yLim-6}" text-anchor="end" font-size="10" fill="#6E7883">MC 25%</text>`;
+  [0,25,50,75].forEach(v=>{ if(v>=loM&&v<=hiM){ const yy=Y(v);
+    s+=`<text x="${mL-8}" y="${yy+4}" text-anchor="end" font-size="10" fill="#6E7883" font-family="IBM Plex Mono,monospace">${v}%</text>`;}});
+  s+=`<text x="${mL}" y="${H-8}" font-size="10" fill="#6E7883">→ receita líquida no período (escala raiz)</text>`;
+  const topNames=new Set(pts.slice().sort((a,b)=>b.receita-a.receita).slice(0,8).map(p=>p.cliente));
+  pts.forEach(p=>{
+    const alta=p.receita>=medR, boa=p.margem_pct>=25;
+    const cor=alta&&boa?'#1E7B3C':(alta&&!boa?'#C03221':(boa?'#38648D':'#6E7883'));
+    const x=X(p.receita), y=Y(p.margem_pct);
+    const nome=p.cliente.length>22?p.cliente.slice(0,22)+'…':p.cliente;
+    s+=`<circle cx="${x}" cy="${y}" r="8" fill="${cor}" opacity="0.75" stroke="#fff" stroke-width="1.5">`+
+       `<title>${esc(p.cliente)} — receita líq. ${BRL.format(p.receita)} · MC ${p.margem_pct.toFixed(1)}%</title></circle>`;
+    if(topNames.has(p.cliente))
+      s+=`<text x="${Math.min(x+11,W-mR-80)}" y="${y+4}" font-size="10.5" fill="#4F5860" font-weight="600">${esc(nome)}</text>`;
+  });
+  svg.innerHTML=s;
 }
 async function loadDre(){
   const seq = ++dreSeq;
@@ -5599,7 +5644,6 @@ boot();
       <button class="dgrp-h" onclick="toggleDGrp(this)"><span>Comercial</span><span class="dchev">›</span></button>
       <div class="dgrp-b">
         <a href="#com" onclick="fecharDrawer()"><span class="ic" data-ic="com"></span>Clientes e RKM</a>
-        <a href="#rent" onclick="fecharDrawer()"><span class="ic" data-ic="rent"></span>Rentabilidade</a>
         <a href="#drecli" onclick="fecharDrawer()"><span class="ic" data-ic="rent"></span>DRE por Cliente</a>
       </div>
     </div>
