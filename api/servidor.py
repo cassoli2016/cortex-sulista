@@ -9,6 +9,7 @@ métrica (ex.: psutil ausente) não derrube o painel inteiro.
 """
 from __future__ import annotations
 
+import json
 import logging
 import os
 import platform
@@ -208,25 +209,36 @@ def _servicos() -> list[dict]:
 
 
 def _tarefas() -> list[dict]:
-    """Estado das tarefas agendadas do CÓRTEX (best-effort via schtasks)."""
-    out: list[dict] = []
-    for nome in _TAREFAS:
-        estado = "nao_registrada"
-        try:
-            r = subprocess.run(
-                ["schtasks", "/query", "/tn", nome, "/fo", "list"],
-                capture_output=True, text=True, timeout=6)
-            if r.returncode == 0:
-                estado = "desconhecido"
-                for linha in r.stdout.splitlines():
-                    ln = linha.strip().lower()
-                    if ln.startswith("status") or ln.startswith("estado"):
-                        estado = linha.split(":", 1)[1].strip() or "desconhecido"
-                        break
-        except (FileNotFoundError, subprocess.TimeoutExpired, OSError):
-            estado = "indisponivel"
-        out.append({"nome": nome, "estado": estado})
-    return out
+    """Estado + última/próxima execução das tarefas agendadas do CÓRTEX.
+
+    Usa Get-ScheduledTaskInfo (dados estruturados, independentes de idioma) em
+    vez de parsear o texto localizado do schtasks. Best-effort: sem PowerShell
+    (ex.: dev no Mac) devolve só os nomes."""
+    nomes = ",".join("'" + t.replace("'", "''") + "'" for t in _TAREFAS)
+    ps = (
+        "$ns=@(" + nomes + ");"
+        "$out=foreach($n in $ns){try{"
+        "$t=Get-ScheduledTask -TaskName $n -ErrorAction Stop;$i=$t|Get-ScheduledTaskInfo;"
+        "[pscustomobject]@{nome=$n;estado=[string]$t.State;"
+        "ultima=if($i.LastRunTime -and $i.LastRunTime.Year -gt 1999){$i.LastRunTime.ToString('o')}else{''};"
+        "proxima=if($i.NextRunTime){$i.NextRunTime.ToString('o')}else{''};"
+        "resultado=$i.LastTaskResult}"
+        "}catch{[pscustomobject]@{nome=$n;estado='nao_registrada';ultima='';proxima='';resultado=$null}}};"
+        "$out|ConvertTo-Json -Compress"
+    )
+    try:
+        r = subprocess.run(
+            ["powershell", "-NoProfile", "-NonInteractive", "-Command", ps],
+            capture_output=True, text=True, timeout=20)
+        data = json.loads(r.stdout) if r.stdout.strip() else []
+        if isinstance(data, dict):
+            data = [data]
+        return [{"nome": d.get("nome"), "estado": d.get("estado") or "desconhecido",
+                 "ultima": d.get("ultima") or None, "proxima": d.get("proxima") or None,
+                 "resultado": d.get("resultado")} for d in data]
+    except (FileNotFoundError, subprocess.TimeoutExpired, OSError, ValueError):
+        return [{"nome": n, "estado": "indisponivel", "ultima": None, "proxima": None}
+                for n in _TAREFAS]
 
 
 def coletar() -> dict:

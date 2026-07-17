@@ -166,6 +166,12 @@ tr.forn-det td{padding:7px 12px}
 /* ---------------- Mobile: experiência de app ---------------- */
 .bottomnav{display:none}
 .drawer{display:none}
+.diadash{padding:10px 16px 2px}
+.diadash .dd-cap{font-size:11px;color:var(--n500);margin-bottom:8px;font-weight:600}
+.diadash .dd-row{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}
+.diadash .dd{background:var(--n50,#F7F9FA);border:1px solid var(--n200,#E4E7EB);border-radius:12px;padding:12px 14px;display:flex;flex-direction:column;gap:3px}
+.diadash .dd-l{font-size:11px;color:var(--n500);font-weight:600}
+.diadash .dd-v{font-size:20px;font-weight:700;color:var(--ink,#1E1E1E);font-variant-numeric:tabular-nums}
 @media(max-width:880px){
   body{font-size:14px}
   /* sem isto o Chrome mobile ALARGA o viewport de layout para caber o
@@ -189,6 +195,9 @@ tr.forn-det td{padding:7px 12px}
   .kpi .val{font-size:19px}
   .kpi .label{font-size:11px}
   .kpi .sub{font-size:10px}
+  .diadash{padding:10px 12px 2px}
+  .diadash .dd{padding:10px}
+  .diadash .dd-v{font-size:15px}
   .grid2{grid-template-columns:1fr;gap:12px}
   .card .head{padding:12px 14px;flex-wrap:wrap}
   .card .head h2{font-size:14.5px}
@@ -805,6 +814,7 @@ button.avatar{border:0;cursor:pointer}
         <div class="kpis" id="kpis-home-op"></div>
         <div class="card">
           <div class="head"><h2>Faturamento diário × meta</h2><span class="hint" id="hintHomeDia">mês corrente · CT-e + KMM + NFS-e vs meta diária</span></div>
+          <div class="diadash" id="home-diadash"></div>
           <div class="legend">
             <span class="k"><i class="sw" style="width:26px;background:linear-gradient(90deg,#DC2626,#E0A400,#16A34A)"></i>Realizado (cor = % da meta do dia)</span>
             <span class="k"><i class="sw" style="background:var(--navy-500)"></i>Meta</span>
@@ -1576,7 +1586,7 @@ button.avatar{border:0;cursor:pointer}
           <div class="card">
             <div class="head"><h2>Tarefas agendadas</h2><span class="hint">arranque automático no logon</span></div>
             <div class="tablewrap"><table><thead><tr>
-              <th>Tarefa</th><th>Estado</th>
+              <th>Tarefa</th><th>Estado</th><th class="num">Última execução</th><th class="num">Próxima execução</th>
             </tr></thead><tbody id="srv-tarefas"></tbody></table></div>
           </div>
         </div>
@@ -2784,6 +2794,26 @@ function renderHome(d){
   if(d.oc_atrasadas>0) A.push(['t-warn','Entregas de compras atrasadas',d.oc_atrasadas+' OCs com '+BRL.format(d.oc_atraso_valor)+' pendente — ver Ordens de Compra.','#oc']);
   if(d.os_abertas>0) A.push(['t-warn','Manutenções em aberto',d.os_abertas+' OSs abertas — ver Manutenção.','#man']);
   chartHomeDiario(d.diario||[]);
+  // card do dia: meta, realizado e % do dia (hoje; senão o último dia com realizado)
+  {
+    const el=document.getElementById('home-diadash');
+    if(el){
+      const hoje=new Date().getDate();
+      const dia=(d.diario||[]).find(x=>x.dia===hoje) || (d.diario||[]).filter(x=>x.realizado>0).slice(-1)[0];
+      if(!dia){ el.innerHTML=''; }
+      else{
+        const pct = dia.meta>0 ? 100*dia.realizado/dia.meta : null;
+        const cor = pct==null?'var(--n500)':(pct>=95?'var(--green,#16A34A)':(pct>=70?'#B8860B':'var(--red,#DC2626)'));
+        const cap = String(dia.dia).padStart(2,'0')+'/'+String(new Date().getMonth()+1).padStart(2,'0');
+        el.innerHTML =
+          `<div class="dd-cap">Dia ${cap}${dia.dia===hoje?' (hoje)':''}</div><div class="dd-row">`+
+          `<div class="dd"><span class="dd-l">Meta do dia</span><span class="dd-v">${BRL.format(dia.meta||0)}</span></div>`+
+          `<div class="dd"><span class="dd-l">Realizado do dia</span><span class="dd-v">${BRL.format(dia.realizado||0)}</span></div>`+
+          `<div class="dd"><span class="dd-l">% realizado do dia</span><span class="dd-v" style="color:${cor}">${pct==null?'—':pct.toLocaleString('pt-BR',{maximumFractionDigits:0})+'%'}</span></div>`+
+          `</div>`;
+      }
+    }
+  }
   chartHomeReceita(d.receita_12m||[]);
   chartHomeSaldo(d.fluxo_serie||[]);
   donutHome(d.modal_km||[]);
@@ -5201,15 +5231,17 @@ function renderSrv(){
   document.getElementById('srv-servicos').innerHTML=(d.servicos||[]).map(s=>`<tr>
     <td>${esc(s.nome)}</td><td><span class="badge ${bmap[s.status]||'b-info'}">${brot[s.status]||esc(s.status)}</span></td>
     <td>${esc(s.detalhe||'')}</td></tr>`).join('')||'<tr><td colspan="3">—</td></tr>';
+  const fmtDT = x => { if(!x) return '—'; const d=new Date(x); return isNaN(d)?'—':d.toLocaleString('pt-BR',{day:'2-digit',month:'2-digit',year:'2-digit',hour:'2-digit',minute:'2-digit'}); };
   document.getElementById('srv-tarefas').innerHTML=(d.tarefas||[]).map(t=>{
     const e=(t.estado||'').toLowerCase(); let cls='b-info', rot=t.estado;
     if(e.includes('execu')||e.includes('running')){ cls='b-ok'; rot='Rodando'; }
-    else if(e.includes('pronto')||e.includes('ready')){ cls='b-info'; rot='Pronto (aguarda logon)'; }
+    else if(e.includes('pronto')||e.includes('ready')){ cls='b-ok'; rot='Pronto'; }
     else if(e.includes('nao_registrada')){ cls='b-warn'; rot='Não registrada'; }
     else if(e.includes('desab')||e.includes('disabled')){ cls='b-dang'; rot='Desabilitada'; }
     else if(e.includes('indispon')){ cls='b-info'; rot='Indisponível'; }
-    return `<tr><td>${esc(t.nome)}</td><td><span class="badge ${cls}">${esc(rot)}</span></td></tr>`;
-  }).join('')||'<tr><td colspan="2">—</td></tr>';
+    return `<tr><td>${esc(t.nome)}</td><td><span class="badge ${cls}">${esc(rot)}</span></td>
+      <td class="num">${fmtDT(t.ultima)}</td><td class="num">${fmtDT(t.proxima)}</td></tr>`;
+  }).join('')||'<tr><td colspan="4">—</td></tr>';
   document.getElementById('srv-mem-hint').textContent = mem.total ? fmtBytes(mem.total)+' total' : '';
   document.getElementById('srv-mem').innerHTML =
     `<div style="font-size:13px;color:var(--n600)">RAM — ${fmtBytes(mem.usado)} de ${fmtBytes(mem.total)} (${mem.percent||0}%) · livre ${fmtBytes(mem.disponivel)}</div>${srvBarra(mem.percent)}`+
