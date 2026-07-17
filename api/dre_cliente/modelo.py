@@ -39,6 +39,10 @@ LINHAS_CLIENTE: list[Linha] = [
     Linha("CREDITOS TRIBUTARIOS", 0, "credito_pct"),
     Linha("MARGEM DE CONTRIBUICAO", 0, "formula",
           ["RECEITA LIQUIDA", "CUSTO VARIAVEL", "CREDITOS TRIBUTARIOS"]),
+    # v2: custo fixo do ativo alocado por dia-veiculo -> Margem Direta
+    Linha("CUSTO FIXO", 0, "fixo_dia_veiculo"),
+    Linha("MARGEM DIRETA DO CLIENTE", 0, "formula",
+          ["MARGEM DE CONTRIBUICAO", "CUSTO FIXO"]),
 ]
 
 # imposto (rotulo da linha) -> chave em Params.deducoes_pct
@@ -58,6 +62,22 @@ def rotulos() -> list[str]:
 
 def metodo_da_linha(rotulo: str) -> str:
     return _POR_ROTULO[rotulo].metodo
+
+
+def classificar_cf(agrupador: str) -> str:
+    """Base de alocacao por dia-veiculo do agrupador de custo fixo (v2):
+    'locado' (locacao), 'proprio' (depreciacao/juros), 'ativo' (demais CF do
+    ativo rodante) ou 'nao_desce' (fixo de estrutura -> consolidado)."""
+    a = agrupador.upper()
+    if "PESSOAL OPERAC" in a or "DESPESAS ADM" in a or "PATRIMONIAL" in a:
+        return "nao_desce"
+    if "LOCA" in a:                       # LOCACAO DE EQUIPAMENTOS
+        return "locado"
+    if "DEPRECIA" in a or "JUROS" in a:   # deprec e juros do veiculo proprio/financiado
+        return "proprio"
+    if a.startswith("CF - "):             # folha mot, rastreamento, GR, IPVA, seguros veic/ambiental
+        return "ativo"
+    return "nao_desce"
 
 
 def classificar_cv(agrupador: str) -> str:
