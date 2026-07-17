@@ -36,15 +36,26 @@ def _resolver_formulas(leaf: dict[str, float]) -> dict[str, float]:
     return memo
 
 
-def _mix_bucket(tipo_operacao: str) -> str:
-    t = (tipo_operacao or "").upper()
-    if t in ("FROTA", "LOCACAO"):
-        return "proprio"
-    if t == "AGR":
+# utilizacaoveiculo no AVA vem como CODIGO (TRA/LOC/AGR/TER); aceitar tambem as
+# descricoes (FROTA/LOCACAO/...) por robustez.
+def _op_norm(t: str) -> str:
+    t = (t or "").upper()
+    if t in ("TRA", "FROTA"):
+        return "frota"
+    if t in ("LOC", "LOCACAO"):
+        return "locacao"
+    if t in ("AGR", "AGREGADO", "AGREGADOS"):
         return "agregado"
-    if t == "TER":
+    if t in ("TER", "TERCEIRO", "TERCEIROS"):
         return "terceiro"
     return "outro"
+
+
+def _mix_bucket(tipo_operacao: str) -> str:
+    op = _op_norm(tipo_operacao)
+    if op in ("frota", "locacao"):
+        return "proprio"
+    return op if op in ("agregado", "terceiro") else "outro"
 
 
 def agregar(
@@ -67,18 +78,24 @@ def agregar(
     # indicadores por cliente
     ind: dict[Any, dict] = defaultdict(lambda: {
         "km_carregado": 0.0, "km_vazio": 0.0, "viagens": 0, "dias_veiculo": 0,
-        "mix": defaultdict(float),
+        "dias_proprio": 0, "dias_locado": 0, "mix": defaultdict(float),
     })
     for vid, meta in viagem_meta.items():
         c = cli(vid)
         km = float(meta.get("km", 0.0) or 0.0)
+        dias = int(meta.get("dias", 0) or 0)
+        op = _op_norm(meta.get("tipo_operacao"))
         if meta.get("tipo") == 3:
             ind[c]["km_vazio"] += km
         else:
             ind[c]["km_carregado"] += km
             ind[c]["viagens"] += 1
-        ind[c]["dias_veiculo"] += int(meta.get("dias", 0) or 0)
-        ind[c]["mix"][_mix_bucket(meta.get("tipo_operacao", ""))] += km
+        ind[c]["dias_veiculo"] += dias
+        if op == "frota":
+            ind[c]["dias_proprio"] += dias
+        elif op == "locacao":
+            ind[c]["dias_locado"] += dias
+        ind[c]["mix"][_mix_bucket(meta.get("tipo_operacao"))] += km
 
     clientes = []
     for c, leaf in leaf_por_cliente.items():
@@ -86,7 +103,8 @@ def agregar(
         rl = linhas.get("RECEITA LIQUIDA", 0.0)
         mc = linhas.get("MARGEM DE CONTRIBUICAO", 0.0)
         i = ind.get(c, {"km_carregado": 0.0, "km_vazio": 0.0, "viagens": 0,
-                        "dias_veiculo": 0, "mix": {}})
+                        "dias_veiculo": 0, "dias_proprio": 0, "dias_locado": 0,
+                        "mix": {}})
         km_tot = i["km_carregado"] + i["km_vazio"]
         clientes.append({
             "cliente": c,
@@ -97,6 +115,8 @@ def agregar(
                 "pct_km_vazio": (i["km_vazio"] / km_tot) if km_tot else 0.0,
                 "viagens": i["viagens"],
                 "dias_veiculo": i["dias_veiculo"],
+                "dias_proprio": i["dias_proprio"],
+                "dias_locado": i["dias_locado"],
                 "mc": mc,
                 "mc_pct": (mc / rl) if rl else None,
                 "mix": dict(i["mix"]),

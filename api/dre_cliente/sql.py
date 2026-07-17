@@ -85,7 +85,7 @@ ORDER BY {_PK}
 _LEAF_OFICIAL = (
     "RECEITA BRUTA", "IMPOSTOS FEDERAIS", "IMPOSTOS ESTADUAIS",
     "IMPOSTOS MUNICIPAIS", "CONTRIBUICAO PREVIDENCIARIA", "ANULACOES",
-    "DESCONTOS", "CUSTO VARIAVEL", "CREDITOS TRIBUTARIOS",
+    "DESCONTOS", "CUSTO VARIAVEL", "CREDITOS TRIBUTARIOS", "CUSTO FIXO",
 )
 
 
@@ -184,15 +184,25 @@ def fetch_dre_oficial(comp_de: str, comp_ate: str) -> dict[str, float]:
     return {rot: por_rotulo.get(rot, 0.0) for rot in _LEAF_OFICIAL}
 
 
-def fetch_cv_detalhe(comp_de: str, comp_ate: str) -> list[dict[str, Any]]:
-    """Detalhe por agrupador da linha CUSTO VARIAVEL (para separar manutencao/
-    pneus e calcular a variacao de absorcao). get_dre e cacheado (reuso barato)."""
+def _detalhe_linha(comp_de: str, comp_ate: str, rotulo: str) -> list[dict[str, Any]]:
     dre = queries.get_dre(comp_de, comp_ate)
     for l in dre["linhas"]:
-        if l["rotulo"] == "CUSTO VARIAVEL":
+        if l["rotulo"] == rotulo:
             return [{"agrupador": d["agrupador"], "total": d["total"]}
                     for d in l.get("detalhe", [])]
     return []
+
+
+def fetch_cv_detalhe(comp_de: str, comp_ate: str) -> list[dict[str, Any]]:
+    """Detalhe por agrupador da linha CUSTO VARIAVEL (separar manutencao/pneus
+    p/ a variacao de absorcao). get_dre e cacheado (reuso barato)."""
+    return _detalhe_linha(comp_de, comp_ate, "CUSTO VARIAVEL")
+
+
+def fetch_cf_detalhe(comp_de: str, comp_ate: str) -> list[dict[str, Any]]:
+    """Detalhe por agrupador da linha CUSTO FIXO (v2: classificar em
+    proprio/locado/ativo/nao_desce para a alocacao por dia-veiculo)."""
+    return _detalhe_linha(comp_de, comp_ate, "CUSTO FIXO")
 
 
 def janela_bounds(comp_ate: str, meses: int) -> tuple[str, str]:

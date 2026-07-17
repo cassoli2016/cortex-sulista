@@ -123,3 +123,25 @@ def custear_diretos(viagens: list[dict[str, Any]]) -> dict[str, dict[Any, float]
     if descontos:
         out["DESCONTOS"] = descontos
     return out
+
+
+_BASES_CF = ("proprio", "locado", "ativo")
+
+
+def alocar_fixo(
+    cf_por_base: dict[str, float],
+    dias_por_cliente: dict[Any, dict[str, float]],
+) -> dict[Any, float]:
+    """Aloca o custo fixo do ativo por dia-veiculo (v2). Cada base (proprio=
+    depreciacao/juros, locado=locacao, ativo=demais CF do ativo) e distribuida
+    entre os clientes proporcional aos dias-veiculo daquela base. Valores
+    negativos (custo). Base sem dias nao e alocada (fica no plug NAO_ALOCADO)."""
+    totais = {b: sum(d.get(b, 0.0) for d in dias_por_cliente.values()) for b in _BASES_CF}
+    out: dict[Any, float] = {}
+    for cli, d in dias_por_cliente.items():
+        v = 0.0
+        for b in _BASES_CF:
+            if totais[b] > 0:
+                v += cf_por_base.get(b, 0.0) * d.get(b, 0.0) / totais[b]
+        out[cli] = v
+    return out

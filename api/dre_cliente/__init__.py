@@ -16,13 +16,14 @@ from ..queries import _comp_bounds, cached
 from . import snapshot, sql
 from .agregacao import agregar
 from .custeio import (
+    alocar_fixo,
     custear_combustivel,
     custear_creditos,
     custear_deducoes,
     custear_diretos,
     custear_taxa_km,
 )
-from .modelo import IMPOSTO_PARAM, classificar_cv
+from .modelo import IMPOSTO_PARAM, classificar_cf, classificar_cv
 from .params import carregar_params
 from .reconciliacao import reconciliar
 from .vazio import atribuir_vazio
@@ -111,8 +112,29 @@ def _calcular(cur, comp_de: str, comp_ate: str, filial: int | None, params) -> d
             linhas_por_viagem[extra] = diretos[extra]
 
     agg = agregar(linhas_por_viagem, viagem_cliente, _viagem_meta(viagens))
-    recon = reconciliar(agg["consolidado_leaf"], dre_oficial,
-                        {"CUSTO VARIAVEL": variacao_cv})
+
+    # v2: custo fixo do ativo alocado por dia-veiculo -> Margem Direta do Cliente
+    cf_por_base = {"proprio": 0.0, "locado": 0.0, "ativo": 0.0}
+    for d in sql.fetch_cf_detalhe(comp_de, comp_ate):
+        base = classificar_cf(d["agrupador"])
+        if base in cf_por_base:
+            cf_por_base[base] += d["total"]
+    dias_por_cliente = {c["cliente"]: {
+        "proprio": c["indicadores"]["dias_proprio"],
+        "locado": c["indicadores"]["dias_locado"],
+        "ativo": c["indicadores"]["dias_proprio"] + c["indicadores"]["dias_locado"],
+    } for c in agg["clientes"]}
+    cf_por_cliente = alocar_fixo(cf_por_base, dias_por_cliente)
+    for c in agg["clientes"]:
+        cf = cf_por_cliente.get(c["cliente"], 0.0)
+        mc = c["linhas"].get("MARGEM DE CONTRIBUICAO", 0.0)
+        c["linhas"]["CUSTO FIXO"] = cf
+        c["linhas"]["MARGEM DIRETA DO CLIENTE"] = mc + cf
+        c["indicadores"]["margem_direta"] = mc + cf
+
+    consolidado = dict(agg["consolidado_leaf"])
+    consolidado["CUSTO FIXO"] = sum(cf_por_cliente.values())
+    recon = reconciliar(consolidado, dre_oficial, {"CUSTO VARIAVEL": variacao_cv})
 
     cobertura = {k: v["cobertura_pct"] for k, v in recon.items()}
     return {
