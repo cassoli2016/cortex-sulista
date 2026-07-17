@@ -101,6 +101,44 @@ def _discos() -> list[dict]:
     return out
 
 
+def _num(x: str):
+    try:
+        return float(x)
+    except (ValueError, TypeError):
+        return None
+
+
+def _gpu() -> list[dict]:
+    """GPUs via nvidia-smi (best-effort). Vazio se nvidia-smi ausente ou sem GPU
+    NVIDIA (ex.: placa AMD/Intel ou host sem GPU) — nunca derruba o painel."""
+    try:
+        r = subprocess.run(
+            ["nvidia-smi",
+             "--query-gpu=name,utilization.gpu,memory.used,memory.total,"
+             "temperature.gpu,power.draw,power.limit",
+             "--format=csv,noheader,nounits"],
+            capture_output=True, text=True, timeout=6)
+        if r.returncode != 0:
+            return []
+    except (FileNotFoundError, subprocess.TimeoutExpired, OSError):
+        return []
+    out: list[dict] = []
+    for linha in r.stdout.strip().splitlines():
+        p = [c.strip() for c in linha.split(",")]
+        if len(p) < 7:
+            continue
+        mu, mt = _num(p[2]), _num(p[3])
+        out.append({
+            "nome": p[0],
+            "util_percent": _num(p[1]),
+            "mem_usado_mb": mu, "mem_total_mb": mt,
+            "mem_percent": round(100 * mu / mt, 1) if (mu is not None and mt) else None,
+            "temp_c": _num(p[4]),
+            "potencia_w": _num(p[5]), "potencia_limite_w": _num(p[6]),
+        })
+    return out
+
+
 def _rede() -> dict:
     if not psutil:
         return {}
@@ -206,6 +244,11 @@ def coletar() -> dict:
     except Exception as exc:  # noqa: BLE001
         log.warning("saude: discos falhou: %s", exc)
         dados["discos"] = []
+    try:
+        dados["gpus"] = _gpu()
+    except Exception as exc:  # noqa: BLE001
+        log.warning("saude: gpu falhou: %s", exc)
+        dados["gpus"] = []
     try:
         dados["servicos"] = _servicos()
     except Exception as exc:  # noqa: BLE001
