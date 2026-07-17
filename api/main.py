@@ -502,6 +502,37 @@ def veiculo_ficha(placa: str | None = None) -> JSONResponse:
             "detalhe": str(exc)})
 
 
+@app.get("/api/comercial/cliente")
+def cliente_ficha(cliente: str | None = None, comp_de: str | None = None,
+                  comp_ate: str | None = None) -> JSONResponse:
+    import re
+    if not (cliente or "").strip():
+        return JSONResponse(status_code=422, content={
+            "erro": "parametro_invalido", "mensagem": "Informe o cliente."})
+    hoje = date.today()
+    comp_ate = comp_ate or f"{hoje.year}-{hoje.month:02d}"
+    comp_de = comp_de or f"{hoje.year}-01"
+    for nome, valor in (("comp_de", comp_de), ("comp_ate", comp_ate)):
+        if not re.match(r"^\d{4}-(0[1-9]|1[0-2])$", valor):
+            return JSONResponse(status_code=422, content={
+                "erro": "parametro_invalido",
+                "mensagem": f"Parâmetro {nome} inválido: use o formato AAAA-MM."})
+    if comp_de > comp_ate:
+        comp_de, comp_ate = comp_ate, comp_de
+    try:
+        return JSONResponse(queries.get_cliente_ficha(cliente, comp_de, comp_ate))
+    except psycopg.OperationalError as exc:
+        return JSONResponse(status_code=503, content={
+            "erro": "banco_inacessivel",
+            "mensagem": "Sem conexão com o banco. O túnel SSH está aberto?",
+            "detalhe": str(exc)})
+    except Exception as exc:  # noqa: BLE001
+        log.warning("cliente_ficha falhou: %s", exc)
+        return JSONResponse(status_code=500, content={
+            "erro": "erro_consulta", "mensagem": "Erro ao consultar o cliente.",
+            "detalhe": str(exc)})
+
+
 # Rentabilidade por Cliente APOSENTADA (2026-07-17): superada pela DRE por
 # Cliente (bottom-up, reconciliada). A matriz margem x receita migrou p/ a DRE
 # por Cliente. queries.get_rentabilidade fica dormente (sem rota/menu).
