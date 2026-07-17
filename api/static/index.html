@@ -5435,6 +5435,10 @@ function renderSrv(){
     srvKpi('Disco (mais cheio)', discoMax?discoMax+'%':'—', 'ocupação máxima entre volumes', srvCor(discoMax)),
     srvKpi('No ar há', fmtUptime(host.uptime_seg),
            host.boot?('desde '+new Date(host.boot).toLocaleString('pt-BR')):'—', 'inherit'),
+    (function(){ const dep=d.deploy||{};
+      const val = dep.status==='alerta'?'Atenção':(dep.status==='ok'?'OK':'—');
+      const cor = dep.status==='alerta'?'var(--red,#DC2626)':(dep.status==='ok'?'var(--green,#16A34A)':'inherit');
+      return srvKpi('AutoDeploy', val, dep.detalhe||'estado desconhecido', cor); })(),
   ].join('');
   const bmap={ok:'b-ok',alerta:'b-warn',erro:'b-dang',info:'b-info'};
   const brot={ok:'OK',alerta:'Atenção',erro:'Falha',info:'Info'};
