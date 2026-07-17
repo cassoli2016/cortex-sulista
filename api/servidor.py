@@ -241,6 +241,33 @@ def _tarefas() -> list[dict]:
                 for n in _TAREFAS]
 
 
+def _deploy_saude(tarefas: list[dict]) -> dict:
+    """Saúde do AutoDeploy: alerta se a tarefa não roda há muito (deveria a cada
+    2 min) ou perdeu o gatilho (sem próxima execução). Evita repetir o deploy
+    travado silenciosamente."""
+    import re
+    t = next((x for x in tarefas if "autodeploy" in (x.get("nome", "").lower())), None)
+    if not t:
+        return {"status": "desconhecido", "detalhe": "tarefa AutoDeploy não encontrada"}
+    ultima, proxima = t.get("ultima"), t.get("proxima")
+    status, det = "ok", "em dia"
+    if not ultima:
+        return {"status": "alerta", "detalhe": "AutoDeploy nunca executou",
+                "ultima": None, "proxima": proxima}
+    try:
+        s = re.sub(r"(\.\d{6})\d+", r"\1", ultima)   # PS ToString('o') gera 7 casas
+        dt = datetime.fromisoformat(s)
+        mins = int((datetime.now(dt.tzinfo) - dt).total_seconds() // 60)
+        det = f"última execução há {mins} min"
+        if mins > 6:
+            status, det = "alerta", f"sem rodar há {mins} min (deveria ser a cada 2 min)"
+    except Exception:  # noqa: BLE001
+        det = "não foi possível ler a última execução"
+    if status == "ok" and not proxima:
+        status, det = "alerta", "sem próxima execução agendada (gatilho perdido?)"
+    return {"status": status, "detalhe": det, "ultima": ultima, "proxima": proxima}
+
+
 def coletar() -> dict:
     """Snapshot completo da saúde do servidor. Nunca levanta exceção."""
     dados: dict = {"coletado_em": _iso(time.time()), "psutil": bool(psutil)}
@@ -270,4 +297,9 @@ def coletar() -> dict:
         dados["tarefas"] = _tarefas()
     except Exception as exc:  # noqa: BLE001
         dados["tarefas"] = []
+    try:
+        dados["deploy"] = _deploy_saude(dados.get("tarefas", []))
+    except Exception as exc:  # noqa: BLE001
+        log.warning("saude: deploy falhou: %s", exc)
+        dados["deploy"] = {}
     return dados
