@@ -56,3 +56,30 @@ def custear_taxa_km(
         absorvido[v["id"]] = -(taxa * v["km"])
     variacao = real_do_razao - sum(absorvido.values())
     return absorvido, variacao
+
+
+def custear_deducoes(
+    receita_por_viagem: dict[Any, float],
+    pct: dict[str, float],
+) -> dict[str, dict[Any, float]]:
+    """Deducao efetiva por imposto: -(receita x pct) por viagem (negativo)."""
+    return {
+        imposto: {vid: -(receita * p) for vid, receita in receita_por_viagem.items()}
+        for imposto, p in pct.items()
+    }
+
+
+def custear_creditos(
+    custos_geradores_por_viagem: dict[str, dict[Any, float]],
+    pct: dict[str, float],
+) -> dict[Any, float]:
+    """Credito tributario (redutor, POSITIVO): soma por viagem de
+    abs(custo_gerador) x pct, so das naturezas com pct definido."""
+    creditos: dict[Any, float] = defaultdict(float)
+    for natureza, por_viagem in custos_geradores_por_viagem.items():
+        p = pct.get(natureza)
+        if not p:
+            continue
+        for vid, custo in por_viagem.items():
+            creditos[vid] += abs(custo) * p
+    return dict(creditos)
