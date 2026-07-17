@@ -53,7 +53,6 @@ TELAS: dict[str, tuple[str, str]] = {  # chave -> (rótulo, grupo do menu)
     "cob":     ("Régua de Cobrança", "Financeiro"),
     "pagar":   ("Contas a Pagar", "Financeiro"),
     "com":     ("Clientes e RKM", "Comercial"),
-    "rent":    ("Rentabilidade por Cliente", "Comercial"),
     "drecli":  ("DRE por Cliente", "Comercial"),
     "dre":     ("DRE Gerencial", "Controladoria"),
     "cont":    ("Contabilidade", "Controladoria"),
@@ -82,7 +81,6 @@ ROTA_TELAS: list[tuple[str, frozenset[str]]] = [
     ("/api/financeiro/dre-cliente",   frozenset({"drecli"})),
     ("/api/financeiro/dre",           frozenset({"dre"})),
     ("/api/financeiro/cobranca",      frozenset({"cob"})),
-    ("/api/financeiro/rentabilidade", frozenset({"rent"})),
     ("/api/visao-geral",              frozenset({"home", "tvfat", "tvope"})),
     ("/api/alertas",                  frozenset({"home"})),
     ("/api/suprimentos/ordens-compra", frozenset({"oc"})),
@@ -149,12 +147,12 @@ _CONFIG_PADRAO = {
 # ficam fora dos perfis de área e só entram no perfil amplo "Diretoria".
 # Perfis-modelo alinhados aos grupos do menu (reorg 2026-07-17).
 _PERFIS_MODELO = [
-    ("Comercial",   "Clientes/RKM, rentabilidade e DRE por cliente.",
-     ["com", "rent", "drecli"]),
+    ("Comercial",   "Clientes/RKM e DRE por cliente.",
+     ["com", "drecli"]),
     ("Financeiro",  "Caixa, recebíveis, pagáveis e cobrança.",
      ["fluxo", "receber", "pagar", "cob"]),
-    ("Controladoria", "DRE gerencial, contabilidade e análises de margem por cliente.",
-     ["dre", "cont", "drecli", "rent"]),
+    ("Controladoria", "DRE gerencial, contabilidade e DRE/margem por cliente.",
+     ["dre", "cont", "drecli"]),
     ("Operação",    "Torre de controle, programação, análise de KM, agregados e make-vs-buy.",
      ["torre", "prog", "km", "agr", "mvb"]),
     ("Frota",       "Veículos, consulta por placa, combustível, manutenção e multas.",
@@ -164,7 +162,7 @@ _PERFIS_MODELO = [
     ("Painéis TV",  "Apenas os painéis de TV (faturamento e operação) — para telão/quiosque.",
      ["tvfat", "tvope"]),
     ("Diretoria",   "Visão executiva ampla: consolidado, copiloto e principais indicadores.",
-     ["home", "cop", "fluxo", "dre", "drecli", "rent", "com", "km", "torre", "mvb", "veic"]),
+     ["home", "cop", "fluxo", "dre", "drecli", "com", "km", "torre", "mvb", "veic"]),
 ]
 
 

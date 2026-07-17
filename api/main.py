@@ -502,36 +502,9 @@ def veiculo_ficha(placa: str | None = None) -> JSONResponse:
             "detalhe": str(exc)})
 
 
-@app.get("/api/financeiro/rentabilidade")
-def rentabilidade(
-    filial: int | None = None,
-    dt_de: str | None = None,
-    dt_ate: str | None = None,
-    cliente: str | None = None,
-) -> JSONResponse:
-    hoje = date.today()
-    dt_ate = dt_ate or hoje.isoformat()
-    dt_de = dt_de or hoje.replace(month=1, day=1).isoformat()
-    for nome, valor in (("dt_de", dt_de), ("dt_ate", dt_ate)):
-        if _bad_date(valor):
-            return JSONResponse(status_code=422, content={
-                "erro": "parametro_invalido",
-                "mensagem": f"Parâmetro {nome} inválido: use o formato AAAA-MM-DD."})
-    if dt_de > dt_ate:
-        dt_de, dt_ate = dt_ate, dt_de
-    cliente = (cliente or "").strip() or None
-    try:
-        return JSONResponse(queries.get_rentabilidade(filial, dt_de, dt_ate, cliente=cliente))
-    except psycopg.OperationalError as exc:
-        return JSONResponse(status_code=503, content={
-            "erro": "banco_inacessivel",
-            "mensagem": "Sem conexão com o banco. O túnel SSH está aberto?",
-            "detalhe": str(exc)})
-    except Exception as exc:  # noqa: BLE001
-        log.warning("rentabilidade falhou: %s", exc)
-        return JSONResponse(status_code=500, content={
-            "erro": "erro_consulta", "mensagem": "Erro ao calcular a rentabilidade.",
-            "detalhe": str(exc)})
+# Rentabilidade por Cliente APOSENTADA (2026-07-17): superada pela DRE por
+# Cliente (bottom-up, reconciliada). A matriz margem x receita migrou p/ a DRE
+# por Cliente. queries.get_rentabilidade fica dormente (sem rota/menu).
 
 
 @app.get("/api/alertas")
