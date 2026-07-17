@@ -482,6 +482,26 @@ def veiculos(modalidade: str | None = None, situacao: str = "ativos") -> JSONRes
             "detalhe": str(exc)})
 
 
+@app.get("/api/frota/veiculo")
+def veiculo_ficha(placa: str | None = None) -> JSONResponse:
+    placa = (placa or "").strip()
+    if not placa:
+        return JSONResponse(status_code=422, content={
+            "erro": "parametro_invalido", "mensagem": "Informe a placa do veículo."})
+    try:
+        return JSONResponse(queries.get_veiculo_ficha(placa))
+    except psycopg.OperationalError as exc:
+        return JSONResponse(status_code=503, content={
+            "erro": "banco_inacessivel",
+            "mensagem": "Sem conexão com o banco. O túnel SSH está aberto?",
+            "detalhe": str(exc)})
+    except Exception as exc:  # noqa: BLE001
+        log.warning("veiculo_ficha falhou: %s", exc)
+        return JSONResponse(status_code=500, content={
+            "erro": "erro_consulta", "mensagem": "Erro ao consultar o veículo.",
+            "detalhe": str(exc)})
+
+
 @app.get("/api/financeiro/rentabilidade")
 def rentabilidade(
     filial: int | None = None,
