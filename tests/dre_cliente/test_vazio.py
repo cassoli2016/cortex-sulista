@@ -41,3 +41,24 @@ def test_vazio_sem_carregada_no_veiculo_fica_none():
 def test_nao_cruza_veiculos():
     viagens = [_v(1, "AAA", 1, tipo=1, cliente="A"), _v(2, "BBB", 2, tipo=3)]
     assert atribuir_vazio(viagens) == {2: None}
+
+
+def test_dtsaida_none_nao_quebra():
+    # dados do AVA podem ter dtsaida/dtchegada NULL -> nao pode fazer datetime-None
+    from datetime import datetime
+    viagens = [
+        {"id": 1, "veiculo": "AAA", "dtsaida": datetime(2026, 1, 2), "tipo": 1,
+         "cliente": "A", "km": 100.0},
+        {"id": 2, "veiculo": "AAA", "dtsaida": None, "tipo": 3, "cliente": None, "km": 50.0},
+    ]
+    assert atribuir_vazio(viagens) == {2: None}
+
+
+def test_carregada_sem_data_nao_e_candidata():
+    from datetime import datetime
+    viagens = [
+        {"id": 1, "veiculo": "AAA", "dtsaida": None, "tipo": 1, "cliente": "A", "km": 100.0},
+        {"id": 2, "veiculo": "AAA", "dtsaida": datetime(2026, 1, 3), "tipo": 3,
+         "cliente": None, "km": 50.0},
+    ]
+    assert atribuir_vazio(viagens) == {2: None}
