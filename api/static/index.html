@@ -4621,7 +4621,8 @@ function renderDreCli(d){
   ].join('');
   const sel=document.getElementById('fDreCli'), atual=sel.value;
   sel.innerHTML=clientes.map(c=>`<option value="${esc(c.cliente)}">${esc(c.cliente)}</option>`).join('');
-  if(atual && clientes.some(c=>c.cliente===atual)) sel.value=atual;
+  if(atual && clientes.some(c=>c.cliente===atual)){ sel.value=atual; }
+  else { const maior=[...clientes].sort((a,b)=>((b.linhas||{})['RECEITA BRUTA']||0)-((a.linhas||{})['RECEITA BRUTA']||0))[0]; if(maior) sel.value=maior.cliente; }
   const alvo=clientes.find(c=>c.cliente===sel.value)||clientes[0];
   const fm=v=>{ if(Math.abs(v)<500) return '<span class="zero">–</span>'; const t=(v/1000).toLocaleString('pt-BR',{maximumFractionDigits:0}); return v<0?`<span class="neg">${t}</span>`:t; };
   const RES=new Set(['RECEITA LIQUIDA','MARGEM DE CONTRIBUICAO']);
