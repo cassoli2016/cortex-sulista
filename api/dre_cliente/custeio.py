@@ -36,3 +36,23 @@ def custear_combustivel(
         custo = custo_por_veiculo.get(v["placa"], 0.0)
         resultado[v["id"]] = -(custo * v["km"] / total) if total else 0.0
     return resultado
+
+
+def custear_taxa_km(
+    taxa_por_veiculo: dict[Any, float],
+    km_por_viagem: list[dict[str, Any]],
+    real_do_razao: float,
+) -> tuple[dict[Any, float], float]:
+    """Absorve manutencao/pneus por taxa rolling R$/km x km da viagem (proprio).
+    AGR/TER recebem 0. Retorna (absorvido_por_viagem, variacao_de_absorcao),
+    com variacao = real_do_razao - soma(absorvido) (tudo em convencao de sinal).
+    """
+    absorvido: dict[Any, float] = {}
+    for v in km_por_viagem:
+        if not v["is_proprio"]:
+            absorvido[v["id"]] = 0.0
+            continue
+        taxa = taxa_por_veiculo.get(v["placa"], 0.0)
+        absorvido[v["id"]] = -(taxa * v["km"])
+    variacao = real_do_razao - sum(absorvido.values())
+    return absorvido, variacao
