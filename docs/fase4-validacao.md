@@ -28,23 +28,30 @@ Impostos = taxa efetiva do razão sobre a receita bruta (jan–jun/2026, RB = R$
 | previdenciaria | 0.0085 | \|CONTRIBUICAO PREVIDENCIARIA\| / RB |
 | creditos (comb/pneus/manut/frete) | 0.24/0.24/0.15/0.12 | ICMS+PIS/COFINS creditáveis; créditos totais ≈ 19,7% do CV |
 
-## Resultado — reconciliação Q1/2026 (jan–mar)
+## Resultado — reconciliação por mês (jan–jun/2026, consolidação)
 
-Rodado via `get_dre_cliente("2026-01","2026-03")`: 21 clientes, 2,5 s (frio), snapshot
-gravado (`data/dre_cliente/2026-01_2026-03_all.json`); 2ª chamada 0,00 s.
+Rodado por mês fechado (`get_dre_cliente(m,m)`); o balanço fecha por construção em
+todas as linhas/meses (o assert de reconciliação passa). Cobertura por linha:
 
-| Linha | Cobertura |
-|---|---|
-| RECEITA BRUTA | 98% |
-| IMPOSTOS FEDERAIS | 99% |
-| IMPOSTOS ESTADUAIS | 96% |
-| CONTRIBUICAO PREVIDENCIARIA | 98% |
-| CUSTO VARIAVEL | 87% |
-| CREDITOS TRIBUTARIOS | 54% |
-| ANULACOES / DESCONTOS | 0% (não descidos no v1) |
+| Mês | Receita | Imp. Fed. | Imp. Est. | Contrib. | CV | Créditos | CF | Clientes |
+|---|---|---|---|---|---|---|---|---|
+| 2026-01 | 96% | 98% | 94% | 95% | 86% | 55% | 69% | 20 |
+| 2026-02 | 97% | 98% | 95% | 97% | 84% | 54% | 70% | 18 |
+| 2026-03 | 97% | 97% | 100% | 99% | 89% | 53% | 69% | 17 |
+| 2026-04 | 100% | 100% | 98% | 100% | 87% | 54% | 66% | 18 |
+| 2026-05 | 95% | 95% | 96% | 94% | 92% | 56% | 63% | 17 |
+| 2026-06 | 98% | 96% | 98% | 99% | 90% | 56% | 62% | 18 |
 
-As linhas proporcionais à receita (impostos) reconciliam a 96–99%, limitadas pela
-cobertura da própria receita descida. O balanço total fecha ao centavo em todas as linhas.
+**Conclusões da consolidação:**
+- As linhas proporcionais à receita (impostos) reconciliam a **94–100%** em todos os
+  meses — a **calibração anual** dos percentuais (jan–jun) se mantém estável mês a mês,
+  não precisa recalibrar por mês.
+- **CUSTO VARIÁVEL 84–92%**: o resto é o gap de repasse de frete agregado + custos não
+  descidos por viagem (pedágio/diárias — campos vazios no AVA).
+- **CRÉDITOS 53–56%** e **CUSTO FIXO 62–70%**: consistentemente parciais **por desenho**
+  (base parcial de crédito; fixo de estrutura — pessoal op/adm/patrimonial — não desce,
+  fica no consolidado). Não são erros; são o NAO_ALOCADO esperado.
+- ANULAÇÕES/DESCONTOS não descem no v1 (residual em NAO_ALOCADO).
 
 ## Gaps conhecidos (residual em NAO_ALOCADO) — v1
 
