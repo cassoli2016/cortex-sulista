@@ -1438,7 +1438,7 @@ button.avatar{border:0;cursor:pointer}
       <section class="view" id="view-drecli">
         <div class="kpis" id="kpis-drecli"></div>
         <div class="card">
-          <div class="head"><h2>DRE por Cliente</h2><span class="hint" id="drecliHint">custeada por viagem/CT-e · reconciliada com a DRE oficial · R$ mil · até Margem Direta (custo fixo por dia-veículo)</span></div>
+          <div class="head"><h2>DRE por Cliente</h2><span class="hint" id="drecliHint">custeada por viagem/CT-e · reconciliada com a DRE oficial · valores em R$ · até Margem Direta (custo fixo por dia-veículo)</span></div>
           <div style="padding:0 16px 10px">
             <label for="fDreCli" style="font-size:13px;color:var(--n600)">Cliente:&nbsp;</label>
             <select id="fDreCli" onchange="renderDreCli(DATADRECLI)" style="min-width:280px;max-width:100%"></select>
@@ -4671,9 +4671,9 @@ function renderDreCli(d){
   if(atual && clientes.some(c=>c.cliente===atual)){ sel.value=atual; }
   else { const maior=[...clientes].sort((a,b)=>((b.linhas||{})['RECEITA BRUTA']||0)-((a.linhas||{})['RECEITA BRUTA']||0))[0]; if(maior) sel.value=maior.cliente; }
   const alvo=clientes.find(c=>c.cliente===sel.value)||clientes[0];
-  const fm=v=>{ if(Math.abs(v)<500) return '<span class="zero">–</span>'; const t=(v/1000).toLocaleString('pt-BR',{maximumFractionDigits:0}); return v<0?`<span class="neg">${t}</span>`:t; };
+  const fm=v=>{ if(Math.abs(v)<0.005) return '<span class="zero">–</span>'; const t=v.toLocaleString('pt-BR',{maximumFractionDigits:2}); return v<0?`<span class="neg">${t}</span>`:t; };
   const RES=new Set(['RECEITA LIQUIDA','MARGEM DE CONTRIBUICAO','MARGEM DIRETA DO CLIENTE']);
-  document.getElementById('drecli-head').innerHTML='<tr><th>Linha</th><th class="num">'+(alvo?esc(alvo.cliente):'—')+' (R$ mil)</th></tr>';
+  document.getElementById('drecli-head').innerHTML='<tr><th>Linha</th><th class="num">'+(alvo?esc(alvo.cliente):'—')+' (R$)</th></tr>';
   document.getElementById('drecli-body').innerHTML=(alvo?DRECLI_LINHAS:[]).map(([rot,niv])=>{
     const v=(alvo.linhas||{})[rot]||0;
     const tdL=niv===1?'style="padding-left:24px;color:var(--n600)"':(RES.has(rot)?'style="font-weight:700"':'');
