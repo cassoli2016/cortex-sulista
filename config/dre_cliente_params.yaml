@@ -1,0 +1,28 @@
+# Parametros de negocio da DRE por cliente - versionados e auditaveis.
+# NENHUM destes valores deve estar hardcoded no codigo.
+# Os percentuais sao ESTIMATIVAS INICIAIS, a calibrar na Fase 4 (validacao)
+# contra o razao (get_dre) para minimizar o NAO_ALOCADO das linhas parametricas.
+
+# Aliquota efetiva por grupo de imposto, sobre a receita bruta do CT-e/viagem.
+deducoes_pct:
+  federais: 0.0365        # PIS/COFINS cumulativo (estimativa)
+  estaduais: 0.12         # ICMS transporte (estimativa)
+  municipais: 0.0         # transporte interestadual normalmente sem ISS
+  previdenciaria: 0.015   # CPRB sobre receita bruta (estimativa)
+
+# Percentual de credito tributario (redutor) por natureza de custo gerador,
+# aplicado sobre o custo descido ao cliente. Valores negativos no resultado.
+creditos_pct:
+  combustivel: 0.12       # credito de ICMS sobre diesel (estimativa)
+  pneus: 0.12
+  manutencao: 0.08
+  frete_contratado: 0.12
+
+# Base de rateio de custos de uma viagem entre varios CT-es (multi-cliente).
+rateio_intra_viagem: peso   # peso | receita
+
+# Janela (meses) da taxa rolling R$/km de manutencao e pneus.
+taxa_km_janela_meses: 12
+
+# Preco de diesel de fallback (R$/litro) quando nao houver abastecimento.
+preco_diesel_fallback: 6.00
