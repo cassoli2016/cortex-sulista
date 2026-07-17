@@ -533,6 +533,70 @@ def cliente_ficha(cliente: str | None = None, comp_de: str | None = None,
             "detalhe": str(exc)})
 
 
+def _comp_defaults(comp_de: str | None, comp_ate: str | None):
+    """Normaliza/valida competência AAAA-MM (default: ano corrente até o mês
+    atual). Devolve (comp_de, comp_ate) ou uma JSONResponse 422 de erro."""
+    import re
+    hoje = date.today()
+    comp_ate = comp_ate or f"{hoje.year}-{hoje.month:02d}"
+    comp_de = comp_de or f"{hoje.year}-01"
+    for nome, valor in (("comp_de", comp_de), ("comp_ate", comp_ate)):
+        if not re.match(r"^\d{4}-(0[1-9]|1[0-2])$", valor):
+            return JSONResponse(status_code=422, content={
+                "erro": "parametro_invalido",
+                "mensagem": f"Parâmetro {nome} inválido: use o formato AAAA-MM."})
+    if comp_de > comp_ate:
+        comp_de, comp_ate = comp_ate, comp_de
+    return comp_de, comp_ate
+
+
+@app.get("/api/jornada/painel")
+def jornada_painel(comp_de: str | None = None, comp_ate: str | None = None,
+                   busca: str | None = None) -> JSONResponse:
+    r = _comp_defaults(comp_de, comp_ate)
+    if isinstance(r, JSONResponse):
+        return r
+    comp_de, comp_ate = r
+    busca = (busca or "").strip() or None
+    try:
+        return JSONResponse(queries.get_jornada(comp_de, comp_ate, busca))
+    except psycopg.OperationalError as exc:
+        return JSONResponse(status_code=503, content={
+            "erro": "banco_inacessivel",
+            "mensagem": "Sem conexão com o banco. O túnel SSH está aberto?",
+            "detalhe": str(exc)})
+    except Exception as exc:  # noqa: BLE001
+        log.warning("jornada_painel falhou: %s", exc)
+        return JSONResponse(status_code=500, content={
+            "erro": "erro_consulta", "mensagem": "Erro ao consultar a jornada.",
+            "detalhe": str(exc)})
+
+
+@app.get("/api/jornada/motorista")
+def jornada_motorista(id: str | None = None, comp_de: str | None = None,
+                      comp_ate: str | None = None) -> JSONResponse:
+    tok = (id or "").strip()
+    if not tok:
+        return JSONResponse(status_code=422, content={
+            "erro": "parametro_invalido", "mensagem": "Informe o motorista."})
+    r = _comp_defaults(comp_de, comp_ate)
+    if isinstance(r, JSONResponse):
+        return r
+    comp_de, comp_ate = r
+    try:
+        return JSONResponse(queries.get_motorista_jornada(tok, comp_de, comp_ate))
+    except psycopg.OperationalError as exc:
+        return JSONResponse(status_code=503, content={
+            "erro": "banco_inacessivel",
+            "mensagem": "Sem conexão com o banco. O túnel SSH está aberto?",
+            "detalhe": str(exc)})
+    except Exception as exc:  # noqa: BLE001
+        log.warning("jornada_motorista falhou: %s", exc)
+        return JSONResponse(status_code=500, content={
+            "erro": "erro_consulta", "mensagem": "Erro ao consultar o motorista.",
+            "detalhe": str(exc)})
+
+
 # Rentabilidade por Cliente APOSENTADA (2026-07-17): superada pela DRE por
 # Cliente (bottom-up, reconciliada). A matriz margem x receita migrou p/ a DRE
 # por Cliente. queries.get_rentabilidade fica dormente (sem rota/menu).

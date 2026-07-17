@@ -557,6 +557,7 @@ button.avatar{border:0;cursor:pointer}
       <div class="subs closed" id="subsOpe">
         <a href="#torre" class="sub" data-view="torre" title="Torre de Controle"><span class="ic" data-ic="tor"></span><span>Torre de Controle</span></a>
         <a href="#prog" class="sub" data-view="prog" title="Programação Inteligente"><span class="ic" data-ic="prog"></span><span>Programação Intel.</span></a>
+        <a href="#jorn" class="sub" data-view="jorn" title="Jornada do Motorista (Lei 13.103)"><span class="ic" data-ic="tor"></span><span>Jornada do Motorista</span></a>
         <a href="#km" class="sub" data-view="km" title="Análise de KM"><span class="ic" data-ic="kmv"></span><span>Análise de KM</span></a>
         <a href="#agr" class="sub" data-view="agr" title="Agregados e Terceiros"><span class="ic" data-ic="agr"></span><span>Agregados e Terceiros</span></a>
         <a href="#mvb" class="sub" data-view="mvb" title="Make vs Buy"><span class="ic" data-ic="mvb"></span><span>Make vs Buy</span></a>
@@ -1355,6 +1356,34 @@ button.avatar{border:0;cursor:pointer}
         </div>
         <div id="veicf-conteudo"></div>
       </section>
+      <section class="view" id="view-jorn">
+        <div class="card">
+          <div class="head"><h2>Jornada do Motorista</h2><span class="hint">compliance Lei 13.103 · apuração oficial do ERP · só motoristas com controle de jornada</span></div>
+          <div style="padding:0 16px 14px;display:flex;gap:10px;flex-wrap:wrap;align-items:center">
+            <input type="month" id="fJornDe" style="font-size:15px;padding:9px 10px;border:1px solid var(--n200,#E4E7EB);border-radius:10px">
+            <span style="color:var(--n500)">até</span>
+            <input type="month" id="fJornAte" style="font-size:15px;padding:9px 10px;border:1px solid var(--n200,#E4E7EB);border-radius:10px">
+            <input type="search" id="fJornBusca" placeholder="Motorista (nome)" autocomplete="off"
+                   style="min-width:180px;font-size:16px;padding:10px 12px;border:1px solid var(--n200,#E4E7EB);border-radius:10px"
+                   onkeydown="if(event.key==='Enter')loadJorn()">
+            <button class="btn" onclick="loadJorn()">Atualizar</button>
+          </div>
+        </div>
+        <div class="kpis" id="kpis-jorn"></div>
+        <div class="grid2">
+          <div class="card"><div class="head"><h2>Violações por tipo</h2><span class="hint">no período</span></div>
+            <div id="jorn-violacoes" style="padding:6px 16px 16px"></div></div>
+          <div class="card"><div class="head"><h2>Alertas</h2><span class="hint">CNH e excesso de direção</span></div>
+            <div id="jorn-alertas" style="padding:6px 16px 16px"></div></div>
+        </div>
+        <div class="card">
+          <div class="head"><h2>Motoristas</h2><span class="hint">ordenados por risco · clique para ver a ficha</span></div>
+          <div class="tablewrap" id="jorn-tabela"></div>
+        </div>
+      </section>
+      <section class="view" id="view-jornf">
+        <div id="jornf-conteudo"></div>
+      </section>
       <section class="view" id="view-mul">
         <div class="kpis" id="kpis-mul"></div>
         <div class="card">
@@ -1712,7 +1741,7 @@ const FAIXAS = {
   '4_vencido_91_365':['Vencido 91–365d','b-dang'],
   '5_vencido_mais_365':['Vencido > 365d','b-dang'],
 };
-const VIEWS = { home:'Visão Geral', fluxo:'Fluxo de Caixa e Bancos', receber:'Contas a Receber', pagar:'Contas a Pagar', oc:'Ordens de Compra', agr:'Agregados e Terceiros', mvb:'Make vs Buy', comb:'Combustível', man:'Manutenção', com:'Clientes e RKM', clif:'Consulta de Cliente', km:'Análise de KM', torre:'Torre de Controle', veic:'Veículos', veicf:'Consulta de Veículo', mul:'Multas', prog:'Programação Inteligente', cop:'Copiloto Cortex', cob:'Régua de Cobrança', cont:'Contabilidade', dre:'DRE Gerencial', drecli:'DRE por Cliente', tvfat:'Painel TV — Faturamento', tvope:'Painel TV — Operação', gestao:'Gestão', srv:'Saúde do Servidor' };
+const VIEWS = { home:'Visão Geral', fluxo:'Fluxo de Caixa e Bancos', receber:'Contas a Receber', pagar:'Contas a Pagar', oc:'Ordens de Compra', agr:'Agregados e Terceiros', mvb:'Make vs Buy', comb:'Combustível', man:'Manutenção', com:'Clientes e RKM', clif:'Consulta de Cliente', km:'Análise de KM', torre:'Torre de Controle', veic:'Veículos', veicf:'Consulta de Veículo', mul:'Multas', prog:'Programação Inteligente', jorn:'Jornada do Motorista', jornf:'Ficha de Jornada', cop:'Copiloto Cortex', cob:'Régua de Cobrança', cont:'Contabilidade', dre:'DRE Gerencial', drecli:'DRE por Cliente', tvfat:'Painel TV — Faturamento', tvope:'Painel TV — Operação', gestao:'Gestão', srv:'Saúde do Servidor' };
 const periodoLabel = p => { if(p==='atrasado') return 'Atrasado'; const [y,m]=p.split('-'); return MES[+m-1]+'/'+y.slice(2); };
 const fmtD = s => { if(!s) return ''; const [y,m,dd]=s.split('-'); return dd+'/'+m+'/'+y; };
 const esc  = s => (s??'').toString().replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
@@ -1740,6 +1769,11 @@ let veicfSeq = 0;
 let DATAVEICF = null;
 let clifSeq = 0;
 let DATACLIF = null;
+let jornSeq = 0;
+let jornfSeq = 0;
+let DATAJORN = null;
+let DATAJORNF = null;
+let jornCtx = {token:'', nome:''};   // motorista selecionado p/ a ficha
 let ocSeq = 0;
 let agrSeq = 0;
 let mvbSeq = 0;
@@ -1826,7 +1860,7 @@ const VIEW_GROUP = {home:'',cop:'',
   com:'Com',clif:'Com',rent:'Com',drecli:'Com',
   fluxo:'Fin',receber:'Fin',pagar:'Fin',cob:'Fin',
   dre:'Ctr',cont:'Ctr',
-  torre:'Ope',prog:'Ope',km:'Ope',agr:'Ope',mvb:'Ope',
+  torre:'Ope',prog:'Ope',jorn:'Ope',jornf:'Ope',km:'Ope',agr:'Ope',mvb:'Ope',
   veic:'Fro',veicf:'Fro',comb:'Fro',man:'Fro',mul:'Fro',
   oc:'Sup',
   tvfat:'Tv',tvope:'Tv',
@@ -1910,6 +1944,14 @@ function qsView(k){
   } else if(k==='cob'){
     if(V('fFilial'))p.set('filial',V('fFilial'));
     if(T('fCobCli'))p.set('cliente',T('fCobCli'));
+  } else if(k==='jorn'){
+    if(V('fJornDe'))p.set('comp_de',V('fJornDe'));
+    if(V('fJornAte'))p.set('comp_ate',V('fJornAte'));
+    if(T('fJornBusca'))p.set('busca',T('fJornBusca'));
+  } else if(k==='jornf'){
+    if(jornCtx.token)p.set('id',jornCtx.token);
+    if(V('fJornDe'))p.set('comp_de',V('fJornDe'));
+    if(V('fJornAte'))p.set('comp_ate',V('fJornAte'));
   } else if(k==='cop'){
   } else if(k==='prog'){
   } else if(k==='torre'){
@@ -1980,8 +2022,8 @@ function router(){
   document.getElementById('grpCob').style.display = cob ? 'flex' : 'none';
   document.getElementById('grpRent').style.display = rent ? 'flex' : 'none';
   const ges = (v==='gestao');
-  const fbar=document.getElementById('filterbar'); if(fbar) fbar.style.display = (cop||ges||v==='srv'||v==='veicf'||v==='clif'||v==='home') ? 'none' : '';
-  const metaEl=document.getElementById('meta'); if(metaEl) metaEl.style.display = (cop||ges||v==='srv'||v==='veicf'||v==='clif') ? 'none' : '';
+  const fbar=document.getElementById('filterbar'); if(fbar) fbar.style.display = (cop||ges||v==='srv'||v==='veicf'||v==='clif'||v==='jorn'||v==='jornf'||v==='home') ? 'none' : '';
+  const metaEl=document.getElementById('meta'); if(metaEl) metaEl.style.display = (cop||ges||v==='srv'||v==='veicf'||v==='clif'||v==='jorn'||v==='jornf') ? 'none' : '';
   // classe em vez de style: o CSS mobile usa !important no display
   const bfil=document.getElementById('btnFiltros'); if(bfil){ bfil.classList.toggle('oculto', cop||ges||v==='srv'||v==='home'); bfil.style.display=''; }
   document.getElementById('grpKm').style.display = kmv ? 'flex' : 'none';
@@ -2002,8 +2044,8 @@ function router(){
   // carga da vista: dispara se não há dados OU se os filtros visíveis
   // divergem dos usados na última carga (nunca mostrar dado velho com filtro novo)
   const key=viewKey(v);
-  const DATAMAP={fin:DATA,oc:DATAOC,agr:DATAAGR,mvb:DATAMVB,comb:DATACOMB,man:DATAMAN,com:DATACOM,clif:DATACLIF,dre:DATADRE,drecli:DATADRECLI,home:DATAHOME,km:DATAKM,torre:DATATORRE,veic:DATAVEIC,veicf:DATAVEICF,mul:DATAMUL,prog:DATAPROG,cob:DATACOB,rent:DATARENT,cont:DATACONT,gestao:DATAGES,srv:DATASRV,tvfat:null,tvope:null,cop:(COP_MSGS.length?{}:null)};
-  const LOADMAP={fin:load,oc:loadOc,agr:loadAgr,mvb:loadMvb,comb:loadComb,man:loadMan,com:loadCom,clif:loadClif,dre:loadDre,drecli:loadDreCli,home:loadHome,km:loadKm,torre:loadTorre,veic:loadVeic,veicf:loadVeicf,mul:loadMul,prog:loadProg,cob:loadCob,rent:loadRent,cont:loadCont,gestao:loadGestao,srv:loadSrv,cop:loadCop,tvfat:loadTvFat,tvope:loadTvOpe};
+  const DATAMAP={fin:DATA,oc:DATAOC,agr:DATAAGR,mvb:DATAMVB,comb:DATACOMB,man:DATAMAN,com:DATACOM,clif:DATACLIF,dre:DATADRE,drecli:DATADRECLI,home:DATAHOME,km:DATAKM,torre:DATATORRE,veic:DATAVEIC,veicf:DATAVEICF,mul:DATAMUL,prog:DATAPROG,jorn:DATAJORN,jornf:DATAJORNF,cob:DATACOB,rent:DATARENT,cont:DATACONT,gestao:DATAGES,srv:DATASRV,tvfat:null,tvope:null,cop:(COP_MSGS.length?{}:null)};
+  const LOADMAP={fin:load,oc:loadOc,agr:loadAgr,mvb:loadMvb,comb:loadComb,man:loadMan,com:loadCom,clif:loadClif,dre:loadDre,drecli:loadDreCli,home:loadHome,km:loadKm,torre:loadTorre,veic:loadVeic,veicf:loadVeicf,mul:loadMul,prog:loadProg,jorn:loadJorn,jornf:loadJornf,cob:loadCob,rent:loadRent,cont:loadCont,gestao:loadGestao,srv:loadSrv,cop:loadCop,tvfat:loadTvFat,tvope:loadTvOpe};
   if(!DATAMAP[key] || (key!=='home' && LOADEDQS[key]!==qsView(key))) LOADMAP[key]();
   // mobile: estado da navegação inferior + fecha gaveta/painel de filtros
   document.querySelectorAll('.bottomnav [data-bview]').forEach(a=>a.classList.toggle('ativo', a.dataset.bview===v));
@@ -2650,7 +2692,7 @@ function reloadCurrent(){
   // recarrega a TELA ATUAL — antes caía em load() (Financeiro) para várias telas.
   const M={home:loadHome,fluxo:load,receber:load,pagar:load,dre:loadDre,drecli:loadDreCli,oc:loadOc,
     agr:loadAgr,mvb:loadMvb,comb:loadComb,man:loadMan,com:loadCom,clif:loadClif,km:loadKm,
-    torre:loadTorre,veic:loadVeic,veicf:loadVeicf,mul:loadMul,prog:loadProg,cob:loadCob,rent:loadRent,
+    torre:loadTorre,veic:loadVeic,veicf:loadVeicf,mul:loadMul,prog:loadProg,jorn:loadJorn,jornf:loadJornf,cob:loadCob,rent:loadRent,
     cont:loadCont,gestao:loadGestao,srv:loadSrv,cop:loadCop,tvfat:loadTvFat,tvope:loadTvOpe};
   (M[currentView()]||load)();
 }
@@ -4069,6 +4111,115 @@ function renderClif(d){
   const uv=(d.ultimas_viagens||[]).map(v=>`<tr><td>${esc(v.data)}</td><td>${esc(v.origem)} → ${esc(v.destino)}</td><td>${esc(v.placa||'—')}</td><td class="num">${Math.round(v.km).toLocaleString('pt-BR')}</td><td class="num">${BRL.format(v.valorfrete||0)}</td></tr>`).join('')||'<tr><td colspan="5" style="color:var(--n500)">sem viagens</td></tr>';
   h+=`<div class="card"><div class="head"><h2>Últimas viagens</h2><span class="hint">no período</span></div>
     <div class="tablewrap"><table><thead><tr><th>Data</th><th>Rota</th><th>Placa</th><th class="num">Km</th><th class="num">Frete</th></tr></thead><tbody>${uv}</tbody></table></div></div>`;
+  cont.innerHTML=h;
+}
+// ---------------- Jornada do Motorista (Lei 13.103) ----------------
+function jornDefaults(){
+  const hoje=new Date(), yyyy=hoje.getFullYear(), mm=String(hoje.getMonth()+1).padStart(2,'0');
+  const de=document.getElementById('fJornDe'), ate=document.getElementById('fJornAte');
+  if(de && !de.value) de.value=yyyy+'-01';
+  if(ate && !ate.value) ate.value=yyyy+'-'+mm;
+}
+function jorRiscoBadge(r){
+  const m={critico:['Crítico','b-dang'],atencao:['Atenção','b-warn'],ok:['OK','b-ok']};
+  const [l,c]=m[r]||['—',''];
+  return `<span class="badge ${c}">${l}</span>`;
+}
+function jorCnhCell(m){
+  if(!m.cnh_venc) return '<span style="color:var(--n500)">—</span>';
+  const st=m.cnh_status, c=st==='vencida'?'b-dang':(st==='vencendo'?'b-warn':'b-ok');
+  const lbl=st==='vencida'?'vencida':(st==='vencendo'?'vence logo':'ok');
+  return `<span class="badge ${c}">${lbl}</span> <span style="color:var(--n600)">${fmtD(m.cnh_venc)}${m.cnh_cat?' · '+esc(m.cnh_cat):''}</span>`;
+}
+async function loadJorn(){
+  jornDefaults();
+  const seq=++jornSeq, btn=document.getElementById('btnRefresh'); if(btn) btn.disabled=true;
+  document.getElementById('content').classList.add('loading');
+  skelKpis('kpis-jorn',4);
+  try{
+    const q=qsView('jorn');
+    const r=await fetch('/api/jornada/painel?'+q,{cache:'no-store'});
+    const d=await r.json(); if(seq!==jornSeq) return;
+    if(!r.ok){ showBanner(d.mensagem||'Erro ao consultar a jornada.', d.detalhe); return; }
+    hideBanner(); DATAJORN=d; LOADEDQS.jorn=q; renderJorn(d);
+  }catch(e){ if(seq===jornSeq) showBanner('Não foi possível falar com a API.', e.message); }
+  finally{ if(seq===jornSeq){ if(btn) btn.disabled=false; document.getElementById('content').classList.remove('loading'); } }
+}
+function renderJorn(d){
+  const k=d.kpis||{};
+  document.getElementById('kpis-jorn').innerHTML=[
+    kpi('Motoristas', (k.motoristas||0).toLocaleString('pt-BR'), 'com controle de jornada no período',''),
+    kpi('Em compliance', (k.pct_compliance||0).toFixed(1)+'%', 'sem violações e CNH válida', (k.pct_compliance||0)>=80?'pos':'neg'),
+    kpi('Excesso de direção', (k.viol_direcao||0).toLocaleString('pt-BR'), 'jornadas acima de 5h30 contínuas', (k.viol_direcao||0)>0?'neg':'pos'),
+    kpi('CNH vencida', (k.cnh_vencida||0).toLocaleString('pt-BR'), (k.cnh_vencendo||0)+' vencendo em 30 dias', (k.cnh_vencida||0)>0?'neg':'pos'),
+  ].join('');
+  const vt=d.violacoes_tipo||[], maxv=Math.max(1,...vt.map(x=>x.n));
+  document.getElementById('jorn-violacoes').innerHTML = vt.map(x=>
+    `<div style="margin:8px 0"><div style="display:flex;justify-content:space-between;font-size:13px"><span>${esc(x.tipo)}</span><b>${x.n.toLocaleString('pt-BR')}</b></div>
+     <div style="height:8px;background:var(--n100,#EEF1F4);border-radius:5px;overflow:hidden"><div style="height:100%;width:${Math.round(100*x.n/maxv)}%;background:${x.n>0?'#C03221':'#9AA5B1'}"></div></div></div>`
+  ).join('') || '<div style="color:var(--n500)">sem violações no período</div>';
+  const al=d.alertas||[];
+  document.getElementById('jorn-alertas').innerHTML = al.map(m=>{
+    const motivos=[];
+    if(m.v_direcao>0) motivos.push(m.v_direcao+'× excesso de direção');
+    if(m.cnh_status==='vencida') motivos.push('CNH vencida');
+    else if(m.cnh_status==='vencendo') motivos.push('CNH vencendo');
+    return `<div style="display:flex;justify-content:space-between;gap:10px;padding:6px 0;border-bottom:1px solid var(--n100,#EEF1F4);cursor:pointer" onclick="abrirJornf('${m.id}')">
+      <span>${jorRiscoBadge(m.risco)} ${esc(m.nome)}</span><span style="color:var(--n600);text-align:right">${motivos.join(' · ')||'—'}</span></div>`;
+  }).join('') || '<div style="color:var(--n500)">nenhum alerta</div>';
+  const rows=(d.motoristas||[]).map(m=>`<tr style="cursor:pointer" onclick="abrirJornf('${m.id}')">
+    <td>${jorRiscoBadge(m.risco)}</td>
+    <td><b>${esc(m.nome)}</b><br><span style="color:var(--n500);font-size:11px">${esc(m.doc)}</span></td>
+    <td class="num">${m.jornadas}</td>
+    <td class="num">${m.h_direcao.toLocaleString('pt-BR',{maximumFractionDigits:0})} h</td>
+    <td class="num">${m.h_jornada.toLocaleString('pt-BR',{maximumFractionDigits:0})} h</td>
+    <td class="num" style="${m.v_direcao>0?'color:var(--red);font-weight:700':''}">${m.v_direcao}</td>
+    <td class="num" style="${m.v_intervalo>0?'color:#B45309;font-weight:700':''}">${m.v_intervalo}</td>
+    <td>${jorCnhCell(m)}</td></tr>`).join('') ||
+    '<tr><td colspan="8" style="color:var(--n500)">nenhum motorista com controle de jornada no período</td></tr>';
+  document.getElementById('jorn-tabela').innerHTML=
+    `<table><thead><tr><th>Risco</th><th>Motorista</th><th class="num">Jornadas</th><th class="num">Direção</th><th class="num">Jornada</th><th class="num">Exc. direção</th><th class="num">Interv. insuf.</th><th>CNH</th></tr></thead><tbody>${rows}</tbody></table>`;
+}
+function abrirJornf(token){ jornCtx={token:token, nome:''}; location.hash='#jornf'; }
+async function loadJornf(){
+  const cont=document.getElementById('jornf-conteudo');
+  if(!jornCtx.token){ if(cont) cont.innerHTML='<div class="card"><div style="padding:28px 18px;color:var(--n500)">Selecione um motorista no painel de Jornada.</div></div>'; DATAJORNF={}; return; }
+  const seq=++jornfSeq, btn=document.getElementById('btnRefresh'); if(btn) btn.disabled=true;
+  document.getElementById('content').classList.add('loading');
+  try{
+    const q=qsView('jornf');
+    const r=await fetch('/api/jornada/motorista?'+q,{cache:'no-store'});
+    const d=await r.json(); if(seq!==jornfSeq) return;
+    if(!r.ok){ showBanner(d.mensagem||'Erro ao consultar o motorista.', d.detalhe); return; }
+    hideBanner(); DATAJORNF=d; LOADEDQS.jornf=q; renderJornf(d);
+  }catch(e){ if(seq===jornfSeq) showBanner('Não foi possível falar com a API.', e.message); }
+  finally{ if(seq===jornfSeq){ if(btn) btn.disabled=false; document.getElementById('content').classList.remove('loading'); } }
+}
+function renderJornf(d){
+  const cont=document.getElementById('jornf-conteudo'); if(!cont) return;
+  if(!d || d.erro){ cont.innerHTML=`<div class="card"><div style="padding:28px 18px;color:var(--n500)">${esc((d&&d.erro)||'Motorista não encontrado.')} · <a href="#jorn">voltar ao painel</a></div></div>`; return; }
+  const k=d.kpis||{}, cnh=d.cnh||{};
+  const cnhBadge = cnh.status==='vencida'?'<span class="badge b-dang">CNH vencida</span>':(cnh.status==='vencendo'?'<span class="badge b-warn">CNH vencendo</span>':(cnh.status==='ok'?'<span class="badge b-ok">CNH ok</span>':''));
+  let h=`<div class="card"><div style="padding:16px 18px">
+     <a href="#jorn" style="color:var(--n600);font-size:13px">← voltar ao painel</a>
+     <div style="display:flex;flex-wrap:wrap;gap:14px;align-items:baseline;margin-top:6px">
+       <div style="font-size:24px;font-weight:800">${esc(d.nome)}</div>
+       <div>${jorRiscoBadge(d.risco)}</div>
+       <div style="color:var(--n600)">${esc(d.doc)} · CNH ${cnh.venc?fmtD(cnh.venc):'—'}${cnh.cat?' · cat '+esc(cnh.cat):''}${cnh.uf?' · '+esc(cnh.uf):''} ${cnhBadge}</div>
+     </div></div></div>`;
+  h+=`<div class="kpis">`+[
+    kpi('Jornadas', (k.jornadas||0).toLocaleString('pt-BR'), 'no período',''),
+    kpi('Horas de direção', (k.h_direcao||0).toLocaleString('pt-BR',{maximumFractionDigits:0})+' h', 'jornada '+(k.h_jornada||0).toLocaleString('pt-BR',{maximumFractionDigits:0})+' h',''),
+    kpi('Excesso de direção', (k.v_direcao||0).toLocaleString('pt-BR'), 'acima de 5h30 contínuas', (k.v_direcao||0)>0?'neg':'pos'),
+    kpi('Intervalo insuf.', (k.v_intervalo||0).toLocaleString('pt-BR'), 'paradas abaixo do mínimo', (k.v_intervalo||0)>0?'neg':'pos'),
+  ].join('')+`</div>`;
+  const jr=(d.jornadas||[]).map(j=>{
+    const flags=[]; if(j.v_direcao) flags.push('<span class="badge b-dang">direção</span>'); if(j.v_intervalo) flags.push('<span class="badge b-warn">intervalo</span>');
+    const ini=j.inicio?j.inicio.slice(8,10)+'/'+j.inicio.slice(5,7)+' '+j.inicio.slice(11,16):'—';
+    return `<tr><td>${ini}</td><td class="num">${j.h_direcao} h</td><td class="num">${j.h_jornada} h</td><td class="num">${j.h_descanso} h</td><td class="num">${j.h_repouso} h</td><td>${flags.join(' ')||'<span class="badge b-ok">ok</span>'}</td></tr>`;
+  }).join('') || '<tr><td colspan="6" style="color:var(--n500)">sem jornadas no período</td></tr>';
+  h+=`<div class="card"><div class="head"><h2>Jornadas do período</h2><span class="hint">mais recentes primeiro · até 90</span></div>
+    <div class="tablewrap"><table><thead><tr><th>Início</th><th class="num">Direção</th><th class="num">Jornada</th><th class="num">Descanso</th><th class="num">Repouso</th><th>Violações</th></tr></thead><tbody>${jr}</tbody></table></div></div>`;
   cont.innerHTML=h;
 }
 async function loadTorre(){
@@ -5746,6 +5897,7 @@ boot();
       <div class="dgrp-b">
         <a href="#torre" onclick="fecharDrawer()"><span class="ic" data-ic="tor"></span>Torre de Controle</a>
         <a href="#prog" onclick="fecharDrawer()"><span class="ic" data-ic="prog"></span>Programação Intel.</a>
+        <a href="#jorn" onclick="fecharDrawer()"><span class="ic" data-ic="tor"></span>Jornada do Motorista</a>
         <a href="#km" onclick="fecharDrawer()"><span class="ic" data-ic="kmv"></span>Análise de KM</a>
         <a href="#agr" onclick="fecharDrawer()"><span class="ic" data-ic="agr"></span>Agregados e Terceiros</a>
         <a href="#mvb" onclick="fecharDrawer()"><span class="ic" data-ic="mvb"></span>Make vs Buy</a>

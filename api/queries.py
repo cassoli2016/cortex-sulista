@@ -3481,3 +3481,254 @@ def get_cobranca(filial: int | None, cliente: str | None = None) -> dict:
         "atualizado_em": meta["ts"].isoformat(),
         "fonte": "ERP AVA · fatura (recebíveis vencidos, não cancelados) · leitura",
     }
+
+
+# ============================================================================
+# Jornada do Motorista (Lei 13.103/2015)
+# ----------------------------------------------------------------------------
+# Bottom-up sobre o módulo de jornada que o próprio AVA já apura. A tabela
+# `jornada` (cabeçalho diário por motorista) traz as flags de compliance
+# prontas: tempodirecaocontinuaultrapassado / tempointervaloinsuficiente
+# (1-Sim; 2-Não). Não recalculamos violação sobre contadores brutos (que
+# acumulam e não são confiáveis) — surgimos a apuração oficial do ERP.
+# PII: `cnpjcpfcodigo` é o CPF do motorista; NUNCA sai no payload. O nome é
+# resolvido (cadastro.codigo) e a ficha é endereçada por um token opaco (HMAC).
+# ============================================================================
+import hmac as _hmac
+import hashlib as _hashlib
+import os as _os
+from datetime import timedelta as _timedelta
+
+# Segredo do token da ficha: estável no processo (painel e ficha rodam no
+# mesmo processo). Tokens antigos de um processo anterior falham de forma
+# graciosa — o front recarrega o painel a cada navegação.
+_JOR_SECRET = (_os.environ.get("JORNADA_TOKEN_SECRET") or "").encode() or _os.urandom(16)
+_JOR_TOKEN_MAP: dict[str, str] = {}   # token -> cpf (preenchido pelo painel)
+
+CNH_ALERTA_DIAS = 30                  # CNH vencendo dentro desta janela = atenção
+
+
+def _jor_token(cpf: str) -> str:
+    """Token opaco e determinístico (no processo) para endereçar a ficha sem
+    expor o CPF em URL/log."""
+    return _hmac.new(_JOR_SECRET, str(cpf).encode(), _hashlib.sha256).hexdigest()[:16]
+
+
+def _jor_cnh_status(venc, hoje: date) -> str | None:
+    """'vencida' | 'vencendo' (<=30d) | 'ok' | None (sem data)."""
+    if not venc:
+        return None
+    if venc < hoje:
+        return "vencida"
+    if venc <= hoje + _timedelta(days=CNH_ALERTA_DIAS):
+        return "vencendo"
+    return "ok"
+
+
+def _jor_risco(v_direcao: int, v_intervalo: int, cnh_status: str | None) -> str:
+    """Semáforo do motorista: 'critico' | 'atencao' | 'ok'."""
+    if (v_direcao or 0) > 0 or cnh_status == "vencida":
+        return "critico"
+    if (v_intervalo or 0) > 0 or cnh_status == "vencendo":
+        return "atencao"
+    return "ok"
+
+
+def _iv_horas(td) -> float:
+    """interval (timedelta) -> horas decimais; None/negativo -> 0.0."""
+    if not td:
+        return 0.0
+    h = td.total_seconds() / 3600.0
+    return round(h, 1) if h > 0 else 0.0
+
+
+# Painel: um registro por motorista no período, com flags agregadas do ERP.
+JOR_PAINEL_SQL = """
+SELECT j.cnpjcpfcodigo AS cpf,
+       coalesce(nullif(trim(c.razaosocial),''),'(sem nome)') AS nome,
+       count(*)::int AS jornadas,
+       sum(j.tempodirecao) AS h_direcao,
+       sum(j.tempojornada) AS h_jornada,
+       sum(coalesce(j.hora50,interval '0') + coalesce(j.hora100,interval '0')) AS h_extra,
+       sum(CASE WHEN j.tempodirecaocontinuaultrapassado = 1 THEN 1 ELSE 0 END)::int AS v_direcao,
+       sum(CASE WHEN j.tempointervaloinsuficiente = 1 THEN 1 ELSE 0 END)::int AS v_intervalo,
+       min(cc.dtvencimentocarteirahabilitacao)::date AS cnh_venc,
+       max(cc.categoriacarteirahabilitacao) AS cnh_cat
+FROM jornada j
+LEFT JOIN cadastro c ON c.codigo = j.cnpjcpfcodigo
+LEFT JOIN cadastro_continua cc ON cc.cnpjcpfcodigo = j.cnpjcpfcodigo
+WHERE j.dtinicio >= %(de)s AND j.dtinicio < %(ate)s
+  AND (%(busca)s::text IS NULL OR c.razaosocial ILIKE '%%'||%(busca)s||'%%')
+GROUP BY j.cnpjcpfcodigo, c.razaosocial
+"""
+
+
+@cached(ttl=120)
+def get_jornada(comp_de: str, comp_ate: str, busca: str | None = None) -> dict:
+    """Painel de compliance de jornada por motorista no período (competência)."""
+    de, ate = _comp_bounds(comp_de, comp_ate)
+    hoje = date.today()
+    with db.get_conn() as conn, conn.cursor() as cur:
+        cur.execute(JOR_PAINEL_SQL, {"de": de, "ate": ate, "busca": busca})
+        linhas = cur.fetchall()
+        cur.execute("SELECT current_timestamp AS ts")
+        meta = cur.fetchone()
+
+    motoristas = []
+    _JOR_TOKEN_MAP.clear()
+    for r in linhas:
+        cpf = r["cpf"]
+        tok = _jor_token(cpf)
+        _JOR_TOKEN_MAP[tok] = cpf
+        cnh = _jor_cnh_status(r["cnh_venc"], hoje)
+        motoristas.append({
+            "id": tok,
+            "nome": r["nome"],
+            "doc": _mask_doc(cpf),
+            "jornadas": r["jornadas"],
+            "h_direcao": _iv_horas(r["h_direcao"]),
+            "h_jornada": _iv_horas(r["h_jornada"]),
+            "h_extra": _iv_horas(r["h_extra"]),
+            "v_direcao": r["v_direcao"],
+            "v_intervalo": r["v_intervalo"],
+            "cnh_venc": r["cnh_venc"].isoformat() if r["cnh_venc"] else None,
+            "cnh_cat": (r["cnh_cat"] or "").strip() or None,
+            "cnh_status": cnh,
+            "risco": _jor_risco(r["v_direcao"], r["v_intervalo"], cnh),
+        })
+
+    # ordena por risco (critico->atencao->ok) e depois por violações de direção
+    ordem = {"critico": 0, "atencao": 1, "ok": 2}
+    motoristas.sort(key=lambda m: (ordem.get(m["risco"], 3), -m["v_direcao"], -m["h_direcao"]))
+
+    n = len(motoristas)
+    em_compliance = sum(1 for m in motoristas if m["risco"] == "ok")
+    kpis = {
+        "motoristas": n,
+        "pct_compliance": round(100 * em_compliance / n, 1) if n else 0.0,
+        "viol_direcao": sum(m["v_direcao"] for m in motoristas),
+        "viol_intervalo": sum(m["v_intervalo"] for m in motoristas),
+        "cnh_vencida": sum(1 for m in motoristas if m["cnh_status"] == "vencida"),
+        "cnh_vencendo": sum(1 for m in motoristas if m["cnh_status"] == "vencendo"),
+        "h_extra": round(sum(m["h_extra"] for m in motoristas), 1),
+    }
+    violacoes_tipo = [
+        {"tipo": "Direção contínua > 5h30", "n": kpis["viol_direcao"]},
+        {"tipo": "Intervalo insuficiente", "n": kpis["viol_intervalo"]},
+    ]
+    alertas = [m for m in motoristas
+               if m["cnh_status"] in ("vencida", "vencendo") or m["v_direcao"] > 0][:20]
+
+    return {
+        "kpis": kpis,
+        "violacoes_tipo": violacoes_tipo,
+        "motoristas": motoristas,
+        "alertas": alertas,
+        "atualizado_em": meta["ts"].isoformat(),
+        "fonte": ("ERP AVA · tabela jornada (apuração oficial do ERP) · "
+                  "só motoristas com controle de jornada · leitura"),
+    }
+
+
+# Ficha: jornadas do motorista no período (para timeline + detalhe).
+JOR_FICHA_SQL = """
+SELECT j.dtinicio, j.dtfim,
+       j.tempodirecao, j.tempojornada, j.tempodescanso, j.temporepouso,
+       j.tempointervalorefeicao, j.tempoespera,
+       coalesce(j.hora30,interval '0') AS hora30,
+       coalesce(j.hora50,interval '0') AS hora50,
+       coalesce(j.hora100,interval '0') AS hora100,
+       j.tempodirecaocontinuaultrapassado AS v_direcao,
+       j.tempointervaloinsuficiente AS v_intervalo
+FROM jornada j
+WHERE j.cnpjcpfcodigo = %(cpf)s
+  AND j.dtinicio >= %(de)s AND j.dtinicio < %(ate)s
+ORDER BY j.dtinicio DESC
+LIMIT 90
+"""
+
+JOR_FICHA_CAB_SQL = """
+SELECT coalesce(nullif(trim(c.razaosocial),''),'(sem nome)') AS nome,
+       cc.dtvencimentocarteirahabilitacao::date AS cnh_venc,
+       cc.categoriacarteirahabilitacao AS cnh_cat,
+       cc.ufcarteirahabilitacao AS cnh_uf
+FROM cadastro c
+LEFT JOIN cadastro_continua cc ON cc.cnpjcpfcodigo = c.codigo
+WHERE c.codigo = %(cpf)s
+"""
+
+
+def _jor_resolve_token(token: str) -> str | None:
+    """token -> cpf. Usa o mapa do último painel; se faltar (ex.: ficha aberta
+    direto), varre os motoristas com jornada nos últimos 400 dias e casa o
+    token recomputado. Nunca devolve o CPF ao chamador externo."""
+    cpf = _JOR_TOKEN_MAP.get(token)
+    if cpf:
+        return cpf
+    rows = db.query("SELECT DISTINCT cnpjcpfcodigo AS cpf FROM jornada "
+                    "WHERE dtinicio >= current_date - 400")
+    for r in rows:
+        c = r["cpf"]
+        t = _jor_token(c)
+        _JOR_TOKEN_MAP[t] = c
+        if t == token:
+            cpf = c
+    return cpf
+
+
+@cached(ttl=120)
+def get_motorista_jornada(token: str, comp_de: str, comp_ate: str) -> dict:
+    """Ficha de jornada de um motorista (endereçado por token opaco)."""
+    cpf = _jor_resolve_token(token)
+    if not cpf:
+        return {"erro": "motorista não encontrado (recarregue o painel)"}
+    de, ate = _comp_bounds(comp_de, comp_ate)
+    hoje = date.today()
+    with db.get_conn() as conn, conn.cursor() as cur:
+        cur.execute(JOR_FICHA_CAB_SQL, {"cpf": cpf})
+        cab = cur.fetchone() or {}
+        cur.execute(JOR_FICHA_SQL, {"cpf": cpf, "de": de, "ate": ate})
+        js = cur.fetchall()
+        cur.execute("SELECT current_timestamp AS ts")
+        meta = cur.fetchone()
+
+    jornadas = []
+    for r in js:
+        jornadas.append({
+            "inicio": r["dtinicio"].isoformat() if r["dtinicio"] else None,
+            "fim": r["dtfim"].isoformat() if r["dtfim"] else None,
+            "h_direcao": _iv_horas(r["tempodirecao"]),
+            "h_jornada": _iv_horas(r["tempojornada"]),
+            "h_descanso": _iv_horas(r["tempodescanso"]),
+            "h_repouso": _iv_horas(r["temporepouso"]),
+            "h_refeicao": _iv_horas(r["tempointervalorefeicao"]),
+            "v_direcao": r["v_direcao"] == 1,
+            "v_intervalo": r["v_intervalo"] == 1,
+        })
+
+    cnh = _jor_cnh_status(cab.get("cnh_venc"), hoje)
+    kpis = {
+        "jornadas": len(jornadas),
+        "h_direcao": round(sum(j["h_direcao"] for j in jornadas), 1),
+        "h_jornada": round(sum(j["h_jornada"] for j in jornadas), 1),
+        "h_descanso": round(sum(j["h_descanso"] for j in jornadas), 1),
+        "h_extra": round(sum(_iv_horas(r["hora50"]) + _iv_horas(r["hora100"]) for r in js), 1),
+        "h_noturno": round(sum(_iv_horas(r["hora30"]) for r in js), 1),
+        "v_direcao": sum(1 for j in jornadas if j["v_direcao"]),
+        "v_intervalo": sum(1 for j in jornadas if j["v_intervalo"]),
+    }
+    return {
+        "nome": cab.get("nome", "(sem nome)"),
+        "doc": _mask_doc(cpf),
+        "cnh": {
+            "venc": cab["cnh_venc"].isoformat() if cab.get("cnh_venc") else None,
+            "cat": (cab.get("cnh_cat") or "").strip() or None,
+            "uf": (cab.get("cnh_uf") or "").strip() or None,
+            "status": cnh,
+        },
+        "kpis": kpis,
+        "risco": _jor_risco(kpis["v_direcao"], kpis["v_intervalo"], cnh),
+        "jornadas": jornadas,
+        "atualizado_em": meta["ts"].isoformat(),
+        "fonte": "ERP AVA · tabela jornada (apuração oficial do ERP) · leitura",
+    }
