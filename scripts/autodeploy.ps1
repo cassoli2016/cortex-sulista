@@ -59,9 +59,21 @@ try {
   }
   if ($depsMud) {
     Registrar "dependencias mudaram -> uv sync"
-    if (Test-Path $uvExe) { & $uvExe sync 2>&1 | Out-Null }
-    elseif (Get-Command uv -ErrorAction SilentlyContinue) { uv sync 2>&1 | Out-Null }
-    else { Registrar "AVISO: uv nao encontrado; dependencias podem estar desatualizadas" }
+    # uv escreve progresso no stderr e as vezes sai != 0 por causas benignas;
+    # com ErrorActionPreference=Stop (+ PS 7.4) isso ABORTAVA o deploy antes de
+    # reiniciar a API. uv sync e best-effort: loga e segue para o restart.
+    $eapPrev = $ErrorActionPreference
+    $ErrorActionPreference = 'Continue'
+    try {
+      if (Test-Path $uvExe) { & $uvExe sync 2>&1 | Out-Null }
+      elseif (Get-Command uv -ErrorAction SilentlyContinue) { uv sync 2>&1 | Out-Null }
+      else { Registrar "AVISO: uv nao encontrado; dependencias podem estar desatualizadas" }
+      if ($LASTEXITCODE -and $LASTEXITCODE -ne 0) { Registrar "AVISO: uv sync saiu $LASTEXITCODE (seguindo assim mesmo)" }
+    } catch {
+      Registrar ("AVISO: uv sync falhou (seguindo assim mesmo): " + $_.Exception.Message)
+    } finally {
+      $ErrorActionPreference = $eapPrev
+    }
   }
 
   # reinicia a API para carregar o código novo (o frontend é servido do disco,
