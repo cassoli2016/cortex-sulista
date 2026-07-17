@@ -2520,6 +2520,175 @@ def get_seguranca() -> dict:
 
 
 # ============================================================================
+# Consulta de Veículo — ficha por placa: cadastro, viagem atual, posição ao
+# vivo, KPIs 30d (faturamento/km/vazio), top clientes, últimas viagens,
+# combustível, manutenção e multas. Reusa as fontes já validadas.
+# ============================================================================
+VEICF_CAD_SQL = """
+SELECT v.placa, nullif(trim(v.numerofrota),'') AS frota,
+       coalesce(mv.descricao,'') AS marca, nullif(trim(v.modeloveiculo),'') AS modelo,
+       coalesce(tv.descricao,'') AS tipo, coalesce(cv.descricao,'') AS caracteristica,
+       coalesce(u.descricao,'') AS modalidade, v.utilizacaoveiculo AS modalidade_cod,
+       (CASE WHEN v.anofabricacao BETWEEN 1980 AND extract(year from current_date)
+             THEN v.anofabricacao END)::int AS ano,
+       (v.ativoinativo = 1) AS ativo
+FROM veiculo v
+LEFT JOIN utilizacaoveiculo u ON u.codigo = v.utilizacaoveiculo
+LEFT JOIN tipoveiculo tv ON tv.codigo = v.tipoveiculo
+LEFT JOIN caracteristicaveiculo cv ON cv.codigo = v.caracteristicaveiculo
+LEFT JOIN marcaveiculo mv ON mv.codigo = v.marcaveiculo
+WHERE v.placa = %(placa)s
+"""
+
+VEICF_POS_SQL = """
+SELECT vp.latituderastreadora::float8 AS lat, vp.longituderastreadora::float8 AS lng,
+       to_char(vp.dt,'YYYY-MM-DD HH24:MI') AS posicao_em,
+       greatest(vp.velocidade,0)::int AS velocidade,
+       (vp.dt >= current_timestamp - interval '24 hours') AS recente
+FROM rastreamento.veiculo_ultimaposicaomacro um
+JOIN veiculo_posicao vp ON vp.veiculo = um.veiculo
+  AND vp.sequenciaposicaoveiculo = um.sequenciaposicaoveiculo
+WHERE um.veiculo = %(placa)s
+  AND vp.latituderastreadora IS NOT NULL AND vp.longituderastreadora IS NOT NULL
+"""
+
+VEICF_VIAGEM_SQL = """
+SELECT coalesce(nullif(trim(m.nomefantasia),''), nullif(trim(m.razaosocial),'')) AS motorista,
+       coalesce(nullif(trim(ag.descricao),''), nullif(trim(cp.nomefantasia),''), '(sem cliente)') AS cliente,
+       coalesce(nullif(trim(p.cidadeorigem),''),'?')||'/'||coalesce(p.uforigem,'?') AS origem,
+       coalesce(nullif(trim(p.cidadedestino),''),'?')||'/'||coalesce(p.ufdestino,'?') AS destino,
+       to_char(p.dtsaida,'YYYY-MM-DD HH24:MI') AS saida,
+       to_char(co.dtprevisaochegadaviagem,'YYYY-MM-DD HH24:MI') AS previsao_chegada,
+       (co.dtprevisaochegadaviagem IS NOT NULL AND co.dtprevisaochegadaviagem < current_timestamp) AS atrasada,
+       (p.tipo = 3) AS vazio,
+       coalesce(p.kmfretecompra,0)::float8 AS km, coalesce(p.valorfrete,0)::float8 AS valorfrete
+FROM programacaoembarque p
+LEFT JOIN cadastro m ON m.codigo = p.motorista
+LEFT JOIN coleta co ON co.grupo=p.grupo AND co.empresa=p.empresa
+  AND co.filial=p.filialdocumentoorigem AND co.unidade=p.unidadedocumentoorigem
+  AND co.diferenciadornumero=p.diferenciadornumerodocumentoorigem
+  AND co.numero=p.numerodocumentoorigem
+LEFT JOIN agrupamentocliente_cnpjcpfcodigo av ON av.cnpjcpfcodigo = co.cnpjcpfcodigopagadorfrete
+LEFT JOIN agrupamentocliente ag ON ag.codigo = av.codigo
+LEFT JOIN cadastro cp ON cp.codigo = co.cnpjcpfcodigopagadorfrete
+WHERE p.veiculo = %(placa)s AND p.dtcancelamento IS NULL AND p.semaforo = 1
+  AND p.dtsaida IS NOT NULL AND p.dtchegada IS NULL
+ORDER BY p.dtsaida DESC LIMIT 1
+"""
+
+VEICF_VIAGENS_SQL = """
+SELECT DISTINCT ON (p.grupo,p.empresa,p.filial,p.diferenciadornumero,p.numero)
+       to_char(coalesce(p.dtchegada,p.dtsaida,p.dtemissao),'YYYY-MM-DD') AS data,
+       p.tipo, coalesce(p.kmfretecompra,0)::float8 AS km,
+       coalesce(p.valorfrete,0)::float8 AS valorfrete,
+       coalesce(nullif(trim(p.cidadeorigem),''),'?')||'/'||coalesce(p.uforigem,'?') AS origem,
+       coalesce(nullif(trim(p.cidadedestino),''),'?')||'/'||coalesce(p.ufdestino,'?') AS destino,
+       coalesce(nullif(trim(ag.descricao),''), nullif(trim(cp.nomefantasia),''),
+                nullif(trim(cp.razaosocial),'')) AS cliente
+FROM programacaoembarque p
+LEFT JOIN coleta co ON co.grupo=p.grupo AND co.empresa=p.empresa
+  AND co.filial=p.filialdocumentoorigem AND co.unidade=p.unidadedocumentoorigem
+  AND co.diferenciadornumero=p.diferenciadornumerodocumentoorigem
+  AND co.numero=p.numerodocumentoorigem
+LEFT JOIN agrupamentocliente_cnpjcpfcodigo av ON av.cnpjcpfcodigo = co.cnpjcpfcodigopagadorfrete
+LEFT JOIN agrupamentocliente ag ON ag.codigo = av.codigo
+LEFT JOIN cadastro cp ON cp.codigo = co.cnpjcpfcodigopagadorfrete
+WHERE p.veiculo = %(placa)s AND p.dtcancelamento IS NULL AND p.semaforo = 1
+  AND coalesce(p.dtchegada,p.dtsaida,p.dtemissao) >= %(de)s::date
+  AND coalesce(p.dtchegada,p.dtsaida,p.dtemissao) < %(ate)s::date
+ORDER BY p.grupo,p.empresa,p.filial,p.diferenciadornumero,p.numero,
+         coalesce(p.dtchegada,p.dtsaida,p.dtemissao) DESC
+"""
+
+VEICF_COMB_SQL = """
+SELECT count(*)::int AS abastecimentos,
+       coalesce(sum(a.volume),0)::float8 AS litros, coalesce(sum(a.custo),0)::float8 AS custo,
+       coalesce(sum(CASE WHEN a.distancia BETWEEN 1 AND 3000 AND coalesce(a.combustivel_descricao,'') NOT ILIKE '%%ARLA%%' THEN a.distancia ELSE 0 END),0)::float8 AS km_sano,
+       coalesce(sum(CASE WHEN a.distancia BETWEEN 1 AND 3000 AND coalesce(a.combustivel_descricao,'') NOT ILIKE '%%ARLA%%' THEN a.volume ELSE 0 END),0)::float8 AS litros_sano
+FROM sulista.ctaplus_abastecimentos a
+WHERE a.veiculo_placa = %(placa)s
+  AND a.data_inicio_abastecimento >= %(de)s::date AND a.data_inicio_abastecimento < %(ate)s::date
+"""
+
+VEICF_MAN_SQL = """
+SELECT count(*)::int AS ordens_30d, coalesce(sum(o.valortotal),0)::float8 AS custo_30d
+FROM ordemservico o
+WHERE o.veiculo = %(placa)s AND o.dtemissao >= %(de)s::date AND o.dtemissao < %(ate)s::date
+"""
+
+VEICF_MAN_ABERTAS_SQL = """
+SELECT count(*)::int AS abertas, coalesce(sum(o.valortotal),0)::float8 AS abertas_valor
+FROM ordemservico o WHERE o.veiculo = %(placa)s AND o.dtfechamento IS NULL
+"""
+
+VEICF_MULTA_SQL = """
+SELECT count(*)::int AS multas, coalesce(sum(r.valoratevencimento),0)::float8 AS valor,
+       coalesce(sum(r.pontuacao),0)::int AS pontos,
+       coalesce(sum(CASE WHEN r.dtliquidacao IS NULL AND r.dtbaixa IS NULL THEN r.valoratevencimento ELSE 0 END),0)::float8 AS pendente
+FROM infracaotransito_registro r
+WHERE r.veiculo = %(placa)s AND r.dtinfracao >= current_date - interval '12 months'
+"""
+
+
+@cached(ttl=60)
+def get_veiculo_ficha(placa: str) -> dict:
+    placa = (placa or "").strip().upper()
+    if not placa:
+        return {"encontrado": False, "placa": ""}
+    from collections import defaultdict as _dd
+    from datetime import timedelta as _td
+    hoje = date.today()
+    de = (hoje - _td(days=30)).isoformat()
+    ate = (hoje + _td(days=1)).isoformat()
+    par = {"placa": placa, "de": de, "ate": ate}
+    with db.get_conn() as conn, conn.cursor() as cur:
+        cur.execute(VEICF_CAD_SQL, par); cad = cur.fetchone()
+        cur.execute(VEICF_POS_SQL, par); pos = cur.fetchone()
+        cur.execute(VEICF_VIAGEM_SQL, par); viagem = cur.fetchone()
+        cur.execute(VEICF_VIAGENS_SQL, par); vgs = cur.fetchall()
+        cur.execute(VEICF_COMB_SQL, par); comb = cur.fetchone()
+        cur.execute(VEICF_MAN_SQL, par); man = cur.fetchone()
+        cur.execute(VEICF_MAN_ABERTAS_SQL, {"placa": placa}); manab = cur.fetchone()
+        cur.execute(VEICF_MULTA_SQL, {"placa": placa}); multa = cur.fetchone()
+        cur.execute("SELECT current_timestamp AS ts"); meta = cur.fetchone()
+
+    carregadas = [v for v in vgs if v["tipo"] != 3]
+    fat = sum(v["valorfrete"] for v in carregadas)
+    km_rodado = sum(v["km"] for v in vgs)
+    km_carregado = sum(v["km"] for v in carregadas)
+    km_vazio = sum(v["km"] for v in vgs if v["tipo"] == 3)
+
+    cli: dict = _dd(lambda: {"receita": 0.0, "km": 0.0, "viagens": 0})
+    for v in carregadas:
+        c = v["cliente"] or "(sem cliente)"
+        cli[c]["receita"] += v["valorfrete"]; cli[c]["km"] += v["km"]; cli[c]["viagens"] += 1
+    top_clientes = sorted(({"cliente": k, **val} for k, val in cli.items()),
+                          key=lambda x: -x["receita"])[:10]
+    ultimas = sorted(vgs, key=lambda v: v["data"] or "", reverse=True)[:15]
+    km_l = (comb["km_sano"] / comb["litros_sano"]) if comb and comb["litros_sano"] else None
+
+    return {
+        "encontrado": bool(cad or pos or vgs or viagem),
+        "placa": placa, "cadastro": cad, "posicao": pos, "viagem_atual": viagem,
+        "kpis": {"faturamento": fat, "km_rodado": km_rodado, "km_carregado": km_carregado,
+                 "km_vazio": km_vazio, "pct_vazio": (100 * km_vazio / km_rodado) if km_rodado else 0.0,
+                 "viagens": len(carregadas)},
+        "top_clientes": top_clientes, "ultimas_viagens": ultimas,
+        "combustivel": {"custo": (comb["custo"] if comb else 0.0),
+                        "litros": (comb["litros"] if comb else 0.0),
+                        "abastecimentos": (comb["abastecimentos"] if comb else 0), "km_l": km_l},
+        "manutencao": {"custo_30d": (man["custo_30d"] if man else 0.0),
+                       "ordens_30d": (man["ordens_30d"] if man else 0),
+                       "abertas": (manab["abertas"] if manab else 0),
+                       "abertas_valor": (manab["abertas_valor"] if manab else 0.0)},
+        "multas": dict(multa) if multa else {},
+        "periodo": {"de": de, "ate": hoje.isoformat()},
+        "atualizado_em": meta["ts"].isoformat(),
+        "fonte": "ERP AVA - programacaoembarque + rastreamento (posicao) + CTA Plus + ordemservico + infracaotransito",
+    }
+
+
+# ============================================================================
 # Multas — infracaotransito_registro × infracaotransito (tipo/gravidade).
 # Paga = dtliquidacao ou dtbaixa preenchida.
 # ============================================================================

@@ -566,6 +566,7 @@ button.avatar{border:0;cursor:pointer}
       </button>
       <div class="subs closed" id="subsFro">
         <a href="#veic" class="sub" data-view="veic" title="Veículos"><span class="ic" data-ic="veic"></span><span>Veículos</span></a>
+        <a href="#veicf" class="sub" data-view="veicf" title="Consulta de Veículo por placa"><span class="ic" data-ic="veic"></span><span>Consulta de Veículo</span></a>
         <a href="#comb" class="sub" data-view="comb" title="Combustível"><span class="ic" data-ic="comb"></span><span>Combustível</span></a>
         <a href="#man" class="sub" data-view="man" title="Manutenção"><span class="ic" data-ic="man"></span><span>Manutenção</span></a>
         <a href="#mul" class="sub" data-view="mul" title="Multas"><span class="ic" data-ic="mul"></span><span>Multas</span></a>
@@ -1327,6 +1328,18 @@ button.avatar{border:0;cursor:pointer}
       </section>
 
       <!-- ===================== MULTAS ===================== -->
+      <section class="view" id="view-veicf">
+        <div class="card">
+          <div class="head"><h2>Consulta de Veículo</h2><span class="hint">digite a placa e veja a ficha completa · indicadores dos últimos 30 dias</span></div>
+          <div style="padding:0 16px 14px;display:flex;gap:10px;flex-wrap:wrap;align-items:center">
+            <input type="search" id="fVeicfPlaca" placeholder="Placa (ex.: ABC1D23)" autocomplete="off"
+                   style="min-width:220px;text-transform:uppercase;font-size:16px;padding:10px 12px;border:1px solid var(--n200,#E4E7EB);border-radius:10px"
+                   onkeydown="if(event.key==='Enter')loadVeicf(true)">
+            <button class="btn" onclick="loadVeicf(true)">Buscar</button>
+          </div>
+        </div>
+        <div id="veicf-conteudo"></div>
+      </section>
       <section class="view" id="view-mul">
         <div class="kpis" id="kpis-mul"></div>
         <div class="card">
@@ -1680,7 +1693,7 @@ const FAIXAS = {
   '4_vencido_91_365':['Vencido 91–365d','b-dang'],
   '5_vencido_mais_365':['Vencido > 365d','b-dang'],
 };
-const VIEWS = { home:'Visão Geral', fluxo:'Fluxo de Caixa e Bancos', receber:'Contas a Receber', pagar:'Contas a Pagar', oc:'Ordens de Compra', agr:'Agregados e Terceiros', mvb:'Make vs Buy', comb:'Combustível', man:'Manutenção', com:'Clientes e RKM', km:'Análise de KM', torre:'Torre de Controle', veic:'Veículos', mul:'Multas', prog:'Programação Inteligente', cop:'Copiloto Cortex', cob:'Régua de Cobrança', rent:'Rentabilidade por Cliente', cont:'Contabilidade', dre:'DRE Gerencial', drecli:'DRE por Cliente', tvfat:'Painel TV — Faturamento', tvope:'Painel TV — Operação', gestao:'Gestão', srv:'Saúde do Servidor' };
+const VIEWS = { home:'Visão Geral', fluxo:'Fluxo de Caixa e Bancos', receber:'Contas a Receber', pagar:'Contas a Pagar', oc:'Ordens de Compra', agr:'Agregados e Terceiros', mvb:'Make vs Buy', comb:'Combustível', man:'Manutenção', com:'Clientes e RKM', km:'Análise de KM', torre:'Torre de Controle', veic:'Veículos', veicf:'Consulta de Veículo', mul:'Multas', prog:'Programação Inteligente', cop:'Copiloto Cortex', cob:'Régua de Cobrança', rent:'Rentabilidade por Cliente', cont:'Contabilidade', dre:'DRE Gerencial', drecli:'DRE por Cliente', tvfat:'Painel TV — Faturamento', tvope:'Painel TV — Operação', gestao:'Gestão', srv:'Saúde do Servidor' };
 const periodoLabel = p => { if(p==='atrasado') return 'Atrasado'; const [y,m]=p.split('-'); return MES[+m-1]+'/'+y.slice(2); };
 const fmtD = s => { if(!s) return ''; const [y,m,dd]=s.split('-'); return dd+'/'+m+'/'+y; };
 const esc  = s => (s??'').toString().replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
@@ -1704,6 +1717,8 @@ let DATAMUL = null;
 let loadSeq = 0;              // token: só a última requisição renderiza
 let dreSeq = 0;
 let dreCliSeq = 0;
+let veicfSeq = 0;
+let DATAVEICF = null;
 let ocSeq = 0;
 let agrSeq = 0;
 let mvbSeq = 0;
@@ -1791,7 +1806,7 @@ const VIEW_GROUP = {home:'',cop:'',
   fluxo:'Fin',receber:'Fin',pagar:'Fin',cob:'Fin',
   dre:'Ctr',cont:'Ctr',
   torre:'Ope',prog:'Ope',km:'Ope',agr:'Ope',mvb:'Ope',
-  veic:'Fro',comb:'Fro',man:'Fro',mul:'Fro',
+  veic:'Fro',veicf:'Fro',comb:'Fro',man:'Fro',mul:'Fro',
   oc:'Sup',
   tvfat:'Tv',tvope:'Tv',
   gestao:'Adm',srv:'Adm'};
@@ -1944,8 +1959,8 @@ function router(){
   document.getElementById('grpCob').style.display = cob ? 'flex' : 'none';
   document.getElementById('grpRent').style.display = rent ? 'flex' : 'none';
   const ges = (v==='gestao');
-  const fbar=document.getElementById('filterbar'); if(fbar) fbar.style.display = (cop||ges||v==='srv'||v==='home') ? 'none' : '';
-  const metaEl=document.getElementById('meta'); if(metaEl) metaEl.style.display = (cop||ges||v==='srv') ? 'none' : '';
+  const fbar=document.getElementById('filterbar'); if(fbar) fbar.style.display = (cop||ges||v==='srv'||v==='veicf'||v==='home') ? 'none' : '';
+  const metaEl=document.getElementById('meta'); if(metaEl) metaEl.style.display = (cop||ges||v==='srv'||v==='veicf') ? 'none' : '';
   // classe em vez de style: o CSS mobile usa !important no display
   const bfil=document.getElementById('btnFiltros'); if(bfil){ bfil.classList.toggle('oculto', cop||ges||v==='srv'||v==='home'); bfil.style.display=''; }
   document.getElementById('grpKm').style.display = kmv ? 'flex' : 'none';
@@ -1966,8 +1981,8 @@ function router(){
   // carga da vista: dispara se não há dados OU se os filtros visíveis
   // divergem dos usados na última carga (nunca mostrar dado velho com filtro novo)
   const key=viewKey(v);
-  const DATAMAP={fin:DATA,oc:DATAOC,agr:DATAAGR,mvb:DATAMVB,comb:DATACOMB,man:DATAMAN,com:DATACOM,dre:DATADRE,drecli:DATADRECLI,home:DATAHOME,km:DATAKM,torre:DATATORRE,veic:DATAVEIC,mul:DATAMUL,prog:DATAPROG,cob:DATACOB,rent:DATARENT,cont:DATACONT,gestao:DATAGES,srv:DATASRV,tvfat:null,tvope:null,cop:(COP_MSGS.length?{}:null)};
-  const LOADMAP={fin:load,oc:loadOc,agr:loadAgr,mvb:loadMvb,comb:loadComb,man:loadMan,com:loadCom,dre:loadDre,drecli:loadDreCli,home:loadHome,km:loadKm,torre:loadTorre,veic:loadVeic,mul:loadMul,prog:loadProg,cob:loadCob,rent:loadRent,cont:loadCont,gestao:loadGestao,srv:loadSrv,cop:loadCop,tvfat:loadTvFat,tvope:loadTvOpe};
+  const DATAMAP={fin:DATA,oc:DATAOC,agr:DATAAGR,mvb:DATAMVB,comb:DATACOMB,man:DATAMAN,com:DATACOM,dre:DATADRE,drecli:DATADRECLI,home:DATAHOME,km:DATAKM,torre:DATATORRE,veic:DATAVEIC,veicf:DATAVEICF,mul:DATAMUL,prog:DATAPROG,cob:DATACOB,rent:DATARENT,cont:DATACONT,gestao:DATAGES,srv:DATASRV,tvfat:null,tvope:null,cop:(COP_MSGS.length?{}:null)};
+  const LOADMAP={fin:load,oc:loadOc,agr:loadAgr,mvb:loadMvb,comb:loadComb,man:loadMan,com:loadCom,dre:loadDre,drecli:loadDreCli,home:loadHome,km:loadKm,torre:loadTorre,veic:loadVeic,veicf:loadVeicf,mul:loadMul,prog:loadProg,cob:loadCob,rent:loadRent,cont:loadCont,gestao:loadGestao,srv:loadSrv,cop:loadCop,tvfat:loadTvFat,tvope:loadTvOpe};
   if(!DATAMAP[key] || (key!=='home' && LOADEDQS[key]!==qsView(key))) LOADMAP[key]();
   // mobile: estado da navegação inferior + fecha gaveta/painel de filtros
   document.querySelectorAll('.bottomnav [data-bview]').forEach(a=>a.classList.toggle('ativo', a.dataset.bview===v));
@@ -2614,7 +2629,7 @@ function reloadCurrent(){
   // recarrega a TELA ATUAL — antes caía em load() (Financeiro) para várias telas.
   const M={home:loadHome,fluxo:load,receber:load,pagar:load,dre:loadDre,drecli:loadDreCli,oc:loadOc,
     agr:loadAgr,mvb:loadMvb,comb:loadComb,man:loadMan,com:loadCom,km:loadKm,
-    torre:loadTorre,veic:loadVeic,mul:loadMul,prog:loadProg,cob:loadCob,rent:loadRent,
+    torre:loadTorre,veic:loadVeic,veicf:loadVeicf,mul:loadMul,prog:loadProg,cob:loadCob,rent:loadRent,
     cont:loadCont,gestao:loadGestao,srv:loadSrv,cop:loadCop,tvfat:loadTvFat,tvope:loadTvOpe};
   (M[currentView()]||load)();
 }
@@ -3902,6 +3917,83 @@ function ensureLeaflet(){
     document.head.appendChild(s);
   });
   return leafletPromise;
+}
+
+/* ---------------- Consulta de Veículo (ficha por placa) ---------------- */
+let veicfMap=null;
+async function loadVeicf(buscar){
+  const inp=document.getElementById('fVeicfPlaca');
+  const placa=(inp?inp.value:'').trim().toUpperCase();
+  const cont=document.getElementById('veicf-conteudo');
+  if(!placa){
+    if(cont) cont.innerHTML='<div class="card"><div style="padding:28px 18px;color:var(--n500)">Digite uma placa acima e clique em Buscar para ver a ficha do veículo.</div></div>';
+    DATAVEICF={}; return;
+  }
+  const seq=++veicfSeq, btn=document.getElementById('btnRefresh'); if(btn) btn.disabled=true;
+  document.getElementById('content').classList.add('loading');
+  try{
+    const r=await fetch('/api/frota/veiculo?placa='+encodeURIComponent(placa),{cache:'no-store'});
+    const d=await r.json(); if(seq!==veicfSeq) return;
+    if(!r.ok){ showBanner(d.mensagem||'Erro ao consultar o veículo.', d.detalhe); return; }
+    hideBanner(); DATAVEICF=d; LOADEDQS.veicf=placa; renderVeicf(d);
+  }catch(e){ if(seq===veicfSeq) showBanner('Não foi possível falar com a API.', e.message); }
+  finally{ if(seq===veicfSeq){ if(btn) btn.disabled=false; document.getElementById('content').classList.remove('loading'); } }
+}
+function veicfStat(l,v){ return `<div><div style="font-size:11px;color:var(--n500);font-weight:600">${l}</div><div style="font-size:15px;font-weight:600;margin-top:2px">${v}</div></div>`; }
+function renderVeicf(d){
+  const cont=document.getElementById('veicf-conteudo'); if(!cont) return;
+  if(!d || !d.encontrado){ cont.innerHTML=`<div class="card"><div style="padding:28px 18px;color:var(--n500)">Veículo ${esc((d&&d.placa)||'')} não encontrado.</div></div>`; return; }
+  const c=d.cadastro||{}, k=d.kpis||{}, va=d.viagem_atual, pos=d.posicao, cb=d.combustivel||{}, mn=d.manutencao||{}, ml=d.multas||{};
+  const desc=[c.frota?('Frota '+esc(c.frota)):'', esc([c.marca,c.modelo].filter(Boolean).join(' ')), esc(c.tipo), esc(c.caracteristica), c.ano?('Ano '+c.ano):''].filter(Boolean).join(' · ');
+  let h=`<div class="card"><div style="padding:16px 18px;display:flex;flex-wrap:wrap;gap:16px;align-items:baseline">
+    <div style="font-size:26px;font-weight:800;letter-spacing:1px">${esc(d.placa)}</div>
+    <div style="color:var(--n600)">${desc}</div>
+    <div style="margin-left:auto;display:flex;gap:8px;align-items:center">${c.modalidade?`<span class="badge b-info">${esc(c.modalidade)}</span>`:''}${c.ativo?'<span class="badge b-ok">Ativo</span>':'<span class="badge b-warn">Inativo</span>'}</div>
+  </div></div>`;
+  if(va){
+    h+=`<div class="card"><div class="head"><h2>Status: em viagem</h2><span class="hint">${va.vazio?'deslocamento vazio':'carregado'}${va.atrasada?' · <b style="color:var(--red)">ATRASADA</b>':''}</span></div>
+      <div style="padding:0 18px 16px;display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:14px">
+        ${veicfStat('Cliente', esc(va.cliente))}${veicfStat('Rota', esc(va.origem)+' → '+esc(va.destino))}
+        ${veicfStat('Motorista', esc(va.motorista||'—'))}${veicfStat('Saída', esc(va.saida||'—'))}
+        ${veicfStat('Previsão de chegada', esc(va.previsao_chegada||'—'))}
+        ${veicfStat('Frete da viagem', BRL.format(va.valorfrete||0)+' · '+Math.round(va.km||0)+' km')}
+      </div></div>`;
+  } else {
+    h+=`<div class="card"><div class="head"><h2>Status: sem viagem em aberto</h2><span class="hint">o veículo não está em trânsito no momento</span></div></div>`;
+  }
+  h+=`<div class="kpis">`+[
+    kpi('Faturamento (30d)', BRL.format(k.faturamento||0), (k.viagens||0)+' viagens carregadas',''),
+    kpi('Km rodado (30d)', (k.km_rodado||0).toLocaleString('pt-BR',{maximumFractionDigits:0})+' km', 'carregado + vazio',''),
+    kpi('Km carregado (30d)', (k.km_carregado||0).toLocaleString('pt-BR',{maximumFractionDigits:0})+' km','',''),
+    kpi('Km vazio (30d)', (k.km_vazio||0).toLocaleString('pt-BR',{maximumFractionDigits:0})+' km', (k.pct_vazio||0).toFixed(0)+'% do total', (k.pct_vazio||0)>20?'neg':''),
+  ].join('')+`</div>`;
+  h+=`<div class="card"><div class="head"><h2>Posição atual</h2><span class="hint">${pos?('atualizada '+esc(pos.posicao_em)+' · '+pos.velocidade+' km/h'+(pos.recente?'':' · sinal antigo')):'sem posição recente'}</span></div>
+    <div id="veicf-mapa" style="height:340px;margin:0 14px 14px;border-radius:12px;overflow:hidden;background:var(--n100)">${pos?'':'<div style="padding:24px;color:var(--n500)">Sem posição de rastreamento para este veículo.</div>'}</div></div>`;
+  h+=`<div class="kpis">`+[
+    kpi('Combustível (30d)', BRL.format(cb.custo||0), (cb.km_l!=null?fmtKmL(cb.km_l):'—')+' · '+(cb.litros||0).toLocaleString('pt-BR',{maximumFractionDigits:0})+' L',''),
+    kpi('Manutenção (30d)', BRL.format(mn.custo_30d||0), (mn.abertas||0)+' OS aberta(s)'+(mn.abertas?(' · '+BRL.format(mn.abertas_valor||0)):''), mn.abertas>0?'neg':''),
+    kpi('Multas (12m)', (ml.multas||0).toLocaleString('pt-BR'), BRL.format(ml.valor||0)+' · '+(ml.pontos||0)+' pontos', (ml.multas||0)>0?'neg':''),
+  ].join('')+`</div>`;
+  const tc=(d.top_clientes||[]).map(x=>`<tr><td>${esc(x.cliente)}</td><td class="num">${BRL.format(x.receita)}</td><td class="num">${Math.round(x.km).toLocaleString('pt-BR')}</td><td class="num">${x.viagens}</td></tr>`).join('')||'<tr><td colspan="4" style="color:var(--n500)">sem viagens no período</td></tr>';
+  const uv=(d.ultimas_viagens||[]).map(v=>`<tr><td>${esc(v.data)}</td><td>${v.tipo===3?'<span class="badge b-warn">vazio</span>':esc(v.cliente||'—')}</td><td>${esc(v.origem)} → ${esc(v.destino)}</td><td class="num">${Math.round(v.km).toLocaleString('pt-BR')}</td><td class="num">${BRL.format(v.valorfrete||0)}</td></tr>`).join('')||'<tr><td colspan="5" style="color:var(--n500)">sem viagens no período</td></tr>';
+  h+=`<div class="grid2">
+    <div class="card"><div class="head"><h2>Top clientes (30d)</h2><span class="hint">por receita</span></div>
+      <div class="tablewrap"><table><thead><tr><th>Cliente</th><th class="num">Receita</th><th class="num">Km</th><th class="num">Viagens</th></tr></thead><tbody>${tc}</tbody></table></div></div>
+    <div class="card"><div class="head"><h2>Últimas viagens</h2><span class="hint">30 dias</span></div>
+      <div class="tablewrap"><table><thead><tr><th>Data</th><th>Cliente</th><th>Rota</th><th class="num">Km</th><th class="num">Frete</th></tr></thead><tbody>${uv}</tbody></table></div></div>
+  </div>`;
+  cont.innerHTML=h;
+  if(pos) veicfMapa(pos, d.placa);
+}
+async function veicfMapa(pos, placa){
+  try{ await ensureLeaflet(); }catch(e){ return; }
+  const el=document.getElementById('veicf-mapa'); if(!el || !window.L) return;
+  if(veicfMap){ try{veicfMap.remove();}catch(e){} veicfMap=null; }
+  veicfMap=L.map('veicf-mapa',{scrollWheelZoom:true}).setView([pos.lat,pos.lng],11);
+  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:18,attribution:''}).addTo(veicfMap);
+  L.circleMarker([pos.lat,pos.lng],{radius:9,color:'#E85D10',weight:2,fillColor:'#E85D10',fillOpacity:.85})
+    .addTo(veicfMap).bindPopup(`<b>${esc(placa)}</b><br>${esc(pos.posicao_em)} · ${pos.velocidade} km/h`);
+  setTimeout(()=>{ if(veicfMap) veicfMap.invalidateSize(); },200);
 }
 async function loadTorre(){
   skelKpis('kpis-torre',4);
@@ -5541,6 +5633,7 @@ boot();
       <button class="dgrp-h" onclick="toggleDGrp(this)"><span>Frota</span><span class="dchev">›</span></button>
       <div class="dgrp-b">
         <a href="#veic" onclick="fecharDrawer()"><span class="ic" data-ic="veic"></span>Veículos</a>
+        <a href="#veicf" onclick="fecharDrawer()"><span class="ic" data-ic="veic"></span>Consulta de Veículo</a>
         <a href="#comb" onclick="fecharDrawer()"><span class="ic" data-ic="comb"></span>Combustível</a>
         <a href="#man" onclick="fecharDrawer()"><span class="ic" data-ic="man"></span>Manutenção</a>
         <a href="#mul" onclick="fecharDrawer()"><span class="ic" data-ic="mul"></span>Multas</a>
