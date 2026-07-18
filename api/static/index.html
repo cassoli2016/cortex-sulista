@@ -17,7 +17,7 @@
   --navy-600:#24496C;--navy-700:#17344F;--navy-800:#102538;--navy-900:#0B1926;
   --orange-100:#FFE3D1;--orange-500:#E85D10;--orange-600:#C74D0A;
   --n0:#fff;--n50:#F6F7F8;--n100:#ECEEF1;--n200:#DCE0E5;--n300:#C2C8D0;--n400:#9AA3AE;
-  --n500:#6E7883;--n600:#4F5860;--n700:#39414A;--n900:#14181D;
+  --n500:#6B7580;--n600:#4F5860;--n700:#39414A;--n900:#14181D;  /* n500 ajustado p/ contraste AA 4.5:1 sobre branco */
   --green:#1E7F4F;--green-100:#DCF2E6;--yellow:#B97709;--yellow-100:#FBEED3;--yellow-700:#7E5106;
   --red:#C03221;--red-100:#F9E0DD;
   --font:'Saira',system-ui,-apple-system,sans-serif;--mono:'IBM Plex Mono',ui-monospace,monospace;
@@ -85,6 +85,12 @@ button.ghost[aria-pressed="true"]{background:var(--navy-700);color:#fff;border-c
 .field label{font-size:11px;text-transform:uppercase;letter-spacing:.06em;color:var(--n500);font-weight:600}
 .field select,.field input{font-family:var(--font);font-size:14px;color:var(--n900);background:var(--n0);border:1px solid var(--n300);border-radius:var(--radius-md);padding:8px 10px;min-width:130px}
 .field select:focus,.field input:focus{outline:2px solid var(--orange-500);outline-offset:1px}
+/* foco de teclado visível fora dos campos de formulário: botões, chips,
+   navegação e linhas clicáveis (role=button) — mesma convenção do :focus acima */
+.btn:focus-visible,button.ghost:focus-visible,.chip:focus-visible,nav a:focus-visible,
+.cop-chip:focus-visible,.dgrp-h:focus-visible,[role="button"]:focus-visible{
+  outline:2px solid var(--orange-500);outline-offset:2px}
+tr[role="button"]:focus-visible{outline-offset:-2px}
 .field input:disabled{background:var(--n100);color:var(--n500)}
 .rangegrp{display:flex;align-items:flex-end;gap:8px}
 .cardfilters{display:flex;flex-wrap:wrap;align-items:center;gap:10px;padding:2px 16px 14px}
@@ -228,6 +234,15 @@ tr.forn-det td{padding:7px 12px}
   .cardfilters select,.cardfilters input{min-width:0;width:100%;font-size:16px;padding:11px}
   .btn-filtros{display:inline-flex !important}
   .btn-filtros.oculto{display:none !important}
+  /* anti-zoom iOS nos controles fora de filterbar/cardfilters (copiloto,
+     login, modais de gestão, buscas soltas): fonte <16px dispara zoom ao
+     focar no Safari. Seletores replicam os das regras base p/ vencer a
+     especificidade (via ordem de origem, pois media query não a altera). */
+  .cop-bar textarea,.lg-body input,
+  .ges-form input[type=text],.ges-form input[type=email],
+  .ges-form input[type=password],.ges-form input[type=number],.ges-form select,
+  .ges-audbar input,.ges-cfg input,
+  #fContBusca,#fDreCli{font-size:16px}
   /* barra inferior de navegação (app) */
   /* flex-direction/gap explícitos: o seletor genérico `nav` (sidebar) põe
      column e empilhava a barra inteira na vertical */
@@ -507,7 +522,7 @@ button.avatar{border:0;cursor:pointer}
   text-transform:uppercase;letter-spacing:.05em}
 .ges-telas label{display:flex;gap:7px;align-items:center;font-size:13px;font-weight:500;margin:0;color:inherit}
 .m-foot{display:flex;justify-content:flex-end;align-items:center;gap:8px;margin-top:16px}
-.m-err{color:var(--red,#DC2626);font-size:13px;min-height:16px;margin-top:8px;flex:1}
+.m-err{color:var(--red,#C03221);font-size:13px;min-height:16px;margin-top:8px;flex:1}
 .ges-tabs{display:flex;gap:8px;flex-wrap:wrap;padding:0 2px 4px}
 .ges-audbar{display:flex;gap:8px;margin:0 0 10px}
 .ges-audbar input{flex:1;padding:9px 10px;border:1px solid var(--n300,#d3dae2);border-radius:6px;font:inherit;font-size:14px}
@@ -529,6 +544,17 @@ button.avatar{border:0;cursor:pointer}
   .tablewrap{overflow:visible !important;max-height:none !important}
   .topbar{position:static;box-shadow:none;border-bottom:2px solid #17344F}
 }
+/* Respeita quem pediu menos movimento no SO: neutraliza animações infinitas
+   (piscar de alerta, pulsos, marquee da TV) e transições. Importante nos
+   painéis de mural, que ficam ligados o dia todo. */
+@media (prefers-reduced-motion: reduce){
+  *,*::before,*::after{
+    animation-duration:.001ms !important;
+    animation-iteration-count:1 !important;
+    transition-duration:.001ms !important;
+    scroll-behavior:auto !important;
+  }
+}
 </style>
 </head>
 <body>
@@ -539,7 +565,7 @@ button.avatar{border:0;cursor:pointer}
   </div>
 </div>
 <div class="modal-bg" id="modalBg" onclick="if(event.target===this&&!this.dataset.trava)fecharModal()">
-  <div class="modal" id="modalBox"></div>
+  <div class="modal" id="modalBox" role="dialog" aria-modal="true" tabindex="-1"></div>
 </div>
 <div class="layout">
   <aside id="sidebar">
@@ -553,7 +579,7 @@ button.avatar{border:0;cursor:pointer}
         <span class="ic" id="miniIcon" data-ic="chevl"></span>
       </button>
     </div>
-    <nav>
+    <nav aria-label="Seções do painel">
       <a href="#home" class="sub" data-view="home" title="Visão Geral" style="padding-left:12px;font-weight:600"><span class="ic" data-ic="home"></span><span>Visão Geral</span></a>
       <a href="#cop" class="sub" data-view="cop" title="Copiloto Cortex" style="padding-left:12px;font-weight:600"><span class="ic" data-ic="cop"></span><span>Copiloto Cortex</span></a>
       <button class="group" id="grpCom" aria-expanded="false" aria-controls="subsCom" onclick="toggleGroup('grpCom','subsCom','cs.comGroup')" title="Comercial">
@@ -1196,7 +1222,7 @@ button.avatar{border:0;cursor:pointer}
 
       <!-- ===================== PAINÉIS TV ===================== -->
       <section class="view" id="view-tvfat">
-        <div class="tv-head"><div class="tv-left"><img class="tv-logo" src="/static/sulista-logo-branco.svg" alt="Sulista"><span class="tv-upd tv-next"></span></div><h2>FATURAMENTO</h2><div class="tv-right"><span class="tv-clock"></span><a href="javascript:tvFull()" title="tela cheia">⛶</a><a href="#home" title="sair do modo TV">✕</a></div></div>
+        <div class="tv-head"><div class="tv-left"><img class="tv-logo" src="/static/sulista-logo-branco.svg" alt="Sulista"><span class="tv-upd tv-next"></span></div><h2>FATURAMENTO</h2><div class="tv-right"><span class="tv-clock"></span><a href="javascript:tvFull()" title="tela cheia" aria-label="Tela cheia">⛶</a><a href="#home" title="sair do modo TV" aria-label="Sair do modo TV">✕</a></div></div>
         <div class="tv-grid" id="tvfat-kpis"></div>
         <div class="tv-grid" style="margin-top:22px">
           <div class="tv-card tv-wide">
@@ -1206,7 +1232,7 @@ button.avatar{border:0;cursor:pointer}
         </div>
       </section>
       <section class="view" id="view-tvope">
-        <div class="tv-head"><div class="tv-left"><img class="tv-logo" src="/static/sulista-logo-branco.svg" alt="Sulista"><span class="tv-upd tv-next"></span></div><div class="tv-title"><h2>TORRE DE CONTROLE OPERACIONAL</h2><span class="tv-farol" id="tvope-farol" style="display:none"></span></div><div class="tv-right"><span class="tv-beat" id="tvope-beat"></span><span class="tv-clock"></span><a href="javascript:tvFull()" title="tela cheia">⛶</a><a href="#home" title="sair do modo TV">✕</a></div></div>
+        <div class="tv-head"><div class="tv-left"><img class="tv-logo" src="/static/sulista-logo-branco.svg" alt="Sulista"><span class="tv-upd tv-next"></span></div><div class="tv-title"><h2>TORRE DE CONTROLE OPERACIONAL</h2><span class="tv-farol" id="tvope-farol" style="display:none"></span></div><div class="tv-right"><span class="tv-beat" id="tvope-beat"></span><span class="tv-clock"></span><a href="javascript:tvFull()" title="tela cheia" aria-label="Tela cheia">⛶</a><a href="#home" title="sair do modo TV" aria-label="Sair do modo TV">✕</a></div></div>
         <div class="tvw">
           <div class="tvw-kpis" id="tvope-k1"></div>
           <div class="tv-card tvw-mapa"><div id="tvMapa"></div><div class="tv-regiao" id="tv-regiao">Visão geral da frota</div></div>
@@ -1229,7 +1255,7 @@ button.avatar{border:0;cursor:pointer}
         <div class="kpis" id="kpis-cont"></div>
         <div class="card">
           <div class="head"><h2>Contas × agrupador gerencial</h2><span class="hint">mude o agrupador para reclassificar · o ajuste vale nos painéis do Cortex na hora; use "Exportar SQL" para aplicar no ERP</span></div>
-          <div style="padding:0 16px 10px"><input type="search" id="fContBusca" placeholder="buscar conta, estrutural ou agrupador…" style="width:320px;max-width:100%" onchange="loadCont()"></div>
+          <div style="padding:0 16px 10px"><input type="search" id="fContBusca" aria-label="Buscar conta, estrutural ou agrupador" placeholder="buscar conta, estrutural ou agrupador…" style="width:320px;max-width:100%" onchange="loadCont()"></div>
           <div class="tablewrap"><table><thead><tr>
             <th>Estrutural</th><th>Conta</th><th class="num">Lanç.</th><th class="num">Saldo no período</th><th>Agrupador</th>
           </tr></thead><tbody id="cont-contas"></tbody></table></div>
@@ -1292,7 +1318,7 @@ button.avatar{border:0;cursor:pointer}
             <h3>Copiloto Cortex</h3>
             <p>Pergunte sobre os números do painel — faturamento, caixa, km vazio, frota, segurança. As respostas usam os indicadores ao vivo do ERP.</p>
           </div>
-          <div class="cop-msgs" id="cop-msgs"></div>
+          <div class="cop-msgs" id="cop-msgs" role="log" aria-live="polite" aria-label="Conversa com o copiloto"></div>
           <div class="cop-chips" id="cop-chips">
             <button class="cop-chip" onclick="copChip(this)"><span>📊</span>Resumo executivo de hoje</button>
             <button class="cop-chip" onclick="copChip(this)"><span>🎯</span>Como está o faturamento contra a meta?</button>
@@ -1301,7 +1327,7 @@ button.avatar{border:0;cursor:pointer}
             <button class="cop-chip" onclick="copChip(this)"><span>🛡️</span>Riscos de segurança e compliance</button>
           </div>
           <div class="cop-bar">
-            <textarea id="cop-in" rows="1" placeholder="Pergunte sobre os números do painel…  (Enter envia · Shift+Enter quebra linha)"
+            <textarea id="cop-in" rows="1" aria-label="Mensagem para o copiloto" placeholder="Pergunte sobre os números do painel…  (Enter envia · Shift+Enter quebra linha)"
               oninput="this.style.height='auto';this.style.height=Math.min(this.scrollHeight,120)+'px';"
               onkeydown="if(event.key==='Enter'&&!event.shiftKey){event.preventDefault();copSend();}"></textarea>
             <button class="btn" id="cop-send" onclick="copSend()"><span>Enviar</span><span aria-hidden="true">➤</span></button>
@@ -1380,7 +1406,7 @@ button.avatar{border:0;cursor:pointer}
         <div class="card">
           <div class="head"><h2>Consulta de Cliente</h2><span class="hint">digite o cliente e veja a ficha 360 · margem reconciliada (DRE por Cliente) + recebíveis</span></div>
           <div class="cardfilters">
-            <input type="search" id="fClifNome" placeholder="Cliente (ex.: TUPY)" autocomplete="off"
+            <input type="search" id="fClifNome" aria-label="Buscar cliente por nome" placeholder="Cliente (ex.: TUPY)" autocomplete="off"
                    onkeydown="if(event.key==='Enter')loadClif(true)">
             <input type="month" id="fClifDe">
             <span style="color:var(--n500)">até</span>
@@ -1394,7 +1420,7 @@ button.avatar{border:0;cursor:pointer}
         <div class="card">
           <div class="head"><h2>Consulta de Veículo</h2><span class="hint">digite a placa e veja a ficha completa · indicadores dos últimos 30 dias</span></div>
           <div class="cardfilters">
-            <input type="search" id="fVeicfPlaca" placeholder="Placa (ex.: ABC1D23)" autocomplete="off" style="text-transform:uppercase"
+            <input type="search" id="fVeicfPlaca" aria-label="Buscar veículo por placa" placeholder="Placa (ex.: ABC1D23)" autocomplete="off" style="text-transform:uppercase"
                    onkeydown="if(event.key==='Enter')loadVeicf(true)">
             <button class="btn" onclick="loadVeicf(true)">Buscar</button>
           </div>
@@ -1408,7 +1434,7 @@ button.avatar{border:0;cursor:pointer}
             <input type="month" id="fJornDe">
             <span style="color:var(--n500)">até</span>
             <input type="month" id="fJornAte">
-            <input type="search" id="fJornBusca" placeholder="Motorista (nome)" autocomplete="off"
+            <input type="search" id="fJornBusca" aria-label="Buscar motorista por nome" placeholder="Motorista (nome)" autocomplete="off"
                    onkeydown="if(event.key==='Enter')loadJorn()">
             <button class="btn" onclick="loadJorn()">Atualizar</button>
           </div>
@@ -1908,7 +1934,7 @@ button.avatar{border:0;cursor:pointer}
           <div class="card">
             <div class="head"><h2>Auditoria</h2><span class="hint">logins, alterações de acesso e escritas · 1.000 eventos mais recentes</span></div>
             <div class="ges-audbar">
-              <input type="text" id="ges-aud-busca" placeholder="filtrar por usuário, ação, alvo…" onkeydown="if(event.key==='Enter')audCarregar()">
+              <input type="text" id="ges-aud-busca" aria-label="Filtrar auditoria por usuário, ação ou alvo" placeholder="filtrar por usuário, ação, alvo…" onkeydown="if(event.key==='Enter')audCarregar()">
               <button class="ghost" onclick="audCarregar()">Buscar</button>
             </div>
             <div class="tablewrap"><table><thead><tr>
@@ -2129,6 +2155,7 @@ let DATARENT = null;
 let tvTimer = null, tvClock = null, TV_NEXT = 0;
 let rentSeq = 0;
 let cobSeq = 0;
+let tvFatSeq = 0, tvOpeSeq = 0, audSeq = 0;  // guardas de corrida: TV (auto-refresh 60s) e busca da auditoria
 let COP_MSGS = [];
 let COP_STATUS = null;
 let COP_TOKENS = {sessao:0, ultima:null};
@@ -2371,7 +2398,10 @@ function router(){
       }
     }, 1000);
   }
-  document.querySelectorAll('nav a[data-view]').forEach(a=>a.classList.toggle('active', a.dataset.view===v));
+  document.querySelectorAll('nav a[data-view]').forEach(a=>{
+    const at=a.dataset.view===v; a.classList.toggle('active', at);
+    if(at) a.setAttribute('aria-current','page'); else a.removeAttribute('aria-current');
+  });
   document.getElementById('viewTitle').textContent = VIEWS[v];
   syncGroups(v);
   const dre = (v==='dre'), oc = (v==='oc'), agr = (v==='agr'), mvb = (v==='mvb'), comb = (v==='comb'), man = (v==='man'), com = (v==='com'), home = (v==='home'), kmv = (v==='km'), torre = (v==='torre'), veic = (v==='veic'), mul = (v==='mul'), prog = (v==='prog'), cop = (v==='cop'), cob = (v==='cob'), rent = (v==='rent'), contab = (v==='cont'), dreCli = (v==='drecli');
@@ -2553,10 +2583,13 @@ function showBanner(msg,det){ const b=document.getElementById('banner'); b.class
 function hideBanner(){ document.getElementById('banner').classList.remove('show'); }
 
 /* ---------------- Render ---------------- */
+// Rentabilidade e DRE/clif usam o MESMO rótulo "Margem de contribuição" com
+// definições distintas; como KPI_HELP é indexado pelo rótulo, a de Rentabilidade
+// entra por override explícito (5º arg de kpi) e só a da DRE fica no dict.
+const HELP_MC_MARGINAL = 'Receita de frete menos o custo de servir: viagens contratadas usam o valor realmente pago ao agregado/terceiro; viagens próprias usam km carregado × CKM marginal (combustível, manutenção, pneus e motoristas). NÃO desconta custos fixos nem administrativos.';
 const KPI_HELP = {
   'Ponto de equilíbrio': 'Faturamento bruto mensal mínimo para resultado zero, calculado do razão dos últimos 12 meses fechados: custos fixos + administrativos + depreciação divididos pela margem de contribuição. Se a média de faturamento está abaixo disso, a operação perde dinheiro.',
 
-  'Margem de contribuição': 'Receita de frete menos o custo de servir: viagens contratadas usam o valor realmente pago ao agregado/terceiro; viagens próprias usam km carregado × CKM marginal (combustível, manutenção, pneus e motoristas). NÃO desconta custos fixos nem administrativos.',
   'CKM marginal usado': 'Custo variável + motoristas do razão contábil do período, dividido pelo km carregado da frota própria. É o custo de rodar 1 km a mais.',
   'Clientes abaixo de 25%': 'Clientes cuja margem de contribuição não cobre a fatia típica de fixos + administrativo — candidatos a re-preço, troca de modalidade ou renegociação de rota.',
 
@@ -2634,8 +2667,8 @@ const KPI_HELP = {
   'EBITDA':'Resultado operacional antes de juros, impostos, depreciação e amortização.',
   'Resultado líquido':'Resultado final após administrativas, outras e financeiro.',
 };
-function kpi(label,val,sub,cls){
-  const h=KPI_HELP[label]||'';
+function kpi(label,val,sub,cls,help){
+  const h=help||KPI_HELP[label]||'';
   return `<div class="card kpi ${cls||''}"${h?` title="${esc(h)}" style="cursor:help"`:''}><div class="label">${esc(label)}${h?' <span style="color:var(--n400);font-size:10px">ⓘ</span>':''}</div><div class="val">${esc(val)}</div><div class="sub">${esc(sub)}</div></div>`;
 }
 const pct = (a,b)=> b>0 ? (100*a/b).toLocaleString('pt-BR',{maximumFractionDigits:0})+'%' : '—';
@@ -2661,7 +2694,7 @@ function render(d){
       <td>${periodoLabel(c.mes)}</td>
       <td class="num">${c.dso!=null?c.dso.toFixed(0)+'d':'—'}</td>
       <td class="num">${c.dpo!=null?c.dpo.toFixed(0)+'d':'—'}</td>
-      <td class="num" style="font-weight:700;color:${c.ciclo==null?'inherit':(c.ciclo>0?'var(--red)':'var(--green,#1E7B3C)')}">${c.ciclo!=null?(c.ciclo>0?'+':'')+c.ciclo.toFixed(0)+'d':'—'}</td></tr>`).join('');
+      <td class="num" style="font-weight:700;color:${c.ciclo==null?'inherit':(c.ciclo>0?'var(--red)':'var(--green,#1E7F4F)')}">${c.ciclo!=null?(c.ciclo>0?'+':'')+c.ciclo.toFixed(0)+'d':'—'}</td></tr>`).join('');
   }
   const k=d.kpis, fluxo=d.fluxo_caixa||[];
   if(!document.getElementById('fData').value && d.data_ref) document.getElementById('fData').value = d.data_ref;
@@ -3095,7 +3128,7 @@ async function loadOc(){
     const d=await r.json();
     if(seq!==ocSeq) return;
     if(!r.ok){ showBanner(d.mensagem||'Erro ao consultar ordens de compra.', d.detalhe); return; }
-    hideBanner(); DATAOC=d; LOADEDQS.oc=q; renderOc(d);
+    hideBanner(); DATAOC=d; renderOc(d); LOADEDQS.oc=qsView('oc');
   }catch(e){ if(seq===ocSeq) showBanner('Não foi possível falar com a API.', e.message); }
   finally{
     if(seq===ocSeq){ btn.disabled=false; document.getElementById('content').classList.remove('loading'); }
@@ -3260,7 +3293,7 @@ function renderHome(d){
       if(!dia){ el.innerHTML=''; }
       else{
         const pct = dia.meta>0 ? 100*dia.realizado/dia.meta : null;
-        const cor = pct==null?'var(--n500)':(pct>=95?'var(--green,#16A34A)':(pct>=70?'#B8860B':'var(--red,#DC2626)'));
+        const cor = pct==null?'var(--n500)':(pct>=95?'var(--green,#1E7F4F)':(pct>=70?'#B8860B':'var(--red,#C03221)'));
         const cap = String(dia.dia).padStart(2,'0')+'/'+String(new Date().getMonth()+1).padStart(2,'0');
         el.innerHTML =
           `<div class="dd-cap">Dia ${cap}${dia.dia===hoje?' (hoje)':''}</div><div class="dd-row">`+
@@ -3555,9 +3588,11 @@ function tvErro(id, ok){
   if(el && !el.querySelector('.tv-card')) el.innerHTML='<div class="tv-card"><div class="tv-label">Sem conexão</div><div class="tv-sub">tentando de novo em instantes…</div></div>';
 }
 async function loadTvFat(){
+  const seq=++tvFatSeq;
   try{
     const r=await fetch('/api/visao-geral',{cache:'no-store'});
     const d=await r.json();
+    if(seq!==tvFatSeq) return;
     if(!r.ok){ tvErro('tvfat-kpis', tvFatOk); return; }
     const at=(d.atingimento_mes!=null?d.atingimento_mes:0)*100;
     const dias=(d.diario||[]);
@@ -3715,6 +3750,7 @@ async function tvMapa(t){
   });
 }
 async function loadTvOpe(){
+  const seq=++tvOpeSeq;
   try{
     const mesIni=new Date(); mesIni.setDate(1);
     const qMes='dt_de='+mesIni.toISOString().slice(0,10)+'&dt_ate='+new Date().toISOString().slice(0,10);
@@ -3726,6 +3762,7 @@ async function loadTvOpe(){
       fetch('/api/frota/combustivel?'+qMes,{cache:'no-store'}),
       fetch('/api/visao-geral',{cache:'no-store'})]);
     const t=await rt.json(), p=await rp.json(), s=await rs.json(), km=await rk.json(), cb=await rc.json(), vg=await rv.json();
+    if(seq!==tvOpeSeq) return;
     if(!rt.ok||!rp.ok||!rs.ok){ tvErro('tvope-k1', tvOpeOk); return; }
     const tk=t.kpis, pk=p.kpis, sk=s.kpis;
     document.getElementById('tvope-k1').innerHTML=[
@@ -3859,11 +3896,11 @@ async function loadRent(){
     const d=await r.json();
     if(seq!==rentSeq) return;
     if(!r.ok){ showBanner(d.mensagem||'Erro na rentabilidade.', d.detalhe); return; }
-    hideBanner(); DATARENT=d; LOADEDQS.rent=q; renderRent(d);
+    hideBanner(); DATARENT=d; renderRent(d); LOADEDQS.rent=qsView('rent');
   }catch(e){ if(seq===rentSeq) showBanner('Não foi possível falar com a API.', e.message); }
   finally{ if(seq===rentSeq){ btn.disabled=false; document.getElementById('content').classList.remove('loading'); } }
 }
-const rentCor = p => p==null ? 'inherit' : (p<15 ? 'var(--red)' : (p<25 ? 'var(--yellow-700)' : 'var(--green,#1E7B3C)'));
+const rentCor = p => p==null ? 'inherit' : (p<15 ? 'var(--red)' : (p<25 ? 'var(--yellow-700)' : 'var(--green,#1E7F4F)'));
 function renderRent(d){
   const k=d.kpis;
   if(!document.getElementById('fEmiDe').value) document.getElementById('fEmiDe').value=d.dt_de;
@@ -3871,7 +3908,7 @@ function renderRent(d){
   const abaixo25=(d.clientes||[]).filter(c=>c.margem_pct!=null && c.margem_pct<25);
   document.getElementById('kpis-rent').innerHTML=[
     kpi('Receita (top 30)', BRL.format(k.receita), fmtD(d.dt_de)+' a '+fmtD(d.dt_ate), ''),
-    kpi('Margem de contribuição', BRL.format(k.margem), (k.margem_pct!=null?k.margem_pct.toFixed(1)+'% da receita':'')+' · antes de fixos/adm', k.margem_pct!=null&&k.margem_pct<25?'neg':'pos'),
+    kpi('Margem de contribuição', BRL.format(k.margem), (k.margem_pct!=null?k.margem_pct.toFixed(1)+'% da receita':'')+' · antes de fixos/adm', k.margem_pct!=null&&k.margem_pct<25?'neg':'pos', HELP_MC_MARGINAL),
     kpi('CKM marginal usado', k.ckm_marginal>0?('R$ '+k.ckm_marginal.toFixed(2)+'/km'):'—', 'custo variável + motoristas ÷ km carregado próprio do período', ''),
     kpi('Clientes abaixo de 25%', String(abaixo25.length), k.clientes_negativos+' com margem negativa — prioridade de re-preço', abaixo25.length>0?'neg':'pos'),
   ].join('');
@@ -3913,8 +3950,6 @@ function renderCob(d){
   const cs=d.clientes||[];
   const soma=k=>cs.reduce((a,c)=>a+(c[k]||0),0);
   const acima90=soma('de_91_365')+soma('mais_365');
-  const antigo=cs.length?Math.min(...cs.map(c=>c.vencimento_mais_antigo||'9999').map(s=>s)):null;
-  const antigoTxt=cs.length?cs.reduce((a,c)=>(c.vencimento_mais_antigo&&c.vencimento_mais_antigo<a)?c.vencimento_mais_antigo:a,'9999-99-99'):null;
   document.getElementById('kpis-cob').innerHTML=[
     kpi('Vencido oficial (top 30)', BRL.format(d.total_vencido_top), cs.length+' clientes · só faturado (composição 1)', 'neg'),
     kpi('Acima de 90 dias', BRL.format(acima90), d.total_vencido_top>0?((100*acima90/d.total_vencido_top).toFixed(0)+'% do vencido — risco de perda'):'', acima90>0?'neg':''),
@@ -4179,7 +4214,7 @@ function renderProg(d){
       <td><span class="badge ${cl}">${esc(l)}</span></td>
       <td>${esc(c.cidade)}/${esc(c.uf)}</td>
       <td class="num">${progDT(c.eta)}</td>
-      <td class="num" style="font-weight:700;color:var(--green,#1E7B3C)">${c.n_cargas}</td>
+      <td class="num" style="font-weight:700;color:var(--green,#1E7F4F)">${c.n_cargas}</td>
       <td>sai ${progDT(s.saida)} para ${esc(s.destino)}</td></tr>`;
   }).join('') || `<tr><td colspan="6" style="color:var(--n500)">nenhum casamento na janela — o ERP quase não tem cargas programadas com antecedência; a lista abaixo mostra onde agir</td></tr>`;
   document.getElementById('prog-semret').innerHTML=(d.sem_retorno||[]).map(c=>{
@@ -4213,7 +4248,7 @@ function renderProg(d){
     <td>${esc(m.cidade)}/${esc(m.uf)}</td>
     <td class="num">${m.chegadas.toLocaleString('pt-BR')}</td>
     <td class="num">${m.saidas.toLocaleString('pt-BR')}</td>
-    <td class="num" style="font-weight:700;color:var(--green,#1E7B3C)">+${m.saldo.toLocaleString('pt-BR')}</td></tr>`).join('');
+    <td class="num" style="font-weight:700;color:var(--green,#1E7F4F)">+${m.saldo.toLocaleString('pt-BR')}</td></tr>`).join('');
   const ts=new Date(d.atualizado_em);
   document.getElementById('meta').innerHTML='<b>Atualizado '+ts.toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'})+'</b><br>chegadas 72h · saídas 96h · histórico 90d';
 }
@@ -4231,7 +4266,7 @@ async function loadMul(){
     const d=await r.json();
     if(seq!==mulSeq) return;
     if(!r.ok){ showBanner(d.mensagem||'Erro ao consultar as multas.', d.detalhe); return; }
-    hideBanner(); DATAMUL=d; LOADEDQS.mul=q; renderMul(d);
+    hideBanner(); DATAMUL=d; renderMul(d); LOADEDQS.mul=qsView('mul');
   }catch(e){ if(seq===mulSeq) showBanner('Não foi possível falar com a API.', e.message); }
   finally{ if(seq===mulSeq){ btn.disabled=false; document.getElementById('content').classList.remove('loading'); } }
 }
@@ -5308,7 +5343,7 @@ async function loadKm(){
     const d=await r.json();
     if(seq!==kmSeq) return;
     if(!r.ok){ showBanner(d.mensagem||'Erro ao consultar a análise de km.', d.detalhe); return; }
-    hideBanner(); DATAKM=d; LOADEDQS.km=q; renderKm(d);
+    hideBanner(); DATAKM=d; renderKm(d); LOADEDQS.km=qsView('km');
   }catch(e){ if(seq===kmSeq) showBanner('Não foi possível falar com a API.', e.message); }
   finally{ if(seq===kmSeq){ btn.disabled=false; document.getElementById('content').classList.remove('loading'); } }
 }
@@ -5403,7 +5438,7 @@ async function loadCom(){
     const d=await r.json();
     if(seq!==comSeq) return;
     if(!r.ok){ showBanner(d.mensagem||'Erro ao consultar o comercial.', d.detalhe); return; }
-    hideBanner(); DATACOM=d; LOADEDQS.com=q; renderCom(d);
+    hideBanner(); DATACOM=d; renderCom(d); LOADEDQS.com=qsView('com');
   }catch(e){ if(seq===comSeq) showBanner('Não foi possível falar com a API.', e.message); }
   finally{ if(seq===comSeq){ btn.disabled=false; document.getElementById('content').classList.remove('loading'); } }
 }
@@ -5445,7 +5480,7 @@ function renderCom(d){
     <td style="font-weight:600" title="${esc(m.cliente)}">${esc(m.cliente.length>30?m.cliente.slice(0,30)+'…':m.cliente)}</td>
     <td class="num">${BRL.format(m.meta_mtd)}</td>
     <td class="num">${BRL.format(m.realizado)}</td>
-    <td class="num" style="font-weight:700;color:${at==null?'inherit':(at<0.7?'var(--red)':(at<0.95?'var(--yellow-700)':'var(--green,#1E7B3C)'))}">${at!=null?(100*at).toFixed(0)+'%':'—'}</td>
+    <td class="num" style="font-weight:700;color:${at==null?'inherit':(at<0.7?'var(--red)':(at<0.95?'var(--yellow-700)':'var(--green,#1E7F4F)'))}">${at!=null?(100*at).toFixed(0)+'%':'—'}</td>
     <td class="num" style="color:${m.gap>0?'var(--red)':'inherit'}">${m.gap>0?BRL.format(m.gap):'—'}</td>
     <td class="num">${BRL.format(m.meta_mes)}</td></tr>`;
   }).join('') || '<tr><td colspan="6" style="color:var(--n500)">sem metas cadastradas para o mês corrente</td></tr>';
@@ -5552,7 +5587,7 @@ async function loadComb(){
     const d=await r.json();
     if(seq!==combSeq) return;
     if(!r.ok){ showBanner(d.mensagem||'Erro ao consultar combustível.', d.detalhe); return; }
-    hideBanner(); DATACOMB=d; LOADEDQS.comb=q; renderComb(d);
+    hideBanner(); DATACOMB=d; renderComb(d); LOADEDQS.comb=qsView('comb');
   }catch(e){ if(seq===combSeq) showBanner('Não foi possível falar com a API.', e.message); }
   finally{ if(seq===combSeq){ btn.disabled=false; document.getElementById('content').classList.remove('loading'); } }
 }
@@ -5702,7 +5737,7 @@ async function loadMan(){
     const d=await r.json();
     if(seq!==manSeq) return;
     if(!r.ok){ showBanner(d.mensagem||'Erro ao consultar manutenção.', d.detalhe); return; }
-    hideBanner(); DATAMAN=d; LOADEDQS.man=q; renderMan(d);
+    hideBanner(); DATAMAN=d; renderMan(d); LOADEDQS.man=qsView('man');
   }catch(e){ if(seq===manSeq) showBanner('Não foi possível falar com a API.', e.message); }
   finally{ if(seq===manSeq){ btn.disabled=false; document.getElementById('content').classList.remove('loading'); } }
 }
@@ -5803,7 +5838,7 @@ async function loadMvb(){
     const d=await r.json();
     if(seq!==mvbSeq) return;
     if(!r.ok){ showBanner(d.mensagem||'Erro ao calcular o make-vs-buy.', d.detalhe); return; }
-    hideBanner(); DATAMVB=d; LOADEDQS.mvb=q; renderMvb(d);
+    hideBanner(); DATAMVB=d; renderMvb(d); LOADEDQS.mvb=qsView('mvb');
   }catch(e){ if(seq===mvbSeq) showBanner('Não foi possível falar com a API.', e.message); }
   finally{
     if(seq===mvbSeq){ btn.disabled=false; document.getElementById('content').classList.remove('loading'); }
@@ -5818,7 +5853,7 @@ function renderMvb(d){
     <td class="num">${fmtKm(rt.km)}</td>
     <td class="num" style="font-weight:600">${rt.rs_km!=null?fmtRsKm(rt.rs_km):'—'}</td>
     <td class="num">${r.ckm_marginal!=null?fmtRsKm(r.ckm_marginal):'—'}</td>
-    <td class="num" style="font-weight:700;color:${rt.spread==null?'inherit':(rt.spread<0?'var(--red)':'var(--green,#1E7B3C)')}">${rt.spread!=null?(rt.spread>0?'+':'')+rt.spread.toFixed(2):'—'}</td>
+    <td class="num" style="font-weight:700;color:${rt.spread==null?'inherit':(rt.spread<0?'var(--red)':'var(--green,#1E7F4F)')}">${rt.spread!=null?(rt.spread>0?'+':'')+rt.spread.toFixed(2):'—'}</td>
     <td>${rt.recomendacao==null?'—':(rt.recomendacao==='propria'
       ?'<span class="badge b-dang">avaliar frota própria</span>'
       :'<span class="badge b-ok">contratar compensa</span>')}</td></tr>`).join('')
@@ -5919,7 +5954,7 @@ async function loadAgr(){
     const d=await r.json();
     if(seq!==agrSeq) return;
     if(!r.ok){ showBanner(d.mensagem||'Erro ao consultar agregados.', d.detalhe); return; }
-    hideBanner(); DATAAGR=d; LOADEDQS.agr=q; renderAgr(d);
+    hideBanner(); DATAAGR=d; renderAgr(d); LOADEDQS.agr=qsView('agr');
   }catch(e){ if(seq===agrSeq) showBanner('Não foi possível falar com a API.', e.message); }
   finally{
     if(seq===agrSeq){ btn.disabled=false; document.getElementById('content').classList.remove('loading'); }
@@ -5979,7 +6014,7 @@ function agrTranspTable(ts){
       <td class="num">${t.viagens.toLocaleString('pt-BR')}</td>
       <td class="num" style="font-weight:600">${BRL.format(t.valor)}</td>
       <td class="num">${t.receita>0?BRL.format(t.receita):'—'}</td>
-      <td class="num" style="font-weight:700;color:${t.pct_pago==null?'inherit':(t.pct_pago>=80?'var(--red)':(t.pct_pago>=70?'var(--yellow-700)':'var(--green,#1E7B3C)'))}">${t.pct_pago!=null?t.pct_pago.toFixed(1)+'%':'—'}</td>
+      <td class="num" style="font-weight:700;color:${t.pct_pago==null?'inherit':(t.pct_pago>=80?'var(--red)':(t.pct_pago>=70?'var(--yellow-700)':'var(--green,#1E7F4F)'))}">${t.pct_pago!=null?t.pct_pago.toFixed(1)+'%':'—'}</td>
       <td class="num">${fmtKm(t.km)}</td>
       <td class="num">${fmtRsKm(t.rs_km)}</td>
       <td class="num">${t.acertos.toLocaleString('pt-BR')}</td>
@@ -6070,7 +6105,7 @@ async function loadDreCli(){
     const d=await r.json();
     if(seq!==dreCliSeq) return;
     if(!r.ok){ showBanner(d.mensagem||'Erro ao consultar a DRE por cliente.', d.detalhe); return; }
-    hideBanner(); DATADRECLI=d; LOADEDQS.drecli=q; renderDreCli(d);
+    hideBanner(); DATADRECLI=d; renderDreCli(d); LOADEDQS.drecli=qsView('drecli');
   }catch(e){ if(seq===dreCliSeq) showBanner('Não foi possível falar com a API.', e.message); }
   finally{ if(seq===dreCliSeq){ btn.disabled=false; document.getElementById('content').classList.remove('loading'); } }
 }
@@ -6168,7 +6203,7 @@ async function loadDre(){
     const d=await r.json();
     if(seq!==dreSeq) return;
     if(!r.ok){ showBanner(d.mensagem||'Erro ao consultar a DRE.', d.detalhe); return; }
-    hideBanner(); DATADRE=d; LOADEDQS.dre=q; renderDre(d);
+    hideBanner(); DATADRE=d; renderDre(d); LOADEDQS.dre=qsView('dre');
   }catch(e){ if(seq===dreSeq) showBanner('Não foi possível falar com a API.', e.message); }
   finally{
     if(seq===dreSeq){ btn.disabled=false; document.getElementById('content').classList.remove('loading'); }
@@ -6209,7 +6244,7 @@ function renderDre(d){
     if(Math.abs(a)<500) return '<td class="num"><span class="av">novo</span></td>';
     const p=100*(u-a)/Math.abs(a);
     const melhora=u>a;
-    return `<td class="num" style="color:${melhora?'var(--green,#1E7B3C)':'var(--red)'};font-weight:600;font-size:12px">${melhora?'▲':'▼'} ${Math.abs(p)>=1000?'999+':Math.abs(p).toFixed(0)}%</td>`;
+    return `<td class="num" style="color:${melhora?'var(--green,#1E7F4F)':'var(--red)'};font-weight:600;font-size:12px">${melhora?'▲':'▼'} ${Math.abs(p)>=1000?'999+':Math.abs(p).toFixed(0)}%</td>`;
   };
   const delta=(vs)=>{
     if(!temDelta) return '';
@@ -6219,7 +6254,7 @@ function renderDre(d){
     const p=100*(u-a)/Math.abs(a);
     const melhora=u>a;                     // valores assinados: subir melhora o resultado
     const seta=melhora?'▲':'▼';
-    const cor=melhora?'var(--green,#1E7B3C)':'var(--red)';
+    const cor=melhora?'var(--green,#1E7F4F)':'var(--red)';
     return `<td class="num" style="color:${cor};font-weight:600;font-size:12px">${seta} ${Math.abs(p)>=1000?'999+':Math.abs(p).toFixed(0)}%</td>`;
   };
   let html='';
@@ -6281,7 +6316,7 @@ async function loadCont(){
     const d=await r.json();
     if(seq!==contSeq) return;
     if(!r.ok){ showBanner(d.mensagem||'Erro na contabilidade.', d.detalhe); return; }
-    hideBanner(); DATACONT=d; LOADEDQS.cont=p.toString(); renderCont(d);
+    hideBanner(); DATACONT=d; renderCont(d); LOADEDQS.cont=qsView('cont');
   }catch(e){ if(seq===contSeq) showBanner('Não foi possível falar com a API.', e.message); }
   finally{ if(seq===contSeq){ btn.disabled=false; document.getElementById('content').classList.remove('loading'); } }
 }
@@ -6509,13 +6544,37 @@ document.addEventListener('click', e=>{
 async function sair(){ try{ await fetch('/api/auth/logout',{method:'POST'}); }catch(e){} location.reload(); }
 
 /* ---------------- Modal genérico + troca de senha ---------------- */
+let _modalPrevFoco=null, _modalKeydown=null;
+function _modalFocaveis(){
+  return Array.from(document.getElementById('modalBox').querySelectorAll(
+    'a[href],button:not([disabled]),input:not([disabled]),select:not([disabled]),textarea:not([disabled]),[tabindex]:not([tabindex="-1"])'
+  )).filter(el=>el.offsetParent!==null);
+}
 function abrirModal(html, trava){
   const bg=document.getElementById('modalBg');
   if(trava) bg.dataset.trava='1'; else delete bg.dataset.trava;
-  document.getElementById('modalBox').innerHTML=html;
+  const box=document.getElementById('modalBox');
+  box.innerHTML=html;
   bg.classList.add('aberto');
+  _modalPrevFoco=document.activeElement;            // p/ devolver o foco ao fechar
+  (_modalFocaveis()[0]||box).focus();               // move o foco pra dentro do diálogo
+  // Esc fecha (exceto travado); Tab fica preso no modal (focus-trap)
+  _modalKeydown=(e)=>{
+    if(e.key==='Escape' && !bg.dataset.trava){ e.preventDefault(); fecharModal(); return; }
+    if(e.key==='Tab'){
+      const f=_modalFocaveis(); if(!f.length){ e.preventDefault(); return; }
+      const pri=f[0], ult=f[f.length-1];
+      if(e.shiftKey && document.activeElement===pri){ e.preventDefault(); ult.focus(); }
+      else if(!e.shiftKey && document.activeElement===ult){ e.preventDefault(); pri.focus(); }
+    }
+  };
+  document.addEventListener('keydown', _modalKeydown, true);
 }
-function fecharModal(){ const bg=document.getElementById('modalBg'); bg.classList.remove('aberto'); delete bg.dataset.trava; }
+function fecharModal(){
+  const bg=document.getElementById('modalBg'); bg.classList.remove('aberto'); delete bg.dataset.trava;
+  if(_modalKeydown){ document.removeEventListener('keydown', _modalKeydown, true); _modalKeydown=null; }
+  if(_modalPrevFoco && _modalPrevFoco.focus){ _modalPrevFoco.focus(); _modalPrevFoco=null; }
+}
 function mErro(m){ const e=document.getElementById('m-err'); if(e) e.textContent=m||''; }
 function abrirTrocarSenha(obrig){
   const m=document.getElementById('avMenu'); if(m) m.classList.remove('aberto');
@@ -6594,7 +6653,7 @@ function renderSrv(){
            host.boot?('desde '+new Date(host.boot).toLocaleString('pt-BR')):'—', 'inherit'),
     (function(){ const dep=d.deploy||{};
       const val = dep.status==='alerta'?'Atenção':(dep.status==='ok'?'OK':'—');
-      const cor = dep.status==='alerta'?'var(--red,#DC2626)':(dep.status==='ok'?'var(--green,#16A34A)':'inherit');
+      const cor = dep.status==='alerta'?'var(--red,#C03221)':(dep.status==='ok'?'var(--green,#1E7F4F)':'inherit');
       return srvKpi('AutoDeploy', val, dep.detalhe||'estado desconhecido', cor); })(),
   ].join('');
   const bmap={ok:'b-ok',alerta:'b-warn',erro:'b-dang',info:'b-info'};
@@ -6814,12 +6873,14 @@ async function gesPerfilExcluir(id){
   }catch(e){ alert('Não foi possível falar com a API.'); }
 }
 async function audCarregar(){
+  const seq=++audSeq;
   const busca=(document.getElementById('ges-aud-busca').value||'').trim();
   const tb=document.getElementById('ges-aud');
   tb.innerHTML='<tr><td colspan="6"><span class="skeleton">carregando…</span></td></tr>';
   try{
     const r=await fetch('/api/gestao/auditoria?limite=1000'+(busca?'&busca='+encodeURIComponent(busca):''),{cache:'no-store'});
     const d=await r.json();
+    if(seq!==audSeq) return;
     if(!r.ok){ tb.innerHTML=`<tr><td colspan="6">${esc(d.mensagem||'Erro ao consultar a auditoria.')}</td></tr>`; return; }
     tb.innerHTML = d.eventos.map(e=>`<tr>
       <td>${esc(e.ts)}</td><td>${esc(e.usuario)}</td>
