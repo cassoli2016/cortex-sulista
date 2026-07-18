@@ -570,6 +570,7 @@ button.avatar{border:0;cursor:pointer}
       <div class="subs closed" id="subsFro">
         <a href="#veic" class="sub" data-view="veic" title="Veículos"><span class="ic" data-ic="veic"></span><span>Veículos</span></a>
         <a href="#veicf" class="sub" data-view="veicf" title="Consulta de Veículo por placa"><span class="ic" data-ic="veic"></span><span>Consulta de Veículo</span></a>
+        <a href="#mprev" class="sub" data-view="mprev" title="Manutenção Preventiva (revisões próximas/vencidas)"><span class="ic" data-ic="man"></span><span>Manutenção Preventiva</span></a>
         <a href="#comb" class="sub" data-view="comb" title="Combustível"><span class="ic" data-ic="comb"></span><span>Combustível</span></a>
         <a href="#man" class="sub" data-view="man" title="Manutenção"><span class="ic" data-ic="man"></span><span>Manutenção</span></a>
         <a href="#mul" class="sub" data-view="mul" title="Multas"><span class="ic" data-ic="mul"></span><span>Multas</span></a>
@@ -1430,6 +1431,15 @@ button.avatar{border:0;cursor:pointer}
           <div class="tablewrap" id="sac-coletas"></div>
         </div>
       </section>
+      <section class="view" id="view-mprev">
+        <div class="kpis" id="kpis-mprev"></div>
+        <div class="grid2">
+          <div class="card"><div class="head"><h2>Trações (por km)</h2><span class="hint">vencidas ou a menos de 10% do intervalo</span></div>
+            <div class="tablewrap" id="mprev-tracoes"></div></div>
+          <div class="card"><div class="head"><h2>Carretas / semi-reboque (por data)</h2><span class="hint">vencidas ou nos próximos 30 dias · baú = 240 dias, demais 180</span></div>
+            <div class="tablewrap" id="mprev-carretas"></div></div>
+        </div>
+      </section>
       <section class="view" id="view-mul">
         <div class="kpis" id="kpis-mul"></div>
         <div class="card">
@@ -1787,7 +1797,7 @@ const FAIXAS = {
   '4_vencido_91_365':['Vencido 91–365d','b-dang'],
   '5_vencido_mais_365':['Vencido > 365d','b-dang'],
 };
-const VIEWS = { home:'Visão Geral', fluxo:'Fluxo de Caixa e Bancos', receber:'Contas a Receber', pagar:'Contas a Pagar', oc:'Ordens de Compra', agr:'Agregados e Terceiros', mvb:'Make vs Buy', comb:'Combustível', man:'Manutenção', com:'Clientes e RKM', clif:'Consulta de Cliente', km:'Análise de KM', torre:'Torre de Controle', veic:'Veículos', veicf:'Consulta de Veículo', mul:'Multas', prog:'Programação Inteligente', jorn:'Jornada do Motorista', jornf:'Ficha de Jornada', cex:'Custos Extras', sac:'SAC / Freetime', cop:'Copiloto Cortex', cob:'Régua de Cobrança', cont:'Contabilidade', dre:'DRE Gerencial', drecli:'DRE por Cliente', tvfat:'Painel TV — Faturamento', tvope:'Painel TV — Operação', gestao:'Gestão', srv:'Saúde do Servidor' };
+const VIEWS = { home:'Visão Geral', fluxo:'Fluxo de Caixa e Bancos', receber:'Contas a Receber', pagar:'Contas a Pagar', oc:'Ordens de Compra', agr:'Agregados e Terceiros', mvb:'Make vs Buy', comb:'Combustível', man:'Manutenção', com:'Clientes e RKM', clif:'Consulta de Cliente', km:'Análise de KM', torre:'Torre de Controle', veic:'Veículos', veicf:'Consulta de Veículo', mprev:'Manutenção Preventiva', mul:'Multas', prog:'Programação Inteligente', jorn:'Jornada do Motorista', jornf:'Ficha de Jornada', cex:'Custos Extras', sac:'SAC / Freetime', cop:'Copiloto Cortex', cob:'Régua de Cobrança', cont:'Contabilidade', dre:'DRE Gerencial', drecli:'DRE por Cliente', tvfat:'Painel TV — Faturamento', tvope:'Painel TV — Operação', gestao:'Gestão', srv:'Saúde do Servidor' };
 const periodoLabel = p => { if(p==='atrasado') return 'Atrasado'; const [y,m]=p.split('-'); return MES[+m-1]+'/'+y.slice(2); };
 const fmtD = s => { if(!s) return ''; const [y,m,dd]=s.split('-'); return dd+'/'+m+'/'+y; };
 const esc  = s => (s??'').toString().replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
@@ -1824,6 +1834,8 @@ let cexSeq = 0;
 let DATACEX = null;
 let sacSeq = 0;
 let DATASAC = null;
+let mprevSeq = 0;
+let DATAMPREV = null;
 let ocSeq = 0;
 let agrSeq = 0;
 let mvbSeq = 0;
@@ -1911,7 +1923,7 @@ const VIEW_GROUP = {home:'',cop:'',
   fluxo:'Fin',receber:'Fin',pagar:'Fin',cob:'Fin',
   dre:'Ctr',cont:'Ctr',
   torre:'Ope',prog:'Ope',jorn:'Ope',jornf:'Ope',cex:'Ope',sac:'Ope',km:'Ope',agr:'Ope',mvb:'Ope',
-  veic:'Fro',veicf:'Fro',comb:'Fro',man:'Fro',mul:'Fro',
+  veic:'Fro',veicf:'Fro',mprev:'Fro',comb:'Fro',man:'Fro',mul:'Fro',
   oc:'Sup',
   tvfat:'Tv',tvope:'Tv',
   gestao:'Adm',srv:'Adm'};
@@ -2078,8 +2090,8 @@ function router(){
   document.getElementById('grpCob').style.display = cob ? 'flex' : 'none';
   document.getElementById('grpRent').style.display = rent ? 'flex' : 'none';
   const ges = (v==='gestao');
-  const fbar=document.getElementById('filterbar'); if(fbar) fbar.style.display = (cop||ges||v==='srv'||v==='veicf'||v==='clif'||v==='jorn'||v==='jornf'||v==='cex'||v==='sac'||v==='home') ? 'none' : '';
-  const metaEl=document.getElementById('meta'); if(metaEl) metaEl.style.display = (cop||ges||v==='srv'||v==='veicf'||v==='clif'||v==='jorn'||v==='jornf'||v==='cex'||v==='sac') ? 'none' : '';
+  const fbar=document.getElementById('filterbar'); if(fbar) fbar.style.display = (cop||ges||v==='srv'||v==='veicf'||v==='clif'||v==='jorn'||v==='jornf'||v==='cex'||v==='sac'||v==='mprev'||v==='home') ? 'none' : '';
+  const metaEl=document.getElementById('meta'); if(metaEl) metaEl.style.display = (cop||ges||v==='srv'||v==='veicf'||v==='clif'||v==='jorn'||v==='jornf'||v==='cex'||v==='sac'||v==='mprev') ? 'none' : '';
   // classe em vez de style: o CSS mobile usa !important no display
   const bfil=document.getElementById('btnFiltros'); if(bfil){ bfil.classList.toggle('oculto', cop||ges||v==='srv'||v==='home'); bfil.style.display=''; }
   document.getElementById('grpKm').style.display = kmv ? 'flex' : 'none';
@@ -2100,8 +2112,8 @@ function router(){
   // carga da vista: dispara se não há dados OU se os filtros visíveis
   // divergem dos usados na última carga (nunca mostrar dado velho com filtro novo)
   const key=viewKey(v);
-  const DATAMAP={fin:DATA,oc:DATAOC,agr:DATAAGR,mvb:DATAMVB,comb:DATACOMB,man:DATAMAN,com:DATACOM,clif:DATACLIF,dre:DATADRE,drecli:DATADRECLI,home:DATAHOME,km:DATAKM,torre:DATATORRE,veic:DATAVEIC,veicf:DATAVEICF,mul:DATAMUL,prog:DATAPROG,jorn:DATAJORN,jornf:DATAJORNF,cex:DATACEX,sac:DATASAC,cob:DATACOB,rent:DATARENT,cont:DATACONT,gestao:DATAGES,srv:DATASRV,tvfat:null,tvope:null,cop:(COP_MSGS.length?{}:null)};
-  const LOADMAP={fin:load,oc:loadOc,agr:loadAgr,mvb:loadMvb,comb:loadComb,man:loadMan,com:loadCom,clif:loadClif,dre:loadDre,drecli:loadDreCli,home:loadHome,km:loadKm,torre:loadTorre,veic:loadVeic,veicf:loadVeicf,mul:loadMul,prog:loadProg,jorn:loadJorn,jornf:loadJornf,cex:loadCex,sac:loadSac,cob:loadCob,rent:loadRent,cont:loadCont,gestao:loadGestao,srv:loadSrv,cop:loadCop,tvfat:loadTvFat,tvope:loadTvOpe};
+  const DATAMAP={fin:DATA,oc:DATAOC,agr:DATAAGR,mvb:DATAMVB,comb:DATACOMB,man:DATAMAN,com:DATACOM,clif:DATACLIF,dre:DATADRE,drecli:DATADRECLI,home:DATAHOME,km:DATAKM,torre:DATATORRE,veic:DATAVEIC,veicf:DATAVEICF,mul:DATAMUL,prog:DATAPROG,jorn:DATAJORN,jornf:DATAJORNF,cex:DATACEX,sac:DATASAC,mprev:DATAMPREV,cob:DATACOB,rent:DATARENT,cont:DATACONT,gestao:DATAGES,srv:DATASRV,tvfat:null,tvope:null,cop:(COP_MSGS.length?{}:null)};
+  const LOADMAP={fin:load,oc:loadOc,agr:loadAgr,mvb:loadMvb,comb:loadComb,man:loadMan,com:loadCom,clif:loadClif,dre:loadDre,drecli:loadDreCli,home:loadHome,km:loadKm,torre:loadTorre,veic:loadVeic,veicf:loadVeicf,mul:loadMul,prog:loadProg,jorn:loadJorn,jornf:loadJornf,cex:loadCex,sac:loadSac,mprev:loadMPrev,cob:loadCob,rent:loadRent,cont:loadCont,gestao:loadGestao,srv:loadSrv,cop:loadCop,tvfat:loadTvFat,tvope:loadTvOpe};
   if(!DATAMAP[key] || (key!=='home' && LOADEDQS[key]!==qsView(key))) LOADMAP[key]();
   // mobile: estado da navegação inferior + fecha gaveta/painel de filtros
   document.querySelectorAll('.bottomnav [data-bview]').forEach(a=>a.classList.toggle('ativo', a.dataset.bview===v));
@@ -2748,7 +2760,7 @@ function reloadCurrent(){
   // recarrega a TELA ATUAL — antes caía em load() (Financeiro) para várias telas.
   const M={home:loadHome,fluxo:load,receber:load,pagar:load,dre:loadDre,drecli:loadDreCli,oc:loadOc,
     agr:loadAgr,mvb:loadMvb,comb:loadComb,man:loadMan,com:loadCom,clif:loadClif,km:loadKm,
-    torre:loadTorre,veic:loadVeic,veicf:loadVeicf,mul:loadMul,prog:loadProg,jorn:loadJorn,jornf:loadJornf,cex:loadCex,sac:loadSac,cob:loadCob,rent:loadRent,
+    torre:loadTorre,veic:loadVeic,veicf:loadVeicf,mul:loadMul,prog:loadProg,jorn:loadJorn,jornf:loadJornf,cex:loadCex,sac:loadSac,mprev:loadMPrev,cob:loadCob,rent:loadRent,
     cont:loadCont,gestao:loadGestao,srv:loadSrv,cop:loadCop,tvfat:loadTvFat,tvope:loadTvOpe};
   (M[currentView()]||load)();
 }
@@ -4353,6 +4365,33 @@ function renderSac(d){
   document.getElementById('sac-freetime').innerHTML=`<table><thead><tr><th>Cliente</th><th class="num">Filial</th><th class="num">FT carga</th><th class="num">FT descarga</th><th class="num">R$/h coleta</th><th class="num">R$/h entrega</th></tr></thead><tbody>${ft}</tbody></table>`;
   const cl=(d.coletas||[]).map(c=>`<tr><td>${esc(c.data||'')}</td><td class="num">${c.coleta}</td><td>${esc(c.cliente)}</td><td class="num">${c.h_carga!=null?c.h_carga+'h':'—'}</td><td class="num">${c.h_descarga!=null?c.h_descarga+'h':'—'}</td><td class="num">${(c.exc_carga+c.exc_descarga).toLocaleString('pt-BR',{maximumFractionDigits:1})} h</td><td class="num" style="font-weight:700">${BRL.format(c.valor_est)}</td></tr>`).join('')||'<tr><td colspan="7" style="color:var(--n500)">sem coletas com excedente no período</td></tr>';
   document.getElementById('sac-coletas').innerHTML=`<table><thead><tr><th>Data</th><th class="num">Coleta</th><th>Cliente</th><th class="num">Carga</th><th class="num">Descarga</th><th class="num">Excedente</th><th class="num">Estimado</th></tr></thead><tbody>${cl}</tbody></table>`;
+}
+// ---------------- Manutenção Preventiva ----------------
+async function loadMPrev(){
+  const seq=++mprevSeq, btn=document.getElementById('btnRefresh'); if(btn) btn.disabled=true;
+  document.getElementById('content').classList.add('loading');
+  skelKpis('kpis-mprev',4);
+  try{
+    const r=await fetch('/api/frota/manutencao-preventiva',{cache:'no-store'});
+    const d=await r.json(); if(seq!==mprevSeq) return;
+    if(!r.ok){ showBanner(d.mensagem||'Erro ao consultar as revisões preventivas.', d.detalhe); return; }
+    hideBanner(); DATAMPREV=d; LOADEDQS.mprev='1'; renderMPrev(d);
+  }catch(e){ if(seq===mprevSeq) showBanner('Não foi possível falar com a API.', e.message); }
+  finally{ if(seq===mprevSeq){ if(btn) btn.disabled=false; document.getElementById('content').classList.remove('loading'); } }
+}
+function renderMPrev(d){
+  const k=d.kpis||{};
+  document.getElementById('kpis-mprev').innerHTML=[
+    kpi('Vencidas', (k.vencidas||0).toLocaleString('pt-BR'), 'trações + carretas com revisão vencida', (k.vencidas||0)>0?'neg':'pos'),
+    kpi('Trações a revisar', ((k.tracoes_vencidas||0)+(k.tracoes_proximas||0)).toLocaleString('pt-BR'), (k.tracoes_vencidas||0)+' vencidas · '+(k.tracoes_proximas||0)+' próximas', (k.tracoes_vencidas||0)>0?'neg':''),
+    kpi('Carretas a revisar', ((k.carretas_vencidas||0)+(k.carretas_proximas||0)).toLocaleString('pt-BR'), (k.carretas_vencidas||0)+' vencidas · '+(k.carretas_proximas||0)+' próximas', (k.carretas_vencidas||0)>0?'neg':''),
+    kpi('Total a revisar', (k.total||0).toLocaleString('pt-BR'), 'veículos próximos ou vencidos',''),
+  ].join('');
+  const badge=s=>s==='vencida'?'<span class="badge b-dang">vencida</span>':'<span class="badge b-warn">próxima</span>';
+  const tr=(d.tracoes||[]).map(t=>`<tr><td style="font-family:var(--mono);font-weight:600">${esc(t.frota||'—')}</td><td>${esc(t.veiculo||'')}</td><td class="num" style="${t.km_faltante<0?'color:var(--red);font-weight:700':''}">${t.km_faltante.toLocaleString('pt-BR')} km</td><td class="num">${t.intervalo?t.intervalo.toLocaleString('pt-BR')+' km':'—'}</td><td>${badge(t.status)}</td></tr>`).join('')||'<tr><td colspan="5" style="color:var(--n500)">nenhuma tração a revisar</td></tr>';
+  document.getElementById('mprev-tracoes').innerHTML=`<table><thead><tr><th>Frota</th><th>Placa</th><th class="num">Faltam</th><th class="num">Intervalo</th><th>Status</th></tr></thead><tbody>${tr}</tbody></table>`;
+  const cr=(d.carretas||[]).map(c=>`<tr><td style="font-family:var(--mono);font-weight:600">${esc(c.frota||'—')}</td><td>${esc(c.veiculo||'')}</td><td class="num" style="${c.dias<0?'color:var(--red);font-weight:700':''}">${c.dias<0?('vencida há '+Math.abs(c.dias)):('em '+c.dias)} dias</td><td>${c.bau?'<span style="color:var(--n500)">baú</span>':''}</td><td>${badge(c.status)}</td></tr>`).join('')||'<tr><td colspan="5" style="color:var(--n500)">nenhuma carreta a revisar</td></tr>';
+  document.getElementById('mprev-carretas').innerHTML=`<table><thead><tr><th>Frota</th><th>Placa</th><th class="num">Prazo</th><th>Tipo</th><th>Status</th></tr></thead><tbody>${cr}</tbody></table>`;
 }
 async function loadTorre(){
   skelKpis('kpis-torre',4);
@@ -6044,6 +6083,7 @@ boot();
         <a href="#veicf" onclick="fecharDrawer()"><span class="ic" data-ic="veic"></span>Consulta de Veículo</a>
         <a href="#comb" onclick="fecharDrawer()"><span class="ic" data-ic="comb"></span>Combustível</a>
         <a href="#man" onclick="fecharDrawer()"><span class="ic" data-ic="man"></span>Manutenção</a>
+        <a href="#mprev" onclick="fecharDrawer()"><span class="ic" data-ic="man"></span>Manutenção Preventiva</a>
         <a href="#mul" onclick="fecharDrawer()"><span class="ic" data-ic="mul"></span>Multas</a>
       </div>
     </div>

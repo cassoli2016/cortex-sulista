@@ -69,6 +69,7 @@ TELAS: dict[str, tuple[str, str]] = {  # chave -> (rótulo, grupo do menu)
     "comb":    ("Combustível", "Frota"),
     "man":     ("Manutenção", "Frota"),
     "veic":    ("Veículos", "Frota"),
+    "mprev":   ("Manutenção Preventiva", "Frota"),
     "veicf":   ("Consulta de Veículo", "Frota"),
     "mul":     ("Multas", "Frota"),
     "tvfat":   ("Painel TV — Faturamento", "Painéis TV"),
@@ -89,6 +90,7 @@ ROTA_TELAS: list[tuple[str, frozenset[str]]] = [
     ("/api/alertas",                  frozenset({"home"})),
     ("/api/suprimentos/ordens-compra", frozenset({"oc"})),
     ("/api/suprimentos/agregados",    frozenset({"agr"})),
+    ("/api/frota/manutencao-preventiva", frozenset({"mprev"})),
     ("/api/frota/veiculos",           frozenset({"veic"})),
     ("/api/frota/veiculo",            frozenset({"veicf"})),
     ("/api/frota/combustivel",        frozenset({"comb", "tvope"})),
@@ -164,8 +166,8 @@ _PERFIS_MODELO = [
      ["dre", "cont", "drecli"]),
     ("Operação",    "Torre de controle, programação, jornada, custos extras, SAC/freetime, análise de KM, agregados e make-vs-buy.",
      ["torre", "prog", "jorn", "cex", "sac", "km", "agr", "mvb"]),
-    ("Frota",       "Veículos, consulta por placa, combustível, manutenção e multas.",
-     ["veic", "veicf", "comb", "man", "mul"]),
+    ("Frota",       "Veículos, consulta por placa, combustível, manutenção, preventiva e multas.",
+     ["veic", "veicf", "comb", "man", "mprev", "mul"]),
     ("Suprimentos", "Ordens de compra.",
      ["oc"]),
     ("Painéis TV",  "Apenas os painéis de TV (faturamento e operação) — para telão/quiosque.",
@@ -273,6 +275,14 @@ def _seed_perfis_modelo(c: sqlite3.Connection) -> None:
             c.execute("INSERT OR IGNORE INTO perfil_telas(perfil_id, tela) VALUES(?,?)",
                       (row["id"], "sac"))
         c.execute("INSERT OR IGNORE INTO config(chave, valor) VALUES('perfis_modelo_v5', '1')")
+
+    # v6 (manutenção preventiva 2026-07-17): adiciona a tela 'mprev' ao perfil Frota.
+    if not c.execute("SELECT 1 FROM config WHERE chave='perfis_modelo_v6'").fetchone():
+        row = c.execute("SELECT id FROM perfis WHERE nome='Frota'").fetchone()
+        if row:
+            c.execute("INSERT OR IGNORE INTO perfil_telas(perfil_id, tela) VALUES(?,?)",
+                      (row["id"], "mprev"))
+        c.execute("INSERT OR IGNORE INTO config(chave, valor) VALUES('perfis_modelo_v6', '1')")
 
 
 def _agora() -> str:
