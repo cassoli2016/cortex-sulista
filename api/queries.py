@@ -4415,3 +4415,108 @@ def get_portaria() -> dict:
         "atualizado_em": meta["ts"].isoformat(),
         "fonte": "ERP AVA · sulista.controlepatio + sulista.autorizacaosaida · leitura",
     }
+
+
+# ============================================================================
+# CRM Comercial — Leads, Pipeline de Projetos e Repactuações
+# ----------------------------------------------------------------------------
+# Fonte: Querys Sulista/COMERCIAL. PII: e-mail/telefone dos leads NÃO são
+# expostos (política de segurança). Mostra nome, segmento, potencial e funil.
+# ============================================================================
+CRM_TEMP = {1: "Frio", 2: "Morno", 3: "Quente"}
+CRM_LEAD_STATUS = {1: "Qualificado", 2: "Não qualificado", 3: "Em prospecção"}
+CRM_TIPONEG = {1: "Regular", 2: "SPOT", 3: "Reajuste", 4: "Projeto"}
+CRM_PROJ_STATUS = {1: "Em execução", 2: "Entregue", 3: "Não iniciado", 4: "Declinado"}
+CRM_REPAC_STATUS = {1: "Aplicada", 2: "Não aplicada", 3: "Realizado BID",
+                    4: "Rota cancelada", 5: "Contrato rescindido"}
+
+CRM_LEADS_SQL = """
+SELECT g.nomecliente, tc.descricao AS segmento, g.temperatura, g.status_negociacao,
+       g.potencial_receita::float8 AS potencial, g.rob_previsto::float8 AS rob_previsto,
+       g.previsao_fechamento::date AS previsao
+FROM sulista.gestaocomercial g
+LEFT JOIN tipocarga tc ON tc.codigo = g.cliente_segmento
+WHERE g.ativoinativo = 1
+ORDER BY g.potencial_receita DESC NULLS LAST
+LIMIT 200
+"""
+
+CRM_PROJ_SQL = """
+SELECT DISTINCT ON (p.numeroid) p.numeroid, p.versao, p.projeto, p.cliente,
+       tc.descricao AS segmento, p.tipo_negocio, p.status_negocio,
+       p.rob_mensal::float8 AS rob, p.lucro_bruto_percentual::float8 AS lucro_pct,
+       p.aging_dias, p.deadline::date AS deadline
+FROM sulista.pipelineprojetos p
+LEFT JOIN tipocarga tc ON tc.codigo = p.segmento
+ORDER BY p.numeroid DESC, p.versao DESC
+LIMIT 150
+"""
+
+CRM_REPAC_SQL = """
+SELECT coalesce(nullif(trim(ac.descricao),''), r.cliente::text) AS cliente,
+       r.mes_repac, r.total_porcento::float8 AS total_pct,
+       r.porcento_aplicacao_negocios::float8 AS pct_negocios, r.status, r.observacao
+FROM sulista.pipelineprojetos_repactuacoes r
+LEFT JOIN agrupamentocliente ac ON ac.codigo = r.cliente
+ORDER BY r.mes_repac DESC NULLS LAST
+LIMIT 100
+"""
+
+
+@cached(ttl=180)
+def get_crm() -> dict:
+    """CRM: leads (funil), pipeline de projetos e repactuações."""
+    with db.get_conn() as conn, conn.cursor() as cur:
+        cur.execute(CRM_LEADS_SQL)
+        lg = cur.fetchall()
+        cur.execute(CRM_PROJ_SQL)
+        pj = cur.fetchall()
+        cur.execute(CRM_REPAC_SQL)
+        rp = cur.fetchall()
+        cur.execute("SELECT current_timestamp AS ts")
+        meta = cur.fetchone()
+
+    leads = [{
+        "cliente": (l["nomecliente"] or "").strip() or "—",
+        "segmento": (l["segmento"] or "").strip() or None,
+        "temperatura": CRM_TEMP.get(l["temperatura"], "—"),
+        "status": CRM_LEAD_STATUS.get(l["status_negociacao"], "—"),
+        "potencial": l["potencial"] or 0.0, "rob_previsto": l["rob_previsto"] or 0.0,
+        "previsao": l["previsao"].isoformat() if l["previsao"] else None,
+    } for l in lg]
+
+    projetos = [{
+        "numeroid": p["numeroid"], "projeto": (p["projeto"] or "").strip() or None,
+        "cliente": (p["cliente"] or "").strip() or "—",
+        "segmento": (p["segmento"] or "").strip() or None,
+        "tipo": CRM_TIPONEG.get(p["tipo_negocio"], "—"),
+        "status": CRM_PROJ_STATUS.get(p["status_negocio"], "—"),
+        "rob": p["rob"] or 0.0, "lucro_pct": p["lucro_pct"],
+        "aging": p["aging_dias"], "deadline": p["deadline"].isoformat() if p["deadline"] else None,
+    } for p in pj]
+
+    repac = [{
+        "cliente": (r["cliente"] or "").strip() or "—",
+        "mes": r["mes_repac"].isoformat() if r["mes_repac"] else None, "total_pct": r["total_pct"],
+        "pct_negocios": r["pct_negocios"],
+        "status": CRM_REPAC_STATUS.get(r["status"], "—"),
+        "obs": (r["observacao"] or "").strip() or None,
+    } for r in rp]
+
+    kpis = {
+        "leads": len(leads),
+        "potencial_total": round(sum(l["potencial"] for l in leads), 2),
+        "leads_quentes": sum(1 for l in leads if l["temperatura"] == "Quente"),
+        "projetos_execucao": sum(1 for p in projetos if p["status"] == "Em execução"),
+        "rob_pipeline": round(sum(p["rob"] for p in projetos if p["status"] in ("Em execução", "Não iniciado")), 2),
+    }
+
+    return {
+        "kpis": kpis,
+        "leads": leads,
+        "projetos": projetos,
+        "repactuacoes": repac,
+        "atualizado_em": meta["ts"].isoformat(),
+        "fonte": ("ERP AVA · sulista.gestaocomercial + pipelineprojetos + "
+                  "pipelineprojetos_repactuacoes · sem PII de contato · leitura"),
+    }

@@ -502,6 +502,22 @@ def veiculo_ficha(placa: str | None = None) -> JSONResponse:
             "detalhe": str(exc)})
 
 
+@app.get("/api/comercial/crm")
+def crm() -> JSONResponse:
+    try:
+        return JSONResponse(queries.get_crm())
+    except psycopg.OperationalError as exc:
+        return JSONResponse(status_code=503, content={
+            "erro": "banco_inacessivel",
+            "mensagem": "Sem conexão com o banco. O túnel SSH está aberto?",
+            "detalhe": str(exc)})
+    except Exception as exc:  # noqa: BLE001
+        log.warning("crm falhou: %s", exc)
+        return JSONResponse(status_code=500, content={
+            "erro": "erro_consulta", "mensagem": "Erro ao consultar o CRM.",
+            "detalhe": str(exc)})
+
+
 @app.get("/api/comercial/cliente")
 def cliente_ficha(cliente: str | None = None, comp_de: str | None = None,
                   comp_ate: str | None = None) -> JSONResponse:

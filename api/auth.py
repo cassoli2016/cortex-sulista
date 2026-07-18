@@ -54,6 +54,7 @@ TELAS: dict[str, tuple[str, str]] = {  # chave -> (rótulo, grupo do menu)
     "pagar":   ("Contas a Pagar", "Financeiro"),
     "com":     ("Clientes e RKM", "Comercial"),
     "clif":    ("Consulta de Cliente", "Comercial"),
+    "crm":     ("CRM — Leads e Projetos", "Comercial"),
     "drecli":  ("DRE por Cliente", "Comercial"),
     "dre":     ("DRE Gerencial", "Controladoria"),
     "cont":    ("Contabilidade", "Controladoria"),
@@ -111,6 +112,7 @@ ROTA_TELAS: list[tuple[str, frozenset[str]]] = [
     ("/api/operacao/custos-extras",   frozenset({"cex"})),
     ("/api/operacao/sac-freetime",    frozenset({"sac"})),
     ("/api/operacao/portaria",        frozenset({"port"})),
+    ("/api/comercial/crm",            frozenset({"crm"})),
     ("/api/comercial/clientes",       frozenset({"com"})),
     ("/api/comercial/cliente",        frozenset({"clif"})),
     ("/api/copiloto",                 frozenset({"cop"})),
@@ -164,8 +166,8 @@ _CONFIG_PADRAO = {
 # ficam fora dos perfis de área e só entram no perfil amplo "Diretoria".
 # Perfis-modelo alinhados aos grupos do menu (reorg 2026-07-17).
 _PERFIS_MODELO = [
-    ("Comercial",   "Clientes/RKM, consulta por cliente e DRE por cliente.",
-     ["com", "clif", "drecli"]),
+    ("Comercial",   "Clientes/RKM, consulta por cliente, CRM (leads/projetos) e DRE por cliente.",
+     ["com", "clif", "crm", "drecli"]),
     ("Financeiro",  "Caixa, recebíveis, pagáveis e cobrança.",
      ["fluxo", "receber", "pagar", "cob"]),
     ("Controladoria", "DRE gerencial, contabilidade, DRE/margem por cliente e qualidade/certidões.",
@@ -313,6 +315,14 @@ def _seed_perfis_modelo(c: sqlite3.Connection) -> None:
             c.execute("INSERT OR IGNORE INTO perfil_telas(perfil_id, tela) VALUES(?,?)",
                       (row["id"], "port"))
         c.execute("INSERT OR IGNORE INTO config(chave, valor) VALUES('perfis_modelo_v9', '1')")
+
+    # v10 (CRM 2026-07-17): adiciona a tela 'crm' ao perfil Comercial.
+    if not c.execute("SELECT 1 FROM config WHERE chave='perfis_modelo_v10'").fetchone():
+        row = c.execute("SELECT id FROM perfis WHERE nome='Comercial'").fetchone()
+        if row:
+            c.execute("INSERT OR IGNORE INTO perfil_telas(perfil_id, tela) VALUES(?,?)",
+                      (row["id"], "crm"))
+        c.execute("INSERT OR IGNORE INTO config(chave, valor) VALUES('perfis_modelo_v10', '1')")
 
 
 def _agora() -> str:
