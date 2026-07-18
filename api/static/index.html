@@ -571,6 +571,7 @@ button.avatar{border:0;cursor:pointer}
         <a href="#veic" class="sub" data-view="veic" title="Veículos"><span class="ic" data-ic="veic"></span><span>Veículos</span></a>
         <a href="#veicf" class="sub" data-view="veicf" title="Consulta de Veículo por placa"><span class="ic" data-ic="veic"></span><span>Consulta de Veículo</span></a>
         <a href="#mprev" class="sub" data-view="mprev" title="Manutenção Preventiva (revisões próximas/vencidas)"><span class="ic" data-ic="man"></span><span>Manutenção Preventiva</span></a>
+        <a href="#comrast" class="sub" data-view="comrast" title="Comunicação veículo x rastreadora"><span class="ic" data-ic="tor"></span><span>Comunicação Rastreadora</span></a>
         <a href="#comb" class="sub" data-view="comb" title="Combustível"><span class="ic" data-ic="comb"></span><span>Combustível</span></a>
         <a href="#man" class="sub" data-view="man" title="Manutenção"><span class="ic" data-ic="man"></span><span>Manutenção</span></a>
         <a href="#mul" class="sub" data-view="mul" title="Multas"><span class="ic" data-ic="mul"></span><span>Multas</span></a>
@@ -1440,6 +1441,15 @@ button.avatar{border:0;cursor:pointer}
             <div class="tablewrap" id="mprev-carretas"></div></div>
         </div>
       </section>
+      <section class="view" id="view-comrast">
+        <div class="kpis" id="kpis-comrast"></div>
+        <div class="grid2">
+          <div class="card"><div class="head"><h2>Distribuição da comunicação</h2><span class="hint">frota ativa · por recência da última posição</span></div>
+            <div class="tablewrap" id="comrast-faixas"></div></div>
+          <div class="card"><div class="head"><h2>Pararam de comunicar</h2><span class="hint">com rastreador · sem posição hoje</span></div>
+            <div class="tablewrap" id="comrast-parados"></div></div>
+        </div>
+      </section>
       <section class="view" id="view-mul">
         <div class="kpis" id="kpis-mul"></div>
         <div class="card">
@@ -1797,7 +1807,7 @@ const FAIXAS = {
   '4_vencido_91_365':['Vencido 91–365d','b-dang'],
   '5_vencido_mais_365':['Vencido > 365d','b-dang'],
 };
-const VIEWS = { home:'Visão Geral', fluxo:'Fluxo de Caixa e Bancos', receber:'Contas a Receber', pagar:'Contas a Pagar', oc:'Ordens de Compra', agr:'Agregados e Terceiros', mvb:'Make vs Buy', comb:'Combustível', man:'Manutenção', com:'Clientes e RKM', clif:'Consulta de Cliente', km:'Análise de KM', torre:'Torre de Controle', veic:'Veículos', veicf:'Consulta de Veículo', mprev:'Manutenção Preventiva', mul:'Multas', prog:'Programação Inteligente', jorn:'Jornada do Motorista', jornf:'Ficha de Jornada', cex:'Custos Extras', sac:'SAC / Freetime', cop:'Copiloto Cortex', cob:'Régua de Cobrança', cont:'Contabilidade', dre:'DRE Gerencial', drecli:'DRE por Cliente', tvfat:'Painel TV — Faturamento', tvope:'Painel TV — Operação', gestao:'Gestão', srv:'Saúde do Servidor' };
+const VIEWS = { home:'Visão Geral', fluxo:'Fluxo de Caixa e Bancos', receber:'Contas a Receber', pagar:'Contas a Pagar', oc:'Ordens de Compra', agr:'Agregados e Terceiros', mvb:'Make vs Buy', comb:'Combustível', man:'Manutenção', com:'Clientes e RKM', clif:'Consulta de Cliente', km:'Análise de KM', torre:'Torre de Controle', veic:'Veículos', veicf:'Consulta de Veículo', mprev:'Manutenção Preventiva', comrast:'Comunicação Rastreadora', mul:'Multas', prog:'Programação Inteligente', jorn:'Jornada do Motorista', jornf:'Ficha de Jornada', cex:'Custos Extras', sac:'SAC / Freetime', cop:'Copiloto Cortex', cob:'Régua de Cobrança', cont:'Contabilidade', dre:'DRE Gerencial', drecli:'DRE por Cliente', tvfat:'Painel TV — Faturamento', tvope:'Painel TV — Operação', gestao:'Gestão', srv:'Saúde do Servidor' };
 const periodoLabel = p => { if(p==='atrasado') return 'Atrasado'; const [y,m]=p.split('-'); return MES[+m-1]+'/'+y.slice(2); };
 const fmtD = s => { if(!s) return ''; const [y,m,dd]=s.split('-'); return dd+'/'+m+'/'+y; };
 const esc  = s => (s??'').toString().replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
@@ -1836,6 +1846,8 @@ let sacSeq = 0;
 let DATASAC = null;
 let mprevSeq = 0;
 let DATAMPREV = null;
+let comrastSeq = 0;
+let DATACOMRAST = null;
 let ocSeq = 0;
 let agrSeq = 0;
 let mvbSeq = 0;
@@ -1923,7 +1935,7 @@ const VIEW_GROUP = {home:'',cop:'',
   fluxo:'Fin',receber:'Fin',pagar:'Fin',cob:'Fin',
   dre:'Ctr',cont:'Ctr',
   torre:'Ope',prog:'Ope',jorn:'Ope',jornf:'Ope',cex:'Ope',sac:'Ope',km:'Ope',agr:'Ope',mvb:'Ope',
-  veic:'Fro',veicf:'Fro',mprev:'Fro',comb:'Fro',man:'Fro',mul:'Fro',
+  veic:'Fro',veicf:'Fro',mprev:'Fro',comrast:'Fro',comb:'Fro',man:'Fro',mul:'Fro',
   oc:'Sup',
   tvfat:'Tv',tvope:'Tv',
   gestao:'Adm',srv:'Adm'};
@@ -2090,8 +2102,8 @@ function router(){
   document.getElementById('grpCob').style.display = cob ? 'flex' : 'none';
   document.getElementById('grpRent').style.display = rent ? 'flex' : 'none';
   const ges = (v==='gestao');
-  const fbar=document.getElementById('filterbar'); if(fbar) fbar.style.display = (cop||ges||v==='srv'||v==='veicf'||v==='clif'||v==='jorn'||v==='jornf'||v==='cex'||v==='sac'||v==='mprev'||v==='home') ? 'none' : '';
-  const metaEl=document.getElementById('meta'); if(metaEl) metaEl.style.display = (cop||ges||v==='srv'||v==='veicf'||v==='clif'||v==='jorn'||v==='jornf'||v==='cex'||v==='sac'||v==='mprev') ? 'none' : '';
+  const fbar=document.getElementById('filterbar'); if(fbar) fbar.style.display = (cop||ges||v==='srv'||v==='veicf'||v==='clif'||v==='jorn'||v==='jornf'||v==='cex'||v==='sac'||v==='mprev'||v==='comrast'||v==='home') ? 'none' : '';
+  const metaEl=document.getElementById('meta'); if(metaEl) metaEl.style.display = (cop||ges||v==='srv'||v==='veicf'||v==='clif'||v==='jorn'||v==='jornf'||v==='cex'||v==='sac'||v==='mprev'||v==='comrast') ? 'none' : '';
   // classe em vez de style: o CSS mobile usa !important no display
   const bfil=document.getElementById('btnFiltros'); if(bfil){ bfil.classList.toggle('oculto', cop||ges||v==='srv'||v==='home'); bfil.style.display=''; }
   document.getElementById('grpKm').style.display = kmv ? 'flex' : 'none';
@@ -2112,8 +2124,8 @@ function router(){
   // carga da vista: dispara se não há dados OU se os filtros visíveis
   // divergem dos usados na última carga (nunca mostrar dado velho com filtro novo)
   const key=viewKey(v);
-  const DATAMAP={fin:DATA,oc:DATAOC,agr:DATAAGR,mvb:DATAMVB,comb:DATACOMB,man:DATAMAN,com:DATACOM,clif:DATACLIF,dre:DATADRE,drecli:DATADRECLI,home:DATAHOME,km:DATAKM,torre:DATATORRE,veic:DATAVEIC,veicf:DATAVEICF,mul:DATAMUL,prog:DATAPROG,jorn:DATAJORN,jornf:DATAJORNF,cex:DATACEX,sac:DATASAC,mprev:DATAMPREV,cob:DATACOB,rent:DATARENT,cont:DATACONT,gestao:DATAGES,srv:DATASRV,tvfat:null,tvope:null,cop:(COP_MSGS.length?{}:null)};
-  const LOADMAP={fin:load,oc:loadOc,agr:loadAgr,mvb:loadMvb,comb:loadComb,man:loadMan,com:loadCom,clif:loadClif,dre:loadDre,drecli:loadDreCli,home:loadHome,km:loadKm,torre:loadTorre,veic:loadVeic,veicf:loadVeicf,mul:loadMul,prog:loadProg,jorn:loadJorn,jornf:loadJornf,cex:loadCex,sac:loadSac,mprev:loadMPrev,cob:loadCob,rent:loadRent,cont:loadCont,gestao:loadGestao,srv:loadSrv,cop:loadCop,tvfat:loadTvFat,tvope:loadTvOpe};
+  const DATAMAP={fin:DATA,oc:DATAOC,agr:DATAAGR,mvb:DATAMVB,comb:DATACOMB,man:DATAMAN,com:DATACOM,clif:DATACLIF,dre:DATADRE,drecli:DATADRECLI,home:DATAHOME,km:DATAKM,torre:DATATORRE,veic:DATAVEIC,veicf:DATAVEICF,mul:DATAMUL,prog:DATAPROG,jorn:DATAJORN,jornf:DATAJORNF,cex:DATACEX,sac:DATASAC,mprev:DATAMPREV,comrast:DATACOMRAST,cob:DATACOB,rent:DATARENT,cont:DATACONT,gestao:DATAGES,srv:DATASRV,tvfat:null,tvope:null,cop:(COP_MSGS.length?{}:null)};
+  const LOADMAP={fin:load,oc:loadOc,agr:loadAgr,mvb:loadMvb,comb:loadComb,man:loadMan,com:loadCom,clif:loadClif,dre:loadDre,drecli:loadDreCli,home:loadHome,km:loadKm,torre:loadTorre,veic:loadVeic,veicf:loadVeicf,mul:loadMul,prog:loadProg,jorn:loadJorn,jornf:loadJornf,cex:loadCex,sac:loadSac,mprev:loadMPrev,comrast:loadComRast,cob:loadCob,rent:loadRent,cont:loadCont,gestao:loadGestao,srv:loadSrv,cop:loadCop,tvfat:loadTvFat,tvope:loadTvOpe};
   if(!DATAMAP[key] || (key!=='home' && LOADEDQS[key]!==qsView(key))) LOADMAP[key]();
   // mobile: estado da navegação inferior + fecha gaveta/painel de filtros
   document.querySelectorAll('.bottomnav [data-bview]').forEach(a=>a.classList.toggle('ativo', a.dataset.bview===v));
@@ -2760,7 +2772,7 @@ function reloadCurrent(){
   // recarrega a TELA ATUAL — antes caía em load() (Financeiro) para várias telas.
   const M={home:loadHome,fluxo:load,receber:load,pagar:load,dre:loadDre,drecli:loadDreCli,oc:loadOc,
     agr:loadAgr,mvb:loadMvb,comb:loadComb,man:loadMan,com:loadCom,clif:loadClif,km:loadKm,
-    torre:loadTorre,veic:loadVeic,veicf:loadVeicf,mul:loadMul,prog:loadProg,jorn:loadJorn,jornf:loadJornf,cex:loadCex,sac:loadSac,mprev:loadMPrev,cob:loadCob,rent:loadRent,
+    torre:loadTorre,veic:loadVeic,veicf:loadVeicf,mul:loadMul,prog:loadProg,jorn:loadJorn,jornf:loadJornf,cex:loadCex,sac:loadSac,mprev:loadMPrev,comrast:loadComRast,cob:loadCob,rent:loadRent,
     cont:loadCont,gestao:loadGestao,srv:loadSrv,cop:loadCop,tvfat:loadTvFat,tvope:loadTvOpe};
   (M[currentView()]||load)();
 }
@@ -4392,6 +4404,32 @@ function renderMPrev(d){
   document.getElementById('mprev-tracoes').innerHTML=`<table><thead><tr><th>Frota</th><th>Placa</th><th class="num">Faltam</th><th class="num">Intervalo</th><th>Status</th></tr></thead><tbody>${tr}</tbody></table>`;
   const cr=(d.carretas||[]).map(c=>`<tr><td style="font-family:var(--mono);font-weight:600">${esc(c.frota||'—')}</td><td>${esc(c.veiculo||'')}</td><td class="num" style="${c.dias<0?'color:var(--red);font-weight:700':''}">${c.dias<0?('vencida há '+Math.abs(c.dias)):('em '+c.dias)} dias</td><td>${c.bau?'<span style="color:var(--n500)">baú</span>':''}</td><td>${badge(c.status)}</td></tr>`).join('')||'<tr><td colspan="5" style="color:var(--n500)">nenhuma carreta a revisar</td></tr>';
   document.getElementById('mprev-carretas').innerHTML=`<table><thead><tr><th>Frota</th><th>Placa</th><th class="num">Prazo</th><th>Tipo</th><th>Status</th></tr></thead><tbody>${cr}</tbody></table>`;
+}
+// ---------------- Comunicação Rastreadora ----------------
+async function loadComRast(){
+  const seq=++comrastSeq, btn=document.getElementById('btnRefresh'); if(btn) btn.disabled=true;
+  document.getElementById('content').classList.add('loading');
+  skelKpis('kpis-comrast',4);
+  try{
+    const r=await fetch('/api/frota/comunicacao-rastreadora',{cache:'no-store'});
+    const d=await r.json(); if(seq!==comrastSeq) return;
+    if(!r.ok){ showBanner(d.mensagem||'Erro ao consultar a comunicação da frota.', d.detalhe); return; }
+    hideBanner(); DATACOMRAST=d; LOADEDQS.comrast='1'; renderComRast(d);
+  }catch(e){ if(seq===comrastSeq) showBanner('Não foi possível falar com a API.', e.message); }
+  finally{ if(seq===comrastSeq){ if(btn) btn.disabled=false; document.getElementById('content').classList.remove('loading'); } }
+}
+function renderComRast(d){
+  const k=d.kpis||{};
+  document.getElementById('kpis-comrast').innerHTML=[
+    kpi('Comunicando hoje', (k.comunicando_hoje||0).toLocaleString('pt-BR'), 'posição recebida hoje','pos'),
+    kpi('Pararam de comunicar', (k.parados||0).toLocaleString('pt-BR'), 'com rastreador, sem posição hoje', (k.parados||0)>0?'neg':'pos'),
+    kpi('Com rastreador', (k.com_rastreador||0).toLocaleString('pt-BR'), 'frota ativa com rastreador cadastrado',''),
+    kpi('Sem posição registrada', (k.sem_posicao||0).toLocaleString('pt-BR'), 'sem histórico (ex.: carretas)',''),
+  ].join('');
+  const fx=(d.faixas||[]).map(f=>`<tr><td>${esc(f.faixa)}</td><td class="num">${f.n.toLocaleString('pt-BR')}</td></tr>`).join('')||'<tr><td colspan="2" style="color:var(--n500)">—</td></tr>';
+  document.getElementById('comrast-faixas').innerHTML=`<table><thead><tr><th>Recência da última posição</th><th class="num">Veículos</th></tr></thead><tbody>${fx}</tbody></table>`;
+  const pr=(d.parados||[]).map(p=>`<tr><td style="font-family:var(--mono);font-weight:600">${esc(p.frota||p.placa||'—')}</td><td>${esc(p.placa||'')}</td><td>${esc(p.tipofrota||'')}</td><td class="num" style="color:var(--red);font-weight:700">${p.dias} dias</td><td>${esc(p.ignicao||'')}</td><td>${esc(p.posicao||'')}</td></tr>`).join('')||'<tr><td colspan="6" style="color:var(--n500)">todos os rastreados comunicaram hoje</td></tr>';
+  document.getElementById('comrast-parados').innerHTML=`<table><thead><tr><th>Frota</th><th>Placa</th><th>Tipo</th><th class="num">Sem comunicar</th><th>Ignição</th><th>Posição</th></tr></thead><tbody>${pr}</tbody></table>`;
 }
 async function loadTorre(){
   skelKpis('kpis-torre',4);
@@ -6084,6 +6122,7 @@ boot();
         <a href="#comb" onclick="fecharDrawer()"><span class="ic" data-ic="comb"></span>Combustível</a>
         <a href="#man" onclick="fecharDrawer()"><span class="ic" data-ic="man"></span>Manutenção</a>
         <a href="#mprev" onclick="fecharDrawer()"><span class="ic" data-ic="man"></span>Manutenção Preventiva</a>
+        <a href="#comrast" onclick="fecharDrawer()"><span class="ic" data-ic="tor"></span>Comunicação Rastreadora</a>
         <a href="#mul" onclick="fecharDrawer()"><span class="ic" data-ic="mul"></span>Multas</a>
       </div>
     </div>

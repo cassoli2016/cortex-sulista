@@ -13,6 +13,7 @@ import logging
 from datetime import date
 
 from . import queries
+from . import db
 
 log = logging.getLogger("cortex.alertas")
 
@@ -100,6 +101,19 @@ def build_alertas() -> list[dict]:
                 "Detalhe: Operação > Jornada do Motorista.")
     except Exception as exc:  # noqa: BLE001
         log.warning("alertas jornada: %s", exc)
+
+    try:
+        r = db.query("""SELECT count(DISTINCT (grupo,empresa,filial,unidade,
+              diferenciadornumero,serie,numero)) AS n
+            FROM coleta_ocorrencia
+            WHERE ocorrencia = 261 AND dtinc >= now() - interval '72 hours'""")
+        n = (r[0]["n"] if r else 0) or 0
+        if n:
+            add("critico", "Cargas críticas nas últimas 72h",
+                f"{n} coleta(s) marcada(s) como carga crítica nas últimas 72h — "
+                "exigem acompanhamento. Detalhe: Operação > Torre de Controle.")
+    except Exception as exc:  # noqa: BLE001
+        log.warning("alertas cargas criticas: %s", exc)
 
     ordem = {"critico": 0, "atencao": 1, "info": 2}
     itens.sort(key=lambda i: ordem.get(i["nivel"], 9))
