@@ -1465,6 +1465,12 @@ button.avatar{border:0;cursor:pointer}
       </section>
       <section class="view" id="view-qual">
         <div class="kpis" id="kpis-qual"></div>
+        <div class="grid2">
+          <div class="card"><div class="head"><h2>Atingimento ESG</h2><span class="hint">realizado em % da meta · verde = na meta</span></div>
+            <div class="chartwrap"><svg id="chartQualEsg" viewBox="0 0 960 200" preserveAspectRatio="xMidYMid meet" role="img"></svg></div></div>
+          <div class="card"><div class="head"><h2>Certidões por situação</h2><span class="hint">semáforo de vencimento</span></div>
+            <div class="chartwrap" style="min-height:210px"><svg id="chartQualCert" viewBox="0 0 320 190" preserveAspectRatio="xMidYMid meet" style="min-width:300px;max-width:520px;margin:0 auto" role="img"></svg></div></div>
+        </div>
         <div class="card">
           <div class="head"><h2>Indicadores ESG</h2><span class="hint">meta × realizado (mês mais recente) · matriz</span></div>
           <div class="tablewrap" id="qual-esg"></div>
@@ -1491,6 +1497,12 @@ button.avatar{border:0;cursor:pointer}
       </section>
       <section class="view" id="view-crm">
         <div class="kpis" id="kpis-crm"></div>
+        <div class="grid2">
+          <div class="card"><div class="head"><h2>Leads por temperatura</h2><span class="hint">distribuição do funil</span></div>
+            <div class="chartwrap" style="min-height:210px"><svg id="chartCrmTemp" viewBox="0 0 320 190" preserveAspectRatio="xMidYMid meet" style="min-width:300px;max-width:520px;margin:0 auto" role="img"></svg></div></div>
+          <div class="card"><div class="head"><h2>Maiores oportunidades</h2><span class="hint">potencial de receita · top 14</span></div>
+            <div class="chartwrap"><svg id="chartCrmPot" viewBox="0 0 960 200" preserveAspectRatio="xMidYMid meet" role="img"></svg></div></div>
+        </div>
         <div class="card">
           <div class="head"><h2>Leads ativos</h2><span class="hint">funil comercial · por potencial de receita</span></div>
           <div class="tablewrap" id="crm-leads"></div>
@@ -4641,6 +4653,17 @@ function renderQual(d){
     kpi('NCs em aberto', (k.ncs_abertas||0).toLocaleString('pt-BR'), (k.auditorias||0)+' auditoria(s)', (k.ncs_abertas||0)>0?'neg':''),
   ].join('');
   const fmtN=v=>v!=null?v.toLocaleString('pt-BR',{maximumFractionDigits:2}):'—';
+  // barras de atingimento ESG (realizado em % da meta) coloridas por status
+  const corSt={ok:CC.verde, fora:CC.vermelho, sem_meta:CC.n400};
+  chartHBars('chartQualEsg', (d.indicadores||[]).filter(i=>i.meta).map(i=>({
+    rotulo:i.indicador, valor: Math.round(100*(i.realizado||0)/i.meta), _s:i.status})),
+    {cor:r=>corSt[r._s]||CC.n400, fmt:v=>v+'%', labelW:260});
+  // donut de certidões por situação
+  const corC={vencida:CC.vermelho, vence_15:CC.vermelho, vence_30:CC.amarelo, ok:CC.verde, sem_data:CC.n400};
+  const rotC={vencida:'Vencidas', vence_15:'Vence ≤15d', vence_30:'Vence ≤30d', ok:'Em dia', sem_data:'Sem data'};
+  const porC={}; (d.certidoes||[]).forEach(c=>{porC[c.status]=(porC[c.status]||0)+1;});
+  chartDonut('chartQualCert', Object.keys(porC).map(s=>({rotulo:rotC[s]||s, valor:porC[s], cor:corC[s]||CC.n400})),
+    {fmt:v=>v+' doc(s)', centro:String((d.certidoes||[]).length), centroSub:'certidões'});
   const esB={ok:['b-ok','na meta'],fora:['b-dang','fora da meta'],sem_meta:['','sem meta']};
   const eg=(d.indicadores||[]).map(i=>{const [cl,lb]=esB[i.status]||['',''];
     return `<tr><td>${esc(i.indicador)}</td><td class="num">${esc(i.periodo)}</td><td class="num">${fmtN(i.meta)}</td><td class="num" style="${i.status==='fora'?'color:var(--red);font-weight:700':''}">${fmtN(i.realizado)}</td><td>${i.menor_melhor?'menor é melhor':'maior é melhor'}</td><td><span class="badge ${cl}">${lb}</span></td></tr>`;
@@ -4702,6 +4725,14 @@ function renderCrm(d){
     kpi('Projetos em execução', (k.projetos_execucao||0).toLocaleString('pt-BR'), 'no pipeline',''),
     kpi('ROB do pipeline', BRL.format(k.rob_pipeline||0), 'em execução + não iniciados','pos'),
   ].join('');
+  // donut de temperatura + barras de potencial
+  const leads=d.leads||[];
+  const porTemp={}; leads.forEach(l=>{const t=l.temperatura||'—'; porTemp[t]=(porTemp[t]||0)+1;});
+  const corTemp={Quente:CC.vermelho, Morno:CC.amarelo, Frio:CC.azul};
+  chartDonut('chartCrmTemp', Object.keys(porTemp).map(t=>({rotulo:t, valor:porTemp[t], cor:corTemp[t]||CC.n400})),
+    {fmt:v=>v+' lead(s)', centro:String(leads.length), centroSub:'leads ativos'});
+  chartHBars('chartCrmPot', leads.slice().sort((a,b)=>(b.potencial||0)-(a.potencial||0)).map(l=>({rotulo:l.cliente, valor:l.potencial||0, _t:l.temperatura})),
+    {cor:r=>corTemp[r._t]||CC.roxo, fmt:brlAbbr});
   const tempB=t=>t==='Quente'?'b-dang':(t==='Morno'?'b-warn':'');
   const lg=(d.leads||[]).map(l=>`<tr><td>${esc(l.cliente)}</td><td>${esc(l.segmento||'')}</td><td><span class="badge ${tempB(l.temperatura)}">${esc(l.temperatura)}</span></td><td>${esc(l.status)}</td><td class="num">${BRL.format(l.potencial||0)}</td><td class="num">${l.previsao?fmtD(l.previsao):'—'}</td></tr>`).join('')||'<tr><td colspan="6" style="color:var(--n500)">sem leads ativos</td></tr>';
   document.getElementById('crm-leads').innerHTML=`<table><thead><tr><th>Cliente/Lead</th><th>Segmento</th><th>Temperatura</th><th>Status</th><th class="num">Potencial</th><th class="num">Previsão</th></tr></thead><tbody>${lg}</tbody></table>`;
