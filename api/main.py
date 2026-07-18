@@ -24,8 +24,34 @@ log = logging.getLogger("cortex.financeiro")
 # docs/openapi desligados: o painel é exposto na internet via Cloudflare Tunnel
 app = FastAPI(title="Cortex Sulista — Financeiro (MVP)",
               docs_url=None, redoc_url=None, openapi_url=None)
+class SecurityHeadersMiddleware:
+    """ASGI puro — MESMO motivo do AuthMiddleware: @app.middleware("http")
+    (Starlette BaseHTTPMiddleware) bufferiza a resposta e quebraria o SSE
+    do copiloto. HSTS de propósito FORA daqui: a app roda tanto local
+    (http://127.0.0.1, dev) quanto atrás do Cloudflare Tunnel (https,
+    produção) — forçar HSTS quebraria o acesso local."""
+
+    def __init__(self, app):
+        self.app = app
+
+    async def __call__(self, scope, receive, send):
+        if scope["type"] != "http":
+            return await self.app(scope, receive, send)
+
+        async def send_com_headers(message):
+            if message["type"] == "http.response.start":
+                message.setdefault("headers", []).extend([
+                    (b"x-frame-options", b"DENY"),
+                    (b"x-content-type-options", b"nosniff"),
+                ])
+            await send(message)
+
+        await self.app(scope, receive, send_com_headers)
+
+
 app.add_middleware(GZipMiddleware, minimum_size=2048)
 app.add_middleware(auth.AuthMiddleware)
+app.add_middleware(SecurityHeadersMiddleware)
 app.include_router(auth.router_auth)
 app.include_router(auth.router_gestao)
 STATIC = Path(__file__).resolve().parent / "static"
@@ -61,8 +87,7 @@ def gestao_servidor() -> JSONResponse:
     except Exception as exc:  # noqa: BLE001
         log.warning("saude do servidor falhou: %s", exc)
         return JSONResponse(status_code=500, content={
-            "erro": "erro_coleta", "mensagem": "Erro ao coletar a saúde do servidor.",
-            "detalhe": str(exc)})
+            "erro": "erro_coleta", "mensagem": "Erro ao coletar a saúde do servidor."})
 
 
 @app.get("/api/financeiro/filtros")
@@ -70,7 +95,8 @@ def filtros() -> JSONResponse:
     try:
         return JSONResponse(queries.get_filtros())
     except Exception as exc:  # noqa: BLE001
-        return JSONResponse(status_code=503, content={"erro": "banco_inacessivel", "detalhe": str(exc)})
+        log.warning("banco inacessivel: %s", exc)
+        return JSONResponse(status_code=503, content={"erro": "banco_inacessivel"})
 
 
 @app.get("/api/financeiro/dre")
@@ -90,17 +116,16 @@ def dre(comp_de: str | None = None, comp_ate: str | None = None) -> JSONResponse
     try:
         return JSONResponse(queries.get_dre(comp_de, comp_ate))
     except psycopg.OperationalError as exc:
+        log.warning("banco inacessivel: %s", exc)
         return JSONResponse(status_code=503, content={
             "erro": "banco_inacessivel",
             "mensagem": "Sem conexão com o banco. O túnel SSH está aberto?",
-            "detalhe": str(exc),
         })
     except Exception as exc:  # noqa: BLE001
         log.warning("dre falhou: %s", exc)
         return JSONResponse(status_code=500, content={
             "erro": "erro_consulta",
             "mensagem": "Erro ao executar a consulta da DRE.",
-            "detalhe": str(exc),
         })
 
 
@@ -122,17 +147,16 @@ def dre_por_cliente(comp_de: str | None = None, comp_ate: str | None = None,
     try:
         return JSONResponse(dre_cliente.get_dre_cliente(comp_de, comp_ate, filial))
     except psycopg.OperationalError as exc:
+        log.warning("banco inacessivel: %s", exc)
         return JSONResponse(status_code=503, content={
             "erro": "banco_inacessivel",
             "mensagem": "Sem conexão com o banco. O túnel SSH está aberto?",
-            "detalhe": str(exc),
         })
     except Exception as exc:  # noqa: BLE001
         log.warning("dre-cliente falhou: %s", exc)
         return JSONResponse(status_code=500, content={
             "erro": "erro_consulta",
             "mensagem": "Erro ao calcular a DRE por cliente.",
-            "detalhe": str(exc),
         })
 
 
@@ -172,17 +196,16 @@ def ordens_compra(
             filial, dt_de, dt_ate,
             status=status, fornecedor=fornecedor, criador=criador, aprovador=aprovador))
     except psycopg.OperationalError as exc:
+        log.warning("banco inacessivel: %s", exc)
         return JSONResponse(status_code=503, content={
             "erro": "banco_inacessivel",
             "mensagem": "Sem conexão com o banco. O túnel SSH está aberto?",
-            "detalhe": str(exc),
         })
     except Exception as exc:  # noqa: BLE001
         log.warning("ordens_compra falhou: %s", exc)
         return JSONResponse(status_code=500, content={
             "erro": "erro_consulta",
             "mensagem": "Erro ao consultar ordens de compra.",
-            "detalhe": str(exc),
         })
 
 
@@ -216,17 +239,16 @@ def agregados(
         return JSONResponse(queries.get_agregados(
             filial, dt_de, dt_ate, modalidade=modalidade, transportador=transportador))
     except psycopg.OperationalError as exc:
+        log.warning("banco inacessivel: %s", exc)
         return JSONResponse(status_code=503, content={
             "erro": "banco_inacessivel",
             "mensagem": "Sem conexão com o banco. O túnel SSH está aberto?",
-            "detalhe": str(exc),
         })
     except Exception as exc:  # noqa: BLE001
         log.warning("agregados falhou: %s", exc)
         return JSONResponse(status_code=500, content={
             "erro": "erro_consulta",
             "mensagem": "Erro ao consultar agregados e terceiros.",
-            "detalhe": str(exc),
         })
 
 
@@ -250,17 +272,16 @@ def make_vs_buy(comp_de: str | None = None, comp_ate: str | None = None) -> JSON
     try:
         return JSONResponse(queries.get_make_vs_buy(comp_de, comp_ate))
     except psycopg.OperationalError as exc:
+        log.warning("banco inacessivel: %s", exc)
         return JSONResponse(status_code=503, content={
             "erro": "banco_inacessivel",
             "mensagem": "Sem conexão com o banco. O túnel SSH está aberto?",
-            "detalhe": str(exc),
         })
     except Exception as exc:  # noqa: BLE001
         log.warning("make_vs_buy falhou: %s", exc)
         return JSONResponse(status_code=500, content={
             "erro": "erro_consulta",
             "mensagem": "Erro ao calcular o make-vs-buy.",
-            "detalhe": str(exc),
         })
 
 
@@ -297,15 +318,14 @@ def combustivel(
             dt_de, dt_ate, modalidade=modalidade, placa=placa, posto=posto,
             combustivel=combustivel))
     except psycopg.OperationalError as exc:
+        log.warning("banco inacessivel: %s", exc)
         return JSONResponse(status_code=503, content={
             "erro": "banco_inacessivel",
-            "mensagem": "Sem conexão com o banco. O túnel SSH está aberto?",
-            "detalhe": str(exc)})
+            "mensagem": "Sem conexão com o banco. O túnel SSH está aberto?"})
     except Exception as exc:  # noqa: BLE001
         log.warning("combustivel falhou: %s", exc)
         return JSONResponse(status_code=500, content={
-            "erro": "erro_consulta", "mensagem": "Erro ao consultar combustível.",
-            "detalhe": str(exc)})
+            "erro": "erro_consulta", "mensagem": "Erro ao consultar combustível."})
 
 
 @app.get("/api/frota/manutencao")
@@ -330,15 +350,14 @@ def manutencao(
     try:
         return JSONResponse(queries.get_manutencao(filial, dt_de, dt_ate, placa=placa))
     except psycopg.OperationalError as exc:
+        log.warning("banco inacessivel: %s", exc)
         return JSONResponse(status_code=503, content={
             "erro": "banco_inacessivel",
-            "mensagem": "Sem conexão com o banco. O túnel SSH está aberto?",
-            "detalhe": str(exc)})
+            "mensagem": "Sem conexão com o banco. O túnel SSH está aberto?"})
     except Exception as exc:  # noqa: BLE001
         log.warning("manutencao falhou: %s", exc)
         return JSONResponse(status_code=500, content={
-            "erro": "erro_consulta", "mensagem": "Erro ao consultar manutenção.",
-            "detalhe": str(exc)})
+            "erro": "erro_consulta", "mensagem": "Erro ao consultar manutenção."})
 
 
 @app.get("/api/comercial/clientes")
@@ -363,15 +382,14 @@ def comercial_clientes(
     try:
         return JSONResponse(queries.get_comercial(filial, dt_de, dt_ate, cliente=cliente))
     except psycopg.OperationalError as exc:
+        log.warning("banco inacessivel: %s", exc)
         return JSONResponse(status_code=503, content={
             "erro": "banco_inacessivel",
-            "mensagem": "Sem conexão com o banco. O túnel SSH está aberto?",
-            "detalhe": str(exc)})
+            "mensagem": "Sem conexão com o banco. O túnel SSH está aberto?"})
     except Exception as exc:  # noqa: BLE001
         log.warning("comercial falhou: %s", exc)
         return JSONResponse(status_code=500, content={
-            "erro": "erro_consulta", "mensagem": "Erro ao consultar o comercial.",
-            "detalhe": str(exc)})
+            "erro": "erro_consulta", "mensagem": "Erro ao consultar o comercial."})
 
 
 @app.get("/api/visao-geral")
@@ -379,15 +397,14 @@ def visao_geral() -> JSONResponse:
     try:
         return JSONResponse(queries.get_visao_geral())
     except psycopg.OperationalError as exc:
+        log.warning("banco inacessivel: %s", exc)
         return JSONResponse(status_code=503, content={
             "erro": "banco_inacessivel",
-            "mensagem": "Sem conexão com o banco. O túnel SSH está aberto?",
-            "detalhe": str(exc)})
+            "mensagem": "Sem conexão com o banco. O túnel SSH está aberto?"})
     except Exception as exc:  # noqa: BLE001
         log.warning("visao_geral falhou: %s", exc)
         return JSONResponse(status_code=500, content={
-            "erro": "erro_consulta", "mensagem": "Erro ao montar a visão geral.",
-            "detalhe": str(exc)})
+            "erro": "erro_consulta", "mensagem": "Erro ao montar a visão geral."})
 
 
 @app.get("/api/financeiro/cobranca")
@@ -396,15 +413,14 @@ def cobranca(filial: int | None = None, cliente: str | None = None) -> JSONRespo
     try:
         return JSONResponse(queries.get_cobranca(filial, cliente=cliente))
     except psycopg.OperationalError as exc:
+        log.warning("banco inacessivel: %s", exc)
         return JSONResponse(status_code=503, content={
             "erro": "banco_inacessivel",
-            "mensagem": "Sem conexão com o banco. O túnel SSH está aberto?",
-            "detalhe": str(exc)})
+            "mensagem": "Sem conexão com o banco. O túnel SSH está aberto?"})
     except Exception as exc:  # noqa: BLE001
         log.warning("cobranca falhou: %s", exc)
         return JSONResponse(status_code=500, content={
-            "erro": "erro_consulta", "mensagem": "Erro ao consultar a cobrança.",
-            "detalhe": str(exc)})
+            "erro": "erro_consulta", "mensagem": "Erro ao consultar a cobrança."})
 
 
 @app.get("/api/operacao/analise-km")
@@ -432,15 +448,14 @@ def analise_km(
     try:
         return JSONResponse(queries.get_analise_km(filial, dt_de, dt_ate, modalidade=modalidade))
     except psycopg.OperationalError as exc:
+        log.warning("banco inacessivel: %s", exc)
         return JSONResponse(status_code=503, content={
             "erro": "banco_inacessivel",
-            "mensagem": "Sem conexão com o banco. O túnel SSH está aberto?",
-            "detalhe": str(exc)})
+            "mensagem": "Sem conexão com o banco. O túnel SSH está aberto?"})
     except Exception as exc:  # noqa: BLE001
         log.warning("analise_km falhou: %s", exc)
         return JSONResponse(status_code=500, content={
-            "erro": "erro_consulta", "mensagem": "Erro ao consultar a análise de km.",
-            "detalhe": str(exc)})
+            "erro": "erro_consulta", "mensagem": "Erro ao consultar a análise de km."})
 
 
 @app.get("/api/operacao/torre")
@@ -448,15 +463,14 @@ def torre(filial: int | None = None) -> JSONResponse:
     try:
         return JSONResponse(queries.get_torre(filial))
     except psycopg.OperationalError as exc:
+        log.warning("banco inacessivel: %s", exc)
         return JSONResponse(status_code=503, content={
             "erro": "banco_inacessivel",
-            "mensagem": "Sem conexão com o banco. O túnel SSH está aberto?",
-            "detalhe": str(exc)})
+            "mensagem": "Sem conexão com o banco. O túnel SSH está aberto?"})
     except Exception as exc:  # noqa: BLE001
         log.warning("torre falhou: %s", exc)
         return JSONResponse(status_code=500, content={
-            "erro": "erro_consulta", "mensagem": "Erro ao montar a torre de controle.",
-            "detalhe": str(exc)})
+            "erro": "erro_consulta", "mensagem": "Erro ao montar a torre de controle."})
 
 
 @app.get("/api/frota/veiculos")
@@ -471,15 +485,14 @@ def veiculos(modalidade: str | None = None, situacao: str = "ativos") -> JSONRes
     try:
         return JSONResponse(queries.get_veiculos(modalidade=modalidade, situacao=situacao))
     except psycopg.OperationalError as exc:
+        log.warning("banco inacessivel: %s", exc)
         return JSONResponse(status_code=503, content={
             "erro": "banco_inacessivel",
-            "mensagem": "Sem conexão com o banco. O túnel SSH está aberto?",
-            "detalhe": str(exc)})
+            "mensagem": "Sem conexão com o banco. O túnel SSH está aberto?"})
     except Exception as exc:  # noqa: BLE001
         log.warning("veiculos falhou: %s", exc)
         return JSONResponse(status_code=500, content={
-            "erro": "erro_consulta", "mensagem": "Erro ao consultar os veículos.",
-            "detalhe": str(exc)})
+            "erro": "erro_consulta", "mensagem": "Erro ao consultar os veículos."})
 
 
 @app.get("/api/frota/veiculo")
@@ -491,15 +504,14 @@ def veiculo_ficha(placa: str | None = None) -> JSONResponse:
     try:
         return JSONResponse(queries.get_veiculo_ficha(placa))
     except psycopg.OperationalError as exc:
+        log.warning("banco inacessivel: %s", exc)
         return JSONResponse(status_code=503, content={
             "erro": "banco_inacessivel",
-            "mensagem": "Sem conexão com o banco. O túnel SSH está aberto?",
-            "detalhe": str(exc)})
+            "mensagem": "Sem conexão com o banco. O túnel SSH está aberto?"})
     except Exception as exc:  # noqa: BLE001
         log.warning("veiculo_ficha falhou: %s", exc)
         return JSONResponse(status_code=500, content={
-            "erro": "erro_consulta", "mensagem": "Erro ao consultar o veículo.",
-            "detalhe": str(exc)})
+            "erro": "erro_consulta", "mensagem": "Erro ao consultar o veículo."})
 
 
 @app.get("/api/comercial/crm")
@@ -507,15 +519,14 @@ def crm() -> JSONResponse:
     try:
         return JSONResponse(queries.get_crm())
     except psycopg.OperationalError as exc:
+        log.warning("banco inacessivel: %s", exc)
         return JSONResponse(status_code=503, content={
             "erro": "banco_inacessivel",
-            "mensagem": "Sem conexão com o banco. O túnel SSH está aberto?",
-            "detalhe": str(exc)})
+            "mensagem": "Sem conexão com o banco. O túnel SSH está aberto?"})
     except Exception as exc:  # noqa: BLE001
         log.warning("crm falhou: %s", exc)
         return JSONResponse(status_code=500, content={
-            "erro": "erro_consulta", "mensagem": "Erro ao consultar o CRM.",
-            "detalhe": str(exc)})
+            "erro": "erro_consulta", "mensagem": "Erro ao consultar o CRM."})
 
 
 @app.get("/api/comercial/cliente")
@@ -538,15 +549,14 @@ def cliente_ficha(cliente: str | None = None, comp_de: str | None = None,
     try:
         return JSONResponse(queries.get_cliente_ficha(cliente, comp_de, comp_ate))
     except psycopg.OperationalError as exc:
+        log.warning("banco inacessivel: %s", exc)
         return JSONResponse(status_code=503, content={
             "erro": "banco_inacessivel",
-            "mensagem": "Sem conexão com o banco. O túnel SSH está aberto?",
-            "detalhe": str(exc)})
+            "mensagem": "Sem conexão com o banco. O túnel SSH está aberto?"})
     except Exception as exc:  # noqa: BLE001
         log.warning("cliente_ficha falhou: %s", exc)
         return JSONResponse(status_code=500, content={
-            "erro": "erro_consulta", "mensagem": "Erro ao consultar o cliente.",
-            "detalhe": str(exc)})
+            "erro": "erro_consulta", "mensagem": "Erro ao consultar o cliente."})
 
 
 def _comp_defaults(comp_de: str | None, comp_ate: str | None):
@@ -577,15 +587,14 @@ def jornada_painel(comp_de: str | None = None, comp_ate: str | None = None,
     try:
         return JSONResponse(queries.get_jornada(comp_de, comp_ate, busca))
     except psycopg.OperationalError as exc:
+        log.warning("banco inacessivel: %s", exc)
         return JSONResponse(status_code=503, content={
             "erro": "banco_inacessivel",
-            "mensagem": "Sem conexão com o banco. O túnel SSH está aberto?",
-            "detalhe": str(exc)})
+            "mensagem": "Sem conexão com o banco. O túnel SSH está aberto?"})
     except Exception as exc:  # noqa: BLE001
         log.warning("jornada_painel falhou: %s", exc)
         return JSONResponse(status_code=500, content={
-            "erro": "erro_consulta", "mensagem": "Erro ao consultar a jornada.",
-            "detalhe": str(exc)})
+            "erro": "erro_consulta", "mensagem": "Erro ao consultar a jornada."})
 
 
 @app.get("/api/operacao/custos-extras")
@@ -596,15 +605,14 @@ def custos_extras(dt_de: str | None = None, dt_ate: str | None = None) -> JSONRe
     try:
         return JSONResponse(queries.get_custos_extras(dt_de, dt_ate))
     except psycopg.OperationalError as exc:
+        log.warning("banco inacessivel: %s", exc)
         return JSONResponse(status_code=503, content={
             "erro": "banco_inacessivel",
-            "mensagem": "Sem conexão com o banco. O túnel SSH está aberto?",
-            "detalhe": str(exc)})
+            "mensagem": "Sem conexão com o banco. O túnel SSH está aberto?"})
     except Exception as exc:  # noqa: BLE001
         log.warning("custos_extras falhou: %s", exc)
         return JSONResponse(status_code=500, content={
-            "erro": "erro_consulta", "mensagem": "Erro ao consultar os custos extras.",
-            "detalhe": str(exc)})
+            "erro": "erro_consulta", "mensagem": "Erro ao consultar os custos extras."})
 
 
 @app.get("/api/rh/vagas")
@@ -612,28 +620,27 @@ def rh_vagas() -> JSONResponse:
     try:
         return JSONResponse(queries.get_rh())
     except psycopg.OperationalError as exc:
+        log.warning("banco inacessivel: %s", exc)
         return JSONResponse(status_code=503, content={
             "erro": "banco_inacessivel",
-            "mensagem": "Sem conexão com o banco. O túnel SSH está aberto?",
-            "detalhe": str(exc)})
+            "mensagem": "Sem conexão com o banco. O túnel SSH está aberto?"})
     except Exception as exc:  # noqa: BLE001
         log.warning("rh_vagas falhou: %s", exc)
         return JSONResponse(status_code=500, content={
-            "erro": "erro_consulta", "mensagem": "Erro ao consultar as vagas de RH.",
-            "detalhe": str(exc)})
+            "erro": "erro_consulta", "mensagem": "Erro ao consultar as vagas de RH."})
 
 
 def _folha_erro(exc: Exception) -> JSONResponse:
     import oracledb
     if isinstance(exc, oracledb.Error) or isinstance(exc, RuntimeError):
+        log.warning("folha indisponivel (Oracle): %s", exc)
         return JSONResponse(status_code=503, content={
             "erro": "folha_indisponivel",
             "mensagem": "Sem conexão com o banco da folha (GLOBUS/Oracle). "
-                        "Rode a partir da máquina de produção (mesma rede) e confira o .env.",
-            "detalhe": str(exc)[:200]})
+                        "Rode a partir da máquina de produção (mesma rede) e confira o .env."})
     log.warning("folha falhou: %s", exc)
     return JSONResponse(status_code=500, content={
-        "erro": "erro_consulta", "mensagem": "Erro ao consultar a folha.", "detalhe": str(exc)[:200]})
+        "erro": "erro_consulta", "mensagem": "Erro ao consultar a folha."})
 
 
 @app.get("/api/rh/headcount")
@@ -681,15 +688,14 @@ def qualidade() -> JSONResponse:
     try:
         return JSONResponse(queries.get_qualidade())
     except psycopg.OperationalError as exc:
+        log.warning("banco inacessivel: %s", exc)
         return JSONResponse(status_code=503, content={
             "erro": "banco_inacessivel",
-            "mensagem": "Sem conexão com o banco. O túnel SSH está aberto?",
-            "detalhe": str(exc)})
+            "mensagem": "Sem conexão com o banco. O túnel SSH está aberto?"})
     except Exception as exc:  # noqa: BLE001
         log.warning("qualidade falhou: %s", exc)
         return JSONResponse(status_code=500, content={
-            "erro": "erro_consulta", "mensagem": "Erro ao consultar a qualidade.",
-            "detalhe": str(exc)})
+            "erro": "erro_consulta", "mensagem": "Erro ao consultar a qualidade."})
 
 
 @app.get("/api/frota/comunicacao-rastreadora")
@@ -697,15 +703,14 @@ def comunicacao_rastreadora() -> JSONResponse:
     try:
         return JSONResponse(queries.get_comunicacao_rastreadora())
     except psycopg.OperationalError as exc:
+        log.warning("banco inacessivel: %s", exc)
         return JSONResponse(status_code=503, content={
             "erro": "banco_inacessivel",
-            "mensagem": "Sem conexão com o banco. O túnel SSH está aberto?",
-            "detalhe": str(exc)})
+            "mensagem": "Sem conexão com o banco. O túnel SSH está aberto?"})
     except Exception as exc:  # noqa: BLE001
         log.warning("comunicacao_rastreadora falhou: %s", exc)
         return JSONResponse(status_code=500, content={
-            "erro": "erro_consulta", "mensagem": "Erro ao consultar a comunicação da frota.",
-            "detalhe": str(exc)})
+            "erro": "erro_consulta", "mensagem": "Erro ao consultar a comunicação da frota."})
 
 
 @app.get("/api/frota/manutencao-preventiva")
@@ -713,15 +718,14 @@ def manutencao_preventiva() -> JSONResponse:
     try:
         return JSONResponse(queries.get_manutencao_preventiva())
     except psycopg.OperationalError as exc:
+        log.warning("banco inacessivel: %s", exc)
         return JSONResponse(status_code=503, content={
             "erro": "banco_inacessivel",
-            "mensagem": "Sem conexão com o banco. O túnel SSH está aberto?",
-            "detalhe": str(exc)})
+            "mensagem": "Sem conexão com o banco. O túnel SSH está aberto?"})
     except Exception as exc:  # noqa: BLE001
         log.warning("manutencao_preventiva falhou: %s", exc)
         return JSONResponse(status_code=500, content={
-            "erro": "erro_consulta", "mensagem": "Erro ao consultar as revisões preventivas.",
-            "detalhe": str(exc)})
+            "erro": "erro_consulta", "mensagem": "Erro ao consultar as revisões preventivas."})
 
 
 @app.get("/api/suprimentos/custos")
@@ -732,15 +736,14 @@ def suprimentos_custos(dt_de: str | None = None, dt_ate: str | None = None) -> J
     try:
         return JSONResponse(queries.get_custos(dt_de, dt_ate))
     except psycopg.OperationalError as exc:
+        log.warning("banco inacessivel: %s", exc)
         return JSONResponse(status_code=503, content={
             "erro": "banco_inacessivel",
-            "mensagem": "Sem conexão com o banco. O túnel SSH está aberto?",
-            "detalhe": str(exc)})
+            "mensagem": "Sem conexão com o banco. O túnel SSH está aberto?"})
     except Exception as exc:  # noqa: BLE001
         log.warning("suprimentos_custos falhou: %s", exc)
         return JSONResponse(status_code=500, content={
-            "erro": "erro_consulta", "mensagem": "Erro ao consultar os custos.",
-            "detalhe": str(exc)})
+            "erro": "erro_consulta", "mensagem": "Erro ao consultar os custos."})
 
 
 @app.get("/api/operacao/portaria")
@@ -748,15 +751,14 @@ def portaria() -> JSONResponse:
     try:
         return JSONResponse(queries.get_portaria())
     except psycopg.OperationalError as exc:
+        log.warning("banco inacessivel: %s", exc)
         return JSONResponse(status_code=503, content={
             "erro": "banco_inacessivel",
-            "mensagem": "Sem conexão com o banco. O túnel SSH está aberto?",
-            "detalhe": str(exc)})
+            "mensagem": "Sem conexão com o banco. O túnel SSH está aberto?"})
     except Exception as exc:  # noqa: BLE001
         log.warning("portaria falhou: %s", exc)
         return JSONResponse(status_code=500, content={
-            "erro": "erro_consulta", "mensagem": "Erro ao consultar a portaria.",
-            "detalhe": str(exc)})
+            "erro": "erro_consulta", "mensagem": "Erro ao consultar a portaria."})
 
 
 @app.get("/api/operacao/sac-freetime")
@@ -768,15 +770,14 @@ def sac_freetime(dt_de: str | None = None, dt_ate: str | None = None) -> JSONRes
     try:
         return JSONResponse(queries.get_sac_freetime(dt_de, dt_ate))
     except psycopg.OperationalError as exc:
+        log.warning("banco inacessivel: %s", exc)
         return JSONResponse(status_code=503, content={
             "erro": "banco_inacessivel",
-            "mensagem": "Sem conexão com o banco. O túnel SSH está aberto?",
-            "detalhe": str(exc)})
+            "mensagem": "Sem conexão com o banco. O túnel SSH está aberto?"})
     except Exception as exc:  # noqa: BLE001
         log.warning("sac_freetime falhou: %s", exc)
         return JSONResponse(status_code=500, content={
-            "erro": "erro_consulta", "mensagem": "Erro ao consultar o SAC/freetime.",
-            "detalhe": str(exc)})
+            "erro": "erro_consulta", "mensagem": "Erro ao consultar o SAC/freetime."})
 
 
 @app.get("/api/jornada/motorista")
@@ -793,15 +794,14 @@ def jornada_motorista(id: str | None = None, comp_de: str | None = None,
     try:
         return JSONResponse(queries.get_motorista_jornada(tok, comp_de, comp_ate))
     except psycopg.OperationalError as exc:
+        log.warning("banco inacessivel: %s", exc)
         return JSONResponse(status_code=503, content={
             "erro": "banco_inacessivel",
-            "mensagem": "Sem conexão com o banco. O túnel SSH está aberto?",
-            "detalhe": str(exc)})
+            "mensagem": "Sem conexão com o banco. O túnel SSH está aberto?"})
     except Exception as exc:  # noqa: BLE001
         log.warning("jornada_motorista falhou: %s", exc)
         return JSONResponse(status_code=500, content={
-            "erro": "erro_consulta", "mensagem": "Erro ao consultar o motorista.",
-            "detalhe": str(exc)})
+            "erro": "erro_consulta", "mensagem": "Erro ao consultar o motorista."})
 
 
 # Rentabilidade por Cliente APOSENTADA (2026-07-17): superada pela DRE por
@@ -816,8 +816,7 @@ def alertas_lista() -> JSONResponse:
     except Exception as exc:  # noqa: BLE001
         log.warning("alertas falhou: %s", exc)
         return JSONResponse(status_code=500, content={
-            "erro": "erro_consulta", "mensagem": "Erro ao montar os alertas.",
-            "detalhe": str(exc)})
+            "erro": "erro_consulta", "mensagem": "Erro ao montar os alertas."})
 
 
 @app.get("/api/alertas/digest", response_class=PlainTextResponse)
@@ -847,15 +846,14 @@ def contabil(comp_de: str | None = None, comp_ate: str | None = None,
     try:
         return JSONResponse(queries.get_contabil(comp_de, comp_ate, busca=busca))
     except psycopg.OperationalError as exc:
+        log.warning("banco inacessivel: %s", exc)
         return JSONResponse(status_code=503, content={
             "erro": "banco_inacessivel",
-            "mensagem": "Sem conexão com o banco. O túnel SSH está aberto?",
-            "detalhe": str(exc)})
+            "mensagem": "Sem conexão com o banco. O túnel SSH está aberto?"})
     except Exception as exc:  # noqa: BLE001
         log.warning("contabil falhou: %s", exc)
         return JSONResponse(status_code=500, content={
-            "erro": "erro_consulta", "mensagem": "Erro na consulta contábil.",
-            "detalhe": str(exc)})
+            "erro": "erro_consulta", "mensagem": "Erro na consulta contábil."})
 
 
 @app.post("/api/financeiro/contabil/ajuste")
@@ -877,8 +875,7 @@ def contabil_ajuste(payload: dict, request: Request) -> JSONResponse:
     except Exception as exc:  # noqa: BLE001
         log.warning("ajuste falhou: %s", exc)
         return JSONResponse(status_code=500, content={
-            "erro": "erro_ajuste", "mensagem": "Não foi possível salvar o ajuste.",
-            "detalhe": str(exc)})
+            "erro": "erro_ajuste", "mensagem": "Não foi possível salvar o ajuste."})
     # ajuste já persistido — a auditoria é best-effort e não pode reverter a resposta
     try:
         auth.audit(request.state.sessao["email"], "contabil_ajuste",
@@ -896,7 +893,13 @@ def contabil_export() -> PlainTextResponse:
 
 @app.get("/api/tv/estradas")
 def tv_estradas() -> JSONResponse:
-    """Config do overlay de trânsito (TomTom). A chave fica no .env."""
+    """Config do overlay de trânsito (TomTom). A chave fica no .env.
+
+    A chave sai em texto claro no payload (necessário: o Leaflet carrega os
+    tiles direto do browser, client-side). Mitigação real é no PROVEDOR, não
+    no código: restringir a chave por domínio/referrer no painel do TomTom
+    para que não seja reutilizável fora do painel, mesmo se copiada daqui.
+    """
     import os
     chave = os.environ.get("TOMTOM_API_KEY", "").strip()
     return JSONResponse({"configurado": bool(chave), "key": chave})
@@ -918,11 +921,30 @@ def copiloto_status() -> JSONResponse:
                          "modelo": modelo, "chave": copiloto.status_chave()})
 
 
+_COP_ROLES = {"user", "assistant", "system"}
+_COP_MSG_MAX = 8000
+
+
+def _mensagens_invalidas(mensagens: object) -> bool:
+    """Valida a FORMA de cada item (role/content), não só o tamanho da
+    lista — antes um payload malformado ou com content gigante só era pego
+    (às vezes) pelo try/except do copiloto.stream()/chat(), rio abaixo."""
+    if not isinstance(mensagens, list) or not mensagens or len(mensagens) > 24:
+        return True
+    for m in mensagens:
+        if not isinstance(m, dict) or m.get("role") not in _COP_ROLES:
+            return True
+        conteudo = m.get("content")
+        if not isinstance(conteudo, str) or not conteudo.strip() or len(conteudo) > _COP_MSG_MAX:
+            return True
+    return False
+
+
 @app.post("/api/copiloto/chat-stream")
 def copiloto_chat_stream(payload: dict) -> StreamingResponse:
     import json as _json
     mensagens = payload.get("mensagens")
-    if not isinstance(mensagens, list) or not mensagens or len(mensagens) > 24:
+    if _mensagens_invalidas(mensagens):
         def _erro():
             yield 'data: {"tipo":"erro","erro":"parametro_invalido"}\n\n'
         return StreamingResponse(_erro(), media_type="text/event-stream")
@@ -942,7 +964,7 @@ def copiloto_chat_stream(payload: dict) -> StreamingResponse:
 @app.post("/api/copiloto/chat")
 def copiloto_chat(payload: dict) -> JSONResponse:
     mensagens = payload.get("mensagens")
-    if not isinstance(mensagens, list) or not mensagens or len(mensagens) > 24:
+    if _mensagens_invalidas(mensagens):
         return JSONResponse(status_code=422, content={
             "erro": "parametro_invalido",
             "mensagem": "Envie 'mensagens' como lista de {role, content} (máx. 24)."})
@@ -951,8 +973,7 @@ def copiloto_chat(payload: dict) -> JSONResponse:
     except Exception as exc:  # noqa: BLE001
         log.warning("copiloto falhou: %s", exc)
         return JSONResponse(status_code=500, content={
-            "erro": "erro_copiloto", "mensagem": "Erro inesperado no copiloto.",
-            "detalhe": str(exc)})
+            "erro": "erro_copiloto", "mensagem": "Erro inesperado no copiloto."})
     if r.get("erro") == "sem_backend":
         return JSONResponse(status_code=503, content={
             "erro": "sem_backend",
@@ -975,15 +996,14 @@ def programacao() -> JSONResponse:
     try:
         return JSONResponse(queries.get_programacao())
     except psycopg.OperationalError as exc:
+        log.warning("banco inacessivel: %s", exc)
         return JSONResponse(status_code=503, content={
             "erro": "banco_inacessivel",
-            "mensagem": "Sem conexão com o banco. O túnel SSH está aberto?",
-            "detalhe": str(exc)})
+            "mensagem": "Sem conexão com o banco. O túnel SSH está aberto?"})
     except Exception as exc:  # noqa: BLE001
         log.warning("programacao falhou: %s", exc)
         return JSONResponse(status_code=500, content={
-            "erro": "erro_consulta", "mensagem": "Erro ao montar a programação.",
-            "detalhe": str(exc)})
+            "erro": "erro_consulta", "mensagem": "Erro ao montar a programação."})
 
 
 @app.get("/api/operacao/seguranca")
@@ -991,15 +1011,14 @@ def seguranca() -> JSONResponse:
     try:
         return JSONResponse(queries.get_seguranca())
     except psycopg.OperationalError as exc:
+        log.warning("banco inacessivel: %s", exc)
         return JSONResponse(status_code=503, content={
             "erro": "banco_inacessivel",
-            "mensagem": "Sem conexão com o banco. O túnel SSH está aberto?",
-            "detalhe": str(exc)})
+            "mensagem": "Sem conexão com o banco. O túnel SSH está aberto?"})
     except Exception as exc:  # noqa: BLE001
         log.warning("seguranca falhou: %s", exc)
         return JSONResponse(status_code=500, content={
-            "erro": "erro_consulta", "mensagem": "Erro ao montar a torre de segurança.",
-            "detalhe": str(exc)})
+            "erro": "erro_consulta", "mensagem": "Erro ao montar a torre de segurança."})
 
 
 @app.get("/api/frota/multas")
@@ -1023,15 +1042,14 @@ def multas(
     try:
         return JSONResponse(queries.get_multas(dt_de, dt_ate, placa=placa))
     except psycopg.OperationalError as exc:
+        log.warning("banco inacessivel: %s", exc)
         return JSONResponse(status_code=503, content={
             "erro": "banco_inacessivel",
-            "mensagem": "Sem conexão com o banco. O túnel SSH está aberto?",
-            "detalhe": str(exc)})
+            "mensagem": "Sem conexão com o banco. O túnel SSH está aberto?"})
     except Exception as exc:  # noqa: BLE001
         log.warning("multas falhou: %s", exc)
         return JSONResponse(status_code=500, content={
-            "erro": "erro_consulta", "mensagem": "Erro ao consultar as multas.",
-            "detalhe": str(exc)})
+            "erro": "erro_consulta", "mensagem": "Erro ao consultar as multas."})
 
 
 def _bad_date(value: str | None) -> bool:
@@ -1068,12 +1086,10 @@ def overview(
         return JSONResponse(status_code=503, content={
             "erro": "banco_inacessivel",
             "mensagem": "Sem conexão com o banco. O túnel SSH está aberto?",
-            "detalhe": str(exc),
         })
     except Exception as exc:  # noqa: BLE001
         log.warning("overview falhou: %s", exc)
         return JSONResponse(status_code=500, content={
             "erro": "erro_consulta",
             "mensagem": "Erro ao executar a consulta no banco.",
-            "detalhe": str(exc),
         })
