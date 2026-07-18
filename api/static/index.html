@@ -51,7 +51,7 @@ nav a{display:flex;align-items:center;gap:10px;padding:8px 12px;border-radius:va
   font-size:13.5px;color:var(--n400);border-left:3px solid transparent}
 nav a.sub{padding-left:24px}
 nav a.active{color:#fff;background:var(--navy-700);border-left-color:var(--orange-500);font-weight:600}
-nav a:hover:not(.active){color:#fff;background:var(--navy-800)}
+aside nav a:hover:not(.active){color:#fff;background:var(--navy-800)}
 nav a.mod{opacity:.7}
 .side-foot{margin-top:auto;padding:12px 10px;font-size:11px;color:var(--navy-400)}
 /* modo mini: só ícones */
@@ -191,7 +191,10 @@ tr.forn-det td{padding:7px 12px}
   aside{display:none}
   main{padding-bottom:calc(64px + env(safe-area-inset-bottom))}
   .topbar{position:sticky;top:0;z-index:40;padding:10px 14px;gap:10px}
-  .topbar h1{font-size:17px}
+  /* título nunca quebra em 2 linhas — senão a topbar cresce e o top:54px
+     fixo da filterbar aberta (mais abaixo) descola ou sobrepõe */
+  .topbar>div:first-child{min-width:0}
+  .topbar h1{font-size:17px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
   .topbar .emp{display:none}
   .topbar .avatar{display:none}
   .meta{font-size:10px}
@@ -203,8 +206,9 @@ tr.forn-det td{padding:7px 12px}
   .kpi .label{font-size:11px}
   .kpi .sub{font-size:10px}
   .diadash{padding:10px 12px 2px}
-  .diadash .dd{padding:10px}
-  .diadash .dd-v{font-size:15px}
+  .diadash .dd-row{grid-template-columns:1fr 1fr}
+  .diadash .dd{padding:10px;min-width:0}
+  .diadash .dd-v{font-size:15px;overflow-wrap:anywhere}
   .grid2{grid-template-columns:1fr;gap:12px}
   .card .head{padding:12px 14px;flex-wrap:wrap}
   .card .head h2{font-size:14.5px}
@@ -218,6 +222,10 @@ tr.forn-det td{padding:7px 12px}
   .filterbar .field select,.filterbar .field input{min-width:0;width:100%;font-size:16px}
   .filterbar .field,.filterbar .rangegrp{width:100%}
   .filterbar .rangegrp{flex-wrap:wrap}
+  /* filtros locais dos cards (crm/he/qual…): mesmo tratamento anti-zoom
+     iOS (fonte<16px dispara zoom automático) e touch target maior. */
+  .cardfilters{gap:8px}
+  .cardfilters select,.cardfilters input{min-width:0;width:100%;font-size:16px;padding:11px}
   .btn-filtros{display:inline-flex !important}
   .btn-filtros.oculto{display:none !important}
   /* barra inferior de navegação (app) */
@@ -264,7 +272,7 @@ tr.forn-det td{padding:7px 12px}
 
 /* ---- Copiloto ---- */
 .cop-card{display:flex;flex-direction:column;min-height:calc(100vh - 220px);padding:20px 28px 24px}
-@media(max-width:860px){.cop-card{padding:14px 16px 18px}}
+@media(max-width:880px){.cop-card{padding:14px 16px 18px}}
 .cop-tokens{display:flex;gap:14px;align-items:center;font-size:11px;color:var(--n500,#6E7883);margin-top:8px;font-family:var(--mono)}
 .cop-msgs{flex:1;overflow-y:auto;display:flex;flex-direction:column;gap:12px;padding:8px 2px;min-height:240px}
 .cop-b{max-width:78%;padding:10px 14px;border-radius:14px;font-size:14px;line-height:1.55;white-space:normal;word-wrap:break-word}
@@ -272,7 +280,6 @@ tr.forn-det td{padding:7px 12px}
 .cop-b.ai{align-self:flex-start;background:var(--n100,#F2F4F6);color:var(--ink,#1E2833);border-bottom-left-radius:4px}
 .cop-b.ai code{background:#E4E9EE;padding:1px 5px;border-radius:4px;font-family:var(--mono);font-size:12.5px}
 .cop-b.ai ul{margin:6px 0 6px 18px}
-.cop-b .cop-mod{display:block;margin-top:8px;font-size:10.5px;color:var(--n500,#6E7883);font-family:var(--mono)}
 .cop-b.pensando{color:var(--n500);font-style:italic}
 .cop-chips{display:flex;flex-wrap:wrap;gap:8px;padding:10px 0}
 .cop-chip{border:1px solid var(--n300,#C2C8D0);background:transparent;border-radius:999px;padding:6px 12px;font-size:12.5px;cursor:pointer;color:var(--navy-700,#17344F)}
@@ -307,7 +314,7 @@ tr.forn-det td{padding:7px 12px}
 .cop-status .pulse{width:8px;height:8px;border-radius:50%;background:#1E7B3C;animation:copPulse 2s infinite}
 @keyframes copPulse{0%{box-shadow:0 0 0 0 rgba(30,123,60,.5)}70%{box-shadow:0 0 0 7px rgba(30,123,60,0)}100%{box-shadow:0 0 0 0 rgba(30,123,60,0)}}
 #cop-send{display:flex;align-items:center;gap:6px}
-@media(max-width:860px){.cop-card{min-height:calc(100vh - 300px)}.cop-b{max-width:92%}}
+@media(max-width:880px){.cop-card{min-height:calc(100vh - 300px)}.cop-b{max-width:92%}}
 
 /* ---- DRE gerencial ---- */
 #dre-tab{border-collapse:separate;border-spacing:0;min-width:100%}
@@ -325,7 +332,7 @@ tr.dre-final td .neg{color:#FCA5A5 !important}
 tr.dre-nv1>td:first-child{padding-left:34px;color:var(--n700)}
 tr.dre-item{display:none;background:var(--n50,#F7F9FA)}
 tr.dre-item.on{display:table-row}
-tr.dre-item>td:first-child{padding-left:56px;color:var(--n500);font-size:12.5px;background:var(--n50,#F7F9FA)}
+#dre-tab tr.dre-item>td:first-child{padding-left:56px;color:var(--n500);font-size:12.5px;background:var(--n50,#F7F9FA)}
 tr.dre-item>td{font-size:12.5px;color:var(--n600)}
 tr.dre-sobra td{background:var(--yellow-100) !important}
 #dre-tab .exp{display:inline-block;width:14px;transition:transform .15s;color:var(--n400);margin-right:4px}
@@ -887,7 +894,7 @@ button.avatar{border:0;cursor:pointer}
         </div>
         <div class="grid2">
           <div class="card">
-            <div class="head"><h2>Km por modalidade</h2><span class="hint">últimos 30 dias</span></div>
+            <div class="head"><h2>Km rodado por modalidade</h2><span class="hint">últimos 30 dias · inclui km vazio (para só carregado, ver Análise de KM)</span></div>
             <div style="display:flex;align-items:center;gap:18px;padding:10px 18px 18px;flex-wrap:wrap">
               <svg id="donutHome" viewBox="0 0 180 180" style="width:180px;height:180px;flex:none"></svg>
               <div id="donutLegend" style="font-size:13px;display:flex;flex-direction:column;gap:6px"></div>
@@ -1372,13 +1379,12 @@ button.avatar{border:0;cursor:pointer}
       <section class="view" id="view-clif">
         <div class="card">
           <div class="head"><h2>Consulta de Cliente</h2><span class="hint">digite o cliente e veja a ficha 360 · margem reconciliada (DRE por Cliente) + recebíveis</span></div>
-          <div style="padding:0 16px 14px;display:flex;gap:10px;flex-wrap:wrap;align-items:center">
+          <div class="cardfilters">
             <input type="search" id="fClifNome" placeholder="Cliente (ex.: TUPY)" autocomplete="off"
-                   style="min-width:220px;font-size:16px;padding:10px 12px;border:1px solid var(--n200,#E4E7EB);border-radius:10px"
                    onkeydown="if(event.key==='Enter')loadClif(true)">
-            <input type="month" id="fClifDe" style="font-size:15px;padding:9px 10px;border:1px solid var(--n200,#E4E7EB);border-radius:10px">
+            <input type="month" id="fClifDe">
             <span style="color:var(--n500)">até</span>
-            <input type="month" id="fClifAte" style="font-size:15px;padding:9px 10px;border:1px solid var(--n200,#E4E7EB);border-radius:10px">
+            <input type="month" id="fClifAte">
             <button class="btn" onclick="loadClif(true)">Buscar</button>
           </div>
         </div>
@@ -1387,9 +1393,8 @@ button.avatar{border:0;cursor:pointer}
       <section class="view" id="view-veicf">
         <div class="card">
           <div class="head"><h2>Consulta de Veículo</h2><span class="hint">digite a placa e veja a ficha completa · indicadores dos últimos 30 dias</span></div>
-          <div style="padding:0 16px 14px;display:flex;gap:10px;flex-wrap:wrap;align-items:center">
-            <input type="search" id="fVeicfPlaca" placeholder="Placa (ex.: ABC1D23)" autocomplete="off"
-                   style="min-width:220px;text-transform:uppercase;font-size:16px;padding:10px 12px;border:1px solid var(--n200,#E4E7EB);border-radius:10px"
+          <div class="cardfilters">
+            <input type="search" id="fVeicfPlaca" placeholder="Placa (ex.: ABC1D23)" autocomplete="off" style="text-transform:uppercase"
                    onkeydown="if(event.key==='Enter')loadVeicf(true)">
             <button class="btn" onclick="loadVeicf(true)">Buscar</button>
           </div>
@@ -1399,12 +1404,11 @@ button.avatar{border:0;cursor:pointer}
       <section class="view" id="view-jorn">
         <div class="card">
           <div class="head"><h2>Jornada do Motorista</h2><span class="hint">compliance Lei 13.103 · apuração oficial do ERP · só motoristas com controle de jornada</span></div>
-          <div style="padding:0 16px 14px;display:flex;gap:10px;flex-wrap:wrap;align-items:center">
-            <input type="month" id="fJornDe" style="font-size:15px;padding:9px 10px;border:1px solid var(--n200,#E4E7EB);border-radius:10px">
+          <div class="cardfilters">
+            <input type="month" id="fJornDe">
             <span style="color:var(--n500)">até</span>
-            <input type="month" id="fJornAte" style="font-size:15px;padding:9px 10px;border:1px solid var(--n200,#E4E7EB);border-radius:10px">
+            <input type="month" id="fJornAte">
             <input type="search" id="fJornBusca" placeholder="Motorista (nome)" autocomplete="off"
-                   style="min-width:180px;font-size:16px;padding:10px 12px;border:1px solid var(--n200,#E4E7EB);border-radius:10px"
                    onkeydown="if(event.key==='Enter')loadJorn()">
             <button class="btn" onclick="loadJorn()">Atualizar</button>
           </div>
@@ -1427,10 +1431,10 @@ button.avatar{border:0;cursor:pointer}
       <section class="view" id="view-cex">
         <div class="card">
           <div class="head"><h2>Custos Extras</h2><span class="hint">acessórios por CT-e (descarga, estadia, diária, ajudante, escolta…) · status de cobrança</span></div>
-          <div style="padding:0 16px 14px;display:flex;gap:10px;flex-wrap:wrap;align-items:center">
-            <input type="date" id="fCexDe" style="font-size:15px;padding:9px 10px;border:1px solid var(--n200,#E4E7EB);border-radius:10px">
+          <div class="cardfilters">
+            <input type="date" id="fCexDe">
             <span style="color:var(--n500)">até</span>
-            <input type="date" id="fCexAte" style="font-size:15px;padding:9px 10px;border:1px solid var(--n200,#E4E7EB);border-radius:10px">
+            <input type="date" id="fCexAte">
             <button class="btn" onclick="loadCex()">Atualizar</button>
           </div>
         </div>
@@ -1449,10 +1453,10 @@ button.avatar{border:0;cursor:pointer}
       <section class="view" id="view-sac">
         <div class="card">
           <div class="head"><h2>SAC / Freetime e Estadia</h2><span class="hint">estadia estimada além do freetime contratado · <b>estimativa</b> (regra padrão, sem exceções por mercadoria)</span></div>
-          <div style="padding:0 16px 14px;display:flex;gap:10px;flex-wrap:wrap;align-items:center">
-            <input type="date" id="fSacDe" style="font-size:15px;padding:9px 10px;border:1px solid var(--n200,#E4E7EB);border-radius:10px">
+          <div class="cardfilters">
+            <input type="date" id="fSacDe">
             <span style="color:var(--n500)">até</span>
-            <input type="date" id="fSacAte" style="font-size:15px;padding:9px 10px;border:1px solid var(--n200,#E4E7EB);border-radius:10px">
+            <input type="date" id="fSacAte">
             <button class="btn" onclick="loadSac()">Atualizar</button>
           </div>
         </div>
@@ -1576,9 +1580,9 @@ button.avatar{border:0;cursor:pointer}
       <section class="view" id="view-folha">
         <div class="card">
           <div class="head"><h2>Custo de Folha</h2><span class="hint">proventos e descontos por competência · GLOBUS · valores agregados</span></div>
-          <div style="padding:0 16px 14px;display:flex;gap:10px;flex-wrap:wrap;align-items:center">
+          <div class="cardfilters">
             <label style="color:var(--n600);font-size:13px">Competência</label>
-            <select id="fFolhaComp" onchange="loadFolha()" style="font-size:15px;padding:9px 10px;border:1px solid var(--n200,#E4E7EB);border-radius:10px"></select>
+            <select id="fFolhaComp" onchange="loadFolha()"></select>
           </div>
         </div>
         <div class="kpis" id="kpis-folha"></div>
@@ -1642,10 +1646,10 @@ button.avatar{border:0;cursor:pointer}
       <section class="view" id="view-custos">
         <div class="card">
           <div class="head"><h2>Painel de Custos</h2><span class="hint">combustível + ordens de compra · por agrupador gerencial · com/sem NF</span></div>
-          <div style="padding:0 16px 14px;display:flex;gap:10px;flex-wrap:wrap;align-items:center">
-            <input type="date" id="fCustDe" style="font-size:15px;padding:9px 10px;border:1px solid var(--n200,#E4E7EB);border-radius:10px">
+          <div class="cardfilters">
+            <input type="date" id="fCustDe">
             <span style="color:var(--n500)">até</span>
-            <input type="date" id="fCustAte" style="font-size:15px;padding:9px 10px;border:1px solid var(--n200,#E4E7EB);border-radius:10px">
+            <input type="date" id="fCustAte">
             <button class="btn" onclick="loadCustos()">Atualizar</button>
             <span class="hint" style="color:var(--n500)">a consulta é pesada — pode levar alguns segundos</span>
           </div>
@@ -2299,6 +2303,24 @@ function qsView(k){
   } else if(k==='mvb'||k==='dre'||k==='drecli'){
     if(V('fCompDe'))p.set('comp_de',V('fCompDe'));
     if(V('fCompAte'))p.set('comp_ate',V('fCompAte'));
+    if(k==='drecli' && V('fFilial'))p.set('filial',V('fFilial'));
+  } else if(k==='veicf'){
+    if(T('fVeicfPlaca'))p.set('placa',T('fVeicfPlaca').toUpperCase());
+  } else if(k==='clif'){
+    if(T('fClifNome'))p.set('cliente',T('fClifNome'));
+    if(V('fClifDe'))p.set('comp_de',V('fClifDe'));
+    if(V('fClifAte'))p.set('comp_ate',V('fClifAte'));
+  } else if(k==='custos'){
+    if(V('fCustDe'))p.set('dt_de',V('fCustDe'));
+    if(V('fCustAte'))p.set('dt_ate',V('fCustAte'));
+  } else if(k==='folha'){
+    if(V('fFolhaComp'))p.set('comp',V('fFolhaComp'));
+  } else if(k==='he'){
+    if(V('fHeComp'))p.set('comp',V('fHeComp'));
+  } else if(k==='mprev'||k==='comrast'||k==='qual'||k==='port'||k==='crm'||k==='rh'||k==='hc'||k==='folhaind'){
+    // vistas-snapshot sem filtro local: qsView() sempre devolve '' — o
+    // loader grava LOADEDQS[k]='' (não '1') para o cache de staleness
+    // funcionar (senão nunca bate e cada navegação refaz a consulta).
   }
   return p.toString();
 }
@@ -2384,8 +2406,9 @@ function router(){
   document.getElementById('fData').parentElement.style.display = (dre||oc||agr||mvb||comb||man||com||kmv||torre||veic||mul||prog||cop||cob||rent||contab||dreCli) ? 'none' : 'flex';
   const fFil = document.getElementById('fFilial');
   // Filial some onde a fonte não tem esse recorte OU a API não aceita o parâmetro
-  // (DRE/MvB consolidados; Veículos/Multas/Programação/Contabilidade não filtram por filial).
-  fFil.parentElement.style.display = (dre||mvb||comb||veic||mul||prog||contab||dreCli) ? 'none' : 'flex';
+  // (DRE/MvB consolidados; Veículos/Multas/Programação/Contabilidade não filtram
+  // por filial). DRE por Cliente ACEITA filial (dre_cliente/sql.py) — fica visível.
+  fFil.parentElement.style.display = (dre||mvb||comb||veic||mul||prog||contab) ? 'none' : 'flex';
   // carga da vista: dispara se não há dados OU se os filtros visíveis
   // divergem dos usados na última carga (nunca mostrar dado velho com filtro novo)
   const key=viewKey(v);
@@ -2469,7 +2492,12 @@ function refDate(){
   return v ? new Date(v+'T12:00:00') : new Date();
 }
 const iso = d => `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
-function presetChange(){
+// Converte o preset relativo (vencidos/p7/p30/p90/mes) em datas absolutas
+// ancoradas em refDate() (hoje, salvo fData preenchido). Chamada tanto no
+// onchange do preset quanto no início de load() — senão numa sessão longa
+// deixada aberta a janela fica congelada no dia em que o preset foi
+// escolhido (Atualizar não corrige, só refDate/onchange recalculavam).
+function _recalcPreset(){
   const p  = document.getElementById('fPreset').value;
   const de = document.getElementById('fVencDe'), ate = document.getElementById('fVencAte');
   const ref = refDate();
@@ -2484,7 +2512,10 @@ function presetChange(){
     de.value = iso(new Date(ref.getFullYear(),ref.getMonth(),1,12));
     ate.value= iso(new Date(ref.getFullYear(),ref.getMonth()+1,0,12));
   }
-  if(p!=='custom') load();
+}
+function presetChange(){
+  _recalcPreset();
+  if(document.getElementById('fPreset').value!=='custom') load();
 }
 function onDataRefChange(){
   // presets relativos são recalculados quando a data de referência muda
@@ -2494,6 +2525,7 @@ function onDataRefChange(){
 
 /* ---------------- Carga (com guarda de corrida) ---------------- */
 async function load(){
+  if(document.getElementById('fPreset').value!=='custom') _recalcPreset();
   skelKpis('kpis-fluxo',4); skelKpis('kpis-receber',4); skelKpis('kpis-pagar',4);
   const seq = ++loadSeq;
   filtrosPromise = filtrosPromise || initFiltros();
@@ -2528,7 +2560,8 @@ const KPI_HELP = {
   'CKM marginal usado': 'Custo variável + motoristas do razão contábil do período, dividido pelo km carregado da frota própria. É o custo de rodar 1 km a mais.',
   'Clientes abaixo de 25%': 'Clientes cuja margem de contribuição não cobre a fatia típica de fixos + administrativo — candidatos a re-preço, troca de modalidade ou renegociação de rota.',
 
-  'Total vencido (top 30)': 'Saldo a receber de títulos vencidos e não cancelados, somando os 30 clientes com maior valor vencido. O total geral está na tela Contas a Receber (aging).',
+  'Vencido oficial (top 30)': 'Saldo a receber de títulos vencidos e não cancelados (método oficial: fatura_composicao, só faturado), somando os 30 clientes com maior valor vencido.',
+  'Pendente de faturamento': 'Documentos com vencimento já passado mas ainda não convertidos em fatura oficial (composição 2) — não entra no vencido oficial, mostrado à parte.',
   'Acima de 90 dias': 'Parcela do vencido com mais de 90 dias — a probabilidade de recuperação cai fortemente a partir daqui; considerar protesto ou negativação.',
   'Últimos 30 dias': 'Vencido recente: é onde a cobrança ativa tem a maior taxa de recuperação.',
   'Vencido mais antigo': 'Data do título vencido mais antigo entre os clientes exibidos.',
@@ -3510,11 +3543,22 @@ const tvBRLc = v => 'R$ '+(Math.abs(v)>=1e6?(v/1e6).toLocaleString('pt-BR',{maxi
 function tvCard(label,num,cls,sub,extra){
   return `<div class="tv-card">${extra||''}<div class="tv-label">${label}</div><div class="tv-num ${cls||''}">${num}</div><div class="tv-sub">${sub||''}</div></div>`;
 }
+// Painéis de TV são telões sem operador — antes falhavam em silêncio
+// (catch vazio) e o skeleton ficava eterno até a API voltar. Só mostra o
+// aviso se AINDA não há dado na tela (1ª carga falhou); numa atualização
+// que falhou depois de já ter carregado, preserva o último dado bom
+// (o próximo tick do tvTimer, 60s, tenta de novo sozinho).
+let tvFatOk=false, tvOpeOk=false;
+function tvErro(id, ok){
+  if(ok) return;
+  const el=document.getElementById(id);
+  if(el && !el.querySelector('.tv-card')) el.innerHTML='<div class="tv-card"><div class="tv-label">Sem conexão</div><div class="tv-sub">tentando de novo em instantes…</div></div>';
+}
 async function loadTvFat(){
   try{
     const r=await fetch('/api/visao-geral',{cache:'no-store'});
     const d=await r.json();
-    if(!r.ok) return;
+    if(!r.ok){ tvErro('tvfat-kpis', tvFatOk); return; }
     const at=(d.atingimento_mes!=null?d.atingimento_mes:0)*100;
     const dias=(d.diario||[]);
     const comReal=dias.filter(x=>x.realizado>0);
@@ -3537,7 +3581,8 @@ async function loadTvFat(){
     tvAnimarNums('tvfat-kpis');
     const cabF=document.querySelector('#view-tvfat .tv-head');
     if(cabF){ cabF.classList.add('sync'); setTimeout(()=>cabF.classList.remove('sync'), 1200); }
-  }catch(e){}
+    tvFatOk=true;
+  }catch(e){ tvErro('tvfat-kpis', tvFatOk); }
 }
 let tvMap=null, tvLayer=null, tvLinhas=null, TV_LASTPOS=null;
 let TV_ESTRADAS=null, tvTrafego=null;
@@ -3681,7 +3726,7 @@ async function loadTvOpe(){
       fetch('/api/frota/combustivel?'+qMes,{cache:'no-store'}),
       fetch('/api/visao-geral',{cache:'no-store'})]);
     const t=await rt.json(), p=await rp.json(), s=await rs.json(), km=await rk.json(), cb=await rc.json(), vg=await rv.json();
-    if(!rt.ok||!rp.ok||!rs.ok) return;
+    if(!rt.ok||!rp.ok||!rs.ok){ tvErro('tvope-k1', tvOpeOk); return; }
     const tk=t.kpis, pk=p.kpis, sk=s.kpis;
     document.getElementById('tvope-k1').innerHTML=[
       tvCard('Em trânsito', tk.em_transito, '', tk.atrasadas+' atrasadas'),
@@ -3797,7 +3842,8 @@ async function loadTvOpe(){
     const cab=document.querySelector('#view-tvope .tv-head');
     if(cab){ cab.classList.add('sync'); setTimeout(()=>cab.classList.remove('sync'), 1200); }
     tvMapa(t);
-  }catch(e){}
+    tvOpeOk=true;
+  }catch(e){ tvErro('tvope-k1', tvOpeOk); }
 }
 
 /* ---------------- Rentabilidade por Cliente ---------------- */
@@ -4169,7 +4215,7 @@ function renderProg(d){
     <td class="num">${m.saidas.toLocaleString('pt-BR')}</td>
     <td class="num" style="font-weight:700;color:var(--green,#1E7B3C)">+${m.saldo.toLocaleString('pt-BR')}</td></tr>`).join('');
   const ts=new Date(d.atualizado_em);
-  document.getElementById('meta').innerHTML='<b>Atualizado '+ts.toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'})+'</b><br>janela 72h + histórico 90d';
+  document.getElementById('meta').innerHTML='<b>Atualizado '+ts.toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'})+'</b><br>chegadas 72h · saídas 96h · histórico 90d';
 }
 
 /* ---------------- Multas ---------------- */
@@ -4344,7 +4390,7 @@ async function loadVeicf(buscar){
     const r=await fetch('/api/frota/veiculo?placa='+encodeURIComponent(placa),{cache:'no-store'});
     const d=await r.json(); if(seq!==veicfSeq) return;
     if(!r.ok){ showBanner(d.mensagem||'Erro ao consultar o veículo.', d.detalhe); return; }
-    hideBanner(); DATAVEICF=d; LOADEDQS.veicf=placa; renderVeicf(d);
+    hideBanner(); DATAVEICF=d; LOADEDQS.veicf=qsView('veicf'); renderVeicf(d);
   }catch(e){ if(seq===veicfSeq) showBanner('Não foi possível falar com a API.', e.message); }
   finally{ if(seq===veicfSeq){ if(btn) btn.disabled=false; document.getElementById('content').classList.remove('loading'); } }
 }
@@ -4421,7 +4467,7 @@ async function loadClif(buscar){
     const r=await fetch('/api/comercial/cliente?'+q,{cache:'no-store'});
     const d=await r.json(); if(seq!==clifSeq) return;
     if(!r.ok){ showBanner(d.mensagem||'Erro ao consultar o cliente.', d.detalhe); return; }
-    hideBanner(); DATACLIF=d; LOADEDQS.clif=q; renderClif(d);
+    hideBanner(); DATACLIF=d; LOADEDQS.clif=qsView('clif'); renderClif(d);
   }catch(e){ if(seq===clifSeq) showBanner('Não foi possível falar com a API.', e.message); }
   finally{ if(seq===clifSeq){ if(btn) btn.disabled=false; document.getElementById('content').classList.remove('loading'); } }
 }
@@ -4653,7 +4699,7 @@ async function loadMPrev(){
     const r=await fetch('/api/frota/manutencao-preventiva',{cache:'no-store'});
     const d=await r.json(); if(seq!==mprevSeq) return;
     if(!r.ok){ showBanner(d.mensagem||'Erro ao consultar as revisões preventivas.', d.detalhe); return; }
-    hideBanner(); DATAMPREV=d; LOADEDQS.mprev='1'; renderMPrev(d);
+    hideBanner(); DATAMPREV=d; LOADEDQS.mprev=''; renderMPrev(d);
   }catch(e){ if(seq===mprevSeq) showBanner('Não foi possível falar com a API.', e.message); }
   finally{ if(seq===mprevSeq){ if(btn) btn.disabled=false; document.getElementById('content').classList.remove('loading'); } }
 }
@@ -4680,7 +4726,7 @@ async function loadComRast(){
     const r=await fetch('/api/frota/comunicacao-rastreadora',{cache:'no-store'});
     const d=await r.json(); if(seq!==comrastSeq) return;
     if(!r.ok){ showBanner(d.mensagem||'Erro ao consultar a comunicação da frota.', d.detalhe); return; }
-    hideBanner(); DATACOMRAST=d; LOADEDQS.comrast='1'; renderComRast(d);
+    hideBanner(); DATACOMRAST=d; LOADEDQS.comrast=''; renderComRast(d);
   }catch(e){ if(seq===comrastSeq) showBanner('Não foi possível falar com a API.', e.message); }
   finally{ if(seq===comrastSeq){ if(btn) btn.disabled=false; document.getElementById('content').classList.remove('loading'); } }
 }
@@ -4706,7 +4752,7 @@ async function loadQual(){
     const r=await fetch('/api/qualidade',{cache:'no-store'});
     const d=await r.json(); if(seq!==qualSeq) return;
     if(!r.ok){ showBanner(d.mensagem||'Erro ao consultar a qualidade.', d.detalhe); return; }
-    hideBanner(); DATAQUAL=d; LOADEDQS.qual='1'; renderQual(d);
+    hideBanner(); DATAQUAL=d; LOADEDQS.qual=''; renderQual(d);
   }catch(e){ if(seq===qualSeq) showBanner('Não foi possível falar com a API.', e.message); }
   finally{ if(seq===qualSeq){ if(btn) btn.disabled=false; document.getElementById('content').classList.remove('loading'); } }
 }
@@ -4752,7 +4798,7 @@ async function loadPort(){
     const r=await fetch('/api/operacao/portaria',{cache:'no-store'});
     const d=await r.json(); if(seq!==portSeq) return;
     if(!r.ok){ showBanner(d.mensagem||'Erro ao consultar a portaria.', d.detalhe); return; }
-    hideBanner(); DATAPORT=d; LOADEDQS.port='1'; renderPort(d);
+    hideBanner(); DATAPORT=d; LOADEDQS.port=''; renderPort(d);
   }catch(e){ if(seq===portSeq) showBanner('Não foi possível falar com a API.', e.message); }
   finally{ if(seq===portSeq){ if(btn) btn.disabled=false; document.getElementById('content').classList.remove('loading'); } }
 }
@@ -4768,7 +4814,7 @@ function renderPort(d){
   const pt=(d.no_patio||[]).map(p=>`<tr><td>${esc(p.tipo)}</td><td style="font-family:var(--mono);font-weight:600">${esc(p.placa||'—')}</td><td>${esc(p.condutor)}</td><td>${esc(p.cliente||'')}</td><td class="num">${fmtDt(p.entrada)}</td><td class="num" style="${p.horas>12?'color:var(--red);font-weight:700':''}">${p.horas!=null?p.horas+' h':'—'}</td></tr>`).join('')||'<tr><td colspan="6" style="color:var(--n500)">pátio vazio</td></tr>';
   document.getElementById('port-patio').innerHTML=`<table><thead><tr><th>Tipo</th><th>Placa</th><th>Condutor</th><th>Cliente/Fornecedor</th><th class="num">Entrada</th><th class="num">No pátio há</th></tr></thead><tbody>${pt}</tbody></table>`;
   const au=(d.autorizacoes||[]).map(a=>`<tr><td>${esc(a.tipoviagem)}</td><td style="font-family:var(--mono)">${esc(a.frota||'—')}</td><td>${esc(a.motorista)}</td><td>${esc(a.destino||'')}</td><td>${esc(a.tipofrota)}</td><td class="num">${fmtDt(a.emissao)}</td><td>${a.saiu?'<span class="badge b-ok">saiu</span>':'<span class="badge b-warn">aguardando</span>'}${a.pendente?' <span class="badge b-dang">retorno pendente</span>':''}</td></tr>`).join('')||'<tr><td colspan="7" style="color:var(--n500)">sem autorizações no período</td></tr>';
-  document.getElementById('port-aut').innerHTML=`<table><thead><tr><th>Tipo</th><th>Frota</th><th>Motorista</th><th>Destino</th><th>Frota</th><th class="num">Emissão</th><th>Status</th></tr></thead><tbody>${au}</tbody></table>`;
+  document.getElementById('port-aut').innerHTML=`<table><thead><tr><th>Tipo</th><th>Frota</th><th>Motorista</th><th>Destino</th><th>Porte</th><th class="num">Emissão</th><th>Status</th></tr></thead><tbody>${au}</tbody></table>`;
 }
 // ---------------- CRM ----------------
 async function loadCrm(){
@@ -4779,7 +4825,7 @@ async function loadCrm(){
     const r=await fetch('/api/comercial/crm',{cache:'no-store'});
     const d=await r.json(); if(seq!==crmSeq) return;
     if(!r.ok){ showBanner(d.mensagem||'Erro ao consultar o CRM.', d.detalhe); return; }
-    hideBanner(); DATACRM=d; LOADEDQS.crm='1'; renderCrm(d);
+    hideBanner(); DATACRM=d; LOADEDQS.crm=''; renderCrm(d);
   }catch(e){ if(seq===crmSeq) showBanner('Não foi possível falar com a API.', e.message); }
   finally{ if(seq===crmSeq){ if(btn) btn.disabled=false; document.getElementById('content').classList.remove('loading'); } }
 }
@@ -4818,8 +4864,8 @@ function crmFiltrarLeads(){
   const f=leads.filter(l=>(!crmTempFiltro||l.temperatura===crmTempFiltro)&&(!seg||l.segmento===seg)&&(!busca||(l.cliente||'').toLowerCase().includes(busca)))
                .sort((a,b)=>(b.potencial||0)-(a.potencial||0));
   const tempB=t=>t==='Quente'?'b-dang':(t==='Morno'?'b-warn':'');
-  const lg=f.map(l=>`<tr><td>${esc(l.cliente)}</td><td>${esc(l.segmento||'')}</td><td><span class="badge ${tempB(l.temperatura)}">${esc(l.temperatura)}</span></td><td>${esc(l.status)}</td><td class="num">${BRL.format(l.potencial||0)}</td><td class="num">${l.previsao?fmtD(l.previsao):'—'}</td></tr>`).join('')||'<tr><td colspan="6" style="color:var(--n500)">nenhum lead com esse filtro</td></tr>';
-  document.getElementById('crm-leads').innerHTML=`<table><thead><tr><th>Cliente/Lead</th><th>Segmento</th><th>Temperatura</th><th>Status</th><th class="num">Potencial</th><th class="num">Previsão</th></tr></thead><tbody>${lg}</tbody></table>`;
+  const lg=f.map(l=>`<tr><td>${esc(l.cliente)}</td><td>${esc(l.segmento||'')}</td><td><span class="badge ${tempB(l.temperatura)}">${esc(l.temperatura)}</span></td><td>${esc(l.status)}</td><td class="num">${BRL.format(l.potencial||0)}</td><td class="num">${BRL.format(l.rob_previsto||0)}</td><td class="num">${l.previsao?fmtD(l.previsao):'—'}</td></tr>`).join('')||'<tr><td colspan="7" style="color:var(--n500)">nenhum lead com esse filtro</td></tr>';
+  document.getElementById('crm-leads').innerHTML=`<table><thead><tr><th>Cliente/Lead</th><th>Segmento</th><th>Temperatura</th><th>Status</th><th class="num">Potencial</th><th class="num">ROB previsto</th><th class="num">Previsão</th></tr></thead><tbody>${lg}</tbody></table>`;
   const somaF=f.reduce((a,l)=>a+(l.potencial||0),0);
   const hint=document.getElementById('crm-leads-hint'); if(hint) hint.textContent=`${f.length} de ${leads.length} leads · ${brlAbbr(somaF)} em potencial`;
 }
@@ -4832,7 +4878,7 @@ async function loadRh(){
     const r=await fetch('/api/rh/vagas',{cache:'no-store'});
     const d=await r.json(); if(seq!==rhSeq) return;
     if(!r.ok){ showBanner(d.mensagem||'Erro ao consultar as vagas.', d.detalhe); return; }
-    hideBanner(); DATARH=d; LOADEDQS.rh='1'; renderRh(d);
+    hideBanner(); DATARH=d; LOADEDQS.rh=''; renderRh(d);
   }catch(e){ if(seq===rhSeq) showBanner('Não foi possível falar com a API.', e.message); }
   finally{ if(seq===rhSeq){ if(btn) btn.disabled=false; document.getElementById('content').classList.remove('loading'); } }
 }
@@ -4962,7 +5008,7 @@ async function loadHc(){
     const r=await fetch('/api/rh/headcount',{cache:'no-store'});
     const d=await r.json(); if(seq!==hcSeq) return;
     if(!r.ok){ showBanner(d.mensagem||'Erro ao consultar o headcount.', d.detalhe); return; }
-    hideBanner(); DATAHC=d; LOADEDQS.hc='1'; renderHc(d);
+    hideBanner(); DATAHC=d; LOADEDQS.hc=''; renderHc(d);
   }catch(e){ if(seq===hcSeq) showBanner('Não foi possível falar com a API.', e.message); }
   finally{ if(seq===hcSeq){ if(btn) btn.disabled=false; document.getElementById('content').classList.remove('loading'); } }
 }
@@ -5000,16 +5046,27 @@ async function loadFolha(){
     const r=await fetch('/api/rh/folha-custo'+comp,{cache:'no-store'});
     const d=await r.json(); if(seq!==folhaSeq) return;
     if(!r.ok){ showBanner(d.mensagem||'Erro ao consultar o custo de folha.', d.detalhe); return; }
-    hideBanner(); DATAFOLHA=d; LOADEDQS.folha='1'; renderFolha(d);
+    hideBanner(); DATAFOLHA=d; renderFolha(d); LOADEDQS.folha=qsView('folha');
   }catch(e){ if(seq===folhaSeq) showBanner('Não foi possível falar com a API.', e.message); }
   finally{ if(seq===folhaSeq){ if(btn) btn.disabled=false; document.getElementById('content').classList.remove('loading'); } }
+}
+// Repopula o <select> de competência só quando a lista muda de fato (nova
+// competência disponível) — antes só populava se o select estivesse vazio,
+// então virar o mês numa sessão longa sem F5 deixava a competência nova
+// inacessível no filtro. Preserva a seleção atual quando ainda é válida.
+function reconciliarCompetencias(sel, competencias, atual){
+  if(!sel || !(competencias||[]).length) return;
+  const novas = competencias.join(',');
+  const atuais = [...sel.options].map(o=>o.value).join(',');
+  if(atuais === novas) return;
+  const manter = sel.value;
+  sel.innerHTML = competencias.map(c=>`<option value="${c}"${c===atual?' selected':''}>${c}</option>`).join('');
+  if(manter && competencias.includes(manter)) sel.value = manter;
 }
 function renderFolha(d){
   const k=d.kpis||{};
   const sel=document.getElementById('fFolhaComp');
-  if(sel && !sel.options.length && (d.competencias||[]).length){
-    sel.innerHTML=(d.competencias||[]).map(c=>`<option value="${c}"${c===d.competencia?' selected':''}>${c}</option>`).join('');
-  }
+  reconciliarCompetencias(sel, d.competencias, d.competencia);
   document.getElementById('kpis-folha').innerHTML=[
     kpi('Proventos', BRL.format(k.proventos||0), 'total pago na competência',''),
     kpi('Descontos', BRL.format(k.descontos||0), 'retido dos colaboradores',''),
@@ -5038,7 +5095,7 @@ async function loadFolhaInd(){
     const r=await fetch('/api/rh/folha-indicadores',{cache:'no-store'});
     const d=await r.json(); if(seq!==folhaindSeq) return;
     if(!r.ok){ showBanner(d.mensagem||'Erro ao consultar os indicadores.', d.detalhe); return; }
-    hideBanner(); DATAFOLHAIND=d; LOADEDQS.folhaind='1'; renderFolhaInd(d);
+    hideBanner(); DATAFOLHAIND=d; LOADEDQS.folhaind=''; renderFolhaInd(d);
   }catch(e){ if(seq===folhaindSeq) showBanner('Não foi possível falar com a API.', e.message); }
   finally{ if(seq===folhaindSeq){ if(btn) btn.disabled=false; document.getElementById('content').classList.remove('loading'); } }
 }
@@ -5078,16 +5135,14 @@ async function loadHe(){
     const r=await fetch('/api/rh/horas-extras'+comp,{cache:'no-store'});
     const d=await r.json(); if(seq!==heSeq) return;
     if(!r.ok){ showBanner(d.mensagem||'Erro ao consultar as horas extras.', d.detalhe); return; }
-    hideBanner(); DATAHE=d; LOADEDQS.he='1'; renderHe(d);
+    hideBanner(); DATAHE=d; renderHe(d); LOADEDQS.he=qsView('he');
   }catch(e){ if(seq===heSeq) showBanner('Não foi possível falar com a API.', e.message); }
   finally{ if(seq===heSeq){ if(btn) btn.disabled=false; document.getElementById('content').classList.remove('loading'); } }
 }
 function renderHe(d){
   const k=d.kpis||{};
   const sel=document.getElementById('fHeComp');
-  if(sel && !sel.options.length && (d.competencias||[]).length){
-    sel.innerHTML=(d.competencias||[]).map(c=>`<option value="${c}"${c===d.competencia?' selected':''}>${c}</option>`).join('');
-  }
+  reconciliarCompetencias(sel, d.competencias, d.competencia);
   document.getElementById('kpis-he').innerHTML=[
     kpi('Total de HE', BRL.format(k.total_mes||0), (k.pct_proventos||0).toFixed(1)+'% dos proventos · '+d.competencia, (k.pct_proventos||0)>=10?'neg':''),
     kpi('Horas extras', (k.horas_mes||0).toLocaleString('pt-BR',{maximumFractionDigits:0})+' h', 'lançadas na competência',''),
@@ -5127,7 +5182,7 @@ async function loadCustos(){
     const r=await fetch('/api/suprimentos/custos?'+q,{cache:'no-store'});
     const d=await r.json(); if(seq!==custosSeq) return;
     if(!r.ok){ showBanner(d.mensagem||'Erro ao consultar os custos.', d.detalhe); return; }
-    hideBanner(); DATACUSTOS=d; LOADEDQS.custos=q; renderCustos(d);
+    hideBanner(); DATACUSTOS=d; LOADEDQS.custos=qsView('custos'); renderCustos(d);
   }catch(e){ if(seq===custosSeq) showBanner('Não foi possível falar com a API.', e.message); }
   finally{ if(seq===custosSeq){ if(btn) btn.disabled=false; document.getElementById('content').classList.remove('loading'); } }
 }
@@ -6426,7 +6481,7 @@ function entrar(){
   router();
   if(USER.deve_trocar_senha) abrirTrocarSenha(true);
   // pré-carrega o financeiro em segundo plano para navegação instantânea
-  if(currentView()==='home' && podeVer('fluxo')) setTimeout(load, 1500);
+  if(currentView()==='home' && podeVer('fluxo')) setTimeout(()=>{ if(currentView()==='home') load(); }, 1500);
 }
 async function boot(){
   let r=null;
