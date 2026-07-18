@@ -2271,6 +2271,20 @@ SELECT coalesce(nullif(trim(p.cidadeorigem),''),'?')||'/'||coalesce(p.uforigem,'
 GROUP BY 1, 2 ORDER BY 4 DESC LIMIT 15
 """
 
+# Retorno vazio por veículo — qual placa/frota está rodando mais vazio
+# (km vazio absoluto). Acionável direto (motorista/alocação). Mesma base
+# canônica; só entram veículos que tiveram algum deslocamento vazio.
+KM_VEIC_SQL = f"""
+SELECT coalesce(nullif(trim(v.numerofrota),''), p.veiculo) AS frota, p.veiculo AS placa,
+       count(*)::int AS viagens,
+       sum(CASE WHEN p.tipo <> 3 THEN coalesce(p.kmfretecompra,0) ELSE 0 END)::float8 AS km_carregado,
+       sum(CASE WHEN p.tipo = 3 THEN coalesce(p.kmfretecompra,0) ELSE 0 END)::float8 AS km_vazio
+{_KM_BASE}
+GROUP BY 1, 2
+HAVING sum(CASE WHEN p.tipo = 3 THEN coalesce(p.kmfretecompra,0) ELSE 0 END) > 0
+ORDER BY 5 DESC LIMIT 15
+"""
+
 
 @cached(ttl=90)
 def get_analise_km(filial: int | None, dt_de: str, dt_ate: str,
@@ -2287,6 +2301,8 @@ def get_analise_km(filial: int | None, dt_de: str, dt_ate: str,
         clientes = cur.fetchall()
         cur.execute(KM_ROTA_VAZIO_SQL, params)
         rotas_vazio = cur.fetchall()
+        cur.execute(KM_VEIC_SQL, params)
+        veiculos = cur.fetchall()
         cur.execute("SELECT current_timestamp AS ts")
         meta = cur.fetchone()
 
@@ -2302,6 +2318,10 @@ def get_analise_km(filial: int | None, dt_de: str, dt_ate: str,
         enrich(m)
     for md in modalidades:
         enrich(md)
+    for vc in veiculos:  # sem receita nesta consulta → só retorno vazio
+        total = vc["km_carregado"] + vc["km_vazio"]
+        vc["km_total"] = total
+        vc["retorno_vazio"] = (vc["km_vazio"] / total) if total else None
     km_cli_total = sum(c["km_carregado"] for c in clientes) or None
     for c in clientes:
         c["rkm"] = (c["receita"] / c["km_carregado"]) if c["km_carregado"] else None
@@ -2309,7 +2329,7 @@ def get_analise_km(filial: int | None, dt_de: str, dt_ate: str,
 
     return {
         "kpis": kpis, "mensal": mensal, "modalidades": modalidades,
-        "clientes": clientes, "rotas_vazio": rotas_vazio,
+        "clientes": clientes, "rotas_vazio": rotas_vazio, "veiculos": veiculos,
         "dt_de": dt_de, "dt_ate": dt_ate, "filial": filial, "modalidade": modalidade,
         "atualizado_em": meta["ts"].isoformat(),
         "fonte": "ERP AVA · programação de embarque · leitura",
