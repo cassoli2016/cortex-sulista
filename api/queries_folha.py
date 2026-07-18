@@ -347,12 +347,14 @@ def get_horas_extras(comp: str | None = None) -> dict:
              for s in sorted(serie_map.values(), key=lambda x: x["comp"])]
     total_12m = round(sum(s["total"] for s in serie), 2)
 
-    # por área na competência
-    area_rows = _q(f"""SELECT COALESCE(fu.descarea,'(sem area)') area,
+    # por área na competência (descarea só existe na VIEW vw_funcionarios)
+    area_rows = _q(f"""SELECT COALESCE(vf.descarea,'(sem area)') area,
                           ROUND(SUM(ff.valorficha),2) tot, COUNT(DISTINCT ff.codintfunc) funcs
-                       {_HE_J}
+                       FROM flp_fichaeventos ff
+                       JOIN flp_eventos fe ON ff.codevento = fe.codevento
+                       JOIN vw_funcionarios vf ON vf.codintfunc = ff.codintfunc AND vf.codigoempresa = :emp
                        WHERE {_HE_WHERE} AND TO_CHAR(ff.competficha,'YYYY-MM')=:comp
-                       GROUP BY COALESCE(fu.descarea,'(sem area)') ORDER BY 2 DESC NULLS LAST
+                       GROUP BY COALESCE(vf.descarea,'(sem area)') ORDER BY 2 DESC NULLS LAST
                        FETCH FIRST 14 ROWS ONLY""", p)
     por_area = [{"area": r["area"], "tot": r["tot"] or 0.0, "funcs": r["funcs"]} for r in area_rows]
 
