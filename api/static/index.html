@@ -6307,7 +6307,7 @@ function pararTimers(){   // sessão caiu: silencia auto-refresh de torre/TV (se
   try{ if(tvClock){ clearInterval(tvClock); tvClock=null; } }catch(e){}
   try{ if(tvTour){ clearInterval(tvTour); tvTour=null; } }catch(e){}
 }
-function podeVer(v){ return !!USER && ((v==='gestao'||v==='srv') ? USER.admin : (USER.admin || USER.telas.includes(v))); }
+function podeVer(v){ if(v==='jornf') v='jorn'; return !!USER && ((v==='gestao'||v==='srv') ? USER.admin : (USER.admin || USER.telas.includes(v))); }
 function primeiraTela(){ return USER ? (Object.keys(VIEWS).find(podeVer) || 'home') : 'home'; }
 function aplicarPermissoes(){
   document.querySelectorAll('nav a[data-view]').forEach(a=>{ a.style.display = podeVer(a.dataset.view) ? '' : 'none'; });
