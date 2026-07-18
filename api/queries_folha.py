@@ -223,8 +223,12 @@ def get_folha_indicadores() -> dict:
     fer_30 = next((r["n"] for r in ferias_l if r["ordem"] == "2-ate 30d"), 0)
     cnh_venc = next((r["n"] for r in cnh_l if r["ordem"] == "1-VENCIDA"), 0)
     cnh_30 = next((r["n"] for r in cnh_l if r["ordem"] == "2-ate 30d"), 0)
-    he_ult = he_serie[-1] if he_serie else {"he50": 0.0, "he100": 0.0}
-    bh_ult = bh_serie[-1] if bh_serie else {"saldo": 0.0, "colab": 0}
+    from datetime import date as _date
+    mes_atual = _date.today().strftime("%Y-%m")
+    he_pas = [h for h in he_serie if h["comp"] <= mes_atual] or he_serie
+    bh_pas = [b for b in bh_serie if b["comp"] <= mes_atual] or bh_serie
+    he_ult = he_pas[-1] if he_pas else {"he50": 0.0, "he100": 0.0}
+    bh_ult = bh_pas[-1] if bh_pas else {"saldo": 0.0, "colab": 0}
 
     return {
         "kpis": {
