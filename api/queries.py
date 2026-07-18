@@ -60,9 +60,22 @@ SELECT
      WHERE valorsaldoreceber > 0 AND dtcancelamento IS NULL {FIL} {RNG})            AS receber_aberto,
   (SELECT count(*)::int FROM fatura
      WHERE valorsaldoreceber > 0 AND dtcancelamento IS NULL {FIL} {RNG})            AS receber_qtd,
-  (SELECT coalesce(sum(valorsaldoreceber),0)::float8 FROM fatura
-     WHERE valorsaldoreceber > 0 AND dtcancelamento IS NULL
-       AND dtvencimento < {DREF} {FIL} {RNG})                                      AS receber_vencido,
+  (SELECT coalesce(sum(fc.valorpendentecnpjcliente),0)::float8
+     FROM fatura f JOIN fatura_composicao fc USING (grupo,empresa,filial,unidade,sequencia)
+     LEFT JOIN conhecimento co ON co.grupo=fc.grupodocumentoorigem AND co.empresa=fc.empresadocumentoorigem
+       AND co.filial=fc.filialdocumentoorigem AND co.unidade=fc.unidadedocumentoorigem
+       AND co.diferenciadornumero=fc.diferenciadornumerodocumentoorigem AND co.serie=fc.seriedocumentoorigem
+       AND co.numero=fc.numerosequenciadocumentoorigem AND fc.tipodocumentoorigem=6
+     WHERE f.grupo=1 AND fc.valorpendentecnpjcliente>0 AND f.dtcancelamento IS NULL AND f.composicao=1
+       AND coalesce(f.dtprevisaopagamento,f.dtvencimento) < {DREF} AND f.dtpagamento IS NULL
+       AND fc.tipodocumentoorigem = ANY(string_to_array('6,8,10,11',',')::int[])
+       AND (fc.tipodocumentoorigem<>6 OR co.situacaocte=3)
+       AND (f.filial = %(filial)s OR %(filial)s::int IS NULL))                     AS receber_vencido,
+  (SELECT coalesce(sum(fc.valorpendentecnpjcliente),0)::float8
+     FROM fatura f JOIN fatura_composicao fc USING (grupo,empresa,filial,unidade,sequencia)
+     WHERE f.grupo=1 AND fc.valorpendentecnpjcliente>0 AND f.dtcancelamento IS NULL AND f.composicao=2
+       AND coalesce(f.dtprevisaopagamento,f.dtvencimento) < {DREF} AND f.dtpagamento IS NULL
+       AND (f.filial = %(filial)s OR %(filial)s::int IS NULL))                     AS receber_pendente_fatur,
   (SELECT coalesce(sum(valorpendente),0)::float8 FROM contaapagar
      WHERE valorpendente > 0 {FIL} {RNG})                                          AS pagar_aberto,
   (SELECT count(*)::int FROM contaapagar WHERE valorpendente > 0 {FIL} {RNG})      AS pagar_qtd,
@@ -1823,6 +1836,7 @@ def get_visao_geral() -> dict:
         "gap_mes": gap_mes if bancos >= 0 else "agora",
         "receber_aberto": fin["receber_aberto"],
         "receber_vencido": fin["receber_vencido"],
+        "receber_pendente_fatur": fin.get("receber_pendente_fatur", 0.0),
         "pagar_aberto": fin["pagar_aberto"],
         "pagar_vencido": fin["pagar_vencido"],
         "receber_prox30": fin["receber_prox30"],
@@ -3427,22 +3441,43 @@ def get_contabil(comp_de: str, comp_ate: str, busca: str | None = None) -> dict:
 # Régua de cobrança — clientes com recebíveis vencidos, priorizados por valor,
 # com faixas de idade e detalhe dos títulos.
 # ============================================================================
-COB_CLI_SQL = """
+# Inadimplência pelo MÉTODO OFICIAL do ERP (Querys Sulista/INADIMPLENCIA):
+# fatura + fatura_composicao, só "Faturado" (composicao=1), valor =
+# valorpendentecnpjcliente, vencido por COALESCE(dtprevisaopagamento,
+# dtvencimento) com dtpagamento IS NULL, docs 6/8/10/11 e CT-e válido
+# (situacaocte=3). Antes usávamos fatura.valorsaldoreceber, que inflava ~12x
+# por incluir pendentes de faturamento (composicao=2) — agora à parte.
+_COB_FROM = """
+FROM fatura f
+JOIN fatura_composicao fc USING (grupo, empresa, filial, unidade, sequencia)
+LEFT JOIN conhecimento co ON co.grupo=fc.grupodocumentoorigem AND co.empresa=fc.empresadocumentoorigem
+   AND co.filial=fc.filialdocumentoorigem AND co.unidade=fc.unidadedocumentoorigem
+   AND co.diferenciadornumero=fc.diferenciadornumerodocumentoorigem AND co.serie=fc.seriedocumentoorigem
+   AND co.numero=fc.numerosequenciadocumentoorigem AND fc.tipodocumentoorigem=6
+"""
+_COB_WHERE = """
+WHERE f.grupo=1 AND fc.valorpendentecnpjcliente > 0 AND f.dtcancelamento IS NULL
+  AND f.composicao = 1
+  AND coalesce(f.dtprevisaopagamento, f.dtvencimento) < current_date AND f.dtpagamento IS NULL
+  AND fc.tipodocumentoorigem = ANY(string_to_array('6,8,10,11',',')::int[])
+  AND (fc.tipodocumentoorigem <> 6 OR co.situacaocte = 3)
+  AND (f.filial = %(filial)s OR %(filial)s::int IS NULL)
+"""
+_COB_DV = "(current_date - coalesce(f.dtprevisaopagamento, f.dtvencimento))"
+
+COB_CLI_SQL = f"""
 SELECT f.cliente AS codigo,
        coalesce(nullif(trim(c.nomefantasia),''), nullif(trim(c.razaosocial),''), '(sem cadastro)') AS cliente,
        count(*)::int AS titulos,
-       sum(f.valorsaldoreceber)::float8 AS vencido,
-       sum(CASE WHEN f.dtvencimento >= current_date-30 THEN f.valorsaldoreceber ELSE 0 END)::float8 AS ate_30,
-       sum(CASE WHEN f.dtvencimento < current_date-30 AND f.dtvencimento >= current_date-90
-                THEN f.valorsaldoreceber ELSE 0 END)::float8 AS de_31_90,
-       sum(CASE WHEN f.dtvencimento < current_date-90 AND f.dtvencimento >= current_date-365
-                THEN f.valorsaldoreceber ELSE 0 END)::float8 AS de_91_365,
-       sum(CASE WHEN f.dtvencimento < current_date-365 THEN f.valorsaldoreceber ELSE 0 END)::float8 AS mais_365,
-       min(f.dtvencimento)::text AS vencimento_mais_antigo
-FROM fatura f LEFT JOIN cadastro c ON c.codigo = f.cliente
-WHERE f.valorsaldoreceber > 0 AND f.dtcancelamento IS NULL
-  AND f.dtvencimento < current_date
-  AND (f.filial = %(filial)s OR %(filial)s::int IS NULL)
+       sum(fc.valorpendentecnpjcliente)::float8 AS vencido,
+       sum(CASE WHEN {_COB_DV} <= 30 THEN fc.valorpendentecnpjcliente ELSE 0 END)::float8 AS ate_30,
+       sum(CASE WHEN {_COB_DV} BETWEEN 31 AND 90 THEN fc.valorpendentecnpjcliente ELSE 0 END)::float8 AS de_31_90,
+       sum(CASE WHEN {_COB_DV} BETWEEN 91 AND 365 THEN fc.valorpendentecnpjcliente ELSE 0 END)::float8 AS de_91_365,
+       sum(CASE WHEN {_COB_DV} > 365 THEN fc.valorpendentecnpjcliente ELSE 0 END)::float8 AS mais_365,
+       min(coalesce(f.dtprevisaopagamento, f.dtvencimento))::text AS vencimento_mais_antigo
+{_COB_FROM}
+LEFT JOIN cadastro c ON c.codigo = f.cliente
+{_COB_WHERE}
   AND (%(cliente)s::text IS NULL OR c.nomefantasia ILIKE '%%'||%(cliente)s||'%%'
        OR c.razaosocial ILIKE '%%'||%(cliente)s||'%%')
 GROUP BY f.cliente, c.nomefantasia, c.razaosocial
@@ -3460,18 +3495,28 @@ WHERE dtcancelamento IS NULL AND dtpagamento IS NOT NULL AND valortitulo > 0
 GROUP BY cliente
 """
 
-COB_TIT_SQL = """
-SELECT f.cliente AS codigo_c, f.numero, f.filial,
+COB_TIT_SQL = f"""
+SELECT f.cliente AS codigo_c, fc.numerosequenciadocumentoorigem AS numero, f.filial,
        to_char(f.dtemissao,'YYYY-MM-DD') AS emissao,
-       to_char(f.dtvencimento,'YYYY-MM-DD') AS vencimento,
-       (current_date - f.dtvencimento)::int AS dias_vencido,
-       f.valorsaldoreceber::float8 AS saldo
-FROM fatura f
-WHERE f.valorsaldoreceber > 0 AND f.dtcancelamento IS NULL
-  AND f.dtvencimento < current_date
-  AND (f.filial = %(filial)s OR %(filial)s::int IS NULL)
+       to_char(coalesce(f.dtprevisaopagamento, f.dtvencimento),'YYYY-MM-DD') AS vencimento,
+       {_COB_DV}::int AS dias_vencido,
+       fc.valorpendentecnpjcliente::float8 AS saldo
+{_COB_FROM}
+{_COB_WHERE}
   AND f.cliente = ANY(%(codigos)s)
-ORDER BY f.cliente, f.valorsaldoreceber DESC
+ORDER BY f.cliente, fc.valorpendentecnpjcliente DESC
+"""
+
+# Pendente de faturamento vencido (composicao=2) — mostrado à parte; NÃO entra
+# no "vencido oficial".
+COB_PENDENTE_SQL = """
+SELECT coalesce(sum(fc.valorpendentecnpjcliente),0)::float8 AS valor, count(*)::int AS docs
+FROM fatura f
+JOIN fatura_composicao fc USING (grupo, empresa, filial, unidade, sequencia)
+WHERE f.grupo=1 AND fc.valorpendentecnpjcliente > 0 AND f.dtcancelamento IS NULL
+  AND f.composicao = 2
+  AND coalesce(f.dtprevisaopagamento, f.dtvencimento) < current_date AND f.dtpagamento IS NULL
+  AND (f.filial = %(filial)s OR %(filial)s::int IS NULL)
 """
 
 
@@ -3491,6 +3536,8 @@ def get_cobranca(filial: int | None, cliente: str | None = None) -> dict:
                 titulos.setdefault(r.pop("codigo_c"), []).append(r)
             cur.execute(COB_DSO_SQL, {"codigos": codigos})
             dso_cli = {r["codigo"]: r["dso"] for r in cur.fetchall()}
+        cur.execute(COB_PENDENTE_SQL, params)
+        pend = cur.fetchone()
         cur.execute("SELECT current_timestamp AS ts")
         meta = cur.fetchone()
 
@@ -3506,8 +3553,11 @@ def get_cobranca(filial: int | None, cliente: str | None = None) -> dict:
     return {
         "clientes": clientes,
         "total_vencido_top": total,
+        "pendente_faturamento": (pend or {}).get("valor", 0.0),
+        "pendente_faturamento_docs": (pend or {}).get("docs", 0),
         "atualizado_em": meta["ts"].isoformat(),
-        "fonte": "ERP AVA · fatura (recebíveis vencidos, não cancelados) · leitura",
+        "fonte": ("ERP AVA · inadimplência oficial (fatura_composicao, só Faturado) · "
+                  "pendente de faturamento à parte · leitura"),
     }
 
 
