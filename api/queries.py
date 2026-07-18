@@ -54,23 +54,47 @@ _FAIXA = f"""CASE
     WHEN dtvencimento >= {DREF} - 365 THEN '4_vencido_91_365'
     ELSE '5_vencido_mais_365' END"""
 
+# Recebíveis pelo MÉTODO OFICIAL do ERP (fatura × fatura_composicao,
+# composicao=1 "faturado", valorpendentecnpjcliente, docs 6/8/10/11 + CT-e
+# situacaocte=3) — MESMA regra da Régua de Cobrança/Ficha de Cliente (ver
+# _COB_FROM/_COB_WHERE mais abaixo), mas parametrizada por {DREF} porque esta
+# tela aceita data_ref retroativa (a Cobrança não). Antes "aberto"/aging/
+# venc/drill usavam fatura.valorsaldoreceber, que infla ~12x por incluir
+# pendente de faturamento (composicao=2) — esse fica à parte em
+# receber_pendente_fatur, nunca somado ao oficial.
+_REC_OF_FROM = """
+FROM fatura f
+JOIN fatura_composicao fc USING (grupo, empresa, filial, unidade, sequencia)
+LEFT JOIN conhecimento co ON co.grupo=fc.grupodocumentoorigem AND co.empresa=fc.empresadocumentoorigem
+   AND co.filial=fc.filialdocumentoorigem AND co.unidade=fc.unidadedocumentoorigem
+   AND co.diferenciadornumero=fc.diferenciadornumerodocumentoorigem AND co.serie=fc.seriedocumentoorigem
+   AND co.numero=fc.numerosequenciadocumentoorigem AND fc.tipodocumentoorigem=6
+"""
+_REC_OF_WHERE = """
+WHERE f.grupo=1 AND fc.valorpendentecnpjcliente > 0 AND f.dtcancelamento IS NULL
+  AND f.composicao = 1 AND f.dtpagamento IS NULL
+  AND fc.tipodocumentoorigem = ANY(string_to_array('6,8,10,11',',')::int[])
+  AND (fc.tipodocumentoorigem <> 6 OR co.situacaocte = 3)
+  AND (f.filial = %(filial)s OR %(filial)s::int IS NULL)
+"""
+_REC_OF_RNG = ("AND (f.dtvencimento >= %(venc_de)s::date OR %(venc_de)s::date IS NULL) "
+               "AND (f.dtvencimento <= %(venc_ate)s::date OR %(venc_ate)s::date IS NULL)")
+_REC_OF_VENC = "coalesce(f.dtprevisaopagamento, f.dtvencimento)"
+_FAIXA_OF = f"""CASE
+    WHEN {_REC_OF_VENC} >= {DREF}       THEN '1_a_vencer'
+    WHEN {_REC_OF_VENC} >= {DREF} - 30  THEN '2_vencido_ate_30'
+    WHEN {_REC_OF_VENC} >= {DREF} - 90  THEN '3_vencido_31_90'
+    WHEN {_REC_OF_VENC} >= {DREF} - 365 THEN '4_vencido_91_365'
+    ELSE '5_vencido_mais_365' END"""
+
 KPI_SQL = f"""
 SELECT
-  (SELECT coalesce(sum(valorsaldoreceber),0)::float8 FROM fatura
-     WHERE valorsaldoreceber > 0 AND dtcancelamento IS NULL {FIL} {RNG})            AS receber_aberto,
-  (SELECT count(*)::int FROM fatura
-     WHERE valorsaldoreceber > 0 AND dtcancelamento IS NULL {FIL} {RNG})            AS receber_qtd,
   (SELECT coalesce(sum(fc.valorpendentecnpjcliente),0)::float8
-     FROM fatura f JOIN fatura_composicao fc USING (grupo,empresa,filial,unidade,sequencia)
-     LEFT JOIN conhecimento co ON co.grupo=fc.grupodocumentoorigem AND co.empresa=fc.empresadocumentoorigem
-       AND co.filial=fc.filialdocumentoorigem AND co.unidade=fc.unidadedocumentoorigem
-       AND co.diferenciadornumero=fc.diferenciadornumerodocumentoorigem AND co.serie=fc.seriedocumentoorigem
-       AND co.numero=fc.numerosequenciadocumentoorigem AND fc.tipodocumentoorigem=6
-     WHERE f.grupo=1 AND fc.valorpendentecnpjcliente>0 AND f.dtcancelamento IS NULL AND f.composicao=1
-       AND coalesce(f.dtprevisaopagamento,f.dtvencimento) < {DREF} AND f.dtpagamento IS NULL
-       AND fc.tipodocumentoorigem = ANY(string_to_array('6,8,10,11',',')::int[])
-       AND (fc.tipodocumentoorigem<>6 OR co.situacaocte=3)
-       AND (f.filial = %(filial)s OR %(filial)s::int IS NULL))                     AS receber_vencido,
+     {_REC_OF_FROM} {_REC_OF_WHERE} {_REC_OF_RNG})                                 AS receber_aberto,
+  (SELECT count(*)::int {_REC_OF_FROM} {_REC_OF_WHERE} {_REC_OF_RNG})              AS receber_qtd,
+  (SELECT coalesce(sum(fc.valorpendentecnpjcliente),0)::float8
+     {_REC_OF_FROM} {_REC_OF_WHERE}
+     AND {_REC_OF_VENC} < {DREF})                                                  AS receber_vencido,
   (SELECT coalesce(sum(fc.valorpendentecnpjcliente),0)::float8
      FROM fatura f JOIN fatura_composicao fc USING (grupo,empresa,filial,unidade,sequencia)
      WHERE f.grupo=1 AND fc.valorpendentecnpjcliente>0 AND f.dtcancelamento IS NULL AND f.composicao=2
@@ -84,9 +108,9 @@ SELECT
   (SELECT coalesce(sum(valortitulo),0)::float8 FROM fatura
      WHERE dtcancelamento IS NULL
        AND date_trunc('month', dtemissao) = date_trunc('month', {DREF}) {FIL})     AS faturamento_mes,
-  (SELECT coalesce(sum(valorsaldoreceber),0)::float8 FROM fatura
-     WHERE valorsaldoreceber > 0 AND dtcancelamento IS NULL
-       AND dtvencimento >= {DREF} AND dtvencimento <= {DREF} + 30 {FIL})           AS receber_prox30,
+  (SELECT coalesce(sum(fc.valorpendentecnpjcliente),0)::float8
+     {_REC_OF_FROM} {_REC_OF_WHERE}
+     AND {_REC_OF_VENC} >= {DREF} AND {_REC_OF_VENC} <= {DREF} + 30)               AS receber_prox30,
   (SELECT coalesce(sum(valorpendente),0)::float8 FROM contaapagar
      WHERE valorpendente > 0
        AND dtvencimento >= {DREF} AND dtvencimento <= {DREF} + 30 {FIL})           AS pagar_prox30
@@ -94,8 +118,8 @@ SELECT
 
 AGING_AR_SQL = f"""
 SELECT faixa, count(*)::int AS qtd, sum(valor)::float8 AS valor FROM (
-  SELECT {_FAIXA} AS faixa, valorsaldoreceber AS valor
-  FROM fatura WHERE valorsaldoreceber > 0 AND dtcancelamento IS NULL {FIL} {RNG}
+  SELECT {_FAIXA_OF} AS faixa, fc.valorpendentecnpjcliente AS valor
+  {_REC_OF_FROM} {_REC_OF_WHERE} {_REC_OF_RNG}
 ) t GROUP BY faixa ORDER BY faixa
 """
 
@@ -233,7 +257,20 @@ FROM (
 ) t GROUP BY bucket ORDER BY bucket
 """
 
-VENC_AR_SQL = _venc_sql("fatura", "valorsaldoreceber > 0 AND dtcancelamento IS NULL", "valorsaldoreceber")
+VENC_AR_SQL = f"""
+SELECT bucket,
+       sum(CASE WHEN venc_of <  {DREF} THEN valor_of ELSE 0 END)::float8 AS vencido,
+       sum(CASE WHEN venc_of >= {DREF} THEN valor_of ELSE 0 END)::float8 AS a_vencer,
+       count(*)::int AS titulos
+FROM (
+  SELECT CASE
+      WHEN date_trunc('month',{_REC_OF_VENC}) <  date_trunc('month',{DREF}) - interval '6 months'  THEN '0:ant'
+      WHEN date_trunc('month',{_REC_OF_VENC}) >= date_trunc('month',{DREF}) + interval '12 months' THEN '2:pos'
+      ELSE '1:'||to_char({_REC_OF_VENC},'YYYY-MM') END AS bucket,
+    {_REC_OF_VENC} AS venc_of, fc.valorpendentecnpjcliente AS valor_of
+  {_REC_OF_FROM} {_REC_OF_WHERE} {_REC_OF_RNG}
+) t GROUP BY bucket ORDER BY bucket
+"""
 VENC_AP_SQL = _venc_sql("contaapagar", "valorpendente > 0", "valorpendente")
 
 # Drill-down: maiores devedores (a receber) e credores (a pagar).
@@ -242,10 +279,11 @@ DRILL_AR_SQL = f"""
 SELECT f.cliente AS codigo,
        coalesce(nullif(trim(c.nomefantasia),''), nullif(trim(c.razaosocial),''), '(sem cadastro)') AS nome,
        count(*)::int AS titulos,
-       sum(f.valorsaldoreceber)::float8 AS valor,
-       sum(CASE WHEN f.dtvencimento < {DREF} THEN f.valorsaldoreceber ELSE 0 END)::float8 AS vencido
-FROM fatura f LEFT JOIN cadastro c ON c.codigo = f.cliente
-WHERE f.valorsaldoreceber > 0 AND f.dtcancelamento IS NULL {FIL} {RNG}
+       sum(fc.valorpendentecnpjcliente)::float8 AS valor,
+       sum(CASE WHEN {_REC_OF_VENC} < {DREF} THEN fc.valorpendentecnpjcliente ELSE 0 END)::float8 AS vencido
+{_REC_OF_FROM}
+LEFT JOIN cadastro c ON c.codigo = f.cliente
+{_REC_OF_WHERE} {_REC_OF_RNG}
 GROUP BY f.cliente, c.nomefantasia, c.razaosocial
 ORDER BY valor DESC LIMIT 15
 """
