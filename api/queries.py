@@ -3810,3 +3810,103 @@ def get_motorista_jornada(token: str, comp_de: str, comp_ate: str) -> dict:
         "atualizado_em": meta["ts"].isoformat(),
         "fonte": "ERP AVA · tabela jornada (apuração oficial do ERP) · leitura",
     }
+
+
+# ============================================================================
+# Custos Extras (sulista.custoextra) — cobrança de acessórios por CT-e
+# ----------------------------------------------------------------------------
+# Descarga, diária, estadia, ajudante, escolta, carga crítica etc. lançados
+# por CT-e, com status de cobrança. Fonte: Querys Sulista/OPERACAO - Custos
+# Extras.sql. Ângulo de gestão: o que ainda NÃO foi cobrado = receita a
+# recuperar.
+# ============================================================================
+CEX_TIPO = {8: "Descarga", 104: "Diária", 105: "Estadia", 106: "Coleta Frustrada",
+            107: "Frete Compra", 108: "Movimentação Balança", 109: "Ajudante",
+            110: "Carga Crítica", 111: "Escolta"}
+CEX_STATUS = {1: "Emitido", 2: "Não Cobrado", 3: "Aguardando Cobrança"}
+CEX_JUSTIF = {1: "Devido", 2: "Acordo comercial", 3: "Erro operacional", 4: "Já Contemplado"}
+
+CEX_AGG_SQL = """
+SELECT ce.tipocusto, ce.statuscobranca, count(*)::int AS n,
+       sum(coalesce(ce.valorcusto,0))::float8 AS custo,
+       sum(coalesce(ce.valorcobrado,0))::float8 AS cobrado
+FROM sulista.custoextra ce
+WHERE ce.dtinclusao::date BETWEEN %(dt_de)s AND %(dt_ate)s
+GROUP BY ce.tipocusto, ce.statuscobranca
+"""
+
+CEX_LIST_SQL = """
+SELECT ce.id, ce.tipocusto, ce.statuscobranca, ce.justificativa,
+       coalesce(ce.valorcusto,0)::float8 AS custo,
+       coalesce(ce.valorcobrado,0)::float8 AS cobrado,
+       to_char(ce.dtinclusao,'YYYY-MM-DD') AS data,
+       co.numero AS cte,
+       coalesce(nullif(trim(ac.descricao),''), nullif(trim(cad.razaosocial),''), '(sem cliente)') AS cliente,
+       u.nomecompleto AS usuario
+FROM sulista.custoextra ce
+LEFT JOIN conhecimento co ON co.grupo=ce.grupo AND co.empresa=ce.empresa
+   AND co.filial=ce.filialdocumento AND co.unidade=ce.unidadedocumento
+   AND co.diferenciadornumero=ce.diferenciadornumerodocumento AND co.serie=ce.seriedocumento
+   AND co.numero=ce.numerodocumento
+LEFT JOIN cadastro cad ON cad.codigo = co.cnpjcpfcodigopagadorfrete
+LEFT JOIN agrupamentocliente_cnpjcpfcodigo acc ON acc.grupo=co.grupo AND acc.empresa=co.empresa
+   AND acc.cnpjcpfcodigo=co.cnpjcpfcodigopagadorfrete AND acc.vinculo=1
+LEFT JOIN agrupamentocliente ac ON ac.grupo=acc.grupo AND ac.empresa=acc.empresa AND ac.codigo=acc.codigo
+LEFT JOIN usuario u ON u.codigo = ce.userinclusao
+WHERE ce.dtinclusao::date BETWEEN %(dt_de)s AND %(dt_ate)s
+ORDER BY ce.dtinclusao DESC
+LIMIT 200
+"""
+
+
+@cached(ttl=120)
+def get_custos_extras(dt_de: str, dt_ate: str) -> dict:
+    """Custos extras (acessórios) por CT-e no período, com status de cobrança."""
+    params = {"dt_de": dt_de, "dt_ate": dt_ate}
+    with db.get_conn() as conn, conn.cursor() as cur:
+        cur.execute(CEX_AGG_SQL, params)
+        agg = cur.fetchall()
+        cur.execute(CEX_LIST_SQL, params)
+        lst = cur.fetchall()
+        cur.execute("SELECT current_timestamp AS ts")
+        meta = cur.fetchone()
+
+    total_custo = sum(a["custo"] for a in agg)
+    total_cobrado = sum(a["cobrado"] for a in agg)
+    # a cobrar = custo dos lançamentos ainda não emitidos (status 2/3) não coberto
+    a_cobrar = sum(max(a["custo"] - a["cobrado"], 0.0) for a in agg if a["statuscobranca"] in (2, 3))
+    n_total = sum(a["n"] for a in agg)
+
+    por_tipo: dict[str, dict] = {}
+    for a in agg:
+        t = CEX_TIPO.get(a["tipocusto"], f"Tipo {a['tipocusto']}")
+        d = por_tipo.setdefault(t, {"tipo": t, "n": 0, "custo": 0.0, "cobrado": 0.0})
+        d["n"] += a["n"]; d["custo"] += a["custo"]; d["cobrado"] += a["cobrado"]
+    por_tipo_l = sorted(por_tipo.values(), key=lambda x: -x["custo"])
+
+    por_status: dict[str, dict] = {}
+    for a in agg:
+        s = CEX_STATUS.get(a["statuscobranca"], "Sem status")
+        d = por_status.setdefault(s, {"status": s, "n": 0, "custo": 0.0, "cobrado": 0.0})
+        d["n"] += a["n"]; d["custo"] += a["custo"]; d["cobrado"] += a["cobrado"]
+
+    lancamentos = [{
+        "id": r["id"], "data": r["data"], "cte": r["cte"], "cliente": r["cliente"],
+        "tipo": CEX_TIPO.get(r["tipocusto"], f"Tipo {r['tipocusto']}"),
+        "status": CEX_STATUS.get(r["statuscobranca"], "—"),
+        "justificativa": CEX_JUSTIF.get(r["justificativa"]),
+        "custo": r["custo"], "cobrado": r["cobrado"], "usuario": r["usuario"],
+    } for r in lst]
+
+    return {
+        "kpis": {
+            "n": n_total, "total_custo": total_custo, "total_cobrado": total_cobrado,
+            "a_cobrar": a_cobrar,
+            "pct_cobrado": round(100 * total_cobrado / total_custo, 1) if total_custo else 0.0,
+        },
+        "por_tipo": por_tipo_l,
+        "por_status": list(por_status.values()),
+        "lancamentos": lancamentos,
+        "atualizado_em": meta["ts"].isoformat(),
+        "fonte": "ERP AVA · sulista.custoextra (custos extras por CT-e) · leitura",
+    }
