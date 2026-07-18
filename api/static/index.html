@@ -3524,10 +3524,10 @@ function renderCob(d){
   const antigo=cs.length?Math.min(...cs.map(c=>c.vencimento_mais_antigo||'9999').map(s=>s)):null;
   const antigoTxt=cs.length?cs.reduce((a,c)=>(c.vencimento_mais_antigo&&c.vencimento_mais_antigo<a)?c.vencimento_mais_antigo:a,'9999-99-99'):null;
   document.getElementById('kpis-cob').innerHTML=[
-    kpi('Total vencido (top 30)', BRL.format(d.total_vencido_top), cs.length+' clientes exibidos', 'neg'),
+    kpi('Vencido oficial (top 30)', BRL.format(d.total_vencido_top), cs.length+' clientes · só faturado (composição 1)', 'neg'),
     kpi('Acima de 90 dias', BRL.format(acima90), d.total_vencido_top>0?((100*acima90/d.total_vencido_top).toFixed(0)+'% do vencido — risco de perda'):'', acima90>0?'neg':''),
     kpi('Últimos 30 dias', BRL.format(soma('ate_30')), 'vencido recente — cobrar agora tem mais retorno', ''),
-    kpi('Vencido mais antigo', antigoTxt&&antigoTxt!=='9999-99-99'?fmtD(antigoTxt):'—', '', ''),
+    kpi('Pendente de faturamento', BRL.format(d.pendente_faturamento||0), (d.pendente_faturamento_docs||0)+' docs vencidos ainda não faturados', (d.pendente_faturamento||0)>0?'neg':''),
   ].join('');
   document.getElementById('cob-cli').innerHTML=cs.map((c,i)=>{
     const det=`
