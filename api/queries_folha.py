@@ -52,11 +52,15 @@ def get_headcount() -> dict:
     adm_m = _q("""SELECT TO_CHAR(dtadmfunc,'YYYY-MM') m, COUNT(*) n FROM vw_funcionarios
                   WHERE codigoempresa = :emp AND dtadmfunc >= ADD_MONTHS(TRUNC(SYSDATE),-12)
                   GROUP BY TO_CHAR(dtadmfunc,'YYYY-MM')""", p)
-    dem_m = _q("""SELECT TO_CHAR(dataterminocontrato,'YYYY-MM') m, COUNT(*) n FROM vw_funcionarios
-                  WHERE codigoempresa = :emp AND situacaofunc = 'D'
-                    AND dataterminocontrato >= ADD_MONTHS(TRUNC(SYSDATE),-12)
-                    AND dataterminocontrato < TRUNC(SYSDATE)
-                  GROUP BY TO_CHAR(dataterminocontrato,'YYYY-MM')""", p)
+    # Demissões pela FOLHA DE RESCISÃO: funcionário com evento de aviso prévio
+    # na competência (fonte real; DATATERMINOCONTRATO subcontava muito).
+    dem_m = _q("""SELECT TO_CHAR(ff.competficha,'YYYY-MM') m, COUNT(DISTINCT ff.codintfunc) n
+                  FROM flp_fichaeventos ff
+                  JOIN flp_eventos fe ON ff.codevento = fe.codevento
+                  JOIN flp_funcionarios fu ON fu.codintfunc = ff.codintfunc AND fu.codigoempresa = :emp
+                  WHERE UPPER(fe.desceven) LIKE 'AVISO PREVIO%'
+                    AND ff.competficha >= ADD_MONTHS(TRUNC(SYSDATE,'MM'), -12)
+                  GROUP BY TO_CHAR(ff.competficha,'YYYY-MM')""", p)
     adm_map = {r["m"]: r["n"] for r in adm_m}
     dem_map = {r["m"]: r["n"] for r in dem_m}
     from datetime import date
