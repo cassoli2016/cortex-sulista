@@ -4329,3 +4329,89 @@ def get_qualidade() -> dict:
         "atualizado_em": meta["ts"].isoformat(),
         "fonte": "ERP AVA · sulista.certidoes + sulista.controle_auditoria · leitura",
     }
+
+
+# ============================================================================
+# Portaria — controle de pátio + autorização de saída
+# ----------------------------------------------------------------------------
+# Fonte: Querys Sulista/PORTARIA. `controlepatio` é log de entradas/saídas
+# (escopar por recência); `autorizacaosaida` (só enviarportaria=true).
+# `docvisitante` NÃO é exposto (pode ser documento pessoal = PII).
+# ============================================================================
+PAT_TIPO = {1: "Frota Sulista", 2: "Agregado", 3: "Terceiro", 4: "Colaborador",
+            5: "Visitante", 6: "Entregador", 7: "Prestador de Serviços", 8: "Motorista App"}
+PAT_TIPOVIAGEM = {1: "Viagem", 2: "Manutenção", 3: "Administrativo"}
+
+PAT_PATIO_SQL = """
+SELECT p.tipo, p.placa, coalesce(nullif(trim(p.condutor),''), nullif(trim(p.nomefuncionario),'')) AS condutor,
+       p.cliente, p.fornecedor, p.carretaplaca, p.dtentrada,
+       round((extract(epoch from (current_timestamp - p.dtentrada))/3600)::numeric,1)::float8 AS horas
+FROM sulista.controlepatio p
+WHERE p.dtsaida IS NULL AND p.dtentrada >= current_date - 2
+ORDER BY p.dtentrada DESC
+"""
+
+PAT_KPI_SQL = """
+SELECT
+  (SELECT count(*) FROM sulista.controlepatio WHERE dtsaida IS NULL AND dtentrada >= current_date-2) AS no_patio,
+  (SELECT count(*) FROM sulista.controlepatio WHERE dtentrada::date = current_date) AS entradas_hoje,
+  (SELECT count(*) FROM sulista.controlepatio WHERE dtsaida::date = current_date) AS saidas_hoje
+"""
+
+PAT_AUT_SQL = """
+SELECT a.tipoviagem, a.frota, a.carreta, a.destino,
+       coalesce(nullif(trim(cad.razaosocial),''), a.motorista) AS motorista,
+       a.dataemissao, a.datasaida, a.dataretorno,
+       CASE WHEN a.frotaleve = 1 THEN 'Leve' WHEN a.frotapesada = 1 THEN 'Pesada' ELSE '-' END AS tipofrota,
+       (a.frotaleve = 1 AND a.dataretorno > current_timestamp + interval '12 hours') AS pendente
+FROM sulista.autorizacaosaida a
+LEFT JOIN cadastro cad ON cad.codigo = a.motorista
+WHERE a.enviarportaria = true AND a.dataemissao >= current_date - 7
+ORDER BY a.dataemissao DESC
+LIMIT 200
+"""
+
+
+@cached(ttl=90)
+def get_portaria() -> dict:
+    """Controle de pátio (quem está no pátio) + autorizações de saída recentes."""
+    with db.get_conn() as conn, conn.cursor() as cur:
+        cur.execute(PAT_KPI_SQL)
+        k = cur.fetchone()
+        cur.execute(PAT_PATIO_SQL)
+        patio = cur.fetchall()
+        cur.execute(PAT_AUT_SQL)
+        aut = cur.fetchall()
+        cur.execute("SELECT current_timestamp AS ts")
+        meta = cur.fetchone()
+
+    no_patio = [{
+        "tipo": PAT_TIPO.get(p["tipo"], "-"), "placa": p["placa"],
+        "condutor": (p["condutor"] or "").strip() or "—",
+        "cliente": (p["cliente"] or p["fornecedor"] or "").strip() or None,
+        "carreta": (p["carretaplaca"] or "").strip() or None,
+        "entrada": p["dtentrada"].isoformat() if p["dtentrada"] else None,
+        "horas": p["horas"],
+    } for p in patio]
+
+    autorizacoes = [{
+        "tipoviagem": PAT_TIPOVIAGEM.get(a["tipoviagem"], "-"),
+        "frota": a["frota"], "carreta": a["carreta"], "destino": (a["destino"] or "").strip() or None,
+        "motorista": (a["motorista"] or "").strip() or "—", "tipofrota": a["tipofrota"],
+        "emissao": a["dataemissao"].isoformat() if a["dataemissao"] else None,
+        "saida": a["datasaida"].isoformat() if a["datasaida"] else None,
+        "retorno": a["dataretorno"].isoformat() if a["dataretorno"] else None,
+        "pendente": bool(a["pendente"]), "saiu": a["datasaida"] is not None,
+    } for a in aut]
+
+    return {
+        "kpis": {
+            "no_patio": k["no_patio"], "entradas_hoje": k["entradas_hoje"],
+            "saidas_hoje": k["saidas_hoje"], "autorizacoes_7d": len(autorizacoes),
+            "pendentes": sum(1 for a in autorizacoes if a["pendente"]),
+        },
+        "no_patio": no_patio,
+        "autorizacoes": autorizacoes,
+        "atualizado_em": meta["ts"].isoformat(),
+        "fonte": "ERP AVA · sulista.controlepatio + sulista.autorizacaosaida · leitura",
+    }
