@@ -561,6 +561,7 @@ button.avatar{border:0;cursor:pointer}
         <a href="#jorn" class="sub" data-view="jorn" title="Jornada do Motorista (Lei 13.103)"><span class="ic" data-ic="tor"></span><span>Jornada do Motorista</span></a>
         <a href="#cex" class="sub" data-view="cex" title="Custos Extras por CT-e"><span class="ic" data-ic="oc"></span><span>Custos Extras</span></a>
         <a href="#sac" class="sub" data-view="sac" title="SAC / Freetime e Estadia"><span class="ic" data-ic="cob"></span><span>SAC / Freetime</span></a>
+        <a href="#port" class="sub" data-view="port" title="Portaria — controle de pátio e autorização de saída"><span class="ic" data-ic="tor"></span><span>Portaria</span></a>
         <a href="#km" class="sub" data-view="km" title="Análise de KM"><span class="ic" data-ic="kmv"></span><span>Análise de KM</span></a>
         <a href="#agr" class="sub" data-view="agr" title="Agregados e Terceiros"><span class="ic" data-ic="agr"></span><span>Agregados e Terceiros</span></a>
         <a href="#mvb" class="sub" data-view="mvb" title="Make vs Buy"><span class="ic" data-ic="mvb"></span><span>Make vs Buy</span></a>
@@ -1462,6 +1463,17 @@ button.avatar{border:0;cursor:pointer}
           <div class="tablewrap" id="qual-auditoria"></div>
         </div>
       </section>
+      <section class="view" id="view-port">
+        <div class="kpis" id="kpis-port"></div>
+        <div class="card">
+          <div class="head"><h2>No pátio agora</h2><span class="hint">entraram e ainda não saíram (últimos 2 dias)</span></div>
+          <div class="tablewrap" id="port-patio"></div>
+        </div>
+        <div class="card">
+          <div class="head"><h2>Autorizações de saída</h2><span class="hint">emitidas nos últimos 7 dias</span></div>
+          <div class="tablewrap" id="port-aut"></div>
+        </div>
+      </section>
       <section class="view" id="view-mul">
         <div class="kpis" id="kpis-mul"></div>
         <div class="card">
@@ -1819,7 +1831,7 @@ const FAIXAS = {
   '4_vencido_91_365':['Vencido 91–365d','b-dang'],
   '5_vencido_mais_365':['Vencido > 365d','b-dang'],
 };
-const VIEWS = { home:'Visão Geral', fluxo:'Fluxo de Caixa e Bancos', receber:'Contas a Receber', pagar:'Contas a Pagar', oc:'Ordens de Compra', agr:'Agregados e Terceiros', mvb:'Make vs Buy', comb:'Combustível', man:'Manutenção', com:'Clientes e RKM', clif:'Consulta de Cliente', km:'Análise de KM', torre:'Torre de Controle', veic:'Veículos', veicf:'Consulta de Veículo', mprev:'Manutenção Preventiva', comrast:'Comunicação Rastreadora', mul:'Multas', prog:'Programação Inteligente', jorn:'Jornada do Motorista', jornf:'Ficha de Jornada', cex:'Custos Extras', sac:'SAC / Freetime', cop:'Copiloto Cortex', cob:'Régua de Cobrança', cont:'Contabilidade', qual:'Qualidade e Certidões', dre:'DRE Gerencial', drecli:'DRE por Cliente', tvfat:'Painel TV — Faturamento', tvope:'Painel TV — Operação', gestao:'Gestão', srv:'Saúde do Servidor' };
+const VIEWS = { home:'Visão Geral', fluxo:'Fluxo de Caixa e Bancos', receber:'Contas a Receber', pagar:'Contas a Pagar', oc:'Ordens de Compra', agr:'Agregados e Terceiros', mvb:'Make vs Buy', comb:'Combustível', man:'Manutenção', com:'Clientes e RKM', clif:'Consulta de Cliente', km:'Análise de KM', torre:'Torre de Controle', veic:'Veículos', veicf:'Consulta de Veículo', mprev:'Manutenção Preventiva', comrast:'Comunicação Rastreadora', mul:'Multas', prog:'Programação Inteligente', jorn:'Jornada do Motorista', jornf:'Ficha de Jornada', cex:'Custos Extras', sac:'SAC / Freetime', port:'Portaria', cop:'Copiloto Cortex', cob:'Régua de Cobrança', cont:'Contabilidade', qual:'Qualidade e Certidões', dre:'DRE Gerencial', drecli:'DRE por Cliente', tvfat:'Painel TV — Faturamento', tvope:'Painel TV — Operação', gestao:'Gestão', srv:'Saúde do Servidor' };
 const periodoLabel = p => { if(p==='atrasado') return 'Atrasado'; const [y,m]=p.split('-'); return MES[+m-1]+'/'+y.slice(2); };
 const fmtD = s => { if(!s) return ''; const [y,m,dd]=s.split('-'); return dd+'/'+m+'/'+y; };
 const esc  = s => (s??'').toString().replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
@@ -1862,6 +1874,8 @@ let comrastSeq = 0;
 let DATACOMRAST = null;
 let qualSeq = 0;
 let DATAQUAL = null;
+let portSeq = 0;
+let DATAPORT = null;
 let ocSeq = 0;
 let agrSeq = 0;
 let mvbSeq = 0;
@@ -1948,7 +1962,7 @@ const VIEW_GROUP = {home:'',cop:'',
   com:'Com',clif:'Com',rent:'Com',drecli:'Com',
   fluxo:'Fin',receber:'Fin',pagar:'Fin',cob:'Fin',
   dre:'Ctr',cont:'Ctr',qual:'Ctr',
-  torre:'Ope',prog:'Ope',jorn:'Ope',jornf:'Ope',cex:'Ope',sac:'Ope',km:'Ope',agr:'Ope',mvb:'Ope',
+  torre:'Ope',prog:'Ope',jorn:'Ope',jornf:'Ope',cex:'Ope',sac:'Ope',port:'Ope',km:'Ope',agr:'Ope',mvb:'Ope',
   veic:'Fro',veicf:'Fro',mprev:'Fro',comrast:'Fro',comb:'Fro',man:'Fro',mul:'Fro',
   oc:'Sup',
   tvfat:'Tv',tvope:'Tv',
@@ -2116,8 +2130,8 @@ function router(){
   document.getElementById('grpCob').style.display = cob ? 'flex' : 'none';
   document.getElementById('grpRent').style.display = rent ? 'flex' : 'none';
   const ges = (v==='gestao');
-  const fbar=document.getElementById('filterbar'); if(fbar) fbar.style.display = (cop||ges||v==='srv'||v==='veicf'||v==='clif'||v==='jorn'||v==='jornf'||v==='cex'||v==='sac'||v==='mprev'||v==='comrast'||v==='qual'||v==='home') ? 'none' : '';
-  const metaEl=document.getElementById('meta'); if(metaEl) metaEl.style.display = (cop||ges||v==='srv'||v==='veicf'||v==='clif'||v==='jorn'||v==='jornf'||v==='cex'||v==='sac'||v==='mprev'||v==='comrast'||v==='qual') ? 'none' : '';
+  const fbar=document.getElementById('filterbar'); if(fbar) fbar.style.display = (cop||ges||v==='srv'||v==='veicf'||v==='clif'||v==='jorn'||v==='jornf'||v==='cex'||v==='sac'||v==='mprev'||v==='comrast'||v==='qual'||v==='port'||v==='home') ? 'none' : '';
+  const metaEl=document.getElementById('meta'); if(metaEl) metaEl.style.display = (cop||ges||v==='srv'||v==='veicf'||v==='clif'||v==='jorn'||v==='jornf'||v==='cex'||v==='sac'||v==='mprev'||v==='comrast'||v==='qual'||v==='port') ? 'none' : '';
   // classe em vez de style: o CSS mobile usa !important no display
   const bfil=document.getElementById('btnFiltros'); if(bfil){ bfil.classList.toggle('oculto', cop||ges||v==='srv'||v==='home'); bfil.style.display=''; }
   document.getElementById('grpKm').style.display = kmv ? 'flex' : 'none';
@@ -2138,8 +2152,8 @@ function router(){
   // carga da vista: dispara se não há dados OU se os filtros visíveis
   // divergem dos usados na última carga (nunca mostrar dado velho com filtro novo)
   const key=viewKey(v);
-  const DATAMAP={fin:DATA,oc:DATAOC,agr:DATAAGR,mvb:DATAMVB,comb:DATACOMB,man:DATAMAN,com:DATACOM,clif:DATACLIF,dre:DATADRE,drecli:DATADRECLI,home:DATAHOME,km:DATAKM,torre:DATATORRE,veic:DATAVEIC,veicf:DATAVEICF,mul:DATAMUL,prog:DATAPROG,jorn:DATAJORN,jornf:DATAJORNF,cex:DATACEX,sac:DATASAC,mprev:DATAMPREV,comrast:DATACOMRAST,qual:DATAQUAL,cob:DATACOB,rent:DATARENT,cont:DATACONT,gestao:DATAGES,srv:DATASRV,tvfat:null,tvope:null,cop:(COP_MSGS.length?{}:null)};
-  const LOADMAP={fin:load,oc:loadOc,agr:loadAgr,mvb:loadMvb,comb:loadComb,man:loadMan,com:loadCom,clif:loadClif,dre:loadDre,drecli:loadDreCli,home:loadHome,km:loadKm,torre:loadTorre,veic:loadVeic,veicf:loadVeicf,mul:loadMul,prog:loadProg,jorn:loadJorn,jornf:loadJornf,cex:loadCex,sac:loadSac,mprev:loadMPrev,comrast:loadComRast,qual:loadQual,cob:loadCob,rent:loadRent,cont:loadCont,gestao:loadGestao,srv:loadSrv,cop:loadCop,tvfat:loadTvFat,tvope:loadTvOpe};
+  const DATAMAP={fin:DATA,oc:DATAOC,agr:DATAAGR,mvb:DATAMVB,comb:DATACOMB,man:DATAMAN,com:DATACOM,clif:DATACLIF,dre:DATADRE,drecli:DATADRECLI,home:DATAHOME,km:DATAKM,torre:DATATORRE,veic:DATAVEIC,veicf:DATAVEICF,mul:DATAMUL,prog:DATAPROG,jorn:DATAJORN,jornf:DATAJORNF,cex:DATACEX,sac:DATASAC,mprev:DATAMPREV,comrast:DATACOMRAST,qual:DATAQUAL,port:DATAPORT,cob:DATACOB,rent:DATARENT,cont:DATACONT,gestao:DATAGES,srv:DATASRV,tvfat:null,tvope:null,cop:(COP_MSGS.length?{}:null)};
+  const LOADMAP={fin:load,oc:loadOc,agr:loadAgr,mvb:loadMvb,comb:loadComb,man:loadMan,com:loadCom,clif:loadClif,dre:loadDre,drecli:loadDreCli,home:loadHome,km:loadKm,torre:loadTorre,veic:loadVeic,veicf:loadVeicf,mul:loadMul,prog:loadProg,jorn:loadJorn,jornf:loadJornf,cex:loadCex,sac:loadSac,mprev:loadMPrev,comrast:loadComRast,qual:loadQual,port:loadPort,cob:loadCob,rent:loadRent,cont:loadCont,gestao:loadGestao,srv:loadSrv,cop:loadCop,tvfat:loadTvFat,tvope:loadTvOpe};
   if(!DATAMAP[key] || (key!=='home' && LOADEDQS[key]!==qsView(key))) LOADMAP[key]();
   // mobile: estado da navegação inferior + fecha gaveta/painel de filtros
   document.querySelectorAll('.bottomnav [data-bview]').forEach(a=>a.classList.toggle('ativo', a.dataset.bview===v));
@@ -2786,7 +2800,7 @@ function reloadCurrent(){
   // recarrega a TELA ATUAL — antes caía em load() (Financeiro) para várias telas.
   const M={home:loadHome,fluxo:load,receber:load,pagar:load,dre:loadDre,drecli:loadDreCli,oc:loadOc,
     agr:loadAgr,mvb:loadMvb,comb:loadComb,man:loadMan,com:loadCom,clif:loadClif,km:loadKm,
-    torre:loadTorre,veic:loadVeic,veicf:loadVeicf,mul:loadMul,prog:loadProg,jorn:loadJorn,jornf:loadJornf,cex:loadCex,sac:loadSac,mprev:loadMPrev,comrast:loadComRast,qual:loadQual,cob:loadCob,rent:loadRent,
+    torre:loadTorre,veic:loadVeic,veicf:loadVeicf,mul:loadMul,prog:loadProg,jorn:loadJorn,jornf:loadJornf,cex:loadCex,sac:loadSac,mprev:loadMPrev,comrast:loadComRast,qual:loadQual,port:loadPort,cob:loadCob,rent:loadRent,
     cont:loadCont,gestao:loadGestao,srv:loadSrv,cop:loadCop,tvfat:loadTvFat,tvope:loadTvOpe};
   (M[currentView()]||load)();
 }
@@ -4474,6 +4488,33 @@ function renderQual(d){
   const au=(d.auditorias||[]).map(a=>`<tr><td>${esc(a.dt||'')}</td><td>${esc(a.area)}</td><td>${esc(a.tipo)}</td><td><span class="badge ${a.resultado==='Aprovado'?'b-ok':'b-dang'}">${esc(a.resultado)}</span></td><td class="num">${a.ncs}</td><td>${esc(a.status_acao||'—')}</td><td>${esc(a.problema||'')}</td></tr>`).join('')||'<tr><td colspan="7" style="color:var(--n500)">sem auditorias registradas</td></tr>';
   document.getElementById('qual-auditoria').innerHTML=`<table><thead><tr><th>Data</th><th>Área</th><th>Tipo</th><th>Resultado</th><th class="num">NCs</th><th>Ação</th><th>Principal problema</th></tr></thead><tbody>${au}</tbody></table>`;
 }
+// ---------------- Portaria ----------------
+async function loadPort(){
+  const seq=++portSeq, btn=document.getElementById('btnRefresh'); if(btn) btn.disabled=true;
+  document.getElementById('content').classList.add('loading');
+  skelKpis('kpis-port',4);
+  try{
+    const r=await fetch('/api/operacao/portaria',{cache:'no-store'});
+    const d=await r.json(); if(seq!==portSeq) return;
+    if(!r.ok){ showBanner(d.mensagem||'Erro ao consultar a portaria.', d.detalhe); return; }
+    hideBanner(); DATAPORT=d; LOADEDQS.port='1'; renderPort(d);
+  }catch(e){ if(seq===portSeq) showBanner('Não foi possível falar com a API.', e.message); }
+  finally{ if(seq===portSeq){ if(btn) btn.disabled=false; document.getElementById('content').classList.remove('loading'); } }
+}
+function renderPort(d){
+  const k=d.kpis||{};
+  document.getElementById('kpis-port').innerHTML=[
+    kpi('No pátio agora', (k.no_patio||0).toLocaleString('pt-BR'), 'entraram e não saíram (2 dias)',''),
+    kpi('Entradas hoje', (k.entradas_hoje||0).toLocaleString('pt-BR'), 'movimentação do dia',''),
+    kpi('Saídas hoje', (k.saidas_hoje||0).toLocaleString('pt-BR'), 'movimentação do dia',''),
+    kpi('Autorizações (7 dias)', (k.autorizacoes_7d||0).toLocaleString('pt-BR'), (k.pendentes||0)+' pendentes de retorno', (k.pendentes||0)>0?'neg':''),
+  ].join('');
+  const fmtDt=s=>s?s.slice(8,10)+'/'+s.slice(5,7)+' '+s.slice(11,16):'—';
+  const pt=(d.no_patio||[]).map(p=>`<tr><td>${esc(p.tipo)}</td><td style="font-family:var(--mono);font-weight:600">${esc(p.placa||'—')}</td><td>${esc(p.condutor)}</td><td>${esc(p.cliente||'')}</td><td class="num">${fmtDt(p.entrada)}</td><td class="num" style="${p.horas>12?'color:var(--red);font-weight:700':''}">${p.horas!=null?p.horas+' h':'—'}</td></tr>`).join('')||'<tr><td colspan="6" style="color:var(--n500)">pátio vazio</td></tr>';
+  document.getElementById('port-patio').innerHTML=`<table><thead><tr><th>Tipo</th><th>Placa</th><th>Condutor</th><th>Cliente/Fornecedor</th><th class="num">Entrada</th><th class="num">No pátio há</th></tr></thead><tbody>${pt}</tbody></table>`;
+  const au=(d.autorizacoes||[]).map(a=>`<tr><td>${esc(a.tipoviagem)}</td><td style="font-family:var(--mono)">${esc(a.frota||'—')}</td><td>${esc(a.motorista)}</td><td>${esc(a.destino||'')}</td><td>${esc(a.tipofrota)}</td><td class="num">${fmtDt(a.emissao)}</td><td>${a.saiu?'<span class="badge b-ok">saiu</span>':'<span class="badge b-warn">aguardando</span>'}${a.pendente?' <span class="badge b-dang">retorno pendente</span>':''}</td></tr>`).join('')||'<tr><td colspan="7" style="color:var(--n500)">sem autorizações no período</td></tr>';
+  document.getElementById('port-aut').innerHTML=`<table><thead><tr><th>Tipo</th><th>Frota</th><th>Motorista</th><th>Destino</th><th>Frota</th><th class="num">Emissão</th><th>Status</th></tr></thead><tbody>${au}</tbody></table>`;
+}
 async function loadTorre(){
   skelKpis('kpis-torre',4);
   const seq = ++torreSeq;
@@ -6153,6 +6194,7 @@ boot();
         <a href="#jorn" onclick="fecharDrawer()"><span class="ic" data-ic="tor"></span>Jornada do Motorista</a>
         <a href="#cex" onclick="fecharDrawer()"><span class="ic" data-ic="oc"></span>Custos Extras</a>
         <a href="#sac" onclick="fecharDrawer()"><span class="ic" data-ic="cob"></span>SAC / Freetime</a>
+        <a href="#port" onclick="fecharDrawer()"><span class="ic" data-ic="tor"></span>Portaria</a>
         <a href="#km" onclick="fecharDrawer()"><span class="ic" data-ic="kmv"></span>Análise de KM</a>
         <a href="#agr" onclick="fecharDrawer()"><span class="ic" data-ic="agr"></span>Agregados e Terceiros</a>
         <a href="#mvb" onclick="fecharDrawer()"><span class="ic" data-ic="mvb"></span>Make vs Buy</a>
