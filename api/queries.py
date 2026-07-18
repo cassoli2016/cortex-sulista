@@ -4046,3 +4046,104 @@ def get_sac_freetime(dt_de: str, dt_ate: str) -> dict:
         "fonte": ("ERP AVA · SAC (coleta_ocorrencia 394-397) + sulista.sac_freetimecliente · "
                   "ESTIMATIVA (freetime padrão, sem exceções por mercadoria) · leitura"),
     }
+
+
+# ============================================================================
+# Manutenção Preventiva — revisões próximas/vencidas
+# ----------------------------------------------------------------------------
+# Fonte: função avacorpi.fnc_manutencaopreventiva_gridview + regras oficiais
+# (Querys Sulista/MANUTENCAO - Revisoes Proximas). Duas lógicas distintas:
+#   - Trações (com motor): por KM. km_faltante = marcadorproximatroca −
+#     odômetro atual (último ctaplus, fallback marcadoratual). VENCIDA <0;
+#     PRÓXIMA se km_faltante/marcadortroca < 10%.
+#   - Carretas/semi-reboque: por DATA. dias = dtultimatroca + 180 (ou 240 se
+#     CARROCERIA BAU) − hoje. VENCIDA <0; PRÓXIMA ≤30 dias.
+# ============================================================================
+_MPREV_FN = "avacorpi.fnc_manutencaopreventiva_gridview(2,1,1,1,NULL,NULL,NULL,NULL,NULL,NULL,NULL,3,NULL,1,1)"
+
+MPREV_TRACAO_SQL = f"""
+SELECT retorno.frota, retorno.veiculo,
+  NULLIF(REGEXP_REPLACE(retorno.marcadorproximatroca::text,'\\D','','g'),'')::int AS prox,
+  NULLIF(REGEXP_REPLACE(retorno.marcadortroca::text,'\\D','','g'),'')::int AS intervalo,
+  coalesce(NULLIF(REGEXP_REPLACE(cta.odometro::text,'\\D','','g'),'')::int,
+           NULLIF(REGEXP_REPLACE(retorno.marcadoratual::text,'\\D','','g'),'')::int) AS odometro
+FROM {_MPREV_FN} retorno
+LEFT JOIN veiculo v ON retorno.veiculo=v.placa
+LEFT JOIN (SELECT veiculo_nome, odometro,
+             ROW_NUMBER() OVER (PARTITION BY veiculo_nome ORDER BY data_inicio_abastecimento DESC) rn
+           FROM sulista.ctaplus_abastecimentos) cta ON retorno.veiculo=cta.veiculo_nome AND cta.rn=1
+WHERE retorno.ds_grupoproduto='MANUTENCAO PREVENTIVA' AND v.possuimotor=1 AND v.ativoinativo=1
+  AND v.atividadeveiculo NOT IN ('ENC','ADM') AND retorno.frota<>'GERADOR'
+"""
+
+MPREV_CARRETA_SQL = f"""
+SELECT retorno.frota, retorno.veiculo, retorno.dtultimatroca::date AS ult, c.descricao AS carroceria
+FROM {_MPREV_FN} retorno
+LEFT JOIN veiculo v ON retorno.veiculo=v.placa
+LEFT JOIN carroceriaveiculo c ON v.carroceriaveiculo=c.codigo
+WHERE retorno.ds_grupoproduto='MANUTENCAO PREVENTIVA' AND retorno.modeloveiculo LIKE '%SEMI REBOQUE%'
+  AND v.modeloveiculo<>'GERAR' AND v.ativoinativo=1 AND v.atividadeveiculo<>'ENC'
+"""
+
+
+@cached(ttl=300)
+def get_manutencao_preventiva() -> dict:
+    """Revisões preventivas próximas/vencidas — trações por km, carretas por data."""
+    hoje = date.today()
+    with db.get_conn() as conn, conn.cursor() as cur:
+        cur.execute(MPREV_TRACAO_SQL)
+        tra = cur.fetchall()
+        cur.execute(MPREV_CARRETA_SQL)
+        car = cur.fetchall()
+        cur.execute("SELECT current_timestamp AS ts")
+        meta = cur.fetchone()
+
+    tracoes = []
+    for t in tra:
+        prox, odo, itv = t["prox"], t["odometro"], t["intervalo"]
+        if prox is None or odo is None:
+            continue
+        falta = prox - odo
+        if falta < 0:
+            status = "vencida"
+        elif itv and (falta / itv) < 0.1:
+            status = "proxima"
+        else:
+            continue
+        tracoes.append({"frota": t["frota"], "veiculo": t["veiculo"],
+                        "km_faltante": falta, "intervalo": itv, "status": status})
+    tracoes.sort(key=lambda x: x["km_faltante"])
+
+    carretas = []
+    for c in car:
+        if not c["ult"]:
+            continue
+        limite = 240 if (c["carroceria"] or "") == "CARROCERIA BAU" else 180
+        dias = (c["ult"] + _timedelta(days=limite) - hoje).days
+        if dias < 0:
+            status = "vencida"
+        elif dias <= 30:
+            status = "proxima"
+        else:
+            continue
+        carretas.append({"frota": c["frota"], "veiculo": c["veiculo"], "dias": dias,
+                         "status": status, "bau": (c["carroceria"] or "") == "CARROCERIA BAU"})
+    carretas.sort(key=lambda x: x["dias"])
+
+    kpis = {
+        "tracoes_vencidas": sum(1 for t in tracoes if t["status"] == "vencida"),
+        "tracoes_proximas": sum(1 for t in tracoes if t["status"] == "proxima"),
+        "carretas_vencidas": sum(1 for c in carretas if c["status"] == "vencida"),
+        "carretas_proximas": sum(1 for c in carretas if c["status"] == "proxima"),
+    }
+    kpis["total"] = len(tracoes) + len(carretas)
+    kpis["vencidas"] = kpis["tracoes_vencidas"] + kpis["carretas_vencidas"]
+
+    return {
+        "kpis": kpis,
+        "tracoes": tracoes,
+        "carretas": carretas,
+        "atualizado_em": meta["ts"].isoformat(),
+        "fonte": ("ERP AVA · fnc_manutencaopreventiva_gridview + ctaplus (odômetro) · "
+                  "trações por km, carretas por data · leitura"),
+    }
