@@ -196,7 +196,8 @@ def get_folha_indicadores() -> dict:
         JOIN vw_funcionarios vf ON fd.codintfunc=vf.codintfunc AND vf.descfuncaocompleta LIKE 'MOTO%'
         WHERE fd.tipodocto='CNH') GROUP BY faixa""", p)
 
-    # Hora extra (custo por competência, 12m, HE 50% x 100%).
+    # Hora extra (custo por competência, 12m, HE 50% x 100%) — série do
+    # gráfico desta tela (só categorias nomeadas "50"/"100").
     he = _q("""SELECT TO_CHAR(ff.competficha,'YYYY-MM') comp,
         CASE WHEN fe.desceven LIKE '%50%' THEN '50' ELSE '100' END tipo,
         ROUND(SUM(ff.valorficha),2) tot
@@ -204,6 +205,20 @@ def get_folha_indicadores() -> dict:
         WHERE (fe.desceven LIKE '%50%' OR fe.desceven LIKE '%100%') AND ff.tipofolha='1'
           AND ff.competficha >= ADD_MONTHS(TRUNC(SYSDATE,'MM'),-12)
         GROUP BY TO_CHAR(ff.competficha,'YYYY-MM'), CASE WHEN fe.desceven LIKE '%50%' THEN '50' ELSE '100' END""", {})
+
+    # Total de HE por competência com o MESMO filtro _HE_WHERE da tela
+    # dedicada de Horas Extras (inclui noturna/adicional/DSR, não só eventos
+    # com "50"/"100" no nome — ver comentário de _HE_WHERE abaixo). O KPI
+    # he_mes usa este total, não a soma he50+he100 do gráfico acima, para não
+    # divergir do "Total de HE" da tela He. NÃO VALIDADO contra o Oracle
+    # (sem acesso a partir deste Mac) — conferir em produção antes de confiar
+    # cegamente no número.
+    he_tot_rows = _q(f"""SELECT TO_CHAR(ff.competficha,'YYYY-MM') comp,
+        ROUND(SUM(ff.valorficha),2) tot
+        {_HE_J}
+        WHERE {_HE_WHERE} AND ff.competficha >= ADD_MONTHS(TRUNC(SYSDATE,'MM'),-12)
+        GROUP BY TO_CHAR(ff.competficha,'YYYY-MM')""", p)
+    he_tot_map = {r["comp"]: (r["tot"] or 0.0) for r in he_tot_rows}
 
     # Banco de horas (saldo por competência, 12m).
     bh = _q("""SELECT TO_CHAR(competencia,'YYYY-MM') comp, ROUND(SUM(credito),1) cred,
@@ -233,12 +248,13 @@ def get_folha_indicadores() -> dict:
     bh_pas = [b for b in bh_serie if b["comp"] <= mes_atual] or bh_serie
     he_ult = he_pas[-1] if he_pas else {"he50": 0.0, "he100": 0.0}
     bh_ult = bh_pas[-1] if bh_pas else {"saldo": 0.0, "colab": 0}
+    he_mes_total = he_tot_map.get(he_ult.get("comp"), 0.0)
 
     return {
         "kpis": {
             "ferias_vencidas": fer_venc, "ferias_30": fer_30,
             "cnh_vencidas": cnh_venc, "cnh_30": cnh_30,
-            "he_mes": round(he_ult["he50"] + he_ult["he100"], 2),
+            "he_mes": round(he_mes_total, 2),
             "bh_saldo": bh_ult["saldo"],
         },
         "ferias": ferias_l, "cnh": cnh_l,
