@@ -587,7 +587,7 @@ button.avatar{border:0;cursor:pointer}
         <a href="#oc" class="sub" data-view="oc" title="Ordens de Compra"><span class="ic" data-ic="oc"></span><span>Ordens de Compra</span></a>
       </div>
       <button class="group" id="grpRh" aria-expanded="false" aria-controls="subsRh" onclick="toggleGroup('grpRh','subsRh','cs.rhGroup')" title="Recursos Humanos">
-        <span class="ic" data-ic="ges"></span><span>Recursos Humanos</span><span class="ic chev" data-ic="chev"></span>
+        <span class="ic" data-ic="orgp"></span><span>Recursos Humanos</span><span class="ic chev" data-ic="chev"></span>
       </button>
       <div class="subs closed" id="subsRh">
         <a href="#hc" class="sub" data-view="hc" title="Headcount — quadro de funcionários"><span class="ic" data-ic="hcic"></span><span>Headcount</span></a>
@@ -603,7 +603,7 @@ button.avatar{border:0;cursor:pointer}
         <a href="#tvope" class="sub" data-view="tvope" title="Painel de Operação para TV"><span class="ic" data-ic="tv"></span><span>Operação</span></a>
       </div>
       <button class="group" id="grpAdm" aria-expanded="false" aria-controls="subsAdm" onclick="toggleGroup('grpAdm','subsAdm','cs.admGroup')" title="Administração">
-        <span class="ic" data-ic="ges"></span><span>Administração</span><span class="ic chev" data-ic="chev"></span>
+        <span class="ic" data-ic="cog"></span><span>Administração</span><span class="ic chev" data-ic="chev"></span>
       </button>
       <div class="subs closed" id="subsAdm">
         <a href="#gestao" class="sub" data-view="gestao" title="Gestão — usuários, perfis e segurança"><span class="ic" data-ic="ges"></span><span>Gestão</span></a>
@@ -1511,18 +1511,22 @@ button.avatar{border:0;cursor:pointer}
       </section>
       <section class="view" id="view-hc">
         <div class="kpis" id="kpis-hc"></div>
+        <div class="card">
+          <div class="head"><h2>Movimentação (12 meses)</h2><span class="hint">admissões × demissões por mês</span></div>
+          <div class="chartwrap"><svg id="chartHcMov" viewBox="0 0 960 260" preserveAspectRatio="xMidYMid meet" role="img" aria-label="Admissões e demissões por mês nos últimos 12 meses."></svg></div>
+          <div class="tablewrap" id="hc-mov"></div>
+        </div>
         <div class="grid2">
           <div class="card"><div class="head"><h2>Por filial</h2><span class="hint">quadro ativo</span></div>
+            <div class="chartwrap"><svg id="chartHcFilial" viewBox="0 0 960 200" preserveAspectRatio="xMidYMid meet" role="img"></svg></div>
             <div class="tablewrap" id="hc-filial"></div></div>
-          <div class="card"><div class="head"><h2>Movimentação (12 meses)</h2><span class="hint">admissões × demissões</span></div>
-            <div class="tablewrap" id="hc-mov"></div></div>
-        </div>
-        <div class="grid2">
-          <div class="card"><div class="head"><h2>Por área</h2><span class="hint">top 15</span></div>
+          <div class="card"><div class="head"><h2>Por área</h2><span class="hint">top 14</span></div>
+            <div class="chartwrap"><svg id="chartHcArea" viewBox="0 0 960 200" preserveAspectRatio="xMidYMid meet" role="img"></svg></div>
             <div class="tablewrap" id="hc-area"></div></div>
-          <div class="card"><div class="head"><h2>Tempo de casa</h2><span class="hint">faixas</span></div>
-            <div class="tablewrap" id="hc-tempo"></div></div>
         </div>
+        <div class="card"><div class="head"><h2>Tempo de casa</h2><span class="hint">faixas do quadro ativo</span></div>
+          <div class="chartwrap"><svg id="chartHcTempo" viewBox="0 0 960 180" preserveAspectRatio="xMidYMid meet" role="img"></svg></div>
+          <div class="tablewrap" id="hc-tempo"></div></div>
       </section>
       <section class="view" id="view-folha">
         <div class="card">
@@ -1534,7 +1538,12 @@ button.avatar{border:0;cursor:pointer}
         </div>
         <div class="kpis" id="kpis-folha"></div>
         <div class="card">
-          <div class="head"><h2>Por centro de custo</h2><span class="hint">proventos, descontos e líquido</span></div>
+          <div class="head"><h2>Evolução do custo (12 meses)</h2><span class="hint">proventos × descontos por competência</span></div>
+          <div class="chartwrap"><svg id="chartFolhaSerie" viewBox="0 0 960 260" preserveAspectRatio="xMidYMid meet" role="img" aria-label="Evolução de proventos e descontos nos últimos 12 meses."></svg></div>
+        </div>
+        <div class="card">
+          <div class="head"><h2>Por centro de custo</h2><span class="hint">líquido por área · top 14</span></div>
+          <div class="chartwrap"><svg id="chartFolhaCC" viewBox="0 0 960 200" preserveAspectRatio="xMidYMid meet" role="img"></svg></div>
           <div class="tablewrap" id="folha-cc"></div>
         </div>
         <div class="grid2">
@@ -1554,8 +1563,10 @@ button.avatar{border:0;cursor:pointer}
         </div>
         <div class="grid2">
           <div class="card"><div class="head"><h2>Hora extra</h2><span class="hint">custo mensal · 50% e 100%</span></div>
+            <div class="chartwrap"><svg id="chartHe" viewBox="0 0 960 260" preserveAspectRatio="xMidYMid meet" role="img"></svg></div>
             <div class="tablewrap" id="fi-he"></div></div>
           <div class="card"><div class="head"><h2>Banco de horas</h2><span class="hint">saldo por competência</span></div>
+            <div class="chartwrap"><svg id="chartBh" viewBox="0 0 960 260" preserveAspectRatio="xMidYMid meet" role="img"></svg></div>
             <div class="tablewrap" id="fi-bh"></div></div>
         </div>
       </section>
@@ -1572,7 +1583,13 @@ button.avatar{border:0;cursor:pointer}
         </div>
         <div class="kpis" id="kpis-custos"></div>
         <div class="grid2">
-          <div class="card"><div class="head"><h2>Por agrupador (grupo DRE)</h2><span class="hint">top 20</span></div>
+          <div class="card"><div class="head"><h2>Composição do custo</h2><span class="hint">participação por agrupador</span></div>
+            <div class="chartwrap" style="min-height:210px"><svg id="chartCustosDonut" viewBox="0 0 320 190" preserveAspectRatio="xMidYMid meet" style="min-width:300px;max-width:520px;margin:0 auto" role="img" aria-label="Composição do custo por agrupador."></svg></div></div>
+          <div class="card"><div class="head"><h2>Por agrupador (grupo DRE)</h2><span class="hint">top 14 por valor</span></div>
+            <div class="chartwrap"><svg id="chartCustosAgr" viewBox="0 0 960 200" preserveAspectRatio="xMidYMid meet" role="img"></svg></div></div>
+        </div>
+        <div class="grid2">
+          <div class="card"><div class="head"><h2>Por agrupador — detalhe</h2><span class="hint">top 20</span></div>
             <div class="tablewrap" id="custos-agr"></div></div>
           <div class="card"><div class="head"><h2>Por fornecedor</h2><span class="hint">top 20</span></div>
             <div class="tablewrap" id="custos-forn"></div></div>
@@ -1910,6 +1927,8 @@ const ICONS = {
   busca: IC('<circle cx="10" cy="10" r="6.5"/><path d="M14.8 14.8 21 21"/>'),
   mprevic: IC('<circle cx="12" cy="13" r="7"/><path d="M12 9.5V13l2.5 1.5"/><path d="M5 4 8 6.5M19 4l-3 2.5"/>'),
   crmic: IC('<path d="M3 4h18l-7 8.5V20l-4 1.5v-9z"/>'),
+  orgp: IC('<rect x="9" y="2.5" width="6" height="5" rx="1"/><rect x="3" y="16.5" width="6" height="5" rx="1"/><rect x="15" y="16.5" width="6" height="5" rx="1"/><path d="M12 7.5v4M6 16.5v-2h12v2M12 14.5v-3"/>'),
+  cog: IC('<circle cx="12" cy="12" r="3.2"/><path d="M12 2.5v3M12 18.5v3M2.5 12h3M18.5 12h3M5 5l2 2M17 17l2 2M19 5l-2 2M7 17l-2 2"/>'),
   home: IC('<path d="M3 10.5 12 3l9 7.5"/><path d="M5 9.5V21h14V9.5"/><path d="M10 21v-6h4v6"/>'),
   fin:  IC('<path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/>'),
   rec:  IC('<path d="M12 4v12M6 10l6 6 6-6"/><path d="M4 20h16"/>'),
@@ -4716,6 +4735,96 @@ function renderRh(d){
   const vg=(d.vagas||[]).map(v=>`<tr><td>${esc(v.cargo)}</td><td>${esc(v.departamento||'')}</td><td>${esc(v.area)}</td><td>${esc(v.tipo)}</td><td>${esc(v.recrutamento||'')}</td><td><span class="badge ${stB(v.status)}">${esc(v.status)}</span></td><td class="num">${v.solicitacao?fmtD(v.solicitacao):'—'}</td><td class="num">${v.fechamento?fmtD(v.fechamento):'—'}</td></tr>`).join('')||'<tr><td colspan="8" style="color:var(--n500)">sem vagas cadastradas</td></tr>';
   document.getElementById('rh-vagas').innerHTML=`<table><thead><tr><th>Cargo</th><th>Departamento</th><th>Área</th><th>Tipo</th><th>Recrutamento</th><th>Status</th><th class="num">Solicitação</th><th class="num">Fechamento</th></tr></thead><tbody>${vg}</tbody></table>`;
 }
+// ===================== Mini-biblioteca de gráficos SVG (design system) =====================
+const CC = { verde:'#1E7F4F', vermelho:'#C03221', amarelo:'#B97709', ouro:'#FFD31C', azul:'#2563EB', roxo:'#7C3AED', ink:'#1E1E1E', n300:'#CBD2D9', n400:'#9AA5B1', n500:'#6B7280', grid:'#EEF1F4' };
+function _chartEl(id){ return document.getElementById(id); }
+function _trunc(s,n){ s=String(s); return s.length>n? s.slice(0,n-1)+'…' : s; }
+// moeda compacta p/ eixos e barras: 1.250.000 -> "1,3 mi"
+function brlAbbr(v){ v=Number(v)||0; const a=Math.abs(v);
+  if(a>=1e6) return 'R$ '+(v/1e6).toLocaleString('pt-BR',{maximumFractionDigits:1})+' mi';
+  if(a>=1e3) return 'R$ '+(v/1e3).toLocaleString('pt-BR',{maximumFractionDigits:0})+' mil';
+  return BRL.format(v); }
+function numAbbr(v){ v=Number(v)||0; const a=Math.abs(v);
+  if(a>=1e6) return (v/1e6).toLocaleString('pt-BR',{maximumFractionDigits:1})+'M';
+  if(a>=1e3) return (v/1e3).toLocaleString('pt-BR',{maximumFractionDigits:1})+'k';
+  return v.toLocaleString('pt-BR',{maximumFractionDigits:0}); }
+// Barras horizontais: rows=[{rotulo,valor}], opts={fmt,cor(row),labelW,top}
+function chartHBars(id, rows, opts){
+  opts=opts||{}; const el=_chartEl(id); if(!el) return;
+  rows=(rows||[]).filter(r=>r&&isFinite(r.valor)).slice(0, opts.top||14);
+  const fmt=opts.fmt||(v=>Number(v).toLocaleString('pt-BR'));
+  if(!rows.length){ el.setAttribute('viewBox','0 0 960 60'); el.innerHTML='<text x="12" y="34" font-size="13" fill="#6B7280">sem dados no período</text>'; return; }
+  const W=960, rowH=32, labelW=opts.labelW||210, valW=140, barX=labelW+12, barW=W-barX-valW-12;
+  const max=Math.max(1, ...rows.map(r=>Math.abs(r.valor)));
+  const H=rows.length*rowH+8;
+  const cor=r=> typeof opts.cor==='function'?opts.cor(r):(opts.cor||CC.amarelo);
+  el.setAttribute('viewBox',`0 0 ${W} ${H}`);
+  el.innerHTML=rows.map((r,i)=>{ const y=i*rowH+4, w=Math.max(2, Math.abs(r.valor)/max*barW);
+    return `<text x="4" y="${y+rowH/2}" dominant-baseline="middle" font-size="13" fill="#334155">${_trunc(esc(r.rotulo),32)}</text>`+
+      `<rect x="${barX}" y="${y+5}" width="${barW}" height="${rowH-14}" rx="4" fill="${CC.grid}"></rect>`+
+      `<rect x="${barX}" y="${y+5}" width="${w}" height="${rowH-14}" rx="4" fill="${cor(r)}"></rect>`+
+      `<text x="${W-8}" y="${y+rowH/2}" text-anchor="end" dominant-baseline="middle" font-size="13" font-weight="700" fill="#1E1E1E">${fmt(r.valor)}</text>`;
+  }).join('');
+}
+// Colunas agrupadas: cats=[label], series=[{nome,cor,valores:[]}], opts={fmt}
+function chartCols(id, cats, series, opts){
+  opts=opts||{}; const el=_chartEl(id); if(!el) return;
+  cats=cats||[]; series=series||[];
+  const fmt=opts.fmt||(v=>Number(v).toLocaleString('pt-BR'));
+  if(!cats.length){ el.setAttribute('viewBox','0 0 960 60'); el.innerHTML='<text x="12" y="34" font-size="13" fill="#6B7280">sem dados</text>'; return; }
+  const W=960, H=260, padL=54, padR=14, padT=16, padB=42, iw=W-padL-padR, ih=H-padT-padB;
+  const max=Math.max(1, ...series.flatMap(s=>s.valores.map(v=>Math.abs(v||0))));
+  const gap=iw/cats.length, bw=Math.min(46, gap*0.7/Math.max(1,series.length));
+  const ticks=4; let g='';
+  for(let t=0;t<=ticks;t++){ const v=max*t/ticks, y=padT+ih-(v/max)*ih;
+    g+=`<line x1="${padL}" y1="${y}" x2="${W-padR}" y2="${y}" stroke="${CC.grid}"></line><text x="${padL-8}" y="${y+4}" text-anchor="end" font-size="11" fill="#9AA5B1">${opts.axisFmt?opts.axisFmt(v):fmt(v)}</text>`; }
+  cats.forEach((c,i)=>{ const cx=padL+gap*i+gap/2; const grpW=bw*series.length; let bx=cx-grpW/2;
+    series.forEach(s=>{ const v=Math.abs(s.valores[i]||0), bh=(v/max)*ih, y=padT+ih-bh;
+      g+=`<rect x="${bx}" y="${y}" width="${bw-3}" height="${Math.max(0,bh)}" rx="3" fill="${s.cor}"><title>${esc(s.nome)}: ${fmt(s.valores[i]||0)}</title></rect>`; bx+=bw; });
+    g+=`<text x="${cx}" y="${H-padB+18}" text-anchor="middle" font-size="11" fill="#6B7280">${esc(_trunc(c,7))}</text>`; });
+  // legenda
+  let lx=padL; g+=series.map(s=>{ const t=`<rect x="${lx}" y="2" width="11" height="11" rx="2" fill="${s.cor}"></rect><text x="${lx+16}" y="11.5" font-size="11.5" fill="#334155">${esc(s.nome)}</text>`; lx+=48+s.nome.length*6.5; return t; }).join('');
+  el.setAttribute('viewBox',`0 0 ${W} ${H}`); el.innerHTML=g;
+}
+// Área/linha temporal: cats=[label], series=[{nome,cor,valores:[],fill?}], opts={fmt,axisFmt}
+function chartArea(id, cats, series, opts){
+  opts=opts||{}; const el=_chartEl(id); if(!el) return;
+  cats=cats||[]; series=series||[];
+  const fmt=opts.fmt||(v=>Number(v).toLocaleString('pt-BR'));
+  if(cats.length<2){ el.setAttribute('viewBox','0 0 960 60'); el.innerHTML='<text x="12" y="34" font-size="13" fill="#6B7280">série insuficiente</text>'; return; }
+  const W=960, H=260, padL=58, padR=16, padT=16, padB=40, iw=W-padL-padR, ih=H-padT-padB;
+  const all=series.flatMap(s=>s.valores.map(v=>v||0)); const max=Math.max(1,...all.map(Math.abs)), min=Math.min(0,...all);
+  const X=i=>padL+iw*i/(cats.length-1), Y=v=>padT+ih-((v-min)/(max-min||1))*ih;
+  const ticks=4; let g='';
+  for(let t=0;t<=ticks;t++){ const v=min+(max-min)*t/ticks, y=Y(v);
+    g+=`<line x1="${padL}" y1="${y}" x2="${W-padR}" y2="${y}" stroke="${CC.grid}"></line><text x="${padL-8}" y="${y+4}" text-anchor="end" font-size="11" fill="#9AA5B1">${opts.axisFmt?opts.axisFmt(v):fmt(v)}</text>`; }
+  const step=Math.ceil(cats.length/8);
+  cats.forEach((c,i)=>{ if(i%step===0||i===cats.length-1) g+=`<text x="${X(i)}" y="${H-padB+18}" text-anchor="middle" font-size="11" fill="#6B7280">${esc(c)}</text>`; });
+  series.forEach(s=>{ const pts=s.valores.map((v,i)=>`${X(i)},${Y(v||0)}`).join(' ');
+    if(s.fill!==false) g+=`<polygon points="${X(0)},${Y(min)} ${pts} ${X(cats.length-1)},${Y(min)}" fill="${s.cor}" opacity="0.10"></polygon>`;
+    g+=`<polyline points="${pts}" fill="none" stroke="${s.cor}" stroke-width="2.5" stroke-linejoin="round" stroke-linecap="round"></polyline>`;
+    g+=s.valores.map((v,i)=>`<circle cx="${X(i)}" cy="${Y(v||0)}" r="3" fill="#fff" stroke="${s.cor}" stroke-width="2"><title>${esc(cats[i])}: ${fmt(v||0)}</title></circle>`).join(''); });
+  let lx=padL; g+=series.map(s=>{ const t=`<rect x="${lx}" y="2" width="11" height="11" rx="2" fill="${s.cor}"></rect><text x="${lx+16}" y="11.5" font-size="11.5" fill="#334155">${esc(s.nome)}</text>`; lx+=52+s.nome.length*6.5; return t; }).join('');
+  el.setAttribute('viewBox',`0 0 ${W} ${H}`); el.innerHTML=g;
+}
+// Rosca: segs=[{rotulo,valor,cor}], opts={fmt,centro,centroSub}
+function chartDonut(id, segs, opts){
+  opts=opts||{}; const el=_chartEl(id); if(!el) return;
+  segs=(segs||[]).filter(s=>s&&s.valor>0);
+  const tot=segs.reduce((a,s)=>a+s.valor,0);
+  if(!tot){ el.setAttribute('viewBox','0 0 320 180'); el.innerHTML='<text x="12" y="34" font-size="13" fill="#6B7280">sem dados</text>'; return; }
+  const fmt=opts.fmt||(v=>Number(v).toLocaleString('pt-BR'));
+  const cx=90, cy=90, r=72, rin=46; let a0=-Math.PI/2, g='';
+  segs.forEach(s=>{ const a1=a0+(s.valor/tot)*Math.PI*2;
+    const x0=cx+r*Math.cos(a0), y0=cy+r*Math.sin(a0), x1=cx+r*Math.cos(a1), y1=cy+r*Math.sin(a1);
+    const xi1=cx+rin*Math.cos(a1), yi1=cy+rin*Math.sin(a1), xi0=cx+rin*Math.cos(a0), yi0=cy+rin*Math.sin(a0);
+    const big=(a1-a0)>Math.PI?1:0;
+    g+=`<path d="M${x0},${y0} A${r},${r} 0 ${big} 1 ${x1},${y1} L${xi1},${yi1} A${rin},${rin} 0 ${big} 0 ${xi0},${yi0} Z" fill="${s.cor}"><title>${esc(s.rotulo)}: ${fmt(s.valor)} (${(100*s.valor/tot).toFixed(1)}%)</title></path>`; a0=a1; });
+  g+=`<text x="${cx}" y="${cy-4}" text-anchor="middle" font-size="20" font-weight="800" fill="#1E1E1E">${esc(opts.centro||'')}</text>`;
+  if(opts.centroSub) g+=`<text x="${cx}" y="${cy+16}" text-anchor="middle" font-size="11" fill="#6B7280">${esc(opts.centroSub)}</text>`;
+  let ly=18; g+=segs.map(s=>{ const t=`<rect x="196" y="${ly}" width="12" height="12" rx="3" fill="${s.cor}"></rect><text x="214" y="${ly+10}" font-size="12" fill="#334155">${_trunc(esc(s.rotulo),18)}</text><text x="316" y="${ly+10}" text-anchor="end" font-size="11.5" font-weight="700" fill="#1E1E1E">${(100*s.valor/tot).toFixed(0)}%</text>`; ly+=24; return t; }).join('');
+  el.setAttribute('viewBox','0 0 320 190'); el.innerHTML=g;
+}
 // ---------------- Headcount (folha GLOBUS) ----------------
 async function loadHc(){
   const seq=++hcSeq, btn=document.getElementById('btnRefresh'); if(btn) btn.disabled=true;
@@ -4729,18 +4838,28 @@ async function loadHc(){
   finally{ if(seq===hcSeq){ if(btn) btn.disabled=false; document.getElementById('content').classList.remove('loading'); } }
 }
 function renderHc(d){
-  const k=d.kpis||{};
+  const k=d.kpis||{}, tv=k.turnover_pct||0;
+  const tvcls = tv>=30?'neg':(tv>=15?'':'pos');
   document.getElementById('kpis-hc').innerHTML=[
     kpi('Colaboradores ativos', (k.ativos||0).toLocaleString('pt-BR'), (k.homens||0)+' H · '+(k.mulheres||0)+' M',''),
-    kpi('Admissões (12 meses)', (k.admissoes_12m||0).toLocaleString('pt-BR'), (k.demissoes_12m||0)+' demissões · turnover '+(k.turnover_pct||0).toFixed(1)+'% (aprox.)',''),
+    kpi('Turnover (12 meses)', tv.toFixed(1)+'%', (k.admissoes_12m||0)+' adm · '+(k.demissoes_12m||0)+' dem', tvcls),
     kpi('Massa salarial base', BRL.format(k.massa_base||0), 'salário base do quadro ativo',''),
     kpi('Tempo de casa médio', (k.tempo_casa_anos||0).toLocaleString('pt-BR')+' anos', 'do quadro ativo',''),
   ].join('');
+  // gráfico de movimentação (adm × dem, 12m)
+  const mov=d.movimentacao||[];
+  chartCols('chartHcMov', mov.map(m=>m.mes.slice(2)), [
+    {nome:'Admissões', cor:CC.verde, valores:mov.map(m=>m.admissoes||0)},
+    {nome:'Demissões', cor:CC.vermelho, valores:mov.map(m=>m.demissoes||0)},
+  ], {fmt:v=>Math.round(v).toLocaleString('pt-BR')});
+  // barras horizontais por dimensão
+  const hb=(id,rows)=>chartHBars(id,(rows||[]).map(r=>({rotulo:r.rotulo||r.faixa, valor:r.n||0})),{cor:CC.ouro});
+  hb('chartHcFilial', d.por_filial); hb('chartHcArea', d.por_area); hb('chartHcTempo', d.tempo_casa);
   const tb=(rows,l1,l2)=>`<table><thead><tr><th>${l1}</th><th class="num">${l2}</th></tr></thead><tbody>${rows.map(r=>`<tr><td>${esc(r.rotulo||r.faixa)}</td><td class="num">${(r.n||0).toLocaleString('pt-BR')}</td></tr>`).join('')||'<tr><td colspan="2" style="color:var(--n500)">—</td></tr>'}</tbody></table>`;
   document.getElementById('hc-filial').innerHTML=tb(d.por_filial||[],'Filial','Ativos');
   document.getElementById('hc-area').innerHTML=tb(d.por_area||[],'Área','Ativos');
   document.getElementById('hc-tempo').innerHTML=tb(d.tempo_casa||[],'Faixa','Colab.');
-  const mv=(d.movimentacao||[]).map(m=>`<tr><td class="num">${esc(m.mes)}</td><td class="num" style="color:#1E7F4F;font-weight:600">${m.admissoes}</td><td class="num" style="${m.demissoes>0?'color:var(--red);font-weight:600':''}">${m.demissoes}</td></tr>`).join('')||'<tr><td colspan="3" style="color:var(--n500)">—</td></tr>';
+  const mv=mov.map(m=>`<tr><td class="num">${esc(m.mes)}</td><td class="num" style="color:#1E7F4F;font-weight:600">${m.admissoes}</td><td class="num" style="${m.demissoes>0?'color:var(--red);font-weight:600':''}">${m.demissoes}</td></tr>`).join('')||'<tr><td colspan="3" style="color:var(--n500)">—</td></tr>';
   document.getElementById('hc-mov').innerHTML=`<table><thead><tr><th class="num">Mês</th><th class="num">Admissões</th><th class="num">Demissões</th></tr></thead><tbody>${mv}</tbody></table>`;
 }
 // ---------------- Custo de Folha (GLOBUS) ----------------
@@ -4768,6 +4887,14 @@ function renderFolha(d){
     kpi('Líquido', BRL.format(k.liquido||0), 'proventos − descontos','pos'),
     kpi('Colaboradores', (k.funcs||0).toLocaleString('pt-BR'), 'custo médio '+BRL.format(k.custo_medio||0),''),
   ].join('');
+  // série 12 meses (proventos × descontos)
+  const se=d.serie||[];
+  chartArea('chartFolhaSerie', se.map(s=>s.comp.slice(2)), [
+    {nome:'Proventos', cor:CC.verde, valores:se.map(s=>s.prov||0)},
+    {nome:'Descontos', cor:CC.vermelho, valores:se.map(s=>s.descontos||0)},
+  ], {fmt:brlAbbr, axisFmt:brlAbbr});
+  // barras por centro de custo (líquido)
+  chartHBars('chartFolhaCC', (d.por_cc||[]).slice().sort((a,b)=>b.liquido-a.liquido).map(c=>({rotulo:c.cc, valor:c.liquido})), {cor:CC.verde, fmt:brlAbbr});
   const cc=(d.por_cc||[]).map(c=>`<tr><td>${esc(c.cc)}</td><td class="num">${c.funcs}</td><td class="num">${BRL.format(c.prov)}</td><td class="num">${BRL.format(c.descontos)}</td><td class="num" style="font-weight:600">${BRL.format(c.liquido)}</td></tr>`).join('')||'<tr><td colspan="5" style="color:var(--n500)">sem dados na competência</td></tr>';
   document.getElementById('folha-cc').innerHTML=`<table><thead><tr><th>Centro de custo</th><th class="num">Colab.</th><th class="num">Proventos</th><th class="num">Descontos</th><th class="num">Líquido</th></tr></thead><tbody>${cc}</tbody></table>`;
   const ev=(rows)=>`<table><thead><tr><th>Evento</th><th class="num">Valor</th></tr></thead><tbody>${rows.map(r=>`<tr><td>${esc(r.ev)}</td><td class="num">${BRL.format(r.tot)}</td></tr>`).join('')||'<tr><td colspan="2" style="color:var(--n500)">—</td></tr>'}</tbody></table>`;
@@ -4797,9 +4924,18 @@ function renderFolhaInd(d){
   const fx=(rows,cor)=>rows.map(r=>`<tr><td>${esc(r.faixa)}</td><td class="num" style="${(cor&&(r.ordem==='1-VENCIDA'))?'color:var(--red);font-weight:700':''}">${(r.n||0).toLocaleString('pt-BR')}</td></tr>`).join('')||'<tr><td colspan="2" style="color:var(--n500)">—</td></tr>';
   document.getElementById('fi-ferias').innerHTML=`<table><thead><tr><th>Situação</th><th class="num">Colaboradores</th></tr></thead><tbody>${fx(d.ferias||[],true)}</tbody></table>`;
   document.getElementById('fi-cnh').innerHTML=`<table><thead><tr><th>Situação</th><th class="num">Motoristas</th></tr></thead><tbody>${fx(d.cnh||[],true)}</tbody></table>`;
-  const he=(d.hora_extra||[]).slice().reverse().map(h=>`<tr><td class="num">${esc(h.comp)}</td><td class="num">${BRL.format(h.he50)}</td><td class="num">${BRL.format(h.he100)}</td><td class="num" style="font-weight:600">${BRL.format((h.he50||0)+(h.he100||0))}</td></tr>`).join('')||'<tr><td colspan="4" style="color:var(--n500)">—</td></tr>';
+  const heS=d.hora_extra||[];
+  chartCols('chartHe', heS.map(h=>h.comp.slice(2)), [
+    {nome:'HE 50%', cor:CC.amarelo, valores:heS.map(h=>h.he50||0)},
+    {nome:'HE 100%', cor:CC.vermelho, valores:heS.map(h=>h.he100||0)},
+  ], {fmt:brlAbbr, axisFmt:brlAbbr});
+  const he=heS.slice().reverse().map(h=>`<tr><td class="num">${esc(h.comp)}</td><td class="num">${BRL.format(h.he50)}</td><td class="num">${BRL.format(h.he100)}</td><td class="num" style="font-weight:600">${BRL.format((h.he50||0)+(h.he100||0))}</td></tr>`).join('')||'<tr><td colspan="4" style="color:var(--n500)">—</td></tr>';
   document.getElementById('fi-he').innerHTML=`<table><thead><tr><th class="num">Competência</th><th class="num">HE 50%</th><th class="num">HE 100%</th><th class="num">Total</th></tr></thead><tbody>${he}</tbody></table>`;
-  const bh=(d.banco_horas||[]).slice().reverse().map(b=>`<tr><td class="num">${esc(b.comp)}</td><td class="num">${b.colab}</td><td class="num">${b.credito.toLocaleString('pt-BR',{maximumFractionDigits:0})}</td><td class="num">${b.debito.toLocaleString('pt-BR',{maximumFractionDigits:0})}</td><td class="num" style="font-weight:600">${b.saldo.toLocaleString('pt-BR',{maximumFractionDigits:0})}</td></tr>`).join('')||'<tr><td colspan="5" style="color:var(--n500)">—</td></tr>';
+  const bhS=d.banco_horas||[];
+  chartArea('chartBh', bhS.map(b=>b.comp.slice(2)), [
+    {nome:'Saldo (h)', cor:CC.azul, valores:bhS.map(b=>b.saldo||0)},
+  ], {fmt:v=>Math.round(v).toLocaleString('pt-BR')+' h', axisFmt:numAbbr});
+  const bh=bhS.slice().reverse().map(b=>`<tr><td class="num">${esc(b.comp)}</td><td class="num">${b.colab}</td><td class="num">${b.credito.toLocaleString('pt-BR',{maximumFractionDigits:0})}</td><td class="num">${b.debito.toLocaleString('pt-BR',{maximumFractionDigits:0})}</td><td class="num" style="font-weight:600">${b.saldo.toLocaleString('pt-BR',{maximumFractionDigits:0})}</td></tr>`).join('')||'<tr><td colspan="5" style="color:var(--n500)">—</td></tr>';
   document.getElementById('fi-bh').innerHTML=`<table><thead><tr><th class="num">Competência</th><th class="num">Colab.</th><th class="num">Crédito</th><th class="num">Débito</th><th class="num">Saldo (h)</th></tr></thead><tbody>${bh}</tbody></table>`;
 }
 // ---------------- Painel de Custos (Suprimentos) ----------------
@@ -4831,6 +4967,14 @@ function renderCustos(d){
     kpi('Sem nota fiscal', BRL.format(k.sem_nf||0), 'OCs ainda não recebidas', (k.sem_nf||0)>0?'neg':''),
   ].join('');
   const tot=k.total||1;
+  // donut de composição (top 6 agrupadores + outros)
+  const PAL=[CC.ouro,CC.azul,CC.verde,CC.roxo,CC.amarelo,CC.vermelho,CC.n400];
+  const agr=(d.por_agrupador||[]).slice().sort((a,b)=>b.valor-a.valor);
+  const top6=agr.slice(0,6), resto=agr.slice(6).reduce((a,r)=>a+r.valor,0);
+  const segs=top6.map((r,i)=>({rotulo:r.rotulo, valor:r.valor, cor:PAL[i%PAL.length]}));
+  if(resto>0) segs.push({rotulo:'Outros', valor:resto, cor:CC.n300});
+  chartDonut('chartCustosDonut', segs, {fmt:brlAbbr, centro:brlAbbr(tot), centroSub:'custo total'});
+  chartHBars('chartCustosAgr', agr.map(r=>({rotulo:r.rotulo, valor:r.valor})), {cor:CC.azul, fmt:brlAbbr});
   const bars=(rows)=>rows.map(r=>`<tr><td>${esc(r.rotulo)}</td><td class="num">${r.n}</td><td class="num" style="font-weight:600">${BRL.format(r.valor)}</td><td class="num">${(100*r.valor/tot).toFixed(1)}%</td></tr>`).join('')||'<tr><td colspan="4" style="color:var(--n500)">sem dados</td></tr>';
   document.getElementById('custos-agr').innerHTML=`<table><thead><tr><th>Agrupador</th><th class="num">Itens</th><th class="num">Valor</th><th class="num">%</th></tr></thead><tbody>${bars(d.por_agrupador||[])}</tbody></table>`;
   document.getElementById('custos-forn').innerHTML=`<table><thead><tr><th>Fornecedor</th><th class="num">Itens</th><th class="num">Valor</th><th class="num">%</th></tr></thead><tbody>${bars(d.por_fornecedor||[])}</tbody></table>`;
