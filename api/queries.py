@@ -2765,17 +2765,6 @@ ORDER BY p.grupo,p.empresa,p.filial,p.diferenciadornumero,p.numero,
          coalesce(p.dtchegada,p.dtsaida,p.dtemissao) DESC
 """
 
-CLIF_RECEB_SQL = """
-SELECT coalesce(sum(f.valorsaldoreceber),0)::float8 AS aberto,
-       coalesce(sum(CASE WHEN f.dtvencimento < current_date THEN f.valorsaldoreceber ELSE 0 END),0)::float8 AS vencido,
-       coalesce(sum(CASE WHEN f.dtvencimento >= current_date THEN f.valorsaldoreceber ELSE 0 END),0)::float8 AS a_vencer,
-       coalesce(sum(CASE WHEN f.dtvencimento < current_date-90 THEN f.valorsaldoreceber ELSE 0 END),0)::float8 AS vencido_mais_90,
-       count(*)::int AS titulos, min(f.dtvencimento)::text AS venc_mais_antigo
-FROM fatura f
-WHERE f.valorsaldoreceber > 0 AND f.dtcancelamento IS NULL AND f.cliente = ANY(%(cnpjs)s)
-"""
-
-
 @cached(ttl=120)
 def get_cliente_ficha(cliente: str, comp_de: str, comp_ate: str) -> dict:
     from collections import defaultdict as _dd
@@ -3517,6 +3506,26 @@ WHERE f.grupo=1 AND fc.valorpendentecnpjcliente > 0 AND f.dtcancelamento IS NULL
   AND f.composicao = 2
   AND coalesce(f.dtprevisaopagamento, f.dtvencimento) < current_date AND f.dtpagamento IS NULL
   AND (f.filial = %(filial)s OR %(filial)s::int IS NULL)
+"""
+
+# Recebíveis por cliente (Ficha de Cliente) pelo MESMO método oficial da Régua
+# de Cobrança (fatura_composicao, composicao=1, valorpendentecnpjcliente,
+# docs 6/8/10/11 + CT-e situacaocte=3), reaproveitando _COB_FROM/_COB_DV.
+# Antes usava fatura.valorsaldoreceber (inflava ~12x, ver comentário acima) —
+# divergia da Régua de Cobrança para o mesmo cliente.
+CLIF_RECEB_SQL = f"""
+SELECT count(*)::int AS titulos,
+       coalesce(sum(fc.valorpendentecnpjcliente),0)::float8 AS aberto,
+       coalesce(sum(CASE WHEN {_COB_DV} > 0 THEN fc.valorpendentecnpjcliente ELSE 0 END),0)::float8 AS vencido,
+       coalesce(sum(CASE WHEN {_COB_DV} <= 0 THEN fc.valorpendentecnpjcliente ELSE 0 END),0)::float8 AS a_vencer,
+       coalesce(sum(CASE WHEN {_COB_DV} > 90 THEN fc.valorpendentecnpjcliente ELSE 0 END),0)::float8 AS vencido_mais_90,
+       min(CASE WHEN {_COB_DV} > 0 THEN coalesce(f.dtprevisaopagamento, f.dtvencimento) END)::text AS venc_mais_antigo
+{_COB_FROM}
+WHERE f.grupo=1 AND fc.valorpendentecnpjcliente > 0 AND f.dtcancelamento IS NULL
+  AND f.composicao = 1 AND f.dtpagamento IS NULL
+  AND fc.tipodocumentoorigem = ANY(string_to_array('6,8,10,11',',')::int[])
+  AND (fc.tipodocumentoorigem <> 6 OR co.situacaocte = 3)
+  AND f.cliente = ANY(%(cnpjs)s)
 """
 
 
