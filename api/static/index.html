@@ -1772,6 +1772,8 @@ button.avatar{border:0;cursor:pointer}
           <div class="legend">
             <span class="k"><i class="sw" style="background:var(--green)"></i>Carregado</span>
             <span class="k"><i class="sw" style="background:var(--red)"></i>Vazio</span>
+            <span class="k"><i class="ln" style="border-top-color:var(--navy-700)"></i>Retorno vazio %</span>
+            <span class="k"><i class="ln dash" style="border-top-color:var(--yellow)"></i>Meta 20%</span>
           </div>
           <div class="chartwrap" id="wrapKm">
             <svg id="chartKm" viewBox="0 0 960 250" preserveAspectRatio="xMidYMid meet"
@@ -1798,6 +1800,12 @@ button.avatar{border:0;cursor:pointer}
               <th>Origem</th><th>Destino</th><th class="num">Viagens vazias</th><th class="num">Km vazio</th>
             </tr></thead><tbody id="km-rotas"></tbody></table></div>
           </div>
+        </div>
+        <div class="card">
+          <div class="head"><h2>Retorno vazio por veículo</h2><span class="hint">top 15 · maior km rodado vazio — quem realocar primeiro</span></div>
+          <div class="tablewrap"><table><thead><tr>
+            <th scope="col">Frota</th><th scope="col">Placa</th><th class="num" scope="col">Viagens</th><th class="num" scope="col">Km carregado</th><th class="num" scope="col">Km vazio</th><th class="num" scope="col">Retorno vazio</th>
+          </tr></thead><tbody id="km-veic"></tbody></table></div>
         </div>
         <div class="card">
           <div class="head"><h2>Alertas</h2></div>
@@ -5351,11 +5359,16 @@ function renderKm(d){
   const k=d.kpis;
   if(!document.getElementById('fEmiDe').value) document.getElementById('fEmiDe').value=d.dt_de;
   if(!document.getElementById('fEmiAte').value) document.getElementById('fEmiAte').value=d.dt_ate;
+  // Δ do retorno vazio: último mês da série vs o anterior (em pontos percentuais)
+  const _mmRV=(d.mensal||[]).filter(m=>m.retorno_vazio!=null);
+  let rvDelta='';
+  if(_mmRV.length>=2){ const dpp=(_mmRV[_mmRV.length-1].retorno_vazio-_mmRV[_mmRV.length-2].retorno_vazio)*100;
+    rvDelta=' · '+(dpp>=0?'▲':'▼')+Math.abs(dpp).toFixed(1)+' p.p. vs mês ant.'; }
   document.getElementById('kpis-km').innerHTML=[
     kpi('Km total', fmtKm2(k.km_total), k.viagens.toLocaleString('pt-BR')+' viagens · '+fmtD(d.dt_de)+' a '+fmtD(d.dt_ate), ''),
     kpi('Km carregado', fmtKm2(k.km_carregado), 'gera receita', ''),
     kpi('Retorno vazio', k.retorno_vazio!=null?(100*k.retorno_vazio).toLocaleString('pt-BR',{maximumFractionDigits:1})+'%':'—',
-        fmtKm2(k.km_vazio)+' rodados vazios · alerta acima de 20%', (k.retorno_vazio||0)>0.2?'neg':'pos'),
+        fmtKm2(k.km_vazio)+' rodados vazios · meta até 20%'+rvDelta, (k.retorno_vazio||0)>0.2?'neg':'pos'),
     kpi('RKM médio', fmtRsKm(k.rkm), 'receita ÷ km carregado', ''),
   ].join('');
   chartKmRender(d.mensal||[]);
@@ -5382,6 +5395,13 @@ function renderKm(d){
     <td class="num">${r.viagens.toLocaleString('pt-BR')}</td>
     <td class="num" style="color:var(--red);font-weight:600">${fmtKm2(r.km_vazio)}</td></tr>`).join('')
     || '<tr><td colspan="4" style="color:var(--n500)">sem deslocamentos vazios no período</td></tr>';
+  document.getElementById('km-veic').innerHTML=(d.veiculos||[]).map(vc=>`<tr>
+    <td style="font-weight:600">${esc(vc.frota)}</td><td>${esc(vc.placa)}</td>
+    <td class="num">${vc.viagens.toLocaleString('pt-BR')}</td>
+    <td class="num">${fmtKm2(vc.km_carregado)}</td>
+    <td class="num" style="color:var(--red);font-weight:600">${fmtKm2(vc.km_vazio)}</td>
+    <td class="num" style="color:${(vc.retorno_vazio||0)>0.2?'var(--red)':'var(--green)'}">${vc.retorno_vazio!=null?(100*vc.retorno_vazio).toLocaleString('pt-BR',{maximumFractionDigits:1})+'%':'—'}</td></tr>`).join('')
+    || '<tr><td colspan="6" style="color:var(--n500)">sem deslocamentos vazios no período</td></tr>';
   const A=[];
   if((k.retorno_vazio||0)>0.2) A.push(['t-dang','Retorno vazio acima do limite',
     `${(100*k.retorno_vazio).toFixed(1)}% do km rodado é vazio (referência FTL: até 20%). As rotas ao lado mostram onde concentrar a venda de frete de retorno.`]);
@@ -5417,6 +5437,16 @@ function chartKmRender(mensal){
     if(vv>0.5){ s+=colRect(x,barW,yC,y0,'#1E7F4F'); s+=colPath(x,barW,yT,Math.max(yC-2,yT+0.1),4,'#C03221'); }
     else s+=colPath(x,barW,yC,y0,4,'#1E7F4F');
   });
+  // eixo secundário: retorno vazio % (linha navy) + meta 20% (tracejada âmbar)
+  const _rv=mensal.map(r=>r.retorno_vazio).filter(v=>v!=null);
+  const topPct=Math.max(0.30,..._rv);
+  const pY=p=>mT+ih-(p/topPct)*ih;
+  s+=`<text x="${W-mR}" y="${mT-12}" text-anchor="end" font-size="11" fill="#17344F" font-weight="600" letter-spacing="1.5">% VAZIO</text>`;
+  s+=`<line x1="${mL}" y1="${pY(0.20)}" x2="${W-mR}" y2="${pY(0.20)}" stroke="#B97709" stroke-width="1.5" stroke-dasharray="5 4"/>`;
+  s+=`<text x="${W-mR-2}" y="${pY(0.20)-5}" text-anchor="end" font-size="10.5" fill="#B97709" font-weight="600">meta 20%</text>`;
+  const _pts=mensal.map((r,i)=>r.retorno_vazio!=null?`${px(i)},${pY(r.retorno_vazio)}`:null).filter(Boolean).join(' ');
+  if(_pts) s+=`<polyline points="${_pts}" fill="none" stroke="#17344F" stroke-width="2"/>`;
+  mensal.forEach((r,i)=>{ if(r.retorno_vazio!=null) s+=`<circle cx="${px(i)}" cy="${pY(r.retorno_vazio)}" r="3" fill="#17344F"/>`; });
   mensal.forEach((r,i)=>{ s+=`<text x="${px(i)}" y="${H-mB+18}" text-anchor="middle" font-size="10.5" fill="#4F5860">${periodoLabel(r.mes)}</text>`; });
   s+=`<line id="chartKm-xhair" x1="0" x2="0" y1="${mT-14}" y2="${y0}" stroke="#5F87AC" stroke-width="1" opacity="0"/>`;
   s+=`<rect x="${mL}" y="${mT-14}" width="${iw}" height="${ih+14}" fill="transparent"/>`;
