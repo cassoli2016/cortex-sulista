@@ -78,6 +78,8 @@ def get_headcount() -> dict:
             "massa_base": tot["massa_base"] or 0.0,
             "tempo_casa_anos": tot["tempo_casa_anos"] or 0.0,
             "mulheres": tot["mulheres"], "homens": tot["homens"],
+            # turnover anual aproximado = média(adm, dem) / headcount (demissão é estimada)
+            "turnover_pct": round(100 * ((adm12 + dem12) / 2) / tot["ativos"], 1) if tot["ativos"] else 0.0,
         },
         "por_filial": _rows(por_filial),
         "por_area": _rows(por_area),
@@ -155,4 +157,84 @@ def get_custo_folha(comp: str | None = None) -> dict:
         "top_descontos": [{"ev": r["ev"], "tot": r["tot"]} for r in top_desc],
         "serie": [{"comp": r["comp"], "prov": r["prov"] or 0.0, "descontos": r["descontos"] or 0.0} for r in serie],
         "fonte": "GLOBUS · VW_FICHAFINANEVENTOS (proventos/descontos) · agregado · leitura",
+    }
+
+
+# ============================================================================
+# Indicadores de folha — férias, CNH (motoristas), hora extra, banco de horas
+# ============================================================================
+_FER_LBL = {"1-VENCIDA": "Vencida", "2-ate 30d": "Vence em 30 dias",
+            "3-ate 90d": "Vence em 90 dias", "4-acima 90d": "Acima de 90 dias"}
+_CNH_LBL = {"1-VENCIDA": "Vencida", "2-ate 30d": "Vence em 30 dias",
+            "3-ate 60d": "Vence em 60 dias", "4-acima 60d": "Acima de 60 dias"}
+
+
+def get_folha_indicadores() -> dict:
+    p = {"emp": EMPRESA}
+
+    # Férias (faixas de vencimento) — subquery pois Oracle não agrupa por alias.
+    ferias = _q("""SELECT faixa, COUNT(*) n FROM (
+        SELECT CASE WHEN ADD_MONTHS(fe.proxaquifinfer,11)-SYSDATE < 0 THEN '1-VENCIDA'
+          WHEN ADD_MONTHS(fe.proxaquifinfer,11)-SYSDATE < 30 THEN '2-ate 30d'
+          WHEN ADD_MONTHS(fe.proxaquifinfer,11)-SYSDATE < 90 THEN '3-ate 90d'
+          ELSE '4-acima 90d' END faixa
+        FROM vw_ferias fe JOIN vw_funcionarios vf
+          ON fe.codintfunc=vf.codintfunc AND vf.situacaofunc='A' AND vf.codigoempresa=:emp
+        ) GROUP BY faixa""", p)
+
+    # CNH dos motoristas (faixas de validade) — sem CPF (PII).
+    cnh = _q("""SELECT faixa, COUNT(*) n FROM (
+        SELECT CASE WHEN fd.dtdocto-SYSDATE < 0 THEN '1-VENCIDA'
+          WHEN fd.dtdocto-SYSDATE < 30 THEN '2-ate 30d'
+          WHEN fd.dtdocto-SYSDATE < 60 THEN '3-ate 60d' ELSE '4-acima 60d' END faixa
+        FROM flp_documentos fd
+        JOIN flp_funcionarios ff ON fd.codintfunc=ff.codintfunc AND ff.situacaofunc='A' AND ff.codigoempresa=:emp
+        JOIN vw_funcionarios vf ON fd.codintfunc=vf.codintfunc AND vf.descfuncaocompleta LIKE 'MOTO%'
+        WHERE fd.tipodocto='CNH') GROUP BY faixa""", p)
+
+    # Hora extra (custo por competência, 12m, HE 50% x 100%).
+    he = _q("""SELECT TO_CHAR(ff.competficha,'YYYY-MM') comp,
+        CASE WHEN fe.desceven LIKE '%50%' THEN '50' ELSE '100' END tipo,
+        ROUND(SUM(ff.valorficha),2) tot
+        FROM flp_fichaeventos ff JOIN flp_eventos fe ON ff.codevento=fe.codevento
+        WHERE (fe.desceven LIKE '%50%' OR fe.desceven LIKE '%100%') AND ff.tipofolha='1'
+          AND ff.competficha >= ADD_MONTHS(TRUNC(SYSDATE,'MM'),-12)
+        GROUP BY TO_CHAR(ff.competficha,'YYYY-MM'), CASE WHEN fe.desceven LIKE '%50%' THEN '50' ELSE '100' END""", {})
+
+    # Banco de horas (saldo por competência, 12m).
+    bh = _q("""SELECT TO_CHAR(competencia,'YYYY-MM') comp, ROUND(SUM(credito),1) cred,
+        ROUND(SUM(debito),1) deb, ROUND(SUM(saldonacompet),1) saldo, COUNT(*) n
+        FROM frq_bancohoras WHERE competencia >= ADD_MONTHS(TRUNC(SYSDATE,'MM'),-12)
+        GROUP BY TO_CHAR(competencia,'YYYY-MM') ORDER BY 1""", {})
+
+    ferias_l = sorted(({"faixa": _FER_LBL.get(r["faixa"], r["faixa"]), "ordem": r["faixa"], "n": r["n"]}
+                       for r in ferias), key=lambda x: x["ordem"])
+    cnh_l = sorted(({"faixa": _CNH_LBL.get(r["faixa"], r["faixa"]), "ordem": r["faixa"], "n": r["n"]}
+                    for r in cnh), key=lambda x: x["ordem"])
+    he_map: dict = {}
+    for r in he:
+        d = he_map.setdefault(r["comp"], {"comp": r["comp"], "he50": 0.0, "he100": 0.0})
+        d["he50" if r["tipo"] == "50" else "he100"] += (r["tot"] or 0.0)
+    he_serie = sorted(he_map.values(), key=lambda x: x["comp"])
+    bh_serie = [{"comp": r["comp"], "credito": r["cred"] or 0.0, "debito": r["deb"] or 0.0,
+                 "saldo": r["saldo"] or 0.0, "colab": r["n"]} for r in bh]
+
+    fer_venc = next((r["n"] for r in ferias_l if r["ordem"] == "1-VENCIDA"), 0)
+    fer_30 = next((r["n"] for r in ferias_l if r["ordem"] == "2-ate 30d"), 0)
+    cnh_venc = next((r["n"] for r in cnh_l if r["ordem"] == "1-VENCIDA"), 0)
+    cnh_30 = next((r["n"] for r in cnh_l if r["ordem"] == "2-ate 30d"), 0)
+    he_ult = he_serie[-1] if he_serie else {"he50": 0.0, "he100": 0.0}
+    bh_ult = bh_serie[-1] if bh_serie else {"saldo": 0.0, "colab": 0}
+
+    return {
+        "kpis": {
+            "ferias_vencidas": fer_venc, "ferias_30": fer_30,
+            "cnh_vencidas": cnh_venc, "cnh_30": cnh_30,
+            "he_mes": round(he_ult["he50"] + he_ult["he100"], 2),
+            "bh_saldo": bh_ult["saldo"],
+        },
+        "ferias": ferias_l, "cnh": cnh_l,
+        "hora_extra": he_serie, "banco_horas": bh_serie,
+        "fonte": ("GLOBUS · VW_FERIAS + FLP_DOCUMENTOS (CNH) + FLP_FICHAEVENTOS (HE) + "
+                  "FRQ_BANCOHORAS · agregado, sem PII · leitura"),
     }
