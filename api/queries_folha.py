@@ -335,7 +335,7 @@ def get_horas_extras(comp: str | None = None) -> dict:
                             ROUND(SUM(ff.valorficha),2) tot
                         {_HE_J}
                         WHERE {_HE_WHERE} AND ff.competficha >= ADD_MONTHS(TRUNC(SYSDATE,'MM'),-12)
-                        GROUP BY TO_CHAR(ff.competficha,'YYYY-MM'), fe.desceven""", p)
+                        GROUP BY TO_CHAR(ff.competficha,'YYYY-MM'), fe.desceven""", {"emp": EMPRESA})
     serie_map: dict = {}
     for r in serie_rows:
         d = serie_map.setdefault(r["comp"], {"comp": r["comp"], "he50": 0.0, "he100": 0.0,
