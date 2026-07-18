@@ -3910,3 +3910,139 @@ def get_custos_extras(dt_de: str, dt_ate: str) -> dict:
         "atualizado_em": meta["ts"].isoformat(),
         "fonte": "ERP AVA · sulista.custoextra (custos extras por CT-e) · leitura",
     }
+
+
+# ============================================================================
+# SAC / Freetime & Estadia (detention)
+# ----------------------------------------------------------------------------
+# Freetime contratado por cliente (sulista.sac_freetimecliente) + ESTIMATIVA de
+# estadia excedente: permanência no carregamento (ocorrências SAC 394->395) e
+# na descarga (396->397) além do freetime do cliente, × valor/hora contratado.
+# É ESTIMATIVA (usa o freetime vigente do cliente, SEM as exceções por
+# mercadoria/operação da apuração oficial); a estadia efetivamente cobrada
+# aparece em Custos Extras (Estadia/Diária). Não reproduz o CNPJ de parceiro
+# embutido na regra oficial. Fonte: Querys Sulista/OPERACAO - Monitoramento SAC.
+# ============================================================================
+# Freetime representativo por cliente (contrato vigente mais recente).
+SAC_FT_REP = """
+ft AS (
+  SELECT DISTINCT ON (agrupamentocliente) agrupamentocliente,
+         freetimecarga, freetimedescarga, valor_coleta, valor_entrega
+  FROM sulista.sac_freetimecliente WHERE ativoinativo = 1
+  ORDER BY agrupamentocliente, dtinicio DESC NULLS LAST
+)"""
+
+# Estadia estimada por coleta (só as que excederam o freetime no período).
+# Cada janela (carga/descarga) é capada em 24h: acima disso é quase sempre
+# artefato de pareamento (min(chegada)->max(saída) atravessando paradas/dias),
+# não detention real — a estimativa fica conservadora.
+SAC_DET_SQL = f"""
+WITH ev AS (
+  SELECT grupo,empresa,filial,unidade,diferenciadornumero,serie,numero,
+    min(CASE WHEN ocorrencia=394 THEN dtocorrencia END) AS cc,
+    max(CASE WHEN ocorrencia=395 THEN dtocorrencia END) AS sc,
+    min(CASE WHEN ocorrencia=396 THEN dtocorrencia END) AS cd,
+    max(CASE WHEN ocorrencia=397 THEN dtocorrencia END) AS fd
+  FROM coleta_ocorrencia
+  WHERE ocorrencia IN (394,395,396,397)
+    AND dtocorrencia::date BETWEEN %(dt_de)s AND %(dt_ate)s
+  GROUP BY 1,2,3,4,5,6,7),
+{SAC_FT_REP},
+perm AS (
+  SELECT c.numero AS coleta, c.filial,
+         coalesce(nullif(trim(ac.descricao),''),'(sem cliente)') AS cliente,
+         to_char(coalesce(ev.fd, ev.sc, ev.cd, ev.cc),'YYYY-MM-DD') AS data,
+         CASE WHEN ev.sc > ev.cc AND ev.sc <= ev.cc + interval '24 hours'
+              THEN extract(epoch from (ev.sc-ev.cc))/3600 ELSE 0 END AS win_carga,
+         CASE WHEN ev.fd > ev.cd AND ev.fd <= ev.cd + interval '24 hours'
+              THEN extract(epoch from (ev.fd-ev.cd))/3600 ELSE 0 END AS win_desc,
+         extract(epoch from ft.freetimecarga)/3600 AS ft_carga,
+         extract(epoch from ft.freetimedescarga)/3600 AS ft_desc,
+         coalesce(ft.valor_coleta,0) AS vc, coalesce(ft.valor_entrega,0) AS ve
+  FROM ev
+  JOIN coleta c ON c.grupo=ev.grupo AND c.empresa=ev.empresa AND c.filial=ev.filial
+    AND c.unidade=ev.unidade AND c.diferenciadornumero=ev.diferenciadornumero
+    AND c.serie=ev.serie AND c.numero=ev.numero
+  LEFT JOIN agrupamentocliente_cnpjcpfcodigo acc ON acc.grupo=c.grupo AND acc.empresa=c.empresa
+    AND acc.cnpjcpfcodigo=c.cnpjcpfcodigopagadorfrete AND acc.vinculo=1
+  LEFT JOIN agrupamentocliente ac ON ac.grupo=acc.grupo AND ac.empresa=acc.empresa AND ac.codigo=acc.codigo
+  JOIN ft ON ft.agrupamentocliente = ac.codigo)
+SELECT coleta, filial, cliente, data,
+       round(win_carga::numeric,1)::float8 AS h_carga,
+       round(win_desc::numeric,1)::float8 AS h_descarga,
+       round(GREATEST(win_carga - ft_carga, 0)::numeric,1)::float8 AS exc_carga,
+       round(GREATEST(win_desc - ft_desc, 0)::numeric,1)::float8 AS exc_descarga,
+       round((GREATEST(win_carga - ft_carga, 0)*vc + GREATEST(win_desc - ft_desc, 0)*ve)::numeric,2)::float8 AS valor_est
+FROM perm
+WHERE GREATEST(win_carga - ft_carga, 0) + GREATEST(win_desc - ft_desc, 0) > 0
+ORDER BY valor_est DESC NULLS LAST
+"""
+
+# Freetime contratado por cliente (referência).
+SAC_FT_SQL = """
+SELECT coalesce(nullif(trim(ac.descricao),''),'(sem cliente)') AS cliente,
+       ft.filial,
+       round((extract(epoch from ft.freetimecarga)/3600)::numeric,1)::float8 AS ft_carga_h,
+       round((extract(epoch from ft.freetimedescarga)/3600)::numeric,1)::float8 AS ft_descarga_h,
+       ft.valor_coleta::float8 AS valor_coleta, ft.valor_entrega::float8 AS valor_entrega,
+       ft.observacao
+FROM sulista.sac_freetimecliente ft
+LEFT JOIN agrupamentocliente ac ON ac.codigo = ft.agrupamentocliente
+WHERE ft.ativoinativo = 1
+ORDER BY ac.descricao, ft.filial
+"""
+
+
+@cached(ttl=180)
+def get_sac_freetime(dt_de: str, dt_ate: str) -> dict:
+    """SAC/Freetime: estadia estimada excedente por cliente + freetime de
+    referência. Valores são ESTIMATIVA (regra padrão de freetime)."""
+    params = {"dt_de": dt_de, "dt_ate": dt_ate}
+    with db.get_conn() as conn, conn.cursor() as cur:
+        cur.execute(SAC_DET_SQL, params)
+        det = cur.fetchall()
+        cur.execute(SAC_FT_SQL)
+        ft = cur.fetchall()
+        cur.execute("SELECT current_timestamp AS ts")
+        meta = cur.fetchone()
+
+    com_exc = [d for d in det if (d["valor_est"] or 0) > 0 or (d["exc_carga"] or 0) > 0 or (d["exc_descarga"] or 0) > 0]
+    por_cli: dict[str, dict] = {}
+    for d in com_exc:
+        k = d["cliente"]
+        p = por_cli.setdefault(k, {"cliente": k, "coletas": 0, "exc_carga": 0.0,
+                                   "exc_descarga": 0.0, "valor_est": 0.0})
+        p["coletas"] += 1
+        p["exc_carga"] += d["exc_carga"] or 0.0
+        p["exc_descarga"] += d["exc_descarga"] or 0.0
+        p["valor_est"] += d["valor_est"] or 0.0
+    por_cliente = sorted(por_cli.values(), key=lambda x: -x["valor_est"])
+    for p in por_cliente:
+        p["exc_carga"] = round(p["exc_carga"], 1)
+        p["exc_descarga"] = round(p["exc_descarga"], 1)
+        p["valor_est"] = round(p["valor_est"], 2)
+
+    valor_total = round(sum(d["valor_est"] or 0.0 for d in com_exc), 2)
+    horas_exc = round(sum((d["exc_carga"] or 0.0) + (d["exc_descarga"] or 0.0) for d in com_exc), 1)
+
+    freetime_cli = [{
+        "cliente": r["cliente"], "filial": r["filial"],
+        "ft_carga_h": r["ft_carga_h"], "ft_descarga_h": r["ft_descarga_h"],
+        "valor_coleta": r["valor_coleta"], "valor_entrega": r["valor_entrega"],
+        "obs": (r["observacao"] or "").strip() or None,
+    } for r in ft]
+
+    return {
+        "kpis": {
+            "valor_estimado": valor_total,
+            "coletas_excedidas": len(com_exc),
+            "horas_excedentes": horas_exc,
+            "clientes_freetime": len({r["cliente"] for r in ft}),
+        },
+        "por_cliente": por_cliente[:30],
+        "coletas": com_exc[:100],
+        "freetime_cliente": freetime_cli,
+        "atualizado_em": meta["ts"].isoformat(),
+        "fonte": ("ERP AVA · SAC (coleta_ocorrencia 394-397) + sulista.sac_freetimecliente · "
+                  "ESTIMATIVA (freetime padrão, sem exceções por mercadoria) · leitura"),
+    }
