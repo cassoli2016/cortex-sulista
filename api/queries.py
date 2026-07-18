@@ -949,7 +949,7 @@ WITH mx AS (
   LEFT JOIN utilizacaoveiculo u ON u.codigo = v.utilizacaoveiculo
   LEFT JOIN cadastro c ON c.codigo = p.cnpjcpfcodigoveiculo
   WHERE {where_data}
-    AND p.dtcancelamento IS NULL AND p.semaforo = 1
+    AND p.dtcancelamento IS NULL AND p.semaforo = 1 AND p.numero < 1000000
     AND (p.filial = %(filial)s OR %(filial)s::int IS NULL)
     AND (v.utilizacaoveiculo = %(modalidade)s OR %(modalidade)s::text IS NULL)
     AND (%(transportador)s::text IS NULL OR c.nomefantasia ILIKE '%%'||%(transportador)s||'%%'
@@ -1115,7 +1115,7 @@ SELECT to_char(p.dtemissao,'YYYY-MM') AS mes{extra_cols},
 FROM programacaoembarque p
 JOIN veiculo v ON v.placa = p.veiculo AND {tipofrota_cond}
 WHERE p.dtemissao >= %(de)s::date AND p.dtemissao < %(ate)s::date
-  AND p.dtcancelamento IS NULL AND p.semaforo = 1
+  AND p.dtcancelamento IS NULL AND p.semaforo = 1 AND p.numero < 1000000
 GROUP BY 1{extra_cols} ORDER BY 1
 """
 
@@ -1137,7 +1137,7 @@ SELECT coalesce(nullif(trim(p.cidadeorigem),''),'?')||'/'||coalesce(p.uforigem,'
 FROM programacaoembarque p
 JOIN veiculo v ON v.placa = p.veiculo AND v.utilizacaoveiculo IN ('AGR','TER')
 WHERE p.dtemissao >= %(de)s::date AND p.dtemissao < %(ate)s::date
-  AND p.dtcancelamento IS NULL AND p.semaforo = 1 AND p.tipo <> 3
+  AND p.dtcancelamento IS NULL AND p.semaforo = 1 AND p.tipo <> 3 AND p.numero < 1000000
 GROUP BY 1, 2
 HAVING sum(coalesce(p.kmfretecompra,0)) >= 5000
 ORDER BY 5 DESC LIMIT 25
@@ -1266,7 +1266,7 @@ LEFT JOIN coleta co ON co.grupo=p.grupo AND co.empresa=p.empresa
 LEFT JOIN agrupamentocliente_cnpjcpfcodigo av ON av.cnpjcpfcodigo = co.cnpjcpfcodigopagadorfrete
 LEFT JOIN agrupamentocliente ag ON ag.codigo = av.codigo
 LEFT JOIN cadastro cp ON cp.codigo = co.cnpjcpfcodigopagadorfrete
-WHERE p.dtcancelamento IS NULL AND p.semaforo = 1 AND p.tipo <> 3
+WHERE p.dtcancelamento IS NULL AND p.semaforo = 1 AND p.tipo <> 3 AND p.numero < 1000000
   AND (p.filial = %(filial)s OR %(filial)s::int IS NULL)
   AND (%(cliente)s::text IS NULL OR ag.descricao ILIKE '%%'||%(cliente)s||'%%'
        OR cp.nomefantasia ILIKE '%%'||%(cliente)s||'%%' OR cp.razaosocial ILIKE '%%'||%(cliente)s||'%%')
@@ -1654,11 +1654,11 @@ SELECT mes, sum(valor)::float8 AS valor FROM (
 VG_MES_SQL = """
 SELECT
   (SELECT coalesce(sum(valorfrete),0)::float8 FROM programacaoembarque
-     WHERE dtcancelamento IS NULL AND semaforo = 1 AND tipo <> 3
+     WHERE dtcancelamento IS NULL AND semaforo = 1 AND tipo <> 3 AND numero < 1000000
        AND dtemissao >= date_trunc('month', current_date))                       AS receita_mes,
   (SELECT coalesce(sum(p.valorfretecompra),0)::float8 FROM programacaoembarque p
      JOIN veiculo v ON v.placa = p.veiculo AND v.utilizacaoveiculo IN ('AGR','TER')
-     WHERE p.dtcancelamento IS NULL AND p.semaforo = 1
+     WHERE p.dtcancelamento IS NULL AND p.semaforo = 1 AND p.numero < 1000000
        AND p.dtemissao >= date_trunc('month', current_date))                     AS frete_contratado_mes,
   (SELECT coalesce(sum(a.custo),0)::float8 FROM sulista.ctaplus_abastecimentos a
      JOIN veiculo v ON v.placa = a.veiculo_placa AND coalesce(v.utilizacaoveiculo,'') NOT IN ('AGR','TER')
@@ -1706,7 +1706,7 @@ SELECT coalesce(u.descricao,'(sem)') AS utilizacao,
 FROM programacaoembarque p
 JOIN veiculo v ON v.placa = p.veiculo
 LEFT JOIN utilizacaoveiculo u ON u.codigo = v.utilizacaoveiculo
-WHERE p.dtcancelamento IS NULL AND p.semaforo = 1
+WHERE p.dtcancelamento IS NULL AND p.semaforo = 1 AND p.numero < 1000000
   AND p.dtemissao >= current_date - 30
 GROUP BY 1 ORDER BY 2 DESC
 """
@@ -1715,7 +1715,7 @@ VG_REC12_SQL = """
 SELECT to_char(p.dtemissao,'YYYY-MM') AS mes,
        sum(coalesce(p.valorfrete,0))::float8 AS receita
 FROM programacaoembarque p
-WHERE p.dtcancelamento IS NULL AND p.semaforo = 1 AND p.tipo <> 3
+WHERE p.dtcancelamento IS NULL AND p.semaforo = 1 AND p.tipo <> 3 AND p.numero < 1000000
   AND p.dtemissao >= date_trunc('month', current_date) - interval '11 months'
 GROUP BY 1 ORDER BY 1
 """
@@ -2169,7 +2169,7 @@ _KM_BASE = """
 FROM programacaoembarque p
 JOIN veiculo v ON v.placa = p.veiculo
 LEFT JOIN utilizacaoveiculo u ON u.codigo = v.utilizacaoveiculo
-WHERE p.dtcancelamento IS NULL AND p.semaforo = 1
+WHERE p.dtcancelamento IS NULL AND p.semaforo = 1 AND p.numero < 1000000
   AND p.dtemissao >= %(dt_de)s::date AND p.dtemissao < %(dt_ate)s::date + 1
   AND (p.filial = %(filial)s OR %(filial)s::int IS NULL)
   AND (v.utilizacaoveiculo = %(modalidade)s OR %(modalidade)s::text IS NULL)
@@ -2216,7 +2216,7 @@ LEFT JOIN coleta co ON co.grupo=p.grupo AND co.empresa=p.empresa
 LEFT JOIN agrupamentocliente_cnpjcpfcodigo av ON av.cnpjcpfcodigo = co.cnpjcpfcodigopagadorfrete
 LEFT JOIN agrupamentocliente ag ON ag.codigo = av.codigo
 LEFT JOIN cadastro cp ON cp.codigo = co.cnpjcpfcodigopagadorfrete
-WHERE p.dtcancelamento IS NULL AND p.semaforo = 1 AND p.tipo <> 3
+WHERE p.dtcancelamento IS NULL AND p.semaforo = 1 AND p.tipo <> 3 AND p.numero < 1000000
   AND p.dtemissao >= %(dt_de)s::date AND p.dtemissao < %(dt_ate)s::date + 1
   AND (p.filial = %(filial)s OR %(filial)s::int IS NULL)
   AND (v.utilizacaoveiculo = %(modalidade)s OR %(modalidade)s::text IS NULL)
@@ -3261,7 +3261,7 @@ LEFT JOIN coleta co ON co.grupo=p.grupo AND co.empresa=p.empresa
 LEFT JOIN agrupamentocliente_cnpjcpfcodigo av ON av.cnpjcpfcodigo = co.cnpjcpfcodigopagadorfrete
 LEFT JOIN agrupamentocliente ag ON ag.codigo = av.codigo
 LEFT JOIN cadastro cp ON cp.codigo = co.cnpjcpfcodigopagadorfrete
-WHERE p.dtcancelamento IS NULL AND p.semaforo = 1 AND p.tipo <> 3
+WHERE p.dtcancelamento IS NULL AND p.semaforo = 1 AND p.tipo <> 3 AND p.numero < 1000000
   AND (p.filial = %(filial)s OR %(filial)s::int IS NULL)
   AND (%(cliente)s::text IS NULL OR ag.descricao ILIKE '%%'||%(cliente)s||'%%'
        OR cp.nomefantasia ILIKE '%%'||%(cliente)s||'%%' OR cp.razaosocial ILIKE '%%'||%(cliente)s||'%%')
