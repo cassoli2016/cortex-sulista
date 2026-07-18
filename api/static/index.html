@@ -1457,6 +1457,10 @@ button.avatar{border:0;cursor:pointer}
       <section class="view" id="view-qual">
         <div class="kpis" id="kpis-qual"></div>
         <div class="card">
+          <div class="head"><h2>Indicadores ESG</h2><span class="hint">meta × realizado (mês mais recente) · matriz</span></div>
+          <div class="tablewrap" id="qual-esg"></div>
+        </div>
+        <div class="card">
           <div class="head"><h2>Certidões e Licenças</h2><span class="hint">semáforo por vencimento · vencidas primeiro</span></div>
           <div class="tablewrap" id="qual-certidoes"></div>
         </div>
@@ -4503,9 +4507,15 @@ function renderQual(d){
   document.getElementById('kpis-qual').innerHTML=[
     kpi('Certidões vencidas', (k.vencidas||0).toLocaleString('pt-BR'), 'documentos com validade expirada', (k.vencidas||0)>0?'neg':'pos'),
     kpi('Vencendo em 30 dias', (k.vencendo||0).toLocaleString('pt-BR'), 'renovar com antecedência', (k.vencendo||0)>0?'neg':''),
-    kpi('Certidões ativas', (k.certidoes||0).toLocaleString('pt-BR'), 'total monitorado',''),
+    kpi('Indicadores fora da meta', (k.indic_fora||0).toLocaleString('pt-BR'), 'ESG · mês mais recente', (k.indic_fora||0)>0?'neg':'pos'),
     kpi('NCs em aberto', (k.ncs_abertas||0).toLocaleString('pt-BR'), (k.auditorias||0)+' auditoria(s)', (k.ncs_abertas||0)>0?'neg':''),
   ].join('');
+  const fmtN=v=>v!=null?v.toLocaleString('pt-BR',{maximumFractionDigits:2}):'—';
+  const esB={ok:['b-ok','na meta'],fora:['b-dang','fora da meta'],sem_meta:['','sem meta']};
+  const eg=(d.indicadores||[]).map(i=>{const [cl,lb]=esB[i.status]||['',''];
+    return `<tr><td>${esc(i.indicador)}</td><td class="num">${esc(i.periodo)}</td><td class="num">${fmtN(i.meta)}</td><td class="num" style="${i.status==='fora'?'color:var(--red);font-weight:700':''}">${fmtN(i.realizado)}</td><td>${i.menor_melhor?'menor é melhor':'maior é melhor'}</td><td><span class="badge ${cl}">${lb}</span></td></tr>`;
+  }).join('')||'<tr><td colspan="6" style="color:var(--n500)">sem indicadores no período</td></tr>';
+  document.getElementById('qual-esg').innerHTML=`<table><thead><tr><th>Indicador</th><th class="num">Período</th><th class="num">Meta</th><th class="num">Realizado</th><th>Direção</th><th>Status</th></tr></thead><tbody>${eg}</tbody></table>`;
   const stB={vencida:['b-dang','vencida'],vence_15:['b-dang','vence ≤15d'],vence_30:['b-warn','vence ≤30d'],ok:['b-ok','em dia'],sem_data:['','sem data']};
   const ct=(d.certidoes||[]).map(c=>{const [cl,lb]=stB[c.status]||['',''];
     return `<tr><td>${esc(c.tipo)}</td><td>${esc(c.emissor)}</td><td class="num">${c.filial||'—'}</td><td class="num">${c.venc?fmtD(c.venc):'—'}</td><td class="num" style="${c.dias!=null&&c.dias<0?'color:var(--red);font-weight:700':''}">${c.dias!=null?(c.dias<0?('vencida há '+Math.abs(c.dias)):('em '+c.dias))+' dias':'—'}</td><td><span class="badge ${cl}">${lb}</span></td><td>${esc(c.obs||'')}</td></tr>`;
