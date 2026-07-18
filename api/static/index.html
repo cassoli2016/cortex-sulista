@@ -583,6 +583,7 @@ button.avatar{border:0;cursor:pointer}
         <span class="ic" data-ic="sup"></span><span>Suprimentos</span><span class="ic chev" data-ic="chev"></span>
       </button>
       <div class="subs closed" id="subsSup">
+        <a href="#custos" class="sub" data-view="custos" title="Painel de Custos consolidado"><span class="ic" data-ic="oc"></span><span>Painel de Custos</span></a>
         <a href="#oc" class="sub" data-view="oc" title="Ordens de Compra"><span class="ic" data-ic="oc"></span><span>Ordens de Compra</span></a>
       </div>
       <button class="group" id="grpRh" aria-expanded="false" aria-controls="subsRh" onclick="toggleGroup('grpRh','subsRh','cs.rhGroup')" title="Recursos Humanos">
@@ -1542,6 +1543,35 @@ button.avatar{border:0;cursor:pointer}
             <div class="tablewrap" id="folha-desc"></div></div>
         </div>
       </section>
+      <section class="view" id="view-custos">
+        <div class="card">
+          <div class="head"><h2>Painel de Custos</h2><span class="hint">combustível + ordens de compra · por agrupador gerencial · com/sem NF</span></div>
+          <div style="padding:0 16px 14px;display:flex;gap:10px;flex-wrap:wrap;align-items:center">
+            <input type="date" id="fCustDe" style="font-size:15px;padding:9px 10px;border:1px solid var(--n200,#E4E7EB);border-radius:10px">
+            <span style="color:var(--n500)">até</span>
+            <input type="date" id="fCustAte" style="font-size:15px;padding:9px 10px;border:1px solid var(--n200,#E4E7EB);border-radius:10px">
+            <button class="btn" onclick="loadCustos()">Atualizar</button>
+            <span class="hint" style="color:var(--n500)">a consulta é pesada — pode levar alguns segundos</span>
+          </div>
+        </div>
+        <div class="kpis" id="kpis-custos"></div>
+        <div class="grid2">
+          <div class="card"><div class="head"><h2>Por agrupador (grupo DRE)</h2><span class="hint">top 20</span></div>
+            <div class="tablewrap" id="custos-agr"></div></div>
+          <div class="card"><div class="head"><h2>Por fornecedor</h2><span class="hint">top 20</span></div>
+            <div class="tablewrap" id="custos-forn"></div></div>
+        </div>
+        <div class="grid2">
+          <div class="card"><div class="head"><h2>Por status de NF</h2><span class="hint">abastecimento e ordens de compra</span></div>
+            <div class="tablewrap" id="custos-status"></div></div>
+          <div class="card"><div class="head"><h2>Por filial</h2><span class="hint">no período</span></div>
+            <div class="tablewrap" id="custos-filial"></div></div>
+        </div>
+        <div class="card">
+          <div class="head"><h2>Maiores itens</h2><span class="hint">top 100 por valor</span></div>
+          <div class="tablewrap" id="custos-lista"></div>
+        </div>
+      </section>
       <section class="view" id="view-mul">
         <div class="kpis" id="kpis-mul"></div>
         <div class="card">
@@ -1899,7 +1929,7 @@ const FAIXAS = {
   '4_vencido_91_365':['Vencido 91–365d','b-dang'],
   '5_vencido_mais_365':['Vencido > 365d','b-dang'],
 };
-const VIEWS = { home:'Visão Geral', fluxo:'Fluxo de Caixa e Bancos', receber:'Contas a Receber', pagar:'Contas a Pagar', oc:'Ordens de Compra', agr:'Agregados e Terceiros', mvb:'Make vs Buy', comb:'Combustível', man:'Manutenção', com:'Clientes e RKM', clif:'Consulta de Cliente', crm:'CRM — Leads e Projetos', km:'Análise de KM', torre:'Torre de Controle', veic:'Veículos', veicf:'Consulta de Veículo', mprev:'Manutenção Preventiva', comrast:'Comunicação Rastreadora', mul:'Multas', prog:'Programação Inteligente', jorn:'Jornada do Motorista', jornf:'Ficha de Jornada', cex:'Custos Extras', sac:'SAC / Freetime', port:'Portaria', cop:'Copiloto Cortex', cob:'Régua de Cobrança', cont:'Contabilidade', qual:'Qualidade e Certidões', dre:'DRE Gerencial', drecli:'DRE por Cliente', tvfat:'Painel TV — Faturamento', tvope:'Painel TV — Operação', rh:'RH — Vagas', hc:'Headcount', folha:'Custo de Folha', gestao:'Gestão', srv:'Saúde do Servidor' };
+const VIEWS = { home:'Visão Geral', fluxo:'Fluxo de Caixa e Bancos', receber:'Contas a Receber', pagar:'Contas a Pagar', oc:'Ordens de Compra', custos:'Painel de Custos', agr:'Agregados e Terceiros', mvb:'Make vs Buy', comb:'Combustível', man:'Manutenção', com:'Clientes e RKM', clif:'Consulta de Cliente', crm:'CRM — Leads e Projetos', km:'Análise de KM', torre:'Torre de Controle', veic:'Veículos', veicf:'Consulta de Veículo', mprev:'Manutenção Preventiva', comrast:'Comunicação Rastreadora', mul:'Multas', prog:'Programação Inteligente', jorn:'Jornada do Motorista', jornf:'Ficha de Jornada', cex:'Custos Extras', sac:'SAC / Freetime', port:'Portaria', cop:'Copiloto Cortex', cob:'Régua de Cobrança', cont:'Contabilidade', qual:'Qualidade e Certidões', dre:'DRE Gerencial', drecli:'DRE por Cliente', tvfat:'Painel TV — Faturamento', tvope:'Painel TV — Operação', rh:'RH — Vagas', hc:'Headcount', folha:'Custo de Folha', gestao:'Gestão', srv:'Saúde do Servidor' };
 const periodoLabel = p => { if(p==='atrasado') return 'Atrasado'; const [y,m]=p.split('-'); return MES[+m-1]+'/'+y.slice(2); };
 const fmtD = s => { if(!s) return ''; const [y,m,dd]=s.split('-'); return dd+'/'+m+'/'+y; };
 const esc  = s => (s??'').toString().replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
@@ -1952,6 +1982,8 @@ let hcSeq = 0;
 let DATAHC = null;
 let folhaSeq = 0;
 let DATAFOLHA = null;
+let custosSeq = 0;
+let DATACUSTOS = null;
 let ocSeq = 0;
 let agrSeq = 0;
 let mvbSeq = 0;
@@ -2040,7 +2072,7 @@ const VIEW_GROUP = {home:'',cop:'',
   dre:'Ctr',cont:'Ctr',qual:'Ctr',
   torre:'Ope',prog:'Ope',jorn:'Ope',jornf:'Ope',cex:'Ope',sac:'Ope',port:'Ope',km:'Ope',agr:'Ope',mvb:'Ope',
   veic:'Fro',veicf:'Fro',mprev:'Fro',comrast:'Fro',comb:'Fro',man:'Fro',mul:'Fro',
-  oc:'Sup',
+  oc:'Sup',custos:'Sup',
   tvfat:'Tv',tvope:'Tv',
   rh:'Rh',hc:'Rh',folha:'Rh',gestao:'Adm',srv:'Adm'};
 function syncGroups(v){
@@ -2206,8 +2238,8 @@ function router(){
   document.getElementById('grpCob').style.display = cob ? 'flex' : 'none';
   document.getElementById('grpRent').style.display = rent ? 'flex' : 'none';
   const ges = (v==='gestao');
-  const fbar=document.getElementById('filterbar'); if(fbar) fbar.style.display = (cop||ges||v==='srv'||v==='veicf'||v==='clif'||v==='jorn'||v==='jornf'||v==='cex'||v==='sac'||v==='mprev'||v==='comrast'||v==='qual'||v==='port'||v==='crm'||v==='rh'||v==='hc'||v==='folha'||v==='home') ? 'none' : '';
-  const metaEl=document.getElementById('meta'); if(metaEl) metaEl.style.display = (cop||ges||v==='srv'||v==='veicf'||v==='clif'||v==='jorn'||v==='jornf'||v==='cex'||v==='sac'||v==='mprev'||v==='comrast'||v==='qual'||v==='port'||v==='crm'||v==='rh'||v==='hc'||v==='folha') ? 'none' : '';
+  const fbar=document.getElementById('filterbar'); if(fbar) fbar.style.display = (cop||ges||v==='srv'||v==='veicf'||v==='clif'||v==='jorn'||v==='jornf'||v==='cex'||v==='sac'||v==='mprev'||v==='comrast'||v==='qual'||v==='port'||v==='crm'||v==='rh'||v==='hc'||v==='folha'||v==='custos'||v==='home') ? 'none' : '';
+  const metaEl=document.getElementById('meta'); if(metaEl) metaEl.style.display = (cop||ges||v==='srv'||v==='veicf'||v==='clif'||v==='jorn'||v==='jornf'||v==='cex'||v==='sac'||v==='mprev'||v==='comrast'||v==='qual'||v==='port'||v==='crm'||v==='rh'||v==='hc'||v==='folha'||v==='custos') ? 'none' : '';
   // classe em vez de style: o CSS mobile usa !important no display
   const bfil=document.getElementById('btnFiltros'); if(bfil){ bfil.classList.toggle('oculto', cop||ges||v==='srv'||v==='home'); bfil.style.display=''; }
   document.getElementById('grpKm').style.display = kmv ? 'flex' : 'none';
@@ -2228,8 +2260,8 @@ function router(){
   // carga da vista: dispara se não há dados OU se os filtros visíveis
   // divergem dos usados na última carga (nunca mostrar dado velho com filtro novo)
   const key=viewKey(v);
-  const DATAMAP={fin:DATA,oc:DATAOC,agr:DATAAGR,mvb:DATAMVB,comb:DATACOMB,man:DATAMAN,com:DATACOM,clif:DATACLIF,dre:DATADRE,drecli:DATADRECLI,home:DATAHOME,km:DATAKM,torre:DATATORRE,veic:DATAVEIC,veicf:DATAVEICF,mul:DATAMUL,prog:DATAPROG,jorn:DATAJORN,jornf:DATAJORNF,cex:DATACEX,sac:DATASAC,mprev:DATAMPREV,comrast:DATACOMRAST,qual:DATAQUAL,port:DATAPORT,crm:DATACRM,rh:DATARH,hc:DATAHC,folha:DATAFOLHA,cob:DATACOB,rent:DATARENT,cont:DATACONT,gestao:DATAGES,srv:DATASRV,tvfat:null,tvope:null,cop:(COP_MSGS.length?{}:null)};
-  const LOADMAP={fin:load,oc:loadOc,agr:loadAgr,mvb:loadMvb,comb:loadComb,man:loadMan,com:loadCom,clif:loadClif,dre:loadDre,drecli:loadDreCli,home:loadHome,km:loadKm,torre:loadTorre,veic:loadVeic,veicf:loadVeicf,mul:loadMul,prog:loadProg,jorn:loadJorn,jornf:loadJornf,cex:loadCex,sac:loadSac,mprev:loadMPrev,comrast:loadComRast,qual:loadQual,port:loadPort,crm:loadCrm,rh:loadRh,hc:loadHc,folha:loadFolha,cob:loadCob,rent:loadRent,cont:loadCont,gestao:loadGestao,srv:loadSrv,cop:loadCop,tvfat:loadTvFat,tvope:loadTvOpe};
+  const DATAMAP={fin:DATA,oc:DATAOC,agr:DATAAGR,mvb:DATAMVB,comb:DATACOMB,man:DATAMAN,com:DATACOM,clif:DATACLIF,dre:DATADRE,drecli:DATADRECLI,home:DATAHOME,km:DATAKM,torre:DATATORRE,veic:DATAVEIC,veicf:DATAVEICF,mul:DATAMUL,prog:DATAPROG,jorn:DATAJORN,jornf:DATAJORNF,cex:DATACEX,sac:DATASAC,mprev:DATAMPREV,comrast:DATACOMRAST,qual:DATAQUAL,port:DATAPORT,crm:DATACRM,rh:DATARH,hc:DATAHC,folha:DATAFOLHA,custos:DATACUSTOS,cob:DATACOB,rent:DATARENT,cont:DATACONT,gestao:DATAGES,srv:DATASRV,tvfat:null,tvope:null,cop:(COP_MSGS.length?{}:null)};
+  const LOADMAP={fin:load,oc:loadOc,agr:loadAgr,mvb:loadMvb,comb:loadComb,man:loadMan,com:loadCom,clif:loadClif,dre:loadDre,drecli:loadDreCli,home:loadHome,km:loadKm,torre:loadTorre,veic:loadVeic,veicf:loadVeicf,mul:loadMul,prog:loadProg,jorn:loadJorn,jornf:loadJornf,cex:loadCex,sac:loadSac,mprev:loadMPrev,comrast:loadComRast,qual:loadQual,port:loadPort,crm:loadCrm,rh:loadRh,hc:loadHc,folha:loadFolha,custos:loadCustos,cob:loadCob,rent:loadRent,cont:loadCont,gestao:loadGestao,srv:loadSrv,cop:loadCop,tvfat:loadTvFat,tvope:loadTvOpe};
   if(!DATAMAP[key] || (key!=='home' && LOADEDQS[key]!==qsView(key))) LOADMAP[key]();
   // mobile: estado da navegação inferior + fecha gaveta/painel de filtros
   document.querySelectorAll('.bottomnav [data-bview]').forEach(a=>a.classList.toggle('ativo', a.dataset.bview===v));
@@ -2876,7 +2908,7 @@ function reloadCurrent(){
   // recarrega a TELA ATUAL — antes caía em load() (Financeiro) para várias telas.
   const M={home:loadHome,fluxo:load,receber:load,pagar:load,dre:loadDre,drecli:loadDreCli,oc:loadOc,
     agr:loadAgr,mvb:loadMvb,comb:loadComb,man:loadMan,com:loadCom,clif:loadClif,km:loadKm,
-    torre:loadTorre,veic:loadVeic,veicf:loadVeicf,mul:loadMul,prog:loadProg,jorn:loadJorn,jornf:loadJornf,cex:loadCex,sac:loadSac,mprev:loadMPrev,comrast:loadComRast,qual:loadQual,port:loadPort,crm:loadCrm,rh:loadRh,hc:loadHc,folha:loadFolha,cob:loadCob,rent:loadRent,
+    torre:loadTorre,veic:loadVeic,veicf:loadVeicf,mul:loadMul,prog:loadProg,jorn:loadJorn,jornf:loadJornf,cex:loadCex,sac:loadSac,mprev:loadMPrev,comrast:loadComRast,qual:loadQual,port:loadPort,crm:loadCrm,rh:loadRh,hc:loadHc,folha:loadFolha,custos:loadCustos,cob:loadCob,rent:loadRent,
     cont:loadCont,gestao:loadGestao,srv:loadSrv,cop:loadCop,tvfat:loadTvFat,tvope:loadTvOpe};
   (M[currentView()]||load)();
 }
@@ -4709,6 +4741,44 @@ function renderFolha(d){
   document.getElementById('folha-prov').innerHTML=ev(d.top_proventos||[]);
   document.getElementById('folha-desc').innerHTML=ev(d.top_descontos||[]);
 }
+// ---------------- Painel de Custos (Suprimentos) ----------------
+function custosDefaults(){
+  const hoje=new Date(), de=document.getElementById('fCustDe'), ate=document.getElementById('fCustAte');
+  if(ate && !ate.value) ate.value=hoje.toISOString().slice(0,10);
+  if(de && !de.value) de.value=hoje.getFullYear()+'-'+String(hoje.getMonth()+1).padStart(2,'0')+'-01';
+}
+async function loadCustos(){
+  custosDefaults();
+  const seq=++custosSeq, btn=document.getElementById('btnRefresh'); if(btn) btn.disabled=true;
+  document.getElementById('content').classList.add('loading'); skelKpis('kpis-custos',4);
+  try{
+    const de=document.getElementById('fCustDe').value, ate=document.getElementById('fCustAte').value;
+    const q='dt_de='+de+'&dt_ate='+ate;
+    const r=await fetch('/api/suprimentos/custos?'+q,{cache:'no-store'});
+    const d=await r.json(); if(seq!==custosSeq) return;
+    if(!r.ok){ showBanner(d.mensagem||'Erro ao consultar os custos.', d.detalhe); return; }
+    hideBanner(); DATACUSTOS=d; LOADEDQS.custos=q; renderCustos(d);
+  }catch(e){ if(seq===custosSeq) showBanner('Não foi possível falar com a API.', e.message); }
+  finally{ if(seq===custosSeq){ if(btn) btn.disabled=false; document.getElementById('content').classList.remove('loading'); } }
+}
+function renderCustos(d){
+  const k=d.kpis||{};
+  document.getElementById('kpis-custos').innerHTML=[
+    kpi('Custo total', BRL.format(k.total||0), (k.itens||0).toLocaleString('pt-BR')+' itens no período',''),
+    kpi('Combustível', BRL.format(k.combustivel||0), k.total>0?((100*k.combustivel/k.total).toFixed(0)+'% do total'):'',''),
+    kpi('Pendente de aprovação', BRL.format(k.pendente_aprovacao||0), 'ordens de compra aguardando', (k.pendente_aprovacao||0)>0?'neg':'pos'),
+    kpi('Sem nota fiscal', BRL.format(k.sem_nf||0), 'OCs ainda não recebidas', (k.sem_nf||0)>0?'neg':''),
+  ].join('');
+  const tot=k.total||1;
+  const bars=(rows)=>rows.map(r=>`<tr><td>${esc(r.rotulo)}</td><td class="num">${r.n}</td><td class="num" style="font-weight:600">${BRL.format(r.valor)}</td><td class="num">${(100*r.valor/tot).toFixed(1)}%</td></tr>`).join('')||'<tr><td colspan="4" style="color:var(--n500)">sem dados</td></tr>';
+  document.getElementById('custos-agr').innerHTML=`<table><thead><tr><th>Agrupador</th><th class="num">Itens</th><th class="num">Valor</th><th class="num">%</th></tr></thead><tbody>${bars(d.por_agrupador||[])}</tbody></table>`;
+  document.getElementById('custos-forn').innerHTML=`<table><thead><tr><th>Fornecedor</th><th class="num">Itens</th><th class="num">Valor</th><th class="num">%</th></tr></thead><tbody>${bars(d.por_fornecedor||[])}</tbody></table>`;
+  document.getElementById('custos-status').innerHTML=`<table><thead><tr><th>Status NF</th><th class="num">Itens</th><th class="num">Valor</th><th class="num">%</th></tr></thead><tbody>${bars(d.por_status||[])}</tbody></table>`;
+  document.getElementById('custos-filial').innerHTML=`<table><thead><tr><th>Filial</th><th class="num">Itens</th><th class="num">Valor</th><th class="num">%</th></tr></thead><tbody>${bars(d.por_filial||[])}</tbody></table>`;
+  const ap=a=>a&&a.startsWith('PENDENTE')?'<span class="badge b-warn">pendente</span>':(a==='APROVADA'?'<span class="badge b-ok">aprovada</span>':'');
+  const ll=(d.itens_lista||[]).map(i=>`<tr><td>${esc(i.data||'')}</td><td>${esc(i.agrupador)}</td><td>${esc(i.fornecedor)}</td><td>${esc(i.produto||i.conta||'')}</td><td class="num">${i.frota||i.placa||''}</td><td>${esc(i.status)}</td><td>${ap(i.aprovacao)}</td><td class="num" style="font-weight:600">${BRL.format(i.valor)}</td></tr>`).join('')||'<tr><td colspan="8" style="color:var(--n500)">sem itens no período</td></tr>';
+  document.getElementById('custos-lista').innerHTML=`<table><thead><tr><th>Data</th><th>Agrupador</th><th>Fornecedor</th><th>Produto/Conta</th><th class="num">Frota</th><th>Status</th><th>Aprovação</th><th class="num">Valor</th></tr></thead><tbody>${ll}</tbody></table>`;
+}
 async function loadTorre(){
   skelKpis('kpis-torre',4);
   const seq = ++torreSeq;
@@ -6410,6 +6480,7 @@ boot();
     <div class="dgrp" data-grp="Sup">
       <button class="dgrp-h" onclick="toggleDGrp(this)"><span>Suprimentos</span><span class="dchev">›</span></button>
       <div class="dgrp-b">
+        <a href="#custos" onclick="fecharDrawer()"><span class="ic" data-ic="oc"></span>Painel de Custos</a>
         <a href="#oc" onclick="fecharDrawer()"><span class="ic" data-ic="oc"></span>Ordens de Compra</a>
       </div>
     </div>

@@ -704,6 +704,25 @@ def manutencao_preventiva() -> JSONResponse:
             "detalhe": str(exc)})
 
 
+@app.get("/api/suprimentos/custos")
+def suprimentos_custos(dt_de: str | None = None, dt_ate: str | None = None) -> JSONResponse:
+    hoje = date.today()
+    dt_de = dt_de or f"{hoje.year}-{hoje.month:02d}-01"
+    dt_ate = dt_ate or hoje.isoformat()
+    try:
+        return JSONResponse(queries.get_custos(dt_de, dt_ate))
+    except psycopg.OperationalError as exc:
+        return JSONResponse(status_code=503, content={
+            "erro": "banco_inacessivel",
+            "mensagem": "Sem conexão com o banco. O túnel SSH está aberto?",
+            "detalhe": str(exc)})
+    except Exception as exc:  # noqa: BLE001
+        log.warning("suprimentos_custos falhou: %s", exc)
+        return JSONResponse(status_code=500, content={
+            "erro": "erro_consulta", "mensagem": "Erro ao consultar os custos.",
+            "detalhe": str(exc)})
+
+
 @app.get("/api/operacao/portaria")
 def portaria() -> JSONResponse:
     try:
