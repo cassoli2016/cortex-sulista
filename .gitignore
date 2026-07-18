@@ -15,3 +15,6 @@ __pycache__/
 
 # sessões locais do claude
 .claude/settings.local.json
+
+# Metadados do editor de SQL (contêm connection string) — não versionar
+*.sql.design
