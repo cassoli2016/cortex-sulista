@@ -607,6 +607,22 @@ def custos_extras(dt_de: str | None = None, dt_ate: str | None = None) -> JSONRe
             "detalhe": str(exc)})
 
 
+@app.get("/api/rh/vagas")
+def rh_vagas() -> JSONResponse:
+    try:
+        return JSONResponse(queries.get_rh())
+    except psycopg.OperationalError as exc:
+        return JSONResponse(status_code=503, content={
+            "erro": "banco_inacessivel",
+            "mensagem": "Sem conexão com o banco. O túnel SSH está aberto?",
+            "detalhe": str(exc)})
+    except Exception as exc:  # noqa: BLE001
+        log.warning("rh_vagas falhou: %s", exc)
+        return JSONResponse(status_code=500, content={
+            "erro": "erro_consulta", "mensagem": "Erro ao consultar as vagas de RH.",
+            "detalhe": str(exc)})
+
+
 @app.get("/api/qualidade")
 def qualidade() -> JSONResponse:
     try:

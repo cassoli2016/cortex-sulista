@@ -4520,3 +4520,67 @@ def get_crm() -> dict:
         "fonte": ("ERP AVA · sulista.gestaocomercial + pipelineprojetos + "
                   "pipelineprojetos_repactuacoes · sem PII de contato · leitura"),
     }
+
+
+# ============================================================================
+# RH — Vagas (pipeline de recrutamento)
+# ----------------------------------------------------------------------------
+# Fonte: Querys Sulista/RH - Vagas.sql. PII: nome/CPF do candidato aprovado
+# (resultadonome/resultadocpf) NÃO são expostos. Vagas sigilosas têm o cargo
+# ocultado.
+# ============================================================================
+RH_RESULTADO = {1: "Finalizada", 2: "Cancelada", 3: "Em triagem",
+                4: "Em entrevistas", 5: "Congelada", 6: "Aberta"}
+RH_AREA = {1: "Administrativo", 2: "Operacional", 3: "Motoristas"}
+RH_TIPOVAGA = {1: "Efetivo", 2: "Temporário", 3: "Estágio", 4: "Aprendiz"}
+RH_MOTIVO = {1: "Aumento de quadro", 2: "Substituição"}
+
+RH_SQL = """
+SELECT v.cargo, d.descricao AS departamento, v.areavaga, v.tipovaga, v.motivo,
+       v.salario::float8 AS salario, v.dtsolicitacao::date AS solicitacao,
+       v.datafechamento::date AS fechamento, v.resultado,
+       v.recrutamentotipo, v.plataformarecrutamentodesc, v.vaga_sigilosa
+FROM sulista.rhaberturavagas v
+LEFT JOIN sulista.rhdepartamento d
+  ON d.grupo=v.grupo AND d.empresa=v.empresa AND d.codigo=v.departamento
+ORDER BY v.resultado, v.dtinclusao DESC
+"""
+
+
+@cached(ttl=300)
+def get_rh() -> dict:
+    """Vagas de recrutamento (pipeline de RH). Sem PII do candidato."""
+    with db.get_conn() as conn, conn.cursor() as cur:
+        cur.execute(RH_SQL)
+        rows = cur.fetchall()
+        cur.execute("SELECT current_timestamp AS ts")
+        meta = cur.fetchone()
+
+    vagas = [{
+        "cargo": "(vaga sigilosa)" if v["vaga_sigilosa"] == 1 else ((v["cargo"] or "").strip() or "—"),
+        "departamento": (v["departamento"] or "").strip() or None,
+        "area": RH_AREA.get(v["areavaga"], "—"),
+        "tipo": RH_TIPOVAGA.get(v["tipovaga"], "—"),
+        "motivo": RH_MOTIVO.get(v["motivo"]),
+        "salario": v["salario"],
+        "recrutamento": "Interno" if v["recrutamentotipo"] == 1 else ("Externo" if v["recrutamentotipo"] == 2 else None),
+        "plataforma": (v["plataformarecrutamentodesc"] or "").strip() or None,
+        "solicitacao": v["solicitacao"].isoformat() if v["solicitacao"] else None,
+        "fechamento": v["fechamento"].isoformat() if v["fechamento"] else None,
+        "status": RH_RESULTADO.get(v["resultado"], "—"),
+    } for v in rows]
+
+    andamento = {"Em triagem", "Em entrevistas", "Aberta"}
+    kpis = {
+        "total": len(vagas),
+        "em_andamento": sum(1 for v in vagas if v["status"] in andamento),
+        "congeladas": sum(1 for v in vagas if v["status"] == "Congelada"),
+        "finalizadas": sum(1 for v in vagas if v["status"] == "Finalizada"),
+    }
+
+    return {
+        "kpis": kpis,
+        "vagas": vagas,
+        "atualizado_em": meta["ts"].isoformat(),
+        "fonte": "ERP AVA · sulista.rhaberturavagas · sem PII do candidato · leitura",
+    }

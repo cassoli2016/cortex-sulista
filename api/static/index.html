@@ -596,6 +596,7 @@ button.avatar{border:0;cursor:pointer}
         <span class="ic" data-ic="ges"></span><span>Administração</span><span class="ic chev" data-ic="chev"></span>
       </button>
       <div class="subs closed" id="subsAdm">
+        <a href="#rh" class="sub" data-view="rh" title="RH — vagas e recrutamento"><span class="ic" data-ic="ges"></span><span>RH — Vagas</span></a>
         <a href="#gestao" class="sub" data-view="gestao" title="Gestão — usuários, perfis e segurança"><span class="ic" data-ic="ges"></span><span>Gestão</span></a>
         <a href="#srv" class="sub" data-view="srv" title="Saúde do Servidor — CPU, memória, disco e serviços"><span class="ic" data-ic="srv"></span><span>Saúde do Servidor</span></a>
       </div>
@@ -1488,6 +1489,13 @@ button.avatar{border:0;cursor:pointer}
             <div class="tablewrap" id="crm-repac"></div></div>
         </div>
       </section>
+      <section class="view" id="view-rh">
+        <div class="kpis" id="kpis-rh"></div>
+        <div class="card">
+          <div class="head"><h2>Vagas</h2><span class="hint">pipeline de recrutamento · em andamento primeiro</span></div>
+          <div class="tablewrap" id="rh-vagas"></div>
+        </div>
+      </section>
       <section class="view" id="view-mul">
         <div class="kpis" id="kpis-mul"></div>
         <div class="card">
@@ -1845,7 +1853,7 @@ const FAIXAS = {
   '4_vencido_91_365':['Vencido 91–365d','b-dang'],
   '5_vencido_mais_365':['Vencido > 365d','b-dang'],
 };
-const VIEWS = { home:'Visão Geral', fluxo:'Fluxo de Caixa e Bancos', receber:'Contas a Receber', pagar:'Contas a Pagar', oc:'Ordens de Compra', agr:'Agregados e Terceiros', mvb:'Make vs Buy', comb:'Combustível', man:'Manutenção', com:'Clientes e RKM', clif:'Consulta de Cliente', crm:'CRM — Leads e Projetos', km:'Análise de KM', torre:'Torre de Controle', veic:'Veículos', veicf:'Consulta de Veículo', mprev:'Manutenção Preventiva', comrast:'Comunicação Rastreadora', mul:'Multas', prog:'Programação Inteligente', jorn:'Jornada do Motorista', jornf:'Ficha de Jornada', cex:'Custos Extras', sac:'SAC / Freetime', port:'Portaria', cop:'Copiloto Cortex', cob:'Régua de Cobrança', cont:'Contabilidade', qual:'Qualidade e Certidões', dre:'DRE Gerencial', drecli:'DRE por Cliente', tvfat:'Painel TV — Faturamento', tvope:'Painel TV — Operação', gestao:'Gestão', srv:'Saúde do Servidor' };
+const VIEWS = { home:'Visão Geral', fluxo:'Fluxo de Caixa e Bancos', receber:'Contas a Receber', pagar:'Contas a Pagar', oc:'Ordens de Compra', agr:'Agregados e Terceiros', mvb:'Make vs Buy', comb:'Combustível', man:'Manutenção', com:'Clientes e RKM', clif:'Consulta de Cliente', crm:'CRM — Leads e Projetos', km:'Análise de KM', torre:'Torre de Controle', veic:'Veículos', veicf:'Consulta de Veículo', mprev:'Manutenção Preventiva', comrast:'Comunicação Rastreadora', mul:'Multas', prog:'Programação Inteligente', jorn:'Jornada do Motorista', jornf:'Ficha de Jornada', cex:'Custos Extras', sac:'SAC / Freetime', port:'Portaria', cop:'Copiloto Cortex', cob:'Régua de Cobrança', cont:'Contabilidade', qual:'Qualidade e Certidões', dre:'DRE Gerencial', drecli:'DRE por Cliente', tvfat:'Painel TV — Faturamento', tvope:'Painel TV — Operação', rh:'RH — Vagas', gestao:'Gestão', srv:'Saúde do Servidor' };
 const periodoLabel = p => { if(p==='atrasado') return 'Atrasado'; const [y,m]=p.split('-'); return MES[+m-1]+'/'+y.slice(2); };
 const fmtD = s => { if(!s) return ''; const [y,m,dd]=s.split('-'); return dd+'/'+m+'/'+y; };
 const esc  = s => (s??'').toString().replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
@@ -1892,6 +1900,8 @@ let portSeq = 0;
 let DATAPORT = null;
 let crmSeq = 0;
 let DATACRM = null;
+let rhSeq = 0;
+let DATARH = null;
 let ocSeq = 0;
 let agrSeq = 0;
 let mvbSeq = 0;
@@ -1982,7 +1992,7 @@ const VIEW_GROUP = {home:'',cop:'',
   veic:'Fro',veicf:'Fro',mprev:'Fro',comrast:'Fro',comb:'Fro',man:'Fro',mul:'Fro',
   oc:'Sup',
   tvfat:'Tv',tvope:'Tv',
-  gestao:'Adm',srv:'Adm'};
+  rh:'Adm',gestao:'Adm',srv:'Adm'};
 function syncGroups(v){
   const ativo = VIEW_GROUP[v];   // accordion: abre o grupo do view ativo, fecha os demais
   ['Com','Fin','Ctr','Ope','Fro','Sup','Tv','Adm'].forEach(k=>{
@@ -2146,8 +2156,8 @@ function router(){
   document.getElementById('grpCob').style.display = cob ? 'flex' : 'none';
   document.getElementById('grpRent').style.display = rent ? 'flex' : 'none';
   const ges = (v==='gestao');
-  const fbar=document.getElementById('filterbar'); if(fbar) fbar.style.display = (cop||ges||v==='srv'||v==='veicf'||v==='clif'||v==='jorn'||v==='jornf'||v==='cex'||v==='sac'||v==='mprev'||v==='comrast'||v==='qual'||v==='port'||v==='crm'||v==='home') ? 'none' : '';
-  const metaEl=document.getElementById('meta'); if(metaEl) metaEl.style.display = (cop||ges||v==='srv'||v==='veicf'||v==='clif'||v==='jorn'||v==='jornf'||v==='cex'||v==='sac'||v==='mprev'||v==='comrast'||v==='qual'||v==='port'||v==='crm') ? 'none' : '';
+  const fbar=document.getElementById('filterbar'); if(fbar) fbar.style.display = (cop||ges||v==='srv'||v==='veicf'||v==='clif'||v==='jorn'||v==='jornf'||v==='cex'||v==='sac'||v==='mprev'||v==='comrast'||v==='qual'||v==='port'||v==='crm'||v==='rh'||v==='home') ? 'none' : '';
+  const metaEl=document.getElementById('meta'); if(metaEl) metaEl.style.display = (cop||ges||v==='srv'||v==='veicf'||v==='clif'||v==='jorn'||v==='jornf'||v==='cex'||v==='sac'||v==='mprev'||v==='comrast'||v==='qual'||v==='port'||v==='crm'||v==='rh') ? 'none' : '';
   // classe em vez de style: o CSS mobile usa !important no display
   const bfil=document.getElementById('btnFiltros'); if(bfil){ bfil.classList.toggle('oculto', cop||ges||v==='srv'||v==='home'); bfil.style.display=''; }
   document.getElementById('grpKm').style.display = kmv ? 'flex' : 'none';
@@ -2168,8 +2178,8 @@ function router(){
   // carga da vista: dispara se não há dados OU se os filtros visíveis
   // divergem dos usados na última carga (nunca mostrar dado velho com filtro novo)
   const key=viewKey(v);
-  const DATAMAP={fin:DATA,oc:DATAOC,agr:DATAAGR,mvb:DATAMVB,comb:DATACOMB,man:DATAMAN,com:DATACOM,clif:DATACLIF,dre:DATADRE,drecli:DATADRECLI,home:DATAHOME,km:DATAKM,torre:DATATORRE,veic:DATAVEIC,veicf:DATAVEICF,mul:DATAMUL,prog:DATAPROG,jorn:DATAJORN,jornf:DATAJORNF,cex:DATACEX,sac:DATASAC,mprev:DATAMPREV,comrast:DATACOMRAST,qual:DATAQUAL,port:DATAPORT,crm:DATACRM,cob:DATACOB,rent:DATARENT,cont:DATACONT,gestao:DATAGES,srv:DATASRV,tvfat:null,tvope:null,cop:(COP_MSGS.length?{}:null)};
-  const LOADMAP={fin:load,oc:loadOc,agr:loadAgr,mvb:loadMvb,comb:loadComb,man:loadMan,com:loadCom,clif:loadClif,dre:loadDre,drecli:loadDreCli,home:loadHome,km:loadKm,torre:loadTorre,veic:loadVeic,veicf:loadVeicf,mul:loadMul,prog:loadProg,jorn:loadJorn,jornf:loadJornf,cex:loadCex,sac:loadSac,mprev:loadMPrev,comrast:loadComRast,qual:loadQual,port:loadPort,crm:loadCrm,cob:loadCob,rent:loadRent,cont:loadCont,gestao:loadGestao,srv:loadSrv,cop:loadCop,tvfat:loadTvFat,tvope:loadTvOpe};
+  const DATAMAP={fin:DATA,oc:DATAOC,agr:DATAAGR,mvb:DATAMVB,comb:DATACOMB,man:DATAMAN,com:DATACOM,clif:DATACLIF,dre:DATADRE,drecli:DATADRECLI,home:DATAHOME,km:DATAKM,torre:DATATORRE,veic:DATAVEIC,veicf:DATAVEICF,mul:DATAMUL,prog:DATAPROG,jorn:DATAJORN,jornf:DATAJORNF,cex:DATACEX,sac:DATASAC,mprev:DATAMPREV,comrast:DATACOMRAST,qual:DATAQUAL,port:DATAPORT,crm:DATACRM,rh:DATARH,cob:DATACOB,rent:DATARENT,cont:DATACONT,gestao:DATAGES,srv:DATASRV,tvfat:null,tvope:null,cop:(COP_MSGS.length?{}:null)};
+  const LOADMAP={fin:load,oc:loadOc,agr:loadAgr,mvb:loadMvb,comb:loadComb,man:loadMan,com:loadCom,clif:loadClif,dre:loadDre,drecli:loadDreCli,home:loadHome,km:loadKm,torre:loadTorre,veic:loadVeic,veicf:loadVeicf,mul:loadMul,prog:loadProg,jorn:loadJorn,jornf:loadJornf,cex:loadCex,sac:loadSac,mprev:loadMPrev,comrast:loadComRast,qual:loadQual,port:loadPort,crm:loadCrm,rh:loadRh,cob:loadCob,rent:loadRent,cont:loadCont,gestao:loadGestao,srv:loadSrv,cop:loadCop,tvfat:loadTvFat,tvope:loadTvOpe};
   if(!DATAMAP[key] || (key!=='home' && LOADEDQS[key]!==qsView(key))) LOADMAP[key]();
   // mobile: estado da navegação inferior + fecha gaveta/painel de filtros
   document.querySelectorAll('.bottomnav [data-bview]').forEach(a=>a.classList.toggle('ativo', a.dataset.bview===v));
@@ -2816,7 +2826,7 @@ function reloadCurrent(){
   // recarrega a TELA ATUAL — antes caía em load() (Financeiro) para várias telas.
   const M={home:loadHome,fluxo:load,receber:load,pagar:load,dre:loadDre,drecli:loadDreCli,oc:loadOc,
     agr:loadAgr,mvb:loadMvb,comb:loadComb,man:loadMan,com:loadCom,clif:loadClif,km:loadKm,
-    torre:loadTorre,veic:loadVeic,veicf:loadVeicf,mul:loadMul,prog:loadProg,jorn:loadJorn,jornf:loadJornf,cex:loadCex,sac:loadSac,mprev:loadMPrev,comrast:loadComRast,qual:loadQual,port:loadPort,crm:loadCrm,cob:loadCob,rent:loadRent,
+    torre:loadTorre,veic:loadVeic,veicf:loadVeicf,mul:loadMul,prog:loadProg,jorn:loadJorn,jornf:loadJornf,cex:loadCex,sac:loadSac,mprev:loadMPrev,comrast:loadComRast,qual:loadQual,port:loadPort,crm:loadCrm,rh:loadRh,cob:loadCob,rent:loadRent,
     cont:loadCont,gestao:loadGestao,srv:loadSrv,cop:loadCop,tvfat:loadTvFat,tvope:loadTvOpe};
   (M[currentView()]||load)();
 }
@@ -4560,6 +4570,31 @@ function renderCrm(d){
   const rp=(d.repactuacoes||[]).map(r=>{const m=r.mes?(''+r.mes).slice(0,7):'—';return `<tr><td>${esc(r.cliente)}</td><td class="num">${m}</td><td class="num">${r.total_pct!=null?r.total_pct.toFixed(2)+'%':'—'}</td><td>${esc(r.status)}</td></tr>`;}).join('')||'<tr><td colspan="4" style="color:var(--n500)">sem repactuações</td></tr>';
   document.getElementById('crm-repac').innerHTML=`<table><thead><tr><th>Cliente</th><th class="num">Mês</th><th class="num">Total %</th><th>Status</th></tr></thead><tbody>${rp}</tbody></table>`;
 }
+// ---------------- RH — Vagas ----------------
+async function loadRh(){
+  const seq=++rhSeq, btn=document.getElementById('btnRefresh'); if(btn) btn.disabled=true;
+  document.getElementById('content').classList.add('loading');
+  skelKpis('kpis-rh',4);
+  try{
+    const r=await fetch('/api/rh/vagas',{cache:'no-store'});
+    const d=await r.json(); if(seq!==rhSeq) return;
+    if(!r.ok){ showBanner(d.mensagem||'Erro ao consultar as vagas.', d.detalhe); return; }
+    hideBanner(); DATARH=d; LOADEDQS.rh='1'; renderRh(d);
+  }catch(e){ if(seq===rhSeq) showBanner('Não foi possível falar com a API.', e.message); }
+  finally{ if(seq===rhSeq){ if(btn) btn.disabled=false; document.getElementById('content').classList.remove('loading'); } }
+}
+function renderRh(d){
+  const k=d.kpis||{};
+  document.getElementById('kpis-rh').innerHTML=[
+    kpi('Vagas em andamento', (k.em_andamento||0).toLocaleString('pt-BR'), 'triagem, entrevistas ou abertas',''),
+    kpi('Congeladas', (k.congeladas||0).toLocaleString('pt-BR'), 'pausadas', (k.congeladas||0)>0?'neg':''),
+    kpi('Finalizadas', (k.finalizadas||0).toLocaleString('pt-BR'), 'preenchidas','pos'),
+    kpi('Total de vagas', (k.total||0).toLocaleString('pt-BR'), 'no cadastro',''),
+  ].join('');
+  const stB=s=>(s==='Aberta'||s==='Em triagem'||s==='Em entrevistas')?'b-warn':(s==='Finalizada'?'b-ok':(s==='Congelada'?'b-dang':''));
+  const vg=(d.vagas||[]).map(v=>`<tr><td>${esc(v.cargo)}</td><td>${esc(v.departamento||'')}</td><td>${esc(v.area)}</td><td>${esc(v.tipo)}</td><td>${esc(v.recrutamento||'')}</td><td><span class="badge ${stB(v.status)}">${esc(v.status)}</span></td><td class="num">${v.solicitacao?fmtD(v.solicitacao):'—'}</td><td class="num">${v.fechamento?fmtD(v.fechamento):'—'}</td></tr>`).join('')||'<tr><td colspan="8" style="color:var(--n500)">sem vagas cadastradas</td></tr>';
+  document.getElementById('rh-vagas').innerHTML=`<table><thead><tr><th>Cargo</th><th>Departamento</th><th>Área</th><th>Tipo</th><th>Recrutamento</th><th>Status</th><th class="num">Solicitação</th><th class="num">Fechamento</th></tr></thead><tbody>${vg}</tbody></table>`;
+}
 async function loadTorre(){
   skelKpis('kpis-torre',4);
   const seq = ++torreSeq;
@@ -6274,6 +6309,7 @@ boot();
     <div class="dgrp" data-grp="Adm">
       <button class="dgrp-h" onclick="toggleDGrp(this)"><span>Administração</span><span class="dchev">›</span></button>
       <div class="dgrp-b">
+        <a href="#rh" onclick="fecharDrawer()"><span class="ic" data-ic="ges"></span>RH — Vagas</a>
         <a href="#gestao" onclick="fecharDrawer()"><span class="ic" data-ic="ges"></span>Usuários e acesso</a>
         <a href="#srv" onclick="fecharDrawer()"><span class="ic" data-ic="srv"></span>Saúde do Servidor</a>
       </div>
