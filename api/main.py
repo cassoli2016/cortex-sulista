@@ -644,6 +644,14 @@ def rh_headcount() -> JSONResponse:
         return _folha_erro(exc)
 
 
+@app.get("/api/rh/folha-indicadores")
+def rh_folha_indicadores() -> JSONResponse:
+    try:
+        return JSONResponse(queries_folha.get_folha_indicadores())
+    except Exception as exc:  # noqa: BLE001
+        return _folha_erro(exc)
+
+
 @app.get("/api/rh/folha-custo")
 def rh_folha_custo(comp: str | None = None) -> JSONResponse:
     import re

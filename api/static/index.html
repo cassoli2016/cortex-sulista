@@ -592,6 +592,7 @@ button.avatar{border:0;cursor:pointer}
       <div class="subs closed" id="subsRh">
         <a href="#hc" class="sub" data-view="hc" title="Headcount — quadro de funcionários"><span class="ic" data-ic="ges"></span><span>Headcount</span></a>
         <a href="#folha" class="sub" data-view="folha" title="Custo de Folha (GLOBUS)"><span class="ic" data-ic="cob"></span><span>Custo de Folha</span></a>
+        <a href="#folhaind" class="sub" data-view="folhaind" title="Indicadores de Folha — férias, CNH, hora extra, banco de horas"><span class="ic" data-ic="ges"></span><span>Indicadores de Folha</span></a>
         <a href="#rh" class="sub" data-view="rh" title="RH — vagas e recrutamento"><span class="ic" data-ic="ges"></span><span>Vagas</span></a>
       </div>
       <button class="group" id="grpTv" aria-expanded="false" aria-controls="subsTv" onclick="toggleGroup('grpTv','subsTv','cs.tvGroup')" title="Painéis TV">
@@ -1543,6 +1544,21 @@ button.avatar{border:0;cursor:pointer}
             <div class="tablewrap" id="folha-desc"></div></div>
         </div>
       </section>
+      <section class="view" id="view-folhaind">
+        <div class="kpis" id="kpis-folhaind"></div>
+        <div class="grid2">
+          <div class="card"><div class="head"><h2>Férias</h2><span class="hint">vencimento do quadro ativo · compliance</span></div>
+            <div class="tablewrap" id="fi-ferias"></div></div>
+          <div class="card"><div class="head"><h2>CNH dos motoristas</h2><span class="hint">validade · sem CPF</span></div>
+            <div class="tablewrap" id="fi-cnh"></div></div>
+        </div>
+        <div class="grid2">
+          <div class="card"><div class="head"><h2>Hora extra</h2><span class="hint">custo mensal · 50% e 100%</span></div>
+            <div class="tablewrap" id="fi-he"></div></div>
+          <div class="card"><div class="head"><h2>Banco de horas</h2><span class="hint">saldo por competência</span></div>
+            <div class="tablewrap" id="fi-bh"></div></div>
+        </div>
+      </section>
       <section class="view" id="view-custos">
         <div class="card">
           <div class="head"><h2>Painel de Custos</h2><span class="hint">combustível + ordens de compra · por agrupador gerencial · com/sem NF</span></div>
@@ -1929,7 +1945,7 @@ const FAIXAS = {
   '4_vencido_91_365':['Vencido 91–365d','b-dang'],
   '5_vencido_mais_365':['Vencido > 365d','b-dang'],
 };
-const VIEWS = { home:'Visão Geral', fluxo:'Fluxo de Caixa e Bancos', receber:'Contas a Receber', pagar:'Contas a Pagar', oc:'Ordens de Compra', custos:'Painel de Custos', agr:'Agregados e Terceiros', mvb:'Make vs Buy', comb:'Combustível', man:'Manutenção', com:'Clientes e RKM', clif:'Consulta de Cliente', crm:'CRM — Leads e Projetos', km:'Análise de KM', torre:'Torre de Controle', veic:'Veículos', veicf:'Consulta de Veículo', mprev:'Manutenção Preventiva', comrast:'Comunicação Rastreadora', mul:'Multas', prog:'Programação Inteligente', jorn:'Jornada do Motorista', jornf:'Ficha de Jornada', cex:'Custos Extras', sac:'SAC / Freetime', port:'Portaria', cop:'Copiloto Cortex', cob:'Régua de Cobrança', cont:'Contabilidade', qual:'Qualidade e Certidões', dre:'DRE Gerencial', drecli:'DRE por Cliente', tvfat:'Painel TV — Faturamento', tvope:'Painel TV — Operação', rh:'RH — Vagas', hc:'Headcount', folha:'Custo de Folha', gestao:'Gestão', srv:'Saúde do Servidor' };
+const VIEWS = { home:'Visão Geral', fluxo:'Fluxo de Caixa e Bancos', receber:'Contas a Receber', pagar:'Contas a Pagar', oc:'Ordens de Compra', custos:'Painel de Custos', agr:'Agregados e Terceiros', mvb:'Make vs Buy', comb:'Combustível', man:'Manutenção', com:'Clientes e RKM', clif:'Consulta de Cliente', crm:'CRM — Leads e Projetos', km:'Análise de KM', torre:'Torre de Controle', veic:'Veículos', veicf:'Consulta de Veículo', mprev:'Manutenção Preventiva', comrast:'Comunicação Rastreadora', mul:'Multas', prog:'Programação Inteligente', jorn:'Jornada do Motorista', jornf:'Ficha de Jornada', cex:'Custos Extras', sac:'SAC / Freetime', port:'Portaria', cop:'Copiloto Cortex', cob:'Régua de Cobrança', cont:'Contabilidade', qual:'Qualidade e Certidões', dre:'DRE Gerencial', drecli:'DRE por Cliente', tvfat:'Painel TV — Faturamento', tvope:'Painel TV — Operação', rh:'RH — Vagas', hc:'Headcount', folha:'Custo de Folha', folhaind:'Indicadores de Folha', gestao:'Gestão', srv:'Saúde do Servidor' };
 const periodoLabel = p => { if(p==='atrasado') return 'Atrasado'; const [y,m]=p.split('-'); return MES[+m-1]+'/'+y.slice(2); };
 const fmtD = s => { if(!s) return ''; const [y,m,dd]=s.split('-'); return dd+'/'+m+'/'+y; };
 const esc  = s => (s??'').toString().replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
@@ -1982,6 +1998,8 @@ let hcSeq = 0;
 let DATAHC = null;
 let folhaSeq = 0;
 let DATAFOLHA = null;
+let folhaindSeq = 0;
+let DATAFOLHAIND = null;
 let custosSeq = 0;
 let DATACUSTOS = null;
 let ocSeq = 0;
@@ -2074,7 +2092,7 @@ const VIEW_GROUP = {home:'',cop:'',
   veic:'Fro',veicf:'Fro',mprev:'Fro',comrast:'Fro',comb:'Fro',man:'Fro',mul:'Fro',
   oc:'Sup',custos:'Sup',
   tvfat:'Tv',tvope:'Tv',
-  rh:'Rh',hc:'Rh',folha:'Rh',gestao:'Adm',srv:'Adm'};
+  rh:'Rh',hc:'Rh',folha:'Rh',folhaind:'Rh',gestao:'Adm',srv:'Adm'};
 function syncGroups(v){
   const ativo = VIEW_GROUP[v];   // accordion: abre o grupo do view ativo, fecha os demais
   ['Com','Fin','Ctr','Ope','Fro','Sup','Rh','Tv','Adm'].forEach(k=>{
@@ -2238,8 +2256,8 @@ function router(){
   document.getElementById('grpCob').style.display = cob ? 'flex' : 'none';
   document.getElementById('grpRent').style.display = rent ? 'flex' : 'none';
   const ges = (v==='gestao');
-  const fbar=document.getElementById('filterbar'); if(fbar) fbar.style.display = (cop||ges||v==='srv'||v==='veicf'||v==='clif'||v==='jorn'||v==='jornf'||v==='cex'||v==='sac'||v==='mprev'||v==='comrast'||v==='qual'||v==='port'||v==='crm'||v==='rh'||v==='hc'||v==='folha'||v==='custos'||v==='home') ? 'none' : '';
-  const metaEl=document.getElementById('meta'); if(metaEl) metaEl.style.display = (cop||ges||v==='srv'||v==='veicf'||v==='clif'||v==='jorn'||v==='jornf'||v==='cex'||v==='sac'||v==='mprev'||v==='comrast'||v==='qual'||v==='port'||v==='crm'||v==='rh'||v==='hc'||v==='folha'||v==='custos') ? 'none' : '';
+  const fbar=document.getElementById('filterbar'); if(fbar) fbar.style.display = (cop||ges||v==='srv'||v==='veicf'||v==='clif'||v==='jorn'||v==='jornf'||v==='cex'||v==='sac'||v==='mprev'||v==='comrast'||v==='qual'||v==='port'||v==='crm'||v==='rh'||v==='hc'||v==='folha'||v==='folhaind'||v==='custos'||v==='home') ? 'none' : '';
+  const metaEl=document.getElementById('meta'); if(metaEl) metaEl.style.display = (cop||ges||v==='srv'||v==='veicf'||v==='clif'||v==='jorn'||v==='jornf'||v==='cex'||v==='sac'||v==='mprev'||v==='comrast'||v==='qual'||v==='port'||v==='crm'||v==='rh'||v==='hc'||v==='folha'||v==='folhaind'||v==='custos') ? 'none' : '';
   // classe em vez de style: o CSS mobile usa !important no display
   const bfil=document.getElementById('btnFiltros'); if(bfil){ bfil.classList.toggle('oculto', cop||ges||v==='srv'||v==='home'); bfil.style.display=''; }
   document.getElementById('grpKm').style.display = kmv ? 'flex' : 'none';
@@ -2260,8 +2278,8 @@ function router(){
   // carga da vista: dispara se não há dados OU se os filtros visíveis
   // divergem dos usados na última carga (nunca mostrar dado velho com filtro novo)
   const key=viewKey(v);
-  const DATAMAP={fin:DATA,oc:DATAOC,agr:DATAAGR,mvb:DATAMVB,comb:DATACOMB,man:DATAMAN,com:DATACOM,clif:DATACLIF,dre:DATADRE,drecli:DATADRECLI,home:DATAHOME,km:DATAKM,torre:DATATORRE,veic:DATAVEIC,veicf:DATAVEICF,mul:DATAMUL,prog:DATAPROG,jorn:DATAJORN,jornf:DATAJORNF,cex:DATACEX,sac:DATASAC,mprev:DATAMPREV,comrast:DATACOMRAST,qual:DATAQUAL,port:DATAPORT,crm:DATACRM,rh:DATARH,hc:DATAHC,folha:DATAFOLHA,custos:DATACUSTOS,cob:DATACOB,rent:DATARENT,cont:DATACONT,gestao:DATAGES,srv:DATASRV,tvfat:null,tvope:null,cop:(COP_MSGS.length?{}:null)};
-  const LOADMAP={fin:load,oc:loadOc,agr:loadAgr,mvb:loadMvb,comb:loadComb,man:loadMan,com:loadCom,clif:loadClif,dre:loadDre,drecli:loadDreCli,home:loadHome,km:loadKm,torre:loadTorre,veic:loadVeic,veicf:loadVeicf,mul:loadMul,prog:loadProg,jorn:loadJorn,jornf:loadJornf,cex:loadCex,sac:loadSac,mprev:loadMPrev,comrast:loadComRast,qual:loadQual,port:loadPort,crm:loadCrm,rh:loadRh,hc:loadHc,folha:loadFolha,custos:loadCustos,cob:loadCob,rent:loadRent,cont:loadCont,gestao:loadGestao,srv:loadSrv,cop:loadCop,tvfat:loadTvFat,tvope:loadTvOpe};
+  const DATAMAP={fin:DATA,oc:DATAOC,agr:DATAAGR,mvb:DATAMVB,comb:DATACOMB,man:DATAMAN,com:DATACOM,clif:DATACLIF,dre:DATADRE,drecli:DATADRECLI,home:DATAHOME,km:DATAKM,torre:DATATORRE,veic:DATAVEIC,veicf:DATAVEICF,mul:DATAMUL,prog:DATAPROG,jorn:DATAJORN,jornf:DATAJORNF,cex:DATACEX,sac:DATASAC,mprev:DATAMPREV,comrast:DATACOMRAST,qual:DATAQUAL,port:DATAPORT,crm:DATACRM,rh:DATARH,hc:DATAHC,folha:DATAFOLHA,folhaind:DATAFOLHAIND,custos:DATACUSTOS,cob:DATACOB,rent:DATARENT,cont:DATACONT,gestao:DATAGES,srv:DATASRV,tvfat:null,tvope:null,cop:(COP_MSGS.length?{}:null)};
+  const LOADMAP={fin:load,oc:loadOc,agr:loadAgr,mvb:loadMvb,comb:loadComb,man:loadMan,com:loadCom,clif:loadClif,dre:loadDre,drecli:loadDreCli,home:loadHome,km:loadKm,torre:loadTorre,veic:loadVeic,veicf:loadVeicf,mul:loadMul,prog:loadProg,jorn:loadJorn,jornf:loadJornf,cex:loadCex,sac:loadSac,mprev:loadMPrev,comrast:loadComRast,qual:loadQual,port:loadPort,crm:loadCrm,rh:loadRh,hc:loadHc,folha:loadFolha,folhaind:loadFolhaInd,custos:loadCustos,cob:loadCob,rent:loadRent,cont:loadCont,gestao:loadGestao,srv:loadSrv,cop:loadCop,tvfat:loadTvFat,tvope:loadTvOpe};
   if(!DATAMAP[key] || (key!=='home' && LOADEDQS[key]!==qsView(key))) LOADMAP[key]();
   // mobile: estado da navegação inferior + fecha gaveta/painel de filtros
   document.querySelectorAll('.bottomnav [data-bview]').forEach(a=>a.classList.toggle('ativo', a.dataset.bview===v));
@@ -2908,7 +2926,7 @@ function reloadCurrent(){
   // recarrega a TELA ATUAL — antes caía em load() (Financeiro) para várias telas.
   const M={home:loadHome,fluxo:load,receber:load,pagar:load,dre:loadDre,drecli:loadDreCli,oc:loadOc,
     agr:loadAgr,mvb:loadMvb,comb:loadComb,man:loadMan,com:loadCom,clif:loadClif,km:loadKm,
-    torre:loadTorre,veic:loadVeic,veicf:loadVeicf,mul:loadMul,prog:loadProg,jorn:loadJorn,jornf:loadJornf,cex:loadCex,sac:loadSac,mprev:loadMPrev,comrast:loadComRast,qual:loadQual,port:loadPort,crm:loadCrm,rh:loadRh,hc:loadHc,folha:loadFolha,custos:loadCustos,cob:loadCob,rent:loadRent,
+    torre:loadTorre,veic:loadVeic,veicf:loadVeicf,mul:loadMul,prog:loadProg,jorn:loadJorn,jornf:loadJornf,cex:loadCex,sac:loadSac,mprev:loadMPrev,comrast:loadComRast,qual:loadQual,port:loadPort,crm:loadCrm,rh:loadRh,hc:loadHc,folha:loadFolha,folhaind:loadFolhaInd,custos:loadCustos,cob:loadCob,rent:loadRent,
     cont:loadCont,gestao:loadGestao,srv:loadSrv,cop:loadCop,tvfat:loadTvFat,tvope:loadTvOpe};
   (M[currentView()]||load)();
 }
@@ -4699,7 +4717,7 @@ function renderHc(d){
   const k=d.kpis||{};
   document.getElementById('kpis-hc').innerHTML=[
     kpi('Colaboradores ativos', (k.ativos||0).toLocaleString('pt-BR'), (k.homens||0)+' H · '+(k.mulheres||0)+' M',''),
-    kpi('Admissões (12 meses)', (k.admissoes_12m||0).toLocaleString('pt-BR'), (k.demissoes_12m||0)+' demissões (aprox.)',''),
+    kpi('Admissões (12 meses)', (k.admissoes_12m||0).toLocaleString('pt-BR'), (k.demissoes_12m||0)+' demissões · turnover '+(k.turnover_pct||0).toFixed(1)+'% (aprox.)',''),
     kpi('Massa salarial base', BRL.format(k.massa_base||0), 'salário base do quadro ativo',''),
     kpi('Tempo de casa médio', (k.tempo_casa_anos||0).toLocaleString('pt-BR')+' anos', 'do quadro ativo',''),
   ].join('');
@@ -4740,6 +4758,34 @@ function renderFolha(d){
   const ev=(rows)=>`<table><thead><tr><th>Evento</th><th class="num">Valor</th></tr></thead><tbody>${rows.map(r=>`<tr><td>${esc(r.ev)}</td><td class="num">${BRL.format(r.tot)}</td></tr>`).join('')||'<tr><td colspan="2" style="color:var(--n500)">—</td></tr>'}</tbody></table>`;
   document.getElementById('folha-prov').innerHTML=ev(d.top_proventos||[]);
   document.getElementById('folha-desc').innerHTML=ev(d.top_descontos||[]);
+}
+// ---------------- Indicadores de Folha ----------------
+async function loadFolhaInd(){
+  const seq=++folhaindSeq, btn=document.getElementById('btnRefresh'); if(btn) btn.disabled=true;
+  document.getElementById('content').classList.add('loading'); skelKpis('kpis-folhaind',4);
+  try{
+    const r=await fetch('/api/rh/folha-indicadores',{cache:'no-store'});
+    const d=await r.json(); if(seq!==folhaindSeq) return;
+    if(!r.ok){ showBanner(d.mensagem||'Erro ao consultar os indicadores.', d.detalhe); return; }
+    hideBanner(); DATAFOLHAIND=d; LOADEDQS.folhaind='1'; renderFolhaInd(d);
+  }catch(e){ if(seq===folhaindSeq) showBanner('Não foi possível falar com a API.', e.message); }
+  finally{ if(seq===folhaindSeq){ if(btn) btn.disabled=false; document.getElementById('content').classList.remove('loading'); } }
+}
+function renderFolhaInd(d){
+  const k=d.kpis||{};
+  document.getElementById('kpis-folhaind').innerHTML=[
+    kpi('Férias vencidas', (k.ferias_vencidas||0).toLocaleString('pt-BR'), (k.ferias_30||0)+' vencem em 30 dias', (k.ferias_vencidas||0)>0?'neg':'pos'),
+    kpi('CNH vencidas', (k.cnh_vencidas||0).toLocaleString('pt-BR'), (k.cnh_30||0)+' vencem em 30 dias · motoristas', (k.cnh_vencidas||0)>0?'neg':'pos'),
+    kpi('Hora extra (mês)', BRL.format(k.he_mes||0), 'custo na última competência',''),
+    kpi('Banco de horas', (k.bh_saldo||0).toLocaleString('pt-BR',{maximumFractionDigits:0})+' h', 'saldo na última competência',''),
+  ].join('');
+  const fx=(rows,cor)=>rows.map(r=>`<tr><td>${esc(r.faixa)}</td><td class="num" style="${(cor&&(r.ordem==='1-VENCIDA'))?'color:var(--red);font-weight:700':''}">${(r.n||0).toLocaleString('pt-BR')}</td></tr>`).join('')||'<tr><td colspan="2" style="color:var(--n500)">—</td></tr>';
+  document.getElementById('fi-ferias').innerHTML=`<table><thead><tr><th>Situação</th><th class="num">Colaboradores</th></tr></thead><tbody>${fx(d.ferias||[],true)}</tbody></table>`;
+  document.getElementById('fi-cnh').innerHTML=`<table><thead><tr><th>Situação</th><th class="num">Motoristas</th></tr></thead><tbody>${fx(d.cnh||[],true)}</tbody></table>`;
+  const he=(d.hora_extra||[]).slice().reverse().map(h=>`<tr><td class="num">${esc(h.comp)}</td><td class="num">${BRL.format(h.he50)}</td><td class="num">${BRL.format(h.he100)}</td><td class="num" style="font-weight:600">${BRL.format((h.he50||0)+(h.he100||0))}</td></tr>`).join('')||'<tr><td colspan="4" style="color:var(--n500)">—</td></tr>';
+  document.getElementById('fi-he').innerHTML=`<table><thead><tr><th class="num">Competência</th><th class="num">HE 50%</th><th class="num">HE 100%</th><th class="num">Total</th></tr></thead><tbody>${he}</tbody></table>`;
+  const bh=(d.banco_horas||[]).slice().reverse().map(b=>`<tr><td class="num">${esc(b.comp)}</td><td class="num">${b.colab}</td><td class="num">${b.credito.toLocaleString('pt-BR',{maximumFractionDigits:0})}</td><td class="num">${b.debito.toLocaleString('pt-BR',{maximumFractionDigits:0})}</td><td class="num" style="font-weight:600">${b.saldo.toLocaleString('pt-BR',{maximumFractionDigits:0})}</td></tr>`).join('')||'<tr><td colspan="5" style="color:var(--n500)">—</td></tr>';
+  document.getElementById('fi-bh').innerHTML=`<table><thead><tr><th class="num">Competência</th><th class="num">Colab.</th><th class="num">Crédito</th><th class="num">Débito</th><th class="num">Saldo (h)</th></tr></thead><tbody>${bh}</tbody></table>`;
 }
 // ---------------- Painel de Custos (Suprimentos) ----------------
 function custosDefaults(){
@@ -6489,6 +6535,7 @@ boot();
       <div class="dgrp-b">
         <a href="#hc" onclick="fecharDrawer()"><span class="ic" data-ic="ges"></span>Headcount</a>
         <a href="#folha" onclick="fecharDrawer()"><span class="ic" data-ic="cob"></span>Custo de Folha</a>
+        <a href="#folhaind" onclick="fecharDrawer()"><span class="ic" data-ic="ges"></span>Indicadores de Folha</a>
         <a href="#rh" onclick="fecharDrawer()"><span class="ic" data-ic="ges"></span>Vagas</a>
       </div>
     </div>
