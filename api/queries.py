@@ -4147,3 +4147,87 @@ def get_manutencao_preventiva() -> dict:
         "fonte": ("ERP AVA · fnc_manutencaopreventiva_gridview + ctaplus (odômetro) · "
                   "trações por km, carretas por data · leitura"),
     }
+
+
+# ============================================================================
+# Comunicação veículo × rastreadora — saúde da telemetria
+# ----------------------------------------------------------------------------
+# Compara a última posição (veiculo_posicao.ultimaposicao=1) com hoje, em
+# faixas de atraso. Foco nos veículos COM rastreador que pararam de comunicar.
+# Fonte: Querys Sulista/MANUTENCAO - Comunicação veic x rastreadora.
+# ============================================================================
+COMRAST_SQL = """
+SELECT v.placa, v.numerofrota,
+       CASE v.tipofrota WHEN 1 THEN 'Próprio' WHEN 2 THEN 'Terceiro' WHEN 3 THEN 'Agregado' ELSE '-' END AS tipofrota,
+       vp.dt AS ultima, vp.situacao AS ignicao, vp.descricaoposicao AS posicao,
+       (v.cnpjcpfcodigorastreador IS NOT NULL) AS tem_rastreador
+FROM veiculo v
+LEFT JOIN veiculo_posicao vp ON vp.veiculo = v.placa AND vp.ultimaposicao = 1
+WHERE v.ativoinativo = 1
+"""
+
+
+def _comrast_faixa(dias) -> tuple[int, str]:
+    if dias is None:
+        return 99, "sem posição registrada"
+    if dias <= 0:
+        return 1, "comunicando hoje"
+    if dias <= 2:
+        return 2, "até 2 dias"
+    if dias <= 5:
+        return 3, "até 5 dias"
+    if dias <= 15:
+        return 4, "até 15 dias"
+    if dias <= 30:
+        return 6, "até 30 dias"
+    if dias <= 60:
+        return 7, "até 60 dias"
+    return 8, "mais de 60 dias"
+
+
+@cached(ttl=120)
+def get_comunicacao_rastreadora() -> dict:
+    """Saúde de comunicação da frota com a rastreadora (última posição)."""
+    hoje = date.today()
+    with db.get_conn() as conn, conn.cursor() as cur:
+        cur.execute(COMRAST_SQL)
+        veic = cur.fetchall()
+        cur.execute("SELECT current_timestamp AS ts")
+        meta = cur.fetchone()
+
+    faixas: dict[int, dict] = {}
+    parados = []           # com rastreador, com posição, mas não comunicaram hoje
+    com_rast = comunicando = sem_posicao = 0
+    for v in veic:
+        dias = (hoje - v["ultima"].date()).days if v["ultima"] else None
+        cod, lbl = _comrast_faixa(dias)
+        f = faixas.setdefault(cod, {"faixa": lbl, "codigo": cod, "n": 0})
+        f["n"] += 1
+        if v["tem_rastreador"]:
+            com_rast += 1
+        if cod == 1:
+            comunicando += 1
+        elif cod == 99:
+            sem_posicao += 1
+        elif v["tem_rastreador"]:      # tinha posição e parou
+            parados.append({
+                "placa": v["placa"], "frota": v["numerofrota"], "tipofrota": v["tipofrota"],
+                "ultima": v["ultima"].isoformat() if v["ultima"] else None,
+                "dias": dias, "faixa": lbl,
+                "ignicao": {0: "desligada", 1: "ligada", 2: "?"}.get(v["ignicao"], "—"),
+                "posicao": v["posicao"],
+            })
+    parados.sort(key=lambda x: -(x["dias"] or 0))
+
+    return {
+        "kpis": {
+            "com_rastreador": com_rast,
+            "comunicando_hoje": comunicando,
+            "parados": len(parados),
+            "sem_posicao": sem_posicao,
+        },
+        "faixas": [faixas[k] for k in sorted(faixas)],
+        "parados": parados[:100],
+        "atualizado_em": meta["ts"].isoformat(),
+        "fonte": ("ERP AVA · veiculo_posicao (última posição) · frota ativa · leitura"),
+    }
