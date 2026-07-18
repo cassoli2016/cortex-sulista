@@ -550,6 +550,7 @@ button.avatar{border:0;cursor:pointer}
       <div class="subs closed" id="subsCtr">
         <a href="#dre" class="sub" data-view="dre" title="DRE Gerencial"><span class="ic" data-ic="dre"></span><span>DRE Gerencial</span></a>
         <a href="#cont" class="sub" data-view="cont" title="Contabilidade — ajuste de agrupadores"><span class="ic" data-ic="ctb"></span><span>Contabilidade</span></a>
+        <a href="#qual" class="sub" data-view="qual" title="Qualidade — certidões e licenças com vencimento"><span class="ic" data-ic="cob"></span><span>Qualidade e Certidões</span></a>
       </div>
       <button class="group" id="grpOpe" aria-expanded="false" aria-controls="subsOpe" onclick="toggleGroup('grpOpe','subsOpe','cs.opeGroup')" title="Operação">
         <span class="ic" data-ic="ope"></span><span>Operação</span><span class="ic chev" data-ic="chev"></span>
@@ -1450,6 +1451,17 @@ button.avatar{border:0;cursor:pointer}
             <div class="tablewrap" id="comrast-parados"></div></div>
         </div>
       </section>
+      <section class="view" id="view-qual">
+        <div class="kpis" id="kpis-qual"></div>
+        <div class="card">
+          <div class="head"><h2>Certidões e Licenças</h2><span class="hint">semáforo por vencimento · vencidas primeiro</span></div>
+          <div class="tablewrap" id="qual-certidoes"></div>
+        </div>
+        <div class="card">
+          <div class="head"><h2>Auditoria Interna</h2><span class="hint">não-conformidades e plano de ação</span></div>
+          <div class="tablewrap" id="qual-auditoria"></div>
+        </div>
+      </section>
       <section class="view" id="view-mul">
         <div class="kpis" id="kpis-mul"></div>
         <div class="card">
@@ -1807,7 +1819,7 @@ const FAIXAS = {
   '4_vencido_91_365':['Vencido 91–365d','b-dang'],
   '5_vencido_mais_365':['Vencido > 365d','b-dang'],
 };
-const VIEWS = { home:'Visão Geral', fluxo:'Fluxo de Caixa e Bancos', receber:'Contas a Receber', pagar:'Contas a Pagar', oc:'Ordens de Compra', agr:'Agregados e Terceiros', mvb:'Make vs Buy', comb:'Combustível', man:'Manutenção', com:'Clientes e RKM', clif:'Consulta de Cliente', km:'Análise de KM', torre:'Torre de Controle', veic:'Veículos', veicf:'Consulta de Veículo', mprev:'Manutenção Preventiva', comrast:'Comunicação Rastreadora', mul:'Multas', prog:'Programação Inteligente', jorn:'Jornada do Motorista', jornf:'Ficha de Jornada', cex:'Custos Extras', sac:'SAC / Freetime', cop:'Copiloto Cortex', cob:'Régua de Cobrança', cont:'Contabilidade', dre:'DRE Gerencial', drecli:'DRE por Cliente', tvfat:'Painel TV — Faturamento', tvope:'Painel TV — Operação', gestao:'Gestão', srv:'Saúde do Servidor' };
+const VIEWS = { home:'Visão Geral', fluxo:'Fluxo de Caixa e Bancos', receber:'Contas a Receber', pagar:'Contas a Pagar', oc:'Ordens de Compra', agr:'Agregados e Terceiros', mvb:'Make vs Buy', comb:'Combustível', man:'Manutenção', com:'Clientes e RKM', clif:'Consulta de Cliente', km:'Análise de KM', torre:'Torre de Controle', veic:'Veículos', veicf:'Consulta de Veículo', mprev:'Manutenção Preventiva', comrast:'Comunicação Rastreadora', mul:'Multas', prog:'Programação Inteligente', jorn:'Jornada do Motorista', jornf:'Ficha de Jornada', cex:'Custos Extras', sac:'SAC / Freetime', cop:'Copiloto Cortex', cob:'Régua de Cobrança', cont:'Contabilidade', qual:'Qualidade e Certidões', dre:'DRE Gerencial', drecli:'DRE por Cliente', tvfat:'Painel TV — Faturamento', tvope:'Painel TV — Operação', gestao:'Gestão', srv:'Saúde do Servidor' };
 const periodoLabel = p => { if(p==='atrasado') return 'Atrasado'; const [y,m]=p.split('-'); return MES[+m-1]+'/'+y.slice(2); };
 const fmtD = s => { if(!s) return ''; const [y,m,dd]=s.split('-'); return dd+'/'+m+'/'+y; };
 const esc  = s => (s??'').toString().replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
@@ -1848,6 +1860,8 @@ let mprevSeq = 0;
 let DATAMPREV = null;
 let comrastSeq = 0;
 let DATACOMRAST = null;
+let qualSeq = 0;
+let DATAQUAL = null;
 let ocSeq = 0;
 let agrSeq = 0;
 let mvbSeq = 0;
@@ -1933,7 +1947,7 @@ function toggleGroup(gid,sid,key){
 const VIEW_GROUP = {home:'',cop:'',
   com:'Com',clif:'Com',rent:'Com',drecli:'Com',
   fluxo:'Fin',receber:'Fin',pagar:'Fin',cob:'Fin',
-  dre:'Ctr',cont:'Ctr',
+  dre:'Ctr',cont:'Ctr',qual:'Ctr',
   torre:'Ope',prog:'Ope',jorn:'Ope',jornf:'Ope',cex:'Ope',sac:'Ope',km:'Ope',agr:'Ope',mvb:'Ope',
   veic:'Fro',veicf:'Fro',mprev:'Fro',comrast:'Fro',comb:'Fro',man:'Fro',mul:'Fro',
   oc:'Sup',
@@ -2102,8 +2116,8 @@ function router(){
   document.getElementById('grpCob').style.display = cob ? 'flex' : 'none';
   document.getElementById('grpRent').style.display = rent ? 'flex' : 'none';
   const ges = (v==='gestao');
-  const fbar=document.getElementById('filterbar'); if(fbar) fbar.style.display = (cop||ges||v==='srv'||v==='veicf'||v==='clif'||v==='jorn'||v==='jornf'||v==='cex'||v==='sac'||v==='mprev'||v==='comrast'||v==='home') ? 'none' : '';
-  const metaEl=document.getElementById('meta'); if(metaEl) metaEl.style.display = (cop||ges||v==='srv'||v==='veicf'||v==='clif'||v==='jorn'||v==='jornf'||v==='cex'||v==='sac'||v==='mprev'||v==='comrast') ? 'none' : '';
+  const fbar=document.getElementById('filterbar'); if(fbar) fbar.style.display = (cop||ges||v==='srv'||v==='veicf'||v==='clif'||v==='jorn'||v==='jornf'||v==='cex'||v==='sac'||v==='mprev'||v==='comrast'||v==='qual'||v==='home') ? 'none' : '';
+  const metaEl=document.getElementById('meta'); if(metaEl) metaEl.style.display = (cop||ges||v==='srv'||v==='veicf'||v==='clif'||v==='jorn'||v==='jornf'||v==='cex'||v==='sac'||v==='mprev'||v==='comrast'||v==='qual') ? 'none' : '';
   // classe em vez de style: o CSS mobile usa !important no display
   const bfil=document.getElementById('btnFiltros'); if(bfil){ bfil.classList.toggle('oculto', cop||ges||v==='srv'||v==='home'); bfil.style.display=''; }
   document.getElementById('grpKm').style.display = kmv ? 'flex' : 'none';
@@ -2124,8 +2138,8 @@ function router(){
   // carga da vista: dispara se não há dados OU se os filtros visíveis
   // divergem dos usados na última carga (nunca mostrar dado velho com filtro novo)
   const key=viewKey(v);
-  const DATAMAP={fin:DATA,oc:DATAOC,agr:DATAAGR,mvb:DATAMVB,comb:DATACOMB,man:DATAMAN,com:DATACOM,clif:DATACLIF,dre:DATADRE,drecli:DATADRECLI,home:DATAHOME,km:DATAKM,torre:DATATORRE,veic:DATAVEIC,veicf:DATAVEICF,mul:DATAMUL,prog:DATAPROG,jorn:DATAJORN,jornf:DATAJORNF,cex:DATACEX,sac:DATASAC,mprev:DATAMPREV,comrast:DATACOMRAST,cob:DATACOB,rent:DATARENT,cont:DATACONT,gestao:DATAGES,srv:DATASRV,tvfat:null,tvope:null,cop:(COP_MSGS.length?{}:null)};
-  const LOADMAP={fin:load,oc:loadOc,agr:loadAgr,mvb:loadMvb,comb:loadComb,man:loadMan,com:loadCom,clif:loadClif,dre:loadDre,drecli:loadDreCli,home:loadHome,km:loadKm,torre:loadTorre,veic:loadVeic,veicf:loadVeicf,mul:loadMul,prog:loadProg,jorn:loadJorn,jornf:loadJornf,cex:loadCex,sac:loadSac,mprev:loadMPrev,comrast:loadComRast,cob:loadCob,rent:loadRent,cont:loadCont,gestao:loadGestao,srv:loadSrv,cop:loadCop,tvfat:loadTvFat,tvope:loadTvOpe};
+  const DATAMAP={fin:DATA,oc:DATAOC,agr:DATAAGR,mvb:DATAMVB,comb:DATACOMB,man:DATAMAN,com:DATACOM,clif:DATACLIF,dre:DATADRE,drecli:DATADRECLI,home:DATAHOME,km:DATAKM,torre:DATATORRE,veic:DATAVEIC,veicf:DATAVEICF,mul:DATAMUL,prog:DATAPROG,jorn:DATAJORN,jornf:DATAJORNF,cex:DATACEX,sac:DATASAC,mprev:DATAMPREV,comrast:DATACOMRAST,qual:DATAQUAL,cob:DATACOB,rent:DATARENT,cont:DATACONT,gestao:DATAGES,srv:DATASRV,tvfat:null,tvope:null,cop:(COP_MSGS.length?{}:null)};
+  const LOADMAP={fin:load,oc:loadOc,agr:loadAgr,mvb:loadMvb,comb:loadComb,man:loadMan,com:loadCom,clif:loadClif,dre:loadDre,drecli:loadDreCli,home:loadHome,km:loadKm,torre:loadTorre,veic:loadVeic,veicf:loadVeicf,mul:loadMul,prog:loadProg,jorn:loadJorn,jornf:loadJornf,cex:loadCex,sac:loadSac,mprev:loadMPrev,comrast:loadComRast,qual:loadQual,cob:loadCob,rent:loadRent,cont:loadCont,gestao:loadGestao,srv:loadSrv,cop:loadCop,tvfat:loadTvFat,tvope:loadTvOpe};
   if(!DATAMAP[key] || (key!=='home' && LOADEDQS[key]!==qsView(key))) LOADMAP[key]();
   // mobile: estado da navegação inferior + fecha gaveta/painel de filtros
   document.querySelectorAll('.bottomnav [data-bview]').forEach(a=>a.classList.toggle('ativo', a.dataset.bview===v));
@@ -2772,7 +2786,7 @@ function reloadCurrent(){
   // recarrega a TELA ATUAL — antes caía em load() (Financeiro) para várias telas.
   const M={home:loadHome,fluxo:load,receber:load,pagar:load,dre:loadDre,drecli:loadDreCli,oc:loadOc,
     agr:loadAgr,mvb:loadMvb,comb:loadComb,man:loadMan,com:loadCom,clif:loadClif,km:loadKm,
-    torre:loadTorre,veic:loadVeic,veicf:loadVeicf,mul:loadMul,prog:loadProg,jorn:loadJorn,jornf:loadJornf,cex:loadCex,sac:loadSac,mprev:loadMPrev,comrast:loadComRast,cob:loadCob,rent:loadRent,
+    torre:loadTorre,veic:loadVeic,veicf:loadVeicf,mul:loadMul,prog:loadProg,jorn:loadJorn,jornf:loadJornf,cex:loadCex,sac:loadSac,mprev:loadMPrev,comrast:loadComRast,qual:loadQual,cob:loadCob,rent:loadRent,
     cont:loadCont,gestao:loadGestao,srv:loadSrv,cop:loadCop,tvfat:loadTvFat,tvope:loadTvOpe};
   (M[currentView()]||load)();
 }
@@ -4430,6 +4444,35 @@ function renderComRast(d){
   document.getElementById('comrast-faixas').innerHTML=`<table><thead><tr><th>Recência da última posição</th><th class="num">Veículos</th></tr></thead><tbody>${fx}</tbody></table>`;
   const pr=(d.parados||[]).map(p=>`<tr><td style="font-family:var(--mono);font-weight:600">${esc(p.frota||p.placa||'—')}</td><td>${esc(p.placa||'')}</td><td>${esc(p.tipofrota||'')}</td><td class="num" style="color:var(--red);font-weight:700">${p.dias} dias</td><td>${esc(p.ignicao||'')}</td><td>${esc(p.posicao||'')}</td></tr>`).join('')||'<tr><td colspan="6" style="color:var(--n500)">todos os rastreados comunicaram hoje</td></tr>';
   document.getElementById('comrast-parados').innerHTML=`<table><thead><tr><th>Frota</th><th>Placa</th><th>Tipo</th><th class="num">Sem comunicar</th><th>Ignição</th><th>Posição</th></tr></thead><tbody>${pr}</tbody></table>`;
+}
+// ---------------- Qualidade e Certidões ----------------
+async function loadQual(){
+  const seq=++qualSeq, btn=document.getElementById('btnRefresh'); if(btn) btn.disabled=true;
+  document.getElementById('content').classList.add('loading');
+  skelKpis('kpis-qual',4);
+  try{
+    const r=await fetch('/api/qualidade',{cache:'no-store'});
+    const d=await r.json(); if(seq!==qualSeq) return;
+    if(!r.ok){ showBanner(d.mensagem||'Erro ao consultar a qualidade.', d.detalhe); return; }
+    hideBanner(); DATAQUAL=d; LOADEDQS.qual='1'; renderQual(d);
+  }catch(e){ if(seq===qualSeq) showBanner('Não foi possível falar com a API.', e.message); }
+  finally{ if(seq===qualSeq){ if(btn) btn.disabled=false; document.getElementById('content').classList.remove('loading'); } }
+}
+function renderQual(d){
+  const k=d.kpis||{};
+  document.getElementById('kpis-qual').innerHTML=[
+    kpi('Certidões vencidas', (k.vencidas||0).toLocaleString('pt-BR'), 'documentos com validade expirada', (k.vencidas||0)>0?'neg':'pos'),
+    kpi('Vencendo em 30 dias', (k.vencendo||0).toLocaleString('pt-BR'), 'renovar com antecedência', (k.vencendo||0)>0?'neg':''),
+    kpi('Certidões ativas', (k.certidoes||0).toLocaleString('pt-BR'), 'total monitorado',''),
+    kpi('NCs em aberto', (k.ncs_abertas||0).toLocaleString('pt-BR'), (k.auditorias||0)+' auditoria(s)', (k.ncs_abertas||0)>0?'neg':''),
+  ].join('');
+  const stB={vencida:['b-dang','vencida'],vence_15:['b-dang','vence ≤15d'],vence_30:['b-warn','vence ≤30d'],ok:['b-ok','em dia'],sem_data:['','sem data']};
+  const ct=(d.certidoes||[]).map(c=>{const [cl,lb]=stB[c.status]||['',''];
+    return `<tr><td>${esc(c.tipo)}</td><td>${esc(c.emissor)}</td><td class="num">${c.filial||'—'}</td><td class="num">${c.venc?fmtD(c.venc):'—'}</td><td class="num" style="${c.dias!=null&&c.dias<0?'color:var(--red);font-weight:700':''}">${c.dias!=null?(c.dias<0?('vencida há '+Math.abs(c.dias)):('em '+c.dias))+' dias':'—'}</td><td><span class="badge ${cl}">${lb}</span></td><td>${esc(c.obs||'')}</td></tr>`;
+  }).join('')||'<tr><td colspan="7" style="color:var(--n500)">nenhuma certidão cadastrada</td></tr>';
+  document.getElementById('qual-certidoes').innerHTML=`<table><thead><tr><th>Tipo</th><th>Emissor</th><th class="num">Filial</th><th class="num">Vencimento</th><th class="num">Prazo</th><th>Status</th><th>Obs.</th></tr></thead><tbody>${ct}</tbody></table>`;
+  const au=(d.auditorias||[]).map(a=>`<tr><td>${esc(a.dt||'')}</td><td>${esc(a.area)}</td><td>${esc(a.tipo)}</td><td><span class="badge ${a.resultado==='Aprovado'?'b-ok':'b-dang'}">${esc(a.resultado)}</span></td><td class="num">${a.ncs}</td><td>${esc(a.status_acao||'—')}</td><td>${esc(a.problema||'')}</td></tr>`).join('')||'<tr><td colspan="7" style="color:var(--n500)">sem auditorias registradas</td></tr>';
+  document.getElementById('qual-auditoria').innerHTML=`<table><thead><tr><th>Data</th><th>Área</th><th>Tipo</th><th>Resultado</th><th class="num">NCs</th><th>Ação</th><th>Principal problema</th></tr></thead><tbody>${au}</tbody></table>`;
 }
 async function loadTorre(){
   skelKpis('kpis-torre',4);
@@ -6099,6 +6142,7 @@ boot();
       <div class="dgrp-b">
         <a href="#dre" onclick="fecharDrawer()"><span class="ic" data-ic="dre"></span>DRE Gerencial</a>
         <a href="#cont" onclick="fecharDrawer()"><span class="ic" data-ic="ctb"></span>Contabilidade</a>
+        <a href="#qual" onclick="fecharDrawer()"><span class="ic" data-ic="cob"></span>Qualidade e Certidões</a>
       </div>
     </div>
     <div class="dgrp" data-grp="Ope">

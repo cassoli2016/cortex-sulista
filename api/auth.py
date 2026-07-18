@@ -57,6 +57,7 @@ TELAS: dict[str, tuple[str, str]] = {  # chave -> (rótulo, grupo do menu)
     "drecli":  ("DRE por Cliente", "Comercial"),
     "dre":     ("DRE Gerencial", "Controladoria"),
     "cont":    ("Contabilidade", "Controladoria"),
+    "qual":    ("Qualidade e Certidões", "Controladoria"),
     "agr":     ("Agregados e Terceiros", "Operação"),
     "mvb":     ("Make vs Buy", "Operação"),
     "km":      ("Análise de KM", "Operação"),
@@ -83,6 +84,7 @@ ROTA_TELAS: list[tuple[str, frozenset[str]]] = [
     # basta ter QUALQUER tela atribuída — nunca fica aberto a usuário sem acesso.
     ("/api/financeiro/filtros",       frozenset(TELAS)),
     ("/api/financeiro/contabil",      frozenset({"cont"})),
+    ("/api/qualidade",                frozenset({"qual"})),
     ("/api/financeiro/overview",      frozenset({"fluxo", "receber", "pagar"})),
     ("/api/financeiro/dre-cliente",   frozenset({"drecli"})),
     ("/api/financeiro/dre",           frozenset({"dre"})),
@@ -164,8 +166,8 @@ _PERFIS_MODELO = [
      ["com", "clif", "drecli"]),
     ("Financeiro",  "Caixa, recebíveis, pagáveis e cobrança.",
      ["fluxo", "receber", "pagar", "cob"]),
-    ("Controladoria", "DRE gerencial, contabilidade e DRE/margem por cliente.",
-     ["dre", "cont", "drecli"]),
+    ("Controladoria", "DRE gerencial, contabilidade, DRE/margem por cliente e qualidade/certidões.",
+     ["dre", "cont", "drecli", "qual"]),
     ("Operação",    "Torre de controle, programação, jornada, custos extras, SAC/freetime, análise de KM, agregados e make-vs-buy.",
      ["torre", "prog", "jorn", "cex", "sac", "km", "agr", "mvb"]),
     ("Frota",       "Veículos, consulta por placa, combustível, manutenção, preventiva, rastreadora e multas.",
@@ -293,6 +295,14 @@ def _seed_perfis_modelo(c: sqlite3.Connection) -> None:
             c.execute("INSERT OR IGNORE INTO perfil_telas(perfil_id, tela) VALUES(?,?)",
                       (row["id"], "comrast"))
         c.execute("INSERT OR IGNORE INTO config(chave, valor) VALUES('perfis_modelo_v7', '1')")
+
+    # v8 (qualidade 2026-07-17): adiciona a tela 'qual' ao perfil Controladoria.
+    if not c.execute("SELECT 1 FROM config WHERE chave='perfis_modelo_v8'").fetchone():
+        row = c.execute("SELECT id FROM perfis WHERE nome='Controladoria'").fetchone()
+        if row:
+            c.execute("INSERT OR IGNORE INTO perfil_telas(perfil_id, tela) VALUES(?,?)",
+                      (row["id"], "qual"))
+        c.execute("INSERT OR IGNORE INTO config(chave, valor) VALUES('perfis_modelo_v8', '1')")
 
 
 def _agora() -> str:
