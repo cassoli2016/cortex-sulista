@@ -4661,3 +4661,97 @@ def get_rh() -> dict:
         "atualizado_em": meta["ts"].isoformat(),
         "fonte": "ERP AVA · sulista.rhaberturavagas · sem PII do candidato · leitura",
     }
+
+
+# ============================================================================
+# Custos (Suprimentos) — visão unificada de custos: combustível (abastecimento
+# ext/int) + ordens de compra (com/sem NF), por agrupador (grupo DRE), conta
+# contábil, fornecedor, filial e status de NF/aprovação.
+# Fonte: Querys Sulista/AVACORP/CUSTOS - Custos Avacorp.sql (CTE em custos_sql).
+# A query é pesada (4 blocos, joins de OC): SET LOCAL enable_mergejoin=off + a
+# CTE roda UMA vez e agrega-se em Python. Cache alto.
+# ============================================================================
+from .custos_sql import CUSTOS_CTE as _CUSTOS_CTE
+
+CUSTOS_SEL = _CUSTOS_CTE + """
+SELECT agrupador, status_nf, conta_contabil, fornecedor,
+       filial_ordemcompra AS filial, placa, frota, produto,
+       coalesce(valor,0)::float8 AS valor, aprovacao,
+       dtemissao_ordemcompra AS dtemissao, numero_ordemcompra AS oc
+FROM custos
+"""
+
+
+@cached(ttl=600)
+def get_custos(dt_de: str, dt_ate: str) -> dict:
+    """Custos consolidados (combustível + OCs) no período, agregados."""
+    params = {"de": dt_de, "ate": dt_ate}
+    with db.get_conn() as conn, conn.cursor() as cur:
+        cur.execute("SET LOCAL enable_mergejoin = off")
+        cur.execute(CUSTOS_SEL, params)
+        rows = cur.fetchall()
+        cur.execute("SELECT current_timestamp AS ts")
+        meta = cur.fetchone()
+
+    def _acc(d, key, valor):
+        e = d.setdefault(key, {"n": 0, "valor": 0.0})
+        e["n"] += 1
+        e["valor"] += valor
+
+    por_agr: dict = {}
+    por_status: dict = {}
+    por_forn: dict = {}
+    por_filial: dict = {}
+    serie: dict = {}
+    total = combustivel = manutencao = pendente = sem_nf = 0.0
+    for r in rows:
+        v = r["valor"] or 0.0
+        total += v
+        agr = (r["agrupador"] or "(sem agrupador)").strip()
+        _acc(por_agr, agr, v)
+        _acc(por_status, (r["status_nf"] or "—").strip(), v)
+        if r["fornecedor"]:
+            _acc(por_forn, r["fornecedor"].strip(), v)
+        if r["filial"]:
+            _acc(por_filial, str(r["filial"]).strip(), v)
+        if r["dtemissao"]:
+            serie[r["dtemissao"].strftime("%Y-%m")] = serie.get(r["dtemissao"].strftime("%Y-%m"), 0.0) + v
+        if "COMBUST" in agr.upper():
+            combustivel += v
+        if "MANUTEN" in agr.upper():
+            manutencao += v
+        if (r["aprovacao"] or "").startswith("PENDENTE"):
+            pendente += v
+        if (r["status_nf"] or "") == "SEM NF":
+            sem_nf += v
+
+    def _top(d, n=20):
+        return sorted(({"rotulo": k, "n": e["n"], "valor": round(e["valor"], 2)}
+                       for k, e in d.items()), key=lambda x: -x["valor"])[:n]
+
+    lista = sorted(({
+        "agrupador": (r["agrupador"] or "").strip(), "status": (r["status_nf"] or "").strip(),
+        "conta": (r["conta_contabil"] or "").strip(), "fornecedor": (r["fornecedor"] or "").strip(),
+        "filial": r["filial"], "placa": r["placa"], "frota": r["frota"],
+        "produto": (r["produto"] or "").strip() or None, "valor": round(r["valor"] or 0.0, 2),
+        "aprovacao": (r["aprovacao"] or "").strip() or None,
+        "data": r["dtemissao"].isoformat() if r["dtemissao"] else None, "oc": r["oc"],
+    } for r in rows), key=lambda x: -x["valor"])[:100]
+
+    return {
+        "kpis": {
+            "total": round(total, 2), "itens": len(rows),
+            "combustivel": round(combustivel, 2), "manutencao": round(manutencao, 2),
+            "pendente_aprovacao": round(pendente, 2), "sem_nf": round(sem_nf, 2),
+        },
+        "por_agrupador": _top(por_agr, 20),
+        "por_status": _top(por_status, 10),
+        "por_fornecedor": _top(por_forn, 20),
+        "por_filial": _top(por_filial, 20),
+        "serie": [{"mes": k, "valor": round(serie[k], 2)} for k in sorted(serie)],
+        "itens_lista": lista,
+        "de": dt_de, "ate": dt_ate,
+        "atualizado_em": meta["ts"].isoformat(),
+        "fonte": ("ERP AVA · custos consolidados (abastecimento + ordens de compra) · "
+                  "por agrupador gerencial · leitura"),
+    }
