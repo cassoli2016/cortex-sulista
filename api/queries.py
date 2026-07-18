@@ -4265,6 +4265,49 @@ LIMIT 50
 """
 
 
+# Indicadores ESG/corporativos (sulista.indicadorescorporativos): tipo 1=Meta,
+# 2=Realizado; o valor de cada indicador (1-16) fica na coluna correspondente,
+# em texto com vírgula decimal. Meta é alvo mensal (dia 1º); realizado no
+# último dia do mês — casam por ano-mês.
+QUAL_INDIC_NOME = {1: "Água", 2: "Energia", 3: "Resíduos", 4: "Treinamentos",
+                   5: "Absenteísmo", 6: "Opacidade", 7: "Acidentes",
+                   8: "Performance do motorista", 9: "CO₂", 10: "Satisfação cliente interno",
+                   11: "Km vazio", 12: "NPS", 13: "Segurança viária", 14: "Turnover",
+                   15: "Manutenção preventiva", 16: "Reclamações de clientes"}
+# indicadores em que MENOR é melhor (senão, maior é melhor)
+QUAL_INDIC_MENOR = {1, 2, 3, 5, 6, 7, 9, 11, 14, 16}
+
+QUAL_ESG_SQL = """
+SELECT indicador, tipo, extract(year from anomes)::int AS ano,
+       extract(month from anomes)::int AS mes,
+       CASE indicador
+         WHEN 1 THEN agua::text WHEN 2 THEN energia::text WHEN 3 THEN res_peri_sol::text
+         WHEN 4 THEN horastotais::text WHEN 5 THEN absenteismo::text WHEN 6 THEN opacidade::text
+         WHEN 7 THEN acidentes::text WHEN 8 THEN performance::text WHEN 9 THEN co2::text
+         WHEN 10 THEN clienteinterno::text WHEN 11 THEN kmvazio::text WHEN 12 THEN nps::text
+         WHEN 13 THEN seguranca::text WHEN 14 THEN turnover::text WHEN 15 THEN preventiva::text
+         WHEN 16 THEN reclamacoesclientes::text END AS valor_txt
+FROM sulista.indicadorescorporativos
+WHERE filial = 1 AND anomes <= current_date
+  AND anomes >= current_date - interval '18 months'
+"""
+
+
+def _parse_br(t) -> float | None:
+    """'2,35' / '1.234,56' / '150' -> float; None se não numérico."""
+    if t is None:
+        return None
+    s = str(t).strip()
+    if not s:
+        return None
+    if "," in s:
+        s = s.replace(".", "").replace(",", ".")
+    try:
+        return float(s)
+    except ValueError:
+        return None
+
+
 def _qual_cert_status(dias) -> str:
     if dias is None:
         return "sem_data"
@@ -4285,6 +4328,8 @@ def get_qualidade() -> dict:
         cert = cur.fetchall()
         cur.execute(QUAL_AUD_SQL)
         aud = cur.fetchall()
+        cur.execute(QUAL_ESG_SQL)
+        esg = cur.fetchall()
         cur.execute("SELECT current_timestamp AS ts")
         meta = cur.fetchone()
 
@@ -4314,20 +4359,52 @@ def get_qualidade() -> dict:
         "encerrada": a["encerramento"].isoformat() if a["encerramento"] else None,
     } for a in aud]
 
+    # ESG: pivota meta×realizado por (indicador, ano-mês); pega o mês mais
+    # recente com realizado por indicador.
+    piv: dict[tuple, dict] = {}
+    for e in esg:
+        v = _parse_br(e["valor_txt"])
+        if v is None:
+            continue
+        d = piv.setdefault((e["indicador"], e["ano"], e["mes"]), {})
+        d["meta" if e["tipo"] == 1 else "real"] = v
+    indicadores = []
+    for ind in range(1, 17):
+        cand = [((a, m), d) for (i, a, m), d in piv.items() if i == ind and "real" in d]
+        if not cand:
+            continue
+        (ano, mes), d = max(cand, key=lambda x: x[0])
+        real, mta = d.get("real"), d.get("meta")
+        menor = ind in QUAL_INDIC_MENOR
+        if mta is None or real is None:
+            status = "sem_meta"
+        elif (real <= mta) if menor else (real >= mta):
+            status = "ok"
+        else:
+            status = "fora"
+        indicadores.append({
+            "indicador": QUAL_INDIC_NOME.get(ind, f"Indicador {ind}"),
+            "periodo": f"{ano}-{mes:02d}", "meta": mta, "realizado": real,
+            "menor_melhor": menor, "status": status,
+        })
+
     kpis = {
         "certidoes": len(certidoes),
         "vencidas": sum(1 for c in certidoes if c["status"] == "vencida"),
         "vencendo": sum(1 for c in certidoes if c["status"] in ("vence_15", "vence_30")),
         "auditorias": len(auditorias),
         "ncs_abertas": sum(a["ncs"] for a in auditorias if a["status_acao"] not in ("Concluída", "Cancelado")),
+        "indic_fora": sum(1 for i in indicadores if i["status"] == "fora"),
     }
 
     return {
         "kpis": kpis,
         "certidoes": certidoes,
         "auditorias": auditorias,
+        "indicadores": indicadores,
         "atualizado_em": meta["ts"].isoformat(),
-        "fonte": "ERP AVA · sulista.certidoes + sulista.controle_auditoria · leitura",
+        "fonte": ("ERP AVA · sulista.certidoes + controle_auditoria + "
+                  "indicadorescorporativos (ESG, matriz) · leitura"),
     }
 
 
