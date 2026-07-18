@@ -77,6 +77,8 @@ TELAS: dict[str, tuple[str, str]] = {  # chave -> (rótulo, grupo do menu)
     "veicf":   ("Consulta de Veículo", "Frota"),
     "mul":     ("Multas", "Frota"),
     "rh":      ("RH — Vagas", "Recursos Humanos"),
+    "hc":      ("Headcount", "Recursos Humanos"),
+    "folha":   ("Custo de Folha", "Recursos Humanos"),
     "tvfat":   ("Painel TV — Faturamento", "Painéis TV"),
     "tvope":   ("Painel TV — Operação", "Painéis TV"),
 }
@@ -88,6 +90,8 @@ ROTA_TELAS: list[tuple[str, frozenset[str]]] = [
     ("/api/financeiro/filtros",       frozenset(TELAS)),
     ("/api/financeiro/contabil",      frozenset({"cont"})),
     ("/api/qualidade",                frozenset({"qual"})),
+    ("/api/rh/headcount",             frozenset({"hc"})),
+    ("/api/rh/folha-custo",           frozenset({"folha"})),
     ("/api/rh/vagas",                 frozenset({"rh"})),
     ("/api/financeiro/overview",      frozenset({"fluxo", "receber", "pagar"})),
     ("/api/financeiro/dre-cliente",   frozenset({"drecli"})),
@@ -183,7 +187,7 @@ _PERFIS_MODELO = [
     ("Painéis TV",  "Apenas os painéis de TV (faturamento e operação) — para telão/quiosque.",
      ["tvfat", "tvope"]),
     ("Diretoria",   "Visão executiva ampla: consolidado, copiloto e principais indicadores.",
-     ["home", "cop", "fluxo", "dre", "drecli", "com", "km", "torre", "jorn", "mvb", "veic", "rh"]),
+     ["home", "cop", "fluxo", "dre", "drecli", "com", "km", "torre", "jorn", "mvb", "veic", "rh", "hc", "folha"]),
 ]
 
 
@@ -333,6 +337,15 @@ def _seed_perfis_modelo(c: sqlite3.Connection) -> None:
             c.execute("INSERT OR IGNORE INTO perfil_telas(perfil_id, tela) VALUES(?,?)",
                       (row["id"], "rh"))
         c.execute("INSERT OR IGNORE INTO config(chave, valor) VALUES('perfis_modelo_v11', '1')")
+
+    # v12 (folha GLOBUS 2026-07-18): telas 'hc' e 'folha' ao perfil Diretoria.
+    if not c.execute("SELECT 1 FROM config WHERE chave='perfis_modelo_v12'").fetchone():
+        row = c.execute("SELECT id FROM perfis WHERE nome='Diretoria'").fetchone()
+        if row:
+            for t in ("hc", "folha"):
+                c.execute("INSERT OR IGNORE INTO perfil_telas(perfil_id, tela) VALUES(?,?)",
+                          (row["id"], t))
+        c.execute("INSERT OR IGNORE INTO config(chave, valor) VALUES('perfis_modelo_v12', '1')")
 
 
 def _agora() -> str:

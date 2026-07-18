@@ -589,6 +589,8 @@ button.avatar{border:0;cursor:pointer}
         <span class="ic" data-ic="ges"></span><span>Recursos Humanos</span><span class="ic chev" data-ic="chev"></span>
       </button>
       <div class="subs closed" id="subsRh">
+        <a href="#hc" class="sub" data-view="hc" title="Headcount — quadro de funcionários"><span class="ic" data-ic="ges"></span><span>Headcount</span></a>
+        <a href="#folha" class="sub" data-view="folha" title="Custo de Folha (GLOBUS)"><span class="ic" data-ic="cob"></span><span>Custo de Folha</span></a>
         <a href="#rh" class="sub" data-view="rh" title="RH — vagas e recrutamento"><span class="ic" data-ic="ges"></span><span>Vagas</span></a>
       </div>
       <button class="group" id="grpTv" aria-expanded="false" aria-controls="subsTv" onclick="toggleGroup('grpTv','subsTv','cs.tvGroup')" title="Painéis TV">
@@ -1505,6 +1507,41 @@ button.avatar{border:0;cursor:pointer}
           <div class="tablewrap" id="rh-vagas"></div>
         </div>
       </section>
+      <section class="view" id="view-hc">
+        <div class="kpis" id="kpis-hc"></div>
+        <div class="grid2">
+          <div class="card"><div class="head"><h2>Por filial</h2><span class="hint">quadro ativo</span></div>
+            <div class="tablewrap" id="hc-filial"></div></div>
+          <div class="card"><div class="head"><h2>Movimentação (12 meses)</h2><span class="hint">admissões × demissões</span></div>
+            <div class="tablewrap" id="hc-mov"></div></div>
+        </div>
+        <div class="grid2">
+          <div class="card"><div class="head"><h2>Por área</h2><span class="hint">top 15</span></div>
+            <div class="tablewrap" id="hc-area"></div></div>
+          <div class="card"><div class="head"><h2>Tempo de casa</h2><span class="hint">faixas</span></div>
+            <div class="tablewrap" id="hc-tempo"></div></div>
+        </div>
+      </section>
+      <section class="view" id="view-folha">
+        <div class="card">
+          <div class="head"><h2>Custo de Folha</h2><span class="hint">proventos e descontos por competência · GLOBUS · valores agregados</span></div>
+          <div style="padding:0 16px 14px;display:flex;gap:10px;flex-wrap:wrap;align-items:center">
+            <label style="color:var(--n600);font-size:13px">Competência</label>
+            <select id="fFolhaComp" onchange="loadFolha()" style="font-size:15px;padding:9px 10px;border:1px solid var(--n200,#E4E7EB);border-radius:10px"></select>
+          </div>
+        </div>
+        <div class="kpis" id="kpis-folha"></div>
+        <div class="card">
+          <div class="head"><h2>Por centro de custo</h2><span class="hint">proventos, descontos e líquido</span></div>
+          <div class="tablewrap" id="folha-cc"></div>
+        </div>
+        <div class="grid2">
+          <div class="card"><div class="head"><h2>Top proventos</h2><span class="hint">na competência</span></div>
+            <div class="tablewrap" id="folha-prov"></div></div>
+          <div class="card"><div class="head"><h2>Top descontos</h2><span class="hint">na competência</span></div>
+            <div class="tablewrap" id="folha-desc"></div></div>
+        </div>
+      </section>
       <section class="view" id="view-mul">
         <div class="kpis" id="kpis-mul"></div>
         <div class="card">
@@ -1862,7 +1899,7 @@ const FAIXAS = {
   '4_vencido_91_365':['Vencido 91–365d','b-dang'],
   '5_vencido_mais_365':['Vencido > 365d','b-dang'],
 };
-const VIEWS = { home:'Visão Geral', fluxo:'Fluxo de Caixa e Bancos', receber:'Contas a Receber', pagar:'Contas a Pagar', oc:'Ordens de Compra', agr:'Agregados e Terceiros', mvb:'Make vs Buy', comb:'Combustível', man:'Manutenção', com:'Clientes e RKM', clif:'Consulta de Cliente', crm:'CRM — Leads e Projetos', km:'Análise de KM', torre:'Torre de Controle', veic:'Veículos', veicf:'Consulta de Veículo', mprev:'Manutenção Preventiva', comrast:'Comunicação Rastreadora', mul:'Multas', prog:'Programação Inteligente', jorn:'Jornada do Motorista', jornf:'Ficha de Jornada', cex:'Custos Extras', sac:'SAC / Freetime', port:'Portaria', cop:'Copiloto Cortex', cob:'Régua de Cobrança', cont:'Contabilidade', qual:'Qualidade e Certidões', dre:'DRE Gerencial', drecli:'DRE por Cliente', tvfat:'Painel TV — Faturamento', tvope:'Painel TV — Operação', rh:'RH — Vagas', gestao:'Gestão', srv:'Saúde do Servidor' };
+const VIEWS = { home:'Visão Geral', fluxo:'Fluxo de Caixa e Bancos', receber:'Contas a Receber', pagar:'Contas a Pagar', oc:'Ordens de Compra', agr:'Agregados e Terceiros', mvb:'Make vs Buy', comb:'Combustível', man:'Manutenção', com:'Clientes e RKM', clif:'Consulta de Cliente', crm:'CRM — Leads e Projetos', km:'Análise de KM', torre:'Torre de Controle', veic:'Veículos', veicf:'Consulta de Veículo', mprev:'Manutenção Preventiva', comrast:'Comunicação Rastreadora', mul:'Multas', prog:'Programação Inteligente', jorn:'Jornada do Motorista', jornf:'Ficha de Jornada', cex:'Custos Extras', sac:'SAC / Freetime', port:'Portaria', cop:'Copiloto Cortex', cob:'Régua de Cobrança', cont:'Contabilidade', qual:'Qualidade e Certidões', dre:'DRE Gerencial', drecli:'DRE por Cliente', tvfat:'Painel TV — Faturamento', tvope:'Painel TV — Operação', rh:'RH — Vagas', hc:'Headcount', folha:'Custo de Folha', gestao:'Gestão', srv:'Saúde do Servidor' };
 const periodoLabel = p => { if(p==='atrasado') return 'Atrasado'; const [y,m]=p.split('-'); return MES[+m-1]+'/'+y.slice(2); };
 const fmtD = s => { if(!s) return ''; const [y,m,dd]=s.split('-'); return dd+'/'+m+'/'+y; };
 const esc  = s => (s??'').toString().replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
@@ -1911,6 +1948,10 @@ let crmSeq = 0;
 let DATACRM = null;
 let rhSeq = 0;
 let DATARH = null;
+let hcSeq = 0;
+let DATAHC = null;
+let folhaSeq = 0;
+let DATAFOLHA = null;
 let ocSeq = 0;
 let agrSeq = 0;
 let mvbSeq = 0;
@@ -2001,7 +2042,7 @@ const VIEW_GROUP = {home:'',cop:'',
   veic:'Fro',veicf:'Fro',mprev:'Fro',comrast:'Fro',comb:'Fro',man:'Fro',mul:'Fro',
   oc:'Sup',
   tvfat:'Tv',tvope:'Tv',
-  rh:'Rh',gestao:'Adm',srv:'Adm'};
+  rh:'Rh',hc:'Rh',folha:'Rh',gestao:'Adm',srv:'Adm'};
 function syncGroups(v){
   const ativo = VIEW_GROUP[v];   // accordion: abre o grupo do view ativo, fecha os demais
   ['Com','Fin','Ctr','Ope','Fro','Sup','Rh','Tv','Adm'].forEach(k=>{
@@ -2165,8 +2206,8 @@ function router(){
   document.getElementById('grpCob').style.display = cob ? 'flex' : 'none';
   document.getElementById('grpRent').style.display = rent ? 'flex' : 'none';
   const ges = (v==='gestao');
-  const fbar=document.getElementById('filterbar'); if(fbar) fbar.style.display = (cop||ges||v==='srv'||v==='veicf'||v==='clif'||v==='jorn'||v==='jornf'||v==='cex'||v==='sac'||v==='mprev'||v==='comrast'||v==='qual'||v==='port'||v==='crm'||v==='rh'||v==='home') ? 'none' : '';
-  const metaEl=document.getElementById('meta'); if(metaEl) metaEl.style.display = (cop||ges||v==='srv'||v==='veicf'||v==='clif'||v==='jorn'||v==='jornf'||v==='cex'||v==='sac'||v==='mprev'||v==='comrast'||v==='qual'||v==='port'||v==='crm'||v==='rh') ? 'none' : '';
+  const fbar=document.getElementById('filterbar'); if(fbar) fbar.style.display = (cop||ges||v==='srv'||v==='veicf'||v==='clif'||v==='jorn'||v==='jornf'||v==='cex'||v==='sac'||v==='mprev'||v==='comrast'||v==='qual'||v==='port'||v==='crm'||v==='rh'||v==='hc'||v==='folha'||v==='home') ? 'none' : '';
+  const metaEl=document.getElementById('meta'); if(metaEl) metaEl.style.display = (cop||ges||v==='srv'||v==='veicf'||v==='clif'||v==='jorn'||v==='jornf'||v==='cex'||v==='sac'||v==='mprev'||v==='comrast'||v==='qual'||v==='port'||v==='crm'||v==='rh'||v==='hc'||v==='folha') ? 'none' : '';
   // classe em vez de style: o CSS mobile usa !important no display
   const bfil=document.getElementById('btnFiltros'); if(bfil){ bfil.classList.toggle('oculto', cop||ges||v==='srv'||v==='home'); bfil.style.display=''; }
   document.getElementById('grpKm').style.display = kmv ? 'flex' : 'none';
@@ -2187,8 +2228,8 @@ function router(){
   // carga da vista: dispara se não há dados OU se os filtros visíveis
   // divergem dos usados na última carga (nunca mostrar dado velho com filtro novo)
   const key=viewKey(v);
-  const DATAMAP={fin:DATA,oc:DATAOC,agr:DATAAGR,mvb:DATAMVB,comb:DATACOMB,man:DATAMAN,com:DATACOM,clif:DATACLIF,dre:DATADRE,drecli:DATADRECLI,home:DATAHOME,km:DATAKM,torre:DATATORRE,veic:DATAVEIC,veicf:DATAVEICF,mul:DATAMUL,prog:DATAPROG,jorn:DATAJORN,jornf:DATAJORNF,cex:DATACEX,sac:DATASAC,mprev:DATAMPREV,comrast:DATACOMRAST,qual:DATAQUAL,port:DATAPORT,crm:DATACRM,rh:DATARH,cob:DATACOB,rent:DATARENT,cont:DATACONT,gestao:DATAGES,srv:DATASRV,tvfat:null,tvope:null,cop:(COP_MSGS.length?{}:null)};
-  const LOADMAP={fin:load,oc:loadOc,agr:loadAgr,mvb:loadMvb,comb:loadComb,man:loadMan,com:loadCom,clif:loadClif,dre:loadDre,drecli:loadDreCli,home:loadHome,km:loadKm,torre:loadTorre,veic:loadVeic,veicf:loadVeicf,mul:loadMul,prog:loadProg,jorn:loadJorn,jornf:loadJornf,cex:loadCex,sac:loadSac,mprev:loadMPrev,comrast:loadComRast,qual:loadQual,port:loadPort,crm:loadCrm,rh:loadRh,cob:loadCob,rent:loadRent,cont:loadCont,gestao:loadGestao,srv:loadSrv,cop:loadCop,tvfat:loadTvFat,tvope:loadTvOpe};
+  const DATAMAP={fin:DATA,oc:DATAOC,agr:DATAAGR,mvb:DATAMVB,comb:DATACOMB,man:DATAMAN,com:DATACOM,clif:DATACLIF,dre:DATADRE,drecli:DATADRECLI,home:DATAHOME,km:DATAKM,torre:DATATORRE,veic:DATAVEIC,veicf:DATAVEICF,mul:DATAMUL,prog:DATAPROG,jorn:DATAJORN,jornf:DATAJORNF,cex:DATACEX,sac:DATASAC,mprev:DATAMPREV,comrast:DATACOMRAST,qual:DATAQUAL,port:DATAPORT,crm:DATACRM,rh:DATARH,hc:DATAHC,folha:DATAFOLHA,cob:DATACOB,rent:DATARENT,cont:DATACONT,gestao:DATAGES,srv:DATASRV,tvfat:null,tvope:null,cop:(COP_MSGS.length?{}:null)};
+  const LOADMAP={fin:load,oc:loadOc,agr:loadAgr,mvb:loadMvb,comb:loadComb,man:loadMan,com:loadCom,clif:loadClif,dre:loadDre,drecli:loadDreCli,home:loadHome,km:loadKm,torre:loadTorre,veic:loadVeic,veicf:loadVeicf,mul:loadMul,prog:loadProg,jorn:loadJorn,jornf:loadJornf,cex:loadCex,sac:loadSac,mprev:loadMPrev,comrast:loadComRast,qual:loadQual,port:loadPort,crm:loadCrm,rh:loadRh,hc:loadHc,folha:loadFolha,cob:loadCob,rent:loadRent,cont:loadCont,gestao:loadGestao,srv:loadSrv,cop:loadCop,tvfat:loadTvFat,tvope:loadTvOpe};
   if(!DATAMAP[key] || (key!=='home' && LOADEDQS[key]!==qsView(key))) LOADMAP[key]();
   // mobile: estado da navegação inferior + fecha gaveta/painel de filtros
   document.querySelectorAll('.bottomnav [data-bview]').forEach(a=>a.classList.toggle('ativo', a.dataset.bview===v));
@@ -2835,7 +2876,7 @@ function reloadCurrent(){
   // recarrega a TELA ATUAL — antes caía em load() (Financeiro) para várias telas.
   const M={home:loadHome,fluxo:load,receber:load,pagar:load,dre:loadDre,drecli:loadDreCli,oc:loadOc,
     agr:loadAgr,mvb:loadMvb,comb:loadComb,man:loadMan,com:loadCom,clif:loadClif,km:loadKm,
-    torre:loadTorre,veic:loadVeic,veicf:loadVeicf,mul:loadMul,prog:loadProg,jorn:loadJorn,jornf:loadJornf,cex:loadCex,sac:loadSac,mprev:loadMPrev,comrast:loadComRast,qual:loadQual,port:loadPort,crm:loadCrm,rh:loadRh,cob:loadCob,rent:loadRent,
+    torre:loadTorre,veic:loadVeic,veicf:loadVeicf,mul:loadMul,prog:loadProg,jorn:loadJorn,jornf:loadJornf,cex:loadCex,sac:loadSac,mprev:loadMPrev,comrast:loadComRast,qual:loadQual,port:loadPort,crm:loadCrm,rh:loadRh,hc:loadHc,folha:loadFolha,cob:loadCob,rent:loadRent,
     cont:loadCont,gestao:loadGestao,srv:loadSrv,cop:loadCop,tvfat:loadTvFat,tvope:loadTvOpe};
   (M[currentView()]||load)();
 }
@@ -4610,6 +4651,64 @@ function renderRh(d){
   const vg=(d.vagas||[]).map(v=>`<tr><td>${esc(v.cargo)}</td><td>${esc(v.departamento||'')}</td><td>${esc(v.area)}</td><td>${esc(v.tipo)}</td><td>${esc(v.recrutamento||'')}</td><td><span class="badge ${stB(v.status)}">${esc(v.status)}</span></td><td class="num">${v.solicitacao?fmtD(v.solicitacao):'—'}</td><td class="num">${v.fechamento?fmtD(v.fechamento):'—'}</td></tr>`).join('')||'<tr><td colspan="8" style="color:var(--n500)">sem vagas cadastradas</td></tr>';
   document.getElementById('rh-vagas').innerHTML=`<table><thead><tr><th>Cargo</th><th>Departamento</th><th>Área</th><th>Tipo</th><th>Recrutamento</th><th>Status</th><th class="num">Solicitação</th><th class="num">Fechamento</th></tr></thead><tbody>${vg}</tbody></table>`;
 }
+// ---------------- Headcount (folha GLOBUS) ----------------
+async function loadHc(){
+  const seq=++hcSeq, btn=document.getElementById('btnRefresh'); if(btn) btn.disabled=true;
+  document.getElementById('content').classList.add('loading'); skelKpis('kpis-hc',4);
+  try{
+    const r=await fetch('/api/rh/headcount',{cache:'no-store'});
+    const d=await r.json(); if(seq!==hcSeq) return;
+    if(!r.ok){ showBanner(d.mensagem||'Erro ao consultar o headcount.', d.detalhe); return; }
+    hideBanner(); DATAHC=d; LOADEDQS.hc='1'; renderHc(d);
+  }catch(e){ if(seq===hcSeq) showBanner('Não foi possível falar com a API.', e.message); }
+  finally{ if(seq===hcSeq){ if(btn) btn.disabled=false; document.getElementById('content').classList.remove('loading'); } }
+}
+function renderHc(d){
+  const k=d.kpis||{};
+  document.getElementById('kpis-hc').innerHTML=[
+    kpi('Colaboradores ativos', (k.ativos||0).toLocaleString('pt-BR'), (k.homens||0)+' H · '+(k.mulheres||0)+' M',''),
+    kpi('Admissões (12 meses)', (k.admissoes_12m||0).toLocaleString('pt-BR'), (k.demissoes_12m||0)+' demissões (aprox.)',''),
+    kpi('Massa salarial base', BRL.format(k.massa_base||0), 'salário base do quadro ativo',''),
+    kpi('Tempo de casa médio', (k.tempo_casa_anos||0).toLocaleString('pt-BR')+' anos', 'do quadro ativo',''),
+  ].join('');
+  const tb=(rows,l1,l2)=>`<table><thead><tr><th>${l1}</th><th class="num">${l2}</th></tr></thead><tbody>${rows.map(r=>`<tr><td>${esc(r.rotulo||r.faixa)}</td><td class="num">${(r.n||0).toLocaleString('pt-BR')}</td></tr>`).join('')||'<tr><td colspan="2" style="color:var(--n500)">—</td></tr>'}</tbody></table>`;
+  document.getElementById('hc-filial').innerHTML=tb(d.por_filial||[],'Filial','Ativos');
+  document.getElementById('hc-area').innerHTML=tb(d.por_area||[],'Área','Ativos');
+  document.getElementById('hc-tempo').innerHTML=tb(d.tempo_casa||[],'Faixa','Colab.');
+  const mv=(d.movimentacao||[]).map(m=>`<tr><td class="num">${esc(m.mes)}</td><td class="num" style="color:#1E7F4F;font-weight:600">${m.admissoes}</td><td class="num" style="${m.demissoes>0?'color:var(--red);font-weight:600':''}">${m.demissoes}</td></tr>`).join('')||'<tr><td colspan="3" style="color:var(--n500)">—</td></tr>';
+  document.getElementById('hc-mov').innerHTML=`<table><thead><tr><th class="num">Mês</th><th class="num">Admissões</th><th class="num">Demissões</th></tr></thead><tbody>${mv}</tbody></table>`;
+}
+// ---------------- Custo de Folha (GLOBUS) ----------------
+async function loadFolha(){
+  const seq=++folhaSeq, btn=document.getElementById('btnRefresh'); if(btn) btn.disabled=true;
+  document.getElementById('content').classList.add('loading'); skelKpis('kpis-folha',4);
+  try{
+    const sel=document.getElementById('fFolhaComp'); const comp=sel&&sel.value?('?comp='+sel.value):'';
+    const r=await fetch('/api/rh/folha-custo'+comp,{cache:'no-store'});
+    const d=await r.json(); if(seq!==folhaSeq) return;
+    if(!r.ok){ showBanner(d.mensagem||'Erro ao consultar o custo de folha.', d.detalhe); return; }
+    hideBanner(); DATAFOLHA=d; LOADEDQS.folha='1'; renderFolha(d);
+  }catch(e){ if(seq===folhaSeq) showBanner('Não foi possível falar com a API.', e.message); }
+  finally{ if(seq===folhaSeq){ if(btn) btn.disabled=false; document.getElementById('content').classList.remove('loading'); } }
+}
+function renderFolha(d){
+  const k=d.kpis||{};
+  const sel=document.getElementById('fFolhaComp');
+  if(sel && !sel.options.length && (d.competencias||[]).length){
+    sel.innerHTML=(d.competencias||[]).map(c=>`<option value="${c}"${c===d.competencia?' selected':''}>${c}</option>`).join('');
+  }
+  document.getElementById('kpis-folha').innerHTML=[
+    kpi('Proventos', BRL.format(k.proventos||0), 'total pago na competência',''),
+    kpi('Descontos', BRL.format(k.descontos||0), 'retido dos colaboradores',''),
+    kpi('Líquido', BRL.format(k.liquido||0), 'proventos − descontos','pos'),
+    kpi('Colaboradores', (k.funcs||0).toLocaleString('pt-BR'), 'custo médio '+BRL.format(k.custo_medio||0),''),
+  ].join('');
+  const cc=(d.por_cc||[]).map(c=>`<tr><td>${esc(c.cc)}</td><td class="num">${c.funcs}</td><td class="num">${BRL.format(c.prov)}</td><td class="num">${BRL.format(c.descontos)}</td><td class="num" style="font-weight:600">${BRL.format(c.liquido)}</td></tr>`).join('')||'<tr><td colspan="5" style="color:var(--n500)">sem dados na competência</td></tr>';
+  document.getElementById('folha-cc').innerHTML=`<table><thead><tr><th>Centro de custo</th><th class="num">Colab.</th><th class="num">Proventos</th><th class="num">Descontos</th><th class="num">Líquido</th></tr></thead><tbody>${cc}</tbody></table>`;
+  const ev=(rows)=>`<table><thead><tr><th>Evento</th><th class="num">Valor</th></tr></thead><tbody>${rows.map(r=>`<tr><td>${esc(r.ev)}</td><td class="num">${BRL.format(r.tot)}</td></tr>`).join('')||'<tr><td colspan="2" style="color:var(--n500)">—</td></tr>'}</tbody></table>`;
+  document.getElementById('folha-prov').innerHTML=ev(d.top_proventos||[]);
+  document.getElementById('folha-desc').innerHTML=ev(d.top_descontos||[]);
+}
 async function loadTorre(){
   skelKpis('kpis-torre',4);
   const seq = ++torreSeq;
@@ -6317,6 +6416,8 @@ boot();
     <div class="dgrp" data-grp="Rh">
       <button class="dgrp-h" onclick="toggleDGrp(this)"><span>Recursos Humanos</span><span class="dchev">›</span></button>
       <div class="dgrp-b">
+        <a href="#hc" onclick="fecharDrawer()"><span class="ic" data-ic="ges"></span>Headcount</a>
+        <a href="#folha" onclick="fecharDrawer()"><span class="ic" data-ic="cob"></span>Custo de Folha</a>
         <a href="#rh" onclick="fecharDrawer()"><span class="ic" data-ic="ges"></span>Vagas</a>
       </div>
     </div>
