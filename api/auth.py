@@ -135,6 +135,12 @@ ROTA_TELAS: list[tuple[str, frozenset[str]]] = [
 # /static tem o logo usado na tela de login).
 _PUBLICAS = ("/api/auth/login", "/api/auth/setup", "/api/auth/setup-status", "/api/health")
 
+# Autoservice de conta: exige sessão válida (checado antes), mas nenhuma tela
+# específica — todo usuário autenticado pode ver o próprio perfil/trocar a
+# própria senha/sair. /api/gestao/* não entra aqui: já é checado à parte
+# (admin) antes de chegar em _telas_da_rota.
+_ROTAS_AUTOSERVICO = ("/api/auth/me", "/api/auth/logout", "/api/auth/trocar-senha")
+
 
 def _rota_publica(path: str) -> bool:
     return (path == "/" or path.startswith("/static/") or path in _PUBLICAS)
@@ -192,6 +198,8 @@ _PERFIS_MODELO = [
      ["oc", "custos"]),
     ("Painéis TV",  "Apenas os painéis de TV (faturamento e operação) — para telão/quiosque.",
      ["tvfat", "tvope"]),
+    ("Recursos Humanos", "Vagas, headcount, custo de folha, indicadores e horas extras.",
+     ["rh", "hc", "folha", "folhaind", "he"]),
     ("Diretoria",   "Visão executiva ampla: consolidado, copiloto e principais indicadores.",
      ["home", "cop", "fluxo", "dre", "drecli", "com", "km", "torre", "jorn", "mvb", "veic", "rh", "hc", "folha", "folhaind", "he"]),
 ]
@@ -377,6 +385,18 @@ def _seed_perfis_modelo(c: sqlite3.Connection) -> None:
                       (row["id"], "he"))
         c.execute("INSERT OR IGNORE INTO config(chave, valor) VALUES('perfis_modelo_v15', '1')")
 
+    # v16 (2026-07-18): perfil-modelo dedicado de Recursos Humanos — antes as
+    # telas de RH só existiam embutidas no perfil amplo Diretoria, obrigando
+    # a dar acesso a caixa/DRE/comercial só para liberar folha/headcount.
+    if not c.execute("SELECT 1 FROM config WHERE chave='perfis_modelo_v16'").fetchone():
+        cur = c.execute(
+            "INSERT OR IGNORE INTO perfis(nome, descricao, admin, criado_em) VALUES(?,?,0,?)",
+            ("Recursos Humanos", "Vagas, headcount, custo de folha, indicadores e horas extras.", _agora()))
+        if cur.rowcount:
+            c.executemany("INSERT OR IGNORE INTO perfil_telas(perfil_id, tela) VALUES(?,?)",
+                          [(cur.lastrowid, t) for t in ("rh", "hc", "folha", "folhaind", "he")])
+        c.execute("INSERT OR IGNORE INTO config(chave, valor) VALUES('perfis_modelo_v16', '1')")
+
 
 def _agora() -> str:
     return datetime.now().strftime("%Y-%m-%d %H:%M:%S")
@@ -511,10 +531,22 @@ class AuthMiddleware:
             return await resp(scope, receive, send)
 
         telas = _telas_da_rota(path)
-        if telas is not None and not sess["admin"] and not (telas & set(sess["telas"])):
+        if telas is not None:
+            if not sess["admin"] and not (telas & set(sess["telas"])):
+                resp = JSONResponse(status_code=403, content={
+                    "erro": "sem_permissao",
+                    "mensagem": "Seu perfil não tem acesso a esta área."})
+                return await resp(scope, receive, send)
+        elif (path.startswith("/api/") and not path.startswith("/api/gestao")
+              and path not in _ROTAS_AUTOSERVICO and not sess["admin"]):
+            # fail-closed: rota /api/* sem mapeamento em ROTA_TELAS (nem
+            # autoservico de conta, nem /api/gestao — já gated acima) é
+            # bloqueada por padrão pra usuário não-admin. Toda rota nova
+            # precisa ganhar uma entrada em ROTA_TELAS (ou entrar aqui, se
+            # for genuinamente sem tela) — nunca fica aberta por esquecimento.
             resp = JSONResponse(status_code=403, content={
                 "erro": "sem_permissao",
-                "mensagem": "Seu perfil não tem acesso a esta área."})
+                "mensagem": "Rota não mapeada em nenhuma tela — acesso negado."})
             return await resp(scope, receive, send)
 
         scope.setdefault("state", {})["sessao"] = sess

@@ -1962,19 +1962,7 @@ SELECT to_char(a.data_inicio_abastecimento,'YYYY-MM') AS mes,
        sum(CASE WHEN v.utilizacaoveiculo IN ('AGR','TER') OR v.placa IS NULL THEN a.custo ELSE 0 END)::float8 AS custo_terceiros,
        sum(CASE WHEN {_CTA_KM_SANO} THEN a.distancia ELSE 0 END)::float8 AS km_sano,
        sum(CASE WHEN {_CTA_KM_SANO} THEN a.volume ELSE 0 END)::float8 AS litros_km_sano
-FROM sulista.ctaplus_abastecimentos a
-LEFT JOIN veiculo v ON v.placa = a.veiculo_placa
-LEFT JOIN utilizacaoveiculo u ON u.codigo = v.utilizacaoveiculo
-WHERE a.data_inicio_abastecimento >= %(dt_de)s::date
-  AND a.data_inicio_abastecimento <= %(dt_ate)s::date
-  AND (%(modalidade)s::text IS NULL
-       OR (%(modalidade)s = 'proprio' AND coalesce(v.utilizacaoveiculo,'') IN ('TRA','LOC'))
-       OR (%(modalidade)s = 'terceiros' AND (v.utilizacaoveiculo IN ('AGR','TER') OR v.placa IS NULL)))
-  AND (%(placa)s::text IS NULL OR a.veiculo_placa ILIKE '%%'||%(placa)s||'%%')
-  AND (%(posto)s::text IS NULL
-       OR (%(posto)s = 'comercial' AND a.posto_comercial)
-       OR (%(posto)s = 'interno' AND NOT a.posto_comercial))
-  AND (%(combustivel)s::text IS NULL OR a.combustivel_descricao = %(combustivel)s)
+{_CTA_BASE}
 GROUP BY 1 ORDER BY 1
 """
 
@@ -3281,7 +3269,7 @@ def get_programacao() -> dict:
         "deficit": deficit,
         "superavit": superavit,
         "atualizado_em": meta["ts"].isoformat(),
-        "fonte": "ERP AVA · programacaoembarque (janela 72h + histórico 90 dias)",
+        "fonte": "ERP AVA · programacaoembarque (chegadas 72h · saídas 96h · histórico 90 dias)",
     }
 
 
@@ -3487,14 +3475,10 @@ def get_contabil(comp_de: str, comp_ate: str, busca: str | None = None) -> dict:
 # dtvencimento) com dtpagamento IS NULL, docs 6/8/10/11 e CT-e válido
 # (situacaocte=3). Antes usávamos fatura.valorsaldoreceber, que inflava ~12x
 # por incluir pendentes de faturamento (composicao=2) — agora à parte.
-_COB_FROM = """
-FROM fatura f
-JOIN fatura_composicao fc USING (grupo, empresa, filial, unidade, sequencia)
-LEFT JOIN conhecimento co ON co.grupo=fc.grupodocumentoorigem AND co.empresa=fc.empresadocumentoorigem
-   AND co.filial=fc.filialdocumentoorigem AND co.unidade=fc.unidadedocumentoorigem
-   AND co.diferenciadornumero=fc.diferenciadornumerodocumentoorigem AND co.serie=fc.seriedocumentoorigem
-   AND co.numero=fc.numerosequenciadocumentoorigem AND fc.tipodocumentoorigem=6
-"""
+# _COB_FROM é alias de _REC_OF_FROM (definida lá em cima, mesma junção
+# fatura×fatura_composicao×conhecimento) — evita duas cópias divergirem se
+# o predicado oficial mudar (ex.: novo tipodocumento válido).
+_COB_FROM = _REC_OF_FROM
 _COB_WHERE = """
 WHERE f.grupo=1 AND fc.valorpendentecnpjcliente > 0 AND f.dtcancelamento IS NULL
   AND f.composicao = 1
