@@ -4231,3 +4231,101 @@ def get_comunicacao_rastreadora() -> dict:
         "atualizado_em": meta["ts"].isoformat(),
         "fonte": ("ERP AVA · veiculo_posicao (última posição) · frota ativa · leitura"),
     }
+
+
+# ============================================================================
+# Qualidade — Certidões & Licenças (semáforo de vencimento) + Auditoria Interna
+# ----------------------------------------------------------------------------
+# Fonte: Querys Sulista/QUALIDADE. Certidões/licenças/alvarás/apólices com
+# semáforo por dias até vencer; auditorias internas com NCs.
+# ============================================================================
+QUAL_TIPO = {1: "Certidão", 2: "Licença", 3: "Alvará", 4: "Societário", 5: "Apólice de Seguro"}
+QUAL_STATUS_ACAO = {1: "Não iniciado", 2: "Em andamento", 3: "Concluída", 4: "Cancelado"}
+
+QUAL_CERT_SQL = """
+SELECT ce.tipoarquivo, ce.filial,
+       coalesce(nullif(trim(cad.razaosocial),''), ce.emissor) AS emissor,
+       ce.dtemissao::date AS emissao, ce.dtvencimento::date AS venc,
+       (ce.dtvencimento::date - current_date) AS dias,
+       ce.observacao
+FROM sulista.certidoes ce
+LEFT JOIN cadastro cad ON avacorpi.fnc_formata_cnpjcpf(cad.codigo) = ce.emissor
+WHERE ce.ativoinativo = 1
+ORDER BY ce.dtvencimento NULLS LAST
+"""
+
+QUAL_AUD_SQL = """
+SELECT ca.dt_auditoria::date AS dt, ca.area_setor, ca.processo_auditado,
+       ca.tipo_auditoria, ca.resultado, ca.qtde_ncs, ca.qtde_observacoes,
+       ca.principal_problema, ca.status_acao, ca.prazo_acao::date AS prazo,
+       ca.dt_encerramento::date AS encerramento
+FROM sulista.controle_auditoria ca
+ORDER BY ca.id DESC
+LIMIT 50
+"""
+
+
+def _qual_cert_status(dias) -> str:
+    if dias is None:
+        return "sem_data"
+    if dias < 0:
+        return "vencida"
+    if dias <= 15:
+        return "vence_15"
+    if dias <= 30:
+        return "vence_30"
+    return "ok"
+
+
+@cached(ttl=300)
+def get_qualidade() -> dict:
+    """Certidões/licenças com semáforo de vencimento + auditorias internas."""
+    with db.get_conn() as conn, conn.cursor() as cur:
+        cur.execute(QUAL_CERT_SQL)
+        cert = cur.fetchall()
+        cur.execute(QUAL_AUD_SQL)
+        aud = cur.fetchall()
+        cur.execute("SELECT current_timestamp AS ts")
+        meta = cur.fetchone()
+
+    certidoes = []
+    for c in cert:
+        st = _qual_cert_status(c["dias"])
+        certidoes.append({
+            "tipo": QUAL_TIPO.get(c["tipoarquivo"], "Documento"),
+            "emissor": (c["emissor"] or "").strip() or "—",
+            "filial": c["filial"],
+            "emissao": c["emissao"].isoformat() if c["emissao"] else None,
+            "venc": c["venc"].isoformat() if c["venc"] else None,
+            "dias": c["dias"], "status": st,
+            "obs": (c["observacao"] or "").strip() or None,
+        })
+
+    auditorias = [{
+        "dt": a["dt"].isoformat() if a["dt"] else None,
+        "area": (a["area_setor"] or "").strip() or "—",
+        "processo": (a["processo_auditado"] or "").strip() or None,
+        "tipo": {1: "Interna", 2: "Externa"}.get(a["tipo_auditoria"], "—"),
+        "resultado": "Aprovado" if a["resultado"] == 1 else "Reprovado",
+        "ncs": a["qtde_ncs"] or 0, "obs": a["qtde_observacoes"] or 0,
+        "problema": (a["principal_problema"] or "").strip() or None,
+        "status_acao": QUAL_STATUS_ACAO.get(a["status_acao"]),
+        "prazo": a["prazo"].isoformat() if a["prazo"] else None,
+        "encerrada": a["encerramento"].isoformat() if a["encerramento"] else None,
+    } for a in aud]
+
+    kpis = {
+        "certidoes": len(certidoes),
+        "vencidas": sum(1 for c in certidoes if c["status"] == "vencida"),
+        "vencendo": sum(1 for c in certidoes if c["status"] in ("vence_15", "vence_30")),
+        "auditorias": len(auditorias),
+        "ncs_abertas": sum(a["ncs"] for a in auditorias if a["status_acao"] not in ("Concluída", "Cancelado")),
+    }
+
+    return {
+        "kpis": kpis,
+        "certidoes": certidoes,
+        "auditorias": auditorias,
+        "atualizado_em": meta["ts"].isoformat(),
+        "fonte": "ERP AVA · sulista.certidoes + sulista.controle_auditoria · leitura",
+    }
