@@ -18,7 +18,7 @@ from fastapi.middleware.gzip import GZipMiddleware
 from fastapi.responses import FileResponse, JSONResponse, PlainTextResponse, StreamingResponse
 from fastapi.staticfiles import StaticFiles
 
-from . import alertas, auth, copiloto, db, dre_cliente, queries, servidor
+from . import alertas, auth, copiloto, db, dre_cliente, queries, queries_folha, servidor
 
 log = logging.getLogger("cortex.financeiro")
 # docs/openapi desligados: o painel é exposto na internet via Cloudflare Tunnel
@@ -621,6 +621,39 @@ def rh_vagas() -> JSONResponse:
         return JSONResponse(status_code=500, content={
             "erro": "erro_consulta", "mensagem": "Erro ao consultar as vagas de RH.",
             "detalhe": str(exc)})
+
+
+def _folha_erro(exc: Exception) -> JSONResponse:
+    import oracledb
+    if isinstance(exc, oracledb.Error) or isinstance(exc, RuntimeError):
+        return JSONResponse(status_code=503, content={
+            "erro": "folha_indisponivel",
+            "mensagem": "Sem conexão com o banco da folha (GLOBUS/Oracle). "
+                        "Rode a partir da máquina de produção (mesma rede) e confira o .env.",
+            "detalhe": str(exc)[:200]})
+    log.warning("folha falhou: %s", exc)
+    return JSONResponse(status_code=500, content={
+        "erro": "erro_consulta", "mensagem": "Erro ao consultar a folha.", "detalhe": str(exc)[:200]})
+
+
+@app.get("/api/rh/headcount")
+def rh_headcount() -> JSONResponse:
+    try:
+        return JSONResponse(queries_folha.get_headcount())
+    except Exception as exc:  # noqa: BLE001
+        return _folha_erro(exc)
+
+
+@app.get("/api/rh/folha-custo")
+def rh_folha_custo(comp: str | None = None) -> JSONResponse:
+    import re
+    if comp and not re.match(r"^\d{4}-(0[1-9]|1[0-2])$", comp):
+        return JSONResponse(status_code=422, content={
+            "erro": "parametro_invalido", "mensagem": "comp inválido: use AAAA-MM."})
+    try:
+        return JSONResponse(queries_folha.get_custo_folha(comp))
+    except Exception as exc:  # noqa: BLE001
+        return _folha_erro(exc)
 
 
 @app.get("/api/qualidade")
