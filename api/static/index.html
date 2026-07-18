@@ -1476,7 +1476,7 @@ button.avatar{border:0;cursor:pointer}
           <div class="card"><div class="head"><h2>Atingimento ESG</h2><span class="hint">realizado em % da meta · verde = na meta</span></div>
             <div class="chartwrap"><svg id="chartQualEsg" viewBox="0 0 960 200" preserveAspectRatio="xMidYMid meet" role="img"></svg></div></div>
           <div class="card"><div class="head"><h2>Certidões por situação</h2><span class="hint">semáforo de vencimento</span></div>
-            <div class="chartwrap" style="min-height:210px"><svg id="chartQualCert" viewBox="0 0 320 190" preserveAspectRatio="xMidYMid meet" style="min-width:300px;max-width:520px;margin:0 auto" role="img"></svg></div></div>
+            <div class="chartwrap" style="min-height:210px"><svg id="chartQualCert" viewBox="0 0 380 200" preserveAspectRatio="xMidYMid meet" style="min-width:300px;max-width:520px;margin:0 auto" role="img"></svg></div></div>
         </div>
         <div class="card">
           <div class="head"><h2>Indicadores ESG</h2><span class="hint">meta × realizado (mês mais recente) · matriz</span></div>
@@ -1506,7 +1506,7 @@ button.avatar{border:0;cursor:pointer}
         <div class="kpis" id="kpis-crm"></div>
         <div class="grid2">
           <div class="card"><div class="head"><h2>Leads por temperatura</h2><span class="hint">distribuição do funil</span></div>
-            <div class="chartwrap" style="min-height:210px"><svg id="chartCrmTemp" viewBox="0 0 320 190" preserveAspectRatio="xMidYMid meet" style="min-width:300px;max-width:520px;margin:0 auto" role="img"></svg></div></div>
+            <div class="chartwrap" style="min-height:210px"><svg id="chartCrmTemp" viewBox="0 0 380 200" preserveAspectRatio="xMidYMid meet" style="min-width:300px;max-width:520px;margin:0 auto" role="img"></svg></div></div>
           <div class="card"><div class="head"><h2>Maiores oportunidades</h2><span class="hint">potencial de receita · top 14</span></div>
             <div class="chartwrap"><svg id="chartCrmPot" viewBox="0 0 960 200" preserveAspectRatio="xMidYMid meet" role="img"></svg></div></div>
         </div>
@@ -1613,7 +1613,7 @@ button.avatar{border:0;cursor:pointer}
         <div class="kpis" id="kpis-custos"></div>
         <div class="grid2">
           <div class="card"><div class="head"><h2>Composição do custo</h2><span class="hint">participação por agrupador</span></div>
-            <div class="chartwrap" style="min-height:210px"><svg id="chartCustosDonut" viewBox="0 0 320 190" preserveAspectRatio="xMidYMid meet" style="min-width:300px;max-width:520px;margin:0 auto" role="img" aria-label="Composição do custo por agrupador."></svg></div></div>
+            <div class="chartwrap" style="min-height:210px"><svg id="chartCustosDonut" viewBox="0 0 380 200" preserveAspectRatio="xMidYMid meet" style="min-width:300px;max-width:520px;margin:0 auto" role="img" aria-label="Composição do custo por agrupador."></svg></div></div>
           <div class="card"><div class="head"><h2>Por agrupador (grupo DRE)</h2><span class="hint">top 14 por valor</span></div>
             <div class="chartwrap"><svg id="chartCustosAgr" viewBox="0 0 960 200" preserveAspectRatio="xMidYMid meet" role="img"></svg></div></div>
         </div>
@@ -4876,18 +4876,26 @@ function chartDonut(id, segs, opts){
   opts=opts||{}; const el=_chartEl(id); if(!el) return;
   segs=(segs||[]).filter(s=>s&&s.valor>0);
   const tot=segs.reduce((a,s)=>a+s.valor,0);
-  if(!tot){ el.setAttribute('viewBox','0 0 320 180'); el.innerHTML='<text x="12" y="34" font-size="13" fill="#6B7280">sem dados</text>'; return; }
+  if(!tot){ el.setAttribute('viewBox','0 0 380 200'); el.innerHTML='<text x="12" y="34" font-size="13" fill="#6B7280">sem dados</text>'; return; }
   const fmt=opts.fmt||(v=>Number(v).toLocaleString('pt-BR'));
-  const cx=90, cy=90, r=72, rin=46; let a0=-Math.PI/2, g='';
-  segs.forEach(s=>{ const a1=a0+(s.valor/tot)*Math.PI*2;
+  const W=380, H=200, cx=100, cy=H/2, r=82, rin=57; let a0=-Math.PI/2, g='';
+  segs.forEach(s=>{ let frac=s.valor/tot; if(frac>0.9999) frac=0.9999; const a1=a0+frac*Math.PI*2;
     const x0=cx+r*Math.cos(a0), y0=cy+r*Math.sin(a0), x1=cx+r*Math.cos(a1), y1=cy+r*Math.sin(a1);
     const xi1=cx+rin*Math.cos(a1), yi1=cy+rin*Math.sin(a1), xi0=cx+rin*Math.cos(a0), yi0=cy+rin*Math.sin(a0);
     const big=(a1-a0)>Math.PI?1:0;
-    g+=`<path d="M${x0},${y0} A${r},${r} 0 ${big} 1 ${x1},${y1} L${xi1},${yi1} A${rin},${rin} 0 ${big} 0 ${xi0},${yi0} Z" fill="${s.cor}"><title>${esc(s.rotulo)}: ${fmt(s.valor)} (${(100*s.valor/tot).toFixed(1)}%)</title></path>`; a0=a1; });
-  g+=`<text x="${cx}" y="${cy-4}" text-anchor="middle" font-size="20" font-weight="800" fill="#1E1E1E">${esc(opts.centro||'')}</text>`;
-  if(opts.centroSub) g+=`<text x="${cx}" y="${cy+16}" text-anchor="middle" font-size="11" fill="#6B7280">${esc(opts.centroSub)}</text>`;
-  let ly=18; g+=segs.map(s=>{ const t=`<rect x="196" y="${ly}" width="12" height="12" rx="3" fill="${s.cor}"></rect><text x="214" y="${ly+10}" font-size="12" fill="#334155">${_trunc(esc(s.rotulo),18)}</text><text x="316" y="${ly+10}" text-anchor="end" font-size="11.5" font-weight="700" fill="#1E1E1E">${(100*s.valor/tot).toFixed(0)}%</text>`; ly+=24; return t; }).join('');
-  el.setAttribute('viewBox','0 0 320 190'); el.innerHTML=g;
+    g+=`<path d="M${x0},${y0} A${r},${r} 0 ${big} 1 ${x1},${y1} L${xi1},${yi1} A${rin},${rin} 0 ${big} 0 ${xi0},${yi0} Z" fill="${s.cor}" stroke="#fff" stroke-width="1.5"><title>${esc(s.rotulo)}: ${fmt(s.valor)} (${(100*s.valor/tot).toFixed(1)}%)</title></path>`; a0=a1; });
+  // rótulo central — fonte ajustada ao tamanho do texto para não estourar o furo
+  const ctxt=String(opts.centro||''); const cFont = ctxt.length<=6?21 : (ctxt.length<=9?16 : (ctxt.length<=12?13:11));
+  g+=`<text x="${cx}" y="${cy+(opts.centroSub?-2:5)}" text-anchor="middle" font-size="${cFont}" font-weight="800" fill="#1E1E1E">${esc(ctxt)}</text>`;
+  if(opts.centroSub) g+=`<text x="${cx}" y="${cy+16}" text-anchor="middle" font-size="10.5" fill="#6B7280">${esc(opts.centroSub)}</text>`;
+  // legenda centralizada verticalmente à direita do donut
+  const legX=208, rowH=22, startY=Math.max(14, cy-(segs.length*rowH)/2)+11;
+  g+=segs.map((s,i)=>{ const y=startY+i*rowH;
+    return `<rect x="${legX}" y="${y-9}" width="12" height="12" rx="3" fill="${s.cor}"></rect>`+
+      `<text x="${legX+18}" y="${y+1}" font-size="12" fill="#334155">${_trunc(esc(s.rotulo),15)}</text>`+
+      `<text x="${W-6}" y="${y+1}" text-anchor="end" font-size="12" font-weight="700" fill="#1E1E1E">${(100*s.valor/tot).toFixed(0)}%</text>`;
+  }).join('');
+  el.setAttribute('viewBox',`0 0 ${W} ${H}`); el.innerHTML=g;
 }
 // ---------------- Headcount (folha GLOBUS) ----------------
 async function loadHc(){
