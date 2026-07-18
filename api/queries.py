@@ -1492,6 +1492,12 @@ HAVING sum(m.valor) > 0
 # conhecimento + notafiscalservico + sulista.faturamentokmm), agrupado por
 # agrupamentocliente — chave 'AG'||codigo, casando com COM_META_SQL. Antes
 # usava p.valorfrete (viagens), que diverge do faturamento oficial da empresa.
+# GOTCHA: exige acc.vinculo=1 (pagador ligado a um agrupamento), então a soma
+# por cliente aqui é MENOR que o realizado_acumulado da Visão Geral/TV
+# (VG_DIARIO_SQL, que soma todo mundo sem exigir vínculo). Medido ao vivo em
+# 2026-07: gap ~0,1% da receita do mês (praticamente todo CT-e/NFS-e tem
+# vínculo) — não vale a complexidade de um bucket "(sem agrupamento)" agora;
+# reavaliar se esse percentual crescer.
 COM_REAL_MES_SQL = """
 SELECT codigo, sum(realizado)::float8 AS realizado FROM (
   SELECT 'AG'||ac.codigo::text AS codigo, sum(c.valortotalprestacao) AS realizado
