@@ -87,6 +87,13 @@ button.ghost[aria-pressed="true"]{background:var(--navy-700);color:#fff;border-c
 .field select:focus,.field input:focus{outline:2px solid var(--orange-500);outline-offset:1px}
 .field input:disabled{background:var(--n100);color:var(--n500)}
 .rangegrp{display:flex;align-items:flex-end;gap:8px}
+.cardfilters{display:flex;flex-wrap:wrap;align-items:center;gap:10px;padding:2px 16px 14px}
+.cardfilters select,.cardfilters input{font-family:var(--font);font-size:14px;color:var(--n900);background:var(--n0);border:1px solid var(--n300);border-radius:var(--radius-md);padding:8px 11px;min-width:150px}
+.cardfilters input[type=search]{min-width:200px}
+.chips{display:flex;gap:6px;flex-wrap:wrap}
+.chip{font-family:var(--font);font-size:13px;font-weight:600;color:var(--n600);background:var(--n0);border:1px solid var(--n300);border-radius:999px;padding:6px 13px;cursor:pointer;transition:all .12s}
+.chip:hover{border-color:var(--n400);background:var(--n100)}
+.chip.active{background:var(--ink,#1E1E1E);color:#fff;border-color:var(--ink,#1E1E1E)}
 .banner{display:none;background:var(--red-100);border:1px solid var(--red);color:var(--red);border-radius:var(--radius);padding:14px 18px;font-weight:600}
 .banner.show{display:block}
 .banner small{display:block;font-weight:400;color:var(--n700);margin-top:4px}
@@ -1504,7 +1511,17 @@ button.avatar{border:0;cursor:pointer}
             <div class="chartwrap"><svg id="chartCrmPot" viewBox="0 0 960 200" preserveAspectRatio="xMidYMid meet" role="img"></svg></div></div>
         </div>
         <div class="card">
-          <div class="head"><h2>Leads ativos</h2><span class="hint">funil comercial · por potencial de receita</span></div>
+          <div class="head"><h2>Leads ativos</h2><span class="hint" id="crm-leads-hint">funil comercial · por potencial de receita</span></div>
+          <div class="cardfilters">
+            <div class="chips" id="crm-temp-chips">
+              <button class="chip active" data-t="" onclick="crmSetTemp(this)">Todas</button>
+              <button class="chip" data-t="Quente" onclick="crmSetTemp(this)">Quente</button>
+              <button class="chip" data-t="Morno" onclick="crmSetTemp(this)">Morno</button>
+              <button class="chip" data-t="Frio" onclick="crmSetTemp(this)">Frio</button>
+            </div>
+            <select id="crm-seg" onchange="crmFiltrarLeads()"><option value="">Todos os segmentos</option></select>
+            <input type="search" id="crm-busca" placeholder="Buscar cliente…" oninput="crmFiltrarLeads()">
+          </div>
           <div class="tablewrap" id="crm-leads"></div>
         </div>
         <div class="grid2">
@@ -4733,13 +4750,29 @@ function renderCrm(d){
     {fmt:v=>v+' lead(s)', centro:String(leads.length), centroSub:'leads ativos'});
   chartHBars('chartCrmPot', leads.slice().sort((a,b)=>(b.potencial||0)-(a.potencial||0)).map(l=>({rotulo:l.cliente, valor:l.potencial||0, _t:l.temperatura})),
     {cor:r=>corTemp[r._t]||CC.roxo, fmt:brlAbbr});
-  const tempB=t=>t==='Quente'?'b-dang':(t==='Morno'?'b-warn':'');
-  const lg=(d.leads||[]).map(l=>`<tr><td>${esc(l.cliente)}</td><td>${esc(l.segmento||'')}</td><td><span class="badge ${tempB(l.temperatura)}">${esc(l.temperatura)}</span></td><td>${esc(l.status)}</td><td class="num">${BRL.format(l.potencial||0)}</td><td class="num">${l.previsao?fmtD(l.previsao):'—'}</td></tr>`).join('')||'<tr><td colspan="6" style="color:var(--n500)">sem leads ativos</td></tr>';
-  document.getElementById('crm-leads').innerHTML=`<table><thead><tr><th>Cliente/Lead</th><th>Segmento</th><th>Temperatura</th><th>Status</th><th class="num">Potencial</th><th class="num">Previsão</th></tr></thead><tbody>${lg}</tbody></table>`;
+  // popular segmentos (uma vez) e desenhar a tabela filtrável
+  const segSel=document.getElementById('crm-seg');
+  if(segSel){ const segs=[...new Set(leads.map(l=>l.segmento).filter(Boolean))].sort();
+    segSel.innerHTML='<option value="">Todos os segmentos</option>'+segs.map(s=>`<option>${esc(s)}</option>`).join(''); }
+  crmFiltrarLeads();
   const pj=(d.projetos||[]).map(p=>`<tr><td>${esc(p.cliente)}</td><td>${esc(p.tipo)}</td><td>${esc(p.status)}</td><td class="num">${BRL.format(p.rob||0)}</td><td class="num">${p.lucro_pct!=null?p.lucro_pct.toFixed(1)+'%':'—'}</td><td class="num">${p.aging!=null?p.aging+'d':'—'}</td></tr>`).join('')||'<tr><td colspan="6" style="color:var(--n500)">sem projetos</td></tr>';
   document.getElementById('crm-projetos').innerHTML=`<table><thead><tr><th>Cliente</th><th>Tipo</th><th>Status</th><th class="num">ROB/mês</th><th class="num">Lucro</th><th class="num">Aging</th></tr></thead><tbody>${pj}</tbody></table>`;
   const rp=(d.repactuacoes||[]).map(r=>{const m=r.mes?(''+r.mes).slice(0,7):'—';return `<tr><td>${esc(r.cliente)}</td><td class="num">${m}</td><td class="num">${r.total_pct!=null?r.total_pct.toFixed(2)+'%':'—'}</td><td>${esc(r.status)}</td></tr>`;}).join('')||'<tr><td colspan="4" style="color:var(--n500)">sem repactuações</td></tr>';
   document.getElementById('crm-repac').innerHTML=`<table><thead><tr><th>Cliente</th><th class="num">Mês</th><th class="num">Total %</th><th>Status</th></tr></thead><tbody>${rp}</tbody></table>`;
+}
+let crmTempFiltro='';
+function crmSetTemp(btn){ document.querySelectorAll('#crm-temp-chips .chip').forEach(c=>c.classList.remove('active')); btn.classList.add('active'); crmTempFiltro=btn.dataset.t||''; crmFiltrarLeads(); }
+function crmFiltrarLeads(){
+  const leads=(DATACRM&&DATACRM.leads)||[];
+  const seg=(document.getElementById('crm-seg')||{}).value||'';
+  const busca=(((document.getElementById('crm-busca')||{}).value)||'').toLowerCase().trim();
+  const f=leads.filter(l=>(!crmTempFiltro||l.temperatura===crmTempFiltro)&&(!seg||l.segmento===seg)&&(!busca||(l.cliente||'').toLowerCase().includes(busca)))
+               .sort((a,b)=>(b.potencial||0)-(a.potencial||0));
+  const tempB=t=>t==='Quente'?'b-dang':(t==='Morno'?'b-warn':'');
+  const lg=f.map(l=>`<tr><td>${esc(l.cliente)}</td><td>${esc(l.segmento||'')}</td><td><span class="badge ${tempB(l.temperatura)}">${esc(l.temperatura)}</span></td><td>${esc(l.status)}</td><td class="num">${BRL.format(l.potencial||0)}</td><td class="num">${l.previsao?fmtD(l.previsao):'—'}</td></tr>`).join('')||'<tr><td colspan="6" style="color:var(--n500)">nenhum lead com esse filtro</td></tr>';
+  document.getElementById('crm-leads').innerHTML=`<table><thead><tr><th>Cliente/Lead</th><th>Segmento</th><th>Temperatura</th><th>Status</th><th class="num">Potencial</th><th class="num">Previsão</th></tr></thead><tbody>${lg}</tbody></table>`;
+  const somaF=f.reduce((a,l)=>a+(l.potencial||0),0);
+  const hint=document.getElementById('crm-leads-hint'); if(hint) hint.textContent=`${f.length} de ${leads.length} leads · ${brlAbbr(somaF)} em potencial`;
 }
 // ---------------- RH — Vagas ----------------
 async function loadRh(){
