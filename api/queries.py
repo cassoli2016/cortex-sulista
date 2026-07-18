@@ -1953,7 +1953,7 @@ GROUP BY 1 ORDER BY 1
 
 COMB_SEMANAL_SQL = f"""
 SELECT to_char(a.data_inicio_abastecimento,'IYYY-IW') AS semana,
-       min(a.data_inicio_abastecimento)::date AS inicio,
+       to_char(min(a.data_inicio_abastecimento),'YYYY-MM-DD') AS inicio,
        sum(a.volume)::float8 AS litros,
        sum(a.custo)::float8 AS custo
 {_COMB_PERIODO_FILTROS}
