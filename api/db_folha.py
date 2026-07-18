@@ -67,15 +67,32 @@ def _dsn() -> str:
 
 
 _pool = None
+_thick_inited = False
+
+
+def _ensure_thick() -> None:
+    """Ativa o modo THICK do oracledb (uma vez por processo).
+
+    O servidor Oracle da folha exige Native Network Encryption (NNE), que o
+    modo thin não suporta — por isso usamos thick, que precisa do Oracle
+    Client instalado na máquina (a máquina de produção já tem: oci.dll 19.x).
+    O caminho pode ser forçado por ORACLE_CLIENT_LIB_DIR; senão usa o PATH."""
+    global _thick_inited
+    if _thick_inited:
+        return
+    lib = os.environ.get("ORACLE_CLIENT_LIB_DIR") or None
+    oracledb.init_oracle_client(lib_dir=lib)
+    _thick_inited = True
 
 
 def _get_pool():
-    """Pool de conexões Oracle (thin). Criado sob demanda."""
+    """Pool de conexões Oracle (thick). Criado sob demanda."""
     global _pool
     if not configured():
         raise RuntimeError(
             "Folha (Oracle) não configurada: defina ORACLE_FOLHA_HOST/USER/PASSWORD/"
             "SERVICE (ou SID) no .env.")
+    _ensure_thick()
     if _pool is None:
         _pool = oracledb.create_pool(
             user=os.environ["ORACLE_FOLHA_USER"],

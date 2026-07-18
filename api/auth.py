@@ -76,7 +76,7 @@ TELAS: dict[str, tuple[str, str]] = {  # chave -> (rótulo, grupo do menu)
     "comrast": ("Comunicação Rastreadora", "Frota"),
     "veicf":   ("Consulta de Veículo", "Frota"),
     "mul":     ("Multas", "Frota"),
-    "rh":      ("RH — Vagas", "Administração"),
+    "rh":      ("RH — Vagas", "Recursos Humanos"),
     "tvfat":   ("Painel TV — Faturamento", "Painéis TV"),
     "tvope":   ("Painel TV — Operação", "Painéis TV"),
 }

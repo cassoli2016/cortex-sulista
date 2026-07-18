@@ -585,6 +585,12 @@ button.avatar{border:0;cursor:pointer}
       <div class="subs closed" id="subsSup">
         <a href="#oc" class="sub" data-view="oc" title="Ordens de Compra"><span class="ic" data-ic="oc"></span><span>Ordens de Compra</span></a>
       </div>
+      <button class="group" id="grpRh" aria-expanded="false" aria-controls="subsRh" onclick="toggleGroup('grpRh','subsRh','cs.rhGroup')" title="Recursos Humanos">
+        <span class="ic" data-ic="ges"></span><span>Recursos Humanos</span><span class="ic chev" data-ic="chev"></span>
+      </button>
+      <div class="subs closed" id="subsRh">
+        <a href="#rh" class="sub" data-view="rh" title="RH — vagas e recrutamento"><span class="ic" data-ic="ges"></span><span>Vagas</span></a>
+      </div>
       <button class="group" id="grpTv" aria-expanded="false" aria-controls="subsTv" onclick="toggleGroup('grpTv','subsTv','cs.tvGroup')" title="Painéis TV">
         <span class="ic" data-ic="tv"></span><span>Painéis TV</span><span class="ic chev" data-ic="chev"></span>
       </button>
@@ -596,7 +602,6 @@ button.avatar{border:0;cursor:pointer}
         <span class="ic" data-ic="ges"></span><span>Administração</span><span class="ic chev" data-ic="chev"></span>
       </button>
       <div class="subs closed" id="subsAdm">
-        <a href="#rh" class="sub" data-view="rh" title="RH — vagas e recrutamento"><span class="ic" data-ic="ges"></span><span>RH — Vagas</span></a>
         <a href="#gestao" class="sub" data-view="gestao" title="Gestão — usuários, perfis e segurança"><span class="ic" data-ic="ges"></span><span>Gestão</span></a>
         <a href="#srv" class="sub" data-view="srv" title="Saúde do Servidor — CPU, memória, disco e serviços"><span class="ic" data-ic="srv"></span><span>Saúde do Servidor</span></a>
       </div>
@@ -1963,7 +1968,7 @@ function toggleMini(){
 }
 // grupos do menu (botão, submenu). Ordem = ordem visual da sidebar.
 const GRUPOS = [['grpCom','subsCom'],['grpFin','subsFin'],['grpCtr','subsCtr'],
-  ['grpOpe','subsOpe'],['grpFro','subsFro'],['grpSup','subsSup'],
+  ['grpOpe','subsOpe'],['grpFro','subsFro'],['grpSup','subsSup'],['grpRh','subsRh'],
   ['grpTv','subsTv'],['grpAdm','subsAdm']];
 function fecharGrupos(exceto){
   GRUPOS.forEach(([gid,sid])=>{
@@ -1996,10 +2001,10 @@ const VIEW_GROUP = {home:'',cop:'',
   veic:'Fro',veicf:'Fro',mprev:'Fro',comrast:'Fro',comb:'Fro',man:'Fro',mul:'Fro',
   oc:'Sup',
   tvfat:'Tv',tvope:'Tv',
-  rh:'Adm',gestao:'Adm',srv:'Adm'};
+  rh:'Rh',gestao:'Adm',srv:'Adm'};
 function syncGroups(v){
   const ativo = VIEW_GROUP[v];   // accordion: abre o grupo do view ativo, fecha os demais
-  ['Com','Fin','Ctr','Ope','Fro','Sup','Tv','Adm'].forEach(k=>{
+  ['Com','Fin','Ctr','Ope','Fro','Sup','Rh','Tv','Adm'].forEach(k=>{
     const btn=document.getElementById('grp'+k), subs=document.getElementById('subs'+k);
     if(!btn||!subs) return;
     const open = (k===ativo);
@@ -5780,7 +5785,7 @@ function podeVer(v){ return !!USER && ((v==='gestao'||v==='srv') ? USER.admin : 
 function primeiraTela(){ return USER ? (Object.keys(VIEWS).find(podeVer) || 'home') : 'home'; }
 function aplicarPermissoes(){
   document.querySelectorAll('nav a[data-view]').forEach(a=>{ a.style.display = podeVer(a.dataset.view) ? '' : 'none'; });
-  [['grpCom','subsCom'],['grpFin','subsFin'],['grpCtr','subsCtr'],['grpOpe','subsOpe'],['grpFro','subsFro'],['grpSup','subsSup'],['grpTv','subsTv'],['grpAdm','subsAdm']].forEach(([g,s])=>{
+  [['grpCom','subsCom'],['grpFin','subsFin'],['grpCtr','subsCtr'],['grpOpe','subsOpe'],['grpFro','subsFro'],['grpSup','subsSup'],['grpRh','subsRh'],['grpTv','subsTv'],['grpAdm','subsAdm']].forEach(([g,s])=>{
     const subs=document.getElementById(s); if(!subs) return;
     const tem=[...subs.querySelectorAll('a[data-view]')].some(a=>a.style.display!=='none');
     const btn=document.getElementById(g); if(btn) btn.style.display = tem ? '' : 'none';
@@ -6309,6 +6314,12 @@ boot();
         <a href="#oc" onclick="fecharDrawer()"><span class="ic" data-ic="oc"></span>Ordens de Compra</a>
       </div>
     </div>
+    <div class="dgrp" data-grp="Rh">
+      <button class="dgrp-h" onclick="toggleDGrp(this)"><span>Recursos Humanos</span><span class="dchev">›</span></button>
+      <div class="dgrp-b">
+        <a href="#rh" onclick="fecharDrawer()"><span class="ic" data-ic="ges"></span>Vagas</a>
+      </div>
+    </div>
     <div class="dgrp" data-grp="Tv">
       <button class="dgrp-h" onclick="toggleDGrp(this)"><span>Painéis TV</span><span class="dchev">›</span></button>
       <div class="dgrp-b">
@@ -6319,7 +6330,6 @@ boot();
     <div class="dgrp" data-grp="Adm">
       <button class="dgrp-h" onclick="toggleDGrp(this)"><span>Administração</span><span class="dchev">›</span></button>
       <div class="dgrp-b">
-        <a href="#rh" onclick="fecharDrawer()"><span class="ic" data-ic="ges"></span>RH — Vagas</a>
         <a href="#gestao" onclick="fecharDrawer()"><span class="ic" data-ic="ges"></span>Usuários e acesso</a>
         <a href="#srv" onclick="fecharDrawer()"><span class="ic" data-ic="srv"></span>Saúde do Servidor</a>
       </div>
