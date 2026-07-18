@@ -2,7 +2,7 @@
 <html lang="pt-BR">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Cortex Sulista</title>
 <link rel="icon" type="image/png" href="/static/favicon.png">
 <link rel="manifest" href="/static/manifest.json">
@@ -347,7 +347,7 @@ body.tvfull #sidebar,body.tvfull aside,body.tvfull .topbar,body.tvfull #topbar,b
 .tv-head h2{line-height:1}
 .tv-head .tv-logo{height:30px;display:none;flex-shrink:0}
 body.tvfull .tv-head .tv-logo{display:block}
-#view-tvope .tv-head .tv-logo{height:1.5vw}
+#view-tvope .tv-head .tv-logo{height:clamp(20px,1.5vw,30px)}
 .tv-head .tv-right{display:flex;align-items:center;gap:14px;justify-content:flex-end}
 .tv-head h2{font-size:30px;letter-spacing:.04em;margin:0;font-weight:800}
 .tv-head .tv-clock{font-size:30px;font-family:var(--mono);color:#F08A4B}
@@ -388,56 +388,71 @@ body.tvfull.tvwall #view-tvope .tv-ticker{flex-shrink:0;margin-top:0.55vw}
 .tvw .tv-card{border-radius:0.9vw;padding:1.1vw 1.3vw;display:flex;flex-direction:column;min-height:0;overflow:hidden}
 .tvw-kpis{display:grid;grid-template-columns:1fr 1fr;grid-auto-rows:1fr;gap:0.7vw;min-height:0}
 .tvw-kpis .tv-card{justify-content:center}
-.tvw .tv-label{font-size:0.8vw;letter-spacing:.08em}
-.tvw .tv-num{font-size:2.7vw;line-height:1.1}
-.tvw .tv-sub{font-size:0.8vw;margin-top:0.15vw}
+.tvw .tv-label{font-size:clamp(10px,0.8vw,15px);letter-spacing:.08em}
+.tvw .tv-num{font-size:clamp(22px,2.7vw,64px);line-height:1.1}
+.tvw .tv-sub{font-size:clamp(10px,0.8vw,15px);margin-top:0.15vw}
 .tvw-mapa{grid-row:1/3;grid-column:2;position:relative}
 #tvMapa{position:absolute;inset:0;border-radius:0.9vw;z-index:1}
 .tv-regiao{position:absolute;top:0.7vw;left:0.7vw;z-index:500;background:rgba(11,25,38,.85);color:#E5EDF4;
-  padding:0.35vw 0.9vw;border-radius:999px;font-size:0.8vw;font-weight:700;letter-spacing:.05em}
-.tv-vmk{color:#fff;font-weight:800;font-family:var(--mono);font-size:0.6vw;line-height:1;
+  padding:0.35vw 0.9vw;border-radius:999px;font-size:clamp(10px,0.8vw,15px);font-weight:700;letter-spacing:.05em}
+.tv-vmk{color:#fff;font-weight:800;font-family:var(--mono);font-size:clamp(9px,0.6vw,12px);line-height:1;
   padding:0.22vw 0.4vw;border-radius:0.35vw;border:0.12vw solid rgba(255,255,255,.9);
   box-shadow:0 0.15vw 0.5vw rgba(0,0,0,.55);white-space:nowrap;text-align:center;display:inline-block}
 .tv-vmk.alerta{border-color:#F87171;animation:tvPisca 1s infinite}
 @keyframes tvPisca{0%,100%{opacity:1;box-shadow:0 0 0 0 rgba(248,113,113,.75)}50%{opacity:.5;box-shadow:0 0 0 0.6vw rgba(248,113,113,0)}}
 body.tvfull .tv-head a{display:none}
 .tv-title{display:flex;align-items:center;justify-content:center;gap:1vw}
-.tv-farol{font-size:0.85vw;font-weight:800;padding:0.28vw 0.95vw;border-radius:999px;letter-spacing:.08em;white-space:nowrap}
+.tv-farol{font-size:clamp(11px,0.85vw,18px);font-weight:800;padding:0.28vw 0.95vw;border-radius:999px;letter-spacing:.08em;white-space:nowrap}
 .tv-farol.norm{background:#14532D;color:#BBF7D0}
 .tv-farol.aten{background:#78350F;color:#FDE68A}
 .tv-farol.crit{background:#7F1D1D;color:#FECACA;animation:tvPisca 1.1s infinite}
-.tv-beat{color:#8FA6BC;font-size:0.8vw;font-family:var(--mono);white-space:nowrap;display:inline-flex;align-items:center;gap:0.45vw}
+.tv-beat{color:#8FA6BC;font-size:clamp(10px,0.8vw,15px);font-family:var(--mono);white-space:nowrap;display:inline-flex;align-items:center;gap:0.45vw}
 .tv-beat i{width:0.55vw;height:0.55vw;border-radius:50%;background:#4ADE80;display:inline-block;animation:tvDot 2s infinite}
 @keyframes tvDot{0%{box-shadow:0 0 0 0 rgba(74,222,128,.55)}70%{box-shadow:0 0 0 0.55vw rgba(74,222,128,0)}100%{box-shadow:0 0 0 0 rgba(74,222,128,0)}}
-.tv-ticker{margin-top:0.55vw;background:#132A40;border-radius:0.6vw;overflow:hidden;height:2.4vw;display:flex;align-items:center}
-.tv-ticker-inner{display:inline-flex;gap:3.2vw;white-space:nowrap;font-size:1.05vw;color:#D7E1EA;will-change:transform}
+.tv-ticker{margin-top:0.55vw;background:#132A40;border-radius:0.6vw;overflow:hidden;height:clamp(24px,2.4vw,50px);display:flex;align-items:center}
+.tv-ticker-inner{display:inline-flex;gap:3.2vw;white-space:nowrap;font-size:clamp(12px,1.05vw,22px);color:#D7E1EA;will-change:transform}
 .tv-ticker-inner.anda{animation:tvTick linear infinite}
 @keyframes tvTick{0%{transform:translateX(0)}100%{transform:translateX(-50%)}}
 .tv-vmk.mov{animation:tvResp 2.8s infinite}
 @keyframes tvResp{0%,100%{box-shadow:0 0.15vw 0.5vw rgba(0,0,0,.55)}50%{box-shadow:0 0 1vw 0.2vw rgba(255,255,255,.4)}}
 .tvw-gauge{display:flex;align-items:center;justify-content:center;gap:0.9vw;margin-top:0.45vw;border-top:1px solid #1E3A54;padding-top:0.55vw}
-.tvw-gauge .glab{font-size:0.75vw;color:#8FA6BC;text-transform:uppercase;letter-spacing:.06em}
-.tvw-gauge .gtxt .gnum{font-size:1.7vw;font-weight:800}
+.tvw-gauge .glab{font-size:clamp(9px,0.75vw,14px);color:#8FA6BC;text-transform:uppercase;letter-spacing:.06em}
+.tvw-gauge .gtxt .gnum{font-size:clamp(16px,1.7vw,36px);font-weight:800}
 body.tvfull.tvmode, body.tvfull.tvmode *{cursor:none !important}
-.tvw .tv-tab{font-size:0.95vw}
-.tvw .tv-tab th{font-size:0.68vw;padding:0.28vw 0.55vw}
+.tvw .tv-tab{font-size:clamp(11px,0.95vw,18px)}
+.tvw .tv-tab th{font-size:clamp(9px,0.68vw,13px);padding:0.28vw 0.55vw}
 .tvw .tv-tab td{padding:0.4vw 0.55vw}
-.tvw .tv-badge{font-size:0.7vw;padding:0.14vw 0.65vw}
+.tvw .tv-badge{font-size:clamp(9px,0.7vw,13px);padding:0.14vw 0.65vw}
 .tvw-km{display:flex;flex-direction:column;gap:0.55vw;min-height:0;flex:1;justify-content:center}
 .tvw-km .duo{display:flex;gap:1vw}
 .tvw-km .duo>div{flex:1}
-.tvw-km .knum{font-size:1.8vw;font-weight:800;line-height:1.1;font-variant-numeric:tabular-nums}
-.tvw-km .klab{font-size:0.75vw;color:#8FA6BC;text-transform:uppercase;letter-spacing:.06em}
-.tvw-km .mod{display:flex;align-items:center;gap:0.55vw;font-size:0.9vw}
-.tvw-km .mod b{width:7.6vw;font-weight:600;color:#C7D4E0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.tvw-km .mod .trk{flex:1;height:0.95vw;background:#1E3A54;border-radius:0.5vw;overflow:hidden}
+.tvw-km .knum{font-size:clamp(16px,1.8vw,38px);font-weight:800;line-height:1.1;font-variant-numeric:tabular-nums}
+.tvw-km .klab{font-size:clamp(9px,0.75vw,14px);color:#8FA6BC;text-transform:uppercase;letter-spacing:.06em}
+.tvw-km .mod{display:flex;align-items:center;gap:0.55vw;font-size:clamp(10px,0.9vw,17px)}
+.tvw-km .mod b{width:clamp(56px,7.6vw,150px);flex-shrink:0;font-weight:600;color:#C7D4E0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.tvw-km .mod .trk{flex:1;height:clamp(4px,0.95vw,18px);background:#1E3A54;border-radius:0.5vw;overflow:hidden}
 .tvw-km .mod .trk i{display:block;height:100%;transition:width .9s cubic-bezier(.2,.6,.2,1)}
-.tvw-km .mod span{width:6.2vw;text-align:right;font-variant-numeric:tabular-nums;color:#A9BCCD;font-size:0.85vw}
+.tvw-km .mod span{width:clamp(48px,6.2vw,120px);flex-shrink:0;text-align:right;font-variant-numeric:tabular-nums;color:#A9BCCD;font-size:clamp(10px,0.85vw,16px)}
 #view-tvope .tv-head{margin-bottom:0.7vw}
-#view-tvope .tv-head h2{font-size:1.5vw}
-#view-tvope .tv-head .tv-clock{font-size:1.5vw}
-#view-tvope .tv-head .tv-next{font-size:1.5vw !important}
-#view-tvope .tv-head .tv-upd{font-size:0.8vw}
+#view-tvope .tv-head h2{font-size:clamp(16px,1.5vw,30px)}
+#view-tvope .tv-head .tv-clock{font-size:clamp(16px,1.5vw,30px)}
+#view-tvope .tv-head .tv-next{font-size:clamp(14px,1.5vw,30px) !important}
+#view-tvope .tv-head .tv-upd{font-size:clamp(10px,0.8vw,15px)}
+
+/* Painel TV Operação (tvope) no celular: sem viewport de parede, colapsa a
+   grade 3x2 para coluna única e o mapa deixa de exigir 2 linhas fixas (as
+   fontes em vw já viram clamp() acima, legíveis em qualquer largura). */
+@media(max-width:880px){
+  .tvw{grid-template-columns:1fr;grid-template-rows:none;height:auto;gap:12px}
+  .tvw-mapa{grid-row:auto;grid-column:auto;height:260px}
+  .tvmode .content{padding:12px}
+  /* PWA standalone num celular real não tem chrome de navegador, então
+     innerHeight===screen.height e tvChecaFull() marca "tvfull" mesmo sem
+     F11 — o seletor mais específico (mesma especificidade da regra
+     original, porém depois no cascade) evita o padding de parede (1vw
+     ~4px) espremendo a tela estreita. */
+  body.tvfull.tvwall .content{padding:12px}
+}
 
 /* ---- login / sessão ---- */
 #loginOverlay{position:fixed;inset:0;z-index:200;display:flex;align-items:center;justify-content:center;
@@ -496,8 +511,8 @@ button.avatar{border:0;cursor:pointer}
 
 /* ---- impressão / PDF ---- */
 @media print{
-  .sidebar,.topbar .filters,.bottomnav,.drawer,.drawer-bg,#btnRefresh,#btnPrint,
-  .cop-bar,.cop-chips,.hamb,.fab-filtros{display:none !important}
+  #sidebar,.filterbar,.btn-filtros,.bottomnav,.drawer,#btnRefresh,
+  .cop-bar,.cop-chips,.avwrap,.banner{display:none !important}
   body{background:#fff}
   .layout{display:block}
   .content{padding:0;margin:0;max-width:100%}
@@ -1120,7 +1135,7 @@ button.avatar{border:0;cursor:pointer}
           </tr></thead><tbody id="com-repre"></tbody></table></div>
         </div>
         <div class="card">
-          <div class="head"><h2>Meta × realizado do mês por cliente</h2><span class="hint">mês corrente (independe dos filtros) · maiores gaps primeiro · realizado = frete das viagens</span></div>
+          <div class="head"><h2>Meta × realizado do mês por cliente</h2><span class="hint">mês corrente (independe dos filtros) · maiores gaps primeiro · realizado = faturamento oficial (CT-e + NFS-e + KMM) de clientes vinculados ao agrupamento</span></div>
           <div class="tablewrap"><table><thead><tr>
             <th>Cliente</th><th class="num">Meta até hoje</th><th class="num">Realizado</th><th class="num">Atingimento</th><th class="num">Gap</th><th class="num">Meta do mês</th>
           </tr></thead><tbody id="com-metas"></tbody></table></div>
@@ -1592,7 +1607,7 @@ button.avatar{border:0;cursor:pointer}
             <div class="tablewrap" id="fi-cnh"></div></div>
         </div>
         <div class="grid2">
-          <div class="card"><div class="head"><h2>Hora extra</h2><span class="hint">custo mensal · 50% e 100%</span></div>
+          <div class="card"><div class="head"><h2>Hora extra</h2><span class="hint">custo mensal · mesma definição da tela Horas Extras</span></div>
             <div class="chartwrap"><svg id="chartHe" viewBox="0 0 960 260" preserveAspectRatio="xMidYMid meet" role="img"></svg></div>
             <div class="tablewrap" id="fi-he"></div></div>
           <div class="card"><div class="head"><h2>Banco de horas</h2><span class="hint">saldo por competência</span></div>
@@ -1702,7 +1717,7 @@ button.avatar{border:0;cursor:pointer}
               <input type="checkbox" id="torreSoViagem" onchange="torreMapa()"> só em viagem
             </label>
           </div>
-          <div id="mapaTorre" style="height:480px;border-radius:0 0 10px 10px;background:var(--navy-50)"></div>
+          <div id="mapaTorre" style="height:480px;border-radius:0 0 10px 10px;background:var(--navy-50);position:relative;z-index:1"></div>
           <div class="legend" style="padding-bottom:12px">
             <span class="k"><i class="sw" style="background:#17344F;border-radius:50%"></i>Frota</span>
             <span class="k"><i class="sw" style="background:#38648D;border-radius:50%"></i>Locação</span>
@@ -2289,6 +2304,14 @@ function qsView(k){
 }
 
 /* ---------------- Router (submenus) ---------------- */
+// Vistas sem filterbar global (busca própria, filtros locais ou snapshot
+// sem filtro) — fonte única para o filterbar e o botão "☰ Filtros" mobile,
+// que precisam concordar (botão visível abrindo uma barra escondida = bug).
+function semFilterbar(v){
+  return v==='cop'||v==='gestao'||v==='srv'||v==='home'||v==='veicf'||v==='clif'||v==='jorn'||v==='jornf'||
+         v==='cex'||v==='sac'||v==='mprev'||v==='comrast'||v==='qual'||v==='port'||v==='crm'||v==='rh'||
+         v==='hc'||v==='folha'||v==='folhaind'||v==='he'||v==='custos';
+}
 function currentView(){
   const h = (location.hash||'').replace('#','');
   let v = VIEWS[h] ? h : 'home';
@@ -2330,7 +2353,6 @@ function router(){
   document.getElementById('viewTitle').textContent = VIEWS[v];
   syncGroups(v);
   const dre = (v==='dre'), oc = (v==='oc'), agr = (v==='agr'), mvb = (v==='mvb'), comb = (v==='comb'), man = (v==='man'), com = (v==='com'), home = (v==='home'), kmv = (v==='km'), torre = (v==='torre'), veic = (v==='veic'), mul = (v==='mul'), prog = (v==='prog'), cop = (v==='cop'), cob = (v==='cob'), rent = (v==='rent'), contab = (v==='cont'), dreCli = (v==='drecli');
-  document.getElementById('filterbar').style.display = (home || v==='tvfat' || v==='tvope') ? 'none' : 'flex';
   // torre: só filial; auto-refresh de 120s enquanto ativa
   if(torreTimer){ clearInterval(torreTimer); torreTimer=null; }
   if(torre){ torreTimer=setInterval(()=>{ if(currentView()==='torre') loadTorre(); }, 120000); }
@@ -2347,10 +2369,10 @@ function router(){
   document.getElementById('grpCob').style.display = cob ? 'flex' : 'none';
   document.getElementById('grpRent').style.display = rent ? 'flex' : 'none';
   const ges = (v==='gestao');
-  const fbar=document.getElementById('filterbar'); if(fbar) fbar.style.display = (cop||ges||v==='srv'||v==='veicf'||v==='clif'||v==='jorn'||v==='jornf'||v==='cex'||v==='sac'||v==='mprev'||v==='comrast'||v==='qual'||v==='port'||v==='crm'||v==='rh'||v==='hc'||v==='folha'||v==='folhaind'||v==='he'||v==='custos'||v==='home') ? 'none' : '';
+  const fbar=document.getElementById('filterbar'); if(fbar) fbar.style.display = semFilterbar(v) ? 'none' : '';
   const metaEl=document.getElementById('meta'); if(metaEl) metaEl.style.display = (cop||ges||v==='srv'||v==='veicf'||v==='clif'||v==='jorn'||v==='jornf'||v==='cex'||v==='sac'||v==='mprev'||v==='comrast'||v==='qual'||v==='port'||v==='crm'||v==='rh'||v==='hc'||v==='folha'||v==='folhaind'||v==='he'||v==='custos') ? 'none' : '';
   // classe em vez de style: o CSS mobile usa !important no display
-  const bfil=document.getElementById('btnFiltros'); if(bfil){ bfil.classList.toggle('oculto', cop||ges||v==='srv'||v==='home'); bfil.style.display=''; }
+  const bfil=document.getElementById('btnFiltros'); if(bfil){ bfil.classList.toggle('oculto', semFilterbar(v)); bfil.style.display=''; }
   document.getElementById('grpKm').style.display = kmv ? 'flex' : 'none';
   document.getElementById('grpComFil').style.display = com ? 'flex' : 'none';
   document.getElementById('grpOc').style.display = oc ? 'flex' : 'none';
@@ -2360,8 +2382,6 @@ function router(){
   document.getElementById('grpVeic').style.display = veic ? 'flex' : 'none';
   document.getElementById('grpVenc').style.display = (dre||oc||agr||mvb||comb||man||com||kmv||torre||veic||mul||prog||cop||cob||rent||contab||dreCli) ? 'none' : 'flex';
   document.getElementById('fData').parentElement.style.display = (dre||oc||agr||mvb||comb||man||com||kmv||torre||veic||mul||prog||cop||cob||rent||contab||dreCli) ? 'none' : 'flex';
-  document.getElementById('fFilial').parentElement.style.display = (dre||mvb||comb||veic||mul||prog||cop||contab) ? 'none' : (document.getElementById('fFilial').parentElement.style.display);
-  // filial some onde a fonte não tem esse recorte (DRE/MvB consolidados; CTA Plus sem filial)
   const fFil = document.getElementById('fFilial');
   // Filial some onde a fonte não tem esse recorte OU a API não aceita o parâmetro
   // (DRE/MvB consolidados; Veículos/Multas/Programação/Contabilidade não filtram por filial).
@@ -2571,6 +2591,7 @@ const KPI_HELP = {
   'Mão de obra (quando informado)':'Campo de mão de obra da OS — pouco preenchido no AVA.',
   'OSs abertas':'Ordens de serviço sem data de fechamento.',
   'Receita CT-e no mês':'Valor de frete das viagens carregadas emitidas no mês corrente.',
+  'Atingimento da meta':'Realizado acumulado no mês (soma oficial: CT-e + NFS-e + KMM, por emissão) ÷ meta acumulada até hoje. Número diferente de "Faturamento do mês" (faturas emitidas, contas a receber) e de "Receita CT-e no mês" (frete das viagens carregadas) — são 3 recortes distintos de receita, não a mesma coisa com valores conflitantes.',
   'Frete contratado no mês':'Compra de frete de agregados/terceiros no mês corrente.',
   'OCs atrasadas (12m)':'OCs dos últimos 12 meses com entrega pendente e previsão vencida.',
   'Combustível próprio no mês':'Diesel/combustível da frota própria no mês corrente (CTA Plus).',
@@ -3171,7 +3192,7 @@ function renderHome(d){
   document.getElementById('kpis-home-caixa').innerHTML=[
     kpiLink('Saldo em caixa', BRL.format(d.saldo_atual), 'bancos + caixa · '+(d.saldo_data?fmtD(d.saldo_data):''), d.saldo_atual>=0?'pos':'neg', '#fluxo'),
     kpiLink('Gap de caixa', d.gap_mes==null?'—':(d.gap_mes==='agora'?'agora':periodoLabel(d.gap_mes)), gapTxt, d.gap_mes!=null?'neg':'pos', '#fluxo'),
-    kpiLink('Faturamento do mês', BRL.format(d.faturamento_mes), 'média 6m: '+BRL.format(d.faturamento_medio_6m), d.faturamento_mes>=d.faturamento_medio_6m*0.5?'':'neg', '#com'),
+    kpiLink('Faturamento do mês', BRL.format(d.faturamento_mes), 'média 6m: '+BRL.format(d.faturamento_medio_6m), d.faturamento_mes>=d.faturamento_medio_6m*0.5?'':'neg', '#receber'),
     kpiLink('Atingimento da meta', d.atingimento_mes!=null?(100*d.atingimento_mes).toLocaleString('pt-BR',{maximumFractionDigits:0})+'%':'—', BRL.format(d.realizado_acumulado)+' de '+BRL.format(d.meta_acumulada)+' até hoje', (d.atingimento_mes||0)>=1?'pos':((d.atingimento_mes||0)<0.85?'neg':''), '#com'),
   ].join('');
   document.getElementById('kpis-home-fin').innerHTML=[
@@ -4356,7 +4377,7 @@ function renderVeicf(d){
     kpi('Km vazio (30d)', (k.km_vazio||0).toLocaleString('pt-BR',{maximumFractionDigits:0})+' km', (k.pct_vazio||0).toFixed(0)+'% do total', (k.pct_vazio||0)>20?'neg':''),
   ].join('')+`</div>`;
   h+=`<div class="card"><div class="head"><h2>Posição atual</h2><span class="hint">${pos?('atualizada '+esc(pos.posicao_em)+' · '+pos.velocidade+' km/h'+(pos.recente?'':' · sinal antigo')):'sem posição recente'}</span></div>
-    <div id="veicf-mapa" style="height:340px;margin:0 14px 14px;border-radius:12px;overflow:hidden;background:var(--n100)">${pos?'':'<div style="padding:24px;color:var(--n500)">Sem posição de rastreamento para este veículo.</div>'}</div></div>`;
+    <div id="veicf-mapa" style="height:340px;margin:0 14px 14px;border-radius:12px;overflow:hidden;background:var(--n100);position:relative;z-index:1">${pos?'':'<div style="padding:24px;color:var(--n500)">Sem posição de rastreamento para este veículo.</div>'}</div></div>`;
   h+=`<div class="kpis">`+[
     kpi('Combustível (30d)', BRL.format(cb.custo||0), (cb.km_l!=null?fmtKmL(cb.km_l):'—')+' · '+(cb.litros||0).toLocaleString('pt-BR',{maximumFractionDigits:0})+' L',''),
     kpi('Manutenção (30d)', BRL.format(mn.custo_30d||0), (mn.abertas||0)+' OS aberta(s)'+(mn.abertas?(' · '+BRL.format(mn.abertas_valor||0)):''), mn.abertas>0?'neg':''),
@@ -6384,6 +6405,22 @@ async function setupSubmit(){
 }
 function entrar(){
   document.getElementById('loginOverlay').classList.add('oculto');
+  // Default único de período ANTES da 1ª vista carregar: fEmiDe/fEmiAte e
+  // fCompDe/fCompAte são compartilhados por várias vistas, cada uma com um
+  // default distinto no backend (90d x 365d; ano corrente x 12m fechados) —
+  // sem isso, a vista que carregasse primeiro "vazava" seu período pras
+  // demais. Usa o default majoritário (90d / ano corrente até o mês atual).
+  const emiDe=document.getElementById('fEmiDe'), emiAte=document.getElementById('fEmiAte');
+  if(emiDe && !emiDe.value){
+    const hj=new Date(), d90=new Date(hj); d90.setDate(d90.getDate()-90);
+    emiDe.value=iso(d90); if(emiAte && !emiAte.value) emiAte.value=iso(hj);
+  }
+  const compDe=document.getElementById('fCompDe'), compAte=document.getElementById('fCompAte');
+  if(compDe && !compDe.value){
+    const hj=new Date();
+    compDe.value=`${hj.getFullYear()}-01`;
+    if(compAte && !compAte.value) compAte.value=`${hj.getFullYear()}-${String(hj.getMonth()+1).padStart(2,'0')}`;
+  }
   aplicarPermissoes(); avatarRender();
   if(!podeVer(currentView())) location.hash = '#'+primeiraTela();
   router();
