@@ -246,3 +246,128 @@ def get_folha_indicadores() -> dict:
         "fonte": ("GLOBUS · VW_FERIAS + FLP_DOCUMENTOS (CNH) + FLP_FICHAEVENTOS (HE) + "
                   "FRQ_BANCOHORAS · agregado, sem PII · leitura"),
     }
+
+
+# ============================================================================
+# Horas extras — composição por evento, famílias, série 12m e por área
+# ============================================================================
+# Eventos que compõem a hora extra (proventos; exclui FGTS/base, DSR de
+# comissão e descontos). Famílias: HE 50/100 diurna, HE noturna, adicional
+# noturno e DSR/reflexos.
+_HE_WHERE = (
+    "ff.tipofolha='1' AND fe.tipoeven='P' "
+    "AND UPPER(fe.desceven) NOT LIKE '%COMISSAO%' AND ("
+    "UPPER(fe.desceven) LIKE 'H.E%' OR UPPER(fe.desceven) LIKE 'HORAS EXTRA%' "
+    "OR UPPER(fe.desceven) LIKE 'HORA EXTRA%' OR UPPER(fe.desceven) LIKE 'DIF%HORA%EXTRA%' "
+    "OR UPPER(fe.desceven) LIKE '%ADICIONAL NOT%' OR UPPER(fe.desceven) LIKE '%ADIC NOTURNO%' "
+    "OR UPPER(fe.desceven) LIKE '%ADIC. NOTURNO%' OR UPPER(fe.desceven) LIKE 'DIFERENCA ADIC NOT%' "
+    "OR (UPPER(fe.desceven) LIKE 'DSR%' AND (UPPER(fe.desceven) LIKE '%EXTRA%' "
+    "OR UPPER(fe.desceven) LIKE '%ADIC%NOT%')))"
+)
+_HE_J = ("FROM flp_fichaeventos ff "
+         "JOIN flp_eventos fe ON ff.codevento = fe.codevento "
+         "JOIN flp_funcionarios fu ON fu.codintfunc = ff.codintfunc AND fu.codigoempresa = :emp")
+
+_HE_FAM_COD = {"HE 50% (diurna)": "he50", "HE 100% (diurna)": "he100",
+               "HE noturna": "noturna", "Adicional noturno": "adic", "DSR / reflexos": "dsr"}
+_HE_FAM_ORDEM = ["HE 50% (diurna)", "HE 100% (diurna)", "HE noturna",
+                 "Adicional noturno", "DSR / reflexos"]
+
+
+def _he_familia(desc: str) -> str:
+    u = (desc or "").upper()
+    if u.startswith("DSR"):
+        return "DSR / reflexos"
+    if "ADIC" in u and "EXTRA" not in u:
+        return "Adicional noturno"
+    if "NOT" in u:
+        return "HE noturna"
+    if "100" in u:
+        return "HE 100% (diurna)"
+    return "HE 50% (diurna)"
+
+
+def get_horas_extras(comp: str | None = None) -> dict:
+    p = {"emp": EMPRESA}
+    comps = _q("""SELECT DISTINCT TO_CHAR(competficha,'YYYY-MM') c FROM vw_fichafinaneventos
+                  WHERE codigoempresa=:emp AND competficha < TRUNC(SYSDATE,'MM')
+                    AND competficha >= ADD_MONTHS(TRUNC(SYSDATE,'MM'),-13)
+                  ORDER BY 1 DESC""", p)
+    comps_l = [c["c"] for c in comps]
+    if not comp or comp not in comps_l:
+        comp = comps_l[0] if comps_l else None
+    p["comp"] = comp
+
+    # eventos na competência
+    ev_rows = _q(f"""SELECT fe.desceven ev, ROUND(SUM(ff.valorficha),2) tot,
+                        COUNT(DISTINCT ff.codintfunc) funcs
+                     {_HE_J}
+                     WHERE {_HE_WHERE} AND TO_CHAR(ff.competficha,'YYYY-MM')=:comp
+                     GROUP BY fe.desceven ORDER BY 2 DESC NULLS LAST""", p)
+    total_mes = round(sum((r["tot"] or 0.0) for r in ev_rows), 2)
+    eventos = [{"ev": r["ev"], "familia": _he_familia(r["ev"]), "tot": r["tot"] or 0.0,
+                "funcs": r["funcs"],
+                "pct": round(100 * (r["tot"] or 0.0) / total_mes, 1) if total_mes else 0.0}
+               for r in ev_rows]
+    funcs_mes = _q(f"""SELECT COUNT(DISTINCT ff.codintfunc) n {_HE_J}
+                       WHERE {_HE_WHERE} AND TO_CHAR(ff.competficha,'YYYY-MM')=:comp""", p)[0]["n"]
+
+    # famílias agregadas na competência
+    fam_map: dict = {}
+    for e in eventos:
+        fam_map[e["familia"]] = fam_map.get(e["familia"], 0.0) + e["tot"]
+    familias = [{"familia": f, "cod": _HE_FAM_COD[f], "tot": round(fam_map.get(f, 0.0), 2)}
+                for f in _HE_FAM_ORDEM if fam_map.get(f)]
+
+    # horas extras "puras" (referência = horas dos eventos H.E) no mês
+    horas = _q(f"""SELECT ROUND(SUM(ff.referencia),1) h {_HE_J}
+                   WHERE {_HE_WHERE} AND TO_CHAR(ff.competficha,'YYYY-MM')=:comp
+                     AND (UPPER(fe.desceven) LIKE 'H.E%' OR UPPER(fe.desceven) LIKE 'HORAS EXTRA%')""", p)
+    horas_mes = (horas[0]["h"] or 0.0) if horas else 0.0
+
+    # proventos totais da competência (para % da folha)
+    prov = _q("""SELECT ROUND(SUM(valorficha),2) tot FROM vw_fichafinaneventos
+                 WHERE codigoempresa=:emp AND tipoeven='P' AND TO_CHAR(competficha,'YYYY-MM')=:comp""", p)
+    prov_mes = (prov[0]["tot"] or 0.0) if prov else 0.0
+
+    # série 12m por competência × evento → agrega família (código) no Python
+    serie_rows = _q(f"""SELECT TO_CHAR(ff.competficha,'YYYY-MM') comp, fe.desceven ev,
+                            ROUND(SUM(ff.valorficha),2) tot
+                        {_HE_J}
+                        WHERE {_HE_WHERE} AND ff.competficha >= ADD_MONTHS(TRUNC(SYSDATE,'MM'),-12)
+                        GROUP BY TO_CHAR(ff.competficha,'YYYY-MM'), fe.desceven""", p)
+    serie_map: dict = {}
+    for r in serie_rows:
+        d = serie_map.setdefault(r["comp"], {"comp": r["comp"], "he50": 0.0, "he100": 0.0,
+                                             "noturna": 0.0, "adic": 0.0, "dsr": 0.0, "total": 0.0})
+        cod = _HE_FAM_COD[_he_familia(r["ev"])]
+        d[cod] += (r["tot"] or 0.0)
+        d["total"] += (r["tot"] or 0.0)
+    serie = [{k: (round(v, 2) if isinstance(v, float) else v) for k, v in s.items()}
+             for s in sorted(serie_map.values(), key=lambda x: x["comp"])]
+    total_12m = round(sum(s["total"] for s in serie), 2)
+
+    # por área na competência
+    area_rows = _q(f"""SELECT COALESCE(fu.descarea,'(sem area)') area,
+                          ROUND(SUM(ff.valorficha),2) tot, COUNT(DISTINCT ff.codintfunc) funcs
+                       {_HE_J}
+                       WHERE {_HE_WHERE} AND TO_CHAR(ff.competficha,'YYYY-MM')=:comp
+                       GROUP BY COALESCE(fu.descarea,'(sem area)') ORDER BY 2 DESC NULLS LAST
+                       FETCH FIRST 14 ROWS ONLY""", p)
+    por_area = [{"area": r["area"], "tot": r["tot"] or 0.0, "funcs": r["funcs"]} for r in area_rows]
+
+    return {
+        "competencia": comp,
+        "competencias": comps_l,
+        "kpis": {
+            "total_mes": total_mes, "total_12m": total_12m, "funcs_mes": funcs_mes,
+            "media_func": round(total_mes / funcs_mes, 2) if funcs_mes else 0.0,
+            "pct_proventos": round(100 * total_mes / prov_mes, 1) if prov_mes else 0.0,
+            "horas_mes": horas_mes,
+        },
+        "eventos": eventos,
+        "familias": familias,
+        "serie": serie,
+        "por_area": por_area,
+        "fonte": "ERP GLOBUS - folha (agregado, sem PII)",
+    }
