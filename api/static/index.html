@@ -558,6 +558,7 @@ button.avatar{border:0;cursor:pointer}
         <a href="#torre" class="sub" data-view="torre" title="Torre de Controle"><span class="ic" data-ic="tor"></span><span>Torre de Controle</span></a>
         <a href="#prog" class="sub" data-view="prog" title="Programação Inteligente"><span class="ic" data-ic="prog"></span><span>Programação Intel.</span></a>
         <a href="#jorn" class="sub" data-view="jorn" title="Jornada do Motorista (Lei 13.103)"><span class="ic" data-ic="tor"></span><span>Jornada do Motorista</span></a>
+        <a href="#cex" class="sub" data-view="cex" title="Custos Extras por CT-e"><span class="ic" data-ic="oc"></span><span>Custos Extras</span></a>
         <a href="#km" class="sub" data-view="km" title="Análise de KM"><span class="ic" data-ic="kmv"></span><span>Análise de KM</span></a>
         <a href="#agr" class="sub" data-view="agr" title="Agregados e Terceiros"><span class="ic" data-ic="agr"></span><span>Agregados e Terceiros</span></a>
         <a href="#mvb" class="sub" data-view="mvb" title="Make vs Buy"><span class="ic" data-ic="mvb"></span><span>Make vs Buy</span></a>
@@ -1384,6 +1385,28 @@ button.avatar{border:0;cursor:pointer}
       <section class="view" id="view-jornf">
         <div id="jornf-conteudo"></div>
       </section>
+      <section class="view" id="view-cex">
+        <div class="card">
+          <div class="head"><h2>Custos Extras</h2><span class="hint">acessórios por CT-e (descarga, estadia, diária, ajudante, escolta…) · status de cobrança</span></div>
+          <div style="padding:0 16px 14px;display:flex;gap:10px;flex-wrap:wrap;align-items:center">
+            <input type="date" id="fCexDe" style="font-size:15px;padding:9px 10px;border:1px solid var(--n200,#E4E7EB);border-radius:10px">
+            <span style="color:var(--n500)">até</span>
+            <input type="date" id="fCexAte" style="font-size:15px;padding:9px 10px;border:1px solid var(--n200,#E4E7EB);border-radius:10px">
+            <button class="btn" onclick="loadCex()">Atualizar</button>
+          </div>
+        </div>
+        <div class="kpis" id="kpis-cex"></div>
+        <div class="grid2">
+          <div class="card"><div class="head"><h2>Por tipo de custo</h2><span class="hint">no período</span></div>
+            <div class="tablewrap" id="cex-tipo"></div></div>
+          <div class="card"><div class="head"><h2>Por status de cobrança</h2><span class="hint">no período</span></div>
+            <div class="tablewrap" id="cex-status"></div></div>
+        </div>
+        <div class="card">
+          <div class="head"><h2>Lançamentos</h2><span class="hint">mais recentes · até 200</span></div>
+          <div class="tablewrap" id="cex-lista"></div>
+        </div>
+      </section>
       <section class="view" id="view-mul">
         <div class="kpis" id="kpis-mul"></div>
         <div class="card">
@@ -1741,7 +1764,7 @@ const FAIXAS = {
   '4_vencido_91_365':['Vencido 91–365d','b-dang'],
   '5_vencido_mais_365':['Vencido > 365d','b-dang'],
 };
-const VIEWS = { home:'Visão Geral', fluxo:'Fluxo de Caixa e Bancos', receber:'Contas a Receber', pagar:'Contas a Pagar', oc:'Ordens de Compra', agr:'Agregados e Terceiros', mvb:'Make vs Buy', comb:'Combustível', man:'Manutenção', com:'Clientes e RKM', clif:'Consulta de Cliente', km:'Análise de KM', torre:'Torre de Controle', veic:'Veículos', veicf:'Consulta de Veículo', mul:'Multas', prog:'Programação Inteligente', jorn:'Jornada do Motorista', jornf:'Ficha de Jornada', cop:'Copiloto Cortex', cob:'Régua de Cobrança', cont:'Contabilidade', dre:'DRE Gerencial', drecli:'DRE por Cliente', tvfat:'Painel TV — Faturamento', tvope:'Painel TV — Operação', gestao:'Gestão', srv:'Saúde do Servidor' };
+const VIEWS = { home:'Visão Geral', fluxo:'Fluxo de Caixa e Bancos', receber:'Contas a Receber', pagar:'Contas a Pagar', oc:'Ordens de Compra', agr:'Agregados e Terceiros', mvb:'Make vs Buy', comb:'Combustível', man:'Manutenção', com:'Clientes e RKM', clif:'Consulta de Cliente', km:'Análise de KM', torre:'Torre de Controle', veic:'Veículos', veicf:'Consulta de Veículo', mul:'Multas', prog:'Programação Inteligente', jorn:'Jornada do Motorista', jornf:'Ficha de Jornada', cex:'Custos Extras', cop:'Copiloto Cortex', cob:'Régua de Cobrança', cont:'Contabilidade', dre:'DRE Gerencial', drecli:'DRE por Cliente', tvfat:'Painel TV — Faturamento', tvope:'Painel TV — Operação', gestao:'Gestão', srv:'Saúde do Servidor' };
 const periodoLabel = p => { if(p==='atrasado') return 'Atrasado'; const [y,m]=p.split('-'); return MES[+m-1]+'/'+y.slice(2); };
 const fmtD = s => { if(!s) return ''; const [y,m,dd]=s.split('-'); return dd+'/'+m+'/'+y; };
 const esc  = s => (s??'').toString().replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
@@ -1774,6 +1797,8 @@ let jornfSeq = 0;
 let DATAJORN = null;
 let DATAJORNF = null;
 let jornCtx = {token:'', nome:''};   // motorista selecionado p/ a ficha
+let cexSeq = 0;
+let DATACEX = null;
 let ocSeq = 0;
 let agrSeq = 0;
 let mvbSeq = 0;
@@ -1860,7 +1885,7 @@ const VIEW_GROUP = {home:'',cop:'',
   com:'Com',clif:'Com',rent:'Com',drecli:'Com',
   fluxo:'Fin',receber:'Fin',pagar:'Fin',cob:'Fin',
   dre:'Ctr',cont:'Ctr',
-  torre:'Ope',prog:'Ope',jorn:'Ope',jornf:'Ope',km:'Ope',agr:'Ope',mvb:'Ope',
+  torre:'Ope',prog:'Ope',jorn:'Ope',jornf:'Ope',cex:'Ope',km:'Ope',agr:'Ope',mvb:'Ope',
   veic:'Fro',veicf:'Fro',comb:'Fro',man:'Fro',mul:'Fro',
   oc:'Sup',
   tvfat:'Tv',tvope:'Tv',
@@ -1952,6 +1977,9 @@ function qsView(k){
     if(jornCtx.token)p.set('id',jornCtx.token);
     if(V('fJornDe'))p.set('comp_de',V('fJornDe'));
     if(V('fJornAte'))p.set('comp_ate',V('fJornAte'));
+  } else if(k==='cex'){
+    if(V('fCexDe'))p.set('dt_de',V('fCexDe'));
+    if(V('fCexAte'))p.set('dt_ate',V('fCexAte'));
   } else if(k==='cop'){
   } else if(k==='prog'){
   } else if(k==='torre'){
@@ -2022,8 +2050,8 @@ function router(){
   document.getElementById('grpCob').style.display = cob ? 'flex' : 'none';
   document.getElementById('grpRent').style.display = rent ? 'flex' : 'none';
   const ges = (v==='gestao');
-  const fbar=document.getElementById('filterbar'); if(fbar) fbar.style.display = (cop||ges||v==='srv'||v==='veicf'||v==='clif'||v==='jorn'||v==='jornf'||v==='home') ? 'none' : '';
-  const metaEl=document.getElementById('meta'); if(metaEl) metaEl.style.display = (cop||ges||v==='srv'||v==='veicf'||v==='clif'||v==='jorn'||v==='jornf') ? 'none' : '';
+  const fbar=document.getElementById('filterbar'); if(fbar) fbar.style.display = (cop||ges||v==='srv'||v==='veicf'||v==='clif'||v==='jorn'||v==='jornf'||v==='cex'||v==='home') ? 'none' : '';
+  const metaEl=document.getElementById('meta'); if(metaEl) metaEl.style.display = (cop||ges||v==='srv'||v==='veicf'||v==='clif'||v==='jorn'||v==='jornf'||v==='cex') ? 'none' : '';
   // classe em vez de style: o CSS mobile usa !important no display
   const bfil=document.getElementById('btnFiltros'); if(bfil){ bfil.classList.toggle('oculto', cop||ges||v==='srv'||v==='home'); bfil.style.display=''; }
   document.getElementById('grpKm').style.display = kmv ? 'flex' : 'none';
@@ -2044,8 +2072,8 @@ function router(){
   // carga da vista: dispara se não há dados OU se os filtros visíveis
   // divergem dos usados na última carga (nunca mostrar dado velho com filtro novo)
   const key=viewKey(v);
-  const DATAMAP={fin:DATA,oc:DATAOC,agr:DATAAGR,mvb:DATAMVB,comb:DATACOMB,man:DATAMAN,com:DATACOM,clif:DATACLIF,dre:DATADRE,drecli:DATADRECLI,home:DATAHOME,km:DATAKM,torre:DATATORRE,veic:DATAVEIC,veicf:DATAVEICF,mul:DATAMUL,prog:DATAPROG,jorn:DATAJORN,jornf:DATAJORNF,cob:DATACOB,rent:DATARENT,cont:DATACONT,gestao:DATAGES,srv:DATASRV,tvfat:null,tvope:null,cop:(COP_MSGS.length?{}:null)};
-  const LOADMAP={fin:load,oc:loadOc,agr:loadAgr,mvb:loadMvb,comb:loadComb,man:loadMan,com:loadCom,clif:loadClif,dre:loadDre,drecli:loadDreCli,home:loadHome,km:loadKm,torre:loadTorre,veic:loadVeic,veicf:loadVeicf,mul:loadMul,prog:loadProg,jorn:loadJorn,jornf:loadJornf,cob:loadCob,rent:loadRent,cont:loadCont,gestao:loadGestao,srv:loadSrv,cop:loadCop,tvfat:loadTvFat,tvope:loadTvOpe};
+  const DATAMAP={fin:DATA,oc:DATAOC,agr:DATAAGR,mvb:DATAMVB,comb:DATACOMB,man:DATAMAN,com:DATACOM,clif:DATACLIF,dre:DATADRE,drecli:DATADRECLI,home:DATAHOME,km:DATAKM,torre:DATATORRE,veic:DATAVEIC,veicf:DATAVEICF,mul:DATAMUL,prog:DATAPROG,jorn:DATAJORN,jornf:DATAJORNF,cex:DATACEX,cob:DATACOB,rent:DATARENT,cont:DATACONT,gestao:DATAGES,srv:DATASRV,tvfat:null,tvope:null,cop:(COP_MSGS.length?{}:null)};
+  const LOADMAP={fin:load,oc:loadOc,agr:loadAgr,mvb:loadMvb,comb:loadComb,man:loadMan,com:loadCom,clif:loadClif,dre:loadDre,drecli:loadDreCli,home:loadHome,km:loadKm,torre:loadTorre,veic:loadVeic,veicf:loadVeicf,mul:loadMul,prog:loadProg,jorn:loadJorn,jornf:loadJornf,cex:loadCex,cob:loadCob,rent:loadRent,cont:loadCont,gestao:loadGestao,srv:loadSrv,cop:loadCop,tvfat:loadTvFat,tvope:loadTvOpe};
   if(!DATAMAP[key] || (key!=='home' && LOADEDQS[key]!==qsView(key))) LOADMAP[key]();
   // mobile: estado da navegação inferior + fecha gaveta/painel de filtros
   document.querySelectorAll('.bottomnav [data-bview]').forEach(a=>a.classList.toggle('ativo', a.dataset.bview===v));
@@ -2692,7 +2720,7 @@ function reloadCurrent(){
   // recarrega a TELA ATUAL — antes caía em load() (Financeiro) para várias telas.
   const M={home:loadHome,fluxo:load,receber:load,pagar:load,dre:loadDre,drecli:loadDreCli,oc:loadOc,
     agr:loadAgr,mvb:loadMvb,comb:loadComb,man:loadMan,com:loadCom,clif:loadClif,km:loadKm,
-    torre:loadTorre,veic:loadVeic,veicf:loadVeicf,mul:loadMul,prog:loadProg,jorn:loadJorn,jornf:loadJornf,cob:loadCob,rent:loadRent,
+    torre:loadTorre,veic:loadVeic,veicf:loadVeicf,mul:loadMul,prog:loadProg,jorn:loadJorn,jornf:loadJornf,cex:loadCex,cob:loadCob,rent:loadRent,
     cont:loadCont,gestao:loadGestao,srv:loadSrv,cop:loadCop,tvfat:loadTvFat,tvope:loadTvOpe};
   (M[currentView()]||load)();
 }
@@ -4221,6 +4249,47 @@ function renderJornf(d){
   h+=`<div class="card"><div class="head"><h2>Jornadas do período</h2><span class="hint">mais recentes primeiro · até 90</span></div>
     <div class="tablewrap"><table><thead><tr><th>Início</th><th class="num">Direção</th><th class="num">Jornada</th><th class="num">Descanso</th><th class="num">Repouso</th><th>Violações</th></tr></thead><tbody>${jr}</tbody></table></div></div>`;
   cont.innerHTML=h;
+}
+// ---------------- Custos Extras ----------------
+function cexDefaults(){
+  const hoje=new Date(), yyyy=hoje.getFullYear();
+  const de=document.getElementById('fCexDe'), ate=document.getElementById('fCexAte');
+  if(de && !de.value) de.value=yyyy+'-01-01';
+  if(ate && !ate.value) ate.value=hoje.toISOString().slice(0,10);
+}
+async function loadCex(){
+  cexDefaults();
+  const seq=++cexSeq, btn=document.getElementById('btnRefresh'); if(btn) btn.disabled=true;
+  document.getElementById('content').classList.add('loading');
+  skelKpis('kpis-cex',4);
+  try{
+    const q=qsView('cex');
+    const r=await fetch('/api/operacao/custos-extras?'+q,{cache:'no-store'});
+    const d=await r.json(); if(seq!==cexSeq) return;
+    if(!r.ok){ showBanner(d.mensagem||'Erro ao consultar os custos extras.', d.detalhe); return; }
+    hideBanner(); DATACEX=d; LOADEDQS.cex=q; renderCex(d);
+  }catch(e){ if(seq===cexSeq) showBanner('Não foi possível falar com a API.', e.message); }
+  finally{ if(seq===cexSeq){ if(btn) btn.disabled=false; document.getElementById('content').classList.remove('loading'); } }
+}
+function renderCex(d){
+  const k=d.kpis||{};
+  document.getElementById('kpis-cex').innerHTML=[
+    kpi('Custo total', BRL.format(k.total_custo||0), (k.n||0)+' lançamentos no período',''),
+    kpi('Cobrado', BRL.format(k.total_cobrado||0), (k.pct_cobrado||0).toFixed(0)+'% do custo repassado', (k.total_cobrado||0)>=(k.total_custo||0)?'pos':''),
+    kpi('A cobrar', BRL.format(k.a_cobrar||0), 'aguardando/não cobrado — receita a recuperar', (k.a_cobrar||0)>0?'neg':'pos'),
+    kpi('Lançamentos', (k.n||0).toLocaleString('pt-BR'), 'no período',''),
+  ].join('');
+  const tp=(d.por_tipo||[]).map(t=>`<tr><td>${esc(t.tipo)}</td><td class="num">${t.n}</td><td class="num">${BRL.format(t.custo)}</td><td class="num">${BRL.format(t.cobrado)}</td></tr>`).join('')||'<tr><td colspan="4" style="color:var(--n500)">sem custos no período</td></tr>';
+  document.getElementById('cex-tipo').innerHTML=`<table><thead><tr><th>Tipo</th><th class="num">Qtd</th><th class="num">Custo</th><th class="num">Cobrado</th></tr></thead><tbody>${tp}</tbody></table>`;
+  const ps=(d.por_status||[]).map(s=>`<tr><td>${esc(s.status)}</td><td class="num">${s.n}</td><td class="num">${BRL.format(s.custo)}</td><td class="num">${BRL.format(s.cobrado)}</td></tr>`).join('')||'<tr><td colspan="4" style="color:var(--n500)">—</td></tr>';
+  document.getElementById('cex-status').innerHTML=`<table><thead><tr><th>Status</th><th class="num">Qtd</th><th class="num">Custo</th><th class="num">Cobrado</th></tr></thead><tbody>${ps}</tbody></table>`;
+  const badge=s=>s==='Emitido'?'b-ok':(s==='Aguardando Cobrança'?'b-warn':(s==='Não Cobrado'?'b-dang':''));
+  const ll=(d.lancamentos||[]).map(l=>`<tr>
+    <td>${esc(l.data)}</td><td class="num">${l.cte||'—'}</td><td>${esc(l.cliente)}</td>
+    <td>${esc(l.tipo)}</td><td><span class="badge ${badge(l.status)}">${esc(l.status)}</span></td>
+    <td class="num">${BRL.format(l.custo)}</td><td class="num">${BRL.format(l.cobrado)}</td>
+    <td>${esc(l.usuario||'')}</td></tr>`).join('')||'<tr><td colspan="8" style="color:var(--n500)">sem lançamentos no período</td></tr>';
+  document.getElementById('cex-lista').innerHTML=`<table><thead><tr><th>Data</th><th class="num">CT-e</th><th>Cliente</th><th>Tipo</th><th>Status</th><th class="num">Custo</th><th class="num">Cobrado</th><th>Usuário</th></tr></thead><tbody>${ll}</tbody></table>`;
 }
 async function loadTorre(){
   skelKpis('kpis-torre',4);
@@ -5898,6 +5967,7 @@ boot();
         <a href="#torre" onclick="fecharDrawer()"><span class="ic" data-ic="tor"></span>Torre de Controle</a>
         <a href="#prog" onclick="fecharDrawer()"><span class="ic" data-ic="prog"></span>Programação Intel.</a>
         <a href="#jorn" onclick="fecharDrawer()"><span class="ic" data-ic="tor"></span>Jornada do Motorista</a>
+        <a href="#cex" onclick="fecharDrawer()"><span class="ic" data-ic="oc"></span>Custos Extras</a>
         <a href="#km" onclick="fecharDrawer()"><span class="ic" data-ic="kmv"></span>Análise de KM</a>
         <a href="#agr" onclick="fecharDrawer()"><span class="ic" data-ic="agr"></span>Agregados e Terceiros</a>
         <a href="#mvb" onclick="fecharDrawer()"><span class="ic" data-ic="mvb"></span>Make vs Buy</a>
