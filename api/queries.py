@@ -1699,7 +1699,7 @@ SELECT
      WHERE p.dtcancelamento IS NULL AND p.semaforo = 1 AND p.numero < 1000000
        AND p.dtemissao >= date_trunc('month', current_date))                     AS frete_contratado_mes,
   (SELECT coalesce(sum(a.custo),0)::float8 FROM sulista.ctaplus_abastecimentos a
-     JOIN veiculo v ON v.placa = a.veiculo_placa AND coalesce(v.utilizacaoveiculo,'') NOT IN ('AGR','TER')
+     JOIN veiculo v ON v.placa = a.veiculo_placa AND coalesce(v.utilizacaoveiculo,'') IN ('TRA','LOC')
      WHERE a.data_inicio_abastecimento >= date_trunc('month', current_date))     AS combustivel_proprio_mes,
   (SELECT coalesce(sum(valortotal),0)::float8 FROM ordemservico
      WHERE dtemissao >= date_trunc('month', current_date))                       AS manutencao_mes,
@@ -1906,8 +1906,15 @@ def get_visao_geral() -> dict:
 # Combustível — sulista.ctaplus_abastecimentos (gestora CTA Plus, vivo).
 # A maior parte do diesel é de veículos de agregados/terceiros (repassado no
 # acerto): o painel separa por modalidade via join com veiculo.tipofrota.
+# Próprio = utilizacaoveiculo IN ('TRA','LOC') — MESMO filtro do DRE por
+# Cliente (dre_cliente/sql.py ABASTEC_SQL) e da Programação (PROG_DIESEL_SQL).
 # km/l usa apenas distancias sas (1..3000 km) e EXCLUI ARLA.
 # PII: motorista_nome/cpf existem na fonte e NAO saem da API.
+# GOTCHA (decisão de negócio EM ABERTO, não tocar sem validar com o
+# usuário): custo_proprio/custo_terceiros aqui e no combustivel_proprio_mes
+# da Visão Geral INCLUEM ARLA (~1,9% do custo próprio); já a Programação
+# (PROG_DIESEL_SQL) EXCLUI ARLA. dre_cliente/sql.py tem o mesmo TODO
+# ("VALIDAR: ARLA entra no custo do razão?"). Não unificar sem decisão.
 # ============================================================================
 _CTA_BASE = """
 FROM sulista.ctaplus_abastecimentos a
@@ -1916,7 +1923,7 @@ LEFT JOIN utilizacaoveiculo u ON u.codigo = v.utilizacaoveiculo
 WHERE a.data_inicio_abastecimento >= %(dt_de)s::date
   AND a.data_inicio_abastecimento <= %(dt_ate)s::date
   AND (%(modalidade)s::text IS NULL
-       OR (%(modalidade)s = 'proprio' AND coalesce(v.utilizacaoveiculo,'') NOT IN ('AGR','TER') AND v.placa IS NOT NULL)
+       OR (%(modalidade)s = 'proprio' AND coalesce(v.utilizacaoveiculo,'') IN ('TRA','LOC'))
        OR (%(modalidade)s = 'terceiros' AND (v.utilizacaoveiculo IN ('AGR','TER') OR v.placa IS NULL)))
   AND (%(placa)s::text IS NULL OR a.veiculo_placa ILIKE '%%'||%(placa)s||'%%')
   AND (%(posto)s::text IS NULL
@@ -1932,7 +1939,7 @@ COMB_KPI_SQL = f"""
 SELECT count(*)::int AS abastecimentos,
        coalesce(sum(a.volume),0)::float8 AS litros,
        coalesce(sum(a.custo),0)::float8 AS custo,
-       coalesce(sum(CASE WHEN coalesce(v.utilizacaoveiculo,'') NOT IN ('AGR','TER') AND v.placa IS NOT NULL THEN a.custo ELSE 0 END),0)::float8 AS custo_proprio,
+       coalesce(sum(CASE WHEN coalesce(v.utilizacaoveiculo,'') IN ('TRA','LOC') THEN a.custo ELSE 0 END),0)::float8 AS custo_proprio,
        coalesce(sum(CASE WHEN v.utilizacaoveiculo IN ('AGR','TER') OR v.placa IS NULL THEN a.custo ELSE 0 END),0)::float8 AS custo_terceiros,
        coalesce(sum(CASE WHEN {_CTA_KM_SANO} THEN a.distancia ELSE 0 END),0)::float8 AS km_sano,
        coalesce(sum(CASE WHEN {_CTA_KM_SANO} THEN a.volume ELSE 0 END),0)::float8 AS litros_km_sano,
@@ -1945,7 +1952,7 @@ SELECT to_char(a.data_inicio_abastecimento,'YYYY-MM') AS mes,
        count(*)::int AS abastecimentos,
        sum(a.volume)::float8 AS litros,
        sum(a.custo)::float8 AS custo,
-       sum(CASE WHEN coalesce(v.utilizacaoveiculo,'') NOT IN ('AGR','TER') AND v.placa IS NOT NULL THEN a.custo ELSE 0 END)::float8 AS custo_proprio,
+       sum(CASE WHEN coalesce(v.utilizacaoveiculo,'') IN ('TRA','LOC') THEN a.custo ELSE 0 END)::float8 AS custo_proprio,
        sum(CASE WHEN v.utilizacaoveiculo IN ('AGR','TER') OR v.placa IS NULL THEN a.custo ELSE 0 END)::float8 AS custo_terceiros,
        sum(CASE WHEN {_CTA_KM_SANO} THEN a.distancia ELSE 0 END)::float8 AS km_sano,
        sum(CASE WHEN {_CTA_KM_SANO} THEN a.volume ELSE 0 END)::float8 AS litros_km_sano
@@ -1955,7 +1962,7 @@ LEFT JOIN utilizacaoveiculo u ON u.codigo = v.utilizacaoveiculo
 WHERE a.data_inicio_abastecimento >= %(dt_de)s::date
   AND a.data_inicio_abastecimento <= %(dt_ate)s::date
   AND (%(modalidade)s::text IS NULL
-       OR (%(modalidade)s = 'proprio' AND coalesce(v.utilizacaoveiculo,'') NOT IN ('AGR','TER') AND v.placa IS NOT NULL)
+       OR (%(modalidade)s = 'proprio' AND coalesce(v.utilizacaoveiculo,'') IN ('TRA','LOC'))
        OR (%(modalidade)s = 'terceiros' AND (v.utilizacaoveiculo IN ('AGR','TER') OR v.placa IS NULL)))
   AND (%(placa)s::text IS NULL OR a.veiculo_placa ILIKE '%%'||%(placa)s||'%%')
   AND (%(posto)s::text IS NULL
@@ -1972,7 +1979,7 @@ LEFT JOIN veiculo v ON v.placa = a.veiculo_placa
 WHERE a.data_inicio_abastecimento >= %(dt_de)s::date
   AND a.data_inicio_abastecimento <= %(dt_ate)s::date
   AND (%(modalidade)s::text IS NULL
-       OR (%(modalidade)s = 'proprio' AND coalesce(v.utilizacaoveiculo,'') NOT IN ('AGR','TER') AND v.placa IS NOT NULL)
+       OR (%(modalidade)s = 'proprio' AND coalesce(v.utilizacaoveiculo,'') IN ('TRA','LOC'))
        OR (%(modalidade)s = 'terceiros' AND (v.utilizacaoveiculo IN ('AGR','TER') OR v.placa IS NULL)))
   AND (%(placa)s::text IS NULL OR a.veiculo_placa ILIKE '%%'||%(placa)s||'%%')
   AND (%(posto)s::text IS NULL
