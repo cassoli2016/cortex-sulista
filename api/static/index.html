@@ -600,6 +600,7 @@ button.avatar{border:0;cursor:pointer}
         <a href="#hc" class="sub" data-view="hc" title="Headcount — quadro de funcionários"><span class="ic" data-ic="hcic"></span><span>Headcount</span></a>
         <a href="#folha" class="sub" data-view="folha" title="Custo de Folha (GLOBUS)"><span class="ic" data-ic="folhaic"></span><span>Custo de Folha</span></a>
         <a href="#folhaind" class="sub" data-view="folhaind" title="Indicadores de Folha — férias, CNH, hora extra, banco de horas"><span class="ic" data-ic="gauge"></span><span>Indicadores de Folha</span></a>
+        <a href="#he" class="sub" data-view="he" title="Horas Extras — composição por evento, famílias e áreas"><span class="ic" data-ic="heic"></span><span>Horas Extras</span></a>
         <a href="#rh" class="sub" data-view="rh" title="RH — vagas e recrutamento"><span class="ic" data-ic="rhic"></span><span>Vagas</span></a>
       </div>
       <button class="group" id="grpTv" aria-expanded="false" aria-controls="subsTv" onclick="toggleGroup('grpTv','subsTv','cs.tvGroup')" title="Painéis TV">
@@ -1599,6 +1600,30 @@ button.avatar{border:0;cursor:pointer}
             <div class="tablewrap" id="fi-bh"></div></div>
         </div>
       </section>
+      <section class="view" id="view-he">
+        <div class="card">
+          <div class="head"><h2>Análise de Horas Extras</h2><span class="hint">todos os eventos que compõem a HE · GLOBUS · agregado</span></div>
+          <div class="cardfilters">
+            <label style="color:var(--n600);font-size:13px;align-self:center">Competência</label>
+            <select id="fHeComp" onchange="loadHe()"></select>
+          </div>
+        </div>
+        <div class="kpis" id="kpis-he"></div>
+        <div class="grid2">
+          <div class="card"><div class="head"><h2>Composição por família</h2><span class="hint">participação na competência</span></div>
+            <div class="chartwrap" style="min-height:210px"><svg id="chartHeFam" viewBox="0 0 380 200" preserveAspectRatio="xMidYMid meet" style="min-width:300px;max-width:520px;margin:0 auto" role="img"></svg></div></div>
+          <div class="card"><div class="head"><h2>Por área / setor</h2><span class="hint">onde a HE é gerada · top 14</span></div>
+            <div class="chartwrap"><svg id="chartHeArea" viewBox="0 0 960 200" preserveAspectRatio="xMidYMid meet" role="img"></svg></div></div>
+        </div>
+        <div class="card">
+          <div class="head"><h2>Evolução (12 meses)</h2><span class="hint">composição empilhada por família</span></div>
+          <div class="chartwrap"><svg id="chartHeSerie" viewBox="0 0 960 260" preserveAspectRatio="xMidYMid meet" role="img" aria-label="Evolução das horas extras por família nos últimos 12 meses."></svg></div>
+        </div>
+        <div class="card">
+          <div class="head"><h2>Eventos que compõem a hora extra</h2><span class="hint" id="he-ev-hint">na competência · valor e nº de colaboradores</span></div>
+          <div class="tablewrap" id="he-eventos"></div>
+        </div>
+      </section>
       <section class="view" id="view-custos">
         <div class="card">
           <div class="head"><h2>Painel de Custos</h2><span class="hint">combustível + ordens de compra · por agrupador gerencial · com/sem NF</span></div>
@@ -1958,6 +1983,7 @@ const ICONS = {
   crmic: IC('<path d="M3 4h18l-7 8.5V20l-4 1.5v-9z"/>'),
   orgp: IC('<rect x="9" y="2.5" width="6" height="5" rx="1"/><rect x="3" y="16.5" width="6" height="5" rx="1"/><rect x="15" y="16.5" width="6" height="5" rx="1"/><path d="M12 7.5v4M6 16.5v-2h12v2M12 14.5v-3"/>'),
   cog: IC('<circle cx="12" cy="12" r="3.2"/><path d="M12 2.5v3M12 18.5v3M2.5 12h3M18.5 12h3M5 5l2 2M17 17l2 2M19 5l-2 2M7 17l-2 2"/>'),
+  heic: IC('<path d="M6 3h12M6 21h12M7.5 3c0 4.5 3.5 6 4.5 8.5C13 9 16.5 7.5 16.5 3M7.5 21c0-4.5 3.5-6 4.5-8.5 1 2.5 4.5 4 4.5 8.5"/>'),
   home: IC('<path d="M3 10.5 12 3l9 7.5"/><path d="M5 9.5V21h14V9.5"/><path d="M10 21v-6h4v6"/>'),
   fin:  IC('<path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/>'),
   rec:  IC('<path d="M12 4v12M6 10l6 6 6-6"/><path d="M4 20h16"/>'),
@@ -2008,7 +2034,7 @@ const FAIXAS = {
   '4_vencido_91_365':['Vencido 91–365d','b-dang'],
   '5_vencido_mais_365':['Vencido > 365d','b-dang'],
 };
-const VIEWS = { home:'Visão Geral', fluxo:'Fluxo de Caixa e Bancos', receber:'Contas a Receber', pagar:'Contas a Pagar', oc:'Ordens de Compra', custos:'Painel de Custos', agr:'Agregados e Terceiros', mvb:'Make vs Buy', comb:'Combustível', man:'Manutenção', com:'Clientes e RKM', clif:'Consulta de Cliente', crm:'CRM — Leads e Projetos', km:'Análise de KM', torre:'Torre de Controle', veic:'Veículos', veicf:'Consulta de Veículo', mprev:'Manutenção Preventiva', comrast:'Comunicação Rastreadora', mul:'Multas', prog:'Programação Inteligente', jorn:'Jornada do Motorista', jornf:'Ficha de Jornada', cex:'Custos Extras', sac:'SAC / Freetime', port:'Portaria', cop:'Copiloto Cortex', cob:'Régua de Cobrança', cont:'Contabilidade', qual:'Qualidade e Certidões', dre:'DRE Gerencial', drecli:'DRE por Cliente', tvfat:'Painel TV — Faturamento', tvope:'Painel TV — Operação', rh:'RH — Vagas', hc:'Headcount', folha:'Custo de Folha', folhaind:'Indicadores de Folha', gestao:'Gestão', srv:'Saúde do Servidor' };
+const VIEWS = { home:'Visão Geral', fluxo:'Fluxo de Caixa e Bancos', receber:'Contas a Receber', pagar:'Contas a Pagar', oc:'Ordens de Compra', custos:'Painel de Custos', agr:'Agregados e Terceiros', mvb:'Make vs Buy', comb:'Combustível', man:'Manutenção', com:'Clientes e RKM', clif:'Consulta de Cliente', crm:'CRM — Leads e Projetos', km:'Análise de KM', torre:'Torre de Controle', veic:'Veículos', veicf:'Consulta de Veículo', mprev:'Manutenção Preventiva', comrast:'Comunicação Rastreadora', mul:'Multas', prog:'Programação Inteligente', jorn:'Jornada do Motorista', jornf:'Ficha de Jornada', cex:'Custos Extras', sac:'SAC / Freetime', port:'Portaria', cop:'Copiloto Cortex', cob:'Régua de Cobrança', cont:'Contabilidade', qual:'Qualidade e Certidões', dre:'DRE Gerencial', drecli:'DRE por Cliente', tvfat:'Painel TV — Faturamento', tvope:'Painel TV — Operação', rh:'RH — Vagas', hc:'Headcount', folha:'Custo de Folha', folhaind:'Indicadores de Folha', he:'Horas Extras', gestao:'Gestão', srv:'Saúde do Servidor' };
 const periodoLabel = p => { if(p==='atrasado') return 'Atrasado'; const [y,m]=p.split('-'); return MES[+m-1]+'/'+y.slice(2); };
 const fmtD = s => { if(!s) return ''; const [y,m,dd]=s.split('-'); return dd+'/'+m+'/'+y; };
 const esc  = s => (s??'').toString().replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
@@ -2063,6 +2089,8 @@ let folhaSeq = 0;
 let DATAFOLHA = null;
 let folhaindSeq = 0;
 let DATAFOLHAIND = null;
+let heSeq = 0;
+let DATAHE = null;
 let custosSeq = 0;
 let DATACUSTOS = null;
 let ocSeq = 0;
@@ -2155,7 +2183,7 @@ const VIEW_GROUP = {home:'',cop:'',
   veic:'Fro',veicf:'Fro',mprev:'Fro',comrast:'Fro',comb:'Fro',man:'Fro',mul:'Fro',
   oc:'Sup',custos:'Sup',
   tvfat:'Tv',tvope:'Tv',
-  rh:'Rh',hc:'Rh',folha:'Rh',folhaind:'Rh',gestao:'Adm',srv:'Adm'};
+  rh:'Rh',hc:'Rh',folha:'Rh',folhaind:'Rh',he:'Rh',gestao:'Adm',srv:'Adm'};
 function syncGroups(v){
   const ativo = VIEW_GROUP[v];   // accordion: abre o grupo do view ativo, fecha os demais
   ['Com','Fin','Ctr','Ope','Fro','Sup','Rh','Tv','Adm'].forEach(k=>{
@@ -2319,8 +2347,8 @@ function router(){
   document.getElementById('grpCob').style.display = cob ? 'flex' : 'none';
   document.getElementById('grpRent').style.display = rent ? 'flex' : 'none';
   const ges = (v==='gestao');
-  const fbar=document.getElementById('filterbar'); if(fbar) fbar.style.display = (cop||ges||v==='srv'||v==='veicf'||v==='clif'||v==='jorn'||v==='jornf'||v==='cex'||v==='sac'||v==='mprev'||v==='comrast'||v==='qual'||v==='port'||v==='crm'||v==='rh'||v==='hc'||v==='folha'||v==='folhaind'||v==='custos'||v==='home') ? 'none' : '';
-  const metaEl=document.getElementById('meta'); if(metaEl) metaEl.style.display = (cop||ges||v==='srv'||v==='veicf'||v==='clif'||v==='jorn'||v==='jornf'||v==='cex'||v==='sac'||v==='mprev'||v==='comrast'||v==='qual'||v==='port'||v==='crm'||v==='rh'||v==='hc'||v==='folha'||v==='folhaind'||v==='custos') ? 'none' : '';
+  const fbar=document.getElementById('filterbar'); if(fbar) fbar.style.display = (cop||ges||v==='srv'||v==='veicf'||v==='clif'||v==='jorn'||v==='jornf'||v==='cex'||v==='sac'||v==='mprev'||v==='comrast'||v==='qual'||v==='port'||v==='crm'||v==='rh'||v==='hc'||v==='folha'||v==='folhaind'||v==='he'||v==='custos'||v==='home') ? 'none' : '';
+  const metaEl=document.getElementById('meta'); if(metaEl) metaEl.style.display = (cop||ges||v==='srv'||v==='veicf'||v==='clif'||v==='jorn'||v==='jornf'||v==='cex'||v==='sac'||v==='mprev'||v==='comrast'||v==='qual'||v==='port'||v==='crm'||v==='rh'||v==='hc'||v==='folha'||v==='folhaind'||v==='he'||v==='custos') ? 'none' : '';
   // classe em vez de style: o CSS mobile usa !important no display
   const bfil=document.getElementById('btnFiltros'); if(bfil){ bfil.classList.toggle('oculto', cop||ges||v==='srv'||v==='home'); bfil.style.display=''; }
   document.getElementById('grpKm').style.display = kmv ? 'flex' : 'none';
@@ -2341,8 +2369,8 @@ function router(){
   // carga da vista: dispara se não há dados OU se os filtros visíveis
   // divergem dos usados na última carga (nunca mostrar dado velho com filtro novo)
   const key=viewKey(v);
-  const DATAMAP={fin:DATA,oc:DATAOC,agr:DATAAGR,mvb:DATAMVB,comb:DATACOMB,man:DATAMAN,com:DATACOM,clif:DATACLIF,dre:DATADRE,drecli:DATADRECLI,home:DATAHOME,km:DATAKM,torre:DATATORRE,veic:DATAVEIC,veicf:DATAVEICF,mul:DATAMUL,prog:DATAPROG,jorn:DATAJORN,jornf:DATAJORNF,cex:DATACEX,sac:DATASAC,mprev:DATAMPREV,comrast:DATACOMRAST,qual:DATAQUAL,port:DATAPORT,crm:DATACRM,rh:DATARH,hc:DATAHC,folha:DATAFOLHA,folhaind:DATAFOLHAIND,custos:DATACUSTOS,cob:DATACOB,rent:DATARENT,cont:DATACONT,gestao:DATAGES,srv:DATASRV,tvfat:null,tvope:null,cop:(COP_MSGS.length?{}:null)};
-  const LOADMAP={fin:load,oc:loadOc,agr:loadAgr,mvb:loadMvb,comb:loadComb,man:loadMan,com:loadCom,clif:loadClif,dre:loadDre,drecli:loadDreCli,home:loadHome,km:loadKm,torre:loadTorre,veic:loadVeic,veicf:loadVeicf,mul:loadMul,prog:loadProg,jorn:loadJorn,jornf:loadJornf,cex:loadCex,sac:loadSac,mprev:loadMPrev,comrast:loadComRast,qual:loadQual,port:loadPort,crm:loadCrm,rh:loadRh,hc:loadHc,folha:loadFolha,folhaind:loadFolhaInd,custos:loadCustos,cob:loadCob,rent:loadRent,cont:loadCont,gestao:loadGestao,srv:loadSrv,cop:loadCop,tvfat:loadTvFat,tvope:loadTvOpe};
+  const DATAMAP={fin:DATA,oc:DATAOC,agr:DATAAGR,mvb:DATAMVB,comb:DATACOMB,man:DATAMAN,com:DATACOM,clif:DATACLIF,dre:DATADRE,drecli:DATADRECLI,home:DATAHOME,km:DATAKM,torre:DATATORRE,veic:DATAVEIC,veicf:DATAVEICF,mul:DATAMUL,prog:DATAPROG,jorn:DATAJORN,jornf:DATAJORNF,cex:DATACEX,sac:DATASAC,mprev:DATAMPREV,comrast:DATACOMRAST,qual:DATAQUAL,port:DATAPORT,crm:DATACRM,rh:DATARH,hc:DATAHC,folha:DATAFOLHA,folhaind:DATAFOLHAIND,he:DATAHE,custos:DATACUSTOS,cob:DATACOB,rent:DATARENT,cont:DATACONT,gestao:DATAGES,srv:DATASRV,tvfat:null,tvope:null,cop:(COP_MSGS.length?{}:null)};
+  const LOADMAP={fin:load,oc:loadOc,agr:loadAgr,mvb:loadMvb,comb:loadComb,man:loadMan,com:loadCom,clif:loadClif,dre:loadDre,drecli:loadDreCli,home:loadHome,km:loadKm,torre:loadTorre,veic:loadVeic,veicf:loadVeicf,mul:loadMul,prog:loadProg,jorn:loadJorn,jornf:loadJornf,cex:loadCex,sac:loadSac,mprev:loadMPrev,comrast:loadComRast,qual:loadQual,port:loadPort,crm:loadCrm,rh:loadRh,hc:loadHc,folha:loadFolha,folhaind:loadFolhaInd,he:loadHe,custos:loadCustos,cob:loadCob,rent:loadRent,cont:loadCont,gestao:loadGestao,srv:loadSrv,cop:loadCop,tvfat:loadTvFat,tvope:loadTvOpe};
   if(!DATAMAP[key] || (key!=='home' && LOADEDQS[key]!==qsView(key))) LOADMAP[key]();
   // mobile: estado da navegação inferior + fecha gaveta/painel de filtros
   document.querySelectorAll('.bottomnav [data-bview]').forEach(a=>a.classList.toggle('ativo', a.dataset.bview===v));
@@ -2989,7 +3017,7 @@ function reloadCurrent(){
   // recarrega a TELA ATUAL — antes caía em load() (Financeiro) para várias telas.
   const M={home:loadHome,fluxo:load,receber:load,pagar:load,dre:loadDre,drecli:loadDreCli,oc:loadOc,
     agr:loadAgr,mvb:loadMvb,comb:loadComb,man:loadMan,com:loadCom,clif:loadClif,km:loadKm,
-    torre:loadTorre,veic:loadVeic,veicf:loadVeicf,mul:loadMul,prog:loadProg,jorn:loadJorn,jornf:loadJornf,cex:loadCex,sac:loadSac,mprev:loadMPrev,comrast:loadComRast,qual:loadQual,port:loadPort,crm:loadCrm,rh:loadRh,hc:loadHc,folha:loadFolha,folhaind:loadFolhaInd,custos:loadCustos,cob:loadCob,rent:loadRent,
+    torre:loadTorre,veic:loadVeic,veicf:loadVeicf,mul:loadMul,prog:loadProg,jorn:loadJorn,jornf:loadJornf,cex:loadCex,sac:loadSac,mprev:loadMPrev,comrast:loadComRast,qual:loadQual,port:loadPort,crm:loadCrm,rh:loadRh,hc:loadHc,folha:loadFolha,folhaind:loadFolhaInd,he:loadHe,custos:loadCustos,cob:loadCob,rent:loadRent,
     cont:loadCont,gestao:loadGestao,srv:loadSrv,cop:loadCop,tvfat:loadTvFat,tvope:loadTvOpe};
   (M[currentView()]||load)();
 }
@@ -4837,14 +4865,22 @@ function chartCols(id, cats, series, opts){
   const fmt=opts.fmt||(v=>Number(v).toLocaleString('pt-BR'));
   if(!cats.length){ el.setAttribute('viewBox','0 0 960 60'); el.innerHTML='<text x="12" y="34" font-size="13" fill="#6B7280">sem dados</text>'; return; }
   const W=960, H=260, padL=54, padR=14, padT=16, padB=42, iw=W-padL-padR, ih=H-padT-padB;
-  const max=Math.max(1, ...series.flatMap(s=>s.valores.map(v=>Math.abs(v||0))));
-  const gap=iw/cats.length, bw=Math.min(46, gap*0.7/Math.max(1,series.length));
+  const stacked=!!opts.stacked;
+  const max = stacked
+    ? Math.max(1, ...cats.map((_,i)=>series.reduce((a,s)=>a+Math.abs(s.valores[i]||0),0)))
+    : Math.max(1, ...series.flatMap(s=>s.valores.map(v=>Math.abs(v||0))));
+  const gap=iw/cats.length, bw=stacked?Math.min(52,gap*0.6):Math.min(46, gap*0.7/Math.max(1,series.length));
   const ticks=4; let g='';
   for(let t=0;t<=ticks;t++){ const v=max*t/ticks, y=padT+ih-(v/max)*ih;
     g+=`<line x1="${padL}" y1="${y}" x2="${W-padR}" y2="${y}" stroke="${CC.grid}"></line><text x="${padL-8}" y="${y+4}" text-anchor="end" font-size="11" fill="#9AA5B1">${opts.axisFmt?opts.axisFmt(v):fmt(v)}</text>`; }
-  cats.forEach((c,i)=>{ const cx=padL+gap*i+gap/2; const grpW=bw*series.length; let bx=cx-grpW/2;
-    series.forEach(s=>{ const v=Math.abs(s.valores[i]||0), bh=(v/max)*ih, y=padT+ih-bh;
-      g+=`<rect x="${bx}" y="${y}" width="${bw-3}" height="${Math.max(0,bh)}" rx="3" fill="${s.cor}"><title>${esc(s.nome)}: ${fmt(s.valores[i]||0)}</title></rect>`; bx+=bw; });
+  cats.forEach((c,i)=>{ const cx=padL+gap*i+gap/2;
+    if(stacked){ let acc=0;
+      series.forEach(s=>{ const v=Math.abs(s.valores[i]||0); if(v<=0) return; const bh=(v/max)*ih, y=padT+ih-((acc+v)/max)*ih;
+        g+=`<rect x="${cx-bw/2}" y="${y}" width="${bw}" height="${Math.max(0,bh)}" fill="${s.cor}"><title>${esc(s.nome)}: ${fmt(v)}</title></rect>`; acc+=v; });
+    } else { const grpW=bw*series.length; let bx=cx-grpW/2;
+      series.forEach(s=>{ const v=Math.abs(s.valores[i]||0), bh=(v/max)*ih, y=padT+ih-bh;
+        g+=`<rect x="${bx}" y="${y}" width="${bw-3}" height="${Math.max(0,bh)}" rx="3" fill="${s.cor}"><title>${esc(s.nome)}: ${fmt(s.valores[i]||0)}</title></rect>`; bx+=bw; });
+    }
     g+=`<text x="${cx}" y="${H-padB+18}" text-anchor="middle" font-size="11" fill="#6B7280">${esc(_trunc(c,7))}</text>`; });
   // legenda
   let lx=padL; g+=series.map(s=>{ const t=`<rect x="${lx}" y="2" width="11" height="11" rx="2" fill="${s.cor}"></rect><text x="${lx+16}" y="11.5" font-size="11.5" fill="#334155">${esc(s.nome)}</text>`; lx+=48+s.nome.length*6.5; return t; }).join('');
@@ -5009,6 +5045,50 @@ function renderFolhaInd(d){
   ], {fmt:v=>Math.round(v).toLocaleString('pt-BR')+' h', axisFmt:numAbbr});
   const bh=bhS.slice().reverse().map(b=>`<tr><td class="num">${esc(b.comp)}</td><td class="num">${b.colab}</td><td class="num">${b.credito.toLocaleString('pt-BR',{maximumFractionDigits:0})}</td><td class="num">${b.debito.toLocaleString('pt-BR',{maximumFractionDigits:0})}</td><td class="num" style="font-weight:600">${b.saldo.toLocaleString('pt-BR',{maximumFractionDigits:0})}</td></tr>`).join('')||'<tr><td colspan="5" style="color:var(--n500)">—</td></tr>';
   document.getElementById('fi-bh').innerHTML=`<table><thead><tr><th class="num">Competência</th><th class="num">Colab.</th><th class="num">Crédito</th><th class="num">Débito</th><th class="num">Saldo (h)</th></tr></thead><tbody>${bh}</tbody></table>`;
+}
+// ---------------- Horas Extras (folha GLOBUS) ----------------
+const HE_FAM_COR={he50:CC.ouro, he100:CC.amarelo, noturna:CC.azul, adic:CC.roxo, dsr:CC.verde};
+const HE_FAM_NOME={he50:'HE 50% (diurna)', he100:'HE 100% (diurna)', noturna:'HE noturna', adic:'Adicional noturno', dsr:'DSR / reflexos'};
+async function loadHe(){
+  const seq=++heSeq, btn=document.getElementById('btnRefresh'); if(btn) btn.disabled=true;
+  document.getElementById('content').classList.add('loading'); skelKpis('kpis-he',4);
+  try{
+    const sel=document.getElementById('fHeComp'); const comp=sel&&sel.value?('?comp='+sel.value):'';
+    const r=await fetch('/api/rh/horas-extras'+comp,{cache:'no-store'});
+    const d=await r.json(); if(seq!==heSeq) return;
+    if(!r.ok){ showBanner(d.mensagem||'Erro ao consultar as horas extras.', d.detalhe); return; }
+    hideBanner(); DATAHE=d; LOADEDQS.he='1'; renderHe(d);
+  }catch(e){ if(seq===heSeq) showBanner('Não foi possível falar com a API.', e.message); }
+  finally{ if(seq===heSeq){ if(btn) btn.disabled=false; document.getElementById('content').classList.remove('loading'); } }
+}
+function renderHe(d){
+  const k=d.kpis||{};
+  const sel=document.getElementById('fHeComp');
+  if(sel && !sel.options.length && (d.competencias||[]).length){
+    sel.innerHTML=(d.competencias||[]).map(c=>`<option value="${c}"${c===d.competencia?' selected':''}>${c}</option>`).join('');
+  }
+  document.getElementById('kpis-he').innerHTML=[
+    kpi('Total de HE', BRL.format(k.total_mes||0), (k.pct_proventos||0).toFixed(1)+'% dos proventos · '+d.competencia, (k.pct_proventos||0)>=10?'neg':''),
+    kpi('Horas extras', (k.horas_mes||0).toLocaleString('pt-BR',{maximumFractionDigits:0})+' h', 'lançadas na competência',''),
+    kpi('Colaboradores com HE', (k.funcs_mes||0).toLocaleString('pt-BR'), 'média '+BRL.format(k.media_func||0)+' / colab.',''),
+    kpi('Acumulado 12 meses', BRL.format(k.total_12m||0), 'custo total de hora extra',''),
+  ].join('');
+  // composição por família (donut)
+  chartDonut('chartHeFam', (d.familias||[]).map(f=>({rotulo:f.familia, valor:f.tot, cor:HE_FAM_COR[f.cod]||CC.n400})),
+    {fmt:brlAbbr, centro:brlAbbr(k.total_mes||0), centroSub:'na competência'});
+  // por área (barras)
+  chartHBars('chartHeArea', (d.por_area||[]).map(a=>({rotulo:a.area, valor:a.tot})), {cor:CC.roxo, fmt:brlAbbr});
+  // evolução 12m empilhada por família
+  const se=d.serie||[];
+  chartCols('chartHeSerie', se.map(s=>s.comp.slice(2)),
+    ['he50','he100','noturna','adic','dsr'].map(c=>({nome:HE_FAM_NOME[c], cor:HE_FAM_COR[c], valores:se.map(s=>s[c]||0)})),
+    {stacked:true, fmt:brlAbbr, axisFmt:brlAbbr});
+  // tabela de eventos
+  const famB={he50:'b-warn',he100:'b-warn',noturna:'',adic:'',dsr:'b-ok'};
+  const codDe=nm=>Object.keys(HE_FAM_NOME).find(k=>HE_FAM_NOME[k]===nm)||'';
+  const ev=(d.eventos||[]).map(e=>`<tr><td>${esc(e.ev)}</td><td><span class="badge ${famB[codDe(e.familia)]||''}">${esc(e.familia)}</span></td><td class="num">${e.funcs}</td><td class="num" style="font-weight:600">${BRL.format(e.tot)}</td><td class="num">${(e.pct||0).toFixed(1)}%</td></tr>`).join('')||'<tr><td colspan="5" style="color:var(--n500)">sem horas extras na competência</td></tr>';
+  document.getElementById('he-eventos').innerHTML=`<table><thead><tr><th>Evento</th><th>Família</th><th class="num">Colab.</th><th class="num">Valor</th><th class="num">% do total</th></tr></thead><tbody>${ev}</tbody></table>`;
+  const hint=document.getElementById('he-ev-hint'); if(hint) hint.textContent=(d.eventos||[]).length+' eventos na competência '+d.competencia+' · '+BRL.format(k.total_mes||0);
 }
 // ---------------- Painel de Custos (Suprimentos) ----------------
 function custosDefaults(){
@@ -6767,6 +6847,7 @@ boot();
         <a href="#hc" onclick="fecharDrawer()"><span class="ic" data-ic="hcic"></span>Headcount</a>
         <a href="#folha" onclick="fecharDrawer()"><span class="ic" data-ic="folhaic"></span>Custo de Folha</a>
         <a href="#folhaind" onclick="fecharDrawer()"><span class="ic" data-ic="gauge"></span>Indicadores de Folha</a>
+        <a href="#he" onclick="fecharDrawer()"><span class="ic" data-ic="heic"></span>Horas Extras</a>
         <a href="#rh" onclick="fecharDrawer()"><span class="ic" data-ic="rhic"></span>Vagas</a>
       </div>
     </div>

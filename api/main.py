@@ -664,6 +664,18 @@ def rh_folha_custo(comp: str | None = None) -> JSONResponse:
         return _folha_erro(exc)
 
 
+@app.get("/api/rh/horas-extras")
+def rh_horas_extras(comp: str | None = None) -> JSONResponse:
+    import re
+    if comp and not re.match(r"^\d{4}-(0[1-9]|1[0-2])$", comp):
+        return JSONResponse(status_code=422, content={
+            "erro": "parametro_invalido", "mensagem": "comp inválido: use AAAA-MM."})
+    try:
+        return JSONResponse(queries_folha.get_horas_extras(comp))
+    except Exception as exc:  # noqa: BLE001
+        return _folha_erro(exc)
+
+
 @app.get("/api/qualidade")
 def qualidade() -> JSONResponse:
     try:
