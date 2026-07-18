@@ -64,6 +64,7 @@ TELAS: dict[str, tuple[str, str]] = {  # chave -> (rótulo, grupo do menu)
     "torre":   ("Torre de Controle", "Operação"),
     "jorn":    ("Jornada do Motorista", "Operação"),
     "cex":     ("Custos Extras", "Operação"),
+    "sac":     ("SAC / Freetime", "Operação"),
     "oc":      ("Ordens de Compra", "Suprimentos"),
     "comb":    ("Combustível", "Frota"),
     "man":     ("Manutenção", "Frota"),
@@ -101,6 +102,7 @@ ROTA_TELAS: list[tuple[str, frozenset[str]]] = [
     ("/api/jornada/painel",           frozenset({"jorn"})),
     ("/api/jornada/motorista",        frozenset({"jorn"})),
     ("/api/operacao/custos-extras",   frozenset({"cex"})),
+    ("/api/operacao/sac-freetime",    frozenset({"sac"})),
     ("/api/comercial/clientes",       frozenset({"com"})),
     ("/api/comercial/cliente",        frozenset({"clif"})),
     ("/api/copiloto",                 frozenset({"cop"})),
@@ -160,8 +162,8 @@ _PERFIS_MODELO = [
      ["fluxo", "receber", "pagar", "cob"]),
     ("Controladoria", "DRE gerencial, contabilidade e DRE/margem por cliente.",
      ["dre", "cont", "drecli"]),
-    ("Operação",    "Torre de controle, programação, jornada, custos extras, análise de KM, agregados e make-vs-buy.",
-     ["torre", "prog", "jorn", "cex", "km", "agr", "mvb"]),
+    ("Operação",    "Torre de controle, programação, jornada, custos extras, SAC/freetime, análise de KM, agregados e make-vs-buy.",
+     ["torre", "prog", "jorn", "cex", "sac", "km", "agr", "mvb"]),
     ("Frota",       "Veículos, consulta por placa, combustível, manutenção e multas.",
      ["veic", "veicf", "comb", "man", "mul"]),
     ("Suprimentos", "Ordens de compra.",
@@ -263,6 +265,14 @@ def _seed_perfis_modelo(c: sqlite3.Connection) -> None:
             c.execute("INSERT OR IGNORE INTO perfil_telas(perfil_id, tela) VALUES(?,?)",
                       (row["id"], "cex"))
         c.execute("INSERT OR IGNORE INTO config(chave, valor) VALUES('perfis_modelo_v4', '1')")
+
+    # v5 (SAC/freetime 2026-07-17): adiciona a tela 'sac' ao perfil Operação.
+    if not c.execute("SELECT 1 FROM config WHERE chave='perfis_modelo_v5'").fetchone():
+        row = c.execute("SELECT id FROM perfis WHERE nome='Operação'").fetchone()
+        if row:
+            c.execute("INSERT OR IGNORE INTO perfil_telas(perfil_id, tela) VALUES(?,?)",
+                      (row["id"], "sac"))
+        c.execute("INSERT OR IGNORE INTO config(chave, valor) VALUES('perfis_modelo_v5', '1')")
 
 
 def _agora() -> str:

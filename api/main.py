@@ -591,6 +591,26 @@ def custos_extras(dt_de: str | None = None, dt_ate: str | None = None) -> JSONRe
             "detalhe": str(exc)})
 
 
+@app.get("/api/operacao/sac-freetime")
+def sac_freetime(dt_de: str | None = None, dt_ate: str | None = None) -> JSONResponse:
+    from datetime import timedelta
+    hoje = date.today()
+    dt_ate = dt_ate or hoje.isoformat()
+    dt_de = dt_de or (hoje - timedelta(days=30)).isoformat()
+    try:
+        return JSONResponse(queries.get_sac_freetime(dt_de, dt_ate))
+    except psycopg.OperationalError as exc:
+        return JSONResponse(status_code=503, content={
+            "erro": "banco_inacessivel",
+            "mensagem": "Sem conexão com o banco. O túnel SSH está aberto?",
+            "detalhe": str(exc)})
+    except Exception as exc:  # noqa: BLE001
+        log.warning("sac_freetime falhou: %s", exc)
+        return JSONResponse(status_code=500, content={
+            "erro": "erro_consulta", "mensagem": "Erro ao consultar o SAC/freetime.",
+            "detalhe": str(exc)})
+
+
 @app.get("/api/jornada/motorista")
 def jornada_motorista(id: str | None = None, comp_de: str | None = None,
                       comp_ate: str | None = None) -> JSONResponse:
