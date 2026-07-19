@@ -18,6 +18,10 @@
   --orange-100:#FFE3D1;--orange-500:#E85D10;--orange-600:#C74D0A;
   --n0:#fff;--n50:#F6F7F8;--n100:#ECEEF1;--n200:#DCE0E5;--n300:#C2C8D0;--n400:#9AA3AE;
   --n500:#6B7580;--n600:#4F5860;--n700:#39414A;--n900:#14181D;  /* n500 ajustado p/ contraste AA 4.5:1 sobre branco */
+  /* SEMÁFORO (fonte-da-verdade). UI clara: ok=var(--green) warn=var(--yellow)
+     crit=var(--red). Painéis de TV (fundo escuro, precisa de brilho p/
+     contraste): ok #4ADE80 · warn #FBBF24 · crit #F87171. Não introduzir
+     outros verdes/âmbares/vermelhos p/ estado — usar estes. */
   --green:#1E7F4F;--green-100:#DCF2E6;--yellow:#B97709;--yellow-100:#FBEED3;--yellow-700:#7E5106;
   --red:#C03221;--red-100:#F9E0DD;
   --font:'Saira',system-ui,-apple-system,sans-serif;--mono:'IBM Plex Mono',ui-monospace,monospace;
@@ -322,7 +326,7 @@ tr.forn-det td{padding:7px 12px}
 .cop-row.user{justify-content:flex-end}
 .cop-ava{width:30px;height:30px;min-width:30px;border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:15px;background:linear-gradient(135deg,#17344F,#38648D);box-shadow:0 2px 6px rgba(23,52,79,.3)}
 .cop-b .cop-mod{display:flex;align-items:center;gap:5px;margin-top:8px;font-size:10px;color:var(--n500,#6E7883);font-family:var(--mono)}
-.cop-b .cop-mod .dot-ok{width:6px;height:6px;border-radius:50%;background:#1E7B3C;display:inline-block}
+.cop-b .cop-mod .dot-ok{width:6px;height:6px;border-radius:50%;background:#1E7F4F;display:inline-block}
 .cop-b.ai .acao{margin:8px 0 2px;padding:8px 12px;border-left:3px solid #E85D10;background:#FFF4EC;border-radius:6px;font-size:13px}
 .cop-sugs{display:flex;flex-wrap:wrap;gap:7px;margin:10px 0 2px 40px}
 .cop-sugs button{border:1px solid var(--navy-100,#DCE6F0);background:var(--navy-50,#EEF4FA);border-radius:999px;padding:6px 12px;font-size:12px;cursor:pointer;color:var(--navy-700,#17344F)}
@@ -334,7 +338,7 @@ tr.forn-det td{padding:7px 12px}
 @keyframes copB{0%,60%,100%{transform:translateY(0);opacity:.4}30%{transform:translateY(-5px);opacity:1}}
 .cop-chip{display:inline-flex;align-items:center;gap:6px}
 .cop-status{display:inline-flex;align-items:center;gap:6px}
-.cop-status .pulse{width:8px;height:8px;border-radius:50%;background:#1E7B3C;animation:copPulse 2s infinite}
+.cop-status .pulse{width:8px;height:8px;border-radius:50%;background:#1E7F4F;animation:copPulse 2s infinite}
 @keyframes copPulse{0%{box-shadow:0 0 0 0 rgba(30,123,60,.5)}70%{box-shadow:0 0 0 7px rgba(30,123,60,0)}100%{box-shadow:0 0 0 0 rgba(30,123,60,0)}}
 #cop-send{display:flex;align-items:center;gap:6px}
 @media(max-width:880px){.cop-card{min-height:calc(100vh - 300px)}.cop-b{max-width:92%}}
@@ -901,7 +905,7 @@ button.avatar{border:0;cursor:pointer}
           <div class="head"><h2>Faturamento diário × meta</h2><span class="hint" id="hintHomeDia">mês corrente · CT-e + KMM + NFS-e vs meta diária</span></div>
           <div class="diadash" id="home-diadash"></div>
           <div class="legend">
-            <span class="k"><i class="sw" style="width:26px;background:linear-gradient(90deg,#DC2626,#E0A400,#16A34A)"></i>Realizado (cor = % da meta do dia)</span>
+            <span class="k"><i class="sw" style="width:26px;background:linear-gradient(90deg,#C03221,#B97709,#1E7F4F)"></i>Realizado (cor = % da meta do dia)</span>
             <span class="k"><i class="sw" style="background:var(--navy-500)"></i>Meta</span>
           </div>
           <div class="chartwrap" id="wrapHdia">
@@ -1288,7 +1292,7 @@ button.avatar{border:0;cursor:pointer}
                  aria-label="Dispersão de clientes por receita e margem de contribuição, dividida em quadrantes."></svg>
           </div>
           <div class="legend">
-            <span class="k"><i class="sw" style="background:#1E7B3C"></i>🛡️ Proteger (alta receita, alta margem)</span>
+            <span class="k"><i class="sw" style="background:#1E7F4F"></i>🛡️ Proteger (alta receita, alta margem)</span>
             <span class="k"><i class="sw" style="background:#C03221"></i>💰 Re-precificar (alta receita, baixa margem)</span>
             <span class="k"><i class="sw" style="background:#38648D"></i>🌱 Crescer (baixa receita, alta margem)</span>
             <span class="k"><i class="sw" style="background:#6E7883"></i>🤔 Reavaliar (baixa receita, baixa margem)</span>
@@ -3315,7 +3319,7 @@ function renderHome(d){
       if(!dia){ el.innerHTML=''; }
       else{
         const pct = dia.meta>0 ? 100*dia.realizado/dia.meta : null;
-        const cor = pct==null?'var(--n500)':(pct>=95?'var(--green,#1E7F4F)':(pct>=70?'#B8860B':'var(--red,#C03221)'));
+        const cor = pct==null?'var(--n500)':(pct>=95?'var(--green,#1E7F4F)':(pct>=70?'var(--yellow,#B97709)':'var(--red,#C03221)'));
         const cap = String(dia.dia).padStart(2,'0')+'/'+String(new Date().getMonth()+1).padStart(2,'0');
         el.innerHTML =
           `<div class="dd-cap">Dia ${cap}${dia.dia===hoje?' (hoje)':''}</div><div class="dd-row">`+
@@ -4360,7 +4364,7 @@ function chartRentMatriz(cs){
   const yLim=Y(25), xMed=X(medR);
   let s='';
   s+=`<rect x="${mL}" y="${mT}" width="${xMed-mL}" height="${yLim-mT}" fill="#38648D" opacity="0.05"/>`;
-  s+=`<rect x="${xMed}" y="${mT}" width="${W-mR-xMed}" height="${yLim-mT}" fill="#1E7B3C" opacity="0.06"/>`;
+  s+=`<rect x="${xMed}" y="${mT}" width="${W-mR-xMed}" height="${yLim-mT}" fill="#1E7F4F" opacity="0.06"/>`;
   s+=`<rect x="${mL}" y="${yLim}" width="${xMed-mL}" height="${mT+ih-yLim}" fill="#6E7883" opacity="0.05"/>`;
   s+=`<rect x="${xMed}" y="${yLim}" width="${W-mR-xMed}" height="${mT+ih-yLim}" fill="#C03221" opacity="0.06"/>`;
   s+=`<line x1="${mL}" y1="${yLim}" x2="${W-mR}" y2="${yLim}" stroke="#C2C8D0" stroke-dasharray="5 4"/>`;
@@ -4372,7 +4376,7 @@ function chartRentMatriz(cs){
   const topNames=new Set(pts.slice().sort((a,b)=>b.receita-a.receita).slice(0,8).map(p=>p.cliente));
   pts.forEach(p=>{
     const alta=p.receita>=medR, boa=p.margem_pct>=25;
-    const cor=alta&&boa?'#1E7B3C':(alta&&!boa?'#C03221':(boa?'#38648D':'#6E7883'));
+    const cor=alta&&boa?'#1E7F4F':(alta&&!boa?'#C03221':(boa?'#38648D':'#6E7883'));
     const x=X(p.receita), y=Y(p.margem_pct);
     const nome=p.cliente.length>22?p.cliente.slice(0,22)+'…':p.cliente;
     s+=`<circle cx="${x}" cy="${y}" r="8" fill="${cor}" opacity="0.75" stroke="#fff" stroke-width="1.5">`+
@@ -6219,7 +6223,7 @@ function chartDreCliMatriz(clientes){
   const yLim=Y(25), xMed=X(medR);
   let s='';
   s+=`<rect x="${mL}" y="${mT}" width="${xMed-mL}" height="${yLim-mT}" fill="#38648D" opacity="0.05"/>`;
-  s+=`<rect x="${xMed}" y="${mT}" width="${W-mR-xMed}" height="${yLim-mT}" fill="#1E7B3C" opacity="0.06"/>`;
+  s+=`<rect x="${xMed}" y="${mT}" width="${W-mR-xMed}" height="${yLim-mT}" fill="#1E7F4F" opacity="0.06"/>`;
   s+=`<rect x="${mL}" y="${yLim}" width="${xMed-mL}" height="${mT+ih-yLim}" fill="#6E7883" opacity="0.05"/>`;
   s+=`<rect x="${xMed}" y="${yLim}" width="${W-mR-xMed}" height="${mT+ih-yLim}" fill="#C03221" opacity="0.06"/>`;
   s+=`<line x1="${mL}" y1="${yLim}" x2="${W-mR}" y2="${yLim}" stroke="#C2C8D0" stroke-dasharray="5 4"/>`;
@@ -6231,7 +6235,7 @@ function chartDreCliMatriz(clientes){
   const topNames=new Set(pts.slice().sort((a,b)=>b.receita-a.receita).slice(0,8).map(p=>p.cliente));
   pts.forEach(p=>{
     const alta=p.receita>=medR, boa=p.margem_pct>=25;
-    const cor=alta&&boa?'#1E7B3C':(alta&&!boa?'#C03221':(boa?'#38648D':'#6E7883'));
+    const cor=alta&&boa?'#1E7F4F':(alta&&!boa?'#C03221':(boa?'#38648D':'#6E7883'));
     const x=X(p.receita), y=Y(p.margem_pct);
     const nome=p.cliente.length>22?p.cliente.slice(0,22)+'…':p.cliente;
     s+=`<circle cx="${x}" cy="${y}" r="8" fill="${cor}" opacity="0.75" stroke="#fff" stroke-width="1.5">`+
