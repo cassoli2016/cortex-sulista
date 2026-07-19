@@ -6618,9 +6618,11 @@ async function _pushSubAtual(){
 async function abrirNotificacoes(){
   const m=document.getElementById('avMenu'); if(m) m.classList.remove('aberto');
   const cfg=await _pushCfg(true);
-  const iOS=/iphone|ipad|ipod/i.test(navigator.userAgent);
+  const ua=navigator.userAgent;
+  const iOS=/iphone|ipad|ipod/i.test(ua) || (/Mac/.test(ua) && 'ontouchend' in document);
   const standalone=(('standalone' in navigator) ? navigator.standalone : false) || matchMedia('(display-mode: standalone)').matches;
   const suportado=('serviceWorker' in navigator)&&('PushManager' in window)&&('Notification' in window);
+  const iosVer=(ua.match(/OS (\d+)[._](\d+)/)||[]).slice(1).join('.');
   const sub=await _pushSubAtual();
   let corpo, foot='<button class="ghost" onclick="fecharModal()">Fechar</button>';
   if(!cfg.habilitado){
@@ -6628,7 +6630,9 @@ async function abrirNotificacoes(){
   } else if(iOS && !standalone){
     corpo=`<p class="lg-sub">No iPhone/iPad o push só funciona com o app na <b>Tela de Início</b>. Toque em <b>Compartilhar → Adicionar à Tela de Início</b>, abra por lá e volte aqui para ativar.</p>`;
   } else if(!suportado){
-    corpo=`<p class="lg-sub">Este navegador não suporta notificações push. Use o Chrome (Android) ou o app na tela inicial (iPhone).</p>`;
+    corpo=`<p class="lg-sub">${iOS
+      ? 'Seu iPhone precisa de <b>iOS 16.4 ou mais novo</b> para receber push em app instalado. Atualize em <b>Ajustes → Geral → Atualização de Software</b> e tente de novo.'
+      : 'Este navegador não suporta notificações push. Use o Chrome no Android.'}</p>`;
   } else if(sub){
     corpo=`<p class="lg-sub">Notificações <b>ativas</b> neste aparelho — 1 resumo por dia dos alertas críticos.</p>`;
     foot=`<button class="ghost" onclick="pushDesativar(this)">Desativar aqui</button><button class="btn" onclick="pushTestar(this)">Enviar teste</button>`;
@@ -6636,7 +6640,8 @@ async function abrirNotificacoes(){
     corpo=`<p class="lg-sub">Receba 1 resumo por dia dos alertas críticos direto no celular.</p>`;
     foot=`<button class="ghost" onclick="fecharModal()">Agora não</button><button class="btn" onclick="pushAtivar(this)">Ativar</button>`;
   }
-  abrirModal(`<h3>Notificações no celular</h3>${corpo}<div class="m-err" id="push-msg"></div>
+  const diag=`<div style="margin-top:12px;font-size:11px;color:var(--n500)">diagnóstico · iOS: ${iOS?('sim'+(iosVer?' '+iosVer:'')):'não'} · tela inicial: ${standalone?'sim':'não'} · push suportado: ${suportado?'sim':'não'}</div>`;
+  abrirModal(`<h3>Notificações no celular</h3>${corpo}<div class="m-err" id="push-msg"></div>${diag}
     <div class="m-foot">${foot}</div>`);
 }
 function _pushMsg(t,erro){ const e=document.getElementById('push-msg'); if(e){ e.textContent=t||''; e.style.color=erro?'var(--red)':'var(--green)'; } }
