@@ -8,8 +8,12 @@
 <link rel="manifest" href="/static/manifest.json">
 <meta name="theme-color" content="#0B1926">
 <meta name="apple-mobile-web-app-capable" content="yes">
-<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-<link rel="apple-touch-icon" href="/static/favicon.png">
+<meta name="mobile-web-app-capable" content="yes">
+<!-- status bar 'default' (texto escuro): a topbar do app é branca, então
+     'black-translucent' (texto branco) ficaria invisível -->
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="Córtex">
+<link rel="apple-touch-icon" sizes="180x180" href="/static/apple-touch-icon.png">
 <style>
 @import url('https://fonts.googleapis.com/css2?family=Saira:wght@400;500;600;700;800&family=IBM+Plex+Mono:wght@400;500;600&display=swap');
 :root{
@@ -576,6 +580,13 @@ button.avatar{border:0;cursor:pointer}
     transition-duration:.001ms !important;
     scroll-behavior:auto !important;
   }
+}
+/* PWA instalado (iPhone/Android standalone): respeita a safe-area do topo
+   (notch/status bar) — a topbar e o login não ficam sob o relógio/bateria.
+   env() é 0 fora do standalone/notch, então é inócuo no resto. */
+@media (display-mode: standalone){
+  .topbar{padding-top:calc(10px + env(safe-area-inset-top))}
+  #loginOverlay{padding-top:env(safe-area-inset-top)}
 }
 </style>
 </head>
