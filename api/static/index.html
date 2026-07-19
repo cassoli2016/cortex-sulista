@@ -5369,6 +5369,9 @@ function renderKm(d){
     kpi('Km carregado', fmtKm2(k.km_carregado), 'gera receita', ''),
     kpi('Retorno vazio', k.retorno_vazio!=null?(100*k.retorno_vazio).toLocaleString('pt-BR',{maximumFractionDigits:1})+'%':'—',
         fmtKm2(k.km_vazio)+' rodados vazios · meta até 20%'+rvDelta, (k.retorno_vazio||0)>0.2?'neg':'pos'),
+    kpi('Custo do vazio (est.)', d.custo_vazio_proprio!=null?BRL.format(d.custo_vazio_proprio):'—',
+        'frota própria · '+fmtKm2(d.km_vazio_proprio||0)+' vazios × '+fmtRsKm(d.ckm_var), 'neg',
+        'Estimativa do combustível/desgaste jogado fora rodando vazio pela FROTA PRÓPRIA: km vazio próprio × CKM variável (combustível+manutenção+pneus+outros variáveis do razão ÷ km rodado próprio). Agregado/terceiro rodando vazio é custo de frete-compra deles, fora desta conta.'),
     kpi('RKM médio', fmtRsKm(k.rkm), 'receita ÷ km carregado', ''),
   ].join('');
   chartKmRender(d.mensal||[]);
@@ -5405,6 +5408,8 @@ function renderKm(d){
   const A=[];
   if((k.retorno_vazio||0)>0.2) A.push(['t-dang','Retorno vazio acima do limite',
     `${(100*k.retorno_vazio).toFixed(1)}% do km rodado é vazio (referência FTL: até 20%). As rotas ao lado mostram onde concentrar a venda de frete de retorno.`]);
+  if(d.custo_vazio_proprio>0) A.push(['t-warn','Custo do vazio na frota própria',
+    `Estimados ${BRL.format(d.custo_vazio_proprio)} em combustível/desgaste rodando vazio no período (${fmtKm2(d.km_vazio_proprio||0)} vazios × ${fmtRsKm(d.ckm_var)}). Cada ponto de retorno vazio a menos volta como caixa.`]);
   const r0=(d.rotas_vazio||[])[0];
   if(r0 && r0.km_vazio>10000) A.push(['t-warn','Maior oportunidade de venda',
     `${r0.origem} → ${r0.destino}: ${fmtKm2(r0.km_vazio)} vazios em ${r0.viagens} viagens no período — rota prioritária para captação comercial.`]);

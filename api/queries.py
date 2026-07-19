@@ -2286,6 +2286,34 @@ ORDER BY 5 DESC LIMIT 15
 """
 
 
+@cached(ttl=300)
+def _custo_vazio_proprio(comp_de: str, comp_ate: str) -> dict:
+    """Estima o custo do km rodado vazio pela FROTA PRÓPRIA (combustível/desgaste):
+    km vazio próprio × CKM variável, onde CKM variável = (combustível + manutenção
+    + pneus + outros variáveis do razão) ÷ km total próprio (carregado+vazio).
+    SÓ frota própria — agregado/terceiro rodando vazio é custo de frete-compra
+    deles, não combustível nosso; misturar infla o número. Reusa as SQL do
+    Make-vs-Buy p/ manter a mesma régua contábil."""
+    de, ate = _comp_bounds(comp_de, comp_ate)
+    params = {"de": de, "ate": ate}
+    VAR = ("combustivel", "manutencao", "pneus", "outros_var")
+    with db.get_conn() as conn, conn.cursor() as cur:
+        cur.execute(MVB_CUSTO_SQL, params)
+        custos_rows = cur.fetchall()
+        cur.execute(MVB_PROPRIA_SQL, params)
+        propria_rows = cur.fetchall()
+    custo_var = sum(r["valor"] for r in custos_rows if r["comp"] in VAR)
+    km_carr = sum(r["km_carregado"] or 0 for r in propria_rows)
+    km_vazio = sum(r["km_vazio"] or 0 for r in propria_rows)
+    km_total = km_carr + km_vazio
+    ckm_var = (custo_var / km_total) if km_total else None
+    return {
+        "ckm_var": ckm_var,
+        "km_vazio_proprio": km_vazio,
+        "custo_vazio_proprio": (km_vazio * ckm_var) if ckm_var else None,
+    }
+
+
 @cached(ttl=90)
 def get_analise_km(filial: int | None, dt_de: str, dt_ate: str,
                    modalidade: str | None = None) -> dict:
@@ -2327,9 +2355,13 @@ def get_analise_km(filial: int | None, dt_de: str, dt_ate: str,
         c["rkm"] = (c["receita"] / c["km_carregado"]) if c["km_carregado"] else None
         c["share_km"] = (c["km_carregado"] / kpis["km_carregado"]) if kpis["km_carregado"] else None
 
+    cvp = _custo_vazio_proprio(dt_de[:7], dt_ate[:7])  # custo estimado do vazio próprio
+
     return {
         "kpis": kpis, "mensal": mensal, "modalidades": modalidades,
         "clientes": clientes, "rotas_vazio": rotas_vazio, "veiculos": veiculos,
+        "ckm_var": cvp["ckm_var"], "km_vazio_proprio": cvp["km_vazio_proprio"],
+        "custo_vazio_proprio": cvp["custo_vazio_proprio"],
         "dt_de": dt_de, "dt_ate": dt_ate, "filial": filial, "modalidade": modalidade,
         "atualizado_em": meta["ts"].isoformat(),
         "fonte": "ERP AVA · programação de embarque · leitura",
