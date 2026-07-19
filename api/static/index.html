@@ -1294,7 +1294,7 @@ button.avatar{border:0;cursor:pointer}
           <div class="legend">
             <span class="k"><i class="sw" style="background:#1E7F4F"></i>🛡️ Proteger (alta receita, alta margem)</span>
             <span class="k"><i class="sw" style="background:#C03221"></i>💰 Re-precificar (alta receita, baixa margem)</span>
-            <span class="k"><i class="sw" style="background:#38648D"></i>🌱 Crescer (baixa receita, alta margem)</span>
+            <span class="k"><i class="sw" style="background:var(--navy-500)"></i>🌱 Crescer (baixa receita, alta margem)</span>
             <span class="k"><i class="sw" style="background:#6E7883"></i>🤔 Reavaliar (baixa receita, baixa margem)</span>
           </div>
         </div>
@@ -1763,8 +1763,8 @@ button.avatar{border:0;cursor:pointer}
           </div>
           <div id="mapaTorre" style="height:480px;border-radius:0 0 10px 10px;background:var(--navy-50);position:relative;z-index:1"></div>
           <div class="legend" style="padding-bottom:12px">
-            <span class="k"><i class="sw" style="background:#17344F;border-radius:50%"></i>Frota</span>
-            <span class="k"><i class="sw" style="background:#38648D;border-radius:50%"></i>Locação</span>
+            <span class="k"><i class="sw" style="background:var(--navy-700);border-radius:50%"></i>Frota</span>
+            <span class="k"><i class="sw" style="background:var(--navy-500);border-radius:50%"></i>Locação</span>
             <span class="k"><i class="sw" style="background:#E85D10;border-radius:50%"></i>Agregado</span>
             <span class="k"><i class="sw" style="background:#B97709;border-radius:50%"></i>Terceiro</span>
             <span class="k" style="color:var(--n500)">contorno vermelho = viagem atrasada</span>
@@ -2844,7 +2844,7 @@ function chartFluxo(fluxo){
     s+=`<rect x="${mL}" y="${t1-20}" width="${bandW}" height="${p2t+h2-(t1-20)}" fill="#ECEEF1" opacity=".55"/>`;
     s+=`<line x1="${mL+bandW}" y1="${t1-20}" x2="${mL+bandW}" y2="${p2t+h2}" stroke="#C2C8D0" stroke-width="1"/>`;
   }
-  s+=`<rect id="chart-hband" x="0" y="${t1-20}" width="${bandW}" height="${p2t+h2-(t1-20)}" fill="#DCE6F0" opacity="0"/>`;
+  s+=`<rect id="chart-hband" x="0" y="${t1-20}" width="${bandW}" height="${p2t+h2-(t1-20)}" fill="${CC.navy100}" opacity="0"/>`;
 
   s+=`<text x="${mL}" y="${t1-16}" font-size="11" fill="#6E7883" font-weight="600" letter-spacing="1.5">ENTRADAS × SAÍDAS POR MÊS · ${u1.t}</text>`;
   tk1.forEach(v=>{ const yy=y1(v);
@@ -2866,20 +2866,20 @@ function chartFluxo(fluxo){
   const px=i=>mL+bandW*i+bandW/2;
   const band = fluxo.map((f,i)=>`${px(i)},${y2(f.saldo_realista)}`).join(' ')+' '+
                [...fluxo].reverse().map((f,i)=>`${px(n-1-i)},${y2(f.saldo_projetado)}`).join(' ');
-  s+=`<polygon points="${band}" fill="#38648D" opacity=".10"/>`;
-  s+=`<polyline points="${fluxo.map((f,i)=>`${px(i)},${y2(f.saldo_realista)}`).join(' ')}" fill="none" stroke="#38648D" stroke-width="2" stroke-dasharray="6 4" stroke-linecap="round" stroke-linejoin="round"/>`;
-  s+=`<polyline points="${fluxo.map((f,i)=>`${px(i)},${y2(f.saldo_projetado)}`).join(' ')}" fill="none" stroke="#17344F" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>`;
+  s+=`<polygon points="${band}" fill="${CC.navy500}" opacity=".10"/>`;
+  s+=`<polyline points="${fluxo.map((f,i)=>`${px(i)},${y2(f.saldo_realista)}`).join(' ')}" fill="none" stroke="${CC.navy500}" stroke-width="2" stroke-dasharray="6 4" stroke-linecap="round" stroke-linejoin="round"/>`;
+  s+=`<polyline points="${fluxo.map((f,i)=>`${px(i)},${y2(f.saldo_projetado)}`).join(' ')}" fill="none" stroke="${CC.navy700}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>`;
   let minI=0; fluxo.forEach((f,i)=>{ if(f.saldo_projetado<fluxo[minI].saldo_projetado) minI=i; });
   const mf=fluxo[minI];
-  s+=`<circle cx="${px(minI)}" cy="${y2(mf.saldo_projetado)}" r="4" fill="#17344F" stroke="#fff" stroke-width="2"/>`;
+  s+=`<circle cx="${px(minI)}" cy="${y2(mf.saldo_projetado)}" r="4" fill="${CC.navy700}" stroke="#fff" stroke-width="2"/>`;
   s+=`<text x="${px(minI)}" y="${Math.min(y2(mf.saldo_projetado)+18,p2t+h2-4)}" text-anchor="middle" font-size="11" font-weight="600" fill="#39414A">${NMI.format(mf.saldo_projetado/u2.d)} ${u2.t.replace('R$ ','').toLowerCase()}</text>`;
 
   fluxo.forEach((f,i)=>{ const at=f.periodo==='atrasado';
     s+=`<text x="${px(i)}" y="${p2t+h2+18}" text-anchor="middle" font-size="11" fill="${at?'#39414A':'#4F5860'}" font-weight="${at?'700':'400'}">${periodoLabel(f.periodo)}</text>`; });
 
-  s+=`<line id="chart-xhair" x1="0" x2="0" y1="${t1-20}" y2="${p2t+h2}" stroke="#5F87AC" stroke-width="1" opacity="0"/>`;
-  s+=`<circle id="chart-mkP" r="4.5" fill="#17344F" stroke="#fff" stroke-width="2" opacity="0"/>`;
-  s+=`<circle id="chart-mkR" r="4.5" fill="#38648D" stroke="#fff" stroke-width="2" opacity="0"/>`;
+  s+=`<line id="chart-xhair" x1="0" x2="0" y1="${t1-20}" y2="${p2t+h2}" stroke="${CC.navy400}" stroke-width="1" opacity="0"/>`;
+  s+=`<circle id="chart-mkP" r="4.5" fill="${CC.navy700}" stroke="#fff" stroke-width="2" opacity="0"/>`;
+  s+=`<circle id="chart-mkR" r="4.5" fill="${CC.navy500}" stroke="#fff" stroke-width="2" opacity="0"/>`;
   s+=`<rect x="${mL}" y="${t1-20}" width="${iw}" height="${p2t+h2-(t1-20)}" fill="transparent"/>`;
   svg.innerHTML=s;
 
@@ -2910,7 +2910,7 @@ function renderVenc(svgId,tipId,wrapId,rows,dataRef){
   const y=v=>mT+ih-(v/top)*ih;
   const y0=y(0);
   let s='';
-  s+=`<rect id="${svgId}-hband" x="0" y="${mT-14}" width="${bandW}" height="${ih+14}" fill="#DCE6F0" opacity="0"/>`;
+  s+=`<rect id="${svgId}-hband" x="0" y="${mT-14}" width="${bandW}" height="${ih+14}" fill="${CC.navy100}" opacity="0"/>`;
   s+=`<text x="${mL}" y="${mT-12}" font-size="11" fill="#6E7883" font-weight="600" letter-spacing="1.5">${u.t}</text>`;
   tks.forEach(v=>{ const yy=y(v);
     s+=`<line x1="${mL}" y1="${yy}" x2="${W-mR}" y2="${yy}" stroke="${v===0?'#C2C8D0':'#ECEEF1'}" stroke-width="1"/>`;
@@ -2933,7 +2933,7 @@ function renderVenc(svgId,tipId,wrapId,rows,dataRef){
   const step=Math.max(1,Math.ceil(n/16));
   rows.forEach((r,i)=>{ if(i%step && i!==n-1) return;
     s+=`<text x="${px(i)}" y="${H-mB+18}" text-anchor="middle" font-size="10.5" fill="#4F5860">${bucketLabel(r.bucket,dataRef)}</text>`; });
-  s+=`<line id="${svgId}-xhair" x1="0" x2="0" y1="${mT-14}" y2="${y0}" stroke="#5F87AC" stroke-width="1" opacity="0"/>`;
+  s+=`<line id="${svgId}-xhair" x1="0" x2="0" y1="${mT-14}" y2="${y0}" stroke="${CC.navy400}" stroke-width="1" opacity="0"/>`;
   s+=`<rect x="${mL}" y="${mT-14}" width="${iw}" height="${ih+14}" fill="transparent"/>`;
   svg.innerHTML=s;
   GEOM[svgId]={kind:'venc',rows,n,bandW,mL,W,px,topY:mT-14,botY:y0,wrap:wrapId,tip:tipId,dataRef};
@@ -2994,14 +2994,14 @@ function setActive(svgId,i,clientY,announce){
     tipRow(tip,'Pagar',BRL.format(f.pagar),{borderTop:'3px solid #C03221'});
     tipRow(tip,'Líquido',BRL.format(f.liquido),null);
     const sep=document.createElement('div'); sep.className='sep'; tip.append(sep);
-    tipRow(tip,'Saldo projetado',BRL.format(f.saldo_projetado),{borderTop:'3px solid #17344F'});
-    tipRow(tip,'Saldo realista',BRL.format(f.saldo_realista),{borderTop:'3px dashed #38648D'});
+    tipRow(tip,'Saldo projetado',BRL.format(f.saldo_projetado),{borderTop:'3px solid '+CC.navy700});
+    tipRow(tip,'Saldo realista',BRL.format(f.saldo_realista),{borderTop:'3px dashed '+CC.navy500});
     liveTxt=`${periodoLabel(f.periodo)}: receber ${BRL.format(f.receber)}, pagar ${BRL.format(f.pagar)}, saldo projetado ${BRL.format(f.saldo_projetado)}`;
   } else if(g.kind==='oc'){
     const r=g.rows[i];
     tt.textContent=periodoLabel(r.mes);
     tip.append(tt);
-    tipRow(tip,'Valor emitido',BRL.format(r.valor),{borderTop:'3px solid #38648D'});
+    tipRow(tip,'Valor emitido',BRL.format(r.valor),{borderTop:'3px solid '+CC.navy500});
     tipRow(tip,'Ordens',r.ocs.toLocaleString('pt-BR'),null);
     liveTxt=`${periodoLabel(r.mes)}: ${r.ocs} ordens, ${BRL.format(r.valor)}`;
   } else if(g.kind==='mul'){
@@ -3016,7 +3016,7 @@ function setActive(svgId,i,clientY,announce){
     tt.textContent='Dia '+r.dia;
     tip.append(tt);
     tipRow(tip,'Realizado',BRL.format(r.realizado||0),{borderTop:'3px solid #1E7F4F'});
-    tipRow(tip,'Meta',BRL.format(r.meta||0),{borderTop:'3px solid #38648D'});
+    tipRow(tip,'Meta',BRL.format(r.meta||0),{borderTop:'3px solid '+CC.navy500});
     liveTxt=`Dia ${r.dia}: realizado ${BRL.format(r.realizado||0)}, meta ${BRL.format(r.meta||0)}`;
   } else if(g.kind==='hrec'){
     const r=g.rows[i];
@@ -3028,7 +3028,7 @@ function setActive(svgId,i,clientY,announce){
     const r=g.rows[i];
     tt.textContent=periodoLabel(r.periodo);
     tip.append(tt);
-    tipRow(tip,'Saldo projetado',BRL.format(r.saldo_projetado),{borderTop:'3px solid #17344F'});
+    tipRow(tip,'Saldo projetado',BRL.format(r.saldo_projetado),{borderTop:'3px solid '+CC.navy700});
     liveTxt=`${periodoLabel(r.periodo)}: ${BRL.format(r.saldo_projetado)}`;
   } else if(g.kind==='kmv'){
     const r=g.rows[i];
@@ -3052,7 +3052,7 @@ function setActive(svgId,i,clientY,announce){
     const r=g.rows[i];
     tt.textContent=periodoLabel(r.mes);
     tip.append(tt);
-    tipRow(tip,'Frota própria',BRL.format(r.custo_proprio||0),{borderTop:'3px solid #38648D'});
+    tipRow(tip,'Frota própria',BRL.format(r.custo_proprio||0),{borderTop:'3px solid '+CC.navy500});
     tipRow(tip,'Terceiros (repasse)',BRL.format(r.custo_terceiros||0),{borderTop:'3px solid #E85D10'});
     tipRow(tip,'Litros',fmtL(r.litros),null);
     tipRow(tip,'R$/l',r.rs_litro!=null?r.rs_litro.toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2}):'—',null);
@@ -3062,7 +3062,7 @@ function setActive(svgId,i,clientY,announce){
     const r=g.rows[i];
     tt.textContent=periodoLabel(r.mes);
     tip.append(tt);
-    tipRow(tip,'Peças',BRL.format(r.pecas||0),{borderTop:'3px solid #38648D'});
+    tipRow(tip,'Peças',BRL.format(r.pecas||0),{borderTop:'3px solid '+CC.navy500});
     tipRow(tip,'Mão de obra',BRL.format(r.maoobra||0),{borderTop:'3px solid #E85D10'});
     tipRow(tip,'Total',BRL.format(r.custo||0),null);
     tipRow(tip,'OSs',r.ordens.toLocaleString('pt-BR'),null);
@@ -3071,8 +3071,8 @@ function setActive(svgId,i,clientY,announce){
     const m=g.rows[i];
     tt.textContent=periodoLabel(m.mes);
     tip.append(tt);
-    tipRow(tip,'CKM próprio cheio',fmtRsKm(m.ckm_cheio),{borderTop:'3px solid #17344F'});
-    tipRow(tip,'CKM próprio marginal',fmtRsKm(m.ckm_marginal),{borderTop:'3px dashed #38648D'});
+    tipRow(tip,'CKM próprio cheio',fmtRsKm(m.ckm_cheio),{borderTop:'3px solid '+CC.navy700});
+    tipRow(tip,'CKM próprio marginal',fmtRsKm(m.ckm_marginal),{borderTop:'3px dashed '+CC.navy500});
     tipRow(tip,'R$/km agregado',fmtRsKm(m.rs_km_agregado),{borderTop:'3px solid #E85D10'});
     tipRow(tip,'R$/km terceiro',fmtRsKm(m.rs_km_terceiro),{borderTop:'3px solid #1E7F4F'});
     const sep=document.createElement('div'); sep.className='sep'; tip.append(sep);
@@ -3090,7 +3090,7 @@ function setActive(svgId,i,clientY,announce){
     const it=g.rows[i];
     tt.textContent=it.l;
     tip.append(tt);
-    const key = it.t==='t' ? {borderTop:'3px solid #17344F'} : {borderTop:'3px solid '+(it.v>=0?'#1E7F4F':'#C03221')};
+    const key = it.t==='t' ? {borderTop:'3px solid '+CC.navy700} : {borderTop:'3px solid '+(it.v>=0?'#1E7F4F':'#C03221')};
     tipRow(tip, it.t==='t'?'Subtotal':'Valor', BRL.format(it.v), key);
     if(g.rl) tipRow(tip,'% da receita líquida',(100*it.v/g.rl).toLocaleString('pt-BR',{maximumFractionDigits:1})+'%',null);
     if(it.t==='d') tipRow(tip,'Acumulado até aqui',BRL.format(it.b),null);
@@ -3369,7 +3369,7 @@ function chartHomeDiario(diario){
   const px=i=>mL+bandW*i+bandW/2;
   const barW=Math.min(10,bandW*0.3);
   let s='';
-  s+=`<rect id="chartHdia-hband" x="0" y="${mT-8}" width="${bandW}" height="${ih+8}" fill="#DCE6F0" opacity="0"/>`;
+  s+=`<rect id="chartHdia-hband" x="0" y="${mT-8}" width="${bandW}" height="${ih+8}" fill="${CC.navy100}" opacity="0"/>`;
   s+=`<text x="${mL}" y="${mT-6}" font-size="11" fill="#6E7883" font-weight="600" letter-spacing="1.5">${u.t}</text>`;
   tks.forEach(v=>{ const yy=y(v);
     s+=`<line x1="${mL}" y1="${yy}" x2="${W-mR}" y2="${yy}" stroke="${v===0?'#C2C8D0':'#ECEEF1'}" stroke-width="1"/>`;
@@ -3377,9 +3377,9 @@ function chartHomeDiario(diario){
   diario.forEach((r,i)=>{ const cx=px(i);
     const rat=(r.meta>0)?(r.realizado||0)/r.meta:null;
     s+=colPath(cx-barW-1,barW,y(r.realizado||0),y0,3,corAtingimento(rat));
-    s+=colPath(cx+1,barW,y(r.meta||0),y0,3,'#38648D'); });
+    s+=colPath(cx+1,barW,y(r.meta||0),y0,3,CC.navy500); });
   diario.forEach((r,i)=>{ if(i%2===0||n<=16) s+=`<text x="${px(i)}" y="${H-mB+16}" text-anchor="middle" font-size="10" fill="#4F5860">${r.dia}</text>`; });
-  s+=`<line id="chartHdia-xhair" x1="0" x2="0" y1="${mT-8}" y2="${y0}" stroke="#5F87AC" stroke-width="1" opacity="0"/>`;
+  s+=`<line id="chartHdia-xhair" x1="0" x2="0" y1="${mT-8}" y2="${y0}" stroke="${CC.navy400}" stroke-width="1" opacity="0"/>`;
   s+=`<rect x="${mL}" y="${mT-8}" width="${iw}" height="${ih+8}" fill="transparent"/>`;
   svg.innerHTML=s;
   GEOM['chartHdia']={kind:'hdia',rows:diario,n,bandW,mL,W,px,topY:mT-8,botY:y0,wrap:'wrapHdia',tip:'tipHdia'};
@@ -3397,14 +3397,14 @@ function chartHomeReceita(mensal){
   const px=i=>mL+bandW*i+bandW/2;
   const barW=Math.min(30,bandW*0.55);
   let s='';
-  s+=`<rect id="chartHrec-hband" x="0" y="${mT-8}" width="${bandW}" height="${ih+8}" fill="#DCE6F0" opacity="0"/>`;
+  s+=`<rect id="chartHrec-hband" x="0" y="${mT-8}" width="${bandW}" height="${ih+8}" fill="${CC.navy100}" opacity="0"/>`;
   s+=`<text x="${mL}" y="${mT-6}" font-size="11" fill="#6E7883" font-weight="600" letter-spacing="1.5">${u.t}</text>`;
   tks.forEach(v=>{ const yy=y(v);
     s+=`<line x1="${mL}" y1="${yy}" x2="${W-mR}" y2="${yy}" stroke="${v===0?'#C2C8D0':'#ECEEF1'}" stroke-width="1"/>`;
     s+=`<text x="${mL-8}" y="${yy+4}" text-anchor="end" font-size="10" fill="#6E7883" font-family="IBM Plex Mono,monospace">${NMI.format(v/u.d)}</text>`; });
   mensal.forEach((r,i)=>{ s+=colPath(px(i)-barW/2,barW,y(r.receita),y0,4,'#1E7F4F'); });
   mensal.forEach((r,i)=>{ s+=`<text x="${px(i)}" y="${H-mB+16}" text-anchor="middle" font-size="10" fill="#4F5860">${periodoLabel(r.mes)}</text>`; });
-  s+=`<line id="chartHrec-xhair" x1="0" x2="0" y1="${mT-8}" y2="${y0}" stroke="#5F87AC" stroke-width="1" opacity="0"/>`;
+  s+=`<line id="chartHrec-xhair" x1="0" x2="0" y1="${mT-8}" y2="${y0}" stroke="${CC.navy400}" stroke-width="1" opacity="0"/>`;
   s+=`<rect x="${mL}" y="${mT-8}" width="${iw}" height="${ih+8}" fill="transparent"/>`;
   svg.innerHTML=s;
   GEOM['chartHrec']={kind:'hrec',rows:mensal,n,bandW,mL,W,px,topY:mT-8,botY:y0,wrap:'wrapHrec',tip:'tipHrec'};
@@ -3422,16 +3422,16 @@ function chartHomeSaldo(serie){
   const y=v=>mT+ih-((v-lo)/(hi-lo))*ih;
   const px=i=>mL+bandW*i+bandW/2;
   let s='';
-  s+=`<rect id="chartHsal-hband" x="0" y="${mT-8}" width="${bandW}" height="${ih+8}" fill="#DCE6F0" opacity="0"/>`;
+  s+=`<rect id="chartHsal-hband" x="0" y="${mT-8}" width="${bandW}" height="${ih+8}" fill="${CC.navy100}" opacity="0"/>`;
   s+=`<text x="${mL}" y="${mT-6}" font-size="11" fill="#6E7883" font-weight="600" letter-spacing="1.5">${u.t}</text>`;
   tks.forEach(v=>{ const yy=y(v), zero=Math.abs(v)<(hi-lo)/1e4;
     s+=`<line x1="${mL}" y1="${yy}" x2="${W-mR}" y2="${yy}" stroke="${zero?'#9AA3AE':'#ECEEF1'}" stroke-width="${zero?1.2:1}"/>`;
     s+=`<text x="${mL-8}" y="${yy+4}" text-anchor="end" font-size="10" fill="#6E7883" font-family="IBM Plex Mono,monospace">${NMI.format(v/u.d)}</text>`; });
   if(lo<0) s+=`<rect x="${mL}" y="${y(0)}" width="${iw}" height="${mT+ih-y(0)}" fill="#C03221" opacity=".05"/>`;
-  s+=`<polyline points="${serie.map((r,i)=>px(i)+','+y(r.saldo_projetado)).join(' ')}" fill="none" stroke="#17344F" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>`;
-  serie.forEach((r,i)=>{ s+=`<circle cx="${px(i)}" cy="${y(r.saldo_projetado)}" r="3.5" fill="#17344F" stroke="#fff" stroke-width="2"/>`; });
+  s+=`<polyline points="${serie.map((r,i)=>px(i)+','+y(r.saldo_projetado)).join(' ')}" fill="none" stroke="${CC.navy700}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>`;
+  serie.forEach((r,i)=>{ s+=`<circle cx="${px(i)}" cy="${y(r.saldo_projetado)}" r="3.5" fill="${CC.navy700}" stroke="#fff" stroke-width="2"/>`; });
   serie.forEach((r,i)=>{ s+=`<text x="${px(i)}" y="${H-mB+16}" text-anchor="middle" font-size="10" fill="#4F5860">${periodoLabel(r.periodo)}</text>`; });
-  s+=`<line id="chartHsal-xhair" x1="0" x2="0" y1="${mT-8}" y2="${mT+ih}" stroke="#5F87AC" stroke-width="1" opacity="0"/>`;
+  s+=`<line id="chartHsal-xhair" x1="0" x2="0" y1="${mT-8}" y2="${mT+ih}" stroke="${CC.navy400}" stroke-width="1" opacity="0"/>`;
   s+=`<rect x="${mL}" y="${mT-8}" width="${iw}" height="${ih+8}" fill="transparent"/>`;
   svg.innerHTML=s;
   GEOM['chartHsal']={kind:'hsal',rows:serie,n,bandW,mL,W,px,topY:mT-8,botY:mT+ih,wrap:'wrapHsal',tip:'tipHsal'};
@@ -4363,7 +4363,7 @@ function chartRentMatriz(cs){
   const Y=v=>mT+ih-((Math.max(-10,Math.min(85,v))-loM)/(hiM-loM))*ih;
   const yLim=Y(25), xMed=X(medR);
   let s='';
-  s+=`<rect x="${mL}" y="${mT}" width="${xMed-mL}" height="${yLim-mT}" fill="#38648D" opacity="0.05"/>`;
+  s+=`<rect x="${mL}" y="${mT}" width="${xMed-mL}" height="${yLim-mT}" fill="${CC.navy500}" opacity="0.05"/>`;
   s+=`<rect x="${xMed}" y="${mT}" width="${W-mR-xMed}" height="${yLim-mT}" fill="#1E7F4F" opacity="0.06"/>`;
   s+=`<rect x="${mL}" y="${yLim}" width="${xMed-mL}" height="${mT+ih-yLim}" fill="#6E7883" opacity="0.05"/>`;
   s+=`<rect x="${xMed}" y="${yLim}" width="${W-mR-xMed}" height="${mT+ih-yLim}" fill="#C03221" opacity="0.06"/>`;
@@ -4376,7 +4376,7 @@ function chartRentMatriz(cs){
   const topNames=new Set(pts.slice().sort((a,b)=>b.receita-a.receita).slice(0,8).map(p=>p.cliente));
   pts.forEach(p=>{
     const alta=p.receita>=medR, boa=p.margem_pct>=25;
-    const cor=alta&&boa?'#1E7F4F':(alta&&!boa?'#C03221':(boa?'#38648D':'#6E7883'));
+    const cor=alta&&boa?'#1E7F4F':(alta&&!boa?'#C03221':(boa?CC.navy500:'#6E7883'));
     const x=X(p.receita), y=Y(p.margem_pct);
     const nome=p.cliente.length>22?p.cliente.slice(0,22)+'…':p.cliente;
     s+=`<circle cx="${x}" cy="${y}" r="8" fill="${cor}" opacity="0.75" stroke="#fff" stroke-width="1.5">`+
@@ -4404,14 +4404,14 @@ function chartMulRender(mensal){
   const px=i=>mL+bandW*i+bandW/2;
   const barW=Math.min(28,bandW*0.5);
   let s='';
-  s+=`<rect id="chartMul-hband" x="0" y="${mT-8}" width="${bandW}" height="${ih+8}" fill="#DCE6F0" opacity="0"/>`;
+  s+=`<rect id="chartMul-hband" x="0" y="${mT-8}" width="${bandW}" height="${ih+8}" fill="${CC.navy100}" opacity="0"/>`;
   s+=`<text x="${mL}" y="${mT-6}" font-size="11" fill="#6E7883" font-weight="600" letter-spacing="1.5">${u.t}</text>`;
   tks.forEach(v=>{ const yy=y(v);
     s+=`<line x1="${mL}" y1="${yy}" x2="${W-mR}" y2="${yy}" stroke="${v===0?'#C2C8D0':'#ECEEF1'}" stroke-width="1"/>`;
     s+=`<text x="${mL-8}" y="${yy+4}" text-anchor="end" font-size="10" fill="#6E7883" font-family="IBM Plex Mono,monospace">${NMI.format(v/u.d)}</text>`; });
   mensal.forEach((r,i)=>{ s+=colPath(px(i)-barW/2,barW,y(r.valor||0),y0,4,'#B97709'); });
   mensal.forEach((r,i)=>{ s+=`<text x="${px(i)}" y="${H-mB+16}" text-anchor="middle" font-size="10" fill="#4F5860">${periodoLabel(r.mes)}</text>`; });
-  s+=`<line id="chartMul-xhair" x1="0" x2="0" y1="${mT-8}" y2="${y0}" stroke="#5F87AC" stroke-width="1" opacity="0"/>`;
+  s+=`<line id="chartMul-xhair" x1="0" x2="0" y1="${mT-8}" y2="${y0}" stroke="${CC.navy400}" stroke-width="1" opacity="0"/>`;
   s+=`<rect x="${mL}" y="${mT-8}" width="${iw}" height="${ih+8}" fill="transparent"/>`;
   svg.innerHTML=s;
   GEOM['chartMul']={kind:'mul',rows:mensal,n,bandW,mL,W,px,topY:mT-8,botY:y0,wrap:'wrapMul',tip:'tipMul'};
@@ -4956,7 +4956,13 @@ function renderRh(d){
   document.getElementById('rh-vagas').innerHTML=`<table><thead><tr><th>Cargo</th><th>Departamento</th><th>Área</th><th>Tipo</th><th>Recrutamento</th><th>Status</th><th class="num">Solicitação</th><th class="num">Fechamento</th></tr></thead><tbody>${vg}</tbody></table>`;
 }
 // ===================== Mini-biblioteca de gráficos SVG (design system) =====================
-const CC = { verde:'#1E7F4F', vermelho:'#C03221', amarelo:'#B97709', ouro:'#FFD31C', azul:'#2563EB', roxo:'#7C3AED', ink:'#1E1E1E', n300:'#CBD2D9', n400:'#9AA5B1', n500:'#6B7280', grid:'#EEF1F4' };
+// lê um token CSS (fonte-da-verdade); fallback só se a resolução falhar
+const _cssv = (n,f) => (getComputedStyle(document.documentElement).getPropertyValue(n).trim() || f);
+// Paleta dos gráficos. O navy DERIVA dos tokens --navy-* (não mais hex solto
+// espalhado nos SVGs): navy700 escuro · navy500 barra/linha · navy400 eixo ·
+// navy100 banda de hover.
+const CC = { verde:'#1E7F4F', vermelho:'#C03221', amarelo:'#B97709', ouro:'#FFD31C', azul:'#2563EB', roxo:'#7C3AED', ink:'#1E1E1E', n300:'#CBD2D9', n400:'#9AA5B1', n500:'#6B7280', grid:'#EEF1F4',
+  navy700:_cssv('--navy-700','#17344F'), navy500:_cssv('--navy-500','#38648D'), navy400:_cssv('--navy-400','#5F87AC'), navy100:_cssv('--navy-100','#DCE6F0') };
 function _chartEl(id){ return document.getElementById(id); }
 function _trunc(s,n){ s=String(s); return s.length>n? s.slice(0,n-1)+'…' : s; }
 // moeda compacta p/ eixos e barras: 1.250.000 -> "1,3 mi"
@@ -5449,7 +5455,7 @@ function chartKmRender(mensal){
   const px=i=>mL+bandW*i+bandW/2;
   const barW=Math.min(26,bandW*0.5);
   let s='';
-  s+=`<rect id="chartKm-hband" x="0" y="${mT-14}" width="${bandW}" height="${ih+14}" fill="#DCE6F0" opacity="0"/>`;
+  s+=`<rect id="chartKm-hband" x="0" y="${mT-14}" width="${bandW}" height="${ih+14}" fill="${CC.navy100}" opacity="0"/>`;
   s+=`<text x="${mL}" y="${mT-12}" font-size="11" fill="#6E7883" font-weight="600" letter-spacing="1.5">${uk.t}</text>`;
   tks.forEach(v=>{ const yy=y(v);
     s+=`<line x1="${mL}" y1="${yy}" x2="${W-mR}" y2="${yy}" stroke="${v===0?'#C2C8D0':'#ECEEF1'}" stroke-width="1"/>`;
@@ -5464,14 +5470,14 @@ function chartKmRender(mensal){
   const _rv=mensal.map(r=>r.retorno_vazio).filter(v=>v!=null);
   const topPct=Math.max(0.30,..._rv);
   const pY=p=>mT+ih-(p/topPct)*ih;
-  s+=`<text x="${W-mR}" y="${mT-12}" text-anchor="end" font-size="11" fill="#17344F" font-weight="600" letter-spacing="1.5">% VAZIO</text>`;
+  s+=`<text x="${W-mR}" y="${mT-12}" text-anchor="end" font-size="11" fill="${CC.navy700}" font-weight="600" letter-spacing="1.5">% VAZIO</text>`;
   s+=`<line x1="${mL}" y1="${pY(0.20)}" x2="${W-mR}" y2="${pY(0.20)}" stroke="#B97709" stroke-width="1.5" stroke-dasharray="5 4"/>`;
   s+=`<text x="${W-mR-2}" y="${pY(0.20)-5}" text-anchor="end" font-size="10.5" fill="#B97709" font-weight="600">meta 20%</text>`;
   const _pts=mensal.map((r,i)=>r.retorno_vazio!=null?`${px(i)},${pY(r.retorno_vazio)}`:null).filter(Boolean).join(' ');
-  if(_pts) s+=`<polyline points="${_pts}" fill="none" stroke="#17344F" stroke-width="2"/>`;
-  mensal.forEach((r,i)=>{ if(r.retorno_vazio!=null) s+=`<circle cx="${px(i)}" cy="${pY(r.retorno_vazio)}" r="3" fill="#17344F"/>`; });
+  if(_pts) s+=`<polyline points="${_pts}" fill="none" stroke="${CC.navy700}" stroke-width="2"/>`;
+  mensal.forEach((r,i)=>{ if(r.retorno_vazio!=null) s+=`<circle cx="${px(i)}" cy="${pY(r.retorno_vazio)}" r="3" fill="${CC.navy700}"/>`; });
   mensal.forEach((r,i)=>{ s+=`<text x="${px(i)}" y="${H-mB+18}" text-anchor="middle" font-size="10.5" fill="#4F5860">${periodoLabel(r.mes)}</text>`; });
-  s+=`<line id="chartKm-xhair" x1="0" x2="0" y1="${mT-14}" y2="${y0}" stroke="#5F87AC" stroke-width="1" opacity="0"/>`;
+  s+=`<line id="chartKm-xhair" x1="0" x2="0" y1="${mT-14}" y2="${y0}" stroke="${CC.navy400}" stroke-width="1" opacity="0"/>`;
   s+=`<rect x="${mL}" y="${mT-14}" width="${iw}" height="${ih+14}" fill="transparent"/>`;
   svg.innerHTML=s;
   GEOM['chartKm']={kind:'kmv',rows:mensal,n,bandW,mL,W,px,topY:mT-14,botY:y0,wrap:'wrapKm',tip:'tipKm'};
@@ -5605,14 +5611,14 @@ function chartComRender(mensal){
   const px=i=>mL+bandW*i+bandW/2;
   const barW=Math.min(26,bandW*0.5);
   let s='';
-  s+=`<rect id="chartCom-hband" x="0" y="${mT-14}" width="${bandW}" height="${ih+14}" fill="#DCE6F0" opacity="0"/>`;
+  s+=`<rect id="chartCom-hband" x="0" y="${mT-14}" width="${bandW}" height="${ih+14}" fill="${CC.navy100}" opacity="0"/>`;
   s+=`<text x="${mL}" y="${mT-12}" font-size="11" fill="#6E7883" font-weight="600" letter-spacing="1.5">${u.t}</text>`;
   tks.forEach(v=>{ const yy=y(v);
     s+=`<line x1="${mL}" y1="${yy}" x2="${W-mR}" y2="${yy}" stroke="${v===0?'#C2C8D0':'#ECEEF1'}" stroke-width="1"/>`;
     s+=`<text x="${mL-8}" y="${yy+4}" text-anchor="end" font-size="11" fill="#6E7883" font-family="IBM Plex Mono,monospace">${NMI.format(v/u.d)}</text>`; });
   mensal.forEach((r,i)=>{ s+=colPath(px(i)-barW/2,barW,y(r.receita),y0,4,'#1E7F4F'); });
   mensal.forEach((r,i)=>{ s+=`<text x="${px(i)}" y="${H-mB+18}" text-anchor="middle" font-size="10.5" fill="#4F5860">${periodoLabel(r.mes)}</text>`; });
-  s+=`<line id="chartCom-xhair" x1="0" x2="0" y1="${mT-14}" y2="${y0}" stroke="#5F87AC" stroke-width="1" opacity="0"/>`;
+  s+=`<line id="chartCom-xhair" x1="0" x2="0" y1="${mT-14}" y2="${y0}" stroke="${CC.navy400}" stroke-width="1" opacity="0"/>`;
   s+=`<rect x="${mL}" y="${mT-14}" width="${iw}" height="${ih+14}" fill="transparent"/>`;
   svg.innerHTML=s;
   GEOM['chartCom']={kind:'com',rows:mensal,n,bandW,mL,W,px,topY:mT-14,botY:y0,wrap:'wrapCom',tip:'tipCom'};
@@ -5625,7 +5631,7 @@ const UT_LBL = {
   'AGREGADOS':['Agregado','b-info'], 'TERCEIROS':['Terceiro','b-warn'],
 };
 const utLbl = u => UT_LBL[u] || [u&&u!=='(sem)'?u.charAt(0)+u.slice(1).toLowerCase():'—','b-info'];
-const MOD_COR = {'FROTA':'#17344F','LOCACAO':'#38648D','AGREGADOS':'#E85D10','TERCEIROS':'#B97709'};
+const MOD_COR = {'FROTA':CC.navy700,'LOCACAO':CC.navy500,'AGREGADOS':'#E85D10','TERCEIROS':'#B97709'};
 const fmtL = v => v!=null ? v.toLocaleString('pt-BR',{maximumFractionDigits:0})+' l' : '—';
 const fmtKmL = v => v!=null ? v.toLocaleString('pt-BR',{minimumFractionDigits:1,maximumFractionDigits:1})+' km/l' : '—';
 async function loadComb(){
@@ -5734,7 +5740,7 @@ function chartCombRender(mensal){
   const px=i=>mL+bandW*i+bandW/2;
   const barW=Math.min(26,bandW*0.5);
   let s='';
-  s+=`<rect id="chartComb-hband" x="0" y="${mT-14}" width="${bandW}" height="${ih+14}" fill="#DCE6F0" opacity="0"/>`;
+  s+=`<rect id="chartComb-hband" x="0" y="${mT-14}" width="${bandW}" height="${ih+14}" fill="${CC.navy100}" opacity="0"/>`;
   s+=`<text x="${mL}" y="${mT-12}" font-size="11" fill="#6E7883" font-weight="600" letter-spacing="1.5">${u.t}</text>`;
   tks.forEach(v=>{ const yy=y(v);
     s+=`<line x1="${mL}" y1="${yy}" x2="${W-mR}" y2="${yy}" stroke="${v===0?'#C2C8D0':'#ECEEF1'}" stroke-width="1"/>`;
@@ -5742,11 +5748,11 @@ function chartCombRender(mensal){
   mensal.forEach((r,i)=>{
     const x=px(i)-barW/2, vp=r.custo_proprio||0, vt=r.custo_terceiros||0;
     const yP=y(vp), yT=y(vp+vt);
-    if(vt>0.5){ s+=colRect(x,barW,yP,y0,'#38648D'); s+=colPath(x,barW,yT,Math.max(yP-2,yT+0.1),4,'#E85D10'); }
-    else s+=colPath(x,barW,yP,y0,4,'#38648D');
+    if(vt>0.5){ s+=colRect(x,barW,yP,y0,CC.navy500); s+=colPath(x,barW,yT,Math.max(yP-2,yT+0.1),4,'#E85D10'); }
+    else s+=colPath(x,barW,yP,y0,4,CC.navy500);
   });
   mensal.forEach((r,i)=>{ s+=`<text x="${px(i)}" y="${H-mB+18}" text-anchor="middle" font-size="10.5" fill="#4F5860">${periodoLabel(r.mes)}</text>`; });
-  s+=`<line id="chartComb-xhair" x1="0" x2="0" y1="${mT-14}" y2="${y0}" stroke="#5F87AC" stroke-width="1" opacity="0"/>`;
+  s+=`<line id="chartComb-xhair" x1="0" x2="0" y1="${mT-14}" y2="${y0}" stroke="${CC.navy400}" stroke-width="1" opacity="0"/>`;
   s+=`<rect x="${mL}" y="${mT-14}" width="${iw}" height="${ih+14}" fill="transparent"/>`;
   svg.innerHTML=s;
   GEOM['chartComb']={kind:'comb',rows:mensal,n,bandW,mL,W,px,topY:mT-14,botY:y0,wrap:'wrapComb',tip:'tipComb'};
@@ -5861,14 +5867,14 @@ function chartManRender(mensal){
   const px=i=>mL+bandW*i+bandW/2;
   const barW=Math.min(26,bandW*0.5);
   let s='';
-  s+=`<rect id="chartMan-hband" x="0" y="${mT-14}" width="${bandW}" height="${ih+14}" fill="#DCE6F0" opacity="0"/>`;
+  s+=`<rect id="chartMan-hband" x="0" y="${mT-14}" width="${bandW}" height="${ih+14}" fill="${CC.navy100}" opacity="0"/>`;
   s+=`<text x="${mL}" y="${mT-12}" font-size="11" fill="#6E7883" font-weight="600" letter-spacing="1.5">${u.t}</text>`;
   tks.forEach(v=>{ const yy=y(v);
     s+=`<line x1="${mL}" y1="${yy}" x2="${W-mR}" y2="${yy}" stroke="${v===0?'#C2C8D0':'#ECEEF1'}" stroke-width="1"/>`;
     s+=`<text x="${mL-8}" y="${yy+4}" text-anchor="end" font-size="11" fill="#6E7883" font-family="IBM Plex Mono,monospace">${NMI.format(v/u.d)}</text>`; });
-  mensal.forEach((r,i)=>{ s+=colPath(px(i)-barW/2,barW,y(r.custo||0),y0,4,'#38648D'); });
+  mensal.forEach((r,i)=>{ s+=colPath(px(i)-barW/2,barW,y(r.custo||0),y0,4,CC.navy500); });
   mensal.forEach((r,i)=>{ s+=`<text x="${px(i)}" y="${H-mB+18}" text-anchor="middle" font-size="10.5" fill="#4F5860">${periodoLabel(r.mes)}</text>`; });
-  s+=`<line id="chartMan-xhair" x1="0" x2="0" y1="${mT-14}" y2="${y0}" stroke="#5F87AC" stroke-width="1" opacity="0"/>`;
+  s+=`<line id="chartMan-xhair" x1="0" x2="0" y1="${mT-14}" y2="${y0}" stroke="${CC.navy400}" stroke-width="1" opacity="0"/>`;
   s+=`<rect x="${mL}" y="${mT-14}" width="${iw}" height="${ih+14}" fill="transparent"/>`;
   svg.innerHTML=s;
   GEOM['chartMan']={kind:'man',rows:mensal,n,bandW,mL,W,px,topY:mT-14,botY:y0,wrap:'wrapMan',tip:'tipMan'};
@@ -5966,14 +5972,14 @@ function chartMvbRender(mensal){
   if(!mensal.length){ svg.innerHTML='<text x="480" y="140" text-anchor="middle" fill="#6E7883" font-size="14">sem dados no período</text>'; return; }
   const W=960,H=300,mL=64,mR=16,mT=24,mB=36, iw=W-mL-mR, ih=H-mT-mB;
   const n=mensal.length, bandW=iw/n;
-  const SER=[['ckm_cheio','#17344F',false],['ckm_marginal','#38648D',true],['rs_km_agregado','#E85D10',false],['rs_km_terceiro','#1E7F4F',false]];
+  const SER=[['ckm_cheio',CC.navy700,false],['ckm_marginal',CC.navy500,true],['rs_km_agregado','#E85D10',false],['rs_km_terceiro','#1E7F4F',false]];
   const vals=[]; mensal.forEach(m=>SER.forEach(([k])=>{ if(m[k]!=null) vals.push(m[k]); }));
   if(!vals.length){ svg.innerHTML='<text x="480" y="140" text-anchor="middle" fill="#6E7883" font-size="14">sem dados no período</text>'; return; }
   const tks=niceTicks(0,Math.max(...vals),5), top=tks[tks.length-1];
   const y=v=>mT+ih-(v/top)*ih;
   const px=i=>mL+bandW*i+bandW/2;
   let s='';
-  s+=`<rect id="chartMvb-hband" x="0" y="${mT-10}" width="${bandW}" height="${ih+10}" fill="#DCE6F0" opacity="0"/>`;
+  s+=`<rect id="chartMvb-hband" x="0" y="${mT-10}" width="${bandW}" height="${ih+10}" fill="${CC.navy100}" opacity="0"/>`;
   s+=`<text x="${mL}" y="${mT-8}" font-size="11" fill="#6E7883" font-weight="600" letter-spacing="1.5">R$ POR KM</text>`;
   tks.forEach(v=>{ const yy=y(v);
     s+=`<line x1="${mL}" y1="${yy}" x2="${W-mR}" y2="${yy}" stroke="${v===0?'#C2C8D0':'#ECEEF1'}" stroke-width="1"/>`;
@@ -5984,7 +5990,7 @@ function chartMvbRender(mensal){
     mensal.forEach((m,i)=>{ if(m[k]!=null && pts.length===1) s+=`<circle cx="${px(i)}" cy="${y(m[k])}" r="3.5" fill="${cor}"/>`; });
   });
   mensal.forEach((m,i)=>{ s+=`<text x="${px(i)}" y="${H-mB+18}" text-anchor="middle" font-size="10.5" fill="#4F5860">${periodoLabel(m.mes)}</text>`; });
-  s+=`<line id="chartMvb-xhair" x1="0" x2="0" y1="${mT-10}" y2="${mT+ih}" stroke="#5F87AC" stroke-width="1" opacity="0"/>`;
+  s+=`<line id="chartMvb-xhair" x1="0" x2="0" y1="${mT-10}" y2="${mT+ih}" stroke="${CC.navy400}" stroke-width="1" opacity="0"/>`;
   s+=`<rect x="${mL}" y="${mT-10}" width="${iw}" height="${ih+10}" fill="transparent"/>`;
   svg.innerHTML=s;
   GEOM['chartMvb']={kind:'mvb',rows:mensal,n,bandW,mL,W,px,topY:mT-10,botY:mT+ih,wrap:'wrapMvb',tip:'tipMvb'};
@@ -6094,14 +6100,14 @@ function chartAgrRender(mensal){
   const px=i=>mL+bandW*i+bandW/2;
   const barW=Math.min(26,bandW*0.5);
   let s='';
-  s+=`<rect id="chartAgr-hband" x="0" y="${mT-14}" width="${bandW}" height="${ih+14}" fill="#DCE6F0" opacity="0"/>`;
+  s+=`<rect id="chartAgr-hband" x="0" y="${mT-14}" width="${bandW}" height="${ih+14}" fill="${CC.navy100}" opacity="0"/>`;
   s+=`<text x="${mL}" y="${mT-12}" font-size="11" fill="#6E7883" font-weight="600" letter-spacing="1.5">${u.t}</text>`;
   tks.forEach(v=>{ const yy=y(v);
     s+=`<line x1="${mL}" y1="${yy}" x2="${W-mR}" y2="${yy}" stroke="${v===0?'#C2C8D0':'#ECEEF1'}" stroke-width="1"/>`;
     s+=`<text x="${mL-8}" y="${yy+4}" text-anchor="end" font-size="11" fill="#6E7883" font-family="IBM Plex Mono,monospace">${NMI.format(v/u.d)}</text>`; });
   mensal.forEach((r,i)=>{ s+=colPath(px(i)-barW/2,barW,y(r.valor),y0,4,'#E85D10'); });
   mensal.forEach((r,i)=>{ s+=`<text x="${px(i)}" y="${H-mB+18}" text-anchor="middle" font-size="10.5" fill="#4F5860">${periodoLabel(r.mes)}</text>`; });
-  s+=`<line id="chartAgr-xhair" x1="0" x2="0" y1="${mT-14}" y2="${y0}" stroke="#5F87AC" stroke-width="1" opacity="0"/>`;
+  s+=`<line id="chartAgr-xhair" x1="0" x2="0" y1="${mT-14}" y2="${y0}" stroke="${CC.navy400}" stroke-width="1" opacity="0"/>`;
   s+=`<rect x="${mL}" y="${mT-14}" width="${iw}" height="${ih+14}" fill="transparent"/>`;
   svg.innerHTML=s;
   GEOM['chartAgr']={kind:'agr',rows:mensal,n,bandW,mL,W,px,topY:mT-14,botY:y0,wrap:'wrapAgr',tip:'tipAgr'};
@@ -6120,14 +6126,14 @@ function chartOcRender(mensal){
   const px=i=>mL+bandW*i+bandW/2;
   const barW=Math.min(26,bandW*0.5);
   let s='';
-  s+=`<rect id="chartOc-hband" x="0" y="${mT-14}" width="${bandW}" height="${ih+14}" fill="#DCE6F0" opacity="0"/>`;
+  s+=`<rect id="chartOc-hband" x="0" y="${mT-14}" width="${bandW}" height="${ih+14}" fill="${CC.navy100}" opacity="0"/>`;
   s+=`<text x="${mL}" y="${mT-12}" font-size="11" fill="#6E7883" font-weight="600" letter-spacing="1.5">${u.t}</text>`;
   tks.forEach(v=>{ const yy=y(v);
     s+=`<line x1="${mL}" y1="${yy}" x2="${W-mR}" y2="${yy}" stroke="${v===0?'#C2C8D0':'#ECEEF1'}" stroke-width="1"/>`;
     s+=`<text x="${mL-8}" y="${yy+4}" text-anchor="end" font-size="11" fill="#6E7883" font-family="IBM Plex Mono,monospace">${NMI.format(v/u.d)}</text>`; });
-  mensal.forEach((r,i)=>{ s+=colPath(px(i)-barW/2,barW,y(r.valor),y0,4,'#38648D'); });
+  mensal.forEach((r,i)=>{ s+=colPath(px(i)-barW/2,barW,y(r.valor),y0,4,CC.navy500); });
   mensal.forEach((r,i)=>{ s+=`<text x="${px(i)}" y="${H-mB+18}" text-anchor="middle" font-size="10.5" fill="#4F5860">${periodoLabel(r.mes)}</text>`; });
-  s+=`<line id="chartOc-xhair" x1="0" x2="0" y1="${mT-14}" y2="${y0}" stroke="#5F87AC" stroke-width="1" opacity="0"/>`;
+  s+=`<line id="chartOc-xhair" x1="0" x2="0" y1="${mT-14}" y2="${y0}" stroke="${CC.navy400}" stroke-width="1" opacity="0"/>`;
   s+=`<rect x="${mL}" y="${mT-14}" width="${iw}" height="${ih+14}" fill="transparent"/>`;
   svg.innerHTML=s;
   GEOM['chartOc']={kind:'oc',rows:mensal,n,bandW,mL,W,px,topY:mT-14,botY:y0,wrap:'wrapOc',tip:'tipOc'};
@@ -6222,7 +6228,7 @@ function chartDreCliMatriz(clientes){
   const Y=v=>mT+ih-((Math.max(-10,Math.min(95,v))-loM)/(hiM-loM))*ih;
   const yLim=Y(25), xMed=X(medR);
   let s='';
-  s+=`<rect x="${mL}" y="${mT}" width="${xMed-mL}" height="${yLim-mT}" fill="#38648D" opacity="0.05"/>`;
+  s+=`<rect x="${mL}" y="${mT}" width="${xMed-mL}" height="${yLim-mT}" fill="${CC.navy500}" opacity="0.05"/>`;
   s+=`<rect x="${xMed}" y="${mT}" width="${W-mR-xMed}" height="${yLim-mT}" fill="#1E7F4F" opacity="0.06"/>`;
   s+=`<rect x="${mL}" y="${yLim}" width="${xMed-mL}" height="${mT+ih-yLim}" fill="#6E7883" opacity="0.05"/>`;
   s+=`<rect x="${xMed}" y="${yLim}" width="${W-mR-xMed}" height="${mT+ih-yLim}" fill="#C03221" opacity="0.06"/>`;
@@ -6235,7 +6241,7 @@ function chartDreCliMatriz(clientes){
   const topNames=new Set(pts.slice().sort((a,b)=>b.receita-a.receita).slice(0,8).map(p=>p.cliente));
   pts.forEach(p=>{
     const alta=p.receita>=medR, boa=p.margem_pct>=25;
-    const cor=alta&&boa?'#1E7F4F':(alta&&!boa?'#C03221':(boa?'#38648D':'#6E7883'));
+    const cor=alta&&boa?'#1E7F4F':(alta&&!boa?'#C03221':(boa?CC.navy500:'#6E7883'));
     const x=X(p.receita), y=Y(p.margem_pct);
     const nome=p.cliente.length>22?p.cliente.slice(0,22)+'…':p.cliente;
     s+=`<circle cx="${x}" cy="${y}" r="8" fill="${cor}" opacity="0.75" stroke="#fff" stroke-width="1.5">`+
