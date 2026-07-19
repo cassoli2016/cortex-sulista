@@ -96,8 +96,19 @@ Toda construção de painel segue a skill `dashboard-builder` e este padrão:
 4. **Tabela acionável**: linhas ordenadas por prioridade/risco, com ação sugerida.
 5. **Alertas**: ocorrências que exigem ação agora.
 
-**Design system:** amarelo `#FFD31C` (marca/destaque), ink `#1E1E1E` (texto), cinza `#6B7280`
-(secundário), verde `#16A34A` (ok), vermelho `#DC2626` (alerta). Fonte Inter.
+**Design system (valores reais implementados — tokens em `api/static/index.html`):**
+- **Marca:** amarelo Sulista `#FFD31C` = `--brand`, usado SÓ em superfície escura (trilho
+  do nav ativo na sidebar/bottomnav navy, logo) — contraste ruim no branco (1,44:1), NÃO é
+  accent de UI clara. **Accent geral da UI clara:** laranja `#E85D10` = `--orange-500` (foco,
+  drawer ativo, destaque de gráfico contratado).
+- **Semáforo:** ok verde `#1E7F4F` (`--green`), warn âmbar `#B97709` (`--yellow`), alerta
+  vermelho `#C03221` (`--red`). Painéis de TV (fundo escuro) usam o conjunto brilhante
+  `#4ADE80`/`#FBBF24`/`#F87171`. Não introduzir outros tons de estado.
+- **Neutros:** ink `#14181D` (`--n900`), secundário `#6B7580` (`--n500`, ajustado p/ AA 4,5:1).
+- **Navy dos gráficos:** família `--navy-*` (700/500/400/100), derivada em JS via `CC.navyX`.
+- **Fonte:** **Saira** (`--font`, condensada/técnica — combina com painel operacional; via
+  Google Fonts) + **IBM Plex Mono** (`--mono`) nos dados/tabelas numéricas. (A spec original
+  dizia Inter; a implementação escolheu Saira e ela ficou — mais característica que o default.)
 
 **Padrões por torre/área (especificação em `dashboard-builder`):**
 - **Torre de Controle:** mapa ao vivo + viagens ativas + ETA/atraso + ocorrências abertas.

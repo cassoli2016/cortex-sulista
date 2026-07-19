@@ -16,6 +16,10 @@
   --navy-50:#EEF3F8;--navy-100:#DCE6F0;--navy-200:#B9CDE0;--navy-400:#5F87AC;--navy-500:#38648D;
   --navy-600:#24496C;--navy-700:#17344F;--navy-800:#102538;--navy-900:#0B1926;
   --orange-100:#FFE3D1;--orange-500:#E85D10;--orange-600:#C74D0A;
+  /* MARCA: amarelo Sulista (do logo). Contraste ruim no branco (1,44:1) -> SÓ
+     em superfície ESCURA (nav ativo na sidebar/bottomnav navy). Accent geral
+     da UI clara = --orange-500. Não é o warn do semáforo (esse é --yellow). */
+  --brand:#FFD31C;
   --n0:#fff;--n50:#F6F7F8;--n100:#ECEEF1;--n200:#DCE0E5;--n300:#C2C8D0;--n400:#9AA3AE;
   --n500:#6B7580;--n600:#4F5860;--n700:#39414A;--n900:#14181D;  /* n500 ajustado p/ contraste AA 4.5:1 sobre branco */
   /* SEMÁFORO (fonte-da-verdade). UI clara: ok=var(--green) warn=var(--yellow)
@@ -54,7 +58,7 @@ nav .group[aria-expanded="false"] .chev{transform:rotate(-90deg)}
 nav a{display:flex;align-items:center;gap:10px;padding:8px 12px;border-radius:var(--radius-md);text-decoration:none;
   font-size:13.5px;color:var(--n400);border-left:3px solid transparent}
 nav a.sub{padding-left:24px}
-nav a.active{color:#fff;background:var(--navy-700);border-left-color:var(--orange-500);font-weight:600}
+nav a.active{color:#fff;background:var(--navy-700);border-left-color:var(--brand);font-weight:600}
 aside nav a:hover:not(.active){color:#fff;background:var(--navy-800)}
 nav a.mod{opacity:.7}
 .side-foot{margin-top:auto;padding:12px 10px;font-size:11px;color:var(--navy-400)}
@@ -66,7 +70,7 @@ body.mini .minibar{justify-content:center}
 body.mini nav .group span:not(.ic),body.mini nav a span:not(.ic),body.mini .chev,body.mini .side-foot{display:none}
 body.mini nav .group,body.mini nav a{justify-content:center;padding:10px 0;border-left-width:0;gap:0}
 body.mini .subs{display:flex !important}
-body.mini nav a.active{background:var(--navy-700);box-shadow:inset 3px 0 0 var(--orange-500)}
+body.mini nav a.active{background:var(--navy-700);box-shadow:inset 3px 0 0 var(--brand)}
 /* ---------------- Main ---------------- */
 main{flex:1;min-width:0;display:flex;flex-direction:column}
 .topbar{display:flex;align-items:center;gap:16px;background:var(--n0);border-bottom:1px solid var(--n200);padding:12px 24px}
@@ -266,7 +270,7 @@ tr.forn-det td{padding:7px 12px}
     font-size:10px;padding:6px 2px;border-radius:8px;min-height:48px;justify-content:center;cursor:pointer}
   .bottomnav .ic{width:22px;height:22px}
   .bottomnav a.ativo,.bottomnav button.ativo{color:#fff}
-  .bottomnav a.ativo .ic,.bottomnav button.ativo .ic{color:var(--orange-500)}
+  .bottomnav a.ativo .ic,.bottomnav button.ativo .ic{color:var(--brand)}
   /* gaveta "mais" */
   .drawer.aberto{display:block;position:fixed;inset:0;z-index:70;background:rgba(11,25,38,.55)}
   .drawer .painel{position:absolute;bottom:0;left:0;right:0;background:var(--n0);
@@ -4962,7 +4966,8 @@ const _cssv = (n,f) => (getComputedStyle(document.documentElement).getPropertyVa
 // espalhado nos SVGs): navy700 escuro · navy500 barra/linha · navy400 eixo ·
 // navy100 banda de hover.
 const CC = { verde:'#1E7F4F', vermelho:'#C03221', amarelo:'#B97709', ouro:'#FFD31C', azul:'#2563EB', roxo:'#7C3AED', ink:'#1E1E1E', n300:'#CBD2D9', n400:'#9AA5B1', n500:'#6B7280', grid:'#EEF1F4',
-  navy700:_cssv('--navy-700','#17344F'), navy500:_cssv('--navy-500','#38648D'), navy400:_cssv('--navy-400','#5F87AC'), navy100:_cssv('--navy-100','#DCE6F0') };
+  navy700:_cssv('--navy-700','#17344F'), navy500:_cssv('--navy-500','#38648D'), navy400:_cssv('--navy-400','#5F87AC'), navy100:_cssv('--navy-100','#DCE6F0'),
+  laranja:_cssv('--orange-500','#E85D10') };  // accent visível no branco (o 'ouro' #FFD31C é invisível em gráfico claro — não usar)
 function _chartEl(id){ return document.getElementById(id); }
 function _trunc(s,n){ s=String(s); return s.length>n? s.slice(0,n-1)+'…' : s; }
 // moeda compacta p/ eixos e barras: 1.250.000 -> "1,3 mi"
@@ -5095,7 +5100,7 @@ function renderHc(d){
     {nome:'Demissões', cor:CC.vermelho, valores:mov.map(m=>m.demissoes||0)},
   ], {fmt:v=>Math.round(v).toLocaleString('pt-BR')});
   // barras horizontais por dimensão
-  const hb=(id,rows)=>chartHBars(id,(rows||[]).map(r=>({rotulo:r.rotulo||r.faixa, valor:r.n||0})),{cor:CC.ouro});
+  const hb=(id,rows)=>chartHBars(id,(rows||[]).map(r=>({rotulo:r.rotulo||r.faixa, valor:r.n||0})),{cor:CC.laranja});
   hb('chartHcFilial', d.por_filial); hb('chartHcArea', d.por_area); hb('chartHcTempo', d.tempo_casa);
   const tb=(rows,l1,l2)=>`<table><thead><tr><th>${l1}</th><th class="num">${l2}</th></tr></thead><tbody>${rows.map(r=>`<tr><td>${esc(r.rotulo||r.faixa)}</td><td class="num">${(r.n||0).toLocaleString('pt-BR')}</td></tr>`).join('')||'<tr><td colspan="2" style="color:var(--n500)">—</td></tr>'}</tbody></table>`;
   document.getElementById('hc-filial').innerHTML=tb(d.por_filial||[],'Filial','Ativos');
@@ -5192,7 +5197,7 @@ function renderFolhaInd(d){
   document.getElementById('fi-bh').innerHTML=`<table><thead><tr><th class="num">Competência</th><th class="num">Colab.</th><th class="num">Crédito</th><th class="num">Débito</th><th class="num">Saldo (h)</th></tr></thead><tbody>${bh}</tbody></table>`;
 }
 // ---------------- Horas Extras (folha GLOBUS) ----------------
-const HE_FAM_COR={he50:CC.ouro, he100:CC.amarelo, noturna:CC.azul, adic:CC.roxo, dsr:CC.verde};
+const HE_FAM_COR={he50:CC.laranja, he100:CC.amarelo, noturna:CC.azul, adic:CC.roxo, dsr:CC.verde};
 const HE_FAM_NOME={he50:'HE 50% (diurna)', he100:'HE 100% (diurna)', noturna:'HE noturna', adic:'Adicional noturno', dsr:'DSR / reflexos'};
 async function loadHe(){
   const seq=++heSeq, btn=document.getElementById('btnRefresh'); if(btn) btn.disabled=true;
@@ -5263,7 +5268,7 @@ function renderCustos(d){
   ].join('');
   const tot=k.total||1;
   // donut de composição (top 6 agrupadores + outros)
-  const PAL=[CC.ouro,CC.azul,CC.verde,CC.roxo,CC.amarelo,CC.vermelho,CC.n400];
+  const PAL=[CC.laranja,CC.azul,CC.verde,CC.roxo,CC.amarelo,CC.vermelho,CC.n400];
   const agr=(d.por_agrupador||[]).slice().sort((a,b)=>b.valor-a.valor);
   const top6=agr.slice(0,6), resto=agr.slice(6).reduce((a,r)=>a+r.valor,0);
   const segs=top6.map((r,i)=>({rotulo:r.rotulo, valor:r.valor, cor:PAL[i%PAL.length]}));
