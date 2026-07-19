@@ -2286,31 +2286,51 @@ ORDER BY 5 DESC LIMIT 15
 """
 
 
+# Diesel/km da frota própria: mesma régua "dinâmica" do painel de combustível
+# (rs_litro ÷ km_l sobre CTA Plus, TRA/LOC). Base p/ valorizar o km rodado vazio
+# — coerente com a convenção já usada no app (ver memória: "diesel/km dinâmico").
+COMB_DIESELKM_PROPRIO_SQL = f"""
+SELECT coalesce(sum(a.custo),0)::float8 AS custo,
+       coalesce(sum(a.volume),0)::float8 AS litros,
+       coalesce(sum(CASE WHEN {_CTA_KM_SANO} THEN a.distancia ELSE 0 END),0)::float8 AS km_sano,
+       coalesce(sum(CASE WHEN {_CTA_KM_SANO} THEN a.volume ELSE 0 END),0)::float8 AS litros_km_sano
+FROM sulista.ctaplus_abastecimentos a
+LEFT JOIN veiculo v ON v.placa = a.veiculo_placa
+WHERE a.data_inicio_abastecimento >= %(dt_de)s::date
+  AND a.data_inicio_abastecimento <= %(dt_ate)s::date
+  AND coalesce(v.utilizacaoveiculo,'') IN ('TRA','LOC')
+"""
+
+# km vazio da frota própria no MESMO recorte do analise-km (tipo=3, TRA/LOC).
+KM_VAZIO_PROPRIO_SQL = """
+SELECT coalesce(sum(coalesce(p.kmfretecompra,0)),0)::float8 AS km_vazio
+FROM programacaoembarque p
+JOIN veiculo v ON v.placa = p.veiculo
+WHERE p.dtcancelamento IS NULL AND p.semaforo = 1 AND p.numero < 1000000 AND p.tipo = 3
+  AND v.utilizacaoveiculo IN ('TRA','LOC')
+  AND p.dtemissao >= %(dt_de)s::date AND p.dtemissao < %(dt_ate)s::date + 1
+"""
+
+
 @cached(ttl=300)
-def _custo_vazio_proprio(comp_de: str, comp_ate: str) -> dict:
-    """Estima o custo do km rodado vazio pela FROTA PRÓPRIA (combustível/desgaste):
-    km vazio próprio × CKM variável, onde CKM variável = (combustível + manutenção
-    + pneus + outros variáveis do razão) ÷ km total próprio (carregado+vazio).
-    SÓ frota própria — agregado/terceiro rodando vazio é custo de frete-compra
-    deles, não combustível nosso; misturar infla o número. Reusa as SQL do
-    Make-vs-Buy p/ manter a mesma régua contábil."""
-    de, ate = _comp_bounds(comp_de, comp_ate)
-    params = {"de": de, "ate": ate}
-    VAR = ("combustivel", "manutencao", "pneus", "outros_var")
+def _custo_vazio_proprio(dt_de: str, dt_ate: str) -> dict:
+    """Estima o custo do km rodado vazio pela FROTA PRÓPRIA valorizando cada km
+    vazio pelo DIESEL/KM próprio (rs_litro ÷ km_l do CTA Plus, TRA/LOC — a mesma
+    régua "dinâmica" do painel de combustível). SÓ frota própria: agregado/
+    terceiro rodando vazio é custo de frete-compra deles, não diesel nosso."""
+    params = {"dt_de": dt_de, "dt_ate": dt_ate}
     with db.get_conn() as conn, conn.cursor() as cur:
-        cur.execute(MVB_CUSTO_SQL, params)
-        custos_rows = cur.fetchall()
-        cur.execute(MVB_PROPRIA_SQL, params)
-        propria_rows = cur.fetchall()
-    custo_var = sum(r["valor"] for r in custos_rows if r["comp"] in VAR)
-    km_carr = sum(r["km_carregado"] or 0 for r in propria_rows)
-    km_vazio = sum(r["km_vazio"] or 0 for r in propria_rows)
-    km_total = km_carr + km_vazio
-    ckm_var = (custo_var / km_total) if km_total else None
+        cur.execute(COMB_DIESELKM_PROPRIO_SQL, params)
+        dz = cur.fetchone()
+        cur.execute(KM_VAZIO_PROPRIO_SQL, params)
+        km_vazio = cur.fetchone()["km_vazio"]
+    rs_litro = (dz["custo"] / dz["litros"]) if dz["litros"] else None
+    km_l = (dz["km_sano"] / dz["litros_km_sano"]) if dz["litros_km_sano"] else None
+    diesel_km = (rs_litro / km_l) if (rs_litro and km_l) else None
     return {
-        "ckm_var": ckm_var,
+        "diesel_km": diesel_km,
         "km_vazio_proprio": km_vazio,
-        "custo_vazio_proprio": (km_vazio * ckm_var) if ckm_var else None,
+        "custo_vazio_proprio": (km_vazio * diesel_km) if diesel_km else None,
     }
 
 
@@ -2355,12 +2375,12 @@ def get_analise_km(filial: int | None, dt_de: str, dt_ate: str,
         c["rkm"] = (c["receita"] / c["km_carregado"]) if c["km_carregado"] else None
         c["share_km"] = (c["km_carregado"] / kpis["km_carregado"]) if kpis["km_carregado"] else None
 
-    cvp = _custo_vazio_proprio(dt_de[:7], dt_ate[:7])  # custo estimado do vazio próprio
+    cvp = _custo_vazio_proprio(dt_de, dt_ate)  # custo estimado do vazio próprio (diesel/km)
 
     return {
         "kpis": kpis, "mensal": mensal, "modalidades": modalidades,
         "clientes": clientes, "rotas_vazio": rotas_vazio, "veiculos": veiculos,
-        "ckm_var": cvp["ckm_var"], "km_vazio_proprio": cvp["km_vazio_proprio"],
+        "diesel_km": cvp["diesel_km"], "km_vazio_proprio": cvp["km_vazio_proprio"],
         "custo_vazio_proprio": cvp["custo_vazio_proprio"],
         "dt_de": dt_de, "dt_ate": dt_ate, "filial": filial, "modalidade": modalidade,
         "atualizado_em": meta["ts"].isoformat(),
