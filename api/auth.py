@@ -143,7 +143,7 @@ _ROTAS_AUTOSERVICO = ("/api/auth/me", "/api/auth/logout", "/api/auth/trocar-senh
 
 
 def _rota_publica(path: str) -> bool:
-    return (path == "/" or path.startswith("/static/") or path in _PUBLICAS)
+    return (path == "/" or path == "/sw.js" or path.startswith("/static/") or path in _PUBLICAS)
 
 
 def _local_direto(headers: Headers, cliente: str) -> bool:
@@ -538,7 +538,8 @@ class AuthMiddleware:
                     "mensagem": "Seu perfil não tem acesso a esta área."})
                 return await resp(scope, receive, send)
         elif (path.startswith("/api/") and not path.startswith("/api/gestao")
-              and path not in _ROTAS_AUTOSERVICO and not sess["admin"]):
+              and path not in _ROTAS_AUTOSERVICO and not path.startswith("/api/push/")
+              and not sess["admin"]):
             # fail-closed: rota /api/* sem mapeamento em ROTA_TELAS (nem
             # autoservico de conta, nem /api/gestao — já gated acima) é
             # bloqueada por padrão pra usuário não-admin. Toda rota nova

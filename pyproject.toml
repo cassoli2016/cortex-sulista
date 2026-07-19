@@ -21,6 +21,7 @@ dependencies = [
   "psycopg-pool>=3.2",
   "psutil>=5.9",            # métricas de saúde do servidor (CPU/RAM/disco/rede)
   "oracledb>=2.0",         # folha (Oracle) — modo thin, sem Instant Client
+  "pywebpush>=1.14",       # notificações push no celular (Web Push + VAPID)
 ]
 
 [tool.ruff]
