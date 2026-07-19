@@ -6641,7 +6641,11 @@ async function abrirNotificacoes(){
     corpo=`<p class="lg-sub">Receba 1 resumo por dia dos alertas críticos direto no celular.</p>`;
     foot=`<button class="ghost" onclick="fecharModal()">Agora não</button><button class="btn" onclick="pushAtivar(this)">Ativar</button>`;
   }
-  const diag=`<div style="margin-top:12px;font-size:11px;color:var(--n500)">diagnóstico · iOS: ${iOS?('sim'+(iosVer?' '+iosVer:'')):'não'} · tela inicial: ${standalone?'sim':'não'} · push suportado: ${suportado?'sim':'não'}</div>`;
+  // diagnóstico só quando há algo travando (não polui o uso normal)
+  const problema = !cfg.habilitado || (iOS && !standalone) || !suportado;
+  const diag = problema
+    ? `<div style="margin-top:12px;font-size:11px;color:var(--n500)">diagnóstico · iOS: ${iOS?('sim'+(iosVer?' '+iosVer:'')):'não'} · tela inicial: ${standalone?'sim':'não'} · push suportado: ${suportado?'sim':'não'}</div>`
+    : '';
   abrirModal(`<h3>Notificações no celular</h3>${corpo}<div class="m-err" id="push-msg"></div>${diag}
     <div class="m-foot">${foot}</div>`);
 }
