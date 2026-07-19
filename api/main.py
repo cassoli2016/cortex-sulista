@@ -18,7 +18,7 @@ from fastapi.middleware.gzip import GZipMiddleware
 from fastapi.responses import FileResponse, JSONResponse, PlainTextResponse, StreamingResponse
 from fastapi.staticfiles import StaticFiles
 
-from . import alertas, auth, copiloto, db, dre_cliente, queries, queries_folha, servidor
+from . import alertas, auth, copiloto, db, dre_cliente, push, queries, queries_folha, servidor
 
 log = logging.getLogger("cortex.financeiro")
 # docs/openapi desligados: o painel é exposto na internet via Cloudflare Tunnel
@@ -61,6 +61,14 @@ STATIC = Path(__file__).resolve().parent / "static"
 def index() -> FileResponse:
     # o painel evolui com frequência: o navegador deve sempre revalidar
     return FileResponse(STATIC / "index.html",
+                        headers={"Cache-Control": "no-cache, must-revalidate"})
+
+
+@app.get("/sw.js")
+def service_worker() -> FileResponse:
+    # servido da RAIZ (não de /static) para o escopo do SW ser "/" — senão
+    # navigator.serviceWorker.ready nunca resolve (escopo /static/ não controla /)
+    return FileResponse(STATIC / "sw.js", media_type="application/javascript",
                         headers={"Cache-Control": "no-cache, must-revalidate"})
 
 
@@ -826,6 +834,63 @@ def alertas_digest() -> PlainTextResponse:
     except Exception as exc:  # noqa: BLE001
         log.warning("digest falhou: %s", exc)
         return PlainTextResponse(f"Erro ao montar o digest: {exc}", status_code=500)
+
+
+# --- Push (notificações no celular) — autoatendimento por usuário logado -----
+@app.on_event("startup")
+def _startup_push() -> None:
+    push.iniciar_scheduler()  # digest diário; no-op se VAPID não configurado
+
+
+@app.get("/api/push/config")
+def push_config(request: Request) -> JSONResponse:
+    sess = request.state.sessao or {}
+    return JSONResponse({
+        "habilitado": push.habilitado(),
+        "vapid_public": push._pub(),
+        "inscricoes": push.contar_subs(sess.get("email")),
+    })
+
+
+@app.post("/api/push/subscribe")
+def push_subscribe(payload: dict, request: Request) -> JSONResponse:
+    if not push.habilitado():
+        return JSONResponse(status_code=503, content={
+            "erro": "push_desligado", "mensagem": "Notificações não configuradas no servidor."})
+    sess = request.state.sessao or {}
+    try:
+        push.salvar_sub(payload, sess.get("email"))
+    except ValueError:
+        return JSONResponse(status_code=400, content={
+            "erro": "invalida", "mensagem": "Inscrição inválida."})
+    except Exception as exc:  # noqa: BLE001
+        log.warning("push subscribe: %s", exc)
+        return JSONResponse(status_code=500, content={
+            "erro": "erro", "mensagem": "Não foi possível salvar a inscrição."})
+    return JSONResponse({"ok": True, "inscricoes": push.contar_subs(sess.get("email"))})
+
+
+@app.post("/api/push/unsubscribe")
+def push_unsubscribe(payload: dict, request: Request) -> JSONResponse:
+    ep = (payload or {}).get("endpoint")
+    if ep:
+        push.remover_sub(ep)
+    return JSONResponse({"ok": True})
+
+
+@app.post("/api/push/testar")
+def push_testar(request: Request) -> JSONResponse:
+    if not push.habilitado():
+        return JSONResponse(status_code=503, content={
+            "erro": "push_desligado", "mensagem": "Notificações não configuradas no servidor."})
+    sess = request.state.sessao or {}
+    subs = push.subs_do_usuario(sess.get("email"))
+    if not subs:
+        return JSONResponse(status_code=400, content={
+            "erro": "sem_inscricao", "mensagem": "Ative as notificações neste aparelho primeiro."})
+    n = push.send_push("Córtex Sulista",
+                       "Notificação de teste — está funcionando! 🚛", "/#home", subs)
+    return JSONResponse({"enviados": n})
 
 
 @app.get("/api/financeiro/contabil")

@@ -704,6 +704,7 @@ button.avatar{border:0;cursor:pointer}
         <button class="avatar" id="avBtn" onclick="avMenuToggle(event)" title="Minha conta">–</button>
         <div class="avmenu" id="avMenu">
           <div class="avinfo"><b id="avNome">—</b><span id="avMail">—</span><span id="avPerfil" class="badge b-info">—</span></div>
+          <button onclick="abrirNotificacoes()">Notificações no celular</button>
           <button onclick="abrirTrocarSenha(false)">Trocar senha</button>
           <button onclick="sair()">Sair</button>
         </div>
@@ -6586,7 +6587,85 @@ function entrar(){
   // pré-carrega o financeiro em segundo plano para navegação instantânea
   if(currentView()==='home' && podeVer('fluxo')) setTimeout(()=>{ if(currentView()==='home') load(); }, 1500);
 }
+/* ---------------- Notificações push (Web Push) ---------------- */
+let PUSH_CFG=null;
+function _urlB64ToUint8(b64){
+  const pad='='.repeat((4-b64.length%4)%4);
+  const s=(b64+pad).replace(/-/g,'+').replace(/_/g,'/');
+  const raw=atob(s), arr=new Uint8Array(raw.length);
+  for(let i=0;i<raw.length;i++) arr[i]=raw.charCodeAt(i);
+  return arr;
+}
+async function _pushCfg(force){
+  if(force||!PUSH_CFG){ try{ const r=await fetch('/api/push/config',{cache:'no-store'}); PUSH_CFG=await r.json(); }catch(e){ PUSH_CFG={habilitado:false}; } }
+  return PUSH_CFG;
+}
+async function _pushSubAtual(){
+  if(!('serviceWorker' in navigator)) return null;
+  try{ const reg=await navigator.serviceWorker.getRegistration(); return reg ? await reg.pushManager.getSubscription() : null; }catch(e){ return null; }
+}
+async function abrirNotificacoes(){
+  const m=document.getElementById('avMenu'); if(m) m.classList.remove('aberto');
+  const cfg=await _pushCfg(true);
+  const iOS=/iphone|ipad|ipod/i.test(navigator.userAgent);
+  const standalone=(('standalone' in navigator) ? navigator.standalone : false) || matchMedia('(display-mode: standalone)').matches;
+  const suportado=('serviceWorker' in navigator)&&('PushManager' in window)&&('Notification' in window);
+  const sub=await _pushSubAtual();
+  let corpo, foot='<button class="ghost" onclick="fecharModal()">Fechar</button>';
+  if(!cfg.habilitado){
+    corpo=`<p class="lg-sub">O servidor ainda não está configurado para push (faltam as chaves VAPID no .env). Assim que configurar, ative por aqui.</p>`;
+  } else if(iOS && !standalone){
+    corpo=`<p class="lg-sub">No iPhone/iPad o push só funciona com o app na <b>Tela de Início</b>. Toque em <b>Compartilhar → Adicionar à Tela de Início</b>, abra por lá e volte aqui para ativar.</p>`;
+  } else if(!suportado){
+    corpo=`<p class="lg-sub">Este navegador não suporta notificações push. Use o Chrome (Android) ou o app na tela inicial (iPhone).</p>`;
+  } else if(sub){
+    corpo=`<p class="lg-sub">Notificações <b>ativas</b> neste aparelho — 1 resumo por dia dos alertas críticos.</p>`;
+    foot=`<button class="ghost" onclick="pushDesativar(this)">Desativar aqui</button><button class="btn" onclick="pushTestar(this)">Enviar teste</button>`;
+  } else {
+    corpo=`<p class="lg-sub">Receba 1 resumo por dia dos alertas críticos direto no celular.</p>`;
+    foot=`<button class="ghost" onclick="fecharModal()">Agora não</button><button class="btn" onclick="pushAtivar(this)">Ativar</button>`;
+  }
+  abrirModal(`<h3>Notificações no celular</h3>${corpo}<div class="m-err" id="push-msg"></div>
+    <div class="m-foot">${foot}</div>`);
+}
+function _pushMsg(t,erro){ const e=document.getElementById('push-msg'); if(e){ e.textContent=t||''; e.style.color=erro?'var(--red)':'var(--green)'; } }
+async function pushAtivar(btn){
+  const cfg=await _pushCfg();
+  if(!cfg.habilitado){ _pushMsg('Push não configurado no servidor.',1); return; }
+  if(btn) btn.disabled=true;
+  try{
+    const perm=await Notification.requestPermission();
+    if(perm!=='granted'){ _pushMsg('Permissão negada — autorize as notificações nas configurações do navegador.',1); if(btn)btn.disabled=false; return; }
+    let reg=await navigator.serviceWorker.getRegistration();
+    if(!reg) reg=await navigator.serviceWorker.register('/sw.js');
+    const sub=await reg.pushManager.subscribe({userVisibleOnly:true, applicationServerKey:_urlB64ToUint8(cfg.vapid_public)});
+    const r=await fetch('/api/push/subscribe',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(sub)});
+    if(!r.ok){ _pushMsg('Não foi possível salvar a inscrição.',1); if(btn)btn.disabled=false; return; }
+    _pushMsg('Ativado! Vou te avisar quando houver alertas.');
+    setTimeout(abrirNotificacoes, 900);
+  }catch(e){ _pushMsg('Falha ao ativar: '+(e.message||e),1); if(btn)btn.disabled=false; }
+}
+async function pushDesativar(btn){
+  if(btn) btn.disabled=true;
+  try{
+    const sub=await _pushSubAtual();
+    if(sub){ await fetch('/api/push/unsubscribe',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({endpoint:sub.endpoint})}); await sub.unsubscribe(); }
+    _pushMsg('Notificações desativadas neste aparelho.');
+    setTimeout(abrirNotificacoes, 700);
+  }catch(e){ _pushMsg('Falha ao desativar.',1); if(btn)btn.disabled=false; }
+}
+async function pushTestar(btn){
+  if(btn) btn.disabled=true;
+  try{
+    const r=await fetch('/api/push/testar',{method:'POST'});
+    const d=await r.json();
+    if(r.ok && d.enviados>0) _pushMsg('Teste enviado — deve chegar em instantes.');
+    else _pushMsg(d.mensagem||'Nenhuma notificação enviada.',1);
+  }catch(e){ _pushMsg('Falha ao enviar teste.',1); }
+  if(btn) btn.disabled=false;
+}
 async function boot(){
+  if('serviceWorker' in navigator){ navigator.serviceWorker.register('/sw.js').catch(()=>{}); }
   let r=null;
   try{ r=await _fetch0('/api/auth/me',{cache:'no-store'}); }
   catch(e){ mostrarLogin('login'); lgErro('API fora do ar — verifique o serviço e recarregue.'); return; }
