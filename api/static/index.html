@@ -6641,20 +6641,26 @@ async function abrirNotificacoes(){
 }
 function _pushMsg(t,erro){ const e=document.getElementById('push-msg'); if(e){ e.textContent=t||''; e.style.color=erro?'var(--red)':'var(--green)'; } }
 async function pushAtivar(btn){
-  const cfg=await _pushCfg();
-  if(!cfg.habilitado){ _pushMsg('Push não configurado no servidor.',1); return; }
+  if(!('Notification' in window) || !('serviceWorker' in navigator) || !('PushManager' in window)){
+    _pushMsg('Este navegador não suporta notificações push.',1); return; }
+  // iOS EXIGE que requestPermission saia DIRETO do toque — sem await antes,
+  // senão o "gesto do usuário" se perde e a permissão falha em silêncio.
+  let perm;
+  try{ perm=await Notification.requestPermission(); }
+  catch(e){ _pushMsg('Não foi possível pedir a permissão de notificação.',1); return; }
+  if(perm!=='granted'){ _pushMsg('Permissão negada. Autorize as notificações do app nos Ajustes e tente de novo.',1); return; }
   if(btn) btn.disabled=true;
+  const cfg=await _pushCfg(true);
+  if(!cfg.habilitado){ _pushMsg('Push não configurado no servidor.',1); if(btn)btn.disabled=false; return; }
   try{
-    const perm=await Notification.requestPermission();
-    if(perm!=='granted'){ _pushMsg('Permissão negada — autorize as notificações nas configurações do navegador.',1); if(btn)btn.disabled=false; return; }
     let reg=await navigator.serviceWorker.getRegistration();
     if(!reg) reg=await navigator.serviceWorker.register('/sw.js');
     const sub=await reg.pushManager.subscribe({userVisibleOnly:true, applicationServerKey:_urlB64ToUint8(cfg.vapid_public)});
-    const r=await fetch('/api/push/subscribe',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(sub)});
-    if(!r.ok){ _pushMsg('Não foi possível salvar a inscrição.',1); if(btn)btn.disabled=false; return; }
-    _pushMsg('Ativado! Vou te avisar quando houver alertas.');
-    setTimeout(abrirNotificacoes, 900);
-  }catch(e){ _pushMsg('Falha ao ativar: '+(e.message||e),1); if(btn)btn.disabled=false; }
+    const r=await fetch('/api/push/subscribe',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(sub.toJSON?sub.toJSON():sub)});
+    if(!r.ok){ let m='Não foi possível salvar a inscrição.'; try{ m=(await r.json()).mensagem||m; }catch(_){}; _pushMsg(m,1); if(btn)btn.disabled=false; return; }
+    _pushMsg('Ativado! Toque em "Enviar teste" para confirmar.');
+    setTimeout(abrirNotificacoes, 1200);
+  }catch(e){ _pushMsg('Falha ao inscrever: '+((e&&e.message)||e),1); if(btn)btn.disabled=false; }
 }
 async function pushDesativar(btn){
   if(btn) btn.disabled=true;
