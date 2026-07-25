@@ -2643,7 +2643,10 @@ function qsView(k){
 // sem filtro) — fonte única para o filterbar e o botão "☰ Filtros" mobile,
 // que precisam concordar (botão visível abrindo uma barra escondida = bug).
 function semFilterbar(v){
-  return v==='cop'||v==='gestao'||v==='srv'||v==='home'||v==='veicf'||v==='clif'||v==='jorn'||v==='jornf'||
+  // prog entrou aqui na auditoria de filtros: TODOS os grupos ficam ocultos
+  // nela, então a barra aparecia sem um único campo — só o botão "Aplicar
+  // filtros", que não tinha o que aplicar.
+  return v==='cop'||v==='gestao'||v==='srv'||v==='home'||v==='veicf'||v==='clif'||v==='jorn'||v==='jornf'||v==='prog'||
          v==='cex'||v==='sac'||v==='mprev'||v==='comrast'||v==='qual'||v==='port'||v==='crm'||v==='rh'||
          v==='hc'||v==='folha'||v==='folhaind'||v==='he'||v==='custos';
 }
