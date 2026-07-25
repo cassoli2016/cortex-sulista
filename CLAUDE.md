@@ -156,6 +156,21 @@ a query ignora sai; dimensão que a query aceita e é a pergunta natural da tela
 - **Card que NÃO segue os filtros leva badge visível** (ex.: "Meta × realizado" é sempre o
   mês corrente). Enterrar isso no texto do hint faz o número parecer furado.
 
+**Volume e qualidade do dado (lições do CRM):**
+- **Tabela longa rola DENTRO do card** (`.tabroll`, cabeçalho sticky) + contador
+  "X de Y" no hint. O CRM desenhava 200 leads + 150 projetos e a página passava de
+  **16.000px**; com rolagem interna caiu para 1.700px.
+- **Lista dominada por registros encerrados abre nos ATIVOS.** 135 de 150 projetos
+  "Entregue" enterravam os 9 em andamento — chips de status com default nos ativos.
+- **KPI que só pode dar zero por falta de preenchimento mostra "não informado"**, nunca
+  `R$ 0` — e JAMAIS em verde. O ROB do pipeline lia R$ 0 em verde porque o ERP só
+  preenche o campo nos projetos já entregues: parecia pipeline sem valor, era lacuna
+  de cadastro. Mostrar junto o número que existe de verdade (ROB entregue).
+- **Total que esconde composição vira composição.** "Potencial R$ 36,7 mi" com 82% dos
+  leads frios não é pipeline; o KPI mostra a quebra por temperatura e um chip "79% frio".
+- **Cobertura ruim de campo é informação, não sujeira para esconder**: "ROB previsto
+  informado em 1 de 200 leads" no hint — é acionável para quem preenche.
+
 **Telas de consulta (busca própria, filterbar global escondida — ex.: Consulta de Cliente):**
 - Campo de busca com **`<datalist>`** alimentado por endpoint LEVE e cacheado
   (`/api/comercial/clientes-lista`, ~34 grupos). Nunca reusar o endpoint do painel
