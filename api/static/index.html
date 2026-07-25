@@ -1225,7 +1225,7 @@ button.avatar{border:0;cursor:pointer}
       <section class="view" id="view-receber">
         <div class="kpis" id="kpis-receber"></div>
         <div class="card">
-          <div class="head"><h2>Vencimentos por mês — a receber</h2><span class="hint" id="hintVencAr"></span></div>
+          <div class="head"><h2>Vencimentos por mês — a receber <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="Saldo em aberto distribuído pelo MÊS DE VENCIMENTO do título (não pelo mês de emissão). A primeira coluna concentra tudo que vence antes da janela mostrada. Vermelho = já vencido na data de referência; verde = ainda a vencer.">i</span></h2><span class="hint" id="hintVencAr"></span></div>
           <div class="legend">
             <span class="k"><i class="sw" style="background:var(--red)"></i>Vencido</span>
             <span class="k"><i class="sw" style="background:var(--green)"></i>A vencer</span>
@@ -1236,17 +1236,14 @@ button.avatar{border:0;cursor:pointer}
             <div class="tip" id="tipAr"></div>
           </div>
         </div>
-        <div class="grid2">
-          <div class="card">
-            <div class="head"><h2>Aging — a receber</h2><span class="hint" id="ar-total"></span></div>
-            <div class="tablewrap"><table><thead><tr><th>Faixa</th><th class="num">Títulos</th><th class="num">Saldo</th></tr></thead>
-              <tbody id="aging-ar"></tbody></table></div>
-          </div>
-          <div class="card">
-            <div class="head"><h2>Maiores clientes a receber</h2><span class="hint">top 15 por saldo · no período filtrado</span></div>
-            <div class="tablewrap"><table><thead><tr><th>Cliente</th><th class="num">Tít.</th><th class="num">Vencido</th><th class="num">Saldo</th></tr></thead>
-              <tbody id="top-ar"></tbody></table></div>
-          </div>
+        <div class="card">
+          <div class="head"><h2>Aging — a receber <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="Saldo em aberto por faixa de atraso, contado a partir da DATA DE REFERÊNCIA do filtro (não de hoje). Método oficial de inadimplência: fatura_composicao com valor pendente, composição 1, vencimento por dtprevisaopagamento ou dtvencimento. Documentos ainda não convertidos em fatura oficial não entram aqui.">i</span></h2><span class="hint" id="ar-total"></span></div>
+          <div class="modl" id="aging-ar-barras"></div>
+        </div>
+        <div class="card">
+          <div class="head"><h2>Maiores clientes a receber <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="Top 15 sacados por saldo em aberto no recorte filtrado, com o quanto de cada um já venceu. O documento aparece mascarado — o painel não expõe CNPJ/CPF completo.">i</span></h2><span class="hint" id="top-ar-hint">top 15 por saldo · no período filtrado</span></div>
+          <div class="tablewrap"><table><thead><tr><th>Cliente</th><th class="num">Tít.</th><th class="num">Vencido</th><th class="num">Saldo</th></tr></thead>
+            <tbody id="top-ar"></tbody></table></div>
         </div>
         <div class="card">
           <div class="head"><h2>Alertas</h2></div>
@@ -3114,7 +3111,13 @@ function render(d){
   const arV = sumFaixa(d.aging_receber,'1_a_vencer'), apV = sumFaixa(d.aging_pagar,'1_a_vencer');
   document.getElementById('kpis-receber').innerHTML=[
     kpi('A receber (aberto)', BRL.format(k.receber_aberto), k.receber_qtd.toLocaleString('pt-BR')+' faturas'+rangeTxt, ''),
-    kpi('Vencido', BRL.format(k.receber_vencido), pct(k.receber_vencido,k.receber_aberto)+' do aberto', k.receber_vencido>0?'neg':'pos'),
+    kpi('Vencido', BRL.format(k.receber_vencido), pct(k.receber_vencido,k.receber_aberto)+' do aberto',
+      k.receber_vencido>0?'neg':'pos', null,
+      (function(){ const fr=k.receber_aberto>0?k.receber_vencido/k.receber_aberto:0;
+        return statChip(fr>0.1?'bad':(fr>0.05?'warn':'good'),
+          fr>0.1?'inadimplência alta':(fr>0.05?'atenção':'sob controle'),
+          'Vencido sobre o saldo em aberto. Acima de 5% já pede cobrança ativa; acima de 10% é inadimplência estrutural.',
+          fr>0.1?'sevCrit':(fr>0.05?'sevWarn':'sevOk')); })()),
     kpi('A vencer', BRL.format(arV), 'no período filtrado', ''),
     kpi('Faturamento do mês', BRL.format(k.faturamento_mes), 'média 6m: '+BRL.format(k.faturamento_medio_6m), ''),
   ].join('');
@@ -3125,6 +3128,11 @@ function render(d){
     kpi('Posição líquida (aberto)', BRL.format(k.posicao_liquida_aberto), 'a receber − a pagar', k.posicao_liquida_aberto>=0?'pos':'neg'),
   ].join('');
 
+  {  // concentração dos maiores: 4 sacados podem responder por metade do saldo
+    const tops=d.top_receber||[], somaTop=tops.slice(0,5).reduce((a,r)=>a+(r.valor||0),0);
+    const h=document.getElementById('top-ar-hint');
+    if(h) h.innerHTML='top 15 por saldo'+(k.receber_aberto>0?` · <b>top 5 = ${pct(somaTop,k.receber_aberto)} do saldo</b>`:'');
+  }
   agingRows('aging-ar', d.aging_receber, 'ar-total');
   agingRows('aging-ap', d.aging_pagar, 'ap-total');
   drillRows('top-ar', d.top_receber);
@@ -3145,14 +3153,38 @@ function render(d){
   document.getElementById('meta').innerHTML='<b>Atualizado '+ts.toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'})+'</b><br>'+ts.toLocaleDateString('pt-BR');
 }
 
+/* Cor de cada faixa do aging — verde a vencer, e o vermelho fica mais forte
+   conforme o atraso envelhece (o dinheiro velho é o que não volta). */
+const FAIXA_COR={'1_a_vencer':()=>CC.verde,'2_vencido_ate_30':()=>CC.amarelo,
+  '3_vencido_31_90':()=>CC.laranja,'4_vencido_91_365':()=>CC.vermelho,'5_vencido_mais_365':()=>CC.navy700};
 function agingRows(id, rows, totId){
   const map={}; (rows||[]).forEach(r=>map[r.faixa]=r);
   let tq=0,tv=0, html='';
   Object.keys(FAIXAS).forEach(f=>{ const r=map[f]||{qtd:0,valor:0}; tq+=r.qtd; tv+=r.valor;
     const [lbl,cls]=FAIXAS[f];
     html+=`<tr><td><span class="badge ${cls}">${lbl}</span></td><td class="num">${r.qtd.toLocaleString('pt-BR')}</td><td class="num">${BRL.format(r.valor)}</td></tr>`; });
-  document.getElementById(id).innerHTML=html+`<tr><td style="font-weight:700">Total em aberto</td><td class="num" style="font-weight:700">${tq.toLocaleString('pt-BR')}</td><td class="num" style="font-weight:700">${BRL.format(tv)}</td></tr>`;
-  document.getElementById(totId).textContent=BRL.format(tv);
+  const tb=document.getElementById(id);   // a versão tabela some onde já há barras
+  if(tb) tb.innerHTML=html+`<tr><td style="font-weight:700">Total em aberto</td><td class="num" style="font-weight:700">${tq.toLocaleString('pt-BR')}</td><td class="num" style="font-weight:700">${BRL.format(tv)}</td></tr>`;
+  const tot=document.getElementById(totId); if(tot) tot.textContent=BRL.format(tv);
+  // versão em barras: a composição do aging é o recado (95% a vencer × 5% em
+  // atraso) e numa tabela de 6 linhas isso não salta
+  const alvo=document.getElementById(id+'-barras');
+  if(alvo){
+    const faixas=Object.keys(FAIXAS).map(f=>({f, r:map[f]||{qtd:0,valor:0}})).filter(x=>x.r.valor>0);
+    const maxV=Math.max(1,...faixas.map(x=>x.r.valor));
+    const vencido=faixas.filter(x=>x.f!=='1_a_vencer').reduce((a,x)=>a+x.r.valor,0);
+    alvo.innerHTML=faixas.map(({f,r})=>{
+      const [lbl]=FAIXAS[f], cor=(FAIXA_COR[f]||(()=>CC.n500))();
+      return `<div class="modrow">
+        <span class="mname"><i style="background:${cor}"></i>${esc(lbl)}</span>
+        <span class="mval">${BRL.format(r.valor)} · ${tv?(100*r.valor/tv).toFixed(1).replace('.',',')+'%':'—'}</span>
+        <span class="mtrack" title="${esc(lbl)}: ${BRL.format(r.valor)} em ${r.qtd.toLocaleString('pt-BR')} títulos (${tv?(100*r.valor/tv).toFixed(1):0}% do saldo em aberto)">
+          <span style="width:${(100*r.valor/maxV).toFixed(2)}%;background:${cor}"></span></span>
+        <span class="mmeta">${r.qtd.toLocaleString('pt-BR')} títulos</span>
+      </div>`;
+    }).join('')+`<div class="modtot"><span>total em aberto <b>${BRL.format(tv)}</b> em ${tq.toLocaleString('pt-BR')} títulos</span>`+
+      `<span>vencido <b style="color:${vencido/(tv||1)>0.1?'var(--red)':'var(--green)'}">${tv?(100*vencido/tv).toFixed(1).replace('.',',')+'%':'—'}</b></span></div>`;
+  }
 }
 function drillRows(id, rows){
   document.getElementById(id).innerHTML = (rows||[]).map(r=>{
