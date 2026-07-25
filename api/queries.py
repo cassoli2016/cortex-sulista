@@ -1572,6 +1572,10 @@ def get_comercial(filial: int | None, dt_de: str, dt_ate: str,
         meta = cur.fetchone()
 
     kpis["rkm"] = (kpis["receita_com_km"] / kpis["km"]) if kpis["km"] else None
+    # total do MESMO período um ano antes (CLI_ANT_SQL já cobre todos os
+    # clientes do recorte) — base da seta de tendência do KPI de receita,
+    # sem consulta adicional
+    kpis["receita_anterior"] = sum((r["receita"] or 0.0) for r in anteriores.values())
     receita_total = kpis["receita"] or 0.0
     top10 = sum(r["receita"] for r in clientes[:10])
     kpis["concentracao_top10"] = (top10 / receita_total) if receita_total else None

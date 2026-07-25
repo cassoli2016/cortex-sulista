@@ -903,12 +903,24 @@ button.avatar{border:0;cursor:pointer}
         </div>
         <div class="rangegrp" id="grpEmi" style="display:none">
           <div class="field">
+            <label for="fEmiPreset">Período</label>
+            <select id="fEmiPreset" onchange="emiPresetChange()">
+              <option value="">Personalizado</option>
+              <option value="mes">Este mês</option>
+              <option value="mespas">Mês passado</option>
+              <option value="m3">Últimos 3 meses</option>
+              <option value="d90">Últimos 90 dias</option>
+              <option value="ano">Ano corrente</option>
+              <option value="m12">Últimos 12 meses</option>
+            </select>
+          </div>
+          <div class="field">
             <label for="fEmiDe" id="lblEmiDe">Emissão de</label>
-            <input type="date" id="fEmiDe" onchange="reloadCurrent()">
+            <input type="date" id="fEmiDe" onchange="emiDataManual()">
           </div>
           <div class="field">
             <label for="fEmiAte">até</label>
-            <input type="date" id="fEmiAte" onchange="reloadCurrent()">
+            <input type="date" id="fEmiAte" onchange="emiDataManual()">
           </div>
         </div>
         <div class="rangegrp" id="grpOc" style="display:none">
@@ -1357,7 +1369,11 @@ button.avatar{border:0;cursor:pointer}
       <section class="view" id="view-com">
         <div class="kpis" id="kpis-com"></div>
         <div class="card">
-          <div class="head"><h2>Receita de frete por mês</h2><span class="hint" id="hintCom">no período filtrado</span></div>
+          <div class="head"><h2>Receita de frete por mês <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="FONTE: programacaoembarque.valorfrete das viagens CARREGADAS (não canceladas, semáforo = 1, tipo ≠ 3), por data de emissão, dentro do período filtrado. É o frete das viagens — recorte DIFERENTE do faturamento oficial (CT-e + NFS-e + KMM) que aparece no card de metas mais abaixo, e das faturas emitidas do Contas a Receber. Mês que o filtro pega pela metade sai hachurado e marcado 'parcial'.">i</span></h2><span class="hint" id="hintCom">no período filtrado</span></div>
+          <div class="legend">
+            <span class="k"><i class="sw" style="background:var(--green)"></i>Mês inteiro no recorte</span>
+            <span class="k"><i class="sw hatch"></i>Mês parcial (o filtro corta o mês)</span>
+          </div>
           <div class="chartwrap" id="wrapCom">
             <svg id="chartCom" viewBox="0 0 960 250" preserveAspectRatio="xMidYMid meet"
                  tabindex="0" role="img" aria-label="Receita de frete por mês, últimos 12 meses. Use as setas do teclado para percorrer os meses."></svg>
@@ -1365,30 +1381,30 @@ button.avatar{border:0;cursor:pointer}
           </div>
         </div>
         <div class="card">
-          <div class="head"><h2>Clientes do período</h2><span class="hint">top 30 por receita · clique para ver as rotas · Δ vs mesmo período do ano anterior</span></div>
+          <div class="head"><h2>Clientes do período <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="Agrupamento de clientes (grupo econômico) do ERP; quando a viagem não tem coleta vinculada, o pagador é recuperado pelo CT-e do mesmo veículo na janela da viagem (heurística que recupera ~91% do valor). Receita = valorfrete; RKM = receita ÷ km carregado, contando só viagens com km informado. Δ compara com o MESMO período do ano anterior.">i</span></h2><span class="hint">top 30 por receita · clique para ver as rotas · Δ vs mesmo período do ano anterior</span></div>
           <div class="tablewrap"><table><thead><tr>
             <th style="width:34px"></th><th>Cliente</th><th class="num">Viagens</th><th class="num">Receita</th><th class="num">% do total</th><th class="num">Km</th><th class="num">RKM</th><th class="num">Δ ano ant.</th>
           </tr></thead><tbody id="com-cli"></tbody></table></div>
         </div>
         <div class="card">
-          <div class="head"><h2>Re-preço por rota — quem paga abaixo dos demais</h2><span class="hint">RKM do cliente vs RKM dos outros clientes na MESMA rota, no período filtrado · conferir tipo de carga/contrato antes da conversa</span></div>
+          <div class="head"><h2>Re-preço por rota — quem paga abaixo dos demais <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="Compara o RKM do cliente com o RKM dos DEMAIS clientes na mesma origem→destino, no período filtrado. Só entram rotas com 3.000 km ou mais no recorte e diferença de 5% ou mais para baixo. Potencial = (RKM dos demais − RKM do cliente) × km do cliente na rota. NÃO considera tipo de carga, sazonalidade nem contrato — é ponto de partida de conversa, não conclusão.">i</span></h2><span class="hint">RKM do cliente vs RKM dos outros clientes na MESMA rota, no período filtrado</span></div>
           <div class="tablewrap"><table><thead><tr>
             <th>Cliente</th><th>Rota</th><th class="num">Viagens</th><th class="num">Km</th>
             <th class="num">RKM do cliente</th><th class="num">RKM dos demais</th><th class="num">Δ</th><th class="num">Potencial no período</th>
           </tr></thead><tbody id="com-repre"></tbody></table></div>
         </div>
         <div class="card">
-          <div class="head"><h2>Meta × realizado do mês por cliente</h2><span class="hint">mês corrente (independe dos filtros) · maiores gaps primeiro · realizado = faturamento oficial (CT-e + NFS-e + KMM) de clientes vinculados ao agrupamento</span></div>
+          <div class="head"><h2>Meta × realizado do mês por cliente <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="Meta = sulista.metafaturamento_agrupamentoclientedia (tipo 1), acumulada até hoje. Realizado = faturamento OFICIAL (CT-e + NFS-e + KMM) dos clientes vinculados ao agrupamento. ATENÇÃO: este card é sempre do MÊS CORRENTE e usa o recorte oficial de faturamento — por isso não acompanha o filtro de período nem bate com a receita de frete dos outros cards da tela.">i</span><span class="badge b-warn" style="margin-left:8px;vertical-align:2px">não segue os filtros</span></h2><span class="hint">sempre o mês corrente · maiores gaps primeiro · realizado = faturamento oficial (CT-e + NFS-e + KMM)</span></div>
           <div class="tablewrap"><table><thead><tr>
             <th>Cliente</th><th class="num">Meta até hoje</th><th class="num">Realizado</th><th class="num">Atingimento</th><th class="num">Gap</th><th class="num">Meta do mês</th>
           </tr></thead><tbody id="com-metas"></tbody></table></div>
         </div>
         <div class="card">
-          <div class="head"><h2>Concentração da carteira — curva ABC</h2><span class="hint">participação acumulada na receita do período</span></div>
+          <div class="head"><h2>Concentração da carteira — curva ABC <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="Participação acumulada na receita do período filtrado, sobre os 30 maiores clientes. Quanto menos clientes formam 80% da receita, maior a dependência: perder um deles vira buraco imediato no mês.">i</span></h2><span class="hint">participação acumulada na receita do período</span></div>
           <div class="kpis" id="com-abc"></div>
         </div>
         <div class="card">
-          <div class="head"><h2>Clientes em queda</h2><span class="hint">receita 30%+ abaixo do mesmo período anterior · churn reversível — agir antes que vire perdido</span></div>
+          <div class="head"><h2>Clientes em queda <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="Clientes com receita 30% ou mais abaixo do MESMO período do ano anterior e volume relevante antes. Queda ainda reversível — o cliente que zerou aparece no alerta 'Clientes que sumiram'.">i</span></h2><span class="hint">receita 30%+ abaixo do mesmo período do ano anterior · churn reversível</span></div>
           <div class="tablewrap"><table><thead><tr>
             <th>Cliente</th><th class="num">Período anterior</th><th class="num">Atual</th><th class="num">Queda</th><th class="num">Receita perdida</th>
           </tr></thead><tbody id="com-queda"></tbody></table></div>
@@ -2652,6 +2668,9 @@ function router(){
   document.getElementById('grpHor').style.display = (v==='fluxo') ? 'flex' : 'none';
   document.getElementById('grpComp').style.display = (dre||mvb||contab||dreCli) ? 'flex' : 'none';
   document.getElementById('grpEmi').style.display = (oc||agr||comb||man||com||kmv||mul||rent) ? 'flex' : 'none';
+  // as datas de emissão são COMPARTILHADAS por essas telas: ao trocar de vista o
+  // select tem que voltar a descrever o recorte que está nos campos
+  if(oc||agr||comb||man||com||kmv||mul||rent) emiPresetSync();
   document.getElementById('grpMul').style.display = mul ? 'flex' : 'none';
   document.getElementById('grpCob').style.display = cob ? 'flex' : 'none';
   document.getElementById('grpRent').style.display = rent ? 'flex' : 'none';
@@ -2785,6 +2804,46 @@ function _recalcPreset(){
 function presetChange(){
   _recalcPreset();
   if(document.getElementById('fPreset').value!=='custom') load();
+}
+/* ---- Período de EMISSÃO (grupo compartilhado por com/oc/agr/comb/man/km/mul/rent)
+   Antes só existiam os dois campos de data: trocar de recorte exigia digitar
+   duas datas na mão. O select preenche as datas; digitar data volta para
+   "Personalizado". Datas em horário LOCAL — toISOString() em UTC-3 volta um
+   dia e o recorte sairia errado. */
+const _iso = d => d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
+function emiRange(p){
+  const n=new Date(), hoje=new Date(n.getFullYear(),n.getMonth(),n.getDate());
+  const y=hoje.getFullYear(), m=hoje.getMonth();
+  if(p==='mes')    return [new Date(y,m,1), hoje];
+  if(p==='mespas') return [new Date(y,m-1,1), new Date(y,m,0)];
+  if(p==='m3')     return [new Date(y,m-2,1), hoje];
+  if(p==='ano')    return [new Date(y,0,1), hoje];
+  if(p==='m12')    return [new Date(y,m-11,1), hoje];
+  if(p==='d90'){ const d=new Date(hoje); d.setDate(d.getDate()-90); return [d, hoje]; }
+  return null;
+}
+function emiPresetChange(){
+  const r=emiRange(document.getElementById('fEmiPreset').value);
+  if(!r) return;                       // "Personalizado": mantém o que está lá
+  document.getElementById('fEmiDe').value=_iso(r[0]);
+  document.getElementById('fEmiAte').value=_iso(r[1]);
+  reloadCurrent();
+}
+function emiDataManual(){              // digitou data -> o preset não descreve mais o recorte
+  document.getElementById('fEmiPreset').value='';
+  reloadCurrent();
+}
+/* Deixa o select coerente com as datas que voltaram da API (cada tela tem seu
+   padrão de período no backend). Sem isso o rótulo mentiria sobre o recorte. */
+function emiPresetSync(){
+  const de=document.getElementById('fEmiDe'), ate=document.getElementById('fEmiAte'), sel=document.getElementById('fEmiPreset');
+  if(!de||!ate||!sel) return;
+  let achou='';
+  for(const p of ['mes','mespas','m3','d90','ano','m12']){
+    const r=emiRange(p);
+    if(r && _iso(r[0])===de.value && _iso(r[1])===ate.value){ achou=p; break; }
+  }
+  sel.value=achou;
 }
 function onDataRefChange(){
   // presets relativos são recalculados quando a data de referência muda
@@ -3300,7 +3359,7 @@ function setActive(svgId,i,clientY,announce){
     liveTxt=`${periodoLabel(r.mes)}: ${fmtKm2(r.km_carregado)} carregado, ${fmtKm2(r.km_vazio)} vazio`;
   } else if(g.kind==='com'){
     const r=g.rows[i];
-    tt.textContent=periodoLabel(r.mes);
+    tt.textContent=periodoLabel(r.mes)+((g.parc&&g.parc[i])?' · mês incompleto no recorte':'');
     tip.append(tt);
     tipRow(tip,'Receita',BRL.format(r.receita),{borderTop:'3px solid #1E7F4F'});
     tipRow(tip,'CT-es',r.ctes.toLocaleString('pt-BR'),null);
@@ -6031,14 +6090,22 @@ function renderCom(d){
   const k=d.kpis;
   if(!document.getElementById('fEmiDe').value) document.getElementById('fEmiDe').value=d.dt_de;
   if(!document.getElementById('fEmiAte').value) document.getElementById('fEmiAte').value=d.dt_ate;
-  const cob = k.ctes>0 ? Math.round(100*k.ctes_com_km/k.ctes) : 0;
+  emiPresetSync();
+  const conc=k.concentracao_top10;
   document.getElementById('kpis-com').innerHTML=[
-    kpi('Receita de frete', BRL.format(k.receita), k.ctes.toLocaleString('pt-BR')+' viagens · '+fmtD(d.dt_de)+' a '+fmtD(d.dt_ate), ''),
+    kpi('Receita de frete', BRL.format(k.receita),
+      k.ctes.toLocaleString('pt-BR')+' viagens · '+fmtD(d.dt_de)+' a '+fmtD(d.dt_ate), '', null,
+      trendChip(k.receita, k.receita_anterior, {ref:'Mesmo período do ano anterior', fmt:BRL.format})),
     kpi('RKM médio', fmtRsKm(k.rkm), k.km.toLocaleString('pt-BR',{maximumFractionDigits:0})+' km carregado', ''),
     kpi('Clientes ativos', k.clientes.toLocaleString('pt-BR'), 'pagadores de frete no período', ''),
-    kpi('Concentração top 10', k.concentracao_top10!=null?(100*k.concentracao_top10).toLocaleString('pt-BR',{maximumFractionDigits:0})+'%':'—', 'da receita nos 10 maiores clientes', k.concentracao_top10>0.7?'neg':''),
+    kpi('Concentração top 10', conc!=null?(100*conc).toLocaleString('pt-BR',{maximumFractionDigits:0})+'%':'—',
+      'da receita nos 10 maiores clientes', conc>0.7?'neg':'', null,
+      conc==null?'':statChip(conc>0.7?'bad':(conc>0.5?'warn':'good'),
+        conc>0.7?'risco alto':(conc>0.5?'atenção':'diluída'),
+        'Acima de 70% da receita em 10 clientes é dependência comercial: a perda de um único cliente vira buraco no mês.',
+        conc>0.7?'sevCrit':(conc>0.5?'sevWarn':'sevOk'))),
   ].join('');
-  chartComRender(d.mensal||[]);
+  chartComRender(d.mensal||[], d.dt_de, d.dt_ate);
   document.getElementById('com-cli').innerHTML=(d.clientes||[]).map((c,i)=>{
     const det=`
       <div class="tablewrap"><table>
@@ -6074,7 +6141,7 @@ function renderCom(d){
   if(k.concentracao_top10>0.7) A.push(['t-warn','Concentração alta',
     `${(100*k.concentracao_top10).toFixed(0)}% da receita em 10 clientes — risco comercial concentrado.`]);
   document.getElementById('alerts-com').innerHTML=(A.length?A:[['t-ok','Sem alertas críticos','Nenhuma pendência relevante no período.']])
-    .map(([c,t,m])=>`<div class="toast ${c}"><b>${esc(t)}</b>${esc(m)}</div>`).join('');
+    .map(([c,t,m])=>`<div class="toast wic ${c}"><span class="ti">${ICONS[c==='t-dang'?'sevCrit':(c==='t-warn'?'sevWarn':'sevOk')]}</span><span class="tx"><b>${esc(t)}</b>${esc(m)}</span></div>`).join('');
   const ts=new Date(d.atualizado_em);
   document.getElementById('meta').innerHTML='<b>Atualizado '+ts.toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'})+'</b><br>'+ts.toLocaleDateString('pt-BR');
 }
@@ -6084,29 +6151,47 @@ function comToggle(i){
   const open=det.classList.toggle('open');
   det.previousElementSibling.setAttribute('aria-expanded', String(open));
 }
-function chartComRender(mensal){
+/* Mês PARCIAL (o recorte começa/termina no meio dele) é hachurado: com o filtro
+   padrão de 90 dias o 1º e o último mês pegam poucos dias e a barra cheia lia
+   como tombo de receita. Mesmo tratamento do gráfico da Visão Geral. */
+function comParcial(mes, dt_de, dt_ate){
+  if(!dt_de || !dt_ate) return false;
+  const ini=mes+'-01';
+  const [y,m]=mes.split('-').map(Number);
+  const fim=mes+'-'+String(new Date(y,m,0).getDate()).padStart(2,'0');
+  return dt_de>ini || dt_ate<fim;
+}
+function chartComRender(mensal, dt_de, dt_ate){
   const svg=document.getElementById('chartCom');
   GEOM['chartCom']=null; ACTIVE['chartCom']=-1;
-  if(!mensal.length){ svg.innerHTML='<text x="480" y="120" text-anchor="middle" fill="#6E7883" font-size="14">sem dados</text>'; return; }
-  const W=960,H=250,mL=64,mR=16,mT=28,mB=34, iw=W-mL-mR, ih=H-mT-mB;
+  if(!mensal.length){ svg.innerHTML=`<text x="480" y="120" text-anchor="middle" fill="${CC.n500}" font-size="14">sem dados</text>`; return; }
+  const W=960,H=250,mL=64,mR=16,mT=28,mB=40, iw=W-mL-mR, ih=H-mT-mB;
   const n=mensal.length, bandW=iw/n;
   const maxV=Math.max(1,...mensal.map(r=>r.receita));
-  const tks=niceTicks(0,maxV,4), top=tks[tks.length-1], u=unitOf(top);
+  const tks=niceTicks(0,maxV,4), top=tks[tks.length-1]*1.08, u=unitOf(top);
   const y=v=>mT+ih-(v/top)*ih, y0=y(0);
   const px=i=>mL+bandW*i+bandW/2;
   const barW=Math.min(26,bandW*0.5);
-  let s='';
+  let s=`<defs><pattern id="hatchCom" width="6" height="6" patternTransform="rotate(45)" patternUnits="userSpaceOnUse">`+
+        `<rect width="6" height="6" fill="${CC.verde}"/><rect width="2.4" height="6" fill="#fff" opacity=".62"/></pattern></defs>`;
   s+=`<rect id="chartCom-hband" x="0" y="${mT-14}" width="${bandW}" height="${ih+14}" fill="${CC.navy100}" opacity="0"/>`;
-  s+=`<text x="${mL}" y="${mT-12}" font-size="11" fill="#6E7883" font-weight="600" letter-spacing="1.5">${u.t}</text>`;
+  s+=`<text x="${mL}" y="${mT-12}" font-size="11" fill="${CC.n500}" font-weight="600" letter-spacing="1.5">${u.t}</text>`;
   tks.forEach(v=>{ const yy=y(v);
-    s+=`<line x1="${mL}" y1="${yy}" x2="${W-mR}" y2="${yy}" stroke="${v===0?'#C2C8D0':'#ECEEF1'}" stroke-width="1"/>`;
-    s+=`<text x="${mL-8}" y="${yy+4}" text-anchor="end" font-size="11" fill="#6E7883" font-family="IBM Plex Mono,monospace">${NMI.format(v/u.d)}</text>`; });
-  mensal.forEach((r,i)=>{ s+=colPath(px(i)-barW/2,barW,y(r.receita),y0,4,'#1E7F4F'); });
-  mensal.forEach((r,i)=>{ s+=`<text x="${px(i)}" y="${H-mB+18}" text-anchor="middle" font-size="10.5" fill="#4F5860">${periodoLabel(r.mes)}</text>`; });
+    s+=`<line x1="${mL}" y1="${yy}" x2="${W-mR}" y2="${yy}" stroke="${v===0?CC.n300:CC.grid}" stroke-width="1"/>`;
+    s+=`<text x="${mL-8}" y="${yy+4}" text-anchor="end" font-size="11" fill="${CC.n500}" font-family="IBM Plex Mono,monospace">${NMI.format(v/u.d)}</text>`; });
+  const parc=mensal.map(r=>comParcial(r.mes, dt_de, dt_ate));
+  mensal.forEach((r,i)=>{ s+=colPath(px(i)-barW/2,barW,y(r.receita),y0,4,parc[i]?'url(#hatchCom)':CC.verde); });
+  // rótulo direto só no melhor mês (número em todo mês viraria ruído)
+  const iMax=mensal.reduce((b,r,i)=>(r.receita>mensal[b].receita?i:b),0);
+  if(mensal[iMax].receita>0)
+    s+=`<text x="${px(iMax)}" y="${y(mensal[iMax].receita)-8}" text-anchor="middle" font-size="10.5" font-weight="700" fill="${CC.n700}" stroke="#fff" stroke-width="3" paint-order="stroke" stroke-linejoin="round">${brlAbbr(mensal[iMax].receita)}</text>`;
+  mensal.forEach((r,i)=>{
+    s+=`<text x="${px(i)}" y="${H-mB+18}" text-anchor="middle" font-size="10.5" font-weight="${parc[i]?'700':'400'}" fill="${parc[i]?CC.n900:CC.n600}">${periodoLabel(r.mes)}</text>`;
+    if(parc[i]) s+=`<text x="${px(i)}" y="${H-mB+31}" text-anchor="middle" font-size="9.5" font-weight="600" fill="${CC.n500}">parcial</text>`; });
   s+=`<line id="chartCom-xhair" x1="0" x2="0" y1="${mT-14}" y2="${y0}" stroke="${CC.navy400}" stroke-width="1" opacity="0"/>`;
   s+=`<rect x="${mL}" y="${mT-14}" width="${iw}" height="${ih+14}" fill="transparent"/>`;
   svg.innerHTML=s;
-  GEOM['chartCom']={kind:'com',rows:mensal,n,bandW,mL,W,px,topY:mT-14,botY:y0,wrap:'wrapCom',tip:'tipCom'};
+  GEOM['chartCom']={kind:'com',rows:mensal,n,bandW,mL,W,px,topY:mT-14,botY:y0,wrap:'wrapCom',tip:'tipCom',parc};
   bindHover('chartCom');
 }
 
