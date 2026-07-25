@@ -400,8 +400,47 @@ tr.forn-det td{padding:7px 12px}
 /* ---- Copiloto ---- */
 .cop-card{display:flex;flex-direction:column;min-height:calc(100vh - 220px);padding:20px 28px 24px}
 @media(max-width:880px){.cop-card{padding:14px 16px 18px}}
+/* COLUNA DE LEITURA: o card mantém a largura cheia (moldura igual às outras
+   telas), mas o CONTEÚDO trava em 760px centralizado — bolha a 78% de um card
+   de 1400px dava linha de ~1100px, longe da faixa confortável de leitura. */
+.cop-card>*{width:100%;max-width:760px;margin-left:auto;margin-right:auto}
+/* Miolo (hero + conversa + chips). Vazio, os três viram UM BLOCO CENTRADO;
+   antes o #cop-msgs (flex:1) empurrava os chips para o rodapé e sobravam
+   ~600px de branco morto no meio da tela. */
+.cop-mid{flex:1;display:flex;flex-direction:column;min-height:0}
+.cop-card.vazio .cop-mid{justify-content:center;gap:4px}
+.cop-card.vazio .cop-msgs{display:none}
+/* no vazio os chips acompanham o hero centralizado (com conversa eles voltam
+   a alinhar à esquerda, junto das bolhas) */
+.cop-card.vazio .cop-chips{justify-content:center}
 .cop-tokens{display:flex;gap:14px;align-items:center;font-size:11px;color:var(--n500,#6E7883);margin-top:8px;font-family:var(--mono)}
-.cop-msgs{flex:1;overflow-y:auto;display:flex;flex-direction:column;gap:12px;padding:8px 2px;min-height:240px}
+.cop-msgs{flex:1;overflow-y:auto;display:flex;flex-direction:column;gap:12px;padding:8px 2px;min-height:0}
+/* conversa curta ancorada EMBAIXO, como em qualquer chat. margin-top:auto no
+   primeiro filho e não justify-content:flex-end — este último impede rolar
+   até o topo quando o conteúdo passa da altura (bug conhecido no Chrome). */
+.cop-msgs>*:first-child{margin-top:auto}
+/* Cabeçalho: identidade + estado à esquerda, procedência e "nova conversa" à
+   direita. Antes era só um "online" solto no canto, sem hierarquia. */
+.cop-head{display:flex;align-items:center;gap:10px;justify-content:space-between;min-height:30px}
+.cop-id{display:inline-flex;align-items:center;gap:8px;font-size:14.5px;font-weight:700;min-width:0}
+.cop-id .gl{width:25px;height:25px;border-radius:8px;flex:none;display:inline-flex;align-items:center;
+  justify-content:center;font-size:13px;background:linear-gradient(135deg,var(--navy-700),var(--navy-500))}
+.cop-head-r{display:inline-flex;align-items:center;gap:8px;flex:none}
+.cop-pill{display:inline-flex;align-items:center;gap:5px;font-size:11px;font-weight:700;
+  border-radius:999px;padding:2px 9px;background:var(--green-100);color:var(--green);white-space:nowrap}
+.cop-pill.off{background:var(--yellow-100);color:var(--yellow-700)}
+.cop-ctx{font-size:11px;color:var(--n500);font-family:var(--mono);display:flex;gap:10px;
+  align-items:center;flex-wrap:wrap;margin-top:5px}
+.cop-ctx .falha{font-family:var(--font);font-weight:700;color:var(--yellow-700);
+  background:var(--yellow-100);border-radius:999px;padding:1px 8px;cursor:help}
+.cop-dica{font-size:11px;color:var(--n500);margin-top:6px}
+/* Ações da resposta — FORA da bolha (o streaming reescreve o innerHTML dela) e
+   sempre visíveis, não em :hover: no celular não existe hover. */
+.cop-acts{display:flex;gap:6px;flex-wrap:wrap;margin:7px 0 0 40px}
+.cop-acts button,.cop-acts a{font-family:var(--font);border:1px solid var(--n200);background:var(--n0);
+  border-radius:999px;padding:3px 10px;font-size:11.5px;font-weight:600;color:var(--n600);
+  cursor:pointer;text-decoration:none;display:inline-flex;align-items:center;gap:4px}
+.cop-acts button:hover,.cop-acts a:hover{border-color:var(--navy-200);color:var(--navy-700);background:var(--navy-50)}
 .cop-b{max-width:78%;padding:10px 14px;border-radius:14px;font-size:14px;line-height:1.55;white-space:normal;word-wrap:break-word}
 .cop-b.user{align-self:flex-end;background:var(--navy-700,#17344F);color:#fff;border-bottom-right-radius:4px}
 .cop-b.ai{align-self:flex-start;background:var(--n100,#F2F4F6);color:var(--ink,#1E2833);border-bottom-left-radius:4px}
@@ -411,18 +450,20 @@ tr.forn-det td{padding:7px 12px}
 .cop-chips{display:flex;flex-wrap:wrap;gap:8px;padding:10px 0}
 .cop-chip{border:1px solid var(--n300,#C2C8D0);background:transparent;border-radius:999px;padding:6px 12px;font-size:12.5px;cursor:pointer;color:var(--navy-700,#17344F)}
 .cop-chip:hover{background:var(--navy-100,#DCE6F0)}
-.cop-bar{display:flex;gap:8px;align-items:flex-end;border-top:1px solid var(--n200,#E4E7EB);padding-top:12px}
+.cop-bar{display:flex;gap:9px;align-items:flex-end;border-top:1px solid var(--n200,#E4E7EB);padding-top:12px}
+.cop-bar .btn{border-radius:50%;width:42px;height:42px;padding:0;justify-content:center;flex:none;font-size:15px}
 .cop-bar textarea{flex:1;resize:none;border:1px solid var(--n300,#C2C8D0);border-radius:10px;padding:10px 12px;font:inherit;font-size:14px;max-height:120px;outline:none}
 .cop-bar textarea:focus{border-color:var(--navy-500,#38648D)}
 .cop-aviso{font-size:11px;color:var(--n500,#6E7883);margin-top:6px}
-.cop-top{display:flex;justify-content:space-between;align-items:center;min-height:26px}
-.cop-top .ghost{border:1px solid var(--n300,#C2C8D0);background:transparent;border-radius:8px;padding:4px 10px;font-size:12px;cursor:pointer;color:var(--n500,#6E7883)}
-.cop-top .ghost:hover{background:var(--n100,#F2F4F6);color:var(--ink,#1E2833)}
-.cop-hero{text-align:center;padding:26px 12px 8px}
+.cop-head .ghost{border:1px solid var(--n300,#C2C8D0);background:transparent;border-radius:8px;padding:4px 10px;font-size:12px;cursor:pointer;color:var(--n500,#6E7883)}
+.cop-head .ghost:hover{background:var(--n100,#F2F4F6);color:var(--ink,#1E2833)}
+.cop-hero{text-align:center;padding:4px 12px 10px}
 .cop-hero .glyph{width:56px;height:56px;border-radius:18px;margin:0 auto 12px;display:flex;align-items:center;justify-content:center;font-size:28px;background:linear-gradient(135deg,#17344F,#38648D);box-shadow:0 6px 18px rgba(23,52,79,.25)}
 .cop-hero h3{font-size:19px;margin:0 0 4px;color:var(--ink,#1E2833)}
 .cop-hero p{font-size:13px;color:var(--n500,#6E7883);margin:0 auto;max-width:420px}
-.cop-row{display:flex;gap:10px;align-items:flex-end}
+/* avatar no TOPO da bolha: com resposta longa o flex-end deixava o ✨ solto
+   no rodapé, desalinhado do começo do texto */
+.cop-row{display:flex;gap:10px;align-items:flex-start}
 .cop-row.user{justify-content:flex-end}
 .cop-ava{width:30px;height:30px;min-width:30px;border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:15px;background:linear-gradient(135deg,#17344F,#38648D);box-shadow:0 2px 6px rgba(23,52,79,.3)}
 .cop-b .cop-mod{display:flex;align-items:center;gap:5px;margin-top:8px;font-size:10px;color:var(--n500,#6E7883);font-family:var(--mono)}
@@ -437,11 +478,21 @@ tr.forn-det td{padding:7px 12px}
 .cop-typing i:nth-child(2){animation-delay:.18s}.cop-typing i:nth-child(3){animation-delay:.36s}
 @keyframes copB{0%,60%,100%{transform:translateY(0);opacity:.4}30%{transform:translateY(-5px);opacity:1}}
 .cop-chip{display:inline-flex;align-items:center;gap:6px}
-.cop-status{display:inline-flex;align-items:center;gap:6px}
-.cop-status .pulse{width:8px;height:8px;border-radius:50%;background:#1E7F4F;animation:copPulse 2s infinite}
+.cop-pill .pulse{width:7px;height:7px;border-radius:50%;background:currentColor;animation:copPulse 2s infinite;flex:none}
 @keyframes copPulse{0%{box-shadow:0 0 0 0 rgba(30,123,60,.5)}70%{box-shadow:0 0 0 7px rgba(30,123,60,0)}100%{box-shadow:0 0 0 0 rgba(30,123,60,0)}}
 #cop-send{display:flex;align-items:center;gap:6px}
-@media(max-width:880px){.cop-card{min-height:calc(100vh - 300px)}.cop-b{max-width:92%}}
+/* Celular: barra de entrada COLADA no rodapé do card (sticky) e altura em dvh —
+   antes o min-height fixo de 240px no #cop-msgs fazia a página passar de 920px
+   num viewport de 844 e era preciso ROLAR para achar o campo de digitar. */
+@media(max-width:880px){
+  .cop-card{min-height:calc(100dvh - 190px)}
+  .cop-b{max-width:92%}
+  .cop-bar{position:sticky;bottom:0;background:var(--n0);z-index:2}
+  .cop-acts,.cop-sugs{margin-left:0}
+  .cop-hero .glyph{width:46px;height:46px;border-radius:15px;font-size:23px;margin-bottom:9px}
+  .cop-hero h3{font-size:17px}
+  .cop-head{flex-wrap:wrap;row-gap:6px}
+}
 
 /* ---- DRE gerencial ---- */
 #dre-tab{border-collapse:separate;border-spacing:0;min-width:100%}
@@ -1467,30 +1518,39 @@ button.avatar{border:0;cursor:pointer}
 
       <!-- ===================== COPILOTO SULISTA ===================== -->
       <section class="view" id="view-cop">
-        <div class="card cop-card">
-          <div class="cop-top">
-            <span class="hint" id="cop-modelo">conectando…</span>
-            <button class="ghost" id="cop-clear" onclick="copClear()" style="display:none" title="Apagar a conversa e começar de novo">🧹 Nova conversa</button>
+        <div class="card cop-card vazio" id="cop-card">
+          <div class="cop-head">
+            <span class="cop-id"><span class="gl" aria-hidden="true">✨</span>Copiloto Cortex
+              <span class="cop-pill" id="cop-modelo">conectando…</span></span>
+            <span class="cop-head-r">
+              <span class="ihelp" id="cop-proc" tabindex="0" role="img" aria-label="de onde vem a resposta"
+                    title="O copiloto responde a partir de um snapshot de indicadores do painel.">i</span>
+              <button class="ghost" id="cop-clear" onclick="copClear()" style="display:none" title="Apagar a conversa e começar de novo">🧹 Nova conversa</button>
+            </span>
           </div>
-          <div class="cop-hero" id="cop-hero">
-            <div class="glyph">✨</div>
-            <h3>Copiloto Cortex</h3>
-            <p>Pergunte sobre os números do painel — faturamento, caixa, km vazio, frota, segurança. As respostas usam os indicadores ao vivo do ERP.</p>
-          </div>
-          <div class="cop-msgs" id="cop-msgs" role="log" aria-live="polite" aria-label="Conversa com o copiloto"></div>
-          <div class="cop-chips" id="cop-chips">
-            <button class="cop-chip" onclick="copChip(this)"><span>📊</span>Resumo executivo de hoje</button>
-            <button class="cop-chip" onclick="copChip(this)"><span>🎯</span>Como está o faturamento contra a meta?</button>
-            <button class="cop-chip" onclick="copChip(this)"><span>🛣️</span>Onde estou rodando vazio e quanto custa?</button>
-            <button class="cop-chip" onclick="copChip(this)"><span>⚖️</span>Compensa frota própria ou agregado?</button>
-            <button class="cop-chip" onclick="copChip(this)"><span>🛡️</span>Riscos de segurança e compliance</button>
+          <div class="cop-ctx" id="cop-ctx"></div>
+          <div class="cop-mid">
+            <div class="cop-hero" id="cop-hero">
+              <div class="glyph">✨</div>
+              <h3>Copiloto Cortex</h3>
+              <p>Pergunte sobre os números do painel — faturamento, caixa, km vazio, frota, segurança. As respostas usam os indicadores ao vivo do ERP.</p>
+            </div>
+            <div class="cop-msgs" id="cop-msgs" role="log" aria-live="polite" aria-label="Conversa com o copiloto"></div>
+            <div class="cop-chips" id="cop-chips">
+              <button class="cop-chip" onclick="copChip(this)"><span>📊</span>Resumo executivo de hoje</button>
+              <button class="cop-chip" onclick="copChip(this)"><span>🎯</span>Como está o faturamento contra a meta?</button>
+              <button class="cop-chip" onclick="copChip(this)"><span>🛣️</span>Onde estou rodando vazio e quanto custa?</button>
+              <button class="cop-chip" onclick="copChip(this)"><span>⚖️</span>Compensa frota própria ou agregado?</button>
+              <button class="cop-chip" onclick="copChip(this)"><span>🛡️</span>Riscos de segurança e compliance</button>
+            </div>
           </div>
           <div class="cop-bar">
-            <textarea id="cop-in" rows="1" aria-label="Mensagem para o copiloto" placeholder="Pergunte sobre os números do painel…  (Enter envia · Shift+Enter quebra linha)"
+            <textarea id="cop-in" rows="1" aria-label="Mensagem para o copiloto" placeholder="Pergunte sobre os números do painel…"
               oninput="this.style.height='auto';this.style.height=Math.min(this.scrollHeight,120)+'px';"
               onkeydown="if(event.key==='Enter'&&!event.shiftKey){event.preventDefault();copSend();}"></textarea>
-            <button class="btn" id="cop-send" onclick="copSend()"><span>Enviar</span><span aria-hidden="true">➤</span></button>
+            <button class="btn" id="cop-send" onclick="copSend()" aria-label="Enviar mensagem" title="Enviar (Enter)"><span aria-hidden="true">➤</span></button>
           </div>
+          <div class="cop-dica">Enter envia · Shift+Enter quebra linha</div>
           <div class="cop-tokens" id="cop-tokens" style="display:none"></div>
         </div>
       </section>
@@ -4367,41 +4427,124 @@ function copMd(t){
   out=out.replace(/<p style="margin:4px 0">&gt;\s*(.*?)<\/p>/g,'<div class="acao">💡 $1</div>');
   return out;
 }
+/* Telas que uma resposta pode citar -> chip que abre o módulo. Lista CURADA de
+   propósito: casar o texto direto contra VIEWS daria falso positivo em palavra
+   comum ("frota", "multas") e mandaria o gestor para a tela errada. */
+const COP_TELAS = [
+  [/fluxo de caixa|gap de caixa|proje[çc][ãa]o de caixa/i, 'fluxo'],
+  [/r[ée]gua de cobran|inadimpl[êe]nc/i,                   'cob'],
+  [/contas? a receber|receb[íi]veis vencid/i,              'receber'],
+  [/contas? a pagar|pag[áa]veis/i,                         'pagar'],
+  [/an[áa]lise de km|km vazio|retorno vazio/i,             'km'],
+  [/make[ -]?vs[ -]?buy|pr[óo]pri[ao] vs\.? agregad/i,     'mvb'],
+  [/agregados? e terceiros|frete contratado/i,             'agr'],
+  [/combust[íi]vel|di?esel|km\/l/i,                        'comb'],
+  [/manuten[çc][ãa]o (?:no m[êe]s|preventiva|corretiva)|ordens? de servi[çc]o|OSs? abert/i, 'man'],
+  [/multas?|infra[çc][õo]?[ãa]?[eo]?s?\b|pontos na carteira/i, 'mul'],
+  [/programa[çc][ãa]o inteligente|km evit[áa]vel|retorno casad/i, 'prog'],
+  [/torre de controle|posi[çc][ãa]o ao vivo/i,             'torre'],
+  [/\bDRE\b|margem de contribui[çc][ãa]o/i,                'dre'],
+  [/jornada|13\.?103|dire[çc][ãa]o cont[íi]nua/i,          'jorn'],
+  [/ordens? de compra|\bOCs?\b/i,                          'oc'],
+  [/RKM|clientes? e RKM|concentra[çc][ãa]o/i,              'com'],
+];
+function copTelasCitadas(txt){
+  const out=[];
+  for(const [re,v] of COP_TELAS){
+    if(out.length>=3) break;
+    if(re.test(txt) && VIEWS[v] && podeVer(v)) out.push(v);   // respeita o RBAC
+  }
+  return out;
+}
+/* Ações da resposta. Ficam FORA da bolha porque o streaming reescreve o
+   innerHTML de #cop-last a cada delta — o que estivesse dentro seria apagado.
+   Sempre visíveis (não em :hover): no celular não existe hover. */
+function copAcoes(m,i){
+  const chips=copTelasCitadas(m.content)
+    .map(v=>`<a href="#${v}" title="Abrir ${esc(VIEWS[v])}">→ ${esc(VIEWS[v])}</a>`).join('');
+  return `<div class="cop-acts"><button type="button" onclick="copCopiar(${i},this)" title="Copiar o texto da resposta">⧉ Copiar</button>${chips}</div>`;
+}
+async function copCopiar(i,btn){
+  const m=COP_MSGS[i]; if(!m) return;
+  try{ await navigator.clipboard.writeText(m.content); }
+  catch(e){   // clipboard bloqueado (contexto não seguro) — cai no textarea
+    const ta=document.createElement('textarea'); ta.value=m.content;
+    ta.style.position='fixed'; ta.style.opacity='0'; document.body.append(ta);
+    ta.select(); try{ document.execCommand('copy'); }catch(_){} ta.remove();
+  }
+  const antes=btn.innerHTML; btn.innerHTML='✓ Copiado';
+  setTimeout(()=>{ btn.innerHTML=antes; }, 1500);
+}
 function copRender(){
   const box=document.getElementById('cop-msgs');
   const ultimoAi=[...COP_MSGS].reverse().find(m=>m.role==='assistant');
-  box.innerHTML=COP_MSGS.map(m=>{
+  box.innerHTML=COP_MSGS.map((m,i)=>{
     if(m.role==='user') return `<div class="cop-row user"><div class="cop-b user">${esc(m.content)}</div></div>`;
     let h=`<div class="cop-row"><div class="cop-ava">✨</div><div class="cop-b ai" ${m===ultimoAi?'id="cop-last"':''}>${copMd(m.content)}</div></div>`;
+    if(!(copBusy && m===ultimoAi)) h+=copAcoes(m,i);   // durante o streaming, só no fim
     if(!copBusy && m===ultimoAi && m.sugestoes && m.sugestoes.length)
       h+=`<div class="cop-sugs">${m.sugestoes.map((s,i)=>`<button onclick="copSug(${i})">${esc(s)}</button>`).join('')}</div>`;
     return h;
   }).join('') + (copBusy?`<div class="cop-row"><div class="cop-ava">✨</div><div class="cop-b ai cop-typing"><i></i><i></i><i></i><span class="cop-stat" id="cop-stat"></span></div></div>`:'');
-  document.getElementById('cop-chips').style.display = COP_MSGS.length?'none':'flex';
+  const vazio = COP_MSGS.length===0;
+  const card=document.getElementById('cop-card');
+  if(card) card.classList.toggle('vazio', vazio);   // hero + chips centrados como um bloco
+  document.getElementById('cop-chips').style.display = vazio?'flex':'none';
   const hero=document.getElementById('cop-hero');
-  if(hero) hero.style.display = COP_MSGS.length?'none':'block';
+  if(hero) hero.style.display = vazio?'block':'none';
   const limpar=document.getElementById('cop-clear');
-  if(limpar) limpar.style.display = COP_MSGS.length?'inline-block':'none';
+  if(limpar) limpar.style.display = vazio?'none':'inline-block';
   box.scrollTop=box.scrollHeight;
 }
 async function loadCop(){
   copRender();
   setTimeout(()=>{ const i=document.getElementById('cop-in'); if(i && currentView()==='cop' && window.innerWidth>860) i.focus(); }, 80);
-  if(!COP_STATUS){
-    try{
-      const r=await fetch('/api/copiloto/status',{cache:'no-store'});
-      COP_STATUS=await r.json();
-    }catch(e){ COP_STATUS={configurado:false, modelo:null}; }
-  }
+  // o status é reconsultado a cada entrada porque carrega a IDADE do snapshot
+  // (o backend cacheia a consulta de créditos por 120s)
+  try{
+    const r=await fetch('/api/copiloto/status',{cache:'no-store'});
+    COP_STATUS=await r.json();
+  }catch(e){ if(!COP_STATUS) COP_STATUS={configurado:false, modelo:null}; }
   const hint=document.getElementById('cop-modelo');
   if(!COP_STATUS.configurado){
+    hint.className='cop-pill off';
     hint.textContent='⚠️ não configurado';
     if(!COP_MSGS.length && !document.getElementById('cop-msgs').innerHTML)
       document.getElementById('cop-msgs').innerHTML='<div class="cop-b ai">Para ativar o copiloto, inicie o <b>Ollama</b> nesta máquina com o modelo <code>gemma4</code> (<code>ollama pull gemma4</code>). Alternativa: chave gratuita em <b>openrouter.ai/keys</b> como <code>OPENROUTER_API_KEY=…</code> no <code>.env</code> (nunca colada em conversas nem versionada) e reinicie a API.</div>';
   } else {
-    hint.innerHTML='<span class="cop-status"><span class="pulse"></span>'+(COP_STATUS.local?'IA local · '+(COP_STATUS.modelo||''):'online')+'</span>';
+    hint.className='cop-pill';
+    hint.innerHTML='<span class="pulse"></span>'+(COP_STATUS.local?'IA local · '+esc(COP_STATUS.modelo||''):'online');
   }
+  copCtxRender();
   copTokensRender();
+}
+/* PROCEDÊNCIA: quais telas alimentam a resposta, de quando é o snapshot e o que
+   NÃO sai daqui. Antes, uma fonte que falhava ia calada para o prompt e o
+   gestor lia a resposta sem saber que faltava uma tela dentro dela. */
+function copCtxRender(){
+  const el=document.getElementById('cop-ctx'), ih=document.getElementById('cop-proc');
+  if(!el) return;
+  const c=(COP_STATUS&&COP_STATUS.contexto)||null;
+  if(!c){ el.style.display='none'; return; }
+  el.style.display='flex';
+  const partes=['contexto: '+c.telas+' telas do painel'];
+  if(c.snapshot_em){
+    const t=new Date(c.snapshot_em);
+    partes.push('snapshot '+t.toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'}));
+  } else {
+    partes.push('snapshot na 1ª pergunta');
+  }
+  let h=partes.map(p=>`<span>${esc(p)}</span>`).join('');
+  if(c.indisponiveis && c.indisponiveis.length)
+    h+=`<span class="falha" title="Fora do snapshot desta resposta: ${esc(c.indisponiveis.join(', '))}">⚠ ${c.indisponiveis.length} fonte${c.indisponiveis.length>1?'s':''} indisponível${c.indisponiveis.length>1?'eis':''}</span>`;
+  el.innerHTML=h;
+  if(ih) ih.title =
+    'O copiloto NÃO consulta o banco por pergunta: ele lê um snapshot de indicadores de '+c.telas+' telas do painel'
+    + (c.snapshot_em?' (montado às '+new Date(c.snapshot_em).toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'})+')':'')
+    + ', renovado a cada '+Math.round((c.ttl_s||600)/60)+' minutos.\n\n'
+    + 'Vão só KPIs ESCALARES (números e textos curtos): nome de cliente, placa, motorista e CNPJ NÃO saem daqui — as listas são descartadas antes do envio.\n\n'
+    + 'Telas: '+(c.fontes||[]).join(' · ')
+    + ((c.indisponiveis&&c.indisponiveis.length)?'\n\nFORA neste momento: '+c.indisponiveis.join(', '):'');
 }
 function copTokensRender(){
   const el=document.getElementById('cop-tokens');
@@ -4508,6 +4651,9 @@ async function copSend(){
   }finally{
     copBusy=false; document.getElementById('cop-send').disabled=false;
     copSave(); copRender();
+    // a idade do snapshot muda com a resposta (a 1ª pergunta é que o monta)
+    fetch('/api/copiloto/status',{cache:'no-store'}).then(r=>r.json())
+      .then(d=>{ COP_STATUS=d; copCtxRender(); }).catch(()=>{});
     const inp2=document.getElementById('cop-in');
     inp2.style.height='auto'; inp2.focus();
   }

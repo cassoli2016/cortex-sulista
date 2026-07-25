@@ -972,10 +972,13 @@ def tv_estradas() -> JSONResponse:
 
 @app.get("/api/copiloto/status")
 def copiloto_status() -> JSONResponse:
+    # contexto = procedência do snapshot (telas, idade, fontes que falharam);
+    # o front mostra no ⓘ da tela do copiloto
+    ctx = copiloto.contexto()
     st = copiloto.ollama_status()
     if st["ok"]:
         return JSONResponse({"configurado": True, "local": True,
-                             "modelo": f"{st['modelo']} (local)"})
+                             "modelo": f"{st['modelo']} (local)", "contexto": ctx})
     modelo = None
     try:
         lista = copiloto.modelos_free()
@@ -983,7 +986,8 @@ def copiloto_status() -> JSONResponse:
     except Exception as exc:  # noqa: BLE001
         log.warning("catalogo openrouter indisponivel: %s", exc)
     return JSONResponse({"configurado": bool(copiloto.api_key()), "local": False,
-                         "modelo": modelo, "chave": copiloto.status_chave()})
+                         "modelo": modelo, "chave": copiloto.status_chave(),
+                         "contexto": ctx})
 
 
 _COP_ROLES = {"user", "assistant", "system"}
