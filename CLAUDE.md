@@ -156,6 +156,23 @@ a query ignora sai; dimensão que a query aceita e é a pergunta natural da tela
 - **Card que NÃO segue os filtros leva badge visível** (ex.: "Meta × realizado" é sempre o
   mês corrente). Enterrar isso no texto do hint faz o número parecer furado.
 
+**Séries de escalas diferentes no mesmo eixo (lição do Fluxo de Caixa):**
+- Uma projeção otimista de longo prazo **esmaga a série contratada**: o saldo projetado
+  variava ~R$ 11 mi e o "realista" chegava a +R$ 118 mi, deixando a linha que decide caixa
+  com **9% da altura**, colada no zero. Cenário especulativo entra por **toggle, desligado
+  por padrão** — nunca compartilhando escala com o dado firme sem aviso.
+- **Projeção fica irreal quando um lado da conta some**: os pagáveis LANÇADOS caem de
+  R$ 5,7 mi para R$ 1,2 mi ao longo do horizonte, então a linha de cenário vira receita
+  estimada contra custo inexistente. Marcar no gráfico o ponto em que isso começa
+  (`fluxoExtrapola`: pagáveis < 40% da média dos 3 primeiros meses) e dizer no aviso.
+- **Número estruturalmente negativo leva chip explicando**, não vermelho e silêncio:
+  "Posição líquida (aberto)" é sempre negativa porque o a pagar carrega longo prazo sem
+  a receita correspondente lançada — não é insolvência.
+- **Dois filtros de janela temporal na mesma tela precisam dizer o que cada um recorta**
+  (Vencimento = quais títulos entram; Horizonte = quantos meses projeta). E documentar as
+  assimetrias reais: "A receber vencido" usa a data de referência e IGNORA o filtro de
+  vencimento, enquanto "A receber (aberto)" respeita.
+
 **Ranking e tabela analítica (lições da DRE por Cliente):**
 - **Ordenar por percentual sem piso de materialidade mente**: o ranking abria por MC% e
   o 1º lugar era cliente com 1 viagem e R$ 2,8 mil de receita (85%), com TUPY (R$ 10,2 mi)
