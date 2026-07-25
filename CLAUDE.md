@@ -140,6 +140,23 @@ Toda construção de painel segue a skill `dashboard-builder` e este padrão:
 - **Parte-do-todo com uma categoria dominante não é donut**: barra horizontal empilhada
   ordenada (ver "Km rodado por modalidade" — AGREGADOS é ~80% do km).
 
+**Padrões de tela de conversa (Copiloto — reusar em qualquer chat futuro):**
+- **Coluna de leitura travada** (`.cop-card>*{max-width:760px}`): o card ocupa a largura
+  cheia (moldura igual às outras telas), o conteúdo centraliza. Bolha a 78% de um card de
+  1400px dava linha de ~1100px.
+- **Estado vazio é bloco centrado** (`.cop-card.vazio`), não hero no topo + chips no rodapé:
+  um `flex:1` no meio abria ~600px de branco morto.
+- **Conversa ancorada embaixo** com `.cop-msgs>*:first-child{margin-top:auto}` —
+  `justify-content:flex-end` impede rolar até o topo quando o conteúdo passa da altura.
+- **Ação de mensagem fica FORA da bolha**: o streaming reescreve o `innerHTML` de
+  `#cop-last` a cada delta e apagaria qualquer coisa dentro dela. E **sempre visível**,
+  nunca só em `:hover` — no celular não existe hover.
+- **Procedência da IA**: a tela diz quais telas alimentam o snapshot, a hora dele e que só
+  vão **KPIs escalares** (sem nome de cliente, placa, motorista, CNPJ). Fonte que falha
+  aparece como chip âmbar — antes ia calada para o prompt.
+- **Link para tela citada** sai de lista CURADA de expressões × view, filtrada por
+  `podeVer()` (RBAC). Casar o texto direto contra `VIEWS` manda o gestor para a tela errada.
+
 Regra: todo painel tem **fonte do dado + timestamp**; nenhum gráfico sem rótulo direto;
 todo número-chave traz **comparação** (vs meta, vs período anterior).
 

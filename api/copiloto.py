@@ -15,7 +15,7 @@ from __future__ import annotations
 import logging
 import os
 import time
-from datetime import date, timedelta
+from datetime import date, datetime, timedelta
 
 import json as _json
 import urllib.error
@@ -72,7 +72,26 @@ PREFERIDOS = [
 ]
 
 _CATALOGO = {"ts": 0.0, "lista": []}
-_SNAP = {"ts": 0.0, "texto": ""}
+_SNAP: dict = {"ts": 0.0, "texto": "", "falhas": []}
+_SNAP_TTL = 600      # 10 min: o snapshot custa ~12 consultas no ERP
+
+# Telas do painel que compõem o snapshot enviado ao modelo, no rótulo que o
+# usuário conhece. O front mostra essa lista no ⓘ de procedência — quem lê a
+# resposta precisa saber o que a IA viu (e o que ela NÃO viu).
+_FONTES_ROTULO = {
+    "visao_geral": "Visão Geral",
+    "financeiro_caixa": "Fluxo de Caixa e Bancos",
+    "analise_km_ano": "Análise de KM",
+    "agregados_terceiros_ano": "Agregados e Terceiros",
+    "make_vs_buy_12m": "Make vs Buy",
+    "comercial_ano": "Clientes e RKM",
+    "combustivel_ano": "Combustível",
+    "manutencao_ano": "Manutenção",
+    "multas_ano": "Multas",
+    "torre_seguranca": "Torre de Segurança",
+    "programacao_disponibilidade": "Programação Inteligente",
+    "frota": "Veículos",
+}
 
 
 def api_key() -> str:
@@ -133,8 +152,9 @@ def _compacto(d: dict) -> dict:
 
 
 def _snapshot() -> str:
-    """Snapshot de KPIs de todas as telas (cache 120s). Falhas viram nota."""
-    if _SNAP["texto"] and time.time() - _SNAP["ts"] < 600:
+    """Snapshot de KPIs de todas as telas (cache _SNAP_TTL). Falhas viram nota
+    no prompt E ficam registradas para o ⓘ de procedência do front."""
+    if _SNAP["texto"] and time.time() - _SNAP["ts"] < _SNAP_TTL:
         return _SNAP["texto"]
     hoje = date.today()
     ini_ano = hoje.replace(month=1, day=1).isoformat()
@@ -166,8 +186,28 @@ def _snapshot() -> str:
     if falhas:
         snap["fontes_indisponiveis"] = falhas
     import json
-    _SNAP.update(ts=time.time(), texto=json.dumps(snap, ensure_ascii=False))
+    _SNAP.update(ts=time.time(), texto=json.dumps(snap, ensure_ascii=False),
+                 falhas=falhas)
     return _SNAP["texto"]
+
+
+def contexto() -> dict:
+    """Procedência do que o modelo enxerga — some no /status para o front.
+
+    Antes a falha de uma fonte ia só para o log e para o prompt: o gestor lia
+    uma resposta sem saber que faltava uma tela dentro dela.
+    """
+    ts = _SNAP["ts"]
+    return {
+        "telas": len(_FONTES_ROTULO),
+        "fontes": list(_FONTES_ROTULO.values()),
+        "snapshot_em": (datetime.fromtimestamp(ts).isoformat(timespec="seconds")
+                        if ts else None),
+        "idade_s": int(time.time() - ts) if ts else None,
+        "ttl_s": _SNAP_TTL,
+        "indisponiveis": [_FONTES_ROTULO.get(f, f) for f in _SNAP.get("falhas", [])],
+        "so_escalares": True,
+    }
 
 
 _SISTEMA = """Você é o Copiloto Cortex, assistente de gestão do painel Cortex Sulista \
@@ -199,23 +239,35 @@ SNAPSHOT (JSON):
 """
 
 
+_CHAVE_ST: dict = {"ts": 0.0, "dados": {}}
+
+
 def status_chave() -> dict:
     """Uso e limites da chave no OpenRouter (créditos; modelos :free não
-    consomem crédito, mas têm teto diário de requisições)."""
+    consomem crédito, mas têm teto diário de requisições).
+
+    Cache de 120s: o /status passou a ser consultado a cada entrada na tela e
+    depois de cada resposta (para mostrar a idade do snapshot) — sem cache isso
+    viraria uma chamada externa por navegação.
+    """
     chave = api_key()
     if not chave:
         return {}
+    if _CHAVE_ST["dados"] and time.time() - _CHAVE_ST["ts"] < 120:
+        return _CHAVE_ST["dados"]
     try:
         st, d = _http(f"{OR_BASE}/key", headers={"Authorization": f"Bearer {chave}"},
                       timeout=15)
         if st != 200:
             return {}
         dados = d.get("data") or {}
-        return {
+        out = {
             "free_tier": dados.get("is_free_tier"),
             "creditos_usados": dados.get("usage"),
             "creditos_limite": dados.get("limit"),
         }
+        _CHAVE_ST.update(ts=time.time(), dados=out)
+        return out
     except Exception:  # noqa: BLE001
         return {}
 
@@ -284,7 +336,7 @@ def stream(mensagens: list[dict]):
     Ordem: Ollama local (gemma4) primeiro; se indisponível/falhar sem emitir
     nada, cai para os modelos free do OpenRouter (se houver chave).
     """
-    if not (_SNAP["texto"] and time.time() - _SNAP["ts"] < 600):
+    if not (_SNAP["texto"] and time.time() - _SNAP["ts"] < _SNAP_TTL):
         yield {"tipo": "status", "texto": "consultando o ERP para montar o contexto…"}
     msgs = _mensagens(mensagens)
     yield {"tipo": "status", "texto": "pensando…"}
