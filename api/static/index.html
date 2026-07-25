@@ -1641,12 +1641,20 @@ button.avatar{border:0;cursor:pointer}
         <div class="card">
           <div class="head"><h2>Consulta de Cliente</h2><span class="hint">digite o cliente e veja a ficha 360 · margem reconciliada (DRE por Cliente) + recebíveis</span></div>
           <div class="cardfilters">
-            <input type="search" id="fClifNome" aria-label="Buscar cliente por nome" placeholder="Cliente (ex.: TUPY)" autocomplete="off"
+            <input type="search" id="fClifNome" list="clifClientes" aria-label="Buscar cliente por nome" placeholder="Cliente (ex.: TUPY)" autocomplete="off"
                    onkeydown="if(event.key==='Enter')loadClif(true)">
-            <input type="month" id="fClifDe">
+            <datalist id="clifClientes"></datalist>
+            <select id="fClifPreset" aria-label="Período da consulta" onchange="clifPresetChange()">
+              <option value="">Personalizado</option>
+              <option value="mes">Este mês</option>
+              <option value="m3">Últimos 3 meses</option>
+              <option value="ano" selected>Ano corrente</option>
+              <option value="m12">Últimos 12 meses</option>
+            </select>
+            <input type="month" id="fClifDe" onchange="clifCompManual()">
             <span style="color:var(--n500)">até</span>
-            <input type="month" id="fClifAte">
-            <button class="btn" onclick="loadClif(true)">Buscar</button>
+            <input type="month" id="fClifAte" onchange="clifCompManual()">
+            <button class="btn" id="clif-buscar" onclick="loadClif(true)">Buscar</button>
           </div>
         </div>
         <div id="clif-conteudo"></div>
@@ -3357,6 +3365,20 @@ function setActive(svgId,i,clientY,announce){
     tipRow(tip,'Retorno vazio',r.retorno_vazio!=null?(100*r.retorno_vazio).toLocaleString('pt-BR',{maximumFractionDigits:1})+'%':'—',null);
     tipRow(tip,'RKM',fmtRsKm(r.rkm),null);
     liveTxt=`${periodoLabel(r.mes)}: ${fmtKm2(r.km_carregado)} carregado, ${fmtKm2(r.km_vazio)} vazio`;
+  } else if(g.kind==='clif'){
+    const r=g.rows[i], ant=i>0?g.rows[i-1]:null;
+    tt.textContent=periodoLabel(r.mes)+((g.parc&&g.parc[i])?' · mês incompleto':'');
+    tip.append(tt);
+    tipRow(tip,'Frete das viagens',BRL.format(r.receita),{borderTop:'3px solid '+CC.verde});
+    tipRow(tip,'Viagens',r.viagens.toLocaleString('pt-BR'),null);
+    tipRow(tip,'Km',Math.round(r.km).toLocaleString('pt-BR'),null);
+    tipRow(tip,'R$/km',r.km>0?fmtRsKm(r.receita/r.km):'—',null);
+    if(ant && ant.receita>0){
+      const v=100*(r.receita-ant.receita)/ant.receita;
+      const sep=document.createElement('div'); sep.className='sep'; tip.append(sep);
+      tipRow(tip,'vs '+periodoLabel(ant.mes),(v>0?'+':'−')+Math.abs(v).toLocaleString('pt-BR',{maximumFractionDigits:1})+'%',null);
+    }
+    liveTxt=`${periodoLabel(r.mes)}: ${BRL.format(r.receita)}, ${r.viagens} viagens`;
   } else if(g.kind==='com'){
     const r=g.rows[i];
     tt.textContent=periodoLabel(r.mes)+((g.parc&&g.parc[i])?' · mês incompleto no recorte':'');
@@ -5028,7 +5050,7 @@ function renderVeicf(d){
     kpi('Multas (12m)', (ml.multas||0).toLocaleString('pt-BR'), BRL.format(ml.valor||0)+' · '+(ml.pontos||0)+' pontos', (ml.multas||0)>0?'neg':''),
   ].join('')+`</div>`;
   const tc=(d.top_clientes||[]).map(x=>`<tr><td>${esc(x.cliente)}</td><td class="num">${BRL.format(x.receita)}</td><td class="num">${Math.round(x.km).toLocaleString('pt-BR')}</td><td class="num">${x.viagens}</td></tr>`).join('')||'<tr><td colspan="4" style="color:var(--n500)">sem viagens no período</td></tr>';
-  const uv=(d.ultimas_viagens||[]).map(v=>`<tr><td>${esc(v.data)}</td><td>${v.tipo===3?'<span class="badge b-warn">vazio</span>':esc(v.cliente||'—')}</td><td>${esc(v.origem)} → ${esc(v.destino)}</td><td class="num">${Math.round(v.km).toLocaleString('pt-BR')}</td><td class="num">${BRL.format(v.valorfrete||0)}</td></tr>`).join('')||'<tr><td colspan="5" style="color:var(--n500)">sem viagens no período</td></tr>';
+  const uv=(d.ultimas_viagens||[]).map(v=>`<tr><td>${v.data?fmtD(String(v.data).slice(0,10)):'—'}</td><td>${v.tipo===3?'<span class="badge b-warn">vazio</span>':esc(v.cliente||'—')}</td><td>${esc(v.origem)} → ${esc(v.destino)}</td><td class="num">${Math.round(v.km).toLocaleString('pt-BR')}</td><td class="num">${BRL.format(v.valorfrete||0)}</td></tr>`).join('')||'<tr><td colspan="5" style="color:var(--n500)">sem viagens no período</td></tr>';
   h+=`<div class="grid2">
     <div class="card"><div class="head"><h2>Top clientes (30d)</h2><span class="hint">por receita</span></div>
       <div class="tablewrap"><table><thead><tr><th>Cliente</th><th class="num">Receita</th><th class="num">Km</th><th class="num">Viagens</th></tr></thead><tbody>${tc}</tbody></table></div></div>
@@ -5049,6 +5071,50 @@ async function veicfMapa(pos, placa){
   setTimeout(()=>{ if(veicfMap) veicfMap.invalidateSize(); },200);
 }
 /* ---------------- Consulta de Cliente (ficha 360) ---------------- */
+/* ---- Competência da Consulta de Cliente (a tela tem busca própria; a barra de
+   filtros global fica escondida). Mesmo raciocínio do preset de emissão: trocar
+   o recorte exigia mexer nos dois campos de mês. ---- */
+const _mesISO = d => d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0');
+function clifRange(p){
+  const n=new Date(), y=n.getFullYear(), m=n.getMonth();
+  if(p==='mes') return [new Date(y,m,1), new Date(y,m,1)];
+  if(p==='m3')  return [new Date(y,m-2,1), new Date(y,m,1)];
+  if(p==='ano') return [new Date(y,0,1), new Date(y,m,1)];
+  if(p==='m12') return [new Date(y,m-11,1), new Date(y,m,1)];
+  return null;
+}
+function clifPresetChange(){
+  const r=clifRange(document.getElementById('fClifPreset').value);
+  if(!r) return;
+  document.getElementById('fClifDe').value=_mesISO(r[0]);
+  document.getElementById('fClifAte').value=_mesISO(r[1]);
+  if((document.getElementById('fClifNome').value||'').trim()) loadClif(true);
+}
+function clifCompManual(){ document.getElementById('fClifPreset').value=''; }
+function clifPresetSync(){
+  const de=document.getElementById('fClifDe'), ate=document.getElementById('fClifAte'), sel=document.getElementById('fClifPreset');
+  if(!de||!ate||!sel) return;
+  let achou='';
+  for(const p of ['mes','m3','ano','m12']){
+    const r=clifRange(p);
+    if(r && _mesISO(r[0])===de.value && _mesISO(r[1])===ate.value){ achou=p; break; }
+  }
+  sel.value=achou;
+}
+/* Autocomplete: são ~34 agrupamentos, carregados uma vez por sessão. Sem isso a
+   busca é adivinhação — errou o nome, volta "não encontrado" e ponto. */
+let CLIF_LISTA=null;
+async function clifClientes(){
+  if(CLIF_LISTA) return;
+  try{
+    const r=await fetch('/api/comercial/clientes-lista',{cache:'no-store'});
+    if(!r.ok) return;
+    const d=await r.json();
+    CLIF_LISTA=d.clientes||[];
+    const dl=document.getElementById('clifClientes');
+    if(dl) dl.innerHTML=CLIF_LISTA.map(c=>`<option value="${esc(c)}"></option>`).join('');
+  }catch(e){ /* autocomplete é conveniência: falhar aqui não pode quebrar a busca */ }
+}
 async function loadClif(buscar){
   const inp=document.getElementById('fClifNome');
   const nome=(inp?inp.value:'').trim();
@@ -5057,8 +5123,12 @@ async function loadClif(buscar){
   const de=document.getElementById('fClifDe'), ate=document.getElementById('fClifAte');
   if(de && !de.value) de.value=yyyy+'-01';
   if(ate && !ate.value) ate.value=yyyy+'-'+mm;
+  clifPresetSync(); clifClientes();
   if(!nome){ if(cont) cont.innerHTML='<div class="card"><div style="padding:28px 18px;color:var(--n500)">Digite um cliente acima e clique em Buscar.</div></div>'; DATACLIF={}; return; }
   const seq=++clifSeq, btn=document.getElementById('btnRefresh'); if(btn) btn.disabled=true;
+  // a ficha reusa a DRE por Cliente (~2,5s): o botão precisa dizer que está indo
+  const bb=document.getElementById('clif-buscar'), bbTxt=bb?bb.textContent:'';
+  if(bb){ bb.disabled=true; bb.textContent='Buscando…'; }
   document.getElementById('content').classList.add('loading');
   try{
     const q='cliente='+encodeURIComponent(nome)+'&comp_de='+de.value+'&comp_ate='+ate.value;
@@ -5067,7 +5137,8 @@ async function loadClif(buscar){
     if(!r.ok){ showBanner(d.mensagem||'Erro ao consultar o cliente.', d.detalhe); return; }
     hideBanner(); DATACLIF=d; LOADEDQS.clif=qsView('clif'); renderClif(d);
   }catch(e){ if(seq===clifSeq) showBanner('Não foi possível falar com a API.', e.message); }
-  finally{ if(seq===clifSeq){ if(btn) btn.disabled=false; document.getElementById('content').classList.remove('loading'); } }
+  finally{ if(seq===clifSeq){ if(btn) btn.disabled=false; document.getElementById('content').classList.remove('loading'); }
+           if(bb){ bb.disabled=false; bb.textContent=bbTxt||'Buscar'; } }
 }
 function renderClif(d){
   const cont=document.getElementById('clif-conteudo'); if(!cont) return;
@@ -5078,30 +5149,121 @@ function renderClif(d){
     <div style="font-size:24px;font-weight:800">${esc(d.cliente)}</div>
     <div style="color:var(--n600)">grupo econômico · ${d.cnpjs} CNPJ(s) · ${esc(compLabel(d.comp_de))} a ${esc(compLabel(d.comp_ate))}</div>
   </div></div>`;
-  h+=`<div class="kpis">`+[
+  const vazio=k.pct_vazio||0, venc=rc.vencido||0, abertoRc=rc.aberto||0;
+  h+=`<div class="kband"><h3>Resultado no período</h3><div class="kpis k4">`+[
     kpi('Receita líquida', BRL.format(k.receita_liquida||0), 'bruta '+BRL.format(k.receita_bruta||0),''),
     kpi('Margem de contribuição', BRL.format(k.mc||0), mcpct+' da RL', (k.mc||0)<0?'neg':'pos'),
     kpi('Margem direta', BRL.format(k.margem_direta||0), 'após custo fixo do ativo', (k.margem_direta||0)<0?'neg':''),
     kpi('Viagens', (k.viagens||0).toLocaleString('pt-BR'), (k.km_carregado||0).toLocaleString('pt-BR',{maximumFractionDigits:0})+' km carregado',''),
-  ].join('')+`</div>`;
-  h+=`<div class="kpis">`+[
-    kpi('% km vazio', ((k.pct_vazio||0)*100).toFixed(0)+'%', (k.km_vazio||0).toLocaleString('pt-BR',{maximumFractionDigits:0})+' km vazio', (k.pct_vazio||0)>0.2?'neg':''),
-    kpi('A receber (aberto)', BRL.format(rc.aberto||0), (rc.titulos||0)+' títulos',''),
-    kpi('Vencido', BRL.format(rc.vencido||0), 'mais antigo: '+(rc.venc_mais_antigo?fmtD(rc.venc_mais_antigo):'—'), (rc.vencido||0)>0?'neg':'pos'),
-    kpi('Vencido > 90d', BRL.format(rc.vencido_mais_90||0), 'a vencer: '+BRL.format(rc.a_vencer||0), (rc.vencido_mais_90||0)>0?'neg':''),
-  ].join('')+`</div>`;
+  ].join('')+`</div></div>`;
+  h+=`<div class="kband"><h3>Operação e recebíveis</h3><div class="kpis k4">`+[
+    kpi('% km vazio', (vazio*100).toFixed(0)+'%', (k.km_vazio||0).toLocaleString('pt-BR',{maximumFractionDigits:0})+' km vazio',
+      vazio>0.2?'neg':'', null,
+      statChip(vazio>0.2?'bad':(vazio>0.15?'warn':'good'), vazio>0.2?'acima do limite':'dentro do limite',
+        'Acima de 20% de km vazio é alerta em operação FTL (CLAUDE.md §4).',
+        vazio>0.2?'sevCrit':(vazio>0.15?'sevWarn':'sevOk'))),
+    kpi('A receber (aberto)', BRL.format(abertoRc), (rc.titulos||0)+' títulos · a vencer '+BRL.format(rc.a_vencer||0),''),
+    kpi('Vencido', BRL.format(venc), 'mais antigo: '+(rc.venc_mais_antigo?fmtD(rc.venc_mais_antigo):'—'),
+      venc>0?'neg':'pos', null,
+      abertoRc>0 ? statChip(venc>0?'bad':'good', pct(venc,abertoRc)+' do aberto',
+        'Parcela do saldo em aberto deste grupo que já venceu e não foi liquidada.',
+        venc>0?'sevCrit':'sevOk') : ''),
+    kpi('Vencido > 90d', BRL.format(rc.vencido_mais_90||0), 'recuperação cai muito a partir daqui', (rc.vencido_mais_90||0)>0?'neg':''),
+  ].join('')+`</div></div>`;
+  h+=`<div class="card">
+    <div class="head"><h2>Frete das viagens por mês <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="Soma do valorfrete das viagens carregadas deste grupo econômico, por mês, dentro da competência consultada. É o frete BRUTO das viagens — recorte diferente da 'Receita líquida' dos KPIs acima, que vem da DRE por Cliente reconciliada (após impostos e deduções). O mês corrente sai hachurado por estar incompleto.">i</span></h2>
+      <span class="hint">competência consultada · frete bruto das viagens</span></div>
+    <div class="legend">
+      <span class="k"><i class="sw" style="background:var(--green)"></i>Mês fechado</span>
+      <span class="k"><i class="sw hatch"></i>Mês corrente (parcial)</span>
+    </div>
+    <div class="chartwrap" id="wrapClif">
+      <svg id="chartClif" viewBox="0 0 960 250" preserveAspectRatio="xMidYMid meet" tabindex="0" role="img"
+           aria-label="Frete das viagens por mês no período consultado."></svg>
+      <div class="tip" id="tipClif"></div>
+    </div></div>`;
+  h+=`<div class="card">
+    <div class="head"><h2>Como esse cliente é atendido <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="Km das viagens do cliente por tipo de operação do veículo que rodou, no período: PRÓPRIO reúne frota e locação; AGREGADO e TERCEIRO são frete comprado. É a leitura make-vs-buy do cliente — quanto da operação dele depende de terceiro.">i</span></h2>
+      <span class="hint">km por tipo de operação</span></div>
+    <div class="modl" id="clif-mix"></div></div>`;
   const tr=(d.top_rotas||[]).map(r=>`<tr><td>${esc(r.rota)}</td><td class="num">${r.viagens}</td><td class="num">${Math.round(r.km).toLocaleString('pt-BR')}</td><td class="num">${BRL.format(r.receita)}</td><td class="num">${r.km>0?(r.receita/r.km).toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2}):'—'}</td></tr>`).join('')||'<tr><td colspan="5" style="color:var(--n500)">sem viagens no período</td></tr>';
   const tv=(d.top_veiculos||[]).map(v=>`<tr><td>${esc(v.placa)}</td><td>${esc(v.modalidade)}</td><td class="num">${v.viagens}</td><td class="num">${Math.round(v.km).toLocaleString('pt-BR')}</td><td class="num">${BRL.format(v.receita)}</td></tr>`).join('')||'<tr><td colspan="5" style="color:var(--n500)">sem veículos no período</td></tr>';
   h+=`<div class="grid2">
-    <div class="card"><div class="head"><h2>Top rotas</h2><span class="hint">por receita</span></div>
+    <div class="card"><div class="head"><h2>Top rotas <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="Viagens carregadas do grupo econômico no período, agrupadas por origem→destino. Receita = frete bruto da viagem; RKM = receita ÷ km da rota.">i</span></h2><span class="hint">por receita</span></div>
       <div class="tablewrap"><table><thead><tr><th>Rota</th><th class="num">Viagens</th><th class="num">Km</th><th class="num">Receita</th><th class="num">RKM</th></tr></thead><tbody>${tr}</tbody></table></div></div>
-    <div class="card"><div class="head"><h2>Veículos que atendem</h2><span class="hint">por receita</span></div>
+    <div class="card"><div class="head"><h2>Veículos que atendem <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="Veículos que rodaram viagens deste cliente no período, com a modalidade do ativo (frota, locação, agregado, terceiro). Ordenado por receita gerada.">i</span></h2><span class="hint">por receita</span></div>
       <div class="tablewrap"><table><thead><tr><th>Placa</th><th>Modalidade</th><th class="num">Viagens</th><th class="num">Km</th><th class="num">Receita</th></tr></thead><tbody>${tv}</tbody></table></div></div>
   </div>`;
-  const uv=(d.ultimas_viagens||[]).map(v=>`<tr><td>${esc(v.data)}</td><td>${esc(v.origem)} → ${esc(v.destino)}</td><td>${esc(v.placa||'—')}</td><td class="num">${Math.round(v.km).toLocaleString('pt-BR')}</td><td class="num">${BRL.format(v.valorfrete||0)}</td></tr>`).join('')||'<tr><td colspan="5" style="color:var(--n500)">sem viagens</td></tr>';
-  h+=`<div class="card"><div class="head"><h2>Últimas viagens</h2><span class="hint">no período</span></div>
+  const uv=(d.ultimas_viagens||[]).map(v=>`<tr><td>${v.data?fmtD(String(v.data).slice(0,10)):'—'}</td><td>${esc(v.origem)} → ${esc(v.destino)}</td><td>${esc(v.placa||'—')}</td><td class="num">${Math.round(v.km).toLocaleString('pt-BR')}</td><td class="num">${BRL.format(v.valorfrete||0)}</td></tr>`).join('')||'<tr><td colspan="5" style="color:var(--n500)">sem viagens</td></tr>';
+  h+=`<div class="card"><div class="head"><h2>Últimas viagens <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="As 15 viagens carregadas mais recentes do grupo no período, pela data de chegada (ou saída/emissão quando a chegada não foi registrada).">i</span></h2><span class="hint">15 mais recentes no período</span></div>
     <div class="tablewrap"><table><thead><tr><th>Data</th><th>Rota</th><th>Placa</th><th class="num">Km</th><th class="num">Frete</th></tr></thead><tbody>${uv}</tbody></table></div></div>`;
   cont.innerHTML=h;
+  chartClifRender(d.mensal||[], d.comp_ate);
+  barrasMixClif(k.mix||{});
+}
+/* Frete por mês da ficha. O mês corrente é o único que pode estar incompleto
+   (a competência é por mês inteiro), então é ele que sai hachurado. */
+function chartClifRender(mensal, comp_ate){
+  const svg=document.getElementById('chartClif'); if(!svg) return;
+  GEOM['chartClif']=null; ACTIVE['chartClif']=-1;
+  if(!mensal.length){ svg.innerHTML=`<text x="480" y="120" text-anchor="middle" fill="${CC.n500}" font-size="14">sem viagens no período</text>`; return; }
+  const W=960,H=250,mL=64,mR=16,mT=28,mB=40, iw=W-mL-mR, ih=H-mT-mB;
+  const n=mensal.length, bandW=iw/n;
+  const maxV=Math.max(1,...mensal.map(r=>r.receita));
+  const tks=niceTicks(0,maxV,4), top=tks[tks.length-1]*1.08, u=unitOf(top);
+  const y=v=>mT+ih-(v/top)*ih, y0=y(0);
+  const px=i=>mL+bandW*i+bandW/2;
+  const barW=Math.min(30,bandW*0.5);
+  const hojeMes=(()=>{const t=new Date();return t.getFullYear()+'-'+String(t.getMonth()+1).padStart(2,'0');})();
+  const parc=mensal.map(r=>r.mes===hojeMes);
+  let s=`<defs><pattern id="hatchClif" width="6" height="6" patternTransform="rotate(45)" patternUnits="userSpaceOnUse">`+
+        `<rect width="6" height="6" fill="${CC.verde}"/><rect width="2.4" height="6" fill="#fff" opacity=".62"/></pattern></defs>`;
+  s+=`<rect id="chartClif-hband" x="0" y="${mT-14}" width="${bandW}" height="${ih+14}" fill="${CC.navy100}" opacity="0"/>`;
+  s+=`<text x="${mL}" y="${mT-12}" font-size="11" fill="${CC.n500}" font-weight="600" letter-spacing="1.5">${u.t}</text>`;
+  tks.forEach(v=>{ const yy=y(v);
+    s+=`<line x1="${mL}" y1="${yy}" x2="${W-mR}" y2="${yy}" stroke="${v===0?CC.n300:CC.grid}" stroke-width="1"/>`;
+    s+=`<text x="${mL-8}" y="${yy+4}" text-anchor="end" font-size="11" fill="${CC.n500}" font-family="IBM Plex Mono,monospace">${NMI.format(v/u.d)}</text>`; });
+  mensal.forEach((r,i)=>{ s+=colPath(px(i)-barW/2,barW,y(r.receita),y0,4,parc[i]?'url(#hatchClif)':CC.verde); });
+  const iMax=mensal.reduce((b,r,i)=>(r.receita>mensal[b].receita?i:b),0);
+  if(mensal[iMax].receita>0)
+    s+=`<text x="${px(iMax)}" y="${y(mensal[iMax].receita)-8}" text-anchor="middle" font-size="10.5" font-weight="700" fill="${CC.n700}" stroke="#fff" stroke-width="3" paint-order="stroke" stroke-linejoin="round">${brlAbbr(mensal[iMax].receita)}</text>`;
+  mensal.forEach((r,i)=>{
+    s+=`<text x="${px(i)}" y="${H-mB+18}" text-anchor="middle" font-size="10.5" font-weight="${parc[i]?'700':'400'}" fill="${parc[i]?CC.n900:CC.n600}">${periodoLabel(r.mes)}</text>`;
+    if(parc[i]) s+=`<text x="${px(i)}" y="${H-mB+31}" text-anchor="middle" font-size="9.5" font-weight="600" fill="${CC.n500}">parcial</text>`; });
+  s+=`<line id="chartClif-xhair" x1="0" x2="0" y1="${mT-14}" y2="${y0}" stroke="${CC.navy400}" stroke-width="1" opacity="0"/>`;
+  s+=`<rect x="${mL}" y="${mT-14}" width="${iw}" height="${ih+14}" fill="transparent"/>`;
+  svg.innerHTML=s;
+  GEOM['chartClif']={kind:'clif',rows:mensal,n,bandW,mL,W,px,topY:mT-14,botY:y0,wrap:'wrapClif',tip:'tipClif',parc};
+  bindHover('chartClif');
+}
+/* Mix próprio × agregado × terceiro (km). Mesma barra empilhada do "Km por
+   modalidade" da Visão Geral — o dado já vinha no payload e não era mostrado. */
+/* função e não const: CC só é definido bem mais abaixo no arquivo, e um objeto
+   de topo lendo CC.navy700 aqui estoura ReferenceError (TDZ) e derruba o script
+   inteiro no boot. Resolver a cor só na hora de desenhar. */
+function mixLbl(k){
+  return ({proprio:['Próprio (frota + locação)',CC.navy700],
+           agregado:['Agregado',CC.laranja],
+           terceiro:['Terceiro',CC.amarelo],
+           outro:['Outro',CC.n500]})[k] || [k,CC.n500];
+}
+function barrasMixClif(mix){
+  const el=document.getElementById('clif-mix'); if(!el) return;
+  const rows=Object.entries(mix||{}).filter(([,v])=>v>0).sort((a,b)=>b[1]-a[1]);
+  if(!rows.length){ el.innerHTML='<div style="color:var(--n500);font-size:13px">sem km atribuído no período</div>'; return; }
+  const total=rows.reduce((s,[,v])=>s+v,0), maxKm=rows[0][1];
+  const F=v=>Math.round(v||0).toLocaleString('pt-BR');
+  const P=v=>(100*v).toLocaleString('pt-BR',{maximumFractionDigits:1})+'%';
+  el.innerHTML=rows.map(([k,v])=>{
+    const [nome,cor]=mixLbl(k);
+    return `<div class="modrow">
+      <span class="mname"><i style="background:${cor}"></i>${esc(nome)}</span>
+      <span class="mval">${F(v)} km · ${P(v/total)}</span>
+      <span class="mtrack" title="${esc(nome)}: ${F(v)} km (${P(v/total)} do km do cliente no período)">
+        <span style="width:${(100*v/maxKm).toFixed(2)}%;background:${cor}"></span></span>
+    </div>`;
+  }).join('')+`<div class="modtot"><span>total <b>${F(total)}</b> km no período</span>`+
+    `<a href="#mvb" style="margin-left:auto;color:var(--navy-700);font-weight:600;text-decoration:none">Make vs Buy →</a></div>`;
 }
 // ---------------- Jornada do Motorista (Lei 13.103) ----------------
 function jornDefaults(){

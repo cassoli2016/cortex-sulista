@@ -368,6 +368,24 @@ def manutencao(
             "erro": "erro_consulta", "mensagem": "Erro ao consultar manutenção."})
 
 
+@app.get("/api/comercial/clientes-lista")
+def comercial_clientes_lista() -> JSONResponse:
+    """Nomes dos agrupamentos para o autocomplete da Consulta de Cliente.
+    Rota separada de propósito: /clientes devolve o painel comercial inteiro
+    (8 consultas) e seria desperdício só para preencher um datalist."""
+    try:
+        return JSONResponse(queries.get_clientes_lista())
+    except psycopg.OperationalError as exc:
+        log.warning("banco inacessivel: %s", exc)
+        return JSONResponse(status_code=503, content={
+            "erro": "banco_inacessivel",
+            "mensagem": "Sem conexão com o banco. O túnel SSH está aberto?"})
+    except Exception as exc:  # noqa: BLE001
+        log.warning("lista de clientes falhou: %s", exc)
+        return JSONResponse(status_code=500, content={
+            "erro": "erro_consulta", "mensagem": "Erro ao listar os clientes."})
+
+
 @app.get("/api/comercial/clientes")
 def comercial_clientes(
     filial: int | None = None,

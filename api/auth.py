@@ -125,6 +125,9 @@ ROTA_TELAS: list[tuple[str, frozenset[str]]] = [
     ("/api/operacao/sac-freetime",    frozenset({"sac"})),
     ("/api/operacao/portaria",        frozenset({"port"})),
     ("/api/comercial/crm",            frozenset({"crm"})),
+    # mais específica ANTES: /clientes-lista começa com /clientes e cairia na
+    # regra do painel comercial, barrando quem só tem a Consulta de Cliente
+    ("/api/comercial/clientes-lista", frozenset({"com", "clif"})),
     ("/api/comercial/clientes",       frozenset({"com"})),
     ("/api/comercial/cliente",        frozenset({"clif"})),
     ("/api/copiloto",                 frozenset({"cop"})),

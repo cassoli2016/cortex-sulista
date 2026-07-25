@@ -2918,6 +2918,21 @@ ORDER BY p.grupo,p.empresa,p.filial,p.diferenciadornumero,p.numero,
          coalesce(p.dtchegada,p.dtsaida,p.dtemissao) DESC
 """
 
+CLIF_LISTA_SQL = """
+SELECT trim(descricao) AS cliente
+FROM agrupamentocliente
+WHERE coalesce(trim(descricao),'') <> ''
+ORDER BY 1
+"""
+
+
+@cached(ttl=900)
+def get_clientes_lista() -> dict:
+    """Nomes dos agrupamentos de cliente para o autocomplete da Consulta de
+    Cliente. São ~34 grupos — consulta de uma tabela só, cacheada."""
+    return {"clientes": [r["cliente"] for r in db.query(CLIF_LISTA_SQL, None)]}
+
+
 @cached(ttl=120)
 def get_cliente_ficha(cliente: str, comp_de: str, comp_ate: str) -> dict:
     from collections import defaultdict as _dd
@@ -2967,8 +2982,22 @@ def get_cliente_ficha(cliente: str, comp_de: str, comp_ate: str) -> dict:
     ultimas = sorted(vgs, key=lambda v: v["data"] or "", reverse=True)[:15]
     receita_bruta_viagens = sum(v["valorfrete"] for v in vgs)
 
+    # Série mensal derivada das viagens que JÁ estão em memória — nenhuma
+    # consulta a mais. A ficha não tinha gráfico nenhum: não dava para ver se o
+    # cliente está subindo ou caindo dentro do próprio período consultado.
+    _m: dict = _dd(lambda: {"viagens": 0, "km": 0.0, "receita": 0.0})
+    for v in vgs:
+        if not v.get("data"):
+            continue
+        mk = str(v["data"])[:7]
+        _m[mk]["viagens"] += 1
+        _m[mk]["km"] += v["km"] or 0.0
+        _m[mk]["receita"] += v["valorfrete"] or 0.0
+    mensal = [{"mes": k, **val} for k, val in sorted(_m.items())]
+
     return {
         "encontrado": True, "cliente": nome, "codigo": ag["codigo"], "cnpjs": len(cnpjs),
+        "mensal": mensal,
         "kpis": {
             "receita_liquida": linhas.get("RECEITA LIQUIDA", 0.0),
             "receita_bruta": linhas.get("RECEITA BRUTA", receita_bruta_viagens),
