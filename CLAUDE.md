@@ -119,6 +119,27 @@ Toda construção de painel segue a skill `dashboard-builder` e este padrão:
 - **Financeiro/DRE:** fluxo de caixa projetado, DRE em cascata, aging de recebíveis.
 - **Metas/KPIs/OKRs:** progresso de cada OKR (key result × atual × meta × prazo), farol.
 
+**Padrões de componente (implementados na Visão Geral — reusar, não reinventar):**
+- **Bandas de KPI (`.kband` + `.kpis.k4`)**: KPIs agrupados por TEMA, com rótulo da banda,
+  em grade de **nº de colunas fixo**. A contagem de cards por banda é **múltiplo de 4**
+  (4 → 2 → 1 nas quebras) — o `auto-fit` deixava o último card sozinho numa linha.
+- **Chip de tendência (`trendChip(atual, ant, {invert})`)**: seta ▲/▼/— + variação %.
+  Comparação sempre em **janela equivalente** (mês até hoje × mesmos dias do mês anterior);
+  `invert:true` para CUSTO (cair é bom); variação < 1,5% = "estável". A classe é a
+  **leitura** (`good`/`bad`/`warn`), não a direção — a cor sai sempre do semáforo.
+  `statChip(cls, texto, titulo, icone)` para estado sem percentual.
+- **ⓘ de procedência (`.ihelp` dentro do `<h2>`)**: todo card diz no hover a tabela/regra
+  de origem. Obrigatório onde há recortes parecidos (as 3 receitas: faturas emitidas ×
+  frete das viagens × CT-e+KMM+NFS-e da meta).
+- **Período incompleto nunca é barra cheia**: mês corrente com hachura + rótulo "parcial",
+  e a média de referência é calculada só sobre meses FECHADOS.
+- **Semáforo em gráfico é DISCRETO** (≥95% / 70–94% / <70%), nunca degradê contínuo —
+  tom intermediário não existe no design system e não diz em que estado o dado está.
+- **Gráfico em card de meia largura usa viewBox estreito** (640, classe `.chartwrap.narrow`):
+  com 960 o SVG era reduzido a ~70% e a tipografia dos eixos ficava ilegível.
+- **Parte-do-todo com uma categoria dominante não é donut**: barra horizontal empilhada
+  ordenada (ver "Km rodado por modalidade" — AGREGADOS é ~80% do km).
+
 Regra: todo painel tem **fonte do dado + timestamp**; nenhum gráfico sem rótulo direto;
 todo número-chave traz **comparação** (vs meta, vs período anterior).
 
