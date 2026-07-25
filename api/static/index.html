@@ -1537,8 +1537,13 @@ button.avatar{border:0;cursor:pointer}
       <!-- ===================== RÉGUA DE COBRANÇA ===================== -->
       <section class="view" id="view-cob">
         <div class="kpis" id="kpis-cob"></div>
+        <div class="banner-inline" id="cobPendente" style="display:none;margin:0"></div>
         <div class="card">
-          <div class="head"><h2>Clientes com títulos vencidos</h2><span class="hint">top 30 por saldo vencido · clique para ver os títulos</span></div>
+          <div class="head"><h2>Estágio da cobrança <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="Distribuição do vencido pelas faixas de atraso, com quantos CLIENTES estão em cada estágio. É o esqueleto da régua: a política de ação por faixa (lembrete, ligação, notificação, protesto) é definição de vocês — o painel mostra onde o dinheiro está parado.">i</span></h2><span class="hint">valor e clientes por faixa de atraso</span></div>
+          <div class="modl" id="cob-estagio"></div>
+        </div>
+        <div class="card">
+          <div class="head"><h2>Clientes com títulos vencidos <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="Método OFICIAL de inadimplência: fatura_composicao com valor pendente, composição 1 (já faturado), vencimento por dtprevisaopagamento ou dtvencimento e sem data de pagamento. Documento vencido que ainda NÃO virou fatura não entra aqui — aparece no aviso de pendente de faturamento. 'Prazo médio real' é o DSO do cliente nas faturas liquidadas dos últimos 180 dias: quanto ele realmente leva para pagar, não o prazo contratado. Clique no cabeçalho para reordenar.">i</span></h2><span class="hint" id="cob-hint">top 30 por saldo vencido · clique na linha para ver os títulos</span></div>
           <div class="tablewrap"><table><thead><tr>
             <th style="width:34px"></th><th>Cliente</th><th class="num">Títulos</th>
             <th class="num">Até 30d</th><th class="num">31–90d</th><th class="num">91–365d</th><th class="num">+365d</th>
@@ -4619,12 +4624,50 @@ function renderCob(d){
   const cs=d.clientes||[];
   const soma=k=>cs.reduce((a,c)=>a+(c[k]||0),0);
   const acima90=soma('de_91_365')+soma('mais_365');
+  const pend=d.pendente_faturamento||0;
   document.getElementById('kpis-cob').innerHTML=[
     kpi('Vencido oficial (top 30)', BRL.format(d.total_vencido_top), cs.length+' clientes · só faturado (composição 1)', 'neg'),
-    kpi('Acima de 90 dias', BRL.format(acima90), d.total_vencido_top>0?((100*acima90/d.total_vencido_top).toFixed(0)+'% do vencido — risco de perda'):'', acima90>0?'neg':''),
-    kpi('Últimos 30 dias', BRL.format(soma('ate_30')), 'vencido recente — cobrar agora tem mais retorno', ''),
-    kpi('Pendente de faturamento', BRL.format(d.pendente_faturamento||0), (d.pendente_faturamento_docs||0)+' docs vencidos ainda não faturados', (d.pendente_faturamento||0)>0?'neg':''),
+    kpi('Acima de 90 dias', BRL.format(acima90), d.total_vencido_top>0?((100*acima90/d.total_vencido_top).toFixed(0)+'% do vencido — risco de perda'):'', acima90>0?'neg':'', null,
+      statChip(acima90>0?(acima90>0.2*d.total_vencido_top?'bad':'warn'):'good',
+        acima90>0?(acima90>0.2*d.total_vencido_top?'perda provável':'acompanhar'):'nada acima de 90d',
+        'Vencido com mais de 90 dias. A taxa de recuperação cai fortemente a partir daqui — é a faixa de protesto/negativação.',
+        acima90>0?(acima90>0.2*d.total_vencido_top?'sevCrit':'sevWarn'):'sevOk')),
+    kpi('Últimos 30 dias', BRL.format(soma('ate_30')), 'vencido recente — cobrar agora tem mais retorno', '', null,
+      statChip('good','maior recuperação','Faixa em que a cobrança ativa tem a melhor taxa de retorno.','sevOk')),
+    // NÃO é inadimplência de cliente: é documento vencido que nem virou fatura
+    kpi('Pendente de faturamento', BRL.format(pend), (d.pendente_faturamento_docs||0)+' docs vencidos ainda não faturados',
+      pend>0?'neg':'', null,
+      pend>0?statChip('warn','gargalo interno',
+        'Documentos com vencimento já passado que ainda NÃO foram convertidos em fatura (composição 2). Não é o cliente que não pagou — é a emissão que não saiu. Não entra no vencido oficial.','sevWarn'):''),
   ].join('');
+  // Estágio da régua: onde o dinheiro está parado, por faixa de atraso
+  {
+    const FX=[['ate_30','Até 30 dias',CC.amarelo],['de_31_90','31 a 90 dias',CC.laranja],
+              ['de_91_365','91 a 365 dias',CC.vermelho],['mais_365','Mais de 365 dias',CC.navy700]];
+    const linhas=FX.map(([k,lbl,cor])=>({lbl,cor,valor:soma(k),clientes:cs.filter(c=>(c[k]||0)>0).length}))
+                   .filter(x=>x.valor>0);
+    const tot=linhas.reduce((a,x)=>a+x.valor,0), maxV=Math.max(1,...linhas.map(x=>x.valor));
+    const el=document.getElementById('cob-estagio');
+    if(el) el.innerHTML = linhas.length ? linhas.map(x=>`<div class="modrow">
+        <span class="mname"><i style="background:${x.cor}"></i>${esc(x.lbl)}</span>
+        <span class="mval">${BRL.format(x.valor)} · ${(100*x.valor/tot).toFixed(1).replace('.',',')}%</span>
+        <span class="mtrack" title="${esc(x.lbl)}: ${BRL.format(x.valor)} em ${x.clientes} cliente(s)">
+          <span style="width:${(100*x.valor/maxV).toFixed(2)}%;background:${x.cor}"></span></span>
+        <span class="mmeta">${x.clientes} cliente${x.clientes>1?'s':''} nesta faixa</span>
+      </div>`).join('')+`<div class="modtot"><span>total vencido <b>${BRL.format(tot)}</b> em ${cs.length} clientes</span>`+
+        `<a href="#receber" style="margin-left:auto;color:var(--navy-700);font-weight:600;text-decoration:none">Contas a Receber →</a></div>`
+      : '<div style="color:var(--n500);font-size:13px">nenhum título vencido no recorte</div>';
+    const av=document.getElementById('cobPendente');
+    if(av){
+      if(pend>0){
+        av.style.display='flex';
+        const x=d.total_vencido_top>0?(pend/d.total_vencido_top):0;
+        av.innerHTML=`<i>${ICONS['sevWarn']}</i><span><b>${BRL.format(pend)}</b> em <b>${(d.pendente_faturamento_docs||0).toLocaleString('pt-BR')} documentos</b> já venceram e <b>ainda não viraram fatura</b>`
+          +(x>1?` — ${x.toFixed(0)}× o vencido oficial desta tela.`:'.')
+          +` Isso não é inadimplência de cliente: é emissão que não saiu, e por isso não entra na régua abaixo nem no vencido oficial. Cobrar não resolve — faturar resolve.</span>`;
+      } else { av.style.display='none'; av.innerHTML=''; }
+    }
+  }
   document.getElementById('cob-cli').innerHTML=cs.map((c,i)=>{
     const det=`
       <div class="tablewrap"><table>
