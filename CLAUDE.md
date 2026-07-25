@@ -156,6 +156,23 @@ a query ignora sai; dimensão que a query aceita e é a pergunta natural da tela
 - **Card que NÃO segue os filtros leva badge visível** (ex.: "Meta × realizado" é sempre o
   mês corrente). Enterrar isso no texto do hint faz o número parecer furado.
 
+**Telas de consulta (busca própria, filterbar global escondida — ex.: Consulta de Cliente):**
+- Campo de busca com **`<datalist>`** alimentado por endpoint LEVE e cacheado
+  (`/api/comercial/clientes-lista`, ~34 grupos). Nunca reusar o endpoint do painel
+  inteiro só para preencher sugestão. Rota nova mais específica entra ANTES da genérica
+  em `ROTA_TELAS` (`/clientes-lista` antes de `/clientes`), senão o prefixo casa errado
+  e barra quem só tem a tela de consulta.
+- Consulta lenta (a ficha reusa a DRE por Cliente, ~2,5 s) **muda o rótulo do botão**
+  para "Buscando…" e desabilita — o spinner global não basta.
+- **Série temporal de graça**: quando a consulta já traz as linhas detalhadas em memória,
+  agregar por mês em Python custa zero consulta e transforma uma tela só-de-tabela numa
+  tela com tendência.
+
+**GOTCHA de JS (derrubou o painel inteiro uma vez):** `const` de TOPO não pode ler `CC`
+— o objeto só é criado lá pelo fim do arquivo e a leitura antecipada estoura
+`ReferenceError` (TDZ) que mata o script no boot (login não some da tela). Cor de paleta
+em estrutura de topo: resolver dentro de **função**, na hora de desenhar.
+
 **Padrões de tela de conversa (Copiloto — reusar em qualquer chat futuro):**
 - **Coluna de leitura travada** (`.cop-card>*{max-width:760px}`): o card ocupa a largura
   cheia (moldura igual às outras telas), o conteúdo centraliza. Bolha a 78% de um card de
