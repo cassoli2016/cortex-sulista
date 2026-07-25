@@ -1695,20 +1695,44 @@ SELECT mes, sum(valor)::float8 AS valor FROM (
 ) t GROUP BY mes ORDER BY mes
 """
 
-VG_MES_SQL = """
+# Janelas de comparação da Visão Geral: mês corrente até hoje (MTD) × MESMO
+# número de dias do mês anterior. Comparar MTD contra o mês anterior FECHADO
+# daria queda artificial todo dia 1º — as setas de tendência da tela usam
+# sempre a janela equivalente.
+_VG_M0 = "date_trunc('month', current_date)"
+_VG_M1 = "(date_trunc('month', current_date) - interval '1 month')::date"
+_VG_DIAS = "(current_date - date_trunc('month', current_date)::date + 1)"
+
+VG_MES_SQL = f"""
 SELECT
   (SELECT coalesce(sum(valorfrete),0)::float8 FROM programacaoembarque
      WHERE dtcancelamento IS NULL AND semaforo = 1 AND tipo <> 3 AND numero < 1000000
-       AND dtemissao >= date_trunc('month', current_date))                       AS receita_mes,
+       AND dtemissao >= {_VG_M0})                                                AS receita_mes,
+  (SELECT coalesce(sum(valorfrete),0)::float8 FROM programacaoembarque
+     WHERE dtcancelamento IS NULL AND semaforo = 1 AND tipo <> 3 AND numero < 1000000
+       AND dtemissao >= {_VG_M1} AND dtemissao < {_VG_M1} + {_VG_DIAS})          AS receita_mes_ant,
   (SELECT coalesce(sum(p.valorfretecompra),0)::float8 FROM programacaoembarque p
      JOIN veiculo v ON v.placa = p.veiculo AND v.utilizacaoveiculo IN ('AGR','TER')
      WHERE p.dtcancelamento IS NULL AND p.semaforo = 1 AND p.numero < 1000000
-       AND p.dtemissao >= date_trunc('month', current_date))                     AS frete_contratado_mes,
+       AND p.dtemissao >= {_VG_M0})                                              AS frete_contratado_mes,
+  (SELECT coalesce(sum(p.valorfretecompra),0)::float8 FROM programacaoembarque p
+     JOIN veiculo v ON v.placa = p.veiculo AND v.utilizacaoveiculo IN ('AGR','TER')
+     WHERE p.dtcancelamento IS NULL AND p.semaforo = 1 AND p.numero < 1000000
+       AND p.dtemissao >= {_VG_M1} AND p.dtemissao < {_VG_M1} + {_VG_DIAS})      AS frete_contratado_mes_ant,
   (SELECT coalesce(sum(a.custo),0)::float8 FROM sulista.ctaplus_abastecimentos a
      JOIN veiculo v ON v.placa = a.veiculo_placa AND coalesce(v.utilizacaoveiculo,'') IN ('TRA','LOC')
-     WHERE a.data_inicio_abastecimento >= date_trunc('month', current_date))     AS combustivel_proprio_mes,
+     WHERE a.data_inicio_abastecimento >= {_VG_M0})                              AS combustivel_proprio_mes,
+  (SELECT coalesce(sum(a.custo),0)::float8 FROM sulista.ctaplus_abastecimentos a
+     JOIN veiculo v ON v.placa = a.veiculo_placa AND coalesce(v.utilizacaoveiculo,'') IN ('TRA','LOC')
+     WHERE a.data_inicio_abastecimento >= {_VG_M1}
+       AND a.data_inicio_abastecimento < {_VG_M1} + {_VG_DIAS})                  AS combustivel_proprio_mes_ant,
   (SELECT coalesce(sum(valortotal),0)::float8 FROM ordemservico
-     WHERE dtemissao >= date_trunc('month', current_date))                       AS manutencao_mes,
+     WHERE dtemissao >= {_VG_M0})                                                AS manutencao_mes,
+  (SELECT coalesce(sum(valortotal),0)::float8 FROM ordemservico
+     WHERE dtemissao >= {_VG_M1} AND dtemissao < {_VG_M1} + {_VG_DIAS})          AS manutencao_mes_ant,
+  (SELECT coalesce(sum(valortitulo),0)::float8 FROM fatura
+     WHERE dtcancelamento IS NULL
+       AND dtemissao >= {_VG_M1} AND dtemissao < {_VG_M1} + {_VG_DIAS})          AS faturamento_mes_ant,
   (SELECT count(*)::int FROM ordemservico WHERE dtfechamento IS NULL)            AS os_abertas
 """
 
@@ -1744,15 +1768,22 @@ SELECT dia, sum(realizado)::float8 AS realizado, sum(meta)::float8 AS meta FROM 
 ) t GROUP BY 1 ORDER BY 1
 """
 
+# Km por modalidade nos últimos 30 dias, com o split carregado × vazio da
+# definição canônica da Análise de KM (tipo = 3 é a perna vazia) — o total
+# sozinho esconde o retorno vazio, que é o número acionável.
 VG_MODAL_KM_SQL = """
 SELECT coalesce(u.descricao,'(sem)') AS utilizacao,
-       sum(coalesce(p.kmfretecompra,0))::float8 AS km
+       count(*)::int AS viagens,
+       count(distinct p.veiculo)::int AS veiculos,
+       sum(coalesce(p.kmfretecompra,0))::float8 AS km,
+       sum(CASE WHEN p.tipo <> 3 THEN coalesce(p.kmfretecompra,0) ELSE 0 END)::float8 AS km_carregado,
+       sum(CASE WHEN p.tipo = 3 THEN coalesce(p.kmfretecompra,0) ELSE 0 END)::float8 AS km_vazio
 FROM programacaoembarque p
 JOIN veiculo v ON v.placa = p.veiculo
 LEFT JOIN utilizacaoveiculo u ON u.codigo = v.utilizacaoveiculo
 WHERE p.dtcancelamento IS NULL AND p.semaforo = 1 AND p.numero < 1000000
   AND p.dtemissao >= current_date - 30
-GROUP BY 1 ORDER BY 2 DESC
+GROUP BY 1 ORDER BY 4 DESC
 """
 
 VG_REC12_SQL = """
@@ -1892,6 +1923,13 @@ def get_visao_geral() -> dict:
         "combustivel_proprio_mes": mes["combustivel_proprio_mes"],
         "manutencao_mes": mes["manutencao_mes"],
         "os_abertas": mes["os_abertas"],
+        # mesmo período do mês anterior (MTD × MTD) — base das setas de tendência
+        "faturamento_mes_ant": mes["faturamento_mes_ant"],
+        "receita_mes_cte_ant": mes["receita_mes_ant"],
+        "frete_contratado_mes_ant": mes["frete_contratado_mes_ant"],
+        "combustivel_proprio_mes_ant": mes["combustivel_proprio_mes_ant"],
+        "manutencao_mes_ant": mes["manutencao_mes_ant"],
+        "dias_mtd": date.today().day,
         "oc_atrasadas": oc["oc_atrasadas"],
         "oc_atraso_valor": oc["oc_atraso_valor"],
         "oc_aprovacao": oc["oc_aprovacao"],

@@ -119,22 +119,55 @@ tr[role="button"]:focus-visible{outline-offset:-2px}
 .card .head{padding:14px 18px;display:flex;align-items:center;gap:10px;border-bottom:1px solid var(--n100)}
 .card .head h2{font-size:16px;font-weight:700;margin:0;flex:1}
 .card .head .hint{font-size:11px;color:var(--n500);text-align:right}
+/* ⓘ de PROCEDÊNCIA (dentro do <h2>): o card diz no hover de onde vem o número
+   (tabela/regra), para não confundir recortes parecidos de receita. */
+.ihelp{width:17px;height:17px;border-radius:50%;display:inline-flex;vertical-align:1px;
+  align-items:center;justify-content:center;font-size:10.5px;font-weight:700;cursor:help;
+  color:var(--n500);background:var(--n100);border:1px solid var(--n200)}
+.ihelp:hover,.ihelp:focus-visible{color:var(--navy-700);background:var(--navy-100);border-color:var(--navy-200)}
 .kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:16px}
 .kpi{padding:16px;min-width:0}
 .kpi .label{font-size:12px;color:var(--n500)}
 .kpi .val{font-size:24px;font-weight:800;line-height:1.15;margin-top:2px;overflow-wrap:anywhere}
 .kpi .sub{font-size:11px;color:var(--n500);margin-top:3px;overflow-wrap:anywhere}
 .kpi.pos .val{color:var(--green)} .kpi.neg .val{color:var(--red)}
+/* BANDAS DE KPI (Visão Geral): rótulo do tema + grade com nº de colunas FIXO.
+   O auto-fit do .kpis deixava o último card sozinho numa linha quando a banda
+   tinha 5 ou 7 cards; 4 colunas caem para 2 e 1 sem nunca sobrar órfão. */
+.kband{display:flex;flex-direction:column;gap:9px}
+.kband>h3{margin:0;font-size:11px;font-weight:700;letter-spacing:.14em;text-transform:uppercase;
+  color:var(--n500);display:flex;align-items:center;gap:10px}
+.kband>h3::after{content:"";flex:1;height:1px;background:var(--n200)}
+.kpis.k4{grid-template-columns:repeat(4,1fr)}
+.kpis.k3{grid-template-columns:repeat(3,1fr)}
+.kpi .valrow{display:flex;align-items:baseline;gap:8px;flex-wrap:wrap;margin-top:2px}
+.kpi .valrow .val{margin-top:0}
+/* Seta de tendência. A classe é a LEITURA, não a direção: num custo, cair é
+   bom (good) e subir é ruim (bad) — a cor sai sempre do semáforo. */
+.trend{display:inline-flex;align-items:center;gap:3px;font-size:11px;font-weight:700;
+  border-radius:999px;padding:2px 7px;white-space:nowrap;font-variant-numeric:tabular-nums}
+.trend svg{width:11px;height:11px;flex:none}
+.trend.good{color:var(--green);background:var(--green-100)}
+.trend.bad{color:var(--red);background:var(--red-100)}
+.trend.warn{color:var(--yellow-700);background:var(--yellow-100)}
+.trend.flat{color:var(--n600);background:var(--n100)}
 .grid2{display:grid;grid-template-columns:1fr 1fr;gap:18px;align-items:start}
 .view{display:none;flex-direction:column;gap:18px}
 .view.on{display:flex}
 /* gráficos */
 .chartwrap{padding:6px 16px 14px;overflow-x:auto;position:relative}
 .chartwrap svg{display:block;width:100%;height:auto;min-width:680px}
+/* .narrow = gráfico de card de MEIA largura (viewBox 640): o min-width de 680
+   forçava barra de rolagem por ~12px e reduzia a tipografia sem necessidade */
+.chartwrap.narrow svg{min-width:520px}
 svg:focus-visible{outline:2px solid var(--orange-500);outline-offset:2px;border-radius:6px}
 .legend{display:flex;gap:20px;padding:10px 18px 0;font-size:12px;color:var(--n600);flex-wrap:wrap;align-items:center}
 .legend .k{display:inline-flex;align-items:center;gap:7px}
 .legend i.sw{width:12px;height:12px;border-radius:3px;display:inline-block}
+/* período incompleto (mês corrente): mesma cor, hachurada — a barra parcial não
+   pode ser lida como um mês fechado */
+.legend i.sw.hatch{background-color:var(--green);
+  background-image:repeating-linear-gradient(135deg,rgba(255,255,255,.7) 0 2px,transparent 2px 4px)}
 .legend i.ln{width:18px;height:0;display:inline-block;border-top:2.5px solid var(--navy-700)}
 .legend i.ln.dash{border-top-style:dashed;border-top-color:var(--navy-500)}
 .legend i.band{width:14px;height:10px;background:rgba(56,100,141,.14);border-radius:2px;display:inline-block}
@@ -175,6 +208,12 @@ tr.forn-det td{padding:7px 12px}
 .alerts{display:flex;flex-direction:column;gap:10px;padding:16px}
 .toast{border-radius:var(--radius);padding:12px 14px;font-size:13px;border-left:4px solid}
 .toast b{display:block;font-size:13px;margin-bottom:2px}
+/* variante com ícone de severidade (Visão Geral). O formato simples
+   <b>título</b>+texto continua valendo nas outras telas — não mexer. */
+.toast.wic{display:flex;gap:11px;align-items:flex-start}
+.toast.wic>.ti{flex:none;width:17px;height:17px;margin-top:2px;display:inline-flex}
+.toast.wic>.ti svg{width:100%;height:100%}
+.toast.wic>.tx{min-width:0}
 .t-dang{background:var(--red-100);border-color:var(--red)}
 .t-warn{background:var(--yellow-100);border-color:var(--yellow)}
 .t-ok{background:var(--green-100);border-color:var(--green)}
@@ -191,12 +230,55 @@ tr.forn-det td{padding:7px 12px}
 /* ---------------- Mobile: experiência de app ---------------- */
 .bottomnav{display:none}
 .drawer{display:none}
+/* Faixa de META dentro do card "Faturamento diário × meta": à esquerda o
+   atingimento acumulado do mês (era um KPI solto lá em cima), à direita o dia. */
+.mstrip{display:grid;grid-template-columns:minmax(250px,1fr) 1.15fr;gap:20px;
+  padding:16px 18px 4px;align-items:start}
+.mstrip .diadash{padding:0}
+.mstrip .mcap{font-size:11px;font-weight:700;letter-spacing:.12em;text-transform:uppercase;color:var(--n500)}
+.mstrip .mbig{display:flex;align-items:baseline;gap:10px;margin-top:4px;flex-wrap:wrap}
+.mstrip .mpct{font-size:36px;font-weight:800;line-height:1;font-variant-numeric:tabular-nums}
+.mbar{height:10px;border-radius:999px;background:var(--n100);margin-top:11px;position:relative;overflow:hidden}
+.mbar>i{display:block;height:100%;border-radius:999px;transition:width .5s cubic-bezier(.2,.6,.2,1)}
+.mstrip .msub{font-size:11.5px;color:var(--n500);margin-top:8px;line-height:1.5}
+.mstrip .msub b{color:var(--n700);font-family:var(--mono);font-weight:600}
+/* Km por modalidade: barra horizontal empilhada carregado + vazio. Substituiu o
+   donut — com AGREGADOS em ~80% do km a rosca virava uma fatia só e as outras
+   três modalidades ficavam ilegíveis. Comprimento = km sobre o maior. */
+.modl{display:flex;flex-direction:column;gap:15px;padding:15px 18px}
+.modrow{display:grid;grid-template-columns:1fr auto;gap:5px 12px;align-items:baseline}
+.modrow .mname{font-size:12.5px;font-weight:700;display:inline-flex;align-items:center;gap:7px}
+.modrow .mname i{width:10px;height:10px;border-radius:3px;flex:none}
+.modrow .mval{font-family:var(--mono);font-size:12.5px;font-weight:600;text-align:right;white-space:nowrap}
+.modrow .mtrack{grid-column:1/-1;display:flex;height:15px;gap:2px}
+.modrow .mtrack span{display:block;height:100%;min-width:2px}
+.modrow .mtrack span:first-child{border-radius:4px 0 0 4px}
+.modrow .mtrack span:last-child{border-radius:0 4px 4px 0}
+.modrow .mtrack span:only-child{border-radius:4px}
+/* km vazio = mesma cor da modalidade com hachura (identidade não fica só na cor) */
+.modrow .mtrack span.vz{background-image:repeating-linear-gradient(135deg,rgba(255,255,255,.6) 0 3px,transparent 3px 6px)}
+.modrow .mmeta{grid-column:1/-1;font-size:11px;color:var(--n500);display:flex;gap:12px;flex-wrap:wrap;align-items:center}
+.modtot{border-top:1px solid var(--n100);padding-top:13px;font-size:12px;color:var(--n600);
+  display:flex;gap:16px;flex-wrap:wrap;align-items:center}
+.modtot b{font-family:var(--mono);color:var(--n900)}
 .diadash{padding:10px 16px 2px}
 .diadash .dd-cap{font-size:11px;color:var(--n500);margin-bottom:8px;font-weight:600}
 .diadash .dd-row{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}
 .diadash .dd{background:var(--n50,#F7F9FA);border:1px solid var(--n200,#E4E7EB);border-radius:12px;padding:12px 14px;display:flex;flex-direction:column;gap:3px}
 .diadash .dd-l{font-size:11px;color:var(--n500);font-weight:600}
 .diadash .dd-v{font-size:20px;font-weight:700;color:var(--ink,#1E1E1E);font-variant-numeric:tabular-nums}
+/* notebook: nessa faixa cabem 4 colunas, mas valor + seta na mesma linha só
+   couberam nos cards de número curto — uns quebravam e outros não. Empilhar
+   sempre é mais consistente. (Sem chip, .valrow tem 1 filho e nada muda.) */
+@media(min-width:1181px) and (max-width:1420px){
+  .kpi .valrow{flex-direction:column;align-items:flex-start;gap:2px}
+}
+/* janela estreita (sidebar aberta em notebook): 4 colunas apertam o valor. Cai
+   para 2 — nunca 3, que voltaria a deixar um card órfão numa banda de 4. */
+@media(max-width:1180px){
+  .kpis.k4{grid-template-columns:repeat(2,1fr)}
+  .mstrip{grid-template-columns:1fr}
+}
 @media(max-width:880px){
   body{font-size:14px}
   /* sem isto o Chrome mobile ALARGA o viewport de layout para caber o
@@ -218,11 +300,17 @@ tr.forn-det td{padding:7px 12px}
   .meta{font-size:10px}
   button.btn{padding:8px 12px;font-size:12px}
   .content{padding:12px;gap:12px}
-  .kpis{grid-template-columns:repeat(2,1fr);gap:10px}
+  /* as bandas k4/k3 têm especificidade maior que .kpis — precisam do par aqui */
+  .kpis,.kpis.k4,.kpis.k3{grid-template-columns:repeat(2,1fr);gap:10px}
   .kpi{padding:12px}
   .kpi .val{font-size:19px}
   .kpi .label{font-size:11px}
   .kpi .sub{font-size:10px}
+  .trend{font-size:10px;padding:1px 6px}
+  .kband>h3{font-size:10px}
+  .mstrip{grid-template-columns:1fr;gap:14px;padding:14px 14px 2px}
+  .mstrip .mpct{font-size:30px}
+  .modl{padding:14px}
   .diadash{padding:10px 12px 2px}
   .diadash .dd-row{grid-template-columns:1fr 1fr}
   .diadash .dd{padding:10px;min-width:0}
@@ -565,7 +653,7 @@ button.avatar{border:0;cursor:pointer}
   .layout{display:block}
   .content{padding:0;margin:0;max-width:100%}
   .card{box-shadow:none;border:1px solid #ccc;page-break-inside:avoid;margin-bottom:10px}
-  .kpis{page-break-inside:avoid}
+  .kpis,.kband{page-break-inside:avoid}
   .view{padding:0}
   .tablewrap{overflow:visible !important;max-height:none !important}
   .topbar{position:static;box-shadow:none;border-bottom:2px solid #17344F}
@@ -918,35 +1006,69 @@ button.avatar{border:0;cursor:pointer}
 
       <!-- ===================== VISÃO GERAL ===================== -->
       <section class="view" id="view-home">
-        <div class="kpis" id="kpis-home-caixa"></div>
-        <div class="kpis" id="kpis-home-fin"></div>
-        <div class="kpis" id="kpis-home-op"></div>
+        <div class="kband">
+          <h3>Caixa e contas em aberto</h3>
+          <div class="kpis k4" id="kpis-home-caixa"></div>
+        </div>
+        <div class="kband">
+          <h3>Faturamento e resultado</h3>
+          <div class="kpis k4" id="kpis-home-fin"></div>
+        </div>
+        <div class="kband">
+          <h3>Custos e compras do mês</h3>
+          <div class="kpis k4" id="kpis-home-op"></div>
+        </div>
         <div class="card">
-          <div class="head"><h2>Faturamento diário × meta</h2><span class="hint" id="hintHomeDia">mês corrente · CT-e + KMM + NFS-e vs meta diária</span></div>
-          <div class="diadash" id="home-diadash"></div>
+          <div class="head">
+            <h2>Faturamento diário × meta <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="Realizado = CT-e (conhecimento, situação 3, tipos 1 e 4) + faturamento KMM (sulista.faturamentokmm) + NFS-e autorizadas (notafiscalservico), por data de emissão. Meta = sulista.metafaturamento_agrupamentoclientedia (tipo 1), por dia. É o recorte OFICIAL de faturamento — o mesmo do Painel TV. Diferente de 'Faturamento do mês' (faturas emitidas) e de 'Receita CT-e' (frete das viagens).">i</span></h2>
+            <span class="hint" id="hintHomeDia">mês corrente · realizado acumulado vs meta acumulada até hoje</span>
+          </div>
+          <div class="mstrip">
+            <div id="home-atingimento"></div>
+            <div class="diadash" id="home-diadash"></div>
+          </div>
           <div class="legend">
-            <span class="k"><i class="sw" style="width:26px;background:linear-gradient(90deg,#C03221,#B97709,#1E7F4F)"></i>Realizado (cor = % da meta do dia)</span>
-            <span class="k"><i class="sw" style="background:var(--navy-500)"></i>Meta</span>
+            <span class="k">Realizado:</span>
+            <span class="k"><i class="sw" style="background:var(--green)"></i>≥ 95% da meta do dia</span>
+            <span class="k"><i class="sw" style="background:var(--yellow)"></i>70 a 94%</span>
+            <span class="k"><i class="sw" style="background:var(--red)"></i>abaixo de 70%</span>
+            <span class="k"><i class="ln" style="border-top-color:var(--navy-500)"></i>Meta do dia</span>
+            <span class="k"><i class="band" style="background:var(--n100)"></i>Dias a realizar</span>
           </div>
           <div class="chartwrap" id="wrapHdia">
-            <svg id="chartHdia" viewBox="0 0 960 240" preserveAspectRatio="xMidYMid meet" tabindex="0" role="img"
+            <svg id="chartHdia" viewBox="0 0 960 250" preserveAspectRatio="xMidYMid meet" tabindex="0" role="img"
                  aria-label="Faturamento realizado versus meta por dia do mês corrente."></svg>
             <div class="tip" id="tipHdia"></div>
           </div>
         </div>
         <div class="grid2">
           <div class="card">
-            <div class="head"><h2>Receita mensal</h2><span class="hint">últimos 12 meses · viagens carregadas</span></div>
-            <div class="chartwrap" id="wrapHrec">
-              <svg id="chartHrec" viewBox="0 0 960 240" preserveAspectRatio="xMidYMid meet" tabindex="0" role="img"
+            <div class="head">
+              <h2>Receita mensal <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="FONTE: programacaoembarque.valorfrete das viagens CARREGADAS (não canceladas, semáforo = 1, tipo ≠ 3 — exclui a perna vazia), somado por data de emissão, últimos 12 meses. Recorte DIFERENTE de 'Faturamento do mês' (faturas emitidas — contas a receber) e do atingimento da meta (CT-e + KMM + NFS-e): são 3 cortes distintos de receita, não o mesmo número com valores conflitantes. O mês corrente aparece hachurado porque ainda está incompleto.">i</span></h2>
+              <span class="hint" id="hintHomeRec">12 meses · frete das viagens carregadas (programação de embarque)</span>
+            </div>
+            <div class="legend">
+              <span class="k"><i class="sw" style="background:var(--green)"></i>Mês fechado</span>
+              <span class="k"><i class="sw hatch"></i>Mês corrente (parcial)</span>
+              <span class="k"><i class="ln dash"></i>Média dos 12 meses</span>
+            </div>
+            <div class="chartwrap narrow" id="wrapHrec">
+              <svg id="chartHrec" viewBox="0 0 640 260" preserveAspectRatio="xMidYMid meet" tabindex="0" role="img"
                    aria-label="Receita de frete por mês, últimos 12 meses."></svg>
               <div class="tip" id="tipHrec"></div>
             </div>
           </div>
           <div class="card">
-            <div class="head"><h2>Saldo de caixa projetado</h2><span class="hint">próximos meses · recebíveis − pagáveis</span></div>
-            <div class="chartwrap" id="wrapHsal">
-              <svg id="chartHsal" viewBox="0 0 960 240" preserveAspectRatio="xMidYMid meet" tabindex="0" role="img"
+            <div class="head">
+              <h2>Saldo de caixa projetado <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="Parte do saldo real de bancos + caixa do ERP (última posição) e acumula, mês a mês, recebíveis em aberto menos pagáveis em aberto pela DATA DE VENCIMENTO. 'Atrasado' concentra tudo que já venceu e não foi liquidado. Projeção por vencimento contratual: não assume atraso de cliente nem renegociação.">i</span></h2>
+              <span class="hint">recebíveis − pagáveis por vencimento</span>
+            </div>
+            <div class="legend">
+              <span class="k"><i class="ln" style="border-top-color:var(--navy-700)"></i>Saldo projetado</span>
+              <span class="k"><i class="sw" style="background:var(--red-100);border:1px solid var(--red)"></i>Faixa negativa</span>
+            </div>
+            <div class="chartwrap narrow" id="wrapHsal">
+              <svg id="chartHsal" viewBox="0 0 640 260" preserveAspectRatio="xMidYMid meet" tabindex="0" role="img"
                    aria-label="Saldo de caixa projetado para os próximos meses."></svg>
               <div class="tip" id="tipHsal"></div>
             </div>
@@ -954,14 +1076,17 @@ button.avatar{border:0;cursor:pointer}
         </div>
         <div class="grid2">
           <div class="card">
-            <div class="head"><h2>Km rodado por modalidade</h2><span class="hint">últimos 30 dias · inclui km vazio (para só carregado, ver Análise de KM)</span></div>
-            <div style="display:flex;align-items:center;gap:18px;padding:10px 18px 18px;flex-wrap:wrap">
-              <svg id="donutHome" viewBox="0 0 180 180" style="width:180px;height:180px;flex:none"></svg>
-              <div id="donutLegend" style="font-size:13px;display:flex;flex-direction:column;gap:6px"></div>
+            <div class="head">
+              <h2>Km rodado por modalidade <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="programacaoembarque dos últimos 30 dias (não canceladas, semáforo = 1) cruzada com veiculo.utilizacaoveiculo. Km = kmfretecompra; CARREGADO = tipo ≠ 3, VAZIO = tipo = 3 (mesma definição canônica da Análise de KM). Retorno vazio acima de 20% é alerta em operação FTL.">i</span></h2>
+              <span class="hint">últimos 30 dias · carregado × vazio</span>
             </div>
+            <div class="modl" id="home-modal"></div>
           </div>
           <div class="card">
-            <div class="head"><h2>Alertas de todas as áreas</h2><span class="hint">clique para abrir o módulo</span></div>
+            <div class="head">
+              <h2>Alertas de todas as áreas <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="Regras avaliadas sobre os próprios números desta tela: caixa negativo ou gap projetado, recebíveis vencidos, entregas de compra atrasadas e ordens de serviço em aberto. Ordenado por severidade.">i</span></h2>
+              <span class="hint">clique para abrir o módulo</span>
+            </div>
             <div class="alerts" id="alerts-home"></div>
           </div>
         </div>
@@ -2053,6 +2178,13 @@ window.addEventListener('error', e=>{
 /* ---------------- Ícones (SVG inline, stroke) ---------------- */
 const IC = (p)=>`<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${p}</svg>`;
 const ICONS = {
+  /* tendência (setas dos KPIs) e severidade (alertas da Visão Geral) */
+  trUp:   IC('<path d="M5 15l7-7 7 7"/>'),
+  trDown: IC('<path d="M5 9l7 7 7-7"/>'),
+  trFlat: IC('<path d="M5 12h14"/>'),
+  sevCrit: IC('<path d="M12 3.5 2.5 20h19L12 3.5z"/><path d="M12 10v4"/><path d="M12 17.2v.1"/>'),
+  sevWarn: IC('<circle cx="12" cy="12" r="9"/><path d="M12 8v4.5"/><path d="M12 16.2v.1"/>'),
+  sevOk:  IC('<circle cx="12" cy="12" r="9"/><path d="M8.2 12.4l2.6 2.6 5-5.4"/>'),
   sino: IC('<path d="M18 8a6 6 0 0 0-12 0c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.5 21a2 2 0 0 1-3 0"/>'),
   jornic: IC('<circle cx="12" cy="12" r="9"/><path d="M12 7.5V12l3 2"/>'),
   sinal: IC('<path d="M12 20v-5"/><circle cx="12" cy="12.5" r="1.8"/><path d="M8 16a5.5 5.5 0 0 1 0-7M16 16a5.5 5.5 0 0 0 0-7M5.5 18.5a9 9 0 0 1 0-12M18.5 18.5a9 9 0 0 0 0-12"/>'),
@@ -2670,6 +2802,8 @@ const KPI_HELP = {
   'Saldo em caixa':'Última posição consolidada de bancos + caixa.',
   '1º gap de caixa':'Primeiro período em que o saldo projetado (saldo atual + recebíveis − pagáveis por vencimento) fica negativo.',
   'Gap de caixa':'Primeiro período em que o saldo projetado fica negativo.',
+  'Gap de caixa projetado':'Primeiro período em que o saldo projetado (saldo atual + recebíveis − pagáveis, por data de vencimento) fica negativo. "Atrasado" significa que os títulos já vencidos, sozinhos, levam o saldo a negativo — não é uma projeção futura, é o passivo de hoje.',
+  'A vencer em 30 dias (líquido)':'Recebíveis menos pagáveis que vencem entre hoje e os próximos 30 dias, pela data de vencimento. NÃO inclui o que já está vencido. Negativo = os compromissos do próximo mês superam as entradas já contratadas.',
   'Posição líquida (aberto)':'Total a receber menos total a pagar, considerando todos os títulos em aberto no recorte atual.',
   'Faturamento do mês':'Faturas emitidas no mês corrente (não canceladas). Média 6m = média dos últimos 6 meses fechados.',
   'A receber (aberto)':'Saldo de faturas não canceladas com valor a receber, no recorte dos filtros.',
@@ -2714,9 +2848,33 @@ const KPI_HELP = {
   'EBITDA':'Resultado operacional antes de juros, impostos, depreciação e amortização.',
   'Resultado líquido':'Resultado final após administrativas, outras e financeiro.',
 };
-function kpi(label,val,sub,cls,help){
+function kpi(label,val,sub,cls,help,trend){
   const h=help||KPI_HELP[label]||'';
-  return `<div class="card kpi ${cls||''}"${h?` title="${esc(h)}" style="cursor:help"`:''}><div class="label">${esc(label)}${h?' <span style="color:var(--n400);font-size:10px">ⓘ</span>':''}</div><div class="val">${esc(val)}</div><div class="sub">${esc(sub)}</div></div>`;
+  return `<div class="card kpi ${cls||''}"${h?` title="${esc(h)}" style="cursor:help"`:''}><div class="label">${esc(label)}${h?' <span style="color:var(--n400);font-size:10px">ⓘ</span>':''}</div><div class="valrow"><div class="val">${esc(val)}</div>${trend||''}</div><div class="sub">${esc(sub)}</div></div>`;
+}
+/* Chip de tendência dos KPIs: variação de `atual` contra `ant` medidos na MESMA
+   janela (mês corrente até hoje × mesmos dias do mês anterior).
+   opt.invert = é um CUSTO → cair é bom (verde na queda).
+   Abaixo do limiar (1,5% por padrão) conta como "estável": ruído de dias
+   úteis não merece seta. Devolve '' quando não há base de comparação. */
+function trendChip(atual, ant, opt){
+  opt = opt || {};
+  if(atual==null || ant==null || !isFinite(atual) || !isFinite(ant) || Math.abs(ant) < 1e-6) return '';
+  const p = 100*(atual-ant)/Math.abs(ant);
+  const sobe = p > 0, plano = Math.abs(p) < (opt.limiar!=null?opt.limiar:1.5);
+  const bom = plano ? null : (opt.invert ? !sobe : sobe);
+  const cls = plano ? 'flat' : (bom ? 'good' : 'bad');
+  const ic  = plano ? 'trFlat' : (sobe ? 'trUp' : 'trDown');
+  const txt = plano ? 'estável'
+    : (sobe?'+':'−')+Math.abs(p).toLocaleString('pt-BR',{maximumFractionDigits:1})+'%';
+  const base = opt.fmt ? opt.fmt(ant) : String(ant);
+  const t = opt.titulo || ((opt.ref||'Mesmo período do mês anterior')+': '+base
+    + (plano?' — variação abaixo de '+(opt.limiar!=null?opt.limiar:1.5)+'%':''));
+  return `<span class="trend ${cls}" title="${esc(t)}">${ICONS[ic]}${txt}</span>`;
+}
+/* chip de estado (sem variação percentual): semáforo + texto curto */
+function statChip(cls, texto, titulo, ic){
+  return `<span class="trend ${cls}"${titulo?` title="${esc(titulo)}"`:''}>${ICONS[ic||('flat'===cls?'trFlat':'sevWarn')]||''}${esc(texto)}</span>`;
 }
 const pct = (a,b)=> b>0 ? (100*a/b).toLocaleString('pt-BR',{maximumFractionDigits:0})+'%' : '—';
 const sumFaixa=(rows,f)=>((rows||[]).find(r=>r.faixa===f)||{}).valor||0;
@@ -3034,22 +3192,42 @@ function setActive(svgId,i,clientY,announce){
     liveTxt=`${periodoLabel(r.mes)}: ${r.multas} multas, ${BRL.format(r.valor||0)}`;
   } else if(g.kind==='hdia'){
     const r=g.rows[i];
-    tt.textContent='Dia '+r.dia;
+    const rat=(r.meta>0)?(r.realizado||0)/r.meta:null;
+    const fut=g.hoje!=null && r.dia>g.hoje;
+    tt.textContent='Dia '+r.dia+(r.dia===g.hoje?' (hoje)':(fut?' · a realizar':''));
     tip.append(tt);
-    tipRow(tip,'Realizado',BRL.format(r.realizado||0),{borderTop:'3px solid #1E7F4F'});
-    tipRow(tip,'Meta',BRL.format(r.meta||0),{borderTop:'3px solid '+CC.navy500});
+    tipRow(tip,'Realizado',BRL.format(r.realizado||0),{borderTop:'3px solid '+corAtingimento(rat)});
+    tipRow(tip,'Meta do dia',r.meta>0?BRL.format(r.meta):'sem meta',{borderTop:'3px solid '+CC.navy500});
+    if(rat!=null){   // dia sem meta (domingo/feriado) não tem % nem "falta"
+      const sep=document.createElement('div'); sep.className='sep'; tip.append(sep);
+      tipRow(tip,'% da meta',(100*rat).toLocaleString('pt-BR',{maximumFractionDigits:0})+'%',null);
+      tipRow(tip,(r.realizado||0)>=r.meta?'Acima da meta':'Falta',BRL.format(Math.abs(r.meta-(r.realizado||0))),null);
+    }
     liveTxt=`Dia ${r.dia}: realizado ${BRL.format(r.realizado||0)}, meta ${BRL.format(r.meta||0)}`;
   } else if(g.kind==='hrec'){
-    const r=g.rows[i];
-    tt.textContent=periodoLabel(r.mes);
+    const r=g.rows[i], ant=i>0?g.rows[i-1]:null;
+    const parcial=r.mes===g.mAtual;
+    tt.textContent=periodoLabel(r.mes)+(parcial?' · mês incompleto':'');
     tip.append(tt);
-    tipRow(tip,'Receita',BRL.format(r.receita),{borderTop:'3px solid #1E7F4F'});
+    tipRow(tip,'Receita de frete',BRL.format(r.receita),{borderTop:'3px solid '+CC.verde});
+    if(ant && ant.receita>0){
+      const v=100*(r.receita-ant.receita)/ant.receita;
+      tipRow(tip,'vs '+periodoLabel(ant.mes),(v>0?'+':'−')+Math.abs(v).toLocaleString('pt-BR',{maximumFractionDigits:1})+'%',null);
+    }
+    if(g.media){
+      const v=100*(r.receita-g.media)/g.media;
+      tipRow(tip,'vs média 12m',(v>0?'+':'−')+Math.abs(v).toLocaleString('pt-BR',{maximumFractionDigits:1})+'%',{borderTop:'3px dashed '+CC.navy700});
+    }
+    const sep=document.createElement('div'); sep.className='sep'; tip.append(sep);
+    tipRow(tip,'Fonte','viagens carregadas',null);
     liveTxt=`${periodoLabel(r.mes)}: ${BRL.format(r.receita)}`;
   } else if(g.kind==='hsal'){
-    const r=g.rows[i];
-    tt.textContent=periodoLabel(r.periodo);
+    const r=g.rows[i], ant=i>0?g.rows[i-1]:null;
+    tt.textContent=periodoLabel(r.periodo)+(r.periodo==='atrasado'?' · vencidos até hoje':'');
     tip.append(tt);
-    tipRow(tip,'Saldo projetado',BRL.format(r.saldo_projetado),{borderTop:'3px solid '+CC.navy700});
+    tipRow(tip,'Saldo projetado',BRL.format(r.saldo_projetado),{borderTop:'3px solid '+(r.saldo_projetado<0?CC.vermelho:CC.navy700)});
+    if(ant) tipRow(tip,'Variação no mês',(r.saldo_projetado-ant.saldo_projetado>=0?'+':'−')+BRL.format(Math.abs(r.saldo_projetado-ant.saldo_projetado)).replace('R$ ','R$ '),null);
+    tipRow(tip,'Situação',r.saldo_projetado<0?'negativo':'positivo',null);
     liveTxt=`${periodoLabel(r.periodo)}: ${BRL.format(r.saldo_projetado)}`;
   } else if(g.kind==='kmv'){
     const r=g.rows[i];
@@ -3273,9 +3451,9 @@ function ocToggle(i){
 
 
 /* ---------------- Visão Geral ---------------- */
-function kpiLink(label,val,sub,cls,hash){
+function kpiLink(label,val,sub,cls,hash,trend){
   const h=KPI_HELP[label]||'';
-  return `<a href="${hash}" style="text-decoration:none;color:inherit"><div class="card kpi ${cls||''}" style="cursor:pointer;height:100%"${h?` title="${esc(h)}"`:''}><div class="label">${esc(label)}${h?' <span style="color:var(--n400);font-size:10px">ⓘ</span>':''}</div><div class="val">${esc(val)}</div><div class="sub">${esc(sub)}</div></div></a>`;
+  return `<a href="${hash}" style="text-decoration:none;color:inherit"><div class="card kpi ${cls||''}" style="cursor:pointer;height:100%"${h?` title="${esc(h)}"`:''}><div class="label">${esc(label)}${h?' <span style="color:var(--n400);font-size:10px">ⓘ</span>':''}</div><div class="valrow"><div class="val">${esc(val)}</div>${trend||''}</div><div class="sub">${esc(sub)}</div></div></a>`;
 }
 function skelKpis(id, n){
   const el=document.getElementById(id);
@@ -3287,7 +3465,7 @@ function skelKpis(id, n){
 }
 async function loadHome(){
   const seq = ++homeSeq;
-  skelKpis('kpis-home-caixa',4); skelKpis('kpis-home-fin',5); skelKpis('kpis-home-op',4);
+  skelKpis('kpis-home-caixa',4); skelKpis('kpis-home-fin',4); skelKpis('kpis-home-op',4);
   const btn=document.getElementById('btnRefresh');
   btn.disabled=true;
   document.getElementById('content').classList.add('loading');
@@ -3300,142 +3478,262 @@ async function loadHome(){
   }catch(e){ if(seq===homeSeq) showBanner('Não foi possível falar com a API.', e.message); }
   finally{ if(seq===homeSeq){ btn.disabled=false; document.getElementById('content').classList.remove('loading'); } }
 }
+/* Bandas de KPI por TEMA, 4 cards cada (nunca sobra card órfão numa linha):
+   1) caixa e contas em aberto · 2) faturamento e resultado · 3) custos e compras.
+   O atingimento da meta saiu daqui e virou a faixa do card do faturamento
+   diário — é a leitura do mesmo dado, não um número solto. */
 function renderHome(d){
-  const gapTxt = d.gap_mes==null ? 'sem gap no horizonte' : (d.gap_mes==='agora' ? 'caixa negativo agora' : 'gap em '+periodoLabel(d.gap_mes));
+  const cmp = {ref:'Mesmo período do mês anterior', fmt:BRL.format};
+  const gapTxt = d.gap_mes==null ? 'sem gap no horizonte projetado'
+    : (d.gap_mes==='agora' ? 'saldo já negativo hoje'
+    : (d.gap_mes==='atrasado' ? 'os vencidos já levam o saldo a negativo' : 'primeiro mês negativo da projeção'));
+  const liq30 = (d.receber_prox30||0) - (d.pagar_prox30||0);
+
   document.getElementById('kpis-home-caixa').innerHTML=[
-    kpiLink('Saldo em caixa', BRL.format(d.saldo_atual), 'bancos + caixa · '+(d.saldo_data?fmtD(d.saldo_data):''), d.saldo_atual>=0?'pos':'neg', '#fluxo'),
-    kpiLink('Gap de caixa', d.gap_mes==null?'—':(d.gap_mes==='agora'?'agora':periodoLabel(d.gap_mes)), gapTxt, d.gap_mes!=null?'neg':'pos', '#fluxo'),
-    kpiLink('Faturamento do mês', BRL.format(d.faturamento_mes), 'média 6m: '+BRL.format(d.faturamento_medio_6m), d.faturamento_mes>=d.faturamento_medio_6m*0.5?'':'neg', '#receber'),
-    kpiLink('Atingimento da meta', d.atingimento_mes!=null?(100*d.atingimento_mes).toLocaleString('pt-BR',{maximumFractionDigits:0})+'%':'—', BRL.format(d.realizado_acumulado)+' de '+BRL.format(d.meta_acumulada)+' até hoje', (d.atingimento_mes||0)>=1?'pos':((d.atingimento_mes||0)<0.85?'neg':''), '#com'),
+    kpiLink('Saldo em caixa', BRL.format(d.saldo_atual), 'bancos + caixa · posição de '+(d.saldo_data?fmtD(d.saldo_data):'—'),
+      d.saldo_atual>=0?'pos':'neg', '#fluxo'),
+    kpiLink('A receber', BRL.format(d.receber_aberto),
+      BRL.format(d.receber_vencido)+' vencido · '+BRL.format(d.receber_pendente_fatur||0)+' pendente de faturamento',
+      '', '#receber',
+      d.receber_vencido>0 ? statChip('bad', pct(d.receber_vencido,d.receber_aberto)+' vencido',
+        'R$ '+BRL.format(d.receber_vencido).replace('R$ ','')+' de títulos vencidos e não liquidados (método oficial fatura_composicao). Ver Régua de Cobrança.','sevCrit') : ''),
+    kpiLink('A pagar', BRL.format(d.pagar_aberto), BRL.format(d.pagar_vencido)+' vencido · títulos em aberto no ERP', '', '#pagar',
+      d.pagar_vencido>0 ? statChip('warn', pct(d.pagar_vencido,d.pagar_aberto)+' vencido',
+        'R$ '+BRL.format(d.pagar_vencido).replace('R$ ','')+' com vencimento já passado.','sevWarn') : ''),
+    kpiLink('A vencer em 30 dias (líquido)', BRL.format(liq30),
+      'receber '+BRL.format(d.receber_prox30)+' · pagar '+BRL.format(d.pagar_prox30),
+      liq30>=0?'pos':'neg', '#fluxo',
+      statChip(liq30>=0?'good':'bad', liq30>=0?'folga':'aperto',
+        'Recebíveis menos pagáveis que vencem entre hoje e os próximos 30 dias (não inclui vencidos).',
+        liq30>=0?'sevOk':'sevCrit')),
   ].join('');
+
+  const peGap = d.ponto_equilibrio ? (d.faturamento_medio_6m - d.ponto_equilibrio.faturamento_minimo_mes) : null;
   document.getElementById('kpis-home-fin').innerHTML=[
-    kpiLink('A receber', BRL.format(d.receber_aberto), BRL.format(d.receber_vencido)+' vencido', d.receber_vencido>0?'neg':'', '#receber'),
-    kpiLink('A pagar', BRL.format(d.pagar_aberto), BRL.format(d.pagar_vencido)+' vencido', '', '#pagar'),
-    kpiLink('A receber (30 dias)', BRL.format(d.receber_prox30), 'a vencer · próximos 30 dias', '', '#receber'),
-    kpiLink('A pagar (30 dias)', BRL.format(d.pagar_prox30), 'a vencer · próximos 30 dias', '', '#pagar'),
-    kpiLink('Receita CT-e no mês', BRL.format(d.receita_mes_cte), 'frete faturado (comercial)', '', '#com'),
-    kpiLink('Frete contratado no mês', BRL.format(d.frete_contratado_mes), 'agregados e terceiros', '', '#agr'),
+    kpiLink('Faturamento do mês', BRL.format(d.faturamento_mes), 'faturas emitidas · média 6m '+BRL.format(d.faturamento_medio_6m),
+      '', '#receber', trendChip(d.faturamento_mes, d.faturamento_mes_ant, cmp)),
+    kpiLink('Receita CT-e no mês', BRL.format(d.receita_mes_cte), 'frete das viagens carregadas (comercial)',
+      '', '#com', trendChip(d.receita_mes_cte, d.receita_mes_cte_ant, cmp)),
     d.ponto_equilibrio ? kpi('Ponto de equilíbrio', BRL.format(d.ponto_equilibrio.faturamento_minimo_mes),
-      'por mês · MC '+d.ponto_equilibrio.mc_pct.toFixed(1)+'% · fixos '+BRL.format(d.ponto_equilibrio.fixos_mes)+'/mês · média 6m '+BRL.format(d.faturamento_medio_6m),
-      d.faturamento_medio_6m < d.ponto_equilibrio.faturamento_minimo_mes ? 'neg' : 'pos') : '',
+      'por mês · MC '+d.ponto_equilibrio.mc_pct.toLocaleString('pt-BR',{minimumFractionDigits:1,maximumFractionDigits:1})+'% · fixos '+BRL.format(d.ponto_equilibrio.fixos_mes)+'/mês',
+      peGap<0 ? 'neg' : 'pos', null,
+      statChip(peGap<0?'bad':'good',
+        'média 6m '+(peGap<0?'−':'+')+Math.abs(100*peGap/d.ponto_equilibrio.faturamento_minimo_mes).toLocaleString('pt-BR',{maximumFractionDigits:0})+'%',
+        'Média de faturamento dos últimos 6 meses ('+BRL.format(d.faturamento_medio_6m)+') contra o ponto de equilíbrio — diferença de '+BRL.format(Math.abs(peGap))+'. Abaixo dele a operação perde dinheiro.',
+        peGap<0?'trDown':'trUp')) : '',
+    kpiLink('Gap de caixa projetado', d.gap_mes==null?'sem gap':(d.gap_mes==='agora'?'agora':periodoLabel(d.gap_mes)),
+      gapTxt, d.gap_mes!=null?'neg':'pos', '#fluxo',
+      statChip(d.gap_mes!=null?'bad':'good', d.gap_mes!=null?'atenção':'ok',
+        'Primeiro período em que o saldo projetado (saldo atual + recebíveis − pagáveis por vencimento) fica negativo.',
+        d.gap_mes!=null?'sevCrit':'sevOk')),
   ].join('');
+
   document.getElementById('kpis-home-op').innerHTML=[
-    kpiLink('OCs atrasadas (12m)', d.oc_atrasadas.toLocaleString('pt-BR'), BRL.format(d.oc_atraso_valor)+' pendente · '+d.oc_aprovacao+' sem aprovação', d.oc_atrasadas>0?'neg':'pos', '#oc'),
-    kpiLink('Combustível próprio no mês', BRL.format(d.combustivel_proprio_mes), 'frota própria (CTA Plus)', '', '#comb'),
-    kpiLink('Manutenção no mês', BRL.format(d.manutencao_mes), d.os_abertas+' OSs abertas', d.os_abertas>0?'':'pos', '#man'),
+    kpiLink('Frete contratado no mês', BRL.format(d.frete_contratado_mes),
+      'agregados e terceiros · '+(d.receita_mes_cte>0?(100*d.frete_contratado_mes/d.receita_mes_cte).toFixed(0)+'% da receita CT-e':'—'),
+      '', '#agr', trendChip(d.frete_contratado_mes, d.frete_contratado_mes_ant, Object.assign({invert:true},cmp))),
+    kpiLink('Combustível próprio no mês', BRL.format(d.combustivel_proprio_mes), 'frota própria e locada (CTA Plus)',
+      '', '#comb', trendChip(d.combustivel_proprio_mes, d.combustivel_proprio_mes_ant, Object.assign({invert:true},cmp))),
+    kpiLink('Manutenção no mês', BRL.format(d.manutencao_mes), d.os_abertas+' OSs abertas na oficina',
+      '', '#man', trendChip(d.manutencao_mes, d.manutencao_mes_ant, Object.assign({invert:true},cmp))),
+    kpiLink('OCs atrasadas (12m)', d.oc_atrasadas.toLocaleString('pt-BR'),
+      BRL.format(d.oc_atraso_valor)+' pendente · '+d.oc_aprovacao+' sem aprovação',
+      d.oc_atrasadas>0?'neg':'pos', '#oc',
+      statChip(d.oc_atrasadas>0?'bad':'good', d.oc_atrasadas>0?'entrega vencida':'em dia',
+        'Ordens de compra dos últimos 12 meses com entrega pendente e previsão já vencida.',
+        d.oc_atrasadas>0?'sevCrit':'sevOk')),
   ].join('');
+
+  /* alertas: severidade crítica primeiro (a ordem do array já é a de leitura) */
   const A=[];
-  if(d.saldo_atual<0) A.push(['t-dang','Caixa negativo','Saldo bancos+caixa em '+BRL.format(d.saldo_atual)+'. Ver Fluxo de Caixa.','#fluxo']);
-  else if(d.gap_mes) A.push(['t-dang','Gap de caixa projetado','Saldo projetado fica negativo em '+periodoLabel(d.gap_mes)+'.','#fluxo']);
-  if(d.receber_vencido>0) A.push(['t-warn','Recebíveis vencidos',BRL.format(d.receber_vencido)+' a cobrar — ver Contas a Receber.','#receber']);
-  if(d.oc_atrasadas>0) A.push(['t-warn','Entregas de compras atrasadas',d.oc_atrasadas+' OCs com '+BRL.format(d.oc_atraso_valor)+' pendente — ver Ordens de Compra.','#oc']);
-  if(d.os_abertas>0) A.push(['t-warn','Manutenções em aberto',d.os_abertas+' OSs abertas — ver Manutenção.','#man']);
+  if(d.saldo_atual<0) A.push(['t-dang','sevCrit','Caixa negativo','Saldo bancos + caixa em '+BRL.format(d.saldo_atual)+'. Ver Fluxo de Caixa.','#fluxo']);
+  else if(d.gap_mes) A.push(['t-dang','sevCrit','Gap de caixa projetado',
+    d.gap_mes==='atrasado' ? 'Os títulos já vencidos levam o saldo projetado a negativo. Ver Fluxo de Caixa.'
+                           : 'Saldo projetado fica negativo em '+periodoLabel(d.gap_mes)+'.','#fluxo']);
+  if(d.receber_vencido>0) A.push(['t-warn','sevWarn','Recebíveis vencidos',BRL.format(d.receber_vencido)+' a cobrar — ver Contas a Receber.','#receber']);
+  if(d.oc_atrasadas>0) A.push(['t-warn','sevWarn','Entregas de compras atrasadas',
+    d.oc_atrasadas+' OCs com '+BRL.format(d.oc_atraso_valor)+' pendente · '+d.oc_aprovacao+' sem aprovação — ver Ordens de Compra.','#oc']);
+  if(d.os_abertas>0) A.push(['t-warn','sevWarn','Manutenções em aberto',d.os_abertas+' OSs abertas — ver Manutenção.','#man']);
+
   chartHomeDiario(d.diario||[]);
-  // card do dia: meta, realizado e % do dia (hoje; senão o último dia com realizado)
-  {
-    const el=document.getElementById('home-diadash');
-    if(el){
-      const hoje=new Date().getDate();
-      const dia=(d.diario||[]).find(x=>x.dia===hoje) || (d.diario||[]).filter(x=>x.realizado>0).slice(-1)[0];
-      if(!dia){ el.innerHTML=''; }
-      else{
-        const pct = dia.meta>0 ? 100*dia.realizado/dia.meta : null;
-        const cor = pct==null?'var(--n500)':(pct>=95?'var(--green,#1E7F4F)':(pct>=70?'var(--yellow,#B97709)':'var(--red,#C03221)'));
-        const cap = String(dia.dia).padStart(2,'0')+'/'+String(new Date().getMonth()+1).padStart(2,'0');
-        el.innerHTML =
-          `<div class="dd-cap">Dia ${cap}${dia.dia===hoje?' (hoje)':''}</div><div class="dd-row">`+
-          `<div class="dd"><span class="dd-l">Meta do dia</span><span class="dd-v">${BRL.format(dia.meta||0)}</span></div>`+
-          `<div class="dd"><span class="dd-l">Realizado do dia</span><span class="dd-v">${BRL.format(dia.realizado||0)}</span></div>`+
-          `<div class="dd"><span class="dd-l">% realizado do dia</span><span class="dd-v" style="color:${cor}">${pct==null?'—':pct.toLocaleString('pt-BR',{maximumFractionDigits:0})+'%'}</span></div>`+
-          `</div>`;
-      }
-    }
-  }
+  metaStripHome(d);
+  diaDashHome(d);
   chartHomeReceita(d.receita_12m||[]);
   chartHomeSaldo(d.fluxo_serie||[]);
-  donutHome(d.modal_km||[]);
-  document.getElementById('alerts-home').innerHTML=(A.length?A:[['t-ok','Tudo em ordem','Nenhum alerta crítico no momento.','#home']])
-    .map(([c,t,m,h])=>`<a href="${h}" style="text-decoration:none;color:inherit"><div class="toast ${c}" style="cursor:pointer"><b>${esc(t)}</b>${esc(m)}</div></a>`).join('');
+  barrasModalHome(d.modal_km||[]);
+  document.getElementById('alerts-home').innerHTML=(A.length?A:[['t-ok','sevOk','Tudo em ordem','Nenhum alerta crítico no momento.','#home']])
+    .map(([c,ic,t,m,h])=>`<a href="${h}" style="text-decoration:none;color:inherit"><div class="toast wic ${c}" style="cursor:pointer">`+
+      `<span class="ti">${ICONS[ic]||''}</span><span class="tx"><b>${esc(t)}</b>${esc(m)}</span></div></a>`).join('');
   const ts=new Date(d.atualizado_em);
   document.getElementById('meta').innerHTML='<b>Atualizado '+ts.toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'})+'</b><br>'+ts.toLocaleDateString('pt-BR');
+}
+
+/* Faixa de atingimento da meta, dentro do card do faturamento diário:
+   % acumulado do mês, barra de progresso e projeção no ritmo atual. */
+function metaStripHome(d){
+  const el=document.getElementById('home-atingimento'); if(!el) return;
+  const at=d.atingimento_mes, pct=at!=null?100*at:null;
+  const cor = pct==null ? 'var(--n500)' : (pct>=100?'var(--green)':(pct>=85?'var(--yellow)':'var(--red)'));
+  const metaMes=(d.diario||[]).reduce((s,r)=>s+(r.meta||0),0);
+  const proj = (at!=null && metaMes>0) ? at*metaMes : null;
+  const falta = (d.meta_acumulada||0) - (d.realizado_acumulado||0);
+  const pp = pct!=null ? pct-100 : null;
+  const chip = pct==null ? ''
+    : `<span class="trend ${pct>=100?'good':(pct>=85?'warn':'bad')}" title="Diferença em pontos percentuais contra 100% da meta acumulada até hoje.">`+
+      `${ICONS[pct>=100?'trUp':'trDown']}${(pp>0?'+':'−')+Math.abs(pp).toLocaleString('pt-BR',{maximumFractionDigits:0})} p.p.</span>`;
+  el.innerHTML =
+    `<div class="mcap">Atingimento da meta · mês</div>`+
+    `<div class="mbig"><span class="mpct" style="color:${cor}">${pct==null?'—':pct.toLocaleString('pt-BR',{maximumFractionDigits:0})+'%'}</span>${chip}</div>`+
+    `<div class="mbar" role="img" aria-label="Realizado ${BRL.format(d.realizado_acumulado||0)} de meta ${BRL.format(d.meta_acumulada||0)} até hoje">`+
+      `<i style="width:${Math.max(0,Math.min(100,pct||0))}%;background:${cor}"></i></div>`+
+    `<div class="msub"><b>${BRL.format(d.realizado_acumulado||0)}</b> de <b>${BRL.format(d.meta_acumulada||0)}</b> até hoje`+
+      (falta>0?` · faltam <b>${BRL.format(falta)}</b>`:` · <b>${BRL.format(-falta)}</b> acima`)+`<br>`+
+      `meta do mês <b>${BRL.format(metaMes)}</b>`+(proj!=null?` · projeção no ritmo atual <b>${BRL.format(proj)}</b>`:'')+`</div>`;
+}
+
+/* Cartões do dia: meta, realizado e % (hoje; senão o último dia com realizado) */
+function diaDashHome(d){
+  const el=document.getElementById('home-diadash'); if(!el) return;
+  const hoje=new Date().getDate();
+  const dia=(d.diario||[]).find(x=>x.dia===hoje) || (d.diario||[]).filter(x=>x.realizado>0).slice(-1)[0];
+  if(!dia){ el.innerHTML=''; return; }
+  const pct = dia.meta>0 ? 100*dia.realizado/dia.meta : null;
+  const cor = pct==null?'var(--n500)':(pct>=95?'var(--green)':(pct>=70?'var(--yellow)':'var(--red)'));
+  const cap = String(dia.dia).padStart(2,'0')+'/'+String(new Date().getMonth()+1).padStart(2,'0');
+  const ic = pct==null?'':ICONS[pct>=95?'trUp':'trDown'];
+  el.innerHTML =
+    `<div class="dd-cap">Dia ${cap}${dia.dia===hoje?' (hoje)':' (último com realizado)'}</div><div class="dd-row">`+
+    `<div class="dd"><span class="dd-l">Meta do dia</span><span class="dd-v">${BRL.format(dia.meta||0)}</span></div>`+
+    `<div class="dd"><span class="dd-l">Realizado do dia</span><span class="dd-v">${BRL.format(dia.realizado||0)}</span></div>`+
+    `<div class="dd"><span class="dd-l">% realizado do dia</span><span class="dd-v" style="color:${cor};display:inline-flex;align-items:center;gap:4px">`+
+      `<span style="width:13px;height:13px;display:inline-flex">${ic}</span>${pct==null?'—':pct.toLocaleString('pt-BR',{maximumFractionDigits:0})+'%'}</span></div>`+
+    `</div>`;
 }
 
 
 
 
 /* gráficos da visão geral */
-/* Cor da barra de realizado num degradê contínuo vermelho→amarelo→verde
-   conforme o atingimento da meta do dia (realizado÷meta): ≤50%=vermelho,
-   85%=amarelo, ≥100%=verde, interpolando os tons entre esses pontos.
-   Sem meta no dia (meta=0) → cinza neutro. */
+/* Cor da barra de realizado = SEMÁFORO DISCRETO do atingimento da meta do dia
+   (realizado÷meta), nos MESMOS cortes do cartão do dia: ≥95% verde, 70–94%
+   âmbar, abaixo disso vermelho; dia sem meta (domingo/feriado) = cinza.
+   Era um degradê contínuo: gerava tons intermediários oliva/mostarda que não
+   existem no design system e não diziam em que estado o dia estava. */
+const AT_CORTES = [[0.95,'verde'],[0.70,'amarelo']];
 function corAtingimento(ratio){
-  if(ratio==null || !isFinite(ratio)) return '#94A3B8';
-  const stops=[[0.50,[220,38,38]],[0.85,[224,164,0]],[1.00,[22,163,74]]];
-  const t=Math.max(stops[0][0],Math.min(1,ratio));
-  let a=stops[0], b=stops[stops.length-1];
-  for(let k=0;k<stops.length-1;k++){ if(t>=stops[k][0]&&t<=stops[k+1][0]){ a=stops[k]; b=stops[k+1]; break; } }
-  const f=(b[0]-a[0])?(t-a[0])/(b[0]-a[0]):0;
-  const c=i=>Math.round(a[1][i]+(b[1][i]-a[1][i])*f);
-  return 'rgb('+c(0)+','+c(1)+','+c(2)+')';
+  if(ratio==null || !isFinite(ratio)) return CC.n400;
+  for(const [lim,cor] of AT_CORTES) if(ratio>=lim) return CC[cor];
+  return CC.vermelho;
 }
+const _mesAtual = () => { const d=new Date(); return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0'); };
+
+/* Faturamento diário × meta. A meta virou LINHA EM DEGRAU (antes eram 2 barras
+   por dia = 60 barras num mês, ilegível) e os dias que ainda não chegaram
+   ganharam faixa própria, para não parecerem dias com realizado zero. */
 function chartHomeDiario(diario){
   const svg=document.getElementById('chartHdia');
   GEOM['chartHdia']=null; ACTIVE['chartHdia']=-1;
-  if(!diario.length){ svg.innerHTML='<text x="480" y="110" text-anchor="middle" fill="#6E7883" font-size="14">sem dados no mês</text>'; return; }
-  const W=960,H=240,mL=64,mR=16,mT=20,mB=30, iw=W-mL-mR, ih=H-mT-mB;
+  if(!diario.length){ svg.innerHTML=`<text x="480" y="115" text-anchor="middle" fill="${CC.n500}" font-size="14">sem dados no mês</text>`; return; }
+  const W=960,H=250,mL=64,mR=16,mT=24,mB=34, iw=W-mL-mR, ih=H-mT-mB;
   const n=diario.length, bandW=iw/n;
   const maxV=Math.max(1,...diario.map(r=>Math.max(r.realizado||0,r.meta||0)));
-  const tks=niceTicks(0,maxV,4), top=tks[tks.length-1], u=unitOf(top);
+  // 8% de folga acima do último tick: sem ela o rótulo do melhor dia colide com
+  // o topo da área e com o rótulo de unidade do eixo
+  const tks=niceTicks(0,maxV,4), top=tks[tks.length-1]*1.08, u=unitOf(top);
   const y=v=>mT+ih-(v/top)*ih, y0=y(0);
   const px=i=>mL+bandW*i+bandW/2;
-  const barW=Math.min(10,bandW*0.3);
+  const barW=Math.min(17,bandW*0.62);
+  const hoje=new Date().getDate();
+  let iFut=diario.findIndex(r=>r.dia>hoje); if(iFut<0) iFut=n;   // 1º dia a realizar
   let s='';
   s+=`<rect id="chartHdia-hband" x="0" y="${mT-8}" width="${bandW}" height="${ih+8}" fill="${CC.navy100}" opacity="0"/>`;
-  s+=`<text x="${mL}" y="${mT-6}" font-size="11" fill="#6E7883" font-weight="600" letter-spacing="1.5">${u.t}</text>`;
+  if(iFut<n){ const xf=mL+bandW*iFut;
+    s+=`<rect x="${xf}" y="${mT-8}" width="${W-mR-xf}" height="${ih+8}" fill="${CC.grid}"/>`;
+    s+=`<text x="${xf+7}" y="${mT+5}" font-size="10" font-weight="600" fill="${CC.n500}">a realizar</text>`; }
+  s+=`<text x="${mL}" y="${mT-9}" font-size="11" fill="${CC.n500}" font-weight="600" letter-spacing="1.5">${u.t}</text>`;
   tks.forEach(v=>{ const yy=y(v);
-    s+=`<line x1="${mL}" y1="${yy}" x2="${W-mR}" y2="${yy}" stroke="${v===0?'#C2C8D0':'#ECEEF1'}" stroke-width="1"/>`;
-    s+=`<text x="${mL-8}" y="${yy+4}" text-anchor="end" font-size="10" fill="#6E7883" font-family="IBM Plex Mono,monospace">${NMI.format(v/u.d)}</text>`; });
-  diario.forEach((r,i)=>{ const cx=px(i);
-    const rat=(r.meta>0)?(r.realizado||0)/r.meta:null;
-    s+=colPath(cx-barW-1,barW,y(r.realizado||0),y0,3,corAtingimento(rat));
-    s+=colPath(cx+1,barW,y(r.meta||0),y0,3,CC.navy500); });
-  diario.forEach((r,i)=>{ if(i%2===0||n<=16) s+=`<text x="${px(i)}" y="${H-mB+16}" text-anchor="middle" font-size="10" fill="#4F5860">${r.dia}</text>`; });
+    s+=`<line x1="${mL}" y1="${yy}" x2="${W-mR}" y2="${yy}" stroke="${v===0?CC.n300:CC.grid}" stroke-width="1"/>`;
+    s+=`<text x="${mL-8}" y="${yy+4}" text-anchor="end" font-size="10" fill="${CC.n500}" font-family="IBM Plex Mono,monospace">${NMI.format(v/u.d)}</text>`; });
+  diario.forEach((r,i)=>{ const rat=(r.meta>0)?(r.realizado||0)/r.meta:null;
+    s+=colPath(px(i)-barW/2,barW,y(r.realizado||0),y0,4,corAtingimento(rat)); });
+  // Meta em degrau, INTERROMPIDA nos dias sem meta (domingos/feriados): descer a
+  // linha até zero nesses dias criava vales que pareciam meta batendo no chão.
+  let mp='', aberto=false;
+  diario.forEach((r,i)=>{
+    if(!(r.meta>0)){ aberto=false; return; }
+    const yy=y(r.meta).toFixed(1), x1=(mL+bandW*i).toFixed(1), x2=(mL+bandW*(i+1)).toFixed(1);
+    mp += (aberto?'L':'M')+x1+','+yy+' L'+x2+','+yy+' ';
+    aberto=true;
+  });
+  if(mp) s+=`<path d="${mp.trim()}" fill="none" stroke="${CC.navy500}" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/>`;
+  if(iFut>0 && iFut<n){ const xf=mL+bandW*iFut;
+    s+=`<line x1="${xf}" x2="${xf}" y1="${mT-8}" y2="${y0}" stroke="${CC.navy400}" stroke-width="1.5" stroke-dasharray="3 3"/>`; }
+  // rótulo direto só no melhor dia do mês (número em todo dia viraria ruído)
+  const iMax=diario.reduce((b,r,i)=>((r.realizado||0)>(diario[b].realizado||0)?i:b),0);
+  if((diario[iMax].realizado||0)>0)
+    s+=`<text x="${px(iMax)}" y="${y(diario[iMax].realizado)-8}" text-anchor="middle" font-size="10" font-weight="700" fill="${CC.n700}" stroke="#fff" stroke-width="3" paint-order="stroke" stroke-linejoin="round">${brlAbbr(diario[iMax].realizado)}</text>`;
+  diario.forEach((r,i)=>{ if(i%2===0||n<=16)
+    s+=`<text x="${px(i)}" y="${H-mB+17}" text-anchor="middle" font-size="10" font-weight="${r.dia===hoje?'700':'400'}" fill="${r.dia===hoje?CC.n900:CC.n600}">${r.dia}</text>`; });
   s+=`<line id="chartHdia-xhair" x1="0" x2="0" y1="${mT-8}" y2="${y0}" stroke="${CC.navy400}" stroke-width="1" opacity="0"/>`;
   s+=`<rect x="${mL}" y="${mT-8}" width="${iw}" height="${ih+8}" fill="transparent"/>`;
   svg.innerHTML=s;
-  GEOM['chartHdia']={kind:'hdia',rows:diario,n,bandW,mL,W,px,topY:mT-8,botY:y0,wrap:'wrapHdia',tip:'tipHdia'};
+  GEOM['chartHdia']={kind:'hdia',rows:diario,n,bandW,mL,W,px,topY:mT-8,botY:y0,wrap:'wrapHdia',tip:'tipHdia',hoje};
   bindHover('chartHdia');
 }
+
+/* Receita mensal (12m). Ganhou linha de MÉDIA dos meses fechados e hachura no
+   mês corrente — barra cheia num mês incompleto lia-se como queda real. */
 function chartHomeReceita(mensal){
   const svg=document.getElementById('chartHrec');
   GEOM['chartHrec']=null; ACTIVE['chartHrec']=-1;
-  if(!mensal.length){ svg.innerHTML='<text x="480" y="110" text-anchor="middle" fill="#6E7883" font-size="14">sem dados</text>'; return; }
-  const W=960,H=240,mL=64,mR=16,mT=20,mB=30, iw=W-mL-mR, ih=H-mT-mB;
+  if(!mensal.length){ svg.innerHTML=`<text x="480" y="115" text-anchor="middle" fill="${CC.n500}" font-size="14">sem dados</text>`; return; }
+  // viewBox estreito (640) porque o card ocupa METADE da largura: com 960 o SVG
+  // era reduzido a ~70% e a tipografia dos eixos ficava ilegível
+  const W=640,H=260,mL=54,mR=14,mT=26,mB=40, iw=W-mL-mR, ih=H-mT-mB;
   const n=mensal.length, bandW=iw/n;
-  const maxV=Math.max(1,...mensal.map(r=>r.receita));
-  const tks=niceTicks(0,maxV,4), top=tks[tks.length-1], u=unitOf(top);
+  const mAtual=_mesAtual();
+  const fechados=mensal.filter(r=>r.mes!==mAtual);
+  const media=fechados.length ? fechados.reduce((s,r)=>s+r.receita,0)/fechados.length : null;
+  const maxV=Math.max(1,...mensal.map(r=>r.receita), media||0);
+  const tks=niceTicks(0,maxV,4), top=tks[tks.length-1]*1.10, u=unitOf(top);
   const y=v=>mT+ih-(v/top)*ih, y0=y(0);
   const px=i=>mL+bandW*i+bandW/2;
-  const barW=Math.min(30,bandW*0.55);
-  let s='';
+  const barW=Math.min(26,bandW*0.58);
+  let s=`<defs><pattern id="hatchRec" width="6" height="6" patternTransform="rotate(45)" patternUnits="userSpaceOnUse">`+
+        `<rect width="6" height="6" fill="${CC.verde}"/><rect width="2.4" height="6" fill="#fff" opacity=".62"/></pattern></defs>`;
   s+=`<rect id="chartHrec-hband" x="0" y="${mT-8}" width="${bandW}" height="${ih+8}" fill="${CC.navy100}" opacity="0"/>`;
-  s+=`<text x="${mL}" y="${mT-6}" font-size="11" fill="#6E7883" font-weight="600" letter-spacing="1.5">${u.t}</text>`;
+  s+=`<text x="${mL}" y="${mT-9}" font-size="11" fill="${CC.n500}" font-weight="600" letter-spacing="1.5">${u.t}</text>`;
   tks.forEach(v=>{ const yy=y(v);
-    s+=`<line x1="${mL}" y1="${yy}" x2="${W-mR}" y2="${yy}" stroke="${v===0?'#C2C8D0':'#ECEEF1'}" stroke-width="1"/>`;
-    s+=`<text x="${mL-8}" y="${yy+4}" text-anchor="end" font-size="10" fill="#6E7883" font-family="IBM Plex Mono,monospace">${NMI.format(v/u.d)}</text>`; });
-  mensal.forEach((r,i)=>{ s+=colPath(px(i)-barW/2,barW,y(r.receita),y0,4,'#1E7F4F'); });
-  mensal.forEach((r,i)=>{ s+=`<text x="${px(i)}" y="${H-mB+16}" text-anchor="middle" font-size="10" fill="#4F5860">${periodoLabel(r.mes)}</text>`; });
+    s+=`<line x1="${mL}" y1="${yy}" x2="${W-mR}" y2="${yy}" stroke="${v===0?CC.n300:CC.grid}" stroke-width="1"/>`;
+    s+=`<text x="${mL-8}" y="${yy+4}" text-anchor="end" font-size="10" fill="${CC.n500}" font-family="IBM Plex Mono,monospace">${NMI.format(v/u.d)}</text>`; });
+  mensal.forEach((r,i)=>{ const parcial=r.mes===mAtual;
+    s+=colPath(px(i)-barW/2,barW,y(r.receita),y0,4,parcial?'url(#hatchRec)':CC.verde); });
+  if(media!=null){ const ym=y(media);
+    s+=`<line x1="${mL}" y1="${ym}" x2="${W-mR}" y2="${ym}" stroke="${CC.navy700}" stroke-width="1.5" stroke-dasharray="5 4"/>`;
+    s+=`<text x="${W-mR}" y="${ym-6}" text-anchor="end" font-size="10.5" font-weight="700" fill="${CC.navy700}" stroke="#fff" stroke-width="3" paint-order="stroke" stroke-linejoin="round">média ${brlAbbr(media)}</text>`; }
+  // rótulos diretos: melhor mês e mês corrente (parcial)
+  const iMax=mensal.reduce((b,r,i)=>(r.receita>mensal[b].receita?i:b),0);
+  const iPar=mensal.findIndex(r=>r.mes===mAtual);
+  [iMax,iPar].filter((v,k,a)=>v>=0&&a.indexOf(v)===k).forEach(i=>{
+    s+=`<text x="${px(i)}" y="${y(mensal[i].receita)-8}" text-anchor="middle" font-size="10.5" font-weight="700" fill="${CC.n700}" stroke="#fff" stroke-width="3" paint-order="stroke" stroke-linejoin="round">${brlAbbr(mensal[i].receita)}</text>`; });
+  mensal.forEach((r,i)=>{ const parcial=r.mes===mAtual;
+    s+=`<text x="${px(i)}" y="${H-mB+18}" text-anchor="middle" font-size="11" font-weight="${parcial?'700':'400'}" fill="${parcial?CC.n900:CC.n600}">${periodoLabel(r.mes)}</text>`;
+    if(parcial) s+=`<text x="${px(i)}" y="${H-mB+31}" text-anchor="middle" font-size="9.5" font-weight="600" fill="${CC.n500}">parcial</text>`; });
   s+=`<line id="chartHrec-xhair" x1="0" x2="0" y1="${mT-8}" y2="${y0}" stroke="${CC.navy400}" stroke-width="1" opacity="0"/>`;
   s+=`<rect x="${mL}" y="${mT-8}" width="${iw}" height="${ih+8}" fill="transparent"/>`;
   svg.innerHTML=s;
-  GEOM['chartHrec']={kind:'hrec',rows:mensal,n,bandW,mL,W,px,topY:mT-8,botY:y0,wrap:'wrapHrec',tip:'tipHrec'};
+  GEOM['chartHrec']={kind:'hrec',rows:mensal,n,bandW,mL,W,px,topY:mT-8,botY:y0,wrap:'wrapHrec',tip:'tipHrec',media,mAtual};
   bindHover('chartHrec');
 }
+
+/* Saldo de caixa projetado. Pontos com semáforo por sinal, faixa negativa
+   sombreada e o 1º período negativo anotado como "gap". */
 function chartHomeSaldo(serie){
   const svg=document.getElementById('chartHsal');
   GEOM['chartHsal']=null; ACTIVE['chartHsal']=-1;
-  if(!serie.length){ svg.innerHTML='<text x="480" y="110" text-anchor="middle" fill="#6E7883" font-size="14">sem dados</text>'; return; }
-  const W=960,H=240,mL=70,mR=16,mT=20,mB=30, iw=W-mL-mR, ih=H-mT-mB;
+  if(!serie.length){ svg.innerHTML=`<text x="480" y="115" text-anchor="middle" fill="${CC.n500}" font-size="14">sem dados</text>`; return; }
+  // mesmo motivo do gráfico de receita: card de meia largura pede viewBox estreito
+  const W=640,H=260,mL=58,mR=14,mT=30,mB=38, iw=W-mL-mR, ih=H-mT-mB;
   const n=serie.length, bandW=iw/n;
   let lo=Math.min(0,...serie.map(r=>r.saldo_projetado)), hi=Math.max(0,...serie.map(r=>r.saldo_projetado));
   const tks=niceTicks(lo,hi,4); lo=tks[0]; hi=tks[tks.length-1];
@@ -3444,54 +3742,67 @@ function chartHomeSaldo(serie){
   const px=i=>mL+bandW*i+bandW/2;
   let s='';
   s+=`<rect id="chartHsal-hband" x="0" y="${mT-8}" width="${bandW}" height="${ih+8}" fill="${CC.navy100}" opacity="0"/>`;
-  s+=`<text x="${mL}" y="${mT-6}" font-size="11" fill="#6E7883" font-weight="600" letter-spacing="1.5">${u.t}</text>`;
+  s+=`<text x="${mL}" y="${mT-13}" font-size="11" fill="${CC.n500}" font-weight="600" letter-spacing="1.5">${u.t}</text>`;
+  if(lo<0) s+=`<rect x="${mL}" y="${y(0)}" width="${iw}" height="${mT+ih-y(0)}" fill="${CC.vermelho}" opacity=".055"/>`;
   tks.forEach(v=>{ const yy=y(v), zero=Math.abs(v)<(hi-lo)/1e4;
-    s+=`<line x1="${mL}" y1="${yy}" x2="${W-mR}" y2="${yy}" stroke="${zero?'#9AA3AE':'#ECEEF1'}" stroke-width="${zero?1.2:1}"/>`;
-    s+=`<text x="${mL-8}" y="${yy+4}" text-anchor="end" font-size="10" fill="#6E7883" font-family="IBM Plex Mono,monospace">${NMI.format(v/u.d)}</text>`; });
-  if(lo<0) s+=`<rect x="${mL}" y="${y(0)}" width="${iw}" height="${mT+ih-y(0)}" fill="#C03221" opacity=".05"/>`;
+    s+=`<line x1="${mL}" y1="${yy}" x2="${W-mR}" y2="${yy}" stroke="${zero?CC.n400:CC.grid}" stroke-width="${zero?1.2:1}"/>`;
+    s+=`<text x="${mL-8}" y="${yy+4}" text-anchor="end" font-size="10" fill="${CC.n500}" font-family="IBM Plex Mono,monospace">${NMI.format(v/u.d)}</text>`; });
   s+=`<polyline points="${serie.map((r,i)=>px(i)+','+y(r.saldo_projetado)).join(' ')}" fill="none" stroke="${CC.navy700}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>`;
-  serie.forEach((r,i)=>{ s+=`<circle cx="${px(i)}" cy="${y(r.saldo_projetado)}" r="3.5" fill="${CC.navy700}" stroke="#fff" stroke-width="2"/>`; });
-  serie.forEach((r,i)=>{ s+=`<text x="${px(i)}" y="${H-mB+16}" text-anchor="middle" font-size="10" fill="#4F5860">${periodoLabel(r.periodo)}</text>`; });
+  serie.forEach((r,i)=>{ const neg=r.saldo_projetado<0;
+    s+=`<circle cx="${px(i)}" cy="${y(r.saldo_projetado)}" r="${neg?4.5:3.5}" fill="${neg?CC.vermelho:CC.navy700}" stroke="#fff" stroke-width="2"/>`; });
+  // anota o 1º período negativo (o gap) e o pior saldo do horizonte
+  const iGap=serie.findIndex(r=>r.saldo_projetado<0);
+  const iMin=serie.reduce((b,r,i)=>(r.saldo_projetado<serie[b].saldo_projetado?i:b),0);
+  [[iGap,'gap'],[iMin!==iGap?iMin:-1,'pior']].forEach(([i,txt])=>{ if(i<0) return;
+    const yy=y(serie[i].saldo_projetado), acima=yy>mT+24;
+    s+=`<text x="${px(i)}" y="${acima?yy-12:yy+19}" text-anchor="middle" font-size="10.5" font-weight="700" `+
+       `fill="${CC.vermelho}" stroke="#fff" stroke-width="3.2" paint-order="stroke" stroke-linejoin="round">${txt} ${brlAbbr(serie[i].saldo_projetado)}</text>`; });
+  serie.forEach((r,i)=>{ s+=`<text x="${px(i)}" y="${H-mB+18}" text-anchor="middle" font-size="11" fill="${CC.n600}">${periodoLabel(r.periodo)}</text>`; });
   s+=`<line id="chartHsal-xhair" x1="0" x2="0" y1="${mT-8}" y2="${mT+ih}" stroke="${CC.navy400}" stroke-width="1" opacity="0"/>`;
   s+=`<rect x="${mL}" y="${mT-8}" width="${iw}" height="${ih+8}" fill="transparent"/>`;
   svg.innerHTML=s;
   GEOM['chartHsal']={kind:'hsal',rows:serie,n,bandW,mL,W,px,topY:mT-8,botY:mT+ih,wrap:'wrapHsal',tip:'tipHsal'};
   bindHover('chartHsal');
 }
-function donutHome(modal){
-  const svg=document.getElementById('donutHome'), leg=document.getElementById('donutLegend');
-  const total=modal.reduce((s,m)=>s+m.km,0);
-  if(!total){ svg.innerHTML=''; leg.textContent='sem km nos últimos 30 dias'; return; }
-  const cx=90, cy=90, R=78, r=48;
-  let ang=-Math.PI/2, s='';
-  const F=v=>v.toLocaleString('pt-BR',{maximumFractionDigits:0});
-  modal.forEach(m=>{
-    const frac=m.km/total, a2=ang+frac*2*Math.PI;
-    const large=frac>0.5?1:0;
-    const x1=cx+R*Math.cos(ang), y1=cy+R*Math.sin(ang);
-    const x2=cx+R*Math.cos(a2), y2=cy+R*Math.sin(a2);
-    const x3=cx+r*Math.cos(a2), y3=cy+r*Math.sin(a2);
-    const x4=cx+r*Math.cos(ang), y4=cy+r*Math.sin(ang);
-    const cor=MOD_COR[m.utilizacao]||'#6E7883';
-    const nome=utLbl(m.utilizacao)[0];
-    s+=`<path d="M${x1},${y1} A${R},${R} 0 ${large} 1 ${x2},${y2} L${x3},${y3} A${r},${r} 0 ${large} 0 ${x4},${y4} Z"
-        fill="${cor}" stroke="#fff" stroke-width="2" style="cursor:help"
-        onmouseover="document.getElementById('donutCentro').textContent='${(100*frac).toFixed(0)}%';document.getElementById('donutCentroSub').textContent='${esc(nome)}'"
-        onmouseout="document.getElementById('donutCentro').textContent='${F(total)}';document.getElementById('donutCentroSub').textContent='km 30d'">
-        <title>${esc(nome)}: ${F(m.km)} km (${(100*frac).toFixed(1)}%)</title></path>`;
-    ang=a2;
-  });
-  s+=`<text id="donutCentro" x="${cx}" y="${cy-2}" text-anchor="middle" font-size="17" font-weight="800" fill="#14181D">${F(total)}</text>`;
-  s+=`<text id="donutCentroSub" x="${cx}" y="${cy+16}" text-anchor="middle" font-size="10" fill="#6E7883">km 30d</text>`;
-  svg.innerHTML=s;
-  leg.innerHTML=modal.map(m=>{
-    const nome=utLbl(m.utilizacao)[0];
-    return `<span style="display:inline-flex;align-items:center;gap:8px">
-      <i style="width:11px;height:11px;border-radius:3px;background:${MOD_COR[m.utilizacao]||'#6E7883'};display:inline-block"></i>
-      <b>${esc(nome)}</b> · ${F(m.km)} km (${(100*m.km/total).toFixed(1)}%)</span>`;
-  }).join('');
-}
 
+/* Km por modalidade (30 dias) — barra horizontal empilhada carregado + vazio,
+   comprimento relativo à maior modalidade. Substituiu o donut: com AGREGADOS em
+   ~80% do km a rosca era uma fatia só e as outras três ficavam ilegíveis.
+   Retorno vazio acima de 20% é alerta em operação FTL (CLAUDE.md §4). */
+function barrasModalHome(modal){
+  const el=document.getElementById('home-modal'); if(!el) return;
+  const rows=(modal||[]).filter(m=>(m.km||0)>0);
+  if(!rows.length){ el.innerHTML='<div style="color:var(--n500);font-size:13px">sem km nos últimos 30 dias</div>'; return; }
+  const total=rows.reduce((s,m)=>s+m.km,0);
+  const carr=rows.reduce((s,m)=>s+(m.km_carregado||0),0);
+  const vaz=rows.reduce((s,m)=>s+(m.km_vazio||0),0);
+  const maxKm=Math.max(...rows.map(m=>m.km));
+  const F=v=>Math.round(v||0).toLocaleString('pt-BR');
+  const P=v=>(100*(v||0)).toLocaleString('pt-BR',{maximumFractionDigits:1})+'%';
+  const farol=rv=>rv>0.20?['bad','sevCrit']:(rv>0.15?['warn','sevWarn']:['good','sevOk']);
+  el.innerHTML = rows.map(m=>{
+    const cor=MOD_COR[m.utilizacao]||CC.n500, nome=utLbl(m.utilizacao)[0];
+    const rv=m.km>0?(m.km_vazio||0)/m.km:0, [cls,ic]=farol(rv);
+    const wc=100*(m.km_carregado||0)/maxKm, wv=100*(m.km_vazio||0)/maxKm;
+    const tt=`${nome}: ${F(m.km)} km em 30 dias (${P(m.km/total)} do total) · carregado ${F(m.km_carregado)} km · vazio ${F(m.km_vazio)} km (${P(rv)}) · ${m.viagens} viagens em ${m.veiculos} veículos`;
+    return `<div class="modrow">`+
+      `<span class="mname"><i style="background:${cor}"></i>${esc(nome)}</span>`+
+      `<span class="mval">${F(m.km)} km · ${P(m.km/total)}</span>`+
+      `<span class="mtrack" title="${esc(tt)}">`+
+        (wc>0?`<span style="width:${wc.toFixed(2)}%;background:${cor}"></span>`:'')+
+        (wv>0?`<span class="vz" style="width:${wv.toFixed(2)}%;background-color:${cor}"></span>`:'')+
+      `</span>`+
+      `<span class="mmeta">carregado <b style="font-family:var(--mono);color:var(--n700)">${F(m.km_carregado)}</b> km`+
+        ` · vazio <b style="font-family:var(--mono);color:var(--n700)">${F(m.km_vazio)}</b> km`+
+        `<span class="trend ${cls}" title="Km vazio ÷ km total da modalidade. Acima de 20% é alerta em FTL.">${ICONS[ic]}vazio ${P(rv)}</span>`+
+        `<span>${m.viagens.toLocaleString('pt-BR')} viagens · ${m.veiculos} veículos</span></span>`+
+    `</div>`;
+  }).join('')+
+  `<div class="modtot"><span>total <b>${F(total)}</b> km</span>`+
+    `<span>carregado <b>${F(carr)}</b> km</span>`+
+    `<span>vazio <b>${F(vaz)}</b> km · <b style="color:${vaz/total>0.20?'var(--red)':(vaz/total>0.15?'var(--yellow-700)':'var(--green)')}">${P(vaz/total)}</b></span>`+
+    `<a href="#km" style="margin-left:auto;color:var(--navy-700);font-weight:600;text-decoration:none">Análise de KM →</a></div>`;
+}
 
 /* ---------------- Veículos ---------------- */
 async function loadVeic(){
@@ -4982,7 +5293,13 @@ const _cssv = (n,f) => (getComputedStyle(document.documentElement).getPropertyVa
 // Paleta dos gráficos. O navy DERIVA dos tokens --navy-* (não mais hex solto
 // espalhado nos SVGs): navy700 escuro · navy500 barra/linha · navy400 eixo ·
 // navy100 banda de hover.
-const CC = { verde:'#1E7F4F', vermelho:'#C03221', amarelo:'#B97709', ouro:'#FFD31C', azul:'#2563EB', roxo:'#7C3AED', ink:'#1E1E1E', n300:'#CBD2D9', n400:'#9AA5B1', n500:'#6B7280', grid:'#EEF1F4',
+// semáforo e neutros também DERIVAM dos tokens (eram literais em paralelo aos
+// var(--...) do CSS — mesma cor hoje, mas duas fontes-da-verdade divergem)
+const CC = { verde:_cssv('--green','#1E7F4F'), vermelho:_cssv('--red','#C03221'), amarelo:_cssv('--yellow','#B97709'),
+  ouro:_cssv('--brand','#FFD31C'), azul:'#2563EB', roxo:'#7C3AED', ink:'#1E1E1E',
+  n300:_cssv('--n300','#C2C8D0'), n400:_cssv('--n400','#9AA3AE'), n500:_cssv('--n500','#6B7580'),
+  n600:_cssv('--n600','#4F5860'), n700:_cssv('--n700','#39414A'), n900:_cssv('--n900','#14181D'),
+  grid:_cssv('--n100','#ECEEF1'),
   navy700:_cssv('--navy-700','#17344F'), navy500:_cssv('--navy-500','#38648D'), navy400:_cssv('--navy-400','#5F87AC'), navy100:_cssv('--navy-100','#DCE6F0'),
   laranja:_cssv('--orange-500','#E85D10') };  // accent visível no branco (o 'ouro' #FFD31C é invisível em gráfico claro — não usar)
 function _chartEl(id){ return document.getElementById(id); }
