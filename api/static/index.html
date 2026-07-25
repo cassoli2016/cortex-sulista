@@ -2159,7 +2159,7 @@ button.avatar{border:0;cursor:pointer}
       <section class="view" id="view-dre">
         <div class="kpis" id="kpis-dre"></div>
         <div class="card">
-          <div class="head"><h2>DRE Gerencial</h2><span class="hint" id="dreHint">valores em R$ · agrupador gerencial da empresa · clique nas linhas com ▸ para abrir a composição</span></div>
+          <div class="head"><h2>DRE Gerencial <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="Modelo de DRE da própria empresa: lançamento × plano de contas × sulista.agrupadorgerencial, por competência. Valores em R$ MIL. A linha NÃO ALOCADO / CLASSIFICAR (em amarelo) é transparência: conta de resultado que ainda não tem agrupador — não é sobra nem erro de cálculo. Δ m/m: a seta segue o TAMANHO da linha (custo caindo é ▼) e a cor segue o efeito no resultado; quando o mês corrente está incompleto, a comparação usa os dois últimos meses FECHADOS.">i</span></h2><span class="hint" id="dreHint">valores em R$ · agrupador gerencial da empresa · clique nas linhas com ▸ para abrir a composição</span></div>
           <div class="tablewrap"><table id="dre-tab"><thead id="dre-head"></thead><tbody id="dre-corpo"></tbody></table></div>
         </div>
       </section>
@@ -7392,32 +7392,51 @@ function renderDre(d){
     return v<0?`<span class="neg">${t}</span>`:t;
   };
   const RES=new Set(['RECEITA LIQUIDA','LUCRO BRUTO','RESULTADO OPERACIONAL (LOP 1)']);
-  const temDelta=d.meses.length>=2;
-  const ultM=d.meses[d.meses.length-1], antM=d.meses[d.meses.length-2];
+  // O mês corrente está INCOMPLETO (lançamentos ainda entrando): comparar ele
+  // com o mês fechado anterior fazia "custo fixo ▲84%" aparecer como melhora,
+  // quando é só lançamento que não chegou. Com mês parcial no fim da série, o
+  // Δ m/m passa a comparar os dois últimos meses FECHADOS.
+  const _mesAtualDre=(()=>{const t=new Date();return t.getFullYear()+'-'+String(t.getMonth()+1).padStart(2,'0');})();
+  const nM=d.meses.length;
+  const parcialFim = nM>0 && d.meses[nM-1]===_mesAtualDre;
+  const idxU = parcialFim && nM>=3 ? nM-2 : nM-1;
+  const temDelta = idxU>=1;
+  const ultM=d.meses[idxU], antM=d.meses[idxU-1];
+  const rlAbs = rl&&rl.total?Math.abs(rl.total):0;
   document.getElementById('dre-head').innerHTML='<tr><th>Linha</th>'+
-    d.meses.map(mm=>`<th class="num">${periodoLabel(mm)}</th>`).join('')+
+    d.meses.map(mm=>`<th class="num">${periodoLabel(mm)}${mm===_mesAtualDre?'<br><span style="font-size:9.5px;font-weight:600;color:var(--n500)">parcial</span>':''}</th>`).join('')+
     '<th class="num" style="border-left:2px solid var(--n300)">Total</th>'+
-    (temDelta?`<th class="num" title="variação de ${periodoLabel(ultM)} sobre ${periodoLabel(antM)} — verde melhora o resultado, vermelho piora">Δ m/m</th>`:'')+
+    (temDelta?`<th class="num" title="variação de ${periodoLabel(ultM)} sobre ${periodoLabel(antM)}${parcialFim?' — os dois últimos meses FECHADOS, porque o mês corrente ainda está incompleto':''}. A seta segue o tamanho da linha (custo caindo aparece como ▼) e a cor segue o efeito no resultado.">Δ m/m${parcialFim?' *':''}</th>`:'')+
     `<th class="num" title="mesmo período do ano anterior (${d.comp_de_aa} a ${d.comp_ate_aa})">Ano ant.</th>`+
     '<th class="num" title="variação sobre o mesmo período do ano anterior — verde melhora o resultado, vermelho piora">Δ a/a</th>'+
     '<th class="num" title="participação do total da linha sobre a receita líquida do período">% RL</th></tr>';
-  const deltaAA=(u,a)=>{
+  /* Célula de variação. Duas regras que a versão anterior não separava:
+     1) SETA = direção do TAMANHO da linha. Numa linha de custo (valor negativo)
+        o custo caindo aparecia como ▲ porque o número assinado subia — ao lado
+        de "CUSTO FIXO" isso lê como "custo subiu". Agora custo que cai é ▼.
+     2) COR = efeito no RESULTADO (verde melhora), que é o que já valia.
+     Quando o sinal vira (despesa que virou receita), a seta volta a seguir o
+     valor assinado, que aí é a leitura correta.
+     Percentual sobre base irrisória vira "base pequena": -11 mil -> -106 mil
+     produzia "880%", que é ruído, não informação. */
+  const _cel=(u,a)=>{
     if(Math.abs(a)<500 && Math.abs(u)<500) return '<td class="num"><span class="zero">–</span></td>';
     if(Math.abs(a)<500) return '<td class="num"><span class="av">novo</span></td>';
     const p=100*(u-a)/Math.abs(a);
     const melhora=u>a;
-    return `<td class="num" style="color:${melhora?'var(--green,#1E7F4F)':'var(--red)'};font-weight:600;font-size:12px">${melhora?'▲':'▼'} ${Math.abs(p)>=1000?'999+':Math.abs(p).toFixed(0)}%</td>`;
+    const mesmoSinal=(u>=0)===(a>=0);
+    const seta = mesmoSinal ? (Math.abs(u)>Math.abs(a)?'▲':'▼') : (melhora?'▲':'▼');
+    const cor=melhora?'var(--green)':'var(--red)';
+    const baseFraca = rlAbs>0 && Math.abs(a) < 0.01*rlAbs && Math.abs(p)>=200;
+    const txt = baseFraca ? 'base pequena' : (Math.abs(p)>=1000?'999+':Math.abs(p).toFixed(0))+'%';
+    const tit = baseFraca ? `variação de ${(a/1000).toLocaleString('pt-BR',{maximumFractionDigits:0})} para ${(u/1000).toLocaleString('pt-BR',{maximumFractionDigits:0})} (R$ mil) — base pequena demais para o percentual dizer algo`
+                          : `de ${(a/1000).toLocaleString('pt-BR',{maximumFractionDigits:0})} para ${(u/1000).toLocaleString('pt-BR',{maximumFractionDigits:0})} (R$ mil)`;
+    return `<td class="num" style="color:${cor};font-weight:600;font-size:12px" title="${esc(tit)}">${seta} ${txt}</td>`;
   };
+  const deltaAA=(u,a)=>_cel(u,a);
   const delta=(vs)=>{
     if(!temDelta) return '';
-    const a=vs[antM]||0, u=vs[ultM]||0;
-    if(Math.abs(a)<500 && Math.abs(u)<500) return '<td class="num"><span class="zero">–</span></td>';
-    if(Math.abs(a)<500) return '<td class="num"><span class="av">novo</span></td>';
-    const p=100*(u-a)/Math.abs(a);
-    const melhora=u>a;                     // valores assinados: subir melhora o resultado
-    const seta=melhora?'▲':'▼';
-    const cor=melhora?'var(--green,#1E7F4F)':'var(--red)';
-    return `<td class="num" style="color:${cor};font-weight:600;font-size:12px">${seta} ${Math.abs(p)>=1000?'999+':Math.abs(p).toFixed(0)}%</td>`;
+    return _cel(vs[ultM]||0, vs[antM]||0);
   };
   let html='';
   d.linhas.forEach((l,i)=>{
