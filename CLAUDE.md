@@ -140,6 +140,22 @@ Toda construção de painel segue a skill `dashboard-builder` e este padrão:
 - **Parte-do-todo com uma categoria dominante não é donut**: barra horizontal empilhada
   ordenada (ver "Km rodado por modalidade" — AGREGADOS é ~80% do km).
 
+**FILTROS — revalidar em toda tela revisada (regra permanente):**
+Toda tela que passar por revisão tem os filtros conferidos contra o próprio contexto:
+listar o que o `qsView()` da vista manda × o que a query realmente consome. **Filtro que
+a query ignora sai; dimensão que a query aceita e é a pergunta natural da tela entra.**
+- **Período por preset**: o grupo de emissão (`grpEmi`, compartilhado por com/oc/agr/comb/
+  man/km/mul/rent) tem `fEmiPreset` — Este mês · Mês passado · Últimos 3 meses · Últimos 90
+  dias · Ano corrente · Últimos 12 meses. O select preenche as datas; digitar data volta
+  para "Personalizado". **As datas são compartilhadas entre essas telas**, então
+  `emiPresetSync()` roda no router (troca de vista) e no fim do render — sem isso o rótulo
+  do preset mentiria sobre o recorte.
+- Datas sempre em **horário local** (`_iso()`): `toISOString()` em UTC−3 volta um dia.
+- **Recorte parcial nunca é barra cheia**: se o filtro corta o primeiro/último mês, a barra
+  sai hachurada e rotulada "parcial" (`comParcial()`), com o aviso repetido no tooltip.
+- **Card que NÃO segue os filtros leva badge visível** (ex.: "Meta × realizado" é sempre o
+  mês corrente). Enterrar isso no texto do hint faz o número parecer furado.
+
 **Padrões de tela de conversa (Copiloto — reusar em qualquer chat futuro):**
 - **Coluna de leitura travada** (`.cop-card>*{max-width:760px}`): o card ocupa a largura
   cheia (moldura igual às outras telas), o conteúdo centraliza. Bolha a 78% de um card de
