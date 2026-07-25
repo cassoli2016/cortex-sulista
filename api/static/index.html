@@ -1054,12 +1054,22 @@ button.avatar{border:0;cursor:pointer}
         </div>
         <div class="rangegrp" id="grpComp" style="display:none">
           <div class="field">
+            <label for="fCompPreset">Período</label>
+            <select id="fCompPreset" onchange="compPresetChange()">
+              <option value="">Personalizado</option>
+              <option value="mes">Este mês</option>
+              <option value="m3">Últimos 3 meses</option>
+              <option value="ano">Ano corrente</option>
+              <option value="m12">Últimos 12 meses</option>
+            </select>
+          </div>
+          <div class="field">
             <label for="fCompDe">Competência de</label>
-            <input type="month" id="fCompDe" onchange="reloadCurrent()">
+            <input type="month" id="fCompDe" onchange="compManual()">
           </div>
           <div class="field">
             <label for="fCompAte">até</label>
-            <input type="month" id="fCompAte" onchange="reloadCurrent()">
+            <input type="month" id="fCompAte" onchange="compManual()">
           </div>
         </div>
         <div class="spacer"></div>
@@ -2112,7 +2122,7 @@ button.avatar{border:0;cursor:pointer}
       <section class="view" id="view-drecli">
         <div class="kpis" id="kpis-drecli"></div>
         <div class="card">
-          <div class="head"><h2>DRE por Cliente</h2><span class="hint" id="drecliHint">custeada por viagem/CT-e · reconciliada com a DRE oficial · valores em R$ · até Margem Direta (custo fixo por dia-veículo)</span></div>
+          <div class="head"><h2>DRE por Cliente <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="DRE custeada POR VIAGEM e reconciliada contra a DRE oficial do razão: cada linha desce por viagem/CT-e e o que não desce fica em NÃO ALOCADO (tabela ao lado). Impostos e créditos usam percentual paramétrico calibrado (config/dre_cliente_params.yaml). Custo fixo é rateado por DIA-VEÍCULO. A coluna % mostra cada linha sobre a receita líquida DO CLIENTE.">i</span></h2><span class="hint" id="drecliHint">custeada por viagem/CT-e · reconciliada com a DRE oficial · até Margem Direta</span></div>
           <div style="padding:0 16px 10px">
             <label for="fDreCli" style="font-size:13px;color:var(--n600)">Cliente:&nbsp;</label>
             <select id="fDreCli" onchange="renderDreCli(DATADRECLI)" style="min-width:280px;max-width:100%"></select>
@@ -2123,20 +2133,20 @@ button.avatar{border:0;cursor:pointer}
         </div>
         <div class="grid2">
           <div class="card">
-            <div class="head"><h2>Ranking por margem de contribuição</h2><span class="hint">MC% · maior primeiro</span></div>
+            <div class="head"><h2>Ranking por margem <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="Clique no cabeçalho para reordenar. O padrão é receita líquida (materialidade): ordenar por MC% joga para o topo cliente com uma viagem só, cuja margem percentual não sustenta decisão — esses ficam marcados como pouco volume. MC/dia-veículo mede a margem por dia de ativo ocupado, útil para comparar clientes que prendem frota.">i</span></h2><span class="hint">clique no cabeçalho para reordenar · top 30</span></div>
             <div class="tablewrap"><table><thead><tr>
               <th>Cliente</th><th class="num">Receita líq.</th><th class="num">MC</th><th class="num">MC%</th><th class="num">Margem direta</th><th class="num">MC/dia-veíc.</th><th class="num">% km vazio</th><th class="num">Viagens</th>
             </tr></thead><tbody id="drecli-rank"></tbody></table></div>
           </div>
           <div class="card">
-            <div class="head"><h2>Reconciliação vs DRE oficial</h2><span class="hint">Σ clientes + não alocado + variação = DRE · cobertura por linha</span></div>
+            <div class="head"><h2>Reconciliação vs DRE oficial <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="Prova de que nada foi inventado nem perdido: descido aos clientes + não alocado + variação de absorção = DRE oficial, linha a linha. A COBERTURA é a fatia que chegou a algum cliente. Cobertura baixa em CUSTO FIXO significa que a Margem Direta por cliente está parcial — o que não desce fica fora da margem de todo mundo.">i</span></h2><span class="hint">Σ clientes + não alocado + variação = DRE oficial</span></div>
             <div class="tablewrap"><table><thead><tr>
               <th>Linha</th><th class="num">Descido</th><th class="num">Não alocado</th><th class="num">Var. absorção</th><th class="num">DRE oficial</th><th class="num">Cobertura</th>
             </tr></thead><tbody id="drecli-recon"></tbody></table></div>
           </div>
         </div>
         <div class="card">
-          <div class="head"><h2>Matriz margem × receita</h2><span class="hint">cada bolha é um cliente · X = receita líquida (escala raiz) · Y = MC% · linhas: mediana de receita e MC 25% · passe o mouse para o nome</span></div>
+          <div class="head"><h2>Matriz margem × receita <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="Cada bolha é um cliente: X = receita líquida no período (escala raiz, para os pequenos não colarem no eixo), Y = margem de contribuição %. As linhas tracejadas são a mediana de receita e o corte de MC 25%. Quadrante direito-baixo (vermelho) = cliente grande com margem fraca: é onde re-preço tem mais efeito.">i</span></h2><span class="hint">bolha = cliente · X: receita líquida (escala raiz) · Y: MC%</span></div>
           <div class="chartwrap"><svg id="chartDrecliMat" viewBox="0 0 960 400" preserveAspectRatio="xMidYMid meet" role="img" aria-label="Matriz de margem de contribuição por receita, por cliente."></svg></div>
         </div>
       </section>
@@ -2689,6 +2699,7 @@ function router(){
     comb ? 'Abastecimento de' : mul ? 'Infração de' : man ? 'Emissão da OS de' : (agr||kmv||com||rent) ? 'Emissão da viagem de' : 'Emissão da OC de';
   document.getElementById('grpHor').style.display = (v==='fluxo') ? 'flex' : 'none';
   document.getElementById('grpComp').style.display = (dre||mvb||contab||dreCli) ? 'flex' : 'none';
+  if(dre||mvb||contab||dreCli) compPresetSync();   // competências são compartilhadas entre essas telas
   document.getElementById('grpEmi').style.display = (oc||agr||comb||man||com||kmv||mul||rent) ? 'flex' : 'none';
   // as datas de emissão são COMPARTILHADAS por essas telas: ao trocar de vista o
   // select tem que voltar a descrever o recorte que está nos campos
@@ -2857,6 +2868,26 @@ function emiDataManual(){              // digitou data -> o preset não descreve
 }
 /* Deixa o select coerente com as datas que voltaram da API (cada tela tem seu
    padrão de período no backend). Sem isso o rótulo mentiria sobre o recorte. */
+/* Competência (grupo compartilhado por DRE, DRE por Cliente, MvB e Contabilidade).
+   Reusa clifRange(), que já devolve o intervalo em meses. */
+function compPresetChange(){
+  const r=clifRange(document.getElementById('fCompPreset').value);
+  if(!r) return;
+  document.getElementById('fCompDe').value=_mesISO(r[0]);
+  document.getElementById('fCompAte').value=_mesISO(r[1]);
+  reloadCurrent();
+}
+function compManual(){ document.getElementById('fCompPreset').value=''; reloadCurrent(); }
+function compPresetSync(){
+  const de=document.getElementById('fCompDe'), ate=document.getElementById('fCompAte'), sel=document.getElementById('fCompPreset');
+  if(!de||!ate||!sel) return;
+  let achou='';
+  for(const p of ['mes','m3','ano','m12']){
+    const r=clifRange(p);
+    if(r && _mesISO(r[0])===de.value && _mesISO(r[1])===ate.value){ achou=p; break; }
+  }
+  sel.value=achou;
+}
 function emiPresetSync(){
   const de=document.getElementById('fEmiDe'), ate=document.getElementById('fEmiAte'), sel=document.getElementById('fEmiPreset');
   if(!de||!ate||!sel) return;
@@ -6991,11 +7022,19 @@ function renderDreCli(d){
   const somaLinha=rot=>clientes.reduce((s,c)=>s+((c.linhas||{})[rot]||0),0);
   const rl=somaLinha('RECEITA LIQUIDA'), mc=somaLinha('MARGEM DE CONTRIBUICAO');
   const cobRB=(d.cobertura&&d.cobertura['RECEITA BRUTA']!=null)?(100*d.cobertura['RECEITA BRUTA']).toFixed(0)+'%':'—';
+  compPresetSync();
+  const cobRBv=(d.cobertura&&d.cobertura['RECEITA BRUTA'])||0;
+  const cobCF=(d.cobertura&&d.cobertura['CUSTO FIXO'])||0;
   document.getElementById('kpis-drecli').innerHTML=[
     kpi('Receita líquida', BRL.format(rl), clientes.length+' clientes', ''),
-    kpi('Margem de contribuição', BRL.format(mc), rl?(100*mc/rl).toFixed(1)+'% da RL':'', mc<0?'neg':'pos'),
+    kpi('Margem de contribuição', BRL.format(mc), rl?(100*mc/rl).toFixed(1).replace('.',',')+'% da RL':'', mc<0?'neg':'pos'),
     kpi('Clientes', clientes.length.toLocaleString('pt-BR'), compLabel(d.comp_de)+' a '+compLabel(d.comp_ate), ''),
-    kpi('Cobertura da receita', cobRB, 'atribuído a cliente vs DRE oficial', ''),
+    kpi('Cobertura da receita', cobRB, 'atribuído a cliente vs DRE oficial', '',
+      'Parcela da receita bruta da DRE oficial que o modelo conseguiu atribuir a um cliente. O que sobra fica em NÃO ALOCADO na tabela de reconciliação — não some, mas também não entra na margem de nenhum cliente.',
+      statChip(cobRBv>=0.95?'good':(cobRBv>=0.8?'warn':'bad'),
+        cobRBv>=0.95?'atribuição alta':(cobRBv>=0.8?'atenção':'baixa'),
+        'Cobertura da receita bruta. Abaixo de 95% a comparação entre clientes começa a ficar injusta.',
+        cobRBv>=0.95?'sevOk':(cobRBv>=0.8?'sevWarn':'sevCrit'))),
   ].join('');
   const sel=document.getElementById('fDreCli'), atual=sel.value;
   sel.innerHTML=clientes.map(c=>`<option value="${esc(c.cliente)}">${esc(c.cliente)}</option>`).join('');
@@ -7004,26 +7043,85 @@ function renderDreCli(d){
   const alvo=clientes.find(c=>c.cliente===sel.value)||clientes[0];
   const fm=v=>{ if(Math.abs(v)<0.005) return '<span class="zero">–</span>'; const t=v.toLocaleString('pt-BR',{maximumFractionDigits:2}); return v<0?`<span class="neg">${t}</span>`:t; };
   const RES=new Set(['RECEITA LIQUIDA','MARGEM DE CONTRIBUICAO','MARGEM DIRETA DO CLIENTE']);
-  document.getElementById('drecli-head').innerHTML='<tr><th>Linha</th><th class="num">'+(alvo?esc(alvo.cliente):'—')+' (R$)</th></tr>';
+  // análise vertical: cada linha como % da receita líquida do próprio cliente —
+  // é assim que se lê DRE e permite comparar a estrutura de custo entre clientes
+  const rlAlvo=alvo?((alvo.linhas||{})['RECEITA LIQUIDA']||0):0;
+  document.getElementById('drecli-head').innerHTML='<tr><th>Linha</th><th class="num">'+(alvo?esc(alvo.cliente):'—')+' (R$)</th><th class="num">% da receita líquida</th></tr>';
   document.getElementById('drecli-body').innerHTML=(alvo?DRECLI_LINHAS:[]).map(([rot,niv])=>{
     const v=(alvo.linhas||{})[rot]||0;
     const tdL=niv===1?'style="padding-left:24px;color:var(--n600)"':(RES.has(rot)?'style="font-weight:700"':'');
     const tdV=RES.has(rot)?'style="font-weight:700"':'';
-    return `<tr><td ${tdL}>${rot}</td><td class="num" ${tdV}>${fm(v)}</td></tr>`;
-  }).join('') || '<tr><td colspan="2" style="color:var(--n500)">sem dados</td></tr>';
-  document.getElementById('drecli-rank').innerHTML=clientes.slice(0,30).map(c=>{
+    const pc=(rlAlvo&&Math.abs(v)>=0.005)?(100*v/rlAlvo).toFixed(1).replace('.',',')+'%':'<span class="zero">–</span>';
+    return `<tr><td ${tdL}>${rot}</td><td class="num" ${tdV}>${fm(v)}</td><td class="num" ${tdV} style="color:var(--n600)">${pc}</td></tr>`;
+  }).join('') || '<tr><td colspan="3" style="color:var(--n500)">sem dados</td></tr>';
+  drecliRankRender();
+  const rec=d.reconciliacao||{};
+  document.getElementById('drecli-recon').innerHTML=DRECLI_LINHAS.filter(([rot])=>rec[rot]).map(([rot])=>{
+    const x=rec[rot], p=x.cobertura_pct, cob=p!=null?(100*p).toFixed(0)+'%':'—';
+    // semáforo explícito: cobertura baixa saía em preto neutro, como se
+    // estivesse tudo certo — é justamente o que limita a leitura por cliente
+    const cor=p==null?'var(--n500)':(p>=0.9?'var(--green)':(p>=0.7?'var(--yellow-700)':'var(--red)'));
+    const ic=p==null?'':(p>=0.9?'sevOk':(p>=0.7?'sevWarn':'sevCrit'));
+    const tit=p==null?'':(p>=0.9?'Linha bem atribuída aos clientes.'
+      :(p>=0.7?'Parte relevante desta linha não foi atribuída a cliente — ver NÃO ALOCADO.'
+             :'A maior parte desta linha NÃO é atribuída a cliente: a margem por cliente fica parcial nesta conta.'));
+    return `<tr><td>${rot}</td><td class="num">${BRL.format(x.descido||0)}</td><td class="num">${BRL.format(x.nao_alocado||0)}</td><td class="num">${BRL.format(x.variacao_absorcao||0)}</td><td class="num">${BRL.format(x.oficial||0)}</td>`+
+      `<td class="num" style="font-weight:700;color:${cor}"${tit?` title="${esc(tit)}"`:''}>`+
+      (ic?`<span style="width:12px;height:12px;display:inline-flex;vertical-align:-1px;margin-right:4px">${ICONS[ic]}</span>`:'')+`${cob}</td></tr>`;
+  }).join('') || '<tr><td colspan="6" style="color:var(--n500)">sem dados</td></tr>';
+  chartDreCliMatriz(clientes);
+}
+/* Ranking ORDENÁVEL. Antes vinha fixo por MC%, o que jogava para o topo cliente
+   com 1 viagem e R$ 2,8 mil de receita (85% de margem) e empurrava TUPY e MWM
+   para o meio da lista. Padrão passa a ser receita líquida (materialidade) e o
+   cabeçalho é clicável. Cliente imaterial fica atenuado, não sumido. */
+let drecliOrd={col:'rl', dir:-1};
+const DRECLI_COLS=[
+  ['cliente','Cliente',c=>c.cliente,'txt'],
+  ['rl','Receita líq.',c=>(c.linhas||{})['RECEITA LIQUIDA']||0,'num'],
+  ['mc','MC',c=>(c.indicadores||{}).mc||0,'num'],
+  ['mcp','MC%',c=>(c.indicadores||{}).mc_pct,'num'],
+  ['md','Margem direta',c=>(c.linhas||{})['MARGEM DIRETA DO CLIENTE']||0,'num'],
+  ['mcd','MC/dia-veíc.',c=>{const i=c.indicadores||{};const d=(i.dias_proprio||0)+(i.dias_locado||0);return d?(i.mc/d):null;},'num'],
+  ['vaz','% km vazio',c=>(c.indicadores||{}).pct_km_vazio,'num'],
+  ['vg','Viagens',c=>(c.indicadores||{}).viagens||0,'num'],
+];
+function drecliOrdenar(col){
+  if(drecliOrd.col===col) drecliOrd.dir*=-1;
+  else drecliOrd={col, dir: col==='cliente'?1:-1};
+  drecliRankRender();
+}
+function drecliRankRender(){
+  const clientes=((DATADRECLI||{}).clientes)||[];
+  const cfg=DRECLI_COLS.find(c=>c[0]===drecliOrd.col)||DRECLI_COLS[1];
+  const val=cfg[2];
+  const ord=[...clientes].sort((a,b)=>{
+    const va=val(a), vb=val(b);
+    if(cfg[3]==='txt') return String(va||'').localeCompare(String(vb||''))*drecliOrd.dir;
+    return (((vb==null?-Infinity:vb)-(va==null?-Infinity:va))||0)*(drecliOrd.dir<0?1:-1);
+  });
+  const head=document.querySelector('#drecli-rank').closest('table').querySelector('thead tr');
+  if(head) head.innerHTML=DRECLI_COLS.map(([k,rot,,tipo])=>
+    `<th class="${tipo==='num'?'num':''}" role="button" tabindex="0" style="cursor:pointer;white-space:nowrap"
+        title="Ordenar por ${esc(rot)}" onclick="drecliOrdenar('${k}')"
+        onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();drecliOrdenar('${k}');}"
+      >${esc(rot)}${drecliOrd.col===k?(drecliOrd.dir<0?' ↓':' ↑'):''}</th>`).join('');
+  document.getElementById('drecli-rank').innerHTML=ord.slice(0,30).map(c=>{
     const i=c.indicadores||{};
     const diasAt=(i.dias_proprio||0)+(i.dias_locado||0);
     const mcDia=diasAt?(i.mc/diasAt):null;
-    return `<tr><td>${esc(c.cliente)}</td><td class="num">${BRL.format((c.linhas||{})['RECEITA LIQUIDA']||0)}</td><td class="num">${BRL.format(i.mc||0)}</td><td class="num">${i.mc_pct!=null?(100*i.mc_pct).toFixed(1)+'%':'—'}</td><td class="num">${BRL.format((c.linhas||{})['MARGEM DIRETA DO CLIENTE']||0)}</td><td class="num">${mcDia!=null?BRL.format(mcDia):'—'}</td><td class="num">${i.pct_km_vazio!=null?(100*i.pct_km_vazio).toFixed(1)+'%':'—'}</td><td class="num">${(i.viagens||0).toLocaleString('pt-BR')}</td></tr>`;
+    // materialidade: MC% de 1 viagem não é indicador de gestão
+    const imat=(i.viagens||0)<10 || ((c.linhas||{})['RECEITA LIQUIDA']||0)<50000;
+    const at=imat?' style="opacity:.6"':'';
+    return `<tr${at}><td>${esc(c.cliente)}${imat?' <span class="badge" title="Volume baixo no período: percentuais de margem aqui oscilam muito e não sustentam decisão.">pouco volume</span>':''}</td>`+
+      `<td class="num">${BRL.format((c.linhas||{})['RECEITA LIQUIDA']||0)}</td>`+
+      `<td class="num">${BRL.format(i.mc||0)}</td>`+
+      `<td class="num">${i.mc_pct!=null?(100*i.mc_pct).toFixed(1).replace('.',',')+'%':'—'}</td>`+
+      `<td class="num">${BRL.format((c.linhas||{})['MARGEM DIRETA DO CLIENTE']||0)}</td>`+
+      `<td class="num">${mcDia!=null?BRL.format(mcDia):'—'}</td>`+
+      `<td class="num"${(i.pct_km_vazio||0)>0.2?' style="color:var(--red);font-weight:600"':''}>${i.pct_km_vazio!=null?(100*i.pct_km_vazio).toFixed(1).replace('.',',')+'%':'—'}</td>`+
+      `<td class="num">${(i.viagens||0).toLocaleString('pt-BR')}</td></tr>`;
   }).join('') || '<tr><td colspan="8" style="color:var(--n500)">sem dados</td></tr>';
-  const rec=d.reconciliacao||{};
-  document.getElementById('drecli-recon').innerHTML=DRECLI_LINHAS.filter(([rot])=>rec[rot]).map(([rot])=>{
-    const x=rec[rot], cob=x.cobertura_pct!=null?(100*x.cobertura_pct).toFixed(0)+'%':'—';
-    const cobcls=x.cobertura_pct>=0.98?'pos':(x.cobertura_pct>=0.8?'':'neg');
-    return `<tr><td>${rot}</td><td class="num">${BRL.format(x.descido||0)}</td><td class="num">${BRL.format(x.nao_alocado||0)}</td><td class="num">${BRL.format(x.variacao_absorcao||0)}</td><td class="num">${BRL.format(x.oficial||0)}</td><td class="num ${cobcls}">${cob}</td></tr>`;
-  }).join('') || '<tr><td colspan="6" style="color:var(--n500)">sem dados</td></tr>';
-  chartDreCliMatriz(clientes);
 }
 // matriz margem x receita por cliente (X=receita liquida raiz, Y=MC%)
 function chartDreCliMatriz(clientes){
@@ -7056,13 +7154,35 @@ function chartDreCliMatriz(clientes){
   const topNames=new Set(pts.slice().sort((a,b)=>b.receita-a.receita).slice(0,8).map(p=>p.cliente));
   pts.forEach(p=>{
     const alta=p.receita>=medR, boa=p.margem_pct>=25;
-    const cor=alta&&boa?'#1E7F4F':(alta&&!boa?'#C03221':(boa?CC.navy500:'#6E7883'));
+    const cor=alta&&boa?CC.verde:(alta&&!boa?CC.vermelho:(boa?CC.navy500:CC.n500));
     const x=X(p.receita), y=Y(p.margem_pct);
-    const nome=p.cliente.length>22?p.cliente.slice(0,22)+'…':p.cliente;
     s+=`<circle cx="${x}" cy="${y}" r="8" fill="${cor}" opacity="0.75" stroke="#fff" stroke-width="1.5">`+
-       `<title>${esc(p.cliente)} — receita líq. ${BRL.format(p.receita)} · MC ${p.margem_pct.toFixed(1)}%</title></circle>`;
-    if(topNames.has(p.cliente))
-      s+=`<text x="${Math.min(x+11,W-mR-80)}" y="${y+4}" font-size="10.5" fill="#4F5860" font-weight="600">${esc(nome)}</text>`;
+       `<title>${esc(p.cliente)} — receita líq. ${BRL.format(p.receita)} · MC ${p.margem_pct.toFixed(1).replace('.',',')}%</title></circle>`;
+  });
+  // Rótulos DEPOIS das bolhas e com desvio anti-colisão: os nomes dos maiores
+  // clientes ficavam escritos uns por cima dos outros (VOLVO/TWE, TUPY/FORVIA).
+  const postos=[];
+  pts.filter(p=>topNames.has(p.cliente))
+     .sort((a,b)=>b.receita-a.receita)
+     .forEach(p=>{
+    const x=X(p.receita), y=Y(p.margem_pct);
+    const nome=p.cliente.length>20?p.cliente.slice(0,20)+'…':p.cliente;
+    const larg=nome.length*5.6+14;
+    // tenta à direita da bolha; se colidir, vai empurrando na vertical
+    let lx=x+12, ly=y+4, anc='start';
+    if(lx+larg > W-mR){ lx=x-12; anc='end'; }
+    for(let tent=0; tent<14; tent++){
+      const x0=anc==='start'?lx:lx-larg, x1=anc==='start'?lx+larg:lx;
+      const bate=postos.some(q=>!(x1<q.x0||x0>q.x1) && Math.abs(ly-q.y)<12);
+      if(!bate) break;
+      ly += (tent%2===0? 13 : -13)*Math.ceil((tent+1)/2);
+    }
+    ly=Math.max(mT+9, Math.min(mT+ih-4, ly));
+    postos.push({x0:anc==='start'?lx:lx-larg, x1:anc==='start'?lx+larg:lx, y:ly});
+    if(Math.abs(ly-(y+4))>6)   // saiu do lugar: liga o rótulo à bolha
+      s+=`<line x1="${x}" y1="${y}" x2="${anc==='start'?lx-3:lx+3}" y2="${ly-3}" stroke="${CC.n300}" stroke-width="1"/>`;
+    s+=`<text x="${lx}" y="${ly}" text-anchor="${anc}" font-size="10.5" fill="${CC.n600}" font-weight="600" `+
+       `stroke="#fff" stroke-width="2.6" paint-order="stroke" stroke-linejoin="round">${esc(nome)}</text>`;
   });
   svg.innerHTML=s;
 }
