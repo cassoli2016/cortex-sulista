@@ -1255,7 +1255,7 @@ button.avatar{border:0;cursor:pointer}
       <section class="view" id="view-pagar">
         <div class="kpis" id="kpis-pagar"></div>
         <div class="card">
-          <div class="head"><h2>Vencimentos por mês — a pagar</h2><span class="hint" id="hintVencAp"></span></div>
+          <div class="head"><h2>Vencimentos por mês — a pagar <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="Saldo pendente distribuído pelo MÊS DE VENCIMENTO do título. A primeira coluna concentra tudo que vence antes da janela mostrada — é lá que aparece o passivo antigo não baixado. Vermelho = já vencido na data de referência.">i</span></h2><span class="hint" id="hintVencAp"></span></div>
           <div class="legend">
             <span class="k"><i class="sw" style="background:var(--red)"></i>Vencido</span>
             <span class="k"><i class="sw" style="background:var(--green)"></i>A vencer</span>
@@ -1266,17 +1266,15 @@ button.avatar{border:0;cursor:pointer}
             <div class="tip" id="tipAp"></div>
           </div>
         </div>
-        <div class="grid2">
-          <div class="card">
-            <div class="head"><h2>Aging — a pagar</h2><span class="hint" id="ap-total"></span></div>
-            <div class="tablewrap"><table><thead><tr><th>Faixa</th><th class="num">Títulos</th><th class="num">Pendente</th></tr></thead>
-              <tbody id="aging-ap"></tbody></table></div>
-          </div>
-          <div class="card">
-            <div class="head"><h2>Maiores fornecedores a pagar</h2><span class="hint">top 15 por pendente · no período filtrado</span></div>
-            <div class="tablewrap"><table><thead><tr><th>Fornecedor</th><th class="num">Tít.</th><th class="num">Vencido</th><th class="num">Pendente</th></tr></thead>
-              <tbody id="top-ap"></tbody></table></div>
-          </div>
+        <div class="card">
+          <div class="head"><h2>Aging — a pagar <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="Saldo pendente de contaapagar por faixa de atraso, contado a partir da DATA DE REFERÊNCIA do filtro. ATENÇÃO ao que cai em 'vencido há mais de 1 ano': em contas a pagar essa faixa raramente é dívida viva — costuma ser título já quitado ou cancelado que nunca foi baixado no ERP. Enquanto não for saneado, ele infla o 'A pagar (aberto)' e a 'Posição líquida'.">i</span></h2><span class="hint" id="ap-total"></span></div>
+          <div class="modl" id="aging-ap-barras"></div>
+          <div class="banner-inline" id="apLimbo" style="display:none;margin-bottom:14px"></div>
+        </div>
+        <div class="card">
+          <div class="head"><h2>Maiores fornecedores a pagar <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="Top 15 credores por valor pendente no recorte filtrado, com o quanto já venceu. O documento aparece mascarado — o painel não expõe CNPJ/CPF completo.">i</span></h2><span class="hint" id="top-ap-hint">top 15 por pendente · no período filtrado</span></div>
+          <div class="tablewrap"><table><thead><tr><th>Fornecedor</th><th class="num">Tít.</th><th class="num">Vencido</th><th class="num">Pendente</th></tr></thead>
+            <tbody id="top-ap"></tbody></table></div>
         </div>
         <div class="card">
           <div class="head"><h2>Alertas</h2></div>
@@ -3124,11 +3122,25 @@ function render(d){
     kpi('A vencer', BRL.format(arV), 'no período filtrado', ''),
     kpi('Faturamento do mês', BRL.format(k.faturamento_mes), 'média 6m: '+BRL.format(k.faturamento_medio_6m), ''),
   ].join('');
+  const velhoAP0=sumFaixa(d.aging_pagar,'5_vencido_mais_365');
+  const qtdVelhoAP=((d.aging_pagar||[]).find(r=>r.faixa==='5_vencido_mais_365')||{}).qtd||0;
   document.getElementById('kpis-pagar').innerHTML=[
-    kpi('A pagar (aberto)', BRL.format(k.pagar_aberto), k.pagar_qtd.toLocaleString('pt-BR')+' títulos'+rangeTxt, ''),
-    kpi('Vencido', BRL.format(k.pagar_vencido), pct(k.pagar_vencido,k.pagar_aberto)+' do aberto', k.pagar_vencido>0?'neg':'pos'),
+    kpi('A pagar (aberto)', BRL.format(k.pagar_aberto), k.pagar_qtd.toLocaleString('pt-BR')+' títulos'+rangeTxt, '', null,
+      velhoAP0>0 ? statChip('warn', brlAbbr(velhoAP0)+' de +1 ano',
+        'Parte do saldo é título vencido há mais de um ano: em contas a pagar isso raramente é dívida viva — costuma ser baixa não lançada. Enquanto não for saneado, este total fica inflado.','sevWarn') : ''),
+    kpi('Vencido', BRL.format(k.pagar_vencido), pct(k.pagar_vencido,k.pagar_aberto)+' do aberto',
+      k.pagar_vencido>0?'neg':'pos', null,
+      (function(){ const fr=k.pagar_aberto>0?k.pagar_vencido/k.pagar_aberto:0;
+        return statChip(fr>0.15?'bad':(fr>0.05?'warn':'good'),
+          fr>0.15?'exposição alta':(fr>0.05?'atenção':'sob controle'),
+          'Vencido sobre o total em aberto. Em contas a pagar, parte disso costuma ser passivo antigo não baixado — ver o aging.',
+          fr>0.15?'sevCrit':(fr>0.05?'sevWarn':'sevOk')); })()),
     kpi('A vencer', BRL.format(apV), 'no período filtrado', ''),
-    kpi('Posição líquida (aberto)', BRL.format(k.posicao_liquida_aberto), 'a receber − a pagar', k.posicao_liquida_aberto>=0?'pos':'neg'),
+    kpi('Posição líquida (aberto)', BRL.format(k.posicao_liquida_aberto), 'a receber − a pagar',
+      k.posicao_liquida_aberto>=0?'pos':'neg', null,
+      statChip('flat','estrutural',
+        'A receber menos a pagar de TODOS os títulos em aberto, sem recorte de prazo: o contas a pagar carrega compromissos de longo prazo (e o passivo antigo não baixado) sem a receita correspondente lançada do outro lado. É quase sempre negativo e NÃO indica insolvência.',
+        'trFlat')),
   ].join('');
 
   {  // concentração dos maiores: 4 sacados podem responder por metade do saldo
@@ -3137,6 +3149,18 @@ function render(d){
     if(h) h.innerHTML='top 15 por saldo'+(k.receber_aberto>0?` · <b>top 5 = ${pct(somaTop,k.receber_aberto)} do saldo</b>`:'');
   }
   agingRows('aging-ar', d.aging_receber, 'ar-total');
+  {
+    const tops=d.top_pagar||[], somaTop=tops.slice(0,5).reduce((a,r)=>a+(r.valor||0),0);
+    const h=document.getElementById('top-ap-hint');
+    if(h) h.innerHTML='top 15 por pendente'+(k.pagar_aberto>0?` · <b>top 5 = ${pct(somaTop,k.pagar_aberto)} do saldo</b>`:'');
+    const av=document.getElementById('apLimbo');
+    if(av){
+      if(velhoAP0>0){
+        av.style.display='flex';
+        av.innerHTML=`<i>${ICONS['sevWarn']}</i><span><b>${qtdVelhoAP.toLocaleString('pt-BR')} títulos</b> somando <b>${BRL.format(velhoAP0)}</b> estão vencidos há <b>mais de um ano</b> — ${pct(velhoAP0,k.pagar_aberto)} do saldo em aberto. Em contas a pagar isso quase nunca é dívida viva: costuma ser título quitado ou cancelado que nunca foi baixado no ERP. Sanear reduz o "A pagar (aberto)" e melhora a posição líquida sem desembolsar nada.</span>`;
+      } else { av.style.display='none'; av.innerHTML=''; }
+    }
+  }
   agingRows('aging-ap', d.aging_pagar, 'ap-total');
   drillRows('top-ar', d.top_receber);
   drillRows('top-ap', d.top_pagar);
