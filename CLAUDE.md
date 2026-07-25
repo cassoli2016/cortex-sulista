@@ -156,6 +156,20 @@ a query ignora sai; dimensão que a query aceita e é a pergunta natural da tela
 - **Card que NÃO segue os filtros leva badge visível** (ex.: "Meta × realizado" é sempre o
   mês corrente). Enterrar isso no texto do hint faz o número parecer furado.
 
+**Ranking e tabela analítica (lições da DRE por Cliente):**
+- **Ordenar por percentual sem piso de materialidade mente**: o ranking abria por MC% e
+  o 1º lugar era cliente com 1 viagem e R$ 2,8 mil de receita (85%), com TUPY (R$ 10,2 mi)
+  no meio da lista. Padrão = valor absoluto (materialidade); **cabeçalho clicável** para
+  reordenar; registro de baixo volume fica **atenuado com badge**, nunca escondido.
+- **Tabela de DRE tem análise vertical**: cada linha também como **% da receita líquida**
+  do próprio cliente — é assim que se compara estrutura de custo entre clientes.
+- **Cobertura/reconciliação leva semáforo** (≥90 verde · 70–89 âmbar · <70 vermelho).
+  Cobertura baixa em CUSTO FIXO significa margem direta PARCIAL; em preto neutro o número
+  passa como se estivesse tudo certo.
+- **Rótulo de scatter precisa de anti-colisão**: nomes empilhados (VOLVO/TWE,
+  TUPY/FORVIA) viram borrão. Empurrar na vertical, ligar por linha-guia à bolha e usar
+  halo branco (`paint-order:stroke`).
+
 **Volume e qualidade do dado (lições do CRM):**
 - **Tabela longa rola DENTRO do card** (`.tabroll`, cabeçalho sticky) + contador
   "X de Y" no hint. O CRM desenhava 200 leads + 150 projetos e a página passava de
