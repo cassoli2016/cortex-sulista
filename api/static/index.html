@@ -114,6 +114,10 @@ tr[role="button"]:focus-visible{outline-offset:-2px}
 .chip.active{background:var(--ink,#1E1E1E);color:#fff;border-color:var(--ink,#1E1E1E)}
 .banner{display:none;background:var(--red-100);border:1px solid var(--red);color:var(--red);border-radius:var(--radius);padding:14px 18px;font-weight:600}
 .banner.show{display:block}
+/* aviso dentro do card (não é erro de API: é limite do dado) */
+.banner-inline{margin:0 18px 4px;padding:9px 12px;border-radius:var(--radius-md);font-size:12px;
+  background:var(--yellow-100);color:var(--yellow-700);border:1px solid #F0D9A8;display:flex;gap:8px;align-items:flex-start}
+.banner-inline i{flex:none;width:15px;height:15px;display:inline-flex;margin-top:1px}
 .banner small{display:block;font-weight:400;color:var(--n700);margin-top:4px}
 .card{background:var(--n0);border:1px solid var(--n200);border-radius:var(--radius);box-shadow:var(--shadow)}
 .card .head{padding:14px 18px;display:flex;align-items:center;gap:10px;border-bottom:1px solid var(--n100)}
@@ -1174,17 +1178,19 @@ button.avatar{border:0;cursor:pointer}
         <div class="kpis" id="kpis-fluxo"></div>
         <div class="card">
           <div class="head">
-            <h2>Fluxo de caixa projetado</h2>
+            <h2>Fluxo de caixa projetado <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="Parte do saldo real de bancos + caixa e acumula, mês a mês, os títulos LANÇADOS no ERP pela data de vencimento: fatura_composicao a receber e contaapagar a pagar. 'Atrasado' concentra tudo que já venceu e não foi liquidado. Dois filtros recortam esta tela de formas diferentes: VENCIMENTO decide quais títulos entram; HORIZONTE decide quantos meses o gráfico projeta. Combinar 'próximos 7 dias' com '12 meses' devolve um gráfico quase vazio — é recorte, não erro.">i</span></h2>
             <span class="hint" id="fluxoHint"></span>
+            <button class="ghost" id="btnCenario" aria-pressed="false" onclick="toggleCenario()" title="Mostra a projeção com faturamento futuro estimado. Ela expande muito a escala e achata o saldo contratado.">Cenário realista</button>
             <button class="ghost" id="btnTable" aria-pressed="false" onclick="toggleTable()">Tabela</button>
           </div>
           <div class="legend">
             <span class="k"><i class="sw" style="background:var(--green)"></i>Receber (lançado)</span>
             <span class="k"><i class="sw" style="background:var(--red)"></i>Pagar (lançado)</span>
-            <span class="k"><i class="ln"></i>Saldo projetado</span>
-            <span class="k"><i class="ln dash"></i>Saldo realista (c/ faturamento previsto)</span>
-            <span class="k"><i class="band"></i>Banda de cenário</span>
+            <span class="k"><i class="ln"></i>Saldo projetado (só o lançado)</span>
+            <span class="k cen" style="display:none"><i class="ln dash"></i>Saldo realista (c/ faturamento previsto)</span>
+            <span class="k cen" style="display:none"><i class="band"></i>Banda de cenário</span>
           </div>
+          <div class="banner-inline" id="cenAviso" style="display:none"></div>
           <div class="chartwrap" id="wrapFluxo">
             <svg id="chart" viewBox="0 0 960 500" preserveAspectRatio="xMidYMid meet"
                  tabindex="0" role="img" aria-label="Fluxo de caixa projetado: barras mensais de recebimentos e pagamentos e linhas de saldo projetado. Use as setas do teclado para percorrer os meses."></svg>
@@ -1202,13 +1208,13 @@ button.avatar{border:0;cursor:pointer}
           <div class="alerts" id="alerts-fluxo"></div>
         </div>
         <div class="card">
-          <div class="head"><h2>Ciclo de caixa — DSO × DPO</h2><span class="hint" id="cicloHint">dias ponderados por valor · DSO = emissão→recebimento · DPO = emissão→pagamento · ciclo = DSO − DPO</span></div>
+          <div class="head"><h2>Ciclo de caixa — DSO × DPO <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="DSO = prazo médio real de recebimento (faturas liquidadas: dias entre emissão e pagamento). DPO = prazo médio de pagamento (contaapagar, dtemissaotitulo até a liquidação). CICLO = DSO − DPO: negativo significa que você recebe antes de pagar, o que financia a operação; positivo significa que a operação consome caixa e precisa de capital de giro.">i</span><span class="hint" id="cicloHint">dias ponderados por valor · DSO = emissão→recebimento · DPO = emissão→pagamento · ciclo = DSO − DPO</span></div>
           <div class="tablewrap"><table><thead><tr>
             <th>Mês</th><th class="num">DSO (recebe em)</th><th class="num">DPO (paga em)</th><th class="num">Ciclo</th>
           </tr></thead><tbody id="fluxo-ciclo"></tbody></table></div>
         </div>
         <div class="card">
-          <div class="head"><h2>Custo financeiro</h2><span class="hint" id="finHint">juros, tarifas e despesas financeiras do razão (4.2.4) por mês</span></div>
+          <div class="head"><h2>Custo financeiro <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="Juros, tarifas e despesas financeiras do razão contábil (estrutural 4.2.4), por mês de lançamento. É custo REALIZADO, não projeção — e não entra no fluxo projetado acima, que só considera títulos a receber e a pagar.">i</span><span class="hint" id="finHint">juros, tarifas e despesas financeiras do razão (4.2.4) por mês</span></div>
           <div class="tablewrap"><table><thead><tr>
             <th>Mês</th><th class="num">Custo financeiro</th>
           </tr></thead><tbody id="fluxo-fin"></tbody></table></div>
@@ -3081,16 +3087,28 @@ function render(d){
   const gapTxt = !fluxo.length ? '—'
     : (k.saldo_atual<0 ? 'desde já' : (gap ? periodoLabel(gap.periodo) : 'sem gap no horizonte'));
 
+  const temGap=(k.saldo_atual<0||!!gap);
   document.getElementById('kpis-fluxo').innerHTML=[
     kpi('Saldo atual (bancos + caixa)', BRL.format(k.saldo_atual),
         'bancos '+BRL.format(k.saldo_bancos)+' · caixa '+BRL.format(k.saldo_caixa)+(k.saldo_data?(' · '+fmtD(k.saldo_data)):''),
         k.saldo_atual>=0?'pos':'neg'),
     kpi('1º gap de caixa', gapTxt,
         gap ? ('saldo projetado '+BRL.format(gap.saldo_projetado)) : 'no horizonte exibido',
-        (k.saldo_atual<0||gap)?'neg':'pos'),
+        temGap?'neg':'pos', null,
+        statChip(temGap?'bad':'good', temGap?'ação necessária':'sem gap',
+          'Primeiro período em que o saldo projetado fica negativo, considerando SÓ os títulos lançados. "Atrasado" significa que os vencidos, sozinhos, já derrubam o saldo.',
+          temGap?'sevCrit':'sevOk')),
     kpi('Posição líquida (aberto)', BRL.format(k.posicao_liquida_aberto), ('a receber − a pagar'+rangeTxt) || 'a receber − a pagar',
-        k.posicao_liquida_aberto>=0?'pos':'neg'),
-    kpi('Faturamento do mês', BRL.format(k.faturamento_mes), 'média 6m: '+BRL.format(k.faturamento_medio_6m), ''),
+        k.posicao_liquida_aberto>=0?'pos':'neg', null,
+        statChip('flat','estrutural',
+          'A receber menos a pagar de TODOS os títulos em aberto, sem recorte de prazo: o contas a pagar carrega compromissos de longo prazo que ainda não têm receita lançada do outro lado. Este número é quase sempre negativo e NÃO indica insolvência — para decidir caixa, use o gap e o fluxo por vencimento.',
+          'trFlat')),
+    kpi('Ciclo de caixa (3m)', k.ciclo_3m!=null?((k.ciclo_3m>0?'+':'−')+Math.abs(k.ciclo_3m).toFixed(0)+' dias'):'—',
+        k.dso_3m!=null?('recebe em '+k.dso_3m.toFixed(0)+'d · paga em '+k.dpo_3m.toFixed(0)+'d'):'sem base nos últimos 3 meses',
+        k.ciclo_3m==null?'':(k.ciclo_3m>0?'neg':'pos'), null,
+        k.ciclo_3m==null?'':statChip(k.ciclo_3m>0?'bad':'good', k.ciclo_3m>0?'consome caixa':'financia a operação',
+          'DSO − DPO. Negativo = você recebe antes de pagar, e a operação se autofinancia. Positivo = a operação consome capital de giro.',
+          k.ciclo_3m>0?'sevWarn':'sevOk')),
   ].join('');
 
   const arV = sumFaixa(d.aging_receber,'1_a_vencer'), apV = sumFaixa(d.aging_pagar,'1_a_vencer');
@@ -3172,6 +3190,40 @@ function colRect(x,w,yTop,yBot,fill){
 
 /* ---------------- Gráfico do fluxo: 2 painéis ---------------- */
 const CHF = { W:960, mL:64, mR:16, t1:34, h1:170, gapP:44, h2:190, mB:44 };
+/* Cenário realista DESLIGADO por padrão: ligado, ele multiplica a escala por
+   ~11x e a linha de saldo contratado (a que manda) some contra o zero. */
+let fluxoCenario=false;
+function toggleCenario(){
+  fluxoCenario=!fluxoCenario;
+  const b=document.getElementById('btnCenario');
+  if(b){ b.setAttribute('aria-pressed',String(fluxoCenario)); }
+  document.querySelectorAll('#view-fluxo .legend .k.cen').forEach(e=>e.style.display=fluxoCenario?'':'none');
+  const av=document.getElementById('cenAviso');
+  const fluxo=(DATA&&DATA.fluxo_caixa)||[];
+  if(av){
+    if(fluxoCenario){
+      const i=fluxoExtrapola(fluxo);
+      av.style.display='flex';
+      av.innerHTML=`<i>${ICONS['sevWarn']}</i><span>O <b>saldo realista</b> soma faturamento previsto, mas os <b>pagáveis futuros ainda não estão lançados</b> no ERP — por isso ele sobe indefinidamente.`
+        +(i>=0&&i<fluxo.length?` A partir de <b>${periodoLabel(fluxo[i].periodo)}</b> os títulos a pagar caem abaixo de 40% da média e a linha vira extrapolação otimista.`:'')
+        +` Para decidir caixa, use o saldo projetado.</span>`;
+    } else { av.style.display='none'; av.innerHTML=''; }
+  }
+  if(fluxo.length) chartFluxo(fluxo);
+}
+/* 1º mês em que os pagáveis lançados caem abaixo de 40% da média dos primeiros
+   meses — dali para frente o cenário compara receita estimada com custo ausente */
+function fluxoExtrapola(fluxo){
+  const fut=fluxo.filter(f=>f.periodo!=='atrasado');
+  if(fut.length<4) return -1;
+  const base=fut.slice(0,3).reduce((a,f)=>a+(f.pagar||0),0)/3;
+  if(!(base>0)) return -1;
+  for(let i=0;i<fluxo.length;i++){
+    if(fluxo[i].periodo==='atrasado') continue;
+    if((fluxo[i].pagar||0) < 0.4*base) return i;
+  }
+  return -1;
+}
 function chartFluxo(fluxo){
   const svg=document.getElementById('chart');
   GEOM['chart']=null; ACTIVE['chart']=-1;
@@ -3184,8 +3236,11 @@ function chartFluxo(fluxo){
   const m1=Math.max(1,...fluxo.map(f=>Math.max(f.receber,f.pagar)));
   const tk1=niceTicks(0,m1,4), top1=tk1[tk1.length-1], u1=unitOf(top1);
   const y1=v=>t1+h1-(v/top1)*h1;
-  let lo2=Math.min(0,...fluxo.map(f=>Math.min(f.saldo_projetado,f.saldo_realista)));
-  let hi2=Math.max(0,...fluxo.map(f=>Math.max(f.saldo_projetado,f.saldo_realista)));
+  // ESCALA do painel de saldo: por padrão só o saldo PROJETADO (títulos
+  // lançados). Com o cenário realista junto, a série que importa ocupava ~9%
+  // da altura — o saldo projetado varia ~11 mi e o realista chega a +118 mi.
+  let lo2=Math.min(0,...fluxo.map(f=>fluxoCenario?Math.min(f.saldo_projetado,f.saldo_realista):f.saldo_projetado));
+  let hi2=Math.max(0,...fluxo.map(f=>fluxoCenario?Math.max(f.saldo_projetado,f.saldo_realista):f.saldo_projetado));
   const tk2=niceTicks(lo2,hi2,5); lo2=tk2[0]; hi2=tk2[tk2.length-1];
   const u2=unitOf(Math.max(Math.abs(lo2),Math.abs(hi2)));
   const y2=v=>p2t+h2-((v-lo2)/(hi2-lo2))*h2;
@@ -3206,7 +3261,7 @@ function chartFluxo(fluxo){
     s+=colPath(cx-barW-1,barW,y1(f.receber),y1(0),4,'#1E7F4F');
     s+=colPath(cx+1,barW,y1(f.pagar),y1(0),4,'#C03221'); });
 
-  s+=`<text x="${mL}" y="${p2t-14}" font-size="11" fill="#6E7883" font-weight="600" letter-spacing="1.5">SALDO PROJETADO · ${u2.t}</text>`;
+  s+=`<text x="${mL}" y="${p2t-14}" font-size="11" fill="${CC.n500}" font-weight="600" letter-spacing="1.5">SALDO PROJETADO${fluxoCenario?' + CENÁRIO':' (SÓ O LANÇADO)'} · ${u2.t}</text>`;
   tk2.forEach(v=>{ const yy=y2(v);
     s+=`<line x1="${mL}" y1="${yy}" x2="${W-mR}" y2="${yy}" stroke="#ECEEF1" stroke-width="1"/>`;
     s+=`<text x="${mL-8}" y="${yy+4}" text-anchor="end" font-size="11" fill="#6E7883" font-family="IBM Plex Mono,monospace">${NMI.format(v/u2.d)}</text>`; });
@@ -3215,10 +3270,21 @@ function chartFluxo(fluxo){
     s+=`<line x1="${mL}" y1="${y2(0)}" x2="${W-mR}" y2="${y2(0)}" stroke="#9AA3AE" stroke-width="1.3"/>`;
   }
   const px=i=>mL+bandW*i+bandW/2;
-  const band = fluxo.map((f,i)=>`${px(i)},${y2(f.saldo_realista)}`).join(' ')+' '+
-               [...fluxo].reverse().map((f,i)=>`${px(n-1-i)},${y2(f.saldo_projetado)}`).join(' ');
-  s+=`<polygon points="${band}" fill="${CC.navy500}" opacity=".10"/>`;
-  s+=`<polyline points="${fluxo.map((f,i)=>`${px(i)},${y2(f.saldo_realista)}`).join(' ')}" fill="none" stroke="${CC.navy500}" stroke-width="2" stroke-dasharray="6 4" stroke-linecap="round" stroke-linejoin="round"/>`;
+  if(fluxoCenario){
+    const band = fluxo.map((f,i)=>`${px(i)},${y2(f.saldo_realista)}`).join(' ')+' '+
+                 [...fluxo].reverse().map((f,i)=>`${px(n-1-i)},${y2(f.saldo_projetado)}`).join(' ');
+    s+=`<polygon points="${band}" fill="${CC.navy500}" opacity=".10"/>`;
+    s+=`<polyline points="${fluxo.map((f,i)=>`${px(i)},${y2(f.saldo_realista)}`).join(' ')}" fill="none" stroke="${CC.navy500}" stroke-width="2" stroke-dasharray="6 4" stroke-linecap="round" stroke-linejoin="round"/>`;
+    // a partir do mês em que os pagáveis LANÇADOS desabam, o cenário vira
+    // receita estimada contra custo que ainda não existe no ERP
+    const iExtra=fluxoExtrapola(fluxo);
+    if(iExtra>=0 && iExtra<n){
+      const xe=mL+bandW*iExtra;
+      s+=`<rect x="${xe}" y="${p2t-8}" width="${W-mR-xe}" height="${h2+8}" fill="${CC.amarelo}" opacity=".07"/>`;
+      s+=`<line x1="${xe}" y1="${p2t-8}" x2="${xe}" y2="${p2t+h2}" stroke="${CC.amarelo}" stroke-width="1.5" stroke-dasharray="4 3"/>`;
+      s+=`<text x="${xe+6}" y="${p2t+4}" font-size="10" font-weight="700" fill="${CC.amarelo}">daqui pra frente o cenário é extrapolação</text>`;
+    }
+  }
   s+=`<polyline points="${fluxo.map((f,i)=>`${px(i)},${y2(f.saldo_projetado)}`).join(' ')}" fill="none" stroke="${CC.navy700}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>`;
   let minI=0; fluxo.forEach((f,i)=>{ if(f.saldo_projetado<fluxo[minI].saldo_projetado) minI=i; });
   const mf=fluxo[minI];
@@ -3338,7 +3404,7 @@ function setActive(svgId,i,clientY,announce){
   if(g.kind==='fluxo'){
     const f=g.rows[i];
     set('chart-mkP',{cx,cy:g.y2(f.saldo_projetado),opacity:1});
-    set('chart-mkR',{cx,cy:g.y2(f.saldo_realista),opacity:1});
+    set('chart-mkR',{cx,cy:g.y2(f.saldo_realista),opacity:fluxoCenario?1:0});
     tt.textContent=periodoLabel(f.periodo)+(f.periodo==='atrasado'?' · vencidos até a ref.':'');
     tip.append(tt);
     tipRow(tip,'Receber',BRL.format(f.receber),{borderTop:'3px solid #1E7F4F'});
@@ -3346,7 +3412,7 @@ function setActive(svgId,i,clientY,announce){
     tipRow(tip,'Líquido',BRL.format(f.liquido),null);
     const sep=document.createElement('div'); sep.className='sep'; tip.append(sep);
     tipRow(tip,'Saldo projetado',BRL.format(f.saldo_projetado),{borderTop:'3px solid '+CC.navy700});
-    tipRow(tip,'Saldo realista',BRL.format(f.saldo_realista),{borderTop:'3px dashed '+CC.navy500});
+    if(fluxoCenario) tipRow(tip,'Saldo realista',BRL.format(f.saldo_realista),{borderTop:'3px dashed '+CC.navy500});
     liveTxt=`${periodoLabel(f.periodo)}: receber ${BRL.format(f.receber)}, pagar ${BRL.format(f.pagar)}, saldo projetado ${BRL.format(f.saldo_projetado)}`;
   } else if(g.kind==='oc'){
     const r=g.rows[i];
@@ -7394,7 +7460,7 @@ function alerts(d,k,gap){
   if(velhoAP>0) P.push(['t-warn','Títulos antigos em aberto',`${BRL.format(velhoAP)} a pagar vencidos há mais de 1 ano — possível limbo contábil a sanear.`]);
   const put=(id,arr)=>{ document.getElementById(id).innerHTML =
     (arr.length?arr:[['t-ok','Sem alertas críticos','Nenhuma pendência relevante no período.']])
-    .map(([c,t,m])=>`<div class="toast ${c}"><b>${esc(t)}</b>${esc(m)}</div>`).join(''); };
+    .map(([c,t,m])=>`<div class="toast wic ${c}"><span class="ti">${ICONS[c==='t-dang'?'sevCrit':(c==='t-warn'?'sevWarn':'sevOk')]}</span><span class="tx"><b>${esc(t)}</b>${esc(m)}</span></div>`).join(''); };
   put('alerts-fluxo',F); put('alerts-receber',R); put('alerts-pagar',P);
 }
 
