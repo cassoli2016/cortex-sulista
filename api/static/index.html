@@ -181,6 +181,10 @@ svg:focus-visible{outline:2px solid var(--orange-500);outline-offset:2px;border-
 .tip .sep{border-top:1px solid var(--n100);margin:5px 0}
 /* tabelas */
 .tablewrap{overflow-x:auto}
+/* tabela longa rola DENTRO do card, com cabeçalho fixo. O CRM desenhava 200
+   leads + 150 projetos de uma vez e a página passava de 16.000px de altura. */
+.tabroll{max-height:430px;overflow-y:auto}
+.tabroll thead th{position:sticky;top:0;z-index:2;background:var(--n0);box-shadow:inset 0 -1px 0 var(--n200)}
 table{width:100%;border-collapse:collapse;font-size:14px}
 th{text-align:left;padding:9px 18px;font-size:11px;text-transform:uppercase;letter-spacing:.08em;color:var(--n500);border-bottom:1px solid var(--n200);white-space:nowrap}
 th.num{text-align:right}
@@ -706,7 +710,7 @@ button.avatar{border:0;cursor:pointer}
   .card{box-shadow:none;border:1px solid #ccc;page-break-inside:avoid;margin-bottom:10px}
   .kpis,.kband{page-break-inside:avoid}
   .view{padding:0}
-  .tablewrap{overflow:visible !important;max-height:none !important}
+  .tablewrap,.tabroll{overflow:visible !important;max-height:none !important}
   .topbar{position:static;box-shadow:none;border-bottom:2px solid #17344F}
 }
 /* Respeita quem pediu menos movimento no SO: neutraliza animações infinitas
@@ -1792,15 +1796,15 @@ button.avatar{border:0;cursor:pointer}
         </div>
       </section>
       <section class="view" id="view-crm">
-        <div class="kpis" id="kpis-crm"></div>
+        <div class="kpis k4" id="kpis-crm"></div>
         <div class="grid2">
-          <div class="card"><div class="head"><h2>Leads por temperatura</h2><span class="hint">distribuição do funil</span></div>
-            <div class="chartwrap" style="min-height:210px"><svg id="chartCrmTemp" viewBox="0 0 380 200" preserveAspectRatio="xMidYMid meet" style="min-width:300px;max-width:520px;margin:0 auto" role="img"></svg></div></div>
-          <div class="card"><div class="head"><h2>Maiores oportunidades</h2><span class="hint">potencial de receita · top 14</span></div>
+          <div class="card"><div class="head"><h2>Funil por temperatura <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="Leads ativos do CRM (sulista.gestaocomercial) por temperatura informada pelo vendedor, com o potencial declarado de cada faixa. Temperatura e potencial são preenchimento manual do time comercial — não saem de nenhum cálculo do ERP.">i</span></h2><span class="hint">leads e potencial por faixa</span></div>
+            <div class="modl" id="crm-temp-mix"></div></div>
+          <div class="card"><div class="head"><h2>Maiores oportunidades <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="Os 14 leads ativos com maior potencial declarado. A cor é a temperatura: vermelho quente, âmbar morno, navy frio. Potencial alto em lead FRIO não é pipeline — é intenção registrada.">i</span></h2><span class="hint">potencial declarado · top 14</span></div>
             <div class="chartwrap"><svg id="chartCrmPot" viewBox="0 0 960 200" preserveAspectRatio="xMidYMid meet" role="img"></svg></div></div>
         </div>
         <div class="card">
-          <div class="head"><h2>Leads ativos</h2><span class="hint" id="crm-leads-hint">funil comercial · por potencial de receita</span></div>
+          <div class="head"><h2>Leads ativos <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="Funil de sulista.gestaocomercial, ordenado por potencial declarado. E-mail e telefone do lead NÃO são expostos neste painel. 'Previsão vencida' = data prevista de fechamento já passou e o lead segue aberto.">i</span></h2><span class="hint" id="crm-leads-hint">funil comercial · por potencial de receita</span></div>
           <div class="cardfilters">
             <div class="chips" id="crm-temp-chips">
               <button class="chip active" data-t="" onclick="crmSetTemp(this)">Todas</button>
@@ -1808,16 +1812,26 @@ button.avatar{border:0;cursor:pointer}
               <button class="chip" data-t="Morno" onclick="crmSetTemp(this)">Morno</button>
               <button class="chip" data-t="Frio" onclick="crmSetTemp(this)">Frio</button>
             </div>
+            <select id="crm-status" onchange="crmFiltrarLeads()"><option value="">Todos os status</option></select>
             <select id="crm-seg" onchange="crmFiltrarLeads()"><option value="">Todos os segmentos</option></select>
             <input type="search" id="crm-busca" placeholder="Buscar cliente…" oninput="crmFiltrarLeads()">
+            <button class="chip" id="crm-venc" aria-pressed="false" onclick="crmToggleVencida(this)">Só previsão vencida</button>
           </div>
-          <div class="tablewrap" id="crm-leads"></div>
+          <div class="tablewrap tabroll" id="crm-leads"></div>
         </div>
         <div class="grid2">
-          <div class="card"><div class="head"><h2>Pipeline de projetos</h2><span class="hint">propostas e negócios</span></div>
-            <div class="tablewrap" id="crm-projetos"></div></div>
-          <div class="card"><div class="head"><h2>Repactuações</h2><span class="hint">reajustes por cliente (gatilhos de diesel/negócios)</span></div>
-            <div class="tablewrap" id="crm-repac"></div></div>
+          <div class="card"><div class="head"><h2>Pipeline de projetos <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="sulista.pipelineprojetos, última versão de cada projeto (DISTINCT ON pelo número). ROB/mês é o campo declarado no projeto — hoje só vem preenchido nos ENTREGUES; nos ativos está zerado no ERP. Aging = dias desde a abertura do projeto.">i</span></h2><span class="hint" id="crm-proj-hint">propostas e negócios</span></div>
+            <div class="cardfilters"><div class="chips" id="crm-proj-chips">
+              <button class="chip active" data-p="ativos" onclick="crmSetProj(this)">Ativos</button>
+              <button class="chip" data-p="Em execução" onclick="crmSetProj(this)">Em execução</button>
+              <button class="chip" data-p="Não iniciado" onclick="crmSetProj(this)">Não iniciado</button>
+              <button class="chip" data-p="Entregue" onclick="crmSetProj(this)">Entregue</button>
+              <button class="chip" data-p="Declinado" onclick="crmSetProj(this)">Declinado</button>
+              <button class="chip" data-p="" onclick="crmSetProj(this)">Todos</button>
+            </div></div>
+            <div class="tablewrap tabroll" id="crm-projetos"></div></div>
+          <div class="card"><div class="head"><h2>Repactuações <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="sulista.pipelineprojetos_repactuacoes: reajustes acordados por cliente, com o percentual total aplicado e o mês de vigência. Os gatilhos típicos são repasse de diesel e renegociação de contrato.">i</span></h2><span class="hint">reajustes por cliente · gatilhos de diesel/negócios</span></div>
+            <div class="tablewrap tabroll" id="crm-repac"></div></div>
         </div>
       </section>
       <section class="view" id="view-rh">
@@ -5589,45 +5603,114 @@ async function loadCrm(){
   }catch(e){ if(seq===crmSeq) showBanner('Não foi possível falar com a API.', e.message); }
   finally{ if(seq===crmSeq){ if(btn) btn.disabled=false; document.getElementById('content').classList.remove('loading'); } }
 }
+const CRM_TEMP_ORDEM=['Quente','Morno','Frio'];
+const crmCorTemp = t => ({Quente:CC.vermelho, Morno:CC.amarelo, Frio:CC.navy500}[t] || CC.n400);
 function renderCrm(d){
-  const k=d.kpis||{};
+  const k=d.kpis||{}, leads=d.leads||[], projs=d.projetos||[];
+  // potencial POR TEMPERATURA: um total onde a maioria é lead frio não é
+  // pipeline, é intenção registrada — o KPI tem que mostrar essa composição
+  const pot={}, qtd={};
+  leads.forEach(l=>{ const t=l.temperatura||'—';
+    pot[t]=(pot[t]||0)+(l.potencial||0); qtd[t]=(qtd[t]||0)+1; });
+  const potTot=k.potencial_total||0;
+  const fracFrio=potTot>0?((pot['Frio']||0)/potTot):0;
+  // ROB: todo o valor informado está em projeto ENTREGUE; nos ativos o campo
+  // vem zerado do ERP. Mostrar "R$ 0" (ainda por cima em verde) fazia parecer
+  // que o pipeline não vale nada, quando o que falta é preenchimento.
+  const robAtivo=k.rob_pipeline||0;
+  const robEntregue=projs.filter(p=>p.status==='Entregue').reduce((a,p)=>a+(p.rob||0),0);
   document.getElementById('kpis-crm').innerHTML=[
-    kpi('Leads ativos', (k.leads||0).toLocaleString('pt-BR'), (k.leads_quentes||0)+' quentes',''),
-    kpi('Potencial de receita', BRL.format(k.potencial_total||0), 'soma dos leads ativos','pos'),
-    kpi('Projetos em execução', (k.projetos_execucao||0).toLocaleString('pt-BR'), 'no pipeline',''),
-    kpi('ROB do pipeline', BRL.format(k.rob_pipeline||0), 'em execução + não iniciados','pos'),
+    kpi('Leads ativos', (leads.length||0).toLocaleString('pt-BR'), (qtd['Morno']||0)+' mornos · '+(qtd['Frio']||0)+' frios','', null,
+      statChip((k.leads_quentes||0)>0?'good':'flat', (k.leads_quentes||0)+' quentes',
+        'Leads marcados como quentes pelo time comercial — é o topo real do funil.', 'sevOk')),
+    kpi('Potencial declarado', BRL.format(potTot),
+      CRM_TEMP_ORDEM.filter(t=>pot[t]).map(t=>t.toLowerCase()+' '+brlAbbr(pot[t])).join(' · '),
+      '', 'Soma do potencial que o vendedor declarou em cada lead ativo. NÃO é previsão ponderada nem proposta formalizada: é o valor informado no cadastro do lead.',
+      fracFrio>0 ? statChip(fracFrio>0.6?'warn':'flat', (100*fracFrio).toFixed(0)+'% frio',
+        'Parcela do potencial que está em leads classificados como FRIOS. Quanto maior, mais distante o pipeline de virar receita.',
+        fracFrio>0.6?'sevWarn':'trFlat') : ''),
+    kpi('Projetos ativos', ((k.projetos_execucao||0)+projs.filter(p=>p.status==='Não iniciado').length).toLocaleString('pt-BR'),
+      (k.projetos_execucao||0)+' em execução · '+projs.filter(p=>p.status==='Não iniciado').length+' não iniciados',''),
+    kpi('ROB do pipeline ativo', robAtivo>0?BRL.format(robAtivo):'não informado',
+      robEntregue>0?('projetos entregues somam '+brlAbbr(robEntregue)):'campo ROB/mês vazio no ERP',
+      robAtivo>0?'pos':'',
+      'ROB/mês declarado nos projetos ainda ATIVOS (em execução + não iniciados). Hoje o ERP só traz esse campo preenchido nos projetos já ENTREGUES, então o valor ativo aparece como "não informado" — é lacuna de cadastro, não pipeline vazio.',
+      robAtivo>0?'':statChip('warn','preencher no ERP',
+        'Nenhum projeto ativo tem ROB/mês informado. Sem isso não dá para dimensionar o pipeline em receita.','sevWarn')),
   ].join('');
-  // donut de temperatura + barras de potencial
-  const leads=d.leads||[];
-  const porTemp={}; leads.forEach(l=>{const t=l.temperatura||'—'; porTemp[t]=(porTemp[t]||0)+1;});
-  const corTemp={Quente:CC.vermelho, Morno:CC.amarelo, Frio:CC.azul};
-  chartDonut('chartCrmTemp', Object.keys(porTemp).map(t=>({rotulo:t, valor:porTemp[t], cor:corTemp[t]||CC.n400})),
-    {fmt:v=>v+' lead(s)', centro:String(leads.length), centroSub:'leads ativos'});
+  barrasTempCrm(leads, pot, qtd);
   chartHBars('chartCrmPot', leads.slice().sort((a,b)=>(b.potencial||0)-(a.potencial||0)).map(l=>({rotulo:l.cliente, valor:l.potencial||0, _t:l.temperatura})),
-    {cor:r=>corTemp[r._t]||CC.roxo, fmt:brlAbbr});
-  // popular segmentos (uma vez) e desenhar a tabela filtrável
+    {cor:r=>crmCorTemp(r._t), fmt:brlAbbr});
   const segSel=document.getElementById('crm-seg');
   if(segSel){ const segs=[...new Set(leads.map(l=>l.segmento).filter(Boolean))].sort();
     segSel.innerHTML='<option value="">Todos os segmentos</option>'+segs.map(s=>`<option>${esc(s)}</option>`).join(''); }
+  const stSel=document.getElementById('crm-status');
+  if(stSel){ const sts=[...new Set(leads.map(l=>l.status).filter(v=>v&&v!=='—'))].sort();
+    stSel.innerHTML='<option value="">Todos os status</option>'+sts.map(v=>`<option>${esc(v)}</option>`).join(''); }
   crmFiltrarLeads();
-  const pj=(d.projetos||[]).map(p=>`<tr><td>${esc(p.cliente)}</td><td>${esc(p.tipo)}</td><td>${esc(p.status)}</td><td class="num">${BRL.format(p.rob||0)}</td><td class="num">${p.lucro_pct!=null?p.lucro_pct.toFixed(1)+'%':'—'}</td><td class="num">${p.aging!=null?p.aging+'d':'—'}</td></tr>`).join('')||'<tr><td colspan="6" style="color:var(--n500)">sem projetos</td></tr>';
-  document.getElementById('crm-projetos').innerHTML=`<table><thead><tr><th>Cliente</th><th>Tipo</th><th>Status</th><th class="num">ROB/mês</th><th class="num">Lucro</th><th class="num">Aging</th></tr></thead><tbody>${pj}</tbody></table>`;
-  const rp=(d.repactuacoes||[]).map(r=>{const m=r.mes?(''+r.mes).slice(0,7):'—';return `<tr><td>${esc(r.cliente)}</td><td class="num">${m}</td><td class="num">${r.total_pct!=null?r.total_pct.toFixed(2)+'%':'—'}</td><td>${esc(r.status)}</td></tr>`;}).join('')||'<tr><td colspan="4" style="color:var(--n500)">sem repactuações</td></tr>';
+  crmFiltrarProjetos();
+  const rp=(d.repactuacoes||[]).map(r=>{const m=r.mes?(''+r.mes).slice(0,7):'—';return `<tr><td>${esc(r.cliente)}</td><td class="num">${m!=='—'?periodoLabel(m):'—'}</td><td class="num" style="font-weight:600">${r.total_pct!=null?r.total_pct.toFixed(2).replace('.',',')+'%':'—'}</td><td>${esc(r.status)}</td></tr>`;}).join('')||'<tr><td colspan="4" style="color:var(--n500)">sem repactuações</td></tr>';
   document.getElementById('crm-repac').innerHTML=`<table><thead><tr><th>Cliente</th><th class="num">Mês</th><th class="num">Total %</th><th>Status</th></tr></thead><tbody>${rp}</tbody></table>`;
 }
-let crmTempFiltro='';
+/* Funil por temperatura em barras (era donut com 82% numa fatia só) — ocupa
+   menos altura, que é o gargalo desta tela, e mostra leads E potencial. */
+function barrasTempCrm(leads, pot, qtd){
+  const el=document.getElementById('crm-temp-mix'); if(!el) return;
+  const rows=CRM_TEMP_ORDEM.filter(t=>qtd[t]).concat(Object.keys(qtd).filter(t=>!CRM_TEMP_ORDEM.includes(t)));
+  if(!rows.length){ el.innerHTML='<div style="color:var(--n500);font-size:13px">sem leads ativos</div>'; return; }
+  const maxQ=Math.max(...rows.map(t=>qtd[t]));
+  const tot=leads.length||1;
+  el.innerHTML=rows.map(t=>{
+    const cor=crmCorTemp(t), n=qtd[t]||0;
+    return `<div class="modrow">
+      <span class="mname"><i style="background:${cor}"></i>${esc(t)}</span>
+      <span class="mval">${n} leads · ${(100*n/tot).toFixed(0)}%</span>
+      <span class="mtrack" title="${esc(t)}: ${n} leads (${(100*n/tot).toFixed(1)}% do funil) · potencial declarado ${brlAbbr(pot[t]||0)}">
+        <span style="width:${(100*n/maxQ).toFixed(2)}%;background:${cor}"></span></span>
+      <span class="mmeta">potencial declarado <b style="font-family:var(--mono);color:var(--n700)">${brlAbbr(pot[t]||0)}</b></span>
+    </div>`;
+  }).join('')+`<div class="modtot"><span>total <b>${leads.length}</b> leads ativos</span></div>`;
+}
+let crmTempFiltro='', crmProjFiltro='ativos', crmSoVencida=false;
 function crmSetTemp(btn){ document.querySelectorAll('#crm-temp-chips .chip').forEach(c=>c.classList.remove('active')); btn.classList.add('active'); crmTempFiltro=btn.dataset.t||''; crmFiltrarLeads(); }
+function crmSetProj(btn){ document.querySelectorAll('#crm-proj-chips .chip').forEach(c=>c.classList.remove('active')); btn.classList.add('active'); crmProjFiltro=btn.dataset.p; crmFiltrarProjetos(); }
+function crmToggleVencida(btn){ crmSoVencida=!crmSoVencida; btn.classList.toggle('active',crmSoVencida); btn.setAttribute('aria-pressed',String(crmSoVencida)); crmFiltrarLeads(); }
+const _hojeISO = () => { const d=new Date(); return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0'); };
 function crmFiltrarLeads(){
   const leads=(DATACRM&&DATACRM.leads)||[];
   const seg=(document.getElementById('crm-seg')||{}).value||'';
+  const st=(document.getElementById('crm-status')||{}).value||'';
   const busca=(((document.getElementById('crm-busca')||{}).value)||'').toLowerCase().trim();
-  const f=leads.filter(l=>(!crmTempFiltro||l.temperatura===crmTempFiltro)&&(!seg||l.segmento===seg)&&(!busca||(l.cliente||'').toLowerCase().includes(busca)))
+  const hoje=_hojeISO();
+  const venc=l=>!!(l.previsao && l.previsao<hoje);
+  const f=leads.filter(l=>(!crmTempFiltro||l.temperatura===crmTempFiltro)&&(!seg||l.segmento===seg)
+                        &&(!st||l.status===st)&&(!busca||(l.cliente||'').toLowerCase().includes(busca))
+                        &&(!crmSoVencida||venc(l)))
                .sort((a,b)=>(b.potencial||0)-(a.potencial||0));
   const tempB=t=>t==='Quente'?'b-dang':(t==='Morno'?'b-warn':'');
-  const lg=f.map(l=>`<tr><td>${esc(l.cliente)}</td><td>${esc(l.segmento||'')}</td><td><span class="badge ${tempB(l.temperatura)}">${esc(l.temperatura)}</span></td><td>${esc(l.status)}</td><td class="num">${BRL.format(l.potencial||0)}</td><td class="num">${BRL.format(l.rob_previsto||0)}</td><td class="num">${l.previsao?fmtD(l.previsao):'—'}</td></tr>`).join('')||'<tr><td colspan="7" style="color:var(--n500)">nenhum lead com esse filtro</td></tr>';
+  const lg=f.map(l=>`<tr><td>${esc(l.cliente)}</td><td>${esc(l.segmento||'')}</td><td><span class="badge ${tempB(l.temperatura)}">${esc(l.temperatura)}</span></td><td>${esc(l.status)}</td><td class="num">${BRL.format(l.potencial||0)}</td><td class="num">${(l.rob_previsto||0)>0?BRL.format(l.rob_previsto):'<span style="color:var(--n400)">—</span>'}</td><td class="num"${venc(l)?' style="color:var(--red);font-weight:600"':''}>${l.previsao?fmtD(l.previsao)+(venc(l)?' ⚠':''):'—'}</td></tr>`).join('')||'<tr><td colspan="7" style="color:var(--n500)">nenhum lead com esse filtro</td></tr>';
   document.getElementById('crm-leads').innerHTML=`<table><thead><tr><th>Cliente/Lead</th><th>Segmento</th><th>Temperatura</th><th>Status</th><th class="num">Potencial</th><th class="num">ROB previsto</th><th class="num">Previsão</th></tr></thead><tbody>${lg}</tbody></table>`;
   const somaF=f.reduce((a,l)=>a+(l.potencial||0),0);
-  const hint=document.getElementById('crm-leads-hint'); if(hint) hint.textContent=`${f.length} de ${leads.length} leads · ${brlAbbr(somaF)} em potencial`;
+  const nVenc=leads.filter(venc).length;
+  // qualidade do dado: a coluna existe mas vem quase toda vazia — dizer isso é
+  // acionável para o comercial, esconder faria o gestor achar que é zero real
+  const comRob=leads.filter(l=>(l.rob_previsto||0)>0).length;
+  const hint=document.getElementById('crm-leads-hint');
+  if(hint) hint.innerHTML=`${f.length} de ${leads.length} leads · ${brlAbbr(somaF)} em potencial`
+    +(nVenc?` · <b style="color:var(--red)">${nVenc} com previsão vencida</b>`:'')
+    +` · ROB previsto informado em ${comRob} de ${leads.length}`;
+}
+function crmFiltrarProjetos(){
+  const projs=(DATACRM&&DATACRM.projetos)||[];
+  const ativos=['Em execução','Não iniciado'];
+  const f=projs.filter(p=> crmProjFiltro==='ativos' ? ativos.includes(p.status)
+                         : (!crmProjFiltro || p.status===crmProjFiltro));
+  const stB=s=>s==='Em execução'?'b-ok':(s==='Não iniciado'?'b-warn':(s==='Declinado'?'b-dang':'b-info'));
+  const pj=f.map(p=>`<tr><td>${esc(p.cliente)}</td><td>${esc(p.tipo)}</td><td><span class="badge ${stB(p.status)}">${esc(p.status)}</span></td><td class="num">${(p.rob||0)>0?BRL.format(p.rob):'<span style="color:var(--n400)">—</span>'}</td><td class="num">${p.lucro_pct!=null?p.lucro_pct.toFixed(1).replace('.',',')+'%':'—'}</td><td class="num"${(p.aging||0)>180?' style="color:var(--red);font-weight:600"':''}>${p.aging!=null?p.aging+'d':'—'}</td></tr>`).join('')||'<tr><td colspan="6" style="color:var(--n500)">nenhum projeto com esse filtro</td></tr>';
+  document.getElementById('crm-projetos').innerHTML=`<table><thead><tr><th>Cliente</th><th>Tipo</th><th>Status</th><th class="num">ROB/mês</th><th class="num">Lucro</th><th class="num">Aging</th></tr></thead><tbody>${pj}</tbody></table>`;
+  const hint=document.getElementById('crm-proj-hint');
+  const somaRob=f.reduce((a,p)=>a+(p.rob||0),0);
+  if(hint) hint.textContent=`${f.length} de ${projs.length} projetos`+(somaRob>0?` · ROB/mês ${brlAbbr(somaRob)}`:' · ROB/mês não informado');
 }
 // ---------------- RH — Vagas ----------------
 async function loadRh(){
