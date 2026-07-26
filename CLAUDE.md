@@ -202,6 +202,31 @@ a query ignora sai; dimensão que a query aceita e é a pergunta natural da tela
 - **Cobertura ruim de campo é informação, não sujeira para esconder**: "ROB previsto
   informado em 1 de 200 leads" no hint — é acionável para quem preenche.
 
+**Unidade, zero e escopo do filtro (lições da Análise de KM):**
+- **Rótulo de eixo nomeia a unidade FINAL, nunca composta.** `MIL KM ×1000` mandava o
+  leitor multiplicar de cabeça e lia-se como mil quando valia **milhão** — vale
+  `MILHÕES DE KM`. Se o rótulo precisa de aritmética, está errado.
+- **Zero que é ausência de lançamento não é desempenho — é `n/d` em cinza.** Terceiro
+  aparecia com "0% de retorno vazio" em VERDE (melhor da tabela): o ERP simplesmente
+  não recebe o deslocamento vazio do terceiro (121 viagens vazias × 3.559 carregadas
+  em 18 meses, ~3%, contra ~30% em frota/agregado/locação). Antes de pintar um zero
+  de verde, conferir no banco se a série existe.
+- **Todo KPI da tela obedece a TODOS os filtros da tela.** "Custo do vazio" era
+  calculado sempre sobre frota+locação do período inteiro, ignorando filial e
+  modalidade: com `Modalidade = Locação` o cabeçalho dizia 143.326 km vazios e a
+  tabela logo abaixo dizia 95.632. Quando o filtro **exclui** a base do KPI
+  (modalidade agregado/terceiro num KPI de diesel próprio), o KPI mostra `—` e
+  explica — não repete o número de outro recorte.
+- **Escopo agregado precisa estar no subtítulo.** "frota própria" somava TRA+LOC e não
+  batia com nenhuma linha da tabela; virou "frota + locação".
+- **Rótulo de série não pode nascer sobre a barra.** O % do retorno vazio acima do
+  ponto caía dentro da barra empilhada; sai ao lado (`px ± barW/2 + 7`, âncora
+  invertida no último mês). Linha sobre eixo secundário sem escala **exige** rótulo
+  direto — sem ele o leitor não tem como ler valor nenhum.
+- **Mês parcial é o cortado pelo FILTRO, não só o corrente.** Um período de 90 dias
+  começa no meio do mês: a primeira barra parecia despencar. A hachura marca os dois
+  casos (`_corta(mes)` compara o mês com `dt_de`/`dt_ate`).
+
 **Telas de consulta (busca própria, filterbar global escondida — ex.: Consulta de Cliente):**
 - Campo de busca com **`<datalist>`** alimentado por endpoint LEVE e cacheado
   (`/api/comercial/clientes-lista`, ~34 grupos). Nunca reusar o endpoint do painel
