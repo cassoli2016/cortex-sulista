@@ -392,6 +392,19 @@ a query ignora sai; dimensão que a query aceita e é a pergunta natural da tela
   **mediana** (não média, que uma vaga longa distorce) de 11 dias sobre 21 finalizadas.
 - Tempo decorrido revela o que a data sozinha esconde: vaga congelada **há 376 dias**.
 
+**Painel de TV: sem tooltip, cada número tem de se explicar sozinho (lição dos Painéis TV):**
+- **Dia futuro não é dia abaixo da meta.** O painel de faturamento desenhava 27 a 31
+  com a meta cheia e o realizado zerado em vermelho — de longe parecia colapso do
+  faturamento. Dia posterior a hoje agora sai só com a meta esmaecida, sem barra de
+  realizado.
+- **Verde só quando havia meta a bater.** "Último dia faturado R$ 4 mil" saía VERDE num
+  domingo com meta zero. Sem meta no dia o cartão fica neutro e o rótulo diz
+  "fim de semana, sem meta".
+- **Disponibilidade tem de ser de TRAÇÃO.** "Frota disponível 289" somava 227 carretas
+  paradas com os cavalos: dos 307 TRA+LOC ativos só **80 têm motor**. Virou "Tração
+  disponível 74 · 5 em viagem · 1 oficina · de 80 com motor".
+- Em TV não existe `.ihelp` — a explicação tem de caber no rótulo e no subtítulo.
+
 **Telas de consulta (busca própria, filterbar global escondida — ex.: Consulta de Cliente):**
 - Campo de busca com **`<datalist>`** alimentado por endpoint LEVE e cacheado
   (`/api/comercial/clientes-lista`, ~34 grupos). Nunca reusar o endpoint do painel

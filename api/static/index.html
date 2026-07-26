@@ -579,6 +579,9 @@ body.tvfull .tv-head .tv-logo{display:block}
 .tv-tab td{padding:11px 12px;border-top:1px solid #1E3A54}
 .tv-tab .num{text-align:right;font-variant-numeric:tabular-nums}
 .tv-badge{display:inline-block;padding:3px 12px;border-radius:999px;font-size:16px;font-weight:700}
+/* dia que ainda não chegou: só a meta, esmaecida — sem barra de realizado zerada */
+.tv-dia.fut .m{opacity:.35}
+.tv-dia.fut b{opacity:.45}
 .tv-badge.err{background:#7F1D1D;color:#FECACA}.tv-badge.ok{background:#14532D;color:#BBF7D0}
 @media(max-width:1100px){.tv-grid{grid-template-columns:repeat(2,1fr)}.tv-num{font-size:44px}}
 /* no celular os cards de TV em 2 colunas cortam os números — coluna única */
@@ -1501,7 +1504,7 @@ button.avatar{border:0;cursor:pointer}
         <div class="tv-grid" id="tvfat-kpis"></div>
         <div class="tv-grid" style="margin-top:22px">
           <div class="tv-card tv-wide">
-            <div class="tv-label">Faturamento diário × meta — mês corrente</div>
+            <div class="tv-label">Faturamento diário × meta — últimos 12 dias</div>
             <div class="tv-dias" id="tvfat-dias"></div>
           </div>
         </div>
@@ -4474,21 +4477,31 @@ async function loadTvFat(){
     const dias=(d.diario||[]);
     const comReal=dias.filter(x=>x.realizado>0);
     const hoje=comReal.length?comReal[comReal.length-1]:null;
+    // dia que ainda não aconteceu não é dia abaixo da meta: num painel de TV as
+    // barras dos dias futuros com realizado zero pareciam colapso do faturamento
+    const _diaHoje=new Date().getDate();
+    const _fds=(dd)=>{const t=new Date(); const x=new Date(t.getFullYear(),t.getMonth(),dd); const w=x.getDay(); return w===0||w===6;};
+    const futuro=(x)=>Number(x.dia)>_diaHoje;
     document.getElementById('tvfat-kpis').innerHTML=[
       tvCard('Atingimento do mês', at.toFixed(0)+'%', at>=95?'ok':(at>=80?'warn':'ruim'), 'meta acumulada até hoje',
         `<div class="tv-bar" style="float:right;width:0"></div>`),
       tvCard('Realizado no mês', tvBRLc(d.realizado_acumulado||0), '', 'meta até hoje: '+tvBRLc(d.meta_acumulada||0)),
       tvCard('Gap para a meta', tvBRLc((d.meta_acumulada||0)-(d.realizado_acumulado||0)), ((d.meta_acumulada||0)-(d.realizado_acumulado||0))>0?'ruim':'ok', 'diferença acumulada no mês'),
-      tvCard('Último dia faturado', hoje?tvBRLc(hoje.realizado):'—', hoje&&hoje.realizado>=hoje.meta?'ok':'warn', hoje?('dia '+hoje.dia+' · meta do dia '+tvBRLc(hoje.meta)):''),
+      // verde só quando há meta para bater: dia sem meta (domingo/feriado) fica neutro,
+      // senão R$ 4 mil num domingo aparecia como conquista
+      tvCard('Último dia faturado', hoje?tvBRLc(hoje.realizado):'—',
+        (hoje&&(hoje.meta||0)>0) ? (hoje.realizado>=hoje.meta?'ok':'ruim') : '',
+        hoje?('dia '+hoje.dia+((hoje.meta||0)>0?(' · meta do dia '+tvBRLc(hoje.meta)):(_fds(Number(hoje.dia))?' · fim de semana, sem meta':' · sem meta no dia'))):''),
     ].join('');
     const ult=dias.slice(-12);
     const maxV=Math.max(1,...ult.map(x=>Math.max(x.meta||0,x.realizado||0)));
-    document.getElementById('tvfat-dias').innerHTML=ult.map(x=>`
-      <div class="tv-dia">
+    document.getElementById('tvfat-dias').innerHTML=ult.map(x=>{
+      const fut=futuro(x);
+      return `<div class="tv-dia${fut?' fut':''}">
         <div class="cols">
           <i class="m" style="height:${(100*(x.meta||0)/maxV).toFixed(1)}%"></i>
-          <i class="r ${(x.realizado||0)<(x.meta||0)?'abaixo':''}" style="height:${(100*(x.realizado||0)/maxV).toFixed(1)}%"></i>
-        </div><b>${x.dia}</b></div>`).join('');
+          ${fut?'' : `<i class="r ${(x.realizado||0)<(x.meta||0)?'abaixo':''}" style="height:${(100*(x.realizado||0)/maxV).toFixed(1)}%"></i>`}
+        </div><b>${x.dia}</b></div>`;}).join('');
     tvAnimarNums('tvfat-kpis');
     const cabF=document.querySelector('#view-tvfat .tv-head');
     if(cabF){ cabF.classList.add('sync'); setTimeout(()=>cabF.classList.remove('sync'), 1200); }
@@ -4643,7 +4656,11 @@ async function loadTvOpe(){
     const tk=t.kpis, pk=p.kpis, sk=s.kpis;
     document.getElementById('tvope-k1').innerHTML=[
       tvCard('Em trânsito', tk.em_transito, '', tk.atrasadas+' atrasadas'),
-      tvCard('Frota disponível', pk.frota_disp, 'ok', pk.frota_viagem+' em viagem · '+pk.frota_os+' oficina'),
+      // o card mostrava 289 somando 227 carretas paradas com os cavalos: quem aloca
+      // carga precisa da TRAÇÃO disponível, o resto vai no rodapé do card
+      tvCard('Tração disponível', pk.tracao_disp!=null?pk.tracao_disp:pk.frota_disp,
+        (pk.tracao_total && (pk.tracao_disp/pk.tracao_total)<0.15) ? 'warn' : 'ok',
+        (pk.tracao_viagem||0)+' em viagem · '+(pk.tracao_os||0)+' oficina · de '+(pk.tracao_total||0)+' com motor'),
       tvCard('Chegando 72h', pk.chegando_72h, pk.sem_retorno>0?'warn':'ok', pk.sem_retorno+' sem retorno'),
       tvCard('Motoristas em viagem', pk.mot_viagem, '', pk.mot_parados+' disponíveis'),
     ].join('');
