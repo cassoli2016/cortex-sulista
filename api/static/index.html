@@ -1751,7 +1751,7 @@ button.avatar{border:0;cursor:pointer}
       </section>
       <section class="view" id="view-sac">
         <div class="card">
-          <div class="head"><h2>SAC / Freetime e Estadia</h2><span class="hint">estadia estimada além do freetime contratado · <b>estimativa</b> (regra padrão, sem exceções por mercadoria)</span></div>
+          <div class="head"><h2>SAC / Freetime e Estadia <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="Permanência do veículo em carga e descarga (coleta_ocorrencia: 394→395 carga, 396→397 descarga) contra o freetime contratado em sulista.sac_freetimecliente. O excedente vira valor pela regra padrão do contrato. É ESTIMATIVA: não aplica exceção por mercadoria nem acordo pontual, e cada perna é capada em 24h para não somar multi-parada como estadia. Também não reproduz a regra de CNPJ de parceiro do processo oficial.">i</span></h2><span class="hint">estadia estimada além do freetime contratado · <b>estimativa</b> (regra padrão, sem exceções por mercadoria)</span></div>
           <div class="cardfilters">
             <input type="date" id="fSacDe">
             <span style="color:var(--n500)">até</span>
@@ -1760,15 +1760,16 @@ button.avatar{border:0;cursor:pointer}
           </div>
         </div>
         <div class="kpis" id="kpis-sac"></div>
+        <div class="banner-inline" id="sacAviso" style="display:none;margin:0"></div>
         <div class="grid2">
-          <div class="card"><div class="head"><h2>Estadia estimada por cliente</h2><span class="hint">excedente ao freetime · potencial a cobrar</span></div>
+          <div class="card"><div class="head"><h2>Estadia estimada por cliente <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="Potencial de cobrança por cliente no período. Compare com o que foi de fato lançado em Custos Extras: a diferença é receita não cobrada ou sinal de que o freetime padrão não bate com o acordo real daquele cliente.">i</span></h2><span class="hint">excedente ao freetime · potencial a cobrar</span></div>
             <div class="tablewrap" id="sac-cliente"></div></div>
-          <div class="card"><div class="head"><h2>Freetime contratado</h2><span class="hint">por cliente/filial · referência</span></div>
+          <div class="card"><div class="head"><h2>Freetime contratado <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="Horas de tolerância e valor por hora cadastrados por cliente e filial (versão mais recente de cada cliente). É a régua usada no cálculo — se estiver desatualizada, a estimativa toda desloca.">i</span></h2><span class="hint">por cliente/filial · referência</span></div>
             <div class="tablewrap" id="sac-freetime"></div></div>
         </div>
         <div class="card">
-          <div class="head"><h2>Coletas com estadia excedente</h2><span class="hint">maiores valores estimados · até 100</span></div>
-          <div class="tablewrap" id="sac-coletas"></div>
+          <div class="head"><h2>Coletas com estadia excedente <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="As 100 coletas com maior valor estimado no período, com as horas de carga e descarga e o excedente sobre o freetime.">i</span></h2><span class="hint">maiores valores estimados · até 100</span></div>
+          <div class="tablewrap tabroll" id="sac-coletas" style="max-height:520px"></div>
         </div>
       </section>
       <section class="view" id="view-mprev">
@@ -5806,8 +5807,24 @@ async function loadSac(){
 }
 function renderSac(d){
   const k=d.kpis||{};
+  {
+    // A tela mostra POTENCIAL; o realizado mora em Custos Extras. Sem dizer
+    // isso, o número vira "receita a receber" na cabeça de quem lê.
+    const av=document.getElementById('sacAviso');
+    if(av){
+      if((k.valor_estimado||0)>0){
+        av.style.display='flex';
+        av.innerHTML=`<i>${ICONS['sevWarn']}</i><span>Este valor é <b>estimativa de potencial</b>, não cobrança emitida. `
+          +`A estadia efetivamente cobrada do cliente é lançada em <a href="#cex" style="color:inherit;font-weight:700">Custos Extras</a>, `
+          +`e a diferença entre os dois é o que está ficando na mesa — ou o sinal de que a regra padrão de freetime não reflete os acordos reais.</span>`;
+      } else { av.style.display='none'; }
+    }
+  }
   document.getElementById('kpis-sac').innerHTML=[
-    kpi('Estadia estimada', BRL.format(k.valor_estimado||0), 'potencial a cobrar no período (estimativa)', (k.valor_estimado||0)>0?'neg':'pos'),
+    kpi('Estadia estimada', BRL.format(k.valor_estimado||0), 'potencial a cobrar no período — NÃO é valor cobrado', (k.valor_estimado||0)>0?'neg':'pos', null,
+      statChip('warn','estimativa',
+        'Calculado pela regra padrão de freetime do contrato: permanência menos o freetime, vezes o valor/hora. NÃO considera exceções por mercadoria nem acordo pontual, e a janela de cada perna é capada em 24h para não contar multi-parada como estadia. O que foi efetivamente cobrado está em Custos Extras — os dois números não batem por construção.',
+        'sevWarn')),
     kpi('Coletas excedidas', (k.coletas_excedidas||0).toLocaleString('pt-BR'), 'acima do freetime contratado',''),
     kpi('Horas excedentes', (k.horas_excedentes||0).toLocaleString('pt-BR',{maximumFractionDigits:0})+' h', 'soma de carga + descarga',''),
     kpi('Clientes com freetime', (k.clientes_freetime||0).toLocaleString('pt-BR'), 'contratos ativos',''),
@@ -5816,7 +5833,7 @@ function renderSac(d){
   document.getElementById('sac-cliente').innerHTML=`<table><thead><tr><th>Cliente</th><th class="num">Coletas</th><th class="num">Horas exc.</th><th class="num">Estimado</th></tr></thead><tbody>${pc}</tbody></table>`;
   const ft=(d.freetime_cliente||[]).map(f=>`<tr><td>${esc(f.cliente)}</td><td class="num">${f.filial||'—'}</td><td class="num">${f.ft_carga_h!=null?f.ft_carga_h+'h':'—'}</td><td class="num">${f.ft_descarga_h!=null?f.ft_descarga_h+'h':'—'}</td><td class="num">${f.valor_coleta!=null?BRL.format(f.valor_coleta):'—'}</td><td class="num">${f.valor_entrega!=null?BRL.format(f.valor_entrega):'—'}</td></tr>`).join('')||'<tr><td colspan="6" style="color:var(--n500)">sem freetime cadastrado</td></tr>';
   document.getElementById('sac-freetime').innerHTML=`<table><thead><tr><th>Cliente</th><th class="num">Filial</th><th class="num">FT carga</th><th class="num">FT descarga</th><th class="num">R$/h coleta</th><th class="num">R$/h entrega</th></tr></thead><tbody>${ft}</tbody></table>`;
-  const cl=(d.coletas||[]).map(c=>`<tr><td>${esc(c.data||'')}</td><td class="num">${c.coleta}</td><td>${esc(c.cliente)}</td><td class="num">${c.h_carga!=null?c.h_carga+'h':'—'}</td><td class="num">${c.h_descarga!=null?c.h_descarga+'h':'—'}</td><td class="num">${(c.exc_carga+c.exc_descarga).toLocaleString('pt-BR',{maximumFractionDigits:1})} h</td><td class="num" style="font-weight:700">${BRL.format(c.valor_est)}</td></tr>`).join('')||'<tr><td colspan="7" style="color:var(--n500)">sem coletas com excedente no período</td></tr>';
+  const cl=(d.coletas||[]).map(c=>`<tr><td>${c.data?fmtD(String(c.data).slice(0,10)):'—'}</td><td class="num">${c.coleta}</td><td>${esc(c.cliente)}</td><td class="num">${c.h_carga!=null?c.h_carga+'h':'—'}</td><td class="num">${c.h_descarga!=null?c.h_descarga+'h':'—'}</td><td class="num">${(c.exc_carga+c.exc_descarga).toLocaleString('pt-BR',{maximumFractionDigits:1})} h</td><td class="num" style="font-weight:700">${BRL.format(c.valor_est)}</td></tr>`).join('')||'<tr><td colspan="7" style="color:var(--n500)">sem coletas com excedente no período</td></tr>';
   document.getElementById('sac-coletas').innerHTML=`<table><thead><tr><th>Data</th><th class="num">Coleta</th><th>Cliente</th><th class="num">Carga</th><th class="num">Descarga</th><th class="num">Excedente</th><th class="num">Estimado</th></tr></thead><tbody>${cl}</tbody></table>`;
 }
 // ---------------- Manutenção Preventiva ----------------
