@@ -800,6 +800,7 @@ button.avatar{border:0;cursor:pointer}
         <a href="#dre" class="sub" data-view="dre" title="DRE Gerencial"><span class="ic" data-ic="dre"></span><span>DRE Gerencial</span></a>
         <a href="#cont" class="sub" data-view="cont" title="Contabilidade — ajuste de agrupadores"><span class="ic" data-ic="ctb"></span><span>Contabilidade</span></a>
         <a href="#qual" class="sub" data-view="qual" title="Qualidade — certidões e licenças com vencimento"><span class="ic" data-ic="qualic"></span><span>Qualidade e Certidões</span></a>
+        <a href="#orc" class="sub" data-view="orc" title="Orçamento — orçado × realizado"><span class="ic" data-ic="dre"></span><span>Orçamento</span></a>
       </div>
       <button class="group" id="grpOpe" aria-expanded="false" aria-controls="subsOpe" onclick="toggleGroup('grpOpe','subsOpe','cs.opeGroup')" title="Operação">
         <span class="ic" data-ic="ope"></span><span>Operação</span><span class="ic chev" data-ic="chev"></span>
@@ -1545,6 +1546,31 @@ button.avatar{border:0;cursor:pointer}
             <th>Centro de custo</th><th class="num">Débito</th><th class="num">Crédito</th><th class="num">Custo líquido</th>
           </tr></thead><tbody id="cont-cc"></tbody></table></div>
         </div>
+      </section>
+
+      <!-- ===================== ORÇAMENTO ===================== -->
+      <section class="view" id="view-orc">
+        <div class="card">
+          <div class="head"><h2>Orçamento</h2><span class="hint">orçado × realizado por linha da DRE</span></div>
+          <div class="ges-tabs">
+            <button class="ghost" id="otab-acomp" aria-pressed="true" onclick="orcTab('acomp')">Acompanhamento</button>
+            <button class="ghost" id="otab-mont" aria-pressed="false" onclick="orcTab('mont')">Montagem</button>
+          </div>
+          <div class="cardfilters" id="orc-filtros">
+            <select id="fOrcVersao" aria-label="Versão do orçamento" onchange="loadOrc()"></select>
+            <select id="fOrcAte" aria-label="Acumulado até o mês" onchange="loadOrc()"></select>
+          </div>
+        </div>
+        <div id="orc-acomp">
+          <div class="kpis k4" id="kpis-orc"></div>
+          <div class="card"><div class="head"><h2>Orçado × realizado por linha</h2><span class="hint" id="hintOrcCasc"></span></div>
+            <div class="tablewrap tabroll" id="orc-cascata"></div></div>
+          <div class="card"><div class="head"><h2>Evolução mensal</h2><span class="hint">mês não fechado mostra só o orçado</span></div>
+            <div class="chartwrap"><svg id="chartOrc" viewBox="0 0 960 250" preserveAspectRatio="xMidYMid meet" role="img" aria-label="Orçado e realizado por mês."></svg></div></div>
+          <div class="card"><div class="head"><h2>Maiores desvios</h2><span class="hint" id="hintOrcDesv"></span></div>
+            <div class="tablewrap tabroll" id="orc-desvios"></div></div>
+        </div>
+        <div id="orc-mont" style="display:none"></div>
       </section>
 
       <!-- ===================== RENTABILIDADE POR CLIENTE ===================== -->
@@ -2456,7 +2482,7 @@ const FAIXAS = {
   '4_vencido_91_365':['Vencido 91–365d','b-dang'],
   '5_vencido_mais_365':['Vencido > 365d','b-dang'],
 };
-const VIEWS = { home:'Visão Geral', fluxo:'Fluxo de Caixa e Bancos', receber:'Contas a Receber', pagar:'Contas a Pagar', oc:'Ordens de Compra', custos:'Painel de Custos', agr:'Agregados e Terceiros', mvb:'Make vs Buy', comb:'Combustível', man:'Manutenção', com:'Clientes e RKM', clif:'Consulta de Cliente', crm:'CRM — Leads e Projetos', km:'Análise de KM', torre:'Torre de Controle', veic:'Veículos', veicf:'Consulta de Veículo', mprev:'Manutenção Preventiva', comrast:'Comunicação Rastreadora', mul:'Multas', prog:'Programação Inteligente', jorn:'Jornada do Motorista', jornf:'Ficha de Jornada', cex:'Custos Extras', sac:'SAC / Freetime', port:'Portaria', cop:'Copiloto Cortex', cob:'Régua de Cobrança', cont:'Contabilidade', qual:'Qualidade e Certidões', dre:'DRE Gerencial', drecli:'DRE por Cliente', tvfat:'Painel TV — Faturamento', tvope:'Painel TV — Operação', rh:'RH — Vagas', hc:'Headcount', folha:'Custo de Folha', folhaind:'Indicadores de Folha', he:'Horas Extras', gestao:'Gestão', srv:'Saúde do Servidor' };
+const VIEWS = { home:'Visão Geral', fluxo:'Fluxo de Caixa e Bancos', receber:'Contas a Receber', pagar:'Contas a Pagar', oc:'Ordens de Compra', custos:'Painel de Custos', agr:'Agregados e Terceiros', mvb:'Make vs Buy', comb:'Combustível', man:'Manutenção', com:'Clientes e RKM', clif:'Consulta de Cliente', crm:'CRM — Leads e Projetos', km:'Análise de KM', torre:'Torre de Controle', veic:'Veículos', veicf:'Consulta de Veículo', mprev:'Manutenção Preventiva', comrast:'Comunicação Rastreadora', mul:'Multas', prog:'Programação Inteligente', jorn:'Jornada do Motorista', jornf:'Ficha de Jornada', cex:'Custos Extras', sac:'SAC / Freetime', port:'Portaria', cop:'Copiloto Cortex', cob:'Régua de Cobrança', cont:'Contabilidade', qual:'Qualidade e Certidões', orc:'Orçamento', dre:'DRE Gerencial', drecli:'DRE por Cliente', tvfat:'Painel TV — Faturamento', tvope:'Painel TV — Operação', rh:'RH — Vagas', hc:'Headcount', folha:'Custo de Folha', folhaind:'Indicadores de Folha', he:'Horas Extras', gestao:'Gestão', srv:'Saúde do Servidor' };
 const periodoLabel = p => { if(p==='atrasado') return 'Atrasado'; const [y,m]=p.split('-'); return MES[+m-1]+'/'+y.slice(2); };
 const fmtD = s => { if(!s) return ''; const [y,m,dd]=s.split('-'); return dd+'/'+m+'/'+y; };
 // o ERP devolve "YYYY-MM-DD HH24:MI" (to_char); a ficha do veículo mostrava cru
@@ -2562,6 +2588,7 @@ let mulSeq = 0;
 let USER = null;            // sessão corrente (payload de /api/auth/me)
 let DATAGES = null;
 let DATASRV = null, srvTimer = null, srvSeq = 0;
+let DATAORC = null;
 let gesSeq = 0;
 let GES_TAB = 'usuarios';
 let filtrosPromise = null;    // memoização do carregamento de filtros
@@ -2604,7 +2631,7 @@ function toggleGroup(gid,sid,key){
 const VIEW_GROUP = {home:'',cop:'',
   com:'Com',clif:'Com',crm:'Com',rent:'Com',drecli:'Com',
   fluxo:'Fin',receber:'Fin',pagar:'Fin',cob:'Fin',
-  dre:'Ctr',cont:'Ctr',qual:'Ctr',
+  dre:'Ctr',cont:'Ctr',qual:'Ctr',orc:'Ctr',
   torre:'Ope',prog:'Ope',jorn:'Ope',jornf:'Ope',cex:'Ope',sac:'Ope',port:'Ope',km:'Ope',agr:'Ope',mvb:'Ope',
   veic:'Fro',veicf:'Fro',mprev:'Fro',comrast:'Fro',comb:'Fro',man:'Fro',mul:'Fro',
   oc:'Sup',custos:'Sup',
@@ -2834,8 +2861,8 @@ function router(){
   // carga da vista: dispara se não há dados OU se os filtros visíveis
   // divergem dos usados na última carga (nunca mostrar dado velho com filtro novo)
   const key=viewKey(v);
-  const DATAMAP={fin:DATA,oc:DATAOC,agr:DATAAGR,mvb:DATAMVB,comb:DATACOMB,man:DATAMAN,com:DATACOM,clif:DATACLIF,dre:DATADRE,drecli:DATADRECLI,home:DATAHOME,km:DATAKM,torre:DATATORRE,veic:DATAVEIC,veicf:DATAVEICF,mul:DATAMUL,prog:DATAPROG,jorn:DATAJORN,jornf:DATAJORNF,cex:DATACEX,sac:DATASAC,mprev:DATAMPREV,comrast:DATACOMRAST,qual:DATAQUAL,port:DATAPORT,crm:DATACRM,rh:DATARH,hc:DATAHC,folha:DATAFOLHA,folhaind:DATAFOLHAIND,he:DATAHE,custos:DATACUSTOS,cob:DATACOB,rent:DATARENT,cont:DATACONT,gestao:DATAGES,srv:DATASRV,tvfat:null,tvope:null,cop:(COP_MSGS.length?{}:null)};
-  const LOADMAP={fin:load,oc:loadOc,agr:loadAgr,mvb:loadMvb,comb:loadComb,man:loadMan,com:loadCom,clif:loadClif,dre:loadDre,drecli:loadDreCli,home:loadHome,km:loadKm,torre:loadTorre,veic:loadVeic,veicf:loadVeicf,mul:loadMul,prog:loadProg,jorn:loadJorn,jornf:loadJornf,cex:loadCex,sac:loadSac,mprev:loadMPrev,comrast:loadComRast,qual:loadQual,port:loadPort,crm:loadCrm,rh:loadRh,hc:loadHc,folha:loadFolha,folhaind:loadFolhaInd,he:loadHe,custos:loadCustos,cob:loadCob,rent:loadRent,cont:loadCont,gestao:loadGestao,srv:loadSrv,cop:loadCop,tvfat:loadTvFat,tvope:loadTvOpe};
+  const DATAMAP={fin:DATA,oc:DATAOC,agr:DATAAGR,mvb:DATAMVB,comb:DATACOMB,man:DATAMAN,com:DATACOM,clif:DATACLIF,dre:DATADRE,drecli:DATADRECLI,home:DATAHOME,km:DATAKM,torre:DATATORRE,veic:DATAVEIC,veicf:DATAVEICF,mul:DATAMUL,prog:DATAPROG,jorn:DATAJORN,jornf:DATAJORNF,cex:DATACEX,sac:DATASAC,mprev:DATAMPREV,comrast:DATACOMRAST,qual:DATAQUAL,port:DATAPORT,crm:DATACRM,rh:DATARH,hc:DATAHC,folha:DATAFOLHA,folhaind:DATAFOLHAIND,he:DATAHE,custos:DATACUSTOS,cob:DATACOB,rent:DATARENT,cont:DATACONT,orc:DATAORC,gestao:DATAGES,srv:DATASRV,tvfat:null,tvope:null,cop:(COP_MSGS.length?{}:null)};
+  const LOADMAP={fin:load,oc:loadOc,agr:loadAgr,mvb:loadMvb,comb:loadComb,man:loadMan,com:loadCom,clif:loadClif,dre:loadDre,drecli:loadDreCli,home:loadHome,km:loadKm,torre:loadTorre,veic:loadVeic,veicf:loadVeicf,mul:loadMul,prog:loadProg,jorn:loadJorn,jornf:loadJornf,cex:loadCex,sac:loadSac,mprev:loadMPrev,comrast:loadComRast,qual:loadQual,port:loadPort,crm:loadCrm,rh:loadRh,hc:loadHc,folha:loadFolha,folhaind:loadFolhaInd,he:loadHe,custos:loadCustos,cob:loadCob,rent:loadRent,cont:loadCont,orc:loadOrc,gestao:loadGestao,srv:loadSrv,cop:loadCop,tvfat:loadTvFat,tvope:loadTvOpe};
   if(!DATAMAP[key] || (key!=='home' && LOADEDQS[key]!==qsView(key))) LOADMAP[key]();
   // mobile: estado da navegação inferior + fecha gaveta/painel de filtros
   document.querySelectorAll('.bottomnav [data-bview]').forEach(a=>a.classList.toggle('ativo', a.dataset.bview===v));
@@ -2881,6 +2908,7 @@ const NAV_KW={
   crm:'lead funil prospeccao pipeline proposta', drecli:'margem cliente rentabilidade dre',
   dre:'resultado lucro prejuizo demonstracao contabil', cont:'contabil plano de contas agrupador classificar',
   qual:'certidao licenca alvara iso esg auditoria nc vencimento',
+  orc:'orcamento orcado budget previsto desvio meta de custo',
   torre:'rastreamento posicao mapa gps viagem transito atraso', prog:'programacao radar vazio casamento malha ocioso',
   jorn:'motorista jornada 13103 descanso direcao infracao', cex:'custo extra estadia devolucao reentrega',
   sac:'freetime estadia detention ocorrencia atendimento', port:'portaria patio visitante entrada saida',
@@ -3398,6 +3426,156 @@ function drillRows(id, rows){
   }).join('') || '<tr><td colspan="4" style="color:var(--n500)">sem dados no período</td></tr>';
 }
 
+// ---------------- Orçamento ----------------
+let orcSeq = 0, ORC_ABA = 'acomp';
+function orcTab(a){
+  ORC_ABA = a;
+  document.getElementById('otab-acomp').setAttribute('aria-pressed', String(a==='acomp'));
+  document.getElementById('otab-mont').setAttribute('aria-pressed', String(a==='mont'));
+  document.getElementById('orc-acomp').style.display = a==='acomp' ? '' : 'none';
+  document.getElementById('orc-mont').style.display  = a==='mont'  ? '' : 'none';
+  if(a==='mont') renderOrcMontagem();
+}
+async function loadOrc(){
+  const seq=++orcSeq, btn=document.getElementById('btnRefresh'); if(btn) btn.disabled=true;
+  document.getElementById('content').classList.add('loading');
+  skelKpis('kpis-orc',4);
+  // popula os selects uma única vez
+  const selA=document.getElementById('fOrcAte');
+  if(selA && !selA.dataset.pronto){
+    const MES=['jan','fev','mar','abr','mai','jun','jul','ago','set','out','nov','dez'];
+    selA.innerHTML='<option value="">Até o último mês fechado</option>'
+      + MES.map((m,i)=>`<option value="${i+1}">Até ${m}</option>`).join('');
+    selA.dataset.pronto='1';
+  }
+  const selV=document.getElementById('fOrcVersao');
+  if(selV && !selV.dataset.pronto){
+    try{
+      const rv=await fetch('/api/controladoria/orcamento/versoes',{cache:'no-store'});
+      const dv=await rv.json();
+      selV.innerHTML=(dv.versoes||[]).map(x=>
+        `<option value="${x.id}">${esc(x.rotulo)} (${x.ano})</option>`).join('')
+        || '<option value="">nenhuma versão</option>';
+      selV.dataset.pronto='1';
+    }catch(e){ /* segue sem versão: a API escolhe a mais recente */ }
+  }
+  try{
+    const p=new URLSearchParams();
+    const v=(document.getElementById('fOrcVersao')||{}).value;
+    const a=(document.getElementById('fOrcAte')||{}).value;
+    if(v) p.set('versao_id', v);
+    if(a) p.set('ate_mes', a);
+    const r=await fetch('/api/controladoria/orcamento?'+p.toString(),{cache:'no-store'});
+    const d=await r.json(); if(seq!==orcSeq) return;
+    if(!r.ok){ showBanner(d.mensagem||'Erro ao consultar o orçamento.', d.detalhe); return; }
+    hideBanner(); DATAORC=d; LOADEDQS.orc=''; renderOrc(d);
+  }catch(e){ if(seq===orcSeq) showBanner('Não foi possível falar com a API.', e.message); }
+  finally{ if(seq===orcSeq){ if(btn) btn.disabled=false; document.getElementById('content').classList.remove('loading'); } }
+}
+function renderOrc(d){
+  if(d.vazio){
+    document.getElementById('kpis-orc').innerHTML='';
+    document.getElementById('orc-cascata').innerHTML=
+      `<div style="padding:26px 18px;color:var(--n500)">${esc(d.mensagem||'Nenhum orçamento criado.')} `
+      +`Use a aba <b>Montagem</b> para gerar o primeiro.</div>`;
+    document.getElementById('orc-desvios').innerHTML='';
+    return;
+  }
+  const L=d.linhas||[];
+  const pega=r=>L.find(x=>x.linha===r)||{orcado:0,realizado:0,desvio:0,desvio_pct:null,favoravel:true};
+  // CSP e Resultado do Exercício são linhas de FÓRMULA no DRE_MODELO (api/queries.py):
+  // subtotal que soma outras linhas, nunca recebe conta diretamente. Por isso a API do
+  // orçamento — que só fecha linha por conta classificada — nunca as devolve em
+  // d.linhas, e pega() sempre cairia no zero-verde padrão. Fecham-se aqui somando as
+  // mesmas linhas-folha que a DRE Gerencial soma para os mesmos rótulos.
+  const fecha=rows=>{
+    const orcado=rows.reduce((a,x)=>a+x.orcado,0), realizado=rows.reduce((a,x)=>a+x.realizado,0);
+    const desvio=realizado-orcado, base=Math.abs(orcado);
+    return {orcado,realizado,desvio,desvio_pct:base?100*desvio/base:null,favoravel:desvio>=0};
+  };
+  const rec=pega('RECEITA BRUTA');
+  const csp=fecha(L.filter(x=>['CUSTO FIXO','CUSTO VARIAVEL','CREDITOS TRIBUTARIOS'].includes(x.linha)));
+  const res=fecha(L);   // resultado do exercício = soma de todas as linhas-folha da cascata
+  const estouradas=(d.contas||[]).filter(c=>c.desvio<0).length;
+  // chip de desvio: a cor segue o EFEITO no resultado, nunca o sinal
+  const chip=x=>x.desvio_pct==null?'' : statChip(x.favoravel?'good':'bad',
+      (x.desvio>=0?'+':'')+x.desvio_pct.toLocaleString('pt-BR',{maximumFractionDigits:1})+'%',
+      x.favoravel?'dentro do orçado':'fora do orçado');
+  document.getElementById('kpis-orc').innerHTML=[
+    kpi('Receita', BRL.format(rec.realizado), 'orçado '+BRL.format(rec.orcado),
+        rec.favoravel?'pos':'neg',
+        'Realizado acumulado do ano até o mês selecionado, contra o orçado do mesmo intervalo. Receita abaixo do orçado é desfavorável.', chip(rec)),
+    kpi('Custo (CSP)', BRL.format(csp.realizado), 'orçado '+BRL.format(csp.orcado),
+        csp.favoravel?'pos':'neg',
+        'Custo dos serviços prestados acumulado contra o orçado. Gastar MENOS que o orçado é favorável — por isso um custo abaixo do previsto aparece em verde.', chip(csp)),
+    kpi('Resultado', BRL.format(res.realizado), 'orçado '+BRL.format(res.orcado),
+        res.favoravel?'pos':'neg',
+        'Última linha da cascata: resultado do exercício realizado contra o orçado no mesmo intervalo.', chip(res)),
+    kpi('Contas estouradas', estouradas.toLocaleString('pt-BR'),
+        'de '+(d.contas||[]).length+' contas com movimento', estouradas>0?'warn':'pos',
+        'Contas cujo realizado acumulado passou do orçado acumulado no mesmo intervalo. É a lista da aba de maiores desvios.'),
+  ].join('');
+  const cel=x=>{
+    const c = x.favoravel ? 'var(--green)' : 'var(--red)';
+    return `<td class="num" style="color:${c};font-weight:600">${(x.desvio>=0?'+':'')+BRL.format(x.desvio)}</td>`
+      + `<td class="num" style="color:${c}">${x.desvio_pct==null?'—':(x.desvio>=0?'+':'')+x.desvio_pct.toLocaleString('pt-BR',{maximumFractionDigits:1})+'%'}</td>`;
+  };
+  document.getElementById('orc-cascata').innerHTML=
+    `<table><thead><tr><th>Linha</th><th class="num">Orçado</th><th class="num">Realizado</th><th class="num">Desvio</th><th class="num">%</th></tr></thead><tbody>`
+    + L.map(x=>`<tr><td style="font-weight:600">${esc(x.linha)}</td>`
+        +`<td class="num">${BRL.format(x.orcado)}</td>`
+        +`<td class="num" style="font-weight:600">${BRL.format(x.realizado)}</td>`+cel(x)+`</tr>`).join('')
+    + `</tbody></table>`;
+  document.getElementById('hintOrcCasc').textContent =
+    'acumulado até o mês '+d.ate_mes+' · '+L.length+' linhas da cascata';
+  const top=(d.contas||[]).slice(0,15);
+  document.getElementById('orc-desvios').innerHTML=
+    `<table><thead><tr><th>Conta</th><th>Linha</th><th class="num">Orçado</th><th class="num">Realizado</th><th class="num">Desvio</th></tr></thead><tbody>`
+    + (top.map(c=>`<tr><td style="font-family:var(--mono)">${esc(c.conta)}</td><td>${esc(c.linha)}</td>`
+        +`<td class="num">${BRL.format(c.orcado)}</td><td class="num">${BRL.format(c.realizado)}</td>`
+        +`<td class="num" style="color:${c.favoravel?'var(--green)':'var(--red)'};font-weight:700">${(c.desvio>=0?'+':'')+BRL.format(c.desvio)}</td></tr>`).join('')
+       || '<tr><td colspan="5" style="color:var(--n500)">sem contas no período</td></tr>')
+    + `</tbody></table>`;
+  document.getElementById('hintOrcDesv').textContent = top.length+' de '+(d.contas||[]).length+' contas · maior desvio primeiro';
+  chartOrcRender(d.mensal||[]);
+  if((d.sem_linha||[]).length){
+    document.getElementById('orc-cascata').insertAdjacentHTML('afterbegin',
+      `<div class="banner-inline" style="display:block;margin:10px 16px">`
+      +`<b>${d.sem_linha.length} conta(s) sem agrupador</b> ficaram fora do orçamento — `
+      +`elas não somam em linha nenhuma da DRE. Classifique em <a href="#cont">Contabilidade</a>.</div>`);
+  }
+}
+function chartOrcRender(mensal){
+  const svg=document.getElementById('chartOrc');
+  if(!mensal.length){ svg.innerHTML='<text x="480" y="120" text-anchor="middle" fill="#6E7883" font-size="14">sem dados</text>'; return; }
+  const W=960,H=250,mL=64,mR=16,mT=28,mB=34, iw=W-mL-mR, ih=H-mT-mB;
+  const n=mensal.length, bandW=iw/n;
+  const vals=mensal.flatMap(r=>[Math.abs(r.orcado||0), Math.abs(r.realizado||0)]);
+  const tks=niceTicks(0,Math.max(1,...vals),4), top=tks[tks.length-1], u=unitOf(top);
+  const y=v=>mT+ih-(Math.abs(v)/top)*ih, y0=y(0);
+  const px=i=>mL+bandW*i+bandW/2;
+  const bw=Math.min(16,bandW*0.3);
+  let s='';
+  s+=`<text x="${mL}" y="${mT-12}" font-size="11" fill="#6E7883" font-weight="600" letter-spacing="1.5">${u.t}</text>`;
+  tks.forEach(v=>{ const yy=y(v);
+    s+=`<line x1="${mL}" y1="${yy}" x2="${W-mR}" y2="${yy}" stroke="${v===0?'#C2C8D0':'#ECEEF1'}" stroke-width="1"/>`;
+    s+=`<text x="${mL-8}" y="${yy+4}" text-anchor="end" font-size="11" fill="#6E7883" font-family="IBM Plex Mono,monospace">${NMI.format(v/u.d)}</text>`; });
+  mensal.forEach((r,i)=>{
+    s+=colPath(px(i)-bw-1,bw,y(r.orcado||0),y0,3,CC.navy400);
+    // mês não fechado NÃO desenha realizado: barra zerada leria como queda
+    if(r.fechado && r.realizado!=null) s+=colPath(px(i)+1,bw,y(r.realizado),y0,3,CC.navy700);
+  });
+  mensal.forEach((r,i)=>{ s+=`<text x="${px(i)}" y="${H-mB+18}" text-anchor="middle" font-size="10.5" fill="${r.fechado?'#4F5860':'#AEB6BF'}">${r.mes}</text>`; });
+  svg.innerHTML=s;
+}
+function renderOrcMontagem(){
+  const el=document.getElementById('orc-mont');
+  if(el && !el.dataset.pronto){
+    el.innerHTML='<div class="card"><div style="padding:26px 18px;color:var(--n500)">Montagem do orçamento — em construção.</div></div>';
+    el.dataset.pronto='1';
+  }
+}
+
 /* ---------------- Geometria compartilhada ---------------- */
 function niceTicks(min,max,n){
   if(min===max){ min-=1; max+=1; }
@@ -3815,7 +3993,7 @@ function reloadCurrent(){
   const M={home:loadHome,fluxo:load,receber:load,pagar:load,dre:loadDre,drecli:loadDreCli,oc:loadOc,
     agr:loadAgr,mvb:loadMvb,comb:loadComb,man:loadMan,com:loadCom,clif:loadClif,km:loadKm,
     torre:loadTorre,veic:loadVeic,veicf:loadVeicf,mul:loadMul,prog:loadProg,jorn:loadJorn,jornf:loadJornf,cex:loadCex,sac:loadSac,mprev:loadMPrev,comrast:loadComRast,qual:loadQual,port:loadPort,crm:loadCrm,rh:loadRh,hc:loadHc,folha:loadFolha,folhaind:loadFolhaInd,he:loadHe,custos:loadCustos,cob:loadCob,rent:loadRent,
-    cont:loadCont,gestao:loadGestao,srv:loadSrv,cop:loadCop,tvfat:loadTvFat,tvope:loadTvOpe};
+    cont:loadCont,orc:loadOrc,gestao:loadGestao,srv:loadSrv,cop:loadCop,tvfat:loadTvFat,tvope:loadTvOpe};
   (M[currentView()]||load)();
 }
 
@@ -8990,6 +9168,7 @@ boot();
         <a href="#dre" onclick="fecharDrawer()"><span class="ic" data-ic="dre"></span>DRE Gerencial</a>
         <a href="#cont" onclick="fecharDrawer()"><span class="ic" data-ic="ctb"></span>Contabilidade</a>
         <a href="#qual" onclick="fecharDrawer()"><span class="ic" data-ic="qualic"></span>Qualidade e Certidões</a>
+        <a href="#orc" onclick="fecharDrawer()"><span class="ic" data-ic="dre"></span>Orçamento</a>
       </div>
     </div>
     <div class="dgrp" data-grp="Ope">
