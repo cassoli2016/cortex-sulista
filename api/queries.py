@@ -3340,6 +3340,7 @@ SELECT coalesce(sum(coalesce(p.kmfretecompra,0)),0)::float8 AS km
 
 PROG_VEIC_DISP_SQL = """
 SELECT v.placa, coalesce(u.descricao,'(sem)') AS utilizacao,
+       (v.possuimotor = 1) AS com_motor,
        t.ult_saida::date AS ult_saida,
        coalesce(t.em_viagem,0)::int AS em_viagem,
        coalesce(os.abertas,0)::int AS os_abertas
@@ -3475,6 +3476,13 @@ def get_programacao() -> dict:
     frota_viagem = sum(1 for v in veic_disp if v["em_viagem"] > 0)
     frota_os = sum(1 for v in veic_disp if v["em_viagem"] == 0 and v["os_abertas"] > 0)
     frota_disp = frota_total - frota_viagem - frota_os
+    # dos 307 TRA+LOC ativos só 80 têm motor: contar carreta parada como veículo
+    # disponível infla a disponibilidade num painel que a operação usa para alocar
+    _mot = [v for v in veic_disp if v["com_motor"]]
+    tracao_total = len(_mot)
+    tracao_viagem = sum(1 for v in _mot if v["em_viagem"] > 0)
+    tracao_os = sum(1 for v in _mot if v["em_viagem"] == 0 and v["os_abertas"] > 0)
+    tracao_disp = tracao_total - tracao_viagem - tracao_os
     ociosos = sorted(
         ({**v, "dias_parado": dias(v["ult_saida"])}
          for v in veic_disp if v["em_viagem"] == 0 and v["os_abertas"] == 0),
@@ -3520,6 +3528,8 @@ def get_programacao() -> dict:
             "economia_potencial": km_evitavel * custo_km_diesel,
             "frota_total": frota_total, "frota_viagem": frota_viagem,
             "frota_os": frota_os, "frota_disp": frota_disp,
+            "tracao_total": tracao_total, "tracao_viagem": tracao_viagem,
+            "tracao_os": tracao_os, "tracao_disp": tracao_disp,
             "mot_total": mot_total, "mot_viagem": mot_viagem,
             "mot_parados": mot_total - mot_viagem,
             "cnh_vencida": len(cnh_vencida), "cnh_vencendo": cnh_vencendo,
