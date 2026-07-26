@@ -264,6 +264,21 @@ a query ignora sai; dimensão que a query aceita e é a pergunta natural da tela
   porque sem ele a idade média não decide renovação; e ele valeu para TODAS as queries
   da tela (KPI e tabela de utilização usavam `FROM veiculo v` cru e escapariam).
 
+**Ficha de item (lições da Consulta de Veículo):**
+- **Rótulo de KPI muda com a natureza do item.** "Faturamento" na ficha de um veículo de
+  AGREGADO parecia o que o agregado recebeu, quando é a receita que a Sulista cobrou do
+  cliente. Virou "Receita gerada", e para AGR/TER entra o KPI que faltava — "Pago ao
+  transportador" (`valorfretecompra`) com o % da receita.
+- **Janela fixa numa ficha gera contradição entre telas.** Os 30 dias fixos davam 9% de
+  retorno vazio numa placa que a Análise de KM (90 dias) mostrava com 33,5% — os dois
+  certos. A ficha ganhou seletor 30/60/90/180 e todo rótulo carrega a janela ativa
+  (`JAN`), além do ⓘ avisando que lá o agrupamento é por EMISSÃO e aqui por CHEGADA.
+- **Data vinda de `to_char(...,'YYYY-MM-DD HH24:MI')` precisa de `fmtDT()` na exibição** —
+  a ficha mostrava `2026-07-25 02:15` no meio de um app todo em pt-BR.
+- **GOTCHA de tooltip:** `title="..."` escrito DIRETO no HTML quebra se o texto tiver
+  aspa dupla (`"Ano médio"` fechava o atributo e engolia o resto da tag). Usar aspas
+  curvas `“ ”`. Nos KPIs isso não acontece — `kpi()` passa por `esc(h)`.
+
 **Telas de consulta (busca própria, filterbar global escondida — ex.: Consulta de Cliente):**
 - Campo de busca com **`<datalist>`** alimentado por endpoint LEVE e cacheado
   (`/api/comercial/clientes-lista`, ~34 grupos). Nunca reusar o endpoint do painel

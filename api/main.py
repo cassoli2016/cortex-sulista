@@ -528,13 +528,16 @@ def veiculos(modalidade: str | None = None, situacao: str = "ativos",
 
 
 @app.get("/api/frota/veiculo")
-def veiculo_ficha(placa: str | None = None) -> JSONResponse:
+def veiculo_ficha(placa: str | None = None, dias: int = 30) -> JSONResponse:
     placa = (placa or "").strip()
     if not placa:
         return JSONResponse(status_code=422, content={
             "erro": "parametro_invalido", "mensagem": "Informe a placa do veículo."})
+    if dias not in (30, 60, 90, 180):
+        return JSONResponse(status_code=422, content={
+            "erro": "parametro_invalido", "mensagem": "dias deve ser 30, 60, 90 ou 180."})
     try:
-        return JSONResponse(queries.get_veiculo_ficha(placa))
+        return JSONResponse(queries.get_veiculo_ficha(placa, dias=dias))
     except psycopg.OperationalError as exc:
         log.warning("banco inacessivel: %s", exc)
         return JSONResponse(status_code=503, content={

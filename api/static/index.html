@@ -1457,14 +1457,14 @@ button.avatar{border:0;cursor:pointer}
       <section class="view" id="view-veic">
         <div class="kpis" id="kpis-veic"></div>
         <div class="card">
-          <div class="head"><h2>Por utilização <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="veiculo.utilizacaoveiculo cruzada com utilizacaoveiculo (descrição). FROTA e LOCAÇÃO são os veículos que a Sulista opera com diesel e motorista próprios; AGREGADOS e TERCEIROS são de quem vende frete para ela. Linhas fora dessas quatro (vazio, "Preventiva") são inconsistência de cadastro. Idade = ano corrente − anofabricacao, só dos ativos com ano válido.">i</span></h2><span class="hint">composição da frota · idade por modalidade</span></div>
+          <div class="head"><h2>Por utilização <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="veiculo.utilizacaoveiculo cruzada com utilizacaoveiculo (descrição). FROTA e LOCAÇÃO são os veículos que a Sulista opera com diesel e motorista próprios; AGREGADOS e TERCEIROS são de quem vende frete para ela. Linhas fora dessas quatro (vazio, “Preventiva”) são inconsistência de cadastro. Idade = ano corrente − anofabricacao, só dos ativos com ano válido.">i</span></h2><span class="hint">composição da frota · idade por modalidade</span></div>
           <div class="tablewrap"><table><thead><tr>
             <th>Utilização</th><th class="num">Ativos</th><th class="num">Inativos</th><th class="num">Idade média</th>
           </tr></thead><tbody id="veic-util"></tbody></table></div>
         </div>
         <div class="grid2">
           <div class="card">
-            <div class="head"><h2>Por tipo de veículo <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="veiculo.tipoveiculo cruzada com tipoveiculo (descrição). Mostra os 20 maiores tipos — o hint diz quantos existem e quantos veículos o recorte cobre. Tipo é cadastro livre no ERP: variações como "CAVALO TRUCADO 6X2" e "CAVALO TRUCADO 6X2 PJ" contam separado.">i</span></h2><span class="hint" id="hintVeicTipo"></span></div>
+            <div class="head"><h2>Por tipo de veículo <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="veiculo.tipoveiculo cruzada com tipoveiculo (descrição). Mostra os 20 maiores tipos — o hint diz quantos existem e quantos veículos o recorte cobre. Tipo é cadastro livre no ERP: variações como “CAVALO TRUCADO 6X2” e “CAVALO TRUCADO 6X2 PJ” contam separado.">i</span></h2><span class="hint" id="hintVeicTipo"></span></div>
             <div class="tablewrap"><table><thead><tr>
               <th>Tipo</th><th class="num">Quantidade</th>
             </tr></thead><tbody id="veic-tipo"></tbody></table></div>
@@ -1477,7 +1477,7 @@ button.avatar{border:0;cursor:pointer}
           </div>
         </div>
         <div class="card">
-          <div class="head"><h2>Marcas e modelos <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="veiculo.marcaveiculo/modeloveiculo. "Ano médio" é a média de anofabricacao dos veículos ativos da marca com ano válido — puxa para baixo quando a marca tem implemento antigo em uso. Clique na linha para ver os modelos e a faixa de anos.">i</span></h2><span class="hint" id="hintVeicMar">clique na marca para ver os modelos</span></div>
+          <div class="head"><h2>Marcas e modelos <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="veiculo.marcaveiculo/modeloveiculo. “Ano médio” é a média de anofabricacao dos veículos ativos da marca com ano válido — puxa para baixo quando a marca tem implemento antigo em uso. Clique na linha para ver os modelos e a faixa de anos.">i</span></h2><span class="hint" id="hintVeicMar">clique na marca para ver os modelos</span></div>
           <div class="tablewrap"><table><thead><tr>
             <th style="width:34px"></th><th>Marca</th><th class="num">Quantidade</th><th class="num">Ano médio</th>
           </tr></thead><tbody id="veic-marca"></tbody></table></div>
@@ -1661,7 +1661,7 @@ button.avatar{border:0;cursor:pointer}
         </div>
         <div class="grid2">
           <div class="card">
-            <div class="head"><h2>Veículos próprios parados <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="Veículos próprios e locados ativos, sem viagem em aberto e sem OS na oficina. "120+" significa que não há viagem registrada nos últimos 120 dias — nesse caso não há como saber a data da última viagem pela janela consultada. Locado parado é aluguel correndo sem receita.">i</span></h2><span class="hint">sem viagem em aberto e sem OS · mais tempo parado primeiro</span></div>
+            <div class="head"><h2>Veículos próprios parados <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="Veículos próprios e locados ativos, sem viagem em aberto e sem OS na oficina. “120+” significa que não há viagem registrada nos últimos 120 dias — nesse caso não há como saber a data da última viagem pela janela consultada. Locado parado é aluguel correndo sem receita.">i</span></h2><span class="hint">sem viagem em aberto e sem OS · mais tempo parado primeiro</span></div>
             <div class="tablewrap"><table><thead><tr>
               <th>Placa</th><th>Modalidade</th><th class="num">Última viagem</th><th class="num">Dias parado</th>
             </tr></thead><tbody id="prog-ocioso"></tbody></table></div>
@@ -1706,10 +1706,17 @@ button.avatar{border:0;cursor:pointer}
       </section>
       <section class="view" id="view-veicf">
         <div class="card">
-          <div class="head"><h2>Consulta de Veículo</h2><span class="hint">digite a placa e veja a ficha completa · indicadores dos últimos 30 dias</span></div>
+          <div class="head"><h2>Consulta de Veículo</h2><span class="hint">digite a placa e veja a ficha completa · a janela vale para todos os indicadores</span></div>
           <div class="cardfilters">
             <input type="search" id="fVeicfPlaca" aria-label="Buscar veículo por placa" placeholder="Placa (ex.: ABC1D23)" autocomplete="off" style="text-transform:uppercase"
                    onkeydown="if(event.key==='Enter')loadVeicf(true)">
+            <select id="fVeicfDias" aria-label="Janela dos indicadores" onchange="loadVeicf(true)"
+                    title="Janela de todos os indicadores da ficha. O retorno vazio de um mesmo veículo muda muito com o recorte: em 30 dias pode dar 9% e em 90 dias 33%.">
+              <option value="30" selected>Últimos 30 dias</option>
+              <option value="60">Últimos 60 dias</option>
+              <option value="90">Últimos 90 dias</option>
+              <option value="180">Últimos 180 dias</option>
+            </select>
             <button class="btn" onclick="loadVeicf(true)">Buscar</button>
           </div>
         </div>
@@ -1833,7 +1840,7 @@ button.avatar{border:0;cursor:pointer}
           <div class="tablewrap tabroll" id="port-patio" style="max-height:420px"></div>
         </div>
         <div class="card">
-          <div class="head"><h2>Autorizações de saída <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="sulista.autorizacaosaida com envio à portaria marcado, últimos 7 dias. "Aguardando" = autorização emitida e o veículo ainda não saiu; "retorno pendente" = saiu e não voltou a ser registrado.">i</span></h2><span class="hint">emitidas nos últimos 7 dias</span></div>
+          <div class="head"><h2>Autorizações de saída <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="sulista.autorizacaosaida com envio à portaria marcado, últimos 7 dias. “Aguardando” = autorização emitida e o veículo ainda não saiu; “retorno pendente” = saiu e não voltou a ser registrado.">i</span></h2><span class="hint">emitidas nos últimos 7 dias</span></div>
           <div class="tablewrap tabroll" id="port-aut" style="max-height:520px"></div>
         </div>
       </section>
@@ -2082,7 +2089,7 @@ button.avatar{border:0;cursor:pointer}
           </div>
         </div>
         <div class="card">
-          <div class="head"><h2>Por modalidade <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="programacaoembarque (não cancelada, semáforo = 1, número < 1.000.000) × veiculo.utilizacaoveiculo, filtrada por data de emissão. Km = kmfretecompra; CARREGADO = tipo ≠ 3, VAZIO = tipo = 3. RKM = receita ÷ km carregado. "n/d" no retorno vazio = a modalidade não teve viagem de deslocamento vazio lançada no período (caso do terceiro, que não reporta o vazio dele ao ERP).">i</span></h2><span class="hint">no período filtrado</span></div>
+          <div class="head"><h2>Por modalidade <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="programacaoembarque (não cancelada, semáforo = 1, número < 1.000.000) × veiculo.utilizacaoveiculo, filtrada por data de emissão. Km = kmfretecompra; CARREGADO = tipo ≠ 3, VAZIO = tipo = 3. RKM = receita ÷ km carregado. “n/d” no retorno vazio = a modalidade não teve viagem de deslocamento vazio lançada no período (caso do terceiro, que não reporta o vazio dele ao ERP).">i</span></h2><span class="hint">no período filtrado</span></div>
           <div class="tablewrap"><table><thead><tr>
             <th>Modalidade</th><th class="num">Viagens</th><th class="num">Km carregado</th><th class="num">Km vazio</th><th class="num">Retorno vazio</th><th class="num">Receita</th><th class="num">RKM</th>
           </tr></thead><tbody id="km-modal"></tbody></table></div>
@@ -2133,7 +2140,7 @@ button.avatar{border:0;cursor:pointer}
         </div>
         <div class="grid2">
           <div class="card">
-            <div class="head"><h2>Composição do CKM próprio <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="Contas do razão agrupadas pelo plano de contas gerencial, divididas pelo km carregado estimado da frota própria no período. "Total no período" é R$/km × km — reconstituição, não o saldo bruto da conta. Créditos tributários ficam fora do CKM por serem mistos com afretamento.">i</span></h2><span class="hint">custos do razão ÷ km carregado estimado</span></div>
+            <div class="head"><h2>Composição do CKM próprio <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="Contas do razão agrupadas pelo plano de contas gerencial, divididas pelo km carregado estimado da frota própria no período. “Total no período” é R$/km × km — reconstituição, não o saldo bruto da conta. Créditos tributários ficam fora do CKM por serem mistos com afretamento.">i</span></h2><span class="hint">custos do razão ÷ km carregado estimado</span></div>
             <div class="tablewrap"><table><thead><tr>
               <th>Componente</th><th class="num">R$/km</th><th class="num">Total no período</th>
             </tr></thead><tbody id="mvb-comp"></tbody></table></div>
@@ -2399,6 +2406,9 @@ const FAIXAS = {
 const VIEWS = { home:'Visão Geral', fluxo:'Fluxo de Caixa e Bancos', receber:'Contas a Receber', pagar:'Contas a Pagar', oc:'Ordens de Compra', custos:'Painel de Custos', agr:'Agregados e Terceiros', mvb:'Make vs Buy', comb:'Combustível', man:'Manutenção', com:'Clientes e RKM', clif:'Consulta de Cliente', crm:'CRM — Leads e Projetos', km:'Análise de KM', torre:'Torre de Controle', veic:'Veículos', veicf:'Consulta de Veículo', mprev:'Manutenção Preventiva', comrast:'Comunicação Rastreadora', mul:'Multas', prog:'Programação Inteligente', jorn:'Jornada do Motorista', jornf:'Ficha de Jornada', cex:'Custos Extras', sac:'SAC / Freetime', port:'Portaria', cop:'Copiloto Cortex', cob:'Régua de Cobrança', cont:'Contabilidade', qual:'Qualidade e Certidões', dre:'DRE Gerencial', drecli:'DRE por Cliente', tvfat:'Painel TV — Faturamento', tvope:'Painel TV — Operação', rh:'RH — Vagas', hc:'Headcount', folha:'Custo de Folha', folhaind:'Indicadores de Folha', he:'Horas Extras', gestao:'Gestão', srv:'Saúde do Servidor' };
 const periodoLabel = p => { if(p==='atrasado') return 'Atrasado'; const [y,m]=p.split('-'); return MES[+m-1]+'/'+y.slice(2); };
 const fmtD = s => { if(!s) return ''; const [y,m,dd]=s.split('-'); return dd+'/'+m+'/'+y; };
+// o ERP devolve "YYYY-MM-DD HH24:MI" (to_char); a ficha do veículo mostrava cru
+const fmtDT = s => { if(!s) return '—'; const [d,h]=String(s).split(' ');
+  return fmtD(d)+(h?' '+h.slice(0,5):''); };
 const esc  = s => (s??'').toString().replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
 const unitOf = m => m>=1.5e6 ? {d:1e6,t:'R$ MI'} : (m>=1500 ? {d:1e3,t:'R$ MIL'} : {d:1,t:'R$'});
 
@@ -3158,7 +3168,7 @@ function trendChip(atual, ant, opt){
 }
 /* chip de estado (sem variação percentual): semáforo + texto curto */
 function statChip(cls, texto, titulo, ic){
-  return `<span class="trend ${cls}"${titulo?` title="${esc(titulo)}"`:''}>${ICONS[ic||('flat'===cls?'trFlat':'sevWarn')]||''}${esc(texto)}</span>`;
+  return `<span class="trend ${cls}"${titulo?` title="${esc(titulo)}“`:''}>${ICONS[ic||('flat'===cls?'trFlat':'sevWarn')]||''}${esc(texto)}</span>`;
 }
 const pct = (a,b)=> b>0 ? (100*a/b).toLocaleString('pt-BR',{maximumFractionDigits:0})+'%' : '—';
 const sumFaixa=(rows,f)=>((rows||[]).find(r=>r.faixa===f)||{}).valor||0;
@@ -3178,7 +3188,7 @@ function render(d){
       'juros, tarifas e despesas financeiras (razão 4.2.4) · 12 meses: '+BRL.format(d.kpis.custo_financeiro_12m)+(d.kpis.estresse_gap_mes?' · ⚠️ estresse (receita −10%): caixa negativo em '+periodoLabel(d.kpis.estresse_gap_mes):' · estresse (receita −10%): sem gap');
     document.getElementById('fluxo-fin').innerHTML=(d.custo_financeiro||[]).map(f=>`<tr>
       <td>${periodoLabel(f.mes)}</td>
-      <td class="num" style="color:var(--red);font-weight:600">${BRL.format(f.valor)}</td></tr>`).join('');
+      <td class=”num" style="color:var(--red);font-weight:600">${BRL.format(f.valor)}</td></tr>`).join('');
     document.getElementById('fluxo-ciclo').innerHTML=d.ciclo_caixa.map(c=>`<tr>
       <td>${periodoLabel(c.mes)}</td>
       <td class="num">${c.dso!=null?c.dso.toFixed(0)+'d':'—'}</td>
@@ -3872,7 +3882,7 @@ function ocToggle(i){
 /* ---------------- Visão Geral ---------------- */
 function kpiLink(label,val,sub,cls,hash,trend){
   const h=KPI_HELP[label]||'';
-  return `<a href="${hash}" style="text-decoration:none;color:inherit"><div class="card kpi ${cls||''}" style="cursor:pointer;height:100%"${h?` title="${esc(h)}"`:''}><div class="label">${esc(label)}${h?' <span style="color:var(--n400);font-size:10px">ⓘ</span>':''}</div><div class="valrow"><div class="val">${esc(val)}</div>${trend||''}</div><div class="sub">${esc(sub)}</div></div></a>`;
+  return `<a href="${hash}" style="text-decoration:none;color:inherit"><div class="card kpi ${cls||''}" style="cursor:pointer;height:100%"${h?` title="${esc(h)}“`:''}><div class=”label">${esc(label)}${h?' <span style="color:var(--n400);font-size:10px">ⓘ</span>':''}</div><div class="valrow"><div class="val">${esc(val)}</div>${trend||''}</div><div class="sub">${esc(sub)}</div></div></a>`;
 }
 function skelKpis(id, n){
   const el=document.getElementById(id);
@@ -5372,7 +5382,8 @@ async function loadVeicf(buscar){
   const seq=++veicfSeq, btn=document.getElementById('btnRefresh'); if(btn) btn.disabled=true;
   document.getElementById('content').classList.add('loading');
   try{
-    const r=await fetch('/api/frota/veiculo?placa='+encodeURIComponent(placa),{cache:'no-store'});
+    const dias=(document.getElementById('fVeicfDias')||{}).value||'30';
+    const r=await fetch('/api/frota/veiculo?placa='+encodeURIComponent(placa)+'&dias='+dias,{cache:'no-store'});
     const d=await r.json(); if(seq!==veicfSeq) return;
     if(!r.ok){ showBanner(d.mensagem||'Erro ao consultar o veículo.', d.detalhe); return; }
     hideBanner(); DATAVEICF=d; LOADEDQS.veicf=qsView('veicf'); renderVeicf(d);
@@ -5391,35 +5402,66 @@ function renderVeicf(d){
     <div style="margin-left:auto;display:flex;gap:8px;align-items:center">${c.modalidade?`<span class="badge b-info">${esc(c.modalidade)}</span>`:''}${c.ativo?'<span class="badge b-ok">Ativo</span>':'<span class="badge b-warn">Inativo</span>'}</div>
   </div></div>`;
   if(va){
-    h+=`<div class="card"><div class="head"><h2>Status: em viagem</h2><span class="hint">${va.vazio?'deslocamento vazio':'carregado'}${va.atrasada?' · <b style="color:var(--red)">ATRASADA</b>':''}</span></div>
+    h+=`<div class="card"><div class="head"><h2>Status: em viagem <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="Viagem de programacaoembarque sem data de chegada e não cancelada. A previsão vem de coleta.dtprevisaochegadaviagem; ATRASADA é previsão já vencida sem chegada lançada.">i</span></h2><span class="hint">${va.vazio?'deslocamento vazio':'carregado'}${va.atrasada?' · <b style="color:var(--red)">ATRASADA</b>':''}</span></div>
       <div style="padding:0 18px 16px;display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:14px">
         ${veicfStat('Cliente', esc(va.cliente))}${veicfStat('Rota', esc(va.origem)+' → '+esc(va.destino))}
-        ${veicfStat('Motorista', esc(va.motorista||'—'))}${veicfStat('Saída', esc(va.saida||'—'))}
-        ${veicfStat('Previsão de chegada', esc(va.previsao_chegada||'—'))}
+        ${veicfStat('Motorista', esc(va.motorista||'—'))}${veicfStat('Saída', esc(fmtDT(va.saida)))}
+        ${veicfStat('Previsão de chegada', esc(fmtDT(va.previsao_chegada)))}
         ${veicfStat('Frete da viagem', BRL.format(va.valorfrete||0)+' · '+Math.round(va.km||0)+' km')}
       </div></div>`;
   } else {
-    h+=`<div class="card"><div class="head"><h2>Status: sem viagem em aberto</h2><span class="hint">o veículo não está em trânsito no momento</span></div></div>`;
+    h+=`<div class="card"><div class="head"><h2>Status: sem viagem em aberto <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="Nenhuma viagem de programacaoembarque em aberto (sem data de chegada) para esta placa. Não significa veículo parado na garagem: pode estar rodando numa viagem cuja chegada já foi baixada.">i</span></h2><span class="hint">o veículo não está em trânsito no momento</span></div></div>`;
   }
-  h+=`<div class="kpis">`+[
-    kpi('Faturamento (30d)', BRL.format(k.faturamento||0), (k.viagens||0)+' viagens carregadas',''),
-    kpi('Km rodado (30d)', (k.km_rodado||0).toLocaleString('pt-BR',{maximumFractionDigits:0})+' km', 'carregado + vazio',''),
-    kpi('Km carregado (30d)', (k.km_carregado||0).toLocaleString('pt-BR',{maximumFractionDigits:0})+' km','',''),
-    kpi('Km vazio (30d)', (k.km_vazio||0).toLocaleString('pt-BR',{maximumFractionDigits:0})+' km', (k.pct_vazio||0).toFixed(0)+'% do total', (k.pct_vazio||0)>20?'neg':''),
+  const contratado = /AGREG|TERCEIR/i.test(c.modalidade||'');
+  const ND=(d.periodo&&d.periodo.dias)||30, JAN='('+ND+'d)';
+  const PJ='Janela dos últimos '+ND+' dias por data de chegada (ou saída/emissão, na falta dela) — selecionável na busca. A Análise de KM agrupa por data de EMISSÃO, então os números podem não coincidir mesmo na mesma janela. ';
+  h+=`<div class="kpis k4">`+[
+    kpi('Receita gerada '+JAN, BRL.format(k.faturamento||0),
+        (k.viagens||0)+' viagens carregadas'+(k.rkm!=null?' · RKM '+fmtRsKm(k.rkm):''),'',
+        PJ+'Soma de programacaoembarque.valorfrete das viagens CARREGADAS: é o frete que a Sulista cobrou do cliente rodando com este veículo, não o que o veículo recebeu.'),
+    contratado
+      ? kpi('Pago ao transportador '+JAN, BRL.format(k.frete_compra||0),
+          k.pct_pago!=null ? (k.pct_pago.toLocaleString('pt-BR',{maximumFractionDigits:1})+'% da receita'
+            +(k.frete_compra_vazio>0?' · '+BRL.format(k.frete_compra_vazio)+' é deslocamento vazio':'')) : 'sem receita no período',
+          k.pct_pago==null?'':(k.pct_pago>=80?'neg':(k.pct_pago>=70?'warn':'')),
+          PJ+'programacaoembarque.valorfretecompra: o que a Sulista pagou a este transportador, somando viagens carregadas e deslocamentos vazios. Quanto menor a fração da receita, maior a margem retida. O consolidado do transportador está em Agregados e Terceiros — lá outros veículos dele podem diluir este.')
+      : kpi('Km rodado '+JAN, (k.km_rodado||0).toLocaleString('pt-BR',{maximumFractionDigits:0})+' km', 'carregado + vazio','',
+          PJ+'Soma de kmfretecompra de todas as viagens, carregadas e vazias.'),
+    kpi('Km carregado '+JAN, (k.km_carregado||0).toLocaleString('pt-BR',{maximumFractionDigits:0})+' km',
+        contratado?('de '+(k.km_rodado||0).toLocaleString('pt-BR',{maximumFractionDigits:0})+' km rodados'):'gera receita','',
+        PJ+'Viagens com tipo diferente de 3. Km = kmfretecompra, a distância do documento, não a do rastreador.'),
+    kpi('Km vazio '+JAN, (k.km_vazio||0).toLocaleString('pt-BR',{maximumFractionDigits:0})+' km',
+        Math.round(k.pct_vazio||0)+'% do rodado · '+(k.viagens_vazias||0)+' deslocamento(s)'+((k.pct_vazio||0)>20?' · acima da meta de 20%':''),
+        (k.pct_vazio||0)>25?'neg':((k.pct_vazio||0)>20?'warn':''),
+        PJ+'Viagens tipo 3 (deslocamento vazio). Referência FTL: até 20% do km rodado. Rota curta e urbana passa disso com facilidade sem ser desperdício.'),
   ].join('')+`</div>`;
-  h+=`<div class="card"><div class="head"><h2>Posição atual</h2><span class="hint">${pos?('atualizada '+esc(pos.posicao_em)+' · '+pos.velocidade+' km/h'+(pos.recente?'':' · sinal antigo')):'sem posição recente'}</span></div>
+  if(contratado && k.pct_pago!=null && k.pct_pago>=100){
+    // frete-compra acima da receita que o veículo gerou. Fica junto dos KPIs, não no
+    // rodapé: é o achado que decide a conversa de tarifa com o transportador.
+    h+=`<div class="banner-inline" style="display:block;margin:0 0 12px;background:var(--red-100);color:var(--red)">`
+      +`<b>Margem negativa neste veículo:</b> pago ${BRL.format(k.frete_compra||0)} contra `
+      +`${BRL.format(k.faturamento||0)} de receita gerada nos últimos ${ND} dias `
+      +`(${k.pct_pago.toLocaleString('pt-BR',{maximumFractionDigits:1})}%). `
+      +(k.pct_pago_carregado!=null?`Só nas viagens carregadas o pago já é ${k.pct_pago_carregado.toLocaleString('pt-BR',{maximumFractionDigits:1})}% da receita`
+        +(k.frete_compra_vazio>0?`, e ${BRL.format(k.frete_compra_vazio)} de deslocamento vazio pago fecham o estouro`:'')+'. ':'')
+      +`Revisar a tarifa da rota ou o vazio pago.</div>`;
+  }
+  h+=`<div class="card"><div class="head"><h2>Posição atual <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="veiculo_ultimaposicaomacro cruzada com veiculo_posicao do rastreador. Sinal antigo aparece quando a última posição tem mais de 2 horas; nesse caso o ponto no mapa é o último conhecido, não onde o veículo está agora.">i</span></h2><span class="hint">${pos?('atualizada '+esc(fmtDT(pos.posicao_em))+' · '+pos.velocidade+' km/h'+(pos.recente?'':' · sinal antigo')):'sem posição recente'}</span></div>
     <div id="veicf-mapa" style="height:340px;margin:0 14px 14px;border-radius:12px;overflow:hidden;background:var(--n100);position:relative;z-index:1">${pos?'':'<div style="padding:24px;color:var(--n500)">Sem posição de rastreamento para este veículo.</div>'}</div></div>`;
   h+=`<div class="kpis">`+[
-    kpi('Combustível (30d)', BRL.format(cb.custo||0), (cb.km_l!=null?fmtKmL(cb.km_l):'—')+' · '+(cb.litros||0).toLocaleString('pt-BR',{maximumFractionDigits:0})+' L',''),
-    kpi('Manutenção (30d)', BRL.format(mn.custo_30d||0), (mn.abertas||0)+' OS aberta(s)'+(mn.abertas?(' · '+BRL.format(mn.abertas_valor||0)):''), mn.abertas>0?'neg':''),
-    kpi('Multas (12m)', (ml.multas||0).toLocaleString('pt-BR'), BRL.format(ml.valor||0)+' · '+(ml.pontos||0)+' pontos', (ml.multas||0)>0?'neg':''),
+    kpi('Combustível '+JAN, BRL.format(cb.custo||0), (cb.km_l!=null?fmtKmL(cb.km_l):'—')+' · '+(cb.litros||0).toLocaleString('pt-BR',{maximumFractionDigits:0})+' L','',
+        'sulista.ctaplus_abastecimentos: só o que passou pelo cartão CTA Plus da Sulista. Em veículo de agregado ou terceiro, o abastecimento pago pelo próprio transportador NÃO aparece aqui — R$ 0 ou km/l estranho pode ser cobertura parcial, não consumo real. O km/l usa apenas abastecimentos com odômetro consistente.'),
+    kpi('Manutenção '+JAN, BRL.format(mn.custo_30d||0), (mn.abertas||0)+' OS aberta(s)'+(mn.abertas?(' · '+BRL.format(mn.abertas_valor||0)):''), mn.abertas>0?'neg':'',
+        'ordemservico do ERP: custo das OS da janela e OS ainda abertas (sem encerramento), estas sem limite de data. Veículo de agregado ou terceiro se mantém por conta própria, então R$ 0 aqui é o esperado e não ausência de manutenção.'),
+    kpi('Multas (12m)', (ml.multas||0).toLocaleString('pt-BR'), BRL.format(ml.valor||0)+' · '+(ml.pontos||0)+' pontos', (ml.multas||0)>0?'neg':'',
+        'infracaotransito dos últimos 12 meses para esta placa, por data da infração — janela própria, não segue o seletor. Conta o que foi lançado no ERP: autuação ainda não digitada não aparece.'),
   ].join('')+`</div>`;
   const tc=(d.top_clientes||[]).map(x=>`<tr><td>${esc(x.cliente)}</td><td class="num">${BRL.format(x.receita)}</td><td class="num">${Math.round(x.km).toLocaleString('pt-BR')}</td><td class="num">${x.viagens}</td></tr>`).join('')||'<tr><td colspan="4" style="color:var(--n500)">sem viagens no período</td></tr>';
   const uv=(d.ultimas_viagens||[]).map(v=>`<tr><td>${v.data?fmtD(String(v.data).slice(0,10)):'—'}</td><td>${v.tipo===3?'<span class="badge b-warn">vazio</span>':esc(v.cliente||'—')}</td><td>${esc(v.origem)} → ${esc(v.destino)}</td><td class="num">${Math.round(v.km).toLocaleString('pt-BR')}</td><td class="num">${BRL.format(v.valorfrete||0)}</td></tr>`).join('')||'<tr><td colspan="5" style="color:var(--n500)">sem viagens no período</td></tr>';
   h+=`<div class="grid2">
-    <div class="card"><div class="head"><h2>Top clientes (30d)</h2><span class="hint">por receita</span></div>
+    <div class="card"><div class="head"><h2>Top clientes ${JAN} <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="Cliente = agrupamentocliente do pagador do frete na coleta; cai para nome fantasia ou razão social quando o CNPJ não está em nenhum agrupamento, e para (sem cliente) quando a coleta não amarra. Só viagens carregadas, ordenadas por receita.">i</span></h2><span class="hint">por receita</span></div>
       <div class="tablewrap"><table><thead><tr><th>Cliente</th><th class="num">Receita</th><th class="num">Km</th><th class="num">Viagens</th></tr></thead><tbody>${tc}</tbody></table></div></div>
-    <div class="card"><div class="head"><h2>Últimas viagens</h2><span class="hint">30 dias</span></div>
+    <div class="card"><div class="head"><h2>Últimas viagens <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="As 15 mais recentes por data de chegada (ou saída/emissão). Linha marcada vazio é deslocamento sem carga (tipo 3) e não tem cliente nem frete. Linha com travessão no cliente é viagem carregada cujo pagador não foi identificado — lacuna de cadastro, não viagem vazia.">i</span></h2><span class="hint">15 mais recentes · ${ND} dias</span></div>
       <div class="tablewrap"><table><thead><tr><th>Data</th><th>Cliente</th><th>Rota</th><th class="num">Km</th><th class="num">Frete</th></tr></thead><tbody>${uv}</tbody></table></div></div>
   </div>`;
   cont.innerHTML=h;
@@ -5820,8 +5862,8 @@ function renderCex(d){
   const ps=(d.por_status||[]).map(s=>`<tr><td>${esc(s.status)}</td><td class="num">${s.n}</td><td class="num">${BRL.format(s.custo)}</td><td class="num">${BRL.format(s.cobrado)}</td></tr>`).join('')||'<tr><td colspan="4" style="color:var(--n500)">—</td></tr>';
   document.getElementById('cex-status').innerHTML=`<table><thead><tr><th>Status</th><th class="num">Qtd</th><th class="num">Custo</th><th class="num">Cobrado</th></tr></thead><tbody>${ps}</tbody></table>`;
   const badge=s=>s==='Emitido'?'b-ok':(s==='Aguardando Cobrança'?'b-warn':(s==='Não Cobrado'?'b-dang':''));
-  const ll=(d.lancamentos||[]).map(l=>`<tr${(l.cobrado||0)<(l.custo||0)?' style="background:var(--red-100)" title="cobrado abaixo do custo"':''}>
-    <td>${l.data?fmtD(String(l.data).slice(0,10)):'—'}</td><td class="num">${l.cte||'—'}</td><td>${esc(l.cliente)}</td>
+  const ll=(d.lancamentos||[]).map(l=>`<tr${(l.cobrado||0)<(l.custo||0)?' style="background:var(--red-100)" title="cobrado abaixo do custo“':''}>
+    <td>${l.data?fmtD(String(l.data).slice(0,10)):'—'}</td><td class=”num">${l.cte||'—'}</td><td>${esc(l.cliente)}</td>
     <td>${esc(l.tipo)}</td><td><span class="badge ${badge(l.status)}">${esc(l.status)}</span></td>
     <td class="num">${BRL.format(l.custo)}</td><td class="num">${BRL.format(l.cobrado)}</td>
     <td>${esc(l.usuario||'')}</td></tr>`).join('')||'<tr><td colspan="8" style="color:var(--n500)">sem lançamentos no período</td></tr>';
@@ -7582,8 +7624,8 @@ function renderDreCli(d){
       :(p>=0.7?'Parte relevante desta linha não foi atribuída a cliente — ver NÃO ALOCADO.'
              :'A maior parte desta linha NÃO é atribuída a cliente: a margem por cliente fica parcial nesta conta.'));
     return `<tr><td>${rot}</td><td class="num">${BRL.format(x.descido||0)}</td><td class="num">${BRL.format(x.nao_alocado||0)}</td><td class="num">${BRL.format(x.variacao_absorcao||0)}</td><td class="num">${BRL.format(x.oficial||0)}</td>`+
-      `<td class="num" style="font-weight:700;color:${cor}"${tit?` title="${esc(tit)}"`:''}>`+
-      (ic?`<span style="width:12px;height:12px;display:inline-flex;vertical-align:-1px;margin-right:4px">${ICONS[ic]}</span>`:'')+`${cob}</td></tr>`;
+      `<td class="num" style="font-weight:700;color:${cor}"${tit?` title="${esc(tit)}“`:''}>`+
+      (ic?`<span style=”width:12px;height:12px;display:inline-flex;vertical-align:-1px;margin-right:4px">${ICONS[ic]}</span>`:'')+`${cob}</td></tr>`;
   }).join('') || '<tr><td colspan="6" style="color:var(--n500)">sem dados</td></tr>';
   chartDreCliMatriz(clientes);
 }
@@ -7797,7 +7839,7 @@ function renderDre(d){
       l.nivel===1?'dre-nv1':'',
       (l.nivel===0&&!RES.has(l.rotulo)&&l.rotulo!=='RESULTADO DO EXERCICIO')?'dre-tot':'',
     ].filter(Boolean).join(' ');
-    html+=`<tr class="${cls}" data-aberto="0" ${temDet?`onclick="dreToggle(${i})" style="cursor:pointer" title="clique para abrir a composição"`:''} id="dre-l-${i}">
+    html+=`<tr class="${cls}" data-aberto="0" ${temDet?`onclick="dreToggle(${i})" style="cursor:pointer" title="clique para abrir a composição“`:''} id=”dre-l-${i}">
       <td>${temDet?'<span class="exp">▸</span>':'<span class="exp"></span>'}${esc(l.rotulo)}</td>
       ${d.meses.map(mm=>`<td class="num">${fm(l.meses[mm]||0)}</td>`).join('')}
       <td class="num" style="font-weight:700;border-left:2px solid var(--n300)">${fm(l.total)}</td>
