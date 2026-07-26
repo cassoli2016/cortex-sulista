@@ -342,6 +342,7 @@ def manutencao(
     dt_de: str | None = None,
     dt_ate: str | None = None,
     placa: str | None = None,
+    status: str = "todas",
 ) -> JSONResponse:
     from datetime import timedelta
     hoje = date.today()
@@ -354,9 +355,14 @@ def manutencao(
                 "mensagem": f"Parâmetro {nome} inválido: use o formato AAAA-MM-DD."})
     if dt_de > dt_ate:
         dt_de, dt_ate = dt_ate, dt_de
+    if status not in ("todas", "abertas", "fechadas"):
+        return JSONResponse(status_code=422, content={
+            "erro": "parametro_invalido",
+            "mensagem": "status deve ser todas, abertas ou fechadas."})
     placa = (placa or "").strip() or None
     try:
-        return JSONResponse(queries.get_manutencao(filial, dt_de, dt_ate, placa=placa))
+        return JSONResponse(queries.get_manutencao(filial, dt_de, dt_ate, placa=placa,
+                                                   status=status))
     except psycopg.OperationalError as exc:
         log.warning("banco inacessivel: %s", exc)
         return JSONResponse(status_code=503, content={

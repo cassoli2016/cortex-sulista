@@ -1007,6 +1007,15 @@ button.avatar{border:0;cursor:pointer}
         </div>
         <div class="rangegrp" id="grpMan" style="display:none">
           <div class="field">
+            <label for="fManStatus">Situação da OS</label>
+            <select id="fManStatus" onchange="loadMan()"
+                    title="As 15 OSs em aberto ficavam dispersas entre 747 do período — este filtro isola o que ainda está na oficina.">
+              <option value="todas" selected>Todas</option>
+              <option value="abertas">Só em aberto</option>
+              <option value="fechadas">Só fechadas</option>
+            </select>
+          </div>
+          <div class="field">
             <label for="fManPlaca">Placa</label>
             <input type="search" id="fManPlaca" placeholder="buscar placa…" onchange="loadMan()">
           </div>
@@ -1385,7 +1394,8 @@ button.avatar{border:0;cursor:pointer}
       <section class="view" id="view-man">
         <div class="kpis" id="kpis-man"></div>
         <div class="card">
-          <div class="head"><h2>Custo de manutenção por mês</h2><span class="hint" id="hintMan">no período filtrado · valor total das OSs</span></div>
+          <div class="head"><h2>Custo de manutenção por mês <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="ordemservico agrupada pelo mês da EMISSÃO da OS, somando valortotal. A OS entra no mês em que foi aberta, mesmo que o serviço termine depois — por isso um mês pode carregar serviço executado no mês seguinte.">i</span></h2><span class="hint" id="hintMan">no período filtrado · valor total das OSs</span></div>
+          <div class="legend"><span class="k"><i class="sw" style="background:var(--navy-500)"></i>Custo das OSs</span><span class="k"><i class="sw hatch" style="background-color:var(--navy-500)"></i>Mês parcial (corrente ou cortado pelo filtro)</span></div>
           <div class="chartwrap" id="wrapMan">
             <svg id="chartMan" viewBox="0 0 960 250" preserveAspectRatio="xMidYMid meet"
                  tabindex="0" role="img" aria-label="Custo de manutenção por mês, dividido entre peças e mão de obra. Use as setas do teclado para percorrer os meses."></svg>
@@ -1393,13 +1403,13 @@ button.avatar{border:0;cursor:pointer}
           </div>
         </div>
         <div class="card">
-          <div class="head"><h2>Veículos do período</h2><span class="hint">top 30 por custo · clique para ver as ordens de serviço</span></div>
+          <div class="head"><h2>Veículos do período <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="Top 30 placas por custo total de OS no recorte. As colunas Peças e M. obra mostram travessão quando nenhuma OS do veículo trouxe a composição — o custo existe e está no Total, o que falta é a separação. Clique na linha para ver OS a OS.">i</span></h2><span class="hint" id="hintManV">top 30 por custo · clique para ver as ordens de serviço</span></div>
           <div class="tablewrap tabroll"><table><thead><tr>
             <th style="width:34px"></th><th>Veículo</th><th>Modalidade</th><th class="num">OSs</th><th class="num">Abertas</th><th class="num">Peças</th><th class="num">M. obra</th><th class="num">Total</th>
           </tr></thead><tbody id="man-veic"></tbody></table></div>
         </div>
         <div class="card">
-          <div class="head"><h2>Alertas</h2></div>
+          <div class="head"><h2>Alertas <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="Regras fixas sobre os números desta tela: ordens de serviço ainda em aberto e concentração do custo em poucos veículos.">i</span></h2></div>
           <div class="alerts" id="alerts-man"></div>
         </div>
       </section>
@@ -2624,6 +2634,7 @@ function qsView(k){
     if(V('fEmiDe'))p.set('dt_de',V('fEmiDe'));
     if(V('fEmiAte'))p.set('dt_ate',V('fEmiAte'));
     if(T('fManPlaca'))p.set('placa',T('fManPlaca'));
+    if(V('fManStatus'))p.set('status',V('fManStatus'));
   } else if(k==='com'){
     if(V('fFilial'))p.set('filial',V('fFilial'));
     if(V('fEmiDe'))p.set('dt_de',V('fEmiDe'));
@@ -7280,18 +7291,37 @@ function renderMan(d){
   const k=d.kpis;
   if(!document.getElementById('fEmiDe').value) document.getElementById('fEmiDe').value=d.dt_de;
   if(!document.getElementById('fEmiAte').value) document.getElementById('fEmiAte').value=d.dt_ate;
+  // campo que NUNCA é preenchido não vale R$ 0 — vale "não informado" (senão parece
+  // que a mão de obra da oficina custou zero)
+  const cobP=k.ordens?Math.round(100*(k.oss_com_pecas||0)/k.ordens):0;
+  const cobM=k.ordens?Math.round(100*(k.oss_com_maoobra||0)/k.ordens):0;
   document.getElementById('kpis-man').innerHTML=[
-    kpi('Manutenção no período', BRL.format(k.custo), k.ordens.toLocaleString('pt-BR')+' OSs · '+k.veiculos+' veículos', ''),
-    kpi('Peças (quando informado)', BRL.format(k.pecas), 'campo pouco preenchido nas OSs do AVA', ''),
-    kpi('Mão de obra (quando informado)', BRL.format(k.maoobra), 'campo pouco preenchido nas OSs do AVA', ''),
-    kpi('OSs abertas', k.abertas.toLocaleString('pt-BR'), BRL.format(k.abertas_valor)+' em aberto', k.abertas>0?'neg':'pos'),
+    kpi('Manutenção no período', BRL.format(k.custo), k.ordens.toLocaleString('pt-BR')+' OSs · '+k.veiculos+' veículos', '',
+        'ordemservico do ERP por data de emissão, no recorte dos filtros. Valor = valortotal da OS, que é o número confiável — a quebra entre peças e mão de obra depende de campos que a oficina quase não preenche.'),
+    kpi('Peças', (k.oss_com_pecas||0)>0 ? BRL.format(k.pecas) : 'não informado',
+        (k.oss_com_pecas||0)>0
+          ? ('informado em '+(k.oss_com_pecas||0)+' de '+k.ordens+' OSs ('+cobP+'%) · '
+             +(k.custo? (100*k.pecas/k.custo).toLocaleString('pt-BR',{maximumFractionDigits:1}) : '0')+'% do valor total')
+          : 'nenhuma OS do período tem o campo preenchido',
+        (k.oss_com_pecas||0)>0 && cobP<50 ? 'warn' : '',
+        'ordemservico.valortotalpecas. A cobertura baixa não significa OS sem peça: significa que a oficina lança o valor cheio no total e não separa a composição. Use o valor total da OS para decidir, não esta quebra.'),
+    kpi('Mão de obra', (k.oss_com_maoobra||0)>0 ? BRL.format(k.maoobra) : 'não informado',
+        (k.oss_com_maoobra||0)>0
+          ? ('informado em '+(k.oss_com_maoobra||0)+' de '+k.ordens+' OSs ('+cobM+'%)')
+          : 'nenhuma das '+k.ordens+' OSs do período tem o campo preenchido',
+        (k.oss_com_maoobra||0)>0 && cobM<50 ? 'warn' : '',
+        'ordemservico.valortotalmaoobra. Quando nenhuma OS traz o campo, o KPI mostra "não informado" em vez de R$ 0 — zero aqui seria ler como mão de obra sem custo, o que não é o caso.'),
+    kpi('OSs abertas', k.abertas.toLocaleString('pt-BR'), BRL.format(k.abertas_valor)+' em aberto', k.abertas>0?'neg':'pos',
+        'OS sem data de fechamento (dtfechamento nula) emitida no recorte. É serviço iniciado e não encerrado no ERP — pode ser veículo ainda na oficina ou baixa não lançada.'),
   ].join('');
-  chartManRender(d.mensal||[]);
+  chartManRender(d.mensal||[], d.dt_de, d.dt_ate);
+  const hv=document.getElementById('hintManV');
+  if(hv) hv.textContent=(d.veiculos||[]).length+' de '+k.veiculos+' veículos com OS · maiores custos primeiro · clique para ver as ordens';
   document.getElementById('man-veic').innerHTML=(d.veiculos||[]).map((vv,i)=>{
     const [tl,tc]=utLbl(vv.utilizacao);
     const det=`
       <div class="tablewrap"><table>
-        <thead><tr><th class="num">OS</th><th class="num">Fil.</th><th class="num">Tipo</th><th class="num">Emissão</th><th class="num">Fechamento</th><th class="num">Peças</th><th class="num">M. obra</th><th class="num">Total</th><th>Status</th></tr></thead>
+        <thead><tr><th class="num">OS</th><th class="num">Fil.</th><th class="num" title="Código de tipo da ordem de serviço no ERP. Não há tabela de domínio na réplica para traduzir 1 e 2 em preventiva/corretiva — o significado precisa ser confirmado com a oficina.">Tipo (cód.)</th><th class="num">Emissão</th><th class="num">Fechamento</th><th class="num">Peças</th><th class="num">M. obra</th><th class="num">Total</th><th>Status</th></tr></thead>
         <tbody>${(vv.ordens_lista||[]).map(o=>`<tr>
           <td class="num">${o.numero}</td>
           <td class="num">${o.filial}</td>
@@ -7312,8 +7342,8 @@ function renderMan(d){
       <td><span class="badge ${tc}">${esc(tl)}</span></td>
       <td class="num">${vv.ordens.toLocaleString('pt-BR')}</td>
       <td class="num">${vv.abertas>0?`<span class="badge b-warn">${vv.abertas}</span>`:'—'}</td>
-      <td class="num">${BRL.format(vv.pecas)}</td>
-      <td class="num">${BRL.format(vv.maoobra)}</td>
+      <td class="num">${vv.pecas>0?BRL.format(vv.pecas):'<span style="color:var(--n500)" title="Nenhuma OS deste veículo trouxe o valor de peças separado — o custo está todo no total da OS.">—</span>'}</td>
+      <td class="num">${vv.maoobra>0?BRL.format(vv.maoobra):'<span style="color:var(--n500)" title="Nenhuma OS deste veículo trouxe o valor de mão de obra separado — o custo está todo no total da OS.">—</span>'}</td>
       <td class="num" style="font-weight:600">${BRL.format(vv.custo)}</td>
     </tr>
     <tr class="forn-det" id="man-det-${i}"><td colspan="8">${det}</td></tr>`;
@@ -7331,7 +7361,7 @@ function manToggle(i){
   const open=det.classList.toggle('open');
   det.previousElementSibling.setAttribute('aria-expanded', String(open));
 }
-function chartManRender(mensal){
+function chartManRender(mensal, dtDe, dtAte){
   const svg=document.getElementById('chartMan');
   GEOM['chartMan']=null; ACTIVE['chartMan']=-1;
   if(!mensal.length){ svg.innerHTML='<text x="480" y="120" text-anchor="middle" fill="#6E7883" font-size="14">sem dados</text>'; return; }
@@ -7342,13 +7372,17 @@ function chartManRender(mensal){
   const y=v=>mT+ih-(v/top)*ih, y0=y(0);
   const px=i=>mL+bandW*i+bandW/2;
   const barW=Math.min(26,bandW*0.5);
-  let s='';
+  const parc=mensal.map(r=>_mesParcial(r.mes,dtDe,dtAte));
+  let s=`<defs><pattern id="hatchMan" width="6" height="6" patternTransform="rotate(45)" patternUnits="userSpaceOnUse">`+
+        `<rect width="6" height="6" fill="${CC.navy500}"/><rect width="2.4" height="6" fill="#fff" opacity=".62"/></pattern></defs>`;
   s+=`<rect id="chartMan-hband" x="0" y="${mT-14}" width="${bandW}" height="${ih+14}" fill="${CC.navy100}" opacity="0"/>`;
   s+=`<text x="${mL}" y="${mT-12}" font-size="11" fill="#6E7883" font-weight="600" letter-spacing="1.5">${u.t}</text>`;
   tks.forEach(v=>{ const yy=y(v);
     s+=`<line x1="${mL}" y1="${yy}" x2="${W-mR}" y2="${yy}" stroke="${v===0?'#C2C8D0':'#ECEEF1'}" stroke-width="1"/>`;
     s+=`<text x="${mL-8}" y="${yy+4}" text-anchor="end" font-size="11" fill="#6E7883" font-family="IBM Plex Mono,monospace">${NMI.format(v/u.d)}</text>`; });
-  mensal.forEach((r,i)=>{ s+=colPath(px(i)-barW/2,barW,y(r.custo||0),y0,4,CC.navy500); });
+  mensal.forEach((r,i)=>{ s+=colPath(px(i)-barW/2,barW,y(r.custo||0),y0,4,parc[i]?'url(#hatchMan)':CC.navy500);
+    s+=`<text x="${px(i)}" y="${y(r.custo||0)-8}" text-anchor="middle" font-size="10.5" font-weight="700" fill="${CC.n700}" `+
+       `stroke="#fff" stroke-width="3" paint-order="stroke" stroke-linejoin="round">${brlAbbr(r.custo||0)}</text>`; });
   mensal.forEach((r,i)=>{ s+=`<text x="${px(i)}" y="${H-mB+18}" text-anchor="middle" font-size="10.5" fill="#4F5860">${periodoLabel(r.mes)}</text>`; });
   s+=`<line id="chartMan-xhair" x1="0" x2="0" y1="${mT-14}" y2="${y0}" stroke="${CC.navy400}" stroke-width="1" opacity="0"/>`;
   s+=`<rect x="${mL}" y="${mT-14}" width="${iw}" height="${ih+14}" fill="transparent"/>`;
