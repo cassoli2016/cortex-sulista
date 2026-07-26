@@ -1783,21 +1783,21 @@ button.avatar{border:0;cursor:pointer}
       <section class="view" id="view-qual">
         <div class="kpis" id="kpis-qual"></div>
         <div class="grid2">
-          <div class="card"><div class="head"><h2>Atingimento ESG</h2><span class="hint">realizado em % da meta · verde = na meta</span></div>
+          <div class="card"><div class="head"><h2>Atingimento ESG <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="sulista.indicadorescorporativos da matriz: realizado do último dia do mês sobre a meta do dia 1º, casados por ANO-MÊS. A barra é realizado em % da meta — em indicador onde MENOR é melhor (resíduos, km vazio, absenteísmo), passar de 100% é ruim, e a cor já reflete isso.">i</span><span class="hint">realizado em % da meta · verde = na meta</span></div>
             <div class="chartwrap"><svg id="chartQualEsg" viewBox="0 0 960 200" preserveAspectRatio="xMidYMid meet" role="img"></svg></div></div>
-          <div class="card"><div class="head"><h2>Certidões por situação</h2><span class="hint">semáforo de vencimento</span></div>
+          <div class="card"><div class="head"><h2>Certidões por situação <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="sulista.certidoes por faixa de vencimento contra hoje. ATENÇÃO: documentos que a própria observação declara sem validade recebem data fictícia no ERP e caem em 'em dia', inflando a fatia verde — eles aparecem marcados na tabela abaixo.">i</span><span class="hint">semáforo de vencimento</span></div>
             <div class="chartwrap" style="min-height:210px"><svg id="chartQualCert" viewBox="0 0 380 200" preserveAspectRatio="xMidYMid meet" style="min-width:300px;max-width:520px;margin:0 auto" role="img"></svg></div></div>
         </div>
         <div class="card">
-          <div class="head"><h2>Indicadores ESG</h2><span class="hint">meta × realizado (mês mais recente) · matriz</span></div>
+          <div class="head"><h2>Indicadores ESG <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="Meta (tipo 1, dia 1º) × realizado (tipo 2, último dia do mês) de sulista.indicadorescorporativos, casados por ANO-MÊS e não por data exata. A coluna Direção diz se menor ou maior é melhor — o status já considera isso. Indicador sem meta cadastrada aparece como 'sem meta', não como aprovado.">i</span><span class="hint">meta × realizado (mês mais recente) · matriz</span></div>
           <div class="tablewrap" id="qual-esg"></div>
         </div>
         <div class="card">
-          <div class="head"><h2>Certidões e Licenças</h2><span class="hint">semáforo por vencimento · vencidas primeiro</span></div>
+          <div class="head"><h2>Certidões e Licenças <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="sulista.certidoes com o emissor formatado pela função do ERP. Prazo é contra hoje. Documento cuja observação declara não ter validade aparece marcado como 'sem validade' e sem prazo: a data no ERP é controle interno, não vencimento do documento.">i</span></h2><span class="hint" id="qual-cert-hint">semáforo por vencimento · vencidas primeiro</span></div>
           <div class="tablewrap" id="qual-certidoes"></div>
         </div>
         <div class="card">
-          <div class="head"><h2>Auditoria Interna</h2><span class="hint">não-conformidades e plano de ação</span></div>
+          <div class="head"><h2>Auditoria Interna <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="sulista.controle_auditoria: auditorias internas e externas com resultado, número de não conformidades e o plano de ação associado.">i</span><span class="hint">não-conformidades e plano de ação</span></div>
           <div class="tablewrap" id="qual-auditoria"></div>
         </div>
       </section>
@@ -5732,9 +5732,14 @@ async function loadQual(){
 }
 function renderQual(d){
   const k=d.kpis||{};
+  const totCert=(d.certidoes||[]).length;
   document.getElementById('kpis-qual').innerHTML=[
-    kpi('Certidões vencidas', (k.vencidas||0).toLocaleString('pt-BR'), 'documentos com validade expirada', (k.vencidas||0)>0?'neg':'pos'),
-    kpi('Vencendo em 30 dias', (k.vencendo||0).toLocaleString('pt-BR'), 'renovar com antecedência', (k.vencendo||0)>0?'neg':''),
+    kpi('Certidões vencidas', (k.vencidas||0).toLocaleString('pt-BR'), 'documentos com validade expirada', (k.vencidas||0)>0?'neg':'pos', null,
+      totCert?statChip((k.vencidas||0)>0?'bad':'good', pct(k.vencidas||0,totCert)+' do total',
+        'Documento vencido é risco de autuação e de trava em cliente que exige regularidade — a fatia sobre o total mostra o tamanho do problema.',
+        (k.vencidas||0)>0?'sevCrit':'sevOk'):''),
+    kpi('Vencendo em 30 dias', (k.vencendo||0).toLocaleString('pt-BR'), 'renovar com antecedência', (k.vencendo||0)>0?'neg':'', null,
+      (k.vencendo||0)>0?statChip('warn','renovar agora','Prazo de emissão de certidão costuma levar dias — deixar para o vencimento vira vencida.','sevWarn'):''),
     kpi('Indicadores fora da meta', (k.indic_fora||0).toLocaleString('pt-BR'), 'ESG · mês mais recente', (k.indic_fora||0)>0?'neg':'pos'),
     kpi('NCs em aberto', (k.ncs_abertas||0).toLocaleString('pt-BR'), (k.auditorias||0)+' auditoria(s)', (k.ncs_abertas||0)>0?'neg':''),
   ].join('');
@@ -5755,11 +5760,25 @@ function renderQual(d){
     return `<tr><td>${esc(i.indicador)}</td><td class="num">${esc(i.periodo)}</td><td class="num">${fmtN(i.meta)}</td><td class="num" style="${i.status==='fora'?'color:var(--red);font-weight:700':''}">${fmtN(i.realizado)}</td><td>${i.menor_melhor?'menor é melhor':'maior é melhor'}</td><td><span class="badge ${cl}">${lb}</span></td></tr>`;
   }).join('')||'<tr><td colspan="6" style="color:var(--n500)">sem indicadores no período</td></tr>';
   document.getElementById('qual-esg').innerHTML=`<table><thead><tr><th>Indicador</th><th class="num">Período</th><th class="num">Meta</th><th class="num">Realizado</th><th>Direção</th><th>Status</th></tr></thead><tbody>${eg}</tbody></table>`;
+  /* Documento que a PRÓPRIA observação declara sem validade ("SEM VALIDADE",
+     "não possui validade", "é uma consulta") recebeu data-espantalho no ERP
+     (01/02/2029, 21/03/2031) e entrava no semáforo como "em dia", inflando a
+     fatia verde. Marcar em vez de esconder: o documento existe, o que não
+     existe é o vencimento. */
+  const SEM_VAL=/sem\s+validade|sem\s+data\s+de\s+validade|n[aã]o\s+possu[ií]\s+validade|[ée]\s+uma\s+consulta/i;
+  const semVal=c=>SEM_VAL.test(c.obs||'');
+  const nSemVal=(d.certidoes||[]).filter(semVal).length;
   const stB={vencida:['b-dang','vencida'],vence_15:['b-dang','vence ≤15d'],vence_30:['b-warn','vence ≤30d'],ok:['b-ok','em dia'],sem_data:['','sem data']};
   const ct=(d.certidoes||[]).map(c=>{const [cl,lb]=stB[c.status]||['',''];
-    return `<tr><td>${esc(c.tipo)}</td><td>${esc(c.emissor)}</td><td class="num">${c.filial||'—'}</td><td class="num">${c.venc?fmtD(c.venc):'—'}</td><td class="num" style="${c.dias!=null&&c.dias<0?'color:var(--red);font-weight:700':''}">${c.dias!=null?(c.dias<0?('vencida há '+Math.abs(c.dias)):('em '+c.dias))+' dias':'—'}</td><td><span class="badge ${cl}">${lb}</span></td><td>${esc(c.obs||'')}</td></tr>`;
+    const sv=semVal(c);
+    return `<tr${sv?' style="opacity:.7"':''}><td>${esc(c.tipo)}</td><td>${esc(c.emissor)}</td><td class="num">${c.filial||'—'}</td><td class="num">${c.venc?fmtD(c.venc):'—'}</td><td class="num" style="${c.dias!=null&&c.dias<0?'color:var(--red);font-weight:700':''}">${sv?'<span style="color:var(--n500)">—</span>':(c.dias!=null?(c.dias<0?('vencida há '+Math.abs(c.dias)):('em '+c.dias))+' dias':'—')}</td><td>${sv?'<span class="badge" title="A observação do próprio documento diz que ele não tem validade; a data de vencimento no ERP é de controle interno, não do documento.">sem validade</span>':`<span class="badge ${cl}">${lb}</span>`}</td><td>${esc(c.obs||'')}</td></tr>`;
   }).join('')||'<tr><td colspan="7" style="color:var(--n500)">nenhuma certidão cadastrada</td></tr>';
   document.getElementById('qual-certidoes').innerHTML=`<table><thead><tr><th>Tipo</th><th>Emissor</th><th class="num">Filial</th><th class="num">Vencimento</th><th class="num">Prazo</th><th>Status</th><th>Obs.</th></tr></thead><tbody>${ct}</tbody></table>`;
+  {
+    const h=document.getElementById('qual-cert-hint');
+    if(h) h.innerHTML='semáforo por vencimento · vencidas primeiro'
+      +(nSemVal?` · <b style="color:var(--yellow-700)">${nSemVal} sem validade real</b>`:'');
+  }
   const au=(d.auditorias||[]).map(a=>`<tr><td>${esc(a.dt||'')}</td><td>${esc(a.area)}</td><td>${esc(a.tipo)}</td><td><span class="badge ${a.resultado==='Aprovado'?'b-ok':'b-dang'}">${esc(a.resultado)}</span></td><td class="num">${a.ncs}</td><td>${esc(a.status_acao||'—')}</td><td>${esc(a.problema||'')}</td></tr>`).join('')||'<tr><td colspan="7" style="color:var(--n500)">sem auditorias registradas</td></tr>';
   document.getElementById('qual-auditoria').innerHTML=`<table><thead><tr><th>Data</th><th>Área</th><th>Tipo</th><th>Resultado</th><th class="num">NCs</th><th>Ação</th><th>Principal problema</th></tr></thead><tbody>${au}</tbody></table>`;
 }
