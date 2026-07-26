@@ -405,6 +405,17 @@ a query ignora sai; dimensão que a query aceita e é a pergunta natural da tela
   disponível 74 · 5 em viagem · 1 oficina · de 80 com motor".
 - Em TV não existe `.ihelp` — a explicação tem de caber no rótulo e no subtítulo.
 
+**Máximo sem filtro de relevância (lição da Saúde do Servidor):**
+- "Disco (mais cheio) 92,6%" em vermelho apontava para um volume **temporário do Docker
+  de 2,3 GB**; o disco de dados real estava em 88,9%. Volume pequeno enche sozinho e
+  sequestra qualquer KPI de máximo — o cartão passou a considerar só volumes ≥ 20 GB,
+  nomear o volume escolhido e dizer quantos ficaram de fora.
+- **Leitura de hardware implausível é omitida, não exibida:** `psutil.cpu_freq()`
+  devolvia "4 MHz" num Apple Silicon. Abaixo de 100 MHz o valor some; acima de 1.000
+  vira GHz.
+- Esta tela mede a MÁQUINA ONDE A API RODA — fora do servidor, túnel e tarefas
+  agendadas aparecem indisponíveis sem que haja falha. O ⓘ diz isso.
+
 **Telas de consulta (busca própria, filterbar global escondida — ex.: Consulta de Cliente):**
 - Campo de busca com **`<datalist>`** alimentado por endpoint LEVE e cacheado
   (`/api/comercial/clientes-lista`, ~34 grupos). Nunca reusar o endpoint do painel
