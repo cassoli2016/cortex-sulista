@@ -657,11 +657,11 @@ SELECT l.grupo::text || '|' || l.reduzido::text AS conta,
        sum(coalesce(l.valorcredito,0) - coalesce(l.valordebito,0))::float8 AS valor
 """
 
-# Histórico para derivar o baseline (meses fechados).
+# Valor por conta x mês. Serve tanto para derivar o baseline (recorte = meses
+# fechados) quanto para o realizado (recorte = ano orçado) — é a MESMA pergunta em
+# janelas diferentes, então é um alias explícito e não duplicação de query.
 HIST_CONTA_SQL = _SELECT + _BASE + " GROUP BY 1, 2"
-
-# Realizado do ano orçado. Mesma forma: o consumidor recorta o intervalo.
-REAL_CONTA_SQL = _SELECT + _BASE + " GROUP BY 1, 2"
+REAL_CONTA_SQL = HIST_CONTA_SQL
 
 # Conta -> agrupador gerencial, para o rollup até a linha da DRE.
 AGRUP_CONTA_SQL = """
@@ -984,6 +984,17 @@ def test_base_completa_nao_reporta_falta():
     assert meses_faltando(hist, meses) == []
 
 
+def test_grade_traz_as_12_celulas_mesmo_com_ano_nao_iniciado():
+    """Sem isso a aba Montagem viria vazia num orçamento do ano que vem."""
+    linhas_orc = [_orc("1|100", m, -1000.0) for m in range(1, 13)]
+    r = montar_comparativo(linhas_orc, {}, MAPA, ate_mes=0)
+    assert r["contas"] == []            # nada acumulado ainda
+    g = next(x for x in r["grade"] if x["conta"] == "1|100")
+    assert len(g["valores"]) == 12
+    assert g["valores"][12] == -1000.0
+    assert g["linha"] == "CUSTO VARIAVEL"
+
+
 def test_serie_mensal_marca_o_mes_sem_realizado():
     """Mês sem realizado não pode virar barra zerada no gráfico."""
     linhas_orc = [_orc("1|100", m, -1000.0) for m in range(1, 13)]
@@ -1086,9 +1097,22 @@ def montar_comparativo(linhas_orc: list[dict], realizado: dict,
     linhas.sort(key=lambda x: ordem.get(x["linha"], 999))
     contas.sort(key=lambda x: abs(x["desvio"]), reverse=True)
 
+    # A grade da aba Montagem precisa das 12 células de TODA conta da versão,
+    # independentemente de ate_mes: com o ano ainda não iniciado (ate_mes=0) uma
+    # grade derivada de `contas` viria vazia e não haveria o que ajustar.
+    grade: dict[str, dict] = {}
+    for l in linhas_orc:
+        g = grade.setdefault(l["conta"], {
+            "conta": l["conta"], "linha": mapa_linha.get(l["conta"]),
+            "origem": l["origem"], "meses_com_dado": l["meses_com_dado"],
+            "valores": {}, "ajustados": {}})
+        g["valores"][l["mes"]] = l["valor_efetivo"]
+        g["ajustados"][l["mes"]] = l["valor_ajustado"] is not None
+
     return {
         "linhas": linhas,
         "contas": contas,
+        "grade": sorted(grade.values(), key=lambda g: (g["linha"] or "~", g["conta"])),
         "mensal": [mensal[m] for m in range(1, 13)],
         "sem_linha": sorted(sem_linha),
         "ate_mes": ate_mes,
@@ -1197,7 +1221,7 @@ __all__ = ["comparativo", "gerar", "montar_comparativo"]
 - [ ] **Step 5: Rodar os testes e confirmar que passam**
 
 Run: `uv run --with pytest python -m pytest tests/orcamento/ -q`
-Expected: PASS, 37 testes.
+Expected: PASS, 38 testes.
 
 - [ ] **Step 6: Registrar a tela no controle de acesso**
 
@@ -1646,8 +1670,7 @@ function renderOrcMontagem(){
   const d=DATAORC||{};
   const alvo=document.getElementById('orc-mont');
   const anoSug=new Date().getFullYear();
-  const contas=(d.contas||[]);
-  const linhas=[...new Set(contas.map(c=>c.linha))].sort();
+  const linhas=[...new Set((d.grade||[]).map(c=>c.linha).filter(Boolean))].sort();
   alvo.innerHTML=`
     <div class="card"><div class="head"><h2>Gerar baseline</h2>
       <span class="hint">mês espelho dos 12 meses fechados + fator de tendência</span></div>
@@ -1677,7 +1700,9 @@ function renderOrcMontagem(){
 function renderOrcGrade(){
   const d=DATAORC||{}; const vid=(d.versao||{}).id;
   const filtro=(document.getElementById('fOrcLinha')||{}).value||'';
-  const contas=(d.contas||[]).filter(c=>!filtro||c.linha===filtro);
+  // lê d.grade (todas as 12 células de toda conta), NÃO d.contas — este último só
+  // traz meses já fechados e viria vazio num ano que ainda não começou
+  const contas=(d.grade||[]).filter(c=>!filtro||c.linha===filtro);
   const MES=['jan','fev','mar','abr','mai','jun','jul','ago','set','out','nov','dez'];
   const el=document.getElementById('orc-grade');
   if(!vid){ el.innerHTML='<div style="padding:20px;color:var(--n500)">Gere um baseline primeiro.</div>'; return; }
@@ -1688,14 +1713,21 @@ function renderOrcGrade(){
         return `<tr><td style="font-family:var(--mono)">${esc(c.conta)}`
           + (fraca?` <span class="badge b-warn" title="Menos de 9 dos 12 meses com movimento: o valor saiu por mediana, não por mês espelho. Revise.">base fraca</span>`:'')
           + `</td><td style="color:var(--n500)">${esc(c.linha||'—')}</td>`
-          + MES.map((_,i)=>`<td class="num"><input type="number" step="0.01" class="ocel"
-               data-conta="${esc(c.conta)}" data-mes="${i+1}" data-versao="${vid}"
-               onchange="orcSalvarCelula(this)" style="width:92px;text-align:right"></td>`).join('')
+          + MES.map((_,i)=>{
+              const m=i+1, v=(c.valores||{})[m], aj=(c.ajustados||{})[m];
+              const val = (v==null?'':Number(v).toFixed(2));
+              return `<td class="num"><input type="number" step="0.01" class="ocel"
+                 value="${val}" data-antes="${val}"
+                 data-conta="${esc(c.conta)}" data-mes="${m}" data-versao="${vid}"
+                 onchange="orcSalvarCelula(this)"
+                 style="width:92px;text-align:right${aj?';background:var(--yellow-100)':''}"
+                 title="${aj?'ajustado manualmente':'valor do baseline'}"></td>`;
+            }).join('')
           + `</tr>`;
       }).join('')
     + `</tbody></table>`;
   document.getElementById('hintOrcGrade').textContent =
-    contas.length+' contas'+(filtro?' em '+filtro:'')+' · o valor em branco segue o baseline';
+    contas.length+' contas'+(filtro?' em '+filtro:'')+' · fundo amarelo = ajustado à mão';
 }
 async function orcGerar(){
   const ano=parseInt(document.getElementById('fOrcAno').value,10);
@@ -1790,7 +1822,7 @@ a API falhar."
 - [ ] **Step 1: Rodar a suíte completa**
 
 Run: `uv run --with pytest python -m pytest -q`
-Expected: PASS (78 anteriores + 37 novos = 115).
+Expected: PASS (78 anteriores + 38 novos = 116).
 
 - [ ] **Step 2: Rodar o smoke e o validador estrutural**
 
