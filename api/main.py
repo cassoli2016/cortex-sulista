@@ -773,12 +773,21 @@ def manutencao_preventiva(horizonte: int = 30) -> JSONResponse:
 
 
 @app.get("/api/suprimentos/custos")
-def suprimentos_custos(dt_de: str | None = None, dt_ate: str | None = None) -> JSONResponse:
+def suprimentos_custos(dt_de: str | None = None, dt_ate: str | None = None,
+                       origem: str | None = None,
+                       filial: str | None = None) -> JSONResponse:
     hoje = date.today()
     dt_de = dt_de or f"{hoje.year}-{hoje.month:02d}-01"
     dt_ate = dt_ate or hoje.isoformat()
+    origem = (origem or "").strip() or None
+    filial = (filial or "").strip() or None
+    if origem and origem.upper() not in ("COM NF", "SEM NF",
+                                         "ABASTECIMENTO INT", "ABASTECIMENTO EXT"):
+        return JSONResponse(status_code=422, content={
+            "erro": "parametro_invalido",
+            "mensagem": "origem deve ser COM NF, SEM NF, ABASTECIMENTO INT ou ABASTECIMENTO EXT."})
     try:
-        return JSONResponse(queries.get_custos(dt_de, dt_ate))
+        return JSONResponse(queries.get_custos(dt_de, dt_ate, origem=origem, filial=filial))
     except psycopg.OperationalError as exc:
         log.warning("banco inacessivel: %s", exc)
         return JSONResponse(status_code=503, content={

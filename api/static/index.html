@@ -2010,32 +2010,44 @@ button.avatar{border:0;cursor:pointer}
             <input type="date" id="fCustDe">
             <span style="color:var(--n500)">até</span>
             <input type="date" id="fCustAte">
+            <select id="fCustOrigem" aria-label="Origem e status fiscal" onchange="loadCustos()"
+                    title="Isola os itens por origem: ordem de compra com ou sem nota recebida, ou abastecimento pelo cartão.">
+              <option value="">Toda origem</option>
+              <option value="COM NF">Só OC com NF</option>
+              <option value="SEM NF">Só OC sem NF</option>
+              <option value="ABASTECIMENTO INT">Só abastecimento interno</option>
+              <option value="ABASTECIMENTO EXT">Só abastecimento externo</option>
+            </select>
+            <select id="fCustFilial" aria-label="Filial" onchange="loadCustos()"
+                    title="Filial que lançou a ordem de compra ou o abastecimento.">
+              <option value="">Todas as filiais</option>
+            </select>
             <button class="btn" onclick="loadCustos()">Atualizar</button>
             <span class="hint" style="color:var(--n500)">a consulta é pesada — pode levar alguns segundos</span>
           </div>
         </div>
         <div class="kpis" id="kpis-custos"></div>
         <div class="grid2">
-          <div class="card"><div class="head"><h2>Composição do custo</h2><span class="hint">participação por agrupador</span></div>
-            <div class="chartwrap" style="min-height:210px"><svg id="chartCustosDonut" viewBox="0 0 380 200" preserveAspectRatio="xMidYMid meet" style="min-width:300px;max-width:520px;margin:0 auto" role="img" aria-label="Composição do custo por agrupador."></svg></div></div>
-          <div class="card"><div class="head"><h2>Por agrupador (grupo DRE)</h2><span class="hint">top 14 por valor</span></div>
+          <div class="card"><div class="head"><h2>Concentração do custo <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="Quanto do custo do período está nos maiores agrupadores. Substituiu a rosca de participação, que mostrava exatamente o mesmo dado do gráfico ao lado. Aqui a pergunta é outra: se poucos agrupadores explicam quase tudo, é neles que a negociação tem efeito.">i</span></h2><span class="hint">quanto está nos maiores agrupadores</span></div>
+            <div class="modl" id="custos-conc"></div></div>
+          <div class="card"><div class="head"><h2>Por agrupador (grupo DRE) <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="Itens de abastecimento (CTA Plus) e de ordens de compra, classificados pelo agrupador gerencial do plano de contas — o mesmo usado na DRE Gerencial. CV é custo variável, CF é custo fixo e OVERHEAD é estrutura.">i</span></h2><span class="hint">top 14 por valor</span></div>
             <div class="chartwrap"><svg id="chartCustosAgr" viewBox="0 0 960 200" preserveAspectRatio="xMidYMid meet" role="img"></svg></div></div>
         </div>
         <div class="grid2">
-          <div class="card"><div class="head"><h2>Por agrupador — detalhe</h2><span class="hint">top 20</span></div>
+          <div class="card"><div class="head"><h2>Por agrupador — detalhe <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="Mesma classificação do gráfico acima, em tabela, com a contagem de itens. A linha (sem agrupador) é item cuja conta não está mapeada no plano gerencial — some do rateio por natureza e precisa de classificação.">i</span></h2><span class="hint" id="hintCustAgr">top 20</span></div>
             <div class="tablewrap" id="custos-agr"></div></div>
-          <div class="card"><div class="head"><h2>Por fornecedor</h2><span class="hint">top 20</span></div>
+          <div class="card"><div class="head"><h2>Por fornecedor <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="Fornecedor das ordens de compra e do abastecimento. Cartão de combustível aparece como um único fornecedor com valor alto porque concentra o repasse de todos os postos — não é compra direta de um posto só.">i</span></h2><span class="hint" id="hintCustForn">top 20</span></div>
             <div class="tablewrap" id="custos-forn"></div></div>
         </div>
         <div class="grid2">
-          <div class="card"><div class="head"><h2>Por status de NF</h2><span class="hint">abastecimento e ordens de compra</span></div>
+          <div class="card"><div class="head"><h2>Origem e status fiscal <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="Mistura duas coisas por vir de duas fontes: itens de ORDEM DE COMPRA aparecem como COM NF ou SEM NF conforme a nota já tenha sido recebida, e itens de ABASTECIMENTO aparecem como interno ou externo, porque passam pelo cartão e não pelo fluxo de OC. SEM NF é o que ainda não chegou como documento fiscal.">i</span></h2><span class="hint">de onde vem o item e se já tem nota</span></div>
             <div class="tablewrap" id="custos-status"></div></div>
-          <div class="card"><div class="head"><h2>Por filial</h2><span class="hint">no período</span></div>
+          <div class="card"><div class="head"><h2>Por filial <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="Filial que lançou a ordem de compra ou o abastecimento. A matriz concentra a maior parte porque nela ficam os contratos e o cartão de combustível de toda a frota — não significa que o custo foi consumido lá.">i</span></h2><span class="hint" id="hintCustFil">no período</span></div>
             <div class="tablewrap" id="custos-filial"></div></div>
         </div>
         <div class="card">
-          <div class="head"><h2>Maiores itens</h2><span class="hint">top 100 por valor</span></div>
-          <div class="tablewrap" id="custos-lista"></div>
+          <div class="head"><h2>Maiores itens <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="Os 100 itens de maior valor no período, entre abastecimentos e itens de ordem de compra. Status mostra se o item já tem nota fiscal; Aprovação vale só para ordem de compra. Item de abastecimento não passa por aprovação e fica em branco nessa coluna.">i</span></h2><span class="hint">top 100 por valor · role dentro do card</span></div>
+          <div class="tablewrap tabroll" id="custos-lista"></div>
         </div>
       </section>
       <section class="view" id="view-mul">
@@ -2699,6 +2711,8 @@ function qsView(k){
   } else if(k==='custos'){
     if(V('fCustDe'))p.set('dt_de',V('fCustDe'));
     if(V('fCustAte'))p.set('dt_ate',V('fCustAte'));
+    if(V('fCustOrigem'))p.set('origem',V('fCustOrigem'));
+    if(V('fCustFilial'))p.set('filial',V('fCustFilial'));
   } else if(k==='folha'){
     if(V('fFolhaComp'))p.set('comp',V('fFolhaComp'));
   } else if(k==='he'){
@@ -6679,27 +6693,64 @@ async function loadCustos(){
 function renderCustos(d){
   const k=d.kpis||{};
   document.getElementById('kpis-custos').innerHTML=[
-    kpi('Custo total', BRL.format(k.total||0), (k.itens||0).toLocaleString('pt-BR')+' itens no período',''),
-    kpi('Combustível', BRL.format(k.combustivel||0), k.total>0?((100*k.combustivel/k.total).toFixed(0)+'% do total'):'',''),
-    kpi('Pendente de aprovação', BRL.format(k.pendente_aprovacao||0), 'ordens de compra aguardando', (k.pendente_aprovacao||0)>0?'neg':'pos'),
-    kpi('Sem nota fiscal', BRL.format(k.sem_nf||0), 'OCs ainda não recebidas', (k.sem_nf||0)>0?'neg':''),
+    kpi('Custo total', BRL.format(k.total||0), (k.itens||0).toLocaleString('pt-BR')+' itens no período','',
+        'Soma dos abastecimentos do CTA Plus com os itens de ordem de compra no período, classificados pelo agrupador gerencial. NÃO é a DRE: aqui entra compra, e a DRE reconhece por competência — os dois números não têm de bater.'),
+    kpi('Combustível', BRL.format(k.combustivel||0),
+        k.total>0?(Math.round(100*k.combustivel/k.total)+'% do total'):'','',
+        'Itens do agrupador CV - COMBUSTÍVEL. Inclui o que é repassado a agregado e terceiro pelo cartão, que volta como desconto no acerto do transportador — não é custo líquido da Sulista.'),
+    kpi('Pendente de aprovação', BRL.format(k.pendente_aprovacao||0), 'ordens de compra aguardando', (k.pendente_aprovacao||0)>0?'warn':'pos',
+        'Ordens de compra com aprovação ainda pendente no ERP. Só vale para OC — abastecimento não passa por aprovação.'),
+    kpi('Sem nota fiscal', BRL.format(k.sem_nf||0),
+        k.total>0?('OCs ainda não recebidas · '+Math.round(100*k.sem_nf/k.total)+'% do custo do período'):'OCs ainda não recebidas',
+        (k.sem_nf||0)>0?'warn':'pos',
+        'Itens de ordem de compra cuja nota fiscal ainda não foi recebida no ERP. É compra já feita e ainda não documentada: o custo existe, o documento fiscal não chegou.'),
   ].join('');
   const tot=k.total||1;
   // donut de composição (top 6 agrupadores + outros)
   const PAL=[CC.laranja,CC.azul,CC.verde,CC.roxo,CC.amarelo,CC.vermelho,CC.n400];
   const agr=(d.por_agrupador||[]).slice().sort((a,b)=>b.valor-a.valor);
-  const top6=agr.slice(0,6), resto=agr.slice(6).reduce((a,r)=>a+r.valor,0);
-  const segs=top6.map((r,i)=>({rotulo:r.rotulo, valor:r.valor, cor:PAL[i%PAL.length]}));
-  if(resto>0) segs.push({rotulo:'Outros', valor:resto, cor:CC.n300});
-  chartDonut('chartCustosDonut', segs, {fmt:brlAbbr, centro:brlAbbr(tot), centroSub:'custo total'});
   chartHBars('chartCustosAgr', agr.map(r=>({rotulo:r.rotulo, valor:r.valor})), {cor:CC.azul, fmt:brlAbbr});
+  // concentração: o donut repetia o gráfico ao lado; agora responde outra pergunta —
+  // quanto do custo está nos poucos primeiros agrupadores
+  {
+    const acum=[]; let a=0;
+    agr.forEach(r=>{ a+=r.valor; acum.push(a/tot); });
+    const t3=acum[2]||0, t5=acum[4]||0, t10=acum[9]||0;
+    const el=document.getElementById('custos-conc');
+    if(el) el.innerHTML=[[3,t3],[5,t5],[10,t10]].filter(([n])=>agr.length>=n).map(([n,v])=>
+      `<div class="modrow"><div class="mname">Top ${n} agrupadores</div>`
+      +`<div class="mval">${(100*v).toLocaleString('pt-BR',{maximumFractionDigits:1})}%</div>`
+      +`<div class="mtrack"><span style="width:${(100*v).toFixed(1)}%;background:var(--navy-500)"></span>`
+      +`<span style="flex:1;background:var(--n200)"></span></div></div>`).join('')
+      + `<div class="modrow"><div class="mmeta">${agr.length} agrupadores no período · maior isolado: `
+      + `<b>${esc(agr[0]?agr[0].rotulo:'—')}</b> com ${agr[0]?(100*agr[0].valor/tot).toLocaleString('pt-BR',{maximumFractionDigits:1}):'0'}% do custo</div></div>`;
+  }
+  const hintN=(id,rows,tot2,rotulo)=>{ const el=document.getElementById(id); if(!el) return;
+    const soma=(rows||[]).reduce((a,r)=>a+r.valor,0);
+    el.textContent=(rows||[]).length+' '+rotulo+' · '+(tot2?Math.round(100*soma/tot2):0)+'% do custo do período'; };
   const bars=(rows)=>rows.map(r=>`<tr><td>${esc(r.rotulo)}</td><td class="num">${r.n}</td><td class="num" style="font-weight:600">${BRL.format(r.valor)}</td><td class="num">${(100*r.valor/tot).toFixed(1)}%</td></tr>`).join('')||'<tr><td colspan="4" style="color:var(--n500)">sem dados</td></tr>';
   document.getElementById('custos-agr').innerHTML=`<table><thead><tr><th>Agrupador</th><th class="num">Itens</th><th class="num">Valor</th><th class="num">%</th></tr></thead><tbody>${bars(d.por_agrupador||[])}</tbody></table>`;
   document.getElementById('custos-forn').innerHTML=`<table><thead><tr><th>Fornecedor</th><th class="num">Itens</th><th class="num">Valor</th><th class="num">%</th></tr></thead><tbody>${bars(d.por_fornecedor||[])}</tbody></table>`;
   document.getElementById('custos-status').innerHTML=`<table><thead><tr><th>Status NF</th><th class="num">Itens</th><th class="num">Valor</th><th class="num">%</th></tr></thead><tbody>${bars(d.por_status||[])}</tbody></table>`;
   document.getElementById('custos-filial').innerHTML=`<table><thead><tr><th>Filial</th><th class="num">Itens</th><th class="num">Valor</th><th class="num">%</th></tr></thead><tbody>${bars(d.por_filial||[])}</tbody></table>`;
+  {
+    const sel=document.getElementById('fCustFilial'), atual=sel?sel.value:'';
+    if(sel && !sel.dataset.pronto){
+      // só popula quando não há filtro ativo, senão a lista encolhe a cada seleção
+      if(!atual){
+        sel.length=1;
+        (d.por_filial||[]).forEach(f=>{ const o=document.createElement('option');
+          o.value=f.rotulo; o.textContent=f.rotulo; sel.appendChild(o); });
+        if((d.por_filial||[]).length) sel.dataset.pronto='1';
+      }
+    }
+    if(atual) sel.value=atual;
+  }
+  hintN('hintCustAgr', d.por_agrupador, tot, 'agrupadores');
+  hintN('hintCustForn', d.por_fornecedor, tot, 'fornecedores');
+  hintN('hintCustFil', d.por_filial, tot, 'filiais');
   const ap=a=>a&&a.startsWith('PENDENTE')?'<span class="badge b-warn">pendente</span>':(a==='APROVADA'?'<span class="badge b-ok">aprovada</span>':'');
-  const ll=(d.itens_lista||[]).map(i=>`<tr><td>${esc(i.data||'')}</td><td>${esc(i.agrupador)}</td><td>${esc(i.fornecedor)}</td><td>${esc(i.produto||i.conta||'')}</td><td class="num">${i.frota||i.placa||''}</td><td>${esc(i.status)}</td><td>${ap(i.aprovacao)}</td><td class="num" style="font-weight:600">${BRL.format(i.valor)}</td></tr>`).join('')||'<tr><td colspan="8" style="color:var(--n500)">sem itens no período</td></tr>';
+  const ll=(d.itens_lista||[]).map(i=>`<tr><td class="num">${esc(fmtDT(String(i.data||'').replace('T',' ')))}</td><td>${i.agrupador?esc(i.agrupador):'<span style="color:var(--n500)">(sem agrupador)</span>'}</td><td>${esc(i.fornecedor)}</td><td>${esc(i.produto||i.conta||'')}</td><td class="num">${i.frota||i.placa||''}</td><td>${esc(i.status)}</td><td>${ap(i.aprovacao)}</td><td class="num" style="font-weight:600">${BRL.format(i.valor)}</td></tr>`).join('')||'<tr><td colspan="8" style="color:var(--n500)">sem itens no período</td></tr>';
   document.getElementById('custos-lista').innerHTML=`<table><thead><tr><th>Data</th><th>Agrupador</th><th>Fornecedor</th><th>Produto/Conta</th><th class="num">Frota</th><th>Status</th><th>Aprovação</th><th class="num">Valor</th></tr></thead><tbody>${ll}</tbody></table>`;
 }
 async function loadTorre(){
