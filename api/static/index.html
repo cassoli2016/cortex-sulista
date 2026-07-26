@@ -1331,10 +1331,11 @@ button.avatar{border:0;cursor:pointer}
       <section class="view" id="view-comb">
         <div class="kpis" id="kpis-comb"></div>
         <div class="card">
-          <div class="head"><h2>Custo de combustível por mês</h2><span class="hint" id="hintComb">no período filtrado</span></div>
+          <div class="head"><h2>Custo de combustível por mês <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="Custo do CTA Plus agrupado pelo mês do abastecimento, separando a placa pela utilização do veículo: FROTA e LOCAÇÃO são diesel nosso, AGREGADO e TERCEIRO passam pelo cartão e voltam como desconto no acerto do transportador.">i</span></h2><span class="hint" id="hintComb">no período filtrado</span></div>
           <div class="legend">
             <span class="k"><i class="sw" style="background:var(--navy-500)"></i>Frota própria</span>
             <span class="k"><i class="sw" style="background:var(--orange-500)"></i>Agregados/Terceiros (repassado no acerto)</span>
+            <span class="k"><i class="sw hatch orange"></i>Mês parcial (corrente ou cortado pelo filtro)</span>
           </div>
           <div class="chartwrap" id="wrapComb">
             <svg id="chartComb" viewBox="0 0 960 250" preserveAspectRatio="xMidYMid meet"
@@ -1344,14 +1345,14 @@ button.avatar{border:0;cursor:pointer}
         </div>
         <div class="grid2">
           <div class="card">
-            <div class="head"><h2>Consumo por dia</h2><span class="hint">litros abastecidos · no período filtrado</span></div>
+            <div class="head"><h2>Consumo por dia <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="Litros abastecidos por dia do abastecimento, todos os produtos do cartão. Serve para ver concentração e dias sem movimento — é volume comprado, não consumo do motor.">i</span></h2><span class="hint">litros abastecidos · no período filtrado</span></div>
             <div class="chartwrap">
               <svg id="chartCombDia" viewBox="0 0 960 250" preserveAspectRatio="xMidYMid meet"
                    role="img" aria-label="Litros consumidos por dia no período filtrado."></svg>
             </div>
           </div>
           <div class="card">
-            <div class="head"><h2>Consumo por semana</h2><span class="hint">litros abastecidos · semana ISO</span></div>
+            <div class="head"><h2>Consumo por semana <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="Mesmos litros do gráfico ao lado, agrupados por semana ISO. A primeira e a última semana do recorte quase sempre estão incompletas.">i</span></h2><span class="hint">litros abastecidos · semana ISO</span></div>
             <div class="chartwrap">
               <svg id="chartCombSem" viewBox="0 0 960 250" preserveAspectRatio="xMidYMid meet"
                    role="img" aria-label="Litros consumidos por semana no período filtrado."></svg>
@@ -1359,20 +1360,20 @@ button.avatar{border:0;cursor:pointer}
           </div>
         </div>
         <div class="card">
-          <div class="head"><h2>Veículos do período</h2><span class="hint">top 30 por custo · clique para ver os abastecimentos</span></div>
-          <div class="tablewrap"><table><thead><tr>
+          <div class="head"><h2>Veículos do período <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="Top 30 placas por custo no recorte. Km/l = km rodado dividido pelos litros, contando só abastecimentos com distância entre 0 e 3.000 km. Quando o resultado cai fora de 0,8 a 6,0 km/l a leitura de odômetro está furada e a célula mostra n/d — não é consumo ruim, é dado inválido. Clique na linha para ver abastecimento a abastecimento.">i</span></h2><span class="hint" id="hintCombV">top 30 por custo · clique para ver os abastecimentos</span></div>
+          <div class="tablewrap tabroll"><table><thead><tr>
             <th style="width:34px"></th><th>Veículo</th><th>Modalidade</th><th class="num">Abast.</th><th class="num">Litros</th><th class="num">Custo</th><th class="num">R$/l</th><th class="num">Km</th><th class="num">Km/l</th>
           </tr></thead><tbody id="comb-veic"></tbody></table></div>
         </div>
         <div class="grid2">
           <div class="card">
-            <div class="head"><h2>Por combustível</h2><span class="hint">no período filtrado</span></div>
+            <div class="head"><h2>Por combustível <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="Agrupado por combustivel_descricao do CTA Plus. ARLA aparece aqui porque é compra do cartão, mas fica fora do consumo médio e do prêmio do posto externo. A linha (não informado no cartão) é abastecimento sem produto identificado na origem.">i</span></h2><span class="hint">no período filtrado</span></div>
             <div class="tablewrap"><table><thead><tr>
               <th>Combustível</th><th class="num">Abast.</th><th class="num">Litros/m³</th><th class="num">Custo</th><th class="num">R$/un.</th><th class="num">% do custo</th>
             </tr></thead><tbody id="comb-tipo"></tbody></table></div>
           </div>
           <div class="card">
-            <div class="head"><h2>Postos do período</h2><span class="hint">top 12 por custo</span></div>
+            <div class="head"><h2>Postos do período <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="Top 12 postos por custo. INTERNO é posto próprio da Sulista, COMERCIAL é posto de rua — a diferença de R$/l entre os dois é o prêmio mostrado no cartão do topo. Cada posto aparece uma vez, com o R$/l médio ponderado pelos litros.">i</span></h2><span class="hint" id="hintCombP">top 12 por custo</span></div>
           <div class="tablewrap"><table><thead><tr>
             <th>Posto</th><th>Tipo</th><th class="num">Abast.</th><th class="num">Litros</th><th class="num">Custo</th><th class="num">R$/l</th>
           </tr></thead><tbody id="comb-posto"></tbody></table></div>
@@ -1393,7 +1394,7 @@ button.avatar{border:0;cursor:pointer}
         </div>
         <div class="card">
           <div class="head"><h2>Veículos do período</h2><span class="hint">top 30 por custo · clique para ver as ordens de serviço</span></div>
-          <div class="tablewrap"><table><thead><tr>
+          <div class="tablewrap tabroll"><table><thead><tr>
             <th style="width:34px"></th><th>Veículo</th><th>Modalidade</th><th class="num">OSs</th><th class="num">Abertas</th><th class="num">Peças</th><th class="num">M. obra</th><th class="num">Total</th>
           </tr></thead><tbody id="man-veic"></tbody></table></div>
         </div>
@@ -7110,13 +7111,25 @@ function renderComb(d){
   const k=d.kpis;
   if(!document.getElementById('fEmiDe').value) document.getElementById('fEmiDe').value=d.dt_de;
   if(!document.getElementById('fEmiAte').value) document.getElementById('fEmiAte').value=d.dt_ate;
+  const rl=v=>v!=null?('R$ '+v.toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2})+'/l'):'—';
   document.getElementById('kpis-comb').innerHTML=[
-    kpi('Combustível no período', BRL.format(k.custo), fmtL(k.litros)+' · '+k.abastecimentos.toLocaleString('pt-BR')+' abastecimentos', ''),
-    kpi('Frota própria', BRL.format(k.custo_proprio), 'terceiros (repasse): '+BRL.format(k.custo_terceiros), ''),
-    kpi('Preço médio', k.rs_litro!=null?('R$ '+k.rs_litro.toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2})+'/l'):'—', fmtD(d.dt_de)+' a '+fmtD(d.dt_ate), ''),
-    kpi('Consumo médio', fmtKmL(k.km_l), k.veiculos+' veículos · exclui ARLA · distâncias válidas', ''),
+    kpi('Combustível no período', BRL.format(k.custo), fmtL(k.litros)+' · '+k.abastecimentos.toLocaleString('pt-BR')+' abastecimentos', '',
+        'sulista.ctaplus_abastecimentos por data de início do abastecimento, no recorte dos filtros. Inclui ARLA e demais produtos do cartão — o consumo médio e o prêmio do posto externo excluem ARLA, então os litros não batem entre os cards.'),
+    kpi('Frota própria', BRL.format(k.custo_proprio), 'terceiros (repasse): '+BRL.format(k.custo_terceiros), '',
+        'Separa pelo veiculo.utilizacaoveiculo da placa: FROTA e LOCAÇÃO são diesel nosso; AGREGADO e TERCEIRO passam pelo cartão da Sulista e voltam como desconto no acerto do transportador, então não são custo líquido.'),
+    // o prêmio do posto externo era o maior número acionável da tela e não existia
+    kpi('Prêmio do posto externo', k.premio_litro!=null?rl(k.premio_litro):'—',
+        k.premio_litro!=null
+          ? (BRL.format(k.premio_total)+' no período · '+Math.round(k.pct_externo||0)+'% dos litros são externos')
+          : 'sem abastecimento interno no recorte',
+        k.premio_litro==null?'':(k.premio_litro>1?'neg':(k.premio_litro>0.5?'warn':'')),
+        'Diferença entre o R$/l médio dos postos COMERCIAIS e o dos postos INTERNOS da Sulista no recorte, sem ARLA, multiplicada pelos litros abastecidos fora. É o teto teórico da economia, NÃO uma meta: caminhão em viagem precisa abastecer na estrada. Serve para acompanhar o mix interno x externo e o prêmio que se está pagando.'),
+    kpi('Consumo médio', fmtKmL(k.km_l),
+        k.veiculos+' veículos · exclui ARLA'
+        +(k.veiculos_km_suspeito>0?' · '+k.veiculos_km_suspeito+' dos 30 listados com odômetro inconsistente':''), '',
+        'Km rodado dividido pelos litros, contando SÓ abastecimentos com distância entre 0 e 3.000 km e sem ARLA. A distância do CTA Plus é a diferença de odômetro entre abastecimentos: troca ou reset de odômetro gera valor negativo ou pequeno demais, e esses ficam fora da conta.'),
   ].join('');
-  chartCombRender(d.mensal||[]);
+  chartCombRender(d.mensal||[], d.dt_de, d.dt_ate);
   chartLitrosRender('chartCombDia',(d.diario||[]),r=>{const p=(r.dia||'').split('-');return p.length===3?p[2]+'/'+p[1]:(r.dia||'');});
   chartLitrosRender('chartCombSem',(d.semanal||[]),r=>'S'+((r.semana||'').split('-')[1]||''));
   // select de combustível (preserva seleção)
@@ -7129,7 +7142,7 @@ function renderComb(d){
   }
   const custoTotal=(d.combustiveis||[]).reduce((s,c)=>s+c.custo,0);
   document.getElementById('comb-tipo').innerHTML=(d.combustiveis||[]).map(c=>`<tr>
-    <td style="font-weight:600">${esc(c.combustivel)}</td>
+    <td style="font-weight:600">${c.combustivel&&c.combustivel!=='(sem)'?esc(c.combustivel):'<span style="color:var(--n500);font-weight:400">(não informado no cartão)</span>'}</td>
     <td class="num">${c.abastecimentos.toLocaleString('pt-BR')}</td>
     <td class="num">${c.litros.toLocaleString('pt-BR',{maximumFractionDigits:0})}</td>
     <td class="num" style="font-weight:600">${BRL.format(c.custo)}</td>
@@ -7163,7 +7176,9 @@ function renderComb(d){
       <td class="num" style="font-weight:600">${BRL.format(vv.custo)}</td>
       <td class="num">${vv.rs_litro!=null?vv.rs_litro.toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2}):'—'}</td>
       <td class="num">${vv.km>0?vv.km.toLocaleString('pt-BR',{maximumFractionDigits:0}):'—'}</td>
-      <td class="num">${fmtKmL(vv.km_l)}</td>
+      <td class="num">${vv.km_l_suspeito
+        ? `<span style="color:var(--n500)" title="Odômetro inconsistente: a conta dá ${vv.km_l_bruto!=null?vv.km_l_bruto.toLocaleString('pt-BR',{maximumFractionDigits:2}):'—'} km/l, fora do que um caminhão faz (0,8 a 6,0). O problema é a leitura de distância, não o consumo.">n/d</span>`
+        : fmtKmL(vv.km_l)}</td>
     </tr>
     <tr class="forn-det" id="comb-det-${i}"><td colspan="9">${det}</td></tr>`;
   }).join('') || '<tr><td colspan="9" style="color:var(--n500)">sem abastecimentos no período</td></tr>';
@@ -7184,7 +7199,7 @@ function combToggle(i){
   const open=det.classList.toggle('open');
   det.previousElementSibling.setAttribute('aria-expanded', String(open));
 }
-function chartCombRender(mensal){
+function chartCombRender(mensal, dtDe, dtAte){
   const svg=document.getElementById('chartComb');
   GEOM['chartComb']=null; ACTIVE['chartComb']=-1;
   if(!mensal.length){ svg.innerHTML='<text x="480" y="120" text-anchor="middle" fill="#6E7883" font-size="14">sem dados</text>'; return; }
@@ -7195,7 +7210,11 @@ function chartCombRender(mensal){
   const y=v=>mT+ih-(v/top)*ih, y0=y(0);
   const px=i=>mL+bandW*i+bandW/2;
   const barW=Math.min(26,bandW*0.5);
-  let s='';
+  const parc=mensal.map(r=>_mesParcial(r.mes,dtDe,dtAte));
+  let s=`<defs><pattern id="hatchCbP" width="6" height="6" patternTransform="rotate(45)" patternUnits="userSpaceOnUse">`+
+        `<rect width="6" height="6" fill="${CC.navy500}"/><rect width="2.4" height="6" fill="#fff" opacity=".62"/></pattern>`+
+        `<pattern id="hatchCbT" width="6" height="6" patternTransform="rotate(45)" patternUnits="userSpaceOnUse">`+
+        `<rect width="6" height="6" fill="#E85D10"/><rect width="2.4" height="6" fill="#fff" opacity=".62"/></pattern></defs>`;
   s+=`<rect id="chartComb-hband" x="0" y="${mT-14}" width="${bandW}" height="${ih+14}" fill="${CC.navy100}" opacity="0"/>`;
   s+=`<text x="${mL}" y="${mT-12}" font-size="11" fill="#6E7883" font-weight="600" letter-spacing="1.5">${u.t}</text>`;
   tks.forEach(v=>{ const yy=y(v);
@@ -7204,8 +7223,9 @@ function chartCombRender(mensal){
   mensal.forEach((r,i)=>{
     const x=px(i)-barW/2, vp=r.custo_proprio||0, vt=r.custo_terceiros||0;
     const yP=y(vp), yT=y(vp+vt);
-    if(vt>0.5){ s+=colRect(x,barW,yP,y0,CC.navy500); s+=colPath(x,barW,yT,Math.max(yP-2,yT+0.1),4,'#E85D10'); }
-    else s+=colPath(x,barW,yP,y0,4,CC.navy500);
+    const fP=parc[i]?'url(#hatchCbP)':CC.navy500, fT=parc[i]?'url(#hatchCbT)':'#E85D10';
+    if(vt>0.5){ s+=colRect(x,barW,yP,y0,fP); s+=colPath(x,barW,yT,Math.max(yP-2,yT+0.1),4,fT); }
+    else s+=colPath(x,barW,yP,y0,4,fP);
   });
   mensal.forEach((r,i)=>{ s+=`<text x="${px(i)}" y="${H-mB+18}" text-anchor="middle" font-size="10.5" fill="#4F5860">${periodoLabel(r.mes)}</text>`; });
   s+=`<line id="chartComb-xhair" x1="0" x2="0" y1="${mT-14}" y2="${y0}" stroke="${CC.navy400}" stroke-width="1" opacity="0"/>`;

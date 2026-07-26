@@ -316,6 +316,20 @@ a query ignora sai; dimensão que a query aceita e é a pergunta natural da tela
   posição registrada" (1.242) dominava a tabela de faixas; saiu para um banner abaixo.
 - Concordância: `${n} ${n===1?'dia':'dias'}` — a tela mostrava "1 dias".
 
+**Régua de saneamento não basta: valide a FAIXA FÍSICA (lição do Combustível):**
+- `_CTA_KM_SANO` (0 < distância < 3000) descarta o odômetro resetado (valores como
+  −950.223 km) mas **aceita leitura pequena espúria**: um Iveco Stralis aparecia com
+  **0,23 km/l** (13.318 litros para 3.065 km). Caminhão faz 0,8–6,0 km/l — fora disso é
+  a LEITURA que está furada. Fora da faixa o valor vira `n/d` com o número bruto no
+  tooltip, e o KPI conta quantas placas ficaram assim.
+- **O número que decide pode não existir na tela.** O prêmio do posto externo
+  (R$ 6,27/l comercial × R$ 4,93/l interno = **R$ 1,33/l sobre 732 mil litros =
+  R$ 978 mil no trimestre**) não estava em lugar nenhum. Ao criar um KPI desses, dizer
+  no ⓘ que é **teto teórico, não meta** — caminhão em viagem precisa abastecer na
+  estrada; o uso é acompanhar o mix e o prêmio.
+- Categoria em branco vira rótulo explícito ("(não informado no cartão)"), nunca célula
+  vazia.
+
 **Telas de consulta (busca própria, filterbar global escondida — ex.: Consulta de Cliente):**
 - Campo de busca com **`<datalist>`** alimentado por endpoint LEVE e cacheado
   (`/api/comercial/clientes-lista`, ~34 grupos). Nunca reusar o endpoint do painel
