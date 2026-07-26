@@ -380,6 +380,18 @@ a query ignora sai; dimensão que a query aceita e é a pergunta natural da tela
 - **Subconjunto pede proporção:** "Aguardando entrega 227" e "Com entrega atrasada 186"
   lado a lado não diziam que o atraso é **82% da fila**.
 
+**Rótulo que promete ordem e KPIs que não somam (lições de RH — Vagas):**
+- O hint dizia "em andamento primeiro" e a lista abria com **21 finalizadas** antes das
+  3 em entrevistas. Ordem passou a ser: em andamento → congeladas → resto, e dentro de
+  cada grupo **a que espera há mais tempo primeiro**. Quando o rótulo descreve uma
+  ordenação, conferir se o `sort` existe.
+- **3 + 8 + 21 = 32 num total de 33.** Faltava a vaga cancelada, que não cabia em
+  nenhum cartão. O KPI de total passou a dizer "1 em outro status".
+- **Métrica que os dados permitem e ninguém calculou:** solicitação e fechamento
+  estavam nas colunas, mas não havia time-to-fill. Virou "Tempo até preencher" —
+  **mediana** (não média, que uma vaga longa distorce) de 11 dias sobre 21 finalizadas.
+- Tempo decorrido revela o que a data sozinha esconde: vaga congelada **há 376 dias**.
+
 **Telas de consulta (busca própria, filterbar global escondida — ex.: Consulta de Cliente):**
 - Campo de busca com **`<datalist>`** alimentado por endpoint LEVE e cacheado
   (`/api/comercial/clientes-lista`, ~34 grupos). Nunca reusar o endpoint do painel

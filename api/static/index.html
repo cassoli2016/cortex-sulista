@@ -1914,8 +1914,15 @@ button.avatar{border:0;cursor:pointer}
       <section class="view" id="view-rh">
         <div class="kpis" id="kpis-rh"></div>
         <div class="card">
-          <div class="head"><h2>Vagas</h2><span class="hint">pipeline de recrutamento · em andamento primeiro</span></div>
-          <div class="tablewrap" id="rh-vagas"></div>
+          <div class="head"><h2>Vagas <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="sulista.rhaberturavagas, todas as vagas do cadastro, sem PII do candidato — vaga marcada como sigilosa aparece sem o cargo. Tempo é a diferença entre solicitação e fechamento nas finalizadas e o tempo decorrido nas que seguem abertas. A ordem é em andamento, depois congeladas, depois o resto; dentro de cada grupo, a que espera há mais tempo primeiro.">i</span></h2>
+            <div class="chips" id="rhChips" style="margin-left:auto">
+              <button class="chip on" data-rhf="" onclick="rhFoco(this)">Todas</button>
+              <button class="chip" data-rhf="andamento" onclick="rhFoco(this)">Em andamento</button>
+              <button class="chip" data-rhf="congelada" onclick="rhFoco(this)">Congeladas</button>
+              <button class="chip" data-rhf="paradas" onclick="rhFoco(this)">Paradas +90d</button>
+            </div>
+            <span class="hint" id="hintRhV"></span></div>
+          <div class="tablewrap tabroll" id="rh-vagas"></div>
         </div>
       </section>
       <section class="view" id="view-hc">
@@ -6388,15 +6395,58 @@ async function loadRh(){
 }
 function renderRh(d){
   const k=d.kpis||{};
+  const dias=n=>n==null?'—':(n+(n===1?' dia':' dias'));
   document.getElementById('kpis-rh').innerHTML=[
-    kpi('Vagas em andamento', (k.em_andamento||0).toLocaleString('pt-BR'), 'triagem, entrevistas ou abertas',''),
-    kpi('Congeladas', (k.congeladas||0).toLocaleString('pt-BR'), 'pausadas', (k.congeladas||0)>0?'neg':''),
-    kpi('Finalizadas', (k.finalizadas||0).toLocaleString('pt-BR'), 'preenchidas','pos'),
-    kpi('Total de vagas', (k.total||0).toLocaleString('pt-BR'), 'no cadastro',''),
+    kpi('Vagas em andamento', (k.em_andamento||0).toLocaleString('pt-BR'),
+        'triagem, entrevistas ou abertas'+(k.aberta_mais_antiga!=null?' · mais antiga há '+dias(k.aberta_mais_antiga):''),
+        (k.em_andamento||0)>0?'warn':'pos',
+        'Vagas com status Aberta, Em triagem ou Em entrevistas em sulista.rhaberturavagas. São as que estão consumindo tempo do RH agora — por isso aparecem no topo da lista.'),
+    kpi('Congeladas', (k.congeladas||0).toLocaleString('pt-BR'),
+        'pausadas'+(k.congelada_mais_antiga!=null?' · a mais antiga há '+dias(k.congelada_mais_antiga):''),
+        (k.congeladas||0)>0?'warn':'',
+        'Vagas pausadas sem fechamento. Vaga congelada há muito tempo costuma ser posição que deixou de existir e ninguém encerrou no sistema — vale limpar o cadastro para o pipeline refletir a realidade.'),
+    // time-to-fill: as duas datas existiam e nenhuma métrica saía delas
+    kpi('Tempo até preencher', k.dias_medianos!=null?dias(k.dias_medianos):'—',
+        k.dias_fechadas_n?('mediana de '+k.dias_fechadas_n+' vagas finalizadas'):'sem vaga finalizada com as duas datas',
+        k.dias_medianos==null?'':(k.dias_medianos>45?'neg':(k.dias_medianos>30?'warn':'pos')),
+        'Mediana de dias entre a data de solicitação e a de fechamento das vagas FINALIZADAS. Usa mediana e não média porque uma vaga muito demorada distorce a média. Conta o tempo do processo inteiro, não só a divulgação.'),
+    kpi('Total de vagas', (k.total||0).toLocaleString('pt-BR'),
+        'no cadastro'+((k.outras||0)>0?' · '+k.outras+' em outro status (ex.: cancelada)':''),'',
+        'Todas as vagas do cadastro, sem recorte de período. Os três cartões ao lado não somam o total quando há vaga em status fora deles — canceladas, por exemplo.'),
   ].join('');
+  rhVagasTabela();
+}
+let RH_FOCO='';
+function rhFoco(btn){
+  document.querySelectorAll('#rhChips .chip').forEach(b=>b.classList.toggle('on', b===btn));
+  RH_FOCO=btn.dataset.rhf||'';
+  rhVagasTabela();
+}
+function rhVagasTabela(){
+  const d=DATARH||{};
+  const dias=n=>n==null?'—':(n+(n===1?' dia':' dias'));
+  const todas=d.vagas||[];
+  const lista=todas.filter(v=>
+    RH_FOCO==='andamento' ? v.em_andamento
+    : RH_FOCO==='congelada'? v.status==='Congelada'
+    : RH_FOCO==='paradas'  ? (v.dias_aberta!=null && v.dias_aberta>90)
+    : true);
   const stB=s=>(s==='Aberta'||s==='Em triagem'||s==='Em entrevistas')?'b-warn':(s==='Finalizada'?'b-ok':(s==='Congelada'?'b-dang':''));
-  const vg=(d.vagas||[]).map(v=>`<tr><td>${esc(v.cargo)}</td><td>${esc(v.departamento||'')}</td><td>${esc(v.area)}</td><td>${esc(v.tipo)}</td><td>${esc(v.recrutamento||'')}</td><td><span class="badge ${stB(v.status)}">${esc(v.status)}</span></td><td class="num">${v.solicitacao?fmtD(v.solicitacao):'—'}</td><td class="num">${v.fechamento?fmtD(v.fechamento):'—'}</td></tr>`).join('')||'<tr><td colspan="8" style="color:var(--n500)">sem vagas cadastradas</td></tr>';
-  document.getElementById('rh-vagas').innerHTML=`<table><thead><tr><th>Cargo</th><th>Departamento</th><th>Área</th><th>Tipo</th><th>Recrutamento</th><th>Status</th><th class="num">Solicitação</th><th class="num">Fechamento</th></tr></thead><tbody>${vg}</tbody></table>`;
+  const vg=lista.map(v=>{
+    // aberta ou congelada há muito tempo é o que precisa de decisão
+    const parada = v.dias_aberta!=null && v.dias_aberta>90;
+    const tempo = v.dias!=null ? dias(v.dias)
+      : (v.dias_aberta!=null ? `<span style="color:${parada?'var(--red)':'var(--n700)'};font-weight:${parada?'700':'400'}">há ${dias(v.dias_aberta)}</span>` : '—');
+    return `<tr><td>${esc(v.cargo)}</td><td>${esc(v.departamento||'')}</td><td>${esc(v.area)}</td><td>${esc(v.tipo)}</td>
+    <td>${v.recrutamento?esc(v.recrutamento):'<span style="color:var(--n500)">—</span>'}</td>
+    <td><span class="badge ${stB(v.status)}">${esc(v.status)}</span></td>
+    <td class="num">${v.solicitacao?fmtD(v.solicitacao):'—'}</td>
+    <td class="num">${v.fechamento?fmtD(v.fechamento):'—'}</td>
+    <td class="num">${tempo}</td></tr>`;}).join('')||'<tr><td colspan="9" style="color:var(--n500)">sem vagas cadastradas</td></tr>';
+  document.getElementById('rh-vagas').innerHTML=`<table><thead><tr><th>Cargo</th><th>Departamento</th><th>Área</th><th>Tipo</th><th>Recrutamento</th><th>Status</th><th class="num">Solicitação</th><th class="num">Fechamento</th><th class="num">Tempo</th></tr></thead><tbody>${vg}</tbody></table>`;
+  const hv=document.getElementById('hintRhV');
+  if(hv) hv.textContent=(lista.length===todas.length?todas.length+' vagas':lista.length+' de '+todas.length+' vagas')
+    +' · em andamento primeiro, depois congeladas · vermelho = parada há mais de 90 dias';
 }
 // ===================== Mini-biblioteca de gráficos SVG (design system) =====================
 // lê um token CSS (fonte-da-verdade); fallback só se a resolução falhar
