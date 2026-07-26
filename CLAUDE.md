@@ -237,6 +237,20 @@ a query ignora sai; dimensão que a query aceita e é a pergunta natural da tela
 - **Total do KPI ≠ soma da coluna quando a tabela é top-N.** O hint diz quanto o
   recorte explica: "30 de 102 transportadores · 774 dos 793 acertos".
 
+**Competência aberta e coluna constante (lições de Make vs Buy):**
+- **Competência do mês corrente NÃO é queda de custo.** O CKM cheio caía de R$ 26 para
+  R$ 15 em jul/26 porque o rateio de fixos entra incompleto. O trecho até o mês aberto
+  vira **pontilhado (2 4)** com ponto vazado e faixa cinza "competência aberta" atrás —
+  padrão para toda série mensal que dependa de lançamento contábil.
+- **Coluna que repete o mesmo valor em todas as linhas sai da tabela.** "CKM marginal"
+  trazia R$ 12,60 nas 25 rotas (é a média global — o razão é consolidado, não há CKM por
+  rota) e passava a impressão de cálculo por rota. Virou referência no hint; a coluna de
+  spread, que era só uma subtração dessa constante, ficou.
+- **Veredito que a própria tela sabe que é frágil diz isso no título.** 45% do CKM cheio
+  é fixo+depreciação rateado só sobre o km da FROTA PRÓPRIA, embora o mesmo fixo sustente
+  a gestão dos agregados: o "não expandir frota própria" ganha "— mas revise o rateio
+  antes de decidir" quando fixo/CKM cheio > 35%. Decisão de mudar o rateio é do usuário.
+
 **Telas de consulta (busca própria, filterbar global escondida — ex.: Consulta de Cliente):**
 - Campo de busca com **`<datalist>`** alimentado por endpoint LEVE e cacheado
   (`/api/comercial/clientes-lista`, ~34 grupos). Nunca reusar o endpoint do painel
