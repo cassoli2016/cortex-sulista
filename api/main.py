@@ -1001,6 +1001,108 @@ def contabil_export() -> PlainTextResponse:
                              headers={"Content-Disposition": "attachment; filename=ajustes_agrupador.sql"})
 
 
+@app.get("/api/controladoria/orcamento/versoes")
+def orcamento_versoes(ano: int | None = None) -> JSONResponse:
+    from api.orcamento import armazenamento as arm
+    try:
+        arm.init_db(arm.DB_PATH)
+        return JSONResponse({"versoes": arm.listar_versoes(arm.DB_PATH, ano)})
+    except Exception as exc:  # noqa: BLE001
+        log.warning("orcamento_versoes falhou: %s", exc)
+        return JSONResponse(status_code=500, content={
+            "erro": "erro_consulta", "mensagem": "Erro ao listar as versões do orçamento."})
+
+
+@app.get("/api/controladoria/orcamento")
+def orcamento(versao_id: int | None = None, ate_mes: int | None = None) -> JSONResponse:
+    from api.orcamento import armazenamento as arm
+    from api.orcamento.servico import comparativo
+    if ate_mes is not None and not (0 <= ate_mes <= 12):
+        return JSONResponse(status_code=422, content={
+            "erro": "parametro_invalido", "mensagem": "ate_mes deve estar entre 0 e 12."})
+    try:
+        arm.init_db(arm.DB_PATH)
+        if versao_id is None:
+            vs = arm.listar_versoes(arm.DB_PATH)
+            if not vs:
+                return JSONResponse({"vazio": True,
+                                     "mensagem": "Nenhuma versão de orçamento criada ainda."})
+            versao_id = vs[0]["id"]
+        return JSONResponse(comparativo(versao_id, ate_mes))
+    except KeyError:
+        return JSONResponse(status_code=404, content={
+            "erro": "nao_encontrado", "mensagem": "Versão de orçamento inexistente."})
+    except psycopg.OperationalError as exc:
+        log.warning("banco inacessivel: %s", exc)
+        return JSONResponse(status_code=503, content={
+            "erro": "banco_inacessivel",
+            "mensagem": "Sem conexão com o banco. O túnel SSH está aberto?"})
+    except Exception as exc:  # noqa: BLE001
+        log.warning("orcamento falhou: %s", exc)
+        return JSONResponse(status_code=500, content={
+            "erro": "erro_consulta", "mensagem": "Erro ao montar o orçamento."})
+
+
+@app.post("/api/controladoria/orcamento/gerar")
+async def orcamento_gerar(req: Request) -> JSONResponse:
+    from api.orcamento.servico import gerar
+    body = await req.json()
+    ano = body.get("ano")
+    fator = body.get("fator", 0.0)
+    rotulo = (body.get("rotulo") or f"Orçamento {ano}").strip()
+    if not isinstance(ano, int) or not (2020 <= ano <= 2100):
+        return JSONResponse(status_code=422, content={
+            "erro": "parametro_invalido", "mensagem": "Informe um ano entre 2020 e 2100."})
+    if not isinstance(fator, (int, float)) or not (-0.9 <= fator <= 3.0):
+        return JSONResponse(status_code=422, content={
+            "erro": "parametro_invalido",
+            "mensagem": "O fator de tendência deve estar entre -0,9 e 3,0."})
+    try:
+        quem = (req.state.sessao or {}).get("nome") or "sistema"
+        return JSONResponse(gerar(ano, rotulo, float(fator), quem))
+    except ValueError as exc:
+        return JSONResponse(status_code=422, content={
+            "erro": "sem_historico", "mensagem": str(exc)})
+    except Exception as exc:  # noqa: BLE001
+        log.warning("orcamento_gerar falhou: %s", exc)
+        return JSONResponse(status_code=500, content={
+            "erro": "erro_consulta", "mensagem": "Erro ao gerar o orçamento."})
+
+
+@app.post("/api/controladoria/orcamento/ajustar")
+async def orcamento_ajustar(req: Request) -> JSONResponse:
+    from api.orcamento import armazenamento as arm
+    body = await req.json()
+    try:
+        versao_id = int(body["versao_id"])
+        conta = str(body["conta"])
+        mes = int(body["mes"])
+    except (KeyError, TypeError, ValueError):
+        return JSONResponse(status_code=422, content={
+            "erro": "parametro_invalido", "mensagem": "Informe versao_id, conta e mes."})
+    if not (1 <= mes <= 12):
+        return JSONResponse(status_code=422, content={
+            "erro": "parametro_invalido", "mensagem": "mes deve estar entre 1 e 12."})
+    valor = body.get("valor")
+    if valor is not None:
+        try:
+            valor = float(valor)
+        except (TypeError, ValueError):
+            return JSONResponse(status_code=422, content={
+                "erro": "parametro_invalido", "mensagem": "valor deve ser numérico ou nulo."})
+    try:
+        quem = (req.state.sessao or {}).get("nome") or "sistema"
+        arm.ajustar(arm.DB_PATH, versao_id, conta, mes, valor, quem)
+        return JSONResponse({"ok": True})
+    except KeyError:
+        return JSONResponse(status_code=404, content={
+            "erro": "nao_encontrado", "mensagem": "Célula inexistente nessa versão."})
+    except Exception as exc:  # noqa: BLE001
+        log.warning("orcamento_ajustar falhou: %s", exc)
+        return JSONResponse(status_code=500, content={
+            "erro": "erro_consulta", "mensagem": "Erro ao salvar o ajuste."})
+
+
 @app.get("/api/tv/estradas")
 def tv_estradas() -> JSONResponse:
     """Config do overlay de trânsito (TomTom). A chave fica no .env.
