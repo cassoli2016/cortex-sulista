@@ -126,8 +126,9 @@ def _mapa() -> tuple[dict, dict]:
 
 
 def gerar(ano: int, rotulo: str, fator: float, quem: str,
-          path=arm.DB_PATH, hoje: date | None = None) -> dict:
+          path=None, hoje: date | None = None) -> dict:
     """Deriva o baseline do ano e grava numa versão nova."""
+    path = path or arm.DB_PATH
     hoje = hoje or date.today()
     meses = meses_fechados(hoje, 12)
     hist = _historico(meses)
@@ -156,8 +157,9 @@ def gerar(ano: int, rotulo: str, fator: float, quem: str,
 
 
 def comparativo(versao_id: int, ate_mes: int | None = None,
-                path=arm.DB_PATH, hoje: date | None = None) -> dict:
+                path=None, hoje: date | None = None) -> dict:
     """Orçado x realizado da versão, acumulado até o último mês fechado."""
+    path = path or arm.DB_PATH
     hoje = hoje or date.today()
     versoes = {v["id"]: v for v in arm.listar_versoes(path)}
     if versao_id not in versoes:

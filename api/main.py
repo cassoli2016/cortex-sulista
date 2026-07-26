@@ -1046,7 +1046,13 @@ def orcamento(versao_id: int | None = None, ate_mes: int | None = None) -> JSONR
 @app.post("/api/controladoria/orcamento/gerar")
 async def orcamento_gerar(req: Request) -> JSONResponse:
     from api.orcamento.servico import gerar
-    body = await req.json()
+    try:
+        body = await req.json()
+    except Exception:
+        body = None
+    if not isinstance(body, dict):
+        return JSONResponse(status_code=422, content={
+            "erro": "parametro_invalido", "mensagem": "Corpo da requisição inválido: envie um objeto JSON."})
     ano = body.get("ano")
     fator = body.get("fator", 0.0)
     rotulo = (body.get("rotulo") or f"Orçamento {ano}").strip()
@@ -1063,6 +1069,11 @@ async def orcamento_gerar(req: Request) -> JSONResponse:
     except ValueError as exc:
         return JSONResponse(status_code=422, content={
             "erro": "sem_historico", "mensagem": str(exc)})
+    except psycopg.OperationalError as exc:
+        log.warning("banco inacessivel: %s", exc)
+        return JSONResponse(status_code=503, content={
+            "erro": "banco_inacessivel",
+            "mensagem": "Sem conexão com o banco. O túnel SSH está aberto?"})
     except Exception as exc:  # noqa: BLE001
         log.warning("orcamento_gerar falhou: %s", exc)
         return JSONResponse(status_code=500, content={
@@ -1072,7 +1083,13 @@ async def orcamento_gerar(req: Request) -> JSONResponse:
 @app.post("/api/controladoria/orcamento/ajustar")
 async def orcamento_ajustar(req: Request) -> JSONResponse:
     from api.orcamento import armazenamento as arm
-    body = await req.json()
+    try:
+        body = await req.json()
+    except Exception:
+        body = None
+    if not isinstance(body, dict):
+        return JSONResponse(status_code=422, content={
+            "erro": "parametro_invalido", "mensagem": "Corpo da requisição inválido: envie um objeto JSON."})
     try:
         versao_id = int(body["versao_id"])
         conta = str(body["conta"])
