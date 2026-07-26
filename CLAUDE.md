@@ -279,6 +279,26 @@ a query ignora sai; dimensão que a query aceita e é a pergunta natural da tela
   aspa dupla (`"Ano médio"` fechava o atributo e engolia o resto da tag). Usar aspas
   curvas `“ ”`. Nos KPIs isso não acontece — `kpi()` passa por `esc(h)`.
 
+**Alerta impossível é cadastro, não operação (lição da Manutenção Preventiva):**
+- **Desvio maior que um ciclo inteiro do próprio indicador = dado furado.** A tela
+  mostrava `-454.436 km` "vencida" num intervalo de 50.000 (9×): o marcador da próxima
+  troca parou em 77.534 enquanto o odômetro está em 531.970 — plano nunca atualizado.
+  Era o ÚNICO item vencido da tela, ou seja o KPI de vencidas era 100% falso positivo.
+- **O erro no sentido oposto é pior porque é invisível:** marcador 204.258 km À FRENTE
+  (+4,1×) faz o veículo nunca disparar alerta e sair do controle sem aparecer em lista
+  nenhuma. Regra: `|falta| > intervalo` → sai de vencida/próxima e vai para um card
+  "Planos a corrigir no cadastro", com odômetro → alvo e o desvio em múltiplos.
+- **Mostrar a evidência ao lado do número acusado.** Coluna `Odômetro → alvo`
+  (`531.970 → 77.534`) prova o diagnóstico sem precisar de explicação.
+- **Chip igual para 2 e para 29 dias não prioriza.** 36 carretas todas "próxima" em
+  âmbar: a cor do prazo passou a graduar (≤7 vermelho, ≤15 âmbar) e entrou o KPI
+  "Vence em até 7 dias" — 9 de 36, o que realmente vira agendamento nesta semana.
+- **Coluna sempre vazia é coluna a preencher ou remover:** "Tipo" das carretas estava
+  em branco nas 36 linhas; virou carroceria + o prazo aplicado (`SIDER · 180d`), que é
+  o que explica por que umas têm 240 dias.
+- **Horizonte fixo esconde planejamento:** os 30 dias das carretas eram fixos; com
+  seletor 15/30/60/90 a agenda do mês seguinte aparece (22 → 36 → 59 → 76 carretas).
+
 **Telas de consulta (busca própria, filterbar global escondida — ex.: Consulta de Cliente):**
 - Campo de busca com **`<datalist>`** alimentado por endpoint LEVE e cacheado
   (`/api/comercial/clientes-lista`, ~34 grupos). Nunca reusar o endpoint do painel

@@ -749,9 +749,12 @@ def comunicacao_rastreadora() -> JSONResponse:
 
 
 @app.get("/api/frota/manutencao-preventiva")
-def manutencao_preventiva() -> JSONResponse:
+def manutencao_preventiva(horizonte: int = 30) -> JSONResponse:
+    if horizonte not in (15, 30, 60, 90):
+        return JSONResponse(status_code=422, content={
+            "erro": "parametro_invalido", "mensagem": "horizonte deve ser 15, 30, 60 ou 90."})
     try:
-        return JSONResponse(queries.get_manutencao_preventiva())
+        return JSONResponse(queries.get_manutencao_preventiva(horizonte=horizonte))
     except psycopg.OperationalError as exc:
         log.warning("banco inacessivel: %s", exc)
         return JSONResponse(status_code=503, content={
