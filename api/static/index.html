@@ -1729,7 +1729,7 @@ button.avatar{border:0;cursor:pointer}
       </section>
       <section class="view" id="view-cex">
         <div class="card">
-          <div class="head"><h2>Custos Extras</h2><span class="hint">acessórios por CT-e (descarga, estadia, diária, ajudante, escolta…) · status de cobrança</span></div>
+          <div class="head"><h2>Custos Extras <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="sulista.custoextra: custos que a operação incorre além do frete (estadia, descarga, ajudante, balança) e que deveriam ser repassados ao cliente. Cada lançamento tem o CT-e, o cliente, a justificativa e quem lançou.">i</span></h2><span class="hint">acessórios por CT-e (descarga, estadia, diária, ajudante, escolta…) · status de cobrança</span></div>
           <div class="cardfilters">
             <input type="date" id="fCexDe">
             <span style="color:var(--n500)">até</span>
@@ -1739,14 +1739,14 @@ button.avatar{border:0;cursor:pointer}
         </div>
         <div class="kpis" id="kpis-cex"></div>
         <div class="grid2">
-          <div class="card"><div class="head"><h2>Por tipo de custo</h2><span class="hint">no período</span></div>
+          <div class="card"><div class="head"><h2>Por tipo de custo <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="Custo incorrido × valor cobrado por tipo. A coluna % repassado mostra onde o repasse não está fechando: tipo abaixo de 100% está sendo absorvido pela transportadora.">i</span></h2><span class="hint">no período</span></div>
             <div class="tablewrap" id="cex-tipo"></div></div>
-          <div class="card"><div class="head"><h2>Por status de cobrança</h2><span class="hint">no período</span></div>
+          <div class="card"><div class="head"><h2>Por status de cobrança <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="Estágio do repasse: Emitido já virou cobrança, Aguardando Cobrança ainda não saiu. O que fica parado em aguardando é receita a recuperar.">i</span></h2><span class="hint">no período</span></div>
             <div class="tablewrap" id="cex-status"></div></div>
         </div>
         <div class="card">
-          <div class="head"><h2>Lançamentos</h2><span class="hint">mais recentes · até 200</span></div>
-          <div class="tablewrap" id="cex-lista"></div>
+          <div class="head"><h2>Lançamentos <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="Lista completa do período. Linha em vermelho = o valor cobrado do cliente ficou abaixo do custo incorrido.">i</span></h2><span class="hint">mais recentes · até 200</span></div>
+          <div class="tablewrap tabroll" id="cex-lista" style="max-height:520px"></div>
         </div>
       </section>
       <section class="view" id="view-sac">
@@ -5748,19 +5748,37 @@ async function loadCex(){
 }
 function renderCex(d){
   const k=d.kpis||{};
+  // "Lançamentos" repetia o subtexto do primeiro KPI. No lugar entra o que a
+  // tela não mostrava: quanto do custo NÃO voltou, lançamento a lançamento —
+  // no agregado sobra (110% repassado) e isso escondia os casos deficitários.
+  const lanc=d.lancamentos||[];
+  const defic=lanc.filter(l=>(l.cobrado||0) < (l.custo||0));
+  const perda=defic.reduce((a,l)=>a+((l.custo||0)-(l.cobrado||0)),0);
   document.getElementById('kpis-cex').innerHTML=[
     kpi('Custo total', BRL.format(k.total_custo||0), (k.n||0)+' lançamentos no período',''),
-    kpi('Cobrado', BRL.format(k.total_cobrado||0), (k.pct_cobrado||0).toFixed(0)+'% do custo repassado', (k.total_cobrado||0)>=(k.total_custo||0)?'pos':''),
+    kpi('Cobrado', BRL.format(k.total_cobrado||0), (k.pct_cobrado||0).toFixed(0)+'% do custo repassado', (k.total_cobrado||0)>=(k.total_custo||0)?'pos':'', null,
+      statChip((k.pct_cobrado||0)>=100?'good':((k.pct_cobrado||0)>=85?'warn':'bad'),
+        (k.pct_cobrado||0)>=100?'repasse integral':'repasse parcial',
+        'Cobrado sobre o custo, no agregado. Acima de 100% porque parte dos lançamentos é repassada com margem — mas o agregado esconde os casos em que não voltou nada.',
+        (k.pct_cobrado||0)>=100?'sevOk':'sevWarn')),
     kpi('A cobrar', BRL.format(k.a_cobrar||0), 'aguardando/não cobrado — receita a recuperar', (k.a_cobrar||0)>0?'neg':'pos'),
-    kpi('Lançamentos', (k.n||0).toLocaleString('pt-BR'), 'no período',''),
+    kpi('Não repassado', BRL.format(perda), defic.length+' lançamento(s) em que o cobrado ficou abaixo do custo',
+      perda>0?'neg':'pos', null,
+      perda>0?statChip('bad','perda direta',
+        'Soma da diferença nos lançamentos em que o valor cobrado do cliente ficou abaixo do custo incorrido. No total da tela isso some, porque outros lançamentos repassam com margem.','sevCrit'):''),
   ].join('');
-  const tp=(d.por_tipo||[]).map(t=>`<tr><td>${esc(t.tipo)}</td><td class="num">${t.n}</td><td class="num">${BRL.format(t.custo)}</td><td class="num">${BRL.format(t.cobrado)}</td></tr>`).join('')||'<tr><td colspan="4" style="color:var(--n500)">sem custos no período</td></tr>';
-  document.getElementById('cex-tipo').innerHTML=`<table><thead><tr><th>Tipo</th><th class="num">Qtd</th><th class="num">Custo</th><th class="num">Cobrado</th></tr></thead><tbody>${tp}</tbody></table>`;
+  const tp=(d.por_tipo||[]).map(t=>{
+    const pctT=t.custo>0?(100*(t.cobrado||0)/t.custo):null;
+    const ruim=pctT!=null&&pctT<100;
+    return `<tr${ruim?' style="background:var(--red-100)"':''}><td>${esc(t.tipo)}</td><td class="num">${t.n}</td><td class="num">${BRL.format(t.custo)}</td><td class="num">${BRL.format(t.cobrado)}</td>`+
+      `<td class="num" style="font-weight:700;color:${pctT==null?'inherit':(pctT>=100?'var(--green)':(pctT>0?'var(--yellow-700)':'var(--red)'))}" title="${pctT!=null&&pctT<100?'este tipo de custo não está sendo repassado integralmente ao cliente':'repasse integral'}">${pctT!=null?pctT.toFixed(0)+'%':'—'}</td></tr>`;
+  }).join('')||'<tr><td colspan="5" style="color:var(--n500)">sem custos no período</td></tr>';
+  document.getElementById('cex-tipo').innerHTML=`<table><thead><tr><th>Tipo</th><th class="num">Qtd</th><th class="num">Custo</th><th class="num">Cobrado</th><th class="num">% repassado</th></tr></thead><tbody>${tp}</tbody></table>`;
   const ps=(d.por_status||[]).map(s=>`<tr><td>${esc(s.status)}</td><td class="num">${s.n}</td><td class="num">${BRL.format(s.custo)}</td><td class="num">${BRL.format(s.cobrado)}</td></tr>`).join('')||'<tr><td colspan="4" style="color:var(--n500)">—</td></tr>';
   document.getElementById('cex-status').innerHTML=`<table><thead><tr><th>Status</th><th class="num">Qtd</th><th class="num">Custo</th><th class="num">Cobrado</th></tr></thead><tbody>${ps}</tbody></table>`;
   const badge=s=>s==='Emitido'?'b-ok':(s==='Aguardando Cobrança'?'b-warn':(s==='Não Cobrado'?'b-dang':''));
-  const ll=(d.lancamentos||[]).map(l=>`<tr>
-    <td>${esc(l.data)}</td><td class="num">${l.cte||'—'}</td><td>${esc(l.cliente)}</td>
+  const ll=(d.lancamentos||[]).map(l=>`<tr${(l.cobrado||0)<(l.custo||0)?' style="background:var(--red-100)" title="cobrado abaixo do custo"':''}>
+    <td>${l.data?fmtD(String(l.data).slice(0,10)):'—'}</td><td class="num">${l.cte||'—'}</td><td>${esc(l.cliente)}</td>
     <td>${esc(l.tipo)}</td><td><span class="badge ${badge(l.status)}">${esc(l.status)}</span></td>
     <td class="num">${BRL.format(l.custo)}</td><td class="num">${BRL.format(l.cobrado)}</td>
     <td>${esc(l.usuario||'')}</td></tr>`).join('')||'<tr><td colspan="8" style="color:var(--n500)">sem lançamentos no período</td></tr>';
