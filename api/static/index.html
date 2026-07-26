@@ -170,6 +170,7 @@ svg:focus-visible{outline:2px solid var(--orange-500);outline-offset:2px;border-
 .legend i.sw{width:12px;height:12px;border-radius:3px;display:inline-block}
 /* período incompleto (mês corrente): mesma cor, hachurada — a barra parcial não
    pode ser lida como um mês fechado */
+.legend i.sw.hatch.orange{background-color:var(--orange-500)}
 .legend i.sw.hatch{background-color:var(--green);
   background-image:repeating-linear-gradient(135deg,rgba(255,255,255,.7) 0 2px,transparent 2px 4px)}
 .legend i.ln{width:18px;height:0;display:inline-block;border-top:2.5px solid var(--navy-700)}
@@ -1293,7 +1294,9 @@ button.avatar{border:0;cursor:pointer}
       <section class="view" id="view-agr">
         <div class="kpis" id="kpis-agr"></div>
         <div class="card">
-          <div class="head"><h2>Frete contratado por mês</h2><span class="hint" id="hintAgr">no período filtrado</span></div>
+          <div class="head"><h2>Frete contratado por mês <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="programacaoembarque (não cancelada, semáforo = 1) dos veículos com veiculo.utilizacaoveiculo em AGR/TER, por data de emissão. Pago = valorfretecompra; frete peso = valorfrete; km = kmfretecompra. Agrupado pelo mês da emissão do manifesto. É custo de compra de frete, não despesa paga no caixa — o desembolso segue o acerto do transportador.">i</span></h2><span class="hint" id="hintAgr">no período filtrado</span></div>
+          <div class="legend"><span class="k"><i class="sw" style="background:var(--orange-500)"></i>Frete contratado</span>
+            <span class="k"><i class="sw hatch orange"></i>Mês parcial (corrente ou cortado pelo filtro)</span></div>
           <div class="chartwrap" id="wrapAgr">
             <svg id="chartAgr" viewBox="0 0 960 250" preserveAspectRatio="xMidYMid meet"
                  tabindex="0" role="img" aria-label="Valor de frete contratado de agregados e terceiros por mês, últimos 12 meses. Use as setas do teclado para percorrer os meses."></svg>
@@ -1301,13 +1304,13 @@ button.avatar{border:0;cursor:pointer}
           </div>
         </div>
         <div class="card">
-          <div class="head"><h2>Transportadores do período</h2><span class="hint">top 30 por valor · clique para ver as viagens</span></div>
-          <div class="tablewrap"><table><thead><tr>
+          <div class="head"><h2>Transportadores do período <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="programacaoembarque (não cancelada, semáforo = 1) dos veículos com veiculo.utilizacaoveiculo em AGR/TER, por data de emissão. Pago = valorfretecompra; frete peso = valorfrete; km = kmfretecompra. Acertos vêm de acertoviagemagregado ligada por cnpjcpfcodigoveiculo. CPF/CNPJ mascarado. Clique na linha para abrir as viagens do transportador.">i</span></h2><span class="hint" id="hintAgrT">top 30 por valor · clique para ver as viagens</span></div>
+          <div class="tablewrap tabroll"><table><thead><tr>
             <th style="width:34px"></th><th>Transportador</th><th>Modalidade</th><th class="num">Viagens</th><th class="num">Pago</th><th class="num">Frete peso</th><th class="num">% pago</th><th class="num">Km</th><th class="num">R$/km</th><th class="num">Acertos</th><th class="num">Valor acertos</th>
           </tr></thead><tbody id="agr-transp"></tbody></table></div>
         </div>
         <div class="card">
-          <div class="head"><h2>Alertas</h2></div>
+          <div class="head"><h2>Alertas <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="Regras fixas sobre os números desta tela: cobertura de km, transportadores levando 80%+ do frete peso, R$/km 30% acima da média e acertos emitidos sem conclusão no ERP.">i</span></h2></div>
           <div class="alerts" id="alerts-agr"></div>
         </div>
       </section>
@@ -6662,6 +6665,15 @@ function renderKm(d){
   const ts=new Date(d.atualizado_em);
   document.getElementById('meta').innerHTML='<b>Atualizado '+ts.toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'})+'</b><br>'+ts.toLocaleDateString('pt-BR');
 }
+// mês PARCIAL = mês corrente ou mês que o recorte do filtro corta pela metade
+// (um período de 90 dias começa no meio do mês, e a barra parecia queda)
+function _mesParcial(mes, dtDe, dtAte){
+  if(!mes) return false;
+  const [ay,am]=mes.split('-').map(Number);
+  const ini=new Date(ay,am-1,1), fim=new Date(ay,am,0);
+  const de=dtDe?new Date(dtDe+'T00:00:00'):null, ate=dtAte?new Date(dtAte+'T00:00:00'):null;
+  return (de&&de>ini)||(ate&&ate<fim);
+}
 // TERCEIRO praticamente não lança viagem vazia no ERP (121 vazias × 3.559
 // carregadas em 18 meses). Pintar isso de verde "0%" premia a falta de dado.
 function rvCel(m){
@@ -6683,14 +6695,7 @@ function chartKmRender(mensal, dtDe, dtAte){
   const y=v=>mT+ih-(v/top)*ih, y0=y(0);
   const px=i=>mL+bandW*i+bandW/2;
   const barW=Math.min(26,bandW*0.5);
-  // mês PARCIAL = mês corrente ou mês que o recorte do filtro corta pela metade
-  // (o período de 90 dias começa no meio de abr, e a barra ficava parecendo queda)
-  const _corta=(mes)=>{ if(!mes) return false;
-    const [ay,am]=mes.split('-').map(Number);
-    const ini=new Date(ay,am-1,1), fim=new Date(ay,am,0);
-    const de=dtDe?new Date(dtDe+'T00:00:00'):null, ate=dtAte?new Date(dtAte+'T00:00:00'):null;
-    return (de&&de>ini)||(ate&&ate<fim); };
-  const parc=mensal.map(r=>_corta(r.mes));
+  const parc=mensal.map(r=>_mesParcial(r.mes,dtDe,dtAte));
   let s=`<defs><pattern id="hatchKmC" width="6" height="6" patternTransform="rotate(45)" patternUnits="userSpaceOnUse">`+
         `<rect width="6" height="6" fill="#1E7F4F"/><rect width="2.4" height="6" fill="#fff" opacity=".62"/></pattern>`+
         `<pattern id="hatchKmV" width="6" height="6" patternTransform="rotate(45)" patternUnits="userSpaceOnUse">`+
@@ -7302,17 +7307,31 @@ function renderAgr(d){
   document.getElementById('kpis-agr').innerHTML=[
     kpi('Viagens no período', k.viagens.toLocaleString('pt-BR'), fmtD(d.dt_de)+' a '+fmtD(d.dt_ate)+' · '+k.transportadores+' transportadores', ''),
     kpi('Frete contratado', BRL.format(k.valor), 'custo de compra de frete (manifestos)', ''),
-    kpi('% pago s/ frete peso', k.pct_pago!=null ? k.pct_pago.toFixed(1)+'%' : '—', k.pct_pago!=null ? ('frete peso '+BRL.format(k.receita)+' · margem retida '+(100-k.pct_pago).toFixed(1)+'%') : 'sem frete peso no período', k.pct_pago!=null && k.pct_pago>80 ? 'neg' : ''),
+    kpi('% pago s/ frete peso', k.pct_pago!=null ? k.pct_pago.toLocaleString('pt-BR',{minimumFractionDigits:1,maximumFractionDigits:1})+'%' : '—',
+        k.pct_pago!=null ? ('frete peso '+BRL.format(k.receita)+' · margem retida '+(100-k.pct_pago).toLocaleString('pt-BR',{minimumFractionDigits:1,maximumFractionDigits:1})+'%') : 'sem frete peso no período',
+        k.pct_pago==null?'':(k.pct_pago>80?'neg':(k.pct_pago>70?'warn':'')),
+        'Quanto do frete cobrado do cliente (frete peso) foi repassado ao transportador. Quanto MENOR, maior a margem que fica na Sulista. Só entram viagens que têm frete peso lançado — viagem sem receita no manifesto fica fora do denominador.'),
     kpi('R$/km médio', k.rs_km!=null ? fmtRsKm(k.rs_km) : '—', k.km_total.toLocaleString('pt-BR',{maximumFractionDigits:0})+' km · '+cob+'% das viagens com km', ''),
-    kpi('Acertos emitidos', k.acertos.toLocaleString('pt-BR'), BRL.format(k.valor_acertos)+' faturados pelos transportadores', ''),
+    kpi('Acertos emitidos', k.acertos.toLocaleString('pt-BR'),
+        BRL.format(k.valor_acertos)+' faturados pelos transportadores'
+          +(k.acertos_abertos>0?' · '+k.acertos_abertos+' ainda em aberto':''),
+        k.acertos_abertos>0?'warn':'',
+        'acertoviagemagregado por data de emissão (semáforo = 1), vinculada ao transportador por cnpjcpfcodigoveiculo. "Em aberto" = acerto emitido que ainda não foi concluído no ERP. O total conta TODOS os transportadores do período; a coluna da tabela abaixo só mostra os 30 maiores por valor pago.'),
   ].join('');
-  chartAgrRender(d.mensal||[]);
+  chartAgrRender(d.mensal||[], d.dt_de, d.dt_ate);
   agrTranspTable(d.transportadores||[]);
+  // a tabela rola dentro do card e mostra só o top 30: sem esse contador a soma da
+  // coluna de acertos nunca fecha com o KPI e o leitor não sabe o motivo
+  const _nt=(d.transportadores||[]).length;
+  document.getElementById('hintAgrT').textContent =
+    `${_nt} de ${k.transportadores} transportadores · ${k.acertos_atribuidos||0} dos ${k.acertos} acertos · clique para ver as viagens`;
   const A=[];
   if(cob>0 && cob<60) A.push(['t-warn','Cobertura de km baixa',`Só ${cob}% das viagens têm km no CT-e — o R$/km médio pode não representar o todo.`]);
   const caros=(d.transportadores||[]).filter(t=>t.rs_km!=null && k.rs_km!=null && t.km>500 && t.rs_km > 1.3*k.rs_km);
   const pctAlto=(d.transportadores||[]).filter(t=>t.pct_pago!=null && t.receita>50000 && t.pct_pago>=80);
-  if(pctAlto.length) A.push(['t-err','% pago sobre o frete alto',`${pctAlto.length} transportadores levam 80%+ do frete peso — margem retida abaixo de 20% (média do período: ${k.pct_pago!=null?k.pct_pago.toFixed(1):'—'}%).`]);
+  if(pctAlto.length) A.push(['t-err','% pago sobre o frete alto',`${pctAlto.length} transportadores levam 80%+ do frete peso — margem retida abaixo de 20% (média do período: ${k.pct_pago!=null?k.pct_pago.toLocaleString('pt-BR',{minimumFractionDigits:1,maximumFractionDigits:1}):'—'}%).`]);
+  if(k.acertos_abertos>0) A.push(['t-warn','Acertos emitidos sem conclusão',
+    `${k.acertos_abertos} acerto(s) de transportador emitido(s) no período e ainda não concluído(s) no ERP, somando ${BRL.format(k.valor_abertos)}.`]);
   if(caros.length) A.push(['t-warn','Transportadores acima da média',`${caros.length} transportadores com R$/km 30%+ acima da média do período — candidatos a renegociação.`]);
   document.getElementById('alerts-agr').innerHTML=(A.length?A:[['t-ok','Sem alertas críticos','Nenhuma pendência relevante no período.']])
     .map(([c,t,m])=>`<div class="toast ${c}"><b>${esc(t)}</b>${esc(m)}</div>`).join('');
@@ -7334,7 +7353,7 @@ function agrTranspTable(ts){
           <td>${esc(v.destino)}</td>
           <td class="num">${BRL.format(v.valor)}</td>
           <td class="num">${v.receita>0?BRL.format(v.receita):'—'}</td>
-          <td class="num">${v.receita>0?(100*v.valor/v.receita).toFixed(0)+'%':'—'}</td>
+          <td class="num">${v.receita>0?Math.round(100*v.valor/v.receita).toLocaleString('pt-BR')+'%':'—'}</td>
           <td class="num">${fmtKm(v.km)}</td>
           <td class="num">${fmtRsKm(v.rs_km)}</td></tr>`).join('')}</tbody>
       </table></div>
@@ -7348,11 +7367,13 @@ function agrTranspTable(ts){
       <td class="num">${t.viagens.toLocaleString('pt-BR')}</td>
       <td class="num" style="font-weight:600">${BRL.format(t.valor)}</td>
       <td class="num">${t.receita>0?BRL.format(t.receita):'—'}</td>
-      <td class="num" style="font-weight:700;color:${t.pct_pago==null?'inherit':(t.pct_pago>=80?'var(--red)':(t.pct_pago>=70?'var(--yellow-700)':'var(--green,#1E7F4F)'))}">${t.pct_pago!=null?t.pct_pago.toFixed(1)+'%':'—'}</td>
+      <td class="num" style="font-weight:700;color:${t.pct_pago==null?'inherit':(t.pct_pago>=80?'var(--red)':(t.pct_pago>=70?'var(--yellow-700)':'var(--green,#1E7F4F)'))}">${t.pct_pago!=null?t.pct_pago.toLocaleString('pt-BR',{minimumFractionDigits:1,maximumFractionDigits:1})+'%':'—'}</td>
       <td class="num">${fmtKm(t.km)}</td>
       <td class="num">${fmtRsKm(t.rs_km)}</td>
-      <td class="num">${t.acertos.toLocaleString('pt-BR')}</td>
-      <td class="num">${BRL.format(t.valor_acertos)}</td>
+      <td class="num">${t.acertos>0
+          ? t.acertos.toLocaleString('pt-BR')+(t.acertos_abertos>0?` <span class="badge b-warn" title="${t.acertos_abertos} acerto(s) emitido(s) e ainda não concluído(s) no ERP">${t.acertos_abertos} ab.</span>`:'')
+          : '<span style="color:var(--n500)" title="Nenhum acerto emitido para este transportador no período">—</span>'}</td>
+      <td class="num">${t.valor_acertos>0?BRL.format(t.valor_acertos):'<span style="color:var(--n500)">—</span>'}</td>
     </tr>
     <tr class="forn-det" id="agr-det-${i}"><td colspan="11">${det}</td></tr>`;
   }).join('') || '<tr><td colspan="11" style="color:var(--n500)">sem viagens no período</td></tr>';
@@ -7363,7 +7384,7 @@ function agrToggle(i){
   const open=det.classList.toggle('open');
   det.previousElementSibling.setAttribute('aria-expanded', String(open));
 }
-function chartAgrRender(mensal){
+function chartAgrRender(mensal, dtDe, dtAte){
   const svg=document.getElementById('chartAgr');
   GEOM['chartAgr']=null; ACTIVE['chartAgr']=-1;
   if(!mensal.length){ svg.innerHTML='<text x="480" y="120" text-anchor="middle" fill="#6E7883" font-size="14">sem dados</text>'; return; }
@@ -7374,13 +7395,17 @@ function chartAgrRender(mensal){
   const y=v=>mT+ih-(v/top)*ih, y0=y(0);
   const px=i=>mL+bandW*i+bandW/2;
   const barW=Math.min(26,bandW*0.5);
-  let s='';
+  const parc=mensal.map(r=>_mesParcial(r.mes,dtDe,dtAte));
+  let s=`<defs><pattern id="hatchAgr" width="6" height="6" patternTransform="rotate(45)" patternUnits="userSpaceOnUse">`+
+        `<rect width="6" height="6" fill="#E85D10"/><rect width="2.4" height="6" fill="#fff" opacity=".62"/></pattern></defs>`;
   s+=`<rect id="chartAgr-hband" x="0" y="${mT-14}" width="${bandW}" height="${ih+14}" fill="${CC.navy100}" opacity="0"/>`;
   s+=`<text x="${mL}" y="${mT-12}" font-size="11" fill="#6E7883" font-weight="600" letter-spacing="1.5">${u.t}</text>`;
   tks.forEach(v=>{ const yy=y(v);
     s+=`<line x1="${mL}" y1="${yy}" x2="${W-mR}" y2="${yy}" stroke="${v===0?'#C2C8D0':'#ECEEF1'}" stroke-width="1"/>`;
     s+=`<text x="${mL-8}" y="${yy+4}" text-anchor="end" font-size="11" fill="#6E7883" font-family="IBM Plex Mono,monospace">${NMI.format(v/u.d)}</text>`; });
-  mensal.forEach((r,i)=>{ s+=colPath(px(i)-barW/2,barW,y(r.valor),y0,4,'#E85D10'); });
+  mensal.forEach((r,i)=>{ s+=colPath(px(i)-barW/2,barW,y(r.valor),y0,4,parc[i]?'url(#hatchAgr)':'#E85D10');
+    s+=`<text x="${px(i)}" y="${y(r.valor)-8}" text-anchor="middle" font-size="10.5" font-weight="700" fill="${CC.n700}" `+
+       `stroke="#fff" stroke-width="3" paint-order="stroke" stroke-linejoin="round">${brlAbbr(r.valor)}</text>`; });
   mensal.forEach((r,i)=>{ s+=`<text x="${px(i)}" y="${H-mB+18}" text-anchor="middle" font-size="10.5" fill="#4F5860">${periodoLabel(r.mes)}</text>`; });
   s+=`<line id="chartAgr-xhair" x1="0" x2="0" y1="${mT-14}" y2="${y0}" stroke="${CC.navy400}" stroke-width="1" opacity="0"/>`;
   s+=`<rect x="${mL}" y="${mT-14}" width="${iw}" height="${ih+14}" fill="transparent"/>`;

@@ -1040,12 +1040,20 @@ FROM mx GROUP BY 1 ORDER BY 1
 """
 
 # Acertos (fechamentos) por transportador no período.
+# ATENÇÃO: o vínculo é `cnpjcpfcodigoveiculo`, NÃO `cnpjcpfcodigo` — este último é
+# NULL em 100% das linhas neste ERP, e o join por ele zerava a coluna de acertos de
+# todos os transportadores enquanto o KPI somava R$ 22,9 mi. `concluido = 1` é o
+# acerto fechado; o resto ainda está em aberto.
 AGR_ACERTOS_SQL = """
-SELECT a.cnpjcpfcodigo AS codigo, count(*)::int AS acertos,
+SELECT a.cnpjcpfcodigoveiculo AS codigo, count(*)::int AS acertos,
        coalesce(sum(a.valortotalfaturamento),0)::float8 AS valor_acertos,
-       coalesce(sum(a.valortotaladiantamento),0)::float8 AS adiantamentos
+       coalesce(sum(a.valortotaladiantamento),0)::float8 AS adiantamentos,
+       sum(CASE WHEN a.concluido <> 1 THEN 1 ELSE 0 END)::int AS acertos_abertos,
+       coalesce(sum(CASE WHEN a.concluido <> 1 THEN a.valortotalfaturamento ELSE 0 END),0)::float8
+         AS valor_abertos
 FROM acertoviagemagregado a
 WHERE a.dtemissao >= %(dt_de)s::date AND a.dtemissao < %(dt_ate)s::date + 1
+  AND a.semaforo = 1
   AND (a.filial = %(filial)s OR %(filial)s::int IS NULL)
 GROUP BY 1
 """
@@ -1079,6 +1087,12 @@ def get_agregados(filial: int | None, dt_de: str, dt_ate: str,
     kpis["pct_pago"] = (100.0 * kpis["valor"] / kpis["receita"]) if kpis["receita"] else None
     kpis["acertos"] = sum(a["acertos"] for a in acertos.values())
     kpis["valor_acertos"] = sum(a["valor_acertos"] for a in acertos.values())
+    kpis["acertos_abertos"] = sum(a["acertos_abertos"] for a in acertos.values())
+    kpis["valor_abertos"] = sum(a["valor_abertos"] for a in acertos.values())
+    # quanto do total de acertos o top-30 da tabela consegue explicar — sem isso o
+    # KPI e a soma da coluna divergem sem o leitor saber por quê
+    _cods = {t["codigo"] for t in transportadores if t.get("codigo")}
+    kpis["acertos_atribuidos"] = sum(a["acertos"] for c, a in acertos.items() if c in _cods)
 
     for t in transportadores:
         t["pct_pago"] = (100.0 * t["valor"] / t["receita"]) if t.get("receita") else None
@@ -1088,6 +1102,8 @@ def get_agregados(filial: int | None, dt_de: str, dt_ate: str,
         a = acertos.get(codigo, {})
         t["acertos"] = a.get("acertos", 0)
         t["valor_acertos"] = a.get("valor_acertos", 0.0)
+        t["acertos_abertos"] = a.get("acertos_abertos", 0)
+        t["adiantamentos"] = a.get("adiantamentos", 0.0)
         vs = viagens.get(codigo, [])
         for v in vs:
             v["rs_km"] = (v["valor"] / v["km"]) if v["km"] else None

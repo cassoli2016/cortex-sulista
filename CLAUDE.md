@@ -227,6 +227,16 @@ a query ignora sai; dimensão que a query aceita e é a pergunta natural da tela
   começa no meio do mês: a primeira barra parecia despencar. A hachura marca os dois
   casos (`_corta(mes)` compara o mês com `dt_de`/`dt_ate`).
 
+**Coluna zerada com KPI cheio = join quebrado (lição de Agregados e Terceiros):**
+- A coluna "Acertos" mostrava `0` e `R$ 0` nos 30 transportadores enquanto o KPI
+  somava **794 acertos / R$ 22,9 mi**. Causa: `acertoviagemagregado.cnpjcpfcodigo` é
+  **NULL em 100% das linhas** neste ERP — o vínculo é **`cnpjcpfcodigoveiculo`**
+  (casa em 74 de 75 códigos). Regra: quando o total existe e o detalhe é todo zero,
+  o problema é o join, não o negócio — conferir no banco se a coluna do `ON` tem dado.
+- Filtrar `semaforo = 1` também em tabelas satélites (havia 1 acerto cancelado no total).
+- **Total do KPI ≠ soma da coluna quando a tabela é top-N.** O hint diz quanto o
+  recorte explica: "30 de 102 transportadores · 774 dos 793 acertos".
+
 **Telas de consulta (busca própria, filterbar global escondida — ex.: Consulta de Cliente):**
 - Campo de busca com **`<datalist>`** alimentado por endpoint LEVE e cacheado
   (`/api/comercial/clientes-lista`, ~34 grupos). Nunca reusar o endpoint do painel
