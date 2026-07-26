@@ -2096,6 +2096,18 @@ SELECT coalesce(a.posto_nome,'?') AS posto, bool_or(a.posto_comercial) AS comerc
 GROUP BY coalesce(a.posto_nome,'?') ORDER BY sum(a.custo) DESC LIMIT 12
 """
 
+# Interno x comercial: o preço do posto próprio é bem menor que o da estrada, e a
+# tela não mostrava esse prêmio em lugar nenhum. ARLA fica fora (não é combustível).
+COMB_INTEXT_SQL = f"""
+SELECT (a.posto_comercial IS TRUE) AS externo,
+       count(*)::int AS abastecimentos,
+       sum(a.volume)::float8 AS litros,
+       sum(a.custo)::float8 AS custo
+{_CTA_BASE}
+  AND coalesce(a.combustivel_descricao,'') NOT ILIKE '%%arla%%'
+GROUP BY 1
+"""
+
 COMB_TIPO_SQL = f"""
 SELECT coalesce(a.combustivel_descricao,'(sem)') AS combustivel,
        count(*)::int AS abastecimentos,
@@ -2132,6 +2144,8 @@ def get_combustivel(dt_de: str, dt_ate: str, modalidade: str | None = None,
         semanal = cur.fetchall()
         cur.execute(COMB_POSTO_SQL, params)
         postos = cur.fetchall()
+        cur.execute(COMB_INTEXT_SQL, params)
+        intext = cur.fetchall()
         cur.execute(COMB_TIPO_SQL, params)
         combustiveis = cur.fetchall()
         cur.execute("SELECT current_timestamp AS ts")
@@ -2142,9 +2156,16 @@ def get_combustivel(dt_de: str, dt_ate: str, modalidade: str | None = None,
     for r in mensal:
         r["rs_litro"] = (r["custo"] / r["litros"]) if r["litros"] else None
         r["km_l"] = (r["km_sano"] / r["litros_km_sano"]) if r["litros_km_sano"] else None
+    # Faixa de plausibilidade do km/l: a régua de "distância sã" (0 < d < 3000) aceita
+    # leitura pequena espúria e produzia 0,23 km/l num Iveco Stralis — o odômetro é que
+    # está furado, não o caminhão. Fora da faixa o km/l vira None e a tela mostra n/d.
+    KML_MIN, KML_MAX = 0.8, 6.0
     for vv in veiculos:
         vv["rs_litro"] = (vv["custo"] / vv["litros"]) if vv["litros"] else None
-        vv["km_l"] = (vv["km"] / vv["litros_km"]) if vv["litros_km"] else None
+        _kml = (vv["km"] / vv["litros_km"]) if vv["litros_km"] else None
+        vv["km_l_bruto"] = _kml
+        vv["km_l_suspeito"] = bool(_kml is not None and not (KML_MIN <= _kml <= KML_MAX))
+        vv["km_l"] = _kml if (_kml is not None and KML_MIN <= _kml <= KML_MAX) else None
         ds = det.get(vv["placa"], [])
         vv["ocultos"] = max(0, len(ds) - MAX_DET)
         vv["abastecimentos_lista"] = ds[:MAX_DET]
@@ -2152,6 +2173,23 @@ def get_combustivel(dt_de: str, dt_ate: str, modalidade: str | None = None,
         p["rs_litro"] = (p["custo"] / p["litros"]) if p["litros"] else None
     for c in combustiveis:
         c["rs_litro"] = (c["custo"] / c["litros"]) if c["litros"] else None
+
+    # prêmio pago por abastecer fora: R$/l externo menos R$/l interno
+    ie = {("externo" if r["externo"] else "interno"): r for r in intext}
+    def _rl(k):
+        r = ie.get(k)
+        return (r["custo"] / r["litros"]) if (r and r["litros"]) else None
+    rl_int, rl_ext = _rl("interno"), _rl("externo")
+    lit_ext = ie["externo"]["litros"] if "externo" in ie else 0.0
+    lit_int = ie["interno"]["litros"] if "interno" in ie else 0.0
+    kpis["rs_litro_interno"] = rl_int
+    kpis["rs_litro_externo"] = rl_ext
+    kpis["litros_externo"] = lit_ext
+    kpis["litros_interno"] = lit_int
+    kpis["premio_litro"] = (rl_ext - rl_int) if (rl_int and rl_ext) else None
+    kpis["premio_total"] = (kpis["premio_litro"] * lit_ext) if kpis["premio_litro"] else None
+    kpis["pct_externo"] = (100.0 * lit_ext / (lit_ext + lit_int)) if (lit_ext + lit_int) else None
+    kpis["veiculos_km_suspeito"] = sum(1 for v in veiculos if v["km_l_suspeito"])
 
     return {
         "kpis": kpis, "veiculos": veiculos, "postos": postos, "mensal": mensal,
