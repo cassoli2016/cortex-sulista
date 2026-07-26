@@ -33,7 +33,11 @@ def mapa_conta_linha(agrupador_por_conta: dict[str, str],
     return {c: linha_da_conta(c, agrupador_por_conta, ajustes) for c in sorted(contas)}
 
 
-def contas_sem_agrupador(contas: list[str], agrupador_por_conta: dict[str, str],
-                         ajustes: dict) -> list[str]:
-    """Contas que não somam em linha nenhuma — precisam ser classificadas antes."""
-    return [c for c in contas if not _agrupador(c, agrupador_por_conta, ajustes)]
+def contas_sem_linha(contas: list[str], agrupador_por_conta: dict[str, str],
+                     ajustes: dict) -> list[str]:
+    """Contas que não chegam a nenhuma linha da DRE — sem agrupador OU com
+    agrupador (do ERP ou de ajuste) que o DRE_MODELO não reconhece. Checar só
+    a presença do agrupador deixaria escapar o segundo caso: a conta pareceria
+    classificada e sumiria sem somar em lugar nenhum."""
+    return [c for c in contas
+            if linha_da_conta(c, agrupador_por_conta, ajustes) is None]

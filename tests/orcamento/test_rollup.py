@@ -1,7 +1,7 @@
 """Testes do rollup conta -> agrupador -> linha da DRE."""
 from __future__ import annotations
 
-from api.orcamento.rollup import (contas_sem_agrupador, linha_da_conta,
+from api.orcamento.rollup import (contas_sem_linha, linha_da_conta,
                                   mapa_conta_linha)
 
 AGRUP = {
@@ -39,10 +39,32 @@ def test_mapa_cobre_todas_as_contas_conhecidas():
 
 def test_lista_as_contas_que_precisam_ser_classificadas():
     contas = ["1|100", "9|998", "9|999"]
-    assert contas_sem_agrupador(contas, AGRUP, {}) == ["9|998", "9|999"]
+    assert contas_sem_linha(contas, AGRUP, {}) == ["9|998", "9|999"]
 
 
 def test_ajuste_resolve_conta_antes_sem_agrupador():
     ajustes = {"9|999": {"agrupador": "CV - MANUTENCAO"}}
-    assert contas_sem_agrupador(["9|999"], AGRUP, ajustes) == []
+    assert contas_sem_linha(["9|999"], AGRUP, ajustes) == []
     assert linha_da_conta("9|999", AGRUP, ajustes) == "CUSTO VARIAVEL"
+
+
+def test_ajuste_com_agrupador_nao_reconhecido_entra_em_sem_linha():
+    """Agrupador renomeado no ERP ou typo no ajuste não pode ficar em limbo:
+    a conta tem agrupador (truthy), mas nenhuma linha do DRE_MODELO o reconhece —
+    tem de aparecer em contas_sem_linha, não sumir como se estivesse classificada."""
+    # Prefixo "XPTO -" propositalmente desconhecido: _dre_aloca casa por PREFIXO
+    # (ex.: "CV - " cobre qualquer sufixo), então um "CV - ..." inventado ainda
+    # mapearia para CUSTO VARIAVEL — testaria tautologia, não o caso não reconhecido.
+    ajustes = {"1|100": {"agrupador": "XPTO - INEXISTENTE"}}
+    assert contas_sem_linha(["1|100"], AGRUP, ajustes) == ["1|100"]
+    assert linha_da_conta("1|100", AGRUP, ajustes) is None
+
+
+def test_ajuste_com_agrupador_vazio_cai_no_agrupador_do_erp():
+    ajustes = {"1|100": {"agrupador": ""}}
+    assert linha_da_conta("1|100", AGRUP, ajustes) == "CUSTO VARIAVEL"
+
+
+def test_ajuste_com_agrupador_none_cai_no_agrupador_do_erp():
+    ajustes = {"1|100": {"agrupador": None}}
+    assert linha_da_conta("1|100", AGRUP, ajustes) == "CUSTO VARIAVEL"
