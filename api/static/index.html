@@ -1053,6 +1053,17 @@ button.avatar{border:0;cursor:pointer}
             </select>
           </div>
           <div class="field">
+            <label for="fVeicGrp">Grupo</label>
+            <select id="fVeicGrp" onchange="loadVeic()"
+                    title="Separa trator de implemento: carreta e semi-reboque têm vida útil muito maior, então a idade média só é comparável dentro do mesmo grupo.">
+              <option value="">Todos</option>
+              <option value="tracao">Tração (cavalo, caminhão, utilitário)</option>
+              <option value="impl">Implemento (carreta, semi-reboque)</option>
+              <option value="apoio">Apoio (empilhadeira, gerador)</option>
+              <option value="nd">Sem tipo cadastrado</option>
+            </select>
+          </div>
+          <div class="field">
             <label for="fVeicSit">Situação</label>
             <select id="fVeicSit" onchange="loadVeic()">
               <option value="ativos" selected>Ativos</option>
@@ -1446,27 +1457,27 @@ button.avatar{border:0;cursor:pointer}
       <section class="view" id="view-veic">
         <div class="kpis" id="kpis-veic"></div>
         <div class="card">
-          <div class="head"><h2>Por utilização</h2><span class="hint">composição da frota</span></div>
+          <div class="head"><h2>Por utilização <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="veiculo.utilizacaoveiculo cruzada com utilizacaoveiculo (descrição). FROTA e LOCAÇÃO são os veículos que a Sulista opera com diesel e motorista próprios; AGREGADOS e TERCEIROS são de quem vende frete para ela. Linhas fora dessas quatro (vazio, "Preventiva") são inconsistência de cadastro. Idade = ano corrente − anofabricacao, só dos ativos com ano válido.">i</span></h2><span class="hint">composição da frota · idade por modalidade</span></div>
           <div class="tablewrap"><table><thead><tr>
-            <th>Utilização</th><th class="num">Ativos</th><th class="num">Inativos</th>
+            <th>Utilização</th><th class="num">Ativos</th><th class="num">Inativos</th><th class="num">Idade média</th>
           </tr></thead><tbody id="veic-util"></tbody></table></div>
         </div>
         <div class="grid2">
           <div class="card">
-            <div class="head"><h2>Por tipo de veículo</h2><span class="hint" id="hintVeicTipo"></span></div>
+            <div class="head"><h2>Por tipo de veículo <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="veiculo.tipoveiculo cruzada com tipoveiculo (descrição). Mostra os 20 maiores tipos — o hint diz quantos existem e quantos veículos o recorte cobre. Tipo é cadastro livre no ERP: variações como "CAVALO TRUCADO 6X2" e "CAVALO TRUCADO 6X2 PJ" contam separado.">i</span></h2><span class="hint" id="hintVeicTipo"></span></div>
             <div class="tablewrap"><table><thead><tr>
               <th>Tipo</th><th class="num">Quantidade</th>
             </tr></thead><tbody id="veic-tipo"></tbody></table></div>
           </div>
           <div class="card">
-            <div class="head"><h2>Por característica</h2><span class="hint">carroceria/aplicação</span></div>
+            <div class="head"><h2>Por característica <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="veiculo.caracteristicaveiculo cruzada com caracteristicaveiculo. Mistura carroceria (SIDER, GRADE BAIXA, BAU) com norma de emissão (EURO 3/4/5/6) porque o ERP usa o mesmo campo para as duas coisas — o total por linha não soma a frota.">i</span></h2><span class="hint" id="hintVeicCar">carroceria/aplicação</span></div>
             <div class="tablewrap"><table><thead><tr>
               <th>Característica</th><th class="num">Quantidade</th>
             </tr></thead><tbody id="veic-carac"></tbody></table></div>
           </div>
         </div>
         <div class="card">
-          <div class="head"><h2>Marcas e modelos</h2><span class="hint">clique na marca para ver os modelos</span></div>
+          <div class="head"><h2>Marcas e modelos <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="veiculo.marcaveiculo/modeloveiculo. "Ano médio" é a média de anofabricacao dos veículos ativos da marca com ano válido — puxa para baixo quando a marca tem implemento antigo em uso. Clique na linha para ver os modelos e a faixa de anos.">i</span></h2><span class="hint" id="hintVeicMar">clique na marca para ver os modelos</span></div>
           <div class="tablewrap"><table><thead><tr>
             <th style="width:34px"></th><th>Marca</th><th class="num">Quantidade</th><th class="num">Ano médio</th>
           </tr></thead><tbody id="veic-marca"></tbody></table></div>
@@ -2598,6 +2609,7 @@ function qsView(k){
   } else if(k==='veic'){
     if(V('fVeicMod'))p.set('modalidade',V('fVeicMod'));
     if(V('fVeicSit'))p.set('situacao',V('fVeicSit'));
+    if(V('fVeicGrp'))p.set('grupo',V('fVeicGrp'));
   } else if(k==='mul'){
     if(V('fEmiDe'))p.set('dt_de',V('fEmiDe'));
     if(V('fEmiAte'))p.set('dt_ate',V('fEmiAte'));
@@ -4228,22 +4240,46 @@ async function loadVeic(){
   }catch(e){ if(seq===veicSeq) showBanner('Não foi possível falar com a API.', e.message); }
   finally{ if(seq===veicSeq){ btn.disabled=false; document.getElementById('content').classList.remove('loading'); } }
 }
+// sem separar tração de implemento a idade média junta cavalo (6,9 anos na frota
+// própria) com carreta (12,9) e não serve para decidir renovação
+const VEIC_GRP_LBL={'':'tração e implemento juntos — use o filtro Grupo para separar',
+  tracao:'só tração', impl:'só implemento (vida útil maior)', apoio:'só apoio', nd:'sem tipo cadastrado'};
 function renderVeic(d){
   const k=d.kpis;
   document.getElementById('kpis-veic').innerHTML=[
-    kpi('Frota cadastrada', k.total.toLocaleString('pt-BR'), k.ativos+' ativos · '+k.inativos+' inativos', ''),
-    kpi('Veículos ativos', k.ativos.toLocaleString('pt-BR'), 'no recorte da modalidade', ''),
-    kpi('Próprios ativos', k.proprios_ativos.toLocaleString('pt-BR'), 'frota + locação', ''),
-    kpi('Idade média', k.idade_media!=null?k.idade_media.toLocaleString('pt-BR',{maximumFractionDigits:1})+' anos':'—', 'ativos com ano de fabricação válido', (k.idade_media||0)>12?'neg':''),
+    kpi('Frota cadastrada', k.total.toLocaleString('pt-BR'),
+        k.ativos.toLocaleString('pt-BR')+' ativos · '+k.inativos.toLocaleString('pt-BR')+' inativos', '',
+        'Tabela veiculo do ERP, todos os cadastros — inclui veículo de terceiro e de agregado, que não são ativo da empresa. Situação vem de veiculo.ativoinativo.'),
+    kpi('Veículos ativos', k.ativos.toLocaleString('pt-BR'),
+        (k.ativos? Math.round(100*k.proprios_ativos/k.ativos)+'% são próprios (frota + locação)' : 'no recorte da modalidade'), '',
+        'veiculo.ativoinativo = 1 no recorte da modalidade selecionada. A maior parte do cadastro é veículo de TERCEIRO — caminhão de quem presta frete para a Sulista, não ativo dela.'),
+    kpi('Próprios ativos', k.proprios_ativos.toLocaleString('pt-BR'), 'frota + locação · o ativo da empresa', '',
+        'Utilização FROTA (própria) + LOCAÇÃO (alugada, mas operada pela Sulista com diesel e motorista dela). É a base do CKM próprio na tela Make vs Buy e do custo do vazio na Análise de KM.'),
+    // a média geral (11,2 anos) era dominada pelos 987 veículos de terceiro
+    kpi('Idade média própria', k.idade_propria!=null?k.idade_propria.toLocaleString('pt-BR',{maximumFractionDigits:1})+' anos':'—',
+        'frota + locação · '+(VEIC_GRP_LBL[d.grupo||'']||'')
+        +(k.ativos_sem_ano>0?' · '+k.ativos_sem_ano+' sem ano':''),
+        (k.idade_propria||0)>12?'neg':((k.idade_propria||0)>8?'warn':''),
+        'Ano corrente menos veiculo.anofabricacao, média só dos ATIVOS de utilização FROTA e LOCAÇÃO — o ativo da empresa. A média de toda a base é puxada para baixo/cima pelos veículos de terceiro e agregado, que a Sulista não possui. Cavalo e carreta entram juntos: carreta tem vida útil bem maior, então compare a idade dentro do mesmo tipo na tabela por utilização.'),
   ].join('');
   document.getElementById('veic-util').innerHTML=(d.utilizacoes||[]).map(u=>{
     const [l,c]=utLbl(u.utilizacao);
     return `<tr><td><span class="badge ${c}">${esc(l)}</span></td>
       <td class="num" style="font-weight:600">${u.ativos.toLocaleString('pt-BR')}</td>
-      <td class="num" style="color:var(--n500)">${u.inativos.toLocaleString('pt-BR')}</td></tr>`;
+      <td class="num" style="color:var(--n500)">${u.inativos.toLocaleString('pt-BR')}</td>
+      <td class="num" style="font-weight:600;color:${u.idade_media==null?'var(--n500)':(u.idade_media>12?'var(--red)':(u.idade_media>8?'var(--yellow-700)':'var(--green)'))}">${u.idade_media!=null?u.idade_media.toLocaleString('pt-BR',{maximumFractionDigits:1})+' anos':'—'}</td></tr>`;
   }).join('');
-  const totT=(d.tipos||[]).reduce((s,t)=>s+t.qtd,0);
-  document.getElementById('hintVeicTipo').textContent=(d.situacao==='ativos'?'ativos':'todos')+' · '+totT+' veículos';
+  // as três tabelas cortam no top-N: o hint dizia a soma parcial como se fosse o total
+  const cd=d.cardinal||{};
+  const cob=(rows,chave,nTot)=>{
+    const soma=(rows||[]).reduce((a,r)=>a+r.qtd,0);
+    const base=cd.n_veiculos||0;
+    return (rows||[]).length+' de '+(nTot||'—')+' '+chave
+      +(base?' · '+soma.toLocaleString('pt-BR')+' de '+base.toLocaleString('pt-BR')+' veículos':'');
+  };
+  document.getElementById('hintVeicTipo').textContent=cob(d.tipos,'tipos',cd.n_tipos);
+  document.getElementById('hintVeicCar').textContent=cob(d.caracteristicas,'características',cd.n_caracteristicas);
+  document.getElementById('hintVeicMar').textContent=cob(d.marcas,'marcas',cd.n_marcas)+' · clique para ver os modelos';
   document.getElementById('veic-tipo').innerHTML=(d.tipos||[]).map(t=>`<tr>
     <td>${esc(t.tipo)}</td><td class="num" style="font-weight:600">${t.qtd.toLocaleString('pt-BR')}</td></tr>`).join('');
   document.getElementById('veic-carac').innerHTML=(d.caracteristicas||[]).map(c=>`<tr>

@@ -2549,7 +2549,16 @@ def get_torre(filial: int | None = None) -> dict:
 # Veículos — composição da frota: utilização, tipo, característica, marca,
 # modelo e ano. situacao: ativos (ativoinativo=1) ou todos.
 # ============================================================================
-_VEIC_BASE = """
+# CARRETA/semi-reboque = implemento (vida útil muito maior que a do trator);
+# empilhadeira e gerador não rodam estrada. Sem separar, a idade média mistura
+# coisas com vida útil totalmente diferente e não diz nada.
+_VEIC_GRUPO = """CASE
+  WHEN tv.descricao ILIKE 'CARRETA%%' THEN 'impl'
+  WHEN tv.descricao ILIKE 'EMPILHADEIRA%%' OR tv.descricao ILIKE 'GERADOR%%' THEN 'apoio'
+  WHEN tv.descricao IS NULL THEN 'nd'
+  ELSE 'tracao' END"""
+
+_VEIC_BASE = f"""
 FROM veiculo v
 LEFT JOIN utilizacaoveiculo u ON u.codigo = v.utilizacaoveiculo
 LEFT JOIN tipoveiculo tv ON tv.codigo = v.tipoveiculo
@@ -2557,7 +2566,17 @@ LEFT JOIN caracteristicaveiculo cv ON cv.codigo = v.caracteristicaveiculo
 LEFT JOIN marcaveiculo mv ON mv.codigo = v.marcaveiculo
 WHERE (v.utilizacaoveiculo = %(modalidade)s OR %(modalidade)s::text IS NULL)
   AND (%(situacao)s = 'todos' OR v.ativoinativo = 1)
+  AND (%(grupo)s::text IS NULL OR ({_VEIC_GRUPO}) = %(grupo)s)
 """
+
+# Quantas categorias existem de fato — as tabelas cortam no top-N e o painel precisa
+# dizer o que ficou de fora em vez de apresentar a soma parcial como total.
+VEIC_CARDINAL_SQL = _VEIC_BASE.replace("FROM veiculo v", """SELECT
+  count(DISTINCT coalesce(tv.descricao,'(sem tipo)'))::int AS n_tipos,
+  count(DISTINCT coalesce(cv.descricao,'(sem)'))::int AS n_caracteristicas,
+  count(DISTINCT coalesce(mv.descricao,'(sem marca)'))::int AS n_marcas,
+  count(*)::int AS n_veiculos
+FROM veiculo v""", 1)
 
 VEIC_KPI_SQL = f"""
 SELECT count(*)::int AS total,
@@ -2565,18 +2584,33 @@ SELECT count(*)::int AS total,
        sum(CASE WHEN v.ativoinativo <> 1 THEN 1 ELSE 0 END)::int AS inativos,
        sum(CASE WHEN v.utilizacaoveiculo IN ('TRA','LOC') AND v.ativoinativo = 1 THEN 1 ELSE 0 END)::int AS proprios_ativos,
        round(avg(CASE WHEN v.ativoinativo = 1 AND v.anofabricacao BETWEEN 1980 AND extract(year from current_date)
-                 THEN extract(year from current_date) - v.anofabricacao END)::numeric, 1)::float8 AS idade_media
+                 THEN extract(year from current_date) - v.anofabricacao END)::numeric, 1)::float8 AS idade_media,
+       -- a média geral é dominada por TERCEIROS (987 de 1.414 ativos): a idade que
+       -- interessa como ativo da empresa é a de TRA/LOC
+       round(avg(CASE WHEN v.ativoinativo = 1 AND v.utilizacaoveiculo IN ('TRA','LOC')
+                  AND v.anofabricacao BETWEEN 1980 AND extract(year from current_date)
+                 THEN extract(year from current_date) - v.anofabricacao END)::numeric, 1)::float8 AS idade_propria,
+       sum(CASE WHEN v.ativoinativo = 1 AND (v.anofabricacao IS NULL
+                  OR v.anofabricacao NOT BETWEEN 1980 AND extract(year from current_date))
+                THEN 1 ELSE 0 END)::int AS ativos_sem_ano
 FROM veiculo v
+LEFT JOIN tipoveiculo tv ON tv.codigo = v.tipoveiculo
 WHERE (v.utilizacaoveiculo = %(modalidade)s OR %(modalidade)s::text IS NULL)
+  AND (%(grupo)s::text IS NULL OR ({_VEIC_GRUPO}) = %(grupo)s)
 """
 
-VEIC_UTIL_SQL = """
+VEIC_UTIL_SQL = f"""
 SELECT coalesce(u.descricao,'(sem)') AS utilizacao,
        sum(CASE WHEN v.ativoinativo = 1 THEN 1 ELSE 0 END)::int AS ativos,
-       sum(CASE WHEN v.ativoinativo <> 1 THEN 1 ELSE 0 END)::int AS inativos
+       sum(CASE WHEN v.ativoinativo <> 1 THEN 1 ELSE 0 END)::int AS inativos,
+       round(avg(CASE WHEN v.ativoinativo = 1
+                  AND v.anofabricacao BETWEEN 1980 AND extract(year from current_date)
+                 THEN extract(year from current_date) - v.anofabricacao END)::numeric, 1)::float8 AS idade_media
 FROM veiculo v
 LEFT JOIN utilizacaoveiculo u ON u.codigo = v.utilizacaoveiculo
+LEFT JOIN tipoveiculo tv ON tv.codigo = v.tipoveiculo
 WHERE (v.utilizacaoveiculo = %(modalidade)s OR %(modalidade)s::text IS NULL)
+  AND (%(grupo)s::text IS NULL OR ({_VEIC_GRUPO}) = %(grupo)s)
 GROUP BY 1 ORDER BY 2 DESC
 """
 
@@ -2598,8 +2632,9 @@ GROUP BY 1, 2 ORDER BY 1, 3 DESC
 
 
 @cached(ttl=300)
-def get_veiculos(modalidade: str | None = None, situacao: str = "ativos") -> dict:
-    params = {"modalidade": modalidade, "situacao": situacao}
+def get_veiculos(modalidade: str | None = None, situacao: str = "ativos",
+                 grupo: str | None = None) -> dict:
+    params = {"modalidade": modalidade, "situacao": situacao, "grupo": grupo}
     MAX_MODELOS = 25
     with db.get_conn() as conn, conn.cursor() as cur:
         cur.execute(VEIC_KPI_SQL, params)
@@ -2614,6 +2649,8 @@ def get_veiculos(modalidade: str | None = None, situacao: str = "ativos") -> dic
         marcas = cur.fetchall()
         cur.execute(VEIC_MODELO_SQL, params)
         modelos_rows = cur.fetchall()
+        cur.execute(VEIC_CARDINAL_SQL, params)
+        cardinal = cur.fetchone()
         cur.execute("SELECT current_timestamp AS ts")
         meta = cur.fetchone()
 
@@ -2627,8 +2664,8 @@ def get_veiculos(modalidade: str | None = None, situacao: str = "ativos") -> dic
 
     return {
         "kpis": kpis, "utilizacoes": utilizacoes, "tipos": tipos,
-        "caracteristicas": caracteristicas, "marcas": marcas,
-        "modalidade": modalidade, "situacao": situacao,
+        "caracteristicas": caracteristicas, "marcas": marcas, "cardinal": cardinal,
+        "modalidade": modalidade, "situacao": situacao, "grupo": grupo,
         "atualizado_em": meta["ts"].isoformat(),
         "fonte": "ERP AVA · cadastro de veículos · leitura",
     }

@@ -251,6 +251,19 @@ a query ignora sai; dimensão que a query aceita e é a pergunta natural da tela
   a gestão dos agregados: o "não expandir frota própria" ganha "— mas revise o rateio
   antes de decidir" quando fixo/CKM cheio > 35%. Decisão de mudar o rateio é do usuário.
 
+**Média que junta populações diferentes (lição de Veículos):**
+- "Idade média 11,2 anos" somava três coisas incomparáveis: os **987 veículos de
+  TERCEIRO** (que a Sulista não possui), os cavalos e as carretas. Separado: frota
+  própria de **tração 6,9 anos**, implemento **12,9**, locação 3,4, frota 13,6.
+  Antes de mostrar uma média, checar se a população é homogênea — se não for, o KPI
+  vira o subconjunto que interessa e a quebra vai para a tabela.
+- **Top-N em tabela sem contador vira total falso.** `LIMIT 20/15/20` faziam o hint
+  dizer "1.373 veículos" quando os ativos eram 1.414. Todo hint de tabela cortada diz
+  "20 de 35 tipos · 1.373 de 1.414 veículos".
+- **Filtro novo só entra se mudar a leitura.** O grupo tração/implemento/apoio entrou
+  porque sem ele a idade média não decide renovação; e ele valeu para TODAS as queries
+  da tela (KPI e tabela de utilização usavam `FROM veiculo v` cru e escapariam).
+
 **Telas de consulta (busca própria, filterbar global escondida — ex.: Consulta de Cliente):**
 - Campo de busca com **`<datalist>`** alimentado por endpoint LEVE e cacheado
   (`/api/comercial/clientes-lista`, ~34 grupos). Nunca reusar o endpoint do painel

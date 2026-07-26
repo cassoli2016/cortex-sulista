@@ -500,7 +500,8 @@ def torre(filial: int | None = None) -> JSONResponse:
 
 
 @app.get("/api/frota/veiculos")
-def veiculos(modalidade: str | None = None, situacao: str = "ativos") -> JSONResponse:
+def veiculos(modalidade: str | None = None, situacao: str = "ativos",
+             grupo: str | None = None) -> JSONResponse:
     if modalidade and modalidade not in ("TRA", "LOC", "AGR", "TER"):
         return JSONResponse(status_code=422, content={
             "erro": "parametro_invalido",
@@ -508,8 +509,13 @@ def veiculos(modalidade: str | None = None, situacao: str = "ativos") -> JSONRes
     if situacao not in ("ativos", "todos"):
         return JSONResponse(status_code=422, content={
             "erro": "parametro_invalido", "mensagem": "situacao deve ser ativos ou todos."})
+    if grupo and grupo not in ("tracao", "impl", "apoio", "nd"):
+        return JSONResponse(status_code=422, content={
+            "erro": "parametro_invalido",
+            "mensagem": "grupo deve ser tracao, impl, apoio ou nd."})
     try:
-        return JSONResponse(queries.get_veiculos(modalidade=modalidade, situacao=situacao))
+        return JSONResponse(queries.get_veiculos(modalidade=modalidade, situacao=situacao,
+                                                 grupo=grupo))
     except psycopg.OperationalError as exc:
         log.warning("banco inacessivel: %s", exc)
         return JSONResponse(status_code=503, content={
