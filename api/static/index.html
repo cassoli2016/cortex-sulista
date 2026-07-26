@@ -1702,7 +1702,7 @@ button.avatar{border:0;cursor:pointer}
       </section>
       <section class="view" id="view-jorn">
         <div class="card">
-          <div class="head"><h2>Jornada do Motorista</h2><span class="hint">compliance Lei 13.103 · apuração oficial do ERP · só motoristas com controle de jornada</span></div>
+          <div class="head"><h2>Jornada do Motorista <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="Apuração OFICIAL do módulo de jornada do ERP (tabela jornada), não recálculo a partir de GPS: usa as flags tempodirecaocontinuaultrapassado e tempointervaloinsuficiente. COBERTURA: só motoristas com controle de jornada — agregados e terceiros não têm apuração e ficam fora desta tela. O CPF nunca sai da API: aparece mascarado e a ficha é aberta por token opaco.">i</span></h2><span class="hint">compliance Lei 13.103 · apuração oficial do ERP · só motoristas com controle de jornada</span></div>
           <div class="cardfilters">
             <input type="month" id="fJornDe">
             <span style="color:var(--n500)">até</span>
@@ -1714,14 +1714,14 @@ button.avatar{border:0;cursor:pointer}
         </div>
         <div class="kpis" id="kpis-jorn"></div>
         <div class="grid2">
-          <div class="card"><div class="head"><h2>Violações por tipo</h2><span class="hint">no período</span></div>
+          <div class="card"><div class="head"><h2>Violações por tipo <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="Contagem de jornadas do período por tipo de violação, direto das flags do ERP. Interjornada (11h) e descanso semanal (35h) NÃO entram: os registros da tabela jornada são fragmentados (vários por dia, com lacunas), e derivar essas duas geraria falso positivo em massa.">i</span></h2><span class="hint">no período</span></div>
             <div id="jorn-violacoes" style="padding:6px 16px 16px"></div></div>
-          <div class="card"><div class="head"><h2>Alertas</h2><span class="hint">CNH e excesso de direção</span></div>
+          <div class="card"><div class="head"><h2>Alertas <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="Motoristas que combinam excesso de direção com problema de habilitação. Clique para abrir a ficha com a linha do tempo das jornadas.">i</span></h2><span class="hint">CNH e excesso de direção</span></div>
             <div id="jorn-alertas" style="padding:6px 16px 16px"></div></div>
         </div>
         <div class="card">
-          <div class="head"><h2>Motoristas</h2><span class="hint">ordenados por risco · clique para ver a ficha</span></div>
-          <div class="tablewrap" id="jorn-tabela"></div>
+          <div class="head"><h2>Motoristas <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="Ordenado pela FRAÇÃO de jornadas com excesso, não pela contagem: quem tem 100% de 20 jornadas é mais urgente do que quem tem 50 violações em 400. O badge de Risco vem da regra do backend e hoje marca quase todo mundo como crítico — use a coluna de percentual para priorizar.">i</span></h2><span class="hint">ordenados por risco · clique para ver a ficha</span></div>
+          <div class="tablewrap tabroll" id="jorn-tabela" style="max-height:560px"></div>
         </div>
       </section>
       <section class="view" id="view-jornf">
@@ -5621,10 +5621,28 @@ async function loadJorn(){
 }
 function renderJorn(d){
   const k=d.kpis||{};
+  const mots=d.motoristas||[];
+  const totJor=mots.reduce((a,m)=>a+(m.jornadas||0),0);
+  const totExc=mots.reduce((a,m)=>a+(m.v_direcao||0),0);
+  const totInt=mots.reduce((a,m)=>a+(m.v_intervalo||0),0);
+  const limpos=mots.filter(m=>!(m.v_direcao||0)&&!(m.v_intervalo||0)).length;
+  const taxa=totJor?totExc/totJor:0;
   document.getElementById('kpis-jorn').innerHTML=[
-    kpi('Motoristas', (k.motoristas||0).toLocaleString('pt-BR'), 'com controle de jornada no período',''),
-    kpi('Em compliance', (k.pct_compliance||0).toFixed(1)+'%', 'sem violações e CNH válida', (k.pct_compliance||0)>=80?'pos':'neg'),
-    kpi('Excesso de direção', (k.viol_direcao||0).toLocaleString('pt-BR'), 'jornadas acima de 5h30 contínuas', (k.viol_direcao||0)>0?'neg':'pos'),
+    kpi('Motoristas', (k.motoristas||0).toLocaleString('pt-BR'), 'com controle de jornada no período','', null,
+      statChip('flat','só CLT monitorado',
+        'A tela cobre apenas os motoristas com controle de jornada no ERP. Agregados e terceiros NÃO aparecem aqui — a frota total é bem maior.','trFlat')),
+    // "Em compliance" era binário sobre a competência inteira: bastava UMA
+    // violação em 7 meses para o motorista sair da conta, e o número virava
+    // 4,2% sem distinguir quem violou uma vez de quem viola em toda jornada.
+    kpi('Jornadas com excesso', totJor?(100*taxa).toFixed(1).replace('.',',')+'%':'—',
+      totExc.toLocaleString('pt-BR')+' de '+totJor.toLocaleString('pt-BR')+' jornadas · '+limpos+' motoristas sem nenhuma violação',
+      taxa>0.1?'neg':'pos', null,
+      statChip(taxa>0.2?'bad':(taxa>0.05?'warn':'good'),
+        taxa>0.2?'endêmico':(taxa>0.05?'recorrente':'pontual'),
+        'Fração das jornadas do período em que a apuração do ERP acusou direção contínua acima de 5h30. Mede INTENSIDADE: um binário "está em compliance" sobre vários meses não separa quem escorregou uma vez de quem viola todo dia.',
+        taxa>0.2?'sevCrit':(taxa>0.05?'sevWarn':'sevOk'))),
+    kpi('Intervalo insuficiente', totInt.toLocaleString('pt-BR'),
+      totJor?((100*totInt/totJor).toFixed(1).replace('.',',')+'% das jornadas'):'', totInt>0?'neg':'pos'),
     kpi('CNH vencida', (k.cnh_vencida||0).toLocaleString('pt-BR'), (k.cnh_vencendo||0)+' vencendo em 30 dias', (k.cnh_vencida||0)>0?'neg':'pos'),
   ].join('');
   const vt=d.violacoes_tipo||[], maxv=Math.max(1,...vt.map(x=>x.n));
@@ -5641,18 +5659,29 @@ function renderJorn(d){
     return `<div style="display:flex;justify-content:space-between;gap:10px;padding:6px 0;border-bottom:1px solid var(--n100,#EEF1F4);cursor:pointer" onclick="abrirJornf('${m.id}')">
       <span>${jorRiscoBadge(m.risco)} ${esc(m.nome)}</span><span style="color:var(--n600);text-align:right">${motivos.join(' · ')||'—'}</span></div>`;
   }).join('') || '<div style="color:var(--n500)">nenhum alerta</div>';
-  const rows=(d.motoristas||[]).map(m=>`<tr style="cursor:pointer" onclick="abrirJornf('${m.id}')">
+  /* O semáforo que vem do backend marcava 114 dos 119 como "crítico" — farol
+     onde 96% é vermelho não prioriza nada. A coluna nova é a TAXA de jornadas
+     com excesso, que separa quem viola em 100% das jornadas de quem violou
+     uma vez, e a lista passa a vir ordenada por ela: é a fila de quem chamar
+     primeiro. O badge de risco do backend fica, sem alterar a regra dele. */
+  const _tx=m=>(m.jornadas||0)?((m.v_direcao||0)/m.jornadas):0;
+  const ordenados=[...(d.motoristas||[])].sort((a,b)=>_tx(b)-_tx(a) || (b.v_direcao||0)-(a.v_direcao||0));
+  const rows=ordenados.map(m=>{
+    const t=_tx(m), cor=t>=0.7?'var(--red)':(t>=0.3?'var(--yellow-700)':(t>0?'var(--n700)':'var(--green)'));
+    return `<tr style="cursor:pointer" onclick="abrirJornf('${m.id}')">
     <td>${jorRiscoBadge(m.risco)}</td>
     <td><b>${esc(m.nome)}</b><br><span style="color:var(--n500);font-size:11px">${esc(m.doc)}</span></td>
     <td class="num">${m.jornadas}</td>
+    <td class="num" style="font-weight:700;color:${cor}" title="${(m.v_direcao||0)} de ${m.jornadas||0} jornadas com direção contínua acima de 5h30">${(100*t).toFixed(0)}%</td>
     <td class="num">${m.h_direcao.toLocaleString('pt-BR',{maximumFractionDigits:0})} h</td>
     <td class="num">${m.h_jornada.toLocaleString('pt-BR',{maximumFractionDigits:0})} h</td>
     <td class="num" style="${m.v_direcao>0?'color:var(--red);font-weight:700':''}">${m.v_direcao}</td>
     <td class="num" style="${m.v_intervalo>0?'color:#B45309;font-weight:700':''}">${m.v_intervalo}</td>
-    <td>${jorCnhCell(m)}</td></tr>`).join('') ||
-    '<tr><td colspan="8" style="color:var(--n500)">nenhum motorista com controle de jornada no período</td></tr>';
+    <td>${jorCnhCell(m)}</td></tr>`;
+  }).join('') ||
+    '<tr><td colspan="9" style="color:var(--n500)">nenhum motorista com controle de jornada no período</td></tr>';
   document.getElementById('jorn-tabela').innerHTML=
-    `<table><thead><tr><th>Risco</th><th>Motorista</th><th class="num">Jornadas</th><th class="num">Direção</th><th class="num">Jornada</th><th class="num">Exc. direção</th><th class="num">Interv. insuf.</th><th>CNH</th></tr></thead><tbody>${rows}</tbody></table>`;
+    `<table><thead><tr><th>Risco</th><th>Motorista</th><th class="num">Jornadas</th><th class="num" title="fração das jornadas do motorista com direção contínua acima de 5h30">% com excesso</th><th class="num">Direção</th><th class="num">Jornada</th><th class="num">Exc. direção</th><th class="num">Interv. insuf.</th><th>CNH</th></tr></thead><tbody>${rows}</tbody></table>`;
 }
 function abrirJornf(token){ jornCtx={token:token, nome:''}; location.hash='#jornf'; }
 async function loadJornf(){
