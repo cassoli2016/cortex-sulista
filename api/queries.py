@@ -4347,8 +4347,13 @@ WHERE retorno.ds_grupoproduto='MANUTENCAO PREVENTIVA' AND retorno.modeloveiculo 
 
 
 @cached(ttl=300)
-def get_manutencao_preventiva() -> dict:
-    """Revisões preventivas próximas/vencidas — trações por km, carretas por data."""
+def get_manutencao_preventiva(horizonte: int = 30) -> dict:
+    """Revisões preventivas próximas/vencidas — trações por km, carretas por data.
+
+    `horizonte` é a janela em dias das CARRETAS (por data). Quem monta a agenda da
+    oficina para o mês seguinte não conseguia ver nada além dos 30 dias fixos.
+    """
+    horizonte = horizonte if horizonte in (15, 30, 60, 90) else 30
     hoje = date.today()
     with db.get_conn() as conn, conn.cursor() as cur:
         cur.execute(MPREV_TRACAO_SQL)
@@ -4358,12 +4363,33 @@ def get_manutencao_preventiva() -> dict:
         cur.execute("SELECT current_timestamp AS ts")
         meta = cur.fetchone()
 
-    tracoes = []
+    # Um plano coerente nunca fica mais de UM intervalo fora da faixa: se o veículo
+    # aparece 454.436 km "atrasado" num intervalo de 50.000 (9x), o marcador da próxima
+    # troca parou no primeiro ciclo e nunca foi atualizado — é cadastro, não oficina.
+    # O inverso é pior e invisível: próxima troca 204.258 km à frente (4x) nunca dispara
+    # alerta nenhum, e o veículo fica fora do controle de manutenção.
+    tracoes, planos_ruins = [], []
     for t in tra:
         prox, odo, itv = t["prox"], t["odometro"], t["intervalo"]
         if prox is None or odo is None:
+            planos_ruins.append({"frota": t["frota"], "veiculo": t["veiculo"],
+                                 "motivo": "sem marcador de troca" if prox is None else "sem leitura de odômetro",
+                                 "prox": prox, "odometro": odo, "intervalo": itv})
             continue
         falta = prox - odo
+        if not odo:
+            planos_ruins.append({"frota": t["frota"], "veiculo": t["veiculo"],
+                                 "motivo": "odômetro zerado", "prox": prox,
+                                 "odometro": odo, "intervalo": itv, "km_faltante": falta})
+            continue
+        if itv and abs(falta) > itv:
+            planos_ruins.append({
+                "frota": t["frota"], "veiculo": t["veiculo"],
+                "motivo": ("marcador atrás do odômetro" if falta < 0
+                           else "marcador muito à frente do odômetro"),
+                "prox": prox, "odometro": odo, "intervalo": itv,
+                "km_faltante": falta, "desvio": falta / itv})
+            continue
         if falta < 0:
             status = "vencida"
         elif itv and (falta / itv) < 0.1:
@@ -4371,8 +4397,10 @@ def get_manutencao_preventiva() -> dict:
         else:
             continue
         tracoes.append({"frota": t["frota"], "veiculo": t["veiculo"],
-                        "km_faltante": falta, "intervalo": itv, "status": status})
+                        "km_faltante": falta, "intervalo": itv, "status": status,
+                        "odometro": odo, "prox": prox})
     tracoes.sort(key=lambda x: x["km_faltante"])
+    planos_ruins.sort(key=lambda x: -abs(x.get("desvio") or 0))
 
     carretas = []
     for c in car:
@@ -4382,12 +4410,14 @@ def get_manutencao_preventiva() -> dict:
         dias = (c["ult"] + _timedelta(days=limite) - hoje).days
         if dias < 0:
             status = "vencida"
-        elif dias <= 30:
+        elif dias <= horizonte:
             status = "proxima"
         else:
             continue
         carretas.append({"frota": c["frota"], "veiculo": c["veiculo"], "dias": dias,
-                         "status": status, "bau": (c["carroceria"] or "") == "CARROCERIA BAU"})
+                         "status": status, "bau": (c["carroceria"] or "") == "CARROCERIA BAU",
+                         "carroceria": c["carroceria"], "limite": limite,
+                         "ultima": c["ult"].isoformat()})
     carretas.sort(key=lambda x: x["dias"])
 
     kpis = {
@@ -4398,10 +4428,14 @@ def get_manutencao_preventiva() -> dict:
     }
     kpis["total"] = len(tracoes) + len(carretas)
     kpis["vencidas"] = kpis["tracoes_vencidas"] + kpis["carretas_vencidas"]
+    kpis["planos_ruins"] = len(planos_ruins)
+    kpis["tracoes_avaliadas"] = len(tra)
 
     return {
         "kpis": kpis,
+        "horizonte": horizonte,
         "tracoes": tracoes,
+        "planos_ruins": planos_ruins,
         "carretas": carretas,
         "atualizado_em": meta["ts"].isoformat(),
         "fonte": ("ERP AVA · fnc_manutencaopreventiva_gridview + ctaplus (odômetro) · "

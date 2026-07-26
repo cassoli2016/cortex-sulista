@@ -1796,12 +1796,20 @@ button.avatar{border:0;cursor:pointer}
       </section>
       <section class="view" id="view-mprev">
         <div class="kpis" id="kpis-mprev"></div>
-        <div class="grid2">
-          <div class="card"><div class="head"><h2>Trações (por km)</h2><span class="hint">vencidas ou a menos de 10% do intervalo</span></div>
-            <div class="tablewrap" id="mprev-tracoes"></div></div>
-          <div class="card"><div class="head"><h2>Carretas / semi-reboque (por data)</h2><span class="hint">vencidas ou nos próximos 30 dias · baú = 240 dias, demais 180</span></div>
-            <div class="tablewrap" id="mprev-carretas"></div></div>
-        </div>
+        <div class="card"><div class="head"><h2>Trações (por km) <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="Veículos com motor, ativos, fora das atividades ENC e ADM, com plano de manutenção preventiva na fnc_manutencaopreventiva_gridview do ERP. Faltam = marcador da próxima troca menos o odômetro atual (último abastecimento CTA Plus, com o marcador do ERP como reserva). Entra quem já passou ou está a menos de 10% do intervalo.">i</span></h2><span class="hint" id="hintMprevT"></span></div>
+          <div class="tablewrap" id="mprev-tracoes"></div></div>
+        <div class="card" id="cardMprevPlanos" style="display:none"><div class="head"><h2>Planos a corrigir no cadastro <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="Trações cujo plano não é comparável com o odômetro: o marcador da próxima troca está mais de um intervalo inteiro fora da faixa, ou falta leitura. Não é atraso de oficina, é cadastro — e é grave nos dois sentidos: marcador atrás do odômetro gera alerta falso de vencida, marcador muito à frente faz o veículo nunca alertar e sair do controle de manutenção.">i</span></h2><span class="hint">não entram na conta de vencidas — não dá para saber se estão vencidos</span></div>
+          <div class="tablewrap" id="mprev-planos"></div></div>
+        <div class="card"><div class="head"><h2>Carretas / semi-reboque (por data) <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="Semi-reboques ativos, fora da atividade ENC. O prazo é por DATA, não por km: última troca + 180 dias, ou + 240 quando a carroceria é baú. Carreta sem data de última troca lançada no ERP não aparece aqui — ausência na lista não é garantia de estar em dia.">i</span></h2>
+            <select id="fMprevHor" aria-label="Horizonte das carretas" onchange="loadMPrev()" style="margin-left:auto"
+                    title="Janela de dias das carretas. Quem monta a agenda da oficina para o mês seguinte não via nada além dos 30 dias.">
+              <option value="15">Próximos 15 dias</option>
+              <option value="30" selected>Próximos 30 dias</option>
+              <option value="60">Próximos 60 dias</option>
+              <option value="90">Próximos 90 dias</option>
+            </select>
+            <span class="hint" id="hintMprevC"></span></div>
+          <div class="tablewrap tabroll" id="mprev-carretas"></div></div>
       </section>
       <section class="view" id="view-comrast">
         <div class="kpis" id="kpis-comrast"></div>
@@ -5926,7 +5934,8 @@ async function loadMPrev(){
   document.getElementById('content').classList.add('loading');
   skelKpis('kpis-mprev',4);
   try{
-    const r=await fetch('/api/frota/manutencao-preventiva',{cache:'no-store'});
+    const hor=(document.getElementById('fMprevHor')||{}).value||'30';
+    const r=await fetch('/api/frota/manutencao-preventiva?horizonte='+hor,{cache:'no-store'});
     const d=await r.json(); if(seq!==mprevSeq) return;
     if(!r.ok){ showBanner(d.mensagem||'Erro ao consultar as revisões preventivas.', d.detalhe); return; }
     hideBanner(); DATAMPREV=d; LOADEDQS.mprev=''; renderMPrev(d);
@@ -5935,17 +5944,47 @@ async function loadMPrev(){
 }
 function renderMPrev(d){
   const k=d.kpis||{};
+  const urg=(d.carretas||[]).filter(c=>c.dias<=7).length;
   document.getElementById('kpis-mprev').innerHTML=[
-    kpi('Vencidas', (k.vencidas||0).toLocaleString('pt-BR'), 'trações + carretas com revisão vencida', (k.vencidas||0)>0?'neg':'pos'),
-    kpi('Trações a revisar', ((k.tracoes_vencidas||0)+(k.tracoes_proximas||0)).toLocaleString('pt-BR'), (k.tracoes_vencidas||0)+' vencidas · '+(k.tracoes_proximas||0)+' próximas', (k.tracoes_vencidas||0)>0?'neg':''),
-    kpi('Carretas a revisar', ((k.carretas_vencidas||0)+(k.carretas_proximas||0)).toLocaleString('pt-BR'), (k.carretas_vencidas||0)+' vencidas · '+(k.carretas_proximas||0)+' próximas', (k.carretas_vencidas||0)>0?'neg':''),
-    kpi('Total a revisar', (k.total||0).toLocaleString('pt-BR'), 'veículos próximos ou vencidos',''),
+    kpi('Vencidas', (k.vencidas||0).toLocaleString('pt-BR'), 'trações + carretas com revisão vencida', (k.vencidas||0)>0?'neg':'pos',
+        'Tração: marcador da próxima troca já passou do odômetro atual. Carreta: passou do prazo de 180 dias (240 se carroceria baú) desde a última troca. Veículo cujo PLANO está inconsistente não entra aqui — vai para o card de cadastro a corrigir, porque não dá para saber se está vencido ou não.'),
+    kpi('Vence em até 7 dias', urg.toLocaleString('pt-BR'), 'carretas · prazo por data', urg>0?'warn':'pos',
+        'Carretas cujo prazo de revisão cai nos próximos 7 dias. É o subconjunto que precisa de agendamento nesta semana — as outras 30 têm folga.'),
+    kpi('Trações a revisar', ((k.tracoes_vencidas||0)+(k.tracoes_proximas||0)).toLocaleString('pt-BR'),
+        (k.tracoes_vencidas||0)+' vencidas · '+(k.tracoes_proximas||0)+' próximas'
+        +(k.tracoes_avaliadas?' · de '+k.tracoes_avaliadas+' com plano':''), (k.tracoes_vencidas||0)>0?'neg':'',
+        'Veículos com motor, ativos, fora das atividades ENC/ADM. Entra quem já passou do marcador ou está a menos de 10% do intervalo. O odômetro vem do último abastecimento CTA Plus, com o marcador do ERP como reserva — placa que não abastece pelo cartão fica com leitura velha.'),
+    kpi('Carretas a revisar', ((k.carretas_vencidas||0)+(k.carretas_proximas||0)).toLocaleString('pt-BR'),
+        (k.carretas_vencidas||0)+' vencidas · '+(k.carretas_proximas||0)+' nos próximos '+(d.horizonte||30)+' dias', (k.carretas_vencidas||0)>0?'neg':'',
+        'Semi-reboques ativos, fora da atividade ENC. Prazo = data da última troca + 180 dias, ou + 240 quando a carroceria é baú. Carreta sem data de última troca lançada não aparece nesta conta.'),
   ].join('');
   const badge=s=>s==='vencida'?'<span class="badge b-dang">vencida</span>':'<span class="badge b-warn">próxima</span>';
-  const tr=(d.tracoes||[]).map(t=>`<tr><td style="font-family:var(--mono);font-weight:600">${esc(t.frota||'—')}</td><td>${esc(t.veiculo||'')}</td><td class="num" style="${t.km_faltante<0?'color:var(--red);font-weight:700':''}">${t.km_faltante.toLocaleString('pt-BR')} km</td><td class="num">${t.intervalo?t.intervalo.toLocaleString('pt-BR')+' km':'—'}</td><td>${badge(t.status)}</td></tr>`).join('')||'<tr><td colspan="5" style="color:var(--n500)">nenhuma tração a revisar</td></tr>';
-  document.getElementById('mprev-tracoes').innerHTML=`<table><thead><tr><th>Frota</th><th>Placa</th><th class="num">Faltam</th><th class="num">Intervalo</th><th>Status</th></tr></thead><tbody>${tr}</tbody></table>`;
-  const cr=(d.carretas||[]).map(c=>`<tr><td style="font-family:var(--mono);font-weight:600">${esc(c.frota||'—')}</td><td>${esc(c.veiculo||'')}</td><td class="num" style="${c.dias<0?'color:var(--red);font-weight:700':''}">${c.dias<0?('vencida há '+Math.abs(c.dias)):('em '+c.dias)} dias</td><td>${c.bau?'<span style="color:var(--n500)">baú</span>':''}</td><td>${badge(c.status)}</td></tr>`).join('')||'<tr><td colspan="5" style="color:var(--n500)">nenhuma carreta a revisar</td></tr>';
-  document.getElementById('mprev-carretas').innerHTML=`<table><thead><tr><th>Frota</th><th>Placa</th><th class="num">Prazo</th><th>Tipo</th><th>Status</th></tr></thead><tbody>${cr}</tbody></table>`;
+  const tr=(d.tracoes||[]).map(t=>`<tr><td style="font-family:var(--mono);font-weight:600">${esc(t.frota||'—')}</td><td>${esc(t.veiculo||'')}</td>
+    <td class="num" style="${t.km_faltante<0?'color:var(--red);font-weight:700':'font-weight:600'}">${t.km_faltante.toLocaleString('pt-BR')} km</td>
+    <td class="num" style="color:var(--n500)">${t.odometro!=null?t.odometro.toLocaleString('pt-BR'):'—'} → ${t.prox!=null?t.prox.toLocaleString('pt-BR'):'—'}</td>
+    <td class="num">${t.intervalo?t.intervalo.toLocaleString('pt-BR')+' km':'—'}</td><td>${badge(t.status)}</td></tr>`).join('')
+    ||'<tr><td colspan="6" style="color:var(--n500)">nenhuma tração a revisar</td></tr>';
+  document.getElementById('mprev-tracoes').innerHTML=`<table><thead><tr><th>Frota</th><th>Placa</th><th class="num">Faltam</th><th class="num">Odômetro → alvo</th><th class="num">Intervalo</th><th>Status</th></tr></thead><tbody>${tr}</tbody></table>`;
+  // 36 carretas todas em âmbar não priorizam nada: a cor do prazo gradua a urgência
+  const corP=dd=>dd<0?'var(--red)':(dd<=7?'var(--red)':(dd<=15?'var(--yellow-700)':'var(--n700)'));
+  const cr=(d.carretas||[]).map(c=>`<tr><td style="font-family:var(--mono);font-weight:600">${esc(c.frota||'—')}</td><td>${esc(c.veiculo||'')}</td>
+    <td class="num" style="color:${corP(c.dias)};font-weight:${c.dias<=7?'700':'600'}">${c.dias<0?('vencida há '+Math.abs(c.dias)+' dias'):('em '+c.dias+' dias')}</td>
+    <td style="color:var(--n500)">${esc(c.carroceria||'—')}${c.limite?' · '+c.limite+'d':''}</td>
+    <td class="num" style="color:var(--n500)">${c.ultima?fmtD(c.ultima):'—'}</td><td>${badge(c.status)}</td></tr>`).join('')
+    ||'<tr><td colspan="6" style="color:var(--n500)">nenhuma carreta a revisar</td></tr>';
+  document.getElementById('mprev-carretas').innerHTML=`<table><thead><tr><th>Frota</th><th>Placa</th><th class="num">Prazo</th><th>Carroceria</th><th class="num">Última troca</th><th>Status</th></tr></thead><tbody>${cr}</tbody></table>`;
+  document.getElementById('hintMprevC').textContent=(d.carretas||[]).length+' carretas · vencidas ou nos próximos '+(d.horizonte||30)+' dias';
+  document.getElementById('hintMprevT').textContent=(d.tracoes||[]).length+' de '+(k.tracoes_avaliadas||0)+' trações com plano · vencidas ou a menos de 10% do intervalo';
+  // planos inconsistentes: eram o falso positivo do KPI de vencidas e, no sentido
+  // contrário, veículos que nunca disparariam alerta nenhum
+  const pr=(d.planos_ruins||[]).map(x=>`<tr><td style="font-family:var(--mono);font-weight:600">${esc(x.frota||'—')}</td><td>${esc(x.veiculo||'')}</td>
+    <td>${esc(x.motivo)}</td>
+    <td class="num" style="color:var(--n500)">${x.odometro!=null?x.odometro.toLocaleString('pt-BR'):'—'} → ${x.prox!=null?x.prox.toLocaleString('pt-BR'):'—'}</td>
+    <td class="num">${x.intervalo?x.intervalo.toLocaleString('pt-BR')+' km':'—'}</td>
+    <td class="num" style="color:var(--red);font-weight:700">${x.desvio!=null?(x.desvio>0?'+':'')+x.desvio.toLocaleString('pt-BR',{minimumFractionDigits:1,maximumFractionDigits:1})+'×':'—'}</td></tr>`).join('')
+    ||'<tr><td colspan="6" style="color:var(--n500)">todos os planos de tração estão coerentes com o odômetro</td></tr>';
+  document.getElementById('mprev-planos').innerHTML=`<table><thead><tr><th>Frota</th><th>Placa</th><th>Problema</th><th class="num">Odômetro → alvo</th><th class="num">Intervalo</th><th class="num">Desvio</th></tr></thead><tbody>${pr}</tbody></table>`;
+  document.getElementById('cardMprevPlanos').style.display=(d.planos_ruins||[]).length?'':'none';
 }
 // ---------------- Comunicação Rastreadora ----------------
 async function loadComRast(){
