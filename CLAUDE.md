@@ -344,6 +344,20 @@ a query ignora sai; dimensão que a query aceita e é a pergunta natural da tela
 - **Antes de "corrigir" tabela curta, contar as linhas no DOM:** a de Manutenção parecia
   ter 9 linhas no screenshot e tinha 30 — `.tabroll` já rolava internamente.
 
+**Quando a tela inteira está sobre campo vazio (lição das Multas):**
+- **96 multas somando R$ 381** — valor lançado em **3 de 96** (3%), pontos em 2, condutor
+  em 10, pagas em 0. Nenhum total daquela tela era o que aparentava. Cada KPI passou a
+  dizer a cobertura ("informado em 3 de 96 multas — NÃO é o custo do período").
+- **Não inventar estimativa para tapar buraco:** o catálogo `infracaotransito` também
+  tem valor zerado justamente nas duas infrações mais frequentes, então **não** foi
+  criada estimativa de custo. Dizer que não dá para medir é a resposta certa.
+- **Gráfico deve plotar o campo CONFIÁVEL.** "Multas por mês" usava o valor: abr e jul
+  apareciam vazios como se não houvesse multa. Passou a plotar a contagem (com o valor
+  no tooltip) — e o eixo deixou de ser `unitOf()` de dinheiro, virando contagem inteira.
+- **Ligar causa e consequência no alerta:** 86 de 96 multas sem condutor identificado e
+  22 autuações por "não indicar condutor" (a 2ª infração mais comum) são o mesmo
+  problema; o alerta cita as duas juntas.
+
 **Telas de consulta (busca própria, filterbar global escondida — ex.: Consulta de Cliente):**
 - Campo de busca com **`<datalist>`** alimentado por endpoint LEVE e cacheado
   (`/api/comercial/clientes-lista`, ~34 grupos). Nunca reusar o endpoint do painel

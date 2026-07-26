@@ -3154,6 +3154,11 @@ MULTA_KPI_SQL = f"""
 SELECT count(*)::int AS multas,
        coalesce(sum(r.valoratevencimento),0)::float8 AS valor,
        coalesce(sum(r.pontuacao),0)::int AS pontos,
+       -- cobertura dos campos: valor sai em 3 de 96 e motorista em 10 de 96, então
+       -- nenhum total desta tela pode ser lido como o custo real do período
+       sum(CASE WHEN coalesce(r.valoratevencimento,0) > 0 THEN 1 ELSE 0 END)::int AS com_valor,
+       sum(CASE WHEN coalesce(r.pontuacao,0) > 0 THEN 1 ELSE 0 END)::int AS com_pontos,
+       sum(CASE WHEN r.motorista IS NOT NULL THEN 1 ELSE 0 END)::int AS com_motorista,
        sum(CASE WHEN r.dtliquidacao IS NOT NULL OR r.dtbaixa IS NOT NULL THEN 1 ELSE 0 END)::int AS pagas,
        coalesce(sum(CASE WHEN r.dtliquidacao IS NULL AND r.dtbaixa IS NULL
                     THEN r.valoratevencimento ELSE 0 END),0)::float8 AS pendente_valor,

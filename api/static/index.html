@@ -2039,9 +2039,11 @@ button.avatar{border:0;cursor:pointer}
         </div>
       </section>
       <section class="view" id="view-mul">
-        <div class="kpis" id="kpis-mul"></div>
+        <div class="kpis k4" id="kpis-mul"></div>
+        <div class="card"><div class="head"><h2>Alertas <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="Regras fixas sobre os números desta tela: multas sem condutor identificado (e a autuação por não indicar condutor que vem delas), cobertura do valor lançado e ausência de baixa de pagamento.">i</span></h2><span class="hint">qualidade do cadastro e risco</span></div>
+          <div class="alerts" id="alerts-mul"></div></div>
         <div class="card">
-          <div class="head"><h2>Multas por mês</h2><span class="hint" id="hintMul">no período filtrado</span></div>
+          <div class="head"><h2>Multas por mês <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="Quantidade de multas por mês da data da infração. A barra conta MULTAS e não valor: o campo de valor existe em uma fração pequena dos registros e, quando o gráfico usava valor, meses inteiros com multa apareciam vazios. O valor lançado no mês continua no tooltip.">i</span></h2><span class="hint" id="hintMul">quantidade no período filtrado · valor no tooltip</span></div>
           <div class="chartwrap" id="wrapMul">
             <svg id="chartMul" viewBox="0 0 960 240" preserveAspectRatio="xMidYMid meet" tabindex="0" role="img"
                  aria-label="Valor de multas por mês no período filtrado."></svg>
@@ -2050,20 +2052,20 @@ button.avatar{border:0;cursor:pointer}
         </div>
         <div class="grid2">
           <div class="card">
-            <div class="head"><h2>Por infração</h2><span class="hint">top 15</span></div>
+            <div class="head"><h2>Por infração <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="Tipo vindo do catálogo infracaotransito. A autuação por não indicar condutor é consequência direta das multas sem condutor identificado: sem a indicação no prazo, ela vira infração gravíssima da empresa. Valor e pontos ficam zerados quando o registro não os traz.">i</span></h2><span class="hint" id="hintMulI">top 15</span></div>
             <div class="tablewrap"><table><thead><tr>
               <th>Infração</th><th class="num">Multas</th><th class="num">Pontos</th><th class="num">Valor</th>
             </tr></thead><tbody id="mul-tipo"></tbody></table></div>
           </div>
           <div class="card">
-            <div class="head"><h2>Por motorista</h2><span class="hint">top 12 por pontos</span></div>
+            <div class="head"><h2>Por motorista <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="Motorista do registro da infração. A linha sem motorista reúne as multas em que o condutor não foi identificado — é de longe a maior e o ponto de ação da tela. Nome de motorista é dado interno e não sai em painel de TV.">i</span></h2><span class="hint" id="hintMulM">top 12 por pontos</span></div>
             <div class="tablewrap"><table><thead><tr>
               <th>Motorista</th><th class="num">Multas</th><th class="num">Pontos</th><th class="num">Valor</th>
             </tr></thead><tbody id="mul-mot"></tbody></table></div>
           </div>
         </div>
         <div class="card">
-          <div class="head"><h2>Por veículo</h2><span class="hint">top 20 · clique para ver as multas</span></div>
+          <div class="head"><h2>Por veículo <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="Top 20 placas por quantidade de multa no recorte. Clique na linha para ver multa a multa, com data, local e condutor. Valor e pontos por veículo herdam a mesma cobertura baixa dos campos de origem.">i</span></h2><span class="hint" id="hintMulV">top 20 · clique para ver as multas</span></div>
           <div class="tablewrap"><table><thead><tr>
             <th style="width:34px"></th><th>Placa</th><th>Modalidade</th><th class="num">Multas</th><th class="num">Pontos</th><th class="num">Valor</th>
           </tr></thead><tbody id="mul-veic"></tbody></table></div>
@@ -5263,13 +5265,45 @@ function renderMul(d){
   const k=d.kpis;
   if(!document.getElementById('fEmiDe').value) document.getElementById('fEmiDe').value=d.dt_de;
   if(!document.getElementById('fEmiAte').value) document.getElementById('fEmiAte').value=d.dt_ate;
+  // Valor sai em 3 de 96 multas e motorista em 10 de 96: nenhum total desta tela é o
+  // custo real do período, e o KPI tem de dizer isso em vez de exibir R$ 381 em vermelho.
+  const nM=k.multas||0, semMot=nM-(k.com_motorista||0);
+  const pctM=nM?Math.round(100*(k.com_motorista||0)/nM):0;
   document.getElementById('kpis-mul').innerHTML=[
-    kpi('Multas no período', k.multas.toLocaleString('pt-BR'), k.veiculos+' veículos · '+fmtD(d.dt_de)+' a '+fmtD(d.dt_ate), ''),
-    kpi('Valor das multas', BRL.format(k.valor), BRL.format(k.pendente_valor)+' pendente de pagamento', k.pendente_valor>0?'neg':''),
-    kpi('Pontos na carteira', k.pontos.toLocaleString('pt-BR'), 'somados no período', k.pontos>0?'neg':'pos'),
-    kpi('Pagas', k.pagas.toLocaleString('pt-BR'), k.multas>0?((100*k.pagas/k.multas).toFixed(0)+'% do total'):'', ''),
+    kpi('Multas no período', nM.toLocaleString('pt-BR'), k.veiculos+' veículos · '+fmtD(d.dt_de)+' a '+fmtD(d.dt_ate), '',
+        'infracaotransito_registro por data da infração, cruzada com o catálogo infracaotransito para o tipo e a gravidade. Conta o que foi lançado no ERP — autuação recebida e ainda não digitada não aparece.'),
+    kpi('Condutor identificado', (k.com_motorista||0).toLocaleString('pt-BR')+' de '+nM,
+        semMot>0 ? (semMot+' multas sem condutor ('+(100-pctM)+'%)') : 'todas com condutor indicado',
+        pctM<50?'neg':(pctM<90?'warn':'pos'),
+        'Multas com motorista preenchido no registro. Sem condutor identificado a empresa não consegue fazer a indicação no prazo, a pontuação fica com a pessoa jurídica e vem a autuação por não indicar condutor — que é infração gravíssima com valor dobrado para PJ.'),
+    kpi('Valor lançado', (k.com_valor||0)>0 ? BRL.format(k.valor) : 'não informado',
+        (k.com_valor||0)>0
+          ? ('informado em '+(k.com_valor||0)+' de '+nM+' multas — NÃO é o custo do período')
+          : 'nenhuma multa do período tem valor lançado',
+        (k.com_valor||0)<nM?'warn':'',
+        'infracaotransito_registro.valoratevencimento. A cobertura é baixíssima e o catálogo de infrações do ERP também não traz valor para as duas infrações mais frequentes do período, então NÃO é possível estimar o custo real das multas a partir desta base. Trate este número como amostra, nunca como total.'),
+    kpi('Pontos lançados', (k.com_pontos||0)>0 ? k.pontos.toLocaleString('pt-BR') : 'não informado',
+        (k.com_pontos||0)>0 ? ('informado em '+(k.com_pontos||0)+' de '+nM+' multas') : 'nenhuma multa do período tem pontuação lançada',
+        (k.com_pontos||0)<nM?'warn':'',
+        'infracaotransito_registro.pontuacao. Mesma limitação do valor: a pontuação quase nunca é lançada, então a soma não representa os pontos que a frota realmente acumulou.'),
   ].join('');
-  chartMulRender(d.mensal||[]);
+  chartMulRender(d.mensal||[], d.dt_de, d.dt_ate);
+  {
+    const A=[];
+    if(semMot>0){
+      const naoInd=(d.tipos||[]).find(t=>/n.o indicar condutor/i.test(t.infracao||''));
+      A.push(['t-dang','Multas sem condutor identificado',
+        `${semMot} de ${nM} multas (${100-pctM}%) estão sem motorista no registro. Sem a indicação no prazo a pontuação fica com a empresa`
+        +(naoInd?` — e já há ${naoInd.multas} autuação(ões) por não indicar condutor no período, que é infração gravíssima com valor dobrado para pessoa jurídica.`:'.')]);
+    }
+    if((k.com_valor||0)<nM) A.push(['t-warn','Valor das multas quase não é lançado',
+      `Só ${k.com_valor||0} de ${nM} multas têm valor no ERP, e o catálogo de infrações também não traz valor para as duas mais frequentes do período. Não dá para medir o custo das multas por esta base.`]);
+    if((k.pagas||0)===0 && nM>0) A.push(['t-warn','Nenhuma multa marcada como paga',
+      `As ${nM} multas do período estão sem data de liquidação ou baixa. Ou o pagamento não é lançado neste módulo, ou são ${nM} multas em aberto.`]);
+    const el=document.getElementById('alerts-mul');
+    if(el) el.innerHTML=(A.length?A:[['t-ok','Sem alertas críticos','Cadastro de multas consistente no período.']])
+      .map(([c,t,m])=>`<div class="toast ${c}"><b>${esc(t)}</b>${esc(m)}</div>`).join('');
+  }
   document.getElementById('mul-tipo').innerHTML=(d.tipos||[]).map(t=>`<tr>
     <td title="gravidade ${esc(t.gravidade)}">${esc(t.infracao.length>55?t.infracao.slice(0,55)+'…':t.infracao)}</td>
     <td class="num">${t.multas.toLocaleString('pt-BR')}</td>
@@ -5355,24 +5389,29 @@ function mulToggle(i){
   const open=det.classList.toggle('open');
   det.previousElementSibling.setAttribute('aria-expanded', String(open));
 }
-function chartMulRender(mensal){
+function chartMulRender(mensal, dtDe, dtAte){
   const svg=document.getElementById('chartMul');
   GEOM['chartMul']=null; ACTIVE['chartMul']=-1;
   if(!mensal.length){ svg.innerHTML='<text x="480" y="110" text-anchor="middle" fill="#6E7883" font-size="14">sem dados</text>'; return; }
   const W=960,H=240,mL=64,mR=16,mT=20,mB=30, iw=W-mL-mR, ih=H-mT-mB;
   const n=mensal.length, bandW=iw/n;
-  const maxV=Math.max(1,...mensal.map(r=>r.valor||0));
-  const tks=niceTicks(0,maxV,4), top=tks[tks.length-1], u=unitOf(top);
+  const maxV=Math.max(1,...mensal.map(r=>r.multas||0));
+  // o eixo era R$ (unitOf); agora conta multas, então a unidade é a própria contagem
+  const tks=niceTicks(0,maxV,4), top=tks[tks.length-1], u={d:1,t:'MULTAS'};
   const y=v=>mT+ih-(v/top)*ih, y0=y(0);
   const px=i=>mL+bandW*i+bandW/2;
   const barW=Math.min(28,bandW*0.5);
-  let s='';
+  const parc=mensal.map(r=>_mesParcial(r.mes,dtDe,dtAte));
+  let s=`<defs><pattern id="hatchMul" width="6" height="6" patternTransform="rotate(45)" patternUnits="userSpaceOnUse">`+
+        `<rect width="6" height="6" fill="#B97709"/><rect width="2.4" height="6" fill="#fff" opacity=".62"/></pattern></defs>`;
   s+=`<rect id="chartMul-hband" x="0" y="${mT-8}" width="${bandW}" height="${ih+8}" fill="${CC.navy100}" opacity="0"/>`;
   s+=`<text x="${mL}" y="${mT-6}" font-size="11" fill="#6E7883" font-weight="600" letter-spacing="1.5">${u.t}</text>`;
   tks.forEach(v=>{ const yy=y(v);
     s+=`<line x1="${mL}" y1="${yy}" x2="${W-mR}" y2="${yy}" stroke="${v===0?'#C2C8D0':'#ECEEF1'}" stroke-width="1"/>`;
-    s+=`<text x="${mL-8}" y="${yy+4}" text-anchor="end" font-size="10" fill="#6E7883" font-family="IBM Plex Mono,monospace">${NMI.format(v/u.d)}</text>`; });
-  mensal.forEach((r,i)=>{ s+=colPath(px(i)-barW/2,barW,y(r.valor||0),y0,4,'#B97709'); });
+    s+=`<text x="${mL-8}" y="${yy+4}" text-anchor="end" font-size="10" fill="#6E7883" font-family="IBM Plex Mono,monospace">${(v/u.d).toLocaleString('pt-BR',{maximumFractionDigits:0})}</text>`; });
+  mensal.forEach((r,i)=>{ s+=colPath(px(i)-barW/2,barW,y(r.multas||0),y0,4,parc[i]?'url(#hatchMul)':'#B97709');
+    if(r.multas>0) s+=`<text x="${px(i)}" y="${y(r.multas)-8}" text-anchor="middle" font-size="10.5" font-weight="700" fill="${CC.n700}" `+
+      `stroke="#fff" stroke-width="3" paint-order="stroke" stroke-linejoin="round">${r.multas}</text>`; });
   mensal.forEach((r,i)=>{ s+=`<text x="${px(i)}" y="${H-mB+16}" text-anchor="middle" font-size="10" fill="#4F5860">${periodoLabel(r.mes)}</text>`; });
   s+=`<line id="chartMul-xhair" x1="0" x2="0" y1="${mT-8}" y2="${y0}" stroke="${CC.navy400}" stroke-width="1" opacity="0"/>`;
   s+=`<rect x="${mL}" y="${mT-8}" width="${iw}" height="${ih+8}" fill="transparent"/>`;
