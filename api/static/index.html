@@ -1595,41 +1595,42 @@ button.avatar{border:0;cursor:pointer}
       <!-- ===================== PROGRAMAÇÃO INTELIGENTE ===================== -->
       <section class="view" id="view-prog">
         <div class="kpis" id="kpis-prog"></div>
+        <div class="banner-inline" id="progCnhRisco" style="display:none;margin:0"></div>
         <div class="card">
-          <div class="head"><h2>Casamentos possíveis agora</h2><span class="hint">veículo descarrega e há carga saindo da mesma cidade nas próximas horas</span></div>
+          <div class="head"><h2>Casamentos possíveis agora <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="Veículo que chega numa cidade nas próximas 72h e tem carga programada saindo DA MESMA cidade depois da chegada. É o casamento que evita a viagem vazia — o ERP programa no dia, este radar olha adiante.">i</span></h2><span class="hint">veículo descarrega e há carga saindo da mesma cidade nas próximas horas</span></div>
           <div class="tablewrap"><table><thead><tr>
             <th>Veículo</th><th>Modalidade</th><th>Descarrega em</th><th class="num">Chegada prev.</th><th class="num">Cargas na cidade</th><th>Próxima carga</th>
           </tr></thead><tbody id="prog-casa"></tbody></table></div>
         </div>
         <div class="grid2">
           <div class="card">
-            <div class="head"><h2>Descarregam sem retorno casado</h2><span class="hint">próximas 72h · prioridade para venda de frete de retorno</span></div>
+            <div class="head"><h2>Descarregam sem retorno casado <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="Veículos que chegam nas próximas 72h e NÃO têm carga programada saindo da cidade de descarga depois da chegada. É a lista de ação: cada linha aqui tende a virar km vazio.">i</span></h2><span class="hint">próximas 72h · prioridade para venda de frete de retorno</span></div>
             <div class="tablewrap"><table><thead><tr>
               <th>Veículo</th><th>Modalidade</th><th>Descarrega em</th><th class="num">Chegada prev.</th>
             </tr></thead><tbody id="prog-semret"></tbody></table></div>
           </div>
           <div class="card">
-            <div class="head"><h2>Cargas sem veículo descarregando perto</h2><span class="hint">próximas 96h · alguém vai rodar vazio até lá</span></div>
+            <div class="head"><h2>Cargas sem veículo descarregando perto <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="Cargas programadas para as próximas 96h em cidades onde nenhum veículo está previsto para descarregar antes da coleta. Ou puxa veículo de fora (km vazio), ou contrata.">i</span></h2><span class="hint">próximas 96h · alguém vai rodar vazio até lá</span></div>
             <div class="tablewrap"><table><thead><tr>
               <th>Sai de</th><th>Para</th><th class="num">Saída prev.</th><th>Veículo alocado</th>
             </tr></thead><tbody id="prog-semveic"></tbody></table></div>
           </div>
         </div>
         <div class="card">
-          <div class="head"><h2>Km vazio evitável por cidade</h2><span class="hint">últimos 90 dias · rodou vazio em dia que tinha carga saindo da mesma cidade</span></div>
+          <div class="head"><h2>Km vazio evitável por cidade <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="Km rodado VAZIO saindo de uma cidade em dia no qual TAMBÉM saiu carga daquela mesma cidade — ou seja, havia demanda que poderia ter sido casada antes de o veículo partir vazio. Janela de 90 dias. O diesel estimado usa o custo por km da frota própria no período (abastecimentos ÷ km): é conservador, só combustível, sem pneu, manutenção ou pedágio.">i</span></h2><span class="hint">últimos 90 dias · rodou vazio em dia que tinha carga saindo da mesma cidade</span></div>
           <div class="tablewrap"><table><thead><tr>
             <th>Cidade</th><th class="num">Viagens vazias</th><th class="num">Dias com carga disponível</th><th class="num">Km evitável</th><th class="num">Diesel estimado</th>
           </tr></thead><tbody id="prog-evit"></tbody></table></div>
         </div>
         <div class="grid2">
           <div class="card">
-            <div class="head"><h2>Cidades deficitárias</h2><span class="hint">chega muito, sai pouco — veículo tende a voltar vazio · 90d</span></div>
+            <div class="head"><h2>Cidades deficitárias <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="Cidades onde chegam muito mais veículos do que saem cargas: sobra caminhão e falta frete de volta. Saldo = saídas − chegadas.">i</span></h2><span class="hint">chega muito, sai pouco — veículo tende a voltar vazio · 90d</span></div>
             <div class="tablewrap"><table><thead><tr>
               <th>Cidade</th><th class="num">Chegadas</th><th class="num">Saídas</th><th class="num">Saldo</th><th class="num">Km vazio</th>
             </tr></thead><tbody id="prog-def"></tbody></table></div>
           </div>
           <div class="card">
-            <div class="head"><h2>Cidades superavitárias</h2><span class="hint">sai mais carga do que chega — falta veículo posicionado · 90d</span></div>
+            <div class="head"><h2>Cidades superavitárias <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="Cidades onde sai mais carga do que chega veículo: falta caminhão posicionado. Junto com as deficitárias, mostra o desequilíbrio da malha.">i</span></h2><span class="hint">sai mais carga do que chega — falta veículo posicionado · 90d</span></div>
             <div class="tablewrap"><table><thead><tr>
               <th>Cidade</th><th class="num">Chegadas</th><th class="num">Saídas</th><th class="num">Saldo</th>
             </tr></thead><tbody id="prog-sup"></tbody></table></div>
@@ -1637,20 +1638,20 @@ button.avatar{border:0;cursor:pointer}
         </div>
         <div class="grid2">
           <div class="card">
-            <div class="head"><h2>Veículos próprios parados</h2><span class="hint">sem viagem em aberto e sem OS · mais tempo parado primeiro</span></div>
+            <div class="head"><h2>Veículos próprios parados <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="Veículos próprios e locados ativos, sem viagem em aberto e sem OS na oficina. "120+" significa que não há viagem registrada nos últimos 120 dias — nesse caso não há como saber a data da última viagem pela janela consultada. Locado parado é aluguel correndo sem receita.">i</span></h2><span class="hint">sem viagem em aberto e sem OS · mais tempo parado primeiro</span></div>
             <div class="tablewrap"><table><thead><tr>
               <th>Placa</th><th>Modalidade</th><th class="num">Última viagem</th><th class="num">Dias parado</th>
             </tr></thead><tbody id="prog-ocioso"></tbody></table></div>
           </div>
           <div class="card">
-            <div class="head"><h2>Motoristas parados</h2><span class="hint">rodaram nos últimos 30 dias e estão sem viagem</span></div>
+            <div class="head"><h2>Motoristas parados <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="Motoristas que rodaram nos últimos 30 dias e não estão em viagem no momento, com a data da última saída e o vencimento da CNH.">i</span></h2><span class="hint">rodaram nos últimos 30 dias e estão sem viagem</span></div>
             <div class="tablewrap"><table><thead><tr>
               <th>Motorista</th><th class="num">Última viagem</th><th class="num">Dias</th><th class="num">CNH vence</th>
             </tr></thead><tbody id="prog-motpar"></tbody></table></div>
           </div>
         </div>
         <div class="card">
-          <div class="head"><h2>Alertas de CNH vencida</h2><span class="hint">motoristas ativos nos últimos 30 dias com habilitação vencida</span></div>
+          <div class="head"><h2>Alertas de CNH vencida <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="Motoristas ativos nos últimos 30 dias com habilitação vencida no cadastro. Quem está EM VIAGEM aparece primeiro e em vermelho: dirigir com CNH vencida é infração gravíssima e pode levar a seguradora a negar cobertura.">i</span></h2><span class="hint">motoristas ativos nos últimos 30 dias com habilitação vencida</span></div>
           <div class="tablewrap"><table><thead><tr>
             <th>Motorista</th><th class="num">Vencimento</th><th>Situação</th><th class="num">Última viagem</th>
           </tr></thead><tbody id="prog-cnh"></tbody></table></div>
@@ -4999,12 +5000,37 @@ function renderProg(d){
     <td class="num" style="font-weight:700;color:${(m.dias_parado||0)>14?'var(--red)':((m.dias_parado||0)>7?'var(--yellow-700)':'inherit')}">${(m.dias_parado||0).toLocaleString('pt-BR')}</td>
     <td class="num" style="color:${m.cnh_vencida?'var(--red)':'inherit'}">${m.venc_cnh?fmtD(m.venc_cnh):'—'}</td></tr>`).join('')
     || '<tr><td colspan="4" style="color:var(--n500)">todos os motoristas ativos estão em viagem</td></tr>';
-  document.getElementById('prog-cnh').innerHTML=(d.cnh_alertas||[]).map(m=>`<tr>
-    <td title="${esc(m.motorista)}">${esc(shortName(m.motorista))}</td>
-    <td class="num" style="color:var(--red);font-weight:700">${fmtD(m.venc_cnh)}</td>
-    <td><span class="badge ${m.em_viagem?'b-dang':'b-warn'}">${m.em_viagem?'EM VIAGEM':'Parado'}</span></td>
-    <td class="num">${m.ult_saida?fmtD(m.ult_saida):'—'}</td></tr>`).join('')
-    || '<tr><td colspan="4" style="color:var(--n500)">nenhuma CNH vencida entre os motoristas ativos</td></tr>';
+  {
+    // CNH vencida com o motorista RODANDO é infração gravíssima e risco de
+    // recusa de seguro. Estava no rodapé da tela, depois de 8 tabelas: sobe
+    // para o topo como faixa, e a lista passa a mostrar HÁ QUANTO venceu,
+    // com quem está em viagem primeiro.
+    const cnh=[...(d.cnh_alertas||[])];
+    const diasV=m=>m.venc_cnh?Math.floor((Date.now()-new Date(m.venc_cnh+'T00:00:00').getTime())/86400000):null;
+    cnh.sort((a,b)=>(b.em_viagem?1:0)-(a.em_viagem?1:0) || (diasV(b)||0)-(diasV(a)||0));
+    const rodando=cnh.filter(m=>m.em_viagem);
+    const _hav=dv=>dv>=730?Math.floor(dv/365)+' anos':(dv>=60?Math.floor(dv/30)+' meses':dv+' dias');
+    document.getElementById('prog-cnh').innerHTML=cnh.map(m=>{
+      const dv=diasV(m);
+      return `<tr${m.em_viagem?' style="background:var(--red-100)"':''}>
+      <td title="${esc(m.motorista)}">${esc(shortName(m.motorista))}</td>
+      <td class="num" style="color:var(--red);font-weight:700">${fmtD(m.venc_cnh)}${dv!=null?` <span style="font-weight:400;font-size:10.5px">(há ${_hav(dv)})</span>`:''}</td>
+      <td><span class="badge ${m.em_viagem?'b-dang':'b-warn'}">${m.em_viagem?'EM VIAGEM':'Parado'}</span></td>
+      <td class="num">${m.ult_saida?fmtD(m.ult_saida):'—'}</td></tr>`;
+    }).join('') || '<tr><td colspan="4" style="color:var(--n500)">nenhuma CNH vencida entre os motoristas ativos</td></tr>';
+    const av=document.getElementById('progCnhRisco');
+    if(av){
+      if(rodando.length){
+        const pior=Math.max(...rodando.map(m=>diasV(m)||0));
+        av.style.display='flex';
+        av.style.background='var(--red-100)'; av.style.color='var(--red)'; av.style.borderColor='var(--red)';
+        av.innerHTML=`<i>${ICONS['sevCrit']}</i><span><b>${rodando.length} motorista${rodando.length>1?'s':''} com CNH VENCIDA ${rodando.length>1?'estão':'está'} em viagem agora</b>`
+          +` — a mais antiga venceu há ${_hav(pior)}.`
+          +` Dirigir com CNH vencida é infração gravíssima (7 pontos) e pode levar a seguradora a negar cobertura em sinistro.`
+          +` A lista completa está no fim da tela, em "Alertas de CNH vencida".</span>`;
+      } else { av.style.display='none'; av.innerHTML=''; }
+    }
+  }
   document.getElementById('prog-casa').innerHTML=(d.casamentos||[]).map(c=>{
     const [l,cl]=utLbl(c.utilizacao);
     const s=c.cargas[0];
