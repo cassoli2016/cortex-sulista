@@ -330,6 +330,20 @@ a query ignora sai; dimensão que a query aceita e é a pergunta natural da tela
 - Categoria em branco vira rótulo explícito ("(não informado no cartão)"), nunca célula
   vazia.
 
+**Campo nunca preenchido e código sem domínio (lições da Manutenção):**
+- **"Mão de obra R$ 0" com 747 OSs** lia-se como oficina de graça. O campo tem **0 de
+  747** preenchidos: o KPI mostra **"não informado"** e diz a cobertura. Peças idem —
+  R$ 31.554 com "informado em 112 de 747 OSs (15%) · 1,9% do valor total". Mesma regra
+  do CRM, agora com a cobertura sempre explícita.
+- Na tabela, `R$ 0` repetido em 30 linhas vira travessão com tooltip: o custo existe e
+  está no Total, o que falta é a separação.
+- **Código de domínio não traduzido não vira rótulo inventado.** A coluna Tipo mostrava
+  `1`/`2` crus; não existe tabela de domínio na réplica e as observações das OSs não
+  separam preventiva de corretiva, então virou "Tipo (cód.)" com tooltip explicando —
+  **não** foi criado o KPI preventiva × corretiva, que dependeria de adivinhar.
+- **Antes de "corrigir" tabela curta, contar as linhas no DOM:** a de Manutenção parecia
+  ter 9 linhas no screenshot e tinha 30 — `.tabroll` já rolava internamente.
+
 **Telas de consulta (busca própria, filterbar global escondida — ex.: Consulta de Cliente):**
 - Campo de busca com **`<datalist>`** alimentado por endpoint LEVE e cacheado
   (`/api/comercial/clientes-lista`, ~34 grupos). Nunca reusar o endpoint do painel

@@ -2213,10 +2213,15 @@ LEFT JOIN utilizacaoveiculo u ON u.codigo = v.utilizacaoveiculo
 WHERE o.dtemissao >= %(dt_de)s::date AND o.dtemissao < %(dt_ate)s::date + 1
   AND (o.filial = %(filial)s OR %(filial)s::int IS NULL)
   AND (%(placa)s::text IS NULL OR o.veiculo ILIKE '%%'||%(placa)s||'%%')
+  AND (%(status)s = 'todas'
+       OR (%(status)s = 'abertas' AND o.dtfechamento IS NULL)
+       OR (%(status)s = 'fechadas' AND o.dtfechamento IS NOT NULL))
 """
 
 MAN_KPI_SQL = f"""
 SELECT count(*)::int AS ordens,
+       sum(CASE WHEN coalesce(o.valortotalpecas,0) > 0 THEN 1 ELSE 0 END)::int AS oss_com_pecas,
+       sum(CASE WHEN coalesce(o.valortotalmaoobra,0) > 0 THEN 1 ELSE 0 END)::int AS oss_com_maoobra,
        coalesce(sum(o.valortotal),0)::float8 AS custo,
        coalesce(sum(o.valortotalpecas),0)::float8 AS pecas,
        coalesce(sum(o.valortotalmaoobra),0)::float8 AS maoobra,
@@ -2263,8 +2268,10 @@ ORDER BY o.veiculo, o.dtemissao DESC
 
 @cached(ttl=90)
 def get_manutencao(filial: int | None, dt_de: str, dt_ate: str,
-                   placa: str | None = None) -> dict:
-    params = {"filial": filial, "dt_de": dt_de, "dt_ate": dt_ate, "placa": placa}
+                   placa: str | None = None, status: str = "todas") -> dict:
+    status = status if status in ("todas", "abertas", "fechadas") else "todas"
+    params = {"filial": filial, "dt_de": dt_de, "dt_ate": dt_ate, "placa": placa,
+              "status": status}
     MAX_DET = 30
     with db.get_conn() as conn, conn.cursor() as cur:
         cur.execute(MAN_KPI_SQL, params)
@@ -2289,7 +2296,7 @@ def get_manutencao(filial: int | None, dt_de: str, dt_ate: str,
 
     return {
         "kpis": kpis, "veiculos": veiculos, "mensal": mensal,
-        "dt_de": dt_de, "dt_ate": dt_ate, "filial": filial, "placa": placa,
+        "dt_de": dt_de, "dt_ate": dt_ate, "filial": filial, "placa": placa, "status": status,
         "atualizado_em": meta["ts"].isoformat(),
         "fonte": "ERP AVA · ordemservico · leitura",
     }
