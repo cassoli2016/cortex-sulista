@@ -2015,7 +2015,7 @@ button.avatar{border:0;cursor:pointer}
         <div class="kpis" id="kpis-torre"></div>
         <div class="card">
           <div class="head">
-            <h2>Mapa da frota</h2>
+            <h2>Mapa da frota <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="Última posição transmitida por veículo (veiculo_posicao, ultimaposicao=1). A cor é a modalidade do ativo e o contorno vermelho marca viagem atrasada. Posição antiga permanece desenhada no mapa — a coluna Posição da tabela abaixo diz de quando ela é.">i</span></h2>
             <span class="hint" id="hintTorre"></span>
             <label style="font-size:12px;color:var(--n600);display:inline-flex;align-items:center;gap:6px;cursor:pointer">
               <input type="checkbox" id="torreSoViagem" onchange="torreMapa()"> só em viagem
@@ -2031,8 +2031,8 @@ button.avatar{border:0;cursor:pointer}
           </div>
         </div>
         <div class="card">
-          <div class="head"><h2>Viagens em trânsito</h2><span class="hint">saída registrada e sem chegada · atrasadas primeiro</span></div>
-          <div class="tablewrap"><table><thead><tr>
+          <div class="head"><h2>Viagens em trânsito <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="Programações de embarque com saída registrada e sem chegada, cruzadas com a última posição da rastreadora. ATRASADA = previsão de chegada já passou, e o badge diz de quanto. A coluna Posição fica âmbar acima de 6h e vermelha acima de 24h sem transmitir: caminhão em viagem que parou de reportar deixa a torre cega naquela viagem.">i</span></h2><span class="hint">saída registrada e sem chegada · atrasadas primeiro</span></div>
+          <div class="tablewrap tabroll" style="max-height:560px"><table><thead><tr>
             <th>Placa</th><th>Modalidade</th><th>Motorista</th><th>Cliente</th><th>Origem</th><th>Destino</th><th class="num">Saída</th><th class="num">Prev. chegada</th><th class="num">Posição</th><th>Status</th>
           </tr></thead><tbody id="torre-transito"></tbody></table></div>
         </div>
@@ -6305,15 +6305,38 @@ async function loadTorre(){
 }
 function renderTorre(d){
   const k=d.kpis;
+  // silêncio do rastreador nas viagens EM TRÂNSITO — o KPI de frota fala da
+  // frota toda; aqui o que interessa é caminhão rodando que parou de reportar
+  const _hAgo = s => { if(!s) return null; const [dt,hm]=s.split(' ');
+    return (Date.now()-new Date(dt+'T'+hm+':00').getTime())/3600000; };
+  const mudos=(d.transito||[]).filter(t=>{ const h=_hAgo(t.posicao_em); return h==null || h>6; }).length;
   document.getElementById('kpis-torre').innerHTML=[
     kpi('Em trânsito', k.em_transito.toLocaleString('pt-BR'), k.saidas_hoje+' saídas hoje · '+k.chegadas_previstas_hoje+' chegadas previstas hoje', ''),
-    kpi('Atrasadas', k.atrasadas.toLocaleString('pt-BR'), 'previsão de chegada vencida', k.atrasadas>0?'neg':'pos'),
+    kpi('Atrasadas', k.atrasadas.toLocaleString('pt-BR'), 'previsão de chegada vencida', k.atrasadas>0?'neg':'pos', null,
+      k.em_transito?statChip(k.atrasadas>0?'bad':'good', pct(k.atrasadas,k.em_transito)+' das viagens',
+        'Viagem em trânsito cuja previsão de chegada já passou. O tempo de atraso aparece no badge de cada linha.',
+        k.atrasadas>0?'sevCrit':'sevOk'):''),
+    kpi('Sem posição recente', mudos.toLocaleString('pt-BR'), 'viagens em trânsito sem transmitir há mais de 6h',
+      mudos>0?'neg':'pos', null,
+      statChip(mudos>0?'warn':'good', mudos>0?'rastreador mudo':'todos reportando',
+        'Caminhão em viagem que parou de transmitir posição. Pode ser área sem sinal, equipamento desligado ou veículo parado — em todos os casos a torre está cega naquela viagem.',
+        mudos>0?'sevWarn':'sevOk')),
     kpi('Veículos monitorados', k.veiculos_monitorados.toLocaleString('pt-BR'), k.com_posicao_24h+' com posição nas últimas 24h', ''),
   ].join('');
   document.getElementById('hintTorre').textContent='posição da rastreadora · atualiza a cada 2 min';
   torreMapa();
+  const _dur = h => h==null?'' : (h<1 ? Math.round(h*60)+' min' : (h<48 ? Math.round(h)+'h' : (h/24).toFixed(1).replace('.',',')+' dias'));
   document.getElementById('torre-transito').innerHTML=(d.transito||[]).map(t=>{
     const [ml,mc]=utLbl(t.utilizacao);
+    // quanto tempo de atraso e há quanto tempo a posição não muda: os dois
+    // estavam escondidos — "Atrasada" sem prazo e a posição só com a HORA,
+    // o que fazia posição de 44h atrás parecer de hoje
+    const hAtr=t.atrasada?_hAgo(t.previsao_chegada):null;
+    const hPos=_hAgo(t.posicao_em);
+    const corPos = hPos==null?'var(--red)':(hPos>24?'var(--red)':(hPos>6?'var(--yellow-700)':'inherit'));
+    const posTxt = t.posicao_em
+      ? (hPos>6 ? `${t.posicao_em.slice(11)} <span style="font-size:10.5px">(há ${_dur(hPos)})</span>` : t.posicao_em.slice(11))
+      : 'sem posição';
     return `<tr>
       <td style="font-family:var(--mono);font-weight:600">${esc(t.placa||'—')}</td>
       <td><span class="badge ${mc}">${ml}</span>${t.vazio?' <span class="badge b-warn">vazio</span>':''}</td>
@@ -6322,8 +6345,8 @@ function renderTorre(d){
       <td>${esc(t.origem)}</td><td>${esc(t.destino)}</td>
       <td class="num">${t.saida?t.saida.slice(8,10)+'/'+t.saida.slice(5,7)+' '+t.saida.slice(11):'—'}</td>
       <td class="num">${t.previsao_chegada?t.previsao_chegada.slice(8,10)+'/'+t.previsao_chegada.slice(5,7)+' '+t.previsao_chegada.slice(11):'—'}</td>
-      <td class="num">${t.posicao_em?t.posicao_em.slice(11):'—'}</td>
-      <td><span class="badge ${t.atrasada?'b-dang':'b-ok'}">${t.atrasada?'Atrasada':'No prazo'}</span></td></tr>`;
+      <td class="num" style="color:${corPos};${hPos!=null&&hPos>6?'font-weight:600':''}" title="${t.posicao_em?('última posição transmitida: '+t.posicao_em):'nenhuma posição transmitida nesta viagem'}">${posTxt}</td>
+      <td><span class="badge ${t.atrasada?'b-dang':'b-ok'}" title="${t.atrasada&&hAtr!=null?('previsão vencida há '+_dur(hAtr)):'dentro da previsão de chegada'}">${t.atrasada?('Atrasada'+(hAtr!=null?' · '+_dur(hAtr):'')):'No prazo'}</span></td></tr>`;
   }).join('') || '<tr><td colspan="10" style="color:var(--n500)">nenhuma viagem em trânsito</td></tr>';
   const ts=new Date(d.atualizado_em);
   document.getElementById('meta').innerHTML='<b>Atualizado '+ts.toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'})+'</b><br>auto-refresh 2 min';
