@@ -704,7 +704,11 @@ from api.db import query
 from api.orcamento.sql import HIST_CONTA_SQL, AGRUP_CONTA_SQL, meses_fechados
 from datetime import date
 ms = meses_fechados(date.today(), 12)
-r = query(HIST_CONTA_SQL, {'de': ms[0]+'-01', 'ate': ms[-1][:4]+'-'+ms[-1][5:7]+'-01'})
+# 'ate' é EXCLUSIVO: tem de ser o 1o dia do mês SEGUINTE ao último fechado,
+# senão a janela perde esse mês inteiro
+a, m = int(ms[-1][:4]), int(ms[-1][5:7]) + 1
+if m == 13: a, m = a + 1, 1
+r = query(HIST_CONTA_SQL, {'de': ms[0]+'-01', 'ate': f'{a:04d}-{m:02d}-01'})
 print('linhas historico:', len(r), '| contas:', len({x[\"conta\"] for x in r}))
 a = query(AGRUP_CONTA_SQL)
 print('mapa agrupador:', len(a), 'contas')
