@@ -5017,11 +5017,49 @@ def get_rh() -> dict:
     } for v in rows]
 
     andamento = {"Em triagem", "Em entrevistas", "Aberta"}
+    hoje = date.today()
+    # tempo de preenchimento e de espera: as duas datas existem e nenhuma métrica de
+    # recrutamento era calculada a partir delas
+    dias_fech = []
+    for v in vagas:
+        v["em_andamento"] = v["status"] in andamento
+        ini = date.fromisoformat(v["solicitacao"]) if v["solicitacao"] else None
+        fim = date.fromisoformat(v["fechamento"]) if v["fechamento"] else None
+        if ini and fim and v["status"] == "Finalizada":
+            v["dias"] = (fim - ini).days
+            dias_fech.append(v["dias"])
+        elif ini and not fim:
+            v["dias_aberta"] = (hoje - ini).days
+        else:
+            v["dias"] = None
+    dias_fech.sort()
+    med = (dias_fech[len(dias_fech) // 2] if dias_fech else None)
+
+    # a lista abria pelas finalizadas embora o rótulo prometesse "em andamento
+    # primeiro": ordem = em andamento, congeladas, o resto; dentro de cada grupo,
+    # a mais antiga primeiro (é a que está esperando há mais tempo)
+    _ordem = {True: 0}
+    def _chave(v):
+        g = 0 if v["em_andamento"] else (1 if v["status"] == "Congelada" else 2)
+        return (g, -(v.get("dias_aberta") or 0), v["solicitacao"] or "")
+    vagas.sort(key=_chave)
+
+    outras = [v for v in vagas
+              if not v["em_andamento"] and v["status"] not in ("Congelada", "Finalizada")]
     kpis = {
         "total": len(vagas),
-        "em_andamento": sum(1 for v in vagas if v["status"] in andamento),
+        "em_andamento": sum(1 for v in vagas if v["em_andamento"]),
         "congeladas": sum(1 for v in vagas if v["status"] == "Congelada"),
         "finalizadas": sum(1 for v in vagas if v["status"] == "Finalizada"),
+        "outras": len(outras),
+        "dias_medianos": med,
+        "dias_fechadas_n": len(dias_fech),
+        "congelada_mais_antiga": max(
+            (v.get("dias_aberta") or 0) for v in vagas if v["status"] == "Congelada"
+        ) if any(v["status"] == "Congelada" for v in vagas) else None,
+        "aberta_mais_antiga": max(
+            (v.get("dias_aberta") or 0) for v in vagas if v["em_andamento"]
+        ) if any(v["em_andamento"] for v in vagas) else None,
     }
 
     return {
