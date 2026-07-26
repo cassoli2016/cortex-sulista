@@ -2349,20 +2349,27 @@ SELECT coalesce(sum(coalesce(p.kmfretecompra,0)),0)::float8 AS km_vazio
 FROM programacaoembarque p
 JOIN veiculo v ON v.placa = p.veiculo
 WHERE p.dtcancelamento IS NULL AND p.semaforo = 1 AND p.numero < 1000000 AND p.tipo = 3
-  AND v.utilizacaoveiculo IN ('TRA','LOC')
+  AND (v.utilizacaoveiculo = %(modalidade)s OR
+       (%(modalidade)s::text IS NULL AND v.utilizacaoveiculo IN ('TRA','LOC')))
   AND p.dtemissao >= %(dt_de)s::date AND p.dtemissao < %(dt_ate)s::date + 1
+  AND (p.filial = %(filial)s OR %(filial)s::int IS NULL)
 """
 
 
 @cached(ttl=300)
-def _custo_vazio_proprio(dt_de: str, dt_ate: str) -> dict:
+def _custo_vazio_proprio(dt_de: str, dt_ate: str, filial: int | None = None,
+                         modalidade: str | None = None) -> dict:
     """Estima o custo do km rodado vazio pela FROTA PRÓPRIA valorizando cada km
     vazio pelo DIESEL/KM próprio (rs_litro ÷ km_l do CTA Plus, TRA/LOC — a mesma
     régua "dinâmica" do painel de combustível). SÓ frota própria: agregado/
     terceiro rodando vazio é custo de frete-compra deles, não diesel nosso."""
-    params = {"dt_de": dt_de, "dt_ate": dt_ate}
+    # A tela filtra por modalidade; TER/AGR não têm diesel nosso — o KPI some
+    # em vez de repetir o número da frota própria sob um filtro que a exclui.
+    if modalidade and modalidade not in ("TRA", "LOC"):
+        return {"diesel_km": None, "km_vazio_proprio": None, "custo_vazio_proprio": None}
+    params = {"dt_de": dt_de, "dt_ate": dt_ate, "filial": filial, "modalidade": modalidade}
     with db.get_conn() as conn, conn.cursor() as cur:
-        cur.execute(COMB_DIESELKM_PROPRIO_SQL, params)
+        cur.execute(COMB_DIESELKM_PROPRIO_SQL, {"dt_de": dt_de, "dt_ate": dt_ate})
         dz = cur.fetchone()
         cur.execute(KM_VAZIO_PROPRIO_SQL, params)
         km_vazio = cur.fetchone()["km_vazio"]
@@ -2417,7 +2424,7 @@ def get_analise_km(filial: int | None, dt_de: str, dt_ate: str,
         c["rkm"] = (c["receita"] / c["km_carregado"]) if c["km_carregado"] else None
         c["share_km"] = (c["km_carregado"] / kpis["km_carregado"]) if kpis["km_carregado"] else None
 
-    cvp = _custo_vazio_proprio(dt_de, dt_ate)  # custo estimado do vazio próprio (diesel/km)
+    cvp = _custo_vazio_proprio(dt_de, dt_ate, filial, modalidade)  # custo estimado do vazio próprio (diesel/km)
 
     return {
         "kpis": kpis, "mensal": mensal, "modalidades": modalidades,
