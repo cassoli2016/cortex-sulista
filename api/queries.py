@@ -5052,8 +5052,9 @@ FROM custos
 
 
 @cached(ttl=600)
-def get_custos(dt_de: str, dt_ate: str) -> dict:
-    """Custos consolidados (combustível + OCs) no período, agregados."""
+def _custos_rows(dt_de: str, dt_ate: str) -> tuple:
+    """Linhas cruas do período. Fica separado da agregação para que os filtros de
+    origem e filial não multipliquem as chaves de cache da consulta pesada."""
     params = {"de": dt_de, "ate": dt_ate}
     with db.get_conn() as conn, conn.cursor() as cur:
         cur.execute("SET LOCAL enable_mergejoin = off")
@@ -5061,6 +5062,23 @@ def get_custos(dt_de: str, dt_ate: str) -> dict:
         rows = cur.fetchall()
         cur.execute("SELECT current_timestamp AS ts")
         meta = cur.fetchone()
+    return rows, meta
+
+
+def get_custos(dt_de: str, dt_ate: str, origem: str | None = None,
+               filial: str | None = None) -> dict:
+    """Custos consolidados (combustível + OCs) no período, agregados.
+
+    `origem` filtra pela coluna de status/origem fiscal (COM NF, SEM NF,
+    ABASTECIMENTO INT/EXT) e `filial` pela filial da ordem de compra — os dois
+    aplicados em memória sobre as linhas já cacheadas.
+    """
+    rows, meta = _custos_rows(dt_de, dt_ate)
+    if origem:
+        rows = [r for r in rows if (r["status_nf"] or "").strip().upper() == origem.upper()]
+    if filial:
+        _f = " ".join(filial.split())
+        rows = [r for r in rows if " ".join(str(r["filial"] or "").split()) == _f]
 
     def _acc(d, key, valor):
         e = d.setdefault(key, {"n": 0, "valor": 0.0})
@@ -5082,7 +5100,8 @@ def get_custos(dt_de: str, dt_ate: str) -> dict:
         if r["fornecedor"]:
             _acc(por_forn, r["fornecedor"].strip(), v)
         if r["filial"]:
-            _acc(por_filial, str(r["filial"]).strip(), v)
+            # o ERP devolve "1 - FIL  MTZ" com espaço duplo
+            _acc(por_filial, " ".join(str(r["filial"]).split()), v)
         if r["dtemissao"]:
             serie[r["dtemissao"].strftime("%Y-%m")] = serie.get(r["dtemissao"].strftime("%Y-%m"), 0.0) + v
         if "COMBUST" in agr.upper():
@@ -5115,6 +5134,7 @@ def get_custos(dt_de: str, dt_ate: str) -> dict:
         },
         "por_agrupador": _top(por_agr, 20),
         "por_status": _top(por_status, 10),
+        "filtro": {"origem": origem, "filial": filial},
         "por_fornecedor": _top(por_forn, 20),
         "por_filial": _top(por_filial, 20),
         "serie": [{"mes": k, "valor": round(serie[k], 2)} for k in sorted(serie)],

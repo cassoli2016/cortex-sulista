@@ -358,6 +358,19 @@ a query ignora sai; dimensão que a query aceita e é a pergunta natural da tela
   22 autuações por "não indicar condutor" (a 2ª infração mais comum) são o mesmo
   problema; o alerta cita as duas juntas.
 
+**Dois gráficos do mesmo dado e página quilométrica (lições do Painel de Custos):**
+- **Rosca de participação + barras por agrupador mostravam exatamente a mesma coisa**,
+  lado a lado. A rosca virou **Concentração do custo** — top 3 / 5 / 10 em % acumulado
+  (66,5% / 78,7% / 93%) — que responde outra pergunta: onde negociar tem efeito.
+- **Top 100 sem rolagem interna fez a página ter 8.602px.** Com `.tabroll` caiu para
+  2.697px. Toda lista longa rola dentro do card.
+- Data crua com `T` (`2026-07-17T09:38:00`) passa por `fmtDT()`.
+- **Filtro em memória sobre linhas cacheadas:** a consulta é pesada, então o cache ficou
+  em `_custos_rows(dt_de, dt_ate)` e os filtros de origem e filial são aplicados depois,
+  em Python — filtro novo sem multiplicar chave de cache nem repetir a query.
+- Rótulo do ERP com espaço duplo (`1 - FIL  MTZ`) é normalizado com `" ".join(x.split())`
+  na exibição E no filtro, senão o valor selecionado não casa com o dado.
+
 **Telas de consulta (busca própria, filterbar global escondida — ex.: Consulta de Cliente):**
 - Campo de busca com **`<datalist>`** alimentado por endpoint LEVE e cacheado
   (`/api/comercial/clientes-lista`, ~34 grupos). Nunca reusar o endpoint do painel
