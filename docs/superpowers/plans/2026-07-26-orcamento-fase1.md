@@ -744,7 +744,7 @@ psycopg)."
 - Produces:
   - `linha_da_conta(conta, agrupador_por_conta, ajustes) -> str | None`
   - `mapa_conta_linha(agrupador_por_conta, ajustes) -> dict[str, str | None]`
-  - `contas_sem_agrupador(contas, agrupador_por_conta, ajustes) -> list[str]`
+  - `contas_sem_linha(contas, agrupador_por_conta, ajustes) -> list[str]`
 
 - [ ] **Step 1: Escrever o teste que falha**
 
@@ -754,7 +754,7 @@ Criar `tests/orcamento/test_rollup.py`:
 """Testes do rollup conta -> agrupador -> linha da DRE."""
 from __future__ import annotations
 
-from api.orcamento.rollup import (contas_sem_agrupador, linha_da_conta,
+from api.orcamento.rollup import (contas_sem_linha, linha_da_conta,
                                   mapa_conta_linha)
 
 AGRUP = {
@@ -792,12 +792,12 @@ def test_mapa_cobre_todas_as_contas_conhecidas():
 
 def test_lista_as_contas_que_precisam_ser_classificadas():
     contas = ["1|100", "9|998", "9|999"]
-    assert contas_sem_agrupador(contas, AGRUP, {}) == ["9|998", "9|999"]
+    assert contas_sem_linha(contas, AGRUP, {}) == ["9|998", "9|999"]
 
 
 def test_ajuste_resolve_conta_antes_sem_agrupador():
     ajustes = {"9|999": {"agrupador": "CV - MANUTENCAO"}}
-    assert contas_sem_agrupador(["9|999"], AGRUP, ajustes) == []
+    assert contas_sem_linha(["9|999"], AGRUP, ajustes) == []
     assert linha_da_conta("9|999", AGRUP, ajustes) == "CUSTO VARIAVEL"
 ```
 
@@ -846,10 +846,17 @@ def mapa_conta_linha(agrupador_por_conta: dict[str, str],
     return {c: linha_da_conta(c, agrupador_por_conta, ajustes) for c in sorted(contas)}
 
 
-def contas_sem_agrupador(contas: list[str], agrupador_por_conta: dict[str, str],
+def contas_sem_linha(contas: list[str], agrupador_por_conta: dict[str, str],
                          ajustes: dict) -> list[str]:
-    """Contas que não somam em linha nenhuma — precisam ser classificadas antes."""
-    return [c for c in contas if not _agrupador(c, agrupador_por_conta, ajustes)]
+    """Contas que não chegam a nenhuma linha da DRE.
+
+    Pega os dois casos: conta sem agrupador e conta cujo agrupador não existe em
+    linha alguma do DRE_MODELO (renomeado no ERP, typo no ajuste). Checar só a
+    presença do agrupador deixaria o segundo caso num limbo — nem sinalizado, nem
+    somando em lugar nenhum.
+    """
+    return [c for c in contas
+            if linha_da_conta(c, agrupador_por_conta, ajustes) is None]
 ```
 
 - [ ] **Step 4: Rodar os testes e confirmar que passam**
@@ -890,7 +897,7 @@ agrupador devolve None e entra na lista de pendências em vez de sumir num total
 - Test: `tests/orcamento/test_servico.py`
 
 **Interfaces:**
-- Consumes: `derivar` (T1), `armazenamento.*` (T2), `HIST_CONTA_SQL`/`REAL_CONTA_SQL`/`AGRUP_CONTA_SQL`/`meses_fechados` (T3), `mapa_conta_linha`/`contas_sem_agrupador` (T4).
+- Consumes: `derivar` (T1), `armazenamento.*` (T2), `HIST_CONTA_SQL`/`REAL_CONTA_SQL`/`AGRUP_CONTA_SQL`/`meses_fechados` (T3), `mapa_conta_linha`/`contas_sem_linha` (T4).
 - Produces:
   - `montar_comparativo(linhas_orc, realizado, mapa_linha, ate_mes) -> dict`
   - `meses_faltando(historico, meses) -> list[str]`
@@ -1032,7 +1039,7 @@ from datetime import date
 from api import db
 from api.orcamento import armazenamento as arm
 from api.orcamento.derivacao import derivar
-from api.orcamento.rollup import contas_sem_agrupador, mapa_conta_linha
+from api.orcamento.rollup import contas_sem_linha, mapa_conta_linha
 from api.orcamento.sql import (AGRUP_CONTA_SQL, HIST_CONTA_SQL, REAL_CONTA_SQL,
                                meses_fechados)
 from api.queries import DRE_MODELO, ler_ajustes
@@ -1168,7 +1175,7 @@ def gerar(ano: int, rotulo: str, fator: float, quem: str,
     linhas = derivar(hist, meses, fator)
 
     agrup, ajustes = _mapa()
-    pendentes = contas_sem_agrupador(sorted(hist), agrup, ajustes)
+    pendentes = contas_sem_linha(sorted(hist), agrup, ajustes)
     # conta sem agrupador não soma em linha nenhuma: fica fora e é reportada
     linhas = [l for l in linhas if l["conta"] not in set(pendentes)]
 
@@ -1176,7 +1183,7 @@ def gerar(ano: int, rotulo: str, fator: float, quem: str,
     vid = arm.criar_versao(path, ano, rotulo, fator, quem)
     arm.gravar_baseline(path, vid, linhas)
     return {"versao_id": vid, "linhas": len(linhas), "meses_base": meses,
-            "contas_sem_agrupador": pendentes}
+            "contas_sem_linha": pendentes}
 
 
 def comparativo(versao_id: int, ate_mes: int | None = None,
@@ -1381,7 +1388,7 @@ Depois, com Playwright autenticado (mesmo padrão de `scratchpad/smoke.py`), cha
 `POST /api/controladoria/orcamento/gerar` com `{"ano": 2026, "fator": -0.05}` e
 `GET /api/controladoria/orcamento`.
 
-Expected: a geração devolve `linhas` ≈ 4.140 (345 contas × 12) e `contas_sem_agrupador` com ~10 itens; o comparativo devolve `linhas` com os rótulos do `DRE_MODELO` e `mensal` com 12 entradas.
+Expected: a geração devolve `linhas` ≈ 4.140 (345 contas × 12) e `contas_sem_linha` com ~10 itens; o comparativo devolve `linhas` com os rótulos do `DRE_MODELO` e `mensal` com 12 entradas.
 
 - [ ] **Step 10: Commit**
 
@@ -1745,7 +1752,7 @@ async function orcGerar(){
     const d=await r.json();
     if(!r.ok){ msg.textContent=''; showBanner(d.mensagem||'Erro ao gerar.'); return; }
     msg.textContent=`versão ${d.versao_id} criada · ${d.linhas} linhas`
-      + (d.contas_sem_agrupador.length?` · ${d.contas_sem_agrupador.length} conta(s) sem agrupador ficaram de fora`:'');
+      + (d.contas_sem_linha.length?` · ${d.contas_sem_linha.length} conta(s) sem agrupador ficaram de fora`:'');
     await loadOrc();
   }catch(e){ msg.textContent=''; showBanner('Não foi possível falar com a API.', e.message); }
 }
