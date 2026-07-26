@@ -1814,11 +1814,20 @@ button.avatar{border:0;cursor:pointer}
       <section class="view" id="view-comrast">
         <div class="kpis" id="kpis-comrast"></div>
         <div class="grid2">
-          <div class="card"><div class="head"><h2>Distribuição da comunicação</h2><span class="hint">frota ativa · por recência da última posição</span></div>
+          <div class="card"><div class="head"><h2>Distribuição da comunicação <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="veiculo_posicao com ultimaposicao = 1, faixa pela diferença entre hoje e a data da última posição, sobre a frota ATIVA inteira. Quem nunca registrou posição não tem recência e sai da distribuição — a contagem aparece abaixo da tabela.">i</span></h2><span class="hint">frota ativa · por recência da última posição</span></div>
             <div class="tablewrap" id="comrast-faixas"></div></div>
-          <div class="card"><div class="head"><h2>Pararam de comunicar</h2><span class="hint">com rastreador · sem posição hoje</span></div>
-            <div class="tablewrap" id="comrast-parados"></div></div>
+          <div class="card"><div class="head"><h2>Rastreador cadastrado sem sinal <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="Quebra dos veículos que têm rastreador cadastrado e nenhuma posição registrada, por tipo de frota e por ter motor. Só as linhas de PRÓPRIO ou AGREGADO com motor são problema de rastreamento: terceiro não integra a posição com a Sulista e implemento não emite.">i</span></h2><span class="hint">onde o número grande realmente está</span></div>
+            <div class="tablewrap" id="comrast-semsinal"></div></div>
         </div>
+        <div class="card"><div class="head"><h2>Pararam de comunicar <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="Veículos com rastreador que já tiveram posição e não comunicaram hoje, ordenados por ignição ligada primeiro e depois por dias sem comunicar. Ignição ligada sem comunicar indica rastreador arrancado, bloqueador de sinal ou perda de energia com o veículo em movimento. A posição mostrada é a última conhecida, não a atual.">i</span></h2>
+            <div class="chips" id="comrastChips" style="margin-left:auto">
+              <button class="chip on" data-crf="" onclick="comrastFoco(this)">Todos</button>
+              <button class="chip" data-crf="proprio" onclick="comrastFoco(this)">Frota própria</button>
+              <button class="chip" data-crf="meus" onclick="comrastFoco(this)">Próprio + agregado</button>
+              <button class="chip" data-crf="ligada" onclick="comrastFoco(this)">Ignição ligada</button>
+            </div>
+            <span class="hint" id="hintComrastP"></span></div>
+          <div class="tablewrap tabroll" id="comrast-parados"></div></div>
       </section>
       <section class="view" id="view-qual">
         <div class="kpis" id="kpis-qual"></div>
@@ -6002,15 +6011,63 @@ async function loadComRast(){
 function renderComRast(d){
   const k=d.kpis||{};
   document.getElementById('kpis-comrast').innerHTML=[
-    kpi('Comunicando hoje', (k.comunicando_hoje||0).toLocaleString('pt-BR'), 'posição recebida hoje','pos'),
-    kpi('Pararam de comunicar', (k.parados||0).toLocaleString('pt-BR'), 'com rastreador, sem posição hoje', (k.parados||0)>0?'neg':'pos'),
-    kpi('Com rastreador', (k.com_rastreador||0).toLocaleString('pt-BR'), 'frota ativa com rastreador cadastrado',''),
-    kpi('Sem posição registrada', (k.sem_posicao||0).toLocaleString('pt-BR'), 'sem histórico (ex.: carretas)',''),
+    // o KPI que decide: só a frota que DEVE comunicar (com motor, próprio ou agregado)
+    kpi('Cobertura da frota rastreada', k.cobertura!=null?k.cobertura.toLocaleString('pt-BR',{maximumFractionDigits:1})+'%':'—',
+        (k.esperados_ok||0)+' de '+(k.esperados||0)+' veículos que devem comunicar',
+        k.cobertura==null?'':(k.cobertura>=95?'pos':(k.cobertura>=85?'warn':'neg')),
+        'Base = veículos ATIVOS, COM MOTOR, de frota própria ou agregado, com rastreador cadastrado — os que de fato têm de mandar posição. Fora dessa base ficam os veículos de terceiro (não integram a posição com a Sulista) e os implementos (carreta não emite). Sem esse recorte a cobertura aparenta 19%, quando o problema é cadastro de rastreador em quem não emite.'),
+    kpi('Pararam de comunicar', (k.parados||0).toLocaleString('pt-BR'),
+        (k.parados_ignicao_ligada||0)>0 ? ((k.parados_ignicao_ligada)+' com ignição LIGADA') : 'todos com ignição desligada',
+        (k.parados_ignicao_ligada||0)>0?'neg':((k.parados||0)>0?'warn':'pos'),
+        'Veículos com rastreador que já tiveram posição e não comunicaram hoje. Ignição ligada sem comunicar é o caso grave: rastreador arrancado, bloqueador de sinal ou perda de energia com o veículo rodando. Ignição desligada costuma ser veículo parado em pátio, sem gravidade.'),
+    kpi('Comunicando hoje', (k.comunicando_hoje||0).toLocaleString('pt-BR'), 'posição recebida hoje','pos',
+        'veiculo_posicao com ultimaposicao = 1 e data de hoje. Conta a frota ativa inteira, não só a que deveria comunicar.'),
+    kpi('Rastreador sem nenhum sinal', ((d.sem_sinal||[]).reduce((a,x)=>a+x.n,0)).toLocaleString('pt-BR'),
+        'de '+(k.com_rastreador||0)+' com rastreador cadastrado · quebra ao lado','',
+        'Veículos com cnpjcpfcodigorastreador preenchido e nenhuma linha em veiculo_posicao. Na maior parte não é rastreador quebrado: é terceiro que não integra a posição e implemento que nunca emitiu, com o campo herdado do cadastro. O card ao lado abre por tipo de frota e por ter motor ou não.'),
   ].join('');
-  const fx=(d.faixas||[]).map(f=>`<tr><td>${esc(f.faixa)}</td><td class="num">${f.n.toLocaleString('pt-BR')}</td></tr>`).join('')||'<tr><td colspan="2" style="color:var(--n500)">—</td></tr>';
-  document.getElementById('comrast-faixas').innerHTML=`<table><thead><tr><th>Recência da última posição</th><th class="num">Veículos</th></tr></thead><tbody>${fx}</tbody></table>`;
-  const pr=(d.parados||[]).map(p=>`<tr><td style="font-family:var(--mono);font-weight:600">${esc(p.frota||p.placa||'—')}</td><td>${esc(p.placa||'')}</td><td>${esc(p.tipofrota||'')}</td><td class="num" style="color:var(--red);font-weight:700">${p.dias} dias</td><td>${esc(p.ignicao||'')}</td><td>${esc(p.posicao||'')}</td></tr>`).join('')||'<tr><td colspan="6" style="color:var(--n500)">todos os rastreados comunicaram hoje</td></tr>';
-  document.getElementById('comrast-parados').innerHTML=`<table><thead><tr><th>Frota</th><th>Placa</th><th>Tipo</th><th class="num">Sem comunicar</th><th>Ignição</th><th>Posição</th></tr></thead><tbody>${pr}</tbody></table>`;
+  // a linha "sem posição registrada" (1.242) não é recência e dominava a tabela
+  const fx=(d.faixas||[]).filter(f=>f.codigo!==99).map(f=>`<tr><td>${esc(f.faixa)}</td><td class="num">${f.n.toLocaleString('pt-BR')}</td></tr>`).join('')
+    ||'<tr><td colspan="2" style="color:var(--n500)">nenhum veículo com posição registrada</td></tr>';
+  const semPos=(d.faixas||[]).find(f=>f.codigo===99);
+  document.getElementById('comrast-faixas').innerHTML=`<table><thead><tr><th>Recência da última posição</th><th class="num">Veículos</th></tr></thead><tbody>${fx}</tbody></table>`
+    +(semPos?`<div class="banner-inline" style="display:block;margin:8px 16px 14px">Fora desta distribuição: <b>${semPos.n.toLocaleString('pt-BR')}</b> veículos ativos nunca registraram posição (sem rastreador, terceiro que não integra ou implemento). Não têm recência para classificar.</div>`:'');
+  // a quebra dos sem-sinal: sem ela, 664 parece falha de rastreamento
+  const ss=(d.sem_sinal||[]).map(x=>{
+    const grave=/Próprio · com motor|Agregado · com motor/.test(x.grupo);
+    return `<tr><td>${esc(x.grupo)}</td><td class="num" style="font-weight:600;color:${grave?'var(--red)':'var(--n700)'}">${x.n.toLocaleString('pt-BR')}</td>
+      <td style="color:var(--n500);font-size:12px">${grave?'deveria comunicar — verificar rastreador'
+        : (/implemento/.test(x.grupo)?'carreta não emite posição':'terceiro não integra a posição')}</td></tr>`;}).join('')
+    ||'<tr><td colspan="3" style="color:var(--n500)">todos os rastreadores cadastrados já mandaram posição</td></tr>';
+  document.getElementById('comrast-semsinal').innerHTML=`<table><thead><tr><th>Grupo</th><th class="num">Veículos</th><th>Leitura</th></tr></thead><tbody>${ss}</tbody></table>`;
+  comrastParadosTabela();
+}
+let COMRAST_FOCO='';
+function comrastFoco(btn){
+  document.querySelectorAll('#comrastChips .chip').forEach(b=>b.classList.toggle('on', b===btn));
+  COMRAST_FOCO=btn.dataset.crf||'';
+  comrastParadosTabela();
+}
+function comrastParadosTabela(){
+  const d=DATACOMRAST||{};
+  const todos=d.parados||[];
+  const lista=todos.filter(p=>
+    COMRAST_FOCO==='proprio' ? p.tipofrota==='Próprio'
+    : COMRAST_FOCO==='meus'  ? (p.tipofrota==='Próprio'||p.tipofrota==='Agregado')
+    : COMRAST_FOCO==='ligada'? p.ignicao==='ligada'
+    : true);
+  const hp=document.getElementById('hintComrastP');
+  if(hp) hp.textContent = (lista.length===todos.length? todos.length+' veículos'
+    : lista.length+' de '+todos.length+' veículos')+' · ignição ligada primeiro';
+  const pr=lista.map(p=>{
+    const lig=p.ignicao==='ligada';
+    return `<tr${lig?' style="background:var(--red-100)"':''}><td style="font-family:var(--mono);font-weight:600">${esc(p.frota||p.placa||'—')}</td>
+    <td>${esc(p.placa||'')}</td><td>${esc(p.tipofrota||'')}</td>
+    <td class="num" style="color:var(--red);font-weight:700">${p.dias} ${p.dias===1?'dia':'dias'}</td>
+    <td>${lig?'<span class="badge b-dang">ignição ligada</span>':'<span style="color:var(--n500)">'+esc(p.ignicao||'—')+'</span>'}</td>
+    <td style="font-size:12px">${esc(p.posicao||'—')}</td></tr>`;}).join('')
+    ||'<tr><td colspan="6" style="color:var(--n500)">todos os rastreados comunicaram hoje</td></tr>';
+  document.getElementById('comrast-parados').innerHTML=`<table><thead><tr><th>Frota</th><th>Placa</th><th>Tipo</th><th class="num">Sem comunicar</th><th>Ignição</th><th>Última posição conhecida</th></tr></thead><tbody>${pr}</tbody></table>`;
 }
 // ---------------- Qualidade e Certidões ----------------
 async function loadQual(){

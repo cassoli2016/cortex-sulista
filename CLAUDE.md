@@ -299,6 +299,23 @@ a query ignora sai; dimensão que a query aceita e é a pergunta natural da tela
 - **Horizonte fixo esconde planejamento:** os 30 dias das carretas eram fixos; com
   seletor 15/30/60/90 a agenda do mês seguinte aparece (22 → 36 → 59 → 76 carretas).
 
+**Denominador errado transforma cadastro em crise (lição da Comunicação Rastreadora):**
+- **664 de 836 rastreadores "sem sinal" (79%) não era falha de rastreamento.** A quebra:
+  341 veículos de TERCEIRO (não integram posição com a Sulista) + 312 implementos
+  (carreta não emite; campo herdado do cadastro) + **11 que de fato deveriam comunicar**.
+  O KPI virou **cobertura da frota que DEVE comunicar** — com motor, próprio ou agregado:
+  86,7% (156 de 180). Antes de anunciar um problema, checar se o denominador só contém
+  quem pode cumprir a regra.
+- **Número grande sempre acompanhado da quebra que o desarma** — card "Rastreador
+  cadastrado sem sinal" por tipo × com-motor, com a leitura de cada linha em texto.
+- **Estado que indica risco vai para o topo e ganha cor, não fica em coluna cinza.**
+  Ignição LIGADA sem comunicar é rastreador arrancado/jammer/perda de energia: 5 casos
+  estavam afogados no meio de 15 linhas ordenadas por dias. Passaram a ordenar primeiro,
+  com linha vermelha e chip.
+- **Categoria "ausência" não pertence a uma distribuição de recência**: a linha "sem
+  posição registrada" (1.242) dominava a tabela de faixas; saiu para um banner abaixo.
+- Concordância: `${n} ${n===1?'dia':'dias'}` — a tela mostrava "1 dias".
+
 **Telas de consulta (busca própria, filterbar global escondida — ex.: Consulta de Cliente):**
 - Campo de busca com **`<datalist>`** alimentado por endpoint LEVE e cacheado
   (`/api/comercial/clientes-lista`, ~34 grupos). Nunca reusar o endpoint do painel
