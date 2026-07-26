@@ -1814,12 +1814,12 @@ button.avatar{border:0;cursor:pointer}
       <section class="view" id="view-port">
         <div class="kpis" id="kpis-port"></div>
         <div class="card">
-          <div class="head"><h2>No pátio agora</h2><span class="hint">entraram e ainda não saíram (últimos 2 dias)</span></div>
-          <div class="tablewrap" id="port-patio"></div>
+          <div class="head"><h2>No pátio agora <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="sulista.controlepatio: veículos com entrada registrada e sem saída, na janela de 2 dias. Tempo acima de 24h em vermelho — ou o veículo está mesmo parado, ou a saída não foi baixada na portaria. O documento do visitante NÃO é exposto neste painel.">i</span></h2><span class="hint">entraram e ainda não saíram (últimos 2 dias)</span></div>
+          <div class="tablewrap tabroll" id="port-patio" style="max-height:420px"></div>
         </div>
         <div class="card">
-          <div class="head"><h2>Autorizações de saída</h2><span class="hint">emitidas nos últimos 7 dias</span></div>
-          <div class="tablewrap" id="port-aut"></div>
+          <div class="head"><h2>Autorizações de saída <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="sulista.autorizacaosaida com envio à portaria marcado, últimos 7 dias. "Aguardando" = autorização emitida e o veículo ainda não saiu; "retorno pendente" = saiu e não voltou a ser registrado.">i</span></h2><span class="hint">emitidas nos últimos 7 dias</span></div>
+          <div class="tablewrap tabroll" id="port-aut" style="max-height:520px"></div>
         </div>
       </section>
       <section class="view" id="view-crm">
@@ -5969,14 +5969,26 @@ async function loadPort(){
 }
 function renderPort(d){
   const k=d.kpis||{};
+  // zero de movimento em dia útil é sinal de registro parado; no fim de semana
+  // é o esperado. Sem essa distinção o KPI zerado parece integração caída.
+  const _dow=new Date().getDay(), fds=(_dow===0||_dow===6);
+  const semMov=(k.entradas_hoje||0)===0 && (k.saidas_hoje||0)===0;
+  const chipMov = !semMov ? '' : statChip(fds?'flat':'warn',
+    fds?('sem movimento · '+(_dow===0?'domingo':'sábado')):'nenhum registro hoje',
+    fds?'Fim de semana sem registro de portaria é o esperado.'
+       :'Dia útil sem nenhuma entrada ou saída registrada: pode ser operação parada ou registro da portaria que não está sendo lançado.',
+    fds?'trFlat':'sevWarn');
+  const longos=(d.no_patio||[]).filter(x=>(x.horas||0)>24).length;
   document.getElementById('kpis-port').innerHTML=[
-    kpi('No pátio agora', (k.no_patio||0).toLocaleString('pt-BR'), 'entraram e não saíram (2 dias)',''),
-    kpi('Entradas hoje', (k.entradas_hoje||0).toLocaleString('pt-BR'), 'movimentação do dia',''),
-    kpi('Saídas hoje', (k.saidas_hoje||0).toLocaleString('pt-BR'), 'movimentação do dia',''),
+    kpi('No pátio agora', (k.no_patio||0).toLocaleString('pt-BR'), 'entraram e não saíram (janela de 2 dias)','', null,
+      longos?statChip('warn', longos+' há +24h',
+        'Veículos que entraram há mais de um dia e não têm saída registrada. Ou estão realmente parados no pátio, ou a saída não foi baixada na portaria.','sevWarn'):''),
+    kpi('Entradas hoje', (k.entradas_hoje||0).toLocaleString('pt-BR'), 'movimentação do dia','', null, chipMov),
+    kpi('Saídas hoje', (k.saidas_hoje||0).toLocaleString('pt-BR'), 'movimentação do dia','', null, chipMov),
     kpi('Autorizações (7 dias)', (k.autorizacoes_7d||0).toLocaleString('pt-BR'), (k.pendentes||0)+' pendentes de retorno', (k.pendentes||0)>0?'neg':''),
   ].join('');
   const fmtDt=s=>s?s.slice(8,10)+'/'+s.slice(5,7)+' '+s.slice(11,16):'—';
-  const pt=(d.no_patio||[]).map(p=>`<tr><td>${esc(p.tipo)}</td><td style="font-family:var(--mono);font-weight:600">${esc(p.placa||'—')}</td><td>${esc(p.condutor)}</td><td>${esc(p.cliente||'')}</td><td class="num">${fmtDt(p.entrada)}</td><td class="num" style="${p.horas>12?'color:var(--red);font-weight:700':''}">${p.horas!=null?p.horas+' h':'—'}</td></tr>`).join('')||'<tr><td colspan="6" style="color:var(--n500)">pátio vazio</td></tr>';
+  const pt=(d.no_patio||[]).map(p=>`<tr><td>${esc(p.tipo)}</td><td style="font-family:var(--mono);font-weight:600">${esc(p.placa||'—')}</td><td>${esc(p.condutor)}</td><td>${esc(p.cliente||'')}</td><td class="num">${fmtDt(p.entrada)}</td><td class="num" style="${(p.horas||0)>24?'color:var(--red);font-weight:700':((p.horas||0)>12?'color:var(--yellow-700);font-weight:600':'')}" title="${(p.horas||0)>24?'mais de um dia no pátio sem saída registrada':''}">${p.horas!=null?(p.horas>=24?(p.horas/24).toFixed(1).replace('.',',')+' dias':p.horas.toFixed(1).replace('.',',')+' h'):'—'}</td></tr>`).join('')||'<tr><td colspan="6" style="color:var(--n500)">pátio vazio</td></tr>';
   document.getElementById('port-patio').innerHTML=`<table><thead><tr><th>Tipo</th><th>Placa</th><th>Condutor</th><th>Cliente/Fornecedor</th><th class="num">Entrada</th><th class="num">No pátio há</th></tr></thead><tbody>${pt}</tbody></table>`;
   const au=(d.autorizacoes||[]).map(a=>`<tr><td>${esc(a.tipoviagem)}</td><td style="font-family:var(--mono)">${esc(a.frota||'—')}</td><td>${esc(a.motorista)}</td><td>${esc(a.destino||'')}</td><td>${esc(a.tipofrota)}</td><td class="num">${fmtDt(a.emissao)}</td><td>${a.saiu?'<span class="badge b-ok">saiu</span>':'<span class="badge b-warn">aguardando</span>'}${a.pendente?' <span class="badge b-dang">retorno pendente</span>':''}</td></tr>`).join('')||'<tr><td colspan="7" style="color:var(--n500)">sem autorizações no período</td></tr>';
   document.getElementById('port-aut').innerHTML=`<table><thead><tr><th>Tipo</th><th>Frota</th><th>Motorista</th><th>Destino</th><th>Porte</th><th class="num">Emissão</th><th>Status</th></tr></thead><tbody>${au}</tbody></table>`;
