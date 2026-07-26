@@ -170,6 +170,7 @@ svg:focus-visible{outline:2px solid var(--orange-500);outline-offset:2px;border-
 .legend i.sw{width:12px;height:12px;border-radius:3px;display:inline-block}
 /* período incompleto (mês corrente): mesma cor, hachurada — a barra parcial não
    pode ser lida como um mês fechado */
+.legend i.ln.dot{border-top-style:dotted;border-top-width:2.5px}
 .legend i.sw.hatch.orange{background-color:var(--orange-500)}
 .legend i.sw.hatch{background-color:var(--green);
   background-image:repeating-linear-gradient(135deg,rgba(255,255,255,.7) 0 2px,transparent 2px 4px)}
@@ -2105,12 +2106,13 @@ button.avatar{border:0;cursor:pointer}
       <section class="view" id="view-mvb">
         <div class="kpis" id="kpis-mvb"></div>
         <div class="card">
-          <div class="head"><h2>Custo por km — próprio × contratado</h2><span class="hint" id="hintMvb"></span></div>
+          <div class="head"><h2>Custo por km — próprio × contratado <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="CKM próprio: custos do razão contábil (fin_dre) ÷ km carregado da frota própria (TRA/LOC na programação de embarque), por competência. Marginal = variáveis + motoristas; cheio = tudo, com fixos e depreciação. Contratado: valorfretecompra ÷ kmfretecompra de AGR e TER. Todas as séries em R$ por km carregado, no mesmo eixo.">i</span></h2><span class="hint" id="hintMvb"></span></div>
           <div class="legend">
             <span class="k"><i class="ln"></i>CKM próprio cheio</span>
             <span class="k"><i class="ln dash"></i>CKM próprio marginal</span>
             <span class="k"><i class="ln" style="border-top-color:#E85D10"></i>R$/km agregado</span>
             <span class="k"><i class="ln" style="border-top-color:#1E7F4F"></i>R$/km terceiro</span>
+            <span class="k"><i class="ln dot"></i>Competência aberta (fixos ainda não lançados)</span>
           </div>
           <div class="chartwrap" id="wrapMvb">
             <svg id="chartMvb" viewBox="0 0 960 300" preserveAspectRatio="xMidYMid meet"
@@ -2120,21 +2122,21 @@ button.avatar{border:0;cursor:pointer}
         </div>
         <div class="grid2">
           <div class="card">
-            <div class="head"><h2>Composição do CKM próprio</h2><span class="hint">custos do razão ÷ km carregado estimado</span></div>
+            <div class="head"><h2>Composição do CKM próprio <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="Contas do razão agrupadas pelo plano de contas gerencial, divididas pelo km carregado estimado da frota própria no período. "Total no período" é R$/km × km — reconstituição, não o saldo bruto da conta. Créditos tributários ficam fora do CKM por serem mistos com afretamento.">i</span></h2><span class="hint">custos do razão ÷ km carregado estimado</span></div>
             <div class="tablewrap"><table><thead><tr>
               <th>Componente</th><th class="num">R$/km</th><th class="num">Total no período</th>
             </tr></thead><tbody id="mvb-comp"></tbody></table></div>
           </div>
           <div class="card">
-            <div class="head"><h2>Veredito</h2><span class="hint">regra da frota mista (CLAUDE.md §4)</span></div>
+            <div class="head"><h2>Veredito <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="Aplica a regra da frota mista: curto prazo (alocar carga hoje) compara o CKM MARGINAL contra o melhor R$/km contratado; longo prazo (comprar veículo) compara o CKM CHEIO. Não é recomendação automática de compra — as ressalvas do cálculo valem.">i</span></h2><span class="hint">regra da frota mista (CLAUDE.md §4)</span></div>
             <div class="alerts" id="mvb-veredito"></div>
           </div>
         </div>
         <div class="card">
-          <div class="head"><h2>Comparativo por rota</h2><span class="hint">rotas contratadas (AGR/TER) no período · R$/km da rota vs CKM marginal próprio · piores spreads primeiro</span></div>
-          <div class="tablewrap"><table><thead><tr>
+          <div class="head"><h2>Comparativo por rota <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="Rotas com viagem de agregado/terceiro no período (programacaoembarque, AGR/TER), origem → destino. R$/km da rota = valorfretecompra ÷ kmfretecompra. Spread = R$/km da rota − CKM marginal próprio (o mesmo para todas as rotas: o razão é consolidado, não há CKM por rota). Spread negativo = a rota está sendo comprada mais caro do que custaria rodar com frota própria no curto prazo.">i</span></h2><span class="hint" id="hintMvbR"></span></div>
+          <div class="tablewrap tabroll"><table><thead><tr>
             <th>Origem</th><th>Destino</th><th class="num">Viagens</th><th class="num">Km</th>
-            <th class="num">R$/km contratado</th><th class="num">CKM marginal</th><th class="num">Spread</th><th>Indicação</th>
+            <th class="num">R$/km contratado</th><th class="num">Spread</th><th>Indicação</th>
           </tr></thead><tbody id="mvb-rotas"></tbody></table></div>
         </div>
       </section>
@@ -7191,12 +7193,11 @@ function renderMvb(d){
     <td class="num">${rt.viagens.toLocaleString('pt-BR')}</td>
     <td class="num">${fmtKm(rt.km)}</td>
     <td class="num" style="font-weight:600">${rt.rs_km!=null?fmtRsKm(rt.rs_km):'—'}</td>
-    <td class="num">${r.ckm_marginal!=null?fmtRsKm(r.ckm_marginal):'—'}</td>
-    <td class="num" style="font-weight:700;color:${rt.spread==null?'inherit':(rt.spread<0?'var(--red)':'var(--green,#1E7F4F)')}">${rt.spread!=null?(rt.spread>0?'+':'')+rt.spread.toFixed(2):'—'}</td>
+    <td class="num" style="font-weight:700;color:${rt.spread==null?'inherit':(rt.spread<0?'var(--red)':'var(--green,#1E7F4F)')}">${rt.spread!=null?(rt.spread>0?'+':'')+rt.spread.toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2}):'—'}</td>
     <td>${rt.recomendacao==null?'—':(rt.recomendacao==='propria'
       ?'<span class="badge b-dang">avaliar frota própria</span>'
       :'<span class="badge b-ok">contratar compensa</span>')}</td></tr>`).join('')
-    || '<tr><td colspan="8" style="color:var(--n500)">sem rotas contratadas relevantes no período</td></tr>';
+    || '<tr><td colspan="7" style="color:var(--n500)">sem rotas contratadas relevantes no período</td></tr>';
   if(!document.getElementById('fCompDe').value) document.getElementById('fCompDe').value=d.comp_de;
   if(!document.getElementById('fCompAte').value) document.getElementById('fCompAte').value=d.comp_ate;
   const buyMin = Math.min(...[r.rs_km_agregado,r.rs_km_terceiro].filter(v=>v!=null));
@@ -7213,10 +7214,13 @@ function renderMvb(d){
         r.km_vazio!=null?(r.km_vazio.toLocaleString('pt-BR',{maximumFractionDigits:0})+' km vazio de '+r.km_proprio_medido.toLocaleString('pt-BR',{maximumFractionDigits:0})):'',
         (r.retorno_vazio||0)>0.2?'neg':''),
   ].join('');
+  document.getElementById('hintMvbR').textContent =
+    (d.rotas||[]).length+' rotas contratadas (AGR/TER) · spread = R$/km da rota − CKM marginal próprio de '
+    +fmtRsKm(r.ckm_marginal)+' · piores spreads primeiro';
   document.getElementById('hintMvb').textContent =
     compLabel(d.comp_de)+' a '+compLabel(d.comp_ate)
     +' · km próprio '+r.km_proprio_medido.toLocaleString('pt-BR',{maximumFractionDigits:0})+' km (programação de embarque)';
-  chartMvbRender(d.mensal||[]);
+  chartMvbRender(d.mensal||[], d.comp_ate);
   const km=r.km_proprio_estimado||0;
   const comp=r.componentes_km||{};
   const totComp=Object.entries(comp);
@@ -7234,19 +7238,23 @@ function renderMvb(d){
     else V.push(['t-ok','Curto prazo: rodar com frota própria',
       `O CKM marginal próprio (${fmtRsKm(r.ckm_marginal)}) está ${fmtRsKm(Math.abs(spreadM))} abaixo do contratado (${fmtRsKm(buyMin)}). Priorizar a frota própria nas rotas em que ela alcança.`]);
   }
+  const fixoKm = (comp.fixo||0)+(comp.depreciacao||0);
+  const pesoFixo = r.ckm_cheio ? fixoKm/r.ckm_cheio : 0;
   if(spreadC!=null){
-    if(spreadC>0) V.push(['t-dang','Longo prazo: não expandir frota própria',
-      `Com fixos e depreciação, o CKM cheio (${fmtRsKm(r.ckm_cheio)}) supera o contratado em ${fmtRsKm(Math.abs(spreadC))}/km. Comprar veículo só se o R$/km contratado subir ou os fixos diluírem (mais km/veículo).`]);
+    if(spreadC>0) V.push(['t-dang','Longo prazo: não expandir frota própria'
+        +(pesoFixo>0.35?' — mas revise o rateio antes de decidir':''),
+      `Com fixos e depreciação, o CKM cheio (${fmtRsKm(r.ckm_cheio)}) supera o contratado em ${fmtRsKm(Math.abs(spreadC))}/km. Comprar veículo só se o R$/km contratado subir ou os fixos diluírem (mais km/veículo).`
+      +(pesoFixo>0.35?` ATENÇÃO: ${Math.round(100*pesoFixo)}% desse CKM é fixo + depreciação (${fmtRsKm(fixoKm)}/km) rateado apenas sobre o km da frota própria — inclui estrutura que também atende a operação de agregados. Rateado sobre o km total, o CKM cheio cairia e a conclusão pode virar.`:'')]);
     else V.push(['t-ok','Longo prazo: expandir frota própria compensa',
       `CKM cheio (${fmtRsKm(r.ckm_cheio)}) abaixo do contratado — investir em frota própria tende a pagar.`]);
   }
   V.push(['t-warn','Ressalvas do cálculo',
-    `Custos do razão são consolidados (podem incluir veículos de apoio); créditos tributários de ${BRL.format(Math.abs(r.creditos_tributarios))} ficaram fora por serem mistos. CKMs calculados por km carregado, comparáveis ao R$/km contratado.`]);
+    `Custos do razão são consolidados (podem incluir veículos de apoio); créditos tributários de ${BRL.format(Math.abs(r.creditos_tributarios))} ficaram fora por serem mistos. CKMs calculados por km carregado, comparáveis ao R$/km contratado. O fixo é rateado sobre o km da FROTA PRÓPRIA (${(r.km_proprio_estimado||0).toLocaleString('pt-BR',{maximumFractionDigits:0})} km estimados) — o mesmo fixo sustenta a gestão dos agregados, então o CKM cheio próprio sai inflado por construção.`]);
   document.getElementById('mvb-veredito').innerHTML=V.map(([c,t,m])=>`<div class="toast ${c}"><b>${esc(t)}</b>${esc(m)}</div>`).join('');
   const ts=new Date(d.atualizado_em);
   document.getElementById('meta').innerHTML='<b>Atualizado '+ts.toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'})+'</b><br>'+ts.toLocaleDateString('pt-BR');
 }
-function chartMvbRender(mensal){
+function chartMvbRender(mensal, compAte){
   const svg=document.getElementById('chartMvb');
   GEOM['chartMvb']=null; ACTIVE['chartMvb']=-1;
   if(!mensal.length){ svg.innerHTML='<text x="480" y="140" text-anchor="middle" fill="#6E7883" font-size="14">sem dados no período</text>'; return; }
@@ -7264,10 +7272,28 @@ function chartMvbRender(mensal){
   tks.forEach(v=>{ const yy=y(v);
     s+=`<line x1="${mL}" y1="${yy}" x2="${W-mR}" y2="${yy}" stroke="${v===0?'#C2C8D0':'#ECEEF1'}" stroke-width="1"/>`;
     s+=`<text x="${mL-8}" y="${yy+4}" text-anchor="end" font-size="11" fill="#6E7883" font-family="IBM Plex Mono,monospace">${v.toLocaleString('pt-BR',{maximumFractionDigits:1})}</text>`; });
+  // competência do mês corrente ainda não fechou: o rateio de fixos entra incompleto e
+  // o CKM cheio despenca. O último ponto sai pontilhado e com faixa, não como queda real.
+  const hojeMes=(()=>{const t=new Date();return t.getFullYear()+'-'+String(t.getMonth()+1).padStart(2,'0');})();
+  const iAb=mensal.findIndex(m=>m.mes>=hojeMes);
+  const aberto = iAb>=0 ? iAb : -1;
+  if(aberto>0){
+    const xa=px(aberto)-bandW/2;
+    s+=`<rect x="${xa}" y="${mT-10}" width="${W-mR-xa}" height="${ih+10}" fill="${CC.n300}" opacity=".16"/>`;
+    s+=`<text x="${px(aberto)}" y="${mT+4}" text-anchor="middle" font-size="10" font-weight="700" fill="${CC.n500}">competência aberta</text>`;
+  }
   SER.forEach(([k,cor,dash])=>{
-    const pts=mensal.map((m,i)=>m[k]!=null?`${px(i)},${y(m[k])}`:null).filter(Boolean);
-    if(pts.length>1) s+=`<polyline points="${pts.join(' ')}" fill="none" stroke="${cor}" stroke-width="2"${dash?' stroke-dasharray="6 4"':''} stroke-linecap="round" stroke-linejoin="round"/>`;
-    mensal.forEach((m,i)=>{ if(m[k]!=null && pts.length===1) s+=`<circle cx="${px(i)}" cy="${y(m[k])}" r="3.5" fill="${cor}"/>`; });
+    const seg=(a,b,tracejado)=>{
+      const pts=mensal.slice(a,b).map((m,j)=>m[k]!=null?`${px(a+j)},${y(m[k])}`:null).filter(Boolean);
+      if(pts.length>1) s+=`<polyline points="${pts.join(' ')}" fill="none" stroke="${cor}" stroke-width="2"`
+        +`${tracejado?' stroke-dasharray="2 4"':(dash?' stroke-dasharray="6 4"':'')} stroke-linecap="round" stroke-linejoin="round"/>`;
+      else if(pts.length===1) s+=`<circle cx="${pts[0].split(',')[0]}" cy="${pts[0].split(',')[1]}" r="3.5" fill="${cor}"/>`;
+    };
+    // o sólido para no último mês FECHADO; o trecho até a competência aberta é pontilhado
+    if(aberto>0){ seg(0,aberto,false); seg(aberto-1,mensal.length,true); }
+    else seg(0,mensal.length,false);
+    if(aberto>=0 && mensal[aberto] && mensal[aberto][k]!=null)
+      s+=`<circle cx="${px(aberto)}" cy="${y(mensal[aberto][k])}" r="3.5" fill="#fff" stroke="${cor}" stroke-width="2"/>`;
   });
   mensal.forEach((m,i)=>{ s+=`<text x="${px(i)}" y="${H-mB+18}" text-anchor="middle" font-size="10.5" fill="#4F5860">${periodoLabel(m.mes)}</text>`; });
   s+=`<line id="chartMvb-xhair" x1="0" x2="0" y1="${mT-10}" y2="${mT+ih}" stroke="${CC.navy400}" stroke-width="1" opacity="0"/>`;
