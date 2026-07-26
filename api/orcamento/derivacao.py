@@ -47,15 +47,15 @@ def derivar(historico: dict[str, dict[str, float]],
             fonte = espelho_de.get(mes)
             valor_espelho = com_dado.get(fonte) if fonte else None
 
-            if recorrente and valor_espelho is not None:
-                valor, origem = valor_espelho * (1 + fator), "espelho"
+            if recorrente:
+                # recorrente sem o mês espelho não inventa valor pela mediana
+                if valor_espelho is None:
+                    valor, origem = 0.0, "sem_base"
+                else:
+                    valor, origem = valor_espelho * (1 + fator), "espelho"
             elif com_dado:
                 valor, origem = med * (1 + fator), "mediana"
             else:
-                valor, origem = 0.0, "sem_base"
-
-            # conta recorrente sem o mês espelho não inventa valor
-            if recorrente and valor_espelho is None:
                 valor, origem = 0.0, "sem_base"
 
             linhas.append({
