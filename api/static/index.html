@@ -3224,7 +3224,7 @@ function trendChip(atual, ant, opt){
 }
 /* chip de estado (sem variação percentual): semáforo + texto curto */
 function statChip(cls, texto, titulo, ic){
-  return `<span class="trend ${cls}"${titulo?` title="${esc(titulo)}“`:''}>${ICONS[ic||('flat'===cls?'trFlat':'sevWarn')]||''}${esc(texto)}</span>`;
+  return `<span class="trend ${cls}"${titulo?` title="${esc(titulo)}"`:''}>${ICONS[ic||('flat'===cls?'trFlat':'sevWarn')]||''}${esc(texto)}</span>`;
 }
 const pct = (a,b)=> b>0 ? (100*a/b).toLocaleString('pt-BR',{maximumFractionDigits:0})+'%' : '—';
 const sumFaixa=(rows,f)=>((rows||[]).find(r=>r.faixa===f)||{}).valor||0;
@@ -3244,7 +3244,7 @@ function render(d){
       'juros, tarifas e despesas financeiras (razão 4.2.4) · 12 meses: '+BRL.format(d.kpis.custo_financeiro_12m)+(d.kpis.estresse_gap_mes?' · ⚠️ estresse (receita −10%): caixa negativo em '+periodoLabel(d.kpis.estresse_gap_mes):' · estresse (receita −10%): sem gap');
     document.getElementById('fluxo-fin').innerHTML=(d.custo_financeiro||[]).map(f=>`<tr>
       <td>${periodoLabel(f.mes)}</td>
-      <td class=”num" style="color:var(--red);font-weight:600">${BRL.format(f.valor)}</td></tr>`).join('');
+      <td class="num" style="color:var(--red);font-weight:600">${BRL.format(f.valor)}</td></tr>`).join('');
     document.getElementById('fluxo-ciclo').innerHTML=d.ciclo_caixa.map(c=>`<tr>
       <td>${periodoLabel(c.mes)}</td>
       <td class="num">${c.dso!=null?c.dso.toFixed(0)+'d':'—'}</td>
@@ -3950,7 +3950,7 @@ function ocToggle(i){
 /* ---------------- Visão Geral ---------------- */
 function kpiLink(label,val,sub,cls,hash,trend){
   const h=KPI_HELP[label]||'';
-  return `<a href="${hash}" style="text-decoration:none;color:inherit"><div class="card kpi ${cls||''}" style="cursor:pointer;height:100%"${h?` title="${esc(h)}“`:''}><div class=”label">${esc(label)}${h?' <span style="color:var(--n400);font-size:10px">ⓘ</span>':''}</div><div class="valrow"><div class="val">${esc(val)}</div>${trend||''}</div><div class="sub">${esc(sub)}</div></div></a>`;
+  return `<a href="${hash}" style="text-decoration:none;color:inherit"><div class="card kpi ${cls||''}" style="cursor:pointer;height:100%"${h?` title="${esc(h)}"`:''}><div class="label">${esc(label)}${h?' <span style="color:var(--n400);font-size:10px">ⓘ</span>':''}</div><div class="valrow"><div class="val">${esc(val)}</div>${trend||''}</div><div class="sub">${esc(sub)}</div></div></a>`;
 }
 function skelKpis(id, n){
   const el=document.getElementById(id);
@@ -5981,8 +5981,8 @@ function renderCex(d){
   const ps=(d.por_status||[]).map(s=>`<tr><td>${esc(s.status)}</td><td class="num">${s.n}</td><td class="num">${BRL.format(s.custo)}</td><td class="num">${BRL.format(s.cobrado)}</td></tr>`).join('')||'<tr><td colspan="4" style="color:var(--n500)">—</td></tr>';
   document.getElementById('cex-status').innerHTML=`<table><thead><tr><th>Status</th><th class="num">Qtd</th><th class="num">Custo</th><th class="num">Cobrado</th></tr></thead><tbody>${ps}</tbody></table>`;
   const badge=s=>s==='Emitido'?'b-ok':(s==='Aguardando Cobrança'?'b-warn':(s==='Não Cobrado'?'b-dang':''));
-  const ll=(d.lancamentos||[]).map(l=>`<tr${(l.cobrado||0)<(l.custo||0)?' style="background:var(--red-100)" title="cobrado abaixo do custo“':''}>
-    <td>${l.data?fmtD(String(l.data).slice(0,10)):'—'}</td><td class=”num">${l.cte||'—'}</td><td>${esc(l.cliente)}</td>
+  const ll=(d.lancamentos||[]).map(l=>`<tr${(l.cobrado||0)<(l.custo||0)?' style="background:var(--red-100)" title="cobrado abaixo do custo"':''}>
+    <td>${l.data?fmtD(String(l.data).slice(0,10)):'—'}</td><td class="num">${l.cte||'—'}</td><td>${esc(l.cliente)}</td>
     <td>${esc(l.tipo)}</td><td><span class="badge ${badge(l.status)}">${esc(l.status)}</span></td>
     <td class="num">${BRL.format(l.custo)}</td><td class="num">${BRL.format(l.cobrado)}</td>
     <td>${esc(l.usuario||'')}</td></tr>`).join('')||'<tr><td colspan="8" style="color:var(--n500)">sem lançamentos no período</td></tr>';
@@ -7948,8 +7948,8 @@ function renderDreCli(d){
       :(p>=0.7?'Parte relevante desta linha não foi atribuída a cliente — ver NÃO ALOCADO.'
              :'A maior parte desta linha NÃO é atribuída a cliente: a margem por cliente fica parcial nesta conta.'));
     return `<tr><td>${rot}</td><td class="num">${BRL.format(x.descido||0)}</td><td class="num">${BRL.format(x.nao_alocado||0)}</td><td class="num">${BRL.format(x.variacao_absorcao||0)}</td><td class="num">${BRL.format(x.oficial||0)}</td>`+
-      `<td class="num" style="font-weight:700;color:${cor}"${tit?` title="${esc(tit)}“`:''}>`+
-      (ic?`<span style=”width:12px;height:12px;display:inline-flex;vertical-align:-1px;margin-right:4px">${ICONS[ic]}</span>`:'')+`${cob}</td></tr>`;
+      `<td class="num" style="font-weight:700;color:${cor}"${tit?` title="${esc(tit)}"`:''}>`+
+      (ic?`<span style="width:12px;height:12px;display:inline-flex;vertical-align:-1px;margin-right:4px">${ICONS[ic]}</span>`:'')+`${cob}</td></tr>`;
   }).join('') || '<tr><td colspan="6" style="color:var(--n500)">sem dados</td></tr>';
   chartDreCliMatriz(clientes);
 }
@@ -8163,7 +8163,7 @@ function renderDre(d){
       l.nivel===1?'dre-nv1':'',
       (l.nivel===0&&!RES.has(l.rotulo)&&l.rotulo!=='RESULTADO DO EXERCICIO')?'dre-tot':'',
     ].filter(Boolean).join(' ');
-    html+=`<tr class="${cls}" data-aberto="0" ${temDet?`onclick="dreToggle(${i})" style="cursor:pointer" title="clique para abrir a composição“`:''} id=”dre-l-${i}">
+    html+=`<tr class="${cls}" data-aberto="0" ${temDet?`onclick="dreToggle(${i})" style="cursor:pointer" title="clique para abrir a composição"`:''} id="dre-l-${i}">
       <td>${temDet?'<span class="exp">▸</span>':'<span class="exp"></span>'}${esc(l.rotulo)}</td>
       ${d.meses.map(mm=>`<td class="num">${fm(l.meses[mm]||0)}</td>`).join('')}
       <td class="num" style="font-weight:700;border-left:2px solid var(--n300)">${fm(l.total)}</td>

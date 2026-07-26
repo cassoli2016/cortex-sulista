@@ -278,6 +278,17 @@ a query ignora sai; dimensão que a query aceita e é a pergunta natural da tela
 - **GOTCHA de tooltip:** `title="..."` escrito DIRETO no HTML quebra se o texto tiver
   aspa dupla (`"Ano médio"` fechava o atributo e engolia o resto da tag). Usar aspas
   curvas `“ ”`. Nos KPIs isso não acontece — `kpi()` passa por `esc(h)`.
+- **NUNCA rodar correção de aspas em massa sobre o arquivo inteiro.** Um script que
+  varria todo o `index.html` trocando aspas internas de `title="..."` também pegou
+  ocorrências dentro de TEMPLATE STRINGS de JS (`kpiLink`, `statChip`, DRE, Custos
+  Extras, Régua) e converteu a aspa DELIMITADORA: virou
+  `title="…“><div class=”label">`, jogando valor e subtítulo para fora do card em
+  toda a Visão Geral. **`node --check` NÃO pega** (aspa curva é caractere válido dentro
+  de string) e o smoke também não (conta KPIs, não valida estrutura). Corrigir sempre
+  por substituição literal de trecho conhecido, um a um.
+- **Verificação estrutural** (`scratchpad/estrutura.py`): percorre as 31 telas e falha
+  se houver atributo cujo NOME contenha aspa, `.val` fora de `.kpi` ou aspa curva em
+  `class`/`style`. Rodar junto com o smoke depois de qualquer mexida ampla no HTML.
 
 **Alerta impossível é cadastro, não operação (lição da Manutenção Preventiva):**
 - **Desvio maior que um ciclo inteiro do próprio indicador = dado furado.** A tela
