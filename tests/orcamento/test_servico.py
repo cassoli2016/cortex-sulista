@@ -1,6 +1,11 @@
 """Testes da agregação orçado x realizado por linha da DRE."""
 from __future__ import annotations
 
+from datetime import date
+
+from api.orcamento import armazenamento as arm
+from api.orcamento import servico as svc
+from api.orcamento import sql as sql_mod
 from api.orcamento.servico import montar_comparativo
 
 MAPA = {"1|100": "CUSTO VARIAVEL", "1|101": "CUSTO VARIAVEL",
@@ -103,3 +108,40 @@ def test_serie_mensal_marca_o_mes_sem_realizado():
     assert serie[1]["fechado"] is True
     assert serie[5]["realizado"] is None
     assert serie[5]["fechado"] is False
+
+
+def test_gerar_e_comparativo_respeitam_db_path_trocado_em_runtime(tmp_path, monkeypatch):
+    """Achado 3 da revisão: `path=arm.DB_PATH` como default resolve em tempo de
+    IMPORT (uma vez só, quando o módulo carrega). Se `gerar`/`comparativo` forem
+    chamados sem `path=` depois de um `monkeypatch.setattr(arm, "DB_PATH", ...)`
+    (como este teste faz), eles têm que gravar/ler no destino trocado — não no
+    valor congelado na assinatura da função. Isolado do Postgres real: stub em
+    `db.query` e em `ler_ajustes` cobre o histórico e o agrupador."""
+    destino = tmp_path / "orcamento.db"
+    monkeypatch.setattr(arm, "DB_PATH", destino)
+    monkeypatch.setattr(svc, "ler_ajustes", lambda: {})
+
+    hoje = date(2026, 7, 1)
+    meses_base = sql_mod.meses_fechados(hoje, 12)
+
+    def fake_query(sql, params=None):
+        if sql == sql_mod.HIST_CONTA_SQL:
+            return [{"conta": "1|100", "mes": m, "valor": -100.0} for m in meses_base]
+        if sql == sql_mod.AGRUP_CONTA_SQL:
+            return [{"conta": "1|100", "agrupador": "CV - COMBUSTIVEL"}]
+        return []
+
+    monkeypatch.setattr(svc.db, "query", fake_query)
+
+    # gerar() sem path=: tem que gravar em `destino`, não no DB_PATH original.
+    r = svc.gerar(2026, "teste path default", 0.0, "teste", hoje=hoje)
+    assert destino.exists()
+    assert r["contas_sem_linha"] == []
+    assert arm.listar_versoes(destino)[0]["id"] == r["versao_id"]
+
+    # comparativo() sem path=: tem que ler de `destino` também.
+    out = svc.comparativo(r["versao_id"], ate_mes=0)
+    assert out["versao"]["id"] == r["versao_id"]
+    assert len(out["grade"]) == 1
+    assert out["grade"][0]["conta"] == "1|100"
+    assert out["grade"][0]["linha"] == "CUSTO VARIAVEL"
