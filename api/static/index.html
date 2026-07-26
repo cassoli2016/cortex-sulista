@@ -2275,7 +2275,7 @@ button.avatar{border:0;cursor:pointer}
       </section>
       <section class="view" id="view-gestao">
         <div class="card">
-          <div class="head"><h2>Gestão de acesso e segurança</h2><span class="hint">usuários, perfis, auditoria e políticas · base local (data/auth.db)</span></div>
+          <div class="head"><h2>Gestão de acesso e segurança <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="Usuários, perfis de acesso, trilha de auditoria e políticas de senha, guardados na base local data/auth.db — não no ERP. Excluir usuário pede confirmação e não pode ser desfeito.">i</span></h2><span class="hint">usuários, perfis, auditoria e políticas · base local (data/auth.db)</span></div>
           <div class="ges-tabs">
             <button class="ghost" id="gtab-usuarios" aria-pressed="true" onclick="gesTab('usuarios')">Usuários</button>
             <button class="ghost" id="gtab-perfis" aria-pressed="false" onclick="gesTab('perfis')">Perfis de acesso</button>
@@ -2328,13 +2328,13 @@ button.avatar{border:0;cursor:pointer}
         <div class="kpis" id="kpis-srv"></div>
         <div class="grid2">
           <div class="card">
-            <div class="head"><h2>Serviços do CÓRTEX</h2><span class="hint">API · banco · túnel · copiloto</span></div>
+            <div class="head"><h2>Serviços do CÓRTEX <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="Checagem ao vivo dos quatro serviços que o painel precisa: a própria API (uvicorn), o banco do ERP pelo túnel, o Cloudflare Tunnel e o Ollama do Copiloto. Esta tela mede a MÁQUINA ONDE A API RODA — aberta fora do servidor, o túnel e as tarefas agendadas aparecem indisponíveis mesmo estando de pé em produção.">i</span></h2><span class="hint">API · banco · túnel · copiloto</span></div>
             <div class="tablewrap"><table><thead><tr>
               <th>Serviço</th><th>Situação</th><th>Detalhe</th>
             </tr></thead><tbody id="srv-servicos"></tbody></table></div>
           </div>
           <div class="card">
-            <div class="head"><h2>Tarefas agendadas</h2><span class="hint">arranque automático no logon</span></div>
+            <div class="head"><h2>Tarefas agendadas <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="Tarefas do Agendador do Windows no servidor de produção: API, AutoDeploy e Tunnel. Fora do Windows aparecem como indisponíveis — não é falha, é a tela sendo aberta de outra máquina.">i</span></h2><span class="hint">arranque automático no logon</span></div>
             <div class="tablewrap"><table><thead><tr>
               <th>Tarefa</th><th>Estado</th><th class="num">Última execução</th><th class="num">Próxima execução</th>
             </tr></thead><tbody id="srv-tarefas"></tbody></table></div>
@@ -2355,7 +2355,7 @@ button.avatar{border:0;cursor:pointer}
           <div style="padding:16px" id="srv-gpu"></div>
         </div>
         <div class="card">
-          <div class="head"><h2>Discos</h2><span class="hint">uso por volume</span></div>
+          <div class="head"><h2>Discos <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="Volumes montados com uso real. O cartão de disco mais cheio no topo considera apenas volumes de 20 GB ou mais: cache do Docker e volumes de sistema com poucos MB enchem sozinhos e sequestravam o alarme.">i</span></h2><span class="hint">uso por volume</span></div>
           <div class="tablewrap"><table><thead><tr>
             <th>Volume</th><th>Sistema</th><th class="num">Total</th><th class="num">Usado</th><th class="num">Livre</th><th>Ocupação</th>
           </tr></thead><tbody id="srv-discos"></tbody></table></div>
@@ -8651,13 +8651,30 @@ async function loadSrv(){
 function renderSrv(){
   const d=DATASRV; if(!d) return;
   const cpu=d.cpu||{}, mem=(d.memoria||{}).ram||{}, sw=(d.memoria||{}).swap||{}, host=d.host||{}, rede=d.rede||{};
-  const discoMax=(d.discos||[]).reduce((a,x)=>Math.max(a,x.percent||0),0);
+  // volumes minúsculos (cache do Docker, /System/Volumes/xarts…) enchem sozinhos e
+  // sequestravam o KPI: o alarme apontava 92,6% de um volume de 2,3 GB enquanto o
+  // disco de dados real estava em 88,9%
+  const MIN_GB=20*1024*1024*1024;
+  const volsRelev=(d.discos||[]).filter(x=>(x.total||0)>=MIN_GB);
+  const base=volsRelev.length?volsRelev:(d.discos||[]);
+  const discoTop=base.reduce((a,x)=>((x.percent||0)>(a?a.percent:-1)?x:a), null);
+  const discoMax=discoTop?discoTop.percent:0;
+  const ignorados=(d.discos||[]).length-volsRelev.length;
   document.getElementById('kpis-srv').innerHTML=[
     srvKpi('CPU', cpu.percent!=null?cpu.percent+'%':'—',
-           (cpu.logico?cpu.logico+' núcleos':'')+(cpu.freq_mhz?' · '+cpu.freq_mhz+' MHz':''), srvCor(cpu.percent)),
+           // psutil devolve frequência inútil em alguns sistemas (mostrava "4 MHz" num
+           // Apple Silicon): abaixo de 100 MHz não é leitura válida, então some
+           (cpu.logico?cpu.logico+' núcleos':'')
+           +(cpu.freq_mhz>=100 ? ' · '+(cpu.freq_mhz>=1000
+               ? (cpu.freq_mhz/1000).toLocaleString('pt-BR',{maximumFractionDigits:1})+' GHz'
+               : cpu.freq_mhz+' MHz') : ''), srvCor(cpu.percent)),
     srvKpi('Memória RAM', mem.percent!=null?mem.percent+'%':'—',
            fmtBytes(mem.usado)+' de '+fmtBytes(mem.total), srvCor(mem.percent)),
-    srvKpi('Disco (mais cheio)', discoMax?discoMax+'%':'—', 'ocupação máxima entre volumes', srvCor(discoMax)),
+    srvKpi('Disco (mais cheio)', discoMax?discoMax+'%':'—',
+      discoTop ? (discoTop.montagem.length>28?'…'+discoTop.montagem.slice(-27):discoTop.montagem)
+                 +(ignorados>0?' · '+ignorados+' volume(s) pequeno(s) fora':'')
+               : 'ocupação máxima entre volumes',
+      srvCor(discoMax)),
     srvKpi('No ar há', fmtUptime(host.uptime_seg),
            host.boot?('desde '+new Date(host.boot).toLocaleString('pt-BR')):'—', 'inherit'),
     (function(){ const dep=d.deploy||{};
@@ -8772,7 +8789,7 @@ function renderGesUsuarios(){
     <td>${esc(u.nome)}</td><td>${esc(u.email)}</td>
     <td>${esc(u.perfil)}${u.perfil_admin?' <span class="badge b-warn">admin</span>':''}</td>
     <td>${usrStatus(u)}</td>
-    <td>${u.ultimo_login?esc(u.ultimo_login.slice(0,16)):'—'}</td>
+    <td class="num">${u.ultimo_login?esc(fmtDT(String(u.ultimo_login).replace('T',' ').slice(0,16))):'<span style="color:var(--n500)">nunca acessou</span>'}</td>
     <td class="num"><button class="ghost gbtn" onclick="gesUsuarioModal(${u.id})">Editar</button>
       <button class="ghost gbtn" onclick="gesUsuarioExcluir(${u.id})">Excluir</button></td>
   </tr>`).join('') || '<tr><td colspan="6">Nenhum usuário.</td></tr>';
