@@ -402,6 +402,16 @@ def _seed_perfis_modelo(c: sqlite3.Connection) -> None:
                           [(cur.lastrowid, t) for t in ("rh", "hc", "folha", "folhaind", "he")])
         c.execute("INSERT OR IGNORE INTO config(chave, valor) VALUES('perfis_modelo_v16', '1')")
 
+    # v17 (orçamento 2026-07-26): tela 'orc' ao perfil Controladoria. A tela
+    # nasceu depois que o perfil já existia nas bases em uso — editar
+    # _PERFIS_MODELO só vale para instalação nova (mesmo caso da v8/'qual').
+    if not c.execute("SELECT 1 FROM config WHERE chave='perfis_modelo_v17'").fetchone():
+        row = c.execute("SELECT id FROM perfis WHERE nome='Controladoria'").fetchone()
+        if row:
+            c.execute("INSERT OR IGNORE INTO perfil_telas(perfil_id, tela) VALUES(?,?)",
+                      (row["id"], "orc"))
+        c.execute("INSERT OR IGNORE INTO config(chave, valor) VALUES('perfis_modelo_v17', '1')")
+
 
 def _agora() -> str:
     return datetime.now().strftime("%Y-%m-%d %H:%M:%S")
