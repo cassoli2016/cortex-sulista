@@ -1495,14 +1495,15 @@ button.avatar{border:0;cursor:pointer}
       <section class="view" id="view-cont">
         <div class="kpis" id="kpis-cont"></div>
         <div class="card">
-          <div class="head"><h2>Contas × agrupador gerencial</h2><span class="hint">mude o agrupador para reclassificar · o ajuste vale nos painéis do Cortex na hora; use "Exportar SQL" para aplicar no ERP</span></div>
+          <div class="head"><h2>Contas × agrupador gerencial <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="Contas de resultado com movimento na competência, cruzadas com sulista.agrupadorgerencial (chave grupo + reduzido). Trocar o agrupador GRAVA um ajuste LOCAL (data/ajustes_contabeis.json) que passa a valer na hora na DRE Gerencial e na DRE por Cliente — o banco do ERP é RÉPLICA e não aceita escrita, por isso a aplicação de verdade é via 'Exportar SQL dos ajustes' rodado no primário. Toda troca é confirmada e registrada no audit_log.">i</span></h2><span class="hint">trocar o agrupador reclassifica a conta · o painel muda na hora, o ERP só com o SQL exportado</span></div>
+          <div class="banner-inline" id="contAviso" style="display:none;margin:0 18px 10px;background:var(--green-100);color:var(--green);border-color:#BFE6CE"></div>
           <div style="padding:0 16px 10px"><input type="search" id="fContBusca" aria-label="Buscar conta, estrutural ou agrupador" placeholder="buscar conta, estrutural ou agrupador…" style="width:320px;max-width:100%" onchange="loadCont()"></div>
-          <div class="tablewrap"><table><thead><tr>
+          <div class="tablewrap tabroll" style="max-height:520px"><table><thead><tr>
             <th>Estrutural</th><th>Conta</th><th class="num">Lanç.</th><th class="num">Saldo no período</th><th>Agrupador</th>
           </tr></thead><tbody id="cont-contas"></tbody></table></div>
         </div>
         <div class="card">
-          <div class="head"><h2>Custos por centro de custo</h2><span class="hint">contas 4.x com rateio de centro de custo no período</span></div>
+          <div class="head"><h2>Custos por centro de custo <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="Contas 4.x com rateio de centro de custo na competência, via lancamento_filial_unidade_centrocusto (join por sequência + reduzido + data do lançamento). Custo líquido = débito − crédito. Só aparece o que tem centro de custo atribuído no lançamento.">i</span></h2><span class="hint">contas 4.x com rateio de centro de custo no período</span></div>
           <div class="tablewrap"><table><thead><tr>
             <th>Centro de custo</th><th class="num">Débito</th><th class="num">Crédito</th><th class="num">Custo líquido</th>
           </tr></thead><tbody id="cont-cc"></tbody></table></div>
@@ -7524,7 +7525,7 @@ function renderCont(d){
         ${c.ajuste_local?'<span class="badge b-warn" title="ajuste local ainda não aplicado no ERP">local</span>':''}</td>
       <td class="num">${c.lancamentos.toLocaleString('pt-BR')}</td>
       <td class="num" style="font-weight:600;color:${c.saldo<0?'var(--red)':'inherit'}">${BRL.format(c.saldo)}</td>
-      <td><select onchange="contAjuste(${c.grupo},${c.reduzido},this.value,'${esc(c.conta).replace(/'/g,'')}')" style="max-width:260px">${opts}</select></td>
+      <td><select data-atual="" onfocus="this.dataset.atual=this.value" onchange="contAjuste(${c.grupo},${c.reduzido},this.value,'${esc(c.conta).replace(/'/g,'')}',this)" style="max-width:260px">${opts}</select></td>
     </tr>`;
   }).join('') || '<tr><td colspan="5" style="color:var(--n500)">nenhuma conta com movimento no período</td></tr>';
   document.getElementById('cont-cc').innerHTML=(d.centros_custo||[]).map(cc=>`<tr>
@@ -7536,15 +7537,36 @@ function renderCont(d){
   const ts=new Date(d.atualizado_em);
   document.getElementById('meta').innerHTML='<b>Atualizado '+ts.toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'})+'</b><br>banco réplica · leitura';
 }
-async function contAjuste(grupo, reduzido, agrupador, conta){
+/* ESCRITA — a única do painel fora da Administração. Regra do CLAUDE.md §8:
+   toda escrita exige confirmação humana explícita. Antes gravava direto no
+   onchange: com 120 selects numa página de 6.000px, rolar a página com o
+   cursor sobre um select trocava o agrupador e reclassificava a conta em
+   silêncio, mudando a DRE inteira. */
+async function contAjuste(grupo, reduzido, agrupador, conta, sel){
+  const anterior = sel ? (sel.dataset.atual||'') : '';
+  const alvo = agrupador || '(sem ajuste — volta ao agrupador do ERP)';
+  const ok = confirm(
+    'Reclassificar a conta\n\n  '+conta+'\n\npara o agrupador:\n\n  '+alvo+'\n\n'+
+    'Isso muda a DRE Gerencial e a DRE por Cliente IMEDIATAMENTE no painel.\n'+
+    'O ERP não é alterado: para aplicar lá, use "Exportar SQL dos ajustes".');
+  if(!ok){ if(sel) sel.value=anterior; return; }   // cancelou: o select volta
   try{
     const r=await fetch('/api/financeiro/contabil/ajuste',{method:'POST',
       headers:{'Content-Type':'application/json'},
       body:JSON.stringify({grupo, reduzido, agrupador, conta})});
     const d=await r.json();
-    if(!r.ok){ showBanner(d.mensagem||'Erro ao salvar o ajuste.'); return; }
+    if(!r.ok){ showBanner(d.mensagem||'Erro ao salvar o ajuste.'); if(sel) sel.value=anterior; return; }
+    contAviso(agrupador ? `Conta reclassificada para ${agrupador}. Ajuste LOCAL — exporte o SQL para aplicar no ERP.`
+                        : 'Ajuste removido: a conta volta ao agrupador do ERP.');
     loadCont();
-  }catch(e){ showBanner('Não foi possível salvar: '+e.message); }
+  }catch(e){ showBanner('Não foi possível salvar: '+e.message); if(sel) sel.value=anterior; }
+}
+function contAviso(txt){
+  const el=document.getElementById('contAviso'); if(!el) return;
+  el.style.display='flex';
+  el.innerHTML=`<i>${ICONS['sevOk']}</i><span>${esc(txt)}</span>`;
+  clearTimeout(contAviso._t);
+  contAviso._t=setTimeout(()=>{ el.style.display='none'; el.innerHTML=''; }, 8000);
 }
 
 
