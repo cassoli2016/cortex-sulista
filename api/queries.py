@@ -4454,7 +4454,8 @@ COMRAST_SQL = """
 SELECT v.placa, v.numerofrota,
        CASE v.tipofrota WHEN 1 THEN 'Próprio' WHEN 2 THEN 'Terceiro' WHEN 3 THEN 'Agregado' ELSE '-' END AS tipofrota,
        vp.dt AS ultima, vp.situacao AS ignicao, vp.descricaoposicao AS posicao,
-       (v.cnpjcpfcodigorastreador IS NOT NULL) AS tem_rastreador
+       (v.cnpjcpfcodigorastreador IS NOT NULL) AS tem_rastreador,
+       (v.possuimotor = 1) AS com_motor
 FROM veiculo v
 LEFT JOIN veiculo_posicao vp ON vp.veiculo = v.placa AND vp.ultimaposicao = 1
 WHERE v.ativoinativo = 1
@@ -4492,6 +4493,13 @@ def get_comunicacao_rastreadora() -> dict:
     faixas: dict[int, dict] = {}
     parados = []           # com rastreador, com posição, mas não comunicaram hoje
     com_rast = comunicando = sem_posicao = 0
+    # Dos 836 com rastreador cadastrado, 664 nunca mandaram posição — mas isso NÃO é
+    # falha de 79%: 341 são veículos de TERCEIRO (que não integram a posição com a
+    # Sulista) e 312 são implementos (carreta não emite; o campo do rastreador está
+    # preenchido por herança de cadastro). A frota que de fato deve comunicar são os
+    # veículos COM MOTOR próprios e agregados — e essa está em 94%.
+    sem_sinal: dict[str, int] = {}
+    esperados = esperados_ok = 0
     for v in veic:
         dias = (hoje - v["ultima"].date()).days if v["ultima"] else None
         cod, lbl = _comrast_faixa(dias)
@@ -4499,19 +4507,30 @@ def get_comunicacao_rastreadora() -> dict:
         f["n"] += 1
         if v["tem_rastreador"]:
             com_rast += 1
+        deve_comunicar = bool(v["tem_rastreador"] and v["com_motor"]
+                              and v["tipofrota"] in ("Próprio", "Agregado"))
+        if deve_comunicar:
+            esperados += 1
+            if cod == 1:
+                esperados_ok += 1
         if cod == 1:
             comunicando += 1
         elif cod == 99:
             sem_posicao += 1
+            if v["tem_rastreador"]:
+                chave = (v["tipofrota"] or "—") + (" · com motor" if v["com_motor"] else " · implemento")
+                sem_sinal[chave] = sem_sinal.get(chave, 0) + 1
         elif v["tem_rastreador"]:      # tinha posição e parou
             parados.append({
                 "placa": v["placa"], "frota": v["numerofrota"], "tipofrota": v["tipofrota"],
                 "ultima": v["ultima"].isoformat() if v["ultima"] else None,
-                "dias": dias, "faixa": lbl,
+                "dias": dias, "faixa": lbl, "com_motor": v["com_motor"],
                 "ignicao": {0: "desligada", 1: "ligada", 2: "?"}.get(v["ignicao"], "—"),
                 "posicao": v["posicao"],
             })
-    parados.sort(key=lambda x: -(x["dias"] or 0))
+    # ignição ligada sem comunicar = rastreador arrancado, jammer ou perda de energia:
+    # sobe para o topo da lista, na frente de quem só está parado com o motor desligado
+    parados.sort(key=lambda x: (x["ignicao"] != "ligada", -(x["dias"] or 0)))
 
     return {
         "kpis": {
@@ -4519,7 +4538,13 @@ def get_comunicacao_rastreadora() -> dict:
             "comunicando_hoje": comunicando,
             "parados": len(parados),
             "sem_posicao": sem_posicao,
+            "esperados": esperados,
+            "esperados_ok": esperados_ok,
+            "cobertura": (100.0 * esperados_ok / esperados) if esperados else None,
+            "parados_ignicao_ligada": sum(1 for p in parados if p["ignicao"] == "ligada"),
         },
+        "sem_sinal": [{"grupo": k, "n": v} for k, v in
+                      sorted(sem_sinal.items(), key=lambda kv: -kv[1])],
         "faixas": [faixas[k] for k in sorted(faixas)],
         "parados": parados[:100],
         "atualizado_em": meta["ts"].isoformat(),
