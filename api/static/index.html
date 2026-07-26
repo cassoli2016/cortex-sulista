@@ -2244,7 +2244,8 @@ button.avatar{border:0;cursor:pointer}
       <section class="view" id="view-oc">
         <div class="kpis" id="kpis-oc"></div>
         <div class="card">
-          <div class="head"><h2>Ordens emitidas por mês</h2><span class="hint" id="hintOc">no período filtrado</span></div>
+          <div class="head"><h2>Ordens emitidas por mês <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="Série fixa dos últimos 12 meses por data de emissão da OC — este gráfico NÃO segue o filtro de período da barra acima, só filial, criador e aprovador. Serve para ver a tendência do volume de compra; para o recorte filtrado, use os cartões e a tabela.">i</span></h2><span class="hint" id="hintOc">no período filtrado</span></div>
+          <div class="legend"><span class="k"><i class="sw" style="background:var(--navy-500)"></i>Valor emitido</span><span class="k"><i class="sw hatch" style="background-color:var(--navy-500)"></i>Mês corrente (parcial)</span></div>
           <div class="chartwrap" id="wrapOc">
             <svg id="chartOc" viewBox="0 0 960 250" preserveAspectRatio="xMidYMid meet"
                  tabindex="0" role="img" aria-label="Valor de ordens de compra emitidas por mês, últimos 12 meses. Use as setas do teclado para percorrer os meses."></svg>
@@ -2252,13 +2253,13 @@ button.avatar{border:0;cursor:pointer}
           </div>
         </div>
         <div class="card">
-          <div class="head"><h2>Fornecedores do período</h2><span class="hint" id="hintOcLista">top 30 por valor · clique no fornecedor para ver as ordens</span></div>
-          <div class="tablewrap"><table><thead><tr>
+          <div class="head"><h2>Fornecedores do período <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="Top 30 fornecedores por valor de OC no recorte filtrado. Pendente é o valor ainda não recebido; Atrasadas conta as OCs com entrega prevista vencida; Em aprov. as que ainda não passaram pelo aprovador. CNPJ mascarado. Clique na linha para ver as ordens do fornecedor.">i</span></h2><span class="hint" id="hintOcLista">top 30 por valor · clique no fornecedor para ver as ordens</span></div>
+          <div class="tablewrap tabroll"><table><thead><tr>
             <th style="width:34px"></th><th>Fornecedor</th><th class="num">OCs</th><th class="num">Valor</th><th class="num">Pendente</th><th class="num">Atrasadas</th><th class="num">Em aprov.</th>
           </tr></thead><tbody id="oc-forn"></tbody></table></div>
         </div>
         <div class="card">
-          <div class="head"><h2>Alertas</h2></div>
+          <div class="head"><h2>Alertas <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="Regras fixas sobre os números desta tela: OCs com entrega prevista vencida e OCs paradas na fila de aprovação.">i</span></h2></div>
           <div class="alerts" id="alerts-oc"></div>
         </div>
       </section>
@@ -3857,13 +3858,25 @@ function renderOc(d){
   if(!document.getElementById('fEmiAte').value) document.getElementById('fEmiAte').value=d.dt_ate;
   fillUserSelect('fOcCriador', d.criadores);
   fillUserSelect('fOcAprovador', d.aprovadores);
+  const pctAtr = k.pend_qtd ? Math.round(100*k.atraso_qtd/k.pend_qtd) : 0;
   document.getElementById('kpis-oc').innerHTML=[
-    kpi('Emitidas no período', k.ocs.toLocaleString('pt-BR'), BRL.format(k.valor)+' · '+fmtD(d.dt_de)+' a '+fmtD(d.dt_ate), ''),
-    kpi('Pendentes de aprovação', k.aprovacao_qtd.toLocaleString('pt-BR'), BRL.format(k.aprovacao_valor), k.aprovacao_qtd>0?'neg':'pos'),
-    kpi('Aguardando entrega', k.pend_qtd.toLocaleString('pt-BR'), BRL.format(k.pend_valor)+' pendente', ''),
-    kpi('Com entrega atrasada', k.atraso_qtd.toLocaleString('pt-BR'), BRL.format(k.atraso_valor)+' pendente', k.atraso_qtd>0?'neg':'pos'),
+    kpi('Emitidas no período', k.ocs.toLocaleString('pt-BR'), BRL.format(k.valor)+' · '+fmtD(d.dt_de)+' a '+fmtD(d.dt_ate), '',
+        'ordemcompra por data de emissão, no recorte dos filtros. Valor = valortotal da OC. O gráfico abaixo NÃO segue este período: mostra sempre os últimos 12 meses.'),
+    kpi('Pendentes de aprovação', k.aprovacao_qtd.toLocaleString('pt-BR'), BRL.format(k.aprovacao_valor), k.aprovacao_qtd>0?'warn':'pos',
+        'OCs com aprovação ainda pendente no ERP. É trava de fluxo interno: a compra não anda enquanto o aprovador não age.'),
+    kpi('Aguardando entrega', k.pend_qtd.toLocaleString('pt-BR'), BRL.format(k.pend_valor)+' pendente', '',
+        'OCs cuja mercadoria ou serviço ainda não foi recebido no ERP. Inclui as que estão dentro do prazo e as atrasadas.'),
+    kpi('Com entrega atrasada', k.atraso_qtd.toLocaleString('pt-BR'),
+        BRL.format(k.atraso_valor)+' pendente'+(k.pend_qtd?' · '+pctAtr+'% da fila de entrega':''),
+        k.atraso_qtd>0?'neg':'pos',
+        'Subconjunto do card anterior: OCs com data prevista de entrega já vencida e sem recebimento lançado. Pode ser atraso real do fornecedor ou entrega feita e não baixada no ERP — as duas hipóteses valem conferência.'),
   ].join('');
   chartOcRender(d.mensal||[]);
+  {
+    // o gráfico é fixo em 12 meses (OC_MENSAL_SQL) e o hint dizia "no período filtrado"
+    const h=document.getElementById('hintOc');
+    if(h) h.textContent='últimos 12 meses · não segue o filtro de período (segue filial, criador e aprovador)';
+  }
   ocFornTable(d.fornecedores||[]);
   const A=[];
   if(k.atraso_qtd>0) A.push(['t-dang','Entregas atrasadas',`${k.atraso_qtd} OCs com entrega prevista vencida e ${BRL.format(k.atraso_valor)} ainda não recebidos — cobrar fornecedores.`]);
@@ -7759,6 +7772,7 @@ function chartAgrRender(mensal, dtDe, dtAte){
 }
 
 function chartOcRender(mensal){
+  // a série é sempre dos últimos 12 meses e o último está sempre em curso
   const svg=document.getElementById('chartOc');
   GEOM['chartOc']=null; ACTIVE['chartOc']=-1;
   if(!mensal.length){ svg.innerHTML='<text x="480" y="120" text-anchor="middle" fill="#6E7883" font-size="14">sem dados</text>'; return; }
@@ -7769,13 +7783,16 @@ function chartOcRender(mensal){
   const y=v=>mT+ih-(v/top)*ih, y0=y(0);
   const px=i=>mL+bandW*i+bandW/2;
   const barW=Math.min(26,bandW*0.5);
-  let s='';
+  const _hm=(()=>{const t=new Date();return t.getFullYear()+'-'+String(t.getMonth()+1).padStart(2,'0');})();
+  const parc=mensal.map(r=>r.mes===_hm);
+  let s=`<defs><pattern id="hatchOc" width="6" height="6" patternTransform="rotate(45)" patternUnits="userSpaceOnUse">`+
+        `<rect width="6" height="6" fill="${CC.navy500}"/><rect width="2.4" height="6" fill="#fff" opacity=".62"/></pattern></defs>`;
   s+=`<rect id="chartOc-hband" x="0" y="${mT-14}" width="${bandW}" height="${ih+14}" fill="${CC.navy100}" opacity="0"/>`;
   s+=`<text x="${mL}" y="${mT-12}" font-size="11" fill="#6E7883" font-weight="600" letter-spacing="1.5">${u.t}</text>`;
   tks.forEach(v=>{ const yy=y(v);
     s+=`<line x1="${mL}" y1="${yy}" x2="${W-mR}" y2="${yy}" stroke="${v===0?'#C2C8D0':'#ECEEF1'}" stroke-width="1"/>`;
     s+=`<text x="${mL-8}" y="${yy+4}" text-anchor="end" font-size="11" fill="#6E7883" font-family="IBM Plex Mono,monospace">${NMI.format(v/u.d)}</text>`; });
-  mensal.forEach((r,i)=>{ s+=colPath(px(i)-barW/2,barW,y(r.valor),y0,4,CC.navy500); });
+  mensal.forEach((r,i)=>{ s+=colPath(px(i)-barW/2,barW,y(r.valor),y0,4,parc[i]?'url(#hatchOc)':CC.navy500); });
   mensal.forEach((r,i)=>{ s+=`<text x="${px(i)}" y="${H-mB+18}" text-anchor="middle" font-size="10.5" fill="#4F5860">${periodoLabel(r.mes)}</text>`; });
   s+=`<line id="chartOc-xhair" x1="0" x2="0" y1="${mT-14}" y2="${y0}" stroke="${CC.navy400}" stroke-width="1" opacity="0"/>`;
   s+=`<rect x="${mL}" y="${mT-14}" width="${iw}" height="${ih+14}" fill="transparent"/>`;

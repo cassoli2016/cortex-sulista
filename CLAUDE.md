@@ -371,6 +371,15 @@ a query ignora sai; dimensão que a query aceita e é a pergunta natural da tela
 - Rótulo do ERP com espaço duplo (`1 - FIL  MTZ`) é normalizado com `" ".join(x.split())`
   na exibição E no filtro, senão o valor selecionado não casa com o dado.
 
+**Gráfico que não segue o filtro tem de dizer isso (lição de Ordens de Compra):**
+- `OC_MENSAL_SQL` é fixo em 12 meses (`current_date - 11 months`) e o hint dizia
+  "no período filtrado", com os KPIs em 90 dias logo acima. O hint passou a dizer
+  exatamente o que o gráfico obedece: "últimos 12 meses · não segue o filtro de período
+  (segue filial, criador e aprovador)". **Ao ver série e KPI discordando, checar qual
+  dos dois ignora o filtro antes de suspeitar do dado.**
+- **Subconjunto pede proporção:** "Aguardando entrega 227" e "Com entrega atrasada 186"
+  lado a lado não diziam que o atraso é **82% da fila**.
+
 **Telas de consulta (busca própria, filterbar global escondida — ex.: Consulta de Cliente):**
 - Campo de busca com **`<datalist>`** alimentado por endpoint LEVE e cacheado
   (`/api/comercial/clientes-lista`, ~34 grupos). Nunca reusar o endpoint do painel
