@@ -2836,6 +2836,7 @@ SELECT DISTINCT ON (p.grupo,p.empresa,p.filial,p.diferenciadornumero,p.numero)
        to_char(coalesce(p.dtchegada,p.dtsaida,p.dtemissao),'YYYY-MM-DD') AS data,
        p.tipo, coalesce(p.kmfretecompra,0)::float8 AS km,
        coalesce(p.valorfrete,0)::float8 AS valorfrete,
+       coalesce(p.valorfretecompra,0)::float8 AS frete_compra,
        coalesce(nullif(trim(p.cidadeorigem),''),'?')||'/'||coalesce(p.uforigem,'?') AS origem,
        coalesce(nullif(trim(p.cidadedestino),''),'?')||'/'||coalesce(p.ufdestino,'?') AS destino,
        coalesce(nullif(trim(ag.descricao),''), nullif(trim(cp.nomefantasia),''),
@@ -2886,14 +2887,15 @@ WHERE r.veiculo = %(placa)s AND r.dtinfracao >= current_date - interval '12 mont
 
 
 @cached(ttl=60)
-def get_veiculo_ficha(placa: str) -> dict:
+def get_veiculo_ficha(placa: str, dias: int = 30) -> dict:
     placa = (placa or "").strip().upper()
     if not placa:
         return {"encontrado": False, "placa": ""}
     from collections import defaultdict as _dd
     from datetime import timedelta as _td
+    dias = dias if dias in (30, 60, 90, 180) else 30
     hoje = date.today()
-    de = (hoje - _td(days=30)).isoformat()
+    de = (hoje - _td(days=dias)).isoformat()
     ate = (hoje + _td(days=1)).isoformat()
     par = {"placa": placa, "de": de, "ate": ate}
     with db.get_conn() as conn, conn.cursor() as cur:
@@ -2909,6 +2911,12 @@ def get_veiculo_ficha(placa: str) -> dict:
 
     carregadas = [v for v in vgs if v["tipo"] != 3]
     fat = sum(v["valorfrete"] for v in carregadas)
+    # o que a Sulista pagou ao transportador (só existe em veículo de agregado/terceiro).
+    # Separado por carga porque o deslocamento vazio pago é justamente o que costuma
+    # empurrar o % pago acima de 100% sem que a tarifa carregada esteja errada.
+    compra_carr = sum(v["frete_compra"] for v in carregadas)
+    compra_vazio = sum(v["frete_compra"] for v in vgs if v["tipo"] == 3)
+    compra = compra_carr + compra_vazio
     km_rodado = sum(v["km"] for v in vgs)
     km_carregado = sum(v["km"] for v in carregadas)
     km_vazio = sum(v["km"] for v in vgs if v["tipo"] == 3)
@@ -2927,7 +2935,12 @@ def get_veiculo_ficha(placa: str) -> dict:
         "placa": placa, "cadastro": cad, "posicao": pos, "viagem_atual": viagem,
         "kpis": {"faturamento": fat, "km_rodado": km_rodado, "km_carregado": km_carregado,
                  "km_vazio": km_vazio, "pct_vazio": (100 * km_vazio / km_rodado) if km_rodado else 0.0,
-                 "viagens": len(carregadas)},
+                 "viagens": len(carregadas), "viagens_vazias": len(vgs) - len(carregadas),
+                 "frete_compra": compra, "frete_compra_carregado": compra_carr,
+                 "frete_compra_vazio": compra_vazio,
+                 "pct_pago": (100 * compra / fat) if fat else None,
+                 "pct_pago_carregado": (100 * compra_carr / fat) if fat else None,
+                 "rkm": (fat / km_carregado) if km_carregado else None},
         "top_clientes": top_clientes, "ultimas_viagens": ultimas,
         "combustivel": {"custo": (comb["custo"] if comb else 0.0),
                         "litros": (comb["litros"] if comb else 0.0),
@@ -2937,7 +2950,7 @@ def get_veiculo_ficha(placa: str) -> dict:
                        "abertas": (manab["abertas"] if manab else 0),
                        "abertas_valor": (manab["abertas_valor"] if manab else 0.0)},
         "multas": dict(multa) if multa else {},
-        "periodo": {"de": de, "ate": hoje.isoformat()},
+        "periodo": {"de": de, "ate": hoje.isoformat(), "dias": dias},
         "atualizado_em": meta["ts"].isoformat(),
         "fonte": "ERP AVA - programacaoembarque + rastreamento (posicao) + CTA Plus + ordemservico + infracaotransito",
     }
