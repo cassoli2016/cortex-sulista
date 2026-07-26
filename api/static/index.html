@@ -380,6 +380,14 @@ tr.forn-det td{padding:7px 12px}
   .drawer .dbusca{width:100%;box-sizing:border-box;font-family:var(--font);font-size:16px;
     padding:10px 13px;margin:0 0 4px;border:1px solid var(--n200,#E4E7EB);border-radius:10px;
     background:var(--n50,#F7F9FA);color:var(--n900)}
+  /* atalhos por USO REAL: a bottomnav é fixa e escolhida no projeto; com 40
+     telas e perfis diferentes, metade dos atalhos não serve para quem está
+     olhando. Esta faixa se adapta sozinha ao que a pessoa abre. */
+  .dfreq{padding:2px 0 10px;border-bottom:1px solid var(--n100,#EEF1F4)}
+  .dfreq-h{font-size:11.5px;font-weight:700;text-transform:uppercase;letter-spacing:.07em;
+    color:var(--orange-600);padding:9px 4px 7px}
+  .dfreq-b{display:grid;grid-template-columns:1fr 1fr;gap:7px}
+  .dsemres{padding:18px 6px;color:var(--n500);font-size:13px;text-align:center}
   .dgrp{border-bottom:1px solid var(--n100,#EEF1F4)}
   .dgrp-h{width:100%;display:flex;align-items:center;justify-content:space-between;
     background:none;border:0;cursor:pointer;font-family:var(--font);
@@ -2697,6 +2705,7 @@ function router(){
     if(at) a.setAttribute('aria-current','page'); else a.removeAttribute('aria-current');
   });
   document.getElementById('viewTitle').textContent = VIEWS[v];
+  navRegistraUso(v);
   syncGroups(v);
   const dre = (v==='dre'), oc = (v==='oc'), agr = (v==='agr'), mvb = (v==='mvb'), comb = (v==='comb'), man = (v==='man'), com = (v==='com'), home = (v==='home'), kmv = (v==='km'), torre = (v==='torre'), veic = (v==='veic'), mul = (v==='mul'), prog = (v==='prog'), cop = (v==='cop'), cob = (v==='cob'), rent = (v==='rent'), contab = (v==='cont'), dreCli = (v==='drecli');
   // torre: só filial; auto-refresh de 120s enquanto ativa
@@ -2778,25 +2787,98 @@ function _drawerAbreAtivo(){         // accordion: abre so a seção da tela atu
   if(!algum){ const f=[...document.querySelectorAll('#drawer .dgrp')].find(g=>g.style.display!=='none'); if(f) f.classList.add('aberto'); }
   document.querySelectorAll('#drawer a[href^="#"]').forEach(a=>a.classList.toggle('ativo', a.getAttribute('href')==='#'+v));
 }
+/* Sinônimos de busca: o nome oficial da tela nem sempre é a palavra que a
+   pessoa pensa ("boleto" para Cobrança, "diesel" para Combustível). */
+const NAV_KW={
+  fluxo:'caixa banco saldo projecao tesouraria', receber:'recebiveis clientes duplicata boleto titulo',
+  pagar:'fornecedor pagamento titulo boleto contas', cob:'cobranca inadimplencia vencido atraso boleto regua',
+  com:'comercial faturamento rkm receita clientes', clif:'ficha cliente consulta 360',
+  crm:'lead funil prospeccao pipeline proposta', drecli:'margem cliente rentabilidade dre',
+  dre:'resultado lucro prejuizo demonstracao contabil', cont:'contabil plano de contas agrupador classificar',
+  qual:'certidao licenca alvara iso esg auditoria nc vencimento',
+  torre:'rastreamento posicao mapa gps viagem transito atraso', prog:'programacao radar vazio casamento malha ocioso',
+  jorn:'motorista jornada 13103 descanso direcao infracao', cex:'custo extra estadia devolucao reentrega',
+  sac:'freetime estadia detention ocorrencia atendimento', port:'portaria patio visitante entrada saida',
+  km:'quilometragem vazio carregado retorno rkm', agr:'agregado terceiro frete comprado transportador',
+  mvb:'make buy proprio agregado ckm decisao', veic:'frota veiculo cavalo carreta ativo placa',
+  veicf:'ficha veiculo consulta placa', mprev:'preventiva troca oleo revisao manutencao',
+  comrast:'rastreador comunicacao sinal offline', comb:'diesel abastecimento posto consumo km/l arla',
+  man:'oficina os ordem servico corretiva peca', mul:'multa infracao transito pontos cnh',
+  oc:'compra ordem fornecedor entrada nota', custos:'custo painel despesa',
+  hc:'headcount quadro pessoas colaboradores', folha:'salario folha pagamento custo pessoal',
+  folhaind:'indicador folha rh', he:'hora extra sobreaviso adicional',
+  rh:'vaga recrutamento contratacao selecao', home:'inicio visao geral resumo dashboard',
+  cop:'copiloto ia chat pergunta assistente', gestao:'usuario perfil acesso permissao auditoria seguranca',
+  srv:'servidor saude infra api banco tunel',
+};
+function _kwDe(a){
+  const v=(a.getAttribute('href')||'').replace('#','');
+  return _normDG(a.textContent+' '+(NAV_KW[v]||''));
+}
 function filtrarDrawer(q){
   const n=_normDG(q.trim());
-  if(!n){ _drawerVisibPermissao(); _drawerAbreAtivo(); return; }
+  const freq=document.getElementById('dfreq'), semres=document.getElementById('dsemres');
+  if(!n){
+    _drawerVisibPermissao(); _drawerAbreAtivo();
+    if(semres) semres.style.display='none';
+    navFreqRender();
+    return;
+  }
+  if(freq) freq.style.display='none';            // buscando: a faixa de atalhos sai
+  let achou=0;
   document.querySelectorAll('#drawer .dgrp').forEach(g=>{
     let tem=false;
     g.querySelectorAll('.dgrp-b a').forEach(a=>{
       const v=(a.getAttribute('href')||'').replace('#','');
-      const match=(!VIEWS[v]||podeVer(v)) && _normDG(a.textContent).includes(n);
-      a.style.display = match ? '' : 'none'; if(match) tem=true;
+      const match=(!VIEWS[v]||podeVer(v)) && _kwDe(a).includes(n);
+      a.style.display = match ? '' : 'none'; if(match){ tem=true; achou++; }
     });
     g.style.display = tem ? '' : 'none';
     g.classList.toggle('aberto', tem);   // expande seções com resultado
   });
+  if(semres) semres.style.display = achou ? 'none' : 'block';
+}
+/* Enter na busca abre o primeiro resultado — digitar e ter de mirar no item é
+   um toque a mais, e no celular o teclado ainda cobre metade da lista. */
+function drawerEnter(ev){
+  if(ev.key!=='Enter') return;
+  const a=document.querySelector('#drawer .dgrp:not([style*="display: none"]) .dgrp-b a:not([style*="display: none"])');
+  if(a){ ev.preventDefault(); fecharDrawer(); location.hash=a.getAttribute('href'); }
+}
+/* Uso por tela (localStorage). A bottomnav continua fixa de propósito — nav que
+   troca de posição destrói memória muscular; quem se adapta é a gaveta. */
+function navRegistraUso(v){
+  if(!v||v==='jornf'||v==='veicf') return;      // drill-downs não contam
+  try{
+    const u=JSON.parse(localStorage.getItem('cs.navUso')||'{}');
+    u[v]=(u[v]||0)+1;
+    localStorage.setItem('cs.navUso', JSON.stringify(u));
+  }catch(e){}
+}
+function navFreqRender(){
+  const box=document.getElementById('dfreq'), b=document.getElementById('dfreq-b');
+  if(!box||!b) return;
+  let u={}; try{ u=JSON.parse(localStorage.getItem('cs.navUso')||'{}'); }catch(e){}
+  const fixas=new Set(['home','fluxo','torre','cop']);   // já estão na bottomnav
+  const tops=Object.entries(u)
+    .filter(([v,n])=>n>=2 && !fixas.has(v) && VIEWS[v] && podeVer(v))
+    .sort((a,b2)=>b2[1]-a[1]).slice(0,6);
+  if(tops.length<2){ box.style.display='none'; b.innerHTML=''; return; }
+  const atual=currentView();
+  b.innerHTML=tops.map(([v])=>{
+    const orig=document.querySelector(`#drawer .dgrp-b a[href="#${v}"]`);
+    const ico=orig?(orig.querySelector('.ic')||{}).outerHTML||'':'';
+    return `<a href="#${v}" class="${v===atual?'ativo':''}" onclick="fecharDrawer()">${ico}${esc(VIEWS[v])}</a>`;
+  }).join('');
+  box.style.display='';
 }
 function abrirDrawer(){
   const d=document.getElementById('drawer'); if(!d) return;
   const bq=document.getElementById('dbusca'); if(bq) bq.value='';   // reseta a busca
+  const sr=document.getElementById('dsemres'); if(sr) sr.style.display='none';
   _drawerVisibPermissao();
   _drawerAbreAtivo();
+  navFreqRender();
   d.classList.add('aberto');
   const p=d.querySelector('.painel'); if(p) p.scrollTop=0;
   // rola até a seção da tela atual (se estiver longe do topo), pra não ter de
@@ -8291,7 +8373,12 @@ boot();
 <div class="drawer" id="drawer" onclick="if(event.target===this)this.classList.remove('aberto')">
   <div class="painel">
     <div class="alca"></div>
-    <input type="search" class="dbusca" id="dbusca" placeholder="Buscar tela…" oninput="filtrarDrawer(this.value)" autocomplete="off" aria-label="Buscar tela">
+    <input type="search" class="dbusca" id="dbusca" placeholder="Buscar tela…" oninput="filtrarDrawer(this.value)" onkeydown="drawerEnter(event)" autocomplete="off" aria-label="Buscar tela">
+    <div class="dfreq" id="dfreq" style="display:none">
+      <div class="dfreq-h">Suas mais usadas</div>
+      <div class="dfreq-b" id="dfreq-b"></div>
+    </div>
+    <div class="dsemres" id="dsemres" style="display:none">Nenhuma tela com esse nome.</div>
     <div class="dgrp" data-grp="Ger">
       <button class="dgrp-h" onclick="toggleDGrp(this)"><span>Geral</span><span class="dchev">›</span></button>
       <div class="dgrp-b">
