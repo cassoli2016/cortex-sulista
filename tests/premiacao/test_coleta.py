@@ -3,6 +3,8 @@ from __future__ import annotations
 import json
 from datetime import datetime
 
+import pytest
+
 from api.premiacao.coleta import coletar_mes, gravar_snapshot, ler_index, ler_snapshot
 
 
@@ -82,3 +84,66 @@ def test_index_ordena_do_mais_recente(tmp_path):
     assert idx[1]["label"] == "Junho / 2026"
     assert ler_snapshot("2026-06", tmp_path)["month"] == "2026-06"
     assert ler_snapshot("2099-01", tmp_path) is None
+
+
+class FakeClienteMalformado:
+    """Permite injetar uma resposta estruturalmente malformada (chave ausente/None)
+    num endpoint específico, mantendo os outros bem-formados — para provar que a
+    coleta detecta a falha em vez de gravar um snapshot vazio "válido"."""
+    def __init__(self, quebrar: str):
+        self.quebrar = quebrar
+
+    def get(self, path, params=None):
+        if path == "/vehicles":
+            if self.quebrar == "vehicles":
+                return {"customers": None}
+            return {"customers": [{"vehicles": [
+                {"id": 101, "plate": "AAA1A11", "truckModel": "DAF XF",
+                 "currentDriver": {"driverId": 7, "driverName": "3797 - GABRIEL"}},
+            ]}]}
+        if path == "/drivers":
+            if self.quebrar == "drivers":
+                return {"drivers": None}
+            return {"drivers": [{"id": 7, "documentNumber": "18399788805"}]}
+        if path.endswith("/analysis"):
+            if self.quebrar == "analysis":
+                return {"data": None}
+            return {"data": {"performances": [
+                {"driverId": 7, "scores": {"generalScore": 80},
+                 "percentages": {},
+                 "stats": {"totalMileage": 100.0, "consumptionAverage": 5.0}},
+            ]}}
+        raise AssertionError(f"chamada inesperada: {path}")
+
+
+def test_vehicles_malformado_levanta_valueerror():
+    with pytest.raises(ValueError):
+        coletar_mes(FakeClienteMalformado("vehicles"), "2026-06", agora=datetime(2026, 7, 27))
+
+
+def test_drivers_malformado_levanta_valueerror():
+    with pytest.raises(ValueError):
+        coletar_mes(FakeClienteMalformado("drivers"), "2026-06", agora=datetime(2026, 7, 27))
+
+
+def test_analysis_malformado_levanta_valueerror():
+    with pytest.raises(ValueError):
+        coletar_mes(FakeClienteMalformado("analysis"), "2026-06", agora=datetime(2026, 7, 27))
+
+
+class FakeClienteVazio:
+    """Cliente sem nenhum veículo/motorista — lista VAZIA mas bem-formada, que é
+    dado legítimo (não deve levantar erro nem chamar /analysis, já que não há
+    motorista nenhum para consultar)."""
+    def get(self, path, params=None):
+        if path == "/vehicles":
+            return {"customers": [{"vehicles": []}]}
+        if path == "/drivers":
+            return {"drivers": []}
+        raise AssertionError(f"chamada inesperada: {path}")
+
+
+def test_lista_vazia_bem_formada_gera_snapshot_vazio_sem_erro():
+    snap = coletar_mes(FakeClienteVazio(), "2026-06", agora=datetime(2026, 7, 27))
+    assert snap["drivers"] == []
+    assert snap["frota_telemetria"] == {"veiculos": 0, "com_motorista": 0}

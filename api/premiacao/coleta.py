@@ -63,8 +63,12 @@ def coletar_mes(cliente, mes: str, customer: int = 1, agora=None) -> dict:
     period_start, period_end, parcial = _period(mes, agora)
 
     resp_vehicles = cliente.get("/vehicles", {"customers": customer, "operation": "true"})
-    clientes = (resp_vehicles or {}).get("customers") or [{}]
-    veiculos = (clientes[0] or {}).get("vehicles") or []
+    if not isinstance(resp_vehicles, dict) or resp_vehicles.get("customers") is None:
+        raise ValueError(
+            "Resposta da Gobrax sem a estrutura esperada em /vehicles (campo 'customers' ausente).")
+    clientes = resp_vehicles["customers"]
+    primeiro = clientes[0] if clientes else {}
+    veiculos = (primeiro or {}).get("vehicles") or []
 
     todos_ids: list[int] = []
     nomes: dict[int, str] = {}
@@ -85,8 +89,11 @@ def coletar_mes(cliente, mes: str, customer: int = 1, agora=None) -> dict:
                 {"plate": v.get("plate", ""), "model": modelo})
 
     resp_drivers = cliente.get("/drivers", {"customers": customer})
+    if not isinstance(resp_drivers, dict) or resp_drivers.get("drivers") is None:
+        raise ValueError(
+            "Resposta da Gobrax sem a estrutura esperada em /drivers (campo 'drivers' ausente).")
     docs = {int(d["id"]): (d.get("documentNumber") or "")
-            for d in (resp_drivers or {}).get("drivers") or [] if d.get("id") is not None}
+            for d in resp_drivers["drivers"] if d.get("id") is not None}
 
     driver_ids = list(nomes.keys())
     vehicles_param = ",".join(str(i) for i in todos_ids)
@@ -101,7 +108,11 @@ def coletar_mes(cliente, mes: str, customer: int = 1, agora=None) -> dict:
             "endDate": period_end,
         }
         resp = cliente.get("/web/v2/performance/drivers/analysis", params)
-        for p in ((resp or {}).get("data") or {}).get("performances") or []:
+        if not isinstance(resp, dict) or resp.get("data") is None:
+            raise ValueError(
+                "Resposta da Gobrax sem a estrutura esperada em "
+                "/web/v2/performance/drivers/analysis (campo 'data' ausente).")
+        for p in (resp["data"] or {}).get("performances") or []:
             did = p.get("driverId")
             if did is not None:
                 performances[int(did)] = p
