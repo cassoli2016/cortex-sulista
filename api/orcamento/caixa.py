@@ -43,13 +43,19 @@ def provisao_caixa(
             "meses": [{"mes": 1..12, "entradas": e, "saidas": s, "geracao": e+s}, ...],
             "transbordo": {"entradas": x, "saidas": y}
         }
-        12 meses sempre presentes; valores com 2 casas decimais.
+        12 meses sempre presentes; valores com 2 casas decimais (arredondamento apenas na exposição).
+
+    Algoritmo de conservação de massa:
+    - Cada parcela é decidida separadamente: 1ª parcela (1-f) vai à série se mes_caixa<=12,
+      senão ao transbordo; 2ª parcela (f) vai à série se mes_caixa+1<=12, senão ao transbordo.
+    - Assim (1-f)+f=1 sempre, nunca duplica nem some.
+    - Acumulação em float cheio; round apenas na montagem da resposta.
     """
     # Converter dias para meses fracionários
     dso_meses = dso / DIAS_MES
     dpo_meses = dpo / DIAS_MES
 
-    # Inicializar 12 meses + transbordo
+    # Inicializar 12 meses + transbordo (acumulação em float cheio)
     meses_dados: dict[int, dict] = {
         m: {"entradas": 0.0, "saidas": 0.0} for m in range(1, 13)
     }
@@ -61,38 +67,42 @@ def provisao_caixa(
         mes_caixa = mes_competencia + int(dso_meses)
         fracao = dso_meses - int(dso_meses)
 
+        # 1ª parcela (peso 1-f): va à série se mes_caixa <= 12, senão ao transbordo
+        parcela1 = valor_entrada * (1 - fracao)
         if mes_caixa <= 12:
-            # Primeira parcela em mes_caixa
-            parcela1 = round(valor_entrada * (1 - fracao), 2)
             meses_dados[mes_caixa]["entradas"] += parcela1
+        else:
+            transbordo_entradas += parcela1
 
-        if fracao > 0 and mes_caixa + 1 <= 12:
-            # Segunda parcela em mes_caixa + 1
-            parcela2 = round(valor_entrada * fracao, 2)
-            meses_dados[mes_caixa + 1]["entradas"] += parcela2
-        elif fracao > 0:
-            # Transbordo (além de dezembro)
-            transbordo_entradas += valor_entrada
+        # 2ª parcela (peso f): vai à série se mes_caixa+1 <= 12, senão ao transbordo
+        if fracao > 0:
+            parcela2 = valor_entrada * fracao
+            if mes_caixa + 1 <= 12:
+                meses_dados[mes_caixa + 1]["entradas"] += parcela2
+            else:
+                transbordo_entradas += parcela2
 
     # Processar saídas com deslocamento DPO
     for mes_competencia, valor_saida in saidas.items():
         mes_caixa = mes_competencia + int(dpo_meses)
         fracao = dpo_meses - int(dpo_meses)
 
+        # 1ª parcela (peso 1-f): vai à série se mes_caixa <= 12, senão ao transbordo
+        parcela1 = valor_saida * (1 - fracao)
         if mes_caixa <= 12:
-            # Primeira parcela em mes_caixa
-            parcela1 = round(valor_saida * (1 - fracao), 2)
             meses_dados[mes_caixa]["saidas"] += parcela1
+        else:
+            transbordo_saidas += parcela1
 
-        if fracao > 0 and mes_caixa + 1 <= 12:
-            # Segunda parcela em mes_caixa + 1
-            parcela2 = round(valor_saida * fracao, 2)
-            meses_dados[mes_caixa + 1]["saidas"] += parcela2
-        elif fracao > 0:
-            # Transbordo (além de dezembro)
-            transbordo_saidas += valor_saida
+        # 2ª parcela (peso f): vai à série se mes_caixa+1 <= 12, senão ao transbordo
+        if fracao > 0:
+            parcela2 = valor_saida * fracao
+            if mes_caixa + 1 <= 12:
+                meses_dados[mes_caixa + 1]["saidas"] += parcela2
+            else:
+                transbordo_saidas += parcela2
 
-    # Calcular geração (entradas + saídas, sendo saídas negativas)
+    # Arredondar apenas na montagem da resposta (exposição final)
     meses_lista = [
         {
             "mes": m,
@@ -153,8 +163,6 @@ def provisao_do_ano(
     # Determinar DSO/DPO usados e fonte
     dso_usado = dso if dso is not None else DSO_PADRAO
     dpo_usado = dpo if dpo is not None else DPO_PADRAO
-    dso_fonte = "medido" if dso is not None else "padrao"
-    dpo_fonte = "medido" if dpo is not None else "padrao"
     # Se qualquer um caiu no fallback, marca tudo como padrao
     fonte_final = "padrao" if (dso is None or dpo is None) else "medido"
 

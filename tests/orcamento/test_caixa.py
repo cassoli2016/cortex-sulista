@@ -72,3 +72,71 @@ def test_valor_efetivo_ajuste_manual(tmp_path):
     f = x - int(x)
     assert abs(por_mes[9]["entradas"] - round(1500 * (1 - f), 2)) < 0.01
     assert abs(por_mes[10]["entradas"] - round(1500 * f, 2)) < 0.01
+
+
+def test_conservacao_massa_dso_49_mes_11():
+    """Conservação: competência nov (11) com DSO=49 desembarca em dez/jan+.
+
+    DSO=49 → 1.609 meses → 1ª parcela em dez (39.03%), 2ª em jan+ (60.97%).
+    Problema original: 1ª parcela entrava em dez, mas 2ª somava o VALOR INTEIRO ao transbordo
+    (duplicação: 390 + 1000 = 1390).
+    Correção: 2ª parcela (60.97%) vai ao transbordo, não o valor inteiro.
+    Total série + transbordo = 1000 (conservado).
+    """
+    r = provisao_caixa({11: 1000.0}, {}, dso=49.0, dpo=79.0)
+    por_mes = {m["mes"]: m for m in r["meses"]}
+    x = 49.0 / DIAS_MES
+    f = x - int(x)
+    parcela1_esperada = 1000 * (1 - f)  # ~390.28
+    parcela2_esperada = 1000 * f        # ~609.72
+
+    # Verificar série
+    assert abs(por_mes[12]["entradas"] - round(parcela1_esperada, 2)) < 0.01
+    # Verificar transbordo
+    assert abs(r["transbordo"]["entradas"] - round(parcela2_esperada, 2)) < 0.01
+    # Verificar conservação total
+    total_serie = sum(m["entradas"] for m in r["meses"])
+    total = total_serie + r["transbordo"]["entradas"]
+    assert abs(total - 1000.0) < 0.02
+
+
+def test_conservacao_massa_dso_60_88_mes_11():
+    """Conservação: competência nov (11) com DSO=60.88 (2 meses exatos).
+
+    DSO=60.88 → 2.0 meses → desembarca em jan+ (13º mês), sem fração.
+    Problema original: mes_caixa=13 (>12) e f=0 → nem série nem transbordo → SÓ SOME.
+    Correção: 1ª parcela (100%) vai ao transbordo porque mes_caixa > 12.
+    Total série + transbordo = 1000 (conservado).
+    """
+    r = provisao_caixa({11: 1000.0}, {}, dso=60.88, dpo=79.0)
+    por_mes = {m["mes"]: m for m in r["meses"]}
+
+    # Nada deve entrar na série (todo valor vai para jan+)
+    assert all(m["entradas"] == 0.0 for m in r["meses"])
+    # Transbordo deve ter o valor inteiro
+    assert abs(r["transbordo"]["entradas"] - 1000.0) < 0.01
+
+
+def test_conservacao_massa_dso_49_todas_competencias():
+    """Conservação para competências 9..12 com DSO=49.
+
+    Verifica que soma(série) + transbordo = valor original para cada competência.
+    Garante que nenhum valor duplica nem some em nenhum recorte do ano.
+    """
+    for mes_comp in [9, 10, 11, 12]:
+        r = provisao_caixa({mes_comp: 1000.0}, {}, dso=49.0, dpo=79.0)
+        total_serie = sum(m["entradas"] for m in r["meses"])
+        total = total_serie + r["transbordo"]["entradas"]
+        assert abs(total - 1000.0) < 0.02, f"Falha em mes_comp={mes_comp}: total={total}"
+
+
+def test_conservacao_massa_dso_60_88_todas_competencias():
+    """Conservação para competências 9..12 com DSO=60.88 (2 meses exatos).
+
+    Verifica que soma(série) + transbordo = valor original para cada competência.
+    """
+    for mes_comp in [9, 10, 11, 12]:
+        r = provisao_caixa({mes_comp: 1000.0}, {}, dso=60.88, dpo=79.0)
+        total_serie = sum(m["entradas"] for m in r["meses"])
+        total = total_serie + r["transbordo"]["entradas"]
+        assert abs(total - 1000.0) < 0.02, f"Falha em mes_comp={mes_comp}: total={total}"
