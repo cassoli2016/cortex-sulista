@@ -130,3 +130,22 @@ def test_action_faltando_vira_gobrax_indisponivel():
     c = ClienteGobrax(email="e@x.com", senha="s", http=_http_fabrica(respostas, chamadas))
     with pytest.raises(GobraxIndisponivel):
         c.get("/drivers")
+
+
+def test_timeout_de_leitura_vira_gobrax_indisponivel():
+    """socket.timeout no meio da leitura do corpo (TimeoutError ⊂ OSError) não é
+    URLError — escapava cru e derrubava o backfill com 500."""
+    from unittest.mock import MagicMock, patch
+
+    import pytest as _pytest
+
+    from api.premiacao.gobrax import GobraxIndisponivel, _http_urllib
+
+    mock_resp = MagicMock()
+    mock_resp.status = 200
+    mock_resp.read.side_effect = TimeoutError("The read operation timed out")
+    mock_resp.__enter__ = MagicMock(return_value=mock_resp)
+    mock_resp.__exit__ = MagicMock(return_value=None)
+    with patch("urllib.request.urlopen", return_value=mock_resp):
+        with _pytest.raises(GobraxIndisponivel):
+            _http_urllib("https://example.com/x", "GET", {}, None)

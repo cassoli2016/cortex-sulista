@@ -1356,6 +1356,10 @@ async def premiacao_atualizar(req: Request) -> JSONResponse:
     if _mes_prem_invalido(mes):
         return JSONResponse(status_code=422, content=_MES_PREM_ERRO)
     try:
+        # sem mês = "Atualizar dados" da tela: recoleta o corrente E preenche
+        # os últimos 6 meses que faltarem (backfill); com mês = só aquele mês
+        if mes is None:
+            return JSONResponse(servico.atualizar_tudo())
         return JSONResponse(servico.obter(mes, force=True))
     except (GobraxIndisponivel, GobraxNaoConfigurado) as exc:
         return JSONResponse(status_code=503, content={

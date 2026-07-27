@@ -50,6 +50,11 @@ def _http_urllib(url: str, method: str, headers: dict, body: dict | None):
         return e.code, corpo
     except urllib.error.URLError as e:
         raise GobraxIndisponivel(f"Sem conexão com a API Gobrax: {e.reason}") from e
+    except OSError as e:
+        # socket.timeout no MEIO da leitura do corpo não vira URLError — escapa
+        # cru ("The read operation timed out") e derrubava o backfill inteiro
+        # com 500 em vez de degradar mês a mês. TimeoutError ⊂ OSError.
+        raise GobraxIndisponivel(f"A API Gobrax não respondeu a tempo: {e}") from e
 
 
 class ClienteGobrax:
