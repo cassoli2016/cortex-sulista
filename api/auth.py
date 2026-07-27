@@ -78,6 +78,7 @@ TELAS: dict[str, tuple[str, str]] = {  # chave -> (rótulo, grupo do menu)
     "comrast": ("Comunicação Rastreadora", "Frota"),
     "veicf":   ("Consulta de Veículo", "Frota"),
     "mul":     ("Multas", "Frota"),
+    "prem":    ("Premiação de Motoristas", "Frota"),
     "rh":      ("RH — Vagas", "Recursos Humanos"),
     "hc":      ("Headcount", "Recursos Humanos"),
     "folha":   ("Custo de Folha", "Recursos Humanos"),
@@ -116,6 +117,7 @@ ROTA_TELAS: list[tuple[str, frozenset[str]]] = [
     ("/api/frota/combustivel",        frozenset({"comb", "tvope"})),
     ("/api/frota/manutencao",         frozenset({"man"})),
     ("/api/frota/multas",             frozenset({"mul"})),
+    ("/api/frota/premiacao",          frozenset({"prem"})),
     ("/api/operacao/torre",           frozenset({"torre", "tvope"})),
     ("/api/operacao/programacao",     frozenset({"prog", "tvope"})),
     ("/api/operacao/seguranca",       frozenset({"tvope"})),
@@ -197,8 +199,8 @@ _PERFIS_MODELO = [
      ["dre", "cont", "drecli", "qual", "orc"]),
     ("Operação",    "Torre de controle, programação, jornada, custos extras, SAC/freetime, portaria, análise de KM, agregados e make-vs-buy.",
      ["torre", "prog", "jorn", "cex", "sac", "port", "km", "agr", "mvb"]),
-    ("Frota",       "Veículos, consulta por placa, combustível, manutenção, preventiva, rastreadora e multas.",
-     ["veic", "veicf", "comb", "man", "mprev", "comrast", "mul"]),
+    ("Frota",       "Veículos, consulta por placa, combustível, manutenção, preventiva, rastreadora, multas e premiação de motoristas.",
+     ["veic", "veicf", "comb", "man", "mprev", "comrast", "mul", "prem"]),
     ("Suprimentos", "Ordens de compra e painel de custos.",
      ["oc", "custos"]),
     ("Painéis TV",  "Apenas os painéis de TV (faturamento e operação) — para telão/quiosque.",
@@ -206,7 +208,7 @@ _PERFIS_MODELO = [
     ("Recursos Humanos", "Vagas, headcount, custo de folha, indicadores e horas extras.",
      ["rh", "hc", "folha", "folhaind", "he"]),
     ("Diretoria",   "Visão executiva ampla: consolidado, copiloto e principais indicadores.",
-     ["home", "cop", "fluxo", "dre", "drecli", "com", "km", "torre", "jorn", "mvb", "veic", "rh", "hc", "folha", "folhaind", "he"]),
+     ["home", "cop", "fluxo", "dre", "drecli", "com", "km", "torre", "jorn", "mvb", "veic", "prem", "rh", "hc", "folha", "folhaind", "he"]),
 ]
 
 
@@ -411,6 +413,18 @@ def _seed_perfis_modelo(c: sqlite3.Connection) -> None:
             c.execute("INSERT OR IGNORE INTO perfil_telas(perfil_id, tela) VALUES(?,?)",
                       (row["id"], "orc"))
         c.execute("INSERT OR IGNORE INTO config(chave, valor) VALUES('perfis_modelo_v17', '1')")
+
+    # v18 (premiação de motoristas 2026-07-27): tela 'prem' aos perfis Frota e
+    # Diretoria. A tela nasceu depois que os perfis já existiam nas bases em
+    # uso — editar _PERFIS_MODELO só vale para instalação nova (mesmo caso da
+    # v8/'qual' e v17/'orc').
+    if not c.execute("SELECT 1 FROM config WHERE chave='perfis_modelo_v18'").fetchone():
+        for nome_perfil in ("Frota", "Diretoria"):
+            row = c.execute("SELECT id FROM perfis WHERE nome=?", (nome_perfil,)).fetchone()
+            if row:
+                c.execute("INSERT OR IGNORE INTO perfil_telas(perfil_id, tela) VALUES(?,?)",
+                          (row["id"], "prem"))
+        c.execute("INSERT OR IGNORE INTO config(chave, valor) VALUES('perfis_modelo_v18', '1')")
 
 
 def _agora() -> str:
