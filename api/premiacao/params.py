@@ -28,8 +28,9 @@ def ler_params(path: Path | None = None) -> dict:
         try:
             gravado = json.loads(path.read_text(encoding="utf-8"))
             atual.update({k: float(gravado[k]) for k in DEFAULTS if k in gravado})
+            _valida(atual)  # arquivo com valores inválidos volta aos defaults
         except (json.JSONDecodeError, TypeError, ValueError):
-            pass  # arquivo corrompido não derruba a tela: volta aos defaults
+            atual = dict(DEFAULTS)  # arquivo corrompido ou inválido: volta aos defaults
     return atual
 
 
@@ -38,6 +39,6 @@ def salvar_params(novos: dict, path: Path | None = None) -> dict:
     efetivo = ler_params(path)
     efetivo.update({k: float(novos[k]) for k in DEFAULTS if k in novos})
     _valida(efetivo)
-    path.parent.mkdir(exist_ok=True)
+    path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text(json.dumps(efetivo, ensure_ascii=False, indent=2), encoding="utf-8")
     return efetivo
