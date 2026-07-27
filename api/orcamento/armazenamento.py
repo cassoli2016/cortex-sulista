@@ -12,6 +12,7 @@ from __future__ import annotations
 import json
 import sqlite3
 from contextlib import contextmanager
+from datetime import datetime
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent.parent
@@ -82,6 +83,12 @@ def init_db(path: Path = DB_PATH) -> None:
         if "metodo" not in cols:
             c.execute(
                 "ALTER TABLE orc_versao ADD COLUMN metodo TEXT NOT NULL DEFAULT 'espelho'")
+        # aprovado_em/aprovado_por: quem travou a versão e quando. Só existem
+        # preenchidas em status='aprovado' — reabrir limpa as duas de volta a NULL.
+        if "aprovado_em" not in cols:
+            c.execute("ALTER TABLE orc_versao ADD COLUMN aprovado_em TEXT")
+        if "aprovado_por" not in cols:
+            c.execute("ALTER TABLE orc_versao ADD COLUMN aprovado_por TEXT")
 
 
 def criar_versao(path: Path, ano: int, rotulo: str, fator: float, quem: str,
@@ -109,6 +116,71 @@ def atualizar_versao(path: Path, versao_id: int, fator: float,
             (fator, json.dumps(meses_base) if meses_base else None, metodo, versao_id))
         if cur.rowcount == 0:
             raise KeyError(f"versão inexistente: {versao_id}")
+
+
+def aprovar(path: Path, versao_id: int, quem: str, agora: datetime | None = None) -> None:
+    """Aprova a versão — a partir daqui `ajustar` fica bloqueado até reabrir.
+
+    Reaprovar uma versão já aprovada é idempotente: regrava quem/quando (não
+    é erro reforçar a aprovação, só é vedado aprovar uma arquivada).
+    """
+    with _conn(path) as c:
+        row = c.execute("SELECT status FROM orc_versao WHERE id=?", (versao_id,)).fetchone()
+        if row is None:
+            raise KeyError(f"versão inexistente: {versao_id}")
+        if row["status"] == "arquivada":
+            raise ValueError(
+                "Versão arquivada não pode ser aprovada — gere ou regenere uma versão rascunho.")
+        quando = (agora or datetime.now()).strftime("%Y-%m-%d %H:%M")
+        c.execute(
+            "UPDATE orc_versao SET status='aprovado', aprovado_em=?, aprovado_por=? "
+            "WHERE id=?", (quando, quem, versao_id))
+
+
+def reabrir(path: Path, versao_id: int) -> None:
+    """Volta a versão para rascunho e limpa quem/quando aprovou.
+
+    Arquivada é registro histórico e não reabre — para corrigir uma versão
+    aprovada, reabra ANTES de arquivar (ou arquive uma cópia da rascunho nova).
+    """
+    with _conn(path) as c:
+        row = c.execute("SELECT status FROM orc_versao WHERE id=?", (versao_id,)).fetchone()
+        if row is None:
+            raise KeyError(f"versão inexistente: {versao_id}")
+        if row["status"] == "arquivada":
+            raise ValueError(
+                "Versão arquivada é registro histórico — não pode ser reaberta.")
+        c.execute(
+            "UPDATE orc_versao SET status='rascunho', aprovado_em=NULL, aprovado_por=NULL "
+            "WHERE id=?", (versao_id,))
+
+
+def arquivar_copia(path: Path, versao_id: int, rotulo_novo: str) -> int:
+    """Congela a versão atual numa cópia histórica com status='arquivada'.
+
+    A original não é tocada (segue podendo ser aprovada/reaberta normalmente);
+    a cópia nasce arquivada e imutável. Cabeçalho e todas as linhas (baseline
+    E ajuste, fielmente) copiam numa única transação — devolve o id novo.
+    """
+    with _conn(path) as c:
+        original = c.execute(
+            "SELECT ano, fator_tendencia, metodo, meses_base, criado_por FROM orc_versao "
+            "WHERE id=?", (versao_id,)).fetchone()
+        if original is None:
+            raise KeyError(f"versão inexistente: {versao_id}")
+        cur = c.execute(
+            "INSERT INTO orc_versao(ano, rotulo, status, fator_tendencia, metodo, "
+            "meses_base, criado_por) VALUES (?,?,'arquivada',?,?,?,?)",
+            (original["ano"], rotulo_novo, original["fator_tendencia"],
+             original["metodo"], original["meses_base"], original["criado_por"]))
+        novo_id = int(cur.lastrowid)
+        c.execute(
+            "INSERT INTO orc_linha(versao_id, conta, mes, valor_baseline, valor_ajustado, "
+            "origem, meses_com_dado, ajustado_em, ajustado_por) "
+            "SELECT ?, conta, mes, valor_baseline, valor_ajustado, origem, meses_com_dado, "
+            "ajustado_em, ajustado_por FROM orc_linha WHERE versao_id=?",
+            (novo_id, versao_id))
+        return novo_id
 
 
 def zerar_fora_do_conjunto(path: Path, versao_id: int,
@@ -147,8 +219,17 @@ def gravar_baseline(path: Path, versao_id: int, linhas: list[dict]) -> int:
 
 def ajustar(path: Path, versao_id: int, conta: str, mes: int,
             valor: float | None, quem: str) -> None:
-    """Grava (ou limpa, com valor=None) o ajuste manual de uma célula."""
+    """Grava (ou limpa, com valor=None) o ajuste manual de uma célula.
+
+    Versão aprovada ou arquivada é imutável: reabra antes de ajustar. Versão
+    inexistente segue para o KeyError de linha inexistente, como antes.
+    """
     with _conn(path) as c:
+        versao = c.execute(
+            "SELECT status FROM orc_versao WHERE id=?", (versao_id,)).fetchone()
+        if versao is not None and versao["status"] != "rascunho":
+            raise ValueError(
+                "Versão aprovada/arquivada é imutável — reabra antes de ajustar.")
         row = c.execute(
             "SELECT valor_baseline, valor_ajustado FROM orc_linha "
             "WHERE versao_id=? AND conta=? AND mes=?", (versao_id, conta, mes)).fetchone()
