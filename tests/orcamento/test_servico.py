@@ -145,3 +145,70 @@ def test_gerar_e_comparativo_respeitam_db_path_trocado_em_runtime(tmp_path, monk
     assert len(out["grade"]) == 1
     assert out["grade"][0]["conta"] == "1|100"
     assert out["grade"][0]["linha"] == "CUSTO VARIAVEL"
+
+
+def test_regerar_a_versao_preserva_o_ajuste_manual(tmp_path, monkeypatch):
+    """Critério de aceite 3, pelo caminho que a aplicação usa de verdade.
+
+    O teste antigo chamava `gravar_baseline` direto e por isso passava mesmo com
+    `gerar()` sempre criando versão nova — o `ON CONFLICT` nunca era alcançado em
+    produção. Aqui a regeração vai por `gerar(versao_id=...)`, o mesmo que o botão
+    "Regerar" da tela dispara."""
+    destino = tmp_path / "orcamento.db"
+    monkeypatch.setattr(arm, "DB_PATH", destino)
+    monkeypatch.setattr(svc, "ler_ajustes", lambda: {})
+    hoje = date(2026, 7, 1)
+    meses_base = sql_mod.meses_fechados(hoje, 12)
+    contas = ["1|100", "1|101"]
+
+    def fake_query(sql, params=None):
+        if sql == sql_mod.HIST_CONTA_SQL:
+            return [{"conta": c, "mes": m, "valor": -100.0}
+                    for c in contas for m in meses_base]
+        if sql == sql_mod.AGRUP_CONTA_SQL:
+            return [{"conta": c, "agrupador": "CV - COMBUSTIVEL"} for c in contas]
+        return []
+
+    monkeypatch.setattr(svc.db, "query", fake_query)
+
+    r1 = svc.gerar(2026, "Orçamento 2026", 0.0, "teste", hoje=hoje)
+    arm.ajustar(destino, r1["versao_id"], "1|100", 3, -777.0, "controladoria")
+
+    # a conta 1|101 some do histórico: a regeração não pode deixar o baseline velho
+    contas.remove("1|101")
+    r2 = svc.gerar(2026, "Orçamento 2026", -0.10, "teste", hoje=hoje,
+                   versao_id=r1["versao_id"])
+
+    assert r2["versao_id"] == r1["versao_id"], "regerar não pode criar versão nova"
+    assert r2["regerada"] is True
+    assert len(arm.listar_versoes(destino)) == 1
+    assert r2["celulas_zeradas"] == 12          # os 12 meses de 1|101
+
+    linhas = {(l["conta"], l["mes"]): l for l in arm.ler_linhas(destino, r1["versao_id"])}
+    ajustada = linhas[("1|100", 3)]
+    assert ajustada["valor_ajustado"] == -777.0, "o ajuste manual tem que sobreviver"
+    assert ajustada["valor_efetivo"] == -777.0
+    assert ajustada["valor_baseline"] == -90.0, "o baseline recalcula com o novo fator"
+    assert linhas[("1|100", 4)]["valor_efetivo"] == -90.0
+    assert linhas[("1|101", 4)]["valor_baseline"] == 0.0, "conta que saiu vai a zero"
+    assert linhas[("1|101", 4)]["origem"] == "sem_base"
+
+
+def test_regerar_versao_inexistente_da_erro(tmp_path, monkeypatch):
+    destino = tmp_path / "orcamento.db"
+    monkeypatch.setattr(arm, "DB_PATH", destino)
+    monkeypatch.setattr(svc, "ler_ajustes", lambda: {})
+    hoje = date(2026, 7, 1)
+    meses_base = sql_mod.meses_fechados(hoje, 12)
+
+    def fake_query(sql, params=None):
+        if sql == sql_mod.HIST_CONTA_SQL:
+            return [{"conta": "1|100", "mes": m, "valor": -100.0} for m in meses_base]
+        if sql == sql_mod.AGRUP_CONTA_SQL:
+            return [{"conta": "1|100", "agrupador": "CV - COMBUSTIVEL"}]
+        return []
+
+    monkeypatch.setattr(svc.db, "query", fake_query)
+    import pytest
+    with pytest.raises(KeyError):
+        svc.gerar(2026, "x", 0.0, "teste", hoje=hoje, versao_id=999)

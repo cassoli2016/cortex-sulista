@@ -78,6 +78,35 @@ def criar_versao(path: Path, ano: int, rotulo: str, fator: float, quem: str) -> 
         return int(cur.lastrowid)
 
 
+def atualizar_versao(path: Path, versao_id: int, fator: float) -> None:
+    """Regeração troca o fator da versão; ano e rótulo continuam os mesmos."""
+    with _conn(path) as c:
+        cur = c.execute("UPDATE orc_versao SET fator_tendencia=? WHERE id=?",
+                        (fator, versao_id))
+        if cur.rowcount == 0:
+            raise KeyError(f"versão inexistente: {versao_id}")
+
+
+def zerar_fora_do_conjunto(path: Path, versao_id: int,
+                           chaves: set[tuple[str, int]]) -> int:
+    """Zera o baseline das células que a nova derivação não produziu.
+
+    A linha NÃO é apagada: se a controladoria ajustou aquela célula, o ajuste
+    sobrevive à regeração — é a mesma regra do `coalesce`. Sem isso, um baseline
+    velho de conta que sumiu do histórico continuaria somando no orçado.
+    """
+    with _conn(path) as c:
+        atuais = c.execute(
+            "SELECT conta, mes FROM orc_linha WHERE versao_id=?", (versao_id,)).fetchall()
+        sobrando = [(versao_id, r["conta"], r["mes"]) for r in atuais
+                    if (r["conta"], r["mes"]) not in chaves]
+        if sobrando:
+            c.executemany(
+                "UPDATE orc_linha SET valor_baseline=0, origem='sem_base', meses_com_dado=0 "
+                "WHERE versao_id=? AND conta=? AND mes=?", sobrando)
+        return len(sobrando)
+
+
 def gravar_baseline(path: Path, versao_id: int, linhas: list[dict]) -> int:
     """Insere ou atualiza o baseline. NÃO toca em valor_ajustado."""
     with _conn(path) as c:

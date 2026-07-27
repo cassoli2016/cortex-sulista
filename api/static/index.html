@@ -3427,7 +3427,7 @@ function drillRows(id, rows){
 }
 
 // ---------------- Orçamento ----------------
-let orcSeq = 0, ORC_ABA = 'acomp';
+let orcSeq = 0, ORC_ABA = 'acomp', ORC_VER_ALVO = null;
 function orcTab(a){
   ORC_ABA = a;
   document.getElementById('otab-acomp').setAttribute('aria-pressed', String(a==='acomp'));
@@ -3457,6 +3457,8 @@ async function loadOrc(){
         `<option value="${x.id}">${esc(x.rotulo)} (${x.ano})</option>`).join('')
         || '<option value="">nenhuma versão</option>';
       selV.dataset.pronto='1';
+      // acabou de gerar: abre já na versão nova, não na que estava selecionada
+      if(ORC_VER_ALVO!=null){ selV.value=String(ORC_VER_ALVO); ORC_VER_ALVO=null; }
     }catch(e){ /* segue sem versão: a API escolhe a mais recente */ }
   }
   try{
@@ -3638,16 +3640,21 @@ function renderOrcMontagem(){
   // no clique da aba) sempre que renderOrc() atualiza com a Montagem ativa —
   // trocar de versão ou gerar um baseline não pode resetar o que o usuário via
   const filtroAnterior=(document.getElementById('fOrcLinha')||{}).value||'';
-  const anoSug=new Date().getFullYear();
+  // o formulário reflete a versão carregada: sem isso o campo abria sempre em 0 e
+  // "Regerar" zerava em silêncio o fator de tendência de uma versão feita a -5%
+  const ver=d.versao||{};
+  const anoSug=ver.ano||new Date().getFullYear();
+  const fatorSug=String(Math.round((ver.fator_tendencia||0)*10000)/100).replace('.',',');
   const linhas=[...new Set((d.grade||[]).map(c=>c.linha).filter(Boolean))].sort();
   alvo.innerHTML=`
     <div class="card"><div class="head"><h2>Gerar baseline</h2>
       <span class="hint">mês espelho dos 12 meses fechados + fator de tendência</span></div>
       <div class="cardfilters">
         <input type="number" id="fOrcAno" value="${anoSug}" min="2020" max="2100" aria-label="Ano do orçamento" style="width:100px">
-        <input type="text" inputmode="decimal" id="fOrcFator" value="0" aria-label="Fator de tendência em %" style="width:110px" title="Percentual aplicado sobre o mês espelho. Ex.: -5 orça 5% abaixo do ano anterior. Use vírgula para casas decimais (ex.: -5,5).">
+        <input type="text" inputmode="decimal" id="fOrcFator" value="${fatorSug}" aria-label="Fator de tendência em %" style="width:110px" title="Percentual aplicado sobre o mês espelho. Ex.: -5 orça 5% abaixo do ano anterior. Use vírgula para casas decimais (ex.: -5,5).">
         <span style="color:var(--n500)">% de tendência</span>
-        <button class="btn" onclick="orcGerar()">Gerar</button>
+        <button class="btn" onclick="orcGerar()">Gerar nova versão</button>
+        ${(d.versao||{}).id?`<button class="btn" onclick="orcGerar(${(d.versao||{}).id})" title="Recalcula o baseline desta versão sobre os 12 meses fechados. O ajuste manual das células é preservado.">Regerar ${esc((d.versao||{}).rotulo||'')}</button>`:''}
         <span class="hint" id="orcGerarMsg"></span>
       </div>
       <div class="banner-inline" style="display:block;margin:0 16px 14px">
@@ -3703,7 +3710,7 @@ function renderOrcGrade(){
   document.getElementById('hintOrcGrade').textContent =
     contas.length+' contas'+(filtro?' em '+filtro:'')+' · fundo amarelo = ajustado à mão';
 }
-async function orcGerar(){
+async function orcGerar(versaoId){
   const ano=parseInt(document.getElementById('fOrcAno').value,10);
   const fatorInp=document.getElementById('fOrcFator');
   const pct=numBR(fatorInp.value);
@@ -3713,16 +3720,28 @@ async function orcGerar(){
     showBanner('Fator de tendência inválido: use números com vírgula decimal (ex.: -5,5).');
     return;
   }
-  msg.textContent='gerando…';
+  msg.textContent=versaoId?'regerando…':'gerando…';
   try{
+    const corpo={ano:ano, fator:pct/100, rotulo:'Orçamento '+ano};
+    if(versaoId) corpo.versao_id=versaoId;
     const r=await fetch('/api/controladoria/orcamento/gerar',{method:'POST',
       headers:{'content-type':'application/json'},
-      body:JSON.stringify({ano:ano, fator:pct/100, rotulo:'Orçamento '+ano})});
+      body:JSON.stringify(corpo)});
     const d=await r.json();
     if(!r.ok){ msg.textContent=''; showBanner(d.mensagem||'Erro ao gerar.'); return; }
-    msg.textContent=`versão ${d.versao_id} criada · ${d.linhas} linhas`
+    const aviso=(d.regerada?`versão ${d.versao_id} regerada`:`versão ${d.versao_id} criada`)
+      + ` · ${d.linhas} linhas`
+      + (d.celulas_zeradas?` · ${d.celulas_zeradas} célula(s) sem base nova foram zeradas`:'')
       + (d.contas_sem_linha.length?` · ${d.contas_sem_linha.length} conta(s) sem agrupador ficaram de fora`:'');
+    // a lista de versões é montada uma única vez (dataset.pronto): sem soltar essa
+    // trava a versão recém-criada não aparece no select e a tela segue na antiga
+    const selV=document.getElementById('fOrcVersao');
+    if(selV && !d.regerada){ selV.dataset.pronto=''; ORC_VER_ALVO=d.versao_id; }
     await loadOrc();
+    // loadOrc() redesenha #orc-mont e leva junto o span da mensagem: escrever o
+    // aviso ANTES deixaria o usuário sem confirmação nenhuma depois de ~20s
+    const msg2=document.getElementById('orcGerarMsg');
+    if(msg2) msg2.textContent=aviso;
   }catch(e){ msg.textContent=''; showBanner('Não foi possível falar com a API.', e.message); }
 }
 async function orcSalvarCelula(inp){

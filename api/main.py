@@ -1063,9 +1063,19 @@ async def orcamento_gerar(req: Request) -> JSONResponse:
         return JSONResponse(status_code=422, content={
             "erro": "parametro_invalido",
             "mensagem": "O fator de tendência deve estar entre -0,9 e 3,0."})
+    # versao_id presente = REGERAR aquela versão preservando os ajustes manuais
+    versao_id = body.get("versao_id")
+    if versao_id is not None and not (isinstance(versao_id, int)
+                                      and not isinstance(versao_id, bool) and versao_id > 0):
+        return JSONResponse(status_code=422, content={
+            "erro": "parametro_invalido", "mensagem": "versao_id inválido."})
     try:
         quem = (req.state.sessao or {}).get("nome") or "sistema"
-        return JSONResponse(gerar(ano, rotulo, float(fator), quem))
+        return JSONResponse(gerar(ano, rotulo, float(fator), quem, versao_id=versao_id))
+    except KeyError:
+        return JSONResponse(status_code=404, content={
+            "erro": "versao_inexistente",
+            "mensagem": "Versão não encontrada. Recarregue a tela."})
     except ValueError as exc:
         return JSONResponse(status_code=422, content={
             "erro": "sem_historico", "mensagem": str(exc)})
