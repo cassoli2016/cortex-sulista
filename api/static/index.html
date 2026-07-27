@@ -3578,11 +3578,100 @@ function chartOrcRender(mensal){
   svg.innerHTML=s;
 }
 function renderOrcMontagem(){
-  const el=document.getElementById('orc-mont');
-  if(el && !el.dataset.pronto){
-    el.innerHTML='<div class="card"><div style="padding:26px 18px;color:var(--n500)">Montagem do orçamento — em construção.</div></div>';
-    el.dataset.pronto='1';
-  }
+  const d=DATAORC||{};
+  const alvo=document.getElementById('orc-mont');
+  const anoSug=new Date().getFullYear();
+  const linhas=[...new Set((d.grade||[]).map(c=>c.linha).filter(Boolean))].sort();
+  alvo.innerHTML=`
+    <div class="card"><div class="head"><h2>Gerar baseline</h2>
+      <span class="hint">mês espelho dos 12 meses fechados + fator de tendência</span></div>
+      <div class="cardfilters">
+        <input type="number" id="fOrcAno" value="${anoSug}" min="2020" max="2100" aria-label="Ano do orçamento" style="width:100px">
+        <input type="number" id="fOrcFator" value="0" step="1" aria-label="Fator de tendência em %" style="width:110px" title="Percentual aplicado sobre o mês espelho. Ex.: -5 orça 5% abaixo do ano anterior.">
+        <span style="color:var(--n500)">% de tendência</span>
+        <button class="btn" onclick="orcGerar()">Gerar</button>
+        <span class="hint" id="orcGerarMsg"></span>
+      </div>
+      <div class="banner-inline" style="display:block;margin:0 16px 14px">
+        O baseline parte do <b>mesmo mês</b> do ano anterior, o que preserva a queda de
+        dezembro. Conta com menos de 9 dos 12 meses de movimento sai pela mediana e
+        aparece marcada como <b>base fraca</b>. Regerar <b>não apaga</b> ajuste manual.
+      </div></div>
+    <div class="card"><div class="head"><h2>Grade de ajuste</h2>
+      <span class="hint" id="hintOrcGrade"></span></div>
+      <div class="cardfilters">
+        <select id="fOrcLinha" aria-label="Filtrar por linha da DRE" onchange="renderOrcGrade()">
+          <option value="">Todas as linhas</option>
+          ${linhas.map(l=>`<option value="${esc(l)}">${esc(l)}</option>`).join('')}
+        </select>
+      </div>
+      <div class="tablewrap tabroll" id="orc-grade"></div></div>`;
+  renderOrcGrade();
+}
+function renderOrcGrade(){
+  const d=DATAORC||{}; const vid=(d.versao||{}).id;
+  const filtro=(document.getElementById('fOrcLinha')||{}).value||'';
+  // lê d.grade (todas as 12 células de toda conta), NÃO d.contas — este último só
+  // traz meses já fechados e viria vazio num ano que ainda não começou
+  const contas=(d.grade||[]).filter(c=>!filtro||c.linha===filtro);
+  const MES=['jan','fev','mar','abr','mai','jun','jul','ago','set','out','nov','dez'];
+  const el=document.getElementById('orc-grade');
+  if(!vid){ el.innerHTML='<div style="padding:20px;color:var(--n500)">Gere um baseline primeiro.</div>'; return; }
+  el.innerHTML=`<table><thead><tr><th>Conta</th><th>Linha</th>`
+    + MES.map(m=>`<th class="num">${m}</th>`).join('') + `</tr></thead><tbody>`
+    + contas.map(c=>{
+        const fraca = c.origem && c.origem!=='espelho';
+        return `<tr><td style="font-family:var(--mono)">${esc(c.conta)}`
+          + (fraca?` <span class="badge b-warn" title="Menos de 9 dos 12 meses com movimento: o valor saiu por mediana, não por mês espelho. Revise.">base fraca</span>`:'')
+          + `</td><td style="color:var(--n500)">${esc(c.linha||'—')}</td>`
+          + MES.map((_,i)=>{
+              const m=i+1, v=(c.valores||{})[m], aj=(c.ajustados||{})[m];
+              const val = (v==null?'':Number(v).toFixed(2));
+              return `<td class="num"><input type="number" step="0.01" class="ocel"
+                 value="${val}" data-antes="${val}"
+                 data-conta="${esc(c.conta)}" data-mes="${m}" data-versao="${vid}"
+                 onchange="orcSalvarCelula(this)"
+                 style="width:92px;text-align:right${aj?';background:var(--yellow-100)':''}"
+                 title="${aj?'ajustado manualmente':'valor do baseline'}"></td>`;
+            }).join('')
+          + `</tr>`;
+      }).join('')
+    + `</tbody></table>`;
+  document.getElementById('hintOrcGrade').textContent =
+    contas.length+' contas'+(filtro?' em '+filtro:'')+' · fundo amarelo = ajustado à mão';
+}
+async function orcGerar(){
+  const ano=parseInt(document.getElementById('fOrcAno').value,10);
+  const pct=parseFloat(document.getElementById('fOrcFator').value||'0');
+  const msg=document.getElementById('orcGerarMsg');
+  msg.textContent='gerando…';
+  try{
+    const r=await fetch('/api/controladoria/orcamento/gerar',{method:'POST',
+      headers:{'content-type':'application/json'},
+      body:JSON.stringify({ano:ano, fator:pct/100, rotulo:'Orçamento '+ano})});
+    const d=await r.json();
+    if(!r.ok){ msg.textContent=''; showBanner(d.mensagem||'Erro ao gerar.'); return; }
+    msg.textContent=`versão ${d.versao_id} criada · ${d.linhas} linhas`
+      + (d.contas_sem_linha.length?` · ${d.contas_sem_linha.length} conta(s) sem agrupador ficaram de fora`:'');
+    await loadOrc();
+  }catch(e){ msg.textContent=''; showBanner('Não foi possível falar com a API.', e.message); }
+}
+async function orcSalvarCelula(inp){
+  const bruto=inp.value.trim();
+  const valor = bruto==='' ? null : parseFloat(bruto);
+  const antes = inp.dataset.antes||'';
+  inp.disabled=true;
+  try{
+    const r=await fetch('/api/controladoria/orcamento/ajustar',{method:'POST',
+      headers:{'content-type':'application/json'},
+      body:JSON.stringify({versao_id:parseInt(inp.dataset.versao,10),
+        conta:inp.dataset.conta, mes:parseInt(inp.dataset.mes,10), valor:valor})});
+    const d=await r.json();
+    if(!r.ok){ inp.value=antes; showBanner(d.mensagem||'Não foi possível salvar o ajuste.'); return; }
+    inp.dataset.antes=bruto;
+    inp.style.background = bruto==='' ? '' : 'var(--yellow-100)';
+  }catch(e){ inp.value=antes; showBanner('Não foi possível falar com a API.', e.message); }
+  finally{ inp.disabled=false; }
 }
 
 /* ---------------- Geometria compartilhada ---------------- */
