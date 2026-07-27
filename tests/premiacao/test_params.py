@@ -34,6 +34,18 @@ def test_validacao_rejeita_valores_impossiveis(tmp_path):
     assert not f.exists()                       # inválido não grava
 
 
+def test_tipo_errado_vira_valueerror_nao_typeerror(tmp_path):
+    """Body de endpoint pode chegar com JSON válido mas tipo errado (null, lista,
+    dict) — precisa virar ValueError (422 pt-BR no endpoint), nunca TypeError
+    escapando cru (que viraria 500 genérico)."""
+    f = tmp_path / "params.json"
+    for ruim in ({"meta": None}, {"meta": [1, 2]}, {"meta": {}},
+                 {"preco_litro": None}, {"pct_premiacao": [0.2]}):
+        with pytest.raises(ValueError):
+            salvar_params(ruim, f)
+    assert not f.exists()  # inválido não grava
+
+
 def test_chave_desconhecida_e_ignorada(tmp_path):
     f = tmp_path / "params.json"
     salvar_params({"meta": 2.1, "hacker": "x"}, f)
