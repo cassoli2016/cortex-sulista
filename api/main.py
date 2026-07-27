@@ -1363,6 +1363,17 @@ async def premiacao_params(req: Request) -> JSONResponse:
             "erro": "erro_consulta", "mensagem": "Erro ao salvar os parâmetros."})
 
 
+@app.get("/api/frota/premiacao/serie")
+def premiacao_serie() -> JSONResponse:
+    from api.premiacao import servico
+    try:
+        return JSONResponse(servico.serie())
+    except Exception as exc:  # noqa: BLE001
+        log.warning("premiacao_serie falhou: %s", exc)
+        return JSONResponse(status_code=500, content={
+            "erro": "erro_consulta", "mensagem": "Erro ao montar a série da premiação."})
+
+
 @app.get("/api/financeiro/overview")
 def overview(
     filial: int | None = None,

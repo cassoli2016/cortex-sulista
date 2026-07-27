@@ -129,3 +129,45 @@ def test_calculo_aplicado_com_params_atuais(monkeypatch, tmp_path):
     assert resultado["kpis"]["premio_total"] == 300.75
     assert resultado["sem_media"] == 0
     assert resultado["referencias"]["media_frota"] == resultado["kpis"]["media_frota"]
+
+
+def test_serie_le_so_snapshots_gravados_sem_recoletar(monkeypatch, tmp_path):
+    # nem credenciais são setadas: serie() não olha gobrax.configurado() —
+    # snapshots antigos servem igual, e _novo_cliente nunca pode ser chamado.
+    monkeypatch.delenv("GOBRAX_EMAIL", raising=False)
+    monkeypatch.delenv("GOBRAX_SENHA", raising=False)
+    monkeypatch.setattr(servico, "SNAP_DIR", tmp_path)
+    monkeypatch.setattr(servico, "_novo_cliente", _cliente_quebra)
+    monkeypatch.setattr(params, "PARAMS_PATH", tmp_path / "premiacao_params.json")
+
+    coleta.gravar_snapshot(_snapshot("2026-06", "2026-06-30 08:00", media=2.0, km=4000.0), tmp_path)
+    coleta.gravar_snapshot(
+        _snapshot("2026-07", "2026-07-27 08:00", media=2.4, km=6000.0, parcial=True), tmp_path)
+
+    resultado = servico.serie()
+
+    assert resultado["meses"][0]["month"] == "2026-07"   # ordem decrescente (index)
+    assert resultado["meses"][1]["month"] == "2026-06"
+    assert len(resultado["meses"]) == 2
+    jul = resultado["meses"][0]
+    assert jul["parcial"] is True
+    assert jul["media_frota"] == 2.4
+    assert jul["meta"] == params.DEFAULTS["meta"]
+    assert jul["premio_total"] is not None
+
+
+def test_serie_ignora_mes_do_index_sem_snapshot_em_disco(monkeypatch, tmp_path):
+    monkeypatch.setattr(servico, "SNAP_DIR", tmp_path)
+    monkeypatch.setattr(servico, "_novo_cliente", _cliente_quebra)
+
+    coleta.gravar_snapshot(_snapshot("2026-06", "2026-06-30 08:00"), tmp_path)
+    # index.json passa a citar um mês cujo arquivo de snapshot foi apagado —
+    # serie() não pode quebrar nem inventar dado para ele.
+    (tmp_path / "index.json").write_text(
+        '[{"month":"2026-07","label":"Julho / 2026","drivers":1,"parcial":true},'
+        '{"month":"2026-06","label":"Junho / 2026","drivers":1,"parcial":false}]',
+        encoding="utf-8")
+
+    resultado = servico.serie()
+
+    assert [m["month"] for m in resultado["meses"]] == ["2026-06"]

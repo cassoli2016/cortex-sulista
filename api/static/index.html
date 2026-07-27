@@ -1612,8 +1612,11 @@ button.avatar{border:0;cursor:pointer}
             </tr></thead><tbody id="prem-rank"></tbody></table></div>
           </div>
           <div class="card">
-            <div class="head"><h2>Comparativo mensal <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" id="prem-comp-help" title="">i</span></h2><span class="hint">média da frota × meta por mês · snapshots locais, mês fechado nunca recoleta</span></div>
-            <div class="chartwrap"><svg id="chartPrem" viewBox="0 0 960 260" preserveAspectRatio="xMidYMid meet" role="img" aria-label="Média da frota e meta de consumo por mês."></svg></div>
+            <div class="head"><h2>Comparativo mensal <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" id="prem-comp-help" title="">i</span></h2><span class="hint">média da frota × meta por mês · série calculada dos snapshots — não recoleta</span></div>
+            <div class="chartwrap">
+              <div id="prem-comp-loading" style="display:none;color:var(--n500);font-size:13px;padding:24px 6px">carregando série…</div>
+              <svg id="chartPrem" viewBox="0 0 960 260" preserveAspectRatio="xMidYMid meet" role="img" aria-label="Média da frota e meta de consumo por mês."></svg>
+            </div>
             <div style="padding:0 18px 14px;font-size:12px;color:var(--n500)" id="prem-comp-premios"></div>
           </div>
         </div>
@@ -2637,6 +2640,7 @@ let DATAGES = null;
 let DATASRV = null, srvTimer = null, srvSeq = 0;
 let DATAORC = null;
 let premSeq = 0, DATAPREM = null;
+let PREM_SERIE = null, premSerieSeq = 0;   // cache da série do comparativo — 1 fetch por carregamento de tela
 let gesSeq = 0;
 let GES_TAB = 'usuarios';
 let filtrosPromise = null;    // memoização do carregamento de filtros
@@ -4298,7 +4302,7 @@ function _premNotaChip(n){
 function _premScoreLabel(k){
   return String(k||'').replace(/([A-Z])/g,' $1').replace(/^./,c=>c.toUpperCase()).trim();
 }
-async function loadPrem(){
+async function loadPrem(forceSerie){
   const seq=++premSeq, btn=document.getElementById('btnRefresh'); if(btn) btn.disabled=true;
   document.getElementById('content').classList.add('loading');
   skelKpis('kpis-prem',4);
@@ -4318,11 +4322,23 @@ async function loadPrem(){
       if(d.month) selM.value=d.month;
     }
     renderPrem(d);
-    premComparativo(seq);
+    premCarregarSerie(!!forceSerie);
   }catch(e){ if(seq===premSeq) showBanner('Não foi possível falar com a API.', e.message); }
   finally{ if(seq===premSeq){ if(btn) btn.disabled=false; document.getElementById('content').classList.remove('loading'); } }
 }
+// Botão "Atualizar dados": só faz sentido com credenciais configuradas — sem
+// GOBRAX_EMAIL/GOBRAX_SENHA a recoleta forçada nem chega a tentar (o endpoint
+// devolve o mesmo shape "não configurado"), então o botão fica desabilitado
+// com o título explicando, em vez de deixar o usuário clicar para nada.
+function _premSyncBotaoColeta(){
+  const btn=document.getElementById('btnPremColeta');
+  if(!btn) return;
+  const configurado = !!(DATAPREM && DATAPREM.configurado);
+  btn.disabled = !configurado;
+  btn.title = configurado ? '' : 'Configure GOBRAX_EMAIL e GOBRAX_SENHA no .env para coletar dados.';
+}
 function renderPrem(d){
+  _premSyncBotaoColeta();
   const naoconf=document.getElementById('prem-naoconfig'), contDiv=document.getElementById('prem-conteudo');
   const avisoEl=document.getElementById('prem-aviso');
   if(!d.configurado){
@@ -4438,7 +4454,9 @@ async function premSalvarParams(){
     const d=await r.json();
     if(!r.ok){ showBanner(d.mensagem||'Não foi possível salvar os parâmetros.'); return; }
     hideBanner();
-    loadPrem();
+    // meta/pct mudam o prêmio de TODOS os meses da série — força a série a
+    // recalcular (loadPrem(true) repassa forceSerie para premCarregarSerie).
+    loadPrem(true);
   }catch(e){ showBanner('Não foi possível falar com a API.', e.message); }
   finally{ if(btn){ btn.disabled=false; btn.textContent='Salvar'; } }
 }
@@ -4454,45 +4472,58 @@ async function premColetar(){
     const d=await r.json(); if(seq!==premSeq) return;
     if(!r.ok){ showBanner(d.mensagem||'Não foi possível atualizar os dados da premiação.'); return; }
     hideBanner(); DATAPREM=d; LOADEDQS.prem='';
-    renderPrem(d); premComparativo(seq);
+    // recoleta pode ter mudado o mês coletado -> força a série a reler os snapshots
+    renderPrem(d); premCarregarSerie(true);
   }catch(e){ if(seq===premSeq) showBanner('Não foi possível falar com a API.', e.message); }
-  finally{ if(seq===premSeq){ if(btn){ btn.disabled=false; btn.textContent='Atualizar dados'; } } }
+  finally{ if(seq===premSeq){ if(btn){ btn.textContent='Atualizar dados'; } _premSyncBotaoColeta(); } }
 }
-// Card comparativo: roda DEPOIS do render principal. Busca snapshot LOCAL de cada
-// mês do index (mês fechado nunca recoleta — barato, <=12 fetches) e monta média
-// da frota × meta por mês; o prêmio total por mês sai em texto, não no gráfico.
-async function premComparativo(seq){
-  const d=DATAPREM;
-  const svg=document.getElementById('chartPrem');
-  if(!d || !d.configurado){
-    if(svg){ svg.setAttribute('viewBox','0 0 960 60'); svg.innerHTML='<text x="12" y="34" font-size="13" fill="#6B7280">telemetria não configurada</text>'; }
+// Card comparativo: 1 fetch de /serie por carregamento de tela — a troca de mês
+// no select (loadPrem() sem argumento) NUNCA refaz essa busca, só re-renderiza
+// o principal; o comparativo é cacheado em PREM_SERIE e só é refeito quando o
+// dado por trás pode ter mudado de verdade: coleta forçada (premColetar) ou
+// parâmetros novos (premSalvarParams), ambos chamando com force=true.
+// /serie é leve: só snapshots já gravados (sem recoleta) e sem consultar o
+// preço do diesel na AVA — o gargalo de ~15s/mês que existia antes.
+async function premCarregarSerie(force){
+  const svg=document.getElementById('chartPrem'), loading=document.getElementById('prem-comp-loading');
+  if(!DATAPREM || !DATAPREM.configurado){
+    PREM_SERIE=null;
+    if(loading) loading.style.display='none';
+    if(svg){ svg.style.display=''; svg.setAttribute('viewBox','0 0 960 60'); svg.innerHTML='<text x="12" y="34" font-size="13" fill="#6B7280">telemetria não configurada</text>'; }
     const pr=document.getElementById('prem-comp-premios'); if(pr) pr.textContent='';
     return;
   }
-  const idx=(d.index||[]).slice(0,12).slice().reverse();
-  if(!idx.length){
+  if(!force && PREM_SERIE){ premRenderSerie(PREM_SERIE); return; }
+  const seq=++premSerieSeq;
+  if(svg) svg.style.display='none';
+  if(loading){ loading.textContent='carregando série…'; loading.style.display='block'; }
+  try{
+    const r=await fetch('/api/frota/premiacao/serie',{cache:'no-store'});
+    const d=await r.json(); if(seq!==premSerieSeq) return;
+    if(!r.ok){ if(loading) loading.textContent='não foi possível carregar a série mensal.'; return; }
+    PREM_SERIE=d;
+    premRenderSerie(d);
+  }catch(e){
+    if(seq===premSerieSeq && loading) loading.textContent='não foi possível carregar a série mensal.';
+  }
+}
+function premRenderSerie(d){
+  const svg=document.getElementById('chartPrem'), loading=document.getElementById('prem-comp-loading');
+  if(loading) loading.style.display='none';
+  if(svg) svg.style.display='';
+  const meses=((d||{}).meses||[]).slice().reverse();   // /serie devolve decrescente; gráfico quer cronológico
+  if(!meses.length){
     if(svg){ svg.setAttribute('viewBox','0 0 960 60'); svg.innerHTML='<text x="12" y="34" font-size="13" fill="#6B7280">sem meses coletados</text>'; }
     const pr=document.getElementById('prem-comp-premios'); if(pr) pr.textContent='';
     return;
   }
-  const linhas=[];
-  for(const m of idx){
-    if(seq!=null && seq!==premSeq) return;
-    let media=null, metaM=null, premio=null;
-    try{
-      const r=await fetch('/api/frota/premiacao?mes='+encodeURIComponent(m.month),{cache:'no-store'});
-      const j=await r.json();
-      if(j && j.configurado){ media=(j.kpis||{}).media_frota; metaM=(j.params||{}).meta; premio=(j.kpis||{}).premio_total; }
-    }catch(e){ /* mês sem snapshot local ou falha pontual: entra em branco no gráfico */ }
-    linhas.push({label:m.label+(m.parcial?' (parcial)':''), media:media, meta:metaM, premio:premio});
-  }
-  if(seq!=null && seq!==premSeq) return;
-  chartCols('chartPrem', linhas.map(l=>l.label), [
-    {nome:'Média da frota (km/l)', cor:CC.navy700, valores:linhas.map(l=>l.media||0)},
-    {nome:'Meta (km/l)', cor:CC.laranja, valores:linhas.map(l=>l.meta||0)},
+  const labels=meses.map(m=>m.label+(m.parcial?' (parcial)':''));
+  chartCols('chartPrem', labels, [
+    {nome:'Média da frota (km/l)', cor:CC.navy700, valores:meses.map(m=>m.media_frota||0)},
+    {nome:'Meta (km/l)', cor:CC.laranja, valores:meses.map(m=>m.meta||0)},
   ], {fmt:v=>Number(v).toLocaleString('pt-BR',{maximumFractionDigits:2})});
   document.getElementById('prem-comp-premios').innerHTML = 'Prêmio total por mês: '
-    + linhas.map(l=>esc(l.label)+': '+(l.premio!=null?BRL.format(l.premio):'—')).join(' · ');
+    + meses.map((m,i)=>esc(labels[i])+': '+(m.premio_total!=null?BRL.format(m.premio_total):'—')).join(' · ');
 }
 
 /* ---------------- Ordens de Compra ---------------- */
