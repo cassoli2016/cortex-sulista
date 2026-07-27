@@ -243,3 +243,87 @@ def test_provisao_do_ano_migra_banco_pre_metodo(tmp_path):
 
     cols_depois = {r2[1] for r2 in sqlite3.connect(p).execute("PRAGMA table_info(orc_versao)")}
     assert "metodo" in cols_depois
+
+
+# ---------------------------------------------------------- prioridade de status
+
+
+def test_provisao_do_ano_prefere_aprovada_sobre_rascunho_mais_novo(tmp_path):
+    """Uma versão aprovada (número travado) tem prioridade mesmo quando existe
+    uma rascunho com id maior — regerar não pode fazer a provisão de caixa
+    saltar silenciosamente para um número ainda em edição."""
+    from api.orcamento import armazenamento as arm
+
+    p = tmp_path / "o.db"
+    arm.init_db(p)
+    aprovada_id = arm.criar_versao(p, 2026, "aprovada", 0.0, "t")
+    arm.gravar_baseline(p, aprovada_id, [
+        {"conta": "1|1", "mes": 8, "valor_baseline": 1000.0, "origem": "espelho", "meses_com_dado": 12}])
+    arm.aprovar(p, aprovada_id, "ana")
+
+    rascunho_id = arm.criar_versao(p, 2026, "rascunho mais novo", 0.0, "t")
+    arm.gravar_baseline(p, rascunho_id, [
+        {"conta": "1|1", "mes": 8, "valor_baseline": 9999.0, "origem": "espelho", "meses_com_dado": 12}])
+    assert rascunho_id > aprovada_id   # id maior = mais recente
+
+    r = provisao_do_ano(2026, 49.0, 79.0, hoje=date(2026, 7, 27), db_path=p)
+    assert r["versao"]["id"] == aprovada_id
+    assert r["versao"]["status"] == "aprovado"
+
+
+def test_provisao_do_ano_ignora_arquivada(tmp_path):
+    """Arquivada é registro histórico — nunca entra na provisão de caixa,
+    mesmo sendo a versão de id mais alto do ano."""
+    from api.orcamento import armazenamento as arm
+
+    p = tmp_path / "o.db"
+    arm.init_db(p)
+    rascunho_id = arm.criar_versao(p, 2026, "rascunho", 0.0, "t")
+    arm.gravar_baseline(p, rascunho_id, [
+        {"conta": "1|1", "mes": 8, "valor_baseline": 500.0, "origem": "espelho", "meses_com_dado": 12}])
+    arquivada_id = arm.arquivar_copia(p, rascunho_id, "rascunho (antes de regerar)")
+    assert arquivada_id > rascunho_id
+
+    r = provisao_do_ano(2026, 49.0, 79.0, hoje=date(2026, 7, 27), db_path=p)
+    assert r["versao"]["id"] == rascunho_id
+    assert r["versao"]["status"] == "rascunho"
+
+
+def test_provisao_do_ano_sem_status_trata_como_rascunho(tmp_path):
+    """Compat com banco pré-coluna `status`: versão sem o campo não pode
+    quebrar a escolha nem ser tratada como arquivada."""
+    from api.orcamento import armazenamento as arm
+
+    p = tmp_path / "o.db"
+    c = sqlite3.connect(p)
+    c.executescript("""
+        CREATE TABLE orc_versao(
+            id              INTEGER PRIMARY KEY AUTOINCREMENT,
+            ano             INTEGER NOT NULL,
+            rotulo          TEXT    NOT NULL,
+            fator_tendencia REAL    NOT NULL DEFAULT 0,
+            criado_em       TEXT    NOT NULL DEFAULT (datetime('now','localtime')),
+            criado_por      TEXT
+        );
+        CREATE TABLE orc_linha(
+            versao_id      INTEGER NOT NULL,
+            conta          TEXT    NOT NULL,
+            mes            INTEGER NOT NULL,
+            valor_baseline REAL    NOT NULL DEFAULT 0,
+            valor_ajustado REAL,
+            origem         TEXT    NOT NULL DEFAULT 'sem_base',
+            meses_com_dado INTEGER NOT NULL DEFAULT 0,
+            ajustado_em    TEXT,
+            ajustado_por   TEXT,
+            PRIMARY KEY (versao_id, conta, mes)
+        );
+    """)
+    c.execute("INSERT INTO orc_versao(id, ano, rotulo) VALUES (1, 2026, 'sem status')")
+    c.execute("""INSERT INTO orc_linha(versao_id, conta, mes, valor_baseline, origem, meses_com_dado)
+                 VALUES (1, '1|100', 8, 1000.0, 'espelho', 12)""")
+    c.commit()
+    c.close()
+
+    r = provisao_do_ano(2026, None, None, hoje=date(2026, 7, 27), db_path=p)
+    assert r is not None
+    assert r["versao"]["id"] == 1

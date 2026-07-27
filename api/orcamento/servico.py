@@ -5,8 +5,9 @@ testada sem banco.
 """
 from __future__ import annotations
 
+import io
 import json
-from datetime import date
+from datetime import date, datetime
 
 from api import db
 from api.orcamento import armazenamento as arm
@@ -198,7 +199,8 @@ def _serie_por_linha(hist24: dict[str, dict[str, float]],
 
 def gerar(ano: int, rotulo: str, fator: float, quem: str,
           path=None, hoje: date | None = None,
-          versao_id: int | None = None, metodo: str = "espelho") -> dict:
+          versao_id: int | None = None, metodo: str = "espelho",
+          agora: datetime | None = None) -> dict:
     """Deriva o baseline do ano.
 
     Sem `versao_id`, grava numa versão nova. Com `versao_id`, REGERA aquela
@@ -215,16 +217,31 @@ def gerar(ano: int, rotulo: str, fator: float, quem: str,
     REGERAR ignora o `metodo` recebido: a versão já gravou o método com que
     nasceu, e regerar tem de re-derivar POR ESSE método (rolante, na base
     atual) — senão uma versão trocaria de método sem o usuário pedir.
+
+    Versão aprovada ou arquivada é imutável: regerar exige reabrir antes.
+    Regerar uma rascunho arquiva uma CÓPIA fiel do estado atual (baseline +
+    ajustes) ANTES de re-derivar — é o snapshot histórico do "antes de
+    regerar"; a resposta traz o id dessa cópia em `arquivada_id` (None
+    quando é geração de versão nova, sem nada para arquivar).
     """
     path = path or arm.DB_PATH
     hoje = hoje or date.today()
+    agora = agora or datetime.now()
     arm.init_db(path)
 
+    arquivada_id: int | None = None
     if versao_id is not None:
         versoes = {v["id"]: v for v in arm.listar_versoes(path)}
         if versao_id not in versoes:
             raise KeyError(f"versão inexistente: {versao_id}")
-        metodo = versoes[versao_id].get("metodo") or "espelho"
+        versao_atual = versoes[versao_id]
+        if versao_atual["status"] != "rascunho":
+            raise ValueError(
+                "Versão aprovada/arquivada é imutável — reabra antes de regerar.")
+        metodo = versao_atual.get("metodo") or "espelho"
+        arquivada_id = arm.arquivar_copia(
+            path, versao_id,
+            f"{versao_atual['rotulo']} (antes de regerar {agora.strftime('%d/%m %H:%M')})")
 
     agrup, ajustes = _mapa()
     mapa = mapa_conta_linha(agrup, ajustes)
@@ -283,7 +300,8 @@ def gerar(ano: int, rotulo: str, fator: float, quem: str,
             "contas_sem_linha": pendentes, "regerada": regerada,
             "celulas_zeradas": zeradas,
             "meses_circulares": meses_circulares(ano, meses),
-            "metodo": metodo, "linhas_flat": linhas_flat}
+            "metodo": metodo, "linhas_flat": linhas_flat,
+            "arquivada_id": arquivada_id}
 
 
 def meses_circulares(ano: int, meses_base: list[str]) -> list[int]:
@@ -334,3 +352,95 @@ def comparativo(versao_id: int, ate_mes: int | None = None,
     out["fonte"] = ("Orçado: data/orcamento.db (baseline derivado + ajustes). "
                     "Realizado: ERP AVA, lancamento x planoconta, mesma base da DRE.")
     return out
+
+
+def exportar_csv(versao_id: int, path=None, agora: datetime | None = None) -> tuple[str, str]:
+    """Exporta a versão inteira como CSV pt-BR: BOM, `;`, decimal vírgula.
+
+    Qualquer status exporta (rascunho/aprovado/arquivada) — não há guarda de
+    imutabilidade aqui, só leitura. Nome de conta e linha da DRE dependem do
+    ERP AVA (réplica só-leitura, pode estar fora do ar pelo túnel): melhor
+    esforço com try/except — o export não pode quebrar por isso, as duas
+    colunas só saem vazias.
+    """
+    path = path or arm.DB_PATH
+    agora = agora or datetime.now()
+    arm.init_db(path)
+    versoes = {v["id"]: v for v in arm.listar_versoes(path)}
+    if versao_id not in versoes:
+        raise KeyError(f"versão inexistente: {versao_id}")
+    v = versoes[versao_id]
+    linhas = arm.ler_linhas(path, versao_id)
+
+    try:
+        nomes = _nomes()
+    except Exception:  # noqa: BLE001 — ERP fora não pode quebrar o export
+        nomes = {}
+    try:
+        agrup, ajustes = _mapa()
+        mapa = mapa_conta_linha(agrup, ajustes)
+    except Exception:  # noqa: BLE001
+        mapa = {}
+
+    def _dec(x: float) -> str:
+        return f"{x:.2f}".replace(".", ",")
+
+    def _campo(s) -> str:
+        s = "" if s is None else str(s)
+        if any(ch in s for ch in (";", '"', "\n")):
+            return '"' + s.replace('"', '""') + '"'
+        return s
+
+    base = json.loads(v["meses_base"]) if v.get("meses_base") else []
+    faixa = f"{base[0]} a {base[-1]}" if base else ""
+    status_txt = v["status"]
+    if v.get("aprovado_por"):
+        status_txt = f"{status_txt} (aprovado por {v['aprovado_por']} em {v['aprovado_em']})"
+
+    cabecalho = [
+        ("rotulo", v["rotulo"]),
+        ("ano", v["ano"]),
+        ("metodo", v.get("metodo") or "espelho"),
+        ("base", faixa),
+        ("fator", _dec(v["fator_tendencia"])),
+        ("status", status_txt),
+        ("criado em", v["criado_em"]),
+        ("criado por", v.get("criado_por") or ""),
+        ("exportado em", agora.strftime("%Y-%m-%d %H:%M")),
+    ]
+
+    buf = io.StringIO()
+    buf.write("﻿")               # BOM UTF-8: Excel pt-BR abre acentuado
+    for chave, valor in cabecalho:
+        buf.write(f"{_campo(chave)};{_campo(valor)}\n")
+    buf.write("\n")
+    buf.write("conta;nome;linha_dre;origem;meses_com_dado;"
+              "jan;fev;mar;abr;mai;jun;jul;ago;set;out;nov;dez;total;ajustadas\n")
+
+    por_conta: dict[str, dict] = {}
+    for l in linhas:
+        c = por_conta.setdefault(l["conta"], {
+            "origem": l["origem"], "meses_com_dado": l["meses_com_dado"],
+            "valores": {}, "ajustadas": []})
+        c["valores"][l["mes"]] = l["valor_efetivo"]
+        if l["valor_ajustado"] is not None:
+            c["ajustadas"].append(l["mes"])
+
+    def _linha_dre(conta: str) -> str:
+        return mapa.get(conta) or ""
+
+    for conta in sorted(por_conta, key=lambda cta: (_linha_dre(cta), cta)):
+        c = por_conta[conta]
+        # linhas sempre têm as 12 células (gravar_baseline grava conta x mes
+        # completo); None só apareceria de dado incoerente — vira 0,00 e não
+        # quebra a exportação.
+        valores = [c["valores"].get(m) or 0.0 for m in range(1, 13)]
+        campos = [conta, nomes.get(conta) or "", _linha_dre(conta),
+                  c["origem"], c["meses_com_dado"]]
+        campos += [_dec(x) for x in valores]
+        campos.append(_dec(sum(valores)))
+        campos.append(",".join(str(m) for m in sorted(c["ajustadas"])))
+        buf.write(";".join(_campo(x) for x in campos) + "\n")
+
+    filename = f"orcamento-{v['ano']}-v{versao_id}.csv"
+    return buf.getvalue(), filename
