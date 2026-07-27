@@ -427,6 +427,30 @@ a query ignora sai; dimensão que a query aceita e é a pergunta natural da tela
 - Esta tela mede a MÁQUINA ONDE A API RODA — fora do servidor, túnel e tarefas
   agendadas aparecem indisponíveis sem que haja falha. O ⓘ diz isso.
 
+**Orçamento (módulo novo, 2026-07-26):**
+- **Escrita fica em SQLite local** (`data/orcamento.db`), porque o AVA é réplica
+  somente-leitura. Padrão do `auth.db`: conexão curta, WAL, commit automático.
+- **`valor_efetivo = coalesce(valor_ajustado, valor_baseline)`** — regerar o baseline
+  nunca apaga ajuste manual. Mesmo princípio do `ajustes_contabeis.json`.
+- **Derivação por mês espelho, não média.** Dezembro cai ~40% na Sulista e há queda
+  estrutural de 18% a/a: média achata a sazonalidade e ignora a tendência.
+- **Corte de recorrência em 75% dos meses da base.** 41 das 355 contas aparecem em 1 ou
+  2 meses; espelhar isso é ruído com cara de número. Abaixo do corte → mediana + marca
+  "base fraca".
+- **Desvio orçamentário tem cor invertida em custo.** Custo abaixo do orçado é
+  FAVORÁVEL (verde), receita abaixo é desfavorável (vermelho). A flag `favoravel` vem do
+  efeito no resultado, nunca do sinal.
+- Conta que não chega a nenhuma linha da DRE (`contas_sem_linha` — sem agrupador, ou com
+  agrupador que o `DRE_MODELO` não reconhece) fica **fora** do orçamento e volta como
+  pendência com link para a Contabilidade — orçar o que não soma em linha nenhuma faria
+  o total não fechar.
+- **`<input type="number">` DESCARTA a vírgula em vez de recusá-la.** Digitar `1234,56`
+  produz `123456` — cem vezes o valor, sem erro nem aviso. Em campo de valor use
+  `type="text"` + `inputmode="decimal"` + parse estrito (`numBR()` no `index.html`): valida
+  por regex ANTES de converter, porque `parseFloat` aceita prefixo válido e ignora o resto
+  (`1.234.56` viraria `1,234`). Ponto em grupos de exatamente 3 dígitos é milhar pt-BR
+  (`1.234` = 1234), não decimal.
+
 **Telas de consulta (busca própria, filterbar global escondida — ex.: Consulta de Cliente):**
 - Campo de busca com **`<datalist>`** alimentado por endpoint LEVE e cacheado
   (`/api/comercial/clientes-lista`, ~34 grupos). Nunca reusar o endpoint do painel
