@@ -90,8 +90,9 @@ def test_resposta_nao_json_em_sucesso_vira_gobrax_indisponivel():
 
 
 def test_corpo_vazio_em_sucesso_retorna_dict_vazio():
-    """Testa que corpo vazio ("") em status 2xx retorna {}."""
+    """Testa que corpo vazio ("") em status 2xx retorna {} via _http_urllib (não stub)."""
     from unittest.mock import patch, MagicMock
+    from api.premiacao.gobrax import _http_urllib
 
     mock_resp = MagicMock()
     mock_resp.status = 200
@@ -100,15 +101,9 @@ def test_corpo_vazio_em_sucesso_retorna_dict_vazio():
     mock_resp.__exit__ = MagicMock(return_value=None)
 
     with patch("urllib.request.urlopen", return_value=mock_resp):
-        # Primeiro, fazer login com respostas simuladas
-        respostas, _ = _fluxo_login()
-        respostas.append((200, {"ok": True}))  # resposta que será corpo vazio
-        chamadas = []
-
-        # Ajustar: a chamada de sucessoUsamos stub http, não urlopen
-        c = ClienteGobrax(email="e@x.com", senha="s", http=_http_fabrica(respostas, chamadas))
-        result = c.get("/test")
-        assert result == {"ok": True}
+        st, body = _http_urllib("https://example.com/test", "GET", {}, None)
+        assert st == 200
+        assert body == {}
 
 
 def test_fields_null_nao_quebra():
