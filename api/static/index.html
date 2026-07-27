@@ -3571,7 +3571,8 @@ function renderOrc(d){
   const top=(d.contas||[]).slice(0,15);
   document.getElementById('orc-desvios').innerHTML=
     `<table><thead><tr><th>Conta</th><th>Linha</th><th class="num">Orçado</th><th class="num">Realizado</th><th class="num">Desvio</th></tr></thead><tbody>`
-    + (top.map(c=>`<tr><td style="font-family:var(--mono)">${esc(c.conta)}</td><td>${esc(c.linha)}</td>`
+    + (top.map(c=>`<tr><td><div style="font-weight:600">${esc(c.nome||'(sem nome no plano)')}</div>`
+        +`<div style="font-family:var(--mono);font-size:11px;color:var(--n500)">${esc(c.conta)}</div></td><td>${esc(c.linha)}</td>`
         +`<td class="num">${BRL.format(c.orcado)}</td><td class="num">${BRL.format(c.realizado)}</td>`
         +`<td class="num" style="color:${c.favoravel?'var(--green)':'var(--red)'};font-weight:700">${(c.desvio>=0?'+':'')+BRL.format(c.desvio)}</td></tr>`).join('')
        || '<tr><td colspan="5" style="color:var(--n500)">sem contas no período</td></tr>')
@@ -3582,7 +3583,10 @@ function renderOrc(d){
     document.getElementById('orc-cascata').insertAdjacentHTML('afterbegin',
       `<div class="banner-inline" style="display:block;margin:10px 16px">`
       +`<b>${d.sem_linha.length} conta(s) sem agrupador</b> ficaram fora do orçamento — `
-      +`elas não somam em linha nenhuma da DRE. Classifique em <a href="#cont">Contabilidade</a>.</div>`);
+      +`elas não somam em linha nenhuma da DRE. Classifique em <a href="#cont">Contabilidade</a>.`
+      +`<details style="margin-top:6px"><summary style="cursor:pointer">ver as contas</summary>`
+      +d.sem_linha.map(x=>`<div style="margin-top:3px"><span style="font-family:var(--mono)">${esc(x.conta)}</span> — ${esc(x.nome||'(sem nome no plano)')}</div>`).join('')
+      +`</details></div>`);
   }
   // versão/mês continuam ativos fora do conteúdo das abas: se o usuário estiver na
   // Montagem e trocar de versão (ou gerar um baseline novo), a grade e o data-versao
@@ -3672,6 +3676,7 @@ function renderOrcMontagem(){
   // no clique da aba) sempre que renderOrc() atualiza com a Montagem ativa —
   // trocar de versão ou gerar um baseline não pode resetar o que o usuário via
   const filtroAnterior=(document.getElementById('fOrcLinha')||{}).value||'';
+  const buscaAnterior=(document.getElementById('fOrcBusca')||{}).value||'';
   // o formulário reflete a versão carregada: sem isso o campo abria sempre em 0 e
   // "Regerar" zerava em silêncio o fator de tendência de uma versão feita a -5%
   const ver=d.versao||{};
@@ -3701,18 +3706,23 @@ function renderOrcMontagem(){
           <option value="">Todas as linhas</option>
           ${linhas.map(l=>`<option value="${esc(l)}">${esc(l)}</option>`).join('')}
         </select>
+        <input type="text" id="fOrcBusca" placeholder="nome ou nº da conta…" aria-label="Buscar conta por nome ou chave" style="width:210px" oninput="renderOrcGrade()">
       </div>
       <div class="tablewrap tabroll" id="orc-grade"></div></div>`;
   const selLinha=document.getElementById('fOrcLinha');
   if(selLinha && linhas.includes(filtroAnterior)) selLinha.value=filtroAnterior;
+  const inpBusca=document.getElementById('fOrcBusca');
+  if(inpBusca) inpBusca.value=buscaAnterior;
   renderOrcGrade();
 }
 function renderOrcGrade(){
   const d=DATAORC||{}; const vid=(d.versao||{}).id;
   const filtro=(document.getElementById('fOrcLinha')||{}).value||'';
+  const busca=((document.getElementById('fOrcBusca')||{}).value||'').trim().toUpperCase();
   // lê d.grade (todas as 12 células de toda conta), NÃO d.contas — este último só
   // traz meses já fechados e viria vazio num ano que ainda não começou
-  const contas=(d.grade||[]).filter(c=>!filtro||c.linha===filtro);
+  const contas=(d.grade||[]).filter(c=>(!filtro||c.linha===filtro)
+    && (!busca || (c.nome||'').toUpperCase().includes(busca) || c.conta.includes(busca)));
   const MES=['jan','fev','mar','abr','mai','jun','jul','ago','set','out','nov','dez'];
   const el=document.getElementById('orc-grade');
   if(!vid){ el.innerHTML='<div style="padding:20px;color:var(--n500)">Gere um baseline primeiro.</div>'; return; }
@@ -3723,9 +3733,11 @@ function renderOrcGrade(){
         // 'mediana', 'sem_base' e também um origem vazio/ausente (não exigir
         // truthy antes da comparação, senão origem vazio escaparia da marca)
         const fraca = c.origem !== 'espelho';
-        return `<tr><td style="font-family:var(--mono)">${esc(c.conta)}`
+        return `<tr><td style="min-width:190px;max-width:260px">`
+          + `<div style="font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis" title="${esc(c.nome||'')}">${esc(c.nome||'(sem nome no plano)')}</div>`
+          + `<div style="font-family:var(--mono);font-size:11px;color:var(--n500)">${esc(c.conta)}`
           + (fraca?` <span class="badge b-warn" title="Menos de 9 dos 12 meses com movimento: o valor saiu por mediana, não por mês espelho. Revise.">base fraca</span>`:'')
-          + `</td><td style="color:var(--n500)">${esc(c.linha||'—')}</td>`
+          + `</div></td><td style="color:var(--n500)">${esc(c.linha||'—')}</td>`
           + MES.map((_,i)=>{
               const m=i+1, v=(c.valores||{})[m], aj=(c.ajustados||{})[m];
               const val = (v==null?'':fmtNumBR(Number(v)));
