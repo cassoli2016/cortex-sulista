@@ -72,3 +72,50 @@ def test_ordena_por_premio_depois_km():
                   _mot(driverId=2, media=2.30, km=3000.0),
                   _mot(driverId=3, media=1.70, km=9000.0)], PARAMS)
     assert [l["driverId"] for l in r["linhas"]] == [2, 1, 3]
+
+
+def test_campos_originais_motorista_sobrevivem_intactos_na_linha():
+    """Verifica que todo campo original do motorista permanece inalterado na saída.
+
+    A implementação usa **m para expandir; refactoring que montasse a linha manualmente
+    e esquecesse um campo passaria verde na suíte sem este teste."""
+    original = {
+        "driverId": 42,
+        "driverName": "5821 - JOÃO DA SILVA",
+        "documento": "12•••••98",
+        "vehicles": [
+            {"plate": "ABC1234", "model": "SCANIA"},
+            {"plate": "XYZ5678", "model": "VOLVO"}
+        ],
+        "nota": 92,
+        "media": 2.15,
+        "km": 6200.0,
+        "indicators": {
+            "acidentes": 0,
+            "multas": 2,
+            "defeitos": 1
+        }
+    }
+    r = calcular([original], PARAMS)
+    assert len(r["linhas"]) == 1
+    linha = r["linhas"][0]
+
+    # Verifica que todos os campos originais estão presentes e iguais
+    assert linha["driverId"] == 42
+    assert linha["driverName"] == "5821 - JOÃO DA SILVA"
+    assert linha["documento"] == "12•••••98"
+    assert linha["vehicles"] == [
+        {"plate": "ABC1234", "model": "SCANIA"},
+        {"plate": "XYZ5678", "model": "VOLVO"}
+    ]
+    assert linha["nota"] == 92
+    assert linha["media"] == 2.15
+    assert linha["km"] == 6200.0
+    assert linha["indicators"] == {"acidentes": 0, "multas": 2, "defeitos": 1}
+
+    # Verifica que os 5 campos calculados existem
+    assert "litros_meta" in linha
+    assert "litros_consumidos" in linha
+    assert "litros_economizados" in linha
+    assert "premio" in linha
+    assert "elegivel" in linha
