@@ -3745,13 +3745,22 @@ function numBR(s){
   return NaN;
 }
 const fmtNumBR = v => v.toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2});
+// monta "mmm–mmm/aa" (ini e fim no mesmo ano) ou "mmm/aa–mmm/aa" (o semestre
+// cruza a virada do ano) — sem o ano nos dois lados, "ago–jan/26" lê-se como
+// se ago TAMBÉM fosse /26 (é /25); ano só some do lado esquerdo quando os dois
+// batem, pra não poluir o caso comum (mesmo ano inteiro)
+function _orcRotuloSemestre(iniAno,iniMes,fimAno,fimMes){
+  const a2 = a => String(a).slice(-2);
+  const iniTxt = MES[iniMes] + (iniAno!==fimAno ? '/'+a2(iniAno) : '');
+  return iniTxt+'–'+MES[fimMes]+'/'+a2(fimAno);
+}
 // rótulo dos últimos 6 meses FECHADOS a partir de hoje, ex.: "jan–jun/26" — o
 // mês corrente nunca fecha, então a base do método semestre para no mês anterior
 function _orcRotuloBase6(){
   const hoje=new Date();
   const fim=new Date(hoje.getFullYear(), hoje.getMonth()-1, 1);
   const ini=new Date(fim.getFullYear(), fim.getMonth()-5, 1);
-  return MES[ini.getMonth()]+'–'+MES[fim.getMonth()]+'/'+String(fim.getFullYear()).slice(2);
+  return _orcRotuloSemestre(ini.getFullYear(), ini.getMonth(), fim.getFullYear(), fim.getMonth());
 }
 // mesmo rótulo, mas a partir do meses_base GRAVADO na versão (JSON string de
 // 'YYYY-MM's em ordem cronológica) — pode ser null numa versão espelho/antiga
@@ -3760,7 +3769,7 @@ function _orcRotuloDeMesesBase(mesesBaseStr){
   let arr; try{ arr=JSON.parse(mesesBaseStr); }catch(e){ arr=null; }
   if(!Array.isArray(arr) || !arr.length) return 'semestral';
   const ini=arr[0], fim=arr[arr.length-1];
-  return MES[+ini.slice(5,7)-1]+'–'+MES[+fim.slice(5,7)-1]+'/'+fim.slice(2,4);
+  return _orcRotuloSemestre(+ini.slice(0,4), +ini.slice(5,7)-1, +fim.slice(0,4), +fim.slice(5,7)-1);
 }
 // texto do banner explicativo do card "Gerar baseline", por método
 function _orcBannerTexto(metodo){
@@ -3892,7 +3901,9 @@ async function orcGerar(versaoId){
       body:JSON.stringify(corpo)});
     const d=await r.json();
     if(!r.ok){ msg.textContent=''; showBanner(d.mensagem||'Erro ao gerar.'); return; }
-    const flat=d.linhas_flat||[];
+    // esc() em tudo que vem da API, mesmo indo para textContent (regra do
+    // projeto) — rótulo de linha da DRE é texto livre, não confiar no back
+    const flat=(d.linhas_flat||[]).map(esc);
     const aviso=(d.regerada?`versão ${d.versao_id} regerada`:`versão ${d.versao_id} criada`)
       + ` · ${d.linhas} linhas`
       + (d.celulas_zeradas?` · ${d.celulas_zeradas} célula(s) sem base nova foram zeradas`:'')
@@ -4024,12 +4035,25 @@ function chartFluxo(fluxo){
     if(ano!==anoRef) return null;
     return provPorMes.get(mes)||null;
   };
+  // geracao é SIGNED (entradas + saidas, saidas já negativa) — em dezembro a
+  // Sulista cai ~40% na receita, então geracao<0 é caso ESPERADO, não borda.
+  // receber/pagar do fluxo são sempre magnitudes >=0, então só a provisão pode
+  // empurrar o painel para negativo.
   const provGeracoes = provPorMes
-    ? fluxo.map((_,i)=>provPt(i)).filter(Boolean).map(p=>Math.abs(p.geracao)) : [];
+    ? fluxo.map((_,i)=>provPt(i)).filter(Boolean).map(p=>p.geracao) : [];
 
-  const m1=Math.max(1,...fluxo.map(f=>Math.max(f.receber,f.pagar)),...provGeracoes);
-  const tk1=niceTicks(0,m1,4), top1=tk1[tk1.length-1], u1=unitOf(top1);
-  const y1=v=>t1+h1-(v/top1)*h1;
+  // ESCALA do painel 1: estende para negativo quando a provisão tiver mês com
+  // geração < 0 — mesmo padrão já usado no painel de saldo (lo2/hi2) logo
+  // abaixo. Sem isso, y1(v) com domínio fixo em [0,top1] desenha v<0 ABAIXO da
+  // base do painel (dentro do gap ou por cima do painel de saldo). Com
+  // domínio [lo1,hi1] o ponto mais negativo cai exatamente na base do painel
+  // 1 — nunca invade o painel de baixo — e a grade de ticks (que já destaca
+  // v===0) desenha sozinha a linha de referência do zero.
+  let lo1=Math.min(0,...provGeracoes);
+  let hi1=Math.max(1,...fluxo.map(f=>Math.max(f.receber,f.pagar)),...provGeracoes);
+  const tk1=niceTicks(lo1,hi1,4); lo1=tk1[0]; hi1=tk1[tk1.length-1];
+  const u1=unitOf(Math.max(Math.abs(lo1),Math.abs(hi1)));
+  const y1=v=>t1+h1-((v-lo1)/(hi1-lo1))*h1;
   // ESCALA do painel de saldo: por padrão só o saldo PROJETADO (títulos
   // lançados). Com o cenário realista junto, a série que importa ocupava ~9%
   // da altura — o saldo projetado varia ~11 mi e o realista chega a +118 mi.
