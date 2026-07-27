@@ -1612,7 +1612,7 @@ button.avatar{border:0;cursor:pointer}
             </tr></thead><tbody id="prem-rank"></tbody></table></div>
           </div>
           <div class="card">
-            <div class="head"><h2>Comparativo mensal <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" id="prem-comp-help" title="">i</span></h2><span class="hint">média da frota × meta por mês · série calculada dos snapshots — não recoleta</span></div>
+            <div class="head"><h2>Comparativo mensal <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" id="prem-comp-help" title="">i</span></h2><span class="hint">média da frota × meta por mês · série calculada dos snapshots — não recoleta · mês parcial aparece com os dados coletados até agora</span></div>
             <div class="chartwrap">
               <div id="prem-comp-loading" style="display:none;color:var(--n500);font-size:13px;padding:24px 6px">carregando série…</div>
               <svg id="chartPrem" viewBox="0 0 960 260" preserveAspectRatio="xMidYMid meet" role="img" aria-label="Média da frota e meta de consumo por mês."></svg>
@@ -4302,6 +4302,12 @@ function _premNotaChip(n){
 function _premScoreLabel(k){
   return String(k||'').replace(/([A-Z])/g,' $1').replace(/^./,c=>c.toUpperCase()).trim();
 }
+// M4: fmtNumBR fixa 2 casas e REGRAVA o valor exibido — um pct salvo como
+// 0,205 virava "0,21" no campo e um "Salvar" sem editar nada regravava 0,21
+// (mudança silenciosa em número que multiplica folha). Só os 4 inputs de
+// parâmetro usam este formatador local, até 4 casas e SEM zero à direita;
+// o fmtNumBR global (tabelas) fica intacto.
+const fmtParam = v => v.toLocaleString('pt-BR',{maximumFractionDigits:4});
 async function loadPrem(forceSerie){
   const seq=++premSeq, btn=document.getElementById('btnRefresh'); if(btn) btn.disabled=true;
   document.getElementById('content').classList.add('loading');
@@ -4370,31 +4376,42 @@ function renderPrem(d){
   const k=d.kpis||{};
   const media=k.media_frota, meta=k.meta;
   const mediaCls = (media!=null && meta!=null && media>=meta) ? 'pos' : '';
+  // I3: "mês parcial" nos 4 KPIs acumuladores, não só no último — o cabeçalho
+  // monetário (Prêmio total) não pode ficar em silêncio sobre o corte do mês.
+  const _premParcialTxt = d.parcial ? 'mês parcial' : '';
+  const _premJuntaSub = (...partes) => partes.filter(Boolean).join(' · ');
   document.getElementById('kpis-prem').innerHTML=[
-    kpi('Prêmio total', BRL.format(k.premio_total||0), '', '',
+    kpi('Prêmio total', BRL.format(k.premio_total||0), _premParcialTxt, '',
       'Soma do prêmio dos motoristas ELEGÍVEIS (km no mês ≥ km mínimo do parâmetro). Prêmio = litros economizados × preço do litro × % de premiação.'),
     kpi('Motoristas premiados', (k.premiados||0)+' de '+(k.elegiveis||0),
-      'elegíveis'+((d.sem_media||0)>0?' · '+d.sem_media+' sem média (fora do cálculo)':''), '',
+      _premJuntaSub('elegíveis'+((d.sem_media||0)>0?' · '+d.sem_media+' sem média (fora do cálculo)':''), _premParcialTxt), '',
       'Elegível = km no mês ≥ km mínimo configurado. Premiado = prêmio calculado maior que zero. Motorista sem consumo médio na Gobrax não entra em nenhuma conta.'),
     kpi('Litros economizados', (k.litros_economizados_total||0).toLocaleString('pt-BR',{maximumFractionDigits:0})+' l',
-      (k.com_media||0)+' de '+(k.total_motoristas||0)+' motoristas com média', '',
+      _premJuntaSub((k.com_media||0)+' de '+(k.total_motoristas||0)+' motoristas com média', _premParcialTxt), '',
       'Litros que o motorista deixou de consumir rodando acima da meta de km/l, somado só dos elegíveis.'),
     kpi('Média da frota × meta',
       (media!=null?media.toLocaleString('pt-BR',{maximumFractionDigits:2}):'—')+' × '+(meta!=null?meta.toLocaleString('pt-BR',{maximumFractionDigits:2}):'—')+' km/l',
-      d.parcial ? 'mês parcial' : '', mediaCls,
+      _premParcialTxt, mediaCls,
       'Média = km total ÷ litros consumidos dos motoristas com consumo médio. Meta é o parâmetro configurado ao lado. Nunca vira alerta vermelho: é informativo, não penalidade.'),
   ].join('');
 
   const proc = 'API Gobrax v3 · customer 1 · coletado em '+(d.coletado_em?fmtDT(d.coletado_em):'—');
-  ['prem-params-help','prem-rank-help','prem-comp-help'].forEach(id=>{
+  ['prem-params-help','prem-comp-help'].forEach(id=>{
     const el=document.getElementById(id); if(el) el.title=proc;
   });
+  // M6: meta única e global sobre populações de veículo diferentes — sem isto
+  // um veículo leve supera a meta com muito mais folga que um pesado e a tela
+  // não avisa por quê.
+  const rankHelp=document.getElementById('prem-rank-help');
+  if(rankHelp) rankHelp.title = proc
+    + ' · A meta é única e global — compare motoristas de veículos do mesmo porte; '
+    + 'um veículo leve naturalmente supera a meta com mais folga.';
 
   const par=d.params||{};
-  document.getElementById('fPremMeta').value = par.meta!=null?fmtNumBR(par.meta):'';
-  document.getElementById('fPremPreco').value = par.preco_litro!=null?fmtNumBR(par.preco_litro):'';
-  document.getElementById('fPremPct').value = par.pct_premiacao!=null?fmtNumBR(par.pct_premiacao):'';
-  document.getElementById('fPremKmMin').value = par.km_minimo!=null?fmtNumBR(par.km_minimo):'';
+  document.getElementById('fPremMeta').value = par.meta!=null?fmtParam(par.meta):'';
+  document.getElementById('fPremPreco').value = par.preco_litro!=null?fmtParam(par.preco_litro):'';
+  document.getElementById('fPremPct').value = par.pct_premiacao!=null?fmtParam(par.pct_premiacao):'';
+  document.getElementById('fPremKmMin').value = par.km_minimo!=null?fmtParam(par.km_minimo):'';
   const refs=d.referencias||{};
   const mediaRef = refs.media_frota!=null ? refs.media_frota.toLocaleString('pt-BR',{maximumFractionDigits:2})+' km/l' : 'indisponível';
   const precoRef = refs.preco_diesel_interno!=null ? BRL.format(refs.preco_diesel_interno)+'/l' : 'indisponível';
@@ -4411,13 +4428,19 @@ function renderPrem(d){
       ${Object.entries(scores).map(([sk,sv])=>`<tr><td>${esc(_premScoreLabel(sk))}</td><td class="num">${_premNotaChip(sv)}</td></tr>`).join('')}
       </tbody></table></div>` : '<div style="color:var(--n500);padding:8px 0">sem indicadores detalhados</div>';
     const naoElegivel = l.elegivel ? '' : ' <span class="badge b-warn" title="km no mês abaixo do mínimo configurado">não elegível (km &lt; mínimo)</span>';
+    // I2: sem faixa física, km<=0 ou média implausível (teto amplo — veículo
+    // leve chega a ~9 km/l, caminhão pesado 0,8-6) virava prêmio de verdade.
+    // A linha continua visível (mostra o valor bruto calculado), mas atenuada
+    // e fora do KPI de prêmio total — como se fosse não-elegível.
+    const foraDoKpi = !l.elegivel || l.suspeito;
+    const suspeitoBadge = l.suspeito ? ' <span class="badge b-warn" title="km ou média fora da faixa física plausível — revisar a leitura de telemetria antes de usar para pagamento">leitura suspeita — revisar</span>' : '';
     return `
     <tr class="forn-row" aria-expanded="false" aria-controls="prem-det-${i}" tabindex="0" role="button"
-        style="${l.elegivel?'':'opacity:.55'}"
+        style="${foraDoKpi?'opacity:.55':''}"
         onclick="premToggle(${i})" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();premToggle(${i});}">
       <td><span class="expander">${ICONS['chevr2']}</span>
         <span style="display:inline-block;vertical-align:middle">
-          <div style="font-weight:600">${esc(l.driverName||'—')}${naoElegivel}</div>
+          <div style="font-weight:600">${esc(l.driverName||'—')}${naoElegivel}${suspeitoBadge}</div>
           <div style="font-size:11px;color:var(--n500);font-family:var(--mono)">${esc(placas||'—')}</div>
         </span>
       </td>
@@ -4425,7 +4448,7 @@ function renderPrem(d){
       <td class="num">${l.km!=null?Math.round(l.km).toLocaleString('pt-BR'):'—'}</td>
       <td class="num">${l.media!=null?l.media.toLocaleString('pt-BR',{maximumFractionDigits:2}):'—'}</td>
       <td class="num">${(l.litros_economizados||0).toLocaleString('pt-BR',{maximumFractionDigits:0})}</td>
-      <td class="num" style="font-weight:600" title="${l.elegivel?'':'motorista não elegível — prêmio não entra no KPI de prêmio total'}">${BRL.format(l.premio||0)}</td>
+      <td class="num" style="font-weight:600" title="${foraDoKpi?'motorista não elegível ou com leitura suspeita — prêmio não entra no KPI de prêmio total':''}">${BRL.format(l.premio||0)}</td>
     </tr>
     <tr class="forn-det" id="prem-det-${i}"><td colspan="6">${det}</td></tr>`;
   }).join('') : '<tr><td colspan="6" style="color:var(--n500)">sem motoristas com consumo médio neste mês</td></tr>';
