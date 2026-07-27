@@ -126,3 +126,30 @@ def obter(mes: str | None = None, force: bool = False, agora=None) -> dict:
         "kpis": calc["kpis"],
         "sem_media": calc["sem_media"],
     }
+
+
+def serie() -> dict:
+    """Série leve para o card comparativo mensal (Task 6 — fix de revisão):
+    só lê snapshots JÁ GRAVADOS em disco (`ler_snapshot`, puro) para cada mês do
+    `index` — NUNCA recoleta (não chama `_novo_cliente`/Gobrax) e NUNCA consulta
+    o preço do diesel na AVA (`_preco_diesel`), que é o custo que fazia o card
+    demorar ~15s por mês quando o túnel está fora. Os params atuais são lidos
+    UMA vez (não variam por mês: não há histórico de parâmetro por período).
+    Funciona igual com ou sem credenciais Gobrax configuradas — servem os
+    snapshots que já existirem; mês sem snapshot sai da lista."""
+    parametros = params.ler_params()
+    meses = []
+    for item in coleta.ler_index(SNAP_DIR):
+        snap = coleta.ler_snapshot(item["month"], SNAP_DIR)
+        if snap is None:
+            continue
+        calc = calculo.calcular(snap.get("drivers") or [], parametros)
+        meses.append({
+            "month": item["month"],
+            "label": item["label"],
+            "parcial": bool(snap.get("parcial")),
+            "media_frota": calc["kpis"].get("media_frota"),
+            "meta": parametros["meta"],
+            "premio_total": calc["kpis"].get("premio_total"),
+        })
+    return {"meses": meses}
