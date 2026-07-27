@@ -825,6 +825,7 @@ button.avatar{border:0;cursor:pointer}
         <a href="#mprev" class="sub" data-view="mprev" title="Manutenção Preventiva (revisões próximas/vencidas)"><span class="ic" data-ic="mprevic"></span><span>Manutenção Preventiva</span></a>
         <a href="#comrast" class="sub" data-view="comrast" title="Comunicação veículo x rastreadora"><span class="ic" data-ic="sinal"></span><span>Comunicação Rastreadora</span></a>
         <a href="#comb" class="sub" data-view="comb" title="Combustível"><span class="ic" data-ic="comb"></span><span>Combustível</span></a>
+        <a href="#prem" class="sub" data-view="prem" title="Premiação de Motoristas"><span class="ic" data-ic="prem"></span><span>Premiação de Motoristas</span></a>
         <a href="#man" class="sub" data-view="man" title="Manutenção"><span class="ic" data-ic="man"></span><span>Manutenção</span></a>
         <a href="#mul" class="sub" data-view="mul" title="Multas"><span class="ic" data-ic="mul"></span><span>Multas</span></a>
       </div>
@@ -1572,6 +1573,50 @@ button.avatar{border:0;cursor:pointer}
             <div class="tablewrap tabroll" id="orc-desvios"></div></div>
         </div>
         <div id="orc-mont" style="display:none"></div>
+      </section>
+
+      <!-- ===================== PREMIAÇÃO DE MOTORISTAS ===================== -->
+      <section class="view" id="view-prem">
+        <div class="card">
+          <div class="head"><h2>Premiação de Motoristas</h2><span class="hint">litros economizados × meta de consumo · telemetria Gobrax</span></div>
+          <div class="cardfilters">
+            <select id="fPremMes" aria-label="Mês da premiação" onchange="loadPrem()"></select>
+            <button class="btn" id="btnPremColeta" onclick="premColetar()">Atualizar dados</button>
+            <span class="hint" id="premColetadoEm" style="text-align:left"></span>
+          </div>
+        </div>
+        <div id="prem-aviso"></div>
+        <div id="prem-naoconfig" style="display:none"></div>
+        <div id="prem-conteudo">
+          <div class="banner-inline" id="prem-telemetria" style="display:none;margin:0"></div>
+          <div class="kpis k4" id="kpis-prem"></div>
+          <div class="card">
+            <div class="head"><h2>Parâmetros da regra <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" id="prem-params-help" title="">i</span></h2><span class="hint">editáveis · valem para todos os meses a partir de agora</span></div>
+            <div class="cardfilters" id="prem-params-form">
+              <label style="display:flex;flex-direction:column;gap:2px;font-size:11px;color:var(--n500)">Meta (km/l)
+                <input type="text" inputmode="decimal" id="fPremMeta" style="width:110px" aria-label="Meta de consumo em km por litro"></label>
+              <label style="display:flex;flex-direction:column;gap:2px;font-size:11px;color:var(--n500)">Preço do litro (R$)
+                <input type="text" inputmode="decimal" id="fPremPreco" style="width:110px" aria-label="Preço do diesel por litro"></label>
+              <label style="display:flex;flex-direction:column;gap:2px;font-size:11px;color:var(--n500)">% de premiação (ex.: 0,20 = 20%)
+                <input type="text" inputmode="decimal" id="fPremPct" style="width:110px" aria-label="Percentual de premiação sobre o litro economizado"></label>
+              <label style="display:flex;flex-direction:column;gap:2px;font-size:11px;color:var(--n500)">Km mínimo (elegibilidade)
+                <input type="text" inputmode="decimal" id="fPremKmMin" style="width:110px" aria-label="Km mínimo rodado no mês para ser elegível"></label>
+              <button class="btn" id="btnPremSalvar" onclick="premSalvarParams()">Salvar</button>
+            </div>
+            <div style="padding:0 18px 14px;font-size:12px;color:var(--n500)" id="prem-refs"></div>
+          </div>
+          <div class="card">
+            <div class="head"><h2>Ranking de motoristas <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" id="prem-rank-help" title="">i</span></h2><span class="hint" id="prem-rank-hint"></span></div>
+            <div class="tablewrap tabroll"><table><thead><tr>
+              <th>Motorista</th><th class="num">Nota</th><th class="num">Km</th><th class="num">Média</th><th class="num">Litros economizados</th><th class="num">Prêmio</th>
+            </tr></thead><tbody id="prem-rank"></tbody></table></div>
+          </div>
+          <div class="card">
+            <div class="head"><h2>Comparativo mensal <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" id="prem-comp-help" title="">i</span></h2><span class="hint">média da frota × meta por mês · snapshots locais, mês fechado nunca recoleta</span></div>
+            <div class="chartwrap"><svg id="chartPrem" viewBox="0 0 960 260" preserveAspectRatio="xMidYMid meet" role="img" aria-label="Média da frota e meta de consumo por mês."></svg></div>
+            <div style="padding:0 18px 14px;font-size:12px;color:var(--n500)" id="prem-comp-premios"></div>
+          </div>
+        </div>
       </section>
 
       <!-- ===================== RENTABILIDADE POR CLIENTE ===================== -->
@@ -2459,6 +2504,7 @@ const ICONS = {
   mul:  IC('<rect x="4" y="3" width="16" height="18" rx="2"/><path d="M8 7h8M8 11h8M8 15h5"/><circle cx="17" cy="17" r="4" fill="none"/><path d="M15.5 17h3"/>'),
   veic: IC('<rect x="2" y="8" width="13" height="8" rx="1.5"/><path d="M15 11h4l3 3v2h-3"/><circle cx="7" cy="18" r="1.8"/><circle cx="17" cy="18" r="1.8"/><path d="M9 18h6"/>'),
   man:  IC('<path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/>'),
+  prem: IC('<path d="M8 3h8v5a4 4 0 0 1-8 0V3zM5 5H4a1 1 0 0 0-1 1v1a4 4 0 0 0 4 4h.6M19 5h1a1 1 0 0 1 1 1v1a4 4 0 0 1-4 4h-.6"/><path d="M12 12v4M8 20h8M9.6 20c.3-1.6 1.1-2.1 2.4-4 1.3 1.9 2.1 2.4 2.4 4"/>'),
   agr:  IC('<path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75"/>'),
   chev: IC('<path d="M6 9l6 6 6-6"/>'),
   chevl:IC('<path d="M11 17l-5-5 5-5M18 17l-5-5 5-5"/>'),
@@ -2483,7 +2529,7 @@ const FAIXAS = {
   '4_vencido_91_365':['Vencido 91–365d','b-dang'],
   '5_vencido_mais_365':['Vencido > 365d','b-dang'],
 };
-const VIEWS = { home:'Visão Geral', fluxo:'Fluxo de Caixa e Bancos', receber:'Contas a Receber', pagar:'Contas a Pagar', oc:'Ordens de Compra', custos:'Painel de Custos', agr:'Agregados e Terceiros', mvb:'Make vs Buy', comb:'Combustível', man:'Manutenção', com:'Clientes e RKM', clif:'Consulta de Cliente', crm:'CRM — Leads e Projetos', km:'Análise de KM', torre:'Torre de Controle', veic:'Veículos', veicf:'Consulta de Veículo', mprev:'Manutenção Preventiva', comrast:'Comunicação Rastreadora', mul:'Multas', prog:'Programação Inteligente', jorn:'Jornada do Motorista', jornf:'Ficha de Jornada', cex:'Custos Extras', sac:'SAC / Freetime', port:'Portaria', cop:'Copiloto Cortex', cob:'Régua de Cobrança', cont:'Contabilidade', qual:'Qualidade e Certidões', orc:'Orçamento', dre:'DRE Gerencial', drecli:'DRE por Cliente', tvfat:'Painel TV — Faturamento', tvope:'Painel TV — Operação', rh:'RH — Vagas', hc:'Headcount', folha:'Custo de Folha', folhaind:'Indicadores de Folha', he:'Horas Extras', gestao:'Gestão', srv:'Saúde do Servidor' };
+const VIEWS = { home:'Visão Geral', fluxo:'Fluxo de Caixa e Bancos', receber:'Contas a Receber', pagar:'Contas a Pagar', oc:'Ordens de Compra', custos:'Painel de Custos', agr:'Agregados e Terceiros', mvb:'Make vs Buy', comb:'Combustível', man:'Manutenção', com:'Clientes e RKM', clif:'Consulta de Cliente', crm:'CRM — Leads e Projetos', km:'Análise de KM', torre:'Torre de Controle', veic:'Veículos', veicf:'Consulta de Veículo', mprev:'Manutenção Preventiva', comrast:'Comunicação Rastreadora', mul:'Multas', prog:'Programação Inteligente', jorn:'Jornada do Motorista', jornf:'Ficha de Jornada', cex:'Custos Extras', sac:'SAC / Freetime', port:'Portaria', cop:'Copiloto Cortex', cob:'Régua de Cobrança', cont:'Contabilidade', qual:'Qualidade e Certidões', orc:'Orçamento', prem:'Premiação de Motoristas', dre:'DRE Gerencial', drecli:'DRE por Cliente', tvfat:'Painel TV — Faturamento', tvope:'Painel TV — Operação', rh:'RH — Vagas', hc:'Headcount', folha:'Custo de Folha', folhaind:'Indicadores de Folha', he:'Horas Extras', gestao:'Gestão', srv:'Saúde do Servidor' };
 const periodoLabel = p => { if(p==='atrasado') return 'Atrasado'; const [y,m]=p.split('-'); return MES[+m-1]+'/'+y.slice(2); };
 const fmtD = s => { if(!s) return ''; const [y,m,dd]=s.split('-'); return dd+'/'+m+'/'+y; };
 // o ERP devolve "YYYY-MM-DD HH24:MI" (to_char); a ficha do veículo mostrava cru
@@ -2590,6 +2636,7 @@ let USER = null;            // sessão corrente (payload de /api/auth/me)
 let DATAGES = null;
 let DATASRV = null, srvTimer = null, srvSeq = 0;
 let DATAORC = null;
+let premSeq = 0, DATAPREM = null;
 let gesSeq = 0;
 let GES_TAB = 'usuarios';
 let filtrosPromise = null;    // memoização do carregamento de filtros
@@ -2634,7 +2681,7 @@ const VIEW_GROUP = {home:'',cop:'',
   fluxo:'Fin',receber:'Fin',pagar:'Fin',cob:'Fin',
   dre:'Ctr',cont:'Ctr',qual:'Ctr',orc:'Ctr',
   torre:'Ope',prog:'Ope',jorn:'Ope',jornf:'Ope',cex:'Ope',sac:'Ope',port:'Ope',km:'Ope',agr:'Ope',mvb:'Ope',
-  veic:'Fro',veicf:'Fro',mprev:'Fro',comrast:'Fro',comb:'Fro',man:'Fro',mul:'Fro',
+  veic:'Fro',veicf:'Fro',mprev:'Fro',comrast:'Fro',comb:'Fro',man:'Fro',mul:'Fro',prem:'Fro',
   oc:'Sup',custos:'Sup',
   tvfat:'Tv',tvope:'Tv',
   rh:'Rh',hc:'Rh',folha:'Rh',folhaind:'Rh',he:'Rh',gestao:'Adm',srv:'Adm'};
@@ -2774,7 +2821,7 @@ function semFilterbar(v){
   // filtros", que não tinha o que aplicar.
   return v==='cop'||v==='gestao'||v==='srv'||v==='home'||v==='veicf'||v==='clif'||v==='jorn'||v==='jornf'||v==='prog'||
          v==='cex'||v==='sac'||v==='mprev'||v==='comrast'||v==='qual'||v==='port'||v==='crm'||v==='rh'||
-         v==='hc'||v==='folha'||v==='folhaind'||v==='he'||v==='custos'||v==='orc';
+         v==='hc'||v==='folha'||v==='folhaind'||v==='he'||v==='custos'||v==='orc'||v==='prem';
 }
 function currentView(){
   const h = (location.hash||'').replace('#','');
@@ -2842,7 +2889,7 @@ function router(){
   document.getElementById('grpRent').style.display = rent ? 'flex' : 'none';
   const ges = (v==='gestao');
   const fbar=document.getElementById('filterbar'); if(fbar) fbar.style.display = semFilterbar(v) ? 'none' : '';
-  const metaEl=document.getElementById('meta'); if(metaEl) metaEl.style.display = (cop||ges||v==='srv'||v==='veicf'||v==='clif'||v==='jorn'||v==='jornf'||v==='cex'||v==='sac'||v==='mprev'||v==='comrast'||v==='qual'||v==='port'||v==='crm'||v==='rh'||v==='hc'||v==='folha'||v==='folhaind'||v==='he'||v==='custos') ? 'none' : '';
+  const metaEl=document.getElementById('meta'); if(metaEl) metaEl.style.display = (cop||ges||v==='srv'||v==='veicf'||v==='clif'||v==='jorn'||v==='jornf'||v==='cex'||v==='sac'||v==='mprev'||v==='comrast'||v==='qual'||v==='port'||v==='crm'||v==='rh'||v==='hc'||v==='folha'||v==='folhaind'||v==='he'||v==='custos'||v==='prem') ? 'none' : '';
   // classe em vez de style: o CSS mobile usa !important no display
   const bfil=document.getElementById('btnFiltros'); if(bfil){ bfil.classList.toggle('oculto', semFilterbar(v)); bfil.style.display=''; }
   document.getElementById('grpKm').style.display = kmv ? 'flex' : 'none';
@@ -2862,8 +2909,8 @@ function router(){
   // carga da vista: dispara se não há dados OU se os filtros visíveis
   // divergem dos usados na última carga (nunca mostrar dado velho com filtro novo)
   const key=viewKey(v);
-  const DATAMAP={fin:DATA,oc:DATAOC,agr:DATAAGR,mvb:DATAMVB,comb:DATACOMB,man:DATAMAN,com:DATACOM,clif:DATACLIF,dre:DATADRE,drecli:DATADRECLI,home:DATAHOME,km:DATAKM,torre:DATATORRE,veic:DATAVEIC,veicf:DATAVEICF,mul:DATAMUL,prog:DATAPROG,jorn:DATAJORN,jornf:DATAJORNF,cex:DATACEX,sac:DATASAC,mprev:DATAMPREV,comrast:DATACOMRAST,qual:DATAQUAL,port:DATAPORT,crm:DATACRM,rh:DATARH,hc:DATAHC,folha:DATAFOLHA,folhaind:DATAFOLHAIND,he:DATAHE,custos:DATACUSTOS,cob:DATACOB,rent:DATARENT,cont:DATACONT,orc:DATAORC,gestao:DATAGES,srv:DATASRV,tvfat:null,tvope:null,cop:(COP_MSGS.length?{}:null)};
-  const LOADMAP={fin:load,oc:loadOc,agr:loadAgr,mvb:loadMvb,comb:loadComb,man:loadMan,com:loadCom,clif:loadClif,dre:loadDre,drecli:loadDreCli,home:loadHome,km:loadKm,torre:loadTorre,veic:loadVeic,veicf:loadVeicf,mul:loadMul,prog:loadProg,jorn:loadJorn,jornf:loadJornf,cex:loadCex,sac:loadSac,mprev:loadMPrev,comrast:loadComRast,qual:loadQual,port:loadPort,crm:loadCrm,rh:loadRh,hc:loadHc,folha:loadFolha,folhaind:loadFolhaInd,he:loadHe,custos:loadCustos,cob:loadCob,rent:loadRent,cont:loadCont,orc:loadOrc,gestao:loadGestao,srv:loadSrv,cop:loadCop,tvfat:loadTvFat,tvope:loadTvOpe};
+  const DATAMAP={fin:DATA,oc:DATAOC,agr:DATAAGR,mvb:DATAMVB,comb:DATACOMB,man:DATAMAN,com:DATACOM,clif:DATACLIF,dre:DATADRE,drecli:DATADRECLI,home:DATAHOME,km:DATAKM,torre:DATATORRE,veic:DATAVEIC,veicf:DATAVEICF,mul:DATAMUL,prog:DATAPROG,jorn:DATAJORN,jornf:DATAJORNF,cex:DATACEX,sac:DATASAC,mprev:DATAMPREV,comrast:DATACOMRAST,qual:DATAQUAL,port:DATAPORT,crm:DATACRM,rh:DATARH,hc:DATAHC,folha:DATAFOLHA,folhaind:DATAFOLHAIND,he:DATAHE,custos:DATACUSTOS,cob:DATACOB,rent:DATARENT,cont:DATACONT,orc:DATAORC,prem:DATAPREM,gestao:DATAGES,srv:DATASRV,tvfat:null,tvope:null,cop:(COP_MSGS.length?{}:null)};
+  const LOADMAP={fin:load,oc:loadOc,agr:loadAgr,mvb:loadMvb,comb:loadComb,man:loadMan,com:loadCom,clif:loadClif,dre:loadDre,drecli:loadDreCli,home:loadHome,km:loadKm,torre:loadTorre,veic:loadVeic,veicf:loadVeicf,mul:loadMul,prog:loadProg,jorn:loadJorn,jornf:loadJornf,cex:loadCex,sac:loadSac,mprev:loadMPrev,comrast:loadComRast,qual:loadQual,port:loadPort,crm:loadCrm,rh:loadRh,hc:loadHc,folha:loadFolha,folhaind:loadFolhaInd,he:loadHe,custos:loadCustos,cob:loadCob,rent:loadRent,cont:loadCont,orc:loadOrc,prem:loadPrem,gestao:loadGestao,srv:loadSrv,cop:loadCop,tvfat:loadTvFat,tvope:loadTvOpe};
   if(!DATAMAP[key] || (key!=='home' && LOADEDQS[key]!==qsView(key))) LOADMAP[key]();
   // mobile: estado da navegação inferior + fecha gaveta/painel de filtros
   document.querySelectorAll('.bottomnav [data-bview]').forEach(a=>a.classList.toggle('ativo', a.dataset.bview===v));
@@ -2910,6 +2957,7 @@ const NAV_KW={
   dre:'resultado lucro prejuizo demonstracao contabil', cont:'contabil plano de contas agrupador classificar',
   qual:'certidao licenca alvara iso esg auditoria nc vencimento',
   orc:'orcamento orcado budget previsto desvio meta de custo',
+  prem:'premiacao premio bonus motorista economia consumo km/l telemetria gobrax',
   torre:'rastreamento posicao mapa gps viagem transito atraso', prog:'programacao radar vazio casamento malha ocioso',
   jorn:'motorista jornada 13103 descanso direcao infracao', cex:'custo extra estadia devolucao reentrega',
   sac:'freetime estadia detention ocorrencia atendimento', port:'portaria patio visitante entrada saida',
@@ -4233,8 +4281,218 @@ function reloadCurrent(){
   const M={home:loadHome,fluxo:load,receber:load,pagar:load,dre:loadDre,drecli:loadDreCli,oc:loadOc,
     agr:loadAgr,mvb:loadMvb,comb:loadComb,man:loadMan,com:loadCom,clif:loadClif,km:loadKm,
     torre:loadTorre,veic:loadVeic,veicf:loadVeicf,mul:loadMul,prog:loadProg,jorn:loadJorn,jornf:loadJornf,cex:loadCex,sac:loadSac,mprev:loadMPrev,comrast:loadComRast,qual:loadQual,port:loadPort,crm:loadCrm,rh:loadRh,hc:loadHc,folha:loadFolha,folhaind:loadFolhaInd,he:loadHe,custos:loadCustos,cob:loadCob,rent:loadRent,
-    cont:loadCont,orc:loadOrc,gestao:loadGestao,srv:loadSrv,cop:loadCop,tvfat:loadTvFat,tvope:loadTvOpe};
+    cont:loadCont,orc:loadOrc,prem:loadPrem,gestao:loadGestao,srv:loadSrv,cop:loadCop,tvfat:loadTvFat,tvope:loadTvOpe};
   (M[currentView()]||load)();
+}
+
+/* ---------------- Premiação de Motoristas ---------------- */
+// Nota/score: semáforo DISCRETO (>=80 ok, 60-79 warn, <60 bad) — reusa os badges
+// b-ok/b-warn/b-dang já existentes (não introduz cor nova no design system).
+function _premNotaCls(n){ if(n==null) return ''; return n>=80?'b-ok':(n>=60?'b-warn':'b-dang'); }
+function _premNotaChip(n){
+  if(n==null) return '<span style="color:var(--n500)">—</span>';
+  return `<span class="badge ${_premNotaCls(n)}">${Math.round(n)}</span>`;
+}
+// indicators.scores vem em camelCase da Gobrax (generalScore, idleScore…) — sem
+// glossário de tradução; só separa as palavras para ficar legível na lista.
+function _premScoreLabel(k){
+  return String(k||'').replace(/([A-Z])/g,' $1').replace(/^./,c=>c.toUpperCase()).trim();
+}
+async function loadPrem(){
+  const seq=++premSeq, btn=document.getElementById('btnRefresh'); if(btn) btn.disabled=true;
+  document.getElementById('content').classList.add('loading');
+  skelKpis('kpis-prem',4);
+  try{
+    const selM=document.getElementById('fPremMes');
+    const p=new URLSearchParams();
+    if(selM && selM.dataset.pronto && selM.value) p.set('mes', selM.value);
+    const r=await fetch('/api/frota/premiacao?'+p.toString(),{cache:'no-store'});
+    const d=await r.json(); if(seq!==premSeq) return;
+    if(!r.ok){ showBanner(d.mensagem||'Erro ao consultar a premiação.', d.detalhe); return; }
+    hideBanner(); DATAPREM=d; LOADEDQS.prem='';
+    // popula o select de mês uma única vez a partir do index (snapshots locais)
+    if(selM && !selM.dataset.pronto){
+      selM.innerHTML=(d.index||[]).map(x=>`<option value="${esc(x.month)}">${esc(x.label)}${x.parcial?' (parcial)':''}</option>`).join('')
+        || '<option value="">sem meses coletados</option>';
+      selM.dataset.pronto='1';
+      if(d.month) selM.value=d.month;
+    }
+    renderPrem(d);
+    premComparativo(seq);
+  }catch(e){ if(seq===premSeq) showBanner('Não foi possível falar com a API.', e.message); }
+  finally{ if(seq===premSeq){ if(btn) btn.disabled=false; document.getElementById('content').classList.remove('loading'); } }
+}
+function renderPrem(d){
+  const naoconf=document.getElementById('prem-naoconfig'), contDiv=document.getElementById('prem-conteudo');
+  const avisoEl=document.getElementById('prem-aviso');
+  if(!d.configurado){
+    contDiv.style.display='none';
+    naoconf.style.display='block';
+    const vars=(d.variaveis||['GOBRAX_EMAIL','GOBRAX_SENHA']).join(' e ');
+    naoconf.innerHTML=`<div class="card" style="padding:26px 18px">
+      <div style="font-weight:700;margin-bottom:6px">Telemetria Gobrax não configurada</div>
+      <div style="color:var(--n500)">Defina <code>${esc(vars)}</code> no <code>.env</code> e reinicie a API.</div>
+    </div>`;
+    avisoEl.innerHTML='';
+    document.getElementById('premColetadoEm').textContent='';
+    return;
+  }
+  naoconf.style.display='none';
+  contDiv.style.display='';
+  avisoEl.innerHTML = d.aviso
+    ? `<div class="banner-inline" style="display:flex;margin:0 0 14px"><i>${ICONS['sevWarn']}</i><span>${esc(d.aviso)}</span></div>` : '';
+  document.getElementById('premColetadoEm').textContent = d.coletado_em ? ('coletado em '+fmtDT(d.coletado_em)) : '';
+
+  const ft=d.frota_telemetria||{};
+  const tb=document.getElementById('prem-telemetria');
+  if(ft.veiculos!=null){
+    tb.style.display='flex';
+    tb.innerHTML = `<i>${ICONS['sinal']}</i><span>A telemetria Gobrax cobre <b>${(ft.veiculos||0).toLocaleString('pt-BR')} veículos</b> e `
+      +`<b>${(ft.com_motorista||0).toLocaleString('pt-BR')} motoristas</b> — a premiação vale para os vinculados, não para a frota inteira.</span>`;
+  } else tb.style.display='none';
+
+  const k=d.kpis||{};
+  const media=k.media_frota, meta=k.meta;
+  const mediaCls = (media!=null && meta!=null && media>=meta) ? 'pos' : '';
+  document.getElementById('kpis-prem').innerHTML=[
+    kpi('Prêmio total', BRL.format(k.premio_total||0), '', '',
+      'Soma do prêmio dos motoristas ELEGÍVEIS (km no mês ≥ km mínimo do parâmetro). Prêmio = litros economizados × preço do litro × % de premiação.'),
+    kpi('Motoristas premiados', (k.premiados||0)+' de '+(k.elegiveis||0),
+      'elegíveis'+((d.sem_media||0)>0?' · '+d.sem_media+' sem média (fora do cálculo)':''), '',
+      'Elegível = km no mês ≥ km mínimo configurado. Premiado = prêmio calculado maior que zero. Motorista sem consumo médio na Gobrax não entra em nenhuma conta.'),
+    kpi('Litros economizados', (k.litros_economizados_total||0).toLocaleString('pt-BR',{maximumFractionDigits:0})+' l',
+      (k.com_media||0)+' de '+(k.total_motoristas||0)+' motoristas com média', '',
+      'Litros que o motorista deixou de consumir rodando acima da meta de km/l, somado só dos elegíveis.'),
+    kpi('Média da frota × meta',
+      (media!=null?media.toLocaleString('pt-BR',{maximumFractionDigits:2}):'—')+' × '+(meta!=null?meta.toLocaleString('pt-BR',{maximumFractionDigits:2}):'—')+' km/l',
+      d.parcial ? 'mês parcial' : '', mediaCls,
+      'Média = km total ÷ litros consumidos dos motoristas com consumo médio. Meta é o parâmetro configurado ao lado. Nunca vira alerta vermelho: é informativo, não penalidade.'),
+  ].join('');
+
+  const proc = 'API Gobrax v3 · customer 1 · coletado em '+(d.coletado_em?fmtDT(d.coletado_em):'—');
+  ['prem-params-help','prem-rank-help','prem-comp-help'].forEach(id=>{
+    const el=document.getElementById(id); if(el) el.title=proc;
+  });
+
+  const par=d.params||{};
+  document.getElementById('fPremMeta').value = par.meta!=null?fmtNumBR(par.meta):'';
+  document.getElementById('fPremPreco').value = par.preco_litro!=null?fmtNumBR(par.preco_litro):'';
+  document.getElementById('fPremPct').value = par.pct_premiacao!=null?fmtNumBR(par.pct_premiacao):'';
+  document.getElementById('fPremKmMin').value = par.km_minimo!=null?fmtNumBR(par.km_minimo):'';
+  const refs=d.referencias||{};
+  const mediaRef = refs.media_frota!=null ? refs.media_frota.toLocaleString('pt-BR',{maximumFractionDigits:2})+' km/l' : 'indisponível';
+  const precoRef = refs.preco_diesel_interno!=null ? BRL.format(refs.preco_diesel_interno)+'/l' : 'indisponível';
+  document.getElementById('prem-refs').innerHTML = `Referências do mês — média da frota: <b>${mediaRef}</b> · diesel interno: <b>${precoRef}</b>`;
+
+  const linhas=d.linhas||[];
+  document.getElementById('prem-rank-hint').textContent = linhas.length+' motorista(s) com consumo médio'
+    +((d.sem_media||0)>0?' · '+d.sem_media+' sem média (não entram no ranking)':'')+' · maior prêmio primeiro';
+  document.getElementById('prem-rank').innerHTML = linhas.length ? linhas.map((l,i)=>{
+    const placas=(l.vehicles||[]).map(v=>v.plate).filter(Boolean).join(', ');
+    const scores=(l.indicators&&l.indicators.scores)||{};
+    const det = Object.keys(scores).length ? `
+      <div class="tablewrap"><table><thead><tr><th>Indicador</th><th class="num">Nota</th></tr></thead><tbody>
+      ${Object.entries(scores).map(([sk,sv])=>`<tr><td>${esc(_premScoreLabel(sk))}</td><td class="num">${_premNotaChip(sv)}</td></tr>`).join('')}
+      </tbody></table></div>` : '<div style="color:var(--n500);padding:8px 0">sem indicadores detalhados</div>';
+    const naoElegivel = l.elegivel ? '' : ' <span class="badge b-warn" title="km no mês abaixo do mínimo configurado">não elegível (km &lt; mínimo)</span>';
+    return `
+    <tr class="forn-row" aria-expanded="false" aria-controls="prem-det-${i}" tabindex="0" role="button"
+        style="${l.elegivel?'':'opacity:.55'}"
+        onclick="premToggle(${i})" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();premToggle(${i});}">
+      <td><span class="expander">${ICONS['chevr2']}</span>
+        <span style="display:inline-block;vertical-align:middle">
+          <div style="font-weight:600">${esc(l.driverName||'—')}${naoElegivel}</div>
+          <div style="font-size:11px;color:var(--n500);font-family:var(--mono)">${esc(placas||'—')}</div>
+        </span>
+      </td>
+      <td class="num">${_premNotaChip(l.nota)}</td>
+      <td class="num">${l.km!=null?Math.round(l.km).toLocaleString('pt-BR'):'—'}</td>
+      <td class="num">${l.media!=null?l.media.toLocaleString('pt-BR',{maximumFractionDigits:2}):'—'}</td>
+      <td class="num">${(l.litros_economizados||0).toLocaleString('pt-BR',{maximumFractionDigits:0})}</td>
+      <td class="num" style="font-weight:600" title="${l.elegivel?'':'motorista não elegível — prêmio não entra no KPI de prêmio total'}">${BRL.format(l.premio||0)}</td>
+    </tr>
+    <tr class="forn-det" id="prem-det-${i}"><td colspan="6">${det}</td></tr>`;
+  }).join('') : '<tr><td colspan="6" style="color:var(--n500)">sem motoristas com consumo médio neste mês</td></tr>';
+}
+function premToggle(i){
+  const det=document.getElementById('prem-det-'+i);
+  if(!det) return;
+  const row=det.previousElementSibling;
+  const open=det.classList.toggle('open');
+  row.setAttribute('aria-expanded', String(open));
+}
+async function premSalvarParams(){
+  const meta=numBR(document.getElementById('fPremMeta').value);
+  const preco=numBR(document.getElementById('fPremPreco').value);
+  const pct=numBR(document.getElementById('fPremPct').value);
+  const kmMin=numBR(document.getElementById('fPremKmMin').value);
+  if([meta,preco,pct,kmMin].some(v=>v==null||Number.isNaN(v))){
+    showBanner('Informe números válidos nos 4 parâmetros (vírgula para decimais).');
+    return;
+  }
+  const btn=document.getElementById('btnPremSalvar');
+  if(btn){ btn.disabled=true; btn.textContent='Salvando…'; }
+  try{
+    const r=await fetch('/api/frota/premiacao/params',{method:'POST',headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({meta:meta,preco_litro:preco,pct_premiacao:pct,km_minimo:kmMin})});
+    const d=await r.json();
+    if(!r.ok){ showBanner(d.mensagem||'Não foi possível salvar os parâmetros.'); return; }
+    hideBanner();
+    loadPrem();
+  }catch(e){ showBanner('Não foi possível falar com a API.', e.message); }
+  finally{ if(btn){ btn.disabled=false; btn.textContent='Salvar'; } }
+}
+async function premColetar(){
+  const seq=++premSeq;
+  const btn=document.getElementById('btnPremColeta');
+  const selM=document.getElementById('fPremMes');
+  const mes=(selM&&selM.dataset.pronto&&selM.value) || (DATAPREM||{}).month || null;
+  if(btn){ btn.disabled=true; btn.textContent='Coletando…'; }
+  try{
+    const r=await fetch('/api/frota/premiacao/atualizar',{method:'POST',headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({mes:mes})});
+    const d=await r.json(); if(seq!==premSeq) return;
+    if(!r.ok){ showBanner(d.mensagem||'Não foi possível atualizar os dados da premiação.'); return; }
+    hideBanner(); DATAPREM=d; LOADEDQS.prem='';
+    renderPrem(d); premComparativo(seq);
+  }catch(e){ if(seq===premSeq) showBanner('Não foi possível falar com a API.', e.message); }
+  finally{ if(seq===premSeq){ if(btn){ btn.disabled=false; btn.textContent='Atualizar dados'; } } }
+}
+// Card comparativo: roda DEPOIS do render principal. Busca snapshot LOCAL de cada
+// mês do index (mês fechado nunca recoleta — barato, <=12 fetches) e monta média
+// da frota × meta por mês; o prêmio total por mês sai em texto, não no gráfico.
+async function premComparativo(seq){
+  const d=DATAPREM;
+  const svg=document.getElementById('chartPrem');
+  if(!d || !d.configurado){
+    if(svg){ svg.setAttribute('viewBox','0 0 960 60'); svg.innerHTML='<text x="12" y="34" font-size="13" fill="#6B7280">telemetria não configurada</text>'; }
+    const pr=document.getElementById('prem-comp-premios'); if(pr) pr.textContent='';
+    return;
+  }
+  const idx=(d.index||[]).slice(0,12).slice().reverse();
+  if(!idx.length){
+    if(svg){ svg.setAttribute('viewBox','0 0 960 60'); svg.innerHTML='<text x="12" y="34" font-size="13" fill="#6B7280">sem meses coletados</text>'; }
+    const pr=document.getElementById('prem-comp-premios'); if(pr) pr.textContent='';
+    return;
+  }
+  const linhas=[];
+  for(const m of idx){
+    if(seq!=null && seq!==premSeq) return;
+    let media=null, metaM=null, premio=null;
+    try{
+      const r=await fetch('/api/frota/premiacao?mes='+encodeURIComponent(m.month),{cache:'no-store'});
+      const j=await r.json();
+      if(j && j.configurado){ media=(j.kpis||{}).media_frota; metaM=(j.params||{}).meta; premio=(j.kpis||{}).premio_total; }
+    }catch(e){ /* mês sem snapshot local ou falha pontual: entra em branco no gráfico */ }
+    linhas.push({label:m.label+(m.parcial?' (parcial)':''), media:media, meta:metaM, premio:premio});
+  }
+  if(seq!=null && seq!==premSeq) return;
+  chartCols('chartPrem', linhas.map(l=>l.label), [
+    {nome:'Média da frota (km/l)', cor:CC.navy700, valores:linhas.map(l=>l.media||0)},
+    {nome:'Meta (km/l)', cor:CC.laranja, valores:linhas.map(l=>l.meta||0)},
+  ], {fmt:v=>Number(v).toLocaleString('pt-BR',{maximumFractionDigits:2})});
+  document.getElementById('prem-comp-premios').innerHTML = 'Prêmio total por mês: '
+    + linhas.map(l=>esc(l.label)+': '+(l.premio!=null?BRL.format(l.premio):'—')).join(' · ');
 }
 
 /* ---------------- Ordens de Compra ---------------- */
@@ -9431,6 +9689,7 @@ boot();
         <a href="#veic" onclick="fecharDrawer()"><span class="ic" data-ic="veic"></span>Veículos</a>
         <a href="#veicf" onclick="fecharDrawer()"><span class="ic" data-ic="busca"></span>Consulta de Veículo</a>
         <a href="#comb" onclick="fecharDrawer()"><span class="ic" data-ic="comb"></span>Combustível</a>
+        <a href="#prem" onclick="fecharDrawer()"><span class="ic" data-ic="prem"></span>Premiação de Motoristas</a>
         <a href="#man" onclick="fecharDrawer()"><span class="ic" data-ic="man"></span>Manutenção</a>
         <a href="#mprev" onclick="fecharDrawer()"><span class="ic" data-ic="mprevic"></span>Manutenção Preventiva</a>
         <a href="#comrast" onclick="fecharDrawer()"><span class="ic" data-ic="sinal"></span>Comunicação Rastreadora</a>
