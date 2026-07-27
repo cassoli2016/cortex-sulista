@@ -76,25 +76,37 @@ def init_db(path: Path = DB_PATH) -> None:
         cols = {r["name"] for r in c.execute("PRAGMA table_info(orc_versao)")}
         if "meses_base" not in cols:
             c.execute("ALTER TABLE orc_versao ADD COLUMN meses_base TEXT")
+        # metodo = qual derivação gerou a versão ('espelho' ou 'semestre'). Regerar
+        # tem de saber o método ORIGINAL sem depender do que o body da requisição
+        # manda — por isso vive na versão, não é parâmetro solto do regerar.
+        if "metodo" not in cols:
+            c.execute(
+                "ALTER TABLE orc_versao ADD COLUMN metodo TEXT NOT NULL DEFAULT 'espelho'")
 
 
 def criar_versao(path: Path, ano: int, rotulo: str, fator: float, quem: str,
-                 meses_base: list[str] | None = None) -> int:
+                 meses_base: list[str] | None = None, metodo: str = "espelho") -> int:
     with _conn(path) as c:
         cur = c.execute(
-            "INSERT INTO orc_versao(ano, rotulo, fator_tendencia, criado_por, meses_base) "
-            "VALUES (?,?,?,?,?)",
-            (ano, rotulo, fator, quem, json.dumps(meses_base) if meses_base else None))
+            "INSERT INTO orc_versao(ano, rotulo, fator_tendencia, criado_por, meses_base, metodo) "
+            "VALUES (?,?,?,?,?,?)",
+            (ano, rotulo, fator, quem, json.dumps(meses_base) if meses_base else None, metodo))
         return int(cur.lastrowid)
 
 
 def atualizar_versao(path: Path, versao_id: int, fator: float,
-                     meses_base: list[str] | None = None) -> None:
-    """Regeração troca fator e base da versão; ano e rótulo continuam os mesmos."""
+                     meses_base: list[str] | None = None,
+                     metodo: str | None = None) -> None:
+    """Regeração troca fator e base da versão; ano e rótulo continuam os mesmos.
+
+    `metodo=None` NÃO altera o método gravado — regerar sempre re-deriva pelo
+    método ORIGINAL da versão, não pelo que a requisição de regerar mandar.
+    """
     with _conn(path) as c:
         cur = c.execute(
-            "UPDATE orc_versao SET fator_tendencia=?, meses_base=? WHERE id=?",
-            (fator, json.dumps(meses_base) if meses_base else None, versao_id))
+            "UPDATE orc_versao SET fator_tendencia=?, meses_base=?, "
+            "metodo=coalesce(?, metodo) WHERE id=?",
+            (fator, json.dumps(meses_base) if meses_base else None, metodo, versao_id))
         if cur.rowcount == 0:
             raise KeyError(f"versão inexistente: {versao_id}")
 

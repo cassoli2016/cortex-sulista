@@ -335,6 +335,200 @@ def test_grade_marca_base_fraca_pela_conta_nao_pela_primeira_celula():
     assert g["origem"] == "mediana"
 
 
+# ---------------------------------------------------------------- semestre × sazonalidade
+
+def test_serie_por_linha_soma_contas_da_mesma_linha_e_ignora_sem_linha():
+    hist24 = {"1|100": {"2026-01": 100.0, "2026-02": 50.0},
+             "1|101": {"2026-01": 20.0},
+             "9|999": {"2026-01": 999.0}}
+    mapa = {"1|100": "CUSTO VARIAVEL", "1|101": "CUSTO VARIAVEL", "9|999": None}
+    serie = svc._serie_por_linha(hist24, mapa)
+    assert serie == {"CUSTO VARIAVEL": {"2026-01": 120.0, "2026-02": 50.0}}
+
+
+def test_gerar_semestre_deriva_nivel_x_indice(tmp_path, monkeypatch):
+    """fake_query devolve: HIST 6m p/ a conta (600 no total) e HIST 24m p/ os
+    índices (linha com dez=40/resto=100 => índice dez=40/95). Confere dez orçado."""
+    destino = tmp_path / "orcamento.db"
+    monkeypatch.setattr(arm, "DB_PATH", destino)
+    monkeypatch.setattr(svc, "ler_ajustes", lambda: {})
+    hoje = date(2026, 7, 1)
+    meses6 = sql_mod.meses_fechados(hoje, 6)
+    meses24 = sql_mod.meses_fechados(hoje, 24)
+
+    def fake_query(sql, params=None):
+        if sql == sql_mod.HIST_CONTA_SQL:
+            de = (params or {}).get("de")
+            if de == f"{meses6[0]}-01":
+                return [{"conta": "1|100", "mes": m, "valor": 100.0} for m in meses6]
+            return [{"conta": "1|100", "mes": m,
+                     "valor": 40.0 if m.endswith("-12") else 100.0} for m in meses24]
+        if sql == sql_mod.AGRUP_CONTA_SQL:
+            return [{"conta": "1|100", "agrupador": "CV - COMBUSTIVEL"}]
+        return []
+
+    monkeypatch.setattr(svc.db, "query", fake_query)
+    r = svc.gerar(2026, "Orçamento 2026", 0.0, "teste", hoje=hoje, metodo="semestre")
+
+    assert r["metodo"] == "semestre"
+    esperado_dez = round(100.0 * (40.0 / 95.0) * 1.0, 2)   # nível(600/6) x índice x (1+fator)
+    linhas = {(l["conta"], l["mes"]): l for l in arm.ler_linhas(destino, r["versao_id"])}
+    assert linhas[("1|100", 12)]["valor_baseline"] == esperado_dez
+    assert linhas[("1|100", 12)]["origem"] == "semestre"
+    assert linhas[("1|100", 3)]["valor_baseline"] == round(100.0 * (100.0 / 95.0), 2)
+
+
+def test_gerar_semestre_bloqueia_base_incompleta(tmp_path, monkeypatch):
+    """5 dos 6 meses com dado -> ValueError com o mês faltante na mensagem."""
+    destino = tmp_path / "orcamento.db"
+    monkeypatch.setattr(arm, "DB_PATH", destino)
+    monkeypatch.setattr(svc, "ler_ajustes", lambda: {})
+    hoje = date(2026, 7, 1)
+    meses6 = sql_mod.meses_fechados(hoje, 6)
+    faltante = meses6[2]
+
+    def fake_query(sql, params=None):
+        if sql == sql_mod.HIST_CONTA_SQL:
+            return [{"conta": "1|100", "mes": m, "valor": 100.0}
+                    for m in meses6 if m != faltante]
+        return []
+
+    monkeypatch.setattr(svc.db, "query", fake_query)
+    import pytest
+    with pytest.raises(ValueError, match=faltante):
+        svc.gerar(2026, "x", 0.0, "teste", hoje=hoje, metodo="semestre")
+
+
+def test_gerar_espelho_continua_identico(tmp_path, monkeypatch):
+    """REGRESSÃO: gerar(metodo='espelho') e gerar() sem metodo produzem as
+    MESMAS linhas que hoje (fake 12m; comparar com o resultado esperado do
+    espelho para 2-3 contas, incluindo uma esporádica pela mediana)."""
+    destino = tmp_path / "orcamento.db"
+    monkeypatch.setattr(arm, "DB_PATH", destino)
+    monkeypatch.setattr(svc, "ler_ajustes", lambda: {})
+    hoje = date(2026, 8, 1)
+    meses = sql_mod.meses_fechados(hoje, 12)   # ago/25..jul/26
+
+    def fake_query(sql, params=None):
+        if sql == sql_mod.HIST_CONTA_SQL:
+            linhas = [{"conta": "1|100", "mes": m,
+                       "valor": 4000.0 if m.endswith("-12") else 10000.0}
+                      for m in meses]
+            linhas += [{"conta": "9|900", "mes": "2025-09", "valor": 300.0},
+                       {"conta": "9|900", "mes": "2026-02", "valor": 100.0}]
+            return linhas
+        if sql == sql_mod.AGRUP_CONTA_SQL:
+            return [{"conta": "1|100", "agrupador": "CV - COMBUSTIVEL"},
+                    {"conta": "9|900", "agrupador": "CV - COMBUSTIVEL"}]
+        return []
+
+    monkeypatch.setattr(svc.db, "query", fake_query)
+
+    r_default = svc.gerar(2026, "sem metodo", 0.0, "teste", hoje=hoje)
+    r_espelho = svc.gerar(2026, "com espelho", 0.0, "teste", hoje=hoje, metodo="espelho")
+
+    assert r_default["metodo"] == "espelho"
+    assert r_espelho["metodo"] == "espelho"
+    assert r_default["linhas_flat"] == []
+    assert r_espelho["linhas_flat"] == []
+
+    linhas_default = arm.ler_linhas(destino, r_default["versao_id"])
+    linhas_espelho = arm.ler_linhas(destino, r_espelho["versao_id"])
+    assert linhas_default == linhas_espelho
+
+    por_mes = {(l["conta"], l["mes"]): l for l in linhas_default}
+    assert por_mes[("1|100", 12)]["valor_baseline"] == 4000.0
+    assert por_mes[("1|100", 12)]["origem"] == "espelho"
+    assert por_mes[("1|100", 11)]["valor_baseline"] == 10000.0
+    assert por_mes[("9|900", 9)]["valor_baseline"] == 200.0
+    assert por_mes[("9|900", 9)]["origem"] == "mediana"
+    assert por_mes[("9|900", 2)]["valor_baseline"] == 200.0
+    assert por_mes[("9|900", 1)]["valor_baseline"] == 0.0
+    assert por_mes[("9|900", 1)]["origem"] == "sem_base"
+
+
+def test_regerar_usa_metodo_gravado_e_preserva_ajuste(tmp_path, monkeypatch):
+    """Gera com metodo='semestre'; ajusta uma célula; regerar SEM metodo (ou
+    com metodo='espelho' no body — deve ser ignorado) mantém metodo='semestre',
+    re-deriva pela base semestral e o ajuste sobrevive."""
+    destino = tmp_path / "orcamento.db"
+    monkeypatch.setattr(arm, "DB_PATH", destino)
+    monkeypatch.setattr(svc, "ler_ajustes", lambda: {})
+    hoje = date(2026, 7, 1)
+    meses6 = sql_mod.meses_fechados(hoje, 6)
+    meses24 = sql_mod.meses_fechados(hoje, 24)
+
+    def fake_query(sql, params=None):
+        if sql == sql_mod.HIST_CONTA_SQL:
+            de = (params or {}).get("de")
+            if de == f"{meses6[0]}-01":
+                return [{"conta": "1|100", "mes": m, "valor": -100.0} for m in meses6]
+            return [{"conta": "1|100", "mes": m, "valor": -100.0} for m in meses24]
+        if sql == sql_mod.AGRUP_CONTA_SQL:
+            return [{"conta": "1|100", "agrupador": "CV - COMBUSTIVEL"}]
+        return []
+
+    monkeypatch.setattr(svc.db, "query", fake_query)
+
+    r1 = svc.gerar(2026, "Orçamento 2026", 0.0, "teste", hoje=hoje, metodo="semestre")
+    assert r1["metodo"] == "semestre"
+    arm.ajustar(destino, r1["versao_id"], "1|100", 3, -777.0, "controladoria")
+
+    # "metodo='espelho' no body" simulado: o parâmetro recebido tem de ser IGNORADO
+    r2 = svc.gerar(2026, "Orçamento 2026", -0.10, "teste", hoje=hoje,
+                   versao_id=r1["versao_id"], metodo="espelho")
+
+    assert r2["versao_id"] == r1["versao_id"]
+    assert r2["metodo"] == "semestre"
+    assert r2["regerada"] is True
+
+    v = arm.listar_versoes(destino, 2026)[0]
+    assert v["metodo"] == "semestre"          # regravado coerente
+
+    linhas = {(l["conta"], l["mes"]): l for l in arm.ler_linhas(destino, r1["versao_id"])}
+    ajustada = linhas[("1|100", 3)]
+    assert ajustada["valor_ajustado"] == -777.0
+    assert ajustada["valor_efetivo"] == -777.0
+    assert ajustada["origem"] == "semestre"
+    # baseline recalculado pela base semestral com o novo fator (-10%)
+    assert linhas[("1|100", 4)]["valor_baseline"] == -90.0
+    assert linhas[("1|100", 4)]["valor_efetivo"] == -90.0
+
+
+def test_resposta_traz_metodo_e_linhas_flat(tmp_path, monkeypatch):
+    destino = tmp_path / "orcamento.db"
+    monkeypatch.setattr(arm, "DB_PATH", destino)
+    monkeypatch.setattr(svc, "ler_ajustes", lambda: {})
+    hoje = date(2026, 7, 1)
+    meses6 = sql_mod.meses_fechados(hoje, 6)
+    meses12 = sql_mod.meses_fechados(hoje, 12)
+    meses24 = sql_mod.meses_fechados(hoje, 24)
+
+    def fake_query(sql, params=None):
+        if sql == sql_mod.HIST_CONTA_SQL:
+            de = (params or {}).get("de")
+            if de == f"{meses6[0]}-01":
+                return [{"conta": "1|100", "mes": m, "valor": 100.0} for m in meses6]
+            if de == f"{meses12[0]}-01":
+                return [{"conta": "1|100", "mes": m, "valor": 100.0} for m in meses12]
+            # janela de 24m com só 18 meses: dispara a guarda de dado faltante
+            # em indices_sazonais e a linha entra em linhas_flat
+            return [{"conta": "1|100", "mes": m, "valor": 100.0} for m in meses24[-18:]]
+        if sql == sql_mod.AGRUP_CONTA_SQL:
+            return [{"conta": "1|100", "agrupador": "CV - COMBUSTIVEL"}]
+        return []
+
+    monkeypatch.setattr(svc.db, "query", fake_query)
+
+    r_esp = svc.gerar(2026, "espelho", 0.0, "teste", hoje=hoje, metodo="espelho")
+    assert r_esp["metodo"] == "espelho"
+    assert r_esp["linhas_flat"] == []
+
+    r_sem = svc.gerar(2026, "semestre", 0.0, "teste", hoje=hoje, metodo="semestre")
+    assert r_sem["metodo"] == "semestre"
+    assert r_sem["linhas_flat"] == ["CUSTO VARIAVEL"]
+
+
 def test_nome_da_conta_acompanha_grade_desvios_e_pendencias():
     """A chave grupo|reduzido sozinha só diz algo para quem decorou o plano de
     contas: o nome (planoconta.descricao) acompanha os três lugares da tela."""
