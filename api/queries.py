@@ -423,6 +423,17 @@ def get_overview(filial: int | None = None, data_ref: str | None = None,
     kpis["dso_3m"] = (sum(c["dso"] for c in ult3) / len(ult3)) if ult3 else None
     kpis["dpo_3m"] = (sum(c["dpo"] for c in ult3) / len(ult3)) if ult3 else None
     kpis["ciclo_3m"] = (kpis["dso_3m"] - kpis["dpo_3m"]) if ult3 else None
+
+    # Provisão orçamentária de caixa: orçado (competência) deslocado por DSO/DPO
+    # reais. Qualquer falha aqui NÃO pode derrubar o fluxo — o orçamento é
+    # SQLite local e opcional.
+    try:
+        from api.orcamento.caixa import provisao_do_ano
+        provisao = provisao_do_ano(dref.year, kpis.get("dso_3m"), kpis.get("dpo_3m"),
+                                   hoje=dref)
+    except Exception:  # noqa: BLE001
+        provisao = None
+
     kpis["previsao_metodo"] = metodo_prev
     kpis["previsao_proximo_mes"] = prever(dref.month + 1 if dref.month < 12 else 1)
     kpis["posicao_liquida_aberto"] = kpis["receber_aberto"] - kpis["pagar_aberto"]
@@ -444,6 +455,7 @@ def get_overview(filial: int | None = None, data_ref: str | None = None,
         "data_ref": dref.isoformat(),
         "atualizado_em": meta["ts"].isoformat(),
         "fonte": "ERP AVA (banco sulista) · leitura",
+        **({"provisao_orc": provisao} if provisao else {}),
     }
 
 
