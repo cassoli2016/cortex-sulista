@@ -1213,7 +1213,7 @@ button.avatar{border:0;cursor:pointer}
         <div class="kpis" id="kpis-fluxo"></div>
         <div class="card">
           <div class="head">
-            <h2>Fluxo de caixa projetado <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="Parte do saldo real de bancos + caixa e acumula, mês a mês, os títulos LANÇADOS no ERP pela data de vencimento: fatura_composicao a receber e contaapagar a pagar. 'Atrasado' concentra tudo que já venceu e não foi liquidado. Dois filtros recortam esta tela de formas diferentes: VENCIMENTO decide quais títulos entram; HORIZONTE decide quantos meses o gráfico projeta. Combinar 'próximos 7 dias' com '12 meses' devolve um gráfico quase vazio — é recorte, não erro.">i</span></h2>
+            <h2>Fluxo de caixa projetado <span class="ihelp" id="fluxoIhelp" tabindex="0" role="img" aria-label="fonte do dado" title="Parte do saldo real de bancos + caixa e acumula, mês a mês, os títulos LANÇADOS no ERP pela data de vencimento: fatura_composicao a receber e contaapagar a pagar. 'Atrasado' concentra tudo que já venceu e não foi liquidado. Dois filtros recortam esta tela de formas diferentes: VENCIMENTO decide quais títulos entram; HORIZONTE decide quantos meses o gráfico projeta. Combinar 'próximos 7 dias' com '12 meses' devolve um gráfico quase vazio — é recorte, não erro.">i</span></h2>
             <span class="hint" id="fluxoHint"></span>
             <button class="ghost" id="btnCenario" aria-pressed="false" onclick="toggleCenario()" title="Mostra a projeção com faturamento futuro estimado. Ela expande muito a escala e achata o saldo contratado.">Cenário realista</button>
             <button class="ghost" id="btnTable" aria-pressed="false" onclick="toggleTable()">Tabela</button>
@@ -1224,6 +1224,7 @@ button.avatar{border:0;cursor:pointer}
             <span class="k"><i class="ln"></i>Saldo projetado (só o lançado)</span>
             <span class="k cen" style="display:none"><i class="ln dash"></i>Saldo realista (c/ faturamento previsto)</span>
             <span class="k cen" style="display:none"><i class="band"></i>Banda de cenário</span>
+            <span class="k prov" id="legProv" style="display:none"><i class="ln dash" style="border-top-color:var(--orange-500)"></i>Provisão orçamentária (orçado → caixa)</span>
           </div>
           <div class="banner-inline" id="cenAviso" style="display:none"></div>
           <div class="chartwrap" id="wrapFluxo">
@@ -3315,6 +3316,28 @@ function rangeLabel(d){
   if(d.venc_ate) return ' · venc. até '+fmtD(d.venc_ate);
   return '';
 }
+// Mostra/esconde a legenda da série de provisão e reconstrói o ⓘ do card do
+// fluxo a partir do título ESTÁTICO do HTML (guardado 1x em data-base, nunca
+// recalculado a partir do próprio título já modificado — senão acumularia texto
+// a cada render). Sem d.provisao_orc (sem versão de orçamento no ano) a tela
+// não muda em nada, como pedido.
+function atualizaIhelpFluxo(provisao){
+  const leg=document.getElementById('legProv');
+  if(leg) leg.style.display = provisao ? '' : 'none';
+  const ih=document.getElementById('fluxoIhelp');
+  if(!ih) return;
+  if(ih.dataset.base==null) ih.dataset.base=ih.title;
+  if(!provisao){ ih.title=ih.dataset.base; return; }
+  const fonteTxt = provisao.dso_fonte==='medido'?'medidos':'padrão';
+  let extra = ' · Provisão da versão “'+esc(provisao.versao.rotulo||'')+'” do orçamento · competência deslocada por DSO '
+    +Math.round(provisao.dso)+'d / DPO '+Math.round(provisao.dpo)+'d ('+fonteTxt+') · impostos e folha têm prazos próprios — não modelados';
+  const tb=provisao.transbordo||{};
+  if((tb.entradas||0)!==0 || (tb.saidas||0)!==0){
+    const w=Math.abs(tb.entradas||0)+Math.abs(tb.saidas||0);
+    extra += ' · '+BRL.format(w)+' transbordam para o ano seguinte (DSO/DPO)';
+  }
+  ih.title = ih.dataset.base + extra;
+}
 
 function render(d){
   if(d.ciclo_caixa){
@@ -3420,6 +3443,7 @@ function render(d){
   drillRows('top-ar', d.top_receber);
   drillRows('top-ap', d.top_pagar);
   chartFluxo(fluxo);
+  atualizaIhelpFluxo(d.provisao_orc);
   fluxoTable(fluxo);
   renderVenc('chartAr','tipAr','wrapAr', d.venc_receber, d.data_ref);
   renderVenc('chartAp','tipAp','wrapAp', d.venc_pagar, d.data_ref);
@@ -3721,6 +3745,32 @@ function numBR(s){
   return NaN;
 }
 const fmtNumBR = v => v.toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2});
+// rótulo dos últimos 6 meses FECHADOS a partir de hoje, ex.: "jan–jun/26" — o
+// mês corrente nunca fecha, então a base do método semestre para no mês anterior
+function _orcRotuloBase6(){
+  const hoje=new Date();
+  const fim=new Date(hoje.getFullYear(), hoje.getMonth()-1, 1);
+  const ini=new Date(fim.getFullYear(), fim.getMonth()-5, 1);
+  return MES[ini.getMonth()]+'–'+MES[fim.getMonth()]+'/'+String(fim.getFullYear()).slice(2);
+}
+// mesmo rótulo, mas a partir do meses_base GRAVADO na versão (JSON string de
+// 'YYYY-MM's em ordem cronológica) — pode ser null numa versão espelho/antiga
+function _orcRotuloDeMesesBase(mesesBaseStr){
+  if(!mesesBaseStr) return 'semestral';
+  let arr; try{ arr=JSON.parse(mesesBaseStr); }catch(e){ arr=null; }
+  if(!Array.isArray(arr) || !arr.length) return 'semestral';
+  const ini=arr[0], fim=arr[arr.length-1];
+  return MES[+ini.slice(5,7)-1]+'–'+MES[+fim.slice(5,7)-1]+'/'+fim.slice(2,4);
+}
+// texto do banner explicativo do card "Gerar baseline", por método
+function _orcBannerTexto(metodo){
+  if(metodo==='semestre') return 'O baseline parte do <b>NÍVEL</b> médio dos últimos 6 meses '
+    +'fechados, com a <b>FORMA</b> de cada mês vinda da sazonalidade histórica da linha da DRE '
+    +'(24 meses). Regerar <b>não apaga</b> ajuste manual.';
+  return 'O baseline parte do <b>mesmo mês</b> do ano anterior, o que preserva a queda de '
+    +'dezembro. Conta com menos de 9 dos 12 meses de movimento sai pela mediana e '
+    +'aparece marcada como <b>base fraca</b>. Regerar <b>não apaga</b> ajuste manual.';
+}
 function renderOrcMontagem(){
   const d=DATAORC||{};
   const alvo=document.getElementById('orc-mont');
@@ -3739,18 +3789,19 @@ function renderOrcMontagem(){
     <div class="card"><div class="head"><h2>Gerar baseline</h2>
       <span class="hint">mês espelho dos 12 meses fechados + fator de tendência</span></div>
       <div class="cardfilters">
+        <select id="fOrcMetodo" aria-label="Método do baseline" title="Vale para 'Gerar nova versão'. Regerar usa o método já gravado na versão." onchange="document.getElementById('orcMetodoBanner').innerHTML=_orcBannerTexto(this.value)">
+          <option value="espelho"${(ver.metodo||'espelho')==='espelho'?' selected':''}>Mês espelho (12 meses)</option>
+          <option value="semestre"${ver.metodo==='semestre'?' selected':''}>Semestre × sazonalidade (últimos 6 meses)</option>
+        </select>
         <input type="number" id="fOrcAno" value="${anoSug}" min="2020" max="2100" aria-label="Ano do orçamento" style="width:100px">
         <input type="text" inputmode="decimal" id="fOrcFator" value="${fatorSug}" aria-label="Fator de tendência em %" style="width:110px" title="Percentual aplicado sobre o mês espelho. Ex.: -5 orça 5% abaixo do ano anterior. Use vírgula para casas decimais (ex.: -5,5).">
         <span style="color:var(--n500)">% de tendência</span>
         <button class="btn" onclick="orcGerar()">Gerar nova versão</button>
-        ${(d.versao||{}).id?`<button class="btn" onclick="orcGerar(${(d.versao||{}).id})" title="Recalcula o baseline desta versão sobre os 12 meses fechados. O ajuste manual das células é preservado.">Regerar ${esc((d.versao||{}).rotulo||'')}</button>`:''}
+        ${(d.versao||{}).id?`<button class="btn" onclick="orcGerar(${(d.versao||{}).id})" title="Recalcula o baseline desta versão sobre os 12 meses fechados. O ajuste manual das células é preservado.">Regerar ${esc((d.versao||{}).rotulo||'')}</button>
+        <span class="hint">regerar mantém o método da versão</span>`:''}
         <span class="hint" id="orcGerarMsg"></span>
       </div>
-      <div class="banner-inline" style="display:block;margin:0 16px 14px">
-        O baseline parte do <b>mesmo mês</b> do ano anterior, o que preserva a queda de
-        dezembro. Conta com menos de 9 dos 12 meses de movimento sai pela mediana e
-        aparece marcada como <b>base fraca</b>. Regerar <b>não apaga</b> ajuste manual.
-      </div></div>
+      <div class="banner-inline" id="orcMetodoBanner" style="display:block;margin:0 16px 14px">${_orcBannerTexto(ver.metodo||'espelho')}</div></div>
     <div class="card"><div class="head"><h2>Grade de ajuste</h2>
       <span class="hint" id="hintOrcGrade"></span></div>
       <div class="cardfilters">
@@ -3778,17 +3829,27 @@ function renderOrcGrade(){
   const MES=['jan','fev','mar','abr','mai','jun','jul','ago','set','out','nov','dez'];
   const el=document.getElementById('orc-grade');
   if(!vid){ el.innerHTML='<div style="padding:20px;color:var(--n500)">Gere um baseline primeiro.</div>'; return; }
+  // rótulo do semestre-base da versão (JSON->"jan–jun/26"), calculado uma vez —
+  // meses_base pode faltar em versão antiga ou em método espelho (null->'semestral')
+  const baseRotulo = _orcRotuloDeMesesBase((d.versao||{}).meses_base);
   el.innerHTML=`<table><thead><tr><th>Conta</th><th>Linha</th>`
     + MES.map(m=>`<th class="num">${m}</th>`).join('') + `</tr></thead><tbody>`
     + contas.map(c=>{
-        // marca base fraca sempre que a origem NÃO for 'espelho' — inclui
-        // 'mediana', 'sem_base' e também um origem vazio/ausente (não exigir
-        // truthy antes da comparação, senão origem vazio escaparia da marca)
-        const fraca = c.origem !== 'espelho';
+        // base fraca: mediana (< 9/12 meses espelho) ou sem_base (sem movimento
+        // algum) sempre; no método semestre, só quando menos de 3 dos 6 meses da
+        // base tiveram movimento — com 3+ o nível semestral já é confiável
+        const fraca = c.origem==='mediana' || c.origem==='sem_base'
+          || (c.origem==='semestre' && c.meses_com_dado<3);
+        // origem 'semestre' também ganha badge NEUTRA (não é aviso, é informação
+        // de procedência) dizendo qual semestre virou o nível-base da conta
+        const semestreBadge = c.origem==='semestre'
+          ? ` <span class="badge b-info" title="nível médio do semestre × sazonalidade da linha da DRE">base ${esc(baseRotulo)}</span>`
+          : '';
         return `<tr><td style="min-width:190px;max-width:260px">`
           + `<div style="font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis" title="${esc(c.nome||'')}">${esc(c.nome||'(sem nome no plano)')}</div>`
           + `<div style="font-family:var(--mono);font-size:11px;color:var(--n500)">${esc(c.conta)}`
           + (fraca?` <span class="badge b-warn" title="Menos de 9 dos 12 meses com movimento: o valor saiu por mediana, não por mês espelho. Revise.">base fraca</span>`:'')
+          + semestreBadge
           + `</div></td><td style="color:var(--n500)">${esc(c.linha||'—')}</td>`
           + MES.map((_,i)=>{
               const m=i+1, v=(c.valores||{})[m], aj=(c.ajustados||{})[m];
@@ -3817,19 +3878,27 @@ async function orcGerar(versaoId){
     return;
   }
   msg.textContent=versaoId?'regerando…':'gerando…';
+  // método só vale para GERAR versão nova — ao regerar o back usa o gravado na
+  // versão e ignora este campo do body, então nem o envia (senão pareceria que
+  // o método pode ser trocado no regerar, que é justamente o que não pode)
+  const metodo=(document.getElementById('fOrcMetodo')||{}).value||'espelho';
   try{
-    const corpo={ano:ano, fator:pct/100, rotulo:'Orçamento '+ano};
+    const rotulo='Orçamento '+ano+(!versaoId && metodo==='semestre'?' — base '+_orcRotuloBase6():'');
+    const corpo={ano:ano, fator:pct/100, rotulo:rotulo};
     if(versaoId) corpo.versao_id=versaoId;
+    else corpo.metodo=metodo;
     const r=await fetch('/api/controladoria/orcamento/gerar',{method:'POST',
       headers:{'content-type':'application/json'},
       body:JSON.stringify(corpo)});
     const d=await r.json();
     if(!r.ok){ msg.textContent=''; showBanner(d.mensagem||'Erro ao gerar.'); return; }
+    const flat=d.linhas_flat||[];
     const aviso=(d.regerada?`versão ${d.versao_id} regerada`:`versão ${d.versao_id} criada`)
       + ` · ${d.linhas} linhas`
       + (d.celulas_zeradas?` · ${d.celulas_zeradas} célula(s) sem base nova foram zeradas`:'')
       + (d.contas_sem_linha.length?` · ${d.contas_sem_linha.length} conta(s) sem agrupador ficaram de fora`:'')
-      + ((d.meses_circulares||[]).length?` · ${d.meses_circulares.length} mês(es) do ano estavam na base: orçado retroativo, fora do acompanhamento`:'');
+      + ((d.meses_circulares||[]).length?` · ${d.meses_circulares.length} mês(es) do ano estavam na base: orçado retroativo, fora do acompanhamento`:'')
+      + (flat.length?` · ${flat.length} linha(s) sem forma sazonal (flat): `+(flat.length>4?flat.slice(0,4).join(', ')+'…':flat.join(', ')):'');
     // a lista de versões é montada uma única vez (dataset.pronto): sem soltar essa
     // trava a versão recém-criada não aparece no select e a tela segue na antiga
     const selV=document.getElementById('fOrcVersao');
@@ -3936,7 +4005,29 @@ function chartFluxo(fluxo){
   const iw=W-mL-mR, n=fluxo.length, bandW=iw/n;
   const p2t=t1+h1+gapP;
 
-  const m1=Math.max(1,...fluxo.map(f=>Math.max(f.receber,f.pagar)));
+  // Provisão orçamentária (Task 5): "geração" mensal orçada (entradas+saídas
+  // deslocadas por DSO/DPO) é um FLUXO, mesma natureza de receber/pagar — por
+  // isso entra no painel 1 (ENTRADAS × SAÍDAS), não no painel de saldo
+  // acumulado. Casa pelo mês-calendário do período do fluxo ('YYYY-MM'); o
+  // bucket 'atrasado' não tem competência e nunca recebe ponto. provisao_orc só
+  // cobre o ANO de referência (do mês corrente até dezembro), então um mês do
+  // fluxo de outro ano nunca casa — sem isso um "mês 7" de 2027 colaria no
+  // "mês 7" (julho) da provisão de 2026.
+  const provisao=(DATA&&DATA.provisao_orc)||null;
+  const provPorMes = provisao ? new Map(provisao.meses.map(m=>[m.mes,m])) : null;
+  const anoRef = (DATA&&DATA.data_ref)? +String(DATA.data_ref).slice(0,4) : null;
+  const provPt = i=>{
+    if(!provPorMes) return null;
+    const per=fluxo[i].periodo;
+    if(!per || per==='atrasado') return null;
+    const ano=+String(per).slice(0,4), mes=+String(per).slice(5,7);
+    if(ano!==anoRef) return null;
+    return provPorMes.get(mes)||null;
+  };
+  const provGeracoes = provPorMes
+    ? fluxo.map((_,i)=>provPt(i)).filter(Boolean).map(p=>Math.abs(p.geracao)) : [];
+
+  const m1=Math.max(1,...fluxo.map(f=>Math.max(f.receber,f.pagar)),...provGeracoes);
   const tk1=niceTicks(0,m1,4), top1=tk1[tk1.length-1], u1=unitOf(top1);
   const y1=v=>t1+h1-(v/top1)*h1;
   // ESCALA do painel de saldo: por padrão só o saldo PROJETADO (títulos
@@ -3963,6 +4054,27 @@ function chartFluxo(fluxo){
   fluxo.forEach((f,i)=>{ const cx=mL+bandW*i+bandW/2;
     s+=colPath(cx-barW-1,barW,y1(f.receber),y1(0),4,'#1E7F4F');
     s+=colPath(cx+1,barW,y1(f.pagar),y1(0),4,'#C03221'); });
+
+  // linha tracejada laranja da provisão orçamentária: só entre meses com dado
+  // (sem interpolar sobre um mês sem provisão — "path interrompido"), em
+  // segmentos separados por corrida contígua de índices casados
+  if(provPorMes){
+    const cxProv=i=>mL+bandW*i+bandW/2;
+    const segs=[]; let atual=[];
+    fluxo.forEach((f,i)=>{ const p=provPt(i);
+      if(p) atual.push([i,p]); else if(atual.length){ segs.push(atual); atual=[]; } });
+    if(atual.length) segs.push(atual);
+    segs.forEach(seg=>{
+      if(seg.length>1){
+        const pts=seg.map(([i,p])=>`${cxProv(i)},${y1(p.geracao)}`).join(' ');
+        s+=`<polyline points="${pts}" fill="none" stroke="${CC.laranja}" stroke-width="2" stroke-dasharray="5 4" stroke-linecap="round" stroke-linejoin="round"/>`;
+      }
+      seg.forEach(([i,p])=>{
+        s+=`<circle cx="${cxProv(i)}" cy="${y1(p.geracao)}" r="3.5" fill="#fff" stroke="${CC.laranja}" stroke-width="2">`
+          +`<title>Orçado → caixa: entradas ${BRL.format(p.entradas)} · saídas ${BRL.format(p.saidas)} · geração ${BRL.format(p.geracao)}</title></circle>`;
+      });
+    });
+  }
 
   s+=`<text x="${mL}" y="${p2t-14}" font-size="11" fill="${CC.n500}" font-weight="600" letter-spacing="1.5">SALDO PROJETADO${fluxoCenario?' + CENÁRIO':' (SÓ O LANÇADO)'} · ${u2.t}</text>`;
   tk2.forEach(v=>{ const yy=y2(v);
