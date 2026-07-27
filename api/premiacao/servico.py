@@ -16,15 +16,25 @@ TTL/lock/fallback:
 """
 from __future__ import annotations
 
+import logging
 import threading
+import time
 from datetime import datetime, timedelta
 
 from api.premiacao import calculo, coleta, gobrax, params
 from api.premiacao.coleta import SNAP_DIR  # reexport: monkeypatch nos testes
 
+log = logging.getLogger(__name__)
+
 TTL = timedelta(hours=1)
 
 _LOCK = threading.Lock()
+
+# Cache de módulo do preço do diesel (M5): {mes: (timestamp_monotonic, valor)}.
+# Com o túnel AVA fora, cada GET pagava connect_timeout(8s)+pool(15s) por um
+# número informativo — TTL de 10 min corta isso sem esconder a falha (loga 1x).
+_PRECO_TTL_S = 600
+_PRECO_CACHE: dict[str, tuple[float, float | None]] = {}
 
 _PRECO_DIESEL_SQL = """
 SELECT (CASE WHEN sum(a.volume) > 0 THEN sum(a.custo)/sum(a.volume) END)::float8 AS preco
@@ -44,7 +54,18 @@ def _novo_cliente():
 
 def _preco_diesel(mes: str) -> float | None:
     """Preço médio do diesel interno no mês (AVA). ERP fora não derruba a
-    tela: qualquer falha (conexão, túnel, coluna ausente) volta `None`."""
+    tela: qualquer falha (conexão, túnel, coluna ausente) volta `None`.
+
+    Cache de módulo com TTL de 10 min (M5): sem ele, todo GET da tela pagava
+    o custo cheio de bater no AVA (connect_timeout 8s + pool 15s quando o
+    túnel está fora) só para exibir um número informativo. A falha é logada
+    (não engolida em silêncio) uma vez por tentativa real — enquanto o cache
+    serve, não há nova tentativa nem novo log."""
+    agora_mono = time.monotonic()
+    cacheado = _PRECO_CACHE.get(mes)
+    if cacheado is not None and (agora_mono - cacheado[0]) < _PRECO_TTL_S:
+        return cacheado[1]
+
     from api import db  # lazy: testes do serviço não precisam de Postgres
 
     ano, m = map(int, mes.split("-"))
@@ -53,21 +74,35 @@ def _preco_diesel(mes: str) -> float | None:
     try:
         linhas = db.query(_PRECO_DIESEL_SQL, {"de": de, "ate": ate})
         preco = linhas[0]["preco"] if linhas else None
-        return float(preco) if preco is not None else None
-    except Exception:  # noqa: BLE001 -- ERP fora não pode derrubar a tela
-        return None
+        valor = float(preco) if preco is not None else None
+    except Exception as exc:  # noqa: BLE001 -- ERP fora não pode derrubar a tela
+        log.warning("preco diesel indisponivel: %s", exc)
+        valor = None
+    _PRECO_CACHE[mes] = (agora_mono, valor)
+    return valor
 
 
 def _coletado_ha_mais_de_1h(snap: dict, agora: datetime) -> bool:
-    coletado_em = datetime.strptime(snap["coletado_em"], "%Y-%m-%d %H:%M")
-    return (agora - coletado_em) > TTL
+    coletado_em = snap.get("coletado_em")
+    if not coletado_em:
+        # M10: snapshot sem coletado_em (nunca deveria acontecer, mas não pode
+        # estourar) é tratado como "muito velho" -> recoleta se for o mês
+        # corrente; se o mês já fechou, o I1 abaixo decide sozinho.
+        return True
+    coletado = datetime.strptime(coletado_em, "%Y-%m-%d %H:%M")
+    return (agora - coletado) > TTL
 
 
 def _precisa_recoletar(mes: str, mes_corrente: str, snap: dict | None,
                         force: bool, agora: datetime) -> bool:
     if force or snap is None:
         return True
-    return mes == mes_corrente and _coletado_ha_mais_de_1h(snap, agora)
+    if mes == mes_corrente:
+        return _coletado_ha_mais_de_1h(snap, agora)
+    # I1: o mês FECHOU depois da coleta (snapshot ainda marcado `parcial`) —
+    # sem isto, um snapshot parcial de um mês passado nunca era recoletado e
+    # o número ficava congelado no dia em que a coleta rodou pela última vez.
+    return bool(snap.get("parcial")) and mes < mes_corrente
 
 
 def obter(mes: str | None = None, force: bool = False, agora=None) -> dict:
@@ -87,10 +122,22 @@ def obter(mes: str | None = None, force: bool = False, agora=None) -> dict:
     aviso = None
 
     if _precisa_recoletar(mes, mes_corrente, snap, force, agora):
+        # M2: o que ESTA chamada viu ao entrar (antes do lock) — usado depois
+        # para saber se outra chamada concorrente já coletou enquanto
+        # esperávamos. Sem isso, dois POST /atualizar (force=True) simultâneos
+        # coletam 2x: com force o double-check de baixo é sempre verdadeiro
+        # (`_precisa_recoletar` short-circuita em `force`) e não filtra nada.
+        coletado_em_visto = snap.get("coletado_em") if snap else None
         with _LOCK:
             # relê depois de tomar o lock: quem chegou 2º pode achar já pronto
             snap_relido = coleta.ler_snapshot(mes, SNAP_DIR)
-            if _precisa_recoletar(mes, mes_corrente, snap_relido, force, agora):
+            coletado_em_relido = snap_relido.get("coletado_em") if snap_relido else None
+            if snap_relido is not None and coletado_em_relido != coletado_em_visto:
+                # outra chamada já coletou/gravou enquanto esperávamos o lock
+                # (vale mesmo com force=True) -> usa o snapshot fresco, não
+                # recoleta de novo.
+                snap = snap_relido
+            elif _precisa_recoletar(mes, mes_corrente, snap_relido, force, agora):
                 try:
                     cliente = _novo_cliente()
                     novo = coleta.coletar_mes(cliente, mes, agora=agora)
@@ -100,7 +147,7 @@ def obter(mes: str | None = None, force: bool = False, agora=None) -> dict:
                     if snap_relido is None:
                         raise
                     snap = snap_relido
-                    aviso = (f"coletado em {snap['coletado_em']} — "
+                    aviso = (f"coletado em {snap.get('coletado_em') or 'data desconhecida'} — "
                              "não foi possível atualizar")
             else:
                 snap = snap_relido

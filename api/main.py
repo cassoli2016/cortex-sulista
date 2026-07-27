@@ -9,6 +9,7 @@ Abrir:  http://127.0.0.1:8000
 from __future__ import annotations
 
 import logging
+import re
 from datetime import date
 from pathlib import Path
 
@@ -1305,10 +1306,33 @@ def _bad_date(value: str | None) -> bool:
         return True
 
 
+_MES_PREM_RE = re.compile(r"^\d{4}-(0[1-9]|1[0-2])$")
+
+
+def _mes_prem_invalido(mes: str | None) -> bool:
+    """M3: `mes` fora do formato AAAA-MM (500 genérico antes) ou com ano fora
+    de uma faixa plausível — um mês inexistente tipo `1990-01` disparava
+    coleta real e poluía o `index.json`/seletor da tela para sempre."""
+    if mes is None:
+        return False
+    if not _MES_PREM_RE.match(mes):
+        return True
+    ano = int(mes[:4])
+    return not (2020 <= ano <= date.today().year + 1)
+
+
+_MES_PREM_ERRO = {
+    "erro": "parametro_invalido",
+    "mensagem": "Parâmetro mes inválido: use o formato AAAA-MM, com ano entre 2020 e o ano corrente + 1.",
+}
+
+
 @app.get("/api/frota/premiacao")
 def premiacao(mes: str | None = None) -> JSONResponse:
     from api.premiacao import servico
     from api.premiacao.gobrax import GobraxIndisponivel, GobraxNaoConfigurado
+    if _mes_prem_invalido(mes):
+        return JSONResponse(status_code=422, content=_MES_PREM_ERRO)
     try:
         return JSONResponse(servico.obter(mes))
     except (GobraxIndisponivel, GobraxNaoConfigurado) as exc:
@@ -1329,6 +1353,8 @@ async def premiacao_atualizar(req: Request) -> JSONResponse:
     except Exception:
         body = None
     mes = body.get("mes") if isinstance(body, dict) else None
+    if _mes_prem_invalido(mes):
+        return JSONResponse(status_code=422, content=_MES_PREM_ERRO)
     try:
         return JSONResponse(servico.obter(mes, force=True))
     except (GobraxIndisponivel, GobraxNaoConfigurado) as exc:

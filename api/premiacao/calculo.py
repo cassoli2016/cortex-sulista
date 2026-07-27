@@ -4,8 +4,20 @@ premio = max(0, km/meta - km/media) × preco_litro × pct_premiacao
 Sem arredondamento intermediário: só o prêmio final arredonda a 2 casas
 (o exemplo do MVP dava 300,60 por arredondar o valor economizado antes do
 percentual; aqui o canônico é 300,75).
+
+Faixa física (achado I2 da revisão final): km <= 0 ou média acima de um teto
+amplo (15 km/l — o piloto tem veículos leves de até ~9 km/l; caminhão pesado
+faz 0,8-6) é leitura de telemetria implausível, não desempenho real. km <= 0
+com média abaixo da meta chegava a gerar PRÊMIO POSITIVO (litros_meta negativo
+menos um litros_consumidos ainda mais negativo). Essas linhas ganham
+`suspeito: True`, continuam VISÍVEIS na lista (com o valor bruto calculado),
+mas ficam fora de premio_total/litros_economizados_total/premiados — tratadas
+como não-elegíveis para fins de KPI. `media <= 0` continua fora das linhas
+(sem_media), sem mudança.
 """
 from __future__ import annotations
+
+TETO_MEDIA_KM_L = 15.0
 
 
 def calcular(motoristas: list[dict], params: dict) -> dict:
@@ -32,10 +44,11 @@ def calcular(motoristas: list[dict], params: dict) -> dict:
             "litros_economizados": econ,
             "premio": round(econ * preco * pct, 2),
             "elegivel": km >= km_min,
+            "suspeito": km <= 0 or media > TETO_MEDIA_KM_L,
         })
 
     linhas.sort(key=lambda l: (-l["premio"], -float(l.get("km") or 0)))
-    eleg = [l for l in linhas if l["elegivel"]]
+    eleg = [l for l in linhas if l["elegivel"] and not l["suspeito"]]
     litros_cons_total = sum(l["litros_consumidos"] for l in linhas)
     km_total = sum(float(l.get("km") or 0) for l in linhas)
     kpis = {
