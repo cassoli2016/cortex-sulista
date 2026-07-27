@@ -1046,7 +1046,7 @@ def orcamento(versao_id: int | None = None, ate_mes: int | None = None) -> JSONR
 
 @app.post("/api/controladoria/orcamento/gerar")
 async def orcamento_gerar(req: Request) -> JSONResponse:
-    from api.orcamento.servico import gerar
+    from api.orcamento.servico import METODOS_VALIDOS, gerar
     try:
         body = await req.json()
     except Exception:
@@ -1064,6 +1064,13 @@ async def orcamento_gerar(req: Request) -> JSONResponse:
         return JSONResponse(status_code=422, content={
             "erro": "parametro_invalido",
             "mensagem": "O fator de tendência deve estar entre -0,9 e 3,0."})
+    # "metodo" só importa para VERSÃO NOVA: ao regerar (versao_id presente), o
+    # serviço ignora este parâmetro e usa o método gravado na própria versão.
+    metodo = body.get("metodo") or "espelho"
+    if metodo not in METODOS_VALIDOS:
+        return JSONResponse(status_code=422, content={
+            "erro": "parametro_invalido",
+            "mensagem": "Método de derivação inválido: use 'espelho' ou 'semestre'."})
     # versao_id presente = REGERAR aquela versão preservando os ajustes manuais
     versao_id = body.get("versao_id")
     if versao_id is not None and not (isinstance(versao_id, int)
@@ -1072,7 +1079,8 @@ async def orcamento_gerar(req: Request) -> JSONResponse:
             "erro": "parametro_invalido", "mensagem": "versao_id inválido."})
     try:
         quem = (req.state.sessao or {}).get("nome") or "sistema"
-        return JSONResponse(gerar(ano, rotulo, float(fator), quem, versao_id=versao_id))
+        return JSONResponse(gerar(ano, rotulo, float(fator), quem,
+                                  versao_id=versao_id, metodo=metodo))
     except KeyError:
         return JSONResponse(status_code=404, content={
             "erro": "versao_inexistente",

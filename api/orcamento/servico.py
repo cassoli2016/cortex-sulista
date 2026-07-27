@@ -10,11 +10,13 @@ from datetime import date
 
 from api import db
 from api.orcamento import armazenamento as arm
-from api.orcamento.derivacao import derivar
+from api.orcamento.derivacao import derivar, derivar_semestre, indices_sazonais
 from api.orcamento.rollup import contas_sem_linha, mapa_conta_linha
 from api.orcamento.sql import (AGRUP_CONTA_SQL, HIST_CONTA_SQL, NOME_CONTA_SQL,
                                REAL_CONTA_SQL, meses_fechados)
 from api.queries import DRE_MODELO, ler_ajustes
+
+METODOS_VALIDOS = ("espelho", "semestre")
 
 
 def montar_comparativo(linhas_orc: list[dict], realizado: dict,
@@ -173,44 +175,102 @@ def _mapa() -> tuple[dict, dict]:
     return agrup, ler_ajustes()
 
 
+def _serie_por_linha(hist24: dict[str, dict[str, float]],
+                     mapa: dict[str, str | None]) -> dict[str, dict[str, float]]:
+    """Agrega o histórico de 24 meses POR LINHA da DRE, somando as contas de
+    cada linha mês a mês. Conta sem linha (`mapa.get(conta)` é None ou ausente)
+    fica fora — não tem como formar o índice sazonal de uma linha que ela não
+    integra."""
+    por_linha: dict[str, dict[str, float]] = {}
+    for conta, serie in hist24.items():
+        rot = mapa.get(conta)
+        if rot is None:
+            continue
+        alvo = por_linha.setdefault(rot, {})
+        for mes, valor in serie.items():
+            alvo[mes] = alvo.get(mes, 0.0) + valor
+    return por_linha
+
+
 def gerar(ano: int, rotulo: str, fator: float, quem: str,
           path=None, hoje: date | None = None,
-          versao_id: int | None = None) -> dict:
+          versao_id: int | None = None, metodo: str = "espelho") -> dict:
     """Deriva o baseline do ano.
 
     Sem `versao_id`, grava numa versão nova. Com `versao_id`, REGERA aquela
     versão no lugar: só o `valor_baseline` é recalculado, e o `valor_ajustado`
     da controladoria sobrevive (spec §2). Sem esse caminho o `ON CONFLICT` do
     `gravar_baseline` nunca dispararia em produção.
+
+    `metodo`:
+    - "espelho" (padrão): mês-calendário da base × fator — caminho original.
+    - "semestre": nível dos últimos 6 meses × índice sazonal da LINHA (de 24
+      meses de histórico) × fator — para quem confia mais no nível recente do
+      que no mês espelho de 12 meses atrás.
+
+    REGERAR ignora o `metodo` recebido: a versão já gravou o método com que
+    nasceu, e regerar tem de re-derivar POR ESSE método (rolante, na base
+    atual) — senão uma versão trocaria de método sem o usuário pedir.
     """
     path = path or arm.DB_PATH
     hoje = hoje or date.today()
-    meses = meses_fechados(hoje, 12)
-    hist = _historico(meses)
-    if not hist:
-        raise ValueError("Sem histórico fechado para derivar o baseline.")
-    # a spec exige bloquear quando a base não tem os 12 meses fechados: derivar mês
-    # espelho sobre uma base incompleta produziria zeros disfarçados de orçamento
-    faltam = meses_faltando(hist, meses)
-    if faltam:
-        raise ValueError(
-            f"A base precisa de {len(meses)} meses fechados e faltam {len(faltam)}: "
-            + ", ".join(faltam))
-    linhas = derivar(hist, meses, fator)
+    arm.init_db(path)
+
+    if versao_id is not None:
+        versoes = {v["id"]: v for v in arm.listar_versoes(path)}
+        if versao_id not in versoes:
+            raise KeyError(f"versão inexistente: {versao_id}")
+        metodo = versoes[versao_id].get("metodo") or "espelho"
 
     agrup, ajustes = _mapa()
+    mapa = mapa_conta_linha(agrup, ajustes)
+
+    linhas_flat: list[str] = []
+    if metodo == "semestre":
+        meses = meses_fechados(hoje, 6)
+        hist = _historico(meses)
+        if not hist:
+            raise ValueError("Sem histórico fechado para derivar o baseline.")
+        # mesmo bloqueio do espelho: base semestral incompleta produziria
+        # nível errado disfarçado de orçamento
+        faltam = meses_faltando(hist, meses)
+        if faltam:
+            raise ValueError(
+                f"A base precisa de {len(meses)} meses fechados e faltam {len(faltam)}: "
+                + ", ".join(faltam))
+        meses24 = meses_fechados(hoje, 24)
+        hist24 = _historico(meses24)
+        serie_linha = _serie_por_linha(hist24, mapa)
+        indices, linhas_flat = indices_sazonais(serie_linha, meses24)
+        linhas = derivar_semestre(hist, meses, indices, mapa, fator)
+    else:
+        meses = meses_fechados(hoje, 12)
+        hist = _historico(meses)
+        if not hist:
+            raise ValueError("Sem histórico fechado para derivar o baseline.")
+        # a spec exige bloquear quando a base não tem os 12 meses fechados: derivar mês
+        # espelho sobre uma base incompleta produziria zeros disfarçados de orçamento
+        faltam = meses_faltando(hist, meses)
+        if faltam:
+            raise ValueError(
+                f"A base precisa de {len(meses)} meses fechados e faltam {len(faltam)}: "
+                + ", ".join(faltam))
+        linhas = derivar(hist, meses, fator)
+
     pendentes = contas_sem_linha(sorted(hist), agrup, ajustes)
     # conta sem agrupador (ou com agrupador que o DRE_MODELO não reconhece) não
     # soma em linha nenhuma: fica fora do baseline e é reportada
     linhas = [l for l in linhas if l["conta"] not in set(pendentes)]
 
-    arm.init_db(path)
     if versao_id is None:
-        vid, regerada, zeradas = arm.criar_versao(path, ano, rotulo, fator, quem,
-                                                  meses_base=meses), False, 0
+        vid = arm.criar_versao(path, ano, rotulo, fator, quem,
+                               meses_base=meses, metodo=metodo)
+        regerada, zeradas = False, 0
     else:
         vid, regerada = versao_id, True
-        arm.atualizar_versao(path, vid, fator, meses_base=meses)  # KeyError se não existe
+        # metodo regravado (coerência) mesmo sendo o mesmo já lido acima —
+        # a atualização também troca a base para a janela ATUAL do método
+        arm.atualizar_versao(path, vid, fator, meses_base=meses, metodo=metodo)
     arm.gravar_baseline(path, vid, linhas)
     if regerada:
         zeradas = arm.zerar_fora_do_conjunto(
@@ -218,7 +278,8 @@ def gerar(ano: int, rotulo: str, fator: float, quem: str,
     return {"versao_id": vid, "linhas": len(linhas), "meses_base": meses,
             "contas_sem_linha": pendentes, "regerada": regerada,
             "celulas_zeradas": zeradas,
-            "meses_circulares": meses_circulares(ano, meses)}
+            "meses_circulares": meses_circulares(ano, meses),
+            "metodo": metodo, "linhas_flat": linhas_flat}
 
 
 def meses_circulares(ano: int, meses_base: list[str]) -> list[int]:
