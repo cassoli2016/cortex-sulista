@@ -126,8 +126,15 @@ def _mapa() -> tuple[dict, dict]:
 
 
 def gerar(ano: int, rotulo: str, fator: float, quem: str,
-          path=None, hoje: date | None = None) -> dict:
-    """Deriva o baseline do ano e grava numa versão nova."""
+          path=None, hoje: date | None = None,
+          versao_id: int | None = None) -> dict:
+    """Deriva o baseline do ano.
+
+    Sem `versao_id`, grava numa versão nova. Com `versao_id`, REGERA aquela
+    versão no lugar: só o `valor_baseline` é recalculado, e o `valor_ajustado`
+    da controladoria sobrevive (spec §2). Sem esse caminho o `ON CONFLICT` do
+    `gravar_baseline` nunca dispararia em produção.
+    """
     path = path or arm.DB_PATH
     hoje = hoje or date.today()
     meses = meses_fechados(hoje, 12)
@@ -150,10 +157,18 @@ def gerar(ano: int, rotulo: str, fator: float, quem: str,
     linhas = [l for l in linhas if l["conta"] not in set(pendentes)]
 
     arm.init_db(path)
-    vid = arm.criar_versao(path, ano, rotulo, fator, quem)
+    if versao_id is None:
+        vid, regerada, zeradas = arm.criar_versao(path, ano, rotulo, fator, quem), False, 0
+    else:
+        vid, regerada = versao_id, True
+        arm.atualizar_versao(path, vid, fator)   # KeyError se a versão não existe
     arm.gravar_baseline(path, vid, linhas)
+    if regerada:
+        zeradas = arm.zerar_fora_do_conjunto(
+            path, vid, {(l["conta"], l["mes"]) for l in linhas})
     return {"versao_id": vid, "linhas": len(linhas), "meses_base": meses,
-            "contas_sem_linha": pendentes}
+            "contas_sem_linha": pendentes, "regerada": regerada,
+            "celulas_zeradas": zeradas}
 
 
 def comparativo(versao_id: int, ate_mes: int | None = None,
