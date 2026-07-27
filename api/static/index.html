@@ -3484,6 +3484,7 @@ function renderOrc(d){
       `<div style="padding:26px 18px;color:var(--n500)">${esc(d.mensagem||'Nenhum orçamento criado.')} `
       +`Use a aba <b>Montagem</b> para gerar o primeiro.</div>`;
     document.getElementById('orc-desvios').innerHTML='';
+    if(ORC_ABA==='mont') renderOrcMontagem();
     return;
   }
   const L=d.linhas||[];
@@ -3553,6 +3554,11 @@ function renderOrc(d){
       +`<b>${d.sem_linha.length} conta(s) sem agrupador</b> ficaram fora do orçamento — `
       +`elas não somam em linha nenhuma da DRE. Classifique em <a href="#cont">Contabilidade</a>.</div>`);
   }
+  // versão/mês continuam ativos fora do conteúdo das abas: se o usuário estiver na
+  // Montagem e trocar de versão (ou gerar um baseline novo), a grade e o data-versao
+  // de cada célula têm de acompanhar — senão um ajuste feito nesse intervalo grava
+  // silenciosamente na versão antiga.
+  if(ORC_ABA==='mont') renderOrcMontagem();
 }
 function chartOrcRender(mensal){
   const svg=document.getElementById('chartOrc');
@@ -3577,9 +3583,43 @@ function chartOrcRender(mensal){
   mensal.forEach((r,i)=>{ s+=`<text x="${px(i)}" y="${H-mB+18}" text-anchor="middle" font-size="10.5" fill="${r.fechado?'#4F5860':'#AEB6BF'}">${r.mes}</text>`; });
   svg.innerHTML=s;
 }
+// Aceita as formas que um usuário brasileiro digita num campo de decimal:
+// "1.234,56" e "1234,56" e "1.234.567,89" (vírgula decimal, ponto de milhar em
+// grupos de 3) OU "1234.56" (ponto decimal, sem vírgula) -> number ; "" -> null
+// ; qualquer outra coisa -> NaN.
+// Existe porque <input type="number"> DESCARTA a vírgula em vez de recusar o
+// caractere: digitar "1234,56" nele vira 123456 (100x maior), sem erro nem aviso
+// — por isso a grade e o campo de fator usam type="text" + esta função, nunca
+// o parseFloat cru do valor do input.
+// VALIDAÇÃO ESTRITA POR REGEX é obrigatória aqui: o parseFloat do JS analisa só
+// um PREFIXO válido e ignora o resto ("1.234.56".replace(...) sobra "1.234.56"
+// sem vírgula, e parseFloat para no primeiro ponto extra, devolvendo 1.234 —
+// 1000x menor que o valor digitado, sem erro nenhum). Por isso o formato inteiro
+// é validado ANTES de qualquer parseFloat; sem match nenhuma conversão ocorre.
+function numBR(s){
+  s = String(s == null ? '' : s).trim();
+  if(!s) return null;
+  // sem vírgula: ponto é decimal — só UM ponto é permitido (mais de um = lixo,
+  // ex.: "1.234.56")
+  const semVirgula = /^[+-]?\d+(\.\d+)?$/;
+  // com vírgula: vírgula é decimal; o ponto só entra como milhar em grupos
+  // exatos de 3 dígitos ("1.234,56", "1.234.567,89") ou nem aparece ("1234,56")
+  const comVirgula = /^[+-]?(\d+|\d{1,3}(\.\d{3})+),\d+$/;
+  let normalizado;
+  if(comVirgula.test(s)) normalizado = s.replace(/\./g, '').replace(',', '.');
+  else if(semVirgula.test(s)) normalizado = s;
+  else return NaN;
+  const n = parseFloat(normalizado);
+  return Number.isFinite(n) ? n : NaN;
+}
+const fmtNumBR = v => v.toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2});
 function renderOrcMontagem(){
   const d=DATAORC||{};
   const alvo=document.getElementById('orc-mont');
+  // preserva o filtro de linha selecionado: esta função é chamada de novo (não só
+  // no clique da aba) sempre que renderOrc() atualiza com a Montagem ativa —
+  // trocar de versão ou gerar um baseline não pode resetar o que o usuário via
+  const filtroAnterior=(document.getElementById('fOrcLinha')||{}).value||'';
   const anoSug=new Date().getFullYear();
   const linhas=[...new Set((d.grade||[]).map(c=>c.linha).filter(Boolean))].sort();
   alvo.innerHTML=`
@@ -3587,7 +3627,7 @@ function renderOrcMontagem(){
       <span class="hint">mês espelho dos 12 meses fechados + fator de tendência</span></div>
       <div class="cardfilters">
         <input type="number" id="fOrcAno" value="${anoSug}" min="2020" max="2100" aria-label="Ano do orçamento" style="width:100px">
-        <input type="number" id="fOrcFator" value="0" step="1" aria-label="Fator de tendência em %" style="width:110px" title="Percentual aplicado sobre o mês espelho. Ex.: -5 orça 5% abaixo do ano anterior.">
+        <input type="text" inputmode="decimal" id="fOrcFator" value="0" aria-label="Fator de tendência em %" style="width:110px" title="Percentual aplicado sobre o mês espelho. Ex.: -5 orça 5% abaixo do ano anterior. Use vírgula para casas decimais (ex.: -5,5).">
         <span style="color:var(--n500)">% de tendência</span>
         <button class="btn" onclick="orcGerar()">Gerar</button>
         <span class="hint" id="orcGerarMsg"></span>
@@ -3606,6 +3646,8 @@ function renderOrcMontagem(){
         </select>
       </div>
       <div class="tablewrap tabroll" id="orc-grade"></div></div>`;
+  const selLinha=document.getElementById('fOrcLinha');
+  if(selLinha && linhas.includes(filtroAnterior)) selLinha.value=filtroAnterior;
   renderOrcGrade();
 }
 function renderOrcGrade(){
@@ -3620,14 +3662,17 @@ function renderOrcGrade(){
   el.innerHTML=`<table><thead><tr><th>Conta</th><th>Linha</th>`
     + MES.map(m=>`<th class="num">${m}</th>`).join('') + `</tr></thead><tbody>`
     + contas.map(c=>{
-        const fraca = c.origem && c.origem!=='espelho';
+        // marca base fraca sempre que a origem NÃO for 'espelho' — inclui
+        // 'mediana', 'sem_base' e também um origem vazio/ausente (não exigir
+        // truthy antes da comparação, senão origem vazio escaparia da marca)
+        const fraca = c.origem !== 'espelho';
         return `<tr><td style="font-family:var(--mono)">${esc(c.conta)}`
           + (fraca?` <span class="badge b-warn" title="Menos de 9 dos 12 meses com movimento: o valor saiu por mediana, não por mês espelho. Revise.">base fraca</span>`:'')
           + `</td><td style="color:var(--n500)">${esc(c.linha||'—')}</td>`
           + MES.map((_,i)=>{
               const m=i+1, v=(c.valores||{})[m], aj=(c.ajustados||{})[m];
-              const val = (v==null?'':Number(v).toFixed(2));
-              return `<td class="num"><input type="number" step="0.01" class="ocel"
+              const val = (v==null?'':fmtNumBR(Number(v)));
+              return `<td class="num"><input type="text" inputmode="decimal" class="ocel"
                  value="${val}" data-antes="${val}"
                  data-conta="${esc(c.conta)}" data-mes="${m}" data-versao="${vid}"
                  onchange="orcSalvarCelula(this)"
@@ -3642,8 +3687,14 @@ function renderOrcGrade(){
 }
 async function orcGerar(){
   const ano=parseInt(document.getElementById('fOrcAno').value,10);
-  const pct=parseFloat(document.getElementById('fOrcFator').value||'0');
+  const fatorInp=document.getElementById('fOrcFator');
+  const pct=numBR(fatorInp.value);
   const msg=document.getElementById('orcGerarMsg');
+  if(pct==null || Number.isNaN(pct)){
+    msg.textContent='';
+    showBanner('Fator de tendência inválido: use números com vírgula decimal (ex.: -5,5).');
+    return;
+  }
   msg.textContent='gerando…';
   try{
     const r=await fetch('/api/controladoria/orcamento/gerar',{method:'POST',
@@ -3658,8 +3709,15 @@ async function orcGerar(){
 }
 async function orcSalvarCelula(inp){
   const bruto=inp.value.trim();
-  const valor = bruto==='' ? null : parseFloat(bruto);
-  const antes = inp.dataset.antes||'';
+  const antes=inp.dataset.antes||'';
+  const valor=numBR(bruto);
+  if(Number.isNaN(valor)){
+    // lixo (ex.: "abc"): nunca chama a API com número inválido — restaura o
+    // valor anterior e avisa, em vez de deixar o parseFloat mandar NaN/errado
+    inp.value=antes;
+    showBanner('Valor inválido: use apenas números, vírgula decimal e ponto de milhar.');
+    return;
+  }
   inp.disabled=true;
   try{
     const r=await fetch('/api/controladoria/orcamento/ajustar',{method:'POST',
@@ -3668,8 +3726,10 @@ async function orcSalvarCelula(inp){
         conta:inp.dataset.conta, mes:parseInt(inp.dataset.mes,10), valor:valor})});
     const d=await r.json();
     if(!r.ok){ inp.value=antes; showBanner(d.mensagem||'Não foi possível salvar o ajuste.'); return; }
-    inp.dataset.antes=bruto;
-    inp.style.background = bruto==='' ? '' : 'var(--yellow-100)';
+    const exibido = valor==null ? '' : fmtNumBR(valor);
+    inp.value=exibido;
+    inp.dataset.antes=exibido;
+    inp.style.background = valor==null ? '' : 'var(--yellow-100)';
   }catch(e){ inp.value=antes; showBanner('Não foi possível falar com a API.', e.message); }
   finally{ inp.disabled=false; }
 }
