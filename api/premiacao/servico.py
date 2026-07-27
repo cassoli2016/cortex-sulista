@@ -52,6 +52,28 @@ def _novo_cliente():
     return gobrax.ClienteGobrax()
 
 
+# Cache do histórico de vínculos (exportDriverHistory): são ~98 exports XLSX,
+# um por veículo — refazer isso a cada recoleta de TTL seria o item mais caro
+# da coleta. O histórico muda devagar (equipe vinculando motoristas), 1h basta.
+_BONDS_TTL_S = 3600
+_BONDS_CACHE: dict[str, tuple[float, dict]] = {}
+
+
+def _bonds(cliente) -> dict:
+    agora_mono = time.monotonic()
+    cacheado = _BONDS_CACHE.get("bonds")
+    if cacheado is not None and (agora_mono - cacheado[0]) < _BONDS_TTL_S:
+        return cacheado[1]
+    resp = cliente.get("/vehicles", {"customers": 1, "operation": "true"})
+    veiculos = ((resp or {}).get("customers") or [{}])[0].get("vehicles") or []
+    vinfo = {v["id"]: {"plate": v.get("plate", ""),
+                       "model": v.get("truckModel") or v.get("model") or v.get("brand") or ""}
+             for v in veiculos if v.get("id") is not None}
+    bonds = coleta.fetch_bonds(cliente, vinfo)
+    _BONDS_CACHE["bonds"] = (agora_mono, bonds)
+    return bonds
+
+
 def _preco_diesel(mes: str) -> float | None:
     """Preço médio do diesel interno no mês (AVA). ERP fora não derruba a
     tela: qualquer falha (conexão, túnel, coluna ausente) volta `None`.
@@ -105,7 +127,10 @@ def _precisa_recoletar(mes: str, mes_corrente: str, snap: dict | None,
     return bool(snap.get("parcial")) and mes < mes_corrente
 
 
-def obter(mes: str | None = None, force: bool = False, agora=None) -> dict:
+def obter(mes: str | None = None, force: bool = False, agora=None,
+          cliente=None) -> dict:
+    """`cliente` opcional: o backfill (`atualizar_tudo`) passa UM cliente para
+    todos os meses — um login por mês disparava o rate-limit do Kratos (403)."""
     agora = agora or datetime.now()
     mes_corrente = agora.strftime("%Y-%m")
     mes = mes or mes_corrente
@@ -139,10 +164,22 @@ def obter(mes: str | None = None, force: bool = False, agora=None) -> dict:
                 snap = snap_relido
             elif _precisa_recoletar(mes, mes_corrente, snap_relido, force, agora):
                 try:
-                    cliente = _novo_cliente()
-                    novo = coleta.coletar_mes(cliente, mes, agora=agora)
-                    coleta.gravar_snapshot(novo, SNAP_DIR)
-                    snap = novo
+                    cliente = cliente or _novo_cliente()
+                    novo = coleta.coletar_mes(cliente, mes, agora=agora,
+                                              bonds=_bonds(cliente))
+                    if not novo.get("drivers") and snap_relido and snap_relido.get("drivers"):
+                        # Coleta VAZIA nunca sobrescreve snapshot com dados: a
+                        # frota do customer oscila na plataforma durante
+                        # remanejos (aconteceu de verdade — /vehicles foi de 98
+                        # a 10 e de volta em minutos, e julho com 3 motoristas
+                        # virou 0). Snapshot é dado de pagamento: mantém o
+                        # anterior e avisa, em vez de perder o mês.
+                        snap = snap_relido
+                        aviso = (f"a coleta voltou vazia (plataforma em remanejo?) — "
+                                 f"mantido o snapshot de {snap.get('coletado_em') or 'data desconhecida'}")
+                    else:
+                        coleta.gravar_snapshot(novo, SNAP_DIR)
+                        snap = novo
                 except (gobrax.GobraxIndisponivel, gobrax.GobraxNaoConfigurado, ValueError):
                     if snap_relido is None:
                         raise
@@ -173,6 +210,55 @@ def obter(mes: str | None = None, force: bool = False, agora=None) -> dict:
         "kpis": calc["kpis"],
         "sem_media": calc["sem_media"],
     }
+
+
+def meses_recentes(n: int, agora: datetime) -> list[str]:
+    """Os n meses 'AAAA-MM' até o corrente (inclusive), em ordem cronológica."""
+    ano, m = agora.year, agora.month
+    saida: list[str] = []
+    for _ in range(n):
+        saida.append(f"{ano:04d}-{m:02d}")
+        m -= 1
+        if m == 0:
+            m, ano = 12, ano - 1
+    return list(reversed(saida))
+
+
+def atualizar_tudo(agora=None, n_meses: int = 6) -> dict:
+    """Botão "Atualizar dados": recoleta o mês corrente (force) E preenche os
+    meses recentes que ainda não têm snapshot (backfill dos últimos 6 — pedido
+    do usuário em produção). Mês antigo que já tem snapshot fechado não é
+    tocado; falha em UM mês não derruba os outros (vai para `falhas`)."""
+    agora = agora or datetime.now()
+    mes_corrente = agora.strftime("%Y-%m")
+    existentes = {i["month"] for i in coleta.ler_index(SNAP_DIR)}
+    coletados: list[str] = []
+    falhas: list[str] = []
+    # UM cliente (= um login) para o backfill inteiro: um login por mês disparou
+    # o rate-limit do Kratos em produção real (HTTP 403 do flow).
+    cliente = _novo_cliente() if gobrax.configurado() else None
+    carimbo = agora.strftime("%Y-%m-%d %H:%M")
+    for mes in meses_recentes(n_meses, agora):
+        if mes != mes_corrente and mes in existentes:
+            continue  # fechado e já coletado (o I1 do obter cuida de parcial órfão)
+        try:
+            obter(mes, force=(mes == mes_corrente), agora=agora, cliente=cliente)
+        except (gobrax.GobraxIndisponivel, gobrax.GobraxNaoConfigurado, ValueError) as exc:
+            log.warning("backfill %s falhou: %s", mes, exc)
+            falhas.append(mes)
+            continue
+        # coleta DE VERDADE ou fallback silencioso? O carimbo diz: o snapshot
+        # recém-coletado leva o coletado_em desta execução.
+        snap = coleta.ler_snapshot(mes, SNAP_DIR)
+        if snap and snap.get("coletado_em") == carimbo:
+            coletados.append(mes)
+        else:
+            log.warning("backfill %s serviu snapshot antigo (fallback)", mes)
+            falhas.append(mes)
+    resp = obter(mes_corrente, agora=agora, cliente=cliente)
+    resp["meses_coletados"] = coletados
+    resp["meses_com_falha"] = falhas
+    return resp
 
 
 def serie() -> dict:

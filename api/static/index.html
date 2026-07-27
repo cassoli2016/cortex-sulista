@@ -4320,17 +4320,25 @@ async function loadPrem(forceSerie){
     const d=await r.json(); if(seq!==premSeq) return;
     if(!r.ok){ showBanner(d.mensagem||'Erro ao consultar a premiação.', d.detalhe); return; }
     hideBanner(); DATAPREM=d; LOADEDQS.prem='';
-    // popula o select de mês uma única vez a partir do index (snapshots locais)
-    if(selM && !selM.dataset.pronto){
-      selM.innerHTML=(d.index||[]).map(x=>`<option value="${esc(x.month)}">${esc(x.label)}${x.parcial?' (parcial)':''}</option>`).join('')
-        || '<option value="">sem meses coletados</option>';
-      selM.dataset.pronto='1';
-      if(d.month) selM.value=d.month;
-    }
+    _premSyncMeses(d, selM);
     renderPrem(d);
     premCarregarSerie(!!forceSerie);
   }catch(e){ if(seq===premSeq) showBanner('Não foi possível falar com a API.', e.message); }
   finally{ if(seq===premSeq){ if(btn) btn.disabled=false; document.getElementById('content').classList.remove('loading'); } }
+}
+// Select de mês: reconstruído sempre que o CONJUNTO de meses do index mudar
+// (o backfill do "Atualizar dados" cria meses novos — a lição do orçamento:
+// popular "uma única vez" deixa a tela presa na lista velha até um F5).
+// Troca de mês não reconstrói (conjunto igual), preservando a seleção.
+function _premSyncMeses(d, selM){
+  selM = selM || document.getElementById('fPremMes');
+  if(!selM) return;
+  const meses=(d.index||[]).map(x=>x.month).join(',');
+  if(selM.dataset.meses===meses) return;
+  selM.innerHTML=(d.index||[]).map(x=>`<option value="${esc(x.month)}">${esc(x.label)}${x.parcial?' (parcial)':''}</option>`).join('')
+    || '<option value="">sem meses coletados</option>';
+  selM.dataset.meses=meses; selM.dataset.pronto='1';
+  if(d.month) selM.value=d.month;
 }
 // Botão "Atualizar dados": só faz sentido com credenciais configuradas — sem
 // GOBRAX_EMAIL/GOBRAX_SENHA a recoleta forçada nem chega a tentar (o endpoint
@@ -4369,8 +4377,13 @@ function renderPrem(d){
   const tb=document.getElementById('prem-telemetria');
   if(ft.veiculos!=null){
     tb.style.display='flex';
-    tb.innerHTML = `<i>${ICONS['sinal']}</i><span>A telemetria Gobrax cobre <b>${(ft.veiculos||0).toLocaleString('pt-BR')} veículos</b> e `
-      +`<b>${(ft.com_motorista||0).toLocaleString('pt-BR')} motoristas</b> — a premiação vale para os vinculados, não para a frota inteira.</span>`;
+    // snapshot novo traz `cadastrados` (coleta consulta TODOS os motoristas);
+    // snapshot antigo não tem o campo — cai no texto anterior
+    tb.innerHTML = `<i>${ICONS['sinal']}</i><span>A telemetria Gobrax cobre <b>${(ft.veiculos||0).toLocaleString('pt-BR')} veículos</b>`
+      +(ft.cadastrados!=null
+        ? ` e <b>${ft.cadastrados.toLocaleString('pt-BR')} motoristas cadastrados</b> — <b>${(ft.com_motorista||0).toLocaleString('pt-BR')}</b> com atividade no mês.`
+        : ` e <b>${(ft.com_motorista||0).toLocaleString('pt-BR')} motoristas</b> — a premiação vale para os vinculados, não para a frota inteira.`)
+      +`</span>`;
   } else tb.style.display='none';
 
   const k=d.kpis||{};
@@ -4423,10 +4436,18 @@ function renderPrem(d){
   document.getElementById('prem-rank').innerHTML = linhas.length ? linhas.map((l,i)=>{
     const placas=(l.vehicles||[]).map(v=>v.plate).filter(Boolean).join(', ');
     const scores=(l.indicators&&l.indicators.scores)||{};
-    const det = Object.keys(scores).length ? `
+    // períodos de vínculo motorista↔veículo (exportDriverHistory) — pedido do
+    // usuário: mostrar QUANDO cada placa esteve com o motorista no período
+    const vincs=(l.vehicles||[]).filter(v=>v.vinculo_de);
+    const vincHtml = vincs.length ? `
+      <div style="margin:8px 0 10px"><div style="font-weight:600;margin-bottom:4px">Vínculos no período</div>
+      ${vincs.map(v=>`<div style="font-size:12px;margin-top:2px"><span style="font-family:var(--mono)">${esc(v.plate)}</span>`
+        +`${v.model?' · '+esc(v.model):''} — ${fmtDT(v.vinculo_de)} → ${v.vinculo_ate?fmtDT(v.vinculo_ate):'em aberto'}</div>`).join('')}
+      </div>` : '';
+    const det = vincHtml + (Object.keys(scores).length ? `
       <div class="tablewrap"><table><thead><tr><th>Indicador</th><th class="num">Nota</th></tr></thead><tbody>
       ${Object.entries(scores).map(([sk,sv])=>`<tr><td>${esc(_premScoreLabel(sk))}</td><td class="num">${_premNotaChip(sv)}</td></tr>`).join('')}
-      </tbody></table></div>` : '<div style="color:var(--n500);padding:8px 0">sem indicadores detalhados</div>';
+      </tbody></table></div>` : '<div style="color:var(--n500);padding:8px 0">sem indicadores detalhados</div>');
     const naoElegivel = l.elegivel ? '' : ' <span class="badge b-warn" title="km no mês abaixo do mínimo configurado">não elegível (km &lt; mínimo)</span>';
     // I2: sem faixa física, km<=0 ou média implausível (teto amplo — veículo
     // leve chega a ~9 km/l, caminhão pesado 0,8-6) virava prêmio de verdade.
@@ -4486,15 +4507,18 @@ async function premSalvarParams(){
 async function premColetar(){
   const seq=++premSeq;
   const btn=document.getElementById('btnPremColeta');
-  const selM=document.getElementById('fPremMes');
-  const mes=(selM&&selM.dataset.pronto&&selM.value) || (DATAPREM||{}).month || null;
-  if(btn){ btn.disabled=true; btn.textContent='Coletando…'; }
+  // sem mês no body = backfill: recoleta o mês corrente E preenche os últimos
+  // 6 meses que ainda não têm snapshot (pedido do usuário em produção)
+  if(btn){ btn.disabled=true; btn.textContent='Coletando meses…'; }
   try{
     const r=await fetch('/api/frota/premiacao/atualizar',{method:'POST',headers:{'Content-Type':'application/json'},
-      body:JSON.stringify({mes:mes})});
+      body:JSON.stringify({})});
     const d=await r.json(); if(seq!==premSeq) return;
     if(!r.ok){ showBanner(d.mensagem||'Não foi possível atualizar os dados da premiação.'); return; }
     hideBanner(); DATAPREM=d; LOADEDQS.prem='';
+    _premSyncMeses(d);                    // o backfill cria meses novos no select
+    if((d.meses_com_falha||[]).length)
+      showBanner('Alguns meses não puderam ser coletados: '+d.meses_com_falha.join(', '));
     // recoleta pode ter mudado o mês coletado -> força a série a reler os snapshots
     renderPrem(d); premCarregarSerie(true);
   }catch(e){ if(seq===premSeq) showBanner('Não foi possível falar com a API.', e.message); }

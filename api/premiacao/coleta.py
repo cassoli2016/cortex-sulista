@@ -8,21 +8,33 @@ Fluxo por mês:
   1. `/vehicles` → mapa veículo→motorista atual (`currentDriver`) e lista de TODOS
      os veículos (o `analysis` casa motorista↔veículo por telemetria, não só pelo
      vínculo atual — por isso `vehicles=` leva sempre todos).
-  2. `/drivers` → CPF cru por driverId; é mascarado (`_mask_doc`) antes de entrar
-     no snapshot — o valor cru nunca é gravado em disco.
-  3. `/web/v2/performance/drivers/analysis`, em lotes de 10 motoristas (`_lotes`),
-     com `time.sleep(0.3)` ENTRE lotes (não após o último).
+  2. `/drivers` → TODOS os motoristas cadastrados do cliente (nome + CPF, mascarado
+     com `_mask_doc` antes de entrar no snapshot — o valor cru nunca vai a disco).
+  3. `/web/v2/performance/drivers/analysis` para TODOS os cadastrados, em lotes de
+     10 (`_lotes`), com `time.sleep(0.3)` ENTRE lotes (não após o último).
 
-O snapshot é dado bruto: motorista sem consumo (`consumptionAverage` 0/None) entra
-com `media: None` — quem decide excluir/contar é o cálculo (Task 1), não a coleta.
+Consultar só quem tem `currentDriver` perdia motorista: os vínculos do piloto mudam
+de dia para dia, e quem dirigiu no começo do mês sem estar vinculado AGORA sumia do
+ranking (aconteceu de verdade: a coleta trouxe 3 motoristas num mês em que 5 tinham
+rodado). O `analysis` casa por telemetria, então consultar todos resolve.
+
+O snapshot guarda só motorista com ATIVIDADE no mês (media ou km > 0) — com ~86
+cadastrados e um piloto pequeno, guardar todo mundo viraria ruído. Motorista com km
+mas sem média entra com `media: None` (o cálculo o exclui do ranking e conta).
 """
 from __future__ import annotations
 
+import base64
 import calendar
+import io
 import json
 import os
+import re
 import tempfile
 import time
+import xml.etree.ElementTree as ET
+import zipfile
+from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime
 from pathlib import Path
 
@@ -47,6 +59,97 @@ def _lotes(seq, n=10):
         yield seq[i:i + n]
 
 
+_XLSX_NS = "{http://schemas.openxmlformats.org/spreadsheetml/2006/main}"
+
+
+def _norm(nome: str) -> str:
+    """Normaliza nome para casar /drivers ("3781 - ROBSON ...") com o
+    exportDriverHistory ("Luis antonio rodrigues"): tira o prefixo numérico,
+    põe em maiúsculas e colapsa espaços."""
+    s = re.sub(r"^\s*\d+\s*-\s*", "", nome or "")
+    return " ".join(s.strip().upper().split())
+
+
+def _xlsx_rows(b64: str) -> list[list[str]]:
+    """Lê a 1ª planilha de um XLSX (base64) só com a stdlib — o
+    exportDriverHistory devolve {"XLSX": <base64>}."""
+    z = zipfile.ZipFile(io.BytesIO(base64.b64decode(b64)))
+    shared: list[str] = []
+    if "xl/sharedStrings.xml" in z.namelist():
+        t = ET.fromstring(z.read("xl/sharedStrings.xml"))
+        for si in t.findall(f"{_XLSX_NS}si"):
+            shared.append("".join(x.text or "" for x in si.iter(f"{_XLSX_NS}t")))
+    t = ET.fromstring(z.read("xl/worksheets/sheet1.xml"))
+    rows: list[list[str]] = []
+    for row in t.iter(f"{_XLSX_NS}row"):
+        cells: list[str] = []
+        for c in row.findall(f"{_XLSX_NS}c"):
+            v = c.find(f"{_XLSX_NS}v")
+            val = ""
+            if v is not None and v.text is not None:
+                val = shared[int(v.text)] if c.get("t") == "s" else v.text
+            cells.append(val)
+        rows.append(cells)
+    return rows
+
+
+def fetch_bonds(cliente, vinfo: dict[int, dict]) -> dict[str, list[dict]]:
+    """Histórico de vínculos motorista↔veículo (`/vehicles/exportDriverHistory`,
+    um export por veículo, 6 em paralelo como no coletor validado do MVP).
+
+    Devolve {nome_normalizado: [{plate, model, ini, fim}]} — o export só traz o
+    NOME do motorista (formato "Luis antonio rodrigues", sem código), então o
+    casamento com /drivers é por `_norm`. Colunas confirmadas em produção:
+    Motorista · Data inicial · Data final · Vínculo feito por · Status.
+    Um export que falhe não derruba a coleta (vínculo é enriquecimento; a média
+    vem do analysis por telemetria de qualquer jeito)."""
+    def um(item):
+        vid, info = item
+        out = []
+        try:
+            resp = cliente.get("/vehicles/exportDriverHistory", {"vehicleId": vid})
+            b64 = resp.get("XLSX") if isinstance(resp, dict) else None
+            if not b64:
+                return out
+            for r in _xlsx_rows(b64)[1:]:  # pula o cabeçalho
+                if len(r) >= 3 and r[0]:
+                    out.append({"driver": _norm(r[0]), "plate": info.get("plate", ""),
+                                "model": info.get("model", ""),
+                                "ini": r[1] or "", "fim": r[2] or ""})
+        except Exception:  # noqa: BLE001 -- enriquecimento, nunca fatal
+            pass
+        return out
+
+    bonds: dict[str, list[dict]] = {}
+    with ThreadPoolExecutor(max_workers=6) as ex:
+        for res in ex.map(um, list(vinfo.items())):
+            for b in res:
+                bonds.setdefault(b["driver"], []).append(b)
+    return bonds
+
+
+def vinculos_no_periodo(bonds: dict[str, list[dict]], nome: str,
+                        start_iso: str, end_iso: str) -> list[dict]:
+    """Vínculos do motorista que SOBREPÕEM o período — cada um vira
+    {plate, model, vinculo_de, vinculo_ate} (vinculo_ate vazio = em aberto).
+    Datas do export são 'YYYY-MM-DD HH:MM:SS' (comparação lexicográfica ok)."""
+    ms = start_iso.replace("T", " ").replace("Z", "")
+    me = end_iso.replace("T", " ").replace("Z", "")
+    out: list[dict] = []
+    vistos: set[tuple] = set()
+    for b in bonds.get(_norm(nome), []):
+        fim = b["fim"] or "9999-12-31 23:59:59"
+        if b["ini"] <= me and fim >= ms:
+            chave = (b["plate"], b["ini"], b["fim"])
+            if chave in vistos:
+                continue
+            vistos.add(chave)
+            out.append({"plate": b["plate"], "model": b["model"],
+                        "vinculo_de": b["ini"], "vinculo_ate": b["fim"]})
+    out.sort(key=lambda v: v["vinculo_de"])
+    return out
+
+
 def _period(mes: str, agora: datetime) -> tuple[str, str, bool]:
     """(periodStart, periodEnd, parcial) em ISO UTC 'Z' — mês corrente é parcial e
     termina em `agora`; mês fechado termina no último dia às 23:59:59Z."""
@@ -60,7 +163,8 @@ def _period(mes: str, agora: datetime) -> tuple[str, str, bool]:
     return start, end, False
 
 
-def coletar_mes(cliente, mes: str, customer: int = 1, agora=None) -> dict:
+def coletar_mes(cliente, mes: str, customer: int = 1, agora=None,
+                bonds: dict[str, list[dict]] | None = None) -> dict:
     agora = agora or datetime.now()
     period_start, period_end, parcial = _period(mes, agora)
 
@@ -73,32 +177,45 @@ def coletar_mes(cliente, mes: str, customer: int = 1, agora=None) -> dict:
     veiculos = (primeiro or {}).get("vehicles") or []
 
     todos_ids: list[int] = []
-    nomes: dict[int, str] = {}
-    veic_por_motorista: dict[int, list[dict]] = {}
-    com_motorista = 0
+    vinfo: dict[int, dict] = {}
+    veic_atual: dict[int, list[dict]] = {}   # fallback quando o histórico não casa
+    nomes_atual: dict[int, str] = {}
     for v in veiculos:
         vid = v.get("id")
+        modelo = v.get("truckModel") or v.get("model") or v.get("brand") or ""
         if vid is not None:
             todos_ids.append(vid)
-        modelo = v.get("truckModel") or v.get("model") or v.get("brand") or ""
+            vinfo[vid] = {"plate": v.get("plate", ""), "model": modelo}
         cd = v.get("currentDriver") or {}
         did = cd.get("driverId")
         if did is not None:
             did = int(did)
-            com_motorista += 1
-            nomes[did] = cd.get("driverName", "")
-            veic_por_motorista.setdefault(did, []).append(
-                {"plate": v.get("plate", ""), "model": modelo})
+            nomes_atual[did] = cd.get("driverName", "")
+            veic_atual.setdefault(did, []).append(
+                {"plate": v.get("plate", ""), "model": modelo,
+                 "vinculo_de": str(cd.get("startDate") or ""), "vinculo_ate": ""})
 
     resp_drivers = cliente.get("/drivers", {"customers": customer})
     if not isinstance(resp_drivers, dict) or resp_drivers.get("drivers") is None:
         raise ValueError(
             "Resposta da Gobrax sem a estrutura esperada em /drivers (campo 'drivers' ausente).")
-    docs = {int(d["id"]): (d.get("documentNumber") or "")
-            for d in resp_drivers["drivers"] if d.get("id") is not None}
+    docs: dict[int, str] = {}
+    nomes: dict[int, str] = {}
+    for d in resp_drivers["drivers"]:
+        if d.get("id") is None:
+            continue
+        did = int(d["id"])
+        docs[did] = d.get("documentNumber") or ""
+        nomes[did] = nomes_atual.get(did) or d.get("name") or ""
 
-    driver_ids = list(nomes.keys())
+    # TODOS os cadastrados: consultar só quem tem currentDriver perdia motorista
+    # (os vínculos do piloto mudam de dia para dia — chegou a haver 0 vínculos
+    # com 98 veículos na plataforma). O analysis casa por telemetria.
+    driver_ids = sorted(nomes.keys())
     vehicles_param = ",".join(str(i) for i in todos_ids)
+
+    if bonds is None:
+        bonds = fetch_bonds(cliente, vinfo)
 
     performances: dict[int, dict] = {}
     lotes = list(_lotes(driver_ids, CHUNK))
@@ -128,14 +245,22 @@ def coletar_mes(cliente, mes: str, customer: int = 1, agora=None) -> dict:
         scores = p.get("scores") or {}
         consumo = stats.get("consumptionAverage")
         media = float(consumo) if consumo else None
+        km = stats.get("totalMileage")
+        # só entra quem teve ATIVIDADE no mês — com ~86 cadastrados e um piloto
+        # pequeno, guardar todo mundo viraria ruído; km sem média fica (o
+        # cálculo o exclui do ranking e conta em sem_media)
+        if not media and not km:
+            continue
         drivers.append({
             "driverId": did,
             "driverName": nomes.get(did, ""),
             "documento": _mask_doc(docs.get(did)),
-            "vehicles": veic_por_motorista.get(did, []),
+            "vehicles": (vinculos_no_periodo(bonds, nomes.get(did, ""),
+                                             period_start, period_end)
+                         or veic_atual.get(did, [])),
             "nota": scores.get("generalScore"),
             "media": media,
-            "km": stats.get("totalMileage"),
+            "km": km,
             "indicators": {
                 "scores": scores,
                 "percentages": p.get("percentages") or {},
@@ -152,7 +277,8 @@ def coletar_mes(cliente, mes: str, customer: int = 1, agora=None) -> dict:
         "periodEnd": period_end,
         "coletado_em": agora.strftime("%Y-%m-%d %H:%M"),
         "parcial": parcial,
-        "frota_telemetria": {"veiculos": len(veiculos), "com_motorista": com_motorista},
+        "frota_telemetria": {"veiculos": len(veiculos), "com_motorista": len(drivers),
+                             "cadastrados": len(nomes)},
         "drivers": drivers,
     }
 

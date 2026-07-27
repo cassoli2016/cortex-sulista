@@ -322,3 +322,109 @@ def test_snapshot_sem_coletado_em_no_mes_corrente_recoleta_sem_estourar(monkeypa
 
     assert cliente.chamadas, "sem coletado_em no mês corrente deveria recoletar"
     assert resultado["configurado"] is True
+
+
+# ------------------------------------------------------------- backfill (6 meses)
+
+def test_meses_recentes():
+    assert servico.meses_recentes(6, datetime(2026, 7, 27)) == [
+        "2026-02", "2026-03", "2026-04", "2026-05", "2026-06", "2026-07"]
+    assert servico.meses_recentes(3, datetime(2026, 1, 10)) == [
+        "2025-11", "2025-12", "2026-01"]
+
+
+def test_atualizar_tudo_preenche_meses_faltantes(monkeypatch, tmp_path):
+    """POST /atualizar sem mês: coleta o corrente (force) + os meses recentes
+    SEM snapshot; mês fechado já coletado não é tocado."""
+    monkeypatch.setenv("GOBRAX_EMAIL", "e@x.com")
+    monkeypatch.setenv("GOBRAX_SENHA", "s3nh4")
+    monkeypatch.setattr(servico, "SNAP_DIR", tmp_path)
+    monkeypatch.setattr(servico, "_preco_diesel", lambda mes: 4.91)
+    monkeypatch.setattr(servico, "_BONDS_CACHE", {})
+    agora = datetime(2026, 7, 27, 8, 0)
+
+    # junho já existe (fechado): NÃO pode ser recoletado
+    coleta.gravar_snapshot(_snapshot("2026-06", "2026-07-01 08:00"), tmp_path)
+
+    coletas = []
+
+    class FakeContador(FakeCliente):
+        def get(self, path, params=None):
+            if path.endswith("/analysis"):
+                coletas.append(dict(params or {}).get("startDate", "")[:7])
+            return super().get(path, params)
+
+    monkeypatch.setattr(servico, "_novo_cliente", FakeContador)
+    resp = servico.atualizar_tudo(agora=agora)
+
+    meses_coletados = sorted(set(coletas))
+    assert "2026-06" not in meses_coletados            # fechado com snapshot: intocado
+    assert meses_coletados == ["2026-02", "2026-03", "2026-04", "2026-05", "2026-07"]
+    assert sorted(resp["meses_coletados"]) == meses_coletados
+    assert resp["meses_com_falha"] == []
+    assert resp["month"] == "2026-07"
+    idx = {i["month"] for i in coleta.ler_index(tmp_path)}
+    assert idx == {"2026-02", "2026-03", "2026-04", "2026-05", "2026-06", "2026-07"}
+
+
+def test_atualizar_tudo_falha_num_mes_nao_derruba_os_outros(monkeypatch, tmp_path):
+    monkeypatch.setenv("GOBRAX_EMAIL", "e@x.com")
+    monkeypatch.setenv("GOBRAX_SENHA", "s3nh4")
+    monkeypatch.setattr(servico, "SNAP_DIR", tmp_path)
+    monkeypatch.setattr(servico, "_preco_diesel", lambda mes: 4.91)
+    monkeypatch.setattr(servico, "_BONDS_CACHE", {})
+    agora = datetime(2026, 7, 27, 8, 0)
+
+    class FakeFalhaEmMarco(FakeCliente):
+        def get(self, path, params=None):
+            if path.endswith("/analysis") and dict(params or {}).get("startDate", "").startswith("2026-03"):
+                raise gobrax.GobraxIndisponivel("simulada")
+            return super().get(path, params)
+
+    monkeypatch.setattr(servico, "_novo_cliente", FakeFalhaEmMarco)
+    resp = servico.atualizar_tudo(agora=agora)
+    assert resp["meses_com_falha"] == ["2026-03"]
+    assert "2026-07" in resp["meses_coletados"]        # os outros seguiram
+    idx = {i["month"] for i in coleta.ler_index(tmp_path)}
+    assert "2026-03" not in idx and "2026-07" in idx
+
+
+def test_coleta_vazia_nao_sobrescreve_snapshot_com_dados(monkeypatch, tmp_path):
+    """A frota do customer OSCILA na plataforma durante remanejos (98→10→98
+    veículos em minutos, visto em produção): uma recoleta que volta vazia não
+    pode clobrar um snapshot com motoristas — é dado de pagamento."""
+    monkeypatch.setenv("GOBRAX_EMAIL", "e@x.com")
+    monkeypatch.setenv("GOBRAX_SENHA", "s3nh4")
+    monkeypatch.setattr(servico, "SNAP_DIR", tmp_path)
+    monkeypatch.setattr(servico, "_preco_diesel", lambda mes: 4.91)
+    monkeypatch.setattr(servico, "_BONDS_CACHE", {})
+    agora = datetime(2026, 7, 27, 12, 0)
+
+    # snapshot bom de julho (parcial), coletado há >1h -> TTL manda recoletar
+    coleta.gravar_snapshot(_snapshot("2026-07", "2026-07-27 08:00", parcial=True), tmp_path)
+
+    from tests.premiacao.test_coleta import FakeClienteVazio
+    monkeypatch.setattr(servico, "_novo_cliente", FakeClienteVazio)
+
+    resp = servico.obter("2026-07", agora=agora)
+    assert len(resp["linhas"]) == 1                      # dados antigos preservados
+    assert resp["coletado_em"] == "2026-07-27 08:00"
+    assert "coleta voltou vazia" in (resp["aviso"] or "")
+    snap = coleta.ler_snapshot("2026-07", tmp_path)
+    assert len(snap["drivers"]) == 1                     # o disco também intacto
+
+
+def test_coleta_vazia_sem_snapshot_anterior_grava_normalmente(monkeypatch, tmp_path):
+    """Sem snapshot anterior, vazio é dado legítimo (ex.: mês sem operação)."""
+    monkeypatch.setenv("GOBRAX_EMAIL", "e@x.com")
+    monkeypatch.setenv("GOBRAX_SENHA", "s3nh4")
+    monkeypatch.setattr(servico, "SNAP_DIR", tmp_path)
+    monkeypatch.setattr(servico, "_preco_diesel", lambda mes: 4.91)
+    monkeypatch.setattr(servico, "_BONDS_CACHE", {})
+
+    from tests.premiacao.test_coleta import FakeClienteVazio
+    monkeypatch.setattr(servico, "_novo_cliente", FakeClienteVazio)
+
+    resp = servico.obter("2026-06", agora=datetime(2026, 7, 27, 12, 0))
+    assert resp["linhas"] == [] and resp["aviso"] is None
+    assert coleta.ler_snapshot("2026-06", tmp_path)["drivers"] == []
