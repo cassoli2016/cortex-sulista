@@ -38,7 +38,10 @@ def _http_urllib(url: str, method: str, headers: dict, body: dict | None):
     req = urllib.request.Request(url, data=data, headers=hdrs, method=method)
     try:
         with urllib.request.urlopen(req, timeout=30) as resp:
-            return resp.status, json.loads(resp.read().decode("utf-8") or "{}")
+            try:
+                return resp.status, json.loads(resp.read().decode("utf-8") or "{}")
+            except ValueError as e:
+                raise GobraxIndisponivel(f"A API Gobrax devolveu uma resposta que não é JSON.") from e
     except urllib.error.HTTPError as e:
         try:
             corpo = json.loads(e.read().decode("utf-8") or "{}")
@@ -67,8 +70,10 @@ class ClienteGobrax:
             raise GobraxIndisponivel(f"Login Gobrax falhou no flow (HTTP {st}).")
         cfg = (flow.get("methods") or {}).get("password", {}).get("config", {})
         action = cfg.get("action")
+        if not action:
+            raise GobraxIndisponivel(f"Resposta de login do Kratos sem action.")
         payload = {"identifier": self.email, "password": self._senha, "method": "password"}
-        csrf = next((f.get("value") for f in cfg.get("fields", [])
+        csrf = next((f.get("value") for f in (cfg.get("fields") or [])
                      if f.get("name") == "csrf_token" and f.get("value")), None)
         if csrf:
             payload["csrf_token"] = csrf
