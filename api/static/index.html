@@ -3611,8 +3611,11 @@ function numBR(s){
   // sem vírgula, com ponto(s) em grupos de EXATAMENTE 3 dígitos: é milhar
   // pt-BR ("1.234" -> 1234, "1.234.567" -> 1234567) — não decimal. Precisa
   // vir ANTES do próximo bloco: "1.234" também bateria num "\d+(\.\d+)?"
-  // genérico e sairia 1,234 (mil vezes menor), o mesmo defeito que a Rodada 1
-  // existiu para eliminar, só que entrando pelo separador de milhar.
+  // genérico e sairia 1,234 (mil vezes menor que o valor digitado — o mesmo
+  // defeito de fundo do bug original, só que entrando pelo separador de
+  // milhar em vez do decimal). Grupo final incompleto ("1.234.56", 2 dígitos
+  // depois do último ponto) NÃO casa aqui nem no bloco seguinte -> vira NaN,
+  // que é o comportamento certo: não é milhar válido nem decimal com 1 ponto.
   const milharSemVirgula = /^[+-]?\d{1,3}(\.\d{3})+$/;
   if(milharSemVirgula.test(s)){
     const n = parseFloat(s.replace(/\./g, ''));
