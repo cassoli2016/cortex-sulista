@@ -435,8 +435,15 @@ a query ignora sai; dimensão que a query aceita e é a pergunta natural da tela
 - **Derivação por mês espelho, não média.** Dezembro cai ~40% na Sulista e há queda
   estrutural de 18% a/a: média achata a sazonalidade e ignora a tendência.
 - **Corte de recorrência em 75% dos meses da base.** 41 das 355 contas aparecem em 1 ou
-  2 meses; espelhar isso é ruído com cara de número. Abaixo do corte → mediana + marca
-  "base fraca".
+  2 meses; espelhar isso é ruído com cara de número. Abaixo do corte → mediana **só nos
+  meses cujo espelho teve movimento** + marca "base fraca". NUNCA espalhar a mediana nos
+  12 meses: isso anualiza a conta esporádica em ~12x (as 91 contas abaixo do corte
+  somavam R$ 43,7 mi de baseline contra R$ 3,9 mi de histórico — pego só na revisão
+  final, reconciliando contra a DRE real).
+- **Mês do ano orçado que está DENTRO da base é comparação circular.** Orçar 2026 em
+  julho põe jan–jun/26 na base: o espelho desses meses é o próprio mês e o desvio mede
+  só o fator (-5% vira -5,26% em toda linha de imposto). A versão grava `meses_base`;
+  o acompanhamento exclui esses meses do acumulado e o gráfico os esmaece.
 - **Desvio orçamentário tem cor invertida em custo.** Custo abaixo do orçado é
   FAVORÁVEL (verde), receita abaixo é desfavorável (vermelho). A flag `favoravel` vem do
   efeito no resultado, nunca do sinal.

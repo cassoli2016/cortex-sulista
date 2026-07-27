@@ -6,7 +6,12 @@ Sulista) em vez de achatá-la numa média.
 
 Contas esporádicas quebram o espelho: 41 das 355 contas aparecem em 1 ou 2 meses,
 e espelhar isso produziria orçamento errático com aparência de número. Abaixo do
-corte de recorrência a conta sai pela mediana e nasce marcada para revisão.
+corte de recorrência a conta sai pela mediana — SOMENTE nos meses-calendário cujo
+espelho teve movimento — e nasce marcada para revisão. Gravar a mediana nos 12
+meses (versão original desta regra) anualizava a conta em ~12x: as 91 contas
+esporádicas da base somavam R$ 43,7 mi de baseline contra R$ 3,9 mi de histórico.
+Preservar QUANDO o gasto acontece é também a informação que importa em provisão
+e evento pontual.
 
 Módulo PURO: não conhece banco nem HTTP, para poder ser testado isolado.
 """
@@ -54,7 +59,13 @@ def derivar(historico: dict[str, dict[str, float]],
                 else:
                     valor, origem = valor_espelho * (1 + fator), "espelho"
             elif com_dado:
-                valor, origem = med * (1 + fator), "mediana"
+                # mediana SÓ nos meses cujo espelho teve movimento: o total anual
+                # fica ~= mediana x n, na ordem do histórico, e o valor cai no mês
+                # em que a conta historicamente acontece
+                if valor_espelho is None:
+                    valor, origem = 0.0, "sem_base"
+                else:
+                    valor, origem = med * (1 + fator), "mediana"
             else:
                 valor, origem = 0.0, "sem_base"
 

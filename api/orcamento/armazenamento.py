@@ -9,6 +9,7 @@ senão recalcular jogaria fora o trabalho da controladoria.
 """
 from __future__ import annotations
 
+import json
 import sqlite3
 from contextlib import contextmanager
 from pathlib import Path
@@ -68,21 +69,32 @@ def init_db(path: Path = DB_PATH) -> None:
         CREATE INDEX IF NOT EXISTS ix_orc_linha_versao ON orc_linha(versao_id);
         CREATE INDEX IF NOT EXISTS ix_orc_log_versao   ON orc_log(versao_id, id DESC);
         """)
+        # migração: bancos criados antes não têm a coluna (CREATE IF NOT EXISTS
+        # não altera tabela existente). meses_base = JSON com os 'YYYY-MM' usados
+        # na derivação — é o que permite ao comparativo saber quais meses do ano
+        # orçado estavam DENTRO da base (espelho de si mesmos, comparação circular)
+        cols = {r["name"] for r in c.execute("PRAGMA table_info(orc_versao)")}
+        if "meses_base" not in cols:
+            c.execute("ALTER TABLE orc_versao ADD COLUMN meses_base TEXT")
 
 
-def criar_versao(path: Path, ano: int, rotulo: str, fator: float, quem: str) -> int:
+def criar_versao(path: Path, ano: int, rotulo: str, fator: float, quem: str,
+                 meses_base: list[str] | None = None) -> int:
     with _conn(path) as c:
         cur = c.execute(
-            "INSERT INTO orc_versao(ano, rotulo, fator_tendencia, criado_por) "
-            "VALUES (?,?,?,?)", (ano, rotulo, fator, quem))
+            "INSERT INTO orc_versao(ano, rotulo, fator_tendencia, criado_por, meses_base) "
+            "VALUES (?,?,?,?,?)",
+            (ano, rotulo, fator, quem, json.dumps(meses_base) if meses_base else None))
         return int(cur.lastrowid)
 
 
-def atualizar_versao(path: Path, versao_id: int, fator: float) -> None:
-    """Regeração troca o fator da versão; ano e rótulo continuam os mesmos."""
+def atualizar_versao(path: Path, versao_id: int, fator: float,
+                     meses_base: list[str] | None = None) -> None:
+    """Regeração troca fator e base da versão; ano e rótulo continuam os mesmos."""
     with _conn(path) as c:
-        cur = c.execute("UPDATE orc_versao SET fator_tendencia=? WHERE id=?",
-                        (fator, versao_id))
+        cur = c.execute(
+            "UPDATE orc_versao SET fator_tendencia=?, meses_base=? WHERE id=?",
+            (fator, json.dumps(meses_base) if meses_base else None, versao_id))
         if cur.rowcount == 0:
             raise KeyError(f"versão inexistente: {versao_id}")
 
