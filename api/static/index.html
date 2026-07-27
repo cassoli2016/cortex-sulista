@@ -2773,7 +2773,7 @@ function semFilterbar(v){
   // filtros", que não tinha o que aplicar.
   return v==='cop'||v==='gestao'||v==='srv'||v==='home'||v==='veicf'||v==='clif'||v==='jorn'||v==='jornf'||v==='prog'||
          v==='cex'||v==='sac'||v==='mprev'||v==='comrast'||v==='qual'||v==='port'||v==='crm'||v==='rh'||
-         v==='hc'||v==='folha'||v==='folhaind'||v==='he'||v==='custos';
+         v==='hc'||v==='folha'||v==='folhaind'||v==='he'||v==='custos'||v==='orc';
 }
 function currentView(){
   const h = (location.hash||'').replace('#','');
@@ -2819,7 +2819,7 @@ function router(){
   document.getElementById('viewTitle').textContent = VIEWS[v];
   navRegistraUso(v);
   syncGroups(v);
-  const dre = (v==='dre'), oc = (v==='oc'), agr = (v==='agr'), mvb = (v==='mvb'), comb = (v==='comb'), man = (v==='man'), com = (v==='com'), home = (v==='home'), kmv = (v==='km'), torre = (v==='torre'), veic = (v==='veic'), mul = (v==='mul'), prog = (v==='prog'), cop = (v==='cop'), cob = (v==='cob'), rent = (v==='rent'), contab = (v==='cont'), dreCli = (v==='drecli');
+  const dre = (v==='dre'), oc = (v==='oc'), agr = (v==='agr'), mvb = (v==='mvb'), comb = (v==='comb'), man = (v==='man'), com = (v==='com'), home = (v==='home'), kmv = (v==='km'), torre = (v==='torre'), veic = (v==='veic'), mul = (v==='mul'), prog = (v==='prog'), cop = (v==='cop'), cob = (v==='cob'), rent = (v==='rent'), contab = (v==='cont'), dreCli = (v==='drecli'), orc = (v==='orc');
   // torre: só filial; auto-refresh de 120s enquanto ativa
   if(torreTimer){ clearInterval(torreTimer); torreTimer=null; }
   if(torre){ torreTimer=setInterval(()=>{ if(currentView()==='torre') loadTorre(); }, 120000); }
@@ -2851,13 +2851,13 @@ function router(){
   document.getElementById('grpComb').style.display = comb ? 'flex' : 'none';
   document.getElementById('grpMan').style.display = man ? 'flex' : 'none';
   document.getElementById('grpVeic').style.display = veic ? 'flex' : 'none';
-  document.getElementById('grpVenc').style.display = (dre||oc||agr||mvb||comb||man||com||kmv||torre||veic||mul||prog||cop||cob||rent||contab||dreCli) ? 'none' : 'flex';
-  document.getElementById('fData').parentElement.style.display = (dre||oc||agr||mvb||comb||man||com||kmv||torre||veic||mul||prog||cop||cob||rent||contab||dreCli) ? 'none' : 'flex';
+  document.getElementById('grpVenc').style.display = (dre||oc||agr||mvb||comb||man||com||kmv||torre||veic||mul||prog||cop||cob||rent||contab||dreCli||orc) ? 'none' : 'flex';
+  document.getElementById('fData').parentElement.style.display = (dre||oc||agr||mvb||comb||man||com||kmv||torre||veic||mul||prog||cop||cob||rent||contab||dreCli||orc) ? 'none' : 'flex';
   const fFil = document.getElementById('fFilial');
   // Filial some onde a fonte não tem esse recorte OU a API não aceita o parâmetro
   // (DRE/MvB consolidados; Veículos/Multas/Programação/Contabilidade não filtram
   // por filial). DRE por Cliente ACEITA filial (dre_cliente/sql.py) — fica visível.
-  fFil.parentElement.style.display = (dre||mvb||comb||veic||mul||prog||contab) ? 'none' : 'flex';
+  fFil.parentElement.style.display = (dre||mvb||comb||veic||mul||prog||contab||orc) ? 'none' : 'flex';
   // carga da vista: dispara se não há dados OU se os filtros visíveis
   // divergem dos usados na última carga (nunca mostrar dado velho com filtro novo)
   const key=viewKey(v);
@@ -3473,6 +3473,11 @@ async function loadOrc(){
   finally{ if(seq===orcSeq){ if(btn) btn.disabled=false; document.getElementById('content').classList.remove('loading'); } }
 }
 function renderOrc(d){
+  // a API do orçamento não devolve atualizado_em (não é um snapshot cacheado, é
+  // consulta direta) — usa o momento da carga, igual às demais telas fariam se
+  // não tivessem o campo do servidor.
+  const ts=new Date();
+  document.getElementById('meta').innerHTML='<b>Atualizado '+ts.toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'})+'</b><br>'+ts.toLocaleDateString('pt-BR');
   if(d.vazio){
     document.getElementById('kpis-orc').innerHTML='';
     document.getElementById('orc-cascata').innerHTML=
@@ -3496,7 +3501,11 @@ function renderOrc(d){
   const rec=pega('RECEITA BRUTA');
   const csp=fecha(L.filter(x=>['CUSTO FIXO','CUSTO VARIAVEL','CREDITOS TRIBUTARIOS'].includes(x.linha)));
   const res=fecha(L);   // resultado do exercício = soma de todas as linhas-folha da cascata
-  const estouradas=(d.contas||[]).filter(c=>c.desvio<0).length;
+  // "fora do orçado" usa favoravel (efeito no resultado), não o sinal do desvio:
+  // custo que passou do previsto e receita que ficou abaixo do previsto são dois
+  // problemas diferentes, mas os dois pioram o resultado — por isso entram juntos
+  // aqui, e o rótulo/ⓘ dizem isso em vez de sugerir que é só estouro de custo.
+  const foraOrcado=(d.contas||[]).filter(c=>!c.favoravel).length;
   // chip de desvio: a cor segue o EFEITO no resultado, nunca o sinal
   const chip=x=>x.desvio_pct==null?'' : statChip(x.favoravel?'good':'bad',
       (x.desvio>=0?'+':'')+x.desvio_pct.toLocaleString('pt-BR',{maximumFractionDigits:1})+'%',
@@ -3511,9 +3520,9 @@ function renderOrc(d){
     kpi('Resultado', BRL.format(res.realizado), 'orçado '+BRL.format(res.orcado),
         res.favoravel?'pos':'neg',
         'Última linha da cascata: resultado do exercício realizado contra o orçado no mesmo intervalo.', chip(res)),
-    kpi('Contas estouradas', estouradas.toLocaleString('pt-BR'),
-        'de '+(d.contas||[]).length+' contas com movimento', estouradas>0?'warn':'pos',
-        'Contas cujo realizado acumulado passou do orçado acumulado no mesmo intervalo. É a lista da aba de maiores desvios.'),
+    kpi('Contas fora do orçado', foraOrcado.toLocaleString('pt-BR'),
+        'de '+(d.contas||[]).length+' contas com movimento', foraOrcado>0?'warn':'pos',
+        'Conta cujo efeito no resultado ficou pior que o orçado: custo que passou do previsto OU receita que ficou abaixo do previsto — os dois pioram o resultado, por isso contam juntos aqui. É a mesma lista (e o mesmo critério) da aba de maiores desvios.'),
   ].join('');
   const cel=x=>{
     const c = x.favoravel ? 'var(--green)' : 'var(--red)';
