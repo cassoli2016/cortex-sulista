@@ -61,7 +61,7 @@ def test_conta_sem_linha_nao_entra_no_total_e_e_reportada():
     r = montar_comparativo(linhas_orc, {}, MAPA, ate_mes=1)
     total_cv = next(l for l in r["linhas"] if l["linha"] == "CUSTO VARIAVEL")
     assert total_cv["orcado"] == -1000.0
-    assert "9|999" in r["sem_linha"]
+    assert [x["conta"] for x in r["sem_linha"]] == ["9|999"]
 
 
 def test_meses_depois_do_corte_ficam_fora_do_acumulado():
@@ -303,7 +303,7 @@ def test_sem_linha_nasce_do_realizado_nao_so_das_linhas_persistidas():
     linhas_orc = [_orc("1|103", 1, 5000.0)]
     realizado = {("1|103", 1): 4800.0, ("9|999", 1): -321.0}
     r = montar_comparativo(linhas_orc, realizado, MAPA, ate_mes=1)
-    assert r["sem_linha"] == ["9|999"]
+    assert [x["conta"] for x in r["sem_linha"]] == ["9|999"]
     # e ela NÃO entra na cascata (não soma em linha nenhuma)
     assert all(l["linha"] != "9|999" for l in r["linhas"])
 
@@ -333,3 +333,20 @@ def test_grade_marca_base_fraca_pela_conta_nao_pela_primeira_celula():
     r = montar_comparativo(linhas, {}, MAPA, ate_mes=0)
     g = next(g for g in r["grade"] if g["conta"] == "1|100")
     assert g["origem"] == "mediana"
+
+
+def test_nome_da_conta_acompanha_grade_desvios_e_pendencias():
+    """A chave grupo|reduzido sozinha só diz algo para quem decorou o plano de
+    contas: o nome (planoconta.descricao) acompanha os três lugares da tela."""
+    nomes = {"1|100": "COMBUSTIVEL FROTA", "9|999": "CONTA ORFA"}
+    linhas_orc = [_orc("1|100", 1, -1000.0)]
+    realizado = {("1|100", 1): -900.0, ("9|999", 1): -5.0}
+    r = montar_comparativo(linhas_orc, realizado, MAPA, ate_mes=1, nomes=nomes)
+    g = next(x for x in r["grade"] if x["conta"] == "1|100")
+    assert g["nome"] == "COMBUSTIVEL FROTA"
+    c = next(x for x in r["contas"] if x["conta"] == "1|100")
+    assert c["nome"] == "COMBUSTIVEL FROTA"
+    assert r["sem_linha"] == [{"conta": "9|999", "nome": "CONTA ORFA"}]
+    # sem o dicionário, o nome sai None e nada quebra
+    r2 = montar_comparativo(linhas_orc, {}, MAPA, ate_mes=1)
+    assert next(x for x in r2["grade"] if x["conta"] == "1|100")["nome"] is None

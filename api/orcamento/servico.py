@@ -12,14 +12,15 @@ from api import db
 from api.orcamento import armazenamento as arm
 from api.orcamento.derivacao import derivar
 from api.orcamento.rollup import contas_sem_linha, mapa_conta_linha
-from api.orcamento.sql import (AGRUP_CONTA_SQL, HIST_CONTA_SQL, REAL_CONTA_SQL,
-                               meses_fechados)
+from api.orcamento.sql import (AGRUP_CONTA_SQL, HIST_CONTA_SQL, NOME_CONTA_SQL,
+                               REAL_CONTA_SQL, meses_fechados)
 from api.queries import DRE_MODELO, ler_ajustes
 
 
 def montar_comparativo(linhas_orc: list[dict], realizado: dict,
                        mapa_linha: dict, ate_mes: int,
-                       meses_excluidos: frozenset[int] | set[int] = frozenset()) -> dict:
+                       meses_excluidos: frozenset[int] | set[int] = frozenset(),
+                       nomes: dict[str, str] | None = None) -> dict:
     """Agrega orçado e realizado por linha da DRE até `ate_mes` (inclusive).
 
     linhas_orc: saída de armazenamento.ler_linhas()
@@ -28,7 +29,11 @@ def montar_comparativo(linhas_orc: list[dict], realizado: dict,
     meses_excluidos: meses CIRCULARES (dentro da base de derivação) — ficam fora
         do acumulado de linhas, contas e KPIs, porque neles o desvio seria só o
         fator lido de volta. Continuam no `mensal` (gráfico), marcados.
+    nomes: {conta: nome do plano de contas} — a chave grupo|reduzido sozinha só
+        diz algo para quem decorou o plano; o nome acompanha grade, maiores
+        desvios e pendências.
     """
+    nomes = nomes or {}
     por_linha: dict[str, dict] = {}
     por_conta: dict[str, dict] = {}
     mensal: dict[int, dict] = {m: {"mes": m, "orcado": 0.0, "realizado": None,
@@ -43,7 +48,8 @@ def montar_comparativo(linhas_orc: list[dict], realizado: dict,
         alvo = por_linha.setdefault(rot, {"linha": rot, "orcado": 0.0, "realizado": 0.0})
         alvo["orcado"] += orc
         alvo["realizado"] += realizado.get((conta, mes), 0.0)
-        c = por_conta.setdefault(conta, {"conta": conta, "linha": rot,
+        c = por_conta.setdefault(conta, {"conta": conta, "nome": nomes.get(conta),
+                                         "linha": rot,
                                          "orcado": 0.0, "realizado": 0.0,
                                          "origem": origem or "sem_base"})
         c["orcado"] += orc
@@ -115,7 +121,8 @@ def montar_comparativo(linhas_orc: list[dict], realizado: dict,
     _forca = {"mediana": 2, "espelho": 1, "sem_base": 0}
     for l in linhas_orc:
         g = grade.setdefault(l["conta"], {
-            "conta": l["conta"], "linha": mapa_linha.get(l["conta"]),
+            "conta": l["conta"], "nome": nomes.get(l["conta"]),
+            "linha": mapa_linha.get(l["conta"]),
             "origem": l["origem"], "meses_com_dado": l["meses_com_dado"],
             "valores": {}, "ajustados": {}})
         if _forca.get(l["origem"], 0) > _forca.get(g["origem"], 0):
@@ -128,7 +135,7 @@ def montar_comparativo(linhas_orc: list[dict], realizado: dict,
         "contas": contas,
         "grade": sorted(grade.values(), key=lambda g: (g["linha"] or "~", g["conta"])),
         "mensal": [mensal[m] for m in range(1, 13)],
-        "sem_linha": sorted(sem_linha),
+        "sem_linha": [{"conta": c, "nome": nomes.get(c)} for c in sorted(sem_linha)],
         "ate_mes": ate_mes,
         "meses_circulares": sorted(meses_excluidos),
     }
@@ -153,6 +160,11 @@ def _historico(meses: list[str]) -> dict[str, dict[str, float]]:
     for r in rows:
         hist.setdefault(r["conta"], {})[r["mes"]] = r["valor"]
     return hist
+
+
+def _nomes() -> dict[str, str]:
+    """Conta -> nome do plano de contas (planoconta.descricao)."""
+    return {r["conta"]: r["nome"] for r in db.query(NOME_CONTA_SQL)}
 
 
 def _mapa() -> tuple[dict, dict]:
@@ -252,7 +264,7 @@ def comparativo(versao_id: int, ate_mes: int | None = None,
     base_reg = json.loads(v["meses_base"]) if v.get("meses_base") else []
     circulares = frozenset(meses_circulares(ano, base_reg))
     out = montar_comparativo(linhas_orc, realizado, mapa, ate_mes,
-                             meses_excluidos=circulares)
+                             meses_excluidos=circulares, nomes=_nomes())
     out["versao"] = dict(v)
     out["fonte"] = ("Orçado: data/orcamento.db (baseline derivado + ajustes). "
                     "Realizado: ERP AVA, lancamento x planoconta, mesma base da DRE.")

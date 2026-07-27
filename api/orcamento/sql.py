@@ -44,6 +44,20 @@ FROM sulista.agrupadorgerencial ag
 WHERE ag.descricao IS NOT NULL
 """
 
+# Conta -> nome do plano de contas (planoconta.descricao, como na Contabilidade).
+# min() + GROUP BY protege contra (grupo, reduzido) duplicado no cadastro.
+# O regexp_replace é OBRIGATÓRIO: a conexão sai em client_encoding LATIN1 e uma
+# única descrição com en-dash (U+2013) derruba a query inteira ("has no
+# equivalent in encoding LATIN1"). Tudo fora do LATIN1 (acima de U+00FF) vira
+# '-' ainda no servidor; os escapes \\uXXXX chegam como ASCII puro na conexão.
+NOME_CONTA_SQL = (
+    "SELECT p.grupo::text || '|' || p.reduzido::text AS conta,\n"
+    "       min(upper(regexp_replace(p.descricao, '[^\\u0001-\\u00ff]', '-', 'g'))) AS nome\n"
+    "FROM planoconta p\n"
+    "WHERE p.ativoinativo = 1\n"
+    "GROUP BY 1\n"
+)
+
 
 def meses_fechados(hoje: date, n: int = 12) -> list[str]:
     """Os n meses 'YYYY-MM' anteriores ao mês corrente, em ordem cronológica.
