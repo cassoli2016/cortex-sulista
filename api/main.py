@@ -1305,6 +1305,64 @@ def _bad_date(value: str | None) -> bool:
         return True
 
 
+@app.get("/api/frota/premiacao")
+def premiacao(mes: str | None = None) -> JSONResponse:
+    from api.premiacao import servico
+    from api.premiacao.gobrax import GobraxIndisponivel, GobraxNaoConfigurado
+    try:
+        return JSONResponse(servico.obter(mes))
+    except (GobraxIndisponivel, GobraxNaoConfigurado) as exc:
+        return JSONResponse(status_code=503, content={
+            "erro": "gobrax_indisponivel", "mensagem": str(exc)})
+    except Exception as exc:  # noqa: BLE001
+        log.warning("premiacao falhou: %s", exc)
+        return JSONResponse(status_code=500, content={
+            "erro": "erro_consulta", "mensagem": "Erro ao montar a premiação."})
+
+
+@app.post("/api/frota/premiacao/atualizar")
+async def premiacao_atualizar(req: Request) -> JSONResponse:
+    from api.premiacao import servico
+    from api.premiacao.gobrax import GobraxIndisponivel, GobraxNaoConfigurado
+    try:
+        body = await req.json()
+    except Exception:
+        body = None
+    mes = body.get("mes") if isinstance(body, dict) else None
+    try:
+        return JSONResponse(servico.obter(mes, force=True))
+    except (GobraxIndisponivel, GobraxNaoConfigurado) as exc:
+        return JSONResponse(status_code=503, content={
+            "erro": "gobrax_indisponivel", "mensagem": str(exc)})
+    except Exception as exc:  # noqa: BLE001
+        log.warning("premiacao_atualizar falhou: %s", exc)
+        return JSONResponse(status_code=500, content={
+            "erro": "erro_consulta", "mensagem": "Erro ao atualizar a premiação."})
+
+
+@app.post("/api/frota/premiacao/params")
+async def premiacao_params(req: Request) -> JSONResponse:
+    from api.premiacao import params as premiacao_params_mod
+    try:
+        body = await req.json()
+    except Exception:
+        body = None
+    if not isinstance(body, dict):
+        return JSONResponse(status_code=422, content={
+            "erro": "parametro_invalido",
+            "mensagem": "Corpo da requisição inválido: envie um objeto JSON."})
+    try:
+        efetivo = premiacao_params_mod.salvar_params(body)
+        return JSONResponse({"ok": True, "params": efetivo})
+    except ValueError as exc:
+        return JSONResponse(status_code=422, content={
+            "erro": "parametro_invalido", "mensagem": str(exc)})
+    except Exception as exc:  # noqa: BLE001
+        log.warning("premiacao_params falhou: %s", exc)
+        return JSONResponse(status_code=500, content={
+            "erro": "erro_consulta", "mensagem": "Erro ao salvar os parâmetros."})
+
+
 @app.get("/api/financeiro/overview")
 def overview(
     filial: int | None = None,

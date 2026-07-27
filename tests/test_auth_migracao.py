@@ -64,3 +64,59 @@ def test_v17_acrescenta_orc_ao_controladoria_ja_existente(tmp_path, monkeypatch)
         flag = c.execute(
             "SELECT valor FROM config WHERE chave='perfis_modelo_v17'").fetchone()
         assert flag["valor"] == "1"
+
+
+def test_v18_acrescenta_prem_ao_frota_e_diretoria_ja_existentes(tmp_path, monkeypatch):
+    """Mesma mecânica da v17: os perfis Frota e Diretoria já existem numa base
+    migrada anteriormente, mas sem a tela 'prem' porque ela nasceu depois
+    (premiação de motoristas). init_db() de novo precisa acrescentar a tela
+    aos DOIS perfis sem recriar nada."""
+    monkeypatch.setattr(auth, "DB_PATH", tmp_path / "auth.db")
+
+    # 1) init_db() normal deixa a base no estado atual (todas as migrações,
+    #    inclusive a v18 que estamos testando, já aplicadas).
+    auth.init_db()
+
+    # 2) volta a base para "antes da v18": remove a concessão da tela nos dois
+    #    perfis e o flag de migração.
+    with auth._conn() as c:
+        c.execute("DELETE FROM config WHERE chave='perfis_modelo_v18'")
+        c.execute("""
+            DELETE FROM perfil_telas WHERE tela='prem' AND perfil_id IN (
+                SELECT id FROM perfis WHERE nome IN ('Frota', 'Diretoria'))
+        """)
+
+    with auth._conn() as c:
+        assert not _tela_no_perfil(c, "Frota", "prem")
+        assert not _tela_no_perfil(c, "Diretoria", "prem")
+
+    # 3) roda a migração de novo: a v18 deve rodar e conceder a tela aos dois.
+    auth.init_db()
+
+    with auth._conn() as c:
+        assert _tela_no_perfil(c, "Frota", "prem")
+        assert _tela_no_perfil(c, "Diretoria", "prem")
+        for perfil in ("Frota", "Diretoria"):
+            n = c.execute("""
+                SELECT count(*) AS n FROM perfil_telas pt
+                JOIN perfis p ON p.id = pt.perfil_id
+                WHERE p.nome=? AND pt.tela='prem'
+            """, (perfil,)).fetchone()["n"]
+            assert n == 1  # nada duplicado nessa primeira reaplicação
+
+    # 4) idempotência: rodar de novo (com o flag já setado) não duplica a
+    #    linha em perfil_telas nem falha por violar a PK composta.
+    auth.init_db()
+    auth.init_db()
+
+    with auth._conn() as c:
+        for perfil in ("Frota", "Diretoria"):
+            n = c.execute("""
+                SELECT count(*) AS n FROM perfil_telas pt
+                JOIN perfis p ON p.id = pt.perfil_id
+                WHERE p.nome=? AND pt.tela='prem'
+            """, (perfil,)).fetchone()["n"]
+            assert n == 1
+        flag = c.execute(
+            "SELECT valor FROM config WHERE chave='perfis_modelo_v18'").fetchone()
+        assert flag["valor"] == "1"
