@@ -1066,7 +1066,19 @@ async def orcamento_gerar(req: Request) -> JSONResponse:
             "mensagem": "O fator de tendência deve estar entre -0,9 e 3,0."})
     # "metodo" só importa para VERSÃO NOVA: ao regerar (versao_id presente), o
     # serviço ignora este parâmetro e usa o método gravado na própria versão.
-    metodo = body.get("metodo") or "espelho"
+    # Ausente (None) usa o default 'espelho'; presente mas vazio/whitespace é
+    # valor INVÁLIDO, não "não informado" — `or` sozinho tratava os dois casos
+    # como o mesmo default, mascarando um erro de integração (I5 da revisão
+    # final).
+    metodo_bruto = body.get("metodo")
+    if metodo_bruto is None:
+        metodo = "espelho"
+    elif isinstance(metodo_bruto, str) and not metodo_bruto.strip():
+        return JSONResponse(status_code=422, content={
+            "erro": "parametro_invalido",
+            "mensagem": "Método de derivação inválido: use 'espelho' ou 'semestre'."})
+    else:
+        metodo = metodo_bruto
     if metodo not in METODOS_VALIDOS:
         return JSONResponse(status_code=422, content={
             "erro": "parametro_invalido",

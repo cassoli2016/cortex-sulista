@@ -1,6 +1,7 @@
+import sqlite3
 from datetime import date
 
-from api.orcamento.caixa import DIAS_MES, provisao_caixa, provisao_do_ano
+from api.orcamento.caixa import DIAS_MES, DPO_PADRAO, DSO_PADRAO, provisao_caixa, provisao_do_ano
 
 
 def test_split_fracionario_dso_49():
@@ -140,3 +141,105 @@ def test_conservacao_massa_dso_60_88_todas_competencias():
         total_serie = sum(m["entradas"] for m in r["meses"])
         total = total_serie + r["transbordo"]["entradas"]
         assert abs(total - 1000.0) < 0.02, f"Falha em mes_comp={mes_comp}: total={total}"
+
+
+# ---------------------------------------------------------- I1: prazo negativo
+
+
+def test_dso_negativo_cai_no_padrao_e_conserva_massa():
+    """dso=-40 é inválido (não existe venda recebida antes de ser emitida): cai
+    no fallback DSO_PADRAO (49) em vez de truncar em direção a zero.
+
+    Antes da correção, int(-40/30.44) = int(-1.31) = -1 (trunca para ZERO, não
+    para -2 como floor faria) e o mês de caixa saía adiantado, criando massa
+    do nada; e uma competência baixa o suficiente batia em mes_caixa<=0 e
+    lançava KeyError na tabela de meses (1..12).
+    """
+    r_neg = provisao_caixa({3: 1000.0}, {}, dso=-40.0, dpo=79.0)
+    r_padrao = provisao_caixa({3: 1000.0}, {}, dso=DSO_PADRAO, dpo=79.0)
+    assert r_neg["meses"] == r_padrao["meses"]
+    assert r_neg["transbordo"] == r_padrao["transbordo"]
+    total_serie = sum(m["entradas"] for m in r_neg["meses"])
+    total = total_serie + r_neg["transbordo"]["entradas"]
+    assert abs(total - 1000.0) < 0.02
+
+
+def test_dpo_negativo_cai_no_padrao():
+    r_neg = provisao_caixa({}, {6: -1000.0}, dso=49.0, dpo=-79.0)
+    r_padrao = provisao_caixa({}, {6: -1000.0}, dso=49.0, dpo=DPO_PADRAO)
+    assert r_neg["meses"] == r_padrao["meses"]
+    assert r_neg["transbordo"] == r_padrao["transbordo"]
+
+
+def test_provisao_do_ano_dso_negativo_usa_padrao_e_marca_fonte(tmp_path):
+    """Mesma invalidação na camada de leitura: dso/dpo negativo vindo do
+    chamador (ex.: kpis.dso_3m calculado sobre dado real ruim) não pode se
+    disfarçar de 'medido'."""
+    from api.orcamento import armazenamento as arm
+
+    p = tmp_path / "o.db"
+    arm.init_db(p)
+    vid = arm.criar_versao(p, 2026, "teste", 0.0, "t")
+    arm.gravar_baseline(p, vid, [
+        {"conta": "1|1", "mes": 3, "valor_baseline": 1000.0, "origem": "espelho", "meses_com_dado": 12},
+    ])
+    r = provisao_do_ano(2026, -40.0, 79.0, hoje=date(2026, 1, 1), db_path=p)
+    assert r["dso"] == DSO_PADRAO
+    assert r["dpo"] == 79.0
+    assert r["dso_fonte"] == "padrao"
+
+
+# ---------------------------------------------------------- M1: banco pré-migração
+
+
+def test_provisao_do_ano_migra_banco_pre_metodo(tmp_path):
+    """M1 da revisão final: um orcamento.db criado ANTES desta branch não tem
+    a coluna `metodo` em orc_versao. Sem `init_db` no início de
+    `provisao_do_ano`, `versao["metodo"]` levanta KeyError — engolido pelo
+    `except Exception` de `get_overview`, que nem loga — e a série tracejada
+    do Fluxo some para sempre em silêncio. `provisao_do_ano` tem que se
+    auto-curar chamando `arm.init_db` antes de ler a versão.
+    """
+    p = tmp_path / "velho.db"
+    c = sqlite3.connect(p)
+    c.executescript("""
+        CREATE TABLE orc_versao(
+            id              INTEGER PRIMARY KEY AUTOINCREMENT,
+            ano             INTEGER NOT NULL,
+            rotulo          TEXT    NOT NULL,
+            status          TEXT    NOT NULL DEFAULT 'rascunho',
+            fator_tendencia REAL    NOT NULL DEFAULT 0,
+            criado_em       TEXT    NOT NULL DEFAULT (datetime('now','localtime')),
+            criado_por      TEXT
+        );
+        CREATE TABLE orc_linha(
+            versao_id      INTEGER NOT NULL,
+            conta          TEXT    NOT NULL,
+            mes            INTEGER NOT NULL,
+            valor_baseline REAL    NOT NULL DEFAULT 0,
+            valor_ajustado REAL,
+            origem         TEXT    NOT NULL DEFAULT 'sem_base',
+            meses_com_dado INTEGER NOT NULL DEFAULT 0,
+            ajustado_em    TEXT,
+            ajustado_por   TEXT,
+            PRIMARY KEY (versao_id, conta, mes)
+        );
+    """)
+    c.execute("INSERT INTO orc_versao(id, ano, rotulo) VALUES (1, 2026, 'Orçamento 2026 antigo')")
+    c.execute("""INSERT INTO orc_linha(versao_id, conta, mes, valor_baseline, origem, meses_com_dado)
+                 VALUES (1, '1|100', 8, 1000.0, 'espelho', 12)""")
+    c.commit()
+    c.close()
+
+    cols_antes = {r[1] for r in sqlite3.connect(p).execute("PRAGMA table_info(orc_versao)")}
+    assert "metodo" not in cols_antes   # confirma que o cenário reproduz o schema velho
+
+    r = provisao_do_ano(2026, None, None, hoje=date(2026, 7, 27), db_path=p)
+
+    assert r is not None
+    assert r["versao"]["id"] == 1
+    assert r["versao"]["metodo"] == "espelho"   # default do ALTER TABLE
+    assert any(m["mes"] == 9 for m in r["meses"])   # entrada de ago (8) deslocada por DSO
+
+    cols_depois = {r2[1] for r2 in sqlite3.connect(p).execute("PRAGMA table_info(orc_versao)")}
+    assert "metodo" in cols_depois

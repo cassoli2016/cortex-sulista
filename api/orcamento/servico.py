@@ -119,8 +119,12 @@ def montar_comparativo(linhas_orc: list[dict], realizado: dict,
     grade: dict[str, dict] = {}
     # origem da CONTA (não da primeira célula): com a mediana só nos meses com
     # movimento, o mês 1 de uma esporádica costuma ser sem_base — ler a célula
-    # marcaria "base fraca" errado nos dois sentidos
-    _forca = {"mediana": 2, "espelho": 1, "sem_base": 0}
+    # marcaria "base fraca" errado nos dois sentidos.
+    # "semestre" entra entre espelho e mediana (I2 da revisão final): hoje é
+    # inofensivo porque derivar_semestre nunca mistura origens dentro de uma
+    # mesma conta, mas sem entrada no dict cairia em 0 (força de "sem_base")
+    # no dia em que isso deixar de ser verdade.
+    _forca = {"mediana": 3, "semestre": 2, "espelho": 1, "sem_base": 0}
     for l in linhas_orc:
         g = grade.setdefault(l["conta"], {
             "conta": l["conta"], "nome": nomes.get(l["conta"]),

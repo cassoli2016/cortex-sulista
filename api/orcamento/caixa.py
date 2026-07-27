@@ -51,6 +51,15 @@ def provisao_caixa(
     - Assim (1-f)+f=1 sempre, nunca duplica nem some.
     - Acumulação em float cheio; round apenas na montagem da resposta.
     """
+    # Prazo negativo é inválido (dia de venda/pagamento não existe antes da
+    # emissão): cai no fallback padrão em vez de truncar em direção a zero e
+    # criar/sumir massa em silêncio (revisão final, I1 — mesma classe do bug
+    # crítico da Task 3, mas na entrada em vez de na distribuição).
+    if dso < 0:
+        dso = DSO_PADRAO
+    if dpo < 0:
+        dpo = DPO_PADRAO
+
     # Converter dias para meses fracionários
     dso_meses = dso / DIAS_MES
     dpo_meses = dpo / DIAS_MES
@@ -140,7 +149,7 @@ def provisao_do_ano(
 
     Returns:
         {
-            "versao": {"id": ..., "rotulo": ..., "metodo": ...},
+            "versao": {"id": ..., "rotulo": ..., "metodo": ..., "meses_base": ...},
             "dso": valor_usado,
             "dpo": valor_usado,
             "dso_fonte": "medido" | "padrao",
@@ -151,6 +160,13 @@ def provisao_do_ano(
     """
     if db_path is None:
         db_path = arm.DB_PATH
+    # Migra o schema (coluna `metodo`/`meses_base`) ANTES de ler a versão.
+    # Sem isso, um orcamento.db criado antes desta branch não tem a coluna
+    # `metodo`: `versao["metodo"]` levanta KeyError, engolido pelo
+    # `except Exception` do fluxo — a série tracejada some em silêncio até
+    # alguém abrir a tela de Orçamento (só ali `gerar()` roda init_db).
+    # M1 da revisão final.
+    arm.init_db(db_path)
 
     # Buscar versão mais recente do ano
     versoes = arm.listar_versoes(db_path, ano=ano)
@@ -160,11 +176,14 @@ def provisao_do_ano(
     versao = versoes[0]  # Mais recente primeiro
     versao_id = versao["id"]
 
-    # Determinar DSO/DPO usados e fonte
-    dso_usado = dso if dso is not None else DSO_PADRAO
-    dpo_usado = dpo if dpo is not None else DPO_PADRAO
+    # Determinar DSO/DPO usados e fonte. Prazo negativo é inválido (I1): trata
+    # como se não tivesse sido informado, cai no mesmo fallback padrão.
+    dso_valido = dso is not None and dso >= 0
+    dpo_valido = dpo is not None and dpo >= 0
+    dso_usado = dso if dso_valido else DSO_PADRAO
+    dpo_usado = dpo if dpo_valido else DPO_PADRAO
     # Se qualquer um caiu no fallback, marca tudo como padrao
-    fonte_final = "padrao" if (dso is None or dpo is None) else "medido"
+    fonte_final = "padrao" if not (dso_valido and dpo_valido) else "medido"
 
     # Ler linhas e agrupar por mês
     linhas = arm.ler_linhas(db_path, versao_id)
@@ -191,6 +210,10 @@ def provisao_do_ano(
             "id": versao_id,
             "rotulo": versao["rotulo"],
             "metodo": versao["metodo"],
+            # meses_base (JSON de 'YYYY-MM's) para a tela derivar a faixa da
+            # base SEMPRE do dado gravado, nunca do texto do rótulo — que fica
+            # estale depois de regerar (M4 da revisão final).
+            "meses_base": versao.get("meses_base"),
         },
         "dso": dso_usado,
         "dpo": dpo_usado,
