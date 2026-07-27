@@ -10,6 +10,15 @@ PARAMS_PATH = ROOT / "data" / "premiacao_params.json"
 DEFAULTS = {"meta": 2.0, "preco_litro": 4.93, "pct_premiacao": 0.20, "km_minimo": 500.0}
 
 
+def _para_float(chave: str, valor) -> float:
+    """Converte para float ou levanta ValueError com mensagem pt-BR — nunca deixa
+    TypeError (None, lista, dict etc.) escapar para quem chama `salvar_params`."""
+    try:
+        return float(valor)
+    except (TypeError, ValueError):
+        raise ValueError(f"O parâmetro '{chave}' precisa ser um número.") from None
+
+
 def _valida(p: dict) -> None:
     if p["meta"] <= 0:
         raise ValueError("A meta (km/l) tem de ser maior que zero.")
@@ -37,7 +46,7 @@ def ler_params(path: Path | None = None) -> dict:
 def salvar_params(novos: dict, path: Path | None = None) -> dict:
     path = Path(path or PARAMS_PATH)
     efetivo = ler_params(path)
-    efetivo.update({k: float(novos[k]) for k in DEFAULTS if k in novos})
+    efetivo.update({k: _para_float(k, novos[k]) for k in DEFAULTS if k in novos})
     _valida(efetivo)
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text(json.dumps(efetivo, ensure_ascii=False, indent=2), encoding="utf-8")
