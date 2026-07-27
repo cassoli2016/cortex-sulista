@@ -98,10 +98,23 @@ fora da Fase 1** — quem quiser tratamento diferente por natureza ajusta as cé
 3. **Regra de recorrência** (exigida pelos dados; o corte de 75% separa as 212 contas
    recorrentes das 41 esporádicas medidas na amostra):
    - conta com movimento em **≥ 9 dos 12 meses da base (75%)** → `origem = espelho`;
-   - conta abaixo desse corte → `valor = mediana dos meses com movimento`,
-     `origem = mediana`, e a linha nasce marcada **"base fraca — revisar"**;
+   - conta abaixo desse corte → `valor = mediana dos meses com movimento`, aplicada
+     **somente nos meses-calendário cujo espelho teve movimento** (os demais ficam
+     `0`/`sem_base`); `origem = mediana` e a linha nasce marcada **"base fraca —
+     revisar"**. *(Revisado em 2026-07-27, decisão do usuário: a redação original
+     gravava a mediana nos 12 meses e anualizava a conta esporádica em ~12× — as 91
+     contas abaixo do corte somavam R$ 43,7 mi de baseline contra R$ 3,9 mi de
+     histórico. Preservar QUANDO o gasto acontece também é a informação relevante
+     em provisão e evento pontual.)*
    - conta sem nenhum movimento no mês espelho → `valor = 0`, `origem = sem_base`.
-4. **Contas sem agrupador** não recebem baseline: vão para uma lista à parte com link
+4. **Meses circulares** *(adicionado em 2026-07-27, revisão final)*: mês do ano
+   orçado que está **dentro da própria base** (orçar 2026 em julho põe jan–jun/26 na
+   base) tem como espelho o próprio mês — o "orçado" é o realizado lido de volta ×
+   (1+fator) e o desvio mediria só o fator (−5% vira −5,26% em toda linha). A versão
+   grava `meses_base` e o acompanhamento **exclui esses meses do acumulado**,
+   mantendo-os no gráfico mensal esmaecidos e explicando no banner. Continua valendo
+   o primeiro uso sugerido: orçar 2026 em julho acompanha de agosto em diante.
+5. **Contas sem agrupador** não recebem baseline: vão para uma lista à parte com link
    para a tela de Contabilidade. Sem classificação elas não somam em linha nenhuma da
    DRE, e orçá-las produziria um total que não fecha com a cascata.
 

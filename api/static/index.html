@@ -1562,10 +1562,11 @@ button.avatar{border:0;cursor:pointer}
           </div>
         </div>
         <div id="orc-acomp">
+          <div id="orc-aviso"></div>
           <div class="kpis k4" id="kpis-orc"></div>
           <div class="card"><div class="head"><h2>Orçado × realizado por linha</h2><span class="hint" id="hintOrcCasc"></span></div>
             <div class="tablewrap tabroll" id="orc-cascata"></div></div>
-          <div class="card"><div class="head"><h2>Evolução mensal</h2><span class="hint">mês não fechado mostra só o orçado</span></div>
+          <div class="card"><div class="head"><h2>Evolução mensal</h2><span class="hint">mês não fechado mostra só o orçado · mês dentro da base sai esmaecido (orçado retroativo)</span></div>
             <div class="chartwrap"><svg id="chartOrc" viewBox="0 0 960 250" preserveAspectRatio="xMidYMid meet" role="img" aria-label="Orçado e realizado por mês."></svg></div></div>
           <div class="card"><div class="head"><h2>Maiores desvios</h2><span class="hint" id="hintOrcDesv"></span></div>
             <div class="tablewrap tabroll" id="orc-desvios"></div></div>
@@ -3513,7 +3514,15 @@ function renderOrc(d){
   const chip=x=>x.desvio_pct==null?'' : statChip(x.favoravel?'good':'bad',
       (x.desvio>=0?'+':'')+x.desvio_pct.toLocaleString('pt-BR',{maximumFractionDigits:1})+'%',
       x.favoravel?'dentro do orçado':'fora do orçado');
-  document.getElementById('kpis-orc').innerHTML=[
+  // sem mês acumulável (ano não iniciado, ou todo mês fechado ainda dentro da
+  // base) o zero seria estrutural: mostra "—" neutro, nunca R$ 0 em verde
+  const semComp=!L.length;
+  document.getElementById('kpis-orc').innerHTML= semComp ? [
+    kpi('Receita','—','sem mês fechado para comparar','', 'Ainda não há mês fechado fora da base da derivação: o acompanhamento começa no próximo fechamento.'),
+    kpi('Custo (CSP)','—','sem mês fechado para comparar','', 'Ainda não há mês fechado fora da base da derivação: o acompanhamento começa no próximo fechamento.'),
+    kpi('Resultado','—','sem mês fechado para comparar','', 'Ainda não há mês fechado fora da base da derivação: o acompanhamento começa no próximo fechamento.'),
+    kpi('Contas fora do orçado','—','sem mês fechado para comparar','', 'Ainda não há mês fechado fora da base da derivação: o acompanhamento começa no próximo fechamento.'),
+  ].join('') : [
     kpi('Receita', BRL.format(rec.realizado), 'orçado '+BRL.format(rec.orcado),
         rec.favoravel?'pos':'neg',
         'Realizado acumulado do ano até o mês selecionado, contra o orçado do mesmo intervalo. Receita abaixo do orçado é desfavorável.', chip(rec)),
@@ -3538,8 +3547,27 @@ function renderOrc(d){
         +`<td class="num">${BRL.format(x.orcado)}</td>`
         +`<td class="num" style="font-weight:600">${BRL.format(x.realizado)}</td>`+cel(x)+`</tr>`).join('')
     + `</tbody></table>`;
+  // meses circulares: estavam DENTRO da base de derivação, então o "orçado"
+  // deles é o realizado lido de volta x (1+fator) — comparar seria medir o
+  // próprio fator (-5% viraria -5,26% em toda linha). A API os exclui do
+  // acumulado; aqui a tela diz isso em vez de deixar KPI zerado sem explicação.
+  const MABR=['jan','fev','mar','abr','mai','jun','jul','ago','set','out','nov','dez'];
+  const faixa=ms=>ms.length===1?MABR[ms[0]-1]:MABR[ms[0]-1]+'–'+MABR[ms[ms.length-1]-1];
+  const circ=d.meses_circulares||[];
+  const circAtivos=circ.filter(m=>m<=d.ate_mes);
+  const soCirculares=circAtivos.length && circAtivos.length>=d.ate_mes;
+  document.getElementById('orc-aviso').innerHTML = circ.length
+    ? `<div class="banner-inline" style="display:block;margin:0 0 14px">`
+      +`<b>${faixa(circ)} estavam na base da derivação</b> `
+      +`(espelho de si mesmos): o orçado desses meses é o próprio realizado × fator, `
+      +`então eles ficam <b>fora do acumulado</b> — comparar mediria só o fator, não a execução.`
+      +(soCirculares?' <b>Ainda não há mês fechado fora da base para comparar</b>: o acompanhamento começa no próximo fechamento.':'')
+      +`</div>`
+    : '';
   document.getElementById('hintOrcCasc').textContent =
-    'acumulado até o mês '+d.ate_mes+' · '+L.length+' linhas da cascata';
+    'acumulado até o mês '+d.ate_mes
+    +(circAtivos.length?' (sem '+faixa(circAtivos)+', dentro da base)':'')
+    +' · '+L.length+' linhas da cascata';
   const top=(d.contas||[]).slice(0,15);
   document.getElementById('orc-desvios').innerHTML=
     `<table><thead><tr><th>Conta</th><th>Linha</th><th class="num">Orçado</th><th class="num">Realizado</th><th class="num">Desvio</th></tr></thead><tbody>`
@@ -3578,11 +3606,15 @@ function chartOrcRender(mensal){
     s+=`<line x1="${mL}" y1="${yy}" x2="${W-mR}" y2="${yy}" stroke="${v===0?'#C2C8D0':'#ECEEF1'}" stroke-width="1"/>`;
     s+=`<text x="${mL-8}" y="${yy+4}" text-anchor="end" font-size="11" fill="#6E7883" font-family="IBM Plex Mono,monospace">${NMI.format(v/u.d)}</text>`; });
   mensal.forEach((r,i)=>{
+    // mês circular (dentro da base da derivação): o orçado é retroativo e a
+    // comparação mediria só o fator — as barras saem esmaecidas
+    if(r.circular) s+=`<g opacity="0.35">`;
     s+=colPath(px(i)-bw-1,bw,y(r.orcado||0),y0,3,CC.navy400);
     // mês não fechado NÃO desenha realizado: barra zerada leria como queda
     if(r.fechado && r.realizado!=null) s+=colPath(px(i)+1,bw,y(r.realizado),y0,3,CC.navy700);
+    if(r.circular) s+=`</g>`;
   });
-  mensal.forEach((r,i)=>{ s+=`<text x="${px(i)}" y="${H-mB+18}" text-anchor="middle" font-size="10.5" fill="${r.fechado?'#4F5860':'#AEB6BF'}">${r.mes}</text>`; });
+  mensal.forEach((r,i)=>{ s+=`<text x="${px(i)}" y="${H-mB+18}" text-anchor="middle" font-size="10.5" fill="${r.circular?'#AEB6BF':r.fechado?'#4F5860':'#AEB6BF'}">${r.mes}</text>`; });
   svg.innerHTML=s;
 }
 // Aceita as formas que um usuário brasileiro digita num campo de decimal:
@@ -3732,7 +3764,8 @@ async function orcGerar(versaoId){
     const aviso=(d.regerada?`versão ${d.versao_id} regerada`:`versão ${d.versao_id} criada`)
       + ` · ${d.linhas} linhas`
       + (d.celulas_zeradas?` · ${d.celulas_zeradas} célula(s) sem base nova foram zeradas`:'')
-      + (d.contas_sem_linha.length?` · ${d.contas_sem_linha.length} conta(s) sem agrupador ficaram de fora`:'');
+      + (d.contas_sem_linha.length?` · ${d.contas_sem_linha.length} conta(s) sem agrupador ficaram de fora`:'')
+      + ((d.meses_circulares||[]).length?` · ${d.meses_circulares.length} mês(es) do ano estavam na base: orçado retroativo, fora do acompanhamento`:'');
     // a lista de versões é montada uma única vez (dataset.pronto): sem soltar essa
     // trava a versão recém-criada não aparece no select e a tela segue na antiga
     const selV=document.getElementById('fOrcVersao');

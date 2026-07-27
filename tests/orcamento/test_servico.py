@@ -212,3 +212,124 @@ def test_regerar_versao_inexistente_da_erro(tmp_path, monkeypatch):
     import pytest
     with pytest.raises(KeyError):
         svc.gerar(2026, "x", 0.0, "teste", hoje=hoje, versao_id=999)
+
+
+# ---------------------------------------------------------------- I3: meses circulares
+
+def test_mes_circular_fica_fora_do_acumulado_mas_aparece_no_mensal():
+    """Orçar ano sobreposto à base: o espelho de jan é o próprio jan, então o
+    desvio acumulado seria só o fator lido de volta (-5% vira -5,26% em toda
+    linha — revisão final, I3). O mês circular sai das linhas/contas/KPIs e
+    continua no gráfico mensal, marcado."""
+    linhas_orc = [_orc("1|103", m, 5000.0) for m in range(1, 13)]
+    realizado = {("1|103", 1): 5263.16, ("1|103", 2): 4000.0}
+    r = montar_comparativo(linhas_orc, realizado, MAPA, ate_mes=2,
+                           meses_excluidos={1})
+    rb = next(l for l in r["linhas"] if l["linha"] == "RECEITA BRUTA")
+    assert rb["orcado"] == 5000.0          # só fevereiro
+    assert rb["realizado"] == 4000.0
+    assert r["meses_circulares"] == [1]
+    m1 = next(m for m in r["mensal"] if m["mes"] == 1)
+    m2 = next(m for m in r["mensal"] if m["mes"] == 2)
+    assert m1["circular"] is True and m1["orcado"] == 5000.0
+    assert m2["circular"] is False
+
+
+def test_meses_circulares_derivados_do_ano_e_da_base():
+    base = ["2025-08", "2025-09", "2025-10", "2025-11", "2025-12",
+            "2026-01", "2026-02", "2026-03", "2026-04", "2026-05",
+            "2026-06", "2026-07"]
+    assert svc.meses_circulares(2026, base) == [1, 2, 3, 4, 5, 6, 7]
+    assert svc.meses_circulares(2027, base) == []
+
+
+def test_gerar_grava_a_base_e_comparativo_exclui_os_circulares(tmp_path, monkeypatch):
+    destino = tmp_path / "orcamento.db"
+    monkeypatch.setattr(arm, "DB_PATH", destino)
+    monkeypatch.setattr(svc, "ler_ajustes", lambda: {})
+    hoje = date(2026, 7, 15)                       # base = jul/25..jun/26
+    meses_base = sql_mod.meses_fechados(hoje, 12)
+
+    def fake_query(sql, params=None):
+        if sql == sql_mod.HIST_CONTA_SQL:
+            return [{"conta": "1|103", "mes": m, "valor": 5000.0} for m in meses_base]
+        if sql == sql_mod.AGRUP_CONTA_SQL:
+            return [{"conta": "1|103", "agrupador": "RECEITA OPERACIONAL BRUTA"}]
+        return []
+
+    monkeypatch.setattr(svc.db, "query", fake_query)
+    r = svc.gerar(2026, "Orçamento 2026", -0.05, "teste", hoje=hoje)
+    assert r["meses_circulares"] == [1, 2, 3, 4, 5, 6]
+    assert r["linhas"] == 12 and r["contas_sem_linha"] == []
+
+    # o comparativo aprende os circulares pela base gravada na versão
+    monkeypatch.setattr(svc.db, "query", lambda s, p=None: [
+        {"conta": "1|103", "mes": f"2026-{m:02d}", "valor": 4750.0}
+        for m in range(1, 7)] if s == sql_mod.REAL_CONTA_SQL else fake_query(s, p))
+    out = svc.comparativo(r["versao_id"], ate_mes=6, hoje=hoje)
+    assert out["meses_circulares"] == [1, 2, 3, 4, 5, 6]
+    # jan-jun são todos circulares: nada acumula, nada de -5,26% artificial
+    assert out["linhas"] == []
+    assert all(m["circular"] for m in out["mensal"][:6])
+    assert not any(m["circular"] for m in out["mensal"][6:])
+
+
+def test_versao_antiga_sem_meses_base_nao_exclui_nada(tmp_path, monkeypatch):
+    """Banco criado antes da coluna: a versão não sabe sua base — segue sem
+    exclusão (comportamento anterior), sem quebrar."""
+    destino = tmp_path / "orcamento.db"
+    monkeypatch.setattr(arm, "DB_PATH", destino)
+    monkeypatch.setattr(svc, "ler_ajustes", lambda: {})
+    arm.init_db(destino)
+    vid = arm.criar_versao(destino, 2026, "antiga", 0.0, "t")   # sem meses_base
+    arm.gravar_baseline(destino, vid, [
+        {"conta": "1|103", "mes": m, "valor_baseline": 100.0,
+         "origem": "espelho", "meses_com_dado": 12} for m in range(1, 13)])
+    monkeypatch.setattr(svc.db, "query", lambda s, p=None: (
+        [{"conta": "1|103", "agrupador": "RECEITA OPERACIONAL BRUTA"}]
+        if s == sql_mod.AGRUP_CONTA_SQL else []))
+    out = svc.comparativo(vid, ate_mes=3, hoje=date(2026, 7, 15))
+    assert out["meses_circulares"] == []
+    rb = next(l for l in out["linhas"] if l["linha"] == "RECEITA BRUTA")
+    assert rb["orcado"] == 300.0
+
+
+# ---------------------------------------------------------------- I2: pendências
+
+def test_sem_linha_nasce_do_realizado_nao_so_das_linhas_persistidas():
+    """gerar() remove as contas sem linha antes de persistir, então a lista da
+    tela vinha SEMPRE vazia (revisão final, I2; critério de aceite 6). A conta
+    com movimento real e sem agrupador tem de aparecer como pendência."""
+    linhas_orc = [_orc("1|103", 1, 5000.0)]
+    realizado = {("1|103", 1): 4800.0, ("9|999", 1): -321.0}
+    r = montar_comparativo(linhas_orc, realizado, MAPA, ate_mes=1)
+    assert r["sem_linha"] == ["9|999"]
+    # e ela NÃO entra na cascata (não soma em linha nenhuma)
+    assert all(l["linha"] != "9|999" for l in r["linhas"])
+
+
+def test_conta_nova_do_realizado_entra_na_cascata_com_orcado_zero():
+    """Conta que apareceu depois da geração: descartar o realizado dela abriria
+    divergência com a DRE Gerencial. Entra com orçado 0 e desvio integral."""
+    linhas_orc = [_orc("1|103", 1, 5000.0)]
+    realizado = {("1|103", 1): 5000.0, ("1|100", 1): -700.0}   # 1|100 sem orçamento
+    r = montar_comparativo(linhas_orc, realizado, MAPA, ate_mes=1)
+    cv = next(l for l in r["linhas"] if l["linha"] == "CUSTO VARIAVEL")
+    assert cv["orcado"] == 0.0
+    assert cv["realizado"] == -700.0
+    assert cv["favoravel"] is False
+    conta = next(c for c in r["contas"] if c["conta"] == "1|100")
+    assert conta["orcado"] == 0.0 and conta["realizado"] == -700.0
+
+
+def test_grade_marca_base_fraca_pela_conta_nao_pela_primeira_celula():
+    """Com a mediana só nos meses com movimento, o mês 1 de uma esporádica é
+    sem_base — a origem da grade tem de ser a da CONTA (mediana)."""
+    linhas = []
+    for m in range(1, 13):
+        l = _orc("1|100", m, 0.0)
+        l["origem"] = "mediana" if m in (9, 2) else "sem_base"
+        linhas.append(l)
+    r = montar_comparativo(linhas, {}, MAPA, ate_mes=0)
+    g = next(g for g in r["grade"] if g["conta"] == "1|100")
+    assert g["origem"] == "mediana"

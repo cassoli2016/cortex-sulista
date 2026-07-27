@@ -5,6 +5,7 @@ testada sem banco.
 """
 from __future__ import annotations
 
+import json
 from datetime import date
 
 from api import db
@@ -17,21 +18,40 @@ from api.queries import DRE_MODELO, ler_ajustes
 
 
 def montar_comparativo(linhas_orc: list[dict], realizado: dict,
-                       mapa_linha: dict, ate_mes: int) -> dict:
+                       mapa_linha: dict, ate_mes: int,
+                       meses_excluidos: frozenset[int] | set[int] = frozenset()) -> dict:
     """Agrega orçado e realizado por linha da DRE até `ate_mes` (inclusive).
 
     linhas_orc: saída de armazenamento.ler_linhas()
     realizado:  {(conta, mes): valor}
     mapa_linha: {conta: rótulo da linha DRE | None}
+    meses_excluidos: meses CIRCULARES (dentro da base de derivação) — ficam fora
+        do acumulado de linhas, contas e KPIs, porque neles o desvio seria só o
+        fator lido de volta. Continuam no `mensal` (gráfico), marcados.
     """
     por_linha: dict[str, dict] = {}
     por_conta: dict[str, dict] = {}
     mensal: dict[int, dict] = {m: {"mes": m, "orcado": 0.0, "realizado": None,
-                                   "fechado": m <= ate_mes} for m in range(1, 13)}
+                                   "fechado": m <= ate_mes,
+                                   "circular": m in meses_excluidos}
+                               for m in range(1, 13)}
     sem_linha: set[str] = set()
+    contas_orc: set[str] = set()
+
+    def _acumula(conta: str, mes: int, rot: str, orc: float,
+                 origem: str | None) -> None:
+        alvo = por_linha.setdefault(rot, {"linha": rot, "orcado": 0.0, "realizado": 0.0})
+        alvo["orcado"] += orc
+        alvo["realizado"] += realizado.get((conta, mes), 0.0)
+        c = por_conta.setdefault(conta, {"conta": conta, "linha": rot,
+                                         "orcado": 0.0, "realizado": 0.0,
+                                         "origem": origem or "sem_base"})
+        c["orcado"] += orc
+        c["realizado"] += realizado.get((conta, mes), 0.0)
 
     for l in linhas_orc:
         conta, mes = l["conta"], l["mes"]
+        contas_orc.add(conta)
         orc = l["valor_efetivo"] or 0.0
         mensal[mes]["orcado"] += orc
         if mes <= ate_mes:
@@ -45,18 +65,27 @@ def montar_comparativo(linhas_orc: list[dict], realizado: dict,
         if rot is None:
             sem_linha.add(conta)
             continue
-        if mes > ate_mes:
+        if mes > ate_mes or mes in meses_excluidos:
             continue
+        _acumula(conta, mes, rot, orc, l["origem"])
 
-        alvo = por_linha.setdefault(rot, {"linha": rot, "orcado": 0.0, "realizado": 0.0})
-        alvo["orcado"] += orc
-        alvo["realizado"] += realizado.get((conta, mes), 0.0)
+    # conta com realizado no ano mas SEM linha de orçamento (apareceu depois da
+    # geração): entra na cascata com orçado 0 — descartá-la abriria divergência
+    # entre o realizado daqui e o da DRE Gerencial. Sem agrupador, vira pendência.
+    for (conta, mes), _v in realizado.items():
+        if conta in contas_orc or mes > ate_mes or mes in meses_excluidos:
+            continue
+        rot = mapa_linha.get(conta)
+        if rot is None:   # reportada pelo laço de pendências, logo abaixo
+            continue
+        _acumula(conta, mes, rot, 0.0, None)
 
-        c = por_conta.setdefault(conta, {"conta": conta, "linha": rot,
-                                         "orcado": 0.0, "realizado": 0.0,
-                                         "origem": l["origem"]})
-        c["orcado"] += orc
-        c["realizado"] += realizado.get((conta, mes), 0.0)
+    # pendência também nasce do realizado: a lista da tela lia só as linhas
+    # persistidas, de onde gerar() já removeu as contas sem linha — vinha sempre
+    # vazia (revisão final, I2; critério de aceite 6)
+    for (conta, _mes) in realizado:
+        if mapa_linha.get(conta) is None:
+            sem_linha.add(conta)
 
     def _fecha(d: dict) -> dict:
         d["desvio"] = d["realizado"] - d["orcado"]
@@ -80,11 +109,17 @@ def montar_comparativo(linhas_orc: list[dict], realizado: dict,
     # independentemente de ate_mes: com o ano ainda não iniciado (ate_mes=0) uma
     # grade derivada de `contas` viria vazia e não haveria o que ajustar.
     grade: dict[str, dict] = {}
+    # origem da CONTA (não da primeira célula): com a mediana só nos meses com
+    # movimento, o mês 1 de uma esporádica costuma ser sem_base — ler a célula
+    # marcaria "base fraca" errado nos dois sentidos
+    _forca = {"mediana": 2, "espelho": 1, "sem_base": 0}
     for l in linhas_orc:
         g = grade.setdefault(l["conta"], {
             "conta": l["conta"], "linha": mapa_linha.get(l["conta"]),
             "origem": l["origem"], "meses_com_dado": l["meses_com_dado"],
             "valores": {}, "ajustados": {}})
+        if _forca.get(l["origem"], 0) > _forca.get(g["origem"], 0):
+            g["origem"] = l["origem"]
         g["valores"][l["mes"]] = l["valor_efetivo"]
         g["ajustados"][l["mes"]] = l["valor_ajustado"] is not None
 
@@ -95,6 +130,7 @@ def montar_comparativo(linhas_orc: list[dict], realizado: dict,
         "mensal": [mensal[m] for m in range(1, 13)],
         "sem_linha": sorted(sem_linha),
         "ate_mes": ate_mes,
+        "meses_circulares": sorted(meses_excluidos),
     }
 
 
@@ -158,17 +194,30 @@ def gerar(ano: int, rotulo: str, fator: float, quem: str,
 
     arm.init_db(path)
     if versao_id is None:
-        vid, regerada, zeradas = arm.criar_versao(path, ano, rotulo, fator, quem), False, 0
+        vid, regerada, zeradas = arm.criar_versao(path, ano, rotulo, fator, quem,
+                                                  meses_base=meses), False, 0
     else:
         vid, regerada = versao_id, True
-        arm.atualizar_versao(path, vid, fator)   # KeyError se a versão não existe
+        arm.atualizar_versao(path, vid, fator, meses_base=meses)  # KeyError se não existe
     arm.gravar_baseline(path, vid, linhas)
     if regerada:
         zeradas = arm.zerar_fora_do_conjunto(
             path, vid, {(l["conta"], l["mes"]) for l in linhas})
     return {"versao_id": vid, "linhas": len(linhas), "meses_base": meses,
             "contas_sem_linha": pendentes, "regerada": regerada,
-            "celulas_zeradas": zeradas}
+            "celulas_zeradas": zeradas,
+            "meses_circulares": meses_circulares(ano, meses)}
+
+
+def meses_circulares(ano: int, meses_base: list[str]) -> list[int]:
+    """Meses do ano orçado que estão DENTRO da própria base de derivação.
+
+    Orçar 2026 em julho de 2026 põe jan-jun/26 na base: o espelho desses meses é
+    o próprio mês, então o 'orçado' deles é o realizado lido de volta x (1+fator)
+    e o desvio no acompanhamento seria só o fator (ex.: -5% vira -5,26% em toda
+    linha) — comparação circular, não controle orçamentário. Função pura.
+    """
+    return [m for m in range(1, 13) if f"{ano:04d}-{m:02d}" in set(meses_base)]
 
 
 def comparativo(versao_id: int, ate_mes: int | None = None,
@@ -197,7 +246,13 @@ def comparativo(versao_id: int, ate_mes: int | None = None,
 
     agrup, ajustes = _mapa()
     mapa = mapa_conta_linha(agrup, ajustes)
-    out = montar_comparativo(linhas_orc, realizado, mapa, ate_mes)
+    # meses do ano orçado que estavam dentro da base de derivação: espelho de si
+    # mesmos, ficam fora do acumulado (versões antigas, sem meses_base gravado,
+    # não têm como saber — seguem sem exclusão até serem regeradas)
+    base_reg = json.loads(v["meses_base"]) if v.get("meses_base") else []
+    circulares = frozenset(meses_circulares(ano, base_reg))
+    out = montar_comparativo(linhas_orc, realizado, mapa, ate_mes,
+                             meses_excluidos=circulares)
     out["versao"] = dict(v)
     out["fonte"] = ("Orçado: data/orcamento.db (baseline derivado + ajustes). "
                     "Realizado: ERP AVA, lancamento x planoconta, mesma base da DRE.")
