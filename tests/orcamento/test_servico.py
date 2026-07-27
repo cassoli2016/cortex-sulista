@@ -181,7 +181,9 @@ def test_regerar_a_versao_preserva_o_ajuste_manual(tmp_path, monkeypatch):
 
     assert r2["versao_id"] == r1["versao_id"], "regerar não pode criar versão nova"
     assert r2["regerada"] is True
-    assert len(arm.listar_versoes(destino)) == 1
+    # regerar rascunho arquiva uma cópia do estado ANTERIOR antes de re-derivar
+    assert r2["arquivada_id"] is not None
+    assert len(arm.listar_versoes(destino)) == 2
     assert r2["celulas_zeradas"] == 12          # os 12 meses de 1|101
 
     linhas = {(l["conta"], l["mes"]): l for l in arm.ler_linhas(destino, r1["versao_id"])}
@@ -192,6 +194,57 @@ def test_regerar_a_versao_preserva_o_ajuste_manual(tmp_path, monkeypatch):
     assert linhas[("1|100", 4)]["valor_efetivo"] == -90.0
     assert linhas[("1|101", 4)]["valor_baseline"] == 0.0, "conta que saiu vai a zero"
     assert linhas[("1|101", 4)]["origem"] == "sem_base"
+
+    # a cópia arquivada é FIEL ao estado de ANTES de regerar (fator 0.0, ajuste
+    # feito no passo anterior) — não ao resultado da regeração
+    arquivada = next(v for v in arm.listar_versoes(destino) if v["id"] == r2["arquivada_id"])
+    assert arquivada["status"] == "arquivada"
+    assert "antes de regerar" in arquivada["rotulo"]
+    linhas_arq = {(l["conta"], l["mes"]): l
+                  for l in arm.ler_linhas(destino, r2["arquivada_id"])}
+    assert linhas_arq[("1|100", 3)]["valor_ajustado"] == -777.0
+    assert linhas_arq[("1|100", 3)]["valor_baseline"] == -100.0, \
+        "o baseline arquivado é o de ANTES do regerar, não o recalculado"
+    assert linhas_arq[("1|101", 4)]["valor_baseline"] == -100.0, \
+        "1|101 arquivado não passou pelo zeramento — cópia fiel do estado antigo"
+
+    # a versão original continua rascunho e editável (regerar não trava nada)
+    original = next(v for v in arm.listar_versoes(destino) if v["id"] == r1["versao_id"])
+    assert original["status"] == "rascunho"
+    arm.ajustar(destino, r1["versao_id"], "1|100", 5, -1.0, "controladoria")  # não levanta
+
+
+def test_regerar_versao_aprovada_e_imutavel(tmp_path, monkeypatch):
+    """Aprovar trava o regerar: reabrir é o único caminho de volta."""
+    destino = tmp_path / "orcamento.db"
+    monkeypatch.setattr(arm, "DB_PATH", destino)
+    monkeypatch.setattr(svc, "ler_ajustes", lambda: {})
+    hoje = date(2026, 7, 1)
+    meses_base = sql_mod.meses_fechados(hoje, 12)
+
+    def fake_query(sql, params=None):
+        if sql == sql_mod.HIST_CONTA_SQL:
+            return [{"conta": "1|100", "mes": m, "valor": -100.0} for m in meses_base]
+        if sql == sql_mod.AGRUP_CONTA_SQL:
+            return [{"conta": "1|100", "agrupador": "CV - COMBUSTIVEL"}]
+        return []
+
+    monkeypatch.setattr(svc.db, "query", fake_query)
+    r1 = svc.gerar(2026, "Orçamento 2026", 0.0, "teste", hoje=hoje)
+    arm.aprovar(destino, r1["versao_id"], "ana")
+
+    import pytest
+    with pytest.raises(ValueError, match="imutável"):
+        svc.gerar(2026, "Orçamento 2026", 0.1, "teste", hoje=hoje,
+                 versao_id=r1["versao_id"])
+    # nada foi arquivado nem alterado pela tentativa bloqueada
+    assert len(arm.listar_versoes(destino)) == 1
+
+    arm.reabrir(destino, r1["versao_id"])
+    r2 = svc.gerar(2026, "Orçamento 2026", 0.1, "teste", hoje=hoje,
+                   versao_id=r1["versao_id"])
+    assert r2["regerada"] is True
+    assert r2["arquivada_id"] is not None
 
 
 def test_regerar_versao_inexistente_da_erro(tmp_path, monkeypatch):
@@ -481,8 +534,11 @@ def test_regerar_usa_metodo_gravado_e_preserva_ajuste(tmp_path, monkeypatch):
     assert r2["versao_id"] == r1["versao_id"]
     assert r2["metodo"] == "semestre"
     assert r2["regerada"] is True
+    assert r2["arquivada_id"] is not None
 
-    v = arm.listar_versoes(destino, 2026)[0]
+    # [0] agora seria a cópia arquivada (id mais recente) — busca pelo id da
+    # versão regenerada, não pela posição na lista
+    v = next(x for x in arm.listar_versoes(destino, 2026) if x["id"] == r1["versao_id"])
     assert v["metodo"] == "semestre"          # regravado coerente
 
     linhas = {(l["conta"], l["mes"]): l for l in arm.ler_linhas(destino, r1["versao_id"])}
@@ -544,3 +600,85 @@ def test_nome_da_conta_acompanha_grade_desvios_e_pendencias():
     # sem o dicionário, o nome sai None e nada quebra
     r2 = montar_comparativo(linhas_orc, {}, MAPA, ate_mes=1)
     assert next(x for x in r2["grade"] if x["conta"] == "1|100")["nome"] is None
+
+
+# ---------------------------------------------------------------- exportar_csv
+
+def _campos_da_conta(conteudo: str, conta: str) -> list[str]:
+    linha = next(l for l in conteudo.split("\n") if l.startswith(f"{conta};"))
+    return linha.split(";")
+
+
+def test_exportar_csv_comeca_com_bom_e_usa_ponto_e_virgula(tmp_path, monkeypatch):
+    destino = tmp_path / "orcamento.db"
+    monkeypatch.setattr(arm, "DB_PATH", destino)
+    arm.init_db(destino)
+    vid = arm.criar_versao(destino, 2026, "Orçamento 2026", 0.0, "teste")
+    arm.gravar_baseline(destino, vid, [
+        {"conta": "1|100", "mes": m, "valor_baseline": 1234.5,
+         "origem": "espelho", "meses_com_dado": 12} for m in range(1, 13)])
+    monkeypatch.setattr(svc, "_nomes", lambda: {})
+    monkeypatch.setattr(svc, "_mapa", lambda: ({}, {}))
+
+    conteudo, filename = svc.exportar_csv(vid, path=destino)
+
+    assert conteudo.startswith("﻿")
+    assert filename == f"orcamento-2026-v{vid}.csv"
+    header = ("conta;nome;linha_dre;origem;meses_com_dado;jan;fev;mar;abr;mai;jun;"
+             "jul;ago;set;out;nov;dez;total;ajustadas")
+    assert header in conteudo
+
+    campos = _campos_da_conta(conteudo, "1|100")
+    assert campos[5] == "1234,50"                              # jan (1234.5 -> "1234,50")
+    assert campos[17] == f"{12 * 1234.5:.2f}".replace(".", ",")  # total dos 12 meses
+
+
+def test_exportar_csv_coluna_ajustadas_lista_os_meses_com_ajuste(tmp_path, monkeypatch):
+    destino = tmp_path / "orcamento.db"
+    monkeypatch.setattr(arm, "DB_PATH", destino)
+    arm.init_db(destino)
+    vid = arm.criar_versao(destino, 2026, "Orçamento 2026", 0.0, "teste")
+    arm.gravar_baseline(destino, vid, [
+        {"conta": "1|100", "mes": m, "valor_baseline": 100.0,
+         "origem": "espelho", "meses_com_dado": 12} for m in range(1, 13)])
+    arm.ajustar(destino, vid, "1|100", 3, 500.0, "controladoria")
+    arm.ajustar(destino, vid, "1|100", 7, 90.0, "controladoria")
+    monkeypatch.setattr(svc, "_nomes", lambda: {})
+    monkeypatch.setattr(svc, "_mapa", lambda: ({}, {}))
+
+    conteudo, _ = svc.exportar_csv(vid, path=destino)
+
+    campos = _campos_da_conta(conteudo, "1|100")
+    assert campos[-1] == "3,7"                          # vírgula é segura dentro do campo ;
+    total_esperado = 10 * 100.0 + 500.0 + 90.0
+    assert campos[17] == f"{total_esperado:.2f}".replace(".", ",")
+
+
+def test_exportar_csv_versao_inexistente_da_key_error(tmp_path, monkeypatch):
+    destino = tmp_path / "orcamento.db"
+    monkeypatch.setattr(arm, "DB_PATH", destino)
+    arm.init_db(destino)
+    import pytest
+    with pytest.raises(KeyError):
+        svc.exportar_csv(999, path=destino)
+
+
+def test_exportar_csv_com_erp_fora_do_ar_sai_com_nome_e_linha_dre_vazios(tmp_path, monkeypatch):
+    """Túnel/ERP fora não pode quebrar o export — só perde as duas colunas
+    best-effort (nome do plano de contas e linha da DRE)."""
+    destino = tmp_path / "orcamento.db"
+    monkeypatch.setattr(arm, "DB_PATH", destino)
+    arm.init_db(destino)
+    vid = arm.criar_versao(destino, 2026, "Orçamento 2026", 0.0, "teste")
+    arm.gravar_baseline(destino, vid, [
+        {"conta": "1|100", "mes": m, "valor_baseline": 100.0,
+         "origem": "espelho", "meses_com_dado": 12} for m in range(1, 13)])
+
+    def explode(*_a, **_k):
+        raise RuntimeError("túnel SSH fora do ar")
+    monkeypatch.setattr(svc.db, "query", explode)
+
+    conteudo, _ = svc.exportar_csv(vid, path=destino)   # não levanta
+    campos = _campos_da_conta(conteudo, "1|100")
+    assert campos[1] == ""      # nome
+    assert campos[2] == ""      # linha_dre

@@ -168,12 +168,21 @@ def provisao_do_ano(
     # M1 da revisão final.
     arm.init_db(db_path)
 
-    # Buscar versão mais recente do ano
+    # Buscar versão do ano: aprovada tem prioridade sobre rascunho (a
+    # provisão de caixa não pode usar um número já superado por uma versão
+    # travada); arquivada NUNCA entra aqui — é histórico, não é o orçamento
+    # vigente. Versão antiga sem `status` gravado (banco pré-coluna) é
+    # tratada como rascunho, mesma regra de compatibilidade do `metodo`.
     versoes = arm.listar_versoes(db_path, ano=ano)
     if not versoes:
         return None
 
-    versao = versoes[0]  # Mais recente primeiro
+    versao = next((v for v in versoes if v.get("status") == "aprovado"), None)
+    if versao is None:
+        versao = next(
+            (v for v in versoes if v.get("status") in (None, "", "rascunho")), None)
+    if versao is None:      # só sobraram arquivadas
+        return None
     versao_id = versao["id"]
 
     # Determinar DSO/DPO usados e fonte. Prazo negativo é inválido (I1): trata
@@ -210,6 +219,10 @@ def provisao_do_ano(
             "id": versao_id,
             "rotulo": versao["rotulo"],
             "metodo": versao["metodo"],
+            # status para a tela do Fluxo poder rotular "(aprovada)" no ⓘ —
+            # sem isso o usuário não sabe se a provisão vem de um número
+            # travado ou de um rascunho ainda em edição.
+            "status": versao.get("status"),
             # meses_base (JSON de 'YYYY-MM's) para a tela derivar a faixa da
             # base SEMPRE do dado gravado, nunca do texto do rótulo — que fica
             # estale depois de regerar (M4 da revisão final).

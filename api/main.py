@@ -14,7 +14,7 @@ from datetime import date
 from pathlib import Path
 
 import psycopg
-from fastapi import FastAPI, Request
+from fastapi import FastAPI, Request, Response
 from fastapi.middleware.gzip import GZipMiddleware
 from fastapi.responses import FileResponse, JSONResponse, PlainTextResponse, StreamingResponse
 from fastapi.staticfiles import StaticFiles
@@ -1007,7 +1007,12 @@ def orcamento_versoes(ano: int | None = None) -> JSONResponse:
     from api.orcamento import armazenamento as arm
     try:
         arm.init_db(arm.DB_PATH)
-        return JSONResponse({"versoes": arm.listar_versoes(arm.DB_PATH, ano)})
+        versoes = arm.listar_versoes(arm.DB_PATH, ano)
+        # seletor da tela: não-arquivadas primeiro (mais recentes primeiro),
+        # arquivadas depois — histórico não deve competir com o que está em
+        # uso pelo topo da lista.
+        versoes.sort(key=lambda v: (v.get("status") == "arquivada", -v["id"]))
+        return JSONResponse({"versoes": versoes})
     except Exception as exc:  # noqa: BLE001
         log.warning("orcamento_versoes falhou: %s", exc)
         return JSONResponse(status_code=500, content={
@@ -1145,10 +1150,92 @@ async def orcamento_ajustar(req: Request) -> JSONResponse:
     except KeyError:
         return JSONResponse(status_code=404, content={
             "erro": "nao_encontrado", "mensagem": "Célula inexistente nessa versão."})
+    except ValueError as exc:
+        # versão aprovada/arquivada é imutável — arm.ajustar bloqueia com
+        # ValueError; sem este except ele caía no 500 genérico abaixo.
+        return JSONResponse(status_code=422, content={
+            "erro": "versao_imutavel", "mensagem": str(exc)})
     except Exception as exc:  # noqa: BLE001
         log.warning("orcamento_ajustar falhou: %s", exc)
         return JSONResponse(status_code=500, content={
             "erro": "erro_consulta", "mensagem": "Erro ao salvar o ajuste."})
+
+
+@app.post("/api/controladoria/orcamento/aprovar")
+async def orcamento_aprovar(req: Request) -> JSONResponse:
+    from api.orcamento import armazenamento as arm
+    try:
+        body = await req.json()
+    except Exception:
+        body = None
+    if not isinstance(body, dict):
+        return JSONResponse(status_code=422, content={
+            "erro": "parametro_invalido", "mensagem": "Corpo da requisição inválido: envie um objeto JSON."})
+    versao_id = body.get("versao_id")
+    if not (isinstance(versao_id, int) and not isinstance(versao_id, bool) and versao_id > 0):
+        return JSONResponse(status_code=422, content={
+            "erro": "parametro_invalido", "mensagem": "Informe um versao_id válido (inteiro > 0)."})
+    try:
+        quem = (req.state.sessao or {}).get("nome") or "sistema"
+        arm.aprovar(arm.DB_PATH, versao_id, quem)
+        versao = next(v for v in arm.listar_versoes(arm.DB_PATH) if v["id"] == versao_id)
+        return JSONResponse({"ok": True, "versao": versao})
+    except KeyError:
+        return JSONResponse(status_code=404, content={
+            "erro": "nao_encontrado", "mensagem": "Versão de orçamento inexistente."})
+    except ValueError as exc:
+        return JSONResponse(status_code=422, content={
+            "erro": "versao_imutavel", "mensagem": str(exc)})
+    except Exception as exc:  # noqa: BLE001
+        log.warning("orcamento_aprovar falhou: %s", exc)
+        return JSONResponse(status_code=500, content={
+            "erro": "erro_consulta", "mensagem": "Erro ao aprovar a versão."})
+
+
+@app.post("/api/controladoria/orcamento/reabrir")
+async def orcamento_reabrir(req: Request) -> JSONResponse:
+    from api.orcamento import armazenamento as arm
+    try:
+        body = await req.json()
+    except Exception:
+        body = None
+    if not isinstance(body, dict):
+        return JSONResponse(status_code=422, content={
+            "erro": "parametro_invalido", "mensagem": "Corpo da requisição inválido: envie um objeto JSON."})
+    versao_id = body.get("versao_id")
+    if not (isinstance(versao_id, int) and not isinstance(versao_id, bool) and versao_id > 0):
+        return JSONResponse(status_code=422, content={
+            "erro": "parametro_invalido", "mensagem": "Informe um versao_id válido (inteiro > 0)."})
+    try:
+        arm.reabrir(arm.DB_PATH, versao_id)
+        versao = next(v for v in arm.listar_versoes(arm.DB_PATH) if v["id"] == versao_id)
+        return JSONResponse({"ok": True, "versao": versao})
+    except KeyError:
+        return JSONResponse(status_code=404, content={
+            "erro": "nao_encontrado", "mensagem": "Versão de orçamento inexistente."})
+    except ValueError as exc:
+        return JSONResponse(status_code=422, content={
+            "erro": "versao_imutavel", "mensagem": str(exc)})
+    except Exception as exc:  # noqa: BLE001
+        log.warning("orcamento_reabrir falhou: %s", exc)
+        return JSONResponse(status_code=500, content={
+            "erro": "erro_consulta", "mensagem": "Erro ao reabrir a versão."})
+
+
+@app.get("/api/controladoria/orcamento/exportar")
+def orcamento_exportar(versao_id: int) -> Response:
+    from api.orcamento.servico import exportar_csv
+    try:
+        conteudo, filename = exportar_csv(versao_id)
+        return Response(content=conteudo, media_type="text/csv; charset=utf-8",
+                        headers={"Content-Disposition": f'attachment; filename="{filename}"'})
+    except KeyError:
+        return JSONResponse(status_code=404, content={
+            "erro": "nao_encontrado", "mensagem": "Versão de orçamento inexistente."})
+    except Exception as exc:  # noqa: BLE001
+        log.warning("orcamento_exportar falhou: %s", exc)
+        return JSONResponse(status_code=500, content={
+            "erro": "erro_consulta", "mensagem": "Erro ao exportar o orçamento."})
 
 
 @app.get("/api/tv/estradas")
