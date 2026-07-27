@@ -122,3 +122,74 @@ def test_todas_as_contas_recebem_12_meses():
     linhas = derivar(hist, MESES, 0.0)
     assert len(linhas) == 24
     assert sorted({l["mes"] for l in linhas}) == list(range(1, 13))
+
+
+# ------------------------------------------------- semestre × sazonalidade
+
+from api.orcamento.derivacao import derivar_semestre, indices_sazonais
+
+MESES6 = ["2026-01", "2026-02", "2026-03", "2026-04", "2026-05", "2026-06"]
+MESES24 = [f"{a}-{m:02d}" for a in (2024, 2025) for m in range(7, 13)] + \
+          [f"{a}-{m:02d}" for a in (2025, 2026) for m in range(1, 7)]
+MESES24 = sorted(set(MESES24))  # jul/24..jun/26, 24 meses
+
+
+def _serie_linha(valor_por_mes_cal: dict[int, float]) -> dict[str, float]:
+    return {m: valor_por_mes_cal.get(int(m[5:7]), 100.0) for m in MESES24}
+
+
+def test_indice_sazonal_captura_a_queda_de_dezembro():
+    serie = {"RECEITA BRUTA": _serie_linha({12: 40.0})}   # dez=40, resto=100
+    idx, flat = indices_sazonais(serie, MESES24)
+    # media_geral = (22*100 + 2*40)/24 = 95 -> dez = 40/95, demais = 100/95
+    assert abs(idx["RECEITA BRUTA"][12] - 40.0 / 95.0) < 1e-9
+    assert abs(idx["RECEITA BRUTA"][3] - 100.0 / 95.0) < 1e-9
+    assert abs(sum(idx["RECEITA BRUTA"].values()) / 12 - 1.0) < 1e-9   # média 1
+    assert flat == []
+
+
+def test_indice_vira_flat_nas_tres_guardas():
+    quase_zero = {m: (100.0 if int(m[5:7]) % 2 else -100.0) for m in MESES24}
+    pico = {m: (50.0 if m == "2026-03" else 1.0) for m in MESES24}
+    curta = {m: 100.0 for m in MESES24[6:]}            # só 18 meses
+    idx, flat = indices_sazonais(
+        {"OSCILA": quase_zero, "PICO": pico, "CURTA": curta}, MESES24)
+    assert sorted(flat) == ["CURTA", "OSCILA", "PICO"]
+    for linha in ("OSCILA", "PICO", "CURTA"):
+        assert all(v == 1.0 for v in idx[linha].values())
+
+
+def test_derivar_semestre_nivel_x_indice_x_fator():
+    hist = {"1|100": {m: 100.0 for m in MESES6}}       # nível = 600/6 = 100
+    indices = {"CUSTO VARIAVEL": {m: (0.6 if m == 12 else 1.0) for m in range(1, 13)}}
+    mapa = {"1|100": "CUSTO VARIAVEL"}
+    linhas = derivar_semestre(hist, MESES6, indices, mapa, 0.0)
+    por_mes = {l["mes"]: l for l in linhas if l["conta"] == "1|100"}
+    assert len(por_mes) == 12
+    assert por_mes[12]["valor_baseline"] == 60.0        # 100 × 0,6
+    assert por_mes[3]["valor_baseline"] == 100.0
+    assert all(l["origem"] == "semestre" for l in por_mes.values())
+    assert all(l["meses_com_dado"] == 6 for l in por_mes.values())
+    com_fator = derivar_semestre(hist, MESES6, indices, mapa, -0.10)
+    assert {l["mes"]: l for l in com_fator}[12]["valor_baseline"] == 54.0
+
+
+def test_derivar_semestre_conta_sem_movimento_e_linha_sem_indice():
+    hist = {"7|700": {}, "1|100": {"2026-02": 300.0}}   # nível 1|100 = 50
+    linhas = derivar_semestre(hist, MESES6, {}, {"1|100": "LINHA X", "7|700": "LINHA X"}, 0.0)
+    por_conta = {}
+    for l in linhas:
+        por_conta.setdefault(l["conta"], []).append(l)
+    assert all(l["origem"] == "sem_base" and l["valor_baseline"] == 0.0
+               for l in por_conta["7|700"])
+    # linha sem índice calculado -> flat (índice 1): todos os meses = nível
+    assert all(l["valor_baseline"] == 50.0 for l in por_conta["1|100"])
+    assert all(l["meses_com_dado"] == 1 for l in por_conta["1|100"])
+
+
+def test_derivar_semestre_esporadica_diluida_sem_mediana():
+    """Sem corte de recorrência: 1 mês de 600 no semestre vira nível 100 em
+    todos os meses — o total anual (~1200 com índice flat) é 2× o semestre."""
+    hist = {"9|900": {"2026-04": 600.0}}
+    linhas = derivar_semestre(hist, MESES6, {}, {"9|900": None}, 0.0)
+    assert sum(l["valor_baseline"] for l in linhas) == 1200.0
