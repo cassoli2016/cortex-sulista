@@ -147,3 +147,16 @@ def test_lista_vazia_bem_formada_gera_snapshot_vazio_sem_erro():
     snap = coletar_mes(FakeClienteVazio(), "2026-06", agora=datetime(2026, 7, 27))
     assert snap["drivers"] == []
     assert snap["frota_telemetria"] == {"veiculos": 0, "com_motorista": 0}
+
+
+def test_gravar_snapshot_nao_deixa_tmp_para_tras(tmp_path):
+    """M1: a escrita passa por arquivo temporário + os.replace (atômico) — o
+    diretório final não pode sobrar com nenhum .tmp-* de escrita interrompida,
+    e o conteúdo gravado precisa estar correto (não truncado)."""
+    snap = coletar_mes(FakeCliente(), "2026-06", agora=datetime(2026, 7, 27, 8, 0))
+    gravar_snapshot(snap, tmp_path)
+
+    sobras = [p for p in tmp_path.iterdir() if p.name.startswith(".tmp-")]
+    assert sobras == []
+    assert ler_snapshot("2026-06", tmp_path)["month"] == "2026-06"
+    assert json.loads((tmp_path / "index.json").read_text(encoding="utf-8"))

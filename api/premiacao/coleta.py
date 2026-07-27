@@ -20,6 +20,8 @@ from __future__ import annotations
 
 import calendar
 import json
+import os
+import tempfile
 import time
 from datetime import datetime
 from pathlib import Path
@@ -155,11 +157,28 @@ def coletar_mes(cliente, mes: str, customer: int = 1, agora=None) -> dict:
     }
 
 
+def _escrever_atomico(caminho: Path, conteudo: str) -> None:
+    """Grava via arquivo temporário no MESMO diretório + `os.replace` (M1):
+    `os.replace` é atômico em POSIX e NTFS, então um leitor concorrente
+    (`ler_snapshot`/`ler_index`, que não pegam lock nenhum) nunca vê um
+    arquivo truncado a meio de escrita — antes o `write_text` direto causava
+    `JSONDecodeError` real sob leitura concorrente (medido na revisão final)."""
+    dir_path = caminho.parent
+    fd, tmp_nome = tempfile.mkstemp(prefix=".tmp-", suffix=".json", dir=dir_path)
+    try:
+        with os.fdopen(fd, "w", encoding="utf-8") as f:
+            f.write(conteudo)
+        os.replace(tmp_nome, caminho)
+    except BaseException:
+        Path(tmp_nome).unlink(missing_ok=True)
+        raise
+
+
 def gravar_snapshot(snap: dict, dir_path=None) -> Path:
     dir_path = Path(dir_path or SNAP_DIR)
     dir_path.mkdir(parents=True, exist_ok=True)
     caminho = dir_path / f"premiacao-{snap['month']}.json"
-    caminho.write_text(json.dumps(snap, ensure_ascii=False, indent=2), encoding="utf-8")
+    _escrever_atomico(caminho, json.dumps(snap, ensure_ascii=False, indent=2))
     _reescrever_index(dir_path)
     return caminho
 
@@ -181,8 +200,7 @@ def _reescrever_index(dir_path: Path) -> None:
             "parcial": bool(snap.get("parcial")),
         })
     index.sort(key=lambda i: i["month"], reverse=True)
-    (dir_path / "index.json").write_text(
-        json.dumps(index, ensure_ascii=False, indent=2), encoding="utf-8")
+    _escrever_atomico(dir_path / "index.json", json.dumps(index, ensure_ascii=False, indent=2))
 
 
 def ler_snapshot(mes: str, dir_path=None) -> dict | None:

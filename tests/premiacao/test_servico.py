@@ -4,8 +4,11 @@ para um FakeCliente (Task 4) ou uma função que quebra se for chamada.
 """
 from __future__ import annotations
 
+import threading
+import time
 from datetime import datetime, timedelta
 
+from api import db as api_db
 from api.premiacao import coleta, gobrax, params, servico
 from tests.premiacao.test_coleta import FakeCliente
 
@@ -171,3 +174,151 @@ def test_serie_ignora_mes_do_index_sem_snapshot_em_disco(monkeypatch, tmp_path):
     resultado = servico.serie()
 
     assert [m["month"] for m in resultado["meses"]] == ["2026-06"]
+
+
+def test_mes_fechado_com_snapshot_parcial_recoleta_uma_vez_e_fecha(monkeypatch, tmp_path):
+    """I1: o snapshot de julho coletado em 27/07 com `parcial: true` nunca era
+    recoletado depois que o mês fechou (01/08) — o prêmio ficava congelado 4
+    dias mais cedo. Um snapshot `parcial` de um mês que já não é mais o
+    corrente agora dispara UMA recoleta, que fecha o mês de verdade
+    (`_period` devolve `parcial: false` para mês != mês corrente)."""
+    monkeypatch.setenv("GOBRAX_EMAIL", "e@x.com")
+    monkeypatch.setenv("GOBRAX_SENHA", "s3nh4")
+    monkeypatch.setattr(servico, "SNAP_DIR", tmp_path)
+    monkeypatch.setattr(servico, "_preco_diesel", lambda mes: 4.91)
+
+    coleta.gravar_snapshot(_snapshot("2026-07", "2026-07-27 12:40", parcial=True), tmp_path)
+
+    cliente = FakeCliente()
+    monkeypatch.setattr(servico, "_novo_cliente", lambda: cliente)
+
+    resultado = servico.obter("2026-07", agora=datetime(2026, 8, 1, 9, 0))
+
+    assert cliente.chamadas, "mês fechado com snapshot parcial deveria recoletar uma vez"
+    assert resultado["parcial"] is False
+
+    # depois de fechado, uma nova chamada não recoleta de novo
+    monkeypatch.setattr(servico, "_novo_cliente", _cliente_quebra)
+    resultado2 = servico.obter("2026-07", agora=datetime(2026, 8, 1, 9, 5))
+    assert resultado2["parcial"] is False
+
+
+def test_dois_atualizar_forcados_concorrentes_coletam_uma_vez(monkeypatch, tmp_path):
+    """M2: dois POST /atualizar (force=True) simultâneos coletavam a Gobrax
+    2x — o double-check dentro do lock é sempre verdadeiro com force=True e
+    não filtrava nada. Fix: se o snapshot relido dentro do lock já mudou
+    (outra chamada concorrente já coletou/gravou), usa o relido e NÃO
+    recoleta de novo — mesmo com force."""
+    monkeypatch.setenv("GOBRAX_EMAIL", "e@x.com")
+    monkeypatch.setenv("GOBRAX_SENHA", "s3nh4")
+    monkeypatch.setattr(servico, "SNAP_DIR", tmp_path)
+    monkeypatch.setattr(servico, "_preco_diesel", lambda mes: 4.91)
+    monkeypatch.setattr(params, "PARAMS_PATH", tmp_path / "premiacao_params.json")
+
+    contador = {"n": 0}
+    trava = threading.Lock()
+
+    class ClienteLento(FakeCliente):
+        def get(self, path, req_params=None):
+            if path == "/vehicles":
+                with trava:
+                    contador["n"] += 1
+                time.sleep(0.2)  # simula rede lenta -> t2 chega enquanto t1 coleta
+            return super().get(path, req_params)
+
+    monkeypatch.setattr(servico, "_novo_cliente", lambda: ClienteLento())
+
+    agora = datetime(2026, 7, 27, 10, 0)
+    erros = []
+
+    def chamar():
+        try:
+            servico.obter("2026-06", force=True, agora=agora)
+        except Exception as exc:  # noqa: BLE001
+            erros.append(exc)
+
+    t1 = threading.Thread(target=chamar)
+    t2 = threading.Thread(target=chamar)
+    t1.start()
+    time.sleep(0.05)
+    t2.start()
+    t1.join()
+    t2.join()
+
+    assert not erros
+    assert contador["n"] == 1, "duas chamadas force concorrentes coletaram mais de uma vez"
+
+
+def test_preco_diesel_cache_evita_segunda_consulta_no_ttl(monkeypatch):
+    """M5: sem cache, todo GET pagava o custo cheio de bater no AVA — com o
+    túnel fora isso é ~8-15s por chamada só para um número informativo."""
+    servico._PRECO_CACHE.clear()
+    contador = {"n": 0}
+
+    def fake_query(sql, sql_params):
+        contador["n"] += 1
+        return [{"preco": 4.93}]
+    monkeypatch.setattr(api_db, "query", fake_query)
+
+    v1 = servico._preco_diesel("2026-06")
+    v2 = servico._preco_diesel("2026-06")
+
+    assert v1 == v2 == 4.93
+    assert contador["n"] == 1, "segunda chamada dentro do TTL não deveria ir ao banco"
+
+
+def test_preco_diesel_falha_loga_um_aviso_e_nao_propaga(monkeypatch, caplog):
+    """M5: o `except Exception` engolia até erro de programação sem log —
+    agora loga um aviso (rastreável) e continua devolvendo None (a tela não
+    pode cair por causa de um número informativo)."""
+    servico._PRECO_CACHE.clear()
+
+    def fake_query(sql, sql_params):
+        raise RuntimeError("tunel fora")
+    monkeypatch.setattr(api_db, "query", fake_query)
+
+    with caplog.at_level("WARNING", logger=servico.log.name):
+        valor = servico._preco_diesel("2026-07")
+
+    assert valor is None
+    assert any("preco diesel indisponivel" in r.message for r in caplog.records)
+
+
+def test_snapshot_sem_coletado_em_no_mes_fechado_nao_estoura(monkeypatch, tmp_path):
+    """M10: snapshot sem `coletado_em` (dado externo corrompido/incompleto)
+    não pode virar 500 — mês fechado sem `parcial` só serve como está."""
+    monkeypatch.setenv("GOBRAX_EMAIL", "e@x.com")
+    monkeypatch.setenv("GOBRAX_SENHA", "s3nh4")
+    monkeypatch.setattr(servico, "SNAP_DIR", tmp_path)
+    monkeypatch.setattr(servico, "_preco_diesel", lambda mes: 4.91)
+    monkeypatch.setattr(servico, "_novo_cliente", _cliente_quebra)
+
+    snap = _snapshot("2026-06", "2026-07-01 08:00")
+    del snap["coletado_em"]
+    coleta.gravar_snapshot(snap, tmp_path)
+
+    resultado = servico.obter("2026-06", agora=datetime(2026, 7, 27, 9, 0))
+
+    assert resultado["configurado"] is True
+    assert resultado["coletado_em"] is None
+
+
+def test_snapshot_sem_coletado_em_no_mes_corrente_recoleta_sem_estourar(monkeypatch, tmp_path):
+    """M10 no outro ramo: sem `coletado_em`, o mês CORRENTE é tratado como
+    'muito velho' -> recoleta (não KeyError em `_coletado_ha_mais_de_1h`)."""
+    monkeypatch.setenv("GOBRAX_EMAIL", "e@x.com")
+    monkeypatch.setenv("GOBRAX_SENHA", "s3nh4")
+    monkeypatch.setattr(servico, "SNAP_DIR", tmp_path)
+    monkeypatch.setattr(servico, "_preco_diesel", lambda mes: 4.91)
+
+    snap = _snapshot("2026-07", "2026-07-27 08:00", parcial=True)
+    del snap["coletado_em"]
+    coleta.gravar_snapshot(snap, tmp_path)
+
+    cliente = FakeCliente()
+    monkeypatch.setattr(servico, "_novo_cliente", lambda: cliente)
+
+    resultado = servico.obter(agora=datetime(2026, 7, 27, 10, 0))
+
+    assert cliente.chamadas, "sem coletado_em no mês corrente deveria recoletar"
+    assert resultado["configurado"] is True

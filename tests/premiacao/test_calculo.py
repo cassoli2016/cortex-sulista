@@ -74,6 +74,53 @@ def test_ordena_por_premio_depois_km():
     assert [l["driverId"] for l in r["linhas"]] == [2, 1, 3]
 
 
+def test_km_negativo_com_media_abaixo_da_meta_fica_suspeito_fora_do_premio_total():
+    """Achado I2 da revisão final: sem faixa física, km negativo com média
+    abaixo da meta gerava PRÊMIO POSITIVO de verdade (litros_meta negativo
+    menos um litros_consumidos ainda mais negativo = "economia" positiva).
+    A linha continua visível com o valor bruto, mas fica fora do total pago."""
+    r = calcular([_mot(km=-100.0, media=1.5)], PARAMS)  # media 1.5 < meta 1.90
+    l = r["linhas"][0]
+    assert l["suspeito"] is True
+    assert l["premio"] > 0                       # valor bruto continua visível
+    assert r["kpis"]["premio_total"] == 0.0       # mas fora do total pago
+    assert r["kpis"]["premiados"] == 0
+
+
+def test_km_zero_fica_suspeito_visivel_e_fora_dos_elegiveis():
+    r = calcular([_mot(km=0.0)], {**PARAMS, "km_minimo": 0})
+    l = r["linhas"][0]
+    assert l["suspeito"] is True
+    assert len(r["linhas"]) == 1                  # visível, não vira sem_media
+    assert r["kpis"]["elegiveis"] == 0
+    assert r["kpis"]["litros_economizados_total"] == 0.0
+
+
+def test_media_acima_do_teto_fisico_fica_suspeita_e_fora_dos_kpis():
+    """Teto amplo de 15 km/l: veículo leve chega a ~9, caminhão pesado 0,8-6 —
+    12 km/l (ou mais) é leitura de telemetria furada, não desempenho real."""
+    r = calcular([_mot(media=20.0)], PARAMS)
+    l = r["linhas"][0]
+    assert l["suspeito"] is True
+    assert len(r["linhas"]) == 1
+    assert r["kpis"]["premio_total"] == 0.0
+    assert r["kpis"]["premiados"] == 0
+
+
+def test_media_dentro_da_faixa_fisica_nao_fica_suspeita():
+    r = calcular([_mot(media=9.0)], PARAMS)       # veículo leve plausível
+    assert r["linhas"][0]["suspeito"] is False
+    assert r["kpis"]["premio_total"] > 0
+
+
+def test_media_zero_ou_none_continua_sem_media_nao_vira_suspeito():
+    """media <= 0 é um caso diferente (sem consumo registrado): continua
+    fora das linhas via sem_media, sem passar pela faixa física do km."""
+    r = calcular([_mot(media=None), _mot(driverId=2, media=0)], PARAMS)
+    assert r["linhas"] == []
+    assert r["sem_media"] == 2
+
+
 def test_campos_originais_motorista_sobrevivem_intactos_na_linha():
     """Verifica que todo campo original do motorista permanece inalterado na saída.
 
