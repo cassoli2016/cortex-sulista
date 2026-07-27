@@ -134,8 +134,8 @@ MESES24 = [f"{a}-{m:02d}" for a in (2024, 2025) for m in range(7, 13)] + \
 MESES24 = sorted(set(MESES24))  # jul/24..jun/26, 24 meses
 
 
-def _serie_linha(valor_por_mes_cal: dict[int, float]) -> dict[str, float]:
-    return {m: valor_por_mes_cal.get(int(m[5:7]), 100.0) for m in MESES24}
+def _serie_linha(valor_por_mes_cal: dict[int, float], valor_default: float = 100.0) -> dict[str, float]:
+    return {m: valor_por_mes_cal.get(int(m[5:7]), valor_default) for m in MESES24}
 
 
 def test_indice_sazonal_captura_a_queda_de_dezembro():
@@ -193,3 +193,22 @@ def test_derivar_semestre_esporadica_diluida_sem_mediana():
     hist = {"9|900": {"2026-04": 600.0}}
     linhas = derivar_semestre(hist, MESES6, {}, {"9|900": None}, 0.0)
     assert sum(l["valor_baseline"] for l in linhas) == 1200.0
+
+
+def test_indice_e_derivacao_com_custo_negativo():
+    """Índices sazonais com valores negativos (custos): 22 meses -100, 2 meses -40 (dez).
+    Media geral = (-2200 + -80)/24 = -95. Índice dez = (-40/-95) = 0.421,
+    demais = (100/95) = 1.053. Derivação: nível -100 × índice × 1 = dezembro -42.11."""
+    serie = {"CUSTO VARI": _serie_linha({12: -40.0}, valor_default=-100.0)}
+    idx, flat = indices_sazonais(serie, MESES24)
+    # (-2200 + -80) / 24 = -95; dez bruto = (-80/2) / (-95) = 40/95 = 0.421...
+    assert abs(idx["CUSTO VARI"][12] - 40.0 / 95.0) < 1e-9
+    assert abs(idx["CUSTO VARI"][3] - 100.0 / 95.0) < 1e-9
+    assert flat == []
+
+    # Derivação semestral: nível = -100, índice dez = 40/95 = 0.421..., dezembro = -42.11
+    hist = {"4|400": {m: -100.0 for m in MESES6}}
+    linhas = derivar_semestre(hist, MESES6, idx, {"4|400": "CUSTO VARI"}, 0.0)
+    por_mes = {l["mes"]: l for l in linhas if l["conta"] == "4|400"}
+    assert por_mes[12]["valor_baseline"] == -42.11  # -100 × (40/95) = -42.105...
+    assert por_mes[3]["valor_baseline"] == -105.26  # -100 × (100/95) = -105.263...
