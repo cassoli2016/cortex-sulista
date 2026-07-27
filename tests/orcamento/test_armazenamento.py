@@ -147,3 +147,163 @@ def test_atualizar_versao_com_metodo_regrava(db):
     arm.atualizar_versao(db, vid, 0.0, metodo="semestre")
     v = arm.listar_versoes(db, 2027)[0]
     assert v["metodo"] == "semestre"
+
+
+# ------------------------------------------- aprovar / reabrir / arquivar
+
+def _versao(db):
+    vid = arm.criar_versao(db, 2027, "v1", 0.0, "cristian")
+    arm.gravar_baseline(db, vid, _linhas())
+    return vid
+
+
+def test_aprovar_grava_status_quem_e_quando(db):
+    import datetime as dt
+
+    vid = _versao(db)
+    agora = dt.datetime(2026, 7, 27, 14, 30)
+    arm.aprovar(db, vid, "ana", agora=agora)
+    v = arm.listar_versoes(db, 2027)[0]
+    assert v["status"] == "aprovado"
+    assert v["aprovado_por"] == "ana"
+    assert v["aprovado_em"] == "2026-07-27 14:30"
+
+
+def test_reabrir_volta_a_rascunho_e_limpa_aprovacao(db):
+    vid = _versao(db)
+    arm.aprovar(db, vid, "ana")
+    arm.reabrir(db, vid)
+    v = arm.listar_versoes(db, 2027)[0]
+    assert v["status"] == "rascunho"
+    assert v["aprovado_em"] is None
+    assert v["aprovado_por"] is None
+
+
+def test_reaprovar_versao_ja_aprovada_regrava_quem_e_quando(db):
+    import datetime as dt
+
+    vid = _versao(db)
+    arm.aprovar(db, vid, "ana", agora=dt.datetime(2026, 7, 20, 10, 0))
+    arm.aprovar(db, vid, "cristian", agora=dt.datetime(2026, 7, 27, 9, 0))
+    v = arm.listar_versoes(db, 2027)[0]
+    assert v["status"] == "aprovado"
+    assert v["aprovado_por"] == "cristian"
+    assert v["aprovado_em"] == "2026-07-27 09:00"
+
+
+def test_aprovar_versao_arquivada_da_value_error(db):
+    vid = _versao(db)
+    novo_id = arm.arquivar_copia(db, vid, "v1 (histórico)")
+    with pytest.raises(ValueError):
+        arm.aprovar(db, novo_id, "ana")
+
+
+def test_reabrir_versao_arquivada_da_value_error(db):
+    vid = _versao(db)
+    novo_id = arm.arquivar_copia(db, vid, "v1 (histórico)")
+    with pytest.raises(ValueError):
+        arm.reabrir(db, novo_id)
+
+
+def test_aprovar_versao_inexistente_da_key_error(db):
+    with pytest.raises(KeyError):
+        arm.aprovar(db, 999, "ana")
+
+
+def test_reabrir_versao_inexistente_da_key_error(db):
+    with pytest.raises(KeyError):
+        arm.reabrir(db, 999)
+
+
+def test_arquivar_copia_versao_inexistente_da_key_error(db):
+    with pytest.raises(KeyError):
+        arm.arquivar_copia(db, 999, "cópia")
+
+
+def test_ajustar_em_versao_aprovada_e_imutavel(db):
+    vid = _versao(db)
+    arm.aprovar(db, vid, "ana")
+    with pytest.raises(ValueError, match="imutável"):
+        arm.ajustar(db, vid, "1|100", 3, 7777.0, "cristian")
+
+
+def test_ajustar_apos_reabrir_volta_a_funcionar(db):
+    vid = _versao(db)
+    arm.aprovar(db, vid, "ana")
+    arm.reabrir(db, vid)
+    arm.ajustar(db, vid, "1|100", 3, 7777.0, "cristian")
+    m3 = next(l for l in arm.ler_linhas(db, vid) if l["mes"] == 3)
+    assert m3["valor_ajustado"] == 7777.0
+
+
+def test_arquivar_copia_cria_versao_nova_arquivada_com_mesmo_metodo_e_base(db):
+    vid = arm.criar_versao(db, 2027, "v1", -0.05, "cristian",
+                            meses_base=["2026-01", "2026-02"], metodo="semestre")
+    arm.gravar_baseline(db, vid, _linhas())
+
+    novo_id = arm.arquivar_copia(db, vid, "v1 (histórico)")
+
+    assert novo_id != vid
+    nova = next(v for v in arm.listar_versoes(db, 2027) if v["id"] == novo_id)
+    assert nova["status"] == "arquivada"
+    assert nova["rotulo"] == "v1 (histórico)"
+    assert nova["metodo"] == "semestre"
+    assert nova["meses_base"] == '["2026-01", "2026-02"]'
+    assert nova["fator_tendencia"] == -0.05
+    assert nova["criado_por"] == "cristian"
+
+    original = next(v for v in arm.listar_versoes(db, 2027) if v["id"] == vid)
+    assert original["status"] == "rascunho"    # original intocada
+
+
+def test_arquivar_copia_preserva_baseline_e_ajuste_de_todas_as_linhas(db):
+    vid = _versao(db)
+    arm.ajustar(db, vid, "1|100", 3, 7777.0, "cristian")
+
+    novo_id = arm.arquivar_copia(db, vid, "v1 (histórico)")
+
+    originais = {l["mes"]: l for l in arm.ler_linhas(db, vid)}
+    copiadas = {l["mes"]: l for l in arm.ler_linhas(db, novo_id)}
+    assert len(copiadas) == len(originais) == 12
+    for mes, linha in copiadas.items():
+        antiga = originais[mes]
+        assert linha["valor_baseline"] == antiga["valor_baseline"]
+        assert linha["valor_ajustado"] == antiga["valor_ajustado"]
+        assert linha["origem"] == antiga["origem"]
+        assert linha["meses_com_dado"] == antiga["meses_com_dado"]
+        assert linha["ajustado_em"] == antiga["ajustado_em"]
+        assert linha["ajustado_por"] == antiga["ajustado_por"]
+    assert copiadas[3]["valor_ajustado"] == 7777.0   # o ajuste específico, conferido
+
+
+def test_migracao_adiciona_colunas_aprovado_a_banco_velho(tmp_path):
+    """Mesma mecânica do teste de migração de `metodo`: banco criado sem as
+    colunas de aprovação, `init_db` acrescenta ambas."""
+    import sqlite3
+
+    p = tmp_path / "velho_aprovado.db"
+    c = sqlite3.connect(p)
+    c.execute("""
+        CREATE TABLE orc_versao(
+            id              INTEGER PRIMARY KEY AUTOINCREMENT,
+            ano             INTEGER NOT NULL,
+            rotulo          TEXT    NOT NULL,
+            status          TEXT    NOT NULL DEFAULT 'rascunho',
+            fator_tendencia REAL    NOT NULL DEFAULT 0,
+            criado_em       TEXT    NOT NULL DEFAULT (datetime('now','localtime')),
+            criado_por      TEXT
+        )
+    """)
+    c.execute("INSERT INTO orc_versao(ano, rotulo) VALUES (2025, 'antigo')")
+    c.commit()
+    c.close()
+
+    arm.init_db(p)
+
+    with sqlite3.connect(p) as c2:
+        cols = {r[1] for r in c2.execute("PRAGMA table_info(orc_versao)")}
+        assert "aprovado_em" in cols
+        assert "aprovado_por" in cols
+        row = c2.execute(
+            "SELECT aprovado_em, aprovado_por FROM orc_versao WHERE ano=2025").fetchone()
+        assert row == (None, None)
