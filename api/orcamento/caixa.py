@@ -1,0 +1,192 @@
+"""Conversão de competência para caixa com deslocamento DSO/DPO fracionário.
+
+Módulo 100% puro (sem import de armazenamento em provisao_caixa).
+Apenas provisao_do_ano toca SQLite local.
+
+Algoritmo:
+- DSO (dias de venda em atraso) e DPO (dias de pagamento em atraso) são
+  convertidos para meses fracionários: dias / DIAS_MES
+- A fração inteira determina o mês de desembarque; a fração decimal distribui
+  o valor entre esse mês e o próximo
+- Exemplo: 49 dias = 1.6097 meses → 39.03% em M+1, 60.97% em M+2
+- Desembarques além de dezembro entram no transbordo (próximo ano)
+"""
+
+from __future__ import annotations
+
+from datetime import date
+from pathlib import Path
+
+from . import armazenamento as arm
+
+DSO_PADRAO = 49.0
+DPO_PADRAO = 79.0
+DIAS_MES = 30.44
+
+
+def provisao_caixa(
+    entradas: dict[int, float],
+    saidas: dict[int, float],
+    dso: float,
+    dpo: float,
+) -> dict:
+    """Calcula provisão de caixa com deslocamento DSO/DPO.
+
+    Args:
+        entradas: {mes: valor_positivo, ...}
+        saidas: {mes: valor_negativo, ...}
+        dso: dias de venda em atraso (deslocamento de entradas)
+        dpo: dias de pagamento em atraso (deslocamento de saídas)
+
+    Returns:
+        {
+            "meses": [{"mes": 1..12, "entradas": e, "saidas": s, "geracao": e+s}, ...],
+            "transbordo": {"entradas": x, "saidas": y}
+        }
+        12 meses sempre presentes; valores com 2 casas decimais.
+    """
+    # Converter dias para meses fracionários
+    dso_meses = dso / DIAS_MES
+    dpo_meses = dpo / DIAS_MES
+
+    # Inicializar 12 meses + transbordo
+    meses_dados: dict[int, dict] = {
+        m: {"entradas": 0.0, "saidas": 0.0} for m in range(1, 13)
+    }
+    transbordo_entradas = 0.0
+    transbordo_saidas = 0.0
+
+    # Processar entradas com deslocamento DSO
+    for mes_competencia, valor_entrada in entradas.items():
+        mes_caixa = mes_competencia + int(dso_meses)
+        fracao = dso_meses - int(dso_meses)
+
+        if mes_caixa <= 12:
+            # Primeira parcela em mes_caixa
+            parcela1 = round(valor_entrada * (1 - fracao), 2)
+            meses_dados[mes_caixa]["entradas"] += parcela1
+
+        if fracao > 0 and mes_caixa + 1 <= 12:
+            # Segunda parcela em mes_caixa + 1
+            parcela2 = round(valor_entrada * fracao, 2)
+            meses_dados[mes_caixa + 1]["entradas"] += parcela2
+        elif fracao > 0:
+            # Transbordo (além de dezembro)
+            transbordo_entradas += valor_entrada
+
+    # Processar saídas com deslocamento DPO
+    for mes_competencia, valor_saida in saidas.items():
+        mes_caixa = mes_competencia + int(dpo_meses)
+        fracao = dpo_meses - int(dpo_meses)
+
+        if mes_caixa <= 12:
+            # Primeira parcela em mes_caixa
+            parcela1 = round(valor_saida * (1 - fracao), 2)
+            meses_dados[mes_caixa]["saidas"] += parcela1
+
+        if fracao > 0 and mes_caixa + 1 <= 12:
+            # Segunda parcela em mes_caixa + 1
+            parcela2 = round(valor_saida * fracao, 2)
+            meses_dados[mes_caixa + 1]["saidas"] += parcela2
+        elif fracao > 0:
+            # Transbordo (além de dezembro)
+            transbordo_saidas += valor_saida
+
+    # Calcular geração (entradas + saídas, sendo saídas negativas)
+    meses_lista = [
+        {
+            "mes": m,
+            "entradas": round(meses_dados[m]["entradas"], 2),
+            "saidas": round(meses_dados[m]["saidas"], 2),
+            "geracao": round(meses_dados[m]["entradas"] + meses_dados[m]["saidas"], 2),
+        }
+        for m in range(1, 13)
+    ]
+
+    return {
+        "meses": meses_lista,
+        "transbordo": {
+            "entradas": round(transbordo_entradas, 2),
+            "saidas": round(transbordo_saidas, 2),
+        },
+    }
+
+
+def provisao_do_ano(
+    ano: int,
+    dso: float | None,
+    dpo: float | None,
+    hoje: date,
+    db_path: Path | None = None,
+) -> dict | None:
+    """Lê versão mais recente do ano no SQLite e monta provisão de caixa.
+
+    Args:
+        ano: ano do orçamento
+        dso: dias de venda em atraso (None → usa DSO_PADRAO)
+        dpo: dias de pagamento em atraso (None → usa DPO_PADRAO)
+        hoje: data de referência para filtrar meses >= hoje.month
+        db_path: caminho do DB (default: arm.DB_PATH)
+
+    Returns:
+        {
+            "versao": {"id": ..., "rotulo": ..., "metodo": ...},
+            "dso": valor_usado,
+            "dpo": valor_usado,
+            "dso_fonte": "medido" | "padrao",
+            "meses": [só meses >= hoje.month],
+            "transbordo": {...}
+        }
+        ou None se nenhuma versão encontrada para o ano.
+    """
+    if db_path is None:
+        db_path = arm.DB_PATH
+
+    # Buscar versão mais recente do ano
+    versoes = arm.listar_versoes(db_path, ano=ano)
+    if not versoes:
+        return None
+
+    versao = versoes[0]  # Mais recente primeiro
+    versao_id = versao["id"]
+
+    # Determinar DSO/DPO usados e fonte
+    dso_usado = dso if dso is not None else DSO_PADRAO
+    dpo_usado = dpo if dpo is not None else DPO_PADRAO
+    dso_fonte = "medido" if dso is not None else "padrao"
+    dpo_fonte = "medido" if dpo is not None else "padrao"
+    # Se qualquer um caiu no fallback, marca tudo como padrao
+    fonte_final = "padrao" if (dso is None or dpo is None) else "medido"
+
+    # Ler linhas e agrupar por mês
+    linhas = arm.ler_linhas(db_path, versao_id)
+    entradas: dict[int, float] = {}
+    saidas: dict[int, float] = {}
+
+    for linha in linhas:
+        valor_efetivo = linha["valor_efetivo"]
+        mes = linha["mes"]
+
+        if valor_efetivo > 0:
+            entradas[mes] = entradas.get(mes, 0.0) + valor_efetivo
+        elif valor_efetivo < 0:
+            saidas[mes] = saidas.get(mes, 0.0) + valor_efetivo
+
+    # Chamar provisao_caixa
+    provisao = provisao_caixa(entradas, saidas, dso_usado, dpo_usado)
+
+    # Filtrar meses >= hoje.month
+    meses_filtrados = [m for m in provisao["meses"] if m["mes"] >= hoje.month]
+
+    return {
+        "versao": {
+            "id": versao_id,
+            "rotulo": versao["rotulo"],
+            "metodo": versao["metodo"],
+        },
+        "dso": dso_usado,
+        "dpo": dpo_usado,
+        "dso_fonte": fonte_final,
+        "meses": meses_filtrados,
+        "transbordo": provisao["transbordo"],
+    }
