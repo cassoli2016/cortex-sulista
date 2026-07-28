@@ -171,17 +171,11 @@ def provisao_do_ano(
     # Buscar versão do ano: aprovada tem prioridade sobre rascunho (a
     # provisão de caixa não pode usar um número já superado por uma versão
     # travada); arquivada NUNCA entra aqui — é histórico, não é o orçamento
-    # vigente. Versão antiga sem `status` gravado (banco pré-coluna) é
-    # tratada como rascunho, mesma regra de compatibilidade do `metodo`.
-    versoes = arm.listar_versoes(db_path, ano=ano)
-    if not versoes:
-        return None
-
-    versao = next((v for v in versoes if v.get("status") == "aprovado"), None)
-    if versao is None:
-        versao = next(
-            (v for v in versoes if v.get("status") in (None, "", "rascunho")), None)
-    if versao is None:      # só sobraram arquivadas
+    # vigente. Regra compartilhada com o endpoint /orcamento (main.py) via
+    # `arm.versao_vigente` — as duas leituras de "a versão em uso" não podem
+    # divergir.
+    versao = arm.versao_vigente(db_path, ano=ano)
+    if versao is None:      # sem versão do ano, ou só sobraram arquivadas
         return None
     versao_id = versao["id"]
 

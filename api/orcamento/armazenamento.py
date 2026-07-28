@@ -267,6 +267,29 @@ def listar_versoes(path: Path, ano: int | None = None) -> list[dict]:
         return [dict(r) for r in c.execute(sql, par).fetchall()]
 
 
+def versao_vigente(path: Path, ano: int | None = None) -> dict | None:
+    """Escolhe a versão "em uso" dentre `listar_versoes(path, ano)`.
+
+    Regra única, compartilhada por quem precisa de UM default (o painel de
+    Fluxo em `caixa.provisao_do_ano` e o endpoint de comparativo sem
+    `versao_id`): aprovada tem prioridade sobre rascunho — regerar não pode
+    fazer quem lê "a versão atual" saltar silenciosamente para o snapshot
+    congelado que o regerar acabou de criar. Arquivada NUNCA é escolhida (é
+    histórico, não o orçamento vigente). Versão sem `status` gravado (banco
+    de antes desta coluna) é tratada como rascunho.
+
+    `ano=None` varre TODAS as versões (mesmo comportamento de
+    `listar_versoes`), útil para "a versão mais recente de qualquer ano".
+    """
+    versoes = listar_versoes(path, ano)
+    if not versoes:
+        return None
+    aprovada = next((v for v in versoes if v.get("status") == "aprovado"), None)
+    if aprovada is not None:
+        return aprovada
+    return next((v for v in versoes if v.get("status") in (None, "", "rascunho")), None)
+
+
 def ler_log(path: Path, versao_id: int, limite: int = 200) -> list[dict]:
     with _conn(path) as c:
         rows = c.execute(
