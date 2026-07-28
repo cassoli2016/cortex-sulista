@@ -1107,8 +1107,14 @@ async def orcamento_gerar(req: Request) -> JSONResponse:
             "erro": "versao_inexistente",
             "mensagem": "Versão não encontrada. Recarregue a tela."})
     except ValueError as exc:
+        # regerar sobre versão aprovada/arquivada levanta a MESMA exceção que
+        # "sem histórico" (arm.ajustar/servico.gerar usam ValueError para os
+        # dois casos) — distinguir pela mensagem para o contrato bater com
+        # /ajustar, /aprovar e /reabrir, que já respondem "versao_imutavel"
+        # (A4 da revisão final).
+        erro = "versao_imutavel" if "imutável" in str(exc) else "sem_historico"
         return JSONResponse(status_code=422, content={
-            "erro": "sem_historico", "mensagem": str(exc)})
+            "erro": erro, "mensagem": str(exc)})
     except psycopg.OperationalError as exc:
         log.warning("banco inacessivel: %s", exc)
         return JSONResponse(status_code=503, content={
