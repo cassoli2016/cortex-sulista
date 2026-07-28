@@ -867,3 +867,134 @@ def test_orcado_ano_sempre_presente_mesmo_sem_mes_comparavel():
     linhas_orc[0]["valor_efetivo"] = -2000.0
     r2 = montar_comparativo(linhas_orc, {}, MAPA, ate_mes=6, meses_excluidos={1})
     assert {x["linha"]: x for x in r2["orcado_ano"]}["CUSTO VARIAVEL"]["total"] == -13000.0
+
+
+# ---------------------------------------------------------------- janela base (método sazonal)
+
+def test_janela_base_defaults_e_validacoes():
+    """servico.janela_base é pura: sem banco, só datas."""
+    hoje = date(2026, 7, 15)   # último mês fechado = 2026-06
+
+    # ambos ausentes -> os 6 últimos meses fechados, igual ao default de hoje
+    assert svc.janela_base(None, None, hoje) == sql_mod.meses_fechados(hoje, 6)
+
+    # só um dos dois informado é erro (janela é intervalo, não limite solto)
+    import pytest
+    with pytest.raises(ValueError, match="juntos"):
+        svc.janela_base("2026-01", None, hoje)
+    with pytest.raises(ValueError, match="juntos"):
+        svc.janela_base(None, "2026-01", hoje)
+
+    # formato inválido
+    with pytest.raises(ValueError):
+        svc.janela_base("2026/01", "2026-03", hoje)
+    with pytest.raises(ValueError):
+        svc.janela_base("2026-13", "2026-13", hoje)
+
+    # de > ate
+    with pytest.raises(ValueError):
+        svc.janela_base("2026-04", "2026-02", hoje)
+
+    # ate no mês corrente (não fechado) -> erro
+    with pytest.raises(ValueError, match="meses fechados"):
+        svc.janela_base("2026-04", "2026-07", hoje)
+
+    # comprimento 2 (abaixo do mínimo de 3)
+    with pytest.raises(ValueError, match="3 a 12 meses"):
+        svc.janela_base("2026-05", "2026-06", hoje)
+
+    # comprimento 13 (acima do máximo de 12) — ate ainda dentro do fechado
+    with pytest.raises(ValueError, match="3 a 12 meses"):
+        svc.janela_base("2025-06", "2026-06", hoje)
+
+    # trimestre abr-jun, dentro dos fechados e com 3 meses: ok
+    assert svc.janela_base("2026-04", "2026-06", hoje) == \
+        ["2026-04", "2026-05", "2026-06"]
+
+
+def test_gerar_com_janela_trimestral_nivel_e_circulares(tmp_path, monkeypatch):
+    """base_de/base_ate=abr-jun/26 (3 meses de 300 cada) -> nível = soma/3 =
+    300 no orçado (índice flat, sem 24 meses completos de histórico distinto)."""
+    destino = tmp_path / "orcamento.db"
+    monkeypatch.setattr(arm, "DB_PATH", destino)
+    monkeypatch.setattr(svc, "ler_ajustes", lambda: {})
+    hoje = date(2026, 7, 1)
+    janela = ["2026-04", "2026-05", "2026-06"]
+
+    def fake_query(sql, params=None):
+        if sql == sql_mod.HIST_CONTA_SQL:
+            de = (params or {}).get("de")
+            if de == f"{janela[0]}-01":
+                return [{"conta": "1|100", "mes": m, "valor": 300.0} for m in janela]
+            return []   # histórico de 24m sem dado -> índice fica flat (1.0)
+        if sql == sql_mod.AGRUP_CONTA_SQL:
+            return [{"conta": "1|100", "agrupador": "CV - COMBUSTIVEL"}]
+        return []
+
+    monkeypatch.setattr(svc.db, "query", fake_query)
+    r = svc.gerar(2026, "trimestral", 0.0, "teste", hoje=hoje, metodo="semestre",
+                 base_de="2026-04", base_ate="2026-06")
+
+    assert r["meses_base"] == janela
+    assert r["meses_circulares"] == [4, 5, 6]     # só os meses da janela
+
+    linhas = {(l["conta"], l["mes"]): l for l in arm.ler_linhas(destino, r["versao_id"])}
+    # nível = soma(300+300+300)/len(janela)=3 -> 300; índice flat (sem 24m de
+    # dado distinto) -> fator 1.0 em todo mês
+    for mes in range(1, 13):
+        assert linhas[("1|100", mes)]["valor_baseline"] == 300.0
+        assert linhas[("1|100", mes)]["origem"] == "semestre"
+
+
+def test_gerar_espelho_com_base_da_422(tmp_path, monkeypatch):
+    """metodo='espelho' (default) + base_de/base_ate informados: a janela
+    de base é conceito do método sazonal, não existe no espelho."""
+    destino = tmp_path / "orcamento.db"
+    monkeypatch.setattr(arm, "DB_PATH", destino)
+    import pytest
+    with pytest.raises(ValueError, match="método sazonal"):
+        svc.gerar(2026, "x", 0.0, "teste", hoje=date(2026, 7, 1),
+                 base_de="2026-01", base_ate="2026-03")
+    # também erra com metodo='espelho' explícito e só um dos dois informado
+    with pytest.raises(ValueError, match="método sazonal"):
+        svc.gerar(2026, "x", 0.0, "teste", hoje=date(2026, 7, 1),
+                 metodo="espelho", base_ate="2026-03")
+
+
+def test_regerar_semestre_mantem_janela_gravada(tmp_path, monkeypatch):
+    """Gera semestre com base_de/base_ate=fev-abr/26; regera bem mais tarde
+    (hoje avançado) e com base_* DIFERENTES no chamador -> meses_base
+    continua fev-abr, porque regerar ignora base_* e usa a janela GRAVADA."""
+    destino = tmp_path / "orcamento.db"
+    monkeypatch.setattr(arm, "DB_PATH", destino)
+    monkeypatch.setattr(svc, "ler_ajustes", lambda: {})
+    hoje = date(2026, 5, 1)          # último fechado = abr/26
+    janela = ["2026-02", "2026-03", "2026-04"]
+
+    def fake_query(sql, params=None):
+        if sql == sql_mod.HIST_CONTA_SQL:
+            de = (params or {}).get("de")
+            if de == f"{janela[0]}-01":
+                return [{"conta": "1|100", "mes": m, "valor": -100.0} for m in janela]
+            return []
+        if sql == sql_mod.AGRUP_CONTA_SQL:
+            return [{"conta": "1|100", "agrupador": "CV - COMBUSTIVEL"}]
+        return []
+
+    monkeypatch.setattr(svc.db, "query", fake_query)
+    r1 = svc.gerar(2026, "Orçamento 2026", 0.0, "teste", hoje=hoje, metodo="semestre",
+                   base_de="2026-02", base_ate="2026-04")
+    assert r1["meses_base"] == janela
+
+    hoje_futuro = date(2026, 12, 1)   # bem mais tarde: janela default mudaria
+    r2 = svc.gerar(2026, "Orçamento 2026", 0.1, "teste", hoje=hoje_futuro,
+                   versao_id=r1["versao_id"],
+                   base_de="2026-09", base_ate="2026-11")   # ignorado
+
+    assert r2["versao_id"] == r1["versao_id"]
+    assert r2["metodo"] == "semestre"
+    assert r2["meses_base"] == janela, "regerar não pode trocar a janela gravada"
+
+    import json
+    v = next(x for x in arm.listar_versoes(destino, 2026) if x["id"] == r1["versao_id"])
+    assert json.loads(v["meses_base"]) == janela

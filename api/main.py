@@ -1098,10 +1098,22 @@ async def orcamento_gerar(req: Request) -> JSONResponse:
                                       and not isinstance(versao_id, bool) and versao_id > 0):
         return JSONResponse(status_code=422, content={
             "erro": "parametro_invalido", "mensagem": "versao_id inválido."})
+    # janela da base do método sazonal — só usada em geração nova com
+    # metodo='semestre' (regerar ignora e a combinação com 'espelho' vira
+    # ValueError dentro de gerar()); aqui só valida o TIPO do parâmetro.
+    base_de = body.get("base_de")
+    if base_de is not None and not isinstance(base_de, str):
+        return JSONResponse(status_code=422, content={
+            "erro": "parametro_invalido", "mensagem": "base_de deve ser texto AAAA-MM ou nulo."})
+    base_ate = body.get("base_ate")
+    if base_ate is not None and not isinstance(base_ate, str):
+        return JSONResponse(status_code=422, content={
+            "erro": "parametro_invalido", "mensagem": "base_ate deve ser texto AAAA-MM ou nulo."})
     try:
         quem = (req.state.sessao or {}).get("nome") or "sistema"
         return JSONResponse(gerar(ano, rotulo, float(fator), quem,
-                                  versao_id=versao_id, metodo=metodo))
+                                  versao_id=versao_id, metodo=metodo,
+                                  base_de=base_de, base_ate=base_ate))
     except KeyError:
         return JSONResponse(status_code=404, content={
             "erro": "versao_inexistente",
