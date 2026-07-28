@@ -844,3 +844,26 @@ def test_exportar_csv_neutraliza_nome_iniciado_com_hifen_acidental(tmp_path, mon
 
     campos = _campos_da_conta(conteudo, "1|100")
     assert campos[1] == "'- IMPOSTOS"
+
+
+def test_orcado_ano_sempre_presente_mesmo_sem_mes_comparavel():
+    """Primeiro uso real em produção: com todos os meses fechados circulares, a
+    cascata orçado×realizado fica vazia e o usuário não VIA o orçamento recém-
+    montado em lugar nenhum do Acompanhamento. O orcado_ano traz os 12 meses
+    orçados por linha da DRE, independente de ate_mes/circulares."""
+    linhas_orc = [_orc("1|100", m, -1000.0) for m in range(1, 13)]
+    linhas_orc += [_orc("1|103", m, 5000.0) for m in range(1, 13)]
+    r = montar_comparativo(linhas_orc, {}, MAPA, ate_mes=6,
+                           meses_excluidos={1, 2, 3, 4, 5, 6})
+    assert r["linhas"] == []                       # nada comparável: cascata vazia
+    por = {x["linha"]: x for x in r["orcado_ano"]}
+    assert por["RECEITA BRUTA"]["total"] == 60000.0
+    assert por["RECEITA BRUTA"]["meses"][12] == 5000.0
+    assert por["CUSTO VARIAVEL"]["total"] == -12000.0
+    # ordem da cascata (RECEITA antes de CUSTO VARIAVEL no DRE_MODELO)
+    rots = [x["linha"] for x in r["orcado_ano"]]
+    assert rots.index("RECEITA BRUTA") < rots.index("CUSTO VARIAVEL")
+    # ajuste manual entra pelo valor_efetivo
+    linhas_orc[0]["valor_efetivo"] = -2000.0
+    r2 = montar_comparativo(linhas_orc, {}, MAPA, ate_mes=6, meses_excluidos={1})
+    assert {x["linha"]: x for x in r2["orcado_ano"]}["CUSTO VARIAVEL"]["total"] == -13000.0

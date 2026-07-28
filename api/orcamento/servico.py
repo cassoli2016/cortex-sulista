@@ -114,6 +114,25 @@ def montar_comparativo(linhas_orc: list[dict], realizado: dict,
     linhas.sort(key=lambda x: ordem.get(x["linha"], 999))
     contas.sort(key=lambda x: abs(x["desvio"]), reverse=True)
 
+    # ORÇAMENTO DO ANO por linha — os 12 meses orçados, independente de ate_mes
+    # e dos meses circulares. Sem isto, enquanto não há mês comparável (todo o
+    # início do ciclo) a cascata orçado×realizado fica vazia e o usuário não
+    # consegue VER o orçamento que acabou de montar em lugar nenhum do
+    # Acompanhamento (aconteceu em produção no primeiro uso real).
+    ano_por_linha: dict[str, dict] = {}
+    for l in linhas_orc:
+        rot = mapa_linha.get(l["conta"])
+        if rot is None:
+            continue
+        alvo = ano_por_linha.setdefault(rot, {"linha": rot,
+                                              "meses": {m: 0.0 for m in range(1, 13)},
+                                              "total": 0.0})
+        v = l["valor_efetivo"] or 0.0
+        alvo["meses"][l["mes"]] += v
+        alvo["total"] += v
+    orcado_ano = sorted(ano_por_linha.values(),
+                        key=lambda x: ordem.get(x["linha"], 999))
+
     # A grade da aba Montagem precisa das 12 células de TODA conta da versão,
     # independentemente de ate_mes: com o ano ainda não iniciado (ate_mes=0) uma
     # grade derivada de `contas` viria vazia e não haveria o que ajustar.
@@ -139,6 +158,7 @@ def montar_comparativo(linhas_orc: list[dict], realizado: dict,
 
     return {
         "linhas": linhas,
+        "orcado_ano": orcado_ano,
         "contas": contas,
         "grade": sorted(grade.values(), key=lambda g: (g["linha"] or "~", g["conta"])),
         "mensal": [mensal[m] for m in range(1, 13)],

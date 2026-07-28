@@ -1566,6 +1566,8 @@ button.avatar{border:0;cursor:pointer}
         <div id="orc-acomp">
           <div id="orc-aviso"></div>
           <div class="kpis k4" id="kpis-orc"></div>
+          <div class="card"><div class="head"><h2>Orçamento do ano por linha</h2><span class="hint" id="hintOrcAno"></span></div>
+            <div class="tablewrap tabroll" id="orc-ano"></div></div>
           <div class="card"><div class="head"><h2>Orçado × realizado por linha</h2><span class="hint" id="hintOrcCasc"></span></div>
             <div class="tablewrap tabroll" id="orc-cascata"></div></div>
           <div class="card"><div class="head"><h2>Evolução mensal</h2><span class="hint">mês não fechado mostra só o orçado · mês dentro da base sai esmaecido (orçado retroativo)</span></div>
@@ -3656,6 +3658,22 @@ function renderOrc(d){
     'acumulado até o mês '+d.ate_mes
     +(circAtivos.length?' (sem '+faixa(circAtivos)+', dentro da base)':'')
     +' · '+L.length+' linhas da cascata';
+  // Orçamento do ano por linha: os 12 meses orçados SEMPRE visíveis — sem isto,
+  // enquanto não há mês comparável, o usuário não via o orçamento recém-montado
+  // em lugar nenhum do Acompanhamento (aconteceu em produção no 1º uso real)
+  const anoL=d.orcado_ano||[];
+  const kmil=v=>Math.round(v/1000).toLocaleString('pt-BR');
+  document.getElementById('orc-ano').innerHTML = anoL.length ?
+    `<table><thead><tr><th>Linha</th>`
+    + MABR.map((m,i)=>`<th class="num"${circ.includes(i+1)?' style="opacity:.45" title="mês dentro da base da derivação (orçado retroativo)"':''}>${m}</th>`).join('')
+    + `<th class="num">Total</th></tr></thead><tbody>`
+    + anoL.map(x=>`<tr><td style="font-weight:600">${esc(x.linha)}</td>`
+        + MABR.map((_,i)=>`<td class="num"${circ.includes(i+1)?' style="opacity:.45"':''}>${kmil(x.meses[i+1]||x.meses[String(i+1)]||0)}</td>`).join('')
+        + `<td class="num" style="font-weight:700">${kmil(x.total)}</td></tr>`).join('')
+    + `</tbody></table>`
+    : '<div style="padding:16px;color:var(--n500)">gere um baseline na aba Montagem</div>';
+  document.getElementById('hintOrcAno').textContent =
+    'R$ mil · valor efetivo (baseline + ajustes) · meses esmaecidos = dentro da base da derivação';
   const top=(d.contas||[]).slice(0,15);
   document.getElementById('orc-desvios').innerHTML=
     `<table><thead><tr><th>Conta</th><th>Linha</th><th class="num">Orçado</th><th class="num">Realizado</th><th class="num">Desvio</th></tr></thead><tbody>`
@@ -3914,6 +3932,9 @@ function renderOrcGrade(){
     contas.length+' contas'+(filtro?' em '+filtro:'')+' · fundo amarelo = ajustado à mão';
 }
 async function orcGerar(versaoId){
+  // a geração leva ~20-30s e um segundo clique criava uma versão DUPLICADA
+  // (aconteceu em produção: duas versões idênticas com 25s de intervalo)
+  if(window.ORC_GERANDO) return;
   const ano=parseInt(document.getElementById('fOrcAno').value,10);
   const fatorInp=document.getElementById('fOrcFator');
   const pct=numBR(fatorInp.value);
@@ -3923,7 +3944,9 @@ async function orcGerar(versaoId){
     showBanner('Fator de tendência inválido: use números com vírgula decimal (ex.: -5,5).');
     return;
   }
-  msg.textContent=versaoId?'regerando…':'gerando…';
+  window.ORC_GERANDO=true;
+  document.querySelectorAll('#orc-mont button').forEach(b=>b.disabled=true);
+  msg.textContent=versaoId?'regerando… (leva ~30s)':'gerando… (leva ~30s)';
   // método só vale para GERAR versão nova — ao regerar o back usa o gravado na
   // versão e ignora este campo do body, então nem o envia (senão pareceria que
   // o método pode ser trocado no regerar, que é justamente o que não pode)
@@ -3969,6 +3992,13 @@ async function orcGerar(versaoId){
     const msg2=document.getElementById('orcGerarMsg');
     if(msg2) msg2.textContent=aviso;
   }catch(e){ msg.textContent=''; showBanner('Não foi possível falar com a API.', e.message); }
+  finally{
+    window.ORC_GERANDO=false;
+    // sucesso: loadOrc() já redesenhou os botões com o estado certo; erro: o
+    // redesenho abaixo restaura o estado a partir do DATAORC anterior (inclui
+    // manter desabilitado o Regerar de versão aprovada — nunca reabilitar cego)
+    if(ORC_ABA==='mont' && DATAORC) renderOrcMontagem();
+  }
 }
 async function orcSalvarCelula(inp){
   const bruto=inp.value.trim();
