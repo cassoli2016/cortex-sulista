@@ -3987,6 +3987,9 @@ async function orcGerar(versaoId){
   // a geração leva ~20-30s e um segundo clique criava uma versão DUPLICADA
   // (aconteceu em produção: duas versões idênticas com 25s de intervalo)
   if(window.ORC_GERANDO) return;
+  // true só quando o caminho de SUCESSO termina de escrever o aviso em
+  // #orcGerarMsg — o finally usa isso pra não redesenhar por cima dele
+  let concluido=false;
   const ano=parseInt(document.getElementById('fOrcAno').value,10);
   const fatorInp=document.getElementById('fOrcFator');
   const pct=numBR(fatorInp.value);
@@ -4071,13 +4074,17 @@ async function orcGerar(versaoId){
     // aviso ANTES deixaria o usuário sem confirmação nenhuma depois de ~20s
     const msg2=document.getElementById('orcGerarMsg');
     if(msg2) msg2.textContent=aviso;
+    concluido=true;
   }catch(e){ msg.textContent=''; showBanner('Não foi possível falar com a API.', e.message); }
   finally{
     window.ORC_GERANDO=false;
-    // sucesso: loadOrc() já redesenhou os botões com o estado certo; erro: o
-    // redesenho abaixo restaura o estado a partir do DATAORC anterior (inclui
-    // manter desabilitado o Regerar de versão aprovada — nunca reabilitar cego)
-    if(ORC_ABA==='mont' && DATAORC) renderOrcMontagem();
+    // sucesso: NÃO redesenha de novo — loadOrc() já redesenhou os botões com o
+    // estado certo, e um segundo renderOrcMontagem() aqui recriaria
+    // #orcGerarMsg vazio, apagando o aviso ("N linhas", "N células zeradas" etc.)
+    // que acabou de ser escrito acima. Erro: o redesenho abaixo restaura o
+    // estado a partir do DATAORC anterior (inclui manter desabilitado o
+    // Regerar de versão aprovada — nunca reabilitar cego).
+    if(!concluido && ORC_ABA==='mont' && DATAORC) renderOrcMontagem();
   }
 }
 async function orcSalvarCelula(inp){
