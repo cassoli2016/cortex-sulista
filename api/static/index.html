@@ -3784,13 +3784,22 @@ function _orcRotuloSemestre(iniAno,iniMes,fimAno,fimMes){
   const iniTxt = MES[iniMes] + (iniAno!==fimAno ? '/'+a2(iniAno) : '');
   return iniTxt+'–'+MES[fimMes]+'/'+a2(fimAno);
 }
-// rótulo dos últimos 6 meses FECHADOS a partir de hoje, ex.: "jan–jun/26" — o
-// mês corrente nunca fecha, então a base do método semestre para no mês anterior
-function _orcRotuloBase6(){
+// lista os n meses FECHADOS mais recentes a partir de hoje, 'AAAA-MM', mais
+// antigo primeiro — o mês corrente nunca fecha, então o último elemento é
+// sempre o mês anterior ao atual (usado tanto pra montar os selects da base
+// personalizada quanto pra resolver os presets u6/u3 em orcGerar)
+function _orcMesesFechados(n){
   const hoje=new Date();
-  const fim=new Date(hoje.getFullYear(), hoje.getMonth()-1, 1);
-  const ini=new Date(fim.getFullYear(), fim.getMonth()-5, 1);
-  return _orcRotuloSemestre(ini.getFullYear(), ini.getMonth(), fim.getFullYear(), fim.getMonth());
+  const arr=[];
+  for(let i=n;i>=1;i--){
+    const d=new Date(hoje.getFullYear(), hoje.getMonth()-i, 1);
+    arr.push(d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0'));
+  }
+  return arr;
+}
+// rótulo dos últimos 6 meses FECHADOS a partir de hoje, ex.: "jan–jun/26"
+function _orcRotuloBase6(){
+  return _orcRotuloDeMesesBase(_orcMesesFechados(6));
 }
 // mesmo rótulo, mas a partir do meses_base GRAVADO na versão (JSON string de
 // 'YYYY-MM's em ordem cronológica) — pode ser null numa versão espelho/antiga
@@ -3808,12 +3817,25 @@ function _orcRotuloDeMesesBase(mesesBase){
 }
 // texto do banner explicativo do card "Gerar baseline", por método
 function _orcBannerTexto(metodo){
-  if(metodo==='semestre') return 'O baseline parte do <b>NÍVEL</b> médio dos últimos 6 meses '
-    +'fechados, com a <b>FORMA</b> de cada mês vinda da sazonalidade histórica da linha da DRE '
-    +'(24 meses). Regerar <b>não apaga</b> ajuste manual.';
+  if(metodo==='semestre') return 'O baseline parte do <b>NÍVEL</b> médio do período-base '
+    +'escolhido (meses fechados), com a <b>FORMA</b> de cada mês vinda da sazonalidade histórica '
+    +'da linha da DRE (24 meses). Regerar <b>não apaga</b> ajuste manual.';
   return 'O baseline parte do <b>mesmo mês</b> do ano anterior, o que preserva a queda de '
     +'dezembro. Conta com menos de 9 dos 12 meses de movimento sai pela mediana e '
     +'aparece marcada como <b>base fraca</b>. Regerar <b>não apaga</b> ajuste manual.';
+}
+// mostra/esconde o bloco da janela base conforme o método (só existe no
+// sazonal) e o range personalizado conforme o preset — chamada ao trocar
+// método OU preset, e de novo ao fim de renderOrcMontagem depois de
+// restaurar os selects num re-render (senão o bloco reaparece sempre
+// fechado mesmo com 'custom' escolhido antes do redesenho)
+function _orcAtualizarBase(){
+  const metodo=(document.getElementById('fOrcMetodo')||{}).value||'espelho';
+  const baseSel=document.getElementById('fOrcBase');
+  const wrap=document.getElementById('orcBaseWrap');
+  if(wrap) wrap.style.display = metodo==='semestre' ? '' : 'none';
+  const custom=document.getElementById('orcBaseCustom');
+  if(custom) custom.style.display = (metodo==='semestre' && baseSel && baseSel.value==='custom') ? '' : 'none';
 }
 function renderOrcMontagem(){
   const d=DATAORC||{};
@@ -3823,6 +3845,11 @@ function renderOrcMontagem(){
   // trocar de versão ou gerar um baseline não pode resetar o que o usuário via
   const filtroAnterior=(document.getElementById('fOrcLinha')||{}).value||'';
   const buscaAnterior=(document.getElementById('fOrcBusca')||{}).value||'';
+  // idem para o preset da janela base e o range personalizado: trocar de
+  // versão ou regerar não pode resetar o que o usuário estava escolhendo
+  const baseAnterior=(document.getElementById('fOrcBase')||{}).value||'u6';
+  const baseDeAnterior=(document.getElementById('fOrcBaseDe')||{}).value||'';
+  const baseAteAnterior=(document.getElementById('fOrcBaseAte')||{}).value||'';
   // o formulário reflete a versão carregada: sem isso o campo abria sempre em 0 e
   // "Regerar" zerava em silêncio o fator de tendência de uma versão feita a -5%
   const ver=d.versao||{};
@@ -3843,21 +3870,39 @@ function renderOrcMontagem(){
   // estale depois de regerar — M4/I3 da revisão final). Cobre os dois
   // métodos: 12 meses no espelho, 6 no semestre.
   const baseRotuloVer = _orcRotuloDeMesesBase(ver.meses_base);
+  // últimos 18 meses fechados para os selects de/até do range personalizado;
+  // default de ambos preenche os últimos 6 (mesmo preset inicial do fOrcBase)
+  const mesesBase18=_orcMesesFechados(18);
+  const mesesBase6=_orcMesesFechados(6);
+  const baseDeDefault=mesesBase6[0], baseAteDefault=mesesBase6[mesesBase6.length-1];
+  const _mesOpt=(m,sel)=>{ const ano=m.slice(0,4), mi=+m.slice(5,7)-1;
+    return `<option value="${m}"${m===sel?' selected':''}>${MES[mi]}/${ano.slice(-2)}</option>`; };
   alvo.innerHTML=`
     <div class="card"><div class="head"><h2>Gerar baseline${acoesVersao}</h2>
-      <span class="hint">mês espelho (12 meses) ou semestre × sazonalidade (últimos 6 meses) + fator de tendência</span></div>
+      <span class="hint">mês espelho (12 meses) ou média do período × sazonalidade + fator de tendência</span></div>
       <div class="cardfilters">
-        <select id="fOrcMetodo" aria-label="Método do baseline" title="Vale para 'Gerar nova versão'. Regerar usa o método já gravado na versão." onchange="document.getElementById('orcMetodoBanner').innerHTML=_orcBannerTexto(this.value)">
+        <select id="fOrcMetodo" aria-label="Método do baseline" title="Vale para 'Gerar nova versão'. Regerar usa o método já gravado na versão." onchange="document.getElementById('orcMetodoBanner').innerHTML=_orcBannerTexto(this.value);_orcAtualizarBase()">
           <option value="espelho"${(ver.metodo||'espelho')==='espelho'?' selected':''}>Mês espelho (12 meses)</option>
-          <option value="semestre"${ver.metodo==='semestre'?' selected':''}>Semestre × sazonalidade (últimos 6 meses)</option>
+          <option value="semestre"${ver.metodo==='semestre'?' selected':''}>Média do período × sazonalidade</option>
         </select>
+        <span id="orcBaseWrap" style="display:${(ver.metodo||'espelho')==='semestre'?'':'none'}">
+          <select id="fOrcBase" aria-label="Janela base do período" title="Meses fechados usados como nível-base do método sazonal (só vale para 'Gerar nova versão'; Regerar usa a janela já gravada na versão)." onchange="_orcAtualizarBase()">
+            <option value="u6" selected>Últimos 6 meses (semestre)</option>
+            <option value="u3">Últimos 3 meses (trimestre)</option>
+            <option value="custom">Personalizado…</option>
+          </select>
+          <span id="orcBaseCustom" style="display:none">
+            <select id="fOrcBaseDe" aria-label="Base — de (mês)">${mesesBase18.map(m=>_mesOpt(m,baseDeDefault)).join('')}</select>
+            <select id="fOrcBaseAte" aria-label="Base — até (mês)">${mesesBase18.map(m=>_mesOpt(m,baseAteDefault)).join('')}</select>
+          </span>
+        </span>
         <input type="number" id="fOrcAno" value="${anoSug}" min="2020" max="2100" aria-label="Ano do orçamento" style="width:100px">
         <input type="text" inputmode="decimal" id="fOrcFator" value="${fatorSug}" aria-label="Fator de tendência em %" style="width:110px" title="Percentual aplicado sobre o mês espelho. Ex.: -5 orça 5% abaixo do ano anterior. Use vírgula para casas decimais (ex.: -5,5).">
         <span style="color:var(--n500)">% de tendência</span>
         <button class="btn" onclick="orcGerar()">Gerar nova versão</button>
         ${(d.versao||{}).id?`<button class="btn" onclick="orcGerar(${(d.versao||{}).id})"${st!=='rascunho'?' disabled':''} title="${st!=='rascunho'?'versão aprovada/arquivada — reabra para regerar':'Recalcula o baseline desta versão sobre a base atual ('+esc(baseRotuloVer)+', rolante a partir de hoje). O ajuste manual das células é preservado.'}">Regerar ${esc((d.versao||{}).rotulo||'')}</button>
         <a class="btn" href="/api/controladoria/orcamento/exportar?versao_id=${(d.versao||{}).id}" download>Exportar CSV</a>
-        <span class="hint">regerar mantém o método da versão</span>`:''}
+        <span class="hint">regerar mantém o método e a janela da versão</span>`:''}
         <span class="hint" id="orcGerarMsg"></span>
       </div>
       <div class="banner-inline" id="orcMetodoBanner" style="display:block;margin:0 16px 14px">${_orcBannerTexto(ver.metodo||'espelho')}</div></div>
@@ -3875,6 +3920,13 @@ function renderOrcMontagem(){
   if(selLinha && linhas.includes(filtroAnterior)) selLinha.value=filtroAnterior;
   const inpBusca=document.getElementById('fOrcBusca');
   if(inpBusca) inpBusca.value=buscaAnterior;
+  const selBase=document.getElementById('fOrcBase');
+  if(selBase) selBase.value=baseAnterior;
+  const selBaseDe=document.getElementById('fOrcBaseDe');
+  if(selBaseDe && baseDeAnterior) selBaseDe.value=baseDeAnterior;
+  const selBaseAte=document.getElementById('fOrcBaseAte');
+  if(selBaseAte && baseAteAnterior) selBaseAte.value=baseAteAnterior;
+  _orcAtualizarBase();
   renderOrcGrade();
 }
 function renderOrcGrade(){
@@ -3944,18 +3996,46 @@ async function orcGerar(versaoId){
     showBanner('Fator de tendência inválido: use números com vírgula decimal (ex.: -5,5).');
     return;
   }
-  window.ORC_GERANDO=true;
-  document.querySelectorAll('#orc-mont button').forEach(b=>b.disabled=true);
-  msg.textContent=versaoId?'regerando… (leva ~30s)':'gerando… (leva ~30s)';
   // método só vale para GERAR versão nova — ao regerar o back usa o gravado na
   // versão e ignora este campo do body, então nem o envia (senão pareceria que
   // o método pode ser trocado no regerar, que é justamente o que não pode)
   const metodo=(document.getElementById('fOrcMetodo')||{}).value||'espelho';
+  // janela base: só se calcula ao GERAR versão nova no método sazonal — ao
+  // regerar o back usa a janela GRAVADA na versão e ignora base_de/base_ate,
+  // então nem os envia (mesmo motivo do 'metodo' acima). Validação do range
+  // personalizado roda AQUI, antes de travar os botões — mesmo padrão do
+  // fator de tendência acima: erro de digitação não pode deixar a tela travada.
+  let baseDe=null, baseAte=null;
+  if(!versaoId && metodo==='semestre'){
+    const preset=(document.getElementById('fOrcBase')||{}).value||'u6';
+    if(preset==='u3'){
+      const j=_orcMesesFechados(3); baseDe=j[0]; baseAte=j[j.length-1];
+    }else if(preset==='custom'){
+      baseDe=(document.getElementById('fOrcBaseDe')||{}).value||'';
+      baseAte=(document.getElementById('fOrcBaseAte')||{}).value||'';
+      if(!baseDe || !baseAte || baseDe>baseAte){
+        msg.textContent='';
+        showBanner('Base personalizada inválida: escolha "de" antes ou igual a "até".');
+        return;
+      }
+    }else{
+      const j=_orcMesesFechados(6); baseDe=j[0]; baseAte=j[j.length-1];
+    }
+  }
+  window.ORC_GERANDO=true;
+  document.querySelectorAll('#orc-mont button').forEach(b=>b.disabled=true);
+  msg.textContent=versaoId?'regerando… (leva ~30s)':'gerando… (leva ~30s)';
   try{
-    const rotulo='Orçamento '+ano+(!versaoId && metodo==='semestre'?' — base '+_orcRotuloBase6():'');
+    // rótulo sugerido usa a faixa REAL da janela escolhida — _orcRotuloDeMesesBase
+    // só lê o primeiro/último elemento do array, então o par [baseDe,baseAte] já
+    // basta, sem precisar montar a lista contígua inteira de meses
+    const rotulo='Orçamento '+ano+(!versaoId && metodo==='semestre'?' — base '+_orcRotuloDeMesesBase([baseDe,baseAte]):'');
     const corpo={ano:ano, fator:pct/100, rotulo:rotulo};
     if(versaoId) corpo.versao_id=versaoId;
-    else corpo.metodo=metodo;
+    else{
+      corpo.metodo=metodo;
+      if(metodo==='semestre'){ corpo.base_de=baseDe; corpo.base_ate=baseAte; }
+    }
     const r=await fetch('/api/controladoria/orcamento/gerar',{method:'POST',
       headers:{'content-type':'application/json'},
       body:JSON.stringify(corpo)});
