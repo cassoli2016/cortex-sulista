@@ -3337,10 +3337,11 @@ function atualizaIhelpFluxo(provisao){
   // provisao.versao.rotulo vai para ih.title, que é PROPRIEDADE do DOM (não
   // atributo HTML) — não precisa de esc() aqui; esc()ar e depois atribuir a
   // .title mostraria "&amp;" literal num rótulo com "&" (I4 da revisão final)
+  const statusSuf = provisao.versao.status==='aprovado' ? ' (aprovada)' : '';
   let extra = ' · barras = títulos em aberto por vencimento; linha orçada = competência '
     +'deslocada por DSO/DPO (mês cheio, inclusive o corrente) · saldo orçado = saldo atual '
     +'+ geração de caixa orçada acumulada'
-    +' · Provisão da versão “'+(provisao.versao.rotulo||'')+'” (base '+faixaBase+') do orçamento · DSO '
+    +' · Provisão da versão “'+(provisao.versao.rotulo||'')+statusSuf+'” (base '+faixaBase+') do orçamento · DSO '
     +Math.round(provisao.dso)+'d / DPO '+Math.round(provisao.dpo)+'d ('+fonteTxt+') · impostos e folha têm prazos próprios — não modelados';
   const tb=provisao.transbordo||{};
   if((tb.entradas||0)!==0 || (tb.saidas||0)!==0){
@@ -3542,7 +3543,7 @@ async function loadOrc(){
       const rv=await fetch('/api/controladoria/orcamento/versoes',{cache:'no-store'});
       const dv=await rv.json();
       selV.innerHTML=(dv.versoes||[]).map(x=>
-        `<option value="${x.id}">${esc(x.rotulo)} (${x.ano})</option>`).join('')
+        `<option value="${x.id}">${esc(x.rotulo)} (${x.ano})${x.status==='aprovado'?' (aprovada)':(x.status==='arquivada'?' (arquivo)':'')}</option>`).join('')
         || '<option value="">nenhuma versão</option>';
       selV.dataset.pronto='1';
       // acabou de gerar: abre já na versão nova, não na que estava selecionada
@@ -3807,6 +3808,16 @@ function renderOrcMontagem(){
   // o formulário reflete a versão carregada: sem isso o campo abria sempre em 0 e
   // "Regerar" zerava em silêncio o fator de tendência de uma versão feita a -5%
   const ver=d.versao||{};
+  const st=ver.status||'rascunho';
+  // ações de aprovação/reabertura ficam no head do card, junto do título — só
+  // existem quando há versão carregada; arquivada é sempre somente leitura
+  const acoesVersao = !ver.id ? '' : (
+    st==='aprovado'
+      ? ` <span class="badge b-ok" title="Versão aprovada — imutável até reabrir.">aprovada por ${esc(ver.aprovado_por||'—')} em ${fmtDT(ver.aprovado_em)}</span> <button class="btn" onclick="orcReabrir()">Reabrir</button>`
+    : st==='arquivada'
+      ? ` <span class="badge" title="Versão de arquivo — somente leitura, gerada automaticamente antes de uma regeração.">arquivo — somente leitura</span>`
+      : ` <button class="btn" onclick="orcAprovar()">Aprovar versão</button>`
+  );
   const anoSug=ver.ano||new Date().getFullYear();
   const fatorSug=String(Math.round((ver.fator_tendencia||0)*10000)/100).replace('.',',');
   const linhas=[...new Set((d.grade||[]).map(c=>c.linha).filter(Boolean))].sort();
@@ -3815,7 +3826,7 @@ function renderOrcMontagem(){
   // métodos: 12 meses no espelho, 6 no semestre.
   const baseRotuloVer = _orcRotuloDeMesesBase(ver.meses_base);
   alvo.innerHTML=`
-    <div class="card"><div class="head"><h2>Gerar baseline</h2>
+    <div class="card"><div class="head"><h2>Gerar baseline${acoesVersao}</h2>
       <span class="hint">mês espelho (12 meses) ou semestre × sazonalidade (últimos 6 meses) + fator de tendência</span></div>
       <div class="cardfilters">
         <select id="fOrcMetodo" aria-label="Método do baseline" title="Vale para 'Gerar nova versão'. Regerar usa o método já gravado na versão." onchange="document.getElementById('orcMetodoBanner').innerHTML=_orcBannerTexto(this.value)">
@@ -3826,7 +3837,8 @@ function renderOrcMontagem(){
         <input type="text" inputmode="decimal" id="fOrcFator" value="${fatorSug}" aria-label="Fator de tendência em %" style="width:110px" title="Percentual aplicado sobre o mês espelho. Ex.: -5 orça 5% abaixo do ano anterior. Use vírgula para casas decimais (ex.: -5,5).">
         <span style="color:var(--n500)">% de tendência</span>
         <button class="btn" onclick="orcGerar()">Gerar nova versão</button>
-        ${(d.versao||{}).id?`<button class="btn" onclick="orcGerar(${(d.versao||{}).id})" title="Recalcula o baseline desta versão sobre a base atual (${esc(baseRotuloVer)}, rolante a partir de hoje). O ajuste manual das células é preservado.">Regerar ${esc((d.versao||{}).rotulo||'')}</button>
+        ${(d.versao||{}).id?`<button class="btn" onclick="orcGerar(${(d.versao||{}).id})"${st!=='rascunho'?' disabled':''} title="${st!=='rascunho'?'versão aprovada/arquivada — reabra para regerar':'Recalcula o baseline desta versão sobre a base atual ('+esc(baseRotuloVer)+', rolante a partir de hoje). O ajuste manual das células é preservado.'}">Regerar ${esc((d.versao||{}).rotulo||'')}</button>
+        <a class="btn" href="/api/controladoria/orcamento/exportar?versao_id=${(d.versao||{}).id}" download>Exportar CSV</a>
         <span class="hint">regerar mantém o método da versão</span>`:''}
         <span class="hint" id="orcGerarMsg"></span>
       </div>
@@ -3849,6 +3861,11 @@ function renderOrcMontagem(){
 }
 function renderOrcGrade(){
   const d=DATAORC||{}; const vid=(d.versao||{}).id;
+  const st=(d.versao||{}).status||'rascunho';
+  // versão não-rascunho é imutável: a grade fica travada até reabrir (aprovada)
+  // ou permanece somente-leitura pra sempre (arquivada, snapshot histórico)
+  const roTitle = st==='aprovado' ? 'versão aprovada — reabra para ajustar'
+    : (st==='arquivada' ? 'versão de arquivo — somente leitura' : '');
   const filtro=(document.getElementById('fOrcLinha')||{}).value||'';
   const busca=((document.getElementById('fOrcBusca')||{}).value||'').trim().toUpperCase();
   // lê d.grade (todas as 12 células de toda conta), NÃO d.contas — este último só
@@ -3886,9 +3903,9 @@ function renderOrcGrade(){
               return `<td class="num"><input type="text" inputmode="decimal" class="ocel"
                  value="${val}" data-antes="${val}"
                  data-conta="${esc(c.conta)}" data-mes="${m}" data-versao="${vid}"
-                 onchange="orcSalvarCelula(this)"
+                 onchange="orcSalvarCelula(this)"${st!=='rascunho'?' disabled':''}
                  style="width:92px;text-align:right${aj?';background:var(--yellow-100)':''}"
-                 title="${aj?'ajustado manualmente':'valor do baseline'}"></td>`;
+                 title="${st!=='rascunho'?roTitle:(aj?'ajustado manualmente':'valor do baseline')}"></td>`;
             }).join('')
           + `</tr>`;
       }).join('')
@@ -3933,6 +3950,7 @@ async function orcGerar(versaoId){
     const aviso=(d.regerada?`versão ${d.versao_id} regerada`:`versão ${d.versao_id} criada`)
       + ` · ${d.linhas} linhas`
       + (d.regerada?` · base atual: ${faixaAtual}`:'')
+      + (d.arquivada_id!=null?` · estado anterior arquivado como versão ${d.arquivada_id}`:'')
       + (d.celulas_zeradas?` · ${d.celulas_zeradas} célula(s) sem base nova foram zeradas`:'')
       + (d.contas_sem_linha.length?` · ${d.contas_sem_linha.length} conta(s) sem agrupador ficaram de fora`:'')
       + ((d.meses_circulares||[]).length?` · ${d.meses_circulares.length} mês(es) do ano estavam na base: orçado retroativo, fora do acompanhamento`:'')
@@ -3973,6 +3991,37 @@ async function orcSalvarCelula(inp){
     inp.style.background = valor==null ? '' : 'var(--yellow-100)';
   }catch(e){ inp.value=antes; showBanner('Não foi possível falar com a API.', e.message); }
   finally{ inp.disabled=false; }
+}
+// aprovar/reabrir agem sobre a versão carregada (não a selecionada no filtro —
+// as duas são a mesma coisa depois do loadOrc, mas ler d.versao.id evita
+// depender do <select> caso a tela mude a fonte de verdade no futuro). Em
+// sucesso, loadOrc() de novo: precisa redesenhar tanto os botões/badges do
+// card quanto o <select> (o rótulo ganha o sufixo " (aprovada)"/" (arquivo)").
+async function orcAprovar(){
+  const vid=((DATAORC||{}).versao||{}).id;
+  if(!vid) return;
+  try{
+    const r=await fetch('/api/controladoria/orcamento/aprovar',{method:'POST',
+      headers:{'content-type':'application/json'},
+      body:JSON.stringify({versao_id:vid})});
+    const d=await r.json();
+    if(!r.ok){ showBanner(d.mensagem||'Não foi possível aprovar a versão.'); return; }
+    hideBanner();
+    await loadOrc();
+  }catch(e){ showBanner('Não foi possível falar com a API.', e.message); }
+}
+async function orcReabrir(){
+  const vid=((DATAORC||{}).versao||{}).id;
+  if(!vid) return;
+  try{
+    const r=await fetch('/api/controladoria/orcamento/reabrir',{method:'POST',
+      headers:{'content-type':'application/json'},
+      body:JSON.stringify({versao_id:vid})});
+    const d=await r.json();
+    if(!r.ok){ showBanner(d.mensagem||'Não foi possível reabrir a versão.'); return; }
+    hideBanner();
+    await loadOrc();
+  }catch(e){ showBanner('Não foi possível falar com a API.', e.message); }
 }
 
 /* ---------------- Geometria compartilhada ---------------- */
