@@ -7,6 +7,7 @@ from __future__ import annotations
 
 import io
 import json
+import re
 from datetime import date, datetime
 
 from api import db
@@ -217,10 +218,57 @@ def _serie_por_linha(hist24: dict[str, dict[str, float]],
     return por_linha
 
 
+_MES_RE = re.compile(r"^\d{4}-(0[1-9]|1[0-2])$")
+
+
+def _meses_no_intervalo(de: str, ate: str) -> list[str]:
+    """Lista contígua 'YYYY-MM' de `de` até `ate`, inclusive nas duas pontas."""
+    ano, mes = int(de[:4]), int(de[5:7])
+    ano_fim, mes_fim = int(ate[:4]), int(ate[5:7])
+    saida: list[str] = []
+    while (ano, mes) <= (ano_fim, mes_fim):
+        saida.append(f"{ano:04d}-{mes:02d}")
+        mes += 1
+        if mes == 13:
+            mes, ano = 1, ano + 1
+    return saida
+
+
+def janela_base(base_de: str | None, base_ate: str | None, hoje: date) -> list[str]:
+    """Janela de meses da base do método sazonal (semestre). Função pura.
+
+    Ambos ausentes: últimos 6 meses fechados — o default de sempre, preservado
+    para quem não escolhe janela nenhuma. Só um informado é erro: a janela é
+    um INTERVALO, não um limite solto de um lado só. Formato 'AAAA-MM' nas
+    duas pontas, `base_de` <= `base_ate`, e `base_ate` não pode passar do
+    último mês já fechado — mês corrente/futuro dado pelo usuário produziria
+    nível sobre dado incompleto, o mesmo risco que `meses_fechados` já evita
+    no caminho automático. Entre 3 e 12 meses: abaixo de 3 o nível vira ruído
+    de curtíssimo prazo; acima de 12 deixa de ser "janela recente" e vira
+    outra base de espelho disfarçada.
+    """
+    if base_de is None and base_ate is None:
+        return meses_fechados(hoje, 6)
+    if base_de is None or base_ate is None:
+        raise ValueError("Informe base_de e base_ate juntos.")
+    if not _MES_RE.match(base_de) or not _MES_RE.match(base_ate):
+        raise ValueError("base_de/base_ate devem estar no formato AAAA-MM.")
+    if base_de > base_ate:
+        raise ValueError("base_de deve ser anterior ou igual a base_ate.")
+    limite = meses_fechados(hoje, 1)[0]
+    if base_ate > limite:
+        raise ValueError("A base só pode conter meses fechados.")
+    meses = _meses_no_intervalo(base_de, base_ate)
+    if not (3 <= len(meses) <= 12):
+        raise ValueError("A base precisa de 3 a 12 meses.")
+    return meses
+
+
 def gerar(ano: int, rotulo: str, fator: float, quem: str,
           path=None, hoje: date | None = None,
           versao_id: int | None = None, metodo: str = "espelho",
-          agora: datetime | None = None) -> dict:
+          agora: datetime | None = None,
+          base_de: str | None = None, base_ate: str | None = None) -> dict:
     """Deriva o baseline do ano.
 
     Sem `versao_id`, grava numa versão nova. Com `versao_id`, REGERA aquela
@@ -234,9 +282,19 @@ def gerar(ano: int, rotulo: str, fator: float, quem: str,
       meses de histórico) × fator — para quem confia mais no nível recente do
       que no mês espelho de 12 meses atrás.
 
+    `base_de`/`base_ate` (só para "semestre", geração NOVA): escolhem a janela
+    da base em vez do default (últimos 6 meses fechados) — ver `janela_base`.
+    Informar qualquer um dos dois com `metodo="espelho"` é erro: a janela de
+    base é conceito do método sazonal, não existe "mês espelho" configurável.
+
     REGERAR ignora o `metodo` recebido: a versão já gravou o método com que
     nasceu, e regerar tem de re-derivar POR ESSE método (rolante, na base
     atual) — senão uma versão trocaria de método sem o usuário pedir.
+    REGERAR também ignora `base_de`/`base_ate` do chamador: para "semestre" a
+    janela é a que ficou GRAVADA em `meses_base` na versão (fallback para os
+    últimos 6 meses fechados se a versão for antiga e não tiver isso salvo) —
+    trocar a janela de uma versão existente exige reabrir e regerar com
+    parâmetros novos numa versão NOVA, não silenciosamente por baixo.
 
     Versão aprovada ou arquivada é imutável: regerar exige reabrir antes.
     Regerar uma rascunho arquiva uma CÓPIA fiel do estado atual (baseline +
@@ -262,13 +320,23 @@ def gerar(ano: int, rotulo: str, fator: float, quem: str,
         arquivada_id = arm.arquivar_copia(
             path, versao_id,
             f"{versao_atual['rotulo']} (antes de regerar {agora.strftime('%d/%m %H:%M')})")
+    elif metodo == "espelho" and (base_de is not None or base_ate is not None):
+        raise ValueError(
+            "A janela base é do método sazonal (Média do período × sazonalidade).")
 
     agrup, ajustes = _mapa()
     mapa = mapa_conta_linha(agrup, ajustes)
 
     linhas_flat: list[str] = []
     if metodo == "semestre":
-        meses = meses_fechados(hoje, 6)
+        if versao_id is not None:
+            # REGERAR: a janela é a GRAVADA na versão, nunca a que o chamador
+            # mandou agora — senão a base mudaria de baixo do usuário a cada
+            # regeração sem ele pedir.
+            base_gravada = versao_atual.get("meses_base")
+            meses = json.loads(base_gravada) if base_gravada else meses_fechados(hoje, 6)
+        else:
+            meses = janela_base(base_de, base_ate, hoje)
         hist = _historico(meses)
         if not hist:
             raise ValueError("Sem histórico fechado para derivar o baseline.")
