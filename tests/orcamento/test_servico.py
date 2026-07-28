@@ -795,3 +795,52 @@ def test_exportar_csv_com_erp_fora_do_ar_sai_com_nome_e_linha_dre_vazios(tmp_pat
     campos = _campos_da_conta(conteudo, "1|100")
     assert campos[1] == ""      # nome
     assert campos[2] == ""      # linha_dre
+
+
+def test_exportar_csv_neutraliza_formula_em_texto_mas_nao_no_valor_negativo(tmp_path, monkeypatch):
+    """A3 da revisão final: célula de texto que começa com = + - @ ganha
+    apóstrofo de neutralização contra injeção de fórmula, mas o valor
+    monetário (sempre lançado NEGATIVO neste ERP) passa intacto — aplicar o
+    apóstrofo em "-1234,50" faria o Excel ler o custo como TEXTO, quebrando
+    todo o relatório."""
+    destino = tmp_path / "orcamento.db"
+    monkeypatch.setattr(arm, "DB_PATH", destino)
+    arm.init_db(destino)
+    vid = arm.criar_versao(destino, 2026, "=cmd|' /C calc'!A0", 0.0, "teste")
+    arm.gravar_baseline(destino, vid, [
+        {"conta": "1|100", "mes": m, "valor_baseline": -1234.5,
+         "origem": "espelho", "meses_com_dado": 12} for m in range(1, 13)])
+    monkeypatch.setattr(svc, "_nomes", lambda: {"1|100": "=cmd"})
+    monkeypatch.setattr(svc, "_mapa", lambda: ({}, {}))
+
+    conteudo, _ = svc.exportar_csv(vid, path=destino)
+
+    # 1ª linha carrega o BOM (`conteudo.startswith("﻿")`, já coberto em outro
+    # teste) antes de "rotulo;" — comparar por substring evita acoplar este
+    # teste a esse detalhe de encoding.
+    assert "rotulo;'=cmd|' /C calc'!A0\n" in conteudo
+
+    campos = _campos_da_conta(conteudo, "1|100")
+    assert campos[1] == "'=cmd"      # nome: neutralizado
+    assert campos[5] == "-1234,50"   # jan: valor negativo intacto (não é fórmula)
+    assert campos[17] == f"{12 * -1234.5:.2f}".replace(".", ",")  # total idem
+
+
+def test_exportar_csv_neutraliza_nome_iniciado_com_hifen_acidental(tmp_path, monkeypatch):
+    """Descrição contábil legítima começando com "-" (ex.: "- IMPOSTOS") não
+    precisa de atacante nenhum: sem o apóstrofo o Excel lê como fórmula
+    quebrada (#NAME?) em vez de texto."""
+    destino = tmp_path / "orcamento.db"
+    monkeypatch.setattr(arm, "DB_PATH", destino)
+    arm.init_db(destino)
+    vid = arm.criar_versao(destino, 2026, "Orçamento 2026", 0.0, "teste")
+    arm.gravar_baseline(destino, vid, [
+        {"conta": "1|100", "mes": m, "valor_baseline": 100.0,
+         "origem": "espelho", "meses_com_dado": 12} for m in range(1, 13)])
+    monkeypatch.setattr(svc, "_nomes", lambda: {"1|100": "- IMPOSTOS"})
+    monkeypatch.setattr(svc, "_mapa", lambda: ({}, {}))
+
+    conteudo, _ = svc.exportar_csv(vid, path=destino)
+
+    campos = _campos_da_conta(conteudo, "1|100")
+    assert campos[1] == "'- IMPOSTOS"

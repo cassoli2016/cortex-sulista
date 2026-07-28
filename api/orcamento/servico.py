@@ -387,9 +387,21 @@ def exportar_csv(versao_id: int, path=None, agora: datetime | None = None) -> tu
 
     def _campo(s) -> str:
         s = "" if s is None else str(s)
-        if any(ch in s for ch in (";", '"', "\n")):
+        if any(ch in s for ch in (";", '"', "\n", "\r")):
             return '"' + s.replace('"', '""') + '"'
         return s
+
+    def _campo_txt(s) -> str:
+        # Excel/LibreOffice leem célula que começa com = + - @ (ou TAB/CR)
+        # como fórmula; apóstrofo força leitura como texto. Só se aplica às
+        # colunas de TEXTO LIVRE (rótulo, conta, nome, linha_dre, origem,
+        # ajustadas) — NUNCA a valores de _dec(): custo é lançado negativo
+        # neste ERP e "-1234,50" com apóstrofo viraria texto no Excel (A3 da
+        # revisão final).
+        s = "" if s is None else str(s)
+        if s[:1] in ("=", "+", "-", "@", "\t", "\r"):
+            s = "'" + s
+        return _campo(s)
 
     base = json.loads(v["meses_base"]) if v.get("meses_base") else []
     faixa = f"{base[0]} a {base[-1]}" if base else ""
@@ -397,22 +409,24 @@ def exportar_csv(versao_id: int, path=None, agora: datetime | None = None) -> tu
     if v.get("aprovado_por"):
         status_txt = f"{status_txt} (aprovado por {v['aprovado_por']} em {v['aprovado_em']})"
 
+    # 3º item do trio = neutralizar contra fórmula (só campos de texto livre).
     cabecalho = [
-        ("rotulo", v["rotulo"]),
-        ("ano", v["ano"]),
-        ("metodo", v.get("metodo") or "espelho"),
-        ("base", faixa),
-        ("fator", _dec(v["fator_tendencia"])),
-        ("status", status_txt),
-        ("criado em", v["criado_em"]),
-        ("criado por", v.get("criado_por") or ""),
-        ("exportado em", agora.strftime("%Y-%m-%d %H:%M")),
+        ("rotulo", v["rotulo"], True),
+        ("ano", v["ano"], False),
+        ("metodo", v.get("metodo") or "espelho", False),
+        ("base", faixa, False),
+        ("fator", _dec(v["fator_tendencia"]), False),
+        ("status", status_txt, False),
+        ("criado em", v["criado_em"], False),
+        ("criado por", v.get("criado_por") or "", False),
+        ("exportado em", agora.strftime("%Y-%m-%d %H:%M"), False),
     ]
 
     buf = io.StringIO()
     buf.write("﻿")               # BOM UTF-8: Excel pt-BR abre acentuado
-    for chave, valor in cabecalho:
-        buf.write(f"{_campo(chave)};{_campo(valor)}\n")
+    for chave, valor, txt in cabecalho:
+        campo_valor = _campo_txt(valor) if txt else _campo(valor)
+        buf.write(f"{_campo(chave)};{campo_valor}\n")
     buf.write("\n")
     buf.write("conta;nome;linha_dre;origem;meses_com_dado;"
               "jan;fev;mar;abr;mai;jun;jul;ago;set;out;nov;dez;total;ajustadas\n")
@@ -435,12 +449,17 @@ def exportar_csv(versao_id: int, path=None, agora: datetime | None = None) -> tu
         # completo); None só apareceria de dado incoerente — vira 0,00 e não
         # quebra a exportação.
         valores = [c["valores"].get(m) or 0.0 for m in range(1, 13)]
-        campos = [conta, nomes.get(conta) or "", _linha_dre(conta),
-                  c["origem"], c["meses_com_dado"]]
-        campos += [_dec(x) for x in valores]
-        campos.append(_dec(sum(valores)))
-        campos.append(",".join(str(m) for m in sorted(c["ajustadas"])))
-        buf.write(";".join(_campo(x) for x in campos) + "\n")
+        ajustadas_str = ",".join(str(m) for m in sorted(c["ajustadas"]))
+        # conta/nome/linha_dre/origem/ajustadas são texto livre (AVA ou
+        # derivado) -> _campo_txt; meses_com_dado e os valores de _dec() nunca
+        # levam apóstrofo de neutralização (A3 da revisão final).
+        linha = [_campo_txt(conta), _campo_txt(nomes.get(conta) or ""),
+                 _campo_txt(_linha_dre(conta)), _campo_txt(c["origem"]),
+                 _campo(c["meses_com_dado"])]
+        linha += [_campo(_dec(x)) for x in valores]
+        linha.append(_campo(_dec(sum(valores))))
+        linha.append(_campo_txt(ajustadas_str))
+        buf.write(";".join(linha) + "\n")
 
     filename = f"orcamento-{v['ano']}-v{versao_id}.csv"
     return buf.getvalue(), filename
