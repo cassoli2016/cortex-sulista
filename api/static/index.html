@@ -3797,10 +3797,6 @@ function _orcMesesFechados(n){
   }
   return arr;
 }
-// rótulo dos últimos 6 meses FECHADOS a partir de hoje, ex.: "jan–jun/26"
-function _orcRotuloBase6(){
-  return _orcRotuloDeMesesBase(_orcMesesFechados(6));
-}
 // mesmo rótulo, mas a partir do meses_base GRAVADO na versão (JSON string de
 // 'YYYY-MM's em ordem cronológica) — pode ser null numa versão espelho/antiga
 function _orcRotuloDeMesesBase(mesesBase){
@@ -3868,7 +3864,7 @@ function renderOrcMontagem(){
   const linhas=[...new Set((d.grade||[]).map(c=>c.linha).filter(Boolean))].sort();
   // faixa da base SEMPRE derivada de meses_base (nunca do rótulo, que fica
   // estale depois de regerar — M4/I3 da revisão final). Cobre os dois
-  // métodos: 12 meses no espelho, 6 no semestre.
+  // métodos: 12 meses no espelho, janela variável (3 a 12) no sazonal.
   const baseRotuloVer = _orcRotuloDeMesesBase(ver.meses_base);
   // últimos 18 meses fechados para os selects de/até do range personalizado;
   // default de ambos preenche os últimos 6 (mesmo preset inicial do fOrcBase)
@@ -3900,7 +3896,7 @@ function renderOrcMontagem(){
         <input type="text" inputmode="decimal" id="fOrcFator" value="${fatorSug}" aria-label="Fator de tendência em %" style="width:110px" title="Percentual aplicado sobre o mês espelho. Ex.: -5 orça 5% abaixo do ano anterior. Use vírgula para casas decimais (ex.: -5,5).">
         <span style="color:var(--n500)">% de tendência</span>
         <button class="btn" onclick="orcGerar()">Gerar nova versão</button>
-        ${(d.versao||{}).id?`<button class="btn" onclick="orcGerar(${(d.versao||{}).id})"${st!=='rascunho'?' disabled':''} title="${st!=='rascunho'?'versão aprovada/arquivada — reabra para regerar':'Recalcula o baseline desta versão sobre a base atual ('+esc(baseRotuloVer)+', rolante a partir de hoje). O ajuste manual das células é preservado.'}">Regerar ${esc((d.versao||{}).rotulo||'')}</button>
+        ${(d.versao||{}).id?`<button class="btn" onclick="orcGerar(${(d.versao||{}).id})"${st!=='rascunho'?' disabled':''} title="${st!=='rascunho'?'versão aprovada/arquivada — reabra para regerar':('Recalcula o baseline desta versão sobre a base '+(ver.metodo==='semestre'?'GRAVADA ('+esc(baseRotuloVer)+', fixa — janela nova exige versão nova)':'atual ('+esc(baseRotuloVer)+', rolante a partir de hoje)')+'. O ajuste manual das células é preservado.')}">Regerar ${esc((d.versao||{}).rotulo||'')}</button>
         <a class="btn" href="/api/controladoria/orcamento/exportar?versao_id=${(d.versao||{}).id}" download>Exportar CSV</a>
         <span class="hint">regerar mantém o método e a janela da versão</span>`:''}
         <span class="hint" id="orcGerarMsg"></span>
@@ -3945,26 +3941,35 @@ function renderOrcGrade(){
   const MES=['jan','fev','mar','abr','mai','jun','jul','ago','set','out','nov','dez'];
   const el=document.getElementById('orc-grade');
   if(!vid){ el.innerHTML='<div style="padding:20px;color:var(--n500)">Gere um baseline primeiro.</div>'; return; }
-  // rótulo do semestre-base da versão (JSON->"jan–jun/26"), calculado uma vez —
+  // rótulo da janela-base da versão (JSON->"jan–jun/26"), calculado uma vez —
   // meses_base pode faltar em versão antiga ou em método espelho (null->'semestral')
   const baseRotulo = _orcRotuloDeMesesBase((d.versao||{}).meses_base);
+  // tamanho real da janela gravada (3..12) pra calibrar o limiar de "base fraca"
+  // do método sazonal — cai em 6 (default histórico) se meses_base faltar ou
+  // não for parseável, mesma robustez do parse em _orcRotuloDeMesesBase
+  const _mb=(d.versao||{}).meses_base;
+  let _mbArr=null;
+  if(Array.isArray(_mb)) _mbArr=_mb;
+  else if(_mb){ try{ _mbArr=JSON.parse(_mb); }catch(e){ _mbArr=null; } }
+  const nBaseJanela=(Array.isArray(_mbArr) && _mbArr.length) ? _mbArr.length : 6;
   el.innerHTML=`<table><thead><tr><th>Conta</th><th>Linha</th>`
     + MES.map(m=>`<th class="num">${m}</th>`).join('') + `</tr></thead><tbody>`
     + contas.map(c=>{
         // base fraca: mediana (< 9/12 meses espelho) ou sem_base (sem movimento
-        // algum) sempre; no método semestre, só quando menos de 3 dos 6 meses da
-        // base tiveram movimento — com 3+ o nível semestral já é confiável
+        // algum) sempre; no método sazonal, quando MENOS DA METADE dos meses da
+        // janela tiveram movimento — limiar relativo ao tamanho real da janela
+        // (3 a 12 meses), não mais um "<3" fixo que soava certo só pro semestre
         const fraca = c.origem==='mediana' || c.origem==='sem_base'
-          || (c.origem==='semestre' && c.meses_com_dado<3);
+          || (c.origem==='semestre' && c.meses_com_dado<Math.ceil(nBaseJanela/2));
         // origem 'semestre' também ganha badge NEUTRA (não é aviso, é informação
-        // de procedência) dizendo qual semestre virou o nível-base da conta
+        // de procedência) dizendo qual janela virou o nível-base da conta
         const semestreBadge = c.origem==='semestre'
-          ? ` <span class="badge b-info" title="nível médio do semestre × sazonalidade da linha da DRE">base ${esc(baseRotulo)}</span>`
+          ? ` <span class="badge b-info" title="nível médio da janela base × sazonalidade da linha da DRE">base ${esc(baseRotulo)}</span>`
           : '';
         return `<tr><td style="min-width:190px;max-width:260px">`
           + `<div style="font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis" title="${esc(c.nome||'')}">${esc(c.nome||'(sem nome no plano)')}</div>`
           + `<div style="font-family:var(--mono);font-size:11px;color:var(--n500)">${esc(c.conta)}`
-          + (fraca?` <span class="badge b-warn" title="Base insuficiente para confiar no valor derivado (mediana de poucos meses, sem base, ou semestre com menos de 3 meses de movimento). Revise.">base fraca</span>`:'')
+          + (fraca?` <span class="badge b-warn" title="Base insuficiente para confiar no valor derivado (mediana de poucos meses, sem base, ou movimento em menos da metade da janela base). Revise.">base fraca</span>`:'')
           + semestreBadge
           + `</div></td><td style="color:var(--n500)">${esc(c.linha||'—')}</td>`
           + MES.map((_,i)=>{

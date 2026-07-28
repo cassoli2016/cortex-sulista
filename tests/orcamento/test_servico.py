@@ -911,6 +911,12 @@ def test_janela_base_defaults_e_validacoes():
     assert svc.janela_base("2026-04", "2026-06", hoje) == \
         ["2026-04", "2026-05", "2026-06"]
 
+    # virada de ano: nov/25-fev/26 tem de ficar contígua através da virada do
+    # ano-calendário (_meses_no_intervalo é privada — exercitada aqui pelo
+    # caminho público janela_base, não chamada direto)
+    assert svc.janela_base("2025-11", "2026-02", hoje) == \
+        ["2025-11", "2025-12", "2026-01", "2026-02"]
+
 
 def test_gerar_com_janela_trimestral_nivel_e_circulares(tmp_path, monkeypatch):
     """base_de/base_ate=abr-jun/26 (3 meses de 300 cada) -> nível = soma/3 =
