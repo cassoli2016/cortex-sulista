@@ -278,9 +278,10 @@ def gerar(ano: int, rotulo: str, fator: float, quem: str,
 
     `metodo`:
     - "espelho" (padrão): mês-calendário da base × fator — caminho original.
-    - "semestre": nível dos últimos 6 meses × índice sazonal da LINHA (de 24
-      meses de histórico) × fator — para quem confia mais no nível recente do
-      que no mês espelho de 12 meses atrás.
+    - "semestre": nível da janela base (3 a 12 meses fechados, default os
+      últimos 6) × índice sazonal da LINHA (de 24 meses de histórico) × fator —
+      para quem confia mais no nível recente do que no mês espelho de 12 meses
+      atrás.
 
     `base_de`/`base_ate` (só para "semestre", geração NOVA): escolhem a janela
     da base em vez do default (últimos 6 meses fechados) — ver `janela_base`.

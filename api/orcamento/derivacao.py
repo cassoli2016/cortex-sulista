@@ -124,7 +124,7 @@ def derivar_semestre(historico: dict[str, dict[str, float]],
                      indices: dict[str, dict[int, float]],
                      mapa_linha: dict[str, str | None],
                      fator: float) -> list[dict]:
-    """Nível do semestre (soma/6) × índice sazonal da LINHA × (1+fator).
+    """Nível da janela base (soma/len(meses_base)) × índice sazonal da LINHA × (1+fator).
     Sem corte de recorrência: a média semestral já dilui a conta esporádica e a
     forma vem da linha, não da conta. Conta sem movimento -> sem_base 12×0."""
     linhas: list[dict] = []
