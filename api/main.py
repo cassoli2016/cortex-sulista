@@ -1029,11 +1029,15 @@ def orcamento(versao_id: int | None = None, ate_mes: int | None = None) -> JSONR
     try:
         arm.init_db(arm.DB_PATH)
         if versao_id is None:
-            vs = arm.listar_versoes(arm.DB_PATH)
-            if not vs:
+            # a versão vigente (não a de id mais alto cru): prefere aprovada,
+            # nunca escolhe arquivada — sem isso, regerar (que arquiva uma
+            # cópia do estado anterior) fazia a tela abrir sozinha no
+            # snapshot congelado, por ele ter o id mais novo.
+            vigente = arm.versao_vigente(arm.DB_PATH)
+            if vigente is None:
                 return JSONResponse({"vazio": True,
                                      "mensagem": "Nenhuma versão de orçamento criada ainda."})
-            versao_id = vs[0]["id"]
+            versao_id = vigente["id"]
         return JSONResponse(comparativo(versao_id, ate_mes))
     except KeyError:
         return JSONResponse(status_code=404, content={
@@ -1225,6 +1229,9 @@ async def orcamento_reabrir(req: Request) -> JSONResponse:
 @app.get("/api/controladoria/orcamento/exportar")
 def orcamento_exportar(versao_id: int) -> Response:
     from api.orcamento.servico import exportar_csv
+    if versao_id <= 0:
+        return JSONResponse(status_code=422, content={
+            "erro": "parametro_invalido", "mensagem": "Informe um versao_id válido (inteiro > 0)."})
     try:
         conteudo, filename = exportar_csv(versao_id)
         return Response(content=conteudo, media_type="text/csv; charset=utf-8",

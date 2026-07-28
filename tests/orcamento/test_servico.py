@@ -247,6 +247,119 @@ def test_regerar_versao_aprovada_e_imutavel(tmp_path, monkeypatch):
     assert r2["arquivada_id"] is not None
 
 
+def test_regerar_arquiva_e_a_vigente_continua_sendo_a_original(tmp_path, monkeypatch):
+    """Revisão (HIGH): regerar cria uma cópia arquivada com id MAIOR que a
+    original — `arm.versao_vigente` (usado pelo GET /orcamento sem versao_id
+    e por `caixa.provisao_do_ano`) não pode escolher essa cópia só porque o
+    id dela é mais alto. A vigente continua sendo a rascunho re-derivada."""
+    destino = tmp_path / "orcamento.db"
+    monkeypatch.setattr(arm, "DB_PATH", destino)
+    monkeypatch.setattr(svc, "ler_ajustes", lambda: {})
+    hoje = date(2026, 7, 1)
+    meses_base = sql_mod.meses_fechados(hoje, 12)
+
+    def fake_query(sql, params=None):
+        if sql == sql_mod.HIST_CONTA_SQL:
+            return [{"conta": "1|100", "mes": m, "valor": -100.0} for m in meses_base]
+        if sql == sql_mod.AGRUP_CONTA_SQL:
+            return [{"conta": "1|100", "agrupador": "CV - COMBUSTIVEL"}]
+        return []
+
+    monkeypatch.setattr(svc.db, "query", fake_query)
+    r1 = svc.gerar(2026, "Orçamento 2026", 0.0, "teste", hoje=hoje)
+    r2 = svc.gerar(2026, "Orçamento 2026", -0.1, "teste", hoje=hoje,
+                   versao_id=r1["versao_id"])
+    assert r2["arquivada_id"] > r1["versao_id"], "a cópia arquivada tem id maior"
+
+    vigente = arm.versao_vigente(destino, 2026)
+    assert vigente["id"] == r1["versao_id"], \
+        "a vigente não pode ser a cópia arquivada, mesmo com id maior"
+    assert vigente["id"] != r2["arquivada_id"]
+    assert vigente["status"] == "rascunho"
+
+
+def test_versao_vigente_prefere_aprovada_mais_antiga_que_rascunho_mais_novo(tmp_path, monkeypatch):
+    """Mesmo cenário do HIGH, mas com uma aprovada de verdade no meio: uma
+    versão aprovada mais antiga tem prioridade sobre um rascunho recém
+    gerado (id maior) — o GET /orcamento sem versao_id não pode saltar
+    silenciosamente para o rascunho só porque ele é mais novo."""
+    destino = tmp_path / "orcamento.db"
+    monkeypatch.setattr(arm, "DB_PATH", destino)
+    monkeypatch.setattr(svc, "ler_ajustes", lambda: {})
+    hoje = date(2026, 7, 1)
+    meses_base = sql_mod.meses_fechados(hoje, 12)
+
+    def fake_query(sql, params=None):
+        if sql == sql_mod.HIST_CONTA_SQL:
+            return [{"conta": "1|100", "mes": m, "valor": -100.0} for m in meses_base]
+        if sql == sql_mod.AGRUP_CONTA_SQL:
+            return [{"conta": "1|100", "agrupador": "CV - COMBUSTIVEL"}]
+        return []
+
+    monkeypatch.setattr(svc.db, "query", fake_query)
+    r_aprovada = svc.gerar(2026, "Orçamento 2026 aprovado", 0.0, "teste", hoje=hoje)
+    arm.aprovar(destino, r_aprovada["versao_id"], "ana")
+    r_rascunho = svc.gerar(2026, "Orçamento 2026 rascunho novo", 0.2, "teste", hoje=hoje)
+    assert r_rascunho["versao_id"] > r_aprovada["versao_id"]
+
+    vigente = arm.versao_vigente(destino, 2026)
+    assert vigente["id"] == r_aprovada["versao_id"]
+    assert vigente["status"] == "aprovado"
+
+
+def test_regerar_com_falha_na_recoleta_deixa_arquivada_orfa_mas_original_intacta(tmp_path, monkeypatch):
+    """MEDIUM da revisão: o snapshot (`arquivar_copia`) acontece ANTES da
+    re-derivação. Se a re-derivação falhar depois (ex.: túnel caiu no meio),
+    a cópia arquivada fica órfã — mas isso não pode corromper a original
+    (linhas/ajustes intactos) nem fazer o default (`versao_vigente`) apontar
+    para a órfã."""
+    destino = tmp_path / "orcamento.db"
+    monkeypatch.setattr(arm, "DB_PATH", destino)
+    monkeypatch.setattr(svc, "ler_ajustes", lambda: {})
+    hoje = date(2026, 7, 1)
+    meses_base = sql_mod.meses_fechados(hoje, 12)
+
+    def fake_query_ok(sql, params=None):
+        if sql == sql_mod.HIST_CONTA_SQL:
+            return [{"conta": "1|100", "mes": m, "valor": -100.0} for m in meses_base]
+        if sql == sql_mod.AGRUP_CONTA_SQL:
+            return [{"conta": "1|100", "agrupador": "CV - COMBUSTIVEL"}]
+        return []
+
+    monkeypatch.setattr(svc.db, "query", fake_query_ok)
+    r1 = svc.gerar(2026, "Orçamento 2026", 0.0, "teste", hoje=hoje)
+    arm.ajustar(destino, r1["versao_id"], "1|100", 3, -777.0, "controladoria")
+    linhas_antes = arm.ler_linhas(destino, r1["versao_id"])
+
+    def fake_query_falha(sql, params=None):
+        if sql == sql_mod.HIST_CONTA_SQL:
+            raise RuntimeError("túnel caiu no meio da regeração")
+        if sql == sql_mod.AGRUP_CONTA_SQL:
+            return [{"conta": "1|100", "agrupador": "CV - COMBUSTIVEL"}]
+        return []
+
+    monkeypatch.setattr(svc.db, "query", fake_query_falha)
+    import pytest
+    with pytest.raises(RuntimeError):
+        svc.gerar(2026, "Orçamento 2026", -0.10, "teste", hoje=hoje,
+                 versao_id=r1["versao_id"])
+
+    versoes = arm.listar_versoes(destino, 2026)
+    assert len(versoes) == 2, "o snapshot já tinha sido feito antes da falha"
+    orfa = next(v for v in versoes if v["status"] == "arquivada")
+    original = next(v for v in versoes if v["id"] == r1["versao_id"])
+    assert original["status"] == "rascunho"
+
+    # a ORIGINAL não foi tocada pela tentativa de regerar que falhou depois
+    linhas_depois = arm.ler_linhas(destino, r1["versao_id"])
+    assert linhas_depois == linhas_antes
+
+    # o default continua na original, nunca na cópia órfã
+    vigente = arm.versao_vigente(destino, 2026)
+    assert vigente["id"] == r1["versao_id"]
+    assert vigente["id"] != orfa["id"]
+
+
 def test_regerar_versao_inexistente_da_erro(tmp_path, monkeypatch):
     destino = tmp_path / "orcamento.db"
     monkeypatch.setattr(arm, "DB_PATH", destino)

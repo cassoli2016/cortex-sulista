@@ -307,3 +307,69 @@ def test_migracao_adiciona_colunas_aprovado_a_banco_velho(tmp_path):
         row = c2.execute(
             "SELECT aprovado_em, aprovado_por FROM orc_versao WHERE ano=2025").fetchone()
         assert row == (None, None)
+
+
+# ------------------------------------------- versao_vigente
+#
+# Regra compartilhada por `caixa.provisao_do_ano` e pelo endpoint
+# GET /api/controladoria/orcamento (main.py, quando `versao_id` não vem na
+# querystring): aprovada tem prioridade sobre rascunho; arquivada nunca é a
+# vigente, mesmo com id mais alto (é o snapshot que `arquivar_copia`/regerar
+# acabou de criar, não o orçamento em uso).
+
+def test_versao_vigente_prefere_aprovada_sobre_rascunho_mais_novo(db):
+    aprovada_id = _versao(db)
+    arm.aprovar(db, aprovada_id, "ana")
+    rascunho_id = _versao(db)
+    assert rascunho_id > aprovada_id           # id maior = criada depois
+
+    v = arm.versao_vigente(db, 2027)
+    assert v["id"] == aprovada_id
+    assert v["status"] == "aprovado"
+
+
+def test_versao_vigente_nunca_escolhe_arquivada(db):
+    rascunho_id = _versao(db)
+    arquivada_id = arm.arquivar_copia(db, rascunho_id, "rascunho (antes de regerar)")
+    assert arquivada_id > rascunho_id          # id mais alto, mas é histórico
+
+    v = arm.versao_vigente(db, 2027)
+    assert v["id"] == rascunho_id
+    assert v["status"] == "rascunho"
+
+
+def test_versao_vigente_sem_status_trata_como_rascunho(tmp_path):
+    """Compat com banco pré-coluna `status`: `.get("status")` devolve None
+    e a versão entra no grupo tratado como rascunho, não é descartada."""
+    import sqlite3
+
+    p = tmp_path / "sem_status.db"
+    c = sqlite3.connect(p)
+    c.executescript("""
+        CREATE TABLE orc_versao(
+            id              INTEGER PRIMARY KEY AUTOINCREMENT,
+            ano             INTEGER NOT NULL,
+            rotulo          TEXT    NOT NULL,
+            fator_tendencia REAL    NOT NULL DEFAULT 0,
+            criado_em       TEXT    NOT NULL DEFAULT (datetime('now','localtime')),
+            criado_por      TEXT
+        );
+    """)
+    c.execute("INSERT INTO orc_versao(id, ano, rotulo) VALUES (1, 2026, 'sem status')")
+    c.commit()
+    c.close()
+
+    v = arm.versao_vigente(p, 2026)
+    assert v is not None and v["id"] == 1
+
+
+def test_versao_vigente_so_arquivadas_devolve_none(db):
+    vid = _versao(db)
+    import sqlite3
+    with sqlite3.connect(db) as c:
+        c.execute("UPDATE orc_versao SET status='arquivada' WHERE id=?", (vid,))
+    assert arm.versao_vigente(db, 2027) is None
+
+
+def test_versao_vigente_sem_nenhuma_versao_devolve_none(db):
+    assert arm.versao_vigente(db, 1999) is None
