@@ -3956,9 +3956,13 @@ async function orcGerar(versaoId){
       + ((d.meses_circulares||[]).length?` · ${d.meses_circulares.length} mês(es) do ano estavam na base: orçado retroativo, fora do acompanhamento`:'')
       + (flat.length?` · ${flat.length} linha(s) sem forma sazonal (flat): `+(flat.length>4?flat.slice(0,4).join(', ')+'…':flat.join(', ')):'');
     // a lista de versões é montada uma única vez (dataset.pronto): sem soltar essa
-    // trava a versão recém-criada não aparece no select e a tela segue na antiga
+    // trava a versão recém-criada (ou a arquivada nascida da regeração) não
+    // aparece no select e a tela segue na antiga até F5 (A1 da revisão final).
+    // Solta SEMPRE — gerou (versão nova) ou regerou (versão arquivada nova) — e
+    // fixa o alvo na versão que deve ficar selecionada: a regerada quando
+    // d.regerada, a recém-criada quando não, nunca a arquivada de id maior.
     const selV=document.getElementById('fOrcVersao');
-    if(selV && !d.regerada){ selV.dataset.pronto=''; ORC_VER_ALVO=d.versao_id; }
+    if(selV){ selV.dataset.pronto=''; ORC_VER_ALVO=d.versao_id; }
     await loadOrc();
     // loadOrc() redesenha #orc-mont e leva junto o span da mensagem: escrever o
     // aviso ANTES deixaria o usuário sem confirmação nenhuma depois de ~20s
@@ -4007,6 +4011,10 @@ async function orcAprovar(){
     const d=await r.json();
     if(!r.ok){ showBanner(d.mensagem||'Não foi possível aprovar a versão.'); return; }
     hideBanner();
+    // solta a trava do <select>: sem isso o rótulo não ganha "(aprovada)" até
+    // F5 (A2 da revisão final) — ORC_VER_ALVO preserva a versão na tela.
+    const s=document.getElementById('fOrcVersao');
+    if(s){ s.dataset.pronto=''; ORC_VER_ALVO=vid; }
     await loadOrc();
   }catch(e){ showBanner('Não foi possível falar com a API.', e.message); }
 }
@@ -4020,6 +4028,10 @@ async function orcReabrir(){
     const d=await r.json();
     if(!r.ok){ showBanner(d.mensagem||'Não foi possível reabrir a versão.'); return; }
     hideBanner();
+    // idem orcAprovar: solta a trava para o rótulo perder "(aprovada)" já
+    // nesta tela (A2 da revisão final).
+    const s=document.getElementById('fOrcVersao');
+    if(s){ s.dataset.pronto=''; ORC_VER_ALVO=vid; }
     await loadOrc();
   }catch(e){ showBanner('Não foi possível falar com a API.', e.message); }
 }
