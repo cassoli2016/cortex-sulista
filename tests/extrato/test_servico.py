@@ -82,3 +82,71 @@ def test_painel_sem_conta_nenhuma_nao_quebra(db, monkeypatch):
     d = servico.painel("2026-07-01", "2026-07-31", path=db)
     assert d["kpis"]["contas"] == 0
     assert d["dias"] == []
+
+
+# --- FIX 1: maior_diferenca nao pode priorizar saldo por truthiness ---------
+
+def test_painel_maior_diferenca_usa_o_maior_delta_nao_o_saldo(db, monkeypatch):
+    cid = arm.obter_ou_criar_conta(db, "1/2/3", "conta unica")
+    arm.mapear_conta(db, cid, 1, "2", "3")
+    arm.gravar_lancamentos(db, cid, [
+        {"dt": "2026-07-01", "valor": 1000.0, "tipo": "C", "historico": "x", "numerodoc": ""},
+    ], "a.ofx", "ofx")
+    arm.gravar_saldo_extrato(db, cid, "2026-07-01", 1000.0)
+
+    def fake_query(sql, params=None):
+        # credito diverge em R$ 500 (causa real do DIVERGE); saldo diverge so
+        # R$ 0,007, abaixo da tolerancia de 1 centavo - nao e a causa
+        return [{"dt": "2026-07-01", "credito": 500.0, "debito": 0.0, "saldo": 999.993}]
+
+    monkeypatch.setattr(servico.db, "query", fake_query)
+    d = servico.painel("2026-07-01", "2026-07-31", path=db)
+    assert d["kpis"]["maior_diferenca"] == 500.0
+
+
+def test_painel_maior_diferenca_com_saldo_zero_legitimo_nao_desvia(db, monkeypatch):
+    cid = arm.obter_ou_criar_conta(db, "1/2/4", "conta debito")
+    arm.mapear_conta(db, cid, 1, "2", "4")
+    arm.gravar_lancamentos(db, cid, [
+        {"dt": "2026-07-01", "valor": -100.0, "tipo": "D", "historico": "y", "numerodoc": ""},
+    ], "b.ofx", "ofx")
+    arm.gravar_saldo_extrato(db, cid, "2026-07-01", 900.0)
+
+    def fake_query(sql, params=None):
+        # debito diverge em R$ 80 (causa real do DIVERGE); credito e saldo batem
+        # exatamente (diferenca 0,0 legitima) - nenhum dos dois pode "vencer" o
+        # debito so por serem falsy
+        return [{"dt": "2026-07-01", "credito": 0.0, "debito": 20.0, "saldo": 900.0}]
+
+    monkeypatch.setattr(servico.db, "query", fake_query)
+    d = servico.painel("2026-07-01", "2026-07-31", path=db)
+    assert d["kpis"]["maior_diferenca"] == 80.0
+
+
+def test_painel_maior_diferenca_aponta_para_conta_e_dia_certos(db, monkeypatch):
+    cid_a = arm.obter_ou_criar_conta(db, "1/2/A", "Conta A")
+    arm.mapear_conta(db, cid_a, 1, "2", "A")
+    arm.gravar_lancamentos(db, cid_a, [
+        {"dt": "2026-07-01", "valor": 100.0, "tipo": "C", "historico": "a", "numerodoc": ""},
+    ], "a.ofx", "ofx")
+    arm.gravar_saldo_extrato(db, cid_a, "2026-07-01", 100.0)
+
+    cid_b = arm.obter_ou_criar_conta(db, "1/2/B", "Conta B")
+    arm.mapear_conta(db, cid_b, 1, "2", "B")
+    arm.gravar_lancamentos(db, cid_b, [
+        {"dt": "2026-07-05", "valor": 300.0, "tipo": "C", "historico": "b", "numerodoc": ""},
+    ], "b.ofx", "ofx")
+    arm.gravar_saldo_extrato(db, cid_b, "2026-07-05", 300.0)
+
+    def fake_query(sql, params=None):
+        # Conta A diverge R$ 10 no credito; Conta B diverge R$ 200 - o maior
+        # desvio geral tem que apontar para a conta/dia de B, nao de A
+        if params["conta"] == "A":
+            return [{"dt": "2026-07-01", "credito": 90.0, "debito": 0.0, "saldo": 100.0}]
+        return [{"dt": "2026-07-05", "credito": 100.0, "debito": 0.0, "saldo": 300.0}]
+
+    monkeypatch.setattr(servico.db, "query", fake_query)
+    d = servico.painel("2026-07-01", "2026-07-31", path=db)
+    assert d["kpis"]["maior_diferenca"] == 200.0
+    assert d["kpis"]["maior_diferenca_conta"] == "Conta B"
+    assert d["kpis"]["maior_diferenca_dt"] == "2026-07-05"
