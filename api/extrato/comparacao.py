@@ -63,7 +63,11 @@ def comparar(lancs: list[dict], saldos: list[dict], erp_rows: list[dict]) -> lis
     saldo_ext = saldo_derivado(por_dia, saldos)
     erp = {r["dt"]: r for r in erp_rows}
     out: list[dict] = []
-    for dt in sorted(set(por_dia) | set(erp)):
+    # inclui as datas que so existem em saldo_ext: a ancora do LEDGERBAL pode cair
+    # num dia sem lancamento E sem linha no ERP - sem isso a data nao aparece na
+    # saida e um saldo do banco que o ERP nao registrou fica invisivel (mesma
+    # classe de bug do "SO_ERP" indevido, um nivel mais raro).
+    for dt in sorted(set(por_dia) | set(erp) | set(saldo_ext)):
         e = por_dia.get(dt)
         r = erp.get(dt)
         ext_c = e["credito"] if e else None
