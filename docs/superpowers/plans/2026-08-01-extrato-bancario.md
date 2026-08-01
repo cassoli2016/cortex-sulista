@@ -659,9 +659,9 @@ CSV_VALOR_UNICO = (
 )
 
 CSV_CRED_DEB = (
-    "Data,Historico,Credito,Debito\n"
-    "10/07/2026,DEPOSITO,1.200,00,\n"
-    "11/07/2026,TARIFA,,99,90\n"
+    "Data;Historico;Credito;Debito\n"
+    "10/07/2026;DEPOSITO;1.200,00;\n"
+    "11/07/2026;TARIFA;;99,90\n"
 )
 
 
@@ -697,13 +697,12 @@ def test_parse_coluna_valor_unica():
 
 
 def test_parse_colunas_credito_debito_separadas():
-    # export com vírgula decimal E vírgula delimitadora: o delim vira ',' e os
-    # valores quebram em duas colunas — por isso o mapa aponta as posições reais
+    # débito vem positivo na coluna e tem de sair NEGATIVO no lançamento
     d = parse_csv(CSV_CRED_DEB.encode("utf-8"),
                   {"dt": 0, "historico": 1, "credito": 2, "debito": 3, "cabecalho": 1})
     assert [i["tipo"] for i in d["itens"]] == ["C", "D"]
-    assert d["itens"][0]["valor"] == 1.20      # '1.200' sem o par decimal separado
-    assert d["itens"][1]["valor"] == -99.0
+    assert d["itens"][0]["valor"] == 1200.00
+    assert d["itens"][1]["valor"] == -99.90
 
 
 def test_mapa_incompleto_levanta_valueerror():
@@ -1697,7 +1696,7 @@ Cada item é uma substituição literal única:
 3. `const DATAMAP={` — acrescentar `extb:DATAEXTB,`
 4. `const LOADMAP={` — acrescentar `extb:loadExtb,`
 5. `function semFilterbar(v){` — incluir `||v==='extb'` na expressão (a tela tem filtros próprios: conta + período)
-6. Declarar as variáveis de estado junto às demais `DATA*`: `let DATAEXTB=null, extbSeq=0, EXTB_PEND=null;`
+6. Declarar as variáveis de estado junto às demais `DATA*`: `let DATAEXTB=null, extbSeq=0;`
 
 - [ ] **Step 2: Add the view section in the HTML**
 
@@ -1914,9 +1913,9 @@ async function extbEnviar(files){
       const d=await r.json();
       if(!r.ok){ resumo.push(esc(f.name)+': '+esc(d.mensagem||'erro')); continue; }
       if(d.ok===false && d.precisa==='mapa_erp'){
-        EXTB_PEND=d; await extbMapearConta(d.conta_id);
+        await extbMapearConta(d.conta_id);
       }else if(d.ok===false && d.precisa==='mapa_csv'){
-        EXTB_PEND=d; extbMapearCsv(d);
+        extbMapearCsv(d);
         resumo.push(esc(f.name)+': aponte as colunas do CSV e envie novamente.');
         continue;
       }
