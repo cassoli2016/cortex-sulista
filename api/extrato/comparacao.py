@@ -105,24 +105,55 @@ def _dias_entre(de: str, ate: str) -> int:
     return (date.fromisoformat(ate) - date.fromisoformat(de)).days
 
 
+def _maior_delta(dia: dict | None) -> tuple[float | None, str | None]:
+    """Maior divergência em módulo entre saldo/crédito/débito do dia, com o
+    sinal do escolhido e a origem (mesmo padrão de `servico.painel()` ao achar
+    o "pior" dia, ~linhas 198-207 - reaproveitado aqui na fonte).
+
+    DIVERGE pode disparar por qualquer um dos três campos (`comparar()`), e
+    `d_saldo` é `None` sempre que falta saldo de um dos lados - garantido para
+    TODA conta importada via CSV, porque `parser_csv` nunca traz saldo e o
+    serviço só grava `saldo_extrato` no caminho OFX. Usar `d.get("d_saldo") or
+    0.0` (truthiness) faria uma divergência real de crédito/débito virar
+    "R$ 0,00" com direção arbitrária - por isso aqui é sempre `is not None`,
+    nunca truthiness, e o candidato descartado (`None`) nunca compete no `max`.
+    """
+    if dia is None:
+        return None, None
+    candidatos = [(origem, v) for origem, v in
+                  (("saldo", dia.get("d_saldo")), ("credito", dia.get("d_credito")),
+                   ("debito", dia.get("d_debito"))) if v is not None]
+    if not candidatos:
+        return None, None
+    origem, valor = max(candidatos, key=lambda item: abs(item[1]))
+    return valor, origem
+
+
 def farol(dias: list[dict], ultimo_upload: str | None, hoje: str,
           mapeada: bool = True) -> dict:
     """Estado da conta = o último dia coberto pelo extrato.
 
     Ordem de precedência: sem mapeamento ERP (não há o que comparar) > extrato
     velho (o verde de 12 dias atrás não diz nada sobre hoje) > divergência.
+
+    `delta_origem` ("saldo"|"credito"|"debito"|None) diz de onde veio `delta` -
+    necessário porque a semântica de direção só existe para saldo: `d_debito`
+    positivo significa que o extrato debitou MAIS que o ERP, o que EMPURRA o
+    saldo para BAIXO (o oposto de "acima"). Quem lê `delta_origem` decide se
+    "acima"/"abaixo" fazem sentido (só quando == "saldo").
     """
     validos = [d for d in dias if d["estado"] in ("OK", "DIVERGE")]
     ultimo = max(validos, key=lambda d: d["dt"]) if validos else None
     dias_sem = _dias_entre(ultimo_upload, hoje) if ultimo_upload else None
     if not mapeada:
         return {"estado": "sem_mapa", "dt": (ultimo or {}).get("dt"),
-                "delta": None, "dias_sem_extrato": dias_sem}
+                "delta": None, "delta_origem": None, "dias_sem_extrato": dias_sem}
+    delta, origem = _maior_delta(ultimo)
     if ultimo is None or dias_sem is None or dias_sem > 7:
         return {"estado": "desatualizado", "dt": (ultimo or {}).get("dt"),
-                "delta": (ultimo or {}).get("d_saldo"), "dias_sem_extrato": dias_sem}
+                "delta": delta, "delta_origem": origem, "dias_sem_extrato": dias_sem}
     if ultimo["estado"] == "DIVERGE":
         return {"estado": "diverge", "dt": ultimo["dt"],
-                "delta": ultimo.get("d_saldo"), "dias_sem_extrato": dias_sem}
-    return {"estado": "ok", "dt": ultimo["dt"], "delta": ultimo.get("d_saldo"),
+                "delta": delta, "delta_origem": origem, "dias_sem_extrato": dias_sem}
+    return {"estado": "ok", "dt": ultimo["dt"], "delta": delta, "delta_origem": origem,
             "dias_sem_extrato": dias_sem}

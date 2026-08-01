@@ -83,6 +83,7 @@ def test_farol_ok_diverge_sem_mapa_e_desatualizado():
     div = [{"dt": "2026-07-31", "estado": "DIVERGE", "d_saldo": -12.5}]
     f = farol(div, "2026-07-31", "2026-08-01")
     assert (f["estado"], f["delta"]) == ("diverge", -12.5)
+    assert f["delta_origem"] == "saldo"
     assert farol(ok, "2026-07-31", "2026-08-01", mapeada=False)["estado"] == "sem_mapa"
     # ultimo upload ha mais de 7 dias
     velho = farol(ok, "2026-07-20", "2026-08-01")
@@ -153,3 +154,32 @@ def test_saldo_derivado_usa_ancora_mais_recente_entre_duas():
     assert round(d["2026-07-03"], 2) == 1070.0
     assert round(d["2026-07-02"], 2) == 1060.0
     assert round(d["2026-07-01"], 2) == 1100.0
+
+
+def test_farol_diverge_por_credito_sem_saldo_usa_credito_como_delta():
+    """Regressão do FINDING 1 (fix round 2): conta sem saldo em NENHUM dos
+    lados (típico de CSV - `parser_csv` nunca traz saldo) que diverge só por
+    crédito não pode devolver `delta=None` nem `0.0` - antes disso ser
+    corrigido na fonte, `alertas.py` fazia `d_saldo or 0.0` e o alerta saía
+    "R$ 0,00" mesmo com R$ 500 de diferença real de crédito."""
+    dias = comparar([_l("2026-07-31", 1000.0)], [],
+                    [_erp("2026-07-31", 500.0, 0.0, None)])
+    f = farol(dias, "2026-07-31", "2026-08-01")
+    assert f["estado"] == "diverge"
+    assert f["delta_origem"] == "credito"
+    assert round(f["delta"], 2) == 500.0
+
+
+def test_farol_diverge_escolhe_maior_delta_entre_saldo_e_credito():
+    """Dia diverge tanto por saldo (delta -10) quanto por crédito (delta
+    +100, maior em módulo) - `farol` tem de escolher o de MAIOR módulo, não
+    sempre `d_saldo` (o bug antigo)."""
+    dias = comparar([_l("2026-07-31", 1000.0)], [{"dt": "2026-07-31", "saldo": 990.0}],
+                    [_erp("2026-07-31", 900.0, 0.0, 1000.0)])
+    d0 = dias[0]
+    assert round(d0["d_credito"], 2) == 100.0
+    assert round(d0["d_saldo"], 2) == -10.0
+    f = farol(dias, "2026-07-31", "2026-08-01")
+    assert f["estado"] == "diverge"
+    assert f["delta_origem"] == "credito"
+    assert round(f["delta"], 2) == 100.0

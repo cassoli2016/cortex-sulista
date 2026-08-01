@@ -34,9 +34,15 @@ def _fmt_brl_cent(v: float) -> str:
     """Como `_fmt_brl`, mas com centavos. A tolerância de divergência do
     extrato é de 1 centavo (`comparacao.TOLERANCIA`), então arredondar para
     o real inteiro (como `_fmt_brl` faz nos outros alertas) mostraria
-    "R$ 0" num alerta CRÍTICO sempre que a diferença real for < R$ 0,50."""
-    s = f"{v:,.2f}".replace(",", "X").replace(".", ",").replace("X", ".")
-    return f"R$ {s}"
+    "R$ 0" num alerta CRÍTICO sempre que a diferença real for < R$ 0,50.
+
+    Sinal SEMPRE antes do "R$" (`-R$ 1.250,40`, nunca `R$ -1.250,40`) - hoje
+    só é chamada com `abs(...)`, mas normalizar aqui evita a armadilha para
+    quem reusar a função depois com um valor negativo direto (achado da
+    revisão, fix round 2)."""
+    sinal = "-" if v < 0 else ""
+    s = f"{abs(v):,.2f}".replace(",", "X").replace(".", ",").replace("X", ".")
+    return f"{sinal}R$ {s}"
 
 
 def _alertas_extrato(painel: dict) -> list[tuple[str, str, str]]:
@@ -47,12 +53,38 @@ def _alertas_extrato(painel: dict) -> list[tuple[str, str, str]]:
             continue          # sem vínculo com o ERP não há o que comparar
         f = c.get("farol") or {}
         if f.get("estado") == "diverge":
-            delta = f.get("delta") or 0.0
-            out.append((
-                "critico", "Extrato bancário divergente",
-                f"A conta {c['rotulo']} fecha {_fmt_brl_cent(abs(delta))} "
-                f"{'acima' if delta > 0 else 'abaixo'} do ERP em "
-                f"{_data_br(f.get('dt'))}. Detalhe: Financeiro > Extrato Bancário."))
+            delta = f.get("delta")
+            dt_txt = _data_br(f.get("dt"))
+            if delta is None:
+                # nenhum dos três campos (saldo/credito/debito) existia dos
+                # dois lados para comparar - nao afirma valor nem direcao.
+                out.append((
+                    "critico", "Extrato bancário divergente",
+                    f"A conta {c['rotulo']} tem um dia divergente em {dt_txt} "
+                    "sem valor comparável (sem saldo, crédito nem débito dos "
+                    "dois lados) - confira o painel. Detalhe: Financeiro > "
+                    "Extrato Bancário."))
+            else:
+                origem = f.get("delta_origem")
+                if origem in ("credito", "debito"):
+                    # direção (acima/abaixo do saldo) só existe para saldo:
+                    # d_debito positivo empurra o saldo do extrato para BAIXO,
+                    # o oposto do que "acima" diria - por isso aqui NUNCA
+                    # entra acima/abaixo, só o valor e o campo de origem.
+                    rotulo_campo = "crédito" if origem == "credito" else "débito"
+                    out.append((
+                        "critico", "Extrato bancário divergente",
+                        f"A conta {c['rotulo']} tem divergência de "
+                        f"{_fmt_brl_cent(abs(delta))} no {rotulo_campo} do dia "
+                        f"{dt_txt}. Detalhe: Financeiro > Extrato Bancário."))
+                else:
+                    # origem "saldo" (ou ausente/desconhecida - mesmo texto de
+                    # sempre, o único caso com semântica de direção definida)
+                    out.append((
+                        "critico", "Extrato bancário divergente",
+                        f"A conta {c['rotulo']} fecha {_fmt_brl_cent(abs(delta))} "
+                        f"{'acima' if delta > 0 else 'abaixo'} do ERP em "
+                        f"{dt_txt}. Detalhe: Financeiro > Extrato Bancário."))
         elif f.get("estado") == "desatualizado" and f.get("dias_sem_extrato"):
             d = f["dias_sem_extrato"]
             out.append((
