@@ -289,3 +289,86 @@ def test_painel_nao_duplica_query_erp_na_selecao_automatica(db, monkeypatch):
     monkeypatch.setattr(servico.db, "query", fake_query)
     servico.painel("2026-07-01", "2026-07-31", path=db)  # conta_id=None (default)
     assert len(chamadas) == 1
+
+
+# --- C1 (Critical da revisao final): LIMIT 20 de exibicao nao pode governar --
+# --- o calculo de negocio do farol -------------------------------------------
+
+def test_painel_farol_nao_esconde_divergencia_quando_conta_fica_fora_do_limit_20(db, monkeypatch):
+    """`listar_importacoes` tem `LIMIT 20` - e da TABELA da tela. Antes da
+    correcao, `servico.painel` montava o "ultimo dia coberto por conta" a
+    partir dessa lista limitada: uma conta cuja importacao mais recente caisse
+    fora das 20 mais novas ficava com `ultimo_upload=None`, e o farol caia em
+    "desatualizado" por ausencia de dado (`comparacao.farol`, ramo
+    `dias_sem is None`) - precedencia que engole uma divergencia real. Aqui a
+    "conta velha" tem 1 importacao e outra conta recebe 20 importacoes DEPOIS
+    dela, empurrando a da conta velha para fora da janela de 20."""
+    cid_velha = arm.obter_ou_criar_conta(db, "1/2/velha", "Conta velha")
+    arm.mapear_conta(db, cid_velha, 1, "2", "velha")
+    arm.gravar_lancamentos(db, cid_velha, [
+        {"dt": "2026-08-01", "valor": 100.0, "tipo": "C", "historico": "x", "numerodoc": ""},
+    ], "velha.ofx", "ofx")
+
+    cid_nova = arm.obter_ou_criar_conta(db, "1/2/nova", "Conta nova")
+    for i in range(20):
+        arm.gravar_lancamentos(db, cid_nova, [
+            {"dt": f"2026-08-{i+1:02d}", "valor": 1.0, "tipo": "C",
+             "historico": "y", "numerodoc": str(i)},
+        ], f"nova{i}.ofx", "ofx")
+
+    # a importacao da conta velha (a mais antiga, id=1) fica de fora do
+    # LIMIT 20 - so as 20 da conta nova aparecem na listagem da tela
+    imps = arm.listar_importacoes(db)
+    assert len(imps) == 20
+    assert all(i["conta_id"] == cid_nova for i in imps)
+
+    def fake_query(sql, params=None):
+        if params["conta"] == "velha":
+            # extrato de HOJE diverge R$ 3.533,69 - tem que aparecer no farol,
+            # nao sumir atras de "desatualizado" por ultimo_upload=None
+            return [{"dt": "2026-08-01", "credito": 0.0, "debito": 0.0, "saldo": 0.0}]
+        return []
+
+    monkeypatch.setattr(servico.db, "query", fake_query)
+    d = servico.painel("2026-08-01", "2026-08-01", path=db)
+    velha = next(c for c in d["contas"] if c["conta_id"] == cid_velha)
+    assert velha["ultimo_extrato"] == "2026-08-01"
+    assert velha["farol"]["estado"] == "diverge"
+    assert round(velha["farol"]["delta"], 2) == 100.0
+
+
+# --- M1 (Minor da revisao final): identidade por rotulo suprime o aviso -----
+# --- errado quando duas contas distintas tem o MESMO rotulo ------------------
+
+def test_painel_maior_diferenca_conta_id_distingue_rotulos_iguais(db, monkeypatch):
+    """Duas contas DISTINTAS (ex.: a mesma conta do ERP importada por OFX e
+    por CSV) podem receber o rotulo IDENTICO. Comparar por rotulo (como o
+    front fazia) faz o front suprimir o aviso "a maior divergencia esta em
+    outra conta" por engano quando a conta selecionada so coincide no TEXTO,
+    nao na identidade - por isso o payload tem que trazer
+    `maior_diferenca_conta_id`, que desambigua mesmo com rotulo repetido."""
+    cid_a = arm.obter_ou_criar_conta(db, "1/2/A", "Itau 539349")
+    arm.mapear_conta(db, cid_a, 1, "2", "A")
+    arm.gravar_lancamentos(db, cid_a, [
+        {"dt": "2026-07-01", "valor": 100.0, "tipo": "C", "historico": "a", "numerodoc": ""},
+    ], "a.ofx", "ofx")
+    arm.gravar_saldo_extrato(db, cid_a, "2026-07-01", 100.0)
+
+    cid_b = arm.obter_ou_criar_conta(db, "csv:1/2/A", "Itau 539349")   # mesmo rotulo
+    arm.mapear_conta(db, cid_b, 1, "2", "A")
+    arm.gravar_lancamentos(db, cid_b, [
+        {"dt": "2026-07-05", "valor": 300.0, "tipo": "C", "historico": "b", "numerodoc": ""},
+    ], "b.csv", "csv")
+    arm.gravar_saldo_extrato(db, cid_b, "2026-07-05", 300.0)
+    assert cid_a != cid_b
+
+    def fake_query(sql, params=None):
+        # ambas as contas mapeiam para a MESMA conta do ERP (1/2/A) - a mesma
+        # query serve pros dois IDs; cid_a diverge R$ 10, cid_b diverge R$ 50
+        return [{"dt": "2026-07-01", "credito": 90.0, "debito": 0.0, "saldo": 100.0},
+                {"dt": "2026-07-05", "credito": 250.0, "debito": 0.0, "saldo": 300.0}]
+
+    monkeypatch.setattr(servico.db, "query", fake_query)
+    d = servico.painel("2026-07-01", "2026-07-31", path=db)
+    assert d["kpis"]["maior_diferenca_conta"] == "Itau 539349"   # rotulo identico nas duas
+    assert d["kpis"]["maior_diferenca_conta_id"] == cid_b         # so o id desambigua

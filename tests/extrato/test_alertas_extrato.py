@@ -121,6 +121,60 @@ def test_alertas_extrato_origem_credito_sem_acima_abaixo():
     assert "300,00" in texto
 
 
+def test_conta_mapeada_nunca_importada_gera_alerta_cego():
+    """I2 (Important da revisao final): `dias_sem_extrato` e `None` para uma
+    conta MAPEADA que nunca teve importacao nenhuma - situacao real, porque o
+    fluxo CSV cria e mapeia a conta ANTES do primeiro upload (basta o
+    primeiro import falhar - ex. mapa de colunas errado, 422 - para a conta
+    ficar mapeada e cega para sempre), e tambem ocorre apos desfazer o unico
+    upload. O bug antigo (`and f.get("dias_sem_extrato")`, truthiness sobre
+    numero) tratava `None` como falso e gerava `[]` - a conta mais cega de
+    todas saia SEM nenhum alerta."""
+    p = _painel([{"rotulo": "Bradesco novo", "mapeada": True, "dias_divergentes": 0,
+                  "farol": {"estado": "desatualizado", "dt": None, "delta": None,
+                            "delta_origem": None, "dias_sem_extrato": None,
+                            "diverge_no_ultimo_dia": False}}])
+    itens = alertas._alertas_extrato(p)
+    assert len(itens) == 1
+    nivel, _, texto = itens[0]
+    assert nivel == "atencao"
+    assert "nunca" in texto and "Bradesco novo" in texto
+
+
+def test_conta_desatualizada_com_zero_dias_nao_alerta():
+    """I2: `dias_sem_extrato == 0` continua sem alerta - dizer "ha 0 dias sem
+    extrato" seria absurdo. So chega nesse estado quando o ultimo upload e de
+    HOJE mas nenhum dia deu para julgar (ex.: so dias SO_EXTRATO/SO_ERP)."""
+    p = _painel([{"rotulo": "Itau zero", "mapeada": True, "dias_divergentes": 0,
+                  "farol": {"estado": "desatualizado", "dt": None, "delta": None,
+                            "delta_origem": None, "dias_sem_extrato": 0,
+                            "diverge_no_ultimo_dia": False}}])
+    assert alertas._alertas_extrato(p) == []
+
+
+def test_desatualizada_com_ultimo_dia_divergente_emite_os_dois_alertas():
+    """I3 (Important da revisao final - mesma linha de I5): uma conta com
+    extrato de 12 dias atras E divergencia real de R$ 50.000 no ultimo dia
+    valido nao pode gerar so o "atencao: 12 dias sem extrato" - o alerta
+    critico da divergencia tem que sair TAMBEM, mesmo com a cor do farol
+    priorizando "desatualizado"."""
+    dias = [{"dt": "2026-07-20", "estado": "DIVERGE", "d_saldo": -50000.0,
+             "d_credito": None, "d_debito": None}]
+    f = farol(dias, "2026-07-20", "2026-08-01")
+    assert f["estado"] == "desatualizado"          # precedencia de cor intacta
+    assert f["diverge_no_ultimo_dia"] is True
+
+    p = _painel([{"rotulo": "Itau 539349", "mapeada": True, "dias_divergentes": 1, "farol": f}])
+    itens = alertas._alertas_extrato(p)
+    assert len(itens) == 2
+    niveis = {i[0] for i in itens}
+    assert niveis == {"atencao", "critico"}
+    critico = next(i for i in itens if i[0] == "critico")
+    assert "50.000,00" in critico[2]
+    atencao = next(i for i in itens if i[0] == "atencao")
+    assert "12 dias" in atencao[2]
+
+
 def test_alertas_extrato_cenario_csv_credito_sem_saldo_nunca_mostra_r0():
     """FINDING 1 (fix round 2, Important): reprodução exata do cenário do
     revisor. Conta CSV credita R$ 1.000 no dia, ERP registra R$ 500 -

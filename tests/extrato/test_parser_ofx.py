@@ -199,3 +199,48 @@ def test_historico_decodifica_entidades_html():
     bruto = OFX_XML.replace("<MEMO>TARIFA</MEMO>", "<MEMO>J&amp;J LTDA</MEMO>")
     d = parse_ofx(bruto.encode("utf-8"))[0]
     assert d["itens"][0]["historico"] == "J&J LTDA"
+
+
+# --- I4 (Important da revisão final): sem BANKID nem ACCTID, ident vira -----
+# --- sempre "?/?/?" e funde instituições diferentes na mesma ext_conta ------
+
+OFX_SEM_IDENTIFICACAO = """<OFX>
+<BANKMSGSRSV1><STMTTRNRS><STMTRS>
+<BANKTRANLIST>
+<STMTTRN><TRNTYPE>DEBIT</TRNTYPE><DTPOSTED>20260710</DTPOSTED>
+<TRNAMT>-45.00</TRNAMT><FITID>P1</FITID><MEMO>PEDAGIO</MEMO></STMTTRN>
+</BANKTRANLIST>
+</STMTRS></STMTTRNRS></BANKMSGSRSV1>
+</OFX>
+"""
+
+
+def test_ofx_sem_identificacao_de_conta_levanta_valueerror():
+    """Extratos de meio de pagamento (eFrete, PAMCARD, REPOM) às vezes não
+    trazem <BANKACCTFROM>. Sem BANKID nem ACCTID, `ident` caía sempre em
+    "?/?/?" - dois arquivos assim, de emissores DIFERENTES, caíam na MESMA
+    ext_conta, somando lançamentos de duas instituições com `ok: true` e
+    nenhum aviso (o Critical da identidade do CSV pelo nome do arquivo,
+    reencarnado no caminho OFX). Levanta ValueError - o endpoint já converte
+    isso em 422 com a mensagem visível - em vez de inventar identidade."""
+    with pytest.raises(ValueError, match="identificação"):
+        parse_ofx(OFX_SEM_IDENTIFICACAO.encode("utf-8"))
+
+
+def test_ofx_com_bankid_mas_sem_acctid_nao_levanta():
+    """Só levanta quando os DOIS (banco e conta) estão vazios - com um dos
+    dois presente ainda há alguma identificação real, não inventada."""
+    bruto = OFX_SEM_IDENTIFICACAO.replace(
+        "<BANKTRANLIST>", "<BANKACCTFROM><BANKID>341</BANKID></BANKACCTFROM><BANKTRANLIST>")
+    d = parse_ofx(bruto.encode("utf-8"))[0]
+    assert d["banco"] == 341
+    assert d["conta"] == ""
+
+
+def test_ofx_bloco_vazio_sem_identificacao_nao_levanta():
+    """Um `<STMTRS>` sem itens nem saldo é descartado depois em `parse_ofx`
+    (mensagem "sem lançamentos nem saldo legíveis") - não precisa levantar o
+    erro de identificação por um bloco que não tem conteúdo nenhum."""
+    bruto = "<OFX><BANKMSGSRSV1><STMTTRNRS><STMTRS></STMTRS></STMTTRNRS></BANKMSGSRSV1></OFX>"
+    with pytest.raises(ValueError, match="lançamentos"):
+        parse_ofx(bruto.encode("utf-8"))

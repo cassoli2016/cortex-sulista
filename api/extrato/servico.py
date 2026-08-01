@@ -117,8 +117,15 @@ def importar(bruto: bytes, nome: str, path=arm.DB_PATH, conta_id: int | None = N
             res = arm.gravar_lancamentos(path, cid, d["itens"], nome, "ofx",
                                          d["ignoradas"])
             if d["saldo"]:
+                # `importacao_id` amarra a âncora a ESTA importação (achado d1):
+                # `res["importacao_id"]` sai 0 quando o arquivo não trouxe
+                # lançamento novo nenhum (reimport 100% duplicado - a linha de
+                # `ext_importacao` nem chega a ficar na trilha); nesse caso não
+                # há importação nova a que amarrar, então a âncora fica sem
+                # vínculo (`None`), mesmo estado das âncoras pré-migração.
                 arm.gravar_saldo_extrato(path, cid, d["saldo"]["dt"],
-                                         d["saldo"]["saldo"])
+                                         d["saldo"]["saldo"],
+                                         importacao_id=res["importacao_id"] or None)
             datas = sorted(i["dt"] for i in d["itens"]) or [None]
             resultados.append({"conta_id": cid, "conta": conta,
                                "novas": res["novas"], "duplicadas": res["duplicadas"],
@@ -170,12 +177,13 @@ def painel(dt_de: str, dt_ate: str, conta_id: int | None = None, path=arm.DB_PAT
     arm.init_db(path)
     hoje = date.today().isoformat()
     contas = arm.listar_contas(path)
-    imps = arm.listar_importacoes(path)
-    ult_por_conta: dict[int, str] = {}
-    for i in imps:
-        cid = i["conta_id"]
-        if i.get("dt_ate") and (cid not in ult_por_conta or i["dt_ate"] > ult_por_conta[cid]):
-            ult_por_conta[cid] = i["dt_ate"]
+    imps = arm.listar_importacoes(path)   # só para a TABELA de importações da tela
+    # ult_por_conta ("último dia coberto por conta") vem direto do banco, sem o
+    # LIMIT 20 de `imps` acima - ele governa o farol (achado C1, crítico): usar
+    # a lista limitada da tela fazia uma conta de upload pouco frequente cair
+    # fora das 20 mais novas, ficar com `ultimo_upload=None` e o farol julgar
+    # "desatualizado" por ausência de dado, escondendo divergência real.
+    ult_por_conta = arm.ultimo_dt_por_conta(path)
 
     resumo, dias_sel = [], []
     dias_por_conta: dict[int, list[dict]] = {}
@@ -207,7 +215,14 @@ def painel(dt_de: str, dt_ate: str, conta_id: int | None = None, path=arm.DB_PAT
             valor, _origem = cmp._maior_delta(d)
             delta = abs(valor) if valor is not None else 0.0
             if pior is None or delta > pior["delta"]:
-                pior = {"delta": delta, "conta": c["rotulo"], "dt": d["dt"]}
+                # `conta_id` viaja junto com o rótulo (achado M1): duas contas
+                # DISTINTAS (ex.: a mesma conta do ERP importada por OFX e por
+                # CSV) podem ter o rótulo idêntico - o front comparava por
+                # rótulo para decidir "a maior divergência está em outra
+                # conta" e o aviso saía suprimido por engano quando a conta
+                # selecionada só coincidia no TEXTO, não na identidade real.
+                pior = {"delta": delta, "conta": c["rotulo"], "conta_id": c["id"],
+                        "dt": d["dt"]}
         resumo.append({
             "conta_id": c["id"], "rotulo": c["rotulo"], "ident": c["ident"],
             "mapeada": c.get("erp_banco") is not None,
@@ -238,6 +253,7 @@ def painel(dt_de: str, dt_ate: str, conta_id: int | None = None, path=arm.DB_PAT
             "dias_divergentes": tot_div,
             "maior_diferenca": (pior or {}).get("delta"),
             "maior_diferenca_conta": (pior or {}).get("conta"),
+            "maior_diferenca_conta_id": (pior or {}).get("conta_id"),
             "maior_diferenca_dt": (pior or {}).get("dt"),
             "ultimo_upload": (imps[0]["quando"] if imps else None),
         },

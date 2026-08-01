@@ -82,14 +82,30 @@ def init_db(path: Path = DB_PATH) -> None:
             UNIQUE (conta_id, chave)
         );
         CREATE TABLE IF NOT EXISTS ext_saldo(
-            conta_id INTEGER NOT NULL REFERENCES ext_conta(id) ON DELETE CASCADE,
-            dt       TEXT NOT NULL,
-            saldo    REAL NOT NULL,
+            conta_id      INTEGER NOT NULL REFERENCES ext_conta(id) ON DELETE CASCADE,
+            dt            TEXT NOT NULL,
+            saldo         REAL NOT NULL,
+            importacao_id INTEGER REFERENCES ext_importacao(id) ON DELETE CASCADE,
             PRIMARY KEY (conta_id, dt)
         );
         CREATE INDEX IF NOT EXISTS ix_ext_lanc_conta_dt ON ext_lancamento(conta_id, dt);
         CREATE INDEX IF NOT EXISTS ix_ext_lanc_imp ON ext_lancamento(importacao_id);
         """)
+        # migração: banco criado antes desta revisão não tem `importacao_id` em
+        # ext_saldo (CREATE TABLE IF NOT EXISTS não altera tabela existente -
+        # padrão de `api/orcamento/armazenamento.py`). Sem esse vínculo,
+        # "desfazer" uma importação removia os lançamentos e deixava a âncora
+        # de saldo órfã: se a âncora órfã fosse mais recente que a âncora boa,
+        # `saldo_derivado` (que usa `max(dt)` das âncoras) partia dela e TODOS
+        # os saldos derivados saíam errados - achado d1 da revisão final. As
+        # âncoras gravadas ANTES da migração ficam com `importacao_id=NULL`
+        # (decisão: mantê-las como estão - não sabemos a qual importação
+        # pertenciam - `apagar_importacao` só remove as que casam o id exato,
+        # nunca as `NULL`).
+        cols = {r["name"] for r in c.execute("PRAGMA table_info(ext_saldo)")}
+        if "importacao_id" not in cols:
+            c.execute("ALTER TABLE ext_saldo ADD COLUMN importacao_id "
+                     "INTEGER REFERENCES ext_importacao(id) ON DELETE CASCADE")
 
 
 def _norm_historico(s: str | None) -> str:
@@ -205,11 +221,20 @@ def gravar_lancamentos(path: Path, conta_id: int, itens: list[dict], arquivo: st
     return {"importacao_id": imp_id if novas else 0, "novas": novas, "duplicadas": dupl}
 
 
-def gravar_saldo_extrato(path: Path, conta_id: int, dt: str, saldo: float) -> None:
+def gravar_saldo_extrato(path: Path, conta_id: int, dt: str, saldo: float,
+                         importacao_id: int | None = None) -> None:
+    """`importacao_id` amarra a âncora à importação que a gravou, para que
+    desfazer aquela importação (`apagar_importacao`) leve a âncora junto -
+    sem isso ela ficava órfã e podia virar a mais recente por engano,
+    corrompendo TODOS os saldos derivados dali pra frente (achado d1). No
+    UPDATE do upsert o `importacao_id` também é sobrescrito: a âncora sempre
+    pertence à importação mais recente que a confirmou, nunca à primeira."""
     with _conn(path) as c:
-        c.execute("INSERT INTO ext_saldo(conta_id, dt, saldo) VALUES(?,?,?) "
-                  "ON CONFLICT(conta_id, dt) DO UPDATE SET saldo=excluded.saldo",
-                  (conta_id, dt, float(saldo)))
+        c.execute(
+            "INSERT INTO ext_saldo(conta_id, dt, saldo, importacao_id) VALUES(?,?,?,?) "
+            "ON CONFLICT(conta_id, dt) DO UPDATE SET saldo=excluded.saldo, "
+            "importacao_id=excluded.importacao_id",
+            (conta_id, dt, float(saldo), importacao_id))
 
 
 def saldos_extrato(path: Path, conta_id: int) -> list[dict]:
@@ -229,6 +254,11 @@ def lancamentos(path: Path, conta_id: int, dt_de: str, dt_ate: str) -> list[dict
 
 
 def listar_importacoes(path: Path = DB_PATH, limite: int = 20) -> list[dict]:
+    """As `limite` importações mais recentes, para a TABELA DA TELA. NUNCA usar
+    isto para decidir o último dia coberto por conta (regra de negócio) - com
+    8 contas subindo 1 extrato/dia, 20 linhas enchem em 2,5 dias e uma conta de
+    upload menos frequente some da lista sem ter ficado desatualizada de
+    verdade. Para isso existe `ultimo_dt_por_conta`, sem limite."""
     with _conn(path) as c:
         rows = c.execute(
             "SELECT i.*, c.rotulo AS conta_rotulo FROM ext_importacao i "
@@ -237,9 +267,32 @@ def listar_importacoes(path: Path = DB_PATH, limite: int = 20) -> list[dict]:
     return [dict(r) for r in rows]
 
 
+def ultimo_dt_por_conta(path: Path = DB_PATH) -> dict[int, str]:
+    """Último `dt_ate` de importação por conta, direto do banco - sem o
+    `LIMIT 20` de `listar_importacoes` (que é só da listagem da tela, Task 7).
+
+    Achado C1 (crítico) da revisão final: `servico.painel` montava isso a
+    partir de `listar_importacoes`, então uma conta cuja importação mais
+    recente caísse fora das 20 mais novas ficava com `ultimo_upload=None` e o
+    farol caía em "desatualizado" por ausência de dado (`comparacao.farol`,
+    ramo `dias_sem is None`) - cuja precedência engole uma divergência real,
+    fazendo-a sumir do farol e do digest. As contas afetadas são justamente
+    as de upload menos frequente, as mais expostas ao problema que este
+    painel existe para pegar."""
+    with _conn(path) as c:
+        rows = c.execute(
+            "SELECT conta_id, max(dt_ate) AS dt_ate FROM ext_importacao "
+            "WHERE dt_ate IS NOT NULL GROUP BY conta_id").fetchall()
+    return {int(r["conta_id"]): r["dt_ate"] for r in rows}
+
+
 def apagar_importacao(path: Path, importacao_id: int) -> int:
     with _conn(path) as c:
         n = c.execute("DELETE FROM ext_lancamento WHERE importacao_id=?",
                       (importacao_id,)).rowcount
+        # remove só a(s) âncora(s) de saldo QUE PERTENCEM a esta importação -
+        # âncoras de outras importações ou anteriores à migração
+        # (`importacao_id IS NULL`) nunca são tocadas por este DELETE (d1).
+        c.execute("DELETE FROM ext_saldo WHERE importacao_id=?", (importacao_id,))
         c.execute("DELETE FROM ext_importacao WHERE id=?", (importacao_id,))
     return int(n)

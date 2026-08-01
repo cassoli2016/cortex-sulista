@@ -197,6 +197,37 @@ def test_farol_diverge_por_credito_sem_saldo_usa_credito_como_delta():
     assert round(f["delta"], 2) == 500.0
 
 
+def test_farol_desatualizado_com_ultimo_dia_ok_residuo_nao_reporta_delta():
+    """I5 (Important da revisao final - mesma linha de I3): o ramo
+    `desatualizado` chamava `_maior_delta` mesmo quando o ultimo dia valido
+    era OK, entao a tabela "Situacao por conta" mostrava um residuo
+    sub-tolerancia (ex.: R$ 0,005 em d_saldo) como se fosse "a diferenca do
+    dia", enquanto a "Comparacao dia a dia" mostra "-" pro mesmo dia - dois
+    veredictos contraditorios num modulo cuja tolerancia e R$ 0,01."""
+    dias = [{"dt": "2026-07-01", "estado": "OK", "d_saldo": 0.005,
+             "d_credito": None, "d_debito": None}]
+    f = farol(dias, "2026-07-01", "2026-08-01")   # 31 dias sem extrato -> desatualizado
+    assert f["estado"] == "desatualizado"
+    assert f["delta"] is None
+    assert f["delta_origem"] is None
+    assert f["diverge_no_ultimo_dia"] is False
+
+
+def test_farol_desatualizado_com_ultimo_dia_divergente_expoe_diverge_no_ultimo_dia():
+    """I3 (Important): a COR do farol continua priorizando "desatualizado"
+    sobre "diverge" (ninguem mexeu nessa precedencia), mas o campo novo
+    `diverge_no_ultimo_dia` tem que denunciar que o ultimo dia valido
+    realmente diverge - e o que permite ao digest (alertas.py) nao perder o
+    alerta critico so porque a conta tambem esta velha."""
+    dias = [{"dt": "2026-07-20", "estado": "DIVERGE", "d_saldo": -50000.0,
+             "d_credito": None, "d_debito": None}]
+    f = farol(dias, "2026-07-20", "2026-08-01")   # 12 dias sem extrato -> desatualizado
+    assert f["estado"] == "desatualizado"
+    assert f["diverge_no_ultimo_dia"] is True
+    assert round(f["delta"], 2) == -50000.0
+    assert f["delta_origem"] == "saldo"
+
+
 def test_farol_diverge_escolhe_maior_delta_entre_saldo_e_credito():
     """Dia diverge tanto por saldo (delta -10) quanto por crédito (delta
     +100, maior em módulo) - `farol` tem de escolher o de MAIOR módulo, não
