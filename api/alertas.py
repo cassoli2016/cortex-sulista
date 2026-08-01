@@ -10,7 +10,7 @@ SMTP_PASS/SMTP_PARA no .env envia e-mail; sem SMTP, notificação do macOS.
 from __future__ import annotations
 
 import logging
-from datetime import date
+from datetime import date, timedelta
 
 from . import queries
 from . import db
@@ -60,6 +60,18 @@ def _alertas_extrato(painel: dict) -> list[tuple[str, str, str]]:
                 f"A conta {c['rotulo']} está há {d} {'dia' if d == 1 else 'dias'} "
                 "sem extrato importado - a validação de saldo está cega nesse período."))
     return out
+
+
+def _janela_alerta(hoje: date) -> tuple[str, str]:
+    """Janela consultada ao `painel` do extrato para o digest: 30 dias corridos
+    terminando hoje, NÃO o mês corrente (`hoje.replace(day=1)`) como as telas
+    usam de costume. No dia 1º de qualquer mês, `replace(day=1)` reduziria a
+    janela a um único dia (hoje) e apagaria justamente a divergência do
+    fechamento do mês anterior — o caso em que o alerta mais importa. 30 dias
+    atravessa qualquer virada de mês com folga acima do limiar de
+    "desatualizado" do farol (>7 dias), sem inundar o digest com histórico
+    antigo."""
+    return (hoje - timedelta(days=30)).isoformat(), hoje.isoformat()
 
 
 def build_alertas() -> list[dict]:
@@ -156,8 +168,8 @@ def build_alertas() -> list[dict]:
 
     try:
         from api.extrato.servico import painel as extrato_painel
-        hoje = date.today()
-        p = extrato_painel(hoje.replace(day=1).isoformat(), hoje.isoformat())
+        dt_de, dt_ate = _janela_alerta(date.today())
+        p = extrato_painel(dt_de, dt_ate)
         for nivel, titulo, texto in _alertas_extrato(p):
             add(nivel, titulo, texto)
     except Exception as exc:  # noqa: BLE001
