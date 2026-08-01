@@ -6170,12 +6170,12 @@ function renderExtb(d){
      kpi('Contas monitoradas', String(k.contas||0),
          semMapa?(semMapa+' sem vínculo com o ERP'):'todas vinculadas ao ERP',
          semMapa?'warn':'', 'Contas com extrato importado. Só as vinculadas a uma conta do ERP podem ser comparadas.')
-   + kpi('Dias validados', String(k.dias_validados||0), 'no período filtrado', '',
-         'Dias em que existe extrato E movimento do ERP para comparar.')
+   + kpi('Dias validados', String(k.dias_validados||0), 'todas as contas · no período filtrado', '',
+         'Dias em que existe extrato E movimento do ERP para comparar. Soma de TODAS as contas monitoradas - não segue o filtro de conta do seletor abaixo.')
    + kpi('Dias divergentes', String(k.dias_divergentes||0),
-         (k.dias_divergentes?'exigem conferência':'nenhuma divergência'),
+         'todas as contas · '+(k.dias_divergentes?'exigem conferência':'nenhuma divergência'),
          (k.dias_divergentes?'bad':'good'),
-         'Dia em que crédito, débito ou saldo diferem em mais de R$ 0,01.')
+         'Dia em que crédito, débito ou saldo diferem em mais de R$ 0,01. Soma de TODAS as contas monitoradas - não segue o filtro de conta do seletor abaixo.')
    + kpi('Maior diferença', (k.maior_diferenca!=null?brl2(k.maior_diferenca):'—'),
          (k.maior_diferenca_conta?esc(k.maior_diferenca_conta)+' · '+fmtD(k.maior_diferenca_dt):'sem divergência'),
          (k.maior_diferenca?'bad':''), 'Maior diferença absoluta encontrada no período.');
@@ -6227,8 +6227,11 @@ function renderExtb(d){
   const avOutra=document.getElementById('extbOutraConta');
   if(avOutra){
     const contaAtual=contas.find(c=>c.conta_id===d.conta_selecionada);
-    const rotuloAtual=contaAtual?contaAtual.rotulo:null;
-    if(k.maior_diferenca_conta && rotuloAtual && k.maior_diferenca_conta!==rotuloAtual){
+    // compara por conta_id, nunca por rótulo (achado M1): duas contas
+    // DISTINTAS (ex.: a mesma conta do ERP importada por OFX e por CSV) podem
+    // ter o rótulo idêntico - comparar por texto suprimia o aviso por engano
+    // quando a conta selecionada só coincidia no rótulo, não na identidade.
+    if(k.maior_diferenca_conta_id!=null && contaAtual && k.maior_diferenca_conta_id!==contaAtual.conta_id){
       avOutra.style.display='flex';
       avOutra.innerHTML=`<i>${ICONS['sevWarn']}</i><span>A maior divergência do período `
         +`(<b>${brl2(k.maior_diferenca)}</b>) está na conta <b>${esc(k.maior_diferenca_conta)}</b>`

@@ -119,6 +119,23 @@ def _extrair_extrato(bloco: str) -> dict:
         if s_valor is not None and s_dt:
             saldo = {"dt": s_dt, "saldo": s_valor}
 
+    # I4 (achado da revisão final): sem BANKID nem ACCTID, `ident` caía sempre
+    # em "?/?/?" - dois extratos DIFERENTES sem identificação (comum em
+    # pseudo-contas de meio de pagamento: eFrete, PAMCARD, REPOM são as menos
+    # padronizadas) caíam na MESMA `ext_conta`, somando lançamentos de duas
+    # instituições e comparando contra uma única conta do ERP, com `ok: true`
+    # e nenhum aviso - o mesmo Critical da identidade do CSV pelo nome do
+    # arquivo (Task 5), reencarnado no caminho OFX. Só levanta se o bloco tem
+    # conteúdo de verdade (itens ou saldo); um `<STMTRS>` vazio já é
+    # descartado depois, em `parse_ofx`, sem precisar de identificação.
+    if (itens or saldo is not None) and not banco_cru and not conta:
+        raise ValueError(
+            "Extrato OFX sem identificação de conta (BANKID e ACCTID ausentes "
+            "em BANKACCTFROM) - não é possível saber a qual conta bancária ele "
+            "pertence. Extratos de meio de pagamento (ex.: pedágio, cartão-"
+            "combustível) às vezes exportam sem essa informação; confira o "
+            "arquivo com o provedor antes de reenviar.")
+
     ident = "/".join([banco_cru or "?", agencia or "?", conta or "?"])
     return {"ident": ident, "banco": banco, "agencia": agencia, "conta": conta,
             "itens": itens, "saldo": saldo, "ignoradas": ignoradas}

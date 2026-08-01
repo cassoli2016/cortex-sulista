@@ -133,8 +133,14 @@ def farol(dias: list[dict], ultimo_upload: str | None, hoje: str,
           mapeada: bool = True) -> dict:
     """Estado da conta = o último dia coberto pelo extrato.
 
-    Ordem de precedência: sem mapeamento ERP (não há o que comparar) > extrato
-    velho (o verde de 12 dias atrás não diz nada sobre hoje) > divergência.
+    Ordem de precedência (da COR do farol): sem mapeamento ERP (não há o que
+    comparar) > extrato velho (o verde de 12 dias atrás não diz nada sobre
+    hoje) > divergência. Essa precedência é só de cor/estado - o campo
+    `diverge_no_ultimo_dia` abaixo garante que uma divergência real do último
+    dia válido nunca fica invisível para quem não olha só `estado` (achado I3
+    da revisão final: o digest só lia `estado` e uma conta desatualizada COM
+    divergência real no último dia perdia o alerta crítico, sobrando só o
+    "atenção: N dias sem extrato").
 
     `delta_origem` ("saldo"|"credito"|"debito"|None) diz de onde veio `delta` -
     necessário porque a semântica de direção só existe para saldo: `d_debito`
@@ -145,20 +151,31 @@ def farol(dias: list[dict], ultimo_upload: str | None, hoje: str,
     validos = [d for d in dias if d["estado"] in ("OK", "DIVERGE")]
     ultimo = max(validos, key=lambda d: d["dt"]) if validos else None
     dias_sem = _dias_entre(ultimo_upload, hoje) if ultimo_upload else None
+    diverge_ultimo = bool(ultimo is not None and ultimo["estado"] == "DIVERGE")
     if not mapeada:
         return {"estado": "sem_mapa", "dt": (ultimo or {}).get("dt"),
-                "delta": None, "delta_origem": None, "dias_sem_extrato": dias_sem}
-    delta, origem = _maior_delta(ultimo)
+                "delta": None, "delta_origem": None, "dias_sem_extrato": dias_sem,
+                "diverge_no_ultimo_dia": False}
     if ultimo is None or dias_sem is None or dias_sem > 7:
+        # I5: só reporta delta/delta_origem se o último dia válido de fato
+        # DIVERGIR. Um dia "OK" pode ter resíduo sub-tolerância em d_saldo/
+        # d_credito/d_debito (ex.: 0,005 de arredondamento) mesmo sem DIVERGIR
+        # - reportar esse resíduo aqui só porque a conta está desatualizada
+        # contradiz a tabela "Comparação dia a dia" da mesma tela, que mostra
+        # "—" para esse mesmo dia (mesmo raciocínio do ramo "ok" abaixo).
+        delta, origem = _maior_delta(ultimo) if diverge_ultimo else (None, None)
         return {"estado": "desatualizado", "dt": (ultimo or {}).get("dt"),
-                "delta": delta, "delta_origem": origem, "dias_sem_extrato": dias_sem}
+                "delta": delta, "delta_origem": origem, "dias_sem_extrato": dias_sem,
+                "diverge_no_ultimo_dia": diverge_ultimo}
     if ultimo["estado"] == "DIVERGE":
+        delta, origem = _maior_delta(ultimo)
         return {"estado": "diverge", "dt": ultimo["dt"],
-                "delta": delta, "delta_origem": origem, "dias_sem_extrato": dias_sem}
+                "delta": delta, "delta_origem": origem, "dias_sem_extrato": dias_sem,
+                "diverge_no_ultimo_dia": True}
     # estado OK: o dia pode ter um residuo sub-tolerancia em d_saldo/d_credito/
     # d_debito (ex.: arredondamento) mesmo sem DIVERGIR - reportar esse residuo
     # como se fosse "a diferenca do dia" contradiz o proprio veredito "bate com
     # o banco" que este farol acabou de dar. delta/delta_origem ficam None,
     # mesmo contrato de "sem_mapa" (nenhum valor a mostrar).
     return {"estado": "ok", "dt": ultimo["dt"], "delta": None, "delta_origem": None,
-            "dias_sem_extrato": dias_sem}
+            "dias_sem_extrato": dias_sem, "diverge_no_ultimo_dia": False}

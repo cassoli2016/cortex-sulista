@@ -45,6 +45,41 @@ def _fmt_brl_cent(v: float) -> str:
     return f"{sinal}R$ {s}"
 
 
+def _alerta_divergencia(c: dict, f: dict) -> tuple[str, str, str]:
+    """Monta o alerta CRÍTICO de divergência de uma conta - fonte ÚNICA usada
+    tanto pelo estado `diverge` quanto pelo estado `desatualizado` com
+    `diverge_no_ultimo_dia` (achado I3): duplicar este texto nos dois lugares
+    é exatamente a classe de bug deste plano (regra repetida divergindo entre
+    si)."""
+    delta = f.get("delta")
+    dt_txt = _data_br(f.get("dt"))
+    if delta is None:
+        # nenhum dos três campos (saldo/credito/debito) existia dos
+        # dois lados para comparar - nao afirma valor nem direcao.
+        return ("critico", "Extrato bancário divergente",
+                f"A conta {c['rotulo']} tem um dia divergente em {dt_txt} "
+                "sem valor comparável (sem saldo, crédito nem débito dos "
+                "dois lados) - confira o painel. Detalhe: Financeiro > "
+                "Extrato Bancário.")
+    origem = f.get("delta_origem")
+    if origem in ("credito", "debito"):
+        # direção (acima/abaixo do saldo) só existe para saldo:
+        # d_debito positivo empurra o saldo do extrato para BAIXO,
+        # o oposto do que "acima" diria - por isso aqui NUNCA
+        # entra acima/abaixo, só o valor e o campo de origem.
+        rotulo_campo = "crédito" if origem == "credito" else "débito"
+        return ("critico", "Extrato bancário divergente",
+                f"A conta {c['rotulo']} tem divergência de "
+                f"{_fmt_brl_cent(abs(delta))} no {rotulo_campo} do dia "
+                f"{dt_txt}. Detalhe: Financeiro > Extrato Bancário.")
+    # origem "saldo" (ou ausente/desconhecida - mesmo texto de
+    # sempre, o único caso com semântica de direção definida)
+    return ("critico", "Extrato bancário divergente",
+            f"A conta {c['rotulo']} fecha {_fmt_brl_cent(abs(delta))} "
+            f"{'acima' if delta > 0 else 'abaixo'} do ERP em "
+            f"{dt_txt}. Detalhe: Financeiro > Extrato Bancário.")
+
+
 def _alertas_extrato(painel: dict) -> list[tuple[str, str, str]]:
     """(nivel, titulo, texto) por conta com problema. Função pura para teste."""
     out: list[tuple[str, str, str]] = []
@@ -52,45 +87,37 @@ def _alertas_extrato(painel: dict) -> list[tuple[str, str, str]]:
         if not c.get("mapeada"):
             continue          # sem vínculo com o ERP não há o que comparar
         f = c.get("farol") or {}
-        if f.get("estado") == "diverge":
-            delta = f.get("delta")
-            dt_txt = _data_br(f.get("dt"))
-            if delta is None:
-                # nenhum dos três campos (saldo/credito/debito) existia dos
-                # dois lados para comparar - nao afirma valor nem direcao.
+        estado = f.get("estado")
+        if estado == "diverge":
+            out.append(_alerta_divergencia(c, f))
+        elif estado == "desatualizado":
+            # I2: `dias_sem_extrato` é `None` para conta mapeada que NUNCA teve
+            # importação (o fluxo CSV cria e mapeia a conta ANTES do primeiro
+            # upload - basta o primeiro import falhar, ex. mapa de colunas
+            # errado, para a conta ficar mapeada e cega pra sempre) ou depois
+            # de desfazer o único upload. `and f.get("dias_sem_extrato")` era
+            # truthiness sobre número: `None` E `0` os dois davam falso e o
+            # caso mais grave (nunca importou) saía SEM nenhum alerta. Agora é
+            # sempre `is not None`, com texto próprio para o caso `None`; `0`
+            # continua sem alerta (dizer "há 0 dias" seria absurdo).
+            d = f.get("dias_sem_extrato")
+            if d is None:
                 out.append((
-                    "critico", "Extrato bancário divergente",
-                    f"A conta {c['rotulo']} tem um dia divergente em {dt_txt} "
-                    "sem valor comparável (sem saldo, crédito nem débito dos "
-                    "dois lados) - confira o painel. Detalhe: Financeiro > "
-                    "Extrato Bancário."))
-            else:
-                origem = f.get("delta_origem")
-                if origem in ("credito", "debito"):
-                    # direção (acima/abaixo do saldo) só existe para saldo:
-                    # d_debito positivo empurra o saldo do extrato para BAIXO,
-                    # o oposto do que "acima" diria - por isso aqui NUNCA
-                    # entra acima/abaixo, só o valor e o campo de origem.
-                    rotulo_campo = "crédito" if origem == "credito" else "débito"
-                    out.append((
-                        "critico", "Extrato bancário divergente",
-                        f"A conta {c['rotulo']} tem divergência de "
-                        f"{_fmt_brl_cent(abs(delta))} no {rotulo_campo} do dia "
-                        f"{dt_txt}. Detalhe: Financeiro > Extrato Bancário."))
-                else:
-                    # origem "saldo" (ou ausente/desconhecida - mesmo texto de
-                    # sempre, o único caso com semântica de direção definida)
-                    out.append((
-                        "critico", "Extrato bancário divergente",
-                        f"A conta {c['rotulo']} fecha {_fmt_brl_cent(abs(delta))} "
-                        f"{'acima' if delta > 0 else 'abaixo'} do ERP em "
-                        f"{dt_txt}. Detalhe: Financeiro > Extrato Bancário."))
-        elif f.get("estado") == "desatualizado" and f.get("dias_sem_extrato"):
-            d = f["dias_sem_extrato"]
-            out.append((
-                "atencao", "Extrato bancário sem atualização",
-                f"A conta {c['rotulo']} está há {d} {'dia' if d == 1 else 'dias'} "
-                "sem extrato importado - a validação de saldo está cega nesse período."))
+                    "atencao", "Extrato bancário sem atualização",
+                    f"A conta {c['rotulo']} está vinculada ao ERP mas nunca teve "
+                    "um extrato importado - a validação de saldo dessa conta "
+                    "está cega."))
+            elif d > 0:
+                out.append((
+                    "atencao", "Extrato bancário sem atualização",
+                    f"A conta {c['rotulo']} está há {d} {'dia' if d == 1 else 'dias'} "
+                    "sem extrato importado - a validação de saldo está cega nesse período."))
+            # I3: a precedência de COR do farol põe "desatualizado" acima de
+            # "diverge", mas uma divergência real confirmada no último dia
+            # válido não pode desaparecer do digest por causa disso - emite os
+            # DOIS alertas (o de desatualização acima e o crítico abaixo).
+            if f.get("diverge_no_ultimo_dia"):
+                out.append(_alerta_divergencia(c, f))
     return out
 
 

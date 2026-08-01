@@ -4,6 +4,7 @@ from __future__ import annotations
 import pytest
 
 from api.extrato import armazenamento as arm
+from api.extrato import comparacao as cmp
 
 
 @pytest.fixture()
@@ -71,6 +72,71 @@ def test_saldo_extrato_upsert(db):
     arm.gravar_saldo_extrato(db, cid, "2026-07-31", 1000.0)
     arm.gravar_saldo_extrato(db, cid, "2026-07-31", 1200.0)   # reimport corrige
     assert arm.saldos_extrato(db, cid) == [{"dt": "2026-07-31", "saldo": 1200.0}]
+
+
+# --- d1 (Critical na triagem): ext_saldo orfao corrompe saldos derivados ----
+
+def test_apagar_importacao_remove_ancora_de_saldo_daquela_importacao(db):
+    """A ancora de saldo gravada JUNTO com uma importacao tem que sumir quando
+    a importacao e desfeita - sem isso ela fica orfa e, se for a mais recente,
+    `saldo_derivado` (que usa `max(dt)` das ancoras) parte dela e corrompe
+    TODOS os saldos derivados a partir dai."""
+    cid = arm.obter_ou_criar_conta(db, "341/0098/539349", "Itau")
+    r = arm.gravar_lancamentos(db, cid, [_item()], "ext.ofx", "ofx")
+    arm.gravar_saldo_extrato(db, cid, "2026-07-01", 500.0, importacao_id=r["importacao_id"])
+    assert arm.saldos_extrato(db, cid) == [{"dt": "2026-07-01", "saldo": 500.0}]
+
+    arm.apagar_importacao(db, r["importacao_id"])
+    assert arm.saldos_extrato(db, cid) == []
+
+
+def test_desfazer_import_errado_nao_deixa_ancora_orfa_nem_dia_fantasma(db):
+    """Cenario provado pela revisao: sobe o arquivo ERRADO (grava lancamento e
+    uma ancora de saldo num dia sem lancamento nenhum) -> desfaz -> sobe o
+    CERTO. A ancora errada NAO pode sobreviver (nem como "dia fantasma"
+    isolado com qtd:0 em `comparar`), e o saldo derivado tem que refletir so
+    a importacao boa - nunca ficar refem de qual ancora e "mais recente" entre
+    uma valida e uma que devia ter sido apagada."""
+    cid = arm.obter_ou_criar_conta(db, "1/2/3", "conta")
+
+    errado = arm.gravar_lancamentos(
+        db, cid, [_item(dt="2026-07-01", valor=999.0, fitid="ERR1")], "errado.ofx", "ofx")
+    # ancora do arquivo errado cai num dia MAIS recente e SEM lancamento -
+    # exatamente o caso que faria saldo_derivado usar a ancora errada como
+    # ponto de partida (max(dt) das ancoras) se ela sobrevivesse ao desfazer
+    arm.gravar_saldo_extrato(db, cid, "2026-07-05", 99999.0,
+                             importacao_id=errado["importacao_id"])
+    arm.apagar_importacao(db, errado["importacao_id"])
+
+    certo = arm.gravar_lancamentos(
+        db, cid, [_item(dt="2026-07-01", valor=100.0, fitid="OK1")], "certo.ofx", "ofx")
+    arm.gravar_saldo_extrato(db, cid, "2026-07-03", 429.36,
+                             importacao_id=certo["importacao_id"])
+
+    assert arm.saldos_extrato(db, cid) == [{"dt": "2026-07-03", "saldo": 429.36}]
+    dias = cmp.comparar(arm.lancamentos(db, cid, "2026-07-01", "2026-07-31"),
+                        arm.saldos_extrato(db, cid), [])
+    datas = {d["dt"] for d in dias}
+    # so os dias reais aparecem - "2026-07-05" (ancora do arquivo errado, ja
+    # apagada) nao pode sobreviver como dia fantasma isolado
+    assert datas == {"2026-07-01", "2026-07-03"}
+    por_dt = {d["dt"]: d for d in dias}
+    # nenhum lancamento entre 01/07 e 03/07 - o saldo deriva constante a
+    # partir da unica ancora que sobrou (a boa, 429.36), nunca da errada
+    # (99999.0) que foi desfeita
+    assert round(por_dt["2026-07-03"]["ext_saldo"], 2) == 429.36
+    assert round(por_dt["2026-07-01"]["ext_saldo"], 2) == 429.36
+
+
+def test_gravar_saldo_extrato_sem_importacao_id_fica_sem_vinculo(db):
+    """Ancoras pre-migracao (ou de reimport 100% duplicado, sem importacao
+    nova a que amarrar) ficam com `importacao_id` None - `apagar_importacao`
+    de QUALQUER importacao nao pode removê-las."""
+    cid = arm.obter_ou_criar_conta(db, "1/2/3", "conta")
+    r = arm.gravar_lancamentos(db, cid, [_item()], "ext.ofx", "ofx")
+    arm.gravar_saldo_extrato(db, cid, "2026-07-15", 777.0)   # sem importacao_id
+    arm.apagar_importacao(db, r["importacao_id"])
+    assert arm.saldos_extrato(db, cid) == [{"dt": "2026-07-15", "saldo": 777.0}]
 
 
 def test_dedup_hash_independe_da_ordem_com_numerodoc_diferente(db):
