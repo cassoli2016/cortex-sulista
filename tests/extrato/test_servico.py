@@ -147,6 +147,33 @@ def test_painel_sem_conta_nenhuma_nao_quebra(db, monkeypatch):
     assert d["dias"] == []
 
 
+# --- Task 7 / FINDING 7: lancamentos_dia entrou no contrato do painel sem ---
+# --- teste (usado por extbDetalhe no front, ao expandir um dia) -------------
+
+def test_painel_traz_lancamentos_dia_da_conta_selecionada(db, monkeypatch):
+    cid = arm.obter_ou_criar_conta(db, "1/2/3", "conta unica")
+    arm.mapear_conta(db, cid, 1, "2", "3")
+    arm.gravar_lancamentos(db, cid, [
+        {"dt": "2026-07-02", "valor": 150.0, "tipo": "C", "historico": "ted", "numerodoc": "001"},
+    ], "a.ofx", "ofx")
+
+    monkeypatch.setattr(servico.db, "query", lambda sql, params=None: [])
+    d = servico.painel("2026-07-01", "2026-07-31", conta_id=cid, path=db)
+    assert d["conta_selecionada"] == cid
+    assert d["lancamentos_dia"] == [
+        {"dt": "2026-07-02", "valor": 150.0, "tipo": "C", "historico": "ted", "numerodoc": "001"},
+    ]
+
+
+def test_painel_sem_conta_selecionada_lancamentos_dia_vazio(db, monkeypatch):
+    # conta_id=None e nenhuma conta cadastrada: nao ha o que selecionar
+    # automaticamente, entao lancamentos_dia tem que vir vazio, nunca quebrar.
+    monkeypatch.setattr(servico.db, "query", lambda sql, params=None: [])
+    d = servico.painel("2026-07-01", "2026-07-31", path=db)
+    assert d["conta_selecionada"] is None
+    assert d["lancamentos_dia"] == []
+
+
 # --- FIX 1: maior_diferenca nao pode priorizar saldo por truthiness ---------
 
 def test_painel_maior_diferenca_usa_o_maior_delta_nao_o_saldo(db, monkeypatch):

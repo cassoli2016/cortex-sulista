@@ -6105,7 +6105,7 @@ async function loadExtb(){
 }
 
 function renderExtb(d){
-  const ts=new Date();
+  const ts=d.atualizado_em ? new Date(d.atualizado_em) : new Date();
   document.getElementById('meta').innerHTML='<b>Atualizado '+ts.toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'})+'</b><br>'+ts.toLocaleDateString('pt-BR');
   const k=d.kpis||{};
   // conta sem extrato nenhum: a tela explica o que fazer em vez de mostrar zeros
@@ -6193,7 +6193,7 @@ function renderExtb(d){
   const EST={OK:['good','bate'],DIVERGE:['bad','diverge'],
              SO_EXTRATO:['warn','só no extrato'],SO_ERP:['warn','só no ERP']};
   document.getElementById('extb-dias').innerHTML= !dias.length ? '' :
-    '<table><thead><tr><th>Dia</th><th class="num">Créditos extrato</th>'
+    '<table><thead><tr><th style="width:34px"></th><th>Dia</th><th class="num">Créditos extrato</th>'
     +'<th class="num">Créditos ERP</th><th class="num">Débitos extrato</th>'
     +'<th class="num">Débitos ERP</th><th class="num">Saldo extrato</th>'
     +'<th class="num">Saldo ERP</th><th class="num">Diferença</th><th>Estado</th></tr></thead><tbody>'
@@ -6202,6 +6202,7 @@ function renderExtb(d){
         const dif=[x.d_saldo,x.d_credito,x.d_debito].find(v=>v!=null&&Math.abs(v)>0.01);
         return `<tr class="forn-row" aria-expanded="false" aria-controls="extb-det-${i}" tabindex="0" role="button"
             onclick="extbDetalhe(${i})" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();extbDetalhe(${i});}">`
+          +`<td><span class="expander">${ICONS['chevr2']}</span></td>`
           +`<td>${fmtD(x.dt)}</td>`
           +`<td class="num">${x.ext_credito!=null?brl2(x.ext_credito):'—'}</td>`
           +`<td class="num">${x.erp_credito!=null?brl2(x.erp_credito):'—'}</td>`
@@ -6211,15 +6212,18 @@ function renderExtb(d){
           +`<td class="num">${x.erp_saldo!=null?brl2(x.erp_saldo):'—'}</td>`
           +`<td class="num">${dif!=null?brl2(dif):'—'}</td>`
           +`<td>${statChip(par[0], par[1])}</td></tr>`
-          +`<tr class="forn-det" id="extb-det-${i}"><td colspan="9"></td></tr>`;
+          +`<tr class="forn-det" id="extb-det-${i}"><td colspan="10"></td></tr>`;
       }).join('')
     + '</tbody></table>';
 
   // ---- importações
   const imps=d.importacoes||[];
-  document.getElementById('hintExtbImps').textContent=
-    imps.length? imps.length+' importação'+(imps.length===1?'':'ões')+' · desfazer remove os lançamentos daquele arquivo'
-               : 'nenhuma importação registrada';
+  // listar_importacoes tem LIMIT 20 e o servico nao manda o total real: dizer
+  // "20 mais recentes" quando a lista vier cheia evita virar total falso (a
+  // mesma regra do CLAUDE.md sobre top-N sem contador virar contagem oficial).
+  document.getElementById('hintExtbImps').textContent= !imps.length ? 'nenhuma importação registrada'
+    : (imps.length===20 ? '20 mais recentes' : imps.length+' importação'+(imps.length===1?'':'ões'))
+      +' · desfazer remove os lançamentos daquele arquivo';
   document.getElementById('extb-imps').innerHTML= !imps.length ? '' :
     '<table><thead><tr><th>Quando</th><th>Arquivo</th><th>Conta</th><th>Período</th>'
     +'<th class="num">Novos</th><th class="num">Duplicados</th><th class="num">Ignorados</th>'
@@ -6249,7 +6253,7 @@ function extbDetalhe(i){
           +'<th class="num">Valor</th></tr></thead><tbody>'
           + lan.map(l=>`<tr><td>${fmtD(l.dt)}</td><td>${esc(l.historico||'')}</td>`
               +`<td>${esc(l.numerodoc||'')}</td>`
-              +`<td class="num ${l.valor<0?'neg':''}">${brl2(l.valor)}</td></tr>`).join('')
+              +`<td class="num"${l.valor<0?' style="color:var(--red)"':''}>${brl2(l.valor)}</td></tr>`).join('')
           + '</tbody></table>'
         : '<p style="color:var(--n500)">Nenhum lançamento do extrato neste dia (o movimento está só no ERP).</p>';
       det.dataset.pronto='1';
@@ -6285,8 +6289,9 @@ async function extbEnviar(files){
             continue;
           }
           if(d2.ok===false && d2.precisa==='mapa_erp'){
-            await extbMapearConta(d2.conta_id);
-            resumo.push(esc(f.name)+`: ${d2.novas} novo(s), ${d2.duplicadas} duplicado(s) — conta ainda sem vínculo com o ERP`);
+            const vinculouCsv=await extbMapearConta(d2.conta_id);
+            resumo.push(esc(f.name)+`: ${d2.novas} novo(s), ${d2.duplicadas} duplicado(s)`
+              +(vinculouCsv ? ' — conta vinculada ao ERP' : ' — conta ainda sem vínculo com o ERP'));
             continue;
           }
           resumo.push(esc(f.name)+`: ${d2.novas} novo(s), ${d2.duplicadas} duplicado(s)`
@@ -6299,10 +6304,16 @@ async function extbEnviar(files){
         // pendentes>1, vincular esta não termina a importação — as outras continuam
         // sem vínculo com o ERP e o usuário precisa saber disso, senão acha que acabou.
         const vinculou=await extbMapearConta(d.conta_id);
-        const restam=(d.pendentes||0)-(vinculou?1:0);
-        resumo.push(esc(f.name)+(restam>0
-          ? `: vinculada 1 de ${d.pendentes} conta(s) do arquivo — falta${restam===1?'':'m'} vincular ${restam} pela tabela "Situação por conta".`
-          : `: ${d.novas} novo(s), ${d.duplicadas} duplicado(s)`+(d.ignoradas?`, ${d.ignoradas} ignorado(s)`:'')));
+        const pendentes=d.pendentes||0;
+        const restam=pendentes-(vinculou?1:0);
+        // nunca afirmar uma vinculação que não aconteceu: se o usuário cancelou o
+        // prompt (ou a listagem de contas do ERP falhou), extbMapearConta devolve
+        // false e a mensagem tem que dizer isso, não "vinculada 1 de N".
+        resumo.push(esc(f.name)+(!vinculou
+          ? `: nenhuma conta foi vinculada ao ERP — ${pendentes} conta(s) deste arquivo aguardam vínculo pela tabela "Situação por conta".`
+          : (restam>0
+            ? `: vinculada 1 de ${pendentes} conta(s) do arquivo — falta${restam===1?'':'m'} vincular ${restam} pela tabela "Situação por conta".`
+            : `: ${d.novas} novo(s), ${d.duplicadas} duplicado(s)`+(d.ignoradas?`, ${d.ignoradas} ignorado(s)`:''))));
         continue;
       }
       if(d.ok===false && d.precisa==='mapa_csv'){
@@ -6355,7 +6366,9 @@ async function extbMapearConta(contaId){
   let contas=[];
   try{
     const r=await fetch('/api/financeiro/extrato/contas-erp',{cache:'no-store'});
-    const d=await r.json(); contas=d.contas||[];
+    const d=await r.json();
+    if(!r.ok){ showBanner(d.mensagem||'Erro ao listar as contas do ERP.', d.detalhe); return false; }
+    contas=d.contas||[];
   }catch(e){ showBanner('Não foi possível listar as contas do ERP.'); return false; }
   const lista=contas.map((c,i)=>`${i+1}) ${c.rotulo} (último movimento ${c.ultimo_movimento})`).join('\n');
   const esc0=prompt('A qual conta do ERP este extrato corresponde?\n\n'+lista
