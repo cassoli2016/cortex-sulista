@@ -927,7 +927,11 @@ git commit -m "feat(extrato): parser CSV com mapa de colunas e parse estrito pt-
     `{"dt", "ext_credito", "ext_debito", "ext_saldo", "erp_credito", "erp_debito", "erp_saldo", "d_credito", "d_debito", "d_saldo", "estado", "qtd"}`.
     `estado` ∈ `OK | DIVERGE | SO_EXTRATO | SO_ERP`. `erp_rows` = linhas de `contacorrente_saldo` com `dt`, `credito`, `debito`, `saldo`.
   - `farol(dias: list[dict], ultimo_upload: str | None, hoje: str, mapeada: bool = True) -> dict` —
-    `{"estado": "ok"|"diverge"|"sem_mapa"|"desatualizado", "dt": str | None, "delta": float | None, "dias_sem_extrato": int | None}`.
+    `{"estado": ..., "dt": ..., "delta": float | None, "delta_origem": "saldo"|"credito"|"debito"|None, "dias_sem_extrato": int | None}`.
+    `delta` e o MAIOR dos tres desvios em modulo (nao so o de saldo) e
+    `delta_origem` diz de qual veio - a semantica "acima/abaixo" so vale para
+    saldo (debito maior no extrato tem delta positivo mas empurra o saldo para
+    BAIXO, entao dizer "acima" enganaria).
 
 - [ ] **Step 1: Write the failing test**
 
@@ -1145,6 +1149,19 @@ def comparar(lancs: list[dict], saldos: list[dict], erp_rows: list[dict]) -> lis
 
 def _dias_entre(de: str, ate: str) -> int:
     return (date.fromisoformat(ate) - date.fromisoformat(de)).days
+
+
+def _maior_delta(dia: dict) -> tuple[float | None, str | None]:
+    """Maior desvio do dia em modulo, com a ORIGEM. O farol usava so d_saldo, que
+    e None sempre que falta saldo de um lado - garantido em conta CSV (o formato
+    nao traz saldo). Divergencia por credito/debito virava alerta critico de
+    "R$ 0,00". Sempre `is not None`, nunca truthiness sobre dinheiro."""
+    cands = [(dia.get("d_saldo"), "saldo"), (dia.get("d_credito"), "credito"),
+             (dia.get("d_debito"), "debito")]
+    validos = [(v, o) for v, o in cands if v is not None]
+    if not validos:
+        return None, None
+    return max(validos, key=lambda x: abs(x[0]))
 
 
 def farol(dias: list[dict], ultimo_upload: str | None, hoje: str,
