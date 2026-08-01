@@ -1460,7 +1460,13 @@ def painel(dt_de: str, dt_ate: str, conta_id: int | None = None, path=arm.DB_PAT
         tot_val += len(validos)
         tot_div += len(divergentes)
         for d in divergentes:
-            delta = abs(d.get("d_saldo") or d.get("d_credito") or d.get("d_debito") or 0)
+            # o maior desvio do dia e o MAIOR dos tres em modulo. A cadeia `or`
+            # priorizava d_saldo mesmo sem ser a causa e usava truthiness: um
+            # residuo de 0,007 no saldo vencia um d_credito de 500,00 e o KPI
+            # "Maior diferenca" escondia a divergencia real.
+            deltas = [abs(v) for v in (d.get("d_saldo"), d.get("d_credito"),
+                                       d.get("d_debito")) if v is not None]
+            delta = max(deltas) if deltas else 0.0
             if pior is None or delta > pior["delta"]:
                 pior = {"delta": delta, "conta": c["rotulo"], "dt": d["dt"]}
         resumo.append({
