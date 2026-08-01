@@ -6,10 +6,22 @@ fechamento: `<TRNAMT>10.50` até o fim da linha) e 2.x é XML bem-formado. Uma
 regex por tag atende os dois, o que evita depender de parser XML (que quebraria
 no SGML) ou de biblioteca externa.
 
+Um export pode consolidar mais de uma conta num único arquivo (mais de um
+bloco `<STMTRS>`) — `parse_ofx` devolve uma **lista**, um extrato por bloco,
+para nunca misturar lançamentos/saldo de contas diferentes sob uma única
+identidade.
+
 Encoding: OFX de banco BR costuma vir em cp1252/latin-1, não utf-8.
+
+Limitação conhecida da abordagem por regex: o valor de uma tag termina no
+primeiro `<` ou quebra de linha. Na prática os campos usados aqui (MEMO, NAME,
+datas, valores) não trazem `<`, então isso não é um problema real; se algum
+dia trouxer, o texto sai truncado ali — não tentamos resolver isso com um
+parser completo (é exatamente a complexidade que a abordagem por regex evita).
 """
 from __future__ import annotations
 
+import html
 import re
 
 _TAG = r"<{t}>\s*([^<\r\n]*)"
@@ -36,28 +48,46 @@ def _data(cru: str) -> str | None:
 
 
 def _valor(cru: str) -> float | None:
-    """TRNAMT é ponto-decimal (padrão OFX). Alguns bancos mandam vírgula."""
+    """Converte TRNAMT/BALAMT (texto) para float.
+
+    A spec OFX define o valor como ponto-decimal: um único '.' é SEMPRE o
+    separador decimal, mesmo com 3 dígitos depois (ex.: "1.234" vale 1.234,
+    não 1234) — o oposto da convenção de milhar do CSV brasileiro, que é
+    tratada por outra task; não unifique as duas regras aqui.
+
+    Quando a string malformada traz os DOIS separadores (banco que exporta
+    errado, ou formato en-US "10,000.00"), o separador DECIMAL é o último que
+    aparece na string (por posição) — o outro é tratado como separador de
+    milhar e descartado. Isso evita o bug de ler "10,000.00" como 10.0 (mil
+    vezes menor) ao assumir sempre o formato BR.
+    """
     txt = (cru or "").strip().replace(" ", "")
     if not txt:
         return None
-    if "," in txt and "." in txt:
-        txt = txt.replace(".", "").replace(",", ".")
-    elif "," in txt:
+    pos_virgula = txt.rfind(",")
+    pos_ponto = txt.rfind(".")
+    if pos_virgula != -1 and pos_ponto != -1:
+        if pos_virgula > pos_ponto:
+            # último separador é a vírgula => formato BR: ponto é milhar
+            txt = txt.replace(".", "").replace(",", ".")
+        else:
+            # último separador é o ponto => formato en-US: vírgula é milhar
+            txt = txt.replace(",", "")
+    elif pos_virgula != -1:
+        # só vírgula: decimal BR sem milhar
         txt = txt.replace(",", ".")
+    # só ponto, ou nenhum separador: mantém como está — TRNAMT é ponto-decimal
     try:
         return float(txt)
     except ValueError:
         return None
 
 
-def parse_ofx(bruto: bytes) -> dict:
-    texto = _decodificar(bruto)
-    if "<OFX" not in texto.upper():
-        raise ValueError("Arquivo não parece ser um OFX (tag <OFX> não encontrada).")
-
-    banco_cru = _campo(texto, "BANKID")
-    agencia = _campo(texto, "BRANCHID")
-    conta = _campo(texto, "ACCTID")
+def _extrair_extrato(bloco: str) -> dict:
+    """Extrai identidade, lançamentos e saldo de UM bloco <STMTRS>."""
+    banco_cru = _campo(bloco, "BANKID")
+    agencia = _campo(bloco, "BRANCHID")
+    conta = _campo(bloco, "ACCTID")
     try:
         banco = int(banco_cru) if banco_cru else None
     except ValueError:
@@ -65,32 +95,50 @@ def parse_ofx(bruto: bytes) -> dict:
 
     itens: list[dict] = []
     ignoradas = 0
-    for bloco in re.findall(r"<STMTTRN>(.*?)</STMTTRN>", texto, re.IGNORECASE | re.DOTALL):
-        dt = _data(_campo(bloco, "DTPOSTED"))
-        valor = _valor(_campo(bloco, "TRNAMT"))
+    for trn in re.findall(r"<STMTTRN>(.*?)</STMTTRN>", bloco, re.IGNORECASE | re.DOTALL):
+        dt = _data(_campo(trn, "DTPOSTED"))
+        valor = _valor(_campo(trn, "TRNAMT"))
         if dt is None or valor is None:
             ignoradas += 1
             continue
         # o sinal do TRNAMT é a fonte da verdade; TRNTYPE só confirma
         tipo = "C" if valor >= 0 else "D"
+        historico = html.unescape(_campo(trn, "MEMO") or _campo(trn, "NAME"))
         itens.append({
             "dt": dt, "valor": valor, "tipo": tipo,
-            "historico": _campo(bloco, "MEMO") or _campo(bloco, "NAME"),
-            "numerodoc": _campo(bloco, "CHECKNUM"),
-            "fitid": _campo(bloco, "FITID") or None,
+            "historico": historico,
+            "numerodoc": _campo(trn, "CHECKNUM"),
+            "fitid": _campo(trn, "FITID") or None,
         })
 
     saldo = None
-    m = re.search(r"<LEDGERBAL>(.*?)</LEDGERBAL>", texto, re.IGNORECASE | re.DOTALL)
+    m = re.search(r"<LEDGERBAL>(.*?)</LEDGERBAL>", bloco, re.IGNORECASE | re.DOTALL)
     if m:
         s_valor = _valor(_campo(m.group(1), "BALAMT"))
         s_dt = _data(_campo(m.group(1), "DTASOF"))
         if s_valor is not None and s_dt:
             saldo = {"dt": s_dt, "saldo": s_valor}
 
-    if not itens and saldo is None:
-        raise ValueError("OFX sem lançamentos nem saldo legíveis.")
-
     ident = "/".join([banco_cru or "?", agencia or "?", conta or "?"])
     return {"ident": ident, "banco": banco, "agencia": agencia, "conta": conta,
             "itens": itens, "saldo": saldo, "ignoradas": ignoradas}
+
+
+def parse_ofx(bruto: bytes) -> list[dict]:
+    texto = _decodificar(bruto)
+    if "<OFX" not in texto.upper():
+        raise ValueError("Arquivo não parece ser um OFX (tag <OFX> não encontrada).")
+
+    blocos = re.findall(r"<STMTRS>(.*?)</STMTRS>", texto, re.IGNORECASE | re.DOTALL)
+    if not blocos:
+        # arquivo fora do padrão (sem <STMTRS>): trata o documento inteiro como
+        # um único bloco, para não regredir em relação ao comportamento anterior.
+        blocos = [texto]
+
+    candidatos = [_extrair_extrato(bloco) for bloco in blocos]
+    extratos = [e for e in candidatos if e["itens"] or e["saldo"] is not None]
+
+    if not extratos:
+        raise ValueError("OFX sem lançamentos nem saldo legíveis.")
+
+    return extratos
