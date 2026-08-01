@@ -176,3 +176,27 @@ def test_tipo_deriva_do_sinal_do_valor(db):
     lanc = arm.lancamentos(db, cid, "2026-07-01", "2026-07-31")
     assert len(lanc) == 1
     assert lanc[0]["tipo"] == "D"
+
+
+def test_reimport_duplicado_nao_destroi_vinculo_da_ancora(db):
+    """Reimportar o MESMO arquivo não pode desvincular a âncora de saldo.
+
+    A importação sem novidade se autodeleta da trilha, então `gravar_saldo_extrato`
+    é chamada com importacao_id None. Sobrescrever o vínculo com NULL deixaria a
+    âncora órfã quando o usuário desfizesse a importação ORIGINAL — reabrindo a
+    corrupção de todos os saldos derivados que o vínculo existe para evitar.
+    """
+    cid = arm.obter_ou_criar_conta(db, "341/0098/539349", "Itau")
+    r1 = arm.gravar_lancamentos(db, cid, [_item()], "ext.ofx", "ofx")
+    arm.gravar_saldo_extrato(db, cid, "2026-07-31", 1000.0,
+                             importacao_id=r1["importacao_id"])
+
+    # mesmo arquivo de novo: nada novo, importacao_id volta 0 -> None
+    r2 = arm.gravar_lancamentos(db, cid, [_item()], "ext.ofx", "ofx")
+    assert (r2["novas"], r2["duplicadas"]) == (0, 1)
+    arm.gravar_saldo_extrato(db, cid, "2026-07-31", 1000.0,
+                             importacao_id=(r2["importacao_id"] or None))
+
+    # desfazer a importacao ORIGINAL tem de levar a ancora com ela
+    arm.apagar_importacao(db, r1["importacao_id"])
+    assert arm.saldos_extrato(db, cid) == [], "ancora orfa: vinculo foi destruido pelo reimport"
