@@ -5,7 +5,7 @@ import pytest
 
 from api.extrato import armazenamento as arm
 from api.extrato import servico
-from tests.extrato.test_parser_ofx import OFX_SGML
+from tests.extrato.test_parser_ofx import OFX_DUAS_CONTAS, OFX_SGML
 
 
 @pytest.fixture()
@@ -36,22 +36,85 @@ def test_importar_ofx_conta_mapeada_grava_e_reimport_nao_duplica(db):
     assert arm.saldos_extrato(db, r1["conta_id"]) == [{"dt": "2026-07-31", "saldo": 123456.78}]
 
 
-def test_importar_csv_sem_mapa_pede_mapa_csv(db):
+# NOTA (fix round 2 / FINDING 1 - critical): o CSV nao traz a conta dentro do
+# arquivo (ao contrario do OFX), entao ela deixou de ser inferida do NOME do
+# arquivo ("extrato.csv" e o export padrao de varios internet bankings - dois
+# bancos diferentes colidiam na mesma conta, aplicando o mapa/vinculo ERP de
+# um aos lancamentos do outro, com `ok: true` e nenhum aviso). Os dois testes
+# abaixo substituem os antigos `test_importar_csv_sem_mapa_pede_mapa_csv` e
+# `test_importar_csv_com_mapa_salvo`, que dependiam do contrato antigo
+# (conta inferida do nome do arquivo, sem `conta_id`) e por isso nao tem mais
+# como passar sem reescrever - a mudanca de contrato e exatamente o fix.
+
+def test_importar_csv_sem_conta_id_pede_conta_csv(db):
     bruto = b"Data;Historico;Valor\n01/07/2026;TED;10,00\n"
     r = servico.importar(bruto, "banco.csv", path=db)
     assert r["ok"] is False
-    assert r["precisa"] == "mapa_csv"
+    assert r["precisa"] == "conta_csv"
     assert r["preview"]["amostra"][0] == ["Data", "Historico", "Valor"]
+    # nada foi gravado: nenhuma conta nova, nenhum lancamento
+    assert arm.listar_contas(db) == []
+
+
+def test_importar_csv_com_conta_sem_mapa_pede_mapa_csv(db):
+    bruto = b"Data;Historico;Valor\n01/07/2026;TED;10,00\n"
+    cid = arm.obter_ou_criar_conta(db, servico.ident_csv(341, "0098", "539349"), "Banco X")
+    r = servico.importar(bruto, "banco.csv", path=db, conta_id=cid)
+    assert r["ok"] is False
+    assert r["precisa"] == "mapa_csv"
+    assert r["conta_id"] == cid
+    assert r["preview"]["amostra"][0] == ["Data", "Historico", "Valor"]
+    assert arm.lancamentos(db, cid, "2026-01-01", "2026-12-31") == []
 
 
 def test_importar_csv_com_mapa_salvo(db):
     bruto = b"Data;Historico;Valor\n01/07/2026;TED;10,00\n"
-    r = servico.importar(bruto, "banco.csv", path=db)
-    cid = r["conta_id"]
+    cid = arm.obter_ou_criar_conta(db, servico.ident_csv(341, "0098", "539349"), "Banco X")
     arm.salvar_mapa_csv(db, cid, {"dt": 0, "historico": 1, "valor": 2})
     arm.mapear_conta(db, cid, 341, "0098", "539349")
-    r2 = servico.importar(bruto, "banco.csv", path=db)
+    r2 = servico.importar(bruto, "banco.csv", path=db, conta_id=cid)
     assert r2["ok"] is True and r2["novas"] == 1
+
+
+def test_importar_csv_mesmo_nome_arquivo_contas_diferentes_nao_mistura(db):
+    """Prova do fix do Critical: dois CSV chamados IGUAL ("extrato.csv"), de
+    bancos diferentes, com conta_id explicitos e DIFERENTES - os lancamentos
+    tem que ficar em contas separadas, nunca misturados."""
+    bruto_a = b"Data;Historico;Valor\n01/07/2026;TED BANCO A;10,00\n"
+    bruto_b = b"Data;Historico;Valor\n02/07/2026;TED BANCO B;20,00\n"
+    mapa = {"dt": 0, "historico": 1, "valor": 2}
+
+    cid_a = arm.obter_ou_criar_conta(db, servico.ident_csv(1, "1", "A"), "Banco A")
+    arm.salvar_mapa_csv(db, cid_a, mapa)
+    cid_b = arm.obter_ou_criar_conta(db, servico.ident_csv(2, "2", "B"), "Banco B")
+    arm.salvar_mapa_csv(db, cid_b, mapa)
+    assert cid_a != cid_b
+
+    servico.importar(bruto_a, "extrato.csv", path=db, conta_id=cid_a)
+    servico.importar(bruto_b, "extrato.csv", path=db, conta_id=cid_b)
+
+    lancs_a = arm.lancamentos(db, cid_a, "2026-07-01", "2026-07-31")
+    lancs_b = arm.lancamentos(db, cid_b, "2026-07-01", "2026-07-31")
+    assert len(lancs_a) == 1 and lancs_a[0]["historico"] == "TED BANCO A"
+    assert len(lancs_b) == 1 and lancs_b[0]["historico"] == "TED BANCO B"
+
+
+def test_ident_csv_formato():
+    assert servico.ident_csv(341, "0098", "539349") == "csv:341/0098/539349"
+
+
+def test_importar_ofx_multiplas_contas_relata_pendentes(db):
+    r = servico.importar(OFX_DUAS_CONTAS.encode("utf-8"), "consolidado.ofx", path=db)
+    assert r["novas"] == 2                 # soma das duas contas (1 lancamento cada)
+    assert len(r["contas"]) == 2
+    assert r["pendentes"] == 2              # nenhuma das duas tem vinculo ERP ainda
+
+    # mapeia so a primeira conta do arquivo (341/0098/111)
+    primeira_cid = r["contas"][0]["conta_id"]
+    arm.mapear_conta(db, primeira_cid, 341, "0098", "111")
+
+    r2 = servico.importar(OFX_DUAS_CONTAS.encode("utf-8"), "consolidado.ofx", path=db)
+    assert r2["pendentes"] == 1
 
 
 def test_importar_arquivo_ilegivel_levanta_valueerror(db):
@@ -150,3 +213,24 @@ def test_painel_maior_diferenca_aponta_para_conta_e_dia_certos(db, monkeypatch):
     assert d["kpis"]["maior_diferenca"] == 200.0
     assert d["kpis"]["maior_diferenca_conta"] == "Conta B"
     assert d["kpis"]["maior_diferenca_dt"] == "2026-07-05"
+
+
+# --- FIX 2 / FINDING 3: painel nao pode consultar o ERP duas vezes pela ----
+# --- mesma conta quando conta_id=None (selecao automatica) -----------------
+
+def test_painel_nao_duplica_query_erp_na_selecao_automatica(db, monkeypatch):
+    cid = arm.obter_ou_criar_conta(db, "1/2/3", "conta unica")
+    arm.mapear_conta(db, cid, 1, "2", "3")
+    arm.gravar_lancamentos(db, cid, [
+        {"dt": "2026-07-01", "valor": 100.0, "tipo": "C", "historico": "x", "numerodoc": ""},
+    ], "a.ofx", "ofx")
+
+    chamadas = []
+
+    def fake_query(sql, params=None):
+        chamadas.append(params)
+        return []
+
+    monkeypatch.setattr(servico.db, "query", fake_query)
+    servico.painel("2026-07-01", "2026-07-31", path=db)  # conta_id=None (default)
+    assert len(chamadas) == 1
