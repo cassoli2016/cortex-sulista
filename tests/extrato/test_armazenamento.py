@@ -71,3 +71,42 @@ def test_saldo_extrato_upsert(db):
     arm.gravar_saldo_extrato(db, cid, "2026-07-31", 1000.0)
     arm.gravar_saldo_extrato(db, cid, "2026-07-31", 1200.0)   # reimport corrige
     assert arm.saldos_extrato(db, cid) == [{"dt": "2026-07-31", "saldo": 1200.0}]
+
+
+def test_dedup_hash_independe_da_ordem_com_numerodoc_diferente(db):
+    """Fix round 1 — FINDING 1: dois boletos de mesmo dia/valor/histórico mas
+    numerodoc diferente não podem duplicar quando o re-upload chega em ordem
+    trocada (o contador de ocorrência tem de usar a MESMA identidade do hash)."""
+    cid = arm.obter_ou_criar_conta(db, "csv:itau", "Itau CSV")
+    boleto_1001 = _item(fitid=None, doc="1001")
+    boleto_2002 = _item(fitid=None, doc="2002")
+    r1 = arm.gravar_lancamentos(db, cid, [boleto_1001, boleto_2002], "ext.csv", "csv")
+    assert (r1["novas"], r1["duplicadas"]) == (2, 0)
+    # re-upload do MESMO arquivo com a ORDEM das linhas trocada
+    r2 = arm.gravar_lancamentos(db, cid, [boleto_2002, boleto_1001], "ext.csv", "csv")
+    assert (r2["novas"], r2["duplicadas"]) == (0, 2)
+    assert len(arm.lancamentos(db, cid, "2026-07-01", "2026-07-31")) == 2
+
+
+def test_dedup_normaliza_espaco_duplo_no_historico(db):
+    """Fix round 1 — FINDING 2: "TARIFA  PACOTE" (espaço duplo) e "TARIFA PACOTE"
+    são o MESMO lançamento para efeito de dedup; export de banco costuma variar
+    isso entre uploads do mesmo arquivo."""
+    cid = arm.obter_ou_criar_conta(db, "csv:itau", "Itau CSV")
+    r1 = arm.gravar_lancamentos(
+        db, cid, [_item(fitid=None, hist="TARIFA PACOTE")], "ext.csv", "csv")
+    assert (r1["novas"], r1["duplicadas"]) == (1, 0)
+    r2 = arm.gravar_lancamentos(
+        db, cid, [_item(fitid=None, hist="TARIFA  PACOTE")], "ext.csv", "csv")
+    assert (r2["novas"], r2["duplicadas"]) == (0, 1)
+
+
+def test_tipo_deriva_do_sinal_do_valor(db):
+    """Fix round 1 — FINDING 3: tipo=C/D é sempre derivado do sinal de valor,
+    nunca confiado ao item de entrada — crédito >= 0, débito < 0."""
+    cid = arm.obter_ou_criar_conta(db, "341/0098/539349", "Itau")
+    arm.gravar_lancamentos(db, cid, [_item(valor=-30.0, tipo="C", fitid="F9")],
+                           "ext.ofx", "ofx")
+    lanc = arm.lancamentos(db, cid, "2026-07-01", "2026-07-31")
+    assert len(lanc) == 1
+    assert lanc[0]["tipo"] == "D"
