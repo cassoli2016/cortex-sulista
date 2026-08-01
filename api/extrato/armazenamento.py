@@ -232,8 +232,14 @@ def gravar_saldo_extrato(path: Path, conta_id: int, dt: str, saldo: float,
     with _conn(path) as c:
         c.execute(
             "INSERT INTO ext_saldo(conta_id, dt, saldo, importacao_id) VALUES(?,?,?,?) "
+            # COALESCE: reimportar o MESMO arquivo (0 lancamentos novos) chama aqui
+            # com importacao_id None, porque a importacao sem novidade se autodeleta
+            # da trilha. Sobrescrever com NULL destruiria o vinculo BOM criado pela
+            # importacao original - que segue viva - e um "desfazer" nela deixaria a
+            # ancora orfa, corrompendo todos os saldos derivados. Vinculo existente
+            # so e substituido quando ha um novo de verdade para oferecer.
             "ON CONFLICT(conta_id, dt) DO UPDATE SET saldo=excluded.saldo, "
-            "importacao_id=excluded.importacao_id",
+            "importacao_id=COALESCE(excluded.importacao_id, ext_saldo.importacao_id)",
             (conta_id, dt, float(saldo), importacao_id))
 
 
