@@ -242,6 +242,34 @@ def test_painel_maior_diferenca_aponta_para_conta_e_dia_certos(db, monkeypatch):
     assert d["kpis"]["maior_diferenca_dt"] == "2026-07-05"
 
 
+# --- Fix round 5 / FINDING 3: painel reaproveita cmp._maior_delta em vez ----
+# --- de duplicar "maior modulo entre os tres" - `maior_diferenca` continua -
+# --- sendo o mesmo de antes (so a origem da logica mudou) ------------------
+
+def test_painel_maior_diferenca_com_vencedor_negativo_continua_absoluto(db, monkeypatch):
+    """`cmp._maior_delta` devolve o valor COM sinal (para o farol decidir
+    acima/abaixo do ERP); `servico.painel` aplica `abs()` no chamador porque
+    o KPI `maior_diferenca` sempre foi um valor absoluto. Este teste cobre o
+    caso que os 3 testes acima não cobrem: o campo vencedor divergindo
+    NEGATIVAMENTE (extrato abaixo do ERP) - se o `abs()` do refactor
+    estivesse no lugar errado, `maior_diferenca` sairia negativo aqui."""
+    cid = arm.obter_ou_criar_conta(db, "1/2/9", "conta credito negativo")
+    arm.mapear_conta(db, cid, 1, "2", "9")
+    arm.gravar_lancamentos(db, cid, [
+        {"dt": "2026-07-01", "valor": 500.0, "tipo": "C", "historico": "z", "numerodoc": ""},
+    ], "c.ofx", "ofx")
+    arm.gravar_saldo_extrato(db, cid, "2026-07-01", 500.0)
+
+    def fake_query(sql, params=None):
+        # credito do extrato (500) fica ABAIXO do ERP (1000) -> d_credito =
+        # 500-1000 = -500 (negativo); e a causa real do DIVERGE
+        return [{"dt": "2026-07-01", "credito": 1000.0, "debito": 0.0, "saldo": 500.0}]
+
+    monkeypatch.setattr(servico.db, "query", fake_query)
+    d = servico.painel("2026-07-01", "2026-07-31", path=db)
+    assert d["kpis"]["maior_diferenca"] == 500.0   # nunca -500.0
+
+
 # --- FIX 2 / FINDING 3: painel nao pode consultar o ERP duas vezes pela ----
 # --- mesma conta quando conta_id=None (selecao automatica) -----------------
 

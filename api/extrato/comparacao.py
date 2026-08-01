@@ -155,5 +155,10 @@ def farol(dias: list[dict], ultimo_upload: str | None, hoje: str,
     if ultimo["estado"] == "DIVERGE":
         return {"estado": "diverge", "dt": ultimo["dt"],
                 "delta": delta, "delta_origem": origem, "dias_sem_extrato": dias_sem}
-    return {"estado": "ok", "dt": ultimo["dt"], "delta": delta, "delta_origem": origem,
+    # estado OK: o dia pode ter um residuo sub-tolerancia em d_saldo/d_credito/
+    # d_debito (ex.: arredondamento) mesmo sem DIVERGIR - reportar esse residuo
+    # como se fosse "a diferenca do dia" contradiz o proprio veredito "bate com
+    # o banco" que este farol acabou de dar. delta/delta_origem ficam None,
+    # mesmo contrato de "sem_mapa" (nenhum valor a mostrar).
+    return {"estado": "ok", "dt": ultimo["dt"], "delta": None, "delta_origem": None,
             "dias_sem_extrato": dias_sem}
