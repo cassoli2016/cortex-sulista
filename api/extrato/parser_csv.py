@@ -13,6 +13,7 @@ from __future__ import annotations
 import csv
 import io
 import re
+from datetime import date
 
 _RE_MILHAR_VIRGULA = re.compile(r"^-?\d{1,3}(\.\d{3})*(,\d{1,2})?$")   # 1.234.567,89
 _RE_SO_VIRGULA = re.compile(r"^-?\d+(,\d{1,2})?$")                     # 1234,89
@@ -54,18 +55,54 @@ def _decodificar(bruto: bytes) -> str:
 
 
 def _delimitador(texto: str) -> str:
-    cabeca = "\n".join(texto.splitlines()[:5])
-    return max((";", ",", "\t"), key=cabeca.count)
+    """Escolhe o delimitador pela ESTRUTURA que produz, não por contagem crua de
+    caracteres: contar ',' quebra quando o histórico vem entre aspas com vírgulas
+    dentro (ex.: "PGTO FORNEC, LTDA"), então cada candidato é testado com
+    csv.reader (que respeita aspas) e vence quem gerar mais de uma coluna com
+    contagem estável entre as linhas, desempatando por mais colunas e, por fim,
+    mantendo ';' (mais comum no Brasil) em caso de empate real.
+    """
+    cabeca = texto.splitlines()[:5]
+    melhor_delim, melhor_score = ";", (-1, -1)
+    for delim in (";", ",", "\t"):
+        contagens = [len(linha) for linha in csv.reader(cabeca, delimiter=delim) if linha]
+        if not contagens:
+            continue
+        n_col = max(contagens)
+        estavel_multicoluna = 1 if (n_col > 1 and len(set(contagens)) == 1) else 0
+        score = (estavel_multicoluna, n_col)
+        if score > melhor_score:
+            melhor_score = score
+            melhor_delim = delim
+    return melhor_delim
+
+
+def _data_valida(ano: int, mes: int, dia: int) -> bool:
+    try:
+        date(ano, mes, dia)
+    except ValueError:
+        return False
+    return True
 
 
 def _data_br(txt: str) -> str | None:
-    """DD/MM/AAAA (ou com '-'), e AAAA-MM-DD para exports ISO."""
+    """DD/MM/AAAA (ou com '-'), e AAAA-MM-DD para exports ISO. Valida o calendário
+    de verdade (datetime.date) além do formato — "31/02/2026" ou "99/99/2026" têm
+    a forma certa mas não existem, e um dia inexistente nunca bateria com o ERP."""
     s = (txt or "").strip()
     m = re.match(r"^(\d{2})[/-](\d{2})[/-](\d{4})", s)
     if m:
+        dia, mes, ano = int(m.group(1)), int(m.group(2)), int(m.group(3))
+        if not _data_valida(ano, mes, dia):
+            return None
         return f"{m.group(3)}-{m.group(2)}-{m.group(1)}"
     m = re.match(r"^(\d{4})-(\d{2})-(\d{2})", s)
-    return m.group(0) if m else None
+    if m:
+        ano, mes, dia = int(m.group(1)), int(m.group(2)), int(m.group(3))
+        if not _data_valida(ano, mes, dia):
+            return None
+        return m.group(0)
+    return None
 
 
 def _linhas(bruto: bytes) -> tuple[list[list[str]], str]:
@@ -106,7 +143,15 @@ def parse_csv(bruto: bytes, mapa: dict) -> dict:
         else:
             cred = valor_br(_col(linha, mapa.get("credito")))
             deb = valor_br(_col(linha, mapa.get("debito")))
-            valor = cred if cred else (-abs(deb) if deb else None)
+            # nunca truthiness (0,00 de crédito é legítimo); ambos preenchidos = líquido
+            if cred is not None and deb is not None:
+                valor = cred - abs(deb)
+            elif cred is not None:
+                valor = cred
+            elif deb is not None:
+                valor = -abs(deb)
+            else:
+                valor = None
         if valor is None:
             ignoradas += 1
             continue
