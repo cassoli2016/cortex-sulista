@@ -1106,7 +1106,10 @@ def comparar(lancs: list[dict], saldos: list[dict], erp_rows: list[dict]) -> lis
     saldo_ext = saldo_derivado(por_dia, saldos)
     erp = {r["dt"]: r for r in erp_rows}
     out: list[dict] = []
-    for dt in sorted(set(por_dia) | set(erp)):
+    # inclui as datas que so existem no SALDO: ancora sem lancamento e sem linha
+    # no ERP e um saldo do banco que o ERP nao registrou (SO_EXTRATO), e some da
+    # saida se o dominio for so lancamento + ERP.
+    for dt in sorted(set(por_dia) | set(erp) | set(saldo_ext)):
         e = por_dia.get(dt)
         r = erp.get(dt)
         ext_c = e["credito"] if e else None
