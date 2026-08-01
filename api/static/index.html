@@ -6245,10 +6245,11 @@ function renderExtb(d){
   const EST={OK:['good','bate'],DIVERGE:['bad','diverge'],
              SO_EXTRATO:['warn','só no extrato'],SO_ERP:['warn','só no ERP']};
   document.getElementById('extb-dias').innerHTML= !dias.length ? '' :
-    '<table><thead><tr><th style="width:34px"></th><th>Dia</th><th class="num">Créditos extrato</th>'
+    '<table><thead><tr><th style="width:34px"></th><th>Dia</th><th>Estado</th>'
+    +'<th class="num">Diferença</th><th class="num">Créditos extrato</th>'
     +'<th class="num">Créditos ERP</th><th class="num">Débitos extrato</th>'
     +'<th class="num">Débitos ERP</th><th class="num">Saldo extrato</th>'
-    +'<th class="num">Saldo ERP</th><th class="num">Diferença</th><th>Estado</th></tr></thead><tbody>'
+    +'<th class="num">Saldo ERP</th></tr></thead><tbody>'
     + dias.map((x,i)=>{
         const par=EST[x.estado]||['',''];
         // maior módulo entre saldo/crédito/débito DESTE dia, nunca o primeiro
@@ -6261,14 +6262,14 @@ function renderExtb(d){
             onclick="extbDetalhe(${i})" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();extbDetalhe(${i});}">`
           +`<td><span class="expander">${ICONS['chevr2']}</span></td>`
           +`<td>${fmtD(x.dt)}</td>`
+          +`<td>${statChip(par[0], par[1])}</td>`
+          +`<td class="num"${dcel.attrTitle}>${dcel.txt}</td>`
           +`<td class="num">${x.ext_credito!=null?brl2(x.ext_credito):'—'}</td>`
           +`<td class="num">${x.erp_credito!=null?brl2(x.erp_credito):'—'}</td>`
           +`<td class="num">${x.ext_debito!=null?brl2(x.ext_debito):'—'}</td>`
           +`<td class="num">${x.erp_debito!=null?brl2(x.erp_debito):'—'}</td>`
           +`<td class="num">${x.ext_saldo!=null?brl2(x.ext_saldo):'<span style="color:var(--n500)" title="O arquivo não trouxe saldo final (LEDGERBAL): sem âncora não é possível derivar o saldo do dia.">n/d</span>'}</td>`
-          +`<td class="num">${x.erp_saldo!=null?brl2(x.erp_saldo):'—'}</td>`
-          +`<td class="num"${dcel.attrTitle}>${dcel.txt}</td>`
-          +`<td>${statChip(par[0], par[1])}</td></tr>`
+          +`<td class="num">${x.erp_saldo!=null?brl2(x.erp_saldo):'—'}</td></tr>`
           +`<tr class="forn-det" id="extb-det-${i}"><td colspan="10"></td></tr>`;
       }).join('')
     + '</tbody></table>';
