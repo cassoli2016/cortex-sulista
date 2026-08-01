@@ -2249,6 +2249,19 @@ Expected: FAIL com `AttributeError: module 'api.alertas' has no attribute '_aler
 Add to `api/alertas.py`, before `def build_alertas()`:
 
 ```python
+def _data_br(iso: str | None) -> str:
+    if not iso:
+        return "-"
+    p = str(iso).split("-")
+    return f"{p[2]}/{p[1]}/{p[0]}" if len(p) == 3 else str(iso)
+
+
+def _fmt_brl_cent(v: float) -> str:
+    """Como _fmt_brl, mas COM centavos: a tolerancia do modulo e R$ 0,01, e um
+    alerta critico dizendo "R$ 0" de diferenca seria absurdo."""
+    return "R$ " + f"{v:,.2f}".replace(",", "X").replace(".", ",").replace("X", ".")
+
+
 def _alertas_extrato(painel: dict) -> list[tuple[str, str, str]]:
     """(nivel, titulo, texto) por conta com problema. Função pura para teste."""
     out: list[tuple[str, str, str]] = []
@@ -2260,7 +2273,7 @@ def _alertas_extrato(painel: dict) -> list[tuple[str, str, str]]:
             delta = f.get("delta") or 0.0
             out.append((
                 "critico", "Extrato bancário divergente",
-                f"A conta {c['rotulo']} fecha {_fmt_brl(abs(delta))} "
+                f"A conta {c['rotulo']} fecha {_fmt_brl_cent(abs(delta))} "
                 f"{'acima' if delta > 0 else 'abaixo'} do ERP em "
                 f"{_data_br(f.get('dt'))}. Detalhe: Financeiro > Extrato Bancário."))
         elif f.get("estado") == "desatualizado" and f.get("dias_sem_extrato"):
@@ -2271,12 +2284,6 @@ def _alertas_extrato(painel: dict) -> list[tuple[str, str, str]]:
                 "sem extrato importado - a validação de saldo está cega nesse período."))
     return out
 
-
-def _data_br(iso: str | None) -> str:
-    if not iso:
-        return "-"
-    p = str(iso).split("-")
-    return f"{p[2]}/{p[1]}/{p[0]}" if len(p) == 3 else str(iso)
 ```
 
 And inside `build_alertas()`, after the existing `try` blocks:
@@ -2284,8 +2291,11 @@ And inside `build_alertas()`, after the existing `try` blocks:
 ```python
     try:
         from api.extrato.servico import painel as extrato_painel
+        # 30 dias corridos, NAO o mes corrente: com replace(day=1) o digest do
+        # dia 1o olharia uma janela de um dia e a divergencia do ultimo dia do
+        # mes anterior nao seria alertada - exatamente quando mais importa.
         hoje = date.today()
-        p = extrato_painel(hoje.replace(day=1).isoformat(), hoje.isoformat())
+        p = extrato_painel((hoje - timedelta(days=30)).isoformat(), hoje.isoformat())
         for nivel, titulo, texto in _alertas_extrato(p):
             add(nivel, titulo, texto)
     except Exception as exc:  # noqa: BLE001
