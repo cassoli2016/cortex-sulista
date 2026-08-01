@@ -1244,6 +1244,153 @@ async def orcamento_reabrir(req: Request) -> JSONResponse:
             "erro": "erro_consulta", "mensagem": "Erro ao reabrir a versão."})
 
 
+# ---------------------------------------------------------------- Extrato bancário
+
+_EXT_MAX_BYTES = 8 * 1024 * 1024   # extrato OFX real tem dezenas/centenas de KB
+
+
+@app.get("/api/financeiro/extrato")
+def extrato(dt_de: str | None = None, dt_ate: str | None = None,
+            conta_id: int | None = None) -> JSONResponse:
+    from api.extrato.servico import painel
+    # padrão = mês corrente (mesmo estilo dos outros endpoints deste arquivo,
+    # que resolvem o período com date.today() — não há helper compartilhado)
+    hoje = date.today()
+    de = dt_de or hoje.replace(day=1).isoformat()
+    ate = dt_ate or hoje.isoformat()
+    try:
+        return JSONResponse(painel(de, ate, conta_id))
+    except psycopg.OperationalError as exc:
+        log.warning("banco inacessivel: %s", exc)
+        return JSONResponse(status_code=503, content={
+            "erro": "banco_inacessivel",
+            "mensagem": "Sem conexão com o banco. O túnel SSH está aberto?"})
+    except Exception as exc:  # noqa: BLE001
+        log.warning("extrato falhou: %s", exc)
+        return JSONResponse(status_code=500, content={
+            "erro": "erro_consulta", "mensagem": "Erro ao montar a validação do extrato."})
+
+
+@app.post("/api/financeiro/extrato/importar")
+async def extrato_importar(req: Request, nome: str = "",
+                           conta_id: int | None = None) -> JSONResponse:
+    """Recebe o arquivo como CORPO BRUTO (um POST por arquivo).
+
+    Sem multipart de propósito: `UploadFile` exige python-multipart, que não é
+    dependência do projeto — e o `uv sync` do AutoDeploy é não-fatal, então a
+    API poderia subir em produção sem a dep e derrubar só este endpoint.
+    """
+    from api.extrato.servico import importar
+    bruto = await req.body()
+    if not bruto:
+        return JSONResponse(status_code=422, content={
+            "erro": "arquivo_vazio", "mensagem": "Nenhum conteúdo recebido."})
+    if len(bruto) > _EXT_MAX_BYTES:
+        return JSONResponse(status_code=413, content={
+            "erro": "arquivo_grande",
+            "mensagem": f"Arquivo acima do limite de {_EXT_MAX_BYTES // (1024 * 1024)} MB."})
+    arquivo = (nome or "extrato.ofx").strip()
+    try:
+        return JSONResponse(importar(bruto, arquivo, conta_id=conta_id))
+    except ValueError as exc:
+        return JSONResponse(status_code=422, content={
+            "erro": "arquivo_invalido", "mensagem": str(exc)})
+    except Exception as exc:  # noqa: BLE001
+        log.warning("extrato_importar falhou: %s", exc)
+        return JSONResponse(status_code=500, content={
+            "erro": "erro_importacao", "mensagem": "Erro ao importar o extrato."})
+
+
+@app.post("/api/financeiro/extrato/mapear")
+async def extrato_mapear(req: Request) -> JSONResponse:
+    """Vincula uma conta ao ERP e/ou salva o mapa de colunas do CSV.
+
+    Sem `conta_id` e com `formato="csv"`, CRIA a conta: a identidade sai da conta
+    bancária (`servico.ident_csv`), nunca do nome do arquivo — dois `extrato.csv`
+    de bancos diferentes cairiam na mesma conta e misturariam lançamentos.
+    """
+    from api.extrato import armazenamento as arm
+    from api.extrato.servico import ident_csv
+    try:
+        body = await req.json()
+    except Exception:
+        body = None
+    if not isinstance(body, dict):
+        return JSONResponse(status_code=422, content={
+            "erro": "parametro_invalido", "mensagem": "Corpo inválido."})
+    conta_id = body.get("conta_id")
+    # criação de conta CSV: precisa da conta do ERP para formar a identidade
+    if conta_id is None:
+        if body.get("formato") != "csv" or body.get("erp_banco") is None:
+            return JSONResponse(status_code=422, content={
+                "erro": "parametro_invalido",
+                "mensagem": "Informe conta_id, ou formato=csv com a conta do ERP."})
+        try:
+            arm.init_db(arm.DB_PATH)
+            banco = int(body["erp_banco"])
+            agencia = str(body.get("erp_agencia") or "")
+            conta = str(body.get("erp_conta") or "")
+            ident = ident_csv(banco, agencia, conta)
+            rotulo = body.get("rotulo") or f"{banco} / ag {agencia} / cc {conta}"
+            conta_id = arm.obter_ou_criar_conta(arm.DB_PATH, ident, rotulo)
+        except (TypeError, ValueError):
+            return JSONResponse(status_code=422, content={
+                "erro": "parametro_invalido", "mensagem": "Conta do ERP inválida."})
+    if not isinstance(conta_id, int):
+        return JSONResponse(status_code=422, content={
+            "erro": "parametro_invalido", "mensagem": "conta_id inválido."})
+    try:
+        arm.init_db(arm.DB_PATH)
+        if body.get("erp_banco") is not None:
+            arm.mapear_conta(arm.DB_PATH, conta_id, int(body["erp_banco"]),
+                             str(body.get("erp_agencia") or ""),
+                             str(body.get("erp_conta") or ""),
+                             rotulo=(body.get("rotulo") or None))
+        mapa = body.get("mapa_csv")
+        if isinstance(mapa, dict):
+            limpo = {k: int(v) for k, v in mapa.items() if isinstance(v, (int, float))}
+            arm.salvar_mapa_csv(arm.DB_PATH, conta_id, limpo)
+        # devolve o conta_id: no fluxo CSV a tela precisa dele para reenviar o
+        # arquivo (importar exige conta_id explicito para CSV)
+        return JSONResponse({"ok": True, "conta_id": conta_id})
+    except (TypeError, ValueError):
+        return JSONResponse(status_code=422, content={
+            "erro": "parametro_invalido", "mensagem": "Valores de mapeamento inválidos."})
+    except Exception as exc:  # noqa: BLE001
+        log.warning("extrato_mapear falhou: %s", exc)
+        return JSONResponse(status_code=500, content={
+            "erro": "erro_gravacao", "mensagem": "Erro ao salvar o mapeamento."})
+
+
+@app.delete("/api/financeiro/extrato/importacao/{imp_id}")
+def extrato_apagar(imp_id: int) -> JSONResponse:
+    from api.extrato import armazenamento as arm
+    try:
+        arm.init_db(arm.DB_PATH)
+        n = arm.apagar_importacao(arm.DB_PATH, imp_id)
+        return JSONResponse({"ok": True, "apagados": n})
+    except Exception as exc:  # noqa: BLE001
+        log.warning("extrato_apagar falhou: %s", exc)
+        return JSONResponse(status_code=500, content={
+            "erro": "erro_gravacao", "mensagem": "Erro ao desfazer a importação."})
+
+
+@app.get("/api/financeiro/extrato/contas-erp")
+def extrato_contas_erp() -> JSONResponse:
+    from api.extrato.servico import contas_erp
+    try:
+        return JSONResponse({"contas": contas_erp()})
+    except psycopg.OperationalError as exc:
+        log.warning("banco inacessivel: %s", exc)
+        return JSONResponse(status_code=503, content={
+            "erro": "banco_inacessivel",
+            "mensagem": "Sem conexão com o banco. O túnel SSH está aberto?"})
+    except Exception as exc:  # noqa: BLE001
+        log.warning("extrato_contas_erp falhou: %s", exc)
+        return JSONResponse(status_code=500, content={
+            "erro": "erro_consulta", "mensagem": "Erro ao listar as contas do ERP."})
+
+
 @app.get("/api/controladoria/orcamento/exportar")
 def orcamento_exportar(versao_id: int) -> Response:
     from api.orcamento.servico import exportar_csv
