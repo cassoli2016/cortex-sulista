@@ -4,6 +4,7 @@ from __future__ import annotations
 from datetime import date
 
 from api import alertas
+from api.extrato.comparacao import comparar, farol
 
 
 def _painel(contas):
@@ -80,3 +81,63 @@ def test_janela_alerta_atravessa_virada_de_mes():
     # e de fato atravessa a virada do mês - não é "desde o dia 1 do mês corrente"
     assert dt_de < "2026-08-01"
     assert dt_de.startswith("2026-07")
+
+
+def test_janela_alerta_atravessa_virada_de_ano():
+    """FINDING 2 (fix round 2, Minor): mesmo caso da virada de mês, um degrau
+    acima - 1º de janeiro tem de alcançar o fechamento de dezembro do ano
+    ANTERIOR, não só do mês anterior dentro do mesmo ano."""
+    hoje = date(2026, 1, 1)
+    dt_de, dt_ate = alertas._janela_alerta(hoje)
+    assert dt_ate == "2026-01-01"
+    assert dt_de.startswith("2025-12")
+    assert dt_de < dt_ate
+
+
+def test_janela_alerta_inclui_29_fevereiro_bissexto():
+    """FINDING 2 (fix round 2, Minor): a janela é `timedelta(days=30)`, então
+    tem de atravessar corretamente um 29/02 de ano bissexto (2024) sem
+    estourar `ValueError` nem pular a data."""
+    hoje = date(2024, 3, 1)
+    dt_de, dt_ate = alertas._janela_alerta(hoje)
+    assert dt_ate == "2024-03-01"
+    assert dt_de == "2024-01-31"
+    # a janela [dt_de, dt_ate] inclui o 29/02 do ano bissexto
+    assert dt_de <= "2024-02-29" <= dt_ate
+
+
+def test_alertas_extrato_origem_credito_sem_acima_abaixo():
+    """FINDING 1 (fix round 2, Important): quando `delta_origem` é "credito"
+    ou "debito", o texto não pode usar "acima"/"abaixo" - essa semântica de
+    direção só existe para saldo (`d_debito` positivo empurra o saldo do
+    extrato para BAIXO, o oposto do que "acima" diria)."""
+    p = _painel([{"rotulo": "Bradesco X", "mapeada": True, "dias_divergentes": 1,
+                  "farol": {"estado": "diverge", "dt": "2026-07-15", "delta": 300.0,
+                            "delta_origem": "credito", "dias_sem_extrato": 1}}])
+    itens = alertas._alertas_extrato(p)
+    assert len(itens) == 1
+    texto = itens[0][2]
+    assert "acima" not in texto and "abaixo" not in texto
+    assert "300,00" in texto
+
+
+def test_alertas_extrato_cenario_csv_credito_sem_saldo_nunca_mostra_r0():
+    """FINDING 1 (fix round 2, Important): reprodução exata do cenário do
+    revisor. Conta CSV credita R$ 1.000 no dia, ERP registra R$ 500 -
+    divergência real de R$ 500. `parser_csv` nunca traz saldo (`saldo=None`
+    sempre) - o bug antigo (`delta = f.get("delta") or 0.0`, com `farol`
+    preenchendo `delta` só a partir de `d_saldo`) fazia o digest mandar um
+    alerta CRÍTICO dizendo "R$ 0,00", com direção arbitrária. Usa o pipeline
+    real (`comparar` + `farol`), não um farol forjado à mão, para provar a
+    correção ponta a ponta."""
+    dias = comparar([{"dt": "2026-07-31", "valor": 1000.0, "tipo": "C"}], [],
+                    [{"dt": "2026-07-31", "credito": 500.0, "debito": 0.0, "saldo": None}])
+    f = farol(dias, "2026-07-31", "2026-08-01")
+    assert f["estado"] == "diverge"
+    p = _painel([{"rotulo": "Banco CSV Y", "mapeada": True, "dias_divergentes": 1, "farol": f}])
+    itens = alertas._alertas_extrato(p)
+    assert len(itens) == 1
+    texto = itens[0][2]
+    assert "500,00" in texto
+    assert "R$ 0,00" not in texto
+    assert "acima" not in texto and "abaixo" not in texto
