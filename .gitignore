@@ -21,3 +21,6 @@ __pycache__/
 
 # workspace do subagent-driven-development (scratch, nao versionar)
 .superpowers/
+
+# scratch local de verificacao (estrutura.py etc) - nao versionar
+scratchpad/
