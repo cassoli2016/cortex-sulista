@@ -68,13 +68,19 @@ def comparar(lancs: list[dict], saldos: list[dict], erp_rows: list[dict]) -> lis
         r = erp.get(dt)
         ext_c = e["credito"] if e else None
         ext_d = e["debito"] if e else None
-        ext_s = saldo_ext.get(dt) if saldo_ext else None
+        ext_s = saldo_ext.get(dt)
         erp_c = float(r["credito"]) if r and r.get("credito") is not None else None
         erp_d = float(r["debito"]) if r and r.get("debito") is not None else None
         erp_s = float(r["saldo"]) if r and r.get("saldo") is not None else None
-        if e is None:
+        # "tem extrato" nao e so "tem lancamento": a ancora do LEDGERBAL pode cair
+        # num dia sem movimento (ex.: fechamento do arquivo) e mesmo assim ter
+        # ext_saldo. Julgar so por `e is None` classificava esse dia como SO_ERP e
+        # jogava fora uma divergencia real de saldo (ficava invisivel pro farol).
+        tem_extrato = e is not None or ext_s is not None
+        tem_erp = r is not None
+        if not tem_extrato:
             estado = "SO_ERP"
-        elif r is None:
+        elif not tem_erp:
             estado = "SO_EXTRATO"
         elif _difere(ext_c, erp_c) or _difere(ext_d, erp_d) or _difere(ext_s, erp_s):
             estado = "DIVERGE"

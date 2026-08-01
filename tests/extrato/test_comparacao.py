@@ -94,3 +94,44 @@ def test_farol_sem_nenhum_dia():
     f = farol([], None, "2026-08-01")
     assert f["estado"] == "desatualizado"
     assert f["dt"] is None
+
+
+def test_ancora_sem_lancamento_com_saldo_erp_diferente_e_diverge():
+    # LEDGERBAL cai no fechamento do arquivo (02/07), dia sem nenhum lancamento.
+    # ERP diverge 50 nesse dia exato -> tem que aparecer, nao sumir atras do dia
+    # anterior (que bate).
+    dias = comparar(
+        [_l("2026-07-01", 100.0)],
+        [{"dt": "2026-07-02", "saldo": 150.0}],
+        [_erp("2026-07-01", 100.0, 0.0, 150.0), _erp("2026-07-02", 0.0, 0.0, 200.0)],
+    )
+    por_dt = {d["dt"]: d for d in dias}
+    assert por_dt["2026-07-02"]["estado"] == "DIVERGE"
+    assert round(por_dt["2026-07-02"]["d_saldo"], 2) == -50.0
+    f = farol(dias, "2026-07-02", "2026-07-02")
+    assert f["estado"] == "diverge"
+    assert f["dt"] == "2026-07-02"
+
+
+def test_ancora_sem_lancamento_com_saldo_erp_igual_e_ok_sem_inventar_credito_debito():
+    dias = comparar(
+        [_l("2026-07-01", 100.0)],
+        [{"dt": "2026-07-02", "saldo": 150.0}],
+        [_erp("2026-07-01", 100.0, 0.0, 150.0), _erp("2026-07-02", 0.0, 0.0, 150.0)],
+    )
+    por_dt = {d["dt"]: d for d in dias}
+    dia2 = por_dt["2026-07-02"]
+    assert dia2["estado"] == "OK"
+    assert dia2["d_credito"] is None
+    assert dia2["d_debito"] is None
+
+
+def test_saldo_derivado_usa_ancora_mais_recente_entre_duas():
+    por_dia = agregar_extrato([_l("2026-07-01", 100.0), _l("2026-07-02", -40.0),
+                               _l("2026-07-03", 10.0)])
+    # duas ancoras: a mais recente (03/07) manda, a de 01/07 e ignorada
+    d = saldo_derivado(por_dia, [{"dt": "2026-07-01", "saldo": 9999.0},
+                                  {"dt": "2026-07-03", "saldo": 1070.0}])
+    assert round(d["2026-07-03"], 2) == 1070.0
+    assert round(d["2026-07-02"], 2) == 1060.0
+    assert round(d["2026-07-01"], 2) == 1100.0
