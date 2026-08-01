@@ -155,7 +155,13 @@ def painel(dt_de: str, dt_ate: str, conta_id: int | None = None, path=arm.DB_PAT
         tot_val += len(validos)
         tot_div += len(divergentes)
         for d in divergentes:
-            delta = abs(d.get("d_saldo") or d.get("d_credito") or d.get("d_debito") or 0)
+            # maior desvio real do dia: o MAIOR dos tres deltas em modulo, entre
+            # os que existem - nunca "or" (0.0 legitimo cairia para o campo
+            # errado, escondendo a divergencia de verdade atras de um residuo
+            # abaixo da tolerancia que nem foi a causa do DIVERGE).
+            deltas = [abs(v) for v in (d.get("d_saldo"), d.get("d_credito"), d.get("d_debito"))
+                      if v is not None]
+            delta = max(deltas) if deltas else 0.0
             if pior is None or delta > pior["delta"]:
                 pior = {"delta": delta, "conta": c["rotulo"], "dt": d["dt"]}
         resumo.append({
