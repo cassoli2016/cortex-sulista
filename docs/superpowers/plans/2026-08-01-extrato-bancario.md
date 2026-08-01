@@ -392,7 +392,9 @@ git commit -m "feat(extrato): persistencia local em SQLite com dedup idempotente
 
 **Interfaces:**
 - Consumes: nada da Task 1 (parser é independente do armazenamento).
-- Produces: `parse_ofx(bruto: bytes) -> dict` devolvendo
+- Produces: `parse_ofx(bruto: bytes) -> list[dict]` — UM extrato por bloco `<STMTRS>`
+  (OFX consolidado traz mais de uma conta; misturar tudo na primeira atribuiria
+  lançamento à conta errada). Cada extrato:
   `{"ident": str, "banco": int | None, "agencia": str, "conta": str, "itens": list[dict], "saldo": dict | None, "ignoradas": int}`.
   Cada item tem as chaves que `armazenamento.gravar_lancamentos` consome:
   `dt, valor, tipo, historico, numerodoc, fitid`. `saldo` é `{"dt": str, "saldo": float}` ou `None`.
@@ -1178,6 +1180,7 @@ def test_importar_ofx_conta_nova_pede_mapeamento(db):
     assert r["conta"]["ident"] == "341/0098/539349"
     # os lançamentos JÁ ficam gravados — o mapeamento é só o vínculo com o ERP
     assert r["novas"] == 2
+    assert len(r["contas"]) == 1        # um extrato por conta no arquivo
 
 
 def test_importar_ofx_conta_mapeada_grava_e_reimport_nao_duplica(db):
@@ -1328,19 +1331,39 @@ def importar(bruto: bytes, nome: str, path=arm.DB_PATH) -> dict:
     formato = _formato(nome)
 
     if formato == "ofx":
-        d = parse_ofx(bruto)
-        ident, rotulo = d["ident"], f"{d['banco'] or '?'} / cc {d['conta'] or '?'}"
-        conta_id = arm.obter_ou_criar_conta(path, ident, rotulo)
-        conta = arm.conta_por_ident(path, ident)
-        res = arm.gravar_lancamentos(path, conta_id, d["itens"], nome, "ofx", d["ignoradas"])
-        if d["saldo"]:
-            arm.gravar_saldo_extrato(path, conta_id, d["saldo"]["dt"], d["saldo"]["saldo"])
-        datas = sorted(i["dt"] for i in d["itens"]) or [None]
-        base = {"conta_id": conta_id, "conta": conta, "novas": res["novas"],
-                "duplicadas": res["duplicadas"], "ignoradas": d["ignoradas"],
-                "dt_de": datas[0], "dt_ate": datas[-1]}
-        if conta.get("erp_banco") is None:
-            return {"ok": False, "precisa": "mapa_erp", **base}
+        # parse_ofx devolve UM extrato por conta do arquivo (export consolidado
+        # traz varias). Grava todas; o resultado reporta a primeira que ainda
+        # precisa de mapeamento, para a tela pedir o vinculo.
+        extratos = parse_ofx(bruto)
+        resultados = []
+        for d in extratos:
+            rotulo = f"{d['banco'] or '?'} / cc {d['conta'] or '?'}"
+            conta_id = arm.obter_ou_criar_conta(path, d["ident"], rotulo)
+            conta = arm.conta_por_ident(path, d["ident"])
+            res = arm.gravar_lancamentos(path, conta_id, d["itens"], nome, "ofx",
+                                         d["ignoradas"])
+            if d["saldo"]:
+                arm.gravar_saldo_extrato(path, conta_id, d["saldo"]["dt"],
+                                         d["saldo"]["saldo"])
+            datas = sorted(i["dt"] for i in d["itens"]) or [None]
+            resultados.append({"conta_id": conta_id, "conta": conta,
+                               "novas": res["novas"], "duplicadas": res["duplicadas"],
+                               "ignoradas": d["ignoradas"],
+                               "dt_de": datas[0], "dt_ate": datas[-1]})
+        # agrega os totais do arquivo; contas = uma linha por conta encontrada
+        total = {"novas": sum(r["novas"] for r in resultados),
+                 "duplicadas": sum(r["duplicadas"] for r in resultados),
+                 "ignoradas": sum(r["ignoradas"] for r in resultados),
+                 "contas": resultados}
+        datas_todas = sorted(d for r in resultados for d in (r["dt_de"], r["dt_ate"]) if d)
+        primeira = resultados[0]
+        base = {"conta_id": primeira["conta_id"], "conta": primeira["conta"],
+                "dt_de": (datas_todas[0] if datas_todas else None),
+                "dt_ate": (datas_todas[-1] if datas_todas else None), **total}
+        sem_mapa = [r for r in resultados if r["conta"].get("erp_banco") is None]
+        if sem_mapa:
+            return {"ok": False, "precisa": "mapa_erp", **base,
+                    "conta_id": sem_mapa[0]["conta_id"], "conta": sem_mapa[0]["conta"]}
         return {"ok": True, **base}
 
     # CSV: a conta não vem no arquivo, então o ident sai do nome do arquivo
