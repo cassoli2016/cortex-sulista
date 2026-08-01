@@ -233,15 +233,21 @@ def init_db(path: Path = DB_PATH) -> None:
         """)
 
 
+def _identidade(item: dict) -> str:
+    """Identidade de conteúdo do lançamento. UMA definição só: o contador de
+    ocorrência e o hash precisam concordar, senão a mesma transação recebe
+    ocorrências diferentes conforme a ORDEM do arquivo e o re-upload duplica."""
+    hist = " ".join((item.get("historico") or "").split()).upper()
+    return "|".join([item["dt"], f"{float(item['valor']):.2f}", hist,
+                     (item.get("numerodoc") or "").strip()])
+
+
 def _chave(item: dict, ocorrencia: int) -> str:
-    """FITID quando existe; senão hash estável do conteúdo + ordem no dia."""
+    """FITID quando existe; senão hash da identidade + ordem da repetição."""
     fitid = (item.get("fitid") or "").strip()
     if fitid:
         return "fitid:" + fitid
-    cru = "|".join([
-        item["dt"], f"{float(item['valor']):.2f}",
-        (item.get("historico") or "").strip().upper(),
-        (item.get("numerodoc") or "").strip(), str(ocorrencia)])
+    cru = f"{_identidade(item)}|{ocorrencia}"
     return "hash:" + hashlib.sha1(cru.encode("utf-8")).hexdigest()
 
 
@@ -300,14 +306,15 @@ def gravar_lancamentos(path: Path, conta_id: int, itens: list[dict], arquivo: st
         imp_id = int(cur.lastrowid)
         vistos: dict[str, int] = {}
         for item in itens:
-            base = f"{item['dt']}|{item.get('historico','')}|{float(item['valor']):.2f}"
+            base = _identidade(item)      # MESMA identidade que o hash usa
             vistos[base] = vistos.get(base, 0) + 1
             chave = _chave(item, vistos[base])
             ins = c.execute(
                 "INSERT OR IGNORE INTO ext_lancamento"
                 "(conta_id, importacao_id, dt, valor, tipo, historico, numerodoc, fitid, chave) "
                 "VALUES(?,?,?,?,?,?,?,?,?)",
-                (conta_id, imp_id, item["dt"], float(item["valor"]), item["tipo"],
+                (conta_id, imp_id, item["dt"], float(item["valor"]),
+                 ("C" if float(item["valor"]) >= 0 else "D"),
                  item.get("historico") or "", item.get("numerodoc") or "",
                  item.get("fitid"), chave))
             if ins.rowcount:
@@ -366,7 +373,7 @@ def apagar_importacao(path: Path, importacao_id: int) -> int:
 - [ ] **Step 4: Run test to verify it passes**
 
 Run: `uv run pytest tests/extrato/test_armazenamento.py -v`
-Expected: PASS (7 testes)
+Expected: PASS (9 testes)
 
 - [ ] **Step 5: Commit**
 
@@ -1426,7 +1433,7 @@ def painel(dt_de: str, dt_ate: str, conta_id: int | None = None, path=arm.DB_PAT
 - [ ] **Step 4: Run test to verify it passes**
 
 Run: `uv run pytest tests/extrato/ -v`
-Expected: PASS (todos: 7 + 5 + 6 + 11 + 7 = 36 testes)
+Expected: PASS (todos: 9 + 5 + 6 + 11 + 7 = 38 testes)
 
 - [ ] **Step 5: Commit**
 
