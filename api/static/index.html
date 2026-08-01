@@ -6083,6 +6083,41 @@ const EXTB_FAROL = {ok:['good','bate com o banco'], diverge:['bad','divergente']
                     sem_mapa:['warn','sem vínculo com o ERP'],
                     desatualizado:['warn','extrato desatualizado']};
 
+// Maior desvio em módulo entre saldo/crédito/débito (mesma regra do backend,
+// `comparacao._maior_delta` - fix round 2 desta task), reaproveitada aqui
+// porque a tabela "Comparação dia a dia" não recebe um `delta_origem` por
+// linha do back-end (só o farol do ÚLTIMO dia passa por lá): cada linha
+// precisa escolher o maior módulo entre OS TRÊS CAMPOS DELA MESMA, no
+// cliente. Ignora os `null` (nunca truthiness) e só considera divergência
+// acima da tolerância de R$ 0,01 (mesmo limiar de `comparacao.TOLERANCIA`),
+// preservando o comportamento de antes para dias OK/SO_EXTRATO/SO_ERP.
+function extbMaiorDivergencia(saldo, credito, debito){
+  const cand=[['saldo',saldo],['credito',credito],['debito',debito]]
+    .filter(([,v])=>v!=null && Math.abs(v)>0.01);
+  if(!cand.length) return {valor:null, origem:null};
+  cand.sort((a,b)=>Math.abs(b[1])-Math.abs(a[1]));
+  return {valor:cand[0][1], origem:cand[0][0]};
+}
+
+const EXTB_ORIGEM_LBL = {saldo:'saldo', credito:'crédito', debito:'débito'};
+
+// Célula de diferença (valor + origem discreta, SEMPRE visível - nunca só em
+// title/hover, mesma regra do Copiloto no CLAUDE.md) reaproveitada pelas duas
+// tabelas de Extrato Bancário: "Situação por conta" (delta/delta_origem já
+// escolhidos pelo backend, no farol) e "Comparação dia a dia" (delta/origem
+// calculados linha a linha por `extbMaiorDivergencia`, acima). Um só lugar
+// decide como mostrar a origem - foi a duplicação dessa regra em lugares
+// diferentes (KPI `maior_diferenca`, `farol.delta`, e esta tabela) que deixou
+// o mesmo bug (achar a diferença errada entre saldo/crédito/débito)
+// sobreviver a duas correções anteriores neste plano.
+function extbDeltaCel(delta, origem){
+  if(delta==null) return {txt:'—', attrTitle:''};
+  const lbl=EXTB_ORIGEM_LBL[origem];
+  const txt=`${brl2(delta)}${lbl?` <span style="color:var(--n500)">(${lbl})</span>`:''}`;
+  const attrTitle=lbl?` title="Maior divergência entre saldo, crédito e débito: ${lbl}"`:'';
+  return {txt, attrTitle};
+}
+
 async function loadExtb(){
   const seq=++extbSeq, btn=document.getElementById('btnRefresh'); if(btn) btn.disabled=true;
   document.getElementById('content').classList.add('loading');
@@ -6151,20 +6186,16 @@ function renderExtb(d){
         const sub = (f.estado==='desatualizado' && dias!=null)
           ? `${dias} ${dias===1?'dia':'dias'} sem extrato` : par[1];
         // a diferença pode vir de saldo, crédito ou débito (o maior módulo dos
-        // três, `farol.delta_origem`) - conta CSV nunca tem saldo do extrato,
-        // então boa parte das divergências dela são de crédito/débito. Rótulo
-        // discreto ao lado do valor (nunca só em title/hover - regra do
-        // Copiloto no CLAUDE.md vale aqui também) diz qual campo é.
-        const origLbl = {saldo:'saldo', credito:'crédito', debito:'débito'}[f.delta_origem];
-        const deltaTxt = f.delta!=null
-          ? `${brl2(f.delta)}${origLbl?` <span style="color:var(--n500)">(${origLbl})</span>`:''}`
-          : '—';
-        const deltaTitle = (f.delta!=null && origLbl)
-          ? ` title="Maior divergência do último dia comparado: ${origLbl}"` : '';
+        // três, já escolhido pelo backend em `farol.delta`/`delta_origem`) -
+        // conta CSV nunca tem saldo do extrato, então boa parte das
+        // divergências dela são de crédito/débito. `extbDeltaCel` (célula
+        // compartilhada com a tabela "Comparação dia a dia" logo abaixo) põe
+        // a origem em rótulo discreto ao lado do valor, sempre visível.
+        const dcel = extbDeltaCel(f.delta, f.delta_origem);
         return `<tr><td>${esc(c.rotulo)}${acao}</td>`
           +`<td>${c.erp?esc(c.erp):'<span style="color:var(--n500)">não vinculada</span>'}</td>`
           +`<td>${f.dt?fmtD(f.dt):'—'}</td>`
-          +`<td class="num"${deltaTitle}>${deltaTxt}</td>`
+          +`<td class="num"${dcel.attrTitle}>${dcel.txt}</td>`
           +`<td class="num">${c.dias_validados}</td>`
           +`<td class="num">${c.dias_divergentes||'—'}</td>`
           +`<td>${statChip(par[0], sub)}</td></tr>`;
@@ -6210,7 +6241,12 @@ function renderExtb(d){
     +'<th class="num">Saldo ERP</th><th class="num">Diferença</th><th>Estado</th></tr></thead><tbody>'
     + dias.map((x,i)=>{
         const par=EST[x.estado]||['',''];
-        const dif=[x.d_saldo,x.d_credito,x.d_debito].find(v=>v!=null&&Math.abs(v)>0.01);
+        // maior módulo entre saldo/crédito/débito DESTE dia, nunca o primeiro
+        // acima da tolerância (achado do fix round 4: um `find` nessa ordem
+        // podia exibir 2 centavos de saldo escondendo R$ 500 de crédito) -
+        // mesma regra e mesma célula da tabela "Situação por conta" acima.
+        const {valor:dif, origem:difOrig}=extbMaiorDivergencia(x.d_saldo, x.d_credito, x.d_debito);
+        const dcel=extbDeltaCel(dif, difOrig);
         return `<tr class="forn-row" aria-expanded="false" aria-controls="extb-det-${i}" tabindex="0" role="button"
             onclick="extbDetalhe(${i})" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();extbDetalhe(${i});}">`
           +`<td><span class="expander">${ICONS['chevr2']}</span></td>`
@@ -6221,7 +6257,7 @@ function renderExtb(d){
           +`<td class="num">${x.erp_debito!=null?brl2(x.erp_debito):'—'}</td>`
           +`<td class="num">${x.ext_saldo!=null?brl2(x.ext_saldo):'<span style="color:var(--n500)" title="O arquivo não trouxe saldo final (LEDGERBAL): sem âncora não é possível derivar o saldo do dia.">n/d</span>'}</td>`
           +`<td class="num">${x.erp_saldo!=null?brl2(x.erp_saldo):'—'}</td>`
-          +`<td class="num">${dif!=null?brl2(dif):'—'}</td>`
+          +`<td class="num"${dcel.attrTitle}>${dcel.txt}</td>`
           +`<td>${statChip(par[0], par[1])}</td></tr>`
           +`<tr class="forn-det" id="extb-det-${i}"><td colspan="10"></td></tr>`;
       }).join('')
