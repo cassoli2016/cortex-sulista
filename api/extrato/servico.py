@@ -241,6 +241,8 @@ def painel(dt_de: str, dt_ate: str, conta_id: int | None = None, path=arm.DB_PAT
         "conta_selecionada": conta_id,
         "contas": resumo,
         "dias": dias_sel,
+        "lancamentos_dia": (arm.lancamentos(path, conta_id, dt_de, dt_ate)
+                            if conta_id is not None else []),
         "importacoes": imps,
         "atualizado_em": datetime.now().isoformat(timespec="seconds"),
         "fonte": "extrato importado (OFX/CSV) x contacorrente_saldo do ERP AVA",
