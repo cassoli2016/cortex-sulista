@@ -11,6 +11,7 @@ def test_tela_extb_registrada_no_grupo_financeiro():
 def test_rotas_do_extrato_mapeadas_para_extb():
     for rota in ("/api/financeiro/extrato",
                  "/api/financeiro/extrato/importar",
+                 "/api/financeiro/extrato/mapear",
                  "/api/financeiro/extrato/contas-erp",
                  "/api/financeiro/extrato/importacao/7"):
         telas = auth._telas_da_rota(rota)
@@ -29,3 +30,8 @@ def test_prefixo_do_extrato_vem_antes_de_prefixos_genericos():
 def test_perfil_financeiro_modelo_inclui_extb():
     telas = dict((nome, t) for nome, _desc, t in auth._PERFIS_MODELO)
     assert "extb" in telas["Financeiro"]
+    # a migração v19 concede 'extb' a Financeiro E Controladoria (ver
+    # api/auth.py, seed perfis_modelo_v19) — _PERFIS_MODELO precisa refletir
+    # os dois, senão uma edição futura que remova 'extb' só da Controladoria
+    # passaria batido por este teste.
+    assert "extb" in telas["Controladoria"]

@@ -1249,6 +1249,22 @@ async def orcamento_reabrir(req: Request) -> JSONResponse:
 _EXT_MAX_BYTES = 8 * 1024 * 1024   # extrato OFX real tem dezenas/centenas de KB
 
 
+def _tamanho_excede(content_length: str | None, limite: int) -> bool:
+    """True se o Content-Length declarado no header excede `limite`.
+
+    Header ausente (ou não-numérico — ex.: requisição chunked, sem
+    Content-Length) devolve False: não dá pra rejeitar pelo header quando ele
+    não existe ou mente, então a checagem pós-leitura do corpo (em
+    `extrato_importar`) continua como segunda linha de defesa. Nunca estoura
+    exceção — header malformado não pode virar 500."""
+    if not content_length:
+        return False
+    try:
+        return int(content_length) > limite
+    except ValueError:
+        return False
+
+
 @app.get("/api/financeiro/extrato")
 def extrato(dt_de: str | None = None, dt_ate: str | None = None,
             conta_id: int | None = None) -> JSONResponse:
@@ -1281,11 +1297,22 @@ async def extrato_importar(req: Request, nome: str = "",
     API poderia subir em produção sem a dep e derrubar só este endpoint.
     """
     from api.extrato.servico import importar
+    # rejeita pelo header ANTES de materializar o corpo em memória: sem isso,
+    # `await req.body()` bufferiza a requisição inteira (o processo é
+    # single-process, sem limite de corpo em nível de app) antes mesmo de
+    # chegar na checagem de tamanho abaixo — primeiro endpoint de upload por
+    # corpo bruto do projeto, então essa superfície é nova aqui.
+    if _tamanho_excede(req.headers.get("content-length"), _EXT_MAX_BYTES):
+        return JSONResponse(status_code=413, content={
+            "erro": "arquivo_grande",
+            "mensagem": f"Arquivo acima do limite de {_EXT_MAX_BYTES // (1024 * 1024)} MB."})
     bruto = await req.body()
     if not bruto:
         return JSONResponse(status_code=422, content={
             "erro": "arquivo_vazio", "mensagem": "Nenhum conteúdo recebido."})
     if len(bruto) > _EXT_MAX_BYTES:
+        # segunda linha de defesa: Content-Length pode faltar ou mentir (ex.:
+        # Transfer-Encoding: chunked não declara tamanho antecipado)
         return JSONResponse(status_code=413, content={
             "erro": "arquivo_grande",
             "mensagem": f"Arquivo acima do limite de {_EXT_MAX_BYTES // (1024 * 1024)} MB."})
