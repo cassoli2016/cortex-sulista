@@ -18,3 +18,12 @@ __pycache__/
 
 # Metadados do editor de SQL (contêm connection string) — não versionar
 *.sql.design
+
+# workspace do subagent-driven-development (scratch, nao versionar)
+.superpowers/
+
+# scratch local de verificacao (estrutura.py etc) - nao versionar
+scratchpad/
+
+# OFX de teste gerado (dados reais do ERP)
+scripts/validacao_extrato/*.ofx
