@@ -1093,9 +1093,12 @@ def saldo_derivado(por_dia: dict[str, dict], saldos: list[dict]) -> dict[str, fl
 
 
 def _difere(a: float | None, b: float | None) -> bool:
+    """Tolerancia INCLUSIVA de um centavo. O round e obrigatorio: 100.01 nao tem
+    representacao binaria exata e `abs(100.0 - 100.01)` vale 0.010000000000005,
+    que passaria do limite e marcaria DIVERGE justo no caso de 1 centavo."""
     if a is None or b is None:
         return False
-    return abs(a - b) > TOLERANCIA
+    return round(abs(a - b), 2) > TOLERANCIA
 
 
 def comparar(lancs: list[dict], saldos: list[dict], erp_rows: list[dict]) -> list[dict]:
