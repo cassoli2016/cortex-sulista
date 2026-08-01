@@ -1858,9 +1858,8 @@ Inserir após o fechamento de `<section class="view" id="view-cob">` (âncora li
       <!-- ===================== EXTRATO BANCÁRIO ===================== -->
       <section class="view" id="view-extb">
         <div class="card">
-          <div class="head"><h2>Extrato Bancário</h2>
-            <span class="hint">valida saldo e fluxo do ERP contra o extrato do banco
-              <span class="ihelp" title="Extrato importado (OFX/CSV) comparado com contacorrente_saldo do ERP AVA, por conta e por dia. Tolerância de R$ 0,01.">ⓘ</span></span>
+          <div class="head"><h2>Extrato Bancário <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="Extrato importado (OFX/CSV) comparado com contacorrente_saldo do ERP AVA, por conta e por dia. Tolerância de R$ 0,01.">i</span></h2>
+            <span class="hint">valida saldo e fluxo do ERP contra o extrato do banco</span>
           </div>
           <div class="cardfilters" id="extb-filtros">
             <select id="fExtbConta" aria-label="Conta" onchange="loadExtb()"></select>
@@ -2144,11 +2143,17 @@ em `api/extrato/servico.py`, no `return` do `painel`, logo após `"dias": dias_s
 No `<aside id="sidebar">`, dentro de `subsFin`, após o link da Régua de Cobrança:
 
 ```html
-          <a href="#extb" data-tela="extb">Extrato Bancário</a>
+          <a href="#extb" class="sub" data-view="extb" title="Extrato Bancário"><span class="ic" data-ic="ctb"></span><span>Extrato Bancário</span></a>
 ```
 
-Na gaveta mobile (`.drawer`), no painel do grupo Financeiro, o mesmo link — a
-estrutura `h3` + `<a>` irmãos **não** pode mudar (`aplicarPermissoes` depende dela).
+`data-view` (45 ocorrências no arquivo), NUNCA `data-tela` (zero ocorrências): é por
+`data-view` que `aplicarPermissoes` esconde o link de quem não tem a tela e que o
+item ativo ganha destaque. Com `data-tela` o link ficaria visível para todo mundo.
+
+Na gaveta mobile, o mesmo link dentro do `<div class="dgrp-b">` do grupo Financeiro
+(estrutura real: `.dgrp > button.dgrp-h + div.dgrp-b > a`; na gaveta o
+`aplicarPermissoes` casa pelo `href`), no formato
+`<a href="#extb" onclick="fecharDrawer()"><span class="ic" data-ic="ctb"></span>Extrato Bancário</a>`.
 
 - [ ] **Step 5: Verify the front and commit**
 
