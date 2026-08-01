@@ -51,6 +51,7 @@ TELAS: dict[str, tuple[str, str]] = {  # chave -> (rótulo, grupo do menu)
     "fluxo":   ("Fluxo de Caixa e Bancos", "Financeiro"),
     "receber": ("Contas a Receber", "Financeiro"),
     "cob":     ("Régua de Cobrança", "Financeiro"),
+    "extb":    ("Extrato Bancário", "Financeiro"),
     "pagar":   ("Contas a Pagar", "Financeiro"),
     "com":     ("Clientes e RKM", "Comercial"),
     "clif":    ("Consulta de Cliente", "Comercial"),
@@ -103,6 +104,7 @@ ROTA_TELAS: list[tuple[str, frozenset[str]]] = [
     ("/api/financeiro/overview",      frozenset({"fluxo", "receber", "pagar"})),
     ("/api/financeiro/dre-cliente",   frozenset({"drecli"})),
     ("/api/controladoria/orcamento",  frozenset({"orc"})),
+    ("/api/financeiro/extrato",       frozenset({"extb"})),
     ("/api/financeiro/dre",           frozenset({"dre"})),
     ("/api/financeiro/cobranca",      frozenset({"cob"})),
     ("/api/visao-geral",              frozenset({"home", "tvfat", "tvope"})),
@@ -193,10 +195,10 @@ _CONFIG_PADRAO = {
 _PERFIS_MODELO = [
     ("Comercial",   "Clientes/RKM, consulta por cliente, CRM (leads/projetos) e DRE por cliente.",
      ["com", "clif", "crm", "drecli"]),
-    ("Financeiro",  "Caixa, recebíveis, pagáveis e cobrança.",
-     ["fluxo", "receber", "pagar", "cob"]),
-    ("Controladoria", "DRE gerencial, contabilidade, DRE/margem por cliente e qualidade/certidões.",
-     ["dre", "cont", "drecli", "qual", "orc"]),
+    ("Financeiro",  "Caixa, recebíveis, pagáveis, cobrança e extrato bancário.",
+     ["fluxo", "receber", "pagar", "cob", "extb"]),
+    ("Controladoria", "DRE gerencial, contabilidade, DRE/margem por cliente, qualidade/certidões e extrato bancário.",
+     ["dre", "cont", "drecli", "qual", "orc", "extb"]),
     ("Operação",    "Torre de controle, programação, jornada, custos extras, SAC/freetime, portaria, análise de KM, agregados e make-vs-buy.",
      ["torre", "prog", "jorn", "cex", "sac", "port", "km", "agr", "mvb"]),
     ("Frota",       "Veículos, consulta por placa, combustível, manutenção, preventiva, rastreadora, multas e premiação de motoristas.",
@@ -425,6 +427,18 @@ def _seed_perfis_modelo(c: sqlite3.Connection) -> None:
                 c.execute("INSERT OR IGNORE INTO perfil_telas(perfil_id, tela) VALUES(?,?)",
                           (row["id"], "prem"))
         c.execute("INSERT OR IGNORE INTO config(chave, valor) VALUES('perfis_modelo_v18', '1')")
+
+    # v19 (extrato bancário 2026-08-01): tela 'extb' aos perfis Financeiro e
+    # Controladoria. A tela nasceu depois que os perfis já existiam nas bases em
+    # uso — editar _PERFIS_MODELO só vale para instalação nova (mesmo caso da
+    # v8/'qual', v17/'orc' e v18/'prem').
+    if not c.execute("SELECT 1 FROM config WHERE chave='perfis_modelo_v19'").fetchone():
+        for nome_perfil in ("Financeiro", "Controladoria"):
+            row = c.execute("SELECT id FROM perfis WHERE nome=?", (nome_perfil,)).fetchone()
+            if row:
+                c.execute("INSERT OR IGNORE INTO perfil_telas(perfil_id, tela) VALUES(?,?)",
+                          (row["id"], "extb"))
+        c.execute("INSERT OR IGNORE INTO config(chave, valor) VALUES('perfis_modelo_v19', '1')")
 
 
 def _agora() -> str:
