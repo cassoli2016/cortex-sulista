@@ -6,9 +6,16 @@ automático e WAL.
 
 Dedup (idempotência de re-upload): o OFX traz FITID, identificador único do
 lançamento no banco -> chave natural. CSV não tem FITID: a chave passa a ser o
-hash de (dt, valor, historico, numerodoc) + a ORDEM da ocorrência no dia, para
-que dois lançamentos legitimamente idênticos no mesmo dia (duas tarifas iguais)
-sejam preservados, mas o mesmo arquivo subido duas vezes não duplique nada.
+hash de (dt, valor, historico, numerodoc) + a ORDEM da ocorrência DENTRO DESSA
+MESMA identidade, para que dois lançamentos legitimamente idênticos em todos os
+campos no mesmo dia (duas tarifas iguais) sejam preservados, mas o mesmo arquivo
+subido duas vezes — mesmo com a ordem das linhas trocada — não duplique nada.
+`_identidade()` é a ÚNICA função que define essa identidade: tanto o contador de
+ocorrência quanto o hash usam exatamente o que ela devolve, para não divergirem.
+
+`tipo` (C/D) nunca é confiado ao item de entrada: é sempre DERIVADO do sinal de
+`valor` (crédito >= 0, débito < 0), a constraint canônica do projeto. Isso
+elimina a classe de bug "parser grava tipo errado" em vez de só detectá-la.
 """
 from __future__ import annotations
 
@@ -85,15 +92,36 @@ def init_db(path: Path = DB_PATH) -> None:
         """)
 
 
+def _norm_historico(s: str | None) -> str:
+    """Maiúsculas + colapsa espaços internos repetidos (export de banco costuma
+    trazer "TARIFA  PACOTE" com espaço duplo) — mesmo padrão de normalização de
+    rótulo do ERP já usado no projeto (`" ".join(x.split())`)."""
+    return " ".join((s or "").upper().split())
+
+
+def _identidade(item: dict) -> tuple[str, str, str, str]:
+    """(dt, valor, historico normalizado, numerodoc) — a identidade natural de um
+    lançamento sem FITID. ÚNICO lugar que define isso: tanto o contador de
+    ocorrência (`gravar_lancamentos`) quanto o hash (`_chave`) partem daqui, para
+    que não possam divergir entre si (causa raiz de um bug já corrigido: contar
+    ocorrência sem o numerodoc fazia dois boletos de mesmo dia/valor/histórico
+    mas numerodoc diferente colidirem no mesmo contador, tornando a chave
+    dependente da ORDEM da lista em vez do conteúdo)."""
+    return (
+        item["dt"],
+        f"{float(item['valor']):.2f}",
+        _norm_historico(item.get("historico")),
+        (item.get("numerodoc") or "").strip(),
+    )
+
+
 def _chave(item: dict, ocorrencia: int) -> str:
-    """FITID quando existe; senão hash estável do conteúdo + ordem no dia."""
+    """FITID quando existe; senão hash estável da identidade + ocorrência."""
     fitid = (item.get("fitid") or "").strip()
     if fitid:
         return "fitid:" + fitid
-    cru = "|".join([
-        item["dt"], f"{float(item['valor']):.2f}",
-        (item.get("historico") or "").strip().upper(),
-        (item.get("numerodoc") or "").strip(), str(ocorrencia)])
+    dt, valor, historico, numerodoc = _identidade(item)
+    cru = "|".join([dt, valor, historico, numerodoc, str(ocorrencia)])
     return "hash:" + hashlib.sha1(cru.encode("utf-8")).hexdigest()
 
 
@@ -150,16 +178,18 @@ def gravar_lancamentos(path: Path, conta_id: int, itens: list[dict], arquivo: st
             "INSERT INTO ext_importacao(conta_id, arquivo, formato, dt_de, dt_ate, ignoradas) "
             "VALUES(?,?,?,?,?,?)", (conta_id, arquivo, formato, datas[0], datas[-1], ignoradas))
         imp_id = int(cur.lastrowid)
-        vistos: dict[str, int] = {}
+        vistos: dict[tuple[str, str, str, str], int] = {}
         for item in itens:
-            base = f"{item['dt']}|{item.get('historico','')}|{float(item['valor']):.2f}"
+            base = _identidade(item)
             vistos[base] = vistos.get(base, 0) + 1
             chave = _chave(item, vistos[base])
+            valor = float(item["valor"])
+            tipo = "C" if valor >= 0 else "D"  # sinal manda, nunca o campo de entrada
             ins = c.execute(
                 "INSERT OR IGNORE INTO ext_lancamento"
                 "(conta_id, importacao_id, dt, valor, tipo, historico, numerodoc, fitid, chave) "
                 "VALUES(?,?,?,?,?,?,?,?,?)",
-                (conta_id, imp_id, item["dt"], float(item["valor"]), item["tipo"],
+                (conta_id, imp_id, item["dt"], valor, tipo,
                  item.get("historico") or "", item.get("numerodoc") or "",
                  item.get("fitid"), chave))
             if ins.rowcount:
