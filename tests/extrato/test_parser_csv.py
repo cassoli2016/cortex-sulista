@@ -18,6 +18,45 @@ CSV_CRED_DEB = (
     "11/07/2026;TARIFA;;99,90\n"
 )
 
+CSV_DATAS_INVALIDAS = (
+    "Data;Historico;Documento;Valor\n"
+    "31/13/2026;MES INEXISTENTE;1;10,00\n"
+    "31/02/2026;FEVEREIRO SEM 31;2;10,00\n"
+    "99/99/2026;LIXO TOTAL;3;10,00\n"
+    "01/07/2026;OK;4;10,00\n"
+)
+
+CSV_VALOR_INVALIDO = (
+    "Data;Historico;Documento;Valor\n"
+    "01/07/2026;BOM;1;10,00\n"
+    "02/07/2026;RUIM;2;1.2.3.4\n"
+)
+
+# 8 ';' contra 9 ',' — a contagem crua de caracteres elegia a vírgula e
+# despedaçava as colunas, rejeitando o arquivo inteiro. Precisa das 3 linhas de
+# dados para a vírgula superar: com menos, o bug não aparece.
+CSV_HISTORICO_COM_VIRGULA = (
+    'Data;Historico;Valor\n'
+    '01/07/2026;"PGTO FORNEC, LTDA, PARC 1/2";150,00\n'
+    '02/07/2026;"TED JOSE, MARIA, LTDA";200,00\n'
+    '03/07/2026;"DEB AUTO, ENERGIA, JUL";300,00\n'
+)
+
+CSV_CREDITO_ZERO = (
+    "Data;Historico;Credito;Debito\n"
+    "05/07/2026;AJUSTE;0,00;\n"
+)
+
+CSV_CREDITO_E_DEBITO = (
+    "Data;Historico;Credito;Debito\n"
+    "06/07/2026;COMPENSACAO;500,00;300,00\n"
+)
+
+CSV_DEBITO_JA_NEGATIVO = (
+    "Data;Historico;Credito;Debito\n"
+    "07/07/2026;TARIFA;;-99,90\n"
+)
+
 
 def test_valor_br_formatos():
     assert valor_br("15.000,50") == 15000.50
@@ -68,3 +107,60 @@ def test_encoding_latin1():
     bruto = "Data;Historico;Valor\n01/07/2026;TARIFA MANUTENCAO;-10,00\n".encode("latin-1")
     d = parse_csv(bruto, {"dt": 0, "historico": 1, "valor": 2})
     assert d["itens"][0]["historico"] == "TARIFA MANUTENCAO"
+
+
+# --- regressões da revisão (data impossível, delimitador, crédito/débito) ---
+
+def test_data_impossivel_vai_para_ignoradas():
+    """Dia inexistente não casa com nenhum dia do ERP: entraria na base e
+    desapareceria da comparação sem aviso, escondendo divergência real."""
+    d = parse_csv(CSV_DATAS_INVALIDAS.encode("utf-8"),
+                  {"dt": 0, "historico": 1, "numerodoc": 2, "valor": 3})
+    assert [i["dt"] for i in d["itens"]] == ["2026-07-01"]   # só a linha válida
+    assert d["ignoradas"] == 3
+
+
+def test_valor_invalido_vai_para_ignoradas_e_nunca_vira_zero():
+    d = parse_csv(CSV_VALOR_INVALIDO.encode("utf-8"),
+                  {"dt": 0, "historico": 1, "numerodoc": 2, "valor": 3})
+    assert len(d["itens"]) == 1
+    assert d["itens"][0]["valor"] == 10.00
+    assert d["ignoradas"] == 1
+    assert all(i["valor"] != 0 for i in d["itens"])
+
+
+def test_delimitador_respeita_virgula_dentro_de_campo_com_aspas():
+    """Contagem crua de caracteres elegia ',' e despedaçava as colunas,
+    rejeitando o arquivo inteiro."""
+    p = preview_csv(CSV_HISTORICO_COM_VIRGULA.encode("utf-8"))
+    assert p["delim"] == ";"
+    d = parse_csv(CSV_HISTORICO_COM_VIRGULA.encode("utf-8"),
+                  {"dt": 0, "historico": 1, "valor": 2})
+    assert len(d["itens"]) == 3
+    assert d["itens"][0]["historico"] == "PGTO FORNEC, LTDA, PARC 1/2"
+    assert [i["valor"] for i in d["itens"]] == [150.00, 200.00, 300.00]
+
+
+def test_credito_zero_e_lancamento_valido():
+    """0,00 é falsy em Python: com truthiness a linha desaparecia da trilha."""
+    d = parse_csv(CSV_CREDITO_ZERO.encode("utf-8"),
+                  {"dt": 0, "historico": 1, "credito": 2, "debito": 3})
+    assert len(d["itens"]) == 1
+    assert d["itens"][0]["valor"] == 0.0
+    assert d["itens"][0]["tipo"] == "C"
+    assert d["ignoradas"] == 0
+
+
+def test_credito_e_debito_na_mesma_linha_viram_liquido():
+    d = parse_csv(CSV_CREDITO_E_DEBITO.encode("utf-8"),
+                  {"dt": 0, "historico": 1, "credito": 2, "debito": 3})
+    assert len(d["itens"]) == 1
+    assert d["itens"][0]["valor"] == 200.0
+    assert d["itens"][0]["tipo"] == "C"
+
+
+def test_debito_que_ja_vem_negativo_no_arquivo():
+    d = parse_csv(CSV_DEBITO_JA_NEGATIVO.encode("utf-8"),
+                  {"dt": 0, "historico": 1, "credito": 2, "debito": 3})
+    assert d["itens"][0]["valor"] == -99.90
+    assert d["itens"][0]["tipo"] == "D"
