@@ -1667,7 +1667,8 @@ def extrato(dt_de: str | None = None, dt_ate: str | None = None,
 
 
 @app.post("/api/financeiro/extrato/importar")
-async def extrato_importar(req: Request, nome: str = "") -> JSONResponse:
+async def extrato_importar(req: Request, nome: str = "",
+                           conta_id: int | None = None) -> JSONResponse:
     """Recebe o arquivo como CORPO BRUTO (um POST por arquivo).
 
     Sem multipart de propósito: `UploadFile` exige python-multipart, que não é
@@ -1685,7 +1686,7 @@ async def extrato_importar(req: Request, nome: str = "") -> JSONResponse:
             "mensagem": f"Arquivo acima do limite de {_EXT_MAX_BYTES // (1024 * 1024)} MB."})
     arquivo = (nome or "extrato.ofx").strip()
     try:
-        return JSONResponse(importar(bruto, arquivo))
+        return JSONResponse(importar(bruto, arquivo, conta_id=conta_id))
     except ValueError as exc:
         return JSONResponse(status_code=422, content={
             "erro": "arquivo_invalido", "mensagem": str(exc)})
@@ -1697,15 +1698,42 @@ async def extrato_importar(req: Request, nome: str = "") -> JSONResponse:
 
 @app.post("/api/financeiro/extrato/mapear")
 async def extrato_mapear(req: Request) -> JSONResponse:
+    """Vincula uma conta ao ERP e/ou salva o mapa de colunas do CSV.
+
+    Sem `conta_id` e com `formato="csv"`, CRIA a conta: a identidade sai da conta
+    bancária (`servico.ident_csv`), nunca do nome do arquivo — dois `extrato.csv`
+    de bancos diferentes cairiam na mesma conta e misturariam lançamentos.
+    """
     from api.extrato import armazenamento as arm
+    from api.extrato.servico import ident_csv
     try:
         body = await req.json()
     except Exception:
         body = None
-    if not isinstance(body, dict) or not isinstance(body.get("conta_id"), int):
+    if not isinstance(body, dict):
         return JSONResponse(status_code=422, content={
-            "erro": "parametro_invalido", "mensagem": "Informe conta_id."})
-    conta_id = body["conta_id"]
+            "erro": "parametro_invalido", "mensagem": "Corpo inválido."})
+    conta_id = body.get("conta_id")
+    # criação de conta CSV: precisa da conta do ERP para formar a identidade
+    if conta_id is None:
+        if body.get("formato") != "csv" or body.get("erp_banco") is None:
+            return JSONResponse(status_code=422, content={
+                "erro": "parametro_invalido",
+                "mensagem": "Informe conta_id, ou formato=csv com a conta do ERP."})
+        try:
+            arm.init_db(arm.DB_PATH)
+            banco = int(body["erp_banco"])
+            agencia = str(body.get("erp_agencia") or "")
+            conta = str(body.get("erp_conta") or "")
+            ident = ident_csv(banco, agencia, conta)
+            rotulo = body.get("rotulo") or f"{banco} / ag {agencia} / cc {conta}"
+            conta_id = arm.obter_ou_criar_conta(arm.DB_PATH, ident, rotulo)
+        except (TypeError, ValueError):
+            return JSONResponse(status_code=422, content={
+                "erro": "parametro_invalido", "mensagem": "Conta do ERP inválida."})
+    if not isinstance(conta_id, int):
+        return JSONResponse(status_code=422, content={
+            "erro": "parametro_invalido", "mensagem": "conta_id inválido."})
     try:
         arm.init_db(arm.DB_PATH)
         if body.get("erp_banco") is not None:
@@ -1717,7 +1745,9 @@ async def extrato_mapear(req: Request) -> JSONResponse:
         if isinstance(mapa, dict):
             limpo = {k: int(v) for k, v in mapa.items() if isinstance(v, (int, float))}
             arm.salvar_mapa_csv(arm.DB_PATH, conta_id, limpo)
-        return JSONResponse({"ok": True})
+        # devolve o conta_id: no fluxo CSV a tela precisa dele para reenviar o
+        # arquivo (importar exige conta_id explicito para CSV)
+        return JSONResponse({"ok": True, "conta_id": conta_id})
     except (TypeError, ValueError):
         return JSONResponse(status_code=422, content={
             "erro": "parametro_invalido", "mensagem": "Valores de mapeamento inválidos."})
