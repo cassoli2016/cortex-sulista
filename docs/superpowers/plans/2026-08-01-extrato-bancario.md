@@ -1194,10 +1194,18 @@ git commit -m "feat(extrato): comparacao conta x dia extrato vs contacorrente_sa
 - Consumes: `armazenamento` (Task 1), `parser_ofx.parse_ofx` (Task 2), `parser_csv.parse_csv`/`preview_csv` (Task 3), `comparacao.comparar`/`farol` (Task 4), `api.db.query` (leitura do AVA).
 - Produces:
   - `ERP_SALDO_SQL: str` — consulta de `contacorrente_saldo` por conta e período.
-  - `importar(bruto: bytes, nome: str, path=DB_PATH) -> dict` — devolve
-    `{"ok": True, "conta_id", "conta", "novas", "duplicadas", "ignoradas", "dt_de", "dt_ate"}`,
-    ou `{"ok": False, "precisa": "mapa_erp"|"mapa_csv", ...}` quando falta mapeamento,
-    ou levanta `ValueError` (arquivo ilegível).
+  - `importar(bruto: bytes, nome: str, path=DB_PATH, conta_id: int | None = None) -> dict`
+    — devolve `{"ok": True, "conta_id", "conta", "novas", "duplicadas", "ignoradas", "dt_de", "dt_ate"}`,
+    ou `{"ok": False, "precisa": "conta_csv"|"mapa_csv"|"mapa_erp", ...}`, ou levanta
+    `ValueError` (arquivo ilegível). **CSV exige `conta_id`**: o arquivo não traz a
+    conta, então derivar identidade do NOME do arquivo fazia dois `extrato.csv` de
+    bancos diferentes virarem a mesma conta e misturar lançamentos. Sem `conta_id`
+    devolve `precisa="conta_csv"` com `preview` e as contas conhecidas, sem gravar
+    nada. OFX não muda (a conta está no arquivo) e ganha `pendentes` = quantas
+    contas do arquivo ainda precisam de vínculo ERP.
+  - `ident_csv(erp_banco: int, erp_agencia: str, erp_conta: str) -> str` —
+    `"csv:<banco>/<agencia>/<conta>"`. A identidade de conta CSV é a conta bancária
+    real, nunca o nome do arquivo.
   - `painel(dt_de: str, dt_ate: str, conta_id: int | None = None, path=DB_PATH) -> dict` —
     `{"kpis", "contas", "dias", "importacoes", "atualizado_em", "fonte"}`.
   - `contas_erp() -> list[dict]` — contas de `contacorrente_saldo` para o select de mapeamento.
@@ -1535,8 +1543,14 @@ git commit -m "feat(extrato): servico de importacao e painel de validacao"
 - Consumes: `servico.importar`, `servico.painel`, `servico.contas_erp`, `armazenamento.mapear_conta`, `armazenamento.salvar_mapa_csv`, `armazenamento.apagar_importacao` (Tasks 1 e 5).
 - Produces (contrato consumido pelo front na Task 7):
   - `GET /api/financeiro/extrato?dt_de=&dt_ate=&conta_id=` → payload de `servico.painel`.
-  - `POST /api/financeiro/extrato/importar?nome=<arquivo>` — corpo bruto do arquivo.
-  - `POST /api/financeiro/extrato/mapear` — JSON `{conta_id, erp_banco, erp_agencia, erp_conta, rotulo?}` e/ou `{conta_id, mapa_csv:{...}}`.
+  - `POST /api/financeiro/extrato/importar?nome=<arquivo>&conta_id=<id>` — corpo bruto
+  do arquivo. `conta_id` é opcional para OFX e OBRIGATÓRIO para CSV (sem ele a
+  resposta é `precisa="conta_csv"`, que a tela usa para perguntar a conta).
+  - `POST /api/financeiro/extrato/mapear` — JSON `{conta_id, erp_banco, erp_agencia,
+  erp_conta, rotulo?}` e/ou `{conta_id, mapa_csv:{...}}`. Para CRIAR conta CSV (sem
+  `conta_id`), aceita `{formato:"csv", erp_banco, erp_agencia, erp_conta, mapa_csv}`
+  e cria a conta com `servico.ident_csv(...)` — a identidade sai da conta bancária,
+  não do nome do arquivo.
   - `DELETE /api/financeiro/extrato/importacao/{imp_id}`.
   - `GET /api/financeiro/extrato/contas-erp` → `{"contas": [...]}`.
 
