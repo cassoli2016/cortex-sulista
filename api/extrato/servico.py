@@ -196,13 +196,16 @@ def painel(dt_de: str, dt_ate: str, conta_id: int | None = None, path=arm.DB_PAT
         tot_val += len(validos)
         tot_div += len(divergentes)
         for d in divergentes:
-            # maior desvio real do dia: o MAIOR dos tres deltas em modulo, entre
-            # os que existem - nunca "or" (0.0 legitimo cairia para o campo
-            # errado, escondendo a divergencia de verdade atras de um residuo
-            # abaixo da tolerancia que nem foi a causa do DIVERGE).
-            deltas = [abs(v) for v in (d.get("d_saldo"), d.get("d_credito"), d.get("d_debito"))
-                      if v is not None]
-            delta = max(deltas) if deltas else 0.0
+            # maior desvio real do dia: reaproveita cmp._maior_delta (mesma
+            # regra do farol, Task 8 fix round 2) em vez de duplicar o "maior
+            # modulo entre os tres, ignorando None" - essa duplicacao (aqui,
+            # no farol, e na tabela dia a dia do front) foi o que permitiu o
+            # mesmo bug (achar a diferenca errada entre saldo/credito/debito)
+            # sobreviver a duas correcoes anteriores no plano (fix round 5,
+            # FINDING 3). `_maior_delta` devolve o valor COM sinal; o `abs()`
+            # fica aqui porque o KPI `maior_diferenca` sempre foi absoluto.
+            valor, _origem = cmp._maior_delta(d)
+            delta = abs(valor) if valor is not None else 0.0
             if pior is None or delta > pior["delta"]:
                 pior = {"delta": delta, "conta": c["rotulo"], "dt": d["dt"]}
         resumo.append({

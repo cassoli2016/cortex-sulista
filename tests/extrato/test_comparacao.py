@@ -79,7 +79,9 @@ def test_sem_ancora_de_saldo_compara_so_fluxo():
 
 def test_farol_ok_diverge_sem_mapa_e_desatualizado():
     ok = [{"dt": "2026-07-31", "estado": "OK", "d_saldo": 0.0}]
-    assert farol(ok, "2026-07-31", "2026-08-01")["estado"] == "ok"
+    f_ok = farol(ok, "2026-07-31", "2026-08-01")
+    assert f_ok["estado"] == "ok"
+    assert f_ok["delta"] is None            # fix round 5, FINDING 2
     div = [{"dt": "2026-07-31", "estado": "DIVERGE", "d_saldo": -12.5}]
     f = farol(div, "2026-07-31", "2026-08-01")
     assert (f["estado"], f["delta"]) == ("diverge", -12.5)
@@ -89,6 +91,31 @@ def test_farol_ok_diverge_sem_mapa_e_desatualizado():
     velho = farol(ok, "2026-07-20", "2026-08-01")
     assert velho["estado"] == "desatualizado"
     assert velho["dias_sem_extrato"] == 12
+
+
+def test_farol_ok_com_residuo_sub_tolerancia_nao_reporta_delta():
+    """Fix round 5, FINDING 2: um dia OK pode ter um resíduo sub-tolerância
+    em `d_saldo` (ex.: 0,005 - abaixo de `TOLERANCIA`, por isso nem chegou a
+    virar DIVERGE) sem que o farol reporte isso como "a diferença do dia" -
+    contradiria o próprio veredito "bate com o banco" que o farol acabou de
+    dar. `delta`/`delta_origem` ficam `None`, mesmo contrato de `sem_mapa`."""
+    ok_residuo = [{"dt": "2026-07-31", "estado": "OK", "d_saldo": 0.005,
+                   "d_credito": None, "d_debito": None}]
+    f = farol(ok_residuo, "2026-07-31", "2026-08-01")
+    assert f["estado"] == "ok"
+    assert f["delta"] is None
+    assert f["delta_origem"] is None
+
+
+def test_farol_diverge_continua_com_delta_real():
+    """Regressão do fix round 5: zerar `delta` no estado `ok` (FINDING 2) não
+    pode vazar para `diverge` - o delta real de uma divergência de verdade
+    continua saindo intacto."""
+    div = [{"dt": "2026-07-31", "estado": "DIVERGE", "d_saldo": -12.5}]
+    f = farol(div, "2026-07-31", "2026-08-01")
+    assert f["estado"] == "diverge"
+    assert f["delta"] == -12.5
+    assert f["delta_origem"] == "saldo"
 
 
 def test_farol_sem_nenhum_dia():
