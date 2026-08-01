@@ -750,6 +750,7 @@ from __future__ import annotations
 import csv
 import io
 import re
+from datetime import date
 
 _RE_MILHAR_VIRGULA = re.compile(r"^-?\d{1,3}(\.\d{3})*(,\d{1,2})?$")   # 1.234.567,89
 _RE_SO_VIRGULA = re.compile(r"^-?\d+(,\d{1,2})?$")                     # 1234,89
@@ -791,18 +792,47 @@ def _decodificar(bruto: bytes) -> str:
 
 
 def _delimitador(texto: str) -> str:
-    cabeca = "\n".join(texto.splitlines()[:5])
-    return max((";", ",", "\t"), key=cabeca.count)
+    """Escolhe pela ESTRUTURA que o candidato produz, nao por contagem de
+    caracteres: extrato BR usa ';' e tem virgula decimal e virgula dentro de
+    campo entre aspas ("PGTO FORNEC, LTDA"), o que fazia a contagem crua eleger
+    ',' e despedacar as colunas. `csv.reader` respeita aspas.
+    """
+    cabeca = texto.splitlines()[:5]
+    melhor, melhor_nota = ";", (0, 0)
+    for cand in (";", ",", "\t"):
+        linhas = [r for r in csv.reader(io.StringIO("\n".join(cabeca)), delimiter=cand) if r]
+        if not linhas:
+            continue
+        cols = [len(r) for r in linhas]
+        if max(cols) < 2:
+            continue                      # nao separou nada
+        estavel = 1 if len(set(cols)) == 1 else 0
+        nota = (estavel, max(cols))       # consistencia primeiro, largura depois
+        if nota > melhor_nota:
+            melhor, melhor_nota = cand, nota
+    return melhor
 
 
 def _data_br(txt: str) -> str | None:
-    """DD/MM/AAAA (ou com '-'), e AAAA-MM-DD para exports ISO."""
+    """DD/MM/AAAA (ou com '-'), e AAAA-MM-DD para exports ISO.
+
+    Valida o CALENDARIO, nao so o formato: '31/13/2026' passaria pela regex e
+    viraria um lancamento num dia inexistente, que nunca casa com nenhum dia do
+    ERP e desaparece da comparacao sem aviso - escondendo divergencia real.
+    """
     s = (txt or "").strip()
     m = re.match(r"^(\d{2})[/-](\d{2})[/-](\d{4})", s)
     if m:
-        return f"{m.group(3)}-{m.group(2)}-{m.group(1)}"
-    m = re.match(r"^(\d{4})-(\d{2})-(\d{2})", s)
-    return m.group(0) if m else None
+        ano, mes, dia = m.group(3), m.group(2), m.group(1)
+    else:
+        m = re.match(r"^(\d{4})-(\d{2})-(\d{2})", s)
+        if not m:
+            return None
+        ano, mes, dia = m.group(1), m.group(2), m.group(3)
+    try:
+        return date(int(ano), int(mes), int(dia)).isoformat()
+    except ValueError:
+        return None
 
 
 def _linhas(bruto: bytes) -> tuple[list[list[str]], str]:
@@ -843,7 +873,16 @@ def parse_csv(bruto: bytes, mapa: dict) -> dict:
         else:
             cred = valor_br(_col(linha, mapa.get("credito")))
             deb = valor_br(_col(linha, mapa.get("debito")))
-            valor = cred if cred else (-abs(deb) if deb else None)
+            # `is not None`, nunca truthiness: credito legitimo de 0,00 e falsy
+            # e desapareceria da trilha. Ambos preenchidos = liquido da linha.
+            if cred is not None and deb is not None:
+                valor = cred - abs(deb)
+            elif cred is not None:
+                valor = cred
+            elif deb is not None:
+                valor = -abs(deb)
+            else:
+                valor = None
         if valor is None:
             ignoradas += 1
             continue
