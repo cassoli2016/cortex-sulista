@@ -23,6 +23,45 @@ def _fmt_brl(v: float) -> str:
     return f"R$ {s}"
 
 
+def _data_br(iso: str | None) -> str:
+    if not iso:
+        return "-"
+    p = str(iso).split("-")
+    return f"{p[2]}/{p[1]}/{p[0]}" if len(p) == 3 else str(iso)
+
+
+def _fmt_brl_cent(v: float) -> str:
+    """Como `_fmt_brl`, mas com centavos. A tolerância de divergência do
+    extrato é de 1 centavo (`comparacao.TOLERANCIA`), então arredondar para
+    o real inteiro (como `_fmt_brl` faz nos outros alertas) mostraria
+    "R$ 0" num alerta CRÍTICO sempre que a diferença real for < R$ 0,50."""
+    s = f"{v:,.2f}".replace(",", "X").replace(".", ",").replace("X", ".")
+    return f"R$ {s}"
+
+
+def _alertas_extrato(painel: dict) -> list[tuple[str, str, str]]:
+    """(nivel, titulo, texto) por conta com problema. Função pura para teste."""
+    out: list[tuple[str, str, str]] = []
+    for c in painel.get("contas") or []:
+        if not c.get("mapeada"):
+            continue          # sem vínculo com o ERP não há o que comparar
+        f = c.get("farol") or {}
+        if f.get("estado") == "diverge":
+            delta = f.get("delta") or 0.0
+            out.append((
+                "critico", "Extrato bancário divergente",
+                f"A conta {c['rotulo']} fecha {_fmt_brl_cent(abs(delta))} "
+                f"{'acima' if delta > 0 else 'abaixo'} do ERP em "
+                f"{_data_br(f.get('dt'))}. Detalhe: Financeiro > Extrato Bancário."))
+        elif f.get("estado") == "desatualizado" and f.get("dias_sem_extrato"):
+            d = f["dias_sem_extrato"]
+            out.append((
+                "atencao", "Extrato bancário sem atualização",
+                f"A conta {c['rotulo']} está há {d} {'dia' if d == 1 else 'dias'} "
+                "sem extrato importado - a validação de saldo está cega nesse período."))
+    return out
+
+
 def build_alertas() -> list[dict]:
     """Itens de ação: nivel critico|atencao|info, titulo, texto."""
     itens: list[dict] = []
@@ -114,6 +153,15 @@ def build_alertas() -> list[dict]:
                 "exigem acompanhamento. Detalhe: Operação > Torre de Controle.")
     except Exception as exc:  # noqa: BLE001
         log.warning("alertas cargas criticas: %s", exc)
+
+    try:
+        from api.extrato.servico import painel as extrato_painel
+        hoje = date.today()
+        p = extrato_painel(hoje.replace(day=1).isoformat(), hoje.isoformat())
+        for nivel, titulo, texto in _alertas_extrato(p):
+            add(nivel, titulo, texto)
+    except Exception as exc:  # noqa: BLE001
+        log.warning("alertas extrato: %s", exc)
 
     ordem = {"critico": 0, "atencao": 1, "info": 2}
     itens.sort(key=lambda i: ordem.get(i["nivel"], 9))
