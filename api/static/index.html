@@ -792,6 +792,7 @@ button.avatar{border:0;cursor:pointer}
         <a href="#receber" class="sub" data-view="receber" title="Contas a Receber"><span class="ic" data-ic="rec"></span><span>Contas a Receber</span></a>
         <a href="#pagar" class="sub" data-view="pagar" title="Contas a Pagar"><span class="ic" data-ic="pag"></span><span>Contas a Pagar</span></a>
         <a href="#cob" class="sub" data-view="cob" title="Régua de Cobrança"><span class="ic" data-ic="cob"></span><span>Cobrança</span></a>
+        <a href="#extb" class="sub" data-view="extb" title="Extrato Bancário"><span class="ic" data-ic="ctb"></span><span>Extrato Bancário</span></a>
       </div>
       <button class="group" id="grpCtr" aria-expanded="false" aria-controls="subsCtr" onclick="toggleGroup('grpCtr','subsCtr','cs.ctrGroup')" title="Controladoria">
         <span class="ic" data-ic="dre"></span><span>Controladoria</span><span class="ic chev" data-ic="chev"></span>
@@ -1668,6 +1669,33 @@ button.avatar{border:0;cursor:pointer}
         </div>
       </section>
 
+      <!-- ===================== EXTRATO BANCÁRIO ===================== -->
+      <section class="view" id="view-extb">
+        <div class="card">
+          <div class="head"><h2>Extrato Bancário <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="Extrato importado (OFX/CSV) comparado com contacorrente_saldo do ERP AVA, por conta e por dia. Tolerância de R$ 0,01.">i</span></h2><span class="hint">valida saldo e fluxo do ERP contra o extrato do banco</span></div>
+          <div class="cardfilters" id="extb-filtros">
+            <select id="fExtbConta" aria-label="Conta" onchange="loadExtb()"></select>
+            <input type="text" id="fExtbDe" placeholder="Data inicial" inputmode="numeric" aria-label="Data inicial">
+            <input type="text" id="fExtbAte" placeholder="Data final" inputmode="numeric" aria-label="Data final">
+            <button class="ghost" onclick="loadExtb()">Aplicar</button>
+            <button class="ghost" onclick="document.getElementById('extbArquivo').click()">⬆ Importar extrato</button>
+            <input type="file" id="extbArquivo" accept=".ofx,.qfx,.csv,.txt" multiple style="display:none" onchange="extbEnviar(this.files)">
+          </div>
+        </div>
+        <div id="extb-aviso"></div>
+        <div class="kpis k4" id="kpis-extb"></div>
+        <div class="card"><div class="head"><h2>Situação por conta</h2>
+          <span class="hint" id="hintExtbContas"></span></div>
+          <div class="tablewrap tabroll" id="extb-contas"></div></div>
+        <div class="card"><div class="head"><h2>Comparação dia a dia</h2>
+          <span class="hint" id="hintExtbDias"></span></div>
+          <div class="banner-inline" id="extbOutraConta" style="display:none"></div>
+          <div class="tablewrap tabroll" id="extb-dias"></div></div>
+        <div class="card"><div class="head"><h2>Importações recentes</h2>
+          <span class="hint" id="hintExtbImps"></span></div>
+          <div class="tablewrap tabroll" id="extb-imps"></div></div>
+      </section>
+
       <!-- ===================== COPILOTO SULISTA ===================== -->
       <section class="view" id="view-cop">
         <div class="card cop-card vazio" id="cop-card">
@@ -2535,7 +2563,7 @@ const FAIXAS = {
   '4_vencido_91_365':['Vencido 91–365d','b-dang'],
   '5_vencido_mais_365':['Vencido > 365d','b-dang'],
 };
-const VIEWS = { home:'Visão Geral', fluxo:'Fluxo de Caixa e Bancos', receber:'Contas a Receber', pagar:'Contas a Pagar', oc:'Ordens de Compra', custos:'Painel de Custos', agr:'Agregados e Terceiros', mvb:'Make vs Buy', comb:'Combustível', man:'Manutenção', com:'Clientes e RKM', clif:'Consulta de Cliente', crm:'CRM — Leads e Projetos', km:'Análise de KM', torre:'Torre de Controle', veic:'Veículos', veicf:'Consulta de Veículo', mprev:'Manutenção Preventiva', comrast:'Comunicação Rastreadora', mul:'Multas', prog:'Programação Inteligente', jorn:'Jornada do Motorista', jornf:'Ficha de Jornada', cex:'Custos Extras', sac:'SAC / Freetime', port:'Portaria', cop:'Copiloto Cortex', cob:'Régua de Cobrança', cont:'Contabilidade', qual:'Qualidade e Certidões', orc:'Orçamento', prem:'Premiação de Motoristas', dre:'DRE Gerencial', drecli:'DRE por Cliente', tvfat:'Painel TV — Faturamento', tvope:'Painel TV — Operação', rh:'RH — Vagas', hc:'Headcount', folha:'Custo de Folha', folhaind:'Indicadores de Folha', he:'Horas Extras', gestao:'Gestão', srv:'Saúde do Servidor' };
+const VIEWS = { home:'Visão Geral', fluxo:'Fluxo de Caixa e Bancos', receber:'Contas a Receber', pagar:'Contas a Pagar', oc:'Ordens de Compra', custos:'Painel de Custos', agr:'Agregados e Terceiros', mvb:'Make vs Buy', comb:'Combustível', man:'Manutenção', com:'Clientes e RKM', clif:'Consulta de Cliente', crm:'CRM — Leads e Projetos', km:'Análise de KM', torre:'Torre de Controle', veic:'Veículos', veicf:'Consulta de Veículo', mprev:'Manutenção Preventiva', comrast:'Comunicação Rastreadora', mul:'Multas', prog:'Programação Inteligente', jorn:'Jornada do Motorista', jornf:'Ficha de Jornada', cex:'Custos Extras', sac:'SAC / Freetime', port:'Portaria', cop:'Copiloto Cortex', cob:'Régua de Cobrança', extb:'Extrato Bancário', cont:'Contabilidade', qual:'Qualidade e Certidões', orc:'Orçamento', prem:'Premiação de Motoristas', dre:'DRE Gerencial', drecli:'DRE por Cliente', tvfat:'Painel TV — Faturamento', tvope:'Painel TV — Operação', rh:'RH — Vagas', hc:'Headcount', folha:'Custo de Folha', folhaind:'Indicadores de Folha', he:'Horas Extras', gestao:'Gestão', srv:'Saúde do Servidor' };
 const periodoLabel = p => { if(p==='atrasado') return 'Atrasado'; const [y,m]=p.split('-'); return MES[+m-1]+'/'+y.slice(2); };
 const fmtD = s => { if(!s) return ''; const [y,m,dd]=s.split('-'); return dd+'/'+m+'/'+y; };
 // o ERP devolve "YYYY-MM-DD HH24:MI" (to_char); a ficha do veículo mostrava cru
@@ -2610,6 +2638,7 @@ let torreTimer = null;
 let veicSeq = 0;
 let progSeq = 0;
 let DATACOB = null;
+let DATAEXTB = null, extbSeq = 0;
 let DATARENT = null;
 let tvTimer = null, tvClock = null, TV_NEXT = 0;
 let rentSeq = 0;
@@ -2685,7 +2714,7 @@ function toggleGroup(gid,sid,key){
 
 const VIEW_GROUP = {home:'',cop:'',
   com:'Com',clif:'Com',crm:'Com',rent:'Com',drecli:'Com',
-  fluxo:'Fin',receber:'Fin',pagar:'Fin',cob:'Fin',
+  fluxo:'Fin',receber:'Fin',pagar:'Fin',cob:'Fin',extb:'Fin',
   dre:'Ctr',cont:'Ctr',qual:'Ctr',orc:'Ctr',
   torre:'Ope',prog:'Ope',jorn:'Ope',jornf:'Ope',cex:'Ope',sac:'Ope',port:'Ope',km:'Ope',agr:'Ope',mvb:'Ope',
   veic:'Fro',veicf:'Fro',mprev:'Fro',comrast:'Fro',comb:'Fro',man:'Fro',mul:'Fro',prem:'Fro',
@@ -2828,7 +2857,7 @@ function semFilterbar(v){
   // filtros", que não tinha o que aplicar.
   return v==='cop'||v==='gestao'||v==='srv'||v==='home'||v==='veicf'||v==='clif'||v==='jorn'||v==='jornf'||v==='prog'||
          v==='cex'||v==='sac'||v==='mprev'||v==='comrast'||v==='qual'||v==='port'||v==='crm'||v==='rh'||
-         v==='hc'||v==='folha'||v==='folhaind'||v==='he'||v==='custos'||v==='orc'||v==='prem';
+         v==='hc'||v==='folha'||v==='folhaind'||v==='he'||v==='custos'||v==='orc'||v==='prem'||v==='extb';
 }
 function currentView(){
   const h = (location.hash||'').replace('#','');
@@ -2916,8 +2945,8 @@ function router(){
   // carga da vista: dispara se não há dados OU se os filtros visíveis
   // divergem dos usados na última carga (nunca mostrar dado velho com filtro novo)
   const key=viewKey(v);
-  const DATAMAP={fin:DATA,oc:DATAOC,agr:DATAAGR,mvb:DATAMVB,comb:DATACOMB,man:DATAMAN,com:DATACOM,clif:DATACLIF,dre:DATADRE,drecli:DATADRECLI,home:DATAHOME,km:DATAKM,torre:DATATORRE,veic:DATAVEIC,veicf:DATAVEICF,mul:DATAMUL,prog:DATAPROG,jorn:DATAJORN,jornf:DATAJORNF,cex:DATACEX,sac:DATASAC,mprev:DATAMPREV,comrast:DATACOMRAST,qual:DATAQUAL,port:DATAPORT,crm:DATACRM,rh:DATARH,hc:DATAHC,folha:DATAFOLHA,folhaind:DATAFOLHAIND,he:DATAHE,custos:DATACUSTOS,cob:DATACOB,rent:DATARENT,cont:DATACONT,orc:DATAORC,prem:DATAPREM,gestao:DATAGES,srv:DATASRV,tvfat:null,tvope:null,cop:(COP_MSGS.length?{}:null)};
-  const LOADMAP={fin:load,oc:loadOc,agr:loadAgr,mvb:loadMvb,comb:loadComb,man:loadMan,com:loadCom,clif:loadClif,dre:loadDre,drecli:loadDreCli,home:loadHome,km:loadKm,torre:loadTorre,veic:loadVeic,veicf:loadVeicf,mul:loadMul,prog:loadProg,jorn:loadJorn,jornf:loadJornf,cex:loadCex,sac:loadSac,mprev:loadMPrev,comrast:loadComRast,qual:loadQual,port:loadPort,crm:loadCrm,rh:loadRh,hc:loadHc,folha:loadFolha,folhaind:loadFolhaInd,he:loadHe,custos:loadCustos,cob:loadCob,rent:loadRent,cont:loadCont,orc:loadOrc,prem:loadPrem,gestao:loadGestao,srv:loadSrv,cop:loadCop,tvfat:loadTvFat,tvope:loadTvOpe};
+  const DATAMAP={fin:DATA,oc:DATAOC,agr:DATAAGR,mvb:DATAMVB,comb:DATACOMB,man:DATAMAN,com:DATACOM,clif:DATACLIF,dre:DATADRE,drecli:DATADRECLI,home:DATAHOME,km:DATAKM,torre:DATATORRE,veic:DATAVEIC,veicf:DATAVEICF,mul:DATAMUL,prog:DATAPROG,jorn:DATAJORN,jornf:DATAJORNF,cex:DATACEX,sac:DATASAC,mprev:DATAMPREV,comrast:DATACOMRAST,qual:DATAQUAL,port:DATAPORT,crm:DATACRM,rh:DATARH,hc:DATAHC,folha:DATAFOLHA,folhaind:DATAFOLHAIND,he:DATAHE,custos:DATACUSTOS,cob:DATACOB,extb:DATAEXTB,rent:DATARENT,cont:DATACONT,orc:DATAORC,prem:DATAPREM,gestao:DATAGES,srv:DATASRV,tvfat:null,tvope:null,cop:(COP_MSGS.length?{}:null)};
+  const LOADMAP={fin:load,oc:loadOc,agr:loadAgr,mvb:loadMvb,comb:loadComb,man:loadMan,com:loadCom,clif:loadClif,dre:loadDre,drecli:loadDreCli,home:loadHome,km:loadKm,torre:loadTorre,veic:loadVeic,veicf:loadVeicf,mul:loadMul,prog:loadProg,jorn:loadJorn,jornf:loadJornf,cex:loadCex,sac:loadSac,mprev:loadMPrev,comrast:loadComRast,qual:loadQual,port:loadPort,crm:loadCrm,rh:loadRh,hc:loadHc,folha:loadFolha,folhaind:loadFolhaInd,he:loadHe,custos:loadCustos,cob:loadCob,extb:loadExtb,rent:loadRent,cont:loadCont,orc:loadOrc,prem:loadPrem,gestao:loadGestao,srv:loadSrv,cop:loadCop,tvfat:loadTvFat,tvope:loadTvOpe};
   if(!DATAMAP[key] || (key!=='home' && LOADEDQS[key]!==qsView(key))) LOADMAP[key]();
   // mobile: estado da navegação inferior + fecha gaveta/painel de filtros
   document.querySelectorAll('.bottomnav [data-bview]').forEach(a=>a.classList.toggle('ativo', a.dataset.bview===v));
@@ -4648,7 +4677,7 @@ function reloadCurrent(){
   // recarrega a TELA ATUAL — antes caía em load() (Financeiro) para várias telas.
   const M={home:loadHome,fluxo:load,receber:load,pagar:load,dre:loadDre,drecli:loadDreCli,oc:loadOc,
     agr:loadAgr,mvb:loadMvb,comb:loadComb,man:loadMan,com:loadCom,clif:loadClif,km:loadKm,
-    torre:loadTorre,veic:loadVeic,veicf:loadVeicf,mul:loadMul,prog:loadProg,jorn:loadJorn,jornf:loadJornf,cex:loadCex,sac:loadSac,mprev:loadMPrev,comrast:loadComRast,qual:loadQual,port:loadPort,crm:loadCrm,rh:loadRh,hc:loadHc,folha:loadFolha,folhaind:loadFolhaInd,he:loadHe,custos:loadCustos,cob:loadCob,rent:loadRent,
+    torre:loadTorre,veic:loadVeic,veicf:loadVeicf,mul:loadMul,prog:loadProg,jorn:loadJorn,jornf:loadJornf,cex:loadCex,sac:loadSac,mprev:loadMPrev,comrast:loadComRast,qual:loadQual,port:loadPort,crm:loadCrm,rh:loadRh,hc:loadHc,folha:loadFolha,folhaind:loadFolhaInd,he:loadHe,custos:loadCustos,cob:loadCob,extb:loadExtb,rent:loadRent,
     cont:loadCont,orc:loadOrc,prem:loadPrem,gestao:loadGestao,srv:loadSrv,cop:loadCop,tvfat:loadTvFat,tvope:loadTvOpe};
   (M[currentView()]||load)();
 }
@@ -6042,6 +6071,408 @@ function cobToggle(i){
   if(!det) return;
   const open=det.classList.toggle('open');
   det.previousElementSibling.setAttribute('aria-expanded', String(open));
+}
+
+/* ---------------- Extrato Bancário ---------------- */
+// O BRL global do painel tem maximumFractionDigits:0 — aqui a tolerância é de
+// R$ 0,01, então esconder centavos faria uma divergência real aparecer como zero.
+const BRL2 = new Intl.NumberFormat('pt-BR',{style:'currency',currency:'BRL',
+                                            minimumFractionDigits:2,maximumFractionDigits:2});
+const brl2 = v => (v==null ? '—' : BRL2.format(v));
+const EXTB_FAROL = {ok:['good','bate com o banco'], diverge:['bad','divergente'],
+                    sem_mapa:['warn','sem vínculo com o ERP'],
+                    desatualizado:['warn','extrato desatualizado']};
+
+// Maior desvio em módulo entre saldo/crédito/débito (mesma regra do backend,
+// `comparacao._maior_delta` - fix round 2 desta task), reaproveitada aqui
+// porque a tabela "Comparação dia a dia" não recebe um `delta_origem` por
+// linha do back-end (só o farol do ÚLTIMO dia passa por lá): cada linha
+// precisa escolher o maior módulo entre OS TRÊS CAMPOS DELA MESMA, no
+// cliente. Ignora os `null` (nunca truthiness) e só considera divergência
+// acima da tolerância de R$ 0,01 (mesmo limiar de `comparacao.TOLERANCIA`),
+// preservando o comportamento de antes para dias OK/SO_EXTRATO/SO_ERP.
+//
+// Arredonda para 2 casas ANTES de comparar - espelha `comparacao._difere`
+// (`round(abs(a-b), 2) > TOLERANCIA`) de propósito: `Math.abs(100.0-100.01)`
+// vale `0.010000000000005116` em ponto flutuante (mesmo erro de
+// representação binária em JS e Python). Sem arredondar aqui, uma diferença
+// real de exatamente 1 centavo passava no filtro do front (`>0.01`) enquanto
+// o backend dizia "dentro da tolerância" (dia OK) - a tela contradizia o
+// próprio veredito que tinha acabado de mostrar na mesma linha (fix round 5,
+// FINDING 1). A simetria com `_difere` é intencional - não "conserte" só um
+// lado se a tolerância mudar.
+function extbMaiorDivergencia(saldo, credito, debito){
+  const cand=[['saldo',saldo],['credito',credito],['debito',debito]]
+    .filter(([,v])=>v!=null && Math.round(Math.abs(v)*100)/100 > 0.01);
+  if(!cand.length) return {valor:null, origem:null};
+  cand.sort((a,b)=>Math.abs(b[1])-Math.abs(a[1]));
+  return {valor:cand[0][1], origem:cand[0][0]};
+}
+
+const EXTB_ORIGEM_LBL = {saldo:'saldo', credito:'crédito', debito:'débito'};
+
+// Célula de diferença (valor + origem discreta, SEMPRE visível - nunca só em
+// title/hover, mesma regra do Copiloto no CLAUDE.md) reaproveitada pelas duas
+// tabelas de Extrato Bancário: "Situação por conta" (delta/delta_origem já
+// escolhidos pelo backend, no farol) e "Comparação dia a dia" (delta/origem
+// calculados linha a linha por `extbMaiorDivergencia`, acima). Um só lugar
+// decide como mostrar a origem - foi a duplicação dessa regra em lugares
+// diferentes (KPI `maior_diferenca`, `farol.delta`, e esta tabela) que deixou
+// o mesmo bug (achar a diferença errada entre saldo/crédito/débito)
+// sobreviver a duas correções anteriores neste plano.
+function extbDeltaCel(delta, origem){
+  if(delta==null) return {txt:'—', attrTitle:''};
+  const lbl=EXTB_ORIGEM_LBL[origem];
+  const txt=`${brl2(delta)}${lbl?` <span style="color:var(--n500)">(${lbl})</span>`:''}`;
+  const attrTitle=lbl?` title="Maior divergência entre saldo, crédito e débito: ${lbl}"`:'';
+  return {txt, attrTitle};
+}
+
+async function loadExtb(){
+  const seq=++extbSeq, btn=document.getElementById('btnRefresh'); if(btn) btn.disabled=true;
+  document.getElementById('content').classList.add('loading');
+  skelKpis('kpis-extb',4);
+  const de=document.getElementById('fExtbDe'), ate=document.getElementById('fExtbAte');
+  if(de && !de.value){ const h=new Date(); de.value=_iso(new Date(h.getFullYear(),h.getMonth(),1)); }
+  if(ate && !ate.value){ ate.value=_iso(new Date()); }
+  try{
+    const p=new URLSearchParams();
+    p.set('dt_de', de.value); p.set('dt_ate', ate.value);
+    const c=(document.getElementById('fExtbConta')||{}).value;
+    if(c) p.set('conta_id', c);
+    const r=await fetch('/api/financeiro/extrato?'+p.toString(),{cache:'no-store'});
+    const d=await r.json(); if(seq!==extbSeq) return;
+    if(!r.ok){ showBanner(d.mensagem||'Erro ao consultar o extrato.', d.detalhe); return; }
+    hideBanner(); DATAEXTB=d; LOADEDQS.extb=''; renderExtb(d);
+  }catch(e){ if(seq===extbSeq) showBanner('Não foi possível falar com a API.', e.message); }
+  finally{ if(seq===extbSeq){ if(btn) btn.disabled=false;
+    document.getElementById('content').classList.remove('loading'); } }
+}
+
+function renderExtb(d){
+  const ts=d.atualizado_em ? new Date(d.atualizado_em) : new Date();
+  document.getElementById('meta').innerHTML='<b>Atualizado '+ts.toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'})+'</b><br>'+ts.toLocaleDateString('pt-BR');
+  const k=d.kpis||{};
+  // conta sem extrato nenhum: a tela explica o que fazer em vez de mostrar zeros
+  if(!(d.contas||[]).length){
+    document.getElementById('kpis-extb').innerHTML='';
+    document.getElementById('extb-aviso').innerHTML=
+      '<div class="card"><p>Nenhum extrato importado ainda. Use <b>⬆ Importar extrato</b> '
+      +'e escolha o arquivo OFX (ou CSV) baixado do internet banking. '
+      +'Na primeira vez de cada conta você aponta a qual conta do ERP ela corresponde.</p></div>';
+    ['extb-contas','extb-dias','extb-imps'].forEach(id=>document.getElementById(id).innerHTML='');
+    const av0=document.getElementById('extbOutraConta'); if(av0){ av0.style.display='none'; av0.innerHTML=''; }
+    return;
+  }
+  document.getElementById('extb-aviso').innerHTML='';
+  const semMapa=k.contas_sem_mapa||0;
+  document.getElementById('kpis-extb').innerHTML=
+     kpi('Contas monitoradas', String(k.contas||0),
+         semMapa?(semMapa+' sem vínculo com o ERP'):'todas vinculadas ao ERP',
+         semMapa?'warn':'', 'Contas com extrato importado. Só as vinculadas a uma conta do ERP podem ser comparadas.')
+   + kpi('Dias validados', String(k.dias_validados||0), 'todas as contas · no período filtrado', '',
+         'Dias em que existe extrato E movimento do ERP para comparar. Soma de TODAS as contas monitoradas - não segue o filtro de conta do seletor abaixo.')
+   + kpi('Dias divergentes', String(k.dias_divergentes||0),
+         'todas as contas · '+(k.dias_divergentes?'exigem conferência':'nenhuma divergência'),
+         (k.dias_divergentes?'bad':'good'),
+         'Dia em que crédito, débito ou saldo diferem em mais de R$ 0,01. Soma de TODAS as contas monitoradas - não segue o filtro de conta do seletor abaixo.')
+   + kpi('Maior diferença', (k.maior_diferenca!=null?brl2(k.maior_diferenca):'—'),
+         (k.maior_diferenca_conta?esc(k.maior_diferenca_conta)+' · '+fmtD(k.maior_diferenca_dt):'sem divergência'),
+         (k.maior_diferenca?'bad':''), 'Maior diferença absoluta encontrada no período.');
+
+  // ---- situação por conta
+  const contas=d.contas||[];
+  document.getElementById('hintExtbContas').textContent=
+    contas.length+' conta'+(contas.length===1?'':'s')+' · farol = último dia com extrato';
+  document.getElementById('extb-contas').innerHTML=
+    '<table><thead><tr><th>Conta</th><th>Conta no ERP</th><th>Último dia</th>'
+    +'<th class="num">Diferença</th><th class="num">Dias validados</th>'
+    +'<th class="num">Divergentes</th><th>Estado</th></tr></thead><tbody>'
+    + contas.map(c=>{
+        const f=c.farol||{}, par=EXTB_FAROL[f.estado]||['',''];
+        const acao = c.mapeada ? '' :
+          ` <button class="ghost" onclick="extbMapearConta(${c.conta_id})">vincular</button>`;
+        const dias = f.dias_sem_extrato;
+        const sub = (f.estado==='desatualizado' && dias!=null)
+          ? `${dias} ${dias===1?'dia':'dias'} sem extrato` : par[1];
+        // a diferença pode vir de saldo, crédito ou débito (o maior módulo dos
+        // três, já escolhido pelo backend em `farol.delta`/`delta_origem`) -
+        // conta CSV nunca tem saldo do extrato, então boa parte das
+        // divergências dela são de crédito/débito. `extbDeltaCel` (célula
+        // compartilhada com a tabela "Comparação dia a dia" logo abaixo) põe
+        // a origem em rótulo discreto ao lado do valor, sempre visível.
+        const dcel = extbDeltaCel(f.delta, f.delta_origem);
+        return `<tr><td>${esc(c.rotulo)}${acao}</td>`
+          +`<td>${c.erp?esc(c.erp):'<span style="color:var(--n500)">não vinculada</span>'}</td>`
+          +`<td>${f.dt?fmtD(f.dt):'—'}</td>`
+          +`<td class="num"${dcel.attrTitle}>${dcel.txt}</td>`
+          +`<td class="num">${c.dias_validados}</td>`
+          +`<td class="num">${c.dias_divergentes||'—'}</td>`
+          +`<td>${statChip(par[0], sub)}</td></tr>`;
+      }).join('')
+    + '</tbody></table>';
+
+  // select de conta da tabela dia a dia
+  const sel=document.getElementById('fExtbConta');
+  if(sel){
+    const atual=String(d.conta_selecionada||'');
+    sel.innerHTML=contas.map(c=>`<option value="${c.conta_id}">${esc(c.rotulo)}</option>`).join('');
+    if(atual) sel.value=atual;
+  }
+
+  // ---- conta aberta aqui pode não ser a do maior desvio do período: o KPI de topo
+  // já mostra qual é, mas escondido dentro do card de comparação o usuário pode ler
+  // "tudo OK" na conta selecionada enquanto a divergência grave está em outra (achado
+  // da revisão da Task 5) — por isso o aviso explícito, não só o KPI.
+  const avOutra=document.getElementById('extbOutraConta');
+  if(avOutra){
+    const contaAtual=contas.find(c=>c.conta_id===d.conta_selecionada);
+    // compara por conta_id, nunca por rótulo (achado M1): duas contas
+    // DISTINTAS (ex.: a mesma conta do ERP importada por OFX e por CSV) podem
+    // ter o rótulo idêntico - comparar por texto suprimia o aviso por engano
+    // quando a conta selecionada só coincidia no rótulo, não na identidade.
+    if(k.maior_diferenca_conta_id!=null && contaAtual && k.maior_diferenca_conta_id!==contaAtual.conta_id){
+      avOutra.style.display='flex';
+      avOutra.innerHTML=`<i>${ICONS['sevWarn']}</i><span>A maior divergência do período `
+        +`(<b>${brl2(k.maior_diferenca)}</b>) está na conta <b>${esc(k.maior_diferenca_conta)}</b>`
+        +` (${fmtD(k.maior_diferenca_dt)}), não na conta selecionada abaixo. Troque a conta`
+        +` no filtro acima para conferir.</span>`;
+    } else { avOutra.style.display='none'; avOutra.innerHTML=''; }
+  }
+
+  // ---- comparação dia a dia
+  const dias=d.dias||[];
+  document.getElementById('hintExtbDias').textContent= dias.length
+    ? dias.length+' dia'+(dias.length===1?'':'s')+' · clique na linha para ver os lançamentos do extrato'
+    : 'sem dias no período para a conta selecionada';
+  const EST={OK:['good','bate'],DIVERGE:['bad','diverge'],
+             SO_EXTRATO:['warn','só no extrato'],SO_ERP:['warn','só no ERP']};
+  document.getElementById('extb-dias').innerHTML= !dias.length ? '' :
+    '<table><thead><tr><th style="width:34px"></th><th>Dia</th><th>Estado</th>'
+    +'<th class="num">Diferença</th><th class="num">Créditos extrato</th>'
+    +'<th class="num">Créditos ERP</th><th class="num">Débitos extrato</th>'
+    +'<th class="num">Débitos ERP</th><th class="num">Saldo extrato</th>'
+    +'<th class="num">Saldo ERP</th></tr></thead><tbody>'
+    + dias.map((x,i)=>{
+        const par=EST[x.estado]||['',''];
+        // maior módulo entre saldo/crédito/débito DESTE dia, nunca o primeiro
+        // acima da tolerância (achado do fix round 4: um `find` nessa ordem
+        // podia exibir 2 centavos de saldo escondendo R$ 500 de crédito) -
+        // mesma regra e mesma célula da tabela "Situação por conta" acima.
+        const {valor:dif, origem:difOrig}=extbMaiorDivergencia(x.d_saldo, x.d_credito, x.d_debito);
+        const dcel=extbDeltaCel(dif, difOrig);
+        return `<tr class="forn-row" aria-expanded="false" aria-controls="extb-det-${i}" tabindex="0" role="button"
+            onclick="extbDetalhe(${i})" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();extbDetalhe(${i});}">`
+          +`<td><span class="expander">${ICONS['chevr2']}</span></td>`
+          +`<td>${fmtD(x.dt)}</td>`
+          +`<td>${statChip(par[0], par[1])}</td>`
+          +`<td class="num"${dcel.attrTitle}>${dcel.txt}</td>`
+          +`<td class="num">${x.ext_credito!=null?brl2(x.ext_credito):'—'}</td>`
+          +`<td class="num">${x.erp_credito!=null?brl2(x.erp_credito):'—'}</td>`
+          +`<td class="num">${x.ext_debito!=null?brl2(x.ext_debito):'—'}</td>`
+          +`<td class="num">${x.erp_debito!=null?brl2(x.erp_debito):'—'}</td>`
+          +`<td class="num">${x.ext_saldo!=null?brl2(x.ext_saldo):'<span style="color:var(--n500)" title="O arquivo não trouxe saldo final (LEDGERBAL): sem âncora não é possível derivar o saldo do dia.">n/d</span>'}</td>`
+          +`<td class="num">${x.erp_saldo!=null?brl2(x.erp_saldo):'—'}</td></tr>`
+          +`<tr class="forn-det" id="extb-det-${i}"><td colspan="10"></td></tr>`;
+      }).join('')
+    + '</tbody></table>';
+
+  // ---- importações
+  const imps=d.importacoes||[];
+  // listar_importacoes tem LIMIT 20 e o servico nao manda o total real: dizer
+  // "20 mais recentes" quando a lista vier cheia evita virar total falso (a
+  // mesma regra do CLAUDE.md sobre top-N sem contador virar contagem oficial).
+  document.getElementById('hintExtbImps').textContent= !imps.length ? 'nenhuma importação registrada'
+    : (imps.length===20 ? '20 mais recentes' : imps.length+' importação'+(imps.length===1?'':'ões'))
+      +' · desfazer remove os lançamentos daquele arquivo';
+  document.getElementById('extb-imps').innerHTML= !imps.length ? '' :
+    '<table><thead><tr><th>Quando</th><th>Arquivo</th><th>Conta</th><th>Período</th>'
+    +'<th class="num">Novos</th><th class="num">Duplicados</th><th class="num">Ignorados</th>'
+    +'<th></th></tr></thead><tbody>'
+    + imps.map(i=>`<tr><td>${fmtDT(i.quando)}</td><td>${esc(i.arquivo)}</td>`
+        +`<td>${esc(i.conta_rotulo)}</td>`
+        +`<td>${i.dt_de?fmtD(i.dt_de)+' a '+fmtD(i.dt_ate):'—'}</td>`
+        +`<td class="num">${i.novas}</td><td class="num">${i.duplicadas||'—'}</td>`
+        +`<td class="num">${i.ignoradas||'—'}</td>`
+        +`<td><button class="ghost" onclick="extbDesfazer(${i.id})">desfazer</button></td></tr>`).join('')
+    + '</tbody></table>';
+}
+
+function extbDetalhe(i){
+  const det=document.getElementById('extb-det-'+i); if(!det) return;
+  const open=det.classList.toggle('open');
+  det.previousElementSibling.setAttribute('aria-expanded', String(open));
+  if(!open || det.dataset.pronto) return;
+  const x=(DATAEXTB.dias||[])[i]; if(!x) return;
+  const p=new URLSearchParams({dt_de:x.dt, dt_ate:x.dt});
+  const c=(document.getElementById('fExtbConta')||{}).value; if(c) p.set('conta_id', c);
+  fetch('/api/financeiro/extrato?'+p.toString(),{cache:'no-store'})
+    .then(r=>r.json()).then(d=>{
+      const lan=(d.lancamentos_dia||[]);
+      det.querySelector('td').innerHTML = lan.length
+        ? '<table><thead><tr><th>Data</th><th>Histórico</th><th>Documento</th>'
+          +'<th class="num">Valor</th></tr></thead><tbody>'
+          + lan.map(l=>`<tr><td>${fmtD(l.dt)}</td><td>${esc(l.historico||'')}</td>`
+              +`<td>${esc(l.numerodoc||'')}</td>`
+              +`<td class="num"${l.valor<0?' style="color:var(--red)"':''}>${brl2(l.valor)}</td></tr>`).join('')
+          + '</tbody></table>'
+        : '<p style="color:var(--n500)">Nenhum lançamento do extrato neste dia (o movimento está só no ERP).</p>';
+      det.dataset.pronto='1';
+    }).catch(()=>{ det.querySelector('td').innerHTML='<p style="color:var(--n500)">Erro ao carregar os lançamentos.</p>'; });
+}
+
+async function extbEnviar(files){
+  if(!files || !files.length) return;
+  const btn=document.getElementById('btnRefresh'); if(btn) btn.disabled=true;
+  const resumo=[];
+  for(const f of files){
+    try{
+      const r=await fetch('/api/financeiro/extrato/importar?nome='+encodeURIComponent(f.name),
+                          {method:'POST', body:f});
+      const d=await r.json();
+      if(!r.ok){ resumo.push(esc(f.name)+': '+esc(d.mensagem||'erro')); continue; }
+      if(d.ok===false && d.precisa==='conta_csv'){
+        // CSV não traz a identidade da conta no arquivo (ao contrário do OFX) — a
+        // Task 5 corrigiu um bug em que a identidade vinha do NOME do arquivo e dois
+        // "extrato.csv" de bancos diferentes colidiam na mesma conta. Por isso aqui
+        // NUNCA se infere a conta do filtro da tela (#fExtbConta) nem de qualquer
+        // outro estado da UI: sempre pergunta explicitamente qual conta é.
+        const cid=await extbEscolherContaCsv(d);
+        if(cid==null){ resumo.push(esc(f.name)+': importação cancelada — a conta do CSV não foi informada.'); continue; }
+        try{
+          const r2=await fetch('/api/financeiro/extrato/importar?nome='+encodeURIComponent(f.name)+'&conta_id='+cid,
+                              {method:'POST', body:f});
+          const d2=await r2.json();
+          if(!r2.ok){ resumo.push(esc(f.name)+': '+esc(d2.mensagem||'erro')); continue; }
+          if(d2.ok===false && d2.precisa==='mapa_csv'){
+            extbMapearCsv(d2);
+            resumo.push(esc(f.name)+': aponte as colunas do CSV e envie novamente.');
+            continue;
+          }
+          if(d2.ok===false && d2.precisa==='mapa_erp'){
+            const vinculouCsv=await extbMapearConta(d2.conta_id);
+            resumo.push(esc(f.name)+`: ${d2.novas} novo(s), ${d2.duplicadas} duplicado(s)`
+              +(vinculouCsv ? ' — conta vinculada ao ERP' : ' — conta ainda sem vínculo com o ERP'));
+            continue;
+          }
+          resumo.push(esc(f.name)+`: ${d2.novas} novo(s), ${d2.duplicadas} duplicado(s)`
+            + (d2.ignoradas?`, ${d2.ignoradas} ignorado(s)`:''));
+        }catch(e){ resumo.push(esc(f.name)+': falha no envio'); }
+        continue;
+      }
+      if(d.ok===false && d.precisa==='mapa_erp'){
+        // OFX pode trazer VÁRIAS contas no mesmo arquivo (export consolidado); se
+        // pendentes>1, vincular esta não termina a importação — as outras continuam
+        // sem vínculo com o ERP e o usuário precisa saber disso, senão acha que acabou.
+        const vinculou=await extbMapearConta(d.conta_id);
+        const pendentes=d.pendentes||0;
+        const restam=pendentes-(vinculou?1:0);
+        // nunca afirmar uma vinculação que não aconteceu: se o usuário cancelou o
+        // prompt (ou a listagem de contas do ERP falhou), extbMapearConta devolve
+        // false e a mensagem tem que dizer isso, não "vinculada 1 de N".
+        resumo.push(esc(f.name)+(!vinculou
+          ? `: nenhuma conta foi vinculada ao ERP — ${pendentes} conta(s) deste arquivo aguardam vínculo pela tabela "Situação por conta".`
+          : (restam>0
+            ? `: vinculada 1 de ${pendentes} conta(s) do arquivo — falta${restam===1?'':'m'} vincular ${restam} pela tabela "Situação por conta".`
+            : `: ${d.novas} novo(s), ${d.duplicadas} duplicado(s)`+(d.ignoradas?`, ${d.ignoradas} ignorado(s)`:''))));
+        continue;
+      }
+      if(d.ok===false && d.precisa==='mapa_csv'){
+        extbMapearCsv(d);
+        resumo.push(esc(f.name)+': aponte as colunas do CSV e envie novamente.');
+        continue;
+      }
+      resumo.push(esc(f.name)+`: ${d.novas} novo(s), ${d.duplicadas} duplicado(s)`
+        + (d.ignoradas?`, ${d.ignoradas} ignorado(s)`:''));
+    }catch(e){ resumo.push(esc(f.name)+': falha no envio'); }
+  }
+  document.getElementById('extbArquivo').value='';
+  if(btn) btn.disabled=false;
+  showBanner('Importação: '+resumo.join(' · '));
+  loadExtb();
+}
+
+async function extbEscolherContaCsv(d){
+  // Regra firme (Task 7, revisão): a conta do CSV NUNCA é inferida do select de
+  // filtro da tela nem de qualquer outro estado da UI — sempre um prompt explícito.
+  // Se o usuário tem a conta A selecionada no filtro e sobe o CSV da conta B,
+  // inferir do filtro gravaria os lançamentos de B sob a identidade de A: a mesma
+  // mistura de contas que a Task 5 corrigiu no serviço, só que reintroduzida aqui.
+  const contas=d.contas||[];
+  const lista=contas.map((c,i)=>`${i+1}) ${c.rotulo}`).join('\n');
+  const msg='Este CSV não traz a identidade da conta — a qual conta ele pertence?\n\n'
+    +(contas.length ? lista+'\n0) Cadastrar conta nova\n' : 'Nenhuma conta cadastrada ainda.\n0) Cadastrar conta nova\n')
+    +'\nDigite o número da opção:';
+  const resp=prompt(msg);
+  const idx=parseInt(resp,10);
+  if(isNaN(idx)) return null;
+  if(idx===0){
+    const banco=parseInt(prompt('Código do banco (ERP):'),10);
+    if(!banco){ showBanner('Cadastro cancelado: código do banco é obrigatório.'); return null; }
+    const agencia=prompt('Agência (ERP):')||'';
+    const conta=prompt('Conta (ERP):')||'';
+    try{
+      const r=await fetch('/api/financeiro/extrato/mapear',{method:'POST',
+        headers:{'Content-Type':'application/json'},
+        body:JSON.stringify({formato:'csv', erp_banco:banco, erp_agencia:agencia, erp_conta:conta})});
+      const dd=await r.json();
+      return (r.ok && dd.ok) ? dd.conta_id : null;
+    }catch(e){ return null; }
+  }
+  if(idx<1 || idx>contas.length) return null;
+  return contas[idx-1].id;
+}
+
+async function extbMapearConta(contaId){
+  let contas=[];
+  try{
+    const r=await fetch('/api/financeiro/extrato/contas-erp',{cache:'no-store'});
+    const d=await r.json();
+    if(!r.ok){ showBanner(d.mensagem||'Erro ao listar as contas do ERP.', d.detalhe); return false; }
+    contas=d.contas||[];
+  }catch(e){ showBanner('Não foi possível listar as contas do ERP.'); return false; }
+  const lista=contas.map((c,i)=>`${i+1}) ${c.rotulo} (último movimento ${c.ultimo_movimento})`).join('\n');
+  const esc0=prompt('A qual conta do ERP este extrato corresponde?\n\n'+lista
+    +'\n\nDigite o número da opção:');
+  const idx=parseInt(esc0,10);
+  if(!idx || idx<1 || idx>contas.length) return false;
+  const c=contas[idx-1];
+  await fetch('/api/financeiro/extrato/mapear',{method:'POST',
+    headers:{'Content-Type':'application/json'},
+    body:JSON.stringify({conta_id:contaId, erp_banco:c.banco, erp_agencia:c.agencia,
+                         erp_conta:c.conta, rotulo:c.rotulo})});
+  loadExtb();
+  return true;
+}
+
+function extbMapearCsv(d){
+  const cab=((d.preview||{}).amostra||[])[0]||[];
+  const lista=cab.map((h,i)=>`${i}) ${h}`).join('\n');
+  const pergunta=(rot)=>{
+    const v=prompt(`Colunas do arquivo:\n${lista}\n\nQual é o índice da coluna de ${rot}?`
+      +'\n(deixe vazio se não existir)');
+    const n=parseInt(v,10); return isNaN(n)?null:n;
+  };
+  const mapa={dt:pergunta('DATA'), valor:pergunta('VALOR (deixe vazio se houver crédito e débito separados)')};
+  if(mapa.valor===null){ mapa.credito=pergunta('CRÉDITO'); mapa.debito=pergunta('DÉBITO'); }
+  mapa.historico=pergunta('HISTÓRICO'); mapa.numerodoc=pergunta('DOCUMENTO');
+  Object.keys(mapa).forEach(k=>{ if(mapa[k]===null) delete mapa[k]; });
+  if(mapa.dt===undefined){ showBanner('Mapeamento cancelado: a coluna de data é obrigatória.'); return; }
+  fetch('/api/financeiro/extrato/mapear',{method:'POST',
+    headers:{'Content-Type':'application/json'},
+    body:JSON.stringify({conta_id:d.conta_id, mapa_csv:mapa})})
+    .then(()=>showBanner('Colunas salvas. Envie o arquivo novamente para importar.'));
+}
+
+async function extbDesfazer(impId){
+  if(!confirm('Desfazer esta importação? Os lançamentos daquele arquivo serão removidos.')) return;
+  try{
+    const r=await fetch('/api/financeiro/extrato/importacao/'+impId,{method:'DELETE'});
+    const d=await r.json();
+    if(!r.ok){ showBanner(d.mensagem||'Erro ao desfazer.'); return; }
+    showBanner(`Importação desfeita (${d.apagados} lançamento(s) removido(s)).`);
+    loadExtb();
+  }catch(e){ showBanner('Falha ao desfazer a importação.'); }
 }
 
 /* ---------------- Copiloto Cortex ---------------- */
@@ -10100,6 +10531,7 @@ boot();
         <a href="#receber" onclick="fecharDrawer()"><span class="ic" data-ic="rec"></span>Contas a Receber</a>
         <a href="#pagar" onclick="fecharDrawer()"><span class="ic" data-ic="pag"></span>Contas a Pagar</a>
         <a href="#cob" onclick="fecharDrawer()"><span class="ic" data-ic="cob"></span>Cobrança</a>
+        <a href="#extb" onclick="fecharDrawer()"><span class="ic" data-ic="ctb"></span>Extrato Bancário</a>
       </div>
     </div>
     <div class="dgrp" data-grp="Ctr">

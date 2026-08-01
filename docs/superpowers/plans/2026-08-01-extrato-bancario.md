@@ -233,15 +233,21 @@ def init_db(path: Path = DB_PATH) -> None:
         """)
 
 
+def _identidade(item: dict) -> str:
+    """Identidade de conteúdo do lançamento. UMA definição só: o contador de
+    ocorrência e o hash precisam concordar, senão a mesma transação recebe
+    ocorrências diferentes conforme a ORDEM do arquivo e o re-upload duplica."""
+    hist = " ".join((item.get("historico") or "").split()).upper()
+    return "|".join([item["dt"], f"{float(item['valor']):.2f}", hist,
+                     (item.get("numerodoc") or "").strip()])
+
+
 def _chave(item: dict, ocorrencia: int) -> str:
-    """FITID quando existe; senão hash estável do conteúdo + ordem no dia."""
+    """FITID quando existe; senão hash da identidade + ordem da repetição."""
     fitid = (item.get("fitid") or "").strip()
     if fitid:
         return "fitid:" + fitid
-    cru = "|".join([
-        item["dt"], f"{float(item['valor']):.2f}",
-        (item.get("historico") or "").strip().upper(),
-        (item.get("numerodoc") or "").strip(), str(ocorrencia)])
+    cru = f"{_identidade(item)}|{ocorrencia}"
     return "hash:" + hashlib.sha1(cru.encode("utf-8")).hexdigest()
 
 
@@ -300,14 +306,15 @@ def gravar_lancamentos(path: Path, conta_id: int, itens: list[dict], arquivo: st
         imp_id = int(cur.lastrowid)
         vistos: dict[str, int] = {}
         for item in itens:
-            base = f"{item['dt']}|{item.get('historico','')}|{float(item['valor']):.2f}"
+            base = _identidade(item)      # MESMA identidade que o hash usa
             vistos[base] = vistos.get(base, 0) + 1
             chave = _chave(item, vistos[base])
             ins = c.execute(
                 "INSERT OR IGNORE INTO ext_lancamento"
                 "(conta_id, importacao_id, dt, valor, tipo, historico, numerodoc, fitid, chave) "
                 "VALUES(?,?,?,?,?,?,?,?,?)",
-                (conta_id, imp_id, item["dt"], float(item["valor"]), item["tipo"],
+                (conta_id, imp_id, item["dt"], float(item["valor"]),
+                 ("C" if float(item["valor"]) >= 0 else "D"),
                  item.get("historico") or "", item.get("numerodoc") or "",
                  item.get("fitid"), chave))
             if ins.rowcount:
@@ -366,7 +373,7 @@ def apagar_importacao(path: Path, importacao_id: int) -> int:
 - [ ] **Step 4: Run test to verify it passes**
 
 Run: `uv run pytest tests/extrato/test_armazenamento.py -v`
-Expected: PASS (7 testes)
+Expected: PASS (9 testes)
 
 - [ ] **Step 5: Commit**
 
@@ -385,7 +392,9 @@ git commit -m "feat(extrato): persistencia local em SQLite com dedup idempotente
 
 **Interfaces:**
 - Consumes: nada da Task 1 (parser é independente do armazenamento).
-- Produces: `parse_ofx(bruto: bytes) -> dict` devolvendo
+- Produces: `parse_ofx(bruto: bytes) -> list[dict]` — UM extrato por bloco `<STMTRS>`
+  (OFX consolidado traz mais de uma conta; misturar tudo na primeira atribuiria
+  lançamento à conta errada). Cada extrato:
   `{"ident": str, "banco": int | None, "agencia": str, "conta": str, "itens": list[dict], "saldo": dict | None, "ignoradas": int}`.
   Cada item tem as chaves que `armazenamento.gravar_lancamentos` consome:
   `dt, valor, tipo, historico, numerodoc, fitid`. `saldo` é `{"dt": str, "saldo": float}` ou `None`.
@@ -659,9 +668,9 @@ CSV_VALOR_UNICO = (
 )
 
 CSV_CRED_DEB = (
-    "Data,Historico,Credito,Debito\n"
-    "10/07/2026,DEPOSITO,1.200,00,\n"
-    "11/07/2026,TARIFA,,99,90\n"
+    "Data;Historico;Credito;Debito\n"
+    "10/07/2026;DEPOSITO;1.200,00;\n"
+    "11/07/2026;TARIFA;;99,90\n"
 )
 
 
@@ -697,13 +706,12 @@ def test_parse_coluna_valor_unica():
 
 
 def test_parse_colunas_credito_debito_separadas():
-    # export com vírgula decimal E vírgula delimitadora: o delim vira ',' e os
-    # valores quebram em duas colunas — por isso o mapa aponta as posições reais
+    # débito vem positivo na coluna e tem de sair NEGATIVO no lançamento
     d = parse_csv(CSV_CRED_DEB.encode("utf-8"),
                   {"dt": 0, "historico": 1, "credito": 2, "debito": 3, "cabecalho": 1})
     assert [i["tipo"] for i in d["itens"]] == ["C", "D"]
-    assert d["itens"][0]["valor"] == 1.20      # '1.200' sem o par decimal separado
-    assert d["itens"][1]["valor"] == -99.0
+    assert d["itens"][0]["valor"] == 1200.00
+    assert d["itens"][1]["valor"] == -99.90
 
 
 def test_mapa_incompleto_levanta_valueerror():
@@ -742,6 +750,7 @@ from __future__ import annotations
 import csv
 import io
 import re
+from datetime import date
 
 _RE_MILHAR_VIRGULA = re.compile(r"^-?\d{1,3}(\.\d{3})*(,\d{1,2})?$")   # 1.234.567,89
 _RE_SO_VIRGULA = re.compile(r"^-?\d+(,\d{1,2})?$")                     # 1234,89
@@ -783,18 +792,47 @@ def _decodificar(bruto: bytes) -> str:
 
 
 def _delimitador(texto: str) -> str:
-    cabeca = "\n".join(texto.splitlines()[:5])
-    return max((";", ",", "\t"), key=cabeca.count)
+    """Escolhe pela ESTRUTURA que o candidato produz, nao por contagem de
+    caracteres: extrato BR usa ';' e tem virgula decimal e virgula dentro de
+    campo entre aspas ("PGTO FORNEC, LTDA"), o que fazia a contagem crua eleger
+    ',' e despedacar as colunas. `csv.reader` respeita aspas.
+    """
+    cabeca = texto.splitlines()[:5]
+    melhor, melhor_nota = ";", (0, 0)
+    for cand in (";", ",", "\t"):
+        linhas = [r for r in csv.reader(io.StringIO("\n".join(cabeca)), delimiter=cand) if r]
+        if not linhas:
+            continue
+        cols = [len(r) for r in linhas]
+        if max(cols) < 2:
+            continue                      # nao separou nada
+        estavel = 1 if len(set(cols)) == 1 else 0
+        nota = (estavel, max(cols))       # consistencia primeiro, largura depois
+        if nota > melhor_nota:
+            melhor, melhor_nota = cand, nota
+    return melhor
 
 
 def _data_br(txt: str) -> str | None:
-    """DD/MM/AAAA (ou com '-'), e AAAA-MM-DD para exports ISO."""
+    """DD/MM/AAAA (ou com '-'), e AAAA-MM-DD para exports ISO.
+
+    Valida o CALENDARIO, nao so o formato: '31/13/2026' passaria pela regex e
+    viraria um lancamento num dia inexistente, que nunca casa com nenhum dia do
+    ERP e desaparece da comparacao sem aviso - escondendo divergencia real.
+    """
     s = (txt or "").strip()
     m = re.match(r"^(\d{2})[/-](\d{2})[/-](\d{4})", s)
     if m:
-        return f"{m.group(3)}-{m.group(2)}-{m.group(1)}"
-    m = re.match(r"^(\d{4})-(\d{2})-(\d{2})", s)
-    return m.group(0) if m else None
+        ano, mes, dia = m.group(3), m.group(2), m.group(1)
+    else:
+        m = re.match(r"^(\d{4})-(\d{2})-(\d{2})", s)
+        if not m:
+            return None
+        ano, mes, dia = m.group(1), m.group(2), m.group(3)
+    try:
+        return date(int(ano), int(mes), int(dia)).isoformat()
+    except ValueError:
+        return None
 
 
 def _linhas(bruto: bytes) -> tuple[list[list[str]], str]:
@@ -835,7 +873,16 @@ def parse_csv(bruto: bytes, mapa: dict) -> dict:
         else:
             cred = valor_br(_col(linha, mapa.get("credito")))
             deb = valor_br(_col(linha, mapa.get("debito")))
-            valor = cred if cred else (-abs(deb) if deb else None)
+            # `is not None`, nunca truthiness: credito legitimo de 0,00 e falsy
+            # e desapareceria da trilha. Ambos preenchidos = liquido da linha.
+            if cred is not None and deb is not None:
+                valor = cred - abs(deb)
+            elif cred is not None:
+                valor = cred
+            elif deb is not None:
+                valor = -abs(deb)
+            else:
+                valor = None
         if valor is None:
             ignoradas += 1
             continue
@@ -880,7 +927,11 @@ git commit -m "feat(extrato): parser CSV com mapa de colunas e parse estrito pt-
     `{"dt", "ext_credito", "ext_debito", "ext_saldo", "erp_credito", "erp_debito", "erp_saldo", "d_credito", "d_debito", "d_saldo", "estado", "qtd"}`.
     `estado` ∈ `OK | DIVERGE | SO_EXTRATO | SO_ERP`. `erp_rows` = linhas de `contacorrente_saldo` com `dt`, `credito`, `debito`, `saldo`.
   - `farol(dias: list[dict], ultimo_upload: str | None, hoje: str, mapeada: bool = True) -> dict` —
-    `{"estado": "ok"|"diverge"|"sem_mapa"|"desatualizado", "dt": str | None, "delta": float | None, "dias_sem_extrato": int | None}`.
+    `{"estado": ..., "dt": ..., "delta": float | None, "delta_origem": "saldo"|"credito"|"debito"|None, "dias_sem_extrato": int | None}`.
+    `delta` e o MAIOR dos tres desvios em modulo (nao so o de saldo) e
+    `delta_origem` diz de qual veio - a semantica "acima/abaixo" so vale para
+    saldo (debito maior no extrato tem delta positivo mas empurra o saldo para
+    BAIXO, entao dizer "acima" enganaria).
 
 - [ ] **Step 1: Write the failing test**
 
@@ -1046,9 +1097,12 @@ def saldo_derivado(por_dia: dict[str, dict], saldos: list[dict]) -> dict[str, fl
 
 
 def _difere(a: float | None, b: float | None) -> bool:
+    """Tolerancia INCLUSIVA de um centavo. O round e obrigatorio: 100.01 nao tem
+    representacao binaria exata e `abs(100.0 - 100.01)` vale 0.010000000000005,
+    que passaria do limite e marcaria DIVERGE justo no caso de 1 centavo."""
     if a is None or b is None:
         return False
-    return abs(a - b) > TOLERANCIA
+    return round(abs(a - b), 2) > TOLERANCIA
 
 
 def comparar(lancs: list[dict], saldos: list[dict], erp_rows: list[dict]) -> list[dict]:
@@ -1056,16 +1110,25 @@ def comparar(lancs: list[dict], saldos: list[dict], erp_rows: list[dict]) -> lis
     saldo_ext = saldo_derivado(por_dia, saldos)
     erp = {r["dt"]: r for r in erp_rows}
     out: list[dict] = []
-    for dt in sorted(set(por_dia) | set(erp)):
+    # inclui as datas que so existem no SALDO: ancora sem lancamento e sem linha
+    # no ERP e um saldo do banco que o ERP nao registrou (SO_EXTRATO), e some da
+    # saida se o dominio for so lancamento + ERP.
+    for dt in sorted(set(por_dia) | set(erp) | set(saldo_ext)):
         e = por_dia.get(dt)
         r = erp.get(dt)
         ext_c = e["credito"] if e else None
         ext_d = e["debito"] if e else None
-        ext_s = saldo_ext.get(dt) if saldo_ext else None
+        ext_s = saldo_ext.get(dt)
         erp_c = float(r["credito"]) if r and r.get("credito") is not None else None
         erp_d = float(r["debito"]) if r and r.get("debito") is not None else None
         erp_s = float(r["saldo"]) if r and r.get("saldo") is not None else None
-        if e is None:
+        # "tem extrato" inclui o dia que so tem SALDO derivado e nenhum
+        # lancamento: e exatamente o dia da ancora do LEDGERBAL quando nao houve
+        # movimento. Decidir por `e is None` marcava esse dia como SO_ERP e o
+        # farol descartava a divergencia de saldo ja calculada - mostrando "ok"
+        # no dia do fechamento do extrato, o pior modo de falha desta tela.
+        tem_ext = e is not None or ext_s is not None
+        if not tem_ext:
             estado = "SO_ERP"
         elif r is None:
             estado = "SO_EXTRATO"
@@ -1086,6 +1149,19 @@ def comparar(lancs: list[dict], saldos: list[dict], erp_rows: list[dict]) -> lis
 
 def _dias_entre(de: str, ate: str) -> int:
     return (date.fromisoformat(ate) - date.fromisoformat(de)).days
+
+
+def _maior_delta(dia: dict) -> tuple[float | None, str | None]:
+    """Maior desvio do dia em modulo, com a ORIGEM. O farol usava so d_saldo, que
+    e None sempre que falta saldo de um lado - garantido em conta CSV (o formato
+    nao traz saldo). Divergencia por credito/debito virava alerta critico de
+    "R$ 0,00". Sempre `is not None`, nunca truthiness sobre dinheiro."""
+    cands = [(dia.get("d_saldo"), "saldo"), (dia.get("d_credito"), "credito"),
+             (dia.get("d_debito"), "debito")]
+    validos = [(v, o) for v, o in cands if v is not None]
+    if not validos:
+        return None, None
+    return max(validos, key=lambda x: abs(x[0]))
 
 
 def farol(dias: list[dict], ultimo_upload: str | None, hoje: str,
@@ -1135,10 +1211,18 @@ git commit -m "feat(extrato): comparacao conta x dia extrato vs contacorrente_sa
 - Consumes: `armazenamento` (Task 1), `parser_ofx.parse_ofx` (Task 2), `parser_csv.parse_csv`/`preview_csv` (Task 3), `comparacao.comparar`/`farol` (Task 4), `api.db.query` (leitura do AVA).
 - Produces:
   - `ERP_SALDO_SQL: str` — consulta de `contacorrente_saldo` por conta e período.
-  - `importar(bruto: bytes, nome: str, path=DB_PATH) -> dict` — devolve
-    `{"ok": True, "conta_id", "conta", "novas", "duplicadas", "ignoradas", "dt_de", "dt_ate"}`,
-    ou `{"ok": False, "precisa": "mapa_erp"|"mapa_csv", ...}` quando falta mapeamento,
-    ou levanta `ValueError` (arquivo ilegível).
+  - `importar(bruto: bytes, nome: str, path=DB_PATH, conta_id: int | None = None) -> dict`
+    — devolve `{"ok": True, "conta_id", "conta", "novas", "duplicadas", "ignoradas", "dt_de", "dt_ate"}`,
+    ou `{"ok": False, "precisa": "conta_csv"|"mapa_csv"|"mapa_erp", ...}`, ou levanta
+    `ValueError` (arquivo ilegível). **CSV exige `conta_id`**: o arquivo não traz a
+    conta, então derivar identidade do NOME do arquivo fazia dois `extrato.csv` de
+    bancos diferentes virarem a mesma conta e misturar lançamentos. Sem `conta_id`
+    devolve `precisa="conta_csv"` com `preview` e as contas conhecidas, sem gravar
+    nada. OFX não muda (a conta está no arquivo) e ganha `pendentes` = quantas
+    contas do arquivo ainda precisam de vínculo ERP.
+  - `ident_csv(erp_banco: int, erp_agencia: str, erp_conta: str) -> str` —
+    `"csv:<banco>/<agencia>/<conta>"`. A identidade de conta CSV é a conta bancária
+    real, nunca o nome do arquivo.
   - `painel(dt_de: str, dt_ate: str, conta_id: int | None = None, path=DB_PATH) -> dict` —
     `{"kpis", "contas", "dias", "importacoes", "atualizado_em", "fonte"}`.
   - `contas_erp() -> list[dict]` — contas de `contacorrente_saldo` para o select de mapeamento.
@@ -1172,6 +1256,7 @@ def test_importar_ofx_conta_nova_pede_mapeamento(db):
     assert r["conta"]["ident"] == "341/0098/539349"
     # os lançamentos JÁ ficam gravados — o mapeamento é só o vínculo com o ERP
     assert r["novas"] == 2
+    assert len(r["contas"]) == 1        # um extrato por conta no arquivo
 
 
 def test_importar_ofx_conta_mapeada_grava_e_reimport_nao_duplica(db):
@@ -1322,19 +1407,39 @@ def importar(bruto: bytes, nome: str, path=arm.DB_PATH) -> dict:
     formato = _formato(nome)
 
     if formato == "ofx":
-        d = parse_ofx(bruto)
-        ident, rotulo = d["ident"], f"{d['banco'] or '?'} / cc {d['conta'] or '?'}"
-        conta_id = arm.obter_ou_criar_conta(path, ident, rotulo)
-        conta = arm.conta_por_ident(path, ident)
-        res = arm.gravar_lancamentos(path, conta_id, d["itens"], nome, "ofx", d["ignoradas"])
-        if d["saldo"]:
-            arm.gravar_saldo_extrato(path, conta_id, d["saldo"]["dt"], d["saldo"]["saldo"])
-        datas = sorted(i["dt"] for i in d["itens"]) or [None]
-        base = {"conta_id": conta_id, "conta": conta, "novas": res["novas"],
-                "duplicadas": res["duplicadas"], "ignoradas": d["ignoradas"],
-                "dt_de": datas[0], "dt_ate": datas[-1]}
-        if conta.get("erp_banco") is None:
-            return {"ok": False, "precisa": "mapa_erp", **base}
+        # parse_ofx devolve UM extrato por conta do arquivo (export consolidado
+        # traz varias). Grava todas; o resultado reporta a primeira que ainda
+        # precisa de mapeamento, para a tela pedir o vinculo.
+        extratos = parse_ofx(bruto)
+        resultados = []
+        for d in extratos:
+            rotulo = f"{d['banco'] or '?'} / cc {d['conta'] or '?'}"
+            conta_id = arm.obter_ou_criar_conta(path, d["ident"], rotulo)
+            conta = arm.conta_por_ident(path, d["ident"])
+            res = arm.gravar_lancamentos(path, conta_id, d["itens"], nome, "ofx",
+                                         d["ignoradas"])
+            if d["saldo"]:
+                arm.gravar_saldo_extrato(path, conta_id, d["saldo"]["dt"],
+                                         d["saldo"]["saldo"])
+            datas = sorted(i["dt"] for i in d["itens"]) or [None]
+            resultados.append({"conta_id": conta_id, "conta": conta,
+                               "novas": res["novas"], "duplicadas": res["duplicadas"],
+                               "ignoradas": d["ignoradas"],
+                               "dt_de": datas[0], "dt_ate": datas[-1]})
+        # agrega os totais do arquivo; contas = uma linha por conta encontrada
+        total = {"novas": sum(r["novas"] for r in resultados),
+                 "duplicadas": sum(r["duplicadas"] for r in resultados),
+                 "ignoradas": sum(r["ignoradas"] for r in resultados),
+                 "contas": resultados}
+        datas_todas = sorted(d for r in resultados for d in (r["dt_de"], r["dt_ate"]) if d)
+        primeira = resultados[0]
+        base = {"conta_id": primeira["conta_id"], "conta": primeira["conta"],
+                "dt_de": (datas_todas[0] if datas_todas else None),
+                "dt_ate": (datas_todas[-1] if datas_todas else None), **total}
+        sem_mapa = [r for r in resultados if r["conta"].get("erp_banco") is None]
+        if sem_mapa:
+            return {"ok": False, "precisa": "mapa_erp", **base,
+                    "conta_id": sem_mapa[0]["conta_id"], "conta": sem_mapa[0]["conta"]}
         return {"ok": True, **base}
 
     # CSV: a conta não vem no arquivo, então o ident sai do nome do arquivo
@@ -1380,7 +1485,13 @@ def painel(dt_de: str, dt_ate: str, conta_id: int | None = None, path=arm.DB_PAT
         tot_val += len(validos)
         tot_div += len(divergentes)
         for d in divergentes:
-            delta = abs(d.get("d_saldo") or d.get("d_credito") or d.get("d_debito") or 0)
+            # o maior desvio do dia e o MAIOR dos tres em modulo. A cadeia `or`
+            # priorizava d_saldo mesmo sem ser a causa e usava truthiness: um
+            # residuo de 0,007 no saldo vencia um d_credito de 500,00 e o KPI
+            # "Maior diferenca" escondia a divergencia real.
+            deltas = [abs(v) for v in (d.get("d_saldo"), d.get("d_credito"),
+                                       d.get("d_debito")) if v is not None]
+            delta = max(deltas) if deltas else 0.0
             if pior is None or delta > pior["delta"]:
                 pior = {"delta": delta, "conta": c["rotulo"], "dt": d["dt"]}
         resumo.append({
@@ -1427,7 +1538,7 @@ def painel(dt_de: str, dt_ate: str, conta_id: int | None = None, path=arm.DB_PAT
 - [ ] **Step 4: Run test to verify it passes**
 
 Run: `uv run pytest tests/extrato/ -v`
-Expected: PASS (todos: 7 + 5 + 6 + 11 + 7 = 36 testes)
+Expected: PASS (todos: 9 + 5 + 6 + 11 + 7 = 38 testes)
 
 - [ ] **Step 5: Commit**
 
@@ -1449,8 +1560,14 @@ git commit -m "feat(extrato): servico de importacao e painel de validacao"
 - Consumes: `servico.importar`, `servico.painel`, `servico.contas_erp`, `armazenamento.mapear_conta`, `armazenamento.salvar_mapa_csv`, `armazenamento.apagar_importacao` (Tasks 1 e 5).
 - Produces (contrato consumido pelo front na Task 7):
   - `GET /api/financeiro/extrato?dt_de=&dt_ate=&conta_id=` → payload de `servico.painel`.
-  - `POST /api/financeiro/extrato/importar?nome=<arquivo>` — corpo bruto do arquivo.
-  - `POST /api/financeiro/extrato/mapear` — JSON `{conta_id, erp_banco, erp_agencia, erp_conta, rotulo?}` e/ou `{conta_id, mapa_csv:{...}}`.
+  - `POST /api/financeiro/extrato/importar?nome=<arquivo>&conta_id=<id>` — corpo bruto
+  do arquivo. `conta_id` é opcional para OFX e OBRIGATÓRIO para CSV (sem ele a
+  resposta é `precisa="conta_csv"`, que a tela usa para perguntar a conta).
+  - `POST /api/financeiro/extrato/mapear` — JSON `{conta_id, erp_banco, erp_agencia,
+  erp_conta, rotulo?}` e/ou `{conta_id, mapa_csv:{...}}`. Para CRIAR conta CSV (sem
+  `conta_id`), aceita `{formato:"csv", erp_banco, erp_agencia, erp_conta, mapa_csv}`
+  e cria a conta com `servico.ident_csv(...)` — a identidade sai da conta bancária,
+  não do nome do arquivo.
   - `DELETE /api/financeiro/extrato/importacao/{imp_id}`.
   - `GET /api/financeiro/extrato/contas-erp` → `{"contas": [...]}`.
 
@@ -1520,6 +1637,15 @@ Expected: FAIL com `KeyError: 'extb'`
      ["fluxo", "receber", "pagar", "cob", "extb"]),
 ```
 
+E, no mesmo passo, a tupla de Controladoria — o padrão do arquivo (casos `orc` e
+`prem`) é `_PERFIS_MODELO` espelhar TODOS os perfis que a migração concede, e a
+v19 concede a Financeiro e Controladoria:
+
+```python
+    ("Controladoria", "DRE gerencial, contabilidade, DRE/margem por cliente, qualidade/certidões e extrato bancário.",
+     ["dre", "cont", "drecli", "qual", "orc", "extb"]),
+```
+
 3d. In `api/auth.py`, append the seed migration at the end of the seed block (after the `perfis_modelo_v18` block, keeping the same shape):
 
 ```python
@@ -1567,7 +1693,8 @@ def extrato(dt_de: str | None = None, dt_ate: str | None = None,
 
 
 @app.post("/api/financeiro/extrato/importar")
-async def extrato_importar(req: Request, nome: str = "") -> JSONResponse:
+async def extrato_importar(req: Request, nome: str = "",
+                           conta_id: int | None = None) -> JSONResponse:
     """Recebe o arquivo como CORPO BRUTO (um POST por arquivo).
 
     Sem multipart de propósito: `UploadFile` exige python-multipart, que não é
@@ -1575,6 +1702,18 @@ async def extrato_importar(req: Request, nome: str = "") -> JSONResponse:
     API poderia subir em produção sem a dep e derrubar só este endpoint.
     """
     from api.extrato.servico import importar
+    # rejeita pelo header ANTES de materializar o corpo: `await req.body()` carrega
+    # tudo em memoria e o projeto nao tem limite de corpo em nivel de app, entao
+    # checar depois deixa um POST de centenas de MB bufferizar num processo unico.
+    declarado = req.headers.get("content-length")
+    if declarado:
+        try:
+            if int(declarado) > _EXT_MAX_BYTES:
+                return JSONResponse(status_code=413, content={
+                    "erro": "arquivo_grande",
+                    "mensagem": f"Arquivo acima do limite de {_EXT_MAX_BYTES // (1024 * 1024)} MB."})
+        except ValueError:
+            pass          # header malformado nao pode virar 500; cai na checagem abaixo
     bruto = await req.body()
     if not bruto:
         return JSONResponse(status_code=422, content={
@@ -1585,7 +1724,7 @@ async def extrato_importar(req: Request, nome: str = "") -> JSONResponse:
             "mensagem": f"Arquivo acima do limite de {_EXT_MAX_BYTES // (1024 * 1024)} MB."})
     arquivo = (nome or "extrato.ofx").strip()
     try:
-        return JSONResponse(importar(bruto, arquivo))
+        return JSONResponse(importar(bruto, arquivo, conta_id=conta_id))
     except ValueError as exc:
         return JSONResponse(status_code=422, content={
             "erro": "arquivo_invalido", "mensagem": str(exc)})
@@ -1597,15 +1736,42 @@ async def extrato_importar(req: Request, nome: str = "") -> JSONResponse:
 
 @app.post("/api/financeiro/extrato/mapear")
 async def extrato_mapear(req: Request) -> JSONResponse:
+    """Vincula uma conta ao ERP e/ou salva o mapa de colunas do CSV.
+
+    Sem `conta_id` e com `formato="csv"`, CRIA a conta: a identidade sai da conta
+    bancária (`servico.ident_csv`), nunca do nome do arquivo — dois `extrato.csv`
+    de bancos diferentes cairiam na mesma conta e misturariam lançamentos.
+    """
     from api.extrato import armazenamento as arm
+    from api.extrato.servico import ident_csv
     try:
         body = await req.json()
     except Exception:
         body = None
-    if not isinstance(body, dict) or not isinstance(body.get("conta_id"), int):
+    if not isinstance(body, dict):
         return JSONResponse(status_code=422, content={
-            "erro": "parametro_invalido", "mensagem": "Informe conta_id."})
-    conta_id = body["conta_id"]
+            "erro": "parametro_invalido", "mensagem": "Corpo inválido."})
+    conta_id = body.get("conta_id")
+    # criação de conta CSV: precisa da conta do ERP para formar a identidade
+    if conta_id is None:
+        if body.get("formato") != "csv" or body.get("erp_banco") is None:
+            return JSONResponse(status_code=422, content={
+                "erro": "parametro_invalido",
+                "mensagem": "Informe conta_id, ou formato=csv com a conta do ERP."})
+        try:
+            arm.init_db(arm.DB_PATH)
+            banco = int(body["erp_banco"])
+            agencia = str(body.get("erp_agencia") or "")
+            conta = str(body.get("erp_conta") or "")
+            ident = ident_csv(banco, agencia, conta)
+            rotulo = body.get("rotulo") or f"{banco} / ag {agencia} / cc {conta}"
+            conta_id = arm.obter_ou_criar_conta(arm.DB_PATH, ident, rotulo)
+        except (TypeError, ValueError):
+            return JSONResponse(status_code=422, content={
+                "erro": "parametro_invalido", "mensagem": "Conta do ERP inválida."})
+    if not isinstance(conta_id, int):
+        return JSONResponse(status_code=422, content={
+            "erro": "parametro_invalido", "mensagem": "conta_id inválido."})
     try:
         arm.init_db(arm.DB_PATH)
         if body.get("erp_banco") is not None:
@@ -1617,7 +1783,9 @@ async def extrato_mapear(req: Request) -> JSONResponse:
         if isinstance(mapa, dict):
             limpo = {k: int(v) for k, v in mapa.items() if isinstance(v, (int, float))}
             arm.salvar_mapa_csv(arm.DB_PATH, conta_id, limpo)
-        return JSONResponse({"ok": True})
+        # devolve o conta_id: no fluxo CSV a tela precisa dele para reenviar o
+        # arquivo (importar exige conta_id explicito para CSV)
+        return JSONResponse({"ok": True, "conta_id": conta_id})
     except (TypeError, ValueError):
         return JSONResponse(status_code=422, content={
             "erro": "parametro_invalido", "mensagem": "Valores de mapeamento inválidos."})
@@ -1697,7 +1865,7 @@ Cada item é uma substituição literal única:
 3. `const DATAMAP={` — acrescentar `extb:DATAEXTB,`
 4. `const LOADMAP={` — acrescentar `extb:loadExtb,`
 5. `function semFilterbar(v){` — incluir `||v==='extb'` na expressão (a tela tem filtros próprios: conta + período)
-6. Declarar as variáveis de estado junto às demais `DATA*`: `let DATAEXTB=null, extbSeq=0, EXTB_PEND=null;`
+6. Declarar as variáveis de estado junto às demais `DATA*`: `let DATAEXTB=null, extbSeq=0;`
 
 - [ ] **Step 2: Add the view section in the HTML**
 
@@ -1707,9 +1875,8 @@ Inserir após o fechamento de `<section class="view" id="view-cob">` (âncora li
       <!-- ===================== EXTRATO BANCÁRIO ===================== -->
       <section class="view" id="view-extb">
         <div class="card">
-          <div class="head"><h2>Extrato Bancário</h2>
-            <span class="hint">valida saldo e fluxo do ERP contra o extrato do banco
-              <span class="ihelp" title="Extrato importado (OFX/CSV) comparado com contacorrente_saldo do ERP AVA, por conta e por dia. Tolerância de R$ 0,01.">ⓘ</span></span>
+          <div class="head"><h2>Extrato Bancário <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="Extrato importado (OFX/CSV) comparado com contacorrente_saldo do ERP AVA, por conta e por dia. Tolerância de R$ 0,01.">i</span></h2>
+            <span class="hint">valida saldo e fluxo do ERP contra o extrato do banco</span>
           </div>
           <div class="cardfilters" id="extb-filtros">
             <select id="fExtbConta" aria-label="Conta" onchange="loadExtb()"></select>
@@ -1914,9 +2081,9 @@ async function extbEnviar(files){
       const d=await r.json();
       if(!r.ok){ resumo.push(esc(f.name)+': '+esc(d.mensagem||'erro')); continue; }
       if(d.ok===false && d.precisa==='mapa_erp'){
-        EXTB_PEND=d; await extbMapearConta(d.conta_id);
+        await extbMapearConta(d.conta_id);
       }else if(d.ok===false && d.precisa==='mapa_csv'){
-        EXTB_PEND=d; extbMapearCsv(d);
+        extbMapearCsv(d);
         resumo.push(esc(f.name)+': aponte as colunas do CSV e envie novamente.');
         continue;
       }
@@ -1993,11 +2160,17 @@ em `api/extrato/servico.py`, no `return` do `painel`, logo após `"dias": dias_s
 No `<aside id="sidebar">`, dentro de `subsFin`, após o link da Régua de Cobrança:
 
 ```html
-          <a href="#extb" data-tela="extb">Extrato Bancário</a>
+          <a href="#extb" class="sub" data-view="extb" title="Extrato Bancário"><span class="ic" data-ic="ctb"></span><span>Extrato Bancário</span></a>
 ```
 
-Na gaveta mobile (`.drawer`), no painel do grupo Financeiro, o mesmo link — a
-estrutura `h3` + `<a>` irmãos **não** pode mudar (`aplicarPermissoes` depende dela).
+`data-view` (45 ocorrências no arquivo), NUNCA `data-tela` (zero ocorrências): é por
+`data-view` que `aplicarPermissoes` esconde o link de quem não tem a tela e que o
+item ativo ganha destaque. Com `data-tela` o link ficaria visível para todo mundo.
+
+Na gaveta mobile, o mesmo link dentro do `<div class="dgrp-b">` do grupo Financeiro
+(estrutura real: `.dgrp > button.dgrp-h + div.dgrp-b > a`; na gaveta o
+`aplicarPermissoes` casa pelo `href`), no formato
+`<a href="#extb" onclick="fecharDrawer()"><span class="ic" data-ic="ctb"></span>Extrato Bancário</a>`.
 
 - [ ] **Step 5: Verify the front and commit**
 
@@ -2093,6 +2266,19 @@ Expected: FAIL com `AttributeError: module 'api.alertas' has no attribute '_aler
 Add to `api/alertas.py`, before `def build_alertas()`:
 
 ```python
+def _data_br(iso: str | None) -> str:
+    if not iso:
+        return "-"
+    p = str(iso).split("-")
+    return f"{p[2]}/{p[1]}/{p[0]}" if len(p) == 3 else str(iso)
+
+
+def _fmt_brl_cent(v: float) -> str:
+    """Como _fmt_brl, mas COM centavos: a tolerancia do modulo e R$ 0,01, e um
+    alerta critico dizendo "R$ 0" de diferenca seria absurdo."""
+    return "R$ " + f"{v:,.2f}".replace(",", "X").replace(".", ",").replace("X", ".")
+
+
 def _alertas_extrato(painel: dict) -> list[tuple[str, str, str]]:
     """(nivel, titulo, texto) por conta com problema. Função pura para teste."""
     out: list[tuple[str, str, str]] = []
@@ -2104,7 +2290,7 @@ def _alertas_extrato(painel: dict) -> list[tuple[str, str, str]]:
             delta = f.get("delta") or 0.0
             out.append((
                 "critico", "Extrato bancário divergente",
-                f"A conta {c['rotulo']} fecha {_fmt_brl(abs(delta))} "
+                f"A conta {c['rotulo']} fecha {_fmt_brl_cent(abs(delta))} "
                 f"{'acima' if delta > 0 else 'abaixo'} do ERP em "
                 f"{_data_br(f.get('dt'))}. Detalhe: Financeiro > Extrato Bancário."))
         elif f.get("estado") == "desatualizado" and f.get("dias_sem_extrato"):
@@ -2115,12 +2301,6 @@ def _alertas_extrato(painel: dict) -> list[tuple[str, str, str]]:
                 "sem extrato importado - a validação de saldo está cega nesse período."))
     return out
 
-
-def _data_br(iso: str | None) -> str:
-    if not iso:
-        return "-"
-    p = str(iso).split("-")
-    return f"{p[2]}/{p[1]}/{p[0]}" if len(p) == 3 else str(iso)
 ```
 
 And inside `build_alertas()`, after the existing `try` blocks:
@@ -2128,8 +2308,11 @@ And inside `build_alertas()`, after the existing `try` blocks:
 ```python
     try:
         from api.extrato.servico import painel as extrato_painel
+        # 30 dias corridos, NAO o mes corrente: com replace(day=1) o digest do
+        # dia 1o olharia uma janela de um dia e a divergencia do ultimo dia do
+        # mes anterior nao seria alertada - exatamente quando mais importa.
         hoje = date.today()
-        p = extrato_painel(hoje.replace(day=1).isoformat(), hoje.isoformat())
+        p = extrato_painel((hoje - timedelta(days=30)).isoformat(), hoje.isoformat())
         for nivel, titulo, texto in _alertas_extrato(p):
             add(nivel, titulo, texto)
     except Exception as exc:  # noqa: BLE001
