@@ -1620,6 +1620,15 @@ Expected: FAIL com `KeyError: 'extb'`
      ["fluxo", "receber", "pagar", "cob", "extb"]),
 ```
 
+E, no mesmo passo, a tupla de Controladoria — o padrão do arquivo (casos `orc` e
+`prem`) é `_PERFIS_MODELO` espelhar TODOS os perfis que a migração concede, e a
+v19 concede a Financeiro e Controladoria:
+
+```python
+    ("Controladoria", "DRE gerencial, contabilidade, DRE/margem por cliente, qualidade/certidões e extrato bancário.",
+     ["dre", "cont", "drecli", "qual", "orc", "extb"]),
+```
+
 3d. In `api/auth.py`, append the seed migration at the end of the seed block (after the `perfis_modelo_v18` block, keeping the same shape):
 
 ```python
@@ -1676,6 +1685,18 @@ async def extrato_importar(req: Request, nome: str = "",
     API poderia subir em produção sem a dep e derrubar só este endpoint.
     """
     from api.extrato.servico import importar
+    # rejeita pelo header ANTES de materializar o corpo: `await req.body()` carrega
+    # tudo em memoria e o projeto nao tem limite de corpo em nivel de app, entao
+    # checar depois deixa um POST de centenas de MB bufferizar num processo unico.
+    declarado = req.headers.get("content-length")
+    if declarado:
+        try:
+            if int(declarado) > _EXT_MAX_BYTES:
+                return JSONResponse(status_code=413, content={
+                    "erro": "arquivo_grande",
+                    "mensagem": f"Arquivo acima do limite de {_EXT_MAX_BYTES // (1024 * 1024)} MB."})
+        except ValueError:
+            pass          # header malformado nao pode virar 500; cai na checagem abaixo
     bruto = await req.body()
     if not bruto:
         return JSONResponse(status_code=422, content={
