@@ -126,6 +126,24 @@ def test_ancora_sem_lancamento_com_saldo_erp_igual_e_ok_sem_inventar_credito_deb
     assert dia2["d_debito"] is None
 
 
+def test_ancora_sem_lancamento_e_sem_linha_erp_aparece_como_so_extrato():
+    # LEDGERBAL cai num dia sem lancamento E sem linha no contacorrente_saldo do
+    # ERP: a data nao pode ser engolida - tem que aparecer como SO_EXTRATO.
+    dias = comparar(
+        [_l("2026-07-01", 100.0)],
+        [{"dt": "2026-07-02", "saldo": 150.0}],
+        [_erp("2026-07-01", 100.0, 0.0, 150.0)],
+    )
+    datas = [d["dt"] for d in dias]
+    assert "2026-07-02" in datas
+    dia2 = {d["dt"]: d for d in dias}["2026-07-02"]
+    assert dia2["estado"] == "SO_EXTRATO"
+    assert dia2["ext_saldo"] == 150.0
+    assert dia2["erp_saldo"] is None
+    assert dia2["d_saldo"] is None
+    assert dia2["qtd"] == 0
+
+
 def test_saldo_derivado_usa_ancora_mais_recente_entre_duas():
     por_dia = agregar_extrato([_l("2026-07-01", 100.0), _l("2026-07-02", -40.0),
                                _l("2026-07-03", 10.0)])
