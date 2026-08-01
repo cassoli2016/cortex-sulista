@@ -1111,11 +1111,17 @@ def comparar(lancs: list[dict], saldos: list[dict], erp_rows: list[dict]) -> lis
         r = erp.get(dt)
         ext_c = e["credito"] if e else None
         ext_d = e["debito"] if e else None
-        ext_s = saldo_ext.get(dt) if saldo_ext else None
+        ext_s = saldo_ext.get(dt)
         erp_c = float(r["credito"]) if r and r.get("credito") is not None else None
         erp_d = float(r["debito"]) if r and r.get("debito") is not None else None
         erp_s = float(r["saldo"]) if r and r.get("saldo") is not None else None
-        if e is None:
+        # "tem extrato" inclui o dia que so tem SALDO derivado e nenhum
+        # lancamento: e exatamente o dia da ancora do LEDGERBAL quando nao houve
+        # movimento. Decidir por `e is None` marcava esse dia como SO_ERP e o
+        # farol descartava a divergencia de saldo ja calculada - mostrando "ok"
+        # no dia do fechamento do extrato, o pior modo de falha desta tela.
+        tem_ext = e is not None or ext_s is not None
+        if not tem_ext:
             estado = "SO_ERP"
         elif r is None:
             estado = "SO_EXTRATO"
