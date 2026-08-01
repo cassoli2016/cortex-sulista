@@ -6141,7 +6141,7 @@ function renderExtb(d){
     contas.length+' conta'+(contas.length===1?'':'s')+' · farol = último dia com extrato';
   document.getElementById('extb-contas').innerHTML=
     '<table><thead><tr><th>Conta</th><th>Conta no ERP</th><th>Último dia</th>'
-    +'<th class="num">Diferença de saldo</th><th class="num">Dias validados</th>'
+    +'<th class="num">Diferença</th><th class="num">Dias validados</th>'
     +'<th class="num">Divergentes</th><th>Estado</th></tr></thead><tbody>'
     + contas.map(c=>{
         const f=c.farol||{}, par=EXTB_FAROL[f.estado]||['',''];
@@ -6150,10 +6150,21 @@ function renderExtb(d){
         const dias = f.dias_sem_extrato;
         const sub = (f.estado==='desatualizado' && dias!=null)
           ? `${dias} ${dias===1?'dia':'dias'} sem extrato` : par[1];
+        // a diferença pode vir de saldo, crédito ou débito (o maior módulo dos
+        // três, `farol.delta_origem`) - conta CSV nunca tem saldo do extrato,
+        // então boa parte das divergências dela são de crédito/débito. Rótulo
+        // discreto ao lado do valor (nunca só em title/hover - regra do
+        // Copiloto no CLAUDE.md vale aqui também) diz qual campo é.
+        const origLbl = {saldo:'saldo', credito:'crédito', debito:'débito'}[f.delta_origem];
+        const deltaTxt = f.delta!=null
+          ? `${brl2(f.delta)}${origLbl?` <span style="color:var(--n500)">(${origLbl})</span>`:''}`
+          : '—';
+        const deltaTitle = (f.delta!=null && origLbl)
+          ? ` title="Maior divergência do último dia comparado: ${origLbl}"` : '';
         return `<tr><td>${esc(c.rotulo)}${acao}</td>`
           +`<td>${c.erp?esc(c.erp):'<span style="color:var(--n500)">não vinculada</span>'}</td>`
           +`<td>${f.dt?fmtD(f.dt):'—'}</td>`
-          +`<td class="num">${f.delta!=null?brl2(f.delta):'—'}</td>`
+          +`<td class="num"${deltaTitle}>${deltaTxt}</td>`
           +`<td class="num">${c.dias_validados}</td>`
           +`<td class="num">${c.dias_divergentes||'—'}</td>`
           +`<td>${statChip(par[0], sub)}</td></tr>`;
