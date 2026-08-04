@@ -303,8 +303,11 @@ def montar_resposta(ctx: dict) -> dict:
             # a "receita restante" inflada e a projecao cobre de novo o trecho
             # que o custo conhecido ja cobriu. Cai para d["real_acum"] so'
             # quando as viagens nao existem (grupo operacional degradado, 1o
-            # dia do mes): ai' vfc_frete_compra tambem e' 0 e nao ha' o que
-            # contar duas vezes.
+            # dia do mes). ATENCAO: nesse fallback o descasamento volta
+            # ESPELHADO - sem viagens o custo conhecido vira o razao (regua
+            # lenta) contra uma receita ja coberta pelo fiscal (regua rapida),
+            # subestimando o custo. E' aceito porque o grupo ops fora e' fonte
+            # driver: a tela avisa, o snapshot nao grava e o alerta e' rebaixado.
             receita_viagens = float(ctx["vfc"].get("receita_viagens") or 0.0)
             if receita_viagens > 0.0:
                 receita_ja_coberta, fonte_rec = receita_viagens, "viagens do mes"

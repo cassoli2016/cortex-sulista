@@ -67,10 +67,16 @@ def test_bandas():
     b = banda_calibrada(-1000.0, calib, 5)
     assert b is not None
     # -1000 - (-0,10)x1000 = -900 ; -1000 - 0,06x1000 = -1060
-    assert abs(b[0] - (-900.0)) < 1e-9 and abs(b[1] - (-1060.0)) < 1e-9
+    assert abs(min(b) - (-1060.0)) < 1e-9 and abs(max(b) - (-900.0)) < 1e-9
+    # CONTRATO (menor, maior), o mesmo de banda_fallback: a cascata soma as duas
+    # fontes de banda na mesma ponta antes do min()/max() por linha, entao trocar
+    # a ordem misturaria extremos e estreitaria a banda do RESULTADO.
+    assert b[0] <= b[1]
     meio = banda_calibrada(-1000.0, calib, 7)  # interpolacao 5..10 (40%)
-    # p20 interpolado = -0,10 + (-0,04 - -0,10) x 0,4 = -0,076
-    assert abs(meio[0] - (-1000.0 + 1000.0 * 0.076)) < 1e-6
+    # p20 interp = -0,076 -> -924 ; p80 interp = +0,044 -> -1044
+    assert abs(max(meio) - (-1000.0 + 1000.0 * 0.076)) < 1e-6
+    assert abs(min(meio) - (-1000.0 - 1000.0 * 0.044)) < 1e-6
+    assert meio[0] <= meio[1]
     assert banda_calibrada(1.0, None, 5) is None
 
 
