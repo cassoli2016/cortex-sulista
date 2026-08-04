@@ -7,8 +7,6 @@ perguntas que a base ainda não fazia.
 """
 from __future__ import annotations
 
-from datetime import date
-
 from api.orcamento.sql import meses_fechados as meses_fechados_prev  # noqa: F401
 
 # Curva de completude: |movimento| por (mes de competencia, agrupador,
@@ -90,7 +88,10 @@ WHERE dtcancelamento IS NULL AND semaforo = 1
 
 # Combustivel dos abastecimentos (validacao cruzada do CV - COMBUSTIVEL).
 # Filtra veiculos de agregado/terceiro (custo deles e repassado no acerto,
-# nao e a linha de combustivel do razao).
+# nao e a linha de combustivel do razao). Convencao CANONICA (mesma de
+# api/queries.py, ~linhas 2002/2047): propria exige PLACA CASADA no veiculo;
+# placa nao casada (v.placa IS NULL) segue a convencao do repo e fica FORA do
+# proprio (conta como terceiro/desconhecido), nunca vira propria por default.
 CTAPLUS_MTD_SQL = """
 SELECT sum(coalesce(c.custo,0))::float8 AS custo,
        count(*)::int AS abastecimentos
@@ -98,7 +99,8 @@ FROM sulista.ctaplus_abastecimentos c
 LEFT JOIN veiculo v ON v.placa = c.veiculo_placa
 WHERE c.data_inicio_abastecimento >= %(de)s::date
   AND c.data_inicio_abastecimento < %(ate)s::date
-  AND coalesce(v.utilizacaoveiculo, 'TRA') NOT IN ('AGR', 'TER')
+  AND v.placa IS NOT NULL
+  AND coalesce(v.utilizacaoveiculo, '') NOT IN ('AGR', 'TER')
 """
 
 # Contas a pagar com vencimento no mes (contexto de caixa, so KPI informativo).

@@ -46,5 +46,13 @@ def test_viagens_com_filtros_canonicos():
     assert "semaforo = 1" in VFC_MTD_SQL
 
 
+def test_ctaplus_placa_nao_casada_fora_do_proprio():
+    # Convencao canonica (api/queries.py ~2002/2047): propria exige placa
+    # casada no veiculo. Placa nao casada (v.placa IS NULL) NUNCA pode virar
+    # "propria" por default - tem de ficar de fora do filtro NOT IN.
+    assert "v.placa IS NOT NULL" in CTAPLUS_MTD_SQL
+    assert "coalesce(v.utilizacaoveiculo, '') NOT IN ('AGR', 'TER')" in CTAPLUS_MTD_SQL
+
+
 def test_meses_fechados_reexportado():
     assert meses_fechados_prev(date(2026, 8, 2), 6)[-1] == "2026-07"
