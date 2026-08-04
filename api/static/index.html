@@ -9805,7 +9805,7 @@ function renderDre(d){
   if(!document.getElementById('fCompDe').value) document.getElementById('fCompDe').value=d.comp_de;
   if(!document.getElementById('fCompAte').value) document.getElementById('fCompAte').value=d.comp_ate;
   const por={}; d.linhas.forEach(l=>por[l.rotulo]=l);
-  const rl=por['RECEITA LIQUIDA'], lb=por['LUCRO BRUTO'], lop=por['RESULTADO OPERACIONAL (LOP 1)'], re_=por['RESULTADO DO EXERCICIO'];
+  const rb=por['RECEITA BRUTA'], rl=por['RECEITA LIQUIDA'], lb=por['LUCRO BRUTO'], lop=por['RESULTADO OPERACIONAL (LOP 1)'], re_=por['RESULTADO DO EXERCICIO'];
   const pctRL=v=>rl&&rl.total?(100*v/Math.abs(rl.total)).toFixed(1)+'% da RL':'';
   document.getElementById('kpis-dre').innerHTML=[
     kpi('Receita líquida', BRL.format(rl?rl.total:0), d.meses.length+' meses', ''),
@@ -9814,7 +9814,7 @@ function renderDre(d){
     kpi('Resultado do exercício', BRL.format(re_?re_.total:0), re_?pctRL(re_.total):'', re_&&re_.total<0?'neg':'pos'),
   ].join('');
   document.getElementById('dreHint').textContent=
-    'R$ mil · Ano ant. = mesmo período do ano anterior · % RL = análise vertical'+(d.ajustes_locais>0?' · '+d.ajustes_locais+' ajuste(s) local(is)':'')+' · linhas com ▸ abrem a composição';
+    'R$ mil · Ano ant. = mesmo período do ano anterior · análise vertical: % RB sobre a receita bruta, % RL sobre a líquida'+(d.ajustes_locais>0?' · '+d.ajustes_locais+' ajuste(s) local(is)':'')+' · linhas com ▸ abrem a composição';
   const fm=v=>{
     if(Math.abs(v)<500) return '<span class="zero">–</span>';
     const t=(v/1000).toLocaleString('pt-BR',{maximumFractionDigits:0});
@@ -9832,12 +9832,14 @@ function renderDre(d){
   const temDelta = idxU>=1;
   const ultM=d.meses[idxU], antM=d.meses[idxU-1];
   const rlAbs = rl&&rl.total?Math.abs(rl.total):0;
+  const rbAbs = rb&&rb.total?Math.abs(rb.total):0;
   document.getElementById('dre-head').innerHTML='<tr><th>Linha</th>'+
     d.meses.map(mm=>`<th class="num">${periodoLabel(mm)}${mm===_mesAtualDre?'<br><span style="font-size:9.5px;font-weight:600;color:var(--n500)">parcial</span>':''}</th>`).join('')+
     '<th class="num" style="border-left:2px solid var(--n300)">Total</th>'+
     (temDelta?`<th class="num" title="variação de ${periodoLabel(ultM)} sobre ${periodoLabel(antM)}${parcialFim?' — os dois últimos meses FECHADOS, porque o mês corrente ainda está incompleto':''}. A seta segue o tamanho da linha (custo caindo aparece como ▼) e a cor segue o efeito no resultado.">Δ m/m${parcialFim?' *':''}</th>`:'')+
     `<th class="num" title="mesmo período do ano anterior (${d.comp_de_aa} a ${d.comp_ate_aa})">Ano ant.</th>`+
     '<th class="num" title="variação sobre o mesmo período do ano anterior — verde melhora o resultado, vermelho piora">Δ a/a</th>'+
+    '<th class="num" title="participação do total da linha sobre a RECEITA BRUTA do período — análise vertical antes das deduções (impostos, anulações e descontos)">% RB</th>'+
     '<th class="num" title="participação do total da linha sobre a receita líquida do período">% RL</th></tr>';
   /* Célula de variação. Duas regras que a versão anterior não separava:
      1) SETA = direção do TAMANHO da linha. Numa linha de custo (valor negativo)
@@ -9871,6 +9873,7 @@ function renderDre(d){
   d.linhas.forEach((l,i)=>{
     const temDet=(l.detalhe||[]).length>0;
     const av=(rl&&rl.total)?`<span class="av">${(100*l.total/Math.abs(rl.total)).toFixed(1)}%</span>`:'';
+    const avRB=rbAbs?`<span class="av">${(100*l.total/rbAbs).toFixed(1)}%</span>`:'';
     const cls=[
       l.rotulo==='RESULTADO DO EXERCICIO'?'dre-final':'',
       RES.has(l.rotulo)?'dre-res':'',
@@ -9885,6 +9888,7 @@ function renderDre(d){
       ${delta(l.meses)}
       <td class="num" style="color:var(--n500)">${fm(l.total_aa||0)}</td>
       ${deltaAA(l.total, l.total_aa||0)}
+      <td class="num">${avRB}</td>
       <td class="num">${av}</td></tr>`;
     if(temDet){
       html+=l.detalhe.map(dd=>`<tr class="dre-item dre-g-${i}">
@@ -9894,6 +9898,7 @@ function renderDre(d){
         ${delta(dd.meses)}
         <td class="num" style="color:var(--n500)">${fm(dd.total_aa||0)}</td>
         ${deltaAA(dd.total, dd.total_aa||0)}
+        <td class="num">${rbAbs?`<span class="av">${(100*dd.total/rbAbs).toFixed(1)}%</span>`:''}</td>
         <td class="num">${(rl&&rl.total)?`<span class="av">${(100*dd.total/Math.abs(rl.total)).toFixed(1)}%</span>`:''}</td></tr>`).join('');
     }
   });
