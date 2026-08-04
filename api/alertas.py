@@ -14,6 +14,9 @@ from datetime import date, timedelta
 
 from . import queries
 from . import db
+# leitura ÚNICA de "quais fontes estão fora" (mesma regra do gate do snapshot
+# em previsao/servico.py) — módulo puro, sem I/O no import.
+from .previsao.motor import fontes_fora
 
 log = logging.getLogger("cortex.alertas")
 
@@ -134,19 +137,46 @@ def _janela_alerta(hoje: date) -> tuple[str, str]:
 
 
 def _alertas_previsao(payload: dict) -> list[tuple[str, str, str]]:
-    """Alertas da previsão de fechamento (mês corrente). Puro — testável."""
+    """Alertas da previsão de fechamento (mês corrente). Puro — testável.
+
+    O digest/push é o ÚNICO canal que chega ao celular do gestor: se a
+    previsão foi montada com uma fonte fora, ele precisa saber ANTES de agir
+    sobre o número. Duas consequências, ambas obrigatórias:
+
+    1. item próprio nomeando as fontes que falharam (o filtro de avisos só
+       casa "diverge", que NENHUM dos avisos de degradação contém);
+    2. o alerta de resultado negativo cai de `critico` para `atencao` e
+       carrega a nota — previsão erguida sobre driver ausente não pode
+       acordar ninguém como se fosse número firme.
+
+    `fontes_fora(..., apenas_drivers=True)` ignora o orçamento: ele não entra
+    em previsto nenhum, e um ano sem versão cadastrada rebaixaria todo dia um
+    alerta legítimo."""
     itens: list[tuple[str, str, str]] = []
     k = payload.get("kpis") or {}
+    fora = fontes_fora(payload.get("fontes"), apenas_drivers=True)
+    nota = (" ATENÇÃO: previsão montada com fonte degradada ("
+            + ", ".join(fora) + ") — o número pode mudar muito quando a fonte "
+            "voltar.") if fora else ""
+    if fora:
+        itens.append(("atencao", "Previsão de fechamento com fonte degradada",
+                      f"A previsão de {payload.get('mes')} foi montada sem: "
+                      f"{', '.join(fora)}. As linhas que dependem dessa(s) fonte(s) "
+                      "trocaram de método (nível histórico). Detalhe e chips de "
+                      "fonte: Controladoria > Fechamento do Mês."))
     prev = k.get("resultado_previsto")
     orc = k.get("resultado_orcado")
     if prev is not None and prev < 0:
-        itens.append(("critico", "Resultado do mês previsto NEGATIVO",
+        itens.append(("atencao" if fora else "critico",
+                      "Resultado do mês previsto NEGATIVO",
                       f"A previsão de fechamento de {payload.get('mes')} aponta "
-                      f"{_fmt_brl(prev)}. Detalhe: Controladoria > Fechamento do Mês."))
+                      f"{_fmt_brl(prev)}. Detalhe: Controladoria > Fechamento do "
+                      f"Mês.{nota}"))
     elif prev is not None and orc is not None and prev < orc:
         itens.append(("atencao", "Resultado do mês abaixo do orçado",
                       f"Previsto {_fmt_brl(prev)} contra orçado {_fmt_brl(orc)} "
-                      f"({_fmt_brl(prev - orc)}). Detalhe: Controladoria > Fechamento do Mês."))
+                      f"({_fmt_brl(prev - orc)}). Detalhe: Controladoria > "
+                      f"Fechamento do Mês.{nota}"))
     for a in payload.get("avisos") or []:
         if "diverge" in a.lower():
             itens.append(("info", "Divergência de fonte na previsão", a))
