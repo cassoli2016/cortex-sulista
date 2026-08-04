@@ -3,8 +3,17 @@
 
 lancamento.dtinc reconstrói o razão como era visível em cada data; o driver
 fiscal usa dtemissao (data do documento) e a meta é estática — as-of exato.
-Aproximação declarada: viagens as-of por dtsaida (a data de INCLUSÃO da
-programação não é filtrável aqui).
+Aproximações declaradas:
+- viagens as-of por dtsaida (a data de INCLUSÃO da programação não é
+  filtrável aqui);
+- histórico (hist_ag/indices_sazonais) as-of o 1º dia do MÊS ALVO (`prim`),
+  não a data real de execução do backtest. Rodar ao vivo em, digamos, fev/26
+  só veria o razão histórico como estava assentado até fev/26 — usar "hoje"
+  (a data real de hoje) deixaria os meses mais antigos do histórico
+  artificialmente mais maduros que os mais recentes (viés otimista: bandas
+  calibradas ficariam mais estreitas do que uma previsão ao vivo veria). Isto
+  NÃO se aplica à curva de completude (COMPLETUDE_SQL): ela só mede meses já
+  fechados nos dois casos, então é consistente sem ajuste.
 
 Uso: uv run python scripts/backtest_previsao.py [--meses 6] [--dias 5,10,15,20,25]
 Gera: data/previsao_calibracao.json + docs/previsao-backtest.md
@@ -78,11 +87,16 @@ def main() -> None:
         diario_rows = db.query(DIARIO_ASOF_SQL, {"de": de_m, "ate": ate_m})
         meta_mes = sum(r["meta"] for r in diario_rows)
 
-        # historico/curva/indices SEM olhar o futuro: fechados ANTES do mes alvo
+        # historico/curva/indices SEM olhar o futuro: fechados ANTES do mes alvo.
+        # asof = prim (1o dia do mes alvo), NAO hoje: senao o historico de um
+        # mes-alvo antigo (ex. fev/26) enxergaria assentamento contabil que so
+        # existe porque estamos rodando o backtest hoje - vazamento as-of que
+        # deixaria a calibracao otimista demais (bandas mais estreitas do que
+        # uma previsao ao vivo veria).
         hist_meses = meses_fechados_prev(prim, 24)
         de_h = f"{hist_meses[0]}-01"
         _, ate_h = _comp_bounds(hist_meses[-1], hist_meses[-1])
-        hist_por_ag_full = _razao_asof(de_h, ate_h, hoje.isoformat())
+        hist_por_ag_full = _razao_asof(de_h, ate_h, prim.isoformat())
         hist_ag = {ag: {m: v for m, v in serie.items() if m in hist_meses}
                    for ag, serie in hist_por_ag_full.items()}
         curva_meses = meses_fechados_prev(prim, 6)
