@@ -48,3 +48,30 @@ def test_cascata_ag_linha_global():
 
 def test_piso_exportado():
     assert 0.0 < PISO_COMPLETUDE < 1.0
+
+
+def test_curva_vazia_cai_no_neutro():
+    """Empty input (cold-start case) cascades to neutral 1.0."""
+    curva = montar_curva([], {})
+    assert completude_em(curva, None, None, 10) == 1.0
+    assert completude_em(curva, "QUALQUER", None, 10) == 1.0
+    assert completude_em(curva, None, "QUALQUER", 10) == 1.0
+
+
+def test_agrupador_sem_movimento_cai_no_neutro():
+    """Agrupador with only valor_abs=0.0 rows cascades to neutral 1.0."""
+    rows = [
+        {"mes": "2026-05", "agrupador": "CF - ZERADO", "dia_rel": 30, "valor_abs": 0.0},
+        {"mes": "2026-05", "agrupador": "CF - ZERADO", "dia_rel": 35, "valor_abs": 0.0},
+        {"mes": "2026-06", "agrupador": "CF - ZERADO", "dia_rel": 30, "valor_abs": 0.0},
+        {"mes": "2026-06", "agrupador": "CF - ZERADO", "dia_rel": 35, "valor_abs": 0.0},
+        # Uma fonte informativa para que a global não seja vazia
+        {"mes": "2026-05", "agrupador": "CV - COMBUSTIVEL", "dia_rel": 15, "valor_abs": 50.0},
+        {"mes": "2026-05", "agrupador": "CV - COMBUSTIVEL", "dia_rel": 30, "valor_abs": 50.0},
+        {"mes": "2026-06", "agrupador": "CV - COMBUSTIVEL", "dia_rel": 15, "valor_abs": 50.0},
+        {"mes": "2026-06", "agrupador": "CV - COMBUSTIVEL", "dia_rel": 30, "valor_abs": 50.0},
+    ]
+    curva = montar_curva(rows, {})
+    # Agrupador zerado cai para global (que tem valor)
+    assert completude_em(curva, "CF - ZERADO", None, 15) > 0.0
+    assert completude_em(curva, "CF - ZERADO", None, 15) <= 1.0

@@ -15,7 +15,11 @@ PISO_COMPLETUDE = 0.30  # abaixo disso NUNCA dividir — usar estratégia de ní
 
 
 def _frac_media(por_mes: dict[str, dict[int, float]]) -> dict[int, float]:
-    """De {mes: {dia: valor_abs}} para {dia: frac acumulada media entre meses}."""
+    """De {mes: {dia: valor_abs}} para {dia: frac acumulada media entre meses}.
+
+    Retorna {} (dict vazio/falsy) quando NENHUM mês contribuiu movimento positivo,
+    permitindo a cascata em completude_em cair para o próximo nível ou retornar 1.0.
+    """
     fracs_por_dia: dict[int, list[float]] = {d: [] for d in range(DIA_MAX + 1)}
     for _mes, dias in por_mes.items():
         total = sum(dias.values())
@@ -28,6 +32,9 @@ def _frac_media(por_mes: dict[str, dict[int, float]]) -> dict[int, float]:
             serie[d] = acum / total
         for d, f in serie.items():
             fracs_por_dia[d].append(f)
+    # Se nenhum mês contribuiu dados (all lists empty), retorna {} (falsy)
+    if not any(fracs_por_dia.values()):
+        return {}
     return {d: (sum(fs) / len(fs)) if fs else 0.0 for d, fs in fracs_por_dia.items()}
 
 
