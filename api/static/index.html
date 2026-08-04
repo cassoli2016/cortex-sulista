@@ -802,6 +802,7 @@ button.avatar{border:0;cursor:pointer}
         <a href="#cont" class="sub" data-view="cont" title="Contabilidade — ajuste de agrupadores"><span class="ic" data-ic="ctb"></span><span>Contabilidade</span></a>
         <a href="#qual" class="sub" data-view="qual" title="Qualidade — certidões e licenças com vencimento"><span class="ic" data-ic="qualic"></span><span>Qualidade e Certidões</span></a>
         <a href="#orc" class="sub" data-view="orc" title="Orçamento — orçado × realizado"><span class="ic" data-ic="dre"></span><span>Orçamento</span></a>
+        <a href="#fech" class="sub" data-view="fech" title="Fechamento do Mês — previsão do resultado antes de fechar"><span class="ic" data-ic="dre"></span><span>Fechamento do Mês</span></a>
       </div>
       <button class="group" id="grpOpe" aria-expanded="false" aria-controls="subsOpe" onclick="toggleGroup('grpOpe','subsOpe','cs.opeGroup')" title="Operação">
         <span class="ic" data-ic="ope"></span><span>Operação</span><span class="ic chev" data-ic="chev"></span>
@@ -1577,6 +1578,28 @@ button.avatar{border:0;cursor:pointer}
             <div class="tablewrap tabroll" id="orc-desvios"></div></div>
         </div>
         <div id="orc-mont" style="display:none"></div>
+      </section>
+
+      <!-- ===================== FECHAMENTO DO MÊS (PREVISÃO) ===================== -->
+      <section class="view" id="view-fech">
+        <div class="card" style="padding:14px 18px;display:flex;gap:12px;align-items:center;flex-wrap:wrap">
+          <label style="font-size:13px;color:var(--n500)">Mês
+            <select id="fFechMes" onchange="loadFech()" style="margin-left:8px"></select>
+          </label>
+          <span class="hint" id="fech-carimbo"></span>
+        </div>
+        <div id="fech-avisos"></div>
+        <div class="kpis" id="kpis-fech"></div>
+        <div class="grid2">
+          <div class="card"><div class="head"><h2>Evolução da previsão <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="Snapshot diário gravado a cada consulta (data/previsao.db): como o resultado previsto do mês evoluiu conforme o dado chegou. A linha do orçado é a referência fixa da versão vigente.">i</span><span class="hint">resultado previsto por dia · linha = orçado</span></div>
+            <div class="chartwrap narrow"><svg id="chartFechEvol" viewBox="0 0 640 200" preserveAspectRatio="xMidYMid meet" role="img"></svg></div></div>
+          <div class="card"><div class="head"><h2>Maiores desvios vs orçado <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="Linhas diretas da DRE com maior |previsto - orçado| do mês. Cor pelo EFEITO no resultado (custo acima do orçado = ruim), não pelo sinal.">i</span><span class="hint">explicar o delta, não só mostrá-lo</span></div>
+            <div id="fech-desvios"></div></div>
+        </div>
+        <div class="card">
+          <div class="head"><h2>Cascata prevista <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="Razão do AVA (lancamento, historico<>18, ajustes locais aplicados) + drivers operacionais (CT-e/NFS-e x meta diária, viagens, abastecimentos). Cada linha diz a estratégia no badge; previsto = calculado + ajuste manual. Banda = erro histórico do método no dia (backtest via dtinc).">i</span><span class="hint" id="fech-casc-hint"></span></div>
+          <div class="tablewrap tabroll" id="fech-casc" style="max-height:640px"></div>
+        </div>
       </section>
 
       <!-- ===================== PREMIAÇÃO DE MOTORISTAS ===================== -->
@@ -2563,7 +2586,7 @@ const FAIXAS = {
   '4_vencido_91_365':['Vencido 91–365d','b-dang'],
   '5_vencido_mais_365':['Vencido > 365d','b-dang'],
 };
-const VIEWS = { home:'Visão Geral', fluxo:'Fluxo de Caixa e Bancos', receber:'Contas a Receber', pagar:'Contas a Pagar', oc:'Ordens de Compra', custos:'Painel de Custos', agr:'Agregados e Terceiros', mvb:'Make vs Buy', comb:'Combustível', man:'Manutenção', com:'Clientes e RKM', clif:'Consulta de Cliente', crm:'CRM — Leads e Projetos', km:'Análise de KM', torre:'Torre de Controle', veic:'Veículos', veicf:'Consulta de Veículo', mprev:'Manutenção Preventiva', comrast:'Comunicação Rastreadora', mul:'Multas', prog:'Programação Inteligente', jorn:'Jornada do Motorista', jornf:'Ficha de Jornada', cex:'Custos Extras', sac:'SAC / Freetime', port:'Portaria', cop:'Copiloto Cortex', cob:'Régua de Cobrança', extb:'Extrato Bancário', cont:'Contabilidade', qual:'Qualidade e Certidões', orc:'Orçamento', prem:'Premiação de Motoristas', dre:'DRE Gerencial', drecli:'DRE por Cliente', tvfat:'Painel TV — Faturamento', tvope:'Painel TV — Operação', rh:'RH — Vagas', hc:'Headcount', folha:'Custo de Folha', folhaind:'Indicadores de Folha', he:'Horas Extras', gestao:'Gestão', srv:'Saúde do Servidor' };
+const VIEWS = { home:'Visão Geral', fluxo:'Fluxo de Caixa e Bancos', receber:'Contas a Receber', pagar:'Contas a Pagar', oc:'Ordens de Compra', custos:'Painel de Custos', agr:'Agregados e Terceiros', mvb:'Make vs Buy', comb:'Combustível', man:'Manutenção', com:'Clientes e RKM', clif:'Consulta de Cliente', crm:'CRM — Leads e Projetos', km:'Análise de KM', torre:'Torre de Controle', veic:'Veículos', veicf:'Consulta de Veículo', mprev:'Manutenção Preventiva', comrast:'Comunicação Rastreadora', mul:'Multas', prog:'Programação Inteligente', jorn:'Jornada do Motorista', jornf:'Ficha de Jornada', cex:'Custos Extras', sac:'SAC / Freetime', port:'Portaria', cop:'Copiloto Cortex', cob:'Régua de Cobrança', extb:'Extrato Bancário', cont:'Contabilidade', qual:'Qualidade e Certidões', orc:'Orçamento', fech:'Fechamento do Mês', prem:'Premiação de Motoristas', dre:'DRE Gerencial', drecli:'DRE por Cliente', tvfat:'Painel TV — Faturamento', tvope:'Painel TV — Operação', rh:'RH — Vagas', hc:'Headcount', folha:'Custo de Folha', folhaind:'Indicadores de Folha', he:'Horas Extras', gestao:'Gestão', srv:'Saúde do Servidor' };
 const periodoLabel = p => { if(p==='atrasado') return 'Atrasado'; const [y,m]=p.split('-'); return MES[+m-1]+'/'+y.slice(2); };
 const fmtD = s => { if(!s) return ''; const [y,m,dd]=s.split('-'); return dd+'/'+m+'/'+y; };
 // o ERP devolve "YYYY-MM-DD HH24:MI" (to_char); a ficha do veículo mostrava cru
@@ -2609,6 +2632,8 @@ let comrastSeq = 0;
 let DATACOMRAST = null;
 let qualSeq = 0;
 let DATAQUAL = null;
+let fechSeq = 0;
+let DATAFECH = null;
 let portSeq = 0;
 let DATAPORT = null;
 let crmSeq = 0;
@@ -2715,7 +2740,7 @@ function toggleGroup(gid,sid,key){
 const VIEW_GROUP = {home:'',cop:'',
   com:'Com',clif:'Com',crm:'Com',rent:'Com',drecli:'Com',
   fluxo:'Fin',receber:'Fin',pagar:'Fin',cob:'Fin',extb:'Fin',
-  dre:'Ctr',cont:'Ctr',qual:'Ctr',orc:'Ctr',
+  dre:'Ctr',cont:'Ctr',qual:'Ctr',orc:'Ctr',fech:'Ctr',
   torre:'Ope',prog:'Ope',jorn:'Ope',jornf:'Ope',cex:'Ope',sac:'Ope',port:'Ope',km:'Ope',agr:'Ope',mvb:'Ope',
   veic:'Fro',veicf:'Fro',mprev:'Fro',comrast:'Fro',comb:'Fro',man:'Fro',mul:'Fro',prem:'Fro',
   oc:'Sup',custos:'Sup',
@@ -2839,6 +2864,8 @@ function qsView(k){
     if(V('fFolhaComp'))p.set('comp',V('fFolhaComp'));
   } else if(k==='he'){
     if(V('fHeComp'))p.set('comp',V('fHeComp'));
+  } else if(k==='fech'){
+    if(V('fFechMes'))p.set('mes',V('fFechMes'));
   } else if(k==='mprev'||k==='comrast'||k==='qual'||k==='port'||k==='crm'||k==='rh'||k==='hc'||k==='folhaind'){
     // vistas-snapshot sem filtro local: qsView() sempre devolve '' — o
     // loader grava LOADEDQS[k]='' (não '1') para o cache de staleness
@@ -2857,7 +2884,7 @@ function semFilterbar(v){
   // filtros", que não tinha o que aplicar.
   return v==='cop'||v==='gestao'||v==='srv'||v==='home'||v==='veicf'||v==='clif'||v==='jorn'||v==='jornf'||v==='prog'||
          v==='cex'||v==='sac'||v==='mprev'||v==='comrast'||v==='qual'||v==='port'||v==='crm'||v==='rh'||
-         v==='hc'||v==='folha'||v==='folhaind'||v==='he'||v==='custos'||v==='orc'||v==='prem'||v==='extb';
+         v==='hc'||v==='folha'||v==='folhaind'||v==='he'||v==='custos'||v==='orc'||v==='prem'||v==='extb'||v==='fech';
 }
 function currentView(){
   const h = (location.hash||'').replace('#','');
@@ -2945,8 +2972,8 @@ function router(){
   // carga da vista: dispara se não há dados OU se os filtros visíveis
   // divergem dos usados na última carga (nunca mostrar dado velho com filtro novo)
   const key=viewKey(v);
-  const DATAMAP={fin:DATA,oc:DATAOC,agr:DATAAGR,mvb:DATAMVB,comb:DATACOMB,man:DATAMAN,com:DATACOM,clif:DATACLIF,dre:DATADRE,drecli:DATADRECLI,home:DATAHOME,km:DATAKM,torre:DATATORRE,veic:DATAVEIC,veicf:DATAVEICF,mul:DATAMUL,prog:DATAPROG,jorn:DATAJORN,jornf:DATAJORNF,cex:DATACEX,sac:DATASAC,mprev:DATAMPREV,comrast:DATACOMRAST,qual:DATAQUAL,port:DATAPORT,crm:DATACRM,rh:DATARH,hc:DATAHC,folha:DATAFOLHA,folhaind:DATAFOLHAIND,he:DATAHE,custos:DATACUSTOS,cob:DATACOB,extb:DATAEXTB,rent:DATARENT,cont:DATACONT,orc:DATAORC,prem:DATAPREM,gestao:DATAGES,srv:DATASRV,tvfat:null,tvope:null,cop:(COP_MSGS.length?{}:null)};
-  const LOADMAP={fin:load,oc:loadOc,agr:loadAgr,mvb:loadMvb,comb:loadComb,man:loadMan,com:loadCom,clif:loadClif,dre:loadDre,drecli:loadDreCli,home:loadHome,km:loadKm,torre:loadTorre,veic:loadVeic,veicf:loadVeicf,mul:loadMul,prog:loadProg,jorn:loadJorn,jornf:loadJornf,cex:loadCex,sac:loadSac,mprev:loadMPrev,comrast:loadComRast,qual:loadQual,port:loadPort,crm:loadCrm,rh:loadRh,hc:loadHc,folha:loadFolha,folhaind:loadFolhaInd,he:loadHe,custos:loadCustos,cob:loadCob,extb:loadExtb,rent:loadRent,cont:loadCont,orc:loadOrc,prem:loadPrem,gestao:loadGestao,srv:loadSrv,cop:loadCop,tvfat:loadTvFat,tvope:loadTvOpe};
+  const DATAMAP={fin:DATA,oc:DATAOC,agr:DATAAGR,mvb:DATAMVB,comb:DATACOMB,man:DATAMAN,com:DATACOM,clif:DATACLIF,dre:DATADRE,drecli:DATADRECLI,home:DATAHOME,km:DATAKM,torre:DATATORRE,veic:DATAVEIC,veicf:DATAVEICF,mul:DATAMUL,prog:DATAPROG,jorn:DATAJORN,jornf:DATAJORNF,cex:DATACEX,sac:DATASAC,mprev:DATAMPREV,comrast:DATACOMRAST,qual:DATAQUAL,port:DATAPORT,crm:DATACRM,rh:DATARH,hc:DATAHC,folha:DATAFOLHA,folhaind:DATAFOLHAIND,he:DATAHE,custos:DATACUSTOS,cob:DATACOB,extb:DATAEXTB,rent:DATARENT,cont:DATACONT,orc:DATAORC,fech:DATAFECH,prem:DATAPREM,gestao:DATAGES,srv:DATASRV,tvfat:null,tvope:null,cop:(COP_MSGS.length?{}:null)};
+  const LOADMAP={fin:load,oc:loadOc,agr:loadAgr,mvb:loadMvb,comb:loadComb,man:loadMan,com:loadCom,clif:loadClif,dre:loadDre,drecli:loadDreCli,home:loadHome,km:loadKm,torre:loadTorre,veic:loadVeic,veicf:loadVeicf,mul:loadMul,prog:loadProg,jorn:loadJorn,jornf:loadJornf,cex:loadCex,sac:loadSac,mprev:loadMPrev,comrast:loadComRast,qual:loadQual,port:loadPort,crm:loadCrm,rh:loadRh,hc:loadHc,folha:loadFolha,folhaind:loadFolhaInd,he:loadHe,custos:loadCustos,cob:loadCob,extb:loadExtb,rent:loadRent,cont:loadCont,orc:loadOrc,fech:loadFech,prem:loadPrem,gestao:loadGestao,srv:loadSrv,cop:loadCop,tvfat:loadTvFat,tvope:loadTvOpe};
   if(!DATAMAP[key] || (key!=='home' && LOADEDQS[key]!==qsView(key))) LOADMAP[key]();
   // mobile: estado da navegação inferior + fecha gaveta/painel de filtros
   document.querySelectorAll('.bottomnav [data-bview]').forEach(a=>a.classList.toggle('ativo', a.dataset.bview===v));
@@ -2993,6 +3020,7 @@ const NAV_KW={
   dre:'resultado lucro prejuizo demonstracao contabil', cont:'contabil plano de contas agrupador classificar',
   qual:'certidao licenca alvara iso esg auditoria nc vencimento',
   orc:'orcamento orcado budget previsto desvio meta de custo',
+  fech:'previsao fechamento forecast resultado projecao mes corrente cenario banda',
   prem:'premiacao premio bonus motorista economia consumo km/l telemetria gobrax',
   torre:'rastreamento posicao mapa gps viagem transito atraso', prog:'programacao radar vazio casamento malha ocioso',
   jorn:'motorista jornada 13103 descanso direcao infracao', cex:'custo extra estadia devolucao reentrega',
@@ -4678,7 +4706,7 @@ function reloadCurrent(){
   const M={home:loadHome,fluxo:load,receber:load,pagar:load,dre:loadDre,drecli:loadDreCli,oc:loadOc,
     agr:loadAgr,mvb:loadMvb,comb:loadComb,man:loadMan,com:loadCom,clif:loadClif,km:loadKm,
     torre:loadTorre,veic:loadVeic,veicf:loadVeicf,mul:loadMul,prog:loadProg,jorn:loadJorn,jornf:loadJornf,cex:loadCex,sac:loadSac,mprev:loadMPrev,comrast:loadComRast,qual:loadQual,port:loadPort,crm:loadCrm,rh:loadRh,hc:loadHc,folha:loadFolha,folhaind:loadFolhaInd,he:loadHe,custos:loadCustos,cob:loadCob,extb:loadExtb,rent:loadRent,
-    cont:loadCont,orc:loadOrc,prem:loadPrem,gestao:loadGestao,srv:loadSrv,cop:loadCop,tvfat:loadTvFat,tvope:loadTvOpe};
+    cont:loadCont,orc:loadOrc,fech:loadFech,prem:loadPrem,gestao:loadGestao,srv:loadSrv,cop:loadCop,tvfat:loadTvFat,tvope:loadTvOpe};
   (M[currentView()]||load)();
 }
 
@@ -7785,6 +7813,129 @@ function renderQual(d){
   const au=(d.auditorias||[]).map(a=>`<tr><td>${esc(a.dt||'')}</td><td>${esc(a.area)}</td><td>${esc(a.tipo)}</td><td><span class="badge ${a.resultado==='Aprovado'?'b-ok':'b-dang'}">${esc(a.resultado)}</span></td><td class="num">${a.ncs}</td><td>${esc(a.status_acao||'—')}</td><td>${esc(a.problema||'')}</td></tr>`).join('')||'<tr><td colspan="7" style="color:var(--n500)">sem auditorias registradas</td></tr>';
   document.getElementById('qual-auditoria').innerHTML=`<table><thead><tr><th>Data</th><th>Área</th><th>Tipo</th><th>Resultado</th><th class="num">NCs</th><th>Ação</th><th>Principal problema</th></tr></thead><tbody>${au}</tbody></table>`;
 }
+// ---------------- Fechamento do Mês (previsão) ----------------
+function fechMesOpts(){
+  const sel=document.getElementById('fFechMes'); if(!sel||sel.options.length) return;
+  const hoje=new Date(), m0=`${hoje.getFullYear()}-${String(hoje.getMonth()+1).padStart(2,'0')}`;
+  const ant=new Date(hoje.getFullYear(), hoje.getMonth()-1, 1);
+  const m1=`${ant.getFullYear()}-${String(ant.getMonth()+1).padStart(2,'0')}`;
+  sel.innerHTML=`<option value="${m0}">${m0} (corrente)</option><option value="${m1}">${m1} (fechando)</option>`;
+}
+async function loadFech(){
+  fechMesOpts();
+  const seq=++fechSeq, btn=document.getElementById('btnRefresh'); if(btn) btn.disabled=true;
+  document.getElementById('content').classList.add('loading');
+  skelKpis('kpis-fech',4);
+  try{
+    const qs=qsView('fech');
+    const r=await fetch('/api/controladoria/previsao'+(qs?'?'+qs:''),{cache:'no-store'});
+    const d=await r.json(); if(seq!==fechSeq) return;
+    if(!r.ok){ showBanner(d.mensagem||'Erro ao montar a previsão.', d.detalhe); return; }
+    hideBanner(); DATAFECH=d; LOADEDQS.fech=qs; renderFech(d);
+  }catch(e){ if(seq===fechSeq) showBanner('Não foi possível falar com a API.', e.message); }
+  finally{ if(seq===fechSeq){ if(btn) btn.disabled=false; document.getElementById('content').classList.remove('loading'); } }
+}
+const FECH_ESTRAT={driver_fiscal:['b-info','driver fiscal'],pct_receita:['b-info','% receita'],
+  razao_completude:['b-info','razão÷completude'],nivel:['b-info','nível'],sazonal:['b-info','sazonal'],
+  frete_compra:['b-info','frete compra'],runrate:['b-info','run-rate'],consolidado:['b-ok','consolidado'],
+  formula:['','fórmula'],fechado:['b-ok','fechado']};
+function renderFech(d){
+  const k=d.kpis||{}, modo=d.modo;
+  document.getElementById('fech-carimbo').textContent=
+    `dados até ${fmtD(k.dados_ate)} · modo ${modo}`+
+    (k.consolidacao_pct!=null?` · razão ${Math.round(k.consolidacao_pct*100)}% consolidado`:'');
+  document.getElementById('fech-avisos').innerHTML=(d.avisos||[]).map(a=>
+    `<div class="card" style="padding:10px 16px;border-left:4px solid var(--yellow);margin-bottom:8px;font-size:13px">${esc(a)}</div>`).join('');
+  const banda=(k.resultado_pess!=null&&k.resultado_otim!=null)?
+    `entre ${brlAbbr(k.resultado_pess)} e ${brlAbbr(k.resultado_otim)}`:'';
+  const vsOrc=k.resultado_orcado!=null?
+    statChip(k.resultado_previsto>=k.resultado_orcado?'good':'bad',
+      `${k.resultado_previsto>=k.resultado_orcado?'+':''}${brlAbbr(k.resultado_previsto-k.resultado_orcado)} vs orçado`,
+      'Diferença do resultado previsto para o orçado do mês (versão vigente do Orçamento).'):'';
+  document.getElementById('kpis-fech').innerHTML=[
+    kpi('Resultado previsto do mês', brlAbbr(k.resultado_previsto||0), banda||'sem banda calibrada',
+      (k.resultado_previsto||0)>=0?'pos':'neg', 'Cascata completa da DRE prevista: conhecido + projetado por linha, com ajustes manuais. NÃO é número fechado.', vsOrc),
+    kpi('Orçado do mês', k.resultado_orcado!=null?brlAbbr(k.resultado_orcado):'—',
+      k.resultado_orcado!=null?'versão vigente do Orçamento':'sem versão do ano', ''),
+    kpi('Receita prevista', brlAbbr(k.receita_prevista||0),
+      k.meta_mes?`meta ${brlAbbr(k.meta_mes)}`:'sem meta carregada',
+      k.meta_mes&&k.receita_prevista>=k.meta_mes?'pos':''),
+    kpi('Atingimento até hoje', k.atingimento_mtd!=null?Math.round(k.atingimento_mtd*100)+'%':'—',
+      'realizado fiscal ÷ meta acumulada', k.atingimento_mtd!=null&&k.atingimento_mtd<0.9?'neg':'pos'),
+  ].join('');
+  // evolução: 1 ponto por snapshot diário do RESULTADO DO EXERCICIO
+  const snaps=(d.serie_snapshots||[]).filter(s=>s.linha==='RESULTADO DO EXERCICIO');
+  if(snaps.length){
+    const cats=snaps.map(s=>s.data.slice(8)+'/'+s.data.slice(5,7));
+    const series=[{nome:'previsto',cor:CC.navy500||'#38648D',valores:snaps.map(s=>s.previsto_base)}];
+    if(k.resultado_orcado!=null) series.push({nome:'orçado',cor:CC.amarelo||'#B97709',valores:snaps.map(()=>k.resultado_orcado)});
+    chartArea('chartFechEvol',cats,series,{fmt:brlAbbr});
+  }
+  // maiores desvios (linhas diretas com orçado; ignora linha sem cobertura no
+  // orcamento e sem realizado ainda — orcado:0 nesse caso é ausência de dado,
+  // não desvio real, ledger conhecido do Task 6/7)
+  const diretas=(d.linhas||[]).filter(l=>!l.formula&&l.desvio!=null&&l.linha!=='NAO ALOCADO / CLASSIFICAR'
+    &&!(l.orcado===0&&l.realizado===0));
+  const top=diretas.slice().sort((a,b)=>Math.abs(b.desvio)-Math.abs(a.desvio)).slice(0,6);
+  document.getElementById('fech-desvios').innerHTML=top.map(l=>{
+    const bom=l.desvio>=0; // sinal credor-positivo: desvio>=0 melhora o resultado
+    return `<div style="display:flex;justify-content:space-between;gap:10px;padding:8px 4px;border-bottom:1px solid var(--n100);font-size:13px">
+      <span>${esc(l.linha)} <span class="badge ${FECH_ESTRAT[l.estrategia]?.[0]||''}">${FECH_ESTRAT[l.estrategia]?.[1]||esc(l.estrategia)}</span></span>
+      <b style="color:${bom?'var(--green)':'var(--red)'};font-family:var(--mono)">${bom?'+':''}${brlAbbr(l.desvio)}</b></div>`;
+  }).join('')||'<div class="hint">sem orçamento para comparar</div>';
+  // cascata
+  const rl=(d.linhas||[]).find(l=>l.linha==='RECEITA LIQUIDA');
+  const rlv=rl?Math.abs(rl.previsto)||1:1;
+  const rows=(d.linhas||[]).map(l=>{
+    const [bc,bt]=FECH_ESTRAT[l.estrategia]||['',l.estrategia];
+    const nomeCell=`${l.nivel?'&nbsp;&nbsp;&nbsp;':''}${l.formula?'<b>':''}${esc(l.linha)}${l.formula?'</b>':''}`+
+      (l.ajuste?` <span class="badge b-warn" title="${esc(l.ajuste.motivo||'')} (${esc(l.ajuste.autor||'')})">ajustado</span>`:'');
+    const bandaCell=(l.previsto_pess!==l.previsto_otim)?
+      `<span title="cenário pessimista .. otimista">${brlAbbr(l.previsto_pess)} .. ${brlAbbr(l.previsto_otim)}</span>`:'—';
+    const premissas=(l.premissas||[]).join(' · ');
+    const aj=l.formula?'':`<a href="#" onclick="fechAjuste('${esc(d.mes)}','${esc(l.linha)}',${l.previsto});return false" title="ajuste manual">✎</a>`;
+    return `<tr${l.formula?' style="background:var(--n50,#fafafa)"':''} title="${esc(premissas)}">
+      <td>${nomeCell}</td>
+      <td class="num">${brlAbbr(l.realizado||0)}</td>
+      <td class="num">${brlAbbr(l.projetado||0)}</td>
+      <td class="num"><b>${brlAbbr(l.previsto||0)}</b></td>
+      <td class="num" style="font-size:12px;color:var(--n500)">${bandaCell}</td>
+      <td class="num">${l.orcado!=null?brlAbbr(l.orcado):'—'}</td>
+      <td class="num" style="color:${l.desvio==null?'var(--n500)':(l.desvio>=0?'var(--green)':'var(--red)')}">${l.desvio!=null?(l.desvio>=0?'+':'')+brlAbbr(l.desvio):'—'}</td>
+      <td class="num" style="color:var(--n500)">${Math.round(100*(l.previsto||0)/rlv)}%</td>
+      <td>${l.formula?'':`<span class="badge ${bc}">${bt}</span>`} ${aj}</td></tr>`;
+  }).join('');
+  document.getElementById('fech-casc').innerHTML=
+    `<table><thead><tr><th>Linha</th><th class="num">Realizado até hoje</th><th class="num">Projetado</th><th class="num">Previsto</th><th class="num">Banda</th><th class="num">Orçado</th><th class="num">Desvio</th><th class="num">% RL</th><th>Estratégia</th></tr></thead><tbody>${rows}</tbody></table>`;
+  document.getElementById('fech-casc-hint').textContent=
+    `${modo==='corrente'?'mês corrente (aberto)':'mês em fechamento'} · previsto = conhecido + projetado · hover mostra as premissas`;
+}
+async function fechAjuste(mes, linha, atual){
+  const raw=prompt(
+    `Ajuste manual em ${linha} (${mes})\n\nPrevisto calculado: ${brlAbbr(atual)}\n\n`+
+    `Digite um DELTA em R$ (ex.: -120000) ou =VALOR absoluto (ex.: =950000).\n`+
+    `Vazio remove o ajuste existente.`);
+  if(raw===null) return;
+  let tipo='delta', valor=null;
+  const t=raw.trim();
+  if(t!==''){
+    tipo = t.startsWith('=')?'valor':'delta';
+    valor = numBR(t.replace(/^=/,''));
+    if(valor===null||Number.isNaN(valor)){ showBanner('Valor inválido: use número pt-BR (ex.: -120.000,50).'); return; }
+  }
+  const motivo = t===''?'': (prompt('Motivo do ajuste (obrigatório):')||'').trim();
+  if(t!==''&&!motivo){ showBanner('Motivo é obrigatório.'); return; }
+  if(!confirm(t===''?`Remover o ajuste de ${linha}?`:
+      `Aplicar ${tipo==='delta'?'delta':'valor absoluto'} de ${brlAbbr(valor)} em ${linha}?\nMotivo: ${motivo}`)) return;
+  try{
+    const r=await fetch('/api/controladoria/previsao/ajuste',{method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({mes, linha, tipo, valor, motivo})});
+    const d=await r.json();
+    if(!r.ok){ showBanner(d.mensagem||'Erro ao salvar o ajuste.'); return; }
+    loadFech();
+  }catch(e){ showBanner('Não foi possível salvar: '+e.message); }
+}
 // ---------------- Portaria ----------------
 async function loadPort(){
   const seq=++portSeq, btn=document.getElementById('btnRefresh'); if(btn) btn.disabled=true;
@@ -10541,6 +10692,7 @@ boot();
         <a href="#cont" onclick="fecharDrawer()"><span class="ic" data-ic="ctb"></span>Contabilidade</a>
         <a href="#qual" onclick="fecharDrawer()"><span class="ic" data-ic="qualic"></span>Qualidade e Certidões</a>
         <a href="#orc" onclick="fecharDrawer()"><span class="ic" data-ic="dre"></span>Orçamento</a>
+        <a href="#fech" onclick="fecharDrawer()"><span class="ic" data-ic="dre"></span>Fechamento do Mês</a>
       </div>
     </div>
     <div class="dgrp" data-grp="Ope">
