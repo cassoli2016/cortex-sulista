@@ -73,6 +73,35 @@ SELECT mes, sum(realizado)::float8 AS realizado, sum(meta)::float8 AS meta FROM 
 ) t GROUP BY 1 ORDER BY 1
 """
 
+# Faturamento fiscal diario x meta de UM mes qualquer (para o backtest as-of;
+# o VG_DIARIO_SQL de queries.py e fixo no mes corrente). Mesmas 3 fontes do
+# faturamento realizado canonico (CT-e + KMM + NFS-e) + meta diaria tipo=1.
+DIARIO_ASOF_SQL = """
+SELECT dia, sum(realizado)::float8 AS realizado, sum(meta)::float8 AS meta FROM (
+  SELECT extract(day from dtemissao)::int AS dia,
+         coalesce(valortotalprestacao,0) AS realizado, 0::numeric AS meta
+  FROM conhecimento
+  WHERE dtemissao >= %(de)s::date AND dtemissao < %(ate)s::date
+    AND grupo = 1 AND empresa = 1 AND unidade = 1 AND numero < 1000000
+    AND dtcancelamento IS NULL AND situacaocte = 3 AND tipo IN (1,4)
+  UNION ALL
+  SELECT extract(day from dtemissao)::int, coalesce(valor_cte,0), 0
+  FROM sulista.faturamentokmm
+  WHERE dtemissao >= %(de)s::date AND dtemissao < %(ate)s::date
+  UNION ALL
+  SELECT extract(day from dtemissao)::int, coalesce(valortotalbruto,0), 0
+  FROM notafiscalservico
+  WHERE dtemissao >= %(de)s::date AND dtemissao < %(ate)s::date
+    AND grupo = 1 AND empresa = 1 AND numero < 1000000
+    AND dtcancelamento IS NULL
+    AND (emissaoeletronica = 2 OR (emissaoeletronica = 1 AND situacaonfse = 3))
+  UNION ALL
+  SELECT extract(day from dt)::int, 0, coalesce(valor,0)
+  FROM sulista.metafaturamento_agrupamentoclientedia
+  WHERE dt >= %(de)s::date AND dt < %(ate)s::date AND tipo = 1
+) t GROUP BY 1 ORDER BY 1
+"""
+
 # Frete de compra das viagens no periodo (proxy antecipada do custo de
 # agregados+terceiros JUNTOS; o acerto contabil chega ~6 dias depois).
 # Sem join com veiculo de proposito: o split agregado x terceiro e feito pela

@@ -5,11 +5,11 @@ from __future__ import annotations
 from datetime import date
 
 from api.previsao.sql import (ATING_HIST_SQL, CAP_MES_SQL, COMPLETUDE_SQL,
-                              CTAPLUS_MTD_SQL, RAZAO_ASOF_SQL, VFC_MTD_SQL,
-                              meses_fechados_prev)
+                              CTAPLUS_MTD_SQL, DIARIO_ASOF_SQL, RAZAO_ASOF_SQL,
+                              VFC_MTD_SQL, meses_fechados_prev)
 
-TODAS = (COMPLETUDE_SQL, RAZAO_ASOF_SQL, ATING_HIST_SQL, VFC_MTD_SQL,
-         CTAPLUS_MTD_SQL, CAP_MES_SQL)
+TODAS = (COMPLETUDE_SQL, RAZAO_ASOF_SQL, ATING_HIST_SQL, DIARIO_ASOF_SQL,
+         VFC_MTD_SQL, CTAPLUS_MTD_SQL, CAP_MES_SQL)
 
 
 def test_sem_recursos_ausentes_no_pg93():
@@ -39,6 +39,18 @@ def test_filtros_fiscais_canonicos_no_atingimento():
     assert "tipo IN (1,4)" in ATING_HIST_SQL
     assert "numero < 1000000" in ATING_HIST_SQL
     assert "tipo = 1" in ATING_HIST_SQL  # meta
+
+
+def test_diario_asof_filtros_fiscais_canonicos():
+    # Backtest as-of (Task 8): mesmos filtros fiscais do VG_DIARIO_SQL, com o
+    # mes parametrizado. Guarda as 3 fontes canonicas do faturamento
+    # realizado (CT-e + KMM + NFS-e) - a versao inicial do script so tinha
+    # CT-e + NFS-e, subestimando o realizado sempre que KMM tiver movimento.
+    assert "situacaocte = 3" in DIARIO_ASOF_SQL
+    assert "tipo IN (1,4)" in DIARIO_ASOF_SQL
+    assert "numero < 1000000" in DIARIO_ASOF_SQL
+    assert "sulista.faturamentokmm" in DIARIO_ASOF_SQL
+    assert "tipo = 1" in DIARIO_ASOF_SQL  # meta
 
 
 def test_viagens_com_filtros_canonicos():
