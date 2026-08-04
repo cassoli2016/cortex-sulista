@@ -6,7 +6,10 @@ Cada estratégia devolve {"previsto", "estrategia", "premissas": [str]}.
 """
 from __future__ import annotations
 
-from api.previsao.completude import PISO_COMPLETUDE
+import unicodedata
+
+from api.queries import DRE_MODELO
+from api.previsao.completude import PISO_COMPLETUDE, completude_em
 
 PESO_DIAS_PLENO = 3  # dias com meta decorridos para o ritmo observado valer 100%
 
@@ -100,3 +103,121 @@ def prever_sazonal(vals6: list[float], indices6: list[float],
     nivel = sum(dessaz) / len(dessaz) if dessaz else 0.0
     return _res(nivel * indice_alvo, "sazonal", [
         f"nivel 6m dessazonalizado {_brl(nivel)} x indice do mes {_num(indice_alvo, 2)}"])
+
+
+CONSOLIDADO_EM = 0.97  # completude esperada a partir da qual o razao e a verdade
+
+
+def norm(s: str) -> str:
+    return unicodedata.normalize("NFKD", s.upper()).encode("ascii", "ignore").decode()
+
+
+def linha_do_agrupador(ag: str) -> str | None:
+    na = norm(ag)
+    for rotulo, _nivel, tipo, sel in DRE_MODELO:
+        if tipo == "formula":
+            continue
+        for s in sel:
+            ns = norm(s)
+            if (tipo == "nome" and na == ns) or (tipo == "pref" and na.startswith(ns)):
+                return rotulo
+    return None
+
+
+_ESTRATEGIA_PREFIXOS = [
+    ("CV - FRETE AGREGADOS", "frete_compra"),
+    ("CV - FRETE TERCEIROS", "frete_compra"),
+    ("CF - FOLHA", "nivel"),
+    ("CF - PESSOAL", "nivel"),
+    ("OVERHEAD - FOLHA", "nivel"),
+    ("CR - ", "nivel"),
+    ("CV - ", "razao_completude"),
+    ("CF - ", "razao_completude"),
+    ("OVERHEAD - ", "razao_completude"),
+    ("FINANC - ", "sazonal"),
+    ("INDENIZA", "sazonal"),
+    ("OUTRAS ", "sazonal"),
+    ("(1, ", "sazonal"),
+    ("DESPESAS N", "sazonal"),
+    ("RECEITA - VENDA", "sazonal"),
+    ("ANULA", "sazonal"),
+    ("DESCONTOS", "sazonal"),
+]
+
+
+def estrategia_do_agrupador(ag: str) -> str:
+    na = norm(ag)
+    for pref, estrat in _ESTRATEGIA_PREFIXOS:
+        if na.startswith(norm(pref)):
+            return estrat
+    return "runrate"
+
+
+def montar_cascata(direta: dict[str, float]) -> dict[str, float]:
+    """Preenche todas as linhas do DRE_MODELO: diretas primeiro, fórmulas em
+    ordem de declaração (mesma 2-passada do get_dre)."""
+    out: dict[str, float] = {}
+    for rotulo, _nivel, tipo, _sel in DRE_MODELO:
+        if tipo != "formula":
+            out[rotulo] = float(direta.get(rotulo, 0.0))
+    for rotulo, _nivel, tipo, sel in DRE_MODELO:
+        if tipo == "formula":
+            out[rotulo] = sum(out.get(r, 0.0) for r in sel)
+    return out
+
+
+def banda_fallback(base: float, hist6: list[float],
+                   frac_restante: float) -> tuple[float, float]:
+    if len(hist6) < 2:
+        return base, base
+    media = sum(hist6) / len(hist6)
+    var = sum((v - media) ** 2 for v in hist6) / len(hist6)
+    meio = (var ** 0.5) * max(0.0, min(1.0, frac_restante))
+    return base - meio, base + meio
+
+
+def banda_calibrada(base: float, calib_linha: dict | None,
+                    dia_util: int) -> tuple[float, float] | None:
+    if not calib_linha:
+        return None
+    dias = sorted(int(d) for d in calib_linha)
+    if not dias:
+        return None
+    d = max(dias[0], min(dias[-1], dia_util))
+    lo = max(x for x in dias if x <= d)
+    hi = min(x for x in dias if x >= d)
+    w = 0.0 if hi == lo else (d - lo) / (hi - lo)
+    def _mix(campo: str) -> float:
+        a = calib_linha[str(lo)][campo]
+        b = calib_linha[str(hi)][campo]
+        return a + (b - a) * w
+    esc = abs(base)
+    return base + _mix("p20") * esc, base + _mix("p80") * esc
+
+
+def aplicar_ajuste(previsto: float, ajuste: dict | None) -> tuple[float, float]:
+    if not ajuste:
+        return previsto, 0.0
+    if ajuste["tipo"] == "delta":
+        return previsto + ajuste["valor"], ajuste["valor"]
+    return ajuste["valor"], ajuste["valor"] - previsto
+
+
+def estimar_m1(razao_ag: dict[str, float], curva: dict, dia_rel: int,
+               fallback_por_ag: dict[str, dict]) -> dict[str, dict]:
+    out: dict[str, dict] = {}
+    for ag, valor in razao_ag.items():
+        rot = linha_do_agrupador(ag)
+        frac = completude_em(curva, ag, rot, dia_rel)
+        if frac >= CONSOLIDADO_EM:
+            out[ag] = _res(valor, "consolidado",
+                           [f"razao {_pct(frac, 0)} escriturado - consolidado"])
+        elif frac < PISO_COMPLETUDE:
+            fb = fallback_por_ag.get(ag) or _res(valor, "razao_parcial",
+                                                 ["sem fallback disponivel"])
+            out[ag] = _res(fb["previsto"], fb["estrategia"], fb["premissas"] + [
+                f"completude esperada {_pct(frac, 0)} abaixo do piso - fallback"])
+        else:
+            out[ag] = _res(valor / frac, "razao_completude", [
+                f"razao parcial {_brl(valor)} / completude esperada {_pct(frac, 0)}"])
+    return out
