@@ -156,3 +156,91 @@ def test_dia_util_fechando_usa_dia_rel_quando_dias_meta_decorridos_e_zero():
     assert abs(linhas["CUSTO FIXO"]["previsto_pess"] - min(certo)) < 1e-6
     assert abs(linhas["CUSTO FIXO"]["previsto_otim"] - max(certo)) < 1e-6
     assert abs(linhas["CUSTO FIXO"]["previsto_pess"] - min(errado)) > 1.0
+
+
+# ---------------------------------------------------------------------------
+# Defeito MATERIAL (validacao final): escrituracao em lote (curva bimodal)
+# nao pode dividir pela media. Reproduz julho/26: RECEITA BRUTA dobrando de
+# ~R$11,56mi para ~R$23,9mi ao dividir a razao (ja 100% postada) por uma
+# completude media de 0,484 medida sobre uma curva bimodal (fev/mar/mai
+# escrituram tarde, abr/jun/jul cedo). IMPOSTOS FEDERAIS/ESTADUAIS tem o
+# mesmo padrao de escrituracao e sofriam o mesmo dobro.
+# ---------------------------------------------------------------------------
+
+def test_corrente_dispersao_alta_cai_para_nivel_em_vez_de_dividir():
+    ctx = _ctx_minimo()
+    # nivel (mediana 3m) deliberadamente diferente do que a divisao
+    # razao/completude daria, para distinguir as duas estrategias
+    ctx["hist_ag"]["CV - COMBUSTIVEL"] = {m: -700.0 for m in ctx["meses_hist"]}
+    # dispersao alta no ag em dia_rel=10 (escrituracao em lote/bimodal)
+    ctx["curva"]["ag_disp"] = {"CV - COMBUSTIVEL": {d: 0.5 for d in range(46)}}
+    r = montar_resposta(ctx)
+    linhas = {ln["linha"]: ln for ln in r["linhas"]}
+    # sem o fix, a divisao razao/completude daria -100 / (10/30) = -300;
+    # com dispersao > 0,35 tem de cair para o nivel (mediana 3m) = -700
+    assert abs(linhas["CUSTO VARIAVEL"]["previsto"] - (-700.0)) < 1e-6
+    assert any("lote" in p.lower() for p in linhas["CUSTO VARIAVEL"]["premissas"])
+
+
+def test_fechando_dispersao_alta_razao_acima_do_nivel_usa_razao():
+    """Reproduz o defeito de julho/26: razao ja 100% postada e MAIOR que o
+    nivel historico -> o lote ja entrou, a razao e' o melhor conhecido."""
+    ctx = _ctx_minimo()
+    ctx.update({"mes": "2026-07", "modo": "fechando", "dia_rel": 34,
+                "diario": None,
+                "razao_ag_mes": {"RECEITA OPERACIONAL BRUTA AGREGADO": 1156.0,
+                                 "CV - COMBUSTIVEL": -290.0,
+                                 "CF - FOLHA MOT": -10.0}})
+    ctx["hist_ag"]["RECEITA OPERACIONAL BRUTA AGREGADO"] = \
+        {m: 1000.0 for m in ctx["meses_hist"]}
+    ctx["curva"] = {
+        "ag": {"RECEITA OPERACIONAL BRUTA AGREGADO": {d: 0.484 for d in range(46)},
+               "CV - COMBUSTIVEL": {d: 1.0 for d in range(46)},
+               "CF - FOLHA MOT": {d: 0.10 for d in range(46)}},
+        "ag_disp": {"RECEITA OPERACIONAL BRUTA AGREGADO": {d: 0.45 for d in range(46)}},
+        "linha": {}, "linha_disp": {}, "global": {d: 1.0 for d in range(46)},
+        "global_disp": {},
+    }
+    r = montar_resposta(ctx)
+    linhas = {ln["linha"]: ln for ln in r["linhas"]}
+    # sem o fix: 1156 / 0,484 = 2388,4 (quase o dobro) - o bug relatado
+    assert abs(linhas["RECEITA BRUTA"]["previsto"] - 1156.0) < 1e-6
+    assert linhas["RECEITA BRUTA"]["estrategia"] == "lote"
+
+
+def test_fechando_dispersao_alta_razao_perto_de_zero_usa_nivel():
+    """Lado oposto do mesmo lote: razao ainda bem abaixo do nivel (o lote
+    tardio ainda nao entrou) -> usa o nivel, nao a razao artificialmente
+    baixa."""
+    ctx = _ctx_minimo()
+    ctx.update({"mes": "2026-07", "modo": "fechando", "dia_rel": 34,
+                "diario": None,
+                "razao_ag_mes": {"RECEITA OPERACIONAL BRUTA AGREGADO": 40.0,
+                                 "CV - COMBUSTIVEL": -290.0,
+                                 "CF - FOLHA MOT": -10.0}})
+    ctx["hist_ag"]["RECEITA OPERACIONAL BRUTA AGREGADO"] = \
+        {m: 1000.0 for m in ctx["meses_hist"]}
+    ctx["curva"] = {
+        "ag": {"RECEITA OPERACIONAL BRUTA AGREGADO": {d: 0.484 for d in range(46)},
+               "CV - COMBUSTIVEL": {d: 1.0 for d in range(46)},
+               "CF - FOLHA MOT": {d: 0.10 for d in range(46)}},
+        "ag_disp": {"RECEITA OPERACIONAL BRUTA AGREGADO": {d: 0.45 for d in range(46)}},
+        "linha": {}, "linha_disp": {}, "global": {d: 1.0 for d in range(46)},
+        "global_disp": {},
+    }
+    r = montar_resposta(ctx)
+    linhas = {ln["linha"]: ln for ln in r["linhas"]}
+    assert abs(linhas["RECEITA BRUTA"]["previsto"] - 1000.0) < 1e-6
+    assert linhas["RECEITA BRUTA"]["estrategia"] == "lote"
+
+
+def test_dispersao_zero_mantem_comportamento_atual_regressao():
+    """Curva homogenea (dispersao 0, presente e explicita - nao so' ausente)
+    tem de manter o resultado de antes desta correcao."""
+    ctx = _ctx_minimo()
+    ctx["curva"]["ag_disp"] = {"CV - COMBUSTIVEL": {d: 0.0 for d in range(46)}}
+    ctx["curva"]["linha_disp"] = {}
+    ctx["curva"]["global_disp"] = {d: 0.0 for d in range(46)}
+    r = montar_resposta(ctx)
+    linhas = {ln["linha"]: ln for ln in r["linhas"]}
+    assert abs(linhas["CUSTO VARIAVEL"]["previsto"] - (-300.0)) < 1e-6  # igual ao teste original

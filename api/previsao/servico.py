@@ -21,7 +21,7 @@ from api.orcamento.servico import meses_circulares
 from api.orcamento.sql import AGRUP_CONTA_SQL
 from api.previsao import armazenamento as arm
 from api.previsao import motor
-from api.previsao.completude import completude_em, montar_curva
+from api.previsao.completude import completude_em, dispersao_em, montar_curva
 from api.previsao.sql import (ATING_HIST_SQL, CAP_MES_SQL, COMPLETUDE_SQL,
                               CTAPLUS_MTD_SQL, VFC_MTD_SQL, meses_fechados_prev)
 from api.previsao.motor import _brl
@@ -194,7 +194,8 @@ def montar_resposta(ctx: dict) -> dict:
                 r = motor.prever_sazonal(vals6, i6, idx[int(ctx["mes"][5:7])])
             else:  # razao_completude
                 frac = completude_em(ctx["curva"], ag, rot, ctx["dia_rel"])
-                r = motor.prever_razao_completude(v_mtd, frac, _fallback_nivel(ag))
+                disp = dispersao_em(ctx["curva"], ag, rot, ctx["dia_rel"])
+                r = motor.prever_razao_completude(v_mtd, frac, _fallback_nivel(ag), disp)
             alvo = rot or "NAO ALOCADO / CLASSIFICAR"
             atual = previsto_direta.setdefault(
                 alvo, {"previsto": 0.0, "estrategia": r["estrategia"],
@@ -282,8 +283,9 @@ def montar_resposta(ctx: dict) -> dict:
         for ag in razao_ag:
             if motor.norm(ag).startswith("CV - COMBUSTIVEL"):
                 frac = completude_em(ctx["curva"], ag, "CUSTO VARIAVEL", ctx["dia_rel"])
+                disp = dispersao_em(ctx["curva"], ag, "CUSTO VARIAVEL", ctx["dia_rel"])
                 comb_prev = motor.prever_razao_completude(
-                    razao_ag[ag], frac, _fallback_nivel(ag))["previsto"]
+                    razao_ag[ag], frac, _fallback_nivel(ag), disp)["previsto"]
         custo_ctaplus = -abs(ctx["ctaplus"].get("custo") or 0.0)
         if comb_prev and custo_ctaplus and razao_ag:
             razao_comb_mtd = sum(v for a, v in razao_ag.items()
