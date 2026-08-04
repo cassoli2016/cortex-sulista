@@ -238,7 +238,13 @@ def banda_calibrada(base: float, calib_linha: dict | None,
         b = calib_linha[str(hi)][campo]
         return a + (b - a) * w
     esc = abs(base)
-    return base - _mix("p20") * esc, base - _mix("p80") * esc
+    a, b = base - _mix("p20") * esc, base - _mix("p80") * esc
+    # Contrato (menor, maior), IGUAL ao de banda_fallback: a cascata SOMA as
+    # duas fontes de banda na mesma ponta antes do min()/max() por linha, entao
+    # devolver as pontas em ordem trocada misturaria extremo alto de uma linha
+    # com extremo baixo de outra e ESTREITARIA a banda do RESULTADO (medido:
+    # -29% a -64%). O sinal de _mix depende da calibracao, entao ordenamos aqui.
+    return min(a, b), max(a, b)
 
 
 def fontes_fora(fontes: list[dict] | None, apenas_drivers: bool = False) -> list[str]:
