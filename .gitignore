@@ -1,7 +1,16 @@
 # segredos — NUNCA versionar
 .env
-# dados de runtime (auth.db, ajustes contábeis locais) — não versionar
-data/
+# dados de runtime (auth.db, ajustes contábeis locais) — não versionar.
+# "data/*" (não "data/") de propósito: um ignore de DIRETÓRIO não deixa o git
+# olhar regras de negação para arquivos dentro dela - precisa ser padrão de
+# arquivo para a excecao abaixo funcionar.
+data/*
+# EXCECAO: calibracao da previsao de fechamento (Task 8) precisa ir no git —
+# get_previsao() le data/previsao_calibracao.json em runtime e o deploy de
+# producao e' fast-forward de origin/main (AutoDeploy, ver memoria
+# deploy-producao-cortex); sem isto o arquivo nunca chegaria na maquina de
+# producao e a calibracao ficaria sempre vazia (calib={}) la.
+!data/previsao_calibracao.json
 # logs locais do deploy
 logs/
 
