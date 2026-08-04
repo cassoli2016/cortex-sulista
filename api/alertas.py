@@ -133,6 +133,26 @@ def _janela_alerta(hoje: date) -> tuple[str, str]:
     return (hoje - timedelta(days=30)).isoformat(), hoje.isoformat()
 
 
+def _alertas_previsao(payload: dict) -> list[tuple[str, str, str]]:
+    """Alertas da previsão de fechamento (mês corrente). Puro — testável."""
+    itens: list[tuple[str, str, str]] = []
+    k = payload.get("kpis") or {}
+    prev = k.get("resultado_previsto")
+    orc = k.get("resultado_orcado")
+    if prev is not None and prev < 0:
+        itens.append(("critico", "Resultado do mês previsto NEGATIVO",
+                      f"A previsão de fechamento de {payload.get('mes')} aponta "
+                      f"{_fmt_brl(prev)}. Detalhe: Controladoria > Fechamento do Mês."))
+    elif prev is not None and orc is not None and prev < orc:
+        itens.append(("atencao", "Resultado do mês abaixo do orçado",
+                      f"Previsto {_fmt_brl(prev)} contra orçado {_fmt_brl(orc)} "
+                      f"({_fmt_brl(prev - orc)}). Detalhe: Controladoria > Fechamento do Mês."))
+    for a in payload.get("avisos") or []:
+        if "diverge" in a.lower():
+            itens.append(("info", "Divergência de fonte na previsão", a))
+    return itens
+
+
 def build_alertas() -> list[dict]:
     """Itens de ação: nivel critico|atencao|info, titulo, texto."""
     itens: list[dict] = []
@@ -233,6 +253,14 @@ def build_alertas() -> list[dict]:
             add(nivel, titulo, texto)
     except Exception as exc:  # noqa: BLE001
         log.warning("alertas extrato: %s", exc)
+
+    try:
+        from api.previsao import get_previsao_fechamento
+        p = get_previsao_fechamento()
+        for nivel, titulo, texto in _alertas_previsao(p):
+            add(nivel, titulo, texto)
+    except Exception as exc:  # noqa: BLE001
+        log.warning("alertas previsao: %s", exc)
 
     ordem = {"critico": 0, "atencao": 1, "info": 2}
     itens.sort(key=lambda i: ordem.get(i["nivel"], 9))
