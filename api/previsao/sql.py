@@ -79,8 +79,8 @@ SELECT mes, sum(realizado)::float8 AS realizado, sum(meta)::float8 AS meta FROM 
 # participacao historica das duas linhas no razao (premissa declarada no motor).
 VFC_MTD_SQL = """
 SELECT count(*)::int AS viagens,
-       sum(coalesce(valorfrete,0))::float8 AS receita_viagens,
-       sum(coalesce(valorfretecompra,0))::float8 AS frete_compra
+       coalesce(sum(coalesce(valorfrete,0)),0)::float8 AS receita_viagens,
+       coalesce(sum(coalesce(valorfretecompra,0)),0)::float8 AS frete_compra
 FROM programacaoembarque
 WHERE dtcancelamento IS NULL AND semaforo = 1
   AND dtsaida >= %(de)s::date AND dtsaida < %(ate)s::date
@@ -93,7 +93,7 @@ WHERE dtcancelamento IS NULL AND semaforo = 1
 # placa nao casada (v.placa IS NULL) segue a convencao do repo e fica FORA do
 # proprio (conta como terceiro/desconhecido), nunca vira propria por default.
 CTAPLUS_MTD_SQL = """
-SELECT sum(coalesce(c.custo,0))::float8 AS custo,
+SELECT coalesce(sum(coalesce(c.custo,0)),0)::float8 AS custo,
        count(*)::int AS abastecimentos
 FROM sulista.ctaplus_abastecimentos c
 LEFT JOIN veiculo v ON v.placa = c.veiculo_placa
@@ -106,7 +106,7 @@ WHERE c.data_inicio_abastecimento >= %(de)s::date
 # Contas a pagar com vencimento no mes (contexto de caixa, so KPI informativo).
 CAP_MES_SQL = """
 SELECT count(*)::int AS titulos,
-       sum(coalesce(valorpendente,0))::float8 AS valor
+       coalesce(sum(coalesce(valorpendente,0)),0)::float8 AS valor
 FROM contaapagar
 WHERE valorpendente > 0
   AND dtvencimento >= %(de)s::date AND dtvencimento < %(ate)s::date

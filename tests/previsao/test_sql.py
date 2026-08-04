@@ -56,3 +56,13 @@ def test_ctaplus_placa_nao_casada_fora_do_proprio():
 
 def test_meses_fechados_reexportado():
     assert meses_fechados_prev(date(2026, 8, 2), 6)[-1] == "2026-07"
+
+
+def test_agregados_sem_linha_viram_zero_nao_null():
+    # sum() sobre zero linhas devolve NULL no Postgres, e um agregado sem
+    # GROUP BY sempre devolve UMA linha (nunca zero) - sem o coalesce externo,
+    # o primeiro dia do mes (antes da 1a viagem/abastecimento/titulo) devolveria
+    # None e explodiria com TypeError la na frente (motor.prever_frete_compra
+    # faz abs(vfc_mtd)). Convencao do repo: coalesce(sum(...),0) (ver VG_MES_SQL).
+    for sql in (VFC_MTD_SQL, CTAPLUS_MTD_SQL, CAP_MES_SQL):
+        assert "coalesce(sum(" in sql
