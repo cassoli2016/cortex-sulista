@@ -595,6 +595,49 @@ WHERE l.dtlancamento >= %(de)s::date AND l.dtlancamento < %(ate)s::date
 GROUP BY 1, 2
 """
 
+# Mesmo recorte do DRE_AG_SQL, um nível abaixo: mês × agrupador × CONTA
+# (plano de contas), para o drill-down LINHA -> AGRUPADOR -> CONTA.
+#
+# Por que a estrutura é um CTE e não simplesmente "GROUP BY 1,2 + grupo,
+# reduzido" no DRE_AG_SQL: agrupar por 4 colunas estoura o work_mem do
+# PostgreSQL 9.3, o plano troca HashAggregate por GroupAggregate com sort em
+# DISCO (external merge, 32 MB) e a consulta salta de ~1 s para 9-12 s. Como
+# (grupo, reduzido) é chave ÚNICA tanto em planoconta (1.296 linhas) quanto em
+# sulista.agrupadorgerencial (574), o filtro de elegibilidade e as descrições
+# podem ser resolvidos ANTES, num CTE minúsculo, e a agregação pesada roda só
+# sobre `lancamento`, com chave de agrupamento estreita: ~1,6 s.
+#
+# A EQUIVALÊNCIA com o DRE_AG_SQL foi verificada no banco (jan-ago/2026):
+# somando as contas por (mês, agrupador), FULL OUTER JOIN contra o DRE_AG_SQL
+# dá 378 pares, ZERO pares sobrando de um lado e diferença máxima 0,00. Os
+# mesmos predicados estão nos dois: planoconta ativoinativo = 1 (INNER, então
+# lançamento sem conta ativa cai fora), LEFT JOIN do agrupador com
+# 'CLASSIFICAR' no lugar do nulo, historico <> 18 e a elegibilidade
+# (tem agrupador OU estrutural de resultado ~ '^[34]').
+DRE_CONTA_SQL = """
+WITH contas AS (
+  SELECT p.grupo, p.reduzido, p.estrutural, upper(p.descricao) AS conta,
+         coalesce(ag.descricao, 'CLASSIFICAR') AS agrupador
+  FROM planoconta p
+  LEFT JOIN sulista.agrupadorgerencial ag ON ag.reduzido = p.reduzido
+    AND ag.grupo = p.grupo
+  WHERE p.ativoinativo = 1
+    AND (ag.descricao IS NOT NULL OR p.estrutural ~ '^[34]')
+),
+mov AS (
+  SELECT to_char(l.dtlancamento,'YYYY-MM') AS mes, l.grupo, l.reduzido,
+         sum(coalesce(l.valorcredito,0)-coalesce(l.valordebito,0))::float8 AS valor
+  FROM lancamento l
+  JOIN contas c ON c.grupo = l.grupo AND c.reduzido = l.reduzido
+  WHERE l.dtlancamento >= %(de)s::date AND l.dtlancamento < %(ate)s::date
+    AND coalesce(l.historico, 0) <> 18
+  GROUP BY 1, 2, 3
+)
+SELECT m.mes, c.agrupador, m.grupo, m.reduzido, c.estrutural, c.conta, m.valor
+FROM mov m
+JOIN contas c ON c.grupo = m.grupo AND c.reduzido = m.reduzido
+"""
+
 # lançamentos das contas com ajuste local: migram de agrupador em memória
 DRE_AJUSTADAS_SQL = """
 SELECT to_char(l.dtlancamento,'YYYY-MM') AS mes,
@@ -660,32 +703,50 @@ def get_dre(comp_de: str, comp_ate: str) -> dict:
     de_aa, ate_aa = _comp_bounds(comp_de_aa, comp_ate_aa)
     ajustes = ler_ajustes()
     with db.get_conn() as conn, conn.cursor() as cur:
-        cur.execute(DRE_AG_SQL, {"de": de, "ate": ate})
-        rows = cur.fetchall()
+        # período corrente vem no nível de CONTA; o total por agrupador é a
+        # soma das contas (idêntico ao DRE_AG_SQL, ver comentário da query)
+        cur.execute(DRE_CONTA_SQL, {"de": de, "ate": ate})
+        rows_ct = cur.fetchall()
         cur.execute(DRE_AG_SQL, {"de": de_aa, "ate": ate_aa})
         rows_aa = cur.fetchall()
-        mudancas = []
         mudancas_aa = []
         if ajustes:
-            cur.execute(DRE_AJUSTADAS_SQL,
-                        {"de": de, "ate": ate, "chaves": list(ajustes.keys())})
-            mudancas = cur.fetchall()
             cur.execute(DRE_AJUSTADAS_SQL,
                         {"de": de_aa, "ate": ate_aa, "chaves": list(ajustes.keys())})
             mudancas_aa = cur.fetchall()
         cur.execute("SELECT current_timestamp AS ts")
         meta = cur.fetchone()
 
-    # valores por (mes, agrupador), aplicando os ajustes locais
+    # Valores por (mes, agrupador) e por conta, aplicando os ajustes locais.
+    #
+    # DIFERENÇA SUTIL ENTRE OS DOIS CAMINHOS DE AJUSTE (hoje inerte — não há
+    # ajuste local: data/ajustes_contabeis.json não existe): no período
+    # CORRENTE o ajuste é aplicado no nível da CONTA, movendo a conta inteira
+    # para o agrupador novo, e por isso herda os filtros do DRE_CONTA_SQL
+    # (planoconta ativoinativo = 1 e elegibilidade estrutural ~ '^[34]'). Já o
+    # DRE_AJUSTADAS_SQL, usado no comparativo do ano anterior, NÃO tem join
+    # com planoconta: ele move também lançamentos de conta inativa ou fora do
+    # resultado. Se algum dia houver ajuste local sobre uma conta nesse estado,
+    # o valor migrado no ano anterior pode ser maior que o do período corrente.
+    conta_ix: dict = {}   # (agrupador, grupo, reduzido) -> dados da conta
     val: dict = {}
-    for r in rows:
-        val[(r["mes"], r["agrupador"])] = val.get((r["mes"], r["agrupador"]), 0.0) + r["valor"]
-    for mrow in mudancas:
-        novo = ajustes[mrow["chave"]]["agrupador"]
-        if novo == mrow["agrupador_orig"]:
-            continue
-        val[(mrow["mes"], mrow["agrupador_orig"])] = val.get((mrow["mes"], mrow["agrupador_orig"]), 0.0) - mrow["valor"]
-        val[(mrow["mes"], novo)] = val.get((mrow["mes"], novo), 0.0) + mrow["valor"]
+    for r in rows_ct:
+        ag_ = r["agrupador"]
+        aj = ajustes.get(f'{r["grupo"]}|{r["reduzido"]}')
+        if aj and aj.get("agrupador"):
+            ag_ = aj["agrupador"]
+        val[(r["mes"], ag_)] = val.get((r["mes"], ag_), 0.0) + r["valor"]
+        chave = (ag_, r["grupo"], r["reduzido"])
+        c = conta_ix.get(chave)
+        if c is None:
+            c = conta_ix[chave] = {"grupo": r["grupo"], "reduzido": r["reduzido"],
+                                   "estrutural": r["estrutural"], "conta": r["conta"],
+                                   "meses": {}}
+        c["meses"][r["mes"]] = c["meses"].get(r["mes"], 0.0) + r["valor"]
+
+    contas_por_ag: dict = {}
+    for (ag_, _g, _red), c in conta_ix.items():
+        contas_por_ag.setdefault(ag_, []).append(c)
 
     val_aa: dict = {}
     for r in rows_aa:
@@ -699,6 +760,23 @@ def get_dre(comp_de: str, comp_ate: str) -> dict:
 
     meses = sorted({m for m, _ in val})
     agrupadores = sorted({a for _, a in val} | set(val_aa))
+
+    def contas_do(a: str) -> list:
+        """Contas (plano de contas) que compõem o agrupador, do maior |total|
+        para o menor. Mesmo corte de materialidade dos agrupadores. Não há
+        comparativo a/a por conta: o ano anterior é lido no nível do agrupador
+        (DRE_AG_SQL), sem uma segunda varredura pesada do razão."""
+        saida = []
+        for c in contas_por_ag.get(a, []):
+            cm = {m: c["meses"].get(m, 0.0) for m in meses}
+            tot = sum(cm.values())
+            if not any(abs(v) > 0.005 for v in cm.values()) and abs(tot) <= 0.005:
+                continue
+            saida.append({"grupo": c["grupo"], "reduzido": c["reduzido"],
+                          "estrutural": c["estrutural"], "conta": c["conta"],
+                          "meses": cm, "total": tot})
+        saida.sort(key=lambda x: -abs(x["total"]))
+        return saida
 
     import unicodedata
     def _norm(s):
@@ -755,7 +833,8 @@ def get_dre(comp_de: str, comp_ate: str) -> dict:
                     if any(abs(v) > 0.005 for v in dvals.values()) or abs(val_aa.get(a, 0.0)) > 0.005:
                         detalhe.append({"agrupador": a, "meses": dvals,
                                         "total": sum(dvals.values()),
-                                        "total_aa": val_aa.get(a, 0.0)})
+                                        "total_aa": val_aa.get(a, 0.0),
+                                        "contas": contas_do(a)})
             detalhe.sort(key=lambda d: -abs(d["total"]))
         linhas.append({"rotulo": rotulo, "nivel": nivel, "tipo": tipo,
                        "meses": vals, "total": sum(vals.values()),
@@ -769,7 +848,10 @@ def get_dre(comp_de: str, comp_ate: str) -> dict:
             continue
         dvals = {m: val.get((m, a), 0.0) for m in meses}
         if any(abs(v) > 0.005 for v in dvals.values()):
-            sobras.append({"agrupador": a, "meses": dvals, "total": sum(dvals.values())})
+            # as sobras são exatamente onde o usuário precisa da conta para
+            # classificar — o detalhe por conta aqui não é opcional
+            sobras.append({"agrupador": a, "meses": dvals,
+                           "total": sum(dvals.values()), "contas": contas_do(a)})
     if sobras:
         vals = {m: sum(s["meses"][m] for s in sobras) for m in meses}
         linhas.append({"rotulo": "NAO ALOCADO / CLASSIFICAR", "nivel": 0,

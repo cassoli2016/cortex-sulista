@@ -61,6 +61,7 @@ TELAS: dict[str, tuple[str, str]] = {  # chave -> (rótulo, grupo do menu)
     "cont":    ("Contabilidade", "Controladoria"),
     "qual":    ("Qualidade e Certidões", "Controladoria"),
     "orc":     ("Orçamento", "Controladoria"),
+    "fech":    ("Fechamento do Mês", "Controladoria"),
     "agr":     ("Agregados e Terceiros", "Operação"),
     "mvb":     ("Make vs Buy", "Operação"),
     "km":      ("Análise de KM", "Operação"),
@@ -103,6 +104,7 @@ ROTA_TELAS: list[tuple[str, frozenset[str]]] = [
     ("/api/rh/vagas",                 frozenset({"rh"})),
     ("/api/financeiro/overview",      frozenset({"fluxo", "receber", "pagar"})),
     ("/api/financeiro/dre-cliente",   frozenset({"drecli"})),
+    ("/api/controladoria/previsao",   frozenset({"fech"})),
     ("/api/controladoria/orcamento",  frozenset({"orc"})),
     ("/api/financeiro/extrato",       frozenset({"extb"})),
     ("/api/financeiro/dre",           frozenset({"dre"})),
@@ -198,7 +200,7 @@ _PERFIS_MODELO = [
     ("Financeiro",  "Caixa, recebíveis, pagáveis, cobrança e extrato bancário.",
      ["fluxo", "receber", "pagar", "cob", "extb"]),
     ("Controladoria", "DRE gerencial, contabilidade, DRE/margem por cliente, qualidade/certidões e extrato bancário.",
-     ["dre", "cont", "drecli", "qual", "orc", "extb"]),
+     ["dre", "cont", "drecli", "qual", "orc", "extb", "fech"]),
     ("Operação",    "Torre de controle, programação, jornada, custos extras, SAC/freetime, portaria, análise de KM, agregados e make-vs-buy.",
      ["torre", "prog", "jorn", "cex", "sac", "port", "km", "agr", "mvb"]),
     ("Frota",       "Veículos, consulta por placa, combustível, manutenção, preventiva, rastreadora, multas e premiação de motoristas.",
@@ -210,7 +212,7 @@ _PERFIS_MODELO = [
     ("Recursos Humanos", "Vagas, headcount, custo de folha, indicadores e horas extras.",
      ["rh", "hc", "folha", "folhaind", "he"]),
     ("Diretoria",   "Visão executiva ampla: consolidado, copiloto e principais indicadores.",
-     ["home", "cop", "fluxo", "dre", "drecli", "com", "km", "torre", "jorn", "mvb", "veic", "prem", "rh", "hc", "folha", "folhaind", "he"]),
+     ["home", "cop", "fluxo", "dre", "drecli", "com", "km", "torre", "jorn", "mvb", "veic", "prem", "rh", "hc", "folha", "folhaind", "he", "fech"]),
 ]
 
 
@@ -439,6 +441,17 @@ def _seed_perfis_modelo(c: sqlite3.Connection) -> None:
                 c.execute("INSERT OR IGNORE INTO perfil_telas(perfil_id, tela) VALUES(?,?)",
                           (row["id"], "extb"))
         c.execute("INSERT OR IGNORE INTO config(chave, valor) VALUES('perfis_modelo_v19', '1')")
+
+    # v20 (previsao de fechamento 2026-08-02): tela 'fech' aos perfis
+    # Controladoria e Diretoria. Mesmo caso da v19/'extb': a tela nasceu depois
+    # que os perfis ja existiam nas bases em uso.
+    if not c.execute("SELECT 1 FROM config WHERE chave='perfis_modelo_v20'").fetchone():
+        for nome_perfil in ("Controladoria", "Diretoria"):
+            row = c.execute("SELECT id FROM perfis WHERE nome=?", (nome_perfil,)).fetchone()
+            if row:
+                c.execute("INSERT OR IGNORE INTO perfil_telas(perfil_id, tela) VALUES(?,?)",
+                          (row["id"], "fech"))
+        c.execute("INSERT OR IGNORE INTO config(chave, valor) VALUES('perfis_modelo_v20', '1')")
 
 
 def _agora() -> str:
