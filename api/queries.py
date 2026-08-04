@@ -497,20 +497,6 @@ SELECT mes, grupo, sum(valor)::float8 AS valor FROM (
 GROUP BY mes, grupo ORDER BY mes, grupo
 """
 
-DRE_CONTA_SQL = f"""
-SELECT t.grupo, t.conta, min(pd.descricao) AS descricao, sum(t.valor)::float8 AS valor FROM (
-  SELECT {_DRE_GRUPO} AS grupo,
-         substring(p.estrutural,1,8) AS conta,
-         (coalesce(l.valorcredito,0) - coalesce(l.valordebito,0)) AS valor
-  {_DRE_BASE}
-) t
-LEFT JOIN planoconta pd ON pd.estrutural = t.conta || '.0000'
-WHERE t.grupo IS NOT NULL
-GROUP BY t.grupo, t.conta ORDER BY abs(sum(t.valor)) DESC
-LIMIT 30
-"""
-
-
 def _comp_bounds(comp_de: str, comp_ate: str) -> tuple[str, str]:
     """[comp_de, comp_ate] inclusivos (YYYY-MM) → [de, ate) em datas."""
     de = f"{comp_de}-01"
@@ -598,57 +584,91 @@ GROUP BY 1, 2
 # Mesmo recorte do DRE_AG_SQL, um nível abaixo: mês × agrupador × CONTA
 # (plano de contas), para o drill-down LINHA -> AGRUPADOR -> CONTA.
 #
-# Por que a estrutura é um CTE e não simplesmente "GROUP BY 1,2 + grupo,
-# reduzido" no DRE_AG_SQL: agrupar por 4 colunas estoura o work_mem do
-# PostgreSQL 9.3, o plano troca HashAggregate por GroupAggregate com sort em
-# DISCO (external merge, 32 MB) e a consulta salta de ~1 s para 9-12 s. Como
-# (grupo, reduzido) é chave ÚNICA tanto em planoconta (1.296 linhas) quanto em
-# sulista.agrupadorgerencial (574), o filtro de elegibilidade e as descrições
-# podem ser resolvidos ANTES, num CTE minúsculo, e a agregação pesada roda só
-# sobre `lancamento`, com chave de agrupamento estreita: ~1,6 s.
+# A AGREGAÇÃO PESADA (`mov`) JOGA `lancamento` DIRETO CONTRA `planoconta` — não
+# contra um CTE. A versão anterior filtrava o razão por um CTE `contas` e o
+# PostgreSQL 9.3 degenerava o plano: CTE não tem estatística, o planejador
+# escolhia MERGE JOIN com `Merge Cond: (l.grupo = c.grupo)` e rebaixava
+# `reduzido` a `Join Filter` — e `grupo` tem UM ÚNICO valor distinto neste
+# banco, ou seja o merge não filtra nada e os 2,4 milhões de lançamentos da
+# janela passam um a um. Medido em 24 meses (2024-09 -> 2026-08): 107,5 s
+# contra o statement_timeout de 60 s de api/db.py (= erro na tela, já que a
+# competência é `input type="month"` livre). Com o join direto o plano volta
+# ao formato do DRE_AG_SQL (Hash Join com as DUAS colunas da chave, sobre o
+# índice de dtlancamento) e os mesmos 24 meses caem para 15,4 s.
 #
-# A EQUIVALÊNCIA com o DRE_AG_SQL foi verificada no banco (jan-ago/2026):
-# somando as contas por (mês, agrupador), FULL OUTER JOIN contra o DRE_AG_SQL
-# dá 378 pares, ZERO pares sobrando de um lado e diferença máxima 0,00. Os
-# mesmos predicados estão nos dois: planoconta ativoinativo = 1 (INNER, então
-# lançamento sem conta ativa cai fora), LEFT JOIN do agrupador com
-# 'CLASSIFICAR' no lugar do nulo, historico <> 18 e a elegibilidade
-# (tem agrupador OU estrutural de resultado ~ '^[34]').
-DRE_CONTA_SQL = """
-WITH contas AS (
-  SELECT p.grupo, p.reduzido, p.estrutural, upper(p.descricao) AS conta,
+# O CTE `contas` continua existindo, mas só DECORA o resultado já agregado
+# (estrutural, descrição e agrupador) — nessa posição ele roda sobre ~1,3 mil
+# linhas e o plano do razão não depende dele. Agrupar `mov` por (mês, grupo,
+# reduzido) mantém a chave estreita: por 4 colunas (com o texto do agrupador)
+# estoura o work_mem do 9.3 e o sort vai para DISCO.
+#
+# regexp_replace na descrição é OBRIGATÓRIO: a conexão sai em client_encoding
+# LATIN1 (banco UTF8) e UMA descrição com caractere acima de U+00FF aborta a
+# consulta inteira com UntranslatableCharacter. Já existe uma no cadastro e
+# ATIVA — 1|113927 "IRPJ CSLL – Taxa Selic", com EN DASH (U+2013) — hoje sem
+# agrupador; no dia em que a Contabilidade classificar essa conta, a DRE
+# Gerencial cairia junto. Mesma mitigação de api/orcamento/sql.py.
+#
+# A EQUIVALÊNCIA com o DRE_AG_SQL foi verificada no banco em transação
+# REPEATABLE READ (jan-jul/2026, meses fechados — a mesma leitura para os dois
+# lados): somando as contas por (mês, agrupador), FULL OUTER JOIN contra o
+# DRE_AG_SQL dá 352 pares, ZERO pares sobrando de um lado e diferença máxima
+# 9,3e-10 (arredondamento de float8). Os mesmos predicados
+# estão nos dois: planoconta ativoinativo = 1 (INNER, então lançamento sem
+# conta ativa cai fora), LEFT JOIN do agrupador com 'CLASSIFICAR' no lugar do
+# nulo, historico <> 18 e a elegibilidade (tem agrupador OU estrutural de
+# resultado ~ '^[34]').
+DRE_AG_CONTA_SQL = """
+WITH mov AS (
+  SELECT to_char(l.dtlancamento,'YYYY-MM') AS mes, l.grupo, l.reduzido,
+         sum(coalesce(l.valorcredito,0)-coalesce(l.valordebito,0))::float8 AS valor
+  FROM lancamento l
+  JOIN planoconta p ON p.reduzido = l.reduzido AND p.grupo = l.grupo
+    AND p.ativoinativo = 1
+  LEFT JOIN sulista.agrupadorgerencial ag ON ag.reduzido = l.reduzido
+    AND ag.grupo = l.grupo
+  WHERE l.dtlancamento >= %(de)s::date AND l.dtlancamento < %(ate)s::date
+    AND coalesce(l.historico, 0) <> 18
+    AND (ag.descricao IS NOT NULL OR p.estrutural ~ '^[34]')
+  GROUP BY 1, 2, 3
+),
+contas AS (
+  SELECT p.grupo, p.reduzido, p.estrutural,
+         upper(regexp_replace(p.descricao, '[^\\u0001-\\u00ff]', '-', 'g')) AS conta,
          coalesce(ag.descricao, 'CLASSIFICAR') AS agrupador
   FROM planoconta p
   LEFT JOIN sulista.agrupadorgerencial ag ON ag.reduzido = p.reduzido
     AND ag.grupo = p.grupo
   WHERE p.ativoinativo = 1
-    AND (ag.descricao IS NOT NULL OR p.estrutural ~ '^[34]')
-),
-mov AS (
-  SELECT to_char(l.dtlancamento,'YYYY-MM') AS mes, l.grupo, l.reduzido,
-         sum(coalesce(l.valorcredito,0)-coalesce(l.valordebito,0))::float8 AS valor
-  FROM lancamento l
-  JOIN contas c ON c.grupo = l.grupo AND c.reduzido = l.reduzido
-  WHERE l.dtlancamento >= %(de)s::date AND l.dtlancamento < %(ate)s::date
-    AND coalesce(l.historico, 0) <> 18
-  GROUP BY 1, 2, 3
 )
 SELECT m.mes, c.agrupador, m.grupo, m.reduzido, c.estrutural, c.conta, m.valor
 FROM mov m
 JOIN contas c ON c.grupo = m.grupo AND c.reduzido = m.reduzido
 """
 
-# lançamentos das contas com ajuste local: migram de agrupador em memória
+# Lançamentos das contas com ajuste local: migram de agrupador em memória.
+#
+# O join com planoconta e a elegibilidade NÃO são decoração — são o que mantém
+# este SELECT no MESMO universo do DRE_AG_SQL / DRE_AG_CONTA_SQL, que é de onde
+# sai o valor a ser debitado do agrupador de origem. Sem eles, uma conta fora
+# do universo (ativoinativo = 0, ou de balanço e sem agrupador) devolveria um
+# valor que nunca foi somado ao agrupador original e a migração criaria um
+# CRÉDITO FANTASMA no agrupador de destino. Hoje é inerte (não há ajuste local
+# em data/ajustes_contabeis.json), mas o JSON é persistente: bastaria a
+# Contabilidade inativar uma conta já ajustada para armar sozinho.
 DRE_AJUSTADAS_SQL = """
 SELECT to_char(l.dtlancamento,'YYYY-MM') AS mes,
        l.grupo::text || '|' || l.reduzido::text AS chave,
        coalesce(ag.descricao, 'CLASSIFICAR') AS agrupador_orig,
        sum(coalesce(l.valorcredito,0)-coalesce(l.valordebito,0))::float8 AS valor
 FROM lancamento l
+JOIN planoconta p ON p.reduzido = l.reduzido AND p.grupo = l.grupo
+  AND p.ativoinativo = 1
 LEFT JOIN sulista.agrupadorgerencial ag ON ag.reduzido = l.reduzido
   AND ag.grupo = l.grupo
 WHERE l.dtlancamento >= %(de)s::date AND l.dtlancamento < %(ate)s::date
   AND coalesce(l.historico, 0) <> 18
+  AND (ag.descricao IS NOT NULL OR p.estrutural ~ '^[34]')
   AND (l.grupo::text || '|' || l.reduzido::text) = ANY(%(chaves)s)
 GROUP BY 1, 2, 3
 """
@@ -705,7 +725,7 @@ def get_dre(comp_de: str, comp_ate: str) -> dict:
     with db.get_conn() as conn, conn.cursor() as cur:
         # período corrente vem no nível de CONTA; o total por agrupador é a
         # soma das contas (idêntico ao DRE_AG_SQL, ver comentário da query)
-        cur.execute(DRE_CONTA_SQL, {"de": de, "ate": ate})
+        cur.execute(DRE_AG_CONTA_SQL, {"de": de, "ate": ate})
         rows_ct = cur.fetchall()
         cur.execute(DRE_AG_SQL, {"de": de_aa, "ate": ate_aa})
         rows_aa = cur.fetchall()
@@ -719,15 +739,16 @@ def get_dre(comp_de: str, comp_ate: str) -> dict:
 
     # Valores por (mes, agrupador) e por conta, aplicando os ajustes locais.
     #
-    # DIFERENÇA SUTIL ENTRE OS DOIS CAMINHOS DE AJUSTE (hoje inerte — não há
-    # ajuste local: data/ajustes_contabeis.json não existe): no período
+    # OS DOIS CAMINHOS DE AJUSTE ESTÃO NO MESMO UNIVERSO (hoje inerte — não há
+    # ajuste local: data/ajustes_contabeis.json não existe). No período
     # CORRENTE o ajuste é aplicado no nível da CONTA, movendo a conta inteira
-    # para o agrupador novo, e por isso herda os filtros do DRE_CONTA_SQL
-    # (planoconta ativoinativo = 1 e elegibilidade estrutural ~ '^[34]'). Já o
-    # DRE_AJUSTADAS_SQL, usado no comparativo do ano anterior, NÃO tem join
-    # com planoconta: ele move também lançamentos de conta inativa ou fora do
-    # resultado. Se algum dia houver ajuste local sobre uma conta nesse estado,
-    # o valor migrado no ano anterior pode ser maior que o do período corrente.
+    # para o agrupador novo, e herda os filtros do DRE_AG_CONTA_SQL (planoconta
+    # ativoinativo = 1 e elegibilidade "tem agrupador OU estrutural ~ '^[34]'").
+    # O DRE_AJUSTADAS_SQL, usado no comparativo do ano anterior, carrega EXATAMENTE
+    # os mesmos filtros — o que garante que o valor debitado do agrupador de
+    # origem é o mesmo que foi somado nele em val_aa (nada de crédito fantasma
+    # no destino). O que continua diferente é só a GRANULARIDADE: o ano anterior
+    # é lido por agrupador, sem quebra por conta.
     conta_ix: dict = {}   # (agrupador, grupo, reduzido) -> dados da conta
     val: dict = {}
     for r in rows_ct:
@@ -836,10 +857,17 @@ def get_dre(comp_de: str, comp_ate: str) -> dict:
                                         "total_aa": val_aa.get(a, 0.0),
                                         "contas": contas_do(a)})
             detalhe.sort(key=lambda d: -abs(d["total"]))
+        # Abrir a linha só faz sentido se houver algo NOVO lá dentro. Um único
+        # agrupador que repete o valor da linha é cadeia de filho único — mas
+        # ele pode carregar VÁRIAS contas, e aí o drill-down é a única leitura
+        # possível: IMPOSTOS FEDERAIS/ESTADUAIS/MUNICIPAIS, CRÉDITOS
+        # TRIBUTÁRIOS, CONTRIBUIÇÃO PREVIDENCIÁRIA, ANULAÇÕES e DESCONTOS têm
+        # 1 agrupador cada (~R$ 24,5 mi em jan-jul/26) e ficavam mudas.
+        tem_o_que_abrir = len(detalhe) > 1 or any(len(d["contas"]) > 1 for d in detalhe)
         linhas.append({"rotulo": rotulo, "nivel": nivel, "tipo": tipo,
                        "meses": vals, "total": sum(vals.values()),
                        "total_aa": aa_rotulo.get(rotulo, 0.0),
-                       "detalhe": detalhe if len(detalhe) > 1 else []})
+                       "detalhe": detalhe if tem_o_que_abrir else []})
 
     # transparência: o que não entrou em nenhuma linha (inclui CLASSIFICAR)
     sobras = []
@@ -3748,9 +3776,15 @@ def get_rentabilidade(filial: int | None, dt_de: str, dt_ate: str,
 # Contabilidade — contas x agrupador (painel de ajuste) e análises (centro
 # de custo). Réplica é somente leitura: ajustes ficam locais + export SQL.
 # ============================================================================
+# O regexp_replace na descrição é OBRIGATÓRIO (mesma razão do DRE_AG_CONTA_SQL
+# e de api/orcamento/sql.py): client_encoding LATIN1 sobre banco UTF8, uma
+# única descrição com caractere acima de U+00FF aborta a consulta inteira.
+# Esta tela é justamente a que CLASSIFICA a conta 1|113927 ("IRPJ CSLL – Taxa
+# Selic", EN DASH) — sem a mitigação ela quebraria ao buscar a própria conta
+# que o usuário precisa acertar.
 CONTAB_CONTAS_SQL = """
 SELECT l.grupo, l.reduzido, min(p.estrutural) AS estrutural,
-       min(upper(p.descricao)) AS conta,
+       min(upper(regexp_replace(p.descricao, '[^\\u0001-\\u00ff]', '-', 'g'))) AS conta,
        coalesce(min(ag.descricao), 'CLASSIFICAR') AS agrupador,
        count(*)::int AS lancamentos,
        sum(coalesce(l.valordebito,0))::float8 AS debito,
