@@ -159,8 +159,13 @@ def montar_resposta(ctx: dict) -> dict:
             hist_frete6 = sum(sum(_ultimos(hist_ag.get(ag, {}), meses, 6))
                               for ag in ags_frete)
             razao_cr = (hist_frete6 / sum(rb6)) if sum(rb6) else 0.0
+            # leitura defensiva: sum() sobre zero linhas no Postgres devolve
+            # NULL (o coalesce externo em VFC_MTD_SQL cobre o banco real, mas
+            # ctx e' plain data e pode chegar com None de outras origens - ex.:
+            # backtest as-of, teste, cache antigo).
+            vfc_frete_compra = float(ctx["vfc"].get("frete_compra") or 0.0)
             comb = motor.prever_frete_compra(
-                razao_mtd_frete, ctx["vfc"]["frete_compra"], rec["previsto"],
+                razao_mtd_frete, vfc_frete_compra, rec["previsto"],
                 d["real_acum"], razao_cr)
             total_h = {ag: abs(sum(_ultimos(hist_ag.get(ag, {}), meses, 6)))
                        for ag in ags_frete}
@@ -221,7 +226,11 @@ def montar_resposta(ctx: dict) -> dict:
 
     pess_direta, otim_direta = {}, {}
     calib = ctx.get("calibracao") or {}
-    dia_util = ctx.get("dias_meta_decorridos", ctx.get("dia_rel", 0))
+    # dias_meta_decorridos so' e' preenchido (>0) no modo corrente; nos demais
+    # modos a chave sempre existe valendo 0 (get_previsao so' calcula fora do
+    # corrente), entao o default do .get() nunca dispara - "or" (nao o default
+    # posicional do .get) e' o que de fato cai para dia_rel quando o valor e' 0.
+    dia_util = ctx.get("dias_meta_decorridos") or ctx.get("dia_rel", 0)
     for rotulo, base in base_direta.items():
         b = motor.banda_calibrada(base - shift_direta[rotulo],
                                   calib.get(rotulo), dia_util)

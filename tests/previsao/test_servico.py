@@ -3,6 +3,7 @@ from __future__ import annotations
 
 from datetime import date
 
+from api.previsao import motor
 from api.previsao.servico import montar_resposta, resolver_modo
 
 
@@ -100,3 +101,58 @@ def test_modo_fechando_consolida_e_estima():
     assert abs(linhas["CUSTO VARIAVEL"]["previsto"] - (-290.0)) < 1e-6   # consolidado
     assert abs(linhas["CUSTO FIXO"]["previsto"] - (-100.0)) < 1e-6       # fallback nivel
     assert 0.0 < r["kpis"]["consolidacao_pct"] <= 1.0
+
+
+def test_vfc_none_nao_explode_e_frete_cai_na_projecao():
+    """vfc.frete_compra/receita_viagens None (1o dia do mes, antes da 1a
+    viagem com dtsaida) nao pode explodir com TypeError em abs(None) dentro
+    de motor.prever_frete_compra. None tem de se comportar EXATAMENTE como
+    0.0 (nenhum frete de compra conhecido ainda - so' resta a projecao pela
+    receita)."""
+    meses6 = ["2026-02", "2026-03", "2026-04", "2026-05", "2026-06", "2026-07"]
+
+    ctx_none = _ctx_minimo()
+    ctx_none["hist_ag"]["CV - FRETE AGREGADOS"] = {m: -200.0 for m in meses6}
+    ctx_none["razao_ag_mes"]["CV - FRETE AGREGADOS"] = -60.0
+    ctx_none["vfc"] = {"frete_compra": None, "receita_viagens": None, "viagens": 0}
+    r_none = montar_resposta(ctx_none)  # nao pode levantar TypeError
+
+    ctx_zero = _ctx_minimo()
+    ctx_zero["hist_ag"]["CV - FRETE AGREGADOS"] = {m: -200.0 for m in meses6}
+    ctx_zero["razao_ag_mes"]["CV - FRETE AGREGADOS"] = -60.0
+    ctx_zero["vfc"] = {"frete_compra": 0.0, "receita_viagens": 0.0, "viagens": 0}
+    r_zero = montar_resposta(ctx_zero)
+
+    linhas_none = {ln["linha"]: ln for ln in r_none["linhas"]}
+    linhas_zero = {ln["linha"]: ln for ln in r_zero["linhas"]}
+    assert abs(linhas_none["CUSTO VARIAVEL"]["previsto"]
+               - linhas_zero["CUSTO VARIAVEL"]["previsto"]) < 1e-9
+
+
+def test_dia_util_fechando_usa_dia_rel_quando_dias_meta_decorridos_e_zero():
+    """dias_meta_decorridos so' e' >0 no modo corrente; em 'fechando' a chave
+    existe valendo 0, entao o fallback para dia_rel tem de vir de `or`, nao do
+    default posicional de dict.get (que so' dispara com a chave AUSENTE).
+    Sem o fix, banda_calibrada interpolaria no dia 0 (clampado ao piso da
+    calibracao, dia 5) para um mes que na verdade esta' no dia 32."""
+    ctx = _ctx_minimo()
+    ctx.update({"mes": "2026-07", "modo": "fechando", "dia_rel": 32,
+                "dias_meta_decorridos": 0, "diario": None,
+                "razao_ag_mes": {"RECEITA OPERACIONAL BRUTA AGREGADO": 1000.0,
+                                 "CV - COMBUSTIVEL": -290.0,
+                                 "CF - FOLHA MOT": -10.0}})
+    ctx["curva"] = {"ag": {"CV - COMBUSTIVEL": {d: 1.0 for d in range(46)},
+                           "CF - FOLHA MOT": {d: 0.10 for d in range(46)}},
+                    "linha": {}, "global": {d: 1.0 for d in range(46)}}
+    calib_linha = {"5": {"p20": -0.5, "p80": 0.5}, "40": {"p20": -0.1, "p80": 0.1}}
+    ctx["calibracao"] = {"CUSTO FIXO": calib_linha}
+
+    r = montar_resposta(ctx)
+    linhas = {ln["linha"]: ln for ln in r["linhas"]}
+
+    base = -100.0  # fallback nivel (mediana 3m de CF - FOLHA MOT), sem ajuste
+    certo = motor.banda_calibrada(base, calib_linha, 32)   # dia_rel=32 (correto)
+    errado = motor.banda_calibrada(base, calib_linha, 5)   # dia 0 clampado ao piso (bug antigo)
+    assert abs(linhas["CUSTO FIXO"]["previsto_pess"] - min(certo)) < 1e-6
+    assert abs(linhas["CUSTO FIXO"]["previsto_otim"] - max(certo)) < 1e-6
+    assert abs(linhas["CUSTO FIXO"]["previsto_pess"] - min(errado)) > 1.0
