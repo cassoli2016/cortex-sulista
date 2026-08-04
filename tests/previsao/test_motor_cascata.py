@@ -1,8 +1,20 @@
 from __future__ import annotations
 
 from api.previsao.motor import (aplicar_ajuste, banda_calibrada, banda_fallback,
-                                estimar_m1, estrategia_do_agrupador,
+                                estimar_m1, estrategia_do_agrupador, fontes_fora,
                                 linha_do_agrupador, montar_cascata, norm)
+
+
+def test_fontes_fora_e_o_recorte_de_driver():
+    fontes = [{"nome": "razao contabil (AVA)", "ok": True, "driver": True},
+              {"nome": "curva de completude", "ok": False, "driver": True},
+              {"nome": "orcamento (sem versao do ano)", "ok": False, "driver": False}]
+    assert fontes_fora(fontes) == ["curva de completude",
+                                   "orcamento (sem versao do ano)"]
+    assert fontes_fora(fontes, apenas_drivers=True) == ["curva de completude"]
+    assert fontes_fora([]) == [] and fontes_fora(None) == []
+    # payload antigo (sem a chave driver) conta como driver — default seguro
+    assert fontes_fora([{"nome": "x", "ok": False}], apenas_drivers=True) == ["x"]
 
 
 def test_estrategia_por_prefixo():
@@ -49,15 +61,45 @@ def test_bandas():
     assert pess == otim == 100.0  # pstdev 0
     pess, otim = banda_fallback(100.0, [0.0, 20.0], 1.0)  # pstdev 10
     assert (pess, otim) == (90.0, 110.0)
+    # a calibracao guarda err = (previsto - final)/|final| (backtest), entao o
+    # fechamento provavel e' final ~= previsto - err x |previsto|: SUBTRAI.
     calib = {"5": {"p20": -0.10, "p80": 0.06}, "10": {"p20": -0.04, "p80": 0.02}}
     b = banda_calibrada(-1000.0, calib, 5)
-    # erro relativo aplicado sobre |base|; p20 e o lado pessimista p/ resultado
     assert b is not None
-    pess, otim = b
-    assert abs(pess - (-1100.0)) < 1e-9 and abs(otim - (-940.0)) < 1e-9
+    # -1000 - (-0,10)x1000 = -900 ; -1000 - 0,06x1000 = -1060
+    assert abs(b[0] - (-900.0)) < 1e-9 and abs(b[1] - (-1060.0)) < 1e-9
     meio = banda_calibrada(-1000.0, calib, 7)  # interpolacao 5..10 (40%)
-    assert abs(meio[0] - (-1000.0 - 1000.0 * 0.076)) < 1e-6
+    # p20 interpolado = -0,10 + (-0,04 - -0,10) x 0,4 = -0,076
+    assert abs(meio[0] - (-1000.0 + 1000.0 * 0.076)) < 1e-6
     assert banda_calibrada(1.0, None, 5) is None
+
+
+def test_banda_calibrada_fica_do_lado_do_erro_medido():
+    """PINO DE INTENCAO (este e' o defeito que ja apareceu uma vez e pode
+    voltar sem ninguem ver): o SINAL do erro decide o LADO da banda.
+
+    err < 0 significa previsto < final, ou seja o metodo SUBESTIMA - o
+    fechamento tende a vir ACIMA do previsto e a banda tem de ficar ACIMA.
+    err > 0 e' o espelho. Vale para base positiva (receita) e negativa
+    (custo), porque a escala e' |base| e o deslocamento e' assinado."""
+    subestima = {"5": {"p20": -0.08, "p80": -0.02}}   # erros TODOS negativos
+    superestima = {"5": {"p20": 0.02, "p80": 0.08}}   # erros TODOS positivos
+    for base in (1000.0, -1000.0):
+        b = banda_calibrada(base, subestima, 5)
+        assert min(b) > base and max(b) > base, "metodo subestima -> banda ACIMA"
+        b = banda_calibrada(base, superestima, 5)
+        assert min(b) < base and max(b) < base, "metodo superestima -> banda ABAIXO"
+    # caso real que motivou o fix: RECEITA BRUTA em D25 (p20 -3,24%/p80 -1,27%)
+    receita = {"25": {"p20": -0.0324, "p80": -0.0127}}
+    pess, otim = sorted(banda_calibrada(11_745_816.0, receita, 25))
+    assert abs(pess - 11_745_816.0 * 1.0127) < 1.0
+    assert abs(otim - 11_745_816.0 * 1.0324) < 1.0
+    # erro que troca de sinal (p20 < 0 < p80) e' o unico caso em que o
+    # previsto fica DENTRO da propria banda - e ai' fica, nos dois sentidos
+    misto = {"5": {"p20": -0.05, "p80": 0.05}}
+    for base in (1000.0, -1000.0):
+        pess, otim = sorted(banda_calibrada(base, misto, 5))
+        assert pess < base < otim
 
 
 def test_aplicar_ajuste():

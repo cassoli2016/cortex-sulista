@@ -96,15 +96,27 @@ def prever_razao_completude(razao_mtd: float, frac: float, fallback: dict,
 
 
 def prever_frete_compra(razao_mtd: float, vfc_mtd: float, receita_prev: float,
-                        receita_mtd: float, razao_custo_receita: float) -> dict:
+                        receita_mtd: float, razao_custo_receita: float,
+                        fonte_receita_mtd: str = "faturamento MTD") -> dict:
+    """As DUAS pernas tem de sair da MESMA regua de maturidade.
+
+    `conhecido` vem das VIAGENS (operacional: completo para os dias decorridos,
+    o acerto contabil so' chega ~6 dias depois). Se `receita_mtd` vier do razao
+    (escrituracao bimodal - 1,8% a 3,8% ate D+34 em alguns meses) ou do fiscal,
+    a receita restante fica INFLADA e a projecao cobre de novo o trecho do mes
+    que o custo conhecido ja cobriu: dupla contagem no maior componente do CV.
+    Por isso o call site passa `vfc.receita_viagens` (a receita das MESMAS
+    viagens) sempre que ela existe, e diz na premissa qual regua usou."""
     conhecido = min(razao_mtd, -abs(vfc_mtd))  # mais negativo = mais custo conhecido
     receita_rest = max(0.0, receita_prev - receita_mtd)
     projetado = receita_rest * razao_custo_receita
     return _res(conhecido + projetado, "frete_compra", [
         f"conhecido: max(|razao| {_brl(abs(razao_mtd))}, |frete compra viagens| "
         f"{_brl(abs(vfc_mtd))})",
+        f"receita ja coberta por esse custo: {_brl(receita_mtd)} "
+        f"({fonte_receita_mtd}) - mesma regua do custo conhecido",
         f"projecao: {_pct(abs(razao_custo_receita), 1)} da receita restante prevista "
-        f"(razao custo/receita 6m)"])
+        f"{_brl(receita_rest)} (razao custo/receita 6m)"])
 
 
 def prever_sazonal(vals6: list[float], indices6: list[float],
@@ -190,6 +202,28 @@ def banda_fallback(base: float, hist6: list[float],
 
 def banda_calibrada(base: float, calib_linha: dict | None,
                     dia_util: int) -> tuple[float, float] | None:
+    """Intervalo provavel do FECHAMENTO a partir do previsto (`base`).
+
+    A calibracao guarda o erro RELATIVO do metodo medido no backtest
+    (scripts/backtest_previsao.py): `err = (previsto - final) / |final|`.
+    Invertendo para o mes novo, no qual so' existe o previsto:
+
+        final ~= previsto - erro_relativo x |previsto|
+
+    ou seja SUBTRAI. Somar (o defeito corrigido aqui) joga o intervalo para o
+    lado ERRADO do erro: com a calibracao de RECEITA BRUTA em D25 (p20 -3,24%,
+    p80 -1,27%, os dois NEGATIVOS = o metodo SUBESTIMA), somar punha a banda
+    inteira ABAIXO do previsto justamente quando o fechamento tende a vir
+    ACIMA dele.
+
+    Consequencia (esperada, nao defeito): quando p20 e p80 tem o MESMO sinal o
+    metodo tem vies conhecido naquele dia e o intervalo do fechamento nao
+    contem o previsto - ele fica todo do lado para onde o fechamento costuma
+    andar. Quem le a banda ve o vies medido, em vez de uma simetria falsa.
+
+    Devolve (base - p20*|base|, base - p80*|base|): com p20 <= p80 o PRIMEIRO
+    elemento e' o MAIOR. Quem rotula pessimista/otimista (servico.py) resolve
+    isso com min()/max(), porque "maior" nem sempre e' "melhor" (custo)."""
     if not calib_linha:
         return None
     dias = sorted(int(d) for d in calib_linha)
@@ -204,7 +238,22 @@ def banda_calibrada(base: float, calib_linha: dict | None,
         b = calib_linha[str(hi)][campo]
         return a + (b - a) * w
     esc = abs(base)
-    return base + _mix("p20") * esc, base + _mix("p80") * esc
+    return base - _mix("p20") * esc, base - _mix("p80") * esc
+
+
+def fontes_fora(fontes: list[dict] | None, apenas_drivers: bool = False) -> list[str]:
+    """Nomes das fontes com ok=False. PURA - e' a mesma leitura usada pelo
+    gate do snapshot (servico) e pelos alertas/digest (alertas.py); duplicar a
+    regra nos dois lugares e' como elas divergiriam.
+
+    `apenas_drivers=True` ignora as fontes que NAO entram no calculo do
+    previsto (hoje so' o orcamento, que alimenta a coluna de comparacao). Sem
+    isso, um ano sem versao de orcamento cadastrada - estado normal em janeiro
+    - marcaria a previsao inteira como degradada, pararia o snapshot diario e
+    rebaixaria o alerta de resultado negativo todo dia. Fonte sem a chave
+    `driver` conta como driver (default seguro para payload antigo/cache)."""
+    return [f.get("nome") or "?" for f in (fontes or [])
+            if not f.get("ok") and (not apenas_drivers or f.get("driver", True))]
 
 
 def aplicar_ajuste(previsto: float, ajuste: dict | None) -> tuple[float, float]:

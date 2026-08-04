@@ -83,11 +83,23 @@ def _ultimos(serie: dict[str, float], meses: list[str], n: int) -> list[float]:
 # em "previsto" e subestimaria grosseiramente toda linha razao_completude no
 # comeco do mes. Sem curva NAO se divide: cai para o nivel historico.
 PREM_SEM_CURVA = "curva de completude indisponivel - usando nivel"
+PREM_PISO_RAZAO = ("piso do razao: o ja escriturado no mes supera o nivel "
+                   "historico - previsto = razao")
 AVISO_SEM_CURVA = (
     "Curva de completude indisponivel: as linhas que dependem dela NAO foram "
     "divididas pela completude esperada - cairam para o nivel historico "
-    "(mediana dos 3 ultimos meses fechados). Numeros mais conservadores que o "
-    "normal nessas linhas.")
+    "(mediana dos 3 ultimos meses fechados), com piso no que o razao ja "
+    "mostra no mes (nunca menos, em modulo, que o ja escriturado). Sem a "
+    "curva nao ha' como saber quanto do mes ainda falta escriturar: nessas "
+    "linhas o previsto tende a ficar SUBESTIMADO enquanto o mes corre, e no "
+    "fim so' acompanha o razao. Trate os numeros dessas linhas como piso, "
+    "nao como previsao fechada.")
+
+# nomes canonicos das fontes (chips da tela + gate do snapshot + alertas)
+FONTE_RAZAO = "razao contabil (AVA)"
+FONTE_CURVA = "curva de completude"
+FONTE_DIARIO = "meta diaria / faturamento fiscal"
+FONTE_OPS = "viagens / abastecimentos / contas a pagar"
 
 
 def _curva_utilizavel(curva: dict | None) -> bool:
@@ -97,6 +109,37 @@ def _curva_utilizavel(curva: dict | None) -> bool:
     aqui, porque produzem um numero errado em silencio em vez de um erro."""
     c = curva or {}
     return bool(c.get("ag") or c.get("global"))
+
+
+def _diario_utilizavel(diario: dict | None) -> bool:
+    """Simetrico do _curva_utilizavel para o DRIVER FISCAL.
+
+    VG_DIARIO_SQL pode voltar sem linha nenhuma (fonte fora) ou com linhas
+    cuja meta e' toda zero (meta do mes nao cadastrada - a origem mais
+    provavel). Nos dois casos o dict montado por get_previsao continua TRUTHY
+    e prever_receita recebe meta_mes = 0: `meta_rest = max(0, 0 - 0) = 0` e o
+    previsto vira o proprio MTD (ou R$ 0,00 no dia 1o), carimbado
+    "driver_fiscal", com o chip da fonte VERDE e nenhum aviso - a mesma
+    catastrofe silenciosa que a onda anterior fechou, pela porta da frente.
+
+    Sem meta do mes nao existe "restante do mes" para aplicar ritmo nenhum: a
+    fonte esta' fora, e quem resolve e' o fallback por nivel. So' olha chaves
+    que TODO ctx tem (backtest inclusive) - nada de contagem de linhas."""
+    d = diario or {}
+    return float(d.get("meta_mes") or 0.0) > 0.0
+
+
+def _marcar_fonte_fora(fontes: list[dict], nome: str) -> list[dict]:
+    """Copia a lista marcando `nome` como ok=False (ou acrescentando-a).
+    Copia porque montar_resposta e' PURA: mutar ctx["fontes"] mudaria a lista
+    do chamador (e o backtest reexecuta a mesma ctx varias vezes)."""
+    out = [dict(f) for f in fontes]
+    for f in out:
+        if f.get("nome") == nome:
+            f["ok"] = False
+            return out
+    out.append({"nome": nome, "ok": False, "driver": True})
+    return out
 
 
 def montar_resposta(ctx: dict) -> dict:
@@ -115,7 +158,9 @@ def montar_resposta(ctx: dict) -> dict:
     DEGRADACAO POR FONTE (spec 11): curva {} e diario None NAO sao "neutro",
     sao "fonte fora" — em vez de dividir por uma completude 1.0 fantasma ou
     prever receita 0,00, essas linhas trocam de METODO (nivel historico) e
-    dizem isso na premissa e no aviso."""
+    dizem isso na premissa e no aviso. A degradacao tambem pode ser detectada
+    AQUI (driver fiscal presente mas sem meta): neste caso montar_resposta
+    devolve fontes[] com a fonte marcada ok=False - sem mutar a lista do ctx."""
     modo = ctx["modo"]
     meses = ctx["meses_hist"]
     hist_ag = ctx["hist_ag"]
@@ -123,6 +168,22 @@ def montar_resposta(ctx: dict) -> dict:
     razao_ag = ctx["razao_ag_mes"]
     indices_por_linha, linhas_flat = ctx.get("indices") or ({}, [])
     avisos: list[str] = list(ctx.get("avisos_previos") or [])
+    fontes: list[dict] = [dict(f) for f in (ctx.get("fontes") or [])]
+
+    # driver fiscal presente PORE'M inutilizavel (meta do mes nao cadastrada):
+    # a camada de I/O nao tem como saber - a query respondeu. Aqui vira fonte
+    # fora, com o mesmo tratamento do driver ausente logo abaixo.
+    diario = ctx.get("diario")
+    if diario and not _diario_utilizavel(diario):
+        avisos.append(
+            "Meta diaria do mes sem valor cadastrado (meta do mes "
+            f"{_brl(float(diario.get('meta_mes') or 0.0))}): sem meta nao ha' "
+            "\"restante do mes\" para projetar e o driver fiscal foi tratado "
+            "como fonte FORA - o realizado fiscal do mes "
+            f"({_brl(float(diario.get('real_acum') or 0.0))}) sozinho nao e' "
+            "previsao. Cadastrar a meta em metafaturamento restabelece o metodo.")
+        fontes = _marcar_fonte_fora(fontes, FONTE_DIARIO)
+        diario = None
 
     # realizado contábil por linha direta (sempre exposto)
     realizado_direta: dict[str, float] = {}
@@ -143,7 +204,21 @@ def montar_resposta(ctx: dict) -> dict:
         return motor.prever_nivel(_ultimos(hist_ag.get(ag, {}), meses, 3), f"{ag} 3m")
 
     def _nivel_sem_curva(ag: str) -> dict:
+        """Nivel historico com PISO no razao ja escriturado (mesma regra que
+        motor.estimar_m1 aplica na rota `lote`): nunca prever MENOS, em
+        modulo, do que o razao ja mostra para o agrupador. Sem o piso, uma
+        linha de custo com o razao ja adiantado no mes recebia um nivel MENOR
+        que o realizado: o "projetado" (previsto - realizado) invertia de
+        sinal e o RESULTADO aparecia OTIMISTA - o oposto do que o aviso da
+        tela prometia."""
         r = _fallback_nivel(ag)
+        v = razao_ag.get(ag, 0.0)
+        if abs(v) >= abs(r["previsto"]) and v:
+            return {"previsto": v, "estrategia": r["estrategia"],
+                    "premissas": r["premissas"] + [
+                        PREM_SEM_CURVA,
+                        f"{PREM_PISO_RAZAO} ({_brl(v)} contra nivel "
+                        f"{_brl(r['previsto'])})"]}
         return {**r, "premissas": r["premissas"] + [PREM_SEM_CURVA]}
 
     if modo == "fechado":
@@ -168,7 +243,7 @@ def montar_resposta(ctx: dict) -> dict:
             if r["estrategia"] != "consolidado":
                 atual["estrategia"] = r["estrategia"]
     else:  # corrente
-        d = ctx["diario"]
+        d = diario
         if d:
             rec = motor.prever_receita(d["real_acum"], d["meta_acum"], d["meta_mes"],
                                        ctx.get("ating_hist"),
@@ -221,9 +296,24 @@ def montar_resposta(ctx: dict) -> dict:
             # ctx e' plain data e pode chegar com None de outras origens - ex.:
             # backtest as-of, teste, cache antigo).
             vfc_frete_compra = float(ctx["vfc"].get("frete_compra") or 0.0)
+            # DUPLA CONTAGEM: o custo conhecido sai das VIAGENS (completo para
+            # os dias decorridos) e a receita ja coberta por ele tem de sair
+            # das MESMAS viagens. d["real_acum"] e' o fiscal (ou, com o driver
+            # fora, o razao) - reguas que maturam em outro ritmo: usa-la deixa
+            # a "receita restante" inflada e a projecao cobre de novo o trecho
+            # que o custo conhecido ja cobriu. Cai para d["real_acum"] so'
+            # quando as viagens nao existem (grupo operacional degradado, 1o
+            # dia do mes): ai' vfc_frete_compra tambem e' 0 e nao ha' o que
+            # contar duas vezes.
+            receita_viagens = float(ctx["vfc"].get("receita_viagens") or 0.0)
+            if receita_viagens > 0.0:
+                receita_ja_coberta, fonte_rec = receita_viagens, "viagens do mes"
+            else:
+                receita_ja_coberta = d["real_acum"]
+                fonte_rec = "faturamento MTD (viagens indisponiveis)"
             comb = motor.prever_frete_compra(
                 razao_mtd_frete, vfc_frete_compra, rec["previsto"],
-                d["real_acum"], razao_cr)
+                receita_ja_coberta, razao_cr, fonte_rec)
             total_h = {ag: abs(sum(_ultimos(hist_ag.get(ag, {}), meses, 6)))
                        for ag in ags_frete}
             soma_h = sum(total_h.values()) or 1.0
@@ -278,9 +368,9 @@ def montar_resposta(ctx: dict) -> dict:
         shift_direta[rotulo] = shift
 
     frac_rest = 0.0
-    if modo == "corrente" and ctx.get("diario"):
-        mm = ctx["diario"]["meta_mes"]
-        frac_rest = max(0.0, 1.0 - (ctx["diario"]["meta_acum"] / mm)) if mm else 0.5
+    if modo == "corrente" and diario:
+        mm = diario["meta_mes"]
+        frac_rest = max(0.0, 1.0 - (diario["meta_acum"] / mm)) if mm else 0.5
     elif modo == "corrente":
         # sem meta diaria nao da' para medir quanto do mes falta pela meta; o
         # calendario e' a aproximacao honesta. Deixar 0.0 aqui colapsaria a
@@ -384,9 +474,12 @@ def montar_resposta(ctx: dict) -> dict:
                               casc_otim.get("RESULTADO DO EXERCICIO", 0.0)),
         "resultado_orcado": casc_orc.get("RESULTADO DO EXERCICIO") if casc_orc else None,
         "receita_prevista": casc_base.get("RECEITA BRUTA", 0.0),
-        "atingimento_mtd": ((ctx["diario"]["real_acum"] / ctx["diario"]["meta_acum"])
-                            if ctx.get("diario") and ctx["diario"]["meta_acum"] else None),
-        "meta_mes": ctx["diario"]["meta_mes"] if ctx.get("diario") else None,
+        # `diario` (local) e nao ctx["diario"]: com a meta zerada a fonte esta'
+        # FORA, entao atingimento/meta do mes nao existem - mostrar "meta do
+        # mes R$ 0" seria o mesmo zero-por-lacuna que o aviso acabou de negar.
+        "atingimento_mtd": ((diario["real_acum"] / diario["meta_acum"])
+                            if diario and diario["meta_acum"] else None),
+        "meta_mes": diario["meta_mes"] if diario else None,
         "breakeven": ctx.get("breakeven"),
         "cap_mes": ctx.get("cap"),
         "consolidacao_pct": consolidacao,
@@ -395,9 +488,38 @@ def montar_resposta(ctx: dict) -> dict:
     return {"mes": ctx["mes"], "modo": modo, "kpis": kpis, "linhas": linhas,
             "avisos": avisos, "linhas_flat": (ctx.get("indices") or ({}, []))[1],
             "serie_snapshots": ctx.get("snapshots") or [],
-            "fontes": ctx.get("fontes") or [],
+            "fontes": fontes,
             "fonte": ("ERP AVA (razao + documentos fiscais + viagens + ctaplus) "
                       "+ orcamento local · previsao, nao numero fechado")}
+
+
+def snapshot_se_integro(resp: dict, mes: str, data_foto: str) -> bool:
+    """Grava a foto do dia SO' se nenhum driver estiver degradado. Devolve se
+    gravou (o teste unitario troca arm.gravar_snapshot e olha o retorno).
+
+    `gravar_snapshot` e' INSERT OR REPLACE por (data, mes, linha): uma rodada
+    degradada - um piscar do tunel as 3h, durante o digest - SOBRESCREVE para
+    sempre o ponto bom daquele dia, e a "Evolucao da previsao" desenha
+    previsto_base sem nenhuma marca de degradacao. Foto ruim nao entra no
+    album: perder o ponto do dia se resolve na proxima consulta; um ponto
+    errado no historico, nao. O orcamento (driver=False) nao conta - ele nao
+    entra em previsto nenhum."""
+    fora = motor.fontes_fora(resp.get("fontes"), apenas_drivers=True)
+    if fora:
+        log.warning("previsao: snapshot de %s (%s) NAO gravado - fonte(s) "
+                    "degradada(s): %s. O ponto do dia fica com o valor bom "
+                    "anterior, se houver.", mes, data_foto, ", ".join(fora))
+        return False
+    try:  # snapshot diario best-effort (idempotente por dia)
+        arm.gravar_snapshot(arm.DB_PATH, data_foto, mes, [
+            {"linha": ln["linha"], "previsto_base": ln["previsto"],
+             "previsto_otim": ln["previsto_otim"], "previsto_pess": ln["previsto_pess"],
+             "realizado_contabil": ln["realizado"], "estrategia": ln["estrategia"]}
+            for ln in resp["linhas"]])
+        return True
+    except Exception as exc:  # noqa: BLE001
+        log.warning("previsao: snapshot falhou: %s", exc)
+        return False
 
 
 def _fetch_grupo(sqls: list[tuple[str, dict | None]]) -> list[list[dict]]:
@@ -461,24 +583,26 @@ def get_previsao(mes: str | None = None, hoje: date | None = None) -> dict:
         # existe previsao nenhuma, entao propaga (o endpoint mapeia
         # OperationalError -> 503 e o resto -> 500).
         razao_out = f_razao.result()
-        fontes.append({"nome": "razao contabil (AVA)", "ok": True})
+        fontes.append({"nome": FONTE_RAZAO, "ok": True, "driver": True})
         try:
             curva = f_curva.result()
-            fontes.append({"nome": "curva de completude", "ok": True})
+            fontes.append({"nome": FONTE_CURVA, "ok": True, "driver": True})
         except Exception as exc:  # noqa: BLE001
             log.warning("previsao: curva de completude indisponivel: %s", exc)
             curva = {}
             # o aviso da curva sai de montar_resposta (AVISO_SEM_CURVA), que e'
             # quem sabe se o modo do mes chega a usar a curva - repetir aqui
             # duplicaria a linha na tela.
-            fontes.append({"nome": "curva de completude", "ok": False})
+            fontes.append({"nome": FONTE_CURVA, "ok": False, "driver": True})
         try:
             diario_out = f_diario.result()
-            fontes.append({"nome": "meta diaria / faturamento fiscal", "ok": True})
+            # ok=True aqui e' so' "a query respondeu"; se a meta do mes vier
+            # zerada quem rebaixa a fonte e' montar_resposta (_diario_utilizavel).
+            fontes.append({"nome": FONTE_DIARIO, "ok": True, "driver": True})
         except Exception as exc:  # noqa: BLE001
             log.warning("previsao: driver fiscal indisponivel: %s", exc)
             diario_out = None
-            fontes.append({"nome": "meta diaria / faturamento fiscal", "ok": False})
+            fontes.append({"nome": FONTE_DIARIO, "ok": False, "driver": True})
             # so' o que montar_resposta NAO tem como dizer sozinha (ela ja
             # declara a receita por nivel e o atingimento sem base) - senao a
             # tela repetiria a mesma frase em dois avisos.
@@ -487,13 +611,11 @@ def get_previsao(mes: str | None = None, hoje: date | None = None) -> dict:
                 "o ponto de equilibrio do mes nao foi calculado nesta consulta.")
         try:
             ops_out = f_ops.result()
-            fontes.append({"nome": "viagens / abastecimentos / contas a pagar",
-                           "ok": True})
+            fontes.append({"nome": FONTE_OPS, "ok": True, "driver": True})
         except Exception as exc:  # noqa: BLE001
             log.warning("previsao: drivers operacionais indisponiveis: %s", exc)
             ops_out = None
-            fontes.append({"nome": "viagens / abastecimentos / contas a pagar",
-                           "ok": False})
+            fontes.append({"nome": FONTE_OPS, "ok": False, "driver": True})
             avisos_previos.append(
                 "Viagens, abastecimentos e contas a pagar indisponiveis: o frete "
                 "de compra fica so' com o razao (sem o cruzamento das viagens), e "
@@ -579,12 +701,18 @@ def get_previsao(mes: str | None = None, hoje: date | None = None) -> dict:
                     orcado_linha[rot] = orcado_linha.get(rot, 0.0) + ln["valor_efetivo"]
             circulares = meses_circulares(int(mes[:4]),
                                           json.loads(vig.get("meses_base") or "[]"))
-            fontes.append({"nome": f"orcamento: {vig['rotulo']}", "ok": True})
+            fontes.append({"nome": f"orcamento: {vig['rotulo']}", "ok": True,
+                           "driver": False})
         else:
-            fontes.append({"nome": "orcamento (sem versao do ano)", "ok": False})
+            # driver=False: o orcado NAO entra em nenhum previsto (so' na
+            # coluna de comparacao). Ano sem versao cadastrada e' estado
+            # normal em janeiro - nao pode parar o snapshot diario nem
+            # rebaixar o alerta de resultado negativo (ver motor.fontes_fora).
+            fontes.append({"nome": "orcamento (sem versao do ano)", "ok": False,
+                           "driver": False})
     except Exception as exc:  # noqa: BLE001
         log.warning("previsao: orcado indisponivel: %s", exc)
-        fontes.append({"nome": "orcamento", "ok": False})
+        fontes.append({"nome": "orcamento", "ok": False, "driver": False})
 
     calib = {}
     try:
@@ -610,12 +738,5 @@ def get_previsao(mes: str | None = None, hoje: date | None = None) -> dict:
            "indices": indices,
            "snapshots": arm.ler_snapshots(arm.DB_PATH, mes), "fontes": fontes}
     resp = montar_resposta(ctx)
-    try:  # snapshot diario best-effort (idempotente por dia)
-        arm.gravar_snapshot(arm.DB_PATH, hoje.isoformat(), mes, [
-            {"linha": ln["linha"], "previsto_base": ln["previsto"],
-             "previsto_otim": ln["previsto_otim"], "previsto_pess": ln["previsto_pess"],
-             "realizado_contabil": ln["realizado"], "estrategia": ln["estrategia"]}
-            for ln in resp["linhas"]])
-    except Exception as exc:  # noqa: BLE001
-        log.warning("previsao: snapshot falhou: %s", exc)
+    snapshot_se_integro(resp, mes, hoje.isoformat())
     return resp

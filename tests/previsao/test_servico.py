@@ -4,7 +4,9 @@ from __future__ import annotations
 from datetime import date
 
 from api.previsao import motor
-from api.previsao.servico import montar_resposta, resolver_modo
+from api.previsao import servico
+from api.previsao.servico import (FONTE_DIARIO, montar_resposta, resolver_modo,
+                                  snapshot_se_integro)
 
 
 def test_resolver_modo():
@@ -371,6 +373,123 @@ def test_todas_as_fontes_ok_e_identico_ao_comportamento_anterior():
     assert abs(linhas["CUSTO FIXO"]["previsto"] - (-100.0)) < 1e-9
     assert r["avisos"] == []
     assert r["fontes"] == []
+
+
+def _ctx_meta_zerada() -> dict:
+    """Driver fiscal que RESPONDEU, com linhas, mas com a meta do mes toda
+    zerada (meta nao cadastrada) — o gatilho mais provavel da degradacao."""
+    ctx = _ctx_minimo()
+    ctx["diario"] = {"real_acum": 310.0, "meta_acum": 0.0, "meta_mes": 0.0}
+    ctx["dias_meta_decorridos"] = 0
+    ctx["ating_hist"] = None
+    ctx["fontes"] = [{"nome": "razao contabil (AVA)", "ok": True, "driver": True},
+                     {"nome": FONTE_DIARIO, "ok": True, "driver": True}]
+    return ctx
+
+
+def test_diario_com_meta_zerada_e_fonte_fora_nao_driver_fiscal():
+    """BLOQUEADOR: com meta_mes = 0, prever_receita devolvia meta_rest = 0 e
+    previsto = MTD (ou R$ 0,00) carimbado 'driver_fiscal', chip VERDE e nenhum
+    aviso. Um dict truthy nao e' uma fonte saudavel."""
+    ctx = _ctx_meta_zerada()
+    r = montar_resposta(ctx)
+    linhas = {ln["linha"]: ln for ln in r["linhas"]}
+    rb = linhas["RECEITA BRUTA"]
+    assert abs(rb["previsto"] - 1000.0) < 1e-6      # mediana 3m, nao a meta
+    assert rb["estrategia"] == "nivel"
+    assert rb["previsto"] != 0.0 and abs(rb["previsto"] - 310.0) > 1.0   # nem 0 nem MTD
+    # chip vermelho na fonte certa (e so' nela)
+    por_nome = {f["nome"]: f for f in r["fontes"]}
+    assert por_nome[FONTE_DIARIO]["ok"] is False
+    assert por_nome["razao contabil (AVA)"]["ok"] is True
+    # aviso dizendo a CAUSA (meta) + o aviso do metodo trocado
+    assert any("meta diaria do mes sem valor" in a.lower() for a in r["avisos"])
+    assert any("driver fiscal" in a.lower() for a in r["avisos"])
+    # KPIs derivados da meta somem em vez de mostrar zero-por-lacuna
+    assert r["kpis"]["meta_mes"] is None and r["kpis"]["atingimento_mtd"] is None
+    # montar_resposta e' PURA: a lista de fontes do ctx nao foi mutada
+    assert ctx["fontes"][1]["ok"] is True
+
+
+def test_snapshot_nao_grava_com_driver_degradado(monkeypatch):
+    """BLOQUEADOR: gravar_snapshot e' INSERT OR REPLACE por (data, mes, linha)
+    — uma rodada degradada sobrescreveria para sempre o ponto bom do dia."""
+    gravou: list[tuple] = []
+    monkeypatch.setattr(servico.arm, "gravar_snapshot",
+                        lambda path, data, mes, linhas: gravou.append((data, mes)))
+
+    degradado = montar_resposta(_ctx_meta_zerada())
+    assert snapshot_se_integro(degradado, "2026-08", "2026-08-04") is False
+    assert gravou == []
+
+    ctx_ok = _ctx_minimo()
+    ctx_ok["fontes"] = [{"nome": FONTE_DIARIO, "ok": True, "driver": True}]
+    assert snapshot_se_integro(montar_resposta(ctx_ok), "2026-08", "2026-08-04") is True
+    assert gravou == [("2026-08-04", "2026-08")]
+
+
+def test_snapshot_grava_com_orcamento_ausente_que_nao_e_driver():
+    """Ano sem versao de orcamento cadastrada (janeiro) e' estado NORMAL e nao
+    entra em previsto nenhum: nao pode parar o snapshot diario."""
+    ctx = _ctx_minimo()
+    ctx["fontes"] = [{"nome": "razao contabil (AVA)", "ok": True, "driver": True},
+                     {"nome": "orcamento (sem versao do ano)", "ok": False,
+                      "driver": False}]
+    r = montar_resposta(ctx)
+    assert motor.fontes_fora(r["fontes"], apenas_drivers=True) == []
+    assert motor.fontes_fora(r["fontes"]) == ["orcamento (sem versao do ano)"]
+
+
+def test_frete_compra_usa_a_receita_das_viagens_e_nao_conta_duas_vezes():
+    """CORRIGIR ANTES DO DEPLOY: `conhecido` sai das VIAGENS e a receita ja
+    coberta por ele tem de sair das MESMAS viagens. Usando o faturamento MTD
+    (regua diferente) a receita restante fica inflada e a projecao cobre de
+    novo o trecho que o custo conhecido ja cobriu."""
+    meses6 = ["2026-02", "2026-03", "2026-04", "2026-05", "2026-06", "2026-07"]
+    ctx = _ctx_minimo()
+    ctx["hist_ag"]["CV - FRETE AGREGADOS"] = {m: -200.0 for m in meses6}
+    ctx["razao_ag_mes"]["CV - FRETE AGREGADOS"] = -60.0
+    # viagens: custo 80 conhecido, receita 400 gerada por essas mesmas viagens
+    ctx["vfc"] = {"frete_compra": 80.0, "receita_viagens": 400.0, "viagens": 5}
+    r = montar_resposta(ctx)
+    linhas = {ln["linha"]: ln for ln in r["linhas"]}
+
+    rec_prev = 310.0 + 680.0 * (310.0 / 320.0)          # driver fiscal intacto
+    razao_cr = -1200.0 / 6000.0
+    certo = -80.0 + (rec_prev - 400.0) * razao_cr        # regua unica: viagens
+    errado = -80.0 + (rec_prev - 310.0) * razao_cr       # MTD fiscal (dupla contagem)
+    combustivel = -300.0                                 # razao -100 / completude 10/30
+    assert abs(linhas["CUSTO VARIAVEL"]["previsto"] - (certo + combustivel)) < 1e-6
+    assert abs(certo - errado) > 1.0                     # o teste distingue os dois
+    assert any("viagens do mes" in p for p in linhas["CUSTO VARIAVEL"]["premissas"])
+
+
+def test_sem_curva_previsto_nunca_fica_abaixo_do_razao_ja_postado():
+    """CORRIGIR ANTES DO DEPLOY: no fallback sem curva o nivel historico podia
+    vir MENOR (em modulo) que o razao ja escriturado — o 'projetado' invertia
+    de sinal e o RESULTADO ficava OTIMISTA, enquanto o aviso prometia numeros
+    conservadores. Piso: nunca menos, em modulo, que o razao."""
+    ctx = _ctx_minimo()
+    ctx["curva"] = {}                                  # f_curva degradou
+    # razao do mes JA' acima do nivel historico (mediana 3m = -300)
+    ctx["razao_ag_mes"]["CV - COMBUSTIVEL"] = -520.0
+    r = montar_resposta(ctx)
+    linhas = {ln["linha"]: ln for ln in r["linhas"]}
+    cv = linhas["CUSTO VARIAVEL"]
+    assert abs(cv["previsto"] - (-520.0)) < 1e-6       # segue o razao, nao o -300
+    assert cv["projetado"] <= 0.0                      # custo projetado nunca "sobra"
+    assert any("piso do razao" in p for p in cv["premissas"])
+    # o aviso nao promete mais "numeros conservadores"
+    aviso = next(a for a in r["avisos"] if "curva de completude" in a.lower())
+    assert "conservador" not in aviso.lower()
+    assert "piso" in aviso.lower() and "subestimado" in aviso.lower()
+
+    # e quando o razao ainda esta' abaixo do nivel, nada muda (regressao)
+    ctx2 = _ctx_minimo()
+    ctx2["curva"] = {}
+    r2 = montar_resposta(ctx2)
+    linhas2 = {ln["linha"]: ln for ln in r2["linhas"]}
+    assert abs(linhas2["CUSTO VARIAVEL"]["previsto"] - (-300.0)) < 1e-6
 
 
 def test_fontes_e_avisos_previos_do_ctx_chegam_na_resposta():
