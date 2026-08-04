@@ -244,3 +244,143 @@ def test_dispersao_zero_mantem_comportamento_atual_regressao():
     r = montar_resposta(ctx)
     linhas = {ln["linha"]: ln for ln in r["linhas"]}
     assert abs(linhas["CUSTO VARIAVEL"]["previsto"] - (-300.0)) < 1e-6  # igual ao teste original
+
+
+# ---------------------------------------------------------------------------
+# Degradacao POR FONTE (spec 11). A regra que governa os 3 testes abaixo: o
+# default NEUTRO de cada driver produz um numero ERRADO em silencio (curva
+# ausente -> completude 1,0 -> "razao parcial" virando "previsto"; diario
+# ausente -> receita 0,00). Fonte fora tem de trocar de METODO e declarar,
+# nunca cair no neutro.
+# ---------------------------------------------------------------------------
+
+def test_curva_ausente_nao_divide_cai_para_nivel_no_corrente():
+    ctx = _ctx_minimo()
+    # nivel (mediana 3m) distinto do que a divisao daria, para separar os dois
+    ctx["hist_ag"]["CV - COMBUSTIVEL"] = {m: -700.0 for m in ctx["meses_hist"]}
+    ctx["curva"] = {}                       # f_curva degradou
+    r = montar_resposta(ctx)
+    linhas = {ln["linha"]: ln for ln in r["linhas"]}
+    # com curva o motor faria -100 / (10/30) = -300; com completude_em caindo
+    # no neutro 1,0 daria -100 (razao parcial travestida de previsto). As duas
+    # estao erradas: tem de vir o nivel, -700.
+    assert abs(linhas["CUSTO VARIAVEL"]["previsto"] - (-700.0)) < 1e-6
+    assert linhas["CUSTO VARIAVEL"]["estrategia"] == "nivel"
+    assert any("curva de completude indisponivel" in p
+               for p in linhas["CUSTO VARIAVEL"]["premissas"])
+    assert any("curva de completude indisponivel" in a.lower() for a in r["avisos"])
+    # aviso aparece UMA vez, mesmo com varios agrupadores em razao_completude
+    assert sum(1 for a in r["avisos"]
+               if "curva de completude indisponivel" in a.lower()) == 1
+
+
+def test_curva_ausente_no_fechando_tambem_cai_para_nivel():
+    """Sem curva nao ha' como decidir consolidado/lote: o M-1 inteiro vai para
+    o nivel. Sem o fix, completude_em devolveria 1,0 >= CONSOLIDADO_EM e TODA
+    linha seria carimbada 'consolidado' — a razao parcial virando verdade."""
+    ctx = _ctx_minimo()
+    ctx.update({"mes": "2026-07", "modo": "fechando", "dia_rel": 32,
+                "diario": None, "curva": {},
+                "razao_ag_mes": {"RECEITA OPERACIONAL BRUTA AGREGADO": 400.0,
+                                 "CV - COMBUSTIVEL": -50.0,
+                                 "CF - FOLHA MOT": -10.0}})
+    r = montar_resposta(ctx)
+    linhas = {ln["linha"]: ln for ln in r["linhas"]}
+    assert abs(linhas["RECEITA BRUTA"]["previsto"] - 1000.0) < 1e-6   # mediana 3m
+    assert abs(linhas["CUSTO VARIAVEL"]["previsto"] - (-300.0)) < 1e-6
+    assert abs(linhas["CUSTO FIXO"]["previsto"] - (-100.0)) < 1e-6
+    assert linhas["RECEITA BRUTA"]["estrategia"] == "nivel"
+    assert all(ln["estrategia"] != "consolidado" for ln in r["linhas"])
+    assert any("curva de completude indisponivel" in a.lower() for a in r["avisos"])
+
+
+def test_diario_ausente_no_corrente_preve_receita_por_nivel_nao_zero():
+    ctx = _ctx_minimo()
+    ctx["diario"] = None            # f_diario degradou
+    ctx["ating_hist"] = None
+    ctx["breakeven"] = None
+    # folha com dispersao real (mediana dos 3 ultimos segue -100) para a banda
+    # de fallback ter largura > 0 e o frac_rest ficar observavel
+    ctx["hist_ag"]["CF - FOLHA MOT"] = {"2026-02": -80.0, "2026-03": -120.0,
+                                        "2026-04": -90.0, "2026-05": -110.0,
+                                        "2026-06": -100.0, "2026-07": -100.0}
+    r = montar_resposta(ctx)
+    linhas = {ln["linha"]: ln for ln in r["linhas"]}
+    # sem o fix: prever_receita(0,0,0,...) = 0,00 e a cascata inteira desaba
+    assert abs(linhas["RECEITA BRUTA"]["previsto"] - 1000.0) < 1e-6  # mediana 3m
+    assert linhas["RECEITA BRUTA"]["estrategia"] == "nivel"
+    # as linhas de % da receita consomem a receita de FALLBACK, nao 0
+    assert abs(linhas["IMPOSTOS FEDERAIS"]["previsto"] - (1000.0 * -0.08)) < 1e-6
+    assert r["kpis"]["atingimento_mtd"] is None and r["kpis"]["meta_mes"] is None
+    assert any("driver fiscal" in a.lower() for a in r["avisos"])
+    # a banda nao pode colapsar no cenario MAIS incerto (frac_rest > 0)
+    cv = linhas["CUSTO FIXO"]
+    assert cv["previsto_pess"] < cv["previsto_otim"]
+
+
+def test_diario_ausente_frete_compra_nao_projeta_o_mes_inteiro_por_cima():
+    """Com o diario fora, receita_mtd vem do RAZAO. Zerar receita_mtd faria
+    prever_frete_compra somar o custo JA conhecido com a projecao do mes
+    INTEIRO (dupla contagem do trecho decorrido)."""
+    meses6 = ["2026-02", "2026-03", "2026-04", "2026-05", "2026-06", "2026-07"]
+    ctx = _ctx_minimo()
+    ctx["hist_ag"]["CV - FRETE AGREGADOS"] = {m: -200.0 for m in meses6}
+    ctx["razao_ag_mes"]["CV - FRETE AGREGADOS"] = -60.0
+    ctx["diario"] = None
+    r = montar_resposta(ctx)
+    linhas = {ln["linha"]: ln for ln in r["linhas"]}
+    # receita prevista = 1000 (nivel); receita MTD do razao = 300;
+    # razao custo/receita 6m = -1200/6000 = -0,2; conhecido = min(-60, -0) = -60
+    # esperado = -60 + (1000-300)*-0,2 = -200. Com receita_mtd=0 seria -260.
+    frete = -60.0 + (1000.0 - 300.0) * (-1200.0 / 6000.0)
+    combustivel = -300.0        # razao -100 / completude 10/30 (curva intacta)
+    assert abs(linhas["CUSTO VARIAVEL"]["previsto"] - (frete + combustivel)) < 1e-6
+
+
+def test_ops_ausente_vfc_zerado_e_ctaplus_none_tolerados():
+    """f_ops fora: vfc zerado, ctaplus/cap None. Nao pode explodir, nao pode
+    mudar as linhas que nao dependem de viagens, e o aviso de divergencia de
+    combustivel (que compara contra os abastecimentos) simplesmente nao sai."""
+    ctx = _ctx_minimo()
+    ctx["vfc"] = {"frete_compra": 0.0, "receita_viagens": 0.0, "viagens": 0}
+    ctx["ctaplus"] = None
+    ctx["cap"] = None
+    r = montar_resposta(ctx)
+    linhas = {ln["linha"]: ln for ln in r["linhas"]}
+    base = montar_resposta(_ctx_minimo())
+    base_linhas = {ln["linha"]: ln for ln in base["linhas"]}
+    assert abs(linhas["RECEITA BRUTA"]["previsto"]
+               - base_linhas["RECEITA BRUTA"]["previsto"]) < 1e-9
+    assert abs(linhas["CUSTO VARIAVEL"]["previsto"]
+               - base_linhas["CUSTO VARIAVEL"]["previsto"]) < 1e-9
+    assert r["kpis"]["cap_mes"] is None
+    assert not any("combust" in a.lower() for a in r["avisos"])
+
+
+def test_todas_as_fontes_ok_e_identico_ao_comportamento_anterior():
+    """Regressao da onda de fix: com TODAS as fontes presentes, os numeros e
+    os avisos sao exatamente os de antes (nenhum aviso novo, nenhuma linha
+    trocando de estrategia)."""
+    r = montar_resposta(_ctx_minimo())
+    linhas = {ln["linha"]: ln for ln in r["linhas"]}
+    ritmo = 310.0 / 320.0
+    assert abs(linhas["RECEITA BRUTA"]["previsto"] - (310.0 + 680.0 * ritmo)) < 1e-9
+    assert linhas["RECEITA BRUTA"]["estrategia"] == "driver_fiscal"
+    assert abs(linhas["CUSTO VARIAVEL"]["previsto"] - (-300.0)) < 1e-9
+    assert linhas["CUSTO VARIAVEL"]["estrategia"] == "razao_completude"
+    assert abs(linhas["CUSTO FIXO"]["previsto"] - (-100.0)) < 1e-9
+    assert r["avisos"] == []
+    assert r["fontes"] == []
+
+
+def test_fontes_e_avisos_previos_do_ctx_chegam_na_resposta():
+    """fontes[] e avisos_previos vem da camada de I/O (get_previsao) e passam
+    intactos por montar_resposta — é o que a tela desenha nos chips."""
+    ctx = _ctx_minimo()
+    ctx["fontes"] = [{"nome": "razao contabil (AVA)", "ok": True},
+                     {"nome": "viagens / abastecimentos / contas a pagar",
+                      "ok": False}]
+    ctx["avisos_previos"] = ["Viagens indisponiveis: teste."]
+    r = montar_resposta(ctx)
+    assert r["fontes"] == ctx["fontes"]
+    assert r["avisos"][0] == "Viagens indisponiveis: teste."

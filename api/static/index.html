@@ -1587,6 +1587,9 @@ button.avatar{border:0;cursor:pointer}
             <select id="fFechMes" onchange="loadFech()" style="margin-left:8px"></select>
           </label>
           <span class="hint" id="fech-carimbo"></span>
+          <!-- chips de procedência: mesmo padrão (e mesmas classes) da tela do
+               Copiloto — fonte que falhou aparece em âmbar, não some calada -->
+          <div class="cop-ctx" id="fech-fontes" style="margin-top:0"></div>
         </div>
         <div id="fech-avisos"></div>
         <div class="kpis" id="kpis-fech"></div>
@@ -7838,12 +7841,21 @@ async function loadFech(){
 const FECH_ESTRAT={driver_fiscal:['b-info','driver fiscal'],pct_receita:['b-info','% receita'],
   razao_completude:['b-info','razão÷completude'],nivel:['b-info','nível'],sazonal:['b-info','sazonal'],
   frete_compra:['b-info','frete compra'],runrate:['b-info','run-rate'],consolidado:['b-ok','consolidado'],
+  // âmbar de propósito: "lote" quer dizer que a curva de escrituração é bimodal
+  // nessa linha e a previsão NÃO dividiu pela completude média (ver motor.estimar_m1)
+  lote:['b-warn','lote (escrituração)'],
   formula:['','fórmula'],fechado:['b-ok','fechado']};
 function renderFech(d){
   const k=d.kpis||{}, modo=d.modo;
   document.getElementById('fech-carimbo').textContent=
     `dados até ${fmtD(k.dados_ate)} · modo ${modo}`+
     (k.consolidacao_pct!=null?` · razão ${Math.round(k.consolidacao_pct*100)}% consolidado`:'');
+  // fontes: chip discreto para a que respondeu, âmbar para a que caiu (a
+  // previsão degrada por fonte — o número muda de método, e a tela diz isso)
+  document.getElementById('fech-fontes').innerHTML=(d.fontes||[]).map(f=>
+    f.ok?`<span title="fonte consultada com sucesso nesta previsão">${esc(f.nome)}</span>`
+        :`<span class="falha" title="Fonte indisponível nesta consulta — a linha que dependia dela caiu para o método declarado nos avisos abaixo.">⚠ ${esc(f.nome)}</span>`
+  ).join('');
   document.getElementById('fech-avisos').innerHTML=(d.avisos||[]).map(a=>
     `<div class="card" style="padding:10px 16px;border-left:4px solid var(--yellow);margin-bottom:8px;font-size:13px">${esc(a)}</div>`).join('');
   const banda=(k.resultado_pess!=null&&k.resultado_otim!=null)?
@@ -7888,13 +7900,15 @@ function renderFech(d){
   const rl=(d.linhas||[]).find(l=>l.linha==='RECEITA LIQUIDA');
   const rlv=rl?Math.abs(rl.previsto)||1:1;
   const rows=(d.linhas||[]).map(l=>{
-    const [bc,bt]=FECH_ESTRAT[l.estrategia]||['',l.estrategia];
+    const [bc,bt]=FECH_ESTRAT[l.estrategia]||['',esc(l.estrategia)];
     const nomeCell=`${l.nivel?'&nbsp;&nbsp;&nbsp;':''}${l.formula?'<b>':''}${esc(l.linha)}${l.formula?'</b>':''}`+
       (l.ajuste?` <span class="badge b-warn" title="${esc(l.ajuste.motivo||'')} (${esc(l.ajuste.autor||'')})">ajustado</span>`:'');
     const bandaCell=(l.previsto_pess!==l.previsto_otim)?
       `<span title="cenário pessimista .. otimista">${brlAbbr(l.previsto_pess)} .. ${brlAbbr(l.previsto_otim)}</span>`:'—';
     const premissas=(l.premissas||[]).join(' · ');
-    const aj=l.formula?'':`<a href="#" onclick="fechAjuste('${esc(d.mes)}','${esc(l.linha)}',${l.previsto});return false" title="ajuste manual">✎</a>`;
+    // sem ✎ em NAO ALOCADO / CLASSIFICAR: o POST valida linha ∈ DRE_MODELO
+    // diretas e devolve 422 — o usuário preencheria 2 prompts para falhar
+    const aj=(l.formula||l.linha==='NAO ALOCADO / CLASSIFICAR')?'':`<a href="#" onclick="fechAjuste('${esc(d.mes)}','${esc(l.linha)}',${l.previsto});return false" title="ajuste manual">✎</a>`;
     return `<tr${l.formula?' style="background:var(--n50,#fafafa)"':''} title="${esc(premissas)}">
       <td>${nomeCell}</td>
       <td class="num">${brlAbbr(l.realizado||0)}</td>

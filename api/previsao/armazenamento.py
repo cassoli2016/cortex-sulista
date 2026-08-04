@@ -92,12 +92,16 @@ def salvar_ajuste_prev(path: Path, mes: str, linha: str, tipo: str,
                   (autor, "ajuste", f"{mes} {linha} {tipo}={valor} ({motivo.strip()})"))
 
 
-def remover_ajuste_prev(path: Path, mes: str, linha: str) -> bool:
+def remover_ajuste_prev(path: Path, mes: str, linha: str,
+                        autor: str | None = None) -> bool:
+    """autor e' OPCIONAL na assinatura (mantem call sites antigos validos), mas
+    a camada API sempre passa quem removeu: em controladoria "quem apagou o
+    ajuste manual" e' exatamente a pergunta da auditoria."""
     with _conn(path) as c:
         cur = c.execute("DELETE FROM prev_ajuste WHERE mes=? AND linha=?", (mes, linha))
         if cur.rowcount:
             c.execute("INSERT INTO prev_log(autor, acao, detalhe) VALUES(?,?,?)",
-                      (None, "ajuste_removido", f"{mes} {linha}"))
+                      (autor, "ajuste_removido", f"{mes} {linha}"))
         return bool(cur.rowcount)
 
 
