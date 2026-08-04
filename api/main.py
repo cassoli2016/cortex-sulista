@@ -1244,6 +1244,79 @@ async def orcamento_reabrir(req: Request) -> JSONResponse:
             "erro": "erro_consulta", "mensagem": "Erro ao reabrir a versão."})
 
 
+# ---------------------------------------------------------------- Previsão de fechamento
+
+@app.get("/api/controladoria/previsao")
+def previsao_fechamento(mes: str | None = None) -> JSONResponse:
+    from api.previsao import get_previsao_fechamento
+    if mes is not None and not re.match(r"^\d{4}-(0[1-9]|1[0-2])$", mes):
+        return JSONResponse(status_code=422, content={
+            "erro": "parametro_invalido",
+            "mensagem": "Parâmetro mes inválido: use o formato AAAA-MM."})
+    # ledger da revisão do Task 6: mes futuro (além do mês corrente) cai em
+    # modo "fechado" e devolve uma DRE zerada silenciosa — comparação lexico-
+    # gráfica de strings "AAAA-MM" funciona porque o formato já foi validado
+    # acima (ano com 4 dígitos, mês com 2 dígitos zero-padded).
+    if mes is not None and mes > date.today().strftime("%Y-%m"):
+        return JSONResponse(status_code=422, content={
+            "erro": "parametro_invalido",
+            "mensagem": "Parâmetro mes inválido: mês futuro (além do mês corrente)."})
+    try:
+        return JSONResponse(get_previsao_fechamento(mes))
+    except psycopg.OperationalError as exc:
+        log.warning("banco inacessivel: %s", exc)
+        return JSONResponse(status_code=503, content={
+            "erro": "banco_inacessivel",
+            "mensagem": "Sem conexão com o banco. O túnel SSH está aberto?"})
+    except Exception as exc:  # noqa: BLE001
+        log.warning("previsao falhou: %s", exc)
+        return JSONResponse(status_code=500, content={
+            "erro": "erro_consulta", "mensagem": "Erro ao montar a previsão."})
+
+
+@app.post("/api/controladoria/previsao/ajuste")
+async def previsao_ajuste(req: Request) -> JSONResponse:
+    from api.previsao import armazenamento as parm
+    from api.queries import DRE_MODELO, _RESP_CACHE
+    try:
+        body = await req.json()
+    except Exception:
+        body = None
+    if not isinstance(body, dict):
+        return JSONResponse(status_code=422, content={
+            "erro": "parametro_invalido",
+            "mensagem": "Corpo da requisição inválido: envie um objeto JSON."})
+    mes = str(body.get("mes") or "")
+    linha = str(body.get("linha") or "")
+    if not re.match(r"^\d{4}-(0[1-9]|1[0-2])$", mes):
+        return JSONResponse(status_code=422, content={
+            "erro": "parametro_invalido", "mensagem": "mes deve ser AAAA-MM."})
+    rotulos = {r for r, _n, t, _s in DRE_MODELO if t != "formula"}
+    if linha not in rotulos:
+        return JSONResponse(status_code=422, content={
+            "erro": "parametro_invalido",
+            "mensagem": "linha deve ser uma linha DIRETA do modelo da DRE."})
+    valor = body.get("valor")
+    quem = (req.state.sessao or {}).get("nome") or "sistema"
+    try:
+        parm.init_db(parm.DB_PATH)
+        if valor is None:
+            parm.remover_ajuste_prev(parm.DB_PATH, mes, linha)
+        else:
+            parm.salvar_ajuste_prev(parm.DB_PATH, mes, linha,
+                                    str(body.get("tipo") or "delta"),
+                                    float(valor), str(body.get("motivo") or ""), quem)
+        _RESP_CACHE.clear()
+        return JSONResponse({"ok": True})
+    except ValueError as exc:
+        return JSONResponse(status_code=422, content={
+            "erro": "parametro_invalido", "mensagem": str(exc)})
+    except Exception as exc:  # noqa: BLE001
+        log.warning("previsao_ajuste falhou: %s", exc)
+        return JSONResponse(status_code=500, content={
+            "erro": "erro_consulta", "mensagem": "Erro ao salvar o ajuste."})
+
+
 # ---------------------------------------------------------------- Extrato bancário
 
 _EXT_MAX_BYTES = 8 * 1024 * 1024   # extrato OFX real tem dezenas/centenas de KB
