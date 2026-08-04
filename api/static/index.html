@@ -337,6 +337,7 @@ tr.forn-det td{padding:7px 12px}
   #dre-tab th:first-child,#dre-tab td:first-child{min-width:148px}
   #dre-tab thead th{position:static}
   #dre-tab tr.dre-item>td:first-child{padding-left:32px}
+  #dre-tab tr.dre-conta>td:first-child{padding-left:48px}
   /* alvos de toque maiores no celular */
   .chip,button.ghost{min-height:40px}
   .tv-head a{padding:4px 8px}
@@ -530,6 +531,11 @@ tr.dre-item{display:none;background:var(--n50,#F7F9FA)}
 tr.dre-item.on{display:table-row}
 #dre-tab tr.dre-item>td:first-child{padding-left:56px;color:var(--n500);font-size:12.5px;background:var(--n50,#F7F9FA)}
 tr.dre-item>td{font-size:12.5px;color:var(--n600)}
+/* 3o nivel: contas do plano de contas dentro do agrupador — um degrau a mais
+   de recuo, tipografia menor e mais clara, codigo estrutural em monoespacada */
+#dre-tab tr.dre-conta>td:first-child{padding-left:82px;font-size:11.5px;color:var(--n500)}
+tr.dre-conta>td{font-size:11.5px;color:var(--n500)}
+#dre-tab tr.dre-conta .ccod{font-family:var(--mono);font-size:10.5px;color:var(--n400)}
 tr.dre-sobra td{background:var(--yellow-100) !important}
 #dre-tab .exp{display:inline-block;width:14px;transition:transform .15s;color:var(--n400);margin-right:4px}
 tr[data-aberto="1"] .exp{transform:rotate(90deg)}
@@ -9814,7 +9820,7 @@ function renderDre(d){
     kpi('Resultado do exercício', BRL.format(re_?re_.total:0), re_?pctRL(re_.total):'', re_&&re_.total<0?'neg':'pos'),
   ].join('');
   document.getElementById('dreHint').textContent=
-    'R$ mil · Ano ant. = mesmo período do ano anterior · análise vertical: % RB sobre a receita bruta, % RL sobre a líquida'+(d.ajustes_locais>0?' · '+d.ajustes_locais+' ajuste(s) local(is)':'')+' · linhas com ▸ abrem a composição';
+    'R$ mil · Ano ant. = mesmo período do ano anterior · análise vertical: % RB sobre a receita bruta, % RL sobre a líquida'+(d.ajustes_locais>0?' · '+d.ajustes_locais+' ajuste(s) local(is)':'')+' · linhas com ▸ abrem os agrupadores, e cada agrupador com ▸ abre as contas do plano de contas';
   const fm=v=>{
     if(Math.abs(v)<500) return '<span class="zero">–</span>';
     const t=(v/1000).toLocaleString('pt-BR',{maximumFractionDigits:0});
@@ -9864,6 +9870,7 @@ function renderDre(d){
                           : `de ${(a/1000).toLocaleString('pt-BR',{maximumFractionDigits:0})} para ${(u/1000).toLocaleString('pt-BR',{maximumFractionDigits:0})} (R$ mil)`;
     return `<td class="num" style="color:${cor};font-weight:600;font-size:12px" title="${esc(tit)}">${seta} ${txt}</td>`;
   };
+  const SEM_AA_CONTA='O comparativo com o ano anterior é lido no nível do agrupador. No detalhe por conta ele não é calculado — traria uma segunda varredura pesada do razão sem mudar a leitura da linha.';
   const deltaAA=(u,a)=>_cel(u,a);
   const delta=(vs)=>{
     if(!temDelta) return '';
@@ -9881,7 +9888,7 @@ function renderDre(d){
       l.nivel===1?'dre-nv1':'',
       (l.nivel===0&&!RES.has(l.rotulo)&&l.rotulo!=='RESULTADO DO EXERCICIO')?'dre-tot':'',
     ].filter(Boolean).join(' ');
-    html+=`<tr class="${cls}" data-aberto="0" ${temDet?`onclick="dreToggle(${i})" style="cursor:pointer" title="clique para abrir a composição"`:''} id="dre-l-${i}">
+    html+=`<tr class="${cls}" data-aberto="0" ${temDet?`onclick="dreToggle(${i})" style="cursor:pointer" title="clique para abrir a composição por agrupador — e cada agrupador abre as contas"`:''} id="dre-l-${i}">
       <td>${temDet?'<span class="exp">▸</span>':'<span class="exp"></span>'}${esc(l.rotulo)}</td>
       ${d.meses.map(mm=>`<td class="num">${fm(l.meses[mm]||0)}</td>`).join('')}
       <td class="num" style="font-weight:700;border-left:2px solid var(--n300)">${fm(l.total)}</td>
@@ -9891,15 +9898,33 @@ function renderDre(d){
       <td class="num">${avRB}</td>
       <td class="num">${av}</td></tr>`;
     if(temDet){
-      html+=l.detalhe.map(dd=>`<tr class="dre-item dre-g-${i}">
-        <td>${esc(dd.agrupador)}</td>
+      l.detalhe.forEach((dd,j)=>{
+        const cts=dd.contas||[];
+        const temC=cts.length>0;
+        html+=`<tr class="dre-item dre-g-${i}" id="dre-a-${i}-${j}" data-aberto="0" ${temC?`onclick="dreToggleConta(${i},${j})" style="cursor:pointer" title="clique para abrir as contas do plano de contas deste agrupador"`:''}>
+        <td>${temC?'<span class="exp">▸</span>':'<span class="exp"></span>'}${esc(dd.agrupador)}</td>
         ${d.meses.map(mm=>`<td class="num">${fm(dd.meses[mm]||0)}</td>`).join('')}
         <td class="num" style="border-left:2px solid var(--n300)">${fm(dd.total)}</td>
         ${delta(dd.meses)}
         <td class="num" style="color:var(--n500)">${fm(dd.total_aa||0)}</td>
         ${deltaAA(dd.total, dd.total_aa||0)}
         <td class="num">${rbAbs?`<span class="av">${(100*dd.total/rbAbs).toFixed(1)}%</span>`:''}</td>
-        <td class="num">${(rl&&rl.total)?`<span class="av">${(100*dd.total/Math.abs(rl.total)).toFixed(1)}%</span>`:''}</td></tr>`).join('');
+        <td class="num">${(rl&&rl.total)?`<span class="av">${(100*dd.total/Math.abs(rl.total)).toFixed(1)}%</span>`:''}</td></tr>`;
+        /* 3o nivel — contas do plano de contas. O payload NAO traz o ano
+           anterior por conta (seria uma segunda varredura pesada do razao):
+           essas duas colunas saem como travessao neutro, com o title
+           explicando onde o comparativo a/a existe. A contagem de colunas
+           tem de bater com o cabecalho (15), entao nenhuma celula some. */
+        html+=cts.map(c=>`<tr class="dre-item dre-conta dre-c-${i}-${j}">
+        <td><span class="ccod">${esc(c.estrutural||'')}</span> · ${esc(c.conta||'')}</td>
+        ${d.meses.map(mm=>`<td class="num">${fm(c.meses[mm]||0)}</td>`).join('')}
+        <td class="num" style="border-left:2px solid var(--n300)">${fm(c.total)}</td>
+        ${delta(c.meses)}
+        <td class="num" title="${esc(SEM_AA_CONTA)}"><span class="zero">–</span></td>
+        <td class="num" title="${esc(SEM_AA_CONTA)}"><span class="zero">–</span></td>
+        <td class="num">${rbAbs?`<span class="av">${(100*c.total/rbAbs).toFixed(1)}%</span>`:''}</td>
+        <td class="num">${(rl&&rl.total)?`<span class="av">${(100*c.total/Math.abs(rl.total)).toFixed(1)}%</span>`:''}</td></tr>`).join('');
+      });
     }
   });
   document.getElementById('dre-corpo').innerHTML=html;
@@ -9911,6 +9936,23 @@ function dreToggle(i){
   const aberto=linha.getAttribute('data-aberto')==='1';
   linha.setAttribute('data-aberto', aberto?'0':'1');
   document.querySelectorAll('.dre-g-'+i).forEach(tr=>tr.classList.toggle('on', !aberto));
+  // Fechar a linha tem de fechar tambem as contas abertas dentro dela: as
+  // linhas de conta nao carregam a classe .dre-g-{i}, entao sem isto elas
+  // continuariam visiveis, orfas, embaixo de um agrupador ja recolhido.
+  if(aberto){
+    document.querySelectorAll('.dre-g-'+i).forEach(tr=>{
+      if(tr.getAttribute('data-aberto')!=='1') return;
+      tr.setAttribute('data-aberto','0');
+      const j=tr.id.split('-').pop();
+      document.querySelectorAll('.dre-c-'+i+'-'+j).forEach(c=>c.classList.remove('on'));
+    });
+  }
+}
+function dreToggleConta(i,j){
+  const ag=document.getElementById('dre-a-'+i+'-'+j);
+  const aberto=ag.getAttribute('data-aberto')==='1';
+  ag.setAttribute('data-aberto', aberto?'0':'1');
+  document.querySelectorAll('.dre-c-'+i+'-'+j).forEach(tr=>tr.classList.toggle('on', !aberto));
 }
 
 /* ---------------- Contabilidade (ajustes) ---------------- */
