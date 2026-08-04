@@ -65,3 +65,20 @@ def test_sazonal_nivel_x_indice():
     r = prever_sazonal([-100.0] * 6, [1.0] * 6, indice_alvo=0.8)
     assert abs(r["previsto"] - (-80.0)) < 1e-9
     assert r["estrategia"] == "sazonal"
+
+
+def test_formatacao_pt_br_receita():
+    """Valida formatação pt-BR em premissas (separador de milhar ponto, decimal vírgula)."""
+    r = prever_receita(real_acum=36000.0, meta_acum=40000.0, meta_mes=100000.0,
+                       ating_hist=0.85, dias_meta_decorridos=3)
+    # Deve conter "R$ 36.000" (pt-BR com ponto separador de milhar)
+    assert any("R$ 36.000" in p for p in r["premissas"])
+    # Deve conter "R$ 40.000"
+    assert any("R$ 40.000" in p for p in r["premissas"])
+
+
+def test_formatacao_pt_br_percentual():
+    """Valida formatação pt-BR em percentuais (vírgula decimal, símbolo %)."""
+    r = prever_pct_receita(receita_prev=1000.0, pct=-0.0778, nome_pct="federais 6m")
+    # Deve conter "-7,78%" (pt-BR com vírgula decimal)
+    assert any("-7,78%" in p for p in r["premissas"])
