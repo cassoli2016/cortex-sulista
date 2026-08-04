@@ -332,12 +332,9 @@ tr.forn-det td{padding:7px 12px}
   th{padding:8px 10px;font-size:10px}
   td{padding:8px 10px;font-size:12.5px}
   .chartwrap svg{min-width:560px}
-  /* DRE utilizável no celular: 1ª coluna mais estreita e cabeçalho rola junto
-     com o conteúdo (o sticky top:0 sumia atrás da topbar sticky) */
-  #dre-tab th:first-child,#dre-tab td:first-child{min-width:148px}
-  #dre-tab thead th{position:static}
-  #dre-tab tr.dre-item>td:first-child{padding-left:32px}
-  #dre-tab tr.dre-conta>td:first-child{padding-left:48px}
+  /* (as regras de celular da DRE ficam LOGO DEPOIS do bloco #dre-tab, mais
+     abaixo neste arquivo — aqui elas perdiam para as regras de topo, que vêm
+     depois e têm a MESMA especificidade: @media não acrescenta peso nenhum.) */
   /* alvos de toque maiores no celular */
   .chip,button.ghost{min-height:40px}
   .tv-head a{padding:4px 8px}
@@ -544,6 +541,25 @@ tr[data-aberto="1"] .exp{transform:rotate(90deg)}
 #dre-tab .neg{color:var(--red)}
 #dre-tab .zero{color:var(--n300)}
 #dre-tab .av{color:var(--n500);font-size:11px;font-weight:400}
+/* DRE utilizável no celular. Este bloco TEM de vir depois das regras de topo
+   acima: uma @media NÃO acrescenta especificidade, então quando ele morava lá
+   no @media geral (mais no começo do arquivo) o min-width:280px de topo
+   ganhava por ordem e a 1ª coluna — que é sticky — cobria as colunas de valor
+   num viewport de 390px. Nada de !important: a ordem resolve. */
+@media(max-width:880px){
+  /* Limitar a LARGURA da célula não basta: com white-space:nowrap o texto
+     continua PINTANDO por cima das colunas de valor (a caixa media 190px e
+     "RECEITA OPERACIONAL BRUTA - AGREGADOS" atravessava os números). O
+     overflow:hidden é o que corta de fato, e vale para os TRÊS níveis —
+     linha, agrupador e conta. O texto inteiro fica no title de cada célula. */
+  #dre-tab th:first-child,#dre-tab td:first-child{min-width:148px;max-width:190px;
+    overflow:hidden;text-overflow:ellipsis}
+  /* cabeçalho rola junto com o conteúdo (o sticky top:0 sumia atrás da topbar
+     sticky do celular) */
+  #dre-tab thead th{position:static}
+  #dre-tab tr.dre-item>td:first-child{padding-left:32px}
+  #dre-tab tr.dre-conta>td:first-child{padding-left:48px}
+}
 
 /* ---- Painéis TV ---- */
 body.tvmode{background:#0B1926}
@@ -2385,7 +2401,7 @@ button.avatar{border:0;cursor:pointer}
         <div class="kpis" id="kpis-dre"></div>
         <div class="card">
           <div class="head"><h2>DRE Gerencial <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="Modelo de DRE da própria empresa: lançamento × plano de contas × sulista.agrupadorgerencial, por competência. Valores em R$ MIL. A linha NÃO ALOCADO / CLASSIFICAR (em amarelo) é transparência: conta de resultado que ainda não tem agrupador — não é sobra nem erro de cálculo. Δ m/m: a seta segue o TAMANHO da linha (custo caindo é ▼) e a cor segue o efeito no resultado; quando o mês corrente está incompleto, a comparação usa os dois últimos meses FECHADOS.">i</span></h2><span class="hint" id="dreHint">valores em R$ · agrupador gerencial da empresa · clique nas linhas com ▸ para abrir a composição</span></div>
-          <div class="tablewrap"><table id="dre-tab"><thead id="dre-head"></thead><tbody id="dre-corpo"></tbody></table></div>
+          <div class="tablewrap tabroll" style="max-height:640px"><table id="dre-tab"><thead id="dre-head"></thead><tbody id="dre-corpo"></tbody></table></div>
         </div>
       </section>
       <!-- ===================== ORDENS DE COMPRA ===================== -->
@@ -9889,7 +9905,7 @@ function renderDre(d){
       (l.nivel===0&&!RES.has(l.rotulo)&&l.rotulo!=='RESULTADO DO EXERCICIO')?'dre-tot':'',
     ].filter(Boolean).join(' ');
     html+=`<tr class="${cls}" data-aberto="0" ${temDet?`onclick="dreToggle(${i})" style="cursor:pointer" title="clique para abrir a composição por agrupador — e cada agrupador abre as contas"`:''} id="dre-l-${i}">
-      <td>${temDet?'<span class="exp">▸</span>':'<span class="exp"></span>'}${esc(l.rotulo)}</td>
+      <td title="${esc(l.rotulo)}">${temDet?'<span class="exp">▸</span>':'<span class="exp"></span>'}${esc(l.rotulo)}</td>
       ${d.meses.map(mm=>`<td class="num">${fm(l.meses[mm]||0)}</td>`).join('')}
       <td class="num" style="font-weight:700;border-left:2px solid var(--n300)">${fm(l.total)}</td>
       ${delta(l.meses)}
@@ -9902,7 +9918,7 @@ function renderDre(d){
         const cts=dd.contas||[];
         const temC=cts.length>0;
         html+=`<tr class="dre-item dre-g-${i}" id="dre-a-${i}-${j}" data-aberto="0" ${temC?`onclick="dreToggleConta(${i},${j})" style="cursor:pointer" title="clique para abrir as contas do plano de contas deste agrupador"`:''}>
-        <td>${temC?'<span class="exp">▸</span>':'<span class="exp"></span>'}${esc(dd.agrupador)}</td>
+        <td title="${esc(dd.agrupador)}">${temC?'<span class="exp">▸</span>':'<span class="exp"></span>'}${esc(dd.agrupador)}</td>
         ${d.meses.map(mm=>`<td class="num">${fm(dd.meses[mm]||0)}</td>`).join('')}
         <td class="num" style="border-left:2px solid var(--n300)">${fm(dd.total)}</td>
         ${delta(dd.meses)}
@@ -9912,16 +9928,22 @@ function renderDre(d){
         <td class="num">${(rl&&rl.total)?`<span class="av">${(100*dd.total/Math.abs(rl.total)).toFixed(1)}%</span>`:''}</td></tr>`;
         /* 3o nivel — contas do plano de contas. O payload NAO traz o ano
            anterior por conta (seria uma segunda varredura pesada do razao):
-           essas duas colunas saem como travessao neutro, com o title
-           explicando onde o comparativo a/a existe. A contagem de colunas
-           tem de bater com o cabecalho (15), entao nenhuma celula some. */
+           essas duas colunas saem como "n/d", com o title explicando onde o
+           comparativo a/a existe. NAO usar o mesmo travessao do fm(): la ele
+           quer dizer "abaixo de R$ 500", e o diretor leria "nao existia no ano
+           passado" — e no celular nao ha hover para desfazer o mal-entendido.
+           A contagem de colunas tem de bater com o cabecalho (15), entao
+           nenhuma celula some.
+           O title com o texto inteiro nao e' enfeite: no celular a 1a coluna
+           e' sticky e trunca com reticencias (a descricao mais longa media
+           ~445px num viewport de 390 e cobria TODAS as colunas de valor). */
         html+=cts.map(c=>`<tr class="dre-item dre-conta dre-c-${i}-${j}">
-        <td><span class="ccod">${esc(c.estrutural||'')}</span> · ${esc(c.conta||'')}</td>
+        <td title="${esc((c.estrutural||'')+' · '+(c.conta||''))}"><span class="ccod">${esc(c.estrutural||'')}</span> · ${esc(c.conta||'')}</td>
         ${d.meses.map(mm=>`<td class="num">${fm(c.meses[mm]||0)}</td>`).join('')}
         <td class="num" style="border-left:2px solid var(--n300)">${fm(c.total)}</td>
         ${delta(c.meses)}
-        <td class="num" title="${esc(SEM_AA_CONTA)}"><span class="zero">–</span></td>
-        <td class="num" title="${esc(SEM_AA_CONTA)}"><span class="zero">–</span></td>
+        <td class="num" title="${esc(SEM_AA_CONTA)}"><span class="zero">n/d</span></td>
+        <td class="num" title="${esc(SEM_AA_CONTA)}"><span class="zero">n/d</span></td>
         <td class="num">${rbAbs?`<span class="av">${(100*c.total/rbAbs).toFixed(1)}%</span>`:''}</td>
         <td class="num">${(rl&&rl.total)?`<span class="av">${(100*c.total/Math.abs(rl.total)).toFixed(1)}%</span>`:''}</td></tr>`).join('');
       });

@@ -625,8 +625,18 @@ def get_previsao(mes: str | None = None, hoje: date | None = None) -> dict:
                 "a conferencia do combustivel contra os abastecimentos e o titulo "
                 "a pagar do mes nao aparecem nesta consulta.")
 
-    # razão 24m + mês alvo, com migração dos ajustes contábeis (mesma lógica
-    # de get_dre: subtrai do agrupador original, soma no novo)
+    # Razao 24m + mes alvo, com migracao dos ajustes contabeis: subtrai do
+    # agrupador original e soma no novo.
+    #
+    # Isto NAO e' mais "a mesma logica de get_dre" inteira: a DRE Gerencial le
+    # o periodo corrente no nivel da CONTA (DRE_AG_CONTA_SQL) e la o ajuste e'
+    # aplicado movendo a conta inteira de agrupador, sem subtrair/somar. O
+    # subtrai-soma continua sendo o caminho de get_dre para o comparativo do
+    # ANO ANTERIOR, que e' lido por agrupador — que e' exatamente o caso aqui:
+    # a previsao le as duas janelas por agrupador (DRE_AG_SQL). O par
+    # DRE_AG_SQL + DRE_AJUSTADAS_SQL carrega os MESMOS predicados (planoconta
+    # ativoinativo = 1 e elegibilidade), entao o valor debitado da origem e'
+    # sempre o que foi somado nela.
     def _aplica_mudancas(val: dict, mudancas: list[dict]) -> None:
         for m in mudancas:
             novo = ajustes_ctb[m["chave"]]["agrupador"]
