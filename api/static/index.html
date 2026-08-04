@@ -7861,7 +7861,8 @@ function renderFech(d){
       k.meta_mes?`meta ${brlAbbr(k.meta_mes)}`:'sem meta carregada',
       k.meta_mes&&k.receita_prevista>=k.meta_mes?'pos':''),
     kpi('Atingimento até hoje', k.atingimento_mtd!=null?Math.round(k.atingimento_mtd*100)+'%':'—',
-      'realizado fiscal ÷ meta acumulada', k.atingimento_mtd!=null&&k.atingimento_mtd<0.9?'neg':'pos'),
+      k.atingimento_mtd!=null?'realizado fiscal ÷ meta acumulada':'sem meta diária carregada',
+      k.atingimento_mtd==null?'':(k.atingimento_mtd<0.9?'neg':'pos')),
   ].join('');
   // evolução: 1 ponto por snapshot diário do RESULTADO DO EXERCICIO
   const snaps=(d.serie_snapshots||[]).filter(s=>s.linha==='RESULTADO DO EXERCICIO');
