@@ -25,6 +25,45 @@ def test_ajuste_crud(tmp_path):
     assert arm.remover_ajuste_prev(db, "2026-08", "CUSTO VARIAVEL") is False
 
 
+def _log(db):
+    import sqlite3
+    c = sqlite3.connect(db)
+    c.row_factory = sqlite3.Row
+    try:
+        return [dict(r) for r in c.execute(
+            "SELECT autor, acao, detalhe FROM prev_log ORDER BY id")]
+    finally:
+        c.close()
+
+
+def test_remocao_registra_o_autor_na_auditoria(tmp_path):
+    """Em controladoria "quem removeu o ajuste manual" e' A pergunta da
+    auditoria: o prev_log nao pode gravar autor NULL na remocao."""
+    db = tmp_path / "previsao.db"
+    arm.init_db(db)
+    arm.salvar_ajuste_prev(db, "2026-08", "CUSTO FIXO", "delta", -1000.0,
+                           "rescisao", "cristian")
+    assert arm.remover_ajuste_prev(db, "2026-08", "CUSTO FIXO", "marina") is True
+    linhas = _log(db)
+    assert [r["acao"] for r in linhas] == ["ajuste", "ajuste_removido"]
+    assert linhas[0]["autor"] == "cristian"
+    assert linhas[1]["autor"] == "marina"          # antes: None (anonimo)
+    assert linhas[1]["detalhe"] == "2026-08 CUSTO FIXO"
+
+
+def test_remocao_sem_autor_continua_valida_e_nao_loga_no_vazio(tmp_path):
+    """autor e' opcional (call sites antigos seguem validos) e a remocao que
+    nao apagou nada nao pode deixar rastro de auditoria."""
+    db = tmp_path / "previsao.db"
+    arm.init_db(db)
+    arm.salvar_ajuste_prev(db, "2026-08", "CUSTO FIXO", "delta", -1.0, "x", "c")
+    assert arm.remover_ajuste_prev(db, "2026-08", "CUSTO FIXO") is True
+    assert arm.remover_ajuste_prev(db, "2026-08", "CUSTO FIXO", "marina") is False
+    linhas = _log(db)
+    assert [r["acao"] for r in linhas] == ["ajuste", "ajuste_removido"]
+    assert linhas[1]["autor"] is None
+
+
 def test_ajuste_valida_tipo_e_motivo(tmp_path):
     db = tmp_path / "previsao.db"
     arm.init_db(db)

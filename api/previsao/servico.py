@@ -78,6 +78,27 @@ def _ultimos(serie: dict[str, float], meses: list[str], n: int) -> list[float]:
     return [serie.get(m, 0.0) for m in meses[-n:]]
 
 
+# premissa/aviso da degradacao da curva (spec 11): completude_em devolve o
+# NEUTRO 1.0 quando a curva esta ausente, o que transformaria "razao parcial"
+# em "previsto" e subestimaria grosseiramente toda linha razao_completude no
+# comeco do mes. Sem curva NAO se divide: cai para o nivel historico.
+PREM_SEM_CURVA = "curva de completude indisponivel - usando nivel"
+AVISO_SEM_CURVA = (
+    "Curva de completude indisponivel: as linhas que dependem dela NAO foram "
+    "divididas pela completude esperada - cairam para o nivel historico "
+    "(mediana dos 3 ultimos meses fechados). Numeros mais conservadores que o "
+    "normal nessas linhas.")
+
+
+def _curva_utilizavel(curva: dict | None) -> bool:
+    """A curva so' serve se tiver ALGUMA serie de fracoes (por agrupador ou a
+    global). Com {} (fonte degradada) completude_em cai no neutro 1.0 e
+    dispersao_em no neutro 0.0 - os dois "tudo certo" mais perigosos possiveis
+    aqui, porque produzem um numero errado em silencio em vez de um erro."""
+    c = curva or {}
+    return bool(c.get("ag") or c.get("global"))
+
+
 def montar_resposta(ctx: dict) -> dict:
     """ctx (tudo plain data — ver get_previsao para o preenchimento):
     mes, modo ('corrente'|'fechando'|'fechado'), dia_rel, hoje (iso),
@@ -88,7 +109,13 @@ def montar_resposta(ctx: dict) -> dict:
     ctaplus {custo, abastecimentos}, cap {valor, titulos}, breakeven dict|None,
     orcado_linha {rotulo: valor}, meses_circulares [int], calibracao {linha:
     {dia: {p20,p80}}}, ajustes (armazenamento.ler_ajustes_prev), indices =
-    (indices_por_linha, linhas_flat), snapshots [], fontes []."""
+    (indices_por_linha, linhas_flat), snapshots [], fontes [{nome, ok}],
+    avisos_previos [str] (avisos ja escritos pela camada de I/O).
+
+    DEGRADACAO POR FONTE (spec 11): curva {} e diario None NAO sao "neutro",
+    sao "fonte fora" — em vez de dividir por uma completude 1.0 fantasma ou
+    prever receita 0,00, essas linhas trocam de METODO (nivel historico) e
+    dizem isso na premissa e no aviso."""
     modo = ctx["modo"]
     meses = ctx["meses_hist"]
     hist_ag = ctx["hist_ag"]
@@ -108,9 +135,16 @@ def montar_resposta(ctx: dict) -> dict:
             nao_alocado_real += v
 
     previsto_direta: dict[str, dict] = {}
+    curva_ok = _curva_utilizavel(ctx.get("curva"))
+    if not curva_ok and modo in ("corrente", "fechando"):
+        avisos.append(AVISO_SEM_CURVA)
 
     def _fallback_nivel(ag: str) -> dict:
         return motor.prever_nivel(_ultimos(hist_ag.get(ag, {}), meses, 3), f"{ag} 3m")
+
+    def _nivel_sem_curva(ag: str) -> dict:
+        r = _fallback_nivel(ag)
+        return {**r, "premissas": r["premissas"] + [PREM_SEM_CURVA]}
 
     if modo == "fechado":
         for rot, v in realizado_direta.items():
@@ -118,8 +152,11 @@ def montar_resposta(ctx: dict) -> dict:
                                     "premissas": ["mes fechado - razao"]}
         avisos.append("Mes fechado: previsto = razao. Consulte a DRE Gerencial.")
     elif modo == "fechando":
-        est = motor.estimar_m1(razao_ag, ctx["curva"], ctx["dia_rel"],
-                               {ag: _fallback_nivel(ag) for ag in razao_ag})
+        # sem curva nao ha' como decidir consolidado/lote/razao_completude: o
+        # M-1 inteiro cai no nivel historico (mesma regra do corrente).
+        est = (motor.estimar_m1(razao_ag, ctx["curva"], ctx["dia_rel"],
+                                {ag: _fallback_nivel(ag) for ag in razao_ag})
+               if curva_ok else {ag: _nivel_sem_curva(ag) for ag in razao_ag})
         for ag, r in est.items():
             rot = motor.linha_do_agrupador(ag)
             if not rot:
@@ -131,9 +168,29 @@ def montar_resposta(ctx: dict) -> dict:
             if r["estrategia"] != "consolidado":
                 atual["estrategia"] = r["estrategia"]
     else:  # corrente
-        d = ctx["diario"] or {"real_acum": 0.0, "meta_acum": 0.0, "meta_mes": 0.0}
-        rec = motor.prever_receita(d["real_acum"], d["meta_acum"], d["meta_mes"],
-                                   ctx.get("ating_hist"), ctx["dias_meta_decorridos"])
+        d = ctx["diario"]
+        if d:
+            rec = motor.prever_receita(d["real_acum"], d["meta_acum"], d["meta_mes"],
+                                       ctx.get("ating_hist"),
+                                       ctx["dias_meta_decorridos"])
+        else:
+            # driver fiscal fora (spec 11). Zerar o diario faria prever_receita
+            # devolver 0,00 de RECEITA BRUTA e a cascata inteira (impostos,
+            # frete de compra, % da receita) desabaria junto: numero errado em
+            # silencio. Sem o driver, o nivel historico e' o melhor conhecido.
+            rec = motor.prever_nivel(
+                _ultimos(hist_linha.get("RECEITA BRUTA", {}), meses, 3),
+                "receita 3m (driver fiscal indisponivel)")
+            # receita MTD pelo RAZAO (unica medida de receita decorrida que
+            # sobra) para o bloco do frete de compra nao projetar o mes inteiro
+            # POR CIMA do custo ja conhecido.
+            d = {"real_acum": realizado_direta.get("RECEITA BRUTA", 0.0),
+                 "meta_acum": 0.0, "meta_mes": 0.0}
+            avisos.append(
+                "Meta diaria / faturamento fiscal indisponivel: a RECEITA BRUTA "
+                f"prevista ({_brl(rec['previsto'])}) vem do nivel historico "
+                "(mediana dos 3 ultimos meses fechados), nao do driver fiscal - "
+                "e o atingimento do mes fica sem base para ser calculado.")
         previsto_direta["RECEITA BRUTA"] = rec
         rb_hist = hist_linha.get("RECEITA BRUTA", {})
         rb6 = _ultimos(rb_hist, meses, 6)
@@ -192,6 +249,8 @@ def montar_resposta(ctx: dict) -> dict:
                 vals6 = _ultimos(hist_ag.get(ag, {}), meses, 6)
                 i6 = [idx[int(m[5:7])] for m in meses[-6:]]
                 r = motor.prever_sazonal(vals6, i6, idx[int(ctx["mes"][5:7])])
+            elif not curva_ok:  # razao_completude sem curva: NAO divide
+                r = _nivel_sem_curva(ag)
             else:  # razao_completude
                 frac = completude_em(ctx["curva"], ag, rot, ctx["dia_rel"])
                 disp = dispersao_em(ctx["curva"], ag, rot, ctx["dia_rel"])
@@ -222,6 +281,11 @@ def montar_resposta(ctx: dict) -> dict:
     if modo == "corrente" and ctx.get("diario"):
         mm = ctx["diario"]["meta_mes"]
         frac_rest = max(0.0, 1.0 - (ctx["diario"]["meta_acum"] / mm)) if mm else 0.5
+    elif modo == "corrente":
+        # sem meta diaria nao da' para medir quanto do mes falta pela meta; o
+        # calendario e' a aproximacao honesta. Deixar 0.0 aqui colapsaria a
+        # banda de banda_fallback justo no cenario MAIS incerto (driver fora).
+        frac_rest = max(0.0, min(1.0, 1.0 - ctx.get("dia_rel", 0) / 30.0))
     elif modo == "fechando":
         frac_rest = 0.3
 
@@ -282,6 +346,9 @@ def montar_resposta(ctx: dict) -> dict:
         comb_prev = None
         for ag in razao_ag:
             if motor.norm(ag).startswith("CV - COMBUSTIVEL"):
+                if not curva_ok:  # mesma rota do loop principal: nao divide
+                    comb_prev = _nivel_sem_curva(ag)["previsto"]
+                    continue
                 frac = completude_em(ctx["curva"], ag, "CUSTO VARIAVEL", ctx["dia_rel"])
                 disp = dispersao_em(ctx["curva"], ag, "CUSTO VARIAVEL", ctx["dia_rel"])
                 comb_prev = motor.prever_razao_completude(
@@ -361,7 +428,8 @@ def get_previsao(mes: str | None = None, hoje: date | None = None) -> dict:
     de24 = f"{meses24[0]}-01"
     _, ate24 = _comp_bounds(meses24[-1], meses24[-1])
     ajustes_ctb = ler_ajustes()
-    fontes = []
+    fontes: list[dict] = []
+    avisos_previos: list[str] = []
 
     with ThreadPoolExecutor(max_workers=4) as ex:
         f_razao = ex.submit(_fetch_grupo, [
@@ -388,10 +456,49 @@ def get_previsao(mes: str | None = None, hoje: date | None = None) -> dict:
             (CTAPLUS_MTD_SQL, {"de": de_mes, "ate": ate_mes}),
             (CAP_MES_SQL, {"de": de_mes, "ate": ate_mes}),
         ])
+        # Degradacao POR FONTE (spec 11): um driver externo fora nao derruba a
+        # tela inteira. Excecao deliberada: o RAZAO e' ESSENCIAL - sem ele nao
+        # existe previsao nenhuma, entao propaga (o endpoint mapeia
+        # OperationalError -> 503 e o resto -> 500).
         razao_out = f_razao.result()
-        curva = f_curva.result()
-        diario_out = f_diario.result()
-        ops_out = f_ops.result()
+        fontes.append({"nome": "razao contabil (AVA)", "ok": True})
+        try:
+            curva = f_curva.result()
+            fontes.append({"nome": "curva de completude", "ok": True})
+        except Exception as exc:  # noqa: BLE001
+            log.warning("previsao: curva de completude indisponivel: %s", exc)
+            curva = {}
+            # o aviso da curva sai de montar_resposta (AVISO_SEM_CURVA), que e'
+            # quem sabe se o modo do mes chega a usar a curva - repetir aqui
+            # duplicaria a linha na tela.
+            fontes.append({"nome": "curva de completude", "ok": False})
+        try:
+            diario_out = f_diario.result()
+            fontes.append({"nome": "meta diaria / faturamento fiscal", "ok": True})
+        except Exception as exc:  # noqa: BLE001
+            log.warning("previsao: driver fiscal indisponivel: %s", exc)
+            diario_out = None
+            fontes.append({"nome": "meta diaria / faturamento fiscal", "ok": False})
+            # so' o que montar_resposta NAO tem como dizer sozinha (ela ja
+            # declara a receita por nivel e o atingimento sem base) - senao a
+            # tela repetiria a mesma frase em dois avisos.
+            avisos_previos.append(
+                "Meta diaria e faturamento fiscal (CT-e/NFS-e/KMM) indisponiveis: "
+                "o ponto de equilibrio do mes nao foi calculado nesta consulta.")
+        try:
+            ops_out = f_ops.result()
+            fontes.append({"nome": "viagens / abastecimentos / contas a pagar",
+                           "ok": True})
+        except Exception as exc:  # noqa: BLE001
+            log.warning("previsao: drivers operacionais indisponiveis: %s", exc)
+            ops_out = None
+            fontes.append({"nome": "viagens / abastecimentos / contas a pagar",
+                           "ok": False})
+            avisos_previos.append(
+                "Viagens, abastecimentos e contas a pagar indisponiveis: o frete "
+                "de compra fica so' com o razao (sem o cruzamento das viagens), e "
+                "a conferencia do combustivel contra os abastecimentos e o titulo "
+                "a pagar do mes nao aparecem nesta consulta.")
 
     # razão 24m + mês alvo, com migração dos ajustes contábeis (mesma lógica
     # de get_dre: subtrai do agrupador original, soma no novo)
@@ -425,7 +532,9 @@ def get_previsao(mes: str | None = None, hoje: date | None = None) -> dict:
     # diario do mes corrente (VG_DIARIO_SQL e fixo no mes corrente do banco)
     diario = None
     dias_meta_decorridos = 0
-    if modo == "corrente":
+    ating_hist = None
+    breakeven = None
+    if diario_out is not None and modo == "corrente":
         rows_d = diario_out[0]
         meta_mes = sum(r["meta"] for r in rows_d)
         meta_acum = sum(r["meta"] for r in rows_d if r["dia"] <= hoje.day)
@@ -434,18 +543,18 @@ def get_previsao(mes: str | None = None, hoje: date | None = None) -> dict:
                                    if r["meta"] and r["dia"] <= hoje.day)
         diario = {"real_acum": real_acum, "meta_acum": meta_acum,
                   "meta_mes": meta_mes}
-    ath = [r for r in diario_out[1] if r["meta"]]
-    ating_hist = (sum(r["realizado"] / r["meta"] for r in ath) / len(ath)) \
-        if ath else None
-    breakeven = None
-    try:
-        # _ponto_equilibrio espera {grupo: valor} (ver api/queries.py get_visao_geral,
-        # que monta be_rows = {r["grupo"]: r["valor"] for r in ...} antes de chamar) —
-        # aqui as linhas cruas de BREAKEVEN_SQL precisam do mesmo tratamento.
-        be_rows = {r["grupo"]: r["valor"] for r in diario_out[2]}
-        breakeven = _ponto_equilibrio(be_rows)
-    except Exception:  # noqa: BLE001
-        pass
+    if diario_out is not None:
+        ath = [r for r in diario_out[1] if r["meta"]]
+        ating_hist = (sum(r["realizado"] / r["meta"] for r in ath) / len(ath)) \
+            if ath else None
+        try:
+            # _ponto_equilibrio espera {grupo: valor} (ver api/queries.py get_visao_geral,
+            # que monta be_rows = {r["grupo"]: r["valor"] for r in ...} antes de chamar) —
+            # aqui as linhas cruas de BREAKEVEN_SQL precisam do mesmo tratamento.
+            be_rows = {r["grupo"]: r["valor"] for r in diario_out[2]}
+            breakeven = _ponto_equilibrio(be_rows)
+        except Exception:  # noqa: BLE001
+            pass
 
     # indices sazonais por linha (24 meses) — reuso do orcamento
     serie_linha = _hist_linha(hist_ag, meses24)
@@ -488,12 +597,14 @@ def get_previsao(mes: str | None = None, hoje: date | None = None) -> dict:
            "dias_meta_decorridos": dias_meta_decorridos,
            "razao_ag_mes": razao_ag_mes, "hist_ag": hist_ag, "meses_hist": meses24,
            "diario": diario, "ating_hist": ating_hist, "curva": curva,
-           "vfc": dict(ops_out[0][0]) if ops_out[0] else {"frete_compra": 0.0,
-                                                          "receita_viagens": 0.0,
-                                                          "viagens": 0},
-           "ctaplus": dict(ops_out[1][0]) if ops_out[1] else None,
-           "cap": dict(ops_out[2][0]) if ops_out[2] else None,
+           # ops_out None = grupo operacional degradado (spec 11): vfc zerado,
+           # ctaplus/cap ausentes — os tres ja sao tolerados rio abaixo.
+           "vfc": dict(ops_out[0][0]) if (ops_out and ops_out[0])
+                  else {"frete_compra": 0.0, "receita_viagens": 0.0, "viagens": 0},
+           "ctaplus": dict(ops_out[1][0]) if (ops_out and ops_out[1]) else None,
+           "cap": dict(ops_out[2][0]) if (ops_out and ops_out[2]) else None,
            "breakeven": breakeven, "orcado_linha": orcado_linha,
+           "avisos_previos": avisos_previos,
            "meses_circulares": circulares, "calibracao": calib,
            "ajustes": arm.ler_ajustes_prev(arm.DB_PATH, mes),
            "indices": indices,

@@ -1301,7 +1301,7 @@ async def previsao_ajuste(req: Request) -> JSONResponse:
     try:
         parm.init_db(parm.DB_PATH)
         if valor is None:
-            parm.remover_ajuste_prev(parm.DB_PATH, mes, linha)
+            parm.remover_ajuste_prev(parm.DB_PATH, mes, linha, quem)
         else:
             parm.salvar_ajuste_prev(parm.DB_PATH, mes, linha,
                                     str(body.get("tipo") or "delta"),
