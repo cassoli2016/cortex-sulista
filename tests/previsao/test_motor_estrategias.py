@@ -51,6 +51,26 @@ def test_razao_completude_e_guarda_de_divisor():
     assert any("completude" in p for p in guard["premissas"])
 
 
+def test_razao_completude_guarda_de_dispersao_escrituracao_em_lote():
+    """dispersao > DISPERSAO_MAX (curva bimodal - lote) tem prioridade sobre a
+    divisao normal, mesmo com frac dentro da faixa que dividiria em condicoes
+    normais. Ex. real: julho/26 com razao ja 100% postada (R$ 11,56mi) dividida
+    por uma completude media de 0,484 (bimodal) quase DOBRAVA a previsao."""
+    fb = prever_nivel([-400.0, -420.0, -410.0], "fallback")
+    sem_lote = prever_razao_completude(razao_mtd=-200.0, frac=0.5, fallback=fb,
+                                       dispersao=0.10)
+    assert sem_lote["estrategia"] == "razao_completude"  # dispersao baixa - divide normal
+    assert abs(sem_lote["previsto"] - (-400.0)) < 1e-9
+    com_lote = prever_razao_completude(razao_mtd=-200.0, frac=0.5, fallback=fb,
+                                       dispersao=0.50)
+    assert com_lote["previsto"] == fb["previsto"]        # nao divide - usa fallback
+    assert com_lote["estrategia"] == fb["estrategia"]
+    assert any("lote" in p.lower() for p in com_lote["premissas"])
+    # default dispersao=0.0 preserva o comportamento de sempre (regressao)
+    default = prever_razao_completude(razao_mtd=-200.0, frac=0.5, fallback=fb)
+    assert default["estrategia"] == "razao_completude"
+
+
 def test_frete_compra_conhecido_mais_projecao():
     # razao mostra -100, viagens mostram -180 (mais informacao) -> conhecido=-180
     # receita prevista 1000, ja realizada 300 -> restante 700 * razao -0,5 = -350

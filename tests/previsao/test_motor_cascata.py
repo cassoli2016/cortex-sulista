@@ -77,3 +77,25 @@ def test_estimar_m1_consolida_estima_e_faz_fallback():
     assert r["B"]["previsto"] == -700.0            # frac 0,1 < piso -> fallback
     r2 = estimar_m1({"A": -25.0}, curva, dia_rel=35, fallback_por_ag={})
     assert abs(r2["A"]["previsto"] - (-50.0)) < 1e-9   # -25 / 0,5
+
+
+def test_estimar_m1_lote_bimodal_usa_o_maior_em_modulo():
+    """Curva bimodal (dispersao alta) NAO pode dividir pela media - dobraria
+    um mes "cedo" (razao ja completa) e esmagaria um mes "tardio" (lote nao
+    entrou ainda). Reproduz o defeito real de julho/26: RECEITA BRUTA
+    dobrando de ~R$11,56mi para ~R$23,9mi ao dividir por completude media
+    0,484 numa curva bimodal."""
+    curva = {"ag": {"REC": {d: 0.484 for d in range(46)}},
+             "ag_disp": {"REC": {d: 0.45 for d in range(46)}},  # > DISPERSAO_MAX
+             "linha": {}, "linha_disp": {}, "global": {d: 0.484 for d in range(46)},
+             "global_disp": {}}
+    fb_alto = {"REC": {"previsto": 1000.0, "estrategia": "nivel", "premissas": ["fb"]}}
+    # razao ja superou o nivel (lote ja entrou) -> usa a razao como esta, SEM dividir
+    r_cedo = estimar_m1({"REC": 1156.0}, curva, dia_rel=34, fallback_por_ag=fb_alto)
+    assert r_cedo["REC"]["previsto"] == 1156.0     # nao e' 1156/0.484=2388.4 (o bug)
+    assert r_cedo["REC"]["estrategia"] == "lote"
+    assert any("lote" in p.lower() for p in r_cedo["REC"]["premissas"])
+    # razao ainda bem abaixo do nivel (lote tardio nao entrou) -> usa o nivel
+    r_tarde = estimar_m1({"REC": 40.0}, curva, dia_rel=34, fallback_por_ag=fb_alto)
+    assert r_tarde["REC"]["previsto"] == 1000.0
+    assert r_tarde["REC"]["estrategia"] == "lote"

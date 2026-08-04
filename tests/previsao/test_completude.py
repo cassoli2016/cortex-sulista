@@ -1,8 +1,8 @@
 """Curva de escrituração: fração acumulada do movimento por dia relativo."""
 from __future__ import annotations
 
-from api.previsao.completude import (DIA_MAX, PISO_COMPLETUDE, completude_em,
-                                     montar_curva)
+from api.previsao.completude import (DIA_MAX, DISPERSAO_MAX, PISO_COMPLETUDE,
+                                     completude_em, dispersao_em, montar_curva)
 
 
 def _rows_sinteticas():
@@ -75,3 +75,43 @@ def test_agrupador_sem_movimento_cai_no_neutro():
     # Agrupador zerado cai para global (que tem valor)
     assert completude_em(curva, "CF - ZERADO", None, 15) > 0.0
     assert completude_em(curva, "CF - ZERADO", None, 15) <= 1.0
+
+
+def _rows_bimodais():
+    """3 meses escrituram CEDO (100% ja no dia 10), 3 meses so' escrituram
+    TARDE (3% no dia 10, o resto so' aparece depois do dia 40) - a mesma forma
+    medida ao vivo na receita (fev/mar/mai ~3% em D34 x abr/jun/jul 83-100%).
+    A MEDIA das fracoes nao representa nenhum dos dois grupos."""
+    rows = []
+    for mes in ("2026-02", "2026-04", "2026-06"):  # "cedo"
+        rows.append({"mes": mes, "agrupador": "RECEITA X", "dia_rel": 5, "valor_abs": 970.0})
+        rows.append({"mes": mes, "agrupador": "RECEITA X", "dia_rel": 10, "valor_abs": 30.0})
+    for mes in ("2026-03", "2026-05", "2026-07"):  # "lote tardio"
+        rows.append({"mes": mes, "agrupador": "RECEITA X", "dia_rel": 10, "valor_abs": 30.0})
+        rows.append({"mes": mes, "agrupador": "RECEITA X", "dia_rel": 42, "valor_abs": 970.0})
+    return rows
+
+
+def test_dispersao_alta_em_curva_bimodal():
+    curva = montar_curva(_rows_bimodais(), {"RECEITA X": "RECEITA BRUTA"})
+    # media no dia 10: (1.0 + 1.0 + 1.0 + 0.03 + 0.03 + 0.03) / 6 = 0.515 -
+    # nao representa NEM os "cedo" (1.0) NEM os "tardios" (0.03).
+    assert 0.4 < completude_em(curva, "RECEITA X", "RECEITA BRUTA", 10) < 0.6
+    assert dispersao_em(curva, "RECEITA X", "RECEITA BRUTA", 10) > DISPERSAO_MAX
+    # cascata ag -> linha funciona igual para a dispersao
+    assert dispersao_em(curva, "AG INEXISTENTE", "RECEITA BRUTA", 10) > DISPERSAO_MAX
+
+
+def test_dispersao_baixa_em_curva_homogenea_regressao():
+    """Curva onde todos os meses tem a MESMA forma - dispersao ~0 em todo
+    dia, comportamento identico ao de antes desta correcao."""
+    rows = []
+    for mes in ("2026-05", "2026-06", "2026-07"):
+        rows.append({"mes": mes, "agrupador": "CV - COMBUSTIVEL", "dia_rel": 15, "valor_abs": 50.0})
+        rows.append({"mes": mes, "agrupador": "CV - COMBUSTIVEL", "dia_rel": 30, "valor_abs": 50.0})
+    curva = montar_curva(rows, {"CV - COMBUSTIVEL": "CUSTO VARIAVEL"})
+    for d in (5, 15, 20, 30, 40):
+        assert dispersao_em(curva, "CV - COMBUSTIVEL", "CUSTO VARIAVEL", d) < 1e-9
+    assert dispersao_em({}, "X", None, 10) == 0.0          # sem curva -> neutro
+    # ag/linha ausentes caem para o global - mesma serie homogenea -> 0.0 tambem
+    assert dispersao_em(curva, "AUSENTE", "AUSENTE", 10) == 0.0

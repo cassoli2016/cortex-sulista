@@ -9,7 +9,8 @@ from __future__ import annotations
 import unicodedata
 
 from api.queries import DRE_MODELO
-from api.previsao.completude import PISO_COMPLETUDE, completude_em
+from api.previsao.completude import (DISPERSAO_MAX, PISO_COMPLETUDE,
+                                     completude_em, dispersao_em)
 
 PESO_DIAS_PLENO = 3  # dias com meta decorridos para o ritmo observado valer 100%
 
@@ -73,7 +74,18 @@ def prever_nivel(hist: list[float], rotulo_fonte: str) -> dict:
                 [f"mediana de {len(hist)} meses fechados ({rotulo_fonte})"])
 
 
-def prever_razao_completude(razao_mtd: float, frac: float, fallback: dict) -> dict:
+def prever_razao_completude(razao_mtd: float, frac: float, fallback: dict,
+                            dispersao: float = 0.0) -> dict:
+    """dispersao = dispersao_em(...) no dia: quando a curva-media e' bimodal
+    (dispersao > DISPERSAO_MAX), dividir pela media nao significa nada - uns
+    meses escrituram cedo, outros so' no lote tardio - e o fallback (nivel) e'
+    o mais confiavel disponivel aqui. Default 0.0 mantem os call sites/testes
+    que ainda nao medem dispersao com o comportamento de sempre."""
+    if dispersao > DISPERSAO_MAX:
+        return _res(fallback["previsto"], fallback["estrategia"],
+                    fallback["premissas"] + [
+                        f"escrituracao em lote detectada (dispersao {_pct(dispersao, 0)}) "
+                        f"- curva nao confiavel, usando {fallback['estrategia']}"])
     if frac < PISO_COMPLETUDE:
         return _res(fallback["previsto"], fallback["estrategia"],
                     fallback["premissas"] + [
@@ -205,13 +217,36 @@ def aplicar_ajuste(previsto: float, ajuste: dict | None) -> tuple[float, float]:
 
 def estimar_m1(razao_ag: dict[str, float], curva: dict, dia_rel: int,
                fallback_por_ag: dict[str, dict]) -> dict[str, dict]:
+    """`curva` já carrega a dispersão (montar_curva) — não precisa de outro
+    parâmetro para chegar até aqui, só ler com dispersao_em(curva, ag, rot, ..).
+
+    Quando a curva é bimodal (dispersao > DISPERSAO_MAX) dividir pela média
+    dobra os meses "cedo" e esmaga os "tardios" (ver completude.py). Sem um
+    jeito confiável de dividir, escolhe o MAIOR em módulo entre a razão como
+    está e o fallback de nível: se o lote já entrou, a razão já superou (ou
+    encostou nele) e é o melhor conhecido; se o lote ainda não entrou, a
+    razão está artificialmente baixa e o nível é o melhor conhecido."""
     out: dict[str, dict] = {}
     for ag, valor in razao_ag.items():
         rot = linha_do_agrupador(ag)
         frac = completude_em(curva, ag, rot, dia_rel)
+        disp = dispersao_em(curva, ag, rot, dia_rel)
         if frac >= CONSOLIDADO_EM:
             out[ag] = _res(valor, "consolidado",
                            [f"razao {_pct(frac, 0)} escriturado - consolidado"])
+        elif disp > DISPERSAO_MAX:
+            fb = fallback_por_ag.get(ag) or _res(valor, "razao_parcial",
+                                                 ["sem fallback disponivel"])
+            if abs(valor) >= abs(fb["previsto"]):
+                out[ag] = _res(valor, "lote", [
+                    f"escrituracao em lote detectada (dispersao {_pct(disp, 0)}) - "
+                    f"razao {_brl(valor)} ja supera o nivel {_brl(fb['previsto'])} "
+                    f"- usando razao"])
+            else:
+                out[ag] = _res(fb["previsto"], "lote", fb["premissas"] + [
+                    f"escrituracao em lote detectada (dispersao {_pct(disp, 0)}) - "
+                    f"razao {_brl(valor)} ainda abaixo do nivel {_brl(fb['previsto'])} "
+                    f"- usando nivel"])
         elif frac < PISO_COMPLETUDE:
             fb = fallback_por_ag.get(ag) or _res(valor, "razao_parcial",
                                                  ["sem fallback disponivel"])
