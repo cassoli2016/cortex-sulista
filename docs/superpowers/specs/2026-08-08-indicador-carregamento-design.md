@@ -32,20 +32,32 @@ comportamento correto para a carga de tela e já está testado em produção.
 
 ### Decisão central: interceptar o `fetch`, não editar as chamadas
 
-O interceptador é um ponto único:
+O arquivo **já tem** um wrapper de `window.fetch` (`index.html:10107`), que
+devolve o usuário ao login quando qualquer chamada responde 401. O contador
+entra dentro dele, num `try/finally`:
 
 ```js
-const _fetch = window.fetch;
-window.fetch = function(entrada, init){
-  if (naoDeveContar(entrada, init)) return _fetch.call(this, entrada, init);
-  cargaInicia();
-  return _fetch.call(this, entrada, init).finally(cargaTermina);
+const _fetch0 = window.fetch.bind(window);
+window.fetch = async (input, init) => {
+  const u = String(typeof input==='string' ? input : (input && input.url) || '');
+  const conta = u.startsWith('/api/') && !_cargaFundo(init);
+  if (conta) CARGA.inicia();
+  try{
+    const r = await _fetch0(input, init);
+    if (r.status===401 && u.startsWith('/api/') && !u.startsWith('/api/auth/')) { … }
+    return r;
+  } finally { if (conta) CARGA.termina(); }
 };
 ```
 
-`naoDeveContar()` devolve verdadeiro em dois casos, e só nesses dois: a URL não
-começa com `/api/`, ou o `init` traz o header `X-Carga-Fundo`. Qualquer outra
-chamada conta.
+Criar um segundo wrapper seria errado por dois motivos. Empilharia dois
+interceptadores sobre a mesma função; e, pior, `_fetch0` passaria a apontar para
+o wrapper novo — as chamadas de boot e login usam `_fetch0` **de propósito**,
+para escapar do tratamento de 401, e passariam a acender a barra antes de haver
+sessão.
+
+`conta` é falso em dois casos, e só nesses dois: a URL não começa com `/api/`,
+ou o `init` traz o header `X-Carga-Fundo`.
 
 | | Editar as 78 chamadas | Interceptar o `fetch` |
 |---|---|---|
@@ -170,20 +182,29 @@ receber o parâmetro.
   abrir essa frente. Os `skelKpis()` existentes ficam como estão, nas telas onde
   já estão.
 - **`.content.loading`.** Continua com o esmaecer de 55% e o bloqueio de clique.
-- **Backend.** Nenhuma mudança. Só `api/static/index.html`.
+- **Backend.** Nenhuma mudança.
 
 ## Verificação
 
-O projeto não tem teste de frontend — `tests/` é integralmente Python. Criar
-infra de build e Playwright para ~40 linhas de CSS e JS não se paga. A
-verificação é em duas camadas:
+Playwright já está instalado no `.venv` e o Node 24 traz `node --test` embutido,
+então não há infra a criar. A verificação é em três camadas:
 
-**1. Núcleo, no console.** Uma função `_cargaTeste(ms, n)` que chama
-`cargaInicia()`/`cargaTermina()` diretamente com `n` cargas simultâneas de `ms`
-de duração, sem depender do banco. Cobre o contador de referências e os três
-limiares — que é onde mora o bug de barra eterna.
+**1. Núcleo, com `node --test`.** O contador sai para `api/static/carga.js`,
+sem tocar em DOM nem em `fetch` — recebe relógio, timers e as funções de
+exibição por injeção. Com o tempo virando uma variável, os limiares de 150 ms e
+3 s são testados de forma determinística, em vez de esperar o relógio a cada
+asserção. Cobre o refcount, que é onde mora o bug de barra eterna.
 
-**2. Roteiro manual, rodando local.** Os casos que quebram na prática:
+O arquivo novo é servido de graça: `app.mount("/static", StaticFiles(...))`
+(`api/main.py:76`) já expõe o diretório inteiro. Nenhuma rota nova.
+
+**2. Integração, com Playwright.** Contra o `index.html` real, com um
+`http.server` servindo `api/` e todas as rotas `/api/**` interceptadas com
+atraso controlado — sem banco, sem túnel, sem AVA. Cobre CSS, DOM, o wrapper de
+fetch e as exclusões, incluindo a contraprova (a mesma rota, sem o header, tem
+de acender).
+
+**3. Roteiro manual, rodando local.** O que nenhum dos dois alcança:
 
 - trocar de filtro duas vezes em sequência rápida (resposta obsoleta — o teste
   de vazamento do contador)
@@ -196,10 +217,17 @@ limiares — que é onde mora o bug de barra eterna.
 
 ## Arquivos
 
-`api/static/index.html`, em três pontos:
+**Criar:**
+
+- `api/static/carga.js` — núcleo do contador, sem DOM, testável em Node
+- `tests/frontend/carga.test.js` — testes do núcleo com timers falsos
+- `tests/frontend/test_barra_e2e.py` — integração com Playwright
+
+**Modificar** `api/static/index.html`, em quatro pontos:
 
 1. bloco de estilo: `#loadbar`, `#loadtempo`, keyframes, `@media print`,
    `prefers-reduced-motion`, regra do `tvmode`, ajuste mobile
 2. markup da topbar: `<div id="loadbar">` e `<div id="loadtempo">`
-3. script, junto do router: `cargaInicia()`, `cargaTermina()`, o interceptador
-   de `fetch`, e o parâmetro `fundo` em `loadSrv()` e `loadTorre()`
+3. `<script src="/static/carga.js">` antes do script principal
+4. o wrapper de `fetch` existente (`index.html:10107`) ganha o `try/finally`, e
+   `loadSrv()`/`loadTorre()` ganham o parâmetro `fundo`
