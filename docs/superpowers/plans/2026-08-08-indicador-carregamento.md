@@ -182,7 +182,7 @@ test('ao zerar, não sobra timer pendente', () => {
 
 ```bash
 mkdir -p tests/frontend
-node --test tests/frontend/
+node --test "tests/frontend/*.test.js"
 ```
 
 Esperado: FAIL — `Cannot find module '../../api/static/carga.js'`.
@@ -259,7 +259,7 @@ Criar `api/static/carga.js`:
 - [ ] **Step 4: Rodar os testes e confirmar que passam**
 
 ```bash
-node --test tests/frontend/
+node --test "tests/frontend/*.test.js"
 ```
 
 Esperado: `# pass 8` / `# fail 0`.
@@ -825,7 +825,7 @@ Se `test_carga_rapida_nao_pisca_a_barra` falhar com a barra aparecendo, o culpad
 ```bash
 uv run pytest -q
 uv run python scratchpad/estrutura.py
-node --test tests/frontend/
+node --test "tests/frontend/*.test.js"
 ```
 
 Esperado: a suíte Python no mesmo estado de antes desta branch (rodar
@@ -1082,7 +1082,7 @@ Em `CLAUDE.md`, seção 5, inserir o bloco abaixo imediatamente antes de
 
 ```bash
 uv run pytest -q
-node --test tests/frontend/
+node --test "tests/frontend/*.test.js"
 uv run python scratchpad/estrutura.py
 ```
 
