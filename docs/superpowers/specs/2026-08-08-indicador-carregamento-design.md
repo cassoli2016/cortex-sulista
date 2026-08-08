@@ -222,6 +222,7 @@ de acender).
 - `api/static/carga.js` — núcleo do contador, sem DOM, testável em Node
 - `tests/frontend/carga.test.js` — testes do núcleo com timers falsos
 - `tests/frontend/test_barra_e2e.py` — integração com Playwright
+- `CHANGELOG.md` — registro por versão (ver "Versão e documentação")
 
 **Modificar** `api/static/index.html`, em quatro pontos:
 
@@ -231,3 +232,20 @@ de acender).
 3. `<script src="/static/carga.js">` antes do script principal
 4. o wrapper de `fetch` existente (`index.html:10107`) ganha o `try/finally`, e
    `loadSrv()`/`loadTorre()` ganham o parâmetro `fundo`
+
+## Versão e documentação
+
+Esta entrega inaugura o versionamento do projeto, que ficou em `0.1.0` desde o
+commit inicial. O estado atual em produção vira **1.0.0**; este trabalho,
+**1.1.0** — recurso novo, retrocompatível.
+
+- `pyproject.toml` é a **fonte única** da versão. `api/main.py` a lê com
+  `tomllib` e a expõe em `GET /api/versao`; o rodapé da sidebar mostra `v1.1.0`.
+  Duas fontes divergentes seriam piores que nenhuma: o painel diria uma coisa e
+  o repositório, outra.
+- A versão na tela existe por um motivo concreto: o deploy é por AutoDeploy no
+  Windows, e hoje não há como saber, olhando o painel, qual build está no ar.
+- `CHANGELOG.md` na raiz, em português, seções Adicionado/Alterado/Corrigido.
+  O histórico anterior a 1.0.0 fica nos commits — não será reconstruído.
+- `CLAUDE.md` (seção 5) recebe as lições deste trabalho, no mesmo padrão das
+  demais telas.

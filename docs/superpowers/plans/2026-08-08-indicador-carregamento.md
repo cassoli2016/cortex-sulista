@@ -16,7 +16,8 @@
 - **Edição do `index.html` sempre por substituição literal de trecho conhecido.** Nunca regex ampla, nunca correção de aspas em massa — o CLAUDE.md (seção 5) documenta que isso já derrubou a Visão Geral inteira, e que `node --check` não pega.
 - **Após qualquer mexida no `index.html`:** `uv run python scratchpad/estrutura.py` e `node --check` sobre o bloco de script.
 - **Não usar `CC`** (paleta em JS) em nenhuma estrutura de topo — TDZ mata o script no boot. As cores deste trabalho são todas CSS.
-- Nada de backend. Nenhuma dependência nova.
+- Nenhuma dependência nova.
+- **Toda entrega bumpa a versão e atualiza a documentação** (Task 5). O projeto ficou em `0.1.0` desde o commit inicial; esta é a entrega que inaugura o versionamento: o estado atual em produção vira **1.0.0** e este trabalho, **1.1.0** (recurso novo, retrocompatível).
 
 ## File Structure
 
@@ -25,7 +26,11 @@
 | `api/static/carga.js` **(criar)** | Núcleo do contador: refcount, limiares, timers. Sem DOM, sem `fetch` — recebe tudo por injeção, para ser testável em Node. Servido automaticamente por `app.mount("/static", StaticFiles(...))` (`api/main.py:76`) — nenhuma rota nova. |
 | `tests/frontend/carga.test.js` **(criar)** | Testes do núcleo com timers falsos. `node --test`. |
 | `tests/frontend/test_barra_e2e.py` **(criar)** | Teste de integração com Playwright: CSS, DOM, wrapper de fetch e exclusões, contra o `index.html` real. |
-| `api/static/index.html` **(modificar)** | CSS da barra, markup na topbar, `<script src>`, ligação no wrapper de fetch existente, parâmetro `fundo` em `loadSrv`/`loadTorre`. |
+| `api/static/index.html` **(modificar)** | CSS da barra, markup na topbar, `<script src>`, ligação no wrapper de fetch existente, parâmetro `fundo` em `loadSrv`/`loadTorre`, versão no rodapé da sidebar. |
+| `CHANGELOG.md` **(criar)** | Registro por versão, em português. Começa em 1.0.0 (estado atual); não reconstrói histórico anterior. |
+| `pyproject.toml` **(modificar)** | Fonte única da versão. |
+| `api/main.py` **(modificar)** | `VERSAO` lida do `pyproject.toml` + rota `GET /api/versao`. |
+| `CLAUDE.md` **(modificar)** | Lições deste trabalho na seção 5, no padrão das demais telas. |
 
 ---
 
@@ -852,10 +857,261 @@ git commit -m "test(carga): integracao da barra com rotas mockadas (Playwright)"
 
 ---
 
+---
+
+### Task 5: Versão e documentação
+
+Fecha a entrega. Inaugura o versionamento do projeto e registra as lições no CLAUDE.md,
+como toda tela mexida já faz.
+
+**Files:**
+- Create: `CHANGELOG.md`
+- Modify: `pyproject.toml:3`, `api/main.py`, `api/static/index.html:888`, `CLAUDE.md`
+- Test: `tests/frontend/test_versao.py`
+
+**Interfaces:**
+- Consumes: nada das tasks anteriores.
+- Produces: `api.main.VERSAO` (str) e `GET /api/versao` → `{"versao": "1.1.0"}`.
+
+- [ ] **Step 1: Escrever o teste do endpoint, que falha**
+
+Criar `tests/frontend/test_versao.py`:
+
+```python
+"""A versao exposta pela API tem de ser a MESMA do pyproject.toml.
+
+Duas fontes divergentes e pior que nenhuma: o rodape do painel diria uma coisa
+e o repositorio, outra, e a checagem de deploy passaria a mentir.
+"""
+from __future__ import annotations
+
+import tomllib
+from pathlib import Path
+
+from fastapi.testclient import TestClient
+
+from api.main import VERSAO, app
+
+RAIZ = Path(__file__).resolve().parents[2]
+
+
+def test_versao_bate_com_o_pyproject():
+    dados = tomllib.loads((RAIZ / "pyproject.toml").read_text(encoding="utf-8"))
+    assert VERSAO == dados["project"]["version"]
+
+
+def test_versao_nao_ficou_no_placeholder_inicial():
+    assert VERSAO != "0.1.0", "bump esquecido: 0.1.0 e o valor do commit inicial"
+
+
+def test_endpoint_devolve_a_versao():
+    cliente = TestClient(app)
+    r = cliente.get("/api/versao")
+    assert r.status_code in (200, 401)      # 401 se a rota exigir sessao
+    if r.status_code == 200:
+        assert r.json()["versao"] == VERSAO
+```
+
+- [ ] **Step 2: Rodar e confirmar que falha**
+
+```bash
+uv run pytest tests/frontend/test_versao.py -v
+```
+
+Esperado: FAIL — `ImportError: cannot import name 'VERSAO' from 'api.main'`.
+
+- [ ] **Step 3: Bumpar o `pyproject.toml`**
+
+Substituir em `pyproject.toml:3`:
+
+```toml
+version = "0.1.0"
+```
+
+por:
+
+```toml
+version = "1.1.0"
+```
+
+- [ ] **Step 4: Expor a versão na API**
+
+Em `api/main.py`, acrescentar `tomllib` à lista de imports da stdlib (junto de
+`logging` e `re`, em ordem alfabética: `import logging`, `import re`, `import tomllib`).
+
+Depois, logo abaixo de `log = logging.getLogger("cortex.financeiro")`, inserir:
+
+```python
+def _versao() -> str:
+    """Fonte única: o pyproject.toml. Ler dele evita o número duplicado em dois
+    lugares, que a primeira pressa faria divergir."""
+    try:
+        alvo = Path(__file__).resolve().parent.parent / "pyproject.toml"
+        return tomllib.loads(alvo.read_text(encoding="utf-8"))["project"]["version"]
+    except Exception:  # noqa: BLE001
+        return "dev"
+
+
+VERSAO = _versao()
+```
+
+E, imediatamente antes de `@app.get("/api/health")`, inserir a rota:
+
+```python
+@app.get("/api/versao")
+def versao() -> JSONResponse:
+    # exige sessão (não está em auth._PUBLICAS): serve para confirmar, dentro do
+    # painel, qual build o AutoDeploy colocou no ar
+    return JSONResponse({"versao": VERSAO})
+```
+
+- [ ] **Step 5: Rodar o teste e confirmar que passa**
+
+```bash
+uv run pytest tests/frontend/test_versao.py -v
+```
+
+Esperado: 3 passed.
+
+- [ ] **Step 6: Mostrar a versão no rodapé da sidebar**
+
+Substituir em `index.html:888`:
+
+```html
+    <div class="side-foot">CÓRTEX · Sulista</div>
+```
+
+por:
+
+```html
+    <div class="side-foot">CÓRTEX · Sulista<br><span id="appVersao"></span></div>
+```
+
+E em `entrar()` (`index.html:10196-10197`), substituir:
+
+```js
+function entrar(){
+  document.getElementById('loginOverlay').classList.add('oculto');
+```
+
+por:
+
+```js
+function entrar(){
+  document.getElementById('loginOverlay').classList.add('oculto');
+  // versão do build no rodapé: é como se confirma, olhando a tela, que o
+  // AutoDeploy do Windows realmente subiu o que se esperava
+  fetch('/api/versao',{cache:'no-store'}).then(r=>r.json()).then(d=>{
+    const e=document.getElementById('appVersao'); if(e && d.versao) e.textContent='v'+d.versao;
+  }).catch(()=>{});
+```
+
+- [ ] **Step 7: Criar o CHANGELOG**
+
+Criar `CHANGELOG.md` na raiz:
+
+```markdown
+# Changelog
+
+Formato baseado em [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/);
+versionamento [SemVer](https://semver.org/lang/pt-BR/).
+
+## [1.1.0] — 2026-08-08
+
+### Adicionado
+- Indicador de carregamento em todas as telas e ações: barra animada sobre a
+  borda da topbar, acionada pelo wrapper de `fetch`, cobrindo as 41 cargas de
+  tela e as ~37 ações internas (drill-down, ficha, exportação, modais).
+- Contador de tempo decorrido a partir de 3 s (`consultando o banco… 12s`), para
+  que consulta longa ao AVA não se leia como travamento.
+- Versão do build visível no rodapé da sidebar e em `GET /api/versao`.
+- `CHANGELOG.md` e versionamento SemVer no `pyproject.toml`.
+
+### Alterado
+- Torre de Controle e Saúde do Servidor: a recarga automática (120 s e 5 s)
+  deixou de esmaecer a tela e de desabilitar o botão Atualizar. O clique manual
+  continua acusando carregamento.
+
+## [1.0.0] — 2026-08-08
+
+Marco do estado em produção. O `pyproject.toml` esteve em `0.1.0` desde o commit
+inicial; o histórico anterior a esta versão está nos commits, não aqui.
+
+Painel em uso com ~45 telas sobre o ERP AVA (PostgreSQL 9.3, leitura via túnel
+SSH) e a folha no GLOBUS (Oracle): financeiro e fluxo de caixa, DRE gerencial e
+por cliente, comercial, operação e torre de controle, frota, jornada,
+suprimentos, RH e folha, orçamento, premiação de motoristas, extrato bancário,
+previsão de fechamento do mês, painéis de TV, copiloto e administração com RBAC.
+```
+
+- [ ] **Step 8: Registrar as lições no CLAUDE.md**
+
+Em `CLAUDE.md`, seção 5, inserir o bloco abaixo imediatamente antes de
+`**GOTCHA de JS (derrubou o painel inteiro uma vez):**`:
+
+```markdown
+**Feedback de carregamento (lição do indicador de carga):**
+- **Esmaecer não é feedback.** `.content.loading{opacity:.55}` era a única resposta
+  a um clique: numa consulta de 40 s ao AVA ninguém distingue "consultando" de
+  "morreu". A barra animada sobre a borda da topbar resolve sem deslocar layout.
+- **Contador vive no wrapper de `fetch`, nunca nos loaders.** Os loaders soltam o
+  `content.loading` dentro de `if(seq===...)`: correto para flag idempotente,
+  fatal para contador — toda resposta obsoleta (trocar filtro duas vezes rápido)
+  vazaria e a barra giraria para sempre. O `finally` da Promise roda sempre,
+  inclusive em erro de rede.
+- **Já existe um wrapper de `window.fetch`** (401 → login). Estender esse, nunca
+  criar um segundo: `_fetch0` é usado de propósito no boot/login para escapar do
+  tratamento de 401, e um wrapper novo o sequestraria.
+- **150 ms antes de aparecer.** Sem esse atraso, resposta de cache faz a tela
+  piscar — pior que não ter indicador.
+- **Recarga automática não acende a barra.** Saúde (5 s) e Torre (120 s) marcam
+  `X-Carga-Fundo` no timer, não na URL: assim o clique manual nas mesmas telas
+  continua acusando. Painel de TV é escondido por CSS.
+- **GOTCHA do `prefers-reduced-motion`:** o bloco global do arquivo zera
+  `animation-iteration-count` com `!important` em `*`. Uma animação infinita nova
+  para no fim do keyframe — a barra ficaria em `left:100%`, fora da tela, e
+  INVISÍVEL justo para quem pediu menos movimento. Regra explícita com
+  especificidade maior é obrigatória.
+- **Playwright já está no `.venv`**: `tests/frontend/test_barra_e2e.py` roda
+  contra o `index.html` real com `page.route` mockando `/api/**` com atraso
+  controlado — testa a UI sem banco, sem túnel. Cuidado: no Playwright a rota
+  registrada POR ÚLTIMO é avaliada primeiro.
+```
+
+- [ ] **Step 9: Rodar tudo**
+
+```bash
+uv run pytest -q
+node --test tests/frontend/
+uv run python scratchpad/estrutura.py
+```
+
+Esperado: suíte Python passando (incluindo os 3 de versão e os 8 de Playwright),
+8 testes de Node, estrutural sem erro.
+
+- [ ] **Step 10: Conferir a versão na tela**
+
+```bash
+uv run uvicorn api.main:app --port 8010
+```
+
+Abrir `http://127.0.0.1:8010/`, logar. Esperado: rodapé da sidebar mostra
+`CÓRTEX · Sulista` e, abaixo, `v1.1.0`.
+
+- [ ] **Step 11: Commit**
+
+```bash
+git add CHANGELOG.md pyproject.toml api/main.py api/static/index.html CLAUDE.md tests/frontend/test_versao.py
+git commit -m "chore: versao 1.1.0, CHANGELOG e versao visivel no painel"
+```
+
+---
+
 ## Notas de execução
 
 - **Ordem obrigatória.** Task 3 depende de `criarCarga` (Task 1) e dos elementos (Task 2).
-  Task 4 depende das três.
+  Task 4 depende das três. Task 5 fecha a entrega e deve ser a última — o CHANGELOG
+  descreve o que as anteriores entregaram.
 - **Não reordenar os passos de edição do `index.html`.** Cada substituição é literal e
   casa com o arquivo no estado deixado pelo passo anterior.
 - Se `grep -n "<script" api/static/index.html` devolver a primeira ocorrência em linha
