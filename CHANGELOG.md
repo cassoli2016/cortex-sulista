@@ -26,6 +26,8 @@ versionamento [SemVer](https://semver.org/lang/pt-BR/).
 - A documentação passou a respeitar o perfil do usuário: cada um vê apenas as telas a que tem acesso, sem links para telas que não consegue abrir.
 - Leitor de tela deixou de repetir o contador de segundos a cada tique durante uma consulta longa.
 - No celular a versão do sistema não aparecia em lugar nenhum (ficava só no rodapé do menu lateral, que é escondido no mobile) e a Documentação estava enterrada dentro do acordeão de Administração. Agora as duas ficam no rodapé fixo da gaveta, e tocar na versão abre a Documentação.
+- Documentação saiu de dentro de Administração, no menu e na gaveta — no celular ela aparecia duas vezes. Fica no rodapé, junto da versão.
+- A versão no rodapé da gaveta deixou de aparecer colada nos botões e com moldura de item selecionado.
 - Nome da empresa corrigido para Transportadora Sulista S/A na abertura da Documentação.
 - Um teste do Extrato Bancário comparava uma data fixa com a data de hoje e quebraria sozinho na virada do dia, sem ninguém ter mexido em nada — foi o primeiro defeito que a integração contínua pegou.
 
