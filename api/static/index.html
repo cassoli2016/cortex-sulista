@@ -2558,6 +2558,7 @@ body.tvmode #loadbar,body.tvmode #loadtempo{display:none}
   </main>
 </div>
 
+<script src="/static/carga.js"></script>
 <script>
 'use strict';
 window.addEventListener('error', e=>{
@@ -2993,10 +2994,10 @@ function router(){
   const dre = (v==='dre'), oc = (v==='oc'), agr = (v==='agr'), mvb = (v==='mvb'), comb = (v==='comb'), man = (v==='man'), com = (v==='com'), home = (v==='home'), kmv = (v==='km'), torre = (v==='torre'), veic = (v==='veic'), mul = (v==='mul'), prog = (v==='prog'), cop = (v==='cop'), cob = (v==='cob'), rent = (v==='rent'), contab = (v==='cont'), dreCli = (v==='drecli'), orc = (v==='orc');
   // torre: só filial; auto-refresh de 120s enquanto ativa
   if(torreTimer){ clearInterval(torreTimer); torreTimer=null; }
-  if(torre){ torreTimer=setInterval(()=>{ if(currentView()==='torre') loadTorre(); }, 120000); }
+  if(torre){ torreTimer=setInterval(()=>{ if(currentView()==='torre') loadTorre(true); }, 120000); }
   // saúde do servidor: auto-refresh de 5s enquanto a tela está ativa
   if(srvTimer){ clearInterval(srvTimer); srvTimer=null; }
-  if(v==='srv'){ srvTimer=setInterval(()=>{ if(currentView()==='srv') loadSrv(); }, 5000); }
+  if(v==='srv'){ srvTimer=setInterval(()=>{ if(currentView()==='srv') loadSrv(true); }, 5000); }
   // filtros com o vocabulário de cada tela
   document.getElementById('lblEmiDe').textContent =
     comb ? 'Abastecimento de' : mul ? 'Infração de' : man ? 'Emissão da OS de' : (agr||kmv||com||rent) ? 'Emissão da viagem de' : 'Emissão da OC de';
@@ -8605,21 +8606,23 @@ function renderCustos(d){
   const ll=(d.itens_lista||[]).map(i=>`<tr><td class="num">${esc(fmtDT(String(i.data||'').replace('T',' ')))}</td><td>${i.agrupador?esc(i.agrupador):'<span style="color:var(--n500)">(sem agrupador)</span>'}</td><td>${esc(i.fornecedor)}</td><td>${esc(i.produto||i.conta||'')}</td><td class="num">${i.frota||i.placa||''}</td><td>${esc(i.status)}</td><td>${ap(i.aprovacao)}</td><td class="num" style="font-weight:600">${BRL.format(i.valor)}</td></tr>`).join('')||'<tr><td colspan="8" style="color:var(--n500)">sem itens no período</td></tr>';
   document.getElementById('custos-lista').innerHTML=`<table><thead><tr><th>Data</th><th>Agrupador</th><th>Fornecedor</th><th>Produto/Conta</th><th class="num">Frota</th><th>Status</th><th>Aprovação</th><th class="num">Valor</th></tr></thead><tbody>${ll}</tbody></table>`;
 }
-async function loadTorre(){
-  skelKpis('kpis-torre',4);
+async function loadTorre(fundo){
+  if(!fundo) skelKpis('kpis-torre',4);
   const seq = ++torreSeq;
   const btn=document.getElementById('btnRefresh');
-  btn.disabled=true;
-  document.getElementById('content').classList.add('loading');
+  // o tique de 120s não esmaece a tela nem desabilita o botão: a torre fica
+  // aberta o dia todo e piscava a cada 2 minutos
+  if(!fundo){ btn.disabled=true; document.getElementById('content').classList.add('loading'); }
   try{
     const q=qsView('torre');
-    const r=await fetch('/api/operacao/torre?'+q,{cache:'no-store'});
+    const opt={cache:'no-store'}; if(fundo) opt.headers={'X-Carga-Fundo':'1'};
+    const r=await fetch('/api/operacao/torre?'+q, opt);
     const d=await r.json();
     if(seq!==torreSeq) return;
     if(!r.ok){ showBanner(d.mensagem||'Erro ao montar a torre.', d.detalhe); return; }
     hideBanner(); DATATORRE=d; LOADEDQS.torre=q; renderTorre(d);
   }catch(e){ if(seq===torreSeq) showBanner('Não foi possível falar com a API.', e.message); }
-  finally{ if(seq===torreSeq){ btn.disabled=false; document.getElementById('content').classList.remove('loading'); } }
+  finally{ if(seq===torreSeq && !fundo){ btn.disabled=false; document.getElementById('content').classList.remove('loading'); } }
 }
 function renderTorre(d){
   const k=d.kpis;
@@ -10139,13 +10142,45 @@ function alerts(d,k,gap){
   put('alerts-fluxo',F); put('alerts-receber',R); put('alerts-pagar',P);
 }
 
-/* ---------------- Autenticação, sessão e permissões ---------------- */
+/* ---------------- Autenticação, sessão e carregamento ---------------- */
+/* O contador de cargas vive AQUI, no wrapper de fetch, e não dentro dos
+   loaders. Os loaders soltam o `content.loading` dentro de `if(seq===...)`:
+   funciona para um flag idempotente, mas um contador no mesmo lugar vazaria a
+   cada resposta obsoleta (trocar de filtro duas vezes rápido, coisa de todo
+   dia) e a barra ficaria girando para sempre. O finally abaixo roda em
+   qualquer desfecho, inclusive erro de rede. */
+const CARGA = criarCarga({
+  agora:   () => Date.now(),
+  arma:    (fn,ms) => setTimeout(fn,ms),
+  desarma: (i) => clearTimeout(i),
+  repete:  (fn,ms) => setInterval(fn,ms),
+  cessa:   (i) => clearInterval(i),
+  mostraBarra: (v) => { const e=document.getElementById('loadbar'); if(e) e.hidden = !v; },
+  mostraTempo: (v,s) => {
+    const e=document.getElementById('loadtempo'); if(!e) return;
+    if(v) e.textContent = 'consultando o banco… '+s+'s';
+    e.hidden = !v;
+  },
+});
+/* Recarga automática não acende a barra: a tela de Saúde recarrega a cada 5s e
+   a barra piscaria o dia inteiro, virando ruído. Quem marca é o timer, não a
+   URL — assim o clique em "Atualizar" dessas mesmas telas continua acusando. */
+function _cargaFundo(init){
+  const h = init && init.headers;
+  if(!h) return false;
+  if(typeof h.get === 'function') return !!h.get('X-Carga-Fundo');
+  return !!(h['X-Carga-Fundo'] || h['x-carga-fundo']);
+}
 const _fetch0 = window.fetch.bind(window);
 window.fetch = async (input, init) => {       // 401 em qualquer chamada => volta ao login
-  const r = await _fetch0(input, init);
   const u = String(typeof input==='string' ? input : (input && input.url) || '');
-  if (r.status===401 && u.startsWith('/api/') && !u.startsWith('/api/auth/')) { USER=null; pararTimers(); mostrarLogin('login'); }
-  return r;
+  const conta = u.startsWith('/api/') && !_cargaFundo(init);
+  if (conta) CARGA.inicia();
+  try{
+    const r = await _fetch0(input, init);
+    if (r.status===401 && u.startsWith('/api/') && !u.startsWith('/api/auth/')) { USER=null; pararTimers(); mostrarLogin('login'); }
+    return r;
+  } finally { if (conta) CARGA.termina(); }
 };
 function pararTimers(){   // sessão caiu: silencia auto-refresh de torre/TV (senão recriam o login a cada tick)
   try{ if(torreTimer){ clearInterval(torreTimer); torreTimer=null; } }catch(e){}
@@ -10453,13 +10488,14 @@ function srvKpi(label,val,sub,cor){
   return `<div class="card kpi"><div class="label">${esc(label)}</div>`+
          `<div class="val" style="color:${cor||'inherit'}">${esc(val)}</div><div class="sub">${esc(sub)}</div></div>`;
 }
-async function loadSrv(){
+async function loadSrv(fundo){
   if(!USER || !USER.admin) return;
   const seq=++srvSeq;
   const primeira = !DATASRV;
   if(primeira) document.getElementById('content').classList.add('loading');
   try{
-    const r=await fetch('/api/gestao/servidor',{cache:'no-store'});
+    const opt={cache:'no-store'}; if(fundo) opt.headers={'X-Carga-Fundo':'1'};
+    const r=await fetch('/api/gestao/servidor', opt);
     if(seq!==srvSeq) return;
     if(!r.ok){ showBanner('Erro ao coletar a saúde do servidor.'); return; }
     DATASRV=await r.json(); LOADEDQS.srv=qsView('srv');
