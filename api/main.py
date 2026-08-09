@@ -37,7 +37,20 @@ def _versao() -> str:
 
 
 VERSAO = _versao()
-ROTULO = documentacao.rotulo(VERSAO)
+
+
+def _rotulo() -> str:
+    """Mesma guarda do _versao(): um docs/versoes.yaml ausente ou com data
+    malformada NAO pode impedir a API de subir — e um problema de documentacao,
+    nao de servico."""
+    try:
+        return documentacao.rotulo(VERSAO)
+    except Exception:  # noqa: BLE001
+        log.warning("versoes.yaml ilegivel; rotulo degradado")
+        return f"CX-v{VERSAO}"
+
+
+ROTULO = _rotulo()
 # docs/openapi desligados: o painel é exposto na internet via Cloudflare Tunnel
 app = FastAPI(title="Cortex Sulista — Financeiro (MVP)",
               docs_url=None, redoc_url=None, openapi_url=None)
@@ -96,13 +109,29 @@ app.mount("/static", StaticFiles(directory=STATIC), name="static")
 def versao() -> JSONResponse:
     # exige sessão (não está em auth._PUBLICAS): serve para confirmar, dentro do
     # painel, qual build o AutoDeploy colocou no ar
-    return JSONResponse({"versao": VERSAO, "rotulo": ROTULO,
-                         "data": documentacao.versoes()[0]["data"]})
+    try:
+        vs = documentacao.versoes()
+        data = vs[0]["data"] if vs else ""
+    except Exception:  # noqa: BLE001
+        data = ""
+    return JSONResponse({"versao": VERSAO, "rotulo": ROTULO, "data": data})
 
 
 @app.get("/api/documentacao")
-def doc() -> JSONResponse:
-    return JSONResponse(documentacao.montar())
+def doc(request: Request) -> JSONResponse:
+    # um erro de digitação no manual.yaml não pode virar 500 sem corpo: o front
+    # faz r.json() antes de olhar r.ok, e o usuário veria "não foi possível falar
+    # com a API" em vez do motivo real
+    sess = request.state.sessao or {}
+    # admin enxerga tudo; os demais, só as telas do próprio perfil
+    permitidas = None if sess.get("admin") else set(sess.get("telas") or [])
+    try:
+        return JSONResponse(documentacao.montar(permitidas))
+    except Exception as exc:  # noqa: BLE001
+        log.exception("documentacao: falha ao montar")
+        return JSONResponse(status_code=500, content={
+            "mensagem": "Não foi possível montar a documentação.",
+            "detalhe": f"{type(exc).__name__}: {exc}"})
 
 
 @app.get("/api/health")

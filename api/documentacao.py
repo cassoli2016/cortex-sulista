@@ -12,11 +12,14 @@ Duas fontes, nenhuma duplicada:
 from __future__ import annotations
 
 import html as _html
+import logging
 import re
 from datetime import date
 from pathlib import Path
 
 import yaml
+
+log = logging.getLogger("cortex.documentacao")
 
 RAIZ = Path(__file__).resolve().parent.parent
 VERSOES_YAML = RAIZ / "docs" / "versoes.yaml"
@@ -27,15 +30,32 @@ _CAMPOS = ("adicionado", "alterado", "corrigido")
 
 
 # --------------------------------------------------------------- versões
+def _chave_versao(v: str) -> tuple:
+    """1.10.0 depois de 1.9.0 — ordenar como texto poria o 1.10 antes."""
+    partes = []
+    for p in str(v).split("."):
+        partes.append(int(p) if p.isdigit() else 0)
+    return tuple(partes)
+
+
 def versoes() -> list[dict]:
-    """Histórico completo, mais recente primeiro. Normaliza as listas ausentes."""
+    """Histórico completo, mais recente primeiro. Normaliza as listas ausentes.
+
+    ORDENA de verdade, em vez de confiar na ordem física do arquivo: o processo
+    (CLAUDE.md §5.1) manda acrescentar um bloco por entrega, e quem acrescentar
+    no FIM faria `versoes()[0]` devolver a versão mais VELHA — o rodapé e o
+    /api/versao passariam a mentir sobre qual build está no ar, que é justamente
+    o que o rótulo existe para provar.
+    """
     dados = yaml.safe_load(VERSOES_YAML.read_text(encoding="utf-8")) or []
     saida = []
     for v in dados:
         item = {"versao": str(v["versao"]), "data": str(v["data"])}
         for c in _CAMPOS:
             item[c] = list(v.get(c) or [])
+        item["rotulo"] = f"CX-{data_br(item['data'])}-v{item['versao']}"
         saida.append(item)
+    saida.sort(key=lambda x: _chave_versao(x["versao"]), reverse=True)
     return saida
 
 
@@ -118,7 +138,15 @@ def extrair_telas() -> dict[str, dict]:
     marcas = [(m.group(1), m.start()) for m in _SECAO.finditer(h)]
     telas: dict[str, dict] = {}
     for i, (view, ini) in enumerate(marcas):
+        # O corte é no </section> da própria tela, NÃO na marca seguinte: a
+        # ÚLTIMA seção não tem marca depois dela e engolia todo o resto do
+        # arquivo — o bloco <script> inteiro e o overlay de login. A Saúde do
+        # Servidor vinha com 22 cards em vez de 7, entre eles "Primeiro acesso",
+        # "Entrar" e um "Gerar baseline${acoesVersao}" cru de template string.
+        fecha = h.find("</section>", ini)
         fim = marcas[i + 1][1] if i + 1 < len(marcas) else len(h)
+        if fecha != -1:
+            fim = min(fim, fecha)
         # section sem entrada em VIEWS é tela DORMENTE (existe no HTML, não é
         # alcançável pelo router nem pelo menu). Documentar seria descrever algo
         # que ninguém consegue abrir.
@@ -141,17 +169,36 @@ def extrair_telas() -> dict[str, dict]:
     return telas
 
 
-def montar() -> dict:
-    """Payload da tela de Documentação."""
+def montar(permitidas: set[str] | None = None) -> dict:
+    """Payload da tela de Documentação.
+
+    `permitidas` = telas que a sessão pode abrir (None = tudo, para admin e para
+    uso em teste). Filtrar aqui, no servidor, e não no browser: a tela lista a
+    PROCEDÊNCIA de cada card — nome de tabela do ERP e regra de cálculo — e
+    montava links `#dre`/`#drecli` que quem não tem a tela clicava e era jogado
+    de volta sem explicação. É o mesmo tratamento que o Copiloto já dá aos links
+    que cita (CLAUDE.md §5, lista curada filtrada por podeVer).
+    """
     manual = yaml.safe_load(MANUAL_YAML.read_text(encoding="utf-8")) or {}
     telas = extrair_telas()
+    if permitidas is not None:
+        telas = {v: x for v, x in telas.items() if v in permitidas}
     vs = versoes()
     corrente = vs[0]["versao"] if vs else "dev"
-    grupos = [
-        {"nome": g["nome"], "resumo": g["resumo"],
-         "telas": [v for v in g["telas"] if v in telas]}
-        for g in manual.get("grupos", [])
-    ]
+    grupos = []
+    for g in manual.get("grupos", []):
+        listadas = list(g.get("telas") or [])
+        fantasmas = [v for v in listadas if v not in telas]
+        if fantasmas:
+            # some calado seria pior: um "folhaindd" digitado errado tiraria a
+            # tela da documentação sem ninguém perceber
+            log.warning("manual.yaml, grupo %r: telas inexistentes %s",
+                        g.get("nome"), fantasmas)
+        visiveis = [v for v in listadas if v in telas]
+        if not visiveis:
+            continue          # grupo inteiro fora do alcance da sessão
+        grupos.append({"nome": g.get("nome", ""), "resumo": g.get("resumo", ""),
+                       "telas": visiveis})
     return {
         "versao": corrente,
         "rotulo": rotulo(corrente),

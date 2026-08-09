@@ -69,3 +69,25 @@ def test_toda_tela_do_painel_esta_em_algum_grupo():
     agrupadas = {v for g in d["grupos"] for v in g["telas"]}
     faltando = set(d["telas"]) - agrupadas
     assert not faltando, f"telas fora de grupo: {sorted(faltando)}"
+
+
+def test_perfil_restrito_so_recebe_as_proprias_telas():
+    """A tela lista a procedencia de cada card (tabela do ERP, regra de calculo)
+    e monta link para cada tela: quem nao pode abrir nao deve receber."""
+    d = documentacao.montar({"oc", "custos", "doc"})
+    assert set(d["telas"]) == {"oc", "custos", "doc"}
+    assert "dre" not in d["telas"]
+    # e nao pode sobrar link para tela fora do alcance
+    for g in d["grupos"]:
+        assert set(g["telas"]) <= {"oc", "custos", "doc"}, g
+
+
+def test_grupo_sem_nenhuma_tela_visivel_nao_aparece():
+    d = documentacao.montar({"oc", "custos", "doc"})
+    nomes = {g["nome"] for g in d["grupos"]}
+    assert "Controladoria" not in nomes and "Pessoas" not in nomes, nomes
+
+
+def test_sem_filtro_traz_o_painel_inteiro():
+    """None = admin (e os testes): nada e escondido."""
+    assert len(documentacao.montar()["telas"]) == len(documentacao.extrair_telas())
