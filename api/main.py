@@ -10,6 +10,7 @@ from __future__ import annotations
 
 import logging
 import re
+import tomllib
 from datetime import date
 from pathlib import Path
 
@@ -19,9 +20,37 @@ from fastapi.middleware.gzip import GZipMiddleware
 from fastapi.responses import FileResponse, JSONResponse, PlainTextResponse, StreamingResponse
 from fastapi.staticfiles import StaticFiles
 
-from . import alertas, auth, copiloto, db, dre_cliente, push, queries, queries_folha, servidor
+from . import (alertas, auth, copiloto, db, documentacao, dre_cliente, push, queries,
+               queries_folha, servidor)
 
 log = logging.getLogger("cortex.financeiro")
+
+
+def _versao() -> str:
+    """Fonte única: o pyproject.toml. Ler dele evita o número duplicado em dois
+    lugares, que a primeira pressa faria divergir."""
+    try:
+        alvo = Path(__file__).resolve().parent.parent / "pyproject.toml"
+        return tomllib.loads(alvo.read_text(encoding="utf-8"))["project"]["version"]
+    except Exception:  # noqa: BLE001
+        return "dev"
+
+
+VERSAO = _versao()
+
+
+def _rotulo() -> str:
+    """Mesma guarda do _versao(): um docs/versoes.yaml ausente ou com data
+    malformada NAO pode impedir a API de subir — e um problema de documentacao,
+    nao de servico."""
+    try:
+        return documentacao.rotulo(VERSAO)
+    except Exception:  # noqa: BLE001
+        log.warning("versoes.yaml ilegivel; rotulo degradado")
+        return f"CX-v{VERSAO}"
+
+
+ROTULO = _rotulo()
 # docs/openapi desligados: o painel é exposto na internet via Cloudflare Tunnel
 app = FastAPI(title="Cortex Sulista — Financeiro (MVP)",
               docs_url=None, redoc_url=None, openapi_url=None)
@@ -74,6 +103,35 @@ def service_worker() -> FileResponse:
 
 
 app.mount("/static", StaticFiles(directory=STATIC), name="static")
+
+
+@app.get("/api/versao")
+def versao() -> JSONResponse:
+    # exige sessão (não está em auth._PUBLICAS): serve para confirmar, dentro do
+    # painel, qual build o AutoDeploy colocou no ar
+    try:
+        vs = documentacao.versoes()
+        data = vs[0]["data"] if vs else ""
+    except Exception:  # noqa: BLE001
+        data = ""
+    return JSONResponse({"versao": VERSAO, "rotulo": ROTULO, "data": data})
+
+
+@app.get("/api/documentacao")
+def doc(request: Request) -> JSONResponse:
+    # um erro de digitação no manual.yaml não pode virar 500 sem corpo: o front
+    # faz r.json() antes de olhar r.ok, e o usuário veria "não foi possível falar
+    # com a API" em vez do motivo real
+    sess = request.state.sessao or {}
+    # admin enxerga tudo; os demais, só as telas do próprio perfil
+    permitidas = None if sess.get("admin") else set(sess.get("telas") or [])
+    try:
+        return JSONResponse(documentacao.montar(permitidas))
+    except Exception as exc:  # noqa: BLE001
+        log.exception("documentacao: falha ao montar")
+        return JSONResponse(status_code=500, content={
+            "mensagem": "Não foi possível montar a documentação.",
+            "detalhe": f"{type(exc).__name__}: {exc}"})
 
 
 @app.get("/api/health")

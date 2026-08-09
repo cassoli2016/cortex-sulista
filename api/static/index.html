@@ -66,6 +66,9 @@ nav a.active{color:#fff;background:var(--navy-700);border-left-color:var(--brand
 aside nav a:hover:not(.active){color:#fff;background:var(--navy-800)}
 nav a.mod{opacity:.7}
 .side-foot{margin-top:auto;padding:12px 10px;font-size:11px;color:var(--navy-400)}
+.side-ver{display:inline-block;margin-top:3px;font-family:var(--mono);font-size:10.5px;
+  color:var(--navy-400);text-decoration:none;letter-spacing:.01em}
+.side-ver:hover{color:var(--brand)}
 /* modo mini: só ícones */
 body.mini aside{width:64px;padding:16px 8px}
 body.mini .brandwrap .logo-full,body.mini .brandwrap .mk{display:none}
@@ -77,7 +80,7 @@ body.mini .subs{display:flex !important}
 body.mini nav a.active{background:var(--navy-700);box-shadow:inset 3px 0 0 var(--brand)}
 /* ---------------- Main ---------------- */
 main{flex:1;min-width:0;display:flex;flex-direction:column}
-.topbar{display:flex;align-items:center;gap:16px;background:var(--n0);border-bottom:1px solid var(--n200);padding:12px 24px}
+.topbar{display:flex;align-items:center;gap:16px;background:var(--n0);border-bottom:1px solid var(--n200);padding:12px 24px;position:relative}
 .topbar h1{font-size:20px;font-weight:700;margin:0}
 .topbar .emp{font-size:12px;color:var(--n500)}
 .spacer{flex:1}
@@ -742,7 +745,7 @@ button.avatar{border:0;cursor:pointer}
 /* ---- impressão / PDF ---- */
 @media print{
   #sidebar,.filterbar,.btn-filtros,.bottomnav,.drawer,#btnRefresh,
-  .cop-bar,.cop-chips,.avwrap,.banner{display:none !important}
+  .cop-bar,.cop-chips,.avwrap,.banner,#loadbar,#loadtempo{display:none !important}
   body{background:#fff}
   .layout{display:block}
   .content{padding:0;margin:0;max-width:100%}
@@ -769,6 +772,93 @@ button.avatar{border:0;cursor:pointer}
 @media (display-mode: standalone){
   .topbar{padding-top:calc(10px + env(safe-area-inset-top))}
   #loginOverlay{padding-top:env(safe-area-inset-top)}
+}
+/* ---- indicador de carregamento ----
+   Mora sobre a borda inferior da topbar: durante a carga a linha divisória que
+   já existe "acende". Absoluto de propósito — nada no layout se desloca, e a
+   topbar do mobile já é sticky (z-index 40), então a barra acompanha o scroll
+   de graça.
+
+   POSIÇÃO DESTE BLOCO NÃO É ACIDENTE: o @media prefers-reduced-motion lá de
+   cima zera animation-iteration-count em TODO elemento com !important. Sem a
+   regra explícita aqui embaixo, a barra pararia no fim do keyframe
+   (left:100%, fora da tela) e ficaria INVISÍVEL justamente para quem pediu
+   menos movimento.
+
+   O `position:relative` da topbar NAO mora aqui: nesta altura do arquivo ele
+   venceria o `position:sticky` do @media(max-width:880px) por ordem de fonte
+   (media query nao acrescenta especificidade) e mataria a topbar fixa do
+   celular em TODAS as telas. Fica junto da regra base da .topbar la em cima. */
+#loadbar{position:absolute;left:0;right:0;bottom:-1px;height:3px;z-index:41;
+  overflow:hidden;background:var(--orange-100)}
+#loadbar[hidden]{display:none}
+#loadbar i{position:absolute;top:0;bottom:0;width:35%;background:var(--orange-500);
+  animation:loadslide 1.15s cubic-bezier(.4,0,.2,1) infinite}
+@keyframes loadslide{0%{left:-35%}100%{left:100%}}
+#loadtempo{position:absolute;left:24px;top:100%;margin-top:6px;z-index:41;
+  background:var(--n0);border:1px solid var(--n200);border-radius:var(--radius-md);
+  box-shadow:var(--shadow);padding:4px 10px;font-size:12px;color:var(--n600);
+  white-space:nowrap}
+#loadtempo[hidden]{display:none}
+@media(max-width:880px){#loadtempo{left:14px}}
+/* painel de TV recarrega sozinho a cada 60s e ninguém está esperando resposta */
+body.tvmode #loadbar,body.tvmode #loadtempo{display:none}
+@media (prefers-reduced-motion: reduce){
+  #loadbar i{left:0;width:100%;
+    animation:loadpulse 2s ease-in-out infinite !important;
+    animation-duration:2s !important;
+    animation-iteration-count:infinite !important}
+}
+@keyframes loadpulse{0%,100%{opacity:.35}50%{opacity:1}}
+
+/* ---- tela de Documentação (#doc) ----
+   Coluna de leitura travada em 820px pelo mesmo motivo do Copiloto: texto
+   corrido a 1400px de largura é ilegível. O índice fica sticky à esquerda. */
+.doc-top{display:flex;align-items:flex-start;gap:18px;flex-wrap:wrap}
+.doc-h{font-size:20px;font-weight:700;margin:0 0 6px}
+.doc-sistema{margin:0;max-width:820px;color:var(--n600);font-size:14px;line-height:1.6}
+.doc-sel{margin-left:auto;font-family:var(--mono);font-size:12px;font-weight:600;
+  color:var(--navy-700);background:var(--navy-50);border:1px solid var(--navy-200);
+  border-radius:var(--radius-md);padding:6px 10px;white-space:nowrap}
+.doc-busca{display:flex;align-items:center;gap:12px;flex-wrap:wrap}
+.doc-busca input{flex:1;min-width:240px;max-width:520px;font-family:var(--font);font-size:14px;
+  color:var(--n900);background:var(--n0);border:1px solid var(--n300);
+  border-radius:var(--radius-md);padding:9px 12px}
+.doc-busca input:focus{outline:2px solid var(--orange-500);outline-offset:1px}
+.doc-cols{display:grid;grid-template-columns:210px minmax(0,1fr);gap:18px;align-items:start}
+.doc-nav{position:sticky;top:14px;display:flex;flex-direction:column;gap:2px}
+.doc-nav a{font-size:13px;color:var(--n600);text-decoration:none;padding:6px 10px;
+  border-radius:var(--radius-md);border-left:2px solid transparent}
+.doc-nav a:hover{background:var(--navy-50);color:var(--navy-700)}
+.doc-nav a.forte{font-weight:600;color:var(--n900);margin-top:8px}
+.doc-corpo{display:flex;flex-direction:column;gap:18px;min-width:0}
+.doc-grupo{padding:14px 0;border-top:1px solid var(--n200)}
+.doc-grupo:first-child{border-top:0;padding-top:4px}
+.doc-grupo h3{margin:0 0 4px;font-size:15px;font-weight:700;color:var(--navy-800)}
+.doc-grupo .doc-res{margin:0 0 10px;max-width:820px;font-size:13px;color:var(--n600);line-height:1.55}
+.doc-tela{margin:0 0 10px;padding-left:12px;border-left:2px solid var(--n200)}
+.doc-tela b{font-size:13.5px;color:var(--n900)}
+.doc-tela .doc-hash{font-family:var(--mono);font-size:11px;color:var(--n500);margin-left:6px}
+.doc-card{margin:5px 0 0;font-size:12.5px;color:var(--n700);line-height:1.5}
+.doc-card .doc-fonte{display:block;color:var(--n500);font-size:11.5px;margin-top:1px;max-width:820px}
+.doc-glo dt{font-weight:700;font-size:13.5px;color:var(--navy-800);margin-top:12px}
+.doc-glo dt:first-child{margin-top:0}
+.doc-glo dd{margin:2px 0 0;max-width:820px;font-size:13px;color:var(--n600);line-height:1.55}
+.doc-ver{padding:14px 0;border-top:1px solid var(--n200)}
+.doc-ver:first-child{border-top:0;padding-top:2px}
+.doc-ver-h{display:flex;align-items:baseline;gap:10px;flex-wrap:wrap}
+.doc-ver-h b{font-size:15px;color:var(--navy-800)}
+.doc-ver-h .doc-rot{font-family:var(--mono);font-size:11.5px;color:var(--n500)}
+.doc-ver h4{margin:10px 0 4px;font-size:12px;text-transform:uppercase;letter-spacing:.06em;color:var(--n500)}
+.doc-ver ul{margin:0;padding-left:18px}
+.doc-ver li{font-size:13px;color:var(--n700);line-height:1.55;margin-bottom:4px;max-width:820px}
+.doc-vazio{color:var(--n500);font-size:14px;padding:8px 2px}
+@media(max-width:880px){
+  .doc-cols{grid-template-columns:1fr}
+  .doc-nav{position:static;flex-direction:row;flex-wrap:wrap;gap:6px}
+  .doc-nav a{border:1px solid var(--n200);border-left:1px solid var(--n200)}
+  .doc-nav a.forte{margin-top:0}
+  .doc-sel{margin-left:0}
 }
 </style>
 </head>
@@ -883,12 +973,16 @@ button.avatar{border:0;cursor:pointer}
       <div class="subs closed" id="subsAdm">
         <a href="#gestao" class="sub" data-view="gestao" title="Gestão — usuários, perfis e segurança"><span class="ic" data-ic="ges"></span><span>Gestão</span></a>
         <a href="#srv" class="sub" data-view="srv" title="Saúde do Servidor — CPU, memória, disco e serviços"><span class="ic" data-ic="srv"></span><span>Saúde do Servidor</span></a>
+        <a href="#doc" class="sub" data-view="doc" title="Documentação — o manual do sistema e o histórico de versões"><span class="ic" data-ic="doc"></span><span>Documentação</span></a>
       </div>
     </nav>
-    <div class="side-foot">CÓRTEX · Sulista</div>
+    <div class="side-foot">CÓRTEX · Sulista<br>
+      <a href="#doc" id="appVersao" class="side-ver" title="Versão em execução — clique para ver o que mudou"></a></div>
   </aside>
   <main>
     <div class="topbar">
+      <div id="loadbar" hidden><i></i></div>
+      <div id="loadtempo" role="status" aria-live="polite" hidden><span id="loadtempo-txt"></span><span id="loadtempo-seg" aria-hidden="true"></span></div>
       <div>
         <h1 id="viewTitle">Fluxo de Caixa e Bancos</h1>
         <div class="emp" id="empNome">—</div>
@@ -2478,6 +2572,41 @@ button.avatar{border:0;cursor:pointer}
           </div>
         </div>
       </section>
+      <section class="view" id="view-doc">
+        <div class="doc-top">
+          <div>
+            <h2 class="doc-h">Documentação do CÓRTEX</h2>
+            <p class="doc-sistema" id="doc-sistema"></p>
+          </div>
+          <span class="doc-sel" id="doc-rotulo" title="Versão em execução — confere com o rodapé e com o que o AutoDeploy subiu">—</span>
+        </div>
+        <div class="doc-busca">
+          <input type="search" id="doc-q" placeholder="Buscar tela, card, termo ou mudança…"
+                 oninput="docFiltrar(this.value)" aria-label="Buscar na documentação">
+          <span class="hint" id="doc-cont"></span>
+        </div>
+        <div class="doc-cols">
+          <nav class="doc-nav" id="doc-nav" aria-label="Seções da documentação"></nav>
+          <div class="doc-corpo">
+            <div class="card" id="doc-card-mod">
+              <div class="head"><h2>Módulos e telas</h2>
+                <span class="hint">as telas e a procedência de cada card são lidas do próprio painel</span></div>
+              <div id="doc-grupos"></div>
+            </div>
+            <div class="card" id="doc-card-glo">
+              <div class="head"><h2>Glossário canônico</h2>
+                <span class="hint">as fórmulas oficiais — toda tela e toda consulta usam exatamente estas</span></div>
+              <div class="doc-glo" id="doc-glossario"></div>
+            </div>
+            <div class="card" id="doc-card-ver">
+              <div class="head"><h2>Histórico de versões</h2>
+                <span class="hint">o que mudou em cada entrega · fonte: docs/versoes.yaml</span></div>
+              <div class="doc-vers" id="doc-versoes"></div>
+            </div>
+            <div class="doc-vazio" id="doc-vazio" hidden>Nada encontrado para essa busca.</div>
+          </div>
+        </div>
+      </section>
       <section class="view" id="view-srv">
         <div class="kpis" id="kpis-srv"></div>
         <div class="grid2">
@@ -2523,6 +2652,7 @@ button.avatar{border:0;cursor:pointer}
   </main>
 </div>
 
+<script src="/static/carga.js"></script>
 <script>
 'use strict';
 window.addEventListener('error', e=>{
@@ -2595,6 +2725,7 @@ const ICONS = {
   chave:IC('<circle cx="7.5" cy="15.5" r="4.5"/><path d="M10.8 12.2 21 2M15 8l3 3M18.5 4.5l2 2"/>'),
   sair: IC('<path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><path d="M16 17l5-5-5-5M21 12H9"/>'),
   srv:  IC('<rect x="3" y="4" width="18" height="7" rx="1.5"/><rect x="3" y="13" width="18" height="7" rx="1.5"/><path d="M7 7.5h.01M7 16.5h.01M11 7.5h5M11 16.5h5"/>'),
+  doc:  IC('<path d="M6 3h8l5 5v13a1 1 0 0 1-1 1H6a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1z"/><path d="M14 3v5h5"/><path d="M8.5 12.5h7M8.5 16h5"/>'),
 };
 function injectIcons(){ document.querySelectorAll('[data-ic]').forEach(el=>{ if(!el.firstChild) el.innerHTML = ICONS[el.dataset.ic]||''; }); }
 injectIcons();
@@ -2611,7 +2742,7 @@ const FAIXAS = {
   '4_vencido_91_365':['Vencido 91–365d','b-dang'],
   '5_vencido_mais_365':['Vencido > 365d','b-dang'],
 };
-const VIEWS = { home:'Visão Geral', fluxo:'Fluxo de Caixa e Bancos', receber:'Contas a Receber', pagar:'Contas a Pagar', oc:'Ordens de Compra', custos:'Painel de Custos', agr:'Agregados e Terceiros', mvb:'Make vs Buy', comb:'Combustível', man:'Manutenção', com:'Clientes e RKM', clif:'Consulta de Cliente', crm:'CRM — Leads e Projetos', km:'Análise de KM', torre:'Torre de Controle', veic:'Veículos', veicf:'Consulta de Veículo', mprev:'Manutenção Preventiva', comrast:'Comunicação Rastreadora', mul:'Multas', prog:'Programação Inteligente', jorn:'Jornada do Motorista', jornf:'Ficha de Jornada', cex:'Custos Extras', sac:'SAC / Freetime', port:'Portaria', cop:'Copiloto Cortex', cob:'Régua de Cobrança', extb:'Extrato Bancário', cont:'Contabilidade', qual:'Qualidade e Certidões', orc:'Orçamento', fech:'Fechamento do Mês', prem:'Premiação de Motoristas', dre:'DRE Gerencial', drecli:'DRE por Cliente', tvfat:'Painel TV — Faturamento', tvope:'Painel TV — Operação', rh:'RH — Vagas', hc:'Headcount', folha:'Custo de Folha', folhaind:'Indicadores de Folha', he:'Horas Extras', gestao:'Gestão', srv:'Saúde do Servidor' };
+const VIEWS = { home:'Visão Geral', fluxo:'Fluxo de Caixa e Bancos', receber:'Contas a Receber', pagar:'Contas a Pagar', oc:'Ordens de Compra', custos:'Painel de Custos', agr:'Agregados e Terceiros', mvb:'Make vs Buy', comb:'Combustível', man:'Manutenção', com:'Clientes e RKM', clif:'Consulta de Cliente', crm:'CRM — Leads e Projetos', km:'Análise de KM', torre:'Torre de Controle', veic:'Veículos', veicf:'Consulta de Veículo', mprev:'Manutenção Preventiva', comrast:'Comunicação Rastreadora', mul:'Multas', prog:'Programação Inteligente', jorn:'Jornada do Motorista', jornf:'Ficha de Jornada', cex:'Custos Extras', sac:'SAC / Freetime', port:'Portaria', cop:'Copiloto Cortex', cob:'Régua de Cobrança', extb:'Extrato Bancário', cont:'Contabilidade', qual:'Qualidade e Certidões', orc:'Orçamento', fech:'Fechamento do Mês', prem:'Premiação de Motoristas', dre:'DRE Gerencial', drecli:'DRE por Cliente', tvfat:'Painel TV — Faturamento', tvope:'Painel TV — Operação', rh:'RH — Vagas', hc:'Headcount', folha:'Custo de Folha', folhaind:'Indicadores de Folha', he:'Horas Extras', gestao:'Gestão', srv:'Saúde do Servidor', doc:'Documentação' };
 const periodoLabel = p => { if(p==='atrasado') return 'Atrasado'; const [y,m]=p.split('-'); return MES[+m-1]+'/'+y.slice(2); };
 const fmtD = s => { if(!s) return ''; const [y,m,dd]=s.split('-'); return dd+'/'+m+'/'+y; };
 // o ERP devolve "YYYY-MM-DD HH24:MI" (to_char); a ficha do veículo mostrava cru
@@ -2720,6 +2851,7 @@ let mulSeq = 0;
 let USER = null;            // sessão corrente (payload de /api/auth/me)
 let DATAGES = null;
 let DATASRV = null, srvTimer = null, srvSeq = 0;
+let DATADOC = null, docSeq = 0;
 let DATAORC = null;
 let premSeq = 0, DATAPREM = null;
 let PREM_SERIE = null, premSerieSeq = 0;   // cache da série do comparativo — 1 fetch por carregamento de tela
@@ -2770,7 +2902,7 @@ const VIEW_GROUP = {home:'',cop:'',
   veic:'Fro',veicf:'Fro',mprev:'Fro',comrast:'Fro',comb:'Fro',man:'Fro',mul:'Fro',prem:'Fro',
   oc:'Sup',custos:'Sup',
   tvfat:'Tv',tvope:'Tv',
-  rh:'Rh',hc:'Rh',folha:'Rh',folhaind:'Rh',he:'Rh',gestao:'Adm',srv:'Adm'};
+  rh:'Rh',hc:'Rh',folha:'Rh',folhaind:'Rh',he:'Rh',gestao:'Adm',srv:'Adm',doc:'Adm'};
 function syncGroups(v){
   const ativo = VIEW_GROUP[v];   // accordion: abre o grupo do view ativo, fecha os demais
   ['Com','Fin','Ctr','Ope','Fro','Sup','Rh','Tv','Adm'].forEach(k=>{
@@ -2909,7 +3041,7 @@ function semFilterbar(v){
   // filtros", que não tinha o que aplicar.
   return v==='cop'||v==='gestao'||v==='srv'||v==='home'||v==='veicf'||v==='clif'||v==='jorn'||v==='jornf'||v==='prog'||
          v==='cex'||v==='sac'||v==='mprev'||v==='comrast'||v==='qual'||v==='port'||v==='crm'||v==='rh'||
-         v==='hc'||v==='folha'||v==='folhaind'||v==='he'||v==='custos'||v==='orc'||v==='prem'||v==='extb'||v==='fech';
+         v==='hc'||v==='folha'||v==='folhaind'||v==='he'||v==='custos'||v==='orc'||v==='prem'||v==='extb'||v==='fech'||v==='doc';
 }
 function currentView(){
   const h = (location.hash||'').replace('#','');
@@ -2958,10 +3090,10 @@ function router(){
   const dre = (v==='dre'), oc = (v==='oc'), agr = (v==='agr'), mvb = (v==='mvb'), comb = (v==='comb'), man = (v==='man'), com = (v==='com'), home = (v==='home'), kmv = (v==='km'), torre = (v==='torre'), veic = (v==='veic'), mul = (v==='mul'), prog = (v==='prog'), cop = (v==='cop'), cob = (v==='cob'), rent = (v==='rent'), contab = (v==='cont'), dreCli = (v==='drecli'), orc = (v==='orc');
   // torre: só filial; auto-refresh de 120s enquanto ativa
   if(torreTimer){ clearInterval(torreTimer); torreTimer=null; }
-  if(torre){ torreTimer=setInterval(()=>{ if(currentView()==='torre') loadTorre(); }, 120000); }
+  if(torre){ torreTimer=setInterval(()=>{ if(currentView()==='torre') loadTorre(true); }, 120000); }
   // saúde do servidor: auto-refresh de 5s enquanto a tela está ativa
   if(srvTimer){ clearInterval(srvTimer); srvTimer=null; }
-  if(v==='srv'){ srvTimer=setInterval(()=>{ if(currentView()==='srv') loadSrv(); }, 5000); }
+  if(v==='srv'){ srvTimer=setInterval(()=>{ if(currentView()==='srv') loadSrv(true); }, 5000); }
   // filtros com o vocabulário de cada tela
   document.getElementById('lblEmiDe').textContent =
     comb ? 'Abastecimento de' : mul ? 'Infração de' : man ? 'Emissão da OS de' : (agr||kmv||com||rent) ? 'Emissão da viagem de' : 'Emissão da OC de';
@@ -2977,7 +3109,7 @@ function router(){
   document.getElementById('grpRent').style.display = rent ? 'flex' : 'none';
   const ges = (v==='gestao');
   const fbar=document.getElementById('filterbar'); if(fbar) fbar.style.display = semFilterbar(v) ? 'none' : '';
-  const metaEl=document.getElementById('meta'); if(metaEl) metaEl.style.display = (cop||ges||v==='srv'||v==='veicf'||v==='clif'||v==='jorn'||v==='jornf'||v==='cex'||v==='sac'||v==='mprev'||v==='comrast'||v==='qual'||v==='port'||v==='crm'||v==='rh'||v==='hc'||v==='folha'||v==='folhaind'||v==='he'||v==='custos'||v==='prem') ? 'none' : '';
+  const metaEl=document.getElementById('meta'); if(metaEl) metaEl.style.display = (cop||ges||v==='srv'||v==='veicf'||v==='clif'||v==='jorn'||v==='jornf'||v==='cex'||v==='sac'||v==='mprev'||v==='comrast'||v==='qual'||v==='port'||v==='crm'||v==='rh'||v==='hc'||v==='folha'||v==='folhaind'||v==='he'||v==='custos'||v==='prem'||v==='doc') ? 'none' : '';
   // classe em vez de style: o CSS mobile usa !important no display
   const bfil=document.getElementById('btnFiltros'); if(bfil){ bfil.classList.toggle('oculto', semFilterbar(v)); bfil.style.display=''; }
   document.getElementById('grpKm').style.display = kmv ? 'flex' : 'none';
@@ -2997,8 +3129,8 @@ function router(){
   // carga da vista: dispara se não há dados OU se os filtros visíveis
   // divergem dos usados na última carga (nunca mostrar dado velho com filtro novo)
   const key=viewKey(v);
-  const DATAMAP={fin:DATA,oc:DATAOC,agr:DATAAGR,mvb:DATAMVB,comb:DATACOMB,man:DATAMAN,com:DATACOM,clif:DATACLIF,dre:DATADRE,drecli:DATADRECLI,home:DATAHOME,km:DATAKM,torre:DATATORRE,veic:DATAVEIC,veicf:DATAVEICF,mul:DATAMUL,prog:DATAPROG,jorn:DATAJORN,jornf:DATAJORNF,cex:DATACEX,sac:DATASAC,mprev:DATAMPREV,comrast:DATACOMRAST,qual:DATAQUAL,port:DATAPORT,crm:DATACRM,rh:DATARH,hc:DATAHC,folha:DATAFOLHA,folhaind:DATAFOLHAIND,he:DATAHE,custos:DATACUSTOS,cob:DATACOB,extb:DATAEXTB,rent:DATARENT,cont:DATACONT,orc:DATAORC,fech:DATAFECH,prem:DATAPREM,gestao:DATAGES,srv:DATASRV,tvfat:null,tvope:null,cop:(COP_MSGS.length?{}:null)};
-  const LOADMAP={fin:load,oc:loadOc,agr:loadAgr,mvb:loadMvb,comb:loadComb,man:loadMan,com:loadCom,clif:loadClif,dre:loadDre,drecli:loadDreCli,home:loadHome,km:loadKm,torre:loadTorre,veic:loadVeic,veicf:loadVeicf,mul:loadMul,prog:loadProg,jorn:loadJorn,jornf:loadJornf,cex:loadCex,sac:loadSac,mprev:loadMPrev,comrast:loadComRast,qual:loadQual,port:loadPort,crm:loadCrm,rh:loadRh,hc:loadHc,folha:loadFolha,folhaind:loadFolhaInd,he:loadHe,custos:loadCustos,cob:loadCob,extb:loadExtb,rent:loadRent,cont:loadCont,orc:loadOrc,fech:loadFech,prem:loadPrem,gestao:loadGestao,srv:loadSrv,cop:loadCop,tvfat:loadTvFat,tvope:loadTvOpe};
+  const DATAMAP={fin:DATA,oc:DATAOC,agr:DATAAGR,mvb:DATAMVB,comb:DATACOMB,man:DATAMAN,com:DATACOM,clif:DATACLIF,dre:DATADRE,drecli:DATADRECLI,home:DATAHOME,km:DATAKM,torre:DATATORRE,veic:DATAVEIC,veicf:DATAVEICF,mul:DATAMUL,prog:DATAPROG,jorn:DATAJORN,jornf:DATAJORNF,cex:DATACEX,sac:DATASAC,mprev:DATAMPREV,comrast:DATACOMRAST,qual:DATAQUAL,port:DATAPORT,crm:DATACRM,rh:DATARH,hc:DATAHC,folha:DATAFOLHA,folhaind:DATAFOLHAIND,he:DATAHE,custos:DATACUSTOS,cob:DATACOB,extb:DATAEXTB,rent:DATARENT,cont:DATACONT,orc:DATAORC,fech:DATAFECH,prem:DATAPREM,gestao:DATAGES,srv:DATASRV,doc:DATADOC,tvfat:null,tvope:null,cop:(COP_MSGS.length?{}:null)};
+  const LOADMAP={fin:load,oc:loadOc,agr:loadAgr,mvb:loadMvb,comb:loadComb,man:loadMan,com:loadCom,clif:loadClif,dre:loadDre,drecli:loadDreCli,home:loadHome,km:loadKm,torre:loadTorre,veic:loadVeic,veicf:loadVeicf,mul:loadMul,prog:loadProg,jorn:loadJorn,jornf:loadJornf,cex:loadCex,sac:loadSac,mprev:loadMPrev,comrast:loadComRast,qual:loadQual,port:loadPort,crm:loadCrm,rh:loadRh,hc:loadHc,folha:loadFolha,folhaind:loadFolhaInd,he:loadHe,custos:loadCustos,cob:loadCob,extb:loadExtb,rent:loadRent,cont:loadCont,orc:loadOrc,fech:loadFech,prem:loadPrem,gestao:loadGestao,srv:loadSrv,doc:loadDoc,cop:loadCop,tvfat:loadTvFat,tvope:loadTvOpe};
   if(!DATAMAP[key] || (key!=='home' && LOADEDQS[key]!==qsView(key))) LOADMAP[key]();
   // mobile: estado da navegação inferior + fecha gaveta/painel de filtros
   document.querySelectorAll('.bottomnav [data-bview]').forEach(a=>a.classList.toggle('ativo', a.dataset.bview===v));
@@ -3061,6 +3193,7 @@ const NAV_KW={
   rh:'vaga recrutamento contratacao selecao', home:'inicio visao geral resumo dashboard',
   cop:'copiloto ia chat pergunta assistente', gestao:'usuario perfil acesso permissao auditoria seguranca',
   srv:'servidor saude infra api banco tunel',
+  doc:'documentacao manual ajuda versao changelog historico novidades glossario mudancas',
 };
 function _kwDe(a){
   const v=(a.getAttribute('href')||'').replace('#','');
@@ -4731,7 +4864,7 @@ function reloadCurrent(){
   const M={home:loadHome,fluxo:load,receber:load,pagar:load,dre:loadDre,drecli:loadDreCli,oc:loadOc,
     agr:loadAgr,mvb:loadMvb,comb:loadComb,man:loadMan,com:loadCom,clif:loadClif,km:loadKm,
     torre:loadTorre,veic:loadVeic,veicf:loadVeicf,mul:loadMul,prog:loadProg,jorn:loadJorn,jornf:loadJornf,cex:loadCex,sac:loadSac,mprev:loadMPrev,comrast:loadComRast,qual:loadQual,port:loadPort,crm:loadCrm,rh:loadRh,hc:loadHc,folha:loadFolha,folhaind:loadFolhaInd,he:loadHe,custos:loadCustos,cob:loadCob,extb:loadExtb,rent:loadRent,
-    cont:loadCont,orc:loadOrc,fech:loadFech,prem:loadPrem,gestao:loadGestao,srv:loadSrv,cop:loadCop,tvfat:loadTvFat,tvope:loadTvOpe};
+    cont:loadCont,orc:loadOrc,fech:loadFech,prem:loadPrem,gestao:loadGestao,srv:loadSrv,doc:loadDoc,cop:loadCop,tvfat:loadTvFat,tvope:loadTvOpe};
   (M[currentView()]||load)();
 }
 
@@ -8570,21 +8703,29 @@ function renderCustos(d){
   const ll=(d.itens_lista||[]).map(i=>`<tr><td class="num">${esc(fmtDT(String(i.data||'').replace('T',' ')))}</td><td>${i.agrupador?esc(i.agrupador):'<span style="color:var(--n500)">(sem agrupador)</span>'}</td><td>${esc(i.fornecedor)}</td><td>${esc(i.produto||i.conta||'')}</td><td class="num">${i.frota||i.placa||''}</td><td>${esc(i.status)}</td><td>${ap(i.aprovacao)}</td><td class="num" style="font-weight:600">${BRL.format(i.valor)}</td></tr>`).join('')||'<tr><td colspan="8" style="color:var(--n500)">sem itens no período</td></tr>';
   document.getElementById('custos-lista').innerHTML=`<table><thead><tr><th>Data</th><th>Agrupador</th><th>Fornecedor</th><th>Produto/Conta</th><th class="num">Frota</th><th>Status</th><th>Aprovação</th><th class="num">Valor</th></tr></thead><tbody>${ll}</tbody></table>`;
 }
-async function loadTorre(){
-  skelKpis('kpis-torre',4);
+async function loadTorre(fundo){
+  if(!fundo) skelKpis('kpis-torre',4);
   const seq = ++torreSeq;
   const btn=document.getElementById('btnRefresh');
-  btn.disabled=true;
-  document.getElementById('content').classList.add('loading');
+  // o tique de 120s não esmaece a tela nem desabilita o botão: a torre fica
+  // aberta o dia todo e piscava a cada 2 minutos
+  if(!fundo){ btn.disabled=true; document.getElementById('content').classList.add('loading'); }
   try{
     const q=qsView('torre');
-    const r=await fetch('/api/operacao/torre?'+q,{cache:'no-store'});
+    const opt={cache:'no-store'}; if(fundo) opt.headers={'X-Carga-Fundo':'1'};
+    const r=await fetch('/api/operacao/torre?'+q, opt);
     const d=await r.json();
     if(seq!==torreSeq) return;
     if(!r.ok){ showBanner(d.mensagem||'Erro ao montar a torre.', d.detalhe); return; }
     hideBanner(); DATATORRE=d; LOADEDQS.torre=q; renderTorre(d);
   }catch(e){ if(seq===torreSeq) showBanner('Não foi possível falar com a API.', e.message); }
-  finally{ if(seq===torreSeq){ btn.disabled=false; document.getElementById('content').classList.remove('loading'); } }
+  // quem sujou a tela é quem limpa: o `add` acima é condicionado a !fundo, então
+  // o `remove` também — e SEM olhar o seq. Com `seq===torreSeq && !fundo`, um
+  // tique de 120s disparado no meio de um clique ficava com o seq vigente e
+  // recusava restaurar (é fundo), enquanto a resposta do clique também recusava
+  // (seq velho): a tela ficava em opacity .55 sem cliques e o botão desabilitado,
+  // sem se curar, porque todo tique seguinte também é de fundo.
+  finally{ if(!fundo){ btn.disabled=false; document.getElementById('content').classList.remove('loading'); } }
 }
 function renderTorre(d){
   const k=d.kpis;
@@ -10104,13 +10245,57 @@ function alerts(d,k,gap){
   put('alerts-fluxo',F); put('alerts-receber',R); put('alerts-pagar',P);
 }
 
-/* ---------------- Autenticação, sessão e permissões ---------------- */
+/* ---------------- Autenticação, sessão e carregamento ---------------- */
+/* O contador de cargas vive AQUI, no wrapper de fetch, e não dentro dos
+   loaders. Os loaders soltam o `content.loading` dentro de `if(seq===...)`:
+   funciona para um flag idempotente, mas um contador no mesmo lugar vazaria a
+   cada resposta obsoleta (trocar de filtro duas vezes rápido, coisa de todo
+   dia) e a barra ficaria girando para sempre. O finally abaixo roda em
+   qualquer desfecho, inclusive erro de rede. */
+const CARGA = (typeof criarCarga === 'function' ? criarCarga : ()=>({
+  // /static/carga.js nao carregou (404, rede, deploy parcial). Sem este
+  // fallback o ReferenceError aqui em cima abortaria o resto do script e o
+  // painel morreria atras do overlay de login por causa da BARRA DE PROGRESSO.
+  inicia(){}, termina(){}, ativas(){ return 0; }
+}))({
+  agora:   () => Date.now(),
+  arma:    (fn,ms) => setTimeout(fn,ms),
+  desarma: (i) => clearTimeout(i),
+  repete:  (fn,ms) => setInterval(fn,ms),
+  cessa:   (i) => clearInterval(i),
+  mostraBarra: (v) => { const e=document.getElementById('loadbar'); if(e) e.hidden = !v; },
+  mostraTempo: (v,s) => {
+    const e=document.getElementById('loadtempo'); if(!e) return;
+    // o rótulo é anunciado UMA vez pelo aria-live; os segundos ficam
+    // aria-hidden, senão o leitor de tela recita "…4s, …5s, …6s" a cada
+    // tique e entope a fila de fala numa consulta longa
+    const txt=document.getElementById('loadtempo-txt'), seg=document.getElementById('loadtempo-seg');
+    if(v){
+      if(txt && txt.textContent!=='consultando o banco…') txt.textContent='consultando o banco…';
+      if(seg) seg.textContent=' '+s+'s';
+    }
+    e.hidden = !v;
+  },
+});
+/* Recarga automática não acende a barra: a tela de Saúde recarrega a cada 5s e
+   a barra piscaria o dia inteiro, virando ruído. Quem marca é o timer, não a
+   URL — assim o clique em "Atualizar" dessas mesmas telas continua acusando. */
+function _cargaFundo(init){
+  const h = init && init.headers;
+  if(!h) return false;
+  if(typeof h.get === 'function') return !!h.get('X-Carga-Fundo');
+  return !!(h['X-Carga-Fundo'] || h['x-carga-fundo']);
+}
 const _fetch0 = window.fetch.bind(window);
 window.fetch = async (input, init) => {       // 401 em qualquer chamada => volta ao login
-  const r = await _fetch0(input, init);
   const u = String(typeof input==='string' ? input : (input && input.url) || '');
-  if (r.status===401 && u.startsWith('/api/') && !u.startsWith('/api/auth/')) { USER=null; pararTimers(); mostrarLogin('login'); }
-  return r;
+  const conta = u.startsWith('/api/') && !_cargaFundo(init);
+  if (conta) CARGA.inicia();
+  try{
+    const r = await _fetch0(input, init);
+    if (r.status===401 && u.startsWith('/api/') && !u.startsWith('/api/auth/')) { USER=null; pararTimers(); mostrarLogin('login'); }
+    return r;
+  } finally { if (conta) CARGA.termina(); }
 };
 function pararTimers(){   // sessão caiu: silencia auto-refresh de torre/TV (senão recriam o login a cada tick)
   try{ if(torreTimer){ clearInterval(torreTimer); torreTimer=null; } }catch(e){}
@@ -10195,6 +10380,11 @@ async function setupSubmit(){
 }
 function entrar(){
   document.getElementById('loginOverlay').classList.add('oculto');
+  // rótulo do build no rodapé (CX-DD/MM/AAAA-vX.Y.Z): é como se confirma,
+  // olhando a tela, que o AutoDeploy do Windows subiu o que se esperava
+  fetch('/api/versao',{cache:'no-store'}).then(r=>r.json()).then(d=>{
+    const e=document.getElementById('appVersao'); if(e && d.rotulo) e.textContent=d.rotulo;
+  }).catch(()=>{});
   // Default único de período ANTES da 1ª vista carregar: fEmiDe/fEmiAte e
   // fCompDe/fCompAte são compartilhados por várias vistas, cada uma com um
   // default distinto no backend (90d x 365d; ano corrente x 12m fechados) —
@@ -10418,13 +10608,14 @@ function srvKpi(label,val,sub,cor){
   return `<div class="card kpi"><div class="label">${esc(label)}</div>`+
          `<div class="val" style="color:${cor||'inherit'}">${esc(val)}</div><div class="sub">${esc(sub)}</div></div>`;
 }
-async function loadSrv(){
+async function loadSrv(fundo){
   if(!USER || !USER.admin) return;
   const seq=++srvSeq;
   const primeira = !DATASRV;
   if(primeira) document.getElementById('content').classList.add('loading');
   try{
-    const r=await fetch('/api/gestao/servidor',{cache:'no-store'});
+    const opt={cache:'no-store'}; if(fundo) opt.headers={'X-Carga-Fundo':'1'};
+    const r=await fetch('/api/gestao/servidor', opt);
     if(seq!==srvSeq) return;
     if(!r.ok){ showBanner('Erro ao coletar a saúde do servidor.'); return; }
     DATASRV=await r.json(); LOADEDQS.srv=qsView('srv');
@@ -10432,6 +10623,115 @@ async function loadSrv(){
   }catch(e){ if(seq===srvSeq) showBanner('Não foi possível falar com a API.', e.message); }
   finally{ if(primeira) document.getElementById('content').classList.remove('loading'); }
 }
+/* ---------------- Documentação ---------------- */
+async function loadDoc(){
+  const seq=++docSeq;
+  const btn=document.getElementById('btnRefresh');
+  btn.disabled=true;
+  document.getElementById('content').classList.add('loading');
+  try{
+    const r=await fetch('/api/documentacao',{cache:'no-store'});
+    const d=await r.json();
+    if(seq!==docSeq) return;
+    if(!r.ok){ showBanner(d.mensagem||'Erro ao montar a documentação.', d.detalhe); return; }
+    hideBanner(); DATADOC=d; LOADEDQS.doc=qsView('doc'); renderDoc(d);
+  }catch(e){ if(seq===docSeq) showBanner('Não foi possível falar com a API.', e.message); }
+  finally{ if(seq===docSeq){ btn.disabled=false; document.getElementById('content').classList.remove('loading'); } }
+}
+function renderDoc(d){
+  document.getElementById('doc-rotulo').textContent = d.rotulo || '';
+  document.getElementById('doc-sistema').textContent = d.sistema || '';
+
+  document.getElementById('doc-grupos').innerHTML = (d.grupos||[]).map(g=>{
+    const telas = (g.telas||[]).map(v=>{
+      const t = d.telas[v]; if(!t) return '';
+      // o ⓘ de cada card já diz a tabela e a regra de origem: é a procedência
+      // que veio do próprio painel, não texto escrito à parte
+      const cards = (t.cards||[]).map(c=>
+        `<p class="doc-card">• ${esc(c.titulo)}`+
+        (c.fonte?`<span class="doc-fonte">${esc(c.fonte)}</span>`:'')+`</p>`).join('');
+      return `<div class="doc-tela"><b>${esc(t.titulo)}</b>`+
+             `<a class="doc-hash" href="#${esc(v)}">#${esc(v)}</a>${cards}</div>`;
+    }).join('');
+    return `<div class="doc-grupo" data-nome="${esc(g.nome)}"><h3>${esc(g.nome)}</h3>`+
+           `<p class="doc-res">${esc(g.resumo)}</p>${telas}</div>`;
+  }).join('');
+
+  document.getElementById('doc-glossario').innerHTML =
+    '<dl>'+(d.glossario||[]).map(g=>
+      `<dt>${esc(g.termo)}</dt><dd>${esc(g.definicao)}</dd>`).join('')+'</dl>';
+
+  const rot = {adicionado:'Adicionado', alterado:'Alterado', corrigido:'Corrigido'};
+  document.getElementById('doc-versoes').innerHTML = (d.versoes||[]).map(v=>{
+    const blocos = ['adicionado','alterado','corrigido'].filter(c=>(v[c]||[]).length).map(c=>
+      `<h4>${rot[c]}</h4><ul>${v[c].map(i=>`<li>${esc(i)}</li>`).join('')}</ul>`).join('');
+    return `<div class="doc-ver"><div class="doc-ver-h"><b>${esc(v.versao)}</b>`+
+           `<span class="doc-rot">${esc(v.rotulo || ('v'+v.versao))}</span></div>${blocos}</div>`;
+  }).join('');
+
+  document.getElementById('doc-nav').innerHTML =
+    '<a class="forte" href="#doc" onclick="docIr(\'doc-card-mod\')">Módulos e telas</a>'+
+    (d.grupos||[]).map(g=>`<a href="#doc" data-grp="${esc(g.nome)}">${esc(g.nome)}</a>`).join('')+
+    '<a class="forte" href="#doc" onclick="docIr(\'doc-card-glo\')">Glossário</a>'+
+    '<a class="forte" href="#doc" onclick="docIr(\'doc-card-ver\')">Versões</a>';
+
+  // delegação em vez de onclick com o nome interpolado: esc() não escapa
+  // apóstrofo, e um grupo chamado "Painéis d'água" no manual.yaml encerraria a
+  // string JS no meio do atributo
+  document.getElementById('doc-nav').querySelectorAll('a[data-grp]').forEach(a=>{
+    a.onclick = () => docIr('grp:'+a.dataset.grp);
+  });
+  docFiltrar(document.getElementById('doc-q').value||'');
+}
+function docIr(alvo){
+  const el = alvo.startsWith('grp:')
+    ? [...document.querySelectorAll('#doc-grupos .doc-grupo')].find(g=>g.dataset.nome===alvo.slice(4))
+    : document.getElementById(alvo);
+  if(el) el.scrollIntoView({behavior:'smooth', block:'start'});
+}
+/* Busca local, sem ida ao servidor: o payload inteiro já está em memória e a
+   pessoa que abre a documentação normalmente procura UM termo. */
+function docFiltrar(q){
+  const n=_normDG((q||'').trim());
+  const cards=['doc-card-mod','doc-card-glo','doc-card-ver'];
+  if(!n){
+    document.querySelectorAll('#doc-grupos .doc-grupo, #doc-grupos .doc-tela, .doc-glo dt, .doc-glo dd, .doc-ver')
+      .forEach(e=>e.style.display='');
+    cards.forEach(id=>{ const e=document.getElementById(id); if(e) e.style.display=''; });
+    document.getElementById('doc-vazio').hidden = true;
+    document.getElementById('doc-cont').textContent = '';
+    return;
+  }
+  let achou=0;
+  document.querySelectorAll('#doc-grupos .doc-grupo').forEach(g=>{
+    let tem=false;
+    g.querySelectorAll('.doc-tela').forEach(t=>{
+      const ok=_normDG(t.textContent).includes(n);
+      t.style.display = ok?'':'none'; if(ok){ tem=true; achou++; }
+    });
+    // o grupo fica se algum item dele casou OU se o nome/resumo do grupo casou
+    const noGrupo=_normDG(g.querySelector('h3').textContent+' '+g.querySelector('.doc-res').textContent).includes(n);
+    if(noGrupo && !tem){ g.querySelectorAll('.doc-tela').forEach(t=>t.style.display=''); tem=true; achou++; }
+    g.style.display = tem?'':'none';
+  });
+  const glo=document.querySelectorAll('.doc-glo dt');
+  glo.forEach(dt=>{
+    const dd=dt.nextElementSibling;
+    const ok=_normDG(dt.textContent+' '+(dd?dd.textContent:'')).includes(n);
+    dt.style.display = ok?'':'none'; if(dd) dd.style.display = ok?'':'none';
+    if(ok) achou++;
+  });
+  document.querySelectorAll('.doc-ver').forEach(v=>{
+    const ok=_normDG(v.textContent).includes(n);
+    v.style.display = ok?'':'none'; if(ok) achou++;
+  });
+  const vazio=(id,sel)=>{ const e=document.getElementById(id);
+    if(e) e.style.display = [...e.querySelectorAll(sel)].some(x=>x.style.display!=='none') ? '' : 'none'; };
+  vazio('doc-card-mod','.doc-grupo'); vazio('doc-card-glo','dt'); vazio('doc-card-ver','.doc-ver');
+  document.getElementById('doc-vazio').hidden = achou>0;
+  document.getElementById('doc-cont').textContent = achou ? (achou+(achou===1?' resultado':' resultados')) : '';
+}
+
 function renderSrv(){
   const d=DATASRV; if(!d) return;
   const cpu=d.cpu||{}, mem=(d.memoria||{}).ram||{}, sw=(d.memoria||{}).swap||{}, host=d.host||{}, rede=d.rede||{};
@@ -10835,6 +11135,7 @@ boot();
       <div class="dgrp-b">
         <a href="#gestao" onclick="fecharDrawer()"><span class="ic" data-ic="ges"></span>Usuários e acesso</a>
         <a href="#srv" onclick="fecharDrawer()"><span class="ic" data-ic="srv"></span>Saúde do Servidor</a>
+        <a href="#doc" onclick="fecharDrawer()"><span class="ic" data-ic="doc"></span>Documentação</a>
       </div>
     </div>
     <div class="dconta">
