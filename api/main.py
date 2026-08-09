@@ -10,6 +10,7 @@ from __future__ import annotations
 
 import logging
 import re
+import tomllib
 from datetime import date
 from pathlib import Path
 
@@ -19,9 +20,24 @@ from fastapi.middleware.gzip import GZipMiddleware
 from fastapi.responses import FileResponse, JSONResponse, PlainTextResponse, StreamingResponse
 from fastapi.staticfiles import StaticFiles
 
-from . import alertas, auth, copiloto, db, dre_cliente, push, queries, queries_folha, servidor
+from . import (alertas, auth, copiloto, db, documentacao, dre_cliente, push, queries,
+               queries_folha, servidor)
 
 log = logging.getLogger("cortex.financeiro")
+
+
+def _versao() -> str:
+    """Fonte única: o pyproject.toml. Ler dele evita o número duplicado em dois
+    lugares, que a primeira pressa faria divergir."""
+    try:
+        alvo = Path(__file__).resolve().parent.parent / "pyproject.toml"
+        return tomllib.loads(alvo.read_text(encoding="utf-8"))["project"]["version"]
+    except Exception:  # noqa: BLE001
+        return "dev"
+
+
+VERSAO = _versao()
+ROTULO = documentacao.rotulo(VERSAO)
 # docs/openapi desligados: o painel é exposto na internet via Cloudflare Tunnel
 app = FastAPI(title="Cortex Sulista — Financeiro (MVP)",
               docs_url=None, redoc_url=None, openapi_url=None)
@@ -74,6 +90,19 @@ def service_worker() -> FileResponse:
 
 
 app.mount("/static", StaticFiles(directory=STATIC), name="static")
+
+
+@app.get("/api/versao")
+def versao() -> JSONResponse:
+    # exige sessão (não está em auth._PUBLICAS): serve para confirmar, dentro do
+    # painel, qual build o AutoDeploy colocou no ar
+    return JSONResponse({"versao": VERSAO, "rotulo": ROTULO,
+                         "data": documentacao.versoes()[0]["data"]})
+
+
+@app.get("/api/documentacao")
+def doc() -> JSONResponse:
+    return JSONResponse(documentacao.montar())
 
 
 @app.get("/api/health")
