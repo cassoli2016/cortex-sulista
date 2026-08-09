@@ -66,9 +66,16 @@ nav a.active{color:#fff;background:var(--navy-700);border-left-color:var(--brand
 aside nav a:hover:not(.active){color:#fff;background:var(--navy-800)}
 nav a.mod{opacity:.7}
 .side-foot{margin-top:auto;padding:12px 10px;font-size:11px;color:var(--navy-400)}
+.side-doc{display:flex;align-items:center;gap:10px;padding:7px 8px;margin:0 0 10px -2px;
+  border-radius:var(--radius-md);color:var(--navy-200);text-decoration:none;font-size:13px}
+.side-doc:hover{background:rgba(255,255,255,.06);color:#fff}
+.side-doc .ic{width:18px;height:18px;min-width:18px}
+.side-doc.active{color:var(--brand)}
+.side-marca{display:block}
 .side-ver{display:inline-block;margin-top:3px;font-family:var(--mono);font-size:10.5px;
   color:var(--navy-400);text-decoration:none;letter-spacing:.01em}
 .side-ver:hover{color:var(--brand)}
+body.mini .side-doc span:not(.ic){display:none}
 /* modo mini: só ícones */
 body.mini aside{width:64px;padding:16px 8px}
 body.mini .brandwrap .logo-full,body.mini .brandwrap .mk{display:none}
@@ -386,9 +393,6 @@ tr.forn-det td{padding:7px 12px}
   /* atalhos por USO REAL: a bottomnav é fixa e escolhida no projeto; com 40
      telas e perfis diferentes, metade dos atalhos não serve para quem está
      olhando. Esta faixa se adapta sozinha ao que a pessoa abre. */
-  .dver{display:block;padding:10px 2px 2px;font-family:var(--mono);font-size:11px;
-    color:var(--n500);text-decoration:none;text-align:center}
-  .dver:active{color:var(--orange-500)}
   .dfreq{padding:2px 0 10px;border-bottom:1px solid var(--n100,#EEF1F4)}
   .dfreq-h{font-size:11.5px;font-weight:700;text-transform:uppercase;letter-spacing:.07em;
     color:var(--orange-600);padding:9px 4px 7px}
@@ -413,6 +417,14 @@ tr.forn-det td{padding:7px 12px}
   .drawer a.ativo{border-color:var(--orange-500);background:var(--navy-100);font-weight:600}
   .drawer a.ativo .ic{color:var(--orange-500)}
   .drawer a:active{background:var(--navy-100)}
+  /* a versão é uma assinatura de rodapé, não um item de menu: precisa desfazer
+     o tile de `.drawer a` (fundo, borda, min-height) e a moldura de `.ativo`,
+     que a pegava por ter href="#doc" enquanto a tela aberta era a #doc */
+  .drawer a.dver,.drawer a.dver.ativo{display:block;margin-top:16px;padding:12px 2px 4px;
+    min-height:0;background:none;border:0;border-top:1px solid var(--n100,#EEF1F4);
+    border-radius:0;font-family:var(--mono);font-size:11px;font-weight:400;
+    color:var(--n500);text-align:center}
+  .drawer a.dver:active{background:none;color:var(--orange-500)}
   .drawer a .ic{width:20px;height:20px;min-width:20px;color:var(--navy-600)}
 }
 .btn-filtros{display:none;font-family:var(--font);font-size:12px;font-weight:600;color:var(--navy-700);
@@ -976,10 +988,11 @@ body.tvmode #loadbar,body.tvmode #loadtempo{display:none}
       <div class="subs closed" id="subsAdm">
         <a href="#gestao" class="sub" data-view="gestao" title="Gestão — usuários, perfis e segurança"><span class="ic" data-ic="ges"></span><span>Gestão</span></a>
         <a href="#srv" class="sub" data-view="srv" title="Saúde do Servidor — CPU, memória, disco e serviços"><span class="ic" data-ic="srv"></span><span>Saúde do Servidor</span></a>
-        <a href="#doc" class="sub" data-view="doc" title="Documentação — o manual do sistema e o histórico de versões"><span class="ic" data-ic="doc"></span><span>Documentação</span></a>
       </div>
     </nav>
-    <div class="side-foot">CÓRTEX · Sulista<br>
+    <div class="side-foot">
+      <a href="#doc" class="side-doc" data-view="doc" title="Documentação — o manual do sistema e o histórico de versões"><span class="ic" data-ic="doc"></span><span>Documentação</span></a>
+      <span class="side-marca">CÓRTEX · Sulista</span>
       <a href="#doc" id="appVersao" class="side-ver" title="Versão em execução — clique para ver o que mudou"></a></div>
   </aside>
   <main>
@@ -3168,7 +3181,9 @@ function _drawerAbreAtivo(){         // accordion: abre so a seção da tela atu
     g.classList.toggle('aberto', on); if(on) algum=true;
   });
   if(!algum){ const f=[...document.querySelectorAll('#drawer .dgrp')].find(g=>g.style.display!=='none'); if(f) f.classList.add('aberto'); }
-  document.querySelectorAll('#drawer a[href^="#"]').forEach(a=>a.classList.toggle('ativo', a.getAttribute('href')==='#'+v));
+  // :not(.dver) — a assinatura de versão no rodapé aponta para #doc, mas é
+  // rodapé, não item de menu: marcá-la de "ativo" dava a ela moldura de botão
+  document.querySelectorAll('#drawer a[href^="#"]:not(.dver)').forEach(a=>a.classList.toggle('ativo', a.getAttribute('href')==='#'+v));
 }
 /* Sinônimos de busca: o nome oficial da tela nem sempre é a palavra que a
    pessoa pensa ("boleto" para Cobrança, "diesel" para Combustível). */
@@ -10309,7 +10324,10 @@ function pararTimers(){   // sessão caiu: silencia auto-refresh de torre/TV (se
 function podeVer(v){ if(v==='jornf') v='jorn'; return !!USER && ((v==='gestao'||v==='srv') ? USER.admin : (USER.admin || USER.telas.includes(v))); }
 function primeiraTela(){ return USER ? (Object.keys(VIEWS).find(podeVer) || 'home') : 'home'; }
 function aplicarPermissoes(){
-  document.querySelectorAll('nav a[data-view]').forEach(a=>{ a.style.display = podeVer(a.dataset.view) ? '' : 'none'; });
+  // inclui o .side-foot: o link da Documentação saiu do menu Administração e
+  // foi para o rodapé da sidebar, fora do <nav> — sem isto ele apareceria para
+  // quem não tem a tela
+  document.querySelectorAll('nav a[data-view], .side-foot a[data-view]').forEach(a=>{ a.style.display = podeVer(a.dataset.view) ? '' : 'none'; });
   [['grpCom','subsCom'],['grpFin','subsFin'],['grpCtr','subsCtr'],['grpOpe','subsOpe'],['grpFro','subsFro'],['grpSup','subsSup'],['grpRh','subsRh'],['grpTv','subsTv'],['grpAdm','subsAdm']].forEach(([g,s])=>{
     const subs=document.getElementById(s); if(!subs) return;
     const tem=[...subs.querySelectorAll('a[data-view]')].some(a=>a.style.display!=='none');
@@ -11141,7 +11159,6 @@ boot();
       <div class="dgrp-b">
         <a href="#gestao" onclick="fecharDrawer()"><span class="ic" data-ic="ges"></span>Usuários e acesso</a>
         <a href="#srv" onclick="fecharDrawer()"><span class="ic" data-ic="srv"></span>Saúde do Servidor</a>
-        <a href="#doc" onclick="fecharDrawer()"><span class="ic" data-ic="doc"></span>Documentação</a>
       </div>
     </div>
     <div class="dconta">
