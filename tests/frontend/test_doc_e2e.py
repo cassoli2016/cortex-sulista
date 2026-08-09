@@ -124,6 +124,42 @@ def test_no_mobile_a_versao_e_a_doc_sao_VISIVEIS_na_gaveta(pagina):
     assert pg.is_visible('.dconta a[href="#doc"]'), "Documentacao so achavel dentro do acordeao"
 
 
+def test_documentacao_nao_fica_dentro_do_grupo_administracao(pagina):
+    """Documentacao nao e assunto de Administracao, e no rodape ja existe o
+    atalho: dentro do acordeao ela aparecia DUAS vezes na mesma gaveta."""
+    pg, base = pagina
+    _abrir(pg, base, viewport={"width": 390, "height": 860})
+    pg.evaluate("""
+      document.getElementById('drawer').classList.add('aberto');
+      document.querySelector('#drawer .dgrp[data-grp="Adm"]').classList.add('aberto');
+    """)
+    pg.wait_for_timeout(300)
+    dentro = pg.eval_on_selector_all('#drawer .dgrp[data-grp="Adm"] a[href="#doc"]', "e=>e.length")
+    assert dentro == 0, "Documentacao duplicada dentro do grupo Administracao"
+    assert pg.eval_on_selector_all('.dconta a[href="#doc"]', "e=>e.length") == 1
+
+
+def test_a_versao_no_rodape_nao_vira_botao_de_menu(pagina):
+    """`.drawer a` estiliza todo link da gaveta como tile e `.drawer a.ativo`
+    pintava a borda laranja -- a assinatura de versao ganhava moldura de botao
+    pisado sempre que a tela aberta era a #doc, e colava nos botoes acima."""
+    pg, base = pagina
+    _abrir(pg, base, viewport={"width": 390, "height": 860})
+    pg.evaluate("document.getElementById('drawer').classList.add('aberto')")
+    pg.wait_for_timeout(300)
+    est = pg.eval_on_selector("#appVersaoMob", """e=>{
+      const s = getComputedStyle(e);
+      return {ativo: e.classList.contains('ativo'),
+              margem: parseFloat(s.marginTop),
+              fundo: s.backgroundColor,
+              borda: parseFloat(s.borderLeftWidth)};
+    }""")
+    assert est["ativo"] is False, "versao marcada como item de menu ativo"
+    assert est["margem"] >= 12, f"versao colada nos botoes: margin-top {est['margem']}px"
+    assert est["borda"] == 0, "versao com moldura de botao"
+    assert est["fundo"] in ("rgba(0, 0, 0, 0)", "transparent"), est["fundo"]
+
+
 def test_no_mobile_a_versao_leva_para_a_documentacao(pagina):
     pg, base = pagina
     _abrir(pg, base, viewport={"width": 390, "height": 760})

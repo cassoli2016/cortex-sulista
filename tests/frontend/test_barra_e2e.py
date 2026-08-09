@@ -93,7 +93,11 @@ def test_barra_some_ao_terminar(pagina):
     # padrao, e "#loadbar[hidden]" tem display:none -- a condicao seria
     # impossivel de satisfazer e o teste so daria timeout.
     pg.wait_for_selector("#loadbar", state="hidden", timeout=30000)
-    assert pg.evaluate("CARGA.ativas()") == 0
+    # wait_for_function e nao um assert instantaneo: o boot carrega em FASES, e
+    # entre a barra sumir e o evaluate rodar a fase seguinte ja podia ter
+    # comecado -- ativas() valia 1 sem que houvesse vazamento nenhum. Se o
+    # contador de fato nao zerar, isto da timeout e o teste falha do mesmo jeito.
+    pg.wait_for_function("CARGA.ativas() === 0", timeout=30000)
 
 
 def test_erro_de_rede_tambem_apaga_a_barra(pagina):
