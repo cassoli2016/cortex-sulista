@@ -24,5 +24,17 @@ dependencies = [
   "pywebpush>=1.14",       # notificações push no celular (Web Push + VAPID)
 ]
 
+# Ferramentas de teste. Grupo "test" e NAO "dev" de proposito: o uv instala o
+# grupo dev por padrao, e o AutoDeploy do Windows roda `uv sync` puro sempre que
+# este arquivo muda -- producao passaria a carregar pytest/playwright a toa.
+# Local, para rodar a suite:  uv sync --group test
+# Sem esta declaracao, um `uv sync` DESINSTALA pytest e playwright e leva a
+# suite inteira junto (8 pacotes) -- ja aconteceu de verdade nesta bancada.
+[dependency-groups]
+test = [
+  "pytest>=8.0",
+  "playwright>=1.40",      # testes de UI contra o index.html real, sem banco
+]
+
 [tool.ruff]
 line-length = 100

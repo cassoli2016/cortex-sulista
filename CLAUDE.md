@@ -566,6 +566,21 @@ nos mesmos commits do código.
 4. **Conferir a tela `#doc`**: telas e cards saem do `index.html` sozinhos, mas
    grupo novo, tela nova ou termo novo de glossário entram em `docs/manual.yaml`.
 
+**Rodar a suíte** (as ferramentas de teste ficam no grupo `test`, que o `uv sync`
+puro NÃO instala — de propósito, para o AutoDeploy não carregar pytest e
+playwright em produção):
+
+```bash
+uv sync --group test
+uv run playwright install chromium   # só na primeira vez, e a cada bump do playwright
+uv run pytest -q                     # 481
+node --test "tests/frontend/*.test.js"  # 8 (núcleo do indicador de carga)
+uv run python scratchpad/estrutura.py
+```
+
+Atenção: `uv sync` sem `--group test` **desinstala** pytest e playwright. É o
+comportamento correto para produção; local, use sempre o `--group test`.
+
 **Rótulo do sistema:** `CX-DD/MM/AAAA-vX.Y.Z` (ex.: `CX-08/08/2026-v0.2.0`), com a
 data DA VERSÃO, não a de hoje. Aparece no rodapé da sidebar, no cabeçalho da tela
 de Documentação e em `GET /api/versao` — é como se confirma, olhando o painel, o

@@ -16,6 +16,9 @@ versionamento [SemVer](https://semver.org/lang/pt-BR/).
 ### Alterado
 - Torre de Controle e Saúde do Servidor: a recarga automática (120 s e 5 s) deixou de esmaecer a tela e de desabilitar o botão Atualizar. O clique manual continua acusando carregamento.
 
+### Corrigido
+- Ferramentas de teste (pytest, playwright) declaradas no grupo "test" do pyproject. Sem isso, um `uv sync` — que o AutoDeploy roda a cada mudança no pyproject — desinstalava as duas e levava a suíte junto.
+
 ## [0.1.0] — 08/08/2026  ·  CX-08/08/2026-v0.1.0
 
 ### Adicionado
