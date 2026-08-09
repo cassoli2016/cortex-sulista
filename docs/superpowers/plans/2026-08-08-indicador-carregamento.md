@@ -1236,7 +1236,7 @@ oficial das fórmulas).
 
 ```yaml
 sistema: >-
-  O CÓRTEX é o painel de gestão da Sulista Transportes. Ele lê o ERP AVA
+  O CÓRTEX é o painel de gestão da Transportadora Sulista S/A. Ele lê o ERP AVA
   (PostgreSQL, somente leitura via túnel SSH) e a folha no ERP GLOBUS (Oracle),
   e transforma esse dado em telas de decisão — financeiro, comercial, operação,
   frota, RH e controladoria. Nenhum número é digitado aqui: tudo vem do ERP, e

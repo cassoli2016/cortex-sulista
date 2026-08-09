@@ -1,6 +1,8 @@
 """Serviço do extrato: importação ponta a ponta (SQLite real, AVA mockado)."""
 from __future__ import annotations
 
+from datetime import date, timedelta
+
 import pytest
 
 from api.extrato import armazenamento as arm
@@ -303,16 +305,24 @@ def test_painel_farol_nao_esconde_divergencia_quando_conta_fica_fora_do_limit_20
     `dias_sem is None`) - precedencia que engole uma divergencia real. Aqui a
     "conta velha" tem 1 importacao e outra conta recebe 20 importacoes DEPOIS
     dela, empurrando a da conta velha para fora da janela de 20."""
+    # HOJE, e nao uma data cravada: o farol vira "desatualizado" quando passa de
+    # 7 dias sem extrato (comparacao.farol), e `painel()` compara com
+    # date.today(). Com "2026-08-01" fixo o teste passava ate 08/08 e quebrava
+    # sozinho em 09/08 -- em qualquer maquina, sem ninguem ter mexido em nada.
+    # Foi assim que ele estourou no CI, que roda em UTC (3h a frente daqui).
+    hoje = date.today().isoformat()
+
     cid_velha = arm.obter_ou_criar_conta(db, "1/2/velha", "Conta velha")
     arm.mapear_conta(db, cid_velha, 1, "2", "velha")
     arm.gravar_lancamentos(db, cid_velha, [
-        {"dt": "2026-08-01", "valor": 100.0, "tipo": "C", "historico": "x", "numerodoc": ""},
+        {"dt": hoje, "valor": 100.0, "tipo": "C", "historico": "x", "numerodoc": ""},
     ], "velha.ofx", "ofx")
 
     cid_nova = arm.obter_ou_criar_conta(db, "1/2/nova", "Conta nova")
     for i in range(20):
+        dt_i = (date.today() - timedelta(days=20 - i)).isoformat()
         arm.gravar_lancamentos(db, cid_nova, [
-            {"dt": f"2026-08-{i+1:02d}", "valor": 1.0, "tipo": "C",
+            {"dt": dt_i, "valor": 1.0, "tipo": "C",
              "historico": "y", "numerodoc": str(i)},
         ], f"nova{i}.ofx", "ofx")
 
@@ -326,13 +336,13 @@ def test_painel_farol_nao_esconde_divergencia_quando_conta_fica_fora_do_limit_20
         if params["conta"] == "velha":
             # extrato de HOJE diverge R$ 3.533,69 - tem que aparecer no farol,
             # nao sumir atras de "desatualizado" por ultimo_upload=None
-            return [{"dt": "2026-08-01", "credito": 0.0, "debito": 0.0, "saldo": 0.0}]
+            return [{"dt": hoje, "credito": 0.0, "debito": 0.0, "saldo": 0.0}]
         return []
 
     monkeypatch.setattr(servico.db, "query", fake_query)
-    d = servico.painel("2026-08-01", "2026-08-01", path=db)
+    d = servico.painel(hoje, hoje, path=db)
     velha = next(c for c in d["contas"] if c["conta_id"] == cid_velha)
-    assert velha["ultimo_extrato"] == "2026-08-01"
+    assert velha["ultimo_extrato"] == hoje
     assert velha["farol"]["estado"] == "diverge"
     assert round(velha["farol"]["delta"], 2) == 100.0
 

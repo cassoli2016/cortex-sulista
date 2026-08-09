@@ -1,0 +1,66 @@
+name: testes
+
+# Nenhum teste toca o AVA nem o GLOBUS: os puros são cálculo em memória e os de
+# frontend sobem um http.server servindo api/ com todas as rotas /api/**
+# interceptadas pelo Playwright. Por isso o CI roda sem túnel, sem .env e sem
+# banco — o mesmo que um clone limpo enxerga.
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+concurrency:
+  group: testes-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  suite:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Instalar uv
+        uses: astral-sh/setup-uv@v5
+        with:
+          enable-cache: true
+          cache-dependency-glob: uv.lock
+
+      - name: Instalar dependências
+        # --group test: as ferramentas de teste ficam num grupo NÃO-default, para
+        # o `uv sync` do AutoDeploy não carregar pytest/playwright em produção
+        run: uv sync --group test
+
+      - name: Cache do navegador do Playwright
+        uses: actions/cache@v4
+        id: cache-navegador
+        with:
+          path: ~/.cache/ms-playwright
+          key: playwright-${{ runner.os }}-${{ hashFiles('uv.lock') }}
+
+      - name: Instalar o Chromium
+        if: steps.cache-navegador.outputs.cache-hit != 'true'
+        run: uv run --group test playwright install --with-deps chromium
+
+      - name: Dependências de sistema do navegador
+        if: steps.cache-navegador.outputs.cache-hit == 'true'
+        run: uv run --group test playwright install-deps chromium
+
+      - name: Suíte Python
+        run: uv run --group test pytest -q
+
+      - name: Núcleo do indicador de carregamento
+        # node --test com o GLOB entre aspas: passar o diretório faz o Node
+        # tentar carregá-lo como módulo e falhar com MODULE_NOT_FOUND
+        run: node --test "tests/frontend/*.test.js"
+
+      - name: Verificação estrutural do index.html
+        # pega tag quebrada por replace amplo, que node --check não vê
+        run: uv run python scripts/verificar_estrutura.py
+
+      - name: CHANGELOG em dia com o versoes.yaml
+        run: |
+          uv run python scripts/gerar_changelog.py
+          git diff --exit-code CHANGELOG.md \
+            || { echo "::error::CHANGELOG.md desatualizado — rode: uv run python scripts/gerar_changelog.py"; exit 1; }
