@@ -742,7 +742,7 @@ button.avatar{border:0;cursor:pointer}
 /* ---- impressão / PDF ---- */
 @media print{
   #sidebar,.filterbar,.btn-filtros,.bottomnav,.drawer,#btnRefresh,
-  .cop-bar,.cop-chips,.avwrap,.banner{display:none !important}
+  .cop-bar,.cop-chips,.avwrap,.banner,#loadbar,#loadtempo{display:none !important}
   body{background:#fff}
   .layout{display:block}
   .content{padding:0;margin:0;max-width:100%}
@@ -770,6 +770,39 @@ button.avatar{border:0;cursor:pointer}
   .topbar{padding-top:calc(10px + env(safe-area-inset-top))}
   #loginOverlay{padding-top:env(safe-area-inset-top)}
 }
+/* ---- indicador de carregamento ----
+   Mora sobre a borda inferior da topbar: durante a carga a linha divisória que
+   já existe "acende". Absoluto de propósito — nada no layout se desloca, e a
+   topbar do mobile já é sticky (z-index 40), então a barra acompanha o scroll
+   de graça.
+
+   POSIÇÃO DESTE BLOCO NÃO É ACIDENTE: o @media prefers-reduced-motion lá de
+   cima zera animation-iteration-count em TODO elemento com !important. Sem a
+   regra explícita aqui embaixo, a barra pararia no fim do keyframe
+   (left:100%, fora da tela) e ficaria INVISÍVEL justamente para quem pediu
+   menos movimento. */
+.topbar{position:relative}
+#loadbar{position:absolute;left:0;right:0;bottom:-1px;height:3px;z-index:41;
+  overflow:hidden;background:var(--orange-100)}
+#loadbar[hidden]{display:none}
+#loadbar i{position:absolute;top:0;bottom:0;width:35%;background:var(--orange-500);
+  animation:loadslide 1.15s cubic-bezier(.4,0,.2,1) infinite}
+@keyframes loadslide{0%{left:-35%}100%{left:100%}}
+#loadtempo{position:absolute;left:24px;top:100%;margin-top:6px;z-index:41;
+  background:var(--n0);border:1px solid var(--n200);border-radius:var(--radius-md);
+  box-shadow:var(--shadow);padding:4px 10px;font-size:12px;color:var(--n600);
+  white-space:nowrap}
+#loadtempo[hidden]{display:none}
+@media(max-width:880px){#loadtempo{left:14px}}
+/* painel de TV recarrega sozinho a cada 60s e ninguém está esperando resposta */
+body.tvmode #loadbar,body.tvmode #loadtempo{display:none}
+@media (prefers-reduced-motion: reduce){
+  #loadbar i{left:0;width:100%;
+    animation:loadpulse 2s ease-in-out infinite !important;
+    animation-duration:2s !important;
+    animation-iteration-count:infinite !important}
+}
+@keyframes loadpulse{0%,100%{opacity:.35}50%{opacity:1}}
 </style>
 </head>
 <body>
@@ -889,6 +922,8 @@ button.avatar{border:0;cursor:pointer}
   </aside>
   <main>
     <div class="topbar">
+      <div id="loadbar" hidden><i></i></div>
+      <div id="loadtempo" role="status" aria-live="polite" hidden></div>
       <div>
         <h1 id="viewTitle">Fluxo de Caixa e Bancos</h1>
         <div class="emp" id="empNome">—</div>
