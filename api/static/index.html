@@ -80,7 +80,7 @@ body.mini .subs{display:flex !important}
 body.mini nav a.active{background:var(--navy-700);box-shadow:inset 3px 0 0 var(--brand)}
 /* ---------------- Main ---------------- */
 main{flex:1;min-width:0;display:flex;flex-direction:column}
-.topbar{display:flex;align-items:center;gap:16px;background:var(--n0);border-bottom:1px solid var(--n200);padding:12px 24px}
+.topbar{display:flex;align-items:center;gap:16px;background:var(--n0);border-bottom:1px solid var(--n200);padding:12px 24px;position:relative}
 .topbar h1{font-size:20px;font-weight:700;margin:0}
 .topbar .emp{font-size:12px;color:var(--n500)}
 .spacer{flex:1}
@@ -783,8 +783,12 @@ button.avatar{border:0;cursor:pointer}
    cima zera animation-iteration-count em TODO elemento com !important. Sem a
    regra explícita aqui embaixo, a barra pararia no fim do keyframe
    (left:100%, fora da tela) e ficaria INVISÍVEL justamente para quem pediu
-   menos movimento. */
-.topbar{position:relative}
+   menos movimento.
+
+   O `position:relative` da topbar NAO mora aqui: nesta altura do arquivo ele
+   venceria o `position:sticky` do @media(max-width:880px) por ordem de fonte
+   (media query nao acrescenta especificidade) e mataria a topbar fixa do
+   celular em TODAS as telas. Fica junto da regra base da .topbar la em cima. */
 #loadbar{position:absolute;left:0;right:0;bottom:-1px;height:3px;z-index:41;
   overflow:hidden;background:var(--orange-100)}
 #loadbar[hidden]{display:none}
@@ -978,7 +982,7 @@ body.tvmode #loadbar,body.tvmode #loadtempo{display:none}
   <main>
     <div class="topbar">
       <div id="loadbar" hidden><i></i></div>
-      <div id="loadtempo" role="status" aria-live="polite" hidden></div>
+      <div id="loadtempo" role="status" aria-live="polite" hidden><span id="loadtempo-txt"></span><span id="loadtempo-seg" aria-hidden="true"></span></div>
       <div>
         <h1 id="viewTitle">Fluxo de Caixa e Bancos</h1>
         <div class="emp" id="empNome">—</div>
@@ -8715,7 +8719,13 @@ async function loadTorre(fundo){
     if(!r.ok){ showBanner(d.mensagem||'Erro ao montar a torre.', d.detalhe); return; }
     hideBanner(); DATATORRE=d; LOADEDQS.torre=q; renderTorre(d);
   }catch(e){ if(seq===torreSeq) showBanner('Não foi possível falar com a API.', e.message); }
-  finally{ if(seq===torreSeq && !fundo){ btn.disabled=false; document.getElementById('content').classList.remove('loading'); } }
+  // quem sujou a tela é quem limpa: o `add` acima é condicionado a !fundo, então
+  // o `remove` também — e SEM olhar o seq. Com `seq===torreSeq && !fundo`, um
+  // tique de 120s disparado no meio de um clique ficava com o seq vigente e
+  // recusava restaurar (é fundo), enquanto a resposta do clique também recusava
+  // (seq velho): a tela ficava em opacity .55 sem cliques e o botão desabilitado,
+  // sem se curar, porque todo tique seguinte também é de fundo.
+  finally{ if(!fundo){ btn.disabled=false; document.getElementById('content').classList.remove('loading'); } }
 }
 function renderTorre(d){
   const k=d.kpis;
@@ -10242,7 +10252,12 @@ function alerts(d,k,gap){
    cada resposta obsoleta (trocar de filtro duas vezes rápido, coisa de todo
    dia) e a barra ficaria girando para sempre. O finally abaixo roda em
    qualquer desfecho, inclusive erro de rede. */
-const CARGA = criarCarga({
+const CARGA = (typeof criarCarga === 'function' ? criarCarga : ()=>({
+  // /static/carga.js nao carregou (404, rede, deploy parcial). Sem este
+  // fallback o ReferenceError aqui em cima abortaria o resto do script e o
+  // painel morreria atras do overlay de login por causa da BARRA DE PROGRESSO.
+  inicia(){}, termina(){}, ativas(){ return 0; }
+}))({
   agora:   () => Date.now(),
   arma:    (fn,ms) => setTimeout(fn,ms),
   desarma: (i) => clearTimeout(i),
@@ -10251,7 +10266,14 @@ const CARGA = criarCarga({
   mostraBarra: (v) => { const e=document.getElementById('loadbar'); if(e) e.hidden = !v; },
   mostraTempo: (v,s) => {
     const e=document.getElementById('loadtempo'); if(!e) return;
-    if(v) e.textContent = 'consultando o banco… '+s+'s';
+    // o rótulo é anunciado UMA vez pelo aria-live; os segundos ficam
+    // aria-hidden, senão o leitor de tela recita "…4s, …5s, …6s" a cada
+    // tique e entope a fila de fala numa consulta longa
+    const txt=document.getElementById('loadtempo-txt'), seg=document.getElementById('loadtempo-seg');
+    if(v){
+      if(txt && txt.textContent!=='consultando o banco…') txt.textContent='consultando o banco…';
+      if(seg) seg.textContent=' '+s+'s';
+    }
     e.hidden = !v;
   },
 });
@@ -10644,21 +10666,22 @@ function renderDoc(d){
     const blocos = ['adicionado','alterado','corrigido'].filter(c=>(v[c]||[]).length).map(c=>
       `<h4>${rot[c]}</h4><ul>${v[c].map(i=>`<li>${esc(i)}</li>`).join('')}</ul>`).join('');
     return `<div class="doc-ver"><div class="doc-ver-h"><b>${esc(v.versao)}</b>`+
-           `<span class="doc-rot">CX-${esc(fmtDataBR(v.data))}-v${esc(v.versao)}</span></div>${blocos}</div>`;
+           `<span class="doc-rot">${esc(v.rotulo || ('v'+v.versao))}</span></div>${blocos}</div>`;
   }).join('');
 
   document.getElementById('doc-nav').innerHTML =
     '<a class="forte" href="#doc" onclick="docIr(\'doc-card-mod\')">Módulos e telas</a>'+
-    (d.grupos||[]).map(g=>`<a href="#doc" onclick="docIr('grp:${esc(g.nome)}')">${esc(g.nome)}</a>`).join('')+
+    (d.grupos||[]).map(g=>`<a href="#doc" data-grp="${esc(g.nome)}">${esc(g.nome)}</a>`).join('')+
     '<a class="forte" href="#doc" onclick="docIr(\'doc-card-glo\')">Glossário</a>'+
     '<a class="forte" href="#doc" onclick="docIr(\'doc-card-ver\')">Versões</a>';
 
+  // delegação em vez de onclick com o nome interpolado: esc() não escapa
+  // apóstrofo, e um grupo chamado "Painéis d'água" no manual.yaml encerraria a
+  // string JS no meio do atributo
+  document.getElementById('doc-nav').querySelectorAll('a[data-grp]').forEach(a=>{
+    a.onclick = () => docIr('grp:'+a.dataset.grp);
+  });
   docFiltrar(document.getElementById('doc-q').value||'');
-}
-// data vem como ISO do YAML; a tela é toda em pt-BR
-function fmtDataBR(iso){
-  if(!iso) return '';
-  const p=String(iso).split('-'); return p.length===3 ? `${p[2]}/${p[1]}/${p[0]}` : iso;
 }
 function docIr(alvo){
   const el = alvo.startsWith('grp:')

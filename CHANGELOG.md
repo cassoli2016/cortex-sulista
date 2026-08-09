@@ -18,6 +18,11 @@ versionamento [SemVer](https://semver.org/lang/pt-BR/).
 
 ### Corrigido
 - Ferramentas de teste (pytest, playwright) declaradas no grupo "test" do pyproject. Sem isso, um `uv sync` — que o AutoDeploy roda a cada mudança no pyproject — desinstalava as duas e levava a suíte junto.
+- Topbar voltou a ficar fixa no topo ao rolar no celular, em todas as telas: a regra nova do indicador de carregamento vinha depois da regra de mobile no arquivo e a desligava.
+- Torre de Controle não trava mais quando a recarga automática cai no meio de um clique em Atualizar — a tela ficava esmaecida e sem cliques até trocar de tela.
+- Documentação da Saúde do Servidor mostrava 22 cards em vez de 7, com trechos de código e da tela de login misturados.
+- A documentação passou a respeitar o perfil do usuário: cada um vê apenas as telas a que tem acesso, sem links para telas que não consegue abrir.
+- Leitor de tela deixou de repetir o contador de segundos a cada tique durante uma consulta longa.
 
 ## [0.1.0] — 08/08/2026  ·  CX-08/08/2026-v0.1.0
 

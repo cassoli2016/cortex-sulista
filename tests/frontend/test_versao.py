@@ -47,10 +47,39 @@ def test_toda_versao_tem_data_e_ao_menos_uma_mudanca():
         assert v["adicionado"] or v["alterado"] or v["corrigido"], v
 
 
+def test_endpoint_exige_sessao():
+    """/api/versao NAO esta em auth._PUBLICAS: sem cookie tem de dar 401."""
+    r = TestClient(app).get("/api/versao")
+    assert r.status_code == 401, r.status_code
+
+
 def test_endpoint_devolve_a_versao():
-    cliente = TestClient(app)
-    r = cliente.get("/api/versao")
-    assert r.status_code in (200, 401)
-    if r.status_code == 200:
-        assert r.json()["versao"] == VERSAO
-        assert r.json()["rotulo"] == ROTULO
+    """Chama a funcao direto: com TestClient sem sessao a resposta e sempre 401,
+    e um `assert status in (200, 401)` seguido de `if status == 200:` nao testa
+    absolutamente nada -- era exatamente o caso antes."""
+    import json
+
+    from api.main import versao
+
+    corpo = json.loads(versao().body)
+    assert corpo["versao"] == VERSAO
+    assert corpo["rotulo"] == ROTULO
+    assert corpo["data"] == documentacao.versoes()[0]["data"]
+
+
+def test_toda_versao_traz_o_rotulo_pronto():
+    """O formato CX-... e contrato do CLAUDE.md 5.1 e mora SO no backend; o
+    front nao pode remontar."""
+    for v in documentacao.versoes():
+        assert v["rotulo"] == f"CX-{documentacao.data_br(v['data'])}-v{v['versao']}"
+
+
+def test_versoes_vem_ordenada_da_mais_nova_para_a_mais_velha():
+    """Quem acrescentar o bloco novo no FIM do YAML (o natural num changelog) nao
+    pode fazer o rodape anunciar a versao mais velha."""
+    vs = [documentacao._chave_versao(v["versao"]) for v in documentacao.versoes()]
+    assert vs == sorted(vs, reverse=True), vs
+
+
+def test_ordenacao_de_versao_e_numerica_nao_alfabetica():
+    assert documentacao._chave_versao("1.10.0") > documentacao._chave_versao("1.9.0")
