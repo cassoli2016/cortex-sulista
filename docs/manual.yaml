@@ -1,0 +1,104 @@
+# A CURADORIA da documentação — o que só um humano escreve.
+# O resto (telas, cards e a procedência de cada número) é EXTRAÍDO do próprio
+# index.html por api/documentacao.py, para não envelhecer quando a tela muda.
+#
+# Toda view registrada em VIEWS precisa aparecer em algum grupo abaixo:
+# test_toda_tela_do_painel_esta_em_algum_grupo falha se esquecerem uma.
+
+sistema: >-
+  O CÓRTEX é o painel de gestão da Sulista Transportes. Ele lê o ERP AVA
+  (PostgreSQL, somente leitura via túnel SSH) e a folha no ERP GLOBUS (Oracle),
+  e transforma esse dado em telas de decisão — financeiro, comercial, operação,
+  frota, pessoas e controladoria. Nenhum número é digitado aqui: tudo vem do
+  ERP, e cada card diz no ⓘ de qual tabela e de qual regra ele saiu.
+
+glossario:
+  - termo: RKM
+    definicao: Receita de frete por quilômetro carregado — receita_frete / km_carregado.
+  - termo: CKM bruto
+    definicao: Custo operacional total dividido pelo km total (carregado + vazio).
+  - termo: CKM produtivo
+    definicao: Custo operacional total dividido só pelo km carregado.
+  - termo: Retorno vazio
+    definicao: >-
+      Fração do km rodada sem carga — (km_total − km_carregado) / km_total.
+      Acima de 20% em lotação (FTL) é alerta.
+  - termo: Margem de contribuição por km
+    definicao: >-
+      RKM menos o CKM variável — quanto cada km carregado contribui depois dos
+      custos que variam com a rodagem.
+  - termo: Spread make-vs-buy
+    definicao: >-
+      CKM próprio menos o RKM pago ao agregado. Decide fazer (frota própria) ou
+      comprar (agregado). No curto prazo compara com o CKM marginal; para
+      comprar veículo, com o CKM cheio.
+  - termo: Competência aberta
+    definicao: >-
+      Mês cujo rateio de custo fixo ainda está incompleto. Aparece hachurado ou
+      pontilhado — comparar com mês fechado leva a conclusão errada.
+  - termo: As três receitas
+    definicao: >-
+      Recortes diferentes que NÃO se somam: faturas emitidas (contas a receber),
+      frete das viagens carregadas (programação de embarque) e CT-e + KMM +
+      NFS-e (o recorte oficial da meta). O ⓘ de cada card diz qual está em uso.
+
+grupos:
+  - nome: Visão geral
+    resumo: >-
+      A leitura do dia — caixa, faturamento contra a meta e o que exige ação
+      agora. O Copiloto responde em linguagem natural sobre esses números.
+    telas: [home, cop]
+
+  - nome: Financeiro
+    resumo: >-
+      Caixa e sua projeção, títulos a receber e a pagar, régua de cobrança,
+      conciliação do extrato e ordens de compra.
+    telas: [fluxo, receber, pagar, cob, extb, oc, custos]
+
+  - nome: Controladoria
+    resumo: >-
+      Resultado por competência em cascata, margem por cliente, classificação
+      contábil, orçamento contra realizado, previsão de fechamento do mês e o
+      controle de certidões e licenças.
+    telas: [dre, drecli, cont, orc, fech, qual]
+
+  - nome: Comercial
+    resumo: >-
+      Clientes, receita por quilômetro, concentração de carteira, pipeline de
+      leads e a consulta 360 de um cliente.
+    telas: [com, clif, crm]
+
+  - nome: Operação
+    resumo: >-
+      Torre de controle ao vivo, programação de cargas contra veículos, análise
+      de quilometragem e retorno vazio, jornada do motorista (Lei 13.103),
+      custos extras, freetime e portaria.
+    telas: [torre, prog, km, jorn, jornf, cex, sac, port]
+
+  - nome: Frota
+    resumo: >-
+      Ativos e sua idade, consulta por placa, manutenção corretiva e preventiva,
+      combustível e consumo, multas e comunicação dos rastreadores.
+    telas: [veic, veicf, mprev, man, comb, mul, comrast]
+
+  - nome: Suprimentos
+    resumo: Agregados e terceiros, e a decisão de fazer com frota própria ou comprar.
+    telas: [agr, mvb]
+
+  - nome: Pessoas
+    resumo: >-
+      Vagas e tempo de preenchimento, headcount, custo de folha, indicadores de
+      RH, horas extras e a premiação de motoristas por economia.
+    telas: [rh, hc, folha, folhaind, he, prem]
+
+  - nome: Painéis de TV
+    resumo: >-
+      Telas de mural, sem interação e sem tooltip: cada número precisa se
+      explicar sozinho de longe.
+    telas: [tvfat, tvope]
+
+  - nome: Administração
+    resumo: >-
+      Usuários, perfis e permissões por tela, saúde da máquina onde a API roda,
+      e esta documentação.
+    telas: [gestao, srv, doc]

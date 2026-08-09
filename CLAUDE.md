@@ -470,6 +470,58 @@ a query ignora sai; dimensão que a query aceita e é a pergunta natural da tela
   agregar por mês em Python custa zero consulta e transforma uma tela só-de-tabela numa
   tela com tendência.
 
+**Feedback de carregamento (lição do indicador de carga):**
+- **Esmaecer não é feedback.** `.content.loading{opacity:.55}` era a única resposta
+  a um clique: numa consulta de 40 s ao AVA ninguém distingue "consultando" de
+  "morreu". A barra animada sobre a borda da topbar resolve sem deslocar layout
+  (absoluta), e o contador aparece aos 3 s ("consultando o banco… 12s").
+- **O contador de cargas vive no wrapper de `fetch`, nunca nos loaders.** Os
+  loaders soltam o `content.loading` dentro de `if(seq===...)`: correto para flag
+  idempotente, fatal para contador — toda resposta obsoleta (trocar filtro duas
+  vezes rápido) vazaria e a barra giraria para sempre. O `finally` da Promise roda
+  sempre, inclusive em erro de rede.
+- **Já existe um wrapper de `window.fetch`** (401 → login). Estender esse, nunca
+  criar um segundo: `_fetch0` é usado de propósito no boot/login para escapar do
+  tratamento de 401, e um wrapper novo o sequestraria.
+- **150 ms antes de aparecer.** Sem esse atraso, resposta de cache faz a tela
+  piscar — pior que não ter indicador.
+- **Recarga automática não acende a barra.** Saúde (5 s) e Torre (120 s) marcam
+  `X-Carga-Fundo` **no timer, não na URL**: assim o clique manual nas mesmas telas
+  continua acusando. Painel de TV é escondido por CSS.
+- **GOTCHA do `prefers-reduced-motion`:** o bloco global do arquivo zera
+  `animation-iteration-count` com `!important` em `*`. Uma animação infinita nova
+  para no fim do keyframe — a barra ficaria em `left:100%`, fora da tela, e
+  INVISÍVEL justo para quem pediu menos movimento. Regra própria com
+  especificidade maior é obrigatória.
+
+**Testar a UI com Playwright (já está no `.venv`, não precisa instalar):**
+Um `http.server` serve `api/` e `page.route('**/api/**')` responde com atraso
+controlado — testa a tela sem banco, sem túnel, sem AVA. Três armadilhas custaram
+uma rodada cada:
+- **`wait_for_selector` espera VISIBILIDADE.** `"#loadbar[hidden]"` é condição
+  impossível (tem `display:none`); usar `state="hidden"`.
+- **`evaluate("fetch(...)")` AGUARDA a Promise.** Os 800 ms passavam dentro do
+  `evaluate` e a barra já tinha apagado quando o teste ia olhar. Usar `void fetch(...)`.
+- **`setAttribute` dispara MutationObserver mesmo com valor igual**, então o log de
+  visibilidade ganha um `False` por carga. A asserção correta é "nunca ficou
+  visível", não "log vazio".
+- **Estabilizar exige QUIETUDE de rede**, não um instante de `ativas()==0`: o boot
+  tem fases (auth/me → entrar → router → tela) e o contador toca zero entre elas.
+- No Playwright a rota registrada **por último** é avaliada primeiro — o catch-all
+  vai antes do mock específico.
+
+**Documentação que se extrai do painel (tela `#doc`):**
+- **A procedência já está no HTML.** Os tooltips `.ihelp` de cada card dizem a
+  tabela e a regra de origem; `api/documentacao.py` extrai isso do `index.html`.
+  Documentação escrita à parte envelhece; essa acompanha a tela.
+- **`view-fluxo` é `class="view on"`** (é a tela que abre). Regex presa a
+  `class="view"` exato perdia o Fluxo de Caixa E colava os cards dele na Visão
+  Geral — que aparecia com 7 cards em vez de 5. Sempre `class="view[^"]*"`.
+- **`view-rent` existe no HTML e não está em `VIEWS`**: tela dormente, que o router
+  não abre e o menu não mostra. Fica fora da documentação.
+- Um teste falha se alguma view de `VIEWS` ficar sem grupo em `docs/manual.yaml` —
+  é o que impede a documentação de esquecer tela nova.
+
 **GOTCHA de JS (derrubou o painel inteiro uma vez):** `const` de TOPO não pode ler `CC`
 — o objeto só é criado lá pelo fim do arquivo e a leitura antecipada estoura
 `ReferenceError` (TDZ) que mata o script no boot (login não some da tela). Cor de paleta
@@ -494,6 +546,49 @@ em estrutura de topo: resolver dentro de **função**, na hora de desenhar.
 
 Regra: todo painel tem **fonte do dado + timestamp**; nenhum gráfico sem rótulo direto;
 todo número-chave traz **comparação** (vs meta, vs período anterior).
+
+---
+
+## 5.1 Versão e documentação — OBRIGATÓRIO EM TODA ENTREGA
+
+Nenhuma mudança fecha sem estes quatro passos. Não é etapa opcional do fim: entra
+nos mesmos commits do código.
+
+1. **Bumpar `pyproject.toml`** (SemVer). É a fonte ÚNICA do número. O projeto ficou
+   em `0.1.0` do commit inicial até 08/08/2026; essa passa a ser a versão do estado
+   em produção de então, e o versionamento vale de verdade a partir de `0.2.0`.
+2. **Acrescentar o bloco em `docs/versoes.yaml`** — a versão do TOPO é sempre a
+   corrente e tem de bater com o `pyproject.toml`. Campos `adicionado`, `alterado`,
+   `corrigido`; escreva o que a pessoa que usa o painel percebe, não o refactor.
+3. **Rodar `uv run python scripts/gerar_changelog.py`** para regerar o
+   `CHANGELOG.md`. O arquivo é gerado — não editar à mão.
+   `test_changelog_esta_em_dia_com_o_yaml` falha se divergirem.
+4. **Conferir a tela `#doc`**: telas e cards saem do `index.html` sozinhos, mas
+   grupo novo, tela nova ou termo novo de glossário entram em `docs/manual.yaml`.
+
+**Rodar a suíte** (as ferramentas de teste ficam no grupo `test`, que o `uv sync`
+puro NÃO instala — de propósito, para o AutoDeploy não carregar pytest e
+playwright em produção):
+
+```bash
+uv sync --group test
+uv run playwright install chromium   # só na primeira vez, e a cada bump do playwright
+uv run pytest -q                     # 481
+node --test "tests/frontend/*.test.js"  # 8 (núcleo do indicador de carga)
+uv run python scratchpad/estrutura.py
+```
+
+Atenção: `uv sync` sem `--group test` **desinstala** pytest e playwright. É o
+comportamento correto para produção; local, use sempre o `--group test`.
+
+**Rótulo do sistema:** `CX-DD/MM/AAAA-vX.Y.Z` (ex.: `CX-08/08/2026-v0.2.0`), com a
+data DA VERSÃO, não a de hoje. Aparece no rodapé da sidebar, no cabeçalho da tela
+de Documentação e em `GET /api/versao` — é como se confirma, olhando o painel, o
+que o AutoDeploy do Windows colocou no ar.
+
+Quando MAIOR/MENOR/CORREÇÃO: recurso novo retrocompatível sobe o MENOR (0.2 → 0.3);
+correção sem recurso sobe a CORREÇÃO (0.2.0 → 0.2.1); quebra de contrato de API ou
+de dado sobe o MAIOR.
 
 ---
 

@@ -88,6 +88,7 @@ TELAS: dict[str, tuple[str, str]] = {  # chave -> (rótulo, grupo do menu)
     "he":      ("Horas Extras", "Recursos Humanos"),
     "tvfat":   ("Painel TV — Faturamento", "Painéis TV"),
     "tvope":   ("Painel TV — Operação", "Painéis TV"),
+    "doc":     ("Documentação", "Administração"),
 }
 
 # Rota (prefixo) -> telas que a consomem. Prefixos mais específicos primeiro.
@@ -95,6 +96,9 @@ ROTA_TELAS: list[tuple[str, frozenset[str]]] = [
     # metadados de filtro (empresa/filiais) usados por todas as telas com filtro:
     # basta ter QUALQUER tela atribuída — nunca fica aberto a usuário sem acesso.
     ("/api/financeiro/filtros",       frozenset(TELAS)),
+    # documentação e versão: qualquer usuário logado, com qualquer tela
+    ("/api/documentacao",             frozenset(TELAS)),
+    ("/api/versao",                   frozenset(TELAS)),
     ("/api/financeiro/contabil",      frozenset({"cont"})),
     ("/api/qualidade",                frozenset({"qual"})),
     ("/api/rh/headcount",             frozenset({"hc"})),
@@ -452,6 +456,15 @@ def _seed_perfis_modelo(c: sqlite3.Connection) -> None:
                 c.execute("INSERT OR IGNORE INTO perfil_telas(perfil_id, tela) VALUES(?,?)",
                           (row["id"], "fech"))
         c.execute("INSERT OR IGNORE INTO config(chave, valor) VALUES('perfis_modelo_v20', '1')")
+
+    # v21 (documentacao 2026-08-08): tela 'doc' a TODOS os perfis existentes.
+    # Diferente da v19/v20, aqui nao ha lista de perfis: documentacao nao e dado
+    # sensivel e serve a todo mundo que usa o painel.
+    if not c.execute("SELECT 1 FROM config WHERE chave='perfis_modelo_v21'").fetchone():
+        for row in c.execute("SELECT id FROM perfis").fetchall():
+            c.execute("INSERT OR IGNORE INTO perfil_telas(perfil_id, tela) VALUES(?,?)",
+                      (row["id"], "doc"))
+        c.execute("INSERT OR IGNORE INTO config(chave, valor) VALUES('perfis_modelo_v21', '1')")
 
 
 def _agora() -> str:
