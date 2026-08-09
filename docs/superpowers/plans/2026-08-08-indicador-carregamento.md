@@ -745,7 +745,10 @@ def test_barra_some_ao_terminar(pagina):
     _mockar(pg, 800)
     pg.goto(f"{base}/static/index.html")
     pg.wait_for_selector("#loadbar:not([hidden])", timeout=5000)
-    pg.wait_for_selector("#loadbar[hidden]", timeout=30000)
+    # state="hidden" e obrigatorio: wait_for_selector espera VISIBILIDADE por
+    # padrao, e "#loadbar[hidden]" tem display:none -- a condicao seria
+    # impossivel de satisfazer e o teste so daria timeout.
+    pg.wait_for_selector("#loadbar", state="hidden", timeout=30000)
     assert pg.evaluate("CARGA.ativas()") == 0
 
 
