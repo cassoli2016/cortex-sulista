@@ -77,7 +77,10 @@ def changelog_md() -> str:
 
 # ------------------------------------------------- extração do painel
 # <section class="view" id="view-dre"> … </section>  (o id dá a view)
-_SECAO = re.compile(r'<section class="view" id="view-([a-z0-9]+)"', re.I)
+# O [^"]* NÃO é decorativo: a tela inicial é class="view on", e uma regex presa
+# a class="view" exato perdia o Fluxo de Caixa E, pior, colava os cards dele na
+# tela anterior — o fatiamento vai de uma marca até a seguinte.
+_SECAO = re.compile(r'<section class="view[^"]*" id="view-([a-z0-9]+)"', re.I)
 # <h2>Título <span class="ihelp" … title="procedência">i</span></h2>
 _H2 = re.compile(r"<h2>(.*?)</h2>", re.S | re.I)
 _TITLE = re.compile(r'title="([^"]*)"', re.S)
@@ -116,6 +119,11 @@ def extrair_telas() -> dict[str, dict]:
     telas: dict[str, dict] = {}
     for i, (view, ini) in enumerate(marcas):
         fim = marcas[i + 1][1] if i + 1 < len(marcas) else len(h)
+        # section sem entrada em VIEWS é tela DORMENTE (existe no HTML, não é
+        # alcançável pelo router nem pelo menu). Documentar seria descrever algo
+        # que ninguém consegue abrir.
+        if view not in nomes:
+            continue
         bloco = h[ini:fim]
         cards = []
         for m in _H2.finditer(bloco):

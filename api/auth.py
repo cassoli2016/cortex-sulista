@@ -95,6 +95,9 @@ ROTA_TELAS: list[tuple[str, frozenset[str]]] = [
     # metadados de filtro (empresa/filiais) usados por todas as telas com filtro:
     # basta ter QUALQUER tela atribuída — nunca fica aberto a usuário sem acesso.
     ("/api/financeiro/filtros",       frozenset(TELAS)),
+    # documentação e versão: qualquer usuário logado, com qualquer tela
+    ("/api/documentacao",             frozenset(TELAS)),
+    ("/api/versao",                   frozenset(TELAS)),
     ("/api/financeiro/contabil",      frozenset({"cont"})),
     ("/api/qualidade",                frozenset({"qual"})),
     ("/api/rh/headcount",             frozenset({"hc"})),
