@@ -16,6 +16,13 @@
     - Tela Documentação (#doc) com o manual do sistema e o histórico de versões.
     - Versão do build no rodapé da sidebar, no formato CX-DD/MM/AAAA-vX.Y.Z.
     - CHANGELOG.md e versionamento SemVer a partir do docs/versoes.yaml.
+    - >-
+      Integração contínua no GitHub Actions: a suíte inteira (Python, Node e a
+      verificação estrutural do painel) passa a rodar a cada push e pull request.
+    - >-
+      A verificação estrutural do index.html virou scripts/verificar_estrutura.py.
+      Estava em scratchpad/, que é ignorado pelo git — o CLAUDE.md mandava rodá-la
+      e ela nunca vinha no checkout.
   alterado:
     - >-
       Torre de Controle e Saúde do Servidor: a recarga automática (120 s e 5 s)
@@ -43,6 +50,11 @@
     - >-
       Leitor de tela deixou de repetir o contador de segundos a cada tique durante
       uma consulta longa.
+    - >-
+      No celular a versão do sistema não aparecia em lugar nenhum (ficava só no
+      rodapé do menu lateral, que é escondido no mobile) e a Documentação estava
+      enterrada dentro do acordeão de Administração. Agora as duas ficam no
+      rodapé fixo da gaveta, e tocar na versão abre a Documentação.
 
 - versao: "0.1.0"
   data: "2026-08-08"

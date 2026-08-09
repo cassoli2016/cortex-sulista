@@ -386,6 +386,9 @@ tr.forn-det td{padding:7px 12px}
   /* atalhos por USO REAL: a bottomnav é fixa e escolhida no projeto; com 40
      telas e perfis diferentes, metade dos atalhos não serve para quem está
      olhando. Esta faixa se adapta sozinha ao que a pessoa abre. */
+  .dver{display:block;padding:10px 2px 2px;font-family:var(--mono);font-size:11px;
+    color:var(--n500);text-decoration:none;text-align:center}
+  .dver:active{color:var(--orange-500)}
   .dfreq{padding:2px 0 10px;border-bottom:1px solid var(--n100,#EEF1F4)}
   .dfreq-h{font-size:11.5px;font-weight:700;text-transform:uppercase;letter-spacing:.07em;
     color:var(--orange-600);padding:9px 4px 7px}
@@ -10383,7 +10386,10 @@ function entrar(){
   // rótulo do build no rodapé (CX-DD/MM/AAAA-vX.Y.Z): é como se confirma,
   // olhando a tela, que o AutoDeploy do Windows subiu o que se esperava
   fetch('/api/versao',{cache:'no-store'}).then(r=>r.json()).then(d=>{
-    const e=document.getElementById('appVersao'); if(e && d.rotulo) e.textContent=d.rotulo;
+    if(!d.rotulo) return;
+    ['appVersao','appVersaoMob'].forEach(id=>{
+      const e=document.getElementById(id); if(e) e.textContent=d.rotulo;
+    });
   }).catch(()=>{});
   // Default único de período ANTES da 1ª vista carregar: fEmiDe/fEmiAte e
   // fCompDe/fCompAte são compartilhados por várias vistas, cada uma com um
@@ -11139,10 +11145,14 @@ boot();
       </div>
     </div>
     <div class="dconta">
+      <a href="#doc" onclick="fecharDrawer()"><span class="ic" data-ic="doc"></span>Documentação</a>
       <a href="#" onclick="event.preventDefault();fecharDrawer();abrirNotificacoes()"><span class="ic" data-ic="sino"></span>Notificações</a>
       <a href="#" onclick="event.preventDefault();fecharDrawer();abrirTrocarSenha(false)"><span class="ic" data-ic="chave"></span>Trocar senha</a>
       <a href="#" onclick="event.preventDefault();sair()"><span class="ic" data-ic="sair"></span>Sair</a>
     </div>
+    <!-- a versão vive no rodapé da sidebar, que é display:none no celular: sem
+         esta cópia o rótulo do build não existe no mobile -->
+    <a class="dver" href="#doc" id="appVersaoMob" onclick="fecharDrawer()"></a>
   </div>
 </div>
 </body>

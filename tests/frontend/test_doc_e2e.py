@@ -97,9 +97,38 @@ def test_limpar_a_busca_devolve_tudo(pagina):
     assert visiveis == len(doc["grupos"])
 
 
-def test_no_mobile_nao_rola_na_horizontal_e_entra_na_gaveta(pagina):
+def test_no_mobile_nao_rola_na_horizontal(pagina):
     pg, base = pagina
     _abrir(pg, base, viewport={"width": 390, "height": 760})
     largura = pg.evaluate("[document.documentElement.scrollWidth, window.innerWidth]")
     assert largura[0] <= largura[1], f"pagina rola na horizontal: {largura}"
-    assert pg.eval_on_selector_all('#drawer a[href="#doc"]', "e=>e.length") == 1
+
+
+def test_no_mobile_a_versao_e_a_doc_sao_VISIVEIS_na_gaveta(pagina):
+    """Assertar existencia no DOM nao basta e foi o que deixou o defeito passar:
+    a versao morava so no rodape da sidebar, que e display:none no celular, e a
+    Documentacao ficava dentro do grupo Administracao, que abre FECHADO."""
+    pg, base = pagina
+    doc = _abrir(pg, base, viewport={"width": 390, "height": 760})
+
+    assert pg.eval_on_selector("#sidebar", "e=>getComputedStyle(e).display") == "none"
+
+    pg.evaluate("document.getElementById('drawer').classList.add('aberto')")
+    pg.wait_for_timeout(300)
+
+    # a versao aparece de fato, sem depender de abrir nenhum acordeao
+    assert pg.is_visible("#appVersaoMob"), "rotulo da versao invisivel no celular"
+    assert pg.inner_text("#appVersaoMob") == doc["rotulo"]
+
+    # e a Documentacao esta no rodape fixo da gaveta, nao so dentro do acordeao
+    assert pg.is_visible('.dconta a[href="#doc"]'), "Documentacao so achavel dentro do acordeao"
+
+
+def test_no_mobile_a_versao_leva_para_a_documentacao(pagina):
+    pg, base = pagina
+    _abrir(pg, base, viewport={"width": 390, "height": 760})
+    pg.evaluate("document.getElementById('drawer').classList.add('aberto')")
+    pg.wait_for_timeout(300)
+    pg.click("#appVersaoMob")
+    pg.wait_for_timeout(500)
+    assert pg.evaluate("location.hash") == "#doc"
