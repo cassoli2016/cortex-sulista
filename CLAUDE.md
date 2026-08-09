@@ -286,7 +286,7 @@ a query ignora sai; dimensão que a query aceita e é a pergunta natural da tela
   toda a Visão Geral. **`node --check` NÃO pega** (aspa curva é caractere válido dentro
   de string) e o smoke também não (conta KPIs, não valida estrutura). Corrigir sempre
   por substituição literal de trecho conhecido, um a um.
-- **Verificação estrutural** (`scratchpad/estrutura.py`): percorre as 31 telas e falha
+- **Verificação estrutural** (`scripts/verificar_estrutura.py`): percorre as 31 telas e falha
   se houver atributo cujo NOME contenha aspa, `.val` fora de `.kpi` ou aspa curva em
   `class`/`style`. Rodar junto com o smoke depois de qualquer mexida ampla no HTML.
 
@@ -575,7 +575,7 @@ uv sync --group test
 uv run playwright install chromium   # só na primeira vez, e a cada bump do playwright
 uv run pytest -q                     # 481
 node --test "tests/frontend/*.test.js"  # 8 (núcleo do indicador de carga)
-uv run python scratchpad/estrutura.py
+uv run python scripts/verificar_estrutura.py
 ```
 
 Atenção: `uv sync` sem `--group test` **desinstala** pytest e playwright. É o

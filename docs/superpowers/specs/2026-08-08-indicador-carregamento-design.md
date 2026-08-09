@@ -121,7 +121,7 @@ deslocamento de layout**.
 ```
 ┌─────────────────────────────────────────────┐
 │  DRE Gerencial                   ↻ Atualizar│  ← topbar
-│  Sulista Transportes                        │
+│  Transportadora Sulista S/A                        │
 ├▓▓▓▓▓▓▓▓▓▓▓▓▓░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░─┤  ← 3px, sobre a borda
 │  ┌─────────────────────────┐                │
 │  │ consultando o banco… 12s │               │  ← só aos 3s

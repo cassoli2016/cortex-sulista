@@ -12,6 +12,8 @@ versionamento [SemVer](https://semver.org/lang/pt-BR/).
 - Tela Documentação (#doc) com o manual do sistema e o histórico de versões.
 - Versão do build no rodapé da sidebar, no formato CX-DD/MM/AAAA-vX.Y.Z.
 - CHANGELOG.md e versionamento SemVer a partir do docs/versoes.yaml.
+- Integração contínua no GitHub Actions: a suíte inteira (Python, Node e a verificação estrutural do painel) passa a rodar a cada push e pull request.
+- A verificação estrutural do index.html virou scripts/verificar_estrutura.py. Estava em scratchpad/, que é ignorado pelo git — o CLAUDE.md mandava rodá-la e ela nunca vinha no checkout.
 
 ### Alterado
 - Torre de Controle e Saúde do Servidor: a recarga automática (120 s e 5 s) deixou de esmaecer a tela e de desabilitar o botão Atualizar. O clique manual continua acusando carregamento.
@@ -23,6 +25,9 @@ versionamento [SemVer](https://semver.org/lang/pt-BR/).
 - Documentação da Saúde do Servidor mostrava 22 cards em vez de 7, com trechos de código e da tela de login misturados.
 - A documentação passou a respeitar o perfil do usuário: cada um vê apenas as telas a que tem acesso, sem links para telas que não consegue abrir.
 - Leitor de tela deixou de repetir o contador de segundos a cada tique durante uma consulta longa.
+- No celular a versão do sistema não aparecia em lugar nenhum (ficava só no rodapé do menu lateral, que é escondido no mobile) e a Documentação estava enterrada dentro do acordeão de Administração. Agora as duas ficam no rodapé fixo da gaveta, e tocar na versão abre a Documentação.
+- Nome da empresa corrigido para Transportadora Sulista S/A na abertura da Documentação.
+- Um teste do Extrato Bancário comparava uma data fixa com a data de hoje e quebraria sozinho na virada do dia, sem ninguém ter mexido em nada — foi o primeiro defeito que a integração contínua pegou.
 
 ## [0.1.0] — 08/08/2026  ·  CX-08/08/2026-v0.1.0
 
