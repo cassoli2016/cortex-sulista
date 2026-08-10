@@ -8,6 +8,7 @@ Abrir:  http://127.0.0.1:8000
 """
 from __future__ import annotations
 
+import json
 import logging
 import re
 import tomllib
@@ -1872,3 +1873,87 @@ def overview(
             "erro": "erro_consulta",
             "mensagem": "Erro ao executar a consulta no banco.",
         })
+
+
+# ------------------------------------------------- Report de bug/melhoria
+
+# Print de tela + até 5 anexos. Mesmo teto declarado no serviço, que refaz a
+# conta sobre o dado já desserializado.
+_REP_MAX_BYTES = 15 * 1024 * 1024
+
+
+@app.get("/api/report/config")
+def report_config() -> JSONResponse:
+    """Diz ao painel se o botão de report deve existir.
+
+    Sem GITHUB_TOKEN/REPORT_REPO o recurso nasce desligado, sem erro, e o botão
+    nem chega a ser inserido no DOM — mesmo padrão de GOBRAX e VAPID.
+    """
+    from api.reports import github as gh
+
+    return JSONResponse({"ativo": gh.configurado(), "repo": gh.repo_configurado()})
+
+
+def _report_responder(bruto: bytes, usuario: dict, cliente) -> JSONResponse:
+    """Miolo síncrono do POST: corpo já lido, usuário da SESSÃO e cliente GitHub.
+
+    Separado do endpoint porque o projeto não tem harness de sessão: assim o
+    mapeamento erro → status é testável sem subir a app com cookie válido.
+    """
+    from api.reports import servico as srv
+    from api.reports.github import ErroGitHub
+
+    if cliente is None:
+        return JSONResponse(status_code=503, content={
+            "erro": "nao_configurado",
+            "mensagem": "O envio de report não está configurado neste servidor."})
+    try:
+        payload = json.loads(bruto or b"")
+    except (json.JSONDecodeError, ValueError, UnicodeDecodeError):
+        payload = None
+    if not isinstance(payload, dict):
+        return JSONResponse(status_code=422, content={
+            "erro": "corpo_invalido", "mensagem": "Corpo inválido."})
+    try:
+        dado = srv.registrar(payload, usuario, cliente)
+    except ValueError as exc:
+        return JSONResponse(status_code=422, content={
+            "erro": "report_invalido", "mensagem": str(exc)})
+    except ErroGitHub as exc:
+        # mensagem do próprio GitHub ("Bad credentials", "Not Found") — já é
+        # sanitizada e é o que a pessoa precisa ver para saber que não é culpa
+        # dela; o token nunca passa por aqui
+        return JSONResponse(status_code=502, content={
+            "erro": "github_falhou", "mensagem": str(exc)})
+    except Exception as exc:  # noqa: BLE001
+        # detalhe interno fica no log do servidor, nunca na resposta: uma
+        # exceção de biblioteca pode carregar cabeçalho/credencial no texto
+        log.warning("report falhou: %s", exc)
+        return JSONResponse(status_code=500, content={
+            "erro": "erro_report", "mensagem": "Erro ao registrar o report."})
+
+    auth.audit(usuario.get("email") or "", "report_criado",
+               f"issue #{dado['numero']}", str(payload.get("titulo") or ""))
+    return JSONResponse(dado)
+
+
+@app.post("/api/report")
+async def report_criar(req: Request) -> JSONResponse:
+    """Registra o report como issue. Um POST só, anexos em base64 no JSON.
+
+    Mesmas duas linhas de defesa de tamanho do `extrato_importar`: o header
+    antes de materializar o corpo, e o tamanho real depois — Content-Length
+    pode faltar ou mentir.
+    """
+    from api.reports import github as gh
+
+    grande = {"erro": "report_grande",
+              "mensagem": f"O report passa de {_REP_MAX_BYTES // (1024 * 1024)} MB. "
+                          "Remova um anexo e tente de novo."}
+    if _tamanho_excede(req.headers.get("content-length"), _REP_MAX_BYTES):
+        return JSONResponse(status_code=413, content=grande)
+    bruto = await req.body()
+    if len(bruto) > _REP_MAX_BYTES:
+        return JSONResponse(status_code=413, content=grande)
+    sessao = getattr(req.state, "sessao", None) or {}
+    return _report_responder(bruto, sessao, gh.do_ambiente())

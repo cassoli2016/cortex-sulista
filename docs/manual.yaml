@@ -13,6 +13,12 @@ sistema: >-
   ERP, e cada card diz no ⓘ de qual tabela e de qual regra ele saiu.
 
 glossario:
+  - termo: Report (botão da logo)
+    definicao: >-
+      Botão com o símbolo da Sulista no canto inferior direito de qualquer
+      tela. Abre um formulário para relatar um bug ou pedir uma melhoria, com
+      print da tela e anexos. O relato vira uma issue num repositório privado,
+      levando junto a tela, os filtros ativos, a versão e o navegador.
   - termo: RKM
     definicao: Receita de frete por quilômetro carregado — receita_frete / km_carregado.
   - termo: CKM bruto
