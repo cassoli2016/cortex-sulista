@@ -156,6 +156,16 @@ _PUBLICAS = ("/api/auth/login", "/api/auth/setup", "/api/auth/setup-status", "/a
 # (admin) antes de chegar em _telas_da_rota.
 _ROTAS_AUTOSERVICO = ("/api/auth/me", "/api/auth/logout", "/api/auth/trocar-senha")
 
+# Rotas /api/* que EXIGEM sessão mas não pertencem a tela nenhuma: valem para
+# qualquer usuário logado. Push é assinatura do próprio aparelho; report é
+# avisar de defeito/pedir melhoria — negar isso a quem não é admin deixaria o
+# botão visível para todos e funcionando só para um.
+_ROTAS_SEM_TELA = ("/api/push/", "/api/report")
+
+
+def rota_sem_tela(path: str) -> bool:
+    return path in _ROTAS_AUTOSERVICO or path.startswith(_ROTAS_SEM_TELA)
+
 
 def _rota_publica(path: str) -> bool:
     return (path == "/" or path == "/sw.js" or path.startswith("/static/") or path in _PUBLICAS)
@@ -607,8 +617,7 @@ class AuthMiddleware:
                     "mensagem": "Seu perfil não tem acesso a esta área."})
                 return await resp(scope, receive, send)
         elif (path.startswith("/api/") and not path.startswith("/api/gestao")
-              and path not in _ROTAS_AUTOSERVICO and not path.startswith("/api/push/")
-              and not sess["admin"]):
+              and not rota_sem_tela(path) and not sess["admin"]):
             # fail-closed: rota /api/* sem mapeamento em ROTA_TELAS (nem
             # autoservico de conta, nem /api/gestao — já gated acima) é
             # bloqueada por padrão pra usuário não-admin. Toda rota nova
