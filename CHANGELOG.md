@@ -4,6 +4,17 @@ Gerado de `docs/versoes.yaml` por `scripts/gerar_changelog.py` — não editar �
 Formato [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/),
 versionamento [SemVer](https://semver.org/lang/pt-BR/).
 
+## [0.3.0] — 10/08/2026  ·  CX-10/08/2026-v0.3.0
+
+### Adicionado
+- Botão de report no canto inferior direito de toda tela: relate um bug ou peça uma melhoria sem sair do painel.
+- O report captura o print da tela pelo próprio navegador (fiel, com mapa e gráfico), aceita imagem colada com Ctrl+V, arquivo arrastado e até 5 anexos somando 15 MB.
+- Cada report vira uma issue num repositório PRIVADO, já com a tela e os filtros que estavam ativos, a versão do sistema, o navegador, quem reportou e os erros de JavaScript recentes — antes de enviar, o modal mostra exatamente o que vai junto.
+- Gravidade em três níveis, com rótulo que muda conforme seja bug ("Trava meu trabalho") ou melhoria ("Muito importante").
+
+### Alterado
+- O botão só aparece quando o servidor tem a configuração do GitHub; sem ela o recurso fica desligado, sem erro na tela.
+
 ## [0.2.0] — 08/08/2026  ·  CX-08/08/2026-v0.2.0
 
 ### Adicionado

@@ -522,6 +522,30 @@ uma rodada cada:
 - Um teste falha se alguma view de `VIEWS` ficar sem grupo em `docs/manual.yaml` —
   é o que impede a documentação de esquecer tela nova.
 
+**Botão de report → issue no GitHub (`api/reports/`, botão `#btnReport`):**
+- **O repo do código é PÚBLICO.** Print do CÓRTEX carrega faturamento, cliente, placa e
+  PII, então issue e anexo vão para `REPORT_REPO` — repositório **separado e privado**.
+  Antes de mandar qualquer conteúdo de painel para fora, conferir a visibilidade do
+  destino (`gh repo view <repo> --json visibility`).
+- **`AuthMiddleware` é fail-closed:** rota `/api/*` fora de `ROTA_TELAS` devolve 403 para
+  não-admin. Rota que vale para todo usuário logado entra em `auth._ROTAS_SEM_TELA`
+  (é o caso de report e push) — senão o botão aparece para todos e funciona só para o
+  administrador, e ninguém percebe.
+- **Anexo em repo privado não renderiza inline.** O proxy de imagem do GitHub não
+  autentica: `![](url)` vira quadrado quebrado. A issue traz **link clicável**.
+- **Anexo sobe ANTES da issue.** Na ordem inversa, falha no meio produz issue sem anexo —
+  o defeito que o usuário enxerga. Blob órfão no repo de reports não incomoda ninguém.
+- **`getDisplayMedia` exige contexto seguro** (localhost ou HTTPS). Em HTTP puro por IP a
+  API nem existe: o modal detecta e manda usar Print Screen + Ctrl+V.
+- **O modal sai na própria foto** se não for escondido antes da captura — e as tracks
+  precisam de `stop()` no `finally`, senão o navegador fica com o indicador de
+  compartilhamento aceso.
+- **Falha de envio não pode limpar o formulário**: refazer o print custa dois cliques e
+  um diálogo do navegador. Erro fica na linha `.m-err` com tudo preenchido.
+- O buffer `REPERR` (10 últimos erros) é declarado com `var` + `function` no topo do
+  script, hoisted de propósito: um erro durante a avaliação do arquivo encontraria um
+  `const` em TDZ e viraria dois erros.
+
 **GOTCHA de JS (derrubou o painel inteiro uma vez):** `const` de TOPO não pode ler `CC`
 — o objeto só é criado lá pelo fim do arquivo e a leitura antecipada estoura
 `ReferenceError` (TDZ) que mata o script no boot (login não some da tela). Cor de paleta
