@@ -759,7 +759,7 @@ button.avatar{border:0;cursor:pointer}
 
 /* ---- impressão / PDF ---- */
 @media print{
-  #sidebar,.filterbar,.btn-filtros,.bottomnav,.drawer,#btnRefresh,
+  #sidebar,.filterbar,.btn-filtros,.bottomnav,.drawer,#btnRefresh,#btnReport,
   .cop-bar,.cop-chips,.avwrap,.banner,#loadbar,#loadtempo{display:none !important}
   body{background:#fff}
   .layout{display:block}
@@ -875,6 +875,84 @@ body.tvmode #loadbar,body.tvmode #loadtempo{display:none}
   .doc-nav a.forte{margin-top:0}
   .doc-sel{margin-left:0}
 }
+
+/* ---- botão de report (bug / melhoria) ----
+   z-index 150: abaixo do modal (180) e do login (200), acima de tudo mais.
+   O ícone é o SÍMBOLO da marca (icon-192.png) e não a logo horizontal
+   (478×106) — dentro de um círculo de 52px a logo cheia vira borrão.
+   O botão só é inserido no DOM quando GET /api/report/config diz ativo. */
+#btnReport{position:fixed;right:20px;bottom:20px;z-index:150;display:flex;align-items:center;
+  gap:0;height:52px;width:52px;padding:0;overflow:hidden;cursor:pointer;
+  background:var(--n0);border:1px solid var(--n200);border-radius:26px;
+  box-shadow:0 6px 20px rgba(11,25,38,.22);color:var(--navy-800);
+  font-family:var(--font);font-size:14px;font-weight:600;white-space:nowrap;
+  transition:width .18s cubic-bezier(.4,0,.2,1)}
+#btnReport[hidden]{display:none}
+#btnReport img{width:30px;height:30px;margin:0 10px;flex:none}
+#btnReport span{opacity:0;transition:opacity .12s ease;padding-right:16px}
+#btnReport:hover,#btnReport:focus-visible{width:142px}
+#btnReport:hover span,#btnReport:focus-visible span{opacity:1}
+#btnReport:focus-visible{outline:2px solid var(--orange-500);outline-offset:2px}
+/* quem pediu menos movimento não ganha a expansão (o bloco global zera a
+   transição, mas o texto ficaria invisível dentro de um botão já largo) */
+@media (prefers-reduced-motion: reduce){
+  #btnReport,#btnReport:hover,#btnReport:focus-visible{width:52px}
+  #btnReport span{display:none}
+}
+/* painel de TV é mural: ninguém reporta de lá, e o botão apareceria sobre o mapa */
+body.tvfull #btnReport,body.tvmode #btnReport{display:none}
+@media(max-width:880px){
+  /* a .bottomnav é fixa e ocupa este mesmo canto: 48px de min-height + 6px de
+     padding em cima e embaixo, mais a safe-area do aparelho */
+  #btnReport{right:14px;bottom:calc(72px + env(safe-area-inset-bottom));
+    width:48px;height:48px;border-radius:24px}
+  #btnReport img{width:27px;height:27px;margin:0 9px}
+  #btnReport:hover,#btnReport:focus-visible{width:48px}
+  #btnReport span{display:none}
+}
+
+/* ---- formulário do report ---- */
+.rep-tipos{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.rep-tipo{display:flex;flex-direction:column;align-items:center;gap:4px;padding:12px 8px;
+  border:1px solid var(--n300);border-radius:var(--radius-md);background:var(--n0);
+  font:inherit;font-size:13.5px;font-weight:600;color:var(--n700);cursor:pointer}
+.rep-tipo b{font-size:19px;line-height:1}
+.rep-tipo small{font-weight:500;font-size:11.5px;color:var(--n500);text-align:center}
+.rep-tipo.on{border-color:var(--orange-500);background:var(--orange-100);color:var(--navy-900)}
+.rep-tipo:focus-visible{outline:2px solid var(--orange-500);outline-offset:1px}
+.rep-grav{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
+.rep-grav button{padding:9px 6px;border:1px solid var(--n300);border-radius:var(--radius-md);
+  background:var(--n0);font:inherit;font-size:12.5px;color:var(--n700);cursor:pointer}
+.rep-grav button.on{border-color:var(--navy-700);background:var(--navy-50);
+  color:var(--navy-900);font-weight:600}
+.rep-form textarea{width:100%;min-height:110px;resize:vertical;padding:9px 10px;
+  border:1px solid var(--n300);border-radius:6px;font:inherit;font-size:14px}
+.rep-cap{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+/* o ghost do design system é menor que o .btn; lado a lado a diferença de
+   altura aparece */
+.rep-cap .ghost{padding:9px 14px;font-size:13px}
+/* o modal rola quando a descrição cresce (max-height:86vh): sem isto o botão
+   Enviar fica abaixo da dobra e some justamente na hora de enviar */
+.rep-form .m-foot{position:sticky;bottom:-20px;background:var(--n0);
+  padding:10px 0 2px;margin-top:6px;border-top:1px solid var(--n100)}
+.rep-aviso{font-size:12px;color:var(--n500);margin-top:4px}
+.rep-arq{display:flex;flex-direction:column;gap:6px;margin-top:8px}
+.rep-item{display:flex;align-items:center;gap:9px;padding:6px 8px;border:1px solid var(--n200);
+  border-radius:var(--radius-md);background:var(--n50);font-size:12.5px}
+.rep-item img{width:40px;height:28px;object-fit:cover;border-radius:3px;border:1px solid var(--n200)}
+.rep-item .nome{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.rep-item .tam{color:var(--n500);font-family:var(--mono);font-size:11.5px}
+.rep-item button{border:0;background:none;cursor:pointer;color:var(--red);font:inherit;
+  font-size:16px;line-height:1;padding:0 4px}
+.rep-ctx{margin-top:12px;border-top:1px solid var(--n200);padding-top:10px}
+.rep-ctx summary{cursor:pointer;font-size:12.5px;font-weight:600;color:var(--n600)}
+.rep-ctx table{width:100%;border-collapse:collapse;margin-top:8px;font-size:12px}
+.rep-ctx td{padding:3px 0;vertical-align:top;color:var(--n700)}
+.rep-ctx td:first-child{width:120px;color:var(--n500);font-weight:600}
+.rep-ctx code{font-family:var(--mono);font-size:11.5px;word-break:break-all}
+.rep-ok{text-align:center;padding:8px 4px 4px}
+.rep-ok b{display:block;font-size:16px;margin-bottom:6px}
+.rep-ok a{color:var(--orange-600)}
 </style>
 </head>
 <body>
@@ -2671,11 +2749,27 @@ body.tvmode #loadbar,body.tvmode #loadtempo{display:none}
 <script src="/static/carga.js"></script>
 <script>
 'use strict';
+/* Buffer das ultimas falhas, para viajar junto do report. `var` + declaracao
+   de funcao sao hoisted: se um erro estourar durante a avaliacao do proprio
+   arquivo, o handler abaixo ja encontra os dois prontos (um `const` cairia em
+   TDZ e o erro viraria dois). Guarda mensagem, nunca corpo de resposta -- o
+   corpo traz dado de negocio para dentro de um campo que ninguem revisa. */
+var REPERR = [];
+function _repErro(txt){
+  try{
+    REPERR.push(new Date().toTimeString().slice(0,8)+' '+String(txt).slice(0,300));
+    if(REPERR.length>10) REPERR.shift();
+  }catch(_){}
+}
 window.addEventListener('error', e=>{
+  _repErro(e.message+' ('+(e.filename||'').split('/').pop()+':'+(e.lineno||'')+')');
   try{ const b=document.getElementById('banner'); b.classList.add('show');
     b.textContent='⚠️ Erro de interface: '+e.message+' ('+(e.filename||'').split('/').pop()+':'+(e.lineno||'')+')';
     document.getElementById('content').classList.remove('loading');
   }catch(_){}
+});
+window.addEventListener('unhandledrejection', e=>{
+  _repErro('Promise sem catch: '+((e.reason&&e.reason.message)||e.reason||''));
 });
 /* ---------------- Ícones (SVG inline, stroke) ---------------- */
 const IC = (p)=>`<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${p}</svg>`;
@@ -10312,6 +10406,7 @@ window.fetch = async (input, init) => {       // 401 em qualquer chamada => volt
   try{
     const r = await _fetch0(input, init);
     if (r.status===401 && u.startsWith('/api/') && !u.startsWith('/api/auth/')) { USER=null; pararTimers(); mostrarLogin('login'); }
+    if (!r.ok && u.startsWith('/api/')) _repErro('HTTP '+r.status+' '+u);
     return r;
   } finally { if (conta) CARGA.termina(); }
 };
@@ -10401,6 +10496,7 @@ async function setupSubmit(){
 }
 function entrar(){
   document.getElementById('loginOverlay').classList.add('oculto');
+  repIniciar();   // botao de report: so com sessao e so se o servidor tiver a config
   // rótulo do build no rodapé (CX-DD/MM/AAAA-vX.Y.Z): é como se confirma,
   // olhando a tela, que o AutoDeploy do Windows subiu o que se esperava
   fetch('/api/versao',{cache:'no-store'}).then(r=>r.json()).then(d=>{
@@ -11049,6 +11145,267 @@ async function gesConfigSalvar(){
   }catch(e){ err.textContent='Não foi possível falar com a API.'; }
 }
 
+/* ================= Report de bug/melhoria =================
+   O botão só existe se o servidor tiver GITHUB_TOKEN/REPORT_REPO. O envio é
+   um POST único (anexos em base64), e o modal abre TRAVADO: clique fora
+   apagaria texto digitado e um print que custou dois cliques para obter. */
+const REP = {tipo:'bug', grav:'media', anexos:[], enviando:false, ctx:null};
+const REP_MAX_TOTAL = 15*1024*1024, REP_MAX_ARQ = 8*1024*1024, REP_MAX_N = 5;
+const REP_EXT = 'png,jpg,jpeg,gif,webp,pdf,csv,txt,log,xlsx,docx'.split(',');
+const REP_GRAV = {
+  bug:      [['alta','Trava meu trabalho'],['media','Atrapalha'],['baixa','Pode esperar']],
+  melhoria: [['alta','Muito importante'],['media','Seria bom'],['baixa','Ideia solta']]
+};
+
+async function repIniciar(){
+  // silencioso de propósito: recurso desligado no servidor não vira aviso na
+  // tela de quem usa o painel
+  try{
+    const r = await fetch('/api/report/config',{cache:'no-store'});
+    if(!r.ok) return;
+    const d = await r.json();
+    if(d && d.ativo) document.getElementById('btnReport').hidden = false;
+  }catch(e){}
+}
+
+function repBytes(n){ return n>=1048576 ? (n/1048576).toFixed(1)+' MB' : Math.max(1,Math.round(n/1024))+' KB'; }
+function repTotal(){ return REP.anexos.reduce((s,a)=>s+a.tam,0); }
+function repExt(nome){ const p=String(nome||'').split('.'); return p.length>1 ? p.pop().toLowerCase() : ''; }
+
+/* Contexto técnico. Montado na ABERTURA do modal (e não no envio) porque a
+   tela e os filtros são os de quando a pessoa viu o problema — capturar tela
+   e digitar não muda o hash, mas navegar por engano mudaria. */
+function repContexto(){
+  const v = (location.hash||'#home').slice(1).split('?')[0] || 'home';
+  let filtros='';
+  try{ filtros = decodeURIComponent(String(qsView(viewKey(v)))); }catch(e){}
+  const versao = (document.getElementById('appVersao')||{}).textContent
+              || (document.getElementById('appVersaoMob')||{}).textContent || '';
+  return {
+    tela:v, tela_nome:(VIEWS[v]||v), filtros:filtros, url:location.href,
+    versao:(versao||'').trim(), navegador:navigator.userAgent,
+    tela_px:screen.width+'x'+screen.height+' @'+(window.devicePixelRatio||1)+'x',
+    erros:REPERR.slice(-10)
+  };
+}
+
+function repGravHtml(){
+  return REP_GRAV[REP.tipo].map(([k,rot])=>
+    `<button type="button" class="${REP.grav===k?'on':''}" onclick="repGrav('${k}')">${esc(rot)}</button>`
+  ).join('');
+}
+
+function repTipo(t){
+  REP.tipo=t;
+  document.getElementById('rep-t-bug').classList.toggle('on', t==='bug');
+  document.getElementById('rep-t-mel').classList.toggle('on', t==='melhoria');
+  document.getElementById('rep-grav').innerHTML = repGravHtml();
+  const d=document.getElementById('rep-desc');
+  d.placeholder = t==='bug'
+    ? 'O que você fez, o que aconteceu e o que você esperava que acontecesse.'
+    : 'O que você gostaria de fazer nesta tela e por que isso ajuda.';
+}
+function repGrav(g){
+  REP.grav=g;
+  document.getElementById('rep-grav').innerHTML = repGravHtml();
+}
+
+function repListaHtml(){
+  if(!REP.anexos.length) return '';
+  const itens = REP.anexos.map((a,i)=>
+    `<div class="rep-item">${a.previa?`<img src="${a.previa}" alt="">`:''}
+       <span class="nome">${esc(a.nome)}</span>
+       <span class="tam">${repBytes(a.tam)}</span>
+       <button type="button" onclick="repRemover(${i})" aria-label="Remover ${esc(a.nome)}">×</button>
+     </div>`).join('');
+  return itens + `<div class="rep-aviso">${REP.anexos.length} de ${REP_MAX_N} arquivos · ${repBytes(repTotal())} de ${repBytes(REP_MAX_TOTAL)}</div>`;
+}
+function repPintarLista(){ document.getElementById('rep-arq').innerHTML = repListaHtml(); }
+function repRemover(i){ REP.anexos.splice(i,1); repPintarLista(); mErro(''); }
+
+/* Aceita File (input, arrastar, colar) e Blob (captura de tela). */
+function repAdicionar(arquivo, nome){
+  return new Promise((ok)=>{
+    nome = nome || arquivo.name || 'anexo';
+    if(REP.anexos.length >= REP_MAX_N){ mErro('No máximo '+REP_MAX_N+' anexos por report.'); return ok(false); }
+    if(REP_EXT.indexOf(repExt(nome)) < 0){ mErro('Arquivo .'+(repExt(nome)||'?')+' não é aceito como anexo.'); return ok(false); }
+    if(arquivo.size > REP_MAX_ARQ){ mErro('“'+nome+'” passa de '+repBytes(REP_MAX_ARQ)+'.'); return ok(false); }
+    if(repTotal() + arquivo.size > REP_MAX_TOTAL){ mErro('Os anexos passam de '+repBytes(REP_MAX_TOTAL)+' somados.'); return ok(false); }
+    const fr=new FileReader();
+    fr.onload=()=>{
+      const url=String(fr.result||''), b64=url.split(',')[1]||'';
+      REP.anexos.push({nome:nome, tam:arquivo.size, b64:b64,
+                       previa: url.startsWith('data:image/') ? url : ''});
+      repPintarLista(); mErro(''); ok(true);
+    };
+    fr.onerror=()=>{ mErro('Não foi possível ler “'+nome+'”.'); ok(false); };
+    fr.readAsDataURL(arquivo);
+  });
+}
+async function repArquivos(lista){
+  for(const f of Array.from(lista||[])) await repAdicionar(f);
+}
+
+/* Captura de tela pelo próprio navegador: fiel (pega mapa, gráfico, tudo) e
+   sem biblioteca. Exige contexto seguro — em HTTP puro por IP a API nem
+   existe, e aí só resta Print Screen + Ctrl+V. */
+function repPodeCapturar(){
+  return !!(navigator.mediaDevices && navigator.mediaDevices.getDisplayMedia);
+}
+function _repFrame(stream){
+  return new Promise((ok,erro)=>{
+    const v=document.createElement('video');
+    v.muted=true; v.playsInline=true; v.srcObject=stream;
+    v.onloadedmetadata=()=>{
+      v.play().then(()=>new Promise(r=>setTimeout(r,120))).then(()=>{
+        const escala = Math.min(1, 1920/(v.videoWidth||1920));
+        const c=document.createElement('canvas');
+        c.width=Math.round(v.videoWidth*escala); c.height=Math.round(v.videoHeight*escala);
+        c.getContext('2d').drawImage(v,0,0,c.width,c.height);
+        c.toBlob(b=>{
+          if(!b) return erro(new Error('sem imagem'));
+          // PNG de tela cheia passa fácil de 2 MB; aí JPEG resolve sem que a
+          // leitura do print sofra
+          if(b.size <= 2*1048576) return ok({blob:b, ext:'png'});
+          c.toBlob(j=> j ? ok({blob:j, ext:'jpg'}) : ok({blob:b, ext:'png'}), 'image/jpeg', .85);
+        },'image/png');
+      }).catch(erro);
+    };
+    v.onerror=()=>erro(new Error('video'));
+  });
+}
+async function repCapturar(){
+  const bg=document.getElementById('modalBg'), btn=document.getElementById('rep-cap');
+  if(!repPodeCapturar()){
+    mErro('Este navegador não permite capturar a tela aqui. Use Print Screen e cole com Ctrl+V.');
+    return;
+  }
+  mErro('');
+  // o modal está por cima da tela que a pessoa quer mostrar
+  bg.classList.remove('aberto');
+  await new Promise(r=>requestAnimationFrame(()=>requestAnimationFrame(()=>setTimeout(r,150))));
+  let stream=null;
+  try{
+    stream = await navigator.mediaDevices.getDisplayMedia(
+      {video:{displaySurface:'browser'}, audio:false, preferCurrentTab:true});
+    const {blob, ext} = await _repFrame(stream);
+    bg.classList.add('aberto');
+    await repAdicionar(blob, 'print-da-tela.'+ext);
+  }catch(e){
+    bg.classList.add('aberto');
+    // cancelar o diálogo de compartilhamento é uso normal, não erro
+    if(e && (e.name==='NotAllowedError' || e.name==='AbortError')) mErro('');
+    else mErro('Não foi possível capturar a tela. Use Print Screen e cole com Ctrl+V.');
+  }finally{
+    // sem isto o navegador fica com o indicador de compartilhamento aceso
+    if(stream) stream.getTracks().forEach(t=>t.stop());
+    bg.classList.add('aberto');
+    if(btn) btn.disabled=false;
+  }
+}
+
+function repColar(ev){
+  const itens = (ev.clipboardData||{}).items || [];
+  for(const it of itens){
+    if(it.kind==='file' && String(it.type||'').startsWith('image/')){
+      const f=it.getAsFile();
+      if(f){ ev.preventDefault(); repAdicionar(f, 'print-colado.'+(f.type.split('/')[1]||'png').replace('jpeg','jpg')); return; }
+    }
+  }
+}
+function repSoltar(ev){ ev.preventDefault(); repArquivos((ev.dataTransfer||{}).files); }
+
+function repCtxHtml(){
+  const c=REP.ctx, u=USER||{};
+  const linha=(r,v)=>`<tr><td>${r}</td><td>${v}</td></tr>`;
+  return `<details class="rep-ctx"><summary>O que vai junto com o report</summary>
+    <table>
+      ${linha('Tela', esc(c.tela_nome)+' <code>#'+esc(c.tela)+'</code>')}
+      ${linha('Filtros', c.filtros ? '<code>'+esc(c.filtros)+'</code>' : '—')}
+      ${linha('Você', esc(u.nome||'—')+' · '+esc(u.email||'—')+' · '+esc(u.perfil||'—'))}
+      ${linha('Versão', esc(c.versao||'—'))}
+      ${linha('Navegador', '<code>'+esc(c.navegador)+'</code>')}
+      ${linha('Tela (px)', esc(c.tela_px))}
+      ${linha('Erros recentes', c.erros.length ? c.erros.length+' erro(s) de JavaScript' : 'nenhum')}
+    </table>
+    <div class="rep-aviso">Vai para o repositório privado de reports da Sulista.</div>
+  </details>`;
+}
+
+function abrirReport(){
+  REP.anexos=[]; REP.enviando=false; REP.tipo='bug'; REP.grav='media';
+  REP.ctx=repContexto();
+  const aceita = REP_EXT.map(e=>'.'+e).join(',');
+  abrirModal(`<h3>Reportar</h3>
+    <div class="ges-form rep-form" id="rep-form">
+      <div class="rep-tipos">
+        <button type="button" class="rep-tipo on" id="rep-t-bug" onclick="repTipo('bug')">
+          <b>🐞</b>Bug<small>algo está errado</small></button>
+        <button type="button" class="rep-tipo" id="rep-t-mel" onclick="repTipo('melhoria')">
+          <b>💡</b>Melhoria<small>poderia ser melhor</small></button>
+      </div>
+      <div><label>Gravidade</label><div class="rep-grav" id="rep-grav">${repGravHtml()}</div></div>
+      <div><label for="rep-titulo">Título</label>
+        <input type="text" id="rep-titulo" maxlength="120" placeholder="Resuma em uma linha"></div>
+      <div><label for="rep-desc">Descrição</label>
+        <textarea id="rep-desc" placeholder="O que você fez, o que aconteceu e o que você esperava que acontecesse."></textarea></div>
+      <div><label>Print da tela e anexos</label>
+        <div class="rep-cap">
+          <button type="button" class="btn" id="rep-cap" onclick="repCapturar()">Capturar tela</button>
+          <button type="button" class="ghost" onclick="document.getElementById('rep-file').click()">Escolher arquivo</button>
+          <input type="file" id="rep-file" multiple accept="${aceita}" style="display:none"
+                 onchange="repArquivos(this.files);this.value=''">
+        </div>
+        <div class="rep-aviso">${repPodeCapturar()
+          ? 'Também dá para colar uma imagem com Ctrl+V ou arrastar o arquivo até aqui.'
+          : 'Captura automática indisponível neste endereço — use Print Screen e cole com Ctrl+V.'}</div>
+        <div class="rep-arq" id="rep-arq"></div>
+      </div>
+      ${repCtxHtml()}
+      <div class="m-foot">
+        <div class="m-err" id="m-err"></div>
+        <button class="ghost" onclick="fecharModal()">Cancelar</button>
+        <button class="btn" id="rep-enviar" onclick="repEnviar()">Enviar report</button>
+      </div>
+    </div>`, true);
+  const box=document.getElementById('modalBox');
+  box.addEventListener('paste', repColar);
+  box.addEventListener('dragover', e=>e.preventDefault());
+  box.addEventListener('drop', repSoltar);
+  const t=document.getElementById('rep-titulo'); if(t) t.focus();
+}
+
+async function repEnviar(){
+  if(REP.enviando) return;
+  const btn=document.getElementById('rep-enviar');
+  const titulo=(document.getElementById('rep-titulo').value||'').trim();
+  const desc=(document.getElementById('rep-desc').value||'').trim();
+  if(!titulo){ mErro('Escreva um título.'); document.getElementById('rep-titulo').focus(); return; }
+  if(!desc){ mErro('Escreva a descrição.'); document.getElementById('rep-desc').focus(); return; }
+  mErro(''); REP.enviando=true; btn.disabled=true; btn.textContent='Enviando…';
+  try{
+    const r=await fetch('/api/report',{method:'POST',headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({tipo:REP.tipo, gravidade:REP.grav, titulo:titulo, descricao:desc,
+        contexto:REP.ctx, anexos:REP.anexos.map(a=>({nome:a.nome, b64:a.b64}))})});
+    const d=await r.json().catch(()=>({}));
+    if(!r.ok){
+      // o formulário INTEIRO continua no lugar: reescrever o print custa caro
+      mErro(d.mensagem||'Não foi possível registrar o report.');
+      return;
+    }
+    document.getElementById('rep-form').innerHTML =
+      `<div class="rep-ok"><b>Report registrado — #${d.numero}</b>
+         <div class="rep-aviso">Obrigado. O time recebe com a tela, os filtros e o print que você mandou.</div>
+         <div class="m-foot"><button class="btn" onclick="fecharModal()">Fechar</button></div>
+       </div>`;
+  }catch(e){
+    mErro('Não foi possível falar com a API. Sem rede?');
+  }finally{
+    REP.enviando=false;
+    if(btn && btn.isConnected){ btn.disabled=false; btn.textContent='Enviar report'; }
+  }
+}
+
 boot();
 </script>
 <nav class="bottomnav" id="bottomnav" aria-label="Navegação principal">
@@ -11172,5 +11529,12 @@ boot();
     <a class="dver" href="#doc" id="appVersaoMob" onclick="fecharDrawer()"></a>
   </div>
 </div>
+<!-- Botão de report. Nasce escondido: `repIniciar()` só o revela quando
+     /api/report/config responde ativo E existe sessão. -->
+<button id="btnReport" onclick="abrirReport()" hidden
+        title="Reportar um problema ou sugerir uma melhoria"
+        aria-label="Reportar um problema ou sugerir uma melhoria">
+  <img src="/static/icon-192.png" alt=""><span>Reportar</span>
+</button>
 </body>
 </html>
