@@ -175,8 +175,12 @@ usuário direto no `.env` — credencial não passa por conversa.
 
 ## Segurança
 
-- Endpoint protegido pelo `AuthMiddleware`, que já cobre todo `/api/*`. A rota fica **fora**
-  de `ROTA_TELAS`: reportar não é privilégio de tela, todo usuário logado pode.
+- Endpoint protegido pelo `AuthMiddleware`, que já cobre todo `/api/*`. Reportar não é
+  privilégio de tela: todo usuário logado pode.
+  **Corrigido durante a implementação** — o middleware é *fail-closed*: rota `/api/*` fora
+  de `ROTA_TELAS` devolve 403 para quem não é admin. Só ficar de fora do mapa não bastava;
+  a rota entrou em `auth._ROTAS_SEM_TELA` (ao lado de `/api/push/`), com teste que trava
+  essa liberação. Sem isso o botão apareceria para todos e funcionaria só para o admin.
 - Token só no servidor. O navegador nunca vê `GITHUB_TOKEN`.
 - Print e e-mail do usuário só existem dentro de repositório privado.
 - Extensão de anexo por allowlist; nome de arquivo sempre reescrito pelo servidor (nome
