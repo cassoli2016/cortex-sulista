@@ -542,6 +542,8 @@ uma rodada cada:
   compartilhamento aceso.
 - **Falha de envio não pode limpar o formulário**: refazer o print custa dois cliques e
   um diálogo do navegador. Erro fica na linha `.m-err` com tudo preenchido.
+- `uv run python scripts/verificar_report.py` diz por que o botão não aparece
+  (chave ausente, repo errado, token sem permissão) sem imprimir o token.
 - O buffer `REPERR` (10 últimos erros) é declarado com `var` + `function` no topo do
   script, hoisted de propósito: um erro durante a avaliação do arquivo encontraria um
   `const` em TDZ e viraria dois erros.
