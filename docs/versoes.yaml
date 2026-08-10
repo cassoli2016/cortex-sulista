@@ -3,6 +3,29 @@
 #   - a tela Documentação     (#doc)
 #   - o rótulo no rodapé      (CX-DD/MM/AAAA-vX.Y.Z)
 # A versão do TOPO é a corrente e tem de bater com o pyproject.toml.
+- versao: "0.3.0"
+  data: "2026-08-10"
+  adicionado:
+    - >-
+      Botão de report no canto inferior direito de toda tela: relate um bug ou
+      peça uma melhoria sem sair do painel.
+    - >-
+      O report captura o print da tela pelo próprio navegador (fiel, com mapa e
+      gráfico), aceita imagem colada com Ctrl+V, arquivo arrastado e até 5
+      anexos somando 15 MB.
+    - >-
+      Cada report vira uma issue num repositório PRIVADO, já com a tela e os
+      filtros que estavam ativos, a versão do sistema, o navegador, quem
+      reportou e os erros de JavaScript recentes — antes de enviar, o modal
+      mostra exatamente o que vai junto.
+    - >-
+      Gravidade em três níveis, com rótulo que muda conforme seja bug
+      ("Trava meu trabalho") ou melhoria ("Muito importante").
+  alterado:
+    - >-
+      O botão só aparece quando o servidor tem a configuração do GitHub; sem
+      ela o recurso fica desligado, sem erro na tela.
+
 - versao: "0.2.0"
   data: "2026-08-08"
   adicionado:
