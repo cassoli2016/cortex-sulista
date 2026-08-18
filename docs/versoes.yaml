@@ -3,6 +3,24 @@
 #   - a tela Documentação     (#doc)
 #   - o rótulo no rodapé      (CX-DD/MM/AAAA-vX.Y.Z)
 # A versão do TOPO é a corrente e tem de bater com o pyproject.toml.
+- versao: "0.6.0"
+  data: "2026-08-18"
+  adicionado:
+    - >-
+      Filtro por órgão autuador na tela de Multas: PRF, DER-SP, ANTT, DNIT e
+      prefeituras aparecem no select com a contagem de autos de cada um.
+    - >-
+      Coluna de vencimento no detalhe de cada veículo, com destaque para o que
+      já venceu e o que vence em até sete dias, e a coluna do órgão que autuou.
+    - >-
+      Indicador "Vencidos em aberto", com valor e quantos vencem na semana.
+  alterado:
+    - >-
+      O indicador de vencidos diz explicitamente que fala do CADASTRO e não do
+      caixa: a baixa do auto quase nunca volta para o ERP, porque a defesa é
+      conduzida por escritório externo. Serve para achar auto esquecido, nunca
+      como saldo devedor.
+
 - versao: "0.5.0"
   data: "2026-08-18"
   adicionado:
