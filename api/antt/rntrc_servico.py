@@ -63,6 +63,16 @@ def resumir(conferidos: list[dict]) -> dict:
     }
 
 
+def ordenar(conferidos: list[dict]) -> list[dict]:
+    """Risco primeiro; dentro do risco, o maior valor pago primeiro.
+
+    É a ordem da ação: quem está irregular e recebeu mais é por onde se começa.
+    Fica fora de get_rntrc para poder ser testada sem banco.
+    """
+    return sorted(conferidos,
+                  key=lambda c: (not c["risco"], -float(c.get("pago") or 0)))
+
+
 def _contratados(dt_de: str, dt_ate: str) -> list[dict]:
     with db.get_conn() as conn, conn.cursor() as cur:
         cur.execute(RNTRC_TRANSPORTADORES_SQL, {"dt_de": dt_de, "dt_ate": dt_ate})
@@ -70,9 +80,7 @@ def _contratados(dt_de: str, dt_ate: str) -> list[dict]:
 
 
 def get_rntrc(dt_de: str, dt_ate: str) -> dict:
-    conferidos = conferir(_contratados(dt_de, dt_ate), todas())
-    # risco primeiro, e dentro dele o maior valor pago — é a ordem da ação
-    conferidos.sort(key=lambda c: (not c["risco"], -float(c.get("pago") or 0)))
+    conferidos = ordenar(conferir(_contratados(dt_de, dt_ate), todas()))
     return {
         "kpis": resumir(conferidos),
         "transportadores": conferidos,

@@ -77,3 +77,18 @@ def test_base_nunca_sincronizada_nao_acusa_ninguem():
     conf = conferir([_contratado()], {})
     assert conf[0]["situacao"] == "sem_base"
     assert conf[0]["risco"] is False
+
+
+def test_ordenacao_poe_o_risco_primeiro_e_o_maior_valor_no_topo():
+    """É a ordem da ação: quem está irregular e recebeu mais vem primeiro."""
+    from api.antt.rntrc_servico import ordenar
+    base = _base(**{"111": {"rntrc": "111", "situacao": "PENDENTE",
+                            "categoria": "TAC", "uf": "SP", "nome": "B",
+                            "data_situacao": "01/07/2026"}})
+    conf = ordenar(conferir([
+        _contratado(pago=900000.0, nome="REGULAR GRANDE"),
+        _contratado(rntrc="111", nome="PENDENTE PEQUENO", pago=30000.0),
+        _contratado(rntrc="9999999", nome="FORA DA BASE", pago=200000.0),
+    ], base))
+    assert [c["nome"] for c in conf] == [
+        "FORA DA BASE", "PENDENTE PEQUENO", "REGULAR GRANDE"]
