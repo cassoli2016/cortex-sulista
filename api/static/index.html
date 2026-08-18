@@ -1058,6 +1058,7 @@ body.tvfull #btnReport,body.tvmode #btnReport{display:none}
       </button>
       <div class="subs closed" id="subsAntt">
         <a href="#anpiso" class="sub" data-view="anpiso" title="Piso Mínimo de Frete — confere o que se paga ao agregado contra a tabela da ANTT"><span class="ic" data-ic="qualic"></span><span>Piso Mínimo de Frete</span></a>
+        <a href="#anrntrc" class="sub" data-view="anrntrc" title="RNTRC — situação do registro dos transportadores contratados"><span class="ic" data-ic="qualic"></span><span>RNTRC dos Transportadores</span></a>
       </div>
       <button class="group" id="grpTv" aria-expanded="false" aria-controls="subsTv" onclick="toggleGroup('grpTv','subsTv','cs.tvGroup')" title="Painéis TV">
         <span class="ic" data-ic="tv"></span><span>Painéis TV</span><span class="ic chev" data-ic="chev"></span>
@@ -1572,7 +1573,7 @@ body.tvfull #btnReport,body.tvmode #btnReport{display:none}
         <div class="card">
           <div class="head"><h2>Transportadores do período <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="programacaoembarque (não cancelada, semáforo = 1) dos veículos com veiculo.utilizacaoveiculo em AGR/TER, por data de emissão. Pago = valorfretecompra; frete peso = valorfrete; km = kmfretecompra. Acertos vêm de acertoviagemagregado ligada por cnpjcpfcodigoveiculo. CPF/CNPJ mascarado. Clique na linha para abrir as viagens do transportador.">i</span></h2><span class="hint" id="hintAgrT">top 30 por valor · clique para ver as viagens</span></div>
           <div class="tablewrap tabroll"><table><thead><tr>
-            <th style="width:34px"></th><th>Transportador</th><th>Modalidade</th><th class="num">Viagens</th><th class="num">Pago</th><th class="num">Frete peso</th><th class="num">% pago</th><th class="num">Km</th><th class="num">R$/km</th><th class="num">Acertos</th><th class="num">Valor acertos</th><th class="num">vs piso ANTT</th>
+            <th style="width:34px"></th><th>Transportador</th><th>Modalidade</th><th class="num">Viagens</th><th class="num">Pago</th><th class="num">Frete peso</th><th class="num">% pago</th><th class="num">Km</th><th class="num">R$/km</th><th class="num">Acertos</th><th class="num">Valor acertos</th><th class="num">vs piso ANTT</th><th class="num">RNTRC</th>
           </tr></thead><tbody id="agr-transp"></tbody></table></div>
         </div>
         <div class="card">
@@ -1603,6 +1604,24 @@ body.tvfull #btnReport,body.tvmode #btnReport{display:none}
           <div class="tablewrap"><table><thead><tr>
             <th>Placa</th><th>Tipo</th><th>Carroceria</th><th>Motivo</th>
           </tr></thead><tbody id="anpiso-pend"></tbody></table></div>
+        </div>
+      </section>
+
+      <!-- ===================== RNTRC ===================== -->
+      <section class="view" id="view-anrntrc">
+        <div class="kpis" id="kpis-anrntrc"></div>
+        <div class="card">
+          <div class="head">
+            <h2>Transportadores contratados <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="Transportadores com frete de compra nos últimos 12 meses (programacaoembarque, não cancelada, semáforo = 1, veículo AGR/TER), cruzados com a base aberta do RNTRC (dados.antt.gov.br, CC-BY) pelo número de registro guardado em cadastro.numerorntrc. A base da ANTT publica apenas os registros ATIVO e PENDENTE: quem não aparece pode estar baixado, e por isso conta como risco a investigar, não como regular.">i</span></h2>
+            <span class="hint" id="anrntrc-sync">base não sincronizada</span>
+          </div>
+          <div style="padding:0 14px 12px">
+            <button class="btn" id="btnAnrntrcSync" onclick="anrntrcAtualizar()">Atualizar base da ANTT</button>
+            <span class="hint" style="margin-left:10px">baixa ~158 MB da ANTT e guarda só os transportadores contratados</span>
+          </div>
+          <div class="tablewrap tabroll"><table><thead><tr>
+            <th>Transportador</th><th>Tipo</th><th>RNTRC</th><th>Categoria</th><th>UF</th><th>Situação</th><th class="num">Viagens</th><th class="num">Pago (12m)</th><th class="num">Última viagem</th>
+          </tr></thead><tbody id="anrntrc-lista"></tbody></table></div>
         </div>
       </section>
 
@@ -2904,7 +2923,7 @@ const FAIXAS = {
   '4_vencido_91_365':['Vencido 91–365d','b-dang'],
   '5_vencido_mais_365':['Vencido > 365d','b-dang'],
 };
-const VIEWS = { home:'Visão Geral', fluxo:'Fluxo de Caixa e Bancos', receber:'Contas a Receber', pagar:'Contas a Pagar', oc:'Ordens de Compra', custos:'Painel de Custos', agr:'Agregados e Terceiros', mvb:'Make vs Buy', comb:'Combustível', man:'Manutenção', com:'Clientes e RKM', clif:'Consulta de Cliente', crm:'CRM — Leads e Projetos', km:'Análise de KM', torre:'Torre de Controle', veic:'Veículos', veicf:'Consulta de Veículo', mprev:'Manutenção Preventiva', comrast:'Comunicação Rastreadora', mul:'Multas', prog:'Programação Inteligente', jorn:'Jornada do Motorista', jornf:'Ficha de Jornada', cex:'Custos Extras', sac:'SAC / Freetime', port:'Portaria', cop:'Copiloto Cortex', cob:'Régua de Cobrança', extb:'Extrato Bancário', cont:'Contabilidade', qual:'Qualidade e Certidões', orc:'Orçamento', fech:'Fechamento do Mês', prem:'Premiação de Motoristas', dre:'DRE Gerencial', drecli:'DRE por Cliente', tvfat:'Painel TV — Faturamento', tvope:'Painel TV — Operação', rh:'RH — Vagas', hc:'Headcount', folha:'Custo de Folha', folhaind:'Indicadores de Folha', he:'Horas Extras', gestao:'Gestão', srv:'Saúde do Servidor', doc:'Documentação', anpiso:'Piso Mínimo de Frete' };
+const VIEWS = { home:'Visão Geral', fluxo:'Fluxo de Caixa e Bancos', receber:'Contas a Receber', pagar:'Contas a Pagar', oc:'Ordens de Compra', custos:'Painel de Custos', agr:'Agregados e Terceiros', mvb:'Make vs Buy', comb:'Combustível', man:'Manutenção', com:'Clientes e RKM', clif:'Consulta de Cliente', crm:'CRM — Leads e Projetos', km:'Análise de KM', torre:'Torre de Controle', veic:'Veículos', veicf:'Consulta de Veículo', mprev:'Manutenção Preventiva', comrast:'Comunicação Rastreadora', mul:'Multas', prog:'Programação Inteligente', jorn:'Jornada do Motorista', jornf:'Ficha de Jornada', cex:'Custos Extras', sac:'SAC / Freetime', port:'Portaria', cop:'Copiloto Cortex', cob:'Régua de Cobrança', extb:'Extrato Bancário', cont:'Contabilidade', qual:'Qualidade e Certidões', orc:'Orçamento', fech:'Fechamento do Mês', prem:'Premiação de Motoristas', dre:'DRE Gerencial', drecli:'DRE por Cliente', tvfat:'Painel TV — Faturamento', tvope:'Painel TV — Operação', rh:'RH — Vagas', hc:'Headcount', folha:'Custo de Folha', folhaind:'Indicadores de Folha', he:'Horas Extras', gestao:'Gestão', srv:'Saúde do Servidor', doc:'Documentação', anpiso:'Piso Mínimo de Frete', anrntrc:'RNTRC dos Transportadores' };
 const periodoLabel = p => { if(p==='atrasado') return 'Atrasado'; const [y,m]=p.split('-'); return MES[+m-1]+'/'+y.slice(2); };
 const fmtD = s => { if(!s) return ''; const [y,m,dd]=s.split('-'); return dd+'/'+m+'/'+y; };
 // o ERP devolve "YYYY-MM-DD HH24:MI" (to_char); a ficha do veículo mostrava cru
@@ -2919,6 +2938,7 @@ let DATADRECLI = null;
 let DATAOC = null;
 let DATAAGR = null;
 let DATAANPISO = null;
+let DATAANRNTRC = null;
 let DATAMVB = null;
 let DATACOMB = null;
 let DATAMAN = null;
@@ -3210,7 +3230,7 @@ function semFilterbar(v){
   // filtros", que não tinha o que aplicar.
   return v==='cop'||v==='gestao'||v==='srv'||v==='home'||v==='veicf'||v==='clif'||v==='jorn'||v==='jornf'||v==='prog'||
          v==='cex'||v==='sac'||v==='mprev'||v==='comrast'||v==='qual'||v==='port'||v==='crm'||v==='rh'||
-         v==='hc'||v==='folha'||v==='folhaind'||v==='he'||v==='custos'||v==='orc'||v==='prem'||v==='extb'||v==='fech'||v==='doc';
+         v==='hc'||v==='folha'||v==='folhaind'||v==='he'||v==='custos'||v==='orc'||v==='prem'||v==='extb'||v==='fech'||v==='doc'||v==='anrntrc';
 }
 function currentView(){
   const h = (location.hash||'').replace('#','');
@@ -3300,8 +3320,8 @@ function router(){
   // carga da vista: dispara se não há dados OU se os filtros visíveis
   // divergem dos usados na última carga (nunca mostrar dado velho com filtro novo)
   const key=viewKey(v);
-  const DATAMAP={fin:DATA,oc:DATAOC,agr:DATAAGR,anpiso:DATAANPISO,mvb:DATAMVB,comb:DATACOMB,man:DATAMAN,com:DATACOM,clif:DATACLIF,dre:DATADRE,drecli:DATADRECLI,home:DATAHOME,km:DATAKM,torre:DATATORRE,veic:DATAVEIC,veicf:DATAVEICF,mul:DATAMUL,prog:DATAPROG,jorn:DATAJORN,jornf:DATAJORNF,cex:DATACEX,sac:DATASAC,mprev:DATAMPREV,comrast:DATACOMRAST,qual:DATAQUAL,port:DATAPORT,crm:DATACRM,rh:DATARH,hc:DATAHC,folha:DATAFOLHA,folhaind:DATAFOLHAIND,he:DATAHE,custos:DATACUSTOS,cob:DATACOB,extb:DATAEXTB,rent:DATARENT,cont:DATACONT,orc:DATAORC,fech:DATAFECH,prem:DATAPREM,gestao:DATAGES,srv:DATASRV,doc:DATADOC,tvfat:null,tvope:null,cop:(COP_MSGS.length?{}:null)};
-  const LOADMAP={fin:load,oc:loadOc,agr:loadAgr,anpiso:loadAnpiso,mvb:loadMvb,comb:loadComb,man:loadMan,com:loadCom,clif:loadClif,dre:loadDre,drecli:loadDreCli,home:loadHome,km:loadKm,torre:loadTorre,veic:loadVeic,veicf:loadVeicf,mul:loadMul,prog:loadProg,jorn:loadJorn,jornf:loadJornf,cex:loadCex,sac:loadSac,mprev:loadMPrev,comrast:loadComRast,qual:loadQual,port:loadPort,crm:loadCrm,rh:loadRh,hc:loadHc,folha:loadFolha,folhaind:loadFolhaInd,he:loadHe,custos:loadCustos,cob:loadCob,extb:loadExtb,rent:loadRent,cont:loadCont,orc:loadOrc,fech:loadFech,prem:loadPrem,gestao:loadGestao,srv:loadSrv,doc:loadDoc,cop:loadCop,tvfat:loadTvFat,tvope:loadTvOpe};
+  const DATAMAP={fin:DATA,oc:DATAOC,agr:DATAAGR,anpiso:DATAANPISO,anrntrc:DATAANRNTRC,mvb:DATAMVB,comb:DATACOMB,man:DATAMAN,com:DATACOM,clif:DATACLIF,dre:DATADRE,drecli:DATADRECLI,home:DATAHOME,km:DATAKM,torre:DATATORRE,veic:DATAVEIC,veicf:DATAVEICF,mul:DATAMUL,prog:DATAPROG,jorn:DATAJORN,jornf:DATAJORNF,cex:DATACEX,sac:DATASAC,mprev:DATAMPREV,comrast:DATACOMRAST,qual:DATAQUAL,port:DATAPORT,crm:DATACRM,rh:DATARH,hc:DATAHC,folha:DATAFOLHA,folhaind:DATAFOLHAIND,he:DATAHE,custos:DATACUSTOS,cob:DATACOB,extb:DATAEXTB,rent:DATARENT,cont:DATACONT,orc:DATAORC,fech:DATAFECH,prem:DATAPREM,gestao:DATAGES,srv:DATASRV,doc:DATADOC,tvfat:null,tvope:null,cop:(COP_MSGS.length?{}:null)};
+  const LOADMAP={fin:load,oc:loadOc,agr:loadAgr,anpiso:loadAnpiso,anrntrc:loadAnrntrc,mvb:loadMvb,comb:loadComb,man:loadMan,com:loadCom,clif:loadClif,dre:loadDre,drecli:loadDreCli,home:loadHome,km:loadKm,torre:loadTorre,veic:loadVeic,veicf:loadVeicf,mul:loadMul,prog:loadProg,jorn:loadJorn,jornf:loadJornf,cex:loadCex,sac:loadSac,mprev:loadMPrev,comrast:loadComRast,qual:loadQual,port:loadPort,crm:loadCrm,rh:loadRh,hc:loadHc,folha:loadFolha,folhaind:loadFolhaInd,he:loadHe,custos:loadCustos,cob:loadCob,extb:loadExtb,rent:loadRent,cont:loadCont,orc:loadOrc,fech:loadFech,prem:loadPrem,gestao:loadGestao,srv:loadSrv,doc:loadDoc,cop:loadCop,tvfat:loadTvFat,tvope:loadTvOpe};
   if(!DATAMAP[key] || (key!=='home' && LOADEDQS[key]!==qsView(key))) LOADMAP[key]();
   // mobile: estado da navegação inferior + fecha gaveta/painel de filtros
   document.querySelectorAll('.bottomnav [data-bview]').forEach(a=>a.classList.toggle('ativo', a.dataset.bview===v));
@@ -9759,6 +9779,74 @@ function chartMvbRender(mensal, compAte){
 
 const fmtKm = v => v>0 ? v.toLocaleString('pt-BR',{maximumFractionDigits:0})+' km' : '—';
 const fmtRsKm = v => v!=null ? 'R$ '+v.toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2}) : '—';
+/* ===================== RNTRC ===================== */
+const ANRNTRC_SIT = {
+  ativo:          '<span class="badge b-ok">ativo</span>',
+  pendente:       '<span class="badge b-warn">pendente</span>',
+  nao_encontrado: '<span class="badge b-warn">fora da base</span>',
+  sem_registro:   '<span class="badge b-warn">sem RNTRC no cadastro</span>',
+  sem_base:       '<span class="badge">base não sincronizada</span>'
+};
+let anrntrcSeq = 0;
+async function loadAnrntrc(){
+  skelKpis('kpis-anrntrc',4);
+  const seq = ++anrntrcSeq;
+  const btn=document.getElementById('btnRefresh');
+  btn.disabled=true;
+  document.getElementById('content').classList.add('loading');
+  try{
+    const r=await fetch('/api/operacao/antt/rntrc',{cache:'no-store'});
+    const d=await r.json();
+    if(seq!==anrntrcSeq) return;
+    if(!r.ok){ showBanner(d.mensagem||'Erro ao conferir o RNTRC.', d.detalhe); return; }
+    hideBanner(); DATAANRNTRC=d; renderAnrntrc(d); LOADEDQS.anrntrc='';
+  }catch(e){ if(seq===anrntrcSeq) showBanner('Não foi possível falar com a API.', e.message); }
+  finally{
+    if(seq===anrntrcSeq){ btn.disabled=false; document.getElementById('content').classList.remove('loading'); }
+  }
+}
+function renderAnrntrc(d){
+  if(!d) return;
+  const k=d.kpis;
+  document.getElementById('kpis-anrntrc').innerHTML=[
+    kpi('Transportadores', k.transportadores.toLocaleString('pt-BR'),
+        'com frete de compra nos últimos 12 meses',''),
+    kpi('Com registro ativo', k.ativos.toLocaleString('pt-BR'),
+        k.transportadores? Math.round(100*k.ativos/k.transportadores)+'% dos contratados':'—',''),
+    kpi('Em risco', k.em_risco.toLocaleString('pt-BR'),
+        k.pendentes+' pendentes · '+k.nao_encontrados+' fora da base · '+k.sem_registro+' sem RNTRC',
+        k.em_risco>0?'alerta':''),
+    kpi('Pago a quem está em risco', BRL.format(k.pago_em_risco),
+        (k.pct_risco==null?'—':(Math.round(1000*k.pct_risco)/10)+'% do pago a terceiros')+' · '+k.viagens_em_risco+' viagens',
+        k.pago_em_risco>0?'alerta':'')
+  ].join('');
+  const s=d.sync;
+  document.getElementById('anrntrc-sync').textContent = s
+    ? ('base da ANTT: '+s.competencia+' · sincronizada em '+s.quando+' · '+s.linhas+' registros')
+    : 'base não sincronizada — clique em Atualizar base da ANTT';
+  document.getElementById('anrntrc-lista').innerHTML=(d.transportadores||[]).map(t=>`<tr>
+      <td><div style="font-weight:600">${esc(t.nome||'')}</div></td>
+      <td>${esc(t.pessoa||'')}</td>
+      <td class="num" style="font-family:var(--mono)">${esc(t.rntrc||'—')}</td>
+      <td>${esc(t.categoria||'—')}</td>
+      <td>${esc(t.uf||'—')}</td>
+      <td>${ANRNTRC_SIT[t.situacao]||esc(t.situacao)}</td>
+      <td class="num">${(t.viagens||0).toLocaleString('pt-BR')}</td>
+      <td class="num" style="font-weight:600">${BRL.format(t.pago||0)}</td>
+      <td class="num">${fmtD(t.ultima_viagem)}</td>
+    </tr>`).join('') || '<tr><td colspan="9" style="color:var(--n500)">sem transportadores no período</td></tr>';
+}
+async function anrntrcAtualizar(){
+  const b=document.getElementById('btnAnrntrcSync');
+  b.disabled=true; const rotulo=b.textContent; b.textContent='baixando da ANTT…';
+  try{
+    const r=await fetch('/api/operacao/antt/rntrc/atualizar',{method:'POST'});
+    const d=await r.json();
+    if(!r.ok){ showBanner(d.mensagem||'Erro ao atualizar a base.', d.detalhe); return; }
+    hideBanner(); await loadAnrntrc();
+  }catch(e){ showBanner('Não foi possível falar com a API.', e.message); }
+  finally{ b.disabled=false; b.textContent=rotulo; }
+}
 /* ===================== PISO MÍNIMO ANTT ===================== */
 const ANPISO_SIT = {
   calculado:  '<span class="badge b-ok">conferida</span>',
@@ -9988,9 +10076,10 @@ function agrTranspTable(ts){
           : '<span style="color:var(--n500)" title="Nenhum acerto emitido para este transportador no período">—</span>'}</td>
       <td class="num">${t.valor_acertos>0?BRL.format(t.valor_acertos):'<span style="color:var(--n500)">—</span>'}</td>
       <td class="num">${anpisoDoTransportador(t.codigo)}</td>
+      <td class="num">${anrntrcDoTransportador(t.codigo)}</td>
     </tr>
-    <tr class="forn-det" id="agr-det-${i}"><td colspan="12">${det}</td></tr>`;
-  }).join('') || '<tr><td colspan="12" style="color:var(--n500)">sem viagens no período</td></tr>';
+    <tr class="forn-det" id="agr-det-${i}"><td colspan="13">${det}</td></tr>`;
+  }).join('') || '<tr><td colspan="13" style="color:var(--n500)">sem viagens no período</td></tr>';
 }
 /* Gancho do piso ANTT na tela de Agregados.
    Regra: NÃO consulta nada. Só mostra o que a tela Piso Mínimo já trouxe, e
@@ -10006,6 +10095,15 @@ function anpisoDoTransportador(codigo){
   if(!t || !t.abaixo)
     return '<span class="badge b-ok" title="Nenhuma viagem paga abaixo do piso no período">ok</span>';
   return `<span class="badge b-warn" title="${t.abaixo} viagem(ns) paga(s) abaixo do piso mínimo da ANTT">${BRL.format(t.exposicao)}</span>`;
+}
+/* Gancho do RNTRC na tela de Agregados. Mesma regra do piso: não consulta
+   nada, só mostra o que a tela do RNTRC já trouxe. */
+function anrntrcDoTransportador(codigo){
+  const d = DATAANRNTRC;
+  if(!d) return '<span style="color:var(--n500)" title="Abra ANTT › RNTRC dos Transportadores para conferir">—</span>';
+  const t = (d.transportadores||[]).find(x=>x.codigo===codigo);
+  if(!t) return '<span style="color:var(--n500)">—</span>';
+  return ANRNTRC_SIT[t.situacao] || esc(t.situacao);
 }
 function agrToggle(i){
   const det=document.getElementById('agr-det-'+i);
@@ -11688,6 +11786,7 @@ boot();
         <a href="#agr" onclick="fecharDrawer()"><span class="ic" data-ic="agr"></span>Agregados e Terceiros</a>
         <a href="#mvb" onclick="fecharDrawer()"><span class="ic" data-ic="mvb"></span>Make vs Buy</a>
         <a href="#anpiso" onclick="fecharDrawer()"><span class="ic" data-ic="qualic"></span>Piso ANTT</a>
+        <a href="#anrntrc" onclick="fecharDrawer()"><span class="ic" data-ic="qualic"></span>RNTRC</a>
       </div>
     </div>
     <div class="dgrp" data-grp="Fro">

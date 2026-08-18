@@ -4,6 +4,16 @@ Gerado de `docs/versoes.yaml` por `scripts/gerar_changelog.py` — não editar �
 Formato [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/),
 versionamento [SemVer](https://semver.org/lang/pt-BR/).
 
+## [0.5.0] — 18/08/2026  ·  CX-18/08/2026-v0.5.0
+
+### Adicionado
+- Tela RNTRC dos Transportadores: mostra quais transportadores contratados nos últimos 12 meses estão com o registro na ANTT fora de "ativo", e quanto já foi pago a cada um.
+- Botão "Atualizar base da ANTT" busca a competência mais recente do cadastro nacional de transportadores e guarda apenas os que a Sulista contrata — o casamento é pelo número de registro, não por CNPJ ou CPF.
+- A tela de Agregados e Terceiros ganhou a coluna RNTRC, com a situação do registro de cada transportador.
+
+### Alterado
+- Quem não aparece na base da ANTT conta como risco a investigar, e não como regular: a base pública só publica os registros ativos e pendentes, então um registro baixado simplesmente não aparece.
+
 ## [0.4.0] — 18/08/2026  ·  CX-18/08/2026-v0.4.0
 
 ### Adicionado
