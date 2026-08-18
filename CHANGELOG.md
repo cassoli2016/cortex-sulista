@@ -4,6 +4,17 @@ Gerado de `docs/versoes.yaml` por `scripts/gerar_changelog.py` — não editar �
 Formato [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/),
 versionamento [SemVer](https://semver.org/lang/pt-BR/).
 
+## [0.4.0] — 18/08/2026  ·  CX-18/08/2026-v0.4.0
+
+### Adicionado
+- Grupo ANTT no menu, com a tela Piso Mínimo de Frete: cada viagem paga a agregado ou terceiro é conferida contra o piso mínimo legal da ANTT vigente na data da viagem.
+- A tela mostra quantas viagens ficaram abaixo do piso, para quais transportadores e quanto isso soma em exposição — com a cobertura sempre declarada, no formato "conferido em X de Y viagens".
+- Veículo cujo tipo ou carroceria não permite deduzir número de eixos e tipo de carga aparece em "Pendências de cadastro", em vez de sumir da conta e inflar a aderência.
+- Na tela de Agregados e Terceiros, cada transportador ganhou a coluna "vs piso ANTT", que mostra a exposição quando o mesmo período já foi conferido.
+
+### Alterado
+- Deslocamento vazio só é cobrado como retorno vazio obrigatório quando a carga é conteinerizada; nos demais casos a viagem entra como isenta e não conta contra o transportador.
+
 ## [0.3.0] — 10/08/2026  ·  CX-10/08/2026-v0.3.0
 
 ### Adicionado

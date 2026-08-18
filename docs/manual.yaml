@@ -33,6 +33,26 @@ glossario:
     definicao: >-
       RKM menos o CKM variável — quanto cada km carregado contribui depois dos
       custos que variam com a rodagem.
+  - termo: Piso mínimo de frete (ANTT)
+    definicao: >-
+      Valor mínimo legal do frete, pela Política Nacional de Pisos Mínimos
+      (Lei 13.703/2018 e Res. ANTT 5.867/2020). Calculado como
+      (distância × CCD) + CC, onde CCD é o coeficiente por quilômetro e CC o de
+      carga e descarga, ambos por tipo de carga e número de eixos. Pagar abaixo
+      dele ao transportador contratado é infração — por isso a tela confere a
+      COMPRA de frete, não a venda.
+  - termo: CCD e CC
+    definicao: >-
+      Coeficiente de custo de deslocamento (R$ por km) e coeficiente de custo de
+      carga e descarga (R$ fixos por viagem). Vêm da tabela da ANTT, mudam duas
+      vezes por ano, e o CÓRTEX aplica sempre o vigente na DATA DA VIAGEM — não
+      o de hoje, senão todo mês já fechado mudaria a cada reajuste.
+  - termo: Retorno vazio obrigatório
+    definicao: >-
+      Quando o pagamento do deslocamento sem carga é devido (contêiner e frota
+      dedicada por razão sanitária ou certificação), vale 0,92 × CCD ×
+      distância, sem o coeficiente de carga e descarga. Fora dessas hipóteses a
+      viagem vazia aparece como isenta, nunca como abaixo do piso.
   - termo: Spread make-vs-buy
     definicao: >-
       CKM próprio menos o RKM pago ao agregado. Decide fazer (frota própria) ou
@@ -96,6 +116,13 @@ grupos:
       Vagas e tempo de preenchimento, headcount, custo de folha, indicadores de
       RH, horas extras e a premiação de motoristas por economia.
     telas: [rh, hc, folha, folhaind, he, prem]
+
+  - nome: ANTT
+    resumo: >-
+      Obrigações e informações da Agência Nacional de Transportes Terrestres.
+      Hoje traz a conferência do frete pago a agregados e terceiros contra o
+      piso mínimo legal, viagem a viagem.
+    telas: [anpiso]
 
   - nome: Painéis de TV
     resumo: >-

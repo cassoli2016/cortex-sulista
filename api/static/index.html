@@ -1572,7 +1572,7 @@ body.tvfull #btnReport,body.tvmode #btnReport{display:none}
         <div class="card">
           <div class="head"><h2>Transportadores do período <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="programacaoembarque (não cancelada, semáforo = 1) dos veículos com veiculo.utilizacaoveiculo em AGR/TER, por data de emissão. Pago = valorfretecompra; frete peso = valorfrete; km = kmfretecompra. Acertos vêm de acertoviagemagregado ligada por cnpjcpfcodigoveiculo. CPF/CNPJ mascarado. Clique na linha para abrir as viagens do transportador.">i</span></h2><span class="hint" id="hintAgrT">top 30 por valor · clique para ver as viagens</span></div>
           <div class="tablewrap tabroll"><table><thead><tr>
-            <th style="width:34px"></th><th>Transportador</th><th>Modalidade</th><th class="num">Viagens</th><th class="num">Pago</th><th class="num">Frete peso</th><th class="num">% pago</th><th class="num">Km</th><th class="num">R$/km</th><th class="num">Acertos</th><th class="num">Valor acertos</th>
+            <th style="width:34px"></th><th>Transportador</th><th>Modalidade</th><th class="num">Viagens</th><th class="num">Pago</th><th class="num">Frete peso</th><th class="num">% pago</th><th class="num">Km</th><th class="num">R$/km</th><th class="num">Acertos</th><th class="num">Valor acertos</th><th class="num">vs piso ANTT</th>
           </tr></thead><tbody id="agr-transp"></tbody></table></div>
         </div>
         <div class="card">
@@ -9663,9 +9663,12 @@ function renderMvb(d){
         r.km_vazio!=null?(r.km_vazio.toLocaleString('pt-BR',{maximumFractionDigits:0})+' km vazio de '+r.km_proprio_medido.toLocaleString('pt-BR',{maximumFractionDigits:0})):'',
         (r.retorno_vazio||0)>0.2?'neg':''),
   ].join('');
+  // Ponteiro para o piso legal, não número: esta tela agrega por competência e
+  // por rota, e o piso da ANTT é por viagem e por transportador. Cruzar os dois
+  // aqui produziria um valor que parece comparável e não é.
   document.getElementById('hintMvbR').textContent =
     (d.rotas||[]).length+' rotas contratadas (AGR/TER) · spread = R$/km da rota − CKM marginal próprio de '
-    +fmtRsKm(r.ckm_marginal)+' · piores spreads primeiro';
+    +fmtRsKm(r.ckm_marginal)+' · piores spreads primeiro · o piso legal de cada viagem fica em ANTT › Piso Mínimo de Frete';
   document.getElementById('hintMvb').textContent =
     compLabel(d.comp_de)+' a '+compLabel(d.comp_ate)
     +' · km próprio '+r.km_proprio_medido.toLocaleString('pt-BR',{maximumFractionDigits:0})+' km (programação de embarque)';
@@ -9981,9 +9984,25 @@ function agrTranspTable(ts){
           ? t.acertos.toLocaleString('pt-BR')+(t.acertos_abertos>0?` <span class="badge b-warn" title="${t.acertos_abertos} acerto(s) emitido(s) e ainda não concluído(s) no ERP">${t.acertos_abertos} ab.</span>`:'')
           : '<span style="color:var(--n500)" title="Nenhum acerto emitido para este transportador no período">—</span>'}</td>
       <td class="num">${t.valor_acertos>0?BRL.format(t.valor_acertos):'<span style="color:var(--n500)">—</span>'}</td>
+      <td class="num">${anpisoDoTransportador(t.codigo)}</td>
     </tr>
-    <tr class="forn-det" id="agr-det-${i}"><td colspan="11">${det}</td></tr>`;
-  }).join('') || '<tr><td colspan="11" style="color:var(--n500)">sem viagens no período</td></tr>';
+    <tr class="forn-det" id="agr-det-${i}"><td colspan="12">${det}</td></tr>`;
+  }).join('') || '<tr><td colspan="12" style="color:var(--n500)">sem viagens no período</td></tr>';
+}
+/* Gancho do piso ANTT na tela de Agregados.
+   Regra: NÃO consulta nada. Só mostra o que a tela Piso Mínimo já trouxe, e
+   apenas se o período conferido for o mesmo que está filtrado aqui — mostrar
+   exposição de julho ao lado das viagens de agosto seria pior que não mostrar. */
+function anpisoDoTransportador(codigo){
+  const d = DATAANPISO;
+  const mesmoPeriodo = d && d.dt_de===document.getElementById('fEmiDe').value
+                         && d.dt_ate===document.getElementById('fEmiAte').value;
+  if(!mesmoPeriodo)
+    return '<span style="color:var(--n500)" title="Abra a tela ANTT › Piso Mínimo de Frete no mesmo período para conferir">—</span>';
+  const t = (d.transportadores||[]).find(x=>x.codigo===codigo);
+  if(!t || !t.abaixo)
+    return '<span class="badge b-ok" title="Nenhuma viagem paga abaixo do piso no período">ok</span>';
+  return `<span class="badge b-warn" title="${t.abaixo} viagem(ns) paga(s) abaixo do piso mínimo da ANTT">${BRL.format(t.exposicao)}</span>`;
 }
 function agrToggle(i){
   const det=document.getElementById('agr-det-'+i);
