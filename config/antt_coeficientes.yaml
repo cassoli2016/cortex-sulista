@@ -1,0 +1,215 @@
+# Coeficientes dos pisos mínimos — Política Nacional de Pisos Mínimos (Lei 13.703/2018).
+# Fonte: Anexo II da Res. ANTT 5.867/2020, na redação vigente de cada período.
+# CCD em R$/km, CC em R$.
+#
+# ORIGEM DESTES NÚMEROS: extraídos da calculadora oficial da ANTT
+# (calculadorafrete.antt.gov.br) em 18/08/2026, tipo a tipo e eixo a eixo, e não
+# transcritos de texto. A transcrição manual foi tentada antes e errou três dos
+# doze tipos — justamente os que têm linhas ausentes na tabela (conteinerizada,
+# perigosa conteinerizada e granel pressurizada), porque a lista de valores foi
+# lida como se cobrisse eixos consecutivos.
+#
+# CONFERÊNCIA CRUZADA: todo CC da vigência de julho é o de janeiro × 1,0354
+# (+3,54% de IPCA, o reajuste que a Res. 6.084/2026 anuncia). Confere nas 78
+# células. O teste test_todo_cc_de_julho_e_o_de_janeiro_reajustado_em_3_54
+# refaz essa conta a cada execução da suíte.
+#
+# EIXOS AUSENTES: a tabela não tem linha para toda combinação. Quando o eixo
+# pedido não existe, a norma manda usar o imediatamente inferior — é o que a
+# calculadora oficial faz e o que coeficientes.py reproduz. Por isso as chaves
+# abaixo são esparsas: granel pressurizada só tem 2, 6 e 9.
+#
+# Tabela A = contratação da composição veicular ou caminhão simples.
+# Tabela B (só unidade de tração) não está aqui: escolher entre A e B depende do
+# que o contrato diz, e isso não está no AVA.
+vigencias:
+  - resolucao: "6.076/2026"
+    inicio: 2026-01-20
+    fim: 2026-07-16
+    tabelas:
+      A:
+        granel_solido:
+          2: {ccd: 3.7123, cc: 444.84}
+          3: {ccd: 4.7427, cc: 533.36}
+          4: {ccd: 5.3672, cc: 576.59}
+          5: {ccd: 6.1859, cc: 642.10}
+          6: {ccd: 6.8058, cc: 656.76}
+          7: {ccd: 7.4505, cc: 792.30}
+          9: {ccd: 8.5300, cc: 877.83}
+        granel_liquido:
+          2: {ccd: 3.7837, cc: 455.84}
+          3: {ccd: 4.8350, cc: 550.10}
+          4: {ccd: 5.5162, cc: 600.27}
+          5: {ccd: 6.3480, cc: 669.38}
+          6: {ccd: 6.9730, cc: 685.45}
+          7: {ccd: 7.5842, cc: 811.76}
+          9: {ccd: 8.6837, cc: 902.80}
+        frigorificada:
+          2: {ccd: 4.3423, cc: 502.29}
+          3: {ccd: 5.5387, cc: 601.96}
+          4: {ccd: 6.3226, cc: 663.16}
+          5: {ccd: 7.2435, cc: 732.07}
+          6: {ccd: 7.9625, cc: 745.94}
+          7: {ccd: 8.8534, cc: 949.16}
+          9: {ccd: 10.0426, cc: 1030.58}
+        conteinerizada:
+          2: {ccd: 4.7164, cc: 526.13}
+          4: {ccd: 5.2975, cc: 557.42}
+          5: {ccd: 6.1243, cc: 625.16}
+          6: {ccd: 6.7426, cc: 639.38}
+          7: {ccd: 7.4482, cc: 791.67}
+          9: {ccd: 8.4497, cc: 855.76}
+        carga_geral:
+          2: {ccd: 3.6815, cc: 436.39}
+          3: {ccd: 4.7062, cc: 523.33}
+          4: {ccd: 5.3386, cc: 568.72}
+          5: {ccd: 6.1604, cc: 635.08}
+          6: {ccd: 6.7774, cc: 648.95}
+          7: {ccd: 7.4902, cc: 803.22}
+          9: {ccd: 8.5104, cc: 872.44}
+        neogranel:
+          2: {ccd: 3.3488, cc: 436.39}
+          3: {ccd: 4.7048, cc: 522.93}
+          4: {ccd: 5.3649, cc: 575.96}
+          5: {ccd: 6.1604, cc: 635.08}
+          6: {ccd: 6.7774, cc: 648.95}
+          7: {ccd: 7.4902, cc: 803.22}
+          9: {ccd: 8.5104, cc: 872.44}
+        perigosa_granel_solido:
+          2: {ccd: 4.4560, cc: 587.98}
+          3: {ccd: 5.4960, cc: 679.12}
+          4: {ccd: 6.1560, cc: 727.28}
+          5: {ccd: 6.9747, cc: 792.80}
+          6: {ccd: 7.5946, cc: 807.45}
+          7: {ccd: 8.2569, cc: 947.84}
+          9: {ccd: 9.3441, cc: 1035.49}
+        perigosa_granel_liquido:
+          2: {ccd: 4.5395, cc: 610.96}
+          3: {ccd: 5.6004, cc: 707.85}
+          4: {ccd: 6.2857, cc: 762.95}
+          5: {ccd: 7.1175, cc: 832.06}
+          6: {ccd: 7.7425, cc: 848.13}
+          7: {ccd: 8.3713, cc: 979.29}
+          9: {ccd: 9.4785, cc: 1072.44}
+        perigosa_frigorificada:
+          2: {ccd: 4.9296, cc: 609.31}
+          3: {ccd: 6.1385, cc: 712.41}
+          4: {ccd: 6.9381, cc: 780.02}
+          5: {ccd: 7.8590, cc: 848.93}
+          6: {ccd: 8.5780, cc: 862.80}
+          7: {ccd: 9.4918, cc: 1072.32}
+          9: {ccd: 10.6910, cc: 1156.49}
+        perigosa_conteinerizada:
+          2: {ccd: 5.0876, cc: 623.38}
+          4: {ccd: 5.7042, cc: 659.60}
+          5: {ccd: 6.5311, cc: 727.35}
+          6: {ccd: 7.1493, cc: 741.56}
+          7: {ccd: 7.8726, cc: 898.70}
+          9: {ccd: 8.8818, cc: 964.90}
+        perigosa_carga_geral:
+          2: {ccd: 4.0432, cc: 531.01}
+          3: {ccd: 5.0774, cc: 620.58}
+          4: {ccd: 5.7453, cc: 670.91}
+          5: {ccd: 6.5671, cc: 737.27}
+          6: {ccd: 7.1841, cc: 751.14}
+          7: {ccd: 7.9146, cc: 910.26}
+          9: {ccd: 8.9424, cc: 981.58}
+        granel_pressurizada:
+          2: {ccd: 6.5125, cc: 731.90}
+          6: {ccd: 7.1739, cc: 757.99}
+          9: {ccd: 9.0335, cc: 1016.29}
+  - resolucao: "6.084/2026"
+    inicio: 2026-07-17
+    fim: null
+    tabelas:
+      A:
+        granel_solido:
+          2: {ccd: 4.0144, cc: 460.59}
+          3: {ccd: 5.1355, cc: 552.24}
+          4: {ccd: 5.8118, cc: 597.00}
+          5: {ccd: 6.6983, cc: 664.83}
+          6: {ccd: 7.3841, cc: 680.01}
+          7: {ccd: 8.0516, cc: 820.34}
+          9: {ccd: 9.2231, cc: 908.91}
+        granel_liquido:
+          2: {ccd: 4.0884, cc: 471.98}
+          3: {ccd: 5.2311, cc: 569.57}
+          4: {ccd: 5.9661, cc: 621.52}
+          5: {ccd: 6.8661, cc: 693.08}
+          6: {ccd: 7.5572, cc: 709.72}
+          7: {ccd: 8.1900, cc: 840.50}
+          9: {ccd: 9.3822, cc: 934.76}
+        frigorificada:
+          2: {ccd: 4.7095, cc: 520.07}
+          3: {ccd: 6.0159, cc: 623.27}
+          4: {ccd: 6.8646, cc: 686.63}
+          5: {ccd: 7.8666, cc: 757.98}
+          6: {ccd: 8.6661, cc: 772.35}
+          7: {ccd: 9.5884, cc: 982.76}
+          9: {ccd: 10.8870, cc: 1067.06}
+        conteinerizada:
+          2: {ccd: 5.1082, cc: 544.75}
+          4: {ccd: 5.7396, cc: 577.15}
+          5: {ccd: 6.6345, cc: 647.29}
+          6: {ccd: 7.3186, cc: 662.01}
+          7: {ccd: 8.0492, cc: 819.69}
+          9: {ccd: 9.1399, cc: 886.05}
+        carga_geral:
+          2: {ccd: 3.9826, cc: 451.84}
+          3: {ccd: 5.0977, cc: 541.86}
+          4: {ccd: 5.7822, cc: 588.86}
+          5: {ccd: 6.6718, cc: 657.56}
+          6: {ccd: 7.3547, cc: 671.93}
+          7: {ccd: 8.0927, cc: 831.66}
+          9: {ccd: 9.2027, cc: 903.32}
+        neogranel:
+          2: {ccd: 3.6023, cc: 451.84}
+          3: {ccd: 5.0962, cc: 541.44}
+          4: {ccd: 5.8094, cc: 596.35}
+          5: {ccd: 6.6718, cc: 657.56}
+          6: {ccd: 7.3547, cc: 671.93}
+          7: {ccd: 8.0927, cc: 831.66}
+          9: {ccd: 9.2027, cc: 903.32}
+        perigosa_granel_solido:
+          2: {ccd: 4.7845, cc: 608.79}
+          3: {ccd: 5.9154, cc: 703.16}
+          4: {ccd: 6.6285, cc: 753.03}
+          5: {ccd: 7.5150, cc: 820.86}
+          6: {ccd: 8.2008, cc: 836.04}
+          7: {ccd: 8.8866, cc: 981.39}
+          9: {ccd: 10.0660, cc: 1072.15}
+        perigosa_granel_liquido:
+          2: {ccd: 4.8710, cc: 632.58}
+          3: {ccd: 6.0236, cc: 732.90}
+          4: {ccd: 6.7628, cc: 789.96}
+          5: {ccd: 7.6628, cc: 861.51}
+          6: {ccd: 8.3539, cc: 878.16}
+          7: {ccd: 9.0049, cc: 1013.95}
+          9: {ccd: 10.2051, cc: 1110.41}
+        perigosa_frigorificada:
+          2: {ccd: 5.3176, cc: 630.88}
+          3: {ccd: 6.6369, cc: 737.63}
+          4: {ccd: 7.5020, cc: 807.63}
+          5: {ccd: 8.5039, cc: 878.98}
+          6: {ccd: 9.3034, cc: 893.35}
+          7: {ccd: 10.2495, cc: 1110.28}
+          9: {ccd: 11.5584, cc: 1197.43}
+        perigosa_conteinerizada:
+          2: {ccd: 5.4926, cc: 645.45}
+          4: {ccd: 6.1608, cc: 682.95}
+          5: {ccd: 7.0556, cc: 753.10}
+          6: {ccd: 7.7398, cc: 767.81}
+          7: {ccd: 8.4886, cc: 930.51}
+          9: {ccd: 9.5873, cc: 999.06}
+        perigosa_carga_geral:
+          2: {ccd: 4.3571, cc: 549.81}
+          3: {ccd: 5.4821, cc: 642.55}
+          4: {ccd: 6.2033, cc: 694.66}
+          5: {ccd: 7.0930, cc: 763.36}
+          6: {ccd: 7.7758, cc: 777.73}
+          7: {ccd: 8.5321, cc: 942.48}
+          9: {ccd: 9.6501, cc: 1016.33}
+        granel_pressurizada:
+          2: {ccd: 7.0364, cc: 757.81}
+          6: {ccd: 7.7652, cc: 784.82}
+          9: {ccd: 9.7444, cc: 1052.26}

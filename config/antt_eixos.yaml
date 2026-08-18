@@ -1,0 +1,41 @@
+# Traduz o cadastro de veículo do AVA para o que a tabela da ANTT exige.
+# O AVA não guarda número de eixos — este mapa é a ponte, e é revisável pelo
+# negócio. A chave é comparada já normalizada (maiúscula, sem acento).
+#
+# Veículo que não casar aqui NÃO é conferido: aparece em "Pendências de
+# cadastro" na tela. Preferimos a lacuna visível à conta errada.
+eixos:
+  por_tipo:
+    "TOCO": 2
+    "3/4": 2
+    "VUC": 2
+    "TRUCK": 3
+    "BITRUCK": 4
+    "CAVALO MECANICO": 5           # cavalo trucado + semirreboque de 3 eixos
+    "CAVALO MECANICO TRUCADO": 6
+    "CAVALO MECANICO TRACADO": 6
+  bitrem: 7                         # sobrepõe o tipo quando o cadastro marca bitrem
+  rodotrem: 9
+
+carga:
+  # precedência: vem do campo descricao_tipocargaveiculo do AVA
+  por_tipo_carga:
+    "GRANEL SOLIDO": granel_solido
+    "GRANEL LIQUIDO": granel_liquido
+    "FRIGORIFICADA": frigorificada
+    "FRIGORIFICADO": frigorificada
+    "CONTEINER": conteinerizada
+    "CONTAINER": conteinerizada
+    "CARGA GERAL": carga_geral
+    "NEOGRANEL": neogranel
+    "PERIGOSA": perigosa_carga_geral
+    "GRANEL PRESSURIZADA": granel_pressurizada
+  # usada quando o campo acima está vazio
+  por_carroceria:
+    "FRIGORIFICO": frigorificada
+    "SIDER": carga_geral
+    "BAU": carga_geral
+    "CARGA SECA": carga_geral
+    "GRANELEIRO": granel_solido
+    "TANQUE": granel_liquido
+    "PORTA CONTAINER": conteinerizada
