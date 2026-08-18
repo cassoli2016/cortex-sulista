@@ -3268,9 +3268,17 @@ FROM infracaotransito_registro r
 LEFT JOIN infracaotransito i ON i.codigo = r.infracaotransito
 LEFT JOIN veiculo v ON v.placa = r.veiculo
 LEFT JOIN utilizacaoveiculo u ON u.codigo = v.utilizacaoveiculo
+LEFT JOIN orgaopublico o ON o.codigo = r.orgaopublico
 WHERE r.dtinfracao >= %(dt_de)s::date AND r.dtinfracao < %(dt_ate)s::date + 1
   AND (%(placa)s::text IS NULL OR r.veiculo ILIKE '%%'||%(placa)s||'%%')
+  AND (%(orgao)s::text IS NULL OR o.descricao = %(orgao)s)
 """
+
+# "em aberto" aqui e o que o CADASTRO diz, nao a realidade financeira: so 19 de
+# 1.305 autos aparecem baixados, porque a defesa e tocada por escritorio externo
+# e a baixa nao volta para esta tabela. Todo numero derivado disto tem de vir
+# acompanhado dessa ressalva na tela.
+_MULTA_ABERTO = "(r.dtliquidacao IS NULL AND r.dtbaixa IS NULL)"
 
 MULTA_KPI_SQL = f"""
 SELECT count(*)::int AS multas,
@@ -3284,7 +3292,16 @@ SELECT count(*)::int AS multas,
        sum(CASE WHEN r.dtliquidacao IS NOT NULL OR r.dtbaixa IS NOT NULL THEN 1 ELSE 0 END)::int AS pagas,
        coalesce(sum(CASE WHEN r.dtliquidacao IS NULL AND r.dtbaixa IS NULL
                     THEN r.valoratevencimento ELSE 0 END),0)::float8 AS pendente_valor,
-       count(DISTINCT r.veiculo)::int AS veiculos
+       count(DISTINCT r.veiculo)::int AS veiculos,
+       sum(CASE WHEN r.dtvencimento IS NOT NULL THEN 1 ELSE 0 END)::int AS com_vencimento,
+       sum(CASE WHEN {_MULTA_ABERTO} AND r.dtvencimento IS NOT NULL
+                 AND r.dtvencimento < current_date THEN 1 ELSE 0 END)::int AS vencidos,
+       coalesce(sum(CASE WHEN {_MULTA_ABERTO} AND r.dtvencimento IS NOT NULL
+                 AND r.dtvencimento < current_date
+                THEN r.valoratevencimento ELSE 0 END),0)::float8 AS vencidos_valor,
+       sum(CASE WHEN {_MULTA_ABERTO} AND r.dtvencimento IS NOT NULL
+                 AND r.dtvencimento >= current_date
+                 AND r.dtvencimento <= current_date + 7 THEN 1 ELSE 0 END)::int AS vencendo
 {_MULTA_BASE}
 """
 
@@ -3322,6 +3339,8 @@ SELECT r.veiculo AS placa_t,
        coalesce(nullif(trim(r.cidade),''),'?')||'/'||coalesce(r.uf,'?') AS local,
        coalesce(r.pontuacao,0)::int AS pontos,
        coalesce(r.valoratevencimento,0)::float8 AS valor,
+       to_char(r.dtvencimento,'YYYY-MM-DD') AS vencimento,
+       coalesce(nullif(trim(o.descricao),''),'(sem órgão)') AS orgao,
        (r.dtliquidacao IS NOT NULL OR r.dtbaixa IS NOT NULL) AS paga
 {_MULTA_BASE} AND r.veiculo = ANY(%(placas)s)
 ORDER BY r.veiculo, r.dtinfracao DESC
@@ -3337,9 +3356,20 @@ GROUP BY 1 ORDER BY 3 DESC LIMIT 12
 """
 
 
+MULTA_ORGAO_SQL = f"""
+SELECT coalesce(nullif(trim(o.descricao),''),'(sem órgão)') AS orgao,
+       count(*)::int AS multas,
+       sum(coalesce(r.valoratevencimento,0))::float8 AS valor,
+       sum(coalesce(r.pontuacao,0))::int AS pontos
+{_MULTA_BASE}
+GROUP BY 1 ORDER BY 2 DESC
+"""
+
+
 @cached(ttl=90)
-def get_multas(dt_de: str, dt_ate: str, placa: str | None = None) -> dict:
-    params = {"dt_de": dt_de, "dt_ate": dt_ate, "placa": placa}
+def get_multas(dt_de: str, dt_ate: str, placa: str | None = None,
+               orgao: str | None = None) -> dict:
+    params = {"dt_de": dt_de, "dt_ate": dt_ate, "placa": placa, "orgao": orgao}
     MAX_DET = 25
     with db.get_conn() as conn, conn.cursor() as cur:
         cur.execute(MULTA_KPI_SQL, params)
@@ -3358,6 +3388,10 @@ def get_multas(dt_de: str, dt_ate: str, placa: str | None = None) -> dict:
                 det.setdefault(r.pop("placa_t"), []).append(r)
         cur.execute(MULTA_MOTORISTA_SQL, params)
         motoristas = cur.fetchall()
+        # a lista de órgãos ignora o filtro de órgão: o select precisa continuar
+        # oferecendo as outras opções depois que uma é escolhida
+        cur.execute(MULTA_ORGAO_SQL, {**params, "orgao": None})
+        orgaos = cur.fetchall()
         cur.execute("SELECT current_timestamp AS ts")
         meta = cur.fetchone()
 
@@ -3368,8 +3402,8 @@ def get_multas(dt_de: str, dt_ate: str, placa: str | None = None) -> dict:
 
     return {
         "kpis": kpis, "mensal": mensal, "tipos": tipos,
-        "veiculos": veiculos, "motoristas": motoristas,
-        "dt_de": dt_de, "dt_ate": dt_ate, "placa": placa,
+        "veiculos": veiculos, "motoristas": motoristas, "orgaos": orgaos,
+        "dt_de": dt_de, "dt_ate": dt_ate, "placa": placa, "orgao": orgao,
         "atualizado_em": meta["ts"].isoformat(),
         "fonte": "ERP AVA · registro de infrações de trânsito · leitura",
     }
