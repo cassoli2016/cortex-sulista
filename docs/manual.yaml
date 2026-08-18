@@ -33,6 +33,14 @@ glossario:
     definicao: >-
       RKM menos o CKM variável — quanto cada km carregado contribui depois dos
       custos que variam com a rodagem.
+  - termo: RNTRC
+    definicao: >-
+      Registro Nacional de Transportadores Rodoviários de Cargas. Todo
+      transportador que faz frete por conta de terceiros precisa dele ativo;
+      contratar quem está irregular é infração. As categorias são ETC
+      (empresa), CTC (cooperativa) e TAC (autônomo). O CÓRTEX cruza o número
+      guardado no cadastro do ERP com a base aberta da ANTT, pelo número de
+      registro — não por CNPJ nem CPF.
   - termo: Piso mínimo de frete (ANTT)
     definicao: >-
       Valor mínimo legal do frete, pela Política Nacional de Pisos Mínimos
@@ -122,7 +130,7 @@ grupos:
       Obrigações e informações da Agência Nacional de Transportes Terrestres.
       Hoje traz a conferência do frete pago a agregados e terceiros contra o
       piso mínimo legal, viagem a viagem.
-    telas: [anpiso]
+    telas: [anpiso, anrntrc]
 
   - nome: Painéis de TV
     resumo: >-
