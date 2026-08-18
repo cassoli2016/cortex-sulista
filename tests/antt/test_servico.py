@@ -112,3 +112,18 @@ def test_viagem_de_julho_e_de_agosto_usam_resolucoes_diferentes():
     assert jun["resolucao"] == "6.076/2026"
     assert ago["resolucao"] == "6.084/2026"
     assert ago["piso"] > jun["piso"]
+
+
+def test_resumo_traz_o_percentual_do_piso_efetivamente_pago():
+    """Com a maioria das viagens abaixo do mínimo, a contagem sozinha não
+    orienta — todo mês fica vermelho. O percentual do piso mostra a distância
+    real e permite ver se ela encolhe."""
+    conferidas = conferir_viagens([_linha(numero=1, pago=1000.0),
+                                   _linha(numero=2, pago=2000.0)])
+    k = resumir(conferidas)
+    assert abs(k["pct_piso"] - k["pago"] / k["piso_total"]) < 1e-9
+    assert 0 < k["pct_piso"] < 1
+
+
+def test_pct_piso_nulo_quando_nada_foi_conferido():
+    assert resumir([])["pct_piso"] is None
