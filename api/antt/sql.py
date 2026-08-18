@@ -67,3 +67,31 @@ WHERE p.dtemissao >= %(dt_de)s::date AND p.dtemissao < %(dt_ate)s::date + 1
        OR c.razaosocial ILIKE '%%'||%(transportador)s||'%%')
 ORDER BY p.dtemissao DESC, p.numero DESC
 """
+
+
+# ---------------------------------------------------------------- RNTRC
+
+# Transportadores que receberam frete no periodo, com o RNTRC do proprio
+# cadastro do AVA (cadastro.numerorntrc, cobertura de 100% da frota AGR/TER
+# medida em 18/08/2026). O documento NAO e selecionado: so o comprimento, para
+# separar empresa de autonomo na tela.
+RNTRC_TRANSPORTADORES_SQL = """
+SELECT p.cnpjcpfcodigoveiculo AS codigo,
+       regexp_replace(coalesce(nullif(trim(c.numerorntrc),''),''),'[^0-9]','','g')
+         AS rntrc,
+       coalesce(nullif(trim(c.nomefantasia),''), nullif(trim(c.razaosocial),''),
+                '(sem cadastro)') AS nome,
+       CASE WHEN length(regexp_replace(p.cnpjcpfcodigoveiculo,'[^0-9]','','g')) = 14
+            THEN 'PJ' ELSE 'PF' END AS pessoa,
+       count(*)::int AS viagens,
+       coalesce(sum(p.valorfretecompra),0)::float8 AS pago,
+       to_char(max(p.dtemissao),'YYYY-MM-DD') AS ultima_viagem
+FROM programacaoembarque p
+JOIN veiculo v ON v.placa = p.veiculo AND v.utilizacaoveiculo IN ('AGR','TER')
+LEFT JOIN cadastro c ON c.codigo = p.cnpjcpfcodigoveiculo
+WHERE p.dtemissao >= %(dt_de)s::date AND p.dtemissao < %(dt_ate)s::date + 1
+  AND p.dtcancelamento IS NULL AND p.semaforo = 1 AND p.numero < 1000000
+  AND p.cnpjcpfcodigoveiculo IS NOT NULL
+GROUP BY 1,2,3,4
+ORDER BY 6 DESC
+"""

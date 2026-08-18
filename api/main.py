@@ -326,6 +326,72 @@ def antt_piso(
         })
 
 
+@app.get("/api/operacao/antt/rntrc")
+def antt_rntrc(dt_de: str | None = None, dt_ate: str | None = None) -> JSONResponse:
+    """Situação do RNTRC dos transportadores contratados no período."""
+    from datetime import timedelta
+
+    from api.antt.rntrc_servico import get_rntrc
+    hoje = date.today()
+    dt_ate = dt_ate or hoje.isoformat()
+    dt_de = dt_de or (hoje - timedelta(days=365)).isoformat()   # 12 meses
+    for nome, valor in (("dt_de", dt_de), ("dt_ate", dt_ate)):
+        if _bad_date(valor):
+            return JSONResponse(status_code=422, content={
+                "erro": "parametro_invalido",
+                "mensagem": f"Parâmetro {nome} inválido: use o formato AAAA-MM-DD.",
+            })
+    if dt_de > dt_ate:
+        dt_de, dt_ate = dt_ate, dt_de
+    try:
+        return JSONResponse(get_rntrc(dt_de, dt_ate))
+    except psycopg.OperationalError as exc:
+        log.warning("banco inacessivel: %s", exc)
+        return JSONResponse(status_code=503, content={
+            "erro": "banco_inacessivel",
+            "mensagem": "Sem conexão com o banco. O túnel SSH está aberto?",
+        })
+    except Exception as exc:  # noqa: BLE001
+        log.warning("antt_rntrc falhou: %s", exc)
+        return JSONResponse(status_code=500, content={
+            "erro": "erro_consulta",
+            "mensagem": "Erro ao conferir o RNTRC dos transportadores.",
+        })
+
+
+@app.post("/api/operacao/antt/rntrc/atualizar")
+async def antt_rntrc_atualizar(req: Request) -> JSONResponse:
+    """Baixa a competência mais recente da base aberta da ANTT (~158 MB)."""
+    from datetime import timedelta
+
+    from api.antt.armazenamento import BaseVazia
+    from api.antt.rntrc import LayoutInesperado
+    from api.antt.rntrc_servico import atualizar_base
+    hoje = date.today()
+    try:
+        return JSONResponse(atualizar_base(
+            (hoje - timedelta(days=365)).isoformat(), hoje.isoformat()))
+    except BaseVazia as exc:
+        log.warning("sync do rntrc veio vazia: %s", exc)
+        return JSONResponse(status_code=502, content={
+            "erro": "sync_vazia",
+            "mensagem": ("A base da ANTT não trouxe nenhum dos transportadores "
+                         "procurados. A base anterior foi mantida."),
+        })
+    except LayoutInesperado as exc:
+        log.warning("layout do csv do rntrc mudou: %s", exc)
+        return JSONResponse(status_code=502, content={
+            "erro": "layout_inesperado",
+            "mensagem": f"O arquivo da ANTT mudou de formato: {exc}",
+        })
+    except Exception as exc:  # noqa: BLE001
+        log.warning("antt_rntrc_atualizar falhou: %s", exc)
+        return JSONResponse(status_code=500, content={
+            "erro": "erro_sync",
+            "mensagem": "Não foi possível atualizar a base do RNTRC.",
+        })
+
+
 @app.get("/api/suprimentos/agregados")
 def agregados(
     filial: int | None = None,

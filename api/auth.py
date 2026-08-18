@@ -87,6 +87,7 @@ TELAS: dict[str, tuple[str, str]] = {  # chave -> (rótulo, grupo do menu)
     "folhaind": ("Indicadores de Folha", "Recursos Humanos"),
     "he":      ("Horas Extras", "Recursos Humanos"),
     "anpiso":  ("Piso Mínimo de Frete", "ANTT"),
+    "anrntrc": ("RNTRC dos Transportadores", "ANTT"),
     "tvfat":   ("Painel TV — Faturamento", "Painéis TV"),
     "tvope":   ("Painel TV — Operação", "Painéis TV"),
     "doc":     ("Documentação", "Administração"),
@@ -101,6 +102,8 @@ ROTA_TELAS: list[tuple[str, frozenset[str]]] = [
     ("/api/documentacao",             frozenset(TELAS)),
     ("/api/versao",                   frozenset(TELAS)),
     ("/api/operacao/antt/piso",       frozenset({"anpiso"})),
+    ("/api/operacao/antt/rntrc/atualizar", frozenset({"anrntrc"})),
+    ("/api/operacao/antt/rntrc",      frozenset({"anrntrc"})),
     ("/api/financeiro/contabil",      frozenset({"cont"})),
     ("/api/qualidade",                frozenset({"qual"})),
     ("/api/rh/headcount",             frozenset({"hc"})),
@@ -216,7 +219,7 @@ _PERFIS_MODELO = [
     ("Financeiro",  "Caixa, recebíveis, pagáveis, cobrança e extrato bancário.",
      ["fluxo", "receber", "pagar", "cob", "extb"]),
     ("Controladoria", "DRE gerencial, contabilidade, DRE/margem por cliente, qualidade/certidões e extrato bancário.",
-     ["dre", "cont", "drecli", "qual", "orc", "extb", "fech", "anpiso"]),
+     ["dre", "cont", "drecli", "qual", "orc", "extb", "fech", "anpiso", "anrntrc"]),
     ("Operação",    "Torre de controle, programação, jornada, custos extras, SAC/freetime, portaria, análise de KM, agregados e make-vs-buy.",
      ["torre", "prog", "jorn", "cex", "sac", "port", "km", "agr", "mvb"]),
     ("Frota",       "Veículos, consulta por placa, combustível, manutenção, preventiva, rastreadora, multas e premiação de motoristas.",
@@ -228,7 +231,7 @@ _PERFIS_MODELO = [
     ("Recursos Humanos", "Vagas, headcount, custo de folha, indicadores e horas extras.",
      ["rh", "hc", "folha", "folhaind", "he"]),
     ("Diretoria",   "Visão executiva ampla: consolidado, copiloto e principais indicadores.",
-     ["home", "cop", "fluxo", "dre", "drecli", "com", "km", "torre", "jorn", "mvb", "veic", "prem", "rh", "hc", "folha", "folhaind", "he", "fech", "anpiso"]),
+     ["home", "cop", "fluxo", "dre", "drecli", "com", "km", "torre", "jorn", "mvb", "veic", "prem", "rh", "hc", "folha", "folhaind", "he", "fech", "anpiso", "anrntrc"]),
 ]
 
 
@@ -497,6 +500,17 @@ def _seed_perfis_modelo(c: sqlite3.Connection) -> None:
                 c.execute("INSERT OR IGNORE INTO perfil_telas(perfil_id, tela) VALUES(?,?)",
                           (row["id"], "anpiso"))
         c.execute("INSERT OR IGNORE INTO config(chave, valor) VALUES('perfis_modelo_v22', '1')")
+
+    # v23 (RNTRC 2026-08-18): mesma restricao da v22. A tela nomeia
+    # transportadores contratados com registro fora de ATIVO e o valor pago a
+    # cada um -- informacao de compliance, nao operacional.
+    if not c.execute("SELECT 1 FROM config WHERE chave='perfis_modelo_v23'").fetchone():
+        for nome_perfil in ("Controladoria", "Diretoria"):
+            row = c.execute("SELECT id FROM perfis WHERE nome=?", (nome_perfil,)).fetchone()
+            if row:
+                c.execute("INSERT OR IGNORE INTO perfil_telas(perfil_id, tela) VALUES(?,?)",
+                          (row["id"], "anrntrc"))
+        c.execute("INSERT OR IGNORE INTO config(chave, valor) VALUES('perfis_modelo_v23', '1')")
 
 
 def _agora() -> str:
