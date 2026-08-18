@@ -17,7 +17,8 @@ from datetime import date
 from api.antt.coeficientes import coeficiente
 
 ESTADOS: tuple[str, ...] = (
-    "calculado", "sem_eixos", "sem_carga", "sem_km", "sem_tabela", "isento")
+    "calculado", "sem_eixos", "sem_carga", "sem_km", "sem_valor", "sem_tabela",
+    "isento", "alto_desempenho")
 
 FATOR_VAZIO = 0.92
 
@@ -54,9 +55,20 @@ def avaliar(pago: float, piso_calc: dict) -> dict:
     Só julga o que foi calculado: viagem sem eixo mapeado não é irregular, é
     desconhecida — e acusar transportador com base em desconhecido é pior do
     que não medir.
+
+    Frete zerado cai na mesma regra. Encontrado em dado real: manifesto com
+    valorfretecompra = 0 aparecia como a maior exposição do período, com o piso
+    inteiro virando gap. Zero ali é valor ainda não lançado (o pagamento sai no
+    acerto do transportador), não pagamento abaixo do mínimo legal.
     """
     out = dict(piso_calc)
     if piso_calc.get("piso") is None:
+        out["gap"] = None
+        out["abaixo"] = False
+        return out
+    if not pago or float(pago) <= 0:
+        out["estado"] = "sem_valor"
+        out["piso"] = None
         out["gap"] = None
         out["abaixo"] = False
         return out

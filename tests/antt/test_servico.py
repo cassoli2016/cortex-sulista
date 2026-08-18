@@ -8,9 +8,10 @@ def _linha(**kw):
     base = {"numero": 1, "dtemissao": "2026-08-01", "codigo": "T1",
             "transportador": "TRANSP UM", "placa": "AAA1A11",
             "origem": "SBC/SP", "destino": "RIO/RJ", "km": 500.0,
-            "pago": 1000.0, "vazio": False, "veic_tipo": "CAVALO MECANICO",
-            "veic_carroceria": "CARGA SECA", "veic_bitrem": False,
-            "veic_tipocarga": "CARGA GERAL"}
+            "pago": 1000.0, "vazio": False, "eixos": 5, "eixos_tracao": 2,
+            "veic_tipo": "CAVALO MECANICO 4X2", "veic_carroceria": "SIDER",
+            "veic_bitrem": False, "veic_tipocarga": "DIV",
+            "alto_desempenho": False}
     base.update(kw)
     return base
 
@@ -30,8 +31,8 @@ def test_viagem_bem_paga_nao_e_abaixo():
     assert r["gap"] > 0
 
 
-def test_veiculo_sem_tipo_conhecido_vira_pendencia_nao_irregular():
-    r = conferir_viagens([_linha(veic_tipo="NAVE ESPACIAL")])[0]
+def test_veiculo_sem_eixos_no_cadastro_vira_pendencia_nao_irregular():
+    r = conferir_viagens([_linha(eixos=0)])[0]
     assert r["estado"] == "sem_eixos"
     assert r["abaixo"] is False
     assert r["piso"] is None
@@ -43,16 +44,19 @@ def test_vazio_sem_obrigacao_fica_isento():
     assert r["abaixo"] is False
 
 
-def test_vazio_de_conteiner_e_conferido_a_92_por_cento():
-    r = conferir_viagens([_linha(vazio=True, veic_tipocarga="CONTEINER")])[0]
-    assert r["estado"] == "calculado"
-    assert r["cc"] is None
+def test_alto_desempenho_nao_e_conferido_contra_a_tabela_a():
+    """Tabela C não está carregada. Conferir contra a A cobraria piso maior que
+    o devido e acusaria de irregular quem pagou certo."""
+    r = conferir_viagens([_linha(alto_desempenho=True)])[0]
+    assert r["estado"] == "alto_desempenho"
+    assert r["piso"] is None
+    assert r["abaixo"] is False
 
 
 def test_resumo_declara_cobertura_e_nao_conta_isento_no_denominador():
     conferidas = conferir_viagens([
         _linha(numero=1),
-        _linha(numero=2, veic_tipo="NAVE ESPACIAL"),
+        _linha(numero=2, eixos=0),
         _linha(numero=3, vazio=True),
     ])
     k = resumir(conferidas)
@@ -85,15 +89,15 @@ def test_serie_mensal_agrupa_por_competencia_e_ordena():
 def test_serie_mensal_ignora_isento_e_nao_conferido():
     conferidas = conferir_viagens([
         _linha(numero=1, dtemissao="2026-08-01", vazio=True),
-        _linha(numero=2, dtemissao="2026-08-02", veic_tipo="NAVE ESPACIAL"),
+        _linha(numero=2, dtemissao="2026-08-02", eixos=0),
     ])
     assert serie_mensal(conferidas) == []
 
 
 def test_pendencias_agrupam_o_que_falta_cadastrar():
     conferidas = conferir_viagens([
-        _linha(numero=1, veic_tipo="NAVE ESPACIAL", placa="BBB2B22"),
-        _linha(numero=2, veic_tipo="NAVE ESPACIAL", placa="BBB2B22"),
+        _linha(numero=1, eixos=0, placa="BBB2B22"),
+        _linha(numero=2, eixos=0, placa="BBB2B22"),
     ])
     k = resumir(conferidas)
     assert k["placas_pendentes"] == 1   # a mesma placa não conta duas vezes

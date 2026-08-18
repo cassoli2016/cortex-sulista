@@ -8,7 +8,7 @@ from __future__ import annotations
 from datetime import datetime
 
 from api import db
-from api.antt.eixos import resolver_carga, resolver_eixos
+from api.antt.eixos import resolver_carga
 from api.antt.piso import avaliar, calcular_piso
 from api.antt.sql import PISO_VIAGENS_SQL
 
@@ -21,16 +21,25 @@ CARGAS_VAZIO_OBRIGATORIO = frozenset({"conteinerizada", "perigosa_conteinerizada
 def conferir_viagens(linhas: list[dict]) -> list[dict]:
     out = []
     for l in linhas:
-        eixos = resolver_eixos(l.get("veic_tipo"), l.get("veic_carroceria"),
-                               bool(l.get("veic_bitrem")))
-        carga = resolver_carga(l.get("veic_tipocarga"), l.get("veic_carroceria"))
+        # eixos vêm somados do SQL (tração + carretas); 0 significa cadastro
+        # incompleto, não veículo sem eixo
+        eixos = l.get("eixos") or None
+        carga = resolver_carga(l.get("veic_tipocarga"))
         quando = datetime.strptime(l["dtemissao"], "%Y-%m-%d").date()
         vazio = bool(l.get("vazio"))
-        calc = calcular_piso(
-            km=float(l.get("km") or 0), tipo_carga=carga, eixos=eixos,
-            quando=quando, vazio=vazio,
-            vazio_obrigatorio=vazio and carga in CARGAS_VAZIO_OBRIGATORIO)
         item = dict(l)
+        if l.get("alto_desempenho"):
+            # Tabela C (alto desempenho) ainda não está carregada. Conferir
+            # esta viagem contra a Tabela A cobraria piso MAIOR que o devido e
+            # acusaria de irregular quem pagou certo — então ela não é
+            # conferida, e aparece como pendência.
+            calc = {"estado": "alto_desempenho", "piso": None, "ccd": None,
+                    "cc": None, "resolucao": None}
+        else:
+            calc = calcular_piso(
+                km=float(l.get("km") or 0), tipo_carga=carga, eixos=eixos,
+                quando=quando, vazio=vazio,
+                vazio_obrigatorio=vazio and carga in CARGAS_VAZIO_OBRIGATORIO)
         item.update(avaliar(float(l.get("pago") or 0), calc))
         item["eixos"] = eixos
         item["tipo_carga"] = carga
@@ -104,7 +113,8 @@ def get_piso_minimo(filial: int | None, dt_de: str, dt_ate: str,
         t["detalhe"].append(c)
     ordenado = sorted(por_transp.values(), key=lambda x: x["exposicao"])
     pendentes = sorted({
-        (c.get("placa"), c.get("veic_tipo"), c.get("veic_carroceria"), c["estado"])
+        (c.get("placa") or "", c.get("veic_tipo") or "",
+         c.get("veic_carroceria") or "", c["estado"])
         for c in conferidas if c["estado"] not in ("calculado", "isento")})
     return {
         "kpis": resumir(conferidas),

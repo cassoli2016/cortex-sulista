@@ -1,8 +1,15 @@
-"""Ponte entre o cadastro de veículo do AVA e a tabela de coeficientes.
+"""Traduz o tipo de carga do cadastro do AVA para as classes da tabela ANTT.
 
-O AVA descreve o veículo por tipo, carroceria e um flag de bitrem; a ANTT cobra
-número de eixos e uma das 12 classes de carga. Nada aqui adivinha: o que o mapa
-não conhece volta None e a tela mostra como pendência de cadastro.
+Os eixos NÃO passam por aqui: o AVA tem tipoveiculo.quantidadeeixos com
+cobertura total, e o SQL já entrega a soma da composição. O que sobra é o tipo
+de carga, e mesmo esse o cadastro quase não distingue — 'DIV' (DIVERSAS) cobre
+1.352 dos 1.377 veículos de agregados e terceiros.
+
+A escolha de mapear tudo o que se conhece para carga_geral é deliberada e
+conservadora: carga geral tem o menor coeficiente entre as classes não
+perigosas, então o piso calculado nunca fica maior que o devido. Errar para
+cima acusaria de irregular quem pagou certo — o oposto do que esta tela existe
+para fazer.
 """
 from __future__ import annotations
 
@@ -13,7 +20,7 @@ from pathlib import Path
 import yaml
 
 ROOT = Path(__file__).resolve().parent.parent.parent
-YAML_PATH = ROOT / "config" / "antt_eixos.yaml"
+YAML_PATH = ROOT / "config" / "antt_cargas.yaml"
 
 
 @lru_cache(maxsize=1)
@@ -30,18 +37,15 @@ def normalizar(texto: str | None) -> str:
     return " ".join(t.split())
 
 
-def resolver_eixos(tipo: str | None, carroceria: str | None,
-                   bitrem: bool) -> int | None:
-    m = _mapa().get("eixos", {})
-    if bitrem:
-        return m.get("bitrem")
-    return m.get("por_tipo", {}).get(normalizar(tipo))
+def resolver_carga(codigo_tipocarga: str | None) -> str | None:
+    """Classe da ANTT para o código de tipo de carga do AVA.
 
-
-def resolver_carga(tipo_carga_veiculo: str | None,
-                   carroceria: str | None) -> str | None:
+    Código desconhecido devolve None de propósito: entra como pendência de
+    cadastro na tela, para que apareça e seja mapeado aqui, em vez de virar
+    silenciosamente carga geral.
+    """
     m = _mapa().get("carga", {})
-    achado = m.get("por_tipo_carga", {}).get(normalizar(tipo_carga_veiculo))
-    if achado:
-        return achado
-    return m.get("por_carroceria", {}).get(normalizar(carroceria))
+    cod = normalizar(codigo_tipocarga)
+    if not cod:
+        return m.get("padrao")
+    return m.get("por_codigo", {}).get(cod)

@@ -43,6 +43,39 @@ terceiro no painel viola a Cláusula 5.1 da política de segurança.
 tabela vigente na data da viagem — senão todo período fechado se reescreve a cada
 reajuste.
 
+### 2.2 O que a validação contra o banco corrigiu (18/08/2026)
+
+Com o túnel aberto, três premissas do desenho caíram:
+
+**O AVA TEM o número de eixos.** `tipoveiculo.quantidadeeixos` cobre 1.377 de
+1.377 veículos de agregados e terceiros. O mapa YAML de palpite era
+desnecessário e foi removido.
+
+**Mas o eixo é do veículo isolado, e a ANTT cobra pela composição.** O cadastro
+diz 3 eixos para o cavalo trucado e 3 para a carreta; a composição é 6. As
+placas do conjunto estão em `programacaoembarque.carreta1/2/3`. Medido em 90
+dias: 3.982 viagens têm tração de 3 eixos e composição de 6, e 3.291 têm tração
+de 2 e composição de 5. Usar a tração subestimaria o piso pela metade e deixaria
+passar viagem paga abaixo do mínimo.
+
+**O tipo de carga do cadastro quase não informa.** `tipocargaveiculo` é 'DIV'
+(DIVERSAS) em 1.352 dos 1.377 veículos; o resto descreve o assoalho do
+implemento, não a natureza da carga. Todos mapeiam para carga geral — que tem o
+menor coeficiente entre as classes não perigosas, então a escolha nunca infla o
+piso nem acusa transportador indevidamente.
+
+Nomes reais conferidos: `veiculo.tipoveiculo` e `veiculo.tipocargaveiculo` são
+códigos varchar com tabelas de apoio homônimas; a carroceria é
+`carroceriaveiculo`; `bitrem` é integer (1 = sim, 2 = não), não booleano.
+`programacaoembarque.veiculoaltodesempenhociot` marca operação de alto
+desempenho, que usa a Tabela C — como ela não está carregada, essas viagens NÃO
+são conferidas e entram como pendência: conferi-las contra a Tabela A cobraria
+piso maior que o devido.
+
+**Frete zerado não é frete abaixo do piso.** Manifesto com `valorfretecompra` =
+0 aparecia como a maior exposição do período, com o piso inteiro virando gap.
+Ganhou estado próprio (`sem_valor`).
+
 ## 3. Arquitetura
 
 Segue o padrão dos módulos novos: **AVA continua read-only; dado nosso em SQLite
@@ -247,8 +280,8 @@ de pedágio nas UFs onde a Sulista roda. Entregar por último.
 
 | Risco | Impacto | Tratamento |
 |---|---|---|
-| Eixos não existem no AVA | Alto — sem eixo não há piso | Mapa YAML revisável; não resolvido vira fila visível, não erro mudo |
-| Tipo de carga não mapeia nas 12 classes | Alto | Mesmo tratamento; default explícito por carroceria |
+| ~~Eixos não existem no AVA~~ | RESOLVIDO em 18/08 | `tipoveiculo.quantidadeeixos` com cobertura total; o SQL soma a composição |
+| Tipo de carga não mapeia nas 12 classes | Baixo na prática | O cadastro só tem 'DIVERSAS'; tudo vira carga geral, a de menor coeficiente |
 | TAC casa por nome | Médio | Marcar `ambiguo`; nunca afirmar irregularidade de TAC sem conferência humana |
 | CSV de 158 MB por mês | Médio | Streaming, sem arquivo em disco; sync vazia não sobrescreve |
 | Layout do CSV mudar | Médio | Validar cabeçalho antes de gravar; abortar com mensagem |
