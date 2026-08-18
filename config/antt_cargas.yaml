@@ -1,0 +1,27 @@
+# Traduz o tipo de carga do cadastro do AVA para as 12 classes da tabela ANTT.
+#
+# EIXOS NÃO ESTÃO AQUI: o AVA tem a contagem em tipoveiculo.quantidadeeixos, com
+# cobertura de 100% da frota de agregados e terceiros (1.377 de 1.377 veículos
+# em 18/08/2026), e o SQL soma a composição (tração + carretas). Não há palpite
+# a manter.
+#
+# O QUE O CADASTRO REALMENTE TEM (frota AGR/TER, medido em 18/08/2026):
+#   DIV = DIVERSAS ....................... 1.352 veículos
+#   (vazio) .................................. 18
+#   AFR = ASSOALHO FERRO ...................... 5
+#   AMD = ASSOALHO MADEIRA .................... 1
+#   GP1 = GRUPO 1 - Ñ DEDICADO (10000) ........ 1
+#
+# Ou seja: o campo descreve o assoalho/uso do implemento, não a natureza da
+# carga da ANTT. "DIVERSAS" é carga geral — que é a classe de menor coeficiente
+# entre as não perigosas, então esta escolha nunca infla o piso e nunca acusa
+# transportador indevidamente. Carga perigosa e frigorificada, se um dia forem
+# cadastradas, precisam de linha própria aqui.
+carga:
+  por_codigo:
+    "DIV": carga_geral        # DIVERSAS
+    "AFR": carga_geral        # assoalho de ferro — o implemento, não a carga
+    "AMD": carga_geral        # assoalho de madeira
+    "GP1": carga_geral        # grupo 1, não dedicado
+  # usada quando o código está vazio (18 veículos); mesma lógica conservadora
+  padrao: carga_geral
