@@ -94,3 +94,16 @@ def test_pago_exatamente_no_piso_nao_e_abaixo():
     calc = calcular_piso(km=500.0, tipo_carga="carga_geral", eixos=2, quando=QUANDO)
     a = avaliar(pago=calc["piso"], piso_calc=calc)
     assert a["abaixo"] is False
+
+
+def test_frete_zerado_nao_conta_como_abaixo_do_piso():
+    """Achado em dado real de julho/2026: o manifesto #170360 tinha
+    valorfretecompra = 0 e aparecia como a maior exposição do período, com o
+    piso inteiro virando gap. Zero é valor ainda não lançado, não pagamento
+    abaixo do mínimo."""
+    calc = calcular_piso(km=438.0, tipo_carga="carga_geral", eixos=6, quando=QUANDO)
+    a = avaliar(pago=0.0, piso_calc=calc)
+    assert a["estado"] == "sem_valor"
+    assert a["abaixo"] is False
+    assert a["gap"] is None
+    assert a["piso"] is None

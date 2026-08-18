@@ -16,26 +16,26 @@ LINHAS = [
     {"numero": 101, "dtemissao": "2026-08-05", "codigo": "T1",
      "transportador": "TRANSPORTES ALFA", "placa": "AAA1A11", "origem": "SBC/SP",
      "destino": "RIO/RJ", "km": 500.0, "pago": 1000.0, "vazio": False,
-     "veic_tipo": "CAVALO MECANICO", "veic_carroceria": "CARGA SECA",
-     "veic_bitrem": False, "veic_tipocarga": "CARGA GERAL"},
+     "eixos": 6, "veic_tipo": "CAVALO TRUCADO 6X2", "veic_carroceria": "SIDER",
+     "veic_bitrem": False, "veic_tipocarga": "DIV", "alto_desempenho": False},
     # paga acima do piso
     {"numero": 102, "dtemissao": "2026-08-06", "codigo": "T2",
      "transportador": "TRANSPORTES BETA", "placa": "BBB2B22", "origem": "SBC/SP",
      "destino": "CWB/PR", "km": 400.0, "pago": 9000.0, "vazio": False,
-     "veic_tipo": "TRUCK", "veic_carroceria": "BAU",
-     "veic_bitrem": False, "veic_tipocarga": "CARGA GERAL"},
+     "eixos": 3, "veic_tipo": "CAMINHAO TRUCK", "veic_carroceria": "BAU",
+     "veic_bitrem": False, "veic_tipocarga": "DIV", "alto_desempenho": False},
     # veículo que o mapa não conhece -> pendência de cadastro
     {"numero": 103, "dtemissao": "2026-08-07", "codigo": "T3",
      "transportador": "TRANSPORTES GAMA", "placa": "CCC3C33", "origem": "SBC/SP",
      "destino": "BHZ/MG", "km": 700.0, "pago": 3000.0, "vazio": False,
-     "veic_tipo": "NAVE ESPACIAL", "veic_carroceria": "DESCONHECIDA",
-     "veic_bitrem": False, "veic_tipocarga": None},
+     "eixos": 0, "veic_tipo": "TIPO SEM EIXOS", "veic_carroceria": "DESCONHECIDA",
+     "veic_bitrem": False, "veic_tipocarga": "DIV", "alto_desempenho": False},
     # mês anterior, na vigência antiga
     {"numero": 104, "dtemissao": "2026-06-10", "codigo": "T1",
      "transportador": "TRANSPORTES ALFA", "placa": "AAA1A11", "origem": "SBC/SP",
      "destino": "RIO/RJ", "km": 500.0, "pago": 8000.0, "vazio": False,
-     "veic_tipo": "CAVALO MECANICO", "veic_carroceria": "CARGA SECA",
-     "veic_bitrem": False, "veic_tipocarga": "CARGA GERAL"},
+     "eixos": 6, "veic_tipo": "CAVALO TRUCADO 6X2", "veic_carroceria": "SIDER",
+     "veic_bitrem": False, "veic_tipocarga": "DIV", "alto_desempenho": False},
 ]
 
 
