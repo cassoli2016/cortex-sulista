@@ -1294,6 +1294,10 @@ body.tvfull #btnReport,body.tvmode #btnReport{display:none}
             <label for="fMulPlaca">Placa</label>
             <input type="search" id="fMulPlaca" placeholder="buscar placa…" onchange="loadMul()">
           </div>
+          <div class="field">
+            <label for="fMulOrgao">Órgão autuador</label>
+            <select id="fMulOrgao" onchange="loadMul()"><option value="">Todos</option></select>
+          </div>
         </div>
         <div class="rangegrp" id="grpVeic" style="display:none">
           <div class="field">
@@ -3136,6 +3140,11 @@ function qsView(k){
     if(V('fCombPosto'))p.set('posto',V('fCombPosto'));
     if(V('fCombTipo'))p.set('combustivel',V('fCombTipo'));
     if(T('fCombPlaca'))p.set('placa',T('fCombPlaca'));
+  } else if(k==='mul'){
+    if(V('fEmiDe'))p.set('dt_de',V('fEmiDe'));
+    if(V('fEmiAte'))p.set('dt_ate',V('fEmiAte'));
+    if(T('fMulPlaca'))p.set('placa',T('fMulPlaca'));
+    if(V('fMulOrgao'))p.set('orgao',V('fMulOrgao'));
   } else if(k==='man'){
     if(V('fFilial'))p.set('filial',V('fFilial'));
     if(V('fEmiDe'))p.set('dt_de',V('fEmiDe'));
@@ -7240,6 +7249,20 @@ async function loadMul(){
   }catch(e){ if(seq===mulSeq) showBanner('Não foi possível falar com a API.', e.message); }
   finally{ if(seq===mulSeq){ btn.disabled=false; document.getElementById('content').classList.remove('loading'); } }
 }
+/* Semáforo de vencimento do auto. Só colore o que está EM ABERTO no cadastro —
+   e "em aberto" aqui é o que o ERP registra, não o que o caixa deve: a baixa
+   quase nunca volta para esta tabela porque a defesa é de escritório externo. */
+function mulVenc(m){
+  if(!m.vencimento) return '<span style="color:var(--n500)" title="auto sem data de vencimento no cadastro">—</span>';
+  const txt=fmtD(m.vencimento);
+  if(m.paga) return txt;
+  const hoje=new Date(); hoje.setHours(0,0,0,0);
+  const venc=new Date(m.vencimento+'T00:00:00');
+  const dias=Math.round((venc-hoje)/86400000);
+  if(dias<0)  return `<span style="color:var(--red);font-weight:600" title="venceu há ${-dias} dia(s), pelo cadastro">${txt}</span>`;
+  if(dias<=7) return `<span style="color:var(--yellow-700,#B97709);font-weight:600" title="vence em ${dias} dia(s)">${txt}</span>`;
+  return txt;
+}
 function renderMul(d){
   const k=d.kpis;
   if(!document.getElementById('fEmiDe').value) document.getElementById('fEmiDe').value=d.dt_de;
@@ -7265,7 +7288,23 @@ function renderMul(d){
         (k.com_pontos||0)>0 ? ('informado em '+(k.com_pontos||0)+' de '+nM+' multas') : 'nenhuma multa do período tem pontuação lançada',
         (k.com_pontos||0)<nM?'warn':'',
         'infracaotransito_registro.pontuacao. Mesma limitação do valor: a pontuação quase nunca é lançada, então a soma não representa os pontos que a frota realmente acumulou.'),
+    kpi('Vencidos em aberto', (k.vencidos||0).toLocaleString('pt-BR'),
+        (k.com_vencimento||0)>0
+          ? ((k.vencidos||0)>0 ? BRL.format(k.vencidos_valor||0)+' · '+(k.vencendo||0)+' vencem em 7 dias · pelo CADASTRO, não pelo caixa'
+             : 'nenhum auto vencido em aberto · '+(k.vencendo||0)+' vencem em 7 dias')
+          : 'nenhum auto do período tem data de vencimento',
+        (k.vencidos||0)>0?'warn':'',
+        'infracaotransito_registro.dtvencimento, contando só os autos sem data de liquidação ou baixa. ATENÇÃO: a baixa quase nunca é registrada nesta tabela (19 de 1.305 autos em 24 meses) porque a defesa é conduzida por escritório externo — este número diz o que o CADASTRO mostra, e não que a multa esteja sem pagar. Use para achar auto esquecido, nunca como saldo devedor.'),
   ].join('');
+  {
+    const sel=document.getElementById('fMulOrgao');
+    if(sel && (d.orgaos||[]).length){
+      const atual=sel.value;
+      sel.innerHTML='<option value="">Todos</option>'+(d.orgaos||[]).map(o=>
+        `<option value="${esc(o.orgao)}">${esc(o.orgao)} (${o.multas})</option>`).join('');
+      sel.value=atual;
+    }
+  }
   chartMulRender(d.mensal||[], d.dt_de, d.dt_ate);
   {
     const A=[];
@@ -7299,14 +7338,16 @@ function renderMul(d){
     const [l,c]=utLbl(vv.utilizacao);
     const det=`
       <div class="tablewrap"><table>
-        <thead><tr><th class="num">Data</th><th>Infração</th><th>Motorista</th><th>Local</th><th class="num">Pontos</th><th class="num">Valor</th><th>Status</th></tr></thead>
+        <thead><tr><th class="num">Data</th><th>Infração</th><th>Órgão</th><th>Motorista</th><th>Local</th><th class="num">Pontos</th><th class="num">Valor</th><th class="num">Vencimento</th><th>Status</th></tr></thead>
         <tbody>${(vv.multas_lista||[]).map(m=>`<tr>
           <td class="num">${fmtD(m.data)}</td>
           <td title="${esc(m.infracao)}">${esc(m.infracao.length>45?m.infracao.slice(0,45)+'…':m.infracao)}</td>
+          <td>${esc(m.orgao||'—')}</td>
           <td title="${esc(m.motorista)}">${esc(shortName(m.motorista))}</td>
           <td>${esc(m.local)}</td>
           <td class="num">${m.pontos}</td>
           <td class="num">${BRL.format(m.valor)}</td>
+          <td class="num">${mulVenc(m)}</td>
           <td><span class="badge ${m.paga?'b-ok':'b-warn'}">${m.paga?'Paga':'Pendente'}</span></td></tr>`).join('')}</tbody>
       </table></div>
       ${vv.ocultas>0?`<div class="mais-ocs">+ ${vv.ocultas} multas não exibidas</div>`:''}`;
