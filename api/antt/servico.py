@@ -90,6 +90,17 @@ def serie_mensal(conferidas: list[dict]) -> list[dict]:
     return saida
 
 
+# campos que a tela realmente usa no detalhe de cada viagem. Mandar a linha
+# inteira do SQL levava o payload de julho a 1,8 MB; a projeção corta o que só
+# serviu para calcular (coeficientes, flags de cadastro, eixos da tração).
+_CAMPOS_DETALHE = ("numero", "dtemissao", "placa", "origem", "destino", "km",
+                   "eixos", "tipo_carga", "pago", "piso", "gap", "estado")
+
+
+def _enxugar(c: dict) -> dict:
+    return {k: c.get(k) for k in _CAMPOS_DETALHE}
+
+
 def get_piso_minimo(filial: int | None, dt_de: str, dt_ate: str,
                     modalidade: str | None = None,
                     transportador: str | None = None) -> dict:
@@ -110,7 +121,7 @@ def get_piso_minimo(filial: int | None, dt_de: str, dt_ate: str,
         if c["abaixo"]:
             t["abaixo"] += 1
             t["exposicao"] += float(c["gap"])
-        t["detalhe"].append(c)
+        t["detalhe"].append(_enxugar(c))
     ordenado = sorted(por_transp.values(), key=lambda x: x["exposicao"])
     pendentes = sorted({
         (c.get("placa") or "", c.get("veic_tipo") or "",
