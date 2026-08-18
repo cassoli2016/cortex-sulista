@@ -277,6 +277,55 @@ def ordens_compra(
         })
 
 
+# ---------------------------------------------------------------- ANTT — piso mínimo
+
+@app.get("/api/operacao/antt/piso")
+def antt_piso(
+    filial: int | None = None,
+    dt_de: str | None = None,
+    dt_ate: str | None = None,
+    modalidade: str | None = None,
+    transportador: str | None = None,
+) -> JSONResponse:
+    """Confere o frete pago a agregado/terceiro contra o piso mínimo da ANTT."""
+    from datetime import timedelta
+
+    from api.antt.servico import get_piso_minimo
+    hoje = date.today()
+    dt_ate = dt_ate or hoje.isoformat()
+    dt_de = dt_de or (hoje - timedelta(days=90)).isoformat()
+    for nome, valor in (("dt_de", dt_de), ("dt_ate", dt_ate)):
+        if _bad_date(valor):
+            return JSONResponse(status_code=422, content={
+                "erro": "parametro_invalido",
+                "mensagem": f"Parâmetro {nome} inválido: use o formato AAAA-MM-DD.",
+            })
+    if dt_de > dt_ate:
+        dt_de, dt_ate = dt_ate, dt_de
+    if modalidade and modalidade not in ("AGR", "TER"):
+        return JSONResponse(status_code=422, content={
+            "erro": "parametro_invalido",
+            "mensagem": "modalidade deve ser AGR (agregado) ou TER (terceiro).",
+        })
+    transportador = (transportador or "").strip() or None
+    try:
+        return JSONResponse(get_piso_minimo(
+            filial, dt_de, dt_ate, modalidade=modalidade,
+            transportador=transportador))
+    except psycopg.OperationalError as exc:
+        log.warning("banco inacessivel: %s", exc)
+        return JSONResponse(status_code=503, content={
+            "erro": "banco_inacessivel",
+            "mensagem": "Sem conexão com o banco. O túnel SSH está aberto?",
+        })
+    except Exception as exc:  # noqa: BLE001
+        log.warning("antt_piso falhou: %s", exc)
+        return JSONResponse(status_code=500, content={
+            "erro": "erro_consulta",
+            "mensagem": "Erro ao conferir o piso mínimo da ANTT.",
+        })
+
+
 @app.get("/api/suprimentos/agregados")
 def agregados(
     filial: int | None = None,

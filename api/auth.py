@@ -86,6 +86,7 @@ TELAS: dict[str, tuple[str, str]] = {  # chave -> (rótulo, grupo do menu)
     "folha":   ("Custo de Folha", "Recursos Humanos"),
     "folhaind": ("Indicadores de Folha", "Recursos Humanos"),
     "he":      ("Horas Extras", "Recursos Humanos"),
+    "anpiso":  ("Piso Mínimo de Frete", "ANTT"),
     "tvfat":   ("Painel TV — Faturamento", "Painéis TV"),
     "tvope":   ("Painel TV — Operação", "Painéis TV"),
     "doc":     ("Documentação", "Administração"),
@@ -99,6 +100,7 @@ ROTA_TELAS: list[tuple[str, frozenset[str]]] = [
     # documentação e versão: qualquer usuário logado, com qualquer tela
     ("/api/documentacao",             frozenset(TELAS)),
     ("/api/versao",                   frozenset(TELAS)),
+    ("/api/operacao/antt/piso",       frozenset({"anpiso"})),
     ("/api/financeiro/contabil",      frozenset({"cont"})),
     ("/api/qualidade",                frozenset({"qual"})),
     ("/api/rh/headcount",             frozenset({"hc"})),
@@ -214,7 +216,7 @@ _PERFIS_MODELO = [
     ("Financeiro",  "Caixa, recebíveis, pagáveis, cobrança e extrato bancário.",
      ["fluxo", "receber", "pagar", "cob", "extb"]),
     ("Controladoria", "DRE gerencial, contabilidade, DRE/margem por cliente, qualidade/certidões e extrato bancário.",
-     ["dre", "cont", "drecli", "qual", "orc", "extb", "fech"]),
+     ["dre", "cont", "drecli", "qual", "orc", "extb", "fech", "anpiso"]),
     ("Operação",    "Torre de controle, programação, jornada, custos extras, SAC/freetime, portaria, análise de KM, agregados e make-vs-buy.",
      ["torre", "prog", "jorn", "cex", "sac", "port", "km", "agr", "mvb"]),
     ("Frota",       "Veículos, consulta por placa, combustível, manutenção, preventiva, rastreadora, multas e premiação de motoristas.",
@@ -226,7 +228,7 @@ _PERFIS_MODELO = [
     ("Recursos Humanos", "Vagas, headcount, custo de folha, indicadores e horas extras.",
      ["rh", "hc", "folha", "folhaind", "he"]),
     ("Diretoria",   "Visão executiva ampla: consolidado, copiloto e principais indicadores.",
-     ["home", "cop", "fluxo", "dre", "drecli", "com", "km", "torre", "jorn", "mvb", "veic", "prem", "rh", "hc", "folha", "folhaind", "he", "fech"]),
+     ["home", "cop", "fluxo", "dre", "drecli", "com", "km", "torre", "jorn", "mvb", "veic", "prem", "rh", "hc", "folha", "folhaind", "he", "fech", "anpiso"]),
 ]
 
 
@@ -475,6 +477,26 @@ def _seed_perfis_modelo(c: sqlite3.Connection) -> None:
             c.execute("INSERT OR IGNORE INTO perfil_telas(perfil_id, tela) VALUES(?,?)",
                       (row["id"], "doc"))
         c.execute("INSERT OR IGNORE INTO config(chave, valor) VALUES('perfis_modelo_v21', '1')")
+
+    # v22 (piso minimo ANTT 2026-08-18): tela 'anpiso' SO a Controladoria e
+    # Diretoria -- deliberadamente restrita, ao contrario da v21.
+    #
+    # A tela documenta, mes a mes e por transportador, frete pago abaixo do piso
+    # minimo legal. Medido em producao: 79% a 87% das viagens, R$ 1,2 a 1,6
+    # milhao por mes. E informacao de risco regulatorio, nao operacional: quem
+    # contrata o agregado no dia a dia (Operacao, Suprimentos) nao precisa dela
+    # para trabalhar, e ampliar o acesso amplia a exposicao sem ganho.
+    #
+    # Diretoria entra por necessidade, nao por hierarquia: e o unico perfil com
+    # usuario real. Conceder so a Controladoria faria a tela nascer invisivel --
+    # foi o que aconteceu com 'extb' na v19.
+    if not c.execute("SELECT 1 FROM config WHERE chave='perfis_modelo_v22'").fetchone():
+        for nome_perfil in ("Controladoria", "Diretoria"):
+            row = c.execute("SELECT id FROM perfis WHERE nome=?", (nome_perfil,)).fetchone()
+            if row:
+                c.execute("INSERT OR IGNORE INTO perfil_telas(perfil_id, tela) VALUES(?,?)",
+                          (row["id"], "anpiso"))
+        c.execute("INSERT OR IGNORE INTO config(chave, valor) VALUES('perfis_modelo_v22', '1')")
 
 
 def _agora() -> str:
