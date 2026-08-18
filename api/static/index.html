@@ -9806,7 +9806,8 @@ function renderAnpiso(d){
     kpi('Exposição', BRL.format(Math.abs(k.exposicao)),
         'soma do que faltou para o piso legal', k.exposicao<0?'alerta':''),
     kpi('Aderência', k.aderencia==null?'—':Math.round(100*k.aderencia)+'%',
-        k.aderencia==null?'nenhuma viagem conferida':'viagens no piso ou acima','')
+        k.aderencia==null?'nenhuma viagem conferida'
+          :('viagens no piso ou acima · paga '+Math.round(100*k.pct_piso)+'% do piso no total'),'')
   ].join('');
   const so=document.getElementById('fAnpSo');
   const lista=(d.transportadores||[]).filter(t=> so && so.value ? t.abaixo>0 : true);

@@ -65,6 +65,12 @@ def resumir(conferidas: list[dict]) -> dict:
         "abaixo": len(abaixo),
         "exposicao": sum(float(c["gap"]) for c in abaixo),
         "aderencia": (1 - len(abaixo) / len(calc)) if calc else None,
+        # Quanto do piso a empresa efetivamente paga, no agregado. Com 87% das
+        # viagens abaixo do mínimo, a contagem sozinha não orienta — todo mês
+        # fica vermelho. O percentual do piso mostra a distância real e permite
+        # acompanhar se ela está encolhendo.
+        "pct_piso": (sum(float(c.get("pago") or 0) for c in calc)
+                     / sum(float(c["piso"]) for c in calc)) if calc else None,
     }
 
 
