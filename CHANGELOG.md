@@ -4,6 +4,16 @@ Gerado de `docs/versoes.yaml` por `scripts/gerar_changelog.py` — não editar �
 Formato [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/),
 versionamento [SemVer](https://semver.org/lang/pt-BR/).
 
+## [0.6.0] — 18/08/2026  ·  CX-18/08/2026-v0.6.0
+
+### Adicionado
+- Filtro por órgão autuador na tela de Multas: PRF, DER-SP, ANTT, DNIT e prefeituras aparecem no select com a contagem de autos de cada um.
+- Coluna de vencimento no detalhe de cada veículo, com destaque para o que já venceu e o que vence em até sete dias, e a coluna do órgão que autuou.
+- Indicador "Vencidos em aberto", com valor e quantos vencem na semana.
+
+### Alterado
+- O indicador de vencidos diz explicitamente que fala do CADASTRO e não do caixa: a baixa do auto quase nunca volta para o ERP, porque a defesa é conduzida por escritório externo. Serve para achar auto esquecido, nunca como saldo devedor.
+
 ## [0.5.0] — 18/08/2026  ·  CX-18/08/2026-v0.5.0
 
 ### Adicionado

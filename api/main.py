@@ -1823,6 +1823,7 @@ def multas(
     dt_de: str | None = None,
     dt_ate: str | None = None,
     placa: str | None = None,
+    orgao: str | None = None,
 ) -> JSONResponse:
     from datetime import timedelta
     hoje = date.today()
@@ -1837,7 +1838,9 @@ def multas(
         dt_de, dt_ate = dt_ate, dt_de
     placa = (placa or "").strip() or None
     try:
-        return JSONResponse(queries.get_multas(dt_de, dt_ate, placa=placa))
+        orgao_f = (orgao or '').strip() or None
+        return JSONResponse(queries.get_multas(dt_de, dt_ate, placa=placa,
+                                               orgao=orgao_f))
     except psycopg.OperationalError as exc:
         log.warning("banco inacessivel: %s", exc)
         return JSONResponse(status_code=503, content={
