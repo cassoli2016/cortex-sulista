@@ -1053,6 +1053,12 @@ body.tvfull #btnReport,body.tvmode #btnReport{display:none}
         <a href="#he" class="sub" data-view="he" title="Horas Extras — composição por evento, famílias e áreas"><span class="ic" data-ic="heic"></span><span>Horas Extras</span></a>
         <a href="#rh" class="sub" data-view="rh" title="RH — vagas e recrutamento"><span class="ic" data-ic="rhic"></span><span>Vagas</span></a>
       </div>
+      <button class="group" id="grpAntt" aria-expanded="false" aria-controls="subsAntt" onclick="toggleGroup('grpAntt','subsAntt','cs.anttGroup')" title="ANTT">
+        <span class="ic" data-ic="qualic"></span><span>ANTT</span><span class="ic chev" data-ic="chev"></span>
+      </button>
+      <div class="subs closed" id="subsAntt">
+        <a href="#anpiso" class="sub" data-view="anpiso" title="Piso Mínimo de Frete — confere o que se paga ao agregado contra a tabela da ANTT"><span class="ic" data-ic="qualic"></span><span>Piso Mínimo de Frete</span></a>
+      </div>
       <button class="group" id="grpTv" aria-expanded="false" aria-controls="subsTv" onclick="toggleGroup('grpTv','subsTv','cs.tvGroup')" title="Painéis TV">
         <span class="ic" data-ic="tv"></span><span>Painéis TV</span><span class="ic chev" data-ic="chev"></span>
       </button>
@@ -1194,6 +1200,27 @@ body.tvfull #btnReport,body.tvmode #btnReport{display:none}
           <div class="field">
             <label for="fAgrTransp">Transportador</label>
             <input type="search" id="fAgrTransp" placeholder="buscar nome…" onchange="loadAgr()">
+          </div>
+        </div>
+        <div class="rangegrp" id="grpAnp" style="display:none">
+          <div class="field">
+            <label for="fAnpTipo">Modalidade</label>
+            <select id="fAnpTipo" onchange="loadAnpiso()">
+              <option value="">Todas</option>
+              <option value="AGR">Agregado</option>
+              <option value="TER">Terceiro</option>
+            </select>
+          </div>
+          <div class="field">
+            <label for="fAnpTransp">Transportador</label>
+            <input type="search" id="fAnpTransp" placeholder="buscar nome…" onchange="loadAnpiso()">
+          </div>
+          <div class="field">
+            <label for="fAnpSo">Mostrar</label>
+            <select id="fAnpSo" onchange="renderAnpiso(DATAANPISO)">
+              <option value="">Todos os transportadores</option>
+              <option value="1">Só quem ficou abaixo do piso</option>
+            </select>
           </div>
         </div>
         <div class="rangegrp" id="grpComb" style="display:none">
@@ -1551,6 +1578,31 @@ body.tvfull #btnReport,body.tvmode #btnReport{display:none}
         <div class="card">
           <div class="head"><h2>Alertas <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="Regras fixas sobre os números desta tela: cobertura de km, transportadores levando 80%+ do frete peso, R$/km 30% acima da média e acertos emitidos sem conclusão no ERP.">i</span></h2></div>
           <div class="alerts" id="alerts-agr"></div>
+        </div>
+      </section>
+
+      <!-- ===================== PISO MÍNIMO ANTT ===================== -->
+      <section class="view" id="view-anpiso">
+        <div class="kpis" id="kpis-anpiso"></div>
+        <div class="card">
+          <div class="head"><h2>Aderência ao piso por mês <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="programacaoembarque (não cancelada, semáforo = 1) dos veículos com veiculo.utilizacaoveiculo em AGR/TER, por data de emissão. Pago = valorfretecompra; distância = kmfretecompra. O piso é (km × CCD) + CC da tabela ANTT vigente NA DATA DA VIAGEM (Res. 6.076/2026 até 16/07 e 6.084/2026 a partir de 17/07), pelo número de eixos e tipo de carga do veículo. Deslocamento vazio obrigatório vale 0,92 × CCD × km. Mês sem nenhuma viagem conferida não vira barra.">i</span></h2><span class="hint" id="hintAnpiso">só viagens conferidas</span></div>
+          <div class="chartwrap" id="wrapAnpiso">
+            <svg id="chartAnpiso" viewBox="0 0 960 250" preserveAspectRatio="xMidYMid meet"
+                 tabindex="0" role="img" aria-label="Percentual de viagens pagas no piso mínimo da ANTT ou acima, por mês."></svg>
+            <div class="tip" id="tipAnpiso"></div>
+          </div>
+        </div>
+        <div class="card">
+          <div class="head"><h2>Transportadores do período <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="Mesma fonte do gráfico, agrupada por transportador (cnpjcpfcodigoveiculo). Exposição = soma do que faltou para o piso nas viagens pagas abaixo dele. Clique na linha para ver as viagens.">i</span></h2><span class="hint" id="hintAnpisoT">ordenado por exposição · clique para ver as viagens</span></div>
+          <div class="tablewrap tabroll"><table><thead><tr>
+            <th style="width:34px"></th><th>Transportador</th><th class="num">Viagens</th><th class="num">Pago</th><th class="num">Abaixo do piso</th><th class="num">Exposição</th>
+          </tr></thead><tbody id="anpiso-transp"></tbody></table></div>
+        </div>
+        <div class="card">
+          <div class="head"><h2>Pendências de cadastro <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="Veículos cujo tipo, carroceria ou tipo de carga não foi possível traduzir para número de eixos e classe da ANTT (config/antt_eixos.yaml). Estas viagens NÃO entram na conferência — não são irregulares, são desconhecidas.">i</span></h2><span class="hint">estas viagens ficaram fora da conferência</span></div>
+          <div class="tablewrap"><table><thead><tr>
+            <th>Placa</th><th>Tipo</th><th>Carroceria</th><th>Motivo</th>
+          </tr></thead><tbody id="anpiso-pend"></tbody></table></div>
         </div>
       </section>
 
@@ -2852,7 +2904,7 @@ const FAIXAS = {
   '4_vencido_91_365':['Vencido 91–365d','b-dang'],
   '5_vencido_mais_365':['Vencido > 365d','b-dang'],
 };
-const VIEWS = { home:'Visão Geral', fluxo:'Fluxo de Caixa e Bancos', receber:'Contas a Receber', pagar:'Contas a Pagar', oc:'Ordens de Compra', custos:'Painel de Custos', agr:'Agregados e Terceiros', mvb:'Make vs Buy', comb:'Combustível', man:'Manutenção', com:'Clientes e RKM', clif:'Consulta de Cliente', crm:'CRM — Leads e Projetos', km:'Análise de KM', torre:'Torre de Controle', veic:'Veículos', veicf:'Consulta de Veículo', mprev:'Manutenção Preventiva', comrast:'Comunicação Rastreadora', mul:'Multas', prog:'Programação Inteligente', jorn:'Jornada do Motorista', jornf:'Ficha de Jornada', cex:'Custos Extras', sac:'SAC / Freetime', port:'Portaria', cop:'Copiloto Cortex', cob:'Régua de Cobrança', extb:'Extrato Bancário', cont:'Contabilidade', qual:'Qualidade e Certidões', orc:'Orçamento', fech:'Fechamento do Mês', prem:'Premiação de Motoristas', dre:'DRE Gerencial', drecli:'DRE por Cliente', tvfat:'Painel TV — Faturamento', tvope:'Painel TV — Operação', rh:'RH — Vagas', hc:'Headcount', folha:'Custo de Folha', folhaind:'Indicadores de Folha', he:'Horas Extras', gestao:'Gestão', srv:'Saúde do Servidor', doc:'Documentação' };
+const VIEWS = { home:'Visão Geral', fluxo:'Fluxo de Caixa e Bancos', receber:'Contas a Receber', pagar:'Contas a Pagar', oc:'Ordens de Compra', custos:'Painel de Custos', agr:'Agregados e Terceiros', mvb:'Make vs Buy', comb:'Combustível', man:'Manutenção', com:'Clientes e RKM', clif:'Consulta de Cliente', crm:'CRM — Leads e Projetos', km:'Análise de KM', torre:'Torre de Controle', veic:'Veículos', veicf:'Consulta de Veículo', mprev:'Manutenção Preventiva', comrast:'Comunicação Rastreadora', mul:'Multas', prog:'Programação Inteligente', jorn:'Jornada do Motorista', jornf:'Ficha de Jornada', cex:'Custos Extras', sac:'SAC / Freetime', port:'Portaria', cop:'Copiloto Cortex', cob:'Régua de Cobrança', extb:'Extrato Bancário', cont:'Contabilidade', qual:'Qualidade e Certidões', orc:'Orçamento', fech:'Fechamento do Mês', prem:'Premiação de Motoristas', dre:'DRE Gerencial', drecli:'DRE por Cliente', tvfat:'Painel TV — Faturamento', tvope:'Painel TV — Operação', rh:'RH — Vagas', hc:'Headcount', folha:'Custo de Folha', folhaind:'Indicadores de Folha', he:'Horas Extras', gestao:'Gestão', srv:'Saúde do Servidor', doc:'Documentação', anpiso:'Piso Mínimo de Frete' };
 const periodoLabel = p => { if(p==='atrasado') return 'Atrasado'; const [y,m]=p.split('-'); return MES[+m-1]+'/'+y.slice(2); };
 const fmtD = s => { if(!s) return ''; const [y,m,dd]=s.split('-'); return dd+'/'+m+'/'+y; };
 // o ERP devolve "YYYY-MM-DD HH24:MI" (to_char); a ficha do veículo mostrava cru
@@ -2866,6 +2918,7 @@ let DATADRE = null;
 let DATADRECLI = null;
 let DATAOC = null;
 let DATAAGR = null;
+let DATAANPISO = null;
 let DATAMVB = null;
 let DATACOMB = null;
 let DATAMAN = null;
@@ -3050,6 +3103,12 @@ function qsView(k){
     if(V('fEmiAte'))p.set('dt_ate',V('fEmiAte'));
     if(V('fAgrTipo'))p.set('modalidade',V('fAgrTipo'));
     if(T('fAgrTransp'))p.set('transportador',T('fAgrTransp'));
+  } else if(k==='anpiso'){
+    if(V('fFilial'))p.set('filial',V('fFilial'));
+    if(V('fEmiDe'))p.set('dt_de',V('fEmiDe'));
+    if(V('fEmiAte'))p.set('dt_ate',V('fEmiAte'));
+    if(V('fAnpTipo'))p.set('modalidade',V('fAnpTipo'));
+    if(T('fAnpTransp'))p.set('transportador',T('fAnpTransp'));
   } else if(k==='comb'){
     if(V('fEmiDe'))p.set('dt_de',V('fEmiDe'));
     if(V('fEmiAte'))p.set('dt_ate',V('fEmiAte'));
@@ -3197,6 +3256,7 @@ function router(){
   document.getElementById('viewTitle').textContent = VIEWS[v];
   navRegistraUso(v);
   syncGroups(v);
+  const anpiso = (v==='anpiso');
   const dre = (v==='dre'), oc = (v==='oc'), agr = (v==='agr'), mvb = (v==='mvb'), comb = (v==='comb'), man = (v==='man'), com = (v==='com'), home = (v==='home'), kmv = (v==='km'), torre = (v==='torre'), veic = (v==='veic'), mul = (v==='mul'), prog = (v==='prog'), cop = (v==='cop'), cob = (v==='cob'), rent = (v==='rent'), contab = (v==='cont'), dreCli = (v==='drecli'), orc = (v==='orc');
   // torre: só filial; auto-refresh de 120s enquanto ativa
   if(torreTimer){ clearInterval(torreTimer); torreTimer=null; }
@@ -3206,14 +3266,14 @@ function router(){
   if(v==='srv'){ srvTimer=setInterval(()=>{ if(currentView()==='srv') loadSrv(true); }, 5000); }
   // filtros com o vocabulário de cada tela
   document.getElementById('lblEmiDe').textContent =
-    comb ? 'Abastecimento de' : mul ? 'Infração de' : man ? 'Emissão da OS de' : (agr||kmv||com||rent) ? 'Emissão da viagem de' : 'Emissão da OC de';
+    comb ? 'Abastecimento de' : mul ? 'Infração de' : man ? 'Emissão da OS de' : (agr||kmv||com||rent||anpiso) ? 'Emissão da viagem de' : 'Emissão da OC de';
   document.getElementById('grpHor').style.display = (v==='fluxo') ? 'flex' : 'none';
   document.getElementById('grpComp').style.display = (dre||mvb||contab||dreCli) ? 'flex' : 'none';
   if(dre||mvb||contab||dreCli) compPresetSync();   // competências são compartilhadas entre essas telas
-  document.getElementById('grpEmi').style.display = (oc||agr||comb||man||com||kmv||mul||rent) ? 'flex' : 'none';
+  document.getElementById('grpEmi').style.display = (oc||agr||comb||man||com||kmv||mul||rent||anpiso) ? 'flex' : 'none';
   // as datas de emissão são COMPARTILHADAS por essas telas: ao trocar de vista o
   // select tem que voltar a descrever o recorte que está nos campos
-  if(oc||agr||comb||man||com||kmv||mul||rent) emiPresetSync();
+  if(oc||agr||comb||man||com||kmv||mul||rent||anpiso) emiPresetSync();
   document.getElementById('grpMul').style.display = mul ? 'flex' : 'none';
   document.getElementById('grpCob').style.display = cob ? 'flex' : 'none';
   document.getElementById('grpRent').style.display = rent ? 'flex' : 'none';
@@ -3226,11 +3286,12 @@ function router(){
   document.getElementById('grpComFil').style.display = com ? 'flex' : 'none';
   document.getElementById('grpOc').style.display = oc ? 'flex' : 'none';
   document.getElementById('grpAgr').style.display = agr ? 'flex' : 'none';
+  document.getElementById('grpAnp').style.display = anpiso ? 'flex' : 'none';
   document.getElementById('grpComb').style.display = comb ? 'flex' : 'none';
   document.getElementById('grpMan').style.display = man ? 'flex' : 'none';
   document.getElementById('grpVeic').style.display = veic ? 'flex' : 'none';
-  document.getElementById('grpVenc').style.display = (dre||oc||agr||mvb||comb||man||com||kmv||torre||veic||mul||prog||cop||cob||rent||contab||dreCli||orc) ? 'none' : 'flex';
-  document.getElementById('fData').parentElement.style.display = (dre||oc||agr||mvb||comb||man||com||kmv||torre||veic||mul||prog||cop||cob||rent||contab||dreCli||orc) ? 'none' : 'flex';
+  document.getElementById('grpVenc').style.display = (dre||oc||agr||mvb||comb||man||com||kmv||torre||veic||mul||prog||cop||cob||rent||contab||dreCli||orc||anpiso) ? 'none' : 'flex';
+  document.getElementById('fData').parentElement.style.display = (dre||oc||agr||mvb||comb||man||com||kmv||torre||veic||mul||prog||cop||cob||rent||contab||dreCli||orc||anpiso) ? 'none' : 'flex';
   const fFil = document.getElementById('fFilial');
   // Filial some onde a fonte não tem esse recorte OU a API não aceita o parâmetro
   // (DRE/MvB consolidados; Veículos/Multas/Programação/Contabilidade não filtram
@@ -3239,8 +3300,8 @@ function router(){
   // carga da vista: dispara se não há dados OU se os filtros visíveis
   // divergem dos usados na última carga (nunca mostrar dado velho com filtro novo)
   const key=viewKey(v);
-  const DATAMAP={fin:DATA,oc:DATAOC,agr:DATAAGR,mvb:DATAMVB,comb:DATACOMB,man:DATAMAN,com:DATACOM,clif:DATACLIF,dre:DATADRE,drecli:DATADRECLI,home:DATAHOME,km:DATAKM,torre:DATATORRE,veic:DATAVEIC,veicf:DATAVEICF,mul:DATAMUL,prog:DATAPROG,jorn:DATAJORN,jornf:DATAJORNF,cex:DATACEX,sac:DATASAC,mprev:DATAMPREV,comrast:DATACOMRAST,qual:DATAQUAL,port:DATAPORT,crm:DATACRM,rh:DATARH,hc:DATAHC,folha:DATAFOLHA,folhaind:DATAFOLHAIND,he:DATAHE,custos:DATACUSTOS,cob:DATACOB,extb:DATAEXTB,rent:DATARENT,cont:DATACONT,orc:DATAORC,fech:DATAFECH,prem:DATAPREM,gestao:DATAGES,srv:DATASRV,doc:DATADOC,tvfat:null,tvope:null,cop:(COP_MSGS.length?{}:null)};
-  const LOADMAP={fin:load,oc:loadOc,agr:loadAgr,mvb:loadMvb,comb:loadComb,man:loadMan,com:loadCom,clif:loadClif,dre:loadDre,drecli:loadDreCli,home:loadHome,km:loadKm,torre:loadTorre,veic:loadVeic,veicf:loadVeicf,mul:loadMul,prog:loadProg,jorn:loadJorn,jornf:loadJornf,cex:loadCex,sac:loadSac,mprev:loadMPrev,comrast:loadComRast,qual:loadQual,port:loadPort,crm:loadCrm,rh:loadRh,hc:loadHc,folha:loadFolha,folhaind:loadFolhaInd,he:loadHe,custos:loadCustos,cob:loadCob,extb:loadExtb,rent:loadRent,cont:loadCont,orc:loadOrc,fech:loadFech,prem:loadPrem,gestao:loadGestao,srv:loadSrv,doc:loadDoc,cop:loadCop,tvfat:loadTvFat,tvope:loadTvOpe};
+  const DATAMAP={fin:DATA,oc:DATAOC,agr:DATAAGR,anpiso:DATAANPISO,mvb:DATAMVB,comb:DATACOMB,man:DATAMAN,com:DATACOM,clif:DATACLIF,dre:DATADRE,drecli:DATADRECLI,home:DATAHOME,km:DATAKM,torre:DATATORRE,veic:DATAVEIC,veicf:DATAVEICF,mul:DATAMUL,prog:DATAPROG,jorn:DATAJORN,jornf:DATAJORNF,cex:DATACEX,sac:DATASAC,mprev:DATAMPREV,comrast:DATACOMRAST,qual:DATAQUAL,port:DATAPORT,crm:DATACRM,rh:DATARH,hc:DATAHC,folha:DATAFOLHA,folhaind:DATAFOLHAIND,he:DATAHE,custos:DATACUSTOS,cob:DATACOB,extb:DATAEXTB,rent:DATARENT,cont:DATACONT,orc:DATAORC,fech:DATAFECH,prem:DATAPREM,gestao:DATAGES,srv:DATASRV,doc:DATADOC,tvfat:null,tvope:null,cop:(COP_MSGS.length?{}:null)};
+  const LOADMAP={fin:load,oc:loadOc,agr:loadAgr,anpiso:loadAnpiso,mvb:loadMvb,comb:loadComb,man:loadMan,com:loadCom,clif:loadClif,dre:loadDre,drecli:loadDreCli,home:loadHome,km:loadKm,torre:loadTorre,veic:loadVeic,veicf:loadVeicf,mul:loadMul,prog:loadProg,jorn:loadJorn,jornf:loadJornf,cex:loadCex,sac:loadSac,mprev:loadMPrev,comrast:loadComRast,qual:loadQual,port:loadPort,crm:loadCrm,rh:loadRh,hc:loadHc,folha:loadFolha,folhaind:loadFolhaInd,he:loadHe,custos:loadCustos,cob:loadCob,extb:loadExtb,rent:loadRent,cont:loadCont,orc:loadOrc,fech:loadFech,prem:loadPrem,gestao:loadGestao,srv:loadSrv,doc:loadDoc,cop:loadCop,tvfat:loadTvFat,tvope:loadTvOpe};
   if(!DATAMAP[key] || (key!=='home' && LOADEDQS[key]!==qsView(key))) LOADMAP[key]();
   // mobile: estado da navegação inferior + fecha gaveta/painel de filtros
   document.querySelectorAll('.bottomnav [data-bview]').forEach(a=>a.classList.toggle('ativo', a.dataset.bview===v));
@@ -9695,6 +9756,138 @@ function chartMvbRender(mensal, compAte){
 
 const fmtKm = v => v>0 ? v.toLocaleString('pt-BR',{maximumFractionDigits:0})+' km' : '—';
 const fmtRsKm = v => v!=null ? 'R$ '+v.toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2}) : '—';
+/* ===================== PISO MÍNIMO ANTT ===================== */
+const ANPISO_SIT = {
+  calculado:  '<span class="badge b-ok">conferida</span>',
+  isento:     '<span class="badge">vazio sem obrigação</span>',
+  sem_eixos:  '<span class="badge b-warn">eixos não cadastrados</span>',
+  sem_carga:  '<span class="badge b-warn">tipo de carga não cadastrado</span>',
+  sem_km:     '<span class="badge b-warn">viagem sem km</span>',
+  sem_tabela: '<span class="badge b-warn">fora da tabela ANTT</span>'
+};
+let anpisoSeq = 0;
+async function loadAnpiso(){
+  skelKpis('kpis-anpiso',5);
+  const seq = ++anpisoSeq;
+  const btn=document.getElementById('btnRefresh');
+  btn.disabled=true;
+  document.getElementById('content').classList.add('loading');
+  try{
+    const q=qsView('anpiso');
+    const r=await fetch('/api/operacao/antt/piso?'+q,{cache:'no-store'});
+    const d=await r.json();
+    if(seq!==anpisoSeq) return;
+    if(!r.ok){ showBanner(d.mensagem||'Erro ao conferir o piso mínimo.', d.detalhe); return; }
+    hideBanner(); DATAANPISO=d; renderAnpiso(d); LOADEDQS.anpiso=qsView('anpiso');
+  }catch(e){ if(seq===anpisoSeq) showBanner('Não foi possível falar com a API.', e.message); }
+  finally{
+    if(seq===anpisoSeq){ btn.disabled=false; document.getElementById('content').classList.remove('loading'); }
+  }
+}
+function renderAnpiso(d){
+  if(!d) return;
+  const k=d.kpis;
+  if(!document.getElementById('fEmiDe').value) document.getElementById('fEmiDe').value=d.dt_de;
+  if(!document.getElementById('fEmiAte').value) document.getElementById('fEmiAte').value=d.dt_ate;
+  const pctAb = k.conferidas ? Math.round(100*k.abaixo/k.conferidas) : 0;
+  document.getElementById('kpis-anpiso').innerHTML=[
+    kpi('Viagens conferidas', k.conferidas.toLocaleString('pt-BR'),
+        'conferido em '+k.conferidas+' de '+k.viagens+' viagens · '+k.isentas+' isentas',''),
+    kpi('Pago no período', BRL.format(k.pago),
+        'frete de compra das viagens conferidas',''),
+    kpi('Abaixo do piso', k.abaixo.toLocaleString('pt-BR'),
+        k.conferidas? pctAb+'% das conferidas' : 'nada conferido no período',
+        k.abaixo>0?'alerta':''),
+    kpi('Exposição', BRL.format(Math.abs(k.exposicao)),
+        'soma do que faltou para o piso legal', k.exposicao<0?'alerta':''),
+    kpi('Aderência', k.aderencia==null?'—':Math.round(100*k.aderencia)+'%',
+        k.aderencia==null?'nenhuma viagem conferida':'viagens no piso ou acima','')
+  ].join('');
+  const so=document.getElementById('fAnpSo');
+  const lista=(d.transportadores||[]).filter(t=> so && so.value ? t.abaixo>0 : true);
+  document.getElementById('hintAnpisoT').textContent =
+    lista.length+' de '+(d.transportadores||[]).length+' transportadores · clique para ver as viagens';
+  renderAnpisoTabela(lista);
+  renderAnpisoPendencias(d.pendencias);
+  chartAnpisoRender(d.mensal||[], d.dt_de, d.dt_ate);
+  const el=document.getElementById('meta');
+  if(el) el.innerHTML='<b>'+esc(d.fonte||'')+'</b>';
+}
+function renderAnpisoTabela(ts){
+  document.getElementById('anpiso-transp').innerHTML = (ts||[]).map((t,i)=>{
+    const det = `
+      <div class="tablewrap"><table>
+        <thead><tr><th class="num">Manif.</th><th class="num">Emissão</th><th>Placa</th><th>Origem</th><th>Destino</th><th class="num">Km</th><th class="num">Eixos</th><th>Carga</th><th class="num">Pago</th><th class="num">Piso</th><th class="num">Diferença</th><th>Situação</th></tr></thead>
+        <tbody>${(t.detalhe||[]).map(v=>`<tr>
+          <td class="num">${v.numero}</td>
+          <td class="num">${fmtD(v.dtemissao)}</td>
+          <td class="num" style="font-family:var(--mono)">${esc(v.placa||'')}</td>
+          <td>${esc(v.origem||'')}</td>
+          <td>${esc(v.destino||'')}</td>
+          <td class="num">${fmtKm(v.km)}</td>
+          <td class="num">${v.eixos!=null?v.eixos:'—'}</td>
+          <td>${v.tipo_carga?esc(v.tipo_carga.replace(/_/g,' ')):'—'}</td>
+          <td class="num">${BRL.format(v.pago)}</td>
+          <td class="num">${v.piso!=null?BRL.format(v.piso):'—'}</td>
+          <td class="num" style="font-weight:600;color:${v.gap==null?'inherit':(v.gap<0?'var(--red)':'var(--green,#1E7F4F)')}">${v.gap!=null?BRL.format(v.gap):'—'}</td>
+          <td>${ANPISO_SIT[v.estado]||esc(v.estado)}</td>
+        </tr>`).join('')}</tbody>
+      </table></div>`;
+    return `
+    <tr class="forn-row" aria-expanded="false" aria-controls="anpiso-det-${i}" tabindex="0" role="button"
+        onclick="anpisoToggle(${i})" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();anpisoToggle(${i});}">
+      <td><span class="expander">${ICONS['chevr2']}</span></td>
+      <td><div style="font-weight:600">${esc(t.transportador||'')}</div></td>
+      <td class="num">${t.viagens.toLocaleString('pt-BR')}</td>
+      <td class="num" style="font-weight:600">${BRL.format(t.pago)}</td>
+      <td class="num">${t.abaixo>0?`<span class="badge b-warn">${t.abaixo}</span>`:'—'}</td>
+      <td class="num" style="font-weight:700;color:${t.exposicao<0?'var(--red)':'inherit'}">${t.exposicao<0?BRL.format(t.exposicao):'—'}</td>
+    </tr>
+    <tr class="forn-det" id="anpiso-det-${i}"><td colspan="6">${det}</td></tr>`;
+  }).join('') || '<tr><td colspan="6" style="color:var(--n500)">sem viagens de agregado no período</td></tr>';
+}
+function anpisoToggle(i){
+  const det=document.getElementById('anpiso-det-'+i);
+  if(!det) return;
+  const open=det.classList.toggle('open');
+  det.previousElementSibling.setAttribute('aria-expanded', String(open));
+}
+function renderAnpisoPendencias(ps){
+  document.getElementById('anpiso-pend').innerHTML = (ps||[]).map(p=>`<tr>
+      <td class="num" style="font-family:var(--mono)">${esc(p.placa||'—')}</td>
+      <td>${esc(p.tipo||'—')}</td>
+      <td>${esc(p.carroceria||'—')}</td>
+      <td>${ANPISO_SIT[p.motivo]||esc(p.motivo||'')}</td>
+    </tr>`).join('') || '<tr><td colspan="4" style="color:var(--n500)">nenhuma pendência — todas as viagens foram conferidas</td></tr>';
+}
+function chartAnpisoRender(mensal, dtDe, dtAte){
+  const svg=document.getElementById('chartAnpiso');
+  GEOM['chartAnpiso']=null; ACTIVE['chartAnpiso']=-1;
+  if(!mensal.length){ svg.innerHTML='<text x="480" y="120" text-anchor="middle" fill="#6E7883" font-size="14">sem viagem conferida no período</text>'; return; }
+  const W=960,H=250,mL=64,mR=16,mT=28,mB=34, iw=W-mL-mR, ih=H-mT-mB;
+  const n=mensal.length, bandW=iw/n;
+  const top=100;
+  const y=v=>mT+ih-(v/top)*ih, y0=y(0);
+  const px=i=>mL+bandW*i+bandW/2;
+  const barW=Math.min(26,bandW*0.5);
+  const parc=mensal.map(r=>_mesParcial(r.mes,dtDe,dtAte));
+  let s=`<defs><pattern id="hatchAnp" width="6" height="6" patternTransform="rotate(45)" patternUnits="userSpaceOnUse">`+
+        `<rect width="6" height="6" fill="#17344F"/><rect width="2.4" height="6" fill="#fff" opacity=".62"/></pattern></defs>`;
+  s+=`<rect id="chartAnpiso-hband" x="0" y="${mT-14}" width="${bandW}" height="${ih+14}" fill="${CC.navy100}" opacity="0"/>`;
+  s+=`<text x="${mL}" y="${mT-12}" font-size="11" fill="#6E7883" font-weight="600" letter-spacing="1.5">% NO PISO OU ACIMA</text>`;
+  [0,25,50,75,100].forEach(v=>{ const yy=y(v);
+    s+=`<line x1="${mL}" y1="${yy}" x2="${W-mR}" y2="${yy}" stroke="${v===0?'#C2C8D0':'#ECEEF1'}" stroke-width="1"/>`;
+    s+=`<text x="${mL-8}" y="${yy+4}" text-anchor="end" font-size="11" fill="#6E7883" font-family="IBM Plex Mono,monospace">${v}%</text>`; });
+  mensal.forEach((r,i)=>{ const v=100*r.aderencia;
+    const cor = r.abaixo>0 ? '#C0392B' : '#17344F';
+    s+=colPath(px(i)-barW/2,barW,y(v),y0,4,parc[i]?'url(#hatchAnp)':cor);
+    s+=`<text x="${px(i)}" y="${y(v)-8}" text-anchor="middle" font-size="10.5" font-weight="700" fill="${CC.n700}" `+
+       `stroke="#fff" stroke-width="3" paint-order="stroke" stroke-linejoin="round">${r.abaixo>0?(r.abaixo+' abaixo'):'100%'}</text>`; });
+  mensal.forEach((r,i)=>{ s+=`<text x="${px(i)}" y="${H-mB+18}" text-anchor="middle" font-size="10.5" fill="#4F5860">${periodoLabel(r.mes)}</text>`; });
+  s+=`<line id="chartAnpiso-xhair" x1="0" x2="0" y1="${mT-14}" y2="${y0}" stroke="${CC.navy400}" stroke-width="1" opacity="0"/>`;
+  s+=`<rect x="${mL}" y="${mT-14}" width="${iw}" height="${ih+14}" fill="transparent"/>`;
+  svg.innerHTML=s;
+}
 async function loadAgr(){
   skelKpis('kpis-agr',5);
   const seq = ++agrSeq;
@@ -11472,6 +11665,7 @@ boot();
         <a href="#km" onclick="fecharDrawer()"><span class="ic" data-ic="kmv"></span>Análise de KM</a>
         <a href="#agr" onclick="fecharDrawer()"><span class="ic" data-ic="agr"></span>Agregados e Terceiros</a>
         <a href="#mvb" onclick="fecharDrawer()"><span class="ic" data-ic="mvb"></span>Make vs Buy</a>
+        <a href="#anpiso" onclick="fecharDrawer()"><span class="ic" data-ic="qualic"></span>Piso ANTT</a>
       </div>
     </div>
     <div class="dgrp" data-grp="Fro">

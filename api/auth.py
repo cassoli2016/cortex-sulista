@@ -86,6 +86,7 @@ TELAS: dict[str, tuple[str, str]] = {  # chave -> (rótulo, grupo do menu)
     "folha":   ("Custo de Folha", "Recursos Humanos"),
     "folhaind": ("Indicadores de Folha", "Recursos Humanos"),
     "he":      ("Horas Extras", "Recursos Humanos"),
+    "anpiso":  ("Piso Mínimo de Frete", "ANTT"),
     "tvfat":   ("Painel TV — Faturamento", "Painéis TV"),
     "tvope":   ("Painel TV — Operação", "Painéis TV"),
     "doc":     ("Documentação", "Administração"),
@@ -99,6 +100,7 @@ ROTA_TELAS: list[tuple[str, frozenset[str]]] = [
     # documentação e versão: qualquer usuário logado, com qualquer tela
     ("/api/documentacao",             frozenset(TELAS)),
     ("/api/versao",                   frozenset(TELAS)),
+    ("/api/operacao/antt/piso",       frozenset({"anpiso"})),
     ("/api/financeiro/contabil",      frozenset({"cont"})),
     ("/api/qualidade",                frozenset({"qual"})),
     ("/api/rh/headcount",             frozenset({"hc"})),
