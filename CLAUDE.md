@@ -590,6 +590,32 @@ em estrutura de topo: resolver dentro de **função**, na hora de desenhar.
   resto lê o porte do próprio id (`-550b-` → 550B), e um teste de manutenção compara
   os preferidos contra o catálogo real (faz skip sem chave/rede).
 
+**Troca de REGRA de cálculo (lição da Premiação, 19/08/2026):**
+- **Parâmetro homônimo atravessa a troca de regra calado.** A regra de economia
+  de combustível gravava `km_minimo: 500`; a regra nova (nota × km) tem o mesmo
+  nome com default 1500. O `ler_params` mesclava campo a campo, então o 500
+  sobreviveu e premiou 10–11 motoristas/mês que ninguém decidiu premiar
+  (~R$ 900/mês). **O arquivo de parâmetros CARIMBA a regra** (`REGRA = "nota_km"`);
+  regra gravada diferente da vigente descarta o arquivo INTEIRO.
+- **O teste que deveria pegar isso passava:** ele conferia `valor_por_km` e
+  `nota_minima` (as chaves que sumiram) e esquecia justamente a que sobreviveu.
+  Ao testar "formato antigo cai no default", asserir o dicionário INTEIRO
+  (`lido == DEFAULTS`), nunca chave a chave.
+- **Resíduo da regra velha fica na tela depois do código.** Sobraram o ⓘ que
+  explicava a meta de km/l, o campo `preco_diesel_interno` (backend já não
+  mandava — bloco morto) e um `<div>` órfão. Ao trocar a regra, varrer o front
+  atrás dos textos e campos da anterior.
+- **Parâmetro editável que recalcula o histórico precisa dizer isso.** O hint
+  prometia "valem a partir de agora", mas `obter()` relê os params a cada
+  abertura: mudar o valor por km reescreve o prêmio de mês já pago.
+- **Ranking de valor composto não é ranking do fator que interessa.** Prêmio =
+  km × nota: o km varia 5,5× entre motoristas e a nota 1,4×, então o ranking por
+  prêmio ordena quilometragem, não conduta. Cabeçalho clicável
+  (padrão `drecliOrdenar`: `role=button` + `onclick` E `onkeydown`) é o que
+  permite ler o outro fator. **Empate desempata pela ordem de entrada** — se a
+  lista chega ordenada por prêmio, o topo por nota pode coincidir; testar a
+  ordem INTEIRA, não o primeiro colocado.
+
 Regra: todo painel tem **fonte do dado + timestamp**; nenhum gráfico sem rótulo direto;
 todo número-chave traz **comparação** (vs meta, vs período anterior).
 

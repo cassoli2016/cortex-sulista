@@ -57,5 +57,31 @@ def test_arquivo_no_formato_antigo_cai_nos_defaults(tmp_path):
                              "pct_premiacao": 0.2, "km_minimo": 500.0}),
                  encoding="utf-8")
     lido = params.ler_params(p)
-    assert lido["valor_por_km"] == params.DEFAULTS["valor_por_km"]
-    assert lido["nota_minima"] == params.DEFAULTS["nota_minima"]
+    assert lido == params.DEFAULTS, (
+        "params de outra regra não podem sobreviver campo a campo: km_minimo=500 "
+        "vazou da regra antiga e premiou 10-11 motoristas/mês que o default de "
+        "1500 excluiria (~R$ 900/mês em jun e jul/2026)")
+
+
+def test_arquivo_gravado_carimba_a_regra(tmp_path):
+    """Sem o carimbo, a próxima troca de fórmula repete o vazamento do km_minimo."""
+    p = tmp_path / "params.json"
+    params.salvar_params({"valor_por_km": 0.15}, p)
+    assert json.loads(p.read_text(encoding="utf-8"))["regra"] == params.REGRA
+
+
+def test_params_de_regra_futura_desconhecida_nao_sao_usados(tmp_path):
+    """Vale nos dois sentidos: arquivo de uma regra POSTERIOR (deploy revertido)
+    também é descartado, em vez de mesclar parâmetro que não é desta fórmula."""
+    p = tmp_path / "params.json"
+    p.write_text(json.dumps({"regra": "nota_km_v2", "valor_por_km": 9.99,
+                             "nota_minima": 10.0, "km_minimo": 0.0}), encoding="utf-8")
+    assert params.ler_params(p) == params.DEFAULTS
+
+
+def test_round_trip_preserva_valores_da_mesma_regra(tmp_path):
+    """O descarte é por regra diferente — gravar e reler não pode perder nada."""
+    p = tmp_path / "params.json"
+    salvo = params.salvar_params({"valor_por_km": 0.12, "nota_minima": 75.0,
+                                  "km_minimo": 2000.0}, p)
+    assert params.ler_params(p) == salvo
