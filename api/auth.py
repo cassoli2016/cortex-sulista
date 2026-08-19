@@ -80,7 +80,7 @@ TELAS: dict[str, tuple[str, str]] = {  # chave -> (rótulo, grupo do menu)
     "comrast": ("Comunicação Rastreadora", "Frota"),
     "veicf":   ("Consulta de Veículo", "Frota"),
     "mul":     ("Multas", "Frota"),
-    "prem":    ("Premiação de Motoristas", "Frota"),
+    "prem":    ("Premiação de Motoristas", "Telemetria"),
     "rh":      ("RH — Vagas", "Recursos Humanos"),
     "hc":      ("Headcount", "Recursos Humanos"),
     "folha":   ("Custo de Folha", "Recursos Humanos"),
@@ -223,7 +223,7 @@ _PERFIS_MODELO = [
     ("Operação",    "Torre de controle, programação, jornada, custos extras, SAC/freetime, portaria, análise de KM, agregados e make-vs-buy.",
      ["torre", "prog", "jorn", "cex", "sac", "port", "km", "agr", "mvb"]),
     ("Frota",       "Veículos, consulta por placa, combustível, manutenção, preventiva, rastreadora, multas e premiação de motoristas.",
-     ["veic", "veicf", "comb", "man", "mprev", "comrast", "mul", "prem"]),
+     ["veic", "veicf", "comb", "man", "mprev", "comrast", "mul"]),
     ("Suprimentos", "Ordens de compra e painel de custos.",
      ["oc", "custos"]),
     ("Painéis TV",  "Apenas os painéis de TV (faturamento e operação) — para telão/quiosque.",
@@ -511,6 +511,18 @@ def _seed_perfis_modelo(c: sqlite3.Connection) -> None:
                 c.execute("INSERT OR IGNORE INTO perfil_telas(perfil_id, tela) VALUES(?,?)",
                           (row["id"], "anrntrc"))
         c.execute("INSERT OR IGNORE INTO config(chave, valor) VALUES('perfis_modelo_v23', '1')")
+
+    # v24 (Telemetria 2026-08-19): a Premiacao saiu do grupo Frota e passou a
+    # viver em Telemetria. O perfil Frota perdeu a tela no modelo, mas quem ja
+    # tinha a permissao CONTINUA com ela -- mudar de grupo no menu nao e razao
+    # para tirar acesso de ninguem. Diretoria ja tinha 'prem' desde o modelo.
+    if not c.execute("SELECT 1 FROM config WHERE chave='perfis_modelo_v24'").fetchone():
+        for nome_perfil in ("Frota", "Diretoria"):
+            row = c.execute("SELECT id FROM perfis WHERE nome=?", (nome_perfil,)).fetchone()
+            if row:
+                c.execute("INSERT OR IGNORE INTO perfil_telas(perfil_id, tela) VALUES(?,?)",
+                          (row["id"], "prem"))
+        c.execute("INSERT OR IGNORE INTO config(chave, valor) VALUES('perfis_modelo_v24', '1')")
 
 
 def _agora() -> str:
