@@ -21,7 +21,8 @@ import threading
 import time
 from datetime import datetime, timedelta
 
-from api.premiacao import calculo, coleta, gobrax, params
+from api.gobrax import cliente as gbx
+from api.premiacao import calculo, coleta, params
 from api.premiacao.coleta import SNAP_DIR  # reexport: monkeypatch nos testes
 
 log = logging.getLogger(__name__)
@@ -48,30 +49,11 @@ WHERE a.data_inicio_abastecimento >= %(de)s::date
 
 def _novo_cliente():
     """Fábrica isolada para os testes stubarem (FakeCliente ou função que
-    levanta GobraxIndisponivel/GobraxNaoConfigurado)."""
-    return gobrax.ClienteGobrax()
+    levanta GobraxIndisponivel/GobraxNaoConfigurado).
 
-
-# Cache do histórico de vínculos (exportDriverHistory): são ~98 exports XLSX,
-# um por veículo — refazer isso a cada recoleta de TTL seria o item mais caro
-# da coleta. O histórico muda devagar (equipe vinculando motoristas), 1h basta.
-_BONDS_TTL_S = 3600
-_BONDS_CACHE: dict[str, tuple[float, dict]] = {}
-
-
-def _bonds(cliente) -> dict:
-    agora_mono = time.monotonic()
-    cacheado = _BONDS_CACHE.get("bonds")
-    if cacheado is not None and (agora_mono - cacheado[0]) < _BONDS_TTL_S:
-        return cacheado[1]
-    resp = cliente.get("/vehicles", {"customers": 1, "operation": "true"})
-    veiculos = ((resp or {}).get("customers") or [{}])[0].get("vehicles") or []
-    vinfo = {v["id"]: {"plate": v.get("plate", ""),
-                       "model": v.get("truckModel") or v.get("model") or v.get("brand") or ""}
-             for v in veiculos if v.get("id") is not None}
-    bonds = coleta.fetch_bonds(cliente, vinfo)
-    _BONDS_CACHE["bonds"] = (agora_mono, bonds)
-    return bonds
+    Desde 19/08/2026 usa a API pública com token, não mais o login Kratos.
+    """
+    return gbx.Cliente()
 
 
 def _preco_diesel(mes: str) -> float | None:
@@ -129,17 +111,18 @@ def _precisa_recoletar(mes: str, mes_corrente: str, snap: dict | None,
 
 def obter(mes: str | None = None, force: bool = False, agora=None,
           cliente=None) -> dict:
-    """`cliente` opcional: o backfill (`atualizar_tudo`) passa UM cliente para
-    todos os meses — um login por mês disparava o rate-limit do Kratos (403)."""
+    """`cliente` opcional: o backfill (`atualizar_tudo`) reaproveita UM cliente
+    para todos os meses. Com token isso deixou de ser questão de rate limit,
+    mas continua evitando reconstruir o cliente a cada mês."""
     agora = agora or datetime.now()
     mes_corrente = agora.strftime("%Y-%m")
     mes = mes or mes_corrente
 
-    if not gobrax.configurado():
+    if not gbx.configurado():
         # NUNCA incluir valores de ambiente — só os nomes das variáveis que faltam.
         return {
             "configurado": False,
-            "variaveis": ["GOBRAX_EMAIL", "GOBRAX_SENHA"],
+            "variaveis": ["GOBRAX_TOKEN"],
             "index": coleta.ler_index(SNAP_DIR),
         }
 
@@ -165,8 +148,10 @@ def obter(mes: str | None = None, force: bool = False, agora=None,
             elif _precisa_recoletar(mes, mes_corrente, snap_relido, force, agora):
                 try:
                     cliente = cliente or _novo_cliente()
-                    novo = coleta.coletar_mes(cliente, mes, agora=agora,
-                                              bonds=_bonds(cliente))
+                    try:
+                        novo = coleta.coletar_mes(mes, cliente=cliente, agora=agora)
+                    except coleta.ColetaVazia:
+                        novo = {"drivers": []}
                     if not novo.get("drivers") and snap_relido and snap_relido.get("drivers"):
                         # Coleta VAZIA nunca sobrescreve snapshot com dados: a
                         # frota do customer oscila na plataforma durante
@@ -180,7 +165,7 @@ def obter(mes: str | None = None, force: bool = False, agora=None,
                     else:
                         coleta.gravar_snapshot(novo, SNAP_DIR)
                         snap = novo
-                except (gobrax.GobraxIndisponivel, gobrax.GobraxNaoConfigurado, ValueError):
+                except (gbx.GobraxIndisponivel, gbx.GobraxNaoConfigurado, ValueError):
                     if snap_relido is None:
                         raise
                     snap = snap_relido
@@ -190,25 +175,25 @@ def obter(mes: str | None = None, force: bool = False, agora=None,
                 snap = snap_relido
 
     parametros = params.ler_params()
-    calc = calculo.calcular(snap["drivers"], parametros)
-    referencias = {
-        "preco_diesel_interno": _preco_diesel(mes),
-        "media_frota": calc["kpis"].get("media_frota"),
-    }
-
+    calc = calculo.calcular(snap.get("drivers") or [], parametros)
     return {
         "configurado": True,
         "month": mes,
         "parcial": snap.get("parcial", False),
         "coletado_em": snap.get("coletado_em"),
         "aviso": aviso,
-        "frota_telemetria": snap.get("frota_telemetria"),
+        # a regra que gerou ESTE mês: snapshot antigo continua exibindo o valor
+        # com que foi pago, e a tela precisa dizer qual critério está mostrando
+        "regra": snap.get("regra_fonte") or calc["regra"],
         "index": coleta.ler_index(SNAP_DIR),
         "params": parametros,
-        "referencias": referencias,
         "linhas": calc["linhas"],
-        "kpis": calc["kpis"],
-        "sem_media": calc["sem_media"],
+        "kpis": {
+            "motoristas": calc["motoristas"],
+            "premiados": calc["premiados"],
+            "premio_total": calc["premio_total"],
+            "km_total": calc["km_total"],
+        },
     }
 
 
@@ -236,14 +221,14 @@ def atualizar_tudo(agora=None, n_meses: int = 6) -> dict:
     falhas: list[str] = []
     # UM cliente (= um login) para o backfill inteiro: um login por mês disparou
     # o rate-limit do Kratos em produção real (HTTP 403 do flow).
-    cliente = _novo_cliente() if gobrax.configurado() else None
+    cliente = _novo_cliente() if gbx.configurado() else None
     carimbo = agora.strftime("%Y-%m-%d %H:%M")
     for mes in meses_recentes(n_meses, agora):
         if mes != mes_corrente and mes in existentes:
             continue  # fechado e já coletado (o I1 do obter cuida de parcial órfão)
         try:
             obter(mes, force=(mes == mes_corrente), agora=agora, cliente=cliente)
-        except (gobrax.GobraxIndisponivel, gobrax.GobraxNaoConfigurado, ValueError) as exc:
+        except (gbx.GobraxIndisponivel, gbx.GobraxNaoConfigurado, ValueError) as exc:
             log.warning("backfill %s falhou: %s", mes, exc)
             falhas.append(mes)
             continue

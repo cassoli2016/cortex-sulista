@@ -53,6 +53,7 @@ Cada módulo é unidade de RBAC (papel × módulo × escopo de linha via RLS).
 | `frota` | Ativos, disponibilidade, manutenção, pneus, depreciação | `fro_veiculos`, `fro_manutencao`, `fro_pneus` |
 | `jornada` | Jornada do motorista (Lei 13.103/2015): direção/descanso/intervalo, compliance | `jor_eventos` (hypertable), `jor_jornadas`, `vw_compliance_jornada` |
 | `suprimentos` | Agregados, fornecedores, contratos, make-vs-buy | `sup_agregados`, `sup_fornecedores`, `sup_contratos` |
+| `telemetria` | Dados da plataforma Gobrax por API com token: premiação por nota × km, consumo × abastecimento, condução e hodômetro/rastro | `api/gobrax/`, `data/premiacao/` |
 | `antt` | Piso mínimo de frete da compra e situação do RNTRC dos transportadores contratados | `config/antt_coeficientes.yaml`, `config/antt_eixos.yaml`, `programacaoembarque` (AVA) |
 | `gestao` | Metas, KPIs, OKRs, atas de reunião, planos de ação | `ges_metas`, `ges_okr`, `ges_atas`, `ges_acoes` |
 | `integracoes` | Central de integração com APIs de fornecedores (hub de conectores) | `int_conectores`, `int_sync_state`, `int_raw_events`, `int_dead_letter` |

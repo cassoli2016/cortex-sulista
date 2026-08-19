@@ -326,6 +326,208 @@ def antt_piso(
         })
 
 
+# ---------------------------------------------------------------- Telemetria Gobrax
+
+def _competencia_valida(c: str | None) -> str:
+    hoje = date.today()
+    c = (c or "").strip() or hoje.strftime("%Y-%m")
+    if not re.match(r"^\d{4}-(0[1-9]|1[0-2])$", c):
+        raise ValueError("Parâmetro competencia inválido: use AAAA-MM.")
+    return c
+
+
+@app.get("/api/telemetria/consumo")
+def telemetria_consumo(competencia: str | None = None) -> JSONResponse:
+    """Consumo da telemetria cruzado com o abastecimento do AVA.
+
+    Lê o CACHE local: a coleta na Gobrax leva mais de um minuto e não pode
+    acontecer no carregamento da tela.
+    """
+    from api.gobrax.consumo import get_consumo
+    try:
+        comp = _competencia_valida(competencia)
+    except ValueError as exc:
+        return JSONResponse(status_code=422, content={
+            "erro": "parametro_invalido", "mensagem": str(exc)})
+    try:
+        return JSONResponse(get_consumo(comp))
+    except psycopg.OperationalError as exc:
+        log.warning("banco inacessivel: %s", exc)
+        return JSONResponse(status_code=503, content={
+            "erro": "banco_inacessivel",
+            "mensagem": "Sem conexão com o banco. O túnel SSH está aberto?"})
+    except Exception as exc:  # noqa: BLE001
+        log.warning("telemetria_consumo falhou: %s", exc)
+        return JSONResponse(status_code=500, content={
+            "erro": "erro_consulta", "mensagem": "Erro ao montar o consumo."})
+
+
+@app.post("/api/telemetria/consumo/atualizar")
+async def telemetria_consumo_atualizar(req: Request) -> JSONResponse:
+    """Coleta estatísticas e odômetro na Gobrax. Leva mais de dois minutos."""
+    from api.gobrax import estatisticas, odometro
+    from api.gobrax.armazenamento import ColetaVazia
+    from api.gobrax.cliente import GobraxIndisponivel, GobraxNaoConfigurado
+    try:
+        body = await req.json()
+    except Exception:  # noqa: BLE001
+        body = None
+    try:
+        comp = _competencia_valida((body or {}).get("competencia")
+                                   if isinstance(body, dict) else None)
+    except ValueError as exc:
+        return JSONResponse(status_code=422, content={
+            "erro": "parametro_invalido", "mensagem": str(exc)})
+    try:
+        e = estatisticas.sincronizar(comp)
+        o = odometro.sincronizar(comp)
+        return JSONResponse({"competencia": comp, "estatisticas": e["gravadas"],
+                             "odometro": o["gravadas"]})
+    except ColetaVazia as exc:
+        log.warning("coleta de telemetria vazia: %s", exc)
+        return JSONResponse(status_code=502, content={
+            "erro": "coleta_vazia",
+            "mensagem": ("A Gobrax não devolveu nenhum veículo. "
+                         "A coleta anterior foi mantida.")})
+    except GobraxNaoConfigurado:
+        return JSONResponse(status_code=422, content={
+            "erro": "nao_configurado",
+            "mensagem": ("Token da Gobrax não configurado. "
+                         "Defina em Administração › Gestão › Integrações.")})
+    except GobraxIndisponivel as exc:
+        log.warning("gobrax indisponivel: %s", exc)
+        return JSONResponse(status_code=502, content={
+            "erro": "gobrax_indisponivel",
+            "mensagem": "A Gobrax não respondeu. Tente novamente em alguns minutos."})
+    except Exception as exc:  # noqa: BLE001
+        log.warning("telemetria_consumo_atualizar falhou: %s", exc)
+        return JSONResponse(status_code=500, content={
+            "erro": "erro_sync", "mensagem": "Não foi possível atualizar a coleta."})
+
+
+@app.get("/api/telemetria/conducao")
+def telemetria_conducao(placa: str | None = None,
+                        competencia: str | None = None) -> JSONResponse:
+    """Indicadores de condução de UM veículo. Ao vivo (~2 s)."""
+    from api.gobrax.cliente import GobraxIndisponivel, GobraxNaoConfigurado
+    from api.gobrax.performance import coletar
+    try:
+        comp = _competencia_valida(competencia)
+    except ValueError as exc:
+        return JSONResponse(status_code=422, content={
+            "erro": "parametro_invalido", "mensagem": str(exc)})
+    if not (placa or "").strip():
+        return JSONResponse(status_code=422, content={
+            "erro": "parametro_invalido",
+            "mensagem": "Escolha um veículo: a Gobrax exige a placa nesta consulta."})
+    try:
+        return JSONResponse(coletar(placa, comp))
+    except GobraxNaoConfigurado:
+        return JSONResponse(status_code=422, content={
+            "erro": "nao_configurado",
+            "mensagem": ("Token da Gobrax não configurado. "
+                         "Defina em Administração › Gestão › Integrações.")})
+    except GobraxIndisponivel as exc:
+        log.warning("gobrax indisponivel: %s", exc)
+        return JSONResponse(status_code=502, content={
+            "erro": "gobrax_indisponivel",
+            "mensagem": "A Gobrax não respondeu para este veículo."})
+    except Exception as exc:  # noqa: BLE001
+        log.warning("telemetria_conducao falhou: %s", exc)
+        return JSONResponse(status_code=500, content={
+            "erro": "erro_consulta", "mensagem": "Erro ao consultar a condução."})
+
+
+@app.get("/api/telemetria/hodometro")
+def telemetria_hodometro(competencia: str | None = None) -> JSONResponse:
+    """Hodômetro por veículo, do cache, com a data da última leitura."""
+    from api.gobrax import armazenamento, odometro
+    try:
+        comp = _competencia_valida(competencia)
+    except ValueError as exc:
+        return JSONResponse(status_code=422, content={
+            "erro": "parametro_invalido", "mensagem": str(exc)})
+    linhas = armazenamento.ler(odometro.COLECAO, comp)
+    sem_leitura = sum(1 for l in linhas if not l.get("odometro"))
+    return JSONResponse({
+        "competencia": comp,
+        "kpis": {"veiculos": len(linhas), "sem_leitura": sem_leitura,
+                 "com_leitura": len(linhas) - sem_leitura},
+        "linhas": sorted(linhas, key=lambda l: (l.get("odometro") is not None,
+                                                l.get("odometro") or 0)),
+        "sync": armazenamento.ultima(odometro.COLECAO),
+        "fonte": "Gobrax vehicle-odometer (cache local) · leitura direta do veículo",
+    })
+
+
+@app.get("/api/telemetria/rastro")
+def telemetria_rastro(placa: str | None = None,
+                      dia: str | None = None) -> JSONResponse:
+    """Trilha do veículo num dia. Ao vivo — a API de posições é rápida."""
+    from api.gobrax.cliente import GobraxIndisponivel, GobraxNaoConfigurado
+    from api.gobrax.rastro import coletar
+    d = (dia or "").strip() or date.today().isoformat()
+    if _bad_date(d):
+        return JSONResponse(status_code=422, content={
+            "erro": "parametro_invalido",
+            "mensagem": "Parâmetro dia inválido: use AAAA-MM-DD."})
+    try:
+        linhas = coletar(date.fromisoformat(d), placa=placa)
+        return JSONResponse({"dia": d, "placa": (placa or "").strip() or None,
+                             "veiculos": linhas,
+                             "pontos": sum(len(v["pontos"]) for v in linhas)})
+    except GobraxNaoConfigurado:
+        return JSONResponse(status_code=422, content={
+            "erro": "nao_configurado",
+            "mensagem": ("Token da Gobrax não configurado. "
+                         "Defina em Administração › Gestão › Integrações.")})
+    except GobraxIndisponivel as exc:
+        log.warning("gobrax indisponivel: %s", exc)
+        return JSONResponse(status_code=502, content={
+            "erro": "gobrax_indisponivel", "mensagem": "A Gobrax não respondeu."})
+    except Exception as exc:  # noqa: BLE001
+        log.warning("telemetria_rastro falhou: %s", exc)
+        return JSONResponse(status_code=500, content={
+            "erro": "erro_consulta", "mensagem": "Erro ao consultar o rastro."})
+
+
+# ---------------------------------------------------------------- Integrações (credenciais)
+
+@app.get("/api/gestao/credenciais")
+def gestao_credenciais() -> JSONResponse:
+    """Status das credenciais de integração. NUNCA devolve o valor."""
+    from api import credenciais
+    # /api/gestao/* já é restrito a admin pelo AuthMiddleware (api/auth.py:654)
+    return JSONResponse({"credenciais": credenciais.listar()})
+
+
+@app.post("/api/gestao/credenciais")
+async def gestao_credenciais_salvar(req: Request) -> JSONResponse:
+    """Grava uma credencial. O valor não é logado em nenhuma hipótese."""
+    from api import credenciais
+    # /api/gestao/* já é restrito a admin pelo AuthMiddleware (api/auth.py:654)
+    try:
+        body = await req.json()
+    except Exception:  # noqa: BLE001
+        body = None
+    if not isinstance(body, dict) or not body.get("nome"):
+        return JSONResponse(status_code=422, content={
+            "erro": "parametro_invalido", "mensagem": "Informe nome e valor."})
+    try:
+        # o valor sai daqui direto para o cofre: nada de log, nada de eco
+        st = credenciais.gravar(str(body["nome"]), str(body.get("valor") or ""))
+    except ValueError as exc:
+        return JSONResponse(status_code=422, content={
+            "erro": "parametro_invalido", "mensagem": str(exc)})
+    except Exception as exc:  # noqa: BLE001
+        log.warning("falha ao gravar credencial %s: %s",
+                    body.get("nome"), type(exc).__name__)
+        return JSONResponse(status_code=500, content={
+            "erro": "erro_gravacao",
+            "mensagem": "Não foi possível gravar a credencial."})
+    return JSONResponse(st)
+
+
 @app.get("/api/operacao/antt/rntrc")
 def antt_rntrc(dt_de: str | None = None, dt_ate: str | None = None) -> JSONResponse:
     """Situação do RNTRC dos transportadores contratados no período."""
