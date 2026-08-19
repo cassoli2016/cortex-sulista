@@ -3,6 +3,22 @@
 #   - a tela Documentação     (#doc)
 #   - o rótulo no rodapé      (CX-DD/MM/AAAA-vX.Y.Z)
 # A versão do TOPO é a corrente e tem de bater com o pyproject.toml.
+- versao: "0.8.1"
+  data: "2026-08-19"
+  corrigido:
+    - >-
+      O botão "Atualizar dados" da Premiação devolvia erro genérico quando a
+      Gobrax não respondia: as rotas ainda tratavam o erro do cliente antigo, e
+      qualquer falha virava "Erro ao atualizar a premiação" sem dizer o motivo.
+    - >-
+      O comparativo mensal da Premiação não carregava — ainda pedia a média de
+      consumo da frota, que a regra nova não calcula. Agora mostra o prêmio
+      total e os motoristas premiados por mês, marcando com asterisco o mês que
+      foi pago pela regra anterior.
+    - >-
+      O rodapé do card da Premiação ainda descrevia a regra antiga (litros
+      economizados × meta de consumo).
+
 - versao: "0.8.0"
   data: "2026-08-19"
   adicionado:

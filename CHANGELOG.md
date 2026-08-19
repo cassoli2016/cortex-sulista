@@ -4,6 +4,13 @@ Gerado de `docs/versoes.yaml` por `scripts/gerar_changelog.py` — não editar �
 Formato [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/),
 versionamento [SemVer](https://semver.org/lang/pt-BR/).
 
+## [0.8.1] — 19/08/2026  ·  CX-19/08/2026-v0.8.1
+
+### Corrigido
+- O botão "Atualizar dados" da Premiação devolvia erro genérico quando a Gobrax não respondia: as rotas ainda tratavam o erro do cliente antigo, e qualquer falha virava "Erro ao atualizar a premiação" sem dizer o motivo.
+- O comparativo mensal da Premiação não carregava — ainda pedia a média de consumo da frota, que a regra nova não calcula. Agora mostra o prêmio total e os motoristas premiados por mês, marcando com asterisco o mês que foi pago pela regra anterior.
+- O rodapé do card da Premiação ainda descrevia a regra antiga (litros economizados × meta de consumo).
+
 ## [0.8.0] — 19/08/2026  ·  CX-19/08/2026-v0.8.0
 
 ### Adicionado
