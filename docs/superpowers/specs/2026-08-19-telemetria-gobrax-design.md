@@ -100,29 +100,51 @@ Como quatro telas vão falar com a mesma plataforma, o cliente vira um só.
 `2023-08-10T00:00:00-0300` e `05-2024`. A conversão fica no cliente, num ponto
 único; nenhuma tela ou serviço monta string de data à mão.
 
-## 4. Premiação migrada
+## 4. Premiação — nova regra e nova fonte
 
-`driversOverview` sem `documentNumbers` devolve todos os motoristas de uma vez —
-uma chamada por período, contra as ~86 de hoje. Cálculo, snapshots, backfill e
-tela permanecem; troca só a coleta.
+A medição (§2.2) mostrou que a API não devolve a média de consumo, insumo da
+regra antiga. **Decisão do usuário em 19/08/2026: a premiação passa a usar a
+nota da Gobrax e o km rodado**, que a API entrega prontos, com o valor
+configurável na tela. Informações do ERP entram depois, numa etapa própria.
 
-**A troca direta foi decidida pelo usuário em 19/08/2026 e depois INVIABILIZADA
-pela medição (§2.2):** a API não devolve a média de consumo, que é o insumo do
-cálculo do prêmio. A migração da fonte fica SUSPENSA aguardando decisão nova.
-As três telas novas não dependem disso e seguem.
+### 4.1 Regra
 
-Caminho possível, se a migração for retomada: `TotalKM` viria do
-`driversOverview`, e a média teria de ser reconstruída a partir do
-`consumptionAverage` por veículo (vehicle-statistics) rateado pelo vínculo
-motorista-veículo (vehicle-performance). Isso introduz rateio onde hoje há
-medição direta — é degradação de precisão num número que vira dinheiro no bolso
-do motorista, e por isso não é recomendado sem uma razão forte.
+```
+elegível  = nota >= nota_minima  E  km >= km_minimo
+premio    = km × valor_por_km × (nota / 100)
+```
 
-**PII:** a resposta traz `DocumentNumber` (CPF). Serve para casar com o cadastro
-e é descartado em seguida — não entra em SQLite nem em payload de API, como já
-fazem Jornada, Combustível e a própria Premiação.
+Parâmetros configuráveis, no mesmo `data/premiacao_params.json` que já é editado
+pela tela: `valor_por_km`, `nota_minima`, `km_minimo`. Os parâmetros da regra
+antiga (`meta`, `preco_litro`, `pct_premiacao`) saem.
+
+Conferência com abril/2026, dado real da API, a R$ 0,10/km, nota mínima 70 e km
+mínimo 1.500: JEAN LAURO (5.200 km, nota 99) = R$ 514,80; AGNALDO (2.840 km,
+nota 81) = R$ 230,04; ANGELA (2.595 km, nota 73) = R$ 189,44.
+
+### 4.2 O histórico não é recalculado
+
+Os snapshots já gravados foram produzidos pela regra de litros economizados e
+correspondem a valores que **já foram pagos**. Aplicar a regra nova a eles
+reescreveria o passado.
+
+Cada snapshot passa a gravar a `regra` que o gerou (`litros_economizados` ou
+`nota_km`) e os parâmetros vigentes. A tela mostra a regra do mês que está
+exibindo, e mês antigo continua exibindo o valor com que foi pago. Sem isso, a
+mesma tela mostraria dois critérios diferentes sem avisar.
+
+### 4.3 Fonte
+
+`driversOverview`, uma chamada por período. Gotchas medidos: `endDate` tem de
+ser o mês SEGUINTE ao pedido (mês igual devolve HTTP 400), o formato é `MM-YYYY`,
+e o backfill precisa ser mês a mês — doze meses numa chamada estouram o timeout.
+
+O `Reward` da API é ignorado: vem zerado, e o cálculo é nosso.
 
 Regra herdada e mantida: **coleta vazia nunca sobrescreve snapshot com dados.**
+
+**PII:** a resposta traz `DocumentNumber` (CPF). Serve para casar com o cadastro
+e é descartado — não entra em snapshot nem em payload.
 
 ## 5. Consumo e Estatísticas (`telcon`)
 
@@ -178,7 +200,7 @@ Dois ganchos com telas existentes:
 | ~~Volume de chamadas~~ | MEDIDO em 19/08 | statistics aceita a frota (73 s); performance exige placa (~17 s × 74). Ambas exigem coleta em segundo plano |
 | ~~Token não testado~~ | RESOLVIDO | Autentica como `Bearer`; o token exposto no chat em 19/08 precisa ser rotacionado |
 | Limite de período | MEDIDO | 12 meses estoura timeout; coletar mês a mês, com `endDate` sempre no mês seguinte |
-| Divergência da premiação | CONFIRMADA | A API zera o prêmio e não traz a média; migração suspensa |
+| Regra nova paga diferente da antiga | Alto — é dinheiro do motorista | Snapshot grava a regra que o gerou; histórico não é recalculado |
 | Rastro com muitos pontos | Médio | Amostragem por tempo; a Torre já lida com isso |
 
 ## 10. Pendente antes do plano
