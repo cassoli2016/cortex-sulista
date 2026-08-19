@@ -3,6 +3,28 @@
 #   - a tela Documentação     (#doc)
 #   - o rótulo no rodapé      (CX-DD/MM/AAAA-vX.Y.Z)
 # A versão do TOPO é a corrente e tem de bater com o pyproject.toml.
+- versao: "0.8.0"
+  data: "2026-08-19"
+  adicionado:
+    - >-
+      Tela Consumo e Estatísticas: o km/l medido pela telemetria da Gobrax lado a
+      lado com o km/l calculado pelos abastecimentos do ERP, por veículo, com a
+      diferença entre as duas medidas.
+    - >-
+      Tela Condução Econômica: faixa econômica, piloto automático e eco-roll de
+      um veículo, com duração, percentual e nota, e os motoristas que estiveram
+      nele no período.
+    - >-
+      Tela Hodômetro e Rastro: leitura direta do odômetro de cada veículo, com a
+      data da última leitura, e o trajeto do dia desenhado no mapa.
+  alterado:
+    - >-
+      A comparação de consumo só vale quando a telemetria cobriu a maior parte
+      do período e quando as duas medidas são fisicamente possíveis. Veículo com
+      rastreador mudo aparece como "telemetria incompleta", e não como
+      divergência de consumo — sem essa regra, 25 veículos apareceriam como
+      problema de combustível quando o problema é de sinal.
+
 - versao: "0.7.0"
   data: "2026-08-19"
   adicionado:
