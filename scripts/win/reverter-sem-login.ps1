@@ -30,7 +30,15 @@ if (-not (Test-Path -LiteralPath $backup)) {
   Aviso 'API e AutoDeploy preservados como estao (use -Tudo para reverter tambem)'
 } else {
   Get-ChildItem $backup -Filter *.xml | ForEach-Object {
-    $nome = ($_.BaseName -replace '_', ' ')
+    # BUG QUE ISTO CORRIGE: o nome do arquivo troca CADA caractere invalido por
+    # '_', entao "Cortex Sulista - API" vira "Cortex_Sulista___API". Desfazer com
+    # -replace '_',' ' devolvia "Cortex Sulista   API" -- TRES espacos, nome
+    # diferente do original. O reverter registrava tarefas novas com nome
+    # corrompido e deixava as originais para tras.
+    # O nome verdadeiro esta DENTRO do XML (URI), nao no nome do arquivo.
+    $xmlDoc = [xml](Get-Content $_.FullName -Raw)
+    $uri = $xmlDoc.Task.RegistrationInfo.URI
+    $nome = if ($uri) { $uri.TrimStart('\') } else { ($_.BaseName -replace '_+', ' ') }
     try {
       $xml = Get-Content $_.FullName -Raw
       Unregister-ScheduledTask -TaskName $nome -Confirm:$false -ErrorAction SilentlyContinue
