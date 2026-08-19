@@ -208,8 +208,12 @@ if ($Simular) {
     # o 'service install' registra o binario SEM ARGUMENTOS (confirmado por
     # sc.exe qc): o servico roda o exe sem comando, ele sai na hora e o Windows
     # reporta falha ao iniciar. O comando completo precisa ser gravado a mao.
+    # via registro: o sc.exe rejeita a linha quando o PowerShell mexe nas aspas
     $binPath = '"{0}" --config "{1}" tunnel run' -f $cf, (Join-Path $sysCfg 'config.yml')
-    & sc.exe config Cloudflared binPath= "$binPath" | Out-Null
+    $chaveSvc = 'HKLM:\SYSTEM\CurrentControlSet\Services\Cloudflared'
+    if (Test-Path -LiteralPath $chaveSvc) {
+      Set-ItemProperty -LiteralPath $chaveSvc -Name 'ImagePath' -Value $binPath -Type ExpandString
+    }
   } finally {
     $ErrorActionPreference = $prefAntes
   }
