@@ -88,6 +88,9 @@ TELAS: dict[str, tuple[str, str]] = {  # chave -> (rótulo, grupo do menu)
     "he":      ("Horas Extras", "Recursos Humanos"),
     "anpiso":  ("Piso Mínimo de Frete", "ANTT"),
     "anrntrc": ("RNTRC dos Transportadores", "ANTT"),
+    "telcon":  ("Consumo e Estatísticas", "Telemetria"),
+    "telcond": ("Condução Econômica", "Telemetria"),
+    "telhod":  ("Hodômetro e Rastro", "Telemetria"),
     "tvfat":   ("Painel TV — Faturamento", "Painéis TV"),
     "tvope":   ("Painel TV — Operação", "Painéis TV"),
     "doc":     ("Documentação", "Administração"),
@@ -101,6 +104,11 @@ ROTA_TELAS: list[tuple[str, frozenset[str]]] = [
     # documentação e versão: qualquer usuário logado, com qualquer tela
     ("/api/documentacao",             frozenset(TELAS)),
     ("/api/versao",                   frozenset(TELAS)),
+    ("/api/telemetria/consumo/atualizar", frozenset({"telcon"})),
+    ("/api/telemetria/consumo",       frozenset({"telcon"})),
+    ("/api/telemetria/conducao",      frozenset({"telcond"})),
+    ("/api/telemetria/hodometro",     frozenset({"telhod"})),
+    ("/api/telemetria/rastro",        frozenset({"telhod"})),
     ("/api/operacao/antt/piso",       frozenset({"anpiso"})),
     ("/api/operacao/antt/rntrc/atualizar", frozenset({"anrntrc"})),
     ("/api/operacao/antt/rntrc",      frozenset({"anrntrc"})),
@@ -223,7 +231,8 @@ _PERFIS_MODELO = [
     ("Operação",    "Torre de controle, programação, jornada, custos extras, SAC/freetime, portaria, análise de KM, agregados e make-vs-buy.",
      ["torre", "prog", "jorn", "cex", "sac", "port", "km", "agr", "mvb"]),
     ("Frota",       "Veículos, consulta por placa, combustível, manutenção, preventiva, rastreadora, multas e premiação de motoristas.",
-     ["veic", "veicf", "comb", "man", "mprev", "comrast", "mul"]),
+     ["veic", "veicf", "comb", "man", "mprev", "comrast", "mul",
+      "telcon", "telcond", "telhod"]),
     ("Suprimentos", "Ordens de compra e painel de custos.",
      ["oc", "custos"]),
     ("Painéis TV",  "Apenas os painéis de TV (faturamento e operação) — para telão/quiosque.",
@@ -231,7 +240,8 @@ _PERFIS_MODELO = [
     ("Recursos Humanos", "Vagas, headcount, custo de folha, indicadores e horas extras.",
      ["rh", "hc", "folha", "folhaind", "he"]),
     ("Diretoria",   "Visão executiva ampla: consolidado, copiloto e principais indicadores.",
-     ["home", "cop", "fluxo", "dre", "drecli", "com", "km", "torre", "jorn", "mvb", "veic", "prem", "rh", "hc", "folha", "folhaind", "he", "fech", "anpiso", "anrntrc"]),
+     ["home", "cop", "fluxo", "dre", "drecli", "com", "km", "torre", "jorn", "mvb", "veic", "prem", "rh", "hc", "folha", "folhaind", "he", "fech", "anpiso", "anrntrc",
+      "telcon", "telcond", "telhod"]),
 ]
 
 
@@ -523,6 +533,17 @@ def _seed_perfis_modelo(c: sqlite3.Connection) -> None:
                 c.execute("INSERT OR IGNORE INTO perfil_telas(perfil_id, tela) VALUES(?,?)",
                           (row["id"], "prem"))
         c.execute("INSERT OR IGNORE INTO config(chave, valor) VALUES('perfis_modelo_v24', '1')")
+
+    # v25 (telas de Telemetria 2026-08-19): consumo, conducao e hodometro para
+    # Frota (e a operacao da frota) e Diretoria (unico perfil com usuario real).
+    if not c.execute("SELECT 1 FROM config WHERE chave='perfis_modelo_v25'").fetchone():
+        for nome_perfil in ("Frota", "Diretoria"):
+            row = c.execute("SELECT id FROM perfis WHERE nome=?", (nome_perfil,)).fetchone()
+            if row:
+                for tela in ("telcon", "telcond", "telhod"):
+                    c.execute("INSERT OR IGNORE INTO perfil_telas(perfil_id, tela)"
+                              " VALUES(?,?)", (row["id"], tela))
+        c.execute("INSERT OR IGNORE INTO config(chave, valor) VALUES('perfis_modelo_v25', '1')")
 
 
 def _agora() -> str:

@@ -1057,6 +1057,9 @@ body.tvfull #btnReport,body.tvmode #btnReport{display:none}
       </button>
       <div class="subs closed" id="subsTel">
         <a href="#prem" class="sub" data-view="prem" title="Premiação de Motoristas — nota da Gobrax e km rodado"><span class="ic" data-ic="prem"></span><span>Premiação de Motoristas</span></a>
+        <a href="#telcon" class="sub" data-view="telcon" title="Consumo e Estatísticas — km/l da telemetria contra o abastecimento"><span class="ic" data-ic="comb"></span><span>Consumo e Estatísticas</span></a>
+        <a href="#telcond" class="sub" data-view="telcond" title="Condução Econômica — faixa econômica, piloto automático e eco-roll"><span class="ic" data-ic="gauge"></span><span>Condução Econômica</span></a>
+        <a href="#telhod" class="sub" data-view="telhod" title="Hodômetro e Rastro — leitura direta do veículo e trajeto no mapa"><span class="ic" data-ic="kmv"></span><span>Hodômetro e Rastro</span></a>
       </div>
       <button class="group" id="grpAntt" aria-expanded="false" aria-controls="subsAntt" onclick="toggleGroup('grpAntt','subsAntt','cs.anttGroup')" title="ANTT">
         <span class="ic" data-ic="qualic"></span><span>ANTT</span><span class="ic chev" data-ic="chev"></span>
@@ -1615,6 +1618,65 @@ body.tvfull #btnReport,body.tvmode #btnReport{display:none}
           <div class="tablewrap"><table><thead><tr>
             <th>Placa</th><th>Tipo</th><th>Carroceria</th><th>Motivo</th>
           </tr></thead><tbody id="anpiso-pend"></tbody></table></div>
+        </div>
+      </section>
+
+      <!-- ===================== CONSUMO E ESTATÍSTICAS ===================== -->
+      <section class="view" id="view-telcon">
+        <div class="kpis" id="kpis-telcon"></div>
+        <div class="card">
+          <div class="head">
+            <h2>Telemetria × abastecimento <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="Duas medidas independentes do mesmo consumo: a telemetria da Gobrax (vehicle-statistics, cache local) mede o que o motor gastou; sulista.ctaplus_abastecimentos do AVA mede o que saiu da bomba, sem ARLA. Casados por placa. A comparação SÓ vale onde a telemetria cobriu pelo menos 70% do km do período e onde os dois km/l são fisicamente plausíveis (0,5 a 15) — fora disso a linha aparece marcada e não conta como divergência.">i</span></h2>
+            <span class="hint" id="telcon-sync">sem coleta</span>
+          </div>
+          <div style="padding:0 14px 12px;display:flex;gap:10px;align-items:center;flex-wrap:wrap">
+            <label style="font-size:11px;color:var(--n500);display:flex;flex-direction:column;gap:2px">Competência
+              <input type="month" id="fTelconMes" onchange="loadTelcon()" style="width:150px"></label>
+            <button class="btn" id="btnTelconSync" onclick="telconAtualizar()">Coletar na Gobrax</button>
+            <span class="hint">a coleta lê a frota inteira e leva mais de dois minutos</span>
+          </div>
+          <div class="tablewrap tabroll"><table><thead><tr>
+            <th>Placa</th><th class="num">Km telemetria</th><th class="num">Km/l telemetria</th><th class="num">Km/l abastecimento</th><th class="num">Diferença</th><th class="num">Cobertura</th><th class="num">Freadas</th><th>Situação</th>
+          </tr></thead><tbody id="telcon-lista"></tbody></table></div>
+        </div>
+      </section>
+
+      <!-- ===================== CONDUÇÃO ECONÔMICA ===================== -->
+      <section class="view" id="view-telcond">
+        <div class="card">
+          <div class="head">
+            <h2>Condução econômica por veículo <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="Gobrax vehicle-performance, consultada ao vivo para UM veículo por vez — a API exige a placa e responde 404 sem ela. Traz faixa econômica, piloto automático e eco-roll, com duração, percentual e nota, mais os motoristas vinculados ao veículo no período. É o detalhe por trás da nota que a premiação usa.">i</span></h2>
+            <span class="hint">um veículo por consulta · ao vivo</span>
+          </div>
+          <div style="padding:0 14px 12px;display:flex;gap:10px;align-items:center;flex-wrap:wrap">
+            <label style="font-size:11px;color:var(--n500);display:flex;flex-direction:column;gap:2px">Veículo
+              <select id="fTelcondPlaca" onchange="loadTelcond()" style="width:180px"><option value="">Escolha a placa</option></select></label>
+            <label style="font-size:11px;color:var(--n500);display:flex;flex-direction:column;gap:2px">Competência
+              <input type="month" id="fTelcondMes" onchange="loadTelcond()" style="width:150px"></label>
+          </div>
+          <div id="telcond-conteudo" style="padding:0 18px 18px"></div>
+        </div>
+      </section>
+
+      <!-- ===================== HODÔMETRO E RASTRO ===================== -->
+      <section class="view" id="view-telhod">
+        <div class="kpis" id="kpis-telhod"></div>
+        <div class="card">
+          <div class="head">
+            <h2>Hodômetro por veículo <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="Gobrax vehicle-odometer (cache local): leitura direta do odômetro do veículo e a data em que ela foi feita. Veículo sem leitura no período é sintoma de rastreador mudo — o mesmo problema que a tela Comunicação Rastreadora acompanha por outro ângulo. A coleta é a mesma da tela de Consumo.">i</span></h2>
+            <span class="hint" id="telhod-sync">sem coleta</span>
+          </div>
+          <div class="tablewrap tabroll"><table><thead><tr>
+            <th>Placa</th><th class="num">Hodômetro</th><th class="num">Última leitura</th><th>Situação</th><th>Rastro</th>
+          </tr></thead><tbody id="telhod-lista"></tbody></table></div>
+        </div>
+        <div class="card" id="telhod-mapa-card" style="display:none">
+          <div class="head"><h2 id="telhod-mapa-titulo">Trajeto</h2><span class="hint" id="telhod-mapa-hint"></span></div>
+          <div style="padding:0 14px 12px;display:flex;gap:10px;align-items:center">
+            <label style="font-size:11px;color:var(--n500);display:flex;flex-direction:column;gap:2px">Dia
+              <input type="date" id="fTelhodDia" onchange="telhodRastro()" style="width:160px"></label>
+          </div>
+          <div id="telhod-mapa" style="height:420px;margin:0 14px 14px;border-radius:8px"></div>
         </div>
       </section>
 
@@ -2939,7 +3001,7 @@ const FAIXAS = {
   '4_vencido_91_365':['Vencido 91–365d','b-dang'],
   '5_vencido_mais_365':['Vencido > 365d','b-dang'],
 };
-const VIEWS = { home:'Visão Geral', fluxo:'Fluxo de Caixa e Bancos', receber:'Contas a Receber', pagar:'Contas a Pagar', oc:'Ordens de Compra', custos:'Painel de Custos', agr:'Agregados e Terceiros', mvb:'Make vs Buy', comb:'Combustível', man:'Manutenção', com:'Clientes e RKM', clif:'Consulta de Cliente', crm:'CRM — Leads e Projetos', km:'Análise de KM', torre:'Torre de Controle', veic:'Veículos', veicf:'Consulta de Veículo', mprev:'Manutenção Preventiva', comrast:'Comunicação Rastreadora', mul:'Multas', prog:'Programação Inteligente', jorn:'Jornada do Motorista', jornf:'Ficha de Jornada', cex:'Custos Extras', sac:'SAC / Freetime', port:'Portaria', cop:'Copiloto Cortex', cob:'Régua de Cobrança', extb:'Extrato Bancário', cont:'Contabilidade', qual:'Qualidade e Certidões', orc:'Orçamento', fech:'Fechamento do Mês', prem:'Premiação de Motoristas', dre:'DRE Gerencial', drecli:'DRE por Cliente', tvfat:'Painel TV — Faturamento', tvope:'Painel TV — Operação', rh:'RH — Vagas', hc:'Headcount', folha:'Custo de Folha', folhaind:'Indicadores de Folha', he:'Horas Extras', gestao:'Gestão', srv:'Saúde do Servidor', doc:'Documentação', anpiso:'Piso Mínimo de Frete', anrntrc:'RNTRC dos Transportadores' };
+const VIEWS = { home:'Visão Geral', fluxo:'Fluxo de Caixa e Bancos', receber:'Contas a Receber', pagar:'Contas a Pagar', oc:'Ordens de Compra', custos:'Painel de Custos', agr:'Agregados e Terceiros', mvb:'Make vs Buy', comb:'Combustível', man:'Manutenção', com:'Clientes e RKM', clif:'Consulta de Cliente', crm:'CRM — Leads e Projetos', km:'Análise de KM', torre:'Torre de Controle', veic:'Veículos', veicf:'Consulta de Veículo', mprev:'Manutenção Preventiva', comrast:'Comunicação Rastreadora', mul:'Multas', prog:'Programação Inteligente', jorn:'Jornada do Motorista', jornf:'Ficha de Jornada', cex:'Custos Extras', sac:'SAC / Freetime', port:'Portaria', cop:'Copiloto Cortex', cob:'Régua de Cobrança', extb:'Extrato Bancário', cont:'Contabilidade', qual:'Qualidade e Certidões', orc:'Orçamento', fech:'Fechamento do Mês', prem:'Premiação de Motoristas', dre:'DRE Gerencial', drecli:'DRE por Cliente', tvfat:'Painel TV — Faturamento', tvope:'Painel TV — Operação', rh:'RH — Vagas', hc:'Headcount', folha:'Custo de Folha', folhaind:'Indicadores de Folha', he:'Horas Extras', gestao:'Gestão', srv:'Saúde do Servidor', doc:'Documentação', anpiso:'Piso Mínimo de Frete', anrntrc:'RNTRC dos Transportadores', telcon:'Consumo e Estatísticas', telcond:'Condução Econômica', telhod:'Hodômetro e Rastro' };
 const periodoLabel = p => { if(p==='atrasado') return 'Atrasado'; const [y,m]=p.split('-'); return MES[+m-1]+'/'+y.slice(2); };
 const fmtD = s => { if(!s) return ''; const [y,m,dd]=s.split('-'); return dd+'/'+m+'/'+y; };
 // o ERP devolve "YYYY-MM-DD HH24:MI" (to_char); a ficha do veículo mostrava cru
@@ -2955,6 +3017,9 @@ let DATAOC = null;
 let DATAAGR = null;
 let DATAANPISO = null;
 let DATAANRNTRC = null;
+let DATATELCON = null;
+let DATATELCOND = null;
+let DATATELHOD = null;
 let DATAMVB = null;
 let DATACOMB = null;
 let DATAMAN = null;
@@ -3251,7 +3316,7 @@ function semFilterbar(v){
   // filtros", que não tinha o que aplicar.
   return v==='cop'||v==='gestao'||v==='srv'||v==='home'||v==='veicf'||v==='clif'||v==='jorn'||v==='jornf'||v==='prog'||
          v==='cex'||v==='sac'||v==='mprev'||v==='comrast'||v==='qual'||v==='port'||v==='crm'||v==='rh'||
-         v==='hc'||v==='folha'||v==='folhaind'||v==='he'||v==='custos'||v==='orc'||v==='prem'||v==='extb'||v==='fech'||v==='doc'||v==='anrntrc';
+         v==='hc'||v==='folha'||v==='folhaind'||v==='he'||v==='custos'||v==='orc'||v==='prem'||v==='extb'||v==='fech'||v==='doc'||v==='anrntrc'||v==='telcon'||v==='telcond'||v==='telhod';
 }
 function currentView(){
   const h = (location.hash||'').replace('#','');
@@ -3341,8 +3406,8 @@ function router(){
   // carga da vista: dispara se não há dados OU se os filtros visíveis
   // divergem dos usados na última carga (nunca mostrar dado velho com filtro novo)
   const key=viewKey(v);
-  const DATAMAP={fin:DATA,oc:DATAOC,agr:DATAAGR,anpiso:DATAANPISO,anrntrc:DATAANRNTRC,mvb:DATAMVB,comb:DATACOMB,man:DATAMAN,com:DATACOM,clif:DATACLIF,dre:DATADRE,drecli:DATADRECLI,home:DATAHOME,km:DATAKM,torre:DATATORRE,veic:DATAVEIC,veicf:DATAVEICF,mul:DATAMUL,prog:DATAPROG,jorn:DATAJORN,jornf:DATAJORNF,cex:DATACEX,sac:DATASAC,mprev:DATAMPREV,comrast:DATACOMRAST,qual:DATAQUAL,port:DATAPORT,crm:DATACRM,rh:DATARH,hc:DATAHC,folha:DATAFOLHA,folhaind:DATAFOLHAIND,he:DATAHE,custos:DATACUSTOS,cob:DATACOB,extb:DATAEXTB,rent:DATARENT,cont:DATACONT,orc:DATAORC,fech:DATAFECH,prem:DATAPREM,gestao:DATAGES,srv:DATASRV,doc:DATADOC,tvfat:null,tvope:null,cop:(COP_MSGS.length?{}:null)};
-  const LOADMAP={fin:load,oc:loadOc,agr:loadAgr,anpiso:loadAnpiso,anrntrc:loadAnrntrc,mvb:loadMvb,comb:loadComb,man:loadMan,com:loadCom,clif:loadClif,dre:loadDre,drecli:loadDreCli,home:loadHome,km:loadKm,torre:loadTorre,veic:loadVeic,veicf:loadVeicf,mul:loadMul,prog:loadProg,jorn:loadJorn,jornf:loadJornf,cex:loadCex,sac:loadSac,mprev:loadMPrev,comrast:loadComRast,qual:loadQual,port:loadPort,crm:loadCrm,rh:loadRh,hc:loadHc,folha:loadFolha,folhaind:loadFolhaInd,he:loadHe,custos:loadCustos,cob:loadCob,extb:loadExtb,rent:loadRent,cont:loadCont,orc:loadOrc,fech:loadFech,prem:loadPrem,gestao:loadGestao,srv:loadSrv,doc:loadDoc,cop:loadCop,tvfat:loadTvFat,tvope:loadTvOpe};
+  const DATAMAP={fin:DATA,oc:DATAOC,agr:DATAAGR,anpiso:DATAANPISO,anrntrc:DATAANRNTRC,telcon:DATATELCON,telcond:DATATELCOND,telhod:DATATELHOD,mvb:DATAMVB,comb:DATACOMB,man:DATAMAN,com:DATACOM,clif:DATACLIF,dre:DATADRE,drecli:DATADRECLI,home:DATAHOME,km:DATAKM,torre:DATATORRE,veic:DATAVEIC,veicf:DATAVEICF,mul:DATAMUL,prog:DATAPROG,jorn:DATAJORN,jornf:DATAJORNF,cex:DATACEX,sac:DATASAC,mprev:DATAMPREV,comrast:DATACOMRAST,qual:DATAQUAL,port:DATAPORT,crm:DATACRM,rh:DATARH,hc:DATAHC,folha:DATAFOLHA,folhaind:DATAFOLHAIND,he:DATAHE,custos:DATACUSTOS,cob:DATACOB,extb:DATAEXTB,rent:DATARENT,cont:DATACONT,orc:DATAORC,fech:DATAFECH,prem:DATAPREM,gestao:DATAGES,srv:DATASRV,doc:DATADOC,tvfat:null,tvope:null,cop:(COP_MSGS.length?{}:null)};
+  const LOADMAP={fin:load,oc:loadOc,agr:loadAgr,anpiso:loadAnpiso,anrntrc:loadAnrntrc,telcon:loadTelcon,telcond:loadTelcond,telhod:loadTelhod,mvb:loadMvb,comb:loadComb,man:loadMan,com:loadCom,clif:loadClif,dre:loadDre,drecli:loadDreCli,home:loadHome,km:loadKm,torre:loadTorre,veic:loadVeic,veicf:loadVeicf,mul:loadMul,prog:loadProg,jorn:loadJorn,jornf:loadJornf,cex:loadCex,sac:loadSac,mprev:loadMPrev,comrast:loadComRast,qual:loadQual,port:loadPort,crm:loadCrm,rh:loadRh,hc:loadHc,folha:loadFolha,folhaind:loadFolhaInd,he:loadHe,custos:loadCustos,cob:loadCob,extb:loadExtb,rent:loadRent,cont:loadCont,orc:loadOrc,fech:loadFech,prem:loadPrem,gestao:loadGestao,srv:loadSrv,doc:loadDoc,cop:loadCop,tvfat:loadTvFat,tvope:loadTvOpe};
   if(!DATAMAP[key] || (key!=='home' && LOADEDQS[key]!==qsView(key))) LOADMAP[key]();
   // mobile: estado da navegação inferior + fecha gaveta/painel de filtros
   document.querySelectorAll('.bottomnav [data-bview]').forEach(a=>a.classList.toggle('ativo', a.dataset.bview===v));
@@ -9817,6 +9882,220 @@ function chartMvbRender(mensal, compAte){
 
 const fmtKm = v => v>0 ? v.toLocaleString('pt-BR',{maximumFractionDigits:0})+' km' : '—';
 const fmtRsKm = v => v!=null ? 'R$ '+v.toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2}) : '—';
+/* ===================== TELEMETRIA: CONSUMO ===================== */
+const TELCON_SIT = {
+  ok:          '<span class="badge b-ok">comparável</span>',
+  divergente:  '<span class="badge b-warn">divergente</span>',
+  incompleta:  '<span class="badge">telemetria incompleta</span>',
+  suspeito:    '<span class="badge b-warn">leitura implausível</span>',
+  ava:         '<span class="badge">km do abastecimento implausível</span>',
+  sem_tel:     '<span class="badge">sem telemetria</span>'
+};
+function telconSituacao(l, limite){
+  if(!l.km_l) return TELCON_SIT.sem_tel;
+  if(l.suspeito) return TELCON_SIT.suspeito;
+  if(l.telemetria_incompleta) return TELCON_SIT.incompleta;
+  if(l.ava_implausivel) return TELCON_SIT.ava;
+  if(l.delta_pct==null) return '<span style="color:var(--n500)">—</span>';
+  return Math.abs(l.delta_pct)>limite ? TELCON_SIT.divergente : TELCON_SIT.ok;
+}
+function telconMesAtual(){
+  const el=document.getElementById('fTelconMes');
+  if(el && !el.value){ const h=new Date(); el.value=h.toISOString().slice(0,7); }
+  return el ? el.value : '';
+}
+let telconSeq=0;
+async function loadTelcon(){
+  skelKpis('kpis-telcon',4);
+  const seq=++telconSeq;
+  const btn=document.getElementById('btnRefresh'); btn.disabled=true;
+  document.getElementById('content').classList.add('loading');
+  try{
+    const r=await fetch('/api/telemetria/consumo?competencia='+encodeURIComponent(telconMesAtual()),{cache:'no-store'});
+    const d=await r.json();
+    if(seq!==telconSeq) return;
+    if(!r.ok){ showBanner(d.mensagem||'Erro ao montar o consumo.', d.detalhe); return; }
+    hideBanner(); DATATELCON=d; renderTelcon(d); LOADEDQS.telcon='';
+  }catch(e){ if(seq===telconSeq) showBanner('Não foi possível falar com a API.', e.message); }
+  finally{ if(seq===telconSeq){ btn.disabled=false; document.getElementById('content').classList.remove('loading'); } }
+}
+function renderTelcon(d){
+  if(!d) return;
+  const k=d.kpis||{};
+  document.getElementById('kpis-telcon').innerHTML=[
+    kpi('Km/l da frota', k.km_l_frota!=null?k.km_l_frota.toLocaleString('pt-BR',{maximumFractionDigits:2}):'—',
+        'telemetria · só leituras plausíveis', ''),
+    kpi('Veículos comparáveis', (k.comparaveis||0)+' de '+(k.veiculos||0),
+        (k.telemetria_incompleta||0)+' com telemetria incompleta · '+(k.suspeitos||0)+' implausíveis', ''),
+    kpi('Divergentes', (k.divergentes||0).toLocaleString('pt-BR'),
+        'diferença acima de '+(k.limite_pct||15)+'% entre as duas medidas',
+        (k.divergentes||0)>0?'alerta':''),
+    kpi('Freadas em alta', (k.freadas_alta||0).toLocaleString('pt-BR'),
+        (k.freadas||0).toLocaleString('pt-BR')+' freadas no total', '')
+  ].join('');
+  const s=d.sync;
+  document.getElementById('telcon-sync').textContent = s
+    ? ('coletado em '+s.quando+' · '+s.registros+' veículos · competência '+s.competencia)
+    : 'sem coleta — clique em Coletar na Gobrax';
+  const limite=k.limite_pct||15;
+  document.getElementById('telcon-lista').innerHTML=(d.linhas||[]).map(l=>`<tr>
+      <td class="num" style="font-family:var(--mono)">${esc(l.placa||'—')}</td>
+      <td class="num">${l.km!=null?Math.round(l.km).toLocaleString('pt-BR'):'—'}</td>
+      <td class="num">${l.km_l!=null?l.km_l.toLocaleString('pt-BR',{maximumFractionDigits:2}):'—'}</td>
+      <td class="num">${l.km_l_ava!=null?l.km_l_ava.toLocaleString('pt-BR',{maximumFractionDigits:2}):'—'}</td>
+      <td class="num" style="font-weight:600;color:${l.delta_pct==null?'inherit':(Math.abs(l.delta_pct)>limite?'var(--red)':'inherit')}">${l.delta_pct!=null?(l.delta_pct>0?'+':'')+Math.round(l.delta_pct)+'%':'—'}</td>
+      <td class="num">${l.cobertura_tel!=null?Math.round(100*l.cobertura_tel)+'%':'—'}</td>
+      <td class="num">${(l.freadas||0).toLocaleString('pt-BR')}</td>
+      <td>${telconSituacao(l, limite)}</td>
+    </tr>`).join('') || '<tr><td colspan="8" style="color:var(--n500)">sem coleta para esta competência</td></tr>';
+}
+async function telconAtualizar(){
+  const b=document.getElementById('btnTelconSync');
+  b.disabled=true; const rot=b.textContent; b.textContent='coletando… (2 min)';
+  try{
+    const r=await fetch('/api/telemetria/consumo/atualizar',{method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({competencia:telconMesAtual()})});
+    const d=await r.json();
+    if(!r.ok){ showBanner(d.mensagem||'Erro ao coletar.', d.detalhe); return; }
+    hideBanner(); await loadTelcon();
+  }catch(e){ showBanner('Não foi possível falar com a API.', e.message); }
+  finally{ b.disabled=false; b.textContent=rot; }
+}
+
+/* ===================== TELEMETRIA: CONDUÇÃO ===================== */
+let telcondSeq=0;
+function telcondPlacas(){
+  /* as placas vêm da coleta de consumo, que já está em cache: evita uma
+     chamada só para listar veículo */
+  const sel=document.getElementById('fTelcondPlaca');
+  if(!sel || sel.options.length>1) return;
+  const linhas=(DATATELCON&&DATATELCON.linhas)||[];
+  const placas=[...new Set(linhas.filter(l=>l.km_l).map(l=>l.placa))].sort();
+  sel.innerHTML='<option value="">Escolha a placa</option>'
+    +placas.map(p=>`<option value="${esc(p)}">${esc(p)}</option>`).join('');
+}
+async function loadTelcond(){
+  const el=document.getElementById('fTelcondMes');
+  if(el && !el.value){ const h=new Date(); el.value=h.toISOString().slice(0,7); }
+  telcondPlacas();
+  const placa=(document.getElementById('fTelcondPlaca')||{}).value||'';
+  const alvo=document.getElementById('telcond-conteudo');
+  if(!placa){
+    alvo.innerHTML='<div style="color:var(--n500)">Escolha um veículo acima. A Gobrax consulta a condução de um veículo por vez — se a lista estiver vazia, abra antes a tela de Consumo e faça a coleta.</div>';
+    return;
+  }
+  const seq=++telcondSeq;
+  alvo.innerHTML='<div style="color:var(--n500)">consultando a Gobrax…</div>';
+  try{
+    const r=await fetch(`/api/telemetria/conducao?placa=${encodeURIComponent(placa)}&competencia=${encodeURIComponent(el.value)}`,{cache:'no-store'});
+    const d=await r.json();
+    if(seq!==telcondSeq) return;
+    if(!r.ok){ alvo.innerHTML='<div style="color:var(--red)">'+esc(d.mensagem||'Erro ao consultar.')+'</div>'; return; }
+    DATATELCOND=d; renderTelcond(d);
+  }catch(e){ if(seq===telcondSeq) alvo.innerHTML='<div style="color:var(--red)">Não foi possível falar com a API.</div>'; }
+}
+function renderTelcond(d){
+  const ind=(d.indicadores||[]).filter(i=>i.percentual!=null||i.nota!=null);
+  const mot=(d.motoristas||[]);
+  document.getElementById('telcond-conteudo').innerHTML = (ind.length? `
+    <div class="tablewrap"><table><thead><tr>
+      <th>Indicador</th><th class="num">Percentual</th><th class="num">Duração (h)</th><th class="num">Nota</th>
+    </tr></thead><tbody>${ind.map(i=>`<tr>
+      <td>${esc(i.rotulo)}</td>
+      <td class="num" style="font-weight:600">${i.percentual!=null?i.percentual.toLocaleString('pt-BR',{maximumFractionDigits:2})+'%':'—'}</td>
+      <td class="num">${i.duracao_h!=null?i.duracao_h.toLocaleString('pt-BR',{maximumFractionDigits:1}):'—'}</td>
+      <td class="num">${i.nota!=null?_premNotaChip(i.nota):'—'}</td>
+    </tr>`).join('')}</tbody></table></div>`
+    : '<div style="color:var(--n500)">a Gobrax não devolveu indicadores para este veículo no período</div>')
+    + (mot.length? `<div style="margin-top:14px">
+        <div style="font-weight:600;margin-bottom:6px">Motoristas no veículo neste período</div>
+        ${mot.map(m=>`<div style="font-size:12px">${esc(m.nome||'—')} — ${esc(m.de||'?')} → ${esc(m.ate||'em aberto')}</div>`).join('')}
+      </div>` : '');
+}
+
+/* ===================== TELEMETRIA: HODÔMETRO E RASTRO ===================== */
+let telhodMap=null;
+async function loadTelhod(){
+  skelKpis('kpis-telhod',3);
+  const btn=document.getElementById('btnRefresh'); btn.disabled=true;
+  document.getElementById('content').classList.add('loading');
+  try{
+    const mes=(document.getElementById('fTelconMes')||{}).value||new Date().toISOString().slice(0,7);
+    const r=await fetch('/api/telemetria/hodometro?competencia='+encodeURIComponent(mes),{cache:'no-store'});
+    const d=await r.json();
+    if(!r.ok){ showBanner(d.mensagem||'Erro ao ler o hodômetro.', d.detalhe); return; }
+    hideBanner(); DATATELHOD=d; renderTelhod(d); LOADEDQS.telhod='';
+  }catch(e){ showBanner('Não foi possível falar com a API.', e.message); }
+  finally{ btn.disabled=false; document.getElementById('content').classList.remove('loading'); }
+}
+function renderTelhod(d){
+  if(!d) return;
+  const k=d.kpis||{};
+  document.getElementById('kpis-telhod').innerHTML=[
+    kpi('Veículos', (k.veiculos||0).toLocaleString('pt-BR'), 'na coleta da competência',''),
+    kpi('Com leitura', (k.com_leitura||0).toLocaleString('pt-BR'),
+        k.veiculos?Math.round(100*(k.com_leitura||0)/k.veiculos)+'% da frota coletada':'—',''),
+    kpi('Sem leitura', (k.sem_leitura||0).toLocaleString('pt-BR'),
+        'possível rastreador mudo — ver Comunicação Rastreadora',
+        (k.sem_leitura||0)>0?'alerta':'')
+  ].join('');
+  const s=d.sync;
+  document.getElementById('telhod-sync').textContent = s
+    ? ('coletado em '+s.quando+' · competência '+s.competencia)
+    : 'sem coleta — use o botão na tela de Consumo';
+  document.getElementById('telhod-lista').innerHTML=(d.linhas||[]).map(l=>`<tr>
+      <td class="num" style="font-family:var(--mono)">${esc(l.placa||'—')}</td>
+      <td class="num" style="font-weight:600">${l.odometro!=null?Math.round(l.odometro).toLocaleString('pt-BR')+' km':'—'}</td>
+      <td class="num">${l.lido_em?esc(String(l.lido_em).slice(0,16)):'—'}</td>
+      <td>${l.odometro!=null?'<span class="badge b-ok">com leitura</span>':'<span class="badge b-warn">sem leitura no período</span>'}</td>
+      <td>${l.placa?`<button class="ghost" onclick="telhodAbrirRastro('${esc(l.placa)}')">ver trajeto</button>`:''}</td>
+    </tr>`).join('') || '<tr><td colspan="5" style="color:var(--n500)">sem coleta para esta competência</td></tr>';
+}
+function telhodAbrirRastro(placa){
+  document.getElementById('telhod-mapa-card').style.display='';
+  document.getElementById('telhod-mapa-titulo').textContent='Trajeto de '+placa;
+  document.getElementById('telhod-mapa-card').dataset.placa=placa;
+  const dia=document.getElementById('fTelhodDia');
+  if(dia && !dia.value) dia.value=new Date().toISOString().slice(0,10);
+  telhodRastro();
+}
+async function telhodRastro(){
+  const card=document.getElementById('telhod-mapa-card');
+  const placa=card.dataset.placa||'';
+  const dia=(document.getElementById('fTelhodDia')||{}).value||'';
+  if(!placa||!dia) return;
+  const hint=document.getElementById('telhod-mapa-hint');
+  hint.textContent='consultando…';
+  try{
+    const r=await fetch(`/api/telemetria/rastro?placa=${encodeURIComponent(placa)}&dia=${encodeURIComponent(dia)}`,{cache:'no-store'});
+    const d=await r.json();
+    if(!r.ok){ hint.textContent=d.mensagem||'erro ao consultar o rastro'; return; }
+    const pontos=((d.veiculos||[])[0]||{}).pontos||[];
+    hint.textContent = pontos.length? pontos.length+' posições no dia' : 'sem posições neste dia';
+    await telhodDesenhar(pontos);
+  }catch(e){ hint.textContent='não foi possível falar com a API'; }
+}
+async function telhodDesenhar(pontos){
+  try{ await ensureLeaflet(); }catch(e){ return; }
+  const el=document.getElementById('telhod-mapa'); if(!el||!window.L) return;
+  if(telhodMap){ try{telhodMap.remove();}catch(e){} telhodMap=null; }
+  if(!pontos.length){ el.innerHTML=''; return; }
+  telhodMap=L.map('telhod-mapa',{scrollWheelZoom:true});
+  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:18,attribution:''}).addTo(telhodMap);
+  const coords=pontos.map(p=>[p.lat,p.lon]);
+  L.polyline(coords,{color:'#17344F',weight:3,opacity:.8}).addTo(telhodMap);
+  /* ponto sem velocidade entra na linha mas não recebe cor: colorir por um
+     valor que não existe seria inventar informação */
+  pontos.forEach(p=>{
+    const cor = p.velocidade==null ? '#9AA4AF' : (p.velocidade>80?'#C0392B':(p.velocidade>0?'#1E7F4F':'#6E7883'));
+    L.circleMarker([p.lat,p.lon],{radius:4,color:cor,weight:1,fillColor:cor,fillOpacity:.8})
+      .addTo(telhodMap).bindPopup(`${esc(p.quando||'')}<br>${p.velocidade==null?'sem velocidade':p.velocidade+' km/h'}`);
+  });
+  telhodMap.fitBounds(coords);
+  setTimeout(()=>{ if(telhodMap) telhodMap.invalidateSize(); },200);
+}
+
 /* ===================== RNTRC ===================== */
 const ANRNTRC_SIT = {
   ativo:          '<span class="badge b-ok">ativo</span>',
@@ -11900,6 +12179,9 @@ boot();
       <button class="dgrp-h" onclick="toggleDGrp(this)"><span>Telemetria</span><span class="dchev">›</span></button>
       <div class="dgrp-b">
         <a href="#prem" onclick="fecharDrawer()"><span class="ic" data-ic="prem"></span>Premiação de Motoristas</a>
+        <a href="#telcon" onclick="fecharDrawer()"><span class="ic" data-ic="comb"></span>Consumo</a>
+        <a href="#telcond" onclick="fecharDrawer()"><span class="ic" data-ic="gauge"></span>Condução</a>
+        <a href="#telhod" onclick="fecharDrawer()"><span class="ic" data-ic="kmv"></span>Hodômetro</a>
       </div>
     </div>
     <div class="dgrp" data-grp="Sup">

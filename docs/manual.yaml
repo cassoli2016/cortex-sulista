@@ -33,6 +33,12 @@ glossario:
     definicao: >-
       RKM menos o CKM variável — quanto cada km carregado contribui depois dos
       custos que variam com a rodagem.
+  - termo: Cobertura da telemetria
+    definicao: >-
+      Quanto do quilômetro rodado no período o rastreador efetivamente reportou,
+      medido contra o km dos abastecimentos. Abaixo de 70% a comparação de
+      consumo não vale: a diferença mede silêncio de rastreador, não desempenho
+      do motorista.
   - termo: Credenciais de integração
     definicao: >-
       Tokens de API dos fornecedores (hoje, a Gobrax), configuráveis em
@@ -142,7 +148,7 @@ grupos:
     resumo: >-
       O que vem da plataforma de telemetria Gobrax. Hoje traz a premiação de
       motoristas por nota e quilometragem.
-    telas: [prem]
+    telas: [prem, telcon, telcond, telhod]
 
   - nome: ANTT
     resumo: >-

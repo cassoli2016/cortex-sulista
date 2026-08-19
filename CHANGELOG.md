@@ -4,6 +4,16 @@ Gerado de `docs/versoes.yaml` por `scripts/gerar_changelog.py` — não editar �
 Formato [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/),
 versionamento [SemVer](https://semver.org/lang/pt-BR/).
 
+## [0.8.0] — 19/08/2026  ·  CX-19/08/2026-v0.8.0
+
+### Adicionado
+- Tela Consumo e Estatísticas: o km/l medido pela telemetria da Gobrax lado a lado com o km/l calculado pelos abastecimentos do ERP, por veículo, com a diferença entre as duas medidas.
+- Tela Condução Econômica: faixa econômica, piloto automático e eco-roll de um veículo, com duração, percentual e nota, e os motoristas que estiveram nele no período.
+- Tela Hodômetro e Rastro: leitura direta do odômetro de cada veículo, com a data da última leitura, e o trajeto do dia desenhado no mapa.
+
+### Alterado
+- A comparação de consumo só vale quando a telemetria cobriu a maior parte do período e quando as duas medidas são fisicamente possíveis. Veículo com rastreador mudo aparece como "telemetria incompleta", e não como divergência de consumo — sem essa regra, 25 veículos apareceriam como problema de combustível quando o problema é de sinal.
+
 ## [0.7.0] — 19/08/2026  ·  CX-19/08/2026-v0.7.0
 
 ### Adicionado
