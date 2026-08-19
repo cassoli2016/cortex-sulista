@@ -27,6 +27,21 @@ $backup = Join-Path $repo 'data\win\backup-tarefas'
 $TAREFAS = @('Cortex Sulista - API', 'Cortex Sulista - AutoDeploy', 'Cortex Sulista - Tunnel')
 
 function Passo($t) { Write-Host ""; Write-Host "== $t" -ForegroundColor Cyan }
+
+# O nome da conta LocalSystem MUDA COM O IDIOMA do Windows: 'SYSTEM' em ingles,
+# 'SISTEMA' em portugues. Comparar por nome quebrou o script na primeira
+# execucao real. O SID S-1-5-18 e o mesmo em qualquer idioma.
+function EhLocalSystem([string]$conta) {
+  if ([string]::IsNullOrWhiteSpace($conta)) { return $false }
+  try {
+    $sid = (New-Object System.Security.Principal.NTAccount($conta)
+           ).Translate([System.Security.Principal.SecurityIdentifier]).Value
+    if ($sid -eq 'S-1-5-18') { return $true }
+  } catch { }
+  # se a traducao falhar (conta ja veio como SID, ou dominio indisponivel),
+  # cai para os nomes conhecidos
+  return @('SYSTEM', 'SISTEMA', 'S-1-5-18') -contains $conta.Trim().ToUpper()
+}
 function Ok($t)    { Write-Host "   OK   $t" -ForegroundColor Green }
 function Aviso($t) { Write-Host "   !    $t" -ForegroundColor Yellow }
 function Parar($t) { Write-Host "   XX   $t" -ForegroundColor Red; throw $t }
@@ -59,8 +74,14 @@ if (-not $Simular) {
   New-Item -ItemType Directory -Path $backup -Force | Out-Null
   foreach ($t in $TAREFAS) {
     $arq = Join-Path $backup ((($t -replace '[^A-Za-z0-9]', '_')) + '.xml')
-    Export-ScheduledTask -TaskName $t | Set-Content -Path $arq -Encoding utf8
-    Ok "exportada: $arq"
+    # NAO sobrescrever: numa segunda execucao a tarefa ja pode estar alterada,
+    # e regravar o backup apagaria o unico registro do estado original
+    if (Test-Path -LiteralPath $arq) {
+      Ok "backup ja existe, preservado: $arq"
+    } else {
+      Export-ScheduledTask -TaskName $t | Set-Content -Path $arq -Encoding utf8
+      Ok "exportada: $arq"
+    }
   }
 } else { Ok "exportaria para $backup" }
 
@@ -70,6 +91,10 @@ Passo 'Passando API e AutoDeploy para SYSTEM, com inicio no boot'
 foreach ($t in @('Cortex Sulista - API', 'Cortex Sulista - AutoDeploy')) {
   $tarefa = Get-ScheduledTask -TaskName $t
   $antes = $tarefa.Principal.LogonType
+  if ($antes -eq 'ServiceAccount' -and (EhLocalSystem $tarefa.Principal.UserId)) {
+    Ok "$t : ja esta como $($tarefa.Principal.UserId) / ServiceAccount"
+    continue
+  }
   if ($Simular) { Aviso "$t : $antes -> ServiceAccount (simulado)"; continue }
 
   # SYSTEM com LogonType ServiceAccount roda sem login e SEM senha armazenada.
@@ -94,10 +119,10 @@ foreach ($t in @('Cortex Sulista - API', 'Cortex Sulista - AutoDeploy')) {
   Set-ScheduledTask -TaskName $t -Principal $principal -Trigger $gatilhos `
     -Settings $config | Out-Null
   $depois = (Get-ScheduledTask -TaskName $t).Principal
-  if ($depois.LogonType -ne 'ServiceAccount' -or $depois.UserId -notmatch 'SYSTEM') {
+  if ($depois.LogonType -ne 'ServiceAccount' -or -not (EhLocalSystem $depois.UserId)) {
     Parar "$t nao aceitou a mudanca (ficou $($depois.UserId)/$($depois.LogonType))"
   }
-  Ok "$t : $antes -> ServiceAccount como SYSTEM, com gatilho de boot"
+  Ok "$t : $antes -> $($depois.UserId) / ServiceAccount, com gatilho de boot"
 }
 
 # --------------------------------------------------------------- reinicia a API
