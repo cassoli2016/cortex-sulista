@@ -1,4 +1,10 @@
-"""Parâmetros da premiação — data/premiacao_params.json, editáveis pela tela."""
+"""Parâmetros da premiação — data/premiacao_params.json, editáveis pela tela.
+
+Regra vigente desde 19/08/2026: premio = km x valor_por_km x (nota/100). Os
+parâmetros da regra anterior (meta, preco_litro, pct_premiacao) saíram junto com
+ela; arquivo gravado no formato antigo cai nos defaults, que é o comportamento
+que este módulo já tinha para conteúdo inválido.
+"""
 from __future__ import annotations
 
 import json
@@ -7,7 +13,7 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parent.parent.parent
 PARAMS_PATH = ROOT / "data" / "premiacao_params.json"
 
-DEFAULTS = {"meta": 2.0, "preco_litro": 4.93, "pct_premiacao": 0.20, "km_minimo": 500.0}
+DEFAULTS = {"valor_por_km": 0.10, "nota_minima": 70.0, "km_minimo": 1500.0}
 
 
 def _para_float(chave: str, valor) -> float:
@@ -20,12 +26,10 @@ def _para_float(chave: str, valor) -> float:
 
 
 def _valida(p: dict) -> None:
-    if p["meta"] <= 0:
-        raise ValueError("A meta (km/l) tem de ser maior que zero.")
-    if p["preco_litro"] <= 0:
-        raise ValueError("O preço do litro tem de ser maior que zero.")
-    if not (0 <= p["pct_premiacao"] <= 1):
-        raise ValueError("O percentual de premiação vai de 0 a 1 (ex.: 0,20 = 20%).")
+    if p["valor_por_km"] <= 0:
+        raise ValueError("O valor por km tem de ser maior que zero.")
+    if not (0 <= p["nota_minima"] <= 100):
+        raise ValueError("A nota mínima vai de 0 a 100.")
     if p["km_minimo"] < 0:
         raise ValueError("O km mínimo não pode ser negativo.")
 
