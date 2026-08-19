@@ -7,6 +7,7 @@ versionamento [SemVer](https://semver.org/lang/pt-BR/).
 ## [0.7.0] — 19/08/2026  ·  CX-19/08/2026-v0.7.0
 
 ### Adicionado
+- Aba Integrações em Administração › Gestão: o token da Gobrax pode ser colado e trocado pela tela, sem editar arquivo no servidor nem reiniciar a API. O valor fica guardado na própria máquina com permissão restrita e nunca é devolvido para a tela — depois de salvo só se veem as pontas.
 - Grupo Telemetria no menu, reunindo o que vem da plataforma Gobrax. A Premiação de Motoristas saiu de Frota e passou a viver nele.
 - A Premiação passou a usar a nota da Gobrax e o km rodado, com valor por km, nota mínima e km mínimo configuráveis na própria tela.
 - Quem não recebeu prêmio continua na lista, com o motivo — nota abaixo da mínima ou km abaixo do mínimo — e o detalhe de cada motorista mostra a conta que gerou o valor.

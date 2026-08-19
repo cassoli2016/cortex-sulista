@@ -7,6 +7,11 @@
   data: "2026-08-19"
   adicionado:
     - >-
+      Aba Integrações em Administração › Gestão: o token da Gobrax pode ser
+      colado e trocado pela tela, sem editar arquivo no servidor nem reiniciar a
+      API. O valor fica guardado na própria máquina com permissão restrita e
+      nunca é devolvido para a tela — depois de salvo só se veem as pontas.
+    - >-
       Grupo Telemetria no menu, reunindo o que vem da plataforma Gobrax. A
       Premiação de Motoristas saiu de Frota e passou a viver nele.
     - >-
