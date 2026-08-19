@@ -4,6 +4,17 @@ Gerado de `docs/versoes.yaml` por `scripts/gerar_changelog.py` — não editar �
 Formato [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/),
 versionamento [SemVer](https://semver.org/lang/pt-BR/).
 
+## [0.7.0] — 19/08/2026  ·  CX-19/08/2026-v0.7.0
+
+### Adicionado
+- Grupo Telemetria no menu, reunindo o que vem da plataforma Gobrax. A Premiação de Motoristas saiu de Frota e passou a viver nele.
+- A Premiação passou a usar a nota da Gobrax e o km rodado, com valor por km, nota mínima e km mínimo configuráveis na própria tela.
+- Quem não recebeu prêmio continua na lista, com o motivo — nota abaixo da mínima ou km abaixo do mínimo — e o detalhe de cada motorista mostra a conta que gerou o valor.
+
+### Alterado
+- A premiação deixou de ser calculada por litros economizados: a API pública da Gobrax não fornece a média de consumo por motorista. Meses já pagos continuam exibindo o valor com que foram pagos, e a tela avisa quando está mostrando um mês da regra antiga.
+- A coleta deixou de fazer login na plataforma e passou a usar a API oficial com token: uma chamada por mês no lugar de quase cem, o que elimina o bloqueio por excesso de logins que já custou um mês de dados.
+
 ## [0.6.0] — 18/08/2026  ·  CX-18/08/2026-v0.6.0
 
 ### Adicionado

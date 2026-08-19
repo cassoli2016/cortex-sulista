@@ -1032,7 +1032,6 @@ body.tvfull #btnReport,body.tvmode #btnReport{display:none}
         <a href="#mprev" class="sub" data-view="mprev" title="Manutenção Preventiva (revisões próximas/vencidas)"><span class="ic" data-ic="mprevic"></span><span>Manutenção Preventiva</span></a>
         <a href="#comrast" class="sub" data-view="comrast" title="Comunicação veículo x rastreadora"><span class="ic" data-ic="sinal"></span><span>Comunicação Rastreadora</span></a>
         <a href="#comb" class="sub" data-view="comb" title="Combustível"><span class="ic" data-ic="comb"></span><span>Combustível</span></a>
-        <a href="#prem" class="sub" data-view="prem" title="Premiação de Motoristas"><span class="ic" data-ic="prem"></span><span>Premiação de Motoristas</span></a>
         <a href="#man" class="sub" data-view="man" title="Manutenção"><span class="ic" data-ic="man"></span><span>Manutenção</span></a>
         <a href="#mul" class="sub" data-view="mul" title="Multas"><span class="ic" data-ic="mul"></span><span>Multas</span></a>
       </div>
@@ -1052,6 +1051,12 @@ body.tvfull #btnReport,body.tvmode #btnReport{display:none}
         <a href="#folhaind" class="sub" data-view="folhaind" title="Indicadores de Folha — férias, CNH, hora extra, banco de horas"><span class="ic" data-ic="gauge"></span><span>Indicadores de Folha</span></a>
         <a href="#he" class="sub" data-view="he" title="Horas Extras — composição por evento, famílias e áreas"><span class="ic" data-ic="heic"></span><span>Horas Extras</span></a>
         <a href="#rh" class="sub" data-view="rh" title="RH — vagas e recrutamento"><span class="ic" data-ic="rhic"></span><span>Vagas</span></a>
+      </div>
+      <button class="group" id="grpTel" aria-expanded="false" aria-controls="subsTel" onclick="toggleGroup('grpTel','subsTel','cs.telGroup')" title="Telemetria">
+        <span class="ic" data-ic="sinal"></span><span>Telemetria</span><span class="ic chev" data-ic="chev"></span>
+      </button>
+      <div class="subs closed" id="subsTel">
+        <a href="#prem" class="sub" data-view="prem" title="Premiação de Motoristas — nota da Gobrax e km rodado"><span class="ic" data-ic="prem"></span><span>Premiação de Motoristas</span></a>
       </div>
       <button class="group" id="grpAntt" aria-expanded="false" aria-controls="subsAntt" onclick="toggleGroup('grpAntt','subsAntt','cs.anttGroup')" title="ANTT">
         <span class="ic" data-ic="qualic"></span><span>ANTT</span><span class="ic chev" data-ic="chev"></span>
@@ -1908,12 +1913,10 @@ body.tvfull #btnReport,body.tvmode #btnReport{display:none}
           <div class="card">
             <div class="head"><h2>Parâmetros da regra <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" id="prem-params-help" title="">i</span></h2><span class="hint">editáveis · valem para todos os meses a partir de agora</span></div>
             <div class="cardfilters" id="prem-params-form">
-              <label style="display:flex;flex-direction:column;gap:2px;font-size:11px;color:var(--n500)">Meta (km/l)
-                <input type="text" inputmode="decimal" id="fPremMeta" style="width:110px" aria-label="Meta de consumo em km por litro"></label>
-              <label style="display:flex;flex-direction:column;gap:2px;font-size:11px;color:var(--n500)">Preço do litro (R$)
-                <input type="text" inputmode="decimal" id="fPremPreco" style="width:110px" aria-label="Preço do diesel por litro"></label>
-              <label style="display:flex;flex-direction:column;gap:2px;font-size:11px;color:var(--n500)">% de premiação (ex.: 0,20 = 20%)
-                <input type="text" inputmode="decimal" id="fPremPct" style="width:110px" aria-label="Percentual de premiação sobre o litro economizado"></label>
+              <label style="display:flex;flex-direction:column;gap:2px;font-size:11px;color:var(--n500)">Valor por km (R$)
+                <input type="text" inputmode="decimal" id="fPremValorKm" style="width:110px" aria-label="Valor pago por quilômetro rodado"></label>
+              <label style="display:flex;flex-direction:column;gap:2px;font-size:11px;color:var(--n500)">Nota mínima (0 a 100)
+                <input type="text" inputmode="decimal" id="fPremNotaMin" style="width:110px" aria-label="Nota mínima da Gobrax para ser elegível"></label>
               <label style="display:flex;flex-direction:column;gap:2px;font-size:11px;color:var(--n500)">Km mínimo (elegibilidade)
                 <input type="text" inputmode="decimal" id="fPremKmMin" style="width:110px" aria-label="Km mínimo rodado no mês para ser elegível"></label>
               <button class="btn" id="btnPremSalvar" onclick="premSalvarParams()">Salvar</button>
@@ -1923,7 +1926,7 @@ body.tvfull #btnReport,body.tvmode #btnReport{display:none}
           <div class="card">
             <div class="head"><h2>Ranking de motoristas <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" id="prem-rank-help" title="">i</span></h2><span class="hint" id="prem-rank-hint"></span></div>
             <div class="tablewrap tabroll"><table><thead><tr>
-              <th>Motorista</th><th class="num">Nota</th><th class="num">Km</th><th class="num">Média</th><th class="num">Litros economizados</th><th class="num">Prêmio</th>
+              <th>Motorista</th><th class="num">Nota</th><th class="num">Km</th><th class="num">Prêmio</th>
             </tr></thead><tbody id="prem-rank"></tbody></table></div>
           </div>
           <div class="card">
@@ -5139,7 +5142,7 @@ function renderPrem(d){
   if(!d.configurado){
     contDiv.style.display='none';
     naoconf.style.display='block';
-    const vars=(d.variaveis||['GOBRAX_EMAIL','GOBRAX_SENHA']).join(' e ');
+    const vars=(d.variaveis||['GOBRAX_TOKEN']).join(' e ');
     naoconf.innerHTML=`<div class="card" style="padding:26px 18px">
       <div style="font-weight:700;margin-bottom:6px">Telemetria Gobrax não configurada</div>
       <div style="color:var(--n500)">Defina <code>${esc(vars)}</code> no <code>.env</code> e reinicie a API.</div>
@@ -5168,25 +5171,26 @@ function renderPrem(d){
   } else tb.style.display='none';
 
   const k=d.kpis||{};
-  const media=k.media_frota, meta=k.meta;
-  const mediaCls = (media!=null && meta!=null && media>=meta) ? 'pos' : '';
   // I3: "mês parcial" nos 4 KPIs acumuladores, não só no último — o cabeçalho
   // monetário (Prêmio total) não pode ficar em silêncio sobre o corte do mês.
   const _premParcialTxt = d.parcial ? 'mês parcial' : '';
   const _premJuntaSub = (...partes) => partes.filter(Boolean).join(' · ');
+  const _regraTxt = (d.regra === 'litros_economizados')
+    ? 'regra antiga (litros economizados) — valor com que este mês foi pago'
+    : 'nota da Gobrax × km rodado';
   document.getElementById('kpis-prem').innerHTML=[
-    kpi('Prêmio total', BRL.format(k.premio_total||0), _premParcialTxt, '',
-      'Soma do prêmio dos motoristas ELEGÍVEIS (km no mês ≥ km mínimo do parâmetro). Prêmio = litros economizados × preço do litro × % de premiação.'),
-    kpi('Motoristas premiados', (k.premiados||0)+' de '+(k.elegiveis||0),
-      _premJuntaSub('elegíveis'+((d.sem_media||0)>0?' · '+d.sem_media+' sem média (fora do cálculo)':''), _premParcialTxt), '',
-      'Elegível = km no mês ≥ km mínimo configurado. Premiado = prêmio calculado maior que zero. Motorista sem consumo médio na Gobrax não entra em nenhuma conta.'),
-    kpi('Litros economizados', (k.litros_economizados_total||0).toLocaleString('pt-BR',{maximumFractionDigits:0})+' l',
-      _premJuntaSub((k.com_media||0)+' de '+(k.total_motoristas||0)+' motoristas com média', _premParcialTxt), '',
-      'Litros que o motorista deixou de consumir rodando acima da meta de km/l, somado só dos elegíveis.'),
-    kpi('Média da frota × meta',
-      (media!=null?media.toLocaleString('pt-BR',{maximumFractionDigits:2}):'—')+' × '+(meta!=null?meta.toLocaleString('pt-BR',{maximumFractionDigits:2}):'—')+' km/l',
-      _premParcialTxt, mediaCls,
-      'Média = km total ÷ litros consumidos dos motoristas com consumo médio. Meta é o parâmetro configurado ao lado. Nunca vira alerta vermelho: é informativo, não penalidade.'),
+    kpi('Prêmio total', BRL.format(k.premio_total||0),
+      _premJuntaSub(_regraTxt, _premParcialTxt), '',
+      'Soma do prêmio dos motoristas elegíveis. Prêmio = km rodado × valor por km × (nota ÷ 100). Elegível = nota ≥ nota mínima E km ≥ km mínimo, ambos configuráveis ao lado.'),
+    kpi('Motoristas premiados', (k.premiados||0)+' de '+(k.motoristas||0),
+      _premJuntaSub('com atividade no mês', _premParcialTxt), '',
+      'Premiado = elegível com prêmio maior que zero. Quem ficou de fora continua na lista, com o motivo — nota abaixo da mínima ou km abaixo do mínimo.'),
+    kpi('Km rodado', (k.km_total||0).toLocaleString('pt-BR',{maximumFractionDigits:0})+' km',
+      _premJuntaSub('todos os motoristas com atividade', _premParcialTxt), '',
+      'Soma do km do mês vindo da telemetria Gobrax (driversOverview.TotalKM), incluindo quem não foi premiado.'),
+    kpi('Prêmio médio', k.premiados ? BRL.format((k.premio_total||0)/k.premiados) : '—',
+      _premJuntaSub('por motorista premiado', _premParcialTxt), '',
+      'Prêmio total dividido pelo número de premiados. Não inclui quem ficou fora por nota ou por km.'),
   ].join('');
 
   const proc = 'API Gobrax v3 · customer 1 · coletado em '+(d.coletado_em?fmtDT(d.coletado_em):'—');
@@ -5202,58 +5206,43 @@ function renderPrem(d){
     + 'um veículo leve naturalmente supera a meta com mais folga.';
 
   const par=d.params||{};
-  document.getElementById('fPremMeta').value = par.meta!=null?fmtParam(par.meta):'';
-  document.getElementById('fPremPreco').value = par.preco_litro!=null?fmtParam(par.preco_litro):'';
-  document.getElementById('fPremPct').value = par.pct_premiacao!=null?fmtParam(par.pct_premiacao):'';
+  document.getElementById('fPremValorKm').value = par.valor_por_km!=null?fmtParam(par.valor_por_km):'';
+  document.getElementById('fPremNotaMin').value = par.nota_minima!=null?fmtParam(par.nota_minima):'';
   document.getElementById('fPremKmMin').value = par.km_minimo!=null?fmtParam(par.km_minimo):'';
-  const refs=d.referencias||{};
-  const mediaRef = refs.media_frota!=null ? refs.media_frota.toLocaleString('pt-BR',{maximumFractionDigits:2})+' km/l' : 'indisponível';
-  const precoRef = refs.preco_diesel_interno!=null ? BRL.format(refs.preco_diesel_interno)+'/l' : 'indisponível';
-  document.getElementById('prem-refs').innerHTML = `Referências do mês — média da frota: <b>${mediaRef}</b> · diesel interno: <b>${precoRef}</b>`;
+  const precoRef = (d.referencias||{}).preco_diesel_interno;
+  document.getElementById('prem-refs').innerHTML = precoRef!=null
+    ? `Referência do mês — diesel interno: <b>${BRL.format(precoRef)}/l</b>`
+    : '';
 
   const linhas=d.linhas||[];
-  document.getElementById('prem-rank-hint').textContent = linhas.length+' motorista(s) com consumo médio'
-    +((d.sem_media||0)>0?' · '+d.sem_media+' sem média (não entram no ranking)':'')+' · maior prêmio primeiro';
+  const naoEleg = linhas.filter(l=>!l.elegivel).length;
+  document.getElementById('prem-rank-hint').textContent =
+    linhas.length+' motorista(s) com atividade no mês'
+    +(naoEleg>0?' · '+naoEleg+' fora do prêmio (nota ou km)':'')+' · maior prêmio primeiro';
   document.getElementById('prem-rank').innerHTML = linhas.length ? linhas.map((l,i)=>{
-    const placas=(l.vehicles||[]).map(v=>v.plate).filter(Boolean).join(', ');
-    const scores=(l.indicators&&l.indicators.scores)||{};
-    // períodos de vínculo motorista↔veículo (exportDriverHistory) — pedido do
-    // usuário: mostrar QUANDO cada placa esteve com o motorista no período
-    const vincs=(l.vehicles||[]).filter(v=>v.vinculo_de);
-    const vincHtml = vincs.length ? `
-      <div style="margin:8px 0 10px"><div style="font-weight:600;margin-bottom:4px">Vínculos no período</div>
-      ${vincs.map(v=>`<div style="font-size:12px;margin-top:2px"><span style="font-family:var(--mono)">${esc(v.plate)}</span>`
-        +`${v.model?' · '+esc(v.model):''} — ${fmtDT(v.vinculo_de)} → ${v.vinculo_ate?fmtDT(v.vinculo_ate):'em aberto'}</div>`).join('')}
-      </div>` : '';
-    const det = vincHtml + (Object.keys(scores).length ? `
-      <div class="tablewrap"><table><thead><tr><th>Indicador</th><th class="num">Nota</th></tr></thead><tbody>
-      ${Object.entries(scores).map(([sk,sv])=>`<tr><td>${esc(_premScoreLabel(sk))}</td><td class="num">${_premNotaChip(sv)}</td></tr>`).join('')}
-      </tbody></table></div>` : '<div style="color:var(--n500);padding:8px 0">sem indicadores detalhados</div>');
-    const naoElegivel = l.elegivel ? '' : ' <span class="badge b-warn" title="km no mês abaixo do mínimo configurado">não elegível (km &lt; mínimo)</span>';
-    // I2: sem faixa física, km<=0 ou média implausível (teto amplo — veículo
-    // leve chega a ~9 km/l, caminhão pesado 0,8-6) virava prêmio de verdade.
-    // A linha continua visível (mostra o valor bruto calculado), mas atenuada
-    // e fora do KPI de prêmio total — como se fosse não-elegível.
-    const foraDoKpi = !l.elegivel || l.suspeito;
-    const suspeitoBadge = l.suspeito ? ' <span class="badge b-warn" title="km ou média fora da faixa física plausível — revisar a leitura de telemetria antes de usar para pagamento">leitura suspeita — revisar</span>' : '';
+    /* Motorista não elegível continua VISÍVEL, atenuado e com o motivo — o
+       gestor precisa ver quem ficou de fora e por quê, não só quem ganhou. */
+    const motivo = l.elegivel ? '' :
+      ` <span class="badge b-warn" title="não entra no prêmio total">${esc(l.motivo||'não elegível')}</span>`;
+    const det = `<div style="padding:8px 0;font-size:12px">
+        Prêmio = ${Math.round(l.km||0).toLocaleString('pt-BR')} km × ${BRL.format((d.params||{}).valor_por_km||0)}/km × (nota ${l.nota||0} ÷ 100)
+        ${l.elegivel?'':' — <b>não aplicado:</b> '+esc(l.motivo||'')}
+      </div>`;
     return `
     <tr class="forn-row" aria-expanded="false" aria-controls="prem-det-${i}" tabindex="0" role="button"
-        style="${foraDoKpi?'opacity:.55':''}"
+        style="${l.elegivel?'':'opacity:.55'}"
         onclick="premToggle(${i})" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();premToggle(${i});}">
       <td><span class="expander">${ICONS['chevr2']}</span>
         <span style="display:inline-block;vertical-align:middle">
-          <div style="font-weight:600">${esc(l.driverName||'—')}${naoElegivel}${suspeitoBadge}</div>
-          <div style="font-size:11px;color:var(--n500);font-family:var(--mono)">${esc(placas||'—')}</div>
+          <div style="font-weight:600">${esc(l.driverName||'—')}${motivo}</div>
         </span>
       </td>
       <td class="num">${_premNotaChip(l.nota)}</td>
       <td class="num">${l.km!=null?Math.round(l.km).toLocaleString('pt-BR'):'—'}</td>
-      <td class="num">${l.media!=null?l.media.toLocaleString('pt-BR',{maximumFractionDigits:2}):'—'}</td>
-      <td class="num">${(l.litros_economizados||0).toLocaleString('pt-BR',{maximumFractionDigits:0})}</td>
-      <td class="num" style="font-weight:600" title="${foraDoKpi?'motorista não elegível ou com leitura suspeita — prêmio não entra no KPI de prêmio total':''}">${BRL.format(l.premio||0)}</td>
+      <td class="num" style="font-weight:600">${BRL.format(l.premio||0)}</td>
     </tr>
-    <tr class="forn-det" id="prem-det-${i}"><td colspan="6">${det}</td></tr>`;
-  }).join('') : '<tr><td colspan="6" style="color:var(--n500)">sem motoristas com consumo médio neste mês</td></tr>';
+    <tr class="forn-det" id="prem-det-${i}"><td colspan="4">${det}</td></tr>`;
+  }).join('') : '<tr><td colspan="4" style="color:var(--n500)">sem motoristas com atividade neste mês</td></tr>';
 }
 function premToggle(i){
   const det=document.getElementById('prem-det-'+i);
@@ -5263,19 +5252,18 @@ function premToggle(i){
   row.setAttribute('aria-expanded', String(open));
 }
 async function premSalvarParams(){
-  const meta=numBR(document.getElementById('fPremMeta').value);
-  const preco=numBR(document.getElementById('fPremPreco').value);
-  const pct=numBR(document.getElementById('fPremPct').value);
+  const valorKm=numBR(document.getElementById('fPremValorKm').value);
+  const notaMin=numBR(document.getElementById('fPremNotaMin').value);
   const kmMin=numBR(document.getElementById('fPremKmMin').value);
-  if([meta,preco,pct,kmMin].some(v=>v==null||Number.isNaN(v))){
-    showBanner('Informe números válidos nos 4 parâmetros (vírgula para decimais).');
+  if([valorKm,notaMin,kmMin].some(v=>v==null||Number.isNaN(v))){
+    showBanner('Informe números válidos nos 3 parâmetros (vírgula para decimais).');
     return;
   }
   const btn=document.getElementById('btnPremSalvar');
   if(btn){ btn.disabled=true; btn.textContent='Salvando…'; }
   try{
     const r=await fetch('/api/frota/premiacao/params',{method:'POST',headers:{'Content-Type':'application/json'},
-      body:JSON.stringify({meta:meta,preco_litro:preco,pct_premiacao:pct,km_minimo:kmMin})});
+      body:JSON.stringify({valor_por_km:valorKm,nota_minima:notaMin,km_minimo:kmMin})});
     const d=await r.json();
     if(!r.ok){ showBanner(d.mensagem||'Não foi possível salvar os parâmetros.'); return; }
     hideBanner();
@@ -11836,11 +11824,16 @@ boot();
         <a href="#veic" onclick="fecharDrawer()"><span class="ic" data-ic="veic"></span>Veículos</a>
         <a href="#veicf" onclick="fecharDrawer()"><span class="ic" data-ic="busca"></span>Consulta de Veículo</a>
         <a href="#comb" onclick="fecharDrawer()"><span class="ic" data-ic="comb"></span>Combustível</a>
-        <a href="#prem" onclick="fecharDrawer()"><span class="ic" data-ic="prem"></span>Premiação de Motoristas</a>
         <a href="#man" onclick="fecharDrawer()"><span class="ic" data-ic="man"></span>Manutenção</a>
         <a href="#mprev" onclick="fecharDrawer()"><span class="ic" data-ic="mprevic"></span>Manutenção Preventiva</a>
         <a href="#comrast" onclick="fecharDrawer()"><span class="ic" data-ic="sinal"></span>Comunicação Rastreadora</a>
         <a href="#mul" onclick="fecharDrawer()"><span class="ic" data-ic="mul"></span>Multas</a>
+      </div>
+    </div>
+    <div class="dgrp" data-grp="Tel">
+      <button class="dgrp-h" onclick="toggleDGrp(this)"><span>Telemetria</span><span class="dchev">›</span></button>
+      <div class="dgrp-b">
+        <a href="#prem" onclick="fecharDrawer()"><span class="ic" data-ic="prem"></span>Premiação de Motoristas</a>
       </div>
     </div>
     <div class="dgrp" data-grp="Sup">

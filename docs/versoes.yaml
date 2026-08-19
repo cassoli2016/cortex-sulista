@@ -3,6 +3,30 @@
 #   - a tela Documentação     (#doc)
 #   - o rótulo no rodapé      (CX-DD/MM/AAAA-vX.Y.Z)
 # A versão do TOPO é a corrente e tem de bater com o pyproject.toml.
+- versao: "0.7.0"
+  data: "2026-08-19"
+  adicionado:
+    - >-
+      Grupo Telemetria no menu, reunindo o que vem da plataforma Gobrax. A
+      Premiação de Motoristas saiu de Frota e passou a viver nele.
+    - >-
+      A Premiação passou a usar a nota da Gobrax e o km rodado, com valor por km,
+      nota mínima e km mínimo configuráveis na própria tela.
+    - >-
+      Quem não recebeu prêmio continua na lista, com o motivo — nota abaixo da
+      mínima ou km abaixo do mínimo — e o detalhe de cada motorista mostra a
+      conta que gerou o valor.
+  alterado:
+    - >-
+      A premiação deixou de ser calculada por litros economizados: a API pública
+      da Gobrax não fornece a média de consumo por motorista. Meses já pagos
+      continuam exibindo o valor com que foram pagos, e a tela avisa quando está
+      mostrando um mês da regra antiga.
+    - >-
+      A coleta deixou de fazer login na plataforma e passou a usar a API oficial
+      com token: uma chamada por mês no lugar de quase cem, o que elimina o
+      bloqueio por excesso de logins que já custou um mês de dados.
+
 - versao: "0.6.0"
   data: "2026-08-18"
   adicionado:
