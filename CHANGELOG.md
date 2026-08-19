@@ -4,6 +4,16 @@ Gerado de `docs/versoes.yaml` por `scripts/gerar_changelog.py` — não editar �
 Formato [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/),
 versionamento [SemVer](https://semver.org/lang/pt-BR/).
 
+## [0.10.0] — 19/08/2026  ·  CX-19/08/2026-v0.10.0
+
+### Adicionado
+- O ranking de motoristas da Premiação passou a ordenar pelo cabeçalho — clicando em Nota, Km, Prêmio ou Motorista (e pelo teclado). Importa porque o prêmio multiplica km pela nota, e o km varia muito mais entre motoristas (5,5x em julho) que a nota (1,4x): ordenado por prêmio, o ranking é dominado por quem roda mais e não mostra conduta. Agora dá para ler as duas coisas.
+
+### Corrigido
+- A premiação usava km mínimo de 500 km, sobra da regra anterior de economia de combustível — a regra de nota x km define 1.500. Ninguém escolheu esse valor: ele atravessou a troca de regra porque o parâmetro tem o mesmo nome nas duas. Com 500, entravam no prêmio 10 motoristas a mais em junho e 11 em julho, cerca de R$ 900 por mês. O km mínimo continua editável na tela — confira o valor antes do próximo fechamento.
+- A tela dizia que mudar os parâmetros valia "a partir de agora", mas mudar o valor por km recalcula TODOS os meses, inclusive os já exibidos e pagos. O aviso agora diz isso.
+- O ⓘ do ranking ainda explicava a meta de km/l da regra antiga, que não existe mais, e a tela reservava espaço para o preço do diesel, que a regra de nota x km não usa.
+
 ## [0.9.0] — 19/08/2026  ·  CX-19/08/2026-v0.9.0
 
 ### Adicionado

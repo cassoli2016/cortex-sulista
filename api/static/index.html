@@ -1975,7 +1975,7 @@ body.tvfull #btnReport,body.tvmode #btnReport{display:none}
           <div class="banner-inline" id="prem-telemetria" style="display:none;margin:0"></div>
           <div class="kpis k4" id="kpis-prem"></div>
           <div class="card">
-            <div class="head"><h2>Parâmetros da regra <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" id="prem-params-help" title="">i</span></h2><span class="hint">editáveis · valem para todos os meses a partir de agora</span></div>
+            <div class="head"><h2>Parâmetros da regra <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" id="prem-params-help" title="">i</span></h2><span class="hint">editáveis · mudar aqui RECALCULA todos os meses, inclusive os já exibidos</span></div>
             <div class="cardfilters" id="prem-params-form">
               <label style="display:flex;flex-direction:column;gap:2px;font-size:11px;color:var(--n500)">Valor por km (R$)
                 <input type="text" inputmode="decimal" id="fPremValorKm" style="width:110px" aria-label="Valor pago por quilômetro rodado"></label>
@@ -1985,7 +1985,6 @@ body.tvfull #btnReport,body.tvmode #btnReport{display:none}
                 <input type="text" inputmode="decimal" id="fPremKmMin" style="width:110px" aria-label="Km mínimo rodado no mês para ser elegível"></label>
               <button class="btn" id="btnPremSalvar" onclick="premSalvarParams()">Salvar</button>
             </div>
-            <div style="padding:0 18px 14px;font-size:12px;color:var(--n500)" id="prem-refs"></div>
           </div>
           <div class="card">
             <div class="head"><h2>Ranking de motoristas <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" id="prem-rank-help" title="">i</span></h2><span class="hint" id="prem-rank-hint"></span></div>
@@ -5271,29 +5270,66 @@ function renderPrem(d){
   ['prem-params-help','prem-comp-help'].forEach(id=>{
     const el=document.getElementById(id); if(el) el.title=proc;
   });
-  // M6: meta única e global sobre populações de veículo diferentes — sem isto
-  // um veículo leve supera a meta com muito mais folga que um pesado e a tela
-  // não avisa por quê.
+  // O prêmio é km x valor x (nota/100): o km domina. Medido em jul/2026 entre os
+  // 44 elegíveis, o km varia 5,5x de ponta a ponta e a nota só 1,4x (70 a 99) —
+  // quem roda mais lidera mesmo com conduta pior. Sem dizer isso, o ranking
+  // passa por ranking de CONDUÇÃO, que ele não é.
   const rankHelp=document.getElementById('prem-rank-help');
   if(rankHelp) rankHelp.title = proc
-    + ' · A meta é única e global — compare motoristas de veículos do mesmo porte; '
-    + 'um veículo leve naturalmente supera a meta com mais folga.';
+    + ' · O ranking é de PRÊMIO, não de condução: como o prêmio multiplica km pela '
+    + 'nota, e o km varia muito mais entre motoristas (5,5x) que a nota (1,4x), '
+    + 'quem roda mais tende a liderar mesmo com nota menor. Para comparar conduta, '
+    + 'ordene pela coluna Nota.';
 
   const par=d.params||{};
   document.getElementById('fPremValorKm').value = par.valor_por_km!=null?fmtParam(par.valor_por_km):'';
   document.getElementById('fPremNotaMin').value = par.nota_minima!=null?fmtParam(par.nota_minima):'';
   document.getElementById('fPremKmMin').value = par.km_minimo!=null?fmtParam(par.km_minimo):'';
-  const precoRef = (d.referencias||{}).preco_diesel_interno;
-  document.getElementById('prem-refs').innerHTML = precoRef!=null
-    ? `Referência do mês — diesel interno: <b>${BRL.format(precoRef)}/l</b>`
-    : '';
-
+  /* 'referencias.preco_diesel_interno' saiu com a regra de economia de combustivel:
+     a premiacao nao usa mais preco de diesel. O backend nao manda o campo. */
+  premRankRender();
+}
+/* Ranking ordenavel — mesmo padrao da DRE por Cliente (drecliOrdenar): o <th> e
+   role=button com onclick E onkeydown, para funcionar no teclado.
+   POR QUE ordenar importa aqui: o premio multiplica km pela nota, e o km varia
+   muito mais entre motoristas (5,5x em jul/2026) que a nota (1,4x). Ordenado por
+   premio, o ranking parece de conducao e nao e — quem roda mais lidera. Ordenar
+   por Nota e a unica forma de ler conduta nesta tela. */
+const PREM_COLS = [
+  ['nome','Motorista', l=>l.driverName||'', 'txt'],
+  ['nota','Nota',      l=>l.nota,           'num'],
+  ['km','Km',          l=>l.km,             'num'],
+  ['premio','Prêmio',  l=>l.premio||0,      'num'],
+];
+let premOrd = {col:'premio', dir:-1};
+function premOrdenar(col){
+  if(premOrd.col===col) premOrd.dir*=-1;
+  else premOrd={col, dir: col==='nome'?1:-1};
+  premRankRender();
+}
+function premRankRender(){
+  const d = DATAPREM||{};
   const linhas=d.linhas||[];
+  const cfg=PREM_COLS.find(c=>c[0]===premOrd.col)||PREM_COLS[3];
+  const val=cfg[2];
+  const ord=[...linhas].sort((a,b)=>{
+    const va=val(a), vb=val(b);
+    if(cfg[3]==='txt') return String(va||'').localeCompare(String(vb||''))*premOrd.dir;
+    return (((vb==null?-Infinity:vb)-(va==null?-Infinity:va))||0)*(premOrd.dir<0?1:-1);
+  });
+  const head=document.querySelector('#prem-rank').closest('table').querySelector('thead tr');
+  if(head) head.innerHTML=PREM_COLS.map(([k,rot,,tipo])=>
+    `<th class="${tipo==='num'?'num':''}" role="button" tabindex="0" style="cursor:pointer;white-space:nowrap"
+        title="Ordenar por ${esc(rot)}" onclick="premOrdenar('${k}')"
+        onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();premOrdenar('${k}');}"
+      >${esc(rot)}${premOrd.col===k?(premOrd.dir<0?' ↓':' ↑'):''}</th>`).join('');
   const naoEleg = linhas.filter(l=>!l.elegivel).length;
+  const rotOrd = (PREM_COLS.find(c=>c[0]===premOrd.col)||[])[1]||'Prêmio';
   document.getElementById('prem-rank-hint').textContent =
     linhas.length+' motorista(s) com atividade no mês'
-    +(naoEleg>0?' · '+naoEleg+' fora do prêmio (nota ou km)':'')+' · maior prêmio primeiro';
-  document.getElementById('prem-rank').innerHTML = linhas.length ? linhas.map((l,i)=>{
+    +(naoEleg>0?' · '+naoEleg+' fora do prêmio (nota ou km)':'')
+    +' · ordenado por '+rotOrd.toLowerCase()+(premOrd.dir<0?' (maior primeiro)':' (menor primeiro)');
+  document.getElementById('prem-rank').innerHTML = ord.length ? ord.map((l,i)=>{
     /* Motorista não elegível continua VISÍVEL, atenuado e com o motivo — o
        gestor precisa ver quem ficou de fora e por quê, não só quem ganhou. */
     const motivo = l.elegivel ? '' :
