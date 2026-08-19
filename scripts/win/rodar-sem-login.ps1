@@ -179,16 +179,49 @@ if ($Simular) {
     ForEach-Object { Ok "encerrando cloudflared pid $($_.Id)"; Stop-Process -Id $_.Id -Force }
   Start-Sleep -Seconds 3
 
-  & $cf --config (Join-Path $sysCfg 'config-cortex.yml') service install 2>&1 |
-    ForEach-Object { Write-Host "        $_" }
-  Start-Sleep -Seconds 3
+  # O cloudflared escreve os proprios logs em STDERR, inclusive as linhas 'INF'
+  # de sucesso. Com ErrorActionPreference='Stop', o PowerShell trata qualquer
+  # stderr de comando nativo como erro terminante e aborta uma instalacao que
+  # deu certo -- foi o que aconteceu na primeira execucao. Aqui a preferencia
+  # cai para 'Continue' so nesta chamada, e o veredito vem do estado do
+  # servico, nao do canal em que o programa resolveu escrever.
+  $prefAntes = $ErrorActionPreference
+  $ErrorActionPreference = 'Continue'
+  try {
+    $saida = & $cf --config (Join-Path $sysCfg 'config-cortex.yml') service install 2>&1
+    $saida | ForEach-Object { Write-Host "        $_" }
+  } finally {
+    $ErrorActionPreference = $prefAntes
+  }
+  Start-Sleep -Seconds 4
   $svc = Get-Service -Name 'cloudflared' -ErrorAction SilentlyContinue
-  if (-not $svc) { Parar 'o servico cloudflared nao foi criado' }
-  if ($svc.Status -ne 'Running') { Start-Service cloudflared; Start-Sleep -Seconds 3 }
-  $svc = Get-Service -Name 'cloudflared'
-  if ($svc.Status -ne 'Running') { Parar 'servico cloudflared criado mas nao esta rodando' }
-  Set-Service -Name 'cloudflared' -StartupType Automatic
-  Ok "servico cloudflared rodando e em inicio automatico"
+  if (-not $svc) {
+    # o servico pode existir com outro nome dependendo da versao do cloudflared
+    $svc = Get-Service | Where-Object { $_.Name -like '*cloudflare*' } | Select-Object -First 1
+  }
+  if (-not $svc) { Parar 'o servico do cloudflared nao foi criado' }
+  $nomeSvc = $svc.Name
+  if ($svc.Status -ne 'Running') { Start-Service $nomeSvc; Start-Sleep -Seconds 4 }
+  $svc = Get-Service -Name $nomeSvc
+  if ($svc.Status -ne 'Running') { Parar "servico $nomeSvc criado mas nao esta rodando" }
+  Set-Service -Name $nomeSvc -StartupType Automatic
+  Ok "servico $nomeSvc rodando e em inicio automatico"
+
+  # o que decide nao e o servico existir, e o tunel estar entregando o painel
+  $publico = $null
+  foreach ($i in 1..10) {
+    Start-Sleep -Seconds 3
+    $publico = try {
+      Invoke-WebRequest 'https://cortex.cassolitech.com.br/' -UseBasicParsing -TimeoutSec 20
+    } catch { $null }
+    if ($publico -and $publico.StatusCode -eq 200) { break }
+  }
+  if ($publico -and $publico.StatusCode -eq 200) {
+    Ok 'o painel publico respondeu 200 pelo tunel novo'
+  } else {
+    Parar ('o servico subiu mas https://cortex.cassolitech.com.br nao respondeu. ' +
+           'REVERTA com scripts\win\reverter-sem-login.ps1')
+  }
 
   # so desabilita a tarefa DEPOIS que o servico provou funcionar
   Disable-ScheduledTask -TaskName 'Cortex Sulista - Tunnel' | Out-Null
@@ -202,8 +235,10 @@ if (-not $Simular) {
     $p = (Get-ScheduledTask -TaskName $t).Principal
     Write-Host ("   {0,-32} {1} / {2}" -f $t, $p.UserId, $p.LogonType)
   }
-  $cfs = Get-Service cloudflared -ErrorAction SilentlyContinue
-  Write-Host ("   {0,-32} {1} / {2}" -f 'cloudflared (servico)', $cfs.Status, $cfs.StartType)
+  $cfs = Get-Service | Where-Object { $_.Name -like '*cloudflare*' } | Select-Object -First 1
+  if ($cfs) {
+    Write-Host ("   {0,-32} {1} / {2}" -f "$($cfs.Name) (servico)", $cfs.Status, $cfs.StartType)
+  }
   Write-Host ""
   Write-Host "Agora TESTE DE VERDADE: faca logoff e, de outra maquina, abra" -ForegroundColor Yellow
   Write-Host "https://cortex.cassolitech.com.br -- se abrir, esta resolvido." -ForegroundColor Yellow

@@ -30,12 +30,15 @@ if (-not (Test-Path -LiteralPath $backup)) {
   }
 }
 
-$svc = Get-Service cloudflared -ErrorAction SilentlyContinue
+$svc = Get-Service | Where-Object { $_.Name -like '*cloudflare*' } | Select-Object -First 1
 if ($svc) {
-  Stop-Service cloudflared -Force -ErrorAction SilentlyContinue
+  Stop-Service $svc.Name -Force -ErrorAction SilentlyContinue
   $cf = 'C:\Program Files (x86)\cloudflared\cloudflared.exe'
-  if (Test-Path -LiteralPath $cf) { & $cf service uninstall 2>&1 | Out-Null }
-  Ok "servico cloudflared removido"
+  # o cloudflared loga em stderr tambem no uninstall: nao deixar isso abortar
+  $pref = $ErrorActionPreference; $ErrorActionPreference = 'Continue'
+  try { if (Test-Path -LiteralPath $cf) { & $cf service uninstall 2>&1 | Out-Null } }
+  finally { $ErrorActionPreference = $pref }
+  Ok "servico $($svc.Name) removido"
 }
 Enable-ScheduledTask -TaskName 'Cortex Sulista - Tunnel' -ErrorAction SilentlyContinue | Out-Null
 Start-ScheduledTask -TaskName 'Cortex Sulista - Tunnel' -ErrorAction SilentlyContinue
