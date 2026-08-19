@@ -37,6 +37,40 @@ repetir logins. As APIs públicas são outro host, outra porta e outra
 autenticação — o token novo não serve para o código atual, e o fluxo Kratos
 desaparece com a migração.
 
+### 2.2 O que a medição contra a API real mostrou (19/08/2026)
+
+O token autentica como `Authorization: Bearer <token>`. A partir daí, cinco
+fatos que o desenho não previa:
+
+**1. O `driversOverview` NÃO serve para calcular a premiação.** Ele devolve
+`Reward` = 0 para todos os 87 motoristas, e — mais importante — **não devolve a
+média de consumo**. O prêmio é calculado localmente por
+`premio = max(0, km/meta − km/media) × preco_litro × pct_premiacao`, e `media`
+(km/l por motorista) é o insumo central. A coleta atual guarda `km`, `media`,
+`nota` e `indicators` por motorista; a API oficial cobre só `TotalKM` e `Score`.
+Migrar como estava planejado zeraria o prêmio de todo mundo, porque `calcular()`
+descarta quem tem `media <= 0`.
+
+**2. `startDate` tem de ser diferente de `endDate`.** Pedir um único mês
+(`03-2026` a `03-2026`) devolve HTTP 400 "Datas fornecidas inválidas"; é preciso
+passar o mês seguinte como fim. O formato é `MM-YYYY` e nenhum outro é aceito.
+
+**3. As APIs são lentas, e há teto de período.** `driversOverview` de dois meses
+levou 18,5 s; de doze meses estourou o timeout de 60 s. `vehicle-statistics` da
+frota inteira levou **73,4 s**.
+
+**4. `vehicle-statistics` aceita a frota inteira numa chamada** — sem
+`vehicleIdentification` devolveu 74 veículos, 73 deles com km/l.
+
+**5. `vehicle-performance` EXIGE placa.** Sem `vehicleIdentification` responde
+404 "Veículo não identificado", e cada chamada leva ~17 s. Para a frota, são
+~74 chamadas — mais de 20 minutos em série.
+
+**Consequência de arquitetura:** nenhuma das telas novas pode consultar a API ao
+vivo no carregamento. Todas precisam de coleta em segundo plano com resultado
+gravado localmente, no mesmo modelo que a Premiação já usa (snapshot + botão de
+atualizar). Uma tela que demora 73 s para abrir não é uma tela.
+
 ## 3. Estrutura
 
 Grupo **Telemetria** no menu, com quatro telas:
@@ -72,12 +106,17 @@ Como quatro telas vão falar com a mesma plataforma, o cliente vira um só.
 uma chamada por período, contra as ~86 de hoje. Cálculo, snapshots, backfill e
 tela permanecem; troca só a coleta.
 
-**Decisão do usuário (19/08/2026): troca direta, sem fonte dupla.** O risco foi
-apresentado e assumido: se a API devolver número diferente do que a plataforma
-web mostra, isso aparece no valor pago ao motorista. Mitigação que não altera a
-arquitetura: na implementação, comparar uma vez os meses já coletados
-(março/2026 = 11 motoristas, R$ 8.548) contra o que a API devolve, como teste de
-aceitação. Divergência para o usuário decidir ANTES de subir.
+**A troca direta foi decidida pelo usuário em 19/08/2026 e depois INVIABILIZADA
+pela medição (§2.2):** a API não devolve a média de consumo, que é o insumo do
+cálculo do prêmio. A migração da fonte fica SUSPENSA aguardando decisão nova.
+As três telas novas não dependem disso e seguem.
+
+Caminho possível, se a migração for retomada: `TotalKM` viria do
+`driversOverview`, e a média teria de ser reconstruída a partir do
+`consumptionAverage` por veículo (vehicle-statistics) rateado pelo vínculo
+motorista-veículo (vehicle-performance). Isso introduz rateio onde hoje há
+medição direta — é degradação de precisão num número que vira dinheiro no bolso
+do motorista, e por isso não é recomendado sem uma razão forte.
 
 **PII:** a resposta traz `DocumentNumber` (CPF). Serve para casar com o cadastro
 e é descartado em seguida — não entra em SQLite nem em payload de API, como já
@@ -136,10 +175,10 @@ Dois ganchos com telas existentes:
 
 | Risco | Impacto | Tratamento |
 |---|---|---|
-| Volume de chamadas por veículo | Alto — decide se a coleta é ao vivo ou em cache | MEDIR antes de planejar: descobrir se `vehicleIdentification` aceita lista |
-| Token não testado | Bloqueia tudo | Validar assim que entrar no `.env`, com o nome corrigido |
-| Limite de período das APIs | Médio | Medir; pode obrigar a paginar por mês |
-| Divergência da premiação | Alto — afeta valor pago | Comparação com os meses já coletados como teste de aceitação |
+| ~~Volume de chamadas~~ | MEDIDO em 19/08 | statistics aceita a frota (73 s); performance exige placa (~17 s × 74). Ambas exigem coleta em segundo plano |
+| ~~Token não testado~~ | RESOLVIDO | Autentica como `Bearer`; o token exposto no chat em 19/08 precisa ser rotacionado |
+| Limite de período | MEDIDO | 12 meses estoura timeout; coletar mês a mês, com `endDate` sempre no mês seguinte |
+| Divergência da premiação | CONFIRMADA | A API zera o prêmio e não traz a média; migração suspensa |
 | Rastro com muitos pontos | Médio | Amostragem por tempo; a Torre já lida com isso |
 
 ## 10. Pendente antes do plano
