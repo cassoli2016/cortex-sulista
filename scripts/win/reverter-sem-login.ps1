@@ -3,18 +3,31 @@
 # Restaura as tarefas a partir do XML exportado antes da mudanca, remove o
 # servico do cloudflared e reabilita a tarefa do tunel.
 #
-#   powershell -NoProfile -ExecutionPolicy Bypass -File scripts\win\reverter-sem-login.ps1
+# GRANULAR de proposito: reverter tudo por causa de um problema so do tunel
+# desfez API e AutoDeploy que estavam funcionando como SISTEMA. Agora:
+#   -Tudo     reverte as 3 (comportamento antigo)
+#   -Tunel    reverte SO o tunel, preservando API e AutoDeploy convertidos
+# Sem parametro, assume -Tunel, que e o caso comum.
+#
+#   powershell -NoProfile -ExecutionPolicy Bypass -File scripts\win\reverter-sem-login.ps1 -Tunel
+#   powershell -NoProfile -ExecutionPolicy Bypass -File scripts\win\reverter-sem-login.ps1 -Tudo
+
+[CmdletBinding()]
+param([switch]$Tudo, [switch]$Tunel)
 
 $ErrorActionPreference = 'Continue'
+if (-not $Tudo -and -not $Tunel) { $Tunel = $true }
 $repo = 'C:\Users\inteligencia\Documents\cortex-sulista'
 $backup = Join-Path $repo 'data\win\backup-tarefas'
 
 function Ok($t)    { Write-Host "   OK   $t" -ForegroundColor Green }
 function Aviso($t) { Write-Host "   !    $t" -ForegroundColor Yellow }
 
-Write-Host "== Revertendo" -ForegroundColor Cyan
+Write-Host ("== Revertendo ({0})" -f $(if ($Tudo) { 'TUDO' } else { 'so o tunel' })) -ForegroundColor Cyan
 if (-not (Test-Path -LiteralPath $backup)) {
   Aviso "sem backup em $backup -- nada a restaurar nas tarefas"
+} elseif (-not $Tudo) {
+  Aviso 'API e AutoDeploy preservados como estao (use -Tudo para reverter tambem)'
 } else {
   Get-ChildItem $backup -Filter *.xml | ForEach-Object {
     $nome = ($_.BaseName -replace '_', ' ')
