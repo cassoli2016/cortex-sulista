@@ -326,6 +326,43 @@ def antt_piso(
         })
 
 
+# ---------------------------------------------------------------- Integrações (credenciais)
+
+@app.get("/api/gestao/credenciais")
+def gestao_credenciais() -> JSONResponse:
+    """Status das credenciais de integração. NUNCA devolve o valor."""
+    from api import credenciais
+    # /api/gestao/* já é restrito a admin pelo AuthMiddleware (api/auth.py:654)
+    return JSONResponse({"credenciais": credenciais.listar()})
+
+
+@app.post("/api/gestao/credenciais")
+async def gestao_credenciais_salvar(req: Request) -> JSONResponse:
+    """Grava uma credencial. O valor não é logado em nenhuma hipótese."""
+    from api import credenciais
+    # /api/gestao/* já é restrito a admin pelo AuthMiddleware (api/auth.py:654)
+    try:
+        body = await req.json()
+    except Exception:  # noqa: BLE001
+        body = None
+    if not isinstance(body, dict) or not body.get("nome"):
+        return JSONResponse(status_code=422, content={
+            "erro": "parametro_invalido", "mensagem": "Informe nome e valor."})
+    try:
+        # o valor sai daqui direto para o cofre: nada de log, nada de eco
+        st = credenciais.gravar(str(body["nome"]), str(body.get("valor") or ""))
+    except ValueError as exc:
+        return JSONResponse(status_code=422, content={
+            "erro": "parametro_invalido", "mensagem": str(exc)})
+    except Exception as exc:  # noqa: BLE001
+        log.warning("falha ao gravar credencial %s: %s",
+                    body.get("nome"), type(exc).__name__)
+        return JSONResponse(status_code=500, content={
+            "erro": "erro_gravacao",
+            "mensagem": "Não foi possível gravar a credencial."})
+    return JSONResponse(st)
+
+
 @app.get("/api/operacao/antt/rntrc")
 def antt_rntrc(dt_de: str | None = None, dt_ate: str | None = None) -> JSONResponse:
     """Situação do RNTRC dos transportadores contratados no período."""

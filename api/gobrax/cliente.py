@@ -36,8 +36,14 @@ class GobraxIndisponivel(Exception):
     """A API não respondeu, respondeu erro, ou respondeu coisa que não é JSON."""
 
 
+def _token_efetivo() -> str:
+    """Cofre da tela de Gestão primeiro, variável de ambiente depois."""
+    from api import credenciais
+    return credenciais.ler("GOBRAX_TOKEN") or ""
+
+
 def configurado() -> bool:
-    return bool(os.environ.get("GOBRAX_TOKEN", "").strip())
+    return bool(_token_efetivo())
 
 
 def mes_api(mes: str) -> tuple[str, str]:
@@ -72,8 +78,7 @@ def _http(url: str, headers: dict, timeout: int):
 
 class Cliente:
     def __init__(self, token: str | None = None, http=None):
-        self.token = (token if token is not None
-                      else os.environ.get("GOBRAX_TOKEN", "")).strip()
+        self.token = (token if token is not None else _token_efetivo()).strip()
         if not self.token:
             raise GobraxNaoConfigurado(
                 "GOBRAX_TOKEN não está no ambiente — a integração fica desligada")

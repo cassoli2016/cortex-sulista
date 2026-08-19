@@ -1591,6 +1591,8 @@ body.tvfull #btnReport,body.tvmode #btnReport{display:none}
         </div>
       </section>
 
+      <!-- painel de credenciais fica dentro da view de Gestão (ver gesTab) -->
+
       <!-- ===================== PISO MÍNIMO ANTT ===================== -->
       <section class="view" id="view-anpiso">
         <div class="kpis" id="kpis-anpiso"></div>
@@ -2701,6 +2703,7 @@ body.tvfull #btnReport,body.tvmode #btnReport{display:none}
             <button class="ghost" id="gtab-perfis" aria-pressed="false" onclick="gesTab('perfis')">Perfis de acesso</button>
             <button class="ghost" id="gtab-auditoria" aria-pressed="false" onclick="gesTab('auditoria')">Auditoria</button>
             <button class="ghost" id="gtab-config" aria-pressed="false" onclick="gesTab('config')">Segurança</button>
+            <button class="ghost" id="gtab-integracoes" aria-pressed="false" onclick="gesTab('integracoes')">Integrações</button>
           </div>
         </div>
         <div id="gpane-usuarios">
@@ -2729,6 +2732,12 @@ body.tvfull #btnReport,body.tvmode #btnReport{display:none}
             <div class="tablewrap"><table><thead><tr>
               <th>Quando</th><th>Usuário</th><th>Ação</th><th>Alvo</th><th>Detalhe</th><th>IP</th>
             </tr></thead><tbody id="ges-aud"></tbody></table></div>
+          </div>
+        </div>
+        <div id="gpane-integracoes" style="display:none">
+          <div class="card">
+            <div class="head"><h2>Credenciais de integração <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="Tokens de API dos fornecedores, guardados em data/credenciais.json na própria máquina, com permissão restrita e fora do controle de versão. O valor NUNCA é devolvido para a tela: depois de salvo, só é possível ver as pontas. Um valor salvo aqui tem precedência sobre a variável de ambiente de mesmo nome.">i</span></h2><span class="hint">só administradores · o valor não pode ser lido de volta</span></div>
+            <div id="ges-creds" style="padding:0 18px 18px"></div>
           </div>
         </div>
         <div id="gpane-config" style="display:none">
@@ -11311,13 +11320,70 @@ async function loadGestao(){
 }
 function gesTab(t){
   GES_TAB=t;
-  ['usuarios','perfis','auditoria','config'].forEach(x=>{
+  ['usuarios','perfis','auditoria','config','integracoes'].forEach(x=>{
     document.getElementById('gpane-'+x).style.display = (x===t)?'':'none';
     document.getElementById('gtab-'+x).setAttribute('aria-pressed', String(x===t));
   });
   if(t==='auditoria' && !document.getElementById('ges-aud').children.length) audCarregar();
+  if(t==='integracoes') credCarregar();
 }
 function renderGestao(){ renderGesUsuarios(); renderGesPerfis(); renderGesConfig(); gesTab(GES_TAB); }
+/* ===================== Credenciais de integração =====================
+   O valor NUNCA volta do servidor: a tela mostra só as pontas do que está
+   guardado. O campo é sempre um password vazio — nada de preencher com o
+   segredo para o usuário "ver o que está lá". */
+async function credCarregar(){
+  const alvo=document.getElementById('ges-creds');
+  alvo.innerHTML='<div style="color:var(--n500)">carregando…</div>';
+  try{
+    const r=await fetch('/api/gestao/credenciais',{cache:'no-store'});
+    const d=await r.json();
+    if(!r.ok){ alvo.innerHTML='<div style="color:var(--red)">'+esc(d.mensagem||'Erro ao ler as credenciais.')+'</div>'; return; }
+    alvo.innerHTML=(d.credenciais||[]).map(c=>{
+      const origem = c.origem==='cofre' ? 'salvo aqui na tela'
+                   : c.origem==='ambiente' ? 'vindo do arquivo .env do servidor'
+                   : 'não configurado';
+      const quando = c.atualizado_em ? ' · atualizado em '+esc(c.atualizado_em) : '';
+      return `<div style="border-top:1px solid var(--n100,#EEF1F4);padding:14px 0">
+        <div style="font-weight:600">${esc(c.nome)}</div>
+        <div style="font-size:12px;color:var(--n500);margin-bottom:8px">${esc(c.descricao||'')}</div>
+        <div style="font-size:12px;margin-bottom:10px">
+          ${c.configurado
+            ? `<span class="badge b-ok">configurado</span> <span style="font-family:var(--mono)">${esc(c.mascarado||'')}</span> <span style="color:var(--n500)">· ${esc(origem)}${quando}</span>`
+            : '<span class="badge b-warn">não configurado</span> <span style="color:var(--n500)">a integração fica desligada</span>'}
+        </div>
+        <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+          <input type="password" id="cred-${esc(c.nome)}" placeholder="colar o token novo" autocomplete="off"
+                 style="width:340px;max-width:100%" aria-label="Novo valor para ${esc(c.nome)}">
+          <button class="btn" onclick="credSalvar('${esc(c.nome)}')">Salvar</button>
+          ${c.origem==='cofre' ? `<button class="ghost" onclick="credApagar('${esc(c.nome)}')">Apagar</button>` : ''}
+        </div>
+      </div>`;
+    }).join('') || '<div style="color:var(--n500)">nenhuma integração cadastrada</div>';
+  }catch(e){ alvo.innerHTML='<div style="color:var(--red)">Não foi possível falar com a API.</div>'; }
+}
+async function credSalvar(nome){
+  const campo=document.getElementById('cred-'+nome);
+  const valor=(campo&&campo.value||'').trim();
+  if(!valor){ showBanner('Cole o token antes de salvar.'); return; }
+  await credEnviar(nome, valor);
+  if(campo) campo.value='';   // o segredo não fica no DOM depois de enviado
+}
+async function credApagar(nome){
+  if(!confirm('Apagar a credencial '+nome+'? A integração para de funcionar até um valor novo ser salvo.')) return;
+  await credEnviar(nome, '');
+}
+async function credEnviar(nome, valor){
+  try{
+    const r=await fetch('/api/gestao/credenciais',{method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({nome:nome, valor:valor})});
+    const d=await r.json();
+    if(!r.ok){ showBanner(d.mensagem||'Não foi possível salvar a credencial.'); return; }
+    hideBanner();
+    credCarregar();
+  }catch(e){ showBanner('Não foi possível falar com a API.', e.message); }
+}
 function agoraLocal(){
   const n=new Date(), p=x=>String(x).padStart(2,'0');
   return `${n.getFullYear()}-${p(n.getMonth()+1)}-${p(n.getDate())} ${p(n.getHours())}:${p(n.getMinutes())}:${p(n.getSeconds())}`;
