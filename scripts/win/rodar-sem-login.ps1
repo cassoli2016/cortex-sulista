@@ -173,6 +173,19 @@ if ($Simular) {
   Copy-Item (Join-Path $cfg '*') $sysCfg -Force
   Ok "config e credencial copiadas para o perfil do sistema"
 
+  # O 'service install' registra o servico SEM argumentos -- o log confirmou:
+  #   Cloudflared service arguments: [C:\...\cloudflared.exe]
+  # Sem --config, o cloudflared procura o nome PADRAO 'config.yml'. Como o nosso
+  # se chama config-cortex.yml, o servico subia sem configuracao nenhuma e nao
+  # conectava tunel algum: processo vivo, tunel inexistente (erro 1033 / HTTP 530).
+  $padrao = Join-Path $sysCfg 'config.yml'
+  Copy-Item (Join-Path $sysCfg 'config-cortex.yml') $padrao -Force
+  # e a credencial precisa ser apontada no perfil do sistema, nao no do usuario
+  $texto = Get-Content $padrao -Raw
+  $novo = $texto -replace [regex]::Escape($cfg), $sysCfg
+  if ($novo -ne $texto) { Set-Content -Path $padrao -Value $novo -Encoding utf8 }
+  Ok "config.yml (nome que o servico procura) criado no perfil do sistema"
+
   # a tarefa tem de parar ANTES: dois processos no mesmo tunel disputam a conexao
   Stop-ScheduledTask -TaskName 'Cortex Sulista - Tunnel' -ErrorAction SilentlyContinue
   Get-Process cloudflared -ErrorAction SilentlyContinue |
@@ -188,7 +201,9 @@ if ($Simular) {
   $prefAntes = $ErrorActionPreference
   $ErrorActionPreference = 'Continue'
   try {
-    $saida = & $cf --config (Join-Path $sysCfg 'config-cortex.yml') service install 2>&1
+    # sem --config: o instalador nao propaga o argumento para o servico, e o
+    # cloudflared le o config.yml padrao que acabamos de criar
+    $saida = & $cf service install 2>&1
     $saida | ForEach-Object { Write-Host "        $_" }
   } finally {
     $ErrorActionPreference = $prefAntes
