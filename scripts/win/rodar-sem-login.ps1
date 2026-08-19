@@ -205,6 +205,11 @@ if ($Simular) {
     # cloudflared le o config.yml padrao que acabamos de criar
     $saida = & $cf service install 2>&1
     $saida | ForEach-Object { Write-Host "        $_" }
+    # o 'service install' registra o binario SEM ARGUMENTOS (confirmado por
+    # sc.exe qc): o servico roda o exe sem comando, ele sai na hora e o Windows
+    # reporta falha ao iniciar. O comando completo precisa ser gravado a mao.
+    $binPath = '"{0}" --config "{1}" tunnel run' -f $cf, (Join-Path $sysCfg 'config.yml')
+    & sc.exe config Cloudflared binPath= "$binPath" | Out-Null
   } finally {
     $ErrorActionPreference = $prefAntes
   }
