@@ -99,7 +99,9 @@ grupos:
   - nome: Visão geral
     resumo: >-
       A leitura do dia — caixa, faturamento contra a meta e o que exige ação
-      agora. O Copiloto responde em linguagem natural sobre esses números.
+      agora. O Copiloto responde em linguagem natural sobre 17 recortes do
+      painel (não só os desta tela): financeiro, comercial, operação, frota,
+      ANTT, telemetria e o fechamento do mês.
     telas: [home, cop]
 
   - nome: Financeiro

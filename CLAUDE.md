@@ -573,6 +573,22 @@ em estrutura de topo: resolver dentro de **função**, na hora de desenhar.
   aparece como chip âmbar — antes ia calada para o prompt.
 - **Link para tela citada** sai de lista CURADA de expressões × view, filtrada por
   `podeVer()` (RBAC). Casar o texto direto contra `VIEWS` manda o gestor para a tela errada.
+- **Lista de telas escrita à mão no prompt envelhece calada.** O prompt do sistema
+  enumerava as telas do painel num texto fixo; cinco telas novas depois, o Copiloto
+  dizia "não existe" sobre a ANTT e a Telemetria. A lista passou a ser montada de
+  `api.auth.TELAS` — tela nova entra sozinha, e um teste garante que o prompt cita
+  todas.
+- **Snapshot sequencial com o banco fora trava o chat.** As 17 fontes esperavam cada
+  uma o próprio timeout de conexão: **240 s medidos** antes da primeira palavra.
+  Fail-fast na primeira falha de CONEXÃO (`_e_falha_de_banco`) — mas só nela: erro de
+  uma query específica não pode fazer o snapshot desistir das outras 16 fontes.
+- **Fonte nova no snapshot não pode disparar coleta.** A premiação tem um `force` que
+  vai buscar na Gobrax; no snapshot ela é lida SEM `force`, senão abrir o chat viraria
+  chamada de API externa a cada 10 minutos. Há teste para isso.
+- **Cadeia de modelos `:free` apodrece sozinha** — modelo gratuito é desativado sem
+  aviso. Dos preferidos fixos, só 2 de 5 ainda existiam no catálogo. O desempate do
+  resto lê o porte do próprio id (`-550b-` → 550B), e um teste de manutenção compara
+  os preferidos contra o catálogo real (faz skip sem chave/rede).
 
 Regra: todo painel tem **fonte do dado + timestamp**; nenhum gráfico sem rótulo direto;
 todo número-chave traz **comparação** (vs meta, vs período anterior).
