@@ -13,10 +13,18 @@ Titulo "Onde o CORTEX esta instalado"
 foreach ($c in @('E:\Cortex-Sulista\cortex-sulista',
                  'C:\Users\inteligencia\Documents\cortex-sulista',
                  'C:\Users\casso\Documents\cortex-sulista')) {
-  $marca = if (Test-Path (Join-Path $c 'api\main.py')) { 'EXISTE' } else { 'nao existe' }
+  # unidade inexistente faz Join-Path explodir: testar o caminho ANTES
+  if (-not (Test-Path -LiteralPath $c)) {
+    Write-Host ("  {0,-45} {1}" -f $c, 'nao existe'); continue
+  }
+  $marca = if (Test-Path -LiteralPath (Join-Path $c 'api\main.py')) { 'EXISTE' } else { 'sem api\main.py' }
   $dep = Join-Path $c 'logs\deployed.txt'
-  $commit = if (Test-Path $dep) { (Get-Content $dep -Raw).Trim().Substring(0,[Math]::Min(12,(Get-Content $dep -Raw).Trim().Length)) } else { '-' }
-  Write-Host ("  {0,-45} {1,-12} deployed={2}" -f $c, $marca, $commit)
+  $commit = '-'
+  if (Test-Path -LiteralPath $dep) {
+    $bruto = (Get-Content $dep -Raw).Trim()
+    if ($bruto) { $commit = $bruto.Substring(0, [Math]::Min(12, $bruto.Length)) }
+  }
+  Write-Host ("  {0,-45} {1,-16} deployed={2}" -f $c, $marca, $commit)
 }
 
 Titulo "Tarefas do CORTEX"
