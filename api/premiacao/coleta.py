@@ -1,6 +1,6 @@
 """Coleta mensal da API Gobrax v3 → snapshot em disco (spec §2/§3).
 
-`coletar_mes` recebe um `cliente` já pronto (injeção — ver `api/premiacao/gobrax.py`
+`coletar_mes` recebe um `cliente` já pronto (injeção — ver `api/gobrax/cliente.py`
 e o `FakeCliente` dos testes); esta função NUNCA instancia `ClienteGobrax`, então
 não há chamada de rede real aqui nem nos testes.
 

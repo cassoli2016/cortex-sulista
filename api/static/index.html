@@ -1962,7 +1962,7 @@ body.tvfull #btnReport,body.tvmode #btnReport{display:none}
       <!-- ===================== PREMIAÇÃO DE MOTORISTAS ===================== -->
       <section class="view" id="view-prem">
         <div class="card">
-          <div class="head"><h2>Premiação de Motoristas</h2><span class="hint">litros economizados × meta de consumo · telemetria Gobrax</span></div>
+          <div class="head"><h2>Premiação de Motoristas</h2><span class="hint">nota da Gobrax × km rodado · valor por km configurável</span></div>
           <div class="cardfilters">
             <select id="fPremMes" aria-label="Mês da premiação" onchange="loadPrem()"></select>
             <button class="btn" id="btnPremColeta" onclick="premColetar()">Atualizar dados</button>
@@ -5407,13 +5407,18 @@ function premRenderSerie(d){
     const pr=document.getElementById('prem-comp-premios'); if(pr) pr.textContent='';
     return;
   }
-  const labels=meses.map(m=>m.label+(m.parcial?' (parcial)':''));
+  /* mês pago pela regra antiga entra marcado: comparar prêmio de litros
+     economizados com prêmio de nota × km sem avisar seria enganoso */
+  const labels=meses.map(m=>m.label+(m.parcial?' (parcial)':'')
+    +(m.regra==='litros_economizados'?' *':''));
   chartCols('chartPrem', labels, [
-    {nome:'Média da frota (km/l)', cor:CC.navy700, valores:meses.map(m=>m.media_frota||0)},
-    {nome:'Meta (km/l)', cor:CC.laranja, valores:meses.map(m=>m.meta||0)},
+    {nome:'Prêmio total (R$)', cor:CC.navy700, valores:meses.map(m=>m.premio_total||0)},
+    {nome:'Motoristas premiados', cor:CC.laranja, valores:meses.map(m=>m.premiados||0)},
   ], {fmt:v=>Number(v).toLocaleString('pt-BR',{maximumFractionDigits:2})});
+  const temAntiga=meses.some(m=>m.regra==='litros_economizados');
   document.getElementById('prem-comp-premios').innerHTML = 'Prêmio total por mês: '
-    + meses.map((m,i)=>esc(labels[i])+': '+(m.premio_total!=null?BRL.format(m.premio_total):'—')).join(' · ');
+    + meses.map((m,i)=>esc(labels[i])+': '+(m.premio_total!=null?BRL.format(m.premio_total):'—')).join(' · ')
+    + (temAntiga?'<br><span style="color:var(--n500)">* mês calculado pela regra anterior (litros economizados) — é o valor com que foi pago</span>':'');
 }
 
 /* ---------------- Ordens de Compra ---------------- */
