@@ -1,64 +1,61 @@
+"""Parâmetros da premiação — regra nota × km, vigente desde 19/08/2026."""
 from __future__ import annotations
 
 import json
 
 import pytest
 
-from api.premiacao.params import DEFAULTS, ler_params, salvar_params
+from api.premiacao import params
 
 
 def test_arquivo_ausente_devolve_defaults(tmp_path):
-    p = ler_params(tmp_path / "nao_existe.json")
-    assert p == DEFAULTS
-    assert p["meta"] == 2.0 and p["preco_litro"] == 4.93
-    assert p["pct_premiacao"] == 0.20 and p["km_minimo"] == 500.0
+    assert params.ler_params(tmp_path / "nao-existe.json") == params.DEFAULTS
+
+
+def test_defaults_sao_os_da_regra_nova():
+    assert sorted(params.DEFAULTS) == ["km_minimo", "nota_minima", "valor_por_km"]
 
 
 def test_round_trip_e_merge_com_defaults(tmp_path):
-    f = tmp_path / "params.json"
-    salvar_params({"meta": 2.2}, f)
-    p = ler_params(f)
-    assert p["meta"] == 2.2
-    assert p["pct_premiacao"] == 0.20          # não informado mantém default
-    salvar_params({"pct_premiacao": 0.25}, f)
-    p2 = ler_params(f)
-    assert p2["meta"] == 2.2 and p2["pct_premiacao"] == 0.25
+    p = tmp_path / "params.json"
+    salvo = params.salvar_params({"valor_por_km": 0.15}, p)
+    assert salvo["valor_por_km"] == 0.15
+    assert salvo["nota_minima"] == params.DEFAULTS["nota_minima"]
+    assert params.ler_params(p) == salvo
 
 
 def test_validacao_rejeita_valores_impossiveis(tmp_path):
-    f = tmp_path / "params.json"
-    for ruim in ({"meta": 0}, {"meta": -1}, {"preco_litro": 0},
-                 {"pct_premiacao": 1.5}, {"pct_premiacao": -0.1}, {"km_minimo": -5}):
+    p = tmp_path / "params.json"
+    for ruim in ({"valor_por_km": 0}, {"valor_por_km": -1},
+                 {"nota_minima": -1}, {"nota_minima": 101},
+                 {"km_minimo": -10}):
         with pytest.raises(ValueError):
-            salvar_params(ruim, f)
-    assert not f.exists()                       # inválido não grava
+            params.salvar_params(ruim, p)
 
 
 def test_tipo_errado_vira_valueerror_nao_typeerror(tmp_path):
-    """Body de endpoint pode chegar com JSON válido mas tipo errado (null, lista,
-    dict) — precisa virar ValueError (422 pt-BR no endpoint), nunca TypeError
-    escapando cru (que viraria 500 genérico)."""
-    f = tmp_path / "params.json"
-    for ruim in ({"meta": None}, {"meta": [1, 2]}, {"meta": {}},
-                 {"preco_litro": None}, {"pct_premiacao": [0.2]}):
+    p = tmp_path / "params.json"
+    for ruim in ({"valor_por_km": None}, {"nota_minima": []}, {"km_minimo": {}}):
         with pytest.raises(ValueError):
-            salvar_params(ruim, f)
-    assert not f.exists()  # inválido não grava
-
-
-def test_chave_desconhecida_e_ignorada(tmp_path):
-    f = tmp_path / "params.json"
-    salvar_params({"meta": 2.1, "hacker": "x"}, f)
-    assert "hacker" not in json.loads(f.read_text())
+            params.salvar_params(ruim, p)
 
 
 def test_arquivo_corrompido_ou_invalido_devolve_defaults(tmp_path):
-    # (a) Texto não-JSON
-    f1 = tmp_path / "broken1.json"
-    f1.write_text("isso não é json {]]]")
-    assert ler_params(f1) == DEFAULTS
+    p = tmp_path / "params.json"
+    p.write_text("{ nao é json", encoding="utf-8")
+    assert params.ler_params(p) == params.DEFAULTS
+    p.write_text(json.dumps({"valor_por_km": -5}), encoding="utf-8")
+    assert params.ler_params(p) == params.DEFAULTS
 
-    # (b) JSON válido com meta = 0 (valor inválido)
-    f2 = tmp_path / "broken2.json"
-    f2.write_text(json.dumps({"meta": 0, "preco_litro": 4.93, "pct_premiacao": 0.20, "km_minimo": 500.0}))
-    assert ler_params(f2) == DEFAULTS
+
+def test_arquivo_no_formato_antigo_cai_nos_defaults(tmp_path):
+    """A regra anterior gravava meta/preco_litro/pct_premiacao. Um arquivo
+    desses não tem nenhum parâmetro da regra nova — e cair no default é melhor
+    que calcular prêmio com valor que ninguém configurou."""
+    p = tmp_path / "params.json"
+    p.write_text(json.dumps({"meta": 2.0, "preco_litro": 4.93,
+                             "pct_premiacao": 0.2, "km_minimo": 500.0}),
+                 encoding="utf-8")
+    lido = params.ler_params(p)
+    assert lido["valor_por_km"] == params.DEFAULTS["valor_por_km"]
+    assert lido["nota_minima"] == params.DEFAULTS["nota_minima"]

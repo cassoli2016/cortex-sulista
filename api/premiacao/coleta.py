@@ -163,123 +163,31 @@ def _period(mes: str, agora: datetime) -> tuple[str, str, bool]:
     return start, end, False
 
 
-def coletar_mes(cliente, mes: str, customer: int = 1, agora=None,
-                bonds: dict[str, list[dict]] | None = None) -> dict:
+class ColetaVazia(Exception):
+    """A coleta não trouxe motorista nenhum. Nunca vira snapshot: já aconteceu
+    de uma coleta vazia sobrescrever um mês inteiro de dados bons."""
+
+
+def coletar_mes(mes: str, cliente=None, agora=None, coletor=None) -> dict:
+    """Snapshot do mês a partir do driversOverview.
+
+    Substitui a coleta por login (Kratos + /vehicles + exportDriverHistory),
+    que dependia de ~98 exports XLSX e batia em rate limit. A API pública
+    devolve todos os motoristas numa chamada.
+    """
+    from api.gobrax import overview
+
     agora = agora or datetime.now()
-    period_start, period_end, parcial = _period(mes, agora)
-
-    resp_vehicles = cliente.get("/vehicles", {"customers": customer, "operation": "true"})
-    if not isinstance(resp_vehicles, dict) or resp_vehicles.get("customers") is None:
-        raise ValueError(
-            "Resposta da Gobrax sem a estrutura esperada em /vehicles (campo 'customers' ausente).")
-    clientes = resp_vehicles["customers"]
-    primeiro = clientes[0] if clientes else {}
-    veiculos = (primeiro or {}).get("vehicles") or []
-
-    todos_ids: list[int] = []
-    vinfo: dict[int, dict] = {}
-    veic_atual: dict[int, list[dict]] = {}   # fallback quando o histórico não casa
-    nomes_atual: dict[int, str] = {}
-    for v in veiculos:
-        vid = v.get("id")
-        modelo = v.get("truckModel") or v.get("model") or v.get("brand") or ""
-        if vid is not None:
-            todos_ids.append(vid)
-            vinfo[vid] = {"plate": v.get("plate", ""), "model": modelo}
-        cd = v.get("currentDriver") or {}
-        did = cd.get("driverId")
-        if did is not None:
-            did = int(did)
-            nomes_atual[did] = cd.get("driverName", "")
-            veic_atual.setdefault(did, []).append(
-                {"plate": v.get("plate", ""), "model": modelo,
-                 "vinculo_de": str(cd.get("startDate") or ""), "vinculo_ate": ""})
-
-    resp_drivers = cliente.get("/drivers", {"customers": customer})
-    if not isinstance(resp_drivers, dict) or resp_drivers.get("drivers") is None:
-        raise ValueError(
-            "Resposta da Gobrax sem a estrutura esperada em /drivers (campo 'drivers' ausente).")
-    docs: dict[int, str] = {}
-    nomes: dict[int, str] = {}
-    for d in resp_drivers["drivers"]:
-        if d.get("id") is None:
-            continue
-        did = int(d["id"])
-        docs[did] = d.get("documentNumber") or ""
-        nomes[did] = nomes_atual.get(did) or d.get("name") or ""
-
-    # TODOS os cadastrados: consultar só quem tem currentDriver perdia motorista
-    # (os vínculos do piloto mudam de dia para dia — chegou a haver 0 vínculos
-    # com 98 veículos na plataforma). O analysis casa por telemetria.
-    driver_ids = sorted(nomes.keys())
-    vehicles_param = ",".join(str(i) for i in todos_ids)
-
-    if bonds is None:
-        bonds = fetch_bonds(cliente, vinfo)
-
-    performances: dict[int, dict] = {}
-    lotes = list(_lotes(driver_ids, CHUNK))
-    for i, lote in enumerate(lotes):
-        params = {
-            "drivers": ",".join(str(i) for i in lote),
-            "vehicles": vehicles_param,
-            "startDate": period_start,
-            "endDate": period_end,
-        }
-        resp = cliente.get("/web/v2/performance/drivers/analysis", params)
-        if not isinstance(resp, dict) or resp.get("data") is None:
-            raise ValueError(
-                "Resposta da Gobrax sem a estrutura esperada em "
-                "/web/v2/performance/drivers/analysis (campo 'data' ausente).")
-        for p in (resp["data"] or {}).get("performances") or []:
-            did = p.get("driverId")
-            if did is not None:
-                performances[int(did)] = p
-        if i < len(lotes) - 1:
-            time.sleep(0.3)
-
-    drivers: list[dict] = []
-    for did in driver_ids:
-        p = performances.get(did, {})
-        stats = p.get("stats") or {}
-        scores = p.get("scores") or {}
-        consumo = stats.get("consumptionAverage")
-        media = float(consumo) if consumo else None
-        km = stats.get("totalMileage")
-        # só entra quem teve ATIVIDADE no mês — com ~86 cadastrados e um piloto
-        # pequeno, guardar todo mundo viraria ruído; km sem média fica (o
-        # cálculo o exclui do ranking e conta em sem_media)
-        if not media and not km:
-            continue
-        drivers.append({
-            "driverId": did,
-            "driverName": nomes.get(did, ""),
-            "documento": _mask_doc(docs.get(did)),
-            "vehicles": (vinculos_no_periodo(bonds, nomes.get(did, ""),
-                                             period_start, period_end)
-                         or veic_atual.get(did, [])),
-            "nota": scores.get("generalScore"),
-            "media": media,
-            "km": km,
-            "indicators": {
-                "scores": scores,
-                "percentages": p.get("percentages") or {},
-                "extra": {k: v for k, v in stats.items()
-                          if k not in ("totalMileage", "consumptionAverage")},
-            },
-        })
-
+    linhas = (coletor or overview.coletar)(mes, cliente=cliente)
+    if not linhas:
+        raise ColetaVazia(f"driversOverview não trouxe motoristas para {mes}")
     return {
-        "source": "gobrax-v3",
-        "customerId": customer,
         "month": mes,
-        "periodStart": period_start,
-        "periodEnd": period_end,
-        "coletado_em": agora.strftime("%Y-%m-%d %H:%M"),
-        "parcial": parcial,
-        "frota_telemetria": {"veiculos": len(veiculos), "com_motorista": len(drivers),
-                             "cadastrados": len(nomes)},
-        "drivers": drivers,
+        "source": "gobrax-api-overview",
+        "regra_fonte": "nota_km",
+        "coletado_em": agora.isoformat(timespec="seconds"),
+        "parcial": mes == agora.strftime("%Y-%m"),
+        "drivers": linhas,
     }
 
 

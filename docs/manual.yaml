@@ -33,6 +33,25 @@ glossario:
     definicao: >-
       RKM menos o CKM variável — quanto cada km carregado contribui depois dos
       custos que variam com a rodagem.
+  - termo: Cobertura da telemetria
+    definicao: >-
+      Quanto do quilômetro rodado no período o rastreador efetivamente reportou,
+      medido contra o km dos abastecimentos. Abaixo de 70% a comparação de
+      consumo não vale: a diferença mede silêncio de rastreador, não desempenho
+      do motorista.
+  - termo: Credenciais de integração
+    definicao: >-
+      Tokens de API dos fornecedores (hoje, a Gobrax), configuráveis em
+      Administração › Gestão › Integrações. Ficam guardados na máquina do painel,
+      com permissão restrita e fora do controle de versão. O valor nunca volta
+      para a tela: depois de salvo, só é possível ver os primeiros e os últimos
+      caracteres. Um valor salvo ali tem precedência sobre a variável de
+      ambiente de mesmo nome.
+  - termo: Nota da Gobrax (score)
+    definicao: >-
+      Nota de 0 a 100 que a plataforma de telemetria atribui ao motorista no mês,
+      a partir do comportamento de condução. É o insumo da premiação junto com o
+      km rodado: prêmio = km × valor por km × (nota ÷ 100).
   - termo: RNTRC
     definicao: >-
       Registro Nacional de Transportadores Rodoviários de Cargas. Todo
@@ -123,7 +142,13 @@ grupos:
     resumo: >-
       Vagas e tempo de preenchimento, headcount, custo de folha, indicadores de
       RH, horas extras e a premiação de motoristas por economia.
-    telas: [rh, hc, folha, folhaind, he, prem]
+    telas: [rh, hc, folha, folhaind, he]
+
+  - nome: Telemetria
+    resumo: >-
+      O que vem da plataforma de telemetria Gobrax. Hoje traz a premiação de
+      motoristas por nota e quilometragem.
+    telas: [prem, telcon, telcond, telhod]
 
   - nome: ANTT
     resumo: >-

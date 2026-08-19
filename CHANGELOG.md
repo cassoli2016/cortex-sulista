@@ -4,6 +4,28 @@ Gerado de `docs/versoes.yaml` por `scripts/gerar_changelog.py` — não editar �
 Formato [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/),
 versionamento [SemVer](https://semver.org/lang/pt-BR/).
 
+## [0.8.0] — 19/08/2026  ·  CX-19/08/2026-v0.8.0
+
+### Adicionado
+- Tela Consumo e Estatísticas: o km/l medido pela telemetria da Gobrax lado a lado com o km/l calculado pelos abastecimentos do ERP, por veículo, com a diferença entre as duas medidas.
+- Tela Condução Econômica: faixa econômica, piloto automático e eco-roll de um veículo, com duração, percentual e nota, e os motoristas que estiveram nele no período.
+- Tela Hodômetro e Rastro: leitura direta do odômetro de cada veículo, com a data da última leitura, e o trajeto do dia desenhado no mapa.
+
+### Alterado
+- A comparação de consumo só vale quando a telemetria cobriu a maior parte do período e quando as duas medidas são fisicamente possíveis. Veículo com rastreador mudo aparece como "telemetria incompleta", e não como divergência de consumo — sem essa regra, 25 veículos apareceriam como problema de combustível quando o problema é de sinal.
+
+## [0.7.0] — 19/08/2026  ·  CX-19/08/2026-v0.7.0
+
+### Adicionado
+- Aba Integrações em Administração › Gestão: o token da Gobrax pode ser colado e trocado pela tela, sem editar arquivo no servidor nem reiniciar a API. O valor fica guardado na própria máquina com permissão restrita e nunca é devolvido para a tela — depois de salvo só se veem as pontas.
+- Grupo Telemetria no menu, reunindo o que vem da plataforma Gobrax. A Premiação de Motoristas saiu de Frota e passou a viver nele.
+- A Premiação passou a usar a nota da Gobrax e o km rodado, com valor por km, nota mínima e km mínimo configuráveis na própria tela.
+- Quem não recebeu prêmio continua na lista, com o motivo — nota abaixo da mínima ou km abaixo do mínimo — e o detalhe de cada motorista mostra a conta que gerou o valor.
+
+### Alterado
+- A premiação deixou de ser calculada por litros economizados: a API pública da Gobrax não fornece a média de consumo por motorista. Meses já pagos continuam exibindo o valor com que foram pagos, e a tela avisa quando está mostrando um mês da regra antiga.
+- A coleta deixou de fazer login na plataforma e passou a usar a API oficial com token: uma chamada por mês no lugar de quase cem, o que elimina o bloqueio por excesso de logins que já custou um mês de dados.
+
 ## [0.6.0] — 18/08/2026  ·  CX-18/08/2026-v0.6.0
 
 ### Adicionado
