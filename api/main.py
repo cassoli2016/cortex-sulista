@@ -2088,7 +2088,7 @@ _MES_PREM_ERRO = {
 @app.get("/api/frota/premiacao")
 def premiacao(mes: str | None = None) -> JSONResponse:
     from api.premiacao import servico
-    from api.premiacao.gobrax import GobraxIndisponivel, GobraxNaoConfigurado
+    from api.gobrax.cliente import GobraxIndisponivel, GobraxNaoConfigurado
     if _mes_prem_invalido(mes):
         return JSONResponse(status_code=422, content=_MES_PREM_ERRO)
     try:
@@ -2105,7 +2105,7 @@ def premiacao(mes: str | None = None) -> JSONResponse:
 @app.post("/api/frota/premiacao/atualizar")
 async def premiacao_atualizar(req: Request) -> JSONResponse:
     from api.premiacao import servico
-    from api.premiacao.gobrax import GobraxIndisponivel, GobraxNaoConfigurado
+    from api.gobrax.cliente import GobraxIndisponivel, GobraxNaoConfigurado
     try:
         body = await req.json()
     except Exception:

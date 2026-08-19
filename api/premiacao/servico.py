@@ -266,8 +266,11 @@ def serie() -> dict:
             "month": item["month"],
             "label": item["label"],
             "parcial": bool(snap.get("parcial")),
-            "media_frota": calc["kpis"].get("media_frota"),
-            "meta": parametros["meta"],
-            "premio_total": calc["kpis"].get("premio_total"),
+            # a regra que gerou o mês viaja junto: mês antigo foi pago por
+            # litros economizados e não pode ser comparado com os novos sem aviso
+            "regra": snap.get("regra_fonte") or calc["regra"],
+            "premiados": calc["premiados"],
+            "km_total": calc["km_total"],
+            "premio_total": calc["premio_total"],
         })
     return {"meses": meses}
