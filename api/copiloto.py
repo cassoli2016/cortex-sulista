@@ -60,15 +60,15 @@ def ollama_status(max_age: float = 60.0) -> dict:
     _OLLAMA_ST.update(ts=time.time(), ok=ok, modelo=modelo)
     return dict(_OLLAMA_ST)
 
-# Ordem de preferência (melhores free primeiro); o que não existir mais
-# no catálogo é ignorado e o resto do catálogo entra por contexto.
+# Topo curado da fila. O catalogo :free do OpenRouter ROTACIONA: em 19/08/2026
+# quatro dos seis nomes que estavam aqui ja nao existiam. Nome que sumiu e
+# simplesmente ignorado (ver modelos_free), entao a lista envelhecer nao derruba
+# nada -- mas tambem ninguem percebe, por isso existe
+# test_preferidos_ainda_existem_no_catalogo_real, que reclama quando envelhece.
+# Mantida CURTA de proposito: o resto do catalogo entra logo atras.
 PREFERIDOS = [
     "nvidia/nemotron-3-ultra-550b-a55b:free",
     "nvidia/nemotron-3-super-120b-a12b:free",
-    "openai/gpt-oss-120b:free",
-    "qwen/qwen3-next-80b-a3b-instruct:free",
-    "meta-llama/llama-3.3-70b-instruct:free",
-    "nousresearch/hermes-3-llama-3.1-405b:free",
 ]
 
 _CATALOGO = {"ts": 0.0, "lista": []}
@@ -91,6 +91,11 @@ _FONTES_ROTULO = {
     "torre_seguranca": "Torre de Segurança",
     "programacao_disponibilidade": "Programação Inteligente",
     "frota": "Veículos",
+    "antt_piso": "ANTT — Piso Mínimo de Frete",
+    "antt_rntrc": "ANTT — RNTRC dos Transportadores",
+    "telemetria_consumo": "Telemetria — Consumo e Estatísticas",
+    "premiacao": "Premiação de Motoristas",
+    "dre_fechamento": "Fechamento do Mês",
 }
 
 
@@ -126,8 +131,24 @@ def modelos_free() -> list[str]:
         raise RuntimeError(f"catalogo openrouter HTTP {status}")
     todos = {m["id"]: m for m in corpo["data"] if m["id"].endswith(":free")}
     ordem = [m for m in PREFERIDOS if m in todos]
-    resto = sorted((i for i in todos if i not in ordem),
-                   key=lambda i: -(todos[i].get("context_length") or 0))
+
+    def _porte(ident: str) -> float:
+        """Bilhoes de parametros lidos do proprio id ('...-550b-a55b' -> 550).
+
+        Antes o desempate era por context_length, que mede quanto o modelo LE,
+        nao quanto ele ACERTA: um modelo pequeno de janela grande subia na fila
+        na frente de um grande. Porte e uma proxy melhor para qualidade; quem
+        nao declara o tamanho no id cai para o criterio antigo.
+        """
+        import re as _re
+        achados = _re.findall(r"(\d+(?:\.\d+)?)b(?:\b|-)", ident.lower())
+        if achados:
+            return max(float(a) for a in achados)
+        return 0.0
+
+    resto = sorted(
+        (i for i in todos if i not in ordem),
+        key=lambda i: (-_porte(i), -(todos[i].get("context_length") or 0)))
     _CATALOGO.update(ts=time.time(), lista=ordem + resto)
     return _CATALOGO["lista"]
 
@@ -151,17 +172,59 @@ def _compacto(d: dict) -> dict:
     return out
 
 
-def _snapshot() -> str:
-    """Snapshot de KPIs de todas as telas (cache _SNAP_TTL). Falhas viram nota
-    no prompt E ficam registradas para o ⓘ de procedência do front."""
-    if _SNAP["texto"] and time.time() - _SNAP["ts"] < _SNAP_TTL:
-        return _SNAP["texto"]
+def _e_falha_de_banco(exc: Exception) -> bool:
+    """A exceção indica banco inacessível (e não erro daquela consulta)?
+
+    Só o que é claramente de conexão conta: erro de uma query específica não
+    pode fazer o snapshot desistir das outras fontes.
+    """
+    try:
+        import psycopg
+        if isinstance(exc, psycopg.OperationalError):
+            return True
+    except Exception:  # noqa: BLE001
+        pass
+    texto = f"{type(exc).__name__}: {exc}".lower()
+    return any(m in texto for m in ("connection", "conexao", "conexão", "timeout",
+                                    "could not connect", "pool", "refused"))
+
+
+def _fontes_do_snapshot() -> dict:
+    """Como cada tela vira uma entrada do snapshot.
+
+    Regra para acrescentar fonte aqui: tem de ser LEITURA BARATA. A premiação
+    entra sem force -- obter(force=True) sairia para a API da Gobrax e travaria
+    o chat por ~18 s; o consumo da telemetria lê o cache local, nunca a API.
+    """
     hoje = date.today()
-    ini_ano = hoje.replace(month=1, day=1).isoformat()
     fim = hoje.isoformat()
+    ini_ano = hoje.replace(month=1, day=1).isoformat()
+    ini_12m = (hoje - timedelta(days=365)).isoformat()
     comp_ate = hoje.strftime("%Y-%m")
     comp_de = (hoje.replace(day=1) - timedelta(days=330)).strftime("%Y-%m")
-    fontes = {
+    mes_passado = (hoje.replace(day=1) - timedelta(days=1)).strftime("%Y-%m")
+
+    def _antt_piso():
+        from api.antt.servico import get_piso_minimo
+        return get_piso_minimo(None, ini_ano, fim)
+
+    def _antt_rntrc():
+        from api.antt.rntrc_servico import get_rntrc
+        return get_rntrc(ini_12m, fim)
+
+    def _telemetria():
+        from api.gobrax.consumo import get_consumo
+        return get_consumo(mes_passado)   # o mês corrente pode não ter coleta
+
+    def _premiacao():
+        from api.premiacao import servico as prem
+        return prem.obter(mes_passado)    # SEM force: nao chamar a Gobrax aqui
+
+    def _fechamento():
+        from api.previsao import get_previsao_fechamento
+        return get_previsao_fechamento(None)
+
+    return {
         "visao_geral": lambda: queries.get_visao_geral(),
         "financeiro_caixa": lambda: queries.get_overview(),
         "analise_km_ano": lambda: queries.get_analise_km(None, ini_ano, fim),
@@ -174,15 +237,43 @@ def _snapshot() -> str:
         "torre_seguranca": lambda: queries.get_seguranca(),
         "programacao_disponibilidade": lambda: queries.get_programacao(),
         "frota": lambda: queries.get_veiculos(),
+        "antt_piso": _antt_piso,
+        "antt_rntrc": _antt_rntrc,
+        "telemetria_consumo": _telemetria,
+        "premiacao": _premiacao,
+        "dre_fechamento": _fechamento,
     }
+
+
+def _snapshot() -> str:
+    """Snapshot de KPIs de todas as telas (cache _SNAP_TTL). Falhas viram nota
+    no prompt E ficam registradas para o ⓘ de procedência do front."""
+    if _SNAP["texto"] and time.time() - _SNAP["ts"] < _SNAP_TTL:
+        return _SNAP["texto"]
+    hoje = date.today()
+    fim = hoje.isoformat()
+    ini_ano = hoje.replace(month=1, day=1).isoformat()
+    fontes = _fontes_do_snapshot()
     snap: dict = {"hoje": fim, "periodo_padrao": f"{ini_ano} a {fim} (ano corrente)"}
     falhas = []
+    banco_fora = False
     for nome, fn in fontes.items():
+        if banco_fora:
+            # FAIL-FAST: com o banco inacessivel, cada fonte espera o timeout de
+            # conexao. Medido em 19/08/2026: 16 fontes em sequencia = 240 s de
+            # chat travado antes da primeira palavra. Se a primeira ja falhou por
+            # conexao, as outras vao falhar igual -- nao ha por que pagar o
+            # timeout de todas.
+            falhas.append(nome)
+            continue
         try:
             snap[nome] = _compacto(fn())
         except Exception as exc:  # noqa: BLE001
             falhas.append(nome)
             log.warning("snapshot %s falhou: %s", nome, exc)
+            if _e_falha_de_banco(exc):
+                banco_fora = True
+                log.warning("banco inacessivel: pulando as fontes restantes")
     if falhas:
         snap["fontes_indisponiveis"] = falhas
     import json
@@ -210,33 +301,59 @@ def contexto() -> dict:
     }
 
 
-_SISTEMA = """Você é o Copiloto Cortex, assistente de gestão do painel Cortex Sulista \
-da Transportadora Sulista S/A (frota mista: própria, locação, agregados e terceiros; \
-modalidade lotação/FTL). Você responde perguntas de gestores usando o snapshot de \
-indicadores abaixo, extraído ao vivo do ERP.
+def _telas_do_painel() -> list[str]:
+    """Rótulos das telas, lidos do RBAC.
+
+    Antes essa lista era escrita à mão dentro do prompt e envelheceu: quem
+    perguntava sobre ANTT, Telemetria, Orçamento ou Extrato ouvia que a tela não
+    existia. api.auth.TELAS é a fonte real do que o painel tem.
+    """
+    try:
+        from api.auth import TELAS
+        return sorted({rotulo for rotulo, _grupo in TELAS.values()})
+    except Exception:  # noqa: BLE001
+        return []
+
+
+_SISTEMA_BASE = """Você é o Copiloto Cortex, assistente de gestão do painel Cortex Sulista \
+(Transportadora Sulista S/A, frota mista própria + agregados, modalidade lotação/FTL). \
+Você responde perguntas de gestores usando o snapshot de indicadores abaixo, extraído \
+do ERP e da telemetria.
 
 Regras:
 - Responda SEMPRE em português do Brasil, de forma executiva e direta.
 - Use apenas números do snapshot; nunca invente valores. Se o dado não estiver no \
-snapshot, diga qual tela do painel tem o detalhe (Visão Geral, Fluxo de Caixa, \
-Contas a Receber/Pagar, Comercial, Análise de KM, Programação Inteligente, Torre de \
-Controle, Torre de Segurança, Agregados e Terceiros, Make vs Buy, Ordens de Compra, \
-Combustível, Manutenção, Veículos, Multas).
-- Valores em reais (R$), quilômetros e percentuais formatados no padrão brasileiro.
+snapshot, diga em qual tela do painel está o detalhe.
+- O snapshot é um RETRATO com até 10 minutos, não tempo real. Quando a pergunta for \
+sobre "agora", diga que o número é do último retrato.
+- NÃO afirme tendência (subiu, caiu, está melhorando) a partir de um retrato único: \
+sem série histórica, compare apenas o que o próprio snapshot traz comparado.
+- Número com cobertura parcial precisa vir com a ressalva: se o snapshot disser que \
+uma medida foi apurada em parte dos registros, diga isso junto do valor.
+- Valores em reais (R$), quilômetros e percentuais no padrão brasileiro.
 - Seja curto: 1 parágrafo ou poucos bullets; destaque o que exige ação.
 - Formatação: markdown simples (negrito e listas), sem tabelas grandes, sem títulos. \
-Use emojis com moderação para sinalizar: 📈 melhora, 📉 queda, ⚠️ atenção, ✅ ok, \
-💰 dinheiro, 🚛 frota. Comece linhas de recomendação com "> " (viram destaque de ação).
+Use emojis com moderação: 📈 melhora, 📉 queda, ⚠️ atenção, ✅ ok, 💰 dinheiro, 🚛 frota. \
+Comece linhas de recomendação com "> " (viram destaque de ação).
 - Encerre SEMPRE com uma última linha neste formato exato (vira botões, não texto): \
 SUGESTOES: pergunta curta 1 | pergunta curta 2 | pergunta curta 3
 
 Glossário: km vazio = deslocamento sem carga; % pago s/ frete peso = quanto do frete \
 do cliente vai para o agregado/terceiro (margem retida = 100% - esse valor); RKM = \
 receita por km carregado; make vs buy = custo do km próprio vs contratado; km evitável \
-= km vazio saindo de cidade que tinha carga saindo no mesmo dia.
+= km vazio saindo de cidade que tinha carga saindo no mesmo dia; piso mínimo ANTT = \
+valor legal mínimo do frete contratado; RNTRC = registro do transportador na ANTT.
+
+Telas do painel: {telas}
 
 SNAPSHOT (JSON):
 """
+
+
+def prompt_sistema() -> str:
+    """Prompt com a lista de telas montada na hora, a partir do RBAC."""
+    telas = _telas_do_painel()
+    return _SISTEMA_BASE.replace("{telas}", ", ".join(telas) if telas else "(indisponível)")
 
 
 _CHAVE_ST: dict = {"ts": 0.0, "dados": {}}
@@ -273,7 +390,7 @@ def status_chave() -> dict:
 
 
 def _mensagens(mensagens: list[dict]) -> list[dict]:
-    msgs = [{"role": "system", "content": _SISTEMA + _snapshot()}]
+    msgs = [{"role": "system", "content": prompt_sistema() + _snapshot()}]
     for m in mensagens[-12:]:
         if m.get("role") in ("user", "assistant") and isinstance(m.get("content"), str):
             msgs.append({"role": m["role"], "content": m["content"][:4000]})

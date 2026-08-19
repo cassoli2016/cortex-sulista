@@ -4,6 +4,19 @@ Gerado de `docs/versoes.yaml` por `scripts/gerar_changelog.py` — não editar �
 Formato [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/),
 versionamento [SemVer](https://semver.org/lang/pt-BR/).
 
+## [0.9.0] — 19/08/2026  ·  CX-19/08/2026-v0.9.0
+
+### Adicionado
+- O Copiloto passou a enxergar as telas novas. Antes ele respondia sobre 12 recortes do painel; agora são 17 — entraram piso mínimo da ANTT, situação do RNTRC, consumo da telemetria contra o abastecimento, premiação de motoristas e previsão de fechamento do mês. Perguntar sobre qualquer uma delas deixou de cair em "não tenho esse dado".
+- A lista de telas que o Copiloto conhece passou a sair do próprio cadastro de permissões, em vez de uma lista escrita à mão que envelhecia a cada tela nova. São 48 telas hoje, e tela nova entra sozinha.
+
+### Alterado
+- As respostas ficaram mais honestas sobre o que o Copiloto sabe: ele agora diz que enxerga um retrato de até 10 minutos atrás, não afirma tendência quando só tem o número de hoje, e avisa quando a fonte tem cobertura parcial em vez de dar o número como fechado.
+
+### Corrigido
+- O Copiloto respondia com erro quando a cadeia de modelos gratuitos tinha um modelo desativado no topo: dos preferidos, só dois ainda existiam. A lista foi limpa e o desempate passou a preferir o modelo maior.
+- Com o ERP fora do ar, o Copiloto ficava até 4 minutos mudo antes da primeira palavra — cada uma das 17 fontes esperava o próprio tempo de desistência da conexão, uma depois da outra. Agora, à primeira falha de conexão, ele para de tentar as demais e responde com o que tem.
+
 ## [0.8.1] — 19/08/2026  ·  CX-19/08/2026-v0.8.1
 
 ### Corrigido
