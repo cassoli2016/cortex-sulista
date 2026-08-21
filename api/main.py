@@ -832,6 +832,37 @@ def cobranca(filial: int | None = None, cliente: str | None = None) -> JSONRespo
             "erro": "erro_consulta", "mensagem": "Erro ao consultar a cobrança."})
 
 
+@app.get("/api/financeiro/lancamentos")
+def lancamentos_bancarios(
+    dt_de: str | None = None,
+    dt_ate: str | None = None,
+    conta: str | None = None,
+) -> JSONResponse:
+    from datetime import timedelta
+    hoje = date.today()
+    dt_ate = dt_ate or hoje.isoformat()
+    dt_de = dt_de or (hoje - timedelta(days=30)).isoformat()
+    for nome, valor in (("dt_de", dt_de), ("dt_ate", dt_ate)):
+        if _bad_date(valor):
+            return JSONResponse(status_code=422, content={
+                "erro": "parametro_invalido",
+                "mensagem": f"Parâmetro {nome} inválido: use o formato AAAA-MM-DD."})
+    if dt_de > dt_ate:
+        dt_de, dt_ate = dt_ate, dt_de
+    conta = (conta or "").strip() or None
+    try:
+        return JSONResponse(queries.get_lancamentos_bancarios(dt_de, dt_ate, conta=conta))
+    except psycopg.OperationalError as exc:
+        log.warning("banco inacessivel: %s", exc)
+        return JSONResponse(status_code=503, content={
+            "erro": "banco_inacessivel",
+            "mensagem": "Sem conexão com o banco. O túnel SSH está aberto?"})
+    except Exception as exc:  # noqa: BLE001
+        log.warning("lancamentos_bancarios falhou: %s", exc)
+        return JSONResponse(status_code=500, content={
+            "erro": "erro_consulta", "mensagem": "Erro ao consultar os lançamentos bancários."})
+
+
 @app.get("/api/operacao/analise-km")
 def analise_km(
     filial: int | None = None,
