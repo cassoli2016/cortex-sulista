@@ -837,6 +837,7 @@ def lancamentos_bancarios(
     dt_de: str | None = None,
     dt_ate: str | None = None,
     conta: str | None = None,
+    busca: str | None = None,
 ) -> JSONResponse:
     from datetime import timedelta
     hoje = date.today()
@@ -850,8 +851,9 @@ def lancamentos_bancarios(
     if dt_de > dt_ate:
         dt_de, dt_ate = dt_ate, dt_de
     conta = (conta or "").strip() or None
+    busca = (busca or "").strip() or None
     try:
-        return JSONResponse(queries.get_lancamentos_bancarios(dt_de, dt_ate, conta=conta))
+        return JSONResponse(queries.get_lancamentos_bancarios(dt_de, dt_ate, conta=conta, busca=busca))
     except psycopg.OperationalError as exc:
         log.warning("banco inacessivel: %s", exc)
         return JSONResponse(status_code=503, content={

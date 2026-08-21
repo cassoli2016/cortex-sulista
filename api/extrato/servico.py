@@ -57,6 +57,79 @@ ORDER BY max(dtmovimento) DESC, banco
 """
 
 
+# Conciliação NATIVA do ERP (extratobancario.situacao), achada explorando o
+# Avacorp ao vivo: o AVA tem feed automático de extrato bancário (29 mil
+# linhas), separado do import manual OFX/CSV acima, com seu próprio farol
+# (1 Pendente, 2 Conciliado, 3 Oculto - valores confirmados no <select> da
+# tela nativa "Extrato Bancário - Conciliação"; código 4 existe no dado mas
+# não aparece nesse filtro, cai em "outro"). Hoje só UMA conta tem esse feed
+# (Bradesco 237/36455/1239066) e 93,9% do que ela recebeu desde 2023 está
+# Pendente, incluindo lançamentos do mês corrente - não é só passivo
+# histórico. Mostrado à parte do farol OFX/CSV: são fontes e mecanismos
+# diferentes, não podem se misturar num único número.
+CONCIL_SITUACAO = {1: "Pendente", 2: "Conciliado", 3: "Oculto"}
+
+CONCIL_RESUMO_SQL = """
+SELECT situacao, count(*)::int AS qtd,
+       coalesce(sum(CASE WHEN tipo='C' THEN valor ELSE 0 END),0)::float8 AS creditos,
+       coalesce(sum(CASE WHEN tipo='D' THEN valor ELSE 0 END),0)::float8 AS debitos
+FROM extratobancario
+GROUP BY 1 ORDER BY 1
+"""
+
+CONCIL_CONTA_SQL = """
+SELECT e.banco, coalesce(b.nome, 'Banco '||e.banco) AS banco_nome, e.agencia, e.conta,
+       count(*)::int AS total,
+       sum(CASE WHEN e.situacao=1 THEN 1 ELSE 0 END)::int AS pendentes,
+       coalesce(sum(CASE WHEN e.situacao=1 THEN e.valor ELSE 0 END),0)::float8 AS valor_pendente,
+       min(CASE WHEN e.situacao=1 THEN e.dtmovimento END)::text AS pendente_mais_antigo,
+       max(e.dtmovimento)::text AS ultimo_movimento
+FROM extratobancario e
+LEFT JOIN banco b ON b.codigo = e.banco
+GROUP BY e.banco, b.nome, e.agencia, e.conta
+ORDER BY pendentes DESC
+"""
+
+# Só os 12 meses mais recentes: o backlog desde 2023 é grande demais para um
+# gráfico mensal legível, e o que importa para ação é se o atraso é CORRENTE.
+CONCIL_MENSAL_SQL = """
+SELECT to_char(dtmovimento,'YYYY-MM') AS mes,
+       sum(CASE WHEN situacao=1 THEN 1 ELSE 0 END)::int AS pendentes,
+       sum(CASE WHEN situacao=2 THEN 1 ELSE 0 END)::int AS conciliados,
+       coalesce(sum(CASE WHEN situacao=1 THEN valor ELSE 0 END),0)::float8 AS valor_pendente
+FROM extratobancario
+WHERE dtmovimento >= current_date - interval '12 months'
+GROUP BY 1 ORDER BY 1
+"""
+
+
+def conciliacao_nativa() -> dict:
+    resumo = db.query(CONCIL_RESUMO_SQL)
+    contas = db.query(CONCIL_CONTA_SQL)
+    mensal = db.query(CONCIL_MENSAL_SQL)
+
+    total = sum(r["qtd"] for r in resumo)
+    pend = next((r for r in resumo if r["situacao"] == 1), None)
+    pend_qtd = pend["qtd"] if pend else 0
+    pend_valor = (pend["creditos"] + pend["debitos"]) if pend else 0.0
+
+    return {
+        "resumo": [{"situacao": CONCIL_SITUACAO.get(r["situacao"], "Outro"),
+                     "qtd": r["qtd"], "creditos": r["creditos"], "debitos": r["debitos"]}
+                    for r in resumo],
+        "contas": [{**c, "rotulo": f"{c['banco_nome']} ag. {c['agencia']} cc {c['conta']}"}
+                    for c in contas if c["total"] > 0],
+        "mensal": mensal,
+        "kpis": {
+            "total": total, "pendentes": pend_qtd,
+            "pct_pendente": round(100 * pend_qtd / total, 1) if total else 0.0,
+            "valor_pendente": pend_valor,
+            "contas_com_feed": sum(1 for c in contas if c["total"] > 0),
+        },
+        "fonte": "ERP AVA - extratobancario.situacao (feed nativo do banco, separado do import OFX/CSV acima)",
+    }
+
+
 def ident_csv(erp_banco: int, erp_agencia: str, erp_conta: str) -> str:
     """Identidade de conta CSV = a conta bancária real (banco/agência/conta do
     ERP), nunca o nome do arquivo. Usada pela tela de mapeamento (Task 6) ao
@@ -263,6 +336,7 @@ def painel(dt_de: str, dt_ate: str, conta_id: int | None = None, path=arm.DB_PAT
         "lancamentos_dia": (arm.lancamentos(path, conta_id, dt_de, dt_ate)
                             if conta_id is not None else []),
         "importacoes": imps,
+        "conciliacao_nativa": conciliacao_nativa(),
         "atualizado_em": datetime.now().isoformat(timespec="seconds"),
         "fonte": "extrato importado (OFX/CSV) x contacorrente_saldo do ERP AVA",
     }

@@ -3,6 +3,25 @@
 #   - a tela Documentação     (#doc)
 #   - o rótulo no rodapé      (CX-DD/MM/AAAA-vX.Y.Z)
 # A versão do TOPO é a corrente e tem de bater com o pyproject.toml.
+- versao: "0.11.0"
+  data: "2026-08-20"
+  adicionado:
+    - >-
+      Lançamentos Bancários ganhou busca por nome no histórico — dá para achar
+      tudo que foi recebido de um cliente ou pago a um fornecedor (ex.: buscar
+      "Tupy" já cobre TED, PIX e boleto que citam o nome no histórico do
+      banco). Não é uma busca por cadastro de cliente/fornecedor — o código
+      que ligaria o lançamento ao cadastro está preenchido em menos de 0,1%
+      dos casos — mas o texto do banco carrega o nome na maioria dos
+      recebimentos e pagamentos por título.
+    - >-
+      Extrato Bancário ganhou um card novo: Conciliação nativa do ERP. O AVA
+      tem um feed automático de extrato bancário separado do import manual
+      OFX/CSV desta tela, com farol próprio (Pendente/Conciliado/Oculto)
+      marcado pela Contabilidade dentro do ERP. Hoje esse feed cobre só uma
+      conta e 93,9% do que ela recebeu desde 2023 está Pendente — incluindo
+      lançamentos deste mês, ou seja, não é só atraso histórico.
+
 - versao: "0.10.0"
   data: "2026-08-20"
   adicionado:
