@@ -1313,6 +1313,10 @@ body.tvfull #btnReport,body.tvmode #btnReport{display:none}
             <label for="fLancConta">Conta</label>
             <select id="fLancConta" onchange="loadLanc()"><option value="">Todas as contas</option></select>
           </div>
+          <div class="field">
+            <label for="fLancBusca" title="Busca no histórico do lançamento (texto livre do banco) — não é um cadastro de cliente/fornecedor. Funciona bem para boleto/TED/PIX, que costumam trazer o nome de quem pagou ou recebeu; não funciona para transferência entre contas próprias nem vale-pedágio, que não citam nome.">Cliente/fornecedor</label>
+            <input type="search" id="fLancBusca" placeholder="buscar no histórico…" onchange="loadLanc()">
+          </div>
         </div>
         <div class="rangegrp" id="grpVeic" style="display:none">
           <div class="field">
@@ -2079,6 +2083,13 @@ body.tvfull #btnReport,body.tvmode #btnReport{display:none}
         <div class="card"><div class="head"><h2>Importações recentes</h2>
           <span class="hint" id="hintExtbImps"></span></div>
           <div class="tablewrap tabroll" id="extb-imps"></div></div>
+
+        <div class="card">
+          <div class="head"><h2>Conciliação nativa do ERP <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="extratobancario.situacao — o AVA tem feed próprio de extrato bancário (separado do import OFX/CSV acima), com farol Pendente/Conciliado/Oculto marcado pela Contabilidade dentro do próprio ERP. Mecanismo diferente do resto desta tela: não misture os dois números.">i</span></h2>
+            <span class="hint" id="hintExtbConcil"></span></div>
+          <div id="extb-concil-kpis" class="kpis k4"></div>
+          <div id="extb-concil-corpo"></div>
+        </div>
       </section>
 
       <!-- ===================== LANÇAMENTOS BANCÁRIOS ===================== -->
@@ -3265,6 +3276,7 @@ function qsView(k){
     if(V('fEmiDe'))p.set('dt_de',V('fEmiDe'));
     if(V('fEmiAte'))p.set('dt_ate',V('fEmiAte'));
     if(V('fLancConta'))p.set('conta',V('fLancConta'));
+    if(T('fLancBusca'))p.set('busca',T('fLancBusca'));
   } else if(k==='man'){
     if(V('fFilial'))p.set('filial',V('fFilial'));
     if(V('fEmiDe'))p.set('dt_de',V('fEmiDe'));
@@ -6661,7 +6673,10 @@ function renderExtb(d){
   const ts=d.atualizado_em ? new Date(d.atualizado_em) : new Date();
   document.getElementById('meta').innerHTML='<b>Atualizado '+ts.toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'})+'</b><br>'+ts.toLocaleDateString('pt-BR');
   const k=d.kpis||{};
-  // conta sem extrato nenhum: a tela explica o que fazer em vez de mostrar zeros
+  // conta sem extrato nenhum: a tela explica o que fazer em vez de mostrar zeros.
+  // A conciliação nativa (extratobancario) é dado INDEPENDENTE do import OFX/CSV
+  // local - por isso renderiza mesmo neste return antecipado (achado ao testar:
+  // a chamada estava DEPOIS deste return e nunca rodava sem import nenhum).
   if(!(d.contas||[]).length){
     document.getElementById('kpis-extb').innerHTML='';
     document.getElementById('extb-aviso').innerHTML=
@@ -6670,6 +6685,7 @@ function renderExtb(d){
       +'Na primeira vez de cada conta você aponta a qual conta do ERP ela corresponde.</p></div>';
     ['extb-contas','extb-dias','extb-imps'].forEach(id=>document.getElementById(id).innerHTML='');
     const av0=document.getElementById('extbOutraConta'); if(av0){ av0.style.display='none'; av0.innerHTML=''; }
+    renderExtbConcil(d.conciliacao_nativa||{});
     return;
   }
   document.getElementById('extb-aviso').innerHTML='';
@@ -6804,6 +6820,48 @@ function renderExtb(d){
         +`<td class="num">${i.ignoradas||'—'}</td>`
         +`<td><button class="ghost" onclick="extbDesfazer(${i.id})">desfazer</button></td></tr>`).join('')
     + '</tbody></table>';
+
+  renderExtbConcil(d.conciliacao_nativa||{});
+}
+
+// Card à parte: farol NATIVO do ERP (extratobancario.situacao), achado
+// explorando o Avacorp ao vivo — mecanismo diferente do OFX/CSV acima
+// (que compara arquivo importado x contacorrente_saldo). Hoje só existe
+// feed automático para 1 conta (Bradesco), então "contas" quase sempre
+// vem com 1 linha — a tabela é escrita para crescer se o feed for ligado
+// em mais contas, sem precisar mexer na tela de novo.
+function renderExtbConcil(c){
+  const k=c.kpis||{};
+  document.getElementById('hintExtbConcil').textContent = k.contas_com_feed
+    ? `${k.contas_com_feed} conta(s) com feed automático de extrato`
+    : 'nenhuma conta com feed automático de extrato bancário';
+  if(!k.contas_com_feed){
+    document.getElementById('extb-concil-kpis').innerHTML='';
+    document.getElementById('extb-concil-corpo').innerHTML=
+      '<div style="padding:16px;color:var(--n500)">O ERP não tem feed nativo de extrato para nenhuma conta cadastrada — só o import manual OFX/CSV acima se aplica.</div>';
+    return;
+  }
+  document.getElementById('extb-concil-kpis').innerHTML=[
+    kpi('Pendente de conciliação', k.pct_pendente+'%', k.pendentes.toLocaleString('pt-BR')+' de '+k.total.toLocaleString('pt-BR')+' lançamentos', k.pct_pendente>50?'neg':'',
+        'extratobancario WHERE situacao=1 (Pendente), sobre o total histórico do feed. Marcação feita dentro do próprio ERP, não pelo CÓRTEX.'),
+    kpi('Valor pendente', BRL.format(k.valor_pendente||0), 'crédito + débito ainda não conciliados', '',
+        'Soma bruta (crédito+débito) dos lançamentos Pendente — não é um saldo, é o tamanho do que falta revisar.'),
+    kpi('Contas com feed nativo', String(k.contas_com_feed), (c.contas||[]).length===1 ? 'as demais contas não têm esse feed' : '', '',
+        'Quantas contas de banco_conta têm QUALQUER linha em extratobancario. As demais dependem só do import manual (OFX/CSV) desta tela.'),
+    kpi('Pendente mais antigo', (c.contas||[])[0] ? fmtD((c.contas||[])[0].pendente_mais_antigo) : '—', 'na conta com mais pendências', '',
+        'Data do lançamento Pendente mais antigo da conta com maior volume — mostra se é atraso recente ou acumulado há anos.'),
+  ].join('');
+  document.getElementById('extb-concil-corpo').innerHTML=
+    '<div class="tablewrap"><table><thead><tr><th>Conta</th><th class="num">Total</th>'
+    +'<th class="num">Pendentes</th><th class="num">Valor pendente</th><th>Pendente desde</th><th>Último movimento</th></tr></thead><tbody>'
+    + (c.contas||[]).map(x=>`<tr>
+        <td>${esc(x.rotulo)}</td>
+        <td class="num">${x.total.toLocaleString('pt-BR')}</td>
+        <td class="num" style="${x.pendentes>0?'color:var(--red);font-weight:600':''}">${x.pendentes.toLocaleString('pt-BR')}</td>
+        <td class="num">${BRL.format(x.valor_pendente||0)}</td>
+        <td>${x.pendente_mais_antigo?fmtD(x.pendente_mais_antigo):'—'}</td>
+        <td>${fmtD(x.ultimo_movimento)}</td></tr>`).join('')
+    + '</tbody></table></div>';
 }
 
 /* ---------------- Lançamentos Bancários ---------------- */
@@ -6831,6 +6889,10 @@ function renderLanc(d){
   if(!document.getElementById('fEmiDe').value) document.getElementById('fEmiDe').value=d.dt_de;
   if(!document.getElementById('fEmiAte').value) document.getElementById('fEmiAte').value=d.dt_ate;
   {
+    const buscaEl=document.getElementById('fLancBusca');
+    if(buscaEl && !buscaEl.value && d.busca) buscaEl.value=d.busca;
+  }
+  {
     const sel=document.getElementById('fLancConta');
     if(sel && (d.contas||[]).length){
       const atual=sel.value;
@@ -6842,11 +6904,12 @@ function renderLanc(d){
   const liquido=(k.credito||0)-(k.debito||0);
   const pctTransf=k.credito+k.debito>0 ? Math.round(100*(k.transferencias||0)/(k.credito+k.debito)) : 0;
   document.getElementById('kpis-lanc').innerHTML=[
-    kpi('Creditado no período', BRL.format(k.credito||0), fmtD(d.dt_de)+' a '+fmtD(d.dt_ate), '',
-        'contacorrente.valorcredito somado no período e na conta filtrada (ou todas as contas ativas de banco_conta). Inclui a metade "entrada" das transferências entre contas próprias — ver o card Por categoria.',
+    kpi('Creditado no período', BRL.format(k.credito||0),
+        d.busca ? `histórico contém "${d.busca}"` : fmtD(d.dt_de)+' a '+fmtD(d.dt_ate), '',
+        'contacorrente.valorcredito somado no período, na conta filtrada e na busca de histórico (quando preenchida). Inclui a metade "entrada" das transferências entre contas próprias — ver o card Por categoria.',
         trendChip(k.credito, ka.credito, {titulo:'Mesmo número de dias, período imediatamente anterior: '+BRL.format(ka.credito||0)})),
     kpi('Debitado no período', BRL.format(k.debito||0), k.contas+' conta(s) com movimento', '',
-        'contacorrente.valordebito somado no período e na conta filtrada. Mesma ressalva: inclui a metade "saída" das transferências entre contas próprias.',
+        'contacorrente.valordebito somado no período, na conta filtrada e na busca de histórico. Mesma ressalva: inclui a metade "saída" das transferências entre contas próprias.',
         trendChip(k.debito, ka.debito, {invert:true, titulo:'Mesmo número de dias, período imediatamente anterior: '+BRL.format(ka.debito||0)})),
     kpi('Saldo líquido do período', BRL.format(liquido), liquido>=0?'crédito superou débito':'débito superou crédito',
         liquido>=0?'pos':'neg',
@@ -6869,9 +6932,10 @@ function renderLanc(d){
     <td class="num" style="color:var(--red)">${BRL.format(c.debito)}</td></tr>`).join('')
     || '<tr><td colspan="4" style="color:var(--n500)">sem movimento no período</td></tr>';
   const det=d.detalhe||[], total=d.detalhe_total||0;
-  document.getElementById('hintLancDet').textContent = total>det.length
+  const buscaSuf = d.busca ? ` · histórico contém "${d.busca}"` : '';
+  document.getElementById('hintLancDet').textContent = (total>det.length
     ? `${det.length} de ${total.toLocaleString('pt-BR')} lançamentos — refine o período ou a conta para ver o resto`
-    : `${total.toLocaleString('pt-BR')} lançamento${total===1?'':'s'}`;
+    : `${total.toLocaleString('pt-BR')} lançamento${total===1?'':'s'}`) + buscaSuf;
   document.getElementById('lanc-det').innerHTML= !det.length ? '<div style="padding:16px;color:var(--n500)">sem lançamentos no período</div>' :
     '<table><thead><tr><th class="num">Data</th><th>Conta</th><th>Categoria</th><th>Histórico</th>'
     +'<th class="num">Débito</th><th class="num">Crédito</th></tr></thead><tbody>'

@@ -5376,10 +5376,17 @@ _LANC_CATEGORIA = """CASE
     WHEN c.historicodescricao ILIKE '%%PIX%%' THEN 'PIX'
     ELSE 'Outros' END"""
 
+# `busca` filtra pelo HISTÓRICO do lançamento (texto livre do banco), não por
+# um cadastro de cliente/fornecedor — contacorrente.cnpjcpfcodigo está
+# preenchido em 0,05% dos lançamentos (49 de 93 mil em 12 meses), inútil como
+# chave de busca. O texto do banco, por outro lado, carrega o nome de quem
+# pagou/recebeu na maioria dos boletos/TED/PIX (ex.: "Recebimento Vlr Ref -
+# Fatura: ... Tupy S/A"), então ILIKE no histórico é o que sobra de viável.
 _LANC_BASE = """
 FROM contacorrente c
 WHERE c.dtmovimento >= %(dt_de)s::date AND c.dtmovimento < %(dt_ate)s::date + 1
   AND (%(conta)s::text IS NULL OR c.banco||'|'||c.agencia||'|'||c.conta = %(conta)s)
+  AND (%(busca)s::text IS NULL OR c.historicodescricao ILIKE '%%'||%(busca)s||'%%')
 """
 
 # Só contas ATIVAS do cadastro — inclui as "operacionais" (REPOM/PAMCARD/
@@ -5430,6 +5437,7 @@ FROM contacorrente c
 LEFT JOIN banco b ON b.codigo = c.banco
 WHERE c.dtmovimento >= %(dt_de)s::date AND c.dtmovimento < %(dt_ate)s::date + 1
   AND (%(conta)s::text IS NULL OR c.banco||'|'||c.agencia||'|'||c.conta = %(conta)s)
+  AND (%(busca)s::text IS NULL OR c.historicodescricao ILIKE '%%'||%(busca)s||'%%')
 GROUP BY c.banco, b.nome, c.agencia, c.conta
 ORDER BY (coalesce(sum(c.valorcredito),0)+coalesce(sum(c.valordebito),0)) DESC
 LIMIT 20
@@ -5458,19 +5466,22 @@ FROM contacorrente c
 LEFT JOIN banco b ON b.codigo = c.banco
 WHERE c.dtmovimento >= %(dt_de)s::date AND c.dtmovimento < %(dt_ate)s::date + 1
   AND (%(conta)s::text IS NULL OR c.banco||'|'||c.agencia||'|'||c.conta = %(conta)s)
+  AND (%(busca)s::text IS NULL OR c.historicodescricao ILIKE '%%'||%(busca)s||'%%')
 ORDER BY c.dtmovimento DESC, c.sequencia DESC
 LIMIT 500
 """
 
 
 @cached(ttl=90)
-def get_lancamentos_bancarios(dt_de: str, dt_ate: str, conta: str | None = None) -> dict:
+def get_lancamentos_bancarios(dt_de: str, dt_ate: str, conta: str | None = None,
+                               busca: str | None = None) -> dict:
     de_d, ate_d = date.fromisoformat(dt_de), date.fromisoformat(dt_ate)
     dias = (ate_d - de_d).days + 1
     prev_ate = de_d - timedelta(days=1)
     prev_de = prev_ate - timedelta(days=dias - 1)
-    params = {"dt_de": dt_de, "dt_ate": dt_ate, "conta": conta}
-    params_ant = {"dt_de": prev_de.isoformat(), "dt_ate": prev_ate.isoformat(), "conta": conta}
+    params = {"dt_de": dt_de, "dt_ate": dt_ate, "conta": conta, "busca": busca}
+    params_ant = {"dt_de": prev_de.isoformat(), "dt_ate": prev_ate.isoformat(),
+                   "conta": conta, "busca": busca}
     with db.get_conn() as conn, conn.cursor() as cur:
         cur.execute(LANC_CONTAS_SQL)
         contas = cur.fetchall()
@@ -5493,7 +5504,7 @@ def get_lancamentos_bancarios(dt_de: str, dt_ate: str, conta: str | None = None)
         "contas": contas, "kpis": kpis, "kpis_anterior": kpis_anterior,
         "mensal": mensal, "por_conta": por_conta, "categorias": categorias,
         "detalhe": detalhe, "detalhe_total": kpis["lancamentos"],
-        "dt_de": dt_de, "dt_ate": dt_ate, "conta": conta,
+        "dt_de": dt_de, "dt_ate": dt_ate, "conta": conta, "busca": busca,
         "atualizado_em": meta["ts"].isoformat(),
         "fonte": "ERP AVA · contacorrente (razão bancário, lançamento a lançamento) · leitura",
     }

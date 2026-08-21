@@ -4,6 +4,12 @@ Gerado de `docs/versoes.yaml` por `scripts/gerar_changelog.py` — não editar �
 Formato [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/),
 versionamento [SemVer](https://semver.org/lang/pt-BR/).
 
+## [0.11.0] — 20/08/2026  ·  CX-20/08/2026-v0.11.0
+
+### Adicionado
+- Lançamentos Bancários ganhou busca por nome no histórico — dá para achar tudo que foi recebido de um cliente ou pago a um fornecedor (ex.: buscar "Tupy" já cobre TED, PIX e boleto que citam o nome no histórico do banco). Não é uma busca por cadastro de cliente/fornecedor — o código que ligaria o lançamento ao cadastro está preenchido em menos de 0,1% dos casos — mas o texto do banco carrega o nome na maioria dos recebimentos e pagamentos por título.
+- Extrato Bancário ganhou um card novo: Conciliação nativa do ERP. O AVA tem um feed automático de extrato bancário separado do import manual OFX/CSV desta tela, com farol próprio (Pendente/Conciliado/Oculto) marcado pela Contabilidade dentro do ERP. Hoje esse feed cobre só uma conta e 93,9% do que ela recebeu desde 2023 está Pendente — incluindo lançamentos deste mês, ou seja, não é só atraso histórico.
+
 ## [0.10.0] — 20/08/2026  ·  CX-20/08/2026-v0.10.0
 
 ### Adicionado

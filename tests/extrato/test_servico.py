@@ -129,6 +129,10 @@ def test_painel_cruza_com_erp_mockado(db, monkeypatch):
     arm.mapear_conta(db, r["conta_id"], 341, "0098", "539349")
 
     def fake_query(sql, params=None):
+        # conciliacao_nativa() chama db.query SEM params (extratobancario nao
+        # e por conta) - so a query ERP_SALDO_SQL de fato passa params aqui
+        if params is None:
+            return []
         return [{"dt": "2026-07-02", "credito": 15000.50, "debito": 0.0, "saldo": 15000.50},
                 {"dt": "2026-07-03", "credito": 0.0, "debito": 2340.75, "saldo": 12659.75}]
 
@@ -187,6 +191,8 @@ def test_painel_maior_diferenca_usa_o_maior_delta_nao_o_saldo(db, monkeypatch):
     arm.gravar_saldo_extrato(db, cid, "2026-07-01", 1000.0)
 
     def fake_query(sql, params=None):
+        if params is None:   # chamada de conciliacao_nativa(), sem params
+            return []
         # credito diverge em R$ 500 (causa real do DIVERGE); saldo diverge so
         # R$ 0,007, abaixo da tolerancia de 1 centavo - nao e a causa
         return [{"dt": "2026-07-01", "credito": 500.0, "debito": 0.0, "saldo": 999.993}]
@@ -205,6 +211,8 @@ def test_painel_maior_diferenca_com_saldo_zero_legitimo_nao_desvia(db, monkeypat
     arm.gravar_saldo_extrato(db, cid, "2026-07-01", 900.0)
 
     def fake_query(sql, params=None):
+        if params is None:   # chamada de conciliacao_nativa(), sem params
+            return []
         # debito diverge em R$ 80 (causa real do DIVERGE); credito e saldo batem
         # exatamente (diferenca 0,0 legitima) - nenhum dos dois pode "vencer" o
         # debito so por serem falsy
@@ -231,6 +239,8 @@ def test_painel_maior_diferenca_aponta_para_conta_e_dia_certos(db, monkeypatch):
     arm.gravar_saldo_extrato(db, cid_b, "2026-07-05", 300.0)
 
     def fake_query(sql, params=None):
+        if params is None:   # chamada de conciliacao_nativa(), sem params
+            return []
         # Conta A diverge R$ 10 no credito; Conta B diverge R$ 200 - o maior
         # desvio geral tem que apontar para a conta/dia de B, nao de A
         if params["conta"] == "A":
@@ -263,6 +273,8 @@ def test_painel_maior_diferenca_com_vencedor_negativo_continua_absoluto(db, monk
     arm.gravar_saldo_extrato(db, cid, "2026-07-01", 500.0)
 
     def fake_query(sql, params=None):
+        if params is None:   # chamada de conciliacao_nativa(), sem params
+            return []
         # credito do extrato (500) fica ABAIXO do ERP (1000) -> d_credito =
         # 500-1000 = -500 (negativo); e a causa real do DIVERGE
         return [{"dt": "2026-07-01", "credito": 1000.0, "debito": 0.0, "saldo": 500.0}]
@@ -285,7 +297,10 @@ def test_painel_nao_duplica_query_erp_na_selecao_automatica(db, monkeypatch):
     chamadas = []
 
     def fake_query(sql, params=None):
-        chamadas.append(params)
+        # conciliacao_nativa() tambem chama db.query, mas sem params - so a
+        # query ERP_SALDO_SQL de fato passa params, que e o que este teste conta
+        if params is not None:
+            chamadas.append(params)
         return []
 
     monkeypatch.setattr(servico.db, "query", fake_query)
@@ -333,6 +348,8 @@ def test_painel_farol_nao_esconde_divergencia_quando_conta_fica_fora_do_limit_20
     assert all(i["conta_id"] == cid_nova for i in imps)
 
     def fake_query(sql, params=None):
+        if params is None:   # chamada de conciliacao_nativa(), sem params
+            return []
         if params["conta"] == "velha":
             # extrato de HOJE diverge R$ 3.533,69 - tem que aparecer no farol,
             # nao sumir atras de "desatualizado" por ultimo_upload=None
@@ -373,6 +390,8 @@ def test_painel_maior_diferenca_conta_id_distingue_rotulos_iguais(db, monkeypatc
     assert cid_a != cid_b
 
     def fake_query(sql, params=None):
+        if params is None:   # chamada de conciliacao_nativa(), sem params
+            return []
         # ambas as contas mapeiam para a MESMA conta do ERP (1/2/A) - a mesma
         # query serve pros dois IDs; cid_a diverge R$ 10, cid_b diverge R$ 50
         return [{"dt": "2026-07-01", "credito": 90.0, "debito": 0.0, "saldo": 100.0},
