@@ -9,7 +9,7 @@ Tudo compatível com PostgreSQL 9.3 (sem FILTER/RLS).
 """
 from __future__ import annotations
 
-from datetime import date
+from datetime import date, timedelta
 
 from . import db
 
@@ -5353,4 +5353,147 @@ def get_custos(dt_de: str, dt_ate: str, origem: str | None = None,
         "atualizado_em": meta["ts"].isoformat(),
         "fonte": ("ERP AVA · custos consolidados (abastecimento + ordens de compra) · "
                   "por agrupador gerencial · leitura"),
+    }
+
+
+# ============================================================================
+# Lançamentos Bancários — razão bancário real (contacorrente), lançamento a
+# lançamento (333 mil linhas, 2023 até hoje). Fluxo de Caixa e Bancos já lê
+# contacorrente_saldo, mas isso é só o SALDO diário; o MOVIMENTO em si nunca
+# teve tela própria. Maior volume da tabela é TRANSF.DEPOSITO entre contas
+# PRÓPRIAS — sai como débito na origem e crédito no destino ao mesmo tempo,
+# então NÃO é receita nem despesa e some do total líquido, mas dobra a soma
+# bruta de débito+crédito se não for isolado — daí a categoria própria.
+# ============================================================================
+_LANC_CATEGORIA = """CASE
+    WHEN c.historicodescricao ILIKE 'TRANSF%%' THEN 'Transferência entre contas'
+    WHEN c.historicodescricao ILIKE '%%VALE PEDAGIO%%' THEN 'Vale-pedágio'
+    WHEN c.historicodescricao ILIKE '%%Folha%%' OR c.historicodescricao ILIKE '%%Salario%%' THEN 'Folha de pagamento'
+    WHEN c.historicodescricao ILIKE '%%Recebimento%%' OR c.historicodescricao ILIKE '%%Fatura%%' THEN 'Recebimento'
+    WHEN c.historicodescricao ILIKE 'Pg Debito Em Conta%%' OR c.historicodescricao ILIKE '%%Titulo%%' THEN 'Pagamento de título'
+    WHEN c.historicodescricao ILIKE '%%Tarifa%%' THEN 'Tarifa bancária'
+    WHEN c.historicodescricao ILIKE '%%Imposto%%' OR c.historicodescricao ILIKE '%%DARF%%' OR c.historicodescricao ILIKE '%%GPS%%' THEN 'Imposto/tributo'
+    WHEN c.historicodescricao ILIKE '%%PIX%%' THEN 'PIX'
+    ELSE 'Outros' END"""
+
+_LANC_BASE = """
+FROM contacorrente c
+WHERE c.dtmovimento >= %(dt_de)s::date AND c.dtmovimento < %(dt_ate)s::date + 1
+  AND (%(conta)s::text IS NULL OR c.banco||'|'||c.agencia||'|'||c.conta = %(conta)s)
+"""
+
+# Só contas ATIVAS do cadastro — inclui as "operacionais" (REPOM/PAMCARD/
+# EFRETE, vale-pedágio) que passam pelo mesmo razão. considerarfluxocaixa
+# vem junto para o rótulo do filtro avisar quando a conta é fora do fluxo.
+LANC_CONTAS_SQL = """
+SELECT bc.banco||'|'||bc.agencia||'|'||bc.conta AS conta_id,
+       bc.banco, coalesce(b.nome,'Banco '||bc.banco) AS banco_nome,
+       bc.agencia, bc.conta, bc.considerarfluxocaixa
+FROM banco_conta bc
+LEFT JOIN banco b ON b.codigo = bc.banco
+WHERE bc.ativoinativo = 1
+ORDER BY banco_nome, bc.agencia, bc.conta
+"""
+
+LANC_KPI_SQL = f"""
+SELECT
+  count(*)::int AS lancamentos,
+  coalesce(sum(c.valorcredito),0)::float8 AS credito,
+  coalesce(sum(c.valordebito),0)::float8 AS debito,
+  count(DISTINCT c.banco||c.agencia||c.conta)::int AS contas,
+  -- soma os DOIS lados vistos NESTE escopo (debito + credito marcados como
+  -- transferencia) - nunca dobrar um lado so: com filtro de uma unica conta,
+  -- so o lado que esta NAQUELA conta aparece (o par fica na conta de destino,
+  -- fora do escopo), entao debito de transferencia != credito de transferencia
+  coalesce(sum(CASE WHEN c.historicodescricao ILIKE 'TRANSF%%'
+                     THEN c.valordebito + c.valorcredito ELSE 0 END),0)::float8 AS transferencias
+{_LANC_BASE}
+"""
+
+LANC_MENSAL_SQL = f"""
+SELECT to_char(c.dtmovimento,'YYYY-MM') AS mes,
+       coalesce(sum(c.valorcredito),0)::float8 AS credito,
+       coalesce(sum(c.valordebito),0)::float8 AS debito
+{_LANC_BASE}
+GROUP BY 1 ORDER BY 1
+"""
+
+# Decomposição por conta, ordenada por MATERIALIDADE (movimento bruto), não
+# por saldo líquido — uma conta de passagem (recebe e repassa no mesmo dia)
+# é tão relevante quanto uma de saldo parado.
+LANC_CONTA_SQL = f"""
+SELECT c.banco, coalesce(b.nome,'Banco '||c.banco) AS banco_nome, c.agencia, c.conta,
+       count(*)::int AS lancamentos,
+       coalesce(sum(c.valorcredito),0)::float8 AS credito,
+       coalesce(sum(c.valordebito),0)::float8 AS debito
+FROM contacorrente c
+LEFT JOIN banco b ON b.codigo = c.banco
+WHERE c.dtmovimento >= %(dt_de)s::date AND c.dtmovimento < %(dt_ate)s::date + 1
+  AND (%(conta)s::text IS NULL OR c.banco||'|'||c.agencia||'|'||c.conta = %(conta)s)
+GROUP BY c.banco, b.nome, c.agencia, c.conta
+ORDER BY (coalesce(sum(c.valorcredito),0)+coalesce(sum(c.valordebito),0)) DESC
+LIMIT 20
+"""
+
+LANC_CATEGORIA_SQL = f"""
+SELECT categoria, count(*)::int AS qtd,
+       sum(credito)::float8 AS credito, sum(debito)::float8 AS debito
+FROM (
+  SELECT {_LANC_CATEGORIA} AS categoria, c.valorcredito AS credito, c.valordebito AS debito
+  {_LANC_BASE}
+) t GROUP BY 1 ORDER BY (sum(credito)+sum(debito)) DESC
+"""
+
+# regexp_replace no histórico é a mesma mitigação do DRE_AG_CONTA_SQL: texto
+# livre de extrato bancário pode trazer caractere acima de U+00FF e a conexão
+# sai em client_encoding LATIN1 — sem isso UM lançamento aborta a tela inteira.
+LANC_DET_SQL = f"""
+SELECT to_char(c.dtmovimento,'YYYY-MM-DD') AS data,
+       c.banco, coalesce(b.nome,'Banco '||c.banco) AS banco_nome, c.agencia, c.conta,
+       coalesce(nullif(trim(regexp_replace(c.historicodescricao, '[^\\u0001-\\u00ff]', '-', 'g')),''),
+                '(sem histórico)') AS historico,
+       c.valordebito::float8 AS debito, c.valorcredito::float8 AS credito,
+       {_LANC_CATEGORIA} AS categoria
+FROM contacorrente c
+LEFT JOIN banco b ON b.codigo = c.banco
+WHERE c.dtmovimento >= %(dt_de)s::date AND c.dtmovimento < %(dt_ate)s::date + 1
+  AND (%(conta)s::text IS NULL OR c.banco||'|'||c.agencia||'|'||c.conta = %(conta)s)
+ORDER BY c.dtmovimento DESC, c.sequencia DESC
+LIMIT 500
+"""
+
+
+@cached(ttl=90)
+def get_lancamentos_bancarios(dt_de: str, dt_ate: str, conta: str | None = None) -> dict:
+    de_d, ate_d = date.fromisoformat(dt_de), date.fromisoformat(dt_ate)
+    dias = (ate_d - de_d).days + 1
+    prev_ate = de_d - timedelta(days=1)
+    prev_de = prev_ate - timedelta(days=dias - 1)
+    params = {"dt_de": dt_de, "dt_ate": dt_ate, "conta": conta}
+    params_ant = {"dt_de": prev_de.isoformat(), "dt_ate": prev_ate.isoformat(), "conta": conta}
+    with db.get_conn() as conn, conn.cursor() as cur:
+        cur.execute(LANC_CONTAS_SQL)
+        contas = cur.fetchall()
+        cur.execute(LANC_KPI_SQL, params)
+        kpis = cur.fetchone()
+        cur.execute(LANC_KPI_SQL, params_ant)
+        kpis_anterior = cur.fetchone()
+        cur.execute(LANC_MENSAL_SQL, params)
+        mensal = cur.fetchall()
+        cur.execute(LANC_CONTA_SQL, params)
+        por_conta = cur.fetchall()
+        cur.execute(LANC_CATEGORIA_SQL, params)
+        categorias = cur.fetchall()
+        cur.execute(LANC_DET_SQL, params)
+        detalhe = cur.fetchall()
+        cur.execute("SELECT current_timestamp AS ts")
+        meta = cur.fetchone()
+
+    return {
+        "contas": contas, "kpis": kpis, "kpis_anterior": kpis_anterior,
+        "mensal": mensal, "por_conta": por_conta, "categorias": categorias,
+        "detalhe": detalhe, "detalhe_total": kpis["lancamentos"],
+        "dt_de": dt_de, "dt_ate": dt_ate, "conta": conta,
+        "atualizado_em": meta["ts"].isoformat(),
+        "fonte": "ERP AVA · contacorrente (razão bancário, lançamento a lançamento) · leitura",
     }

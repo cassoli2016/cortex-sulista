@@ -107,8 +107,9 @@ grupos:
   - nome: Financeiro
     resumo: >-
       Caixa e sua projeção, títulos a receber e a pagar, régua de cobrança,
-      conciliação do extrato e ordens de compra.
-    telas: [fluxo, receber, pagar, cob, extb, oc, custos]
+      conciliação do extrato, lançamentos bancários (razão do banco lançamento
+      a lançamento) e ordens de compra.
+    telas: [fluxo, receber, pagar, cob, extb, lanc, oc, custos]
 
   - nome: Controladoria
     resumo: >-

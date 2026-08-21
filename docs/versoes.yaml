@@ -3,6 +3,16 @@
 #   - a tela Documentação     (#doc)
 #   - o rótulo no rodapé      (CX-DD/MM/AAAA-vX.Y.Z)
 # A versão do TOPO é a corrente e tem de bater com o pyproject.toml.
+- versao: "0.10.0"
+  data: "2026-08-20"
+  adicionado:
+    - >-
+      Nova tela no Financeiro: Lançamentos Bancários. O painel só mostrava o
+      SALDO diário de bancos e caixa; agora dá para ver o razão bancário
+      lançamento a lançamento (crédito e débito, mês a mês, por conta e por
+      categoria), com destaque para quanto do movimento é transferência entre
+      contas próprias — que não é receita nem despesa.
+
 - versao: "0.9.0"
   data: "2026-08-19"
   adicionado:

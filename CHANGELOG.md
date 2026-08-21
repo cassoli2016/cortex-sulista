@@ -4,6 +4,11 @@ Gerado de `docs/versoes.yaml` por `scripts/gerar_changelog.py` — não editar �
 Formato [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/),
 versionamento [SemVer](https://semver.org/lang/pt-BR/).
 
+## [0.10.0] — 20/08/2026  ·  CX-20/08/2026-v0.10.0
+
+### Adicionado
+- Nova tela no Financeiro: Lançamentos Bancários. O painel só mostrava o SALDO diário de bancos e caixa; agora dá para ver o razão bancário lançamento a lançamento (crédito e débito, mês a mês, por conta e por categoria), com destaque para quanto do movimento é transferência entre contas próprias — que não é receita nem despesa.
+
 ## [0.9.0] — 19/08/2026  ·  CX-19/08/2026-v0.9.0
 
 ### Adicionado
