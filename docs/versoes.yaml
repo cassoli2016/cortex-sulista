@@ -3,6 +3,17 @@
 #   - a tela Documentação     (#doc)
 #   - o rótulo no rodapé      (CX-DD/MM/AAAA-vX.Y.Z)
 # A versão do TOPO é a corrente e tem de bater com o pyproject.toml.
+- versao: "0.12.0"
+  data: "2026-08-20"
+  adicionado:
+    - >-
+      Nova tela na Controladoria: Balanço Patrimonial (ativo, passivo, patrimônio
+      líquido e liquidez corrente), com evolução mensal e o detalhe por grupo de
+      conta. O dado já existia pronto no ERP (balancodemonstracaocontabil) e
+      nunca tinha virado tela. A tela avisa em destaque quando o fechamento
+      contábil disponível está atrasado — hoje o último fechado é dezembro/2025,
+      8 meses atrás — em vez de deixar parecer que é a posição de hoje.
+
 - versao: "0.11.0"
   data: "2026-08-20"
   adicionado:

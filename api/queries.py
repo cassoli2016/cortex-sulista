@@ -634,7 +634,7 @@ WITH mov AS (
 ),
 contas AS (
   SELECT p.grupo, p.reduzido, p.estrutural,
-         upper(regexp_replace(p.descricao, '[^\\u0001-\\u00ff]', '-', 'g')) AS conta,
+         upper(regexp_replace(p.descricao, '[^\u0001-\u00ff]', '-', 'g')) AS conta,
          coalesce(ag.descricao, 'CLASSIFICAR') AS agrupador
   FROM planoconta p
   LEFT JOIN sulista.agrupadorgerencial ag ON ag.reduzido = p.reduzido
@@ -5507,4 +5507,126 @@ def get_lancamentos_bancarios(dt_de: str, dt_ate: str, conta: str | None = None,
         "dt_de": dt_de, "dt_ate": dt_ate, "conta": conta, "busca": busca,
         "atualizado_em": meta["ts"].isoformat(),
         "fonte": "ERP AVA · contacorrente (razão bancário, lançamento a lançamento) · leitura",
+    }
+
+
+# ============================================================================
+# Balanço Patrimonial — balancodemonstracaocontabil, fechado por competência
+# (mensal) pela Contabilidade. Achado explorando o financeiro: a tabela PARA
+# em dez/2025 — não há UMA linha de 2026 (a Contabilidade não gerou o
+# fechamento ainda, ou não faz mais por aqui). É diferente do "mês corrente
+# incompleto" do resto do painel (hachura): aqui são MESES INTEIROS
+# ausentes, então a tela abre na competência mais recente DISPONÍVEL — nunca
+# tenta cair no mês atual — e avisa a defasagem em destaque, não só no ⓘ.
+#
+# Hierarquia padrão: reduzido 1=ATIVO, 2=PASSIVO (saldo sai NEGATIVO no
+# sinal do ERP — credor —, por isso os totais viram abs() na saída);
+# 11/12/13=Ativo Circulante/Não Circulante/Permanente; 21/22/23=Passivo
+# Circulante/Não Circulante/Patrimônio Líquido. saldoanterior JÁ é o saldo
+# do mês anterior da MESMA conta (conferido no banco: 202512.saldoanterior
+# de reduzido=1 bate exatamente com 202511.saldo) — dá a seta de tendência
+# sem precisar de uma segunda consulta.
+BAL_HEAD_REDUZIDOS = (1, 2, 11, 12, 13, 21, 22, 23)
+
+BAL_COMPETENCIAS_SQL = """
+SELECT DISTINCT anomes FROM balancodemonstracaocontabil ORDER BY anomes DESC
+"""
+
+BAL_KPI_SQL = """
+SELECT reduzido, saldo::float8 AS saldo, saldoanterior::float8 AS saldoanterior
+FROM balancodemonstracaocontabil
+WHERE anomes = %(anomes)s AND reduzido = ANY(%(reduzidos)s)
+"""
+
+# Série mensal dos 4 totais-chave (Ativo, Passivo Circulante, Passivo Não
+# Circulante, Patrimônio Líquido) — só 4 contas × meses disponíveis, então
+# nunca precisa de LIMIT.
+BAL_SERIE_SQL = """
+SELECT anomes, reduzido, saldo::float8 AS saldo
+FROM balancodemonstracaocontabil
+WHERE reduzido IN (1, 21, 22, 23)
+ORDER BY anomes
+"""
+
+# Nível 2 (Circulante/Não Circulante/Permanente) + nível 3 (grupo dentro de
+# cada um), com o nome do plano de contas. Nível 1 (o total) fica de fora —
+# já é o KPI. regexp_replace pelo mesmo motivo do DRE_AG_CONTA_SQL: texto
+# livre do plano de contas pode trazer caractere fora de LATIN1.
+BAL_DETALHE_SQL = r"""
+SELECT b.estrutural, b.reduzido,
+       upper(regexp_replace(p.descricao, '[^-ÿ]', '-', 'g')) AS conta,
+       (CASE WHEN split_part(b.estrutural,'.',3)='0' THEN 1 ELSE 0 END) AS nivel_topo,
+       b.saldo::float8 AS saldo
+FROM balancodemonstracaocontabil b
+LEFT JOIN planoconta p ON p.reduzido = b.reduzido AND p.grupo = b.grupo
+WHERE b.anomes = %(anomes)s
+  AND b.estrutural ~ '^[12]\.[1-9]\.[0-9]\.00\.0000$'
+ORDER BY b.estrutural
+"""
+
+
+def get_balanco(anomes: str | None = None) -> dict:
+    competencias = [r["anomes"] for r in db.query(BAL_COMPETENCIAS_SQL)]
+    if not competencias:
+        return {"competencias": [], "anomes": None, "kpis": None, "serie": [],
+                "ativo": [], "passivo": [],
+                "fonte": "ERP AVA · balancodemonstracaocontabil · leitura"}
+    anomes = anomes if anomes in competencias else competencias[0]
+
+    head = {r["reduzido"]: r for r in db.query(
+        BAL_KPI_SQL, {"anomes": anomes, "reduzidos": list(BAL_HEAD_REDUZIDOS)})}
+
+    def _saldo(red: int, campo: str = "saldo") -> float:
+        r = head.get(red)
+        return abs(r[campo]) if r and r[campo] is not None else 0.0
+
+    ativo, ativo_ant = _saldo(1), _saldo(1, "saldoanterior")
+    ativo_circ = _saldo(11)
+    passivo_circ, passivo_circ_ant = _saldo(21), _saldo(21, "saldoanterior")
+    passivo_naocirc, passivo_naocirc_ant = _saldo(22), _saldo(22, "saldoanterior")
+    pl, pl_ant = _saldo(23), _saldo(23, "saldoanterior")
+    exigivel = passivo_circ + passivo_naocirc
+    exigivel_ant = passivo_circ_ant + passivo_naocirc_ant
+
+    serie_rows = db.query(BAL_SERIE_SQL)
+    por_mes: dict[str, dict] = {}
+    for r in serie_rows:
+        am = r["anomes"]
+        mes_fmt = f"{am[:4]}-{am[4:6]}" if len(am) == 6 else am   # 'YYYYMM' -> 'YYYY-MM' p/ periodoLabel() do front
+        m = por_mes.setdefault(am, {"mes": mes_fmt, "ativo": 0.0, "exigivel": 0.0, "pl": 0.0})
+        if r["reduzido"] == 1:
+            m["ativo"] = abs(r["saldo"] or 0.0)
+        elif r["reduzido"] in (21, 22):
+            m["exigivel"] += abs(r["saldo"] or 0.0)
+        elif r["reduzido"] == 23:
+            m["pl"] = abs(r["saldo"] or 0.0)
+    serie = [por_mes[m] for m in sorted(por_mes)]
+
+    detalhe = db.query(BAL_DETALHE_SQL, {"anomes": anomes})
+    ativo_det = [{"estrutural": r["estrutural"], "conta": r["conta"], "nivel_topo": r["nivel_topo"],
+                   "saldo": r["saldo"]} for r in detalhe if r["estrutural"].startswith("1.")]
+    passivo_det = [{"estrutural": r["estrutural"], "conta": r["conta"], "nivel_topo": r["nivel_topo"],
+                     "saldo": abs(r["saldo"])} for r in detalhe if r["estrutural"].startswith("2.")]
+
+    meses_atras = None
+    try:
+        de = date.today()
+        ano_c, mes_c = int(anomes[:4]), int(anomes[4:6])
+        meses_atras = (de.year - ano_c) * 12 + (de.month - mes_c)
+    except (ValueError, IndexError):
+        pass
+
+    return {
+        "competencias": competencias, "anomes": anomes, "meses_atras": meses_atras,
+        "kpis": {
+            "ativo": ativo, "ativo_circulante": ativo_circ,
+            "passivo_exigivel": exigivel, "passivo_circulante": passivo_circ,
+            "patrimonio_liquido": pl,
+            "liquidez_corrente": (ativo_circ / passivo_circ) if passivo_circ else None,
+        },
+        "kpis_anterior": {
+            "ativo": ativo_ant, "passivo_exigivel": exigivel_ant, "patrimonio_liquido": pl_ant,
+        },
+        "serie": serie, "ativo": ativo_det, "passivo": passivo_det,
+        "fonte": "ERP AVA · balancodemonstracaocontabil (fechamento contábil por competência) · leitura",
     }

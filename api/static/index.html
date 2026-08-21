@@ -1005,6 +1005,7 @@ body.tvfull #btnReport,body.tvmode #btnReport{display:none}
       </button>
       <div class="subs closed" id="subsCtr">
         <a href="#dre" class="sub" data-view="dre" title="DRE Gerencial"><span class="ic" data-ic="dre"></span><span>DRE Gerencial</span></a>
+        <a href="#bal" class="sub" data-view="bal" title="Balanço Patrimonial"><span class="ic" data-ic="dre"></span><span>Balanço Patrimonial</span></a>
         <a href="#cont" class="sub" data-view="cont" title="Contabilidade — ajuste de agrupadores"><span class="ic" data-ic="ctb"></span><span>Contabilidade</span></a>
         <a href="#qual" class="sub" data-view="qual" title="Qualidade — certidões e licenças com vencimento"><span class="ic" data-ic="qualic"></span><span>Qualidade e Certidões</span></a>
         <a href="#orc" class="sub" data-view="orc" title="Orçamento — orçado × realizado"><span class="ic" data-ic="dre"></span><span>Orçamento</span></a>
@@ -1316,6 +1317,12 @@ body.tvfull #btnReport,body.tvmode #btnReport{display:none}
           <div class="field">
             <label for="fLancBusca" title="Busca no histórico do lançamento (texto livre do banco) — não é um cadastro de cliente/fornecedor. Funciona bem para boleto/TED/PIX, que costumam trazer o nome de quem pagou ou recebeu; não funciona para transferência entre contas próprias nem vale-pedágio, que não citam nome.">Cliente/fornecedor</label>
             <input type="search" id="fLancBusca" placeholder="buscar no histórico…" onchange="loadLanc()">
+          </div>
+        </div>
+        <div class="rangegrp" id="grpBal" style="display:none">
+          <div class="field">
+            <label for="fBalAnomes">Competência</label>
+            <select id="fBalAnomes" onchange="loadBal()"></select>
           </div>
         </div>
         <div class="rangegrp" id="grpVeic" style="display:none">
@@ -2783,6 +2790,36 @@ body.tvfull #btnReport,body.tvmode #btnReport{display:none}
           <div class="tablewrap tabroll" style="max-height:640px"><table id="dre-tab"><thead id="dre-head"></thead><tbody id="dre-corpo"></tbody></table></div>
         </div>
       </section>
+
+      <!-- ===================== BALANÇO PATRIMONIAL ===================== -->
+      <section class="view" id="view-bal">
+        <div id="bal-defasagem"></div>
+        <div class="kpis k4" id="kpis-bal"></div>
+        <div class="card">
+          <div class="head"><h2>Evolução patrimonial <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="balancodemonstracaocontabil, reduzido 1 (Ativo), 21+22 (Passivo Circulante + Não Circulante = exigível) e 23 (Patrimônio Líquido), por competência fechada. Ativo = Passivo exigível + PL sempre bate — é a mesma identidade contábil, não uma coincidência.">i</span></h2>
+            <span class="hint" id="hintBal"></span></div>
+          <div class="legend">
+            <span class="k"><i class="sw" style="background:var(--navy-700)"></i>Ativo</span>
+            <span class="k"><i class="sw" style="background:#C03221"></i>Passivo exigível</span>
+            <span class="k"><i class="sw" style="background:#1E7F4F"></i>Patrimônio líquido</span>
+          </div>
+          <div class="chartwrap" id="wrapBal">
+            <svg id="chartBal" viewBox="0 0 960 240" preserveAspectRatio="xMidYMid meet" tabindex="0" role="img"
+                 aria-label="Ativo, passivo exigível e patrimônio líquido por competência."></svg>
+            <div class="tip" id="tipBal"></div>
+          </div>
+        </div>
+        <div class="grid2">
+          <div class="card">
+            <div class="head"><h2>Ativo <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="Circulante, Não Circulante e Permanente (nível 2) com o detalhe por grupo (nível 3) do plano de contas, na competência selecionada.">i</span></h2></div>
+            <div class="tablewrap tabroll"><table><thead><tr><th>Conta</th><th class="num">Saldo</th></tr></thead><tbody id="bal-ativo"></tbody></table></div>
+          </div>
+          <div class="card">
+            <div class="head"><h2>Passivo <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="Circulante, Não Circulante e Patrimônio Líquido (nível 2) com o detalhe por grupo (nível 3) do plano de contas, na competência selecionada.">i</span></h2></div>
+            <div class="tablewrap tabroll"><table><thead><tr><th>Conta</th><th class="num">Saldo</th></tr></thead><tbody id="bal-passivo"></tbody></table></div>
+          </div>
+        </div>
+      </section>
       <!-- ===================== ORDENS DE COMPRA ===================== -->
       <section class="view" id="view-oc">
         <div class="kpis" id="kpis-oc"></div>
@@ -3050,7 +3087,7 @@ const FAIXAS = {
   '4_vencido_91_365':['Vencido 91–365d','b-dang'],
   '5_vencido_mais_365':['Vencido > 365d','b-dang'],
 };
-const VIEWS = { home:'Visão Geral', fluxo:'Fluxo de Caixa e Bancos', receber:'Contas a Receber', pagar:'Contas a Pagar', oc:'Ordens de Compra', custos:'Painel de Custos', agr:'Agregados e Terceiros', mvb:'Make vs Buy', comb:'Combustível', man:'Manutenção', com:'Clientes e RKM', clif:'Consulta de Cliente', crm:'CRM — Leads e Projetos', km:'Análise de KM', torre:'Torre de Controle', veic:'Veículos', veicf:'Consulta de Veículo', mprev:'Manutenção Preventiva', comrast:'Comunicação Rastreadora', mul:'Multas', prog:'Programação Inteligente', jorn:'Jornada do Motorista', jornf:'Ficha de Jornada', cex:'Custos Extras', sac:'SAC / Freetime', port:'Portaria', cop:'Copiloto Cortex', cob:'Régua de Cobrança', extb:'Extrato Bancário', lanc:'Lançamentos Bancários', cont:'Contabilidade', qual:'Qualidade e Certidões', orc:'Orçamento', fech:'Fechamento do Mês', prem:'Premiação de Motoristas', dre:'DRE Gerencial', drecli:'DRE por Cliente', tvfat:'Painel TV — Faturamento', tvope:'Painel TV — Operação', rh:'RH — Vagas', hc:'Headcount', folha:'Custo de Folha', folhaind:'Indicadores de Folha', he:'Horas Extras', gestao:'Gestão', srv:'Saúde do Servidor', doc:'Documentação', anpiso:'Piso Mínimo de Frete', anrntrc:'RNTRC dos Transportadores', telcon:'Consumo e Estatísticas', telcond:'Condução Econômica', telhod:'Hodômetro e Rastro' };
+const VIEWS = { home:'Visão Geral', fluxo:'Fluxo de Caixa e Bancos', receber:'Contas a Receber', pagar:'Contas a Pagar', oc:'Ordens de Compra', custos:'Painel de Custos', agr:'Agregados e Terceiros', mvb:'Make vs Buy', comb:'Combustível', man:'Manutenção', com:'Clientes e RKM', clif:'Consulta de Cliente', crm:'CRM — Leads e Projetos', km:'Análise de KM', torre:'Torre de Controle', veic:'Veículos', veicf:'Consulta de Veículo', mprev:'Manutenção Preventiva', comrast:'Comunicação Rastreadora', mul:'Multas', prog:'Programação Inteligente', jorn:'Jornada do Motorista', jornf:'Ficha de Jornada', cex:'Custos Extras', sac:'SAC / Freetime', port:'Portaria', cop:'Copiloto Cortex', cob:'Régua de Cobrança', extb:'Extrato Bancário', lanc:'Lançamentos Bancários', cont:'Contabilidade', qual:'Qualidade e Certidões', orc:'Orçamento', fech:'Fechamento do Mês', prem:'Premiação de Motoristas', dre:'DRE Gerencial', bal:'Balanço Patrimonial', drecli:'DRE por Cliente', tvfat:'Painel TV — Faturamento', tvope:'Painel TV — Operação', rh:'RH — Vagas', hc:'Headcount', folha:'Custo de Folha', folhaind:'Indicadores de Folha', he:'Horas Extras', gestao:'Gestão', srv:'Saúde do Servidor', doc:'Documentação', anpiso:'Piso Mínimo de Frete', anrntrc:'RNTRC dos Transportadores', telcon:'Consumo e Estatísticas', telcond:'Condução Econômica', telhod:'Hodômetro e Rastro' };
 const periodoLabel = p => { if(p==='atrasado') return 'Atrasado'; const [y,m]=p.split('-'); return MES[+m-1]+'/'+y.slice(2); };
 const fmtD = s => { if(!s) return ''; const [y,m,dd]=s.split('-'); return dd+'/'+m+'/'+y; };
 // o ERP devolve "YYYY-MM-DD HH24:MI" (to_char); a ficha do veículo mostrava cru
@@ -3134,6 +3171,7 @@ let progSeq = 0;
 let DATACOB = null;
 let DATAEXTB = null, extbSeq = 0;
 let DATALANC = null, lancSeq = 0;
+let DATABAL = null, balSeq = 0;
 let DATARENT = null;
 let tvTimer = null, tvClock = null, TV_NEXT = 0;
 let rentSeq = 0;
@@ -3211,7 +3249,7 @@ function toggleGroup(gid,sid,key){
 const VIEW_GROUP = {home:'',cop:'',
   com:'Com',clif:'Com',crm:'Com',rent:'Com',drecli:'Com',
   fluxo:'Fin',receber:'Fin',pagar:'Fin',cob:'Fin',extb:'Fin',lanc:'Fin',
-  dre:'Ctr',cont:'Ctr',qual:'Ctr',orc:'Ctr',fech:'Ctr',
+  dre:'Ctr',bal:'Ctr',cont:'Ctr',qual:'Ctr',orc:'Ctr',fech:'Ctr',
   torre:'Ope',prog:'Ope',jorn:'Ope',jornf:'Ope',cex:'Ope',sac:'Ope',port:'Ope',km:'Ope',agr:'Ope',mvb:'Ope',
   veic:'Fro',veicf:'Fro',mprev:'Fro',comrast:'Fro',comb:'Fro',man:'Fro',mul:'Fro',prem:'Fro',
   oc:'Sup',custos:'Sup',
@@ -3277,6 +3315,8 @@ function qsView(k){
     if(V('fEmiAte'))p.set('dt_ate',V('fEmiAte'));
     if(V('fLancConta'))p.set('conta',V('fLancConta'));
     if(T('fLancBusca'))p.set('busca',T('fLancBusca'));
+  } else if(k==='bal'){
+    if(V('fBalAnomes'))p.set('anomes',V('fBalAnomes'));
   } else if(k==='man'){
     if(V('fFilial'))p.set('filial',V('fFilial'));
     if(V('fEmiDe'))p.set('dt_de',V('fEmiDe'));
@@ -3418,7 +3458,7 @@ function router(){
   navRegistraUso(v);
   syncGroups(v);
   const anpiso = (v==='anpiso');
-  const dre = (v==='dre'), oc = (v==='oc'), agr = (v==='agr'), mvb = (v==='mvb'), comb = (v==='comb'), man = (v==='man'), com = (v==='com'), home = (v==='home'), kmv = (v==='km'), torre = (v==='torre'), veic = (v==='veic'), mul = (v==='mul'), prog = (v==='prog'), cop = (v==='cop'), cob = (v==='cob'), rent = (v==='rent'), contab = (v==='cont'), dreCli = (v==='drecli'), orc = (v==='orc'), lanc = (v==='lanc');
+  const dre = (v==='dre'), oc = (v==='oc'), agr = (v==='agr'), mvb = (v==='mvb'), comb = (v==='comb'), man = (v==='man'), com = (v==='com'), home = (v==='home'), kmv = (v==='km'), torre = (v==='torre'), veic = (v==='veic'), mul = (v==='mul'), prog = (v==='prog'), cop = (v==='cop'), cob = (v==='cob'), rent = (v==='rent'), contab = (v==='cont'), dreCli = (v==='drecli'), orc = (v==='orc'), lanc = (v==='lanc'), bal = (v==='bal');
   // torre: só filial; auto-refresh de 120s enquanto ativa
   if(torreTimer){ clearInterval(torreTimer); torreTimer=null; }
   if(torre){ torreTimer=setInterval(()=>{ if(currentView()==='torre') loadTorre(true); }, 120000); }
@@ -3439,6 +3479,7 @@ function router(){
   document.getElementById('grpCob').style.display = cob ? 'flex' : 'none';
   document.getElementById('grpRent').style.display = rent ? 'flex' : 'none';
   document.getElementById('grpLanc').style.display = lanc ? 'flex' : 'none';
+  document.getElementById('grpBal').style.display = bal ? 'flex' : 'none';
   const ges = (v==='gestao');
   const fbar=document.getElementById('filterbar'); if(fbar) fbar.style.display = semFilterbar(v) ? 'none' : '';
   const metaEl=document.getElementById('meta'); if(metaEl) metaEl.style.display = (cop||ges||v==='srv'||v==='veicf'||v==='clif'||v==='jorn'||v==='jornf'||v==='cex'||v==='sac'||v==='mprev'||v==='comrast'||v==='qual'||v==='port'||v==='crm'||v==='rh'||v==='hc'||v==='folha'||v==='folhaind'||v==='he'||v==='custos'||v==='prem'||v==='doc') ? 'none' : '';
@@ -3452,19 +3493,20 @@ function router(){
   document.getElementById('grpComb').style.display = comb ? 'flex' : 'none';
   document.getElementById('grpMan').style.display = man ? 'flex' : 'none';
   document.getElementById('grpVeic').style.display = veic ? 'flex' : 'none';
-  document.getElementById('grpVenc').style.display = (dre||oc||agr||mvb||comb||man||com||kmv||torre||veic||mul||prog||cop||cob||rent||contab||dreCli||orc||anpiso||lanc) ? 'none' : 'flex';
-  document.getElementById('fData').parentElement.style.display = (dre||oc||agr||mvb||comb||man||com||kmv||torre||veic||mul||prog||cop||cob||rent||contab||dreCli||orc||anpiso||lanc) ? 'none' : 'flex';
+  document.getElementById('grpVenc').style.display = (dre||oc||agr||mvb||comb||man||com||kmv||torre||veic||mul||prog||cop||cob||rent||contab||dreCli||orc||anpiso||lanc||bal) ? 'none' : 'flex';
+  document.getElementById('fData').parentElement.style.display = (dre||oc||agr||mvb||comb||man||com||kmv||torre||veic||mul||prog||cop||cob||rent||contab||dreCli||orc||anpiso||lanc||bal) ? 'none' : 'flex';
   const fFil = document.getElementById('fFilial');
   // Filial some onde a fonte não tem esse recorte OU a API não aceita o parâmetro
   // (DRE/MvB consolidados; Veículos/Multas/Programação/Contabilidade não filtram
   // por filial). DRE por Cliente ACEITA filial (dre_cliente/sql.py) — fica visível.
   // Lançamentos Bancários também: contacorrente é por CONTA (empresa), sem coluna de filial.
-  fFil.parentElement.style.display = (dre||mvb||comb||veic||mul||prog||contab||orc||lanc) ? 'none' : 'flex';
+  // Balanço idem: balancodemonstracaocontabil é consolidado da empresa, sem filial.
+  fFil.parentElement.style.display = (dre||mvb||comb||veic||mul||prog||contab||orc||lanc||bal) ? 'none' : 'flex';
   // carga da vista: dispara se não há dados OU se os filtros visíveis
   // divergem dos usados na última carga (nunca mostrar dado velho com filtro novo)
   const key=viewKey(v);
-  const DATAMAP={fin:DATA,oc:DATAOC,agr:DATAAGR,anpiso:DATAANPISO,anrntrc:DATAANRNTRC,telcon:DATATELCON,telcond:DATATELCOND,telhod:DATATELHOD,mvb:DATAMVB,comb:DATACOMB,man:DATAMAN,com:DATACOM,clif:DATACLIF,dre:DATADRE,drecli:DATADRECLI,home:DATAHOME,km:DATAKM,torre:DATATORRE,veic:DATAVEIC,veicf:DATAVEICF,mul:DATAMUL,prog:DATAPROG,jorn:DATAJORN,jornf:DATAJORNF,cex:DATACEX,sac:DATASAC,mprev:DATAMPREV,comrast:DATACOMRAST,qual:DATAQUAL,port:DATAPORT,crm:DATACRM,rh:DATARH,hc:DATAHC,folha:DATAFOLHA,folhaind:DATAFOLHAIND,he:DATAHE,custos:DATACUSTOS,cob:DATACOB,extb:DATAEXTB,lanc:DATALANC,rent:DATARENT,cont:DATACONT,orc:DATAORC,fech:DATAFECH,prem:DATAPREM,gestao:DATAGES,srv:DATASRV,doc:DATADOC,tvfat:null,tvope:null,cop:(COP_MSGS.length?{}:null)};
-  const LOADMAP={fin:load,oc:loadOc,agr:loadAgr,anpiso:loadAnpiso,anrntrc:loadAnrntrc,telcon:loadTelcon,telcond:loadTelcond,telhod:loadTelhod,mvb:loadMvb,comb:loadComb,man:loadMan,com:loadCom,clif:loadClif,dre:loadDre,drecli:loadDreCli,home:loadHome,km:loadKm,torre:loadTorre,veic:loadVeic,veicf:loadVeicf,mul:loadMul,prog:loadProg,jorn:loadJorn,jornf:loadJornf,cex:loadCex,sac:loadSac,mprev:loadMPrev,comrast:loadComRast,qual:loadQual,port:loadPort,crm:loadCrm,rh:loadRh,hc:loadHc,folha:loadFolha,folhaind:loadFolhaInd,he:loadHe,custos:loadCustos,cob:loadCob,extb:loadExtb,lanc:loadLanc,rent:loadRent,cont:loadCont,orc:loadOrc,fech:loadFech,prem:loadPrem,gestao:loadGestao,srv:loadSrv,doc:loadDoc,cop:loadCop,tvfat:loadTvFat,tvope:loadTvOpe};
+  const DATAMAP={fin:DATA,oc:DATAOC,agr:DATAAGR,anpiso:DATAANPISO,anrntrc:DATAANRNTRC,telcon:DATATELCON,telcond:DATATELCOND,telhod:DATATELHOD,mvb:DATAMVB,comb:DATACOMB,man:DATAMAN,com:DATACOM,clif:DATACLIF,dre:DATADRE,bal:DATABAL,drecli:DATADRECLI,home:DATAHOME,km:DATAKM,torre:DATATORRE,veic:DATAVEIC,veicf:DATAVEICF,mul:DATAMUL,prog:DATAPROG,jorn:DATAJORN,jornf:DATAJORNF,cex:DATACEX,sac:DATASAC,mprev:DATAMPREV,comrast:DATACOMRAST,qual:DATAQUAL,port:DATAPORT,crm:DATACRM,rh:DATARH,hc:DATAHC,folha:DATAFOLHA,folhaind:DATAFOLHAIND,he:DATAHE,custos:DATACUSTOS,cob:DATACOB,extb:DATAEXTB,lanc:DATALANC,rent:DATARENT,cont:DATACONT,orc:DATAORC,fech:DATAFECH,prem:DATAPREM,gestao:DATAGES,srv:DATASRV,doc:DATADOC,tvfat:null,tvope:null,cop:(COP_MSGS.length?{}:null)};
+  const LOADMAP={fin:load,oc:loadOc,agr:loadAgr,anpiso:loadAnpiso,anrntrc:loadAnrntrc,telcon:loadTelcon,telcond:loadTelcond,telhod:loadTelhod,mvb:loadMvb,comb:loadComb,man:loadMan,com:loadCom,clif:loadClif,dre:loadDre,bal:loadBal,drecli:loadDreCli,home:loadHome,km:loadKm,torre:loadTorre,veic:loadVeic,veicf:loadVeicf,mul:loadMul,prog:loadProg,jorn:loadJorn,jornf:loadJornf,cex:loadCex,sac:loadSac,mprev:loadMPrev,comrast:loadComRast,qual:loadQual,port:loadPort,crm:loadCrm,rh:loadRh,hc:loadHc,folha:loadFolha,folhaind:loadFolhaInd,he:loadHe,custos:loadCustos,cob:loadCob,extb:loadExtb,lanc:loadLanc,rent:loadRent,cont:loadCont,orc:loadOrc,fech:loadFech,prem:loadPrem,gestao:loadGestao,srv:loadSrv,doc:loadDoc,cop:loadCop,tvfat:loadTvFat,tvope:loadTvOpe};
   if(!DATAMAP[key] || (key!=='home' && LOADEDQS[key]!==qsView(key))) LOADMAP[key]();
   // mobile: estado da navegação inferior + fecha gaveta/painel de filtros
   document.querySelectorAll('.bottomnav [data-bview]').forEach(a=>a.classList.toggle('ativo', a.dataset.bview===v));
@@ -5054,6 +5096,14 @@ function setActive(svgId,i,clientY,announce){
     tipRow(tip,'Débito',BRL.format(r.debito||0),{borderTop:'3px solid #C03221'});
     tipRow(tip,'Líquido',BRL.format((r.credito||0)-(r.debito||0)),null);
     liveTxt=`${periodoLabel(r.mes)}: crédito ${BRL.format(r.credito||0)}, débito ${BRL.format(r.debito||0)}`;
+  } else if(g.kind==='bal'){
+    const r=g.rows[i];
+    tt.textContent=periodoLabel(r.mes);
+    tip.append(tt);
+    tipRow(tip,'Ativo',BRL.format(r.ativo||0),{borderTop:'3px solid '+CC.navy700});
+    tipRow(tip,'Passivo exigível',BRL.format(r.exigivel||0),{borderTop:'3px solid #C03221'});
+    tipRow(tip,'Patrimônio líquido',BRL.format(r.pl||0),{borderTop:'3px solid #1E7F4F'});
+    liveTxt=`${periodoLabel(r.mes)}: ativo ${BRL.format(r.ativo||0)}, PL ${BRL.format(r.pl||0)}`;
   } else if(g.kind==='hdia'){
     const r=g.rows[i];
     const rat=(r.meta>0)?(r.realizado||0)/r.meta:null;
@@ -10936,6 +10986,103 @@ async function loadDre(){
     if(seq===dreSeq){ btn.disabled=false; document.getElementById('content').classList.remove('loading'); }
   }
 }
+
+/* ---------------- Balanço Patrimonial ---------------- */
+function balAnomesLbl(a){ return MES[+a.slice(4,6)-1]+'/'+a.slice(0,4); }
+async function loadBal(){
+  skelKpis('kpis-bal',4);
+  const seq = ++balSeq;
+  const btn=document.getElementById('btnRefresh'); if(btn) btn.disabled=true;
+  document.getElementById('content').classList.add('loading');
+  try{
+    const q=qsView('bal');
+    const r=await fetch('/api/financeiro/balanco?'+q,{cache:'no-store'});
+    const d=await r.json();
+    if(seq!==balSeq) return;
+    if(!r.ok){ showBanner(d.mensagem||'Erro ao consultar o balanço patrimonial.', d.detalhe); return; }
+    hideBanner(); DATABAL=d; renderBal(d); LOADEDQS.bal=qsView('bal');
+  }catch(e){ if(seq===balSeq) showBanner('Não foi possível falar com a API.', e.message); }
+  finally{ if(seq===balSeq){ if(btn) btn.disabled=false; document.getElementById('content').classList.remove('loading'); } }
+}
+function balLinha(r){
+  return `<tr${r.nivel_topo?' style="font-weight:700;background:var(--n50,#F7F8F9)"':''}>`
+    +`<td style="padding-left:${r.nivel_topo?12:28}px">${esc(r.conta)}</td>`
+    +`<td class="num">${BRL.format(r.saldo)}</td></tr>`;
+}
+function renderBal(d){
+  {
+    const sel=document.getElementById('fBalAnomes');
+    if(sel && (d.competencias||[]).length){
+      const atual=sel.value;
+      sel.innerHTML=(d.competencias||[]).map(a=>`<option value="${a}">${balAnomesLbl(a)}</option>`).join('');
+      sel.value = atual || d.anomes || '';
+    }
+  }
+  const av=document.getElementById('bal-defasagem');
+  if(!d.anomes){
+    av.innerHTML='<div class="toast t-warn"><b>Sem balanço fechado</b>balancodemonstracaocontabil não tem nenhuma competência gravada.</div>';
+    document.getElementById('kpis-bal').innerHTML='';
+    document.getElementById('bal-ativo').innerHTML='';
+    document.getElementById('bal-passivo').innerHTML='';
+    document.getElementById('chartBal').innerHTML='';
+    return;
+  }
+  const ma=d.meses_atras||0;
+  av.innerHTML = ma>=2
+    ? `<div class="toast t-warn"><b>Balanço desatualizado</b>Última competência fechada no ERP: ${balAnomesLbl(d.anomes)} — `
+      +`${ma} meses atrás. A Contabilidade ainda não gerou o fechamento seguinte; os números abaixo são reais, só não são de hoje.</div>`
+    : '';
+  const k=d.kpis||{}, ka=d.kpis_anterior||{};
+  const liq=k.liquidez_corrente;
+  document.getElementById('kpis-bal').innerHTML=[
+    kpi('Ativo total', BRL.format(k.ativo||0), balAnomesLbl(d.anomes), '',
+        'balancodemonstracaocontabil, reduzido=1 (ATIVO), na competência selecionada.',
+        trendChip(k.ativo, ka.ativo, {titulo:'Competência anterior: '+BRL.format(ka.ativo||0)})),
+    kpi('Passivo exigível', BRL.format(k.passivo_exigivel||0), 'circulante + não circulante (sem PL)', '',
+        'Soma dos reduzidos 21 (Passivo Circulante) + 22 (Passivo Não Circulante) — dívidas e obrigações com terceiros, excluindo patrimônio líquido.',
+        trendChip(k.passivo_exigivel, ka.passivo_exigivel, {invert:true, titulo:'Competência anterior: '+BRL.format(ka.passivo_exigivel||0)})),
+    kpi('Patrimônio líquido', BRL.format(k.patrimonio_liquido||0), '', k.patrimonio_liquido<0?'neg':'pos',
+        'balancodemonstracaocontabil, reduzido=23 (Patrimônio Líquido).',
+        trendChip(k.patrimonio_liquido, ka.patrimonio_liquido, {titulo:'Competência anterior: '+BRL.format(ka.patrimonio_liquido||0)})),
+    kpi('Liquidez corrente', liq!=null?liq.toLocaleString('pt-BR',{maximumFractionDigits:2}):'—',
+        liq!=null?(liq>=1?'ativo circulante cobre o passivo circulante':'passivo circulante maior que o ativo circulante'):'sem passivo circulante',
+        liq!=null?(liq>=1?'pos':'neg'):'',
+        'Ativo Circulante ÷ Passivo Circulante (reduzidos 11 e 21). Abaixo de 1 significa que as obrigações de curto prazo superam os bens e direitos de curto prazo.'),
+  ].join('');
+  document.getElementById('hintBal').textContent = (d.serie||[]).length+' competências disponíveis · '+balAnomesLbl(d.anomes)+' selecionada';
+  chartBalRender(d.serie||[]);
+  document.getElementById('bal-ativo').innerHTML=(d.ativo||[]).map(balLinha).join('')
+    || '<tr><td colspan="2" style="color:var(--n500)">sem dados nesta competência</td></tr>';
+  document.getElementById('bal-passivo').innerHTML=(d.passivo||[]).map(balLinha).join('')
+    || '<tr><td colspan="2" style="color:var(--n500)">sem dados nesta competência</td></tr>';
+}
+function chartBalRender(serie){
+  const svg=document.getElementById('chartBal');
+  GEOM['chartBal']=null; ACTIVE['chartBal']=-1;
+  if(!serie.length){ svg.innerHTML='<text x="480" y="120" text-anchor="middle" fill="#6E7883" font-size="14">sem dados</text>'; return; }
+  const W=960,H=240,mL=64,mR=16,mT=20,mB=30, iw=W-mL-mR, ih=H-mT-mB;
+  const n=serie.length, bandW=iw/n;
+  const maxV=Math.max(1,...serie.map(r=>Math.max(r.ativo,r.exigivel,r.pl)));
+  const tks=niceTicks(0,maxV,4), top=tks[tks.length-1], u=unitOf(top);
+  const y=v=>mT+ih-(v/top)*ih, y0=y(0);
+  const px=i=>mL+bandW*i+bandW/2;
+  let s=`<text x="${mL}" y="${mT-6}" font-size="11" fill="#6E7883" font-weight="600" letter-spacing="1.5">${u.t}</text>`;
+  s+=`<rect id="chartBal-hband" x="0" y="${mT-8}" width="${bandW}" height="${ih+8}" fill="${CC.navy100}" opacity="0"/>`;
+  tks.forEach(v=>{ const yy=y(v);
+    s+=`<line x1="${mL}" y1="${yy}" x2="${W-mR}" y2="${yy}" stroke="${v===0?'#C2C8D0':'#ECEEF1'}" stroke-width="1"/>`;
+    s+=`<text x="${mL-8}" y="${yy+4}" text-anchor="end" font-size="10" fill="#6E7883" font-family="IBM Plex Mono,monospace">${NMI.format(v/u.d)}</text>`; });
+  const linha=(campo,cor)=>`<polyline points="${serie.map((r,i)=>`${px(i)},${y(r[campo])}`).join(' ')}" fill="none" stroke="${cor}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>`;
+  s+=linha('exigivel','#C03221')+linha('pl','#1E7F4F')+linha('ativo',CC.navy700);
+  // rótulo só a cada N meses (36 competências não cabem uma a uma sem colidir)
+  const passo=Math.max(1,Math.round(n/10));
+  serie.forEach((r,i)=>{ if(i%passo===0 || i===n-1) s+=`<text x="${px(i)}" y="${H-mB+16}" text-anchor="middle" font-size="10" fill="#4F5860">${periodoLabel(r.mes)}</text>`; });
+  s+=`<line id="chartBal-xhair" x1="0" x2="0" y1="${mT-8}" y2="${y0}" stroke="${CC.navy400}" stroke-width="1" opacity="0"/>`;
+  s+=`<rect x="${mL}" y="${mT-8}" width="${iw}" height="${ih+8}" fill="transparent"/>`;
+  svg.innerHTML=s;
+  GEOM['chartBal']={kind:'bal',rows:serie,n,bandW,mL,W,px,topY:mT-8,botY:y0,wrap:'wrapBal',tip:'tipBal'};
+  bindHover('chartBal');
+}
+
 const compLabel = c => { const [y,m]=c.split('-'); return MES[+m-1]+'/'+y.slice(2); };
 function renderDre(d){
   if(!document.getElementById('fCompDe').value) document.getElementById('fCompDe').value=d.comp_de;
@@ -12373,6 +12520,7 @@ boot();
       <button class="dgrp-h" onclick="toggleDGrp(this)"><span>Controladoria</span><span class="dchev">›</span></button>
       <div class="dgrp-b">
         <a href="#dre" onclick="fecharDrawer()"><span class="ic" data-ic="dre"></span>DRE Gerencial</a>
+        <a href="#bal" onclick="fecharDrawer()"><span class="ic" data-ic="dre"></span>Balanço Patrimonial</a>
         <a href="#cont" onclick="fecharDrawer()"><span class="ic" data-ic="ctb"></span>Contabilidade</a>
         <a href="#qual" onclick="fecharDrawer()"><span class="ic" data-ic="qualic"></span>Qualidade e Certidões</a>
         <a href="#orc" onclick="fecharDrawer()"><span class="ic" data-ic="dre"></span>Orçamento</a>

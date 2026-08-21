@@ -113,10 +113,10 @@ grupos:
 
   - nome: Controladoria
     resumo: >-
-      Resultado por competência em cascata, margem por cliente, classificação
-      contábil, orçamento contra realizado, previsão de fechamento do mês e o
-      controle de certidões e licenças.
-    telas: [dre, drecli, cont, orc, fech, qual]
+      Resultado por competência em cascata, balanço patrimonial, margem por
+      cliente, classificação contábil, orçamento contra realizado, previsão
+      de fechamento do mês e o controle de certidões e licenças.
+    telas: [dre, bal, drecli, cont, orc, fech, qual]
 
   - nome: Comercial
     resumo: >-

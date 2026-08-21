@@ -4,6 +4,11 @@ Gerado de `docs/versoes.yaml` por `scripts/gerar_changelog.py` — não editar �
 Formato [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/),
 versionamento [SemVer](https://semver.org/lang/pt-BR/).
 
+## [0.12.0] — 20/08/2026  ·  CX-20/08/2026-v0.12.0
+
+### Adicionado
+- Nova tela na Controladoria: Balanço Patrimonial (ativo, passivo, patrimônio líquido e liquidez corrente), com evolução mensal e o detalhe por grupo de conta. O dado já existia pronto no ERP (balancodemonstracaocontabil) e nunca tinha virado tela. A tela avisa em destaque quando o fechamento contábil disponível está atrasado — hoje o último fechado é dezembro/2025, 8 meses atrás — em vez de deixar parecer que é a posição de hoje.
+
 ## [0.11.0] — 20/08/2026  ·  CX-20/08/2026-v0.11.0
 
 ### Adicionado
