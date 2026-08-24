@@ -9979,20 +9979,50 @@ function renderTorre(d){
   // frota toda; aqui o que interessa é caminhão rodando que parou de reportar
   const _hAgo = s => { if(!s) return null; const [dt,hm]=s.split(' ');
     return (Date.now()-new Date(dt+'T'+hm+':00').getTime())/3600000; };
-  const mudos=(d.transito||[]).filter(t=>{ const h=_hAgo(t.posicao_em); return h==null || h>6; }).length;
-  document.getElementById('kpis-torre').innerHTML=[
-    kpi('Em trânsito', k.em_transito.toLocaleString('pt-BR'), k.saidas_hoje+' saídas hoje · '+k.chegadas_previstas_hoje+' chegadas previstas hoje', ''),
-    kpi('Atrasadas', k.atrasadas.toLocaleString('pt-BR'), 'previsão de chegada vencida', k.atrasadas>0?'neg':'pos', null,
-      k.em_transito?statChip(k.atrasadas>0?'bad':'good', pct(k.atrasadas,k.em_transito)+' das viagens',
-        'Viagem em trânsito cuja previsão de chegada já passou. O tempo de atraso aparece no badge de cada linha.',
-        k.atrasadas>0?'sevCrit':'sevOk'):''),
-    kpi('Sem posição recente', mudos.toLocaleString('pt-BR'), 'viagens em trânsito sem transmitir há mais de 6h',
-      mudos>0?'neg':'pos', null,
-      statChip(mudos>0?'warn':'good', mudos>0?'rastreador mudo':'todos reportando',
-        'Caminhão em viagem que parou de transmitir posição. Pode ser área sem sinal, equipamento desligado ou veículo parado — em todos os casos a torre está cega naquela viagem.',
-        mudos>0?'sevWarn':'sevOk')),
-    kpi('Veículos monitorados', k.veiculos_monitorados.toLocaleString('pt-BR'), k.com_posicao_24h+' com posição nas últimas 24h', ''),
-  ].join('');
+  // Os 4 cartões da Torre são de TELEMETRIA. O que era operação (em trânsito,
+  // atrasadas, sem posição) continua visível sem perda: "em trânsito" e
+  // "atrasadas" estão no hint do mapa e na própria tabela de viagens, que
+  // ordena as atrasadas primeiro e marca a posição velha em âmbar/vermelho.
+  //
+  // A telemetria vem do CACHE local da Gobrax, não de agora — a Torre recarrega
+  // a cada 2 min e a coleta leva 73 s. Por isso todo cartão carrega a data da
+  // coleta no subtítulo: sem isso, dado de dias atrás seria lido como ao vivo
+  // numa tela que o resto é ao vivo.
+  const t=d.telemetria||{};
+  if(!t.disponivel){
+    document.getElementById('kpis-torre').innerHTML=
+      kpi('Telemetria', 'sem dados', esc(t.motivo||'nenhuma coleta gravada'), 'warn',
+          'Os cartões de telemetria leem o cache local da Gobrax (data/telemetria.db), alimentado pela coleta em segundo plano. Enquanto não houver coleta, não há o que mostrar — a Torre continua funcionando com mapa e viagens.');
+  } else {
+    const idade = t.dias_atras==null ? '' :
+      (t.dias_atras<=0 ? 'coleta de hoje' : 'coleta de '+t.dias_atras+' dia'+(t.dias_atras===1?'':'s')+' atrás');
+    const velho = (t.dias_atras||0) > 2;
+    const kml=t.km_l_frota, alvo=t.alvo_km_l;
+    document.getElementById('kpis-torre').innerHTML=[
+      kpi('Consumo da frota', kml!=null?fmtKmL(kml):'n/d',
+          (alvo?('alvo '+fmtKmL(alvo)+' · '):'')+idade,
+          kml==null?'':(kml>=alvo?'pos':'neg'),
+          'Km rodado ÷ litros consumidos de TODA a frota telemetrada — não é a média das médias, que faria um veículo de 200 km pesar igual a um de 20.000. Fonte: coleta da Gobrax gravada em cache local.',
+          kml!=null&&alvo?statChip(kml>=alvo?'good':'bad',
+            (kml>=alvo?'+':'')+(100*(kml-alvo)/alvo).toLocaleString('pt-BR',{maximumFractionDigits:0})+'% vs alvo',
+            'Distância para o alvo de '+fmtKmL(alvo)+'.', kml>=alvo?'sevOk':'sevCrit'):''),
+      kpi('Abaixo do alvo', (t.abaixo_do_alvo||0).toLocaleString('pt-BR')+' veículos',
+          'de '+(t.com_consumo_valido||0)+' com leitura válida · '+idade,
+          (t.abaixo_do_alvo||0)>0?'warn':'pos',
+          'Veículos cujo km/l ficou abaixo do alvo na competência coletada. O denominador exclui leitura implausível (fora de 0,5 a 15 km/l): nesses casos o problema é o odômetro, não o motorista.'
+          +(t.leitura_suspeita?' Há '+t.leitura_suspeita+' com leitura descartada por isso.':'')),
+      kpi('Freada brusca', t.freadas_alta_por_mil_km!=null
+            ? t.freadas_alta_por_mil_km.toLocaleString('pt-BR',{maximumFractionDigits:1})+' /1.000 km' : 'n/d',
+          (t.freadas_alta||0).toLocaleString('pt-BR')+' no total · '+idade,
+          (t.freadas_alta_por_mil_km||0)>15?'neg':'',
+          'Freadas de alta intensidade por mil quilômetros. Normalizado pelo km porque o total absoluto só diz quem rodou mais, não quem dirige pior. É o indicador de risco que antecede sinistro.'),
+      kpi('Velocidade média', t.vel_media!=null?t.vel_media.toLocaleString('pt-BR',{maximumFractionDigits:0})+' km/h':'n/d',
+          (t.veiculos||0)+' veículos telemetrados · '+idade, '',
+          'Média das velocidades médias reportadas pela Gobrax na competência '+(t.competencia||'')+'. Serve para ler o consumo junto: velocidade alta puxa o km/l para baixo.',
+          velho?statChip('warn','dado de '+t.dias_atras+'d atrás',
+            'A telemetria vem de coleta em segundo plano, não é ao vivo como o mapa. Última coleta: '+(t.coletado_em||'?')+'.','sevWarn'):''),
+    ].join('');
+  }
   document.getElementById('hintTorre').textContent='posição da rastreadora · atualiza a cada 2 min';
   torreMapa();
   const _dur = h => h==null?'' : (h<1 ? Math.round(h*60)+' min' : (h<48 ? Math.round(h)+'h' : (h/24).toFixed(1).replace('.',',')+' dias'));

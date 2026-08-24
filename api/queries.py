@@ -3039,8 +3039,18 @@ def get_torre(filial: int | None = None) -> dict:
         "chegadas_previstas_hoje": sum(
             1 for t in transito if (t["previsao_chegada"] or "").startswith(hoje)),
     }
+    # Telemetria dos cartões: SÓ do cache local, nunca dispara coleta — a Torre
+    # recarrega a cada 2 min e a coleta na Gobrax leva 73 s. Falha aqui não pode
+    # derrubar a torre, que é tela de operação ao vivo.
+    try:
+        from api.gobrax.torre import resumo as _tel
+        telemetria = _tel()
+    except Exception:  # noqa: BLE001
+        telemetria = {"disponivel": False, "motivo": "telemetria indisponível"}
+
     return {
         "kpis": kpis, "posicoes": posicoes, "transito": transito,
+        "telemetria": telemetria,
         "filial": filial,
         "atualizado_em": meta["ts"].isoformat(),
         "fonte": "ERP AVA · veiculo_posicao (rastreamento ao vivo) × programação de embarque",

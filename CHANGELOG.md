@@ -4,6 +4,14 @@ Gerado de `docs/versoes.yaml` por `scripts/gerar_changelog.py` — não editar �
 Formato [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/),
 versionamento [SemVer](https://semver.org/lang/pt-BR/).
 
+## [0.18.0] — 24/08/2026  ·  CX-24/08/2026-v0.18.0
+
+### Alterado
+- Os quatro cartões do topo da Torre de Controle passaram a mostrar TELEMETRIA: consumo da frota contra o alvo, quantos veículos estão abaixo do alvo, freadas bruscas por mil quilômetros e velocidade média. Antes mostravam viagens em trânsito, atrasadas e sem posição — informação que continua na tela, no resumo do mapa e na tabela de viagens, que já ordena as atrasadas primeiro e marca em âmbar e vermelho quem parou de transmitir.
+- O consumo da frota é o km total dividido pelos litros totais, não a média das médias — assim um veículo que rodou 200 km não pesa igual a um que rodou 20 mil. Veículo com leitura implausível fica fora da conta e o cartão diz quantos foram descartados.
+- A freada brusca aparece por mil quilômetros, não em total absoluto: o total só diz quem rodou mais, e o que interessa é quem dirige com mais risco.
+- Todos os quatro cartões dizem de quando é a coleta, e um selo avisa quando ela tem mais de dois dias. A telemetria vem de coleta em segundo plano, enquanto o mapa é ao vivo — sem esse aviso, dado de dias atrás seria lido como do momento numa tela em que todo o resto é.
+
 ## [0.17.1] — 24/08/2026  ·  CX-24/08/2026-v0.17.1
 
 ### Alterado
