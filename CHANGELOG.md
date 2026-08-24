@@ -4,6 +4,16 @@ Gerado de `docs/versoes.yaml` por `scripts/gerar_changelog.py` — não editar �
 Formato [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/),
 versionamento [SemVer](https://semver.org/lang/pt-BR/).
 
+## [0.27.0] — 24/08/2026  ·  CX-24/08/2026-v0.27.0
+
+### Adicionado
+- Os limites de cheque empresa entraram no Fluxo de Caixa e no Fluxo Consolidado. Saldo negativo deixou de ser uma coisa so: no grafico do fluxo aparece agora uma FAIXA entre o zero e os R$ 485 mil de limite - enquanto a linha esta dentro dela o mes se resolve com rotativo (caro, mas contratado); abaixo dela nao ha cobertura. O KPI diz quanto existe contratado, em quais bancos e a que taxa efetiva, e avisa que e piso e nao caixa.
+- No Fluxo Consolidado cada periodo negativo passou a dizer se cabe no limite ("no limite") ou se passa dele ("sem cobertura", com o valor que falta). Um aviso no topo resume quantos periodos estouram, qual o maior descoberto e lembra que antecipar recebivel sai por ~2% a.m. contra ~15,7% do rotativo - de seis a oito vezes mais barato.
+- Limite proximo do vencimento vira aviso nas duas telas: perder a folga do Santander em 25/10 derruba a reserva de emergencia de R$ 485 mil para R$ 340 mil, e isso nao aparece olhando saldo.
+
+### Corrigido
+- O confronto do limite com a projecao ignora o trecho em que os pagaveis lancados desabam (mesma regra que o grafico ja usava) e o balde de vencidos. Sem esse corte a tela anunciava "descoberto de R$ 10,4 milhoes em jul/2027", que nao era falta de dinheiro e sim falta de faturamento lancado - os meses distantes ficam negativos por construcao. A tela diz ate onde olhou.
+
 ## [0.26.0] — 24/08/2026  ·  CX-24/08/2026-v0.26.0
 
 ### Adicionado

@@ -4436,6 +4436,21 @@ function render(d){
         statChip('flat','estrutural',
           'A receber menos a pagar de TODOS os títulos em aberto, sem recorte de prazo: o contas a pagar carrega compromissos de longo prazo que ainda não têm receita lançada do outro lado. Este número é quase sempre negativo e NÃO indica insolvência — para decidir caixa, use o gap e o fluxo por vencimento.',
           'trFlat')),
+    (function(){
+      const cr=d.credito;
+      if(!cr) return kpi('Limite de crédito','não configurado',
+        'cadastre em data/credito.json para o piso aparecer no gráfico','');
+      const bancos=(cr.linhas||[]).map(l=>l.banco).join(', ');
+      return kpi('Limite de crédito (piso)', BRL.format(cr.limite),
+        bancos+' · '+Number(cr.taxa_efetiva).toLocaleString('pt-BR',{minimumFractionDigits:2})+'% a.m. efetivo',
+        '',
+        'Quanto de cheque empresa existe contratado, somado. NÃO é caixa: é crédito, e custa de '
+        +Number(cr.taxa_min).toLocaleString('pt-BR',{minimumFractionDigits:2})+'% a '
+        +Number(cr.taxa_max).toLocaleString('pt-BR',{minimumFractionDigits:2})
+        +'% ao mês — de seis a oito vezes a taxa de antecipar recebível. Entra no gráfico como FAIXA abaixo do zero: enquanto a linha de saldo está dentro dela, o mês se resolve com rotativo; abaixo dela, não há cobertura contratada. Usar o limite inteiro por um mês custaria '
+        +BRL.format((cr.linhas||[]).reduce(function(a,l){return a+l.limite*l.taxa_mes/100;},0))
+        +'. O saldo projetado conta só o que está LANÇADO, então nos meses distantes ele é pessimista — para dimensionar a operação use a tela de Antecipação, que trabalha em dia e com reserva.');
+    })(),
     kpi('Ciclo de caixa (3m)', k.ciclo_3m!=null?((k.ciclo_3m>0?'+':'−')+Math.abs(k.ciclo_3m).toFixed(0)+' dias'):'—',
         k.dso_3m!=null?('recebe em '+k.dso_3m.toFixed(0)+'d · paga em '+k.dpo_3m.toFixed(0)+'d'):'sem base nos últimos 3 meses',
         k.ciclo_3m==null?'':(k.ciclo_3m>0?'neg':'pos'), null,
@@ -5322,7 +5337,11 @@ function chartFluxo(fluxo){
   // O saldo ORÇADO (provisão) entra no mesmo cálculo de domínio (M3): sem
   // isso, um mês com queda de geração orçada poderia desenhar fora do painel.
   const provAccVals=[...provAcc.values()].map(v=>v.saldoOrcado);
-  let lo2=Math.min(0,...fluxo.map(f=>fluxoCenario?Math.min(f.saldo_projetado,f.saldo_realista):f.saldo_projetado),...provAccVals);
+  /* O limite entra no domínio: sem isso, num período em que o saldo nunca fica
+     negativo a faixa do rotativo cairia fora do painel e sumiria justamente
+     quando ela é a boa notícia (não precisou dele). */
+  const limCred = (DATA&&DATA.credito&&DATA.credito.limite)||0;
+  let lo2=Math.min(0, limCred?-limCred:0, ...fluxo.map(f=>fluxoCenario?Math.min(f.saldo_projetado,f.saldo_realista):f.saldo_projetado),...provAccVals);
   let hi2=Math.max(0,...fluxo.map(f=>fluxoCenario?Math.max(f.saldo_projetado,f.saldo_realista):f.saldo_projetado),...provAccVals);
   const tk2=niceTicks(lo2,hi2,5); lo2=tk2[0]; hi2=tk2[tk2.length-1];
   const u2=unitOf(Math.max(Math.abs(lo2),Math.abs(hi2)));
@@ -5351,6 +5370,16 @@ function chartFluxo(fluxo){
   if(lo2<0){
     s+=`<rect x="${mL}" y="${y2(0)}" width="${iw}" height="${p2t+h2-y2(0)}" fill="#C03221" opacity=".05"/>`;
     s+=`<line x1="${mL}" y1="${y2(0)}" x2="${W-mR}" y2="${y2(0)}" stroke="#9AA3AE" stroke-width="1.3"/>`;
+  }
+  /* FAIXA DO LIMITE ROTATIVO: entre o zero e −limite. Dentro dela o mês se
+     resolve com cheque empresa (caro, mas contratado); abaixo dela não há
+     cobertura. Sem esta faixa, saldo negativo era uma coisa só — R$ 380 mil
+     e R$ 2,6 milhões pintavam do mesmo vermelho. */
+  if(limCred>0 && lo2 < 0){
+    const yLim=y2(Math.max(lo2,-limCred)), y0v=y2(0);
+    s+=`<rect x="${mL}" y="${y0v}" width="${iw}" height="${Math.max(0,yLim-y0v)}" fill="${CC.amarelo}" opacity=".10"/>`;
+    s+=`<line x1="${mL}" y1="${yLim}" x2="${W-mR}" y2="${yLim}" stroke="${CC.amarelo}" stroke-width="1.5" stroke-dasharray="5 4"/>`;
+    s+=`<text x="${W-mR-4}" y="${yLim-5}" text-anchor="end" font-size="10.5" font-weight="700" fill="${CC.amarelo}" style="paint-order:stroke;stroke:#fff;stroke-width:3px">limite de crédito ${BRL.format(limCred)}</text>`;
   }
   const px=i=>mL+bandW*i+bandW/2;
   if(fluxoCenario){
@@ -7612,6 +7641,27 @@ function renderFluxcon(d){
   ].join('');
 
   const A=[];
+  /* Saldo negativo não é uma coisa só: dentro do limite é um período usando
+     rotativo (caro, mas contratado); além dele não há cobertura. Vem primeiro
+     porque muda o que os KPIs acima significam. */
+  const cr=d.credito;
+  if(cr && cr.limite>0){
+    const bancos=(cr.linhas||[]).map(l=>l.banco+' '+BRL.format(l.limite)).join(', ');
+    if(cr.periodos_estourados>0){
+      A.push(['t-dang', cr.periodos_estourados+' período(s) passam do limite de crédito',
+        `O limite somado é ${BRL.format(cr.limite)} (${bancos}) a ${Number(cr.taxa_efetiva).toLocaleString('pt-BR',{minimumFractionDigits:2})}% a.m. efetivo. `
+        +`O maior descoberto é ${BRL.format(cr.maior_descoberto)}${cr.primeiro_estouro?' em '+cr.primeiro_estouro:''} — esse trecho não tem cobertura contratada e precisa de antecipação, renegociação de vencimento ou capital de giro. `
+        +`Antecipar recebível sai por ~2% a.m.: é de seis a oito vezes mais barato que o rotativo.`]);
+    }else if(cr.periodos_no_limite>0){
+      A.push(['t-warn', cr.periodos_no_limite+' período(s) ficam negativos, mas cabem no limite',
+        `O limite de ${BRL.format(cr.limite)} (${bancos}) cobre o pior período. Custo estimado de ${BRL.format(cr.custo_total_estimado)} se usado por um mês — antecipar recebível sai por ~2% a.m. contra ${Number(cr.taxa_efetiva).toLocaleString('pt-BR',{minimumFractionDigits:2})}% do rotativo.`]);
+    }
+    (cr.vencendo||[]).forEach(v=>{
+      A.push([v.dias_para_vencer<=30?'t-dang':'t-warn',
+        'Limite do '+v.banco+' vence em '+v.dias_para_vencer+' dias',
+        `${BRL.format(v.limite)} vencem em ${fmtD(v.vencimento)}. Sem renovação, a folga cai para ${BRL.format(cr.limite-v.limite)}.`]);
+    });
+  }
   if(c.balde_seco) A.push(['t-warn','A partir daí não há recebível lançado',
     `Os períodos esmaecidos na tabela não têm faturamento lançado (nota ainda não emitida), mas continuam com parcelas de financiamento e tributo a pagar. O saldo despenca por AUSÊNCIA DE DADO, não por previsão — por isso o pior saldo e a necessidade acima consideram só os ${c.baldes_confiaveis} período(s) com os dois lados.`]);
   if(c.mes_frouxo) A.push(['t-warn','Contas a pagar rareiam a partir de '+periodoLabel(c.mes_frouxo),
@@ -7671,6 +7721,8 @@ function renderFluxcon(d){
   document.getElementById('fc-receb').innerHTML = hr
     || '<div style="color:var(--n500)">sem dados de recebíveis</div>';
 
+  const limFc=(d.credito&&d.credito.limite)||0;
+  const taxaFc=d.credito?Number(d.credito.taxa_efetiva).toLocaleString('pt-BR',{minimumFractionDigits:2}):'';
   document.getElementById('fc-linhas').innerHTML=(d.linhas||[]).map((l,i)=>{
     // O resumo por natureza já vem no payload do consolidado (é barato). Os
     // TÍTULOS só chegam ao expandir — ver fcDetalhe(); daí o `.fc-tit` vazio.
@@ -7695,7 +7747,12 @@ function renderFluxcon(d){
       <td class="num" style="color:var(--green)">${l.entradas>0?BRL.format(l.entradas):'—'}</td>
       <td class="num" style="color:var(--red)">${l.saidas>0?BRL.format(l.saidas):'—'}</td>
       <td class="num" style="color:${l.resultado<0?'var(--red)':'var(--green)'}">${BRL.format(l.resultado)}</td>
-      <td class="num" style="font-weight:700;color:${l.saldo_final<0?'var(--red)':'inherit'}">${BRL.format(l.saldo_final)}</td>
+      <td class="num" style="font-weight:700;color:${l.saldo_final<0?'var(--red)':'inherit'}">${BRL.format(l.saldo_final)}${
+        (l.saldo_final<0 && limFc>0)
+          ? (-l.saldo_final<=limFc
+              ? ` <span class="badge b-warn" title="Cabe no limite de cheque empresa (${BRL.format(limFc)}), mas a ${taxaFc}% a.m.">no limite</span>`
+              : ` <span class="badge b-alert" title="Passa do limite contratado em ${BRL.format(-l.saldo_final-limFc)} — esse trecho não tem cobertura.">sem cobertura</span>`)
+          : ''}</td>
       <td class="num" style="font-weight:600">${l.necessidade>0?BRL.format(l.necessidade):'—'}</td>
     </tr>
     <tr class="forn-det" id="fc-det-${i}"><td colspan="8">${det}</td></tr>`;

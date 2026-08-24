@@ -527,6 +527,9 @@ def get_overview(filial: int | None = None, data_ref: str | None = None,
         "aging_receber": aging_receber,
         "aging_pagar": aging_pagar,
         "fluxo_caixa": fluxo,
+        # Limite rotativo confrontado com o saldo projetado: e o que separa
+        # "mes apertado" de "mes sem saida".
+        "credito": _credito_na_serie(fluxo, "saldo_projetado", "periodo"),
         "ciclo_caixa": ciclo,
         "custo_financeiro": custo_fin,
         "top_receber": top_receber,
@@ -6544,6 +6547,10 @@ def get_fluxo_consolidado(gran: str = "semana", dias: int = 180) -> dict:
             "necessidade_geral": round(max(0.0, -pior) + vencido_total, 2),
         },
         "linhas": linhas,
+        # Limite rotativo por periodo. Aqui e MAIS acionavel que no fluxo
+        # mensal: o balde e curto e o saldo e o do proprio periodo, nao um
+        # acumulado que carrega receita ainda nao faturada la na frente.
+        "credito": _credito_na_serie(linhas, "saldo_final", "rotulo"),
         "contas": [dict(c) for c in contas_rows],
         "recebiveis": recebiveis,
         "antecipacao": antec,
@@ -6590,6 +6597,104 @@ def _consumir_titulos(pilha: list, valor: float) -> list:
             "parcial": usa < t["valor"] - 0.005,
         })
     return usados
+
+
+def _horizonte_confiavel(pontos: list[dict], campo_rotulo: str) -> list[dict]:
+    """Corta a serie onde a projecao deixa de ter os dois lados da conta.
+
+    Mesma regra que a tela ja aplica no grafico (`fluxoExtrapola`): a partir do
+    mes em que os pagaveis LANCADOS caem abaixo de 40% da media dos tres
+    primeiros, o que sobra e receita estimada contra custo que ainda nao existe
+    no ERP — os meses distantes ficam negativos por construcao.
+
+    Sem este corte, o confronto com o limite anunciava "descoberto de R$ 10,4
+    milhoes em jul/2027" como se fosse um problema de caixa. Era falta de
+    faturamento lancado, nao falta de dinheiro.
+
+    O balde 'atrasado' tambem sai: sao titulos vencidos, nao um mes futuro, e
+    somar o rotativo contra ele misturaria estoque com projecao.
+    """
+    fut = [p for p in pontos if p.get(campo_rotulo) != "atrasado"]
+    if len(fut) < 4:
+        return fut
+    base = sum(float(p.get("pagar") or 0) for p in fut[:3]) / 3
+    if base <= 0:
+        return fut
+    corte = []
+    for p in fut:
+        if float(p.get("pagar") or 0) < 0.4 * base:
+            break
+        corte.append(p)
+    return corte or fut[:3]
+
+
+def _credito_na_serie(pontos: list[dict], campo_saldo: str,
+                      campo_rotulo: str = "periodo") -> dict | None:
+    """Confronta uma serie de saldos projetados com o limite de cheque empresa.
+
+    Saldo negativo sozinho nao diz o tamanho do problema: -R$ 380 mil com
+    R$ 485 mil de limite e um mes usando rotativo; -R$ 2,6 mi e um mes sem
+    saida. Esta funcao separa as duas coisas.
+
+    O limite NAO e somado ao saldo como se fosse dinheiro - e credito, custa
+    de 12,90% a 16,20% ao mes. Entra como PISO, e o custo de encostar nele
+    aparece junto.
+    """
+    try:
+        from api.financeiro import credito as _cred
+        resumo = _cred.resumo()
+    except Exception:  # noqa: BLE001 - config ausente nao derruba a tela
+        return None
+    limite = resumo.get("total") or 0.0
+    if limite <= 0:
+        return None
+
+    janela = _horizonte_confiavel(pontos, campo_rotulo)
+    dentro, estouram, custo_total = [], [], 0.0
+    pior = 0.0
+    for pt in janela:
+        saldo = float(pt.get(campo_saldo) or 0.0)
+        if saldo >= 0:
+            continue
+        usado = min(-saldo, limite)
+        pior = max(pior, -saldo)
+        # custo de UM mes de uso — o horizonte e mensal e o rotativo se apura
+        # por mes; multiplicar pelo numero de periodos suporia rolagem, que e
+        # decisao de tesouraria e nao premissa de tela.
+        c = _cred.cobrir(-saldo)
+        custo_total += c["custo_mes"]
+        item = {"rotulo": pt.get(campo_rotulo), "saldo": round(saldo, 2),
+                "usado_do_limite": round(usado, 2),
+                "descoberto": round(max(0.0, -saldo - limite), 2),
+                "custo_mes": c["custo_mes"]}
+        (estouram if item["descoberto"] > 0.005 else dentro).append(item)
+
+    return {
+        "limite": limite,
+        "taxa_efetiva": resumo.get("taxa_efetiva"),
+        "taxa_min": resumo.get("taxa_min"),
+        "taxa_max": resumo.get("taxa_max"),
+        "linhas": resumo.get("linhas") or [],
+        "vencendo": resumo.get("vencendo") or [],
+        "periodos_no_limite": len(dentro),
+        "periodos_estourados": len(estouram),
+        "maior_necessidade": round(pior, 2),
+        "maior_descoberto": round(max((e["descoberto"] for e in estouram),
+                                      default=0.0), 2),
+        "custo_total_estimado": round(custo_total, 2),
+        # so os que ESTOURAM sao acionaveis; os que cabem no limite ja tem
+        # resposta e virariam ruido numa lista
+        "criticos": sorted(estouram, key=lambda x: -x["descoberto"])[:12],
+        "primeiro_estouro": estouram[0]["rotulo"] if estouram else None,
+        "primeiro_uso": dentro[0]["rotulo"] if dentro else (
+            estouram[0]["rotulo"] if estouram else None),
+        # a tela precisa dizer ate onde olhou: sem isso o numero parece cobrir
+        # o horizonte inteiro do filtro
+        "periodos_analisados": len(janela),
+        "ate": janela[-1].get(campo_rotulo) if janela else None,
+        "cortou": len(janela) < len([p for p in pontos
+                                     if p.get(campo_rotulo) != "atrasado"]),
+    }
 
 
 def _antec_simular(dias_lista, rec_por_dia, pag_por_dia, saldo_inicial,
