@@ -2016,6 +2016,15 @@ def antecipacoes_listar() -> JSONResponse:
         # devolver so o envio mais recente faria os outros dois sumirem da
         # tela sem aviso nenhum
         vigentes = reg.posicao_atual()
+        # raiz do CNPJ do sacado -> envio vigente daquele portal
+        _plan: dict = {}
+        for t in reg.titulos_vigentes():
+            raiz = (t.get("cnpj_sacado") or "")[:8]
+            if raiz and raiz not in _plan:
+                v = next((x for x in vigentes if x["id"] == t["envio_id"]), None)
+                if v:
+                    _plan[raiz] = {"ts": v["ts"], "arquivo": v["arquivo"],
+                                   "titulos": v["titulos"]}
         return JSONResponse({
             "envios": reg.envios(),
             "vigentes": vigentes,
@@ -2026,7 +2035,14 @@ def antecipacoes_listar() -> JSONResponse:
                 "titulos": sum(v["titulos"] for v in vigentes),
                 "valor_saldo": round(sum(v["valor_saldo"] for v in vigentes), 2),
             },
-            "sacados": reg.sacados(),
+            # cada sacado com a data da planilha dele. Sem isto a lista mistura
+            # "tem convenio e planilha" com "tem convenio e nada importado", que
+            # sao situacoes com pendencias opostas
+            "sacados": [
+                {**sac, "planilha_em": _plan.get(sac["cnpj"][:8], {}).get("ts"),
+                 "planilha_arquivo": _plan.get(sac["cnpj"][:8], {}).get("arquivo"),
+                 "planilha_titulos": _plan.get(sac["cnpj"][:8], {}).get("titulos")}
+                for sac in reg.sacados()],
             "portais": [{"nome": m.nome, "rotulo": m.rotulo}
                         for m in __import__("api.antecipacoes.modelos",
                                             fromlist=["MODELOS"]).MODELOS],

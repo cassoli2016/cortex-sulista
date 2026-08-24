@@ -4,6 +4,17 @@ Gerado de `docs/versoes.yaml` por `scripts/gerar_changelog.py` — não editar �
 Formato [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/),
 versionamento [SemVer](https://semver.org/lang/pt-BR/).
 
+## [0.26.0] — 24/08/2026  ·  CX-24/08/2026-v0.26.0
+
+### Adicionado
+- O orcamento de 2026 passou a ser o PLANEJADO pela diretoria, importado da planilha, e nao mais deduzido do historico. A planilha e por agrupador e o orcamento e por conta, entao o valor de cada agrupador e rateado entre as contas dele na proporcao do historico: o total bate ao centavo com o plano e o detalhe por conta continua existindo. Entrou como versao NOVA - a derivada do historico fica para comparacao.
+- A receita entra como linha unica no total, por decisao da diretoria: o plano poe os R$ 144 mi todos em FROTA/LOCADOS e zero nas outras modalidades, enquanto a DRE realizada separa. Linha a linha, o acompanhamento acusaria FROTA estourando o orcamento e AGREGADOS 100% abaixo - duas variacoes enormes e as duas falsas.
+
+### Corrigido
+- A tela de Antecipacao passou a mostrar os insights no FIM, e nao antes dos numeros: eram ate seis tarjas de texto empurrando KPI e grafico para baixo da dobra. Insight e conclusao - vem depois do que ele conclui.
+- As Operacoes de antecipacao sugeridas ganharam leitura: quatro KPIs com volume, custo e prazo medio do plano, os sacados na propria linha (antes era preciso abrir cada operacao para saber com quem ela se fecha) e barra proporcional no valor para achar as grandes sem ler numero por numero.
+- A tela de Portais de Antecipacao mostrava um envio da Adient que nunca foi importado - sujeira de teste que entrou no banco de producao. Foi removida, e a lista de clientes com convenio agora diz explicitamente quem esta SEM planilha importada, que era a informacao que faltava.
+
 ## [0.25.0] — 24/08/2026  ·  CX-24/08/2026-v0.25.0
 
 ### Alterado

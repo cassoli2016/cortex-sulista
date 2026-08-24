@@ -2320,7 +2320,6 @@ body.tvfull #btnReport,body.tvmode #btnReport{display:none}
 
       <!-- ===================== ANTECIPAÇÃO DE RECEBÍVEIS ===================== -->
       <section class="view" id="view-antec">
-        <div id="antec-avisos"></div>
         <div class="kpis k4" id="kpis-antec"></div>
         <div class="card">
           <div class="head"><h2>Saldo projetado dia a dia <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="Saldo de bancos e caixa somado, dia a dia, com o que está LANÇADO no ERP: a receber pelo método oficial (fatura_composicao, já faturado) e contaapagar, ambos por data de vencimento. Esta linha é o cenário SEM antecipar — é ela que mostra o buraco. A linha COM antecipação ficaria colada na reserva por construção e não diria nada. O saldo de partida usa só contas ATIVAS e marcadas como 'considerar fluxo de caixa' no ERP.">i</span></h2>
@@ -2346,13 +2345,18 @@ body.tvfull #btnReport,body.tvmode #btnReport{display:none}
         <div class="card">
           <div class="head"><h2>Operações de antecipação sugeridas <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="Plano gerado pelo modelo: para cobrir o buraco de cada dia, puxa recebíveis com vencimento POSTERIOR, do mais próximo para o mais distante — é o mais barato, porque o deságio é proporcional aos dias adiantados. Cada título só pode ser antecipado uma vez. É uma sugestão de volume e prazo, não uma proposta de instituição financeira.">i</span></h2>
             <span class="hint" id="hintAntecOps"></span></div>
+          <div class="kpis k4" id="kpis-antecops"></div>
           <div class="tablewrap tabroll"><table><thead><tr>
             <th style="width:26px"></th>
-            <th>Antecipar em</th><th>Vencimento original</th><th class="num">Dias</th>
-            <th class="num">Documentos</th>
-            <th class="num">Valor</th><th class="num">Custo</th>
+            <th>Antecipar em</th>
+            <th>Recebível usado</th>
+            <th class="num">Adianta</th>
+            <th>Sacados</th>
+            <th class="num">Valor</th>
+            <th class="num">Custo</th>
           </tr></thead><tbody id="antec-ops"></tbody></table></div>
         </div>
+        <div id="antec-avisos"></div>
       </section>
 
       <!-- ===================== PORTAIS DE ANTECIPAÇÃO ===================== -->
@@ -2403,7 +2407,7 @@ body.tvfull #btnReport,body.tvmode #btnReport{display:none}
           <div class="head"><h2>Clientes com convênio de antecipação <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="Só o recebível destes clientes entra nas Operações de antecipação sugeridas. Quem aparece como pagador numa planilha importada entra sozinho; desligar aqui é decisão manual e a próxima importação NÃO religa. A comparação com o ERP é pela RAIZ do CNPJ (8 dígitos), porque o portal manda o CNPJ da matriz e o ERP fatura por várias filiais do mesmo grupo.">i</span></h2>
             <span class="hint" id="hintAntportSac"></span></div>
           <div class="tablewrap"><table><thead><tr>
-            <th>Cliente</th><th>CNPJ</th><th>Portal</th><th>Origem</th><th class="num">Convênio</th>
+            <th>Cliente</th><th>CNPJ</th><th>Planilha</th><th>Origem</th><th class="num">Convênio</th>
           </tr></thead><tbody id="antport-sac"></tbody></table></div>
         </div>
 
@@ -8018,15 +8022,53 @@ function renderAntec(d){
     ? `${ops.length} de ${tot} operações · vencimento mais próximo primeiro (mais barato)`
     : (tot ? `${tot} ${tot===1?'operação':'operações'} · vencimento mais próximo primeiro (mais barato)`
            : 'nenhuma antecipação necessária no horizonte');
+  /* KPIs da própria tabela: 73 linhas de números iguais não dizem se o plano
+     é uma operação grande ou trinta pequenas, nem quanto custa no total. */
+  const somaOps=ops.reduce((a,o)=>a+o.valor,0), somaCusto=ops.reduce((a,o)=>a+o.custo,0);
+  const maior=ops.reduce((a,o)=>o.valor>a.valor?o:a, {valor:0});
+  const diasMed=ops.length ? ops.reduce((a,o)=>a+o.dias_antecipados*o.valor,0)/Math.max(1,somaOps) : 0;
+  const primeira=ops.length?ops[0]:null;
+  document.getElementById('kpis-antecops').innerHTML = ops.length ? [
+    kpi('Volume do plano', BRL.format(somaOps),
+        `${tot.toLocaleString('pt-BR')} operação(ões)${tot>ops.length?' · '+ops.length+' exibidas':''}`, '',
+        'Soma de tudo que o plano manda antecipar no horizonte. Cada título só é usado uma vez.'),
+    kpi('Custo do plano', BRL.format(somaCusto),
+        (100*somaCusto/Math.max(1,somaOps)).toLocaleString('pt-BR',{maximumFractionDigits:2})+'% do valor antecipado',
+        'warn',
+        'Deságio estimado pela taxa do filtro, proporcional aos dias adiantados. Não é proposta de banco — é ordem de grandeza para comparar com o custo de não antecipar.'),
+    kpi('Prazo médio adiantado', Math.round(diasMed)+' dias',
+        'ponderado por valor · é o que define o deságio', '',
+        'Média dos dias entre a data em que o caixa precisa do dinheiro e o vencimento original do título, pesada pelo valor. A média simples deixaria operações pequenas mandarem no número.'),
+    kpi('Primeira operação', primeira?fmtD(primeira.dia):'—',
+        primeira?(BRL.format(primeira.valor)+' · maior é '+BRL.format(maior.valor)):'',
+        primeira?'neg':'',
+        'Quando o caixa passa a precisar de antecipação. É a data que define o prazo para fechar com o banco.'),
+  ].join('') : '<div class="card" style="grid-column:1/-1;color:var(--n500);padding:18px">Nenhuma antecipação necessária no horizonte — o caixa se sustenta.</div>';
+
+  const maxOp=Math.max(1,...ops.map(o=>o.valor));
   document.getElementById('antec-ops').innerHTML=ops.map((o,i)=>{
-    const nd=o.documentos_total||0, ncli=(o.por_cliente||[]).length;
+    const nd=o.documentos_total||0, cli=o.por_cliente||[];
+    /* Sacados na própria linha: é com eles que a operação se fecha, e ler isso
+       exigia abrir cada uma. O primeiro nome mais "+N" cabe na coluna. */
+    const nomes = cli.map(c=>c.cliente).filter(Boolean);
+    const rotCli = nomes.length
+      ? esc(nomes[0].length>18?nomes[0].slice(0,18)+'…':nomes[0]) + (nomes.length>1
+          ? ` <span style="color:var(--n500)">+${nomes.length-1}</span>` : '')
+      : '<span style="color:var(--n500)">—</span>';
+    /* Barra proporcional atrás do valor: acha as operações grandes sem ler
+       número por número. Fica no fundo da célula para não competir com o texto. */
+    const pct = 100*o.valor/maxOp;
     return `<tr class="forn-row" aria-expanded="false" aria-controls="ao-det-${i}" tabindex="0" role="button"
         onclick="aoToggle(${i})" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();aoToggle(${i});}">
       <td><span class="expander">${ICONS['chevr2']}</span></td>
-      <td>${fmtD(o.dia)}</td><td>${fmtD(o.vencimento_origem)}</td>
-      <td class="num">${o.dias_antecipados}</td>
-      <td class="num">${nd.toLocaleString('pt-BR')}${ncli?` <span style="color:var(--n500)">· ${ncli} ${ncli===1?'sacado':'sacados'}</span>`:''}</td>
-      <td class="num" style="font-weight:600">${BRL.format(o.valor)}</td>
+      <td style="font-weight:600">${fmtD(o.dia)}</td>
+      <td><span style="color:var(--n500)">vence</span> ${fmtD(o.vencimento_origem)}
+        <span style="color:var(--n500);font-size:11.5px">· ${nd.toLocaleString('pt-BR')} doc${nd===1?'':'s'}</span></td>
+      <td class="num"><span class="badge ${o.dias_antecipados>60?'b-warn':'b-info'}">${o.dias_antecipados} d</span></td>
+      <td title="${esc(nomes.join(', '))}">${rotCli}</td>
+      <td class="num" style="font-weight:600;position:relative">
+        <span style="position:absolute;right:8px;top:50%;transform:translateY(-50%);height:16px;width:${pct}%;max-width:calc(100% - 16px);background:var(--navy-100);border-radius:3px;z-index:0"></span>
+        <span style="position:relative;z-index:1">${BRL.format(o.valor)}</span></td>
       <td class="num" style="color:var(--red)">${BRL.format(o.custo)}</td></tr>
     <tr class="forn-det" id="ao-det-${i}"><td colspan="7">${aoDetalhe(o)}</td></tr>`;
   }).join('')
@@ -8234,8 +8276,10 @@ function renderAntport(d){
   }).join('') || '<tr><td colspan="4" style="color:var(--n500)">todos os títulos casaram com o ERP</td></tr>';
 
   const sac=d.sacados||[], nEleg=sac.filter(function(x){return x.elegivel;}).length;
+  const semArq=sac.filter(function(x){return x.elegivel && !x.planilha_em;}).length;
   document.getElementById('hintAntportSac').textContent =
-    nEleg+' com convênio de '+sac.length+' cadastrado(s) · só estes entram nas operações sugeridas';
+    nEleg+' com convênio de '+sac.length+' cadastrado(s) · só estes entram nas operações sugeridas'
+    + (semArq ? ' · '+semArq+' ainda sem planilha importada' : '');
   document.getElementById('antport-sac').innerHTML=sac.map(function(x){
     const alvo=x.elegivel?'false':'true';
     const dica=x.elegivel
@@ -8243,7 +8287,10 @@ function renderAntport(d){
       : 'Ligar: o recebível deste cliente passa a poder ser antecipado';
     return '<tr><td style="font-weight:600">'+esc(x.nome||'(sem nome)')+'</td>'
       +'<td style="font-family:var(--mono);font-size:12px">'+esc(cnpjFmt(x.cnpj))+'</td>'
-      +'<td>'+esc(x.portal||'—')+'</td>'
+      +'<td>'+(x.planilha_em
+          ? '<span title="'+esc(x.planilha_arquivo||'')+'">'+fmtD(String(x.planilha_em).slice(0,10))
+            +' <span style="color:var(--n500)">('+Number(x.planilha_titulos||0).toLocaleString('pt-BR')+' tít.)</span></span>'
+          : '<span class="badge b-warn" title="Cliente com convênio, mas nenhuma planilha do portal foi importada — sem ela não dá para saber quais títulos estão lançados, e nenhum deles entra no plano de antecipação.">sem planilha</span>')+'</td>'
       +'<td style="font-size:11.5px;color:var(--n500)">'+(x.origem==='manual'?'definido à mão':'veio do arquivo')+'</td>'
       +'<td class="num"><button class="btn'+(x.elegivel?'':' ghost')+'" style="padding:4px 10px;font-size:12px" '
       +'onclick="antportSacado(&quot;'+esc(x.cnpj)+'&quot;,'+alvo+',&quot;'+esc(x.nome||'')+'&quot;)" '

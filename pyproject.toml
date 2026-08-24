@@ -1,6 +1,6 @@
 [project]
 name = "cortex"
-version = "0.25.0"
+version = "0.26.0"
 description = "CÓRTEX — cérebro de gestão da transportadora (backend + migrations)"
 requires-python = ">=3.12"
 dependencies = [
@@ -23,6 +23,7 @@ dependencies = [
   "oracledb>=2.0",         # folha (Oracle) — modo thin, sem Instant Client
   "pywebpush>=1.14",       # notificações push no celular (Web Push + VAPID)
   "xlrd>=2.0.1",
+  "openpyxl>=3.1.5",
 ]
 
 # Ferramentas de teste. Grupo "test" e NAO "dev" de proposito: o uv instala o
