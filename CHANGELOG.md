@@ -4,6 +4,11 @@ Gerado de `docs/versoes.yaml` por `scripts/gerar_changelog.py` — não editar �
 Formato [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/),
 versionamento [SemVer](https://semver.org/lang/pt-BR/).
 
+## [0.12.1] — 24/08/2026  ·  CX-24/08/2026-v0.12.1
+
+### Alterado
+- Na Régua de Cobrança, os títulos de cada cliente passaram a sair do mais antigo para o mais novo — que é a ordem em que se cobra. Antes saíam por valor, o que empurrava para o fim da lista dívida antiga de valor baixo (um cliente tinha um título parado há 320 dias fora das primeiras linhas). Quando a lista é cortada, o aviso agora diz que o que ficou de fora são os títulos mais recentes.
+
 ## [0.12.0] — 20/08/2026  ·  CX-20/08/2026-v0.12.0
 
 ### Adicionado

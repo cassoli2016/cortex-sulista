@@ -6607,6 +6607,7 @@ function renderCob(d){
   document.getElementById('cob-cli').innerHTML=cs.map((c,i)=>{
     const det=`
       <div class="tablewrap"><table>
+        <caption style="caption-side:top;text-align:left;font-size:11px;color:var(--n500);padding:0 0 6px">Títulos do mais antigo para o mais novo — a ordem da cobrança.</caption>
         <thead><tr><th class="num">Fatura</th><th class="num">Fil.</th><th class="num">Emissão</th><th class="num">Vencimento</th><th class="num">Dias vencido</th><th class="num">Saldo</th></tr></thead>
         <tbody>${(c.titulos_lista||[]).map(t=>`<tr>
           <td class="num">${t.numero}</td>
@@ -6616,7 +6617,7 @@ function renderCob(d){
           <td class="num" style="font-weight:700;color:${t.dias_vencido>90?'var(--red)':(t.dias_vencido>30?'var(--yellow-700)':'inherit')}">${t.dias_vencido}</td>
           <td class="num" style="font-weight:600">${BRL.format(t.saldo)}</td></tr>`).join('')}</tbody>
       </table></div>
-      ${c.ocultos>0?`<div class="mais-ocs">+ ${c.ocultos} títulos não exibidos</div>`:''}`;
+      ${c.ocultos>0?`<div class="mais-ocs">+ ${c.ocultos} título${c.ocultos===1?'':'s'} mais recente${c.ocultos===1?'':'s'} não exibido${c.ocultos===1?'':'s'}</div>`:''}`;
     return `
     <tr class="forn-row" aria-expanded="false" aria-controls="cob-det-${i}" tabindex="0" role="button"
         onclick="cobToggle(${i})" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();cobToggle(${i});}">

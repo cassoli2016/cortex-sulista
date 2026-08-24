@@ -3,6 +3,17 @@
 #   - a tela Documentação     (#doc)
 #   - o rótulo no rodapé      (CX-DD/MM/AAAA-vX.Y.Z)
 # A versão do TOPO é a corrente e tem de bater com o pyproject.toml.
+- versao: "0.12.1"
+  data: "2026-08-24"
+  alterado:
+    - >-
+      Na Régua de Cobrança, os títulos de cada cliente passaram a sair do mais
+      antigo para o mais novo — que é a ordem em que se cobra. Antes saíam por
+      valor, o que empurrava para o fim da lista dívida antiga de valor baixo
+      (um cliente tinha um título parado há 320 dias fora das primeiras linhas).
+      Quando a lista é cortada, o aviso agora diz que o que ficou de fora são os
+      títulos mais recentes.
+
 - versao: "0.12.0"
   data: "2026-08-20"
   adicionado:

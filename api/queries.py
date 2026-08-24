@@ -3957,6 +3957,15 @@ WHERE dtcancelamento IS NULL AND dtpagamento IS NOT NULL AND valortitulo > 0
 GROUP BY cliente
 """
 
+# Detalhe dos títulos do cliente, do MAIS ANTIGO para o mais novo (vencimento
+# crescente) — é a ordem em que se cobra: o título parado há mais tempo é o de
+# maior risco de perda e o primeiro a virar protesto. Antes saía por valor
+# decrescente, o que empurrava dívida antiga e pequena para o fim da lista.
+# ATENÇÃO: `get_cobranca` corta em MAX_TIT por cliente, então quem cai fora do
+# corte agora são os títulos MAIS RECENTES (antes eram os de menor valor) — o
+# rótulo "+N não exibidos" no front diz isso explicitamente.
+# O desempate por valor decrescente mantém a lista estável quando vários
+# títulos vencem no mesmo dia (comum em faturamento quinzenal).
 COB_TIT_SQL = f"""
 SELECT f.cliente AS codigo_c, fc.numerosequenciadocumentoorigem AS numero, f.filial,
        to_char(f.dtemissao,'YYYY-MM-DD') AS emissao,
@@ -3966,7 +3975,8 @@ SELECT f.cliente AS codigo_c, fc.numerosequenciadocumentoorigem AS numero, f.fil
 {_COB_FROM}
 {_COB_WHERE}
   AND f.cliente = ANY(%(codigos)s)
-ORDER BY f.cliente, fc.valorpendentecnpjcliente DESC
+ORDER BY f.cliente, coalesce(f.dtprevisaopagamento, f.dtvencimento) ASC,
+         fc.valorpendentecnpjcliente DESC
 """
 
 # Pendente de faturamento vencido (composicao=2) — mostrado à parte; NÃO entra
