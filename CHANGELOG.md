@@ -4,6 +4,14 @@ Gerado de `docs/versoes.yaml` por `scripts/gerar_changelog.py` — não editar �
 Formato [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/),
 versionamento [SemVer](https://semver.org/lang/pt-BR/).
 
+## [0.21.0] — 24/08/2026  ·  CX-24/08/2026-v0.21.0
+
+### Adicionado
+- No Fluxo Consolidado, abrir um periodo agora mostra os TITULOS que o compoem: as maiores saidas (vencimento, fornecedor, natureza e valor) e as maiores entradas agrupadas por cliente. Antes a expansao so dizia a natureza do gasto - "Divida financeira R$ 900 mil" - sem dizer qual parcela, de quem e em que dia. Agora a semana que fecha negativa se explica em duas linhas: a parcela do banco vence quinta e o pedagio na quarta. Os titulos sao buscados ao expandir, nao junto com a tela.
+
+### Alterado
+- Nenhuma tela do menu compartilha mais o icone de outra. Quatorze telas dividiam desenho com uma vizinha - Balanco, Orcamento e Fechamento usavam o mesmo grafico da DRE; Fluxo Consolidado, Fluxo de Caixa e Antecipacao o mesmo predio de banco; Lancamentos, Extrato e Contabilidade o mesmo livro razao. Como o olho procura a forma e nao le o rotulo, cada uma ganhou um icone proprio (balanca, calculadora, calendario com visto, rota, hidrante de combustivel etc.). A busca global usa os mesmos icones do menu, entao a lista de resultados tambem deixou de repetir.
+
 ## [0.20.0] — 24/08/2026  ·  CX-24/08/2026-v0.20.0
 
 ### Adicionado

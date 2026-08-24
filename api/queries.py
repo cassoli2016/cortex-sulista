@@ -6030,6 +6030,68 @@ def get_balanco(anomes: str | None = None) -> dict:
 # fluxo). O total já vem de ANTEC_SALDO_SQL; aqui é a abertura, porque "tenho
 # R$ X em caixa" e "tenho R$ X divididos assim entre seis bancos" levam a
 # decisões diferentes — e a planilha de tesouraria é toda por banco.
+# Títulos que compõem um período do fluxo. Consulta SOB DEMANDA, ao expandir:
+# carregar isto junto com o consolidado significaria trazer o detalhe de até 26
+# semanas que ninguém vai abrir. Responde "por que esta semana fecha negativa" —
+# quase sempre são 3 ou 4 lançamentos grandes, não um problema difuso.
+FLUXCON_DET_PAG_SQL = """
+SELECT to_char(a.dtvencimento,'YYYY-MM-DD') AS dia,
+       coalesce(nullif(trim(t.descricao),''), 'tipo '||a.tipotitulo::text) AS tipo,
+       coalesce(nullif(trim(c.nomefantasia),''), nullif(trim(c.razaosocial),''),
+                '(sem cadastro)') AS nome,
+       a.valorpendente::float8 AS valor,
+       a.numerotitulo AS documento
+FROM contaapagar a
+LEFT JOIN cadastro c ON c.codigo = a.cnpjcpfcodigo
+LEFT JOIN tipotitulo t ON t.codigo = a.tipotitulo
+WHERE a.valorpendente > 0
+  AND a.dtvencimento >= %(de)s::date AND a.dtvencimento <= %(ate)s::date
+ORDER BY a.valorpendente DESC
+LIMIT 60
+"""
+
+# Recebimento agrupado por CLIENTE e não título a título: um cliente pode ter
+# 400 CT-e na mesma semana (a TW teve 64 títulos num dia só) e a lista viraria
+# ruído. Quem decide caixa quer saber de QUEM vem o dinheiro.
+FLUXCON_DET_REC_SQL = f"""
+SELECT coalesce(nullif(trim(c.nomefantasia),''), nullif(trim(c.razaosocial),''),
+                '(sem cadastro)') AS nome,
+       count(*)::int AS titulos,
+       sum(fc.valorpendentecnpjcliente)::float8 AS valor,
+       to_char(min(coalesce(f.dtprevisaopagamento, f.dtvencimento)),'YYYY-MM-DD') AS dia
+{_REC_OF_FROM}
+LEFT JOIN cadastro c ON c.codigo = f.cliente
+WHERE f.grupo=1 AND fc.valorpendentecnpjcliente > 0 AND f.dtcancelamento IS NULL
+  AND f.composicao = 1 AND f.dtpagamento IS NULL
+  AND fc.tipodocumentoorigem = ANY(string_to_array('6,8,10,11',',')::int[])
+  AND (fc.tipodocumentoorigem <> 6 OR co.situacaocte = 3)
+  AND coalesce(f.dtprevisaopagamento, f.dtvencimento) >= %(de)s::date
+  AND coalesce(f.dtprevisaopagamento, f.dtvencimento) <= %(ate)s::date
+GROUP BY 1 ORDER BY 3 DESC LIMIT 40
+"""
+
+
+@cached(ttl=180)
+def get_fluxo_detalhe(de: str, ate: str) -> dict:
+    params = {"de": de, "ate": ate}
+    with db.get_conn() as conn, conn.cursor() as cur:
+        cur.execute(FLUXCON_DET_REC_SQL, params)
+        entradas = cur.fetchall()
+        cur.execute(FLUXCON_DET_PAG_SQL, params)
+        saidas = cur.fetchall()
+        cur.execute("SELECT current_timestamp AS ts")
+        meta = cur.fetchone()
+    for s in saidas:
+        s["natureza"] = _natureza(s["tipo"])
+    return {
+        "de": de, "ate": ate,
+        "entradas": entradas, "saidas": saidas,
+        "entradas_total": round(sum(e["valor"] for e in entradas), 2),
+        "saidas_total": round(sum(s["valor"] for s in saidas), 2),
+        "atualizado_em": meta["ts"].isoformat(),
+    }
+
+
 FLUXCON_SALDO_CONTA_SQL = """
 SELECT s.banco, coalesce(b.nome,'Banco '||s.banco) AS banco_nome,
        s.agencia, s.conta, s.valorsaldo::float8 AS saldo,
@@ -6215,9 +6277,19 @@ def get_fluxo_consolidado(gran: str = "semana", dias: int = 180) -> dict:
 
     def _slot(d: date) -> dict:
         chave, rotulo = _balde(d, gran)
-        return baldes.setdefault(chave, {
+        s = baldes.setdefault(chave, {
             "chave": chave, "rotulo": rotulo, "entradas": 0.0, "saidas": 0.0,
-            "por_entrada": {}, "por_saida": {}, "titulos_ent": 0, "titulos_sai": 0})
+            "por_entrada": {}, "por_saida": {}, "titulos_ent": 0, "titulos_sai": 0,
+            # intervalo REAL do balde, para o detalhe sob demanda saber o
+            # recorte exato. Reconstruir isso no JS a partir da chave daria
+            # errado no primeiro e no último balde, que vêm cortados pelo
+            # horizonte (a semana de hoje começa hoje, não na segunda).
+            "de": d, "ate": d})
+        if d < s["de"]:
+            s["de"] = d
+        if d > s["ate"]:
+            s["ate"] = d
+        return s
 
     for r in rec_rows:
         s = _slot(r["dia"])
@@ -6240,6 +6312,7 @@ def get_fluxo_consolidado(gran: str = "semana", dias: int = 180) -> dict:
         inicial, saldo = saldo, saldo + resultado
         linhas.append({
             "chave": chave, "rotulo": b["rotulo"],
+            "de": b["de"].isoformat(), "ate": b["ate"].isoformat(),
             "saldo_inicial": round(inicial, 2),
             "entradas": round(b["entradas"], 2), "saidas": round(b["saidas"], 2),
             "resultado": round(resultado, 2), "saldo_final": round(saldo, 2),

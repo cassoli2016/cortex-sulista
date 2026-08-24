@@ -1007,6 +1007,29 @@ def recorrentes(meses: int = 6, min_meses: int = 5) -> JSONResponse:
             "erro": "erro_consulta", "mensagem": "Erro ao consultar os lançamentos recorrentes."})
 
 
+@app.get("/api/financeiro/fluxo-consolidado/detalhe")
+def fluxo_consolidado_detalhe(de: str, ate: str) -> JSONResponse:
+    """Títulos que compõem um período do fluxo. Sob demanda, ao expandir."""
+    for nome, valor in (("de", de), ("ate", ate)):
+        if _bad_date(valor):
+            return JSONResponse(status_code=422, content={
+                "erro": "parametro_invalido",
+                "mensagem": f"Parâmetro {nome} inválido: use o formato AAAA-MM-DD."})
+    if de > ate:
+        de, ate = ate, de
+    try:
+        return JSONResponse(queries.get_fluxo_detalhe(de, ate))
+    except psycopg.OperationalError as exc:
+        log.warning("banco inacessivel: %s", exc)
+        return JSONResponse(status_code=503, content={
+            "erro": "banco_inacessivel",
+            "mensagem": "Sem conexão com o banco. O túnel SSH está aberto?"})
+    except Exception as exc:  # noqa: BLE001
+        log.warning("fluxo_detalhe falhou: %s", exc)
+        return JSONResponse(status_code=500, content={
+            "erro": "erro_consulta", "mensagem": "Erro ao detalhar o período."})
+
+
 @app.get("/api/financeiro/antecipacao")
 def antecipacao(dias: int = 90, reserva: float = 0.0, taxa_mes: float = 2.0,
                 incluir_vencidos: int = 0) -> JSONResponse:

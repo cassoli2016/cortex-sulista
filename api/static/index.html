@@ -1048,29 +1048,29 @@ body.tvfull #btnReport,body.tvmode #btnReport{display:none}
            cada tema vai do consolidado para o detalhe. -->
       <div class="subs closed" id="subsFin">
         <div class="subsec">Caixa</div>
-        <a href="#fluxcon" class="sub" data-view="fluxcon" title="Fluxo de Caixa Consolidado — por dia, semana, mês, trimestre ou semestre"><span class="ic" data-ic="flx"></span><span>Fluxo Consolidado</span></a>
+        <a href="#fluxcon" class="sub" data-view="fluxcon" title="Fluxo de Caixa Consolidado — por dia, semana, mês, trimestre ou semestre"><span class="ic" data-ic="fluxconic"></span><span>Fluxo Consolidado</span></a>
         <a href="#fluxo" class="sub" data-view="fluxo" title="Fluxo de Caixa e Bancos"><span class="ic" data-ic="flx"></span><span>Fluxo de Caixa e Bancos</span></a>
-        <a href="#antec" class="sub" data-view="antec" title="Antecipação de Recebíveis — quanto antecipar para o caixa não furar"><span class="ic" data-ic="flx"></span><span>Antecipação</span></a>
+        <a href="#antec" class="sub" data-view="antec" title="Antecipação de Recebíveis — quanto antecipar para o caixa não furar"><span class="ic" data-ic="antecic"></span><span>Antecipação</span></a>
         <div class="subsec">A receber</div>
         <a href="#receber" class="sub" data-view="receber" title="Contas a Receber"><span class="ic" data-ic="rec"></span><span>Contas a Receber</span></a>
         <a href="#cob" class="sub" data-view="cob" title="Régua de Cobrança"><span class="ic" data-ic="cob"></span><span>Cobrança</span></a>
         <div class="subsec">A pagar</div>
         <a href="#pagar" class="sub" data-view="pagar" title="Contas a Pagar"><span class="ic" data-ic="pag"></span><span>Contas a Pagar</span></a>
-        <a href="#rec" class="sub" data-view="rec" title="Lançamentos Recorrentes — a conta que entra todo mês e não pode passar batido"><span class="ic" data-ic="rec"></span><span>Recorrentes</span></a>
+        <a href="#rec" class="sub" data-view="rec" title="Lançamentos Recorrentes — a conta que entra todo mês e não pode passar batido"><span class="ic" data-ic="recorric"></span><span>Recorrentes</span></a>
         <div class="subsec">Bancos</div>
-        <a href="#lanc" class="sub" data-view="lanc" title="Lançamentos Bancários — o razão do banco, lançamento a lançamento"><span class="ic" data-ic="ctb"></span><span>Lançamentos Bancários</span></a>
-        <a href="#extb" class="sub" data-view="extb" title="Extrato Bancário — conciliação"><span class="ic" data-ic="ctb"></span><span>Extrato Bancário</span></a>
+        <a href="#lanc" class="sub" data-view="lanc" title="Lançamentos Bancários — o razão do banco, lançamento a lançamento"><span class="ic" data-ic="lancic"></span><span>Lançamentos Bancários</span></a>
+        <a href="#extb" class="sub" data-view="extb" title="Extrato Bancário — conciliação"><span class="ic" data-ic="extbic"></span><span>Extrato Bancário</span></a>
       </div>
       <button class="group" id="grpCtr" aria-expanded="false" aria-controls="subsCtr" onclick="toggleGroup('grpCtr','subsCtr','cs.ctrGroup')" title="Controladoria">
         <span class="ic" data-ic="dre"></span><span>Controladoria</span><span class="ic chev" data-ic="chev"></span>
       </button>
       <div class="subs closed" id="subsCtr">
         <a href="#dre" class="sub" data-view="dre" title="DRE Gerencial"><span class="ic" data-ic="dre"></span><span>DRE Gerencial</span></a>
-        <a href="#bal" class="sub" data-view="bal" title="Balanço Patrimonial"><span class="ic" data-ic="dre"></span><span>Balanço Patrimonial</span></a>
+        <a href="#bal" class="sub" data-view="bal" title="Balanço Patrimonial"><span class="ic" data-ic="balanca"></span><span>Balanço Patrimonial</span></a>
         <a href="#cont" class="sub" data-view="cont" title="Contabilidade — ajuste de agrupadores"><span class="ic" data-ic="ctb"></span><span>Contabilidade</span></a>
         <a href="#qual" class="sub" data-view="qual" title="Qualidade — certidões e licenças com vencimento"><span class="ic" data-ic="qualic"></span><span>Qualidade e Certidões</span></a>
-        <a href="#orc" class="sub" data-view="orc" title="Orçamento — orçado × realizado"><span class="ic" data-ic="dre"></span><span>Orçamento</span></a>
-        <a href="#fech" class="sub" data-view="fech" title="Fechamento do Mês — previsão do resultado antes de fechar"><span class="ic" data-ic="dre"></span><span>Fechamento do Mês</span></a>
+        <a href="#orc" class="sub" data-view="orc" title="Orçamento — orçado × realizado"><span class="ic" data-ic="orcic"></span><span>Orçamento</span></a>
+        <a href="#fech" class="sub" data-view="fech" title="Fechamento do Mês — previsão do resultado antes de fechar"><span class="ic" data-ic="fechic"></span><span>Fechamento do Mês</span></a>
       </div>
       <button class="group" id="grpOpe" aria-expanded="false" aria-controls="subsOpe" onclick="toggleGroup('grpOpe','subsOpe','cs.opeGroup')" title="Operação">
         <span class="ic" data-ic="ope"></span><span>Operação</span><span class="ic chev" data-ic="chev"></span>
@@ -1111,7 +1111,7 @@ body.tvfull #btnReport,body.tvmode #btnReport{display:none}
       <div class="subs closed" id="subsRh">
         <a href="#hc" class="sub" data-view="hc" title="Headcount — quadro de funcionários"><span class="ic" data-ic="hcic"></span><span>Headcount</span></a>
         <a href="#folha" class="sub" data-view="folha" title="Custo de Folha (GLOBUS)"><span class="ic" data-ic="folhaic"></span><span>Custo de Folha</span></a>
-        <a href="#folhaind" class="sub" data-view="folhaind" title="Indicadores de Folha — férias, CNH, hora extra, banco de horas"><span class="ic" data-ic="gauge"></span><span>Indicadores de Folha</span></a>
+        <a href="#folhaind" class="sub" data-view="folhaind" title="Indicadores de Folha — férias, CNH, hora extra, banco de horas"><span class="ic" data-ic="folhaindic"></span><span>Indicadores de Folha</span></a>
         <a href="#he" class="sub" data-view="he" title="Horas Extras — composição por evento, famílias e áreas"><span class="ic" data-ic="heic"></span><span>Horas Extras</span></a>
         <a href="#rh" class="sub" data-view="rh" title="RH — vagas e recrutamento"><span class="ic" data-ic="rhic"></span><span>Vagas</span></a>
       </div>
@@ -1120,22 +1120,22 @@ body.tvfull #btnReport,body.tvmode #btnReport{display:none}
       </button>
       <div class="subs closed" id="subsTel">
         <a href="#prem" class="sub" data-view="prem" title="Premiação de Motoristas — nota da Gobrax e km rodado"><span class="ic" data-ic="prem"></span><span>Premiação de Motoristas</span></a>
-        <a href="#telcon" class="sub" data-view="telcon" title="Consumo e Estatísticas — km/l da telemetria contra o abastecimento"><span class="ic" data-ic="comb"></span><span>Consumo e Estatísticas</span></a>
+        <a href="#telcon" class="sub" data-view="telcon" title="Consumo e Estatísticas — km/l da telemetria contra o abastecimento"><span class="ic" data-ic="telconic"></span><span>Consumo e Estatísticas</span></a>
         <a href="#telcond" class="sub" data-view="telcond" title="Condução Econômica — faixa econômica, piloto automático e eco-roll"><span class="ic" data-ic="gauge"></span><span>Condução Econômica</span></a>
-        <a href="#telhod" class="sub" data-view="telhod" title="Hodômetro e Rastro — leitura direta do veículo e trajeto no mapa"><span class="ic" data-ic="kmv"></span><span>Hodômetro e Rastro</span></a>
+        <a href="#telhod" class="sub" data-view="telhod" title="Hodômetro e Rastro — leitura direta do veículo e trajeto no mapa"><span class="ic" data-ic="rastroic"></span><span>Hodômetro e Rastro</span></a>
       </div>
       <button class="group" id="grpAntt" aria-expanded="false" aria-controls="subsAntt" onclick="toggleGroup('grpAntt','subsAntt','cs.anttGroup')" title="ANTT">
         <span class="ic" data-ic="qualic"></span><span>ANTT</span><span class="ic chev" data-ic="chev"></span>
       </button>
       <div class="subs closed" id="subsAntt">
-        <a href="#anpiso" class="sub" data-view="anpiso" title="Piso Mínimo de Frete — confere o que se paga ao agregado contra a tabela da ANTT"><span class="ic" data-ic="qualic"></span><span>Piso Mínimo de Frete</span></a>
-        <a href="#anrntrc" class="sub" data-view="anrntrc" title="RNTRC — situação do registro dos transportadores contratados"><span class="ic" data-ic="qualic"></span><span>RNTRC dos Transportadores</span></a>
+        <a href="#anpiso" class="sub" data-view="anpiso" title="Piso Mínimo de Frete — confere o que se paga ao agregado contra a tabela da ANTT"><span class="ic" data-ic="pisoic"></span><span>Piso Mínimo de Frete</span></a>
+        <a href="#anrntrc" class="sub" data-view="anrntrc" title="RNTRC — situação do registro dos transportadores contratados"><span class="ic" data-ic="rntrcic"></span><span>RNTRC dos Transportadores</span></a>
       </div>
       <button class="group" id="grpTv" aria-expanded="false" aria-controls="subsTv" onclick="toggleGroup('grpTv','subsTv','cs.tvGroup')" title="Painéis TV">
         <span class="ic" data-ic="tv"></span><span>Painéis TV</span><span class="ic chev" data-ic="chev"></span>
       </button>
       <div class="subs closed" id="subsTv">
-        <a href="#tvfat" class="sub" data-view="tvfat" title="Painel de Faturamento para TV"><span class="ic" data-ic="tv"></span><span>Faturamento</span></a>
+        <a href="#tvfat" class="sub" data-view="tvfat" title="Painel de Faturamento para TV"><span class="ic" data-ic="tvfatic"></span><span>Faturamento</span></a>
         <a href="#tvope" class="sub" data-view="tvope" title="Painel de Operação para TV"><span class="ic" data-ic="tv"></span><span>Operação</span></a>
       </div>
       <button class="group" id="grpAdm" aria-expanded="false" aria-controls="subsAdm" onclick="toggleGroup('grpAdm','subsAdm','cs.admGroup')" title="Administração">
@@ -3364,6 +3364,23 @@ const ICONS = {
   sair: IC('<path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><path d="M16 17l5-5-5-5M21 12H9"/>'),
   srv:  IC('<rect x="3" y="4" width="18" height="7" rx="1.5"/><rect x="3" y="13" width="18" height="7" rx="1.5"/><path d="M7 7.5h.01M7 16.5h.01M11 7.5h5M11 16.5h5"/>'),
   doc:  IC('<path d="M6 3h8l5 5v13a1 1 0 0 1-1 1H6a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1z"/><path d="M14 3v5h5"/><path d="M8.5 12.5h7M8.5 16h5"/>'),
+  /* Ícones criados para desempatar telas que compartilhavam o mesmo desenho.
+     Ícone repetido no menu não identifica coisa nenhuma: o olho aprende a
+     forma, não o rótulo, e duas telas com o mesmo símbolo obrigam a ler. */
+  balanca: IC('<path d="M12 3v18M7 21h10M3 8h18M12 5.5 3 8M12 5.5 21 8"/><path d="M6 8l-3 6a3 3 0 0 0 6 0zM18 8l-3 6a3 3 0 0 0 6 0z"/>'),
+  orcic: IC('<rect x="4" y="2.5" width="16" height="19" rx="2"/><rect x="7.5" y="6" width="9" height="3.5" rx="1"/><path d="M8 13h.01M12 13h.01M16 13h.01M8 17h.01M12 17h.01M16 17h.01"/>'),
+  fechic: IC('<rect x="3" y="5" width="18" height="16" rx="2"/><path d="M3 10h18M8 3v4M16 3v4"/><path d="M8.8 15.4l2.2 2.2 4.2-4.6"/>'),
+  fluxconic: IC('<path d="M3 20h18"/><path d="M3.5 15.5 8 9l4 4 3.5-6 4.5 5.5"/><circle cx="8" cy="9" r="1.3"/><circle cx="15.5" cy="7" r="1.3"/>'),
+  antecic: IC('<rect x="2.5" y="6.5" width="13" height="9" rx="1.5"/><circle cx="9" cy="11" r="2"/><path d="M17.5 8.5l4 2.5-4 2.5zM17.5 15v3"/>'),
+  lancic: IC('<rect x="3" y="4" width="18" height="16" rx="2"/><path d="M7 9h6M7 12.5h4M7 16h5"/><path d="M16.2 9.5h3.6M18 7.7v3.6M16.2 16h3.6"/>'),
+  extbic: IC('<path d="M5 3h14v18l-2.3-1.4-2.4 1.4-2.3-1.4L9.7 21l-2.4-1.4L5 21z"/><path d="M8.5 8h7M8.5 11.5h4"/><path d="M8.5 15.5h7"/>'),
+  pisoic: IC('<path d="M3 20h18"/><path d="M12 4v10M8.5 10.5 12 14l3.5-3.5"/><path d="M5 17.5h14"/>'),
+  rntrcic: IC('<rect x="2.5" y="5" width="19" height="14" rx="2"/><circle cx="8.5" cy="11" r="2.3"/><path d="M5 16.2a4 4 0 0 1 7 0"/><path d="M14.5 10h4.5M14.5 13.5h3"/>'),
+  recorric: IC('<path d="M20 11a8 8 0 0 0-14.3-4.5M4 13a8 8 0 0 0 14.3 4.5"/><path d="M20 5.5V11h-5.5M4 18.5V13h5.5"/>'),
+  rastroic: IC('<path d="M12 21s6.5-6.2 6.5-11a6.5 6.5 0 1 0-13 0C5.5 14.8 12 21 12 21z"/><circle cx="12" cy="10" r="2.3"/><path d="M2.5 20.5h2M7.5 20.5h1M16 20.5h1M20 20.5h1.5"/>'),
+  telconic: IC('<path d="M12 3.5c3.2 3.6 5 6.1 5 8.3a5 5 0 0 1-10 0c0-2.2 1.8-4.7 5-8.3z"/><path d="M3 21h18M5.5 21v-3.5M9 21v-6"/>'),
+  folhaindic: IC('<circle cx="7" cy="6.5" r="3"/><path d="M2.5 14a4.5 4.5 0 0 1 9 0"/><path d="M14 20V9M18 20V5M21.5 20h-11"/>'),
+  tvfatic: IC('<rect x="3" y="5" width="18" height="12" rx="2"/><path d="M9 21h6M12 17v4"/><path d="M6.5 13.5 10 10l2.5 2.5L17.5 8"/>'),
 };
 function injectIcons(){ document.querySelectorAll('[data-ic]').forEach(el=>{ if(!el.firstChild) el.innerHTML = ICONS[el.dataset.ic]||''; }); }
 injectIcons();
@@ -7492,16 +7509,20 @@ function renderFluxcon(d){
     || '<div style="color:var(--n500)">sem dados de recebíveis</div>';
 
   document.getElementById('fc-linhas').innerHTML=(d.linhas||[]).map((l,i)=>{
-    const det = `<div class="tablewrap"><table>
+    // O resumo por natureza já vem no payload do consolidado (é barato). Os
+    // TÍTULOS só chegam ao expandir — ver fcDetalhe(); daí o `.fc-tit` vazio.
+    const det = `<div class="grid2">
+        <div class="tablewrap"><table>
         <thead><tr><th>Entradas por documento</th><th class="num">Valor</th></tr></thead>
         <tbody>${(l.por_entrada||[]).map(x=>`<tr><td>${esc(x.tipo)}</td><td class="num">${BRL.format(x.valor)}</td></tr>`).join('')
           || '<tr><td colspan="2" style="color:var(--n500)">nenhuma entrada lançada</td></tr>'}</tbody>
       </table></div>
-      <div class="tablewrap" style="margin-top:8px"><table>
+      <div class="tablewrap"><table>
         <thead><tr><th>Saídas por natureza</th><th class="num">Valor</th></tr></thead>
         <tbody>${(l.por_saida||[]).map(x=>`<tr><td>${esc(x.natureza)}</td><td class="num">${BRL.format(x.valor)}</td></tr>`).join('')
           || '<tr><td colspan="2" style="color:var(--n500)">nenhuma saída lançada</td></tr>'}</tbody>
-      </table></div>`;
+      </table></div></div>
+      <div class="fc-tit"></div>`;
     const dim = l.sem_receber ? ' style="opacity:.5"' : '';
     return `<tr class="forn-row"${dim} aria-expanded="false" aria-controls="fc-det-${i}" tabindex="0" role="button"
         onclick="fcToggle(${i})" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();fcToggle(${i});}">
@@ -7541,6 +7562,59 @@ function fcToggle(i){
   const linha=det.previousElementSibling;
   const aberto=det.classList.toggle('open');
   linha.setAttribute('aria-expanded', String(aberto));
+  if(aberto) fcDetalhe(i);
+}
+/* Títulos do período: buscados SÓ ao expandir e uma vez por período. Trazer
+   junto com o consolidado significaria carregar o detalhe de até 26 semanas
+   que ninguém vai abrir. `dataset.carregado` evita refazer a consulta a cada
+   abre/fecha da mesma linha. */
+async function fcDetalhe(i){
+  const det=document.getElementById('fc-det-'+i);
+  const alvo=det && det.querySelector('.fc-tit');
+  if(!alvo || alvo.dataset.carregado) return;
+  const l=(DATAFLUXCON&&DATAFLUXCON.linhas||[])[i];
+  if(!l || !l.de){ alvo.innerHTML=''; return; }
+  alvo.dataset.carregado='1';
+  alvo.innerHTML='<div style="color:var(--n500);font-size:12px;padding:6px 0">carregando os títulos do período…</div>';
+  try{
+    const r=await fetch('/api/financeiro/fluxo-consolidado/detalhe?de='+l.de+'&ate='+l.ate,{cache:'no-store'});
+    const d=await r.json();
+    if(!r.ok){ alvo.innerHTML='<div style="color:var(--red);font-size:12px">'+esc(d.mensagem||'Erro ao detalhar.')+'</div>'; alvo.dataset.carregado=''; return; }
+    const ent=d.entradas||[], sai=d.saidas||[];
+    // As saídas vêm primeiro: quando o período fecha negativo, é nelas que
+    // está a resposta — e quase sempre em duas ou três linhas.
+    alvo.innerHTML=`
+      <div class="grid2" style="margin-top:10px">
+        <div>
+          <div class="busca-sec" style="padding-left:0">Maiores saídas do período</div>
+          <div class="tablewrap"><table>
+            <thead><tr><th class="num">Venc.</th><th>Fornecedor</th><th>Natureza</th><th class="num">Valor</th></tr></thead>
+            <tbody>${sai.map(s=>`<tr>
+              <td class="num">${fmtD(s.dia)}</td>
+              <td title="${esc(s.nome)}">${esc(s.nome.length>26?s.nome.slice(0,26)+'…':s.nome)}</td>
+              <td style="font-size:11.5px;color:var(--n500)" title="${esc(s.tipo)}">${esc(s.natureza)}</td>
+              <td class="num" style="font-weight:600;color:var(--red)">${BRL.format(s.valor)}</td></tr>`).join('')
+              || '<tr><td colspan="4" style="color:var(--n500)">nenhuma saída lançada</td></tr>'}</tbody>
+          </table></div>
+          ${sai.length>=60?'<div class="mais-ocs">60 maiores · o total da linha considera todas</div>':''}
+        </div>
+        <div>
+          <div class="busca-sec" style="padding-left:0">Maiores entradas, por cliente</div>
+          <div class="tablewrap"><table>
+            <thead><tr><th>Cliente</th><th class="num">Títulos</th><th class="num">Valor</th></tr></thead>
+            <tbody>${ent.map(e=>`<tr>
+              <td title="${esc(e.nome)}">${esc(e.nome.length>28?e.nome.slice(0,28)+'…':e.nome)}</td>
+              <td class="num">${e.titulos.toLocaleString('pt-BR')}</td>
+              <td class="num" style="font-weight:600;color:var(--green)">${BRL.format(e.valor)}</td></tr>`).join('')
+              || '<tr><td colspan="3" style="color:var(--n500)">nenhuma entrada lançada</td></tr>'}</tbody>
+          </table></div>
+          ${ent.length>=40?'<div class="mais-ocs">40 maiores clientes</div>':''}
+        </div>
+      </div>`;
+  }catch(e){
+    alvo.innerHTML='<div style="color:var(--red);font-size:12px">Não foi possível carregar os títulos.</div>';
+    alvo.dataset.carregado='';
+  }
 }
 function chartFcRender(linhas){
   const svg=document.getElementById('chartFc');
