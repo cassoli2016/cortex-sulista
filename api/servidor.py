@@ -18,6 +18,7 @@ import subprocess
 import sys
 import time
 from datetime import datetime, timezone
+from pathlib import Path
 
 from . import db
 
@@ -187,6 +188,29 @@ def _servicos() -> list[dict]:
                          "detalhe": "sem conexão"})
         log.warning("saude: banco inacessível: %s", exc)
 
+    # Banco da FOLHA (Oracle GLOBUS). Não configurado != fora do ar: sem as
+    # variáveis de ambiente o recurso simplesmente não existe nesta instalação,
+    # e pintar isso de vermelho todo dia treinaria o operador a ignorar alarme.
+    try:
+        from . import db_folha
+        if not db_folha.configured():
+            servicos.append({"nome": "Banco da Folha (Oracle)", "status": "info",
+                             "detalhe": "não configurado nesta instalação"})
+        else:
+            t0 = time.perf_counter()
+            try:
+                db_folha.ping()
+                ms = round((time.perf_counter() - t0) * 1000)
+                servicos.append({"nome": "Banco da Folha (Oracle)", "status": "ok",
+                                 "detalhe": f"conectado · {ms} ms"})
+            except Exception as exc:  # noqa: BLE001
+                servicos.append({"nome": "Banco da Folha (Oracle)", "status": "erro",
+                                 "detalhe": "sem conexão — RH e Custo de Folha ficam sem dado"})
+                log.warning("saude: oracle inacessivel: %s", exc)
+    except Exception:  # noqa: BLE001
+        servicos.append({"nome": "Banco da Folha (Oracle)", "status": "info",
+                         "detalhe": "driver indisponível"})
+
     # Túnel Cloudflare
     n = _processo_cloudflared()
     servicos.append({
@@ -241,6 +265,68 @@ def _tarefas() -> list[dict]:
                 for n in _TAREFAS]
 
 
+# Nome de exibição -> arquivo. O que a base guarda importa mais que o nome do
+# arquivo: "auth.db" não diz nada para quem opera; "Usuários e auditoria" diz.
+BASES_LOCAIS = [
+    ("Usuários e auditoria", "auth.db"),
+    ("Orçamento", "orcamento.db"),
+    ("Antecipações (portais)", "antecipacoes.db"),
+    ("Extrato bancário", "extrato.db"),
+    ("Telemetria (cache Gobrax)", "telemetria.db"),
+    ("Previsão de fechamento", "previsao.db"),
+    ("Envios de e-mail", "email.db"),
+    ("Notificações push", "push.db"),
+]
+
+
+def _bases_locais() -> list[dict]:
+    """Bases SQLite onde o CÓRTEX escreve: existência, tamanho, integridade.
+
+    `PRAGMA quick_check` em vez de `integrity_check`: o completo varre o
+    arquivo inteiro e a tela recarrega a cada 5 s — num banco de 1,7 MB seria
+    desperdício, e num maior travaria a Saúde.
+
+    Arquivo AUSENTE não é erro: a base nasce no primeiro uso do recurso. É
+    'não usado ainda', e dizer isso evita alarme sobre função que ninguém
+    ligou.
+    """
+    import sqlite3
+
+    raiz = Path(__file__).resolve().parent.parent / "data"
+    fora: list[dict] = []
+    for rotulo, arquivo in BASES_LOCAIS:
+        caminho = raiz / arquivo
+        item = {"nome": rotulo, "arquivo": arquivo}
+        if not caminho.exists():
+            fora.append({**item, "status": "info", "bytes": 0,
+                         "detalhe": "não usada ainda"})
+            continue
+        try:
+            tam = caminho.stat().st_size
+            mod = _iso(caminho.stat().st_mtime)
+            con = sqlite3.connect(f"file:{caminho}?mode=ro", uri=True, timeout=2)
+            try:
+                ok = con.execute("PRAGMA quick_check").fetchone()[0]
+            finally:
+                con.close()
+            gravavel = os.access(caminho, os.W_OK)
+            if ok != "ok":
+                st, det = "erro", f"integridade: {ok}"
+            elif not gravavel:
+                # somente-leitura numa base de escrita quebra o recurso inteiro
+                # e a tela que usa ela falharia sozinha, sem ninguém ligar os
+                # pontos
+                st, det = "erro", "sem permissão de escrita"
+            else:
+                st, det = "ok", f"íntegra · escrita em {mod}"
+            fora.append({**item, "status": st, "bytes": tam,
+                         "modificado_em": mod, "detalhe": det})
+        except Exception as exc:  # noqa: BLE001
+            fora.append({**item, "status": "erro", "bytes": 0,
+                         "detalhe": f"não pôde ser lida ({type(exc).__name__})"})
+    return fora
+
+
 def _deploy_saude(tarefas: list[dict]) -> dict:
     """Saúde do AutoDeploy: alerta se a tarefa não roda há muito (deveria a cada
     2 min) ou perdeu o gatilho (sem próxima execução). Evita repetir o deploy
@@ -293,6 +379,11 @@ def coletar() -> dict:
     except Exception as exc:  # noqa: BLE001
         log.warning("saude: servicos falhou: %s", exc)
         dados["servicos"] = []
+    try:
+        dados["bases"] = _bases_locais()
+    except Exception as exc:  # noqa: BLE001
+        log.warning("saude: bases locais falhou: %s", exc)
+        dados["bases"] = []
     try:
         dados["tarefas"] = _tarefas()
     except Exception as exc:  # noqa: BLE001

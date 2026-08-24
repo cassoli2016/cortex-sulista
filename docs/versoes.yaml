@@ -3,6 +3,29 @@
 #   - a tela Documentação     (#doc)
 #   - o rótulo no rodapé      (CX-DD/MM/AAAA-vX.Y.Z)
 # A versão do TOPO é a corrente e tem de bater com o pyproject.toml.
+- versao: "0.29.0"
+  data: "2026-08-24"
+  adicionado:
+    - >-
+      A Saude do Servidor passou a monitorar o Oracle da folha (GLOBUS). Sao
+      DOIS bancos externos e so um estava vigiado: se o Oracle caisse, as
+      telas de RH e Custo de Folha paravam e a Saude continuava toda verde.
+      Nao configurado aparece como informacao, nao como falha - pintar de
+      vermelho um recurso que a instalacao nao usa treina a ignorar alarme.
+    - >-
+      Card novo com as oito bases locais do CORTEX (usuarios e auditoria,
+      orcamento, antecipacoes, extrato, telemetria, previsao, e-mails e push).
+      E nelas que fica tudo o que o sistema escreve, ja que o ERP e replica
+      somente-leitura, e nenhuma aparecia: se uma travasse ou perdesse
+      permissao de escrita, a falha so apareceria na tela que depende dela,
+      uma de cada vez. Mostra tamanho, integridade e quando foi escrita.
+  corrigido:
+    - >-
+      A tela de Documentacao era a unica sem moldura: titulo, busca e indice
+      lateral ficavam soltos, colados na margem. Ganharam a mesma superficie
+      de card do resto do painel, e o indice lateral agora rola sozinho em vez
+      de esticar a pagina.
+
 - versao: "0.28.0"
   data: "2026-08-24"
   adicionado:

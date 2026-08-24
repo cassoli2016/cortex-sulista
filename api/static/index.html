@@ -922,24 +922,31 @@ body.tvmode #loadbar,body.tvmode #loadtempo{display:none}
 /* ---- tela de Documentação (#doc) ----
    Coluna de leitura travada em 820px pelo mesmo motivo do Copiloto: texto
    corrido a 1400px de largura é ilegível. O índice fica sticky à esquerda. */
-.doc-top{display:flex;align-items:flex-start;gap:18px;flex-wrap:wrap}
+.doc-top{display:flex;align-items:flex-start;gap:18px;flex-wrap:wrap;
+  background:var(--n0);border:1px solid var(--n200);border-radius:var(--radius);
+  padding:18px 20px}
 .doc-h{font-size:20px;font-weight:700;margin:0 0 6px}
 .doc-sistema{margin:0;max-width:820px;color:var(--n600);font-size:14px;line-height:1.6}
 .doc-sel{margin-left:auto;font-family:var(--mono);font-size:12px;font-weight:600;
   color:var(--navy-700);background:var(--navy-50);border:1px solid var(--navy-200);
   border-radius:var(--radius-md);padding:6px 10px;white-space:nowrap}
-.doc-busca{display:flex;align-items:center;gap:12px;flex-wrap:wrap}
+.doc-busca{display:flex;align-items:center;gap:12px;flex-wrap:wrap;
+  background:var(--n0);border:1px solid var(--n200);border-radius:var(--radius);
+  padding:14px 20px}
 .doc-busca input{flex:1;min-width:240px;max-width:520px;font-family:var(--font);font-size:14px;
   color:var(--n900);background:var(--n0);border:1px solid var(--n300);
   border-radius:var(--radius-md);padding:9px 12px}
 .doc-busca input:focus{outline:2px solid var(--orange-500);outline-offset:1px}
 .doc-cols{display:grid;grid-template-columns:210px minmax(0,1fr);gap:18px;align-items:start}
-.doc-nav{position:sticky;top:14px;display:flex;flex-direction:column;gap:2px}
+.doc-nav{position:sticky;top:14px;display:flex;flex-direction:column;gap:2px;
+  background:var(--n0);border:1px solid var(--n200);border-radius:var(--radius);
+  padding:12px 10px;max-height:calc(100vh - 40px);overflow-y:auto}
 .doc-nav a{font-size:13px;color:var(--n600);text-decoration:none;padding:6px 10px;
   border-radius:var(--radius-md);border-left:2px solid transparent}
 .doc-nav a:hover{background:var(--navy-50);color:var(--navy-700)}
 .doc-nav a.forte{font-weight:600;color:var(--n900);margin-top:8px}
 .doc-corpo{display:flex;flex-direction:column;gap:18px;min-width:0}
+.doc-corpo>.card{padding:18px 20px}
 .doc-grupo{padding:14px 0;border-top:1px solid var(--n200)}
 .doc-grupo:first-child{border-top:0;padding-top:4px}
 .doc-grupo h3{margin:0 0 4px;font-size:15px;font-weight:700;color:var(--navy-800)}
@@ -3405,7 +3412,7 @@ body.tvfull #btnReport,body.tvmode #btnReport{display:none}
         <div class="kpis" id="kpis-srv"></div>
         <div class="grid2">
           <div class="card">
-            <div class="head"><h2>Serviços do CÓRTEX <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="Checagem ao vivo dos quatro serviços que o painel precisa: a própria API (uvicorn), o banco do ERP pelo túnel, o Cloudflare Tunnel e o Ollama do Copiloto. Esta tela mede a MÁQUINA ONDE A API RODA — aberta fora do servidor, o túnel e as tarefas agendadas aparecem indisponíveis mesmo estando de pé em produção.">i</span></h2><span class="hint">API · banco · túnel · copiloto</span></div>
+            <div class="head"><h2>Serviços do CÓRTEX <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="Checagem ao vivo dos serviços que o painel precisa: a própria API (uvicorn), o banco do ERP pelo túnel, o Oracle da folha (GLOBUS), o Cloudflare Tunnel e o Ollama do Copiloto. São DOIS bancos externos: se o Oracle cai, RH e Custo de Folha ficam sem dado enquanto o resto do painel segue normal. Esta tela mede a MÁQUINA ONDE A API RODA — aberta fora do servidor, o túnel e as tarefas agendadas aparecem indisponíveis mesmo estando de pé em produção.">i</span></h2><span class="hint">API · dois bancos · túnel · copiloto</span></div>
             <div class="tablewrap"><table><thead><tr>
               <th>Serviço</th><th>Situação</th><th>Detalhe</th>
             </tr></thead><tbody id="srv-servicos"></tbody></table></div>
@@ -3416,6 +3423,13 @@ body.tvfull #btnReport,body.tvmode #btnReport{display:none}
               <th>Tarefa</th><th>Estado</th><th class="num">Última execução</th><th class="num">Próxima execução</th>
             </tr></thead><tbody id="srv-tarefas"></tbody></table></div>
           </div>
+        </div>
+        <div class="card">
+          <div class="head"><h2>Bases locais do CÓRTEX <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="Tudo que o CÓRTEX ESCREVE mora em SQLite ao lado da aplicação, porque o ERP é réplica somente-leitura: usuários e auditoria, orçamento, antecipações, extrato, telemetria, previsão, e-mails e push. Cada base é aberta em modo leitura e passa por um quick_check de integridade. Base ausente NÃO é erro — ela nasce no primeiro uso do recurso.">i</span></h2>
+            <span class="hint" id="hintSrvBases"></span></div>
+          <div class="tablewrap"><table><thead><tr>
+            <th>Base</th><th>Arquivo</th><th class="num">Tamanho</th><th>Situação</th><th>Detalhe</th>
+          </tr></thead><tbody id="srv-bases"></tbody></table></div>
         </div>
         <div class="grid2">
           <div class="card">
@@ -13920,6 +13934,26 @@ function renderSrv(){
     <td>${esc(s.nome)}</td><td><span class="badge ${bmap[s.status]||'b-info'}">${brot[s.status]||esc(s.status)}</span></td>
     <td>${esc(s.detalhe||'')}</td></tr>`).join('')||'<tr><td colspan="3">—</td></tr>';
   const fmtDT = x => { if(!x) return '—'; const d=new Date(x); return isNaN(d)?'—':d.toLocaleString('pt-BR',{day:'2-digit',month:'2-digit',year:'2-digit',hour:'2-digit',minute:'2-digit'}); };
+
+  /* Bases locais. Tamanho formatado porque "1695744 bytes" não diz nada a quem
+     opera; base ausente sai em cinza como "não usada ainda", não em vermelho —
+     recurso que ninguém ligou não é falha. */
+  const bs=d.bases||[];
+  const kb = n => !n ? '—' : (n>=1048576 ? (n/1048576).toLocaleString('pt-BR',{maximumFractionDigits:1})+' MB'
+                                         : Math.round(n/1024).toLocaleString('pt-BR')+' KB');
+  const ruins = bs.filter(b=>b.status==='erro').length;
+  const usadas = bs.filter(b=>b.status!=='info').length;
+  document.getElementById('hintSrvBases').textContent = bs.length
+    ? (usadas+' de '+bs.length+' em uso · '+kb(bs.reduce((a,b)=>a+(b.bytes||0),0))
+       + (ruins ? ' · '+ruins+' com problema' : ' · todas íntegras'))
+    : '';
+  document.getElementById('srv-bases').innerHTML=bs.map(b=>`<tr>
+    <td style="font-weight:600">${esc(b.nome)}</td>
+    <td style="font-family:var(--mono);font-size:11.5px;color:var(--n500)">${esc(b.arquivo)}</td>
+    <td class="num">${kb(b.bytes)}</td>
+    <td><span class="badge ${bmap[b.status]||'b-info'}">${brot[b.status]||esc(b.status)}</span></td>
+    <td style="color:var(--n600)">${esc(b.detalhe||'')}</td></tr>`).join('')
+    ||'<tr><td colspan="5" style="color:var(--n500)">—</td></tr>';
   document.getElementById('srv-tarefas').innerHTML=(d.tarefas||[]).map(t=>{
     const e=(t.estado||'').toLowerCase(); let cls='b-info', rot=t.estado;
     if(e.includes('execu')||e.includes('running')){ cls='b-ok'; rot='Rodando'; }

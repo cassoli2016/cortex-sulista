@@ -4,6 +4,15 @@ Gerado de `docs/versoes.yaml` por `scripts/gerar_changelog.py` — não editar �
 Formato [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/),
 versionamento [SemVer](https://semver.org/lang/pt-BR/).
 
+## [0.29.0] — 24/08/2026  ·  CX-24/08/2026-v0.29.0
+
+### Adicionado
+- A Saude do Servidor passou a monitorar o Oracle da folha (GLOBUS). Sao DOIS bancos externos e so um estava vigiado: se o Oracle caisse, as telas de RH e Custo de Folha paravam e a Saude continuava toda verde. Nao configurado aparece como informacao, nao como falha - pintar de vermelho um recurso que a instalacao nao usa treina a ignorar alarme.
+- Card novo com as oito bases locais do CORTEX (usuarios e auditoria, orcamento, antecipacoes, extrato, telemetria, previsao, e-mails e push). E nelas que fica tudo o que o sistema escreve, ja que o ERP e replica somente-leitura, e nenhuma aparecia: se uma travasse ou perdesse permissao de escrita, a falha so apareceria na tela que depende dela, uma de cada vez. Mostra tamanho, integridade e quando foi escrita.
+
+### Corrigido
+- A tela de Documentacao era a unica sem moldura: titulo, busca e indice lateral ficavam soltos, colados na margem. Ganharam a mesma superficie de card do resto do painel, e o indice lateral agora rola sozinho em vez de esticar a pagina.
+
 ## [0.28.0] — 24/08/2026  ·  CX-24/08/2026-v0.28.0
 
 ### Adicionado
