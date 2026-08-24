@@ -548,6 +548,92 @@ async def gestao_credenciais_salvar(req: Request) -> JSONResponse:
     return JSONResponse(st)
 
 
+# ---------------------------------------------------------------- E-mail (SMTP)
+#
+# Tudo aqui é /api/gestao/*, ou seja: só administrador (AuthMiddleware).
+# Enviar e-mail é ação para FORA da empresa — não pode ficar a um clique de
+# qualquer usuário logado, e todo envio entra na trilha com o autor.
+
+@app.get("/api/gestao/email")
+def gestao_email() -> JSONResponse:
+    """Config do SMTP + trilha de envios. NUNCA devolve a senha."""
+    from api.correio import config as ecfg
+    from api.correio import registro
+    try:
+        return JSONResponse({"config": ecfg.status(), "resumo": registro.resumo(),
+                             "envios": registro.listar(50)})
+    except Exception as exc:  # noqa: BLE001
+        log.warning("gestao_email falhou: %s", exc)
+        return JSONResponse(status_code=500, content={
+            "erro": "erro_consulta", "mensagem": "Erro ao ler a configuração de e-mail."})
+
+
+@app.post("/api/gestao/email")
+async def gestao_email_salvar(req: Request) -> JSONResponse:
+    from api.correio import config as ecfg
+    try:
+        body = await req.json()
+    except Exception:  # noqa: BLE001
+        body = None
+    if not isinstance(body, dict):
+        return JSONResponse(status_code=422, content={
+            "erro": "parametro_invalido", "mensagem": "Envie a configuração."})
+    try:
+        st = ecfg.gravar(body)
+    except ValueError as exc:
+        return JSONResponse(status_code=422, content={
+            "erro": "parametro_invalido", "mensagem": str(exc)})
+    except Exception as exc:  # noqa: BLE001
+        log.warning("gestao_email_salvar falhou: %s", type(exc).__name__)
+        return JSONResponse(status_code=500, content={
+            "erro": "erro_gravacao", "mensagem": "Não foi possível gravar a configuração."})
+    sess = getattr(req.state, "sessao", None) or {}
+    auth.audit(sess.get("email", "?"), "email_config", detalhe=f"host={st.get('host')}")
+    return JSONResponse(st)
+
+
+@app.post("/api/gestao/email/enviar")
+async def gestao_email_enviar(req: Request) -> JSONResponse:
+    """Envia um e-mail. `teste=true` manda para o próprio usuário logado.
+
+    O teste não aceita destinatário: o objetivo é validar a configuração, e
+    deixar escolher para quem mandar transformaria o botão de teste num
+    atalho para disparar mensagem a terceiros sem passar pelo formulário.
+    """
+    from api.correio.envio import enviar
+    try:
+        body = await req.json()
+    except Exception:  # noqa: BLE001
+        body = {}
+    body = body if isinstance(body, dict) else {}
+    sess = getattr(req.state, "sessao", None) or {}
+    autor = sess.get("email", "")
+
+    if body.get("teste"):
+        if not autor:
+            return JSONResponse(status_code=422, content={
+                "erro": "parametro_invalido",
+                "mensagem": "Sessão sem e-mail: não há para onde mandar o teste."})
+        destinatarios, origem = [autor], "teste"
+        assunto = "CÓRTEX — teste de envio de e-mail"
+        corpo = ("Este é um teste de configuração do envio de e-mail do CÓRTEX.\n\n"
+                 "Se você recebeu esta mensagem, o servidor SMTP está funcionando.")
+    else:
+        destinatarios = body.get("destinatarios") or ""
+        origem = str(body.get("origem") or "manual")
+        assunto = str(body.get("assunto") or "")
+        corpo = str(body.get("mensagem") or body.get("corpo") or "")
+
+    r = enviar(destinatarios, assunto, corpo, usuario=autor, origem=origem)
+    auth.audit(autor or "?", "email_enviar",
+               alvo=", ".join(r["destinatarios"])[:200],
+               detalhe=("ok" if r["ok"] else f"falha: {r['erro']}")[:200])
+    if not r["ok"]:
+        return JSONResponse(status_code=502, content={
+            "erro": "envio_falhou", "mensagem": r["erro"]})
+    return JSONResponse({"ok": True, "destinatarios": r["destinatarios"]})
+
+
 @app.get("/api/operacao/antt/rntrc")
 def antt_rntrc(dt_de: str | None = None, dt_ate: str | None = None) -> JSONResponse:
     """Situação do RNTRC dos transportadores contratados no período."""

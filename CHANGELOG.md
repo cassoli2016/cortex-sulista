@@ -4,6 +4,12 @@ Gerado de `docs/versoes.yaml` por `scripts/gerar_changelog.py` — não editar �
 Formato [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/),
 versionamento [SemVer](https://semver.org/lang/pt-BR/).
 
+## [0.13.0] — 24/08/2026  ·  CX-24/08/2026-v0.13.0
+
+### Adicionado
+- O CÓRTEX passou a enviar e-mail. Em Administração › Gestão › E-mail o administrador configura o servidor (host, porta, segurança, remetente), guarda a senha no mesmo cofre do token da Gobrax — de onde ela não volta para a tela — e dispara um teste para o próprio e-mail antes de confiar na configuração.
+- Tela de últimos envios: tudo que o sistema tentou mandar, com autor, destinatário, assunto e resultado. A tentativa que FALHOU também aparece, com o motivo — é o registro dela que responde "o destinatário diz que não recebeu". Mensagem de erro traduzida para algo acionável (autenticação recusada, servidor fora do ar, remetente recusado) em vez do texto cru do servidor.
+
 ## [0.12.1] — 24/08/2026  ·  CX-24/08/2026-v0.12.1
 
 ### Alterado

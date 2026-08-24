@@ -47,6 +47,17 @@ glossario:
       para a tela: depois de salvo, só é possível ver os primeiros e os últimos
       caracteres. Um valor salvo ali tem precedência sobre a variável de
       ambiente de mesmo nome.
+  - termo: Envio de e-mail
+    definicao: >-
+      O CÓRTEX envia e-mail por um servidor SMTP configurado em Administração ›
+      Gestão › E-mail. Host, porta e remetente ficam em data/email_config.json;
+      a SENHA vai para o mesmo cofre do token da Gobrax e nunca volta para a
+      tela. Só administrador configura, porque e-mail sai para fora da empresa.
+      Todo envio — inclusive o que FALHOU — entra numa trilha própria
+      (data/email.db) com autor, destinatário, assunto e o erro: é o registro da
+      falha que responde "o destinatário diz que não recebeu". O botão de teste
+      manda a mensagem só para o e-mail de quem está logado, de propósito, para
+      não virar atalho de disparar mensagem a terceiros.
   - termo: Nota da Gobrax (score)
     definicao: >-
       Nota de 0 a 100 que a plataforma de telemetria atribui ao motorista no mês,

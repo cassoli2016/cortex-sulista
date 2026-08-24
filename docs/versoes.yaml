@@ -3,6 +3,23 @@
 #   - a tela Documentação     (#doc)
 #   - o rótulo no rodapé      (CX-DD/MM/AAAA-vX.Y.Z)
 # A versão do TOPO é a corrente e tem de bater com o pyproject.toml.
+- versao: "0.13.0"
+  data: "2026-08-24"
+  adicionado:
+    - >-
+      O CÓRTEX passou a enviar e-mail. Em Administração › Gestão › E-mail o
+      administrador configura o servidor (host, porta, segurança, remetente),
+      guarda a senha no mesmo cofre do token da Gobrax — de onde ela não volta
+      para a tela — e dispara um teste para o próprio e-mail antes de confiar
+      na configuração.
+    - >-
+      Tela de últimos envios: tudo que o sistema tentou mandar, com autor,
+      destinatário, assunto e resultado. A tentativa que FALHOU também aparece,
+      com o motivo — é o registro dela que responde "o destinatário diz que não
+      recebeu". Mensagem de erro traduzida para algo acionável (autenticação
+      recusada, servidor fora do ar, remetente recusado) em vez do texto cru do
+      servidor.
+
 - versao: "0.12.1"
   data: "2026-08-24"
   alterado:

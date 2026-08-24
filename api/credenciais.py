@@ -26,9 +26,13 @@ CAMINHO = ROOT / "data" / "credenciais.json"
 # credenciais que a tela de Gestão sabe editar
 CONHECIDAS = {
     "GOBRAX_TOKEN": "Token da API Gobrax (telemetria e premiação)",
+    "SMTP_SENHA": "Senha do servidor de e-mail (envio pelo CÓRTEX)",
 }
 
+# senha de SMTP costuma ser curta (e "senha de aplicativo" do Google tem 16
+# caracteres); o mínimo de 8 do token continua valendo para as demais
 TAMANHO_MINIMO = 8
+MINIMO_POR_CREDENCIAL = {"SMTP_SENHA": 4}
 
 
 def _carregar() -> dict:
@@ -88,7 +92,8 @@ def gravar(nome: str, valor: str) -> dict:
     if not valor:
         dados.pop(nome, None)
     else:
-        if len(valor) < TAMANHO_MINIMO:
+        minimo = MINIMO_POR_CREDENCIAL.get(nome, TAMANHO_MINIMO)
+        if len(valor) < minimo:
             raise ValueError(
                 "O valor informado é curto demais para ser uma credencial.")
         dados[nome] = {"valor": valor,

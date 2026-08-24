@@ -2852,6 +2852,7 @@ body.tvfull #btnReport,body.tvmode #btnReport{display:none}
             <button class="ghost" id="gtab-auditoria" aria-pressed="false" onclick="gesTab('auditoria')">Auditoria</button>
             <button class="ghost" id="gtab-config" aria-pressed="false" onclick="gesTab('config')">Segurança</button>
             <button class="ghost" id="gtab-integracoes" aria-pressed="false" onclick="gesTab('integracoes')">Integrações</button>
+            <button class="ghost" id="gtab-email" aria-pressed="false" onclick="gesTab('email')">E-mail</button>
           </div>
         </div>
         <div id="gpane-usuarios">
@@ -2886,6 +2887,50 @@ body.tvfull #btnReport,body.tvmode #btnReport{display:none}
           <div class="card">
             <div class="head"><h2>Credenciais de integração <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="Tokens de API dos fornecedores, guardados em data/credenciais.json na própria máquina, com permissão restrita e fora do controle de versão. O valor NUNCA é devolvido para a tela: depois de salvo, só é possível ver as pontas. Um valor salvo aqui tem precedência sobre a variável de ambiente de mesmo nome.">i</span></h2><span class="hint">só administradores · o valor não pode ser lido de volta</span></div>
             <div id="ges-creds" style="padding:0 18px 18px"></div>
+          </div>
+        </div>
+        <div id="gpane-email" style="display:none">
+          <div class="card">
+            <div class="head"><h2>Servidor de e-mail (SMTP) <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="Configuração do servidor que o CÓRTEX usa para enviar e-mail, guardada em data/email_config.json na própria máquina. A SENHA fica no cofre de credenciais (data/credenciais.json, permissão restrita) e nunca volta para a tela — como o token da Gobrax. Enviar e-mail é ação para fora da empresa: só administrador configura, e todo envio entra na trilha abaixo com o autor.">i</span></h2><span class="hint" id="email-status">—</span></div>
+            <div class="ges-cfg">
+              <div><label for="em-host">Servidor SMTP</label><input type="text" id="em-host" placeholder="smtp.empresa.com.br"></div>
+              <div><label for="em-porta">Porta</label><input type="number" id="em-porta" min="1" max="65535" placeholder="587"></div>
+              <div><label for="em-seg">Segurança</label>
+                <select id="em-seg">
+                  <option value="starttls">STARTTLS (porta 587)</option>
+                  <option value="ssl">SSL direto (porta 465)</option>
+                  <option value="nenhuma">Nenhuma (porta 25)</option>
+                </select>
+              </div>
+              <div><label for="em-usuario">Usuário</label><input type="text" id="em-usuario" placeholder="deixe vazio se o relay não pede login"></div>
+              <div><label for="em-remetente">Remetente (De:)</label><input type="text" id="em-remetente" placeholder="cortex@empresa.com.br"></div>
+              <div><label for="em-nome">Nome do remetente</label><input type="text" id="em-nome" placeholder="CÓRTEX"></div>
+            </div>
+            <div class="m-foot">
+              <span class="m-err" id="em-err"></span>
+              <button class="btn" id="em-salvar" onclick="emailSalvar()">Salvar configuração</button>
+            </div>
+          </div>
+          <div class="card">
+            <div class="head"><h2>Senha do servidor <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="Guardada no mesmo cofre do token da Gobrax. Depois de salva não é possível lê-la de volta — para trocar, basta digitar a nova. Em contas com verificação em duas etapas (Google, Microsoft) use uma senha de aplicativo, não a senha da conta.">i</span></h2><span class="hint" id="em-senha-status">—</span></div>
+            <div class="ges-cfg">
+              <div><label for="em-senha">Senha (ou senha de aplicativo)</label><input type="password" id="em-senha" autocomplete="new-password" placeholder="digite para trocar"></div>
+            </div>
+            <div class="m-foot">
+              <span class="m-err" id="em-senha-err"></span>
+              <button class="btn" onclick="emailSenhaSalvar()">Salvar senha</button>
+            </div>
+          </div>
+          <div class="card">
+            <div class="head"><h2>Testar envio <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="O teste manda a mensagem para o e-mail do SEU usuário logado, e só para ele. Não aceita destinatário justamente para não virar um atalho de disparar mensagem a terceiros sem passar pelo formulário de envio.">i</span></h2><span class="hint">manda uma mensagem para o seu próprio e-mail</span></div>
+            <div class="m-foot">
+              <span class="m-err" id="em-teste-err"></span>
+              <button class="btn" id="em-teste" onclick="emailTeste()">Enviar teste para mim</button>
+            </div>
+          </div>
+          <div class="card">
+            <div class="head"><h2>Últimos envios <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="Trilha de tudo que o CÓRTEX tentou enviar, gravada em data/email.db. A falha também entra — é o registro dela que responde 'o destinatário diz que não recebeu'.">i</span></h2><span class="hint" id="em-hist-hint">—</span></div>
+            <div class="tablewrap tabroll" id="em-hist"></div>
           </div>
         </div>
         <div id="gpane-config" style="display:none">
@@ -11978,14 +12023,99 @@ async function loadGestao(){
 }
 function gesTab(t){
   GES_TAB=t;
-  ['usuarios','perfis','auditoria','config','integracoes'].forEach(x=>{
+  ['usuarios','perfis','auditoria','config','integracoes','email'].forEach(x=>{
     document.getElementById('gpane-'+x).style.display = (x===t)?'':'none';
     document.getElementById('gtab-'+x).setAttribute('aria-pressed', String(x===t));
   });
   if(t==='auditoria' && !document.getElementById('ges-aud').children.length) audCarregar();
   if(t==='integracoes') credCarregar();
+  if(t==='email') emailCarregar();
 }
 function renderGestao(){ renderGesUsuarios(); renderGesPerfis(); renderGesConfig(); gesTab(GES_TAB); }
+
+/* ===================== Envio de e-mail (SMTP) =====================
+   A senha segue a mesma regra do token da Gobrax: campo sempre vazio, valor
+   nunca volta do servidor. O status diz só SE existe senha guardada. */
+async function emailCarregar(){
+  const hist=document.getElementById('em-hist');
+  hist.innerHTML='<div style="padding:12px;color:var(--n500)">carregando…</div>';
+  try{
+    const r=await fetch('/api/gestao/email',{cache:'no-store'});
+    const d=await r.json();
+    if(!r.ok){ hist.innerHTML='<div style="padding:12px;color:var(--red)">'+esc(d.mensagem||'Erro ao ler a configuração.')+'</div>'; return; }
+    const c=d.config||{};
+    const V=(id,v)=>{ const e=document.getElementById(id); if(e) e.value = (v==null?'':v); };
+    V('em-host',c.host); V('em-porta',c.porta); V('em-seg',c.seguranca);
+    V('em-usuario',c.usuario); V('em-remetente',c.remetente); V('em-nome',c.remetente_nome);
+    document.getElementById('email-status').innerHTML = c.configurado
+      ? 'configurado'+(c.atualizado_em?' · atualizado em '+esc(c.atualizado_em):'')
+      : '<b style="color:var(--yellow-700)">ainda não configurado</b> — o envio fica indisponível';
+    document.getElementById('em-senha-status').innerHTML = c.senha_configurada
+      ? 'senha guardada no cofre · digite outra para trocar'
+      : (c.usuario ? '<b style="color:var(--yellow-700)">sem senha guardada</b>'
+                   : 'sem senha — ok se o relay não pede login');
+    const rs=d.resumo||{}, envios=d.envios||[];
+    document.getElementById('em-hist-hint').textContent = rs.total
+      ? `${rs.total} envio${rs.total===1?'':'s'} · ${rs.ok||0} ok · ${rs.falha||0} com falha`
+      : 'nenhum envio registrado';
+    hist.innerHTML = !envios.length ? '<div style="padding:12px;color:var(--n500)">nenhum envio ainda</div>'
+      : '<table><thead><tr><th>Quando</th><th>Para</th><th>Assunto</th><th>Origem</th><th>Autor</th><th>Status</th></tr></thead><tbody>'
+      + envios.map(e=>`<tr>
+          <td>${esc(fmtDT(e.ts))}</td>
+          <td title="${esc(e.destinatarios)}">${esc((e.destinatarios||'').length>34?e.destinatarios.slice(0,34)+'…':e.destinatarios)}</td>
+          <td title="${esc(e.assunto)}">${esc((e.assunto||'').length>40?e.assunto.slice(0,40)+'…':e.assunto)}</td>
+          <td>${esc(e.origem||'—')}</td>
+          <td>${esc(shortName(e.usuario||'—'))}</td>
+          <td>${e.ok?statChip('good','enviado'):statChip('bad','falhou',e.erro||'')}</td></tr>`).join('')
+      + '</tbody></table>';
+  }catch(err){ hist.innerHTML='<div style="padding:12px;color:var(--red)">Não foi possível falar com a API.</div>'; }
+}
+async function emailSalvar(){
+  const err=document.getElementById('em-err'); err.textContent='';
+  const btn=document.getElementById('em-salvar'); btn.disabled=true;
+  try{
+    const corpo={
+      host:document.getElementById('em-host').value.trim(),
+      porta:document.getElementById('em-porta').value,
+      seguranca:document.getElementById('em-seg').value,
+      usuario:document.getElementById('em-usuario').value.trim(),
+      remetente:document.getElementById('em-remetente').value.trim(),
+      remetente_nome:document.getElementById('em-nome').value.trim(),
+    };
+    const r=await fetch('/api/gestao/email',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(corpo)});
+    const d=await r.json();
+    if(!r.ok){ err.textContent=d.mensagem||'Erro ao salvar.'; return; }
+    await emailCarregar();
+  }catch(e){ err.textContent='Não foi possível falar com a API.'; }
+  finally{ btn.disabled=false; }
+}
+async function emailSenhaSalvar(){
+  const err=document.getElementById('em-senha-err'); err.textContent='';
+  const campo=document.getElementById('em-senha');
+  const valor=campo.value;
+  if(!valor){ err.textContent='Digite a senha antes de salvar.'; return; }
+  try{
+    const r=await fetch('/api/gestao/credenciais',{method:'POST',headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({nome:'SMTP_SENHA',valor})});
+    const d=await r.json();
+    if(!r.ok){ err.textContent=d.mensagem||'Erro ao salvar a senha.'; return; }
+    campo.value='';                 // o segredo não fica na tela depois de salvo
+    await emailCarregar();
+  }catch(e){ err.textContent='Não foi possível falar com a API.'; }
+}
+async function emailTeste(){
+  const err=document.getElementById('em-teste-err'); err.textContent='';
+  const btn=document.getElementById('em-teste'); btn.disabled=true; btn.textContent='Enviando…';
+  try{
+    const r=await fetch('/api/gestao/email/enviar',{method:'POST',headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({teste:true})});
+    const d=await r.json();
+    err.style.color = r.ok ? 'var(--green)' : '';
+    err.textContent = r.ok ? ('enviado para '+(d.destinatarios||[]).join(', ')) : (d.mensagem||'Falha no envio.');
+    await emailCarregar();
+  }catch(e){ err.style.color=''; err.textContent='Não foi possível falar com a API.'; }
+  finally{ btn.disabled=false; btn.textContent='Enviar teste para mim'; }
+}
 /* ===================== Credenciais de integração =====================
    O valor NUNCA volta do servidor: a tela mostra só as pontas do que está
    guardado. O campo é sempre um password vazio — nada de preencher com o
