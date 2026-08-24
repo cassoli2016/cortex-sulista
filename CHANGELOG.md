@@ -4,6 +4,14 @@ Gerado de `docs/versoes.yaml` por `scripts/gerar_changelog.py` — não editar �
 Formato [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/),
 versionamento [SemVer](https://semver.org/lang/pt-BR/).
 
+## [0.14.1] — 24/08/2026  ·  CX-24/08/2026-v0.14.1
+
+### Corrigido
+- O AutoDeploy voltou a funcionar: ele estava falhando a cada 2 minutos e por isso a API precisava ser reiniciada à mão a cada entrega. As tarefas agendadas rodam como SISTEMA e o repositório pertence ao usuário, o que faz o Git recusar a pasta por segurança ("dubious ownership") e devolver resposta vazia — o script quebrava logo depois, com uma mensagem que não dizia nada sobre a causa. Agora toda chamada ao Git autoriza a pasta explicitamente.
+- Quando o Git não responde, o AutoDeploy passa a registrar no log o comando e o motivo em vez de um erro genérico — foi o que fez a falha passar despercebida por dias.
+- O AutoDeploy só marca uma versão como implantada DEPOIS de confirmar que a API voltou a responder. Antes ele marcava assim que mandava reiniciar: se a API não subisse, o ciclo seguinte concluía que não havia nada novo e nunca mais tentava, deixando o painel fora do ar em silêncio.
+- Atualização de dependências volta a ser aplicada no deploy. O AutoDeploy procurava o instalador apenas no perfil de quem executa, e como SISTEMA ele não existe lá — mudança de dependência passava com um aviso e a API subia sem o pacote novo.
+
 ## [0.14.0] — 24/08/2026  ·  CX-24/08/2026-v0.14.0
 
 ### Adicionado
