@@ -938,6 +938,32 @@ def cobranca(filial: int | None = None, cliente: str | None = None) -> JSONRespo
             "erro": "erro_consulta", "mensagem": "Erro ao consultar a cobrança."})
 
 
+@app.get("/api/financeiro/fluxo-consolidado")
+def fluxo_consolidado(gran: str = "semana", dias: int = 180) -> JSONResponse:
+    """Fluxo de caixa na granularidade pedida — o formato da planilha de
+    tesouraria, de diário a semestral."""
+    GRANS = ("dia", "semana", "mes", "trimestre", "semestre")
+    if gran not in GRANS:
+        return JSONResponse(status_code=422, content={
+            "erro": "parametro_invalido",
+            "mensagem": f"Granularidade inválida: use {', '.join(GRANS)}."})
+    if not (7 <= dias <= 900):
+        return JSONResponse(status_code=422, content={
+            "erro": "parametro_invalido",
+            "mensagem": "Horizonte inválido: use entre 7 e 900 dias."})
+    try:
+        return JSONResponse(queries.get_fluxo_consolidado(gran=gran, dias=dias))
+    except psycopg.OperationalError as exc:
+        log.warning("banco inacessivel: %s", exc)
+        return JSONResponse(status_code=503, content={
+            "erro": "banco_inacessivel",
+            "mensagem": "Sem conexão com o banco. O túnel SSH está aberto?"})
+    except Exception as exc:  # noqa: BLE001
+        log.warning("fluxo_consolidado falhou: %s", exc)
+        return JSONResponse(status_code=500, content={
+            "erro": "erro_consulta", "mensagem": "Erro ao montar o fluxo consolidado."})
+
+
 @app.get("/api/financeiro/antecipacao")
 def antecipacao(dias: int = 90, reserva: float = 0.0, taxa_mes: float = 2.0,
                 incluir_vencidos: int = 0) -> JSONResponse:

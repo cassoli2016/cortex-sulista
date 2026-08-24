@@ -4,6 +4,18 @@ Gerado de `docs/versoes.yaml` por `scripts/gerar_changelog.py` — não editar �
 Formato [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/),
 versionamento [SemVer](https://semver.org/lang/pt-BR/).
 
+## [0.15.0] — 24/08/2026  ·  CX-24/08/2026-v0.15.0
+
+### Adicionado
+- Nova tela no Financeiro: Fluxo de Caixa Consolidado, no formato da planilha de tesouraria que a equipe já usa. O saldo é encadeado (o final de um período é o inicial do seguinte) e pode ser consolidado por dia, semana, mês, trimestre ou semestre — a mesma informação para a decisão do dia e para a reunião de estratégia. Clicando no período abre a composição: entradas por tipo de documento e saídas por natureza.
+- Os títulos VENCIDOS aparecem num bloco separado, como no rodapé da planilha, agrupados por natureza. São R$ 15,4 milhões, dos quais R$ 10,2 milhões são tributos — misturar isso no dia a dia faria a operação parecer inviável todos os dias.
+- Três números de decisão no topo: necessidade operacional (o da tesouraria do dia), total vencido e necessidade geral (o da reunião de estratégia).
+- Contas a Pagar e a Receber passaram a mostrar a composição por natureza. Dos R$ 69 milhões a pagar em aberto, 47% é dívida financeira (capital de giro e empréstimos) e 37% são tributos; fornecedores são 14%. O aging e a lista de maiores credores sozinhos faziam tudo parecer dívida de fornecedor.
+
+### Corrigido
+- Em horizonte longo (trimestre, semestre) os períodos sem faturamento lançado aparecem esmaecidos e hachurados, e ficam fora do cálculo da necessidade. Sem isso a tela mostrava uma queda de R$ 13 milhões que era ausência de dado — nota ainda não emitida — e não previsão de caixa.
+- A tela declara o que ainda não enxerga (bloqueio judicial, cheques a compensar e conta investimento, que a planilha controla à mão), porque sem esses o saldo mostrado pode ser MAIOR que o disponível de verdade.
+
 ## [0.14.2] — 24/08/2026  ·  CX-24/08/2026-v0.14.2
 
 ### Corrigido

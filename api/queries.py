@@ -300,6 +300,45 @@ GROUP BY a.cnpjcpfcodigo, c.nomefantasia, c.razaosocial
 ORDER BY valor DESC LIMIT 15
 """
 
+# Natureza da dívida — `contaapagar.tipotitulo` × `tipotitulo.descricao`.
+# Preenchido em 5.572 de 5.572 títulos abertos, então não há "(sem tipo)" a
+# tratar. É a informação que faltava para ler o a pagar: dos R$ 69,2 mi em
+# aberto, R$ 25,9 mi são CAPITAL DE GIRO e só R$ 2,5 mi são FORNECEDORES —
+# o aging e o top-15 de credores sozinhos faziam parecer tudo dívida de
+# fornecedor.
+#
+# NÃO segue o filtro de vencimento (RNG) de propósito: a pergunta aqui é a
+# composição do passivo INTEIRO, não a de uma janela. O hint da tela diz isso.
+PAGAR_TIPO_SQL = f"""
+SELECT coalesce(nullif(trim(t.descricao),''), 'tipo '||a.tipotitulo::text) AS tipo,
+       count(*)::int AS titulos,
+       sum(a.valorpendente)::float8 AS total,
+       sum(CASE WHEN a.dtvencimento < {DREF} THEN a.valorpendente ELSE 0 END)::float8 AS vencido,
+       sum(CASE WHEN a.dtvencimento >= {DREF} AND a.dtvencimento <= {DREF} + 30
+                THEN a.valorpendente ELSE 0 END)::float8 AS prox30
+FROM contaapagar a
+LEFT JOIN tipotitulo t ON t.codigo = a.tipotitulo
+WHERE a.valorpendente > 0 {FIL}
+GROUP BY 1 ORDER BY 3 DESC
+"""
+
+# Do lado do recebimento a natureza vem do TIPO DE DOCUMENTO que originou a
+# fatura (6 CONHECIMENTO/CT-e, 8 RECIBO, 10 NOTA FISCAL DE SERVICO, 11
+# REDESPACHO), traduzido pela tabela de domínio `tipodocumento` — nada de
+# rótulo inventado. Mesmo universo oficial do resto da tela.
+RECEBER_TIPO_SQL = f"""
+SELECT coalesce(nullif(trim(td.descricao),''), 'documento '||fc.tipodocumentoorigem::text) AS tipo,
+       count(*)::int AS titulos,
+       sum(fc.valorpendentecnpjcliente)::float8 AS total,
+       sum(CASE WHEN {_REC_OF_VENC} < {DREF} THEN fc.valorpendentecnpjcliente ELSE 0 END)::float8 AS vencido,
+       sum(CASE WHEN {_REC_OF_VENC} >= {DREF} AND {_REC_OF_VENC} <= {DREF} + 30
+                THEN fc.valorpendentecnpjcliente ELSE 0 END)::float8 AS prox30
+{_REC_OF_FROM}
+LEFT JOIN tipodocumento td ON td.codigo = fc.tipodocumentoorigem
+{_REC_OF_WHERE}
+GROUP BY 1 ORDER BY 3 DESC
+"""
+
 FILTROS_SQL = """
 SELECT f.codigo, coalesce(nullif(trim(f.apelido),''), f.cidade, 'Filial '||f.codigo) AS nome, f.uf
 FROM filial f
@@ -326,6 +365,47 @@ def get_filtros() -> dict:
         cur.execute(FILTROS_SQL)
         filiais = cur.fetchall()
     return {"empresa": (emp or {}).get("nome", "—"), "filiais": filiais}
+
+
+# Agrupamento por NATUREZA a partir da descrição do tipo de título.
+#
+# É classificação DO PAINEL, não do ERP — o ERP tem 154 tipos e nenhuma
+# hierarquia acima deles. Por isso: (a) as regras ficam aqui, legíveis;
+# (b) o que não casa vai para "Outros", nunca é forçado num balde; (c) a tela
+# mostra a tabela completa por tipo logo abaixo, de modo que o agrupamento
+# nunca é a única versão do número. A ordem importa — 'PARCELAMENTO IMPOSTOS'
+# tem de cair em tributos, então tributo é testado antes de dívida.
+_NATUREZAS = (
+    ("Migração de saldo", ("IMPLANTACAO", "IMPLATANCAO")),
+    ("Tributos", ("IMPOSTO", "ICMS", "PIS", "COFINS", "IRPJ", "CSLL", "CSRF",
+                  "INSS", "FGTS", "ISS", "DAS ", "TRIBUT", "SIMPLES")),
+    ("Pessoal", ("FERIAS", "SALARIO", "FOLHA", "RESCISAO", "13", "VALE ",
+                 "ADIANTAMENTO SALARIAL", "PLR")),
+    ("Dívida financeira", ("CAPITAL DE GIRO", "EMPRESTIMO", "FINANCIAMENTO",
+                           "CONSORCIO", "LEASING", "BANCO")),
+)
+
+
+def _natureza(descricao: str) -> str:
+    d = (descricao or "").upper()
+    for rotulo, chaves in _NATUREZAS:
+        if any(k in d for k in chaves):
+            return rotulo
+    return "Operacional"
+
+
+def _agrupar_natureza(linhas: list[dict]) -> list[dict]:
+    acc: dict[str, dict] = {}
+    for r in linhas:
+        nat = _natureza(r["tipo"])
+        a = acc.setdefault(nat, {"natureza": nat, "titulos": 0, "total": 0.0,
+                                 "vencido": 0.0, "prox30": 0.0, "tipos": 0})
+        a["titulos"] += r["titulos"]
+        a["total"] += r["total"]
+        a["vencido"] += r["vencido"]
+        a["prox30"] += r["prox30"]
+        a["tipos"] += 1
+    return sorted(acc.values(), key=lambda x: -x["total"])
 
 
 @cached(ttl=90)
@@ -366,6 +446,10 @@ def get_overview(filial: int | None = None, data_ref: str | None = None,
         venc_receber = cur.fetchall()
         cur.execute(VENC_AP_SQL, params)
         venc_pagar = cur.fetchall()
+        cur.execute(PAGAR_TIPO_SQL, params)
+        pagar_tipo = cur.fetchall()
+        cur.execute(RECEBER_TIPO_SQL, params)
+        receber_tipo = cur.fetchall()
         cur.execute(f"SELECT {DREF} AS dref, current_timestamp AS ts", params)
         meta = cur.fetchone()
 
@@ -449,6 +533,9 @@ def get_overview(filial: int | None = None, data_ref: str | None = None,
         "top_pagar": top_pagar,
         "venc_receber": venc_receber,
         "venc_pagar": venc_pagar,
+        "pagar_por_tipo": pagar_tipo,
+        "pagar_por_natureza": _agrupar_natureza(pagar_tipo),
+        "receber_por_tipo": receber_tipo,
         "filial": filial,
         "venc_de": venc_de,
         "venc_ate": venc_ate,
@@ -5736,6 +5823,216 @@ SELECT
        AND (fc.tipodocumentoorigem <> 6 OR co.situacaocte = 3)
        AND coalesce(f.dtprevisaopagamento, f.dtvencimento) < current_date) AS receber_vencido
 """
+
+
+# ============================================================================
+# Fluxo de Caixa Consolidado — a mesma leitura da planilha de tesouraria
+# (Planila_Fluxo/Fluxo_Agosto_26.xlsx), em qualquer granularidade.
+# ----------------------------------------------------------------------------
+# A planilha tem uma aba POR DIA ÚTIL e termina em três linhas de decisão:
+#
+#   SALDO ANTERIOR (+investimento +cheques -BLOQUEIO JUDICIAL) = disponível
+#     + recebimentos - saídas/boletos ............ NECESSIDADE DE CAIXA
+#     - TOTAL DOS VENCIDOS ....................... NECESSIDADE GERAL
+#
+# Duas coisas que ela faz e que este módulo copia de propósito:
+#
+# 1. **Vencido fica NUM BLOCO SEPARADO no rodapé**, não misturado na operação
+#    do dia. São R$ 6,96 mi na planilha, quase tudo ICMS/Receita — inclusive
+#    guias de 2013. Somar isso ao dia a dia faria o operacional parecer
+#    inviável todo santo dia. É a mesma escolha do `get_antecipacao`.
+# 2. **A decisão é a NECESSIDADE**, não o saldo. O que a tesouraria pergunta é
+#    "quanto falta", e é essa a linha que fecha cada bloco.
+#
+# O que a planilha tem e o ERP não expõe: BLOQUEIO JUDICIAL e CHEQUES A
+# COMPENSAR. Ficam como lacuna declarada em `nao_temos`, para a tela dizer —
+# em vez de mostrar um disponível maior do que o real, calado.
+# ============================================================================
+
+FLUXCON_REC_SQL = f"""
+SELECT coalesce(f.dtprevisaopagamento, f.dtvencimento)::date AS dia,
+       coalesce(nullif(trim(td.descricao),''),
+                'documento '||fc.tipodocumentoorigem::text) AS tipo,
+       sum(fc.valorpendentecnpjcliente)::float8 AS valor,
+       count(*)::int AS titulos
+{_REC_OF_FROM}
+LEFT JOIN tipodocumento td ON td.codigo = fc.tipodocumentoorigem
+WHERE f.grupo=1 AND fc.valorpendentecnpjcliente > 0 AND f.dtcancelamento IS NULL
+  AND f.composicao = 1 AND f.dtpagamento IS NULL
+  AND fc.tipodocumentoorigem = ANY(string_to_array('6,8,10,11',',')::int[])
+  AND (fc.tipodocumentoorigem <> 6 OR co.situacaocte = 3)
+  AND coalesce(f.dtprevisaopagamento, f.dtvencimento) >= current_date
+  AND coalesce(f.dtprevisaopagamento, f.dtvencimento) <= current_date + %(dias)s
+GROUP BY 1, 2
+"""
+
+FLUXCON_PAG_SQL = """
+SELECT a.dtvencimento::date AS dia,
+       coalesce(nullif(trim(t.descricao),''), 'tipo '||a.tipotitulo::text) AS tipo,
+       sum(a.valorpendente)::float8 AS valor,
+       count(*)::int AS titulos
+FROM contaapagar a
+LEFT JOIN tipotitulo t ON t.codigo = a.tipotitulo
+WHERE a.valorpendente > 0 AND a.dtvencimento >= current_date
+  AND a.dtvencimento <= current_date + %(dias)s
+GROUP BY 1, 2
+"""
+
+# Bloco do rodapé da planilha: o vencido, com a natureza, para a reunião poder
+# discutir "o que é isso" em vez de olhar um total de R$ 6,96 mi sem cara.
+FLUXCON_VENCIDO_SQL = """
+SELECT coalesce(nullif(trim(t.descricao),''), 'tipo '||a.tipotitulo::text) AS tipo,
+       sum(a.valorpendente)::float8 AS valor, count(*)::int AS titulos,
+       min(a.dtvencimento)::text AS mais_antigo
+FROM contaapagar a
+LEFT JOIN tipotitulo t ON t.codigo = a.tipotitulo
+WHERE a.valorpendente > 0 AND a.dtvencimento < current_date
+GROUP BY 1 ORDER BY 2 DESC
+"""
+
+# Rótulo do balde por granularidade. Trimestre/semestre saem como 2026-T3 /
+# 2026-S2 — legível em ata de reunião, e ordenável como texto.
+def _balde(d: date, gran: str) -> tuple:
+    if gran == "dia":
+        return (d.isoformat(), d.strftime("%d/%m"))
+    if gran == "semana":
+        ini = d - timedelta(days=d.weekday())
+        return (ini.isoformat(), "sem. " + ini.strftime("%d/%m"))
+    if gran == "mes":
+        return (f"{d.year:04d}-{d.month:02d}", f"{MESES_PT[d.month - 1]}/{d.year % 100:02d}")
+    if gran == "trimestre":
+        t = (d.month - 1) // 3 + 1
+        return (f"{d.year:04d}-T{t}", f"{t}º tri/{d.year % 100:02d}")
+    s = 1 if d.month <= 6 else 2
+    return (f"{d.year:04d}-S{s}", f"{s}º sem/{d.year % 100:02d}")
+
+
+MESES_PT = ("jan", "fev", "mar", "abr", "mai", "jun",
+            "jul", "ago", "set", "out", "nov", "dez")
+
+
+@cached(ttl=90)
+def get_fluxo_consolidado(gran: str = "semana", dias: int = 180) -> dict:
+    with db.get_conn() as conn, conn.cursor() as cur:
+        cur.execute(ANTEC_SALDO_SQL)
+        saldo_row = cur.fetchone()
+        cur.execute("SELECT coalesce(sum(valorsaldo),0)::float8 AS caixa FROM ("
+                    "SELECT DISTINCT ON (grupo,empresa,filial,unidade,caixa) valorsaldo"
+                    " FROM caixa_saldo WHERE dtmovimento <= current_date"
+                    " ORDER BY grupo,empresa,filial,unidade,caixa, dtmovimento DESC) x")
+        caixa_row = cur.fetchone()
+        cur.execute(FLUXCON_REC_SQL, {"dias": dias})
+        rec_rows = cur.fetchall()
+        cur.execute(FLUXCON_PAG_SQL, {"dias": dias})
+        pag_rows = cur.fetchall()
+        cur.execute(FLUXCON_VENCIDO_SQL)
+        venc_rows = cur.fetchall()
+        cur.execute("SELECT current_date AS hoje, current_timestamp AS ts")
+        meta = cur.fetchone()
+
+    hoje: date = meta["hoje"]
+    saldo_ini = (saldo_row.get("bancos") or 0.0) + (caixa_row.get("caixa") or 0.0)
+
+    baldes: dict[str, dict] = {}
+
+    def _slot(d: date) -> dict:
+        chave, rotulo = _balde(d, gran)
+        return baldes.setdefault(chave, {
+            "chave": chave, "rotulo": rotulo, "entradas": 0.0, "saidas": 0.0,
+            "por_entrada": {}, "por_saida": {}, "titulos_ent": 0, "titulos_sai": 0})
+
+    for r in rec_rows:
+        s = _slot(r["dia"])
+        s["entradas"] += r["valor"]
+        s["titulos_ent"] += r["titulos"]
+        s["por_entrada"][r["tipo"]] = s["por_entrada"].get(r["tipo"], 0.0) + r["valor"]
+    for r in pag_rows:
+        s = _slot(r["dia"])
+        s["saidas"] += r["valor"]
+        s["titulos_sai"] += r["titulos"]
+        nat = _natureza(r["tipo"])
+        s["por_saida"][nat] = s["por_saida"].get(nat, 0.0) + r["valor"]
+
+    # Saldo encadeado: o final de um balde é o inicial do seguinte — é assim
+    # que a planilha faz (SALDO ANTERIOR de cada aba vem do dia anterior).
+    linhas, saldo = [], saldo_ini
+    for chave in sorted(baldes):
+        b = baldes[chave]
+        resultado = b["entradas"] - b["saidas"]
+        inicial, saldo = saldo, saldo + resultado
+        linhas.append({
+            "chave": chave, "rotulo": b["rotulo"],
+            "saldo_inicial": round(inicial, 2),
+            "entradas": round(b["entradas"], 2), "saidas": round(b["saidas"], 2),
+            "resultado": round(resultado, 2), "saldo_final": round(saldo, 2),
+            # necessidade = o quanto falta para fechar o balde sem furar o zero
+            "necessidade": round(max(0.0, -saldo), 2),
+            "titulos_ent": b["titulos_ent"], "titulos_sai": b["titulos_sai"],
+            "por_entrada": sorted(({"tipo": k, "valor": round(v, 2)}
+                                   for k, v in b["por_entrada"].items()),
+                                  key=lambda x: -x["valor"]),
+            "por_saida": sorted(({"natureza": k, "valor": round(v, 2)}
+                                 for k, v in b["por_saida"].items()),
+                                key=lambda x: -x["valor"]),
+        })
+
+    vencido_total = sum(v["valor"] for v in venc_rows)
+
+    # Cobertura de pagáveis: em horizonte longo (trimestre/semestre) a falta de
+    # lançamento futuro é MUITO maior — o saldo final pareceria excelente.
+    por_mes: dict[str, float] = {}
+    for r in pag_rows:
+        k = f"{r['dia'].year:04d}-{r['dia'].month:02d}"
+        por_mes[k] = por_mes.get(k, 0.0) + r["valor"]
+    meses = sorted(por_mes)
+    base = por_mes.get(meses[0], 0.0) if meses else 0.0
+    mes_frouxo = next((m for m in meses[1:] if base > 0 and por_mes[m] < base * 0.5), None)
+
+    # COBERTURA DE RECEBÍVEIS — o espelho do problema acima, e pior em horizonte
+    # longo. Recebível só existe depois de faturado: a partir de ~4 meses as
+    # entradas somem, enquanto parcela de financiamento continua lançada anos à
+    # frente. O gráfico então despenca para um número catastrófico que é
+    # ARTEFATO, não previsão (medido: -R$ 12 mi no 4º tri/27, com entradas = 0).
+    # Marcamos o primeiro balde em que a entrada colapsa; da tela para a frente
+    # a linha é esmaecida e o total deixa de ser apresentado como resultado.
+    base_ent = linhas[0]["entradas"] if linhas else 0.0
+    i_seco = next((i for i, l in enumerate(linhas)
+                   if i > 0 and (base_ent <= 0 or l["entradas"] < base_ent * 0.2)), None)
+    balde_seco = linhas[i_seco]["chave"] if i_seco is not None else None
+    for i, l in enumerate(linhas):
+        l["sem_receber"] = bool(i_seco is not None and i >= i_seco)
+    # o pior saldo e a necessidade só valem no trecho com os DOIS lados
+    confiaveis = [l for l in linhas if not l["sem_receber"]]
+    pior = min((l["saldo_final"] for l in confiaveis), default=saldo_ini)
+    primeiro_negativo = next((l["rotulo"] for l in confiaveis if l["saldo_final"] < 0), None)
+
+    return {
+        "gran": gran, "dias": dias, "hoje": hoje.isoformat(),
+        "kpis": {
+            "saldo_inicial": saldo_ini,
+            "saldo_data": saldo_row.get("mais_recente"),
+            "entradas": round(sum(l["entradas"] for l in linhas), 2),
+            "saidas": round(sum(l["saidas"] for l in linhas), 2),
+            "saldo_final": round(linhas[-1]["saldo_final"], 2) if linhas else saldo_ini,
+            "pior_saldo": round(pior, 2),
+            "primeiro_negativo": primeiro_negativo,
+            "necessidade_operacional": round(max(0.0, -pior), 2),
+            "vencido_total": round(vencido_total, 2),
+            "necessidade_geral": round(max(0.0, -pior) + vencido_total, 2),
+        },
+        "linhas": linhas,
+        "vencidos": [{**v, "natureza": _natureza(v["tipo"]),
+                      "valor": round(v["valor"], 2)} for v in venc_rows][:40],
+        "vencidos_por_natureza": _agrupar_natureza(
+            [{"tipo": v["tipo"], "titulos": v["titulos"], "total": v["valor"],
+              "vencido": v["valor"], "prox30": 0.0} for v in venc_rows]),
+        "cobertura": {"mes_frouxo": mes_frouxo, "balde_seco": balde_seco,
+                      "baldes_confiaveis": len(confiaveis)},
+        "nao_temos": ["Bloqueio judicial", "Cheques a compensar", "Conta investimento"],
+        "atualizado_em": meta["ts"].isoformat(),
+        "fonte": ("ERP AVA · a receber oficial + contaapagar por vencimento, contra saldo "
+                  "de bancos e caixa · só o LANÇADO · leitura"),
+    }
 
 
 def _antec_simular(dias_lista, rec_por_dia, pag_por_dia, saldo_inicial,

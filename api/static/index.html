@@ -999,6 +999,7 @@ body.tvfull #btnReport,body.tvmode #btnReport{display:none}
         <a href="#cob" class="sub" data-view="cob" title="Régua de Cobrança"><span class="ic" data-ic="cob"></span><span>Cobrança</span></a>
         <a href="#extb" class="sub" data-view="extb" title="Extrato Bancário"><span class="ic" data-ic="ctb"></span><span>Extrato Bancário</span></a>
         <a href="#lanc" class="sub" data-view="lanc" title="Lançamentos Bancários"><span class="ic" data-ic="ctb"></span><span>Lançamentos Bancários</span></a>
+        <a href="#fluxcon" class="sub" data-view="fluxcon" title="Fluxo de Caixa Consolidado"><span class="ic" data-ic="flx"></span><span>Fluxo Consolidado</span></a>
         <a href="#antec" class="sub" data-view="antec" title="Antecipação de Recebíveis"><span class="ic" data-ic="flx"></span><span>Antecipação</span></a>
       </div>
       <button class="group" id="grpCtr" aria-expanded="false" aria-controls="subsCtr" onclick="toggleGroup('grpCtr','subsCtr','cs.ctrGroup')" title="Controladoria">
@@ -1318,6 +1319,26 @@ body.tvfull #btnReport,body.tvmode #btnReport{display:none}
           <div class="field">
             <label for="fLancBusca" title="Busca no histórico do lançamento (texto livre do banco) — não é um cadastro de cliente/fornecedor. Funciona bem para boleto/TED/PIX, que costumam trazer o nome de quem pagou ou recebeu; não funciona para transferência entre contas próprias nem vale-pedágio, que não citam nome.">Cliente/fornecedor</label>
             <input type="search" id="fLancBusca" placeholder="buscar no histórico…" onchange="loadLanc()">
+          </div>
+        </div>
+        <div class="rangegrp" id="grpFluxcon" style="display:none">
+          <div class="field">
+            <label for="fFcGran">Consolidar por</label>
+            <select id="fFcGran" onchange="fcGranChange()">
+              <option value="dia">Dia</option>
+              <option value="semana" selected>Semana</option>
+              <option value="mes">Mês</option>
+              <option value="trimestre">Trimestre</option>
+              <option value="semestre">Semestre</option>
+            </select>
+          </div>
+          <div class="field">
+            <label for="fFcDias" title="Quantos dias à frente projetar. Horizonte longo tem menos recebível lançado — a tela marca de onde o dado deixa de ser confiável.">Horizonte</label>
+            <select id="fFcDias" onchange="loadFluxcon()">
+              <option value="30">30 dias</option><option value="90">90 dias</option>
+              <option value="180" selected>180 dias</option><option value="360">1 ano</option>
+              <option value="540">18 meses</option><option value="720">2 anos</option>
+            </select>
           </div>
         </div>
         <div class="rangegrp" id="grpAntec" style="display:none">
@@ -2122,6 +2143,41 @@ body.tvfull #btnReport,body.tvmode #btnReport{display:none}
             <span class="hint" id="hintExtbConcil"></span></div>
           <div id="extb-concil-kpis" class="kpis k4"></div>
           <div id="extb-concil-corpo"></div>
+        </div>
+      </section>
+
+      <!-- ===================== FLUXO DE CAIXA CONSOLIDADO ===================== -->
+      <section class="view" id="view-fluxcon">
+        <div id="fc-avisos"></div>
+        <div class="kpis k4" id="kpis-fluxcon"></div>
+        <div class="card">
+          <div class="head"><h2>Saldo projetado <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="Saldo encadeado: o final de cada período é o inicial do seguinte, começando no saldo de bancos e caixa de hoje — a mesma cascata da planilha de tesouraria, onde o SALDO ANTERIOR de cada aba vem do dia anterior. Entradas = a receber oficial por vencimento; saídas = contas a pagar por vencimento. Só o que está LANÇADO no ERP.">i</span></h2>
+            <span class="hint" id="hintFc"></span></div>
+          <div class="chartwrap" id="wrapFc">
+            <svg id="chartFc" viewBox="0 0 960 250" preserveAspectRatio="xMidYMid meet" tabindex="0" role="img"
+                 aria-label="Saldo de caixa projetado por período."></svg>
+            <div class="tip" id="tipFc"></div>
+          </div>
+        </div>
+        <div class="card">
+          <div class="head"><h2>Fluxo período a período <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="A espinha dorsal da planilha: saldo inicial, entradas, saídas, resultado, saldo final e a NECESSIDADE — quanto falta para o período não fechar negativo. Linha esmaecida = período sem recebível lançado, onde o saldo despenca por ausência de dado e não por previsão de caixa.">i</span></h2>
+            <span class="hint" id="hintFcTab">clique na linha para ver a composição</span></div>
+          <div class="tablewrap tabroll"><table><thead><tr>
+            <th style="width:30px"></th><th>Período</th><th class="num">Saldo inicial</th>
+            <th class="num">Entradas</th><th class="num">Saídas</th><th class="num">Resultado</th>
+            <th class="num">Saldo final</th><th class="num">Necessidade</th>
+          </tr></thead><tbody id="fc-linhas"></tbody></table></div>
+        </div>
+        <div class="card">
+          <div class="head"><h2>Vencidos — o bloco separado <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="Contas a pagar já vencidas, agrupadas por natureza. Ficam FORA do fluxo acima de propósito, como no rodapé da planilha de tesouraria: somar isso ao dia a dia faria a operação parecer inviável todos os dias. A maior parte é tributo — inclusive parcelamento em curso, que não vence de novo.">i</span></h2>
+            <span class="hint" id="hintFcVenc"></span></div>
+          <div class="tablewrap"><table><thead><tr>
+            <th>Natureza</th><th class="num">Títulos</th><th class="num">Valor</th><th class="num">% do vencido</th>
+          </tr></thead><tbody id="fc-venc-nat"></tbody></table></div>
+          <div class="tablewrap tabroll" style="margin-top:10px"><table><thead><tr>
+            <th>Tipo de título</th><th>Natureza</th><th class="num">Títulos</th>
+            <th class="num">Valor</th><th>Mais antigo</th>
+          </tr></thead><tbody id="fc-venc-tipo"></tbody></table></div>
         </div>
       </section>
 
@@ -3193,7 +3249,7 @@ const FAIXAS = {
   '4_vencido_91_365':['Vencido 91–365d','b-dang'],
   '5_vencido_mais_365':['Vencido > 365d','b-dang'],
 };
-const VIEWS = { home:'Visão Geral', fluxo:'Fluxo de Caixa e Bancos', receber:'Contas a Receber', pagar:'Contas a Pagar', oc:'Ordens de Compra', custos:'Painel de Custos', agr:'Agregados e Terceiros', mvb:'Make vs Buy', comb:'Combustível', man:'Manutenção', com:'Clientes e RKM', clif:'Consulta de Cliente', crm:'CRM — Leads e Projetos', km:'Análise de KM', torre:'Torre de Controle', veic:'Veículos', veicf:'Consulta de Veículo', mprev:'Manutenção Preventiva', comrast:'Comunicação Rastreadora', mul:'Multas', prog:'Programação Inteligente', jorn:'Jornada do Motorista', jornf:'Ficha de Jornada', cex:'Custos Extras', sac:'SAC / Freetime', port:'Portaria', cop:'Copiloto Cortex', cob:'Régua de Cobrança', extb:'Extrato Bancário', lanc:'Lançamentos Bancários', antec:'Antecipação de Recebíveis', cont:'Contabilidade', qual:'Qualidade e Certidões', orc:'Orçamento', fech:'Fechamento do Mês', prem:'Premiação de Motoristas', dre:'DRE Gerencial', bal:'Balanço Patrimonial', drecli:'DRE por Cliente', tvfat:'Painel TV — Faturamento', tvope:'Painel TV — Operação', rh:'RH — Vagas', hc:'Headcount', folha:'Custo de Folha', folhaind:'Indicadores de Folha', he:'Horas Extras', gestao:'Gestão', srv:'Saúde do Servidor', doc:'Documentação', anpiso:'Piso Mínimo de Frete', anrntrc:'RNTRC dos Transportadores', telcon:'Consumo e Estatísticas', telcond:'Condução Econômica', telhod:'Hodômetro e Rastro' };
+const VIEWS = { home:'Visão Geral', fluxo:'Fluxo de Caixa e Bancos', receber:'Contas a Receber', pagar:'Contas a Pagar', oc:'Ordens de Compra', custos:'Painel de Custos', agr:'Agregados e Terceiros', mvb:'Make vs Buy', comb:'Combustível', man:'Manutenção', com:'Clientes e RKM', clif:'Consulta de Cliente', crm:'CRM — Leads e Projetos', km:'Análise de KM', torre:'Torre de Controle', veic:'Veículos', veicf:'Consulta de Veículo', mprev:'Manutenção Preventiva', comrast:'Comunicação Rastreadora', mul:'Multas', prog:'Programação Inteligente', jorn:'Jornada do Motorista', jornf:'Ficha de Jornada', cex:'Custos Extras', sac:'SAC / Freetime', port:'Portaria', cop:'Copiloto Cortex', cob:'Régua de Cobrança', extb:'Extrato Bancário', lanc:'Lançamentos Bancários', antec:'Antecipação de Recebíveis', fluxcon:'Fluxo de Caixa Consolidado', cont:'Contabilidade', qual:'Qualidade e Certidões', orc:'Orçamento', fech:'Fechamento do Mês', prem:'Premiação de Motoristas', dre:'DRE Gerencial', bal:'Balanço Patrimonial', drecli:'DRE por Cliente', tvfat:'Painel TV — Faturamento', tvope:'Painel TV — Operação', rh:'RH — Vagas', hc:'Headcount', folha:'Custo de Folha', folhaind:'Indicadores de Folha', he:'Horas Extras', gestao:'Gestão', srv:'Saúde do Servidor', doc:'Documentação', anpiso:'Piso Mínimo de Frete', anrntrc:'RNTRC dos Transportadores', telcon:'Consumo e Estatísticas', telcond:'Condução Econômica', telhod:'Hodômetro e Rastro' };
 const periodoLabel = p => { if(p==='atrasado') return 'Atrasado'; const [y,m]=p.split('-'); return MES[+m-1]+'/'+y.slice(2); };
 const fmtD = s => { if(!s) return ''; const [y,m,dd]=s.split('-'); return dd+'/'+m+'/'+y; };
 // o ERP devolve "YYYY-MM-DD HH24:MI" (to_char); a ficha do veículo mostrava cru
@@ -3278,6 +3334,7 @@ let DATACOB = null;
 let DATAEXTB = null, extbSeq = 0;
 let DATALANC = null, lancSeq = 0;
 let DATAANTEC = null, antecSeq = 0;
+let DATAFLUXCON = null, fluxconSeq = 0;
 let DATABAL = null, balSeq = 0;
 let DATARENT = null;
 let tvTimer = null, tvClock = null, TV_NEXT = 0;
@@ -3355,7 +3412,7 @@ function toggleGroup(gid,sid,key){
 
 const VIEW_GROUP = {home:'',cop:'',
   com:'Com',clif:'Com',crm:'Com',rent:'Com',drecli:'Com',
-  fluxo:'Fin',receber:'Fin',pagar:'Fin',cob:'Fin',extb:'Fin',lanc:'Fin',antec:'Fin',
+  fluxo:'Fin',receber:'Fin',pagar:'Fin',cob:'Fin',extb:'Fin',lanc:'Fin',antec:'Fin',fluxcon:'Fin',
   dre:'Ctr',bal:'Ctr',cont:'Ctr',qual:'Ctr',orc:'Ctr',fech:'Ctr',
   torre:'Ope',prog:'Ope',jorn:'Ope',jornf:'Ope',cex:'Ope',sac:'Ope',port:'Ope',km:'Ope',agr:'Ope',mvb:'Ope',
   veic:'Fro',veicf:'Fro',mprev:'Fro',comrast:'Fro',comb:'Fro',man:'Fro',mul:'Fro',prem:'Fro',
@@ -3424,6 +3481,9 @@ function qsView(k){
     if(T('fLancBusca'))p.set('busca',T('fLancBusca'));
   } else if(k==='bal'){
     if(V('fBalAnomes'))p.set('anomes',V('fBalAnomes'));
+  } else if(k==='fluxcon'){
+    if(V('fFcGran'))p.set('gran',V('fFcGran'));
+    if(V('fFcDias'))p.set('dias',V('fFcDias'));
   } else if(k==='antec'){
     if(V('fAntDias'))p.set('dias',V('fAntDias'));
     if(V('fAntReserva'))p.set('reserva',String(numBR(V('fAntReserva'))||0));
@@ -3570,7 +3630,7 @@ function router(){
   navRegistraUso(v);
   syncGroups(v);
   const anpiso = (v==='anpiso');
-  const dre = (v==='dre'), oc = (v==='oc'), agr = (v==='agr'), mvb = (v==='mvb'), comb = (v==='comb'), man = (v==='man'), com = (v==='com'), home = (v==='home'), kmv = (v==='km'), torre = (v==='torre'), veic = (v==='veic'), mul = (v==='mul'), prog = (v==='prog'), cop = (v==='cop'), cob = (v==='cob'), rent = (v==='rent'), contab = (v==='cont'), dreCli = (v==='drecli'), orc = (v==='orc'), lanc = (v==='lanc'), bal = (v==='bal'), antec = (v==='antec');
+  const dre = (v==='dre'), oc = (v==='oc'), agr = (v==='agr'), mvb = (v==='mvb'), comb = (v==='comb'), man = (v==='man'), com = (v==='com'), home = (v==='home'), kmv = (v==='km'), torre = (v==='torre'), veic = (v==='veic'), mul = (v==='mul'), prog = (v==='prog'), cop = (v==='cop'), cob = (v==='cob'), rent = (v==='rent'), contab = (v==='cont'), dreCli = (v==='drecli'), orc = (v==='orc'), lanc = (v==='lanc'), bal = (v==='bal'), antec = (v==='antec'), fluxcon = (v==='fluxcon');
   // torre: só filial; auto-refresh de 120s enquanto ativa
   if(torreTimer){ clearInterval(torreTimer); torreTimer=null; }
   if(torre){ torreTimer=setInterval(()=>{ if(currentView()==='torre') loadTorre(true); }, 120000); }
@@ -3593,6 +3653,7 @@ function router(){
   document.getElementById('grpLanc').style.display = lanc ? 'flex' : 'none';
   document.getElementById('grpBal').style.display = bal ? 'flex' : 'none';
   document.getElementById('grpAntec').style.display = antec ? 'flex' : 'none';
+  document.getElementById('grpFluxcon').style.display = fluxcon ? 'flex' : 'none';
   const ges = (v==='gestao');
   const fbar=document.getElementById('filterbar'); if(fbar) fbar.style.display = semFilterbar(v) ? 'none' : '';
   const metaEl=document.getElementById('meta'); if(metaEl) metaEl.style.display = (cop||ges||v==='srv'||v==='veicf'||v==='clif'||v==='jorn'||v==='jornf'||v==='cex'||v==='sac'||v==='mprev'||v==='comrast'||v==='qual'||v==='port'||v==='crm'||v==='rh'||v==='hc'||v==='folha'||v==='folhaind'||v==='he'||v==='custos'||v==='prem'||v==='doc') ? 'none' : '';
@@ -3606,20 +3667,20 @@ function router(){
   document.getElementById('grpComb').style.display = comb ? 'flex' : 'none';
   document.getElementById('grpMan').style.display = man ? 'flex' : 'none';
   document.getElementById('grpVeic').style.display = veic ? 'flex' : 'none';
-  document.getElementById('grpVenc').style.display = (dre||oc||agr||mvb||comb||man||com||kmv||torre||veic||mul||prog||cop||cob||rent||contab||dreCli||orc||anpiso||lanc||bal||antec) ? 'none' : 'flex';
-  document.getElementById('fData').parentElement.style.display = (dre||oc||agr||mvb||comb||man||com||kmv||torre||veic||mul||prog||cop||cob||rent||contab||dreCli||orc||anpiso||lanc||bal||antec) ? 'none' : 'flex';
+  document.getElementById('grpVenc').style.display = (dre||oc||agr||mvb||comb||man||com||kmv||torre||veic||mul||prog||cop||cob||rent||contab||dreCli||orc||anpiso||lanc||bal||antec||fluxcon) ? 'none' : 'flex';
+  document.getElementById('fData').parentElement.style.display = (dre||oc||agr||mvb||comb||man||com||kmv||torre||veic||mul||prog||cop||cob||rent||contab||dreCli||orc||anpiso||lanc||bal||antec||fluxcon) ? 'none' : 'flex';
   const fFil = document.getElementById('fFilial');
   // Filial some onde a fonte não tem esse recorte OU a API não aceita o parâmetro
   // (DRE/MvB consolidados; Veículos/Multas/Programação/Contabilidade não filtram
   // por filial). DRE por Cliente ACEITA filial (dre_cliente/sql.py) — fica visível.
   // Lançamentos Bancários também: contacorrente é por CONTA (empresa), sem coluna de filial.
   // Balanço idem: balancodemonstracaocontabil é consolidado da empresa, sem filial.
-  fFil.parentElement.style.display = (dre||mvb||comb||veic||mul||prog||contab||orc||lanc||bal||antec) ? 'none' : 'flex';
+  fFil.parentElement.style.display = (dre||mvb||comb||veic||mul||prog||contab||orc||lanc||bal||antec||fluxcon) ? 'none' : 'flex';
   // carga da vista: dispara se não há dados OU se os filtros visíveis
   // divergem dos usados na última carga (nunca mostrar dado velho com filtro novo)
   const key=viewKey(v);
-  const DATAMAP={fin:DATA,oc:DATAOC,agr:DATAAGR,anpiso:DATAANPISO,anrntrc:DATAANRNTRC,telcon:DATATELCON,telcond:DATATELCOND,telhod:DATATELHOD,mvb:DATAMVB,comb:DATACOMB,man:DATAMAN,com:DATACOM,clif:DATACLIF,dre:DATADRE,bal:DATABAL,drecli:DATADRECLI,home:DATAHOME,km:DATAKM,torre:DATATORRE,veic:DATAVEIC,veicf:DATAVEICF,mul:DATAMUL,prog:DATAPROG,jorn:DATAJORN,jornf:DATAJORNF,cex:DATACEX,sac:DATASAC,mprev:DATAMPREV,comrast:DATACOMRAST,qual:DATAQUAL,port:DATAPORT,crm:DATACRM,rh:DATARH,hc:DATAHC,folha:DATAFOLHA,folhaind:DATAFOLHAIND,he:DATAHE,custos:DATACUSTOS,cob:DATACOB,extb:DATAEXTB,lanc:DATALANC,antec:DATAANTEC,rent:DATARENT,cont:DATACONT,orc:DATAORC,fech:DATAFECH,prem:DATAPREM,gestao:DATAGES,srv:DATASRV,doc:DATADOC,tvfat:null,tvope:null,cop:(COP_MSGS.length?{}:null)};
-  const LOADMAP={fin:load,oc:loadOc,agr:loadAgr,anpiso:loadAnpiso,anrntrc:loadAnrntrc,telcon:loadTelcon,telcond:loadTelcond,telhod:loadTelhod,mvb:loadMvb,comb:loadComb,man:loadMan,com:loadCom,clif:loadClif,dre:loadDre,bal:loadBal,drecli:loadDreCli,home:loadHome,km:loadKm,torre:loadTorre,veic:loadVeic,veicf:loadVeicf,mul:loadMul,prog:loadProg,jorn:loadJorn,jornf:loadJornf,cex:loadCex,sac:loadSac,mprev:loadMPrev,comrast:loadComRast,qual:loadQual,port:loadPort,crm:loadCrm,rh:loadRh,hc:loadHc,folha:loadFolha,folhaind:loadFolhaInd,he:loadHe,custos:loadCustos,cob:loadCob,extb:loadExtb,lanc:loadLanc,antec:loadAntec,rent:loadRent,cont:loadCont,orc:loadOrc,fech:loadFech,prem:loadPrem,gestao:loadGestao,srv:loadSrv,doc:loadDoc,cop:loadCop,tvfat:loadTvFat,tvope:loadTvOpe};
+  const DATAMAP={fin:DATA,oc:DATAOC,agr:DATAAGR,anpiso:DATAANPISO,anrntrc:DATAANRNTRC,telcon:DATATELCON,telcond:DATATELCOND,telhod:DATATELHOD,mvb:DATAMVB,comb:DATACOMB,man:DATAMAN,com:DATACOM,clif:DATACLIF,dre:DATADRE,bal:DATABAL,drecli:DATADRECLI,home:DATAHOME,km:DATAKM,torre:DATATORRE,veic:DATAVEIC,veicf:DATAVEICF,mul:DATAMUL,prog:DATAPROG,jorn:DATAJORN,jornf:DATAJORNF,cex:DATACEX,sac:DATASAC,mprev:DATAMPREV,comrast:DATACOMRAST,qual:DATAQUAL,port:DATAPORT,crm:DATACRM,rh:DATARH,hc:DATAHC,folha:DATAFOLHA,folhaind:DATAFOLHAIND,he:DATAHE,custos:DATACUSTOS,cob:DATACOB,extb:DATAEXTB,lanc:DATALANC,antec:DATAANTEC,fluxcon:DATAFLUXCON,rent:DATARENT,cont:DATACONT,orc:DATAORC,fech:DATAFECH,prem:DATAPREM,gestao:DATAGES,srv:DATASRV,doc:DATADOC,tvfat:null,tvope:null,cop:(COP_MSGS.length?{}:null)};
+  const LOADMAP={fin:load,oc:loadOc,agr:loadAgr,anpiso:loadAnpiso,anrntrc:loadAnrntrc,telcon:loadTelcon,telcond:loadTelcond,telhod:loadTelhod,mvb:loadMvb,comb:loadComb,man:loadMan,com:loadCom,clif:loadClif,dre:loadDre,bal:loadBal,drecli:loadDreCli,home:loadHome,km:loadKm,torre:loadTorre,veic:loadVeic,veicf:loadVeicf,mul:loadMul,prog:loadProg,jorn:loadJorn,jornf:loadJornf,cex:loadCex,sac:loadSac,mprev:loadMPrev,comrast:loadComRast,qual:loadQual,port:loadPort,crm:loadCrm,rh:loadRh,hc:loadHc,folha:loadFolha,folhaind:loadFolhaInd,he:loadHe,custos:loadCustos,cob:loadCob,extb:loadExtb,lanc:loadLanc,antec:loadAntec,fluxcon:loadFluxcon,rent:loadRent,cont:loadCont,orc:loadOrc,fech:loadFech,prem:loadPrem,gestao:loadGestao,srv:loadSrv,doc:loadDoc,cop:loadCop,tvfat:loadTvFat,tvope:loadTvOpe};
   if(!DATAMAP[key] || (key!=='home' && LOADEDQS[key]!==qsView(key))) LOADMAP[key]();
   // mobile: estado da navegação inferior + fecha gaveta/painel de filtros
   document.querySelectorAll('.bottomnav [data-bview]').forEach(a=>a.classList.toggle('ativo', a.dataset.bview===v));
@@ -5209,6 +5270,17 @@ function setActive(svgId,i,clientY,announce){
     tipRow(tip,'Débito',BRL.format(r.debito||0),{borderTop:'3px solid #C03221'});
     tipRow(tip,'Líquido',BRL.format((r.credito||0)-(r.debito||0)),null);
     liveTxt=`${periodoLabel(r.mes)}: crédito ${BRL.format(r.credito||0)}, débito ${BRL.format(r.debito||0)}`;
+  } else if(g.kind==='fluxcon'){
+    const r=g.rows[i];
+    tt.textContent=r.rotulo+(r.sem_receber?' · sem recebível lançado':'');
+    tip.append(tt);
+    tipRow(tip,'Saldo inicial',BRL.format(r.saldo_inicial),null);
+    tipRow(tip,'Entradas',BRL.format(r.entradas),{borderTop:'3px solid #1E7F4F'});
+    tipRow(tip,'Saídas',BRL.format(r.saidas),{borderTop:'3px solid #C03221'});
+    const sep=document.createElement('div'); sep.className='sep'; tip.append(sep);
+    tipRow(tip,'Saldo final',BRL.format(r.saldo_final),{borderTop:'3px solid '+CC.navy700});
+    if(r.necessidade>0) tipRow(tip,'Necessidade',BRL.format(r.necessidade),null);
+    liveTxt=`${r.rotulo}: saldo final ${BRL.format(r.saldo_final)}`;
   } else if(g.kind==='antec'){
     const r=g.rows[i];
     tt.textContent=fmtD(r.dia);
@@ -7032,6 +7104,151 @@ function renderExtbConcil(c){
         <td>${x.pendente_mais_antigo?fmtD(x.pendente_mais_antigo):'—'}</td>
         <td>${fmtD(x.ultimo_movimento)}</td></tr>`).join('')
     + '</tbody></table></div>';
+}
+
+/* ---------------- Fluxo de Caixa Consolidado ----------------
+   Formato da planilha de tesouraria: cascata de saldo por período, com o
+   vencido num bloco à parte. Granularidade de dia a semestre. */
+// horizonte mínimo por granularidade: 7 baldes de trimestre com 30 dias de
+// horizonte devolveria UM balde — o seletor de período viraria enfeite
+const FC_MINIMO = {dia:30, semana:90, mes:180, trimestre:540, semestre:720};
+function fcGranChange(){
+  const g=document.getElementById('fFcGran').value;
+  const sel=document.getElementById('fFcDias');
+  if(Number(sel.value) < FC_MINIMO[g]) sel.value=String(FC_MINIMO[g]);
+  loadFluxcon();
+}
+async function loadFluxcon(){
+  skelKpis('kpis-fluxcon',4);
+  const seq=++fluxconSeq, btn=document.getElementById('btnRefresh'); if(btn) btn.disabled=true;
+  document.getElementById('content').classList.add('loading');
+  try{
+    const r=await fetch('/api/financeiro/fluxo-consolidado?'+qsView('fluxcon'),{cache:'no-store'});
+    const d=await r.json(); if(seq!==fluxconSeq) return;
+    if(!r.ok){ showBanner(d.mensagem||'Erro ao montar o fluxo consolidado.', d.detalhe); return; }
+    hideBanner(); DATAFLUXCON=d; renderFluxcon(d); LOADEDQS.fluxcon=qsView('fluxcon');
+  }catch(e){ if(seq===fluxconSeq) showBanner('Não foi possível falar com a API.', e.message); }
+  finally{ if(seq===fluxconSeq){ if(btn) btn.disabled=false; document.getElementById('content').classList.remove('loading'); } }
+}
+const FC_GRAN_LBL={dia:'dia',semana:'semana',mes:'mês',trimestre:'trimestre',semestre:'semestre'};
+function renderFluxcon(d){
+  const k=d.kpis||{}, c=d.cobertura||{};
+  document.getElementById('kpis-fluxcon').innerHTML=[
+    kpi('Saldo hoje', BRL.format(k.saldo_inicial||0),
+        k.saldo_data?('bancos + caixa · posição de '+fmtD(k.saldo_data)):'bancos + caixa',
+        (k.saldo_inicial||0)<0?'neg':'pos',
+        'Soma de bancos e caixa, só contas ATIVAS e marcadas como "considerar fluxo de caixa" no ERP. É o SALDO ANTERIOR da primeira linha da cascata.'),
+    kpi('Necessidade operacional', BRL.format(k.necessidade_operacional||0),
+        k.primeiro_negativo?('primeiro negativo em '+k.primeiro_negativo):'não fica negativo no horizonte',
+        (k.necessidade_operacional||0)>0?'neg':'pos',
+        'Quanto falta para o caixa não fechar negativo em nenhum período — considerando SÓ o trecho onde há recebível e pagável lançados. É a linha NECESSIDADE DE CAIXA da planilha.'),
+    kpi('Vencidos (bloco à parte)', BRL.format(k.vencido_total||0),
+        'contas a pagar já vencidas · fora do fluxo acima', 'warn',
+        'Total de contaapagar vencido, o mesmo TOTAL DOS VENCIDOS do rodapé da planilha. Fica fora do fluxo porque a maior parte é tributo e parcelamento em curso — misturar no dia a dia faria a operação parecer inviável todo dia.'),
+    kpi('Necessidade geral', BRL.format(k.necessidade_geral||0),
+        'operacional + vencidos', (k.necessidade_geral||0)>0?'neg':'pos',
+        'NECESSIDADE DE CAIXA GERAL: o operacional somado ao passivo vencido. É o número da reunião de estratégia — o anterior é o da tesouraria do dia.'),
+  ].join('');
+
+  const A=[];
+  if(c.balde_seco) A.push(['t-warn','A partir daí não há recebível lançado',
+    `Os períodos esmaecidos na tabela não têm faturamento lançado (nota ainda não emitida), mas continuam com parcelas de financiamento e tributo a pagar. O saldo despenca por AUSÊNCIA DE DADO, não por previsão — por isso o pior saldo e a necessidade acima consideram só os ${c.baldes_confiaveis} período(s) com os dois lados.`]);
+  if(c.mes_frouxo) A.push(['t-warn','Contas a pagar rareiam a partir de '+periodoLabel(c.mes_frouxo),
+    'Folha e impostos dos meses à frente ainda não viraram contas a pagar no ERP. Nesse trecho a saída está subestimada e o saldo, otimista.']);
+  if((d.nao_temos||[]).length) A.push(['t-info','O que esta tela ainda não enxerga',
+    (d.nao_temos||[]).join(' · ')+'. A planilha de tesouraria controla isso à mão; o ERP não expõe esses campos, então o saldo aqui pode estar MAIOR que o efetivamente disponível.']);
+  document.getElementById('fc-avisos').innerHTML=A.map(([cl,t,m])=>
+    `<div class="toast ${cl}"><b>${esc(t)}</b>${esc(m)}</div>`).join('');
+
+  document.getElementById('hintFc').textContent =
+    `${(d.linhas||[]).length} ${FC_GRAN_LBL[d.gran]}(s) · ${d.dias} dias · entradas ${BRL.format(k.entradas||0)} × saídas ${BRL.format(k.saidas||0)}`;
+  chartFcRender(d.linhas||[]);
+
+  document.getElementById('fc-linhas').innerHTML=(d.linhas||[]).map((l,i)=>{
+    const det = `<div class="tablewrap"><table>
+        <thead><tr><th>Entradas por documento</th><th class="num">Valor</th></tr></thead>
+        <tbody>${(l.por_entrada||[]).map(x=>`<tr><td>${esc(x.tipo)}</td><td class="num">${BRL.format(x.valor)}</td></tr>`).join('')
+          || '<tr><td colspan="2" style="color:var(--n500)">nenhuma entrada lançada</td></tr>'}</tbody>
+      </table></div>
+      <div class="tablewrap" style="margin-top:8px"><table>
+        <thead><tr><th>Saídas por natureza</th><th class="num">Valor</th></tr></thead>
+        <tbody>${(l.por_saida||[]).map(x=>`<tr><td>${esc(x.natureza)}</td><td class="num">${BRL.format(x.valor)}</td></tr>`).join('')
+          || '<tr><td colspan="2" style="color:var(--n500)">nenhuma saída lançada</td></tr>'}</tbody>
+      </table></div>`;
+    const dim = l.sem_receber ? ' style="opacity:.5"' : '';
+    return `<tr class="forn-row"${dim} aria-expanded="false" aria-controls="fc-det-${i}" tabindex="0" role="button"
+        onclick="fcToggle(${i})" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();fcToggle(${i});}">
+      <td><span class="expander">${ICONS['chevr2']}</span></td>
+      <td style="font-weight:600">${esc(l.rotulo)}${l.sem_receber?' <span class="badge b-warn">sem recebível</span>':''}</td>
+      <td class="num">${BRL.format(l.saldo_inicial)}</td>
+      <td class="num" style="color:var(--green)">${l.entradas>0?BRL.format(l.entradas):'—'}</td>
+      <td class="num" style="color:var(--red)">${l.saidas>0?BRL.format(l.saidas):'—'}</td>
+      <td class="num" style="color:${l.resultado<0?'var(--red)':'var(--green)'}">${BRL.format(l.resultado)}</td>
+      <td class="num" style="font-weight:700;color:${l.saldo_final<0?'var(--red)':'inherit'}">${BRL.format(l.saldo_final)}</td>
+      <td class="num" style="font-weight:600">${l.necessidade>0?BRL.format(l.necessidade):'—'}</td>
+    </tr>
+    <tr class="forn-det" id="fc-det-${i}"><td colspan="8">${det}</td></tr>`;
+  }).join('') || '<tr><td colspan="8" style="color:var(--n500)">sem dados no horizonte</td></tr>';
+
+  const nats=d.vencidos_por_natureza||[], totV=nats.reduce((a,x)=>a+x.total,0);
+  document.getElementById('hintFcVenc').textContent =
+    `${BRL.format(totV)} em ${nats.reduce((a,x)=>a+x.titulos,0).toLocaleString('pt-BR')} títulos`;
+  document.getElementById('fc-venc-nat').innerHTML=nats.map(n=>`<tr>
+    <td style="font-weight:600">${esc(n.natureza)}</td>
+    <td class="num">${n.titulos.toLocaleString('pt-BR')}</td>
+    <td class="num" style="font-weight:600">${BRL.format(n.total)}</td>
+    <td class="num">${totV>0?(100*n.total/totV).toLocaleString('pt-BR',{maximumFractionDigits:1})+'%':'—'}</td></tr>`).join('')
+    || '<tr><td colspan="4" style="color:var(--n500)">nada vencido</td></tr>';
+  document.getElementById('fc-venc-tipo').innerHTML=(d.vencidos||[]).map(v=>`<tr>
+    <td>${esc(v.tipo)}</td><td>${esc(v.natureza)}</td>
+    <td class="num">${v.titulos.toLocaleString('pt-BR')}</td>
+    <td class="num" style="font-weight:600">${BRL.format(v.valor)}</td>
+    <td>${v.mais_antigo?fmtD(v.mais_antigo):'—'}</td></tr>`).join('')
+    || '<tr><td colspan="5" style="color:var(--n500)">nada vencido</td></tr>';
+}
+function fcToggle(i){
+  const det=document.getElementById('fc-det-'+i); if(!det) return;
+  const linha=det.previousElementSibling;
+  const aberto=det.classList.toggle('aberto');
+  linha.setAttribute('aria-expanded', String(aberto));
+  linha.classList.toggle('aberta', aberto);
+}
+function chartFcRender(linhas){
+  const svg=document.getElementById('chartFc');
+  GEOM['chartFc']=null; ACTIVE['chartFc']=-1;
+  if(!linhas.length){ svg.innerHTML='<text x="480" y="120" text-anchor="middle" fill="#6E7883" font-size="14">sem dados</text>'; return; }
+  const W=960,H=250,mL=78,mR=16,mT=22,mB=36, iw=W-mL-mR, ih=H-mT-mB;
+  const n=linhas.length, bandW=iw/n;
+  const vals=linhas.map(l=>l.saldo_final).concat([0]);
+  const tks=niceTicks(Math.min(...vals), Math.max(...vals), 5);
+  const lo=tks[0], hi=tks[tks.length-1], u=unitOf(Math.max(Math.abs(lo),Math.abs(hi)));
+  const y=v=>mT+ih-((v-lo)/((hi-lo)||1))*ih;
+  const px=i=>mL+bandW*i+bandW/2;
+  let s=`<text x="${mL}" y="${mT-8}" font-size="11" fill="#6E7883" font-weight="600" letter-spacing="1.5">${u.t}</text>`;
+  s+=`<rect id="chartFc-hband" x="0" y="${mT-10}" width="${bandW}" height="${ih+10}" fill="${CC.navy100}" opacity="0"/>`;
+  tks.forEach(v=>{ const yy=y(v);
+    s+=`<line x1="${mL}" y1="${yy}" x2="${W-mR}" y2="${yy}" stroke="${v===0?'#C2C8D0':'#ECEEF1'}" stroke-width="1"/>`;
+    s+=`<text x="${mL-8}" y="${yy+4}" text-anchor="end" font-size="10" fill="#6E7883" font-family="IBM Plex Mono,monospace">${NMI.format(v/u.d)}</text>`; });
+  if(lo<0){ s+=`<rect x="${mL}" y="${y(0)}" width="${iw}" height="${Math.max(0,mT+ih-y(0))}" fill="#C03221" opacity=".05"/>`; }
+  const barW=Math.min(34,bandW*0.55);
+  linhas.forEach((l,i)=>{
+    // período sem recebível lançado sai HACHURADO: o saldo despenca por falta
+    // de dado, e barra cheia leria como previsão de caixa
+    const cor = l.saldo_final<0 ? '#C03221' : CC.navy700;
+    const fill = l.sem_receber ? 'url(#hatchFc)' : cor;
+    const y0=y(0), yv=y(l.saldo_final);
+    s+=`<rect x="${px(i)-barW/2}" y="${Math.min(y0,yv)}" width="${barW}" height="${Math.max(1,Math.abs(yv-y0))}" fill="${fill}" rx="3"/>`;
+  });
+  s=`<defs><pattern id="hatchFc" width="6" height="6" patternTransform="rotate(45)" patternUnits="userSpaceOnUse">`
+    +`<rect width="6" height="6" fill="#9AA3AE"/><rect width="2.4" height="6" fill="#fff" opacity=".62"/></pattern></defs>`+s;
+  const passo=Math.max(1,Math.round(n/12));
+  linhas.forEach((l,i)=>{ if(i%passo===0||i===n-1)
+    s+=`<text x="${px(i)}" y="${H-mB+18}" text-anchor="middle" font-size="10" fill="#4F5860">${esc(l.rotulo)}</text>`; });
+  s+=`<line id="chartFc-xhair" x1="0" x2="0" y1="${mT-10}" y2="${mT+ih}" stroke="${CC.navy400}" stroke-width="1" opacity="0"/>`;
+  s+=`<rect x="${mL}" y="${mT-10}" width="${iw}" height="${ih+10}" fill="transparent"/>`;
+  svg.innerHTML=s;
+  GEOM['chartFc']={kind:'fluxcon',rows:linhas,n,bandW,mL,W,px,topY:mT-10,botY:mT+ih,wrap:'wrapFc',tip:'tipFc'};
+  bindHover('chartFc');
 }
 
 /* ---------------- Antecipação de Recebíveis ---------------- */
@@ -12838,6 +13055,7 @@ boot();
         <a href="#cob" onclick="fecharDrawer()"><span class="ic" data-ic="cob"></span>Cobrança</a>
         <a href="#extb" onclick="fecharDrawer()"><span class="ic" data-ic="ctb"></span>Extrato Bancário</a>
         <a href="#lanc" onclick="fecharDrawer()"><span class="ic" data-ic="ctb"></span>Lançamentos Bancários</a>
+        <a href="#fluxcon" onclick="fecharDrawer()"><span class="ic" data-ic="flx"></span>Fluxo Consolidado</a>
         <a href="#antec" onclick="fecharDrawer()"><span class="ic" data-ic="flx"></span>Antecipação</a>
       </div>
     </div>
