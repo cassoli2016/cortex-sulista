@@ -2007,6 +2007,112 @@ def extrato(dt_de: str | None = None, dt_ate: str | None = None,
 _ANTEC_MAX_BYTES = 12 * 1024 * 1024   # a planilha da Maxion tem 85 KB; 12 MB cobre portal grande
 
 
+@app.get("/api/financeiro/credito")
+def credito_ler() -> JSONResponse:
+    """Limites de cheque empresa contratados."""
+    from api.financeiro import credito
+    try:
+        return JSONResponse(credito.resumo())
+    except Exception as exc:  # noqa: BLE001
+        log.warning("credito_ler falhou: %s", exc)
+        return JSONResponse(status_code=500, content={
+            "erro": "erro_leitura", "mensagem": "Erro ao ler os limites."})
+
+
+@app.post("/api/financeiro/credito")
+async def credito_gravar(req: Request) -> JSONResponse:
+    """Grava a tabela inteira de limites (substitui a anterior).
+
+    Tabela inteira e nao linha a linha de proposito: sao tres a cinco linhas
+    que a tesouraria confere juntas quando o banco atualiza a taxa, e um PATCH
+    por linha deixaria o conjunto meio salvo se o segundo pedido falhasse.
+    """
+    from api.financeiro import credito
+    try:
+        corpo = await req.json()
+    except Exception:  # noqa: BLE001
+        return JSONResponse(status_code=422, content={
+            "erro": "corpo_invalido", "mensagem": "Envie um JSON valido."})
+    linhas = corpo.get("linhas") if isinstance(corpo, dict) else corpo
+    if not isinstance(linhas, list):
+        return JSONResponse(status_code=422, content={
+            "erro": "corpo_invalido", "mensagem": "Envie a lista de limites."})
+    try:
+        credito.gravar(linhas)
+        return JSONResponse(credito.resumo())
+    except ValueError as exc:
+        # a mensagem ja diz o que consertar (ex.: "confira se nao e a taxa ANUAL")
+        return JSONResponse(status_code=422, content={
+            "erro": "dado_invalido", "mensagem": str(exc)})
+    except Exception as exc:  # noqa: BLE001
+        log.warning("credito_gravar falhou: %s", exc)
+        return JSONResponse(status_code=500, content={
+            "erro": "erro_gravacao", "mensagem": "Erro ao gravar os limites."})
+
+
+_PLANO_MAX_BYTES = 12 * 1024 * 1024
+
+
+@app.post("/api/orcamento/plano/importar")
+async def orcamento_plano_importar(req: Request, nome: str = "", ano: int = 0,
+                                   rotulo: str = "",
+                                   simular: int = 0) -> JSONResponse:
+    """Importa a planilha do orcamento planejado como versao nova.
+
+    `simular=1` le e concilia SEM gravar: e o que a tela usa para mostrar o
+    que casou e o que ficou de fora ANTES de o numero entrar no sistema.
+    Importar calado uma planilha que nao fecha e o jeito mais rapido de por
+    numero errado no orcamento do ano.
+    """
+    from datetime import date as _date
+
+    from api.orcamento import plano
+    from api.orcamento import servico as orc_servico
+
+    if _tamanho_excede(req.headers.get("content-length"), _PLANO_MAX_BYTES):
+        return JSONResponse(status_code=413, content={
+            "erro": "arquivo_grande",
+            "mensagem": f"Arquivo acima do limite de {_PLANO_MAX_BYTES // (1024 * 1024)} MB."})
+    bruto = await req.body()
+    if not bruto:
+        return JSONResponse(status_code=422, content={
+            "erro": "arquivo_vazio", "mensagem": "Nenhum conteudo recebido."})
+
+    hoje = _date.today()
+    ano = int(ano or hoje.year)
+    # mesma janela de base que a derivacao usa para os pesos do rateio
+    meses = orc_servico.janela_base(None, None, hoje)
+    if len(meses) < 3:
+        meses = [f"{hoje.year - 1:04d}-{m:02d}" for m in range(1, 13)]
+
+    tmp = ROOT / "data" / f"_plano_upload_{ano}.xlsx"
+    try:
+        tmp.parent.mkdir(parents=True, exist_ok=True)
+        tmp.write_bytes(bruto)
+        if simular:
+            return JSONResponse(plano.preparar(tmp, meses))
+        usuario = getattr(getattr(req, "state", None), "usuario", "") or ""
+        r = plano.importar(tmp, ano,
+                           rotulo or f"Plano {ano} (planilha, {nome or 'importado'})",
+                           str(usuario), meses)
+        # o payload de resposta nao leva as 6 mil celulas: a tela so precisa do
+        # relatorio de conciliacao
+        r.pop("linhas", None)
+        return JSONResponse(r)
+    except ValueError as exc:
+        return JSONResponse(status_code=422, content={
+            "erro": "arquivo_invalido", "mensagem": str(exc)})
+    except Exception as exc:  # noqa: BLE001
+        log.warning("orcamento_plano_importar falhou: %s", exc)
+        return JSONResponse(status_code=500, content={
+            "erro": "erro_importacao", "mensagem": "Erro ao importar a planilha."})
+    finally:
+        try:
+            tmp.unlink(missing_ok=True)
+        except OSError:
+            pass
+
+
 @app.get("/api/financeiro/antecipacoes")
 def antecipacoes_listar() -> JSONResponse:
     """Envios importados, último por portal e sacados com convênio."""

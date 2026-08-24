@@ -4,6 +4,18 @@ Gerado de `docs/versoes.yaml` por `scripts/gerar_changelog.py` — não editar �
 Formato [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/),
 versionamento [SemVer](https://semver.org/lang/pt-BR/).
 
+## [0.28.0] — 24/08/2026  ·  CX-24/08/2026-v0.28.0
+
+### Adicionado
+- Os limites de credito agora se editam pela tela, no fim do Fluxo Consolidado: banco, tipo, limite, taxa mensal e vencimento. Antes so dava para mexer no arquivo, e a taxa do Itau muda todo mes. Salvar recarrega a tela, porque os chips de cada periodo e os avisos do topo dependem do limite que acabou de mudar.
+- O orcamento planejado passou a ser importado pela aba Montagem do Orcamento. O arquivo e CONFERIDO antes de gravar: a tela mostra quanto entrou, quanto ficou de fora e por que, o rateio de cada agrupador contra o plano, e so entao oferece o botao de importar. Nada e gravado na conferencia.
+
+### Corrigido
+- Clicar em Portais de Antecipacao recolhia o menu inteiro. A tela nao estava no mapa de grupos, e o acordeao fechava todos por nao achar o dela. Alem da correcao, tela sem grupo conhecido agora nao mexe no menu em vez de fechar tudo.
+- Os insights do Fluxo Consolidado foram para o fim da tela, como ja estao os da Antecipacao.
+- Botoes de formularios escondidos apareciam mesmo assim: o atributo "hidden" do HTML perde para qualquer regra de estilo com display, e os rodapes de formulario usam display flex. Corrigido para toda a aplicacao - havia remendos pontuais espalhados que eram sintoma disso.
+- Uma sessao sem a lista de telas derrubava a checagem de permissao e acendia a tarja vermelha de erro no topo. Agora, sem a lista, o acesso e negado (que e o comportamento seguro) em vez de quebrar a tela.
+
 ## [0.27.0] — 24/08/2026  ·  CX-24/08/2026-v0.27.0
 
 ### Adicionado

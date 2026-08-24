@@ -72,6 +72,11 @@ aside{position:sticky;top:0;height:100vh;overflow-y:auto;overflow-x:hidden;width
 .buscares{position:absolute;top:100%;left:0;right:0;margin-top:6px;z-index:60;
   background:var(--n0);border:1px solid var(--n200);border-radius:10px;
   box-shadow:0 12px 28px rgba(0,0,0,.28);max-height:60vh;overflow-y:auto;padding:6px}
+/* [hidden] do HTML e uma regra de ATRIBUTO do navegador: qualquer regra de
+   CLASSE com `display` a vence. Foi o que fez os botoes de salvar do card de
+   limites aparecerem sem ninguem clicar em Editar (.m-foot{display:flex}).
+   Os remendos pontuais espalhados pelo arquivo sao sintoma da mesma causa. */
+[hidden]{display:none !important}
 .buscares[hidden]{display:none}
 .busca-i{display:flex;align-items:center;gap:9px;padding:8px 10px;border-radius:7px;cursor:pointer;
   color:var(--n900);font-size:13px}
@@ -224,6 +229,21 @@ tr[role="button"]:focus-visible{outline-offset:-2px}
 .chartwrap.narrow svg{min-width:520px}
 svg:focus-visible{outline:2px solid var(--orange-500);outline-offset:2px;border-radius:6px}
 /* legenda e aviso do saldo diário dentro do período expandido do fluxo */
+/* editor dos limites de credito: grade fixa para os campos nao dancarem
+   entre as linhas (banco, tipo, limite, taxa, vencimento, remover) */
+.cred-head,.cred-row{display:grid;grid-template-columns:1.4fr 1.4fr 1fr .8fr 1fr 34px;
+  gap:8px;align-items:center}
+.cred-head{font:600 10px/1 var(--font);letter-spacing:.8px;text-transform:uppercase;
+  color:var(--n500);padding:2px 2px 6px}
+.cred-row{margin-bottom:8px}
+.cred-row input{width:100%;padding:7px 9px;border:1px solid var(--n200);border-radius:7px;
+  font:inherit;font-size:13px;min-width:0}
+.cred-row input:focus{outline:2px solid var(--orange-500);outline-offset:-1px;border-color:transparent}
+.cred-row button{padding:6px 0;line-height:1}
+@media(max-width:860px){
+  .cred-head{display:none}
+  .cred-row{grid-template-columns:1fr 1fr;gap:6px}
+}
 /* area de arrastar-e-soltar da planilha do portal */
 .antup{display:flex;flex-direction:column;align-items:center;gap:6px;padding:26px 18px;
   border:2px dashed var(--n300);border-radius:12px;cursor:pointer;text-align:center;
@@ -2090,7 +2110,28 @@ body.tvfull #btnReport,body.tvmode #btnReport{display:none}
           <div class="card"><div class="head"><h2>Maiores desvios</h2><span class="hint" id="hintOrcDesv"></span></div>
             <div class="tablewrap tabroll" id="orc-desvios"></div></div>
         </div>
-        <div id="orc-mont" style="display:none"></div>
+        <div id="orc-mont" style="display:none">
+          <div class="card">
+            <div class="head"><h2>Importar o orçamento planejado <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="A planilha da diretoria é por AGRUPADOR e o orçamento do sistema é por CONTA: o valor de cada agrupador é rateado entre as contas dele na proporção do histórico, e o total bate ao centavo. A receita entra como linha ÚNICA no total, porque o plano não a separa por modalidade e comparar linha a linha produziria variação falsa dos dois lados. Cria uma VERSÃO NOVA — nenhuma versão existente é alterada.">i</span></h2>
+              <span class="hint" id="hintPlanoUp"></span></div>
+            <div class="ges-cfg">
+              <div class="antup" id="planoup" tabindex="0" role="button"
+                   aria-label="Escolher a planilha do orçamento"
+                   onclick="planoEscolher()" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();planoEscolher();}"
+                   ondragover="event.preventDefault();this.classList.add('sobre')"
+                   ondragleave="this.classList.remove('sobre')"
+                   ondrop="planoSoltar(event)">
+                <div class="antup-ic" data-ic="orcic"></div>
+                <div><b>Arraste a planilha do orçamento</b> ou clique para escolher</div>
+                <div class="antup-sub">.xlsx com uma linha por código da DRE e uma coluna por mês</div>
+              </div>
+              <input type="file" id="planoFile" accept=".xlsx,.xls" hidden
+                     onchange="planoConferir(this.files[0])">
+              <div class="m-err" id="planoErro" hidden></div>
+            </div>
+          </div>
+          <div id="plano-res"></div>
+        </div>
       </section>
 
       <!-- ===================== FECHAMENTO DO MÊS (PREVISÃO) ===================== -->
@@ -2242,7 +2283,6 @@ body.tvfull #btnReport,body.tvmode #btnReport{display:none}
 
       <!-- ===================== FLUXO DE CAIXA CONSOLIDADO ===================== -->
       <section class="view" id="view-fluxcon">
-        <div id="fc-avisos"></div>
         <div class="kpis k4" id="kpis-fluxcon"></div>
         <div class="card">
           <div class="head"><h2>Saldo projetado <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="Saldo encadeado: o final de cada período é o inicial do seguinte, começando no saldo de bancos e caixa de hoje — a mesma cascata da planilha de tesouraria, onde o SALDO ANTERIOR de cada aba vem do dia anterior. Entradas = a receber oficial por vencimento; saídas = contas a pagar por vencimento. Só o que está LANÇADO no ERP.">i</span></h2>
@@ -2287,6 +2327,25 @@ body.tvfull #btnReport,body.tvmode #btnReport{display:none}
             <th class="num">Valor</th><th>Mais antigo</th>
           </tr></thead><tbody id="fc-venc-tipo"></tbody></table></div>
         </div>
+        <div class="card">
+          <div class="head"><h2>Limites de crédito contratados <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="Cheque empresa/especial contratado em cada banco. NÃO é caixa: é crédito, e o custo aparece ao lado. O sistema consome sempre do mais barato para o mais caro ao calcular a cobertura de um período negativo. Guardado em data/credito.json, fora do ERP.">i</span></h2>
+            <span class="hint" id="hintCred"></span>
+            <button class="ghost" id="btnCredEdit" onclick="credEditar()">Editar</button></div>
+          <div class="tablewrap"><table><thead><tr>
+            <th>Banco</th><th>Tipo</th><th class="num">Limite</th>
+            <th class="num">Taxa a.m.</th><th>Vence</th><th class="num">Custo/mês se usado</th>
+          </tr></thead><tbody id="cred-linhas"></tbody></table></div>
+          <div class="ges-cfg" id="cred-form" hidden>
+            <div id="cred-editor"></div>
+            <div class="m-err" id="cred-erro" hidden></div>
+          </div>
+          <div class="m-foot" id="cred-foot" hidden>
+            <button class="btn" onclick="credSalvar()">Salvar limites</button>
+            <button class="ghost" onclick="credCancelar()">Cancelar</button>
+            <button class="ghost" onclick="credNova()">+ Banco</button>
+          </div>
+        </div>
+        <div id="fc-avisos"></div>
       </section>
 
       <!-- ===================== LANÇAMENTOS RECORRENTES ===================== -->
@@ -3684,7 +3743,7 @@ function toggleGroup(gid,sid,key){
 
 const VIEW_GROUP = {home:'',cop:'',
   com:'Com',clif:'Com',crm:'Com',rent:'Com',drecli:'Com',
-  fluxo:'Fin',receber:'Fin',pagar:'Fin',cob:'Fin',extb:'Fin',lanc:'Fin',antec:'Fin',fluxcon:'Fin',rec:'Fin',
+  fluxo:'Fin',receber:'Fin',pagar:'Fin',cob:'Fin',extb:'Fin',lanc:'Fin',antec:'Fin',antport:'Fin',fluxcon:'Fin',rec:'Fin',
   dre:'Ctr',bal:'Ctr',cont:'Ctr',qual:'Ctr',orc:'Ctr',fech:'Ctr',
   torre:'Ope',prog:'Ope',jorn:'Ope',jornf:'Ope',cex:'Ope',sac:'Ope',port:'Ope',km:'Ope',agr:'Ope',mvb:'Ope',
   veic:'Fro',veicf:'Fro',mprev:'Fro',comrast:'Fro',comb:'Fro',man:'Fro',mul:'Fro',prem:'Fro',
@@ -3697,6 +3756,12 @@ const VIEW_GROUP = {home:'',cop:'',
   telcon:'Tel',telcond:'Tel',telhod:'Tel',anpiso:'Antt',anrntrc:'Antt'};
 function syncGroups(v){
   const ativo = VIEW_GROUP[v];   // accordion: abre o grupo do view ativo, fecha os demais
+  /* Tela FORA do mapa fechava todos os grupos: o menu parecia recolher sozinho
+     ao clicar nela (foi o que aconteceu com Portais de Antecipacao). Sem grupo
+     conhecido, nao mexer no acordeao e melhor que fechar tudo — a Visao Geral
+     e o Copiloto sao os unicos que legitimamente nao tem grupo, e para eles o
+     mapa traz '' de proposito. */
+  if(ativo===undefined) return;
   ['Com','Fin','Ctr','Ope','Fro','Sup','Rh','Tv','Adm','Tel','Antt'].forEach(k=>{
     const btn=document.getElementById('grp'+k), subs=document.getElementById('subs'+k);
     if(!btn||!subs) return;
@@ -7617,6 +7682,7 @@ async function loadFluxcon(){
     const d=await r.json(); if(seq!==fluxconSeq) return;
     if(!r.ok){ showBanner(d.mensagem||'Erro ao montar o fluxo consolidado.', d.detalhe); return; }
     hideBanner(); DATAFLUXCON=d; renderFluxcon(d); LOADEDQS.fluxcon=qsView('fluxcon');
+    credCarregar();   // o card de limites vive nesta tela
   }catch(e){ if(seq===fluxconSeq) showBanner('Não foi possível falar com a API.', e.message); }
   finally{ if(seq===fluxconSeq){ if(btn) btn.disabled=false; document.getElementById('content').classList.remove('loading'); } }
 }
@@ -8172,6 +8238,241 @@ function aoDetalhe(o){
   </div>`;
 }
 
+
+/* ============ LIMITES DE CRÉDITO (edição) ============ */
+let CRED = null, credEdit = false;
+
+function credRender(){
+  const r = CRED;
+  const tb = document.getElementById('cred-linhas');
+  if(!r || !(r.linhas||[]).length){
+    document.getElementById('hintCred').textContent = 'nenhum limite cadastrado';
+    tb.innerHTML = '<tr><td colspan="6" style="color:var(--n500)">nenhum limite contratado — clique em Editar para cadastrar</td></tr>';
+    return;
+  }
+  const hoje = new Date();
+  document.getElementById('hintCred').textContent =
+    BRL.format(r.total)+' somados · '+Number(r.taxa_efetiva).toLocaleString('pt-BR',{minimumFractionDigits:2})
+    +'% a.m. efetivo · usar tudo por um mês custaria '+BRL.format(r.custo_mes_total);
+  tb.innerHTML = r.linhas.map(function(l){
+    const custo = l.limite*l.taxa_mes/100;
+    let venc = '<span style="color:var(--n500)">—</span>';
+    if(l.vencimento){
+      const d = new Date(l.vencimento+'T00:00:00');
+      const dias = Math.round((d-hoje)/86400000);
+      /* Vencimento não é só uma data: perder R$ 145 mil de folga em 62 dias
+         muda o plano de caixa e não aparece olhando saldo. */
+      const cls = dias<=30 ? 'b-alert' : (dias<=90 ? 'b-warn' : '');
+      venc = fmtD(l.vencimento) + (cls ? ' <span class="badge '+cls+'">em '+dias+'d</span>' : '');
+    }
+    return '<tr><td style="font-weight:600">'+esc(l.banco)+'</td>'
+      +'<td style="color:var(--n500)">'+esc(l.tipo||'')+'</td>'
+      +'<td class="num" style="font-weight:600">'+BRL.format(l.limite)+'</td>'
+      +'<td class="num">'+Number(l.taxa_mes).toLocaleString('pt-BR',{minimumFractionDigits:2})+'%</td>'
+      +'<td>'+venc+'</td>'
+      +'<td class="num" style="color:var(--red)">'+BRL.format(custo)+'</td></tr>';
+  }).join('');
+}
+
+async function credCarregar(){
+  try{
+    const r = await fetch('/api/financeiro/credito',{cache:'no-store'});
+    if(!r.ok) return;
+    CRED = await r.json();
+    credRender();
+  }catch(e){ /* a tela de caixa não pode cair porque o limite não carregou */ }
+}
+
+function credLinhaHTML(l, i){
+  /* type="text" + inputmode nos valores: <input type="number"> DESCARTA a
+     vírgula em vez de recusá-la — "1.234,56" viraria 123456, cem vezes o
+     valor, sem erro nem aviso. Mesma regra do Orçamento. */
+  return '<div class="cred-row" data-i="'+i+'">'
+    +'<input type="text" placeholder="Banco" value="'+esc(l.banco||'')+'" data-f="banco" aria-label="Banco">'
+    +'<input type="text" placeholder="Tipo" value="'+esc(l.tipo||'')+'" data-f="tipo" aria-label="Tipo de limite">'
+    +'<input type="text" inputmode="decimal" placeholder="Limite" value="'+(l.limite!=null?String(l.limite).replace('.',','):'')+'" data-f="limite" aria-label="Limite">'
+    +'<input type="text" inputmode="decimal" placeholder="% a.m." value="'+(l.taxa_mes!=null?String(l.taxa_mes).replace('.',','):'')+'" data-f="taxa_mes" aria-label="Taxa mensal">'
+    +'<input type="date" value="'+esc(l.vencimento||'')+'" data-f="vencimento" aria-label="Vencimento do limite">'
+    +'<button class="ghost" onclick="credRemover('+i+')" title="Remover este limite" aria-label="Remover">×</button>'
+    +'</div>';
+}
+
+function credEditorRender(linhas){
+  document.getElementById('cred-editor').innerHTML =
+    '<div class="cred-head"><span>Banco</span><span>Tipo</span><span>Limite</span>'
+    +'<span>Taxa % a.m.</span><span>Vencimento</span><span></span></div>'
+    + linhas.map(credLinhaHTML).join('');
+}
+
+function credLerEditor(){
+  return [...document.querySelectorAll('#cred-editor .cred-row')].map(function(row){
+    const g = f => (row.querySelector('[data-f="'+f+'"]')||{}).value || '';
+    return {banco:g('banco').trim(), tipo:g('tipo').trim(),
+            limite:numBR(g('limite')), taxa_mes:numBR(g('taxa_mes')),
+            vencimento:g('vencimento')||null, ativo:true};
+  }).filter(l=>l.banco);
+}
+
+function credEditar(){
+  credEdit = true;
+  credEditorRender((CRED&&CRED.linhas)||[]);
+  document.getElementById('cred-form').hidden = false;
+  document.getElementById('cred-foot').hidden = false;
+  document.getElementById('btnCredEdit').style.display = 'none';
+}
+function credCancelar(){
+  credEdit = false;
+  document.getElementById('cred-form').hidden = true;
+  document.getElementById('cred-foot').hidden = true;
+  document.getElementById('cred-erro').hidden = true;
+  document.getElementById('btnCredEdit').style.display = '';
+}
+function credNova(){
+  const atuais = credLerEditor();
+  atuais.push({banco:'', tipo:'Cheque especial', limite:null, taxa_mes:null, vencimento:null});
+  credEditorRender(atuais);
+}
+function credRemover(i){
+  const atuais = credLerEditor();
+  atuais.splice(i,1);
+  credEditorRender(atuais);
+}
+async function credSalvar(){
+  const err = document.getElementById('cred-erro');
+  err.hidden = true;
+  const linhas = credLerEditor();
+  const ruim = linhas.find(l => !(l.limite>=0) || !(l.taxa_mes>0));
+  if(ruim){
+    err.textContent = 'Limite e taxa precisam ser números em '+ruim.banco+'. Use vírgula para decimal (ex.: 15,69).';
+    err.hidden = false; return;
+  }
+  try{
+    const r = await fetch('/api/financeiro/credito',{method:'POST',
+      headers:{'Content-Type':'application/json'}, body:JSON.stringify({linhas:linhas})});
+    const d = await r.json();
+    if(!r.ok){ err.textContent = d.mensagem||'Não foi possível salvar.'; err.hidden=false; return; }
+    CRED = d; credRender(); credCancelar();
+    /* Recarrega a tela: os chips "no limite / sem cobertura" de cada período e
+       os avisos do topo dependem do limite que acabou de mudar. */
+    loadFluxcon();
+  }catch(e){ err.textContent = 'Falha ao salvar: '+e.message; err.hidden=false; }
+}
+
+/* ============ IMPORTAÇÃO DO ORÇAMENTO PLANEJADO ============ */
+function planoEscolher(){ document.getElementById('planoFile').click(); }
+function planoSoltar(ev){
+  ev.preventDefault();
+  document.getElementById('planoup').classList.remove('sobre');
+  const f=(ev.dataTransfer.files||[])[0];
+  if(f) planoConferir(f);
+}
+let PLANO_ARQ = null;
+
+async function planoEnviar(f, simular){
+  const box=document.getElementById('planoup'), err=document.getElementById('planoErro');
+  err.hidden=true; box.classList.add('enviando');
+  document.getElementById('hintPlanoUp').textContent =
+    simular ? 'conferindo '+f.name+'…' : 'importando '+f.name+'…';
+  try{
+    const ano = new Date().getFullYear();
+    const r = await fetch('/api/orcamento/plano/importar?nome='+encodeURIComponent(f.name)
+        +'&ano='+ano+(simular?'&simular=1':''),
+      {method:'POST', body:f, headers:{'Content-Type':'application/octet-stream'}});
+    const d = await r.json();
+    if(!r.ok){ err.textContent=d.mensagem||'Não foi possível ler a planilha.'; err.hidden=false; return null; }
+    return d;
+  }catch(e){ err.textContent='Falha no envio: '+e.message; err.hidden=false; return null; }
+  finally{
+    box.classList.remove('enviando');
+    document.getElementById('hintPlanoUp').textContent='';
+    document.getElementById('planoFile').value='';
+  }
+}
+
+/* Confere ANTES de gravar. Importar calado uma planilha que não fecha é o
+   jeito mais rápido de pôr número errado no orçamento do ano — e foi assim
+   que R$ 16,35 milhões de crédito tributário quase entraram como zero, por
+   causa de um "TRUBUTÁRIOS" escrito na planilha. */
+async function planoConferir(f){
+  if(!f) return;
+  PLANO_ARQ = f;
+  const d = await planoEnviar(f, true);
+  if(d) planoResultado(d, false);
+}
+async function planoImportar(){
+  if(!PLANO_ARQ) return;
+  const d = await planoEnviar(PLANO_ARQ, false);
+  if(d){ planoResultado(d, true); loadOrc(); }
+}
+
+function planoDescartar(){
+  PLANO_ARQ = null;
+  document.getElementById('plano-res').innerHTML = '';
+}
+function planoResultado(d, gravado){
+  const fora = d.nao_casaram||[], conf = d.conferencia||[];
+  const desalinhados = conf.filter(c=>Math.abs(c.diferenca)>0.01);
+  const total = (d.valor_importado||0) + (d.valor_nao_importado||0);
+  let html = '';
+
+  if(gravado){
+    html += '<div class="banner ok"><i>'+ICONS['sevOk']+'</i><span>Importado como <b>'
+      +esc(d.rotulo||'versão nova')+'</b>. Nenhuma versão existente foi alterada — '
+      +'selecione a nova no filtro de versão para acompanhá-la.</span></div>';
+  }
+  if(fora.length){
+    const soma = d.valor_nao_importado||0;
+    html += '<div class="banner warn"><i>'+ICONS['sevWarn']+'</i><span><b>'+fora.length
+      +' linha(s) do plano não têm agrupador correspondente no ERP</b> e ficaram de fora, somando '
+      +BRL.format(soma)+': '+esc(fora.map(x=>x.nome+' ('+BRL.format(x.total)+')').join(', '))
+      +'. Enquanto não tiverem destino, o orçamento fica sem esse valor.</span></div>';
+  }
+  if(desalinhados.length){
+    html += '<div class="banner err"><i>'+ICONS['sevCrit']+'</i><span><b>'+desalinhados.length
+      +' agrupador(es) com rateio fora do plano</b> — isso não deveria acontecer e o número não é confiável.</span></div>';
+  }
+
+  html += '<div class="kpis k4">'
+    + kpi('Valor do plano importado', BRL.format(d.valor_importado||0),
+        (d.contas||0)+' contas · rateado pela proporção do histórico', '',
+        'O plano é por agrupador e o orçamento é por conta: cada agrupador foi distribuído entre suas contas na proporção do histórico, e o total de cada um bate ao centavo.')
+    + kpi('Receita (linha única)', BRL.format(d.receita_total||0),
+        'todas as modalidades somadas', '',
+        'O plano não separa receita por modalidade (põe tudo numa linha só). Importar linha a linha acusaria FROTA estourando o orçamento e AGREGADOS 100% abaixo — as duas variações falsas. Entra no total e é rateada pelo mix do histórico.')
+    + kpi('Ficou de fora', BRL.format(d.valor_nao_importado||0),
+        fora.length ? (fora.length+' linha(s) sem agrupador no ERP') : 'nada — o plano entrou inteiro',
+        fora.length?'warn':'pos',
+        'Linhas do plano cujo nome não existe como agrupador no ERP. Não são jogadas em nenhum lugar inventado: ficam declaradas até alguém definir o destino.')
+    + kpi('Confere com a planilha', BRL.format(total),
+        'importado + fora de fora = resultado do plano', 'pos',
+        'A soma do que entrou com o que ficou de fora tem de bater com o resultado do exercício da planilha. É a prova de que nenhuma linha foi contada duas vezes nem perdida.')
+    + '</div>';
+
+  if(!gravado){
+    html += '<div class="card"><div class="head"><h2>Conferido — pronto para importar</h2>'
+      +'<span class="hint">nada foi gravado ainda</span></div>'
+      +'<div class="m-foot"><button class="btn" onclick="planoImportar()">Importar como versão nova</button>'
+      +'<button class="ghost" onclick="planoDescartar()">Descartar</button></div></div>';
+  }
+
+  html += '<div class="card"><div class="head"><h2>Rateio por agrupador</h2>'
+    +'<span class="hint">'+conf.length+' agrupador(es) · plano × distribuído entre as contas</span></div>'
+    +'<div class="tablewrap tabroll"><table><thead><tr><th>Agrupador</th>'
+    +'<th class="num">Contas</th><th class="num">Plano</th><th class="num">Rateado</th><th class="num">Dif.</th>'
+    +'</tr></thead><tbody>'
+    + conf.slice().sort((a,b)=>Math.abs(b.plano)-Math.abs(a.plano)).map(function(c){
+        return '<tr><td>'+esc(c.agrupador)+'</td>'
+          +'<td class="num">'+c.contas+'</td>'
+          +'<td class="num">'+BRL.format(c.plano)+'</td>'
+          +'<td class="num">'+BRL.format(c.rateado)+'</td>'
+          +'<td class="num" style="color:'+(Math.abs(c.diferenca)>0.01?'var(--red)':'var(--n500)')+'">'
+          +(Math.abs(c.diferenca)>0.01?BRL.format(c.diferenca):'—')+'</td></tr>';
+      }).join('')
+    +'</tbody></table></div></div>';
+
+  document.getElementById('plano-res').innerHTML = html;
+  injectIcons();
+}
 /* ============ PORTAIS DE ANTECIPAÇÃO ============ */
 async function loadAntport(){
   skelKpis('kpis-antport',4);
@@ -12948,7 +13249,7 @@ function pararTimers(){   // sessão caiu: silencia auto-refresh de torre/TV (se
   try{ if(tvClock){ clearInterval(tvClock); tvClock=null; } }catch(e){}
   try{ if(tvTour){ clearInterval(tvTour); tvTour=null; } }catch(e){}
 }
-function podeVer(v){ if(v==='jornf') v='jorn'; return !!USER && ((v==='gestao'||v==='srv') ? USER.admin : (USER.admin || USER.telas.includes(v))); }
+function podeVer(v){ if(v==='jornf') v='jorn'; return !!USER && ((v==='gestao'||v==='srv') ? USER.admin : (USER.admin || (USER.telas||[]).includes(v))); }
 
 /* ===================== Busca global =====================
    Três coisas na mesma caixa, em ordem de utilidade:
