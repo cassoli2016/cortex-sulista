@@ -984,6 +984,29 @@ def fluxo_consolidado(gran: str = "semana", dias: int = 180) -> JSONResponse:
             "erro": "erro_consulta", "mensagem": "Erro ao montar o fluxo consolidado."})
 
 
+@app.get("/api/financeiro/recorrentes")
+def recorrentes(meses: int = 6, min_meses: int = 5) -> JSONResponse:
+    """Contas que entram todo mês e ainda não foram lançadas neste."""
+    if not (3 <= meses <= 24):
+        return JSONResponse(status_code=422, content={
+            "erro": "parametro_invalido", "mensagem": "Use entre 3 e 24 meses de base."})
+    if not (2 <= min_meses <= meses):
+        return JSONResponse(status_code=422, content={
+            "erro": "parametro_invalido",
+            "mensagem": "min_meses precisa ficar entre 2 e o total de meses da base."})
+    try:
+        return JSONResponse(queries.get_recorrentes(meses=meses, min_meses=min_meses))
+    except psycopg.OperationalError as exc:
+        log.warning("banco inacessivel: %s", exc)
+        return JSONResponse(status_code=503, content={
+            "erro": "banco_inacessivel",
+            "mensagem": "Sem conexão com o banco. O túnel SSH está aberto?"})
+    except Exception as exc:  # noqa: BLE001
+        log.warning("recorrentes falhou: %s", exc)
+        return JSONResponse(status_code=500, content={
+            "erro": "erro_consulta", "mensagem": "Erro ao consultar os lançamentos recorrentes."})
+
+
 @app.get("/api/financeiro/antecipacao")
 def antecipacao(dias: int = 90, reserva: float = 0.0, taxa_mes: float = 2.0,
                 incluir_vencidos: int = 0) -> JSONResponse:

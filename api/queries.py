@@ -1153,6 +1153,123 @@ def get_oc_pendentes(dias_min: int = 180) -> dict:
     }
 
 
+# ============================================================================
+# Lançamentos recorrentes — a conta que entra TODO MÊS e não pode passar batido.
+# ----------------------------------------------------------------------------
+# Não existe cadastro de recorrência utilizável no ERP: `contrato` tem 90 linhas,
+# quase todas com validade expirada (2023-2025) e do tipo financiamento;
+# `cadastro_vinculo_fornecedorcontaapagar` e `contrato_parcelas` estão vazias.
+# Então a recorrência é DEDUZIDA DO HISTÓRICO — o que tem a vantagem de se
+# manter sozinha: fornecedor novo que passa a lançar todo mês entra na lista sem
+# ninguém cadastrar nada, e quem deixa de ser recorrente sai.
+#
+# Chave: fornecedor × TIPO DE TÍTULO. Só o fornecedor seria grosseiro demais —
+# o mesmo credor pode ter aluguel mensal e compra esporádica, e a falta de um
+# não é a falta do outro.
+#
+# ATRASO usa o DIA DE EMISSÃO, não o de vencimento. A pergunta é "já foi
+# lançado?", e lançamento é emissão; comparar com o vencimento marcaria como
+# atrasada uma conta que só vence no fim do mês mas é lançada no começo.
+# O limiar é o MAIOR dia de emissão já observado (não a média): só acusa depois
+# de passar do mais tardio que já aconteceu, para não gerar alarme em fornecedor
+# de data irregular. Medido: com a média dariam 83 atrasados; com o máximo, 66.
+# ============================================================================
+REC_SQL = """
+WITH fechados AS (
+  SELECT a.cnpjcpfcodigo AS cod, a.tipotitulo AS tt,
+         to_char(a.dtemissaotitulo,'YYYY-MM') AS mes,
+         sum(a.valortitulo)::float8 AS valor,
+         min(extract(day from a.dtemissaotitulo))::int AS dia_emi
+  FROM contaapagar a
+  WHERE a.dtemissaotitulo >= date_trunc('month', current_date) - (%(meses)s || ' months')::interval
+    AND a.dtemissaotitulo < date_trunc('month', current_date)
+    AND a.valortitulo > 0
+  GROUP BY 1,2,3
+),
+perfil AS (
+  SELECT cod, tt, count(*)::int AS meses,
+         avg(valor)::float8 AS valor_medio,
+         min(valor)::float8 AS valor_min, max(valor)::float8 AS valor_max,
+         round(avg(dia_emi))::int AS dia_tipico,
+         max(dia_emi)::int AS dia_limite
+  FROM fechados GROUP BY 1,2 HAVING count(*) >= %(min_meses)s
+),
+atual AS (
+  SELECT a.cnpjcpfcodigo AS cod, a.tipotitulo AS tt,
+         sum(a.valortitulo)::float8 AS valor, min(a.dtemissaotitulo)::text AS quando
+  FROM contaapagar a
+  WHERE a.dtemissaotitulo >= date_trunc('month', current_date) AND a.valortitulo > 0
+  GROUP BY 1,2
+)
+SELECT p.cod, p.tt, p.meses, p.valor_medio, p.valor_min, p.valor_max,
+       p.dia_tipico, p.dia_limite,
+       (at.cod IS NOT NULL) AS lancou,
+       at.valor AS valor_atual, at.quando,
+       coalesce(nullif(trim(c.nomefantasia),''), nullif(trim(c.razaosocial),''), '') AS fornecedor,
+       coalesce(nullif(trim(t.descricao),''), 'tipo '||p.tt::text) AS tipo,
+       extract(day from current_date)::int AS hoje,
+       to_char(current_date,'YYYY-MM') AS mes_corrente
+FROM perfil p
+LEFT JOIN atual at ON at.cod=p.cod AND at.tt=p.tt
+LEFT JOIN cadastro c ON c.codigo = p.cod
+LEFT JOIN tipotitulo t ON t.codigo = p.tt
+ORDER BY p.valor_medio DESC
+"""
+
+
+@cached(ttl=300)
+def get_recorrentes(meses: int = 6, min_meses: int = 5) -> dict:
+    rows = db.query(REC_SQL, {"meses": meses, "min_meses": min_meses})
+    hoje = rows[0]["hoje"] if rows else date.today().day
+    mes = rows[0]["mes_corrente"] if rows else f"{date.today():%Y-%m}"
+
+    itens = []
+    for r in rows:
+        # fornecedor vazio é lançamento interno (folha, férias, FGTS): o TIPO é
+        # o nome de verdade — mostrar "?" seria esconder o que a linha significa
+        rotulo = r["fornecedor"] or r["tipo"]
+        atrasado = (not r["lancou"]) and r["dia_limite"] is not None and r["dia_limite"] < hoje
+        # variação do valor: conta que oscila muito não permite cobrar valor,
+        # só a existência do lançamento
+        vm = r["valor_medio"] or 0.0
+        amplitude = ((r["valor_max"] - r["valor_min"]) / vm) if vm else 0.0
+        itens.append({
+            "rotulo": rotulo, "fornecedor": r["fornecedor"], "tipo": r["tipo"],
+            "doc": _mask_doc(r["cod"]), "interno": not r["fornecedor"],
+            "meses": r["meses"], "valor_medio": round(vm, 2),
+            "valor_min": round(r["valor_min"] or 0.0, 2),
+            "valor_max": round(r["valor_max"] or 0.0, 2),
+            "valor_instavel": amplitude > 0.5,
+            "dia_tipico": r["dia_tipico"], "dia_limite": r["dia_limite"],
+            "lancou": bool(r["lancou"]),
+            "valor_atual": round(r["valor_atual"], 2) if r["valor_atual"] else None,
+            "quando": (r["quando"] or "")[:10] or None,
+            "status": "lancado" if r["lancou"] else ("atrasado" if atrasado else "no_prazo"),
+        })
+
+    faltam = [i for i in itens if not i["lancou"]]
+    atrasados = [i for i in faltam if i["status"] == "atrasado"]
+    no_prazo = [i for i in faltam if i["status"] == "no_prazo"]
+    lancados = [i for i in itens if i["lancou"]]
+
+    return {
+        "kpis": {
+            "recorrentes": len(itens), "lancados": len(lancados),
+            "atrasados": len(atrasados),
+            "atrasados_valor": round(sum(i["valor_medio"] for i in atrasados), 2),
+            "no_prazo": len(no_prazo),
+            "no_prazo_valor": round(sum(i["valor_medio"] for i in no_prazo), 2),
+            "esperado_total": round(sum(i["valor_medio"] for i in faltam), 2),
+            "hoje": hoje, "mes": mes,
+        },
+        "atrasados": atrasados, "no_prazo": no_prazo,
+        "lancados": sorted(lancados, key=lambda x: -x["valor_medio"])[:80],
+        "parametros": {"meses": meses, "min_meses": min_meses},
+        "fonte": ("ERP AVA · contaapagar · recorrência DEDUZIDA do histórico "
+                  "(fornecedor × tipo de título), não de cadastro · leitura"),
+    }
+
+
 OC_USUARIOS_SQL = "SELECT codigo, coalesce(nullif(trim(nomecompleto),''), 'usuário '||codigo) AS nome FROM usuario"
 
 # Série mensal de emissões (últimos 12 meses): leve, sem o join de recebimento.

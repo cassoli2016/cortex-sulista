@@ -121,7 +121,7 @@ grupos:
       conciliação do extrato, lançamentos bancários (razão do banco lançamento
       a lançamento), fluxo consolidado por período, antecipação de recebíveis
       e ordens de compra.
-    telas: [fluxo, fluxcon, receber, pagar, cob, extb, lanc, antec, oc, custos]
+    telas: [fluxo, fluxcon, receber, pagar, cob, extb, lanc, antec, rec, oc, custos]
 
   - nome: Controladoria
     resumo: >-

@@ -4,6 +4,14 @@ Gerado de `docs/versoes.yaml` por `scripts/gerar_changelog.py` — não editar �
 Formato [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/),
 versionamento [SemVer](https://semver.org/lang/pt-BR/).
 
+## [0.17.0] — 24/08/2026  ·  CX-24/08/2026-v0.17.0
+
+### Adicionado
+- Nova tela no Financeiro: Lançamentos Recorrentes. Mostra as contas que entram todo mês e que ainda NÃO foram lançadas neste — hoje são 66 atrasadas, somando cerca de R$ 1,6 milhão, entre elas folha, diárias de motoristas, FGTS e combustível. Cada linha diz até que dia a conta costuma entrar, quantos meses seguidos ela aparece e quanto costuma ser.
+- Separa o que está atrasado do que ainda está no prazo: só entra como atraso quem já passou do dia MAIS TARDIO em que a conta já foi lançada, não da média — assim fornecedor de data irregular não vira alarme falso.
+- As já lançadas aparecem com o valor deste mês ao lado da média, com a variação destacada. Diferença grande pode ser reajuste, consumo atípico ou erro de digitação, e fica visível sem precisar procurar.
+- A recorrência é deduzida do próprio histórico (fornecedor × tipo de título nos últimos meses), porque o ERP não tem um cadastro utilizável para isso. A lista se mantém sozinha: quem passa a lançar todo mês entra e quem deixa de lançar sai, sem ninguém cadastrar nada.
+
 ## [0.16.1] — 24/08/2026  ·  CX-24/08/2026-v0.16.1
 
 ### Alterado

@@ -1000,6 +1000,7 @@ body.tvfull #btnReport,body.tvmode #btnReport{display:none}
         <a href="#extb" class="sub" data-view="extb" title="Extrato Bancário"><span class="ic" data-ic="ctb"></span><span>Extrato Bancário</span></a>
         <a href="#lanc" class="sub" data-view="lanc" title="Lançamentos Bancários"><span class="ic" data-ic="ctb"></span><span>Lançamentos Bancários</span></a>
         <a href="#fluxcon" class="sub" data-view="fluxcon" title="Fluxo de Caixa Consolidado"><span class="ic" data-ic="flx"></span><span>Fluxo Consolidado</span></a>
+        <a href="#rec" class="sub" data-view="rec" title="Lancamentos Recorrentes"><span class="ic" data-ic="pag"></span><span>Recorrentes</span></a>
         <a href="#antec" class="sub" data-view="antec" title="Antecipação de Recebíveis"><span class="ic" data-ic="flx"></span><span>Antecipação</span></a>
       </div>
       <button class="group" id="grpCtr" aria-expanded="false" aria-controls="subsCtr" onclick="toggleGroup('grpCtr','subsCtr','cs.ctrGroup')" title="Controladoria">
@@ -2181,6 +2182,35 @@ body.tvfull #btnReport,body.tvmode #btnReport{display:none}
         </div>
       </section>
 
+      <!-- ===================== LANÇAMENTOS RECORRENTES ===================== -->
+      <section class="view" id="view-rec">
+        <div id="rec-avisos"></div>
+        <div class="kpis k4" id="kpis-rec"></div>
+        <div class="card">
+          <div class="head"><h2>Atrasados — já passou do dia em que costumam entrar
+            <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="Fornecedor × tipo de título que apareceu na maioria dos últimos meses fechados e ainda NÃO foi lançado neste mês, tendo passado do dia mais tardio em que já entrou. O limiar é o dia MÁXIMO já observado, não a média, para não acusar quem tem data irregular. O valor é a média dos meses anteriores — estimativa do que falta, não um título que exista.">i</span></h2>
+            <span class="hint" id="hintRecAtr"></span></div>
+          <div class="tablewrap tabroll"><table><thead><tr>
+            <th>Conta</th><th>Tipo</th><th class="num">Valor esperado</th>
+            <th class="num">Costuma entrar até</th><th class="num">Meses</th>
+          </tr></thead><tbody id="rec-atrasados"></tbody></table></div>
+        </div>
+        <div class="grid2">
+          <div class="card">
+            <div class="head"><h2>Ainda no prazo <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="Recorrentes que ainda não entraram neste mês, mas cujo dia habitual de lançamento ainda não chegou. Não é alarme — é a agenda do que falta.">i</span></h2><span class="hint" id="hintRecPrazo"></span></div>
+            <div class="tablewrap tabroll"><table><thead><tr>
+              <th>Conta</th><th class="num">Valor esperado</th><th class="num">Até o dia</th>
+            </tr></thead><tbody id="rec-prazo"></tbody></table></div>
+          </div>
+          <div class="card">
+            <div class="head"><h2>Já lançados neste mês <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="Recorrentes que já entraram. O valor deste mês aparece ao lado da média para conferência: diferença grande pode ser reajuste, consumo atípico ou erro de digitação.">i</span></h2><span class="hint" id="hintRecOk"></span></div>
+            <div class="tablewrap tabroll"><table><thead><tr>
+              <th>Conta</th><th class="num">Média</th><th class="num">Este mês</th><th class="num">Var.</th>
+            </tr></thead><tbody id="rec-lancados"></tbody></table></div>
+          </div>
+        </div>
+      </section>
+
       <!-- ===================== ANTECIPAÇÃO DE RECEBÍVEIS ===================== -->
       <section class="view" id="view-antec">
         <div id="antec-avisos"></div>
@@ -3272,7 +3302,7 @@ const FAIXAS = {
   '4_vencido_91_365':['Vencido 91–365d','b-dang'],
   '5_vencido_mais_365':['Vencido > 365d','b-dang'],
 };
-const VIEWS = { home:'Visão Geral', fluxo:'Fluxo de Caixa e Bancos', receber:'Contas a Receber', pagar:'Contas a Pagar', oc:'Ordens de Compra', custos:'Painel de Custos', agr:'Agregados e Terceiros', mvb:'Make vs Buy', comb:'Combustível', man:'Manutenção', com:'Clientes e RKM', clif:'Consulta de Cliente', crm:'CRM — Leads e Projetos', km:'Análise de KM', torre:'Torre de Controle', veic:'Veículos', veicf:'Consulta de Veículo', mprev:'Manutenção Preventiva', comrast:'Comunicação Rastreadora', mul:'Multas', prog:'Programação Inteligente', jorn:'Jornada do Motorista', jornf:'Ficha de Jornada', cex:'Custos Extras', sac:'SAC / Freetime', port:'Portaria', cop:'Copiloto Cortex', cob:'Régua de Cobrança', extb:'Extrato Bancário', lanc:'Lançamentos Bancários', antec:'Antecipação de Recebíveis', fluxcon:'Fluxo de Caixa Consolidado', cont:'Contabilidade', qual:'Qualidade e Certidões', orc:'Orçamento', fech:'Fechamento do Mês', prem:'Premiação de Motoristas', dre:'DRE Gerencial', bal:'Balanço Patrimonial', drecli:'DRE por Cliente', tvfat:'Painel TV — Faturamento', tvope:'Painel TV — Operação', rh:'RH — Vagas', hc:'Headcount', folha:'Custo de Folha', folhaind:'Indicadores de Folha', he:'Horas Extras', gestao:'Gestão', srv:'Saúde do Servidor', doc:'Documentação', anpiso:'Piso Mínimo de Frete', anrntrc:'RNTRC dos Transportadores', telcon:'Consumo e Estatísticas', telcond:'Condução Econômica', telhod:'Hodômetro e Rastro' };
+const VIEWS = { home:'Visão Geral', fluxo:'Fluxo de Caixa e Bancos', receber:'Contas a Receber', pagar:'Contas a Pagar', oc:'Ordens de Compra', custos:'Painel de Custos', agr:'Agregados e Terceiros', mvb:'Make vs Buy', comb:'Combustível', man:'Manutenção', com:'Clientes e RKM', clif:'Consulta de Cliente', crm:'CRM — Leads e Projetos', km:'Análise de KM', torre:'Torre de Controle', veic:'Veículos', veicf:'Consulta de Veículo', mprev:'Manutenção Preventiva', comrast:'Comunicação Rastreadora', mul:'Multas', prog:'Programação Inteligente', jorn:'Jornada do Motorista', jornf:'Ficha de Jornada', cex:'Custos Extras', sac:'SAC / Freetime', port:'Portaria', cop:'Copiloto Cortex', cob:'Régua de Cobrança', extb:'Extrato Bancário', lanc:'Lançamentos Bancários', antec:'Antecipação de Recebíveis', rec:'Lançamentos Recorrentes', fluxcon:'Fluxo de Caixa Consolidado', cont:'Contabilidade', qual:'Qualidade e Certidões', orc:'Orçamento', fech:'Fechamento do Mês', prem:'Premiação de Motoristas', dre:'DRE Gerencial', bal:'Balanço Patrimonial', drecli:'DRE por Cliente', tvfat:'Painel TV — Faturamento', tvope:'Painel TV — Operação', rh:'RH — Vagas', hc:'Headcount', folha:'Custo de Folha', folhaind:'Indicadores de Folha', he:'Horas Extras', gestao:'Gestão', srv:'Saúde do Servidor', doc:'Documentação', anpiso:'Piso Mínimo de Frete', anrntrc:'RNTRC dos Transportadores', telcon:'Consumo e Estatísticas', telcond:'Condução Econômica', telhod:'Hodômetro e Rastro' };
 const periodoLabel = p => { if(p==='atrasado') return 'Atrasado'; const [y,m]=p.split('-'); return MES[+m-1]+'/'+y.slice(2); };
 const fmtD = s => { if(!s) return ''; const [y,m,dd]=s.split('-'); return dd+'/'+m+'/'+y; };
 // o ERP devolve "YYYY-MM-DD HH24:MI" (to_char); a ficha do veículo mostrava cru
@@ -3358,6 +3388,7 @@ let DATAEXTB = null, extbSeq = 0;
 let DATALANC = null, lancSeq = 0;
 let DATAANTEC = null, antecSeq = 0;
 let DATAFLUXCON = null, fluxconSeq = 0;
+let DATAREC = null, recSeq = 0;
 let DATABAL = null, balSeq = 0;
 let DATARENT = null;
 let tvTimer = null, tvClock = null, TV_NEXT = 0;
@@ -3435,7 +3466,7 @@ function toggleGroup(gid,sid,key){
 
 const VIEW_GROUP = {home:'',cop:'',
   com:'Com',clif:'Com',crm:'Com',rent:'Com',drecli:'Com',
-  fluxo:'Fin',receber:'Fin',pagar:'Fin',cob:'Fin',extb:'Fin',lanc:'Fin',antec:'Fin',fluxcon:'Fin',
+  fluxo:'Fin',receber:'Fin',pagar:'Fin',cob:'Fin',extb:'Fin',lanc:'Fin',antec:'Fin',fluxcon:'Fin',rec:'Fin',
   dre:'Ctr',bal:'Ctr',cont:'Ctr',qual:'Ctr',orc:'Ctr',fech:'Ctr',
   torre:'Ope',prog:'Ope',jorn:'Ope',jornf:'Ope',cex:'Ope',sac:'Ope',port:'Ope',km:'Ope',agr:'Ope',mvb:'Ope',
   veic:'Fro',veicf:'Fro',mprev:'Fro',comrast:'Fro',comb:'Fro',man:'Fro',mul:'Fro',prem:'Fro',
@@ -3653,7 +3684,7 @@ function router(){
   navRegistraUso(v);
   syncGroups(v);
   const anpiso = (v==='anpiso');
-  const dre = (v==='dre'), oc = (v==='oc'), agr = (v==='agr'), mvb = (v==='mvb'), comb = (v==='comb'), man = (v==='man'), com = (v==='com'), home = (v==='home'), kmv = (v==='km'), torre = (v==='torre'), veic = (v==='veic'), mul = (v==='mul'), prog = (v==='prog'), cop = (v==='cop'), cob = (v==='cob'), rent = (v==='rent'), contab = (v==='cont'), dreCli = (v==='drecli'), orc = (v==='orc'), lanc = (v==='lanc'), bal = (v==='bal'), antec = (v==='antec'), fluxcon = (v==='fluxcon');
+  const dre = (v==='dre'), oc = (v==='oc'), agr = (v==='agr'), mvb = (v==='mvb'), comb = (v==='comb'), man = (v==='man'), com = (v==='com'), home = (v==='home'), kmv = (v==='km'), torre = (v==='torre'), veic = (v==='veic'), mul = (v==='mul'), prog = (v==='prog'), cop = (v==='cop'), cob = (v==='cob'), rent = (v==='rent'), contab = (v==='cont'), dreCli = (v==='drecli'), orc = (v==='orc'), lanc = (v==='lanc'), bal = (v==='bal'), antec = (v==='antec'), fluxcon = (v==='fluxcon'), recorr = (v==='rec');
   // torre: só filial; auto-refresh de 120s enquanto ativa
   if(torreTimer){ clearInterval(torreTimer); torreTimer=null; }
   if(torre){ torreTimer=setInterval(()=>{ if(currentView()==='torre') loadTorre(true); }, 120000); }
@@ -3690,20 +3721,20 @@ function router(){
   document.getElementById('grpComb').style.display = comb ? 'flex' : 'none';
   document.getElementById('grpMan').style.display = man ? 'flex' : 'none';
   document.getElementById('grpVeic').style.display = veic ? 'flex' : 'none';
-  document.getElementById('grpVenc').style.display = (dre||oc||agr||mvb||comb||man||com||kmv||torre||veic||mul||prog||cop||cob||rent||contab||dreCli||orc||anpiso||lanc||bal||antec||fluxcon) ? 'none' : 'flex';
-  document.getElementById('fData').parentElement.style.display = (dre||oc||agr||mvb||comb||man||com||kmv||torre||veic||mul||prog||cop||cob||rent||contab||dreCli||orc||anpiso||lanc||bal||antec||fluxcon) ? 'none' : 'flex';
+  document.getElementById('grpVenc').style.display = (dre||oc||agr||mvb||comb||man||com||kmv||torre||veic||mul||prog||cop||cob||rent||contab||dreCli||orc||anpiso||lanc||bal||antec||fluxcon||recorr) ? 'none' : 'flex';
+  document.getElementById('fData').parentElement.style.display = (dre||oc||agr||mvb||comb||man||com||kmv||torre||veic||mul||prog||cop||cob||rent||contab||dreCli||orc||anpiso||lanc||bal||antec||fluxcon||recorr) ? 'none' : 'flex';
   const fFil = document.getElementById('fFilial');
   // Filial some onde a fonte não tem esse recorte OU a API não aceita o parâmetro
   // (DRE/MvB consolidados; Veículos/Multas/Programação/Contabilidade não filtram
   // por filial). DRE por Cliente ACEITA filial (dre_cliente/sql.py) — fica visível.
   // Lançamentos Bancários também: contacorrente é por CONTA (empresa), sem coluna de filial.
   // Balanço idem: balancodemonstracaocontabil é consolidado da empresa, sem filial.
-  fFil.parentElement.style.display = (dre||mvb||comb||veic||mul||prog||contab||orc||lanc||bal||antec||fluxcon) ? 'none' : 'flex';
+  fFil.parentElement.style.display = (dre||mvb||comb||veic||mul||prog||contab||orc||lanc||bal||antec||fluxcon||recorr) ? 'none' : 'flex';
   // carga da vista: dispara se não há dados OU se os filtros visíveis
   // divergem dos usados na última carga (nunca mostrar dado velho com filtro novo)
   const key=viewKey(v);
-  const DATAMAP={fin:DATA,oc:DATAOC,agr:DATAAGR,anpiso:DATAANPISO,anrntrc:DATAANRNTRC,telcon:DATATELCON,telcond:DATATELCOND,telhod:DATATELHOD,mvb:DATAMVB,comb:DATACOMB,man:DATAMAN,com:DATACOM,clif:DATACLIF,dre:DATADRE,bal:DATABAL,drecli:DATADRECLI,home:DATAHOME,km:DATAKM,torre:DATATORRE,veic:DATAVEIC,veicf:DATAVEICF,mul:DATAMUL,prog:DATAPROG,jorn:DATAJORN,jornf:DATAJORNF,cex:DATACEX,sac:DATASAC,mprev:DATAMPREV,comrast:DATACOMRAST,qual:DATAQUAL,port:DATAPORT,crm:DATACRM,rh:DATARH,hc:DATAHC,folha:DATAFOLHA,folhaind:DATAFOLHAIND,he:DATAHE,custos:DATACUSTOS,cob:DATACOB,extb:DATAEXTB,lanc:DATALANC,antec:DATAANTEC,fluxcon:DATAFLUXCON,rent:DATARENT,cont:DATACONT,orc:DATAORC,fech:DATAFECH,prem:DATAPREM,gestao:DATAGES,srv:DATASRV,doc:DATADOC,tvfat:null,tvope:null,cop:(COP_MSGS.length?{}:null)};
-  const LOADMAP={fin:load,oc:loadOc,agr:loadAgr,anpiso:loadAnpiso,anrntrc:loadAnrntrc,telcon:loadTelcon,telcond:loadTelcond,telhod:loadTelhod,mvb:loadMvb,comb:loadComb,man:loadMan,com:loadCom,clif:loadClif,dre:loadDre,bal:loadBal,drecli:loadDreCli,home:loadHome,km:loadKm,torre:loadTorre,veic:loadVeic,veicf:loadVeicf,mul:loadMul,prog:loadProg,jorn:loadJorn,jornf:loadJornf,cex:loadCex,sac:loadSac,mprev:loadMPrev,comrast:loadComRast,qual:loadQual,port:loadPort,crm:loadCrm,rh:loadRh,hc:loadHc,folha:loadFolha,folhaind:loadFolhaInd,he:loadHe,custos:loadCustos,cob:loadCob,extb:loadExtb,lanc:loadLanc,antec:loadAntec,fluxcon:loadFluxcon,rent:loadRent,cont:loadCont,orc:loadOrc,fech:loadFech,prem:loadPrem,gestao:loadGestao,srv:loadSrv,doc:loadDoc,cop:loadCop,tvfat:loadTvFat,tvope:loadTvOpe};
+  const DATAMAP={fin:DATA,oc:DATAOC,agr:DATAAGR,anpiso:DATAANPISO,anrntrc:DATAANRNTRC,telcon:DATATELCON,telcond:DATATELCOND,telhod:DATATELHOD,mvb:DATAMVB,comb:DATACOMB,man:DATAMAN,com:DATACOM,clif:DATACLIF,dre:DATADRE,bal:DATABAL,drecli:DATADRECLI,home:DATAHOME,km:DATAKM,torre:DATATORRE,veic:DATAVEIC,veicf:DATAVEICF,mul:DATAMUL,prog:DATAPROG,jorn:DATAJORN,jornf:DATAJORNF,cex:DATACEX,sac:DATASAC,mprev:DATAMPREV,comrast:DATACOMRAST,qual:DATAQUAL,port:DATAPORT,crm:DATACRM,rh:DATARH,hc:DATAHC,folha:DATAFOLHA,folhaind:DATAFOLHAIND,he:DATAHE,custos:DATACUSTOS,cob:DATACOB,extb:DATAEXTB,lanc:DATALANC,antec:DATAANTEC,fluxcon:DATAFLUXCON,rec:DATAREC,rent:DATARENT,cont:DATACONT,orc:DATAORC,fech:DATAFECH,prem:DATAPREM,gestao:DATAGES,srv:DATASRV,doc:DATADOC,tvfat:null,tvope:null,cop:(COP_MSGS.length?{}:null)};
+  const LOADMAP={fin:load,oc:loadOc,agr:loadAgr,anpiso:loadAnpiso,anrntrc:loadAnrntrc,telcon:loadTelcon,telcond:loadTelcond,telhod:loadTelhod,mvb:loadMvb,comb:loadComb,man:loadMan,com:loadCom,clif:loadClif,dre:loadDre,bal:loadBal,drecli:loadDreCli,home:loadHome,km:loadKm,torre:loadTorre,veic:loadVeic,veicf:loadVeicf,mul:loadMul,prog:loadProg,jorn:loadJorn,jornf:loadJornf,cex:loadCex,sac:loadSac,mprev:loadMPrev,comrast:loadComRast,qual:loadQual,port:loadPort,crm:loadCrm,rh:loadRh,hc:loadHc,folha:loadFolha,folhaind:loadFolhaInd,he:loadHe,custos:loadCustos,cob:loadCob,extb:loadExtb,lanc:loadLanc,antec:loadAntec,fluxcon:loadFluxcon,rec:loadRec,rent:loadRent,cont:loadCont,orc:loadOrc,fech:loadFech,prem:loadPrem,gestao:loadGestao,srv:loadSrv,doc:loadDoc,cop:loadCop,tvfat:loadTvFat,tvope:loadTvOpe};
   if(!DATAMAP[key] || (key!=='home' && LOADEDQS[key]!==qsView(key))) LOADMAP[key]();
   // mobile: estado da navegação inferior + fecha gaveta/painel de filtros
   document.querySelectorAll('.bottomnav [data-bview]').forEach(a=>a.classList.toggle('ativo', a.dataset.bview===v));
@@ -7197,6 +7228,81 @@ function renderExtbConcil(c){
         <td>${x.pendente_mais_antigo?fmtD(x.pendente_mais_antigo):'—'}</td>
         <td>${fmtD(x.ultimo_movimento)}</td></tr>`).join('')
     + '</tbody></table></div>';
+}
+
+/* ---------------- Lançamentos Recorrentes ----------------
+   Recorrência DEDUZIDA do histórico — não há cadastro utilizável no ERP
+   (`contrato` tem 90 linhas, quase todas vencidas). Atraso usa o dia de
+   EMISSÃO, e o limiar é o dia MÁXIMO já visto, não a média. */
+async function loadRec(){
+  skelKpis('kpis-rec',4);
+  const seq=++recSeq, btn=document.getElementById('btnRefresh'); if(btn) btn.disabled=true;
+  document.getElementById('content').classList.add('loading');
+  try{
+    const r=await fetch('/api/financeiro/recorrentes',{cache:'no-store'});
+    const d=await r.json(); if(seq!==recSeq) return;
+    if(!r.ok){ showBanner(d.mensagem||'Erro ao consultar os recorrentes.', d.detalhe); return; }
+    hideBanner(); DATAREC=d; renderRec(d); LOADEDQS.rec='';
+  }catch(e){ if(seq===recSeq) showBanner('Não foi possível falar com a API.', e.message); }
+  finally{ if(seq===recSeq){ if(btn) btn.disabled=false; document.getElementById('content').classList.remove('loading'); } }
+}
+function recNome(i){
+  return esc(i.rotulo)+(i.interno
+    ? ' <span class="badge b-info" title="lançamento interno da empresa (folha, férias, impostos) — não tem fornecedor no cadastro, então o nome exibido é o próprio tipo de título">interno</span>' : '');
+}
+function renderRec(d){
+  const k=d.kpis||{}, p=d.parametros||{};
+  document.getElementById('kpis-rec').innerHTML=[
+    kpi('Atrasados', (k.atrasados||0).toLocaleString('pt-BR'),
+        BRL.format(k.atrasados_valor||0)+' esperados', (k.atrasados||0)>0?'neg':'pos',
+        'Contas recorrentes ainda não lançadas neste mês que JÁ passaram do dia mais tardio em que costumam entrar. É a lista de cobrança do setor.'),
+    kpi('Ainda no prazo', (k.no_prazo||0).toLocaleString('pt-BR'),
+        BRL.format(k.no_prazo_valor||0)+' esperados', '',
+        'Faltam lançar, mas o dia habitual ainda não chegou. Agenda, não alarme.'),
+    kpi('Já lançados', (k.lancados||0).toLocaleString('pt-BR')+' de '+(k.recorrentes||0),
+        'no mês '+(k.mes||''), 'pos',
+        'Recorrentes que já entraram neste mês.'),
+    kpi('Esperado a lançar', BRL.format(k.esperado_total||0), 'atrasados + no prazo', '',
+        'Soma do valor médio do que ainda falta entrar. É ESTIMATIVA pela média dos meses anteriores — não são títulos que já existam no sistema, então NÃO some isso ao total a pagar.'),
+  ].join('');
+  const A=[['t-info','Como esta lista é montada',
+    'Não existe cadastro de recorrência utilizável no ERP, então ela é deduzida do histórico: fornecedor × tipo de título que apareceu em pelo menos '
+    +p.min_meses+' dos últimos '+p.meses+' meses fechados. Quem deixa de ser recorrente sai da lista sozinho, e quem passa a ser entra — sem ninguém cadastrar nada.']];
+  if((k.atrasados||0)>0) A.unshift(['t-dang','Contas recorrentes não lançadas neste mês',
+    k.atrasados+' contas que entram todo mês ainda não foram lançadas, somando cerca de '
+    +BRL.format(k.atrasados_valor||0)+'. Cada uma já passou do dia mais tardio em que costuma entrar.']);
+  document.getElementById('rec-avisos').innerHTML=A.map(([c,t,m])=>
+    '<div class="toast '+c+'"><b>'+esc(t)+'</b>'+esc(m)+'</div>').join('');
+
+  const at=d.atrasados||[];
+  document.getElementById('hintRecAtr').textContent = at.length
+    ? at.length+' conta'+(at.length===1?'':'s')+' · hoje é dia '+k.hoje : 'nenhuma atrasada';
+  document.getElementById('rec-atrasados').innerHTML=at.map(i=>`<tr>
+    <td>${recNome(i)}</td><td>${esc(i.tipo)}</td>
+    <td class="num" style="font-weight:600">${BRL.format(i.valor_medio)}${i.valor_instavel?' <span class="badge b-warn" title="o valor oscila mais de 50% entre os meses — a média serve de ordem de grandeza, não de valor a cobrar">varia</span>':''}</td>
+    <td class="num" style="color:var(--red);font-weight:600">dia ${i.dia_limite}</td>
+    <td class="num">${i.meses}/${p.meses}</td></tr>`).join('')
+    || '<tr><td colspan="5" style="color:var(--n500)">nenhuma conta recorrente atrasada</td></tr>';
+
+  const np=d.no_prazo||[];
+  document.getElementById('hintRecPrazo').textContent = np.length ? np.length+' a entrar' : 'nada pendente';
+  document.getElementById('rec-prazo').innerHTML=np.map(i=>`<tr>
+    <td>${recNome(i)}</td><td class="num">${BRL.format(i.valor_medio)}</td>
+    <td class="num">dia ${i.dia_limite}</td></tr>`).join('')
+    || '<tr><td colspan="3" style="color:var(--n500)">nada a entrar</td></tr>';
+
+  const lc=d.lancados||[];
+  document.getElementById('hintRecOk').textContent = lc.length ? lc.length+' maiores por valor médio' : 'nenhum';
+  document.getElementById('rec-lancados').innerHTML=lc.map(i=>{
+    const v=i.valor_atual||0, m=i.valor_medio||0;
+    const dif = m>0 ? (100*(v-m)/m) : null;
+    const cor = dif==null ? '' : (Math.abs(dif)>40?'color:var(--red);font-weight:600'
+                                 :(Math.abs(dif)>15?'color:var(--yellow-700)':''));
+    return `<tr><td>${recNome(i)}</td>
+      <td class="num">${BRL.format(m)}</td>
+      <td class="num">${BRL.format(v)}</td>
+      <td class="num" style="${cor}">${dif==null?'—':(dif>0?'+':'')+dif.toLocaleString('pt-BR',{maximumFractionDigits:0})+'%'}</td></tr>`;
+  }).join('') || '<tr><td colspan="4" style="color:var(--n500)">nenhum lançado</td></tr>';
 }
 
 /* ---------------- Fluxo de Caixa Consolidado ----------------
@@ -13149,6 +13255,7 @@ boot();
         <a href="#extb" onclick="fecharDrawer()"><span class="ic" data-ic="ctb"></span>Extrato Bancário</a>
         <a href="#lanc" onclick="fecharDrawer()"><span class="ic" data-ic="ctb"></span>Lançamentos Bancários</a>
         <a href="#fluxcon" onclick="fecharDrawer()"><span class="ic" data-ic="flx"></span>Fluxo Consolidado</a>
+        <a href="#rec" onclick="fecharDrawer()"><span class="ic" data-ic="pag"></span>Recorrentes</a>
         <a href="#antec" onclick="fecharDrawer()"><span class="ic" data-ic="flx"></span>Antecipação</a>
       </div>
     </div>
