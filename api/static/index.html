@@ -2959,6 +2959,29 @@ body.tvfull #btnReport,body.tvmode #btnReport{display:none}
           <div class="head"><h2>Alertas <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="Regras fixas sobre os números desta tela: OCs com entrega prevista vencida e OCs paradas na fila de aprovação.">i</span></h2></div>
           <div class="alerts" id="alerts-oc"></div>
         </div>
+
+        <div class="card">
+          <div class="head"><h2>OC em aberto sem nota — tempo parado
+            <span class="badge b-warn" title="Este bloco olha TODAS as ordens de compra em aberto, não só as do período filtrado acima. OC emitida há dois anos e ainda sem nota é justamente o que se procura — o filtro de emissão a esconderia.">ignora o filtro de período</span>
+            <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="ordemcompra cruzada com notafiscalentrada_item_ordemcomprarecebida: fica em aberto o que foi pedido e ainda não veio em nota. EXCLUI as OCs SUSPENSAS no ERP (dtsuspensao preenchida) — são 3.077 delas, R$ 15,3 milhões, paradas de propósito; contá-las como esquecidas seria alarme falso. Elas aparecem no cartão cinza ao lado. A idade conta da EMISSÃO da OC.">i</span></h2>
+            <span class="hint" id="hintOcPend"></span></div>
+          <div class="kpis k4" id="kpis-ocpend"></div>
+          <div class="modl" id="ocpend-faixas"></div>
+        </div>
+        <div class="grid2">
+          <div class="card">
+            <div class="head"><h2>Fornecedores com OC parada <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="Quem tem mais valor pedido e não entregue além do prazo escolhido. É o interlocutor da cobrança: ou entrega, ou emite a nota, ou a OC é cancelada.">i</span></h2><span class="hint" id="hintOcForn">top 20 por valor pendente</span></div>
+            <div class="tablewrap tabroll"><table><thead><tr>
+              <th>Fornecedor</th><th class="num">OCs</th><th class="num">Pendente</th><th class="num">Mais antiga</th>
+            </tr></thead><tbody id="ocpend-forn"></tbody></table></div>
+          </div>
+          <div class="card">
+            <div class="head"><h2>OCs mais antigas <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="Da mais antiga para a mais nova — a ordem em que se cobra, igual à régua de cobrança. 'Parcial' marca a OC que já recebeu parte: o saldo pendente é só o que falta, não o valor cheio do pedido.">i</span></h2><span class="hint" id="hintOcLista"></span></div>
+            <div class="tablewrap tabroll"><table><thead><tr>
+              <th class="num">OC</th><th class="num">Dias</th><th>Fornecedor</th><th class="num">Pendente</th>
+            </tr></thead><tbody id="ocpend-lista"></tbody></table></div>
+          </div>
+        </div>
       </section>
       <section class="view" id="view-gestao">
         <div class="card">
@@ -5751,6 +5774,65 @@ async function loadOc(){
   finally{
     if(seq===ocSeq){ btn.disabled=false; document.getElementById('content').classList.remove('loading'); }
   }
+  // Bloco de OC parada em consulta SEPARADA e sem await na anterior: ele não
+  // segue o filtro de período, então nada nele muda quando o filtro muda —
+  // pendurá-lo na mesma query só o faria recarregar à toa.
+  carregarOcPendentes();
+}
+/* OC aberta sem nota. O filtro `dtsuspensao IS NULL` é o que separa 648 OCs
+   reais (R$ 2,0 mi) de 3.740 (R$ 17,3 mi): 83% estão suspensas de propósito
+   no ERP e entram como bloco cinza, nunca como alarme. */
+async function carregarOcPendentes(){
+  try{
+    const r=await fetch('/api/suprimentos/oc-pendentes?dias_min=180',{cache:'no-store'});
+    if(!r.ok) return;
+    renderOcPendentes(await r.json());
+  }catch(e){ /* bloco acessório: falha aqui não pode derrubar a tela de OC */ }
+}
+const OCP_FAIXA={'1_ate_30':'até 30 dias','2_31_60':'31 a 60','3_61_90':'61 a 90',
+                 '4_91_180':'91 a 180','5_mais_180':'mais de 180 dias'};
+function renderOcPendentes(d){
+  const k=d.kpis||{};
+  document.getElementById('hintOcPend').textContent =
+    k.mais_antiga ? ('a mais antiga foi emitida em '+fmtD(String(k.mais_antiga).slice(0,10))) : '';
+  document.getElementById('kpis-ocpend').innerHTML=[
+    kpi('Em aberto sem nota', (k.ocs||0).toLocaleString('pt-BR')+' OCs', BRL.format(k.valor||0), '',
+        'Ordens de compra com saldo não recebido, EXCLUINDO as suspensas no ERP. O valor é só o que falta chegar — OC parcialmente recebida entra pelo saldo.'),
+    kpi('Paradas há mais de 180 dias', (k.velhas||0).toLocaleString('pt-BR')+' OCs',
+        BRL.format(k.velhas_valor||0), (k.velhas||0)>0?'neg':'pos',
+        'O alvo do monitoramento: pedido feito, prazo largamente vencido e nada recebido. Ou a entrega não aconteceu, ou a nota não foi vinculada à OC, ou a OC deveria ter sido cancelada.'),
+    kpi('Sem aprovação', (k.sem_aprovacao||0).toLocaleString('pt-BR')+' OCs',
+        BRL.format(k.sem_aprovacao_valor||0), (k.sem_aprovacao||0)>0?'warn':'',
+        'OCs em aberto que nunca passaram pelo aprovador. Pedido sem aprovação que já está aberto há meses é falha de processo, não fila.'),
+    kpi('Suspensas (fora da conta)', (k.suspensas||0).toLocaleString('pt-BR')+' OCs',
+        BRL.format(k.suspensas_valor||0)+' · paradas de propósito', '',
+        'OCs com data de suspensão preenchida no ERP. NÃO entram nos números acima: são 83% do total em aberto e contá-las como esquecidas transformaria cadastro em crise. Estão aqui para o volume não sumir sem explicação.'),
+  ].join('');
+  const fx=d.faixas||[], maxV=Math.max(1,...fx.map(f=>f.valor));
+  document.getElementById('ocpend-faixas').innerHTML=fx.map(f=>{
+    const velha=f.faixa==='5_mais_180';
+    return `<div class="mrow"><div class="mlbl">${esc(OCP_FAIXA[f.faixa]||f.faixa)}</div>
+      <div class="mbar"><i style="width:${Math.max(2,100*f.valor/maxV)}%;background:${velha?'var(--red)':'var(--navy-500)'}"></i></div>
+      <div class="mval">${BRL.format(f.valor)} <span style="color:var(--n500);font-weight:400">· ${f.ocs} OC${f.ocs===1?'':'s'}${f.sem_aprovacao>0?' · '+f.sem_aprovacao+' sem aprovação':''}</span></div></div>`;
+  }).join('') || '<div style="color:var(--n500)">nenhuma OC em aberto</div>';
+  const fo=d.fornecedores||[];
+  document.getElementById('hintOcForn').textContent = fo.length
+    ? `top ${fo.length} por valor pendente · abertas há mais de ${d.dias_min} dias` : 'nenhuma';
+  document.getElementById('ocpend-forn').innerHTML=fo.map(f=>`<tr>
+    <td>${esc(f.fornecedor)}</td><td class="num">${f.ocs}</td>
+    <td class="num" style="font-weight:600">${BRL.format(f.pendente)}</td>
+    <td class="num">${f.dias_max} d</td></tr>`).join('')
+    || '<tr><td colspan="4" style="color:var(--n500)">nenhuma OC parada</td></tr>';
+  const li=d.lista||[];
+  document.getElementById('hintOcLista').textContent = (d.lista_total && d.lista_total>li.length)
+    ? `${li.length} de ${d.lista_total} · da mais antiga para a mais nova`
+    : `${li.length} OC${li.length===1?'':'s'} · da mais antiga para a mais nova`;
+  document.getElementById('ocpend-lista').innerHTML=li.map(x=>`<tr>
+    <td class="num">${x.numero}</td>
+    <td class="num" style="font-weight:700;color:${x.dias>365?'var(--red)':'var(--yellow-700)'}">${x.dias}</td>
+    <td title="${esc(x.fornecedor)}">${esc(x.fornecedor.length>26?x.fornecedor.slice(0,26)+'…':x.fornecedor)}${x.sem_aprovacao?' <span class="badge b-warn">sem aprov.</span>':''}${x.recebido>0?' <span class="badge b-info">parcial</span>':''}</td>
+    <td class="num" style="font-weight:600">${BRL.format(x.pendente)}</td></tr>`).join('')
+    || '<tr><td colspan="4" style="color:var(--n500)">nenhuma OC parada</td></tr>';
 }
 const shortName = n => { if(!n) return '—'; const w=n.trim().split(/\s+/); return w.length>2 ? w[0]+' '+w[w.length-1] : n; };
 function fillUserSelect(id, rows){

@@ -1022,6 +1022,129 @@ FROM oc LEFT JOIN rec ON rec.grupo=oc.grupo AND rec.empresa=oc.empresa AND rec.f
      AND rec.diferenciadornumero=oc.diferenciadornumero AND rec.numero=oc.numero
 """
 
+# ----------------------------------------------------------------------------
+# OC ABERTA SEM NOTA — quanto tempo faz que foi emitida e nada chegou.
+#
+# NÃO segue o filtro de período da tela: OC emitida há dois anos e ainda aberta
+# é justamente o que se procura, e o filtro de emissão a esconderia. A tela
+# leva badge dizendo isso (regra do CLAUDE.md para card que ignora filtro).
+#
+# O FILTRO QUE MUDA TUDO É `dtsuspensao IS NULL`. Sem ele o número é 3.740 OCs
+# e R$ 17,3 mi — mas 3.091 delas (83%, R$ 15,3 mi) estão SUSPENSAS no próprio
+# ERP, ou seja, paradas de propósito. Alarmar sobre isso seria o mesmo erro do
+# "664 rastreadores sem sinal": denominador cheio de quem não pode cumprir a
+# regra. O real são 648 OCs e R$ 2,0 mi — e as suspensas voltam num bloco
+# separado, porque sumir com R$ 15 mi sem dizer nada também seria mentira.
+#
+# `situacao` NÃO serve para isso: 1 e 2 aparecem tanto em OC totalmente
+# recebida quanto em aberta (17.402 × 16.846 recebidas), então não é status de
+# encerramento. `dtcancelamento` está vazio nas 38 mil OCs.
+_OC_PEND_BASE = """
+WITH oc AS (
+  SELECT o.grupo, o.empresa, o.filial, o.diferenciadornumero, o.numero,
+         o.dtemissao, o.dtprevisaoentrega, o.dtaprovador, o.dtsuspensao,
+         o.cnpjcpffornecedor, coalesce(o.valortotal,0) AS vt
+  FROM ordemcompra o
+  WHERE coalesce(o.valortotal,0) > 0 AND o.semaforo = 1
+),
+rec AS (
+  SELECT r.grupo, r.empresa, r.filialordemcompra AS f,
+         r.diferenciadornumeroordemcompra AS d, r.numeroordemcompra AS n,
+         sum(coalesce(r.valortotal,0)) AS v
+  FROM notafiscalentrada_item_ordemcomprarecebida r GROUP BY 1,2,3,4,5
+),
+aberta AS (
+  SELECT oc.*, coalesce(rec.v,0) AS recebido,
+         (oc.vt - coalesce(rec.v,0)) AS pendente,
+         (current_date - oc.dtemissao::date) AS dias
+  FROM oc LEFT JOIN rec ON rec.grupo=oc.grupo AND rec.empresa=oc.empresa
+       AND rec.f=oc.filial AND rec.d=oc.diferenciadornumero AND rec.n=oc.numero
+  WHERE oc.vt - coalesce(rec.v,0) > 0.01
+)
+"""
+
+OC_PEND_FAIXA_SQL = _OC_PEND_BASE + """
+SELECT CASE WHEN dias <= 30 THEN '1_ate_30'
+            WHEN dias <= 60 THEN '2_31_60'
+            WHEN dias <= 90 THEN '3_61_90'
+            WHEN dias <= 180 THEN '4_91_180'
+            ELSE '5_mais_180' END AS faixa,
+       count(*)::int AS ocs, sum(pendente)::float8 AS valor,
+       sum(CASE WHEN dtaprovador IS NULL THEN 1 ELSE 0 END)::int AS sem_aprovacao
+FROM aberta WHERE dtsuspensao IS NULL
+GROUP BY 1 ORDER BY 1
+"""
+
+OC_PEND_KPI_SQL = _OC_PEND_BASE + """
+SELECT
+  sum(CASE WHEN dtsuspensao IS NULL THEN 1 ELSE 0 END)::int AS ocs,
+  coalesce(sum(CASE WHEN dtsuspensao IS NULL THEN pendente ELSE 0 END),0)::float8 AS valor,
+  sum(CASE WHEN dtsuspensao IS NULL AND dias > 180 THEN 1 ELSE 0 END)::int AS velhas,
+  coalesce(sum(CASE WHEN dtsuspensao IS NULL AND dias > 180 THEN pendente ELSE 0 END),0)::float8 AS velhas_valor,
+  sum(CASE WHEN dtsuspensao IS NULL AND dtaprovador IS NULL THEN 1 ELSE 0 END)::int AS sem_aprovacao,
+  coalesce(sum(CASE WHEN dtsuspensao IS NULL AND dtaprovador IS NULL THEN pendente ELSE 0 END),0)::float8 AS sem_aprovacao_valor,
+  sum(CASE WHEN dtsuspensao IS NOT NULL THEN 1 ELSE 0 END)::int AS suspensas,
+  coalesce(sum(CASE WHEN dtsuspensao IS NOT NULL THEN pendente ELSE 0 END),0)::float8 AS suspensas_valor,
+  min(CASE WHEN dtsuspensao IS NULL THEN dtemissao END)::text AS mais_antiga,
+  sum(CASE WHEN dtsuspensao IS NULL AND recebido > 0 THEN 1 ELSE 0 END)::int AS parciais
+FROM aberta
+"""
+
+# Lista acionável: as mais antigas primeiro — é a ordem de cobrança do
+# comprador, igual à Régua de Cobrança.
+OC_PEND_LISTA_SQL = _OC_PEND_BASE + """
+SELECT a.numero, a.filial, a.dias,
+       to_char(a.dtemissao,'YYYY-MM-DD') AS emissao,
+       to_char(a.dtprevisaoentrega,'YYYY-MM-DD') AS previsao,
+       (a.dtaprovador IS NULL) AS sem_aprovacao,
+       a.vt::float8 AS valor, a.recebido::float8 AS recebido,
+       a.pendente::float8 AS pendente,
+       coalesce(nullif(trim(c.nomefantasia),''), nullif(trim(c.razaosocial),''),
+                '(sem cadastro)') AS fornecedor
+FROM aberta a
+LEFT JOIN cadastro c ON c.codigo = a.cnpjcpffornecedor
+WHERE a.dtsuspensao IS NULL AND a.dias > %(dias_min)s
+ORDER BY a.dias DESC, a.pendente DESC
+LIMIT 200
+"""
+
+# Quem tem mais OC velha parada: o fornecedor é o interlocutor da cobrança.
+OC_PEND_FORN_SQL = _OC_PEND_BASE + """
+SELECT coalesce(nullif(trim(c.nomefantasia),''), nullif(trim(c.razaosocial),''),
+                '(sem cadastro)') AS fornecedor,
+       count(*)::int AS ocs, sum(a.pendente)::float8 AS pendente,
+       max(a.dias)::int AS dias_max
+FROM aberta a
+LEFT JOIN cadastro c ON c.codigo = a.cnpjcpffornecedor
+WHERE a.dtsuspensao IS NULL AND a.dias > %(dias_min)s
+GROUP BY 1 ORDER BY 3 DESC LIMIT 20
+"""
+
+
+@cached(ttl=120)
+def get_oc_pendentes(dias_min: int = 180) -> dict:
+    params = {"dias_min": dias_min}
+    with db.get_conn() as conn, conn.cursor() as cur:
+        cur.execute(OC_PEND_KPI_SQL)
+        kpis = cur.fetchone()
+        cur.execute(OC_PEND_FAIXA_SQL)
+        faixas = cur.fetchall()
+        cur.execute(OC_PEND_LISTA_SQL, params)
+        lista = cur.fetchall()
+        cur.execute(OC_PEND_FORN_SQL, params)
+        fornecedores = cur.fetchall()
+        cur.execute("SELECT current_timestamp AS ts")
+        meta = cur.fetchone()
+    return {
+        "kpis": kpis, "faixas": faixas, "lista": lista,
+        "fornecedores": fornecedores, "dias_min": dias_min,
+        "lista_total": kpis["velhas"] if dias_min == 180 else None,
+        "atualizado_em": meta["ts"].isoformat(),
+        "fonte": ("ERP AVA · ordemcompra × notafiscalentrada_item_ordemcomprarecebida · "
+                  "não segue o filtro de período da tela · leitura"),
+    }
+
+
 OC_USUARIOS_SQL = "SELECT codigo, coalesce(nullif(trim(nomecompleto),''), 'usuário '||codigo) AS nome FROM usuario"
 
 # Série mensal de emissões (últimos 12 meses): leve, sem o join de recebimento.

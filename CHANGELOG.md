@@ -4,6 +4,16 @@ Gerado de `docs/versoes.yaml` por `scripts/gerar_changelog.py` — não editar �
 Formato [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/),
 versionamento [SemVer](https://semver.org/lang/pt-BR/).
 
+## [0.16.0] — 24/08/2026  ·  CX-24/08/2026-v0.16.0
+
+### Adicionado
+- Ordens de Compra passou a monitorar o pedido que foi feito e nunca chegou: quantas OCs estão em aberto sem nota, há quanto tempo, de quais fornecedores e quais nunca foram aprovadas. São 648 ordens e R$ 2,0 milhões em aberto, das quais 461 (R$ 1,05 milhão) estão paradas há mais de 180 dias — a mais antiga é de junho de 2023.
+- Lista das OCs mais antigas primeiro, com o fornecedor e o saldo que falta chegar, mais o ranking de fornecedores com pedido parado. É a ordem da cobrança: ou entrega, ou emite a nota, ou a ordem é cancelada.
+
+### Corrigido
+- As ordens SUSPENSAS no ERP ficam fora do alarme e aparecem num cartão à parte. Sem essa separação o painel acusaria 3.740 ordens e R$ 17,3 milhões em aberto, quando 83% disso está suspenso de propósito — seria transformar cadastro em crise, como já aconteceu com os rastreadores.
+- O bloco ignora o filtro de período da tela e diz isso num selo visível: ordem emitida há dois anos e ainda sem nota é justamente o que se procura, e o filtro de emissão a esconderia.
+
 ## [0.15.0] — 24/08/2026  ·  CX-24/08/2026-v0.15.0
 
 ### Adicionado

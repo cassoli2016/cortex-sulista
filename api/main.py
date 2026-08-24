@@ -251,6 +251,26 @@ def dre_por_cliente(comp_de: str | None = None, comp_ate: str | None = None,
 _OC_STATUS_VALIDOS = {"aprovacao", "aguardando", "atrasada", "recebida"}
 
 
+@app.get("/api/suprimentos/oc-pendentes")
+def oc_pendentes(dias_min: int = 180) -> JSONResponse:
+    """OCs abertas sem nota, por tempo em aberto. Não segue o filtro de
+    período da tela — OC velha é justamente o alvo."""
+    if not (0 <= dias_min <= 3000):
+        return JSONResponse(status_code=422, content={
+            "erro": "parametro_invalido", "mensagem": "dias_min fora do intervalo (0 a 3000)."})
+    try:
+        return JSONResponse(queries.get_oc_pendentes(dias_min=dias_min))
+    except psycopg.OperationalError as exc:
+        log.warning("banco inacessivel: %s", exc)
+        return JSONResponse(status_code=503, content={
+            "erro": "banco_inacessivel",
+            "mensagem": "Sem conexão com o banco. O túnel SSH está aberto?"})
+    except Exception as exc:  # noqa: BLE001
+        log.warning("oc_pendentes falhou: %s", exc)
+        return JSONResponse(status_code=500, content={
+            "erro": "erro_consulta", "mensagem": "Erro ao consultar as ordens de compra em aberto."})
+
+
 @app.get("/api/suprimentos/ordens-compra")
 def ordens_compra(
     filial: int | None = None,

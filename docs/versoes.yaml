@@ -3,6 +3,30 @@
 #   - a tela Documentação     (#doc)
 #   - o rótulo no rodapé      (CX-DD/MM/AAAA-vX.Y.Z)
 # A versão do TOPO é a corrente e tem de bater com o pyproject.toml.
+- versao: "0.16.0"
+  data: "2026-08-24"
+  adicionado:
+    - >-
+      Ordens de Compra passou a monitorar o pedido que foi feito e nunca chegou:
+      quantas OCs estão em aberto sem nota, há quanto tempo, de quais
+      fornecedores e quais nunca foram aprovadas. São 648 ordens e R$ 2,0
+      milhões em aberto, das quais 461 (R$ 1,05 milhão) estão paradas há mais
+      de 180 dias — a mais antiga é de junho de 2023.
+    - >-
+      Lista das OCs mais antigas primeiro, com o fornecedor e o saldo que
+      falta chegar, mais o ranking de fornecedores com pedido parado. É a
+      ordem da cobrança: ou entrega, ou emite a nota, ou a ordem é cancelada.
+  corrigido:
+    - >-
+      As ordens SUSPENSAS no ERP ficam fora do alarme e aparecem num cartão à
+      parte. Sem essa separação o painel acusaria 3.740 ordens e R$ 17,3
+      milhões em aberto, quando 83% disso está suspenso de propósito — seria
+      transformar cadastro em crise, como já aconteceu com os rastreadores.
+    - >-
+      O bloco ignora o filtro de período da tela e diz isso num selo visível:
+      ordem emitida há dois anos e ainda sem nota é justamente o que se
+      procura, e o filtro de emissão a esconderia.
+
 - versao: "0.15.0"
   data: "2026-08-24"
   adicionado:
