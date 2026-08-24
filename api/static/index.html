@@ -999,6 +999,7 @@ body.tvfull #btnReport,body.tvmode #btnReport{display:none}
         <a href="#cob" class="sub" data-view="cob" title="Régua de Cobrança"><span class="ic" data-ic="cob"></span><span>Cobrança</span></a>
         <a href="#extb" class="sub" data-view="extb" title="Extrato Bancário"><span class="ic" data-ic="ctb"></span><span>Extrato Bancário</span></a>
         <a href="#lanc" class="sub" data-view="lanc" title="Lançamentos Bancários"><span class="ic" data-ic="ctb"></span><span>Lançamentos Bancários</span></a>
+        <a href="#antec" class="sub" data-view="antec" title="Antecipação de Recebíveis"><span class="ic" data-ic="flx"></span><span>Antecipação</span></a>
       </div>
       <button class="group" id="grpCtr" aria-expanded="false" aria-controls="subsCtr" onclick="toggleGroup('grpCtr','subsCtr','cs.ctrGroup')" title="Controladoria">
         <span class="ic" data-ic="dre"></span><span>Controladoria</span><span class="ic chev" data-ic="chev"></span>
@@ -1317,6 +1318,31 @@ body.tvfull #btnReport,body.tvmode #btnReport{display:none}
           <div class="field">
             <label for="fLancBusca" title="Busca no histórico do lançamento (texto livre do banco) — não é um cadastro de cliente/fornecedor. Funciona bem para boleto/TED/PIX, que costumam trazer o nome de quem pagou ou recebeu; não funciona para transferência entre contas próprias nem vale-pedágio, que não citam nome.">Cliente/fornecedor</label>
             <input type="search" id="fLancBusca" placeholder="buscar no histórico…" onchange="loadLanc()">
+          </div>
+        </div>
+        <div class="rangegrp" id="grpAntec" style="display:none">
+          <div class="field">
+            <label for="fAntDias">Horizonte</label>
+            <select id="fAntDias" onchange="loadAntec()">
+              <option value="30">30 dias</option><option value="60">60 dias</option>
+              <option value="90" selected>90 dias</option><option value="120">120 dias</option>
+              <option value="180">180 dias</option>
+            </select>
+          </div>
+          <div class="field">
+            <label for="fAntReserva" title="Saldo que você quer manter em conta como colchão. A antecipação é calculada para o caixa nunca cair abaixo disso — não apenas para não ficar negativo.">Reserva mínima (R$)</label>
+            <input type="text" id="fAntReserva" inputmode="decimal" placeholder="0,00" onchange="loadAntec()">
+          </div>
+          <div class="field">
+            <label for="fAntTaxa" title="Taxa de deságio da antecipação, em % ao mês. O custo de cada operação é proporcional aos dias adiantados.">Taxa (% ao mês)</label>
+            <input type="text" id="fAntTaxa" inputmode="decimal" placeholder="2,00" onchange="loadAntec()">
+          </div>
+          <div class="field">
+            <label for="fAntVenc" title="Por padrão o vencido fica FORA dos dois lados: a pagar vencido tem imposto parcelado, e a receber vencido é problema de cobrança, não agenda. Ligar joga os dois no dia de hoje.">Vencidos</label>
+            <select id="fAntVenc" onchange="loadAntec()">
+              <option value="">Fora da conta (padrão)</option>
+              <option value="1">Incluir no dia de hoje</option>
+            </select>
           </div>
         </div>
         <div class="rangegrp" id="grpBal" style="display:none">
@@ -2096,6 +2122,41 @@ body.tvfull #btnReport,body.tvmode #btnReport{display:none}
             <span class="hint" id="hintExtbConcil"></span></div>
           <div id="extb-concil-kpis" class="kpis k4"></div>
           <div id="extb-concil-corpo"></div>
+        </div>
+      </section>
+
+      <!-- ===================== ANTECIPAÇÃO DE RECEBÍVEIS ===================== -->
+      <section class="view" id="view-antec">
+        <div id="antec-avisos"></div>
+        <div class="kpis k4" id="kpis-antec"></div>
+        <div class="card">
+          <div class="head"><h2>Saldo projetado dia a dia <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="Saldo de bancos e caixa somado, dia a dia, com o que está LANÇADO no ERP: a receber pelo método oficial (fatura_composicao, já faturado) e contaapagar, ambos por data de vencimento. Esta linha é o cenário SEM antecipar — é ela que mostra o buraco. A linha COM antecipação ficaria colada na reserva por construção e não diria nada. O saldo de partida usa só contas ATIVAS e marcadas como 'considerar fluxo de caixa' no ERP.">i</span></h2>
+            <span class="hint" id="hintAntec"></span></div>
+          <div class="legend">
+            <span class="k"><i class="sw" style="background:var(--navy-700)"></i>Saldo sem antecipar</span>
+            <span class="k"><i class="sw" style="background:#C03221"></i>Reserva mínima</span>
+          </div>
+          <div class="chartwrap" id="wrapAntec">
+            <svg id="chartAntec" viewBox="0 0 960 250" preserveAspectRatio="xMidYMid meet" tabindex="0" role="img"
+                 aria-label="Saldo de caixa projetado dia a dia, sem antecipação."></svg>
+            <div class="tip" id="tipAntec"></div>
+          </div>
+        </div>
+        <div class="card">
+          <div class="head"><h2>Semana a semana <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="Entradas e saídas somadas por semana, com o MENOR saldo da semana (não o de fechamento). Uma semana pode fechar positiva e furar na quarta-feira — é esse dia que decide a antecipação, e ele aparece na coluna 'pior dia'. A coluna 'Antecipar' é o quanto precisa ser puxado de recebível futuro naquela semana.">i</span></h2>
+            <span class="hint">o saldo é o MENOR da semana, não o de fechamento</span></div>
+          <div class="tablewrap tabroll"><table><thead><tr>
+            <th>Semana</th><th class="num">Entradas</th><th class="num">Saídas</th>
+            <th class="num">Menor saldo</th><th>Pior dia</th><th class="num">Antecipar</th>
+          </tr></thead><tbody id="antec-semanas"></tbody></table></div>
+        </div>
+        <div class="card">
+          <div class="head"><h2>Operações de antecipação sugeridas <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="Plano gerado pelo modelo: para cobrir o buraco de cada dia, puxa recebíveis com vencimento POSTERIOR, do mais próximo para o mais distante — é o mais barato, porque o deságio é proporcional aos dias adiantados. Cada título só pode ser antecipado uma vez. É uma sugestão de volume e prazo, não uma proposta de instituição financeira.">i</span></h2>
+            <span class="hint" id="hintAntecOps"></span></div>
+          <div class="tablewrap tabroll"><table><thead><tr>
+            <th>Antecipar em</th><th>Vencimento original</th><th class="num">Dias</th>
+            <th class="num">Valor</th><th class="num">Custo</th>
+          </tr></thead><tbody id="antec-ops"></tbody></table></div>
         </div>
       </section>
 
@@ -3132,7 +3193,7 @@ const FAIXAS = {
   '4_vencido_91_365':['Vencido 91–365d','b-dang'],
   '5_vencido_mais_365':['Vencido > 365d','b-dang'],
 };
-const VIEWS = { home:'Visão Geral', fluxo:'Fluxo de Caixa e Bancos', receber:'Contas a Receber', pagar:'Contas a Pagar', oc:'Ordens de Compra', custos:'Painel de Custos', agr:'Agregados e Terceiros', mvb:'Make vs Buy', comb:'Combustível', man:'Manutenção', com:'Clientes e RKM', clif:'Consulta de Cliente', crm:'CRM — Leads e Projetos', km:'Análise de KM', torre:'Torre de Controle', veic:'Veículos', veicf:'Consulta de Veículo', mprev:'Manutenção Preventiva', comrast:'Comunicação Rastreadora', mul:'Multas', prog:'Programação Inteligente', jorn:'Jornada do Motorista', jornf:'Ficha de Jornada', cex:'Custos Extras', sac:'SAC / Freetime', port:'Portaria', cop:'Copiloto Cortex', cob:'Régua de Cobrança', extb:'Extrato Bancário', lanc:'Lançamentos Bancários', cont:'Contabilidade', qual:'Qualidade e Certidões', orc:'Orçamento', fech:'Fechamento do Mês', prem:'Premiação de Motoristas', dre:'DRE Gerencial', bal:'Balanço Patrimonial', drecli:'DRE por Cliente', tvfat:'Painel TV — Faturamento', tvope:'Painel TV — Operação', rh:'RH — Vagas', hc:'Headcount', folha:'Custo de Folha', folhaind:'Indicadores de Folha', he:'Horas Extras', gestao:'Gestão', srv:'Saúde do Servidor', doc:'Documentação', anpiso:'Piso Mínimo de Frete', anrntrc:'RNTRC dos Transportadores', telcon:'Consumo e Estatísticas', telcond:'Condução Econômica', telhod:'Hodômetro e Rastro' };
+const VIEWS = { home:'Visão Geral', fluxo:'Fluxo de Caixa e Bancos', receber:'Contas a Receber', pagar:'Contas a Pagar', oc:'Ordens de Compra', custos:'Painel de Custos', agr:'Agregados e Terceiros', mvb:'Make vs Buy', comb:'Combustível', man:'Manutenção', com:'Clientes e RKM', clif:'Consulta de Cliente', crm:'CRM — Leads e Projetos', km:'Análise de KM', torre:'Torre de Controle', veic:'Veículos', veicf:'Consulta de Veículo', mprev:'Manutenção Preventiva', comrast:'Comunicação Rastreadora', mul:'Multas', prog:'Programação Inteligente', jorn:'Jornada do Motorista', jornf:'Ficha de Jornada', cex:'Custos Extras', sac:'SAC / Freetime', port:'Portaria', cop:'Copiloto Cortex', cob:'Régua de Cobrança', extb:'Extrato Bancário', lanc:'Lançamentos Bancários', antec:'Antecipação de Recebíveis', cont:'Contabilidade', qual:'Qualidade e Certidões', orc:'Orçamento', fech:'Fechamento do Mês', prem:'Premiação de Motoristas', dre:'DRE Gerencial', bal:'Balanço Patrimonial', drecli:'DRE por Cliente', tvfat:'Painel TV — Faturamento', tvope:'Painel TV — Operação', rh:'RH — Vagas', hc:'Headcount', folha:'Custo de Folha', folhaind:'Indicadores de Folha', he:'Horas Extras', gestao:'Gestão', srv:'Saúde do Servidor', doc:'Documentação', anpiso:'Piso Mínimo de Frete', anrntrc:'RNTRC dos Transportadores', telcon:'Consumo e Estatísticas', telcond:'Condução Econômica', telhod:'Hodômetro e Rastro' };
 const periodoLabel = p => { if(p==='atrasado') return 'Atrasado'; const [y,m]=p.split('-'); return MES[+m-1]+'/'+y.slice(2); };
 const fmtD = s => { if(!s) return ''; const [y,m,dd]=s.split('-'); return dd+'/'+m+'/'+y; };
 // o ERP devolve "YYYY-MM-DD HH24:MI" (to_char); a ficha do veículo mostrava cru
@@ -3216,6 +3277,7 @@ let progSeq = 0;
 let DATACOB = null;
 let DATAEXTB = null, extbSeq = 0;
 let DATALANC = null, lancSeq = 0;
+let DATAANTEC = null, antecSeq = 0;
 let DATABAL = null, balSeq = 0;
 let DATARENT = null;
 let tvTimer = null, tvClock = null, TV_NEXT = 0;
@@ -3293,7 +3355,7 @@ function toggleGroup(gid,sid,key){
 
 const VIEW_GROUP = {home:'',cop:'',
   com:'Com',clif:'Com',crm:'Com',rent:'Com',drecli:'Com',
-  fluxo:'Fin',receber:'Fin',pagar:'Fin',cob:'Fin',extb:'Fin',lanc:'Fin',
+  fluxo:'Fin',receber:'Fin',pagar:'Fin',cob:'Fin',extb:'Fin',lanc:'Fin',antec:'Fin',
   dre:'Ctr',bal:'Ctr',cont:'Ctr',qual:'Ctr',orc:'Ctr',fech:'Ctr',
   torre:'Ope',prog:'Ope',jorn:'Ope',jornf:'Ope',cex:'Ope',sac:'Ope',port:'Ope',km:'Ope',agr:'Ope',mvb:'Ope',
   veic:'Fro',veicf:'Fro',mprev:'Fro',comrast:'Fro',comb:'Fro',man:'Fro',mul:'Fro',prem:'Fro',
@@ -3362,6 +3424,11 @@ function qsView(k){
     if(T('fLancBusca'))p.set('busca',T('fLancBusca'));
   } else if(k==='bal'){
     if(V('fBalAnomes'))p.set('anomes',V('fBalAnomes'));
+  } else if(k==='antec'){
+    if(V('fAntDias'))p.set('dias',V('fAntDias'));
+    if(V('fAntReserva'))p.set('reserva',String(numBR(V('fAntReserva'))||0));
+    if(V('fAntTaxa'))p.set('taxa_mes',String(numBR(V('fAntTaxa'))||0));
+    if(V('fAntVenc'))p.set('incluir_vencidos','1');
   } else if(k==='man'){
     if(V('fFilial'))p.set('filial',V('fFilial'));
     if(V('fEmiDe'))p.set('dt_de',V('fEmiDe'));
@@ -3503,7 +3570,7 @@ function router(){
   navRegistraUso(v);
   syncGroups(v);
   const anpiso = (v==='anpiso');
-  const dre = (v==='dre'), oc = (v==='oc'), agr = (v==='agr'), mvb = (v==='mvb'), comb = (v==='comb'), man = (v==='man'), com = (v==='com'), home = (v==='home'), kmv = (v==='km'), torre = (v==='torre'), veic = (v==='veic'), mul = (v==='mul'), prog = (v==='prog'), cop = (v==='cop'), cob = (v==='cob'), rent = (v==='rent'), contab = (v==='cont'), dreCli = (v==='drecli'), orc = (v==='orc'), lanc = (v==='lanc'), bal = (v==='bal');
+  const dre = (v==='dre'), oc = (v==='oc'), agr = (v==='agr'), mvb = (v==='mvb'), comb = (v==='comb'), man = (v==='man'), com = (v==='com'), home = (v==='home'), kmv = (v==='km'), torre = (v==='torre'), veic = (v==='veic'), mul = (v==='mul'), prog = (v==='prog'), cop = (v==='cop'), cob = (v==='cob'), rent = (v==='rent'), contab = (v==='cont'), dreCli = (v==='drecli'), orc = (v==='orc'), lanc = (v==='lanc'), bal = (v==='bal'), antec = (v==='antec');
   // torre: só filial; auto-refresh de 120s enquanto ativa
   if(torreTimer){ clearInterval(torreTimer); torreTimer=null; }
   if(torre){ torreTimer=setInterval(()=>{ if(currentView()==='torre') loadTorre(true); }, 120000); }
@@ -3525,6 +3592,7 @@ function router(){
   document.getElementById('grpRent').style.display = rent ? 'flex' : 'none';
   document.getElementById('grpLanc').style.display = lanc ? 'flex' : 'none';
   document.getElementById('grpBal').style.display = bal ? 'flex' : 'none';
+  document.getElementById('grpAntec').style.display = antec ? 'flex' : 'none';
   const ges = (v==='gestao');
   const fbar=document.getElementById('filterbar'); if(fbar) fbar.style.display = semFilterbar(v) ? 'none' : '';
   const metaEl=document.getElementById('meta'); if(metaEl) metaEl.style.display = (cop||ges||v==='srv'||v==='veicf'||v==='clif'||v==='jorn'||v==='jornf'||v==='cex'||v==='sac'||v==='mprev'||v==='comrast'||v==='qual'||v==='port'||v==='crm'||v==='rh'||v==='hc'||v==='folha'||v==='folhaind'||v==='he'||v==='custos'||v==='prem'||v==='doc') ? 'none' : '';
@@ -3538,20 +3606,20 @@ function router(){
   document.getElementById('grpComb').style.display = comb ? 'flex' : 'none';
   document.getElementById('grpMan').style.display = man ? 'flex' : 'none';
   document.getElementById('grpVeic').style.display = veic ? 'flex' : 'none';
-  document.getElementById('grpVenc').style.display = (dre||oc||agr||mvb||comb||man||com||kmv||torre||veic||mul||prog||cop||cob||rent||contab||dreCli||orc||anpiso||lanc||bal) ? 'none' : 'flex';
-  document.getElementById('fData').parentElement.style.display = (dre||oc||agr||mvb||comb||man||com||kmv||torre||veic||mul||prog||cop||cob||rent||contab||dreCli||orc||anpiso||lanc||bal) ? 'none' : 'flex';
+  document.getElementById('grpVenc').style.display = (dre||oc||agr||mvb||comb||man||com||kmv||torre||veic||mul||prog||cop||cob||rent||contab||dreCli||orc||anpiso||lanc||bal||antec) ? 'none' : 'flex';
+  document.getElementById('fData').parentElement.style.display = (dre||oc||agr||mvb||comb||man||com||kmv||torre||veic||mul||prog||cop||cob||rent||contab||dreCli||orc||anpiso||lanc||bal||antec) ? 'none' : 'flex';
   const fFil = document.getElementById('fFilial');
   // Filial some onde a fonte não tem esse recorte OU a API não aceita o parâmetro
   // (DRE/MvB consolidados; Veículos/Multas/Programação/Contabilidade não filtram
   // por filial). DRE por Cliente ACEITA filial (dre_cliente/sql.py) — fica visível.
   // Lançamentos Bancários também: contacorrente é por CONTA (empresa), sem coluna de filial.
   // Balanço idem: balancodemonstracaocontabil é consolidado da empresa, sem filial.
-  fFil.parentElement.style.display = (dre||mvb||comb||veic||mul||prog||contab||orc||lanc||bal) ? 'none' : 'flex';
+  fFil.parentElement.style.display = (dre||mvb||comb||veic||mul||prog||contab||orc||lanc||bal||antec) ? 'none' : 'flex';
   // carga da vista: dispara se não há dados OU se os filtros visíveis
   // divergem dos usados na última carga (nunca mostrar dado velho com filtro novo)
   const key=viewKey(v);
-  const DATAMAP={fin:DATA,oc:DATAOC,agr:DATAAGR,anpiso:DATAANPISO,anrntrc:DATAANRNTRC,telcon:DATATELCON,telcond:DATATELCOND,telhod:DATATELHOD,mvb:DATAMVB,comb:DATACOMB,man:DATAMAN,com:DATACOM,clif:DATACLIF,dre:DATADRE,bal:DATABAL,drecli:DATADRECLI,home:DATAHOME,km:DATAKM,torre:DATATORRE,veic:DATAVEIC,veicf:DATAVEICF,mul:DATAMUL,prog:DATAPROG,jorn:DATAJORN,jornf:DATAJORNF,cex:DATACEX,sac:DATASAC,mprev:DATAMPREV,comrast:DATACOMRAST,qual:DATAQUAL,port:DATAPORT,crm:DATACRM,rh:DATARH,hc:DATAHC,folha:DATAFOLHA,folhaind:DATAFOLHAIND,he:DATAHE,custos:DATACUSTOS,cob:DATACOB,extb:DATAEXTB,lanc:DATALANC,rent:DATARENT,cont:DATACONT,orc:DATAORC,fech:DATAFECH,prem:DATAPREM,gestao:DATAGES,srv:DATASRV,doc:DATADOC,tvfat:null,tvope:null,cop:(COP_MSGS.length?{}:null)};
-  const LOADMAP={fin:load,oc:loadOc,agr:loadAgr,anpiso:loadAnpiso,anrntrc:loadAnrntrc,telcon:loadTelcon,telcond:loadTelcond,telhod:loadTelhod,mvb:loadMvb,comb:loadComb,man:loadMan,com:loadCom,clif:loadClif,dre:loadDre,bal:loadBal,drecli:loadDreCli,home:loadHome,km:loadKm,torre:loadTorre,veic:loadVeic,veicf:loadVeicf,mul:loadMul,prog:loadProg,jorn:loadJorn,jornf:loadJornf,cex:loadCex,sac:loadSac,mprev:loadMPrev,comrast:loadComRast,qual:loadQual,port:loadPort,crm:loadCrm,rh:loadRh,hc:loadHc,folha:loadFolha,folhaind:loadFolhaInd,he:loadHe,custos:loadCustos,cob:loadCob,extb:loadExtb,lanc:loadLanc,rent:loadRent,cont:loadCont,orc:loadOrc,fech:loadFech,prem:loadPrem,gestao:loadGestao,srv:loadSrv,doc:loadDoc,cop:loadCop,tvfat:loadTvFat,tvope:loadTvOpe};
+  const DATAMAP={fin:DATA,oc:DATAOC,agr:DATAAGR,anpiso:DATAANPISO,anrntrc:DATAANRNTRC,telcon:DATATELCON,telcond:DATATELCOND,telhod:DATATELHOD,mvb:DATAMVB,comb:DATACOMB,man:DATAMAN,com:DATACOM,clif:DATACLIF,dre:DATADRE,bal:DATABAL,drecli:DATADRECLI,home:DATAHOME,km:DATAKM,torre:DATATORRE,veic:DATAVEIC,veicf:DATAVEICF,mul:DATAMUL,prog:DATAPROG,jorn:DATAJORN,jornf:DATAJORNF,cex:DATACEX,sac:DATASAC,mprev:DATAMPREV,comrast:DATACOMRAST,qual:DATAQUAL,port:DATAPORT,crm:DATACRM,rh:DATARH,hc:DATAHC,folha:DATAFOLHA,folhaind:DATAFOLHAIND,he:DATAHE,custos:DATACUSTOS,cob:DATACOB,extb:DATAEXTB,lanc:DATALANC,antec:DATAANTEC,rent:DATARENT,cont:DATACONT,orc:DATAORC,fech:DATAFECH,prem:DATAPREM,gestao:DATAGES,srv:DATASRV,doc:DATADOC,tvfat:null,tvope:null,cop:(COP_MSGS.length?{}:null)};
+  const LOADMAP={fin:load,oc:loadOc,agr:loadAgr,anpiso:loadAnpiso,anrntrc:loadAnrntrc,telcon:loadTelcon,telcond:loadTelcond,telhod:loadTelhod,mvb:loadMvb,comb:loadComb,man:loadMan,com:loadCom,clif:loadClif,dre:loadDre,bal:loadBal,drecli:loadDreCli,home:loadHome,km:loadKm,torre:loadTorre,veic:loadVeic,veicf:loadVeicf,mul:loadMul,prog:loadProg,jorn:loadJorn,jornf:loadJornf,cex:loadCex,sac:loadSac,mprev:loadMPrev,comrast:loadComRast,qual:loadQual,port:loadPort,crm:loadCrm,rh:loadRh,hc:loadHc,folha:loadFolha,folhaind:loadFolhaInd,he:loadHe,custos:loadCustos,cob:loadCob,extb:loadExtb,lanc:loadLanc,antec:loadAntec,rent:loadRent,cont:loadCont,orc:loadOrc,fech:loadFech,prem:loadPrem,gestao:loadGestao,srv:loadSrv,doc:loadDoc,cop:loadCop,tvfat:loadTvFat,tvope:loadTvOpe};
   if(!DATAMAP[key] || (key!=='home' && LOADEDQS[key]!==qsView(key))) LOADMAP[key]();
   // mobile: estado da navegação inferior + fecha gaveta/painel de filtros
   document.querySelectorAll('.bottomnav [data-bview]').forEach(a=>a.classList.toggle('ativo', a.dataset.bview===v));
@@ -5141,6 +5209,12 @@ function setActive(svgId,i,clientY,announce){
     tipRow(tip,'Débito',BRL.format(r.debito||0),{borderTop:'3px solid #C03221'});
     tipRow(tip,'Líquido',BRL.format((r.credito||0)-(r.debito||0)),null);
     liveTxt=`${periodoLabel(r.mes)}: crédito ${BRL.format(r.credito||0)}, débito ${BRL.format(r.debito||0)}`;
+  } else if(g.kind==='antec'){
+    const r=g.rows[i];
+    tt.textContent=fmtD(r.dia);
+    tip.append(tt);
+    tipRow(tip,'Saldo projetado',BRL.format(r.saldo),{borderTop:'3px solid '+CC.navy700});
+    liveTxt=`${fmtD(r.dia)}: saldo ${BRL.format(r.saldo)}`;
   } else if(g.kind==='bal'){
     const r=g.rows[i];
     tt.textContent=periodoLabel(r.mes);
@@ -6958,6 +7032,125 @@ function renderExtbConcil(c){
         <td>${x.pendente_mais_antigo?fmtD(x.pendente_mais_antigo):'—'}</td>
         <td>${fmtD(x.ultimo_movimento)}</td></tr>`).join('')
     + '</tbody></table></div>';
+}
+
+/* ---------------- Antecipação de Recebíveis ---------------- */
+async function loadAntec(){
+  skelKpis('kpis-antec',4);
+  const seq=++antecSeq, btn=document.getElementById('btnRefresh'); if(btn) btn.disabled=true;
+  document.getElementById('content').classList.add('loading');
+  try{
+    const r=await fetch('/api/financeiro/antecipacao?'+qsView('antec'),{cache:'no-store'});
+    const d=await r.json(); if(seq!==antecSeq) return;
+    if(!r.ok){ showBanner(d.mensagem||'Erro ao calcular a antecipação.', d.detalhe); return; }
+    hideBanner(); DATAANTEC=d; renderAntec(d); LOADEDQS.antec=qsView('antec');
+  }catch(e){ if(seq===antecSeq) showBanner('Não foi possível falar com a API.', e.message); }
+  finally{ if(seq===antecSeq){ if(btn) btn.disabled=false; document.getElementById('content').classList.remove('loading'); } }
+}
+function renderAntec(d){
+  const k=d.kpis||{}, f=d.fora_da_conta||{}, pr=d.parametros||{};
+  if(!document.getElementById('fAntDias').value) document.getElementById('fAntDias').value=pr.dias;
+  // KPI 1 é o diagnóstico (tem buraco?), não o saldo — o saldo é premissa
+  const temGap = !!k.primeiro_gap;
+  document.getElementById('kpis-antec').innerHTML=[
+    kpi('Precisa antecipar', k.total_antecipar>0?BRL.format(k.total_antecipar):'nada',
+        k.total_antecipar>0 ? (k.operacoes+' operação(ões) no horizonte de '+pr.dias+' dias')
+                            : 'o caixa se sustenta sozinho no horizonte',
+        k.total_antecipar>0?'neg':'pos',
+        'Soma do que o modelo precisou puxar de recebível futuro para o saldo nunca cair abaixo da reserva. Zero significa que as entradas já lançadas cobrem as saídas já lançadas.'),
+    kpi('Custo da antecipação', k.total_antecipar>0?BRL.format(k.custo_total):'—',
+        k.custo_pct!=null?('deságio de '+Number(pr.taxa_mes).toLocaleString('pt-BR',{maximumFractionDigits:2})
+                           +'% a.m. · '+Number(k.custo_pct).toLocaleString('pt-BR',{maximumFractionDigits:2})
+                           +'% do valor antecipado'):'',
+        k.custo_total>0?'warn':'',
+        'Custo estimado somando cada operação: valor × taxa diária × dias adiantados. É estimativa com a taxa que você informou no filtro — não é cotação de banco.'),
+    kpi('Pior saldo projetado', BRL.format(k.pior_saldo||0),
+        k.pior_dia?('em '+fmtD(k.pior_dia)+(temGap?' · 1º furo em '+fmtD(k.primeiro_gap):'')):'',
+        (k.pior_saldo||0)<0?'neg':'pos',
+        'Menor saldo que a projeção atinge no horizonte, no cenário SEM antecipar. É o tamanho do buraco a cobrir.'),
+    kpi('Saldo de partida', BRL.format(k.saldo_inicial||0),
+        k.saldo_contas+' conta(s) · '+(k.saldo_mais_antigo===k.saldo_mais_recente
+          ? ('posição de '+fmtD(k.saldo_mais_recente||''))
+          : ('posições de '+fmtD(k.saldo_mais_antigo||'')+' a '+fmtD(k.saldo_mais_recente||''))),
+        (k.saldo_inicial||0)<0?'neg':'',
+        'Bancos + caixa. Só contas ATIVAS e marcadas como "considerar fluxo de caixa" no cadastro do ERP — contas operacionais (vale-pedágio, cartão) ficam de fora porque o próprio ERP as marca assim. Saldos de datas diferentes: a data mais antiga aparece aqui.'),
+  ].join('');
+
+  // Avisos: o que NÃO está na conta. Sem isso a projeção parece completa.
+  const A=[];
+  if(!f.incluidos && (f.pagar_vencido>0 || f.receber_vencido>0)){
+    A.push(['t-warn','Vencidos estão fora desta projeção',
+      `${BRL.format(f.pagar_vencido)} a pagar (${f.pagar_vencido_qtd} títulos) e ${BRL.format(f.receber_vencido)} a receber já venceram e NÃO entram no cálculo. `
+      +`O a pagar vencido concentra imposto parcelado; o a receber vencido é cobrança, não agenda. Use o filtro "Vencidos" para simular com eles.`]);
+  } else if(f.incluidos){
+    A.push(['t-warn','Simulando COM os vencidos no dia de hoje',
+      `${BRL.format(f.pagar_vencido)} a pagar e ${BRL.format(f.receber_vencido)} a receber vencidos foram jogados no dia de hoje. É cenário de estresse, não a agenda real.`]);
+  }
+  const mf=(d.cobertura_pagaveis||{}).mes_frouxo;
+  if(mf) A.push(['t-warn','A partir de '+periodoLabel(mf)+' faltam contas a pagar lançadas',
+    `Esse mês tem menos da metade do valor a pagar do primeiro mês do horizonte. Folha e impostos futuros ainda não viraram contas a pagar no ERP — daí para a frente o saldo projetado é otimista, e a necessidade de antecipação está SUBestimada.`]);
+  if(f.pagar_alem>0) A.push(['t-info','Fora do horizonte',
+    `${BRL.format(f.pagar_alem)} de contas a pagar vencem depois de ${pr.dias} dias e não entram nesta janela.`]);
+  document.getElementById('antec-avisos').innerHTML =
+    (A.length?A:[['t-ok','Projeção sem ressalvas','Nenhum vencido relevante e cobertura de pagáveis estável no horizonte.']])
+      .map(([c,t,m])=>`<div class="toast ${c}"><b>${esc(t)}</b>${esc(m)}</div>`).join('');
+
+  document.getElementById('hintAntec').textContent =
+    `de ${fmtD(d.hoje)} · ${pr.dias} dias · entradas ${BRL.format(k.receber_horizonte||0)} × saídas ${BRL.format(k.pagar_horizonte||0)}`;
+  chartAntecRender(d.serie||[], pr.reserva||0);
+
+  document.getElementById('antec-semanas').innerHTML=(d.semanas||[]).map(s=>`<tr>
+    <td>${fmtD(s.inicio)}</td>
+    <td class="num" style="color:var(--green)">${BRL.format(s.entrada)}</td>
+    <td class="num" style="color:var(--red)">${BRL.format(s.saida)}</td>
+    <td class="num" style="font-weight:700;color:${s.saldo_min<0?'var(--red)':'inherit'}">${BRL.format(s.saldo_min)}</td>
+    <td>${s.saldo_min<0?fmtD(s.dia_pior):'—'}</td>
+    <td class="num" style="font-weight:600">${s.antecipado>0?BRL.format(s.antecipado):'—'}</td></tr>`).join('')
+    || '<tr><td colspan="6" style="color:var(--n500)">sem dados no horizonte</td></tr>';
+
+  const ops=d.operacoes||[], tot=d.operacoes_total||0;
+  document.getElementById('hintAntecOps').textContent = tot>ops.length
+    ? `${ops.length} de ${tot} operações · vencimento mais próximo primeiro (mais barato)`
+    : (tot ? `${tot} ${tot===1?'operação':'operações'} · vencimento mais próximo primeiro (mais barato)`
+           : 'nenhuma antecipação necessária no horizonte');
+  document.getElementById('antec-ops').innerHTML=ops.map(o=>`<tr>
+    <td>${fmtD(o.dia)}</td><td>${fmtD(o.vencimento_origem)}</td>
+    <td class="num">${o.dias_antecipados}</td>
+    <td class="num" style="font-weight:600">${BRL.format(o.valor)}</td>
+    <td class="num" style="color:var(--red)">${BRL.format(o.custo)}</td></tr>`).join('')
+    || '<tr><td colspan="5" style="color:var(--n500)">nenhuma antecipação necessária</td></tr>';
+}
+function chartAntecRender(serie, reserva){
+  const svg=document.getElementById('chartAntec');
+  GEOM['chartAntec']=null; ACTIVE['chartAntec']=-1;
+  if(!serie.length){ svg.innerHTML='<text x="480" y="120" text-anchor="middle" fill="#6E7883" font-size="14">sem dados</text>'; return; }
+  const W=960,H=250,mL=76,mR=16,mT=22,mB=34, iw=W-mL-mR, ih=H-mT-mB;
+  const n=serie.length, bandW=iw/n;
+  const vals=serie.map(r=>r.saldo).concat([reserva||0, 0]);
+  const tks=niceTicks(Math.min(...vals), Math.max(...vals), 5);
+  const lo=tks[0], hi=tks[tks.length-1], u=unitOf(Math.max(Math.abs(lo),Math.abs(hi)));
+  const y=v=>mT+ih-((v-lo)/((hi-lo)||1))*ih;
+  const px=i=>mL+bandW*i+bandW/2;
+  let s=`<text x="${mL}" y="${mT-8}" font-size="11" fill="#6E7883" font-weight="600" letter-spacing="1.5">${u.t}</text>`;
+  s+=`<rect id="chartAntec-hband" x="0" y="${mT-10}" width="${bandW}" height="${ih+10}" fill="${CC.navy100}" opacity="0"/>`;
+  tks.forEach(v=>{ const yy=y(v);
+    s+=`<line x1="${mL}" y1="${yy}" x2="${W-mR}" y2="${yy}" stroke="${v===0?'#C2C8D0':'#ECEEF1'}" stroke-width="1"/>`;
+    s+=`<text x="${mL-8}" y="${yy+4}" text-anchor="end" font-size="10" fill="#6E7883" font-family="IBM Plex Mono,monospace">${NMI.format(v/u.d)}</text>`; });
+  // faixa vermelha abaixo da reserva: onde o caixa não pode entrar
+  if(lo < (reserva||0)){
+    s+=`<rect x="${mL}" y="${y(reserva||0)}" width="${iw}" height="${Math.max(0,mT+ih-y(reserva||0))}" fill="#C03221" opacity=".06"/>`;
+    s+=`<line x1="${mL}" y1="${y(reserva||0)}" x2="${W-mR}" y2="${y(reserva||0)}" stroke="#C03221" stroke-width="1.3" stroke-dasharray="5 4"/>`;
+  }
+  s+=`<polyline points="${serie.map((r,i)=>`${px(i)},${y(r.saldo)}`).join(' ')}" fill="none" stroke="${CC.navy700}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>`;
+  let minI=0; serie.forEach((r,i)=>{ if(r.saldo<serie[minI].saldo) minI=i; });
+  s+=`<circle cx="${px(minI)}" cy="${y(serie[minI].saldo)}" r="4" fill="#C03221" stroke="#fff" stroke-width="2"><title>Pior saldo: ${BRL.format(serie[minI].saldo)} em ${fmtD(serie[minI].dia)}</title></circle>`;
+  const passo=Math.max(1,Math.round(n/9));
+  serie.forEach((r,i)=>{ if(i%passo===0||i===n-1) s+=`<text x="${px(i)}" y="${H-mB+18}" text-anchor="middle" font-size="10" fill="#4F5860">${fmtD(r.dia).slice(0,5)}</text>`; });
+  s+=`<line id="chartAntec-xhair" x1="0" x2="0" y1="${mT-10}" y2="${mT+ih}" stroke="${CC.navy400}" stroke-width="1" opacity="0"/>`;
+  s+=`<rect x="${mL}" y="${mT-10}" width="${iw}" height="${ih+10}" fill="transparent"/>`;
+  svg.innerHTML=s;
+  GEOM['chartAntec']={kind:'antec',rows:serie,n,bandW,mL,W,px,topY:mT-10,botY:mT+ih,wrap:'wrapAntec',tip:'tipAntec'};
+  bindHover('chartAntec');
 }
 
 /* ---------------- Lançamentos Bancários ---------------- */
@@ -12645,6 +12838,7 @@ boot();
         <a href="#cob" onclick="fecharDrawer()"><span class="ic" data-ic="cob"></span>Cobrança</a>
         <a href="#extb" onclick="fecharDrawer()"><span class="ic" data-ic="ctb"></span>Extrato Bancário</a>
         <a href="#lanc" onclick="fecharDrawer()"><span class="ic" data-ic="ctb"></span>Lançamentos Bancários</a>
+        <a href="#antec" onclick="fecharDrawer()"><span class="ic" data-ic="flx"></span>Antecipação</a>
       </div>
     </div>
     <div class="dgrp" data-grp="Ctr">

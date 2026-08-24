@@ -4,6 +4,18 @@ Gerado de `docs/versoes.yaml` por `scripts/gerar_changelog.py` — não editar �
 Formato [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/),
 versionamento [SemVer](https://semver.org/lang/pt-BR/).
 
+## [0.14.0] — 24/08/2026  ·  CX-24/08/2026-v0.14.0
+
+### Adicionado
+- Nova tela no Financeiro: Antecipação de Recebíveis. Responde "quanto preciso antecipar para o caixa não furar", projetando o saldo DIA A DIA — o fluxo mensal escondia o buraco, porque um mês pode fechar positivo e quebrar no dia 5 se o grosso do recebimento cai no dia 25. A tela mostra o pior saldo do horizonte, em que dia ele acontece, quanto antecipar, quanto isso custa na taxa que você informar, e o plano operação a operação (qual vencimento puxar e quantos dias adianta).
+- Filtros de horizonte (30 a 180 dias), reserva mínima de caixa e taxa de deságio. A reserva permite calcular para manter um colchão em conta, não só para não ficar negativo.
+
+### Alterado
+- A tela usa um saldo de partida mais restrito que o resto do painel: só contas ATIVAS e marcadas como "considerar fluxo de caixa" no cadastro do ERP. O Fluxo de Caixa soma todas as contas que aparecem no razão, o que hoje inclui contas operacionais que o próprio ERP manda ignorar (vale- pedágio, −R$ 2,89 mi) e uma conta que saiu do cadastro com saldo de 2014. A diferença entre as duas bases é de R$ 920 mil.
+
+### Corrigido
+- Contas a pagar e a receber já VENCIDAS ficam fora da projeção por padrão, dos dois lados, e o valor de cada uma aparece em aviso na tela. Havia R$ 15,9 milhões a pagar vencido — mais que os 90 dias futuros inteiros — concentrado em imposto parcelado; jogar isso no dia de hoje criaria um rombo que não corresponde à operação. Um filtro permite simular com eles.
+
 ## [0.13.0] — 24/08/2026  ·  CX-24/08/2026-v0.13.0
 
 ### Adicionado

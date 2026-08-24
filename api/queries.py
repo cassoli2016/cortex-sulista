@@ -5640,3 +5640,288 @@ def get_balanco(anomes: str | None = None) -> dict:
         "serie": serie, "ativo": ativo_det, "passivo": passivo_det,
         "fonte": "ERP AVA · balancodemonstracaocontabil (fechamento contábil por competência) · leitura",
     }
+
+
+# ============================================================================
+# Antecipação de recebíveis — quanto antecipar, quando e a que custo, para o
+# caixa não furar.
+# ----------------------------------------------------------------------------
+# Por que DIÁRIO e não mensal: o fluxo mensal que já existe esconde o buraco
+# que importa. Um mês pode fechar positivo e ainda assim quebrar no dia 5
+# (folha) porque o grosso do recebimento cai no dia 25. Antecipação se decide
+# no dia, não no mês.
+#
+# TRÊS PREMISSAS que mudam o número — por isso voltam explícitas na resposta:
+#
+# 1. **Vencido não entra por padrão, dos DOIS lados.** Há R$ 15,9 mi de
+#    contaapagar já vencido (mais que os 90 dias futuros inteiros, R$ 9,9 mi);
+#    boa parte é imposto parcelado — o Balanço mostra IMPOSTOS PARCELADOS como
+#    linha própria do passivo circulante. Despejar isso no dia zero criaria um
+#    rombo que não é operacional. Do outro lado, título vencido a receber é
+#    problema de COBRANÇA, não item de agenda: contar como entrada garantida
+#    seria otimismo disfarçado de projeção. `incluir_vencidos` liga os dois de
+#    uma vez, e os valores aparecem sempre para quem quiser decidir.
+# 2. **Só o que está LANÇADO no ERP.** Folha e imposto de meses futuros ainda
+#    não viraram contaapagar, então a cobertura de pagáveis cai ao longo do
+#    horizonte e o saldo fica bom demais lá na frente. `cobertura_pagaveis` diz
+#    a partir de qual mês isso começa.
+# 3. **Sem recorte por filial.** O saldo de bancos/caixa é da EMPRESA
+#    (contacorrente_saldo/caixa_saldo não têm filial — ver SALDO_SQL). Filtrar
+#    o recebimento por filial contra um saldo consolidado daria um caixa que
+#    não existe em lugar nenhum.
+# ============================================================================
+
+# Saldo de partida PRÓPRIO desta tela — não reusa SALDO_SQL de propósito.
+# O SALDO_SQL (Fluxo de Caixa e Visão Geral) soma TODA conta que aparece em
+# contacorrente_saldo, e isso arrasta três coisas que não são caixa disponível:
+#   1. contas marcadas `considerarfluxocaixa = 2` no próprio ERP — PEDAGIO
+#      (-2,89 mi) e REPOM (+1,69 mi) são as maiores;
+#   2. conta que saiu do cadastro: BB 00531/482943 tem saldo de 2014-07-15 e
+#      o DISTINCT ON pega o último de SEMPRE, não o último recente;
+#   3. saldo de datas diferentes somado como "posição de hoje".
+# Diferença medida em 24/08/2026: -3,88 mi (SALDO_SQL) x -2,96 mi (aqui).
+# `saldo_mais_antigo` volta no payload para a tela avisar a defasagem.
+ANTEC_SALDO_SQL = """
+SELECT coalesce(sum(s.valorsaldo),0)::float8 AS bancos,
+       min(s.dtmovimento)::text AS mais_antigo,
+       max(s.dtmovimento)::text AS mais_recente,
+       count(*)::int AS contas
+FROM (SELECT DISTINCT ON (grupo,empresa,banco,agencia,conta)
+             banco, agencia, conta, valorsaldo, dtmovimento
+      FROM contacorrente_saldo WHERE dtmovimento <= current_date
+      ORDER BY grupo,empresa,banco,agencia,conta, dtmovimento DESC) s
+JOIN banco_conta bc ON bc.banco = s.banco AND bc.agencia = s.agencia
+                   AND bc.conta = s.conta
+WHERE bc.ativoinativo = 1 AND bc.considerarfluxocaixa = 1
+"""
+
+ANTEC_REC_DIA_SQL = f"""
+SELECT coalesce(f.dtprevisaopagamento, f.dtvencimento)::date AS dia,
+       sum(fc.valorpendentecnpjcliente)::float8 AS valor,
+       count(*)::int AS titulos
+{_REC_OF_FROM}
+WHERE f.grupo=1 AND fc.valorpendentecnpjcliente > 0 AND f.dtcancelamento IS NULL
+  AND f.composicao = 1 AND f.dtpagamento IS NULL
+  AND fc.tipodocumentoorigem = ANY(string_to_array('6,8,10,11',',')::int[])
+  AND (fc.tipodocumentoorigem <> 6 OR co.situacaocte = 3)
+  AND coalesce(f.dtprevisaopagamento, f.dtvencimento) >= current_date
+  AND coalesce(f.dtprevisaopagamento, f.dtvencimento) <= current_date + %(dias)s
+GROUP BY 1 ORDER BY 1
+"""
+
+ANTEC_PAG_DIA_SQL = """
+SELECT dtvencimento::date AS dia, sum(valorpendente)::float8 AS valor,
+       count(*)::int AS titulos
+FROM contaapagar
+WHERE valorpendente > 0 AND dtvencimento >= current_date
+  AND dtvencimento <= current_date + %(dias)s
+GROUP BY 1 ORDER BY 1
+"""
+
+# Vencido dos dois lados + o que o horizonte deixa de fora: a tela precisa
+# dizer o TAMANHO do que não está na conta, senão a projeção parece completa.
+ANTEC_FORA_SQL = f"""
+SELECT
+  (SELECT coalesce(sum(valorpendente),0)::float8 FROM contaapagar
+    WHERE valorpendente > 0 AND dtvencimento < current_date)      AS pagar_vencido,
+  (SELECT count(*)::int FROM contaapagar
+    WHERE valorpendente > 0 AND dtvencimento < current_date)      AS pagar_vencido_qtd,
+  (SELECT coalesce(sum(valorpendente),0)::float8 FROM contaapagar
+    WHERE valorpendente > 0 AND dtvencimento > current_date + %(dias)s) AS pagar_alem,
+  (SELECT coalesce(sum(fc.valorpendentecnpjcliente),0)::float8
+     {_REC_OF_FROM}
+     WHERE f.grupo=1 AND fc.valorpendentecnpjcliente > 0 AND f.dtcancelamento IS NULL
+       AND f.composicao = 1 AND f.dtpagamento IS NULL
+       AND fc.tipodocumentoorigem = ANY(string_to_array('6,8,10,11',',')::int[])
+       AND (fc.tipodocumentoorigem <> 6 OR co.situacaocte = 3)
+       AND coalesce(f.dtprevisaopagamento, f.dtvencimento) < current_date) AS receber_vencido
+"""
+
+
+def _antec_simular(dias_lista, rec_por_dia, pag_por_dia, saldo_inicial,
+                   reserva, taxa_dia):
+    """Dia a dia; quando o saldo fura a reserva, antecipa recebível FUTURO.
+
+    Escolha do que antecipar: vencimento mais PRÓXIMO primeiro, entre os que
+    vencem depois do dia do gap. É o mais barato — o deságio é proporcional aos
+    dias adiantados — e é como a operação real funciona.
+
+    `rec_por_dia` é CONSUMIDO de propósito: o valor antecipado não pode entrar
+    de novo como recebimento na data original (contaria o mesmo dinheiro duas
+    vezes e esconderia o gap seguinte).
+    """
+    saldo = saldo_inicial
+    linhas, operacoes = [], []
+    futuros = sorted(d for d in rec_por_dia if rec_por_dia[d] > 0)
+
+    for dia in dias_lista:
+        entrada = rec_por_dia.get(dia, 0.0)
+        saida = pag_por_dia.get(dia, 0.0)
+        saldo += entrada - saida
+        antecipado_hoje = 0.0
+
+        if saldo < reserva:
+            falta = reserva - saldo
+            for venc in futuros:
+                if falta <= 0.005:
+                    break
+                if venc <= dia:
+                    continue
+                disponivel = rec_por_dia.get(venc, 0.0)
+                if disponivel <= 0:
+                    continue
+                usa = min(falta, disponivel)
+                rec_por_dia[venc] = disponivel - usa
+                dias_adiant = (venc - dia).days
+                custo = usa * taxa_dia * dias_adiant
+                operacoes.append({
+                    "dia": dia.isoformat(), "vencimento_origem": venc.isoformat(),
+                    "dias_antecipados": dias_adiant,
+                    "valor": round(usa, 2), "custo": round(custo, 2),
+                })
+                saldo += usa
+                antecipado_hoje += usa
+                falta -= usa
+
+        linhas.append({"dia": dia, "entrada": entrada, "saida": saida,
+                       "antecipado": antecipado_hoje, "saldo": saldo})
+    return linhas, operacoes
+
+
+@cached(ttl=90)
+def get_antecipacao(dias: int = 90, reserva: float = 0.0, taxa_mes: float = 2.0,
+                    incluir_vencidos: bool = False) -> dict:
+    params = {"dias": dias}
+    with db.get_conn() as conn, conn.cursor() as cur:
+        cur.execute(ANTEC_SALDO_SQL)
+        saldo_row = cur.fetchone()
+        cur.execute("SELECT coalesce(sum(valorsaldo),0)::float8 AS caixa FROM ("
+                    "SELECT DISTINCT ON (grupo,empresa,filial,unidade,caixa) valorsaldo"
+                    " FROM caixa_saldo WHERE dtmovimento <= current_date"
+                    " ORDER BY grupo,empresa,filial,unidade,caixa, dtmovimento DESC) x")
+        caixa_row = cur.fetchone()
+        cur.execute(ANTEC_REC_DIA_SQL, params)
+        rec_rows = cur.fetchall()
+        cur.execute(ANTEC_PAG_DIA_SQL, params)
+        pag_rows = cur.fetchall()
+        cur.execute(ANTEC_FORA_SQL, params)
+        fora = cur.fetchone()
+        cur.execute("SELECT current_date AS hoje, current_timestamp AS ts")
+        meta = cur.fetchone()
+
+    hoje: date = meta["hoje"]
+    bancos = saldo_row.get("bancos") or 0.0
+    caixa_v = caixa_row.get("caixa") or 0.0
+    saldo_inicial = bancos + caixa_v
+
+    rec_por_dia = {r["dia"]: r["valor"] for r in rec_rows}
+    pag_por_dia = {r["dia"]: r["valor"] for r in pag_rows}
+
+    if incluir_vencidos:
+        pag_por_dia[hoje] = pag_por_dia.get(hoje, 0.0) + (fora["pagar_vencido"] or 0.0)
+        rec_por_dia[hoje] = rec_por_dia.get(hoje, 0.0) + (fora["receber_vencido"] or 0.0)
+
+    taxa_dia = (taxa_mes / 100.0) / 30.0
+    dias_lista = [hoje + timedelta(days=i) for i in range(dias + 1)]
+    # cópia: a simulação CONSOME o dicionário; o original segue intacto para a
+    # série "sem antecipar" e para a tabela semanal
+    linhas, operacoes = _antec_simular(dias_lista, dict(rec_por_dia), pag_por_dia,
+                                       saldo_inicial, reserva, taxa_dia)
+    antecipado_por_dia = {ln["dia"]: ln["antecipado"] for ln in linhas}
+
+    # Saldo SEM antecipar: é o que mostra o buraco de verdade. A projeção COM
+    # antecipação fica, por construção, sempre colada na reserva — não diz nada.
+    saldo_sem = saldo_inicial
+    saldo_sem_por_dia: dict = {}
+    serie, pior_saldo, pior_dia, primeiro_gap = [], saldo_inicial, None, None
+    for dia in dias_lista:
+        saldo_sem += rec_por_dia.get(dia, 0.0) - pag_por_dia.get(dia, 0.0)
+        saldo_sem_por_dia[dia] = saldo_sem
+        serie.append({"dia": dia.isoformat(), "saldo": round(saldo_sem, 2)})
+        if saldo_sem < pior_saldo:
+            pior_saldo, pior_dia = saldo_sem, dia.isoformat()
+        if saldo_sem < reserva and primeiro_gap is None:
+            primeiro_gap = dia.isoformat()
+
+    # Agregação semanal — 91 linhas diárias ninguém lê.
+    # `entrada` sai do recebimento ORIGINAL (não do dicionário consumido pela
+    # simulação): com saldo de partida negativo tudo é antecipado, e a coluna
+    # sairia zerada em todas as semanas, como se não houvesse receita entrando.
+    # `saldo_min` é o MÍNIMO da semana no cenário SEM antecipar, não o
+    # fechamento: semana que fecha positiva pode furar na quarta — e é esse dia
+    # que decide a operação.
+    semanas: list[dict] = []
+    for dia in dias_lista:
+        ini = dia - timedelta(days=dia.weekday())
+        saldo_d = saldo_sem_por_dia[dia]
+        if not semanas or semanas[-1]["inicio"] != ini.isoformat():
+            semanas.append({"inicio": ini.isoformat(), "entrada": 0.0, "saida": 0.0,
+                            "antecipado": 0.0, "saldo_min": saldo_d,
+                            "saldo_fim": saldo_d, "dia_pior": dia.isoformat()})
+        s = semanas[-1]
+        s["entrada"] += rec_por_dia.get(dia, 0.0)
+        s["saida"] += pag_por_dia.get(dia, 0.0)
+        s["antecipado"] += antecipado_por_dia.get(dia, 0.0)
+        if saldo_d < s["saldo_min"]:
+            s["saldo_min"] = saldo_d
+            s["dia_pior"] = dia.isoformat()
+        s["saldo_fim"] = saldo_d
+
+    # Cobertura de pagáveis: até onde a projeção é confiável (premissa 2). Mês
+    # com muito menos pagável lançado que o primeiro não é mês barato — é mês
+    # que ainda não foi lançado.
+    por_mes: dict[str, float] = {}
+    for dia, v in pag_por_dia.items():
+        if dia >= hoje:
+            chave = f"{dia.year:04d}-{dia.month:02d}"
+            por_mes[chave] = por_mes.get(chave, 0.0) + v
+    meses_ord = sorted(por_mes)
+    base_mes = por_mes.get(meses_ord[0], 0.0) if meses_ord else 0.0
+    mes_frouxo = next((m for m in meses_ord[1:]
+                       if base_mes > 0 and por_mes[m] < base_mes * 0.5), None)
+
+    total_antecipar = sum(o["valor"] for o in operacoes)
+    custo_total = sum(o["custo"] for o in operacoes)
+
+    return {
+        "kpis": {
+            "saldo_inicial": saldo_inicial, "bancos": bancos, "caixa": caixa_v,
+            "saldo_contas": saldo_row.get("contas") or 0,
+            "saldo_mais_antigo": saldo_row.get("mais_antigo"),
+            "saldo_mais_recente": saldo_row.get("mais_recente"),
+            "primeiro_gap": primeiro_gap,
+            "pior_saldo": round(pior_saldo, 2), "pior_dia": pior_dia,
+            "total_antecipar": round(total_antecipar, 2),
+            "custo_total": round(custo_total, 2),
+            "custo_pct": (round(100 * custo_total / total_antecipar, 2)
+                          if total_antecipar else None),
+            "operacoes": len(operacoes),
+            "receber_horizonte": sum(r["valor"] for r in rec_rows),
+            "pagar_horizonte": sum(r["valor"] for r in pag_rows),
+            "receber_titulos": sum(r["titulos"] for r in rec_rows),
+        },
+        "fora_da_conta": {
+            "pagar_vencido": fora["pagar_vencido"] or 0.0,
+            "pagar_vencido_qtd": fora["pagar_vencido_qtd"] or 0,
+            "receber_vencido": fora["receber_vencido"] or 0.0,
+            "pagar_alem": fora["pagar_alem"] or 0.0,
+            "incluidos": bool(incluir_vencidos),
+        },
+        "cobertura_pagaveis": {
+            "mes_frouxo": mes_frouxo,
+            "por_mes": [{"mes": m, "valor": round(por_mes[m], 2)} for m in meses_ord],
+        },
+        "semanas": [{**s, "entrada": round(s["entrada"], 2), "saida": round(s["saida"], 2),
+                     "antecipado": round(s["antecipado"], 2),
+                     "saldo_min": round(s["saldo_min"], 2),
+                     "saldo_fim": round(s["saldo_fim"], 2)} for s in semanas],
+        "serie": serie,
+        "operacoes": operacoes[:100],
+        "operacoes_total": len(operacoes),
+        "parametros": {"dias": dias, "reserva": reserva, "taxa_mes": taxa_mes,
+                       "incluir_vencidos": bool(incluir_vencidos)},
+        "hoje": hoje.isoformat(),
+        "atualizado_em": meta["ts"].isoformat(),
+        "fonte": ("ERP AVA · a receber oficial (fatura_composicao) + contaapagar por "
+                  "vencimento, contra saldo de bancos e caixa · só o LANÇADO · leitura"),
+    }

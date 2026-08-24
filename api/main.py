@@ -938,6 +938,43 @@ def cobranca(filial: int | None = None, cliente: str | None = None) -> JSONRespo
             "erro": "erro_consulta", "mensagem": "Erro ao consultar a cobrança."})
 
 
+@app.get("/api/financeiro/antecipacao")
+def antecipacao(dias: int = 90, reserva: float = 0.0, taxa_mes: float = 2.0,
+                incluir_vencidos: int = 0) -> JSONResponse:
+    if dias not in (30, 60, 90, 120, 180):
+        return JSONResponse(status_code=422, content={
+            "erro": "parametro_invalido",
+            "mensagem": "Horizonte inválido: use 30, 60, 90, 120 ou 180 dias."})
+    try:
+        reserva = float(reserva or 0)
+        taxa_mes = float(taxa_mes if taxa_mes is not None else 2.0)
+    except (TypeError, ValueError):
+        return JSONResponse(status_code=422, content={
+            "erro": "parametro_invalido", "mensagem": "Reserva e taxa precisam ser números."})
+    if reserva < 0:
+        return JSONResponse(status_code=422, content={
+            "erro": "parametro_invalido", "mensagem": "A reserva mínima não pode ser negativa."})
+    # teto de 20% a.m. é grosseiro de propósito: taxa digitada errada (200 em vez
+    # de 2,00) produziria um custo de antecipação absurdo com cara de cálculo
+    if not (0 <= taxa_mes <= 20):
+        return JSONResponse(status_code=422, content={
+            "erro": "parametro_invalido",
+            "mensagem": "Taxa fora do razoável: informe o percentual ao mês (ex.: 2 para 2%)."})
+    try:
+        return JSONResponse(queries.get_antecipacao(
+            dias=dias, reserva=reserva, taxa_mes=taxa_mes,
+            incluir_vencidos=bool(int(incluir_vencidos or 0))))
+    except psycopg.OperationalError as exc:
+        log.warning("banco inacessivel: %s", exc)
+        return JSONResponse(status_code=503, content={
+            "erro": "banco_inacessivel",
+            "mensagem": "Sem conexão com o banco. O túnel SSH está aberto?"})
+    except Exception as exc:  # noqa: BLE001
+        log.warning("antecipacao falhou: %s", exc)
+        return JSONResponse(status_code=500, content={
+            "erro": "erro_consulta", "mensagem": "Erro ao calcular a antecipação de recebíveis."})
+
+
 @app.get("/api/financeiro/lancamentos")
 def lancamentos_bancarios(
     dt_de: str | None = None,
