@@ -3168,6 +3168,17 @@ body.tvfull #btnReport,body.tvmode #btnReport{display:none}
           <div class="kpis k4" id="kpis-ocpend"></div>
           <div class="modl" id="ocpend-faixas"></div>
         </div>
+        <div class="card">
+          <div class="head"><h2>Previsão de entrega vencida sem nota
+            <span class="badge b-warn" title="Este bloco olha TODAS as ordens de compra em aberto, não só as do período filtrado acima.">ignora o filtro de período</span>
+            <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="OC sem nenhuma nota vinculada cuja DATA DE PREVISÃO DE ENTREGA já passou. É este o critério de atraso, e não a idade da emissão: OC emitida há 200 dias com entrega prevista para o mês que vem está em dia, e OC de 40 dias com previsão vencida há 30 não está. Previsão no futuro sem nota é o curso normal e não aparece aqui. Exclui as suspensas.">i</span></h2>
+            <span class="hint" id="hintOcRadar"></span></div>
+          <div class="kpis k4" id="kpis-ocprev"></div>
+          <div class="tablewrap tabroll"><table><thead><tr>
+            <th class="num">OC</th><th>Filial</th><th class="num">Previsão</th>
+            <th class="num">Atraso</th><th>Fornecedor</th><th class="num">Valor</th><th>Ação</th>
+          </tr></thead><tbody id="ocpend-radar"></tbody></table></div>
+        </div>
         <div class="grid2">
           <div class="card">
             <div class="head"><h2>Fornecedores com OC parada <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="Quem tem mais valor pedido e não entregue além do prazo escolhido. É o interlocutor da cobrança: ou entrega, ou emite a nota, ou a OC é cancelada.">i</span></h2><span class="hint" id="hintOcForn">top 20 por valor pendente</span></div>
@@ -6063,6 +6074,46 @@ function renderOcPendentes(d){
       <div class="mbar"><i style="width:${Math.max(2,100*f.valor/maxV)}%;background:${velha?'var(--red)':'var(--navy-500)'}"></i></div>
       <div class="mval">${BRL.format(f.valor)} <span style="color:var(--n500);font-weight:400">· ${f.ocs} OC${f.ocs===1?'':'s'}${f.sem_aprovacao>0?' · '+f.sem_aprovacao+' sem aprovação':''}</span></div></div>`;
   }).join('') || '<div style="color:var(--n500)">nenhuma OC em aberto</div>';
+  /* RADAR DA PREVISÃO DE ENTREGA. A idade da emissão não diz se a OC está
+     atrasada — a previsão diz. Das 186 OCs em aberto sem nota, 93 têm
+     previsão FUTURA (curso normal, não entram aqui) e 93 já venceram.
+     A ação sai graduada porque chip igual para 2 e para 440 dias de atraso
+     não prioriza nada: até 30 dias cobra-se, acima de 30 valida-se, acima de
+     90 o caso é suspender. */
+  const rad=d.radar_previsao||[], nRad=d.radar_total||0;
+  document.getElementById('kpis-ocprev').innerHTML=[
+    kpi('Previsão vencida sem nota', (k.prev_vencida||0).toLocaleString('pt-BR')+' OCs',
+        BRL.format(k.prev_vencida_valor||0), (k.prev_vencida||0)>0?'warn':'pos',
+        'Entrega prevista para uma data que já passou e nenhuma nota vinculada. Precisa ser validada com o fornecedor: ou a entrega vem, ou a nota já veio e falta o vínculo, ou a OC deve ser suspensa.'),
+    kpi('Atraso acima de 30 dias', (k.prev_venc30||0).toLocaleString('pt-BR')+' OCs',
+        BRL.format(k.prev_venc30_valor||0)+' · validar com o fornecedor',
+        (k.prev_venc30||0)>0?'neg':'pos',
+        'Passou de um mês da data prometida. Aqui já não é fila: alguma coisa não aconteceu e ninguém tratou.'),
+    kpi('Atraso acima de 90 dias', (k.prev_venc90||0).toLocaleString('pt-BR')+' OCs',
+        BRL.format(k.prev_venc90_valor||0)+' · candidatas a suspensão',
+        (k.prev_venc90||0)>0?'neg':'pos',
+        'Três meses depois do prometido. Se a compra ainda faz sentido, a previsão precisa ser refeita; se não faz, a OC deveria ser suspensa para sair do compromisso em aberto.'),
+    kpi('Previsão no futuro (em dia)', (k.prev_futura||0).toLocaleString('pt-BR')+' OCs',
+        BRL.format(k.prev_futura_valor||0)+' · nada a fazer', 'pos',
+        'Pedido feito, entrega marcada para frente e ainda sem nota — é o curso normal de uma compra. Está aqui para o total fechar e para não parecer que toda OC sem nota é problema.'),
+  ].join('');
+  document.getElementById('hintOcRadar').textContent = nRad>rad.length
+    ? `${rad.length} de ${nRad} · da previsão mais antiga para a mais recente`
+    : `${rad.length} OC${rad.length===1?'':'s'} · da previsão mais antiga para a mais recente`;
+  const ACAO={suspender:['b-alert','suspender'],validar:['b-warn','validar'],cobrar:['b-info','cobrar']};
+  document.getElementById('ocpend-radar').innerHTML=rad.map(function(x){
+    const a=ACAO[x.acao]||ACAO.cobrar;
+    const cor = x.atraso>90?'var(--red)' : x.atraso>30?'var(--yellow-700)' : 'var(--n600)';
+    return `<tr>
+      <td class="num">${x.numero}</td>
+      <td title="${esc(filLbl(x.filial))}">${esc(filLbl(x.filial))}</td>
+      <td class="num">${fmtD(x.previsao)}</td>
+      <td class="num" style="font-weight:700;color:${cor}">${x.atraso} d</td>
+      <td title="${esc(x.observacao||x.fornecedor)}">${esc(x.fornecedor.length>24?x.fornecedor.slice(0,24)+'…':x.fornecedor)}${x.cita_nf?' <span class="badge b-info" title="a observação da OC cita o número da nota — provável falta de vínculo, não falta de entrega">cita NF</span>':''}</td>
+      <td class="num" style="font-weight:600">${BRL.format(x.valor)}</td>
+      <td><span class="badge ${a[0]}">${a[1]}</span></td></tr>`;
+  }).join('') || '<tr><td colspan="7" style="color:var(--n500)">nenhuma OC com previsão vencida</td></tr>';
+
   const fo=d.fornecedores||[];
   document.getElementById('hintOcForn').textContent = fo.length
     ? `top ${fo.length} por valor pendente · abertas há mais de ${d.dias_min} dias` : 'nenhuma';
@@ -7894,18 +7945,56 @@ function renderAntec(d){
   if(el.ativa){
     const pctEl = 100*(el.recebivel_elegivel||0)/Math.max(1, el.recebivel_total||0);
     const nomes = (el.sacados||[]).map(x=>x.nome).filter(Boolean);
+    /* Título lançado no portal é o que autoriza a operação — convênio sozinho
+       não antecipa nada. Como não há API, a planilha importada é a prova, e
+       por isso o que falta de planilha vira pendência NOMEADA: é dinheiro que
+       destrava pedindo um arquivo, não negociando nada. */
+    if(el.falta_planilha>0){
+      const pend=(el.pendente_por_sacado||[]);
+      const semArq=pend.filter(x=>!x.tem_planilha), comArq=pend.filter(x=>x.tem_planilha);
+      let txt=`${BRL.format(el.falta_planilha)} é de cliente COM convênio, mas o título não está lançado no portal — e só o que está na planilha importada pode ser antecipado. `;
+      if(semArq.length) txt+=`Sem planilha nenhuma importada: ${semArq.slice(0,4).map(x=>x.cliente+' ('+BRL.format(x.valor)+')').join(', ')}. Peça o arquivo do portal a esses clientes. `;
+      if(comArq.length) txt+=`Já tem planilha mas com títulos de fora: ${comArq.slice(0,3).map(x=>x.cliente+' ('+BRL.format(x.valor)+')').join(', ')} — nesse caso a nota não foi lançada no portal do cliente, ou a planilha está desatualizada.`;
+      A.unshift(['t-warn', BRL.format(el.falta_planilha)+' destravaria com a planilha do portal', txt]);
+    }
     A.unshift([el.descoberto_dias>0?'t-dang':'t-info',
-      'Só '+BRL.format(el.recebivel_elegivel||0)+' do recebível pode ser antecipado',
-      `${pctEl.toLocaleString('pt-BR',{maximumFractionDigits:1})}% dos ${BRL.format(el.recebivel_total||0)} a receber no horizonte são de cliente com convênio`
-      + (nomes.length?` (${nomes.slice(0,4).join(', ')}${nomes.length>4?' e outros':''})`:'')
-      + '. O plano abaixo só puxa desses. Cadastre mais clientes em Portais de Antecipação.']);
+      'Só '+BRL.format(el.recebivel_elegivel||0)+' pode ser antecipado hoje',
+      `${pctEl.toLocaleString('pt-BR',{maximumFractionDigits:1})}% dos ${BRL.format(el.recebivel_total||0)} a receber no horizonte.`
+      + (el.exige_portal
+          ? ' Conta só o que tem convênio E está lançado no portal (a planilha importada é a prova — não há API para consultar).'
+          : ' Conta o recebível de cliente com convênio.')
+      + (nomes.length?` Com convênio: ${nomes.slice(0,5).join(', ')}${nomes.length>5?' e outros':''}.`:'')
+      + (el.sem_convenio>0?` Outros ${BRL.format(el.sem_convenio)} são de cliente sem convênio.`:'')]);
     if(el.descoberto_dias>0){
-      A.unshift(['t-dang','Antecipar não cobre tudo: falta '+BRL.format(el.descoberto_maximo),
-        `Mesmo antecipando todo o recebível elegível, ${el.descoberto_dias} dia(s) do horizonte ficam abaixo da reserva — o primeiro em ${fmtD(el.primeiro_descoberto||'')}. Esse buraco precisa de outra fonte: capital de giro, renegociação de vencimento ou convênio com mais clientes.`]);
+      /* "Busque outra fonte" não é resposta. A fonte existe, é finita e é
+         cara: o cheque empresa cobre R$ 485 mil a ~15,7% a.m. — de 6 a 8
+         vezes a taxa da antecipação. O que sobra depois dele é o número que
+         não tem solução dentro de casa. */
+      const cr=d.credito;
+      let txt=`Mesmo antecipando todo o recebível lançado no portal, ${el.descoberto_dias} dia(s) do horizonte ficam abaixo da reserva — o primeiro em ${fmtD(el.primeiro_descoberto||'')}. `;
+      if(cr && cr.coberto>0){
+        txt+=`O limite de cheque empresa cobre ${BRL.format(cr.coberto)} disso (${cr.usos.map(u=>u.banco+' '+BRL.format(u.usado)+' a '+Number(u.taxa_mes).toLocaleString('pt-BR',{minimumFractionDigits:2})+'% a.m.').join(', ')}), custando ${BRL.format(cr.custo_mes)} por mês. `;
+        if(cr.descoberto>0.005) txt+=`Sobram ${BRL.format(cr.descoberto)} SEM cobertura — esse é o valor que precisa de capital de giro, renegociação de vencimento ou convênio com mais clientes.`;
+        else txt+='O limite cobre o buraco inteiro, mas a um custo alto: antecipar sai por ~2% a.m. contra ~15,7% do rotativo.';
+      }else{
+        txt+='Esse buraco precisa de outra fonte: capital de giro, renegociação de vencimento ou convênio com mais clientes.';
+      }
+      A.unshift(['t-dang','Antecipar não cobre tudo: falta '+BRL.format(el.descoberto_maximo), txt]);
     }
   }else{
     A.push(['t-warn','Nenhum cliente com convênio cadastrado',
       'O plano abaixo supõe que QUALQUER recebível pode ser antecipado, o que não é verdade — só cliente com portal aceita. Importe a planilha em Portais de Antecipação para o plano virar executável.']);
+  }
+  /* Limite vencendo é aviso próprio, valha ou não a elegibilidade: perder
+     R$ 145 mil de folga em 62 dias muda o plano de caixa, e ninguém repara
+     nisso olhando saldo. */
+  const cr0=d.credito;
+  if(cr0 && cr0.resumo){
+    (cr0.resumo.vencendo||[]).forEach(v=>{
+      A.push([v.dias_para_vencer<=30?'t-dang':'t-warn',
+        'Limite do '+v.banco+' vence em '+v.dias_para_vencer+' dias',
+        `${BRL.format(v.limite)} a ${Number(v.taxa_mes).toLocaleString('pt-BR',{minimumFractionDigits:2})}% a.m. vencem em ${fmtD(v.vencimento)}. Sem renovação, a folga de emergência cai para ${BRL.format((cr0.resumo.total||0)-v.limite)}.`]);
+    });
   }
   document.getElementById('antec-avisos').innerHTML =
     (A.length?A:[['t-ok','Projeção sem ressalvas','Nenhum vencido relevante e cobertura de pagáveis estável no horizonte.']])
@@ -8047,6 +8136,9 @@ function renderAntport(d){
      dos títulos, nenhum KPI abaixo vale — e o portal exporta errado de vez em
      quando. */
   let avisos='';
+  if(imp && imp.ja_existia){
+    avisos+='<div class="banner warn"><i>'+ICONS['sevWarn']+'</i><span>Este arquivo <b>já tinha sido importado</b> — é exatamente o mesmo conteúdo. Nada foi duplicado: a posição do portal continua sendo esta. Se esperava dado novo, exporte de novo no portal do cliente.</span></div>';
+  }
   if(imp && imp.divergencia){
     avisos+='<div class="banner err"><i>'+ICONS['sevCrit']+'</i><span>A planilha <b>não fecha</b>: a soma dos títulos dá '
       +BRL.format(imp.total_calculado)+' e o total no rodapé do arquivo diz '+BRL.format(imp.total_declarado)
@@ -8064,9 +8156,18 @@ function renderAntport(d){
   }
   av.innerHTML=avisos;
 
-  document.getElementById('hintAntportUlt').textContent = u
-    ? 'último: '+u.arquivo+' · '+(u.portal_rotulo||u.portal)+' · '+fmtDT(u.ts)+' · '
-      +u.titulos.toLocaleString('pt-BR')+' títulos'
+  /* Um portal por cliente, todos valendo ao mesmo tempo. Mostrar só o último
+     importado faria os outros sumirem da tela sem aviso — o dado continuaria
+     no banco e o rodapé mentiria sobre a posição. */
+  const vig=d.vigentes||[], tot=d.totais||{};
+  document.getElementById('hintAntportUlt').innerHTML = vig.length
+    ? vig.map(function(v){
+        return '<span title="'+esc(v.arquivo)+' · importado em '+fmtDT(v.ts)+'">'
+          +'<b>'+esc(v.portal_rotulo||v.portal)+'</b> '+BRL.format(v.valor_saldo)
+          +' <span style="color:var(--n400)">('+v.titulos.toLocaleString('pt-BR')+' tít. · '
+          +fmtD((v.ts||'').slice(0,10))+')</span></span>';
+      }).join(' &nbsp;·&nbsp; ')
+      + (vig.length>1 ? ' &nbsp;·&nbsp; <b>total '+BRL.format(tot.valor_saldo||0)+'</b>' : '')
     : 'nenhuma planilha importada ainda';
 
   if(res){

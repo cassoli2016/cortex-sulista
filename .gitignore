@@ -40,6 +40,7 @@ scratchpad/
 # caem em skip quando nao estiver.
 antecipacoes/
 Planila_Fluxo/
+orcamento/
 
 # OFX de teste gerado (dados reais do ERP)
 scripts/validacao_extrato/*.ofx

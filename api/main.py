@@ -2012,11 +2012,20 @@ def antecipacoes_listar() -> JSONResponse:
     """Envios importados, último por portal e sacados com convênio."""
     from api.antecipacoes import registro as reg
     try:
-        ultimo = reg.ultimo_envio()
+        # posicao VIGENTE por portal: com Maxion, Tupy e Adient no convenio,
+        # devolver so o envio mais recente faria os outros dois sumirem da
+        # tela sem aviso nenhum
+        vigentes = reg.posicao_atual()
         return JSONResponse({
             "envios": reg.envios(),
-            "ultimo": ultimo,
-            "titulos": reg.titulos_do_envio(ultimo["id"]) if ultimo else [],
+            "vigentes": vigentes,
+            "ultimo": vigentes[0] if vigentes else None,
+            "titulos": reg.titulos_vigentes(),
+            "totais": {
+                "portais": len(vigentes),
+                "titulos": sum(v["titulos"] for v in vigentes),
+                "valor_saldo": round(sum(v["valor_saldo"] for v in vigentes), 2),
+            },
             "sacados": reg.sacados(),
             "portais": [{"nome": m.nome, "rotulo": m.rotulo}
                         for m in __import__("api.antecipacoes.modelos",
@@ -2070,7 +2079,10 @@ async def antecipacoes_importar(req: Request, nome: str = "") -> JSONResponse:
 
     usuario = getattr(getattr(req, "state", None), "usuario", "") or ""
     try:
-        envio_id = reg.gravar_envio(lido, resumo, usuario=str(usuario))
+        # `bruto` vai junto: e dele que sai a impressao digital que reconhece
+        # reimportacao do mesmo arquivo
+        envio_id, ja_existia = reg.gravar_envio(lido, resumo, usuario=str(usuario),
+                                                dados=bruto)
     except Exception as exc:  # noqa: BLE001
         log.warning("gravar_envio falhou: %s", exc)
         return JSONResponse(status_code=500, content={
@@ -2078,6 +2090,7 @@ async def antecipacoes_importar(req: Request, nome: str = "") -> JSONResponse:
 
     return JSONResponse({
         "envio_id": envio_id,
+        "ja_existia": ja_existia,
         "portal": lido["portal"], "portal_rotulo": lido["portal_rotulo"],
         "confianca": lido["confianca"],
         "linha_cabecalho": lido["linha_cabecalho"],

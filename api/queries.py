@@ -1089,6 +1089,32 @@ SELECT
   coalesce(sum(CASE WHEN dtsuspensao IS NULL AND dtaprovador IS NULL THEN vt ELSE 0 END),0)::float8 AS sem_aprovacao_valor,
   sum(CASE WHEN dtsuspensao IS NOT NULL THEN 1 ELSE 0 END)::int AS suspensas,
   coalesce(sum(CASE WHEN dtsuspensao IS NOT NULL THEN vt ELSE 0 END),0)::float8 AS suspensas_valor,
+  -- PREVISAO DE ENTREGA: e ela, e nao a idade da emissao, que diz se a OC
+  -- esta atrasada. OC emitida ha 200 dias com entrega prevista para o mes que
+  -- vem esta em dia; OC de 40 dias com previsao vencida ha 30 nao esta. O
+  -- alarme antigo (dias desde a emissao > 180) misturava as duas.
+  sum(CASE WHEN dtsuspensao IS NULL AND dtprevisaoentrega >= current_date
+           THEN 1 ELSE 0 END)::int AS prev_futura,
+  coalesce(sum(CASE WHEN dtsuspensao IS NULL AND dtprevisaoentrega >= current_date
+           THEN vt ELSE 0 END),0)::float8 AS prev_futura_valor,
+  sum(CASE WHEN dtsuspensao IS NULL AND dtprevisaoentrega < current_date
+           THEN 1 ELSE 0 END)::int AS prev_vencida,
+  coalesce(sum(CASE WHEN dtsuspensao IS NULL AND dtprevisaoentrega < current_date
+           THEN vt ELSE 0 END),0)::float8 AS prev_vencida_valor,
+  sum(CASE WHEN dtsuspensao IS NULL AND dtprevisaoentrega < current_date - 30
+           THEN 1 ELSE 0 END)::int AS prev_venc30,
+  coalesce(sum(CASE WHEN dtsuspensao IS NULL AND dtprevisaoentrega < current_date - 30
+           THEN vt ELSE 0 END),0)::float8 AS prev_venc30_valor,
+  sum(CASE WHEN dtsuspensao IS NULL AND dtprevisaoentrega < current_date - 90
+           THEN 1 ELSE 0 END)::int AS prev_venc90,
+  coalesce(sum(CASE WHEN dtsuspensao IS NULL AND dtprevisaoentrega < current_date - 90
+           THEN vt ELSE 0 END),0)::float8 AS prev_venc90_valor,
+  -- previsao em branco nao e "no prazo": e OC que nenhuma regra de prazo
+  -- alcanca. Hoje sao zero, mas cadastro muda e o numero precisa aparecer.
+  sum(CASE WHEN dtsuspensao IS NULL AND dtprevisaoentrega IS NULL
+           THEN 1 ELSE 0 END)::int AS prev_ausente,
+  coalesce(sum(CASE WHEN dtsuspensao IS NULL AND dtprevisaoentrega IS NULL
+           THEN vt ELSE 0 END),0)::float8 AS prev_ausente_valor,
   min(CASE WHEN dtsuspensao IS NULL THEN dtemissao END)::text AS mais_antiga,
   -- OC cuja observação já cita a nota: forte indício de que a mercadoria veio e
   -- o que falta é o VÍNCULO no ERP, não a entrega. Era 78% do valor na medição.
@@ -1116,6 +1142,26 @@ ORDER BY a.dias DESC, a.vt DESC
 LIMIT 200
 """
 
+# Radar da previsao vencida. Ordena por ATRASO, nao por valor: o que decide
+# suspender e ha quanto tempo a entrega deveria ter acontecido.
+OC_PREV_LISTA_SQL = _OC_PEND_BASE + """
+SELECT a.numero, a.filial, a.dias,
+       to_char(a.dtemissao,'YYYY-MM-DD') AS emissao,
+       to_char(a.dtprevisaoentrega,'YYYY-MM-DD') AS previsao,
+       (current_date - a.dtprevisaoentrega)::int AS atraso,
+       (a.dtaprovador IS NULL) AS sem_aprovacao,
+       (a.observacao ILIKE '%%NF%%') AS cita_nf,
+       a.vt::float8 AS valor,
+       left(coalesce(a.observacao,''), 70) AS observacao,
+       coalesce(nullif(trim(c.nomefantasia),''), nullif(trim(c.razaosocial),''),
+                '(sem cadastro)') AS fornecedor
+FROM aberta a
+LEFT JOIN cadastro c ON c.codigo = a.cnpjcpffornecedor
+WHERE a.dtsuspensao IS NULL AND a.dtprevisaoentrega < current_date
+ORDER BY a.dtprevisaoentrega ASC, a.vt DESC
+LIMIT 200
+"""
+
 OC_PEND_FORN_SQL = _OC_PEND_BASE + """
 SELECT coalesce(nullif(trim(c.nomefantasia),''), nullif(trim(c.razaosocial),''),
                 '(sem cadastro)') AS fornecedor,
@@ -1140,10 +1186,21 @@ def get_oc_pendentes(dias_min: int = 180) -> dict:
         lista = cur.fetchall()
         cur.execute(OC_PEND_FORN_SQL, params)
         fornecedores = cur.fetchall()
+        cur.execute(OC_PREV_LISTA_SQL)
+        radar = cur.fetchall()
         cur.execute("SELECT current_timestamp AS ts")
         meta = cur.fetchone()
+
+    # Ação sugerida pela graduação do atraso. Chip igual para 2 e para 200 dias
+    # não prioriza nada — mesma lição da Manutenção Preventiva.
+    for r in radar:
+        a = r["atraso"] or 0
+        r["acao"] = ("suspender" if a > 90 else
+                     "validar" if a > 30 else "cobrar")
     return {
         "kpis": kpis, "faixas": faixas, "lista": lista,
+        "radar_previsao": radar,
+        "radar_total": kpis.get("prev_vencida") or 0,
         "fornecedores": fornecedores, "dias_min": dias_min,
         "lista_total": kpis["velhas"] if dias_min == 180 else None,
         "atualizado_em": meta["ts"].isoformat(),
@@ -6669,18 +6726,46 @@ def get_antecipacao(dias: int = 90, reserva: float = 0.0, taxa_mes: float = 2.0,
         sacados_elegiveis = [{"cnpj": s["cnpj"], "nome": s["nome"],
                               "portal": s["portal"]}
                              for s in antec_reg.sacados(so_elegiveis=True)]
+        # Ter convenio NAO basta: o titulo precisa estar LANCADO no portal do
+        # cliente para ser antecipavel, e nao ha API para consultar isso - a
+        # planilha importada e a unica prova. Sem este filtro a tela sugeriria
+        # antecipar nota que o banco recusaria na mesa.
+        docs_portal = antec_reg.documentos_no_portal()
+        com_planilha = antec_reg.portais_com_planilha()
     except Exception:  # noqa: BLE001 - base local indisponível não derruba a tela
         raizes, sacados_elegiveis = set(), []
+        docs_portal, com_planilha = set(), set()
 
     # Pilha de títulos por vencimento, do maior para o menor (a query já ordena).
     # `saldo` é o que resta de cada título conforme as operações o consomem —
     # por isso a cópia do dicionário: a simulação destrói os dois.
+    # Três destinos possíveis para cada recebível, e cada um é uma pendência
+    # com dono diferente:
+    #   no portal  -> pode antecipar hoje
+    #   convênio sem planilha -> falta PEDIR o arquivo ao cliente
+    #   sem convênio -> falta NEGOCIAR o convênio
     tit_por_dia: dict = {}
     eleg_por_dia: dict = {}
     rec_eleg_total = 0.0
+    falta_planilha = 0.0
+    sem_convenio = 0.0
+    por_sacado: dict = {}
     for t in tit_rows:
         cnpj = (t.get("cnpj_cliente") or "").strip()
-        if raizes and cnpj[:8] not in raizes:
+        raiz = cnpj[:8]
+        if raizes and raiz not in raizes:
+            sem_convenio += t["valor"]
+            continue
+        # `docs_portal` vazio = nenhuma planilha importada ainda; nesse caso o
+        # filtro por documento é desligado para a tela não zerar sozinha antes
+        # do primeiro arquivo (o aviso de "sem planilha" é que dá o recado).
+        if docs_portal and (raiz, (t.get("documento") or "")) not in docs_portal:
+            falta_planilha += t["valor"]
+            s = por_sacado.setdefault(raiz, {"raiz": raiz, "cliente": t["cliente"],
+                                             "valor": 0.0, "titulos": 0,
+                                             "tem_planilha": raiz in com_planilha})
+            s["valor"] = round(s["valor"] + t["valor"], 2)
+            s["titulos"] += 1
             continue
         tit_por_dia.setdefault(t["dia"], []).append({**t, "saldo": t["valor"]})
         eleg_por_dia[t["dia"]] = eleg_por_dia.get(t["dia"], 0.0) + t["valor"]
@@ -6748,6 +6833,16 @@ def get_antecipacao(dias: int = 90, reserva: float = 0.0, taxa_mes: float = 2.0,
     total_antecipar = sum(o["valor"] for o in operacoes)
     custo_total = sum(o["custo"] for o in operacoes)
 
+    # Quanto do maior furo o limite rotativo cobre, por qual banco e a que
+    # custo. Consome da taxa MENOR para a maior: usar o limite caro primeiro
+    # queima dinheiro sem motivo, e e o que acontece no aperto sem tabela.
+    try:
+        from api.financeiro import credito as _cred
+        maior_furo = max((x["valor"] for x in nao_coberto), default=0.0)
+        credito_cobertura = {**_cred.cobrir(maior_furo), "resumo": _cred.resumo(hoje)}
+    except Exception:  # noqa: BLE001 - config ausente nao derruba a tela
+        credito_cobertura = None
+
     return {
         "kpis": {
             "saldo_inicial": saldo_inicial, "bancos": bancos, "caixa": caixa_v,
@@ -6789,14 +6884,25 @@ def get_antecipacao(dias: int = 90, reserva: float = 0.0, taxa_mes: float = 2.0,
         # numero que manda buscar outra fonte de recurso.
         "elegibilidade": {
             "ativa": bool(raizes),
+            "exige_portal": bool(docs_portal),
             "sacados": sacados_elegiveis,
             "recebivel_elegivel": round(rec_eleg_total, 2),
             "recebivel_total": round(sum(rec_por_dia.values()), 2),
+            # o que destravaria pedindo a planilha ao cliente, e de quem
+            "falta_planilha": round(falta_planilha, 2),
+            "sem_convenio": round(sem_convenio, 2),
+            "pendente_por_sacado": sorted(por_sacado.values(),
+                                          key=lambda x: -x["valor"])[:20],
             "descoberto_dias": len(nao_coberto),
             "descoberto_maximo": round(max((x["valor"] for x in nao_coberto),
                                            default=0.0), 2),
             "primeiro_descoberto": nao_coberto[0]["dia"] if nao_coberto else None,
         },
+        # Limite de cheque empresa: a tela dizia "busque outra fonte" sem
+        # dizer qual nem quanto ela cobre. A fonte e finita (R$ 485 mil) e
+        # custa de 6 a 8x a antecipacao - o que inverte a prioridade: antecipar
+        # e o PRIMEIRO recurso, nao o ultimo antes do limite.
+        "credito": credito_cobertura,
         "parametros": {"dias": dias, "reserva": reserva, "taxa_mes": taxa_mes,
                        "incluir_vencidos": bool(incluir_vencidos)},
         "hoje": hoje.isoformat(),

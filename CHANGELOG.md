@@ -4,6 +4,16 @@ Gerado de `docs/versoes.yaml` por `scripts/gerar_changelog.py` — não editar �
 Formato [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/),
 versionamento [SemVer](https://semver.org/lang/pt-BR/).
 
+## [0.25.0] — 24/08/2026  ·  CX-24/08/2026-v0.25.0
+
+### Alterado
+- Ter convenio de antecipacao nao basta: o titulo precisa estar LANCADO no portal do cliente. Como nao existe API para consultar isso, a planilha importada passou a ser a prova - so o que esta nela pode ser antecipado. A tela agora separa tres coisas que antes viravam um numero so: o que da para antecipar hoje, o que destravaria pedindo a planilha ao cliente (com o nome de cada um e o valor) e o que e de cliente sem convenio. Cliente que ja tem planilha mas com titulos de fora aparece separado - nesse caso a nota nao foi lancada no portal ou o arquivo esta velho.
+- A Antecipacao parou de dizer "busque outra fonte" sem dizer qual. Os limites de cheque empresa (Itau, Santander e Sicredi) entraram no sistema com limite, taxa e vencimento, e a tela mostra quanto do buraco eles cobrem, por qual banco e a que custo mensal - consumindo sempre do mais barato para o mais caro. O rotativo custa de 12,90% a 16,20% ao mes contra ~2% da antecipacao, o que inverte a prioridade: antecipar e o primeiro recurso, nao o ultimo. Limite proximo do vencimento vira aviso.
+- As ordens de compra passaram a ser cobradas pela DATA DE PREVISAO DE ENTREGA, e nao pela idade da emissao. OC emitida ha 200 dias com entrega marcada para o mes que vem esta em dia; OC de 40 dias com previsao vencida ha 30 nao esta. Das 186 em aberto sem nota, 93 tem previsao futura (curso normal) e 93 ja venceram - e a acao sai graduada: ate 30 dias cobrar, acima de 30 validar, acima de 90 candidata a suspensao.
+
+### Corrigido
+- Importar o mesmo arquivo duas vezes nao duplicava numero (a tela sempre leu so o ultimo envio), mas acumulava copias no banco. Arquivo identico agora e reconhecido e avisa em vez de gravar de novo. No caminho apareceu um defeito maior: com mais de um portal, so o ultimo importado aparecia na tela - importar a planilha da Tupy faria a da Maxion sumir. Agora cada portal tem sua posicao vigente e todas somam.
+
 ## [0.24.0] — 24/08/2026  ·  CX-24/08/2026-v0.24.0
 
 ### Adicionado
