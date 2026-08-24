@@ -4,6 +4,11 @@ Gerado de `docs/versoes.yaml` por `scripts/gerar_changelog.py` — não editar �
 Formato [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/),
 versionamento [SemVer](https://semver.org/lang/pt-BR/).
 
+## [0.14.2] — 24/08/2026  ·  CX-24/08/2026-v0.14.2
+
+### Corrigido
+- O AutoDeploy não registra mais "ERRO" num deploy que deu certo. O arquivo de log fica aberto por quem o acompanha, e no Windows isso basta para a gravação falhar; a linha de sucesso caía no tratamento de erro e o log dizia o oposto do que tinha acontecido — a API estava no ar. Agora a gravação tenta de novo e, se ainda assim não conseguir, segue em silêncio: perder uma linha de log é irrelevante perto de marcar como falho um deploy bem-sucedido.
+
 ## [0.14.1] — 24/08/2026  ·  CX-24/08/2026-v0.14.1
 
 ### Corrigido

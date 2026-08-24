@@ -36,9 +36,24 @@ Set-Location $repo
 $logDir = Join-Path $repo 'logs'
 if (-not (Test-Path $logDir)) { New-Item -ItemType Directory -Path $logDir | Out-Null }
 $log = Join-Path $logDir 'autodeploy.log'
+# Escrever no log NUNCA pode derrubar o deploy nem se disfarçar de falha dele.
+# O log é lido o tempo todo (tail, editor, monitoramento) e no Windows isso
+# basta para o Add-Content esbarrar em "arquivo em uso por outro processo".
+# Aconteceu de verdade: um deploy BEM-SUCEDIDO (API no ar, deployed.txt certo)
+# registrou "ERRO: o processo não pode acessar o arquivo" porque a gravação da
+# linha de sucesso caiu no catch — o oposto do que tinha ocorrido.
 function Registrar([string]$m) {
   $linha = ('{0}  {1}' -f (Get-Date -Format 'yyyy-MM-dd HH:mm:ss'), $m)
-  Add-Content -Path $log -Value $linha -Encoding utf8
+  foreach ($tentativa in 1..5) {
+    try {
+      Add-Content -Path $log -Value $linha -Encoding utf8 -ErrorAction Stop
+      return
+    } catch {
+      Start-Sleep -Milliseconds (100 * $tentativa)
+    }
+  }
+  # desistiu: segue em silêncio. Perder uma linha de log é irrelevante perto de
+  # abortar um deploy que já deu certo.
 }
 
 # prefixo aplicado a TODA chamada git (ver bloco acima)

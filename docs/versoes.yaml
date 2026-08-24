@@ -3,6 +3,18 @@
 #   - a tela Documentação     (#doc)
 #   - o rótulo no rodapé      (CX-DD/MM/AAAA-vX.Y.Z)
 # A versão do TOPO é a corrente e tem de bater com o pyproject.toml.
+- versao: "0.14.2"
+  data: "2026-08-24"
+  corrigido:
+    - >-
+      O AutoDeploy não registra mais "ERRO" num deploy que deu certo. O arquivo
+      de log fica aberto por quem o acompanha, e no Windows isso basta para a
+      gravação falhar; a linha de sucesso caía no tratamento de erro e o log
+      dizia o oposto do que tinha acontecido — a API estava no ar. Agora a
+      gravação tenta de novo e, se ainda assim não conseguir, segue em silêncio:
+      perder uma linha de log é irrelevante perto de marcar como falho um
+      deploy bem-sucedido.
+
 - versao: "0.14.1"
   data: "2026-08-24"
   corrigido:
