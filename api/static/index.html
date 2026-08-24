@@ -3023,7 +3023,7 @@ body.tvfull #btnReport,body.tvmode #btnReport{display:none}
 
       <!-- ===================== TORRE DE CONTROLE ===================== -->
       <section class="view" id="view-torre">
-        <div class="kpis" id="kpis-torre"></div>
+        <div class="kpis k4" id="kpis-torre"></div>
         <div class="card">
           <div class="head">
             <h2>Mapa da frota <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="Última posição transmitida por veículo (veiculo_posicao, ultimaposicao=1). A cor é a modalidade do ativo e o contorno vermelho marca viagem atrasada. Posição antiga permanece desenhada no mapa — a coluna Posição da tabela abaixo diz de quando ela é.">i</span></h2>
@@ -3044,7 +3044,7 @@ body.tvfull #btnReport,body.tvmode #btnReport{display:none}
         <div class="card">
           <div class="head"><h2>Viagens em trânsito <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="Programações de embarque com saída registrada e sem chegada, cruzadas com a última posição da rastreadora. ATRASADA = previsão de chegada já passou, e o badge diz de quanto. A coluna Posição fica âmbar acima de 6h e vermelha acima de 24h sem transmitir: caminhão em viagem que parou de reportar deixa a torre cega naquela viagem.">i</span></h2><span class="hint">saída registrada e sem chegada · atrasadas primeiro</span></div>
           <div class="tablewrap tabroll" style="max-height:560px"><table><thead><tr>
-            <th>Placa</th><th>Modalidade</th><th>Motorista</th><th>Cliente</th><th>Origem</th><th>Destino</th><th class="num">Saída</th><th class="num">Prev. chegada</th><th class="num">Posição</th><th>Status</th>
+            <th>Placa</th><th>Modalidade</th><th>Motorista</th><th>Cliente</th><th>Trajeto</th><th class="num">Km</th><th class="num">Saída → previsão</th><th class="num">Posição</th><th>Status</th>
           </tr></thead><tbody id="torre-transito"></tbody></table></div>
         </div>
       </section>
@@ -11128,17 +11128,45 @@ function renderTorre(d){
   // a cada 2 min e a coleta leva 73 s. Por isso todo cartão carrega a data da
   // coleta no subtítulo: sem isso, dado de dias atrás seria lido como ao vivo
   // numa tela que o resto é ao vivo.
+  /* OPERACAO — o que a torre existe para vigiar. "Sem posicao ha +6h" conta
+     caminhao EM VIAGEM que parou de transmitir: e a frota que a torre perdeu
+     de vista, nao a frota parada no patio. */
+  const tr = d.transito||[];
+  const semPos = tr.filter(v=>{const h=_hAgo(v.posicao_em); return h==null||h>6;}).length;
+  const atrasadas = tr.filter(v=>v.atrasada).length;
+  const kmTransito = tr.reduce((a,v)=>a+(Number(v.km)||0),0);
+  const vazias = tr.filter(v=>v.vazio).length;
+  const opHTML = [
+    kpi('Viagens em trânsito', (k.em_transito||0).toLocaleString('pt-BR'),
+        (k.saidas_hoje||0)+' saíram hoje · '+(k.chegadas_previstas_hoje||0)+' chegam hoje', '',
+        'Programações com saída registrada e sem chegada. É a frota rodando agora — o denominador de tudo o mais nesta tela.'),
+    kpi('Atrasadas', atrasadas.toLocaleString('pt-BR'),
+        tr.length?(pct(atrasadas,tr.length)+' das viagens em trânsito'):'sem viagens em trânsito',
+        atrasadas>0?'neg':'pos',
+        'Previsão de chegada já vencida. A tabela abaixo ordena estas primeiro e diz de quanto é o atraso em cada uma.',
+        atrasadas>0?statChip('bad','ação necessária','Cada uma precisa de contato com o motorista e aviso ao cliente.','sevCrit')
+                   :statChip('good','todas no prazo','Nenhuma previsão de chegada vencida.','sevOk')),
+    kpi('Sem posição há +6h', semPos.toLocaleString('pt-BR'),
+        tr.length?('de '+tr.length+' em trânsito · a torre está cega nessas'):'—',
+        semPos>0?'warn':'pos',
+        'Viagem em curso cuja rastreadora não transmite há mais de 6 horas. Não é o mesmo que o KPI de frota: aqui é caminhão RODANDO que sumiu do radar, o que impede prever chegada e responder ao cliente.'),
+    kpi('Km em trânsito', kmTransito>0?(Math.round(kmTransito).toLocaleString('pt-BR')+' km'):'—',
+        tr.length?(Math.round(kmTransito/tr.length).toLocaleString('pt-BR')+' km por viagem · '+vazias+' vazia(s)'):'—',
+        '',
+        'Soma da quilometragem contratada das viagens rodando agora. Com o número de viagens dá o porte da operação em curso; as vazias entram porque deslocamento sem carga é custo sem receita.'),
+  ].join('');
+
   const t=d.telemetria||{};
   if(!t.disponivel){
-    document.getElementById('kpis-torre').innerHTML=
-      kpi('Telemetria', 'sem dados', esc(t.motivo||'nenhuma coleta gravada'), 'warn',
+    document.getElementById('kpis-torre').innerHTML = opHTML +
+      kpi('Telemetria (Gobrax)', 'sem dados', esc(t.motivo||'nenhuma coleta gravada'), 'warn',
           'Os cartões de telemetria leem o cache local da Gobrax (data/telemetria.db), alimentado pela coleta em segundo plano. Enquanto não houver coleta, não há o que mostrar — a Torre continua funcionando com mapa e viagens.');
   } else {
     const idade = t.dias_atras==null ? '' :
       (t.dias_atras<=0 ? 'coleta de hoje' : 'coleta de '+t.dias_atras+' dia'+(t.dias_atras===1?'':'s')+' atrás');
     const velho = (t.dias_atras||0) > 2;
     const kml=t.km_l_frota, alvo=t.alvo_km_l;
-    document.getElementById('kpis-torre').innerHTML=[
+    document.getElementById('kpis-torre').innerHTML = opHTML + [
       kpi('Consumo da frota', kml!=null?fmtKmL(kml):'n/d',
           (alvo?('alvo '+fmtKmL(alvo)+' · '):'')+idade,
           kml==null?'':(kml>=alvo?'pos':'neg'),
@@ -11163,7 +11191,7 @@ function renderTorre(d){
             'A telemetria vem de coleta em segundo plano, não é ao vivo como o mapa. Última coleta: '+(t.coletado_em||'?')+'.','sevWarn'):''),
     ].join('');
   }
-  document.getElementById('hintTorre').textContent='posição da rastreadora · atualiza a cada 2 min';
+  document.getElementById('hintTorre').textContent=(d.posicoes||[]).length+' veículos posicionados · '+tr.length+' em viagem · atualiza a cada 2 min';
   torreMapa();
   const _dur = h => h==null?'' : (h<1 ? Math.round(h*60)+' min' : (h<48 ? Math.round(h)+'h' : (h/24).toFixed(1).replace('.',',')+' dias'));
   document.getElementById('torre-transito').innerHTML=(d.transito||[]).map(t=>{
@@ -11181,13 +11209,15 @@ function renderTorre(d){
       <td style="font-family:var(--mono);font-weight:600">${esc(t.placa||'—')}</td>
       <td><span class="badge ${mc}">${ml}</span>${t.vazio?' <span class="badge b-warn">vazio</span>':''}</td>
       <td title="${esc(t.motorista||'')}">${esc(shortName(t.motorista))}</td>
-      <td>${esc(t.cliente)}</td>
-      <td>${esc(t.origem)}</td><td>${esc(t.destino)}</td>
-      <td class="num">${t.saida?t.saida.slice(8,10)+'/'+t.saida.slice(5,7)+' '+t.saida.slice(11):'—'}</td>
-      <td class="num">${t.previsao_chegada?t.previsao_chegada.slice(8,10)+'/'+t.previsao_chegada.slice(5,7)+' '+t.previsao_chegada.slice(11):'—'}</td>
+      <td title="${esc(t.cliente||'')}">${esc((t.cliente||'').length>16?(t.cliente||'').slice(0,16)+'…':(t.cliente||'—'))}</td>
+      <td style="min-width:180px" title="${esc((t.origem||'')+' > '+(t.destino||''))}">
+        <span style="color:var(--n500);font-size:11.5px">${esc(t.origem||'—')}</span><br>
+        <span style="font-weight:600">${esc(t.destino||'—')}</span></td>
+      <td class="num">${t.km?Math.round(t.km).toLocaleString('pt-BR'):'—'}</td>
+      <td class="num" style="white-space:nowrap">${t.saida?t.saida.slice(8,10)+'/'+t.saida.slice(5,7)+' '+t.saida.slice(11):'—'} <span style="color:var(--n400)">&rarr;</span> ${t.previsao_chegada?t.previsao_chegada.slice(8,10)+'/'+t.previsao_chegada.slice(5,7)+' '+t.previsao_chegada.slice(11):'—'}</td>
       <td class="num" style="color:${corPos};${hPos!=null&&hPos>6?'font-weight:600':''}" title="${t.posicao_em?('última posição transmitida: '+t.posicao_em):'nenhuma posição transmitida nesta viagem'}">${posTxt}</td>
-      <td><span class="badge ${t.atrasada?'b-dang':'b-ok'}" title="${t.atrasada&&hAtr!=null?('previsão vencida há '+_dur(hAtr)):'dentro da previsão de chegada'}">${t.atrasada?('Atrasada'+(hAtr!=null?' · '+_dur(hAtr):'')):'No prazo'}</span></td></tr>`;
-  }).join('') || '<tr><td colspan="10" style="color:var(--n500)">nenhuma viagem em trânsito</td></tr>';
+      <td style="white-space:nowrap"><span class="badge ${t.atrasada?'b-dang':'b-ok'}" title="${t.atrasada&&hAtr!=null?('previsão vencida há '+_dur(hAtr)):'dentro da previsão de chegada'}">${t.atrasada?('Atrasada'+(hAtr!=null?' · '+_dur(hAtr):'')):'No prazo'}</span></td></tr>`;
+  }).join('') || '<tr><td colspan="9" style="color:var(--n500)">nenhuma viagem em trânsito</td></tr>';
   const ts=new Date(d.atualizado_em);
   document.getElementById('meta').innerHTML='<b>Atualizado '+ts.toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'})+'</b><br>auto-refresh 2 min';
 }

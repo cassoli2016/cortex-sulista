@@ -4,6 +4,12 @@ Gerado de `docs/versoes.yaml` por `scripts/gerar_changelog.py` — não editar �
 Formato [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/),
 versionamento [SemVer](https://semver.org/lang/pt-BR/).
 
+## [0.30.0] — 24/08/2026  ·  CX-24/08/2026-v0.30.0
+
+### Alterado
+- A Torre de Controle voltou a mostrar os numeros da OPERACAO ao lado dos da telemetria Gobrax: viagens em transito, atrasadas, quantas estao sem posicao ha mais de 6 horas e o km rodando agora. Eles tinham saido da tela quando os cartoes viraram telemetria e sobreviviam so no texto do mapa - uma torre de controle sem "quantas rodando e quantas atrasadas" perde o essencial. Sao oito cartoes, quatro de operacao e quatro de telemetria.
+- A tabela de viagens em transito tinha dez colunas e estourava a largura: a coluna Status saia CORTADA no meio ("Atrasada · 5,0 (") justamente nas viagens que precisam de acao. Origem e destino viraram uma coluna so, e saida e previsao tambem - e sobrou espaco para o Km da viagem, que estava no dado e nao aparecia em lugar nenhum.
+
 ## [0.29.0] — 24/08/2026  ·  CX-24/08/2026-v0.29.0
 
 ### Adicionado
