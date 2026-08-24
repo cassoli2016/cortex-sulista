@@ -3,6 +3,21 @@
 #   - a tela Documentação     (#doc)
 #   - o rótulo no rodapé      (CX-DD/MM/AAAA-vX.Y.Z)
 # A versão do TOPO é a corrente e tem de bater com o pyproject.toml.
+- versao: "0.17.1"
+  data: "2026-08-24"
+  alterado:
+    - >-
+      Os formulários de configuração (E-mail e Políticas de segurança, em
+      Administração › Gestão) ganharam margem interna. Os campos e os botões
+      encostavam na borda do cartão — era o único bloco do painel sem esse
+      espaçamento, e destoava do resto.
+    - >-
+      A tela de e-mail explica, logo no topo, a diferença entre POP e SMTP:
+      POP e IMAP só recebem, quem envia é o SMTP, e toda conta POP vem com um
+      servidor SMTP de saída (normalmente o mesmo endereço trocando "pop" por
+      "smtp", na porta 587). É a dúvida que aparece na hora de configurar, e
+      agora a resposta está no lugar onde ela surge.
+
 - versao: "0.17.0"
   data: "2026-08-24"
   adicionado:

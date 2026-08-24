@@ -4,6 +4,12 @@ Gerado de `docs/versoes.yaml` por `scripts/gerar_changelog.py` — não editar �
 Formato [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/),
 versionamento [SemVer](https://semver.org/lang/pt-BR/).
 
+## [0.17.1] — 24/08/2026  ·  CX-24/08/2026-v0.17.1
+
+### Alterado
+- Os formulários de configuração (E-mail e Políticas de segurança, em Administração › Gestão) ganharam margem interna. Os campos e os botões encostavam na borda do cartão — era o único bloco do painel sem esse espaçamento, e destoava do resto.
+- A tela de e-mail explica, logo no topo, a diferença entre POP e SMTP: POP e IMAP só recebem, quem envia é o SMTP, e toda conta POP vem com um servidor SMTP de saída (normalmente o mesmo endereço trocando "pop" por "smtp", na porta 587). É a dúvida que aparece na hora de configurar, e agora a resposta está no lugar onde ela surge.
+
 ## [0.17.0] — 24/08/2026  ·  CX-24/08/2026-v0.17.0
 
 ### Adicionado
