@@ -3,6 +3,29 @@
 #   - a tela Documentação     (#doc)
 #   - o rótulo no rodapé      (CX-DD/MM/AAAA-vX.Y.Z)
 # A versão do TOPO é a corrente e tem de bater com o pyproject.toml.
+- versao: "0.23.0"
+  data: "2026-08-24"
+  adicionado:
+    - >-
+      As operacoes de antecipacao sugeridas agora abrem e mostram QUAIS
+      documentos cada uma consome: o resumo por sacado - que e com quem a
+      operacao se fecha - e a lista dos titulos, do maior para o menor. Antes
+      a tela mandava "antecipar R$ 396 mil que vencem em 27/08" e quem opera
+      nao sabia o que levar ao banco. Uma operacao pode consumir 461
+      documentos de 7 clientes, entao o resumo por sacado e completo e a lista
+      traz os 40 maiores, com o contador dizendo quanto ficou de fora.
+    - >-
+      O documento que a simulacao corta pela metade sai marcado como
+      "parcial", com aviso: no banco o titulo vai INTEIRO, entao o volume real
+      da operacao fica um pouco acima do sugerido.
+  corrigido:
+    - >-
+      Com o menu recolhido, o campo de busca e os rotulos de tema do
+      Financeiro ("A RECEBER", "A PAGAR") transbordavam a barra de 64px e
+      apareciam cortados. A busca virou um botao de lupa que expande o menu e
+      ja deixa o cursor no campo; os rotulos de tema viraram a linha divisoria
+      que eles desenhavam - o agrupamento continua visivel, so nao nomeado.
+
 - versao: "0.22.0"
   data: "2026-08-24"
   adicionado:

@@ -4,6 +4,15 @@ Gerado de `docs/versoes.yaml` por `scripts/gerar_changelog.py` — não editar �
 Formato [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/),
 versionamento [SemVer](https://semver.org/lang/pt-BR/).
 
+## [0.23.0] — 24/08/2026  ·  CX-24/08/2026-v0.23.0
+
+### Adicionado
+- As operacoes de antecipacao sugeridas agora abrem e mostram QUAIS documentos cada uma consome: o resumo por sacado - que e com quem a operacao se fecha - e a lista dos titulos, do maior para o menor. Antes a tela mandava "antecipar R$ 396 mil que vencem em 27/08" e quem opera nao sabia o que levar ao banco. Uma operacao pode consumir 461 documentos de 7 clientes, entao o resumo por sacado e completo e a lista traz os 40 maiores, com o contador dizendo quanto ficou de fora.
+- O documento que a simulacao corta pela metade sai marcado como "parcial", com aviso: no banco o titulo vai INTEIRO, entao o volume real da operacao fica um pouco acima do sugerido.
+
+### Corrigido
+- Com o menu recolhido, o campo de busca e os rotulos de tema do Financeiro ("A RECEBER", "A PAGAR") transbordavam a barra de 64px e apareciam cortados. A busca virou um botao de lupa que expande o menu e ja deixa o cursor no campo; os rotulos de tema viraram a linha divisoria que eles desenhavam - o agrupamento continua visivel, so nao nomeado.
+
 ## [0.22.0] — 24/08/2026  ·  CX-24/08/2026-v0.22.0
 
 ### Adicionado

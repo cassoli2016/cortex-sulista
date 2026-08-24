@@ -59,6 +59,10 @@ aside{position:sticky;top:0;height:100vh;overflow-y:auto;overflow-x:hidden;width
 .buscabox input::placeholder{color:rgba(255,255,255,.5)}
 .buscabox input:focus{outline:none;border-color:var(--brand);background:rgba(255,255,255,.13)}
 .buscabox input::-webkit-search-cancel-button{filter:invert(1);opacity:.5}
+.buscamini{display:none;width:100%;justify-content:center;align-items:center;padding:9px 0;
+  background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.16);border-radius:8px;
+  color:#fff;cursor:pointer}
+.buscamini:hover{background:rgba(255,255,255,.14)}
 .buscakbd{position:absolute;right:8px;top:50%;transform:translateY(-50%);pointer-events:none;
   font:600 10px/1 var(--mono);color:rgba(255,255,255,.45);border:1px solid rgba(255,255,255,.2);
   border-radius:4px;padding:3px 5px}
@@ -117,6 +121,17 @@ body.mini .minibar{justify-content:center}
 body.mini nav .group span:not(.ic),body.mini nav a span:not(.ic),body.mini .chev,body.mini .side-foot{display:none}
 body.mini nav .group,body.mini nav a{justify-content:center;padding:10px 0;border-left-width:0;gap:0}
 body.mini .subs{display:flex !important}
+/* Com 64px de largura o campo de busca (padding de 46px so a direita) e os
+   rotulos de tema do Financeiro ("A RECEBER", recuados 34px) transbordavam e
+   apareciam cortados. No mini a busca vira lupa -- clicar expande o menu e
+   foca o campo, como toggleGroup ja faz com os grupos -- e o rotulo de tema
+   vira a divisoria que ele desenha, que e a informacao que sobrevive sem
+   texto: o agrupamento continua legivel, so nao nomeado. */
+body.mini .buscabox{margin:0 0 8px}
+body.mini .buscabox input,body.mini .buscakbd{display:none}
+body.mini .buscamini{display:flex}
+body.mini .subs .subsec{height:0;padding:0;margin:7px 14px 5px;overflow:hidden;
+  color:transparent;border-top:1px solid rgba(255,255,255,.16)}
 body.mini nav a.active{background:var(--navy-700);box-shadow:inset 3px 0 0 var(--brand)}
 /* ---------------- Main ---------------- */
 main{flex:1;min-width:0;display:flex;flex-direction:column}
@@ -1032,6 +1047,8 @@ body.tvfull #btnReport,body.tvmode #btnReport{display:none}
              oninput="buscaFiltrar()" onfocus="buscaFiltrar()"
              onkeydown="buscaTecla(event)">
       <kbd class="buscakbd" id="buscaKbd" aria-hidden="true">Ctrl K</kbd>
+      <button class="buscamini" onclick="buscaDoMini()" title="Buscar (expande o menu)"
+              aria-label="Buscar no painel"><span class="ic" data-ic="busca"></span></button>
       <div class="buscares" id="buscaRes" role="listbox" hidden></div>
     </div>
     <nav aria-label="Seções do painel">
@@ -2319,7 +2336,9 @@ body.tvfull #btnReport,body.tvmode #btnReport{display:none}
           <div class="head"><h2>Operações de antecipação sugeridas <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="Plano gerado pelo modelo: para cobrir o buraco de cada dia, puxa recebíveis com vencimento POSTERIOR, do mais próximo para o mais distante — é o mais barato, porque o deságio é proporcional aos dias adiantados. Cada título só pode ser antecipado uma vez. É uma sugestão de volume e prazo, não uma proposta de instituição financeira.">i</span></h2>
             <span class="hint" id="hintAntecOps"></span></div>
           <div class="tablewrap tabroll"><table><thead><tr>
+            <th style="width:26px"></th>
             <th>Antecipar em</th><th>Vencimento original</th><th class="num">Dias</th>
+            <th class="num">Documentos</th>
             <th class="num">Valor</th><th class="num">Custo</th>
           </tr></thead><tbody id="antec-ops"></tbody></table></div>
         </div>
@@ -3533,6 +3552,14 @@ let filtrosPromise = null;    // memoização do carregamento de filtros
 const GEOM = {};              // geometria por gráfico (hover/teclado)
 const ACTIVE = {};            // índice ativo por gráfico
 
+/* No menu recolhido a busca e um botao: expande a barra e foca o campo. O
+   foco vai num rAF porque o input esta com display:none ate a classe `mini`
+   sair do body -- focar antes disso nao faz nada e o usuario digitaria no
+   vazio. */
+function buscaDoMini(){
+  if(document.body.classList.contains('mini')) toggleMini();
+  requestAnimationFrame(()=>{ const i=document.getElementById('buscaGlobal'); if(i) i.focus(); });
+}
 /* ---------------- Sidebar: mini + grupo recolhível ---------------- */
 function toggleMini(){
   const mini = document.body.classList.toggle('mini');
@@ -7805,12 +7832,59 @@ function renderAntec(d){
     ? `${ops.length} de ${tot} operações · vencimento mais próximo primeiro (mais barato)`
     : (tot ? `${tot} ${tot===1?'operação':'operações'} · vencimento mais próximo primeiro (mais barato)`
            : 'nenhuma antecipação necessária no horizonte');
-  document.getElementById('antec-ops').innerHTML=ops.map(o=>`<tr>
-    <td>${fmtD(o.dia)}</td><td>${fmtD(o.vencimento_origem)}</td>
-    <td class="num">${o.dias_antecipados}</td>
-    <td class="num" style="font-weight:600">${BRL.format(o.valor)}</td>
-    <td class="num" style="color:var(--red)">${BRL.format(o.custo)}</td></tr>`).join('')
-    || '<tr><td colspan="5" style="color:var(--n500)">nenhuma antecipação necessária</td></tr>';
+  document.getElementById('antec-ops').innerHTML=ops.map((o,i)=>{
+    const nd=o.documentos_total||0, ncli=(o.por_cliente||[]).length;
+    return `<tr class="forn-row" aria-expanded="false" aria-controls="ao-det-${i}" tabindex="0" role="button"
+        onclick="aoToggle(${i})" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();aoToggle(${i});}">
+      <td><span class="expander">${ICONS['chevr2']}</span></td>
+      <td>${fmtD(o.dia)}</td><td>${fmtD(o.vencimento_origem)}</td>
+      <td class="num">${o.dias_antecipados}</td>
+      <td class="num">${nd.toLocaleString('pt-BR')}${ncli?` <span style="color:var(--n500)">· ${ncli} ${ncli===1?'sacado':'sacados'}</span>`:''}</td>
+      <td class="num" style="font-weight:600">${BRL.format(o.valor)}</td>
+      <td class="num" style="color:var(--red)">${BRL.format(o.custo)}</td></tr>
+    <tr class="forn-det" id="ao-det-${i}"><td colspan="7">${aoDetalhe(o)}</td></tr>`;
+  }).join('')
+    || '<tr><td colspan="7" style="color:var(--n500)">nenhuma antecipação necessária</td></tr>';
+}
+function aoToggle(i){
+  const det=document.getElementById('ao-det-'+i); if(!det) return;
+  det.previousElementSibling.setAttribute('aria-expanded', String(det.classList.toggle('open')));
+}
+/* Documentos que compõem a operação. Vem tudo no payload da tela (o rateio é
+   feito na simulação, em Python) — não há busca ao expandir: ao contrário do
+   Fluxo Consolidado, aqui são poucas dezenas de operações e o dado já está em
+   memória. */
+function aoDetalhe(o){
+  const cli=o.por_cliente||[], docs=o.documentos||[], nd=o.documentos_total||0;
+  if(!docs.length) return '<div style="color:var(--n500);padding:6px 0">sem detalhamento de documentos</div>';
+  const parcial=docs.filter(d=>d.parcial).length;
+  return `<div class="grid2" style="margin-top:8px">
+    <div>
+      <div class="busca-sec" style="padding-left:0">Por sacado — é com quem se fecha a operação</div>
+      <div class="tablewrap"><table>
+        <thead><tr><th>Cliente</th><th class="num">Docs</th><th class="num">Valor</th><th class="num">% da op.</th></tr></thead>
+        <tbody>${cli.map(c=>`<tr>
+          <td title="${esc(c.cliente)}">${esc(c.cliente.length>28?c.cliente.slice(0,28)+'…':c.cliente)}</td>
+          <td class="num">${c.documentos.toLocaleString('pt-BR')}</td>
+          <td class="num" style="font-weight:600">${BRL.format(c.valor)}</td>
+          <td class="num" style="color:var(--n500)">${(100*c.valor/(o.valor||1)).toLocaleString('pt-BR',{maximumFractionDigits:1})}%</td>
+        </tr>`).join('')}</tbody>
+      </table></div>
+    </div>
+    <div>
+      <div class="busca-sec" style="padding-left:0">Documentos, do maior para o menor</div>
+      <div class="tablewrap"><table>
+        <thead><tr><th>Documento</th><th>Cliente</th><th class="num">Valor</th></tr></thead>
+        <tbody>${docs.map(d=>`<tr${d.parcial?' style="background:rgba(185,119,9,.07)"':''}>
+          <td><span style="color:var(--n500);font-size:11px">${esc((d.tipo||'').slice(0,4))}</span> ${esc(d.documento||'—')}</td>
+          <td title="${esc(d.cliente)}">${esc(d.cliente.length>20?d.cliente.slice(0,20)+'…':d.cliente)}</td>
+          <td class="num" style="font-weight:600">${BRL.format(d.valor)}${d.parcial?` <span class="badge b-warn" title="A simulação corta no centavo do que falta; na operação real o título vai INTEIRO (${BRL.format(d.valor_titulo)}).">parcial</span>`:''}</td>
+        </tr>`).join('')}</tbody>
+      </table></div>
+      ${nd>docs.length?`<div class="mais-ocs">${docs.length} maiores de ${nd.toLocaleString('pt-BR')} documentos · o resumo por sacado ao lado é completo</div>`:''}
+      ${parcial?`<div class="mais-ocs">${parcial} documento${parcial===1?'':'s'} sai${parcial===1?'':'em'} parcial na simulação — na mesa de crédito o título vai inteiro, então o volume real fica um pouco acima do sugerido</div>`:''}
+    </div>
+  </div>`;
 }
 function chartAntecRender(serie, reserva){
   const svg=document.getElementById('chartAntec');

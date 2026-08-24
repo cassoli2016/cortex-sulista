@@ -6199,6 +6199,33 @@ WHERE valorpendente > 0 AND dtvencimento >= current_date
 GROUP BY 1 ORDER BY 1
 """
 
+# Recebiveis TITULO A TITULO, para dizer QUAIS documentos cada operacao de
+# antecipacao consome. A simulacao trabalha em total diario (e continua, corta
+# no centavo); a operacao real e por documento - so se antecipa o titulo
+# inteiro. Sem esta lista a tela manda "antecipar R$ 250 mil que vencem em
+# 15/09" e quem opera nao sabe o que levar ao banco.
+# Um dia pode ter centenas de titulos (461 em 27/08), entao o rateio e feito em
+# Python sobre esta lista ordenada, e nao com mais uma consulta por operacao.
+ANTEC_REC_TIT_SQL = f"""
+SELECT coalesce(f.dtprevisaopagamento, f.dtvencimento)::date AS dia,
+       coalesce(nullif(trim(c.nomefantasia),''), nullif(trim(c.razaosocial),''),
+                '(sem cadastro)') AS cliente,
+       coalesce(nullif(trim(td.descricao),''),
+                'documento '||fc.tipodocumentoorigem::text) AS tipo,
+       fc.numerosequenciadocumentoorigem::text AS documento,
+       fc.valorpendentecnpjcliente::float8 AS valor
+{_REC_OF_FROM}
+LEFT JOIN cadastro c ON c.codigo = f.cliente
+LEFT JOIN tipodocumento td ON td.codigo = fc.tipodocumentoorigem
+WHERE f.grupo=1 AND fc.valorpendentecnpjcliente > 0 AND f.dtcancelamento IS NULL
+  AND f.composicao = 1 AND f.dtpagamento IS NULL
+  AND fc.tipodocumentoorigem = ANY(string_to_array('6,8,10,11',',')::int[])
+  AND (fc.tipodocumentoorigem <> 6 OR co.situacaocte = 3)
+  AND coalesce(f.dtprevisaopagamento, f.dtvencimento) >= current_date
+  AND coalesce(f.dtprevisaopagamento, f.dtvencimento) <= current_date + %(dias)s
+ORDER BY 1, 5 DESC
+"""
+
 # Vencido dos dois lados + o que o horizonte deixa de fora: a tela precisa
 # dizer o TAMANHO do que não está na conta, senão a projeção parece completa.
 ANTEC_FORA_SQL = f"""
@@ -6476,8 +6503,39 @@ def get_fluxo_consolidado(gran: str = "semana", dias: int = 180) -> dict:
     }
 
 
+def _consumir_titulos(pilha: list, valor: float) -> list:
+    """Tira `valor` da pilha de títulos de um vencimento e diz quais saíram.
+
+    A pilha vem ordenada do maior para o menor: antecipar 3 documentos grandes
+    em vez de 40 pequenos é menos trabalho de conferência para quem opera e é
+    como a mesa de crédito monta a operação.
+
+    O último documento costuma sair PARCIAL, porque a simulação corta no
+    centavo exato do que falta. Isso não existe na operação real — ou o título
+    vai inteiro ou não vai. Devolve a marca `parcial` para a tela avisar, em
+    vez de fingir uma precisão que o banco não aceita.
+    """
+    usados = []
+    resta = valor
+    for t in pilha:
+        if resta <= 0.005:
+            break
+        if t["saldo"] <= 0.005:
+            continue
+        usa = min(resta, t["saldo"])
+        t["saldo"] -= usa
+        resta -= usa
+        usados.append({
+            "cliente": t["cliente"], "tipo": t["tipo"],
+            "documento": t["documento"],
+            "valor": round(usa, 2), "valor_titulo": round(t["valor"], 2),
+            "parcial": usa < t["valor"] - 0.005,
+        })
+    return usados
+
+
 def _antec_simular(dias_lista, rec_por_dia, pag_por_dia, saldo_inicial,
-                   reserva, taxa_dia):
+                   reserva, taxa_dia, tit_por_dia=None):
     """Dia a dia; quando o saldo fura a reserva, antecipa recebível FUTURO.
 
     Escolha do que antecipar: vencimento mais PRÓXIMO primeiro, entre os que
@@ -6512,10 +6570,30 @@ def _antec_simular(dias_lista, rec_por_dia, pag_por_dia, saldo_inicial,
                 rec_por_dia[venc] = disponivel - usa
                 dias_adiant = (venc - dia).days
                 custo = usa * taxa_dia * dias_adiant
+                docs = (_consumir_titulos(tit_por_dia.get(venc, []), usa)
+                        if tit_por_dia is not None else [])
+                # Uma operacao pode consumir 461 documentos (27/08 tem isso):
+                # a lista crua e ilegivel e ninguem negocia documento a
+                # documento. Quem opera fecha COM O CLIENTE - o resumo por
+                # sacado e a leitura principal, a lista e a conferencia.
+                por_cli: dict = {}
+                for d in docs:
+                    c = por_cli.setdefault(d["cliente"], {"cliente": d["cliente"],
+                                                          "valor": 0.0, "documentos": 0})
+                    c["valor"] += d["valor"]
+                    c["documentos"] += 1
+                clientes = sorted(por_cli.values(), key=lambda x: -x["valor"])
+                for c in clientes:
+                    c["valor"] = round(c["valor"], 2)
                 operacoes.append({
                     "dia": dia.isoformat(), "vencimento_origem": venc.isoformat(),
                     "dias_antecipados": dias_adiant,
                     "valor": round(usa, 2), "custo": round(custo, 2),
+                    # `documentos` guarda os 40 maiores; `documentos_total` diz
+                    # quantos a operacao consome de verdade, senao a tabela
+                    # cortada passaria por completa. `por_cliente` e integral.
+                    "documentos": docs[:40], "documentos_total": len(docs),
+                    "por_cliente": clientes,
                 })
                 saldo += usa
                 antecipado_hoje += usa
@@ -6540,6 +6618,8 @@ def get_antecipacao(dias: int = 90, reserva: float = 0.0, taxa_mes: float = 2.0,
         caixa_row = cur.fetchone()
         cur.execute(ANTEC_REC_DIA_SQL, params)
         rec_rows = cur.fetchall()
+        cur.execute(ANTEC_REC_TIT_SQL, params)
+        tit_rows = cur.fetchall()
         cur.execute(ANTEC_PAG_DIA_SQL, params)
         pag_rows = cur.fetchall()
         cur.execute(ANTEC_FORA_SQL, params)
@@ -6561,10 +6641,18 @@ def get_antecipacao(dias: int = 90, reserva: float = 0.0, taxa_mes: float = 2.0,
 
     taxa_dia = (taxa_mes / 100.0) / 30.0
     dias_lista = [hoje + timedelta(days=i) for i in range(dias + 1)]
+    # Pilha de títulos por vencimento, do maior para o menor (a query já ordena).
+    # `saldo` é o que resta de cada título conforme as operações o consomem —
+    # por isso a cópia do dicionário: a simulação destrói os dois.
+    tit_por_dia: dict = {}
+    for t in tit_rows:
+        tit_por_dia.setdefault(t["dia"], []).append({**t, "saldo": t["valor"]})
+
     # cópia: a simulação CONSOME o dicionário; o original segue intacto para a
     # série "sem antecipar" e para a tabela semanal
     linhas, operacoes = _antec_simular(dias_lista, dict(rec_por_dia), pag_por_dia,
-                                       saldo_inicial, reserva, taxa_dia)
+                                       saldo_inicial, reserva, taxa_dia,
+                                       tit_por_dia=tit_por_dia)
     antecipado_por_dia = {ln["dia"]: ln["antecipado"] for ln in linhas}
 
     # Saldo SEM antecipar: é o que mostra o buraco de verdade. A projeção COM
