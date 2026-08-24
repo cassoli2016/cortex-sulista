@@ -44,6 +44,49 @@ def email_valido(endereco: str) -> bool:
     return bool(_RE_EMAIL.match((endereco or "").strip()))
 
 
+# Portas de LEITURA de caixa postal. Nenhuma delas fala SMTP: quem configura
+# "o e-mail" costuma ter em mãos os dados de POP/IMAP que o provedor manda no
+# mesmo bloco, e digita 995 aqui. O servidor responde no protocolo errado e o
+# erro que volta ("SMTPConnectError") nao ajuda em nada -- aconteceu de
+# verdade, cinco testes seguidos falharam por isso. Barrar na gravacao, com a
+# correcao escrita, custa uma linha e evita a caça ao erro.
+PORTAS_LEITURA = {110: "POP3", 143: "IMAP", 993: "IMAP sobre SSL",
+                  995: "POP3 sobre SSL"}
+
+# host de leitura -> host de envio equivalente, para os provedores que a
+# operacao usa. Fora desta lista a checagem cai no prefixo (pop./imap.).
+HOSTS_ENVIO = {
+    "outlook.office365.com": "smtp.office365.com",
+    "outlook.com": "smtp.office365.com",
+    "pop.gmail.com": "smtp.gmail.com",
+    "imap.gmail.com": "smtp.gmail.com",
+}
+
+
+def problema_de_leitura(host: str, porta: int) -> str | None:
+    """Diz, em uma frase, que os dados informados sao de LER e-mail.
+
+    Devolve None quando nao ha indicio disso. Usado na gravacao (barra) e na
+    mensagem de erro do envio (explica), para os dois falarem a mesma lingua.
+    """
+    h = (host or "").strip().lower()
+    alvo = HOSTS_ENVIO.get(h)
+    if not alvo and (h.startswith("pop.") or h.startswith("imap.")):
+        alvo = "smtp." + h.split(".", 1)[1]
+
+    if porta in PORTAS_LEITURA:
+        frase = (f"A porta {porta} e de {PORTAS_LEITURA[porta]}, que serve para "
+                 f"LER a caixa postal - nao para enviar.")
+        if alvo:
+            return (frase + f" Para enviar use o host {alvo}, porta 587 e "
+                    "seguranca STARTTLS.")
+        return frase + " Para enviar use a porta 587 (STARTTLS) ou 465 (SSL)."
+    if alvo:
+        return (f"O servidor {host} e o de leitura da caixa postal. Para "
+                f"enviar use {alvo}, porta 587 e seguranca STARTTLS.")
+    return None
+
+
 def separar_destinatarios(texto: str | list) -> list[str]:
     """Aceita lista, ou string com vírgula/ponto-e-vírgula/quebra de linha.
 
@@ -114,6 +157,9 @@ def gravar(dados: dict) -> dict:
         raise ValueError("Porta inválida: use um número (ex.: 587).") from None
     if not (1 <= porta <= 65535):
         raise ValueError("Porta inválida: use um número entre 1 e 65535.")
+    aviso = problema_de_leitura(host, porta)
+    if aviso:
+        raise ValueError(aviso)
     novo["porta"] = porta
 
     seg = str(dados.get("seguranca") or "starttls").strip().lower()

@@ -208,6 +208,13 @@ tr[role="button"]:focus-visible{outline-offset:-2px}
    forçava barra de rolagem por ~12px e reduzia a tipografia sem necessidade */
 .chartwrap.narrow svg{min-width:520px}
 svg:focus-visible{outline:2px solid var(--orange-500);outline-offset:2px;border-radius:6px}
+/* legenda e aviso do saldo diário dentro do período expandido do fluxo */
+.fc-leg{display:flex;gap:16px;flex-wrap:wrap;align-items:center;font-size:11.5px;
+  color:var(--n500);padding:2px 4px 0}
+.fc-leg i{width:10px;height:10px;border-radius:2px;display:inline-block;margin-right:6px;
+  vertical-align:-1px}
+.fc-fura{margin-top:8px;padding:9px 12px;border-radius:8px;font-size:12.5px;
+  background:rgba(192,50,33,.07);border-left:3px solid var(--red);color:var(--n900)}
 .legend{display:flex;gap:20px;padding:10px 18px 0;font-size:12px;color:var(--n600);flex-wrap:wrap;align-items:center}
 .legend .k{display:inline-flex;align-items:center;gap:7px}
 .legend i.sw{width:12px;height:12px;border-radius:3px;display:inline-block}
@@ -7564,6 +7571,69 @@ function fcToggle(i){
   linha.setAttribute('aria-expanded', String(aberto));
   if(aberto) fcDetalhe(i);
 }
+/* Saldo dia a dia DENTRO do período. É o que diferencia "a semana fecha em
+   -R$ 2 mi" de "o caixa fura na quinta": o fechamento pode ser positivo e
+   ainda assim haver um dia no vermelho no meio do caminho — e é esse dia que
+   define quanto antecipar e para quando.
+   Uma escala só de dinheiro para barras e linha. Pôr o saldo num eixo
+   secundário deixaria a linha bonita e sem escala legível (a lição do Fluxo
+   de Caixa: série que decide caixa não divide eixo com outra magnitude). */
+function fcSerieSVG(dias, saldoInicial){
+  if(!dias.length) return '';
+  const S0=Number(saldoInicial)||0;
+  let acc=S0;
+  const pts=dias.map(d=>{ acc+=d.entradas-d.saidas; return {...d, saldo:acc}; });
+  const vals=[0,S0].concat(pts.map(p=>p.saldo), pts.map(p=>p.entradas), pts.map(p=>-p.saidas));
+  const lo=Math.min(...vals), hi=Math.max(...vals);
+  const ticks=niceTicks(lo,hi,4), t0=ticks[0], t1=ticks[ticks.length-1];
+  const W=960,H=254,mL=72,mR=14,mT=24,mB=30;
+  const iw=W-mL-mR, ih=H-mT-mB, n=pts.length;
+  const y=v=>mT+ih-(v-t0)/(t1-t0)*ih;
+  const passo=iw/n, bw=Math.max(2,Math.min(16,passo*0.34));
+  const px=i=>mL+passo*(i+0.5);
+  const y0=y(0);
+  // O pior dia é o MENOR saldo, não o de maior saída: um dia de saída pesada
+  // logo depois de um recebimento grande não fura nada.
+  let piorI=0; pts.forEach((p,i)=>{ if(p.saldo<pts[piorI].saldo) piorI=i; });
+  const pior=pts[piorI], fura=pior.saldo<0;
+  const un=Math.abs(t1)>=1e6||Math.abs(t0)>=1e6 ? {d:1e6,r:'MILHÕES DE R$'} : {d:1e3,r:'MIL R$'};
+
+  let s=`<svg viewBox="0 0 ${W} ${H}" role="img" aria-label="Saldo dia a dia do período">`;
+  // fim de semana atrás de tudo: explica os platôs sem precisar de legenda
+  pts.forEach((p,i)=>{ if(p.dow>=5) s+=`<rect x="${mL+passo*i}" y="${mT}" width="${passo}" height="${ih}" fill="var(--n900)" opacity=".035"/>`; });
+  ticks.forEach(v=>{ s+=`<line x1="${mL}" x2="${W-mR}" y1="${y(v)}" y2="${y(v)}" stroke="var(--n900)" opacity="${v===0?'.28':'.09'}" stroke-width="1"/>`
+    +`<text x="${mL-8}" y="${y(v)+4}" text-anchor="end" font-size="11" fill="#6E7883" font-family="IBM Plex Mono,monospace">${NMI.format(v/un.d)}</text>`; });
+  // ancorado em mL e para a DIREITA: com text-anchor="end" em mL-8 o rotulo
+  // saia pela borda esquerda do viewBox e aparecia cortado ("HOES DE R$")
+  s+=`<text x="${mL}" y="${mT-4}" font-size="10.5" fill="#6E7883" font-weight="600" letter-spacing="1.2">${un.r}</text>`;
+  pts.forEach((p,i)=>{
+    if(p.entradas>0) s+=colPath(px(i)-bw-1,bw,y(p.entradas),y0,2,CC.verde);
+    if(p.saidas>0)   s+=`<path fill="${CC.vermelho}" d="M${px(i)+1},${y0} L${px(i)+1+bw},${y0} L${px(i)+1+bw},${y(-p.saidas)} L${px(i)+1},${y(-p.saidas)} Z"/>`;
+  });
+  s+=`<polyline points="${pts.map((p,i)=>`${px(i)},${y(p.saldo)}`).join(' ')}" fill="none" stroke="${CC.navy700}" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>`;
+  // marcador do pior dia, com o rótulo do lado que couber
+  const dir = piorI > n*0.66 ? -1 : 1, tx=px(piorI)+dir*10;
+  s+=`<circle cx="${px(piorI)}" cy="${y(pior.saldo)}" r="4.5" fill="${fura?CC.vermelho:CC.navy700}" stroke="#fff" stroke-width="2"/>`
+   +`<text x="${tx}" y="${y(pior.saldo)+(pior.saldo<S0?16:-9)}" text-anchor="${dir>0?'start':'end'}" font-size="11" font-weight="700" fill="${fura?CC.vermelho:CC.navy700}" style="paint-order:stroke;stroke:#fff;stroke-width:3.5px">`
+   +`${fmtD(pior.dia).slice(0,5)}: ${BRL.format(pior.saldo)}</text>`;
+  // rótulo de data a cada N dias, para não empastelar num semestre
+  const cada=Math.max(1,Math.ceil(n/16));
+  pts.forEach((p,i)=>{ if(i%cada===0||i===n-1) s+=`<text x="${px(i)}" y="${H-10}" text-anchor="middle" font-size="10.5" fill="${p.dow>=5?'#AEB6BF':'#6E7883'}">${fmtD(p.dia).slice(0,5)}</text>`; });
+  pts.forEach((p,i)=>{ s+=`<rect x="${mL+passo*i}" y="${mT}" width="${passo}" height="${ih}" fill="transparent"><title>${fmtD(p.dia)}
+Entradas: ${BRL.format(p.entradas)} (${p.titulos_ent} tít.)
+Saídas: ${BRL.format(p.saidas)} (${p.titulos_sai} tít.)
+Saldo no dia: ${BRL.format(p.saldo)}</title></rect>`; });
+  s+='</svg>';
+
+  const leg=`<div class="fc-leg">
+    <span><i style="background:${CC.verde}"></i>entradas do dia</span>
+    <span><i style="background:${CC.vermelho}"></i>saídas do dia</span>
+    <span><i style="background:${CC.navy700}"></i>saldo acumulado (abre em ${BRL.format(S0)})</span></div>`;
+  const aviso = fura
+    ? `<div class="fc-fura"><b>O caixa fura em ${fmtD(pior.dia)}</b>, em ${BRL.format(pior.saldo)} — o fechamento do período esconde isso quando um recebimento grande entra depois. Antecipar precisa cobrir a data do furo, não o saldo final.</div>`
+    : `<div class="fc-leg" style="color:var(--n500)">menor saldo do período: <b>${BRL.format(pior.saldo)}</b> em ${fmtD(pior.dia)} — não fura.</div>`;
+  return `<div class="chartwrap">${s}</div>${leg}${aviso}`;
+}
 /* Títulos do período: buscados SÓ ao expandir e uma vez por período. Trazer
    junto com o consolidado significaria carregar o detalhe de até 26 semanas
    que ninguém vai abrir. `dataset.carregado` evita refazer a consulta a cada
@@ -7581,9 +7651,11 @@ async function fcDetalhe(i){
     const d=await r.json();
     if(!r.ok){ alvo.innerHTML='<div style="color:var(--red);font-size:12px">'+esc(d.mensagem||'Erro ao detalhar.')+'</div>'; alvo.dataset.carregado=''; return; }
     const ent=d.entradas||[], sai=d.saidas||[];
+    const serie = fcSerieSVG(d.dias||[], l.saldo_inicial);
     // As saídas vêm primeiro: quando o período fecha negativo, é nelas que
     // está a resposta — e quase sempre em duas ou três linhas.
     alvo.innerHTML=`
+      ${serie}
       <div class="grid2" style="margin-top:10px">
         <div>
           <div class="busca-sec" style="padding-left:0">Maiores saídas do período</div>

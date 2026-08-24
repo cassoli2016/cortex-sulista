@@ -4,6 +4,14 @@ Gerado de `docs/versoes.yaml` por `scripts/gerar_changelog.py` — não editar �
 Formato [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/),
 versionamento [SemVer](https://semver.org/lang/pt-BR/).
 
+## [0.22.0] — 24/08/2026  ·  CX-24/08/2026-v0.22.0
+
+### Adicionado
+- O periodo expandido do Fluxo Consolidado agora traz o SALDO DIA A DIA: barras de entrada e saida de cada dia e a linha do saldo acumulado, abrindo no saldo do periodo. O menor saldo fica marcado com a data e o valor. E o que separa "a semana fecha em -R$ 2 mi" de "o caixa fura na quinta" - o fechamento pode ate ser positivo e ainda assim haver um dia no vermelho no meio, e e essa data que define para quando antecipar. Fim de semana sai com fundo esmaecido, e cada dia tem o detalhe no hover.
+
+### Corrigido
+- O envio de e-mail estava configurado com o servidor e a porta de LEITURA da caixa postal (outlook.office365.com na porta 995, que e POP3) em vez dos de envio, e todo teste falhava. O sistema agora recusa essa combinacao na hora de salvar, dizendo qual servidor e qual porta usar no lugar; e, quando um envio falha, a mensagem passou a dizer contra qual host, porta e seguranca a tentativa foi feita. Antes voltava apenas "Erro do servidor SMTP: SMTPConnectError.", que nao permitia consertar nada. Falha de autenticacao no Microsoft 365 tambem avisa que o SMTP autenticado vem desligado por padrao na caixa postal.
+
 ## [0.21.0] — 24/08/2026  ·  CX-24/08/2026-v0.21.0
 
 ### Adicionado

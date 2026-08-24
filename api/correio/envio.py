@@ -39,27 +39,56 @@ def _mensagem(destinatarios: list[str], assunto: str, corpo: str,
     return msg
 
 
-def _erro_legivel(exc: Exception) -> str:
+def _erro_legivel(exc: Exception, c: dict | None = None) -> str:
     """Mensagem que ajuda a consertar, sem vazar credencial.
 
     `SMTPAuthenticationError` traz a resposta bruta do servidor, que em alguns
     provedores ecoa o usuário — por isso a tradução em vez do str(exc) cru.
+
+    Toda falha de conexão diz CONTRA QUEM tentou. "Erro do servidor SMTP:
+    SMTPConnectError." era literalmente tudo o que a tela mostrava: não dava
+    para saber se o host estava errado, se a porta estava errada ou se o
+    firewall bloqueava — e as três têm conserto diferente.
     """
+    c = c or {}
+    onde = ""
+    if c.get("host"):
+        onde = (f" (tentou {c['host']}:{c.get('porta')} com segurança "
+                f"{c.get('seguranca')})")
+
     if isinstance(exc, smtplib.SMTPAuthenticationError):
+        extra = ""
+        if "office365" in str(c.get("host", "")).lower():
+            # 535 5.7.139 no M365 quase nunca e senha errada: o tenant desliga
+            # o SMTP AUTH por padrao e ele precisa ser habilitado na caixa.
+            extra = (" No Microsoft 365, o SMTP autenticado vem DESLIGADO por "
+                     "padrão na caixa postal — o administrador precisa habilitar "
+                     "\"Authenticated SMTP\" para este usuário.")
         return ("Servidor recusou a autenticação: confira usuário e senha. "
                 "Em contas com verificação em duas etapas costuma ser "
-                "necessária uma senha de aplicativo.")
+                "necessária uma senha de aplicativo." + extra + onde)
     if isinstance(exc, smtplib.SMTPRecipientsRefused):
         return "O servidor recusou o(s) destinatário(s) informado(s)."
     if isinstance(exc, smtplib.SMTPSenderRefused):
         return ("O servidor recusou o remetente. Normalmente o remetente "
-                "precisa ser o mesmo do usuário autenticado.")
+                "precisa ser o mesmo do usuário autenticado." + onde)
+
+    # A config pode ser anterior à validação de porta de leitura, ou ter sido
+    # editada no arquivo à mão: o diagnóstico vale mais que a exceção.
+    leitura = cfg.problema_de_leitura(c.get("host", ""), c.get("porta") or 0)
+    if leitura and isinstance(exc, (smtplib.SMTPException, OSError, TimeoutError)):
+        return leitura + onde
+
     if isinstance(exc, (TimeoutError, OSError)) and not isinstance(exc, smtplib.SMTPException):
         return (f"Não foi possível falar com o servidor SMTP em {TIMEOUT}s. "
-                "Confira host, porta e se o firewall libera a saída.")
+                "Confira host, porta e se o firewall libera a saída." + onde)
+    if isinstance(exc, smtplib.SMTPConnectError):
+        return ("O servidor atendeu mas não respondeu como um servidor SMTP. "
+                "Isso costuma ser porta de outro protocolo ou host errado."
+                + onde)
     if isinstance(exc, smtplib.SMTPException):
-        return f"Erro do servidor SMTP: {type(exc).__name__}."
-    return f"Falha inesperada no envio: {type(exc).__name__}."
+        return f"Erro do servidor SMTP: {type(exc).__name__}.{onde}"
+    return f"Falha inesperada no envio: {type(exc).__name__}.{onde}"
 
 
 def enviar(destinatarios, assunto: str, corpo: str, *,
@@ -106,7 +135,7 @@ def enviar(destinatarios, assunto: str, corpo: str, *,
             servidor.send_message(msg)
         resultado["ok"] = True
     except Exception as exc:  # noqa: BLE001 - contrato: nunca levanta
-        resultado["erro"] = _erro_legivel(exc)
+        resultado["erro"] = _erro_legivel(exc, c)
 
     if registrar:
         registro.gravar(dests, assunto, corpo, usuario=usuario, origem=origem,

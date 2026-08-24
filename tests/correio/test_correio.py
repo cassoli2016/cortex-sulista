@@ -226,3 +226,65 @@ def test_resumo_conta_ok_e_falha():
     registro.gravar(["a@b.com"], "B", "x", ok=False, erro="deu ruim")
     r = registro.resumo()
     assert r["total"] == 2 and r["ok"] == 1 and r["falha"] == 1
+
+
+# ---------------------------------------------------------------------------
+# Porta/host de LEITURA no formulário de ENVIO. Caso real: a configuração foi
+# gravada com outlook.office365.com:995 (POP3 sobre SSL) e cinco testes de
+# envio seguidos falharam com "Erro do servidor SMTP: SMTPConnectError." —
+# sem host, sem porta, sem pista do que consertar.
+# ---------------------------------------------------------------------------
+
+def test_porta_de_leitura_e_recusada_na_gravacao():
+    with pytest.raises(ValueError) as e:
+        cfg.gravar({"host": "outlook.office365.com", "porta": 995,
+                    "seguranca": "ssl", "remetente": "x@sulista.com.br"})
+    msg = str(e.value)
+    assert "995" in msg and "POP3" in msg
+    # a mensagem tem de trazer o CONSERTO, não só o diagnóstico
+    assert "smtp.office365.com" in msg and "587" in msg
+
+
+def test_host_de_leitura_e_recusado_mesmo_com_porta_certa():
+    with pytest.raises(ValueError, match="smtp.office365.com"):
+        cfg.gravar({"host": "outlook.office365.com", "porta": 587,
+                    "seguranca": "starttls", "remetente": "x@sulista.com.br"})
+
+
+def test_host_de_envio_legitimo_passa():
+    st = cfg.gravar({"host": "smtp.office365.com", "porta": 587,
+                     "seguranca": "starttls", "remetente": "x@sulista.com.br"})
+    assert st["host"] == "smtp.office365.com" and st["porta"] == 587
+
+
+def test_prefixo_pop_vira_sugestao_de_smtp():
+    assert "smtp.empresa.com.br" in cfg.problema_de_leitura("pop.empresa.com.br", 995)
+
+
+def test_servidor_proprio_em_porta_de_envio_nao_gera_aviso():
+    assert cfg.problema_de_leitura("smtp.sulista.com.br", 587) is None
+    assert cfg.problema_de_leitura("mail.sulista.com.br", 465) is None
+
+
+def test_erro_de_conexao_diz_contra_qual_servidor_tentou(monkeypatch):
+    """O operador precisa saber host, porta e segurança para consertar."""
+    _config_valida()
+    def _explode(*a, **kw):
+        raise smtplib.SMTPConnectError(421, b"nao atendeu")
+    monkeypatch.setattr(smtplib, "SMTP", _explode)
+    r = envio.enviar("a@sulista.com.br", "assunto", "corpo")
+    assert not r["ok"]
+    assert "smtp.teste.local" in r["erro"] and "587" in r["erro"]
+    assert "starttls" in r["erro"]
+
+
+def test_falha_no_m365_cita_o_smtp_autenticado_desligado(monkeypatch):
+    """535 5.7.139 no Microsoft 365 quase nunca é senha errada."""
+    cfg.gravar({"host": "smtp.office365.com", "porta": 587,
+                "seguranca": "starttls", "usuario": "bot@sulista.com.br",
+                "remetente": "bot@sulista.com.br"})
+    def _explode(*a, **kw):
+        raise smtplib.SMTPAuthenticationError(535, b"5.7.139 auth disabled")
+    monkeypatch.setattr(smtplib, "SMTP", _explode)
+    r = envio.enviar("a@sulista.com.br", "assunto", "corpo")
+    assert "Authenticated SMTP" in r["erro"]

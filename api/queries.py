@@ -6071,6 +6071,35 @@ GROUP BY 1 ORDER BY 3 DESC LIMIT 40
 """
 
 
+# Movimento DIA A DIA do periodo, sem LIMIT: e o que permite dizer em que dia
+# o caixa fura, e nao so que a semana fecha negativa. Mesmos predicados das
+# consultas do consolidado (FLUXCON_REC_SQL/FLUXCON_PAG_SQL) - se divergissem,
+# a soma dos dias nao bateria com o total da linha logo acima.
+FLUXCON_DIA_REC_SQL = f"""
+SELECT to_char(coalesce(f.dtprevisaopagamento, f.dtvencimento),'YYYY-MM-DD') AS dia,
+       sum(fc.valorpendentecnpjcliente)::float8 AS valor,
+       count(*)::int AS titulos
+{_REC_OF_FROM}
+WHERE f.grupo=1 AND fc.valorpendentecnpjcliente > 0 AND f.dtcancelamento IS NULL
+  AND f.composicao = 1 AND f.dtpagamento IS NULL
+  AND fc.tipodocumentoorigem = ANY(string_to_array('6,8,10,11',',')::int[])
+  AND (fc.tipodocumentoorigem <> 6 OR co.situacaocte = 3)
+  AND coalesce(f.dtprevisaopagamento, f.dtvencimento) >= %(de)s::date
+  AND coalesce(f.dtprevisaopagamento, f.dtvencimento) <= %(ate)s::date
+GROUP BY 1
+"""
+
+FLUXCON_DIA_PAG_SQL = """
+SELECT to_char(a.dtvencimento,'YYYY-MM-DD') AS dia,
+       sum(a.valorpendente)::float8 AS valor,
+       count(*)::int AS titulos
+FROM contaapagar a
+WHERE a.valorpendente > 0
+  AND a.dtvencimento >= %(de)s::date AND a.dtvencimento <= %(ate)s::date
+GROUP BY 1
+"""
+
+
 @cached(ttl=180)
 def get_fluxo_detalhe(de: str, ate: str) -> dict:
     params = {"de": de, "ate": ate}
@@ -6079,15 +6108,42 @@ def get_fluxo_detalhe(de: str, ate: str) -> dict:
         entradas = cur.fetchall()
         cur.execute(FLUXCON_DET_PAG_SQL, params)
         saidas = cur.fetchall()
+        cur.execute(FLUXCON_DIA_REC_SQL, params)
+        dia_rec = {r["dia"]: r for r in cur.fetchall()}
+        cur.execute(FLUXCON_DIA_PAG_SQL, params)
+        dia_pag = {r["dia"]: r for r in cur.fetchall()}
         cur.execute("SELECT current_timestamp AS ts")
         meta = cur.fetchone()
     for s in saidas:
         s["natureza"] = _natureza(s["tipo"])
+
+    # Dia SEM movimento entra na serie com zero. Comprimir a serie so nos dias
+    # com lancamento faria o fim de semana sumir e o grafico mentir sobre o
+    # ritmo: tres dias colados pareceriam consecutivos.
+    dias = []
+    d0, d1 = date.fromisoformat(de), date.fromisoformat(ate)
+    d = d0
+    while d <= d1:
+        k = d.isoformat()
+        e, p = dia_rec.get(k), dia_pag.get(k)
+        dias.append({
+            "dia": k,
+            "dow": d.weekday(),          # 5/6 = fim de semana, esmaecido na tela
+            "entradas": round(e["valor"], 2) if e else 0.0,
+            "saidas": round(p["valor"], 2) if p else 0.0,
+            "titulos_ent": e["titulos"] if e else 0,
+            "titulos_sai": p["titulos"] if p else 0,
+        })
+        d += timedelta(days=1)
+
     return {
         "de": de, "ate": ate,
         "entradas": entradas, "saidas": saidas,
-        "entradas_total": round(sum(e["valor"] for e in entradas), 2),
-        "saidas_total": round(sum(s["valor"] for s in saidas), 2),
+        "dias": dias,
+        # Totais REAIS do periodo (a serie diaria nao tem LIMIT). As listas
+        # acima sao top-N, entao a soma delas nao serve de total.
+        "entradas_total": round(sum(x["entradas"] for x in dias), 2),
+        "saidas_total": round(sum(x["saidas"] for x in dias), 2),
         "atualizado_em": meta["ts"].isoformat(),
     }
 
