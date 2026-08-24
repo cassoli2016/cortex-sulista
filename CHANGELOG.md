@@ -4,6 +4,15 @@ Gerado de `docs/versoes.yaml` por `scripts/gerar_changelog.py` — não editar �
 Formato [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/),
 versionamento [SemVer](https://semver.org/lang/pt-BR/).
 
+## [0.16.1] — 24/08/2026  ·  CX-24/08/2026-v0.16.1
+
+### Alterado
+- As ordens de compra passaram a exibir a FILIAL junto do número, com o nome e não só o código. O número da ordem se repete entre filiais (existe a mesma ordem 6 na filial 1 e na 2), então o número sozinho é ambíguo.
+
+### Corrigido
+- CORREÇÃO IMPORTANTE no monitoramento de ordens de compra: a versão anterior acusava 461 ordens paradas somando R$ 1,05 milhão, e 84% disso era falso positivo. O painel somava o valor recebido para decidir se a ordem tinha nota, mas esse campo vem vazio em parte dos registros — então ordem já faturada aparecia como nunca recebida. A maior de todas (R$ 259 mil, Ticket Log) tinha a nota vinculada e mesmo assim entrava no alarme; foi conferida na tela do próprio ERP. Agora o critério é a EXISTÊNCIA do vínculo com a nota, que é binária e confiável. O número real são 33 ordens e R$ 145 mil.
+- Todas as 33 ordens paradas há mais de 180 dias já citam o número da nota na própria observação — ou seja, a mercadoria veio e foi faturada, e o que falta é amarrar a nota à ordem no ERP. A tela passou a mostrar isso num indicador próprio, para não cobrar entrega de fornecedor que já entregou.
+
 ## [0.16.0] — 24/08/2026  ·  CX-24/08/2026-v0.16.0
 
 ### Adicionado

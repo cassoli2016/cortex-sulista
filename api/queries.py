@@ -1023,43 +1023,47 @@ FROM oc LEFT JOIN rec ON rec.grupo=oc.grupo AND rec.empresa=oc.empresa AND rec.f
 """
 
 # ----------------------------------------------------------------------------
-# OC ABERTA SEM NOTA — quanto tempo faz que foi emitida e nada chegou.
+# OC ABERTA SEM NOTA — o que foi pedido e nunca virou nota fiscal.
 #
-# NÃO segue o filtro de período da tela: OC emitida há dois anos e ainda aberta
-# é justamente o que se procura, e o filtro de emissão a esconderia. A tela
-# leva badge dizendo isso (regra do CLAUDE.md para card que ignora filtro).
+# CRITÉRIO: EXISTÊNCIA de vínculo em notafiscalentrada_item_ordemcomprarecebida,
+# NÃO a soma de valor. Foi assim que a primeira versão errou feio: somava
+# `valortotal` das linhas de vínculo e, quando a soma dava zero, dizia "nunca
+# recebeu". Só que `valortotal` vem NULO em parte das linhas (126 de 90.038 no
+# geral, mas concentradas justamente nas OCs antigas). A OC 1397 — TICKET LOG,
+# R$ 259 mil, a maior de todas — tem a NF 44955564 vinculada, com quantidade
+# recebida preenchida, e mesmo assim aparecia como "nunca recebeu". Conferido
+# na tela do próprio ERP (aba "4 - Notas Fiscais" da OC).
 #
-# O FILTRO QUE MUDA TUDO É `dtsuspensao IS NULL`. Sem ele o número é 3.740 OCs
-# e R$ 17,3 mi — mas 3.091 delas (83%, R$ 15,3 mi) estão SUSPENSAS no próprio
-# ERP, ou seja, paradas de propósito. Alarmar sobre isso seria o mesmo erro do
-# "664 rastreadores sem sinal": denominador cheio de quem não pode cumprir a
-# regra. O real são 648 OCs e R$ 2,0 mi — e as suspensas voltam num bloco
-# separado, porque sumir com R$ 15 mi sem dizer nada também seria mentira.
+# O estrago do critério antigo: das 125 OCs >180d ditas "sem recebimento",
+# 92 (R$ 746 mil, 84% do valor) tinham nota vinculada. Existência é binária e
+# confiável; valor não é.
 #
-# `situacao` NÃO serve para isso: 1 e 2 aparecem tanto em OC totalmente
-# recebida quanto em aberta (17.402 × 16.846 recebidas), então não é status de
-# encerramento. `dtcancelamento` está vazio nas 38 mil OCs.
+# NÃO segue o filtro de período da tela: OC emitida há dois anos e ainda sem
+# nota é justamente o que se procura. A tela leva badge dizendo isso.
+#
+# `dtsuspensao IS NULL` continua valendo: 83% do volume em aberto está suspenso
+# de propósito no ERP e entra num bloco à parte, nunca no alarme.
+#
+# Descartados como critério, com evidência: `situacao` aparece 1 e 2 tanto em
+# OC recebida quanto em aberta; `dtcancelamento` está vazio nas 38 mil OCs.
 _OC_PEND_BASE = """
 WITH oc AS (
   SELECT o.grupo, o.empresa, o.filial, o.diferenciadornumero, o.numero,
          o.dtemissao, o.dtprevisaoentrega, o.dtaprovador, o.dtsuspensao,
-         o.cnpjcpffornecedor, coalesce(o.valortotal,0) AS vt
+         o.cnpjcpffornecedor, o.observacao, coalesce(o.valortotal,0) AS vt
   FROM ordemcompra o
   WHERE coalesce(o.valortotal,0) > 0 AND o.semaforo = 1
 ),
-rec AS (
-  SELECT r.grupo, r.empresa, r.filialordemcompra AS f,
-         r.diferenciadornumeroordemcompra AS d, r.numeroordemcompra AS n,
-         sum(coalesce(r.valortotal,0)) AS v
-  FROM notafiscalentrada_item_ordemcomprarecebida r GROUP BY 1,2,3,4,5
+vinc AS (
+  SELECT DISTINCT r.grupo, r.empresa, r.filialordemcompra AS f,
+         r.diferenciadornumeroordemcompra AS d, r.numeroordemcompra AS n
+  FROM notafiscalentrada_item_ordemcomprarecebida r
 ),
 aberta AS (
-  SELECT oc.*, coalesce(rec.v,0) AS recebido,
-         (oc.vt - coalesce(rec.v,0)) AS pendente,
-         (current_date - oc.dtemissao::date) AS dias
-  FROM oc LEFT JOIN rec ON rec.grupo=oc.grupo AND rec.empresa=oc.empresa
-       AND rec.f=oc.filial AND rec.d=oc.diferenciadornumero AND rec.n=oc.numero
-  WHERE oc.vt - coalesce(rec.v,0) > 0.01
+  SELECT oc.*, (current_date - oc.dtemissao::date) AS dias
+  FROM oc LEFT JOIN vinc ON vinc.grupo=oc.grupo AND vinc.empresa=oc.empresa
+       AND vinc.f=oc.filial AND vinc.d=oc.diferenciadornumero AND vinc.n=oc.numero
+  WHERE vinc.n IS NULL          -- nenhuma nota vinculada: o critério confiável
 )
 """
 
@@ -1069,7 +1073,7 @@ SELECT CASE WHEN dias <= 30 THEN '1_ate_30'
             WHEN dias <= 90 THEN '3_61_90'
             WHEN dias <= 180 THEN '4_91_180'
             ELSE '5_mais_180' END AS faixa,
-       count(*)::int AS ocs, sum(pendente)::float8 AS valor,
+       count(*)::int AS ocs, sum(vt)::float8 AS valor,
        sum(CASE WHEN dtaprovador IS NULL THEN 1 ELSE 0 END)::int AS sem_aprovacao
 FROM aberta WHERE dtsuspensao IS NULL
 GROUP BY 1 ORDER BY 1
@@ -1078,41 +1082,44 @@ GROUP BY 1 ORDER BY 1
 OC_PEND_KPI_SQL = _OC_PEND_BASE + """
 SELECT
   sum(CASE WHEN dtsuspensao IS NULL THEN 1 ELSE 0 END)::int AS ocs,
-  coalesce(sum(CASE WHEN dtsuspensao IS NULL THEN pendente ELSE 0 END),0)::float8 AS valor,
+  coalesce(sum(CASE WHEN dtsuspensao IS NULL THEN vt ELSE 0 END),0)::float8 AS valor,
   sum(CASE WHEN dtsuspensao IS NULL AND dias > 180 THEN 1 ELSE 0 END)::int AS velhas,
-  coalesce(sum(CASE WHEN dtsuspensao IS NULL AND dias > 180 THEN pendente ELSE 0 END),0)::float8 AS velhas_valor,
+  coalesce(sum(CASE WHEN dtsuspensao IS NULL AND dias > 180 THEN vt ELSE 0 END),0)::float8 AS velhas_valor,
   sum(CASE WHEN dtsuspensao IS NULL AND dtaprovador IS NULL THEN 1 ELSE 0 END)::int AS sem_aprovacao,
-  coalesce(sum(CASE WHEN dtsuspensao IS NULL AND dtaprovador IS NULL THEN pendente ELSE 0 END),0)::float8 AS sem_aprovacao_valor,
+  coalesce(sum(CASE WHEN dtsuspensao IS NULL AND dtaprovador IS NULL THEN vt ELSE 0 END),0)::float8 AS sem_aprovacao_valor,
   sum(CASE WHEN dtsuspensao IS NOT NULL THEN 1 ELSE 0 END)::int AS suspensas,
-  coalesce(sum(CASE WHEN dtsuspensao IS NOT NULL THEN pendente ELSE 0 END),0)::float8 AS suspensas_valor,
+  coalesce(sum(CASE WHEN dtsuspensao IS NOT NULL THEN vt ELSE 0 END),0)::float8 AS suspensas_valor,
   min(CASE WHEN dtsuspensao IS NULL THEN dtemissao END)::text AS mais_antiga,
-  sum(CASE WHEN dtsuspensao IS NULL AND recebido > 0 THEN 1 ELSE 0 END)::int AS parciais
+  -- OC cuja observação já cita a nota: forte indício de que a mercadoria veio e
+  -- o que falta é o VÍNCULO no ERP, não a entrega. Era 78% do valor na medição.
+  sum(CASE WHEN dtsuspensao IS NULL AND dias > 180
+            AND observacao ILIKE '%%NF%%' THEN 1 ELSE 0 END)::int AS cita_nf,
+  coalesce(sum(CASE WHEN dtsuspensao IS NULL AND dias > 180
+            AND observacao ILIKE '%%NF%%' THEN vt ELSE 0 END),0)::float8 AS cita_nf_valor
 FROM aberta
 """
 
-# Lista acionável: as mais antigas primeiro — é a ordem de cobrança do
-# comprador, igual à Régua de Cobrança.
 OC_PEND_LISTA_SQL = _OC_PEND_BASE + """
 SELECT a.numero, a.filial, a.dias,
        to_char(a.dtemissao,'YYYY-MM-DD') AS emissao,
        to_char(a.dtprevisaoentrega,'YYYY-MM-DD') AS previsao,
        (a.dtaprovador IS NULL) AS sem_aprovacao,
-       a.vt::float8 AS valor, a.recebido::float8 AS recebido,
-       a.pendente::float8 AS pendente,
+       (a.observacao ILIKE '%%NF%%') AS cita_nf,
+       a.vt::float8 AS valor,
+       left(coalesce(a.observacao,''), 70) AS observacao,
        coalesce(nullif(trim(c.nomefantasia),''), nullif(trim(c.razaosocial),''),
                 '(sem cadastro)') AS fornecedor
 FROM aberta a
 LEFT JOIN cadastro c ON c.codigo = a.cnpjcpffornecedor
 WHERE a.dtsuspensao IS NULL AND a.dias > %(dias_min)s
-ORDER BY a.dias DESC, a.pendente DESC
+ORDER BY a.dias DESC, a.vt DESC
 LIMIT 200
 """
 
-# Quem tem mais OC velha parada: o fornecedor é o interlocutor da cobrança.
 OC_PEND_FORN_SQL = _OC_PEND_BASE + """
 SELECT coalesce(nullif(trim(c.nomefantasia),''), nullif(trim(c.razaosocial),''),
                 '(sem cadastro)') AS fornecedor,
-       count(*)::int AS ocs, sum(a.pendente)::float8 AS pendente,
+       count(*)::int AS ocs, sum(a.vt)::float8 AS pendente,
        max(a.dias)::int AS dias_max
 FROM aberta a
 LEFT JOIN cadastro c ON c.codigo = a.cnpjcpffornecedor
@@ -1140,8 +1147,9 @@ def get_oc_pendentes(dias_min: int = 180) -> dict:
         "fornecedores": fornecedores, "dias_min": dias_min,
         "lista_total": kpis["velhas"] if dias_min == 180 else None,
         "atualizado_em": meta["ts"].isoformat(),
-        "fonte": ("ERP AVA · ordemcompra × notafiscalentrada_item_ordemcomprarecebida · "
-                  "não segue o filtro de período da tela · leitura"),
+        "fonte": ("ERP AVA · ordemcompra SEM vínculo em "
+                  "notafiscalentrada_item_ordemcomprarecebida · não segue o filtro "
+                  "de período da tela · leitura"),
     }
 
 
