@@ -19,6 +19,21 @@ glossario:
       tela. Abre um formulário para relatar um bug ou pedir uma melhoria, com
       print da tela e anexos. O relato vira uma issue num repositório privado,
       levando junto a tela, os filtros ativos, a versão e o navegador.
+  - termo: Convênio de antecipação (cliente elegível)
+    definicao: >-
+      Cliente que mantém portal de risco sacado, onde a Sulista pode antecipar
+      os títulos dele. Só o recebível desses clientes entra nas Operações de
+      antecipação sugeridas — supor que qualquer recebível pode ser antecipado
+      dá um plano que não existe. Quem aparece como pagador numa planilha
+      importada em Portais de Antecipação entra sozinho; ligar e desligar à
+      mão é possível, e a decisão manual sobrevive à próxima importação. A
+      comparação com o ERP é pela RAIZ do CNPJ (8 dígitos), porque o portal
+      informa o CNPJ da matriz e o ERP fatura por várias filiais do grupo.
+  - termo: Sacado × cedente
+    definicao: >-
+      Na planilha do portal, o SACADO é quem paga (o cliente) e o CEDENTE é
+      quem recebe (a Sulista). O cedente identifica a filial: um mesmo arquivo
+      pode trazer títulos de CNPJs diferentes nossos.
   - termo: RKM
     definicao: Receita de frete por quilômetro carregado — receita_frete / km_carregado.
   - termo: CKM bruto
@@ -120,8 +135,8 @@ grupos:
       Caixa e sua projeção, títulos a receber e a pagar, régua de cobrança,
       conciliação do extrato, lançamentos bancários (razão do banco lançamento
       a lançamento), fluxo consolidado por período, antecipação de recebíveis
-      e ordens de compra.
-    telas: [fluxo, fluxcon, receber, pagar, cob, extb, lanc, antec, rec, oc, custos]
+      (com importação das planilhas dos portais dos clientes) e ordens de compra.
+    telas: [fluxo, fluxcon, receber, pagar, cob, extb, lanc, antec, antport, rec, oc, custos]
 
   - nome: Controladoria
     resumo: >-

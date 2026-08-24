@@ -2004,6 +2004,116 @@ def extrato(dt_de: str | None = None, dt_ate: str | None = None,
             "erro": "erro_consulta", "mensagem": "Erro ao montar a validação do extrato."})
 
 
+_ANTEC_MAX_BYTES = 12 * 1024 * 1024   # a planilha da Maxion tem 85 KB; 12 MB cobre portal grande
+
+
+@app.get("/api/financeiro/antecipacoes")
+def antecipacoes_listar() -> JSONResponse:
+    """Envios importados, último por portal e sacados com convênio."""
+    from api.antecipacoes import registro as reg
+    try:
+        ultimo = reg.ultimo_envio()
+        return JSONResponse({
+            "envios": reg.envios(),
+            "ultimo": ultimo,
+            "titulos": reg.titulos_do_envio(ultimo["id"]) if ultimo else [],
+            "sacados": reg.sacados(),
+            "portais": [{"nome": m.nome, "rotulo": m.rotulo}
+                        for m in __import__("api.antecipacoes.modelos",
+                                            fromlist=["MODELOS"]).MODELOS],
+        })
+    except Exception as exc:  # noqa: BLE001
+        log.warning("antecipacoes_listar falhou: %s", exc)
+        return JSONResponse(status_code=500, content={
+            "erro": "erro_consulta", "mensagem": "Erro ao ler os envios."})
+
+
+@app.post("/api/financeiro/antecipacoes/importar")
+async def antecipacoes_importar(req: Request, nome: str = "") -> JSONResponse:
+    """Recebe a planilha do portal como CORPO BRUTO — mesmo padrão do extrato
+    (sem multipart, que exigiria python-multipart e derrubaria só este
+    endpoint se o `uv sync` do AutoDeploy falhasse)."""
+    from api.antecipacoes import conciliacao, leitor
+    from api.antecipacoes import registro as reg
+
+    if _tamanho_excede(req.headers.get("content-length"), _ANTEC_MAX_BYTES):
+        return JSONResponse(status_code=413, content={
+            "erro": "arquivo_grande",
+            "mensagem": f"Arquivo acima do limite de {_ANTEC_MAX_BYTES // (1024 * 1024)} MB."})
+    bruto = await req.body()
+    if not bruto or len(bruto) > _ANTEC_MAX_BYTES:
+        return JSONResponse(status_code=413 if bruto else 422, content={
+            "erro": "arquivo_invalido",
+            "mensagem": "Nenhum conteúdo recebido." if not bruto
+                        else "Arquivo acima do limite."})
+    try:
+        lido = leitor.ler(nome or "planilha", bruto)
+        resumo = leitor.resumir(lido)
+    except leitor.ArquivoInvalido as exc:
+        # 422 e não 500: o arquivo é que está errado, e a mensagem já diz o
+        # que fazer — a tela mostra ela literalmente.
+        return JSONResponse(status_code=422, content={
+            "erro": "arquivo_invalido", "mensagem": str(exc)})
+    except Exception as exc:  # noqa: BLE001
+        log.warning("antecipacoes_importar falhou: %s", exc)
+        return JSONResponse(status_code=500, content={
+            "erro": "erro_leitura", "mensagem": "Erro ao ler a planilha."})
+
+    # A conciliação depende do AVA; se o banco estiver fora, a importação NÃO
+    # pode falhar por isso — o arquivo já foi lido e vale por si.
+    try:
+        conc = conciliacao.conciliar(lido["titulos"])
+    except Exception as exc:  # noqa: BLE001
+        log.warning("conciliacao falhou: %s", exc)
+        conc = {"disponivel": False,
+                "motivo": "banco indisponível no momento da importação"}
+
+    usuario = getattr(getattr(req, "state", None), "usuario", "") or ""
+    try:
+        envio_id = reg.gravar_envio(lido, resumo, usuario=str(usuario))
+    except Exception as exc:  # noqa: BLE001
+        log.warning("gravar_envio falhou: %s", exc)
+        return JSONResponse(status_code=500, content={
+            "erro": "erro_gravacao", "mensagem": "Erro ao gravar a importação."})
+
+    return JSONResponse({
+        "envio_id": envio_id,
+        "portal": lido["portal"], "portal_rotulo": lido["portal_rotulo"],
+        "confianca": lido["confianca"],
+        "linha_cabecalho": lido["linha_cabecalho"],
+        "colunas_ignoradas": lido["colunas_ignoradas"],
+        "rejeitadas": lido["rejeitadas"],
+        "total_declarado": lido["total_declarado"],
+        "total_calculado": lido["total_calculado"],
+        "divergencia": lido["divergencia"],
+        "resumo": resumo, "conciliacao": conc,
+    })
+
+
+@app.post("/api/financeiro/antecipacoes/sacado")
+async def antecipacoes_sacado(req: Request) -> JSONResponse:
+    """Liga/desliga o convênio de antecipação de um cliente."""
+    from api.antecipacoes import registro as reg
+    try:
+        corpo = await req.json()
+    except Exception:  # noqa: BLE001
+        return JSONResponse(status_code=422, content={
+            "erro": "corpo_invalido", "mensagem": "Envie um JSON válido."})
+    try:
+        return JSONResponse(reg.definir_sacado(
+            str(corpo.get("cnpj") or ""), nome=str(corpo.get("nome") or ""),
+            elegivel=bool(corpo.get("elegivel", True)),
+            observacao=str(corpo.get("observacao") or ""),
+            portal=str(corpo.get("portal") or "")))
+    except ValueError as exc:
+        return JSONResponse(status_code=422, content={
+            "erro": "dado_invalido", "mensagem": str(exc)})
+    except Exception as exc:  # noqa: BLE001
+        log.warning("antecipacoes_sacado falhou: %s", exc)
+        return JSONResponse(status_code=500, content={
+            "erro": "erro_gravacao", "mensagem": "Erro ao gravar o cliente."})
+
+
 @app.post("/api/financeiro/extrato/importar")
 async def extrato_importar(req: Request, nome: str = "",
                            conta_id: int | None = None) -> JSONResponse:

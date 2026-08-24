@@ -34,5 +34,12 @@ __pycache__/
 # scratch local de verificacao (estrutura.py etc) - nao versionar
 scratchpad/
 
+# Planilhas dos portais de antecipacao: CNPJ de cliente, numero de nota e
+# valores reais. O REPOSITORIO DO CODIGO E PUBLICO — arquivo de cliente nunca
+# entra aqui. Os testes do parser leem a planilha se ela estiver na maquina e
+# caem em skip quando nao estiver.
+antecipacoes/
+Planila_Fluxo/
+
 # OFX de teste gerado (dados reais do ERP)
 scripts/validacao_extrato/*.ofx

@@ -6213,7 +6213,8 @@ SELECT coalesce(f.dtprevisaopagamento, f.dtvencimento)::date AS dia,
        coalesce(nullif(trim(td.descricao),''),
                 'documento '||fc.tipodocumentoorigem::text) AS tipo,
        fc.numerosequenciadocumentoorigem::text AS documento,
-       fc.valorpendentecnpjcliente::float8 AS valor
+       fc.valorpendentecnpjcliente::float8 AS valor,
+       f.cliente::text AS cnpj_cliente
 {_REC_OF_FROM}
 LEFT JOIN cadastro c ON c.codigo = f.cliente
 LEFT JOIN tipodocumento td ON td.codigo = fc.tipodocumentoorigem
@@ -6535,7 +6536,7 @@ def _consumir_titulos(pilha: list, valor: float) -> list:
 
 
 def _antec_simular(dias_lista, rec_por_dia, pag_por_dia, saldo_inicial,
-                   reserva, taxa_dia, tit_por_dia=None):
+                   reserva, taxa_dia, tit_por_dia=None, eleg_por_dia=None):
     """Dia a dia; quando o saldo fura a reserva, antecipa recebível FUTURO.
 
     Escolha do que antecipar: vencimento mais PRÓXIMO primeiro, entre os que
@@ -6547,7 +6548,7 @@ def _antec_simular(dias_lista, rec_por_dia, pag_por_dia, saldo_inicial,
     vezes e esconderia o gap seguinte).
     """
     saldo = saldo_inicial
-    linhas, operacoes = [], []
+    linhas, operacoes, nao_coberto = [], [], []
     futuros = sorted(d for d in rec_por_dia if rec_por_dia[d] > 0)
 
     for dia in dias_lista:
@@ -6563,11 +6564,19 @@ def _antec_simular(dias_lista, rec_por_dia, pag_por_dia, saldo_inicial,
                     break
                 if venc <= dia:
                     continue
+                # Teto DUPLO: o que existe a receber naquele dia e o que
+                # daquilo e de cliente COM CONVENIO. Sem o segundo, a tela
+                # sugeria antecipar recebivel de quem nao tem portal - plano
+                # que nao existe.
                 disponivel = rec_por_dia.get(venc, 0.0)
+                if eleg_por_dia is not None:
+                    disponivel = min(disponivel, eleg_por_dia.get(venc, 0.0))
                 if disponivel <= 0:
                     continue
                 usa = min(falta, disponivel)
-                rec_por_dia[venc] = disponivel - usa
+                rec_por_dia[venc] = rec_por_dia.get(venc, 0.0) - usa
+                if eleg_por_dia is not None:
+                    eleg_por_dia[venc] = eleg_por_dia.get(venc, 0.0) - usa
                 dias_adiant = (venc - dia).days
                 custo = usa * taxa_dia * dias_adiant
                 docs = (_consumir_titulos(tit_por_dia.get(venc, []), usa)
@@ -6599,9 +6608,18 @@ def _antec_simular(dias_lista, rec_por_dia, pag_por_dia, saldo_inicial,
                 antecipado_hoje += usa
                 falta -= usa
 
+        # Buraco que a antecipacao NAO cobre: ou nao ha recebivel futuro, ou
+        # o que ha e de cliente sem convenio. Silenciar isso faria a projecao
+        # com antecipacao parecer sempre resolvida - que era o caso antes de
+        # existir elegibilidade, porque tudo era antecipavel.
+        descoberto = max(0.0, reserva - saldo) if saldo < reserva else 0.0
+        if descoberto > 0.005:
+            nao_coberto.append({"dia": dia.isoformat(),
+                                "valor": round(descoberto, 2)})
         linhas.append({"dia": dia, "entrada": entrada, "saida": saida,
-                       "antecipado": antecipado_hoje, "saldo": saldo})
-    return linhas, operacoes
+                       "antecipado": antecipado_hoje, "saldo": saldo,
+                       "descoberto": round(descoberto, 2)})
+    return linhas, operacoes, nao_coberto
 
 
 @cached(ttl=90)
@@ -6641,18 +6659,39 @@ def get_antecipacao(dias: int = 90, reserva: float = 0.0, taxa_mes: float = 2.0,
 
     taxa_dia = (taxa_mes / 100.0) / 30.0
     dias_lista = [hoje + timedelta(days=i) for i in range(dias + 1)]
+    # Só cliente com convênio de antecipação entra na pilha. A comparação é
+    # por RAIZ do CNPJ (8 dígitos): o portal manda o CNPJ da matriz e o ERP
+    # fatura por quatro filiais dela — casar os 14 dígitos deixaria a maior
+    # parte do recebível de fora. Ver antecipacoes/registro.raizes_elegiveis.
+    from api.antecipacoes import registro as antec_reg
+    try:
+        raizes = antec_reg.raizes_elegiveis()
+        sacados_elegiveis = [{"cnpj": s["cnpj"], "nome": s["nome"],
+                              "portal": s["portal"]}
+                             for s in antec_reg.sacados(so_elegiveis=True)]
+    except Exception:  # noqa: BLE001 - base local indisponível não derruba a tela
+        raizes, sacados_elegiveis = set(), []
+
     # Pilha de títulos por vencimento, do maior para o menor (a query já ordena).
     # `saldo` é o que resta de cada título conforme as operações o consomem —
     # por isso a cópia do dicionário: a simulação destrói os dois.
     tit_por_dia: dict = {}
+    eleg_por_dia: dict = {}
+    rec_eleg_total = 0.0
     for t in tit_rows:
+        cnpj = (t.get("cnpj_cliente") or "").strip()
+        if raizes and cnpj[:8] not in raizes:
+            continue
         tit_por_dia.setdefault(t["dia"], []).append({**t, "saldo": t["valor"]})
+        eleg_por_dia[t["dia"]] = eleg_por_dia.get(t["dia"], 0.0) + t["valor"]
+        rec_eleg_total += t["valor"]
 
-    # cópia: a simulação CONSOME o dicionário; o original segue intacto para a
-    # série "sem antecipar" e para a tabela semanal
-    linhas, operacoes = _antec_simular(dias_lista, dict(rec_por_dia), pag_por_dia,
-                                       saldo_inicial, reserva, taxa_dia,
-                                       tit_por_dia=tit_por_dia)
+    # cópia: a simulação CONSOME os dicionários; os originais seguem intactos
+    # para a série "sem antecipar" e para a tabela semanal
+    linhas, operacoes, nao_coberto = _antec_simular(
+        dias_lista, dict(rec_por_dia), pag_por_dia, saldo_inicial, reserva,
+        taxa_dia, tit_por_dia=tit_por_dia,
+        eleg_por_dia=dict(eleg_por_dia) if raizes else None)
     antecipado_por_dia = {ln["dia"]: ln["antecipado"] for ln in linhas}
 
     # Saldo SEM antecipar: é o que mostra o buraco de verdade. A projeção COM
@@ -6744,6 +6783,20 @@ def get_antecipacao(dias: int = 90, reserva: float = 0.0, taxa_mes: float = 2.0,
         "serie": serie,
         "operacoes": operacoes[:100],
         "operacoes_total": len(operacoes),
+        # Elegibilidade: sem isto a tela dizia quanto antecipar sem dizer se
+        # havia de quem antecipar. `descoberto` é a necessidade que sobra
+        # depois de esgotar o recebível dos clientes COM convênio — é o
+        # numero que manda buscar outra fonte de recurso.
+        "elegibilidade": {
+            "ativa": bool(raizes),
+            "sacados": sacados_elegiveis,
+            "recebivel_elegivel": round(rec_eleg_total, 2),
+            "recebivel_total": round(sum(rec_por_dia.values()), 2),
+            "descoberto_dias": len(nao_coberto),
+            "descoberto_maximo": round(max((x["valor"] for x in nao_coberto),
+                                           default=0.0), 2),
+            "primeiro_descoberto": nao_coberto[0]["dia"] if nao_coberto else None,
+        },
         "parametros": {"dias": dias, "reserva": reserva, "taxa_mes": taxa_mes,
                        "incluir_vencidos": bool(incluir_vencidos)},
         "hoje": hoje.isoformat(),

@@ -1,7 +1,8 @@
 """Simulador de antecipação de recebíveis (`_antec_simular`).
 
 Testa a REGRA, sem banco: a função é pura (recebe dicionários, devolve
-linhas e operações). É ela que decide quanto dinheiro antecipar, então
+linhas, operações e o que a antecipação NÃO cobriu). É ela que decide
+quanto dinheiro antecipar, então
 cada invariante aqui vale um erro de tesouraria.
 """
 from __future__ import annotations
@@ -19,7 +20,7 @@ def _dias(n):
 
 
 def test_caixa_sobrando_nao_antecipa_nada():
-    linhas, ops = _antec_simular(_dias(5), {}, {}, 1000.0, 0.0, TAXA_DIA)
+    linhas, ops, descoberto = _antec_simular(_dias(5), {}, {}, 1000.0, 0.0, TAXA_DIA)
     assert ops == []
     assert all(l["saldo"] == 1000.0 for l in linhas)
 
@@ -27,7 +28,7 @@ def test_caixa_sobrando_nao_antecipa_nada():
 def test_buraco_e_coberto_antecipando_recebivel_futuro():
     pag = {D0: 500.0}                       # gasta hoje
     rec = {D0 + timedelta(days=10): 800.0}  # só recebe em 10 dias
-    linhas, ops = _antec_simular(_dias(12), dict(rec), pag, 100.0, 0.0, TAXA_DIA)
+    linhas, ops, descoberto = _antec_simular(_dias(12), dict(rec), pag, 100.0, 0.0, TAXA_DIA)
     assert len(ops) == 1
     assert ops[0]["valor"] == 400.0          # exatamente o furo, não o título todo
     assert ops[0]["dias_antecipados"] == 10
@@ -37,7 +38,7 @@ def test_buraco_e_coberto_antecipando_recebivel_futuro():
 def test_antecipa_o_vencimento_mais_proximo_porque_e_o_mais_barato():
     pag = {D0: 300.0}
     rec = {D0 + timedelta(days=3): 500.0, D0 + timedelta(days=30): 500.0}
-    _, ops = _antec_simular(_dias(31), dict(rec), pag, 0.0, 0.0, TAXA_DIA)
+    _, ops, _desc = _antec_simular(_dias(31), dict(rec), pag, 0.0, 0.0, TAXA_DIA)
     assert len(ops) == 1
     assert ops[0]["vencimento_origem"] == (D0 + timedelta(days=3)).isoformat()
 
@@ -46,7 +47,7 @@ def test_valor_antecipado_nao_entra_de_novo_no_vencimento_original():
     """O bug mais caro possível: contar o mesmo dinheiro duas vezes."""
     pag = {D0: 300.0, D0 + timedelta(days=5): 100.0}
     rec = {D0 + timedelta(days=3): 300.0}
-    linhas, ops = _antec_simular(_dias(7), dict(rec), pag, 0.0, 0.0, TAXA_DIA)
+    linhas, ops, descoberto = _antec_simular(_dias(7), dict(rec), pag, 0.0, 0.0, TAXA_DIA)
     # os 300 foram puxados para o dia 0; no dia 3 não pode entrar nada
     assert linhas[3]["entrada"] == 0.0
     # e o gasto do dia 5 tem de gerar NOVA necessidade, não ser coberto por
@@ -58,7 +59,7 @@ def test_valor_antecipado_nao_entra_de_novo_no_vencimento_original():
 def test_custo_e_proporcional_aos_dias_adiantados():
     pag = {D0: 1000.0}
     rec = {D0 + timedelta(days=30): 1000.0}
-    _, ops = _antec_simular(_dias(31), dict(rec), pag, 0.0, 0.0, TAXA_DIA)
+    _, ops, _desc = _antec_simular(_dias(31), dict(rec), pag, 0.0, 0.0, TAXA_DIA)
     esperado = 1000.0 * TAXA_DIA * 30
     assert abs(ops[0]["custo"] - round(esperado, 2)) < 0.01
 
@@ -67,10 +68,10 @@ def test_reserva_minima_dispara_antecipacao_antes_de_zerar():
     pag = {D0: 900.0}
     rec = {D0 + timedelta(days=4): 5000.0}
     # sem reserva o saldo cairia para 100 e nada seria antecipado
-    _, sem = _antec_simular(_dias(5), dict(rec), pag, 1000.0, 0.0, TAXA_DIA)
+    _, sem, _desc = _antec_simular(_dias(5), dict(rec), pag, 1000.0, 0.0, TAXA_DIA)
     assert sem == []
     # com reserva de 500, precisa completar 400
-    _, com = _antec_simular(_dias(5), dict(rec), pag, 1000.0, 500.0, TAXA_DIA)
+    _, com, _desc = _antec_simular(_dias(5), dict(rec), pag, 1000.0, 500.0, TAXA_DIA)
     assert len(com) == 1 and com[0]["valor"] == 400.0
 
 
@@ -78,13 +79,13 @@ def test_nao_antecipa_recebivel_do_proprio_dia_nem_do_passado():
     """Antecipar o que vence hoje não faz sentido: já está no saldo do dia."""
     pag = {D0 + timedelta(days=2): 500.0}
     rec = {D0 + timedelta(days=2): 100.0}     # mesmo dia do furo
-    _, ops = _antec_simular(_dias(3), dict(rec), pag, 0.0, 0.0, TAXA_DIA)
+    _, ops, _desc = _antec_simular(_dias(3), dict(rec), pag, 0.0, 0.0, TAXA_DIA)
     assert ops == [], "não há recebível futuro; não pode inventar operação"
 
 
 def test_sem_recebivel_futuro_o_saldo_fica_negativo_e_nao_trava():
     pag = {D0: 1000.0}
-    linhas, ops = _antec_simular(_dias(3), {}, pag, 0.0, 0.0, TAXA_DIA)
+    linhas, ops, descoberto = _antec_simular(_dias(3), {}, pag, 0.0, 0.0, TAXA_DIA)
     assert ops == []
     assert linhas[0]["saldo"] == -1000.0, "sem fonte, o furo tem de aparecer"
 
@@ -92,8 +93,78 @@ def test_sem_recebivel_futuro_o_saldo_fica_negativo_e_nao_trava():
 def test_um_titulo_grande_cobre_varios_furos_sem_estourar_o_saldo():
     pag = {D0: 100.0, D0 + timedelta(days=1): 100.0, D0 + timedelta(days=2): 100.0}
     rec = {D0 + timedelta(days=9): 1000.0}
-    linhas, ops = _antec_simular(_dias(10), dict(rec), pag, 0.0, 0.0, TAXA_DIA)
+    linhas, ops, descoberto = _antec_simular(_dias(10), dict(rec), pag, 0.0, 0.0, TAXA_DIA)
     assert len(ops) == 3
     assert sum(o["valor"] for o in ops) == 300.0
     # sobra do título entra normalmente no vencimento
     assert linhas[9]["entrada"] == 700.0
+
+
+# ---------------------------------------------------------------------------
+# Elegibilidade: nem todo cliente aceita antecipação. Antes desta regra o
+# plano puxava de qualquer recebível e por isso fechava SEMPRE — um plano que
+# não existe na mesa de crédito.
+# ---------------------------------------------------------------------------
+
+def test_so_antecipa_o_que_e_elegivel():
+    """Há R$ 800 a receber, mas só R$ 300 são de cliente com convênio."""
+    pag = {D0: 500.0}
+    venc = D0 + timedelta(days=10)
+    rec = {venc: 800.0}
+    linhas, ops, descoberto = _antec_simular(
+        _dias(12), dict(rec), pag, 100.0, 0.0, TAXA_DIA,
+        eleg_por_dia={venc: 300.0})
+    assert sum(o["valor"] for o in ops) == 300.0, "não pode puxar além do elegível"
+    assert descoberto, "o buraco que sobrou tem de ser reportado"
+    assert descoberto[0]["valor"] == 100.0   # 500 pagos - 100 saldo - 300 antecipados
+
+
+def test_sem_elegivel_nenhum_nao_ha_operacao_mas_ha_descoberto():
+    """O caso de quem ainda não cadastrou nenhum convênio: a tela precisa
+    dizer que não dá para antecipar, e não fingir que está tudo certo."""
+    pag = {D0: 500.0}
+    venc = D0 + timedelta(days=5)
+    linhas, ops, descoberto = _antec_simular(
+        _dias(7), {venc: 800.0}, pag, 0.0, 0.0, TAXA_DIA,
+        eleg_por_dia={})
+    assert ops == []
+    assert descoberto and descoberto[0]["valor"] == 500.0
+
+
+def test_sem_filtro_de_elegibilidade_o_comportamento_e_o_antigo():
+    """`eleg_por_dia=None` = elegibilidade desligada. Mantém o resultado de
+    antes para quem não usa portal nenhum."""
+    pag = {D0: 500.0}
+    venc = D0 + timedelta(days=10)
+    _, ops, _desc = _antec_simular(_dias(12), {venc: 800.0}, pag, 0.0, 0.0, TAXA_DIA)
+    assert sum(o["valor"] for o in ops) == 500.0
+
+
+def test_elegivel_e_consumido_junto_com_o_recebivel():
+    """Antecipar duas vezes o mesmo título contaria o dinheiro em dobro —
+    o teto elegível tem de cair junto com o recebível."""
+    pag = {D0: 300.0, D0 + timedelta(days=1): 300.0}
+    venc = D0 + timedelta(days=8)
+    linhas, ops, descoberto = _antec_simular(
+        _dias(10), {venc: 1000.0}, pag, 0.0, 0.0, TAXA_DIA,
+        eleg_por_dia={venc: 400.0})
+    assert sum(o["valor"] for o in ops) == 400.0
+    assert descoberto, "os R$ 200 restantes ficam descobertos"
+
+
+def test_documentos_da_operacao_somam_o_valor_antecipado():
+    """O rateio por título não pode perder nem sobrar centavo."""
+    pag = {D0: 500.0}
+    venc = D0 + timedelta(days=10)
+    tit = {venc: [
+        {"cliente": "A", "tipo": "CTE", "documento": "1", "valor": 300.0, "saldo": 300.0},
+        {"cliente": "B", "tipo": "CTE", "documento": "2", "valor": 300.0, "saldo": 300.0},
+    ]}
+    _, ops, _desc = _antec_simular(_dias(12), {venc: 600.0}, pag, 0.0, 0.0,
+                                   TAXA_DIA, tit_por_dia=tit)
+    o = ops[0]
+    assert round(sum(d["valor"] for d in o["documentos"]), 2) == o["valor"]
+    # o segundo documento sai parcial: a simulação corta no centavo do que falta
+    assert any(d["parcial"] for d in o["documentos"])
+    assert o["documentos_total"] == 2
+    assert {c["cliente"] for c in o["por_cliente"]} == {"A", "B"}

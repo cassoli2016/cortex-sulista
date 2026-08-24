@@ -224,6 +224,15 @@ tr[role="button"]:focus-visible{outline-offset:-2px}
 .chartwrap.narrow svg{min-width:520px}
 svg:focus-visible{outline:2px solid var(--orange-500);outline-offset:2px;border-radius:6px}
 /* legenda e aviso do saldo diário dentro do período expandido do fluxo */
+/* area de arrastar-e-soltar da planilha do portal */
+.antup{display:flex;flex-direction:column;align-items:center;gap:6px;padding:26px 18px;
+  border:2px dashed var(--n300);border-radius:12px;cursor:pointer;text-align:center;
+  color:var(--n600);font-size:13px;background:var(--n50,#FAFBFC)}
+.antup:hover,.antup:focus-visible,.antup.sobre{border-color:var(--orange-500);
+  background:rgba(232,93,16,.05);outline:none}
+.antup.enviando{opacity:.6;pointer-events:none}
+.antup-ic svg{width:30px;height:30px;color:var(--n500)}
+.antup-sub{font-size:11.5px;color:var(--n500)}
 .fc-leg{display:flex;gap:16px;flex-wrap:wrap;align-items:center;font-size:11.5px;
   color:var(--n500);padding:2px 4px 0}
 .fc-leg i{width:10px;height:10px;border-radius:2px;display:inline-block;margin-right:6px;
@@ -292,6 +301,7 @@ tr.forn-det td{padding:7px 12px}
 .t-dang{background:var(--red-100);border-color:var(--red)}
 .t-warn{background:var(--yellow-100);border-color:var(--yellow)}
 .t-ok{background:var(--green-100);border-color:var(--green)}
+.t-info{background:var(--navy-50,#EEF3F8);border-color:var(--navy-400)}
 .foot{padding:2px 24px 24px;font-size:12px;color:var(--n500)}
 .skeleton{color:var(--n500)}
 .skel{position:relative;overflow:hidden;background:var(--n100,#F2F4F6);border-radius:6px}
@@ -1075,6 +1085,7 @@ body.tvfull #btnReport,body.tvmode #btnReport{display:none}
         <a href="#fluxcon" class="sub" data-view="fluxcon" title="Fluxo de Caixa Consolidado — por dia, semana, mês, trimestre ou semestre"><span class="ic" data-ic="fluxconic"></span><span>Fluxo Consolidado</span></a>
         <a href="#fluxo" class="sub" data-view="fluxo" title="Fluxo de Caixa e Bancos"><span class="ic" data-ic="flx"></span><span>Fluxo de Caixa e Bancos</span></a>
         <a href="#antec" class="sub" data-view="antec" title="Antecipação de Recebíveis — quanto antecipar para o caixa não furar"><span class="ic" data-ic="antecic"></span><span>Antecipação</span></a>
+        <a href="#antport" class="sub" data-view="antport" title="Portais de Antecipação — importar a planilha do cliente e conciliar com o ERP"><span class="ic" data-ic="antportic"></span><span>Portais de Antecipação</span></a>
         <div class="subsec">A receber</div>
         <a href="#receber" class="sub" data-view="receber" title="Contas a Receber"><span class="ic" data-ic="rec"></span><span>Contas a Receber</span></a>
         <a href="#cob" class="sub" data-view="cob" title="Régua de Cobrança"><span class="ic" data-ic="cob"></span><span>Cobrança</span></a>
@@ -2344,6 +2355,67 @@ body.tvfull #btnReport,body.tvmode #btnReport{display:none}
         </div>
       </section>
 
+      <!-- ===================== PORTAIS DE ANTECIPAÇÃO ===================== -->
+      <section class="view" id="view-antport">
+        <div id="antport-avisos"></div>
+        <div class="card">
+          <div class="head"><h2>Importar planilha do portal <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="O arquivo é lido no servidor, o layout é reconhecido pelo CABEÇALHO (não pelo nome do arquivo) e o total do rodapé da planilha é conferido contra a soma dos títulos. Em seguida cada documento é confrontado com o contas a receber do ERP pelo número da nota. Nada é enviado para fora.">i</span></h2>
+            <span class="hint" id="hintAntportUp"></span></div>
+          <div class="ges-cfg">
+            <div class="antup" id="antup" tabindex="0" role="button"
+                 aria-label="Escolher a planilha do portal"
+                 onclick="antportEscolher()" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();antportEscolher();}"
+                 ondragover="event.preventDefault();this.classList.add('sobre')"
+                 ondragleave="this.classList.remove('sobre')"
+                 ondrop="antportSoltar(event)">
+              <div class="antup-ic" data-ic="antportic"></div>
+              <div><b>Arraste a planilha aqui</b> ou clique para escolher</div>
+              <div class="antup-sub">.xls, .xlsx ou .csv exportado do portal do cliente</div>
+            </div>
+            <input type="file" id="antportFile" accept=".xls,.xlsx,.csv,.txt" hidden
+                   onchange="antportEnviarArquivo(this.files[0])">
+            <div class="m-err" id="antportErro" hidden></div>
+          </div>
+          <div class="m-foot"><span class="hint" id="hintAntportUlt"></span></div>
+        </div>
+
+        <div class="kpis k4" id="kpis-antport"></div>
+
+        <div class="grid2">
+          <div class="card">
+            <div class="head"><h2>Conciliação com o ERP <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="Casamento pelo NÚMERO DO DOCUMENTO (nota fiscal), que é o que os dois sistemas compartilham — o número do título do portal é interno dele. Quando o mesmo documento tem mais de uma parcela em aberto, casa com a de vencimento mais próximo do informado pelo portal.">i</span></h2>
+              <span class="hint" id="hintAntportConc"></span></div>
+            <div class="tablewrap tabroll"><table><thead><tr>
+              <th>Documento</th><th class="num">Portal</th><th class="num">ERP</th>
+              <th class="num">Dif.</th><th class="num">Valor</th>
+            </tr></thead><tbody id="antport-conc"></tbody></table></div>
+          </div>
+          <div class="card">
+            <div class="head"><h2>Só no portal <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="Títulos que o portal lista e o ERP não tem em aberto. Normalmente já foram recebidos e o portal não atualizou; pode também ser nota emitida por outra filial ou não lançada. Vale conferir os de maior valor.">i</span></h2>
+              <span class="hint" id="hintAntportSo"></span></div>
+            <div class="tablewrap tabroll"><table><thead><tr>
+              <th>Documento</th><th>Título no portal</th><th>Vencimento</th><th class="num">Valor</th>
+            </tr></thead><tbody id="antport-so"></tbody></table></div>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="head"><h2>Clientes com convênio de antecipação <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="Só o recebível destes clientes entra nas Operações de antecipação sugeridas. Quem aparece como pagador numa planilha importada entra sozinho; desligar aqui é decisão manual e a próxima importação NÃO religa. A comparação com o ERP é pela RAIZ do CNPJ (8 dígitos), porque o portal manda o CNPJ da matriz e o ERP fatura por várias filiais do mesmo grupo.">i</span></h2>
+            <span class="hint" id="hintAntportSac"></span></div>
+          <div class="tablewrap"><table><thead><tr>
+            <th>Cliente</th><th>CNPJ</th><th>Portal</th><th>Origem</th><th class="num">Convênio</th>
+          </tr></thead><tbody id="antport-sac"></tbody></table></div>
+        </div>
+
+        <div class="card">
+          <div class="head"><h2>Importações</h2><span class="hint" id="hintAntportEnv"></span></div>
+          <div class="tablewrap tabroll"><table><thead><tr>
+            <th>Quando</th><th>Arquivo</th><th>Portal</th><th class="num">Títulos</th>
+            <th class="num">Valor</th><th>Confere</th>
+          </tr></thead><tbody id="antport-env"></tbody></table></div>
+        </div>
+      </section>
+
       <!-- ===================== LANÇAMENTOS BANCÁRIOS ===================== -->
       <section class="view" id="view-lanc">
         <div class="kpis k4" id="kpis-lanc"></div>
@@ -3406,6 +3478,7 @@ const ICONS = {
   rastroic: IC('<path d="M12 21s6.5-6.2 6.5-11a6.5 6.5 0 1 0-13 0C5.5 14.8 12 21 12 21z"/><circle cx="12" cy="10" r="2.3"/><path d="M2.5 20.5h2M7.5 20.5h1M16 20.5h1M20 20.5h1.5"/>'),
   telconic: IC('<path d="M12 3.5c3.2 3.6 5 6.1 5 8.3a5 5 0 0 1-10 0c0-2.2 1.8-4.7 5-8.3z"/><path d="M3 21h18M5.5 21v-3.5M9 21v-6"/>'),
   folhaindic: IC('<circle cx="7" cy="6.5" r="3"/><path d="M2.5 14a4.5 4.5 0 0 1 9 0"/><path d="M14 20V9M18 20V5M21.5 20h-11"/>'),
+  antportic: IC('<path d="M4 20h16"/><rect x="3.5" y="9" width="17" height="8" rx="1.5"/><path d="M12 7V1.5M9 4l3-3 3 3"/><path d="M7.5 13h.01M11 13h3"/>'),
   tvfatic: IC('<rect x="3" y="5" width="18" height="12" rx="2"/><path d="M9 21h6M12 17v4"/><path d="M6.5 13.5 10 10l2.5 2.5L17.5 8"/>'),
 };
 function injectIcons(){ document.querySelectorAll('[data-ic]').forEach(el=>{ if(!el.firstChild) el.innerHTML = ICONS[el.dataset.ic]||''; }); }
@@ -3423,7 +3496,7 @@ const FAIXAS = {
   '4_vencido_91_365':['Vencido 91–365d','b-dang'],
   '5_vencido_mais_365':['Vencido > 365d','b-dang'],
 };
-const VIEWS = { home:'Visão Geral', fluxo:'Fluxo de Caixa e Bancos', receber:'Contas a Receber', pagar:'Contas a Pagar', oc:'Ordens de Compra', custos:'Painel de Custos', agr:'Agregados e Terceiros', mvb:'Make vs Buy', comb:'Combustível', man:'Manutenção', com:'Clientes e RKM', clif:'Consulta de Cliente', crm:'CRM — Leads e Projetos', km:'Análise de KM', torre:'Torre de Controle', veic:'Veículos', veicf:'Consulta de Veículo', mprev:'Manutenção Preventiva', comrast:'Comunicação Rastreadora', mul:'Multas', prog:'Programação Inteligente', jorn:'Jornada do Motorista', jornf:'Ficha de Jornada', cex:'Custos Extras', sac:'SAC / Freetime', port:'Portaria', cop:'Copiloto Cortex', cob:'Régua de Cobrança', extb:'Extrato Bancário', lanc:'Lançamentos Bancários', antec:'Antecipação de Recebíveis', rec:'Lançamentos Recorrentes', fluxcon:'Fluxo de Caixa Consolidado', cont:'Contabilidade', qual:'Qualidade e Certidões', orc:'Orçamento', fech:'Fechamento do Mês', prem:'Premiação de Motoristas', dre:'DRE Gerencial', bal:'Balanço Patrimonial', drecli:'DRE por Cliente', tvfat:'Painel TV — Faturamento', tvope:'Painel TV — Operação', rh:'RH — Vagas', hc:'Headcount', folha:'Custo de Folha', folhaind:'Indicadores de Folha', he:'Horas Extras', gestao:'Gestão', srv:'Saúde do Servidor', doc:'Documentação', anpiso:'Piso Mínimo de Frete', anrntrc:'RNTRC dos Transportadores', telcon:'Consumo e Estatísticas', telcond:'Condução Econômica', telhod:'Hodômetro e Rastro' };
+const VIEWS = { home:'Visão Geral', fluxo:'Fluxo de Caixa e Bancos', receber:'Contas a Receber', pagar:'Contas a Pagar', oc:'Ordens de Compra', custos:'Painel de Custos', agr:'Agregados e Terceiros', mvb:'Make vs Buy', comb:'Combustível', man:'Manutenção', com:'Clientes e RKM', clif:'Consulta de Cliente', crm:'CRM — Leads e Projetos', km:'Análise de KM', torre:'Torre de Controle', veic:'Veículos', veicf:'Consulta de Veículo', mprev:'Manutenção Preventiva', comrast:'Comunicação Rastreadora', mul:'Multas', prog:'Programação Inteligente', jorn:'Jornada do Motorista', jornf:'Ficha de Jornada', cex:'Custos Extras', sac:'SAC / Freetime', port:'Portaria', cop:'Copiloto Cortex', cob:'Régua de Cobrança', extb:'Extrato Bancário', lanc:'Lançamentos Bancários', antec:'Antecipação de Recebíveis', antport:'Portais de Antecipação', rec:'Lançamentos Recorrentes', fluxcon:'Fluxo de Caixa Consolidado', cont:'Contabilidade', qual:'Qualidade e Certidões', orc:'Orçamento', fech:'Fechamento do Mês', prem:'Premiação de Motoristas', dre:'DRE Gerencial', bal:'Balanço Patrimonial', drecli:'DRE por Cliente', tvfat:'Painel TV — Faturamento', tvope:'Painel TV — Operação', rh:'RH — Vagas', hc:'Headcount', folha:'Custo de Folha', folhaind:'Indicadores de Folha', he:'Horas Extras', gestao:'Gestão', srv:'Saúde do Servidor', doc:'Documentação', anpiso:'Piso Mínimo de Frete', anrntrc:'RNTRC dos Transportadores', telcon:'Consumo e Estatísticas', telcond:'Condução Econômica', telhod:'Hodômetro e Rastro' };
 const periodoLabel = p => { if(p==='atrasado') return 'Atrasado'; const [y,m]=p.split('-'); return MES[+m-1]+'/'+y.slice(2); };
 const fmtD = s => { if(!s) return ''; const [y,m,dd]=s.split('-'); return dd+'/'+m+'/'+y; };
 // o ERP devolve "YYYY-MM-DD HH24:MI" (to_char); a ficha do veículo mostrava cru
@@ -3509,6 +3582,7 @@ let DATAEXTB = null, extbSeq = 0;
 let DATALANC = null, lancSeq = 0;
 let DATAANTEC = null, antecSeq = 0;
 let DATAFLUXCON = null, fluxconSeq = 0;
+let DATAANTPORT = null, antportSeq = 0;
 let DATAREC = null, recSeq = 0;
 let DATABAL = null, balSeq = 0;
 let DATARENT = null;
@@ -3866,8 +3940,8 @@ function router(){
   // carga da vista: dispara se não há dados OU se os filtros visíveis
   // divergem dos usados na última carga (nunca mostrar dado velho com filtro novo)
   const key=viewKey(v);
-  const DATAMAP={fin:DATA,oc:DATAOC,agr:DATAAGR,anpiso:DATAANPISO,anrntrc:DATAANRNTRC,telcon:DATATELCON,telcond:DATATELCOND,telhod:DATATELHOD,mvb:DATAMVB,comb:DATACOMB,man:DATAMAN,com:DATACOM,clif:DATACLIF,dre:DATADRE,bal:DATABAL,drecli:DATADRECLI,home:DATAHOME,km:DATAKM,torre:DATATORRE,veic:DATAVEIC,veicf:DATAVEICF,mul:DATAMUL,prog:DATAPROG,jorn:DATAJORN,jornf:DATAJORNF,cex:DATACEX,sac:DATASAC,mprev:DATAMPREV,comrast:DATACOMRAST,qual:DATAQUAL,port:DATAPORT,crm:DATACRM,rh:DATARH,hc:DATAHC,folha:DATAFOLHA,folhaind:DATAFOLHAIND,he:DATAHE,custos:DATACUSTOS,cob:DATACOB,extb:DATAEXTB,lanc:DATALANC,antec:DATAANTEC,fluxcon:DATAFLUXCON,rec:DATAREC,rent:DATARENT,cont:DATACONT,orc:DATAORC,fech:DATAFECH,prem:DATAPREM,gestao:DATAGES,srv:DATASRV,doc:DATADOC,tvfat:null,tvope:null,cop:(COP_MSGS.length?{}:null)};
-  const LOADMAP={fin:load,oc:loadOc,agr:loadAgr,anpiso:loadAnpiso,anrntrc:loadAnrntrc,telcon:loadTelcon,telcond:loadTelcond,telhod:loadTelhod,mvb:loadMvb,comb:loadComb,man:loadMan,com:loadCom,clif:loadClif,dre:loadDre,bal:loadBal,drecli:loadDreCli,home:loadHome,km:loadKm,torre:loadTorre,veic:loadVeic,veicf:loadVeicf,mul:loadMul,prog:loadProg,jorn:loadJorn,jornf:loadJornf,cex:loadCex,sac:loadSac,mprev:loadMPrev,comrast:loadComRast,qual:loadQual,port:loadPort,crm:loadCrm,rh:loadRh,hc:loadHc,folha:loadFolha,folhaind:loadFolhaInd,he:loadHe,custos:loadCustos,cob:loadCob,extb:loadExtb,lanc:loadLanc,antec:loadAntec,fluxcon:loadFluxcon,rec:loadRec,rent:loadRent,cont:loadCont,orc:loadOrc,fech:loadFech,prem:loadPrem,gestao:loadGestao,srv:loadSrv,doc:loadDoc,cop:loadCop,tvfat:loadTvFat,tvope:loadTvOpe};
+  const DATAMAP={fin:DATA,oc:DATAOC,agr:DATAAGR,anpiso:DATAANPISO,anrntrc:DATAANRNTRC,telcon:DATATELCON,telcond:DATATELCOND,telhod:DATATELHOD,mvb:DATAMVB,comb:DATACOMB,man:DATAMAN,com:DATACOM,clif:DATACLIF,dre:DATADRE,bal:DATABAL,drecli:DATADRECLI,home:DATAHOME,km:DATAKM,torre:DATATORRE,veic:DATAVEIC,veicf:DATAVEICF,mul:DATAMUL,prog:DATAPROG,jorn:DATAJORN,jornf:DATAJORNF,cex:DATACEX,sac:DATASAC,mprev:DATAMPREV,comrast:DATACOMRAST,qual:DATAQUAL,port:DATAPORT,crm:DATACRM,rh:DATARH,hc:DATAHC,folha:DATAFOLHA,folhaind:DATAFOLHAIND,he:DATAHE,custos:DATACUSTOS,cob:DATACOB,extb:DATAEXTB,lanc:DATALANC,antec:DATAANTEC,antport:DATAANTPORT,fluxcon:DATAFLUXCON,rec:DATAREC,rent:DATARENT,cont:DATACONT,orc:DATAORC,fech:DATAFECH,prem:DATAPREM,gestao:DATAGES,srv:DATASRV,doc:DATADOC,tvfat:null,tvope:null,cop:(COP_MSGS.length?{}:null)};
+  const LOADMAP={fin:load,oc:loadOc,agr:loadAgr,anpiso:loadAnpiso,anrntrc:loadAnrntrc,telcon:loadTelcon,telcond:loadTelcond,telhod:loadTelhod,mvb:loadMvb,comb:loadComb,man:loadMan,com:loadCom,clif:loadClif,dre:loadDre,bal:loadBal,drecli:loadDreCli,home:loadHome,km:loadKm,torre:loadTorre,veic:loadVeic,veicf:loadVeicf,mul:loadMul,prog:loadProg,jorn:loadJorn,jornf:loadJornf,cex:loadCex,sac:loadSac,mprev:loadMPrev,comrast:loadComRast,qual:loadQual,port:loadPort,crm:loadCrm,rh:loadRh,hc:loadHc,folha:loadFolha,folhaind:loadFolhaInd,he:loadHe,custos:loadCustos,cob:loadCob,extb:loadExtb,lanc:loadLanc,antec:loadAntec,antport:loadAntport,fluxcon:loadFluxcon,rec:loadRec,rent:loadRent,cont:loadCont,orc:loadOrc,fech:loadFech,prem:loadPrem,gestao:loadGestao,srv:loadSrv,doc:loadDoc,cop:loadCop,tvfat:loadTvFat,tvope:loadTvOpe};
   if(!DATAMAP[key] || (key!=='home' && LOADEDQS[key]!==qsView(key))) LOADMAP[key]();
   // mobile: estado da navegação inferior + fecha gaveta/painel de filtros
   document.querySelectorAll('.bottomnav [data-bview]').forEach(a=>a.classList.toggle('ativo', a.dataset.bview===v));
@@ -7810,6 +7884,29 @@ function renderAntec(d){
     `Esse mês tem menos da metade do valor a pagar do primeiro mês do horizonte. Folha e impostos futuros ainda não viraram contas a pagar no ERP — daí para a frente o saldo projetado é otimista, e a necessidade de antecipação está SUBestimada.`]);
   if(f.pagar_alem>0) A.push(['t-info','Fora do horizonte',
     `${BRL.format(f.pagar_alem)} de contas a pagar vencem depois de ${pr.dias} dias e não entram nesta janela.`]);
+
+  /* Elegibilidade: o aviso mais importante da tela quando está ativa, porque
+     muda o que os números querem dizer. Antes o plano supunha que qualquer
+     recebível podia ser antecipado e a projeção fechava sempre; com convênio
+     só de alguns clientes, sobra buraco que nenhuma antecipação cobre — e é
+     esse número que manda buscar outra fonte de recurso. Vai na FRENTE. */
+  const el=d.elegibilidade||{};
+  if(el.ativa){
+    const pctEl = 100*(el.recebivel_elegivel||0)/Math.max(1, el.recebivel_total||0);
+    const nomes = (el.sacados||[]).map(x=>x.nome).filter(Boolean);
+    A.unshift([el.descoberto_dias>0?'t-dang':'t-info',
+      'Só '+BRL.format(el.recebivel_elegivel||0)+' do recebível pode ser antecipado',
+      `${pctEl.toLocaleString('pt-BR',{maximumFractionDigits:1})}% dos ${BRL.format(el.recebivel_total||0)} a receber no horizonte são de cliente com convênio`
+      + (nomes.length?` (${nomes.slice(0,4).join(', ')}${nomes.length>4?' e outros':''})`:'')
+      + '. O plano abaixo só puxa desses. Cadastre mais clientes em Portais de Antecipação.']);
+    if(el.descoberto_dias>0){
+      A.unshift(['t-dang','Antecipar não cobre tudo: falta '+BRL.format(el.descoberto_maximo),
+        `Mesmo antecipando todo o recebível elegível, ${el.descoberto_dias} dia(s) do horizonte ficam abaixo da reserva — o primeiro em ${fmtD(el.primeiro_descoberto||'')}. Esse buraco precisa de outra fonte: capital de giro, renegociação de vencimento ou convênio com mais clientes.`]);
+    }
+  }else{
+    A.push(['t-warn','Nenhum cliente com convênio cadastrado',
+      'O plano abaixo supõe que QUALQUER recebível pode ser antecipado, o que não é verdade — só cliente com portal aceita. Importe a planilha em Portais de Antecipação para o plano virar executável.']);
+  }
   document.getElementById('antec-avisos').innerHTML =
     (A.length?A:[['t-ok','Projeção sem ressalvas','Nenhum vencido relevante e cobertura de pagáveis estável no horizonte.']])
       .map(([c,t,m])=>`<div class="toast ${c}"><b>${esc(t)}</b>${esc(m)}</div>`).join('');
@@ -7885,6 +7982,193 @@ function aoDetalhe(o){
       ${parcial?`<div class="mais-ocs">${parcial} documento${parcial===1?'':'s'} sai${parcial===1?'':'em'} parcial na simulação — na mesa de crédito o título vai inteiro, então o volume real fica um pouco acima do sugerido</div>`:''}
     </div>
   </div>`;
+}
+
+/* ============ PORTAIS DE ANTECIPAÇÃO ============ */
+async function loadAntport(){
+  skelKpis('kpis-antport',4);
+  const seq=++antportSeq, btn=document.getElementById('btnRefresh'); if(btn) btn.disabled=true;
+  document.getElementById('content').classList.add('loading');
+  try{
+    const r=await fetch('/api/financeiro/antecipacoes',{cache:'no-store'});
+    const d=await r.json(); if(seq!==antportSeq) return;
+    if(!r.ok){ showBanner(d.mensagem||'Erro ao ler os envios.'); return; }
+    hideBanner(); DATAANTPORT={...d, ultimoImport:(DATAANTPORT||{}).ultimoImport}; renderAntport(DATAANTPORT);
+  }catch(e){ if(seq===antportSeq) showBanner('Não foi possível falar com a API.', e.message); }
+  finally{ if(seq===antportSeq){ if(btn) btn.disabled=false; document.getElementById('content').classList.remove('loading'); } }
+}
+function antportEscolher(){ document.getElementById('antportFile').click(); }
+function antportSoltar(ev){
+  ev.preventDefault();
+  document.getElementById('antup').classList.remove('sobre');
+  const f=(ev.dataTransfer.files||[])[0];
+  if(f) antportEnviarArquivo(f);
+}
+async function antportEnviarArquivo(f){
+  if(!f) return;
+  const box=document.getElementById('antup'), err=document.getElementById('antportErro');
+  err.hidden=true; box.classList.add('enviando');
+  document.getElementById('hintAntportUp').textContent='lendo '+f.name+'…';
+  try{
+    /* Corpo BRUTO, como o extrato: multipart exigiria python-multipart, que não
+       é dependência do projeto. O nome vai na query porque o leitor o usa para
+       escolher o formato quando a assinatura do arquivo não decide. */
+    const r=await fetch('/api/financeiro/antecipacoes/importar?nome='+encodeURIComponent(f.name),
+      {method:'POST', body:f, headers:{'Content-Type':'application/octet-stream'}});
+    const d=await r.json();
+    if(!r.ok){ err.textContent=d.mensagem||'Não foi possível importar.'; err.hidden=false; return; }
+    /* O retorno da importação é MAIS rico que o do GET — traz a conciliação
+       recém-feita, que o GET não refaz. Guardar em `ultimoImport` e renderizar
+       antes de recarregar a lista. */
+    DATAANTPORT={...(DATAANTPORT||{}), ultimoImport:d};
+    renderAntport(DATAANTPORT);
+    loadAntport();
+  }catch(e){ err.textContent='Falha no envio: '+e.message; err.hidden=false; }
+  finally{
+    box.classList.remove('enviando');
+    document.getElementById('hintAntportUp').textContent='';
+    document.getElementById('antportFile').value='';
+  }
+}
+async function antportSacado(cnpj, elegivel, nome){
+  try{
+    const r=await fetch('/api/financeiro/antecipacoes/sacado',{method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({cnpj:cnpj, elegivel:elegivel, nome:nome})});
+    if(!r.ok){ const d=await r.json(); showBanner(d.mensagem||'Erro ao gravar.'); return; }
+    loadAntport();
+  }catch(e){ showBanner('Não foi possível falar com a API.', e.message); }
+}
+function renderAntport(d){
+  const imp=d.ultimoImport, u=d.ultimo, av=document.getElementById('antport-avisos');
+  const res=imp?imp.resumo:null, conc=imp?imp.conciliacao:null;
+
+  /* Avisos vêm ANTES dos números: se o total do arquivo não fecha com a soma
+     dos títulos, nenhum KPI abaixo vale — e o portal exporta errado de vez em
+     quando. */
+  let avisos='';
+  if(imp && imp.divergencia){
+    avisos+='<div class="banner err"><i>'+ICONS['sevCrit']+'</i><span>A planilha <b>não fecha</b>: a soma dos títulos dá '
+      +BRL.format(imp.total_calculado)+' e o total no rodapé do arquivo diz '+BRL.format(imp.total_declarado)
+      +' — diferença de <b>'+BRL.format(Math.abs(imp.divergencia))+'</b>. Confira a exportação no portal antes de usar estes números.</span></div>';
+  }
+  if(imp && (imp.rejeitadas||[]).length){
+    avisos+='<div class="banner warn"><i>'+ICONS['sevWarn']+'</i><span><b>'+imp.rejeitadas.length
+      +' linha(s)</b> do arquivo não puderam ser lidas e ficaram de fora: '
+      +esc(imp.rejeitadas.slice(0,3).map(x=>'linha '+x.linha+' ('+x.motivo+')').join('; '))+'.</span></div>';
+  }
+  if(imp && (imp.colunas_ignoradas||[]).length){
+    avisos+='<div class="banner warn"><i>'+ICONS['sevWarn']+'</i><span>Colunas novas no arquivo, que o modelo <b>'
+      +esc(imp.portal_rotulo)+'</b> não lê: '+esc(imp.colunas_ignoradas.join(', '))
+      +'. Se elas importam, o modelo precisa ser atualizado.</span></div>';
+  }
+  av.innerHTML=avisos;
+
+  document.getElementById('hintAntportUlt').textContent = u
+    ? 'último: '+u.arquivo+' · '+(u.portal_rotulo||u.portal)+' · '+fmtDT(u.ts)+' · '
+      +u.titulos.toLocaleString('pt-BR')+' títulos'
+    : 'nenhuma planilha importada ainda';
+
+  if(res){
+    const cob = (conc && conc.disponivel) ? conc.cobertura_pct : null;
+    document.getElementById('kpis-antport').innerHTML=[
+      kpi('Antecipável no portal', BRL.format(res.valor_antecipavel),
+          res.antecipaveis.toLocaleString('pt-BR')+' de '+res.titulos.toLocaleString('pt-BR')
+          +' títulos · '+imp.portal_rotulo, 'pos'),
+      kpi('Prazo médio', res.prazo_medio_dias+' dias',
+          'ponderado por valor · de '+res.prazo_min_dias+' a '+res.prazo_max_dias
+          +' dias · é o que define o deságio'),
+      kpi('Confere no ERP', cob===null?'—':cob.toLocaleString('pt-BR',{maximumFractionDigits:1})+'%',
+          (conc && conc.disponivel)
+            ? conc.casados+' de '+res.titulos+' títulos casaram pelo número da nota'
+            : 'conciliação indisponível',
+          cob===null?'':(cob>=90?'pos':cob>=70?'warn':'neg')),
+      /* Data completa dos dois lados estourava a linha do KPI e empurrava o
+         subtitulo para baixo, deixando o cartao mais alto que os vizinhos.
+         O ano vai para o subtitulo, onde cabe. */
+      kpi('Vence entre', fmtD(res.vencimento_de).slice(0,5)+' e '+fmtD(res.vencimento_ate).slice(0,5),
+          fmtD(res.vencimento_de)+' a '+fmtD(res.vencimento_ate)
+          + (res.vencidos>0 ? (' · '+res.vencidos+' já vencido(s)') : ''),
+          res.vencidos>0?'warn':''),
+    ].join('');
+  }else if(u){
+    document.getElementById('kpis-antport').innerHTML=[
+      kpi('Títulos no último arquivo', u.titulos.toLocaleString('pt-BR'), u.arquivo),
+      kpi('Valor', BRL.format(u.valor_saldo), u.portal_rotulo||u.portal),
+      kpi('Importado em', fmtDT(u.ts), u.usuario?('por '+u.usuario):''),
+      kpi('Confere', u.divergencia?'não':'sim',
+          u.divergencia?('diferença de '+BRL.format(Math.abs(u.divergencia)))
+                       :'a soma bate com o total do arquivo',
+          u.divergencia?'neg':'pos'),
+    ].join('');
+  }else{
+    document.getElementById('kpis-antport').innerHTML=
+      '<div class="card" style="grid-column:1/-1;color:var(--n500);padding:18px">Importe a primeira planilha para ver os números.</div>';
+  }
+
+  const dv=(conc&&conc.disponivel)?conc.divergencia_vencimento:[];
+  document.getElementById('hintAntportConc').textContent = (conc&&conc.disponivel)
+    ? (conc.divergencia_vencimento_total
+        ? conc.divergencia_vencimento_total+' título(s) com vencimento diferente · '
+          +BRL.format(conc.valor_divergencia_vencimento)
+        : 'nenhuma divergência de vencimento')
+    : 'importe uma planilha para conciliar';
+  document.getElementById('antport-conc').innerHTML=dv.map(function(x){
+    return '<tr><td>'+esc(x.documento)+'</td><td class="num">'+fmtD(x.venc_portal)+'</td>'
+      +'<td class="num">'+fmtD(x.venc_erp)+'</td>'
+      +'<td class="num" style="font-weight:600;color:'+(Math.abs(x.dias_diferenca)>=7?'var(--red)':'var(--yellow)')+'">'
+      +(x.dias_diferenca>0?'+':'')+x.dias_diferenca+'d</td>'
+      +'<td class="num">'+BRL.format(x.valor_portal)+'</td></tr>';
+  }).join('') || '<tr><td colspan="5" style="color:var(--n500)">nada a mostrar</td></tr>';
+
+  const so=(conc&&conc.disponivel)?conc.amostra_so_portal:[];
+  document.getElementById('hintAntportSo').textContent = (conc&&conc.disponivel)
+    ? conc.so_no_portal+' título(s) · '+BRL.format(conc.valor_so_no_portal)+' — normalmente já recebidos'
+    : '';
+  document.getElementById('antport-so').innerHTML=so.map(function(x){
+    return '<tr><td>'+esc(x.documento)+'</td>'
+      +'<td style="font-size:11.5px;color:var(--n500)" title="'+esc(x.titulo)+'">'+esc((x.titulo||'').slice(-12))+'</td>'
+      +'<td>'+fmtD(x.vencimento)+'</td>'
+      +'<td class="num" style="font-weight:600">'+BRL.format(x.valor)+'</td></tr>';
+  }).join('') || '<tr><td colspan="4" style="color:var(--n500)">todos os títulos casaram com o ERP</td></tr>';
+
+  const sac=d.sacados||[], nEleg=sac.filter(function(x){return x.elegivel;}).length;
+  document.getElementById('hintAntportSac').textContent =
+    nEleg+' com convênio de '+sac.length+' cadastrado(s) · só estes entram nas operações sugeridas';
+  document.getElementById('antport-sac').innerHTML=sac.map(function(x){
+    const alvo=x.elegivel?'false':'true';
+    const dica=x.elegivel
+      ? 'Desligar: o recebível deste cliente deixa de entrar nas operações sugeridas'
+      : 'Ligar: o recebível deste cliente passa a poder ser antecipado';
+    return '<tr><td style="font-weight:600">'+esc(x.nome||'(sem nome)')+'</td>'
+      +'<td style="font-family:var(--mono);font-size:12px">'+esc(cnpjFmt(x.cnpj))+'</td>'
+      +'<td>'+esc(x.portal||'—')+'</td>'
+      +'<td style="font-size:11.5px;color:var(--n500)">'+(x.origem==='manual'?'definido à mão':'veio do arquivo')+'</td>'
+      +'<td class="num"><button class="btn'+(x.elegivel?'':' ghost')+'" style="padding:4px 10px;font-size:12px" '
+      +'onclick="antportSacado(&quot;'+esc(x.cnpj)+'&quot;,'+alvo+',&quot;'+esc(x.nome||'')+'&quot;)" '
+      +'title="'+esc(dica)+'">'+(x.elegivel?'sim':'não')+'</button></td></tr>';
+  }).join('') || '<tr><td colspan="5" style="color:var(--n500)">nenhum cliente cadastrado — importe uma planilha</td></tr>';
+
+  const env=d.envios||[];
+  document.getElementById('hintAntportEnv').textContent=env.length+' importação(ões)';
+  document.getElementById('antport-env').innerHTML=env.map(function(e){
+    return '<tr><td>'+fmtDT(e.ts)+'</td>'
+      +'<td title="'+esc(e.arquivo)+'">'+esc(e.arquivo.length>28?e.arquivo.slice(0,28)+'…':e.arquivo)+'</td>'
+      +'<td>'+esc(e.portal_rotulo||e.portal)+'</td>'
+      +'<td class="num">'+e.titulos.toLocaleString('pt-BR')+'</td>'
+      +'<td class="num">'+BRL.format(e.valor_saldo)+'</td>'
+      +'<td>'+(e.divergencia
+          ? '<span class="badge b-alert">difere '+BRL.format(Math.abs(e.divergencia))+'</span>'
+          : '<span class="badge b-ok">sim</span>')+'</td></tr>';
+  }).join('') || '<tr><td colspan="6" style="color:var(--n500)">nenhuma importação</td></tr>';
+}
+/* O ERP guarda o CNPJ só com dígitos (é o próprio cadastro.codigo); a máscara
+   é de exibição. */
+function cnpjFmt(d){
+  d=(d||'').replace(/\D/g,'');
+  if(d.length===14) return d.slice(0,2)+'.'+d.slice(2,5)+'.'+d.slice(5,8)+'/'+d.slice(8,12)+'-'+d.slice(12);
+  if(d.length===11) return d.slice(0,3)+'.'+d.slice(3,6)+'.'+d.slice(6,9)+'-'+d.slice(9);
+  return d;
 }
 function chartAntecRender(serie, reserva){
   const svg=document.getElementById('chartAntec');

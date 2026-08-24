@@ -4,6 +4,19 @@ Gerado de `docs/versoes.yaml` por `scripts/gerar_changelog.py` — não editar �
 Formato [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/),
 versionamento [SemVer](https://semver.org/lang/pt-BR/).
 
+## [0.24.0] — 24/08/2026  ·  CX-24/08/2026-v0.24.0
+
+### Adicionado
+- Tela nova "Portais de Antecipacao": arraste a planilha que o cliente exporta do portal de risco sacado e o CORTEX le, confere e concilia com o ERP. O layout e reconhecido pelo CABECALHO, nao pelo nome do arquivo, e cada portal novo entra como um modelo - o primeiro e o da Iochpe Maxion. O total do rodape da planilha e conferido contra a soma dos titulos: arquivo que nao fecha vira aviso vermelho antes de qualquer numero aparecer.
+- Conciliacao com o contas a receber pelo numero da nota: quanto do arquivo existe no ERP, quais titulos tem VENCIMENTO diferente entre os dois (a divergencia que erra o fluxo de caixa sem ninguem notar) e quais so existem no portal. No primeiro arquivo real: 215 de 226 titulos casaram, 48 com vencimento 7 dias adiantado em relacao ao ERP e 11 titulos (R$ 236 mil) sem correspondente em aberto.
+
+### Alterado
+- As Operacoes de antecipacao sugeridas passaram a respeitar QUEM aceita antecipacao. Antes o plano supunha que qualquer recebivel podia ser antecipado e por isso fechava sempre - um plano que nao existe. Agora so entra recebivel de cliente com convenio, e a tela avisa quanto do total isso representa e quantos dias continuam descobertos mesmo antecipando tudo o que da. Cliente entra na lista sozinho ao importar a planilha dele, e pode ser ligado ou desligado a mao.
+- O aviso "Fora do horizonte" da tela de Antecipacao aparecia sem cor nenhuma (a classe de estilo nao existia) e se confundia com texto solto.
+
+### Corrigido
+- As planilhas com dado de cliente (pasta antecipacoes/ e Planila_Fluxo/) estavam sendo versionadas no repositorio do codigo, que e PUBLICO. Foram removidas do rastreamento e entraram no .gitignore. O historico anterior ainda as contem - ver a nota da versao no CHANGELOG.
+
 ## [0.23.0] — 24/08/2026  ·  CX-24/08/2026-v0.23.0
 
 ### Adicionado
