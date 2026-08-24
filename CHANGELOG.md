@@ -4,6 +4,17 @@ Gerado de `docs/versoes.yaml` por `scripts/gerar_changelog.py` — não editar �
 Formato [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/),
 versionamento [SemVer](https://semver.org/lang/pt-BR/).
 
+## [0.19.0] — 24/08/2026  ·  CX-24/08/2026-v0.19.0
+
+### Adicionado
+- Busca global no topo do menu, com atalho Ctrl+K (ou apenas "/"). São 56 telas hoje — procurar virou mais rápido que navegar. Setas para escolher, Enter para abrir, Esc para fechar.
+- A busca entende SINÔNIMO, não só o nome da tela: digitar "inadimplência" leva à Régua de Cobrança, "eco" ou "embalo" à Condução Econômica, "factoring" à Antecipação. Quem procura raramente usa o nome exato da tela.
+- Digitar uma PLACA abre direto a ficha daquele veículo, já com a consulta disparada. Digitar um nome oferece consultar aquele cliente. A busca deixou de ser índice de menu e virou atalho de trabalho.
+- Só aparece o que o usuário pode abrir: a busca respeita as permissões de tela. Resultado que leva a uma tela sem acesso é pior que resultado nenhum — a pessoa clica e é jogada para outro lugar.
+
+### Corrigido
+- Os grupos Telemetria e ANTT não abriam sozinhos no menu ao navegar para uma tela deles; estavam fora do mapa que controla o acordeão. Passava despercebido antes da busca, que agora navega para qualquer tela.
+
 ## [0.18.0] — 24/08/2026  ·  CX-24/08/2026-v0.18.0
 
 ### Alterado

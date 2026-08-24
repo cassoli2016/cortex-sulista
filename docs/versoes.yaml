@@ -3,6 +3,32 @@
 #   - a tela Documentação     (#doc)
 #   - o rótulo no rodapé      (CX-DD/MM/AAAA-vX.Y.Z)
 # A versão do TOPO é a corrente e tem de bater com o pyproject.toml.
+- versao: "0.19.0"
+  data: "2026-08-24"
+  adicionado:
+    - >-
+      Busca global no topo do menu, com atalho Ctrl+K (ou apenas "/"). São 56
+      telas hoje — procurar virou mais rápido que navegar. Setas para escolher,
+      Enter para abrir, Esc para fechar.
+    - >-
+      A busca entende SINÔNIMO, não só o nome da tela: digitar
+      "inadimplência" leva à Régua de Cobrança, "eco" ou "embalo" à Condução
+      Econômica, "factoring" à Antecipação. Quem procura raramente usa o nome
+      exato da tela.
+    - >-
+      Digitar uma PLACA abre direto a ficha daquele veículo, já com a consulta
+      disparada. Digitar um nome oferece consultar aquele cliente. A busca
+      deixou de ser índice de menu e virou atalho de trabalho.
+    - >-
+      Só aparece o que o usuário pode abrir: a busca respeita as permissões de
+      tela. Resultado que leva a uma tela sem acesso é pior que resultado
+      nenhum — a pessoa clica e é jogada para outro lugar.
+  corrigido:
+    - >-
+      Os grupos Telemetria e ANTT não abriam sozinhos no menu ao navegar para
+      uma tela deles; estavam fora do mapa que controla o acordeão. Passava
+      despercebido antes da busca, que agora navega para qualquer tela.
+
 - versao: "0.18.0"
   data: "2026-08-24"
   alterado:

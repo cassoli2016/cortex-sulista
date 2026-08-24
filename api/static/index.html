@@ -51,6 +51,33 @@ aside{position:sticky;top:0;height:100vh;overflow-y:auto;overflow-x:hidden;width
 .minibtn:hover{color:#fff;background:var(--navy-800)}
 .ic{display:inline-flex;flex:none;width:18px;height:18px}
 .ic svg{width:100%;height:100%}
+/* Busca global — fica ACIMA do menu, na superfície navy da barra lateral,
+   então tudo aqui é claro sobre escuro (o resto do painel é o inverso). */
+.buscabox{position:relative;margin:0 10px 10px}
+.buscabox input{width:100%;padding:8px 46px 8px 11px;border-radius:8px;font:inherit;font-size:13px;
+  color:#fff;background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.16)}
+.buscabox input::placeholder{color:rgba(255,255,255,.5)}
+.buscabox input:focus{outline:none;border-color:var(--brand);background:rgba(255,255,255,.13)}
+.buscabox input::-webkit-search-cancel-button{filter:invert(1);opacity:.5}
+.buscakbd{position:absolute;right:8px;top:50%;transform:translateY(-50%);pointer-events:none;
+  font:600 10px/1 var(--mono);color:rgba(255,255,255,.45);border:1px solid rgba(255,255,255,.2);
+  border-radius:4px;padding:3px 5px}
+.buscabox input:focus~.buscakbd{opacity:0}
+/* o resultado sai FORA da barra (position:fixed via JS não seria necessário,
+   mas a sidebar tem overflow: sem z-index alto a lista some atrás do menu) */
+.buscares{position:absolute;top:100%;left:0;right:0;margin-top:6px;z-index:60;
+  background:var(--n0);border:1px solid var(--n200);border-radius:10px;
+  box-shadow:0 12px 28px rgba(0,0,0,.28);max-height:60vh;overflow-y:auto;padding:6px}
+.buscares[hidden]{display:none}
+.busca-i{display:flex;align-items:center;gap:9px;padding:8px 10px;border-radius:7px;cursor:pointer;
+  color:var(--n900);font-size:13px}
+.busca-i:hover,.busca-i.sel{background:var(--navy-50,#EEF3F8)}
+.busca-i .bg{margin-left:auto;font-size:10.5px;color:var(--n500);white-space:nowrap}
+.busca-i .bt{font-weight:600}
+.busca-i .bd{font-size:11px;color:var(--n500)}
+.busca-sec{font:600 10px/1 var(--font);letter-spacing:1px;text-transform:uppercase;
+  color:var(--n500);padding:9px 10px 5px}
+.busca-vazio{padding:14px 12px;color:var(--n500);font-size:12.5px}
 nav{display:flex;flex-direction:column;gap:2px}
 nav .group{width:100%;background:none;border:0;cursor:pointer;color:#fff;font-family:var(--font);
   font-size:13.5px;font-weight:600;display:flex;align-items:center;gap:10px;padding:7px 12px;border-radius:var(--radius-md);text-align:left}
@@ -984,6 +1011,15 @@ body.tvfull #btnReport,body.tvmode #btnReport{display:none}
       <button class="minibtn" id="btnMini" onclick="toggleMini()" title="Recolher/expandir menu" aria-label="Recolher ou expandir o menu">
         <span class="ic" id="miniIcon" data-ic="chevl"></span>
       </button>
+    </div>
+    <div class="buscabox">
+      <input type="search" id="buscaGlobal" autocomplete="off" spellcheck="false"
+             placeholder="Buscar tela, placa, cliente…" aria-label="Buscar no painel"
+             aria-expanded="false" aria-controls="buscaRes" role="combobox"
+             oninput="buscaFiltrar()" onfocus="buscaFiltrar()"
+             onkeydown="buscaTecla(event)">
+      <kbd class="buscakbd" id="buscaKbd" aria-hidden="true">Ctrl K</kbd>
+      <div class="buscares" id="buscaRes" role="listbox" hidden></div>
     </div>
     <nav aria-label="Seções do painel">
       <a href="#home" class="sub" data-view="home" title="Visão Geral" style="padding-left:12px;font-weight:600"><span class="ic" data-ic="home"></span><span>Visão Geral</span></a>
@@ -3486,10 +3522,14 @@ const VIEW_GROUP = {home:'',cop:'',
   veic:'Fro',veicf:'Fro',mprev:'Fro',comrast:'Fro',comb:'Fro',man:'Fro',mul:'Fro',prem:'Fro',
   oc:'Sup',custos:'Sup',
   tvfat:'Tv',tvope:'Tv',
-  rh:'Rh',hc:'Rh',folha:'Rh',folhaind:'Rh',he:'Rh',gestao:'Adm',srv:'Adm',doc:'Adm'};
+  rh:'Rh',hc:'Rh',folha:'Rh',folhaind:'Rh',he:'Rh',gestao:'Adm',srv:'Adm',doc:'Adm',
+  // Telemetria e ANTT tinham grupo na barra lateral mas ficaram de fora deste
+  // mapa: o acordeao nao abria sozinho ao navegar para elas (agora a busca
+  // global navega, entao isso passou a incomodar de verdade).
+  telcon:'Tel',telcond:'Tel',telhod:'Tel',anpiso:'Antt',anrntrc:'Antt'};
 function syncGroups(v){
   const ativo = VIEW_GROUP[v];   // accordion: abre o grupo do view ativo, fecha os demais
-  ['Com','Fin','Ctr','Ope','Fro','Sup','Rh','Tv','Adm'].forEach(k=>{
+  ['Com','Fin','Ctr','Ope','Fro','Sup','Rh','Tv','Adm','Tel','Antt'].forEach(k=>{
     const btn=document.getElementById('grp'+k), subs=document.getElementById('subs'+k);
     if(!btn||!subs) return;
     const open = (k===ativo);
@@ -12124,6 +12164,190 @@ function pararTimers(){   // sessão caiu: silencia auto-refresh de torre/TV (se
   try{ if(tvTour){ clearInterval(tvTour); tvTour=null; } }catch(e){}
 }
 function podeVer(v){ if(v==='jornf') v='jorn'; return !!USER && ((v==='gestao'||v==='srv') ? USER.admin : (USER.admin || USER.telas.includes(v))); }
+
+/* ===================== Busca global =====================
+   Três coisas na mesma caixa, em ordem de utilidade:
+     1. ATALHO DE CONTEÚDO — placa vira "abrir a ficha desta placa", texto
+        comum vira "consultar este cliente". É o que transforma a busca em
+        ferramenta de trabalho e não em índice de menu.
+     2. TELA — por nome, por grupo e por SINÔNIMO (quem procura
+        "inadimplência" não digita "régua de cobrança").
+   Tudo filtrado por podeVer(): busca que leva a tela sem permissão é pior
+   que busca nenhuma — a pessoa clica e é jogada para outro lugar.
+
+   Sem chamada de API: o índice é o próprio VIEWS, então responde a cada
+   tecla sem rede. Os atalhos de conteúdo só PREPARAM a consulta (preenchem
+   o campo e disparam), quem busca de verdade é a tela de destino. */
+const BUSCA_SINONIMOS = {
+  cob:['inadimplencia','inadimplente','devedor','cobranca','vencido','atraso cliente','regua'],
+  receber:['recebivel','duplicata','titulo a receber','cliente deve','aging'],
+  pagar:['fornecedor','conta a pagar','titulo a pagar','divida','aging'],
+  fluxo:['caixa','saldo','banco','projecao','tesouraria'],
+  fluxcon:['caixa consolidado','tesouraria','diario','semanal','trimestral','semestral','necessidade'],
+  antec:['antecipar','desconto de duplicata','factoring','deságio','necessidade de caixa'],
+  lanc:['extrato','razao bancario','movimento bancario','credito','debito','conciliar'],
+  extb:['ofx','conciliacao','extrato importado','saldo banco'],
+  rec:['recorrente','mensal','todo mes','assinatura','contrato mensal','nao lancado'],
+  bal:['balanco','ativo','passivo','patrimonio','liquidez'],
+  dre:['resultado','lucro','margem','ebitda','demonstracao'],
+  drecli:['margem por cliente','rentabilidade cliente','lucro cliente'],
+  cont:['contabil','plano de contas','agrupador','classificar'],
+  orc:['orcado','budget','previsto x realizado'],
+  fech:['fechamento','previsao do mes','resultado do mes'],
+  qual:['certidao','licenca','iso','auditoria','vencimento certidao'],
+  com:['cliente','rkm','receita por km','concentracao','carteira'],
+  clif:['consultar cliente','ficha do cliente','cnpj'],
+  crm:['lead','prospect','pipeline','proposta','negociacao'],
+  torre:['mapa','rastreamento','ao vivo','posicao','em transito','atrasada','viagem'],
+  prog:['programacao','alocacao','carga','vazio','ociosidade'],
+  km:['quilometragem','retorno vazio','km rodado','carregado'],
+  jorn:['motorista','descanso','13103','lei do motorista','jornada'],
+  cex:['custo extra','estadia','acessorio','cte'],
+  sac:['freetime','detention','estadia','ocorrencia'],
+  port:['patio','portaria','saida','autorizacao'],
+  agr:['agregado','terceiro','transportador','acerto'],
+  mvb:['make vs buy','proprio ou agregado','ckm','spread'],
+  veic:['frota','ativo','idade','cavalo','carreta','implemento'],
+  veicf:['consultar veiculo','ficha do veiculo','placa'],
+  comb:['diesel','abastecimento','km/l','consumo','posto','arla'],
+  man:['manutencao','oficina','ordem de servico','os','peca'],
+  mprev:['preventiva','revisao','troca de oleo'],
+  comrast:['rastreador','sem sinal','comunicacao','telemetria offline'],
+  mul:['multa','infracao','pontuacao','detran','cnh'],
+  prem:['premiacao','bonus','premio motorista','gobrax'],
+  oc:['ordem de compra','pedido','compra','sem nota','fornecedor atrasado'],
+  custos:['custo','despesa','gasto','painel de custos'],
+  telcon:['consumo telemetria','km/l gobrax','estatistica'],
+  telcond:['conducao','eco','embalo','freio motor','direcao economica'],
+  telhod:['hodometro','odometro','rastro','trajeto'],
+  anpiso:['piso minimo','antt','ccd','frete minimo','tabela antt'],
+  anrntrc:['rntrc','transportador irregular','antt'],
+  rh:['vaga','recrutamento','contratacao','selecao'],
+  hc:['headcount','quadro','funcionario','efetivo'],
+  folha:['folha','salario','custo de pessoal'],
+  folhaind:['indicador de folha','turnover','absenteismo'],
+  he:['hora extra','banco de horas','sobreaviso'],
+  gestao:['usuario','permissao','perfil','acesso','auditoria','senha','email','smtp','integracao','token'],
+  srv:['servidor','saude','cpu','disco','memoria'],
+  doc:['documentacao','manual','ajuda','glossario','versao'],
+  cop:['copiloto','ia','perguntar','chat'],
+  home:['visao geral','resumo','inicio','dashboard'],
+};
+const BUSCA_GRUPO_LBL = {Com:'Comercial',Fin:'Financeiro',Ctr:'Controladoria',Ope:'Operação',
+  Fro:'Frota',Sup:'Suprimentos',Rh:'Recursos Humanos',Tv:'Painéis TV',Adm:'Administração',
+  Tel:'Telemetria',Antt:'ANTT'};
+// ABC1234 (antiga) e ABC1D23 (Mercosul) — a busca não valida placa, só
+// reconhece o formato para OFERECER o atalho; quem valida é a tela de destino
+const BUSCA_RE_PLACA = /^[A-Z]{3}[0-9][0-9A-Z][0-9]{2}$/;
+let BUSCA_ITENS = [], BUSCA_SEL = -1;
+
+const _semAcento = t => (t||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase();
+
+function buscaIndice(){
+  return Object.keys(VIEWS).filter(podeVer).map(v=>({
+    view:v, titulo:VIEWS[v], grupo:BUSCA_GRUPO_LBL[VIEW_GROUP[v]]||'',
+    termos:_semAcento(VIEWS[v]+' '+(BUSCA_GRUPO_LBL[VIEW_GROUP[v]]||'')+' '+(BUSCA_SINONIMOS[v]||[]).join(' ')),
+  }));
+}
+function buscaFiltrar(){
+  const inp=document.getElementById('buscaGlobal');
+  const cx=document.getElementById('buscaRes');
+  const q=_semAcento(inp.value.trim());
+  const bruto=inp.value.trim().toUpperCase();
+  BUSCA_ITENS=[]; BUSCA_SEL=-1;
+  if(!q){ cx.hidden=true; inp.setAttribute('aria-expanded','false'); return; }
+
+  // PLACA vai sempre no topo: o formato é inequívoco, ninguém digita ABC1D23
+  // procurando tela.
+  if(BUSCA_RE_PLACA.test(bruto) && podeVer('veicf'))
+    BUSCA_ITENS.push({tipo:'acao',titulo:'Abrir ficha do veículo '+bruto,
+      desc:'Consulta de Veículo', ic:'kmv', acao:()=>buscaIrPara('veicf','fVeicfPlaca',bruto,()=>loadVeicf(true))});
+
+  // TELAS — casa nome, grupo ou sinônimo; nome que COMEÇA com o termo vem antes
+  // Relevância em três degraus: título que COMEÇA com o termo, título que o
+  // CONTÉM, e só depois quem casou por sinônimo. Sem isso, buscar "caixa"
+  // trazia Antecipação (casa por sinônimo) na frente de Fluxo de Caixa, que
+  // tem a palavra no nome — o alfabeto decidia no lugar da relevância.
+  const _peso = t => { const n=_semAcento(t.titulo);
+    return n.startsWith(q) ? 0 : (n.includes(q) ? 1 : 2); };
+  const telas = buscaIndice().filter(t=>t.termos.includes(q))
+    .sort((a,b)=> _peso(a)-_peso(b) || a.titulo.localeCompare(b.titulo,'pt-BR'));
+  telas.forEach(t=>BUSCA_ITENS.push({tipo:'tela',titulo:t.titulo,desc:t.grupo,view:t.view}));
+
+  // CLIENTE fica por ÚLTIMO e só quando o texto não casou com nenhuma tela.
+  // Na primeira versão ele vinha no topo sempre, e digitar "dre" oferecia
+  // "consultar o cliente dre" antes da DRE — barulho puro. Texto livre é
+  // ambíguo: só vira busca de cliente quando não há leitura melhor.
+  if(q.length>=3 && !BUSCA_RE_PLACA.test(bruto) && podeVer('clif'))
+    BUSCA_ITENS.push({tipo:'acao',titulo:'Consultar cliente “'+inp.value.trim()+'”',
+      desc:'Consulta de Cliente', ic:'clific', acao:()=>buscaIrPara('clif','fClifNome',inp.value.trim(),()=>loadClif(true))});
+
+  if(!BUSCA_ITENS.length){
+    cx.innerHTML='<div class="busca-vazio">Nada encontrado para <b>'+esc(inp.value.trim())+'</b>.<br>'
+      +'Tente o nome da tela, uma placa (ABC1D23) ou o nome de um cliente.</div>';
+    cx.hidden=false; inp.setAttribute('aria-expanded','true'); return;
+  }
+  let h='', secao='';
+  BUSCA_ITENS.forEach((it,i)=>{
+    const s = it.tipo==='tela' ? 'Telas' : 'Ir direto';
+    if(s!==secao){ h+='<div class="busca-sec">'+s+'</div>'; secao=s; }
+    h+='<div class="busca-i" role="option" data-i="'+i+'" onmousedown="event.preventDefault();buscaEscolher('+i+')">'
+      +'<span class="ic" data-ic="'+(it.ic||'flx')+'"></span>'
+      +'<span><span class="bt">'+esc(it.titulo)+'</span>'
+      +(it.desc?'<div class="bd">'+esc(it.desc)+'</div>':'')+'</span>'
+      +(it.tipo==='tela'?'<span class="bg">'+esc(it.desc||'')+'</span>':'')+'</div>';
+  });
+  cx.innerHTML=h; cx.hidden=false; inp.setAttribute('aria-expanded','true');
+  injectIcons();          // preenche os [data-ic] que acabaram de nascer
+  buscaMarcar(0);
+}
+function buscaMarcar(i){
+  const cx=document.getElementById('buscaRes');
+  BUSCA_SEL=Math.max(0,Math.min(BUSCA_ITENS.length-1,i));
+  cx.querySelectorAll('.busca-i').forEach(e=>e.classList.toggle('sel', +e.dataset.i===BUSCA_SEL));
+  const sel=cx.querySelector('.busca-i.sel'); if(sel) sel.scrollIntoView({block:'nearest'});
+}
+function buscaEscolher(i){
+  const it=BUSCA_ITENS[i]; if(!it) return;
+  buscaFechar();
+  if(it.tipo==='acao') it.acao();
+  else location.hash='#'+it.view;
+}
+/* Vai para a tela de consulta, preenche o campo e dispara a busca de lá.
+   O hashchange do router é ASSÍNCRONO em relação a este clique, então o
+   preenchimento espera um tick — sem isso o loader roda antes do campo
+   existir na tela recém-aberta e a consulta sai vazia. */
+function buscaIrPara(view, campoId, valor, disparar){
+  location.hash='#'+view;
+  setTimeout(()=>{
+    const c=document.getElementById(campoId);
+    if(c){ c.value=valor; try{ disparar(); }catch(e){} }
+  }, 60);
+}
+function buscaFechar(){
+  const inp=document.getElementById('buscaGlobal'), cx=document.getElementById('buscaRes');
+  cx.hidden=true; inp.setAttribute('aria-expanded','false'); BUSCA_SEL=-1;
+}
+function buscaTecla(e){
+  if(e.key==='Escape'){ buscaFechar(); e.target.blur(); return; }
+  if(!BUSCA_ITENS.length) return;
+  if(e.key==='ArrowDown'){ e.preventDefault(); buscaMarcar(BUSCA_SEL+1); }
+  else if(e.key==='ArrowUp'){ e.preventDefault(); buscaMarcar(BUSCA_SEL-1); }
+  else if(e.key==='Enter'){ e.preventDefault(); buscaEscolher(BUSCA_SEL); }
+}
+document.addEventListener('keydown', e=>{
+  // Ctrl/Cmd+K de qualquer lugar. Barra sozinha também, mas NUNCA quando o
+  // foco está num campo — senão digitar "/" numa data ou num filtro roubaria
+  // o cursor para a busca.
+  const emCampo = /^(INPUT|TEXTAREA|SELECT)$/.test((document.activeElement||{}).tagName||'');
+  if(((e.ctrlKey||e.metaKey) && e.key.toLowerCase()==='k') || (e.key==='/' && !emCampo)){
+    const inp=document.getElementById('buscaGlobal');
+    if(inp){ e.preventDefault(); inp.focus(); inp.select(); }
+  }
+});
+document.addEventListener('click', e=>{
+  if(!e.target.closest('.buscabox')) buscaFechar();
+});
 function primeiraTela(){ return USER ? (Object.keys(VIEWS).find(podeVer) || 'home') : 'home'; }
 function aplicarPermissoes(){
   // inclui o .side-foot: o link da Documentação saiu do menu Administração e
