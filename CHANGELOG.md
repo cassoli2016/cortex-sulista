@@ -4,6 +4,20 @@ Gerado de `docs/versoes.yaml` por `scripts/gerar_changelog.py` — não editar �
 Formato [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/),
 versionamento [SemVer](https://semver.org/lang/pt-BR/).
 
+## [0.20.0] — 24/08/2026  ·  CX-24/08/2026-v0.20.0
+
+### Adicionado
+- O Fluxo Consolidado passou a mostrar, na mesma tela, as três pontas da decisão: o saldo de cada banco, o estoque de recebíveis e quanto precisaria ser antecipado (com o custo estimado). Antes era preciso abrir três telas para juntar a mesma história. O plano operação a operação continua na tela de Antecipação, com link direto.
+- O saldo aparece banco a banco, com a data da posição de CADA conta — elas não são todas do mesmo dia, e somar sem mostrar isso esconde defasagem.
+- O recebível em aberto aparece por inteiro, não só a parte que cai no horizonte: são perguntas diferentes, e só o horizonte faz o lastro parecer menor do que é.
+
+### Alterado
+- O menu Financeiro, que chegou a nove telas, ganhou divisões por tema — Caixa, A receber, A pagar e Bancos — em vez de uma lista corrida na ordem em que as telas foram criadas.
+
+### Corrigido
+- Clicar numa semana do fluxo período a período não abria a composição do período — a linha alternava uma classe que o CSS não reconhecia. Agora abre e mostra entradas por tipo de documento e saídas por natureza.
+- Na busca global, todas as telas apareciam com o mesmo ícone. Agora cada resultado usa o ícone da própria tela, lido do menu.
+
 ## [0.19.0] — 24/08/2026  ·  CX-24/08/2026-v0.19.0
 
 ### Adicionado

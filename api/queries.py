@@ -6026,6 +6026,24 @@ def get_balanco(anomes: str | None = None) -> dict:
 #   3. saldo de datas diferentes somado como "posição de hoje".
 # Diferença medida em 24/08/2026: -3,88 mi (SALDO_SQL) x -2,96 mi (aqui).
 # `saldo_mais_antigo` volta no payload para a tela avisar a defasagem.
+# Saldo POR CONTA, com o mesmo recorte do consolidado (ativa + considerada no
+# fluxo). O total já vem de ANTEC_SALDO_SQL; aqui é a abertura, porque "tenho
+# R$ X em caixa" e "tenho R$ X divididos assim entre seis bancos" levam a
+# decisões diferentes — e a planilha de tesouraria é toda por banco.
+FLUXCON_SALDO_CONTA_SQL = """
+SELECT s.banco, coalesce(b.nome,'Banco '||s.banco) AS banco_nome,
+       s.agencia, s.conta, s.valorsaldo::float8 AS saldo,
+       s.dtmovimento::text AS posicao
+FROM (SELECT DISTINCT ON (grupo,empresa,banco,agencia,conta)
+             banco, agencia, conta, valorsaldo, dtmovimento
+      FROM contacorrente_saldo WHERE dtmovimento <= current_date
+      ORDER BY grupo,empresa,banco,agencia,conta, dtmovimento DESC) s
+JOIN banco_conta bc ON bc.banco=s.banco AND bc.agencia=s.agencia AND bc.conta=s.conta
+LEFT JOIN banco b ON b.codigo = s.banco
+WHERE bc.ativoinativo = 1 AND bc.considerarfluxocaixa = 1
+ORDER BY s.valorsaldo
+"""
+
 ANTEC_SALDO_SQL = """
 SELECT coalesce(sum(s.valorsaldo),0)::float8 AS bancos,
        min(s.dtmovimento)::text AS mais_antigo,
@@ -6185,6 +6203,8 @@ def get_fluxo_consolidado(gran: str = "semana", dias: int = 180) -> dict:
         pag_rows = cur.fetchall()
         cur.execute(FLUXCON_VENCIDO_SQL)
         venc_rows = cur.fetchall()
+        cur.execute(FLUXCON_SALDO_CONTA_SQL)
+        contas_rows = cur.fetchall()
         cur.execute("SELECT current_date AS hoje, current_timestamp AS ts")
         meta = cur.fetchone()
 
@@ -6236,6 +6256,37 @@ def get_fluxo_consolidado(gran: str = "semana", dias: int = 180) -> dict:
 
     vencido_total = sum(v["valor"] for v in venc_rows)
 
+    # Estoque de recebíveis: o que está em aberto NO TOTAL, não só o que cai no
+    # horizonte. São perguntas diferentes — "quanto tenho a receber" × "quanto
+    # entra até dezembro" — e a segunda sozinha faz o lastro parecer menor do
+    # que é. `rec_rows` já traz o horizonte; o total vem do método oficial.
+    rec_horizonte = sum(r["valor"] for r in rec_rows)
+    try:
+        est = db.query(KPI_SQL, {"data_ref": None, "filial": None,
+                                 "venc_de": None, "venc_ate": None})[0]
+        recebiveis = {
+            "aberto": est["receber_aberto"], "titulos": est["receber_qtd"],
+            "vencido": est["receber_vencido"], "prox30": est["receber_prox30"],
+            "no_horizonte": round(rec_horizonte, 2),
+        }
+    except Exception:  # noqa: BLE001 - bloco acessório, não derruba a tela
+        recebiveis = None
+
+    # Necessidade de ANTECIPAÇÃO: reusa o simulador da tela dedicada em vez de
+    # recalcular. Aqui entra só o resumo (quanto e a que custo) — o plano
+    # operação a operação continua na tela de Antecipação, que é onde se
+    # executa. `@cached` evita pagar as consultas de novo a cada troca de
+    # granularidade.
+    try:
+        _a = get_antecipacao(dias=min(dias, 180), reserva=0.0, taxa_mes=2.0)
+        _k = _a["kpis"]
+        antec = {"total": _k["total_antecipar"], "custo": _k["custo_total"],
+                 "custo_pct": _k["custo_pct"], "operacoes": _k["operacoes"],
+                 "primeiro_gap": _k["primeiro_gap"], "pior_dia": _k["pior_dia"],
+                 "pior_saldo": _k["pior_saldo"], "taxa_mes": 2.0}
+    except Exception:  # noqa: BLE001
+        antec = None
+
     # Cobertura de pagáveis: em horizonte longo (trimestre/semestre) a falta de
     # lançamento futuro é MUITO maior — o saldo final pareceria excelente.
     por_mes: dict[str, float] = {}
@@ -6279,6 +6330,9 @@ def get_fluxo_consolidado(gran: str = "semana", dias: int = 180) -> dict:
             "necessidade_geral": round(max(0.0, -pior) + vencido_total, 2),
         },
         "linhas": linhas,
+        "contas": [dict(c) for c in contas_rows],
+        "recebiveis": recebiveis,
+        "antecipacao": antec,
         "vencidos": [{**v, "natureza": _natureza(v["tipo"]),
                       "valor": round(v["valor"], 2)} for v in venc_rows][:40],
         "vencidos_por_natureza": _agrupar_natureza(

@@ -78,6 +78,12 @@ aside{position:sticky;top:0;height:100vh;overflow-y:auto;overflow-x:hidden;width
 .busca-sec{font:600 10px/1 var(--font);letter-spacing:1px;text-transform:uppercase;
   color:var(--n500);padding:9px 10px 5px}
 .busca-vazio{padding:14px 12px;color:var(--n500);font-size:12.5px}
+/* Divisória de tema dentro de um grupo do menu (Financeiro tem 9 telas: sem
+   isso vira uma lista corrida). Puramente visual — não é foco nem alvo de
+   clique, então não entra na navegação por teclado. */
+.subsec{font:600 9.5px/1 var(--font);letter-spacing:1.2px;text-transform:uppercase;
+  color:rgba(255,255,255,.38);padding:10px 12px 4px 34px;user-select:none}
+.subs .subsec:first-child{padding-top:4px}
 nav{display:flex;flex-direction:column;gap:2px}
 nav .group{width:100%;background:none;border:0;cursor:pointer;color:#fff;font-family:var(--font);
   font-size:13.5px;font-weight:600;display:flex;align-items:center;gap:10px;padding:7px 12px;border-radius:var(--radius-md);text-align:left}
@@ -1036,16 +1042,24 @@ body.tvfull #btnReport,body.tvmode #btnReport{display:none}
       <button class="group" id="grpFin" aria-expanded="false" aria-controls="subsFin" onclick="toggleGroup('grpFin','subsFin','cs.finGroup')" title="Financeiro">
         <span class="ic" data-ic="fin"></span><span>Financeiro</span><span class="ic chev" data-ic="chev"></span>
       </button>
+      <!-- Agrupado por TEMA e não em ordem alfabética: alfabética separaria
+           Antecipação de Fluxo Consolidado, que se leem juntos, e juntaria
+           Cobrança com Contas a Pagar, que não têm relação. A ordem dentro de
+           cada tema vai do consolidado para o detalhe. -->
       <div class="subs closed" id="subsFin">
+        <div class="subsec">Caixa</div>
+        <a href="#fluxcon" class="sub" data-view="fluxcon" title="Fluxo de Caixa Consolidado — por dia, semana, mês, trimestre ou semestre"><span class="ic" data-ic="flx"></span><span>Fluxo Consolidado</span></a>
         <a href="#fluxo" class="sub" data-view="fluxo" title="Fluxo de Caixa e Bancos"><span class="ic" data-ic="flx"></span><span>Fluxo de Caixa e Bancos</span></a>
+        <a href="#antec" class="sub" data-view="antec" title="Antecipação de Recebíveis — quanto antecipar para o caixa não furar"><span class="ic" data-ic="flx"></span><span>Antecipação</span></a>
+        <div class="subsec">A receber</div>
         <a href="#receber" class="sub" data-view="receber" title="Contas a Receber"><span class="ic" data-ic="rec"></span><span>Contas a Receber</span></a>
-        <a href="#pagar" class="sub" data-view="pagar" title="Contas a Pagar"><span class="ic" data-ic="pag"></span><span>Contas a Pagar</span></a>
         <a href="#cob" class="sub" data-view="cob" title="Régua de Cobrança"><span class="ic" data-ic="cob"></span><span>Cobrança</span></a>
-        <a href="#extb" class="sub" data-view="extb" title="Extrato Bancário"><span class="ic" data-ic="ctb"></span><span>Extrato Bancário</span></a>
-        <a href="#lanc" class="sub" data-view="lanc" title="Lançamentos Bancários"><span class="ic" data-ic="ctb"></span><span>Lançamentos Bancários</span></a>
-        <a href="#fluxcon" class="sub" data-view="fluxcon" title="Fluxo de Caixa Consolidado"><span class="ic" data-ic="flx"></span><span>Fluxo Consolidado</span></a>
-        <a href="#rec" class="sub" data-view="rec" title="Lancamentos Recorrentes"><span class="ic" data-ic="pag"></span><span>Recorrentes</span></a>
-        <a href="#antec" class="sub" data-view="antec" title="Antecipação de Recebíveis"><span class="ic" data-ic="flx"></span><span>Antecipação</span></a>
+        <div class="subsec">A pagar</div>
+        <a href="#pagar" class="sub" data-view="pagar" title="Contas a Pagar"><span class="ic" data-ic="pag"></span><span>Contas a Pagar</span></a>
+        <a href="#rec" class="sub" data-view="rec" title="Lançamentos Recorrentes — a conta que entra todo mês e não pode passar batido"><span class="ic" data-ic="rec"></span><span>Recorrentes</span></a>
+        <div class="subsec">Bancos</div>
+        <a href="#lanc" class="sub" data-view="lanc" title="Lançamentos Bancários — o razão do banco, lançamento a lançamento"><span class="ic" data-ic="ctb"></span><span>Lançamentos Bancários</span></a>
+        <a href="#extb" class="sub" data-view="extb" title="Extrato Bancário — conciliação"><span class="ic" data-ic="ctb"></span><span>Extrato Bancário</span></a>
       </div>
       <button class="group" id="grpCtr" aria-expanded="false" aria-controls="subsCtr" onclick="toggleGroup('grpCtr','subsCtr','cs.ctrGroup')" title="Controladoria">
         <span class="ic" data-ic="dre"></span><span>Controladoria</span><span class="ic chev" data-ic="chev"></span>
@@ -2204,8 +2218,22 @@ body.tvfull #btnReport,body.tvmode #btnReport{display:none}
             <div class="tip" id="tipFc"></div>
           </div>
         </div>
+        <div class="grid2">
+          <div class="card">
+            <div class="head"><h2>Saldo por banco <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="Posição de cada conta ATIVA e marcada como “considerar fluxo de caixa” no ERP — as mesmas que somam o saldo de partida. Contas operacionais (vale-pedágio, cartão) ficam fora porque o próprio ERP as marca assim. A data é a da última posição de cada conta: elas não são todas do mesmo dia.">i</span></h2>
+              <span class="hint" id="hintFcContas"></span></div>
+            <div class="tablewrap tabroll"><table><thead><tr>
+              <th>Conta</th><th class="num">Saldo</th><th class="num">Posição</th>
+            </tr></thead><tbody id="fc-contas"></tbody></table></div>
+          </div>
+          <div class="card">
+            <div class="head"><h2>Recebíveis e antecipação <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="O lastro que cobre a necessidade. “Em aberto” é todo o a receber pelo método oficial (fatura_composicao, já faturado), não só o que cai no horizonte — são perguntas diferentes. A necessidade e o custo vêm do mesmo simulador da tela de Antecipação: aqui é o resumo para decidir, lá é o plano operação a operação para executar.">i</span></h2>
+              <span class="hint">quanto há para antecipar e quanto custaria</span></div>
+            <div class="modl" id="fc-receb"></div>
+          </div>
+        </div>
         <div class="card">
-          <div class="head"><h2>Fluxo período a período <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="A espinha dorsal da planilha: saldo inicial, entradas, saídas, resultado, saldo final e a NECESSIDADE — quanto falta para o período não fechar negativo. Linha esmaecida = período sem recebível lançado, onde o saldo despenca por ausência de dado e não por previsão de caixa.">i</span></h2>
+          <div class="head"><h2>Fluxo período a período <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="A espinha dorsal da planilha: saldo inicial, entradas, saídas, resultado, saldo final e a NECESSIDADE — quanto falta para o período não fechar negativo. Linha esmaecida = período sem recebível lançado, onde o saldo despenca por ausência de dado e não por previsão de caixa. Clique na linha para abrir a composição do período.">i</span></h2>
             <span class="hint" id="hintFcTab">clique na linha para ver a composição</span></div>
           <div class="tablewrap tabroll"><table><thead><tr>
             <th style="width:30px"></th><th>Período</th><th class="num">Saldo inicial</th>
@@ -7417,6 +7445,52 @@ function renderFluxcon(d){
     `${(d.linhas||[]).length} ${FC_GRAN_LBL[d.gran]}(s) · ${d.dias} dias · entradas ${BRL.format(k.entradas||0)} × saídas ${BRL.format(k.saidas||0)}`;
   chartFcRender(d.linhas||[]);
 
+  // --- saldo por banco: negativo em vermelho, e a data de CADA conta, porque
+  // elas não são todas do mesmo dia (Sicredi de 17/08, e-Frete de hoje)
+  const ct=d.contas||[];
+  document.getElementById('hintFcContas').textContent = ct.length
+    ? `${ct.length} conta${ct.length===1?'':'s'} no fluxo de caixa` : 'nenhuma conta';
+  document.getElementById('fc-contas').innerHTML=ct.map(c=>`<tr>
+    <td>${esc(c.banco_nome)} <span style="color:var(--n500);font-size:11px">ag ${esc(c.agencia)} · ${esc(c.conta)}</span></td>
+    <td class="num" style="font-weight:600;color:${c.saldo<0?'var(--red)':'inherit'}">${BRL.format(c.saldo)}</td>
+    <td class="num" style="color:var(--n500);font-size:11.5px">${fmtD(c.posicao)}</td></tr>`).join('')
+    + (ct.length?`<tr style="border-top:2px solid var(--n300)">
+        <td style="font-weight:700">Total</td>
+        <td class="num" style="font-weight:700;color:${(k.saldo_inicial||0)<0?'var(--red)':'inherit'}">${BRL.format(k.saldo_inicial||0)}</td>
+        <td></td></tr>`:'')
+    || '<tr><td colspan="3" style="color:var(--n500)">nenhuma conta no fluxo</td></tr>';
+
+  // --- recebíveis × necessidade: o lastro ao lado do buraco
+  const rb=d.recebiveis, an=d.antecipacao;
+  const linha=(rot,val,cls,sub)=>`<div class="mrow"><div class="mlbl">${esc(rot)}`
+    +(sub?`<div style="font-size:11px;color:var(--n500);font-weight:400">${esc(sub)}</div>`:'')
+    +`</div><div class="mval" style="${cls||''}">${val}</div></div>`;
+  let hr='';
+  if(rb){
+    hr+=linha('A receber em aberto', BRL.format(rb.aberto), 'font-weight:700',
+              rb.titulos.toLocaleString('pt-BR')+' títulos · todo o estoque, não só o horizonte');
+    hr+=linha('Vence nos próximos 30 dias', BRL.format(rb.prox30), '', 'o que vira caixa mais cedo');
+    if(rb.vencido>0) hr+=linha('Já vencido', BRL.format(rb.vencido), 'color:var(--red)',
+              'cobrança, não agenda — não entra na projeção');
+  }
+  if(an){
+    hr+='<div style="border-top:1px solid var(--n200);margin:4px 0"></div>';
+    hr+=linha('Precisa antecipar', an.total>0?BRL.format(an.total):'nada',
+              an.total>0?'font-weight:700;color:var(--red)':'font-weight:700;color:var(--green)',
+              an.total>0 ? (an.operacoes+' operações · 1º furo em '+fmtD(an.primeiro_gap||''))
+                         : 'o caixa se sustenta no horizonte');
+    if(an.total>0){
+      hr+=linha('Custo estimado', BRL.format(an.custo), '',
+                'a '+Number(an.taxa_mes).toLocaleString('pt-BR',{maximumFractionDigits:2})+'% a.m. · '
+                +Number(an.custo_pct||0).toLocaleString('pt-BR',{maximumFractionDigits:2})+'% do antecipado');
+      if(rb) hr+=linha('Consome do estoque', pct(an.total, rb.aberto), '',
+                'quanto do a receber em aberto seria usado');
+    }
+    hr+=`<div style="padding:2px 0 0"><a href="#antec" style="font-size:12px;color:var(--orange-500,#E85D10);font-weight:600;text-decoration:none">Ver o plano operação a operação →</a></div>`;
+  }
+  document.getElementById('fc-receb').innerHTML = hr
+    || '<div style="color:var(--n500)">sem dados de recebíveis</div>';
+
   document.getElementById('fc-linhas').innerHTML=(d.linhas||[]).map((l,i)=>{
     const det = `<div class="tablewrap"><table>
         <thead><tr><th>Entradas por documento</th><th class="num">Valor</th></tr></thead>
@@ -7459,12 +7533,14 @@ function renderFluxcon(d){
     <td>${v.mais_antigo?fmtD(v.mais_antigo):'—'}</td></tr>`).join('')
     || '<tr><td colspan="5" style="color:var(--n500)">nada vencido</td></tr>';
 }
+/* A classe que o CSS reconhece é `open` (tr.forn-det.open{display:table-row}).
+   Eu tinha escrito `aberto`: a linha alternava uma classe sem regra nenhuma e
+   o detalhe continuava com display:none — clicar não fazia nada. */
 function fcToggle(i){
   const det=document.getElementById('fc-det-'+i); if(!det) return;
   const linha=det.previousElementSibling;
-  const aberto=det.classList.toggle('aberto');
+  const aberto=det.classList.toggle('open');
   linha.setAttribute('aria-expanded', String(aberto));
-  linha.classList.toggle('aberta', aberto);
 }
 function chartFcRender(linhas){
   const svg=document.getElementById('chartFc');
@@ -12243,9 +12319,20 @@ let BUSCA_ITENS = [], BUSCA_SEL = -1;
 
 const _semAcento = t => (t||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase();
 
+/* Ícone de cada tela: LIDO DO PRÓPRIO MENU, não redigitado aqui. O link da
+   barra lateral já carrega o data-ic certo de cada view — repetir esse mapa
+   na busca garantiria divergência no dia em que alguém trocasse o ícone de
+   uma tela. Cache porque o menu não muda depois do login. */
+const _BUSCA_IC = {};
+function buscaIcone(v){
+  if(_BUSCA_IC[v] !== undefined) return _BUSCA_IC[v];
+  const el = document.querySelector('nav a[data-view="'+v+'"] .ic')
+          || document.querySelector('.drawer a[href="#'+v+'"] .ic');
+  return (_BUSCA_IC[v] = (el && el.dataset.ic) || 'doc');
+}
 function buscaIndice(){
   return Object.keys(VIEWS).filter(podeVer).map(v=>({
-    view:v, titulo:VIEWS[v], grupo:BUSCA_GRUPO_LBL[VIEW_GROUP[v]]||'',
+    view:v, titulo:VIEWS[v], grupo:BUSCA_GRUPO_LBL[VIEW_GROUP[v]]||'', ic:buscaIcone(v),
     termos:_semAcento(VIEWS[v]+' '+(BUSCA_GRUPO_LBL[VIEW_GROUP[v]]||'')+' '+(BUSCA_SINONIMOS[v]||[]).join(' ')),
   }));
 }
@@ -12272,7 +12359,7 @@ function buscaFiltrar(){
     return n.startsWith(q) ? 0 : (n.includes(q) ? 1 : 2); };
   const telas = buscaIndice().filter(t=>t.termos.includes(q))
     .sort((a,b)=> _peso(a)-_peso(b) || a.titulo.localeCompare(b.titulo,'pt-BR'));
-  telas.forEach(t=>BUSCA_ITENS.push({tipo:'tela',titulo:t.titulo,desc:t.grupo,view:t.view}));
+  telas.forEach(t=>BUSCA_ITENS.push({tipo:'tela',titulo:t.titulo,desc:t.grupo,view:t.view,ic:t.ic}));
 
   // CLIENTE fica por ÚLTIMO e só quando o texto não casou com nenhuma tela.
   // Na primeira versão ele vinha no topo sempre, e digitar "dre" oferecia
