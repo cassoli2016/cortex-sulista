@@ -132,13 +132,49 @@ SELECT faixa, count(*)::int AS qtd, sum(valor)::float8 AS valor FROM (
 
 # Saldo bancário + caixa consolidados da empresa (posição mais recente por conta).
 # NÃO filtra por filial (contas bancárias são da empresa, não da filial).
+# Ultima posicao de CADA conta, ate a data de referencia.
+_SALDO_ULT = f"""
+  SELECT DISTINCT ON (grupo,empresa,banco,agencia,conta)
+         banco, agencia, conta, valorsaldo, dtmovimento
+  FROM contacorrente_saldo WHERE dtmovimento <= {DREF}
+  ORDER BY grupo,empresa,banco,agencia,conta, dtmovimento DESC
+"""
+
+# Filtro do ERP: conta ATIVA e marcada como "considerar no fluxo de caixa".
+# Sem ele entravam contas de gestao de PEDAGIO (REPOM, PAMCARD, e-Frete
+# PEDAGIO) e uma conta orfa do BB com posicao de 2014 que nem existe em
+# banco_conta — R$ 914 mil de diferenca em 25/08/2026, e era a razao de a
+# Visao Geral e o Fluxo Consolidado mostrarem numeros diferentes.
+_SALDO_FILTRO = """
+  JOIN banco_conta bc ON bc.banco=s.banco AND bc.agencia=s.agencia
+                     AND bc.conta=s.conta
+  WHERE bc.ativoinativo = 1 AND bc.considerarfluxocaixa = 1
+"""
+
 SALDO_SQL = f"""
 SELECT
-  (SELECT sum(valorsaldo)::float8 FROM (
-     SELECT DISTINCT ON (grupo,empresa,banco,agencia,conta) valorsaldo
-     FROM contacorrente_saldo WHERE dtmovimento <= {DREF}
-     ORDER BY grupo,empresa,banco,agencia,conta, dtmovimento DESC) x)              AS bancos,
-  (SELECT max(dtmovimento) FROM contacorrente_saldo WHERE dtmovimento <= {DREF})   AS bancos_data,
+  (SELECT coalesce(sum(s.valorsaldo),0)::float8
+     FROM ({_SALDO_ULT}) s {_SALDO_FILTRO})                                        AS bancos,
+  -- a MAIS RECENTE nomeia a posicao; a MAIS ANTIGA e o que diz a idade real do
+  -- numero. Antes so o max saia, e ele dizia "posicao de hoje" sobre uma soma
+  -- que carregava conta parada ha meses.
+  (SELECT max(s.dtmovimento)
+     FROM ({_SALDO_ULT}) s {_SALDO_FILTRO})                                        AS bancos_data,
+  (SELECT min(s.dtmovimento)
+     FROM ({_SALDO_ULT}) s {_SALDO_FILTRO})                                        AS bancos_data_min,
+  (SELECT count(*)::int
+     FROM ({_SALDO_ULT}) s {_SALDO_FILTRO})                                        AS bancos_contas,
+  -- o que o ERP marca para NAO entrar no fluxo, declarado em vez de somado
+  (SELECT coalesce(sum(s.valorsaldo),0)::float8 FROM ({_SALDO_ULT}) s
+     LEFT JOIN banco_conta bc ON bc.banco=s.banco AND bc.agencia=s.agencia
+                             AND bc.conta=s.conta
+    WHERE bc.ativoinativo IS DISTINCT FROM 1
+       OR bc.considerarfluxocaixa IS DISTINCT FROM 1)                              AS bancos_fora,
+  (SELECT count(*)::int FROM ({_SALDO_ULT}) s
+     LEFT JOIN banco_conta bc ON bc.banco=s.banco AND bc.agencia=s.agencia
+                             AND bc.conta=s.conta
+    WHERE bc.ativoinativo IS DISTINCT FROM 1
+       OR bc.considerarfluxocaixa IS DISTINCT FROM 1)                              AS bancos_fora_contas,
   (SELECT sum(valorsaldo)::float8 FROM (
      SELECT DISTINCT ON (grupo,empresa,filial,unidade,caixa) valorsaldo
      FROM caixa_saldo WHERE dtmovimento <= {DREF}
@@ -493,6 +529,11 @@ def get_overview(filial: int | None = None, data_ref: str | None = None,
     kpis["saldo_caixa"] = cx
     kpis["saldo_atual"] = saldo_inicial
     kpis["saldo_data"] = saldo["bancos_data"].isoformat() if saldo.get("bancos_data") else None
+    kpis["saldo_data_min"] = (saldo["bancos_data_min"].isoformat()
+                              if saldo.get("bancos_data_min") else None)
+    kpis["saldo_contas"] = saldo.get("bancos_contas")
+    kpis["saldo_fora"] = saldo.get("bancos_fora")
+    kpis["saldo_fora_contas"] = saldo.get("bancos_fora_contas")
     kpis["faturamento_medio_6m"] = runrate
     dpo_map = {r["mes"]: r["dias"] for r in dpo_rows}
     ciclo = [{"mes": r["mes"], "dso": r["dias"], "dpo": dpo_map.get(r["mes"]),
@@ -2445,6 +2486,11 @@ def get_visao_geral() -> dict:
     return {
         "saldo_atual": bancos,
         "saldo_data": saldo["bancos_data"].isoformat() if saldo.get("bancos_data") else None,
+        "saldo_data_min": (saldo["bancos_data_min"].isoformat()
+                           if saldo.get("bancos_data_min") else None),
+        "saldo_contas": saldo.get("bancos_contas"),
+        "saldo_fora": saldo.get("bancos_fora"),
+        "saldo_fora_contas": saldo.get("bancos_fora_contas"),
         "gap_mes": gap_mes if bancos >= 0 else "agora",
         "receber_aberto": fin["receber_aberto"],
         "receber_vencido": fin["receber_vencido"],

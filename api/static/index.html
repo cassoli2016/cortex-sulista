@@ -3602,6 +3602,19 @@ const FAIXAS = {
 const VIEWS = { home:'Visão Geral', fluxo:'Fluxo de Caixa e Bancos', receber:'Contas a Receber', pagar:'Contas a Pagar', oc:'Ordens de Compra', custos:'Painel de Custos', agr:'Agregados e Terceiros', mvb:'Make vs Buy', comb:'Combustível', man:'Manutenção', com:'Clientes e RKM', clif:'Consulta de Cliente', crm:'CRM — Leads e Projetos', km:'Análise de KM', torre:'Torre de Controle', veic:'Veículos', veicf:'Consulta de Veículo', mprev:'Manutenção Preventiva', comrast:'Comunicação Rastreadora', mul:'Multas', prog:'Programação Inteligente', jorn:'Jornada do Motorista', jornf:'Ficha de Jornada', cex:'Custos Extras', sac:'SAC / Freetime', port:'Portaria', cop:'Copiloto Cortex', cob:'Régua de Cobrança', extb:'Extrato Bancário', lanc:'Lançamentos Bancários', antec:'Antecipação de Recebíveis', antport:'Portais de Antecipação', rec:'Lançamentos Recorrentes', fluxcon:'Fluxo de Caixa Consolidado', cont:'Contabilidade', qual:'Qualidade e Certidões', orc:'Orçamento', fech:'Fechamento do Mês', prem:'Premiação de Motoristas', dre:'DRE Gerencial', bal:'Balanço Patrimonial', drecli:'DRE por Cliente', tvfat:'Painel TV — Faturamento', tvope:'Painel TV — Operação', rh:'RH — Vagas', hc:'Headcount', folha:'Custo de Folha', folhaind:'Indicadores de Folha', he:'Horas Extras', gestao:'Gestão', srv:'Saúde do Servidor', doc:'Documentação', anpiso:'Piso Mínimo de Frete', anrntrc:'RNTRC dos Transportadores', telcon:'Consumo e Estatísticas', telcond:'Condução Econômica', telhod:'Hodômetro e Rastro' };
 const periodoLabel = p => { if(p==='atrasado') return 'Atrasado'; const [y,m]=p.split('-'); return MES[+m-1]+'/'+y.slice(2); };
 const fmtD = s => { if(!s) return ''; const [y,m,dd]=s.split('-'); return dd+'/'+m+'/'+y; };
+/* Idade da posicao bancaria. Cada conta e lancada num dia diferente: mostrar
+   so a MAIS RECENTE faz um saldo com uma semana de atraso parecer de ontem, e
+   e desse numero que sai a decisao de antecipar. Devolve {txt, dias, velho}. */
+function posSaldo(dataMax, dataMin){
+  if(!dataMax) return {txt:'sem posição', dias:null, velho:true};
+  const hoje=new Date(); hoje.setHours(0,0,0,0);
+  const d0=new Date(dataMin||dataMax); d0.setHours(0,0,0,0);
+  const dias=Math.round((hoje-d0)/86400000);
+  let txt='posição de '+fmtD(dataMax);
+  if(dataMin && dataMin!==dataMax) txt+=' · a mais antiga é de '+fmtD(dataMin);
+  if(dias>=2) txt+=' ('+dias+' dias)';
+  return {txt:txt, dias:dias, velho:dias>=3};
+}
 // o ERP devolve "YYYY-MM-DD HH24:MI" (to_char); a ficha do veículo mostrava cru
 const fmtDT = s => { if(!s) return '—'; const [d,h]=String(s).split(' ');
   return fmtD(d)+(h?' '+h.slice(0,5):''); };
@@ -4517,7 +4530,8 @@ function render(d){
   const temGap=(k.saldo_atual<0||!!gap);
   document.getElementById('kpis-fluxo').innerHTML=[
     kpi('Saldo atual (bancos + caixa)', BRL.format(k.saldo_atual),
-        'bancos '+BRL.format(k.saldo_bancos)+' · caixa '+BRL.format(k.saldo_caixa)+(k.saldo_data?(' · '+fmtD(k.saldo_data)):''),
+        'bancos '+BRL.format(k.saldo_bancos)+' · caixa '+BRL.format(k.saldo_caixa)
+          +' · '+posSaldo(k.saldo_data, k.saldo_data_min).txt,
         k.saldo_atual>=0?'pos':'neg'),
     kpi('1º gap de caixa', gapTxt,
         gap ? ('saldo projetado '+BRL.format(gap.saldo_projetado)) : 'no horizonte exibido',
@@ -6404,7 +6418,7 @@ function renderHome(d){
   const liq30 = (d.receber_prox30||0) - (d.pagar_prox30||0);
 
   document.getElementById('kpis-home-caixa').innerHTML=[
-    kpiLink('Saldo em caixa', BRL.format(d.saldo_atual), 'bancos + caixa · posição de '+(d.saldo_data?fmtD(d.saldo_data):'—'),
+    kpiLink('Saldo em caixa', BRL.format(d.saldo_atual), 'bancos + caixa · '+posSaldo(d.saldo_data, d.saldo_data_min).txt,
       d.saldo_atual>=0?'pos':'neg', '#fluxo'),
     kpiLink('A receber', BRL.format(d.receber_aberto),
       BRL.format(d.receber_vencido)+' vencido · '+BRL.format(d.receber_pendente_fatur||0)+' pendente de faturamento',
@@ -7755,7 +7769,7 @@ function renderFluxcon(d){
   const k=d.kpis||{}, c=d.cobertura||{};
   document.getElementById('kpis-fluxcon').innerHTML=[
     kpi('Saldo hoje', BRL.format(k.saldo_inicial||0),
-        k.saldo_data?('bancos + caixa · posição de '+fmtD(k.saldo_data)):'bancos + caixa',
+        k.saldo_data?('bancos + caixa · '+posSaldo(k.saldo_data, k.saldo_data_min).txt):'bancos + caixa',
         (k.saldo_inicial||0)<0?'neg':'pos',
         'Soma de bancos e caixa, só contas ATIVAS e marcadas como "considerar fluxo de caixa" no ERP. É o SALDO ANTERIOR da primeira linha da cascata.'),
     kpi('Necessidade operacional', BRL.format(k.necessidade_operacional||0),
@@ -13280,8 +13294,20 @@ function toggleTable(){
 /* ---------------- Alertas por vista ---------------- */
 function alerts(d,k,gap){
   const F=[],R=[],P=[];
-  if(k.saldo_atual<0) F.push(['t-dang','Saldo atual negativo',`Bancos + caixa em ${BRL.format(k.saldo_atual)} na última posição (${fmtD(k.saldo_data)}).`]);
+  if(k.saldo_atual<0) F.push(['t-dang','Saldo atual negativo',`Bancos + caixa em ${BRL.format(k.saldo_atual)} — ${posSaldo(k.saldo_data, k.saldo_data_min).txt}.`]);
   else if(gap) F.push(['t-dang','Gap de caixa projetado',`Saldo projetado fica negativo em ${periodoLabel(gap.periodo)} (${BRL.format(gap.saldo_projetado)}).`]);
+  /* Extrato velho e o defeito que nao aparece sozinho: o saldo continua sendo
+     exibido com naturalidade e a projecao inteira sai dele. Se a conta mais
+     atrasada passou de 3 dias, isso vira aviso — junto com o que ficou FORA
+     da conta, para os R$ 914 mil que o ERP marca como "nao considerar" nao
+     sumirem em silencio. */
+  (function(){
+    const pos=posSaldo(k.saldo_data, k.saldo_data_min);
+    if(pos.velho) F.push(['t-warn','Extrato bancário desatualizado',
+      `A conta mais atrasada tem posição de ${fmtD(k.saldo_data_min||k.saldo_data)} — ${pos.dias} dias. O saldo e TODA a projeção de caixa saem daí, então quanto mais velho o lançamento, mais o furo previsto se desloca. Peça ao financeiro o lançamento dos extratos do dia.`]);
+    if(k.saldo_fora_contas>0) F.push(['t-info','Contas fora do fluxo de caixa',
+      `${BRL.format(k.saldo_fora)} em ${k.saldo_fora_contas} conta(s) que o ERP marca como "não considerar no fluxo" — contas de gestão de pedágio (REPOM, PAMCARD, e-Frete) e uma conta antiga do BB. NÃO entram no saldo acima, de propósito: não são caixa disponível. Estão aqui para o valor não sumir sem explicação.`]);
+  })();
   const pior=(d.fluxo_caixa||[]).reduce((a,b)=>(!a||b.liquido<a.liquido)?b:a, null);
   if(pior && pior.liquido<0) F.push(['t-warn','Mês de maior aperto',`${periodoLabel(pior.periodo)}: líquido ${BRL.format(pior.liquido)} (receber ${BRL.format(pior.receber)} × pagar ${BRL.format(pior.pagar)}).`]);
   const velho=sumFaixa(d.aging_receber,'5_vencido_mais_365');

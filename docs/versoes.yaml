@@ -3,6 +3,33 @@
 #   - a tela Documentação     (#doc)
 #   - o rótulo no rodapé      (CX-DD/MM/AAAA-vX.Y.Z)
 # A versão do TOPO é a corrente e tem de bater com o pyproject.toml.
+- versao: "0.33.0"
+  data: "2026-08-25"
+  corrigido:
+    - >-
+      O saldo bancario aparecia DIFERENTE na Visao Geral e no Fluxo
+      Consolidado - R$ 914 mil de diferenca. A Visao Geral e o Fluxo de Caixa
+      somavam TODA conta que aparece no ERP, enquanto o Fluxo Consolidado e a
+      Antecipacao ja usavam a marca do proprio ERP ("considerar no fluxo de
+      caixa"). Entravam a mais contas de gestao de pedagio (REPOM, PAMCARD,
+      e-Frete), que nao sao caixa disponivel, e uma conta antiga do Banco do
+      Brasil com posicao de 2014 que nem consta no cadastro de contas. As
+      telas agora mostram o mesmo numero.
+    - >-
+      A data da posicao mentia: mostrava a mais RECENTE de todas as contas
+      como se fosse a de todo o saldo. Dizia "posicao de hoje" somando conta
+      parada ha meses. Agora aparece a mais recente E a mais antiga, com a
+      quantidade de dias - em 25/08 a mais atrasada era de 17/08.
+    - >-
+      Extrato parado passou a virar aviso. Quando a conta mais atrasada passa
+      de tres dias, a tela avisa: o saldo e toda a projecao de caixa saem
+      dali, entao lancamento velho desloca o furo previsto sem que nada na
+      tela indique isso.
+    - >-
+      O valor das contas que ficam FORA do fluxo aparece declarado, com a
+      quantidade de contas e o motivo. Antes ele simplesmente entrava na
+      soma; sumir com ele em silencio seria trocar um erro por outro.
+
 - versao: "0.32.0"
   data: "2026-08-24"
   alterado:
