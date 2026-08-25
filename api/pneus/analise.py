@@ -192,6 +192,30 @@ def analisar_normalizados(todos: list[dict]) -> dict:
                    if p["recapagens"] is not None and p["recapagens_max"]
                    and p["recapagens"] >= p["recapagens_max"]]
 
+    # POR VIDA. A contagem sozinha ja mostra a estrutura do parque, mas o que
+    # decide recapar e o CPK ao lado: cada vida a mais dilui o custo do pneu por
+    # mais quilometro. Medido: R$ 0,021 na 2a vida, R$ 0,016 na 3a, R$ 0,013 na
+    # 4a — a economia da recapagem em numero, e nao em opiniao.
+    #
+    # MEDIANA por vida, e com a contagem de quem TEM CPK junto: numa vida com
+    # tres pneus medidos a mediana e frágil, e sem dizer quantos sao ela
+    # passaria com o mesmo peso das outras.
+    por_vida = []
+    for v in sorted({p["vida"] for p in rodando if p["vida"] is not None}):
+        na_vida = [p for p in rodando if p["vida"] == v]
+        cs = sorted(p["cpk"] for p in na_vida if p["cpk"])
+        por_vida.append({
+            "vida": v,
+            "n": len(na_vida),
+            "cpk": cs[len(cs) // 2] if cs else None,
+            "cpk_n": len(cs),
+            # pneu que ja bateu o teto de recapagens do proprio modelo
+            "no_limite": sum(1 for p in na_vida
+                             if p["recapagens"] is not None and p["recapagens_max"]
+                             and p["recapagens"] >= p["recapagens_max"]),
+        })
+    sem_vida = sum(1 for p in rodando if p["vida"] is None)
+
     cpks = sorted(p["cpk"] for p in com_cpk)
     return {
         "kpis": {
@@ -225,6 +249,8 @@ def analisar_normalizados(todos: list[dict]) -> dict:
             "veiculos": len({p["placa"] for p in rodando if p["placa"]}),
             "filiais": len({p["filial"] for p in todos if p["filial"]}),
         },
+        "por_vida": por_vida,
+        "sem_vida": sem_vida,
         "pneus": todos,
         "criticos": sorted(
             [p for p in rodando

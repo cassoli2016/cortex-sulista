@@ -15,6 +15,29 @@
 
 $ErrorActionPreference = 'Stop'
 
+# LOG EM ARQUIVO. A janela elevada e outra janela: se o script falha nela, o
+# erro morre junto com ela quando fecha, e do lado de ca so se ve "nao
+# registrou" sem nenhuma pista. O arquivo sobrevive.
+$logDir = Join-Path (Split-Path -Parent $PSScriptRoot) 'logs'
+if (-not (Test-Path $logDir)) { New-Item -ItemType Directory -Force $logDir | Out-Null }
+$logFile = Join-Path $logDir 'instalar-tarefas.log'
+function Log([string]$m) {
+  $linha = "{0}  [{1}]  {2}" -f (Get-Date -Format 'yyyy-MM-dd HH:mm:ss'),
+           (Split-Path -Leaf $PSCommandPath), $m
+  Add-Content -Path $logFile -Value $linha -Encoding utf8
+  Write-Host $m
+}
+Log "----- inicio -----"
+trap {
+  Log ("ERRO: " + $_.Exception.Message)
+  Log ("  em: " + $_.InvocationInfo.PositionMessage -replace "`r?`n", ' ')
+  Log "----- fim (com erro) -----"
+  Write-Host ""
+  Write-Host "Falhou. O detalhe ficou em: $logFile" -ForegroundColor Red
+  Write-Host "Esta janela NAO vai fechar sozinha - leia a mensagem acima."
+  break
+}
+
 $repo = Split-Path -Parent $PSScriptRoot
 $nome = 'Cortex Sulista - Pneus'
 
@@ -26,7 +49,7 @@ $nome = 'Cortex Sulista - Pneus'
 $admin = ([Security.Principal.WindowsPrincipal] [Security.Principal.WindowsIdentity]::GetCurrent()
          ).IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)
 if (-not $admin) {
-  Write-Host "Sem privilegio de administrador - pedindo elevacao (confirme no aviso do Windows)..."
+  Log "sem privilegio de administrador - pedindo elevacao via UAC"
   try {
     # -NoExit mantem a janela elevada aberta para a confirmacao ficar visivel:
     # elevada e fechando sozinha, ninguem ve se deu certo ou nao.
@@ -62,8 +85,22 @@ Write-Host "uv:   $uv"
 # execucoes para fechar uma volta - cerca de 4 horas. Coletar mais rapido
 # esbarra no 429 e derruba a integracao inteira; mais devagar deixa o retrato
 # velho demais para decidir troca de pneu.
-$acao = New-ScheduledTaskAction -Execute $uv `
-  -Argument "run python scripts\coletar_pneus.py" -WorkingDirectory $repo
+# PYTHON DO VENV, CAMINHO ABSOLUTO. Antes era `uv run python
+# scripts\coletar_pneus.py` com -WorkingDirectory, e o caminho relativo NAO
+# resolvia: a tarefa tentava abrir C:\Windows\System32\scripts\coletar_pneus.py
+# e morria com 0x80070002 (arquivo nao encontrado). O -WorkingDirectory
+# nao chega ate o interpretador.
+#
+# A tarefa da API, que funciona ha meses, ja chama o python do venv
+# direto ? e assim some tambem a dependencia de o `uv` estar no perfil
+# de um usuario especifico.
+$py = Join-Path $repo ".venv\Scripts\python.exe"
+if (-not (Test-Path $py)) { throw "python do venv nao encontrado em $py" }
+$alvo = Join-Path $repo "scripts\coletar_pneus.py"
+if (-not (Test-Path $alvo)) { throw "script nao encontrado em $alvo" }
+Log "acao: $py $alvo"
+$acao = New-ScheduledTaskAction -Execute $py `
+  -Argument "`"$alvo`"" -WorkingDirectory $repo
 
 $gatilhos = @(
   (New-ScheduledTaskTrigger -Daily -At 05:10),
@@ -87,6 +124,7 @@ Register-ScheduledTask -TaskName $nome -Action $acao -Trigger $gatilhos `
 
 $t = Get-ScheduledTask -TaskName $nome -ErrorAction SilentlyContinue
 if (-not $t) { throw "A tarefa NAO foi criada. Nada foi registrado." }
+Log "tarefa '$nome' registrada com sucesso"
 Write-Host ""
 Write-Host "OK: tarefa '$nome' registrada." -ForegroundColor Green
 $t | Select-Object TaskName, State, @{n='Conta';e={$_.Principal.UserId}} | Format-Table -AutoSize

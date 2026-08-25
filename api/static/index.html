@@ -2619,6 +2619,14 @@ body.tvfull #btnReport,body.tvmode #btnReport{display:none}
             <th class="num">Sulco</th><th class="num">Pressão</th><th class="num">Vida</th>
           </tr></thead><tbody id="pn-criticos"></tbody></table></div>
         </div>
+        <div class="card">
+          <div class="head"><h2>Pneus rodando por vida <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="Quantos pneus em serviço estão em cada vida — vida 1 é o pneu novo, vida 2 é depois da primeira recapagem, e assim por diante. O CPK ao lado é o que decide recapar: cada vida a mais dilui o custo do pneu por mais quilômetro rodado. A mediana vem com a contagem de quem tem CPK calculado, porque numa vida com poucos pneus medidos ela é frágil.">i</span></h2>
+            <span class="hint" id="hintPnVida"></span></div>
+          <div class="tablewrap"><table><thead><tr>
+            <th>Vida</th><th class="num">Pneus rodando</th><th></th>
+            <th class="num">CPK mediano</th><th class="num">No limite de recapagens</th>
+          </tr></thead><tbody id="pn-vidas"></tbody></table></div>
+        </div>
         <div class="grid2">
           <div class="card">
             <div class="head"><h2>Fim de vida útil <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="Pneus que já atingiram o número de recapagens previsto para o próprio modelo. O limite vem do cadastro de cada pneu — um número fixo condenaria pneu bom e liberaria pneu no fim.">i</span></h2>
@@ -9104,6 +9112,32 @@ function renderPneus(d){
       <td class="num">${pnPressao(p)}</td>
       <td class="num">${p.vida==null?'—':p.vida}</td>
     </tr>`).join('') || '<tr><td colspan="7" style="color:var(--n500)">nada exigindo ação agora</td></tr>';
+
+  // -------- por vida: a estrutura do parque e a economia da recapagem
+  const V=d.por_vida||[], maxV=Math.max(1,...V.map(x=>x.n));
+  const totV=V.reduce((a,x)=>a+x.n,0);
+  document.getElementById('hintPnVida').textContent =
+    totV ? (totV+' pneu(s) rodando com vida informada'
+            + ((d.sem_vida||0)?(' · '+d.sem_vida+' sem a vida cadastrada'):''))
+         : 'nenhum pneu rodando com vida informada';
+  document.getElementById('pn-vidas').innerHTML = V.map(x=>{
+    const rot = x.vida===1 ? '1 · novo'
+              : (x.vida+' · '+(x.vida-1)+(x.vida===2?' recapagem':' recapagens'));
+    // CPK de poucos pneus e mediana fragil: sai atenuado, com a contagem
+    const fragil = x.cpk!=null && x.cpk_n < 20;
+    return `<tr>
+      <td>${esc(rot)}</td>
+      <td class="num" style="font-weight:600">${x.n.toLocaleString('pt-BR')}</td>
+      <td style="width:170px"><div style="height:9px;background:var(--n200);border-radius:999px;overflow:hidden">
+        <i style="display:block;height:100%;width:${100*x.n/maxV}%;background:var(--navy-500)"></i></div></td>
+      <td class="num"${fragil?' style="opacity:.6"':''}>${
+        x.cpk==null ? '<span style="color:var(--n500)">n/d</span>'
+        : ('R$ '+x.cpk.toLocaleString('pt-BR',{minimumFractionDigits:3,maximumFractionDigits:3})
+           +'<span style="display:block;font-size:10.5px;color:var(--n500)">'
+           +x.cpk_n+' pneu(s)'+(fragil?' · base pequena':'')+'</span>')}</td>
+      <td class="num" style="color:${x.no_limite>0?'var(--yellow-700)':'var(--n500)'}">${x.no_limite||'—'}</td>
+    </tr>`;
+  }).join('') || '<tr><td colspan="5" style="color:var(--n500)">sem vida informada</td></tr>';
 
   // -------- fim de vida
   const F=d.fim_de_vida||[];

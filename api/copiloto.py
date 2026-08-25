@@ -96,6 +96,10 @@ _FONTES_ROTULO = {
     "telemetria_consumo": "Telemetria — Consumo e Estatísticas",
     "premiacao": "Premiação de Motoristas",
     "dre_fechamento": "Fechamento do Mês",
+    "pneus": "Pneus",
+    "people": "People Analytics",
+    "ferias": "Férias — Vencimento",
+    "cnh_motoristas": "CNH dos Motoristas",
 }
 
 
@@ -224,6 +228,25 @@ def _fontes_do_snapshot() -> dict:
         from api.previsao import get_previsao_fechamento
         return get_previsao_fechamento(None)
 
+    def _pneus():
+        # LE O INSTANTANEO, nunca a API da Prolog: ela tem cota de ~10
+        # requisicoes por janela e uma volta completa custa 86. Abrir o chat
+        # nao pode consumir a cota que a coleta agendada precisa.
+        from api.pneus import servico as pn
+        return pn.obter()
+
+    def _people():
+        from api.people import get_people
+        return get_people()
+
+    def _ferias():
+        from api.queries_folha import get_ferias
+        return get_ferias()
+
+    def _cnh():
+        from api.queries_folha import get_cnh
+        return get_cnh()
+
     return {
         "visao_geral": lambda: queries.get_visao_geral(),
         "financeiro_caixa": lambda: queries.get_overview(),
@@ -242,6 +265,10 @@ def _fontes_do_snapshot() -> dict:
         "telemetria_consumo": _telemetria,
         "premiacao": _premiacao,
         "dre_fechamento": _fechamento,
+        "pneus": _pneus,
+        "people": _people,
+        "ferias": _ferias,
+        "cnh_motoristas": _cnh,
     }
 
 

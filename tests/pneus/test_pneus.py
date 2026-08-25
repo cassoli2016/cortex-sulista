@@ -486,3 +486,34 @@ def test_sem_recorte_nenhum_a_consulta_vai_sem_filtro(snap, com_token):
     http = HttpFalso([_pag([1])])
     snap.coletar(pausa=0, paginas=1, http=http)
     assert "tireStatuses" not in http.chamadas[0]["url"]
+
+
+# --------------------------------------------------------------- por vida
+def test_por_vida_conta_so_quem_esta_rodando():
+    """Pneu no estoque ou na sucata nao esta em nenhuma vida em servico."""
+    d = an.analisar([
+        {**PNEU, "id": 1, "currentLifeCycle": 2},
+        {**PNEU, "id": 2, "currentLifeCycle": 2, "status": "DISPOSAL"},
+    ])
+    assert [(x["vida"], x["n"]) for x in d["por_vida"]] == [(2, 1)]
+
+
+def test_cada_vida_traz_o_CPK_e_QUANTOS_pneus_o_sustentam():
+    """Mediana de tres pneus nao vale o mesmo que mediana de oitocentos. Sem a
+    contagem, as duas apareceriam com o mesmo peso na tela."""
+    d = an.analisar([
+        {**PNEU, "id": 1, "currentLifeCycle": 2, "cpk": 0.02},
+        {**PNEU, "id": 2, "currentLifeCycle": 2, "cpk": 0.03},
+        {**PNEU, "id": 3, "currentLifeCycle": 3, "cpk": None},
+    ])
+    v2 = next(x for x in d["por_vida"] if x["vida"] == 2)
+    v3 = next(x for x in d["por_vida"] if x["vida"] == 3)
+    assert v2["cpk"] is not None and v2["cpk_n"] == 2
+    assert v3["cpk"] is None and v3["cpk_n"] == 0, "vida sem CPK nao inventa numero"
+
+
+def test_vida_ausente_nao_vira_faixa_fantasma():
+    """Pneu sem a vida cadastrada sai da distribuicao e volta num contador
+    proprio — empurra-lo para a vida 1 inflaria os novos."""
+    d = an.analisar([{**PNEU, "currentLifeCycle": None}])
+    assert d["por_vida"] == [] and d["sem_vida"] == 1

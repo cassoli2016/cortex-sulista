@@ -27,8 +27,15 @@ except cli.PrologIndisponivel as exc:
     raise SystemExit(2)
 
 k = r["kpis"]
-print(f"OK em {r['segundos']}s · {r['paginas']} pagina(s)"
-      + ("  [PARCIAL — cota esgotada]" if r["parcial"] else ""))
+# As chaves do retorno mudaram quando a coleta virou retomavel e este resumo
+# ficou para tras: quebrava com KeyError DEPOIS de coletar, entao o instantaneo
+# era gravado e a tarefa terminava em erro assim mesmo — o pior dos dois mundos,
+# porque o log dizia "falhou" sobre um trabalho que deu certo.
+print(f"OK em {r['segundos']}s · {r['paginas_lidas']} pagina(s) lida(s)"
+      + ("  [PAROU POR COTA]" if r["parou_por_cota"] else ""))
+print(f"  acumulado {r['acumulado']} de {r['total_na_api']} · "
+      f"+{r['novos']} novo(s) · cursor em {r['cursor']} · "
+      f"{r['voltas']} volta(s) completa(s)")
 print(f"  {k['total']} pneus · {k['rodando']} rodando · "
       f"{k['abaixo_legal']} abaixo do legal ({k['abaixo_legal_direcional']} direcional)")
 print(f"  sulco medido em {k['sulco_cobertura']} de {k['rodando']} · "

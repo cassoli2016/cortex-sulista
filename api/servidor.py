@@ -34,8 +34,11 @@ except ImportError:  # pragma: no cover
 # notar: nao havia tarefa, e as funcoes de sincronizacao so rodavam quando
 # alguem abria uma tela com `force`. Tarefa que nao aparece na Saude e tarefa
 # que pode morrer em silencio.
+# Tarefa nova aqui NAO e opcional: a tela lista exatamente estes nomes, e
+# uma coleta agendada que ninguem ve parar envelhece o painel calada.
 _TAREFAS = ["Cortex Sulista - API", "Cortex Sulista - AutoDeploy",
-            "Cortex Sulista - Tunnel", "Cortex Sulista - Telemetria"]
+            "Cortex Sulista - Tunnel", "Cortex Sulista - Telemetria",
+            "Cortex Sulista - Pneus"]
 
 
 def _iso(ts: float) -> str:

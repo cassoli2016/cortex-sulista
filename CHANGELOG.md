@@ -4,6 +4,17 @@ Gerado de `docs/versoes.yaml` por `scripts/gerar_changelog.py` — não editar �
 Formato [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/),
 versionamento [SemVer](https://semver.org/lang/pt-BR/).
 
+## [0.51.0] — 25/08/2026  ·  CX-25/08/2026-v0.51.0
+
+### Adicionado
+- GRAFICO DE PNEUS RODANDO POR VIDA, com o CPK de cada uma ao lado. Ele mostra a economia da recapagem em numero: R$ 0,021 por km na 2a vida, R$ 0,016 na 3a e R$ 0,013 na 4a. Hoje sao 1.322 pneus novos, 1.124 na 2a vida, 603 na 3a, 147 na 4a, 22 na 5a e 4 na 6a. Cada linha diz sobre quantos pneus a mediana foi calculada - a da 6a vida sai atenuada porque se apoia em um unico pneu.
+- O COPILOTO passou a enxergar as quatro telas novas: Pneus, People Analytics, Ferias e CNH dos Motoristas. Ele ja sabia que elas existiam (a lista de telas sai sozinha do cadastro de permissoes), mas nao via os numeros delas.
+- A tarefa agendada de Pneus entrou na lista da Saude do Servidor. Sem isso, uma coleta que parasse envelheceria o painel sem ninguem ver.
+
+### Corrigido
+- A tarefa agendada de coleta estava FALHANDO em toda execucao. Ela chamava o script por caminho relativo, e o diretorio de trabalho nao chega ate o interpretador: a tarefa tentava abrir o arquivo dentro de C:\Windows\System32 e morria com "arquivo nao encontrado". Agora usa o Python do proprio projeto com caminho absoluto, como a tarefa da API ja fazia.
+- O resumo impresso ao fim da coleta quebrava por conta de nomes de campo antigos - a coleta terminava certa e a tarefa registrava erro assim mesmo, o pior dos dois mundos.
+
 ## [0.50.1] — 25/08/2026  ·  CX-25/08/2026-v0.50.1
 
 ### Corrigido
