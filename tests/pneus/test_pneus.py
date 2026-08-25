@@ -464,3 +464,25 @@ def test_o_instantaneo_guarda_pneu_JA_normalizado(snap, com_token):
     p = d["pneus"][0]
     assert "serie" in p and "serialNumber" not in p
     assert an.analisar_normalizados(d["pneus"])["kpis"]["total"] == 1
+
+
+def test_a_consulta_segue_o_recorte_GRAVADO_e_nao_o_argumento(snap, com_token):
+    """A tarefa agendada roda SEM argumento. Antes, `alvo` herdava o recorte do
+    instantaneo (INSTALLED) e a consulta ia sem filtro: o arquivo se declarava
+    "INSTALLED" carregando 3.204 sucateados dentro. Rotulo que mente sobre o
+    proprio conteudo e pior que rotulo nenhum — a tela acredita nele."""
+    snap.coletar(status=["INSTALLED"], pausa=0, paginas=1,
+                 http=HttpFalso([_pag([1])]))
+    http = HttpFalso([_pag([2])])
+    snap.coletar(pausa=0, paginas=1, http=http)   # sem argumento, como a tarefa
+    assert "tireStatuses=INSTALLED" in http.chamadas[0]["url"], (
+        "sem argumento tem de CONTINUAR o recorte gravado, nao virar 'tudo'")
+    assert snap.ler()["status_coletado"] == ["INSTALLED"]
+
+
+def test_sem_recorte_nenhum_a_consulta_vai_sem_filtro(snap, com_token):
+    """Quando o alvo e "todos os status", mandar a lista inteira e ruido — e
+    algumas APIs tratam lista completa diferente de ausencia de filtro."""
+    http = HttpFalso([_pag([1])])
+    snap.coletar(pausa=0, paginas=1, http=http)
+    assert "tireStatuses" not in http.chamadas[0]["url"]

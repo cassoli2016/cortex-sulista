@@ -4,6 +4,11 @@ Gerado de `docs/versoes.yaml` por `scripts/gerar_changelog.py` — não editar �
 Formato [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/),
 versionamento [SemVer](https://semver.org/lang/pt-BR/).
 
+## [0.50.1] — 25/08/2026  ·  CX-25/08/2026-v0.50.1
+
+### Corrigido
+- O instantaneo de pneus podia MENTIR sobre o proprio conteudo. Rodando sem argumento - que e exatamente como a tarefa agendada roda - a coleta herdava o rotulo do recorte anterior mas consultava a API sem filtro nenhum. O arquivo se declarava "so instalados" carregando 3.204 pneus sucateados dentro, e a tela acreditaria nele. Agora a consulta segue o recorte gravado, e sem argumento a coleta CONTINUA o recorte em vez de trocar.
+
 ## [0.50.0] — 25/08/2026  ·  CX-25/08/2026-v0.50.0
 
 ### Adicionado

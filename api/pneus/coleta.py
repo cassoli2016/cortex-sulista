@@ -94,9 +94,15 @@ def coletar(status: list[str] | None = None, pausa: float = PAUSA_S,
               "primeira_pagina_em": None, "completo_em": None}
 
     c = cli.Cliente(http=http)
+    # A CONSULTA SEGUE `alvo`, NAO `status`. Eram duas variaveis diferentes e
+    # elas divergiam justamente no caso da tarefa agendada, que roda SEM
+    # argumento: `alvo` herdava o recorte do instantaneo anterior (INSTALLED) e
+    # a consulta ia sem filtro nenhum. Resultado medido: o arquivo se declarava
+    # "INSTALLED" carregando 3.204 sucateados dentro. Um rotulo que mente sobre
+    # o proprio conteudo e pior que rotulo nenhum — a tela acreditaria nele.
     params: dict = {"branchOfficesId": cli.filiais_configuradas()}
-    if status:
-        params["tireStatuses"] = status
+    if sorted(alvo) != sorted(cli.STATUS):
+        params["tireStatuses"] = alvo
 
     t0 = time.monotonic()
     pagina = st["cursor"]

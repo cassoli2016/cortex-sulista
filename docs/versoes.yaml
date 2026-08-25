@@ -3,6 +3,18 @@
 #   - a tela Documentação     (#doc)
 #   - o rótulo no rodapé      (CX-DD/MM/AAAA-vX.Y.Z)
 # A versão do TOPO é a corrente e tem de bater com o pyproject.toml.
+- versao: "0.50.1"
+  data: "2026-08-25"
+  corrigido:
+    - >-
+      O instantaneo de pneus podia MENTIR sobre o proprio conteudo. Rodando sem
+      argumento - que e exatamente como a tarefa agendada roda - a coleta
+      herdava o rotulo do recorte anterior mas consultava a API sem filtro
+      nenhum. O arquivo se declarava "so instalados" carregando 3.204 pneus
+      sucateados dentro, e a tela acreditaria nele. Agora a consulta segue o
+      recorte gravado, e sem argumento a coleta CONTINUA o recorte em vez de
+      trocar.
+
 - versao: "0.50.0"
   data: "2026-08-25"
   adicionado:
