@@ -27,12 +27,23 @@ CAMINHO = ROOT / "data" / "credenciais.json"
 CONHECIDAS = {
     "GOBRAX_TOKEN": "Token da API Gobrax (telemetria e premiação)",
     "SMTP_SENHA": "Senha do servidor de e-mail (envio pelo CÓRTEX)",
+    # Monkey Exchange — portal de antecipação da Tupy. A autenticação é
+    # PLUGÁVEL porque a documentação pública não diz qual é: configure
+    # MONKEY_TOKEN (token estático) OU o par CLIENT_ID/CLIENT_SECRET
+    # (OAuth2 client_credentials). O que estiver preenchido é o que vale.
+    "MONKEY_TOKEN": "Token estático da API Monkey (antecipação Tupy)",
+    "MONKEY_CLIENT_ID": "client_id da Monkey (se for OAuth2)",
+    "MONKEY_CLIENT_SECRET": "client_secret da Monkey (se for OAuth2)",
+    "MONKEY_TOKEN_URL": "URL do endpoint de token da Monkey (se for OAuth2)",
+    "MONKEY_SELLER_ID": "ID da Sulista como seller na Monkey (o {id} da URL)",
+    "MONKEY_AMBIENTE": "Ambiente da Monkey: hmg (padrão) ou prod",
 }
 
 # senha de SMTP costuma ser curta (e "senha de aplicativo" do Google tem 16
 # caracteres); o mínimo de 8 do token continua valendo para as demais
 TAMANHO_MINIMO = 8
-MINIMO_POR_CREDENCIAL = {"SMTP_SENHA": 4}
+MINIMO_POR_CREDENCIAL = {"SMTP_SENHA": 4, "MONKEY_SELLER_ID": 1,
+                         "MONKEY_AMBIENTE": 3}
 
 
 def _carregar() -> dict:

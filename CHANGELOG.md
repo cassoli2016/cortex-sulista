@@ -4,6 +4,14 @@ Gerado de `docs/versoes.yaml` por `scripts/gerar_changelog.py` — não editar �
 Formato [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/),
 versionamento [SemVer](https://semver.org/lang/pt-BR/).
 
+## [0.45.0] — 25/08/2026  ·  CX-25/08/2026-v0.45.0
+
+### Adicionado
+- CONECTOR DA MONKEY EXCHANGE, a plataforma de antecipacao da Tupy. Ele substitui a planilha do portal por dado ao vivo: le os recebiveis pela API, pagina sozinho e entrega no MESMO formato que a tela de Portais ja usa, entao a conciliacao e a simulacao de antecipacao nao precisam saber se o portal veio de arquivo ou de API.
+- A API traz duas coisas que a planilha nunca teve: a SITUACAO de cada titulo (disponivel, ofertado, vendido, liquidado, recusado, em custodia, atrasado) e a TAXA da operacao. Com isso o "disponivel para antecipar" deixa de contar titulo que ja foi vendido.
+- Falta so a credencial. A autenticacao ficou PLUGAVEL porque a documentacao publica da Monkey nao diz qual e: aceita token estatico ou OAuth2 client_credentials, e vale o que estiver configurado - sem mexer em codigo quando a resposta chegar. O ambiente padrao e HOMOLOGACAO; apontar para producao e um ato deliberado.
+- `uv run python scripts/verificar_monkey.py` diz exatamente o que falta para a integracao funcionar, sem imprimir segredo nenhum.
+
 ## [0.44.0] — 25/08/2026  ·  CX-25/08/2026-v0.44.0
 
 ### Adicionado
