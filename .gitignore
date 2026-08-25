@@ -31,6 +31,13 @@ __pycache__/
 # workspace do subagent-driven-development (scratch, nao versionar)
 .superpowers/
 
+# scripts temporarios de verificacao que eu crio na raiz durante o trabalho
+# (cx_*.py / cx_*.js) — um deles escapou para um commit
+cx_*.py
+cx_*.js
+cx_*.png
+cx_*.txt
+
 # scratch local de verificacao (estrutura.py etc) - nao versionar
 scratchpad/
 
