@@ -3,6 +3,21 @@
 #   - a tela Documentação     (#doc)
 #   - o rótulo no rodapé      (CX-DD/MM/AAAA-vX.Y.Z)
 # A versão do TOPO é a corrente e tem de bater com o pyproject.toml.
+- versao: "0.35.0"
+  data: "2026-08-25"
+  adicionado:
+    - >-
+      Primeira parte da automacao do milk run da MWM: o motor que descobre
+      sozinho a que horas o veiculo chegou e saiu de cada fornecedor, a partir
+      do rastreamento, sem ninguem digitar. Validado contra o rastro real - em
+      metade das viagens conferidas o horario detectado bateu no SEGUNDO exato
+      com o que o sistema ja registra.
+    - >-
+      A conferencia mostrou por que a automacao e necessaria: nos ultimos 30
+      dias ha 1.462 viagens entre cidades DIFERENTES com duracao menor que 15
+      minutos (uma delas Sao Paulo a Limeira em 1 minuto) e 46% das chegadas
+      terminam com segundo zerado, que e a marca de hora digitada a mao.
+
 - versao: "0.34.0"
   data: "2026-08-25"
   adicionado:

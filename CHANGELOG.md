@@ -4,6 +4,12 @@ Gerado de `docs/versoes.yaml` por `scripts/gerar_changelog.py` — não editar �
 Formato [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/),
 versionamento [SemVer](https://semver.org/lang/pt-BR/).
 
+## [0.35.0] — 25/08/2026  ·  CX-25/08/2026-v0.35.0
+
+### Adicionado
+- Primeira parte da automacao do milk run da MWM: o motor que descobre sozinho a que horas o veiculo chegou e saiu de cada fornecedor, a partir do rastreamento, sem ninguem digitar. Validado contra o rastro real - em metade das viagens conferidas o horario detectado bateu no SEGUNDO exato com o que o sistema ja registra.
+- A conferencia mostrou por que a automacao e necessaria: nos ultimos 30 dias ha 1.462 viagens entre cidades DIFERENTES com duracao menor que 15 minutos (uma delas Sao Paulo a Limeira em 1 minuto) e 46% das chegadas terminam com segundo zerado, que e a marca de hora digitada a mao.
+
 ## [0.34.0] — 25/08/2026  ·  CX-25/08/2026-v0.34.0
 
 ### Adicionado
