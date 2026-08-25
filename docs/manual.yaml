@@ -145,6 +145,7 @@ grupos:
   - comb
   - mul
   - comrast
+  - pneus
 - nome: Suprimentos
   resumo: Agregados e terceiros, e a decisão de fazer com frota própria ou comprar.
   telas:

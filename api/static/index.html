@@ -297,6 +297,9 @@ svg:focus-visible{outline:2px solid var(--orange-500);outline-offset:2px;border-
 .milk-mapa-exp>.head{border-radius:0}
 .milk-mapa-exp #mapaMilk{flex:1;height:auto!important;border-radius:0}
 /* marcas da linha do dia: o que venceu sem ser feito e o dia ainda correndo */
+.pn-dir{display:inline-block;margin-left:8px;padding:1px 7px;border-radius:999px;
+  background:var(--red);color:#fff;font-size:10.5px;font-weight:700;
+  letter-spacing:.02em;vertical-align:1px}
 .fer-agora{display:inline-block;margin-left:8px;padding:1px 7px;border-radius:999px;
   background:var(--green);color:#fff;font-size:10.5px;font-weight:700;
   letter-spacing:.02em;vertical-align:1px}
@@ -1255,6 +1258,7 @@ body.tvfull #btnReport,body.tvmode #btnReport{display:none}
         <a href="#man" class="sub" data-view="man" title="Manutenção"><span class="ic" data-ic="man"></span><span>Manutenção</span></a>
         <a href="#mprev" class="sub" data-view="mprev" title="Manutenção Preventiva (revisões próximas/vencidas)"><span class="ic" data-ic="mprevic"></span><span>Manutenção Preventiva</span></a>
         <a href="#mul" class="sub" data-view="mul" title="Multas"><span class="ic" data-ic="mul"></span><span>Multas</span></a>
+        <a href="#pneus" class="sub" data-view="pneus" title="Pneus — sulco, pressão, vida e CPK (Prolog)"><span class="ic" data-ic="pneuic"></span><span>Pneus</span></a>
         <a href="#veic" class="sub" data-view="veic" title="Veículos"><span class="ic" data-ic="veic"></span><span>Veículos</span></a>
       </div>
       <button class="group" id="grpOpe" aria-expanded="false" aria-controls="subsOpe" onclick="toggleGroup('grpOpe','subsOpe','cs.opeGroup')" title="Operação">
@@ -2533,6 +2537,49 @@ body.tvfull #btnReport,body.tvmode #btnReport{display:none}
       </section>
 
       <!-- ===================== MILK RUN — MWM ===================== -->
+      <section class="view" id="view-pneus">
+        <div class="card">
+          <div class="head"><h2>Filtros <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="Pneus cadastrados na Prolog. Só o status INSTALADO significa “rodando”: pressão de pneu no estoque não é pressão baixa e sulco de pneu sucateado não é risco. Todos os indicadores de risco olham apenas os instalados.">i</span></h2>
+            <span class="hint" id="hintPn"></span></div>
+          <div class="milk-filtros">
+            <label>Situação<select id="fPnStatus" onchange="loadPneus()" aria-label="Situação">
+              <option value="">Todas</option>
+              <option value="INSTALLED">Instalados (rodando)</option>
+              <option value="INVENTORY">Estoque</option>
+              <option value="ANALYSIS">Em análise / recapadora</option>
+              <option value="DISPOSAL">Sucateados</option>
+            </select></label>
+            <label>Filial<select id="fPnFilial" onchange="loadPneus()" aria-label="Filial"><option value="">Todas</option></select></label>
+          </div>
+        </div>
+        <div class="kpis k4" id="kpis-pneus"></div>
+        <div class="card">
+          <div class="head"><h2>Ação imediata <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="Pneu rodando com sulco abaixo do mínimo legal (1,6 mm, CONTRAN) ou pressão 20% abaixo da recomendada. O eixo DIRECIONAL vem primeiro: careca na direção é parada imediata, não agendamento de troca.">i</span></h2>
+            <span class="hint" id="hintPnCrit"></span></div>
+          <div class="tablewrap tabroll"><table><thead><tr>
+            <th>Veículo</th><th>Posição</th><th>Série</th><th>Marca / modelo</th>
+            <th class="num">Sulco</th><th class="num">Pressão</th><th class="num">Vida</th>
+          </tr></thead><tbody id="pn-criticos"></tbody></table></div>
+        </div>
+        <div class="grid2">
+          <div class="card">
+            <div class="head"><h2>Fim de vida útil <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="Pneus que já atingiram o número de recapagens previsto para o próprio modelo. O limite vem do cadastro de cada pneu — um número fixo condenaria pneu bom e liberaria pneu no fim.">i</span></h2>
+              <span class="hint" id="hintPnFim"></span></div>
+            <div class="tablewrap tabroll"><table><thead><tr>
+              <th>Veículo</th><th>Série</th><th class="num">Recapagens</th><th class="num">CPK</th>
+            </tr></thead><tbody id="pn-fimvida"></tbody></table></div>
+          </div>
+          <div class="card">
+            <div class="head"><h2>Situação do parque <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="Onde está cada pneu cadastrado. Instalado é o que roda; estoque, análise (na recapadora) e sucateado são o resto do parque.">i</span></h2>
+              <span class="hint" id="hintPnParque"></span></div>
+            <div class="tablewrap"><table><thead><tr>
+              <th>Situação</th><th class="num">Pneus</th><th></th>
+            </tr></thead><tbody id="pn-parque"></tbody></table></div>
+          </div>
+        </div>
+        <div id="pn-avisos"></div>
+      </section>
+
       <section class="view" id="view-ferias">
         <div class="card">
           <div class="head"><h2>Filtros <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="Funcionários ATIVOS do GLOBUS (situação A em vw_funcionarios, a mesma base do Headcount). Diferente da tela de CNH, aqui o dado é completo: há ficha de férias para 196 de 196 ativos. Tudo nesta tela obedece a estes filtros.">i</span></h2>
@@ -3814,6 +3861,7 @@ const ICONS = {
   recorric: IC('<path d="M20 11a8 8 0 0 0-14.3-4.5M4 13a8 8 0 0 0 14.3 4.5"/><path d="M20 5.5V11h-5.5M4 18.5V13h5.5"/>'),
   rastroic: IC('<path d="M12 21s6.5-6.2 6.5-11a6.5 6.5 0 1 0-13 0C5.5 14.8 12 21 12 21z"/><circle cx="12" cy="10" r="2.3"/><path d="M2.5 20.5h2M7.5 20.5h1M16 20.5h1M20 20.5h1.5"/>'),
   telconic: IC('<path d="M12 3.5c3.2 3.6 5 6.1 5 8.3a5 5 0 0 1-10 0c0-2.2 1.8-4.7 5-8.3z"/><path d="M3 21h18M5.5 21v-3.5M9 21v-6"/>'),
+  pneuic: IC('<circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="3.6"/><path d="M12 3v5.4M12 15.6V21M3 12h5.4M15.6 12H21"/>'),
   feriasic: IC('<rect x="3" y="4.5" width="18" height="16.5" rx="2.5"/><path d="M3 9.5h18M8 2.5v4M16 2.5v4"/><path d="m9 15 2 2 4-4"/>'),
   cnhic: IC('<rect x="2" y="4.5" width="20" height="15" rx="2.5"/><circle cx="8" cy="11" r="2.2"/><path d="M4.6 16.4a3.7 3.7 0 0 1 6.8 0"/><path d="M14.5 9.5h5M14.5 12.5h5M14.5 15.5h3"/>'),
   folhaindic: IC('<circle cx="7" cy="6.5" r="3"/><path d="M2.5 14a4.5 4.5 0 0 1 9 0"/><path d="M14 20V9M18 20V5M21.5 20h-11"/>'),
@@ -3838,7 +3886,7 @@ const FAIXAS = {
   '4_vencido_91_365':['Vencido 91–365d','b-dang'],
   '5_vencido_mais_365':['Vencido > 365d','b-dang'],
 };
-const VIEWS = { home:'Visão Geral', fluxo:'Fluxo de Caixa e Bancos', receber:'Contas a Receber', pagar:'Contas a Pagar', oc:'Ordens de Compra', custos:'Painel de Custos', agr:'Agregados e Terceiros', mvb:'Make vs Buy', comb:'Combustível', man:'Manutenção', com:'Clientes e RKM', clif:'Consulta de Cliente', crm:'CRM — Leads e Projetos', km:'Análise de KM', torre:'Torre de Controle', veic:'Veículos', veicf:'Consulta de Veículo', mprev:'Manutenção Preventiva', comrast:'Comunicação Rastreadora', mul:'Multas', prog:'Programação Inteligente', jorn:'Jornada do Motorista', jornf:'Ficha de Jornada', cex:'Custos Extras', sac:'SAC / Freetime', port:'Portaria', cop:'Copiloto Cortex', cob:'Régua de Cobrança', extb:'Extrato Bancário', lanc:'Lançamentos Bancários', antec:'Antecipação de Recebíveis', antport:'Portais de Antecipação', milkrun:'Milk Run — MWM', rec:'Lançamentos Recorrentes', fluxcon:'Fluxo de Caixa Consolidado', cont:'Contabilidade', qual:'Qualidade e Certidões', orc:'Orçamento', fech:'Fechamento do Mês', prem:'Premiação de Motoristas', dre:'DRE Gerencial', bal:'Balanço Patrimonial', drecli:'DRE por Cliente', tvfat:'Painel TV — Faturamento', tvope:'Painel TV — Operação', rh:'RH — Vagas', hc:'Headcount', folha:'Custo de Folha', folhaind:'Indicadores de Folha', he:'Horas Extras', cnh:'CNH dos Motoristas', ferias:'Férias — Vencimento', gestao:'Gestão', srv:'Saúde do Servidor', doc:'Documentação', anpiso:'Piso Mínimo de Frete', anrntrc:'RNTRC dos Transportadores', telcon:'Consumo e Estatísticas', telcond:'Condução Econômica', telhod:'Hodômetro e Rastro' };
+const VIEWS = { home:'Visão Geral', fluxo:'Fluxo de Caixa e Bancos', receber:'Contas a Receber', pagar:'Contas a Pagar', oc:'Ordens de Compra', custos:'Painel de Custos', agr:'Agregados e Terceiros', mvb:'Make vs Buy', comb:'Combustível', man:'Manutenção', com:'Clientes e RKM', clif:'Consulta de Cliente', crm:'CRM — Leads e Projetos', km:'Análise de KM', torre:'Torre de Controle', veic:'Veículos', veicf:'Consulta de Veículo', mprev:'Manutenção Preventiva', comrast:'Comunicação Rastreadora', mul:'Multas', prog:'Programação Inteligente', jorn:'Jornada do Motorista', jornf:'Ficha de Jornada', cex:'Custos Extras', sac:'SAC / Freetime', port:'Portaria', cop:'Copiloto Cortex', cob:'Régua de Cobrança', extb:'Extrato Bancário', lanc:'Lançamentos Bancários', antec:'Antecipação de Recebíveis', antport:'Portais de Antecipação', milkrun:'Milk Run — MWM', rec:'Lançamentos Recorrentes', fluxcon:'Fluxo de Caixa Consolidado', cont:'Contabilidade', qual:'Qualidade e Certidões', orc:'Orçamento', fech:'Fechamento do Mês', prem:'Premiação de Motoristas', dre:'DRE Gerencial', bal:'Balanço Patrimonial', drecli:'DRE por Cliente', tvfat:'Painel TV — Faturamento', tvope:'Painel TV — Operação', rh:'RH — Vagas', hc:'Headcount', folha:'Custo de Folha', folhaind:'Indicadores de Folha', he:'Horas Extras', cnh:'CNH dos Motoristas', ferias:'Férias — Vencimento', pneus:'Pneus', gestao:'Gestão', srv:'Saúde do Servidor', doc:'Documentação', anpiso:'Piso Mínimo de Frete', anrntrc:'RNTRC dos Transportadores', telcon:'Consumo e Estatísticas', telcond:'Condução Econômica', telhod:'Hodômetro e Rastro' };
 const periodoLabel = p => { if(p==='atrasado') return 'Atrasado'; const [y,m]=p.split('-'); return MES[+m-1]+'/'+y.slice(2); };
 const fmtD = s => { if(!s) return ''; const [y,m,dd]=s.split('-'); return dd+'/'+m+'/'+y; };
 /* Idade da posicao bancaria. Cada conta e lancada num dia diferente: mostrar
@@ -4027,7 +4075,7 @@ const VIEW_GROUP = {home:'',cop:'',
   fluxo:'Fin',receber:'Fin',pagar:'Fin',cob:'Fin',extb:'Fin',lanc:'Fin',antec:'Fin',antport:'Fin',fluxcon:'Fin',rec:'Fin',
   dre:'Ctr',bal:'Ctr',cont:'Ctr',qual:'Ctr',orc:'Ctr',fech:'Ctr',
   torre:'Ope',milkrun:'Ope',prog:'Ope',jorn:'Ope',jornf:'Ope',cex:'Ope',sac:'Ope',port:'Ope',km:'Ope',agr:'Ope',mvb:'Ope',
-  veic:'Fro',veicf:'Fro',mprev:'Fro',comrast:'Fro',comb:'Fro',man:'Fro',mul:'Fro',
+  veic:'Fro',veicf:'Fro',mprev:'Fro',comrast:'Fro',comb:'Fro',man:'Fro',mul:'Fro',pneus:'Fro',
   oc:'Sup',custos:'Sup',
   tvfat:'Tv',tvope:'Tv',
   rh:'Rh',hc:'Rh',folha:'Rh',folhaind:'Rh',he:'Rh',cnh:'Rh',ferias:'Rh',gestao:'Adm',srv:'Adm',doc:'Adm',
@@ -4187,7 +4235,7 @@ function qsView(k){
     if(V('fHeComp'))p.set('comp',V('fHeComp'));
   } else if(k==='fech'){
     if(V('fFechMes'))p.set('mes',V('fFechMes'));
-  } else if(k==='mprev'||k==='comrast'||k==='qual'||k==='port'||k==='crm'||k==='rh'||k==='hc'||k==='folhaind'||k==='cnh'||k==='ferias'){
+  } else if(k==='mprev'||k==='comrast'||k==='qual'||k==='port'||k==='crm'||k==='rh'||k==='hc'||k==='folhaind'||k==='cnh'||k==='ferias'||k==='pneus'){
     // vistas-snapshot sem filtro local: qsView() sempre devolve '' — o
     // loader grava LOADEDQS[k]='' (não '1') para o cache de staleness
     // funcionar (senão nunca bate e cada navegação refaz a consulta).
@@ -4205,7 +4253,7 @@ function semFilterbar(v){
   // filtros", que não tinha o que aplicar.
   return v==='cop'||v==='gestao'||v==='srv'||v==='home'||v==='veicf'||v==='clif'||v==='jorn'||v==='jornf'||v==='prog'||
          v==='cex'||v==='sac'||v==='mprev'||v==='comrast'||v==='qual'||v==='port'||v==='crm'||v==='rh'||
-         v==='hc'||v==='folha'||v==='folhaind'||v==='he'||v==='custos'||v==='orc'||v==='prem'||v==='extb'||v==='fech'||v==='doc'||v==='anrntrc'||v==='telcon'||v==='telcond'||v==='telhod'||v==='milkrun'||v==='cnh'||v==='ferias';
+         v==='hc'||v==='folha'||v==='folhaind'||v==='he'||v==='custos'||v==='orc'||v==='prem'||v==='extb'||v==='fech'||v==='doc'||v==='anrntrc'||v==='telcon'||v==='telcond'||v==='telhod'||v==='milkrun'||v==='cnh'||v==='ferias'||v==='pneus';
 }
 function currentView(){
   const h = (location.hash||'').replace('#','');
@@ -4302,7 +4350,7 @@ function router(){
   // divergem dos usados na última carga (nunca mostrar dado velho com filtro novo)
   const key=viewKey(v);
   const DATAMAP={fin:DATA,oc:DATAOC,agr:DATAAGR,anpiso:DATAANPISO,anrntrc:DATAANRNTRC,telcon:DATATELCON,telcond:DATATELCOND,telhod:DATATELHOD,mvb:DATAMVB,comb:DATACOMB,man:DATAMAN,com:DATACOM,clif:DATACLIF,dre:DATADRE,bal:DATABAL,drecli:DATADRECLI,home:DATAHOME,km:DATAKM,torre:DATATORRE,veic:DATAVEIC,veicf:DATAVEICF,mul:DATAMUL,prog:DATAPROG,jorn:DATAJORN,jornf:DATAJORNF,cex:DATACEX,sac:DATASAC,mprev:DATAMPREV,comrast:DATACOMRAST,qual:DATAQUAL,port:DATAPORT,crm:DATACRM,rh:DATARH,hc:DATAHC,folha:DATAFOLHA,folhaind:DATAFOLHAIND,he:DATAHE,custos:DATACUSTOS,cob:DATACOB,extb:DATAEXTB,lanc:DATALANC,antec:DATAANTEC,antport:DATAANTPORT,milkrun:DATAMILK,fluxcon:DATAFLUXCON,rec:DATAREC,rent:DATARENT,cont:DATACONT,orc:DATAORC,fech:DATAFECH,prem:DATAPREM,gestao:DATAGES,srv:DATASRV,doc:DATADOC,tvfat:null,tvope:null,cop:(COP_MSGS.length?{}:null)};
-  const LOADMAP={fin:load,oc:loadOc,agr:loadAgr,anpiso:loadAnpiso,anrntrc:loadAnrntrc,telcon:loadTelcon,telcond:loadTelcond,telhod:loadTelhod,mvb:loadMvb,comb:loadComb,man:loadMan,com:loadCom,clif:loadClif,dre:loadDre,bal:loadBal,drecli:loadDreCli,home:loadHome,km:loadKm,torre:loadTorre,veic:loadVeic,veicf:loadVeicf,mul:loadMul,prog:loadProg,jorn:loadJorn,jornf:loadJornf,cex:loadCex,sac:loadSac,mprev:loadMPrev,comrast:loadComRast,qual:loadQual,port:loadPort,crm:loadCrm,rh:loadRh,hc:loadHc,folha:loadFolha,folhaind:loadFolhaInd,he:loadHe,custos:loadCustos,cob:loadCob,extb:loadExtb,lanc:loadLanc,antec:loadAntec,antport:loadAntport,milkrun:loadMilkrun,cnh:loadCnh,ferias:loadFerias,fluxcon:loadFluxcon,rec:loadRec,rent:loadRent,cont:loadCont,orc:loadOrc,fech:loadFech,prem:loadPrem,gestao:loadGestao,srv:loadSrv,doc:loadDoc,cop:loadCop,tvfat:loadTvFat,tvope:loadTvOpe};
+  const LOADMAP={fin:load,oc:loadOc,agr:loadAgr,anpiso:loadAnpiso,anrntrc:loadAnrntrc,telcon:loadTelcon,telcond:loadTelcond,telhod:loadTelhod,mvb:loadMvb,comb:loadComb,man:loadMan,com:loadCom,clif:loadClif,dre:loadDre,bal:loadBal,drecli:loadDreCli,home:loadHome,km:loadKm,torre:loadTorre,veic:loadVeic,veicf:loadVeicf,mul:loadMul,prog:loadProg,jorn:loadJorn,jornf:loadJornf,cex:loadCex,sac:loadSac,mprev:loadMPrev,comrast:loadComRast,qual:loadQual,port:loadPort,crm:loadCrm,rh:loadRh,hc:loadHc,folha:loadFolha,folhaind:loadFolhaInd,he:loadHe,custos:loadCustos,cob:loadCob,extb:loadExtb,lanc:loadLanc,antec:loadAntec,antport:loadAntport,milkrun:loadMilkrun,cnh:loadCnh,ferias:loadFerias,pneus:loadPneus,fluxcon:loadFluxcon,rec:loadRec,rent:loadRent,cont:loadCont,orc:loadOrc,fech:loadFech,prem:loadPrem,gestao:loadGestao,srv:loadSrv,doc:loadDoc,cop:loadCop,tvfat:loadTvFat,tvope:loadTvOpe};
   if(!DATAMAP[key] || (key!=='home' && LOADEDQS[key]!==qsView(key))) LOADMAP[key]();
   // mobile: estado da navegação inferior + fecha gaveta/painel de filtros
   document.querySelectorAll('.bottomnav [data-bview]').forEach(a=>a.classList.toggle('ativo', a.dataset.bview===v));
@@ -8894,6 +8942,157 @@ let DATACNH = null, cnhSeq = 0;
 // ativos —, entao a tela pode liderar pelo vencimento em vez de pela
 // cobertura.
 let DATAFER = null, ferSeq = 0;
+
+
+// ================================= PNEUS ====================================
+// SO PNEU INSTALADO ESTA RODANDO. Pressao de pneu no estoque nao e pressao
+// baixa, sulco de pneu sucateado nao e risco, e um denominador que junte os
+// quatro estados produz alarme falso — foi o que custou a primeira versao da
+// tela de CNH.
+//
+// COBERTURA APARECE JUNTO DO NUMERO. Diferente das telas do GLOBUS, aqui nao
+// da para conferir o preenchimento antes de ter credencial: CPK e custo de
+// compra valem zero ate alguem lancar a nota, entao os dois dizem sobre
+// quantos pneus falam.
+let DATAPN = null, pnSeq = 0;
+
+async function loadPneus(fundo){
+  skelKpis('kpis-pneus',4);
+  const seq=++pnSeq, btn=document.getElementById('btnRefresh'); if(btn) btn.disabled=true;
+  if(!fundo) document.getElementById('content').classList.add('loading');
+  try{
+    const V=id=>{const e=document.getElementById(id);return e?e.value.trim():'';};
+    const p=new URLSearchParams();
+    if(V('fPnStatus')) p.set('status', V('fPnStatus'));
+    if(V('fPnFilial')) p.set('filial', V('fPnFilial'));
+    const r=await fetch('/api/frota/pneus?'+p.toString(),
+      {cache:'no-store', headers: fundo?{'X-Carga-Fundo':'1'}:{}});
+    const d=await r.json(); if(seq!==pnSeq) return;
+    if(!r.ok){ showBanner(d.mensagem||'Erro ao consultar a Prolog.'); return; }
+    hideBanner(); DATAPN=d; renderPneus(d);
+  }catch(e){ if(seq===pnSeq) showBanner('Não foi possível falar com a API.', e.message); }
+  finally{ if(seq===pnSeq){ if(btn) btn.disabled=false;
+    document.getElementById('content').classList.remove('loading'); } }
+}
+
+function pnSulco(p){
+  if(p.sulco_menor==null) return '<span style="color:var(--n500)">n/d</span>';
+  const c = p.estado_sulco==='abaixo do legal' ? 'var(--red)'
+          : p.estado_sulco==='atencao' ? 'var(--yellow-700)' : 'var(--n700)';
+  return `<b style="color:${c}">${p.sulco_menor.toLocaleString('pt-BR',{minimumFractionDigits:1,maximumFractionDigits:1})} mm</b>`;
+}
+function pnPressao(p){
+  if(p.pressao_desvio==null) return '<span style="color:var(--n500)">n/d</span>';
+  const c = ['muito baixa','muito alta'].includes(p.estado_pressao) ? 'var(--red)'
+          : ['baixa','alta'].includes(p.estado_pressao) ? 'var(--yellow-700)' : 'var(--n700)';
+  const sinal = p.pressao_desvio>0?'+':'';
+  return `<b style="color:${c}">${sinal}${p.pressao_desvio.toLocaleString('pt-BR',{maximumFractionDigits:1})}%</b>`;
+}
+
+function renderPneus(d){
+  const k=d.kpis||{};
+
+  const fs=document.getElementById('fPnFilial');
+  if(fs && fs.options.length<=1){
+    fs.innerHTML='<option value="">Todas</option>'+
+      (d.filiais||[]).map(f=>`<option value="${esc(f)}">${esc(f)}</option>`).join('');
+    if((d.filtros||{}).filial) fs.value=d.filtros.filial;
+  }
+
+  const cobSulco = k.rodando ? Math.round(100*k.sulco_cobertura/k.rodando) : 0;
+  const cobCpk = k.total ? Math.round(100*k.cpk_cobertura/k.total) : 0;
+  document.getElementById('kpis-pneus').innerHTML=[
+    kpi('Pneus rodando', (k.rodando||0).toLocaleString('pt-BR'),
+        (k.total||0)+' cadastrados · '+(k.veiculos||0)+' veículo(s)', '',
+        'Pneus com status INSTALADO — os únicos que estão em serviço. O total inclui estoque, os que estão na recapadora e os sucateados; misturar tudo num denominador só faria pneu parado contar como risco de circulação.'),
+    kpi('Abaixo do mínimo legal', (k.abaixo_legal||0).toLocaleString('pt-BR'),
+        (k.abaixo_legal_direcional||0)+' no eixo direcional'
+          + (cobSulco<100 ? (' · sulco medido em '+cobSulco+'% dos rodando') : ''),
+        (k.abaixo_legal||0)>0?'neg':((k.sulco_cobertura||0)>0?'pos':''),
+        'Sulco menor que 1,6 mm, o mínimo do CONTRAN: abaixo disso o veículo não pode circular — é multa e é risco. O eixo DIRECIONAL é destacado porque ali não existe agendamento de troca, existe parada. Pneu sem medição de sulco não entra na conta e aparece como n/d.'),
+    kpi('Pressão fora da faixa', (k.pressao_baixa||0).toLocaleString('pt-BR'),
+        (k.pressao_muito_baixa||0)+' abaixo de −20% · '+(k.pressao_alta||0)+' acima',
+        (k.pressao_muito_baixa||0)>0?'neg':((k.pressao_baixa||0)>0?'warn':'pos'),
+        'Pressão mais de 10% abaixo da recomendada para o pneu. Abaixo disso o consumo e o desgaste sobem de forma mensurável; a partir de −20% cresce o risco de estouro. Pneu sem pressão recomendada cadastrada fica fora: a divisão não existiria e o pneu apareceria como −100%.'),
+    kpi('CPK mediano',
+        k.cpk_mediana==null ? 'não informado'
+          : ('R$ '+k.cpk_mediana.toLocaleString('pt-BR',{minimumFractionDigits:3,maximumFractionDigits:3})),
+        k.cpk_mediana==null ? 'nenhum pneu com CPK calculado na Prolog'
+          : ('informado em '+k.cpk_cobertura+' de '+k.total+' pneus ('+cobCpk+'%)'),
+        '',
+        'Custo por quilômetro, calculado pela própria Prolog a partir do custo do pneu e do km rodado. MEDIANA e não média — um pneu de vida curta puxaria a média e diria que o parque inteiro é caro. Depende de o custo de compra estar lançado, e por isso a cobertura vem junto: um CPK calculado sobre 3 de 800 pneus não é o CPK da frota.'),
+  ].join('');
+
+  // -------- acao imediata
+  const C=d.criticos||[];
+  document.getElementById('hintPnCrit').textContent =
+    C.length ? (C.length+' pneu(s) · eixo direcional primeiro')
+             : 'nenhum pneu rodando fora do limite legal ou com pressão crítica';
+  document.getElementById('pn-criticos').innerHTML = C.map(p=>`<tr>
+      <td>${esc(p.placa||'—')}${p.direcional?'<span class="pn-dir">direcional</span>':''}</td>
+      <td>${esc(p.posicao||'—')}</td>
+      <td style="font-family:var(--mono);font-size:12px">${esc(p.serie)}</td>
+      <td style="color:var(--n500);font-size:12.5px">${esc((p.marca+' '+p.modelo).trim()||'—')}</td>
+      <td class="num">${pnSulco(p)}</td>
+      <td class="num">${pnPressao(p)}</td>
+      <td class="num">${p.vida==null?'—':p.vida}</td>
+    </tr>`).join('') || '<tr><td colspan="7" style="color:var(--n500)">nada exigindo ação agora</td></tr>';
+
+  // -------- fim de vida
+  const F=d.fim_de_vida||[];
+  document.getElementById('hintPnFim').textContent =
+    F.length ? (F.length+' pneu(s) no limite de recapagens do próprio modelo')
+             : 'nenhum pneu no limite de recapagens';
+  document.getElementById('pn-fimvida').innerHTML = F.map(p=>`<tr>
+      <td>${esc(p.placa||'—')}</td>
+      <td style="font-family:var(--mono);font-size:12px">${esc(p.serie)}</td>
+      <td class="num">${p.recapagens}/${p.recapagens_max}</td>
+      <td class="num">${p.cpk==null?'<span style="color:var(--n500)">n/d</span>'
+        :('R$ '+p.cpk.toLocaleString('pt-BR',{minimumFractionDigits:3,maximumFractionDigits:3}))}</td>
+    </tr>`).join('') || '<tr><td colspan="4" style="color:var(--n500)">nenhum</td></tr>';
+
+  // -------- parque
+  const ROT={INSTALLED:'Instalado (rodando)', INVENTORY:'Estoque',
+             ANALYSIS:'Em análise / recapadora', DISPOSAL:'Sucateado'};
+  const ps=k.por_status||{}, tot=k.total||1;
+  document.getElementById('hintPnParque').textContent = (k.total||0)+' pneu(s) · '+(k.filiais||0)+' filial(is)';
+  document.getElementById('pn-parque').innerHTML =
+    Object.keys(ps).sort((a,b)=>ps[b]-ps[a]).map(sit=>{
+      const pct = Math.round(100*ps[sit]/tot);
+      return `<tr><td>${esc(ROT[sit]||sit)}</td>
+        <td class="num" style="font-weight:600">${ps[sit].toLocaleString('pt-BR')}</td>
+        <td style="width:130px"><div style="height:8px;background:var(--n200);border-radius:999px;overflow:hidden">
+          <i style="display:block;height:100%;width:${pct}%;background:var(--navy-500)"></i></div></td></tr>`;
+    }).join('') || '<tr><td colspan="3" style="color:var(--n500)">nenhum pneu</td></tr>';
+
+  // -------- avisos
+  const A=[];
+  if((k.abaixo_legal_direcional||0)>0) A.push(['t-dang',
+    k.abaixo_legal_direcional+(k.abaixo_legal_direcional===1?' pneu':' pneus')+' abaixo do legal NO EIXO DIRECIONAL',
+    'Sulco menor que 1,6 mm na direção não é agendamento de troca: o veículo não pode circular assim, e a perda de aderência em piso molhado é justamente onde ela mais custa.']);
+  else if((k.abaixo_legal||0)>0) A.push(['t-warn',
+    k.abaixo_legal+(k.abaixo_legal===1?' pneu':' pneus')+' abaixo do mínimo legal',
+    'Sulco menor que 1,6 mm (CONTRAN). Circular assim é infração e é risco — a troca precisa sair antes da próxima viagem.']);
+  if((k.sulco_cobertura||0) < (k.rodando||0)) A.push(['t-info',
+    'Sulco medido em '+(k.sulco_cobertura||0)+' de '+(k.rodando||0)+' pneus rodando',
+    'Os que não têm medição não entram em nenhum indicador de risco — não é que estejam bons, é que não se sabe. A aferição na Prolog é o que fecha essa lacuna.']);
+  if(k.cpk_mediana==null) A.push(['t-info','CPK não calculado em nenhum pneu',
+    'O custo por quilômetro depende do custo de compra estar lançado na Prolog. Sem ele não há como comparar modelo, medir ganho de recapagem nem decidir fornecedor.']);
+  document.getElementById('pn-avisos').innerHTML=A.map(([c,t,m])=>
+    `<div class="toast ${c}"><b>${esc(t)}</b>${esc(m)}</div>`).join('');
+
+  const mt=document.getElementById('meta');
+  if(mt && d.atualizado_em){
+    const t=fmtDT(d.atualizado_em);
+    mt.innerHTML='<b>'+esc(t.slice(11))+'</b><br>'+esc(t.slice(0,10));
+    mt.title='Coleta da Prolog em '+t;
+  }
+  const rec=[];
+  if((d.filtros||{}).status) rec.push(ROT[d.filtros.status]||d.filtros.status);
+  if((d.filtros||{}).filial) rec.push(d.filtros.filial);
+  document.getElementById('hintPn').textContent =
+    (rec.length?rec.join(' · ')+' — ':'')+(k.total||0)+' pneu(s) no recorte';
+}
 
 async function loadFerias(fundo){
   skelKpis('kpis-ferias',4);
@@ -15868,6 +16067,7 @@ boot();
         <a href="#man" onclick="fecharDrawer()"><span class="ic" data-ic="man"></span>Manutenção</a>
         <a href="#mprev" onclick="fecharDrawer()"><span class="ic" data-ic="mprevic"></span>Manutenção Preventiva</a>
         <a href="#mul" onclick="fecharDrawer()"><span class="ic" data-ic="mul"></span>Multas</a>
+        <a href="#pneus" onclick="fecharDrawer()"><span class="ic" data-ic="pneuic"></span>Pneus</a>
         <a href="#veic" onclick="fecharDrawer()"><span class="ic" data-ic="veic"></span>Veículos</a>
       </div>
     </div>

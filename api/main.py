@@ -1337,6 +1337,26 @@ def rh_headcount() -> JSONResponse:
         return _folha_erro(exc)
 
 
+@app.get("/api/frota/pneus")
+def frota_pneus(status: str = "", filial: str = "") -> JSONResponse:
+    """Gestao de pneus (Prolog). `status` filtra INVENTORY/ANALYSIS/INSTALLED/
+    DISPOSAL; vazio traz todos."""
+    from api.pneus import servico
+    from api.pneus.cliente import PrologIndisponivel, PrologNaoConfigurado
+    try:
+        return JSONResponse(servico.obter(status=status, filial=filial))
+    except PrologNaoConfigurado as exc:
+        return JSONResponse(status_code=503, content={
+            "erro": "prolog_nao_configurado", "mensagem": str(exc)})
+    except PrologIndisponivel as exc:
+        return JSONResponse(status_code=503, content={
+            "erro": "prolog_indisponivel", "mensagem": str(exc)})
+    except Exception as exc:  # noqa: BLE001
+        log.warning("frota_pneus falhou: %s", exc)
+        return JSONResponse(status_code=500, content={
+            "erro": "erro_consulta", "mensagem": "Erro ao montar a tela de pneus."})
+
+
 @app.get("/api/rh/ferias")
 def rh_ferias(dias: int = 90, filial: str = "") -> JSONResponse:
     """Vencimento de ferias pela regra da CLT (aquisitivo + 12 meses = dobra).

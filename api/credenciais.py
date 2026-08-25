@@ -37,13 +37,25 @@ CONHECIDAS = {
     "MONKEY_TOKEN_URL": "URL do endpoint de token da Monkey (se for OAuth2)",
     "MONKEY_SELLER_ID": "ID da Sulista como seller na Monkey (o {id} da URL)",
     "MONKEY_AMBIENTE": "Ambiente da Monkey: hmg (padrão) ou prod",
+    # Prolog — gestão de pneus. Autenticação também plugável: o OpenAPI da
+    # Prolog não declara securityScheme nenhum, então aceita token, Basic ou
+    # OAuth2, e vale o que estiver preenchido.
+    "PROLOG_TOKEN": "Token da API Prolog (pneus)",
+    "PROLOG_USUARIO": "Usuário da Prolog (se for autenticação Basic)",
+    "PROLOG_SENHA": "Senha da Prolog (se for autenticação Basic)",
+    "PROLOG_CLIENT_ID": "client_id da Prolog (se for OAuth2)",
+    "PROLOG_CLIENT_SECRET": "client_secret da Prolog (se for OAuth2)",
+    "PROLOG_TOKEN_URL": "URL do endpoint de token da Prolog (se for OAuth2)",
+    "PROLOG_FILIAIS": "IDs das filiais da Sulista na Prolog, separados por vírgula",
+    "PROLOG_BASE_URL": "URL base da Prolog (padrão https://prologapp.com/prolog)",
 }
 
 # senha de SMTP costuma ser curta (e "senha de aplicativo" do Google tem 16
 # caracteres); o mínimo de 8 do token continua valendo para as demais
 TAMANHO_MINIMO = 8
 MINIMO_POR_CREDENCIAL = {"SMTP_SENHA": 4, "MONKEY_SELLER_ID": 1,
-                         "MONKEY_AMBIENTE": 3}
+                         "MONKEY_AMBIENTE": 3, "PROLOG_FILIAIS": 1,
+                         "PROLOG_USUARIO": 3}
 
 
 def _carregar() -> dict:

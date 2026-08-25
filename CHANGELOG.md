@@ -4,6 +4,15 @@ Gerado de `docs/versoes.yaml` por `scripts/gerar_changelog.py` — não editar �
 Formato [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/),
 versionamento [SemVer](https://semver.org/lang/pt-BR/).
 
+## [0.48.0] — 25/08/2026  ·  CX-25/08/2026-v0.48.0
+
+### Adicionado
+- MODULO NOVO: PNEUS (grupo Frota), com integracao a Prolog. A tela mede o que decide troca e parada de veiculo: sulco abaixo do minimo legal, pressao fora da faixa, pneus no fim da vida util e custo por quilometro.
+- "Acao imediata" ordena por GRAVIDADE e nao por posicao: circular com sulco abaixo de 1,6 mm e ilegal (CONTRAN), pressao baixa nao e. Dentro da mesma gravidade o eixo DIRECIONAL vem primeiro, porque ali nao existe agendamento de troca - existe parada.
+- So o pneu INSTALADO conta como rodando. Pressao de pneu no estoque nao e pressao baixa e sulco de pneu sucateado nao e risco; um denominador que juntasse os quatro estados produziria alarme falso.
+- Cada indicador que depende de campo preenchivel mostra a COBERTURA. CPK e custo de compra sao os mais expostos: valem zero ate alguem lancar a nota na Prolog, e um CPK mediano calculado sobre 3 de 800 pneus nao e o CPK da frota.
+- `uv run python scripts/verificar_prolog.py` diz o que falta para a integracao funcionar e, havendo credencial sem filial, LISTA as filiais disponiveis com os ids - que e o dado que a consulta de pneus exige.
+
 ## [0.47.1] — 25/08/2026  ·  CX-25/08/2026-v0.47.1
 
 ### Alterado
