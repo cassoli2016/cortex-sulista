@@ -4,6 +4,15 @@ Gerado de `docs/versoes.yaml` por `scripts/gerar_changelog.py` — não editar �
 Formato [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/),
 versionamento [SemVer](https://semver.org/lang/pt-BR/).
 
+## [0.44.0] — 25/08/2026  ·  CX-25/08/2026-v0.44.0
+
+### Adicionado
+- TELA NOVA: FERIAS - VENCIMENTO (Recursos Humanos). A data que manda nao e o fim do periodo aquisitivo - e ele MAIS 12 MESES, que e o limite do periodo concessivo. Passar dele faz as ferias serem pagas em DOBRO (art. 137 da CLT), e e por esse limite que a fila ordena e colore.
+- Situacao hoje: 196 funcionarios ativos, ZERO em dobra, 1 chegando ao limite em 90 dias e 65 com direito adquirido a agendar. Diferente da tela de CNH, aqui o dado e completo - ha ficha de ferias para 196 de 196 ativos -, entao a tela pode liderar pelo vencimento em vez de pela cobertura do cadastro.
+- Card "Em ferias agora e agendadas": 19 pessoas com data marcada, 6 de ferias hoje. E a leitura operacional de quem nao esta no posto.
+- Card "Fichas de ferias paradas no cadastro" para 2 registros cujo limite venceu ha 23 e 19 anos. Ninguem fica duas decadas em dobra: nesses dois o periodo aquisitivo atual e a data de gozo estao vazios, ou seja a ficha nunca foi processada. Ficam FORA do indicador de dobra - conta-los anunciaria um passivo trabalhista que nao existe - mas aparecem em lista propria, senao essas pessoas nunca entrariam em alerta nenhum.
+- O cartao "Ferias em DOBRA" so fica verde quando nao ha ficha parada. Havendo, ele diz sobre quantas fichas a afirmacao vale ("nenhuma entre as 194 fichas em dia") - com 2 fichas de estado desconhecido, verde afirmaria demais.
+
 ## [0.43.0] — 25/08/2026  ·  CX-25/08/2026-v0.43.0
 
 ### Corrigido

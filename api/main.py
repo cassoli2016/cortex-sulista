@@ -1337,6 +1337,23 @@ def rh_headcount() -> JSONResponse:
         return _folha_erro(exc)
 
 
+@app.get("/api/rh/ferias")
+def rh_ferias(dias: int = 90, filial: str = "") -> JSONResponse:
+    """Vencimento de ferias pela regra da CLT (aquisitivo + 12 meses = dobra).
+
+    Devolve NOME e CHAPA pela mesma razao da tela de CNH: ninguem agenda as
+    ferias de "um funcionario". Salario, CPF e dado bancario ficam fora.
+    """
+    from api.queries_folha import get_ferias
+    try:
+        return JSONResponse(get_ferias(dias=dias, filial=filial))
+    except Exception as exc:  # noqa: BLE001
+        log.warning("rh_ferias falhou: %s", exc)
+        return JSONResponse(status_code=503, content={
+            "erro": "globus_indisponivel",
+            "mensagem": "Sem conexao com o banco da folha (GLOBUS)."})
+
+
 @app.get("/api/rh/cnh")
 def rh_cnh(dias: int = 90, filial: str = "", categoria: str = "") -> JSONResponse:
     """Vencimento de CNH dos motoristas ativos (GLOBUS).

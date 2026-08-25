@@ -5,7 +5,7 @@ PII: a folha é o dado mais sensível — estas funções entregam SÓ agregados
 (headcount e custo por área/função/filial/competência). Nunca expõem nome,
 CPF, salário individual ou dado bancário.
 
-EXCEÇÃO ÚNICA E DELIBERADA: `get_cnh()` devolve NOME e CHAPA. Sem eles a tela
+EXCEÇÃO DELIBERADA: `get_cnh()` e `get_ferias()` devolvem NOME e CHAPA. Sem eles a tela
 não serve para nada — "a CNH de alguém vence em 12 dias" não é acionável, e
 quem cobra a renovação precisa saber de quem. O que continua fora, inclusive
 aí: CPF, salário, dado bancário e o PRÓPRIO NÚMERO da CNH, que não é preciso
@@ -562,6 +562,187 @@ def get_cnh(dias: int = 90, filial: str = "", categoria: str = "") -> dict:
         # regra do projeto: todo painel diz de onde veio o dado E quando foi
         # lido. Sem isto o cabecalho ficava presa em "carregando..." para
         # sempre, que e a aparencia exata de uma tela quebrada.
+        "atualizado_em": _q("SELECT TO_CHAR(SYSDATE,'YYYY-MM-DD HH24:MI') agora "
+                            "FROM dual")[0]["agora"],
+    }
+
+
+# ============================================================================
+# FÉRIAS — vencimento pela regra da CLT
+#
+# A REGRA (art. 130 e 134 da CLT, e o art. 137 que dói): a cada 12 meses
+# trabalhados o empregado completa um PERÍODO AQUISITIVO e ganha direito a 30
+# dias. A empresa então tem os 12 meses seguintes — o PERÍODO CONCESSIVO —
+# para conceder. Passou disso, as férias são pagas em DOBRO.
+#
+# Por isso a data que importa não é o fim do aquisitivo, é ele MAIS 12 MESES:
+# esse é o limite legal, e é o que a tela ordena e colore.
+#
+# O DADO É BOM AQUI, ao contrário da CNH: `vw_ferias` tem linha para 196 de 196
+# funcionários ativos (100%). Então esta tela pode liderar pelo vencimento, que
+# é o que se quer saber.
+#
+# ARMADILHA MEDIDA: dois registros apontam limite vencido há 8.504 e 7.035 dias
+# (23 e 19 anos). Ninguém fica duas décadas em dobra — nesses dois o
+# aquisitivo atual e o gozo estão NULOS, ou seja, a ficha de férias nunca foi
+# processada. É a mesma lição da Manutenção Preventiva: desvio maior que um
+# ciclo inteiro do próprio indicador é cadastro furado, não operação. Vão para
+# um balde separado, e o KPI de dobra não os conta — senão a tela anunciaria um
+# passivo trabalhista que não existe.
+# ============================================================================
+
+# Atraso maior que um período concessivo inteiro (12 meses) não é atraso: é
+# ficha parada. O corte é generoso de propósito — atraso real de meses ainda
+# aparece como dobra, que é o que precisa doer.
+_FER_LIMITE_ABSURDO_DIAS = 365
+
+_FER_BASE = """
+FROM vw_ferias fe
+JOIN vw_funcionarios vf ON vf.codintfunc = fe.codintfunc
+WHERE vf.situacaofunc = 'A' AND vf.codigoempresa = :emp
+"""
+
+# `limite` = fim do aquisitivo + 12 meses. Repetido nas consultas porque o
+# Oracle não aceita alias de SELECT dentro do próprio WHERE.
+_FER_LIM = "TRUNC(ADD_MONTHS(fe.proxaquifinfer,12))"
+
+
+def get_ferias(dias: int = 90, filial: str = "") -> dict:
+    """Vencimento de férias dos funcionários ativos. `dias` é o horizonte do
+    alerta de dobra."""
+    dias = max(7, min(365, int(dias or 90)))
+    p = {"emp": EMPRESA, "dias": dias, "absurdo": _FER_LIMITE_ABSURDO_DIAS}
+
+    filtro = ""
+    if filial:
+        filtro = " AND vf.descsecao = :filial"
+        p["filial"] = filial
+
+    # `absurdo` marca a ficha parada; ela sai de TODOS os contadores de risco.
+    sano = f"{_FER_LIM} >= TRUNC(SYSDATE) - :absurdo"
+
+    tot = _qb(f"""
+        SELECT COUNT(*) ativos,
+               SUM(CASE WHEN {_FER_LIM} < TRUNC(SYSDATE) - :absurdo
+                        THEN 1 ELSE 0 END) ficha_parada,
+               SUM(CASE WHEN {_FER_LIM} < TRUNC(SYSDATE) AND {sano}
+                        THEN 1 ELSE 0 END) em_dobra,
+               SUM(CASE WHEN {_FER_LIM} BETWEEN TRUNC(SYSDATE)
+                        AND TRUNC(SYSDATE)+:dias THEN 1 ELSE 0 END) dobra_prazo,
+               SUM(CASE WHEN {_FER_LIM} BETWEEN TRUNC(SYSDATE)
+                        AND TRUNC(SYSDATE)+30 THEN 1 ELSE 0 END) dobra_30,
+               SUM(CASE WHEN fe.proxaquifinfer <= TRUNC(SYSDATE) AND {sano}
+                        THEN 1 ELSE 0 END) com_direito,
+               SUM(CASE WHEN fe.gozofinfer >= TRUNC(SYSDATE)
+                        THEN 1 ELSE 0 END) em_ferias_ou_agendado,
+               SUM(CASE WHEN TRUNC(SYSDATE) BETWEEN fe.gozoinifer AND fe.gozofinfer
+                        THEN 1 ELSE 0 END) em_ferias_agora
+        {_FER_BASE} {filtro}""", p)[0]
+
+    por_filial = [
+        {"filial": r["filial"] or "(sem unidade)", "n": r["n"],
+         "com_direito": r["com_direito"] or 0, "em_dobra": r["em_dobra"] or 0,
+         "dobra_prazo": r["dobra_prazo"] or 0,
+         "agendados": r["agendados"] or 0,
+         "ficha_parada": r["ficha_parada"] or 0}
+        for r in _qb(f"""
+            SELECT vf.descsecao filial, COUNT(*) n,
+                   SUM(CASE WHEN fe.proxaquifinfer <= TRUNC(SYSDATE) AND {sano}
+                            THEN 1 ELSE 0 END) com_direito,
+                   SUM(CASE WHEN {_FER_LIM} < TRUNC(SYSDATE) AND {sano}
+                            THEN 1 ELSE 0 END) em_dobra,
+                   SUM(CASE WHEN {_FER_LIM} BETWEEN TRUNC(SYSDATE)
+                            AND TRUNC(SYSDATE)+:dias THEN 1 ELSE 0 END) dobra_prazo,
+                   SUM(CASE WHEN fe.gozofinfer >= TRUNC(SYSDATE)
+                            THEN 1 ELSE 0 END) agendados,
+                   SUM(CASE WHEN {_FER_LIM} < TRUNC(SYSDATE) - :absurdo
+                            THEN 1 ELSE 0 END) ficha_parada
+            {_FER_BASE} {filtro}
+            GROUP BY vf.descsecao ORDER BY COUNT(*) DESC""", p)]
+
+    def _linha(r) -> dict:
+        d = int(r["dias_ate"])
+        return {
+            "nome": r["nome"], "chapa": (r["chapa"] or "").strip(),
+            "funcao": r["funcao"], "filial": r["filial"],
+            "admitido": r["adm"], "aquisitivo_fim": r["aq_fim"],
+            "limite": r["limite"], "dias": d,
+            "gozo_ini": r["gozo_ini"], "gozo_fim": r["gozo_fim"],
+            "estado": ("dobra" if d < 0 else "critica" if d <= 30
+                       else "atencao" if d <= dias else "ok"),
+        }
+
+    # FILA: quem vence primeiro. Só quem JÁ tem direito adquirido — quem ainda
+    # está no aquisitivo não tem o que agendar, e misturá-los faria a fila
+    # começar por gente que não é problema de ninguém.
+    fila = [_linha(r) for r in _qb(f"""
+        SELECT vf.nomefunc nome, vf.chapafunc chapa,
+               vf.descfuncaocompleta funcao, vf.descsecao filial,
+               TO_CHAR(vf.dtadmfunc,'YYYY-MM-DD') adm,
+               TO_CHAR(fe.proxaquifinfer,'YYYY-MM-DD') aq_fim,
+               TO_CHAR({_FER_LIM},'YYYY-MM-DD') limite,
+               {_FER_LIM} - TRUNC(SYSDATE) dias_ate,
+               TO_CHAR(fe.gozoinifer,'YYYY-MM-DD') gozo_ini,
+               TO_CHAR(fe.gozofinfer,'YYYY-MM-DD') gozo_fim
+        {_FER_BASE} {filtro}
+          AND fe.proxaquifinfer <= TRUNC(SYSDATE) AND {sano}
+        ORDER BY fe.proxaquifinfer""", p)]
+
+    # EM FÉRIAS AGORA ou com data marcada — a leitura operacional da tela.
+    agenda = [{"nome": r["nome"], "chapa": (r["chapa"] or "").strip(),
+               "filial": r["filial"], "funcao": r["funcao"],
+               "ini": r["gozo_ini"], "fim": r["gozo_fim"],
+               "agora": bool(r["agora"]), "dias": int(r["dias_ate"])}
+              for r in _qb(f"""
+        SELECT vf.nomefunc nome, vf.chapafunc chapa, vf.descsecao filial,
+               vf.descfuncaocompleta funcao,
+               TO_CHAR(fe.gozoinifer,'YYYY-MM-DD') gozo_ini,
+               TO_CHAR(fe.gozofinfer,'YYYY-MM-DD') gozo_fim,
+               CASE WHEN TRUNC(SYSDATE) BETWEEN fe.gozoinifer AND fe.gozofinfer
+                    THEN 1 ELSE 0 END agora,
+               TRUNC(fe.gozoinifer) - TRUNC(SYSDATE) dias_ate
+        {_FER_BASE} {filtro} AND fe.gozofinfer >= TRUNC(SYSDATE)
+        ORDER BY fe.gozoinifer""", p)]
+
+    # FICHA PARADA: limite vencido há mais de um período concessivo inteiro.
+    paradas = [{"nome": r["nome"], "chapa": (r["chapa"] or "").strip(),
+                "filial": r["filial"], "admitido": r["adm"],
+                "aquisitivo_fim": r["aq_fim"], "limite": r["limite"],
+                "anos": round(abs(int(r["dias_ate"])) / 365.25, 1),
+                "sem_aquisitivo": r["aq_atual"] is None,
+                "sem_gozo": r["gozo_ini"] is None}
+               for r in _qb(f"""
+        SELECT vf.nomefunc nome, vf.chapafunc chapa, vf.descsecao filial,
+               TO_CHAR(vf.dtadmfunc,'YYYY-MM-DD') adm,
+               TO_CHAR(fe.aquifinfer,'YYYY-MM-DD') aq_atual,
+               TO_CHAR(fe.proxaquifinfer,'YYYY-MM-DD') aq_fim,
+               TO_CHAR({_FER_LIM},'YYYY-MM-DD') limite,
+               {_FER_LIM} - TRUNC(SYSDATE) dias_ate,
+               TO_CHAR(fe.gozoinifer,'YYYY-MM-DD') gozo_ini
+        {_FER_BASE} {filtro} AND {_FER_LIM} < TRUNC(SYSDATE) - :absurdo
+        ORDER BY fe.proxaquifinfer""", p)]
+
+    n = tot["ativos"] or 0
+    return {
+        "dias": dias,
+        "filtros": {"filial": filial},
+        "filiais": [x["filial"] for x in por_filial],
+        "kpis": {
+            "ativos": n,
+            "com_direito": tot["com_direito"] or 0,
+            "em_dobra": tot["em_dobra"] or 0,
+            "dobra_prazo": tot["dobra_prazo"] or 0,
+            "dobra_30": tot["dobra_30"] or 0,
+            "agendados": tot["em_ferias_ou_agendado"] or 0,
+            "em_ferias_agora": tot["em_ferias_agora"] or 0,
+            "ficha_parada": tot["ficha_parada"] or 0,
+            "filiais": len(por_filial),
+        },
+        "por_filial": por_filial,
+        "fila": fila,
+        "agenda": agenda,
+        "fichas_paradas": paradas,
+        "fonte": "ERP GLOBUS · vw_ferias × vw_funcionarios",
         "atualizado_em": _q("SELECT TO_CHAR(SYSDATE,'YYYY-MM-DD HH24:MI') agora "
                             "FROM dual")[0]["agora"],
     }

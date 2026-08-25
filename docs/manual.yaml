@@ -152,7 +152,7 @@ grupos:
   - mvb
 - nome: Pessoas
   resumo: Vagas e tempo de preenchimento, headcount, custo de folha, indicadores de RH, horas extras,
-    vencimento de CNH dos motoristas e a premiação de motoristas por economia.
+    vencimento de CNH dos motoristas, controle de férias pela CLT e a premiação de motoristas por economia.
   telas:
   - rh
   - hc
@@ -160,6 +160,7 @@ grupos:
   - folhaind
   - he
   - cnh
+  - ferias
 - nome: Telemetria
   resumo: O que vem da plataforma de telemetria Gobrax. Hoje traz a premiação de motoristas por nota e
     quilometragem.
