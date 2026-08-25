@@ -93,8 +93,33 @@ def _coletado_ha_mais_de_1h(snap: dict, agora: datetime) -> bool:
         # estourar) é tratado como "muito velho" -> recoleta se for o mês
         # corrente; se o mês já fechou, o I1 abaixo decide sozinho.
         return True
-    coletado = datetime.strptime(coletado_em, "%Y-%m-%d %H:%M")
+    coletado = _parse_coletado(coletado_em)
+    if coletado is None:
+        # data ilegivel e tratada como MUITO VELHA, nunca como erro: o unico
+        # uso deste valor e decidir se recoleta, e travar a tela inteira por
+        # causa de um carimbo de tempo seria trocar um dado velho por
+        # nenhum dado.
+        return True
     return (agora - coletado) > TTL
+
+
+def _parse_coletado(valor: str) -> datetime | None:
+    """Aceita os DOIS formatos que existem nos snapshots gravados.
+
+    `coleta.py` grava `isoformat(timespec="seconds")` -> '2026-08-19T14:41:36',
+    e os arquivos antigos trazem '2026-07-27 16:48'. O leitor so conhecia o
+    segundo: quando a coleta agendada reescreveu o snapshot de agosto, a tela
+    inteira passou a devolver 500 com ValueError. Um lado do par mudou de
+    formato e o outro nao ficou sabendo — por isso aqui aceita ambos, em vez
+    de casar com o escritor de hoje e quebrar de novo no proximo.
+    """
+    for fmt in ("%Y-%m-%dT%H:%M:%S", "%Y-%m-%d %H:%M:%S", "%Y-%m-%d %H:%M"):
+        try:
+            return datetime.strptime(valor, fmt)
+        except ValueError:
+            continue
+    log.warning("premiacao: coletado_em ilegivel: %r", valor)
+    return None
 
 
 def _precisa_recoletar(mes: str, mes_corrente: str, snap: dict | None,

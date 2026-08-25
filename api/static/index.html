@@ -938,6 +938,10 @@ button.avatar{border:0;cursor:pointer}
   text-transform:uppercase;letter-spacing:.05em}
 .ges-telas label{display:flex;gap:7px;align-items:center;font-size:13px;font-weight:500;margin:0;color:inherit}
 .m-foot{display:flex;justify-content:flex-end;align-items:center;gap:8px;margin-top:16px}
+.lg-lembrar{display:flex!important;flex-direction:row!important;align-items:center;
+  gap:8px;margin:10px 0 2px;font-size:13px;color:var(--n500);cursor:pointer;
+  font-weight:400}
+.lg-lembrar input{width:auto;margin:0;accent-color:var(--orange-500)}
 .m-err{color:var(--red,#C03221);font-size:13px;min-height:16px;margin-top:8px;flex:1}
 .ges-tabs{display:flex;gap:8px;flex-wrap:wrap;padding:0 2px 4px}
 .ges-audbar{display:flex;gap:8px;margin:0 0 10px}
@@ -1281,6 +1285,7 @@ body.tvfull #btnReport,body.tvmode #btnReport{display:none}
         <a href="#folha" class="sub" data-view="folha" title="Custo de Folha (GLOBUS)"><span class="ic" data-ic="folhaic"></span><span>Custo de Folha</span></a>
         <a href="#folhaind" class="sub" data-view="folhaind" title="Indicadores de Folha — férias, CNH, hora extra, banco de horas"><span class="ic" data-ic="folhaindic"></span><span>Indicadores de Folha</span></a>
         <a href="#he" class="sub" data-view="he" title="Horas Extras — composição por evento, famílias e áreas"><span class="ic" data-ic="heic"></span><span>Horas Extras</span></a>
+        <a href="#cnh" class="sub" data-view="cnh" title="CNH dos Motoristas — vencimento e cobertura do cadastro"><span class="ic" data-ic="cnhic"></span><span>CNH dos Motoristas</span></a>
         <a href="#rh" class="sub" data-view="rh" title="RH — vagas e recrutamento"><span class="ic" data-ic="rhic"></span><span>Vagas</span></a>
       </div>
       <button class="group" id="grpTel" aria-expanded="false" aria-controls="subsTel" onclick="toggleGroup('grpTel','subsTel','cs.telGroup')" title="Telemetria">
@@ -2532,6 +2537,50 @@ body.tvfull #btnReport,body.tvmode #btnReport{display:none}
       </section>
 
       <!-- ===================== MILK RUN — MWM ===================== -->
+      <section class="view" id="view-cnh">
+        <div class="card">
+          <div class="head"><h2>Filtros <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="Motoristas ATIVOS do GLOBUS (situação A) cuja função é de condução. O ERP trunca o nome da função, então o motorista principal aparece como “MOT CARRETEIRO” — filtrar por “MOTORISTA” pegaria 21 das 294 pessoas. Tudo nesta tela obedece a estes filtros.">i</span></h2>
+            <span class="hint" id="hintCnh"></span></div>
+          <div class="milk-filtros">
+            <label>Filial<select id="fCnhFilial" onchange="loadCnh()" aria-label="Filial"><option value="">Todas</option></select></label>
+            <label>Categoria<select id="fCnhCat" onchange="loadCnh()" aria-label="Categoria da CNH"><option value="">Todas</option></select></label>
+            <label>Horizonte do alerta<select id="fCnhDias" onchange="loadCnh()" aria-label="Horizonte">
+              <option value="30">30 dias</option>
+              <option value="60">60 dias</option>
+              <option value="90" selected>90 dias</option>
+              <option value="180">180 dias</option>
+            </select></label>
+          </div>
+        </div>
+        <div class="kpis k4" id="kpis-cnh"></div>
+        <div class="card">
+          <div class="head"><h2>Cobertura do cadastro por unidade <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="Quantos motoristas ativos de cada unidade têm a data de vencimento da CNH preenchida no GLOBUS. A diferença entre unidades é grande e não é aleatória: Garuva e Matriz preenchem tudo, outras ficam abaixo de 25%. É o número mais acionável desta tela — tem dono.">i</span></h2>
+            <span class="hint" id="hintCnhFil"></span></div>
+          <div class="tablewrap tabroll"><table><thead><tr>
+            <th>Unidade</th><th class="num">Motoristas</th><th class="num">Com CNH</th>
+            <th class="num">Sem CNH</th><th class="num">Cobertura</th><th></th>
+            <th class="num">Vencidas</th><th class="num">Vencendo</th>
+          </tr></thead><tbody id="cnh-filiais"></tbody></table></div>
+        </div>
+        <div class="card">
+          <div class="head"><h2>Fila de renovação <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="Motoristas com data cadastrada, do vencimento mais próximo para o mais distante. Vermelho = vencida, âmbar = vence dentro do horizonte escolhido. Só aparece quem TEM a data — quem não tem está no card de baixo.">i</span></h2>
+            <span class="hint" id="hintCnhLista"></span></div>
+          <div class="tablewrap tabroll"><table><thead><tr>
+            <th>Motorista</th><th>Chapa</th><th>Unidade</th><th>Função</th>
+            <th class="num">Cat.</th><th class="num">Vence</th><th class="num">Prazo</th>
+          </tr></thead><tbody id="cnh-lista"></tbody></table></div>
+        </div>
+        <div class="card">
+          <div class="head"><h2>Sem CNH cadastrada <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="Motoristas ativos sem a data de vencimento da CNH no GLOBUS. Não quer dizer que estejam sem habilitação — quer dizer que o CÓRTEX não tem como avisar do vencimento deles. Quem está lotado em área de motorista vem primeiro: são os que dirigem hoje.">i</span></h2>
+            <span class="hint" id="hintCnhSem"></span></div>
+          <div class="tablewrap tabroll"><table><thead><tr>
+            <th>Motorista</th><th>Chapa</th><th>Unidade</th><th>Área</th>
+            <th>Função</th><th class="num">Admissão</th>
+          </tr></thead><tbody id="cnh-sem"></tbody></table></div>
+        </div>
+        <div id="cnh-avisos"></div>
+      </section>
+
       <section class="view" id="view-milkrun">
         <div class="card">
           <div class="head"><h2>Filtros da operação <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="TUDO nesta tela obedece a estes filtros: os indicadores do topo, o resumo por dia e as tabelas saem do mesmo recorte. Indicador que ignora o filtro fala de outro conjunto e induz a erro.">i</span></h2>
@@ -3717,6 +3766,7 @@ const ICONS = {
   recorric: IC('<path d="M20 11a8 8 0 0 0-14.3-4.5M4 13a8 8 0 0 0 14.3 4.5"/><path d="M20 5.5V11h-5.5M4 18.5V13h5.5"/>'),
   rastroic: IC('<path d="M12 21s6.5-6.2 6.5-11a6.5 6.5 0 1 0-13 0C5.5 14.8 12 21 12 21z"/><circle cx="12" cy="10" r="2.3"/><path d="M2.5 20.5h2M7.5 20.5h1M16 20.5h1M20 20.5h1.5"/>'),
   telconic: IC('<path d="M12 3.5c3.2 3.6 5 6.1 5 8.3a5 5 0 0 1-10 0c0-2.2 1.8-4.7 5-8.3z"/><path d="M3 21h18M5.5 21v-3.5M9 21v-6"/>'),
+  cnhic: IC('<rect x="2" y="4.5" width="20" height="15" rx="2.5"/><circle cx="8" cy="11" r="2.2"/><path d="M4.6 16.4a3.7 3.7 0 0 1 6.8 0"/><path d="M14.5 9.5h5M14.5 12.5h5M14.5 15.5h3"/>'),
   folhaindic: IC('<circle cx="7" cy="6.5" r="3"/><path d="M2.5 14a4.5 4.5 0 0 1 9 0"/><path d="M14 20V9M18 20V5M21.5 20h-11"/>'),
   milkic: IC('<circle cx="5" cy="6" r="2.2"/><circle cx="12" cy="17" r="2.2"/>'
              + '<circle cx="19" cy="7" r="2.2"/>'
@@ -3739,7 +3789,7 @@ const FAIXAS = {
   '4_vencido_91_365':['Vencido 91–365d','b-dang'],
   '5_vencido_mais_365':['Vencido > 365d','b-dang'],
 };
-const VIEWS = { home:'Visão Geral', fluxo:'Fluxo de Caixa e Bancos', receber:'Contas a Receber', pagar:'Contas a Pagar', oc:'Ordens de Compra', custos:'Painel de Custos', agr:'Agregados e Terceiros', mvb:'Make vs Buy', comb:'Combustível', man:'Manutenção', com:'Clientes e RKM', clif:'Consulta de Cliente', crm:'CRM — Leads e Projetos', km:'Análise de KM', torre:'Torre de Controle', veic:'Veículos', veicf:'Consulta de Veículo', mprev:'Manutenção Preventiva', comrast:'Comunicação Rastreadora', mul:'Multas', prog:'Programação Inteligente', jorn:'Jornada do Motorista', jornf:'Ficha de Jornada', cex:'Custos Extras', sac:'SAC / Freetime', port:'Portaria', cop:'Copiloto Cortex', cob:'Régua de Cobrança', extb:'Extrato Bancário', lanc:'Lançamentos Bancários', antec:'Antecipação de Recebíveis', antport:'Portais de Antecipação', milkrun:'Milk Run — MWM', rec:'Lançamentos Recorrentes', fluxcon:'Fluxo de Caixa Consolidado', cont:'Contabilidade', qual:'Qualidade e Certidões', orc:'Orçamento', fech:'Fechamento do Mês', prem:'Premiação de Motoristas', dre:'DRE Gerencial', bal:'Balanço Patrimonial', drecli:'DRE por Cliente', tvfat:'Painel TV — Faturamento', tvope:'Painel TV — Operação', rh:'RH — Vagas', hc:'Headcount', folha:'Custo de Folha', folhaind:'Indicadores de Folha', he:'Horas Extras', gestao:'Gestão', srv:'Saúde do Servidor', doc:'Documentação', anpiso:'Piso Mínimo de Frete', anrntrc:'RNTRC dos Transportadores', telcon:'Consumo e Estatísticas', telcond:'Condução Econômica', telhod:'Hodômetro e Rastro' };
+const VIEWS = { home:'Visão Geral', fluxo:'Fluxo de Caixa e Bancos', receber:'Contas a Receber', pagar:'Contas a Pagar', oc:'Ordens de Compra', custos:'Painel de Custos', agr:'Agregados e Terceiros', mvb:'Make vs Buy', comb:'Combustível', man:'Manutenção', com:'Clientes e RKM', clif:'Consulta de Cliente', crm:'CRM — Leads e Projetos', km:'Análise de KM', torre:'Torre de Controle', veic:'Veículos', veicf:'Consulta de Veículo', mprev:'Manutenção Preventiva', comrast:'Comunicação Rastreadora', mul:'Multas', prog:'Programação Inteligente', jorn:'Jornada do Motorista', jornf:'Ficha de Jornada', cex:'Custos Extras', sac:'SAC / Freetime', port:'Portaria', cop:'Copiloto Cortex', cob:'Régua de Cobrança', extb:'Extrato Bancário', lanc:'Lançamentos Bancários', antec:'Antecipação de Recebíveis', antport:'Portais de Antecipação', milkrun:'Milk Run — MWM', rec:'Lançamentos Recorrentes', fluxcon:'Fluxo de Caixa Consolidado', cont:'Contabilidade', qual:'Qualidade e Certidões', orc:'Orçamento', fech:'Fechamento do Mês', prem:'Premiação de Motoristas', dre:'DRE Gerencial', bal:'Balanço Patrimonial', drecli:'DRE por Cliente', tvfat:'Painel TV — Faturamento', tvope:'Painel TV — Operação', rh:'RH — Vagas', hc:'Headcount', folha:'Custo de Folha', folhaind:'Indicadores de Folha', he:'Horas Extras', cnh:'CNH dos Motoristas', gestao:'Gestão', srv:'Saúde do Servidor', doc:'Documentação', anpiso:'Piso Mínimo de Frete', anrntrc:'RNTRC dos Transportadores', telcon:'Consumo e Estatísticas', telcond:'Condução Econômica', telhod:'Hodômetro e Rastro' };
 const periodoLabel = p => { if(p==='atrasado') return 'Atrasado'; const [y,m]=p.split('-'); return MES[+m-1]+'/'+y.slice(2); };
 const fmtD = s => { if(!s) return ''; const [y,m,dd]=s.split('-'); return dd+'/'+m+'/'+y; };
 /* Idade da posicao bancaria. Cada conta e lancada num dia diferente: mostrar
@@ -3928,14 +3978,14 @@ const VIEW_GROUP = {home:'',cop:'',
   fluxo:'Fin',receber:'Fin',pagar:'Fin',cob:'Fin',extb:'Fin',lanc:'Fin',antec:'Fin',antport:'Fin',fluxcon:'Fin',rec:'Fin',
   dre:'Ctr',bal:'Ctr',cont:'Ctr',qual:'Ctr',orc:'Ctr',fech:'Ctr',
   torre:'Ope',milkrun:'Ope',prog:'Ope',jorn:'Ope',jornf:'Ope',cex:'Ope',sac:'Ope',port:'Ope',km:'Ope',agr:'Ope',mvb:'Ope',
-  veic:'Fro',veicf:'Fro',mprev:'Fro',comrast:'Fro',comb:'Fro',man:'Fro',mul:'Fro',prem:'Fro',
+  veic:'Fro',veicf:'Fro',mprev:'Fro',comrast:'Fro',comb:'Fro',man:'Fro',mul:'Fro',
   oc:'Sup',custos:'Sup',
   tvfat:'Tv',tvope:'Tv',
-  rh:'Rh',hc:'Rh',folha:'Rh',folhaind:'Rh',he:'Rh',gestao:'Adm',srv:'Adm',doc:'Adm',
+  rh:'Rh',hc:'Rh',folha:'Rh',folhaind:'Rh',he:'Rh',cnh:'Rh',gestao:'Adm',srv:'Adm',doc:'Adm',
   // Telemetria e ANTT tinham grupo na barra lateral mas ficaram de fora deste
   // mapa: o acordeao nao abria sozinho ao navegar para elas (agora a busca
   // global navega, entao isso passou a incomodar de verdade).
-  telcon:'Tel',telcond:'Tel',telhod:'Tel',anpiso:'Antt',anrntrc:'Antt'};
+  prem:'Tel',telcon:'Tel',telcond:'Tel',telhod:'Tel',anpiso:'Antt',anrntrc:'Antt'};
 function syncGroups(v){
   const ativo = VIEW_GROUP[v];   // accordion: abre o grupo do view ativo, fecha os demais
   /* Tela FORA do mapa fechava todos os grupos: o menu parecia recolher sozinho
@@ -4088,7 +4138,7 @@ function qsView(k){
     if(V('fHeComp'))p.set('comp',V('fHeComp'));
   } else if(k==='fech'){
     if(V('fFechMes'))p.set('mes',V('fFechMes'));
-  } else if(k==='mprev'||k==='comrast'||k==='qual'||k==='port'||k==='crm'||k==='rh'||k==='hc'||k==='folhaind'){
+  } else if(k==='mprev'||k==='comrast'||k==='qual'||k==='port'||k==='crm'||k==='rh'||k==='hc'||k==='folhaind'||k==='cnh'){
     // vistas-snapshot sem filtro local: qsView() sempre devolve '' — o
     // loader grava LOADEDQS[k]='' (não '1') para o cache de staleness
     // funcionar (senão nunca bate e cada navegação refaz a consulta).
@@ -4106,7 +4156,7 @@ function semFilterbar(v){
   // filtros", que não tinha o que aplicar.
   return v==='cop'||v==='gestao'||v==='srv'||v==='home'||v==='veicf'||v==='clif'||v==='jorn'||v==='jornf'||v==='prog'||
          v==='cex'||v==='sac'||v==='mprev'||v==='comrast'||v==='qual'||v==='port'||v==='crm'||v==='rh'||
-         v==='hc'||v==='folha'||v==='folhaind'||v==='he'||v==='custos'||v==='orc'||v==='prem'||v==='extb'||v==='fech'||v==='doc'||v==='anrntrc'||v==='telcon'||v==='telcond'||v==='telhod'||v==='milkrun';
+         v==='hc'||v==='folha'||v==='folhaind'||v==='he'||v==='custos'||v==='orc'||v==='prem'||v==='extb'||v==='fech'||v==='doc'||v==='anrntrc'||v==='telcon'||v==='telcond'||v==='telhod'||v==='milkrun'||v==='cnh';
 }
 function currentView(){
   const h = (location.hash||'').replace('#','');
@@ -4203,7 +4253,7 @@ function router(){
   // divergem dos usados na última carga (nunca mostrar dado velho com filtro novo)
   const key=viewKey(v);
   const DATAMAP={fin:DATA,oc:DATAOC,agr:DATAAGR,anpiso:DATAANPISO,anrntrc:DATAANRNTRC,telcon:DATATELCON,telcond:DATATELCOND,telhod:DATATELHOD,mvb:DATAMVB,comb:DATACOMB,man:DATAMAN,com:DATACOM,clif:DATACLIF,dre:DATADRE,bal:DATABAL,drecli:DATADRECLI,home:DATAHOME,km:DATAKM,torre:DATATORRE,veic:DATAVEIC,veicf:DATAVEICF,mul:DATAMUL,prog:DATAPROG,jorn:DATAJORN,jornf:DATAJORNF,cex:DATACEX,sac:DATASAC,mprev:DATAMPREV,comrast:DATACOMRAST,qual:DATAQUAL,port:DATAPORT,crm:DATACRM,rh:DATARH,hc:DATAHC,folha:DATAFOLHA,folhaind:DATAFOLHAIND,he:DATAHE,custos:DATACUSTOS,cob:DATACOB,extb:DATAEXTB,lanc:DATALANC,antec:DATAANTEC,antport:DATAANTPORT,milkrun:DATAMILK,fluxcon:DATAFLUXCON,rec:DATAREC,rent:DATARENT,cont:DATACONT,orc:DATAORC,fech:DATAFECH,prem:DATAPREM,gestao:DATAGES,srv:DATASRV,doc:DATADOC,tvfat:null,tvope:null,cop:(COP_MSGS.length?{}:null)};
-  const LOADMAP={fin:load,oc:loadOc,agr:loadAgr,anpiso:loadAnpiso,anrntrc:loadAnrntrc,telcon:loadTelcon,telcond:loadTelcond,telhod:loadTelhod,mvb:loadMvb,comb:loadComb,man:loadMan,com:loadCom,clif:loadClif,dre:loadDre,bal:loadBal,drecli:loadDreCli,home:loadHome,km:loadKm,torre:loadTorre,veic:loadVeic,veicf:loadVeicf,mul:loadMul,prog:loadProg,jorn:loadJorn,jornf:loadJornf,cex:loadCex,sac:loadSac,mprev:loadMPrev,comrast:loadComRast,qual:loadQual,port:loadPort,crm:loadCrm,rh:loadRh,hc:loadHc,folha:loadFolha,folhaind:loadFolhaInd,he:loadHe,custos:loadCustos,cob:loadCob,extb:loadExtb,lanc:loadLanc,antec:loadAntec,antport:loadAntport,milkrun:loadMilkrun,fluxcon:loadFluxcon,rec:loadRec,rent:loadRent,cont:loadCont,orc:loadOrc,fech:loadFech,prem:loadPrem,gestao:loadGestao,srv:loadSrv,doc:loadDoc,cop:loadCop,tvfat:loadTvFat,tvope:loadTvOpe};
+  const LOADMAP={fin:load,oc:loadOc,agr:loadAgr,anpiso:loadAnpiso,anrntrc:loadAnrntrc,telcon:loadTelcon,telcond:loadTelcond,telhod:loadTelhod,mvb:loadMvb,comb:loadComb,man:loadMan,com:loadCom,clif:loadClif,dre:loadDre,bal:loadBal,drecli:loadDreCli,home:loadHome,km:loadKm,torre:loadTorre,veic:loadVeic,veicf:loadVeicf,mul:loadMul,prog:loadProg,jorn:loadJorn,jornf:loadJornf,cex:loadCex,sac:loadSac,mprev:loadMPrev,comrast:loadComRast,qual:loadQual,port:loadPort,crm:loadCrm,rh:loadRh,hc:loadHc,folha:loadFolha,folhaind:loadFolhaInd,he:loadHe,custos:loadCustos,cob:loadCob,extb:loadExtb,lanc:loadLanc,antec:loadAntec,antport:loadAntport,milkrun:loadMilkrun,cnh:loadCnh,fluxcon:loadFluxcon,rec:loadRec,rent:loadRent,cont:loadCont,orc:loadOrc,fech:loadFech,prem:loadPrem,gestao:loadGestao,srv:loadSrv,doc:loadDoc,cop:loadCop,tvfat:loadTvFat,tvope:loadTvOpe};
   if(!DATAMAP[key] || (key!=='home' && LOADEDQS[key]!==qsView(key))) LOADMAP[key]();
   // mobile: estado da navegação inferior + fecha gaveta/painel de filtros
   document.querySelectorAll('.bottomnav [data-bview]').forEach(a=>a.classList.toggle('ativo', a.dataset.bview===v));
@@ -8773,6 +8823,164 @@ function milkPreset(dias){
   document.getElementById('fMilkDe').value=_iso(de);
   document.getElementById('fMilkAte').value=_iso(hoje);
   loadMilkrun();
+}
+
+
+// ============================ CNH DOS MOTORISTAS ============================
+// A tela lidera pela COBERTURA. Zero CNH vencida e 2 vencendo em 90 dias sao
+// os numeros bonitos, e sao sobre 81 de 294 motoristas: um painel que abrisse
+// com "0 vencidas" em verde afirmaria que esta tudo certo sobre 28% da
+// operacao. Mesma licao do CRM e das Multas — cobertura ruim de campo e
+// informacao, nao sujeira para esconder.
+let DATACNH = null, cnhSeq = 0;
+
+async function loadCnh(fundo){
+  skelKpis('kpis-cnh',4);
+  const seq=++cnhSeq, btn=document.getElementById('btnRefresh'); if(btn) btn.disabled=true;
+  if(!fundo) document.getElementById('content').classList.add('loading');
+  try{
+    const V=id=>{const e=document.getElementById(id);return e?e.value.trim():'';};
+    const p=new URLSearchParams();
+    p.set('dias', V('fCnhDias')||'90');
+    if(V('fCnhFilial')) p.set('filial', V('fCnhFilial'));
+    if(V('fCnhCat')) p.set('categoria', V('fCnhCat'));
+    const r=await fetch('/api/rh/cnh?'+p.toString(),
+      {cache:'no-store', headers: fundo?{'X-Carga-Fundo':'1'}:{}});
+    const d=await r.json(); if(seq!==cnhSeq) return;
+    if(!r.ok){ showBanner(d.mensagem||'Erro ao consultar a folha.'); return; }
+    hideBanner(); DATACNH=d; renderCnh(d);
+  }catch(e){ if(seq===cnhSeq) showBanner('Não foi possível falar com a API.', e.message); }
+  finally{ if(seq===cnhSeq){ if(btn) btn.disabled=false;
+    document.getElementById('content').classList.remove('loading'); } }
+}
+
+function cnhSelects(d){
+  // preenche uma vez e PRESERVA o escolhido: recarregar com filtro ativo nao
+  // pode devolver o select para "Todas"
+  const fs=document.getElementById('fCnhFilial');
+  if(fs && fs.options.length<=1){
+    fs.innerHTML='<option value="">Todas</option>'+
+      (d.filiais||[]).map(f=>`<option value="${esc(f)}">${esc(f)}</option>`).join('');
+    if((d.filtros||{}).filial) fs.value=d.filtros.filial;
+  }
+  const cs=document.getElementById('fCnhCat');
+  if(cs && cs.options.length<=1){
+    cs.innerHTML='<option value="">Todas</option>'+
+      (d.categorias||[]).map(c=>`<option value="${esc(c.cat)}">${esc(c.cat)} (${c.n})</option>`).join('');
+    if((d.filtros||{}).categoria) cs.value=d.filtros.categoria;
+  }
+}
+
+function renderCnh(d){
+  const k=d.kpis||{}, dias=d.dias||90;
+  cnhSelects(d);
+
+  const cob = k.cobertura;
+  const cobCls = cob==null ? '' : (cob>=90?'pos':(cob>=60?'warn':'neg'));
+  document.getElementById('kpis-cnh').innerHTML=[
+    kpi('Motoristas ativos', (k.motoristas||0).toLocaleString('pt-BR'),
+        (k.dirigindo||0)+' em área de motorista · '+(k.fora_de_area||0)+' em área administrativa',
+        '',
+        'Funcionários ATIVOS cuja função é de condução. O ERP trunca o nome da função em ~16 caracteres, então o motorista principal aparece como “MOT CARRETEIRO”: filtrar por “MOTORISTA” traria 21 pessoas em vez de 294. O subtítulo separa quem está lotado dirigindo de quem carrega função de motorista em área administrativa (Presidência, RH, Contabilidade) — provável função errada no cadastro, e por isso aparece à parte em vez de ser excluído por minha conta.'),
+    kpi('CNH cadastrada', (k.com_cnh||0).toLocaleString('pt-BR'),
+        (cob==null?'—':cob.toLocaleString('pt-BR',{maximumFractionDigits:1})+'% dos motoristas')
+          +' · '+(k.sem_cnh||0)+' sem a data',
+        cobCls,
+        'Quantos têm a data de vencimento da CNH preenchida no GLOBUS. É o número que manda nesta tela: os indicadores de vencimento ao lado só enxergam esta fatia. Cobertura baixa não significa motorista sem habilitação — significa que o CÓRTEX não tem como avisar do vencimento dele.'),
+    kpi('CNH vencida', (k.vencidas||0).toLocaleString('pt-BR'),
+        'entre as '+(k.com_cnh||0)+' com data cadastrada',
+        (k.vencidas||0)>0?'neg':'',
+        'Data de vencimento anterior a hoje. Hoje são zero — mas isso vale só para as CNHs cadastradas. Sobre as demais não há afirmação possível, e é por isso que este cartão NÃO sai em verde: verde diria “frota em dia”, o que a base não sustenta.'),
+    kpi('Vence em '+dias+' dias', (k.vence_prazo||0).toLocaleString('pt-BR'),
+        (k.vence_30||0)+' nos próximos 30 dias',
+        (k.vence_prazo||0)>0?'warn':'',
+        'Renovações a agendar dentro do horizonte escolhido no filtro. Também só enxerga quem tem a data cadastrada.'),
+  ].join('');
+
+  // -------- cobertura por unidade: onde a lacuna tem dono
+  const pf=d.por_filial||[];
+  document.getElementById('hintCnhFil').textContent =
+    pf.length ? (pf.length+' unidade(s) · '+(k.filiais_completas||0)+' com cadastro completo') : '';
+  document.getElementById('cnh-filiais').innerHTML = pf.map(x=>{
+    const cls = x.pct>=90?'var(--green)':(x.pct>=60?'var(--yellow-700)':'var(--red)');
+    return `<tr>
+      <td>${esc(x.filial)}</td>
+      <td class="num" style="font-weight:600">${x.n}</td>
+      <td class="num" style="color:var(--green)">${x.com||'—'}</td>
+      <td class="num" style="color:${x.sem>0?'var(--red)':'var(--n500)'}">${x.sem||'—'}</td>
+      <td class="num" style="font-weight:700;color:${cls}">${x.pct.toLocaleString('pt-BR',{maximumFractionDigits:1})}%</td>
+      <td style="width:110px"><div style="height:8px;background:var(--n200);border-radius:999px;overflow:hidden">
+        <i style="display:block;height:100%;width:${x.pct}%;background:${cls}"></i></div></td>
+      <td class="num" style="color:${x.vencidas>0?'var(--red)':'var(--n500)'}">${x.vencidas||'—'}</td>
+      <td class="num" style="color:${x.vence>0?'var(--yellow-700)':'var(--n500)'}">${x.vence||'—'}</td>
+    </tr>`;
+  }).join('') || '<tr><td colspan="8" style="color:var(--n500)">nenhuma unidade no recorte</td></tr>';
+
+  // -------- fila de renovacao
+  const L=d.lista||[];
+  document.getElementById('hintCnhLista').textContent =
+    L.length ? (L.length+' motorista(s) com data cadastrada · do vencimento mais próximo ao mais distante')
+             : 'nenhum motorista com data de CNH neste recorte';
+  document.getElementById('cnh-lista').innerHTML = L.map(x=>{
+    const cor = x.estado==='vencida'?'var(--red)'
+              : x.estado==='critica'?'var(--red)'
+              : x.estado==='atencao'?'var(--yellow-700)':'var(--n700)';
+    const prazo = x.dias<0 ? ('vencida há '+Math.abs(x.dias)+(Math.abs(x.dias)===1?' dia':' dias'))
+                           : (x.dias+(x.dias===1?' dia':' dias'));
+    return `<tr>
+      <td>${esc(x.nome)}${x.dirige?'':'<span class="milk-venc" style="color:var(--n500)" title="Função de motorista, mas lotado em área administrativa — vale conferir o cadastro">fora de área de motorista</span>'}</td>
+      <td style="font-family:var(--mono);font-size:12px">${esc(x.chapa)}</td>
+      <td>${esc(x.filial||'—')}</td>
+      <td style="color:var(--n500);font-size:12.5px">${esc(x.funcao||'—')}</td>
+      <td class="num">${esc(x.cat||'—')}</td>
+      <td class="num" style="font-family:var(--mono);font-size:12px">${fmtD(x.vence)}</td>
+      <td class="num" style="font-weight:700;color:${cor}">${prazo}</td>
+    </tr>`;
+  }).join('') || '<tr><td colspan="7" style="color:var(--n500)">ninguém com data cadastrada aqui</td></tr>';
+
+  // -------- sem cadastro: a lista de trabalho do RH
+  const S=d.sem_cnh||[];
+  const dirigindoSem = S.filter(x=>x.dirige).length;
+  document.getElementById('hintCnhSem').textContent =
+    S.length ? (S.length+' motorista(s) sem a data · '+dirigindoSem+' em área de motorista')
+             : 'todos os motoristas do recorte têm a data cadastrada';
+  document.getElementById('cnh-sem').innerHTML = S.map(x=>`<tr${x.dirige?'':' style="opacity:.62"'}>
+      <td>${esc(x.nome)}</td>
+      <td style="font-family:var(--mono);font-size:12px">${esc(x.chapa)}</td>
+      <td>${esc(x.filial||'—')}</td>
+      <td style="color:var(--n500);font-size:12.5px">${esc(x.area||'—')}</td>
+      <td style="color:var(--n500);font-size:12.5px">${esc(x.funcao||'—')}</td>
+      <td class="num" style="font-family:var(--mono);font-size:12px">${x.admitido?fmtD(x.admitido):'—'}</td>
+    </tr>`).join('') || '<tr><td colspan="6" style="color:var(--n500)">nada pendente aqui</td></tr>';
+
+  // -------- avisos
+  const A=[];
+  if((k.sem_cnh||0) > 0){
+    const pior = pf.filter(x=>x.sem>0).sort((a,b)=>a.pct-b.pct).slice(0,3);
+    A.push(['t-warn',
+      (k.sem_cnh)+' de '+(k.motoristas)+' motoristas sem data de CNH no GLOBUS',
+      'O CÓRTEX não tem como avisar do vencimento destes. A lacuna não é uniforme: '
+        + pior.map(x=>x.filial+' '+x.pct.toLocaleString('pt-BR',{maximumFractionDigits:0})+'%').join(', ')
+        + '. Onde a cobertura é 100% (Garuva, Matriz) alguém preenche — é um processo que existe e pode ser repetido.']);
+  }
+  if((k.fora_de_area||0) > 0){
+    A.push(['t-info',
+      (k.fora_de_area)+' pessoas com função de motorista fora de área de motorista',
+      'Estão lotadas em Presidência, RH, Contabilidade, CCO e manutenção. Quase nenhuma tem CNH cadastrada, o que sugere função errada no cadastro e não motorista de verdade. Ficam contadas à parte em vez de excluídas: quem decide o que essas pessoas são é o RH.']);
+  }
+  if((k.vencidas||0)===0 && (k.com_cnh||0)>0){
+    A.push(['t-ok','Nenhuma CNH vencida entre as cadastradas',
+      'Vale pelo que diz e não mais que isso: a afirmação cobre '+(k.com_cnh)+' dos '+(k.motoristas)+' motoristas ativos.']);
+  }
+  document.getElementById('cnh-avisos').innerHTML=A.map(([c,t,m])=>
+    `<div class="toast ${c}"><b>${esc(t)}</b>${esc(m)}</div>`).join('');
+
+  const rec=[];
+  if((d.filtros||{}).filial) rec.push(d.filtros.filial);
+  if((d.filtros||{}).categoria) rec.push('categoria '+d.filtros.categoria);
+  rec.push('alerta em '+dias+' dias');
+  document.getElementById('hintCnh').textContent =
+    rec.join(' · ')+' — '+(k.motoristas||0)+' motorista(s) ativo(s)';
 }
 
 async function loadMilkrun(fundo){
@@ -14206,13 +14414,25 @@ function lgHTML(modo){
     <label for="lg-conf">Confirmar senha</label><input type="password" id="lg-conf" autocomplete="new-password" onkeydown="if(event.key==='Enter')setupSubmit()">
     <div class="m-err" id="lg-err"></div>
     <button class="btn lg-btn" id="lg-go" onclick="setupSubmit()">Criar administrador</button>`;
+  /* FORM DE VERDADE, e nao campos soltos: sem submit de formulario o
+     navegador nunca oferece para salvar a senha. Era por isso que nao
+     aparecia o "deseja salvar?" — e e a unica forma segura de guardar senha,
+     no cofre do sistema operacional em vez de em texto puro na pagina. */
+  const lembrado = lgEmailLembrado();
   return `
     <h2>Entrar</h2>
     <p class="lg-sub">Acesse com seu e-mail e senha.</p>
-    <label for="lg-email">E-mail</label><input type="email" id="lg-email" autocomplete="username">
-    <label for="lg-senha">Senha</label><input type="password" id="lg-senha" autocomplete="current-password" onkeydown="if(event.key==='Enter')loginSubmit()">
-    <div class="m-err" id="lg-err"></div>
-    <button class="btn lg-btn" id="lg-go" onclick="loginSubmit()">Entrar</button>`;
+    <form id="lg-form" onsubmit="event.preventDefault();loginSubmit();return false">
+      <label for="lg-email">E-mail</label>
+      <input type="email" id="lg-email" name="username" autocomplete="username"
+             value="${esc(lembrado)}">
+      <label for="lg-senha">Senha</label>
+      <input type="password" id="lg-senha" name="password" autocomplete="current-password">
+      <label class="lg-lembrar"><input type="checkbox" id="lg-lembrar"
+             ${lembrado ? 'checked' : ''}> Lembrar meu e-mail neste computador</label>
+      <div class="m-err" id="lg-err"></div>
+      <button class="btn lg-btn" id="lg-go" type="submit">Entrar</button>
+    </form>`;
 }
 function mostrarLogin(modo){
   const ov=document.getElementById('loginOverlay');
@@ -14220,10 +14440,32 @@ function mostrarLogin(modo){
   if(!ov.classList.contains('oculto') && document.getElementById('lg-go')) return;
   document.getElementById('lg-box').innerHTML = lgHTML(modo||'login');
   ov.classList.remove('oculto');
-  const foco=document.getElementById(modo==='setup'?'lg-nome':'lg-email');
+  /* com o e-mail ja preenchido, o cursor vai para a SENHA — cair no campo
+     cheio obriga a pessoa a dar um Tab que ela nao precisava dar */
+  const alvo = modo==='setup' ? 'lg-nome'
+             : (document.getElementById('lg-email')||{}).value ? 'lg-senha' : 'lg-email';
+  const foco=document.getElementById(alvo);
   if(foco) setTimeout(()=>foco.focus(), 60);
 }
 function lgErro(m){ const e=document.getElementById('lg-err'); if(e) e.textContent=m||''; }
+
+/* E-MAIL lembrado. So o e-mail: senha em localStorage e texto puro ao alcance
+   de qualquer script da pagina, e a comodidade nao paga esse preco. Quem
+   quiser a senha preenchida aceita o cofre do navegador, que o form acima
+   agora deixa aparecer. */
+const LG_EMAIL_KEY = 'cx.loginEmail';
+function lgEmailLembrado(){
+  try{ return localStorage.getItem(LG_EMAIL_KEY) || ''; }catch(e){ return ''; }
+}
+function lgGuardarEmail(email){
+  // navegacao anonima e politica de privacidade bloqueiam localStorage; o
+  // login nao pode falhar por causa disso
+  try{
+    const c = document.getElementById('lg-lembrar');
+    if(c && c.checked && email) localStorage.setItem(LG_EMAIL_KEY, email);
+    else localStorage.removeItem(LG_EMAIL_KEY);
+  }catch(e){}
+}
 async function loginSubmit(){
   const email=(document.getElementById('lg-email').value||'').trim();
   const senha=document.getElementById('lg-senha').value||'';
@@ -14233,6 +14475,7 @@ async function loginSubmit(){
     const r=await _fetch0('/api/auth/login',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({email,senha})});
     const d=await r.json();
     if(!r.ok){ lgErro(d.mensagem||'Falha no login.'); return; }
+    lgGuardarEmail(email);   // so depois de o login dar certo
     USER=d; entrar();
   }catch(e){ lgErro('Não foi possível falar com a API.'); }
   finally{ btn.disabled=false; }
@@ -15437,6 +15680,7 @@ boot();
         <a href="#folha" onclick="fecharDrawer()"><span class="ic" data-ic="folhaic"></span>Custo de Folha</a>
         <a href="#folhaind" onclick="fecharDrawer()"><span class="ic" data-ic="gauge"></span>Indicadores de Folha</a>
         <a href="#he" onclick="fecharDrawer()"><span class="ic" data-ic="heic"></span>Horas Extras</a>
+        <a href="#cnh" onclick="fecharDrawer()"><span class="ic" data-ic="cnhic"></span>CNH dos Motoristas</a>
         <a href="#rh" onclick="fecharDrawer()"><span class="ic" data-ic="rhic"></span>Vagas</a>
       </div>
     </div>

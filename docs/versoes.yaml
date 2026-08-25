@@ -3,6 +3,43 @@
 #   - a tela Documentação     (#doc)
 #   - o rótulo no rodapé      (CX-DD/MM/AAAA-vX.Y.Z)
 # A versão do TOPO é a corrente e tem de bater com o pyproject.toml.
+- versao: "0.42.0"
+  data: "2026-08-25"
+  adicionado:
+    - >-
+      TELA NOVA: CNH DOS MOTORISTAS (Recursos Humanos), alimentada pelo banco
+      da folha (GLOBUS). Ela lidera pela COBERTURA e nao pelo vencimento, e o
+      motivo esta nos dados: dos 294 motoristas ativos, 81 (27,6%) tem a data
+      de vencimento cadastrada. Entre esses, NENHUM esta com CNH vencida e 2
+      vencem em 90 dias. Abrir com "0 vencidas" em verde afirmaria "frota em
+      dia" sobre uma base que enxerga 28% da operacao.
+    - >-
+      A lacuna do cadastro tem DONO, e esse e o achado util da tela: Garuva e
+      Matriz preenchem 100%, enquanto Cruzeiro fica em 20%, Curitiba em 20% e
+      Pouso Alegre em 11%. Onde a cobertura e total existe um processo que
+      funciona e pode ser repetido nas outras unidades.
+    - >-
+      Card "Sem CNH cadastrada" com os 213 nomes, os que estao lotados em area
+      de motorista primeiro (121) - e a lista de trabalho do RH, nao so o
+      diagnostico.
+    - >-
+      Na tela de login, opcao "Lembrar meu e-mail neste computador". O e-mail
+      volta preenchido na proxima visita e o cursor cai direto na senha.
+  corrigido:
+    - >-
+      A PREMIACAO DE MOTORISTAS abria com erro. Duas causas independentes: o
+      arquivo do mes de agosto foi gravado com a data em formato ISO
+      (2026-08-19T14:41:36) e o leitor so aceitava o formato antigo
+      (2026-07-27 16:48), derrubando a tela inteira; e o menu estava mapeado
+      para o grupo Frota enquanto o item vive em Telemetria, entao clicar nela
+      abria o menu da area errada.
+    - >-
+      A SENHA passou a ser oferecida ao gerenciador do proprio navegador. Os
+      campos do login estavam soltos, sem formulario, e sem isso o navegador
+      nunca pergunta "deseja salvar a senha?". Quem aceitar tera e-mail e senha
+      preenchidos - guardados no cofre do sistema, nunca em texto puro na
+      pagina.
+
 - versao: "0.41.0"
   data: "2026-08-25"
   corrigido:

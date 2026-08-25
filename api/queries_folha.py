@@ -4,6 +4,12 @@ Fonte: Querys Sulista/GLOBUS. Conecta via api/db_folha (thick, read-only).
 PII: a folha é o dado mais sensível — estas funções entregam SÓ agregados
 (headcount e custo por área/função/filial/competência). Nunca expõem nome,
 CPF, salário individual ou dado bancário.
+
+EXCEÇÃO ÚNICA E DELIBERADA: `get_cnh()` devolve NOME e CHAPA. Sem eles a tela
+não serve para nada — "a CNH de alguém vence em 12 dias" não é acionável, e
+quem cobra a renovação precisa saber de quem. O que continua fora, inclusive
+aí: CPF, salário, dado bancário e o PRÓPRIO NÚMERO da CNH, que não é preciso
+para agendar renovação nenhuma. É a menor exposição que resolve o problema.
 """
 from __future__ import annotations
 
@@ -388,4 +394,155 @@ def get_horas_extras(comp: str | None = None) -> dict:
         "serie": serie,
         "por_area": por_area,
         "fonte": "ERP GLOBUS - folha (agregado, sem PII)",
+    }
+
+
+# ============================================================================
+# CNH dos motoristas — vencimento e, principalmente, COBERTURA
+#
+# O que os dados dizem (medido em 25/08/2026): entre os 294 ativos com função
+# de motorista, NENHUMA CNH está vencida e só 2 vencem em 90 dias. O problema
+# não é vencimento — é que 213 deles (72%) não têm essa data cadastrada. Por
+# isso a tela lidera pela cobertura: um painel que abrisse com "0 vencidas" em
+# verde diria que está tudo certo sobre uma base que mede 28% da operação.
+#
+# E a cobertura não é aleatória, é POR UNIDADE: Garuva e Matriz preenchem 100%,
+# Cruzeiro e Curitiba ficam em 20%, Pouso Alegre em 11%. Isso é cobrável de
+# alguém, e é a informação mais útil da tela.
+# ============================================================================
+
+# Funções de condução. O ERP trunca `descfuncao` em ~16 caracteres, então o
+# motorista principal aparece como 'MOT CARRETEIRO' e NÃO casa com um filtro
+# ingênuo por '%MOTORISTA%' — que pegaria só 21 das 294 pessoas.
+_CNH_FUNCAO = "(UPPER(c.descfuncao) LIKE 'MOT%' OR UPPER(c.descfuncao) LIKE '%CARRETEIR%')"
+
+# Área cujo nome começa com MOT = a pessoa está lotada dirigindo. Serve para
+# separar (NÃO para excluir) as 94 pessoas com função de motorista alocadas em
+# Presidência, RH, CCO, Contabilidade e manutenção — 92 delas sem CNH nenhuma,
+# o que sugere função errada no cadastro e não motorista de verdade. A tela
+# mostra esse grupo à parte; decidir o que ele é cabe ao RH, não a mim.
+_CNH_DIRIGE = "UPPER(f.descarea) LIKE 'MOT%'"
+
+_CNH_BASE = f"""
+FROM vwcgs_colaboradores c
+JOIN vw_funcionarios f ON f.codintfunc = c.codintfunc
+WHERE c.situacaofunc = 'A' AND c.codigoempresa = :emp AND {_CNH_FUNCAO}
+"""
+
+
+def _qb(sql: str, params: dict) -> list[dict]:
+    """Roda passando SO os binds que aparecem no SQL. O Oracle rejeita bind
+    sobrando com ORA-01036, e as consultas desta tela compartilham o mesmo
+    dicionario mas usam subconjuntos diferentes dele."""
+    import re as _re
+    usados = set(_re.findall(r":(\w+)", sql))
+    return _q(sql, {k: v for k, v in params.items() if k in usados})
+
+
+def get_cnh(dias: int = 90, filial: str = "", categoria: str = "") -> dict:
+    """Vencimento de CNH dos motoristas ativos, com a cobertura em primeiro
+    plano. `dias` é o horizonte do alerta de "vence em breve"."""
+    dias = max(7, min(365, int(dias or 90)))
+    p = {"emp": EMPRESA, "dias": dias}
+
+    filtro = ""
+    if filial:
+        filtro += " AND f.descsecao = :filial"
+        p["filial"] = filial
+    if categoria:
+        filtro += " AND UPPER(c.categoria_cnh) = :cat"
+        p["cat"] = categoria.upper()
+
+    tot = _qb(f"""
+        SELECT COUNT(*) motoristas,
+               COUNT(c.vencimento_cnh) com_cnh,
+               SUM(CASE WHEN {_CNH_DIRIGE} THEN 1 ELSE 0 END) dirigindo,
+               SUM(CASE WHEN {_CNH_DIRIGE} THEN 0 ELSE 1 END) fora_de_area,
+               SUM(CASE WHEN c.vencimento_cnh < TRUNC(SYSDATE) THEN 1 ELSE 0 END) vencidas,
+               SUM(CASE WHEN c.vencimento_cnh BETWEEN TRUNC(SYSDATE)
+                        AND TRUNC(SYSDATE)+:dias THEN 1 ELSE 0 END) vence_prazo,
+               SUM(CASE WHEN c.vencimento_cnh BETWEEN TRUNC(SYSDATE)
+                        AND TRUNC(SYSDATE)+30 THEN 1 ELSE 0 END) vence_30
+        {_CNH_BASE} {filtro}""", p)[0]
+
+    n = tot["motoristas"] or 0
+    com = tot["com_cnh"] or 0
+
+    por_filial = [
+        {"filial": r["filial"] or "(sem filial)", "n": r["n"], "com": r["com"],
+         "sem": r["n"] - r["com"],
+         "pct": round(100 * r["com"] / r["n"], 1) if r["n"] else 0.0,
+         "vencidas": r["vencidas"] or 0, "vence": r["vence"] or 0}
+        for r in _qb(f"""
+            SELECT f.descsecao filial, COUNT(*) n, COUNT(c.vencimento_cnh) com,
+                   SUM(CASE WHEN c.vencimento_cnh < TRUNC(SYSDATE) THEN 1 ELSE 0 END) vencidas,
+                   SUM(CASE WHEN c.vencimento_cnh BETWEEN TRUNC(SYSDATE)
+                            AND TRUNC(SYSDATE)+:dias THEN 1 ELSE 0 END) vence
+            {_CNH_BASE} {filtro}
+            GROUP BY f.descsecao ORDER BY COUNT(*) DESC""", p)]
+
+    categorias = [
+        {"cat": r["cat"] or "(não informada)", "n": r["n"]}
+        for r in _qb(f"""
+            SELECT c.categoria_cnh cat, COUNT(*) n {_CNH_BASE} {filtro}
+              AND c.vencimento_cnh IS NOT NULL
+            GROUP BY c.categoria_cnh ORDER BY COUNT(*) DESC""", p)]
+
+    # COM data: ordenado por quem vence primeiro — é a fila de renovação.
+    lista = [
+        {"nome": r["nome"], "chapa": (r["chapa"] or "").strip(),
+         "funcao": r["funcao"], "filial": r["filial"], "area": r["area"],
+         "cat": r["cat"], "vence": r["vence"], "dias": int(r["dias_ate"]),
+         "dirige": bool(r["dirige"]),
+         "estado": ("vencida" if r["dias_ate"] < 0
+                    else "critica" if r["dias_ate"] <= 30
+                    else "atencao" if r["dias_ate"] <= dias else "ok")}
+        for r in _qb(f"""
+            SELECT c.nomecompletofunc nome, c.chapafunc chapa,
+                   c.descfuncao funcao, f.descsecao filial, f.descarea area,
+                   c.categoria_cnh cat,
+                   TO_CHAR(c.vencimento_cnh,'YYYY-MM-DD') vence,
+                   TRUNC(c.vencimento_cnh) - TRUNC(SYSDATE) dias_ate,
+                   CASE WHEN {_CNH_DIRIGE} THEN 1 ELSE 0 END dirige
+            {_CNH_BASE} {filtro} AND c.vencimento_cnh IS NOT NULL
+            ORDER BY c.vencimento_cnh""", p)]
+
+    # SEM data: a lista de trabalho do RH. Os que estão em área de motorista
+    # vêm primeiro — são os que de fato dirigem hoje.
+    sem = [
+        {"nome": r["nome"], "chapa": (r["chapa"] or "").strip(),
+         "funcao": r["funcao"], "filial": r["filial"], "area": r["area"],
+         "dirige": bool(r["dirige"]),
+         "admitido": r["admitido"]}
+        for r in _qb(f"""
+            SELECT c.nomecompletofunc nome, c.chapafunc chapa,
+                   c.descfuncao funcao, f.descsecao filial, f.descarea area,
+                   TO_CHAR(f.dtadmfunc,'YYYY-MM-DD') admitido,
+                   CASE WHEN {_CNH_DIRIGE} THEN 1 ELSE 0 END dirige
+            {_CNH_BASE} {filtro} AND c.vencimento_cnh IS NULL
+            ORDER BY CASE WHEN {_CNH_DIRIGE} THEN 0 ELSE 1 END,
+                     f.descsecao, c.nomecompletofunc""", p)]
+
+    return {
+        "dias": dias,
+        "filtros": {"filial": filial, "categoria": categoria},
+        "filiais": [x["filial"] for x in por_filial],
+        "categorias": categorias,
+        "kpis": {
+            "motoristas": n,
+            "com_cnh": com,
+            "sem_cnh": n - com,
+            "cobertura": round(100 * com / n, 1) if n else None,
+            "dirigindo": tot["dirigindo"] or 0,
+            "fora_de_area": tot["fora_de_area"] or 0,
+            "vencidas": tot["vencidas"] or 0,
+            "vence_prazo": tot["vence_prazo"] or 0,
+            "vence_30": tot["vence_30"] or 0,
+            "filiais_completas": sum(1 for x in por_filial if x["pct"] >= 99.9),
+            "filiais": len(por_filial),
+        },
+        "por_filial": por_filial,
+        "lista": lista,
+        "sem_cnh": sem,
+        "fonte": "ERP GLOBUS · vwcgs_colaboradores × vw_funcionarios",
     }

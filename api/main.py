@@ -1337,6 +1337,24 @@ def rh_headcount() -> JSONResponse:
         return _folha_erro(exc)
 
 
+@app.get("/api/rh/cnh")
+def rh_cnh(dias: int = 90, filial: str = "", categoria: str = "") -> JSONResponse:
+    """Vencimento de CNH dos motoristas ativos (GLOBUS).
+
+    Devolve NOME e CHAPA — exceção deliberada à regra de só-agregados da folha:
+    sem eles a tela não é acionável, porque ninguém cobra a renovação de "um
+    motorista". CPF, salário e o número da CNH continuam fora.
+    """
+    from api.queries_folha import get_cnh
+    try:
+        return JSONResponse(get_cnh(dias=dias, filial=filial, categoria=categoria))
+    except Exception as exc:  # noqa: BLE001
+        log.warning("rh_cnh falhou: %s", exc)
+        return JSONResponse(status_code=503, content={
+            "erro": "globus_indisponivel",
+            "mensagem": "Sem conexao com o banco da folha (GLOBUS)."})
+
+
 @app.get("/api/rh/folha-indicadores")
 def rh_folha_indicadores() -> JSONResponse:
     try:
