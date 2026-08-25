@@ -245,6 +245,17 @@ svg:focus-visible{outline:2px solid var(--orange-500);outline-offset:2px;border-
   .cred-row{grid-template-columns:1fr 1fr;gap:6px}
 }
 /* area de arrastar-e-soltar da planilha do portal */
+/* Milk run: cada solicitacao e um bloco, e as paradas sao as linhas dela.
+   Sem o cabecalho da solicitacao, quatro paradas da mesma viagem viram uma
+   lista solta e some a nocao de roteiro. */
+.milk-grupo{background:var(--n0);border:1px solid var(--n200);
+  border-radius:var(--radius);margin-bottom:14px;overflow:hidden}
+.milk-cab{display:flex;align-items:center;gap:10px;flex-wrap:wrap;
+  padding:11px 16px;background:var(--navy-50,#EEF3F8);
+  border-bottom:1px solid var(--n200);font-size:13px}
+.milk-cab b{font-size:14px;color:var(--navy-800)}
+.milk-veic{font-family:var(--mono);font-size:12px;font-weight:600;color:var(--n700)}
+.milk-grupo .tablewrap{padding:0}
 .antup{display:flex;flex-direction:column;align-items:center;gap:6px;padding:26px 18px;
   border:2px dashed var(--n300);border-radius:12px;cursor:pointer;text-align:center;
   color:var(--n600);font-size:13px;background:var(--n50,#FAFBFC)}
@@ -2450,12 +2461,9 @@ body.tvfull #btnReport,body.tvmode #btnReport{display:none}
             <input type="date" id="fMilkDia" onchange="loadMilkrun()" aria-label="Dia da operação"
                    style="margin-left:auto;padding:6px 10px;border:1px solid var(--n300);border-radius:8px;font:inherit;font-size:13px">
           </div>
-          <div class="tablewrap tabroll"><table><thead><tr>
-            <th class="num">Combinado</th><th>Fornecedor</th><th>Veículo</th>
-            <th class="num">Chegada</th><th class="num">Saída</th>
-            <th class="num">Permanência</th><th class="num">Distância</th><th>Situação</th>
-          </tr></thead><tbody id="milk-pontos"></tbody></table></div>
+          <div class="ges-tabs" id="milk-chips"></div>
         </div>
+        <div id="milk-grupos"></div>
         <div class="card">
           <div class="head"><h2>Mapa da operação <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="Cada marcador é um ponto de coleta do dia, com a cor da situação. Verde = coletado, âmbar = veículo no local agora, cinza = ainda não chegou.">i</span></h2>
             <span class="hint">pontos de coleta do dia</span></div>
@@ -8579,13 +8587,17 @@ function planoResultado(d, gravado){
   injectIcons();
 }
 
+
 /* ============ MILK RUN — MWM ============
-   A tela existe porque hoje os horários nos fornecedores são DIGITADOS, e o
-   dado do próprio ERP mostra o custo disso: 1.462 viagens em 30 dias entre
-   cidades diferentes com duração menor que 15 minutos, e 46% das chegadas com
-   segundo `:00` (marca de hora digitada — o rastreador sempre traz o segundo
-   do ping). Aqui chegada e saída vêm do rastro. */
+   A tela existe porque os horários nos fornecedores são DIGITADOS
+   (coleta_cliente.hra_chegada / hra_saida, campos texto), e aqui eles ficam
+   lado a lado com o horário DETECTADO pelo rastro.
+
+   Agrupado por SOLICITAÇÃO porque é assim que o roteiro existe no ERP: a
+   coleta 55621 tem quatro paradas (10:00, 13:00, 15:00 e 17:00), e ver as
+   linhas soltas perderia a noção de rota. */
 let DATAMILK = null, milkSeq = 0, milkMap = null, milkLayer = null;
+let milkFiltro = 'todos';
 
 async function loadMilkrun(fundo){
   skelKpis('kpis-milkrun',4);
@@ -8603,88 +8615,137 @@ async function loadMilkrun(fundo){
     document.getElementById('content').classList.remove('loading'); } }
 }
 
+function milkFiltrar(f){
+  milkFiltro=f;
+  document.querySelectorAll('#milk-chips button').forEach(b=>
+    b.setAttribute('aria-pressed', String(b.dataset.f===f)));
+  if(DATAMILK) renderMilkrun(DATAMILK);
+}
+
 const MILK_EST = {
   concluido: ['b-ok','coletado'],
   no_local:  ['b-warn','no local agora'],
-  aguardando:['b-info','aguardando'],
+  aguardando:['b-info','pendente'],
+  frustrada: ['b-alert','frustrada'],
 };
 
 function renderMilkrun(d){
-  const k=d.kpis||{}, pts=d.pontos||[];
+  const k=d.kpis||{}, grupos=d.coletas||[];
   if(!document.getElementById('fMilkDia').value) document.getElementById('fMilkDia').value=d.dia;
 
   document.getElementById('kpis-milkrun').innerHTML=[
-    kpi('Pontos do dia', (k.pontos||0).toLocaleString('pt-BR'),
-        (k.veiculos||0)+' veículo(s) na operação', '',
-        'Coletas com data marcada para este dia na solicitação de carga do ERP. Cada uma é uma parada do milk run.'),
+    kpi('Solicitações do dia', (k.solicitacoes||0).toLocaleString('pt-BR'),
+        (k.pontos||0)+' ponto(s) · '+(k.veiculos||0)+' veículo(s)', '',
+        'Cada solicitação de coleta é um roteiro, e cada ponto dela é uma parada num fornecedor. Uma solicitação pode ter até quatro paradas.'),
     kpi('Coletados', (k.concluidos||0).toLocaleString('pt-BR'),
-        k.pontos?(pct(k.concluidos||0,k.pontos)+' da rota'):'—',
+        k.pontos?(pct(k.concluidos||0,k.pontos)+' dos pontos'):'—',
         (k.concluidos||0)>0?'pos':'',
-        'Pontos em que o veículo chegou E já saiu, detectado pelo rastreamento. Não depende de ninguém apontar.'),
-    kpi('No local agora', (k.no_local||0).toLocaleString('pt-BR'),
-        (k.aguardando||0)+' ainda não chegaram', (k.no_local||0)>0?'warn':'',
-        'Veículo dentro do raio do fornecedor na última posição transmitida — está carregando agora.'),
-    kpi('Atrasados', (k.atrasados||0).toLocaleString('pt-BR'),
-        'chegada mais de 30 min após o combinado',
-        (k.atrasados||0)>0?'neg':'pos',
-        'Compara a chegada detectada com o horário combinado na solicitação de carga. Tolerância de 30 minutos para cada lado.'),
+        'Pontos em que a coleta se concretizou. O horário vem do rastreamento; quando a operação aponta coleta e o rastro não vê, a linha diz "coletado (sem rastro)" — quase sempre coordenada errada ou raio pequeno.'),
+    kpi('Frustradas', (k.frustrados||0).toLocaleString('pt-BR'),
+        'o veículo foi e voltou sem carga', (k.frustrados||0)>0?'neg':'pos',
+        'Coleta marcada como FRUSTRADA no ERP: o caminhão esteve no fornecedor e não carregou. O rastreamento não distingue isso sozinho — veria uma visita normal —, então este desfecho vem do apontamento da operação.'),
+    kpi('Pendentes', (k.pendentes||0).toLocaleString('pt-BR'),
+        (k.no_local||0)+' no local agora · '+(k.atrasados||0)+' atrasado(s)',
+        (k.atrasados||0)>0?'warn':'',
+        'Pontos em que o veículo ainda não chegou. "Atrasado" compara a chegada detectada com a janela agendada, com tolerância de 30 minutos.'),
   ].join('');
 
-  document.getElementById('hintMilk').textContent =
-    pts.length ? (pts.length+' ponto(s) · chegada e saída DETECTADAS pelo rastreamento')
-               : 'nenhuma coleta marcada para este dia';
+  const CH=[['todos','Todos'],['aguardando','Pendentes'],['concluido','Coletados'],
+            ['frustrada','Frustradas'],['no_local','No local']];
+  document.getElementById('milk-chips').innerHTML=CH.map(([f,l])=>{
+    const n = f==='todos' ? (k.pontos||0)
+      : grupos.reduce((a,g)=>a+g.pontos.filter(p=>p.estado===f).length,0);
+    return `<button class="ghost" data-f="${f}" aria-pressed="${f===milkFiltro}"
+      onclick="milkFiltrar('${f}')">${l} <span style="color:var(--n500)">${n}</span></button>`;
+  }).join('');
 
   const hhmm = s => s ? s.slice(11,16) : '—';
-  document.getElementById('milk-pontos').innerHTML=pts.map(p=>{
-    const est=MILK_EST[p.estado]||MILK_EST.aguardando;
-    /* Atraso vira chip só quando há janela combinada. Sem ela, julgar
-       pontualidade é alarme contra uma referência que não existe. */
-    let chip='';
-    if(p.pontualidade==='atrasado')  chip=' <span class="badge b-alert">+'+p.atraso_min+' min</span>';
-    else if(p.pontualidade==='adiantado') chip=' <span class="badge b-info">'+p.atraso_min+' min</span>';
-    else if(p.pontualidade==='no prazo')  chip=' <span class="badge b-ok">no prazo</span>';
-    /* Distância é o instrumento de calibragem do raio: em Resende o veículo
-       parou a 861 m do ponto cadastrado e a cerca de 300 m não pegou. */
-    const dist = p.distancia_m==null ? '—'
-      : (Math.round(p.distancia_m).toLocaleString('pt-BR')+' m');
-    const distCor = p.distancia_m!=null && p.distancia_m>200 ? 'var(--yellow-700)' : 'inherit';
-    let motivo='';
-    if(!p.placa) motivo=' <span class="badge b-warn" title="Sem veículo alocado na solicitação: a detecção não tem o que rastrear.">sem veículo</span>';
-    else if(!p.lat||!p.lng) motivo=' <span class="badge b-warn" title="O endereço do fornecedor não tem coordenada no cadastro — sem ela não há cerca para detectar.">sem coordenada</span>';
-    return `<tr>
-      <td class="num" style="font-weight:600">${hhmm(p.previsto)}</td>
-      <td title="${esc((p.ponto||'')+' · '+(p.cidade||'')+'/'+(p.uf||''))}">
-        ${esc((p.ponto||'—').length>26?p.ponto.slice(0,26)+'…':(p.ponto||'—'))}
-        <span style="color:var(--n500);font-size:11.5px">${esc(p.cidade||'')}/${esc(p.uf||'')}</span>${motivo}</td>
-      <td style="font-family:var(--mono);font-size:12px">${esc(p.placa||'—')}</td>
-      <td class="num" style="font-weight:600">${hhmm(p.chegada)}${chip}</td>
-      <td class="num">${hhmm(p.saida)}</td>
-      <td class="num">${p.permanencia_min!=null?Math.round(p.permanencia_min)+' min':'—'}</td>
-      <td class="num" style="color:${distCor}">${dist}</td>
-      <td><span class="badge ${est[0]}">${est[1]}</span></td></tr>`;
-  }).join('') || '<tr><td colspan="8" style="color:var(--n500)">nenhuma coleta marcada para este dia</td></tr>';
+  const vis = g => milkFiltro==='todos' ? g.pontos
+                 : g.pontos.filter(p=>p.estado===milkFiltro);
 
-  /* Lacuna de CADASTRO é diferente de atraso de operação: sem placa ou sem
-     coordenada a detecção não tem como funcionar, e somar isso a "aguardando"
-     faria parecer culpa do motorista. */
+  const blocos = grupos.map(g=>{
+    const pts = vis(g);
+    if(!pts.length) return '';
+    /* Cabeçalho da solicitação: é o roteiro. Sem ele as paradas viram uma
+       lista solta e some a noção de que quatro linhas são a mesma viagem. */
+    const resumo = [
+      g.concluidos?g.concluidos+' coletado(s)':'',
+      g.frustrados?g.frustrados+' frustrada(s)':'',
+      g.pendentes?g.pendentes+' pendente(s)':'',
+      g.no_local?g.no_local+' no local':'',
+    ].filter(Boolean).join(' · ');
+    return `<div class="milk-grupo">
+      <div class="milk-cab">
+        <b>Coleta ${g.coleta}</b>
+        <span class="badge ${g.cancelada?'b-alert':(g.situacao==='finalizada'?'b-ok':'b-info')}">${esc(g.cancelada?'cancelada':g.situacao)}</span>
+        <span class="milk-veic">${esc(g.placa||'sem veículo')}</span>
+        ${g.motorista?`<span style="color:var(--n500)">${esc(shortName(g.motorista))}</span>`:''}
+        <span style="margin-left:auto;color:var(--n500);font-size:12px">${g.total} parada(s) · ${esc(resumo)}</span>
+      </div>
+      <div class="tablewrap"><table><thead><tr>
+        <th class="num" style="width:34px">#</th><th class="num">Agendado</th>
+        <th>Fornecedor</th>
+        <th class="num">Chegada</th><th class="num">Saída</th>
+        <th class="num">Permanência</th><th class="num">Manual</th>
+        <th class="num">Dist.</th><th>Situação</th>
+      </tr></thead><tbody>${pts.map(p=>{
+        const est=MILK_EST[p.estado]||MILK_EST.aguardando;
+        let chip='';
+        if(p.estado!=='frustrada'){
+          if(p.pontualidade==='atrasado') chip=' <span class="badge b-alert">+'+p.atraso_min+'m</span>';
+          else if(p.pontualidade==='adiantado') chip=' <span class="badge b-info">'+p.atraso_min+'m</span>';
+        }
+        /* A coluna Manual mostra o apontamento digitado e, quando os dois
+           existem, o quanto ele difere do rastro. É o número que mede o
+           ganho da automação. */
+        let man = p.manual_chegada ? hhmm(p.manual_chegada) : '—';
+        if(p.dif_manual_min!=null && Math.abs(p.dif_manual_min)>=5)
+          man += ` <span class="badge b-warn" title="O horário digitado difere ${Math.abs(p.dif_manual_min)} min do detectado pelo rastreamento.">${p.dif_manual_min>0?'+':''}${p.dif_manual_min}m</span>`;
+        const dist = p.distancia_m==null ? '—'
+          : Math.round(p.distancia_m).toLocaleString('pt-BR')+' m';
+        let motivo='';
+        if(!p.placa) motivo=' <span class="badge b-warn" title="Sem veículo na solicitação: não há o que rastrear.">sem veículo</span>';
+        else if(!p.lat||!p.lng) motivo=' <span class="badge b-warn" title="Fornecedor sem coordenada no cadastro — sem ela não existe cerca para detectar.">sem coordenada</span>';
+        return `<tr>
+          <td class="num" style="color:var(--n500)">${p.sequencia}</td>
+          <td class="num" style="font-weight:600">${hhmm(p.previsto)}</td>
+          <td title="${esc((p.ponto||'')+' · '+(p.cidade||'')+'/'+(p.uf||''))}">
+            ${esc((p.ponto||'—').length>28?p.ponto.slice(0,28)+'…':(p.ponto||'—'))}
+            <span style="color:var(--n500);font-size:11.5px">${esc(p.cidade||'')}/${esc(p.uf||'')}</span>${motivo}</td>
+          <td class="num" style="font-weight:600">${hhmm(p.chegada)}${chip}</td>
+          <td class="num">${hhmm(p.saida)}</td>
+          <td class="num">${p.permanencia_min!=null?Math.round(p.permanencia_min)+' min':'—'}</td>
+          <td class="num" style="color:var(--n600)">${man}</td>
+          <td class="num" style="color:${p.distancia_m!=null&&p.distancia_m>200?'var(--yellow-700)':'inherit'}">${dist}</td>
+          <td><span class="badge ${est[0]}">${est[1]}</span></td></tr>`;
+      }).join('')}</tbody></table></div>
+    </div>`;
+  }).filter(Boolean).join('');
+
+  document.getElementById('milk-grupos').innerHTML = blocos ||
+    '<div class="card" style="color:var(--n500);padding:18px">nenhuma coleta neste recorte</div>';
+  document.getElementById('hintMilk').textContent =
+    grupos.length ? (grupos.length+' solicitação(ões) · '+(k.pontos||0)+' parada(s)')
+                  : 'nenhuma solicitação neste dia';
+
   const A=[];
-  if(k.sem_placa>0) A.push(['t-warn','Sem veículo alocado em '+k.sem_placa+' ponto(s)',
-    'A solicitação de carga não tem placa, então não há o que rastrear nesses pontos. Eles aparecem como "aguardando", mas a causa é cadastro, não operação.']);
-  if(k.sem_coordenada>0) A.push(['t-warn','Sem coordenada em '+k.sem_coordenada+' ponto(s)',
-    'O endereço do fornecedor não tem latitude/longitude no cadastro. Sem coordenada não existe cerca para detectar chegada — é o cadastro que destrava a automação desses pontos.']);
-  const longe=(d.pontos||[]).filter(p=>p.distancia_m!=null && p.distancia_m>200);
-  if(longe.length) A.push(['t-info','Raio pode precisar de ajuste em '+longe.length+' ponto(s)',
-    'Nesses locais o veículo parou a mais de 200 m do endereço cadastrado — normalmente a coordenada aponta a portaria e a doca fica adiante. O raio padrão é 300 m; onde a distância se aproxima disso, vale cadastrar um raio maior para o ponto.']);
+  if(k.dif_manual_mediana!=null) A.push(['t-info',
+    'Apontamento manual × rastreamento: '+k.dif_manual_mediana+' min de diferença mediana',
+    `Comparado em ${k.dif_manual_n} parada(s) que têm os dois horários. É a medida direta do ganho: onde a diferença é grande, o horário que o cliente recebe hoje não corresponde ao que aconteceu.`]);
+  if(k.sem_placa>0) A.push(['t-warn','Sem veículo alocado em '+k.sem_placa+' parada(s)',
+    'A solicitação não tem placa, então não há o que rastrear. Aparecem como pendentes, mas a causa é cadastro, não operação.']);
+  if(k.sem_coordenada>0) A.push(['t-warn','Sem coordenada em '+k.sem_coordenada+' parada(s)',
+    'O fornecedor não tem latitude/longitude no cadastro. Sem coordenada não existe cerca para detectar chegada — é o cadastro que destrava a automação desses pontos.']);
   document.getElementById('milk-avisos').innerHTML=A.map(([c,t,m])=>
     `<div class="toast ${c}"><b>${esc(t)}</b>${esc(m)}</div>`).join('');
 
-  milkMapa(pts);
+  milkMapa(grupos.flatMap(g=>g.pontos));
 }
 
 async function milkMapa(pts){
   const alvo=document.getElementById('mapaMilk'); if(!alvo) return;
   const comCoord=pts.filter(p=>p.lat&&p.lng);
-  if(!comCoord.length){ alvo.innerHTML='<div style="padding:20px;color:var(--n500)">nenhum ponto com coordenada cadastrada</div>'; return; }
+  if(!comCoord.length){ alvo.innerHTML='<div style="padding:20px;color:var(--n500)">nenhuma parada com coordenada cadastrada</div>'; return; }
   try{ await ensureLeaflet(); }
   catch(e){ alvo.innerHTML='<div style="padding:20px;color:var(--n500)">'+esc(e.message)+'</div>'; return; }
   if(!milkMap){
@@ -8694,11 +8755,13 @@ async function milkMapa(pts){
   }
   if(milkLayer) milkLayer.remove();
   milkLayer=L.layerGroup().addTo(milkMap);
-  const cor={concluido:'#1E7F4F', no_local:'#B97709', aguardando:'#6B7580'};
+  const cor={concluido:'#1E7F4F', no_local:'#B97709', aguardando:'#6B7580',
+             frustrada:'#C03221'};
   comCoord.forEach(p=>{
     L.circleMarker([p.lat,p.lng],{radius:8, weight:2, color:'#fff',
       fillColor:cor[p.estado]||cor.aguardando, fillOpacity:.95})
-     .bindTooltip(`<b>${esc(p.ponto||'')}</b><br>combinado ${(p.previsto||'').slice(11,16)}`
+     .bindTooltip(`<b>${esc(p.ponto||'')}</b><br>coleta ${p.coleta} · parada ${p.sequencia}`
+        + `<br>agendado ${(p.previsto||'').slice(11,16)}`
         + (p.chegada?`<br>chegou ${(p.chegada).slice(11,16)}`:'<br>não chegou')
         + (p.placa?`<br>${esc(p.placa)}`:''))
      .addTo(milkLayer);

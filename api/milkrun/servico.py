@@ -2,62 +2,68 @@
 
 MODELO DE DADOS (decifrado no ERP, não documentado em lugar nenhum):
 
-- `coleta` é a solicitação de carga. `coleta.dtcoletar` é a JANELA COMBINADA
-  com o fornecedor — preenchida em 99,8% das 8.817 coletas dos últimos 90
-  dias, e com hora útil em 98,7% delas.
-- `coleta_endereco.tipo = 1` é o REMETENTE, isto é, o ponto onde o caminhão
-  vai carregar (2.569 de 2.569 conferem com `coleta.remetente`). Os tipos 2,
-  3 e 7 são destinatário; 5 e 6 repetem o remetente.
-- `coleta.veiculo` traz a placa alocada — 609 de 640 coletas da MWM nos
-  últimos 30 dias.
+- `coleta` é a SOLICITAÇÃO. `coleta.situacao`: 2 = pendente, 6 = em
+  andamento, 7 = finalizada, 8 = cancelada.
+- **`coleta_cliente` é o PONTO** — a parada do roteiro. Uma solicitação tem de
+  1 a 4 pontos: a coleta 55621 tem quatro, agendados para 10:00, 13:00, 15:00
+  e 17:00. É por isso que a tela agrupa por coleta — a solicitação é o
+  roteiro, e cada linha dela é uma parada.
+- `coleta_cliente.dtagendamentocoleta` é a JANELA DAQUELE PONTO, preenchida
+  em 1.267 de 1.269 linhas da MWM nos últimos 60 dias. É mais precisa que
+  `coleta.dtcoletar`, que vale para a solicitação inteira.
+- **`hra_chegada` e `hra_saida` são os horários DIGITADOS**, e são campos
+  TEXTO. É exatamente o apontamento manual que a detecção veio substituir;
+  ficam lado a lado na tela para o tamanho do erro aparecer.
+- `coletada = 1` e `frustrada = 1` são os desfechos que a operação registra.
 
-`dtrealizado` NÃO serve como hora de chegada: na coleta 55643 ele marca
-21/08 21:32 para uma coleta prevista em 25/08 16:00, quatro dias ANTES. É
-carimbo de processamento da solicitação, não de chegada no fornecedor. Essa é
-justamente a lacuna que a detecção por rastro preenche.
+`coleta.dtrealizado` NÃO serve como hora de chegada: na coleta 55643 marca
+21/08 21:32 para uma coleta prevista em 25/08 16:00 — quatro dias ANTES. É
+carimbo de processamento da solicitação.
+
+A coordenada do ponto vem de `cadastro` pelo CNPJ do remetente: é o cadastro
+do fornecedor (87% preenchido), não o endereço copiado na solicitação.
 """
 from __future__ import annotations
 
 from datetime import date, datetime, time, timedelta
 
 from api import db
-from api.queries import cached
 from api.milkrun import deteccao as det
+from api.queries import cached
 
-# Janela de rastro em volta do dia. Coleta marcada para 23:00 costuma ser
-# atendida na madrugada seguinte, e o caminhão sai da base horas antes: cortar
-# no dia civil perderia a chegada nos dois extremos.
+# Janela de rastro em volta do dia. Coleta agendada para 23:00 é atendida na
+# madrugada seguinte, e o caminhão sai da base horas antes: cortar no dia civil
+# perderia a chegada nos dois extremos.
 FOLGA_ANTES_H = 8
 FOLGA_DEPOIS_H = 14
 
-COLETAS_SQL = """
-SELECT co.numero, co.dtcoletar, co.dtrealizado, co.dtemissao,
-       co.veiculo, co.motorista,
-       coalesce(nullif(trim(mo.nomefantasia),''), nullif(trim(mo.razaosocial),''),
-                '') AS motorista_nome,
-       ce.cnpjcpfcodigo AS ponto_cnpj,
-       coalesce(nullif(trim(ce.razaosocial),''), '(sem nome)') AS ponto_nome,
-       ce.cidade AS ponto_cidade, ce.uf AS ponto_uf,
-       ce.latitude::float8  AS ponto_lat,
-       ce.longitude::float8 AS ponto_lng,
+PONTOS_SQL = """
+SELECT co.numero AS coleta, cc.sequencia,
+       co.situacao, co.dtcoletar, co.veiculo, co.dtcancelamento,
+       cc.dtagendamentocoleta, cc.hra_chegada, cc.hra_saida,
+       cc.coletada, cc.frustrada, cc.remetente,
+       coalesce(nullif(trim(cr.nomefantasia),''), nullif(trim(cr.razaosocial),''),
+                '(sem cadastro)') AS ponto_nome,
+       cr.cidade AS ponto_cidade, cr.uf AS ponto_uf,
+       cr.latitude::float8  AS ponto_lat,
+       cr.longitude::float8 AS ponto_lng,
        coalesce(nullif(trim(cd.nomefantasia),''), nullif(trim(cd.razaosocial),''),
-                '(sem cadastro)') AS destino_nome,
-       co.cnpjcpfcodigotomadorservico AS tomador
+                '') AS destino_nome,
+       coalesce(nullif(trim(mo.nomefantasia),''), nullif(trim(mo.razaosocial),''),
+                '') AS motorista_nome
 FROM coleta co
-JOIN coleta_endereco ce
-  ON ce.grupo=co.grupo AND ce.empresa=co.empresa AND ce.filial=co.filial
- AND ce.numero=co.numero AND ce.tipo = 1
-LEFT JOIN cadastro cd ON cd.codigo = co.destinatario
+JOIN coleta_cliente cc
+  ON cc.grupo=co.grupo AND cc.empresa=co.empresa AND cc.filial=co.filial
+ AND cc.numero=co.numero
+LEFT JOIN cadastro cr ON cr.codigo = cc.remetente
+LEFT JOIN cadastro cd ON cd.codigo = cc.destinatario
 LEFT JOIN cadastro mo ON mo.codigo = co.motorista
-WHERE co.dtcancelamento IS NULL
-  AND co.dtcoletar >= %(de)s::timestamp
-  AND co.dtcoletar <  %(ate)s::timestamp
-  AND co.cnpjcpfcodigotomadorservico LIKE %(tomador)s
-ORDER BY co.dtcoletar, co.numero
+WHERE co.cnpjcpfcodigotomadorservico LIKE %(tomador)s
+  AND coalesce(cc.dtagendamentocoleta, co.dtcoletar) >= %(de)s::timestamp
+  AND coalesce(cc.dtagendamentocoleta, co.dtcoletar) <  %(ate)s::timestamp
+ORDER BY co.numero, cc.sequencia
 """
 
-# Rastro dos veiculos do dia. `latituderastreadora` e nao `latitude`: e a
-# posicao que a rastreadora reporta, que e a que a Torre ja usa.
 RASTRO_SQL = """
 SELECT veiculo, dt,
        latituderastreadora::float8  AS lat,
@@ -69,106 +75,165 @@ WHERE veiculo = ANY(%(placas)s)
 ORDER BY veiculo, dt
 """
 
+SIT = {2: "pendente", 3: "pendente", 4: "pendente", 6: "em andamento",
+       7: "finalizada", 8: "cancelada"}
 
-def _janela(dia: date) -> tuple[datetime, datetime]:
-    ini = datetime.combine(dia, time.min) - timedelta(hours=FOLGA_ANTES_H)
-    fim = datetime.combine(dia, time.max) + timedelta(hours=FOLGA_DEPOIS_H)
-    return ini, fim
+
+def _hora(txt) -> datetime | None:
+    """`hra_chegada`/`hra_saida` são campos TEXTO no ERP. Na prática vêm como
+    'AAAA-MM-DD HH:MM:SS', mas texto aceita qualquer coisa — o que não
+    converte vira None em vez de derrubar a tela inteira."""
+    if not txt:
+        return None
+    s = str(txt).strip()
+    for f in ("%Y-%m-%d %H:%M:%S", "%Y-%m-%d %H:%M",
+              "%d/%m/%Y %H:%M:%S", "%d/%m/%Y %H:%M"):
+        try:
+            return datetime.strptime(s, f)
+        except ValueError:
+            continue
+    return None
+
+
+def _iso(v) -> str | None:
+    return v.isoformat() if v else None
 
 
 @cached(ttl=60)
 def get_milkrun(dia: str | None = None, tomador: str = "02162259") -> dict:
-    """Operação do dia: cada ponto com combinado × detectado.
+    """Operação do dia, agrupada por solicitação de coleta.
 
-    `tomador` é o prefixo do CNPJ (raiz), não o CNPJ inteiro: a MWM tem quatro
-    filiais cadastradas e a coleta pode ser tomada por qualquer uma delas.
+    `tomador` é a RAIZ do CNPJ: a MWM tem quatro filiais cadastradas e a
+    solicitação pode ser tomada por qualquer uma delas.
     """
     d = date.fromisoformat(dia) if dia else date.today()
-    ini, fim = _janela(d)
+    ini_dia = datetime.combine(d, time.min)
 
     with db.get_conn() as conn, conn.cursor() as cur:
-        cur.execute(COLETAS_SQL, {
-            "de": datetime.combine(d, time.min).isoformat(),
-            "ate": (datetime.combine(d, time.min) + timedelta(days=1)).isoformat(),
-            "tomador": tomador + "%"})
-        coletas = cur.fetchall()
+        cur.execute(PONTOS_SQL, {
+            "tomador": tomador + "%",
+            "de": ini_dia.isoformat(),
+            "ate": (ini_dia + timedelta(days=1)).isoformat()})
+        linhas = cur.fetchall()
 
-        placas = sorted({c["veiculo"] for c in coletas
-                         if (c["veiculo"] or "").strip()})
+        placas = sorted({(l["veiculo"] or "").strip() for l in linhas
+                         if (l["veiculo"] or "").strip()})
         rastro: dict[str, list] = {}
         if placas:
-            cur.execute(RASTRO_SQL, {"placas": placas,
-                                     "de": ini.isoformat(), "ate": fim.isoformat()})
+            cur.execute(RASTRO_SQL, {
+                "placas": placas,
+                "de": (ini_dia - timedelta(hours=FOLGA_ANTES_H)).isoformat(),
+                "ate": (ini_dia + timedelta(days=1,
+                                            hours=FOLGA_DEPOIS_H)).isoformat()})
             for p in cur.fetchall():
                 rastro.setdefault(p["veiculo"], []).append(dict(p))
 
         cur.execute("SELECT current_timestamp AS ts")
         agora = cur.fetchone()["ts"]
 
-    pontos = []
-    for c in coletas:
-        placa = (c["veiculo"] or "").strip()
-        lat, lng = c["ponto_lat"], c["ponto_lng"]
-        visita = None
-        visitas = []
-        # Raio por ponto ainda nao e cadastravel: fica o padrao. Medido no
-        # rastro real, 300 m erra em patio grande (em Resende o caminhao para
-        # a 861 m do ponto cadastrado), por isso a tela mostra a distancia
-        # minima que o veiculo chegou — e o que permite calibrar.
+    coletas: dict[int, dict] = {}
+    for l in linhas:
+        placa = (l["veiculo"] or "").strip()
+        lat, lng = l["ponto_lat"], l["ponto_lng"]
+        previsto = l["dtagendamentocoleta"] or l["dtcoletar"]
+
+        visita, visitas = None, []
         if placa and lat and lng and rastro.get(placa):
             visitas = det.detectar(rastro[placa], lat, lng)
-            visita = det.visita_da_janela(visitas, c["dtcoletar"])
-        estado = det.classificar(visita, c["dtcoletar"])
+            visita = det.visita_da_janela(visitas, previsto)
+        estado = det.classificar(visita, previsto)
 
-        pontos.append({
-            "coleta": c["numero"],
-            "previsto": c["dtcoletar"].isoformat() if c["dtcoletar"] else None,
+        # O DESFECHO registrado pela operação manda sobre o detectado.
+        # "Frustrada" é informação que o rastro não tem: o caminhão esteve lá e
+        # voltou vazio, e o rastreamento veria isso como visita normal.
+        frustrada = l["frustrada"] == 1
+        coletada = l["coletada"] == 1
+        if frustrada:
+            estado = {**estado, "estado": "frustrada", "rotulo": "frustrada"}
+        elif coletada and estado["estado"] == "aguardando":
+            # a operação apontou coleta e o rastro não viu: quase sempre é
+            # coordenada errada ou raio pequeno. Deixar como "aguardando"
+            # esconderia uma coleta que aconteceu.
+            estado = {**estado, "estado": "concluido",
+                      "rotulo": "coletado (sem rastro)"}
+
+        man_cheg = _hora(l["hra_chegada"])
+        man_said = _hora(l["hra_saida"])
+        dif_manual = None
+        if visita and man_cheg:
+            dif_manual = round((man_cheg - visita.chegada).total_seconds() / 60)
+
+        ponto = {
+            "coleta": l["coleta"], "sequencia": l["sequencia"],
+            "previsto": _iso(previsto),
             "placa": placa or None,
-            "motorista": (c["motorista_nome"] or "").strip() or None,
-            "ponto": c["ponto_nome"],
-            "cidade": c["ponto_cidade"], "uf": c["ponto_uf"],
-            "lat": lat, "lng": lng,
-            "destino": c["destino_nome"],
-            "chegada": visita.chegada.isoformat() if visita else None,
-            "saida": (visita.saida.isoformat()
-                      if visita and visita.saida else None),
+            "ponto": l["ponto_nome"], "cidade": l["ponto_cidade"],
+            "uf": l["ponto_uf"], "lat": lat, "lng": lng,
+            "destino": l["destino_nome"] or None,
+            "chegada": _iso(visita.chegada) if visita else None,
+            "saida": _iso(visita.saida) if visita and visita.saida else None,
             "permanencia_min": visita.minutos if visita else None,
             "distancia_m": visita.distancia_min_m if visita else None,
-            "parou": visita.parou if visita else None,
             "visitas_no_dia": len(visitas),
-            # o que o ERP registra hoje, para a tela poder mostrar o tamanho
-            # do erro do apontamento manual
-            "registrado_erp": (c["dtrealizado"].isoformat()
-                               if c["dtrealizado"] else None),
+            "manual_chegada": _iso(man_cheg),
+            "manual_saida": _iso(man_said),
+            "dif_manual_min": dif_manual,
+            "coletada": coletada, "frustrada": frustrada,
             **estado,
-        })
+        }
 
-    total = len(pontos)
-    concl = sum(1 for p in pontos if p["estado"] == "concluido")
-    no_local = sum(1 for p in pontos if p["estado"] == "no_local")
-    atrasados = sum(1 for p in pontos if p.get("pontualidade") == "atrasado")
-    sem_placa = sum(1 for p in pontos if not p["placa"])
-    sem_coord = sum(1 for p in pontos if not (p["lat"] and p["lng"]))
+        c = coletas.setdefault(l["coleta"], {
+            "coleta": l["coleta"],
+            "situacao": SIT.get(l["situacao"], f"situação {l['situacao']}"),
+            "cancelada": l["dtcancelamento"] is not None,
+            "placa": placa or None,
+            "motorista": (l["motorista_nome"] or "").strip() or None,
+            "pontos": [],
+        })
+        c["pontos"].append(ponto)
+
+    grupos = sorted(coletas.values(),
+                    key=lambda c: (c["pontos"][0]["previsto"] or "", c["coleta"]))
+    for g in grupos:
+        p = g["pontos"]
+        g["total"] = len(p)
+        g["concluidos"] = sum(1 for x in p if x["estado"] == "concluido")
+        g["frustrados"] = sum(1 for x in p if x["estado"] == "frustrada")
+        g["pendentes"] = sum(1 for x in p if x["estado"] == "aguardando")
+        g["no_local"] = sum(1 for x in p if x["estado"] == "no_local")
+        g["primeiro"] = p[0]["previsto"]
+        g["ultimo"] = p[-1]["previsto"]
+
+    todos = [x for g in grupos for x in g["pontos"]]
+    difs = sorted(abs(x["dif_manual_min"]) for x in todos
+                  if x["dif_manual_min"] is not None)
 
     return {
         "dia": d.isoformat(),
         "tomador": tomador,
-        "pontos": pontos,
+        "coletas": grupos,
         "kpis": {
-            "pontos": total,
-            "concluidos": concl,
-            "no_local": no_local,
-            "aguardando": total - concl - no_local,
-            "atrasados": atrasados,
-            # lacunas de CADASTRO, nao de operacao: sem placa ou sem
-            # coordenada a deteccao nao tem como funcionar, e some-las ao
-            # "aguardando" faria parecer atraso do motorista
-            "sem_placa": sem_placa,
-            "sem_coordenada": sem_coord,
-            "veiculos": len({p["placa"] for p in pontos if p["placa"]}),
+            "solicitacoes": len(grupos),
+            "pontos": len(todos),
+            "concluidos": sum(1 for x in todos if x["estado"] == "concluido"),
+            "no_local": sum(1 for x in todos if x["estado"] == "no_local"),
+            "pendentes": sum(1 for x in todos if x["estado"] == "aguardando"),
+            "frustrados": sum(1 for x in todos if x["estado"] == "frustrada"),
+            "atrasados": sum(1 for x in todos
+                             if x.get("pontualidade") == "atrasado"),
+            # lacunas de CADASTRO, não de operação: sem placa ou sem coordenada
+            # a detecção não tem o que rastrear, e somar isso a "pendente"
+            # faria parecer atraso do motorista
+            "sem_placa": sum(1 for x in todos if not x["placa"]),
+            "sem_coordenada": sum(1 for x in todos
+                                  if not (x["lat"] and x["lng"])),
+            "veiculos": len({x["placa"] for x in todos if x["placa"]}),
+            "dif_manual_mediana": difs[len(difs) // 2] if difs else None,
+            "dif_manual_n": len(difs),
         },
         "atualizado_em": agora.isoformat(),
-        "fonte": ("ERP AVA · coleta + coleta_endereco (tipo 1 = remetente) "
-                  "cruzado com veiculo_posicao · chegada e saida DETECTADAS "
-                  "pelo rastro, nao digitadas"),
+        "fonte": ("ERP AVA · coleta + coleta_cliente (cada linha é um PONTO do "
+                  "roteiro) cruzado com veiculo_posicao · chegada e saída "
+                  "DETECTADAS pelo rastro; hra_chegada/hra_saida são o "
+                  "apontamento manual, mostrado ao lado para comparação"),
     }

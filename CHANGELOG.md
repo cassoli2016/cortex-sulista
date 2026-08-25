@@ -4,6 +4,14 @@ Gerado de `docs/versoes.yaml` por `scripts/gerar_changelog.py` — não editar �
 Formato [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/),
 versionamento [SemVer](https://semver.org/lang/pt-BR/).
 
+## [0.37.0] — 25/08/2026  ·  CX-25/08/2026-v0.37.0
+
+### Alterado
+- A tela do Milk Run passou a mostrar TODAS as paradas de cada solicitacao, agrupadas pelo numero da coleta. Cada solicitacao vira um bloco com placa, motorista e o resumo do roteiro; dentro dele, uma linha por parada na ordem em que foi agendada. Uma solicitacao pode ter ate quatro paradas, e ver as linhas soltas perdia a nocao de rota.
+- Entraram as coletas FRUSTRADAS - aquelas em que o caminhao foi ao fornecedor e voltou sem carga. O rastreamento sozinho nao distingue isso (veria uma visita normal), entao o desfecho vem do apontamento da operacao e manda sobre o detectado.
+- Filtros por situacao no topo: todos, pendentes, coletados, frustradas e no local agora, cada um com a contagem.
+- O horario DIGITADO no sistema agora aparece ao lado do detectado pelo rastreamento, com a diferenca destacada quando passa de 5 minutos. E a medida direta do ganho da automacao: no dia 24/08 a diferenca mediana foi de 1 minuto em 35 paradas, mas ha casos de mais de 2 horas.
+
 ## [0.36.0] — 25/08/2026  ·  CX-25/08/2026-v0.36.0
 
 ### Adicionado

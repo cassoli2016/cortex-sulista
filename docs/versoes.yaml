@@ -3,6 +3,29 @@
 #   - a tela Documentação     (#doc)
 #   - o rótulo no rodapé      (CX-DD/MM/AAAA-vX.Y.Z)
 # A versão do TOPO é a corrente e tem de bater com o pyproject.toml.
+- versao: "0.37.0"
+  data: "2026-08-25"
+  alterado:
+    - >-
+      A tela do Milk Run passou a mostrar TODAS as paradas de cada
+      solicitacao, agrupadas pelo numero da coleta. Cada solicitacao vira um
+      bloco com placa, motorista e o resumo do roteiro; dentro dele, uma linha
+      por parada na ordem em que foi agendada. Uma solicitacao pode ter ate
+      quatro paradas, e ver as linhas soltas perdia a nocao de rota.
+    - >-
+      Entraram as coletas FRUSTRADAS - aquelas em que o caminhao foi ao
+      fornecedor e voltou sem carga. O rastreamento sozinho nao distingue
+      isso (veria uma visita normal), entao o desfecho vem do apontamento da
+      operacao e manda sobre o detectado.
+    - >-
+      Filtros por situacao no topo: todos, pendentes, coletados, frustradas e
+      no local agora, cada um com a contagem.
+    - >-
+      O horario DIGITADO no sistema agora aparece ao lado do detectado pelo
+      rastreamento, com a diferenca destacada quando passa de 5 minutos. E a
+      medida direta do ganho da automacao: no dia 24/08 a diferenca mediana
+      foi de 1 minuto em 35 paradas, mas ha casos de mais de 2 horas.
+
 - versao: "0.36.0"
   data: "2026-08-25"
   adicionado:
