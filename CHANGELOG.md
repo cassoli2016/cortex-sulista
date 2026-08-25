@@ -4,6 +4,16 @@ Gerado de `docs/versoes.yaml` por `scripts/gerar_changelog.py` — não editar �
 Formato [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/),
 versionamento [SemVer](https://semver.org/lang/pt-BR/).
 
+## [0.32.0] — 24/08/2026  ·  CX-24/08/2026-v0.32.0
+
+### Alterado
+- No Painel TV da Operacao, o bloco de quatro cartoes do alto a DIREITA passou a mostrar a telemetria da Gobrax: consumo da frota contra o alvo, quantos veiculos estao abaixo dele, freada brusca por mil km e velocidade media. Cada um diz de quando e a coleta, porque em TV nao ha como passar o mouse para descobrir. Excesso de velocidade, cercas e CNH vencida continuam rodando no letreiro do rodape.
+- O bloco de KM do mes parou de espremer o conteudo. O percentual de retorno vazio virou barra com a marca do limite de 20% em vez de um terceiro numero grande disputando espaco, o gasto de combustivel do mes passou a aparecer ali, e a lista de modalidades mostra tres em vez de quatro - a quarta era o que estourava a altura e cortava o conteudo.
+
+### Corrigido
+- Um valor de modalidade fora do esperado derrubava METADE do Painel TV em silencio: km do mes, chegadas, letreiro e velocimetro da meta ficavam todos em branco, sem nenhum aviso na tela. Agora o rotulo desconhecido aparece cru e o painel segue de pe.
+- Numero de cartao da TV nao quebra mais em duas linhas ("2,1 km/l" virava duas), o que comia a altura util do cartao.
+
 ## [0.31.1] — 24/08/2026  ·  CX-24/08/2026-v0.31.1
 
 ### Corrigido

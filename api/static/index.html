@@ -722,7 +722,11 @@ body.tvfull.tvwall #view-tvope .tv-ticker{flex-shrink:0;margin-top:0.55vw}
 .tvw-kpis{display:grid;grid-template-columns:1fr 1fr;grid-auto-rows:1fr;gap:0.7vw;min-height:0}
 .tvw-kpis .tv-card{justify-content:center}
 .tvw .tv-label{font-size:clamp(10px,0.8vw,15px);letter-spacing:.08em}
-.tvw .tv-num{font-size:clamp(22px,2.7vw,64px);line-height:1.1}
+/* numero de cartao NAO quebra linha: "2,1 km/l" virava duas linhas e comia
+   a altura util da celula. Se nao couber, o navegador aperta o tracking em vez
+   de empilhar. */
+.tvw .tv-num{font-size:clamp(22px,2.7vw,64px);line-height:1.1;
+  white-space:nowrap;overflow:hidden;text-overflow:clip}
 .tvw .tv-sub{font-size:clamp(10px,0.8vw,15px);margin-top:0.15vw}
 .tvw-mapa{grid-row:1/3;grid-column:2;position:relative}
 #tvMapa{position:absolute;inset:0;border-radius:0.9vw;z-index:1}
@@ -756,7 +760,12 @@ body.tvfull.tvmode, body.tvfull.tvmode *{cursor:none !important}
 .tvw .tv-tab th{font-size:clamp(9px,0.68vw,13px);padding:0.28vw 0.55vw}
 .tvw .tv-tab td{padding:0.4vw 0.55vw}
 .tvw .tv-badge{font-size:clamp(9px,0.7vw,13px);padding:0.14vw 0.65vw}
-.tvw-km{display:flex;flex-direction:column;gap:0.55vw;min-height:0;flex:1;justify-content:center}
+/* `justify-content:center` + `overflow:hidden` do card cortavam o conteudo
+   pelas DUAS pontas quando ele nao cabia: sobrava meio numero na borda. Com
+   flex-start e encolhimento permitido, aperta antes de cortar. */
+.tvw-km{display:flex;flex-direction:column;gap:0.45vw;min-height:0;flex:1;
+  justify-content:flex-start;overflow:hidden}
+.tvw-km>*{flex-shrink:1;min-height:0}
 .tvw-km .duo{display:flex;gap:1vw}
 .tvw-km .duo>div{flex:1}
 .tvw-km .knum{font-size:clamp(16px,1.8vw,38px);font-weight:800;line-height:1.1;font-variant-numeric:tabular-nums}
@@ -766,6 +775,12 @@ body.tvfull.tvmode, body.tvfull.tvmode *{cursor:none !important}
 .tvw-km .mod .trk{flex:1;height:clamp(4px,0.95vw,18px);background:#1E3A54;border-radius:0.5vw;overflow:hidden}
 .tvw-km .mod .trk i{display:block;height:100%;transition:width .9s cubic-bezier(.2,.6,.2,1)}
 .tvw-km .mod span{width:clamp(48px,6.2vw,120px);flex-shrink:0;text-align:right;font-variant-numeric:tabular-nums;color:#A9BCCD;font-size:clamp(10px,0.85vw,16px)}
+/* barra do retorno vazio, com marca do limite de 20% */
+.tvw-km .kmvz{position:relative;height:clamp(5px,0.7vw,12px);background:#1E3A54;
+  border-radius:999px;overflow:hidden;flex-shrink:0}
+.tvw-km .kmvz i{display:block;height:100%;transition:width .9s cubic-bezier(.2,.6,.2,1)}
+.tvw-km .kmvz u{position:absolute;top:0;bottom:0;width:2px;background:#E5EDF4;opacity:.75}
+.tvw-km .kmvz-lab{font-size:clamp(9px,0.72vw,14px);color:#8FA6BC;flex-shrink:0}
 #view-tvope .tv-head{margin-bottom:0.7vw}
 #view-tvope .tv-head h2{font-size:clamp(16px,1.5vw,30px)}
 #view-tvope .tv-head .tv-clock{font-size:clamp(16px,1.5vw,30px)}
@@ -7067,23 +7082,58 @@ async function loadTvOpe(){
       tvCard('Motoristas em viagem', pk.mot_viagem, '', pk.mot_parados+' disponíveis'),
     ].join('');
     const ck=(rc.ok && cb.kpis) ? cb.kpis : null;
-    document.getElementById('tvope-k2').innerHTML=[
-      tvCard('Excesso velocidade', sk.excesso_agora, sk.excesso_agora>0?'ruim':'ok', '>90 km/h agora'),
-      tvCard('Cercas 24h', sk.cercas_24h, sk.cercas_24h>0?'warn':'ok', sk.cercas_abertas_7d+' na semana'),
-      tvCard('CNH vencida rodando', pk.cnh_vencida_rodando, pk.cnh_vencida_rodando>0?'ruim':'ok', pk.cnh_vencida+' no total'),
-      tvCard('Combustível no mês', ck?tvBRLc(ck.custo):'—', '', ck?(ck.km_l!=null?ck.km_l.toFixed(1)+' km/l frota · R$ '+ck.rs_litro.toFixed(2)+'/l':''):''),
-    ].join('');
+    /* BLOCO SUPERIOR DIREITO = TELEMETRIA (Gobrax). Vem no proprio payload da
+       torre (t.telemetria), lido do cache local — a coleta leva ~70 s e a TV
+       recarrega a cada 60 s, entao buscar na Gobrax aqui penduraria o painel.
+       Em TV NAO existe tooltip: a idade da coleta precisa caber no subtitulo,
+       senao dado de dias atras e lido como ao vivo numa tela onde o resto e.
+       Os quatro cartoes que sairam daqui seguem no ticker do rodape (excesso
+       de velocidade, cercas, CNH vencida). */
+    const tel=(t.telemetria)||{};
+    if(!tel.disponivel){
+      document.getElementById('tvope-k2').innerHTML=[
+        tvCard('Telemetria', 'sem coleta', 'warn', 'Gobrax · nenhuma coleta gravada'),
+        tvCard('Combustível no mês', ck?tvBRLc(ck.custo):'—', '',
+               ck&&ck.rs_litro!=null?('R$ '+ck.rs_litro.toFixed(2)+'/l'):''),
+        tvCard('Km do mês', (rk.ok&&km.kpis)?((km.kpis.km_total/1000).toFixed(0)+' mil'):'—', '', 'carregado + vazio'),
+        tvCard('CNH vencida rodando', pk.cnh_vencida_rodando, pk.cnh_vencida_rodando>0?'ruim':'ok', pk.cnh_vencida+' no total'),
+      ].join('');
+    } else {
+      const idade = tel.dias_atras==null ? 'coleta Gobrax'
+        : (tel.dias_atras<=0 ? 'coleta de hoje'
+           : 'coleta de '+tel.dias_atras+'d atrás');
+      const kml=tel.km_l_frota, alvo=tel.alvo_km_l||2.5;
+      const fr=tel.freadas_alta_por_mil_km;
+      document.getElementById('tvope-k2').innerHTML=[
+        tvCard('Consumo da frota', kml!=null?kml.toFixed(1).replace('.',','):'—',
+               kml==null?'':(kml>=alvo?'ok':'ruim'),
+               'km/l · alvo '+alvo.toFixed(1).replace('.',',')+' · '+idade),
+        tvCard('Abaixo do alvo', tel.abaixo_do_alvo||0, (tel.abaixo_do_alvo||0)>0?'warn':'ok',
+               'veículos · de '+(tel.com_consumo_valido||0)+' com leitura válida'),
+        tvCard('Freada brusca', fr!=null?fr.toFixed(1).replace('.',','):'—',
+               (fr||0)>15?'ruim':'ok', 'por 1.000 km · '+(tel.freadas_alta||0).toLocaleString('pt-BR')+' no mês'),
+        tvCard('Velocidade média', tel.vel_media!=null?tel.vel_media.toFixed(0):'—', '',
+               'km/h · '+(tel.veiculos||0)+' veículos telemetrados'),
+      ].join('');
+    }
     if(rk.ok && km.kpis){
       const kk=km.kpis;
       const pctV=kk.km_total>0?(100*kk.km_vazio/kk.km_total):0;
-      const mods=(km.modalidades||[]).slice(0,4);
+      // 3 e nao 4: a quarta modalidade era o que estourava a altura da celula
+      const mods=(km.modalidades||[]).slice(0,3);
       const maxT=Math.max(1,...mods.map(m=>m.km_total||0));
       document.getElementById('tvope-km').innerHTML=`
         <div class="duo">
           <div><div class="klab">Km carregado</div><div class="knum" style="color:#4ADE80">${(kk.km_carregado/1000).toLocaleString('pt-BR',{maximumFractionDigits:0})} mil</div></div>
-          <div><div class="klab">Km vazio</div><div class="knum" style="color:${pctV>20?'#F87171':'#FBBF24'}">${(kk.km_vazio/1000).toLocaleString('pt-BR',{maximumFractionDigits:0})} mil</div></div>
-          <div><div class="klab">% vazio</div><div class="knum" style="color:${pctV>20?'#F87171':'#FBBF24'}">${pctV.toFixed(0)}%</div></div>
+          <div><div class="klab">Km vazio · ${pctV.toFixed(0)}%</div><div class="knum" style="color:${pctV>20?'#F87171':'#FBBF24'}">${(kk.km_vazio/1000).toLocaleString('pt-BR',{maximumFractionDigits:0})} mil</div></div>
+          <div><div class="klab">Combustível</div><div class="knum">${ck?tvBRLc(ck.custo):'—'}</div></div>
         </div>
+        <!-- o % de vazio virou BARRA: como terceiro numero grande ele competia
+             com os dois que importam e estourava a altura da celula. Aqui ele
+             e comparado com o limite de 20% de um olhar so. -->
+        <div class="kmvz"><i style="width:${Math.min(100,pctV).toFixed(1)}%;background:${pctV>20?'#F87171':'#FBBF24'}"></i>
+          <u style="left:20%"></u></div>
+        <div class="kmvz-lab">retorno vazio ${pctV.toFixed(0)}% · limite 20%${ck&&ck.rs_litro!=null?(' · R$ '+ck.rs_litro.toFixed(2)+'/l'):''}</div>
         ${mods.map(m=>{
           const cor=MOD_COR[m.utilizacao]||'#6E7883';
           return `<div class="mod"><b>${esc(utLbl(m.utilizacao)[0])}</b>
@@ -11592,7 +11642,19 @@ const UT_LBL = {
   'FROTA':['Frota','b-ok'], 'LOCACAO':['Locação','b-info'],
   'AGREGADOS':['Agregado','b-info'], 'TERCEIROS':['Terceiro','b-warn'],
 };
-const utLbl = u => UT_LBL[u] || [u&&u!=='(sem)'?u.charAt(0)+u.slice(1).toLowerCase():'—','b-info'];
+/* Rotulo da modalidade. COERCAO PARA TEXTO de proposito: `u.charAt` estourava
+   quando a modalidade vinha como numero, e como o Painel TV monta km,
+   chegadas, ticker e velocimetro DEPOIS deste ponto, um unico valor de tipo
+   inesperado apagava metade da tela em silencio (o catch externo so acende o
+   aviso do primeiro bloco). Numa TV que ninguem esta olhando para depurar,
+   degradar para o rotulo cru vale mais que derrubar o painel. */
+const utLbl = u => {
+  const k = UT_LBL[u];
+  if (k) return k;
+  const t = (u==null || u==='(sem)') ? '' : String(u).trim();
+  if (!t) return ['—','b-info'];
+  return [t.charAt(0)+t.slice(1).toLowerCase(), 'b-info'];
+};
 const MOD_COR = {'FROTA':CC.navy700,'LOCACAO':CC.navy500,'AGREGADOS':'#E85D10','TERCEIROS':'#B97709'};
 const fmtL = v => v!=null ? v.toLocaleString('pt-BR',{maximumFractionDigits:0})+' l' : '—';
 const fmtKmL = v => v!=null ? v.toLocaleString('pt-BR',{minimumFractionDigits:1,maximumFractionDigits:1})+' km/l' : '—';
