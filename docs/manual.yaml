@@ -162,6 +162,7 @@ grupos:
   - he
   - cnh
   - ferias
+  - people
 - nome: Telemetria
   resumo: O que vem da plataforma de telemetria Gobrax. Hoje traz a premiação de motoristas por nota e
     quilometragem.

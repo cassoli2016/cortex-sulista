@@ -154,6 +154,19 @@ def _rede() -> dict:
             "pac_enviados": io.packets_sent, "pac_recebidos": io.packets_recv}
 
 
+def _idade_min(iso: str) -> int | None:
+    """Minutos desde o carimbo ISO. Devolve None se ilegivel — data estranha
+    nao pode derrubar a tela de saude, que e justamente onde se olha quando
+    algo esta errado."""
+    from datetime import datetime
+    for fmt in ("%Y-%m-%dT%H:%M:%S", "%Y-%m-%d %H:%M:%S", "%Y-%m-%d %H:%M"):
+        try:
+            return int((datetime.now() - datetime.strptime(iso, fmt)).total_seconds() // 60)
+        except (ValueError, TypeError):
+            continue
+    return None
+
+
 def _processo_cloudflared() -> int:
     if not psutil:
         return 0
@@ -215,6 +228,40 @@ def _servicos() -> list[dict]:
     except Exception:  # noqa: BLE001
         servicos.append({"nome": "Banco da Folha (Oracle)", "status": "info",
                          "detalhe": "driver indisponível"})
+
+    # PROLOG (pneus). Integração externa com COTA: a coleta é agendada e
+    # retomável, então o que interessa aqui não é "responde?" — é se o
+    # instantâneo está fresco e o quanto do parque já foi varrido. Chamar a API
+    # daqui gastaria requisição da mesma cota que a coleta precisa.
+    try:
+        from .pneus import servico as pneus_srv
+        d = pneus_srv.diagnostico()
+        if not d["pronto"]:
+            falta = ("credencial" if d["modo_auth"] == "nenhuma"
+                     else "ids das filiais (PROLOG_FILIAIS)")
+            servicos.append({"nome": "Prolog (pneus)", "status": "info",
+                             "detalhe": f"não configurada — falta {falta}"})
+        elif not d["coletado_em"]:
+            servicos.append({"nome": "Prolog (pneus)", "status": "alerta",
+                             "detalhe": "configurada, mas nenhuma coleta ainda"})
+        else:
+            idade = _idade_min(d["coletado_em"])
+            lidos, total = d["lidos"], d["total_na_api"]
+            cob = f"{lidos} de {total}" if total else f"{lidos}"
+            quando = ("agora" if idade is None or idade < 2
+                      else f"há {idade} min" if idade < 120
+                      else f"há {round(idade/60)} h")
+            # a coleta anda de 20 em 20 min; passar de 90 min sem avancar
+            # significa tarefa parada, e ai o numero da tela envelhece calado
+            servicos.append({
+                "nome": "Prolog (pneus)",
+                "status": "ok" if (idade or 0) < 90 else "alerta",
+                "detalhe": f"{cob} pneus · atualizado {quando} · "
+                           f"{d['voltas']} volta(s) completa(s)"})
+    except Exception as exc:  # noqa: BLE001
+        servicos.append({"nome": "Prolog (pneus)", "status": "info",
+                         "detalhe": "integração indisponível"})
+        log.warning("saude: prolog: %s", exc)
 
     # Túnel Cloudflare
     n = _processo_cloudflared()

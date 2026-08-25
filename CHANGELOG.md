@@ -4,6 +4,18 @@ Gerado de `docs/versoes.yaml` por `scripts/gerar_changelog.py` — não editar �
 Formato [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/),
 versionamento [SemVer](https://semver.org/lang/pt-BR/).
 
+## [0.50.0] — 25/08/2026  ·  CX-25/08/2026-v0.50.0
+
+### Adicionado
+- TELA NOVA: PEOPLE ANALYTICS (Recursos Humanos). Ela nao repete o Headcount - quadro, admissoes e turnover continuam la. Aqui entra o que nenhuma tela de RH respondia: quem esta afastado e ha quanto tempo, onde esta o risco de sucessao, quanto custa cada area, qual a dispersao salarial dentro do mesmo cargo e quais funcoes tem um unico ocupante.
+- Quadro hoje: 196 ativos e 12 AFASTADOS contados a parte, massa de R$ 682.175 em salario base, salario mediano de R$ 3.010, idade mediana de 39,6 anos, tempo de casa mediano de 2,7 anos e 24% de mulheres.
+- Dois riscos que a tela torna visiveis: 24 pessoas com 60 anos ou mais (12,2% do quadro), que e horizonte de sucessao e nao previsao de saida; e 37 de 59 cargos com UM unico ocupante, ordenados pelo salario, porque o ponto unico de falha mais caro costuma ser o mais dificil de repor.
+- Afastamento aberto ha mais de cinco anos ganha marca - sao 2 hoje. Nao e acusacao de erro: auxilio-doenca longo existe. E pedido de conferencia.
+- A INTEGRACAO DA PROLOG entrou na tela de Saude do Servidor, mostrando o quanto do parque de pneus ja foi varrido e ha quanto tempo. Ela nao chama a API para isso: gastaria requisicao da mesma cota que a coleta precisa.
+
+### Alterado
+- "Saida por tempo de casa" NAO entrou na tela, de proposito. A unica data de desligamento disponivel devolveu 18 saidas em 12 meses todas na mesma faixa e zero nas demais - distribuicao que nao existe. Publicar seria inventar um achado; a razao ficou escrita no codigo.
+
 ## [0.49.0] — 25/08/2026  ·  CX-25/08/2026-v0.49.0
 
 ### Adicionado

@@ -297,6 +297,8 @@ svg:focus-visible{outline:2px solid var(--orange-500);outline-offset:2px;border-
 .milk-mapa-exp>.head{border-radius:0}
 .milk-mapa-exp #mapaMilk{flex:1;height:auto!important;border-radius:0}
 /* marcas da linha do dia: o que venceu sem ser feito e o dia ainda correndo */
+.ppl-longo{display:block;font-weight:600;font-size:10.5px;color:var(--yellow-700);
+  letter-spacing:.02em;margin-top:2px}
 .pn-dir{display:inline-block;margin-left:8px;padding:1px 7px;border-radius:999px;
   background:var(--red);color:#fff;font-size:10.5px;font-weight:700;
   letter-spacing:.02em;vertical-align:1px}
@@ -1293,6 +1295,7 @@ body.tvfull #btnReport,body.tvmode #btnReport{display:none}
         <a href="#hc" class="sub" data-view="hc" title="Headcount — quadro de funcionários"><span class="ic" data-ic="hcic"></span><span>Headcount</span></a>
         <a href="#he" class="sub" data-view="he" title="Horas Extras — composição por evento, famílias e áreas"><span class="ic" data-ic="heic"></span><span>Horas Extras</span></a>
         <a href="#folhaind" class="sub" data-view="folhaind" title="Indicadores de Folha — férias, CNH, hora extra, banco de horas"><span class="ic" data-ic="folhaindic"></span><span>Indicadores de Folha</span></a>
+        <a href="#people" class="sub" data-view="people" title="People Analytics — afastados, sucessão, dispersão salarial e custo por área"><span class="ic" data-ic="peopleic"></span><span>People Analytics</span></a>
         <a href="#rh" class="sub" data-view="rh" title="RH — vagas e recrutamento"><span class="ic" data-ic="rhic"></span><span>Vagas</span></a>
       </div>
       <button class="group" id="grpSup" aria-expanded="false" aria-controls="subsSup" onclick="toggleGroup('grpSup','subsSup','cs.supGroup')" title="Suprimentos">
@@ -2537,6 +2540,61 @@ body.tvfull #btnReport,body.tvmode #btnReport{display:none}
       </section>
 
       <!-- ===================== MILK RUN — MWM ===================== -->
+      <section class="view" id="view-people">
+        <div class="kpis k4" id="kpis-people"></div>
+        <div class="kpis k4" id="kpis-people2"></div>
+        <div class="grid2">
+          <div class="card">
+            <div class="head"><h2>Pirâmide etária <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="Quadro ativo por faixa de idade, com a massa salarial de cada faixa. É onde se lê risco de sucessão: quanto do custo e do conhecimento está concentrado em quem se aposenta nos próximos anos.">i</span></h2>
+              <span class="hint" id="hintPplPir"></span></div>
+            <div class="tablewrap"><table><thead><tr>
+              <th>Faixa</th><th class="num">Pessoas</th><th></th><th class="num">Massa salarial</th>
+            </tr></thead><tbody id="ppl-piramide"></tbody></table></div>
+          </div>
+          <div class="card">
+            <div class="head"><h2>Tempo de casa <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="Há quanto tempo cada pessoa do quadro ativo está na empresa. Concentração nos primeiros meses indica crescimento ou reposição alta; concentração acima de dez anos indica quadro maduro e pouca renovação.">i</span></h2>
+              <span class="hint" id="hintPplCasa"></span></div>
+            <div class="tablewrap"><table><thead><tr>
+              <th>Faixa</th><th class="num">Pessoas</th><th></th>
+            </tr></thead><tbody id="ppl-casa"></tbody></table></div>
+          </div>
+        </div>
+        <div class="card">
+          <div class="head"><h2>Afastamentos em aberto <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="Pessoas na situação AFASTADO no ERP — continuam sendo da empresa e voltam, mas não estão no posto. Não entram no quadro ativo (inflaria a capacidade) nem somem (esconderia o custo e a reposição). Afastamento aberto há mais de cinco anos ganha marca: não é erro por si, auxílio-doença longo existe, mas pede conferência.">i</span></h2>
+            <span class="hint" id="hintPplAfast"></span></div>
+          <div class="tablewrap tabroll"><table><thead><tr>
+            <th>Pessoa</th><th>Função</th><th>Unidade</th><th>Motivo</th>
+            <th class="num">Desde</th><th class="num">Tempo</th>
+          </tr></thead><tbody id="ppl-afast"></tbody></table></div>
+        </div>
+        <div class="card">
+          <div class="head"><h2>Custo e estrutura por área <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="Massa salarial base de cada área, a fatia que ela representa do total e o tempo de casa mediano de quem está nela. Salário base, não folha completa: encargos, horas extras e benefícios estão na tela de Custo de Folha.">i</span></h2>
+            <span class="hint" id="hintPplArea"></span></div>
+          <div class="tablewrap tabroll"><table><thead><tr>
+            <th>Área</th><th class="num">Pessoas</th><th class="num">Massa salarial</th>
+            <th class="num">% do total</th><th></th><th class="num">Média</th><th class="num">Casa (mediana)</th>
+          </tr></thead><tbody id="ppl-areas"></tbody></table></div>
+        </div>
+        <div class="grid2">
+          <div class="card">
+            <div class="head"><h2>Dispersão salarial por cargo <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="Menor, mediano e maior salário DENTRO do mesmo cargo, e a razão entre o maior e o menor. Amplitude alta num cargo com muita gente é onde mora discussão de equidade e de enquadramento — pode ser senioridade legítima ou pode ser distorção.">i</span></h2>
+              <span class="hint" id="hintPplCargo"></span></div>
+            <div class="tablewrap tabroll"><table><thead><tr>
+              <th>Cargo</th><th class="num">Pessoas</th><th class="num">Menor</th>
+              <th class="num">Mediano</th><th class="num">Maior</th><th class="num">Amplitude</th>
+            </tr></thead><tbody id="ppl-cargos"></tbody></table></div>
+          </div>
+          <div class="card">
+            <div class="head"><h2>Cargo de uma pessoa só <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="Funções com um único ocupante no quadro ativo. Cada uma é um ponto único de falha: se essa pessoa sai ou adoece, não há quem substitua sem contratar ou treinar. Ordenado pelo salário, porque o ponto único mais caro costuma ser também o mais difícil de repor.">i</span></h2>
+              <span class="hint" id="hintPplUnico"></span></div>
+            <div class="tablewrap tabroll"><table><thead><tr>
+              <th>Cargo</th><th class="num">Salário</th>
+            </tr></thead><tbody id="ppl-unicos"></tbody></table></div>
+          </div>
+        </div>
+        <div id="ppl-avisos"></div>
+      </section>
+
       <section class="view" id="view-pneus">
         <div class="card">
           <div class="head"><h2>Filtros <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="Pneus cadastrados na Prolog. Só o status INSTALADO significa “rodando”: pressão de pneu no estoque não é pressão baixa e sulco de pneu sucateado não é risco. Todos os indicadores de risco olham apenas os instalados.">i</span></h2>
@@ -3861,6 +3919,7 @@ const ICONS = {
   recorric: IC('<path d="M20 11a8 8 0 0 0-14.3-4.5M4 13a8 8 0 0 0 14.3 4.5"/><path d="M20 5.5V11h-5.5M4 18.5V13h5.5"/>'),
   rastroic: IC('<path d="M12 21s6.5-6.2 6.5-11a6.5 6.5 0 1 0-13 0C5.5 14.8 12 21 12 21z"/><circle cx="12" cy="10" r="2.3"/><path d="M2.5 20.5h2M7.5 20.5h1M16 20.5h1M20 20.5h1.5"/>'),
   telconic: IC('<path d="M12 3.5c3.2 3.6 5 6.1 5 8.3a5 5 0 0 1-10 0c0-2.2 1.8-4.7 5-8.3z"/><path d="M3 21h18M5.5 21v-3.5M9 21v-6"/>'),
+  peopleic: IC('<circle cx="9" cy="7.5" r="3"/><path d="M3.5 19a5.5 5.5 0 0 1 11 0"/><path d="M16.5 3.6a3 3 0 0 1 0 7.8"/><path d="M18 19a5 5 0 0 0-2.6-4.4"/>'),
   pneuic: IC('<circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="3.6"/><path d="M12 3v5.4M12 15.6V21M3 12h5.4M15.6 12H21"/>'),
   feriasic: IC('<rect x="3" y="4.5" width="18" height="16.5" rx="2.5"/><path d="M3 9.5h18M8 2.5v4M16 2.5v4"/><path d="m9 15 2 2 4-4"/>'),
   cnhic: IC('<rect x="2" y="4.5" width="20" height="15" rx="2.5"/><circle cx="8" cy="11" r="2.2"/><path d="M4.6 16.4a3.7 3.7 0 0 1 6.8 0"/><path d="M14.5 9.5h5M14.5 12.5h5M14.5 15.5h3"/>'),
@@ -3886,7 +3945,7 @@ const FAIXAS = {
   '4_vencido_91_365':['Vencido 91–365d','b-dang'],
   '5_vencido_mais_365':['Vencido > 365d','b-dang'],
 };
-const VIEWS = { home:'Visão Geral', fluxo:'Fluxo de Caixa e Bancos', receber:'Contas a Receber', pagar:'Contas a Pagar', oc:'Ordens de Compra', custos:'Painel de Custos', agr:'Agregados e Terceiros', mvb:'Make vs Buy', comb:'Combustível', man:'Manutenção', com:'Clientes e RKM', clif:'Consulta de Cliente', crm:'CRM — Leads e Projetos', km:'Análise de KM', torre:'Torre de Controle', veic:'Veículos', veicf:'Consulta de Veículo', mprev:'Manutenção Preventiva', comrast:'Comunicação Rastreadora', mul:'Multas', prog:'Programação Inteligente', jorn:'Jornada do Motorista', jornf:'Ficha de Jornada', cex:'Custos Extras', sac:'SAC / Freetime', port:'Portaria', cop:'Copiloto Cortex', cob:'Régua de Cobrança', extb:'Extrato Bancário', lanc:'Lançamentos Bancários', antec:'Antecipação de Recebíveis', antport:'Portais de Antecipação', milkrun:'Milk Run — MWM', rec:'Lançamentos Recorrentes', fluxcon:'Fluxo de Caixa Consolidado', cont:'Contabilidade', qual:'Qualidade e Certidões', orc:'Orçamento', fech:'Fechamento do Mês', prem:'Premiação de Motoristas', dre:'DRE Gerencial', bal:'Balanço Patrimonial', drecli:'DRE por Cliente', tvfat:'Painel TV — Faturamento', tvope:'Painel TV — Operação', rh:'RH — Vagas', hc:'Headcount', folha:'Custo de Folha', folhaind:'Indicadores de Folha', he:'Horas Extras', cnh:'CNH dos Motoristas', ferias:'Férias — Vencimento', pneus:'Pneus', gestao:'Gestão', srv:'Saúde do Servidor', doc:'Documentação', anpiso:'Piso Mínimo de Frete', anrntrc:'RNTRC dos Transportadores', telcon:'Consumo e Estatísticas', telcond:'Condução Econômica', telhod:'Hodômetro e Rastro' };
+const VIEWS = { home:'Visão Geral', fluxo:'Fluxo de Caixa e Bancos', receber:'Contas a Receber', pagar:'Contas a Pagar', oc:'Ordens de Compra', custos:'Painel de Custos', agr:'Agregados e Terceiros', mvb:'Make vs Buy', comb:'Combustível', man:'Manutenção', com:'Clientes e RKM', clif:'Consulta de Cliente', crm:'CRM — Leads e Projetos', km:'Análise de KM', torre:'Torre de Controle', veic:'Veículos', veicf:'Consulta de Veículo', mprev:'Manutenção Preventiva', comrast:'Comunicação Rastreadora', mul:'Multas', prog:'Programação Inteligente', jorn:'Jornada do Motorista', jornf:'Ficha de Jornada', cex:'Custos Extras', sac:'SAC / Freetime', port:'Portaria', cop:'Copiloto Cortex', cob:'Régua de Cobrança', extb:'Extrato Bancário', lanc:'Lançamentos Bancários', antec:'Antecipação de Recebíveis', antport:'Portais de Antecipação', milkrun:'Milk Run — MWM', rec:'Lançamentos Recorrentes', fluxcon:'Fluxo de Caixa Consolidado', cont:'Contabilidade', qual:'Qualidade e Certidões', orc:'Orçamento', fech:'Fechamento do Mês', prem:'Premiação de Motoristas', dre:'DRE Gerencial', bal:'Balanço Patrimonial', drecli:'DRE por Cliente', tvfat:'Painel TV — Faturamento', tvope:'Painel TV — Operação', rh:'RH — Vagas', hc:'Headcount', folha:'Custo de Folha', folhaind:'Indicadores de Folha', he:'Horas Extras', cnh:'CNH dos Motoristas', ferias:'Férias — Vencimento', people:'People Analytics', pneus:'Pneus', gestao:'Gestão', srv:'Saúde do Servidor', doc:'Documentação', anpiso:'Piso Mínimo de Frete', anrntrc:'RNTRC dos Transportadores', telcon:'Consumo e Estatísticas', telcond:'Condução Econômica', telhod:'Hodômetro e Rastro' };
 const periodoLabel = p => { if(p==='atrasado') return 'Atrasado'; const [y,m]=p.split('-'); return MES[+m-1]+'/'+y.slice(2); };
 const fmtD = s => { if(!s) return ''; const [y,m,dd]=s.split('-'); return dd+'/'+m+'/'+y; };
 /* Idade da posicao bancaria. Cada conta e lancada num dia diferente: mostrar
@@ -4078,7 +4137,7 @@ const VIEW_GROUP = {home:'',cop:'',
   veic:'Fro',veicf:'Fro',mprev:'Fro',comrast:'Fro',comb:'Fro',man:'Fro',mul:'Fro',pneus:'Fro',
   oc:'Sup',custos:'Sup',
   tvfat:'Tv',tvope:'Tv',
-  rh:'Rh',hc:'Rh',folha:'Rh',folhaind:'Rh',he:'Rh',cnh:'Rh',ferias:'Rh',gestao:'Adm',srv:'Adm',doc:'Adm',
+  rh:'Rh',hc:'Rh',folha:'Rh',folhaind:'Rh',he:'Rh',cnh:'Rh',ferias:'Rh',people:'Rh',gestao:'Adm',srv:'Adm',doc:'Adm',
   // Telemetria e ANTT tinham grupo na barra lateral mas ficaram de fora deste
   // mapa: o acordeao nao abria sozinho ao navegar para elas (agora a busca
   // global navega, entao isso passou a incomodar de verdade).
@@ -4235,7 +4294,7 @@ function qsView(k){
     if(V('fHeComp'))p.set('comp',V('fHeComp'));
   } else if(k==='fech'){
     if(V('fFechMes'))p.set('mes',V('fFechMes'));
-  } else if(k==='mprev'||k==='comrast'||k==='qual'||k==='port'||k==='crm'||k==='rh'||k==='hc'||k==='folhaind'||k==='cnh'||k==='ferias'||k==='pneus'){
+  } else if(k==='mprev'||k==='comrast'||k==='qual'||k==='port'||k==='crm'||k==='rh'||k==='hc'||k==='folhaind'||k==='cnh'||k==='ferias'||k==='pneus'||k==='people'){
     // vistas-snapshot sem filtro local: qsView() sempre devolve '' — o
     // loader grava LOADEDQS[k]='' (não '1') para o cache de staleness
     // funcionar (senão nunca bate e cada navegação refaz a consulta).
@@ -4253,7 +4312,7 @@ function semFilterbar(v){
   // filtros", que não tinha o que aplicar.
   return v==='cop'||v==='gestao'||v==='srv'||v==='home'||v==='veicf'||v==='clif'||v==='jorn'||v==='jornf'||v==='prog'||
          v==='cex'||v==='sac'||v==='mprev'||v==='comrast'||v==='qual'||v==='port'||v==='crm'||v==='rh'||
-         v==='hc'||v==='folha'||v==='folhaind'||v==='he'||v==='custos'||v==='orc'||v==='prem'||v==='extb'||v==='fech'||v==='doc'||v==='anrntrc'||v==='telcon'||v==='telcond'||v==='telhod'||v==='milkrun'||v==='cnh'||v==='ferias'||v==='pneus';
+         v==='hc'||v==='folha'||v==='folhaind'||v==='he'||v==='custos'||v==='orc'||v==='prem'||v==='extb'||v==='fech'||v==='doc'||v==='anrntrc'||v==='telcon'||v==='telcond'||v==='telhod'||v==='milkrun'||v==='cnh'||v==='ferias'||v==='pneus'||v==='people';
 }
 function currentView(){
   const h = (location.hash||'').replace('#','');
@@ -4350,7 +4409,7 @@ function router(){
   // divergem dos usados na última carga (nunca mostrar dado velho com filtro novo)
   const key=viewKey(v);
   const DATAMAP={fin:DATA,oc:DATAOC,agr:DATAAGR,anpiso:DATAANPISO,anrntrc:DATAANRNTRC,telcon:DATATELCON,telcond:DATATELCOND,telhod:DATATELHOD,mvb:DATAMVB,comb:DATACOMB,man:DATAMAN,com:DATACOM,clif:DATACLIF,dre:DATADRE,bal:DATABAL,drecli:DATADRECLI,home:DATAHOME,km:DATAKM,torre:DATATORRE,veic:DATAVEIC,veicf:DATAVEICF,mul:DATAMUL,prog:DATAPROG,jorn:DATAJORN,jornf:DATAJORNF,cex:DATACEX,sac:DATASAC,mprev:DATAMPREV,comrast:DATACOMRAST,qual:DATAQUAL,port:DATAPORT,crm:DATACRM,rh:DATARH,hc:DATAHC,folha:DATAFOLHA,folhaind:DATAFOLHAIND,he:DATAHE,custos:DATACUSTOS,cob:DATACOB,extb:DATAEXTB,lanc:DATALANC,antec:DATAANTEC,antport:DATAANTPORT,milkrun:DATAMILK,fluxcon:DATAFLUXCON,rec:DATAREC,rent:DATARENT,cont:DATACONT,orc:DATAORC,fech:DATAFECH,prem:DATAPREM,gestao:DATAGES,srv:DATASRV,doc:DATADOC,tvfat:null,tvope:null,cop:(COP_MSGS.length?{}:null)};
-  const LOADMAP={fin:load,oc:loadOc,agr:loadAgr,anpiso:loadAnpiso,anrntrc:loadAnrntrc,telcon:loadTelcon,telcond:loadTelcond,telhod:loadTelhod,mvb:loadMvb,comb:loadComb,man:loadMan,com:loadCom,clif:loadClif,dre:loadDre,bal:loadBal,drecli:loadDreCli,home:loadHome,km:loadKm,torre:loadTorre,veic:loadVeic,veicf:loadVeicf,mul:loadMul,prog:loadProg,jorn:loadJorn,jornf:loadJornf,cex:loadCex,sac:loadSac,mprev:loadMPrev,comrast:loadComRast,qual:loadQual,port:loadPort,crm:loadCrm,rh:loadRh,hc:loadHc,folha:loadFolha,folhaind:loadFolhaInd,he:loadHe,custos:loadCustos,cob:loadCob,extb:loadExtb,lanc:loadLanc,antec:loadAntec,antport:loadAntport,milkrun:loadMilkrun,cnh:loadCnh,ferias:loadFerias,pneus:loadPneus,fluxcon:loadFluxcon,rec:loadRec,rent:loadRent,cont:loadCont,orc:loadOrc,fech:loadFech,prem:loadPrem,gestao:loadGestao,srv:loadSrv,doc:loadDoc,cop:loadCop,tvfat:loadTvFat,tvope:loadTvOpe};
+  const LOADMAP={fin:load,oc:loadOc,agr:loadAgr,anpiso:loadAnpiso,anrntrc:loadAnrntrc,telcon:loadTelcon,telcond:loadTelcond,telhod:loadTelhod,mvb:loadMvb,comb:loadComb,man:loadMan,com:loadCom,clif:loadClif,dre:loadDre,bal:loadBal,drecli:loadDreCli,home:loadHome,km:loadKm,torre:loadTorre,veic:loadVeic,veicf:loadVeicf,mul:loadMul,prog:loadProg,jorn:loadJorn,jornf:loadJornf,cex:loadCex,sac:loadSac,mprev:loadMPrev,comrast:loadComRast,qual:loadQual,port:loadPort,crm:loadCrm,rh:loadRh,hc:loadHc,folha:loadFolha,folhaind:loadFolhaInd,he:loadHe,custos:loadCustos,cob:loadCob,extb:loadExtb,lanc:loadLanc,antec:loadAntec,antport:loadAntport,milkrun:loadMilkrun,cnh:loadCnh,ferias:loadFerias,people:loadPeople,pneus:loadPneus,fluxcon:loadFluxcon,rec:loadRec,rent:loadRent,cont:loadCont,orc:loadOrc,fech:loadFech,prem:loadPrem,gestao:loadGestao,srv:loadSrv,doc:loadDoc,cop:loadCop,tvfat:loadTvFat,tvope:loadTvOpe};
   if(!DATAMAP[key] || (key!=='home' && LOADEDQS[key]!==qsView(key))) LOADMAP[key]();
   // mobile: estado da navegação inferior + fecha gaveta/painel de filtros
   document.querySelectorAll('.bottomnav [data-bview]').forEach(a=>a.classList.toggle('ativo', a.dataset.bview===v));
@@ -9103,6 +9162,184 @@ function renderPneus(d){
   if((d.filtros||{}).filial) rec.push(d.filtros.filial);
   document.getElementById('hintPn').textContent =
     (rec.length?rec.join(' · ')+' — ':'')+(k.total||0)+' pneu(s) no recorte';
+}
+
+
+// ========================== PEOPLE ANALYTICS ================================
+// NAO REPETE O HEADCOUNT. Quadro, admissoes e turnover ja estao la; aqui vai o
+// que nenhuma tela de RH responde: quem esta afastado e ha quanto tempo, onde
+// esta o risco de sucessao, quanto custa cada area e qual a dispersao salarial
+// dentro do mesmo cargo.
+//
+// AFASTADO NAO ENTRA NO QUADRO ATIVO. Somar inflaria a capacidade; ignorar
+// esconderia o custo e a reposicao. Fica ao lado, sempre.
+let DATAPPL = null, pplSeq = 0;
+
+async function loadPeople(fundo){
+  skelKpis('kpis-people',4); skelKpis('kpis-people2',4);
+  const seq=++pplSeq, btn=document.getElementById('btnRefresh'); if(btn) btn.disabled=true;
+  if(!fundo) document.getElementById('content').classList.add('loading');
+  try{
+    const r=await fetch('/api/rh/people',
+      {cache:'no-store', headers: fundo?{'X-Carga-Fundo':'1'}:{}});
+    const d=await r.json(); if(seq!==pplSeq) return;
+    if(!r.ok){ showBanner(d.mensagem||'Erro ao consultar a folha.'); return; }
+    hideBanner(); DATAPPL=d; renderPeople(d);
+  }catch(e){ if(seq===pplSeq) showBanner('Não foi possível falar com a API.', e.message); }
+  finally{ if(seq===pplSeq){ if(btn) btn.disabled=false;
+    document.getElementById('content').classList.remove('loading'); } }
+}
+
+/* percentual em pt-BR. Concatenar o numero direto imprime "9.2%" com
+   PONTO, no meio de uma tela toda em portugues. */
+function pplPct(v, casas){
+  return v==null ? '—'
+    : v.toLocaleString('pt-BR',{maximumFractionDigits: casas==null?1:casas})+'%';
+}
+function pplBarra(pct, cor){
+  return `<div style="height:8px;background:var(--n200);border-radius:999px;overflow:hidden">
+    <i style="display:block;height:100%;width:${Math.max(0,Math.min(100,pct))}%;background:${cor||'var(--navy-500)'}"></i></div>`;
+}
+
+function renderPeople(d){
+  const k=d.kpis||{};
+
+  document.getElementById('kpis-people').innerHTML=[
+    kpi('Quadro ativo', (k.ativos||0).toLocaleString('pt-BR'),
+        (k.afastados||0)+' afastado(s) à parte · '+(k.areas||0)+' área(s)', '',
+        'Pessoas na situação ATIVA no GLOBUS — a mesma definição que o Headcount usa. Quem está AFASTADO conta separado: continua sendo da empresa e volta, mas não está no posto, então somar inflaria a capacidade e ignorar esconderia o custo.'),
+    kpi('Massa salarial', BRL.format(k.massa||0),
+        'mediana de '+BRL.format(k.salario_mediano||0)+' · média de '+BRL.format(k.salario_medio||0),
+        '',
+        'Soma do salário BASE do quadro ativo — não é a folha completa: encargos, horas extras e benefícios estão na tela de Custo de Folha. A mediana aparece junto da média de propósito: com poucos salários altos a média sobe e deixa de descrever a maioria.'),
+    kpi('Tempo de casa', (k.casa_mediana==null?'—':(k.casa_mediana.toLocaleString('pt-BR',{maximumFractionDigits:1})+' anos')),
+        (k.menos_1_ano||0)+' com menos de 1 ano ('+pplPct(k.pct_menos_1_ano)+')', '',
+        'Mediana, não média: um punhado de veteranos de 30 anos puxaria a média e faria o quadro parecer mais estável do que é. A fatia com menos de um ano mostra o quanto do time ainda está em formação.'),
+    kpi('Idade mediana', (k.idade_mediana==null?'—':(k.idade_mediana.toLocaleString('pt-BR',{maximumFractionDigits:1})+' anos')),
+        pplPct(k.pct_mulheres)+' mulheres ('+(k.mulheres||0)+')', '',
+        'Idade mediana do quadro ativo e composição por gênero. Numa transportadora a idade concentra-se na operação, e é o que liga esta tela ao risco de sucessão ao lado.'),
+  ].join('');
+
+  const critSuc = (k.pct_sessenta||0) >= 15 ? 'neg' : ((k.pct_sessenta||0) >= 8 ? 'warn' : '');
+  document.getElementById('kpis-people2').innerHTML=[
+    kpi('Afastados', (k.afastados||0).toLocaleString('pt-BR'),
+        BRL.format(k.afastados_massa||0)+' em salário base'
+          +((k.afast_longos||0)>0?(' · '+k.afast_longos+' há mais de 5 anos'):''),
+        (k.afastados||0)>0?'warn':'pos',
+        'Pessoas na situação AFASTADO. O salário base delas segue existindo e a vaga segue descoberta — é custo e é capacidade que falta, mesmo sem aparecer no quadro ativo.'),
+    kpi('60 anos ou mais', (k.sessenta_mais||0).toLocaleString('pt-BR'),
+        pplPct(k.pct_sessenta)+' do quadro · sucessão a planejar',
+        critSuc,
+        'Quadro ativo com 60 anos ou mais. Não é previsão de saída — é o horizonte em que a sucessão precisa estar pronta. Numa operação onde o conhecimento é de rota, de cliente e de veículo, repor leva meses.'),
+    kpi('Cargos com uma pessoa', (k.cargos_unicos||0).toLocaleString('pt-BR'),
+        'de '+(k.cargos||0)+' cargos no quadro',
+        (k.cargos_unicos||0)>0?'warn':'',
+        'Funções com um único ocupante: cada uma é um ponto único de falha. Se a pessoa sai ou adoece, não há quem substitua sem contratar ou treinar. Muitos cargos únicos num quadro pequeno é normal — o que importa é quais deles são críticos, e a lista abaixo ordena pelo salário justamente por isso.'),
+    kpi('Óbitos com ficha aberta', (k.afast_obitos||0).toLocaleString('pt-BR'),
+        'afastamento por falecimento, sem data de retorno',
+        '',
+        'Afastamentos abertos cujo motivo é FALECIMENTO. NÃO é erro de cadastro: morte não tem data de retorno, e o registro está correto. Aparece aqui só para explicar por que a contagem bruta de afastamentos abertos é maior que a de pessoas afastadas — sem isso, alguém somaria os dois e acharia que há ficha esquecida.'),
+  ].join('');
+
+  // -------- piramide etaria
+  const P=d.piramide||[], maxP=Math.max(1,...P.map(x=>x.n));
+  document.getElementById('hintPplPir').textContent = (k.ativos||0)+' pessoa(s) no quadro ativo';
+  document.getElementById('ppl-piramide').innerHTML = P.map(x=>{
+    const idoso = x.faixa.startsWith('6') || x.faixa.startsWith('5');
+    return `<tr>
+      <td>${esc(x.faixa)}</td>
+      <td class="num" style="font-weight:600">${x.n}</td>
+      <td style="width:120px">${pplBarra(100*x.n/maxP, idoso?'var(--yellow-700)':'var(--navy-500)')}</td>
+      <td class="num">${BRL.format(x.massa||0)}</td></tr>`;
+  }).join('') || '<tr><td colspan="4" style="color:var(--n500)">sem dados</td></tr>';
+
+  // -------- tempo de casa
+  const C=d.tempo_casa||[], maxC=Math.max(1,...C.map(x=>x.n));
+  document.getElementById('hintPplCasa').textContent =
+    'mediana de '+(k.casa_mediana==null?'—':k.casa_mediana.toLocaleString('pt-BR',{maximumFractionDigits:1})+' anos');
+  document.getElementById('ppl-casa').innerHTML = C.map(x=>`<tr>
+      <td>${esc(x.faixa)}</td>
+      <td class="num" style="font-weight:600">${x.n}</td>
+      <td style="width:150px">${pplBarra(100*x.n/maxC)}</td></tr>`).join('')
+    || '<tr><td colspan="3" style="color:var(--n500)">sem dados</td></tr>';
+
+  // -------- afastamentos
+  const A=d.afastamentos||[];
+  const mot=Object.entries(d.por_motivo||{}).sort((a,b)=>b[1]-a[1])
+    .map(([m,n])=>m.trim()+' ('+n+')').join(' · ');
+  document.getElementById('hintPplAfast').textContent =
+    A.length ? (A.length+' pessoa(s) · '+mot) : 'ninguém afastado no momento';
+  document.getElementById('ppl-afast').innerHTML = A.map(x=>`<tr>
+      <td>${esc(x.nome)}${x.longo?'<span class="ppl-longo">há mais de 5 anos</span>':''}</td>
+      <td style="color:var(--n500);font-size:12.5px">${esc(x.funcao||'—')}</td>
+      <td>${esc(x.filial||'—')}</td>
+      <td>${esc((x.motivo||'').trim())}</td>
+      <td class="num" style="font-family:var(--mono);font-size:12px">${fmtD(x.inicio)}</td>
+      <td class="num" style="font-weight:700;color:${x.longo?'var(--yellow-700)':'var(--n700)'}">${
+        x.dias>=730 ? (Math.round(x.dias/365.25*10)/10).toLocaleString('pt-BR')+' anos'
+                    : x.dias+(x.dias===1?' dia':' dias')}</td></tr>`).join('')
+    || '<tr><td colspan="6" style="color:var(--n500)">ninguém afastado</td></tr>';
+
+  // -------- areas
+  const AR=d.por_area||[];
+  document.getElementById('hintPplArea').textContent =
+    AR.length+' área(s) · '+BRL.format(k.massa||0)+' em salário base';
+  document.getElementById('ppl-areas').innerHTML = AR.map(x=>`<tr>
+      <td>${esc(x.area)}</td>
+      <td class="num">${x.n}</td>
+      <td class="num" style="font-weight:600">${BRL.format(x.massa)}</td>
+      <td class="num">${pplPct(x.pct_massa)}</td>
+      <td style="width:110px">${pplBarra(x.pct_massa||0)}</td>
+      <td class="num">${BRL.format(x.media)}</td>
+      <td class="num">${x.casa==null?'—':x.casa.toLocaleString('pt-BR',{maximumFractionDigits:1})+' a'}</td>
+    </tr>`).join('') || '<tr><td colspan="7" style="color:var(--n500)">sem áreas</td></tr>';
+
+  // -------- cargos: so os com mais de um ocupante (dispersao exige comparacao)
+  const CG=(d.cargos||[]).filter(c=>c.n>1);
+  document.getElementById('hintPplCargo').textContent =
+    CG.length+' cargo(s) com mais de um ocupante · só neles existe dispersão a comparar';
+  document.getElementById('ppl-cargos').innerHTML = CG.map(x=>{
+    const alto = x.amplitude!=null && x.amplitude>=2;
+    return `<tr>
+      <td>${esc(x.cargo)}</td>
+      <td class="num">${x.n}</td>
+      <td class="num">${BRL.format(x.menor)}</td>
+      <td class="num" style="font-weight:600">${BRL.format(x.mediana)}</td>
+      <td class="num">${BRL.format(x.maior)}</td>
+      <td class="num" style="font-weight:700;color:${alto?'var(--yellow-700)':'var(--n700)'}">${
+        x.amplitude==null?'—':(x.amplitude.toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2})+'x')}</td>
+    </tr>`;
+  }).join('') || '<tr><td colspan="6" style="color:var(--n500)">nenhum cargo com mais de um ocupante</td></tr>';
+
+  // -------- cargos unicos
+  const U=d.cargos_unicos||[];
+  document.getElementById('hintPplUnico').textContent =
+    U.length ? (U.length+' cargo(s) · ordenados pelo salário') : 'nenhum cargo com ocupante único';
+  document.getElementById('ppl-unicos').innerHTML = U.map(x=>`<tr>
+      <td>${esc(x.cargo)}</td>
+      <td class="num" style="font-weight:600">${BRL.format(x.maior)}</td></tr>`).join('')
+    || '<tr><td colspan="2" style="color:var(--n500)">nenhum</td></tr>';
+
+  // -------- avisos
+  const AV=[];
+  if((k.afast_longos||0)>0) AV.push(['t-warn',
+    k.afast_longos+(k.afast_longos===1?' afastamento aberto':' afastamentos abertos')+' há mais de cinco anos',
+    'Não é erro por si — auxílio-doença longo existe e acidente de trabalho grave também. Mas cinco anos sem retorno nem conversão em aposentadoria por invalidez pede uma conferência com o RH: ou o caso mudou de natureza e o cadastro não acompanhou, ou há um processo parado.']);
+  if((k.pct_sessenta||0)>=8) AV.push(['t-info',
+    (k.sessenta_mais||0)+' pessoas com 60 anos ou mais ('+pplPct(k.pct_sessenta)+' do quadro)',
+    'Não é previsão de saída, é horizonte de sucessão. Numa transportadora o conhecimento é de rota, de cliente e de veículo, e repor isso leva meses — a hora de mapear substituto é antes do aviso, não depois.']);
+  if((k.cargos_unicos||0)>0) AV.push(['t-info',
+    (k.cargos_unicos||0)+' de '+(k.cargos||0)+' cargos têm um único ocupante',
+    'Num quadro deste tamanho isso é esperado e não é problema em si. O que vale olhar é a lista ao lado, do salário mais alto para baixo: são as funções onde a saída de uma pessoa deixa a empresa sem ninguém que faça aquilo.']);
+  document.getElementById('ppl-avisos').innerHTML=AV.map(([c,t,m])=>
+    `<div class="toast ${c}"><b>${esc(t)}</b>${esc(m)}</div>`).join('');
+
+  const mt=document.getElementById('meta');
+  if(mt && d.atualizado_em){
+    const t=fmtDT(d.atualizado_em);
+    mt.innerHTML='<b>'+esc(t.slice(11))+'</b><br>'+esc(t.slice(0,10));
+    mt.title='Leitura do banco da folha (GLOBUS) em '+t;
+  }
 }
 
 async function loadFerias(fundo){
@@ -16113,6 +16350,7 @@ boot();
         <a href="#hc" onclick="fecharDrawer()"><span class="ic" data-ic="hcic"></span>Headcount</a>
         <a href="#he" onclick="fecharDrawer()"><span class="ic" data-ic="heic"></span>Horas Extras</a>
         <a href="#folhaind" onclick="fecharDrawer()"><span class="ic" data-ic="gauge"></span>Indicadores de Folha</a>
+        <a href="#people" onclick="fecharDrawer()"><span class="ic" data-ic="peopleic"></span>People Analytics</a>
         <a href="#rh" onclick="fecharDrawer()"><span class="ic" data-ic="rhic"></span>Vagas</a>
       </div>
     </div>

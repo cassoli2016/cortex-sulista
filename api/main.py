@@ -1374,6 +1374,20 @@ def rh_ferias(dias: int = 90, filial: str = "") -> JSONResponse:
             "mensagem": "Sem conexao com o banco da folha (GLOBUS)."})
 
 
+@app.get("/api/rh/people")
+def rh_people() -> JSONResponse:
+    """People Analytics: afastados, sucessao, dispersao salarial e custo por
+    area. Devolve nome so na lista de afastados, que e onde o RH precisa agir."""
+    from api.people import get_people
+    try:
+        return JSONResponse(get_people())
+    except Exception as exc:  # noqa: BLE001
+        log.warning("rh_people falhou: %s", exc)
+        return JSONResponse(status_code=503, content={
+            "erro": "globus_indisponivel",
+            "mensagem": "Sem conexao com o banco da folha (GLOBUS)."})
+
+
 @app.get("/api/rh/cnh")
 def rh_cnh(dias: int = 90, filial: str = "", categoria: str = "") -> JSONResponse:
     """Vencimento de CNH dos motoristas ativos (GLOBUS).
