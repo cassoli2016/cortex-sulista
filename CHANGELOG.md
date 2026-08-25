@@ -4,6 +4,13 @@ Gerado de `docs/versoes.yaml` por `scripts/gerar_changelog.py` — não editar �
 Formato [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/),
 versionamento [SemVer](https://semver.org/lang/pt-BR/).
 
+## [0.46.0] — 25/08/2026  ·  CX-25/08/2026-v0.46.0
+
+### Adicionado
+- A coleta da Monkey passa a GRAVAR a posicao da Tupy no mesmo lugar onde a planilha grava, entao Tupy (API), Maxion e Adient (planilha) convivem na mesma tela. Cada posicao guarda de onde veio: "lida ha 10 minutos" e uma garantia diferente de "planilha de 24/08", e a tela precisa poder dizer qual e qual.
+- Coleta que nao encontrou mudanca NAO cria registro novo. A identificacao e pelo conteudo (documento, vencimento, valor e situacao), nao pelo horario: a coleta agendada roda de tempos em tempos e, se o portal nao mudou, criar um registro faria a lista de importacoes mentir sobre a frequencia com que o dado realmente muda. Mudanca de situacao de um titulo - de disponivel para vendido, por exemplo - conta como posicao nova.
+- Titulo sem data de vencimento e rejeitado, como ja acontece na planilha: sem vencimento nao ha antecipacao possivel nem posicao no fluxo de caixa. A contagem de rejeitados volta no resumo da coleta.
+
 ## [0.45.0] — 25/08/2026  ·  CX-25/08/2026-v0.45.0
 
 ### Adicionado

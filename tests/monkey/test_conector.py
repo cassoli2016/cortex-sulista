@@ -218,3 +218,107 @@ def test_cedente_e_sacado_nao_estao_trocados():
     por convenio (que casa pela raiz do CNPJ do sacado) quebraria."""
     t = nz.titulo(RECEB)
     assert t["nome_sacado"] == "TUPY S.A."
+
+
+# ------------------------------------------------------- gravacao (servico)
+def test_coleta_grava_pelo_mesmo_caminho_da_planilha(tmp_path, monkeypatch, com_token):
+    """Reusar `gravar_envio` de proposito: ele ja resolve "qual e a posicao
+    atual do portal". Um caminho paralelo criaria duas regras que um dia
+    discordariam."""
+    from api.antecipacoes import registro
+    from api.monkey import servico
+
+    monkeypatch.setattr(registro, "DB_PATH", tmp_path / "a.db")
+    http = HttpFalso([_resp(_pagina([RECEB], 0, 1))])
+    r = servico.coletar(http=http)
+
+    assert r["gravados"] == 1 and r["antecipaveis"] == 1
+    assert r["sem_mudanca"] is False
+    assert r["ambiente"] == "hmg", "coleta nao pode ir para producao por acidente"
+
+    # posicao_atual() devolve os ENVIOS vigentes (um por portal);
+    # titulos_vigentes() e que traz as linhas
+    pos = registro.posicao_atual()
+    assert len(pos) == 1 and pos[0]["portal"] == "tupy"
+    tits = registro.titulos_vigentes()
+    assert len(tits) == 1 and tits[0]["documento"] == "123456"
+
+
+def test_coleta_identica_nao_cria_envio_novo(tmp_path, monkeypatch, com_token):
+    """A coleta agendada roda de tempos em tempos. Se nada mudou no portal, ela
+    nao pode criar envio novo — a lista de importacoes mentiria sobre a
+    frequencia com que o dado REALMENTE muda."""
+    from api.antecipacoes import registro
+    from api.monkey import servico
+
+    monkeypatch.setattr(registro, "DB_PATH", tmp_path / "b.db")
+    r1 = servico.coletar(http=HttpFalso([_resp(_pagina([RECEB], 0, 1))]))
+    r2 = servico.coletar(http=HttpFalso([_resp(_pagina([RECEB], 0, 1))]))
+    assert r1["sem_mudanca"] is False
+    assert r2["sem_mudanca"] is True
+    assert r1["envio_id"] == r2["envio_id"]
+
+
+def test_a_ordem_das_linhas_nao_muda_a_impressao(tmp_path, monkeypatch, com_token):
+    """API pode devolver a mesma posicao em ordem diferente; isso nao e
+    mudanca de posicao."""
+    from api.antecipacoes import registro
+    from api.monkey import servico
+
+    monkeypatch.setattr(registro, "DB_PATH", tmp_path / "c.db")
+    b = {**RECEB, "invoiceNumber": "999"}
+    servico.coletar(http=HttpFalso([_resp(_pagina([RECEB, b], 0, 1))]))
+    r2 = servico.coletar(http=HttpFalso([_resp(_pagina([b, RECEB], 0, 1))]))
+    assert r2["sem_mudanca"] is True
+
+
+def test_mudanca_de_status_conta_como_posicao_nova(tmp_path, monkeypatch, com_token):
+    """Titulo que passou de disponivel para VENDIDO mudou o que importa."""
+    from api.antecipacoes import registro
+    from api.monkey import servico
+
+    monkeypatch.setattr(registro, "DB_PATH", tmp_path / "d.db")
+    servico.coletar(http=HttpFalso([_resp(_pagina([RECEB], 0, 1))]))
+    r2 = servico.coletar(http=HttpFalso([
+        _resp(_pagina([{**RECEB, "status": "SOLD"}], 0, 1))]))
+    assert r2["sem_mudanca"] is False and r2["antecipaveis"] == 0
+
+
+def test_titulo_sem_vencimento_e_rejeitado(tmp_path, monkeypatch, com_token):
+    """Sem vencimento nao ha antecipacao nem posicao no fluxo de caixa. A
+    planilha ja trata assim; a API segue a mesma regra."""
+    from api.antecipacoes import registro
+    from api.monkey import servico
+
+    monkeypatch.setattr(registro, "DB_PATH", tmp_path / "e.db")
+    r = servico.coletar(http=HttpFalso([_resp(_pagina(
+        [RECEB, {**RECEB, "invoiceNumber": "7", "paymentDate": None}], 0, 1))]))
+    assert r["recebidos"] == 2 and r["gravados"] == 1
+    assert r["rejeitados_sem_vencimento"] == 1
+
+
+def test_a_posicao_fica_marcada_como_API(tmp_path, monkeypatch, com_token):
+    """Maxion e Adient continuam por planilha: a tela precisa distinguir."""
+    from api.antecipacoes import registro
+    from api.monkey import servico
+
+    monkeypatch.setattr(registro, "DB_PATH", tmp_path / "f.db")
+    r = servico.coletar(http=HttpFalso([_resp(_pagina([RECEB], 0, 1))]))
+    with registro._conn() as c:
+        linha = c.execute("SELECT origem, portal FROM envios WHERE id=?",
+                          (r["envio_id"],)).fetchone()
+    assert linha["origem"] == "api" and linha["portal"] == "tupy"
+
+
+def test_nao_inventa_total_declarado(tmp_path, monkeypatch, com_token):
+    """A API nao declara total. Copiar o somado faria a divergencia sair
+    sempre zero e parecer conferencia que nao houve."""
+    from api.antecipacoes import registro
+    from api.monkey import servico
+
+    monkeypatch.setattr(registro, "DB_PATH", tmp_path / "g.db")
+    r = servico.coletar(http=HttpFalso([_resp(_pagina([RECEB], 0, 1))]))
+    with registro._conn() as c:
+        linha = c.execute("SELECT total_declarado, divergencia FROM envios"
+                          " WHERE id=?", (r["envio_id"],)).fetchone()
+    assert linha["total_declarado"] is None and linha["divergencia"] is None

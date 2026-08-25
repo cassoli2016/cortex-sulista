@@ -39,10 +39,18 @@ __pycache__/
 *.xlsx
 *.xlsm
 *.csv
-antecipacoes/
-Planila_Fluxo/
-orcamento/
 docs/dre_ia_analise.xlsx
+
+# BARRA NA FRENTE, e ela nao e decoracao: sem a barra o padrao casa em
+# QUALQUER nivel, e `antecipacoes/` engolia tambem `api/antecipacoes/` — o
+# pacote inteiro do modulo, 6 arquivos de codigo, nunca entrou no repositorio.
+# O mesmo tirou `api/orcamento/plano.py`. Reconstruir o servidor a partir do
+# git teria produzido um sistema sem antecipacao, e sem aviso nenhum.
+# O que precisa ficar de fora e a pasta de PLANILHAS na raiz, nao o codigo
+# que as le.
+/antecipacoes/
+/Planila_Fluxo/
+/orcamento/
 
 # scripts temporarios de verificacao que eu crio na raiz durante o trabalho
 # (cx_*.py / cx_*.js) — um deles escapou para um commit
@@ -65,13 +73,8 @@ cx_*.txt
 # scratch local de verificacao (estrutura.py etc) - nao versionar
 scratchpad/
 
-# Planilhas dos portais de antecipacao: CNPJ de cliente, numero de nota e
-# valores reais. O REPOSITORIO DO CODIGO E PUBLICO — arquivo de cliente nunca
-# entra aqui. Os testes do parser leem a planilha se ela estiver na maquina e
-# caem em skip quando nao estiver.
-antecipacoes/
-Planila_Fluxo/
-orcamento/
+# (as pastas de planilha dos portais estao ancoradas la em cima, com barra;
+# este bloco duplicado era o que de fato ignorava o codigo)
 
 # OFX de teste gerado (dados reais do ERP)
 scripts/validacao_extrato/*.ofx
