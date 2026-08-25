@@ -4,6 +4,14 @@ Gerado de `docs/versoes.yaml` por `scripts/gerar_changelog.py` — não editar �
 Formato [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/),
 versionamento [SemVer](https://semver.org/lang/pt-BR/).
 
+## [0.47.1] — 25/08/2026  ·  CX-25/08/2026-v0.47.1
+
+### Alterado
+- ADMINISTRACAO foi para o fim do menu. E configuracao, nao trabalho do dia, e abrir o menu com ela em cima empurrava para baixo tudo o que se usa. Agora os dois extremos sao posicionais - Visao Geral e Copiloto no topo, Administracao no fim - e o miolo e alfabetico.
+
+### Corrigido
+- No celular, as telas da ANTT (Piso Minimo de Frete e RNTRC dos Transportadores) apareciam dentro do grupo OPERACAO, enquanto no computador a ANTT e grupo proprio. Quem aprendeu o caminho num aparelho nao achava no outro. Os dois menus passam a ter os mesmos 11 grupos com as mesmas telas em cada um.
+
 ## [0.47.0] — 25/08/2026  ·  CX-25/08/2026-v0.47.0
 
 ### Alterado

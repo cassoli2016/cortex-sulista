@@ -3,6 +3,22 @@
 #   - a tela Documentação     (#doc)
 #   - o rótulo no rodapé      (CX-DD/MM/AAAA-vX.Y.Z)
 # A versão do TOPO é a corrente e tem de bater com o pyproject.toml.
+- versao: "0.47.1"
+  data: "2026-08-25"
+  alterado:
+    - >-
+      ADMINISTRACAO foi para o fim do menu. E configuracao, nao trabalho do
+      dia, e abrir o menu com ela em cima empurrava para baixo tudo o que se
+      usa. Agora os dois extremos sao posicionais - Visao Geral e Copiloto no
+      topo, Administracao no fim - e o miolo e alfabetico.
+  corrigido:
+    - >-
+      No celular, as telas da ANTT (Piso Minimo de Frete e RNTRC dos
+      Transportadores) apareciam dentro do grupo OPERACAO, enquanto no
+      computador a ANTT e grupo proprio. Quem aprendeu o caminho num aparelho
+      nao achava no outro. Os dois menus passam a ter os mesmos 11 grupos com
+      as mesmas telas em cada um.
+
 - versao: "0.47.0"
   data: "2026-08-25"
   alterado:

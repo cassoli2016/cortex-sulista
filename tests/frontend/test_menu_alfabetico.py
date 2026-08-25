@@ -1,7 +1,9 @@
 """O menu fica em ordem alfabetica — e continua ficando.
 
-Visao Geral e Copiloto Cortex sao os pontos de entrada e ficam no topo, fora da
-ordenacao: procura-los na letra V e na C seria pior.
+Os dois EXTREMOS sao posicionais e o miolo e alfabetico. No topo, Visao Geral e
+Copiloto Cortex — a porta de entrada, e procura-los na letra V e na C seria
+pior. No fim, Administracao — e configuracao, nao trabalho do dia, e abrir o
+menu com ela em cima empurra para baixo tudo o que a pessoa usa.
 
 Este teste existe porque menu e o lugar onde tela nova entra "no fim" por
 inercia. Sem ele, em tres telas a ordem alfabetica vira ordem de chegada.
@@ -13,6 +15,16 @@ from pathlib import Path
 import pytest
 
 HTML = Path(__file__).resolve().parents[2] / "api" / "static" / "index.html"
+
+RE_GRUPO_BARRA = re.compile(
+    r'<button class="group" id="grp(\w+)"[^>]*>\r?\n.*?'
+    r'<span>([^<]+)</span><span class="ic chev".*?'
+    r'<div class="subs[^"]*" id="subs\1">\r?\n(.*?)[ \t]*</div>\r?\n', re.S)
+
+RE_GRUPO_GAVETA = re.compile(
+    r'<div class="dgrp" data-grp="\w+">\r?\n[ \t]*'
+    r'<button class="dgrp-h"[^>]*><span>([^<]+)</span>.*?'
+    r'<div class="dgrp-b">\r?\n(.*?)[ \t]*</div>', re.S)
 
 
 def chave(txt: str) -> str:
@@ -29,17 +41,22 @@ def html() -> str:
 
 def _grupos(html: str) -> list[tuple[str, str]]:
     """(nome do grupo, corpo dos subitens) na ordem em que aparecem."""
-    return [(m.group(2), m.group(3)) for m in re.finditer(
-        r'<button class="group" id="grp(\w+)"[^>]*>\r?\n.*?'
-        r'<span>([^<]+)</span><span class="ic chev".*?'
-        r'<div class="subs[^"]*" id="subs\1">\r?\n(.*?)[ \t]*</div>\r?\n',
-        html, re.S)]
+    return [(m.group(2), m.group(3)) for m in RE_GRUPO_BARRA.finditer(html)]
 
 
-def test_os_grupos_estao_em_ordem(html):
+def _grupos_gaveta(html: str) -> list[tuple[str, str]]:
+    return [(m.group(1), m.group(2)) for m in RE_GRUPO_GAVETA.finditer(html)]
+
+
+# ------------------------------------------------------------------- ordem
+def test_os_grupos_estao_em_ordem_com_administracao_no_fim(html):
     nomes = [g for g, _ in _grupos(html)]
-    assert nomes and nomes == sorted(nomes, key=chave), (
-        "grupos fora de ordem: " + " · ".join(nomes))
+    assert nomes, "nenhum grupo encontrado"
+    assert nomes[-1].startswith("Administra"), (
+        f"Administracao tem de ser o ultimo grupo, e o ultimo e {nomes[-1]!r}")
+    miolo = nomes[:-1]
+    assert miolo == sorted(miolo, key=chave), (
+        "grupos fora de ordem: " + " · ".join(miolo))
 
 
 def test_os_itens_de_cada_grupo_estao_em_ordem(html):
@@ -66,15 +83,40 @@ def test_visao_geral_e_copiloto_seguem_no_topo(html):
     assert i_home < i_cop < i_1o_grupo
 
 
+# ------------------------------------------------- barra x gaveta do celular
 def test_a_gaveta_do_celular_segue_a_mesma_ordem(html):
-    """Lista escrita a mao e separada da barra lateral: se ficar na ordem
+    """Lista escrita a mao e separada da barra lateral: ficando na ordem
     antiga, a mesma pessoa ve dois menus diferentes no computador e no
     celular."""
     fora = []
-    for m in re.finditer(r'<div class="dgrp-b">\r?\n(.*?)[ \t]*</div>\r?\n',
-                         html, re.S):
+    for nome, corpo in _grupos_gaveta(html):
         itens = [re.sub(r"<[^>]+>", "", a).strip()
-                 for a in re.findall(r'<a href="#\w+"[^>]*>.*?</a>', m.group(1))]
+                 for a in re.findall(r'<a href="#\w+"[^>]*>.*?</a>', corpo)]
         if len(itens) > 1 and itens != sorted(itens, key=chave):
-            fora.append(" · ".join(itens))
+            fora.append(f"{nome}: {' · '.join(itens)}")
     assert not fora, "gaveta fora de ordem -> " + " | ".join(fora)
+
+
+def test_a_gaveta_tem_os_MESMOS_grupos_que_a_barra(html):
+    """A ANTT era grupo proprio na barra e vivia dentro de Operacao na gaveta.
+    A mesma tela em grupos diferentes conforme o aparelho e o defeito que
+    ninguem reporta e todo mundo tropeca: quem aprendeu "ANTT > Piso Minimo"
+    no computador procura ANTT no celular e nao acha."""
+    barra = [g for g, _ in _grupos(html)]
+    gaveta = [g for g, _ in _grupos_gaveta(html)]
+    # a gaveta abre com um grupo "Geral" que na barra sao os dois itens do topo
+    assert gaveta and gaveta[0] == "Geral"
+    assert gaveta[1:] == barra, (
+        "grupos divergem.\n  barra : " + " · ".join(barra)
+        + "\n  gaveta: " + " · ".join(gaveta[1:]))
+
+
+def test_toda_tela_esta_no_MESMO_grupo_nos_dois_menus(html):
+    """Nao basta o grupo existir dos dois lados: a tela tem de estar no mesmo."""
+    barra = {v: nome for nome, corpo in _grupos(html)
+             for v in re.findall(r'<a href="#(\w+)" class="sub"', corpo)}
+    gaveta = {v: nome for nome, corpo in _grupos_gaveta(html)
+              for v in re.findall(r'href="#(\w+)"', corpo)}
+    divergem = [f"{v}: barra={barra[v]} gaveta={gaveta[v]}"
+                for v in sorted(barra) if v in gaveta and barra[v] != gaveta[v]]
+    assert not divergem, "telas em grupos diferentes -> " + " | ".join(divergem)

@@ -1203,13 +1203,6 @@ body.tvfull #btnReport,body.tvmode #btnReport{display:none}
     <nav aria-label="Seções do painel">
       <a href="#home" class="sub" data-view="home" title="Visão Geral" style="padding-left:12px;font-weight:600"><span class="ic" data-ic="home"></span><span>Visão Geral</span></a>
       <a href="#cop" class="sub" data-view="cop" title="Copiloto Cortex" style="padding-left:12px;font-weight:600"><span class="ic" data-ic="cop"></span><span>Copiloto Cortex</span></a>
-      <button class="group" id="grpAdm" aria-expanded="false" aria-controls="subsAdm" onclick="toggleGroup('grpAdm','subsAdm','cs.admGroup')" title="Administração">
-        <span class="ic" data-ic="cog"></span><span>Administração</span><span class="ic chev" data-ic="chev"></span>
-      </button>
-      <div class="subs closed" id="subsAdm">
-        <a href="#gestao" class="sub" data-view="gestao" title="Gestão — usuários, perfis e segurança"><span class="ic" data-ic="ges"></span><span>Gestão</span></a>
-        <a href="#srv" class="sub" data-view="srv" title="Saúde do Servidor — CPU, memória, disco e serviços"><span class="ic" data-ic="srv"></span><span>Saúde do Servidor</span></a>
-      </div>
       <button class="group" id="grpAntt" aria-expanded="false" aria-controls="subsAntt" onclick="toggleGroup('grpAntt','subsAntt','cs.anttGroup')" title="ANTT">
         <span class="ic" data-ic="qualic"></span><span>ANTT</span><span class="ic chev" data-ic="chev"></span>
       </button>
@@ -1313,6 +1306,13 @@ body.tvfull #btnReport,body.tvmode #btnReport{display:none}
         <a href="#telcon" class="sub" data-view="telcon" title="Consumo e Estatísticas — km/l da telemetria contra o abastecimento"><span class="ic" data-ic="telconic"></span><span>Consumo e Estatísticas</span></a>
         <a href="#telhod" class="sub" data-view="telhod" title="Hodômetro e Rastro — leitura direta do veículo e trajeto no mapa"><span class="ic" data-ic="rastroic"></span><span>Hodômetro e Rastro</span></a>
         <a href="#prem" class="sub" data-view="prem" title="Premiação de Motoristas — nota da Gobrax e km rodado"><span class="ic" data-ic="prem"></span><span>Premiação de Motoristas</span></a>
+      </div>
+      <button class="group" id="grpAdm" aria-expanded="false" aria-controls="subsAdm" onclick="toggleGroup('grpAdm','subsAdm','cs.admGroup')" title="Administração">
+        <span class="ic" data-ic="cog"></span><span>Administração</span><span class="ic chev" data-ic="chev"></span>
+      </button>
+      <div class="subs closed" id="subsAdm">
+        <a href="#gestao" class="sub" data-view="gestao" title="Gestão — usuários, perfis e segurança"><span class="ic" data-ic="ges"></span><span>Gestão</span></a>
+        <a href="#srv" class="sub" data-view="srv" title="Saúde do Servidor — CPU, memória, disco e serviços"><span class="ic" data-ic="srv"></span><span>Saúde do Servidor</span></a>
       </div>
     </nav>
     <div class="side-foot">
@@ -15817,6 +15817,13 @@ boot();
         <a href="#home" onclick="fecharDrawer()"><span class="ic" data-ic="home"></span>Visão Geral</a>
       </div>
     </div>
+    <div class="dgrp" data-grp="Antt">
+      <button class="dgrp-h" onclick="toggleDGrp(this)"><span>ANTT</span><span class="dchev">›</span></button>
+      <div class="dgrp-b">
+        <a href="#anpiso" onclick="fecharDrawer()"><span class="ic" data-ic="qualic"></span>Piso ANTT</a>
+        <a href="#anrntrc" onclick="fecharDrawer()"><span class="ic" data-ic="qualic"></span>RNTRC</a>
+      </div>
+    </div>
     <div class="dgrp" data-grp="Com">
       <button class="dgrp-h" onclick="toggleDGrp(this)"><span>Comercial</span><span class="dchev">›</span></button>
       <div class="dgrp-b">
@@ -15824,6 +15831,17 @@ boot();
         <a href="#clif" onclick="fecharDrawer()"><span class="ic" data-ic="clific"></span>Consulta de Cliente</a>
         <a href="#crm" onclick="fecharDrawer()"><span class="ic" data-ic="crmic"></span>CRM</a>
         <a href="#drecli" onclick="fecharDrawer()"><span class="ic" data-ic="rent"></span>DRE por Cliente</a>
+      </div>
+    </div>
+    <div class="dgrp" data-grp="Ctr">
+      <button class="dgrp-h" onclick="toggleDGrp(this)"><span>Controladoria</span><span class="dchev">›</span></button>
+      <div class="dgrp-b">
+        <a href="#bal" onclick="fecharDrawer()"><span class="ic" data-ic="dre"></span>Balanço Patrimonial</a>
+        <a href="#cont" onclick="fecharDrawer()"><span class="ic" data-ic="ctb"></span>Contabilidade</a>
+        <a href="#dre" onclick="fecharDrawer()"><span class="ic" data-ic="dre"></span>DRE Gerencial</a>
+        <a href="#fech" onclick="fecharDrawer()"><span class="ic" data-ic="dre"></span>Fechamento do Mês</a>
+        <a href="#orc" onclick="fecharDrawer()"><span class="ic" data-ic="dre"></span>Orçamento</a>
+        <a href="#qual" onclick="fecharDrawer()"><span class="ic" data-ic="qualic"></span>Qualidade e Certidões</a>
       </div>
     </div>
     <div class="dgrp" data-grp="Fin">
@@ -15841,34 +15859,6 @@ boot();
         <a href="#rec" onclick="fecharDrawer()"><span class="ic" data-ic="pag"></span>Recorrentes</a>
       </div>
     </div>
-    <div class="dgrp" data-grp="Ctr">
-      <button class="dgrp-h" onclick="toggleDGrp(this)"><span>Controladoria</span><span class="dchev">›</span></button>
-      <div class="dgrp-b">
-        <a href="#bal" onclick="fecharDrawer()"><span class="ic" data-ic="dre"></span>Balanço Patrimonial</a>
-        <a href="#cont" onclick="fecharDrawer()"><span class="ic" data-ic="ctb"></span>Contabilidade</a>
-        <a href="#dre" onclick="fecharDrawer()"><span class="ic" data-ic="dre"></span>DRE Gerencial</a>
-        <a href="#fech" onclick="fecharDrawer()"><span class="ic" data-ic="dre"></span>Fechamento do Mês</a>
-        <a href="#orc" onclick="fecharDrawer()"><span class="ic" data-ic="dre"></span>Orçamento</a>
-        <a href="#qual" onclick="fecharDrawer()"><span class="ic" data-ic="qualic"></span>Qualidade e Certidões</a>
-      </div>
-    </div>
-    <div class="dgrp" data-grp="Ope">
-      <button class="dgrp-h" onclick="toggleDGrp(this)"><span>Operação</span><span class="dchev">›</span></button>
-      <div class="dgrp-b">
-        <a href="#agr" onclick="fecharDrawer()"><span class="ic" data-ic="agr"></span>Agregados e Terceiros</a>
-        <a href="#km" onclick="fecharDrawer()"><span class="ic" data-ic="kmv"></span>Análise de KM</a>
-        <a href="#cex" onclick="fecharDrawer()"><span class="ic" data-ic="cexic"></span>Custos Extras</a>
-        <a href="#jorn" onclick="fecharDrawer()"><span class="ic" data-ic="jornic"></span>Jornada do Motorista</a>
-        <a href="#mvb" onclick="fecharDrawer()"><span class="ic" data-ic="mvb"></span>Make vs Buy</a>
-        <a href="#milkrun" onclick="fecharDrawer()"><span class="ic" data-ic="milkic"></span>Milk Run — MWM</a>
-        <a href="#anpiso" onclick="fecharDrawer()"><span class="ic" data-ic="qualic"></span>Piso ANTT</a>
-        <a href="#port" onclick="fecharDrawer()"><span class="ic" data-ic="porta"></span>Portaria</a>
-        <a href="#prog" onclick="fecharDrawer()"><span class="ic" data-ic="prog"></span>Programação Intel.</a>
-        <a href="#anrntrc" onclick="fecharDrawer()"><span class="ic" data-ic="qualic"></span>RNTRC</a>
-        <a href="#sac" onclick="fecharDrawer()"><span class="ic" data-ic="sacic"></span>SAC / Freetime</a>
-        <a href="#torre" onclick="fecharDrawer()"><span class="ic" data-ic="tor"></span>Torre de Controle</a>
-      </div>
-    </div>
     <div class="dgrp" data-grp="Fro">
       <button class="dgrp-h" onclick="toggleDGrp(this)"><span>Frota</span><span class="dchev">›</span></button>
       <div class="dgrp-b">
@@ -15881,20 +15871,26 @@ boot();
         <a href="#veic" onclick="fecharDrawer()"><span class="ic" data-ic="veic"></span>Veículos</a>
       </div>
     </div>
-    <div class="dgrp" data-grp="Tel">
-      <button class="dgrp-h" onclick="toggleDGrp(this)"><span>Telemetria</span><span class="dchev">›</span></button>
+    <div class="dgrp" data-grp="Ope">
+      <button class="dgrp-h" onclick="toggleDGrp(this)"><span>Operação</span><span class="dchev">›</span></button>
       <div class="dgrp-b">
-        <a href="#telcond" onclick="fecharDrawer()"><span class="ic" data-ic="gauge"></span>Condução</a>
-        <a href="#telcon" onclick="fecharDrawer()"><span class="ic" data-ic="comb"></span>Consumo</a>
-        <a href="#telhod" onclick="fecharDrawer()"><span class="ic" data-ic="kmv"></span>Hodômetro</a>
-        <a href="#prem" onclick="fecharDrawer()"><span class="ic" data-ic="prem"></span>Premiação de Motoristas</a>
+        <a href="#agr" onclick="fecharDrawer()"><span class="ic" data-ic="agr"></span>Agregados e Terceiros</a>
+        <a href="#km" onclick="fecharDrawer()"><span class="ic" data-ic="kmv"></span>Análise de KM</a>
+        <a href="#cex" onclick="fecharDrawer()"><span class="ic" data-ic="cexic"></span>Custos Extras</a>
+        <a href="#jorn" onclick="fecharDrawer()"><span class="ic" data-ic="jornic"></span>Jornada do Motorista</a>
+        <a href="#mvb" onclick="fecharDrawer()"><span class="ic" data-ic="mvb"></span>Make vs Buy</a>
+        <a href="#milkrun" onclick="fecharDrawer()"><span class="ic" data-ic="milkic"></span>Milk Run — MWM</a>
+        <a href="#port" onclick="fecharDrawer()"><span class="ic" data-ic="porta"></span>Portaria</a>
+        <a href="#prog" onclick="fecharDrawer()"><span class="ic" data-ic="prog"></span>Programação Intel.</a>
+        <a href="#sac" onclick="fecharDrawer()"><span class="ic" data-ic="sacic"></span>SAC / Freetime</a>
+        <a href="#torre" onclick="fecharDrawer()"><span class="ic" data-ic="tor"></span>Torre de Controle</a>
       </div>
     </div>
-    <div class="dgrp" data-grp="Sup">
-      <button class="dgrp-h" onclick="toggleDGrp(this)"><span>Suprimentos</span><span class="dchev">›</span></button>
+    <div class="dgrp" data-grp="Tv">
+      <button class="dgrp-h" onclick="toggleDGrp(this)"><span>Painéis TV</span><span class="dchev">›</span></button>
       <div class="dgrp-b">
-        <a href="#oc" onclick="fecharDrawer()"><span class="ic" data-ic="oc"></span>Ordens de Compra</a>
-        <a href="#custos" onclick="fecharDrawer()"><span class="ic" data-ic="custosic"></span>Painel de Custos</a>
+        <a href="#tvfat" onclick="fecharDrawer()"><span class="ic" data-ic="tv"></span>Faturamento (TV)</a>
+        <a href="#tvope" onclick="fecharDrawer()"><span class="ic" data-ic="tv"></span>Operação (TV)</a>
       </div>
     </div>
     <div class="dgrp" data-grp="Rh">
@@ -15909,11 +15905,20 @@ boot();
         <a href="#rh" onclick="fecharDrawer()"><span class="ic" data-ic="rhic"></span>Vagas</a>
       </div>
     </div>
-    <div class="dgrp" data-grp="Tv">
-      <button class="dgrp-h" onclick="toggleDGrp(this)"><span>Painéis TV</span><span class="dchev">›</span></button>
+    <div class="dgrp" data-grp="Sup">
+      <button class="dgrp-h" onclick="toggleDGrp(this)"><span>Suprimentos</span><span class="dchev">›</span></button>
       <div class="dgrp-b">
-        <a href="#tvfat" onclick="fecharDrawer()"><span class="ic" data-ic="tv"></span>Faturamento (TV)</a>
-        <a href="#tvope" onclick="fecharDrawer()"><span class="ic" data-ic="tv"></span>Operação (TV)</a>
+        <a href="#oc" onclick="fecharDrawer()"><span class="ic" data-ic="oc"></span>Ordens de Compra</a>
+        <a href="#custos" onclick="fecharDrawer()"><span class="ic" data-ic="custosic"></span>Painel de Custos</a>
+      </div>
+    </div>
+    <div class="dgrp" data-grp="Tel">
+      <button class="dgrp-h" onclick="toggleDGrp(this)"><span>Telemetria</span><span class="dchev">›</span></button>
+      <div class="dgrp-b">
+        <a href="#telcond" onclick="fecharDrawer()"><span class="ic" data-ic="gauge"></span>Condução</a>
+        <a href="#telcon" onclick="fecharDrawer()"><span class="ic" data-ic="comb"></span>Consumo</a>
+        <a href="#telhod" onclick="fecharDrawer()"><span class="ic" data-ic="kmv"></span>Hodômetro</a>
+        <a href="#prem" onclick="fecharDrawer()"><span class="ic" data-ic="prem"></span>Premiação de Motoristas</a>
       </div>
     </div>
     <div class="dgrp" data-grp="Adm">
