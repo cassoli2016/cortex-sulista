@@ -3,6 +3,20 @@
 #   - a tela Documentação     (#doc)
 #   - o rótulo no rodapé      (CX-DD/MM/AAAA-vX.Y.Z)
 # A versão do TOPO é a corrente e tem de bater com o pyproject.toml.
+- versao: "0.48.1"
+  data: "2026-08-25"
+  alterado:
+    - >-
+      A integracao da Prolog passou a aceitar a URL base com barra no fim
+      (`.../prolog/`), que e como ela e entregue, e o nome de variavel que a
+      Prolog usa (PROLOG_API_BASE_URL). Sem isso a chamada sairia com barra
+      dupla e um 404 dai pareceria credencial errada.
+    - >-
+      O FORMATO do token virou configuracao. Ele pode ir como "Bearer", puro,
+      ou num cabecalho proprio como X-API-Key, e nada disso esta na
+      documentacao da Prolog - agora se resolve na tela de credenciais em vez
+      de mexer em codigo no dia em que o token chegar.
+
 - versao: "0.48.0"
   data: "2026-08-25"
   adicionado:

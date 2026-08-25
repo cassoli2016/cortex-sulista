@@ -51,7 +51,21 @@ def _cred(nome: str) -> str:
 
 
 def base_url() -> str:
-    return _cred("PROLOG_BASE_URL") or BASE_PADRAO
+    """Base sem barra no fim.
+
+    Dois cuidados que vieram do mundo real:
+
+    - O nome que a Prolog entrega ao cliente e `PROLOG_API_BASE_URL`; eu tinha
+      registrado `PROLOG_BASE_URL`. Aceitar os dois evita o suporte de
+      "configurei e nao funcionou" por causa de um nome.
+    - O valor chega com barra no fim (`.../prolog/`) e os caminhos comecam com
+      barra, entao concatenar produziria `//api/v3/tires`. Alguns servidores
+      normalizam, outros devolvem 404 — e um 404 aqui pareceria credencial
+      errada.
+    """
+    bruto = (_cred("PROLOG_API_BASE_URL") or _cred("PROLOG_BASE_URL")
+             or BASE_PADRAO)
+    return bruto.rstrip("/")
 
 
 def filiais_configuradas() -> list[str]:
@@ -105,15 +119,32 @@ class Cliente:
         self._tok_expira = 0.0
 
     # ------------------------------------------------------------------ auth
-    def _cabecalho_auth(self) -> str:
+    def cabecalhos_auth(self) -> dict:
+        """Cabecalho(s) de autenticacao.
+
+        Token pode chegar de tres formas e nenhuma esta na documentacao:
+        `Authorization: Bearer <t>`, `Authorization: <t>` puro, ou um
+        cabecalho proprio (`X-API-Key`, `apikey`...). Em vez de descobrir na
+        hora e mexer em codigo, `PROLOG_AUTH_HEADER` escolhe o cabecalho e
+        `PROLOG_AUTH_PREFIXO` o prefixo — os padroes cobrem o caso comum.
+        """
+        nome = _cred("PROLOG_AUTH_HEADER") or "Authorization"
         if self.modo == "token":
             t = _cred("PROLOG_TOKEN")
-            # aceita o token com ou sem o prefixo, para nao virar "Bearer Bearer"
-            return t if t.lower().startswith(("bearer ", "basic ")) else f"Bearer {t}"
+            if _cred("PROLOG_AUTH_HEADER"):
+                # cabecalho proprio nao leva esquema
+                pref = _cred("PROLOG_AUTH_PREFIXO")
+                return {nome: f"{pref} {t}".strip() if pref else t}
+            pref = _cred("PROLOG_AUTH_PREFIXO")
+            if pref:
+                return {nome: f"{pref} {t}".strip()}
+            # sem prefixo configurado: Bearer, a menos que o token ja traga um
+            ja = t.lower().startswith(("bearer ", "basic ", "token "))
+            return {nome: t if ja else f"Bearer {t}"}
         if self.modo == "basic":
             par = f"{_cred('PROLOG_USUARIO')}:{_cred('PROLOG_SENHA')}"
-            return "Basic " + base64.b64encode(par.encode()).decode()
-        return f"Bearer {self._oauth()}"
+            return {nome: "Basic " + base64.b64encode(par.encode()).decode()}
+        return {nome: f"Bearer {self._oauth()}"}
 
     def _oauth(self) -> str:
         agora = time.monotonic()
@@ -157,7 +188,7 @@ class Cliente:
             url += "?" + urllib.parse.urlencode(limpos, doseq=True)
         try:
             status, corpo = self._http(
-                url, {"Authorization": self._cabecalho_auth(),
+                url, {**self.cabecalhos_auth(),
                       "Accept": "application/json"}, timeout)
         except Exception as exc:  # noqa: BLE001
             raise PrologIndisponivel(

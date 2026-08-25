@@ -41,13 +41,15 @@ CONHECIDAS = {
     # Prolog não declara securityScheme nenhum, então aceita token, Basic ou
     # OAuth2, e vale o que estiver preenchido.
     "PROLOG_TOKEN": "Token da API Prolog (pneus)",
+    "PROLOG_AUTH_HEADER": "Cabeçalho do token na Prolog (padrão Authorization)",
+    "PROLOG_AUTH_PREFIXO": "Prefixo do token na Prolog (padrão Bearer)",
     "PROLOG_USUARIO": "Usuário da Prolog (se for autenticação Basic)",
     "PROLOG_SENHA": "Senha da Prolog (se for autenticação Basic)",
     "PROLOG_CLIENT_ID": "client_id da Prolog (se for OAuth2)",
     "PROLOG_CLIENT_SECRET": "client_secret da Prolog (se for OAuth2)",
     "PROLOG_TOKEN_URL": "URL do endpoint de token da Prolog (se for OAuth2)",
     "PROLOG_FILIAIS": "IDs das filiais da Sulista na Prolog, separados por vírgula",
-    "PROLOG_BASE_URL": "URL base da Prolog (padrão https://prologapp.com/prolog)",
+    "PROLOG_API_BASE_URL": "URL base da Prolog (padrão https://prologapp.com/prolog)",
 }
 
 # senha de SMTP costuma ser curta (e "senha de aplicativo" do Google tem 16

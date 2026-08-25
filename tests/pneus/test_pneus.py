@@ -273,3 +273,71 @@ def test_dentro_da_mesma_gravidade_o_direcional_vem_antes():
         {**PNEU, "id": 2, "smallestTreadDepth": 1.5},
     ])
     assert [p["id"] for p in d["criticos"]] == [2, 1]
+
+
+# ------------------------------------------------------------------- base
+def test_a_barra_no_fim_da_base_nao_vira_barra_dupla(monkeypatch):
+    """A Prolog entrega a URL com barra no fim e os caminhos comecam com
+    barra: concatenar daria `//api/v3/tires`. Alguns servidores normalizam,
+    outros devolvem 404 — e um 404 aqui pareceria credencial errada."""
+    monkeypatch.setattr(cli, "_cred", lambda n: {
+        "PROLOG_API_BASE_URL": "https://prologapp.com/prolog/",
+        "PROLOG_TOKEN": "t", "PROLOG_FILIAIS": "10"}.get(n, ""))
+    assert cli.base_url() == "https://prologapp.com/prolog"
+    http = HttpFalso([_resp(_pagina([PNEU]))])
+    cli.Cliente(http=http).pneus()
+    assert "//api/v3/tires" not in http.chamadas[0]["url"]
+    assert http.chamadas[0]["url"].startswith(
+        "https://prologapp.com/prolog/api/v3/tires?")
+
+
+def test_aceita_os_dois_nomes_de_variavel(monkeypatch):
+    """O nome que a Prolog entrega e PROLOG_API_BASE_URL; o antigo continua
+    valendo para nao quebrar quem ja configurou."""
+    monkeypatch.setattr(cli, "_cred",
+                        lambda n: "https://x/y" if n == "PROLOG_BASE_URL" else "")
+    assert cli.base_url() == "https://x/y"
+    monkeypatch.setattr(cli, "_cred",
+                        lambda n: "https://a/b" if n == "PROLOG_API_BASE_URL" else "")
+    assert cli.base_url() == "https://a/b"
+
+
+def test_sem_configurar_cai_no_padrao_da_documentacao(monkeypatch):
+    monkeypatch.setattr(cli, "_cred", lambda n: "")
+    assert cli.base_url() == "https://prologapp.com/prolog"
+
+
+# ------------------------------------------------------ formato do token
+def _com(cfg):
+    base = {"PROLOG_TOKEN": "abc123", "PROLOG_FILIAIS": "10"}
+    return lambda n: {**base, **cfg}.get(n, "")
+
+
+@pytest.mark.parametrize("cfg,esperado", [
+    ({}, {"Authorization": "Bearer abc123"}),
+    ({"PROLOG_AUTH_PREFIXO": "Token"}, {"Authorization": "Token abc123"}),
+    ({"PROLOG_AUTH_HEADER": "X-API-Key"}, {"X-API-Key": "abc123"}),
+    ({"PROLOG_AUTH_HEADER": "apikey", "PROLOG_AUTH_PREFIXO": "k"},
+     {"apikey": "k abc123"}),
+])
+def test_formato_do_token_e_configuravel(monkeypatch, cfg, esperado):
+    """Token pode ir como Bearer, puro ou em cabecalho proprio, e nada disso
+    esta na documentacao da Prolog. Configuravel para nao virar mexida em
+    codigo no dia em que o token chegar."""
+    monkeypatch.setattr(cli, "_cred", _com(cfg))
+    assert cli.Cliente(http=HttpFalso([])).cabecalhos_auth() == esperado
+
+
+def test_token_que_ja_traz_esquema_nao_ganha_outro(monkeypatch):
+    for bruto in ("Bearer ja-tem", "Token ja-tem", "Basic ja-tem"):
+        monkeypatch.setattr(cli, "_cred", _com({"PROLOG_TOKEN": bruto}))
+        assert cli.Cliente(http=HttpFalso([])).cabecalhos_auth() == {
+            "Authorization": bruto}
+
+
+def test_o_cabecalho_configurado_chega_na_chamada(monkeypatch):
+    monkeypatch.setattr(cli, "_cred", _com({"PROLOG_AUTH_HEADER": "X-API-Key"}))
+    http = HttpFalso([_resp(_pagina([PNEU]))])
+    cli.Cliente(http=http).pneus()
+    h = http.chamadas[0]["headers"]
+    assert h["X-API-Key"] == "abc123" and "Authorization" not in h

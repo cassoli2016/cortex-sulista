@@ -4,6 +4,12 @@ Gerado de `docs/versoes.yaml` por `scripts/gerar_changelog.py` — não editar �
 Formato [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/),
 versionamento [SemVer](https://semver.org/lang/pt-BR/).
 
+## [0.48.1] — 25/08/2026  ·  CX-25/08/2026-v0.48.1
+
+### Alterado
+- A integracao da Prolog passou a aceitar a URL base com barra no fim (`.../prolog/`), que e como ela e entregue, e o nome de variavel que a Prolog usa (PROLOG_API_BASE_URL). Sem isso a chamada sairia com barra dupla e um 404 dai pareceria credencial errada.
+- O FORMATO do token virou configuracao. Ele pode ir como "Bearer", puro, ou num cabecalho proprio como X-API-Key, e nada disso esta na documentacao da Prolog - agora se resolve na tela de credenciais em vez de mexer em codigo no dia em que o token chegar.
+
 ## [0.48.0] — 25/08/2026  ·  CX-25/08/2026-v0.48.0
 
 ### Adicionado
