@@ -3,6 +3,15 @@
 #   - a tela Documentação     (#doc)
 #   - o rótulo no rodapé      (CX-DD/MM/AAAA-vX.Y.Z)
 # A versão do TOPO é a corrente e tem de bater com o pyproject.toml.
+- versao: "0.42.1"
+  data: "2026-08-25"
+  corrigido:
+    - >-
+      O cabecalho da tela de CNH ficava preso em "carregando..." — a tela nunca
+      preenchia o carimbo de hora, e um topo parado nesse texto e
+      indistinguivel de tela travada. Agora mostra a hora e a data da leitura
+      do banco da folha, como as demais telas.
+
 - versao: "0.42.0"
   data: "2026-08-25"
   adicionado:

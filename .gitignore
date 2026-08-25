@@ -51,6 +51,17 @@ cx_*.js
 cx_*.png
 cx_*.txt
 
+# CAPTURA DE TELA NENHUMA entra: print do CORTEX carrega nome de motorista,
+# chapa, placa, cliente e faturamento, e o repositorio e publico. Um prefixo
+# so (cx_*) nao bastou — os arquivos cnh-*.png escaparam por nao casarem com
+# ele. Agora barra por EXTENSAO, que e o que o conteudo tem em comum.
+*.png
+*.jpg
+*.jpeg
+*.webp
+!api/static/**/*.png
+!api/static/**/*.jpg
+
 # scratch local de verificacao (estrutura.py etc) - nao versionar
 scratchpad/
 

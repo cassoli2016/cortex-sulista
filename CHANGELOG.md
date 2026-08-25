@@ -4,6 +4,11 @@ Gerado de `docs/versoes.yaml` por `scripts/gerar_changelog.py` — não editar �
 Formato [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/),
 versionamento [SemVer](https://semver.org/lang/pt-BR/).
 
+## [0.42.1] — 25/08/2026  ·  CX-25/08/2026-v0.42.1
+
+### Corrigido
+- O cabecalho da tela de CNH ficava preso em "carregando..." — a tela nunca preenchia o carimbo de hora, e um topo parado nesse texto e indistinguivel de tela travada. Agora mostra a hora e a data da leitura do banco da folha, como as demais telas.
+
 ## [0.42.0] — 25/08/2026  ·  CX-25/08/2026-v0.42.0
 
 ### Adicionado

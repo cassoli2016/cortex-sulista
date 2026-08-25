@@ -545,4 +545,9 @@ def get_cnh(dias: int = 90, filial: str = "", categoria: str = "") -> dict:
         "lista": lista,
         "sem_cnh": sem,
         "fonte": "ERP GLOBUS · vwcgs_colaboradores × vw_funcionarios",
+        # regra do projeto: todo painel diz de onde veio o dado E quando foi
+        # lido. Sem isto o cabecalho ficava presa em "carregando..." para
+        # sempre, que e a aparencia exata de uma tela quebrada.
+        "atualizado_em": _q("SELECT TO_CHAR(SYSDATE,'YYYY-MM-DD HH24:MI') agora "
+                            "FROM dual")[0]["agora"],
     }

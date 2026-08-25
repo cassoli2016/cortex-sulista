@@ -8975,6 +8975,15 @@ function renderCnh(d){
   document.getElementById('cnh-avisos').innerHTML=A.map(([c,t,m])=>
     `<div class="toast ${c}"><b>${esc(t)}</b>${esc(m)}</div>`).join('');
 
+  /* CARIMBO no cabecalho. A tela nao preenchia e o topo ficava em
+     "carregando..." para sempre — indistinguivel de tela travada. */
+  const mt=document.getElementById('meta');
+  if(mt && d.atualizado_em){
+    const t=fmtDT(d.atualizado_em);
+    mt.innerHTML='<b>'+esc(t.slice(11))+'</b><br>'+esc(t.slice(0,10));
+    mt.title='Leitura do banco da folha (GLOBUS) em '+t;
+  }
+
   const rec=[];
   if((d.filtros||{}).filial) rec.push(d.filtros.filial);
   if((d.filtros||{}).categoria) rec.push('categoria '+d.filtros.categoria);
