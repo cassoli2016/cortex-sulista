@@ -3,6 +3,20 @@
 #   - a tela Documentação     (#doc)
 #   - o rótulo no rodapé      (CX-DD/MM/AAAA-vX.Y.Z)
 # A versão do TOPO é a corrente e tem de bater com o pyproject.toml.
+- versao: "0.34.0"
+  data: "2026-08-25"
+  adicionado:
+    - >-
+      Uma conferencia automatica que cruza os numeros do sistema com ele
+      mesmo: o saldo tem de ser o mesmo na Visao Geral, no Fluxo Consolidado e
+      na Antecipacao; o total do a receber tem de fechar com o aging; a
+      cascata do fluxo tem de encadear periodo a periodo; a DRE tem de fechar
+      linha por linha e mes a mes; as faixas das ordens de compra tem de somar
+      o total. Nasceu do defeito do saldo bancario, em que duas telas
+      mostravam R$ 914 mil de diferenca para a mesma coisa sem ninguem
+      perceber. Sao 22 verificacoes; na primeira rodada completa nenhuma
+      acusou divergencia.
+
 - versao: "0.33.0"
   data: "2026-08-25"
   corrigido:

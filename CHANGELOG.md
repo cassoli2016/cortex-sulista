@@ -4,6 +4,11 @@ Gerado de `docs/versoes.yaml` por `scripts/gerar_changelog.py` — não editar �
 Formato [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/),
 versionamento [SemVer](https://semver.org/lang/pt-BR/).
 
+## [0.34.0] — 25/08/2026  ·  CX-25/08/2026-v0.34.0
+
+### Adicionado
+- Uma conferencia automatica que cruza os numeros do sistema com ele mesmo: o saldo tem de ser o mesmo na Visao Geral, no Fluxo Consolidado e na Antecipacao; o total do a receber tem de fechar com o aging; a cascata do fluxo tem de encadear periodo a periodo; a DRE tem de fechar linha por linha e mes a mes; as faixas das ordens de compra tem de somar o total. Nasceu do defeito do saldo bancario, em que duas telas mostravam R$ 914 mil de diferenca para a mesma coisa sem ninguem perceber. Sao 22 verificacoes; na primeira rodada completa nenhuma acusou divergencia.
+
 ## [0.33.0] — 25/08/2026  ·  CX-25/08/2026-v0.33.0
 
 ### Corrigido
