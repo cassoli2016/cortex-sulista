@@ -2500,7 +2500,7 @@ body.tvfull #btnReport,body.tvmode #btnReport{display:none}
           <div class="head"><h2>Resumo por dia <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="Uma linha por data do período. % realizado é sobre as paradas que já tiveram DESFECHO (coletada ou frustrada) — usar o total inflaria o denominador com parada que ainda nem venceu e faria a manhã parecer um desastre.">i</span></h2>
             <span class="hint" id="hintMilkDias"></span></div>
           <div class="tablewrap tabroll"><table><thead><tr>
-            <th>Data</th><th class="num">Solicitações</th><th class="num">Paradas</th>
+            <th>Data</th><th class="num">Solicitações</th><th class="num">Coletas</th>
             <th class="num">Coletadas</th><th class="num">Frustradas</th>
             <th class="num">Pendentes</th><th class="num">% realizado</th><th></th>
           </tr></thead><tbody id="milk-dias"></tbody></table></div>
@@ -8721,25 +8721,47 @@ function renderMilkrun(d){
   // fMilkDia foi removido do markup e a referencia sobrou aqui — ela quebraria
   // o render inteiro no primeiro acesso (getElementById devolve null)
 
+  /* As quatro situacoes SOMAM o total de coletas: coletadas + frustradas +
+     pendentes + no local = total. Isso e proposital — a banda tem de poder
+     ser conferida de olho, sem o leitor se perguntar onde foi parar o resto. */
+  const totColetas = k.pontos||0;
+  const fatia = n => totColetas ? pct(n||0, totColetas) : '—';
   document.getElementById('kpis-milkrun').innerHTML=[
+    kpi('Solicitações', (k.solicitacoes||0).toLocaleString('pt-BR'),
+        (k.dias||0)+' dia(s) no período'
+          +(k.dias?(' · '+(Math.round(10*(k.solicitacoes||0)/k.dias)/10).toLocaleString('pt-BR')+' por dia'):''),
+        '',
+        'Documentos de solicitação de coleta no período. Cada solicitação é um roteiro e pede uma ou mais coletas — até quatro.'),
+    kpi('Coletas pedidas', totColetas.toLocaleString('pt-BR'),
+        (k.fornecedores||0)+' fornecedor(es) · '+(k.veiculos||0)+' veículo(s)', '',
+        'Total de paradas pedidas nas solicitações do período — é a soma das quatro situações ao lado: coletadas, frustradas, pendentes e no local.'),
+    kpi('Coletadas', (k.concluidos||0).toLocaleString('pt-BR'),
+        fatia(k.concluidos)+' das coletas pedidas',
+        (k.concluidos||0)>0?'pos':'',
+        'Coletas que se concretizaram. O horário vem do rastreamento; quando a operação aponta coleta e o rastro não vê, a linha diz "coletado (sem rastro)" — quase sempre coordenada errada ou raio pequeno.'),
+    kpi('Frustradas', (k.frustrados||0).toLocaleString('pt-BR'),
+        fatia(k.frustrados)+' — o caminhão foi e voltou sem carga',
+        (k.frustrados||0)>0?'neg':'pos',
+        'Coleta marcada como FRUSTRADA no ERP. O rastreamento não distingue isso sozinho — veria uma visita normal —, então o desfecho vem do apontamento da operação e manda sobre o detectado.'),
+
+    kpi('Pendentes', (k.pendentes||0).toLocaleString('pt-BR'),
+        (k.no_local||0)+' no local agora · '+(k.atrasados||0)+' atrasada(s)',
+        (k.pendentes||0)>0?'warn':'pos',
+        'Coletas em que o veículo ainda não chegou. "Atrasada" compara a chegada detectada com a janela agendada, com tolerância de 30 minutos. Somadas às coletadas, frustradas e às que estão no local, dão o total de coletas pedidas.'),
     kpi('% realizado',
         k.pct_realizado==null?'—':(k.pct_realizado.toLocaleString('pt-BR',{maximumFractionDigits:1})+'%'),
-        (k.concluidos||0)+' coletadas de '+((k.concluidos||0)+(k.frustrados||0))+' com desfecho',
+        (k.concluidos||0)+' de '+((k.concluidos||0)+(k.frustrados||0))+' com desfecho',
         k.pct_realizado==null?'':(k.pct_realizado>=95?'pos':(k.pct_realizado>=85?'warn':'neg')),
-        'Coletas concretizadas sobre as paradas que já tiveram DESFECHO — coletada ou frustrada. Parada que ainda não venceu fica FORA do denominador: incluí-la faria a manhã parecer um desastre só porque a tarde ainda não aconteceu.'),
-    kpi('Paradas no período', (k.pontos||0).toLocaleString('pt-BR'),
-        (k.solicitacoes||0)+' solicitação(ões) · '+(k.dias||0)+' dia(s) · '+(k.fornecedores||0)+' fornecedor(es)', '',
-        'Cada solicitação de coleta é um roteiro e cada parada dela é um fornecedor. Uma solicitação pode ter até quatro paradas.'),
-    kpi('Frustradas', (k.frustrados||0).toLocaleString('pt-BR'),
-        (k.pendentes||0)+' pendente(s) · '+(k.no_local||0)+' no local · '+(k.atrasados||0)+' atrasada(s)',
-        (k.frustrados||0)>0?'neg':'pos',
-        'Paradas em que o caminhão esteve no fornecedor e não carregou. O rastreamento não distingue isso sozinho — veria uma visita normal —, então o desfecho vem do apontamento da operação e manda sobre o detectado.'),
+        'Coletadas sobre as que já tiveram DESFECHO — coletada ou frustrada. Coleta que ainda não venceu fica FORA do denominador: incluí-la faria a manhã parecer um desastre só porque a tarde ainda não aconteceu.'),
     kpi('Permanência mediana',
         k.permanencia_mediana==null?'—':(Math.round(k.permanencia_mediana)+' min'),
-        (k.veiculos||0)+' veículo(s)'
-          +(k.dif_manual_mediana!=null?(' · manual difere '+k.dif_manual_mediana+' min'):''),
-        '',
-        'Quanto tempo o veículo fica em cada fornecedor, detectado pelo rastreamento. MEDIANA e não média: uma parada de oito horas num ponto com fila puxaria a média e diria que a operação inteira é lenta.'),
+        'tempo em cada fornecedor, pelo rastreamento', '',
+        'MEDIANA e não média: uma parada de oito horas num ponto com fila puxaria a média e diria que a operação inteira é lenta.'),
+    kpi('Manual × rastreamento',
+        k.dif_manual_mediana==null?'—':(k.dif_manual_mediana+' min'),
+        k.dif_manual_n?('diferença mediana em '+k.dif_manual_n+' coleta(s)'):'sem horário digitado para comparar',
+        k.dif_manual_mediana==null?'':(k.dif_manual_mediana<=5?'pos':'warn'),
+        'O quanto o horário DIGITADO no sistema difere do detectado pelo rastreamento. É a medida direta do ganho da automação: onde a diferença é grande, o horário que o cliente recebe hoje não corresponde ao que aconteceu.'),
   ].join('');
 
   /* RESUMO POR DIA — o nível de cima da leitura. */
@@ -8786,7 +8808,7 @@ function renderMilkrun(d){
       dataAtual=g.data;
       const x=(d.por_data||[]).find(y=>y.data===g.data)||{};
       cab=`<div class="milk-data-h" id="milk-d-${g.data}">${fmtD(g.data)}
-        <span class="n">${esc(DIA_SEM[new Date(g.data+'T12:00:00').getDay()])} · ${x.solicitacoes||0} solicitação(ões) · ${x.pontos||0} parada(s) · ${x.pct_realizado==null?'—':x.pct_realizado+'% realizado'}</span></div>`;
+        <span class="n">${esc(DIA_SEM[new Date(g.data+'T12:00:00').getDay()])} · ${x.solicitacoes||0} solicitação(ões) · ${x.pontos||0} coleta(s) · ${x.pct_realizado==null?'—':x.pct_realizado+'% realizado'}</span></div>`;
     }
     /* Cabeçalho da solicitação: é o roteiro. Sem ele as paradas viram uma
        lista solta e some a noção de que quatro linhas são a mesma viagem. */
@@ -8811,7 +8833,7 @@ function renderMilkrun(d){
         <span class="badge ${g.cancelada?'b-alert':(g.situacao==='finalizada'?'b-ok':'b-info')}">${esc(g.cancelada?'cancelada':g.situacao)}</span>
         <span class="milk-veic">${esc(g.placa||'sem veículo')}</span>
         ${g.motorista?`<span style="color:var(--n500)">${esc(shortName(g.motorista))}</span>`:''}
-        <span style="margin-left:auto;color:var(--n500);font-size:12px">${g.total} parada(s) · ${esc(resumo)}</span>
+        <span style="margin-left:auto;color:var(--n500);font-size:12px">${g.total} coleta(s) · ${esc(resumo)}</span>
       </div>
       <div class="tablewrap"><table><thead><tr>
         <th class="num" style="width:34px">#</th><th class="num">Agendado</th>
@@ -8862,7 +8884,7 @@ function renderMilkrun(d){
   if((d.filtros||{}).situacao) rec.push('só '+(MILK_EST[d.filtros.situacao]||['',d.filtros.situacao])[1]);
   document.getElementById('hintMilk').textContent =
     rec.join(' · ') + ' — ' + (grupos.length
-      ? (grupos.length+' solicitação(ões) · '+(k.pontos||0)+' parada(s)')
+      ? (grupos.length+' solicitação(ões) · '+(k.pontos||0)+' coleta(s)')
       : 'nenhuma solicitação neste recorte');
 
   const A=[];

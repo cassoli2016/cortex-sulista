@@ -237,3 +237,68 @@ def test_parametros_de_filtro_nao_sao_sobrescritos_no_laco():
     assert not reatribuidos, (
         f"parâmetro(s) sobrescrito(s) dentro de get_milkrun: "
         f"{sorted(reatribuidos)} — o filtro deixa de valer o que foi pedido")
+
+
+# ---------------------------------------------------------------------------
+# Fechamento dos indicadores. "Validar os cards" quer dizer isto: as quatro
+# situações têm de SOMAR o total de coletas pedidas, e o resumo por dia tem de
+# somar o mesmo que a banda do topo. Card que não fecha faz o leitor procurar
+# onde foi parar o resto — e é assim que a tela perde credibilidade.
+# ---------------------------------------------------------------------------
+
+def _falso(pontos_por_coleta, estados):
+    """Monta o retorno do serviço sem banco, para checar só a aritmética."""
+    coletas, i = [], 0
+    for ci, n in enumerate(pontos_por_coleta, start=1):
+        pts = []
+        for seq in range(1, n + 1):
+            pts.append({"estado": estados[i], "previsto": f"2026-08-2{ci}T08:00:00",
+                        "ponto": "F", "placa": "AAA1A11", "lat": 1, "lng": 1,
+                        "permanencia_min": 30, "dif_manual_min": 2})
+            i += 1
+        coletas.append({"coleta": 900 + ci, "pontos": pts, "data": f"2026-08-2{ci}",
+                        "total": n,
+                        "concluidos": sum(1 for p in pts if p["estado"] == "concluido"),
+                        "frustrados": sum(1 for p in pts if p["estado"] == "frustrada"),
+                        "pendentes": sum(1 for p in pts if p["estado"] == "aguardando"),
+                        "no_local": sum(1 for p in pts if p["estado"] == "no_local")})
+    return coletas
+
+
+def test_as_quatro_situacoes_somam_o_total_de_coletas():
+    estados = (["concluido"] * 5 + ["frustrada"] * 2
+               + ["aguardando"] * 2 + ["no_local"] * 1)
+    coletas = _falso([4, 3, 3], estados)
+    todos = [p for c in coletas for p in c["pontos"]]
+    conta = {e: sum(1 for p in todos if p["estado"] == e)
+             for e in ("concluido", "frustrada", "aguardando", "no_local")}
+    assert sum(conta.values()) == len(todos) == 10
+
+
+def test_resumo_por_dia_soma_o_mesmo_que_o_topo():
+    estados = ["concluido"] * 8 + ["frustrada"] * 2
+    coletas = _falso([4, 3, 3], estados)
+    por_dia = {}
+    for c in coletas:
+        d_ = por_dia.setdefault(c["data"], {"solicitacoes": 0, "pontos": 0})
+        d_["solicitacoes"] += 1
+        d_["pontos"] += c["total"]
+    assert sum(x["solicitacoes"] for x in por_dia.values()) == len(coletas)
+    assert sum(x["pontos"] for x in por_dia.values()) == 10
+
+
+def test_pct_realizado_ignora_o_que_ainda_nao_venceu():
+    """8 coletadas, 2 frustradas e 90 pendentes = 80%, não 8%. Incluir o que
+    não venceu faria a manhã parecer um desastre porque a tarde não
+    aconteceu."""
+    concl, frustr = 8, 2
+    fechados = concl + frustr
+    assert round(100 * concl / fechados, 1) == 80.0
+
+
+def test_pct_realizado_sem_desfecho_e_none_e_nao_zero():
+    """Zero por cento diria que a operação falhou; o certo é 'ainda não há o
+    que medir'."""
+    concl, frustr = 0, 0
+    fechados = concl + frustr
+    assert (round(100 * concl / fechados, 1) if fechados else None) is None

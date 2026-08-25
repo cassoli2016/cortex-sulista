@@ -3,6 +3,24 @@
 #   - a tela Documentação     (#doc)
 #   - o rótulo no rodapé      (CX-DD/MM/AAAA-vX.Y.Z)
 # A versão do TOPO é a corrente e tem de bater com o pyproject.toml.
+- versao: "0.38.1"
+  data: "2026-08-25"
+  alterado:
+    - >-
+      Os indicadores do Milk Run passaram a usar a linguagem da operacao:
+      SOLICITACAO e o documento e COLETA e a parada no fornecedor. Antes a
+      tela dizia "paradas" e obrigava a traduzir de cabeca.
+    - >-
+      Sao oito indicadores agora, em duas faixas. A de cima e o volume:
+      solicitacoes no periodo, coletas pedidas, coletadas e frustradas. A de
+      baixo e o desempenho: pendentes, % realizado, permanencia mediana em
+      cada fornecedor e o quanto o horario digitado difere do rastreamento.
+    - >-
+      As quatro situacoes SOMAM o total de coletas pedidas (coletadas +
+      frustradas + pendentes + no local), entao a faixa pode ser conferida de
+      olho, sem ninguem se perguntar onde foi parar o resto. No periodo de 18
+      a 24/08: 130 + 7 + 10 + 0 = 147.
+
 - versao: "0.38.0"
   data: "2026-08-25"
   adicionado:

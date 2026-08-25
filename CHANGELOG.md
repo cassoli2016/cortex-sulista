@@ -4,6 +4,13 @@ Gerado de `docs/versoes.yaml` por `scripts/gerar_changelog.py` — não editar �
 Formato [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/),
 versionamento [SemVer](https://semver.org/lang/pt-BR/).
 
+## [0.38.1] — 25/08/2026  ·  CX-25/08/2026-v0.38.1
+
+### Alterado
+- Os indicadores do Milk Run passaram a usar a linguagem da operacao: SOLICITACAO e o documento e COLETA e a parada no fornecedor. Antes a tela dizia "paradas" e obrigava a traduzir de cabeca.
+- Sao oito indicadores agora, em duas faixas. A de cima e o volume: solicitacoes no periodo, coletas pedidas, coletadas e frustradas. A de baixo e o desempenho: pendentes, % realizado, permanencia mediana em cada fornecedor e o quanto o horario digitado difere do rastreamento.
+- As quatro situacoes SOMAM o total de coletas pedidas (coletadas + frustradas + pendentes + no local), entao a faixa pode ser conferida de olho, sem ninguem se perguntar onde foi parar o resto. No periodo de 18 a 24/08: 130 + 7 + 10 + 0 = 147.
+
 ## [0.38.0] — 25/08/2026  ·  CX-25/08/2026-v0.38.0
 
 ### Adicionado
