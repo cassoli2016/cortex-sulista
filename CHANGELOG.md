@@ -4,6 +4,14 @@ Gerado de `docs/versoes.yaml` por `scripts/gerar_changelog.py` — não editar �
 Formato [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/),
 versionamento [SemVer](https://semver.org/lang/pt-BR/).
 
+## [0.39.0] — 25/08/2026  ·  CX-25/08/2026-v0.39.0
+
+### Alterado
+- As solicitacoes do Milk Run agora abrem sempre RECOLHIDAS - o resumo por dia e os indicadores ja dao a visao do todo, e quem precisa do detalhe expande. Num dia com 17 solicitacoes a tela caiu de 4.550 para 2.254 pixels. O cabecalho de cada solicitacao passou a mostrar o horario da primeira e da ultima coleta, para dizer o que ha dentro sem abrir.
+- Sairam da tela os horarios DIGITADOS: fica so o que o rastreamento produz. Coleta que o rastreamento nao detectou passa a mostrar travessao em vez de uma hora que alguem digitou - e assim que a falta de calibragem aparece, em vez de ficar escondida.
+- No lugar do antigo indicador de comparacao entrou "Sem rastreamento", que e a lista de calibragem: no periodo de 18 a 24/08 sao 32 de 147 coletas. Um aviso no rodape separa as que tem veiculo e coordenada (e portanto so precisam de ajuste de raio ou da coordenada corrigida) das que nem tem o que rastrear.
+- O desfecho continua vindo da operacao: coletada e frustrada nao sao deduziveis do rastreamento, que veria uma visita normal nos dois casos.
+
 ## [0.38.1] — 25/08/2026  ·  CX-25/08/2026-v0.38.1
 
 ### Alterado

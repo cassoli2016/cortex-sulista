@@ -8757,11 +8757,11 @@ function renderMilkrun(d){
         k.permanencia_mediana==null?'—':(Math.round(k.permanencia_mediana)+' min'),
         'tempo em cada fornecedor, pelo rastreamento', '',
         'MEDIANA e não média: uma parada de oito horas num ponto com fila puxaria a média e diria que a operação inteira é lenta.'),
-    kpi('Manual × rastreamento',
-        k.dif_manual_mediana==null?'—':(k.dif_manual_mediana+' min'),
-        k.dif_manual_n?('diferença mediana em '+k.dif_manual_n+' coleta(s)'):'sem horário digitado para comparar',
-        k.dif_manual_mediana==null?'':(k.dif_manual_mediana<=5?'pos':'warn'),
-        'O quanto o horário DIGITADO no sistema difere do detectado pelo rastreamento. É a medida direta do ganho da automação: onde a diferença é grande, o horário que o cliente recebe hoje não corresponde ao que aconteceu.'),
+    kpi('Sem rastreamento', (k.sem_rastro||0).toLocaleString('pt-BR'),
+        totColetas?(fatia(k.sem_rastro)+' das coletas · '
+          +(k.sem_placa||0)+' sem veículo · '+(k.sem_coordenada||0)+' sem coordenada'):'—',
+        (k.sem_rastro||0)>0?'warn':'pos',
+        'Coletas em que o rastreamento não encontrou a chegada. É a lista de calibragem: quase sempre a coordenada do fornecedor aponta a portaria e a doca fica adiante, ou o raio de 300 m é pequeno para o pátio. Sem veículo na solicitação ou sem coordenada no cadastro, não há sequer o que rastrear.'),
   ].join('');
 
   /* RESUMO POR DIA — o nível de cima da leitura. */
@@ -8818,11 +8818,11 @@ function renderMilkrun(d){
       g.pendentes?g.pendentes+' pendente(s)':'',
       g.no_local?g.no_local+' no local':'',
     ].filter(Boolean).join(' · ');
-    /* Recolhido quando o periodo tem mais de um dia: o Resumo por dia acima ja
-       da a visao do todo, e 71 solicitacoes abertas passavam de 14.600px. Num
-       dia so fica tudo aberto — e a tela de acompanhamento, e clicar 17 vezes
-       para ver o dia seria pior que rolar. */
-    const rec = (d.por_data||[]).length > 1;
+    /* SEMPRE recolhido: o Resumo por dia e a faixa de indicadores ja dao a
+       visao do todo, e a solicitacao aberta e detalhe — quem precisa, expande.
+       Antes so recolhia com mais de um dia, e o dia unico ainda abria 17
+       blocos de uma vez (4.550px de rolagem para achar uma coleta). */
+    const rec = true;
     return cab + `<div class="milk-grupo${rec?' rec':''}" id="milk-g-${g.coleta}">
       <div class="milk-cab" onclick="milkToggle(${g.coleta})" tabindex="0" role="button"
            aria-expanded="${!rec}"
@@ -8833,13 +8833,14 @@ function renderMilkrun(d){
         <span class="badge ${g.cancelada?'b-alert':(g.situacao==='finalizada'?'b-ok':'b-info')}">${esc(g.cancelada?'cancelada':g.situacao)}</span>
         <span class="milk-veic">${esc(g.placa||'sem veículo')}</span>
         ${g.motorista?`<span style="color:var(--n500)">${esc(shortName(g.motorista))}</span>`:''}
-        <span style="margin-left:auto;color:var(--n500);font-size:12px">${g.total} coleta(s) · ${esc(resumo)}</span>
+        <span style="margin-left:auto;color:var(--n500);font-size:12px">
+          ${g.primeiro?('<b style="color:var(--n700)">'+g.primeiro.slice(11,16)+'</b>'+(g.ultimo&&g.ultimo!==g.primeiro?(' às '+g.ultimo.slice(11,16)):'')+' · '):''}${g.total} coleta(s) · ${esc(resumo)}</span>
       </div>
       <div class="tablewrap"><table><thead><tr>
         <th class="num" style="width:34px">#</th><th class="num">Agendado</th>
         <th>Fornecedor</th>
         <th class="num">Chegada</th><th class="num">Saída</th>
-        <th class="num">Permanência</th><th class="num">Manual</th>
+        <th class="num">Permanência</th>
         <th class="num">Dist.</th><th>Situação</th>
       </tr></thead><tbody>${pts.map(p=>{
         const est=MILK_EST[p.estado]||MILK_EST.aguardando;
@@ -8848,12 +8849,6 @@ function renderMilkrun(d){
           if(p.pontualidade==='atrasado') chip=' <span class="badge b-alert">+'+p.atraso_min+'m</span>';
           else if(p.pontualidade==='adiantado') chip=' <span class="badge b-info">'+p.atraso_min+'m</span>';
         }
-        /* A coluna Manual mostra o apontamento digitado e, quando os dois
-           existem, o quanto ele difere do rastro. É o número que mede o
-           ganho da automação. */
-        let man = p.manual_chegada ? hhmm(p.manual_chegada) : '—';
-        if(p.dif_manual_min!=null && Math.abs(p.dif_manual_min)>=5)
-          man += ` <span class="badge b-warn" title="O horário digitado difere ${Math.abs(p.dif_manual_min)} min do detectado pelo rastreamento.">${p.dif_manual_min>0?'+':''}${p.dif_manual_min}m</span>`;
         const dist = p.distancia_m==null ? '—'
           : Math.round(p.distancia_m).toLocaleString('pt-BR')+' m';
         let motivo='';
@@ -8868,7 +8863,6 @@ function renderMilkrun(d){
           <td class="num" style="font-weight:600">${hhmm(p.chegada)}${chip}</td>
           <td class="num">${hhmm(p.saida)}</td>
           <td class="num">${p.permanencia_min!=null?Math.round(p.permanencia_min)+' min':'—'}</td>
-          <td class="num" style="color:var(--n600)">${man}</td>
           <td class="num" style="color:${p.distancia_m!=null&&p.distancia_m>200?'var(--yellow-700)':'inherit'}">${dist}</td>
           <td><span class="badge ${est[0]}">${est[1]}</span></td></tr>`;
       }).join('')}</tbody></table></div>
@@ -8888,9 +8882,11 @@ function renderMilkrun(d){
       : 'nenhuma solicitação neste recorte');
 
   const A=[];
-  if(k.dif_manual_mediana!=null) A.push(['t-info',
-    'Apontamento manual × rastreamento: '+k.dif_manual_mediana+' min de diferença mediana',
-    `Comparado em ${k.dif_manual_n} parada(s) que têm os dois horários. É a medida direta do ganho: onde a diferença é grande, o horário que o cliente recebe hoje não corresponde ao que aconteceu.`]);
+  const calibrar=(d.coletas||[]).flatMap(g=>g.pontos)
+    .filter(p=>!p.chegada && p.placa && p.lat && p.lng);
+  if(calibrar.length) A.push(['t-info',
+    calibrar.length+' coleta(s) sem chegada detectada, com veículo e coordenada',
+    'O veículo estava alocado e o fornecedor tem coordenada, mas o rastreamento não achou a chegada. Quase sempre a coordenada aponta a portaria e a doca fica adiante, ou o raio padrão de 300 m é pequeno para o pátio. A coluna Dist. das coletas detectadas mostra o quão perto o veículo costuma parar — é o que permite acertar o raio de cada ponto.']);
   if(k.sem_placa>0) A.push(['t-warn','Sem veículo alocado em '+k.sem_placa+' parada(s)',
     'A solicitação não tem placa, então não há o que rastrear. Aparecem como pendentes, mas a causa é cadastro, não operação.']);
   if(k.sem_coordenada>0) A.push(['t-warn','Sem coordenada em '+k.sem_coordenada+' parada(s)',

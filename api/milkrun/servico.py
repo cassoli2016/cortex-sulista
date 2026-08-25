@@ -11,9 +11,10 @@ MODELO DE DADOS (decifrado no ERP, não documentado em lugar nenhum):
 - `coleta_cliente.dtagendamentocoleta` é a JANELA DAQUELE PONTO, preenchida
   em 1.267 de 1.269 linhas da MWM nos últimos 60 dias. É mais precisa que
   `coleta.dtcoletar`, que vale para a solicitação inteira.
-- **`hra_chegada` e `hra_saida` são os horários DIGITADOS**, e são campos
-  TEXTO. É exatamente o apontamento manual que a detecção veio substituir;
-  ficam lado a lado na tela para o tamanho do erro aparecer.
+- `hra_chegada` e `hra_saida` são os horários DIGITADOS. NÃO são lidos: a tela
+  mostra só o que o rastreamento produz. Coleta sem detecção fica com
+  travessão — é assim que a falta de calibragem aparece, em vez de ficar
+  escondida atrás de uma hora que alguém digitou.
 - `coletada = 1` e `frustrada = 1` são os desfechos que a operação registra.
 
 `coleta.dtrealizado` NÃO serve como hora de chegada: na coleta 55643 marca
@@ -40,7 +41,11 @@ FOLGA_DEPOIS_H = 14
 PONTOS_SQL = """
 SELECT co.numero AS coleta, cc.sequencia,
        co.situacao, co.dtcoletar, co.veiculo, co.dtcancelamento,
-       cc.dtagendamentocoleta, cc.hra_chegada, cc.hra_saida,
+       cc.dtagendamentocoleta,
+       -- hra_chegada/hra_saida (o apontamento DIGITADO) sairam de proposito:
+       -- a tela mostra so o que o rastreamento produz. Coleta sem deteccao
+       -- fica com travessao, e e assim que a falta de calibragem aparece em
+       -- vez de ficar escondida atras de uma hora digitada.
        cc.coletada, cc.frustrada, cc.remetente,
        coalesce(nullif(trim(cr.nomefantasia),''), nullif(trim(cr.razaosocial),''),
                 '(sem cadastro)') AS ponto_nome,
@@ -77,22 +82,6 @@ ORDER BY veiculo, dt
 
 SIT = {2: "pendente", 3: "pendente", 4: "pendente", 6: "em andamento",
        7: "finalizada", 8: "cancelada"}
-
-
-def _hora(txt) -> datetime | None:
-    """`hra_chegada`/`hra_saida` são campos TEXTO no ERP. Na prática vêm como
-    'AAAA-MM-DD HH:MM:SS', mas texto aceita qualquer coisa — o que não
-    converte vira None em vez de derrubar a tela inteira."""
-    if not txt:
-        return None
-    s = str(txt).strip()
-    for f in ("%Y-%m-%d %H:%M:%S", "%Y-%m-%d %H:%M",
-              "%d/%m/%Y %H:%M:%S", "%d/%m/%Y %H:%M"):
-        try:
-            return datetime.strptime(s, f)
-        except ValueError:
-            continue
-    return None
 
 
 def _iso(v) -> str | None:
@@ -180,11 +169,6 @@ def get_milkrun(de: str | None = None, ate: str | None = None,
             estado = {**estado, "estado": "concluido",
                       "rotulo": "coletado (sem rastro)"}
 
-        man_cheg = _hora(l["hra_chegada"])
-        man_said = _hora(l["hra_saida"])
-        dif_manual = None
-        if visita and man_cheg:
-            dif_manual = round((man_cheg - visita.chegada).total_seconds() / 60)
 
         ponto = {
             "coleta": l["coleta"], "sequencia": l["sequencia"],
@@ -198,9 +182,6 @@ def get_milkrun(de: str | None = None, ate: str | None = None,
             "permanencia_min": visita.minutos if visita else None,
             "distancia_m": visita.distancia_min_m if visita else None,
             "visitas_no_dia": len(visitas),
-            "manual_chegada": _iso(man_cheg),
-            "manual_saida": _iso(man_said),
-            "dif_manual_min": dif_manual,
             "coletada": coletada, "frustrada": frustrada,
             **estado,
         }
@@ -248,8 +229,6 @@ def get_milkrun(de: str | None = None, ate: str | None = None,
     grupos.sort(key=lambda c: (c["primeiro"] or "", c["coleta"]))
 
     todos = [x for g in grupos for x in g["pontos"]]
-    difs = sorted(abs(x["dif_manual_min"]) for x in todos
-                  if x["dif_manual_min"] is not None)
 
     # ---- POR DATA. O usuario le a operacao por dia, entao o dia e o nivel de
     # cima: quantas solicitacoes, quantas paradas e quanto ja foi realizado.
@@ -304,8 +283,10 @@ def get_milkrun(de: str | None = None, ate: str | None = None,
             "sem_coordenada": sum(1 for x in todos
                                   if not (x["lat"] and x["lng"])),
             "veiculos": len({x["placa"] for x in todos if x["placa"]}),
-            "dif_manual_mediana": difs[len(difs) // 2] if difs else None,
-            "dif_manual_n": len(difs),
+            # coletas em que o rastreamento nao achou a chegada: e a lista
+            # de calibragem de raio/coordenada, e o unico numero que substitui
+            # o antigo "manual x rastro" com utilidade
+            "sem_rastro": sum(1 for x in todos if not x["chegada"]),
             "dias": len(por_data),
             # realizado sobre o que ja teve desfecho — parada que ainda nao
             # venceu nao conta contra o indice

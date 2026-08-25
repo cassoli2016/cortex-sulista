@@ -3,6 +3,30 @@
 #   - a tela Documentação     (#doc)
 #   - o rótulo no rodapé      (CX-DD/MM/AAAA-vX.Y.Z)
 # A versão do TOPO é a corrente e tem de bater com o pyproject.toml.
+- versao: "0.39.0"
+  data: "2026-08-25"
+  alterado:
+    - >-
+      As solicitacoes do Milk Run agora abrem sempre RECOLHIDAS - o resumo por
+      dia e os indicadores ja dao a visao do todo, e quem precisa do detalhe
+      expande. Num dia com 17 solicitacoes a tela caiu de 4.550 para 2.254
+      pixels. O cabecalho de cada solicitacao passou a mostrar o horario da
+      primeira e da ultima coleta, para dizer o que ha dentro sem abrir.
+    - >-
+      Sairam da tela os horarios DIGITADOS: fica so o que o rastreamento
+      produz. Coleta que o rastreamento nao detectou passa a mostrar
+      travessao em vez de uma hora que alguem digitou - e assim que a falta de
+      calibragem aparece, em vez de ficar escondida.
+    - >-
+      No lugar do antigo indicador de comparacao entrou "Sem rastreamento",
+      que e a lista de calibragem: no periodo de 18 a 24/08 sao 32 de 147
+      coletas. Um aviso no rodape separa as que tem veiculo e coordenada (e
+      portanto so precisam de ajuste de raio ou da coordenada corrigida) das
+      que nem tem o que rastrear.
+    - >-
+      O desfecho continua vindo da operacao: coletada e frustrada nao sao
+      deduziveis do rastreamento, que veria uma visita normal nos dois casos.
+
 - versao: "0.38.1"
   data: "2026-08-25"
   alterado:
