@@ -400,15 +400,17 @@ def get_horas_extras(comp: str | None = None) -> dict:
 # ============================================================================
 # CNH dos motoristas — vencimento e, principalmente, COBERTURA
 #
-# O que os dados dizem (medido em 25/08/2026): entre os 294 ativos com função
-# de motorista, NENHUMA CNH está vencida e só 2 vencem em 90 dias. O problema
-# não é vencimento — é que 213 deles (72%) não têm essa data cadastrada. Por
-# isso a tela lidera pela cobertura: um painel que abrisse com "0 vencidas" em
-# verde diria que está tudo certo sobre uma base que mede 28% da operação.
+# O que os dados dizem (medido em 25/08/2026): entre os motoristas ATIVOS,
+# nenhuma CNH está vencida e 2 vencem em 90 dias. A cobertura do cadastro é o
+# outro número que a tela lidera — um painel que abrisse com "0 vencidas" em
+# verde afirmaria "frota em dia" sem dizer sobre que fatia da base fala.
 #
-# E a cobertura não é aleatória, é POR UNIDADE: Garuva e Matriz preenchem 100%,
-# Cruzeiro e Curitiba ficam em 20%, Pouso Alegre em 11%. Isso é cobrável de
-# alguém, e é a informação mais útil da tela.
+# NOTA DE HISTÓRICO, porque o erro é fácil de repetir: a primeira versão desta
+# tela filtrava por `vwcgs_colaboradores.situacaofunc` e contava 294 ativos com
+# 28% de cobertura. As duas views discordam sobre quem está ativo, e a certa é
+# `vw_funcionarios` — a mesma do Headcount. Com ela a base cai para 104 e a
+# cobertura sobe para ~78%: as "213 pendências de cadastro" eram, na maioria,
+# gente que já saiu da empresa.
 # ============================================================================
 
 # Funções de condução. O ERP trunca `descfuncao` em ~16 caracteres, então o
@@ -423,10 +425,22 @@ _CNH_FUNCAO = "(UPPER(c.descfuncao) LIKE 'MOT%' OR UPPER(c.descfuncao) LIKE '%CA
 # mostra esse grupo à parte; decidir o que ele é cabe ao RH, não a mim.
 _CNH_DIRIGE = "UPPER(f.descarea) LIKE 'MOT%'"
 
+# QUEM ESTA ATIVO. As duas views DISCORDAM: 187 pessoas com funcao de
+# motorista aparecem como 'A' em `vwcgs_colaboradores` e como 'D' (demitido)
+# em `vw_funcionarios`. A folha desempata — dos 294 que a primeira chamava de
+# ativos, so 108 tiveram lancamento nos ultimos 3 meses, e os 104 que as duas
+# views concordam em chamar de ativos sao exatamente os que a tela deve medir.
+#
+# Vale `vw_funcionarios`, que e a fonte que o Headcount ja usa: duas telas de
+# RH com nocoes diferentes de "funcionario ativo" e defeito por construcao.
+# O erro nao era academico — inflava a base de 104 para 294 e transformava uma
+# cobertura de 78% em 28%, inventando 190 pendencias de cadastro que eram
+# gente que ja saiu da empresa.
 _CNH_BASE = f"""
 FROM vwcgs_colaboradores c
 JOIN vw_funcionarios f ON f.codintfunc = c.codintfunc
-WHERE c.situacaofunc = 'A' AND c.codigoempresa = :emp AND {_CNH_FUNCAO}
+WHERE f.situacaofunc = 'A' AND c.situacaofunc = 'A'
+  AND c.codigoempresa = :emp AND {_CNH_FUNCAO}
 """
 
 

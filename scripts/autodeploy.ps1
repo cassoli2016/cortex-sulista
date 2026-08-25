@@ -114,9 +114,34 @@ try {
   # quando necessário; commit desconhecido/podado = assume que não mudaram)
   $depsMud = $false
   if ($rodando) {
-    & $git @gitOpt cat-file -e "$rodando^{commit}" 2>&1 | Out-Null
-    if ($LASTEXITCODE -eq 0) {
+    # COMMIT EM EXECUCAO PODE NAO EXISTIR MAIS. Foi o que aconteceu em
+    # 25/08/2026: o historico foi reescrito para expurgar planilhas, todos os
+    # SHAs mudaram, e o deployed.txt ficou apontando para um commit orfao.
+    #
+    # A intencao aqui sempre foi tolerar isso ("commit desconhecido = assume
+    # que nao mudaram"), mas a implementacao fazia o contrario: no PowerShell
+    # 5.1, redirecionar o stderr de um executavel nativo com 2>&1 embrulha
+    # cada linha num ErrorRecord, e com $ErrorActionPreference='Stop' isso
+    # vira erro TERMINANTE. O git dizia "Not a valid object name" e o deploy
+    # inteiro abortava — a cada 2 minutos, por 3 horas, sem reiniciar a API.
+    # O sintoma para o usuario era o pior possivel: o frontend NOVO (servido
+    # do disco) chamando um backend VELHO, entao a tela existia e a rota dela
+    # respondia 404.
+    $eapPrev = $ErrorActionPreference
+    $ErrorActionPreference = 'Continue'
+    $conhecido = $false
+    try {
+      & $git @gitOpt cat-file -e "$rodando^{commit}" 2>$null
+      $conhecido = ($LASTEXITCODE -eq 0)
+    } catch {
+      $conhecido = $false
+    } finally {
+      $ErrorActionPreference = $eapPrev
+    }
+    if ($conhecido) {
       $depsMud = [bool]((& $git @gitOpt diff --name-only $rodando $head) -match '(^pyproject\.toml$|^uv\.lock$)')
+    } else {
+      Registrar "commit em execucao ($($rodando.Substring(0,7))) nao existe mais no repo; seguindo para o restart"
     }
   }
   if ($depsMud) {

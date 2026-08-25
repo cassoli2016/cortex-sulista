@@ -2539,7 +2539,7 @@ body.tvfull #btnReport,body.tvmode #btnReport{display:none}
       <!-- ===================== MILK RUN — MWM ===================== -->
       <section class="view" id="view-cnh">
         <div class="card">
-          <div class="head"><h2>Filtros <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="Motoristas ATIVOS do GLOBUS (situação A) cuja função é de condução. O ERP trunca o nome da função, então o motorista principal aparece como “MOT CARRETEIRO” — filtrar por “MOTORISTA” pegaria 21 das 294 pessoas. Tudo nesta tela obedece a estes filtros.">i</span></h2>
+          <div class="head"><h2>Filtros <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="Motoristas ATIVOS do GLOBUS cuja função é de condução. Ativo = situação A nas DUAS visões do cadastro; elas discordam (187 pessoas aparecem como ativas numa e demitidas na outra), e vale a mesma que o Headcount usa, senão duas telas de RH teriam noções diferentes de quem trabalha aqui. O ERP também trunca o nome da função, então o motorista principal é “MOT CARRETEIRO” e um filtro por “MOTORISTA” perderia a maior parte deles. Tudo nesta tela obedece a estes filtros.">i</span></h2>
             <span class="hint" id="hintCnh"></span></div>
           <div class="milk-filtros">
             <label>Filial<select id="fCnhFilial" onchange="loadCnh()" aria-label="Filial"><option value="">Todas</option></select></label>
@@ -8828,7 +8828,8 @@ function milkPreset(dias){
 
 // ============================ CNH DOS MOTORISTAS ============================
 // A tela lidera pela COBERTURA. Zero CNH vencida e 2 vencendo em 90 dias sao
-// os numeros bonitos, e sao sobre 81 de 294 motoristas: um painel que abrisse
+// os numeros bonitos, e valem sobre a fatia que TEM data cadastrada: um painel
+// que abrisse
 // com "0 vencidas" em verde afirmaria que esta tudo certo sobre 28% da
 // operacao. Mesma licao do CRM e das Multas — cobertura ruim de campo e
 // informacao, nao sujeira para esconder.
@@ -8881,7 +8882,7 @@ function renderCnh(d){
     kpi('Motoristas ativos', (k.motoristas||0).toLocaleString('pt-BR'),
         (k.dirigindo||0)+' em área de motorista · '+(k.fora_de_area||0)+' em área administrativa',
         '',
-        'Funcionários ATIVOS cuja função é de condução. O ERP trunca o nome da função em ~16 caracteres, então o motorista principal aparece como “MOT CARRETEIRO”: filtrar por “MOTORISTA” traria 21 pessoas em vez de 294. O subtítulo separa quem está lotado dirigindo de quem carrega função de motorista em área administrativa (Presidência, RH, Contabilidade) — provável função errada no cadastro, e por isso aparece à parte em vez de ser excluído por minha conta.'),
+        'Funcionários ATIVOS cuja função é de condução. ATIVO exige situação A nas duas visões do cadastro do GLOBUS: elas discordam sobre 187 pessoas, que uma chama de ativa e a outra de demitida, e a folha confirma que a maioria dessas não recebe há meses. Vale a mesma visão que o Headcount usa — duas telas de RH com noções diferentes de “funcionário ativo” seriam um defeito por construção. O ERP também trunca o nome da função em ~16 caracteres, então o motorista principal é “MOT CARRETEIRO” e um filtro por “MOTORISTA” perderia quase todos. O subtítulo separa quem está lotado dirigindo de quem carrega função de motorista em área administrativa — provável função errada no cadastro, mostrado à parte em vez de excluído por minha conta.'),
     kpi('CNH cadastrada', (k.com_cnh||0).toLocaleString('pt-BR'),
         (cob==null?'—':cob.toLocaleString('pt-BR',{maximumFractionDigits:1})+'% dos motoristas')
           +' · '+(k.sem_cnh||0)+' sem a data',

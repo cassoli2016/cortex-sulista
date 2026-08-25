@@ -4,6 +4,13 @@ Gerado de `docs/versoes.yaml` por `scripts/gerar_changelog.py` — não editar �
 Formato [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/),
 versionamento [SemVer](https://semver.org/lang/pt-BR/).
 
+## [0.43.0] — 25/08/2026  ·  CX-25/08/2026-v0.43.0
+
+### Corrigido
+- A tela de CNH contava MOTORISTA DEMITIDO como ativo. As duas visoes do cadastro do GLOBUS discordam sobre quem esta na empresa: 187 pessoas com funcao de motorista aparecem como ATIVAS numa e DEMITIDAS na outra, e a folha desempata - a maioria nao recebe ha meses. A tela usava a visao errada. Numeros antes e depois: 294 motoristas viraram 104, a cobertura do cadastro subiu de 27,6% para 77,9%, e as "213 pendencias" viraram 23. O alarme era quase todo falso, sobre gente que ja saiu da empresa.
+- O criterio de "funcionario ativo" passa a ser o MESMO do Headcount. Duas telas de RH com nocoes diferentes de quem trabalha na empresa e defeito por construcao, e um teste passou a falhar se as duas divergirem.
+- O AUTODEPLOY estava parado desde a reescritura do historico do repositorio, falhando a cada 2 minutos sem reiniciar a API. O efeito era o pior possivel para quem usa: a tela NOVA (servida do disco) chamando o backend VELHO, entao a pagina existia e a consulta dela respondia 404. Agora um commit que nao existe mais no repositorio nao interrompe o deploy.
+
 ## [0.42.1] — 25/08/2026  ·  CX-25/08/2026-v0.42.1
 
 ### Corrigido
