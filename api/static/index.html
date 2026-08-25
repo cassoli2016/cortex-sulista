@@ -1203,6 +1203,20 @@ body.tvfull #btnReport,body.tvmode #btnReport{display:none}
     <nav aria-label="Seções do painel">
       <a href="#home" class="sub" data-view="home" title="Visão Geral" style="padding-left:12px;font-weight:600"><span class="ic" data-ic="home"></span><span>Visão Geral</span></a>
       <a href="#cop" class="sub" data-view="cop" title="Copiloto Cortex" style="padding-left:12px;font-weight:600"><span class="ic" data-ic="cop"></span><span>Copiloto Cortex</span></a>
+      <button class="group" id="grpAdm" aria-expanded="false" aria-controls="subsAdm" onclick="toggleGroup('grpAdm','subsAdm','cs.admGroup')" title="Administração">
+        <span class="ic" data-ic="cog"></span><span>Administração</span><span class="ic chev" data-ic="chev"></span>
+      </button>
+      <div class="subs closed" id="subsAdm">
+        <a href="#gestao" class="sub" data-view="gestao" title="Gestão — usuários, perfis e segurança"><span class="ic" data-ic="ges"></span><span>Gestão</span></a>
+        <a href="#srv" class="sub" data-view="srv" title="Saúde do Servidor — CPU, memória, disco e serviços"><span class="ic" data-ic="srv"></span><span>Saúde do Servidor</span></a>
+      </div>
+      <button class="group" id="grpAntt" aria-expanded="false" aria-controls="subsAntt" onclick="toggleGroup('grpAntt','subsAntt','cs.anttGroup')" title="ANTT">
+        <span class="ic" data-ic="qualic"></span><span>ANTT</span><span class="ic chev" data-ic="chev"></span>
+      </button>
+      <div class="subs closed" id="subsAntt">
+        <a href="#anpiso" class="sub" data-view="anpiso" title="Piso Mínimo de Frete — confere o que se paga ao agregado contra a tabela da ANTT"><span class="ic" data-ic="pisoic"></span><span>Piso Mínimo de Frete</span></a>
+        <a href="#anrntrc" class="sub" data-view="anrntrc" title="RNTRC — situação do registro dos transportadores contratados"><span class="ic" data-ic="rntrcic"></span><span>RNTRC dos Transportadores</span></a>
+      </div>
       <button class="group" id="grpCom" aria-expanded="false" aria-controls="subsCom" onclick="toggleGroup('grpCom','subsCom','cs.comGroup')" title="Comercial">
         <span class="ic" data-ic="com"></span><span>Comercial</span><span class="ic chev" data-ic="chev"></span>
       </button>
@@ -1212,101 +1226,58 @@ body.tvfull #btnReport,body.tvmode #btnReport{display:none}
         <a href="#crm" class="sub" data-view="crm" title="CRM — leads, projetos e repactuações"><span class="ic" data-ic="crmic"></span><span>CRM</span></a>
         <a href="#drecli" class="sub" data-view="drecli" title="DRE por Cliente"><span class="ic" data-ic="rent"></span><span>DRE por Cliente</span></a>
       </div>
-      <button class="group" id="grpFin" aria-expanded="false" aria-controls="subsFin" onclick="toggleGroup('grpFin','subsFin','cs.finGroup')" title="Financeiro">
-        <span class="ic" data-ic="fin"></span><span>Financeiro</span><span class="ic chev" data-ic="chev"></span>
-      </button>
-      <!-- Agrupado por TEMA e não em ordem alfabética: alfabética separaria
-           Antecipação de Fluxo Consolidado, que se leem juntos, e juntaria
-           Cobrança com Contas a Pagar, que não têm relação. A ordem dentro de
-           cada tema vai do consolidado para o detalhe. -->
-      <div class="subs closed" id="subsFin">
-        <div class="subsec">Caixa</div>
-        <a href="#fluxcon" class="sub" data-view="fluxcon" title="Fluxo de Caixa Consolidado — por dia, semana, mês, trimestre ou semestre"><span class="ic" data-ic="fluxconic"></span><span>Fluxo Consolidado</span></a>
-        <a href="#fluxo" class="sub" data-view="fluxo" title="Fluxo de Caixa e Bancos"><span class="ic" data-ic="flx"></span><span>Fluxo de Caixa e Bancos</span></a>
-        <a href="#antec" class="sub" data-view="antec" title="Antecipação de Recebíveis — quanto antecipar para o caixa não furar"><span class="ic" data-ic="antecic"></span><span>Antecipação</span></a>
-        <a href="#antport" class="sub" data-view="antport" title="Portais de Antecipação — importar a planilha do cliente e conciliar com o ERP"><span class="ic" data-ic="antportic"></span><span>Portais de Antecipação</span></a>
-        <div class="subsec">A receber</div>
-        <a href="#receber" class="sub" data-view="receber" title="Contas a Receber"><span class="ic" data-ic="rec"></span><span>Contas a Receber</span></a>
-        <a href="#cob" class="sub" data-view="cob" title="Régua de Cobrança"><span class="ic" data-ic="cob"></span><span>Cobrança</span></a>
-        <div class="subsec">A pagar</div>
-        <a href="#pagar" class="sub" data-view="pagar" title="Contas a Pagar"><span class="ic" data-ic="pag"></span><span>Contas a Pagar</span></a>
-        <a href="#rec" class="sub" data-view="rec" title="Lançamentos Recorrentes — a conta que entra todo mês e não pode passar batido"><span class="ic" data-ic="recorric"></span><span>Recorrentes</span></a>
-        <div class="subsec">Bancos</div>
-        <a href="#lanc" class="sub" data-view="lanc" title="Lançamentos Bancários — o razão do banco, lançamento a lançamento"><span class="ic" data-ic="lancic"></span><span>Lançamentos Bancários</span></a>
-        <a href="#extb" class="sub" data-view="extb" title="Extrato Bancário — conciliação"><span class="ic" data-ic="extbic"></span><span>Extrato Bancário</span></a>
-      </div>
       <button class="group" id="grpCtr" aria-expanded="false" aria-controls="subsCtr" onclick="toggleGroup('grpCtr','subsCtr','cs.ctrGroup')" title="Controladoria">
         <span class="ic" data-ic="dre"></span><span>Controladoria</span><span class="ic chev" data-ic="chev"></span>
       </button>
       <div class="subs closed" id="subsCtr">
-        <a href="#dre" class="sub" data-view="dre" title="DRE Gerencial"><span class="ic" data-ic="dre"></span><span>DRE Gerencial</span></a>
         <a href="#bal" class="sub" data-view="bal" title="Balanço Patrimonial"><span class="ic" data-ic="balanca"></span><span>Balanço Patrimonial</span></a>
         <a href="#cont" class="sub" data-view="cont" title="Contabilidade — ajuste de agrupadores"><span class="ic" data-ic="ctb"></span><span>Contabilidade</span></a>
-        <a href="#qual" class="sub" data-view="qual" title="Qualidade — certidões e licenças com vencimento"><span class="ic" data-ic="qualic"></span><span>Qualidade e Certidões</span></a>
-        <a href="#orc" class="sub" data-view="orc" title="Orçamento — orçado × realizado"><span class="ic" data-ic="orcic"></span><span>Orçamento</span></a>
+        <a href="#dre" class="sub" data-view="dre" title="DRE Gerencial"><span class="ic" data-ic="dre"></span><span>DRE Gerencial</span></a>
         <a href="#fech" class="sub" data-view="fech" title="Fechamento do Mês — previsão do resultado antes de fechar"><span class="ic" data-ic="fechic"></span><span>Fechamento do Mês</span></a>
+        <a href="#orc" class="sub" data-view="orc" title="Orçamento — orçado × realizado"><span class="ic" data-ic="orcic"></span><span>Orçamento</span></a>
+        <a href="#qual" class="sub" data-view="qual" title="Qualidade — certidões e licenças com vencimento"><span class="ic" data-ic="qualic"></span><span>Qualidade e Certidões</span></a>
       </div>
-      <button class="group" id="grpOpe" aria-expanded="false" aria-controls="subsOpe" onclick="toggleGroup('grpOpe','subsOpe','cs.opeGroup')" title="Operação">
-        <span class="ic" data-ic="ope"></span><span>Operação</span><span class="ic chev" data-ic="chev"></span>
+      <button class="group" id="grpFin" aria-expanded="false" aria-controls="subsFin" onclick="toggleGroup('grpFin','subsFin','cs.finGroup')" title="Financeiro">
+        <span class="ic" data-ic="fin"></span><span>Financeiro</span><span class="ic chev" data-ic="chev"></span>
       </button>
-      <div class="subs closed" id="subsOpe">
-        <a href="#milkrun" class="sub" data-view="milkrun" title="Milk Run — MWM: chegada e saída detectadas pelo rastreamento"><span class="ic" data-ic="milkic"></span><span>Milk Run — MWM</span></a>
-        <a href="#torre" class="sub" data-view="torre" title="Torre de Controle"><span class="ic" data-ic="tor"></span><span>Torre de Controle</span></a>
-        <a href="#prog" class="sub" data-view="prog" title="Programação Inteligente"><span class="ic" data-ic="prog"></span><span>Programação Intel.</span></a>
-        <a href="#jorn" class="sub" data-view="jorn" title="Jornada do Motorista (Lei 13.103)"><span class="ic" data-ic="jornic"></span><span>Jornada do Motorista</span></a>
-        <a href="#cex" class="sub" data-view="cex" title="Custos Extras por CT-e"><span class="ic" data-ic="cexic"></span><span>Custos Extras</span></a>
-        <a href="#sac" class="sub" data-view="sac" title="SAC / Freetime e Estadia"><span class="ic" data-ic="sacic"></span><span>SAC / Freetime</span></a>
-        <a href="#port" class="sub" data-view="port" title="Portaria — controle de pátio e autorização de saída"><span class="ic" data-ic="porta"></span><span>Portaria</span></a>
-        <a href="#km" class="sub" data-view="km" title="Análise de KM"><span class="ic" data-ic="kmv"></span><span>Análise de KM</span></a>
-        <a href="#agr" class="sub" data-view="agr" title="Agregados e Terceiros"><span class="ic" data-ic="agr"></span><span>Agregados e Terceiros</span></a>
-        <a href="#mvb" class="sub" data-view="mvb" title="Make vs Buy"><span class="ic" data-ic="mvb"></span><span>Make vs Buy</span></a>
+      <div class="subs closed" id="subsFin">
+        <a href="#antec" class="sub" data-view="antec" title="Antecipação de Recebíveis — quanto antecipar para o caixa não furar"><span class="ic" data-ic="antecic"></span><span>Antecipação</span></a>
+        <a href="#cob" class="sub" data-view="cob" title="Régua de Cobrança"><span class="ic" data-ic="cob"></span><span>Cobrança</span></a>
+        <a href="#pagar" class="sub" data-view="pagar" title="Contas a Pagar"><span class="ic" data-ic="pag"></span><span>Contas a Pagar</span></a>
+        <a href="#receber" class="sub" data-view="receber" title="Contas a Receber"><span class="ic" data-ic="rec"></span><span>Contas a Receber</span></a>
+        <a href="#extb" class="sub" data-view="extb" title="Extrato Bancário — conciliação"><span class="ic" data-ic="extbic"></span><span>Extrato Bancário</span></a>
+        <a href="#fluxcon" class="sub" data-view="fluxcon" title="Fluxo de Caixa Consolidado — por dia, semana, mês, trimestre ou semestre"><span class="ic" data-ic="fluxconic"></span><span>Fluxo Consolidado</span></a>
+        <a href="#fluxo" class="sub" data-view="fluxo" title="Fluxo de Caixa e Bancos"><span class="ic" data-ic="flx"></span><span>Fluxo de Caixa e Bancos</span></a>
+        <a href="#lanc" class="sub" data-view="lanc" title="Lançamentos Bancários — o razão do banco, lançamento a lançamento"><span class="ic" data-ic="lancic"></span><span>Lançamentos Bancários</span></a>
+        <a href="#antport" class="sub" data-view="antport" title="Portais de Antecipação — importar a planilha do cliente e conciliar com o ERP"><span class="ic" data-ic="antportic"></span><span>Portais de Antecipação</span></a>
+        <a href="#rec" class="sub" data-view="rec" title="Lançamentos Recorrentes — a conta que entra todo mês e não pode passar batido"><span class="ic" data-ic="recorric"></span><span>Recorrentes</span></a>
       </div>
       <button class="group" id="grpFro" aria-expanded="false" aria-controls="subsFro" onclick="toggleGroup('grpFro','subsFro','cs.froGroup')" title="Frota">
         <span class="ic" data-ic="fro"></span><span>Frota</span><span class="ic chev" data-ic="chev"></span>
       </button>
       <div class="subs closed" id="subsFro">
-        <a href="#veic" class="sub" data-view="veic" title="Veículos"><span class="ic" data-ic="veic"></span><span>Veículos</span></a>
-        <a href="#veicf" class="sub" data-view="veicf" title="Consulta de Veículo por placa"><span class="ic" data-ic="busca"></span><span>Consulta de Veículo</span></a>
-        <a href="#mprev" class="sub" data-view="mprev" title="Manutenção Preventiva (revisões próximas/vencidas)"><span class="ic" data-ic="mprevic"></span><span>Manutenção Preventiva</span></a>
-        <a href="#comrast" class="sub" data-view="comrast" title="Comunicação veículo x rastreadora"><span class="ic" data-ic="sinal"></span><span>Comunicação Rastreadora</span></a>
         <a href="#comb" class="sub" data-view="comb" title="Combustível"><span class="ic" data-ic="comb"></span><span>Combustível</span></a>
+        <a href="#comrast" class="sub" data-view="comrast" title="Comunicação veículo x rastreadora"><span class="ic" data-ic="sinal"></span><span>Comunicação Rastreadora</span></a>
+        <a href="#veicf" class="sub" data-view="veicf" title="Consulta de Veículo por placa"><span class="ic" data-ic="busca"></span><span>Consulta de Veículo</span></a>
         <a href="#man" class="sub" data-view="man" title="Manutenção"><span class="ic" data-ic="man"></span><span>Manutenção</span></a>
+        <a href="#mprev" class="sub" data-view="mprev" title="Manutenção Preventiva (revisões próximas/vencidas)"><span class="ic" data-ic="mprevic"></span><span>Manutenção Preventiva</span></a>
         <a href="#mul" class="sub" data-view="mul" title="Multas"><span class="ic" data-ic="mul"></span><span>Multas</span></a>
+        <a href="#veic" class="sub" data-view="veic" title="Veículos"><span class="ic" data-ic="veic"></span><span>Veículos</span></a>
       </div>
-      <button class="group" id="grpSup" aria-expanded="false" aria-controls="subsSup" onclick="toggleGroup('grpSup','subsSup','cs.supGroup')" title="Suprimentos">
-        <span class="ic" data-ic="sup"></span><span>Suprimentos</span><span class="ic chev" data-ic="chev"></span>
+      <button class="group" id="grpOpe" aria-expanded="false" aria-controls="subsOpe" onclick="toggleGroup('grpOpe','subsOpe','cs.opeGroup')" title="Operação">
+        <span class="ic" data-ic="ope"></span><span>Operação</span><span class="ic chev" data-ic="chev"></span>
       </button>
-      <div class="subs closed" id="subsSup">
-        <a href="#custos" class="sub" data-view="custos" title="Painel de Custos consolidado"><span class="ic" data-ic="custosic"></span><span>Painel de Custos</span></a>
-        <a href="#oc" class="sub" data-view="oc" title="Ordens de Compra"><span class="ic" data-ic="oc"></span><span>Ordens de Compra</span></a>
-      </div>
-      <button class="group" id="grpRh" aria-expanded="false" aria-controls="subsRh" onclick="toggleGroup('grpRh','subsRh','cs.rhGroup')" title="Recursos Humanos">
-        <span class="ic" data-ic="orgp"></span><span>Recursos Humanos</span><span class="ic chev" data-ic="chev"></span>
-      </button>
-      <div class="subs closed" id="subsRh">
-        <a href="#hc" class="sub" data-view="hc" title="Headcount — quadro de funcionários"><span class="ic" data-ic="hcic"></span><span>Headcount</span></a>
-        <a href="#folha" class="sub" data-view="folha" title="Custo de Folha (GLOBUS)"><span class="ic" data-ic="folhaic"></span><span>Custo de Folha</span></a>
-        <a href="#folhaind" class="sub" data-view="folhaind" title="Indicadores de Folha — férias, CNH, hora extra, banco de horas"><span class="ic" data-ic="folhaindic"></span><span>Indicadores de Folha</span></a>
-        <a href="#he" class="sub" data-view="he" title="Horas Extras — composição por evento, famílias e áreas"><span class="ic" data-ic="heic"></span><span>Horas Extras</span></a>
-        <a href="#ferias" class="sub" data-view="ferias" title="Férias — vencimento pela CLT, quem está de férias e quem precisa agendar"><span class="ic" data-ic="feriasic"></span><span>Férias — Vencimento</span></a>
-        <a href="#cnh" class="sub" data-view="cnh" title="CNH dos Motoristas — vencimento e cobertura do cadastro"><span class="ic" data-ic="cnhic"></span><span>CNH dos Motoristas</span></a>
-        <a href="#rh" class="sub" data-view="rh" title="RH — vagas e recrutamento"><span class="ic" data-ic="rhic"></span><span>Vagas</span></a>
-      </div>
-      <button class="group" id="grpTel" aria-expanded="false" aria-controls="subsTel" onclick="toggleGroup('grpTel','subsTel','cs.telGroup')" title="Telemetria">
-        <span class="ic" data-ic="sinal"></span><span>Telemetria</span><span class="ic chev" data-ic="chev"></span>
-      </button>
-      <div class="subs closed" id="subsTel">
-        <a href="#prem" class="sub" data-view="prem" title="Premiação de Motoristas — nota da Gobrax e km rodado"><span class="ic" data-ic="prem"></span><span>Premiação de Motoristas</span></a>
-        <a href="#telcon" class="sub" data-view="telcon" title="Consumo e Estatísticas — km/l da telemetria contra o abastecimento"><span class="ic" data-ic="telconic"></span><span>Consumo e Estatísticas</span></a>
-        <a href="#telcond" class="sub" data-view="telcond" title="Condução Econômica — faixa econômica, piloto automático e eco-roll"><span class="ic" data-ic="gauge"></span><span>Condução Econômica</span></a>
-        <a href="#telhod" class="sub" data-view="telhod" title="Hodômetro e Rastro — leitura direta do veículo e trajeto no mapa"><span class="ic" data-ic="rastroic"></span><span>Hodômetro e Rastro</span></a>
-      </div>
-      <button class="group" id="grpAntt" aria-expanded="false" aria-controls="subsAntt" onclick="toggleGroup('grpAntt','subsAntt','cs.anttGroup')" title="ANTT">
-        <span class="ic" data-ic="qualic"></span><span>ANTT</span><span class="ic chev" data-ic="chev"></span>
-      </button>
-      <div class="subs closed" id="subsAntt">
-        <a href="#anpiso" class="sub" data-view="anpiso" title="Piso Mínimo de Frete — confere o que se paga ao agregado contra a tabela da ANTT"><span class="ic" data-ic="pisoic"></span><span>Piso Mínimo de Frete</span></a>
-        <a href="#anrntrc" class="sub" data-view="anrntrc" title="RNTRC — situação do registro dos transportadores contratados"><span class="ic" data-ic="rntrcic"></span><span>RNTRC dos Transportadores</span></a>
+      <div class="subs closed" id="subsOpe">
+        <a href="#agr" class="sub" data-view="agr" title="Agregados e Terceiros"><span class="ic" data-ic="agr"></span><span>Agregados e Terceiros</span></a>
+        <a href="#km" class="sub" data-view="km" title="Análise de KM"><span class="ic" data-ic="kmv"></span><span>Análise de KM</span></a>
+        <a href="#cex" class="sub" data-view="cex" title="Custos Extras por CT-e"><span class="ic" data-ic="cexic"></span><span>Custos Extras</span></a>
+        <a href="#jorn" class="sub" data-view="jorn" title="Jornada do Motorista (Lei 13.103)"><span class="ic" data-ic="jornic"></span><span>Jornada do Motorista</span></a>
+        <a href="#mvb" class="sub" data-view="mvb" title="Make vs Buy"><span class="ic" data-ic="mvb"></span><span>Make vs Buy</span></a>
+        <a href="#milkrun" class="sub" data-view="milkrun" title="Milk Run — MWM: chegada e saída detectadas pelo rastreamento"><span class="ic" data-ic="milkic"></span><span>Milk Run — MWM</span></a>
+        <a href="#port" class="sub" data-view="port" title="Portaria — controle de pátio e autorização de saída"><span class="ic" data-ic="porta"></span><span>Portaria</span></a>
+        <a href="#prog" class="sub" data-view="prog" title="Programação Inteligente"><span class="ic" data-ic="prog"></span><span>Programação Intel.</span></a>
+        <a href="#sac" class="sub" data-view="sac" title="SAC / Freetime e Estadia"><span class="ic" data-ic="sacic"></span><span>SAC / Freetime</span></a>
+        <a href="#torre" class="sub" data-view="torre" title="Torre de Controle"><span class="ic" data-ic="tor"></span><span>Torre de Controle</span></a>
       </div>
       <button class="group" id="grpTv" aria-expanded="false" aria-controls="subsTv" onclick="toggleGroup('grpTv','subsTv','cs.tvGroup')" title="Painéis TV">
         <span class="ic" data-ic="tv"></span><span>Painéis TV</span><span class="ic chev" data-ic="chev"></span>
@@ -1315,12 +1286,33 @@ body.tvfull #btnReport,body.tvmode #btnReport{display:none}
         <a href="#tvfat" class="sub" data-view="tvfat" title="Painel de Faturamento para TV"><span class="ic" data-ic="tvfatic"></span><span>Faturamento</span></a>
         <a href="#tvope" class="sub" data-view="tvope" title="Painel de Operação para TV"><span class="ic" data-ic="tv"></span><span>Operação</span></a>
       </div>
-      <button class="group" id="grpAdm" aria-expanded="false" aria-controls="subsAdm" onclick="toggleGroup('grpAdm','subsAdm','cs.admGroup')" title="Administração">
-        <span class="ic" data-ic="cog"></span><span>Administração</span><span class="ic chev" data-ic="chev"></span>
+      <button class="group" id="grpRh" aria-expanded="false" aria-controls="subsRh" onclick="toggleGroup('grpRh','subsRh','cs.rhGroup')" title="Recursos Humanos">
+        <span class="ic" data-ic="orgp"></span><span>Recursos Humanos</span><span class="ic chev" data-ic="chev"></span>
       </button>
-      <div class="subs closed" id="subsAdm">
-        <a href="#gestao" class="sub" data-view="gestao" title="Gestão — usuários, perfis e segurança"><span class="ic" data-ic="ges"></span><span>Gestão</span></a>
-        <a href="#srv" class="sub" data-view="srv" title="Saúde do Servidor — CPU, memória, disco e serviços"><span class="ic" data-ic="srv"></span><span>Saúde do Servidor</span></a>
+      <div class="subs closed" id="subsRh">
+        <a href="#cnh" class="sub" data-view="cnh" title="CNH dos Motoristas — vencimento e cobertura do cadastro"><span class="ic" data-ic="cnhic"></span><span>CNH dos Motoristas</span></a>
+        <a href="#folha" class="sub" data-view="folha" title="Custo de Folha (GLOBUS)"><span class="ic" data-ic="folhaic"></span><span>Custo de Folha</span></a>
+        <a href="#ferias" class="sub" data-view="ferias" title="Férias — vencimento pela CLT, quem está de férias e quem precisa agendar"><span class="ic" data-ic="feriasic"></span><span>Férias — Vencimento</span></a>
+        <a href="#hc" class="sub" data-view="hc" title="Headcount — quadro de funcionários"><span class="ic" data-ic="hcic"></span><span>Headcount</span></a>
+        <a href="#he" class="sub" data-view="he" title="Horas Extras — composição por evento, famílias e áreas"><span class="ic" data-ic="heic"></span><span>Horas Extras</span></a>
+        <a href="#folhaind" class="sub" data-view="folhaind" title="Indicadores de Folha — férias, CNH, hora extra, banco de horas"><span class="ic" data-ic="folhaindic"></span><span>Indicadores de Folha</span></a>
+        <a href="#rh" class="sub" data-view="rh" title="RH — vagas e recrutamento"><span class="ic" data-ic="rhic"></span><span>Vagas</span></a>
+      </div>
+      <button class="group" id="grpSup" aria-expanded="false" aria-controls="subsSup" onclick="toggleGroup('grpSup','subsSup','cs.supGroup')" title="Suprimentos">
+        <span class="ic" data-ic="sup"></span><span>Suprimentos</span><span class="ic chev" data-ic="chev"></span>
+      </button>
+      <div class="subs closed" id="subsSup">
+        <a href="#oc" class="sub" data-view="oc" title="Ordens de Compra"><span class="ic" data-ic="oc"></span><span>Ordens de Compra</span></a>
+        <a href="#custos" class="sub" data-view="custos" title="Painel de Custos consolidado"><span class="ic" data-ic="custosic"></span><span>Painel de Custos</span></a>
+      </div>
+      <button class="group" id="grpTel" aria-expanded="false" aria-controls="subsTel" onclick="toggleGroup('grpTel','subsTel','cs.telGroup')" title="Telemetria">
+        <span class="ic" data-ic="sinal"></span><span>Telemetria</span><span class="ic chev" data-ic="chev"></span>
+      </button>
+      <div class="subs closed" id="subsTel">
+        <a href="#telcond" class="sub" data-view="telcond" title="Condução Econômica — faixa econômica, piloto automático e eco-roll"><span class="ic" data-ic="gauge"></span><span>Condução Econômica</span></a>
+        <a href="#telcon" class="sub" data-view="telcon" title="Consumo e Estatísticas — km/l da telemetria contra o abastecimento"><span class="ic" data-ic="telconic"></span><span>Consumo e Estatísticas</span></a>
+        <a href="#telhod" class="sub" data-view="telhod" title="Hodômetro e Rastro — leitura direta do veículo e trajeto no mapa"><span class="ic" data-ic="rastroic"></span><span>Hodômetro e Rastro</span></a>
+        <a href="#prem" class="sub" data-view="prem" title="Premiação de Motoristas — nota da Gobrax e km rodado"><span class="ic" data-ic="prem"></span><span>Premiação de Motoristas</span></a>
       </div>
     </nav>
     <div class="side-foot">
@@ -15821,8 +15813,8 @@ boot();
     <div class="dgrp" data-grp="Ger">
       <button class="dgrp-h" onclick="toggleDGrp(this)"><span>Geral</span><span class="dchev">›</span></button>
       <div class="dgrp-b">
-        <a href="#home" onclick="fecharDrawer()"><span class="ic" data-ic="home"></span>Visão Geral</a>
         <a href="#cop" onclick="fecharDrawer()"><span class="ic" data-ic="cop"></span>Copiloto Cortex</a>
+        <a href="#home" onclick="fecharDrawer()"><span class="ic" data-ic="home"></span>Visão Geral</a>
       </div>
     </div>
     <div class="dgrp" data-grp="Com">
@@ -15837,83 +15829,83 @@ boot();
     <div class="dgrp" data-grp="Fin">
       <button class="dgrp-h" onclick="toggleDGrp(this)"><span>Financeiro</span><span class="dchev">›</span></button>
       <div class="dgrp-b">
-        <a href="#fluxo" onclick="fecharDrawer()"><span class="ic" data-ic="flx"></span>Fluxo de Caixa e Bancos</a>
-        <a href="#receber" onclick="fecharDrawer()"><span class="ic" data-ic="rec"></span>Contas a Receber</a>
-        <a href="#pagar" onclick="fecharDrawer()"><span class="ic" data-ic="pag"></span>Contas a Pagar</a>
-        <a href="#cob" onclick="fecharDrawer()"><span class="ic" data-ic="cob"></span>Cobrança</a>
-        <a href="#extb" onclick="fecharDrawer()"><span class="ic" data-ic="ctb"></span>Extrato Bancário</a>
-        <a href="#lanc" onclick="fecharDrawer()"><span class="ic" data-ic="ctb"></span>Lançamentos Bancários</a>
-        <a href="#fluxcon" onclick="fecharDrawer()"><span class="ic" data-ic="flx"></span>Fluxo Consolidado</a>
-        <a href="#rec" onclick="fecharDrawer()"><span class="ic" data-ic="pag"></span>Recorrentes</a>
         <a href="#antec" onclick="fecharDrawer()"><span class="ic" data-ic="antecic"></span>Antecipação</a>
+        <a href="#cob" onclick="fecharDrawer()"><span class="ic" data-ic="cob"></span>Cobrança</a>
+        <a href="#pagar" onclick="fecharDrawer()"><span class="ic" data-ic="pag"></span>Contas a Pagar</a>
+        <a href="#receber" onclick="fecharDrawer()"><span class="ic" data-ic="rec"></span>Contas a Receber</a>
+        <a href="#extb" onclick="fecharDrawer()"><span class="ic" data-ic="ctb"></span>Extrato Bancário</a>
+        <a href="#fluxcon" onclick="fecharDrawer()"><span class="ic" data-ic="flx"></span>Fluxo Consolidado</a>
+        <a href="#fluxo" onclick="fecharDrawer()"><span class="ic" data-ic="flx"></span>Fluxo de Caixa e Bancos</a>
+        <a href="#lanc" onclick="fecharDrawer()"><span class="ic" data-ic="ctb"></span>Lançamentos Bancários</a>
         <a href="#antport" onclick="fecharDrawer()"><span class="ic" data-ic="antportic"></span>Portais de Antecipação</a>
+        <a href="#rec" onclick="fecharDrawer()"><span class="ic" data-ic="pag"></span>Recorrentes</a>
       </div>
     </div>
     <div class="dgrp" data-grp="Ctr">
       <button class="dgrp-h" onclick="toggleDGrp(this)"><span>Controladoria</span><span class="dchev">›</span></button>
       <div class="dgrp-b">
-        <a href="#dre" onclick="fecharDrawer()"><span class="ic" data-ic="dre"></span>DRE Gerencial</a>
         <a href="#bal" onclick="fecharDrawer()"><span class="ic" data-ic="dre"></span>Balanço Patrimonial</a>
         <a href="#cont" onclick="fecharDrawer()"><span class="ic" data-ic="ctb"></span>Contabilidade</a>
-        <a href="#qual" onclick="fecharDrawer()"><span class="ic" data-ic="qualic"></span>Qualidade e Certidões</a>
-        <a href="#orc" onclick="fecharDrawer()"><span class="ic" data-ic="dre"></span>Orçamento</a>
+        <a href="#dre" onclick="fecharDrawer()"><span class="ic" data-ic="dre"></span>DRE Gerencial</a>
         <a href="#fech" onclick="fecharDrawer()"><span class="ic" data-ic="dre"></span>Fechamento do Mês</a>
+        <a href="#orc" onclick="fecharDrawer()"><span class="ic" data-ic="dre"></span>Orçamento</a>
+        <a href="#qual" onclick="fecharDrawer()"><span class="ic" data-ic="qualic"></span>Qualidade e Certidões</a>
       </div>
     </div>
     <div class="dgrp" data-grp="Ope">
       <button class="dgrp-h" onclick="toggleDGrp(this)"><span>Operação</span><span class="dchev">›</span></button>
       <div class="dgrp-b">
-        <a href="#torre" onclick="fecharDrawer()"><span class="ic" data-ic="tor"></span>Torre de Controle</a>
-        <a href="#milkrun" onclick="fecharDrawer()"><span class="ic" data-ic="milkic"></span>Milk Run — MWM</a>
-        <a href="#prog" onclick="fecharDrawer()"><span class="ic" data-ic="prog"></span>Programação Intel.</a>
-        <a href="#jorn" onclick="fecharDrawer()"><span class="ic" data-ic="jornic"></span>Jornada do Motorista</a>
-        <a href="#cex" onclick="fecharDrawer()"><span class="ic" data-ic="cexic"></span>Custos Extras</a>
-        <a href="#sac" onclick="fecharDrawer()"><span class="ic" data-ic="sacic"></span>SAC / Freetime</a>
-        <a href="#port" onclick="fecharDrawer()"><span class="ic" data-ic="porta"></span>Portaria</a>
-        <a href="#km" onclick="fecharDrawer()"><span class="ic" data-ic="kmv"></span>Análise de KM</a>
         <a href="#agr" onclick="fecharDrawer()"><span class="ic" data-ic="agr"></span>Agregados e Terceiros</a>
+        <a href="#km" onclick="fecharDrawer()"><span class="ic" data-ic="kmv"></span>Análise de KM</a>
+        <a href="#cex" onclick="fecharDrawer()"><span class="ic" data-ic="cexic"></span>Custos Extras</a>
+        <a href="#jorn" onclick="fecharDrawer()"><span class="ic" data-ic="jornic"></span>Jornada do Motorista</a>
         <a href="#mvb" onclick="fecharDrawer()"><span class="ic" data-ic="mvb"></span>Make vs Buy</a>
+        <a href="#milkrun" onclick="fecharDrawer()"><span class="ic" data-ic="milkic"></span>Milk Run — MWM</a>
         <a href="#anpiso" onclick="fecharDrawer()"><span class="ic" data-ic="qualic"></span>Piso ANTT</a>
+        <a href="#port" onclick="fecharDrawer()"><span class="ic" data-ic="porta"></span>Portaria</a>
+        <a href="#prog" onclick="fecharDrawer()"><span class="ic" data-ic="prog"></span>Programação Intel.</a>
         <a href="#anrntrc" onclick="fecharDrawer()"><span class="ic" data-ic="qualic"></span>RNTRC</a>
+        <a href="#sac" onclick="fecharDrawer()"><span class="ic" data-ic="sacic"></span>SAC / Freetime</a>
+        <a href="#torre" onclick="fecharDrawer()"><span class="ic" data-ic="tor"></span>Torre de Controle</a>
       </div>
     </div>
     <div class="dgrp" data-grp="Fro">
       <button class="dgrp-h" onclick="toggleDGrp(this)"><span>Frota</span><span class="dchev">›</span></button>
       <div class="dgrp-b">
-        <a href="#veic" onclick="fecharDrawer()"><span class="ic" data-ic="veic"></span>Veículos</a>
-        <a href="#veicf" onclick="fecharDrawer()"><span class="ic" data-ic="busca"></span>Consulta de Veículo</a>
         <a href="#comb" onclick="fecharDrawer()"><span class="ic" data-ic="comb"></span>Combustível</a>
+        <a href="#comrast" onclick="fecharDrawer()"><span class="ic" data-ic="sinal"></span>Comunicação Rastreadora</a>
+        <a href="#veicf" onclick="fecharDrawer()"><span class="ic" data-ic="busca"></span>Consulta de Veículo</a>
         <a href="#man" onclick="fecharDrawer()"><span class="ic" data-ic="man"></span>Manutenção</a>
         <a href="#mprev" onclick="fecharDrawer()"><span class="ic" data-ic="mprevic"></span>Manutenção Preventiva</a>
-        <a href="#comrast" onclick="fecharDrawer()"><span class="ic" data-ic="sinal"></span>Comunicação Rastreadora</a>
         <a href="#mul" onclick="fecharDrawer()"><span class="ic" data-ic="mul"></span>Multas</a>
+        <a href="#veic" onclick="fecharDrawer()"><span class="ic" data-ic="veic"></span>Veículos</a>
       </div>
     </div>
     <div class="dgrp" data-grp="Tel">
       <button class="dgrp-h" onclick="toggleDGrp(this)"><span>Telemetria</span><span class="dchev">›</span></button>
       <div class="dgrp-b">
-        <a href="#prem" onclick="fecharDrawer()"><span class="ic" data-ic="prem"></span>Premiação de Motoristas</a>
-        <a href="#telcon" onclick="fecharDrawer()"><span class="ic" data-ic="comb"></span>Consumo</a>
         <a href="#telcond" onclick="fecharDrawer()"><span class="ic" data-ic="gauge"></span>Condução</a>
+        <a href="#telcon" onclick="fecharDrawer()"><span class="ic" data-ic="comb"></span>Consumo</a>
         <a href="#telhod" onclick="fecharDrawer()"><span class="ic" data-ic="kmv"></span>Hodômetro</a>
+        <a href="#prem" onclick="fecharDrawer()"><span class="ic" data-ic="prem"></span>Premiação de Motoristas</a>
       </div>
     </div>
     <div class="dgrp" data-grp="Sup">
       <button class="dgrp-h" onclick="toggleDGrp(this)"><span>Suprimentos</span><span class="dchev">›</span></button>
       <div class="dgrp-b">
-        <a href="#custos" onclick="fecharDrawer()"><span class="ic" data-ic="custosic"></span>Painel de Custos</a>
         <a href="#oc" onclick="fecharDrawer()"><span class="ic" data-ic="oc"></span>Ordens de Compra</a>
+        <a href="#custos" onclick="fecharDrawer()"><span class="ic" data-ic="custosic"></span>Painel de Custos</a>
       </div>
     </div>
     <div class="dgrp" data-grp="Rh">
       <button class="dgrp-h" onclick="toggleDGrp(this)"><span>Recursos Humanos</span><span class="dchev">›</span></button>
       <div class="dgrp-b">
-        <a href="#hc" onclick="fecharDrawer()"><span class="ic" data-ic="hcic"></span>Headcount</a>
-        <a href="#folha" onclick="fecharDrawer()"><span class="ic" data-ic="folhaic"></span>Custo de Folha</a>
-        <a href="#folhaind" onclick="fecharDrawer()"><span class="ic" data-ic="gauge"></span>Indicadores de Folha</a>
-        <a href="#he" onclick="fecharDrawer()"><span class="ic" data-ic="heic"></span>Horas Extras</a>
-        <a href="#ferias" onclick="fecharDrawer()"><span class="ic" data-ic="feriasic"></span>Férias — Vencimento</a>
         <a href="#cnh" onclick="fecharDrawer()"><span class="ic" data-ic="cnhic"></span>CNH dos Motoristas</a>
+        <a href="#folha" onclick="fecharDrawer()"><span class="ic" data-ic="folhaic"></span>Custo de Folha</a>
+        <a href="#ferias" onclick="fecharDrawer()"><span class="ic" data-ic="feriasic"></span>Férias — Vencimento</a>
+        <a href="#hc" onclick="fecharDrawer()"><span class="ic" data-ic="hcic"></span>Headcount</a>
+        <a href="#he" onclick="fecharDrawer()"><span class="ic" data-ic="heic"></span>Horas Extras</a>
+        <a href="#folhaind" onclick="fecharDrawer()"><span class="ic" data-ic="gauge"></span>Indicadores de Folha</a>
         <a href="#rh" onclick="fecharDrawer()"><span class="ic" data-ic="rhic"></span>Vagas</a>
       </div>
     </div>
@@ -15927,8 +15919,8 @@ boot();
     <div class="dgrp" data-grp="Adm">
       <button class="dgrp-h" onclick="toggleDGrp(this)"><span>Administração</span><span class="dchev">›</span></button>
       <div class="dgrp-b">
-        <a href="#gestao" onclick="fecharDrawer()"><span class="ic" data-ic="ges"></span>Usuários e acesso</a>
         <a href="#srv" onclick="fecharDrawer()"><span class="ic" data-ic="srv"></span>Saúde do Servidor</a>
+        <a href="#gestao" onclick="fecharDrawer()"><span class="ic" data-ic="ges"></span>Usuários e acesso</a>
       </div>
     </div>
     <div class="dconta">

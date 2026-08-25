@@ -4,6 +4,16 @@ Gerado de `docs/versoes.yaml` por `scripts/gerar_changelog.py` — não editar �
 Formato [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/),
 versionamento [SemVer](https://semver.org/lang/pt-BR/).
 
+## [0.47.0] — 25/08/2026  ·  CX-25/08/2026-v0.47.0
+
+### Alterado
+- O MENU INTEIRO passou para ordem alfabetica - os grupos entre si e as telas dentro de cada grupo. Visao Geral e Copiloto Cortex continuam no topo, fora da ordenacao, porque sao a porta de entrada e procura-los na letra V e na C seria pior.
+- Sairam as subsecoes de tema do Financeiro (Caixa, A receber, A pagar, Bancos). Com a lista em ordem alfabetica esses cabecalhos so atrapalhavam a busca visual.
+- A gaveta do celular foi ordenada junto: ela e uma lista escrita a parte, e ficando na ordem antiga a mesma pessoa veria dois menus diferentes no computador e no telefone.
+
+### Corrigido
+- O .gitignore estava excluindo CODIGO do repositorio. O padrao "antecipacoes/", criado para barrar a pasta de planilhas na raiz, casava em qualquer nivel e levava junto "api/antecipacoes/" - o modulo inteiro, 6 arquivos, nunca entrou no git. O mesmo tirou "api/orcamento/plano.py". Reconstruir o servidor a partir do repositorio teria produzido um sistema sem o modulo de antecipacao, sem aviso nenhum. Os padroes foram ancorados na raiz e o codigo entrou.
+
 ## [0.46.0] — 25/08/2026  ·  CX-25/08/2026-v0.46.0
 
 ### Adicionado
