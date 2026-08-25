@@ -83,6 +83,29 @@ def ler(colecao: str, competencia: str, path: Path | None = None) -> list[dict]:
             (colecao, competencia))]
 
 
+def competencia_atual(colecao: str, path: Path | None = None) -> dict | None:
+    """Coleta da MAIOR competência, não a última gravada.
+
+    `ultima()` ordena por `id DESC`, isto é, pela ordem de INSERÇÃO. Isso
+    basta enquanto se coleta um mês só, mas quebra na hora em que alguém
+    recoleta um mês antigo: a coleta de julho, feita depois da de agosto,
+    passaria a ser "a última" e a Torre voltaria a mostrar julho como se
+    fosse a posição de hoje. Aconteceu na primeira execução do coletor
+    agendado, que busca o mês corrente e o anterior.
+
+    Como a competência é 'AAAA-MM', a ordenação alfabética é cronológica.
+    """
+    p = path or DB_PATH
+    if not Path(p).exists():
+        return None
+    with _conn(p) as c:
+        row = c.execute(
+            "SELECT competencia, quando, registros FROM coleta_log"
+            " WHERE colecao=? ORDER BY competencia DESC, id DESC LIMIT 1",
+            (colecao,)).fetchone()
+    return dict(row) if row else None
+
+
 def ultima(colecao: str, path: Path | None = None) -> dict | None:
     p = path or DB_PATH
     if not Path(p).exists():

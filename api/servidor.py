@@ -30,7 +30,12 @@ except ImportError:  # pragma: no cover
     psutil = None
 
 # Tarefas agendadas do CÓRTEX nesta máquina (README / registrar-tarefas.ps1).
-_TAREFAS = ["Cortex Sulista - API", "Cortex Sulista - AutoDeploy", "Cortex Sulista - Tunnel"]
+# A coleta da Gobrax entrou aqui depois de ficar CINCO DIAS parada sem ninguem
+# notar: nao havia tarefa, e as funcoes de sincronizacao so rodavam quando
+# alguem abria uma tela com `force`. Tarefa que nao aparece na Saude e tarefa
+# que pode morrer em silencio.
+_TAREFAS = ["Cortex Sulista - API", "Cortex Sulista - AutoDeploy",
+            "Cortex Sulista - Tunnel", "Cortex Sulista - Telemetria"]
 
 
 def _iso(ts: float) -> str:

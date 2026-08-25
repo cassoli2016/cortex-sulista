@@ -4,6 +4,13 @@ Gerado de `docs/versoes.yaml` por `scripts/gerar_changelog.py` — não editar �
 Formato [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/),
 versionamento [SemVer](https://semver.org/lang/pt-BR/).
 
+## [0.31.0] — 24/08/2026  ·  CX-24/08/2026-v0.31.0
+
+### Corrigido
+- A telemetria da Torre estava com CINCO DIAS de atraso porque nao existia nenhuma coleta automatica: as rotinas so rodavam quando alguem abria uma tela pedindo atualizacao. Agora ha um coletor proprio, que busca o mes corrente e o anterior (a Gobrax fecha dados com atraso) e roda de 3 em 3 horas. A coleta foi executada e a Torre voltou a mostrar dado do dia.
+- A Torre mostrava a competencia do mes PASSADO depois de uma coleta dupla. O sistema pegava a ultima coleta GRAVADA em vez da mais recente: como o coletor busca o mes corrente e depois o anterior, o anterior virava "o atual". Passou a valer sempre a competencia mais nova.
+- A tarefa de coleta entrou no monitoramento da Saude do Servidor. Tarefa que nao aparece la e tarefa que pode morrer em silencio - foi exatamente o que aconteceu.
+
 ## [0.30.0] — 24/08/2026  ·  CX-24/08/2026-v0.30.0
 
 ### Alterado

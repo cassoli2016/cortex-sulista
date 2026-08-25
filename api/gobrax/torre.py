@@ -33,7 +33,10 @@ def resumo() -> dict:
     """Agregado da última coleta. Nunca levanta: a Torre não pode cair porque
     a telemetria está indisponível — devolve `disponivel: False`."""
     try:
-        log = arm.ultima("estatisticas")
+        # competencia_atual e nao ultima(): `ultima` ordena por INSERCAO, e o
+        # coletor agendado busca o mes corrente E o anterior — gravando o
+        # anterior por ultimo, a Torre voltava a mostrar o mes passado.
+        log = arm.competencia_atual("estatisticas")
         linhas = arm.ler("estatisticas", log["competencia"]) if log else []
     except Exception:  # noqa: BLE001
         log, linhas = None, []

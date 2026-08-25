@@ -3,6 +3,25 @@
 #   - a tela Documentação     (#doc)
 #   - o rótulo no rodapé      (CX-DD/MM/AAAA-vX.Y.Z)
 # A versão do TOPO é a corrente e tem de bater com o pyproject.toml.
+- versao: "0.31.0"
+  data: "2026-08-24"
+  corrigido:
+    - >-
+      A telemetria da Torre estava com CINCO DIAS de atraso porque nao existia
+      nenhuma coleta automatica: as rotinas so rodavam quando alguem abria uma
+      tela pedindo atualizacao. Agora ha um coletor proprio, que busca o mes
+      corrente e o anterior (a Gobrax fecha dados com atraso) e roda de 3 em 3
+      horas. A coleta foi executada e a Torre voltou a mostrar dado do dia.
+    - >-
+      A Torre mostrava a competencia do mes PASSADO depois de uma coleta
+      dupla. O sistema pegava a ultima coleta GRAVADA em vez da mais recente:
+      como o coletor busca o mes corrente e depois o anterior, o anterior
+      virava "o atual". Passou a valer sempre a competencia mais nova.
+    - >-
+      A tarefa de coleta entrou no monitoramento da Saude do Servidor. Tarefa
+      que nao aparece la e tarefa que pode morrer em silencio - foi
+      exatamente o que aconteceu.
+
 - versao: "0.30.0"
   data: "2026-08-24"
   alterado:
