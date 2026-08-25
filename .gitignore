@@ -31,6 +31,19 @@ __pycache__/
 # workspace do subagent-driven-development (scratch, nao versionar)
 .superpowers/
 
+# PLANILHA NENHUMA ENTRA NO REPOSITORIO. Ele e PUBLICO, e planilha aqui e
+# sempre dado real da empresa ou do cliente (faturamento, CNPJ, placa, titulo).
+# Em 25/08/2026 o historico foi reescrito para expurgar tres que tinham
+# entrado; a regra abaixo e o que impede a quarta.
+*.xls
+*.xlsx
+*.xlsm
+*.csv
+antecipacoes/
+Planila_Fluxo/
+orcamento/
+docs/dre_ia_analise.xlsx
+
 # scripts temporarios de verificacao que eu crio na raiz durante o trabalho
 # (cx_*.py / cx_*.js) — um deles escapou para um commit
 cx_*.py
