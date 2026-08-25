@@ -4,6 +4,11 @@ Gerado de `docs/versoes.yaml` por `scripts/gerar_changelog.py` — não editar �
 Formato [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/),
 versionamento [SemVer](https://semver.org/lang/pt-BR/).
 
+## [0.31.1] — 24/08/2026  ·  CX-24/08/2026-v0.31.1
+
+### Corrigido
+- O instalador da tarefa de coleta agora pede a elevacao sozinho, com o aviso do Windows, em vez de so avisar que ela falta. A mensagem antiga se parecia com um erro qualquer no meio da saida, e a instalacao dava a impressao de ter funcionado sem a tarefa existir. Ao final ele confere se a tarefa foi mesmo criada e dispara a primeira coleta.
+
 ## [0.31.0] — 24/08/2026  ·  CX-24/08/2026-v0.31.0
 
 ### Corrigido

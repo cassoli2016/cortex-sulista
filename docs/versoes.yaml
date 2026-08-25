@@ -3,6 +3,16 @@
 #   - a tela Documentação     (#doc)
 #   - o rótulo no rodapé      (CX-DD/MM/AAAA-vX.Y.Z)
 # A versão do TOPO é a corrente e tem de bater com o pyproject.toml.
+- versao: "0.31.1"
+  data: "2026-08-24"
+  corrigido:
+    - >-
+      O instalador da tarefa de coleta agora pede a elevacao sozinho, com o
+      aviso do Windows, em vez de so avisar que ela falta. A mensagem antiga
+      se parecia com um erro qualquer no meio da saida, e a instalacao dava a
+      impressao de ter funcionado sem a tarefa existir. Ao final ele confere
+      se a tarefa foi mesmo criada e dispara a primeira coleta.
+
 - versao: "0.31.0"
   data: "2026-08-24"
   corrigido:

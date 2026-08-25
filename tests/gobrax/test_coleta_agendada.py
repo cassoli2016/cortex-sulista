@@ -55,3 +55,22 @@ def test_tarefa_esta_no_monitoramento_da_saude():
     foi exatamente o que aconteceu."""
     from api import servidor
     assert "Cortex Sulista - Telemetria" in servidor._TAREFAS
+
+
+def test_script_da_tarefa_e_ascii_puro():
+    """PowerShell 5.1 lê .ps1 SEM BOM como ANSI: os 3 bytes UTF-8 de um
+    travessão viram três caracteres, um deles fecha string, e o parse quebra
+    LONGE dali — um traço na linha 23 derrubou a linha 93 com "a cadeia de
+    caracteres não tem o terminador". ASCII puro é imune a como o arquivo for
+    gravado depois, por qualquer editor.
+    """
+    raiz = Path(__file__).resolve().parent.parent.parent
+    for ps1 in (raiz / "scripts").glob("*.ps1"):
+        texto = ps1.read_text(encoding="utf-8")
+        if texto.startswith("\ufeff"):
+            continue                      # com BOM o acento é lido certo
+        fora = [(n, l) for n, l in enumerate(texto.splitlines(), 1)
+                if not l.isascii()]
+        assert not fora, (
+            f"{ps1.name} não tem BOM e tem caractere fora do ASCII: "
+            f"{fora[:3]}")

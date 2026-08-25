@@ -18,12 +18,25 @@ $ErrorActionPreference = 'Stop'
 $repo = Split-Path -Parent $PSScriptRoot
 $nome = 'Cortex Sulista - Telemetria'
 
-# Exige elevacao: Register-ScheduledTask com principal SISTEMA devolve
-# "Acesso negado" cru, que nao diz o que fazer.
+# AUTO-ELEVACAO. As tres tarefas ja instaladas rodam como SISTEMA e o registro
+# de um principal SISTEMA exige elevacao, sem alternativa. Antes o script so
+# reclamava, e a mensagem se parecia com um erro qualquer no meio da saida -
+# a instalacao "foi feita" duas vezes sem a tarefa existir. Agora ele mesmo
+# chama o UAC: basta rodar de qualquer janela e confirmar.
 $admin = ([Security.Principal.WindowsPrincipal] [Security.Principal.WindowsIdentity]::GetCurrent()
          ).IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)
 if (-not $admin) {
-  throw "Abra o PowerShell COMO ADMINISTRADOR e rode de novo (a tarefa roda como SISTEMA)."
+  Write-Host "Sem privilegio de administrador - pedindo elevacao (confirme no aviso do Windows)..."
+  try {
+    # -NoExit mantem a janela elevada aberta para a confirmacao ficar visivel:
+    # elevada e fechando sozinha, ninguem ve se deu certo ou nao.
+    Start-Process -FilePath 'powershell.exe' -Verb RunAs -ArgumentList @(
+      '-NoExit', '-ExecutionPolicy', 'Bypass', '-File', "`"$PSCommandPath`"")
+  } catch {
+    throw ("Elevacao recusada. Abra o PowerShell COMO ADMINISTRADOR e rode:`n" +
+           "  powershell -ExecutionPolicy Bypass -File `"$PSCommandPath`"")
+  }
+  return
 }
 
 # CAMINHO ABSOLUTO do uv, com a MESMA busca do autodeploy.ps1: a tarefa roda
@@ -70,5 +83,15 @@ $cfg = New-ScheduledTaskSettingsSet -StartWhenAvailable `
 Register-ScheduledTask -TaskName $nome -Action $acao -Trigger $gatilhos `
   -Principal $principal -Settings $cfg -Force | Out-Null
 
-Write-Host "Tarefa '$nome' registrada."
-Get-ScheduledTask -TaskName $nome | Select-Object TaskName, State | Format-Table -AutoSize
+$t = Get-ScheduledTask -TaskName $nome -ErrorAction SilentlyContinue
+if (-not $t) { throw "A tarefa NAO foi criada. Nada foi registrado." }
+Write-Host ""
+Write-Host "OK: tarefa '$nome' registrada." -ForegroundColor Green
+$t | Select-Object TaskName, State, @{n='Conta';e={$_.Principal.UserId}} | Format-Table -AutoSize
+Write-Host "Confira na tela Saude do Servidor: ela deve sair de 'nao registrada'."
+Write-Host ""
+Write-Host "Rodando a primeira coleta agora para validar..." -ForegroundColor Cyan
+Start-ScheduledTask -TaskName $nome
+Start-Sleep -Seconds 5
+(Get-ScheduledTask -TaskName $nome | Get-ScheduledTaskInfo |
+  Select-Object LastRunTime, LastTaskResult, NextRunTime | Format-List)
