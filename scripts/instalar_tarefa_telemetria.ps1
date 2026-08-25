@@ -7,8 +7,11 @@
 # Segue o mesmo padrao das tarefas ja instaladas (API, AutoDeploy, Tunnel):
 # conta SISTEMA, para nao depender de sessao aberta.
 #
-# Uso (PowerShell como Administrador):
-#   powershell -ExecutionPolicy Bypass -File scripts\instalar_tarefa_telemetria.ps1
+# Uso (PowerShell como Administrador). CAMINHO COMPLETO de proposito: o
+# PowerShell elevado abre em C:\Windows\system32, onde o caminho relativo nao
+# resolve ("O argumento ... nao existe").
+#   powershell -ExecutionPolicy Bypass -File "C:\Users\inteligencia\Documents\cortex-sulista\scripts\instalar_tarefa_telemetria.ps1"
+
 
 $ErrorActionPreference = 'Stop'
 
