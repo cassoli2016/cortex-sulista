@@ -41,7 +41,8 @@ CONHECIDAS = {
     # Prolog não declara securityScheme nenhum, então aceita token, Basic ou
     # OAuth2, e vale o que estiver preenchido.
     "PROLOG_TOKEN": "Token da API Prolog (pneus)",
-    "PROLOG_AUTH_HEADER": "Cabeçalho do token na Prolog (padrão Authorization)",
+    "PROLOG_AUTH_HEADER": "Cabeçalho do token na Prolog (padrão X-Prolog-Api-Token)",
+    "PROLOG_COMPANY_ID": "Código da empresa da Sulista na Prolog",
     "PROLOG_AUTH_PREFIXO": "Prefixo do token na Prolog (padrão Bearer)",
     "PROLOG_USUARIO": "Usuário da Prolog (se for autenticação Basic)",
     "PROLOG_SENHA": "Senha da Prolog (se for autenticação Basic)",

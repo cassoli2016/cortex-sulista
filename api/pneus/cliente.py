@@ -3,15 +3,22 @@
 Spec: https://prologapp.com/prolog/openapi.json (OpenAPI 3.0.1, 107 rotas).
 Base declarada no spec: `/prolog`, servida em https://prologapp.com.
 
-AUTENTICACAO PLUGAVEL, pelo mesmo motivo da Monkey: o spec da Prolog tem
-`securitySchemes: null` e nao existe rota de login/token nele. As chamadas
-claramente exigem credencial (a API e de dado de cliente), so nao esta escrito
-qual formato. Em vez de apostar e reescrever depois, aceita:
+AUTENTICACAO: `X-Prolog-Api-Token`. Descoberto por sondagem em 25/08/2026,
+porque o spec tem `securitySchemes: null` e nao documenta isso em lugar nenhum.
+As respostas da propria API confirmaram o formato: com `Authorization: Bearer`
+ela devolve "Autenticacao invalida, usuario nao encontrado"; com cabecalho
+proprio errado, "Authorization header must be provided"; com este, 200.
 
-  1. TOKEN ESTATICO  -> `PROLOG_TOKEN` no Authorization.
-  2. BASIC           -> `PROLOG_USUARIO` + `PROLOG_SENHA`.
-  3. OAUTH2          -> `PROLOG_CLIENT_ID` + `PROLOG_CLIENT_SECRET` trocados em
-                        `PROLOG_TOKEN_URL`.
+Continua PLUGAVEL (PROLOG_AUTH_HEADER / PROLOG_AUTH_PREFIXO) para o caso de a
+Prolog mudar, mas o padrao agora e o que funciona de verdade.
+
+CUIDADO — A API TEM COTA. Ao procurar o companyId varrendo valores, a cota se
+esgotou na setima chamada e a API passou a responder 429 para tudo. Nada aqui
+pode varrer identificador: o que falta se pergunta, nao se adivinha.
+
+NEM TODA ROTA ACEITA TOKEN DE API. `/api/v3/retreaders` responde
+"Authorization method not allowed for this resource: API" — existe, esta
+documentada, e simplesmente nao e liberada para integracao.
 
 FILIAL E OBRIGATORIA. `GET /api/v3/tires` exige `branchOfficesId`, e nao ha
 como adivinhar o id da Sulista — vem de `/api/v3/branch-offices`, que este
@@ -30,6 +37,10 @@ import urllib.request
 from .. import credenciais
 
 BASE_PADRAO = "https://prologapp.com/prolog"
+# confirmado contra a API em 25/08/2026 (ver cabecalho do modulo)
+AUTH_HEADER_PADRAO = "X-Prolog-Api-Token"
+# teto da propria API — acima disso ela devolve 400, nao uma pagina menor
+PAGINA_MAX = 100
 FOLGA_TOKEN_S = 60
 _CTX = ssl.create_default_context()
 
@@ -128,19 +139,22 @@ class Cliente:
         hora e mexer em codigo, `PROLOG_AUTH_HEADER` escolhe o cabecalho e
         `PROLOG_AUTH_PREFIXO` o prefixo — os padroes cobrem o caso comum.
         """
-        nome = _cred("PROLOG_AUTH_HEADER") or "Authorization"
+        # O cabecalho proprio e o padrao SO para token. Basic e OAuth sao
+        # esquemas do HTTP e vivem no Authorization por definicao — mandar um
+        # "Basic ..." dentro do X-Prolog-Api-Token nao faria sentido nenhum.
+        padrao = AUTH_HEADER_PADRAO if self.modo == "token" else "Authorization"
+        nome = _cred("PROLOG_AUTH_HEADER") or padrao
         if self.modo == "token":
             t = _cred("PROLOG_TOKEN")
-            if _cred("PROLOG_AUTH_HEADER"):
-                # cabecalho proprio nao leva esquema
-                pref = _cred("PROLOG_AUTH_PREFIXO")
-                return {nome: f"{pref} {t}".strip() if pref else t}
             pref = _cred("PROLOG_AUTH_PREFIXO")
             if pref:
                 return {nome: f"{pref} {t}".strip()}
-            # sem prefixo configurado: Bearer, a menos que o token ja traga um
-            ja = t.lower().startswith(("bearer ", "basic ", "token "))
-            return {nome: t if ja else f"Bearer {t}"}
+            if nome.lower() == "authorization":
+                # so o Authorization pede esquema; cabecalho proprio leva o
+                # token puro, que e como a Prolog aceita
+                ja = t.lower().startswith(("bearer ", "basic ", "token "))
+                return {nome: t if ja else f"Bearer {t}"}
+            return {nome: t}
         if self.modo == "basic":
             par = f"{_cred('PROLOG_USUARIO')}:{_cred('PROLOG_SENHA')}"
             return {nome: "Basic " + base64.b64encode(par.encode()).decode()}
@@ -193,7 +207,19 @@ class Cliente:
         except Exception as exc:  # noqa: BLE001
             raise PrologIndisponivel(
                 f"falha de rede ao chamar {caminho}: {type(exc).__name__}") from None
+        if status == 429:
+            # a cota da Prolog e por periodo e se recupera sozinha; tratar
+            # como "credencial errada" mandaria conferir a coisa errada
+            raise PrologIndisponivel(
+                "cota de requisicoes da Prolog esgotada (HTTP 429). Ela se "
+                "recupera sozinha no proximo periodo — nao e credencial "
+                "invalida. Evite recarregar a tela em sequencia ate la.")
         if status in (401, 403):
+            corpo_txt = (corpo or b"")[:160].decode("utf-8", "ignore")
+            if "not allowed for this resource" in corpo_txt:
+                raise PrologIndisponivel(
+                    f"{caminho} nao aceita token de API — a Prolog libera essa "
+                    "rota so para sessao de usuario")
             raise PrologIndisponivel(
                 f"{caminho} respondeu HTTP {status} — credencial recusada ou "
                 "sem permissao para estas filiais")
@@ -207,7 +233,7 @@ class Cliente:
                 f"{caminho} respondeu algo que nao e JSON") from None
 
     # ------------------------------------------------------------- paginacao
-    def paginado(self, caminho: str, params: dict, *, tamanho: int = 200,
+    def paginado(self, caminho: str, params: dict, *, tamanho: int = PAGINA_MAX,
                  maximo_paginas: int = 500) -> list[dict]:
         """Percorre a paginacao da Prolog (content + lastPage + totalElements).
 
@@ -215,6 +241,10 @@ class Cliente:
         mente na bandeira de fim ja apareceu antes, e sem essa segunda saida o
         laco iria ate o teto fazendo centenas de chamadas a toa.
         """
+        # TETO DE 100 e da propria API: pedir mais devolve 400 "Max page size
+        # should be 100 registers", nao uma pagina menor. Como o default daqui
+        # era 200, toda coleta teria falhado — e o 400 pareceria filtro errado.
+        tamanho = max(1, min(int(tamanho or PAGINA_MAX), PAGINA_MAX))
         fora: list[dict] = []
         pagina = 0
         while pagina < maximo_paginas:

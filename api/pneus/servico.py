@@ -1,69 +1,85 @@
-"""Orquestra a coleta da Prolog e entrega a tela pronta.
+"""A tela lê o INSTANTÂNEO, nunca a API.
 
-Cache curto: a Prolog e uma API externa e a frota de pneus nao muda de minuto
-a minuto. Sem cache, cada troca de filtro na tela viraria uma varredura
-paginada inteira do outro lado.
+Não é preferência: a Prolog tem teto de 100 por página e cota de cerca de dez
+requisições por janela. Uma volta completa custa 86 requisições. Tela que
+consultasse ao abrir derrubaria a integração no primeiro dia — e derrubaria
+junto qualquer outra parte do sistema que dependesse da mesma cota.
+
+Então a coleta é uma tarefa agendada e retomável (ver `coleta.py`), e aqui só
+se lê o arquivo. Em troca, a tela DIZ de quando é o retrato e o quanto dele já
+foi varrido — um número velho que se anuncia velho decide melhor que um número
+fresco que não existe.
 """
 from __future__ import annotations
 
-from datetime import datetime
-
-from ..queries import cached
 from . import analise as an
 from . import cliente as cli
-
-TTL = 300
-
-
-@cached(ttl=TTL)
-def _coletar(status: str = "") -> list[dict]:
-    alvos = [s for s in (status or "").split(",") if s.strip()] or None
-    return cli.Cliente().pneus(status=alvos)
+from . import coleta
 
 
 def obter(status: str = "", filial: str = "") -> dict:
-    """Tela de pneus. `status` e aplicado NA API (menos tráfego); `filial` e
-    aplicado aqui, para nao multiplicar chave de cache — o mesmo padrao do
-    Painel de Custos."""
     if not cli.pronto():
-        # a mensagem diz o que falta: "nao configurado" sem dizer o que
-        # configurar obriga a abrir o codigo
         falta = []
         if not cli.modo_auth():
-            falta.append("credencial (PROLOG_TOKEN, ou usuario+senha, ou "
-                         "client_id+secret)")
+            falta.append("credencial (PROLOG_TOKEN)")
         if not cli.filiais_configuradas():
             falta.append("PROLOG_FILIAIS (os ids das filiais da Sulista na "
-                         "Prolog — a API exige e nao ha como adivinhar)")
+                         "Prolog — a API exige e não há como adivinhar)")
         raise cli.PrologNaoConfigurado("falta " + " e ".join(falta))
 
-    brutos = _coletar(status)
+    snap = coleta.ler()
+    if not snap:
+        raise cli.PrologNaoConfigurado(
+            "ainda não houve coleta da Prolog. Rode "
+            "`uv run python scripts/coletar_pneus.py` ou espere a tarefa "
+            "agendada — a tela lê o instantâneo, não a API")
 
-    # FILTRA O BRUTO e analisa UMA vez. Filtrar depois de analisar deixaria os
-    # indicadores falando da frota inteira enquanto a tabela mostra uma filial
-    # — o descasamento que a Análise de KM já teve entre cabeçalho e tabela.
+    pneus = snap.get("pneus") or []
+    if status:
+        alvos = {s.strip().upper() for s in status.split(",") if s.strip()}
+        pneus = [p for p in pneus if p.get("status") in alvos]
     if filial:
         alvo = filial.strip().lower()
-        brutos = [r for r in brutos
-                  if str(r.get("branchOfficeName") or "").strip().lower() == alvo]
+        pneus = [p for p in pneus if (p.get("filial") or "").lower() == alvo]
 
-    d = an.analisar(brutos)
+    d = an.analisar_normalizados(pneus)
+
+    total_api = snap.get("total_na_api")
+    lidos = len(snap.get("pneus") or [])
     d["filtros"] = {"status": status, "filial": filial}
-    # a lista de filiais tem de vir de TODOS os pneus, nao do recorte: filtrada,
-    # a filial escolhida seria a unica opcao do proprio filtro e nao haveria
-    # como voltar
-    d["filiais"] = sorted({str(r.get("branchOfficeName") or "").strip()
-                          for r in _coletar(status)} - {""})
-    d["fonte"] = "Prolog · /api/v3/tires"
-    d["atualizado_em"] = datetime.now().strftime("%Y-%m-%d %H:%M")
+    # a lista de filiais sai do instantâneo INTEIRO: filtrada, a filial
+    # escolhida seria a única opção do próprio filtro e não haveria como voltar
+    d["filiais"] = sorted({(p.get("filial") or "").strip()
+                           for p in (snap.get("pneus") or [])} - {""})
+    d["coleta"] = {
+        "coletado_em": snap.get("coletado_em"),
+        "primeira_pagina_em": snap.get("primeira_pagina_em"),
+        "completo_em": snap.get("completo_em"),
+        "voltas": snap.get("voltas") or 0,
+        "lidos": lidos,
+        "total_na_api": total_api,
+        # QUANTO DO PARQUE JA ENTROU. Sem isto, "7 pneus abaixo do legal"
+        # pareceria a frota inteira quando ainda e um terco dela.
+        "cobertura_pct": (round(100 * lidos / total_api, 1)
+                          if total_api else None),
+        "em_andamento": bool(snap.get("cursor")),
+        "status_coletado": snap.get("status_coletado"),
+    }
+    d["fonte"] = "Prolog · /api/v3/tires (instantâneo)"
+    d["atualizado_em"] = (snap.get("coletado_em") or "").replace("T", " ")[:16]
     return d
 
 
 def diagnostico() -> dict:
     """Estado da integração, sem expor segredo — alimenta a tela de Saúde."""
+    snap = coleta.ler() or {}
     return {
         "modo_auth": cli.modo_auth() or "nenhuma",
         "filiais": cli.filiais_configuradas(),
         "base": cli.base_url(),
         "pronto": cli.pronto(),
+        "coletado_em": snap.get("coletado_em"),
+        "lidos": len(snap.get("pneus") or []),
+        "total_na_api": snap.get("total_na_api"),
+        "voltas": snap.get("voltas") or 0,
     }

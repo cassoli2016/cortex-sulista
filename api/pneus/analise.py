@@ -152,8 +152,17 @@ def _urgencia(p: dict) -> tuple:
 
 
 def analisar(brutos: list[dict]) -> dict:
-    """Indicadores da frota de pneus, com a cobertura de cada campo."""
-    todos = [pneu(r) for r in brutos]
+    """Indicadores a partir do BRUTO da Prolog."""
+    return analisar_normalizados([pneu(r) for r in brutos])
+
+
+def analisar_normalizados(todos: list[dict]) -> dict:
+    """Mesmos indicadores, a partir de pneus JA normalizados.
+
+    Existe porque o instantaneo guarda o normalizado: passar de novo por
+    `pneu()` quebraria (os nomes de campo ja sao outros) e, pior, poderia
+    silenciosamente produzir campos vazios em vez de erro.
+    """
     rodando = [p for p in todos if p["status"] == "INSTALLED"]
     for p in todos:
         p["estado_sulco"] = _estado_sulco(p)

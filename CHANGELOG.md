@@ -4,6 +4,17 @@ Gerado de `docs/versoes.yaml` por `scripts/gerar_changelog.py` — não editar �
 Formato [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/),
 versionamento [SemVer](https://semver.org/lang/pt-BR/).
 
+## [0.49.0] — 25/08/2026  ·  CX-25/08/2026-v0.49.0
+
+### Adicionado
+- A integracao da Prolog ENTROU NO AR. O token funciona e a tela de Pneus ja mostra dado real: 8.572 pneus cadastrados nas quatro filiais, dos quais 3.222 rodando. Nos primeiros 1.000 lidos ha 7 abaixo do minimo legal de sulco, nenhum no eixo direcional, e o sulco esta medido em 996 deles - cobertura excelente.
+- Coleta AGENDADA e RETOMAVEL, de 20 em 20 minutos. A Prolog limita a pagina em 100 registros e tem cota de cerca de dez requisicoes por janela: uma volta completa custa 86 requisicoes, entao a coleta avanca oito paginas por vez e fecha a volta em cerca de quatro horas. A tela le o instantaneo, nunca a API.
+- Enquanto o retrato nao fecha, a tela DIZ isso: "retrato ainda incompleto, 1.000 de 3.222 (31%)". Sem esse aviso, "7 pneus abaixo do legal" pareceria a frota inteira quando ainda e um terco dela.
+
+### Corrigido
+- O conector pedia pagina de 200 registros e a Prolog recusa acima de 100 - toda coleta teria falhado com um erro 400 que pareceria filtro errado.
+- Erro 429 (cota esgotada) deixou de ser tratado como credencial invalida. Sao coisas diferentes: a cota se recupera sozinha e mandaria conferir o token a toa.
+
 ## [0.48.1] — 25/08/2026  ·  CX-25/08/2026-v0.48.1
 
 ### Alterado

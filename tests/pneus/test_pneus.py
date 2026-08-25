@@ -79,8 +79,11 @@ def test_credencial_sem_filial_lista_filial_mas_nao_pneu(monkeypatch):
 
 
 def test_token_com_prefixo_nao_vira_bearer_bearer(monkeypatch):
+    """Vale quando o cabecalho e Authorization; no proprio da Prolog o token
+    vai puro, seja qual for o conteudo."""
     monkeypatch.setattr(cli, "_cred", lambda n: {
-        "PROLOG_TOKEN": "Bearer ja-tem", "PROLOG_FILIAIS": "10"}.get(n, ""))
+        "PROLOG_TOKEN": "Bearer ja-tem", "PROLOG_AUTH_HEADER": "Authorization",
+        "PROLOG_FILIAIS": "10"}.get(n, ""))
     http = HttpFalso([_resp(_pagina([PNEU]))])
     cli.Cliente(http=http).pneus()
     assert http.chamadas[0]["headers"]["Authorization"] == "Bearer ja-tem"
@@ -94,7 +97,10 @@ def test_basic_monta_o_cabecalho_certo(monkeypatch):
     http = HttpFalso([_resp(_pagina([PNEU]))])
     cli.Cliente(http=http).pneus()
     esperado = "Basic " + base64.b64encode(b"u:s").decode()
+    # Basic e esquema do HTTP: vive no Authorization por definicao, e nao no
+    # cabecalho proprio da Prolog (que e o padrao so para token)
     assert http.chamadas[0]["headers"]["Authorization"] == esperado
+    assert "X-Prolog-Api-Token" not in http.chamadas[0]["headers"]
 
 
 def test_a_filial_vai_na_consulta(com_token):
@@ -314,8 +320,11 @@ def _com(cfg):
 
 
 @pytest.mark.parametrize("cfg,esperado", [
-    ({}, {"Authorization": "Bearer abc123"}),
-    ({"PROLOG_AUTH_PREFIXO": "Token"}, {"Authorization": "Token abc123"}),
+    # PADRAO: cabecalho proprio, token puro — confirmado contra a API
+    ({}, {"X-Prolog-Api-Token": "abc123"}),
+    ({"PROLOG_AUTH_HEADER": "Authorization"}, {"Authorization": "Bearer abc123"}),
+    ({"PROLOG_AUTH_HEADER": "Authorization", "PROLOG_AUTH_PREFIXO": "Token"},
+     {"Authorization": "Token abc123"}),
     ({"PROLOG_AUTH_HEADER": "X-API-Key"}, {"X-API-Key": "abc123"}),
     ({"PROLOG_AUTH_HEADER": "apikey", "PROLOG_AUTH_PREFIXO": "k"},
      {"apikey": "k abc123"}),
@@ -329,8 +338,11 @@ def test_formato_do_token_e_configuravel(monkeypatch, cfg, esperado):
 
 
 def test_token_que_ja_traz_esquema_nao_ganha_outro(monkeypatch):
+    """Vale so quando o cabecalho e Authorization — o proprio da Prolog leva o
+    token puro."""
     for bruto in ("Bearer ja-tem", "Token ja-tem", "Basic ja-tem"):
-        monkeypatch.setattr(cli, "_cred", _com({"PROLOG_TOKEN": bruto}))
+        monkeypatch.setattr(cli, "_cred", _com(
+            {"PROLOG_TOKEN": bruto, "PROLOG_AUTH_HEADER": "Authorization"}))
         assert cli.Cliente(http=HttpFalso([])).cabecalhos_auth() == {
             "Authorization": bruto}
 
@@ -341,3 +353,114 @@ def test_o_cabecalho_configurado_chega_na_chamada(monkeypatch):
     cli.Cliente(http=http).pneus()
     h = http.chamadas[0]["headers"]
     assert h["X-API-Key"] == "abc123" and "Authorization" not in h
+
+
+# --------------------------------------------------------------- cota e rota
+def test_o_cabecalho_padrao_e_o_que_a_prolog_aceita(com_token):
+    """Descoberto por sondagem: com `Authorization: Bearer` a Prolog responde
+    "Autenticacao invalida, usuario nao encontrado"; com este, 200."""
+    http = HttpFalso([_resp(_pagina([PNEU]))])
+    cli.Cliente(http=http).pneus()
+    h = http.chamadas[0]["headers"]
+    assert h["X-Prolog-Api-Token"] == "tok-secreto"
+    assert "Authorization" not in h
+
+
+def test_429_nao_e_tratado_como_credencial_invalida(com_token):
+    """A cota da Prolog e por periodo e se recupera sozinha. Chamar isso de
+    credencial recusada mandaria conferir a coisa errada — e foi assim que eu
+    esgotei a cota varrendo companyId."""
+    http = HttpFalso([_resp({"httpStatusCode": 429,
+                             "message": "You have exhausted your API Request Quota"}, 429)])
+    with pytest.raises(cli.PrologIndisponivel) as e:
+        cli.Cliente(http=http).pneus()
+    msg = str(e.value)
+    assert "cota" in msg.lower() and "recupera sozinha" in msg
+    assert "credencial" not in msg.split("nao e credencial")[0].lower()
+
+
+def test_rota_barrada_para_token_de_api_diz_isso(com_token):
+    """/api/v3/retreaders existe, esta documentada e responde "Authorization
+    method not allowed for this resource: API". Sem essa distincao a mensagem
+    mandaria conferir o token, que esta certo."""
+    http = HttpFalso([_resp(
+        {"message": "Authorization method not allowed for this resource: API"}, 401)])
+    with pytest.raises(cli.PrologIndisponivel) as e:
+        cli.Cliente(http=http).pneus()
+    assert "so para sessao de usuario" in str(e.value)
+
+
+# ------------------------------------------------------- coleta retomavel
+@pytest.fixture
+def snap(tmp_path, monkeypatch):
+    from api.pneus import coleta
+    monkeypatch.setattr(coleta, "ATUAL", tmp_path / "p.json")
+    return coleta
+
+
+def _pag(ids, ultima=False):
+    return _resp(_pagina([{**PNEU, "id": i, "serialNumber": f"S{i}"} for i in ids],
+                         ultima=ultima) | {"totalElements": 500})
+
+
+def test_a_coleta_para_no_teto_e_guarda_onde_parou(snap, com_token):
+    """A Prolog tem cota de ~10 requisicoes por janela e uma volta completa
+    custa 86: coletar "de uma vez" nao existe aqui."""
+    http = HttpFalso([_pag([1, 2]), _pag([3, 4]), _pag([5, 6])])
+    r = snap.coletar(status=["INSTALLED"], pausa=0, paginas=3, http=http)
+    assert r["paginas_lidas"] == 3 and r["acumulado"] == 6
+    assert r["cursor"] == 3 and r["volta_fechou"] is False
+
+
+def test_a_execucao_seguinte_continua_de_onde_parou(snap, com_token):
+    snap.coletar(status=["INSTALLED"], pausa=0, paginas=2,
+                 http=HttpFalso([_pag([1, 2]), _pag([3, 4])]))
+    http = HttpFalso([_pag([5, 6])])
+    r = snap.coletar(status=["INSTALLED"], pausa=0, paginas=1, http=http)
+    assert "pageNumber=2" in http.chamadas[0]["url"], "tem de retomar na pagina 2"
+    assert r["acumulado"] == 6 and r["novos"] == 2
+
+
+def test_fim_da_volta_zera_o_cursor_e_conta_a_volta(snap, com_token):
+    r = snap.coletar(status=["INSTALLED"], pausa=0, paginas=3,
+                     http=HttpFalso([_pag([1, 2]), _pag([3, 4], ultima=True)]))
+    assert r["volta_fechou"] is True and r["cursor"] == 0 and r["voltas"] == 1
+
+
+def test_a_cota_interrompe_sem_perder_o_que_ja_veio(snap, com_token):
+    """Parcial e melhor que nada — desde que fique dito, e a tela diz."""
+    http = HttpFalso([_pag([1, 2]),
+                      _resp({"message": "You have exhausted your API Request Quota"}, 429)])
+    r = snap.coletar(status=["INSTALLED"], pausa=0, paginas=5, http=http)
+    assert r["parou_por_cota"] is True
+    assert r["acumulado"] == 2, "o que veio antes do 429 tem de ficar"
+    assert r["cursor"] == 1
+
+
+def test_o_mesmo_pneu_em_duas_voltas_atualiza_em_vez_de_duplicar(snap, com_token):
+    snap.coletar(status=["INSTALLED"], pausa=0, paginas=1,
+                 http=HttpFalso([_pag([1, 2], ultima=True)]))
+    r = snap.coletar(status=["INSTALLED"], pausa=0, paginas=1,
+                     http=HttpFalso([_pag([1, 2], ultima=True)]))
+    assert r["acumulado"] == 2 and r["novos"] == 0 and r["voltas"] == 2
+
+
+def test_trocar_o_recorte_descarta_o_acumulado(snap, com_token):
+    """Misturar meia volta de INSTALLED com meia volta de tudo produziria um
+    retrato que nunca existiu."""
+    snap.coletar(status=["INSTALLED"], pausa=0, paginas=1,
+                 http=HttpFalso([_pag([1, 2])]))
+    r = snap.coletar(status=["DISPOSAL"], pausa=0, paginas=1,
+                     http=HttpFalso([_pag([9])]))
+    assert r["acumulado"] == 1, "o acumulado do recorte anterior tem de sair"
+
+
+def test_o_instantaneo_guarda_pneu_JA_normalizado(snap, com_token):
+    """E por isso que existe `analisar_normalizados`: passar o normalizado de
+    novo por `pneu()` produziria campos vazios em silencio."""
+    snap.coletar(status=["INSTALLED"], pausa=0, paginas=1,
+                 http=HttpFalso([_pag([1], ultima=True)]))
+    d = snap.ler()
+    p = d["pneus"][0]
+    assert "serie" in p and "serialNumber" not in p
+    assert an.analisar_normalizados(d["pneus"])["kpis"]["total"] == 1

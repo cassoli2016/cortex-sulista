@@ -8999,11 +8999,19 @@ function renderPneus(d){
     if((d.filtros||{}).filial) fs.value=d.filtros.filial;
   }
 
+  /* A COLETA E RETOMAVEL: a Prolog tem teto de 100 por pagina e cota de ~10
+     requisicoes por janela, entao o retrato se completa em varias rodadas.
+     Enquanto isso, "7 pneus abaixo do legal" pareceria a frota inteira quando
+     ainda e um terco dela — por isso o aviso vem antes de tudo. */
+  const col = d.coleta || {};
+  const parcial = col.cobertura_pct != null && col.cobertura_pct < 99;
   const cobSulco = k.rodando ? Math.round(100*k.sulco_cobertura/k.rodando) : 0;
   const cobCpk = k.total ? Math.round(100*k.cpk_cobertura/k.total) : 0;
   document.getElementById('kpis-pneus').innerHTML=[
     kpi('Pneus rodando', (k.rodando||0).toLocaleString('pt-BR'),
-        (k.total||0)+' cadastrados · '+(k.veiculos||0)+' veículo(s)', '',
+        (k.total||0)+' no retrato'+(parcial?(' de '+col.total_na_api+' na Prolog'):'')
+          +' · '+(k.veiculos||0)+' veículo(s)',
+        '',
         'Pneus com status INSTALADO — os únicos que estão em serviço. O total inclui estoque, os que estão na recapadora e os sucateados; misturar tudo num denominador só faria pneu parado contar como risco de circulação.'),
     kpi('Abaixo do mínimo legal', (k.abaixo_legal||0).toLocaleString('pt-BR'),
         (k.abaixo_legal_direcional||0)+' no eixo direcional'
@@ -9067,6 +9075,9 @@ function renderPneus(d){
 
   // -------- avisos
   const A=[];
+  if(parcial) A.push(['t-info',
+    'Retrato ainda incompleto: '+col.lidos+' de '+col.total_na_api+' pneus ('+col.cobertura_pct+'%)',
+    'A Prolog limita a página em 100 registros e tem cota de requisições, então a coleta avança um pedaço por vez e se completa em algumas rodadas. Os números abaixo valem para o que já entrou — não para o parque inteiro.']);
   if((k.abaixo_legal_direcional||0)>0) A.push(['t-dang',
     k.abaixo_legal_direcional+(k.abaixo_legal_direcional===1?' pneu':' pneus')+' abaixo do legal NO EIXO DIRECIONAL',
     'Sulco menor que 1,6 mm na direção não é agendamento de troca: o veículo não pode circular assim, e a perda de aderência em piso molhado é justamente onde ela mais custa.']);
