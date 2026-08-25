@@ -2007,6 +2007,36 @@ def extrato(dt_de: str | None = None, dt_ate: str | None = None,
 _ANTEC_MAX_BYTES = 12 * 1024 * 1024   # a planilha da Maxion tem 85 KB; 12 MB cobre portal grande
 
 
+@app.get("/api/operacao/milkrun")
+def operacao_milkrun(dia: str | None = None,
+                     tomador: str = "02162259") -> JSONResponse:
+    """Milk run do dia: cada ponto com o horario COMBINADO e o DETECTADO.
+
+    O detectado vem do rastro, nao de digitacao — e a razao de a tela existir.
+    """
+    from api.milkrun.servico import get_milkrun
+    if dia and _bad_date(dia):
+        return JSONResponse(status_code=422, content={
+            "erro": "parametro_invalido",
+            "mensagem": "Parametro dia invalido: use AAAA-MM-DD."})
+    # o tomador entra em LIKE: so digito, para nao virar curinga
+    if not re.fullmatch(r"\d{2,14}", tomador or ""):
+        return JSONResponse(status_code=422, content={
+            "erro": "parametro_invalido",
+            "mensagem": "Tomador invalido: informe so os digitos do CNPJ."})
+    try:
+        return JSONResponse(get_milkrun(dia, tomador))
+    except psycopg.OperationalError as exc:
+        log.warning("banco inacessivel: %s", exc)
+        return JSONResponse(status_code=503, content={
+            "erro": "banco_inacessivel",
+            "mensagem": "Sem conexao com o banco. O tunel SSH esta aberto?"})
+    except Exception as exc:  # noqa: BLE001
+        log.warning("operacao_milkrun falhou: %s", exc)
+        return JSONResponse(status_code=500, content={
+            "erro": "erro_consulta", "mensagem": "Erro ao montar a operacao."})
+
+
 @app.get("/api/financeiro/credito")
 def credito_ler() -> JSONResponse:
     """Limites de cheque empresa contratados."""

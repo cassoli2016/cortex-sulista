@@ -1,200 +1,186 @@
-# A CURADORIA da documentação — o que só um humano escreve.
-# O resto (telas, cards e a procedência de cada número) é EXTRAÍDO do próprio
-# index.html por api/documentacao.py, para não envelhecer quando a tela muda.
-#
-# Toda view registrada em VIEWS precisa aparecer em algum grupo abaixo:
-# test_toda_tela_do_painel_esta_em_algum_grupo falha se esquecerem uma.
-
-sistema: >-
-  O CÓRTEX é o painel de gestão da Transportadora Sulista S/A. Ele lê o ERP AVA
-  (PostgreSQL, somente leitura via túnel SSH) e a folha no ERP GLOBUS (Oracle),
-  e transforma esse dado em telas de decisão — financeiro, comercial, operação,
-  frota, pessoas e controladoria. Nenhum número é digitado aqui: tudo vem do
-  ERP, e cada card diz no ⓘ de qual tabela e de qual regra ele saiu.
-
+sistema: 'O CÓRTEX é o painel de gestão da Transportadora Sulista S/A. Ele lê o ERP AVA (PostgreSQL, somente
+  leitura via túnel SSH) e a folha no ERP GLOBUS (Oracle), e transforma esse dado em telas de decisão
+  — financeiro, comercial, operação, frota, pessoas e controladoria. Nenhum número é digitado aqui: tudo
+  vem do ERP, e cada card diz no ⓘ de qual tabela e de qual regra ele saiu.'
 glossario:
-  - termo: Report (botão da logo)
-    definicao: >-
-      Botão com o símbolo da Sulista no canto inferior direito de qualquer
-      tela. Abre um formulário para relatar um bug ou pedir uma melhoria, com
-      print da tela e anexos. O relato vira uma issue num repositório privado,
-      levando junto a tela, os filtros ativos, a versão e o navegador.
-  - termo: Convênio de antecipação (cliente elegível)
-    definicao: >-
-      Cliente que mantém portal de risco sacado, onde a Sulista pode antecipar
-      os títulos dele. Só o recebível desses clientes entra nas Operações de
-      antecipação sugeridas — supor que qualquer recebível pode ser antecipado
-      dá um plano que não existe. Quem aparece como pagador numa planilha
-      importada em Portais de Antecipação entra sozinho; ligar e desligar à
-      mão é possível, e a decisão manual sobrevive à próxima importação. A
-      comparação com o ERP é pela RAIZ do CNPJ (8 dígitos), porque o portal
-      informa o CNPJ da matriz e o ERP fatura por várias filiais do grupo.
-  - termo: Sacado × cedente
-    definicao: >-
-      Na planilha do portal, o SACADO é quem paga (o cliente) e o CEDENTE é
-      quem recebe (a Sulista). O cedente identifica a filial: um mesmo arquivo
-      pode trazer títulos de CNPJs diferentes nossos.
-  - termo: RKM
-    definicao: Receita de frete por quilômetro carregado — receita_frete / km_carregado.
-  - termo: CKM bruto
-    definicao: Custo operacional total dividido pelo km total (carregado + vazio).
-  - termo: CKM produtivo
-    definicao: Custo operacional total dividido só pelo km carregado.
-  - termo: Retorno vazio
-    definicao: >-
-      Fração do km rodada sem carga — (km_total − km_carregado) / km_total.
-      Acima de 20% em lotação (FTL) é alerta.
-  - termo: Margem de contribuição por km
-    definicao: >-
-      RKM menos o CKM variável — quanto cada km carregado contribui depois dos
-      custos que variam com a rodagem.
-  - termo: Cobertura da telemetria
-    definicao: >-
-      Quanto do quilômetro rodado no período o rastreador efetivamente reportou,
-      medido contra o km dos abastecimentos. Abaixo de 70% a comparação de
-      consumo não vale: a diferença mede silêncio de rastreador, não desempenho
-      do motorista.
-  - termo: Credenciais de integração
-    definicao: >-
-      Tokens de API dos fornecedores (hoje, a Gobrax), configuráveis em
-      Administração › Gestão › Integrações. Ficam guardados na máquina do painel,
-      com permissão restrita e fora do controle de versão. O valor nunca volta
-      para a tela: depois de salvo, só é possível ver os primeiros e os últimos
-      caracteres. Um valor salvo ali tem precedência sobre a variável de
-      ambiente de mesmo nome.
-  - termo: Envio de e-mail
-    definicao: >-
-      O CÓRTEX envia e-mail por um servidor SMTP configurado em Administração ›
-      Gestão › E-mail. Host, porta e remetente ficam em data/email_config.json;
-      a SENHA vai para o mesmo cofre do token da Gobrax e nunca volta para a
-      tela. Só administrador configura, porque e-mail sai para fora da empresa.
-      Todo envio — inclusive o que FALHOU — entra numa trilha própria
-      (data/email.db) com autor, destinatário, assunto e o erro: é o registro da
-      falha que responde "o destinatário diz que não recebeu". O botão de teste
-      manda a mensagem só para o e-mail de quem está logado, de propósito, para
-      não virar atalho de disparar mensagem a terceiros.
-  - termo: Nota da Gobrax (score)
-    definicao: >-
-      Nota de 0 a 100 que a plataforma de telemetria atribui ao motorista no mês,
-      a partir do comportamento de condução. É o insumo da premiação junto com o
-      km rodado: prêmio = km × valor por km × (nota ÷ 100).
-  - termo: RNTRC
-    definicao: >-
-      Registro Nacional de Transportadores Rodoviários de Cargas. Todo
-      transportador que faz frete por conta de terceiros precisa dele ativo;
-      contratar quem está irregular é infração. As categorias são ETC
-      (empresa), CTC (cooperativa) e TAC (autônomo). O CÓRTEX cruza o número
-      guardado no cadastro do ERP com a base aberta da ANTT, pelo número de
-      registro — não por CNPJ nem CPF.
-  - termo: Piso mínimo de frete (ANTT)
-    definicao: >-
-      Valor mínimo legal do frete, pela Política Nacional de Pisos Mínimos
-      (Lei 13.703/2018 e Res. ANTT 5.867/2020). Calculado como
-      (distância × CCD) + CC, onde CCD é o coeficiente por quilômetro e CC o de
-      carga e descarga, ambos por tipo de carga e número de eixos. Pagar abaixo
-      dele ao transportador contratado é infração — por isso a tela confere a
-      COMPRA de frete, não a venda.
-  - termo: CCD e CC
-    definicao: >-
-      Coeficiente de custo de deslocamento (R$ por km) e coeficiente de custo de
-      carga e descarga (R$ fixos por viagem). Vêm da tabela da ANTT, mudam duas
-      vezes por ano, e o CÓRTEX aplica sempre o vigente na DATA DA VIAGEM — não
-      o de hoje, senão todo mês já fechado mudaria a cada reajuste.
-  - termo: Retorno vazio obrigatório
-    definicao: >-
-      Quando o pagamento do deslocamento sem carga é devido (contêiner e frota
-      dedicada por razão sanitária ou certificação), vale 0,92 × CCD ×
-      distância, sem o coeficiente de carga e descarga. Fora dessas hipóteses a
-      viagem vazia aparece como isenta, nunca como abaixo do piso.
-  - termo: Spread make-vs-buy
-    definicao: >-
-      CKM próprio menos o RKM pago ao agregado. Decide fazer (frota própria) ou
-      comprar (agregado). No curto prazo compara com o CKM marginal; para
-      comprar veículo, com o CKM cheio.
-  - termo: Competência aberta
-    definicao: >-
-      Mês cujo rateio de custo fixo ainda está incompleto. Aparece hachurado ou
-      pontilhado — comparar com mês fechado leva a conclusão errada.
-  - termo: As três receitas
-    definicao: >-
-      Recortes diferentes que NÃO se somam: faturas emitidas (contas a receber),
-      frete das viagens carregadas (programação de embarque) e CT-e + KMM +
-      NFS-e (o recorte oficial da meta). O ⓘ de cada card diz qual está em uso.
-
+- termo: Report (botão da logo)
+  definicao: Botão com o símbolo da Sulista no canto inferior direito de qualquer tela. Abre um formulário
+    para relatar um bug ou pedir uma melhoria, com print da tela e anexos. O relato vira uma issue num
+    repositório privado, levando junto a tela, os filtros ativos, a versão e o navegador.
+- termo: Convênio de antecipação (cliente elegível)
+  definicao: Cliente que mantém portal de risco sacado, onde a Sulista pode antecipar os títulos dele.
+    Só o recebível desses clientes entra nas Operações de antecipação sugeridas — supor que qualquer recebível
+    pode ser antecipado dá um plano que não existe. Quem aparece como pagador numa planilha importada
+    em Portais de Antecipação entra sozinho; ligar e desligar à mão é possível, e a decisão manual sobrevive
+    à próxima importação. A comparação com o ERP é pela RAIZ do CNPJ (8 dígitos), porque o portal informa
+    o CNPJ da matriz e o ERP fatura por várias filiais do grupo.
+- termo: Sacado × cedente
+  definicao: 'Na planilha do portal, o SACADO é quem paga (o cliente) e o CEDENTE é quem recebe (a Sulista).
+    O cedente identifica a filial: um mesmo arquivo pode trazer títulos de CNPJs diferentes nossos.'
+- termo: RKM
+  definicao: Receita de frete por quilômetro carregado — receita_frete / km_carregado.
+- termo: CKM bruto
+  definicao: Custo operacional total dividido pelo km total (carregado + vazio).
+- termo: CKM produtivo
+  definicao: Custo operacional total dividido só pelo km carregado.
+- termo: Retorno vazio
+  definicao: Fração do km rodada sem carga — (km_total − km_carregado) / km_total. Acima de 20% em lotação
+    (FTL) é alerta.
+- termo: Margem de contribuição por km
+  definicao: RKM menos o CKM variável — quanto cada km carregado contribui depois dos custos que variam
+    com a rodagem.
+- termo: Cobertura da telemetria
+  definicao: 'Quanto do quilômetro rodado no período o rastreador efetivamente reportou, medido contra
+    o km dos abastecimentos. Abaixo de 70% a comparação de consumo não vale: a diferença mede silêncio
+    de rastreador, não desempenho do motorista.'
+- termo: Credenciais de integração
+  definicao: 'Tokens de API dos fornecedores (hoje, a Gobrax), configuráveis em Administração › Gestão
+    › Integrações. Ficam guardados na máquina do painel, com permissão restrita e fora do controle de
+    versão. O valor nunca volta para a tela: depois de salvo, só é possível ver os primeiros e os últimos
+    caracteres. Um valor salvo ali tem precedência sobre a variável de ambiente de mesmo nome.'
+- termo: Envio de e-mail
+  definicao: 'O CÓRTEX envia e-mail por um servidor SMTP configurado em Administração › Gestão › E-mail.
+    Host, porta e remetente ficam em data/email_config.json; a SENHA vai para o mesmo cofre do token da
+    Gobrax e nunca volta para a tela. Só administrador configura, porque e-mail sai para fora da empresa.
+    Todo envio — inclusive o que FALHOU — entra numa trilha própria (data/email.db) com autor, destinatário,
+    assunto e o erro: é o registro da falha que responde "o destinatário diz que não recebeu". O botão
+    de teste manda a mensagem só para o e-mail de quem está logado, de propósito, para não virar atalho
+    de disparar mensagem a terceiros.'
+- termo: Nota da Gobrax (score)
+  definicao: 'Nota de 0 a 100 que a plataforma de telemetria atribui ao motorista no mês, a partir do
+    comportamento de condução. É o insumo da premiação junto com o km rodado: prêmio = km × valor por
+    km × (nota ÷ 100).'
+- termo: RNTRC
+  definicao: Registro Nacional de Transportadores Rodoviários de Cargas. Todo transportador que faz frete
+    por conta de terceiros precisa dele ativo; contratar quem está irregular é infração. As categorias
+    são ETC (empresa), CTC (cooperativa) e TAC (autônomo). O CÓRTEX cruza o número guardado no cadastro
+    do ERP com a base aberta da ANTT, pelo número de registro — não por CNPJ nem CPF.
+- termo: Piso mínimo de frete (ANTT)
+  definicao: Valor mínimo legal do frete, pela Política Nacional de Pisos Mínimos (Lei 13.703/2018 e Res.
+    ANTT 5.867/2020). Calculado como (distância × CCD) + CC, onde CCD é o coeficiente por quilômetro e
+    CC o de carga e descarga, ambos por tipo de carga e número de eixos. Pagar abaixo dele ao transportador
+    contratado é infração — por isso a tela confere a COMPRA de frete, não a venda.
+- termo: CCD e CC
+  definicao: Coeficiente de custo de deslocamento (R$ por km) e coeficiente de custo de carga e descarga
+    (R$ fixos por viagem). Vêm da tabela da ANTT, mudam duas vezes por ano, e o CÓRTEX aplica sempre o
+    vigente na DATA DA VIAGEM — não o de hoje, senão todo mês já fechado mudaria a cada reajuste.
+- termo: Retorno vazio obrigatório
+  definicao: Quando o pagamento do deslocamento sem carga é devido (contêiner e frota dedicada por razão
+    sanitária ou certificação), vale 0,92 × CCD × distância, sem o coeficiente de carga e descarga. Fora
+    dessas hipóteses a viagem vazia aparece como isenta, nunca como abaixo do piso.
+- termo: Spread make-vs-buy
+  definicao: CKM próprio menos o RKM pago ao agregado. Decide fazer (frota própria) ou comprar (agregado).
+    No curto prazo compara com o CKM marginal; para comprar veículo, com o CKM cheio.
+- termo: Competência aberta
+  definicao: Mês cujo rateio de custo fixo ainda está incompleto. Aparece hachurado ou pontilhado — comparar
+    com mês fechado leva a conclusão errada.
+- termo: As três receitas
+  definicao: 'Recortes diferentes que NÃO se somam: faturas emitidas (contas a receber), frete das viagens
+    carregadas (programação de embarque) e CT-e + KMM + NFS-e (o recorte oficial da meta). O ⓘ de cada
+    card diz qual está em uso.'
 grupos:
-  - nome: Visão geral
-    resumo: >-
-      A leitura do dia — caixa, faturamento contra a meta e o que exige ação
-      agora. O Copiloto responde em linguagem natural sobre 17 recortes do
-      painel (não só os desta tela): financeiro, comercial, operação, frota,
-      ANTT, telemetria e o fechamento do mês.
-    telas: [home, cop]
-
-  - nome: Financeiro
-    resumo: >-
-      Caixa e sua projeção, títulos a receber e a pagar, régua de cobrança,
-      conciliação do extrato, lançamentos bancários (razão do banco lançamento
-      a lançamento), fluxo consolidado por período, antecipação de recebíveis
-      (com importação das planilhas dos portais dos clientes) e ordens de compra.
-    telas: [fluxo, fluxcon, receber, pagar, cob, extb, lanc, antec, antport, rec, oc, custos]
-
-  - nome: Controladoria
-    resumo: >-
-      Resultado por competência em cascata, balanço patrimonial, margem por
-      cliente, classificação contábil, orçamento contra realizado, previsão
-      de fechamento do mês e o controle de certidões e licenças.
-    telas: [dre, bal, drecli, cont, orc, fech, qual]
-
-  - nome: Comercial
-    resumo: >-
-      Clientes, receita por quilômetro, concentração de carteira, pipeline de
-      leads e a consulta 360 de um cliente.
-    telas: [com, clif, crm]
-
-  - nome: Operação
-    resumo: >-
-      Torre de controle ao vivo, programação de cargas contra veículos, análise
-      de quilometragem e retorno vazio, jornada do motorista (Lei 13.103),
-      custos extras, freetime e portaria.
-    telas: [torre, prog, km, jorn, jornf, cex, sac, port]
-
-  - nome: Frota
-    resumo: >-
-      Ativos e sua idade, consulta por placa, manutenção corretiva e preventiva,
-      combustível e consumo, multas e comunicação dos rastreadores.
-    telas: [veic, veicf, mprev, man, comb, mul, comrast]
-
-  - nome: Suprimentos
-    resumo: Agregados e terceiros, e a decisão de fazer com frota própria ou comprar.
-    telas: [agr, mvb]
-
-  - nome: Pessoas
-    resumo: >-
-      Vagas e tempo de preenchimento, headcount, custo de folha, indicadores de
-      RH, horas extras e a premiação de motoristas por economia.
-    telas: [rh, hc, folha, folhaind, he]
-
-  - nome: Telemetria
-    resumo: >-
-      O que vem da plataforma de telemetria Gobrax. Hoje traz a premiação de
-      motoristas por nota e quilometragem.
-    telas: [prem, telcon, telcond, telhod]
-
-  - nome: ANTT
-    resumo: >-
-      Obrigações e informações da Agência Nacional de Transportes Terrestres.
-      Hoje traz a conferência do frete pago a agregados e terceiros contra o
-      piso mínimo legal, viagem a viagem.
-    telas: [anpiso, anrntrc]
-
-  - nome: Painéis de TV
-    resumo: >-
-      Telas de mural, sem interação e sem tooltip: cada número precisa se
-      explicar sozinho de longe.
-    telas: [tvfat, tvope]
-
-  - nome: Administração
-    resumo: >-
-      Usuários, perfis e permissões por tela, saúde da máquina onde a API roda,
-      e esta documentação.
-    telas: [gestao, srv, doc]
+- nome: Visão geral
+  resumo: 'A leitura do dia — caixa, faturamento contra a meta e o que exige ação agora. O Copiloto responde
+    em linguagem natural sobre 17 recortes do painel (não só os desta tela): financeiro, comercial, operação,
+    frota, ANTT, telemetria e o fechamento do mês.'
+  telas:
+  - home
+  - cop
+- nome: Financeiro
+  resumo: Caixa e sua projeção, títulos a receber e a pagar, régua de cobrança, conciliação do extrato,
+    lançamentos bancários (razão do banco lançamento a lançamento), fluxo consolidado por período, antecipação
+    de recebíveis (com importação das planilhas dos portais dos clientes) e ordens de compra.
+  telas:
+  - fluxo
+  - fluxcon
+  - receber
+  - pagar
+  - cob
+  - extb
+  - lanc
+  - antec
+  - antport
+  - rec
+  - oc
+  - custos
+- nome: Controladoria
+  resumo: Resultado por competência em cascata, balanço patrimonial, margem por cliente, classificação
+    contábil, orçamento contra realizado, previsão de fechamento do mês e o controle de certidões e licenças.
+  telas:
+  - dre
+  - bal
+  - drecli
+  - cont
+  - orc
+  - fech
+  - qual
+- nome: Comercial
+  resumo: Clientes, receita por quilômetro, concentração de carteira, pipeline de leads e a consulta 360
+    de um cliente.
+  telas:
+  - com
+  - clif
+  - crm
+- nome: Operação
+  resumo: Torre de controle ao vivo, programação de cargas contra veículos, análise de quilometragem e
+    retorno vazio, jornada do motorista (Lei 13.103), custos extras, freetime e portaria.
+  telas:
+  - torre
+  - milkrun
+  - prog
+  - km
+  - jorn
+  - jornf
+  - cex
+  - sac
+  - port
+- nome: Frota
+  resumo: Ativos e sua idade, consulta por placa, manutenção corretiva e preventiva, combustível e consumo,
+    multas e comunicação dos rastreadores.
+  telas:
+  - veic
+  - veicf
+  - mprev
+  - man
+  - comb
+  - mul
+  - comrast
+- nome: Suprimentos
+  resumo: Agregados e terceiros, e a decisão de fazer com frota própria ou comprar.
+  telas:
+  - agr
+  - mvb
+- nome: Pessoas
+  resumo: Vagas e tempo de preenchimento, headcount, custo de folha, indicadores de RH, horas extras e
+    a premiação de motoristas por economia.
+  telas:
+  - rh
+  - hc
+  - folha
+  - folhaind
+  - he
+- nome: Telemetria
+  resumo: O que vem da plataforma de telemetria Gobrax. Hoje traz a premiação de motoristas por nota e
+    quilometragem.
+  telas:
+  - prem
+  - telcon
+  - telcond
+  - telhod
+- nome: ANTT
+  resumo: Obrigações e informações da Agência Nacional de Transportes Terrestres. Hoje traz a conferência
+    do frete pago a agregados e terceiros contra o piso mínimo legal, viagem a viagem.
+  telas:
+  - anpiso
+  - anrntrc
+- nome: Painéis de TV
+  resumo: 'Telas de mural, sem interação e sem tooltip: cada número precisa se explicar sozinho de longe.'
+  telas:
+  - tvfat
+  - tvope
+- nome: Administração
+  resumo: Usuários, perfis e permissões por tela, saúde da máquina onde a API roda, e esta documentação.
+  telas:
+  - gestao
+  - srv
+  - doc

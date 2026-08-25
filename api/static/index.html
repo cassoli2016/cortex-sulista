@@ -1153,6 +1153,7 @@ body.tvfull #btnReport,body.tvmode #btnReport{display:none}
         <span class="ic" data-ic="ope"></span><span>Operação</span><span class="ic chev" data-ic="chev"></span>
       </button>
       <div class="subs closed" id="subsOpe">
+        <a href="#milkrun" class="sub" data-view="milkrun" title="Milk Run — MWM: chegada e saída detectadas pelo rastreamento"><span class="ic" data-ic="milkic"></span><span>Milk Run — MWM</span></a>
         <a href="#torre" class="sub" data-view="torre" title="Torre de Controle"><span class="ic" data-ic="tor"></span><span>Torre de Controle</span></a>
         <a href="#prog" class="sub" data-view="prog" title="Programação Inteligente"><span class="ic" data-ic="prog"></span><span>Programação Intel.</span></a>
         <a href="#jorn" class="sub" data-view="jorn" title="Jornada do Motorista (Lei 13.103)"><span class="ic" data-ic="jornic"></span><span>Jornada do Motorista</span></a>
@@ -2440,6 +2441,29 @@ body.tvfull #btnReport,body.tvmode #btnReport{display:none}
         <div id="antec-avisos"></div>
       </section>
 
+      <!-- ===================== MILK RUN — MWM ===================== -->
+      <section class="view" id="view-milkrun">
+        <div class="kpis k4" id="kpis-milkrun"></div>
+        <div class="card">
+          <div class="head"><h2>Operação do dia <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="Cada linha é uma coleta do dia. O horário COMBINADO vem da solicitação de carga do ERP (coleta.dtcoletar). O horário DETECTADO vem do rastreamento do veículo: a chegada é a primeira posição dentro do raio do fornecedor e a saída é a última de uma permanência contínua — nada é digitado. A coluna Distância diz o quão perto do ponto cadastrado o veículo chegou, e é o que permite calibrar o raio de cada local.">i</span></h2>
+            <span class="hint" id="hintMilk"></span>
+            <input type="date" id="fMilkDia" onchange="loadMilkrun()" aria-label="Dia da operação"
+                   style="margin-left:auto;padding:6px 10px;border:1px solid var(--n300);border-radius:8px;font:inherit;font-size:13px">
+          </div>
+          <div class="tablewrap tabroll"><table><thead><tr>
+            <th class="num">Combinado</th><th>Fornecedor</th><th>Veículo</th>
+            <th class="num">Chegada</th><th class="num">Saída</th>
+            <th class="num">Permanência</th><th class="num">Distância</th><th>Situação</th>
+          </tr></thead><tbody id="milk-pontos"></tbody></table></div>
+        </div>
+        <div class="card">
+          <div class="head"><h2>Mapa da operação <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="Cada marcador é um ponto de coleta do dia, com a cor da situação. Verde = coletado, âmbar = veículo no local agora, cinza = ainda não chegou.">i</span></h2>
+            <span class="hint">pontos de coleta do dia</span></div>
+          <div id="mapaMilk" style="height:420px;border-radius:0 0 10px 10px;background:var(--navy-50)"></div>
+        </div>
+        <div id="milk-avisos"></div>
+      </section>
+
       <!-- ===================== PORTAIS DE ANTECIPAÇÃO ===================== -->
       <section class="view" id="view-antport">
         <div id="antport-avisos"></div>
@@ -3581,6 +3605,9 @@ const ICONS = {
   rastroic: IC('<path d="M12 21s6.5-6.2 6.5-11a6.5 6.5 0 1 0-13 0C5.5 14.8 12 21 12 21z"/><circle cx="12" cy="10" r="2.3"/><path d="M2.5 20.5h2M7.5 20.5h1M16 20.5h1M20 20.5h1.5"/>'),
   telconic: IC('<path d="M12 3.5c3.2 3.6 5 6.1 5 8.3a5 5 0 0 1-10 0c0-2.2 1.8-4.7 5-8.3z"/><path d="M3 21h18M5.5 21v-3.5M9 21v-6"/>'),
   folhaindic: IC('<circle cx="7" cy="6.5" r="3"/><path d="M2.5 14a4.5 4.5 0 0 1 9 0"/><path d="M14 20V9M18 20V5M21.5 20h-11"/>'),
+  milkic: IC('<circle cx="5" cy="6" r="2.2"/><circle cx="12" cy="17" r="2.2"/>'
+             + '<circle cx="19" cy="7" r="2.2"/>'
+             + '<path d="M6.6 7.6 10.6 15.2M13.8 15.6 17.6 8.8" stroke-dasharray="2 2"/>'),
   antportic: IC('<path d="M4 20h16"/><rect x="3.5" y="9" width="17" height="8" rx="1.5"/><path d="M12 7V1.5M9 4l3-3 3 3"/><path d="M7.5 13h.01M11 13h3"/>'),
   tvfatic: IC('<rect x="3" y="5" width="18" height="12" rx="2"/><path d="M9 21h6M12 17v4"/><path d="M6.5 13.5 10 10l2.5 2.5L17.5 8"/>'),
 };
@@ -3599,7 +3626,7 @@ const FAIXAS = {
   '4_vencido_91_365':['Vencido 91–365d','b-dang'],
   '5_vencido_mais_365':['Vencido > 365d','b-dang'],
 };
-const VIEWS = { home:'Visão Geral', fluxo:'Fluxo de Caixa e Bancos', receber:'Contas a Receber', pagar:'Contas a Pagar', oc:'Ordens de Compra', custos:'Painel de Custos', agr:'Agregados e Terceiros', mvb:'Make vs Buy', comb:'Combustível', man:'Manutenção', com:'Clientes e RKM', clif:'Consulta de Cliente', crm:'CRM — Leads e Projetos', km:'Análise de KM', torre:'Torre de Controle', veic:'Veículos', veicf:'Consulta de Veículo', mprev:'Manutenção Preventiva', comrast:'Comunicação Rastreadora', mul:'Multas', prog:'Programação Inteligente', jorn:'Jornada do Motorista', jornf:'Ficha de Jornada', cex:'Custos Extras', sac:'SAC / Freetime', port:'Portaria', cop:'Copiloto Cortex', cob:'Régua de Cobrança', extb:'Extrato Bancário', lanc:'Lançamentos Bancários', antec:'Antecipação de Recebíveis', antport:'Portais de Antecipação', rec:'Lançamentos Recorrentes', fluxcon:'Fluxo de Caixa Consolidado', cont:'Contabilidade', qual:'Qualidade e Certidões', orc:'Orçamento', fech:'Fechamento do Mês', prem:'Premiação de Motoristas', dre:'DRE Gerencial', bal:'Balanço Patrimonial', drecli:'DRE por Cliente', tvfat:'Painel TV — Faturamento', tvope:'Painel TV — Operação', rh:'RH — Vagas', hc:'Headcount', folha:'Custo de Folha', folhaind:'Indicadores de Folha', he:'Horas Extras', gestao:'Gestão', srv:'Saúde do Servidor', doc:'Documentação', anpiso:'Piso Mínimo de Frete', anrntrc:'RNTRC dos Transportadores', telcon:'Consumo e Estatísticas', telcond:'Condução Econômica', telhod:'Hodômetro e Rastro' };
+const VIEWS = { home:'Visão Geral', fluxo:'Fluxo de Caixa e Bancos', receber:'Contas a Receber', pagar:'Contas a Pagar', oc:'Ordens de Compra', custos:'Painel de Custos', agr:'Agregados e Terceiros', mvb:'Make vs Buy', comb:'Combustível', man:'Manutenção', com:'Clientes e RKM', clif:'Consulta de Cliente', crm:'CRM — Leads e Projetos', km:'Análise de KM', torre:'Torre de Controle', veic:'Veículos', veicf:'Consulta de Veículo', mprev:'Manutenção Preventiva', comrast:'Comunicação Rastreadora', mul:'Multas', prog:'Programação Inteligente', jorn:'Jornada do Motorista', jornf:'Ficha de Jornada', cex:'Custos Extras', sac:'SAC / Freetime', port:'Portaria', cop:'Copiloto Cortex', cob:'Régua de Cobrança', extb:'Extrato Bancário', lanc:'Lançamentos Bancários', antec:'Antecipação de Recebíveis', antport:'Portais de Antecipação', milkrun:'Milk Run — MWM', rec:'Lançamentos Recorrentes', fluxcon:'Fluxo de Caixa Consolidado', cont:'Contabilidade', qual:'Qualidade e Certidões', orc:'Orçamento', fech:'Fechamento do Mês', prem:'Premiação de Motoristas', dre:'DRE Gerencial', bal:'Balanço Patrimonial', drecli:'DRE por Cliente', tvfat:'Painel TV — Faturamento', tvope:'Painel TV — Operação', rh:'RH — Vagas', hc:'Headcount', folha:'Custo de Folha', folhaind:'Indicadores de Folha', he:'Horas Extras', gestao:'Gestão', srv:'Saúde do Servidor', doc:'Documentação', anpiso:'Piso Mínimo de Frete', anrntrc:'RNTRC dos Transportadores', telcon:'Consumo e Estatísticas', telcond:'Condução Econômica', telhod:'Hodômetro e Rastro' };
 const periodoLabel = p => { if(p==='atrasado') return 'Atrasado'; const [y,m]=p.split('-'); return MES[+m-1]+'/'+y.slice(2); };
 const fmtD = s => { if(!s) return ''; const [y,m,dd]=s.split('-'); return dd+'/'+m+'/'+y; };
 /* Idade da posicao bancaria. Cada conta e lancada num dia diferente: mostrar
@@ -3787,7 +3814,7 @@ const VIEW_GROUP = {home:'',cop:'',
   com:'Com',clif:'Com',crm:'Com',rent:'Com',drecli:'Com',
   fluxo:'Fin',receber:'Fin',pagar:'Fin',cob:'Fin',extb:'Fin',lanc:'Fin',antec:'Fin',antport:'Fin',fluxcon:'Fin',rec:'Fin',
   dre:'Ctr',bal:'Ctr',cont:'Ctr',qual:'Ctr',orc:'Ctr',fech:'Ctr',
-  torre:'Ope',prog:'Ope',jorn:'Ope',jornf:'Ope',cex:'Ope',sac:'Ope',port:'Ope',km:'Ope',agr:'Ope',mvb:'Ope',
+  torre:'Ope',milkrun:'Ope',prog:'Ope',jorn:'Ope',jornf:'Ope',cex:'Ope',sac:'Ope',port:'Ope',km:'Ope',agr:'Ope',mvb:'Ope',
   veic:'Fro',veicf:'Fro',mprev:'Fro',comrast:'Fro',comb:'Fro',man:'Fro',mul:'Fro',prem:'Fro',
   oc:'Sup',custos:'Sup',
   tvfat:'Tv',tvope:'Tv',
@@ -3966,7 +3993,7 @@ function semFilterbar(v){
   // filtros", que não tinha o que aplicar.
   return v==='cop'||v==='gestao'||v==='srv'||v==='home'||v==='veicf'||v==='clif'||v==='jorn'||v==='jornf'||v==='prog'||
          v==='cex'||v==='sac'||v==='mprev'||v==='comrast'||v==='qual'||v==='port'||v==='crm'||v==='rh'||
-         v==='hc'||v==='folha'||v==='folhaind'||v==='he'||v==='custos'||v==='orc'||v==='prem'||v==='extb'||v==='fech'||v==='doc'||v==='anrntrc'||v==='telcon'||v==='telcond'||v==='telhod';
+         v==='hc'||v==='folha'||v==='folhaind'||v==='he'||v==='custos'||v==='orc'||v==='prem'||v==='extb'||v==='fech'||v==='doc'||v==='anrntrc'||v==='telcon'||v==='telcond'||v==='telhod'||v==='milkrun';
 }
 function currentView(){
   const h = (location.hash||'').replace('#','');
@@ -4062,8 +4089,8 @@ function router(){
   // carga da vista: dispara se não há dados OU se os filtros visíveis
   // divergem dos usados na última carga (nunca mostrar dado velho com filtro novo)
   const key=viewKey(v);
-  const DATAMAP={fin:DATA,oc:DATAOC,agr:DATAAGR,anpiso:DATAANPISO,anrntrc:DATAANRNTRC,telcon:DATATELCON,telcond:DATATELCOND,telhod:DATATELHOD,mvb:DATAMVB,comb:DATACOMB,man:DATAMAN,com:DATACOM,clif:DATACLIF,dre:DATADRE,bal:DATABAL,drecli:DATADRECLI,home:DATAHOME,km:DATAKM,torre:DATATORRE,veic:DATAVEIC,veicf:DATAVEICF,mul:DATAMUL,prog:DATAPROG,jorn:DATAJORN,jornf:DATAJORNF,cex:DATACEX,sac:DATASAC,mprev:DATAMPREV,comrast:DATACOMRAST,qual:DATAQUAL,port:DATAPORT,crm:DATACRM,rh:DATARH,hc:DATAHC,folha:DATAFOLHA,folhaind:DATAFOLHAIND,he:DATAHE,custos:DATACUSTOS,cob:DATACOB,extb:DATAEXTB,lanc:DATALANC,antec:DATAANTEC,antport:DATAANTPORT,fluxcon:DATAFLUXCON,rec:DATAREC,rent:DATARENT,cont:DATACONT,orc:DATAORC,fech:DATAFECH,prem:DATAPREM,gestao:DATAGES,srv:DATASRV,doc:DATADOC,tvfat:null,tvope:null,cop:(COP_MSGS.length?{}:null)};
-  const LOADMAP={fin:load,oc:loadOc,agr:loadAgr,anpiso:loadAnpiso,anrntrc:loadAnrntrc,telcon:loadTelcon,telcond:loadTelcond,telhod:loadTelhod,mvb:loadMvb,comb:loadComb,man:loadMan,com:loadCom,clif:loadClif,dre:loadDre,bal:loadBal,drecli:loadDreCli,home:loadHome,km:loadKm,torre:loadTorre,veic:loadVeic,veicf:loadVeicf,mul:loadMul,prog:loadProg,jorn:loadJorn,jornf:loadJornf,cex:loadCex,sac:loadSac,mprev:loadMPrev,comrast:loadComRast,qual:loadQual,port:loadPort,crm:loadCrm,rh:loadRh,hc:loadHc,folha:loadFolha,folhaind:loadFolhaInd,he:loadHe,custos:loadCustos,cob:loadCob,extb:loadExtb,lanc:loadLanc,antec:loadAntec,antport:loadAntport,fluxcon:loadFluxcon,rec:loadRec,rent:loadRent,cont:loadCont,orc:loadOrc,fech:loadFech,prem:loadPrem,gestao:loadGestao,srv:loadSrv,doc:loadDoc,cop:loadCop,tvfat:loadTvFat,tvope:loadTvOpe};
+  const DATAMAP={fin:DATA,oc:DATAOC,agr:DATAAGR,anpiso:DATAANPISO,anrntrc:DATAANRNTRC,telcon:DATATELCON,telcond:DATATELCOND,telhod:DATATELHOD,mvb:DATAMVB,comb:DATACOMB,man:DATAMAN,com:DATACOM,clif:DATACLIF,dre:DATADRE,bal:DATABAL,drecli:DATADRECLI,home:DATAHOME,km:DATAKM,torre:DATATORRE,veic:DATAVEIC,veicf:DATAVEICF,mul:DATAMUL,prog:DATAPROG,jorn:DATAJORN,jornf:DATAJORNF,cex:DATACEX,sac:DATASAC,mprev:DATAMPREV,comrast:DATACOMRAST,qual:DATAQUAL,port:DATAPORT,crm:DATACRM,rh:DATARH,hc:DATAHC,folha:DATAFOLHA,folhaind:DATAFOLHAIND,he:DATAHE,custos:DATACUSTOS,cob:DATACOB,extb:DATAEXTB,lanc:DATALANC,antec:DATAANTEC,antport:DATAANTPORT,milkrun:DATAMILK,fluxcon:DATAFLUXCON,rec:DATAREC,rent:DATARENT,cont:DATACONT,orc:DATAORC,fech:DATAFECH,prem:DATAPREM,gestao:DATAGES,srv:DATASRV,doc:DATADOC,tvfat:null,tvope:null,cop:(COP_MSGS.length?{}:null)};
+  const LOADMAP={fin:load,oc:loadOc,agr:loadAgr,anpiso:loadAnpiso,anrntrc:loadAnrntrc,telcon:loadTelcon,telcond:loadTelcond,telhod:loadTelhod,mvb:loadMvb,comb:loadComb,man:loadMan,com:loadCom,clif:loadClif,dre:loadDre,bal:loadBal,drecli:loadDreCli,home:loadHome,km:loadKm,torre:loadTorre,veic:loadVeic,veicf:loadVeicf,mul:loadMul,prog:loadProg,jorn:loadJorn,jornf:loadJornf,cex:loadCex,sac:loadSac,mprev:loadMPrev,comrast:loadComRast,qual:loadQual,port:loadPort,crm:loadCrm,rh:loadRh,hc:loadHc,folha:loadFolha,folhaind:loadFolhaInd,he:loadHe,custos:loadCustos,cob:loadCob,extb:loadExtb,lanc:loadLanc,antec:loadAntec,antport:loadAntport,milkrun:loadMilkrun,fluxcon:loadFluxcon,rec:loadRec,rent:loadRent,cont:loadCont,orc:loadOrc,fech:loadFech,prem:loadPrem,gestao:loadGestao,srv:loadSrv,doc:loadDoc,cop:loadCop,tvfat:loadTvFat,tvope:loadTvOpe};
   if(!DATAMAP[key] || (key!=='home' && LOADEDQS[key]!==qsView(key))) LOADMAP[key]();
   // mobile: estado da navegação inferior + fecha gaveta/painel de filtros
   document.querySelectorAll('.bottomnav [data-bview]').forEach(a=>a.classList.toggle('ativo', a.dataset.bview===v));
@@ -8550,6 +8577,134 @@ function planoResultado(d, gravado){
 
   document.getElementById('plano-res').innerHTML = html;
   injectIcons();
+}
+
+/* ============ MILK RUN — MWM ============
+   A tela existe porque hoje os horários nos fornecedores são DIGITADOS, e o
+   dado do próprio ERP mostra o custo disso: 1.462 viagens em 30 dias entre
+   cidades diferentes com duração menor que 15 minutos, e 46% das chegadas com
+   segundo `:00` (marca de hora digitada — o rastreador sempre traz o segundo
+   do ping). Aqui chegada e saída vêm do rastro. */
+let DATAMILK = null, milkSeq = 0, milkMap = null, milkLayer = null;
+
+async function loadMilkrun(fundo){
+  skelKpis('kpis-milkrun',4);
+  const seq=++milkSeq, btn=document.getElementById('btnRefresh'); if(btn) btn.disabled=true;
+  if(!fundo) document.getElementById('content').classList.add('loading');
+  try{
+    const dia=(document.getElementById('fMilkDia')||{}).value || '';
+    const r=await fetch('/api/operacao/milkrun'+(dia?('?dia='+dia):''),
+      {cache:'no-store', headers: fundo?{'X-Carga-Fundo':'1'}:{}});
+    const d=await r.json(); if(seq!==milkSeq) return;
+    if(!r.ok){ showBanner(d.mensagem||'Erro ao montar a operação.'); return; }
+    hideBanner(); DATAMILK=d; renderMilkrun(d);
+  }catch(e){ if(seq===milkSeq) showBanner('Não foi possível falar com a API.', e.message); }
+  finally{ if(seq===milkSeq){ if(btn) btn.disabled=false;
+    document.getElementById('content').classList.remove('loading'); } }
+}
+
+const MILK_EST = {
+  concluido: ['b-ok','coletado'],
+  no_local:  ['b-warn','no local agora'],
+  aguardando:['b-info','aguardando'],
+};
+
+function renderMilkrun(d){
+  const k=d.kpis||{}, pts=d.pontos||[];
+  if(!document.getElementById('fMilkDia').value) document.getElementById('fMilkDia').value=d.dia;
+
+  document.getElementById('kpis-milkrun').innerHTML=[
+    kpi('Pontos do dia', (k.pontos||0).toLocaleString('pt-BR'),
+        (k.veiculos||0)+' veículo(s) na operação', '',
+        'Coletas com data marcada para este dia na solicitação de carga do ERP. Cada uma é uma parada do milk run.'),
+    kpi('Coletados', (k.concluidos||0).toLocaleString('pt-BR'),
+        k.pontos?(pct(k.concluidos||0,k.pontos)+' da rota'):'—',
+        (k.concluidos||0)>0?'pos':'',
+        'Pontos em que o veículo chegou E já saiu, detectado pelo rastreamento. Não depende de ninguém apontar.'),
+    kpi('No local agora', (k.no_local||0).toLocaleString('pt-BR'),
+        (k.aguardando||0)+' ainda não chegaram', (k.no_local||0)>0?'warn':'',
+        'Veículo dentro do raio do fornecedor na última posição transmitida — está carregando agora.'),
+    kpi('Atrasados', (k.atrasados||0).toLocaleString('pt-BR'),
+        'chegada mais de 30 min após o combinado',
+        (k.atrasados||0)>0?'neg':'pos',
+        'Compara a chegada detectada com o horário combinado na solicitação de carga. Tolerância de 30 minutos para cada lado.'),
+  ].join('');
+
+  document.getElementById('hintMilk').textContent =
+    pts.length ? (pts.length+' ponto(s) · chegada e saída DETECTADAS pelo rastreamento')
+               : 'nenhuma coleta marcada para este dia';
+
+  const hhmm = s => s ? s.slice(11,16) : '—';
+  document.getElementById('milk-pontos').innerHTML=pts.map(p=>{
+    const est=MILK_EST[p.estado]||MILK_EST.aguardando;
+    /* Atraso vira chip só quando há janela combinada. Sem ela, julgar
+       pontualidade é alarme contra uma referência que não existe. */
+    let chip='';
+    if(p.pontualidade==='atrasado')  chip=' <span class="badge b-alert">+'+p.atraso_min+' min</span>';
+    else if(p.pontualidade==='adiantado') chip=' <span class="badge b-info">'+p.atraso_min+' min</span>';
+    else if(p.pontualidade==='no prazo')  chip=' <span class="badge b-ok">no prazo</span>';
+    /* Distância é o instrumento de calibragem do raio: em Resende o veículo
+       parou a 861 m do ponto cadastrado e a cerca de 300 m não pegou. */
+    const dist = p.distancia_m==null ? '—'
+      : (Math.round(p.distancia_m).toLocaleString('pt-BR')+' m');
+    const distCor = p.distancia_m!=null && p.distancia_m>200 ? 'var(--yellow-700)' : 'inherit';
+    let motivo='';
+    if(!p.placa) motivo=' <span class="badge b-warn" title="Sem veículo alocado na solicitação: a detecção não tem o que rastrear.">sem veículo</span>';
+    else if(!p.lat||!p.lng) motivo=' <span class="badge b-warn" title="O endereço do fornecedor não tem coordenada no cadastro — sem ela não há cerca para detectar.">sem coordenada</span>';
+    return `<tr>
+      <td class="num" style="font-weight:600">${hhmm(p.previsto)}</td>
+      <td title="${esc((p.ponto||'')+' · '+(p.cidade||'')+'/'+(p.uf||''))}">
+        ${esc((p.ponto||'—').length>26?p.ponto.slice(0,26)+'…':(p.ponto||'—'))}
+        <span style="color:var(--n500);font-size:11.5px">${esc(p.cidade||'')}/${esc(p.uf||'')}</span>${motivo}</td>
+      <td style="font-family:var(--mono);font-size:12px">${esc(p.placa||'—')}</td>
+      <td class="num" style="font-weight:600">${hhmm(p.chegada)}${chip}</td>
+      <td class="num">${hhmm(p.saida)}</td>
+      <td class="num">${p.permanencia_min!=null?Math.round(p.permanencia_min)+' min':'—'}</td>
+      <td class="num" style="color:${distCor}">${dist}</td>
+      <td><span class="badge ${est[0]}">${est[1]}</span></td></tr>`;
+  }).join('') || '<tr><td colspan="8" style="color:var(--n500)">nenhuma coleta marcada para este dia</td></tr>';
+
+  /* Lacuna de CADASTRO é diferente de atraso de operação: sem placa ou sem
+     coordenada a detecção não tem como funcionar, e somar isso a "aguardando"
+     faria parecer culpa do motorista. */
+  const A=[];
+  if(k.sem_placa>0) A.push(['t-warn','Sem veículo alocado em '+k.sem_placa+' ponto(s)',
+    'A solicitação de carga não tem placa, então não há o que rastrear nesses pontos. Eles aparecem como "aguardando", mas a causa é cadastro, não operação.']);
+  if(k.sem_coordenada>0) A.push(['t-warn','Sem coordenada em '+k.sem_coordenada+' ponto(s)',
+    'O endereço do fornecedor não tem latitude/longitude no cadastro. Sem coordenada não existe cerca para detectar chegada — é o cadastro que destrava a automação desses pontos.']);
+  const longe=(d.pontos||[]).filter(p=>p.distancia_m!=null && p.distancia_m>200);
+  if(longe.length) A.push(['t-info','Raio pode precisar de ajuste em '+longe.length+' ponto(s)',
+    'Nesses locais o veículo parou a mais de 200 m do endereço cadastrado — normalmente a coordenada aponta a portaria e a doca fica adiante. O raio padrão é 300 m; onde a distância se aproxima disso, vale cadastrar um raio maior para o ponto.']);
+  document.getElementById('milk-avisos').innerHTML=A.map(([c,t,m])=>
+    `<div class="toast ${c}"><b>${esc(t)}</b>${esc(m)}</div>`).join('');
+
+  milkMapa(pts);
+}
+
+async function milkMapa(pts){
+  const alvo=document.getElementById('mapaMilk'); if(!alvo) return;
+  const comCoord=pts.filter(p=>p.lat&&p.lng);
+  if(!comCoord.length){ alvo.innerHTML='<div style="padding:20px;color:var(--n500)">nenhum ponto com coordenada cadastrada</div>'; return; }
+  try{ await ensureLeaflet(); }
+  catch(e){ alvo.innerHTML='<div style="padding:20px;color:var(--n500)">'+esc(e.message)+'</div>'; return; }
+  if(!milkMap){
+    milkMap=L.map('mapaMilk',{scrollWheelZoom:true}).setView([-23.6,-46.7],7);
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',
+      {maxZoom:18, attribution:'© OpenStreetMap'}).addTo(milkMap);
+  }
+  if(milkLayer) milkLayer.remove();
+  milkLayer=L.layerGroup().addTo(milkMap);
+  const cor={concluido:'#1E7F4F', no_local:'#B97709', aguardando:'#6B7580'};
+  comCoord.forEach(p=>{
+    L.circleMarker([p.lat,p.lng],{radius:8, weight:2, color:'#fff',
+      fillColor:cor[p.estado]||cor.aguardando, fillOpacity:.95})
+     .bindTooltip(`<b>${esc(p.ponto||'')}</b><br>combinado ${(p.previsto||'').slice(11,16)}`
+        + (p.chegada?`<br>chegou ${(p.chegada).slice(11,16)}`:'<br>não chegou')
+        + (p.placa?`<br>${esc(p.placa)}`:''))
+     .addTo(milkLayer);
+  });
+  try{ milkMap.fitBounds(L.latLngBounds(comCoord.map(p=>[p.lat,p.lng])).pad(0.2)); }catch(e){}
+  setTimeout(()=>milkMap.invalidateSize(), 60);
 }
 /* ============ PORTAIS DE ANTECIPAÇÃO ============ */
 async function loadAntport(){

@@ -4,6 +4,13 @@ Gerado de `docs/versoes.yaml` por `scripts/gerar_changelog.py` — não editar �
 Formato [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/),
 versionamento [SemVer](https://semver.org/lang/pt-BR/).
 
+## [0.36.0] — 25/08/2026  ·  CX-25/08/2026-v0.36.0
+
+### Adicionado
+- Tela nova "Milk Run - MWM": a operacao do dia ponto a ponto, com o horario COMBINADO na solicitacao de carga ao lado do horario REAL de chegada e saida em cada fornecedor - e o real vem do rastreamento, sem ninguem digitar. Mostra tambem quanto tempo o veiculo ficou em cada ponto e a que distancia do endereco cadastrado ele parou.
+- Perfil de acesso "Cliente - Milk Run": uma unica tela, somente leitura, sem acesso a nenhum outro dado da Sulista. E o que permite a MWM acompanhar a operacao em tempo real com login proprio.
+- A tela separa o que e atraso de operacao do que e falta de cadastro: ponto sem veiculo alocado ou sem coordenada do fornecedor aparece com o motivo, em vez de virar "aguardando" e parecer culpa do motorista.
+
 ## [0.35.0] — 25/08/2026  ·  CX-25/08/2026-v0.35.0
 
 ### Adicionado

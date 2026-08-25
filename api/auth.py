@@ -55,6 +55,7 @@ TELAS: dict[str, tuple[str, str]] = {  # chave -> (rótulo, grupo do menu)
     "lanc":    ("Lançamentos Bancários", "Financeiro"),
     "antec":   ("Antecipação de Recebíveis", "Financeiro"),
     "antport": ("Portais de Antecipação", "Financeiro"),
+    "milkrun": ("Milk Run — MWM", "Operação"),
     "rec":     ("Lançamentos Recorrentes", "Financeiro"),
     "fluxcon": ("Fluxo Consolidado", "Financeiro"),
     "pagar":   ("Contas a Pagar", "Financeiro"),
@@ -132,6 +133,7 @@ ROTA_TELAS: list[tuple[str, frozenset[str]]] = [
     ("/api/financeiro/extrato",       frozenset({"extb"})),
     ("/api/financeiro/lancamentos",   frozenset({"lanc"})),
     ("/api/financeiro/recorrentes",   frozenset({"rec"})),
+    ("/api/operacao/milkrun", frozenset({"milkrun"})),
     ("/api/financeiro/credito", frozenset({"fluxo", "fluxcon", "antec"})),
     ("/api/orcamento/plano", frozenset({"orc"})),
     ("/api/financeiro/antecipacoes", frozenset({"antport", "antec"})),
@@ -238,6 +240,12 @@ _CONFIG_PADRAO = {
 # ficam fora dos perfis de área e só entram no perfil amplo "Diretoria".
 # Perfis-modelo alinhados aos grupos do menu (reorg 2026-07-17).
 _PERFIS_MODELO = [
+    # Cliente externo: uma tela so, somente leitura. Qualquer tela a mais aqui
+    # e dado da Sulista saindo para fora.
+    ("Cliente — Milk Run",
+     "Acompanhamento da operação de milk run em tempo real. Perfil de CLIENTE: "
+     "uma única tela, sem acesso a nenhum outro dado da Sulista.",
+     ["milkrun"]),
     ("Comercial",   "Clientes/RKM, consulta por cliente, CRM (leads/projetos) e DRE por cliente.",
      ["com", "clif", "crm", "drecli"]),
     ("Financeiro",  "Caixa, recebíveis, pagáveis, cobrança, extrato, lançamentos bancários e antecipação.",
