@@ -3,6 +3,25 @@
 #   - a tela Documentação     (#doc)
 #   - o rótulo no rodapé      (CX-DD/MM/AAAA-vX.Y.Z)
 # A versão do TOPO é a corrente e tem de bater com o pyproject.toml.
+- versao: "0.40.0"
+  data: "2026-08-25"
+  adicionado:
+    - >-
+      LEGENDA no mapa do Milk Run, no canto inferior esquerdo: cada situacao
+      com a cor e quantos pontos ela tem no recorte filtrado. Situacao que nao
+      ocorre no periodo nao entra na legenda - item zerado ocupa espaco e ainda
+      sugere que ha ponto daquele tipo escondido em algum lugar do mapa.
+  alterado:
+    - >-
+      Os pontos do mapa deixaram de ser circulos lisos e passaram a ser pinos
+      com o NUMERO DA PARADA dentro. A cor continua dizendo a situacao, mas num
+      milk run a ordem decide a leitura - "a terceira parada e a que travou" -
+      e o mapa nao tinha como dizer isso.
+    - >-
+      O balao do ponto ganhou a cidade/UF e passou a dizer "sem chegada
+      detectada" no lugar de "nao chegou": sao coisas diferentes, e a segunda
+      acusava a operacao por uma falha que pode ser de rastreamento.
+
 - versao: "0.39.0"
   data: "2026-08-25"
   alterado:

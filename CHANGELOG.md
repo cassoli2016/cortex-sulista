@@ -4,6 +4,15 @@ Gerado de `docs/versoes.yaml` por `scripts/gerar_changelog.py` — não editar �
 Formato [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/),
 versionamento [SemVer](https://semver.org/lang/pt-BR/).
 
+## [0.40.0] — 25/08/2026  ·  CX-25/08/2026-v0.40.0
+
+### Adicionado
+- LEGENDA no mapa do Milk Run, no canto inferior esquerdo: cada situacao com a cor e quantos pontos ela tem no recorte filtrado. Situacao que nao ocorre no periodo nao entra na legenda - item zerado ocupa espaco e ainda sugere que ha ponto daquele tipo escondido em algum lugar do mapa.
+
+### Alterado
+- Os pontos do mapa deixaram de ser circulos lisos e passaram a ser pinos com o NUMERO DA PARADA dentro. A cor continua dizendo a situacao, mas num milk run a ordem decide a leitura - "a terceira parada e a que travou" - e o mapa nao tinha como dizer isso.
+- O balao do ponto ganhou a cidade/UF e passou a dizer "sem chegada detectada" no lugar de "nao chegou": sao coisas diferentes, e a segunda acusava a operacao por uma falha que pode ser de rastreamento.
+
 ## [0.39.0] — 25/08/2026  ·  CX-25/08/2026-v0.39.0
 
 ### Alterado

@@ -248,6 +248,23 @@ svg:focus-visible{outline:2px solid var(--orange-500);outline-offset:2px;border-
 /* Milk run: cada solicitacao e um bloco, e as paradas sao as linhas dela.
    Sem o cabecalho da solicitacao, quatro paradas da mesma viagem viram uma
    lista solta e some a nocao de roteiro. */
+/* pino do mapa: numero da parada dentro, contorno branco porque varios
+   fornecedores ficam no mesmo bairro e os pontos encostam */
+.milk-pin-wrap{background:none;border:0}
+.milk-pin{width:26px;height:26px;border-radius:50%;border:2.5px solid #fff;
+  box-shadow:0 1px 4px rgba(11,25,38,.45);color:#fff;
+  font:700 12px/21px var(--font);text-align:center;
+  font-variant-numeric:tabular-nums}
+.milk-legenda{background:rgba(255,255,255,.94);border:1px solid var(--n200);
+  border-radius:10px;padding:8px 11px;font-size:12px;color:var(--n700);
+  box-shadow:0 2px 10px rgba(11,25,38,.18);line-height:1.9}
+.milk-legenda span{display:block;white-space:nowrap}
+.milk-legenda i{display:inline-block;width:11px;height:11px;border-radius:50%;
+  margin-right:7px;vertical-align:-1px;border:1.5px solid #fff;
+  box-shadow:0 0 0 1px rgba(11,25,38,.2)}
+.milk-legenda b{color:var(--n900);margin-left:4px}
+.milk-legenda .milk-leg-nota{margin-top:4px;padding-top:5px;
+  border-top:1px solid var(--n200);color:var(--n500);font-size:11px}
 .milk-filtros{display:flex;flex-wrap:wrap;gap:12px;align-items:flex-end;
   padding:0 18px 16px}
 .milk-filtros label{display:flex;flex-direction:column;gap:4px;
@@ -8638,7 +8655,12 @@ function planoResultado(d, gravado){
    Agrupado por SOLICITAÇÃO porque é assim que o roteiro existe no ERP: a
    coleta 55621 tem quatro paradas (10:00, 13:00, 15:00 e 17:00), e ver as
    linhas soltas perderia a noção de rota. */
-let DATAMILK = null, milkSeq = 0, milkMap = null, milkLayer = null;
+let DATAMILK = null, milkSeq = 0, milkMap = null, milkLayer = null, milkLeg = null;
+/* Cor de cada situacao, em um lugar so: mapa, legenda e chips leem daqui.
+   Duplicar a paleta fazia o pino e o selo da tabela discordarem. */
+const MILK_COR = {concluido:'#1E7F4F', no_local:'#B97709',
+                  aguardando:'#6B7580', frustrada:'#C03221'};
+const MILK_ORDEM = ['concluido','no_local','aguardando','frustrada'];
 let milkFiltro = 'todos';
 const DIA_SEM = ['domingo','segunda','terça','quarta','quinta','sexta','sábado'];
 /* rola ate o bloco daquele dia — o resumo por dia vira indice do que esta
@@ -8910,17 +8932,48 @@ async function milkMapa(pts){
   }
   if(milkLayer) milkLayer.remove();
   milkLayer=L.layerGroup().addTo(milkMap);
-  const cor={concluido:'#1E7F4F', no_local:'#B97709', aguardando:'#6B7580',
-             frustrada:'#C03221'};
+
+  /* Pino com a ORDEM da parada dentro. O circulo liso dizia o estado e nada
+     mais; num milk run a sequencia importa tanto quanto — "a terceira parada
+     travou" e a leitura que faltava. Marcador maior e com contorno branco
+     porque varios fornecedores ficam no mesmo bairro e os pontos encostam. */
   comCoord.forEach(p=>{
-    L.circleMarker([p.lat,p.lng],{radius:8, weight:2, color:'#fff',
-      fillColor:cor[p.estado]||cor.aguardando, fillOpacity:.95})
-     .bindTooltip(`<b>${esc(p.ponto||'')}</b><br>coleta ${p.coleta} · parada ${p.sequencia}`
+    const c = MILK_COR[p.estado] || MILK_COR.aguardando;
+    const ic = L.divIcon({className:'milk-pin-wrap', iconSize:[26,26],
+      iconAnchor:[13,13],
+      html:`<div class="milk-pin" style="background:${c}">${p.sequencia||''}</div>`});
+    L.marker([p.lat,p.lng], {icon:ic, riseOnHover:true})
+     .bindTooltip(`<b>${esc(p.ponto||'')}</b>`
+        + `<br>${esc(p.cidade||'')}/${esc(p.uf||'')}`
+        + `<br>coleta ${p.coleta} · parada ${p.sequencia}`
         + `<br>agendado ${(p.previsto||'').slice(11,16)}`
-        + (p.chegada?`<br>chegou ${(p.chegada).slice(11,16)}`:'<br>não chegou')
-        + (p.placa?`<br>${esc(p.placa)}`:''))
+        + (p.chegada?`<br>chegou ${(p.chegada).slice(11,16)}`:'<br>sem chegada detectada')
+        + (p.placa?`<br>${esc(p.placa)}`:''), {direction:'top', offset:[0,-10]})
      .addTo(milkLayer);
   });
+
+  /* LEGENDA no canto inferior esquerdo. Em mapa nao existe cabecalho para
+     explicar cor, e as quatro situacoes so se distinguem por ela. Como
+     controle do Leaflet, acompanha o zoom e nao cobre os marcadores do topo.
+     So conta o que EXISTE no recorte — legenda com item de contagem zero
+     ocupa espaco e nao ensina nada. */
+  if(milkLeg){ milkLeg.remove(); milkLeg=null; }
+  const usados = MILK_ORDEM.filter(e => comCoord.some(p=>p.estado===e));
+  if(usados.length){
+    milkLeg = L.control({position:'bottomleft'});
+    milkLeg.onAdd = function(){
+      const div = L.DomUtil.create('div','milk-legenda');
+      div.innerHTML = usados.map(e=>{
+        const n = comCoord.filter(p=>p.estado===e).length;
+        return `<span><i style="background:${MILK_COR[e]}"></i>${MILK_EST[e][1]}
+          <b>${n}</b></span>`;
+      }).join('') + '<span class="milk-leg-nota">o número no pino é a ordem da parada</span>';
+      L.DomEvent.disableClickPropagation(div);
+      return div;
+    };
+    milkLeg.addTo(milkMap);
+  }
+
   try{ milkMap.fitBounds(L.latLngBounds(comCoord.map(p=>[p.lat,p.lng])).pad(0.2)); }catch(e){}
   setTimeout(()=>milkMap.invalidateSize(), 60);
 }
