@@ -3,6 +3,54 @@
 #   - a tela Documentação     (#doc)
 #   - o rótulo no rodapé      (CX-DD/MM/AAAA-vX.Y.Z)
 # A versão do TOPO é a corrente e tem de bater com o pyproject.toml.
+- versao: "0.41.0"
+  data: "2026-08-25"
+  corrigido:
+    - >-
+      O "% realizado" do Milk Run estava INFLADO. A conta era coletadas sobre
+      coletadas+frustradas, entao a coleta que passou da hora e nao aconteceu
+      simplesmente saia do denominador em vez de pesar. Em 21/08 a tela dizia
+      100% num dia com 14 coletas, 8 feitas e 6 perdidas. Agora o denominador
+      e o que JA TINHA DE ESTAR RESOLVIDO - feitas, frustradas e as pendentes
+      ja vencidas. Numeros do periodo 11 a 25/08: 21/08 caiu de 100% para
+      57,1%, 14/08 de 87,5% para 58,3% e o total de 93% para 87,9%.
+    - >-
+      Dia AINDA EM ANDAMENTO deixou de sair pintado como dia concluido. Hoje
+      as 11h30 havia 4 de 15 coletas feitas e 9 com horario a frente: o indice
+      dizia 100% em verde. O percentual continua certo (e 100% do que venceu),
+      mas agora sai em tom neutro com a marca "em andamento - faltam 9".
+    - >-
+      No grafico de Saldo projetado do Fluxo Consolidado, os rotulos do fim do
+      eixo se sobrepunham. O ultimo periodo era desenhado sempre, mesmo colado
+      no anterior; por semana isso acontecia quase sempre - 26 semanas em
+      bandas de 33 px com rotulos de 66 px. Agora a colisao e medida e a
+      prioridade e do ultimo periodo, que e o que se procura no grafico.
+  adicionado:
+    - >-
+      FILTRO TIPO no Milk Run, separando o roteiro de coleta do frete ponto a
+      ponto: milk run e a solicitacao com MAIS DE UMA coleta. Em agosto, 87
+      das 234 solicitacoes da MWM tem parada unica e nao sao milk run. A tela
+      abre so no milk run e diz no cartao quantas ficaram de fora.
+    - >-
+      VEICULOS NO MAPA, com icone de caminhao na posicao de AGORA (ultima
+      posicao do rastreador, mesma fonte da Torre). Caminhao vazado significa
+      posicao com mais de duas horas - nao afirma "esta aqui" sobre um
+      rastreador que calou.
+    - >-
+      Botao EXPANDIR o mapa para a tela inteira, com Esc para voltar.
+    - >-
+      LEGENDA INTERATIVA: clicar numa situacao esconde ou mostra aqueles
+      pontos no mapa, duplo clique isola so ela, e o mesmo vale para os
+      veiculos. O que esta escondido fica apagado na legenda em vez de sumir -
+      sumindo, nao haveria caminho de volta. O filtro e so do mapa e nao mexe
+      nos filtros da tela.
+  alterado:
+    - >-
+      Solicitacao cujas paradas sao TODAS o mesmo endereco (4 das 147 no
+      periodo, tres delas na propria planta da MWM) fica marcada num aviso em
+      vez de reclassificada: pela regra de contagem sao milk run, na pratica
+      sao varias cargas no mesmo lugar. Definir isso e da operacao.
+
 - versao: "0.40.0"
   data: "2026-08-25"
   adicionado:

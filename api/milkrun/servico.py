@@ -17,6 +17,14 @@ MODELO DE DADOS (decifrado no ERP, não documentado em lugar nenhum):
   escondida atrás de uma hora que alguém digitou.
 - `coletada = 1` e `frustrada = 1` são os desfechos que a operação registra.
 
+MILK RUN × COLETA SIMPLES. A mesma tabela guarda as duas coisas: 87 das 234
+solicitações da MWM em agosto têm UMA parada só — é frete ponto a ponto, não
+roteiro de coleta. O critério é o número de paradas da solicitação (> 1 = milk
+run), e ele é medido ANTES dos filtros da tela: um milk run de quatro paradas
+filtrado por um fornecedor mostra uma parada só, e classificar depois do filtro
+o rebaixaria a "coleta simples" — a tela mudaria a natureza da operação
+conforme quem está olhando.
+
 `coleta.dtrealizado` NÃO serve como hora de chegada: na coleta 55643 marca
 21/08 21:32 para uma coleta prevista em 25/08 16:00 — quatro dias ANTES. É
 carimbo de processamento da solicitação.
@@ -80,12 +88,52 @@ WHERE veiculo = ANY(%(placas)s)
 ORDER BY veiculo, dt
 """
 
+# Onde cada veiculo esta AGORA. `veiculo_ultimaposicaomacro` guarda o
+# ponteiro para a ultima posicao de cada placa, entao isto nao varre o
+# historico — e a mesma fonte que a Torre usa, para as duas telas nunca
+# discordarem sobre onde o caminhao esta.
+POS_ATUAL_SQL = """
+SELECT um.veiculo AS placa,
+       vp.latituderastreadora::float8  AS lat,
+       vp.longituderastreadora::float8 AS lng,
+       to_char(vp.dt,'YYYY-MM-DD HH24:MI') AS posicao_em,
+       greatest(vp.velocidade,0)::int AS velocidade,
+       (vp.dt >= current_timestamp - interval '2 hours') AS recente
+FROM rastreamento.veiculo_ultimaposicaomacro um
+JOIN veiculo_posicao vp ON vp.veiculo = um.veiculo
+ AND vp.sequenciaposicaoveiculo = um.sequenciaposicaoveiculo
+WHERE um.veiculo = ANY(%(placas)s)
+  AND vp.latituderastreadora IS NOT NULL
+  AND vp.longituderastreadora IS NOT NULL
+"""
+
 SIT = {2: "pendente", 3: "pendente", 4: "pendente", 6: "em andamento",
        7: "finalizada", 8: "cancelada"}
 
 
 def _iso(v) -> str | None:
     return v.isoformat() if v else None
+
+
+def _venceu(ponto: dict, agora: datetime) -> bool:
+    """A parada JA DEVERIA ter acontecido. Sem horario agendado nao da para
+    dizer que venceu — e a mesma razao pela qual `classificar` devolve "sem
+    janela" em vez de inventar atraso."""
+    prev = ponto.get("previsto")
+    return bool(prev) and prev < agora.isoformat()
+
+
+def _pct(concluidos: int, frustrados: int, vencidas: int) -> float | None:
+    """Realizadas sobre o que JA TINHA DE ESTAR RESOLVIDO.
+
+    Denominador = coletadas + frustradas + pendentes cujo horario ja passou.
+    As duas pontas importam: parada das 15h fora do denominador as 11h (senao
+    a manha parece um desastre), e parada das 9h que ninguem fez DENTRO dele
+    (senao ela some do indice em vez de pesar). Sem a segunda metade, 21/08
+    marcava 100% com 6 coletas perdidas.
+    """
+    den = concluidos + frustrados + vencidas
+    return round(100 * concluidos / den, 1) if den else None
 
 
 def _mediana(vals: list) -> float | None:
@@ -100,11 +148,15 @@ def _mediana(vals: list) -> float | None:
 @cached(ttl=60)
 def get_milkrun(de: str | None = None, ate: str | None = None,
                 tomador: str = "02162259", situacao: str = "",
-                fornecedor: str = "", placa: str = "") -> dict:
+                fornecedor: str = "", placa: str = "",
+                tipo: str = "milk") -> dict:
     """Operação do período, agrupada por DATA e, dentro dela, por solicitação.
 
     `tomador` é a RAIZ do CNPJ: a MWM tem quatro filiais cadastradas e a
     solicitação pode ser tomada por qualquer uma delas.
+
+    `tipo`: 'milk' (só solicitações com mais de uma parada, o padrão da tela),
+    'simples' (só as de parada única) ou '' para as duas.
 
     Os filtros de situação, fornecedor e placa são aplicados ANTES de somar
     os indicadores — KPI que não segue o filtro da tela mente sobre o recorte
@@ -135,6 +187,16 @@ def get_milkrun(de: str | None = None, ate: str | None = None,
                 "ate": (fim_dia + timedelta(hours=FOLGA_DEPOIS_H)).isoformat()})
             for p in cur.fetchall():
                 rastro.setdefault(p["veiculo"], []).append(dict(p))
+
+        # POSICAO ATUAL de cada placa do periodo, para o mapa mostrar onde o
+        # caminhao esta agora e nao so onde as paradas ficam. Consulta separada
+        # de proposito: o rastro do periodo pode ter dias, e a ultima posicao
+        # tem de ser a de AGORA, inclusive quando o periodo filtrado ja passou.
+        posicoes: dict[str, dict] = {}
+        if placas:
+            cur.execute(POS_ATUAL_SQL, {"placas": placas})
+            for p in cur.fetchall():
+                posicoes[p["placa"]] = dict(p)
 
         cur.execute("SELECT current_timestamp AS ts")
         agora = cur.fetchone()["ts"]
@@ -211,12 +273,34 @@ def get_milkrun(de: str | None = None, ate: str | None = None,
             return False
         return True
 
-    grupos = []
+    alvo_tipo = (tipo or "").strip().lower()
+
+    grupos, fora_tipo = [], {"milk": 0, "simples": 0}
     for c in coletas.values():
+        # NATUREZA DA SOLICITACAO — medida sobre as paradas ORIGINAIS. Depois
+        # do filtro de fornecedor um roteiro de quatro paradas aparece com uma
+        # so, e classificar aqui embaixo o chamaria de coleta simples: a tela
+        # mudaria o que a operacao E conforme o filtro de quem olha.
+        paradas_total = len(c["pontos"])
+        e_milk = paradas_total > 1
+        if alvo_tipo == "milk" and not e_milk:
+            fora_tipo["simples"] += 1
+            continue
+        if alvo_tipo == "simples" and e_milk:
+            fora_tipo["milk"] += 1
+            continue
+
         pts = [x for x in c["pontos"] if _passa(x)]
         if not pts:
             continue
         c = {**c, "pontos": pts}
+        c["paradas_total"] = paradas_total
+        c["milkrun"] = e_milk
+        # Roteiro cujas paradas sao TODAS o mesmo endereco: pela contagem e
+        # milk run, na pratica sao varias cargas no mesmo lugar. Sao 4 em 147
+        # e tres delas na propria planta da MWM. Fica marcado em vez de
+        # reclassificado — a regra e do usuario, o aviso e meu.
+        c["mesmo_local"] = e_milk and len({x["ponto"] for x in c["pontos"]}) == 1
         c["total"] = len(pts)
         c["concluidos"] = sum(1 for x in pts if x["estado"] == "concluido")
         c["frustrados"] = sum(1 for x in pts if x["estado"] == "frustrada")
@@ -237,34 +321,45 @@ def get_milkrun(de: str | None = None, ate: str | None = None,
         dia_g = dias.setdefault(g["data"], {
             "data": g["data"], "solicitacoes": 0, "pontos": 0,
             "concluidos": 0, "frustrados": 0, "pendentes": 0, "no_local": 0,
-            "coletas": []})
+            "vencidas": 0, "coletas": []})
         dia_g["solicitacoes"] += 1
         dia_g["pontos"] += g["total"]
         dia_g["concluidos"] += g["concluidos"]
         dia_g["frustrados"] += g["frustrados"]
         dia_g["pendentes"] += g["pendentes"]
         dia_g["no_local"] += g["no_local"]
+        # pendentes que ja passaram da hora — entram no denominador
+        dia_g["vencidas"] += sum(1 for x in g["pontos"]
+                                 if x["estado"] == "aguardando"
+                                 and _venceu(x, agora))
         dia_g["coletas"].append(g)
     for x in dias.values():
-        # % realizado sobre o que ja tem desfecho (coletado + frustrado): usar
-        # o total inflaria o denominador com parada que ainda nem venceu e
-        # faria a manha parecer um desastre.
-        fechados = x["concluidos"] + x["frustrados"]
-        x["pct_realizado"] = (round(100 * x["concluidos"] / fechados, 1)
-                              if fechados else None)
+        x["pct_realizado"] = _pct(x["concluidos"], x["frustrados"],
+                                  x["vencidas"])
         x["pct_do_total"] = (round(100 * x["concluidos"] / x["pontos"], 1)
                              if x["pontos"] else None)
+        # AINDA POR VIR: pendente cujo horario nao chegou. Enquanto houver
+        # uma, o dia esta EM ANDAMENTO e um 100% ali significa "100% do que
+        # venceu ate agora", nao "dia concluido" — a tela tem de dizer isso,
+        # senao um dia 27% cumprido aparece verde e completo.
+        x["a_vencer"] = x["pendentes"] - x["vencidas"]
+        x["em_andamento"] = x["a_vencer"] > 0
     por_data = sorted(dias.values(), key=lambda x: x["data"])
 
-    fechados_tot = sum(1 for x in todos if x["estado"] in ("concluido", "frustrada"))
     concl_tot = sum(1 for x in todos if x["estado"] == "concluido")
+    frustr_tot = sum(1 for x in todos if x["estado"] == "frustrada")
+    venc_tot = sum(1 for x in todos if x["estado"] == "aguardando"
+                   and _venceu(x, agora))
+    aventar_tot = sum(1 for x in todos if x["estado"] == "aguardando") - venc_tot
 
     return {
         "de": d_de.isoformat(), "ate": d_ate.isoformat(),
         "dia": d_de.isoformat(),           # compatibilidade
         "tomador": tomador,
         "filtros": {"situacao": alvo_sit, "fornecedor": fornecedor,
-                    "placa": placa},
+                    "placa": placa, "tipo": alvo_tipo},
+        # onde cada veiculo do recorte esta agora
+        "veiculos_pos": posicoes,
         "por_data": por_data,
         "coletas": grupos,
         "kpis": {
@@ -288,14 +383,25 @@ def get_milkrun(de: str | None = None, ate: str | None = None,
             # o antigo "manual x rastro" com utilidade
             "sem_rastro": sum(1 for x in todos if not x["chegada"]),
             "dias": len(por_data),
-            # realizado sobre o que ja teve desfecho — parada que ainda nao
-            # venceu nao conta contra o indice
-            "pct_realizado": (round(100 * concl_tot / fechados_tot, 1)
-                              if fechados_tot else None),
+            # realizado sobre o que JA TINHA DE ESTAR RESOLVIDO: feitas,
+            # frustradas e as pendentes que passaram da hora. Parada que ainda
+            # nao venceu fica fora; parada vencida e nao feita PESA.
+            "pct_realizado": _pct(concl_tot, frustr_tot, venc_tot),
+            "vencidas": venc_tot,
+            "a_vencer": aventar_tot,
             "permanencia_mediana": _mediana(
                 [x["permanencia_min"] for x in todos
                  if x["permanencia_min"] is not None]),
             "fornecedores": len({x["ponto"] for x in todos if x["ponto"]}),
+            # o que o filtro de tipo deixou de fora — sem isto o total da tela
+            # some sem explicacao quando alguem troca o recorte
+            "fora_simples": fora_tipo["simples"],
+            "fora_milk": fora_tipo["milk"],
+            "paradas_por_solicitacao": (round(len(todos) / len(grupos), 1)
+                                        if grupos else None),
+            "mesmo_local": sum(1 for g in grupos if g.get("mesmo_local")),
+            "veiculos_ao_vivo": sum(1 for v in posicoes.values()
+                                    if v.get("recente")),
         },
         "atualizado_em": agora.isoformat(),
         "fonte": ("ERP AVA · coleta + coleta_cliente (cada linha é um PONTO do "

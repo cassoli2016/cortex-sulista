@@ -2011,10 +2011,13 @@ _ANTEC_MAX_BYTES = 12 * 1024 * 1024   # a planilha da Maxion tem 85 KB; 12 MB co
 def operacao_milkrun(de: str | None = None, ate: str | None = None,
                      tomador: str = "02162259", situacao: str = "",
                      fornecedor: str = "", placa: str = "",
+                     tipo: str = "milk",
                      dia: str | None = None) -> JSONResponse:
     """Milk run do periodo: cada parada com o horario COMBINADO e o DETECTADO.
 
     O detectado vem do rastro, nao de digitacao — e a razao de a tela existir.
+    `tipo` separa o milk run (solicitacao com mais de uma parada) do frete
+    ponto a ponto, que divide a mesma tabela no ERP.
     `dia` continua aceito por compatibilidade com o link antigo.
     """
     from api.milkrun.servico import get_milkrun
@@ -2030,9 +2033,13 @@ def operacao_milkrun(de: str | None = None, ate: str | None = None,
         return JSONResponse(status_code=422, content={
             "erro": "parametro_invalido",
             "mensagem": "Tomador invalido: informe so os digitos do CNPJ."})
+    if (tipo or "") not in ("milk", "simples", ""):
+        return JSONResponse(status_code=422, content={
+            "erro": "parametro_invalido",
+            "mensagem": "Tipo invalido: use milk, simples ou vazio."})
     try:
         return JSONResponse(get_milkrun(de, ate, tomador, situacao,
-                                        fornecedor, placa))
+                                        fornecedor, placa, tipo))
     except psycopg.OperationalError as exc:
         log.warning("banco inacessivel: %s", exc)
         return JSONResponse(status_code=503, content={

@@ -250,7 +250,13 @@ svg:focus-visible{outline:2px solid var(--orange-500);outline-offset:2px;border-
    lista solta e some a nocao de roteiro. */
 /* pino do mapa: numero da parada dentro, contorno branco porque varios
    fornecedores ficam no mesmo bairro e os pontos encostam */
-.milk-pin-wrap{background:none;border:0}
+.milk-pin-wrap,.milk-truck-wrap{background:none;border:0}
+/* caminhao: retangulo em vez de circulo, para nao ser confundido com parada */
+.milk-truck{width:34px;height:22px;border-radius:6px;border:2px solid #fff;
+  background:var(--navy-700);color:#fff;display:flex;align-items:center;
+  justify-content:center;box-shadow:0 1px 5px rgba(11,25,38,.5)}
+.milk-truck svg{width:17px;height:17px}
+.milk-truck.velho{background:#fff;color:var(--n500);border-color:var(--n500)}
 .milk-pin{width:26px;height:26px;border-radius:50%;border:2.5px solid #fff;
   box-shadow:0 1px 4px rgba(11,25,38,.45);color:#fff;
   font:700 12px/21px var(--font);text-align:center;
@@ -263,14 +269,47 @@ svg:focus-visible{outline:2px solid var(--orange-500);outline-offset:2px;border-
   margin-right:7px;vertical-align:-1px;border:1.5px solid #fff;
   box-shadow:0 0 0 1px rgba(11,25,38,.2)}
 .milk-legenda b{color:var(--n900);margin-left:4px}
+.milk-legenda .milk-leg-b{cursor:pointer;border-radius:6px;padding:1px 5px;
+  margin-left:-5px;user-select:none;transition:background .12s}
+.milk-legenda .milk-leg-b:hover{background:var(--n100)}
+.milk-legenda .milk-leg-b:focus-visible{outline:2px solid var(--orange-500);
+  outline-offset:1px}
+/* ESCONDIDO fica apagado, NAO some: sumir da legenda tiraria o caminho de
+   volta — a pessoa esconde e nao acha mais como mostrar. */
+.milk-legenda .milk-leg-b.off{opacity:.4;text-decoration:line-through}
+.milk-legenda .milk-leg-b.off i{background:var(--n300)!important;
+  border-color:var(--n300)}
+.milk-legenda .milk-leg-veic i{width:20px;height:14px;border-radius:4px;
+  background:var(--navy-700);color:#fff;display:inline-flex;align-items:center;
+  justify-content:center;border:1.5px solid #fff;vertical-align:-3px;
+  margin-right:7px;box-shadow:0 0 0 1px rgba(11,25,38,.2)}
+.milk-legenda .milk-leg-veic i.velho{background:#fff;color:var(--n500);
+  border-color:var(--n500)}
+.milk-legenda .milk-leg-veic svg{width:11px;height:11px}
 .milk-legenda .milk-leg-nota{margin-top:4px;padding-top:5px;
   border-top:1px solid var(--n200);color:var(--n500);font-size:11px}
+/* MAPA EXPANDIDO. `position:fixed` cobrindo a viewport em vez de
+   requestFullscreen(): o fullscreen nativo tira a pagina do fluxo e o Leaflet
+   perde o tamanho ao voltar; e em iPad o Safari simplesmente ignora a chamada.
+   Assim funciona igual em tudo e o Esc continua fechando. */
+.milk-mapa-exp{position:fixed;inset:0;z-index:1200;margin:0;border-radius:0;
+  display:flex;flex-direction:column;background:#fff}
+.milk-mapa-exp>.head{border-radius:0}
+.milk-mapa-exp #mapaMilk{flex:1;height:auto!important;border-radius:0}
+/* marcas da linha do dia: o que venceu sem ser feito e o dia ainda correndo */
+.milk-venc,.milk-andam{display:block;font-weight:600;font-size:10.5px;
+  letter-spacing:.02em;margin-top:2px}
+.milk-venc{color:var(--red)}
+.milk-andam{color:var(--n500)}
 .milk-filtros{display:flex;flex-wrap:wrap;gap:12px;align-items:flex-end;
   padding:0 18px 16px}
 .milk-filtros label{display:flex;flex-direction:column;gap:4px;
   font:600 10.5px/1 var(--font);letter-spacing:.8px;text-transform:uppercase;
   color:var(--n500)}
 .milk-filtros label>span{display:flex;gap:6px}
+.milk-filtros select{padding:7px 10px;border:1px solid var(--n300);
+  border-radius:8px;font:inherit;background:#fff;color:var(--n900)}
+.milk-filtros select:focus{outline:2px solid var(--orange-500);outline-offset:-1px}
 .milk-filtros input{padding:7px 10px;border:1px solid var(--n300);
   border-radius:8px;font:inherit;font-size:13px;min-width:0}
 .milk-filtros input:focus{outline:2px solid var(--orange-500);outline-offset:-1px}
@@ -2502,6 +2541,11 @@ body.tvfull #btnReport,body.tvmode #btnReport{display:none}
               <input type="date" id="fMilkDe" onchange="loadMilkrun()" aria-label="Data inicial">
               <input type="date" id="fMilkAte" onchange="loadMilkrun()" aria-label="Data final">
             </span></label>
+            <label>Tipo<select id="fMilkTipo" onchange="loadMilkrun()" aria-label="Tipo de solicitação">
+              <option value="milk" selected>Milk run (2+ coletas)</option>
+              <option value="simples">Coleta simples (1 coleta)</option>
+              <option value="">Todas</option>
+            </select></label>
             <label>Fornecedor<input type="search" id="fMilkForn" placeholder="parte do nome"
                    onchange="loadMilkrun()" aria-label="Fornecedor"></label>
             <label>Veículo<input type="search" id="fMilkPlaca" placeholder="placa"
@@ -2524,8 +2568,10 @@ body.tvfull #btnReport,body.tvmode #btnReport{display:none}
         </div>
         <div id="milk-grupos"></div>
         <div class="card">
-          <div class="head"><h2>Mapa da operação <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="Cada marcador é um ponto de coleta do dia, com a cor da situação. Verde = coletado, âmbar = veículo no local agora, cinza = ainda não chegou.">i</span></h2>
-            <span class="hint">pontos de coleta do dia</span></div>
+          <div class="head"><h2>Mapa da operação <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="Pino redondo = ponto de coleta, com o número da parada dentro e a cor da situação. Ícone de caminhão = onde o veículo está AGORA (última posição do rastreador, não a do período filtrado); caminhão vazado significa posição com mais de 2 horas.">i</span></h2>
+            <span class="hint" id="hintMilkMapa">pontos de coleta e veículos</span>
+            <button class="ghost" id="btnMilkExp" onclick="milkExpandir()"
+                    aria-expanded="false" title="Expandir o mapa para a tela inteira">Expandir</button></div>
           <div id="mapaMilk" style="height:420px;border-radius:0 0 10px 10px;background:var(--navy-50)"></div>
         </div>
         <div id="milk-avisos"></div>
@@ -8167,8 +8213,24 @@ function chartFcRender(linhas){
   });
   s=`<defs><pattern id="hatchFc" width="6" height="6" patternTransform="rotate(45)" patternUnits="userSpaceOnUse">`
     +`<rect width="6" height="6" fill="#9AA3AE"/><rect width="2.4" height="6" fill="#fff" opacity=".62"/></pattern></defs>`+s;
+  /* ROTULOS DO EIXO X. Antes: `i%passo===0||i===n-1`, que forcava o ultimo
+     rotulo mesmo quando n-1 nao caia no passo — ele nascia colado no anterior
+     e os dois viravam um borrao. Com granularidade SEMANA isso acontecia
+     quase sempre, porque o numero de semanas raramente e multiplo do passo.
+
+     Agora a colisao e medida de verdade, e a PRIORIDADE E DO ULTIMO: e o fim
+     do horizonte, o rotulo que se procura no grafico. Quem colide com ele
+     sai. */
+  const larg=r=>String(r||'').length*5.7+9;   // ~largura do texto a 10px
   const passo=Math.max(1,Math.round(n/12));
-  linhas.forEach((l,i)=>{ if(i%passo===0||i===n-1)
+  const idx=[];
+  for(let i=0;i<n;i+=passo) idx.push(i);
+  if(idx[idx.length-1]!==n-1) idx.push(n-1);
+  for(let k=idx.length-2;k>=0;k--){
+    const a=idx[k], b=idx[k+1];
+    if(px(b)-larg(linhas[b].rotulo)/2 < px(a)+larg(linhas[a].rotulo)/2) idx.splice(k,1);
+  }
+  idx.forEach(i=>{ const l=linhas[i];
     s+=`<text x="${px(i)}" y="${H-mB+18}" text-anchor="middle" font-size="10" fill="#4F5860">${esc(l.rotulo)}</text>`; });
   s+=`<line id="chartFc-xhair" x1="0" x2="0" y1="${mT-10}" y2="${mT+ih}" stroke="${CC.navy400}" stroke-width="1" opacity="0"/>`;
   s+=`<rect x="${mL}" y="${mT-10}" width="${iw}" height="${ih+10}" fill="transparent"/>`;
@@ -8661,6 +8723,23 @@ let DATAMILK = null, milkSeq = 0, milkMap = null, milkLayer = null, milkLeg = nu
 const MILK_COR = {concluido:'#1E7F4F', no_local:'#B97709',
                   aguardando:'#6B7580', frustrada:'#C03221'};
 const MILK_ORDEM = ['concluido','no_local','aguardando','frustrada'];
+/* Situacoes ESCONDIDAS pelo clique na legenda. Vive fora de milkMapa() porque
+   a escolha tem de sobreviver ao redesenho — recolher o mapa e reabrir nao
+   pode ressuscitar o que a pessoa acabou de esconder. `veic` e o caminhao. */
+const MILK_OCULTO = new Set();
+function milkLegToggle(estado){
+  if(MILK_OCULTO.has(estado)) MILK_OCULTO.delete(estado);
+  else MILK_OCULTO.add(estado);
+  if(DATAMILK) milkMapa((DATAMILK.coletas||[]).flatMap(g=>g.pontos));
+}
+function milkLegSo(estado){
+  // duplo clique = ISOLAR. Com quatro situacoes, chegar em "so as frustradas"
+  // custava tres cliques; aqui custa um. Repetir volta a mostrar tudo.
+  const so = MILK_OCULTO.size===MILK_ORDEM.length && !MILK_OCULTO.has(estado);
+  MILK_OCULTO.clear();
+  if(!so) MILK_ORDEM.concat(['veic']).forEach(e=>{ if(e!==estado) MILK_OCULTO.add(e); });
+  if(DATAMILK) milkMapa((DATAMILK.coletas||[]).flatMap(g=>g.pontos));
+}
 let milkFiltro = 'todos';
 const DIA_SEM = ['domingo','segunda','terça','quarta','quinta','sexta','sábado'];
 /* rola ate o bloco daquele dia — o resumo por dia vira indice do que esta
@@ -8709,6 +8788,7 @@ async function loadMilkrun(fundo){
     }
     const p=new URLSearchParams();
     p.set('de', V('fMilkDe')); p.set('ate', V('fMilkAte')||V('fMilkDe'));
+    p.set('tipo', V('fMilkTipo'));
     if(V('fMilkForn')) p.set('fornecedor', V('fMilkForn'));
     if(V('fMilkPlaca')) p.set('placa', V('fMilkPlaca'));
     if(milkFiltro!=='todos') p.set('situacao', milkFiltro);
@@ -8721,6 +8801,28 @@ async function loadMilkrun(fundo){
   finally{ if(seq===milkSeq){ if(btn) btn.disabled=false;
     document.getElementById('content').classList.remove('loading'); } }
 }
+
+/* Expandir/recolher o mapa. `invalidateSize` DEPOIS do reflow (rAF duplo):
+   chamado antes, o Leaflet mede o card antigo e o mapa fica com um retangulo
+   cinza cobrindo metade da tela. */
+function milkExpandir(){
+  const card = document.getElementById('mapaMilk').closest('.card');
+  const b = document.getElementById('btnMilkExp');
+  const abrindo = !card.classList.contains('milk-mapa-exp');
+  card.classList.toggle('milk-mapa-exp', abrindo);
+  document.body.style.overflow = abrindo ? 'hidden' : '';
+  b.textContent = abrindo ? 'Recolher' : 'Expandir';
+  b.setAttribute('aria-expanded', String(abrindo));
+  requestAnimationFrame(()=>requestAnimationFrame(()=>{
+    if(milkMap) milkMap.invalidateSize();
+  }));
+  if(abrindo) b.focus();
+}
+document.addEventListener('keydown', e=>{
+  // Esc fecha: o mapa cobre a tela inteira e sem isto a unica saida e achar
+  // o botao por cima do mapa.
+  if(e.key==='Escape' && document.querySelector('.milk-mapa-exp')) milkExpandir();
+});
 
 function milkFiltrar(f){
   /* Recarrega em vez de filtrar em memoria: os indicadores do topo sao
@@ -8748,12 +8850,19 @@ function renderMilkrun(d){
      ser conferida de olho, sem o leitor se perguntar onde foi parar o resto. */
   const totColetas = k.pontos||0;
   const fatia = n => totColetas ? pct(n||0, totColetas) : '—';
+  /* O QUE O FILTRO DE TIPO DEIXOU DE FORA. Sem isto o total da tela cai de
+     234 para 147 quando alguem troca o recorte e nada explica o sumico —
+     parece dado faltando. */
+  const tipoFora = k.fora_simples ? (k.fora_simples+' coleta(s) simples fora')
+                 : (k.fora_milk ? (k.fora_milk+' milk run fora') : '');
   document.getElementById('kpis-milkrun').innerHTML=[
     kpi('Solicitações', (k.solicitacoes||0).toLocaleString('pt-BR'),
-        (k.dias||0)+' dia(s) no período'
-          +(k.dias?(' · '+(Math.round(10*(k.solicitacoes||0)/k.dias)/10).toLocaleString('pt-BR')+' por dia'):''),
+        (k.paradas_por_solicitacao!=null
+          ? (k.paradas_por_solicitacao.toLocaleString('pt-BR')+' coletas por solicitação')
+          : ((k.dias||0)+' dia(s) no período'))
+          + (tipoFora ? (' · '+tipoFora) : ''),
         '',
-        'Documentos de solicitação de coleta no período. Cada solicitação é um roteiro e pede uma ou mais coletas — até quatro.'),
+        'Documentos de solicitação de coleta no recorte. MILK RUN é a solicitação com MAIS DE UMA coleta — o roteiro que passa em vários fornecedores. A de coleta única é frete ponto a ponto e divide a mesma tabela no ERP; o filtro Tipo separa as duas, e o subtítulo diz quantas ficaram de fora.'),
     kpi('Coletas pedidas', totColetas.toLocaleString('pt-BR'),
         (k.fornecedores||0)+' fornecedor(es) · '+(k.veiculos||0)+' veículo(s)', '',
         'Total de paradas pedidas nas solicitações do período — é a soma das quatro situações ao lado: coletadas, frustradas, pendentes e no local.'),
@@ -8772,9 +8881,10 @@ function renderMilkrun(d){
         'Coletas em que o veículo ainda não chegou. "Atrasada" compara a chegada detectada com a janela agendada, com tolerância de 30 minutos. Somadas às coletadas, frustradas e às que estão no local, dão o total de coletas pedidas.'),
     kpi('% realizado',
         k.pct_realizado==null?'—':(k.pct_realizado.toLocaleString('pt-BR',{maximumFractionDigits:1})+'%'),
-        (k.concluidos||0)+' de '+((k.concluidos||0)+(k.frustrados||0))+' com desfecho',
+        (k.concluidos||0)+' de '+((k.concluidos||0)+(k.frustrados||0)+(k.vencidas||0))+' que já venciam'
+          +(k.a_vencer?(' · '+k.a_vencer+' ainda por vir'):''),
         k.pct_realizado==null?'':(k.pct_realizado>=95?'pos':(k.pct_realizado>=85?'warn':'neg')),
-        'Coletadas sobre as que já tiveram DESFECHO — coletada ou frustrada. Coleta que ainda não venceu fica FORA do denominador: incluí-la faria a manhã parecer um desastre só porque a tarde ainda não aconteceu.'),
+        'Coletadas sobre o que JÁ TINHA DE ESTAR RESOLVIDO: coletadas + frustradas + pendentes cujo horário já passou. As duas pontas importam. A parada das 15h fica fora do denominador às 11h — incluí-la faria a manhã parecer um desastre só porque a tarde não chegou. E a parada das 9h que ninguém fez fica DENTRO: antes ela sumia da conta em vez de pesar, e um dia com 6 coletas perdidas de 14 aparecia como 100% realizado.'),
     kpi('Permanência mediana',
         k.permanencia_mediana==null?'—':(Math.round(k.permanencia_mediana)+' min'),
         'tempo em cada fornecedor, pelo rastreamento', '',
@@ -8791,7 +8901,11 @@ function renderMilkrun(d){
   document.getElementById('hintMilkDias').textContent =
     pd.length ? (pd.length+' dia(s) no período') : '';
   document.getElementById('milk-dias').innerHTML=pd.map(x=>{
-    const cor = x.pct_realizado==null ? 'inherit'
+    /* DIA EM ANDAMENTO nao ganha cor de desempenho. Hoje as 11h30 tem 4 de
+       15 coletas feitas e 9 ainda por vir: o indice diz 100% porque tudo que
+       venceu foi cumprido, o que e verdade e le como "dia concluido" se sair
+       em verde. Neutro + chip com o que falta. */
+    const cor = (x.pct_realizado==null || x.em_andamento) ? 'var(--n700)'
       : (x.pct_realizado>=95?'var(--green)':(x.pct_realizado>=85?'var(--yellow-700)':'var(--red)'));
     return `<tr>
       <td><span class="milk-dia-link" onclick="milkIrPara('${x.data}')">${fmtD(x.data)}</span>
@@ -8800,8 +8914,9 @@ function renderMilkrun(d){
       <td class="num">${x.pontos}</td>
       <td class="num" style="color:var(--green)">${x.concluidos}</td>
       <td class="num" style="color:${x.frustrados>0?'var(--red)':'var(--n500)'}">${x.frustrados||'—'}</td>
-      <td class="num">${x.pendentes||'—'}</td>
-      <td class="num" style="font-weight:700;color:${cor}">${x.pct_realizado==null?'—':x.pct_realizado.toLocaleString('pt-BR',{maximumFractionDigits:1})+'%'}</td>
+      <td class="num">${x.pendentes||'—'}${x.vencidas?`<span class="milk-venc" title="${x.vencidas} já passaram do horário agendado e não foram coletadas — estas PESAM no % realizado">${x.vencidas} venc.</span>`:''}</td>
+      <td class="num" style="font-weight:700;color:${cor}">${x.pct_realizado==null?'—':x.pct_realizado.toLocaleString('pt-BR',{maximumFractionDigits:1})+'%'}${
+        x.em_andamento?`<span class="milk-andam" title="O dia ainda está correndo: ${x.a_vencer} coleta(s) com horário à frente. Este percentual é sobre o que JÁ venceu, não sobre o dia inteiro.">em andamento · faltam ${x.a_vencer}</span>`:''}</td>
       <td style="width:120px"><div class="trk" style="height:8px;background:var(--n200);border-radius:999px;overflow:hidden">
         <i style="display:block;height:100%;width:${x.pct_do_total||0}%;background:${cor}"></i></div></td></tr>`;
   }).join('') || '<tr><td colspan="8" style="color:var(--n500)">nenhum dia no recorte</td></tr>';
@@ -8898,6 +9013,10 @@ function renderMilkrun(d){
   if((d.filtros||{}).fornecedor) rec.push('fornecedor "'+d.filtros.fornecedor+'"');
   if((d.filtros||{}).placa) rec.push('placa '+d.filtros.placa);
   if((d.filtros||{}).situacao) rec.push('só '+(MILK_EST[d.filtros.situacao]||['',d.filtros.situacao])[1]);
+  const ft=(d.filtros||{}).tipo;
+  rec.push(ft==='milk' ? 'só milk run (2+ coletas)'
+        : ft==='simples' ? 'só coleta simples (1 coleta)'
+        : 'milk run e coleta simples juntos');
   document.getElementById('hintMilk').textContent =
     rec.join(' · ') + ' — ' + (grupos.length
       ? (grupos.length+' solicitação(ões) · '+(k.pontos||0)+' coleta(s)')
@@ -8909,6 +9028,9 @@ function renderMilkrun(d){
   if(calibrar.length) A.push(['t-info',
     calibrar.length+' coleta(s) sem chegada detectada, com veículo e coordenada',
     'O veículo estava alocado e o fornecedor tem coordenada, mas o rastreamento não achou a chegada. Quase sempre a coordenada aponta a portaria e a doca fica adiante, ou o raio padrão de 300 m é pequeno para o pátio. A coluna Dist. das coletas detectadas mostra o quão perto o veículo costuma parar — é o que permite acertar o raio de cada ponto.']);
+  if(k.mesmo_local>0) A.push(['t-info',
+    k.mesmo_local+' solicitação(ões) com todas as paradas no MESMO endereço',
+    'Pela regra de contagem são milk run (têm mais de uma coleta), mas as paradas apontam para um único local — na prática são várias cargas no mesmo lugar, não um roteiro. Ficam marcadas em vez de reclassificadas: definir o que é milk run é da operação, não meu. Se quiser que contem como coleta simples, é só dizer.']);
   if(k.sem_placa>0) A.push(['t-warn','Sem veículo alocado em '+k.sem_placa+' parada(s)',
     'A solicitação não tem placa, então não há o que rastrear. Aparecem como pendentes, mas a causa é cadastro, não operação.']);
   if(k.sem_coordenada>0) A.push(['t-warn','Sem coordenada em '+k.sem_coordenada+' parada(s)',
@@ -8937,7 +9059,7 @@ async function milkMapa(pts){
      mais; num milk run a sequencia importa tanto quanto — "a terceira parada
      travou" e a leitura que faltava. Marcador maior e com contorno branco
      porque varios fornecedores ficam no mesmo bairro e os pontos encostam. */
-  comCoord.forEach(p=>{
+  comCoord.filter(p=>!MILK_OCULTO.has(p.estado)).forEach(p=>{
     const c = MILK_COR[p.estado] || MILK_COR.aguardando;
     const ic = L.divIcon({className:'milk-pin-wrap', iconSize:[26,26],
       iconAnchor:[13,13],
@@ -8952,6 +9074,34 @@ async function milkMapa(pts){
      .addTo(milkLayer);
   });
 
+  /* VEICULOS onde estao AGORA. Vem de consulta propria (ultima posicao da
+     placa), nao do rastro do periodo: com um filtro de datas passadas o
+     caminhao apareceria onde esteve, o que e pior do que nao aparecer.
+     Caminhao VAZADO = posicao com mais de 2 h, para nao afirmar "esta aqui"
+     sobre um rastreador que calou. */
+  const pos = (DATAMILK && DATAMILK.veiculos_pos) || {};
+  let nVeic = 0, nVelho = 0;
+  Object.keys(pos).forEach(placa=>{
+    const v = pos[placa]; if(!(v.lat && v.lng)) return;
+    nVeic++; if(!v.recente) nVelho++;
+    // conta ANTES de esconder: a legenda tem de dizer quantos existem, senao
+    // esconder os veiculos faria o proprio contador dela zerar
+    if(MILK_OCULTO.has('veic')) return;
+    const ic = L.divIcon({className:'milk-truck-wrap', iconSize:[34,22],
+      iconAnchor:[17,11],
+      html:`<div class="milk-truck${v.recente?'':' velho'}">${ICONS['veic']}</div>`});
+    L.marker([v.lat,v.lng], {icon:ic, riseOnHover:true, zIndexOffset:1000})
+     .bindTooltip(`<b>${esc(placa)}</b>`
+        + `<br>${v.recente?'posição de agora':'ÚLTIMA posição conhecida'}`
+        + `<br>${fmtDT(v.posicao_em)}`
+        + `<br>${v.velocidade>5?(v.velocidade+' km/h'):'parado'}`,
+        {direction:'top', offset:[0,-10]})
+     .addTo(milkLayer);
+  });
+  const hm = document.getElementById('hintMilkMapa');
+  if(hm) hm.textContent = `${comCoord.length} ponto(s) de coleta · ${nVeic} veículo(s)`
+      + (nVelho?` · ${nVelho} sem posição recente`:'');
+
   /* LEGENDA no canto inferior esquerdo. Em mapa nao existe cabecalho para
      explicar cor, e as quatro situacoes so se distinguem por ela. Como
      controle do Leaflet, acompanha o zoom e nao cobre os marcadores do topo.
@@ -8965,16 +9115,37 @@ async function milkMapa(pts){
       const div = L.DomUtil.create('div','milk-legenda');
       div.innerHTML = usados.map(e=>{
         const n = comCoord.filter(p=>p.estado===e).length;
-        return `<span><i style="background:${MILK_COR[e]}"></i>${MILK_EST[e][1]}
+        const off = MILK_OCULTO.has(e);
+        return `<span class="milk-leg-b${off?' off':''}" role="button" tabindex="0"
+          aria-pressed="${!off}"
+          title="Clique para ${off?'mostrar':'esconder'} · duplo clique isola só esta"
+          onclick="milkLegToggle('${e}')" ondblclick="milkLegSo('${e}')"
+          onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();milkLegToggle('${e}')}"
+          ><i style="background:${MILK_COR[e]}"></i>${MILK_EST[e][1]}
           <b>${n}</b></span>`;
-      }).join('') + '<span class="milk-leg-nota">o número no pino é a ordem da parada</span>';
+      }).join('')
+        + ((nVeic || MILK_OCULTO.has('veic')) ? `<span class="milk-leg-veic milk-leg-b${MILK_OCULTO.has('veic')?' off':''}"
+             role="button" tabindex="0" aria-pressed="${!MILK_OCULTO.has('veic')}"
+             title="Clique para ${MILK_OCULTO.has('veic')?'mostrar':'esconder'} os veículos"
+             onclick="milkLegToggle('veic')"
+             onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();milkLegToggle('veic')}"
+             ><i>${ICONS['veic']}</i>veículo agora <b>${nVeic-nVelho}</b></span>` : '')
+        + (nVelho ? `<span class="milk-leg-veic"><i class="velho">${ICONS['veic']}</i>sem posição recente <b>${nVelho}</b></span>` : '')
+        + '<span class="milk-leg-nota">clique para filtrar · duplo clique isola<br>o número no pino é a ordem da parada</span>';
       L.DomEvent.disableClickPropagation(div);
       return div;
     };
     milkLeg.addTo(milkMap);
   }
 
-  try{ milkMap.fitBounds(L.latLngBounds(comCoord.map(p=>[p.lat,p.lng])).pad(0.2)); }catch(e){}
+
+  try{
+    const tudo = comCoord.filter(p=>!MILK_OCULTO.has(p.estado)).map(p=>[p.lat,p.lng])
+      .concat(MILK_OCULTO.has('veic') ? []
+        : Object.values(pos).filter(v=>v.lat&&v.lng).map(v=>[v.lat,v.lng]));
+    if(!tudo.length) throw new Error('nada visivel');
+    milkMap.fitBounds(L.latLngBounds(tudo).pad(0.2));
+  }catch(e){}
   setTimeout(()=>milkMap.invalidateSize(), 60);
 }
 /* ============ PORTAIS DE ANTECIPAÇÃO ============ */
