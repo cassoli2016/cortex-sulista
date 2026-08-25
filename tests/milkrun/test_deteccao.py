@@ -192,3 +192,48 @@ def test_permanencia_longa_ainda_vale_sem_velocidade():
         + [_p(50, lat_out, lng_out)]
     v = d.detectar(pos, LAT, LNG)
     assert len(v) == 1 and not v[0].parou
+
+
+# ---------------------------------------------------------------------------
+# Sombreamento de parâmetro — o defeito mais perigoso que apareceu aqui.
+# A variável do laço se chamava `placa`, igual ao PARÂMETRO de filtro:
+#
+#     def get_milkrun(..., placa=""):
+#         for l in linhas:
+#             placa = l["veiculo"]        # sobrescreve o filtro
+#
+# A tela passava a filtrar sozinha pelo veículo da última linha lida, e 17
+# solicitações viravam 2. Sem erro, sem aviso — só menos dado.
+# ---------------------------------------------------------------------------
+
+def test_parametros_de_filtro_nao_sao_sobrescritos_no_laco():
+    """Nenhum parâmetro de `get_milkrun` pode ser alvo de atribuição dentro da
+    função: o filtro tem de chegar ao fim valendo o que o usuário pediu."""
+    import ast
+    import inspect
+    from pathlib import Path
+
+    fonte = (Path(__file__).resolve().parent.parent.parent
+             / "api" / "milkrun" / "servico.py").read_text(encoding="utf-8")
+    arvore = ast.parse(fonte)
+    fn = next(n for n in ast.walk(arvore)
+              if isinstance(n, ast.FunctionDef) and n.name == "get_milkrun")
+
+    params = {a.arg for a in fn.args.args} | {a.arg for a in fn.args.kwonlyargs}
+    reatribuidos = set()
+    for no in ast.walk(fn):
+        alvos = []
+        if isinstance(no, ast.Assign):
+            alvos = no.targets
+        elif isinstance(no, (ast.AugAssign, ast.AnnAssign)):
+            alvos = [no.target]
+        elif isinstance(no, ast.For):
+            alvos = [no.target]
+        for alvo in alvos:
+            for sub in ast.walk(alvo):
+                if isinstance(sub, ast.Name) and sub.id in params:
+                    reatribuidos.add(sub.id)
+
+    assert not reatribuidos, (
+        f"parâmetro(s) sobrescrito(s) dentro de get_milkrun: "
+        f"{sorted(reatribuidos)} — o filtro deixa de valer o que foi pedido")

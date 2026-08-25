@@ -4,6 +4,19 @@ Gerado de `docs/versoes.yaml` por `scripts/gerar_changelog.py` — não editar �
 Formato [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/),
 versionamento [SemVer](https://semver.org/lang/pt-BR/).
 
+## [0.38.0] — 25/08/2026  ·  CX-25/08/2026-v0.38.0
+
+### Adicionado
+- O Milk Run passou a trabalhar por PERIODO, nao mais um dia so, com filtros de data, fornecedor, veiculo e situacao. Tudo na tela obedece ao recorte: os indicadores do topo, o resumo por dia e as tabelas saem do mesmo conjunto.
+- Resumo por dia: uma linha por data com quantas solicitacoes, quantas paradas, quantas coletadas, frustradas e pendentes, mais o % realizado com barra. Clicar na data abre as solicitacoes daquele dia.
+- Indicadores no topo: % realizado, paradas no periodo, frustradas e permanencia mediana em cada fornecedor. O % realizado conta so as paradas que ja tiveram desfecho - parada que ainda nem venceu fica fora do calculo, senao a manha pareceria um desastre so porque a tarde ainda nao aconteceu.
+- As solicitacoes agora mostram a data e, quando o periodo tem mais de um dia, abrem recolhidas: com sete dias a pagina passava de 14.600 pixels.
+
+### Corrigido
+- A tela do Milk Run e a de Portais de Antecipacao nao apareciam no celular. O menu do celular tem lista propria, separada da barra lateral, e as duas telas novas so tinham entrado na barra. Passa a haver verificacao automatica para isso nao se repetir.
+- O perfil de acesso "Cliente - Milk Run" existia no codigo mas nunca era criado no banco: os perfis-modelo sao semeados uma unica vez e a marca ja estava gravada desde julho.
+- A tela mostrava menos coletas do que existiam - 17 solicitacoes viravam 2 - porque um filtro interno era sobrescrito pelo veiculo da ultima linha lida. Nao dava erro nenhum, so devolvia menos dado.
+
 ## [0.37.0] — 25/08/2026  ·  CX-25/08/2026-v0.37.0
 
 ### Alterado

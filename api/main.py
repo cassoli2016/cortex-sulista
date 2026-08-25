@@ -2008,24 +2008,31 @@ _ANTEC_MAX_BYTES = 12 * 1024 * 1024   # a planilha da Maxion tem 85 KB; 12 MB co
 
 
 @app.get("/api/operacao/milkrun")
-def operacao_milkrun(dia: str | None = None,
-                     tomador: str = "02162259") -> JSONResponse:
-    """Milk run do dia: cada ponto com o horario COMBINADO e o DETECTADO.
+def operacao_milkrun(de: str | None = None, ate: str | None = None,
+                     tomador: str = "02162259", situacao: str = "",
+                     fornecedor: str = "", placa: str = "",
+                     dia: str | None = None) -> JSONResponse:
+    """Milk run do periodo: cada parada com o horario COMBINADO e o DETECTADO.
 
     O detectado vem do rastro, nao de digitacao — e a razao de a tela existir.
+    `dia` continua aceito por compatibilidade com o link antigo.
     """
     from api.milkrun.servico import get_milkrun
-    if dia and _bad_date(dia):
-        return JSONResponse(status_code=422, content={
-            "erro": "parametro_invalido",
-            "mensagem": "Parametro dia invalido: use AAAA-MM-DD."})
+    if dia and not de:
+        de = ate = dia
+    for nome, valor in (("de", de), ("ate", ate)):
+        if valor and _bad_date(valor):
+            return JSONResponse(status_code=422, content={
+                "erro": "parametro_invalido",
+                "mensagem": f"Parametro {nome} invalido: use AAAA-MM-DD."})
     # o tomador entra em LIKE: so digito, para nao virar curinga
     if not re.fullmatch(r"\d{2,14}", tomador or ""):
         return JSONResponse(status_code=422, content={
             "erro": "parametro_invalido",
             "mensagem": "Tomador invalido: informe so os digitos do CNPJ."})
     try:
-        return JSONResponse(get_milkrun(dia, tomador))
+        return JSONResponse(get_milkrun(de, ate, tomador, situacao,
+                                        fornecedor, placa))
     except psycopg.OperationalError as exc:
         log.warning("banco inacessivel: %s", exc)
         return JSONResponse(status_code=503, content={

@@ -99,21 +99,41 @@ def _iso(v) -> str | None:
     return v.isoformat() if v else None
 
 
+def _mediana(vals: list) -> float | None:
+    """Mediana e nao media: uma parada de 8 horas num ponto com fila puxaria a
+    media e diria que a operacao inteira e lenta."""
+    v = sorted(x for x in vals if x is not None)
+    if not v:
+        return None
+    return round(v[len(v) // 2], 1)
+
+
 @cached(ttl=60)
-def get_milkrun(dia: str | None = None, tomador: str = "02162259") -> dict:
-    """Operação do dia, agrupada por solicitação de coleta.
+def get_milkrun(de: str | None = None, ate: str | None = None,
+                tomador: str = "02162259", situacao: str = "",
+                fornecedor: str = "", placa: str = "") -> dict:
+    """Operação do período, agrupada por DATA e, dentro dela, por solicitação.
 
     `tomador` é a RAIZ do CNPJ: a MWM tem quatro filiais cadastradas e a
     solicitação pode ser tomada por qualquer uma delas.
+
+    Os filtros de situação, fornecedor e placa são aplicados ANTES de somar
+    os indicadores — KPI que não segue o filtro da tela mente sobre o recorte
+    que a pessoa está olhando.
     """
-    d = date.fromisoformat(dia) if dia else date.today()
-    ini_dia = datetime.combine(d, time.min)
+    hoje = date.today()
+    d_de = date.fromisoformat(de) if de else hoje
+    d_ate = date.fromisoformat(ate) if ate else d_de
+    if d_ate < d_de:
+        d_de, d_ate = d_ate, d_de
+    ini_dia = datetime.combine(d_de, time.min)
+    fim_dia = datetime.combine(d_ate, time.min) + timedelta(days=1)
 
     with db.get_conn() as conn, conn.cursor() as cur:
         cur.execute(PONTOS_SQL, {
             "tomador": tomador + "%",
             "de": ini_dia.isoformat(),
-            "ate": (ini_dia + timedelta(days=1)).isoformat()})
+            "ate": fim_dia.isoformat()})
         linhas = cur.fetchall()
 
         placas = sorted({(l["veiculo"] or "").strip() for l in linhas
@@ -123,8 +143,7 @@ def get_milkrun(dia: str | None = None, tomador: str = "02162259") -> dict:
             cur.execute(RASTRO_SQL, {
                 "placas": placas,
                 "de": (ini_dia - timedelta(hours=FOLGA_ANTES_H)).isoformat(),
-                "ate": (ini_dia + timedelta(days=1,
-                                            hours=FOLGA_DEPOIS_H)).isoformat()})
+                "ate": (fim_dia + timedelta(hours=FOLGA_DEPOIS_H)).isoformat()})
             for p in cur.fetchall():
                 rastro.setdefault(p["veiculo"], []).append(dict(p))
 
@@ -133,13 +152,17 @@ def get_milkrun(dia: str | None = None, tomador: str = "02162259") -> dict:
 
     coletas: dict[int, dict] = {}
     for l in linhas:
-        placa = (l["veiculo"] or "").strip()
+        # `placa_l` e nao `placa`: o parametro de filtro se chama `placa`, e
+        # reaproveitar o nome aqui o sobrescrevia com o veiculo da ultima
+        # linha — a tela passava a filtrar sozinha por uma placa que ninguem
+        # pediu, e 17 solicitacoes viravam 2 sem erro nenhum.
+        placa_l = (l["veiculo"] or "").strip()
         lat, lng = l["ponto_lat"], l["ponto_lng"]
         previsto = l["dtagendamentocoleta"] or l["dtcoletar"]
 
         visita, visitas = None, []
-        if placa and lat and lng and rastro.get(placa):
-            visitas = det.detectar(rastro[placa], lat, lng)
+        if placa_l and lat and lng and rastro.get(placa_l):
+            visitas = det.detectar(rastro[placa_l], lat, lng)
             visita = det.visita_da_janela(visitas, previsto)
         estado = det.classificar(visita, previsto)
 
@@ -166,7 +189,7 @@ def get_milkrun(dia: str | None = None, tomador: str = "02162259") -> dict:
         ponto = {
             "coleta": l["coleta"], "sequencia": l["sequencia"],
             "previsto": _iso(previsto),
-            "placa": placa or None,
+            "placa": placa_l or None,
             "ponto": l["ponto_nome"], "cidade": l["ponto_cidade"],
             "uf": l["ponto_uf"], "lat": lat, "lng": lng,
             "destino": l["destino_nome"] or None,
@@ -186,31 +209,84 @@ def get_milkrun(dia: str | None = None, tomador: str = "02162259") -> dict:
             "coleta": l["coleta"],
             "situacao": SIT.get(l["situacao"], f"situação {l['situacao']}"),
             "cancelada": l["dtcancelamento"] is not None,
-            "placa": placa or None,
+            "placa": placa_l or None,
             "motorista": (l["motorista_nome"] or "").strip() or None,
             "pontos": [],
         })
         c["pontos"].append(ponto)
 
-    grupos = sorted(coletas.values(),
-                    key=lambda c: (c["pontos"][0]["previsto"] or "", c["coleta"]))
-    for g in grupos:
-        p = g["pontos"]
-        g["total"] = len(p)
-        g["concluidos"] = sum(1 for x in p if x["estado"] == "concluido")
-        g["frustrados"] = sum(1 for x in p if x["estado"] == "frustrada")
-        g["pendentes"] = sum(1 for x in p if x["estado"] == "aguardando")
-        g["no_local"] = sum(1 for x in p if x["estado"] == "no_local")
-        g["primeiro"] = p[0]["previsto"]
-        g["ultimo"] = p[-1]["previsto"]
+    # ---- FILTROS. Aplicados aqui, antes de qualquer soma: indicador que
+    # ignora o filtro da tela diz respeito a outro recorte que o da tabela.
+    alvo_sit = (situacao or "").strip()
+    alvo_forn = (fornecedor or "").strip().lower()
+    alvo_placa = (placa or "").strip().upper()
+
+    def _passa(x) -> bool:
+        if alvo_sit and x["estado"] != alvo_sit:
+            return False
+        if alvo_forn and alvo_forn not in (x["ponto"] or "").lower():
+            return False
+        if alvo_placa and alvo_placa not in (x["placa"] or ""):
+            return False
+        return True
+
+    grupos = []
+    for c in coletas.values():
+        pts = [x for x in c["pontos"] if _passa(x)]
+        if not pts:
+            continue
+        c = {**c, "pontos": pts}
+        c["total"] = len(pts)
+        c["concluidos"] = sum(1 for x in pts if x["estado"] == "concluido")
+        c["frustrados"] = sum(1 for x in pts if x["estado"] == "frustrada")
+        c["pendentes"] = sum(1 for x in pts if x["estado"] == "aguardando")
+        c["no_local"] = sum(1 for x in pts if x["estado"] == "no_local")
+        c["primeiro"] = pts[0]["previsto"]
+        c["ultimo"] = pts[-1]["previsto"]
+        c["data"] = (pts[0]["previsto"] or "")[:10]
+        grupos.append(c)
+    grupos.sort(key=lambda c: (c["primeiro"] or "", c["coleta"]))
 
     todos = [x for g in grupos for x in g["pontos"]]
     difs = sorted(abs(x["dif_manual_min"]) for x in todos
                   if x["dif_manual_min"] is not None)
 
+    # ---- POR DATA. O usuario le a operacao por dia, entao o dia e o nivel de
+    # cima: quantas solicitacoes, quantas paradas e quanto ja foi realizado.
+    dias: dict[str, dict] = {}
+    for g in grupos:
+        dia_g = dias.setdefault(g["data"], {
+            "data": g["data"], "solicitacoes": 0, "pontos": 0,
+            "concluidos": 0, "frustrados": 0, "pendentes": 0, "no_local": 0,
+            "coletas": []})
+        dia_g["solicitacoes"] += 1
+        dia_g["pontos"] += g["total"]
+        dia_g["concluidos"] += g["concluidos"]
+        dia_g["frustrados"] += g["frustrados"]
+        dia_g["pendentes"] += g["pendentes"]
+        dia_g["no_local"] += g["no_local"]
+        dia_g["coletas"].append(g)
+    for x in dias.values():
+        # % realizado sobre o que ja tem desfecho (coletado + frustrado): usar
+        # o total inflaria o denominador com parada que ainda nem venceu e
+        # faria a manha parecer um desastre.
+        fechados = x["concluidos"] + x["frustrados"]
+        x["pct_realizado"] = (round(100 * x["concluidos"] / fechados, 1)
+                              if fechados else None)
+        x["pct_do_total"] = (round(100 * x["concluidos"] / x["pontos"], 1)
+                             if x["pontos"] else None)
+    por_data = sorted(dias.values(), key=lambda x: x["data"])
+
+    fechados_tot = sum(1 for x in todos if x["estado"] in ("concluido", "frustrada"))
+    concl_tot = sum(1 for x in todos if x["estado"] == "concluido")
+
     return {
-        "dia": d.isoformat(),
+        "de": d_de.isoformat(), "ate": d_ate.isoformat(),
+        "dia": d_de.isoformat(),           # compatibilidade
         "tomador": tomador,
+        "filtros": {"situacao": alvo_sit, "fornecedor": fornecedor,
+                    "placa": placa},
+        "por_data": por_data,
         "coletas": grupos,
         "kpis": {
             "solicitacoes": len(grupos),
@@ -230,6 +306,15 @@ def get_milkrun(dia: str | None = None, tomador: str = "02162259") -> dict:
             "veiculos": len({x["placa"] for x in todos if x["placa"]}),
             "dif_manual_mediana": difs[len(difs) // 2] if difs else None,
             "dif_manual_n": len(difs),
+            "dias": len(por_data),
+            # realizado sobre o que ja teve desfecho — parada que ainda nao
+            # venceu nao conta contra o indice
+            "pct_realizado": (round(100 * concl_tot / fechados_tot, 1)
+                              if fechados_tot else None),
+            "permanencia_mediana": _mediana(
+                [x["permanencia_min"] for x in todos
+                 if x["permanencia_min"] is not None]),
+            "fornecedores": len({x["ponto"] for x in todos if x["ponto"]}),
         },
         "atualizado_em": agora.isoformat(),
         "fonte": ("ERP AVA · coleta + coleta_cliente (cada linha é um PONTO do "

@@ -83,3 +83,24 @@ def test_versoes_vem_ordenada_da_mais_nova_para_a_mais_velha():
 
 def test_ordenacao_de_versao_e_numerica_nao_alfabetica():
     assert documentacao._chave_versao("1.10.0") > documentacao._chave_versao("1.9.0")
+
+
+def test_toda_tela_do_menu_existe_no_drawer_do_celular():
+    """O drawer do MOBILE tem lista FIXA de telas — não é gerado do menu.
+    Tela nova que entra só na barra lateral simplesmente NÃO EXISTE no
+    celular, e foi o que aconteceu com Portais de Antecipação e Milk Run:
+    o usuário abriu no telefone e não achou nenhuma das duas.
+    """
+    import re
+    from pathlib import Path
+
+    html = (Path(__file__).resolve().parent.parent.parent
+            / "api" / "static" / "index.html").read_text(encoding="utf-8")
+    i = html.index('<div class="drawer"')
+    drawer = html[i:i + 45_000]
+
+    no_menu = set(re.findall(r'data-view="(\w+)"', html))
+    no_drawer = set(re.findall(r'<a href="#(\w+)"', drawer))
+    faltando = sorted(no_menu - no_drawer)
+    assert not faltando, (
+        f"telas no menu lateral e ausentes no drawer do celular: {faltando}")

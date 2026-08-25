@@ -248,6 +248,21 @@ svg:focus-visible{outline:2px solid var(--orange-500);outline-offset:2px;border-
 /* Milk run: cada solicitacao e um bloco, e as paradas sao as linhas dela.
    Sem o cabecalho da solicitacao, quatro paradas da mesma viagem viram uma
    lista solta e some a nocao de roteiro. */
+.milk-filtros{display:flex;flex-wrap:wrap;gap:12px;align-items:flex-end;
+  padding:0 18px 16px}
+.milk-filtros label{display:flex;flex-direction:column;gap:4px;
+  font:600 10.5px/1 var(--font);letter-spacing:.8px;text-transform:uppercase;
+  color:var(--n500)}
+.milk-filtros label>span{display:flex;gap:6px}
+.milk-filtros input{padding:7px 10px;border:1px solid var(--n300);
+  border-radius:8px;font:inherit;font-size:13px;min-width:0}
+.milk-filtros input:focus{outline:2px solid var(--orange-500);outline-offset:-1px}
+.milk-filtros button{align-self:flex-end}
+/* linha de data clicavel: rola ate o bloco daquele dia */
+.milk-dia-link{color:var(--orange-500);font-weight:600;cursor:pointer}
+.milk-data-h{font:700 13px/1 var(--font);color:var(--navy-800);
+  padding:14px 2px 8px;display:flex;align-items:center;gap:10px}
+.milk-data-h .n{font-weight:400;color:var(--n500);font-size:12px}
 .milk-grupo{background:var(--n0);border:1px solid var(--n200);
   border-radius:var(--radius);margin-bottom:14px;overflow:hidden}
 .milk-cab{display:flex;align-items:center;gap:10px;flex-wrap:wrap;
@@ -256,6 +271,14 @@ svg:focus-visible{outline:2px solid var(--orange-500);outline-offset:2px;border-
 .milk-cab b{font-size:14px;color:var(--navy-800)}
 .milk-veic{font-family:var(--mono);font-size:12px;font-weight:600;color:var(--n700)}
 .milk-grupo .tablewrap{padding:0}
+/* recolhido: so o cabecalho da solicitacao aparece */
+.milk-grupo.rec .tablewrap{display:none}
+.milk-cab{cursor:pointer}
+.milk-cab:focus-visible{outline:2px solid var(--orange-500);outline-offset:-2px}
+.milk-exp{display:inline-flex;width:15px;height:15px;color:var(--navy-500);
+  transition:transform .15s}
+.milk-exp svg{width:100%;height:100%}
+.milk-grupo:not(.rec) .milk-exp{transform:rotate(90deg)}
 .antup{display:flex;flex-direction:column;align-items:center;gap:6px;padding:26px 18px;
   border:2px dashed var(--n300);border-radius:12px;cursor:pointer;text-align:center;
   color:var(--n600);font-size:13px;background:var(--n50,#FAFBFC)}
@@ -2454,14 +2477,33 @@ body.tvfull #btnReport,body.tvmode #btnReport{display:none}
 
       <!-- ===================== MILK RUN — MWM ===================== -->
       <section class="view" id="view-milkrun">
-        <div class="kpis k4" id="kpis-milkrun"></div>
         <div class="card">
-          <div class="head"><h2>Operação do dia <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="Cada linha é uma coleta do dia. O horário COMBINADO vem da solicitação de carga do ERP (coleta.dtcoletar). O horário DETECTADO vem do rastreamento do veículo: a chegada é a primeira posição dentro do raio do fornecedor e a saída é a última de uma permanência contínua — nada é digitado. A coluna Distância diz o quão perto do ponto cadastrado o veículo chegou, e é o que permite calibrar o raio de cada local.">i</span></h2>
-            <span class="hint" id="hintMilk"></span>
-            <input type="date" id="fMilkDia" onchange="loadMilkrun()" aria-label="Dia da operação"
-                   style="margin-left:auto;padding:6px 10px;border:1px solid var(--n300);border-radius:8px;font:inherit;font-size:13px">
+          <div class="head"><h2>Filtros da operação <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="TUDO nesta tela obedece a estes filtros: os indicadores do topo, o resumo por dia e as tabelas saem do mesmo recorte. Indicador que ignora o filtro fala de outro conjunto e induz a erro.">i</span></h2>
+            <span class="hint" id="hintMilk"></span></div>
+          <div class="milk-filtros">
+            <label>Período<span>
+              <input type="date" id="fMilkDe" onchange="loadMilkrun()" aria-label="Data inicial">
+              <input type="date" id="fMilkAte" onchange="loadMilkrun()" aria-label="Data final">
+            </span></label>
+            <label>Fornecedor<input type="search" id="fMilkForn" placeholder="parte do nome"
+                   onchange="loadMilkrun()" aria-label="Fornecedor"></label>
+            <label>Veículo<input type="search" id="fMilkPlaca" placeholder="placa"
+                   onchange="loadMilkrun()" aria-label="Placa"></label>
+            <button class="ghost" onclick="milkPreset(0)">Hoje</button>
+            <button class="ghost" onclick="milkPreset(7)">7 dias</button>
+            <button class="ghost" onclick="milkPreset(30)">30 dias</button>
           </div>
           <div class="ges-tabs" id="milk-chips"></div>
+        </div>
+        <div class="kpis k4" id="kpis-milkrun"></div>
+        <div class="card">
+          <div class="head"><h2>Resumo por dia <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="Uma linha por data do período. % realizado é sobre as paradas que já tiveram DESFECHO (coletada ou frustrada) — usar o total inflaria o denominador com parada que ainda nem venceu e faria a manhã parecer um desastre.">i</span></h2>
+            <span class="hint" id="hintMilkDias"></span></div>
+          <div class="tablewrap tabroll"><table><thead><tr>
+            <th>Data</th><th class="num">Solicitações</th><th class="num">Paradas</th>
+            <th class="num">Coletadas</th><th class="num">Frustradas</th>
+            <th class="num">Pendentes</th><th class="num">% realizado</th><th></th>
+          </tr></thead><tbody id="milk-dias"></tbody></table></div>
         </div>
         <div id="milk-grupos"></div>
         <div class="card">
@@ -8598,14 +8640,57 @@ function planoResultado(d, gravado){
    linhas soltas perderia a noção de rota. */
 let DATAMILK = null, milkSeq = 0, milkMap = null, milkLayer = null;
 let milkFiltro = 'todos';
+const DIA_SEM = ['domingo','segunda','terça','quarta','quinta','sexta','sábado'];
+/* rola ate o bloco daquele dia — o resumo por dia vira indice do que esta
+   abaixo, em vez de um quadro solto */
+function milkIrPara(data){
+  /* Clicar no dia do resumo ABRE as solicitacoes daquele dia e rola ate elas:
+     o resumo vira indice do que esta abaixo, em vez de um quadro solto. */
+  const el=document.getElementById('milk-d-'+data);
+  if(!el) return;
+  let n=el.nextElementSibling;
+  while(n && n.classList.contains('milk-grupo')){
+    n.classList.remove('rec');
+    const c=n.querySelector('.milk-cab'); if(c) c.setAttribute('aria-expanded','true');
+    n=n.nextElementSibling;
+  }
+  el.scrollIntoView({behavior:'smooth', block:'start'});
+}
+function milkToggle(coleta){
+  const g=document.getElementById('milk-g-'+coleta); if(!g) return;
+  const aberto=g.classList.toggle('rec')===false;
+  const c=g.querySelector('.milk-cab');
+  if(c) c.setAttribute('aria-expanded', String(aberto));
+}
+
+function milkPreset(dias){
+  /* Presets escrevem NAS DATAS e disparam a carga: assim o campo continua
+     sendo a verdade do recorte, e nao existe estado escondido que o rotulo
+     do botao conheca e o campo nao. */
+  const hoje=new Date(), de=new Date();
+  de.setDate(hoje.getDate()-dias);
+  document.getElementById('fMilkDe').value=_iso(de);
+  document.getElementById('fMilkAte').value=_iso(hoje);
+  loadMilkrun();
+}
 
 async function loadMilkrun(fundo){
   skelKpis('kpis-milkrun',4);
   const seq=++milkSeq, btn=document.getElementById('btnRefresh'); if(btn) btn.disabled=true;
   if(!fundo) document.getElementById('content').classList.add('loading');
   try{
-    const dia=(document.getElementById('fMilkDia')||{}).value || '';
-    const r=await fetch('/api/operacao/milkrun'+(dia?('?dia='+dia):''),
+    const V=id=>{const e=document.getElementById(id);return e?e.value.trim():'';};
+    if(!V('fMilkDe')){   // primeira abertura: o dia de hoje
+      const h=_iso(new Date());
+      document.getElementById('fMilkDe').value=h;
+      document.getElementById('fMilkAte').value=h;
+    }
+    const p=new URLSearchParams();
+    p.set('de', V('fMilkDe')); p.set('ate', V('fMilkAte')||V('fMilkDe'));
+    if(V('fMilkForn')) p.set('fornecedor', V('fMilkForn'));
+    if(V('fMilkPlaca')) p.set('placa', V('fMilkPlaca'));
+    if(milkFiltro!=='todos') p.set('situacao', milkFiltro);
+    const r=await fetch('/api/operacao/milkrun?'+p.toString(),
       {cache:'no-store', headers: fundo?{'X-Carga-Fundo':'1'}:{}});
     const d=await r.json(); if(seq!==milkSeq) return;
     if(!r.ok){ showBanner(d.mensagem||'Erro ao montar a operação.'); return; }
@@ -8616,10 +8701,11 @@ async function loadMilkrun(fundo){
 }
 
 function milkFiltrar(f){
-  milkFiltro=f;
-  document.querySelectorAll('#milk-chips button').forEach(b=>
-    b.setAttribute('aria-pressed', String(b.dataset.f===f)));
-  if(DATAMILK) renderMilkrun(DATAMILK);
+  /* Recarrega em vez de filtrar em memoria: os indicadores do topo sao
+     somados no servidor sobre o mesmo recorte da tabela. Filtrar so a tabela
+     deixaria o KPI falando de um conjunto e a lista de outro. */
+  milkFiltro = (milkFiltro===f && f!=='todos') ? 'todos' : f;
+  loadMilkrun();
 }
 
 const MILK_EST = {
@@ -8631,24 +8717,50 @@ const MILK_EST = {
 
 function renderMilkrun(d){
   const k=d.kpis||{}, grupos=d.coletas||[];
-  if(!document.getElementById('fMilkDia').value) document.getElementById('fMilkDia').value=d.dia;
+  // o campo de data agora e o par De/Ate, preenchido pelo loader; o antigo
+  // fMilkDia foi removido do markup e a referencia sobrou aqui — ela quebraria
+  // o render inteiro no primeiro acesso (getElementById devolve null)
 
   document.getElementById('kpis-milkrun').innerHTML=[
-    kpi('Solicitações do dia', (k.solicitacoes||0).toLocaleString('pt-BR'),
-        (k.pontos||0)+' ponto(s) · '+(k.veiculos||0)+' veículo(s)', '',
-        'Cada solicitação de coleta é um roteiro, e cada ponto dela é uma parada num fornecedor. Uma solicitação pode ter até quatro paradas.'),
-    kpi('Coletados', (k.concluidos||0).toLocaleString('pt-BR'),
-        k.pontos?(pct(k.concluidos||0,k.pontos)+' dos pontos'):'—',
-        (k.concluidos||0)>0?'pos':'',
-        'Pontos em que a coleta se concretizou. O horário vem do rastreamento; quando a operação aponta coleta e o rastro não vê, a linha diz "coletado (sem rastro)" — quase sempre coordenada errada ou raio pequeno.'),
+    kpi('% realizado',
+        k.pct_realizado==null?'—':(k.pct_realizado.toLocaleString('pt-BR',{maximumFractionDigits:1})+'%'),
+        (k.concluidos||0)+' coletadas de '+((k.concluidos||0)+(k.frustrados||0))+' com desfecho',
+        k.pct_realizado==null?'':(k.pct_realizado>=95?'pos':(k.pct_realizado>=85?'warn':'neg')),
+        'Coletas concretizadas sobre as paradas que já tiveram DESFECHO — coletada ou frustrada. Parada que ainda não venceu fica FORA do denominador: incluí-la faria a manhã parecer um desastre só porque a tarde ainda não aconteceu.'),
+    kpi('Paradas no período', (k.pontos||0).toLocaleString('pt-BR'),
+        (k.solicitacoes||0)+' solicitação(ões) · '+(k.dias||0)+' dia(s) · '+(k.fornecedores||0)+' fornecedor(es)', '',
+        'Cada solicitação de coleta é um roteiro e cada parada dela é um fornecedor. Uma solicitação pode ter até quatro paradas.'),
     kpi('Frustradas', (k.frustrados||0).toLocaleString('pt-BR'),
-        'o veículo foi e voltou sem carga', (k.frustrados||0)>0?'neg':'pos',
-        'Coleta marcada como FRUSTRADA no ERP: o caminhão esteve no fornecedor e não carregou. O rastreamento não distingue isso sozinho — veria uma visita normal —, então este desfecho vem do apontamento da operação.'),
-    kpi('Pendentes', (k.pendentes||0).toLocaleString('pt-BR'),
-        (k.no_local||0)+' no local agora · '+(k.atrasados||0)+' atrasado(s)',
-        (k.atrasados||0)>0?'warn':'',
-        'Pontos em que o veículo ainda não chegou. "Atrasado" compara a chegada detectada com a janela agendada, com tolerância de 30 minutos.'),
+        (k.pendentes||0)+' pendente(s) · '+(k.no_local||0)+' no local · '+(k.atrasados||0)+' atrasada(s)',
+        (k.frustrados||0)>0?'neg':'pos',
+        'Paradas em que o caminhão esteve no fornecedor e não carregou. O rastreamento não distingue isso sozinho — veria uma visita normal —, então o desfecho vem do apontamento da operação e manda sobre o detectado.'),
+    kpi('Permanência mediana',
+        k.permanencia_mediana==null?'—':(Math.round(k.permanencia_mediana)+' min'),
+        (k.veiculos||0)+' veículo(s)'
+          +(k.dif_manual_mediana!=null?(' · manual difere '+k.dif_manual_mediana+' min'):''),
+        '',
+        'Quanto tempo o veículo fica em cada fornecedor, detectado pelo rastreamento. MEDIANA e não média: uma parada de oito horas num ponto com fila puxaria a média e diria que a operação inteira é lenta.'),
   ].join('');
+
+  /* RESUMO POR DIA — o nível de cima da leitura. */
+  const pd=d.por_data||[];
+  document.getElementById('hintMilkDias').textContent =
+    pd.length ? (pd.length+' dia(s) no período') : '';
+  document.getElementById('milk-dias').innerHTML=pd.map(x=>{
+    const cor = x.pct_realizado==null ? 'inherit'
+      : (x.pct_realizado>=95?'var(--green)':(x.pct_realizado>=85?'var(--yellow-700)':'var(--red)'));
+    return `<tr>
+      <td><span class="milk-dia-link" onclick="milkIrPara('${x.data}')">${fmtD(x.data)}</span>
+        <span style="color:var(--n500);font-size:11.5px">${esc(DIA_SEM[new Date(x.data+'T12:00:00').getDay()])}</span></td>
+      <td class="num" style="font-weight:600">${x.solicitacoes}</td>
+      <td class="num">${x.pontos}</td>
+      <td class="num" style="color:var(--green)">${x.concluidos}</td>
+      <td class="num" style="color:${x.frustrados>0?'var(--red)':'var(--n500)'}">${x.frustrados||'—'}</td>
+      <td class="num">${x.pendentes||'—'}</td>
+      <td class="num" style="font-weight:700;color:${cor}">${x.pct_realizado==null?'—':x.pct_realizado.toLocaleString('pt-BR',{maximumFractionDigits:1})+'%'}</td>
+      <td style="width:120px"><div class="trk" style="height:8px;background:var(--n200);border-radius:999px;overflow:hidden">
+        <i style="display:block;height:100%;width:${x.pct_do_total||0}%;background:${cor}"></i></div></td></tr>`;
+  }).join('') || '<tr><td colspan="8" style="color:var(--n500)">nenhum dia no recorte</td></tr>';
 
   const CH=[['todos','Todos'],['aguardando','Pendentes'],['concluido','Coletados'],
             ['frustrada','Frustradas'],['no_local','No local']];
@@ -8663,9 +8775,19 @@ function renderMilkrun(d){
   const vis = g => milkFiltro==='todos' ? g.pontos
                  : g.pontos.filter(p=>p.estado===milkFiltro);
 
+  let dataAtual='';
   const blocos = grupos.map(g=>{
     const pts = vis(g);
     if(!pts.length) return '';
+    /* Cabecalho de DATA entre os blocos: sem ele, sete dias de solicitacoes
+       viram uma lista corrida e some a fronteira do dia. */
+    let cab='';
+    if(g.data && g.data!==dataAtual){
+      dataAtual=g.data;
+      const x=(d.por_data||[]).find(y=>y.data===g.data)||{};
+      cab=`<div class="milk-data-h" id="milk-d-${g.data}">${fmtD(g.data)}
+        <span class="n">${esc(DIA_SEM[new Date(g.data+'T12:00:00').getDay()])} · ${x.solicitacoes||0} solicitação(ões) · ${x.pontos||0} parada(s) · ${x.pct_realizado==null?'—':x.pct_realizado+'% realizado'}</span></div>`;
+    }
     /* Cabeçalho da solicitação: é o roteiro. Sem ele as paradas viram uma
        lista solta e some a noção de que quatro linhas são a mesma viagem. */
     const resumo = [
@@ -8674,9 +8796,18 @@ function renderMilkrun(d){
       g.pendentes?g.pendentes+' pendente(s)':'',
       g.no_local?g.no_local+' no local':'',
     ].filter(Boolean).join(' · ');
-    return `<div class="milk-grupo">
-      <div class="milk-cab">
+    /* Recolhido quando o periodo tem mais de um dia: o Resumo por dia acima ja
+       da a visao do todo, e 71 solicitacoes abertas passavam de 14.600px. Num
+       dia so fica tudo aberto — e a tela de acompanhamento, e clicar 17 vezes
+       para ver o dia seria pior que rolar. */
+    const rec = (d.por_data||[]).length > 1;
+    return cab + `<div class="milk-grupo${rec?' rec':''}" id="milk-g-${g.coleta}">
+      <div class="milk-cab" onclick="milkToggle(${g.coleta})" tabindex="0" role="button"
+           aria-expanded="${!rec}"
+           onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();milkToggle(${g.coleta});}">
+        <span class="milk-exp">${ICONS['chevr2']}</span>
         <b>Coleta ${g.coleta}</b>
+        <span style="color:var(--n500)">${fmtD(g.data||'')}</span>
         <span class="badge ${g.cancelada?'b-alert':(g.situacao==='finalizada'?'b-ok':'b-info')}">${esc(g.cancelada?'cancelada':g.situacao)}</span>
         <span class="milk-veic">${esc(g.placa||'sem veículo')}</span>
         ${g.motorista?`<span style="color:var(--n500)">${esc(shortName(g.motorista))}</span>`:''}
@@ -8724,9 +8855,15 @@ function renderMilkrun(d){
 
   document.getElementById('milk-grupos').innerHTML = blocos ||
     '<div class="card" style="color:var(--n500);padding:18px">nenhuma coleta neste recorte</div>';
+  const rec=[];
+  if(d.de && d.ate) rec.push(d.de===d.ate ? fmtD(d.de) : (fmtD(d.de)+' a '+fmtD(d.ate)));
+  if((d.filtros||{}).fornecedor) rec.push('fornecedor "'+d.filtros.fornecedor+'"');
+  if((d.filtros||{}).placa) rec.push('placa '+d.filtros.placa);
+  if((d.filtros||{}).situacao) rec.push('só '+(MILK_EST[d.filtros.situacao]||['',d.filtros.situacao])[1]);
   document.getElementById('hintMilk').textContent =
-    grupos.length ? (grupos.length+' solicitação(ões) · '+(k.pontos||0)+' parada(s)')
-                  : 'nenhuma solicitação neste dia';
+    rec.join(' · ') + ' — ' + (grupos.length
+      ? (grupos.length+' solicitação(ões) · '+(k.pontos||0)+' parada(s)')
+      : 'nenhuma solicitação neste recorte');
 
   const A=[];
   if(k.dif_manual_mediana!=null) A.push(['t-info',
@@ -14991,7 +15128,8 @@ boot();
         <a href="#lanc" onclick="fecharDrawer()"><span class="ic" data-ic="ctb"></span>Lançamentos Bancários</a>
         <a href="#fluxcon" onclick="fecharDrawer()"><span class="ic" data-ic="flx"></span>Fluxo Consolidado</a>
         <a href="#rec" onclick="fecharDrawer()"><span class="ic" data-ic="pag"></span>Recorrentes</a>
-        <a href="#antec" onclick="fecharDrawer()"><span class="ic" data-ic="flx"></span>Antecipação</a>
+        <a href="#antec" onclick="fecharDrawer()"><span class="ic" data-ic="antecic"></span>Antecipação</a>
+        <a href="#antport" onclick="fecharDrawer()"><span class="ic" data-ic="antportic"></span>Portais de Antecipação</a>
       </div>
     </div>
     <div class="dgrp" data-grp="Ctr">
@@ -15009,6 +15147,7 @@ boot();
       <button class="dgrp-h" onclick="toggleDGrp(this)"><span>Operação</span><span class="dchev">›</span></button>
       <div class="dgrp-b">
         <a href="#torre" onclick="fecharDrawer()"><span class="ic" data-ic="tor"></span>Torre de Controle</a>
+        <a href="#milkrun" onclick="fecharDrawer()"><span class="ic" data-ic="milkic"></span>Milk Run — MWM</a>
         <a href="#prog" onclick="fecharDrawer()"><span class="ic" data-ic="prog"></span>Programação Intel.</a>
         <a href="#jorn" onclick="fecharDrawer()"><span class="ic" data-ic="jornic"></span>Jornada do Motorista</a>
         <a href="#cex" onclick="fecharDrawer()"><span class="ic" data-ic="cexic"></span>Custos Extras</a>

@@ -569,6 +569,24 @@ def _seed_perfis_modelo(c: sqlite3.Connection) -> None:
                               " VALUES(?,?)", (row["id"], tela))
         c.execute("INSERT OR IGNORE INTO config(chave, valor) VALUES('perfis_modelo_v25', '1')")
 
+    # v26 (2026-08-25): perfil de CLIENTE do milk run. O seed geral e travado
+    # pela flag 'perfis_modelo_v2', marcada em julho — sem um bloco novo, um
+    # perfil-modelo criado depois disso nunca chega ao banco. Foi o que
+    # aconteceu: o perfil existia no codigo e nao aparecia na tela de Gestao.
+    if not c.execute("SELECT 1 FROM config WHERE chave='perfis_modelo_v26'").fetchone():
+        for nome_perfil, desc, telas in _PERFIS_MODELO:
+            if not nome_perfil.startswith("Cliente"):
+                continue
+            cur = c.execute(
+                "INSERT OR IGNORE INTO perfis(nome, descricao, admin, criado_em)"
+                " VALUES(?,?,0,?)", (nome_perfil, desc, _agora()))
+            row = c.execute("SELECT id FROM perfis WHERE nome=?",
+                            (nome_perfil,)).fetchone()
+            if row:
+                c.executemany("INSERT OR IGNORE INTO perfil_telas(perfil_id, tela)"
+                              " VALUES(?,?)", [(row["id"], t) for t in telas])
+        c.execute("INSERT OR IGNORE INTO config(chave, valor) VALUES('perfis_modelo_v26', '1')")
+
 
 def _agora() -> str:
     return datetime.now().strftime("%Y-%m-%d %H:%M:%S")
