@@ -371,7 +371,13 @@ def test_todas_as_fontes_ok_e_identico_ao_comportamento_anterior():
     assert abs(linhas["CUSTO VARIAVEL"]["previsto"] - (-300.0)) < 1e-9
     assert linhas["CUSTO VARIAVEL"]["estrategia"] == "razao_completude"
     assert abs(linhas["CUSTO FIXO"]["previsto"] - (-100.0)) < 1e-9
-    assert r["avisos"] == []
+    # A intencao deste teste e: com todas as fontes presentes, NENHUM aviso de
+    # DEGRADACAO de fonte aparece. O aviso de escrituracao e de outra familia —
+    # ele fala do razao contabil, nao das fontes — e dispara aqui porque o ctx
+    # minimo tem custo pouco escriturado contra a receita. Filtrar por familia
+    # preserva a guarda original em vez de afroux-la para uma lista qualquer.
+    degradacao = [a for a in r["avisos"] if "escriturado" not in a]
+    assert degradacao == []
     assert r["fontes"] == []
 
 

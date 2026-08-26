@@ -11960,6 +11960,28 @@ const FECH_ESTRAT={driver_fiscal:['b-info','driver fiscal'],pct_receita:['b-info
   // nessa linha e a previsão NÃO dividiu pela completude média (ver motor.estimar_m1)
   lote:['b-warn','lote (escrituração)'],
   formula:['','fórmula'],fechado:['b-ok','fechado']};
+/* Escrituracao: percentual, quebra por bloco e o semaforo.
+   O semaforo NAO olha o total — olha a DISTANCIA entre receita e custo, que e
+   o que distorce o resultado. Um mes 60% escriturado por igual e confiavel;
+   um mes com receita em 81% e custo em 45% nao e, mesmo tendo o mesmo total. */
+function fechPct(v){
+  return v==null ? '—' : Math.round(v*100)+'%';
+}
+function fechBlocos(b){
+  if(!b) return 'sem quebra por bloco';
+  const f = x => x==null ? 'n/d' : Math.round(x*100)+'%';
+  return 'receita '+f(b.receita)+' · custo var. '+f(b.custo_variavel)
+       + ' · custo fixo '+f(b.custo_fixo);
+}
+function fechClasse(b){
+  if(!b || b.receita==null) return '';
+  const menor = Math.min(...['custo_variavel','custo_fixo']
+    .map(k=>b[k]).filter(x=>x!=null));
+  if(!isFinite(menor)) return '';
+  const dist = b.receita - menor;
+  return dist > 0.30 ? 'neg' : (dist > 0.15 ? 'warn' : 'pos');
+}
+
 function renderFech(d){
   const k=d.kpis||{}, modo=d.modo;
   document.getElementById('fech-carimbo').textContent=
@@ -11982,6 +12004,16 @@ function renderFech(d){
   document.getElementById('kpis-fech').innerHTML=[
     kpi('Resultado previsto do mês', brlAbbr(k.resultado_previsto||0), banda||'sem banda calibrada',
       (k.resultado_previsto||0)>=0?'pos':'neg', 'Cascata completa da DRE prevista: conhecido + projetado por linha, com ajustes manuais. NÃO é número fechado.', vsOrc),
+    /* ESCRITURACAO. O cartao mais importante desta tela depois do resultado,
+       e o que faltava: o intervalo do resultado nao encolhe ao longo do mes
+       porque o CUSTO entra no razao com semanas de atraso, nao porque o
+       modelo seja ruim. Em 25/08 a receita estava 81% escriturada e o custo
+       fixo 45%. Sem isso, "resultado previsto" parece ter a mesma confianca
+       no dia 5 e no dia 25. */
+    kpi('Mês escriturado', fechPct(k.consolidacao_pct),
+      fechBlocos(k.consolidacao_blocos),
+      fechClasse(k.consolidacao_blocos),
+      'Quanto do mês já está lançado no razão contábil, comparado ao total previsto. A RECEITA acompanha o calendário; o CUSTO entra com semanas de atraso, e é isso que faz o resultado previsto oscilar. Julho é a prova: no dia 4 de agosto o mês aparecia com +R$ 1,7 milhão e fechou em −R$ 945 mil, porque ainda faltavam R$ 2,2 milhões de custo a lançar. Quando o custo está muito atrás da receita, espere o resultado PIORAR.'),
     kpi('Orçado do mês', k.resultado_orcado!=null?brlAbbr(k.resultado_orcado):'—',
       k.resultado_orcado!=null?'versão vigente do Orçamento':'sem versão do ano', ''),
     kpi('Receita prevista', brlAbbr(k.receita_prevista||0),

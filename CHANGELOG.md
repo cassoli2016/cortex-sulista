@@ -4,6 +4,16 @@ Gerado de `docs/versoes.yaml` por `scripts/gerar_changelog.py` — não editar �
 Formato [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/),
 versionamento [SemVer](https://semver.org/lang/pt-BR/).
 
+## [0.52.0] — 25/08/2026  ·  CX-25/08/2026-v0.52.0
+
+### Adicionado
+- A tela de FECHAMENTO DO MES passou a mostrar QUANTO do mes ja esta lancado no razao, e a quebra por bloco. Em 25/08, com 81% do mes corrido: receita 81% escriturada, custo variavel 50%, custo fixo 45%.
+- O cartao fica VERMELHO quando o custo esta muito atras da receita - nao quando o total e baixo. Um mes 60% escriturado por igual e confiavel; um com receita em 81% e custo em 45% nao e, mesmo com total parecido.
+- Aviso novo: "custo fixo escriturado em 45% contra 81% da receita, o resultado previsto tende a PIORAR quando o razao alcancar". Isso explica o comportamento que parecia defeito do modelo.
+
+### Corrigido
+- O percentual de escrituracao so era calculado quando o mes ja tinha virado - justamente quando a pergunta importa menos. No mes corrente ele vinha VAZIO, e a tela mostrava "resultado previsto" sem dizer se falava de um mes quase escriturado ou de metade de um.
+
 ## [0.51.0] — 25/08/2026  ·  CX-25/08/2026-v0.51.0
 
 ### Adicionado

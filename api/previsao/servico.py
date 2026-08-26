@@ -462,12 +462,46 @@ def montar_resposta(ctx: dict) -> dict:
         if modo == "fechado":
             avisos.append(f"Ajuste manual vencido em {rot} (mes ja fechado).")
 
-    consolidacao = None
-    if modo == "fechando":
-        visto = sum(abs(v) for v in razao_ag.values())
-        estimado_total = sum(abs(ln["previsto"]) for ln in linhas
-                             if not ln["formula"])
-        consolidacao = min(1.0, visto / estimado_total) if estimado_total else None
+    # ESCRITURACAO: quanto do mes ja esta no razao, no total e POR BLOCO.
+    #
+    # Antes so era calculado no modo "fechando". Mas e no mes CORRENTE que a
+    # pergunta importa: o intervalo do resultado nao encolhe ao longo do mes, e
+    # a razao nao e o modelo — e que o custo entra no razao com semanas de
+    # atraso. Em 25/08/2026, com 81% do mes corrido, a receita estava 81,1%
+    # escriturada e o custo fixo 44,5%. Sem esse numero na tela, "resultado
+    # previsto" parece ter a mesma confianca no dia 5 e no dia 25.
+    def _consolidado(rotulos: tuple[str, ...] | None) -> float | None:
+        alvo = [ln for ln in linhas if not ln["formula"]
+                and (rotulos is None or motor.norm(ln["linha"]).startswith(rotulos))]
+        prev = sum(abs(ln["previsto"]) for ln in alvo)
+        real = sum(abs(ln["realizado"]) for ln in alvo)
+        return min(1.0, real / prev) if prev else None
+
+    consolidacao = _consolidado(None)
+    consolidacao_blocos = {
+        "receita": _consolidado(("RECEITA",)),
+        "custo_variavel": _consolidado(("CV -", "CUSTO VARIAVEL")),
+        "custo_fixo": _consolidado(("CF -", "CUSTO FIXO")),
+    }
+
+    # O CUSTO ATRASADO E A PRINCIPAL FONTE DE ERRO DA PREVISAO, e ela e
+    # invisivel para quem olha so o resultado. Vinte pontos abaixo da receita
+    # ja bastam para o resultado do mes virar de sinal quando o razao alcancar.
+    _cr = consolidacao_blocos.get("receita")
+    _cf = consolidacao_blocos.get("custo_fixo")
+    _cv = consolidacao_blocos.get("custo_variavel")
+    if _cr and _cf and _cr - _cf > 0.20:
+        avisos.append(
+            f"Custo fixo escriturado em {_cf:.0%} contra {_cr:.0%} da receita: "
+            "o resultado previsto tende a PIORAR quando o razao alcancar. Em "
+            "julho o mes aparecia com +R$ 1,7 mi no dia 4 e fechou em "
+            "-R$ 945 mil pelo mesmo motivo.")
+    elif _cr and _cv and _cr - _cv > 0.20:
+        avisos.append(
+            f"Custo variavel escriturado em {_cv:.0%} contra {_cr:.0%} da "
+            "receita: o resultado previsto tende a piorar quando o razao "
+            "alcancar.")
+
 
     kpis = {
         "resultado_previsto": casc_base.get("RESULTADO DO EXERCICIO", 0.0),
@@ -486,6 +520,7 @@ def montar_resposta(ctx: dict) -> dict:
         "breakeven": ctx.get("breakeven"),
         "cap_mes": ctx.get("cap"),
         "consolidacao_pct": consolidacao,
+        "consolidacao_blocos": consolidacao_blocos,
         "dados_ate": ctx["hoje"],
     }
     return {"mes": ctx["mes"], "modo": modo, "kpis": kpis, "linhas": linhas,
