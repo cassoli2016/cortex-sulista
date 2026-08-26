@@ -113,29 +113,32 @@ A escolha tem consequência direta:
 **Não escolhemos por conta própria.** Pedimos que a contabilidade indique qual
 dos dois, ciente da divergência.
 
-#### Questão B — o critério de rateio volta a ser necessário
+#### Questão B — critério de rateio: RESPONDIDO, proporcional ao valor cobrado
 
-Ao contrário da definição anterior, "valor pago" **reabre o problema do
-rateio**, porque o pagamento é lançado **por viagem** e o documento é **por
-CT-e**:
+**Definido em 26/08/2026.** Como o pagamento é lançado **por viagem** e o
+documento é **por CT-e**, os **3.159 de 6.594 CT-e (48%)** que dividem viagem
+precisavam de um critério. Ficou: **cada documento recebe a mesma fatia que
+teve no valor cobrado dos clientes naquela viagem**.
 
-> **3.159 dos 6.594 CT-e do trimestre — 48% — dividem a viagem com outro
-> documento e disputam um único valor de pagamento.**
+Exemplo real já emitido em teste: viagem com **8 documentos** e R$ 1.591,50
+pagos ao agregado. O CT-e em questão respondeu por R$ 189,48 dos R$ 6.540,32
+cobrados na viagem — 2,90% — e saiu com **R$ 46,11**. Autorizado pela SEFAZ.
 
-Precisamos do critério para dividi-lo:
+Registramos duas observações:
 
-- proporcional ao **peso** de cada carga;
-- proporcional ao **valor da mercadoria**;
-- proporcional ao **valor cobrado** de cada CT-e;
-- em **partes iguais**;
-- ou outro.
+- **Os outros critérios não foram implementados**, de propósito. Todos os
+  quatro fecham a soma, então nenhum "erra" numa conferência — o que muda é
+  quanto imposto cada documento carrega. Num caso de 3 CT-e numa viagem de
+  R$ 3.398,36, o mesmo documento valeria R$ 201,70 por peso e R$ 1.132,79 em
+  partes iguais: **5,6 vezes**. Trocar o critério tem de ser decisão, não
+  conveniência.
+- **O arredondamento é por documento.** A soma das fatias pode diferir do
+  valor da viagem em alguns centavos, porque cada CT-e é um documento
+  independente e não um lote que precise fechar.
 
-O sistema **não divide sozinho**: interrompe e sinaliza. Arbitrar um rateio
-sem definição seria inventar base de cálculo, multiplicada por milhares de
-documentos.
-
-**Enquanto o critério não vier, 52% da fila pode ser emitida** (os CT-e que
-são o único documento da viagem) e 48% fica retida.
+Casos em que o sistema ainda **para**: viagem com prestação total zero (não há
+como calcular proporção) e CT-e com prestação zero dentro de uma viagem com
+outros (receberia R$ 0,00, e documento fiscal de valor zero não é prestação).
 
 ### 3.3 Um documento por CT-e nosso, ou por viagem? — RESPONDIDO: por CT-e
 

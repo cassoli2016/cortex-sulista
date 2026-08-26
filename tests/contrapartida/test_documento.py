@@ -74,6 +74,7 @@ DADOS = {
 # Enquadramento de TESTE. Nao e definicao fiscal — serve so para exercitar a
 # montagem. Trocar por decisao da contabilidade quando ela vier.
 ENQ = doc.Enquadramento(cfop_interno="5351", cfop_interestadual="6351",
+                        criterio_rateio="cobrado",
                         tp_serv="1", grupo_icms="ICMSSN",
                         cst_icms="90", p_icms=None, base_valor="fretecompra",
                         toma="4", referenciar_original=True)
@@ -174,12 +175,59 @@ def test_as_duas_bases_dao_numeros_DIFERENTES():
         ENQ, base_valor="prestacao")) == Decimal("1494.02")
 
 
-def test_embarque_com_mais_de_um_documento_NAO_e_rateado_sozinho():
-    """1,7 CT-e por embarque no trimestre. O valor de frete de compra e do
-    embarque inteiro: dividir por conta propria inventaria base de ICMS."""
-    d = dict(DADOS, documentos_no_embarque=3, exige_rateio=True)
-    with pytest.raises(ValueError, match="definição fiscal"):
+def test_rateio_por_valor_cobrado_reproduz_a_viagem_real():
+    """Viagem 169646: R$ 3.398,36 pagos, TRES CT-e cobrados a 1.156,00,
+    4.661,35 e 2.675,53. Pelo criterio decidido (valor cobrado), as fatias
+    sao 462,56 / 1.865,20 / 1.070,59 — conferidas contra a base."""
+    viagem = {"valorfretecompra": Decimal("3398.36"),
+              "documentos_no_embarque": 3, "exige_rateio": True,
+              "prestacao_do_embarque": 8492.88, "embarque": 169646}
+    esperado = {"1156.00": "462.56", "4661.35": "1865.20",
+                "2675.53": "1070.59"}
+    for cobrado, fatia in esperado.items():
+        d = dict(DADOS, **viagem, valortotalprestacao=Decimal(cobrado))
+        assert doc.valor(d, ENQ) == Decimal(fatia), cobrado
+
+
+def test_documento_sozinho_na_viagem_leva_o_valor_INTEIRO():
+    """52% dos CT-e sao o unico documento da viagem: fator 1, sem divisao."""
+    assert doc.fator_rateio(DADOS, ENQ) == 1
+    assert doc.valor(DADOS, ENQ) == Decimal("1066.32")
+
+
+def test_a_base_prestacao_nao_rateia_nunca():
+    """Se a base for o valor cobrado do cliente, cada CT-e ja tem o seu — o
+    rateio deixa de existir mesmo com varios documentos na viagem."""
+    d = dict(DADOS, documentos_no_embarque=3, exige_rateio=True,
+             prestacao_do_embarque=8492.88)
+    enq = dataclasses.replace(ENQ, base_valor="prestacao")
+    assert doc.valor(d, enq) == Decimal("1494.02")
+
+
+def test_prestacao_zero_na_viagem_PARA_em_vez_de_dividir_por_zero():
+    d = dict(DADOS, documentos_no_embarque=2, exige_rateio=True,
+             prestacao_do_embarque=0)
+    with pytest.raises(ValueError, match="prestação total zero"):
         doc.valor(d, ENQ)
+
+
+def test_documento_com_prestacao_zero_nao_recebe_fatia_zero():
+    """Pelo criterio, ele receberia R$ 0,00 — e documento fiscal de valor
+    zero nao e prestacao. Para e avisa."""
+    d = dict(DADOS, documentos_no_embarque=2, exige_rateio=True,
+             prestacao_do_embarque=1000.0,
+             valortotalprestacao=Decimal("0"))
+    with pytest.raises(ValueError, match="prestação zero"):
+        doc.valor(d, ENQ)
+
+
+def test_o_criterio_e_explicito_e_os_outros_nao_entram_por_engano():
+    """Os quatro criterios fecham a soma; o que muda e quanto imposto cada
+    documento carrega. Trocar tem de ser decisao, nao conveniencia."""
+    assert doc.CRITERIOS_RATEIO == ("cobrado",)
+    for outro in ("peso", "mercadoria", "iguais"):
+        with pytest.raises(ValueError, match="criterio_rateio"):
+            dataclasses.replace(ENQ, criterio_rateio=outro)
 
 
 def test_sem_frete_de_compra_a_base_nao_cai_para_zero():

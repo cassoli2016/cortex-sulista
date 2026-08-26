@@ -77,6 +77,16 @@ XNOME_HOMOLOGACAO = "CTE EMITIDO EM AMBIENTE DE HOMOLOGACAO - SEM VALOR FISCAL"
 # 6932"). {interno: código} — interno = início e término na mesma UF.
 CFOP_INICIO_EM_OUTRA_UF = {True: "5932", False: "6932"}
 
+# Critério de divisão do valor da VIAGEM entre os CT-e que a compartilham.
+# Definido pela área em 26/08/2026: proporcional ao valor cobrado do cliente.
+#
+# Por que só um está implementado: os quatro fecham a soma, então nenhum
+# "erra" na conferência — o que muda é quanto imposto cada documento carrega.
+# Num caso real de 3 CT-e numa viagem de R$ 3.398,36, o mesmo documento vale
+# R$ 201,70 por peso e R$ 1.132,79 em partes iguais: **5,6 vezes**. Deixar os
+# outros disponíveis convidaria a trocar por conveniência.
+CRITERIOS_RATEIO = ("cobrado",)
+
 
 # ------------------------------------------------------------ enquadramento --
 
@@ -116,6 +126,7 @@ class Enquadramento:
     """
     cfop_interno: str
     cfop_interestadual: str
+    criterio_rateio: str
     tp_serv: str
     grupo_icms: str
     cst_icms: str
@@ -151,6 +162,13 @@ class Enquadramento:
         return self.cfop_interno if interno else self.cfop_interestadual
 
     def __post_init__(self) -> None:
+        if self.criterio_rateio not in CRITERIOS_RATEIO:
+            raise ValueError(
+                f"criterio_rateio: use um de {sorted(CRITERIOS_RATEIO)}. "
+                f"Os outros (peso, mercadoria, iguais) foram avaliados e NÃO "
+                f"estão implementados de propósito — não basta trocar a "
+                f"constante, cada um precisa da definição de quem responde "
+                f"pelo fiscal.")
         for campo in ("cfop_interno", "cfop_interestadual"):
             v = getattr(self, campo)
             if not (v.isdigit() and len(v) == 4):
@@ -242,7 +260,18 @@ SELECT k.filial, k.serie, k.numero, k.dtemissao, k.chaveacessocte,
        (SELECT count(*)::int FROM programacaoembarque_composicao c
          WHERE c.numero = p.numero
            AND c.diferenciadornumero = p.diferenciadornumero)
-         AS documentos_no_embarque
+         AS documentos_no_embarque,
+       -- Denominador do rateio: o que a Sulista cobrou dos clientes somando
+       -- TODOS os CT-e da mesma viagem. O numerador e o `valortotalprestacao`
+       -- deste documento, que ja vem acima.
+       (SELECT coalesce(sum(k2.valortotalprestacao), 0)::float8
+          FROM programacaoembarque_composicao c2
+          JOIN conhecimento k2
+            ON k2.filial = c2.filialdocumento AND k2.serie = c2.seriedocumento
+           AND k2.numero = c2.numerodocumento
+         WHERE c2.numero = p.numero
+           AND c2.diferenciadornumero = p.diferenciadornumero)
+         AS prestacao_do_embarque
   FROM conhecimento k
   JOIN veiculo v   ON v.placa = k.veiculo
   JOIN cadastro cd ON cd.codigo = v.proprietario
@@ -349,7 +378,9 @@ def dados(chave: str) -> dict:
     d["toma_cep8"] = cep(d["toma_cep"])
     d["chave_original"] = chave
 
-    # Rateio é decisão fiscal: o módulo mede e avisa, não divide sozinho.
+    # 48% dos CT-e dividem a viagem com outro documento, e o pagamento é
+    # lançado por VIAGEM. O critério de divisão é decisão fiscal — está em
+    # `Enquadramento.criterio_rateio` e é aplicado em `valor()`.
     n = d.get("documentos_no_embarque") or 0
     d["exige_rateio"] = n > 1
 
@@ -363,23 +394,49 @@ def dados(chave: str) -> dict:
     return d
 
 
+def fator_rateio(d: dict, enq: Enquadramento) -> Decimal:
+    """Quanto do valor da VIAGEM cabe a ESTE CT-e. 1 quando ele é o único.
+
+    Critério `cobrado`: a fatia de cada documento é a fatia dele no que a
+    Sulista cobrou dos clientes naquela viagem.
+    """
+    if not d.get("exige_rateio"):
+        return Decimal(1)
+    total = Decimal(str(d.get("prestacao_do_embarque") or 0))
+    minha = Decimal(str(d.get("valortotalprestacao") or 0))
+    if total <= 0:
+        raise ValueError(
+            f"O embarque {d['embarque']} tem {d['documentos_no_embarque']} "
+            f"documentos e prestação total zero — não há como ratear por "
+            f"valor cobrado. Conferir os valores no ERP antes de emitir.")
+    if minha <= 0:
+        raise ValueError(
+            f"Este CT-e tem prestação zero dentro de um embarque com "
+            f"{d['documentos_no_embarque']} documentos: pelo critério de "
+            f"valor cobrado ele receberia R$ 0,00, o que não é prestação.")
+    return minha / total
+
+
 def valor(d: dict, enq: Enquadramento) -> Decimal:
-    """O valor da prestação do documento novo, segundo a base escolhida."""
+    """O valor da prestação do documento novo, segundo a base escolhida.
+
+    Arredonda DEPOIS de ratear, e cada documento é arredondado por si: são
+    documentos independentes, emitidos em momentos diferentes, e não um lote
+    que precise fechar. A soma das fatias pode diferir do valor da viagem em
+    alguns centavos — é do arredondamento, não do critério.
+    """
     if enq.base_valor == "prestacao":
-        v = d.get("valortotalprestacao")
+        # Cada CT-e já tem o seu próprio valor: não há o que ratear.
+        v = Decimal(str(d.get("valortotalprestacao") or 0))
     else:
-        v = d.get("valorfretecompra")
-        if v is None:
+        bruto = d.get("valorfretecompra")
+        if bruto is None:
             raise ValueError(
                 "Este CT-e não tem embarque com valor de frete de compra "
                 "(vale para 535 dos 6.578 do trimestre) — não dá para usar "
                 "'fretecompra' como base aqui.")
-        if d.get("exige_rateio"):
-            raise ValueError(
-                f"O embarque {d['embarque']} tem {d['documentos_no_embarque']} "
-                f"documentos e um único valor de frete de compra. Ratear entre "
-                f"eles é definição fiscal, não aritmética — resolva antes.")
-    return Decimal(str(v or 0)).quantize(Decimal("0.01"))
+        v = Decimal(str(bruto)) * fator_rateio(d, enq)
+    return v.quantize(Decimal("0.01"))
 
 
 # --------------------------------------------------------------- o esqueleto --

@@ -4,6 +4,16 @@ Gerado de `docs/versoes.yaml` por `scripts/gerar_changelog.py` — não editar �
 Formato [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/),
 versionamento [SemVer](https://semver.org/lang/pt-BR/).
 
+## [0.75.0] — 26/08/2026  ·  CX-26/08/2026-v0.75.0
+
+### Adicionado
+- Criterio de rateio definido e implementado: quando varios CT-e dividem a mesma viagem, cada um recebe a MESMA FATIA que teve no valor cobrado dos clientes naquela viagem. Com isso os 48% da fila que estavam retidos passaram a ser emitiveis - um deles ja foi autorizado pela SEFAZ em homologacao: viagem com 8 documentos, R$ 1.591,50 pagos ao agregado, e o CT-e saiu com R$ 46,11 por representar 2,9% do que se cobrou na viagem.
+- Os outros criterios (peso, valor da mercadoria, partes iguais) NAO foram implementados, de proposito. Todos fecham a soma, entao nenhum "erra" numa conferencia - o que muda e quanto imposto cada documento carrega. Num caso real de 3 CT-e numa viagem de R$ 3.398,36, o mesmo documento valeria R$ 201,70 por peso e R$ 1.132,79 em partes iguais: 5,6 vezes. Trocar tem de ser decisao registrada, nao conveniencia de codigo.
+
+### Alterado
+- O arredondamento acontece DEPOIS de ratear e por documento: cada CT-e e independente, emitido em momento proprio, e nao um lote que precise fechar. A soma das fatias pode diferir do valor da viagem em centavos, e isso e do arredondamento.
+- Dois casos continuam parando em vez de emitir: viagem com valor cobrado total zero (nao ha proporcao a calcular) e CT-e com valor cobrado zero dentro de uma viagem com outros documentos - pelo criterio ele receberia R$ 0,00, e documento fiscal de valor zero nao e prestacao.
+
 ## [0.74.0] — 26/08/2026  ·  CX-26/08/2026-v0.74.0
 
 ### Adicionado

@@ -40,6 +40,8 @@ ENQUADRAMENTO = documento.Enquadramento(
     # viagens de agregado sao interestaduais - um CFOP fixo erraria a maioria.
     cfop_interno="5351",
     cfop_interestadual="6351",
+    # DECIDIDO: rateio proporcional ao valor cobrado do cliente.
+    criterio_rateio="cobrado",
     tp_serv="1",              # DECIDIDO: subcontratacao (base 0 do SCHEMA)
     grupo_icms="ICMSSN",      # PENDENTE: emitente e optante do Simples
     cst_icms="90",            # PENDENTE
