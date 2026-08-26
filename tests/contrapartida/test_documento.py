@@ -45,6 +45,30 @@ DADOS = {
     "valortotalmercadoria": Decimal("8610.00"),
     "pesobruto": Decimal("2860.500"), "kmfrete": Decimal("167.81"),
     "embarque": 176247, "documentos_no_embarque": 1, "exige_rateio": False,
+    # Remetente e destinatario da CARGA, copiados do CT-e da Sulista. Sem eles
+    # a SEFAZ recusa com cStat 469 — descoberto na transmissao, nao no schema.
+    "rem_cnpj": "13260523000380",
+    "rem_nome": "FAURECIA AUTOMOTIVE INTERIORS BRAZIL LTDA.",
+    "rem_ie": "635310175117", "rem_logradouro": "AVENIDA SENADOR VERGUEIRO",
+    "rem_numero": 1850, "rem_complemento": None, "rem_bairro": "RUDGE RAMOS",
+    "rem_cidade": "SAO BERNARDO DO CAMPO", "rem_uf": "SP",
+    "rem_cep": 9750000, "rem_cep8": "09750000",
+    "rem_cmun": 3548708, "rem_xmun": "SÃO BERNARDO DO CAMPO",
+    "dest_cnpj": "56413990000144",
+    "dest_nome": "FABINJECT INDUSTRIA PLASTICA LTDA",
+    "dest_ie": "688089115115", "dest_logradouro": "RUA JOSE BENEDITO",
+    "dest_numero": 120, "dest_complemento": None, "dest_bairro": "CENTRO",
+    "dest_cidade": "TAUBATE", "dest_uf": "SP",
+    "dest_cep": 12070000, "dest_cep8": "12070000",
+    "dest_cmun": 3554102, "dest_xmun": "TAUBATÉ",
+    # As duas NF-e transportadas. cStat 693 sem elas.
+    "notas": [
+        {"chave": "35260813260523000380550010000386111348217198",
+         "modelo": "55", "numero": 38611},
+        {"chave": "35260813260523000380550010000386091149290547",
+         "modelo": "55", "numero": 38609},
+    ],
+    "notas_sem_chave": [],
 }
 
 # Enquadramento de TESTE. Nao e definicao fiscal — serve so para exercitar a
@@ -185,12 +209,49 @@ def test_o_xml_valida_no_XSD_oficial_menos_a_assinatura():
     assert "Signature" in erros[0]
 
 
-def test_homologacao_forca_o_nome_do_tomador():
-    """Sem esse nome exato a SEFAZ recusa em homologacao mesmo com todo o
-    resto correto — e o erro nao diz que o problema e o nome."""
+def test_homologacao_carimba_REMETENTE_e_DESTINATARIO_e_nao_o_tomador():
+    """Custou tres rejeicoes descobrir de quem e o nome.
+
+    646 fala do REMETENTE e 649 do DESTINATARIO; o tomador conserva o nome
+    real. A aposta inicial (carimbar o tomador) dava exatamente a mesma
+    rejeicao de nao carimbar ninguem, o que faz a tentativa parecer sem
+    efeito.
+    """
     xml = doc.serializar(doc.montar(DADOS, ENQ, numero=1, ambiente="2"))
-    assert doc.XNOME_HOMOLOGACAO in xml
-    assert "FIL S.B. DO CAMPO" in xml   # segue nomeada como emissora anterior
+    assert xml.count(doc.XNOME_HOMOLOGACAO) == 2, "remetente E destinatario"
+    assert DADOS["rem_nome"] not in xml and DADOS["dest_nome"] not in xml
+    assert "FIL S.B. DO CAMPO" in xml, "o tomador mantem o nome real"
+
+
+def test_a_grafia_do_nome_de_homologacao_e_CTE_sem_hifen():
+    """A SEFAZ compara caractere a caractere, e no CT-e a grafia e `CTE`, nao
+    o `CT-E` que a NF-e usa. Com o hifen leva 646 — a MESMA rejeicao de nao
+    ter carimbado nada."""
+    assert doc.XNOME_HOMOLOGACAO.startswith("CTE EMITIDO")
+    assert "CT-E" not in doc.XNOME_HOMOLOGACAO
+
+
+def test_producao_nao_carimba_nome_nenhum():
+    """O carimbo e do ambiente de teste: em producao os nomes sao os reais."""
+    xml = doc.serializar(doc.montar(DADOS, ENQ, numero=1, ambiente="1"))
+    assert doc.XNOME_HOMOLOGACAO not in xml
+    assert DADOS["rem_nome"] in xml and DADOS["dest_nome"] in xml
+
+
+def test_as_notas_transportadas_entram_todas():
+    """O CT-e piloto carrega DUAS notas — nunca foi campo unico."""
+    xml = doc.serializar(doc.montar(DADOS, ENQ, numero=1))
+    for n in DADOS["notas"]:
+        assert n["chave"] in xml
+    assert xml.count("<infNFe>") == 2
+
+
+def test_sem_nota_com_chave_para_ANTES_de_transmitir():
+    """cStat 693. O XSD deixa o grupo OPCIONAL, entao a validacao local passa
+    e so a SEFAZ reclama — vale parar antes e dizer o porque."""
+    d = dict(DADOS, notas=[], notas_sem_chave=[{"chave": None}])
+    with pytest.raises(ValueError, match="Documentos Transportados"):
+        doc.montar(d, ENQ, numero=1)
 
 
 def test_a_referencia_ao_CT_e_da_sulista_e_o_que_faz_ser_contrapartida():
@@ -215,3 +276,36 @@ def test_simples_nacional_nao_destaca_icms():
     xml = doc.serializar(doc.montar(DADOS, ENQ, numero=1))
     assert "<ICMSSN>" in xml and "<CRT>1</CRT>" in xml
     assert "<vICMS>" not in xml
+
+
+# --- a transmissao (sem rede) ----------------------------------------------
+
+def test_o_qrcode_e_montado_ANTES_de_transmitir():
+    """cStat 850 sem ele. E a ordem importa: o QR e campo do documento, entao
+    tem de existir antes da assinatura — depois dela o hash nao fecha."""
+    from api.contrapartida import emissao
+    src = open(emissao.__file__.replace(".pyc", ".py"),
+               encoding="utf-8").read()
+    assert src.index("monta_qrcode") < src.index("envia_documento(edoc)")
+
+
+def test_producao_esta_fechada_na_transmissao():
+    """Enquanto o enquadramento fiscal for chute, producao nao abre — e a
+    recusa e explicita, com a razao no erro."""
+    import inspect
+
+    from api.contrapartida import emissao
+    assert inspect.signature(
+        emissao.transmitir).parameters["ambiente"].default == "2"
+    fonte = inspect.getsource(emissao._guardas)
+    assert "PermissionError" in fonte and "HOMOLOGA" in fonte.upper()
+
+
+def test_numeracao_e_por_ambiente():
+    """Homologacao e producao tem numeracao independente: misturar faria o
+    primeiro CT-e de producao nascer com o numero gasto num teste."""
+    import inspect
+
+    from api.contrapartida import emissao
+    fonte = inspect.getsource(emissao.proximo_numero)
+    assert "ambiente=?" in fonte

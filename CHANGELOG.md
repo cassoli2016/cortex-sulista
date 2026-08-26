@@ -4,6 +4,19 @@ Gerado de `docs/versoes.yaml` por `scripts/gerar_changelog.py` — não editar �
 Formato [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/),
 versionamento [SemVer](https://semver.org/lang/pt-BR/).
 
+## [0.68.0] — 26/08/2026  ·  CX-26/08/2026-v0.68.0
+
+### Adicionado
+- A SEFAZ de Sao Paulo AUTORIZOU o primeiro CT-e de contrapartida emitido pelo agregado RODRIGO ANTONIO PARIZOTTO contra a Sulista, em ambiente de HOMOLOGACAO: "100 - Autorizado o uso do CT-e", protocolo 135260006358665. A pilha inteira esta provada de ponta a ponta - montagem, assinatura com o certificado do agregado, QR Code, compressao, transmissao e leitura da resposta.
+- Homologacao e o ambiente de teste da SEFAZ: o documento autorizado la NAO tem valor fiscal, nao escritura nada e nao gera obrigacao para ninguem. Producao continua FECHADA no codigo, com a razao escrita no proprio erro - depende do enquadramento fiscal, que a contabilidade ainda nao respondeu.
+- Toda transmissao fica registrada com quem, quando, ambiente, numero, chave e o retorno da SEFAZ. Assinar em nome de terceiro tem de ser respondivel meses depois, inclusive contra o proprio CORTEX. E a numeracao e separada por ambiente, senao o primeiro CT-e de producao nasceria com um numero gasto em teste.
+- Tres guardas antes de qualquer assinatura: autorizacao vigente e certificado valido do agregado; conferencia de que o CNPJ do emitente do documento e o dono do certificado; e numero inedito na serie.
+
+### Corrigido
+- Chegar ao "autorizado" custou seis rejeicoes da SEFAZ, e nenhuma delas aparece numa validacao local - o schema aceita o documento sem esses campos, quem os exige e a regra de negocio. Faltavam as notas fiscais transportadas (693), o remetente e o destinatario (469) e o QR Code (850).
+- Em homologacao a razao social carimbada e a do REMETENTE e a do DESTINATARIO, nao a do tomador - e a grafia e "CTE EMITIDO...", sem hifen, diferente da que a nota fiscal usa. Com o hifen a rejeicao e a MESMA de nao ter carimbado nada, o que faz a tentativa parecer sem efeito.
+- Mais dois defeitos no caminho de CT-e da biblioteca, ambos invisiveis na consulta de status e so visiveis ao emitir de verdade: a serializacao desviava ate texto simples para o caminho novo (e a assinatura serializa uma segunda vez), e o envio comprimido era tratado como se fosse XML.
+
 ## [0.67.1] — 26/08/2026  ·  CX-26/08/2026-v0.67.1
 
 ### Corrigido

@@ -76,7 +76,14 @@ def _serializacao(base) -> None:
     _orig = alvo._generateds_to_string_etree
 
     def serializa(self, ds, pretty_print=False):
-        if hasattr(ds, "export"):           # generateDS: caminho da biblioteca
+        # So o objeto xsdata desvia daqui. `str` e elemento lxml tem caminho
+        # PROPRIO na funcao original, ANTES do `.export()` — e a primeira
+        # versao deste remendo mandava os dois para o xsdata, que responde
+        # "Type <class 'str'> is not a dataclass". Nao aparece na consulta de
+        # status (que nunca serializa string) e so estoura ao assinar de
+        # verdade: `assina_raiz` chama esta funcao uma segunda vez.
+        import dataclasses
+        if hasattr(ds, "export") or not dataclasses.is_dataclass(ds):
             return _orig(self, ds, pretty_print)
         from lxml import etree
         from xsdata.formats.dataclass.serializers import XmlSerializer
@@ -88,6 +95,47 @@ def _serializacao(base) -> None:
 
     serializa._cortex = True
     alvo._generateds_to_string_etree = serializa
+
+
+def _e_xml(v) -> bool:
+    return isinstance(v, str) and v.lstrip()[:1] == "<"
+
+
+def _payload_comprimido(base, transmissao) -> None:
+    """(5) O envio SINCRONO manda base64 de gzip, e a biblioteca parseia XML.
+
+    `envia_documento` do CT-e comprime o documento assinado e codifica em
+    base64 — que e o que o servico `cteRecepcaoSinc` espera. So que o `_post`
+    da base chama `_generateds_to_string_etree(raiz)` e o
+    `interpretar_mensagem` da transmissao chama `etree.fromstring`, os dois
+    sem perguntar se aquilo e XML. O resultado e
+    "Start tag expected, '<' not found" com o payload CORRETO na mao.
+
+    Este e o caminho que a NF-e nao exercita: la o envio vai em XML puro.
+    """
+    alvo = base.DocumentoEletronico
+    if not getattr(alvo._generateds_to_string_etree, "_cortex_b64", False):
+        _orig = alvo._generateds_to_string_etree
+
+        def serializa(self, ds, pretty_print=False):
+            if isinstance(ds, str) and not _e_xml(ds):
+                return ds, ds          # segue inteiro para o transporte
+            return _orig(self, ds, pretty_print)
+
+        serializa._cortex = True
+        serializa._cortex_b64 = True
+        alvo._generateds_to_string_etree = serializa
+
+    if not getattr(transmissao.interpretar_mensagem, "_cortex", False):
+        _orig_msg = transmissao.interpretar_mensagem
+
+        def interpreta(self, mensagem):
+            if isinstance(mensagem, str) and not _e_xml(mensagem):
+                return mensagem
+            return _orig_msg(self, mensagem)
+
+        interpreta._cortex = True
+        transmissao.interpretar_mensagem = interpreta
 
 
 def _confianca_tls() -> None:
@@ -149,11 +197,16 @@ def compatibilizar():
     global _APLICADO
     import erpbrasil.edoc.cte as cte
     import erpbrasil.edoc.edoc as base
+    from erpbrasil.transmissao import TransmissaoSOAP
     if not _APLICADO:
         _confianca_tls()
         _APLICADO = True
     _endereco(cte)
+    # ORDEM IMPORTA: `_serializacao` embrulha primeiro para que o remendo do
+    # payload comprimido fique por FORA e decida antes se aquilo e XML.
+    # Invertido, o base64 chegaria ao xsdata.
     _serializacao(base)
+    _payload_comprimido(base, TransmissaoSOAP)
     _leitura(base)
     return cte
 
