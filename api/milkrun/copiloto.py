@@ -34,6 +34,7 @@ import statistics
 from datetime import date
 
 from api import copiloto as cop
+from api.milkrun import respostas
 from api.milkrun.servico import get_milkrun
 
 log = logging.getLogger("cortex.milkrun.copiloto")
@@ -132,7 +133,9 @@ def contexto(de: str | None = None, ate: str | None = None,
     kpis = d.get("kpis") or {}
     # TABELAS PRONTAS. O modelo nao agrupa 163 pontos de JSON sem errar - e
     # nao precisa: o ranking sai daqui ordenado e ele so le.
-    todos = [p for c in coletas for p in c["pontos"]]
+    # a placa vive na COLETA; sem propagar, _agrega(..., "placa") devolve
+    # sempre vazio e a pergunta "qual placa fica mais parada" morre calada
+    todos = [dict(p, placa=c["placa"]) for c in coletas for p in c["pontos"]]
     por_forn = _agrega(todos, "local")
     por_placa = _agrega(todos, "placa") if any(p.get("placa") for p in todos) else []
     medidos = [p for p in todos if p.get("permanencia_min") is not None]
@@ -265,6 +268,19 @@ def stream(historico: list[dict], de: str | None = None, ate: str | None = None,
         )
     yield {"tipo": "status", "texto": "lendo o roteiro do dia…"}
     ctx = contexto(de, ate, tomador, tipo)
+    # RESPOSTA CALCULADA primeiro. Para "maior", "top N" e "resumo" o numero E
+    # a resposta: nao ha o que interpretar, e deixar o modelo escolher so
+    # acrescenta chance de errar (medido: os dois modelos testados davam
+    # resposta confiante e errada com o dado a vista). Pergunta aberta cai no
+    # `None` e segue para o modelo, que e onde ele e melhor.
+    ultima = next((m.get("content", "") for m in reversed(historico or [])
+                   if m.get("role") == "user"), "")
+    pronta = respostas.responder(ultima, ctx)
+    if pronta:
+        yield {"tipo": "modelo", "modelo": "calculado"}
+        yield {"tipo": "delta", "texto": pronta}
+        yield {"tipo": "fim", "calculado": True}
+        return
     yield {"tipo": "modelo", "modelo": f"{st['modelo']} (local)"}
     msgs = mensagens(historico, ctx)
     emitiu = False

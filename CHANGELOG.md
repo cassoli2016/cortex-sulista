@@ -4,6 +4,16 @@ Gerado de `docs/versoes.yaml` por `scripts/gerar_changelog.py` — não editar �
 Formato [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/),
 versionamento [SemVer](https://semver.org/lang/pt-BR/).
 
+## [0.58.0] — 26/08/2026  ·  CX-26/08/2026-v0.58.0
+
+### Alterado
+- As perguntas de sempre do chat da Operacao MWM deixaram de passar pelo modelo: maior atraso, maior permanencia, top N de fornecedores ou placas e resumo do periodo passaram a ser CALCULADAS e respondem na hora, sem espera. O modelo continua atendendo o que e aberto ("por que essa coleta demorou?").
+- A razao esta medida. Num A/B entre dois modelos locais, toda dimensao pre-calculada os dois acertaram, e toda dimensao deixada para o modelo os dois erraram - com resposta confiante, especifica e errada: perguntado onde o veiculo ficou mais parado, um respondeu "MARTINREA, 212,5 min" com coleta, placa e data formatadas, quando o certo era outro fornecedor com 307,4 min, valor que estava no contexto duas vezes. Onde o numero E a resposta, nao ha o que o modelo interprete.
+
+### Corrigido
+- O ranking por placa vinha sempre vazio: a placa fica na coleta e nao no ponto, e a agregacao procurava no lugar errado. "Quais placas ficam mais paradas" morria calado.
+- "Em qual ponto o veiculo ficou mais tempo parado" era entendido como pedido de ranking por placa (por conter "veiculo" e "tempo" perto um do outro) e devolvia uma lista em vez do maximo.
+
 ## [0.57.1] — 26/08/2026  ·  CX-26/08/2026-v0.57.1
 
 ### Adicionado

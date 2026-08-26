@@ -3,6 +3,33 @@
 #   - a tela Documentação     (#doc)
 #   - o rótulo no rodapé      (CX-DD/MM/AAAA-vX.Y.Z)
 # A versão do TOPO é a corrente e tem de bater com o pyproject.toml.
+- versao: "0.58.0"
+  data: "2026-08-26"
+  alterado:
+    - >-
+      As perguntas de sempre do chat da Operacao MWM deixaram de passar pelo
+      modelo: maior atraso, maior permanencia, top N de fornecedores ou placas
+      e resumo do periodo passaram a ser CALCULADAS e respondem na hora, sem
+      espera. O modelo continua atendendo o que e aberto ("por que essa coleta
+      demorou?").
+    - >-
+      A razao esta medida. Num A/B entre dois modelos locais, toda dimensao
+      pre-calculada os dois acertaram, e toda dimensao deixada para o modelo os
+      dois erraram - com resposta confiante, especifica e errada: perguntado
+      onde o veiculo ficou mais parado, um respondeu "MARTINREA, 212,5 min"
+      com coleta, placa e data formatadas, quando o certo era outro fornecedor
+      com 307,4 min, valor que estava no contexto duas vezes. Onde o numero E
+      a resposta, nao ha o que o modelo interprete.
+  corrigido:
+    - >-
+      O ranking por placa vinha sempre vazio: a placa fica na coleta e nao no
+      ponto, e a agregacao procurava no lugar errado. "Quais placas ficam mais
+      paradas" morria calado.
+    - >-
+      "Em qual ponto o veiculo ficou mais tempo parado" era entendido como
+      pedido de ranking por placa (por conter "veiculo" e "tempo" perto um do
+      outro) e devolvia uma lista em vez do maximo.
+
 - versao: "0.57.1"
   data: "2026-08-26"
   corrigido:
