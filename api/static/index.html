@@ -962,6 +962,19 @@ button.avatar{border:0;cursor:pointer}
    ganharia padding dobrado. */
 .card>.ges-cfg{padding:16px 18px 0}
 .card>.m-foot{padding:0 18px 16px}
+/* Mesma armadilha, na tela de CT-e de Contrapartida: "Volume por mês",
+   "Passivo acumulado" e "Ler com atenção" entravam no cartão como div cru e
+   as barras encostavam na borda dos dois lados. O horizontal é 18px para
+   casar com o `.card .head` — barra que começa antes do título que a nomeia
+   faz o cartão parecer torto mesmo com a borda intacta.
+   O espaçamento entre as barras é `gap` do container, e NÃO margem em cada
+   filho: elas nascem com `style=` inline vindo do JS, e estilo inline vence
+   folha de estilo — um `:last-child` aqui seria silenciosamente ignorado (só
+   `!important` alcançaria). Com `gap` a última barra não pendura margem
+   nenhuma, e o vão até a borda de baixo é o mesmo nos três cartões: antes era
+   10px em "Volume por mês", 0 em "Passivo acumulado" e 8px em "Ler com
+   atenção", sobre um padding que não existia. */
+.card>.cpbloco{padding:12px 18px 14px;display:flex;flex-direction:column;gap:10px}
 .ges-cfg{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:14px}
 .ges-cfg label{display:block;font-size:12px;font-weight:600;color:var(--n600,#6B7280);margin-bottom:4px}
 .ges-cfg input{width:100%;padding:9px 10px;border:1px solid var(--n300,#d3dae2);border-radius:6px;font:inherit;font-size:14px}
@@ -2621,17 +2634,17 @@ body.tvfull #btnReport,body.tvmode #btnReport{display:none}
         <div class="grid2">
           <div class="card">
             <div class="head"><h2>Volume por mês <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="PJ e TAC separados de propósito: somar os dois produz um passivo falso, porque o TAC não emite CT-e.">i</span></h2></div>
-            <div id="cpMes"></div>
+            <div id="cpMes" class="cpbloco"></div>
           </div>
           <div class="card">
             <div class="head"><h2>Passivo acumulado <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="CT-e NÃO se emite retroativo: a SEFAZ recusa data de emissão fora da janela. Este bloco não é fila de trabalho — é o número para a decisão da contabilidade e do jurídico.">i</span></h2></div>
-            <div id="cpPassivo"></div>
+            <div id="cpPassivo" class="cpbloco"></div>
           </div>
         </div>
 
         <div class="card" id="cpAvisosCard" hidden>
           <div class="head"><h2>Ler com atenção</h2></div>
-          <div id="cpAvisos"></div>
+          <div id="cpAvisos" class="cpbloco"></div>
         </div>
       </section>
 
@@ -9436,7 +9449,7 @@ function renderCtecp(d){
   const meses=Object.keys(ms).sort();
   document.getElementById('cpMes').innerHTML = meses.length ? meses.map(function(m){
     const pj=(ms[m].pj||{}).ctes||0, tac=(ms[m].tac||{}).ctes||0, tot=(pj+tac)||1;
-    return '<div style="margin:0 0 10px">'
+    return '<div>'
       +'<div style="display:flex;justify-content:space-between;font-size:12px">'
       +'<span>'+esc(m)+'</span><span class="mono" style="color:var(--n500)">'
       +pj.toLocaleString('pt-BR')+' PJ · '+tac.toLocaleString('pt-BR')+' TAC</span></div>'
@@ -9449,14 +9462,14 @@ function renderCtecp(d){
   const pas=(d.passivo||[]).filter(function(x){return x.classe==='pj';});
   const maxv=Math.max(1,...pas.map(function(x){return x.valor||0;}));
   document.getElementById('cpPassivo').innerHTML = pas.length ? pas.map(function(x){
-    return '<div style="margin:0 0 9px">'
+    return '<div>'
       +'<div style="display:flex;justify-content:space-between;font-size:12px">'
       +'<span>'+esc(x.ano)+'</span><span class="mono" style="color:var(--n500)">'
       +(x.ctes||0).toLocaleString('pt-BR')+' CT-e · '+cpBRL(x.valor)+'</span></div>'
       +'<div style="height:10px;border-radius:5px;background:var(--n100);margin-top:3px">'
       +'<div style="height:100%;width:'+(100*(x.valor||0)/maxv).toFixed(1)+'%;background:var(--n400);border-radius:5px"></div>'
       +'</div></div>';
-  }).join('')+'<div class="hint" style="margin-top:8px">Não é fila de trabalho: CT-e não se emite retroativo.</div>'
+  }).join('')+'<div class="hint">Não é fila de trabalho: CT-e não se emite retroativo.</div>'
     : '<div class="hint">Sem histórico.</div>';
 
   /* o periodo abre no DIA: sem dizer isso, "20 CT-e aguardando" parece que o
@@ -9471,7 +9484,7 @@ function renderCtecp(d){
   const av=(d.avisos||[]);
   document.getElementById('cpAvisosCard').hidden = !av.length;
   document.getElementById('cpAvisos').innerHTML =
-    av.map(function(a){ return '<div class="hint" style="margin:0 0 8px">'+esc(a)+'</div>'; }).join('');
+    av.map(function(a){ return '<div class="hint">'+esc(a)+'</div>'; }).join('');
 }
 
 async function loadPoli(fundo){

@@ -3,6 +3,26 @@
 #   - a tela Documentação     (#doc)
 #   - o rótulo no rodapé      (CX-DD/MM/AAAA-vX.Y.Z)
 # A versão do TOPO é a corrente e tem de bater com o pyproject.toml.
+- versao: "0.67.1"
+  data: "2026-08-26"
+  corrigido:
+    - >-
+      Na tela de CT-e de Contrapartida, os blocos "Volume por mes", "Passivo
+      acumulado" e "Ler com atencao" corriam de borda a borda do cartao. As
+      barras encostavam nos dois lados e o texto da direita chegava a ser
+      CORTADO pela borda - "617 TAC" aparecia sem o C. Os tres entravam no
+      cartao como div cru, e o cartao nao tem espacamento proprio de proposito:
+      cada bloco poe o seu, e estes tres nao punham.
+    - >-
+      O espacamento lateral casa com o do titulo do cartao. Barra que comeca
+      antes do titulo que a nomeia faz o cartao parecer torto mesmo com a
+      borda perfeita.
+    - >-
+      O vao ate a borda de baixo era diferente nos tres (10px num, nenhum no
+      outro, 8px no terceiro), porque cada bloco pendurava uma margem propria
+      na ultima barra. Agora o espacamento entre barras e do container, entao
+      a ultima nao pendura nada e os tres cartoes fecham igual.
+
 - versao: "0.67.0"
   data: "2026-08-26"
   adicionado:

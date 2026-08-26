@@ -4,6 +4,13 @@ Gerado de `docs/versoes.yaml` por `scripts/gerar_changelog.py` — não editar �
 Formato [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/),
 versionamento [SemVer](https://semver.org/lang/pt-BR/).
 
+## [0.67.1] — 26/08/2026  ·  CX-26/08/2026-v0.67.1
+
+### Corrigido
+- Na tela de CT-e de Contrapartida, os blocos "Volume por mes", "Passivo acumulado" e "Ler com atencao" corriam de borda a borda do cartao. As barras encostavam nos dois lados e o texto da direita chegava a ser CORTADO pela borda - "617 TAC" aparecia sem o C. Os tres entravam no cartao como div cru, e o cartao nao tem espacamento proprio de proposito: cada bloco poe o seu, e estes tres nao punham.
+- O espacamento lateral casa com o do titulo do cartao. Barra que comeca antes do titulo que a nomeia faz o cartao parecer torto mesmo com a borda perfeita.
+- O vao ate a borda de baixo era diferente nos tres (10px num, nenhum no outro, 8px no terceiro), porque cada bloco pendurava uma margem propria na ultima barra. Agora o espacamento entre barras e do container, entao a ultima nao pendura nada e os tres cartoes fecham igual.
+
 ## [0.67.0] — 26/08/2026  ·  CX-26/08/2026-v0.67.0
 
 ### Adicionado
