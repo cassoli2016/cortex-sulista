@@ -4,6 +4,22 @@ Gerado de `docs/versoes.yaml` por `scripts/gerar_changelog.py` — não editar �
 Formato [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/),
 versionamento [SemVer](https://semver.org/lang/pt-BR/).
 
+## [0.67.0] — 26/08/2026  ·  CX-26/08/2026-v0.67.0
+
+### Adicionado
+- O CORTEX passou a MONTAR o CT-e de contrapartida do agregado. O documento sai completo a partir da chave do CT-e que a Sulista emitiu, e valida contra o schema oficial da SEFAZ com um unico erro: falta a assinatura. Ela falta de proposito - montar o documento e uma coisa, assinar como terceiro e outra, e a segunda continua fora do modulo, com teste de arvore sintatica garantindo.
+- O que o ERP responde sozinho, e que ninguem vai digitar: razao social, inscricao estadual, RNTRC e endereco do agregado; CNPJ, inscricao e endereco da filial que emitiu o original; municipio de inicio e fim; peso, valor da carga e a chave do CT-e de referencia.
+- Certificado do agregado RODRIGO ANTONIO PARIZOTTO conferido contra a SEFAZ de SAO PAULO: "107 - Servico em Operacao". A prova anterior tinha sido feita com o certificado de outro agregado, entao o dele ainda nao tinha conversado com a SEFAZ da UF dele.
+
+### Alterado
+- O enquadramento fiscal continua pendente com a contabilidade, e o codigo foi escrito para que isso nao possa ser esquecido: as seis definicoes (CFOP, tipo de servico, grupo e CST de ICMS, base do valor, tomador e se referencia o CT-e original) sao campos obrigatorios sem NENHUM valor padrao. Nao ha caminho de codigo que monte um CT-e sem alguem ter respondido as seis.
+- Evidencia nova para essa conversa, tirada do proprio ERP: em 90 dias, 30 CT-e da Sulista sao emitidos com CFOP 6351 e tipo de servico "subcontratacao", com tomador que nao e nem remetente nem destinatario. Ou seja, a propria Sulista ja emite hoje um documento com exatamente esta forma quando ela e a subcontratada. O documento do agregado contra a Sulista e o espelho desse caso.
+- Duas medidas que mudam o tamanho da fila e vao para a mesma conversa. O valor que a Sulista PAGA ao agregado nao esta no CT-e - esta no embarque (no CT-e piloto, R$ 1.066,32 contra R$ 1.494,02 de prestacao cobrada do cliente). E o embarque nao e um por CT-e: em 90 dias, 6.578 CT-e de agregado PJ vieram de 3.834 embarques, 1,7 por embarque. Quando o embarque tem mais de um documento, a montagem PARA em vez de ratear: dividir por conta propria inventaria base de ICMS.
+
+### Corrigido
+- O CEP do ERP e um numero INTEIRO, e por isso perde o zero da frente: Santo Andre volta como 9280200 em vez de 09280200. Em Sao Paulo isso vale para o estado inteiro. CEP com sete digitos e rejeicao na validacao do documento, e o erro nao diz que o problema e o zero.
+- Nao existe codigo de municipio do IBGE no cadastro do ERP, e o CT-e identifica a prestacao por ele. O codigo e buscado pelo NOME do municipio, que o cadastro grava sem acento (SANTO ANDRE) e a tabela oficial grava com (SANTO ANDRE com acento): por nome exato casam 34 das 51 cidades dos agregados, e sem acento casam as 51. Municipio que nao casar PARA a montagem dizendo qual e - chutar o codigo produziria um documento que fecha no schema e mente sobre onde o frete aconteceu.
+
 ## [0.66.1] — 26/08/2026  ·  CX-26/08/2026-v0.66.1
 
 ### Corrigido
