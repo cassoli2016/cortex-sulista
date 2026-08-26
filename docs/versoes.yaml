@@ -3,6 +3,17 @@
 #   - a tela Documentação     (#doc)
 #   - o rótulo no rodapé      (CX-DD/MM/AAAA-vX.Y.Z)
 # A versão do TOPO é a corrente e tem de bater com o pyproject.toml.
+- versao: "0.66.1"
+  data: "2026-08-26"
+  corrigido:
+    - >-
+      A coluna Cadastro continuava mostrando "completo" nos 17 agregados sem
+      inscricao estadual, mesmo depois da correcao anterior. A tela montava a
+      propria lista de pendencias em JavaScript, com a regra antiga, enquanto o
+      servidor ja usava a nova - duas copias da mesma regra, que divergiram no
+      mesmo dia. A lista passou a vir pronta do servidor, que e quem conhece a
+      regra.
+
 - versao: "0.66.0"
   data: "2026-08-26"
   corrigido:

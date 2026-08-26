@@ -9403,8 +9403,11 @@ function renderCtecp(d){
     '<thead><tr><th>Agregado</th><th>Tipo</th><th>RNTRC</th><th>Cadastro</th><th>Autorização</th><th class="r">CT-e</th><th class="r">Placas</th><th class="r">Prestação</th></tr></thead><tbody>'
     +(ag.length? ag.map(function(x){
         const tac = x.classe==='tac';
-        const falta=[['razão social',x.nome],['IE',x.ie],['RNTRC',x.rntrc],['município',x.cidade]]
-          .filter(function(p){return !p[1];}).map(function(p){return p[0];});
+        /* a lista vem PRONTA do servidor. Recalcular aqui duplicava a
+           regra, e a duplicata divergiu no mesmo dia: o servico passou a
+           recusar "ISENTO" como inscricao estadual e esta coluna continuou
+           dizendo "completo" nas mesmas 17 linhas. */
+        const falta=(x.falta||[]);
         return '<tr'+(tac?' style="opacity:.62"':'')+'>'
           +'<td>'+esc(x.nome||x.documento||'—')+'</td>'
           +'<td>'+(tac? statChip('warn','TAC','não emite CT-e — CIOT/RPA') : esc(CL[x.classe]||'?'))+'</td>'

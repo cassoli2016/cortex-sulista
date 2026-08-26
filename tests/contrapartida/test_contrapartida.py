@@ -331,3 +331,19 @@ def test_aviso_de_IE_diz_o_TAMANHO_REAL_da_fila():
     av = servico._avisos(pj, [], [], [], [])
     alvo = [a for a in av if "inscrição" in a][0]
     assert "17 de 53" in alvo and "36" in alvo and "SINTEGRA" in alvo
+
+
+def test_a_lista_de_pendencias_vai_PRONTA_para_a_tela():
+    """A coluna Cadastro recalculava a regra em JavaScript e divergiu no mesmo
+    dia em que "ISENTO" passou a contar: o servidor dizia 17 pendencias e a
+    tabela mostrava "completo" nas mesmas linhas. Duplicata de regra escrita a
+    mao diverge."""
+    fonte = servico.__file__.replace(".pyc", ".py")
+    with open(fonte, encoding="utf-8") as f:
+        src = f.read()
+    assert 'x["falta"] = (_por_doc.get' in src
+    raiz = __import__("pathlib").Path(fonte).parent.parent.parent
+    html = (raiz / "api" / "static" / "index.html").read_text(encoding="utf-8")
+    # o front nao pode montar a lista de novo
+    assert "['razão social',x.nome]" not in html
+    assert "const falta=(x.falta||[]);" in html

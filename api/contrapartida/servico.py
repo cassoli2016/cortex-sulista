@@ -198,6 +198,13 @@ def get_contrapartida(de: str | None = None, ate: str | None = None,
 
     faltando = [x for x in faltando if x["falta"]]
 
+    # a TABELA recebe a lista pronta: recalcular no front duplicava a regra e
+    # ela divergiu no mesmo dia em que "ISENTO" passou a contar como pendencia
+    _por_doc = {x["documento"]: x["falta"] for x in faltando}
+    for x in agreg:
+        x["falta"] = (_por_doc.get(x["documento"], [])
+                      if x["classe"] == "pj" else [])
+
 
 
     return {

@@ -4,6 +4,11 @@ Gerado de `docs/versoes.yaml` por `scripts/gerar_changelog.py` — não editar �
 Formato [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/),
 versionamento [SemVer](https://semver.org/lang/pt-BR/).
 
+## [0.66.1] — 26/08/2026  ·  CX-26/08/2026-v0.66.1
+
+### Corrigido
+- A coluna Cadastro continuava mostrando "completo" nos 17 agregados sem inscricao estadual, mesmo depois da correcao anterior. A tela montava a propria lista de pendencias em JavaScript, com a regra antiga, enquanto o servidor ja usava a nova - duas copias da mesma regra, que divergiram no mesmo dia. A lista passou a vir pronta do servidor, que e quem conhece a regra.
+
 ## [0.66.0] — 26/08/2026  ·  CX-26/08/2026-v0.66.0
 
 ### Corrigido
