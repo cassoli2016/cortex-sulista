@@ -2410,6 +2410,14 @@ body.tvfull #btnReport,body.tvmode #btnReport{display:none}
           <div class="tablewrap tabroll" id="extb-imps"></div></div>
 
         <div class="card">
+          <div class="head"><h2>Conciliação lançamento a lançamento <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="Cada linha do extrato importado contra cada linha de contacorrente (o razão de caixa do ERP), da conta selecionada no filtro acima. Casa por mesmo dia e mesmo valor COM SINAL; depois, mesmo valor a até 3 dias de distância (atraso de compensação). NÃO tenta somar várias linhas do razão para formar uma do banco: o razão é de 10 a 100 vezes mais granular, e o que decide é o RESÍDUO do dia, não o par de cada linha. É outra coisa da comparação por saldo acima — um dia pode bater no saldo e ter dez linhas sem par.">i</span></h2>
+            <span class="hint" id="hintExtbLinha">selecione uma conta no filtro e clique em conciliar</span>
+            <button class="ghost" id="btnExtbLinha" onclick="loadExtbLinha()">Conciliar linha a linha</button></div>
+          <div id="extb-linha-kpis" class="kpis k4"></div>
+          <div id="extb-linha-corpo"></div>
+        </div>
+
+        <div class="card">
           <div class="head"><h2>Conciliação nativa do ERP <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="extratobancario.situacao — o AVA tem feed próprio de extrato bancário (separado do import OFX/CSV acima), com farol Pendente/Conciliado/Oculto marcado pela Contabilidade dentro do próprio ERP. Mecanismo diferente do resto desta tela: não misture os dois números.">i</span></h2>
             <span class="hint" id="hintExtbConcil"></span></div>
           <div id="extb-concil-kpis" class="kpis k4"></div>
@@ -7921,6 +7929,164 @@ function extbDeltaCel(delta, origem){
   const txt=`${brl2(delta)}${lbl?` <span style="color:var(--n500)">(${lbl})</span>`:''}`;
   const attrTitle=lbl?` title="Maior divergência entre saldo, crédito e débito: ${lbl}"`:'';
   return {txt, attrTitle};
+}
+
+// ============ Conciliacao linha a linha (extrato x razao do ERP) ============
+// Sob DEMANDA, com botao proprio: puxa o razao inteiro do periodo (centenas a
+// milhares de linhas por conta) e nao pode pesar na tela que abre por padrao.
+const EXTB_LINHA_EST = {
+  conciliado:    ['good','Conciliado',      'Todo lançamento do dia achou par no razão.'],
+  granularidade: ['flat','Só granularidade','Sobra linha dos dois lados, mas o valor do dia fecha: não falta dinheiro, faltam pares. O razão lança em detalhe o que o banco mostra agrupado.'],
+  diverge:       ['bad','Diverge',          'O que sobrou dos dois lados NÃO fecha: há diferença de valor no dia.'],
+  erp_nao_lancou:['bad','ERP não lançou',   'O banco tem movimento neste dia e o razão não tem uma linha sequer. Não é divergência de valor — é lançamento que não foi feito.'],
+  so_no_erp:     ['warn','Só no ERP',       'O razão tem movimento num dia que o extrato importado não cobre. Em geral falta importar o extrato desse dia.'],
+};
+let DATAEXTBLINHA=null, extbLinhaSeq=0;
+// Preenchido a cada render: a tabela sai ORDENADA por gravidade, entao o
+// indice da linha nao e o indice em `d.dias` - guardar a lista ordenada e o
+// que faz o detalhe abrir o dia certo.
+let ORD_EXTB_LINHA=[];
+
+async function loadExtbLinha(){
+  const sel=document.getElementById('fExtbConta');
+  const cid=sel && sel.value;
+  const hint=document.getElementById('hintExtbLinha');
+  if(!cid){
+    // O endpoint exige conta: sem ela nao ha razao com que comparar. Dizer isso
+    // aqui evita uma ida a API para voltar 422.
+    hint.textContent='escolha uma conta no filtro acima — a conciliação é de uma conta por vez';
+    return;
+  }
+  const seq=++extbLinhaSeq;
+  const btn=document.getElementById('btnExtbLinha');
+  // rotulo do proprio botao, e nao so o indicador global: a consulta puxa o
+  // razao inteiro e passa de um segundo com folga (mesma regra da Consulta de
+  // Cliente, onde o spinner global nao bastava).
+  const rot=btn.textContent; btn.textContent='Conciliando…'; btn.disabled=true;
+  skelKpis('extb-linha-kpis',4);
+  try{
+    const p=new URLSearchParams();
+    p.set('conta_id', cid);
+    p.set('dt_de', document.getElementById('fExtbDe').value);
+    p.set('dt_ate', document.getElementById('fExtbAte').value);
+    const r=await fetch('/api/financeiro/extrato/conciliacao?'+p.toString(),{cache:'no-store'});
+    const d=await r.json(); if(seq!==extbLinhaSeq) return;
+    if(!r.ok){ showBanner(d.mensagem||'Erro ao conciliar.'); return; }
+    DATAEXTBLINHA=d; renderExtbLinha(d);
+  }catch(e){ if(seq===extbLinhaSeq) showBanner('Não foi possível falar com a API.', e.message); }
+  finally{ if(seq===extbLinhaSeq){ btn.textContent=rot; btn.disabled=false; } }
+}
+
+function renderExtbLinha(d){
+  const kpis=document.getElementById('extb-linha-kpis');
+  const corpo=document.getElementById('extb-linha-corpo');
+  const hint=document.getElementById('hintExtbLinha');
+  if(d.ok===false){
+    kpis.innerHTML=''; corpo.innerHTML='';
+    hint.textContent=d.mensagem||'conta sem vínculo com o ERP';
+    return;
+  }
+  const s=d.resumo, dias=d.dias||[];
+  hint.textContent=`${d.conta.rotulo} · ${fmtD(d.dt_de)} a ${fmtD(d.dt_ate)} · ${s.dias_total} dia(s)`;
+
+  // "sem explicacao" so conta os dias que NAO fecham; o verde exige zero dias a
+  // tratar, nunca so o valor perto de zero - dois dias grandes de sinais
+  // opostos somariam quase nada e o cartao mentiria.
+  const semExpl=s.valor_sem_explicacao;
+  kpis.innerHTML=
+     kpi('Casados', s.casados.toLocaleString('pt-BR'),
+         `de ${s.banco_linhas.toLocaleString('pt-BR')} do extrato · ${s.casados_pct}%`
+         + (s.por_janela?` · ${s.por_janela} por atraso de até 3 dias`:''),
+         '', 'Lançamento do extrato que achou uma linha do razão com o mesmo valor (com sinal), no mesmo dia ou a até 3 dias de distância. O restante não é necessariamente erro — ver "Só granularidade".')
+   + kpi('Dias a tratar', String(s.dias_a_tratar),
+         `de ${s.dias_total} dia(s) com movimento`,
+         s.dias_a_tratar?'bad':'good',
+         'Dias em que o valor NÃO fecha, ou em que um dos dois lados não tem lançamento nenhum. É a fila de trabalho.')
+   + kpi('Sem explicação', brl2(semExpl),
+         semExpl===0 && !s.dias_a_tratar ? 'todos os dias fecham' : 'soma só dos dias que não fecham',
+         s.dias_a_tratar?'bad':'good',
+         'Soma do resíduo APENAS dos dias que não fecham. Os dias de granularidade ficam de fora de propósito: eles trazem ruído de centavos com os dois sinais, e um total que some por compensação é pior que total nenhum.')
+   + kpi('Linhas sem par', `${s.sobra_banco.toLocaleString('pt-BR')} / ${s.sobra_erp.toLocaleString('pt-BR')}`,
+         'extrato / razão do ERP', '',
+         'Quantas linhas ficaram sem par de cada lado. O número do razão é normalmente MUITO maior, e isso é esperado: ele lança em detalhe o que o banco mostra agrupado. Julgue pelo resíduo do dia, não por este número.');
+
+  if(!dias.length){ corpo.innerHTML='<div style="padding:16px;color:var(--n500)">Nenhum movimento no período, dos dois lados.</div>'; return; }
+
+  // Ordem: o que exige acao primeiro, e dentro disso o maior residuo. Ordenar
+  // por data deixaria o dia de R$ 292 mil no meio de dias que fecham.
+  const peso={diverge:0, erp_nao_lancou:0, so_no_erp:1, granularidade:2, conciliado:3};
+  const ord=dias.slice().sort((a,b)=>
+    (peso[a.estado]-peso[b.estado]) || (Math.abs(b.residuo)-Math.abs(a.residuo)) || a.dt.localeCompare(b.dt));
+
+  ORD_EXTB_LINHA=[];
+  const linhas=ord.map(x=>{
+    const e=EXTB_LINHA_EST[x.estado]||['flat',x.estado,''];
+    // Residuo de centavo num dia de milhao continua sendo `diverge` - o estado
+    // nao mente - mas fica ATENUADO, nunca escondido: sem isso a tela trata
+    // igual R$ 0,03 sobre R$ 885 mil e R$ 292 mil sobre R$ 300 mil.
+    const miudo = x.estado==='diverge' && x.residuo_pct!=null && x.residuo_pct < 0.01;
+    const base = Math.max(Math.abs(x.banco_valor), Math.abs(x.erp_valor));
+    const rt = miudo
+      ? `<span style="color:var(--n500)" title="${esc(brl2(x.residuo)+' sobre '+brl2(base)+' movimentados no dia — '+x.residuo_pct+'%')}">${brl2(x.residuo)}</span>`
+      : brl2(x.residuo);
+    // Dia sem sobra nenhuma nao expande: nao ha o que mostrar dentro.
+    const temDet = (x.sobra_banco_linhas + x.sobra_erp_linhas) > 0;
+    const i = ORD_EXTB_LINHA.push(x) - 1;
+    return `<tr${temDet?` class="forn-row" aria-expanded="false" aria-controls="extbl-det-${i}" tabindex="0" role="button"
+        onclick="extbLinhaDetalhe(${i})" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();extbLinhaDetalhe(${i});}"`:''}>`
+      +`<td>${temDet?`<span class="expander">${ICONS['chevr2']}</span>`:''}</td>`
+      +`<td>${fmtD(x.dt)}</td>`
+      +`<td>${statChip(e[0], e[1], e[2])}</td>`
+      +`<td class="num">${x.banco_linhas||'—'}</td>`
+      +`<td class="num">${brl2(x.banco_valor)}</td>`
+      +`<td class="num">${x.erp_linhas||'—'}</td>`
+      +`<td class="num">${brl2(x.erp_valor)}</td>`
+      +`<td class="num">${x.sobra_banco_linhas||'—'} / ${x.sobra_erp_linhas||'—'}</td>`
+      +`<td class="num">${x.fecha?'<span style="color:var(--n500)">—</span>':rt}</td></tr>`
+      +(temDet?`<tr class="forn-det" id="extbl-det-${i}"><td colspan="9"></td></tr>`:'');
+  }).join('');
+
+  corpo.innerHTML=
+     '<div class="tablewrap tabroll"><table><thead><tr>'
+    +'<th style="width:34px"></th><th>Dia</th><th>Situação</th>'
+    +'<th class="num">Linhas<br>extrato</th><th class="num">Valor<br>extrato</th>'
+    +'<th class="num">Linhas<br>razão</th><th class="num">Valor<br>razão</th>'
+    +'<th class="num">Sem par<br>extr. / razão</th><th class="num">Resíduo</th>'
+    +'</tr></thead><tbody>'+linhas+'</tbody></table></div>'
+    +'<p style="margin:10px 2px 0;font-size:12px;color:var(--n500)">'
+    +'Clique num dia para ver as linhas que ficaram sem par dos dois lados.</p>';
+}
+
+// As sobras de UM dia, abertas sob demanda. A versao anterior desta tela
+// listava as sobras de todos os dias a tratar de uma vez e chegava a 1.352
+// linhas no Itau e 977 no Bradesco - alem de pesar, afogava o que importa:
+// ninguem acha uma diferenca de R$ 17.796,07 lendo 1.263 linhas de razao.
+// Como os dados ja vieram inteiros na resposta, abrir um dia nao custa
+// consulta nenhuma.
+function extbLinhaDetalhe(i){
+  const det=document.getElementById('extbl-det-'+i); if(!det) return;
+  const open=det.classList.toggle('open');
+  det.previousElementSibling.setAttribute('aria-expanded', String(open));
+  if(!open || det.dataset.pronto) return;
+  const x=ORD_EXTB_LINHA[i], d=DATAEXTBLINHA;
+  if(!x || !d){ det.dataset.pronto='1'; return; }
+  const b=(d.sobra_banco||[]).filter(l=>l.dt===x.dt);
+  const e=(d.sobra_erp||[]).filter(l=>l.dt===x.dt);
+  const linha=(l,lado)=>`<tr><td>${lado}</td>`
+    +`<td class="num"${l.valor<0?' style="color:var(--red)"':''}>${brl2(l.valor)}</td>`
+    +`<td>${esc((l.historico||'').slice(0,80))||'<span style="color:var(--n500)">—</span>'}</td>`
+    +`<td>${esc((l.nominal||l.numerodoc||'').slice(0,45))}</td></tr>`;
+  const todas=b.map(l=>({l,lado:'Extrato'})).concat(e.map(l=>({l,lado:'Razão ERP'})))
+    .sort((p,q)=>Math.abs(q.l.valor)-Math.abs(p.l.valor));
+  det.querySelector('td').innerHTML= !todas.length
+    ? '<p style="color:var(--n500)">Nenhuma linha sem par neste dia.</p>'
+    : `<p style="margin:0 0 8px;font-size:12px;color:var(--n500)">`
+      +`${b.length} do extrato e ${e.length} do razão, sem par · maiores primeiro`
+      +(x.fecha?' · o valor do dia FECHA: falta o par, não o dinheiro':'')+'</p>'
+      +'<div class="tabroll"><table><thead><tr><th>Lado</th><th class="num">Valor</th>'
+      +'<th>Histórico</th><th>Documento / nominal</th></tr></thead><tbody>'
+      + todas.map(o=>linha(o.l,o.lado)).join('') + '</tbody></table></div>';
+  det.dataset.pronto='1';
 }
 
 async function loadExtb(){
