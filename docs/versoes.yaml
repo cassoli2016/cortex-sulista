@@ -3,6 +3,27 @@
 #   - a tela Documentação     (#doc)
 #   - o rótulo no rodapé      (CX-DD/MM/AAAA-vX.Y.Z)
 # A versão do TOPO é a corrente e tem de bater com o pyproject.toml.
+- versao: "0.66.0"
+  data: "2026-08-26"
+  corrigido:
+    - >-
+      A tela de CT-e de Contrapartida dizia "cadastro completo" para 17 dos 53
+      agregados PJ que estao com o texto "ISENTO" na inscricao estadual. A
+      verificacao so olhava se o campo estava vazio, e "ISENTO" e texto - entao
+      passava. Era pior que nao ter verificacao nenhuma: dava confianca falsa
+      sobre um terco da fila, e a versao anterior chegou a reportar "zero
+      pendencias cadastrais" como boa noticia.
+    - >-
+      CT-e e documento de ICMS: transportadora emitente precisa ser inscrita.
+      Ou o cadastro do ERP esta desatualizado, ou esses 17 nao emitem CT-e - e
+      nesse caso a fila real e de 36 agregados, nao 53. O aviso diz os dois
+      numeros e recomenda conferir no SINTEGRA antes de tratar como pendencia
+      de sistema.
+    - >-
+      A pendencia mostra o VALOR encontrado ("inscricao estadual (ISENTO)") em
+      vez de so o nome do campo: sem isso parece campo em branco, e o operador
+      preencheria em vez de conferir.
+
 - versao: "0.65.0"
   data: "2026-08-26"
   adicionado:

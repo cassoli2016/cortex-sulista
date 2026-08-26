@@ -297,3 +297,37 @@ def test_sem_filtro_a_tela_abre_no_DIA_DE_HOJE():
     de, ate = servico._janela(None, None)
     assert de == date.today().isoformat()
     assert ate == (date.today() + timedelta(days=1)).isoformat()
+
+
+# --- inscricao estadual -----------------------------------------------------
+
+def test_ISENTO_nao_e_inscricao_estadual():
+    """CT-e e documento de ICMS: emitente precisa ser inscrito. O teste antigo
+    (`if not ie`) dava "ISENTO" por COMPLETO, porque e string nao vazia - e
+    isso e pior que nao validar: da confianca falsa sobre um terco da fila."""
+    assert not servico._ie_utilizavel("ISENTO")
+    assert not servico._ie_utilizavel("")
+    assert not servico._ie_utilizavel(None)
+    assert not servico._ie_utilizavel("-")
+    assert servico._ie_utilizavel("5256749740076")
+    assert servico._ie_utilizavel("123.456.789")
+
+
+def test_pendencia_de_IE_mostra_O_VALOR_encontrado():
+    """"inscricao estadual" sozinho parece campo em branco; o operador iria
+    preencher em vez de conferir no SINTEGRA."""
+    av = servico._avisos(
+        [{"documento": "1", "nome": "ACME", "ie": "ISENTO", "rntrc": "9",
+          "cidade": "X"}], [], [],
+        [{"documento": "1", "nome": "ACME",
+          "falta": ["inscrição estadual (ISENTO)"]}], [])
+    assert any("ISENTO" in a for a in av)
+
+
+def test_aviso_de_IE_diz_o_TAMANHO_REAL_da_fila():
+    """O numero que decide: se os 17 nao emitem, a fila e de 36 e nao de 53."""
+    pj = [{"documento": str(i), "nome": "X", "ie": "" if i < 17 else "123",
+           "rntrc": "9", "cidade": "C"} for i in range(53)]
+    av = servico._avisos(pj, [], [], [], [])
+    alvo = [a for a in av if "inscrição" in a][0]
+    assert "17 de 53" in alvo and "36" in alvo and "SINTEGRA" in alvo

@@ -76,6 +76,16 @@ CLASSES = {
 
 # CIOT + RPA. Isto nao e limitacao da rotina - e do documento.
 
+def _ie_utilizavel(ie: str | None) -> bool:
+    """IE que serve para emitir tem DIGITO. "ISENTO", "-" ou vazio, nao.
+
+    Nao afirmamos que quem esta como ISENTO fica de fora - pode ser cadastro
+    velho no ERP. Mas nao da para tratar como PRONTO quem talvez nem possa
+    emitir: o erro apareceria na transmissao, documento a documento.
+    """
+    return bool("".join(c for c in (ie or "") if c.isdigit()))
+
+
 NOTA_TAC = ("Transportador Autônomo de Cargas não emite CT-e — a documentação "
 
             "dele é CIOT (Lei 11.442) e RPA. Estes CT-e não entram na fila de "
@@ -174,11 +184,16 @@ def get_contrapartida(de: str | None = None, ate: str | None = None,
     # 3 mil CT-e/mes, e o tipo de erro que para a operacao.
     faltando = [{"documento": x["documento"], "nome": x["nome"],
 
-                 "falta": [c for c, v in (("razão social", x["nome"]),
-                                          ("inscrição estadual", x["ie"]),
-                                          ("RNTRC", x["rntrc"]),
-                                          ("município/UF", x["cidade"]))
-                           if not v]}
+                 "falta": [c for c, ok in (
+                     ("razão social", bool(x["nome"])),
+                     # "ISENTO" nao e inscricao — e o motivo vai no rotulo,
+                     # senao a pendencia parece campo em branco
+                     (f"inscrição estadual ({x['ie']})" if x["ie"]
+                      else "inscrição estadual",
+                      _ie_utilizavel(x["ie"])),
+                     ("RNTRC", bool(x["rntrc"])),
+                     ("município/UF", bool(x["cidade"])))
+                     if not ok]}
                 for x in pj]
 
     faltando = [x for x in faltando if x["falta"]]
@@ -197,6 +212,7 @@ def get_contrapartida(de: str | None = None, ate: str | None = None,
             "ctes_indefinido": _soma(mes, "indefinido", "ctes"),
             "agregados_indefinido": len(indef),
             "pendencia_cadastral": len(faltando),
+            "sem_ie": sum(1 for x in pj if not _ie_utilizavel(x["ie"])),
             "prontos_para_emitir": sum(1 for x in pj
                                        if (x.get("prontidao") or {}).get("pronto")),
             "emitidas": 0,   # nenhuma contrapartida emitida ate hoje
@@ -244,6 +260,17 @@ def _avisos(pj, tac, indef, faltando, passivo) -> list[str]:
             f"{len(indef)} agregados com documento de proprietário fora do "
             "padrão de CNPJ ou CPF: não dá para dizer se emitem CT-e. "
             "Conferir o cadastro do veículo antes de incluí-los em qualquer fila.")
+    sem_ie = [x for x in pj if not _ie_utilizavel(x["ie"])]
+    if sem_ie:
+        av.append(
+            f"{len(sem_ie)} de {len(pj)} agregados PJ estão sem inscrição "
+            "estadual utilizável no cadastro — a maioria com o texto "
+            "“ISENTO”. CT-e é documento de ICMS: transportadora emitente "
+            "precisa ser inscrita. Ou o cadastro do ERP está desatualizado, ou "
+            "esses agregados não emitem CT-e — e nesse caso a fila real é de "
+            f"{len(pj) - len(sem_ie)} agregados, não {len(pj)}. Confira alguns "
+            "no SINTEGRA antes de tratar como pendência de sistema.")
+
     if faltando:
 
         quais = ", ".join(f"{x['nome'] or x['documento']} ({', '.join(x['falta'])})"
