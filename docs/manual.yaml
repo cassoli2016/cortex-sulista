@@ -108,6 +108,7 @@ grupos:
     contábil, orçamento contra realizado, previsão de fechamento do mês e o controle de certidões e licenças.
   telas:
   - dre
+  - ctecp
   - bal
   - drecli
   - cont

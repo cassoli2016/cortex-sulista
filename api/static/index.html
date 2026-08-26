@@ -1230,6 +1230,7 @@ body.tvfull #btnReport,body.tvmode #btnReport{display:none}
       <div class="subs closed" id="subsCtr">
         <a href="#bal" class="sub" data-view="bal" title="Balanço Patrimonial"><span class="ic" data-ic="balanca"></span><span>Balanço Patrimonial</span></a>
         <a href="#cont" class="sub" data-view="cont" title="Contabilidade — ajuste de agrupadores"><span class="ic" data-ic="ctb"></span><span>Contabilidade</span></a>
+        <a href="#ctecp" class="sub" data-view="ctecp" title="CT-e de Contrapartida — conciliação dos CT-e de agregado que aguardam documento do transportador"><span class="ic" data-ic="ctb"></span><span>CT-e de Contrapartida</span></a>
         <a href="#dre" class="sub" data-view="dre" title="DRE Gerencial"><span class="ic" data-ic="dre"></span><span>DRE Gerencial</span></a>
         <a href="#fech" class="sub" data-view="fech" title="Fechamento do Mês — previsão do resultado antes de fechar"><span class="ic" data-ic="fechic"></span><span>Fechamento do Mês</span></a>
         <a href="#orc" class="sub" data-view="orc" title="Orçamento — orçado × realizado"><span class="ic" data-ic="orcic"></span><span>Orçamento</span></a>
@@ -2594,6 +2595,42 @@ body.tvfull #btnReport,body.tvmode #btnReport{display:none}
           </div>
         </div>
         <div id="ppl-avisos"></div>
+      </section>
+
+      <section class="view" id="view-ctecp">
+        <div class="card">
+          <div class="head"><h2>Filtros <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="CT-e emitidos pela Sulista com veículo de agregado (utilizacaoveiculo AGR), cruzados com o cadastro do proprietário. A tela é SÓ LEITURA: não emite, não assina e não transmite nada.">i</span></h2>
+            <span class="hint" id="hintCp"></span></div>
+          <div class="milk-filtros">
+            <label>De<input type="date" id="fCpDe" onchange="loadCtecp()" aria-label="Data inicial"></label>
+            <label>Até<input type="date" id="fCpAte" onchange="loadCtecp()" aria-label="Data final"></label>
+          </div>
+        </div>
+
+        <div class="kband"><div class="klabel">Fila de contrapartida &mdash; só agregado PJ</div>
+          <div class="kpis k4" id="kpis-ctecp"></div></div>
+
+        <div class="card">
+          <div class="head"><h2>Fila por agregado <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="Ordenada por valor, que é como a implantação deve ser atacada: os primeiros concentram a maior parte do volume. A coluna Cadastro mostra o que a emissão vai exigir — campo faltando vira rejeição documento a documento na transmissão.">i</span></h2>
+            <span class="hint" id="hintCpTab"></span></div>
+          <div class="tabroll"><table class="tab" id="cpTab"></table></div>
+        </div>
+
+        <div class="grid2">
+          <div class="card">
+            <div class="head"><h2>Volume por mês <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="PJ e TAC separados de propósito: somar os dois produz um passivo falso, porque o TAC não emite CT-e.">i</span></h2></div>
+            <div id="cpMes"></div>
+          </div>
+          <div class="card">
+            <div class="head"><h2>Passivo acumulado <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="CT-e NÃO se emite retroativo: a SEFAZ recusa data de emissão fora da janela. Este bloco não é fila de trabalho — é o número para a decisão da contabilidade e do jurídico.">i</span></h2></div>
+            <div id="cpPassivo"></div>
+          </div>
+        </div>
+
+        <div class="card" id="cpAvisosCard" hidden>
+          <div class="head"><h2>Ler com atenção</h2></div>
+          <div id="cpAvisos"></div>
+        </div>
       </section>
 
       <section class="view" id="view-poli">
@@ -4022,7 +4059,7 @@ const FAIXAS = {
   '4_vencido_91_365':['Vencido 91–365d','b-dang'],
   '5_vencido_mais_365':['Vencido > 365d','b-dang'],
 };
-const VIEWS = { home:'Visão Geral', fluxo:'Fluxo de Caixa e Bancos', receber:'Contas a Receber', pagar:'Contas a Pagar', oc:'Ordens de Compra', custos:'Painel de Custos', agr:'Agregados e Terceiros', mvb:'Make vs Buy', comb:'Combustível', man:'Manutenção', com:'Clientes e RKM', clif:'Consulta de Cliente', crm:'CRM — Leads e Projetos', km:'Análise de KM', torre:'Torre de Controle', poli:'Permanência na Planta', veic:'Veículos', veicf:'Consulta de Veículo', mprev:'Manutenção Preventiva', comrast:'Comunicação Rastreadora', mul:'Multas', prog:'Programação Inteligente', jorn:'Jornada do Motorista', jornf:'Ficha de Jornada', cex:'Custos Extras', sac:'SAC / Freetime', port:'Portaria', cop:'Copiloto Cortex', cob:'Régua de Cobrança', extb:'Extrato Bancário', lanc:'Lançamentos Bancários', antec:'Antecipação de Recebíveis', antport:'Portais de Antecipação', milkrun:'Operação MWM', rec:'Lançamentos Recorrentes', fluxcon:'Fluxo de Caixa Consolidado', cont:'Contabilidade', qual:'Qualidade e Certidões', orc:'Orçamento', fech:'Fechamento do Mês', prem:'Premiação de Motoristas', dre:'DRE Gerencial', bal:'Balanço Patrimonial', drecli:'DRE por Cliente', tvfat:'Painel TV — Faturamento', tvope:'Painel TV — Operação', rh:'RH — Vagas', hc:'Headcount', folha:'Custo de Folha', folhaind:'Indicadores de Folha', he:'Horas Extras', cnh:'CNH dos Motoristas', ferias:'Férias — Vencimento', people:'People Analytics', pneus:'Pneus', gestao:'Gestão', srv:'Saúde do Servidor', doc:'Documentação', anpiso:'Piso Mínimo de Frete', anrntrc:'RNTRC dos Transportadores', telcon:'Consumo e Estatísticas', telcond:'Condução Econômica', telhod:'Hodômetro e Rastro' };
+const VIEWS = { home:'Visão Geral', fluxo:'Fluxo de Caixa e Bancos', receber:'Contas a Receber', pagar:'Contas a Pagar', oc:'Ordens de Compra', custos:'Painel de Custos', agr:'Agregados e Terceiros', mvb:'Make vs Buy', comb:'Combustível', man:'Manutenção', com:'Clientes e RKM', clif:'Consulta de Cliente', crm:'CRM — Leads e Projetos', km:'Análise de KM', torre:'Torre de Controle', poli:'Permanência na Planta', ctecp:'CT-e de Contrapartida', veic:'Veículos', veicf:'Consulta de Veículo', mprev:'Manutenção Preventiva', comrast:'Comunicação Rastreadora', mul:'Multas', prog:'Programação Inteligente', jorn:'Jornada do Motorista', jornf:'Ficha de Jornada', cex:'Custos Extras', sac:'SAC / Freetime', port:'Portaria', cop:'Copiloto Cortex', cob:'Régua de Cobrança', extb:'Extrato Bancário', lanc:'Lançamentos Bancários', antec:'Antecipação de Recebíveis', antport:'Portais de Antecipação', milkrun:'Operação MWM', rec:'Lançamentos Recorrentes', fluxcon:'Fluxo de Caixa Consolidado', cont:'Contabilidade', qual:'Qualidade e Certidões', orc:'Orçamento', fech:'Fechamento do Mês', prem:'Premiação de Motoristas', dre:'DRE Gerencial', bal:'Balanço Patrimonial', drecli:'DRE por Cliente', tvfat:'Painel TV — Faturamento', tvope:'Painel TV — Operação', rh:'RH — Vagas', hc:'Headcount', folha:'Custo de Folha', folhaind:'Indicadores de Folha', he:'Horas Extras', cnh:'CNH dos Motoristas', ferias:'Férias — Vencimento', people:'People Analytics', pneus:'Pneus', gestao:'Gestão', srv:'Saúde do Servidor', doc:'Documentação', anpiso:'Piso Mínimo de Frete', anrntrc:'RNTRC dos Transportadores', telcon:'Consumo e Estatísticas', telcond:'Condução Econômica', telhod:'Hodômetro e Rastro' };
 const periodoLabel = p => { if(p==='atrasado') return 'Atrasado'; const [y,m]=p.split('-'); return MES[+m-1]+'/'+y.slice(2); };
 const fmtD = s => { if(!s) return ''; const [y,m,dd]=s.split('-'); return dd+'/'+m+'/'+y; };
 /* Idade da posicao bancaria. Cada conta e lancada num dia diferente: mostrar
@@ -4209,7 +4246,7 @@ function toggleGroup(gid,sid,key){
 const VIEW_GROUP = {home:'',cop:'',
   com:'Com',clif:'Com',crm:'Com',rent:'Com',drecli:'Com',
   fluxo:'Fin',receber:'Fin',pagar:'Fin',cob:'Fin',extb:'Fin',lanc:'Fin',antec:'Fin',antport:'Fin',fluxcon:'Fin',rec:'Fin',
-  dre:'Ctr',bal:'Ctr',cont:'Ctr',qual:'Ctr',orc:'Ctr',fech:'Ctr',
+  dre:'Ctr',bal:'Ctr',cont:'Ctr',qual:'Ctr',orc:'Ctr',fech:'Ctr',ctecp:'Ctr',
   torre:'Ope',milkrun:'Ope',poli:'Ope',prog:'Ope',jorn:'Ope',jornf:'Ope',cex:'Ope',sac:'Ope',port:'Ope',km:'Ope',agr:'Ope',mvb:'Ope',
   veic:'Fro',veicf:'Fro',mprev:'Fro',comrast:'Fro',comb:'Fro',man:'Fro',mul:'Fro',pneus:'Fro',
   oc:'Sup',custos:'Sup',
@@ -4371,7 +4408,7 @@ function qsView(k){
     if(V('fHeComp'))p.set('comp',V('fHeComp'));
   } else if(k==='fech'){
     if(V('fFechMes'))p.set('mes',V('fFechMes'));
-  } else if(k==='mprev'||k==='comrast'||k==='qual'||k==='port'||k==='crm'||k==='rh'||k==='hc'||k==='folhaind'||k==='cnh'||k==='ferias'||k==='pneus'||k==='people'||k==='poli'){
+  } else if(k==='mprev'||k==='comrast'||k==='qual'||k==='port'||k==='crm'||k==='rh'||k==='hc'||k==='folhaind'||k==='cnh'||k==='ferias'||k==='pneus'||k==='people'||k==='poli'||k==='ctecp'){
     // vistas-snapshot sem filtro local: qsView() sempre devolve '' — o
     // loader grava LOADEDQS[k]='' (não '1') para o cache de staleness
     // funcionar (senão nunca bate e cada navegação refaz a consulta).
@@ -4389,7 +4426,7 @@ function semFilterbar(v){
   // filtros", que não tinha o que aplicar.
   return v==='cop'||v==='gestao'||v==='srv'||v==='home'||v==='veicf'||v==='clif'||v==='jorn'||v==='jornf'||v==='prog'||
          v==='cex'||v==='sac'||v==='mprev'||v==='comrast'||v==='qual'||v==='port'||v==='crm'||v==='rh'||
-         v==='hc'||v==='folha'||v==='folhaind'||v==='he'||v==='custos'||v==='orc'||v==='prem'||v==='extb'||v==='fech'||v==='doc'||v==='anrntrc'||v==='telcon'||v==='telcond'||v==='telhod'||v==='milkrun'||v==='cnh'||v==='ferias'||v==='pneus'||v==='people'||v==='poli';
+         v==='hc'||v==='folha'||v==='folhaind'||v==='he'||v==='custos'||v==='orc'||v==='prem'||v==='extb'||v==='fech'||v==='doc'||v==='anrntrc'||v==='telcon'||v==='telcond'||v==='telhod'||v==='milkrun'||v==='cnh'||v==='ferias'||v==='pneus'||v==='people'||v==='poli'||v==='ctecp';
 }
 function currentView(){
   const h = (location.hash||'').replace('#','');
@@ -4486,7 +4523,7 @@ function router(){
   // divergem dos usados na última carga (nunca mostrar dado velho com filtro novo)
   const key=viewKey(v);
   const DATAMAP={fin:DATA,oc:DATAOC,agr:DATAAGR,anpiso:DATAANPISO,anrntrc:DATAANRNTRC,telcon:DATATELCON,telcond:DATATELCOND,telhod:DATATELHOD,mvb:DATAMVB,comb:DATACOMB,man:DATAMAN,com:DATACOM,clif:DATACLIF,dre:DATADRE,bal:DATABAL,drecli:DATADRECLI,home:DATAHOME,km:DATAKM,torre:DATATORRE,veic:DATAVEIC,veicf:DATAVEICF,mul:DATAMUL,prog:DATAPROG,jorn:DATAJORN,jornf:DATAJORNF,cex:DATACEX,sac:DATASAC,mprev:DATAMPREV,comrast:DATACOMRAST,qual:DATAQUAL,port:DATAPORT,crm:DATACRM,rh:DATARH,hc:DATAHC,folha:DATAFOLHA,folhaind:DATAFOLHAIND,he:DATAHE,custos:DATACUSTOS,cob:DATACOB,extb:DATAEXTB,lanc:DATALANC,antec:DATAANTEC,antport:DATAANTPORT,milkrun:DATAMILK,fluxcon:DATAFLUXCON,rec:DATAREC,rent:DATARENT,cont:DATACONT,orc:DATAORC,fech:DATAFECH,prem:DATAPREM,gestao:DATAGES,srv:DATASRV,doc:DATADOC,tvfat:null,tvope:null,cop:(COP_MSGS.length?{}:null)};
-  const LOADMAP={fin:load,oc:loadOc,agr:loadAgr,anpiso:loadAnpiso,anrntrc:loadAnrntrc,telcon:loadTelcon,telcond:loadTelcond,telhod:loadTelhod,mvb:loadMvb,comb:loadComb,man:loadMan,com:loadCom,clif:loadClif,dre:loadDre,bal:loadBal,drecli:loadDreCli,home:loadHome,km:loadKm,torre:loadTorre,veic:loadVeic,veicf:loadVeicf,mul:loadMul,prog:loadProg,jorn:loadJorn,jornf:loadJornf,cex:loadCex,sac:loadSac,mprev:loadMPrev,comrast:loadComRast,qual:loadQual,port:loadPort,crm:loadCrm,rh:loadRh,hc:loadHc,folha:loadFolha,folhaind:loadFolhaInd,he:loadHe,custos:loadCustos,cob:loadCob,extb:loadExtb,lanc:loadLanc,antec:loadAntec,antport:loadAntport,milkrun:loadMilkrun,cnh:loadCnh,ferias:loadFerias,people:loadPeople,pneus:loadPneus,poli:loadPoli,fluxcon:loadFluxcon,rec:loadRec,rent:loadRent,cont:loadCont,orc:loadOrc,fech:loadFech,prem:loadPrem,gestao:loadGestao,srv:loadSrv,doc:loadDoc,cop:loadCop,tvfat:loadTvFat,tvope:loadTvOpe};
+  const LOADMAP={fin:load,oc:loadOc,agr:loadAgr,anpiso:loadAnpiso,anrntrc:loadAnrntrc,telcon:loadTelcon,telcond:loadTelcond,telhod:loadTelhod,mvb:loadMvb,comb:loadComb,man:loadMan,com:loadCom,clif:loadClif,dre:loadDre,bal:loadBal,drecli:loadDreCli,home:loadHome,km:loadKm,torre:loadTorre,veic:loadVeic,veicf:loadVeicf,mul:loadMul,prog:loadProg,jorn:loadJorn,jornf:loadJornf,cex:loadCex,sac:loadSac,mprev:loadMPrev,comrast:loadComRast,qual:loadQual,port:loadPort,crm:loadCrm,rh:loadRh,hc:loadHc,folha:loadFolha,folhaind:loadFolhaInd,he:loadHe,custos:loadCustos,cob:loadCob,extb:loadExtb,lanc:loadLanc,antec:loadAntec,antport:loadAntport,milkrun:loadMilkrun,cnh:loadCnh,ferias:loadFerias,people:loadPeople,pneus:loadPneus,poli:loadPoli,ctecp:loadCtecp,fluxcon:loadFluxcon,rec:loadRec,rent:loadRent,cont:loadCont,orc:loadOrc,fech:loadFech,prem:loadPrem,gestao:loadGestao,srv:loadSrv,doc:loadDoc,cop:loadCop,tvfat:loadTvFat,tvope:loadTvOpe};
   if(!DATAMAP[key] || (key!=='home' && LOADEDQS[key]!==qsView(key))) LOADMAP[key]();
   // mobile: estado da navegação inferior + fecha gaveta/painel de filtros
   document.querySelectorAll('.bottomnav [data-bview]').forEach(a=>a.classList.toggle('ativo', a.dataset.bview===v));
@@ -9202,6 +9239,115 @@ async function mkchatSend(){
     mkchatOcupado=false;
     const b2=document.getElementById('mkchat-send'); if(b2) b2.disabled=false;
   }
+}
+
+/* CT-e DE CONTRAPARTIDA DO AGREGADO - conciliacao.
+   SO LEITURA. A tela nao emite, nao assina e nao transmite: emissao em nome de
+   terceiro depende de procuracao vigente, certificado A1 e enquadramento
+   fiscal definido, e nenhuma das tres e decisao de software.
+   PJ e TAC nunca sao somados - o TAC nao emite CT-e (Lei 11.442), entao juntar
+   os dois inflaria a fila em um terco com documento que nao pode existir. */
+let cpSeq=0, DATACP=null;
+function cpBRL(v){ return (v||0).toLocaleString('pt-BR',{style:'currency',currency:'BRL',maximumFractionDigits:0}); }
+async function loadCtecp(fundo){
+  skelKpis('kpis-ctecp',4);
+  const seq=++cpSeq, btn=document.getElementById('btnRefresh'); if(btn) btn.disabled=true;
+  if(!fundo) document.getElementById('content').classList.add('loading');
+  try{
+    const V=id=>{const e=document.getElementById(id);return e?e.value.trim():'';};
+    const p=new URLSearchParams();
+    if(V('fCpDe')) p.set('de', V('fCpDe'));
+    if(V('fCpAte')) p.set('ate', V('fCpAte'));
+    const r=await fetch('/api/fiscal/contrapartida?'+p.toString(),
+      {cache:'no-store', headers: fundo?{'X-Carga-Fundo':'1'}:{}});
+    const d=await r.json(); if(seq!==cpSeq) return;
+    if(!r.ok){ showBanner(d.mensagem||'Erro ao montar a conciliação.'); return; }
+    hideBanner(); DATACP=d; renderCtecp(d);
+  }catch(e){ if(seq===cpSeq) showBanner('Não foi possível falar com a API.', e.message); }
+  finally{ if(seq===cpSeq){ if(btn) btn.disabled=false;
+    document.getElementById('content').classList.remove('loading'); } }
+}
+function renderCtecp(d){
+  const k=d.kpis||{}, per=d.periodo||{}, f=d.fonte||{};
+  const de=document.getElementById('fCpDe'), ate=document.getElementById('fCpAte');
+  if(de && !de.value && per.de) de.value=per.de;
+  if(ate && !ate.value && per.ate){ const x=new Date(per.ate+'T12:00:00'); x.setDate(x.getDate()-1); ate.value=_iso(x); }
+
+  /* "0 emitidas" NAO e verde: e a medida do passivo corrente, nao um indicador
+     saudavel. Mesma regra do CRM - KPI que so pode dar zero por ausencia de
+     processo nao pode aparecer como se estivesse tudo certo. */
+  document.getElementById('kpis-ctecp').innerHTML=
+    kpi('CT-e aguardando contrapartida', (k.ctes_pj||0).toLocaleString('pt-BR'),
+        (k.agregados_pj||0)+' agregados PJ no período', 'bad',
+        'CT-e emitidos com veículo de agregado PESSOA JURÍDICA. Só estes podem ter contrapartida.')
+   +kpi('Valor da prestação', cpBRL(k.valor_pj),
+        'base do CT-e de contrapartida', '',
+        'Valor total da prestação dos CT-e que aguardam contrapartida. Não é o valor do documento a emitir, que depende do contrato com cada agregado.')
+   +kpi('Contrapartidas emitidas', (k.emitidas||0).toLocaleString('pt-BR'),
+        'nenhuma rotina de emissão no ar', 'bad',
+        'Zero por confirmação da própria operação, não por falta de dado. Esta tela dimensiona a fila; ela não emite.')
+   +kpi('Fora da fila (TAC)', (k.ctes_tac||0).toLocaleString('pt-BR'),
+        (k.agregados_tac||0)+' agregados pessoa física · '+cpBRL(k.valor_tac),
+        'warn',
+        'Transportador Autônomo de Cargas não emite CT-e: a documentação dele é CIOT e RPA. Não entra na fila por natureza do documento, não por falta de certificado.');
+
+  const CL={pj:'PJ',tac:'TAC',indefinido:'?'};
+  const ag=(d.por_agregado||[]);
+  document.getElementById('cpTab').innerHTML=
+    '<thead><tr><th>Agregado</th><th>Tipo</th><th>RNTRC</th><th>Cadastro</th><th class="r">CT-e</th><th class="r">Placas</th><th class="r">Prestação</th></tr></thead><tbody>'
+    +(ag.length? ag.map(function(x){
+        const tac = x.classe==='tac';
+        const falta=[['razão social',x.nome],['IE',x.ie],['RNTRC',x.rntrc],['município',x.cidade]]
+          .filter(function(p){return !p[1];}).map(function(p){return p[0];});
+        return '<tr'+(tac?' style="opacity:.62"':'')+'>'
+          +'<td>'+esc(x.nome||x.documento||'—')+'</td>'
+          +'<td>'+(tac? statChip('warn','TAC','não emite CT-e — CIOT/RPA') : esc(CL[x.classe]||'?'))+'</td>'
+          +'<td class="mono">'+esc(x.rntrc||'—')+'</td>'
+          +'<td>'+(tac?'<span style="color:var(--n500)">não se aplica</span>'
+                     : (falta.length? statChip('bad','falta '+falta.join(', '),'campo obrigatório ausente vira rejeição documento a documento')
+                                    : statChip('good','completo','razão social, IE, RNTRC e município presentes')))+'</td>'
+          +'<td class="r mono">'+(x.ctes||0).toLocaleString('pt-BR')+'</td>'
+          +'<td class="r mono">'+(x.placas||0)+'</td>'
+          +'<td class="r mono">'+cpBRL(x.valor)+'</td></tr>';
+      }).join('') : '<tr><td colspan="7" class="hint">Nenhum CT-e de agregado no período.</td></tr>')
+    +'</tbody>';
+  document.getElementById('hintCpTab').textContent =
+    ag.length ? ag.length+' agregados · ordenado por prestação · linha esmaecida = TAC, fora da fila' : '';
+
+  /* barra empilhada PJ x TAC por mes: parte-do-todo com duas categorias */
+  const ms={}; (d.por_mes||[]).forEach(function(x){ (ms[x.mes]=ms[x.mes]||{})[x.classe]=x; });
+  const meses=Object.keys(ms).sort();
+  document.getElementById('cpMes').innerHTML = meses.length ? meses.map(function(m){
+    const pj=(ms[m].pj||{}).ctes||0, tac=(ms[m].tac||{}).ctes||0, tot=(pj+tac)||1;
+    return '<div style="margin:0 0 10px">'
+      +'<div style="display:flex;justify-content:space-between;font-size:12px">'
+      +'<span>'+esc(m)+'</span><span class="mono" style="color:var(--n500)">'
+      +pj.toLocaleString('pt-BR')+' PJ · '+tac.toLocaleString('pt-BR')+' TAC</span></div>'
+      +'<div style="display:flex;height:14px;border-radius:6px;overflow:hidden;margin-top:3px">'
+      +'<div title="PJ - entram na fila" style="width:'+(100*pj/tot).toFixed(1)+'%;background:var(--red)"></div>'
+      +'<div title="TAC - fora da fila" style="width:'+(100*tac/tot).toFixed(1)+'%;background:var(--n300)"></div>'
+      +'</div></div>';
+  }).join('') : '<div class="hint">Sem dados no período.</div>';
+
+  const pas=(d.passivo||[]).filter(function(x){return x.classe==='pj';});
+  const maxv=Math.max(1,...pas.map(function(x){return x.valor||0;}));
+  document.getElementById('cpPassivo').innerHTML = pas.length ? pas.map(function(x){
+    return '<div style="margin:0 0 9px">'
+      +'<div style="display:flex;justify-content:space-between;font-size:12px">'
+      +'<span>'+esc(x.ano)+'</span><span class="mono" style="color:var(--n500)">'
+      +(x.ctes||0).toLocaleString('pt-BR')+' CT-e · '+cpBRL(x.valor)+'</span></div>'
+      +'<div style="height:10px;border-radius:5px;background:var(--n100);margin-top:3px">'
+      +'<div style="height:100%;width:'+(100*(x.valor||0)/maxv).toFixed(1)+'%;background:var(--n400);border-radius:5px"></div>'
+      +'</div></div>';
+  }).join('')+'<div class="hint" style="margin-top:8px">Não é fila de trabalho: CT-e não se emite retroativo.</div>'
+    : '<div class="hint">Sem histórico.</div>';
+
+  document.getElementById('hintCp').textContent =
+    (per.de||'')+' a '+(per.ate||'')+' · '+(f.gerado_em||'');
+  const av=(d.avisos||[]);
+  document.getElementById('cpAvisosCard').hidden = !av.length;
+  document.getElementById('cpAvisos').innerHTML =
+    av.map(function(a){ return '<div class="hint" style="margin:0 0 8px">'+esc(a)+'</div>'; }).join('');
 }
 
 async function loadPoli(fundo){
@@ -16684,6 +16830,7 @@ boot();
       <div class="dgrp-b">
         <a href="#bal" onclick="fecharDrawer()"><span class="ic" data-ic="dre"></span>Balanço Patrimonial</a>
         <a href="#cont" onclick="fecharDrawer()"><span class="ic" data-ic="ctb"></span>Contabilidade</a>
+        <a href="#ctecp" onclick="fecharDrawer()"><span class="ic" data-ic="ctb"></span>CT-e de Contrapartida</a>
         <a href="#dre" onclick="fecharDrawer()"><span class="ic" data-ic="dre"></span>DRE Gerencial</a>
         <a href="#fech" onclick="fecharDrawer()"><span class="ic" data-ic="dre"></span>Fechamento do Mês</a>
         <a href="#orc" onclick="fecharDrawer()"><span class="ic" data-ic="dre"></span>Orçamento</a>

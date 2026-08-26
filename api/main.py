@@ -1357,6 +1357,29 @@ def frota_pneus(status: str = "", filial: str = "") -> JSONResponse:
             "erro": "erro_consulta", "mensagem": "Erro ao montar a tela de pneus."})
 
 
+@app.get("/api/fiscal/contrapartida")
+def fiscal_contrapartida(de: str = "", ate: str = "") -> JSONResponse:
+    """Conciliacao do CT-e de contrapartida do agregado.
+
+    So LEITURA. Nao emite, nao assina, nao transmite: emissao em nome de
+    terceiro depende de procuracao vigente, certificado A1 e enquadramento
+    fiscal definido, e nenhuma das tres e decisao de software.
+    """
+    from api.contrapartida import servico
+    for nome, valor in (("de", de), ("ate", ate)):
+        if valor and _bad_date(valor):
+            return JSONResponse(status_code=422, content={
+                "erro": "parametro_invalido",
+                "mensagem": f"Parametro {nome} invalido: use AAAA-MM-DD."})
+    try:
+        return JSONResponse(servico.get_contrapartida(de or None, ate or None))
+    except Exception as exc:  # noqa: BLE001
+        log.warning("fiscal_contrapartida falhou: %s", exc)
+        return JSONResponse(status_code=500, content={
+            "erro": "erro_consulta",
+            "mensagem": "Erro ao montar a conciliacao de contrapartida."})
+
+
 @app.get("/api/operacional/poligonos")
 def operacional_poligonos(de: str = "", ate: str = "",
                           uso: str = "") -> JSONResponse:

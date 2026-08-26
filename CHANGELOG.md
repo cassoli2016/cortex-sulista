@@ -4,6 +4,17 @@ Gerado de `docs/versoes.yaml` por `scripts/gerar_changelog.py` — não editar �
 Formato [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/),
 versionamento [SemVer](https://semver.org/lang/pt-BR/).
 
+## [0.59.0] — 26/08/2026  ·  CX-26/08/2026-v0.59.0
+
+### Adicionado
+- Tela nova em Controladoria: CT-e de Contrapartida. Para cada CT-e que a Sulista emite com veiculo de agregado existe (ou deveria existir) um CT-e emitido PELO agregado contra a Sulista. Hoje nenhum e emitido, e a tela dimensiona essa fila: 12.482 CT-e nos ultimos 6 meses, de 53 agregados PJ, somando R$ 34,7 milhoes de prestacao.
+- A tela separa duas populacoes que nao podem ser somadas. Dos 83 agregados do periodo, 30 sao pessoa fisica - e o Transportador Autonomo de Cargas NAO emite CT-e (Lei 11.442): a documentacao dele e CIOT e RPA. Somar os 6.020 CT-e deles inflaria a fila em 48% com documento que nao pode existir. Eles aparecem esmaecidos, marcados, e fora de todo total.
+- Bloco de passivo acumulado, separado e rotulado: 34.188 CT-e de agregado PJ desde 2022, R$ 108,7 milhoes de prestacao. NAO e fila de trabalho - CT-e nao se emite retroativo, porque a SEFAZ recusa data de emissao fora da janela. E numero para a decisao da contabilidade e do juridico.
+- Conferencia de cadastro por agregado (razao social, inscricao estadual, RNTRC e municipio): campo ausente vira rejeicao documento a documento na transmissao, e com 3 mil CT-e por mes e o erro que para a operacao. Hoje os 53 PJ estao completos - nada trava do lado do cadastro.
+
+### Alterado
+- A tela e SO LEITURA e continua sendo: nao emite, nao assina e nao transmite. Emissao em nome de terceiro depende de procuracao vigente, certificado A1 e enquadramento fiscal definido, e nenhuma das tres e decisao de software. Ha teste de arvore sintatica garantindo que o modulo nao alcanca assinatura nem transmissao.
+
 ## [0.58.0] — 26/08/2026  ·  CX-26/08/2026-v0.58.0
 
 ### Alterado
