@@ -78,3 +78,10 @@ scratchpad/
 
 # OFX de teste gerado (dados reais do ERP)
 scripts/validacao_extrato/*.ofx
+
+# EXTRATO BANCARIO REAL. O repositorio e PUBLICO e um OFX/PDF de extrato traz
+# agencia, conta, saldo e a contraparte de cada lancamento — dado da empresa e
+# de terceiros. A regra irma abaixo (scripts/validacao_extrato/*.ofx) so cobre
+# o OFX sintetico de teste; esta cobre a pasta de trabalho com os arquivos que
+# vem do banco de verdade.
+/extratos/
