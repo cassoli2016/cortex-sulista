@@ -182,32 +182,64 @@ def importar(bruto: bytes, nome: str, path=arm.DB_PATH, conta_id: int | None = N
         # e sempre cria/encontra a dela; usa-se `cid` para a conta de CADA
         # extrato do arquivo, para nao sombrear o parametro.
         extratos = parse_ofx(bruto)
+        hoje = date.today().isoformat()
         resultados = []
         for d in extratos:
             rotulo = f"{d['banco'] or '?'} / cc {d['conta'] or '?'}"
             cid = arm.obter_ou_criar_conta(path, d["ident"], rotulo)
             conta = arm.conta_por_ident(path, d["ident"])
-            res = arm.gravar_lancamentos(path, cid, d["itens"], nome, "ofx",
+
+            # LANCAMENTO COM DATA FUTURA NAO E EXTRATO - e agenda, e nao entra.
+            #
+            # O Bradesco exporta, ao lado do extrato realizado, um arquivo de
+            # COMPROMISSOS: mesma conta, mesmas tags, mesmo cabecalho OFX, sem
+            # NADA na estrutura que o distinga. O de agosto/2026 trazia DARF
+            # parcelado em 31/08, oito boletos em 10/09 e a conta de luz em
+            # 15/09. Importados como realizados, eles (a) somam ao movimento
+            # dias que ainda nao aconteceram e (b) quebram o farol: o "ultimo
+            # dia com extrato" passava a ser 15/09, e `dias_sem_extrato` saia
+            # NEGATIVO (-20). Como o farol so acusa atraso acima de 7 dias, a
+            # conta ficava permanentemente "em dia" - um lancamento agendado
+            # para o futuro desligava o alerta de extrato velho.
+            #
+            # Ficam de fora e sao CONTADOS: silenciar seria repetir o defeito
+            # que este modulo acabou de corrigir na deduplicacao.
+            futuras = [i for i in d["itens"] if i["dt"] > hoje]
+            itens = [i for i in d["itens"] if i["dt"] <= hoje]
+
+            res = arm.gravar_lancamentos(path, cid, itens, nome, "ofx",
                                          d["ignoradas"])
-            if d["saldo"]:
-                # `importacao_id` amarra a âncora a ESTA importação (achado d1):
-                # `res["importacao_id"]` sai 0 quando o arquivo não trouxe
-                # lançamento novo nenhum (reimport 100% duplicado - a linha de
-                # `ext_importacao` nem chega a ficar na trilha); nesse caso não
-                # há importação nova a que amarrar, então a âncora fica sem
-                # vínculo (`None`), mesmo estado das âncoras pré-migração.
-                arm.gravar_saldo_extrato(path, cid, d["saldo"]["dt"],
-                                         d["saldo"]["saldo"],
+            # `importacao_id` amarra a âncora a ESTA importação (achado d1):
+            # `res["importacao_id"]` sai 0 quando o arquivo não trouxe
+            # lançamento novo nenhum (reimport 100% duplicado - a linha de
+            # `ext_importacao` nem chega a ficar na trilha); nesse caso não
+            # há importação nova a que amarrar, então a âncora fica sem
+            # vínculo (`None`), mesmo estado das âncoras pré-migração.
+            #
+            # `d["saldos"]` (plural) e uma ancora POR DIA quando o banco manda
+            # a linha de saldo diaria - 18 dias no Itau e no Safra, contra a
+            # unica ancora de `LEDGERBAL` que existia antes. Cada dia ancorado
+            # e um dia que a comparacao confere contra o ERP em vez de derivar
+            # por soma a partir do ultimo saldo conhecido.
+            for s in d["saldos"]:
+                if s["dt"] > hoje:
+                    continue
+                arm.gravar_saldo_extrato(path, cid, s["dt"], s["saldo"],
                                          importacao_id=res["importacao_id"] or None)
-            datas = sorted(i["dt"] for i in d["itens"]) or [None]
+            datas = sorted(i["dt"] for i in itens) or [None]
             resultados.append({"conta_id": cid, "conta": conta,
                                "novas": res["novas"], "duplicadas": res["duplicadas"],
-                               "ignoradas": d["ignoradas"],
+                               "ignoradas": d["ignoradas"], "futuras": len(futuras),
+                               "linhas_saldo": d["linhas_saldo"],
+                               "ancoras": len([s for s in d["saldos"] if s["dt"] <= hoje]),
                                "dt_de": datas[0], "dt_ate": datas[-1]})
         # agrega os totais do arquivo; contas = uma linha por conta encontrada
         total = {"novas": sum(r["novas"] for r in resultados),
                  "duplicadas": sum(r["duplicadas"] for r in resultados),
                  "ignoradas": sum(r["ignoradas"] for r in resultados),
+                 "futuras": sum(r["futuras"] for r in resultados),
+                 "linhas_saldo": sum(r["linhas_saldo"] for r in resultados),
+                 "ancoras": sum(r["ancoras"] for r in resultados),
                  "contas": resultados}
         datas_todas = sorted(d for r in resultados for d in (r["dt_de"], r["dt_ate"]) if d)
         primeira = resultados[0]

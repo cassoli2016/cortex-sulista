@@ -107,6 +107,66 @@ def init_db(path: Path = DB_PATH) -> None:
             c.execute("ALTER TABLE ext_saldo ADD COLUMN importacao_id "
                      "INTEGER REFERENCES ext_importacao(id) ON DELETE CASCADE")
 
+        _remigra_chaves(c)
+
+
+def _remigra_chaves(c) -> int:
+    """Recalcula as chaves gravadas no formato antigo `fitid:<id>` (ver `_chave`).
+
+    Sem isto, uma base que ja tenha lancamentos fica com dois formatos de chave
+    convivendo, e o reimport do MESMO arquivo passa a inserir tudo de novo: as
+    linhas antigas estao sob `fitid:...` e as novas sob `hash:...`, entao o
+    `INSERT OR IGNORE` nao encontra colisao nenhuma e a conta dobra.
+
+    A reconstrucao repete exatamente o que `gravar_lancamentos` faria: agrupa
+    por importacao e percorre por `id` (a ordem de insercao original), porque o
+    contador de ocorrencia e por IMPORTACAO, nao por conta.
+
+    Duas linhas da mesma conta podem cair na mesma chave nova - acontece quando
+    o esquema antigo as manteve separadas SO por terem FITIDs diferentes sendo,
+    em tudo o mais, o mesmo lancamento importado duas vezes. Sob a regra nova
+    isso e duplicata; fica a de menor `id` (a primeira que entrou) e a outra sai,
+    com a contagem no log para que a remocao nao seja silenciosa.
+    """
+    import logging
+
+    antigas = c.execute(
+        "SELECT id, conta_id, importacao_id, dt, valor, historico, numerodoc, fitid "
+        "FROM ext_lancamento WHERE chave LIKE 'fitid:%' ORDER BY conta_id, importacao_id, id"
+    ).fetchall()
+    if not antigas:
+        return 0
+
+    vistos: dict[tuple, int] = {}
+    novas: dict[int, str] = {}
+    for r in antigas:
+        item = {"dt": r["dt"], "valor": r["valor"], "historico": r["historico"],
+                "numerodoc": r["numerodoc"], "fitid": r["fitid"]}
+        base = (r["importacao_id"], *_identidade(item))
+        vistos[base] = vistos.get(base, 0) + 1
+        novas[r["id"]] = _chave(item, vistos[base])
+
+    # colisao entre chaves novas dentro da MESMA conta: fica o menor id
+    dono: dict[tuple[int, str], int] = {}
+    sobra: list[int] = []
+    for r in antigas:
+        k = (r["conta_id"], novas[r["id"]])
+        if k in dono:
+            sobra.append(r["id"])
+        else:
+            dono[k] = r["id"]
+
+    if sobra:
+        c.executemany("DELETE FROM ext_lancamento WHERE id=?", [(i,) for i in sobra])
+    # a chave antiga e sempre distinta da nova (prefixo diferente), entao nao ha
+    # colisao com linhas ainda nao migradas no meio do caminho
+    c.executemany("UPDATE ext_lancamento SET chave=? WHERE id=?",
+                  [(novas[r["id"]], r["id"]) for r in antigas if r["id"] not in set(sobra)])
+    logging.getLogger(__name__).warning(
+        "extrato: %d chaves remigradas do formato fitid: para hash: (%d duplicatas removidas)",
+        len(antigas) - len(sobra), len(sobra))
+    return len(antigas) - len(sobra)
+
 
 def _norm_historico(s: str | None) -> str:
     """Maiúsculas + colapsa espaços internos repetidos (export de banco costuma
@@ -132,12 +192,36 @@ def _identidade(item: dict) -> tuple[str, str, str, str]:
 
 
 def _chave(item: dict, ocorrencia: int) -> str:
-    """FITID quando existe; senão hash estável da identidade + ocorrência."""
-    fitid = (item.get("fitid") or "").strip()
-    if fitid:
-        return "fitid:" + fitid
+    """Hash estavel da identidade + FITID + ocorrencia. NUNCA o FITID sozinho.
+
+    O FITID e, pela especificacao OFX, unico dentro da conta - e e por isso que
+    a versao anterior confiava nele como chave inteira. Banco brasileiro nao
+    cumpre isso, e o desvio nao e de borda:
+
+      - Caixa Economica, agosto/2026: 65 lancamentos, 15 FITIDs distintos. O
+        valor repetido 26 vezes e "341" - o CODIGO DO BANCO DE ORIGEM da TED,
+        nao um identificador de transacao. Outro repete 9 vezes com "33".
+      - Bradesco: um boleto agendado colide com um lancamento ja realizado.
+
+    Com `UNIQUE (conta_id, chave)` e `INSERT OR IGNORE`, cada colisao dessas e
+    um lancamento DESCARTADO EM SILENCIO, contado na tela como "duplicada".
+    Medido nos sete arquivos reais: 53 de 756 lancamentos (7%) sumiam, sendo
+    50 so na Caixa - R$ 2.464.042,23 de credito, incluindo TEDs de R$ 287 mil,
+    R$ 327 mil e R$ 377 mil, com a importacao reportando sucesso.
+
+    O FITID continua entrando na chave (banco que o preenche direito ganha a
+    unicidade de graca), mas so como MAIS UM campo, ao lado da identidade
+    natural e do contador de ocorrencia - que e o que ja separava dois
+    lancamentos gemeos do mesmo arquivo.
+
+    A troca tem um custo, e ele e o lado certo de errar: se um banco reexportar
+    o MESMO lancamento com o historico diferente, a chave muda e ele entra
+    duas vezes. Duplicata aparece na tela e alguem corrige; sumico silencioso
+    de R$ 2,4 mi nao aparece em lugar nenhum.
+    """
     dt, valor, historico, numerodoc = _identidade(item)
-    cru = "|".join([dt, valor, historico, numerodoc, str(ocorrencia)])
+    fitid = (item.get("fitid") or "").strip()
+    cru = "|".join([dt, valor, historico, numerodoc, fitid, str(ocorrencia)])
     return "hash:" + hashlib.sha1(cru.encode("utf-8")).hexdigest()
 
 
