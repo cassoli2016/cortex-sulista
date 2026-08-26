@@ -24,6 +24,9 @@ dependencies = [
   "pywebpush>=1.14",       # notificações push no celular (Web Push + VAPID)
   "xlrd>=2.0.1",
   "openpyxl>=3.1.5",
+  # extrato do C6 so sai em PDF - nao ha OFX no internet banking deles, entao
+  # sem isto a conta 336 fica fora da conciliacao. Python puro, sem binario.
+  "pypdf>=5.0",
 ]
 
 # Ferramentas de teste. Grupo "test" e NAO "dev" de proposito: o uv instala o

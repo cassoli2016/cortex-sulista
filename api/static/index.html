@@ -2386,14 +2386,14 @@ body.tvfull #btnReport,body.tvmode #btnReport{display:none}
       <!-- ===================== EXTRATO BANCÁRIO ===================== -->
       <section class="view" id="view-extb">
         <div class="card">
-          <div class="head"><h2>Extrato Bancário <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="Extrato importado (OFX/CSV) comparado com contacorrente_saldo do ERP AVA, por conta e por dia. Tolerância de R$ 0,01.">i</span></h2><span class="hint">valida saldo e fluxo do ERP contra o extrato do banco</span></div>
+          <div class="head"><h2>Extrato Bancário <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="Extrato importado (OFX, PDF ou CSV) comparado com contacorrente_saldo do ERP AVA, por conta e por dia. Tolerância de R$ 0,01. O PDF só é lido no layout do C6 — os demais bancos oferecem OFX, que é lido de qualquer instituição.">i</span></h2><span class="hint">valida saldo e fluxo do ERP contra o extrato do banco</span></div>
           <div class="cardfilters" id="extb-filtros">
             <select id="fExtbConta" aria-label="Conta" onchange="loadExtb()"></select>
             <input type="text" id="fExtbDe" placeholder="Data inicial" inputmode="numeric" aria-label="Data inicial">
             <input type="text" id="fExtbAte" placeholder="Data final" inputmode="numeric" aria-label="Data final">
             <button class="ghost" onclick="loadExtb()">Aplicar</button>
             <button class="ghost" onclick="document.getElementById('extbArquivo').click()">⬆ Importar extrato</button>
-            <input type="file" id="extbArquivo" accept=".ofx,.qfx,.csv,.txt" multiple style="display:none" onchange="extbEnviar(this.files)">
+            <input type="file" id="extbArquivo" accept=".ofx,.qfx,.pdf,.csv,.txt" multiple style="display:none" onchange="extbEnviar(this.files)">
           </div>
         </div>
         <div id="extb-aviso"></div>
@@ -7956,7 +7956,7 @@ function renderExtb(d){
     document.getElementById('kpis-extb').innerHTML='';
     document.getElementById('extb-aviso').innerHTML=
       '<div class="card"><p>Nenhum extrato importado ainda. Use <b>⬆ Importar extrato</b> '
-      +'e escolha o arquivo OFX (ou CSV) baixado do internet banking. '
+      +'e escolha o arquivo OFX baixado do internet banking (ou o PDF, no caso do C6). '
       +'Na primeira vez de cada conta você aponta a qual conta do ERP ela corresponde.</p></div>';
     ['extb-contas','extb-dias','extb-imps'].forEach(id=>document.getElementById(id).innerHTML='');
     const av0=document.getElementById('extbOutraConta'); if(av0){ av0.style.display='none'; av0.innerHTML=''; }
@@ -11013,8 +11013,7 @@ async function extbEnviar(files){
               +(vinculouCsv ? ' — conta vinculada ao ERP' : ' — conta ainda sem vínculo com o ERP'));
             continue;
           }
-          resumo.push(esc(f.name)+`: ${d2.novas} novo(s), ${d2.duplicadas} duplicado(s)`
-            + (d2.ignoradas?`, ${d2.ignoradas} ignorado(s)`:''));
+          resumo.push(esc(f.name)+': '+extbResumoImport(d2));
         }catch(e){ resumo.push(esc(f.name)+': falha no envio'); }
         continue;
       }
@@ -11032,7 +11031,7 @@ async function extbEnviar(files){
           ? `: nenhuma conta foi vinculada ao ERP — ${pendentes} conta(s) deste arquivo aguardam vínculo pela tabela "Situação por conta".`
           : (restam>0
             ? `: vinculada 1 de ${pendentes} conta(s) do arquivo — falta${restam===1?'':'m'} vincular ${restam} pela tabela "Situação por conta".`
-            : `: ${d.novas} novo(s), ${d.duplicadas} duplicado(s)`+(d.ignoradas?`, ${d.ignoradas} ignorado(s)`:''))));
+            : ': '+extbResumoImport(d))));
         continue;
       }
       if(d.ok===false && d.precisa==='mapa_csv'){
@@ -11040,14 +11039,32 @@ async function extbEnviar(files){
         resumo.push(esc(f.name)+': aponte as colunas do CSV e envie novamente.');
         continue;
       }
-      resumo.push(esc(f.name)+`: ${d.novas} novo(s), ${d.duplicadas} duplicado(s)`
-        + (d.ignoradas?`, ${d.ignoradas} ignorado(s)`:''));
+      resumo.push(esc(f.name)+': '+extbResumoImport(d));
     }catch(e){ resumo.push(esc(f.name)+': falha no envio'); }
   }
   document.getElementById('extbArquivo').value='';
   if(btn) btn.disabled=false;
   showBanner('Importação: '+resumo.join(' · '));
   loadExtb();
+}
+
+// Resumo de UMA importacao. Existe como funcao porque a frase era montada em
+// TRES lugares diferentes (CSV recem-mapeado, OFX recem-vinculado e o caminho
+// normal) e cada contador novo tinha de ser lembrado nos tres.
+//
+// `futuras` e `desvios` nao sao detalhe tecnico e por isso aparecem sempre que
+// existem: lancamento com data futura foi RECUSADO (o arquivo de compromissos
+// do Bradesco e OFX identico ao do extrato), e desvio de conferencia significa
+// que o recorte de coluna do PDF pode ter mudado. Numero que a tela nao mostra
+// e numero que ninguem confere.
+function extbResumoImport(d){
+  const p=[`${d.novas} novo(s)`, `${d.duplicadas} duplicado(s)`];
+  if(d.ignoradas) p.push(`${d.ignoradas} ignorado(s)`);
+  if(d.futuras)   p.push(`${d.futuras} com data futura, fora do extrato`);
+  if(d.ancoras)   p.push(`${d.ancoras} saldo(s) do banco`);
+  const dv=(d.conferencia_desvios||[]).length;
+  if(dv) p.push(`ATENCAO: ${dv} dia(s) em que o saldo do PDF nao fecha com o movimento`);
+  return p.join(', ');
 }
 
 async function extbEscolherContaCsv(d){

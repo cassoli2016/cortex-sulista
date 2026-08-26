@@ -30,6 +30,7 @@ from api.extrato import armazenamento as arm
 from api.extrato import comparacao as cmp
 from api.extrato.parser_csv import parse_csv, preview_csv
 from api.extrato.parser_ofx import parse_ofx
+from api.extrato.parser_pdf import parse_pdf
 
 # Lado ERP da comparação. Uma linha por dia da conta; `valorsaldo` é a posição
 # de fechamento do dia. Sem "-" especial na string (o banco é LATIN-1).
@@ -142,7 +143,12 @@ def _conta_por_id(path, conta_id: int) -> dict | None:
 
 
 def _formato(nome: str) -> str:
-    return "ofx" if nome.lower().endswith((".ofx", ".qfx")) else "csv"
+    n = nome.lower()
+    if n.endswith((".ofx", ".qfx")):
+        return "ofx"
+    if n.endswith(".pdf"):
+        return "pdf"
+    return "csv"
 
 
 def _erp_dias(conta: dict, dt_de: str, dt_ate: str) -> list[dict]:
@@ -174,14 +180,20 @@ def importar(bruto: bytes, nome: str, path=arm.DB_PATH, conta_id: int | None = N
     arm.init_db(path)
     formato = _formato(nome)
 
-    if formato == "ofx":
-        # parse_ofx devolve UM extrato por conta do arquivo (export consolidado
+    if formato in ("ofx", "pdf"):
+        # OFX e PDF seguem o MESMO caminho porque os dois parsers devolvem a
+        # mesma forma (ident/itens/saldos/...). O que os separa e so a extracao;
+        # gravacao, deduplicacao, ancora de saldo e mapeamento sao identicos, e
+        # duplicar esse trecho por formato seria criar duas regras de negocio
+        # onde ha uma.
+        #
+        # parse_* devolve UM extrato por conta do arquivo (export consolidado
         # traz varias). Grava todas; o resultado reporta a primeira que ainda
         # precisa de mapeamento, para a tela pedir o vinculo. `conta_id` (o
-        # parametro da funcao) nao se aplica aqui - o OFX traz a propria conta
-        # e sempre cria/encontra a dela; usa-se `cid` para a conta de CADA
-        # extrato do arquivo, para nao sombrear o parametro.
-        extratos = parse_ofx(bruto)
+        # parametro da funcao) nao se aplica aqui - o arquivo traz a propria
+        # conta e sempre cria/encontra a dela; usa-se `cid` para a conta de
+        # CADA extrato do arquivo, para nao sombrear o parametro.
+        extratos = parse_pdf(bruto) if formato == "pdf" else parse_ofx(bruto)
         hoje = date.today().isoformat()
         resultados = []
         for d in extratos:
@@ -207,7 +219,7 @@ def importar(bruto: bytes, nome: str, path=arm.DB_PATH, conta_id: int | None = N
             futuras = [i for i in d["itens"] if i["dt"] > hoje]
             itens = [i for i in d["itens"] if i["dt"] <= hoje]
 
-            res = arm.gravar_lancamentos(path, cid, itens, nome, "ofx",
+            res = arm.gravar_lancamentos(path, cid, itens, nome, formato,
                                          d["ignoradas"])
             # `importacao_id` amarra a âncora a ESTA importação (achado d1):
             # `res["importacao_id"]` sai 0 quando o arquivo não trouxe
@@ -232,6 +244,9 @@ def importar(bruto: bytes, nome: str, path=arm.DB_PATH, conta_id: int | None = N
                                "ignoradas": d["ignoradas"], "futuras": len(futuras),
                                "linhas_saldo": d["linhas_saldo"],
                                "ancoras": len([s for s in d["saldos"] if s["dt"] <= hoje]),
+                               # so o PDF traz - e o sinal de que o recorte de
+                               # coluna continua valendo naquele layout
+                               "conferencia": d.get("conferencia"),
                                "dt_de": datas[0], "dt_ate": datas[-1]})
         # agrega os totais do arquivo; contas = uma linha por conta encontrada
         total = {"novas": sum(r["novas"] for r in resultados),
@@ -240,6 +255,8 @@ def importar(bruto: bytes, nome: str, path=arm.DB_PATH, conta_id: int | None = N
                  "futuras": sum(r["futuras"] for r in resultados),
                  "linhas_saldo": sum(r["linhas_saldo"] for r in resultados),
                  "ancoras": sum(r["ancoras"] for r in resultados),
+                 "conferencia_desvios": [dv for r in resultados
+                                         for dv in ((r["conferencia"] or {}).get("desvios") or [])],
                  "contas": resultados}
         datas_todas = sorted(d for r in resultados for d in (r["dt_de"], r["dt_ate"]) if d)
         primeira = resultados[0]
