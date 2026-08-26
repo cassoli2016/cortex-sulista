@@ -286,4 +286,4 @@ def test_certificado_recusa_tipo_invalido():
 def test_procuracao_recusa_validade_invertida():
     import pytest as _pt
     with _pt.raises(ValueError):
-        cad.gravar_procuracao("1", "emitir CT-e", "2027-01-01", "2026-01-01", "eu")
+        cad.gravar_autorizacao("1", "emitir CT-e", "2027-01-01", "2026-01-01", "eu")

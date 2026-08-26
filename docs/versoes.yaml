@@ -3,6 +3,24 @@
 #   - a tela Documentação     (#doc)
 #   - o rótulo no rodapé      (CX-DD/MM/AAAA-vX.Y.Z)
 # A versão do TOPO é a corrente e tem de bater com o pyproject.toml.
+- versao: "0.62.0"
+  data: "2026-08-26"
+  alterado:
+    - >-
+      "Procuracao" passou a se chamar "Autorizacao para emitir". O usuario
+      apontou, com razao, que o certificado ja habilita tecnicamente a
+      assinatura - procuracao nao e requisito de software. O instrumento
+      (procuracao, clausula do contrato de agregamento ou termo) e decisao do
+      juridico, e o rotulo deixou de presumir qual.
+    - >-
+      O que o sistema continua exigindo, e por que: ESCOPO, porque o
+      certificado assina qualquer coisa e nao so CT-e; e VALIDADE, porque sem
+      data de fim a rotina nao sabe PARAR quando o agregado sai da frota. O
+      formulario explica isso na propria tela.
+    - >-
+      O registro que ja existia foi migrado, nao descartado - o dado perdido
+      seria justamente a autorizacao de alguem.
+
 - versao: "0.61.2"
   data: "2026-08-26"
   corrigido:

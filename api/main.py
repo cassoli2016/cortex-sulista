@@ -1357,16 +1357,21 @@ def frota_pneus(status: str = "", filial: str = "") -> JSONResponse:
             "erro": "erro_consulta", "mensagem": "Erro ao montar a tela de pneus."})
 
 
-@app.post("/api/fiscal/contrapartida/procuracao")
-def fiscal_contrapartida_procuracao(payload: dict, req: Request) -> JSONResponse:
-    """Registra a procuracao que autoriza emitir em nome do agregado."""
+@app.post("/api/fiscal/contrapartida/autorizacao")
+def fiscal_contrapartida_autorizacao(payload: dict, req: Request) -> JSONResponse:
+    """Registra a AUTORIZACAO para emitir em nome do agregado.
+
+    O instrumento (procuracao, clausula de contrato, termo) e decisao do
+    juridico. O que o software exige e escopo, validade e autor - sem data de
+    fim ele nao sabe parar quando o agregado sai da frota.
+    """
     from api.contrapartida import cadastro
     # a sessao e quem responde pela autorizacao: trilha com "?" nao serve
     # para nada meses depois, que e exatamente quando ela e consultada
     _s = getattr(req.state, "sessao", None) or {}
     quem = _s.get("email") or _s.get("nome") or "?"
     try:
-        return JSONResponse(cadastro.gravar_procuracao(
+        return JSONResponse(cadastro.gravar_autorizacao(
             str(payload.get("cnpj") or "").strip(),
             str(payload.get("escopo") or "").strip(),
             str(payload.get("valida_de") or "").strip(),
@@ -1376,9 +1381,9 @@ def fiscal_contrapartida_procuracao(payload: dict, req: Request) -> JSONResponse
         return JSONResponse(status_code=422, content={
             "erro": "parametro_invalido", "mensagem": str(exc)})
     except Exception as exc:  # noqa: BLE001
-        log.warning("gravar procuracao falhou: %s", exc)
+        log.warning("gravar autorizacao falhou: %s", exc)
         return JSONResponse(status_code=500, content={
-            "erro": "erro_gravacao", "mensagem": "Erro ao gravar a procuracao."})
+            "erro": "erro_gravacao", "mensagem": "Erro ao gravar a autorizacao."})
 
 
 @app.post("/api/fiscal/contrapartida/certificado")

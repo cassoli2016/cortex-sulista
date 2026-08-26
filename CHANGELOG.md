@@ -4,6 +4,13 @@ Gerado de `docs/versoes.yaml` por `scripts/gerar_changelog.py` — não editar �
 Formato [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/),
 versionamento [SemVer](https://semver.org/lang/pt-BR/).
 
+## [0.62.0] — 26/08/2026  ·  CX-26/08/2026-v0.62.0
+
+### Alterado
+- "Procuracao" passou a se chamar "Autorizacao para emitir". O usuario apontou, com razao, que o certificado ja habilita tecnicamente a assinatura - procuracao nao e requisito de software. O instrumento (procuracao, clausula do contrato de agregamento ou termo) e decisao do juridico, e o rotulo deixou de presumir qual.
+- O que o sistema continua exigindo, e por que: ESCOPO, porque o certificado assina qualquer coisa e nao so CT-e; e VALIDADE, porque sem data de fim a rotina nao sabe PARAR quando o agregado sai da frota. O formulario explica isso na propria tela.
+- O registro que ja existia foi migrado, nao descartado - o dado perdido seria justamente a autorizacao de alguem.
+
 ## [0.61.2] — 26/08/2026  ·  CX-26/08/2026-v0.61.2
 
 ### Corrigido

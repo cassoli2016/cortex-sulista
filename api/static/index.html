@@ -9260,14 +9260,14 @@ function cpAbrir(cnpj){
   abrirModal(
     '<h3>Autorizar &mdash; '+esc(x.nome||cnpj)+'</h3>'
    +falta
-   +'<div class="hint" style="margin-bottom:10px">Emitir com o certificado do agregado &eacute; assinar como ele. Sem procura&ccedil;&atilde;o vigente e certificado A1 v&aacute;lido, o C&Oacute;RTEX n&atilde;o emite por ele.</div>'
-   +'<b style="font-size:12px">Procura&ccedil;&atilde;o</b>'
+   +'<div class="hint" style="margin-bottom:10px">Emitir com o certificado do agregado &eacute; assinar como ele. Sem autoriza&ccedil;&atilde;o vigente e certificado A1 v&aacute;lido, o C&Oacute;RTEX n&atilde;o emite por ele.</div>'
+   +'<b style="font-size:12px">Autoriza&ccedil;&atilde;o para emitir</b>'+'<div class="hint" style="margin:3px 0 4px">Procura&ccedil;&atilde;o, cl&aacute;usula do contrato de agregamento ou termo &mdash; o que o jur&iacute;dico definir. O sistema precisa do escopo e da validade: sem data de fim ele n&atilde;o sabe parar quando o agregado sai da frota.</div>'
    +'<div class="milk-filtros" style="margin:6px 0 4px">'
    +'<label>V&aacute;lida de<input type="date" id="cpPrDe"></label>'
    +'<label>V&aacute;lida at&eacute;<input type="date" id="cpPrAte"></label></div>'
    +'<label style="display:block;font-size:11px;color:var(--n500)">Escopo'
    +'<input type="text" id="cpPrEsc" style="width:100%;box-sizing:border-box" placeholder="ex.: emitir CT-e de subcontrata&ccedil;&atilde;o em nome do agregado"></label>'
-   +'<button class="btn" style="margin-top:7px" onclick="cpSalvarProc()">Salvar procura&ccedil;&atilde;o</button>'
+   +'<button class="btn" style="margin-top:7px" onclick="cpSalvarAutz()">Salvar autoriza&ccedil;&atilde;o</button>'
    +'<hr style="margin:14px 0;border:0;border-top:1px solid var(--n200)">'
    +'<b style="font-size:12px">Certificado digital</b>'
    +'<div class="hint" style="margin:3px 0 6px">O arquivo &eacute; aberto aqui com a senha: titular e validade saem do pr&oacute;prio certificado, e senha errada aparece agora e n&atilde;o na transmiss&atilde;o.</div>'
@@ -9293,18 +9293,18 @@ function cpTipoMudou(){
 }
 function cpErro(t){ const e=document.getElementById('cpErr'); if(!e) return; e.innerHTML=t?('<span style="color:var(--red)">'+esc(t)+'</span>'):''; }
 function cpOk(t){ const e=document.getElementById('cpErr'); if(!e) return; e.innerHTML='<span style="color:var(--green)">'+esc(t)+'</span>'; }
-async function cpSalvarProc(){
+async function cpSalvarAutz(){
   if(!CP_ALVO) return;
   const V=id=>{const e=document.getElementById(id);return e?e.value.trim():'';};
   if(!V('cpPrDe')||!V('cpPrAte')||!V('cpPrEsc')){ cpErro('Preencha escopo e as duas datas.'); return; }
   try{
-    const r=await fetch('/api/fiscal/contrapartida/procuracao',{method:'POST',
+    const r=await fetch('/api/fiscal/contrapartida/autorizacao',{method:'POST',
       headers:{'Content-Type':'application/json'},
       body:JSON.stringify({cnpj:CP_ALVO, escopo:V('cpPrEsc'),
         valida_de:V('cpPrDe'), valida_ate:V('cpPrAte')})});
     const d=await r.json();
     if(!r.ok){ cpErro(d.mensagem||'Erro ao gravar.'); return; }
-    cpOk('Procuração registrada.'); loadCtecp(true);
+    cpOk('Autorização registrada.'); loadCtecp(true);
   }catch(e){ cpErro('Falha de rede: '+e.message); }
 }
 async function cpSalvarCert(){
@@ -9378,7 +9378,7 @@ function renderCtecp(d){
         cpBRL(k.valor_pj)+' · '+(k.agregados_pj||0)+' agregados PJ', 'bad',
         'CT-e emitidos com veículo de agregado PESSOA JURÍDICA — só estes podem ter contrapartida. O valor é a prestação dos CT-e da fila, não o valor do documento a emitir, que depende do contrato com cada agregado.')
    +kpi('Autorizados a emitir', (k.prontos_para_emitir||0)+' de '+(k.agregados_pj||0),
-        'procuração vigente + certificado A1 + senha',
+        'autorização vigente + certificado A1 + senha',
         (k.prontos_para_emitir||0)===0?'bad':'warn',
         'Enquanto nenhum agregado estiver autorizado, a fila é diagnóstico: nenhum documento pode ser emitido.')
    +kpi('Contrapartidas emitidas', (k.emitidas||0).toLocaleString('pt-BR'),
@@ -9407,9 +9407,9 @@ function renderCtecp(d){
           +'<td>'+(tac?'<span style="color:var(--n500)">—</span>'
                      : '<button class="ghost" style="padding:2px 7px;font-size:11px"'
                        +' onclick="cpAbrir(\''+esc(x.documento)+'\')"'
-                       +' title="Cadastrar procuração e certificado">'
+                       +' title="Cadastrar autorização e certificado">'
                        +((x.prontidao||{}).pronto
-                          ? statChip('good','pronto', ((x.prontidao||{}).alertas||[]).join(' · ')||'procuração vigente, certificado A1 válido e senha no cofre')
+                          ? statChip('good','pronto', ((x.prontidao||{}).alertas||[]).join(' · ')||'autorização vigente, certificado A1 válido e senha no cofre')
                           : statChip('bad','não autorizado', ((x.prontidao||{}).faltas||[]).join(' · ')))
                        +'</button>')+'</td>'
           +'<td class="r mono">'+(x.ctes||0).toLocaleString('pt-BR')+'</td>'

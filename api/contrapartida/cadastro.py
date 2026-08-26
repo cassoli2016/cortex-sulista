@@ -7,8 +7,12 @@ Emitir CT-e com o certificado do agregado é ASSINAR COMO ELE. Não é uma
 configuração: é um ato jurídico praticado por conta e ordem de terceiro. Isso
 vira requisito de estrutura de dados, não recomendação de rodapé:
 
-  - procuração com ESCOPO e VALIDADE, por agregado, e a rotina não emite para
-    quem não tem uma vigente;
+  - AUTORIZAÇÃO com ESCOPO e VALIDADE, por agregado, e a rotina não emite
+    para quem não tem uma vigente. O nome do instrumento (procuração, cláusula
+    de contrato, termo) é decisão do jurídico; o que o software exige é a
+    validade — sem data de fim ele não sabe PARAR quando o agregado sai da
+    frota — e o escopo, porque o certificado assina qualquer coisa, não só
+    CT-e;
   - certificado A1 (arquivo). A3 mora em token físico e NÃO automatiza — quem
     for A3 fica marcado como impedido, com o motivo, em vez de falhar na hora
     da transmissão;
@@ -90,7 +94,7 @@ def ler_senha(cnpj: str) -> str | None:
 
 
 _DDL = """
-CREATE TABLE IF NOT EXISTS procuracao (
+CREATE TABLE IF NOT EXISTS autorizacao (
   cnpj        TEXT PRIMARY KEY,
   escopo      TEXT NOT NULL,
   valida_de   TEXT NOT NULL,
@@ -128,7 +132,25 @@ def _conn() -> sqlite3.Connection:
     c.row_factory = sqlite3.Row
     c.execute("PRAGMA journal_mode=WAL")
     c.executescript(_DDL)
+    _migrar_procuracao(c)
     return c
+
+
+def _migrar_procuracao(c: sqlite3.Connection) -> None:
+    """A tabela se chamava `procuracao`. Renomear jogando fora o que ja estava
+    cadastrado obrigaria a redigitar - e o registro perdido seria justamente a
+    autorizacao de alguem."""
+    try:
+        existe = c.execute(
+            "SELECT 1 FROM sqlite_master WHERE type='table' AND name='procuracao'"
+        ).fetchone()
+        if not existe:
+            return
+        c.execute("INSERT OR IGNORE INTO autorizacao SELECT * FROM procuracao")
+        c.execute("DROP TABLE procuracao")
+        log.info("tabela procuracao migrada para autorizacao")
+    except Exception as exc:  # noqa: BLE001
+        log.warning("migracao procuracao->autorizacao falhou: %s", exc)
 
 
 def _hoje() -> str:
@@ -145,15 +167,15 @@ def _audita(c: sqlite3.Connection, quem: str, acao: str, cnpj: str,
 
 # --------------------------------------------------------------- escrita ---
 
-def gravar_procuracao(cnpj: str, escopo: str, valida_de: str, valida_ate: str,
+def gravar_autorizacao(cnpj: str, escopo: str, valida_de: str, valida_ate: str,
                       quem: str, observacao: str = "") -> dict:
     if not (cnpj and escopo and valida_de and valida_ate):
-        raise ValueError("cnpj, escopo e as duas datas de validade são obrigatórios.")
+        raise ValueError("CNPJ, escopo e as duas datas de validade são obrigatórios.")
     if valida_ate < valida_de:
         raise ValueError("A validade final é anterior à inicial.")
     with _conn() as c:
         c.execute(
-            "INSERT INTO procuracao(cnpj, escopo, valida_de, valida_ate,"
+            "INSERT INTO autorizacao(cnpj, escopo, valida_de, valida_ate,"
             " observacao, criado_em, criado_por) VALUES(?,?,?,?,?,?,?)"
             " ON CONFLICT(cnpj) DO UPDATE SET escopo=excluded.escopo,"
             " valida_de=excluded.valida_de, valida_ate=excluded.valida_ate,"
@@ -161,7 +183,7 @@ def gravar_procuracao(cnpj: str, escopo: str, valida_de: str, valida_ate: str,
             " criado_por=excluded.criado_por",
             (cnpj, escopo, valida_de, valida_ate, observacao,
              datetime.now().isoformat(timespec="seconds"), quem))
-        _audita(c, quem, "procuracao", cnpj, f"{valida_de} a {valida_ate}")
+        _audita(c, quem, "autorizacao", cnpj, f"{valida_de} a {valida_ate}")
     return {"ok": True}
 
 
@@ -202,7 +224,7 @@ def _dias_ate(iso: str | None) -> int | None:
         return None
 
 
-def prontidao(cnpj: str, proc: dict | None, cert: dict | None,
+def prontidao(cnpj: str, autz: dict | None, cert: dict | None,
               tem_senha: bool) -> dict:
     """Este agregado pode ter CT-e emitido por ele HOJE?
 
@@ -212,16 +234,16 @@ def prontidao(cnpj: str, proc: dict | None, cert: dict | None,
     faltas: list[str] = []
     alertas: list[str] = []
 
-    if not proc:
-        faltas.append("sem procuração cadastrada")
+    if not autz:
+        faltas.append("sem autorização cadastrada")
     else:
-        d = _dias_ate(proc.get("valida_ate"))
+        d = _dias_ate(autz.get("valida_ate"))
         if d is not None and d < 0:
-            faltas.append(f"procuração vencida há {abs(d)} dias")
-        elif proc.get("valida_de", "") > _hoje():
-            faltas.append("procuração ainda não vigente")
+            faltas.append(f"autorização vencida há {abs(d)} dias")
+        elif autz.get("valida_de", "") > _hoje():
+            faltas.append("autorização ainda não vigente")
         elif d is not None and d <= ALERTA_VENCIMENTO_DIAS:
-            alertas.append(f"procuração vence em {d} dias")
+            alertas.append(f"autorização vence em {d} dias")
 
     if not cert:
         faltas.append("sem certificado cadastrado")
@@ -246,20 +268,20 @@ def prontidao(cnpj: str, proc: dict | None, cert: dict | None,
 
 
 def mapa() -> dict[str, dict]:
-    """{cnpj: {procuracao, certificado, prontidao}} para a tela cruzar."""
+    """{cnpj: {autorizacao, certificado, prontidao}} para a tela cruzar."""
     with _conn() as c:
-        procs = {r["cnpj"]: dict(r) for r in c.execute("SELECT * FROM procuracao")}
+        autz = {r["cnpj"]: dict(r) for r in c.execute("SELECT * FROM autorizacao")}
         certs = {r["cnpj"]: dict(r) for r in c.execute("SELECT * FROM certificado")}
     out: dict[str, dict] = {}
-    for cnpj in set(procs) | set(certs):
+    for cnpj in set(autz) | set(certs):
         cert = certs.get(cnpj)
         ts = tem_senha(cnpj) if cert else False
         out[cnpj] = {
-            "procuracao": procs.get(cnpj),
+            "autorizacao": autz.get(cnpj),
             # `arquivo` e nome, nunca conteudo; senha nunca sai daqui
             "certificado": cert,
             "tem_senha": ts,
-            "prontidao": prontidao(cnpj, procs.get(cnpj), cert, ts),
+            "prontidao": prontidao(cnpj, autz.get(cnpj), cert, ts),
         }
     return out
 
