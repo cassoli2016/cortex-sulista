@@ -3,6 +3,17 @@
 #   - a tela Documentação     (#doc)
 #   - o rótulo no rodapé      (CX-DD/MM/AAAA-vX.Y.Z)
 # A versão do TOPO é a corrente e tem de bater com o pyproject.toml.
+- versao: "0.59.1"
+  data: "2026-08-26"
+  corrigido:
+    - >-
+      A tela de CT-e de Contrapartida abria com "Erro ao montar a conciliacao".
+      As colunas de primeira e ultima emissao voltam do banco como data, e a
+      resposta da API nao serializa esse tipo - devolvia 500. O teste que
+      existia olhava so os indicadores e nunca chegava na serializacao, entao
+      o defeito so apareceu quando a tela foi aberta no navegador. Entrou teste
+      que serializa a resposta inteira.
+
 - versao: "0.59.0"
   data: "2026-08-26"
   adicionado:

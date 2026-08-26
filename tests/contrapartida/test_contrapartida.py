@@ -135,3 +135,25 @@ def test_rota_registrada_e_restrita():
     assert "ctecp" in TELAS
     assert any(r[0] == "/api/fiscal/contrapartida" and "ctecp" in r[1]
                for r in ROTA_TELAS)
+
+
+# --- serializacao -----------------------------------------------------------
+
+def test_resposta_e_JSON_serializavel():
+    """O JSONResponse nao serializa datetime.date e devolve 500. As colunas
+    `primeiro`/`ultimo` do SQL vem como date - e o teste anterior, que so
+    olhava os KPIs, nunca chegava na serializacao: o defeito so apareceu
+    quando a tela abriu."""
+    import json
+    from datetime import date
+    linhas = [{"mes": "2026-08", "primeiro": date(2026, 8, 1),
+               "ultimo": date(2026, 8, 26), "ctes": 3}]
+    saida = servico._serial(linhas)
+    assert saida[0]["primeiro"] == "2026-08-01"
+    json.dumps(saida)          # explode se sobrar date
+
+
+def test_serial_preserva_o_resto_dos_campos():
+    from datetime import date
+    r = servico._serial([{"a": 1, "b": "x", "c": None, "d": date(2026, 1, 2)}])[0]
+    assert r["a"] == 1 and r["b"] == "x" and r["c"] is None and r["d"] == "2026-01-02"

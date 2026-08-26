@@ -4,6 +4,11 @@ Gerado de `docs/versoes.yaml` por `scripts/gerar_changelog.py` — não editar �
 Formato [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/),
 versionamento [SemVer](https://semver.org/lang/pt-BR/).
 
+## [0.59.1] — 26/08/2026  ·  CX-26/08/2026-v0.59.1
+
+### Corrigido
+- A tela de CT-e de Contrapartida abria com "Erro ao montar a conciliacao". As colunas de primeira e ultima emissao voltam do banco como data, e a resposta da API nao serializa esse tipo - devolvia 500. O teste que existia olhava so os indicadores e nunca chegava na serializacao, entao o defeito so apareceu quando a tela foi aberta no navegador. Entrou teste que serializa a resposta inteira.
+
 ## [0.59.0] — 26/08/2026  ·  CX-26/08/2026-v0.59.0
 
 ### Adicionado
