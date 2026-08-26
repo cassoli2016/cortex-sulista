@@ -143,6 +143,12 @@ ROTA_TELAS: list[tuple[str, frozenset[str]]] = [
     ("/api/financeiro/extrato",       frozenset({"extb"})),
     ("/api/financeiro/lancamentos",   frozenset({"lanc"})),
     ("/api/financeiro/recorrentes",   frozenset({"rec"})),
+    # ANTES da rota generica: ROTA_TELAS casa por PREFIXO, e
+    # "/api/operacao/milkrun" tambem casaria "/chat-stream". Aqui as duas
+    # dao na mesma tela, mas deixar a ordem certa evita que uma futura
+    # sub-rota com outra permissao seja silenciosamente liberada pela mais
+    # generica (foi o que aconteceu com /clientes-lista x /clientes).
+    ("/api/operacao/milkrun/chat-stream", frozenset({"milkrun"})),
     ("/api/operacao/milkrun", frozenset({"milkrun"})),
     ("/api/financeiro/credito", frozenset({"fluxo", "fluxcon", "antec"})),
     ("/api/orcamento/plano", frozenset({"orc"})),

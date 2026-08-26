@@ -2550,6 +2550,51 @@ def tv_estradas() -> JSONResponse:
     return JSONResponse({"configurado": bool(chave), "key": chave})
 
 
+@app.post("/api/operacao/milkrun/chat-stream")
+def operacao_milkrun_chat(payload: dict) -> StreamingResponse:
+    """Chat restrito ao roteiro do milk run, SEMPRE no modelo local.
+
+    Sem fallback externo de proposito: o contexto leva placa e fornecedor, e
+    esse dado nao sai da maquina (CLAUDE.md secao 8, regra 3). Com o Ollama
+    fora, o chat diz que esta indisponivel em vez de degradar calado para
+    escalares — a resposta pareceria boa e seria pior.
+    """
+    import json as _json
+    from api.milkrun.copiloto import LocalIndisponivel, stream as _mk_stream
+
+    mensagens = payload.get("mensagens")
+    if _mensagens_invalidas(mensagens):
+        def _erro():
+            yield 'data: {"tipo":"erro","erro":"parametro_invalido"}\n\n'
+        return StreamingResponse(_erro(), media_type="text/event-stream")
+    de, ate = payload.get("de") or None, payload.get("ate") or None
+    for nome, valor in (("de", de), ("ate", ate)):
+        if valor and _bad_date(valor):
+            def _errodata():
+                yield ('data: {"tipo":"erro","erro":"parametro_invalido",'
+                       '"mensagem":"Data invalida: use AAAA-MM-DD."}\n\n')
+            return StreamingResponse(_errodata(), media_type="text/event-stream")
+    tomador = payload.get("tomador") or "02162259"
+    if not re.fullmatch(r"\d{2,14}", tomador):
+        tomador = "02162259"
+    tipo = payload.get("tipo") if payload.get("tipo") in ("milk", "simples", "") else "milk"
+
+    def gen():
+        try:
+            for ev in _mk_stream(mensagens, de, ate, tomador, tipo or "milk"):
+                yield "data: " + _json.dumps(ev, ensure_ascii=False) + "\n\n"
+        except LocalIndisponivel as exc:
+            yield "data: " + _json.dumps(
+                {"tipo": "erro", "erro": "local_indisponivel",
+                 "mensagem": str(exc)}, ensure_ascii=False) + "\n\n"
+        except Exception as exc:  # noqa: BLE001
+            log.warning("milkrun chat falhou: %s", exc)
+            yield 'data: {"tipo":"erro","erro":"stream_falhou"}\n\n'
+
+    return StreamingResponse(gen(), media_type="text/event-stream", headers={
+        "Cache-Control": "no-cache", "X-Accel-Buffering": "no"})
+
+
 @app.get("/api/copiloto/status")
 def copiloto_status() -> JSONResponse:
     # contexto = procedência do snapshot (telas, idade, fontes que falharam);

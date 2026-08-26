@@ -3,6 +3,29 @@
 #   - a tela Documentação     (#doc)
 #   - o rótulo no rodapé      (CX-DD/MM/AAAA-vX.Y.Z)
 # A versão do TOPO é a corrente e tem de bater com o pyproject.toml.
+- versao: "0.56.0"
+  data: "2026-08-26"
+  adicionado:
+    - >-
+      A tela Milk Run - MWM ganhou um chat proprio, restrito ao roteiro do
+      periodo filtrado. Ele enxerga cada parada com o horario combinado, a
+      chegada e a saida DETECTADAS pelo rastreador, a permanencia e o atraso -
+      e responde coisas como "qual coleta teve o maior atraso", citando numero
+      da coleta e placa. Perguntou de outro assunto do painel, ele aponta o
+      Copiloto Cortex em vez de tentar responder.
+  alterado:
+    - >-
+      Este chat roda SEMPRE no modelo local da maquina, sem alternativa. O
+      Copiloto Cortex manda ao modelo apenas KPIs escalares justamente porque
+      pode cair num modelo externo; aqui o contexto leva placa e fornecedor,
+      que e o que torna a resposta util e o que nao pode sair daqui. Com o
+      modelo local fora, o chat DIZ que esta indisponivel e explica por que -
+      responder pior calado pareceria funcionar e seria pior.
+    - >-
+      O nome do motorista nao e enviado nem ao modelo local. Placa, fornecedor
+      e horario respondem tudo que a tela pergunta, e o nome e o dado mais
+      pessoal do conjunto.
+
 - versao: "0.55.1"
   data: "2026-08-26"
   corrigido:

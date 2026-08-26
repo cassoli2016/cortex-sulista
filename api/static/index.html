@@ -2830,6 +2830,28 @@ body.tvfull #btnReport,body.tvmode #btnReport{display:none}
                     aria-expanded="false" title="Expandir o mapa para a tela inteira">Expandir</button></div>
           <div id="mapaMilk" style="height:420px;border-radius:0 0 10px 10px;background:var(--navy-50)"></div>
         </div>
+        <div class="card" id="mkchat-card">
+          <div class="head"><h2>Perguntar sobre este roteiro <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="Responde só sobre o milk run do período filtrado, com o roteiro ponto a ponto: horário combinado, chegada e saída DETECTADAS pelo rastreador, permanência e atraso. Roda no modelo LOCAL da máquina — o roteiro leva placa e fornecedor, e esse dado não sai daqui. O nome do motorista não é enviado nem ao modelo local.">i</span></h2>
+            <span class="hint" id="mkchatHint"></span>
+            <button class="ghost" id="mkchatLimpar" onclick="mkchatLimpar()" title="Apagar a conversa">Limpar</button></div>
+          <div class="cop-msgs" id="mkchat-msgs" role="log" aria-live="polite"
+               aria-label="Conversa sobre o milk run"
+               style="max-height:340px;padding:10px 12px"></div>
+          <div class="cop-chips" id="mkchat-chips" style="padding:0 12px 6px">
+            <button class="cop-chip" onclick="mkchatChip(this)"><span>⏱️</span>Qual coleta teve o maior atraso?</button>
+            <button class="cop-chip" onclick="mkchatChip(this)"><span>⚠️</span>O que está pendente e já venceu?</button>
+            <button class="cop-chip" onclick="mkchatChip(this)"><span>📍</span>Onde a permanência foi mais longa?</button>
+            <button class="cop-chip" onclick="mkchatChip(this)"><span>🧭</span>Resuma o roteiro do período</button>
+          </div>
+          <div class="cop-bar" style="padding:0 12px 12px">
+            <textarea id="mkchat-in" rows="1" aria-label="Pergunta sobre o milk run"
+              placeholder="Pergunte sobre as coletas deste período…"
+              oninput="this.style.height='auto';this.style.height=Math.min(this.scrollHeight,120)+'px';"
+              onkeydown="if(event.key==='Enter'&&!event.shiftKey){event.preventDefault();mkchatSend();}"></textarea>
+            <button class="btn" id="mkchat-send" onclick="mkchatSend()" aria-label="Enviar" title="Enviar (Enter)"><span aria-hidden="true">➤</span></button>
+          </div>
+          <div class="cop-dica" style="padding:0 12px 12px">Enter envia · Shift+Enter quebra linha · só responde sobre o Milk Run</div>
+        </div>
         <div id="milk-avisos"></div>
       </section>
 
@@ -9082,6 +9104,103 @@ function poliDur(m){
   const h=Math.floor(m/60), r=Math.round(m%60);
   return r? h+'h'+String(r).padStart(2,'0') : h+'h';
 }
+/* CHAT DO MILK RUN.
+   Separado do Copiloto Cortex de proposito. O Copiloto geral manda so KPIs
+   ESCALARES porque pode cair num modelo externo; aqui o contexto leva placa,
+   fornecedor e horario - dado que nao sai da maquina. Por isso este chat so
+   fala com o modelo LOCAL e, sem ele, DIZ que esta indisponivel em vez de
+   responder pior calado. */
+let MKCHAT=[], mkchatOcupado=false;
+function mkchatEsc(t){ return esc(t); }
+function mkchatBolha(papel, texto, id){
+  const meu = papel==='user';
+  return '<div style="display:flex;justify-content:'+(meu?'flex-end':'flex-start')+'">'
+    +'<div'+(id?' id="'+id+'"':'')+' style="max-width:88%;padding:9px 12px;border-radius:12px;'
+    +'font-size:13.5px;line-height:1.5;white-space:pre-wrap;'
+    +(meu?'background:var(--navy-500);color:#fff':'background:var(--n100);color:var(--n900)')
+    +'">'+mkchatEsc(texto)+'</div></div>';
+}
+function mkchatPinta(){
+  const box=document.getElementById('mkchat-msgs'); if(!box) return;
+  box.innerHTML = MKCHAT.length
+    ? MKCHAT.map(function(m,i){ return mkchatBolha(m.role, m.content,
+        (i===MKCHAT.length-1 && m.role==='assistant') ? 'mkchat-last' : ''); }).join('')
+    : '<div class="hint" style="margin:auto;text-align:center">Pergunte sobre as coletas deste período — atraso, permanência, o que ficou pendente.</div>';
+  box.scrollTop = box.scrollHeight;
+  const chips=document.getElementById('mkchat-chips');
+  if(chips) chips.style.display = MKCHAT.length ? 'none' : '';
+}
+function mkchatLimpar(){ MKCHAT=[]; mkchatPinta();
+  const h=document.getElementById('mkchatHint'); if(h) h.textContent=''; }
+function mkchatChip(b){ const t=b.textContent.trim();
+  const i=document.getElementById('mkchat-in'); if(i){ i.value=t; mkchatSend(); } }
+async function mkchatSend(){
+  if(mkchatOcupado) return;
+  const inp=document.getElementById('mkchat-in'); if(!inp) return;
+  const txt=(inp.value||'').trim(); if(!txt) return;
+  inp.value=''; inp.style.height='auto';
+  MKCHAT.push({role:'user', content:txt});
+  MKCHAT.push({role:'assistant', content:'…'});
+  mkchatPinta();
+  mkchatOcupado=true;
+  const btn=document.getElementById('mkchat-send'); if(btn) btn.disabled=true;
+  const hint=document.getElementById('mkchatHint');
+  const V=id=>{const e=document.getElementById(id);return e?e.value.trim():'';};
+  try{
+    /* X-Carga-Fundo: o chat nao e navegacao, e nao pode acender a barra de
+       carga da tela inteira a cada pergunta. */
+    const r=await fetch('/api/operacao/milkrun/chat-stream', {method:'POST',
+      headers:{'Content-Type':'application/json','X-Carga-Fundo':'1'},
+      body: JSON.stringify({mensagens: MKCHAT.slice(0,-1),
+        de:V('fMilkDe')||undefined, ate:V('fMilkAte')||undefined,
+        tipo:V('fMilkTipo')||'milk'})});
+    if(!r.ok || !r.body){ throw new Error('HTTP '+r.status); }
+    const rd=r.body.getReader(), dec=new TextDecoder();
+    let buf='', resp='';
+    for(;;){
+      const {done, value} = await rd.read(); if(done) break;
+      buf += dec.decode(value, {stream:true});
+      const partes = buf.split('\n\n'); buf = partes.pop();
+      for(const bloco of partes){
+        const linha = bloco.split('\n').find(x=>x.startsWith('data:'));
+        if(!linha) continue;
+        let ev; try{ ev=JSON.parse(linha.slice(5).trim()); }catch(e){ continue; }
+        if(ev.tipo==='status'){ if(hint) hint.textContent=ev.texto; }
+        else if(ev.tipo==='modelo'){ if(hint) hint.textContent=ev.modelo; }
+        else if(ev.tipo==='delta'){
+          resp += (ev.texto||ev.delta||'');
+          MKCHAT[MKCHAT.length-1].content = resp;
+          /* a bolha inteira e reescrita a cada delta - por isso nenhuma acao
+             mora dentro dela (seria apagada), regra ja aprendida no Copiloto */
+          const el=document.getElementById('mkchat-last');
+          if(el){ el.textContent = resp; }
+          else { mkchatPinta(); }
+          const box=document.getElementById('mkchat-msgs');
+          if(box) box.scrollTop = box.scrollHeight;
+        }
+        else if(ev.tipo==='erro'){
+          MKCHAT[MKCHAT.length-1].content = ev.mensagem
+            || 'Não consegui responder agora.';
+          mkchatPinta();
+        }
+        else if(ev.tipo==='fim'){
+          if(ev.truncado) MKCHAT[MKCHAT.length-1].content = resp + '\n\n(resposta interrompida)';
+        }
+      }
+    }
+    if(!resp && MKCHAT[MKCHAT.length-1].content==='…'){
+      MKCHAT[MKCHAT.length-1].content='Não veio resposta do modelo.';
+    }
+    mkchatPinta();
+  }catch(e){
+    MKCHAT[MKCHAT.length-1].content='Não foi possível falar com o modelo. '+(e.message||'');
+    mkchatPinta();
+  }finally{
+    mkchatOcupado=false;
+    const b2=document.getElementById('mkchat-send'); if(b2) b2.disabled=false;
+  }
+}
+
 async function loadPoli(fundo){
   skelKpis('kpis-poli',4);
   const seq=++poliSeq, btn=document.getElementById('btnRefresh'); if(btn) btn.disabled=true;

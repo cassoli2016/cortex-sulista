@@ -4,6 +4,15 @@ Gerado de `docs/versoes.yaml` por `scripts/gerar_changelog.py` — não editar �
 Formato [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/),
 versionamento [SemVer](https://semver.org/lang/pt-BR/).
 
+## [0.56.0] — 26/08/2026  ·  CX-26/08/2026-v0.56.0
+
+### Adicionado
+- A tela Milk Run - MWM ganhou um chat proprio, restrito ao roteiro do periodo filtrado. Ele enxerga cada parada com o horario combinado, a chegada e a saida DETECTADAS pelo rastreador, a permanencia e o atraso - e responde coisas como "qual coleta teve o maior atraso", citando numero da coleta e placa. Perguntou de outro assunto do painel, ele aponta o Copiloto Cortex em vez de tentar responder.
+
+### Alterado
+- Este chat roda SEMPRE no modelo local da maquina, sem alternativa. O Copiloto Cortex manda ao modelo apenas KPIs escalares justamente porque pode cair num modelo externo; aqui o contexto leva placa e fornecedor, que e o que torna a resposta util e o que nao pode sair daqui. Com o modelo local fora, o chat DIZ que esta indisponivel e explica por que - responder pior calado pareceria funcionar e seria pior.
+- O nome do motorista nao e enviado nem ao modelo local. Placa, fornecedor e horario respondem tudo que a tela pergunta, e o nome e o dado mais pessoal do conjunto.
+
 ## [0.55.1] — 26/08/2026  ·  CX-26/08/2026-v0.55.1
 
 ### Corrigido
