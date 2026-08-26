@@ -9283,7 +9283,12 @@ function cpAbrir(cnpj){
    +'<div class="hint" style="margin-top:4px">A senha vai para o cofre local (arquivo 0600, fora do git) e n&atilde;o volta para a tela.</div></div>'
    +'<div id="cpCertA3" class="hint" hidden>Certificado A3 n&atilde;o automatiza: exige o token f&iacute;sico presente a cada assinatura. Registrar aqui serve para a tela explicar por que este agregado nunca fica pronto.</div>'
    +'<button class="btn" style="margin-top:7px" onclick="cpSalvarCert()">Salvar certificado</button>'
-   +'<div class="m-err" id="cpErr" style="margin-top:9px"></div>');
+   +'<div class="m-err" id="cpErr" style="margin-top:9px"></div>'
+   /* FECHAR explicito: o modal fecha por Esc e por clique no fundo, mas nem
+      todo mundo descobre isso - e num dialogo que grava certificado, sair sem
+      saber como e pior que um botao a mais. */
+   +'<div class="m-foot" style="margin-top:12px">'
+   +'<button class="ghost" onclick="cpFechar()">Fechar</button></div>');
 }
 function cpFechar(){ fecharModal(); CP_ALVO=null; }
 function cpTipoMudou(){

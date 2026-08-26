@@ -174,7 +174,7 @@ def test_sem_nada_nao_esta_pronto_e_DIZ_o_que_falta():
     """"Nao pronto" sem motivo obriga a abrir tres telas para descobrir."""
     r = cad.prontidao("X", None, None, False)
     assert not r["pronto"]
-    assert any("procuração" in f for f in r["faltas"])
+    assert any("autorização" in f for f in r["faltas"])
     assert any("certificado" in f for f in r["faltas"])
 
 

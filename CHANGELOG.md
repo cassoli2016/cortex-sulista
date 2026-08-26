@@ -4,6 +4,11 @@ Gerado de `docs/versoes.yaml` por `scripts/gerar_changelog.py` — não editar �
 Formato [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/),
 versionamento [SemVer](https://semver.org/lang/pt-BR/).
 
+## [0.62.1] — 26/08/2026  ·  CX-26/08/2026-v0.62.1
+
+### Corrigido
+- O formulario de autorizacao nao tinha botao Fechar. Ele fecha por Esc e por clique fora, mas nem todo mundo descobre isso - e num dialogo que grava certificado, nao saber como sair e pior que um botao a mais.
+
 ## [0.62.0] — 26/08/2026  ·  CX-26/08/2026-v0.62.0
 
 ### Alterado

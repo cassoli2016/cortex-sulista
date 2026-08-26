@@ -3,6 +3,14 @@
 #   - a tela Documentação     (#doc)
 #   - o rótulo no rodapé      (CX-DD/MM/AAAA-vX.Y.Z)
 # A versão do TOPO é a corrente e tem de bater com o pyproject.toml.
+- versao: "0.62.1"
+  data: "2026-08-26"
+  corrigido:
+    - >-
+      O formulario de autorizacao nao tinha botao Fechar. Ele fecha por Esc e
+      por clique fora, mas nem todo mundo descobre isso - e num dialogo que
+      grava certificado, nao saber como sair e pior que um botao a mais.
+
 - versao: "0.62.0"
   data: "2026-08-26"
   alterado:
