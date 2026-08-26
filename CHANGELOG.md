@@ -4,6 +4,14 @@ Gerado de `docs/versoes.yaml` por `scripts/gerar_changelog.py` — não editar �
 Formato [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/),
 versionamento [SemVer](https://semver.org/lang/pt-BR/).
 
+## [0.68.1] — 26/08/2026  ·  CX-26/08/2026-v0.68.1
+
+### Adicionado
+- Documento para a contabilidade em docs/contrapartida-perguntas-contabilidade.md, escrito para ser encaminhado: o que precisa ser definido antes de emitir o CT-e do agregado, na ordem em que as respostas destravam o trabalho, e com os numeros medidos. A primeira pergunta e se ha dispensa de emissao pelo subcontratado - se houver, nao existe fila nenhuma a emitir e todas as outras perguntas caem.
+
+### Corrigido
+- A suite de testes ficava VERMELHA no servidor por dependencia que producao nao instala de proposito. Os testes que montam o CT-e precisam do grupo fiscal, e um deles chegava a derrubar a coleta inteira - a suite parava de rodar por completo, e nao so aquele teste. Agora eles sao pulados com o motivo dito, e o resto roda.
+
 ## [0.68.0] — 26/08/2026  ·  CX-26/08/2026-v0.68.0
 
 ### Adicionado

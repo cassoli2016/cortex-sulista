@@ -190,9 +190,26 @@ def test_sem_frete_de_compra_a_base_nao_cai_para_zero():
 # --- o XML -----------------------------------------------------------------
 
 def _xsd():
-    import nfelib
+    """Caminho do XSD, ou "" se o grupo `fiscal` nao estiver instalado.
+
+    O `skipif` e avaliado na COLETA, entao um `import nfelib` cru aqui derruba
+    a suite INTEIRA (erro de coleta, nao skip) em qualquer ambiente sem o
+    grupo — e producao e exatamente isso: o AutoDeploy roda `uv sync` sem
+    grupo nenhum, de proposito.
+    """
+    try:
+        import nfelib
+    except ImportError:
+        return ""
     return os.path.join(os.path.dirname(nfelib.__file__), "cte", "schemas",
                         "v4_0", "cte_v4.00.xsd")
+
+
+# Montar o XML exige o grupo `fiscal`, que producao NAO instala. Sem este
+# marcador a suite fica vermelha no servidor por dependencia ausente de
+# proposito — e alarme falso recorrente e alarme que ninguem le.
+precisa_fiscal = pytest.mark.skipif(
+    not _xsd(), reason="grupo `fiscal` ausente (uv sync --group fiscal)")
 
 
 @pytest.mark.skipif(not os.path.exists(_xsd()), reason="XSD do CT-e ausente")
@@ -209,6 +226,7 @@ def test_o_xml_valida_no_XSD_oficial_menos_a_assinatura():
     assert "Signature" in erros[0]
 
 
+@precisa_fiscal
 def test_homologacao_carimba_REMETENTE_e_DESTINATARIO_e_nao_o_tomador():
     """Custou tres rejeicoes descobrir de quem e o nome.
 
@@ -231,6 +249,7 @@ def test_a_grafia_do_nome_de_homologacao_e_CTE_sem_hifen():
     assert "CT-E" not in doc.XNOME_HOMOLOGACAO
 
 
+@precisa_fiscal
 def test_producao_nao_carimba_nome_nenhum():
     """O carimbo e do ambiente de teste: em producao os nomes sao os reais."""
     xml = doc.serializar(doc.montar(DADOS, ENQ, numero=1, ambiente="1"))
@@ -238,6 +257,7 @@ def test_producao_nao_carimba_nome_nenhum():
     assert DADOS["rem_nome"] in xml and DADOS["dest_nome"] in xml
 
 
+@precisa_fiscal
 def test_as_notas_transportadas_entram_todas():
     """O CT-e piloto carrega DUAS notas — nunca foi campo unico."""
     xml = doc.serializar(doc.montar(DADOS, ENQ, numero=1))
@@ -246,6 +266,7 @@ def test_as_notas_transportadas_entram_todas():
     assert xml.count("<infNFe>") == 2
 
 
+@precisa_fiscal
 def test_sem_nota_com_chave_para_ANTES_de_transmitir():
     """cStat 693. O XSD deixa o grupo OPCIONAL, entao a validacao local passa
     e so a SEFAZ reclama — vale parar antes e dizer o porque."""
@@ -254,6 +275,7 @@ def test_sem_nota_com_chave_para_ANTES_de_transmitir():
         doc.montar(d, ENQ, numero=1)
 
 
+@precisa_fiscal
 def test_a_referencia_ao_CT_e_da_sulista_e_o_que_faz_ser_contrapartida():
     """Sem `docAnt` o documento e uma prestacao solta: nada o liga ao CT-e
     que a Sulista ja emitiu, que e a razao de existir do modulo."""
@@ -264,6 +286,7 @@ def test_a_referencia_ao_CT_e_da_sulista_e_o_que_faz_ser_contrapartida():
     assert DADOS["chave_original"] not in sem
 
 
+@precisa_fiscal
 def test_rntrc_ausente_para_ANTES_de_montar():
     """Sem RNTRC o modal rodoviario e rejeitado documento a documento — com
     3 mil CT-e por mes, esse erro some no meio do lote."""
@@ -272,6 +295,7 @@ def test_rntrc_ausente_para_ANTES_de_montar():
         doc.montar(d, ENQ, numero=1)
 
 
+@precisa_fiscal
 def test_simples_nacional_nao_destaca_icms():
     xml = doc.serializar(doc.montar(DADOS, ENQ, numero=1))
     assert "<ICMSSN>" in xml and "<CRT>1</CRT>" in xml

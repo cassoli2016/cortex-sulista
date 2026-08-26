@@ -66,9 +66,17 @@ def test_remendos_sao_IDEMPOTENTES():
     assert m.get_service_url is primeiro
 
 
+@pytest.mark.skipif(
+    __import__("importlib.util", fromlist=["util"]).find_spec("erpbrasil")
+    is None,
+    reason="grupo `fiscal` ausente (uv sync --group fiscal)")
 def test_leitura_erra_com_MENSAGEM_UTIL_quando_falta_o_elemento():
     """Sem isto o erro e "Unknown property ... Header", que nao diz nada sobre
-    o que a SEFAZ respondeu."""
+    o que a SEFAZ respondeu.
+
+    Pula sem o grupo `fiscal`: producao roda `uv sync` sem grupo nenhum, de
+    proposito, e falhar la por dependencia ausente e alarme falso.
+    """
     import erpbrasil.edoc.edoc as base
     sefaz._leitura(base)
     from erpbrasil.edoc import resposta as resp

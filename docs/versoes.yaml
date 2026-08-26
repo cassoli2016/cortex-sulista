@@ -3,6 +3,24 @@
 #   - a tela Documentação     (#doc)
 #   - o rótulo no rodapé      (CX-DD/MM/AAAA-vX.Y.Z)
 # A versão do TOPO é a corrente e tem de bater com o pyproject.toml.
+- versao: "0.68.1"
+  data: "2026-08-26"
+  adicionado:
+    - >-
+      Documento para a contabilidade em docs/contrapartida-perguntas-contabilidade.md,
+      escrito para ser encaminhado: o que precisa ser definido antes de emitir
+      o CT-e do agregado, na ordem em que as respostas destravam o trabalho, e
+      com os numeros medidos. A primeira pergunta e se ha dispensa de emissao
+      pelo subcontratado - se houver, nao existe fila nenhuma a emitir e todas
+      as outras perguntas caem.
+  corrigido:
+    - >-
+      A suite de testes ficava VERMELHA no servidor por dependencia que
+      producao nao instala de proposito. Os testes que montam o CT-e precisam
+      do grupo fiscal, e um deles chegava a derrubar a coleta inteira - a
+      suite parava de rodar por completo, e nao so aquele teste. Agora eles
+      sao pulados com o motivo dito, e o resto roda.
+
 - versao: "0.68.0"
   data: "2026-08-26"
   adicionado:
