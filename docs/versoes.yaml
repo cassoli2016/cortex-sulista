@@ -3,6 +3,23 @@
 #   - a tela Documentação     (#doc)
 #   - o rótulo no rodapé      (CX-DD/MM/AAAA-vX.Y.Z)
 # A versão do TOPO é a corrente e tem de bater com o pyproject.toml.
+- versao: "0.61.2"
+  data: "2026-08-26"
+  corrigido:
+    - >-
+      Gravar o certificado do agregado dava erro. A senha estava indo para o
+      cofre geral de credenciais, que recusa qualquer chave fora de uma lista
+      fixa - e com razao: aquele cofre existe para credenciais nomeadas e
+      unicas (token da Gobrax, senha do e-mail), que a tela de Gestao edita uma
+      a uma. Senha de certificado e uma POR AGREGADO. Agora tem cofre proprio,
+      com a mesma disciplina: arquivo com permissao restrita, fora do git, e o
+      valor entra e nao volta para a tela.
+    - >-
+      O certificado chegava a ser gravado antes do erro da senha, entao o
+      agregado ficava com certificado e sem senha. A tela ja tratava isso
+      corretamente - aparece como nao autorizado, com o motivo "senha do
+      certificado nao cadastrada" - mas vale saber que basta reenviar.
+
 - versao: "0.61.1"
   data: "2026-08-26"
   corrigido:

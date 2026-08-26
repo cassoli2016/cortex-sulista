@@ -19,7 +19,7 @@ vira requisito de estrutura de dados, não recomendação de rodapé:
 ONDE MORA CADA COISA, E POR QUÊ
 -------------------------------
   metadados (validade, escopo, tipo)  -> data/contrapartida.db (SQLite local)
-  SENHA do certificado                -> cofre data/credenciais.json (0600)
+  SENHA do certificado                -> data/certificados/senhas.json (0600)
   arquivo .pfx                        -> data/certificados/, 0600
 
 `data/*` está inteiro no .gitignore — e isso importa porque **o repositório do
@@ -27,17 +27,16 @@ código é público**. Senha de certificado em banco versionado seria um vazamen
 permanente; por isso a senha nunca entra nesta tabela, nem mascarada.
 
 A senha segue a regra do cofre que o resto do sistema já usa: **entra e não
-volta**. Nenhuma função aqui devolve senha, nem para uso interno — quem
-assinar, um dia, chama `api.credenciais.ler()` diretamente.
+volta**: `tem_senha()` diz só SE existe, e `ler_senha()` é o único caminho de
+saída — nenhum endpoint o expõe.
 """
 from __future__ import annotations
 
+import json
 import logging
 import sqlite3
 from datetime import date, datetime
 from pathlib import Path
-
-from api import credenciais
 
 log = logging.getLogger("cortex.contrapartida.cadastro")
 
@@ -49,9 +48,46 @@ DIR_CERT = ROOT / "data" / "certificados"
 # parar a emissão; avisar no dia do vencimento não serve para nada.
 ALERTA_VENCIMENTO_DIAS = 30
 
-# Prefixo da chave no cofre. Uma senha POR AGREGADO — por isso não entra na
-# lista CONHECIDAS de credenciais.py, que é de credenciais nomeadas e fixas.
-PREFIXO_SENHA = "CERT_SENHA_"
+# Cofre PROPRIO das senhas de certificado. Nao usa api/credenciais.py de
+# proposito: aquele cofre valida contra uma lista de credenciais NOMEADAS e
+# FIXAS (token da Gobrax, senha de SMTP...), que a tela de Gestao edita uma a
+# uma. Aqui e uma senha POR AGREGADO, dinamica - 54 hoje, outras amanha.
+# Mesma disciplina: 0600, fora do git, valor entra e NAO volta.
+SENHAS_PATH = ROOT / "data" / "certificados" / "senhas.json"
+
+
+def _senhas() -> dict:
+    if not SENHAS_PATH.exists():
+        return {}
+    try:
+        return json.loads(SENHAS_PATH.read_text(encoding="utf-8"))
+    except Exception:  # noqa: BLE001
+        log.warning("cofre de senhas ilegivel - tratando como vazio")
+        return {}
+
+
+def gravar_senha(cnpj: str, senha: str) -> None:
+    d = _senhas()
+    if senha:
+        d[cnpj] = {"valor": senha,
+                   "atualizado_em": datetime.now().strftime("%Y-%m-%d %H:%M")}
+    else:
+        d.pop(cnpj, None)
+    SENHAS_PATH.parent.mkdir(parents=True, exist_ok=True)
+    SENHAS_PATH.write_text(json.dumps(d, ensure_ascii=False, indent=1),
+                           encoding="utf-8")
+    SENHAS_PATH.chmod(0o600)
+
+
+def tem_senha(cnpj: str) -> bool:
+    """So diz SE existe. Quem for assinar um dia chama `ler_senha`."""
+    return bool((_senhas().get(cnpj) or {}).get("valor"))
+
+
+def ler_senha(cnpj: str) -> str | None:
+    """Unico caminho de saida da senha, e nenhum endpoint o expoe."""
+    return (_senhas().get(cnpj) or {}).get("valor")
+
 
 _DDL = """
 CREATE TABLE IF NOT EXISTS procuracao (
@@ -149,7 +185,7 @@ def gravar_certificado(cnpj: str, tipo: str, quem: str, arquivo: str = "",
     if senha:
         # cofre 0600, fora do git. A auditoria registra QUE houve senha, nunca
         # qual: o proprio log seria um vazamento.
-        credenciais.gravar(PREFIXO_SENHA + cnpj, senha)
+        gravar_senha(cnpj, senha)
         with _conn() as c:
             _audita(c, quem, "senha_certificado", cnpj, "senha gravada no cofre")
     return {"ok": True}
@@ -217,13 +253,13 @@ def mapa() -> dict[str, dict]:
     out: dict[str, dict] = {}
     for cnpj in set(procs) | set(certs):
         cert = certs.get(cnpj)
-        tem_senha = bool(credenciais.ler(PREFIXO_SENHA + cnpj)) if cert else False
+        ts = tem_senha(cnpj) if cert else False
         out[cnpj] = {
             "procuracao": procs.get(cnpj),
             # `arquivo` e nome, nunca conteudo; senha nunca sai daqui
             "certificado": cert,
-            "tem_senha": tem_senha,
-            "prontidao": prontidao(cnpj, procs.get(cnpj), cert, tem_senha),
+            "tem_senha": ts,
+            "prontidao": prontidao(cnpj, procs.get(cnpj), cert, ts),
         }
     return out
 

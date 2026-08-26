@@ -218,16 +218,49 @@ def test_tudo_certo_fica_pronto():
     assert cad.prontidao("X", PROC_OK, CERT_OK, True)["pronto"]
 
 
-def test_a_SENHA_nunca_sai_do_modulo():
-    """Guarda de codigo: nenhuma funcao pode devolver senha. O repositorio do
-    codigo e publico e o cofre e 0600 - a regra e a mesma do token da Gobrax,
-    o valor entra e nao volta."""
+def test_o_cofre_de_senha_e_PROPRIO_e_nao_o_geral():
+    """api/credenciais.py recusa chave fora da lista CONHECIDAS - e com razao:
+    ele existe para credenciais NOMEADAS e FIXAS que a tela de Gestao edita uma
+    a uma. Senha de certificado e uma POR AGREGADO, dinamica. Empurrar para la
+    quebrava a premissa do modulo e foi o erro de gravacao que apareceu na
+    tela."""
     with open(cad.__file__.replace(".pyc", ".py"), encoding="utf-8") as f:
-        arvore = ast.parse(f.read())
-    for no in ast.walk(arvore):
-        if isinstance(no, ast.Return):
-            fonte = ast.dump(no)
-            assert "'senha'" not in fonte and '"senha"' not in fonte
+        src = f.read()
+    assert "from api import credenciais" not in src
+    assert "SENHAS_PATH" in src and "0o600" in src
+
+
+def test_cofre_de_senha_grava_le_e_apaga(tmp_path, monkeypatch):
+    monkeypatch.setattr(cad, "SENHAS_PATH", tmp_path / "s.json")
+    assert not cad.tem_senha("1")
+    cad.gravar_senha("1", "abc")
+    assert cad.tem_senha("1") and cad.ler_senha("1") == "abc"
+    cad.gravar_senha("1", "")          # apagar
+    assert not cad.tem_senha("1")
+
+
+def test_cofre_ilegivel_nao_derruba_a_tela(tmp_path, monkeypatch):
+    """Arquivo corrompido nao pode virar 500 na conciliacao inteira: o pior
+    caso e o agregado aparecer como sem senha, que ja e o estado normal."""
+    alvo = tmp_path / "s.json"
+    alvo.write_text("{isto nao e json", encoding="utf-8")
+    monkeypatch.setattr(cad, "SENHAS_PATH", alvo)
+    assert cad.tem_senha("1") is False
+
+
+def test_so_existe_UM_caminho_de_saida_para_a_senha():
+    """`ler_senha` e o unico, de proposito, e nenhum endpoint o expoe. O teste
+    garante que nao surja um SEGUNDO caminho - e que `mapa()`, que a tela
+    consome, devolva apenas o booleano `tem_senha`."""
+    with open(cad.__file__.replace(".pyc", ".py"), encoding="utf-8") as f:
+        src = f.read()
+        arvore = ast.parse(src)
+    fn = [n.name for n in ast.walk(arvore)
+          if isinstance(n, ast.FunctionDef) and "senha" in n.name]
+    assert sorted(fn) == ["_senhas", "gravar_senha", "ler_senha", "tem_senha"], fn
+    # o que a tela recebe nunca carrega o valor
+    i = src.index("def mapa(")
+    assert "ler_senha" not in src[i:]
 
 
 def test_senha_nao_entra_na_tabela():

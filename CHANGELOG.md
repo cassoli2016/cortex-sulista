@@ -4,6 +4,12 @@ Gerado de `docs/versoes.yaml` por `scripts/gerar_changelog.py` — não editar �
 Formato [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/),
 versionamento [SemVer](https://semver.org/lang/pt-BR/).
 
+## [0.61.2] — 26/08/2026  ·  CX-26/08/2026-v0.61.2
+
+### Corrigido
+- Gravar o certificado do agregado dava erro. A senha estava indo para o cofre geral de credenciais, que recusa qualquer chave fora de uma lista fixa - e com razao: aquele cofre existe para credenciais nomeadas e unicas (token da Gobrax, senha do e-mail), que a tela de Gestao edita uma a uma. Senha de certificado e uma POR AGREGADO. Agora tem cofre proprio, com a mesma disciplina: arquivo com permissao restrita, fora do git, e o valor entra e nao volta para a tela.
+- O certificado chegava a ser gravado antes do erro da senha, entao o agregado ficava com certificado e sem senha. A tela ja tratava isso corretamente - aparece como nao autorizado, com o motivo "senha do certificado nao cadastrada" - mas vale saber que basta reenviar.
+
 ## [0.61.1] — 26/08/2026  ·  CX-26/08/2026-v0.61.1
 
 ### Corrigido
