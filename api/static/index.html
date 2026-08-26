@@ -11964,6 +11964,36 @@ const FECH_ESTRAT={driver_fiscal:['b-info','driver fiscal'],pct_receita:['b-info
    O semaforo NAO olha o total — olha a DISTANCIA entre receita e custo, que e
    o que distorce o resultado. Um mes 60% escriturado por igual e confiavel;
    um mes com receita em 81% e custo em 45% nao e, mesmo tendo o mesmo total. */
+/* Subtitulo do LOP 1: a comparacao que da sentido ao numero. */
+function fechLop1Sub(l){
+  if(!l) return 'sem dado';
+  const p = [];
+  if(l.mediana_hist!=null)
+    p.push('mediana de '+l.meses_hist+' meses: '+brlAbbr(l.mediana_hist));
+  if(l.vs_mediana!=null && l.vs_mediana>1.3)
+    p.push(l.vs_mediana.toLocaleString('pt-BR',{maximumFractionDigits:1})+'x o mês típico');
+  return p.join(' · ') || 'sem histórico comparável';
+}
+/* O semaforo compara com a MEDIANA, nao com zero. Prejuizo operacional nesta
+   operacao e o normal (5 dos 6 meses fecharam negativo): pintar de vermelho
+   por ser negativo diria "alarme" todo mes e ninguem mais olharia. Vermelho e
+   para quando o mes esta MUITO pior que o tipico. */
+function fechLop1Classe(l){
+  if(!l || l.previsto==null) return '';
+  if(l.mediana_hist==null) return l.previsto>=0 ? 'pos' : '';
+  if(l.previsto >= 0 && l.mediana_hist < 0) return 'pos';
+  if(l.vs_mediana==null) return '';
+  return l.vs_mediana >= 2 ? 'neg' : (l.vs_mediana >= 1.3 ? 'warn' : '');
+}
+function fechLop1VsOrc(l){
+  // o 6o argumento de kpi() e HTML de statChip, nao objeto
+  if(!l || l.orcado==null || l.previsto==null) return '';
+  const dif = l.previsto - l.orcado;
+  return statChip(dif>=0?'good':'bad',
+    `${dif>=0?'+':''}${brlAbbr(dif)} vs orçado`,
+    'Diferença do resultado OPERACIONAL previsto para o orçado do mês. Compara só a operação: juros da dívida e eventos não recorrentes ficam de fora dos dois lados.');
+}
+
 function fechPct(v){
   return v==null ? '—' : Math.round(v*100)+'%';
 }
@@ -12010,6 +12040,18 @@ function renderFech(d){
        modelo seja ruim. Em 25/08 a receita estava 81% escriturada e o custo
        fixo 45%. Sem isso, "resultado previsto" parece ter a mesma confianca
        no dia 5 e no dia 25. */
+    /* LOP 1 — o resultado da OPERACAO: ja tirou impostos, custo e despesa, e
+       ainda nao entrou resultado financeiro nem nao-operacional. E o numero
+       que diz se o negocio se paga rodando caminhao, separado do custo da
+       divida e de evento que nao se repete.
+
+       Vem com a MEDIANA historica ao lado porque sozinho ele nao decide nada:
+       "-1,4 mi" so vira informacao quando se sabe que o mes tipico e -295 mil. */
+    kpi('Resultado operacional (LOP 1)', brlAbbr((k.lop1||{}).previsto||0),
+      fechLop1Sub(k.lop1),
+      fechLop1Classe(k.lop1),
+      'Resultado da operação: receita menos impostos, custo do serviço e despesas. NÃO inclui resultado financeiro (juros da dívida) nem não-operacional (venda de ativo, indenização) — é de propósito, porque esses dois escondem se a operação em si se paga. A mediana ao lado é dos últimos meses fechados, e é mediana e não média: um único mês forte puxa a média e faz a operação parecer equilibrada.',
+      fechLop1VsOrc(k.lop1)),
     kpi('Mês escriturado', fechPct(k.consolidacao_pct),
       fechBlocos(k.consolidacao_blocos),
       fechClasse(k.consolidacao_blocos),

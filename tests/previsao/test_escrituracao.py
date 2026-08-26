@@ -85,3 +85,52 @@ def test_percentual_sem_dado_nao_vira_zero(html):
     sobre algo que so nao foi medido."""
     i = html.index("function fechPct(")
     assert "v==null ? '—'" in html[i:i + 200]
+
+
+# ------------------------------------------------------------------- LOP 1
+def test_o_lop1_vem_com_ancora_historica(fonte):
+    """"-1,4 mi" nao decide nada sozinho. Com a mediana ao lado vira "4,6x pior
+    que o mes tipico", que decide."""
+    assert '"mediana_hist"' in fonte and '"vs_mediana"' in fonte
+
+
+def test_a_ancora_e_MEDIANA_e_nao_media(fonte):
+    """Maio fechou +R$ 1,98 mi contra uma faixa de -666k a +18k nos outros
+    cinco. A media sobe para +17k por causa de um unico mes e passa a
+    impressao de operacao equilibrada; a mediana (-295k) descreve o tipico."""
+    i = fonte.index("def _kpi_lop1(")
+    corpo = fonte[i:i + 1400]
+    assert "motor.mediana(hist)" in corpo
+    assert "MEDIANA e nao media" in corpo
+
+
+def test_o_historico_do_lop1_usa_A_MESMA_cascata(fonte):
+    """Recalcular a formula a mao criaria duas definicoes de LOP 1 que um dia
+    divergiriam — e a comparacao passaria a medir a diferenca entre elas."""
+    i = fonte.index("lop1_hist: list[float] = []")
+    assert "motor.montar_cascata(diretas_m)" in fonte[i:i + 600]
+
+
+def test_multiplo_so_existe_com_os_dois_do_mesmo_sinal(fonte):
+    """Dividir -1,3 mi por um historico positivo produz um multiplo sem
+    significado nenhum."""
+    i = fonte.index('"vs_mediana"')
+    assert "(med < 0) == (ln[\"previsto\"] < 0)" in fonte[i:i + 300]
+
+
+def test_o_semaforo_do_lop1_compara_com_a_mediana_e_nao_com_zero(html):
+    """Prejuizo operacional e o normal nesta operacao: 5 dos 6 meses fecharam
+    negativo. Vermelho por ser negativo diria alarme todo mes, e ai ninguem
+    mais olha."""
+    i = html.index("function fechLop1Classe(")
+    corpo = html[i:i + 600]
+    assert "l.vs_mediana >= 2" in corpo
+    assert "mediana_hist==null" in corpo, "sem historico nao pode inventar cor"
+
+
+def test_o_cartao_diz_o_que_o_lop1_NAO_inclui(html):
+    """Sem isso alguem compara LOP 1 com resultado do exercicio e acha que um
+    dos dois esta errado."""
+    i = html.index("kpi('Resultado operacional (LOP 1)'")
+    bloco = html[i:i + 1100]
+    assert "NÃO inclui resultado financeiro" in bloco

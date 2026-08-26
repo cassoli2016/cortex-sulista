@@ -3,6 +3,25 @@
 #   - a tela Documentação     (#doc)
 #   - o rótulo no rodapé      (CX-DD/MM/AAAA-vX.Y.Z)
 # A versão do TOPO é a corrente e tem de bater com o pyproject.toml.
+- versao: "0.53.0"
+  data: "2026-08-25"
+  adicionado:
+    - >-
+      CARTAO DO RESULTADO OPERACIONAL (LOP 1) no Fechamento do Mes. E o
+      resultado da operacao - ja tirou impostos, custo e despesa, e ainda nao
+      entrou juros da divida nem evento nao recorrente. E o numero que diz se
+      o negocio se paga rodando caminhao.
+    - >-
+      Ele vem com a MEDIANA dos meses fechados ao lado, porque sozinho nao
+      decide nada: "-R$ 1,4 milhao" so vira informacao quando se sabe que o mes
+      tipico e -R$ 295 mil. Hoje o cartao mostra "4,6x o mes tipico".
+    - >-
+      O semaforo compara com a MEDIANA, nao com zero. Prejuizo operacional e o
+      normal nesta operacao - cinco dos seis meses fechados este ano deram
+      negativo - e pintar de vermelho por ser negativo daria alarme todo mes,
+      ate ninguem mais olhar. Vermelho e quando o mes esta ao menos duas vezes
+      pior que o tipico.
+
 - versao: "0.52.0"
   data: "2026-08-25"
   adicionado:

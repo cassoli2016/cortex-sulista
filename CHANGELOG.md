@@ -4,6 +4,13 @@ Gerado de `docs/versoes.yaml` por `scripts/gerar_changelog.py` — não editar �
 Formato [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/),
 versionamento [SemVer](https://semver.org/lang/pt-BR/).
 
+## [0.53.0] — 25/08/2026  ·  CX-25/08/2026-v0.53.0
+
+### Adicionado
+- CARTAO DO RESULTADO OPERACIONAL (LOP 1) no Fechamento do Mes. E o resultado da operacao - ja tirou impostos, custo e despesa, e ainda nao entrou juros da divida nem evento nao recorrente. E o numero que diz se o negocio se paga rodando caminhao.
+- Ele vem com a MEDIANA dos meses fechados ao lado, porque sozinho nao decide nada: "-R$ 1,4 milhao" so vira informacao quando se sabe que o mes tipico e -R$ 295 mil. Hoje o cartao mostra "4,6x o mes tipico".
+- O semaforo compara com a MEDIANA, nao com zero. Prejuizo operacional e o normal nesta operacao - cinco dos seis meses fechados este ano deram negativo - e pintar de vermelho por ser negativo daria alarme todo mes, ate ninguem mais olhar. Vermelho e quando o mes esta ao menos duas vezes pior que o tipico.
+
 ## [0.52.0] — 25/08/2026  ·  CX-25/08/2026-v0.52.0
 
 ### Adicionado

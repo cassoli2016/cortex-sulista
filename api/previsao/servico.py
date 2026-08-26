@@ -62,6 +62,11 @@ def resolver_modo(mes: str, hoje: date) -> tuple[str, int]:
     return "fechado", 0
 
 
+# rotulo exato da linha no DRE_MODELO — escrito uma vez para o cartao e o
+# historico nunca apontarem para linhas diferentes
+ROT_LOP1 = "RESULTADO OPERACIONAL (LOP 1)"
+
+
 def _hist_linha(hist_ag: dict, meses: list[str]) -> dict[str, dict[str, float]]:
     por: dict[str, dict[str, float]] = {}
     for ag, serie in hist_ag.items():
@@ -398,6 +403,17 @@ def montar_resposta(ctx: dict) -> dict:
         pess_direta[rotulo] = b[0] + shift_direta[rotulo]
         otim_direta[rotulo] = b[1] + shift_direta[rotulo]
 
+    # HISTORICO DO LOP 1, para o cartao ter contra o que se comparar. Reusa a
+    # MESMA cascata do previsto — recalcular a formula a mao aqui criaria duas
+    # definicoes de LOP 1 que um dia divergiriam.
+    lop1_hist: list[float] = []
+    for _m in meses[-6:]:
+        diretas_m = {rot: hist_linha.get(rot, {}).get(_m, 0.0)
+                     for rot, _n, tipo, _s in DRE_MODELO if tipo != "formula"}
+        if any(diretas_m.values()):
+            lop1_hist.append(motor.montar_cascata(diretas_m)
+                             .get(ROT_LOP1, 0.0))
+
     casc_base = motor.montar_cascata(base_direta)
     casc_pess = motor.montar_cascata(pess_direta)
     casc_otim = motor.montar_cascata(otim_direta)
@@ -519,6 +535,7 @@ def montar_resposta(ctx: dict) -> dict:
         "meta_mes": diario["meta_mes"] if diario else None,
         "breakeven": ctx.get("breakeven"),
         "cap_mes": ctx.get("cap"),
+        "lop1": _kpi_lop1(linhas, lop1_hist),
         "consolidacao_pct": consolidacao,
         "consolidacao_blocos": consolidacao_blocos,
         "dados_ate": ctx["hoje"],
@@ -529,6 +546,36 @@ def montar_resposta(ctx: dict) -> dict:
             "fontes": fontes,
             "fonte": ("ERP AVA (razao + documentos fiscais + viagens + ctaplus) "
                       "+ orcamento local · previsao, nao numero fechado")}
+
+
+def _kpi_lop1(linhas: list[dict], hist: list[float]) -> dict:
+    """LOP 1 previsto, com o orcado e a mediana historica ao lado.
+
+    MEDIANA e nao media: maio fechou +R$ 1,98 mi contra uma faixa que vai de
+    -666k a +18k nos outros cinco meses. A media sobe para +17k por causa de um
+    unico mes e passa a impressao de operacao equilibrada; a mediana (-295k)
+    descreve o mes tipico.
+    """
+    ln = next((x for x in linhas if x["linha"] == ROT_LOP1), None)
+    if not ln:
+        return {}
+    med = motor.mediana(hist) if hist else None
+    return {
+        "previsto": ln["previsto"],
+        "realizado": ln["realizado"],
+        "projetado": ln["projetado"],
+        "pess": ln.get("previsto_pess"),
+        "otim": ln.get("previsto_otim"),
+        "orcado": ln.get("orcado"),
+        "mediana_hist": med,
+        "meses_hist": len(hist),
+        # quantas vezes pior (ou melhor) que o mes tipico. So faz sentido com
+        # os dois do mesmo sinal — comparar -1,3 mi com um historico positivo
+        # produziria um multiplo sem significado.
+        "vs_mediana": (round(ln["previsto"] / med, 1)
+                       if med and (med < 0) == (ln["previsto"] < 0) and med
+                       else None),
+    }
 
 
 def snapshot_se_integro(resp: dict, mes: str, data_foto: str) -> bool:
