@@ -1,0 +1,208 @@
+# api/contrapartida/emissao.py
+"""Assinatura e transmissão do CT-e de contrapartida. **Só homologação.**
+
+POR QUE ISTO NÃO MORA EM `documento.py`
+=======================================
+Montar o XML e assinar como terceiro são atos de natureza diferente. O
+primeiro é reversível e não vale nada; o segundo é a empresa praticando um ato
+em nome de outra pessoa jurídica. `documento.py` tem guarda de árvore sintática
+que o proíbe de alcançar certificado, assinatura ou transmissão — e essa guarda
+só continua significando alguma coisa se este módulo for separado.
+
+O QUE ESTE MÓDULO SE RECUSA A FAZER
+-----------------------------------
+**Produção.** Não é omissão nem "ainda não implementei": é recusa explícita,
+com a razão no erro. O enquadramento fiscal (CFOP, tpServ, CST, base do valor)
+continua indefinido, e um CT-e autorizado em produção com enquadramento
+errado não se apaga — cancela-se, dentro de prazo, com justificativa, e entra
+na escrituração dos dois lados. Enquanto as seis respostas de
+`documento.Enquadramento` forem chute, produção fica fechada aqui.
+
+Homologação é outro assunto: o ambiente existe exatamente para isto, o
+documento autorizado lá **não tem valor fiscal** e não escritura nada.
+
+AS TRÊS GUARDAS ANTES DE ASSINAR
+--------------------------------
+Nenhuma é decorativa — cada uma corresponde a uma falha que já aconteceu ou
+que só apareceria documento a documento na transmissão:
+
+  1. **prontidão** (`cadastro.prontidao`): autorização vigente, certificado A1
+     válido, arquivo presente e senha no cofre. Assinar por quem não autorizou
+     é o único erro deste módulo que não tem conserto técnico.
+  2. **titularidade**: o CNPJ do emitente do XML tem de ser o dono do
+     certificado. Certificado trocado assina o documento errado e isso não
+     aparece em conferência nenhuma depois.
+  3. **numeração**: número repetido é rejeição 539 (duplicidade). O próximo
+     número sai do registro local, não de um contador na cabeça de quem chama.
+
+TUDO QUE SAI DAQUI FICA REGISTRADO
+----------------------------------
+Cada transmissão grava linha em `emissao` (chave, número, retorno da SEFAZ) e
+na `auditoria` do módulo. Assinar em nome de terceiro tem de ser respondível
+meses depois, inclusive contra o próprio CÓRTEX.
+"""
+from __future__ import annotations
+
+import logging
+from datetime import date, datetime
+
+from api.contrapartida import cadastro, documento, sefaz
+
+log = logging.getLogger("cortex.contrapartida.emissao")
+
+HOMOLOGACAO = sefaz.HOMOLOGACAO
+
+_DDL_EMISSAO = """
+CREATE TABLE IF NOT EXISTS emissao (
+  id            INTEGER PRIMARY KEY AUTOINCREMENT,
+  quando        TEXT NOT NULL,
+  quem          TEXT NOT NULL,
+  ambiente      TEXT NOT NULL,
+  cnpj_emitente TEXT NOT NULL,
+  serie         INTEGER NOT NULL,
+  numero        INTEGER NOT NULL,
+  chave         TEXT,
+  chave_origem  TEXT NOT NULL,
+  cstat         TEXT,
+  xmotivo       TEXT,
+  protocolo     TEXT
+);
+"""
+
+
+def _conn():
+    c = cadastro._conn()          # mesmo banco, mesma disciplina (WAL, curta)
+    c.executescript(_DDL_EMISSAO)
+    return c
+
+
+def proximo_numero(cnpj: str, serie: int, ambiente: str) -> int:
+    """Próximo número da série, por emitente e por AMBIENTE.
+
+    Homologação e produção têm numerações independentes; misturar as duas faria
+    o primeiro CT-e de produção nascer com o número gasto num teste.
+    """
+    with _conn() as c:
+        r = c.execute(
+            "SELECT max(numero) AS n FROM emissao WHERE cnpj_emitente=?"
+            " AND serie=? AND ambiente=?", (cnpj, serie, ambiente)).fetchone()
+    return int((r["n"] or 0)) + 1
+
+
+def _guardas(cnpj: str, d: dict, ambiente: str) -> None:
+    if ambiente != HOMOLOGACAO:
+        raise PermissionError(
+            "Este módulo só transmite em HOMOLOGAÇÃO. Produção depende do "
+            "enquadramento fiscal definido (CFOP, tpServ, CST e base do "
+            "valor) — um CT-e autorizado com enquadramento errado não se "
+            "apaga, e liberar produção é decisão de quem responde pelo fiscal.")
+
+    reg = cadastro.mapa().get(cnpj) or {}
+    pront = reg.get("prontidao") or {}
+    if not pront.get("pronto"):
+        faltas = "; ".join(pront.get("faltas") or ["agregado não cadastrado"])
+        raise PermissionError(f"{cnpj} não está pronto para emitir: {faltas}")
+
+    if d["emit_cnpj"] != cnpj:
+        raise ValueError(
+            f"O XML tem emitente {d['emit_cnpj']} e o certificado é de {cnpj}. "
+            f"Certificado trocado assina o documento errado.")
+
+    venc = (reg.get("certificado") or {}).get("valida_ate")
+    if venc and date.fromisoformat(venc) < date.today():
+        raise PermissionError(f"Certificado de {cnpj} venceu em {venc}.")
+
+
+def _registra(quem: str, ambiente: str, cnpj: str, serie: int, numero: int,
+              chave: str, chave_origem: str, resp: dict) -> None:
+    with _conn() as c:
+        c.execute(
+            "INSERT INTO emissao(quando, quem, ambiente, cnpj_emitente, serie,"
+            " numero, chave, chave_origem, cstat, xmotivo, protocolo)"
+            " VALUES(?,?,?,?,?,?,?,?,?,?,?)",
+            (datetime.now().isoformat(timespec="seconds"), quem, ambiente,
+             cnpj, serie, numero, chave, chave_origem, str(resp.get("cStat")),
+             resp.get("xMotivo"), resp.get("protocolo")))
+        cadastro._audita(c, quem, "transmissao", cnpj,
+                         f"amb {ambiente} · {serie}/{numero} · "
+                         f"cStat {resp.get('cStat')}")
+
+
+def transmitir(chave_origem: str, enq: documento.Enquadramento, *, quem: str,
+               serie: int = 1, numero: int | None = None,
+               ambiente: str = HOMOLOGACAO) -> dict:
+    """Monta, assina e transmite. Devolve o retorno da SEFAZ, sempre gravado.
+
+    `quem` é obrigatório e não tem valor padrão: uma trilha de auditoria que
+    aceita anônimo não é trilha. Já houve `?` gravado neste módulo, e meses
+    depois — que é quando ela é consultada — não servia para nada.
+    """
+    from erpbrasil.assinatura.certificado import Certificado
+    from erpbrasil.transmissao import TransmissaoSOAP
+
+    if not quem:
+        raise ValueError("Informe quem está transmitindo (trilha de auditoria).")
+
+    cte_mod = sefaz.compatibilizar()
+    d = documento.dados(chave_origem)
+    cnpj = d["emit_cnpj"]
+    _guardas(cnpj, d, ambiente)
+
+    if numero is None:
+        numero = proximo_numero(cnpj, serie, ambiente)
+
+    edoc = documento.montar(d, enq, numero=numero, serie=serie,
+                            ambiente=ambiente)
+    chave = (edoc.infCte.Id or "")[3:]
+
+    senha = cadastro.ler_senha(cnpj)
+    arq = cadastro.DIR_CERT / (
+        (cadastro.mapa()[cnpj].get("certificado") or {}).get("arquivo") or "")
+    if not (senha and arq.exists()):
+        raise FileNotFoundError(f"Certificado ou senha ausentes para {cnpj}.")
+
+    uf = d["emit_uf"]
+    if uf not in cte_mod.SIGLA_ESTADO:
+        raise ValueError(f"UF desconhecida: {uf}")
+
+    log.info("transmitindo CT-e %s/%s de %s para a SEFAZ %s (amb %s)",
+             serie, numero, cnpj, uf, ambiente)
+    doc_sefaz = cte_mod.CTe(TransmissaoSOAP(Certificado(str(arq), senha)),
+                            cte_mod.SIGLA_ESTADO[uf], ambiente=ambiente)
+    # `envia_documento` assina a raiz, comprime e posta no recebimento
+    # SÍNCRONO: a resposta da autorização volta nesta mesma chamada.
+    retorno = doc_sefaz.envia_documento(edoc)
+    resp = _resposta(retorno)
+    resp.update({"chave": chave, "serie": serie, "numero": numero,
+                 "ambiente": ambiente, "cnpj_emitente": cnpj,
+                 "chave_origem": d["chave_original"]})
+    _registra(quem, ambiente, cnpj, serie, numero, chave,
+              d["chave_original"], resp)
+    return resp
+
+
+def _resposta(retorno) -> dict:
+    """Achata o retorno da SEFAZ. O CT-e responde em dois níveis — o do LOTE e
+    o do documento — e olhar só o de fora diz "lote recebido" enquanto o
+    documento foi rejeitado."""
+    def v(obj, campo):
+        x = getattr(obj, campo, None)
+        return getattr(x, "value", x)
+
+    prot = getattr(retorno, "protCTe", None) or getattr(retorno, "protCte", None)
+    inf = getattr(prot, "infProt", None) if prot is not None else None
+    fonte = inf if inf is not None else retorno
+    return {
+        "cStat": str(v(fonte, "cStat") or v(retorno, "cStat") or ""),
+        "xMotivo": str(v(fonte, "xMotivo") or v(retorno, "xMotivo") or ""),
+        "cStat_lote": str(v(retorno, "cStat") or ""),
+        "xMotivo_lote": str(v(retorno, "xMotivo") or ""),
+        "protocolo": str(v(fonte, "nProt") or "") or None,
+        "autorizado": str(v(fonte, "cStat") or "") == "100",
+    }
+
+
+def historico(limite: int = 50) -> list[dict]:
+    with _conn() as c:
+        return [dict(r) for r in c.execute(
+            "SELECT * FROM emissao ORDER BY id DESC LIMIT ?", (limite,))]

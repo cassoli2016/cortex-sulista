@@ -170,6 +170,23 @@ SELECT k.filial, k.serie, k.numero, k.dtemissao, k.chaveacessocte,
  WHERE k.chaveacessocte = %(chave)s
 """
 
+# As NOTAS TRANSPORTADAS. A SEFAZ rejeita com cStat 693 ("Grupo Documentos
+# Transportados deve ser informado") todo CT-e cujo tpServ não seja redespacho
+# intermediário nem vinculado a multimodal — ou seja, praticamente todos.
+# Medido: o CT-e piloto carrega DUAS notas, então isto nunca foi campo único.
+NOTAS_SQL = """
+SELECT nf.chaveacessonfe AS chave, nf.modelo,
+       nf.numeronotafiscal AS numero, nf.serienotafiscal AS serie,
+       nf.cnpjcpfcodigoemissor AS emissor,
+       nf.valormercadoria::float8 AS valor, nf.pesobruto::float8 AS peso
+  FROM conhecimento k
+  JOIN conhecimento_notafiscal nf
+    ON nf.filial = k.filial AND nf.serie = k.serie AND nf.numero = k.numero
+   AND nf.diferenciadornumero = k.diferenciadornumero
+ WHERE k.chaveacessocte = %(chave)s
+ ORDER BY nf.sequencianotafiscal
+"""
+
 # O acento é a única diferença entre as duas grafias; `unaccent` não está
 # instalado na réplica, então o translate faz o trabalho nos dois lados.
 _SEM_ACENTO = ("translate(upper({}),"
@@ -235,6 +252,14 @@ def dados(chave: str) -> dict:
     # Rateio é decisão fiscal: o módulo mede e avisa, não divide sozinho.
     n = d.get("documentos_no_embarque") or 0
     d["exige_rateio"] = n > 1
+
+    # Só NF-e (modelo 55) entra em `infNFe`; nota em papel tem grupo PRÓPRIO
+    # (`infNF`) e chave nenhuma. Misturar os dois produz um XML que valida no
+    # schema e é rejeitado pela SEFAZ.
+    notas = db.query(NOTAS_SQL, {"chave": chave})
+    d["notas"] = [x for x in notas
+                  if str(x.get("modelo") or "") == "55" and x.get("chave")]
+    d["notas_sem_chave"] = [x for x in notas if not x.get("chave")]
     return d
 
 
@@ -340,6 +365,20 @@ def montar(d: dict, enq: Enquadramento, *, numero: int, serie: int = 1,
                 cUnid="01", tpMed="PESO BRUTO",
                 qCarga=_dec(Decimal(str(d.get("pesobruto") or 0)), casas=4))]),
     )
+    # As notas transportadas. Sem elas a SEFAZ devolve cStat 693, e a mensagem
+    # é clara — mas só aparece na transmissão, nunca na validação de schema:
+    # o XSD deixa o grupo opcional e quem o exige é a regra de negócio.
+    if not d.get("notas"):
+        sem = len(d.get("notas_sem_chave") or [])
+        raise ValueError(
+            f"O CT-e {d['chave_original']} não tem NF-e com chave na réplica"
+            + (f" ({sem} nota(s) sem chave de acesso)" if sem else "")
+            + " — a SEFAZ exige o grupo de Documentos Transportados.")
+    inf_doc = _tipo(norm_cls, "infDoc")
+    norm.infDoc = inf_doc(
+        infNFe=[_tipo(inf_doc, "infNFe")(chave=n["chave"])
+                for n in d["notas"]])
+
     if enq.referenciar_original:
         # É AQUI que o documento vira contrapartida: sem este grupo ele é uma
         # prestação solta e nada o liga ao CT-e que a Sulista já emitiu.
