@@ -4,6 +4,16 @@ Gerado de `docs/versoes.yaml` por `scripts/gerar_changelog.py` — não editar �
 Formato [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/),
 versionamento [SemVer](https://semver.org/lang/pt-BR/).
 
+## [0.56.1] — 26/08/2026  ·  CX-26/08/2026-v0.56.1
+
+### Alterado
+- O nome do modelo saiu da tela: e detalhe de implementacao e nao ajuda quem le a resposta. A procedencia que importa - roda na maquina, sem nome de motorista - continua no i do cartao.
+
+### Corrigido
+- O chat do Milk Run respondia "nao esta disponivel no contexto" a perguntas de ranking, como "top 5 fornecedores em tempo medio parado". Duas causas somadas: no recorte padrao (hoje) as paradas ainda estao pendentes e nao tem permanencia medida, e mesmo com dado, agrupar 163 pontos de JSON e ordenar e trabalho que um modelo de 8B erra. Agora o ranking por fornecedor e por placa vai PRONTO no contexto, ordenado, com mediana e media lado a lado e o numero de paradas de que cada linha foi tirada.
+- Quando o periodo filtrado nao tem nenhuma parada concluida, o chat passou a explicar isso e sugerir ampliar o periodo, em vez de dizer que o dado nao existe - o que fazia parecer que a tela nao tinha a informacao.
+- O contexto passou a ter ORCAMENTO. A janela de 7 dias produzia ~15 mil tokens contra o limite de 16.384 do modelo local: passar do teto nao levanta erro, apenas empurra o inicio do contexto (as REGRAS) para fora da janela, e o modelo responde pior sem nada indicar. Acima do teto o detalhe ponto a ponto e reduzido as paradas notaveis (atraso, frustrada, permanencia longa), os rankings agregados NUNCA sao podados, e o que foi reduzido fica declarado para o modelo poder dizer que nao viu tudo.
+
 ## [0.56.0] — 26/08/2026  ·  CX-26/08/2026-v0.56.0
 
 ### Adicionado

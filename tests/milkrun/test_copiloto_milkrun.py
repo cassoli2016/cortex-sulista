@@ -157,3 +157,68 @@ def test_a_sub_rota_vem_ANTES_da_generica():
     caminhos = [r[0] for r in ROTA_TELAS]
     assert caminhos.index("/api/operacao/milkrun/chat-stream") \
         < caminhos.index("/api/operacao/milkrun")
+
+
+# --- agregacao pronta e orcamento de contexto -------------------------------
+
+def test_ranking_vem_pronto_e_ordenado():
+    """Perguntado "top 5 fornecedores em tempo medio parado", o modelo
+    respondia "nao esta no contexto": agrupar 163 pontos de JSON, tirar media e
+    ordenar e trabalho que um modelo de 8B erra. Quem agrega e o Python."""
+    pts = [{"local": "A", "permanencia_min": 10.0, "atraso_min": 1},
+           {"local": "A", "permanencia_min": 30.0, "atraso_min": 5},
+           {"local": "B", "permanencia_min": 100.0, "atraso_min": None}]
+    r = mk._agrega(pts, "local")
+    assert [x["local"] for x in r] == ["B", "A"]
+    assert r[1]["permanencia_mediana_min"] == 20.0
+    assert r[1]["permanencia_media_min"] == 20.0
+    assert r[1]["paradas_com_medida"] == 2
+
+
+def test_agrega_ignora_ponto_sem_medida():
+    r = mk._agrega([{"local": "A", "permanencia_min": None}], "local")
+    assert r == []
+
+
+def test_mediana_E_media_lado_a_lado():
+    """Quem pergunta pede "tempo medio"; a regra da casa e mediana. Dar as
+    duas rotuladas evita o modelo escolher uma e chamar de outra."""
+    r = mk._agrega([{"local": "A", "permanencia_min": v} for v in (1.0, 2.0, 300.0)],
+                   "local")[0]
+    assert r["permanencia_mediana_min"] == 2.0
+    assert r["permanencia_media_min"] != r["permanencia_mediana_min"]
+
+
+def test_contexto_tem_orcamento_e_nao_estoura_o_num_ctx():
+    """`num_ctx` do Ollama e 16.384 tokens. Passar do teto NAO levanta erro: o
+    comeco do contexto (as REGRAS do prompt) cai fora da janela e o modelo
+    responde pior sem nada indicar isso."""
+    assert mk.MAX_CHARS_CONTEXTO <= 40_000
+
+
+def test_poda_mantem_os_rankings_e_DECLARA_o_que_tirou():
+    grande = {"coletas": [{"coleta": i, "pontos": [
+                  {"estado": "concluido", "atraso_min": -5,
+                   "permanencia_min": 5.0, "local": "X" * 200}
+                  for _ in range(20)]} for i in range(40)],
+              "ranking_fornecedores_por_permanencia": [{"local": "A"}]}
+    r = mk._cabe(grande)
+    assert r["ranking_fornecedores_por_permanencia"], "ranking nao pode ser podado"
+    assert "detalhe_podado" in r
+    assert r["detalhe_podado"]["pontos_no_periodo"] > r["detalhe_podado"]["pontos_detalhados"]
+
+
+def test_poda_preserva_o_que_e_notavel():
+    assert mk._notavel({"atraso_min": 30})
+    assert mk._notavel({"estado": "frustrado"})
+    assert mk._notavel({"permanencia_min": mk.PERMANENCIA_NOTAVEL_MIN})
+    assert not mk._notavel({"estado": "concluido", "atraso_min": -5,
+                            "permanencia_min": 5.0})
+
+
+def test_prompt_ensina_o_que_dizer_quando_nao_ha_medida():
+    """No recorte de HOJE os pontos costumam estar todos pendentes. Responder
+    "nao esta no contexto" faz o leitor achar que a tela nao tem o dado, quando
+    basta abrir o periodo."""
+    assert "pontos_com_permanencia_medida" in mk.SISTEMA
+    assert "ampliar o período" in mk.SISTEMA

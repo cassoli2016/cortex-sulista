@@ -9166,7 +9166,10 @@ async function mkchatSend(){
         if(!linha) continue;
         let ev; try{ ev=JSON.parse(linha.slice(5).trim()); }catch(e){ continue; }
         if(ev.tipo==='status'){ if(hint) hint.textContent=ev.texto; }
-        else if(ev.tipo==='modelo'){ if(hint) hint.textContent=ev.modelo; }
+        /* o nome do modelo NAO vai para a tela: e detalhe de implementacao e
+           nao ajuda quem le a resposta. A procedencia que importa (roda na
+           maquina, sem nome de motorista) esta no ⓘ do card. */
+        else if(ev.tipo==='modelo'){ if(hint) hint.textContent='respondendo…'; }
         else if(ev.tipo==='delta'){
           resp += (ev.texto||ev.delta||'');
           MKCHAT[MKCHAT.length-1].content = resp;
