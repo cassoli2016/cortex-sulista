@@ -1357,6 +1357,30 @@ def frota_pneus(status: str = "", filial: str = "") -> JSONResponse:
             "erro": "erro_consulta", "mensagem": "Erro ao montar a tela de pneus."})
 
 
+@app.get("/api/operacional/poligonos")
+def operacional_poligonos(de: str = "", ate: str = "",
+                          uso: str = "") -> JSONResponse:
+    """Permanencia nos poligonos mapeados dentro da planta do cliente.
+
+    `uso` filtra a modalidade da placa (TRA/AGR/LOC/TER, separadas por
+    virgula): 48 das 70 placas que entram na planta sao de AGREGADO, e sem a
+    quebra o tempo perdido aparece como se fosse todo da frota propria.
+    """
+    from api.poligonos import servico
+    try:
+        return JSONResponse(servico.get_poligonos(de=de or None,
+                                                  ate=ate or None,
+                                                  uso=uso or None))
+    except ValueError as exc:               # data mal formada no filtro
+        return JSONResponse(status_code=400, content={
+            "erro": "periodo_invalido", "mensagem": str(exc)})
+    except Exception as exc:  # noqa: BLE001
+        log.warning("operacional_poligonos falhou: %s", exc)
+        return JSONResponse(status_code=500, content={
+            "erro": "erro_consulta",
+            "mensagem": "Erro ao montar a tela de permanencia na planta."})
+
+
 @app.get("/api/rh/ferias")
 def rh_ferias(dias: int = 90, filial: str = "") -> JSONResponse:
     """Vencimento de ferias pela regra da CLT (aquisitivo + 12 meses = dobra).

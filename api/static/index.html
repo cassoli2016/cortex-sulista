@@ -1273,6 +1273,7 @@ body.tvfull #btnReport,body.tvmode #btnReport{display:none}
         <a href="#jorn" class="sub" data-view="jorn" title="Jornada do Motorista (Lei 13.103)"><span class="ic" data-ic="jornic"></span><span>Jornada do Motorista</span></a>
         <a href="#mvb" class="sub" data-view="mvb" title="Make vs Buy"><span class="ic" data-ic="mvb"></span><span>Make vs Buy</span></a>
         <a href="#milkrun" class="sub" data-view="milkrun" title="Milk Run — MWM: chegada e saída detectadas pelo rastreamento"><span class="ic" data-ic="milkic"></span><span>Milk Run — MWM</span></a>
+        <a href="#poli" class="sub" data-view="poli" title="Permanência na Planta — quanto tempo o veículo passa dentro da planta da Tupy e em quais polígonos"><span class="ic" data-ic="torreic"></span><span>Permanência na Planta</span></a>
         <a href="#port" class="sub" data-view="port" title="Portaria — controle de pátio e autorização de saída"><span class="ic" data-ic="porta"></span><span>Portaria</span></a>
         <a href="#prog" class="sub" data-view="prog" title="Programação Inteligente"><span class="ic" data-ic="prog"></span><span>Programação Intel.</span></a>
         <a href="#sac" class="sub" data-view="sac" title="SAC / Freetime e Estadia"><span class="ic" data-ic="sacic"></span><span>SAC / Freetime</span></a>
@@ -2593,6 +2594,51 @@ body.tvfull #btnReport,body.tvmode #btnReport{display:none}
           </div>
         </div>
         <div id="ppl-avisos"></div>
+      </section>
+
+      <section class="view" id="view-poli">
+        <div class="card">
+          <div class="head"><h2>Filtros <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="Posições do rastreador (veiculo_posicao) cruzadas com os polígonos cadastrados da planta (cadastro_poligono) pelo operador geométrico do PostgreSQL. NÃO usa a tabela sulista.valida_poligono_tupy, que é um retrato estático parado em 11/07/2026 e sem a Portaria nem o perímetro.">i</span></h2>
+            <span class="hint" id="hintPoli"></span></div>
+          <div class="milk-filtros">
+            <label>De<input type="date" id="fPoliDe" onchange="loadPoli()" aria-label="Data inicial"></label>
+            <label>Até<input type="date" id="fPoliAte" onchange="loadPoli()" aria-label="Data final"></label>
+            <label>Modalidade<select id="fPoliUso" onchange="loadPoli()" aria-label="Modalidade da placa">
+              <option value="">Todas</option>
+              <option value="TRA">Tração própria</option>
+              <option value="AGR">Agregado</option>
+              <option value="LOC">Locação</option>
+              <option value="TER">Terceiro</option>
+            </select></label>
+          </div>
+        </div>
+
+        <div class="kband"><div class="klabel">Tempo dentro da planta &mdash; por visita com atendimento</div>
+          <div class="kpis k4" id="kpis-poli"></div></div>
+
+        <div class="grid2">
+          <div class="card">
+            <div class="head"><h2>Onde o tempo é gasto <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="Mediana da permanência por visita a cada polígono, não média: a cauda é longa (p99 de 151 min contra mediana de 9) e a média descreveria um veículo que não existe. O número de visitas vai ao lado justamente para dizer sobre quanto a mediana foi tirada.">i</span></h2>
+              <span class="hint" id="hintPoliRank"></span></div>
+            <div id="poliRank"></div>
+          </div>
+          <div class="card">
+            <div class="head"><h2>Atendimento × fila <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="O tempo dentro do perímetro que NÃO cai em nenhum polígono mapeado. Parte é fila e manobra; parte pode ser área de serviço ainda não mapeada — por isso o rótulo é “fora de ponto mapeado” e não “espera”.">i</span></h2>
+              <span class="hint" id="hintPoliDec"></span></div>
+            <div id="poliDec"></div>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="head"><h2>Permanências mais longas <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="Entrada e saída estimadas: o rastreador lê a cada 3 a 5 minutos, então o veículo entrou antes da primeira leitura e saiu depois da última. A estimativa estende até metade do caminho para a leitura de fora, com teto de 3 minutos por lado. Visitas com uma única leitura vêm marcadas.">i</span></h2>
+            <span class="hint" id="hintPoliTab"></span></div>
+          <div class="tabroll"><table class="tab" id="poliTab"></table></div>
+        </div>
+
+        <div class="card" id="poliAvisosCard" hidden>
+          <div class="head"><h2>Ler com atenção</h2></div>
+          <div id="poliAvisos"></div>
+        </div>
       </section>
 
       <section class="view" id="view-pneus">
@@ -4141,7 +4187,7 @@ const VIEW_GROUP = {home:'',cop:'',
   com:'Com',clif:'Com',crm:'Com',rent:'Com',drecli:'Com',
   fluxo:'Fin',receber:'Fin',pagar:'Fin',cob:'Fin',extb:'Fin',lanc:'Fin',antec:'Fin',antport:'Fin',fluxcon:'Fin',rec:'Fin',
   dre:'Ctr',bal:'Ctr',cont:'Ctr',qual:'Ctr',orc:'Ctr',fech:'Ctr',
-  torre:'Ope',milkrun:'Ope',prog:'Ope',jorn:'Ope',jornf:'Ope',cex:'Ope',sac:'Ope',port:'Ope',km:'Ope',agr:'Ope',mvb:'Ope',
+  torre:'Ope',milkrun:'Ope',poli:'Ope',prog:'Ope',jorn:'Ope',jornf:'Ope',cex:'Ope',sac:'Ope',port:'Ope',km:'Ope',agr:'Ope',mvb:'Ope',
   veic:'Fro',veicf:'Fro',mprev:'Fro',comrast:'Fro',comb:'Fro',man:'Fro',mul:'Fro',pneus:'Fro',
   oc:'Sup',custos:'Sup',
   tvfat:'Tv',tvope:'Tv',
@@ -4302,7 +4348,7 @@ function qsView(k){
     if(V('fHeComp'))p.set('comp',V('fHeComp'));
   } else if(k==='fech'){
     if(V('fFechMes'))p.set('mes',V('fFechMes'));
-  } else if(k==='mprev'||k==='comrast'||k==='qual'||k==='port'||k==='crm'||k==='rh'||k==='hc'||k==='folhaind'||k==='cnh'||k==='ferias'||k==='pneus'||k==='people'){
+  } else if(k==='mprev'||k==='comrast'||k==='qual'||k==='port'||k==='crm'||k==='rh'||k==='hc'||k==='folhaind'||k==='cnh'||k==='ferias'||k==='pneus'||k==='people'||k==='poli'){
     // vistas-snapshot sem filtro local: qsView() sempre devolve '' — o
     // loader grava LOADEDQS[k]='' (não '1') para o cache de staleness
     // funcionar (senão nunca bate e cada navegação refaz a consulta).
@@ -4320,7 +4366,7 @@ function semFilterbar(v){
   // filtros", que não tinha o que aplicar.
   return v==='cop'||v==='gestao'||v==='srv'||v==='home'||v==='veicf'||v==='clif'||v==='jorn'||v==='jornf'||v==='prog'||
          v==='cex'||v==='sac'||v==='mprev'||v==='comrast'||v==='qual'||v==='port'||v==='crm'||v==='rh'||
-         v==='hc'||v==='folha'||v==='folhaind'||v==='he'||v==='custos'||v==='orc'||v==='prem'||v==='extb'||v==='fech'||v==='doc'||v==='anrntrc'||v==='telcon'||v==='telcond'||v==='telhod'||v==='milkrun'||v==='cnh'||v==='ferias'||v==='pneus'||v==='people';
+         v==='hc'||v==='folha'||v==='folhaind'||v==='he'||v==='custos'||v==='orc'||v==='prem'||v==='extb'||v==='fech'||v==='doc'||v==='anrntrc'||v==='telcon'||v==='telcond'||v==='telhod'||v==='milkrun'||v==='cnh'||v==='ferias'||v==='pneus'||v==='people'||v==='poli';
 }
 function currentView(){
   const h = (location.hash||'').replace('#','');
@@ -4417,7 +4463,7 @@ function router(){
   // divergem dos usados na última carga (nunca mostrar dado velho com filtro novo)
   const key=viewKey(v);
   const DATAMAP={fin:DATA,oc:DATAOC,agr:DATAAGR,anpiso:DATAANPISO,anrntrc:DATAANRNTRC,telcon:DATATELCON,telcond:DATATELCOND,telhod:DATATELHOD,mvb:DATAMVB,comb:DATACOMB,man:DATAMAN,com:DATACOM,clif:DATACLIF,dre:DATADRE,bal:DATABAL,drecli:DATADRECLI,home:DATAHOME,km:DATAKM,torre:DATATORRE,veic:DATAVEIC,veicf:DATAVEICF,mul:DATAMUL,prog:DATAPROG,jorn:DATAJORN,jornf:DATAJORNF,cex:DATACEX,sac:DATASAC,mprev:DATAMPREV,comrast:DATACOMRAST,qual:DATAQUAL,port:DATAPORT,crm:DATACRM,rh:DATARH,hc:DATAHC,folha:DATAFOLHA,folhaind:DATAFOLHAIND,he:DATAHE,custos:DATACUSTOS,cob:DATACOB,extb:DATAEXTB,lanc:DATALANC,antec:DATAANTEC,antport:DATAANTPORT,milkrun:DATAMILK,fluxcon:DATAFLUXCON,rec:DATAREC,rent:DATARENT,cont:DATACONT,orc:DATAORC,fech:DATAFECH,prem:DATAPREM,gestao:DATAGES,srv:DATASRV,doc:DATADOC,tvfat:null,tvope:null,cop:(COP_MSGS.length?{}:null)};
-  const LOADMAP={fin:load,oc:loadOc,agr:loadAgr,anpiso:loadAnpiso,anrntrc:loadAnrntrc,telcon:loadTelcon,telcond:loadTelcond,telhod:loadTelhod,mvb:loadMvb,comb:loadComb,man:loadMan,com:loadCom,clif:loadClif,dre:loadDre,bal:loadBal,drecli:loadDreCli,home:loadHome,km:loadKm,torre:loadTorre,veic:loadVeic,veicf:loadVeicf,mul:loadMul,prog:loadProg,jorn:loadJorn,jornf:loadJornf,cex:loadCex,sac:loadSac,mprev:loadMPrev,comrast:loadComRast,qual:loadQual,port:loadPort,crm:loadCrm,rh:loadRh,hc:loadHc,folha:loadFolha,folhaind:loadFolhaInd,he:loadHe,custos:loadCustos,cob:loadCob,extb:loadExtb,lanc:loadLanc,antec:loadAntec,antport:loadAntport,milkrun:loadMilkrun,cnh:loadCnh,ferias:loadFerias,people:loadPeople,pneus:loadPneus,fluxcon:loadFluxcon,rec:loadRec,rent:loadRent,cont:loadCont,orc:loadOrc,fech:loadFech,prem:loadPrem,gestao:loadGestao,srv:loadSrv,doc:loadDoc,cop:loadCop,tvfat:loadTvFat,tvope:loadTvOpe};
+  const LOADMAP={fin:load,oc:loadOc,agr:loadAgr,anpiso:loadAnpiso,anrntrc:loadAnrntrc,telcon:loadTelcon,telcond:loadTelcond,telhod:loadTelhod,mvb:loadMvb,comb:loadComb,man:loadMan,com:loadCom,clif:loadClif,dre:loadDre,bal:loadBal,drecli:loadDreCli,home:loadHome,km:loadKm,torre:loadTorre,veic:loadVeic,veicf:loadVeicf,mul:loadMul,prog:loadProg,jorn:loadJorn,jornf:loadJornf,cex:loadCex,sac:loadSac,mprev:loadMPrev,comrast:loadComRast,qual:loadQual,port:loadPort,crm:loadCrm,rh:loadRh,hc:loadHc,folha:loadFolha,folhaind:loadFolhaInd,he:loadHe,custos:loadCustos,cob:loadCob,extb:loadExtb,lanc:loadLanc,antec:loadAntec,antport:loadAntport,milkrun:loadMilkrun,cnh:loadCnh,ferias:loadFerias,people:loadPeople,pneus:loadPneus,poli:loadPoli,fluxcon:loadFluxcon,rec:loadRec,rent:loadRent,cont:loadCont,orc:loadOrc,fech:loadFech,prem:loadPrem,gestao:loadGestao,srv:loadSrv,doc:loadDoc,cop:loadCop,tvfat:loadTvFat,tvope:loadTvOpe};
   if(!DATAMAP[key] || (key!=='home' && LOADEDQS[key]!==qsView(key))) LOADMAP[key]();
   // mobile: estado da navegação inferior + fecha gaveta/painel de filtros
   document.querySelectorAll('.bottomnav [data-bview]').forEach(a=>a.classList.toggle('ativo', a.dataset.bview===v));
@@ -9022,6 +9068,128 @@ let DATAFER = null, ferSeq = 0;
 // compra valem zero ate alguem lancar a nota, entao os dois dizem sobre
 // quantos pneus falam.
 let DATAPN = null, pnSeq = 0;
+
+/* PERMANENCIA NA PLANTA DO CLIENTE (Tupy Joinville).
+   Toda estatistica desta tela e MEDIANA, nunca media: 12,7% das visitas ao
+   perimetro passam de 24 h (caminhao estacionado, nao atendimento) e uma
+   chegou a 145 h - a media fica 2,4x a mediana e descreve um veiculo que nao
+   existe. A contagem de visitas anda junto de toda mediana. */
+let poliSeq=0, DATAPOLI=null;
+function poliDur(m){
+  if(m==null) return '—';
+  if(m<60) return Math.round(m)+' min';
+  const h=Math.floor(m/60), r=Math.round(m%60);
+  return r? h+'h'+String(r).padStart(2,'0') : h+'h';
+}
+async function loadPoli(fundo){
+  skelKpis('kpis-poli',4);
+  const seq=++poliSeq, btn=document.getElementById('btnRefresh'); if(btn) btn.disabled=true;
+  if(!fundo) document.getElementById('content').classList.add('loading');
+  try{
+    const V=id=>{const e=document.getElementById(id);return e?e.value.trim():'';};
+    const p=new URLSearchParams();
+    if(V('fPoliDe')) p.set('de', V('fPoliDe'));
+    if(V('fPoliAte')) p.set('ate', V('fPoliAte'));
+    if(V('fPoliUso')) p.set('uso', V('fPoliUso'));
+    const r=await fetch('/api/operacional/poligonos?'+p.toString(),
+      {cache:'no-store', headers: fundo?{'X-Carga-Fundo':'1'}:{}});
+    const d=await r.json(); if(seq!==poliSeq) return;
+    if(!r.ok){ showBanner(d.mensagem||'Erro ao consultar a permanencia na planta.'); return; }
+    hideBanner(); DATAPOLI=d; renderPoli(d);
+  }catch(e){ if(seq===poliSeq) showBanner('Não foi possível falar com a API.', e.message); }
+  finally{ if(seq===poliSeq){ if(btn) btn.disabled=false;
+    document.getElementById('content').classList.remove('loading'); } }
+}
+function renderPoli(d){
+  const k=d.kpis||{}, per=d.periodo||{}, f=d.fonte||{};
+  const de=document.getElementById('fPoliDe'), ate=document.getElementById('fPoliAte');
+  if(de && !de.value && per.de) de.value=per.de;
+  if(ate && !ate.value && per.ate){ const x=new Date(per.ate+'T12:00:00'); x.setDate(x.getDate()-1); ate.value=_iso(x); }
+
+  /* O % de fila e a leitura da tela, entao ele e o chip do KPI de fila e nao
+     um numero solto: sem o denominador ao lado, "306 min" nao diz se e muito. */
+  const chipFila = k.pct_fila!=null
+    ? statChip(k.pct_fila>=60?'bad':(k.pct_fila>=40?'warn':'good'),
+        Math.round(k.pct_fila)+'% do tempo',
+        'Mediana da razão entre tempo fora de ponto e tempo total dentro do perímetro.')
+    : '';
+  document.getElementById('kpis-poli').innerHTML=
+    kpi('Dentro da planta', poliDur(k.mediana_planta_min),
+        'mediana de '+(k.visitas_com_servico||0).toLocaleString('pt-BR')+' visitas com atendimento',
+        '', 'Mediana, não média: 12,7% das visitas passam de 24 h (veículo estacionado, não atendimento) e a média fica 2,4x a mediana.')
+   +kpi('Em ponto mapeado', poliDur(k.mediana_ponto_min),
+        (k.pontos_ativos||0)+' de '+(k.pontos_cadastrados||0)+' polígonos com movimento',
+        'ok', 'Soma do tempo nos polígonos internos visitados durante a passagem pela planta.')
+   +kpi('Fora de ponto mapeado', poliDur(k.mediana_fila_min),
+        'fila, manobra ou área não mapeada',
+        k.pct_fila>=60?'bad':'warn',
+        'O que sobra do tempo dentro do perímetro depois de descontar os pontos. Não é necessariamente espera: pode ser área de serviço ainda sem polígono.', chipFila)
+   +kpi('Placas na planta', (k.placas||0).toLocaleString('pt-BR'),
+        (k.visitas_sem_servico||0).toLocaleString('pt-BR')+' passagens sem atender (mediana '+poliDur(k.mediana_sem_servico)+')',
+        '', 'Passagem sem atendimento = entrou no perímetro e saiu sem parar em nenhum polígono mapeado.');
+
+  /* RANKING: barra horizontal em HTML, ordenada por mediana. A largura e
+     relativa ao maior p90 - e o p90 vai como marca clara atras, porque a
+     distancia entre mediana e p90 e o que diz se o ponto e imprevisivel. */
+  const rk=(d.ranking||[]);
+  const maxP90=Math.max(1,...rk.map(x=>x.p90_min||0));
+  document.getElementById('poliRank').innerHTML = rk.length ? rk.map(function(x){
+    const wm=(100*(x.mediana_min||0)/maxP90).toFixed(1), wp=(100*(x.p90_min||0)/maxP90).toFixed(1);
+    return '<div style="margin:0 0 10px">'
+      +'<div style="display:flex;justify-content:space-between;gap:8px;font-size:12px">'
+      +'<span>'+esc(x.nome)+'</span>'
+      +'<span class="mono" style="color:var(--n500)">'+esc(poliDur(x.mediana_min))+' · '+x.visitas.toLocaleString('pt-BR')+' visitas</span></div>'
+      +'<div style="position:relative;height:12px;background:var(--n100);border-radius:6px;margin-top:3px">'
+      +'<div style="position:absolute;left:0;top:0;height:100%;width:'+wp+'%;background:var(--n200);border-radius:6px"></div>'
+      +'<div style="position:absolute;left:0;top:0;height:100%;width:'+wm+'%;background:var(--navy-500);border-radius:6px"></div>'
+      +'</div></div>';
+  }).join('') : '<div class="hint">Nenhuma visita no período.</div>';
+  document.getElementById('hintPoliRank').textContent =
+    rk.length ? rk.length+' polígonos · barra escura = mediana, clara = p90' : '';
+
+  /* DECOMPOSICAO: barra empilhada por mes. Parte-do-todo com duas categorias e
+     uma dominante - barra empilhada, nao rosca (regra do design system). */
+  const ms=(d.mensal||[]);
+  document.getElementById('poliDec').innerHTML = ms.length ? ms.map(function(m){
+    const tot=((m.ponto_min||0)+(m.fila_min||0))||1;
+    const wp=(100*(m.ponto_min||0)/tot).toFixed(1);
+    return '<div style="margin:0 0 12px">'
+      +'<div style="display:flex;justify-content:space-between;font-size:12px">'
+      +'<span>'+esc(m.mes)+'</span>'
+      +'<span class="mono" style="color:var(--n500)">'+esc(poliDur(m.mediana_min))+' · '+m.visitas+' visitas</span></div>'
+      +'<div style="display:flex;height:16px;border-radius:6px;overflow:hidden;margin-top:3px">'
+      +'<div title="em ponto mapeado: '+esc(poliDur(m.ponto_min))+'" style="width:'+wp+'%;background:var(--green)"></div>'
+      +'<div title="fora de ponto mapeado: '+esc(poliDur(m.fila_min))+'" style="width:'+(100-wp).toFixed(1)+'%;background:var(--yellow)"></div>'
+      +'</div>'
+      +'<div style="font-size:11px;color:var(--n500);margin-top:2px">'
+      +esc(poliDur(m.ponto_min))+' em ponto · '+esc(poliDur(m.fila_min))+' fora</div></div>';
+  }).join('') : '<div class="hint">Sem visitas com atendimento no período.</div>';
+  document.getElementById('hintPoliDec').textContent='mediana por mês';
+
+  const USO={TRA:'Tração',AGR:'Agregado',LOC:'Locação',TER:'Terceiro'};
+  const tb=(d.tabela||[]);
+  document.getElementById('poliTab').innerHTML=
+    '<thead><tr><th>Placa</th><th>Modalidade</th><th>Polígono</th><th>Entrada</th><th>Saída</th><th class="r">Permanência</th></tr></thead><tbody>'
+    +(tb.length? tb.map(function(x){ return '<tr>'
+        +'<td class="mono">'+esc(x.veiculo)+'</td>'
+        +'<td>'+esc(USO[x.uso]||x.uso||'—')+'</td>'
+        +'<td>'+esc(x.poligono)+'</td>'
+        +'<td class="mono">'+esc(fmtDT(x.entrada))+'</td>'
+        +'<td class="mono">'+esc(fmtDT(x.saida))+'</td>'
+        +'<td class="r mono"><b>'+esc(poliDur(x.minutos))+'</b>'
+        +(x.estimado? ' '+statChip('warn','estimada','uma única leitura de GPS nesta visita - a permanência é estimada pela cadência do rastreador, não medida') : '')
+        +'</td></tr>'; }).join('')
+      : '<tr><td colspan="6" class="hint">Nenhuma visita no período.</td></tr>')
+    +'</tbody>';
+  document.getElementById('hintPoliTab').textContent = tb.length ? tb.length+' mais longas' : '';
+  document.getElementById('hintPoli').textContent =
+    (per.de||'')+' a '+(per.ate||'')+' · '+(f.gerado_em||'');
+
+  const av=(d.avisos||[]);
+  document.getElementById('poliAvisosCard').hidden = !av.length;
+  document.getElementById('poliAvisos').innerHTML =
+    av.map(function(a){ return '<div class="hint" style="margin:0 0 8px">'+esc(a)+'</div>'; }).join('');
+}
 
 async function loadPneus(fundo){
   skelKpis('kpis-pneus',4);
@@ -16436,6 +16604,7 @@ boot();
         <a href="#jorn" onclick="fecharDrawer()"><span class="ic" data-ic="jornic"></span>Jornada do Motorista</a>
         <a href="#mvb" onclick="fecharDrawer()"><span class="ic" data-ic="mvb"></span>Make vs Buy</a>
         <a href="#milkrun" onclick="fecharDrawer()"><span class="ic" data-ic="milkic"></span>Milk Run — MWM</a>
+        <a href="#poli" onclick="fecharDrawer()"><span class="ic" data-ic="torreic"></span>Permanência na Planta</a>
         <a href="#port" onclick="fecharDrawer()"><span class="ic" data-ic="porta"></span>Portaria</a>
         <a href="#prog" onclick="fecharDrawer()"><span class="ic" data-ic="prog"></span>Programação Intel.</a>
         <a href="#sac" onclick="fecharDrawer()"><span class="ic" data-ic="sacic"></span>SAC / Freetime</a>

@@ -4,6 +4,18 @@ Gerado de `docs/versoes.yaml` por `scripts/gerar_changelog.py` — não editar �
 Formato [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/),
 versionamento [SemVer](https://semver.org/lang/pt-BR/).
 
+## [0.55.0] — 26/08/2026  ·  CX-26/08/2026-v0.55.0
+
+### Adicionado
+- Tela nova em Operação: Permanência na Planta. Mostra quanto tempo o veículo passa dentro da planta da Tupy em Joinville e onde esse tempo é gasto, polígono a polígono - data e hora de entrada e saída, permanência por visita e ranking dos pontos que mais consomem tempo.
+- O número que a tela existe para mostrar, medido em agosto/26: a mediana de permanência é de 6h50 por visita com atendimento, e 75% disso é passado FORA de qualquer polígono mapeado - 1h33 nos pontos contra 5h06 em fila, manobra ou área ainda sem polígono. O ranking abre com Almox Inflamáveis (35 min de mediana), Expedição Usinagem (32 min) e Expedição Blocos (31 min); a Portaria 1, com 540 visitas, resolve em 5 min.
+
+### Alterado
+- A tela NÃO usa a tabela sulista.valida_poligono_tupy, que já existia: ela é um retrato estático que parou em 11/07/2026 e cobre 12 dos 18 polígonos - faltam justamente a Portaria 1 (a mais movimentada, com 64 placas) e o PERÍMETRO da planta, que é o que permite separar atendimento de fila. A tela sai da posição crua do rastreador cruzada com o cadastro de polígonos, e por isso enxerga até a última posição recebida.
+
+### Corrigido
+- Permanência não é a última leitura menos a primeira. Com o rastreador lendo a cada 3 a 5 minutos, o veículo entra antes da primeira leitura e sai depois da última, e uma visita com uma leitura só mediria ZERO minuto - 34% das visitas do período estão nessa situação. A estimativa estende até metade do caminho para a leitura de fora, com teto de 3 minutos por lado (sem o teto, uma placa cuja leitura anterior foi há 40 min ganhava 20 minutos de portaria que não existiram). As visitas estimadas vêm marcadas na tabela.
+
 ## [0.54.1] — 26/08/2026  ·  CX-26/08/2026-v0.54.1
 
 ### Corrigido

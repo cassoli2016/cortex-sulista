@@ -123,10 +123,12 @@ grupos:
   - crm
 - nome: Operação
   resumo: Torre de controle ao vivo, programação de cargas contra veículos, análise de quilometragem e
-    retorno vazio, jornada do motorista (Lei 13.103), custos extras, freetime e portaria.
+    retorno vazio, jornada do motorista (Lei 13.103), custos extras, freetime, portaria e a permanência
+    dentro da planta do cliente (polígonos mapeados na Tupy Joinville).
   telas:
   - torre
   - milkrun
+  - poli
   - prog
   - km
   - jorn
