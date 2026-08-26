@@ -31,13 +31,21 @@ from api.contrapartida import documento, emissao  # noqa: E402
 # (sem rateio). Escolhido por ser o caso mais simples que existe na base.
 CHAVE_PILOTO = "35260876104397000204570010003585231063585236"
 
+# Estado das definicoes em 26/08/2026. DECIDIDO = resposta da area; PENDENTE =
+# valor escolhido so para exercitar a transmissao, trocar quando responderem.
+# CONFLITO ABERTO, medido na SEFAZ em 26/08/2026 e ainda nao resolvido:
+# a area respondeu "prestacao normal", e prestacao normal NAO aceita a Sulista
+# como tomadora (746) nem o vinculo com o CT-e dela (747). Ou seja, a resposta
+# dada e incompativel com a premissa do modulo - um documento do agregado
+# CONTRA a Sulista. Enquanto nao houver reconciliacao, o script segue na unica
+# combinacao que autorizou E descreve a operacao real.
 ENQUADRAMENTO_TECNICO = documento.Enquadramento(
-    cfop="5351",              # prestacao a outro transportador, dentro do estado
+    cfop="5351",
     tp_serv="1",              # subcontratacao (base 0 do SCHEMA, nao do ERP)
-    grupo_icms="ICMSSN",      # emitente optante do Simples
-    cst_icms="90",
+    grupo_icms="ICMSSN",      # PENDENTE: emitente e optante do Simples
+    cst_icms="90",            # PENDENTE
     p_icms=None,
-    base_valor="fretecompra",  # o que a Sulista PAGA ao agregado
+    base_valor="fretecompra",  # PENDENTE: pago ao agregado x cobrado do cliente
     toma="4",                 # tomador "outros" - a Sulista, com CNPJ
     referenciar_original=True,
 )
