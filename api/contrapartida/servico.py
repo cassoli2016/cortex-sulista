@@ -277,6 +277,19 @@ def _avisos(pj, tac, indef, faltando, passivo) -> list[str]:
 
             "rejeição documento a documento na transmissão.")
 
+    # CT-e de centavos quase certamente e documento de AJUSTE (anulacao,
+    # complementar), nao prestacao. Se for, nao deveria puxar contrapartida -
+    # mas isso e definicao fiscal, nao suposicao minha: a tela conta e
+    # pergunta, em vez de filtrar por conta propria e esconder o caso.
+    centavos = [x for x in pj if (x.get("valor") or 0) < 1.0]
+    if centavos:
+        av.append(
+            f"{len(centavos)} agregado(s) PJ com CT-e somando menos de R$ 1,00 no "
+            "período (há caso de 4 CT-e totalizando R$ 0,04). Documento de "
+            "valor simbólico costuma ser anulação ou complementar, não "
+            "prestação — se for, não deveria entrar na fila de contrapartida. "
+            "Confirmar com a contabilidade antes de emitir para eles.")
+
     velho = [x for x in passivo if x["classe"] == "pj"
 
              and x["ano"] < str(date.today().year)]

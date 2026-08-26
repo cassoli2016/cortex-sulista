@@ -81,3 +81,20 @@ def test_toda_tela_do_menu_tem_loader(html):
     falta = sorted(_da_barra(html) - mapeadas - colapsadas)
     assert not falta, ("telas no menu e fora do LOADMAP (abrem vazias): "
                        + ", ".join(falta))
+
+
+def test_tela_com_filtro_proprio_esconde_o_carimbo_global(html):
+    """`#meta` (o "Atualizado HH:MM" do cabecalho) e preenchido pelos loaders
+    das telas SEM filtro proprio. Tela com filtro proprio precisa entrar na
+    lista que o esconde - senao ele fica em "carregando..." para sempre, e o
+    usuario le isso como tela travada. Aconteceu com poli e ctecp.
+    """
+    i = html.index("const metaEl=document.getElementById('meta')")
+    linha = html[i:i + 900]
+    # telas com barra de filtros propria (as que escondem a filterbar global)
+    j = html.index("v==='pneus'||v==='people'")
+    proprias = set(re.findall(r"v==='([a-zA-Z0-9_]+)'", html[j - 700:j + 120]))
+    escondem = set(re.findall(r"v==='([a-zA-Z0-9_]+)'", linha))
+    falta = sorted(v for v in ("poli", "ctecp") if v not in escondem)
+    assert not falta, ("telas com filtro proprio que nao escondem o #meta "
+                       "(fica 'carregando...' para sempre): " + ", ".join(falta))

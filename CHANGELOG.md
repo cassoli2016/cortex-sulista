@@ -4,6 +4,15 @@ Gerado de `docs/versoes.yaml` por `scripts/gerar_changelog.py` — não editar �
 Formato [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/),
 versionamento [SemVer](https://semver.org/lang/pt-BR/).
 
+## [0.59.2] — 26/08/2026  ·  CX-26/08/2026-v0.59.2
+
+### Adicionado
+- Aviso novo: agregados cujos CT-e somam menos de R$ 1,00 no periodo. Documento de valor simbolico costuma ser anulacao ou complementar, nao prestacao - e se for, nao deveria puxar contrapartida. A tela conta e pergunta em vez de filtrar por conta propria, porque isso e definicao fiscal.
+
+### Corrigido
+- O cabecalho das telas CT-e de Contrapartida e Permanencia na Planta ficava em "carregando..." para sempre. O carimbo global de atualizacao e preenchido pelos loaders das telas SEM filtro proprio; estas duas tem filtro proprio e nao entraram na lista que o esconde. Lido de longe, parecia tela travada. Entrou teste para nao repetir.
+- Valor abaixo de R$ 1,00 aparecia como "R$ 0" na fila por agregado. Ha um agregado com 4 CT-e somando R$ 0,04 - arredondado, parecia erro de sistema quando o dado esta certo e o estranho e o documento. Agora mostra os centavos.
+
 ## [0.59.1] — 26/08/2026  ·  CX-26/08/2026-v0.59.1
 
 ### Corrigido

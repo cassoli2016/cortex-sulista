@@ -4499,7 +4499,7 @@ function router(){
   document.getElementById('grpFluxcon').style.display = fluxcon ? 'flex' : 'none';
   const ges = (v==='gestao');
   const fbar=document.getElementById('filterbar'); if(fbar) fbar.style.display = semFilterbar(v) ? 'none' : '';
-  const metaEl=document.getElementById('meta'); if(metaEl) metaEl.style.display = (cop||ges||v==='srv'||v==='veicf'||v==='clif'||v==='jorn'||v==='jornf'||v==='cex'||v==='sac'||v==='mprev'||v==='comrast'||v==='qual'||v==='port'||v==='crm'||v==='rh'||v==='hc'||v==='folha'||v==='folhaind'||v==='he'||v==='custos'||v==='prem'||v==='doc') ? 'none' : '';
+  const metaEl=document.getElementById('meta'); if(metaEl) metaEl.style.display = (cop||ges||v==='srv'||v==='veicf'||v==='clif'||v==='jorn'||v==='jornf'||v==='cex'||v==='sac'||v==='mprev'||v==='comrast'||v==='qual'||v==='port'||v==='crm'||v==='rh'||v==='hc'||v==='folha'||v==='folhaind'||v==='he'||v==='custos'||v==='prem'||v==='doc'||v==='poli'||v==='ctecp') ? 'none' : '';
   // classe em vez de style: o CSS mobile usa !important no display
   const bfil=document.getElementById('btnFiltros'); if(bfil){ bfil.classList.toggle('oculto', semFilterbar(v)); bfil.style.display=''; }
   document.getElementById('grpKm').style.display = kmv ? 'flex' : 'none';
@@ -9248,7 +9248,14 @@ async function mkchatSend(){
    PJ e TAC nunca sao somados - o TAC nao emite CT-e (Lei 11.442), entao juntar
    os dois inflaria a fila em um terco com documento que nao pode existir. */
 let cpSeq=0, DATACP=null;
-function cpBRL(v){ return (v||0).toLocaleString('pt-BR',{style:'currency',currency:'BRL',maximumFractionDigits:0}); }
+/* Abaixo de R$ 1 mostra CENTAVOS. Ha agregados com 4 CT-e somando R$ 0,04 -
+   arredondar para "R$ 0" faria parecer erro de sistema, quando o dado esta
+   certo e o que e estranho e o documento. Mesma regra do resto do painel:
+   zero exibido tem de ser zero de verdade. */
+function cpBRL(v){ v=v||0;
+  return v!==0 && Math.abs(v)<1
+    ? v.toLocaleString('pt-BR',{style:'currency',currency:'BRL',minimumFractionDigits:2})
+    : v.toLocaleString('pt-BR',{style:'currency',currency:'BRL',maximumFractionDigits:0}); }
 async function loadCtecp(fundo){
   skelKpis('kpis-ctecp',4);
   const seq=++cpSeq, btn=document.getElementById('btnRefresh'); if(btn) btn.disabled=true;
