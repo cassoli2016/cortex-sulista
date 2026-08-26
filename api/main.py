@@ -1470,7 +1470,8 @@ def fiscal_contrapartida_certificado(payload: dict, req: Request) -> JSONRespons
 
 
 @app.get("/api/fiscal/contrapartida")
-def fiscal_contrapartida(de: str = "", ate: str = "") -> JSONResponse:
+def fiscal_contrapartida(de: str = "", ate: str = "",
+                         busca: str = "") -> JSONResponse:
     """Conciliacao do CT-e de contrapartida do agregado.
 
     So LEITURA. Nao emite, nao assina, nao transmite: emissao em nome de
@@ -1484,7 +1485,8 @@ def fiscal_contrapartida(de: str = "", ate: str = "") -> JSONResponse:
                 "erro": "parametro_invalido",
                 "mensagem": f"Parametro {nome} invalido: use AAAA-MM-DD."})
     try:
-        return JSONResponse(servico.get_contrapartida(de or None, ate or None))
+        return JSONResponse(servico.get_contrapartida(de or None, ate or None,
+                                                      busca or None))
     except Exception as exc:  # noqa: BLE001
         log.warning("fiscal_contrapartida falhou: %s", exc)
         return JSONResponse(status_code=500, content={

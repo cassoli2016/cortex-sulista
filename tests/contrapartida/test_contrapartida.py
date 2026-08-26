@@ -287,3 +287,13 @@ def test_procuracao_recusa_validade_invertida():
     import pytest as _pt
     with _pt.raises(ValueError):
         cad.gravar_autorizacao("1", "emitir CT-e", "2027-01-01", "2026-01-01", "eu")
+
+
+def test_sem_filtro_a_tela_abre_no_DIA_DE_HOJE():
+    """A fila e trabalho DIARIO: o CT-e sai hoje e o documento do agregado tem
+    de sair junto. Abrir em seis meses respondia "quanto acumulou" quando a
+    pergunta do dia e "o que preciso emitir agora"."""
+    from datetime import date, timedelta
+    de, ate = servico._janela(None, None)
+    assert de == date.today().isoformat()
+    assert ate == (date.today() + timedelta(days=1)).isoformat()

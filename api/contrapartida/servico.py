@@ -64,7 +64,6 @@ log = logging.getLogger("cortex.contrapartida")
 CLASSES = {
 
     "pj": "PJ — emite CT-e",
-
     "tac": "TAC (CPF) — não emite CT-e",
 
     "indefinido": "documento do proprietário indefinido",
@@ -80,9 +79,7 @@ CLASSES = {
 NOTA_TAC = ("Transportador Autônomo de Cargas não emite CT-e — a documentação "
 
             "dele é CIOT (Lei 11.442) e RPA. Estes CT-e não entram na fila de "
-
             "contrapartida por natureza do documento, não por falta de "
-
             "certificado.")
 
 
@@ -90,23 +87,20 @@ NOTA_TAC = ("Transportador Autônomo de Cargas não emite CT-e — a documentaç
 
 
 def _janela(de: str | None, ate: str | None) -> tuple[str, str]:
+    """Sem filtro, a tela abre no DIA DE HOJE.
 
+    A fila de contrapartida e trabalho DIARIO: o CT-e sai hoje e o documento do
+    agregado tem de sair junto. Abrir em seis meses fazia a tela responder
+    "quanto acumulou" quando a pergunta do dia e "o que preciso emitir agora" -
+    e o acumulado continua a um clique, alem de estar sempre no bloco de
+    passivo, que ignora este filtro.
+    """
     hoje = date.today()
-
     d_ate = date.fromisoformat(ate) if ate else hoje
-
-    d_de = date.fromisoformat(de) if de else (d_ate.replace(day=1)
-
-                                              - timedelta(days=180))
-
+    d_de = date.fromisoformat(de) if de else d_ate
     if d_de > d_ate:
-
         d_de, d_ate = d_ate, d_de
-
     return d_de.isoformat(), (d_ate + timedelta(days=1)).isoformat()
-
-
-
 
 
 def _serial(linhas) -> list[dict]:
@@ -123,24 +117,21 @@ def _serial(linhas) -> list[dict]:
     return saida
 
 
-def get_contrapartida(de: str | None = None, ate: str | None = None) -> dict:
+def get_contrapartida(de: str | None = None, ate: str | None = None,
+                      busca: str | None = None) -> dict:
 
     d_de, d_ate = _janela(de, ate)
-
     par = {"de": d_de, "ate": d_ate}
 
     mes = db.query(POR_MES_SQL, par)
-
     agreg = db.query(POR_AGREGADO_SQL, par)
 
     frota = db.query(FROTA_AGR_SQL, {})
-
     passivo = db.query(PASSIVO_SQL, {"de": "2022-01-01", "ate": d_ate})
 
 
 
     def _soma(linhas, classe, campo):
-
         return sum(x[campo] for x in linhas if x["classe"] == classe)
 
 
@@ -159,33 +150,35 @@ def get_contrapartida(de: str | None = None, ate: str | None = None) -> dict:
             "pronto": False, "faltas": ["sem procuração cadastrada",
                                         "sem certificado cadastrado"],
             "alertas": []}
+    # BUSCA por nome ou CNPJ, em memoria. A consulta ja traz os ~85 agregados;
+    # refazer o SQL por um filtro de texto multiplicaria a chave de cache sem
+    # ganho (mesmo padrao do Painel de Custos). Vale para a TABELA e para os
+    # KPIs do recorte - o passivo acumulado continua do periodo inteiro.
+    if (busca or "").strip():
+        alvo = " ".join((busca or "").lower().split())
+        so_dig = "".join(c for c in alvo if c.isdigit())
+        agreg = [x for x in agreg
+                 if alvo in (x.get("nome") or "").lower()
+                 or (so_dig and so_dig in (x.get("documento") or ""))]
 
     pj = [x for x in agreg if x["classe"] == "pj"]
 
     tac = [x for x in agreg if x["classe"] == "tac"]
-
     indef = [x for x in agreg if x["classe"] == "indefinido"]
 
 
 
     # PENDENCIA CADASTRAL: o que a emissao exige e o cadastro pode nao ter.
-
     # Descobrir isso na transmissao custa uma rejeicao POR DOCUMENTO - com
 
     # 3 mil CT-e/mes, e o tipo de erro que para a operacao.
-
     faltando = [{"documento": x["documento"], "nome": x["nome"],
 
                  "falta": [c for c, v in (("razão social", x["nome"]),
-
                                           ("inscrição estadual", x["ie"]),
-
                                           ("RNTRC", x["rntrc"]),
-
                                           ("município/UF", x["cidade"]))
-
                            if not v]}
-
                 for x in pj]
 
     faltando = [x for x in faltando if x["falta"]]
@@ -193,52 +186,32 @@ def get_contrapartida(de: str | None = None, ate: str | None = None) -> dict:
 
 
     return {
-
-        "periodo": {"de": d_de, "ate": d_ate},
-
+        "periodo": {"de": d_de, "ate": d_ate, "busca": busca or ""},
         "kpis": {
-
             "ctes_pj": _soma(mes, "pj", "ctes"),
-
             "valor_pj": round(_soma(mes, "pj", "valor"), 2),
-
             "agregados_pj": len(pj),
-
             "ctes_tac": _soma(mes, "tac", "ctes"),
-
             "valor_tac": round(_soma(mes, "tac", "valor"), 2),
-
             "agregados_tac": len(tac),
-
             "ctes_indefinido": _soma(mes, "indefinido", "ctes"),
-
             "agregados_indefinido": len(indef),
-
             "pendencia_cadastral": len(faltando),
             "prontos_para_emitir": sum(1 for x in pj
                                        if (x.get("prontidao") or {}).get("pronto")),
-
             "emitidas": 0,   # nenhuma contrapartida emitida ate hoje
-
         },
         "por_mes": _serial(mes),
         "por_agregado": _serial(agreg),
         "frota": _serial(frota),
         "passivo": _serial(passivo),
         "pendencia_cadastral": faltando,
-
         "classes": CLASSES,
-
         "avisos": _avisos(pj, tac, indef, faltando, passivo),
-
         "fonte": {
-
             "tabela": "conhecimento × veiculo (utilizacaoveiculo='AGR') × cadastro",
-
             "gerado_em": datetime.now().strftime("%Y-%m-%d %H:%M"),
-
         },
-
     }
 
 
@@ -256,43 +229,28 @@ def _br(v: float, casas: int = 2) -> str:
 def _avisos(pj, tac, indef, faltando, passivo) -> list[str]:
 
     av: list[str] = []
-
     av.append(
 
         "Nenhuma contrapartida emitida até hoje: esta tela dimensiona a fila, "
-
         "não mede cobertura. O número de emitidas é zero por confirmação da "
-
         "própria operação, não por falta de dado.")
-
     if tac:
 
         av.append(f"{len(tac)} dos {len(pj) + len(tac) + len(indef)} agregados "
-
                   f"do período são pessoa física. " + NOTA_TAC)
 
     if indef:
-
         av.append(
-
             f"{len(indef)} agregados com documento de proprietário fora do "
-
             "padrão de CNPJ ou CPF: não dá para dizer se emitem CT-e. "
-
             "Conferir o cadastro do veículo antes de incluí-los em qualquer fila.")
-
     if faltando:
 
         quais = ", ".join(f"{x['nome'] or x['documento']} ({', '.join(x['falta'])})"
-
                           for x in faltando[:4])
-
         av.append(
-
             f"{len(faltando)} agregados PJ com cadastro incompleto para emitir: "
-
             f"{quais}{'...' if len(faltando) > 4 else ''}. Campo faltando vira "
-
             "rejeição documento a documento na transmissão.")
 
     # CT-e de centavos quase certamente e documento de AJUSTE (anulacao,
@@ -307,7 +265,6 @@ def _avisos(pj, tac, indef, faltando, passivo) -> list[str]:
             "valor simbólico costuma ser anulação ou complementar, não "
             "prestação — se for, não deveria entrar na fila de contrapartida. "
             "Confirmar com a contabilidade antes de emitir para eles.")
-
     naopronto = [x for x in pj if not (x.get("prontidao") or {}).get("pronto")]
     if naopronto:
         av.append(
@@ -315,34 +272,21 @@ def _avisos(pj, tac, indef, faltando, passivo) -> list[str]:
             "autorizados a emitir: falta procuração vigente, certificado A1 "
             "válido ou a senha dele no cofre. Enquanto isso, a fila é "
             "diagnóstico — nenhum documento pode ser emitido.")
-
     velho = [x for x in passivo if x["classe"] == "pj"
 
              and x["ano"] < str(date.today().year)]
-
     if velho:
 
         n = sum(x["ctes"] for x in velho)
-
         v = sum(x["valor"] for x in velho)
-
         # formata SO o numero. Aplicar replace(",", ".") na frase inteira
-
         # comeu as virgulas do texto - a mesma armadilha da substituicao em
-
         # massa que o CLAUDE.md descreve, em miniatura.
-
         av.append(
-
             f"Passivo de anos anteriores: {_br(n, 0)} CT-e de agregado PJ, "
-
             f"R$ {_br(v, 0)} de prestação. CT-e NÃO se emite retroativo (a "
-
             "SEFAZ recusa data de emissão fora da janela), então isto não é "
-
             "fila de trabalho — é número para a decisão da contabilidade e do "
-
             "jurídico.")
-
     return av
 

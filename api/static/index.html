@@ -2604,6 +2604,8 @@ body.tvfull #btnReport,body.tvmode #btnReport{display:none}
           <div class="milk-filtros">
             <label>De<input type="date" id="fCpDe" onchange="loadCtecp()" aria-label="Data inicial"></label>
             <label>Até<input type="date" id="fCpAte" onchange="loadCtecp()" aria-label="Data final"></label>
+            <label>Agregado<input type="search" id="fCpBusca" onchange="loadCtecp()"
+                   placeholder="nome ou CNPJ" aria-label="Buscar agregado" style="min-width:210px"></label>
           </div>
         </div>
 
@@ -9360,6 +9362,7 @@ async function loadCtecp(fundo){
     const p=new URLSearchParams();
     if(V('fCpDe')) p.set('de', V('fCpDe'));
     if(V('fCpAte')) p.set('ate', V('fCpAte'));
+    if(V('fCpBusca')) p.set('busca', V('fCpBusca'));
     const r=await fetch('/api/fiscal/contrapartida?'+p.toString(),
       {cache:'no-store', headers: fundo?{'X-Carga-Fundo':'1'}:{}});
     const d=await r.json(); if(seq!==cpSeq) return;
@@ -9453,8 +9456,15 @@ function renderCtecp(d){
   }).join('')+'<div class="hint" style="margin-top:8px">Não é fila de trabalho: CT-e não se emite retroativo.</div>'
     : '<div class="hint">Sem histórico.</div>';
 
+  /* o periodo abre no DIA: sem dizer isso, "20 CT-e aguardando" parece que o
+     passivo evaporou. O bloco de passivo acumulado ignora este filtro. */
+  const umDia = per.de && per.ate &&
+    (new Date(per.ate)-new Date(per.de))<=86400000*1.5;
   document.getElementById('hintCp').textContent =
-    (per.de||'')+' a '+(per.ate||'')+' · '+(f.gerado_em||'');
+    (umDia ? ('somente '+fmtD(per.de)+' — amplie o período para ver o acumulado')
+           : ((per.de||'')+' a '+(per.ate||'')))
+    +(per.busca?(' · filtrado por “'+per.busca+'”'):'')
+    +' · '+(f.gerado_em||'');
   const av=(d.avisos||[]);
   document.getElementById('cpAvisosCard').hidden = !av.length;
   document.getElementById('cpAvisos').innerHTML =

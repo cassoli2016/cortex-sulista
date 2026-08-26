@@ -4,6 +4,15 @@ Gerado de `docs/versoes.yaml` por `scripts/gerar_changelog.py` — não editar �
 Formato [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/),
 versionamento [SemVer](https://semver.org/lang/pt-BR/).
 
+## [0.64.0] — 26/08/2026  ·  CX-26/08/2026-v0.64.0
+
+### Adicionado
+- Busca de agregado por nome ou CNPJ no filtro da tela. Com 85 agregados na lista, achar um especifico exigia rolar a tabela inteira.
+
+### Alterado
+- A tela de CT-e de Contrapartida passou a abrir no DIA DE HOJE, e nao nos ultimos seis meses. A fila e trabalho diario: o CT-e sai hoje e o documento do agregado tem de sair junto, entao a pergunta da tela e "o que preciso emitir agora" e nao "quanto acumulou". O acumulado continua a um clique no filtro, e o bloco de passivo nunca dependeu dele.
+- O rodape do filtro avisa quando o recorte e de um dia so, para "20 CT-e aguardando" nao parecer que o passivo evaporou.
+
 ## [0.63.0] — 26/08/2026  ·  CX-26/08/2026-v0.63.0
 
 ### Adicionado

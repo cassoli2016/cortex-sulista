@@ -3,6 +3,23 @@
 #   - a tela Documentação     (#doc)
 #   - o rótulo no rodapé      (CX-DD/MM/AAAA-vX.Y.Z)
 # A versão do TOPO é a corrente e tem de bater com o pyproject.toml.
+- versao: "0.64.0"
+  data: "2026-08-26"
+  alterado:
+    - >-
+      A tela de CT-e de Contrapartida passou a abrir no DIA DE HOJE, e nao nos
+      ultimos seis meses. A fila e trabalho diario: o CT-e sai hoje e o
+      documento do agregado tem de sair junto, entao a pergunta da tela e "o
+      que preciso emitir agora" e nao "quanto acumulou". O acumulado continua a
+      um clique no filtro, e o bloco de passivo nunca dependeu dele.
+    - >-
+      O rodape do filtro avisa quando o recorte e de um dia so, para "20 CT-e
+      aguardando" nao parecer que o passivo evaporou.
+  adicionado:
+    - >-
+      Busca de agregado por nome ou CNPJ no filtro da tela. Com 85 agregados na
+      lista, achar um especifico exigia rolar a tabela inteira.
+
 - versao: "0.63.0"
   data: "2026-08-26"
   adicionado:
