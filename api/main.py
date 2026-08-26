@@ -1357,6 +1357,113 @@ def frota_pneus(status: str = "", filial: str = "") -> JSONResponse:
             "erro": "erro_consulta", "mensagem": "Erro ao montar a tela de pneus."})
 
 
+@app.post("/api/fiscal/contrapartida/procuracao")
+def fiscal_contrapartida_procuracao(payload: dict, req: Request) -> JSONResponse:
+    """Registra a procuracao que autoriza emitir em nome do agregado."""
+    from api.contrapartida import cadastro
+    # a sessao e quem responde pela autorizacao: trilha com "?" nao serve
+    # para nada meses depois, que e exatamente quando ela e consultada
+    _s = getattr(req.state, "sessao", None) or {}
+    quem = _s.get("email") or _s.get("nome") or "?"
+    try:
+        return JSONResponse(cadastro.gravar_procuracao(
+            str(payload.get("cnpj") or "").strip(),
+            str(payload.get("escopo") or "").strip(),
+            str(payload.get("valida_de") or "").strip(),
+            str(payload.get("valida_ate") or "").strip(),
+            quem, str(payload.get("observacao") or "").strip()))
+    except ValueError as exc:
+        return JSONResponse(status_code=422, content={
+            "erro": "parametro_invalido", "mensagem": str(exc)})
+    except Exception as exc:  # noqa: BLE001
+        log.warning("gravar procuracao falhou: %s", exc)
+        return JSONResponse(status_code=500, content={
+            "erro": "erro_gravacao", "mensagem": "Erro ao gravar a procuracao."})
+
+
+@app.post("/api/fiscal/contrapartida/certificado")
+def fiscal_contrapartida_certificado(payload: dict, req: Request) -> JSONResponse:
+    """Recebe o .pfx em base64 NO CORPO, com a senha.
+
+    No corpo e nao em query nem header de proposito: URL e cabecalho aparecem
+    em log de servidor e de proxy, e senha de certificado em log e vazamento
+    permanente. O corpo de um POST nao e registrado.
+
+    O arquivo e ABERTO aqui com a senha: se abre, titular e validade saem do
+    proprio certificado - dado que nao precisa ser digitado e por isso nao
+    pode ser digitado errado. Senha errada vira 422 agora, e nao rejeicao
+    documento a documento na transmissao.
+    """
+    import base64
+    from api.contrapartida import cadastro
+    from api.contrapartida.certificado import (MAX_BYTES, CertificadoInvalido,
+                                               conferir_titularidade, ler)
+    # a sessao e quem responde pela autorizacao: trilha com "?" nao serve
+    # para nada meses depois, que e exatamente quando ela e consultada
+    _s = getattr(req.state, "sessao", None) or {}
+    quem = _s.get("email") or _s.get("nome") or "?"
+    cnpj = str(payload.get("cnpj") or "").strip()
+    tipo = str(payload.get("tipo") or "A1").strip().upper()
+    if not cnpj:
+        return JSONResponse(status_code=422, content={
+            "erro": "parametro_invalido", "mensagem": "Informe o CNPJ do agregado."})
+    if tipo == "A3":
+        # A3 nao tem arquivo: registra o impedimento para a tela explicar por
+        # que aquele agregado nunca fica pronto, em vez de ficar sem resposta.
+        try:
+            cadastro.gravar_certificado(cnpj, "A3", quem,
+                                        titular=str(payload.get("titular") or ""))
+            return JSONResponse({"ok": True, "tipo": "A3", "avisos": [
+                "Certificado A3 registrado como impedimento: ele mora em token "
+                "fisico e exige presenca a cada assinatura, entao nao automatiza."]})
+        except ValueError as exc:
+            return JSONResponse(status_code=422, content={
+                "erro": "parametro_invalido", "mensagem": str(exc)})
+    senha = str(payload.get("senha") or "")
+    b64 = str(payload.get("arquivo_b64") or "")
+    if not (senha and b64):
+        return JSONResponse(status_code=422, content={
+            "erro": "parametro_invalido",
+            "mensagem": "Envie o arquivo .pfx e a senha."})
+    try:
+        bruto = base64.b64decode(b64, validate=True)
+    except Exception:  # noqa: BLE001
+        return JSONResponse(status_code=422, content={
+            "erro": "parametro_invalido", "mensagem": "Arquivo invalido."})
+    if len(bruto) > MAX_BYTES:
+        return JSONResponse(status_code=413, content={
+            "erro": "arquivo_grande",
+            "mensagem": f"Arquivo acima de {MAX_BYTES // (1024*1024)} MB."})
+    try:
+        lido = ler(bruto, senha)
+    except CertificadoInvalido as exc:
+        return JSONResponse(status_code=422, content={
+            "erro": "certificado_invalido", "mensagem": str(exc)})
+    avisos = []
+    conf = conferir_titularidade(lido, cnpj)
+    if conf:
+        avisos.append(conf)
+    if lido["vencido"]:
+        avisos.append(f"O certificado venceu em {lido['valida_ate']}: ele fica "
+                      "cadastrado, mas o agregado nao aparece como autorizado.")
+    try:
+        cadastro.DIR_CERT.mkdir(parents=True, exist_ok=True)
+        alvo = cadastro.DIR_CERT / f"{cnpj}.pfx"
+        alvo.write_bytes(bruto)
+        alvo.chmod(0o600)   # nao legivel por outros usuarios da maquina
+        cadastro.gravar_certificado(
+            cnpj, "A1", quem, arquivo=alvo.name,
+            valida_ate=lido["valida_ate"], titular=lido["titular"], senha=senha)
+    except Exception as exc:  # noqa: BLE001
+        log.warning("gravar certificado falhou: %s", exc)
+        return JSONResponse(status_code=500, content={
+            "erro": "erro_gravacao", "mensagem": "Erro ao gravar o certificado."})
+    # a senha NAO volta, nem mascarada
+    return JSONResponse({"ok": True, "titular": lido["titular"],
+                         "valida_ate": lido["valida_ate"], "dias": lido["dias"],
+                         "avisos": avisos})
+
+
 @app.get("/api/fiscal/contrapartida")
 def fiscal_contrapartida(de: str = "", ate: str = "") -> JSONResponse:
     """Conciliacao do CT-e de contrapartida do agregado.

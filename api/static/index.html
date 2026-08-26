@@ -9248,6 +9248,96 @@ async function mkchatSend(){
    PJ e TAC nunca sao somados - o TAC nao emite CT-e (Lei 11.442), entao juntar
    os dois inflaria a fila em um terco com documento que nao pode existir. */
 let cpSeq=0, DATACP=null;
+let CP_ALVO=null;
+function cpAbrir(cnpj){
+  CP_ALVO=cnpj;
+  const x=((DATACP||{}).por_agregado||[]).find(function(y){return y.documento===cnpj;})||{};
+  const p=(x.prontidao||{});
+  const falta=(p.faltas||[]).length
+    ? '<div class="hint" style="color:var(--red);margin-bottom:8px">Falta: '+esc((p.faltas||[]).join(' · '))+'</div>' : '';
+  /* usa o modal COMPARTILHADO: ele ja resolve fundo, foco preso, Esc e
+     devolucao do foco. Um dialogo proprio ficaria fora do teclado. */
+  abrirModal(
+    '<h3>Autorizar &mdash; '+esc(x.nome||cnpj)+'</h3>'
+   +falta
+   +'<div class="hint" style="margin-bottom:10px">Emitir com o certificado do agregado &eacute; assinar como ele. Sem procura&ccedil;&atilde;o vigente e certificado A1 v&aacute;lido, o C&Oacute;RTEX n&atilde;o emite por ele.</div>'
+   +'<b style="font-size:12px">Procura&ccedil;&atilde;o</b>'
+   +'<div class="milk-filtros" style="margin:6px 0 4px">'
+   +'<label>V&aacute;lida de<input type="date" id="cpPrDe"></label>'
+   +'<label>V&aacute;lida at&eacute;<input type="date" id="cpPrAte"></label></div>'
+   +'<label style="display:block;font-size:11px;color:var(--n500)">Escopo'
+   +'<input type="text" id="cpPrEsc" style="width:100%;box-sizing:border-box" placeholder="ex.: emitir CT-e de subcontrata&ccedil;&atilde;o em nome do agregado"></label>'
+   +'<button class="btn" style="margin-top:7px" onclick="cpSalvarProc()">Salvar procura&ccedil;&atilde;o</button>'
+   +'<hr style="margin:14px 0;border:0;border-top:1px solid var(--n200)">'
+   +'<b style="font-size:12px">Certificado digital</b>'
+   +'<div class="hint" style="margin:3px 0 6px">O arquivo &eacute; aberto aqui com a senha: titular e validade saem do pr&oacute;prio certificado, e senha errada aparece agora e n&atilde;o na transmiss&atilde;o.</div>'
+   +'<div class="milk-filtros" style="margin:0 0 6px"><label>Tipo'
+   +'<select id="cpCertTipo" onchange="cpTipoMudou()">'
+   +'<option value="A1">A1 &mdash; arquivo (.pfx)</option>'
+   +'<option value="A3">A3 &mdash; token f&iacute;sico</option></select></label></div>'
+   +'<div id="cpCertA1">'
+   +'<label style="display:block;font-size:11px;color:var(--n500)">Arquivo .pfx'
+   +'<input type="file" id="cpCertArq" accept=".pfx,.p12" style="width:100%"></label>'
+   +'<label style="display:block;font-size:11px;color:var(--n500);margin-top:5px">Senha do certificado'
+   +'<input type="password" id="cpCertSenha" autocomplete="new-password" style="width:100%;box-sizing:border-box"></label>'
+   +'<div class="hint" style="margin-top:4px">A senha vai para o cofre local (arquivo 0600, fora do git) e n&atilde;o volta para a tela.</div></div>'
+   +'<div id="cpCertA3" class="hint" hidden>Certificado A3 n&atilde;o automatiza: exige o token f&iacute;sico presente a cada assinatura. Registrar aqui serve para a tela explicar por que este agregado nunca fica pronto.</div>'
+   +'<button class="btn" style="margin-top:7px" onclick="cpSalvarCert()">Salvar certificado</button>'
+   +'<div class="m-err" id="cpErr" style="margin-top:9px"></div>');
+}
+function cpFechar(){ fecharModal(); CP_ALVO=null; }
+function cpTipoMudou(){
+  const a3=document.getElementById('cpCertTipo').value==='A3';
+  document.getElementById('cpCertA1').hidden=a3;
+  document.getElementById('cpCertA3').hidden=!a3;
+}
+function cpErro(t){ const e=document.getElementById('cpErr'); if(!e) return; e.innerHTML=t?('<span style="color:var(--red)">'+esc(t)+'</span>'):''; }
+function cpOk(t){ const e=document.getElementById('cpErr'); if(!e) return; e.innerHTML='<span style="color:var(--green)">'+esc(t)+'</span>'; }
+async function cpSalvarProc(){
+  if(!CP_ALVO) return;
+  const V=id=>{const e=document.getElementById(id);return e?e.value.trim():'';};
+  if(!V('cpPrDe')||!V('cpPrAte')||!V('cpPrEsc')){ cpErro('Preencha escopo e as duas datas.'); return; }
+  try{
+    const r=await fetch('/api/fiscal/contrapartida/procuracao',{method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({cnpj:CP_ALVO, escopo:V('cpPrEsc'),
+        valida_de:V('cpPrDe'), valida_ate:V('cpPrAte')})});
+    const d=await r.json();
+    if(!r.ok){ cpErro(d.mensagem||'Erro ao gravar.'); return; }
+    cpOk('Procuração registrada.'); loadCtecp(true);
+  }catch(e){ cpErro('Falha de rede: '+e.message); }
+}
+async function cpSalvarCert(){
+  if(!CP_ALVO) return;
+  const tipo=document.getElementById('cpCertTipo').value;
+  const corpo={cnpj:CP_ALVO, tipo:tipo};
+  if(tipo==='A1'){
+    const f=document.getElementById('cpCertArq').files[0];
+    const senha=document.getElementById('cpCertSenha').value;
+    if(!f||!senha){ cpErro('Escolha o arquivo .pfx e informe a senha.'); return; }
+    const buf=await f.arrayBuffer();
+    let bin=''; const b=new Uint8Array(buf);
+    for(let i=0;i<b.length;i++) bin+=String.fromCharCode(b[i]);
+    corpo.arquivo_b64=btoa(bin); corpo.senha=senha;
+  }
+  try{
+    const r=await fetch('/api/fiscal/contrapartida/certificado',{method:'POST',
+      headers:{'Content-Type':'application/json'}, body:JSON.stringify(corpo)});
+    const d=await r.json();
+    if(!r.ok){ cpErro(d.mensagem||'Erro ao gravar.'); return; }
+    /* NAO limpa o formulario no erro (refazer custa reabrir arquivo), mas
+       limpa a senha no sucesso: ela nao tem por que continuar na memoria da
+       pagina depois de gravada no cofre */
+    const sn=document.getElementById('cpCertSenha'); if(sn) sn.value='';
+    const av=(d.avisos||[]);
+    cpOk('Certificado gravado'+(d.titular?(' — '+d.titular):'')
+         +(d.valida_ate?(', válido até '+fmtD(d.valida_ate)):'')
+         +(av.length?(' · '+av.join(' · ')):''));
+    loadCtecp(true);
+  }catch(e){ cpErro('Falha de rede: '+e.message); }
+}
+
+
 /* Abaixo de R$ 1 mostra CENTAVOS. Ha agregados com 4 CT-e somando R$ 0,04 -
    arredondar para "R$ 0" faria parecer erro de sistema, quando o dado esta
    certo e o que e estranho e o documento. Mesma regra do resto do painel:
@@ -9318,9 +9408,13 @@ function renderCtecp(d){
                      : (falta.length? statChip('bad','falta '+falta.join(', '),'campo obrigatório ausente vira rejeição documento a documento')
                                     : statChip('good','completo','razão social, IE, RNTRC e município presentes')))+'</td>'
           +'<td>'+(tac?'<span style="color:var(--n500)">—</span>'
-                     : ((x.prontidao||{}).pronto
-                        ? statChip('good','pronto', ((x.prontidao||{}).alertas||[]).join(' · ')||'procuração vigente, certificado A1 válido e senha no cofre')
-                        : statChip('bad','não autorizado', ((x.prontidao||{}).faltas||[]).join(' · '))))+'</td>'
+                     : '<button class="ghost" style="padding:2px 7px;font-size:11px"'
+                       +' onclick="cpAbrir(\''+esc(x.documento)+'\')"'
+                       +' title="Cadastrar procuração e certificado">'
+                       +((x.prontidao||{}).pronto
+                          ? statChip('good','pronto', ((x.prontidao||{}).alertas||[]).join(' · ')||'procuração vigente, certificado A1 válido e senha no cofre')
+                          : statChip('bad','não autorizado', ((x.prontidao||{}).faltas||[]).join(' · ')))
+                       +'</button>')+'</td>'
           +'<td class="r mono">'+(x.ctes||0).toLocaleString('pt-BR')+'</td>'
           +'<td class="r mono">'+(x.placas||0)+'</td>'
           +'<td class="r mono">'+cpBRL(x.valor)+'</td></tr>';

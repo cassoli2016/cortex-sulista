@@ -4,6 +4,17 @@ Gerado de `docs/versoes.yaml` por `scripts/gerar_changelog.py` — não editar �
 Formato [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/),
 versionamento [SemVer](https://semver.org/lang/pt-BR/).
 
+## [0.61.0] — 26/08/2026  ·  CX-26/08/2026-v0.61.0
+
+### Adicionado
+- Formulario de autorizacao na tela de CT-e de Contrapartida: clicando no selo de "nao autorizado" de qualquer agregado abre o cadastro da procuracao (escopo e validade) e do certificado digital. A acao fica onde o problema aparece, em vez de num formulario solto que exigiria copiar o CNPJ.
+- O arquivo .pfx e ABERTO com a senha no momento do cadastro, e titular, CNPJ e validade saem do proprio certificado - dado que nao precisa ser digitado e por isso nao pode ser digitado errado. Senha incorreta vira erro na hora, e nao rejeicao documento a documento na transmissao (com 3 mil CT-e por mes, esse erro some no meio de um lote).
+- Conferencia de titularidade: se o CNPJ dentro do certificado for diferente do cadastro do agregado, a tela AVISA. Nao bloqueia, porque ha matriz assinando por filial e ha certificado cujo titular nao carrega o numero - mas certificado trocado assina o documento errado, e isso nao aparece em conferencia nenhuma depois.
+
+### Alterado
+- O .pfx e a senha viajam no CORPO do POST, nunca em endereco ou cabecalho: os dois aparecem em log de servidor e de proxy, e senha de certificado em log e vazamento permanente. O arquivo e gravado com permissao restrita e a senha vai para o cofre, de onde nao volta - nem mascarada para a tela.
+- A trilha de auditoria passou a registrar o e-mail de quem cadastrou. Ela gravava um ponto de interrogacao, o que nao serve para nada meses depois - que e exatamente quando ela e consultada.
+
 ## [0.60.0] — 26/08/2026  ·  CX-26/08/2026-v0.60.0
 
 ### Adicionado
