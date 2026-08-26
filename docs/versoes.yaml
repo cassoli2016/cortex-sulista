@@ -3,6 +3,27 @@
 #   - a tela Documentação     (#doc)
 #   - o rótulo no rodapé      (CX-DD/MM/AAAA-vX.Y.Z)
 # A versão do TOPO é a corrente e tem de bater com o pyproject.toml.
+- versao: "0.63.0"
+  data: "2026-08-26"
+  adicionado:
+    - >-
+      scripts/testar_assinatura.py prova que o certificado de um agregado SERVE
+      PARA ASSINAR, sem emitir nem transmitir nada. Abrir o arquivo com a senha
+      so prova que a senha esta certa; assinar e outra coisa, e a diferenca so
+      apareceria na transmissao, documento a documento.
+    - >-
+      O teste confere quatro coisas que passam despercebidas no cadastro: se a
+      chave privada esta mesmo no arquivo (um .pfx pode trazer so a parte
+      publica), se a extensao de uso permite assinatura digital (sem ela a
+      SEFAZ recusa), se a cadeia ate a ICP-Brasil veio junto, e se uma
+      adulteracao do conteudo invalida a assinatura - sem essa ultima, uma
+      verificacao que aceita qualquer coisa passaria por sucesso.
+    - >-
+      Validado com o certificado real da FABRETINA: RSA 2048, emitido por AC
+      SyngularID sob ICP-Brasil, valido ate 05/02/2027, com tres certificados
+      intermediarios e uso para assinatura habilitado. Assinou, conferiu contra
+      a propria chave publica e recusou o conteudo alterado.
+
 - versao: "0.62.1"
   data: "2026-08-26"
   corrigido:

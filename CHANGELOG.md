@@ -4,6 +4,13 @@ Gerado de `docs/versoes.yaml` por `scripts/gerar_changelog.py` — não editar �
 Formato [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/),
 versionamento [SemVer](https://semver.org/lang/pt-BR/).
 
+## [0.63.0] — 26/08/2026  ·  CX-26/08/2026-v0.63.0
+
+### Adicionado
+- scripts/testar_assinatura.py prova que o certificado de um agregado SERVE PARA ASSINAR, sem emitir nem transmitir nada. Abrir o arquivo com a senha so prova que a senha esta certa; assinar e outra coisa, e a diferenca so apareceria na transmissao, documento a documento.
+- O teste confere quatro coisas que passam despercebidas no cadastro: se a chave privada esta mesmo no arquivo (um .pfx pode trazer so a parte publica), se a extensao de uso permite assinatura digital (sem ela a SEFAZ recusa), se a cadeia ate a ICP-Brasil veio junto, e se uma adulteracao do conteudo invalida a assinatura - sem essa ultima, uma verificacao que aceita qualquer coisa passaria por sucesso.
+- Validado com o certificado real da FABRETINA: RSA 2048, emitido por AC SyngularID sob ICP-Brasil, valido ate 05/02/2027, com tres certificados intermediarios e uso para assinatura habilitado. Assinou, conferiu contra a propria chave publica e recusou o conteudo alterado.
+
 ## [0.62.1] — 26/08/2026  ·  CX-26/08/2026-v0.62.1
 
 ### Corrigido
