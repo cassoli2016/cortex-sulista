@@ -133,3 +133,56 @@ def test_a_premissa_do_frete_mostra_a_conversao_em_percentual_legivel():
                             conv=0.955)
     texto = " ".join(r["premissas"])
     assert "95,5%" in texto and "9550" not in texto
+
+
+# --- sazonal: media, mas sem o mes que nao pertence a serie -----------------
+# MEDIDO: a conta OUTRAS RECEITAS - RECEITAS OPERACIONAIS teve R$ 1,46 mi em
+# maio/26 contra 0 a R$ 5,9 mil nos outros cinco meses. A media espalhava
+# R$ 245 mil de receita ficticia por TODO mes projetado, e era isso que fazia a
+# linha DESPESAS aparecer R$ 211 mil menor do que a operacao comporta.
+
+def test_sazonal_descarta_o_mes_nao_recorrente():
+    from api.previsao.motor import prever_sazonal
+    vals = [0.0, 2_403.0, 5_903.0, 1_459_692.0, 2_282.0, 0.0]
+    r = prever_sazonal(vals, [1.0] * 6, 1.0,
+                       ["2026-02", "2026-03", "2026-04", "2026-05",
+                        "2026-06", "2026-07"])
+    # media dos CINCO que restam, nao dos seis
+    assert abs(r["previsto"] - (10_588.0 / 5)) < 1e-6
+
+
+def test_sazonal_nomeia_o_mes_descartado():
+    """Tirar R$ 1,46 mi em silencio troca um erro visivel por um invisivel."""
+    from api.previsao.motor import prever_sazonal
+    vals = [0.0, 2_403.0, 5_903.0, 1_459_692.0, 2_282.0, 0.0]
+    r = prever_sazonal(vals, [1.0] * 6, 1.0,
+                       ["2026-02", "2026-03", "2026-04", "2026-05",
+                        "2026-06", "2026-07"])
+    texto = " ".join(r["premissas"])
+    assert "2026-05" in texto and "nao recorrente" in texto
+
+
+def test_sazonal_MANTEM_custo_em_rajada():
+    """Indenizacao trabalhista sai em dois meses do semestre e zero nos outros
+    quatro: e real e a mediana a subestimaria. O maior salto legitimo medido na
+    base foi 5,4x, bem abaixo do corte."""
+    from api.previsao.motor import prever_sazonal
+    vals = [-23_311.0, -19_545.0, -124_548.0, -22_705.0, -80_432.0, -14_910.0]
+    r = prever_sazonal(vals, [1.0] * 6, 1.0)
+    assert abs(r["previsto"] - (sum(vals) / 6)) < 1e-6
+    assert not any("nao recorrente" in p for p in r["premissas"])
+
+
+def test_sazonal_serie_toda_atipica_nao_fica_sem_base():
+    """Se TODOS os pontos passassem do corte nao haveria contra o que comparar;
+    o certo e usar a serie inteira, nao devolver zero."""
+    from api.previsao.motor import prever_sazonal
+    r = prever_sazonal([0.0, 0.0, 100.0], [1.0] * 3, 1.0)
+    assert r["previsto"] > 0
+
+
+def test_sazonal_sem_rotulo_de_mes_continua_funcionando():
+    """Chamadas antigas (e o backtest) nao passam meses6."""
+    from api.previsao.motor import prever_sazonal
+    r = prever_sazonal([10.0, 12.0, 11.0], [1.0] * 3, 1.0)
+    assert abs(r["previsto"] - 11.0) < 1e-6

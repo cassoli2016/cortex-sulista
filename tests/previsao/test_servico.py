@@ -80,11 +80,57 @@ def test_ajuste_manual_aplicado_e_marcado():
     assert linhas["CUSTO FIXO"]["ajuste"]["motivo"] == "rescisao"
 
 
-def test_aviso_divergencia_combustivel():
+def _ctx_com_diesel(custo_cartao: float):
+    """ctx minimo + as pernas do combustivel.
+
+    hist do agrupador -300/mes (LIQUIDO), recuperacao +200/mes -> diesel bruto
+    -500/mes. Cartao historico 150 = 30% do bruto. No mes: razao -100 e
+    recuperacao 60 -> bruto -160, entao a participacao observada e
+    custo_cartao/160.
+    """
     ctx = _ctx_minimo()
-    ctx["ctaplus"] = {"custo": 200.0, "abastecimentos": 10}  # razao MTD = -100
-    r = montar_resposta(ctx)
-    assert any("combust" in a.lower() for a in r["avisos"])
+    meses6 = ctx["meses_hist"]
+    ctx["diesel_agr"] = {
+        "hist": {m: 200.0 for m in meses6},
+        "km": {m: 1000.0 for m in meses6},
+        "cta_hist": {m: 150.0 for m in meses6},
+        "mtd": 60.0, "km_mtd": 500.0, "frac_mes": 0.5,
+    }
+    ctx["ctaplus"] = {"custo": custo_cartao, "abastecimentos": 10}
+    return ctx
+
+
+def test_cartao_na_participacao_de_sempre_NAO_avisa():
+    """O aviso antigo comparava VALOR do cartao contra o LIQUIDO do agrupador e
+    disparava todo mes - medido, o cartao valeu de 44% a 235% do liquido nos 6
+    meses fechados. 30% do bruto e exatamente a mediana historica: silencio."""
+    r = montar_resposta(_ctx_com_diesel(48.0))   # 48/160 = 30%
+    assert not any("combust" in a.lower() for a in r["avisos"])
+
+
+def test_cartao_fora_da_participacao_avisa_e_diz_os_dois_numeros():
+    r = montar_resposta(_ctx_com_diesel(95.0))   # 95/160 = 59% contra 30%
+    aviso = [a for a in r["avisos"] if "combust" in a.lower()]
+    assert aviso, "participacao 29 pontos fora da mediana tem de avisar"
+    assert "59%" in aviso[0] and "30%" in aviso[0]
+    # "diverge" e a chave do classificador do digest (api/alertas)
+    assert "diverge" in aviso[0].lower()
+
+
+def test_combustivel_projeta_as_duas_pernas_separadas():
+    """Bruto por NIVEL (mediana de 3 meses = -500) e recuperacao por KM
+    (500/0,5 = 1000 km x R$ 0,20/km = 200). Liquido previsto = -300.
+
+    Pelo caminho antigo o liquido -100 seria dividido pela completude do dia 10
+    (10/30 = 33%) e viraria -300 por coincidencia de fixture; o que este teste
+    fixa e a ESTRATEGIA e as premissas, que dizem qual perna e qual."""
+    r = montar_resposta(_ctx_com_diesel(48.0))
+    linhas = {ln["linha"]: ln for ln in r["linhas"]}
+    cv = linhas["CUSTO VARIAVEL"]
+    assert cv["estrategia"] == "combustivel_2pernas"
+    texto = " ".join(cv["premissas"]).lower()
+    assert "diesel bruto" in texto and "recuperacao do agregado" in texto
+    assert abs(cv["previsto"] - (-300.0)) < 1e-6
 
 
 def test_modo_fechando_consolida_e_estima():

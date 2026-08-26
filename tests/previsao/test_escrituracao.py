@@ -54,12 +54,22 @@ def test_a_escrituracao_e_quebrada_POR_BLOCO(fonte):
 
 
 def test_avisa_quando_o_custo_esta_atras_da_receita(fonte):
-    """Vinte pontos de distancia ja bastam para o resultado virar de sinal
-    quando o razao alcancar."""
+    """O aviso e sobre a coluna REALIZADO, nao sobre a PREVISTO.
+
+    Ele dizia "o resultado previsto tende a PIORAR quando o razao alcancar",
+    o que deixou de ser verdade: custo fixo sai de nivel (mediana de meses
+    fechados) e o bloco de frete sai das viagens do mes - nenhum dos dois se
+    move quando a escrituracao avanca. Quem se move e o realizado, e e ele que
+    engana (julho mostrava +R$ 1,7 mi no dia 4 e fechou em -R$ 945 mil).
+    """
     assert "_cr - _cf > 0.20" in fonte
     i = fonte.index("_cr - _cf > 0.20")
-    aviso = fonte[i:i + 700]
-    assert "PIORAR" in aviso, "o aviso tem de dizer para que lado o numero anda"
+    aviso = fonte[i:i + 900]
+    assert "REALIZADO" in aviso, "o aviso tem de dizer QUAL coluna esta otimista"
+    assert "otimista" in aviso
+    assert "PIORAR" not in aviso, (
+        "a previsao nao piora com a escrituracao: custo fixo sai de nivel e "
+        "o frete sai das viagens")
 
 
 def test_o_semaforo_olha_a_DISTANCIA_e_nao_o_total(html):

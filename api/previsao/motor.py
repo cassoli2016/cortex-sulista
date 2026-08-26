@@ -129,14 +129,68 @@ def prever_frete_compra(razao_mtd: float, vfc_mtd: float, receita_prev: float,
         f"{_brl(receita_rest)} (razao custo/receita 6m)"])
 
 
+def prever_diesel_agregado(km_prev: float, rs_por_km: float,
+                           razao_mtd: float) -> dict:
+    """Recuperacao do diesel repassado ao agregado, projetada pelo KM.
+
+    E o que o usuario apontou: o que se desconta do agregado e o diesel que ele
+    consumiu, e isso escala com quilometro rodado — nao com receita nem com o
+    calendario. Medido: R$ 1,31/km, desvio R$ 0,18 nos seis meses fechados.
+
+    O piso e o que JA esta lancado: se o razao ja reconheceu mais recuperacao do
+    que o km sugere, quem manda e o razao — o lancamento e fato, a razao por km
+    e estimativa.
+    """
+    estimado = km_prev * rs_por_km
+    previsto = max(estimado, razao_mtd) if razao_mtd > 0 else estimado
+    return _res(previsto, "diesel_km", [
+        f"recuperacao do diesel do agregado: {_num(km_prev, 0)} km previstos x "
+        f"{_brl(rs_por_km)}/km (mediana de 6 meses)",
+        f"piso: {_brl(razao_mtd)} ja lancados no razao"])
+
+
+# Um mes cujo valor supera este multiplo da mediana dos seis nao e' o mesmo
+# fenomeno que os outros cinco - e' evento nao recorrente. MEDIDO: em maio/26 a
+# conta OUTRAS RECEITAS - RECEITAS OPERACIONAIS teve R$ 1,46 mi contra 0 a
+# R$ 5,9 mil nos outros cinco meses (250x a mediana), e a MEDIA espalhava
+# R$ 245 mil de receita ficticia por todo mes projetado. O maior salto
+# LEGITIMO observado na base foi 5,4x (indenizacoes trabalhistas em abril),
+# entao 8x separa os dois casos com folga dos dois lados.
+SALTO_NAO_RECORRENTE = 8.0
+
+
 def prever_sazonal(vals6: list[float], indices6: list[float],
-                   indice_alvo: float) -> dict:
+                   indice_alvo: float, meses6: list[str] | None = None) -> dict:
+    """Nivel dessazonalizado x indice do mes, SEM o mes nao recorrente.
+
+    Continua na MEDIA, e nao na mediana, de proposito: custo em rajada
+    (indenizacao trabalhista sai em dois meses do semestre e zero nos outros
+    quatro) e real, e a mediana o subestimaria sistematicamente. O que sai e'
+    so' o ponto que nao pertence a mesma populacao - ver SALTO_NAO_RECORRENTE.
+
+    O mes descartado vai NOMEADO nas premissas: excluir R$ 1,46 mi em silencio
+    seria trocar um erro visivel por um invisivel.
+    """
     if not vals6:
         return _res(0.0, "sazonal", ["sem historico"])
-    dessaz = [v / i for v, i in zip(vals6, indices6) if i]
-    nivel = sum(dessaz) / len(dessaz) if dessaz else 0.0
+    pares = [(v / i, m) for v, i, m in
+             zip(vals6, indices6, meses6 or [""] * len(vals6)) if i]
+    dessaz = [d for d, _ in pares]
+    med = mediana([abs(d) for d in dessaz])
+    fora = [(d, m) for d, m in pares
+            if med > 0 and abs(d) > SALTO_NAO_RECORRENTE * med]
+    usados = [d for d, m in pares if (d, m) not in fora]
+    prem = []
+    if fora and usados:
+        for d, m in fora:
+            prem.append(f"mes nao recorrente FORA do nivel: {m or 'sem rotulo'} "
+                        f"({_brl(d)}, {abs(d) / med:.0f}x a mediana dos 6)")
+    else:                       # todos fora = nao ha' base para comparar
+        usados = dessaz
+    nivel = sum(usados) / len(usados) if usados else 0.0
     return _res(nivel * indice_alvo, "sazonal", [
-        f"nivel 6m dessazonalizado {_brl(nivel)} x indice do mes {_num(indice_alvo, 2)}"])
+        f"nivel {len(usados)}m dessazonalizado {_brl(nivel)} x indice do mes "
+        f"{_num(indice_alvo, 2)}"] + prem)
 
 
 CONSOLIDADO_EM = 0.97  # completude esperada a partir da qual o razao e a verdade

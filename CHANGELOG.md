@@ -4,6 +4,18 @@ Gerado de `docs/versoes.yaml` por `scripts/gerar_changelog.py` — não editar �
 Formato [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/),
 versionamento [SemVer](https://semver.org/lang/pt-BR/).
 
+## [0.54.0] — 25/08/2026  ·  CX-25/08/2026-v0.54.0
+
+### Alterado
+- Fechamento do Mes: o combustivel deixou de ser projetado como um numero so. O agrupador CV - COMBUSTIVEL e um LIQUIDO (diesel da frota MENOS o diesel repassado ao agregado, que volta no acerto), e as duas pernas se comportam de forma completamente diferente. Medido nos seis meses fechados: o diesel bruto varia 9% em torno do nivel (R$ 1,53 mi a R$ 1,93 mi) e a recuperacao sai a R$ 1,31 por km rodado de agregado (desvio de R$ 0,18) - mas o LIQUIDO, que e a diferenca dos dois, foi de R$ 249 mil a R$ 835 mil, 3,4x de amplitude. Projetar o liquido era projetar o ruido. Agora o diesel bruto vai pelo nivel historico (com piso no que o razao ja lancou) e a recuperacao vai pelo km do agregado.
+- Ainda no combustivel: o liquido era dividido pela curva de completude, que e montada sobre o MOVIMENTO das duas pernas e no dia 24 do mes vale de 19% a 77% conforme o mes. Em agosto isso projetava R$ 2,50 mi de diesel bruto - 30% acima do pior mes ja registrado, num mes de km normal.
+- O aviso "Combustivel diverge" comparava os abastecimentos no cartao contra o LIQUIDO do agrupador e disparava praticamente todo mes: o cartao e uma PARTE do diesel proprio, e contra o liquido ele valeu de 44% a 235% nos seis meses fechados. Agora compara a PARTICIPACAO do cartao no diesel BRUTO (42% em fevereiro, 28% nos tres ultimos meses) contra a mediana dos meses fechados, e so avisa quando ela sai da faixa.
+- O aviso de escrituracao dizia que "o resultado previsto tende a PIORAR quando o razao alcancar". Nao e o previsto que se move: o custo fixo sai do nivel historico e o bloco de frete sai das viagens do mes. Quem se move e o REALIZADO, e e ele que engana - em julho a coluna mostrava +R$ 1,7 mi no dia 4 e o mes fechou em -R$ 945 mil. O texto passou a dizer isso.
+
+### Corrigido
+- Um evento de R$ 1,46 mi lancado em OUTRAS RECEITAS em maio virava receita de TODO mes projetado. A estrategia sazonal tirava a media dos seis meses e esse unico lancamento - 250 vezes a mediana dos outros cinco - punha R$ 245 mil de receita que nao existe em cada mes, fazendo a linha DESPESAS aparecer R$ 211 mil menor do que a operacao comporta. O mes fora da serie agora fica de fora do nivel e sai NOMEADO na premissa do card. Custo em rajada continua contando inteiro (indenizacao trabalhista sai em dois meses do semestre e e real): o corte separa os dois casos com folga.
+- Efeito no numero: a previsao de agosto saiu de -R$ 1,13 mi de resultado operacional para -R$ 240 mil. Conferindo contra um modelo independente (a mesma receita com a estrutura de custo mediana da empresa), que aponta -R$ 330 mil, os dois metodos agora ficam R$ 90 mil um do outro - antes eram R$ 806 mil.
+
 ## [0.53.1] — 25/08/2026  ·  CX-25/08/2026-v0.53.1
 
 ### Corrigido

@@ -108,6 +108,9 @@ SELECT dia, sum(realizado)::float8 AS realizado, sum(meta)::float8 AS meta FROM 
 # participacao historica das duas linhas no razao (premissa declarada no motor).
 VFC_MTD_SQL = """
 SELECT count(*)::int AS viagens,
+       coalesce(sum(CASE WHEN tipofrota IN (2,3)
+                         THEN coalesce(kmfretecompra,0) ELSE 0 END),0)::float8
+         AS km_agregado,
        coalesce(sum(coalesce(valorfrete,0)),0)::float8 AS receita_viagens,
        coalesce(sum(coalesce(valorfretecompra,0)),0)::float8 AS frete_compra
 FROM programacaoembarque
@@ -139,4 +142,51 @@ SELECT count(*)::int AS titulos,
 FROM contaapagar
 WHERE valorpendente > 0
   AND dtvencimento >= %(de)s::date AND dtvencimento < %(ate)s::date
+"""
+
+
+# DIESEL DO AGREGADO, isolado do resto do combustivel.
+#
+# O agrupador CV - COMBUSTIVEL e um LIQUIDO: diesel bruto da frota menos as
+# recuperacoes. Projetar o liquido por uma unica completude amplifica o erro,
+# porque as duas pernas maturam em ritmos diferentes. Esta consulta separa a
+# perna da recuperacao para ela ser projetada pelo KM, que e o que a governa.
+DIESEL_AGREGADO_SQL = """
+SELECT to_char(l.dtlancamento,'YYYY-MM') AS mes,
+       sum(coalesce(l.valorcredito,0)-coalesce(l.valordebito,0))::float8 AS valor
+FROM lancamento l
+JOIN planoconta p ON p.reduzido = l.reduzido AND p.grupo = l.grupo
+  AND p.ativoinativo = 1
+WHERE l.dtlancamento >= %(de)s::date AND l.dtlancamento < %(ate)s::date
+  AND coalesce(l.historico, 0) <> 18
+  AND upper(p.descricao) LIKE %(padrao)s
+GROUP BY 1
+"""
+
+# KM de agregado/terceiro por mes, para a razao R$/km da recuperacao.
+KM_AGREGADO_MES_SQL = """
+SELECT to_char(dtsaida,'YYYY-MM') AS mes,
+       coalesce(sum(coalesce(kmfretecompra,0)),0)::float8 AS km
+FROM programacaoembarque
+WHERE dtcancelamento IS NULL AND semaforo = 1
+  AND tipofrota IN (2,3)
+  AND dtsaida >= %(de)s::date AND dtsaida < %(ate)s::date
+GROUP BY 1
+"""
+
+
+# Abastecimentos proprios POR MES, para medir a participacao do cartao no
+# diesel bruto do razao. O aviso antigo comparava o cartao contra o LIQUIDO do
+# agrupador e disparava todo mes: o cartao cobre so parte do diesel proprio
+# (28% do bruto nos ultimos 3 meses, 42% em fevereiro) e nunca vai bater.
+CTAPLUS_MES_SQL = """
+SELECT to_char(c.data_inicio_abastecimento,'YYYY-MM') AS mes,
+       coalesce(sum(coalesce(c.custo,0)),0)::float8 AS custo
+FROM sulista.ctaplus_abastecimentos c
+LEFT JOIN veiculo v ON v.placa = c.veiculo_placa
+WHERE c.data_inicio_abastecimento >= %(de)s::date
+  AND c.data_inicio_abastecimento < %(ate)s::date
+  AND v.placa IS NOT NULL
+  AND coalesce(v.utilizacaoveiculo, '') NOT IN ('AGR', 'TER')
+GROUP BY 1
 """

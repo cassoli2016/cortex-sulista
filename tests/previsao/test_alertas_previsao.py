@@ -32,7 +32,8 @@ def test_acima_do_orcado_sem_alerta_de_resultado():
 
 def test_aviso_de_divergencia_vira_info():
     itens = _alertas_previsao(_payload(120000.0, 100000.0,
-                                       ["Combustivel diverge: razao x abastecimentos"]))
+                                       ["Combustivel diverge do cartao: os abastecimentos sao 45% "
+                                        "do diesel bruto do razao"]))
     assert itens[0][0] == "info" and "combust" in itens[0][2].lower()
 
 

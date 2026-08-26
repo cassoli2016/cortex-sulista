@@ -7,6 +7,7 @@ pura e recebe o contexto pronto: é ela que o backtest reexecuta "as-of".
 """
 from __future__ import annotations
 
+import calendar
 import json
 import logging
 from concurrent.futures import ThreadPoolExecutor
@@ -23,7 +24,9 @@ from api.previsao import armazenamento as arm
 from api.previsao import motor
 from api.previsao.completude import completude_em, dispersao_em, montar_curva
 from api.previsao.sql import (ATING_HIST_SQL, CAP_MES_SQL, COMPLETUDE_SQL,
-                              CTAPLUS_MTD_SQL, VFC_MTD_SQL, meses_fechados_prev)
+                              CTAPLUS_MES_SQL, CTAPLUS_MTD_SQL,
+                              DIESEL_AGREGADO_SQL, KM_AGREGADO_MES_SQL,
+                              VFC_MTD_SQL, meses_fechados_prev)
 from api.previsao.motor import _brl
 from api.queries import (BREAKEVEN_SQL, DRE_AG_SQL, DRE_AJUSTADAS_SQL,
                          DRE_MODELO, VG_DIARIO_SQL, _comp_bounds,
@@ -39,7 +42,12 @@ _LINHAS_NIVEL_LINHA = {"RECEITA BRUTA", "IMPOSTOS FEDERAIS", "IMPOSTOS ESTADUAIS
                        "ANULACOES", "DESCONTOS"}
 _LINHAS_PCT = ("IMPOSTOS FEDERAIS", "IMPOSTOS ESTADUAIS", "IMPOSTOS MUNICIPAIS",
                "CONTRIBUICAO PREVIDENCIARIA")
-DIVERGENCIA_COMB = 0.10
+# O aviso do combustivel nao compara mais VALOR contra VALOR: o cartao e' uma
+# PARTE do diesel proprio, nunca o total, e contra o LIQUIDO do agrupador ele
+# valeu de 44% a 235% nos 6 meses fechados - divergencia garantida todo mes.
+# Contra o BRUTO ele e' uma parte estavel (42% em fevereiro caindo a 28% nos
+# tres ultimos meses), entao o que vale acompanhar e' a PARTICIPACAO mudar.
+PARTICIPACAO_CTA_MAX = 0.12
 
 
 def resolver_modo(mes: str, hoje: date) -> tuple[str, int]:
@@ -65,6 +73,11 @@ def resolver_modo(mes: str, hoje: date) -> tuple[str, int]:
 # rotulo exato da linha no DRE_MODELO — escrito uma vez para o cartao e o
 # historico nunca apontarem para linhas diferentes
 ROT_LOP1 = "RESULTADO OPERACIONAL (LOP 1)"
+
+
+# a conta da recuperacao no plano; padrao de LIKE, nao nome exato, porque o
+# ERP ja mudou a grafia de conta antes
+PADRAO_DIESEL_AGR = "%DIESEL AGREGADO%"
 
 
 def _hist_linha(hist_ag: dict, meses: list[str]) -> dict[str, dict[str, float]]:
@@ -208,6 +221,43 @@ def montar_resposta(ctx: dict) -> dict:
     def _fallback_nivel(ag: str) -> dict:
         return motor.prever_nivel(_ultimos(hist_ag.get(ag, {}), meses, 3), f"{ag} 3m")
 
+    def _prever_combustivel(ag: str, da: dict, v_mtd: float) -> dict:
+        """CV - COMBUSTIVEL em duas pernas, cada uma pela sua regua.
+
+        O agrupador e um LIQUIDO: diesel bruto da frota MENOS a recuperacao do
+        diesel repassado ao agregado. As duas pernas sao ESTAVEIS (o bruto
+        varia 9% em torno do nivel; a recuperacao sai a R$ 1,31/km com desvio
+        de R$ 0,18) e o liquido, que e a diferenca delas, tem 3,4x de amplitude
+        nos mesmos seis meses. Projetar o liquido e projetar o ruido.
+
+        E dividi-lo pela curva de completude e' pior ainda: a curva e montada
+        sobre sum(abs(...)) — o MOVIMENTO das duas pernas — e no dia 24 do mes
+        vale de 19% a 77% conforme o mes. Em agosto/26 isso projetava o bruto
+        em -R$ 2,50 mi, 30% acima do pior mes ja registrado.
+        """
+        rec_h = da.get("hist") or {}
+        net_h = hist_ag.get(ag, {})
+        bruto_h = {m: net_h[m] - rec_h.get(m, 0.0) for m in net_h}
+        r_b = motor.prever_nivel(_ultimos(bruto_h, meses, 3), f"{ag} bruto 3m")
+        bruto_mtd = v_mtd - da["mtd"]
+        prem = list(r_b["premissas"])
+        previsto_b = r_b["previsto"]
+        # piso no razao (mesma regra do _nivel_sem_curva): nunca prever MENOS
+        # custo, em modulo, do que ja esta escriturado.
+        if abs(bruto_mtd) > abs(previsto_b):
+            previsto_b = bruto_mtd
+            prem.append(f"{PREM_PISO_RAZAO} ({_brl(bruto_mtd)} de diesel bruto "
+                        f"contra nivel {_brl(r_b['previsto'])})")
+        r_r = motor.prever_diesel_agregado(da["km_prev"], da["rs_km"], da["mtd"])
+        return {"previsto": previsto_b + r_r["previsto"],
+                "estrategia": "combustivel_2pernas",
+                "premissas": [
+                    "agrupador LIQUIDO: diesel bruto menos a recuperacao do "
+                    "diesel do agregado - cada perna projetada pela sua regua",
+                    f"diesel bruto: {_brl(previsto_b)}"] + prem
+                + [f"recuperacao do agregado: {_brl(r_r['previsto'])}"]
+                + list(r_r["premissas"])}
+
     def _nivel_sem_curva(ag: str) -> dict:
         """Nivel historico com PISO no razao ja escriturado (mesma regra que
         motor.estimar_m1 aplica na rota `lote`): nunca prever MENOS, em
@@ -226,6 +276,10 @@ def montar_resposta(ctx: dict) -> dict:
                         f"{_brl(r['previsto'])})"]}
         return {**r, "premissas": r["premissas"] + [PREM_SEM_CURVA]}
 
+    # so' o modo corrente monta o contexto do combustivel; o aviso la embaixo
+    # tambem so' roda nesse modo, mas deixar declarado evita que uma mudanca de
+    # ordem futura vire NameError em producao.
+    diesel_agr = None
     if modo == "fechado":
         for rot, v in realizado_direta.items():
             previsto_direta[rot] = {"previsto": v, "estrategia": "fechado",
@@ -333,6 +387,7 @@ def montar_resposta(ctx: dict) -> dict:
                           "premissas": comb["premissas"]})
                 atual["previsto"] += parte
 
+        diesel_agr = _diesel_agregado_ctx(ctx, meses)
         for ag in sorted(set(razao_ag) | set(hist_ag)):
             estrat = motor.estrategia_do_agrupador(ag)
             rot = motor.linha_do_agrupador(ag)
@@ -346,13 +401,20 @@ def montar_resposta(ctx: dict) -> dict:
                     or {m: 1.0 for m in range(1, 13)}
                 vals6 = _ultimos(hist_ag.get(ag, {}), meses, 6)
                 i6 = [idx[int(m[5:7])] for m in meses[-6:]]
-                r = motor.prever_sazonal(vals6, i6, idx[int(ctx["mes"][5:7])])
+                # meses[-6:] vai junto para o mes descartado sair NOMEADO na
+                # premissa - ver motor.SALTO_NAO_RECORRENTE
+                r = motor.prever_sazonal(vals6, i6, idx[int(ctx["mes"][5:7])],
+                                         meses[-6:])
             elif not curva_ok:  # razao_completude sem curva: NAO divide
                 r = _nivel_sem_curva(ag)
             else:  # razao_completude
                 frac = completude_em(ctx["curva"], ag, rot, ctx["dia_rel"])
                 disp = dispersao_em(ctx["curva"], ag, rot, ctx["dia_rel"])
-                r = motor.prever_razao_completude(v_mtd, frac, _fallback_nivel(ag), disp)
+                if diesel_agr and motor.norm(ag).startswith("CV - COMBUSTIVEL"):
+                    r = _prever_combustivel(ag, diesel_agr, v_mtd)
+                else:
+                    r = motor.prever_razao_completude(
+                        v_mtd, frac, _fallback_nivel(ag), disp)
             alvo = rot or "NAO ALOCADO / CLASSIFICAR"
             atual = previsto_direta.setdefault(
                 alvo, {"previsto": 0.0, "estrategia": r["estrategia"],
@@ -451,26 +513,38 @@ def montar_resposta(ctx: dict) -> dict:
     })
 
     # avisos
-    if modo == "corrente" and ctx.get("ctaplus"):
-        comb_prev = None
-        for ag in razao_ag:
-            if motor.norm(ag).startswith("CV - COMBUSTIVEL"):
-                if not curva_ok:  # mesma rota do loop principal: nao divide
-                    comb_prev = _nivel_sem_curva(ag)["previsto"]
-                    continue
-                frac = completude_em(ctx["curva"], ag, "CUSTO VARIAVEL", ctx["dia_rel"])
-                disp = dispersao_em(ctx["curva"], ag, "CUSTO VARIAVEL", ctx["dia_rel"])
-                comb_prev = motor.prever_razao_completude(
-                    razao_ag[ag], frac, _fallback_nivel(ag), disp)["previsto"]
-        custo_ctaplus = -abs(ctx["ctaplus"].get("custo") or 0.0)
-        if comb_prev and custo_ctaplus and razao_ag:
-            razao_comb_mtd = sum(v for a, v in razao_ag.items()
-                                 if motor.norm(a).startswith("CV - COMBUSTIVEL"))
-            if razao_comb_mtd and abs(custo_ctaplus - razao_comb_mtd) \
-                    > DIVERGENCIA_COMB * abs(razao_comb_mtd):
+    # CARTAO x DIESEL BRUTO. O aviso antigo comparava o cartao contra o
+    # LIQUIDO do agrupador e disparava TODO MES: medido nos 6 meses fechados, o
+    # cartao vale de 44% a 235% do liquido — sao coisas diferentes. Contra o
+    # BRUTO ele e uma parte estavel do todo (42% em fevereiro caindo a 28% nos
+    # tres ultimos meses), e o que vale acompanhar e a PARTICIPACAO mudar.
+    if modo == "corrente" and ctx.get("ctaplus") and diesel_agr:
+        cta_mtd = abs(ctx["ctaplus"].get("custo") or 0.0)
+        comb_mtd = sum(v for a, v in razao_ag.items()
+                       if motor.norm(a).startswith("CV - COMBUSTIVEL"))
+        bruto_mtd = abs(comb_mtd - diesel_agr["mtd"])
+        cta_h = diesel_agr.get("cta_hist") or {}
+        rec_h = diesel_agr.get("hist") or {}
+        for a in hist_ag:
+            if not motor.norm(a).startswith("CV - COMBUSTIVEL"):
+                continue
+            partes = []
+            for m in meses[-3:]:
+                bru = abs(hist_ag[a].get(m, 0.0) - rec_h.get(m, 0.0))
+                if cta_h.get(m) and bru:
+                    partes.append(cta_h[m] / bru)
+            if not partes or not bruto_mtd or not cta_mtd:
+                continue
+            ref, obs = motor.mediana(partes), cta_mtd / bruto_mtd
+            if abs(obs - ref) > PARTICIPACAO_CTA_MAX:
+                # o "diverge" e chave do classificador do digest
+                # (api/alertas._alertas_previsao) - sem ele o aviso nunca
+                # chega ao celular do gestor.
                 avisos.append(
-                    f"Combustivel diverge: razao MTD {_brl(abs(razao_comb_mtd))} x "
-                    f"abastecimentos {_brl(abs(custo_ctaplus))} (>10%). Conferir fontes.")
+                    f"Combustivel diverge do cartao: os abastecimentos sao "
+                    f"{100*obs:.0f}% do diesel bruto do razao neste mes, "
+                    f"contra {100*ref:.0f}% de mediana nos 3 meses fechados. "
+                    "Conferir se mudou posto, cadastro de placa ou lancamento.")
     if ctx.get("meses_circulares") and int(ctx["mes"][5:7]) in ctx["meses_circulares"]:
         avisos.append("Mes dentro da base de derivacao do orcamento vigente - "
                       "o desvio contra o orcado mede so o fator (comparacao circular).")
@@ -506,17 +580,26 @@ def montar_resposta(ctx: dict) -> dict:
     _cr = consolidacao_blocos.get("receita")
     _cf = consolidacao_blocos.get("custo_fixo")
     _cv = consolidacao_blocos.get("custo_variavel")
+    # O aviso e sobre a coluna REALIZADO, nao sobre a PREVISTO. Ele dizia "o
+    # resultado previsto tende a PIORAR quando o razao alcancar", o que ficou
+    # errado: custo fixo sai de nivel (mediana de meses fechados) e o bloco de
+    # frete sai das viagens - nenhum dos dois se move quando a escrituracao
+    # avanca. Quem se move e o realizado, e e ele que engana: em julho o mes
+    # aparecia com +R$ 1,7 mi no dia 4 e fechou em -R$ 945 mil.
+    _pior = None
     if _cr and _cf and _cr - _cf > 0.20:
-        avisos.append(
-            f"Custo fixo escriturado em {_cf:.0%} contra {_cr:.0%} da receita: "
-            "o resultado previsto tende a PIORAR quando o razao alcancar. Em "
-            "julho o mes aparecia com +R$ 1,7 mi no dia 4 e fechou em "
-            "-R$ 945 mil pelo mesmo motivo.")
+        _pior = ("fixo", _cf)
     elif _cr and _cv and _cr - _cv > 0.20:
+        _pior = ("variavel", _cv)
+    if _pior:
         avisos.append(
-            f"Custo variavel escriturado em {_cv:.0%} contra {_cr:.0%} da "
-            "receita: o resultado previsto tende a piorar quando o razao "
-            "alcancar.")
+            f"Custo {_pior[0]} escriturado em {_pior[1]:.0%} contra "
+            f"{_cr:.0%} da receita: a coluna REALIZADO esta otimista - falta "
+            "custo a lancar. A previsao nao depende dessa defasagem (custo "
+            "fixo sai do nivel historico, o frete das viagens do mes), mas a "
+            "margem de erro dela e maior enquanto a diferenca for grande. Em "
+            "julho o realizado mostrava +R$ 1,7 mi no dia 4 e o mes fechou em "
+            "-R$ 945 mil.")
 
 
     kpis = {
@@ -546,6 +629,53 @@ def montar_resposta(ctx: dict) -> dict:
             "fontes": fontes,
             "fonte": ("ERP AVA (razao + documentos fiscais + viagens + ctaplus) "
                       "+ orcamento local · previsao, nao numero fechado")}
+
+
+def _diesel_agr_bruto(ops_out: list | None, hoje: date) -> dict:
+    """Le do grupo operacional as tres consultas do diesel do agregado.
+
+    Fica vazio quando o grupo caiu — e o mesmo tratamento que vfc/ctaplus/cap
+    ja recebem: o combustivel volta a ser projetado numa perna so, com o aviso
+    de fonte que a tela ja mostra.
+    """
+    if not ops_out or len(ops_out) < 7:
+        return {}
+    dias = calendar.monthrange(hoje.year, hoje.month)[1]
+    vfc = dict(ops_out[0][0]) if ops_out[0] else {}
+    return {"hist": {r["mes"]: float(r["valor"]) for r in (ops_out[3] or [])},
+            "mtd": float(ops_out[4][0]["valor"]) if ops_out[4] else 0.0,
+            "km": {r["mes"]: float(r["km"]) for r in (ops_out[5] or [])},
+            "km_mtd": float(vfc.get("km_agregado") or 0.0),
+            "cta_hist": {r["mes"]: float(r["custo"]) for r in (ops_out[6] or [])},
+            # fracao do mes JA decorrida, em dias corridos: o km de agregado nao
+            # tem sazonalidade intramensal forte o bastante para justificar curva
+            # propria, e a media movel de 6 meses do R$/km ja absorve o resto.
+            "frac_mes": min(1.0, hoje.day / dias)}
+
+
+def _diesel_agregado_ctx(ctx: dict, meses: list[str]) -> dict | None:
+    """Dados para projetar a recuperacao do diesel do agregado.
+
+    Devolve None quando falta qualquer perna — sem km ou sem historico nao ha
+    R$/km, e chutar um valor aqui seria pior que manter o comportamento
+    anterior: erraria calado num numero que ninguem confere.
+    """
+    da = ctx.get("diesel_agr") or {}
+    hist = da.get("hist") or {}
+    km_hist = da.get("km") or {}
+    fechados = [m for m in meses if m in hist and km_hist.get(m)]
+    if len(fechados) < 3:
+        return None
+    rs = motor.mediana([hist[m] / km_hist[m] for m in fechados[-6:]])
+    km_mtd = float(da.get("km_mtd") or 0.0)
+    if not rs or km_mtd <= 0:
+        return None
+    frac_dia = da.get("frac_mes") or 1.0
+    return {"mtd": float(da.get("mtd") or 0.0),
+            "hist": hist,
+            "cta_hist": da.get("cta_hist") or {},
+            "rs_km": rs,
+            "km_prev": km_mtd / frac_dia if frac_dia else km_mtd}
 
 
 def _kpi_lop1(linhas: list[dict], hist: list[float]) -> dict:
@@ -662,6 +792,14 @@ def get_previsao(mes: str | None = None, hoje: date | None = None) -> dict:
             (VFC_MTD_SQL, {"de": de_mes, "ate": ate_mes}),
             (CTAPLUS_MTD_SQL, {"de": de_mes, "ate": ate_mes}),
             (CAP_MES_SQL, {"de": de_mes, "ate": ate_mes}),
+            # as duas pernas do combustivel: recuperacao do diesel do agregado
+            # (razao, 24m + mes) e o km que a governa
+            (DIESEL_AGREGADO_SQL, {"de": de24, "ate": ate24,
+                                   "padrao": PADRAO_DIESEL_AGR}),
+            (DIESEL_AGREGADO_SQL, {"de": de_mes, "ate": ate_mes,
+                                   "padrao": PADRAO_DIESEL_AGR}),
+            (KM_AGREGADO_MES_SQL, {"de": de24, "ate": ate24}),
+            (CTAPLUS_MES_SQL, {"de": de24, "ate": ate24}),
         ])
         # Degradacao POR FONTE (spec 11): um driver externo fora nao derruba a
         # tela inteira. Excecao deliberada: o RAZAO e' ESSENCIAL - sem ele nao
@@ -826,6 +964,7 @@ def get_previsao(mes: str | None = None, hoje: date | None = None) -> dict:
                   else {"frete_compra": 0.0, "receita_viagens": 0.0, "viagens": 0},
            "ctaplus": dict(ops_out[1][0]) if (ops_out and ops_out[1]) else None,
            "cap": dict(ops_out[2][0]) if (ops_out and ops_out[2]) else None,
+           "diesel_agr": _diesel_agr_bruto(ops_out, hoje),
            "breakeven": breakeven, "orcado_linha": orcado_linha,
            "avisos_previos": avisos_previos,
            "meses_circulares": circulares, "calibracao": calib,
