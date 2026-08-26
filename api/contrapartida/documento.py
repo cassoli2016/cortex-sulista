@@ -126,6 +126,27 @@ class Enquadramento:
         if self.grupo_icms in ("ICMS00", "ICMS90") and self.p_icms is None:
             raise ValueError(f"{self.grupo_icms} exige alíquota (p_icms).")
 
+        # As duas combinações que a SEFAZ recusa, medidas em homologação em
+        # 26/08/2026. Não são preferência de projeto: são regra de validação
+        # do órgão, e sem esta guarda cada uma custa uma transmissão e um
+        # número de série queimado para ser redescoberta.
+        if self.tp_serv == "0" and self.toma == "4":
+            raise ValueError(
+                "Prestação NORMAL não aceita tomador 'outros' (rejeição 746 — "
+                "'Tipo de Serviço inválido para o tomador informado'). Em "
+                "prestação normal o tomador tem de ser uma das partes da "
+                "carga (remetente, expedidor, recebedor ou destinatário), ou "
+                "seja: o documento seria emitido contra o CLIENTE, não contra "
+                "a Sulista. Tomador 'outros' exige subcontratação ou "
+                "redespacho.")
+        if self.tp_serv == "0" and self.referenciar_original:
+            raise ValueError(
+                "Prestação NORMAL não aceita vínculo com o CT-e anterior "
+                "(rejeição 747 — 'Documentos anteriores informados para Tipo "
+                "de Serviço Normal'). O grupo de documentos anteriores é "
+                "exclusivo de subcontratação e redespacho: em prestação "
+                "normal NADA no documento o liga ao CT-e da Sulista.")
+
 
 # ------------------------------------------------------------------ o dado --
 

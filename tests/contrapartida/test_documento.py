@@ -333,3 +333,35 @@ def test_numeracao_e_por_ambiente():
     from api.contrapartida import emissao
     fonte = inspect.getsource(emissao.proximo_numero)
     assert "ambiente=?" in fonte
+
+
+# --- o que a SEFAZ recusa por REGRA, medido em homologacao ------------------
+
+def test_prestacao_normal_nao_aceita_tomador_OUTROS():
+    """Rejeicao 746. A consequencia e de negocio, nao de schema: em prestacao
+    normal o tomador tem de ser parte da carga, entao o documento sairia
+    contra o CLIENTE e nao contra a Sulista."""
+    with pytest.raises(ValueError, match="746"):
+        dataclasses.replace(ENQ, tp_serv="0", toma="4",
+                            referenciar_original=False)
+
+
+def test_prestacao_normal_nao_aceita_vinculo_com_o_CT_e_anterior():
+    """Rejeicao 747. Sem o vinculo, NADA no documento o liga ao CT-e da
+    Sulista — que e a razao de existir do modulo."""
+    with pytest.raises(ValueError, match="747"):
+        dataclasses.replace(ENQ, tp_serv="0", toma="0",
+                            referenciar_original=True)
+
+
+def test_prestacao_normal_com_tomador_da_carga_e_valida():
+    """As duas combinacoes que a SEFAZ AUTORIZOU (cStat 100) continuam
+    montaveis: o que a guarda barra e so o que o orgao recusa."""
+    for toma in ("0", "3"):
+        dataclasses.replace(ENQ, tp_serv="0", toma=toma,
+                            referenciar_original=False)
+
+
+def test_subcontratacao_com_tomador_outros_e_vinculo_continua_valida():
+    """E a combinacao que autorizou de verdade, protocolo 135260006358665."""
+    dataclasses.replace(ENQ, tp_serv="1", toma="4", referenciar_original=True)

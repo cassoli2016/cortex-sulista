@@ -2,7 +2,64 @@
 
 **Para:** Contabilidade
 **De:** Controladoria / CÓRTEX
-**Data:** 26/08/2026
+**Data:** 26/08/2026 · **atualizado com as respostas recebidas**
+
+---
+
+## 0. Situação das respostas
+
+| # | Pergunta | Resposta |
+|---|---|---|
+| 0 | Há dispensa de emissão pelo subcontratado? | *aguardando* |
+| 1 | Subcontratação, redespacho ou prestação normal? | **Prestação normal** ⚠️ |
+| 2 | Valor cobrado do cliente ou pago ao agregado? | *aguardando* |
+| 3 | Um documento por CT-e ou por viagem? | **Um por CT-e** |
+| 4 | Tratamento e CST do ICMS | *aguardando* |
+| 5 | Série e numeração por agregado | *sugestão nossa, abaixo* |
+| 6 | Os 17 com IE "ISENTO" emitem? | em análise |
+| 7 | Documentos de valor simbólico entram? | **Não, por ora** |
+| 8 | Passivo de R$ 108,7 mi | encaminhado ao Jurídico |
+
+⚠️ **A resposta 1 precisa ser reconciliada — ver seção 2-A.** Testamos
+"prestação normal" contra a SEFAZ e ela é incompatível com a premissa deste
+trabalho.
+
+---
+
+## 2-A. URGENTE — "prestação normal" não permite emitir contra a Sulista
+
+Levamos a resposta "prestação normal" ao ambiente de teste da SEFAZ. O órgão
+**recusou** o documento, por duas regras próprias de validação:
+
+| O que tentamos | Resposta da SEFAZ |
+|---|---|
+| Prestação normal, **Sulista como tomadora** | **Recusado (746)** — "Tipo de Serviço inválido para o tomador informado" |
+| Prestação normal, **vinculando ao CT-e da Sulista** | **Recusado (747)** — "Documentos anteriores informados para Tipo de Serviço Normal" |
+| Prestação normal, tomador = remetente da carga | Autorizado |
+| Prestação normal, tomador = destinatário da carga | Autorizado |
+| **Subcontratação, Sulista como tomadora, com vínculo** | **Autorizado** |
+
+Em linguagem direta: **na prestação normal, o tomador tem obrigatoriamente de
+ser uma das partes da carga** — remetente, expedidor, recebedor ou
+destinatário. A Sulista não é nenhuma delas.
+
+As consequências de manter "prestação normal" são duas, e ambas contrariam o
+que se pretendia:
+
+1. **O documento sairia contra o cliente, não contra a Sulista.** Mas quem
+   contratou e quem paga o agregado é a Sulista — o dinheiro e o documento
+   apontariam para lados diferentes.
+2. **Nada ligaria esse documento ao nosso CT-e.** O campo que faz o vínculo
+   eletrônico é recusado em prestação normal. Sem ele não existe
+   "contrapartida": existe uma prestação avulsa.
+
+A única combinação que a SEFAZ autorizou **e** descreve a operação real
+(agregado presta para a Sulista, referenciando o nosso CT-e) foi
+**subcontratação**.
+
+**Pedimos a reconfirmação da resposta 1**, ciente destas restrições. Não é
+divergência de opinião nossa: são as regras de validação do próprio órgão,
+observadas em teste.
 
 ---
 
@@ -67,20 +124,28 @@ Os dois números existem e são bem diferentes. No documento usado como piloto:
 O valor pago corresponde a cerca de **71%** do cobrado. Como se trata de base
 de cálculo de ICMS, a escolha não é do sistema.
 
-### 3.3 Um documento por CT-e nosso, ou por viagem?
+### 3.3 Um documento por CT-e nosso, ou por viagem? — RESPONDIDO: por CT-e
 
-Os dois não são a mesma coisa. Em 90 dias, **6.578 CT-e** emitidos com veículo
-de agregado PJ corresponderam a **3.834 viagens** — média de **1,7 documento
-por viagem**.
+**A resposta torna a pergunta 3.2 mais urgente do que parecia.**
 
-Além disso, **o valor pago ao agregado é por viagem**, não por CT-e. Se a
-definição for "um documento por CT-e", precisamos saber **como ratear** o valor
-da viagem entre os documentos.
+Medimos: **3.159 dos 6.594** CT-e do trimestre — **48%, quase metade** —
+compartilham a viagem com pelo menos um outro documento. E o valor pago ao
+agregado é lançado **por viagem**, não por CT-e.
 
-Hoje o sistema **interrompe** o processo nesses casos, em vez de dividir por
-conta própria — dividir sem critério definido seria inventar base de cálculo.
+Portanto, se a resposta de 3.2 for "valor pago ao agregado", metade da fila
+precisa de um **critério de rateio** desse valor entre os documentos da mesma
+viagem — por peso? por valor da mercadoria? em partes iguais? Hoje o sistema
+**interrompe** nesses casos, de propósito.
 
-O impacto é grande: por viagem, a fila é cerca de **45% menor** do que por CT-e.
+Se a resposta de 3.2 for "valor cobrado do cliente", o problema desaparece:
+cada CT-e já tem o seu próprio valor.
+
+Dividir sem critério definido seria inventar base de cálculo, e por isso o
+sistema prefere parar.
+
+Números de referência do trimestre: **6.594 CT-e** de agregado PJ
+correspondendo a **3.834 viagens** — média de 1,7 documento por viagem. Com a
+decisão "um por CT-e", a fila fica no número maior: **os 6.594**.
 
 ### 3.4 Tratamento do ICMS
 
@@ -92,12 +157,31 @@ marcados como optantes. O piloto foi emitido como optante do Simples, mas o
 ambiente de teste **não valida acerto fiscal** — ele aceitou o documento, não
 o enquadramento.
 
-### 3.5 Série e numeração
+### 3.5 Série e numeração — nossa sugestão
 
-**Qual série cada agregado deve usar, e a partir de qual número?**
+Foi-nos pedido que sugeríssemos. Propomos:
 
-Se algum deles já emitiu CT-e por outro meio, número repetido é rejeitado por
-duplicidade. Precisamos confirmar, agregado a agregado, se há numeração em uso.
+> **Série 900, exclusiva, numeração começando em 1 para cada agregado.**
+
+Razões:
+
+- **Elimina o risco de duplicidade.** Se um agregado já emite CT-e por conta
+  própria — pelo contador dele, por outro sistema — estará usando série 1 ou
+  outra baixa. Número repetido dentro da mesma série é rejeitado pela SEFAZ, e
+  o erro apareceria documento a documento, no meio de um lote de milhares.
+  Uma série alta e reservada afasta a colisão de vez, sem depender de
+  levantar, agregado a agregado, o que cada um já usou.
+- **Torna a origem auditável.** Olhando a série se sabe, sem consultar
+  ninguém, que aquele documento foi emitido pela Sulista em nome do agregado —
+  e não pelo próprio agregado. Isso importa numa fiscalização e importa na
+  conciliação.
+- **A numeração é por agregado**, e não uma sequência única: cada emitente tem
+  a sua, e o sistema já controla isso separadamente, inclusive mantendo as
+  numerações de teste e de produção apartadas.
+
+O que pedimos que a contabilidade confirme: **se a série 900 é aceitável** e se
+há alguma exigência de série específica em algum dos contratos ou regimes
+especiais.
 
 ---
 
@@ -159,14 +243,16 @@ dessa data, o primeiro teste em produção aguardará a renovação do certifica
 
 ## 7. Resumo — o que pedimos
 
-| # | Pergunta | Efeito da resposta |
+Restam **quatro** definições. As demais estão respondidas ou encaminhadas.
+
+| # | O que ainda falta | Por que trava |
 |---|---|---|
-| 0 | Há dispensa de emissão pelo subcontratado? | Se sim, **não há fila** |
-| 1 | Subcontratação, redespacho ou prestação normal? | CFOP e natureza |
-| 2 | Valor cobrado do cliente ou valor pago ao agregado? | Base de ICMS |
-| 3 | Um documento por CT-e ou por viagem? | Tamanho da fila (±45%) |
+| 0 | Há dispensa de emissão pelo subcontratado? | Se houver, **não há fila nenhuma** |
+| 1 | **Reconfirmar o enquadramento** | "Prestação normal" é recusada pela SEFAZ nesta operação (seção 2-A) |
+| 2 | Valor cobrado do cliente ou pago ao agregado? | Base de ICMS — e define se metade da fila precisa de critério de rateio |
 | 4 | Tratamento e CST do ICMS | Cálculo do imposto |
-| 5 | Série e numeração por agregado | Evita rejeição por duplicidade |
-| 6 | Os 17 com IE "ISENTO" emitem? | Fila de 53 ou de 36 |
-| 7 | Documentos de valor simbólico entram? | Escopo |
-| 8 | O que fazer com o passivo de R$ 108,7 mi? | Jurídico |
+| 5 | Aceitam a série 900 sugerida? | Evita rejeição por duplicidade |
+
+**A ordem importa.** A pergunta 0 pode encerrar o assunto; a 1 define se o
+documento é emitido contra a Sulista ou contra o cliente. As demais só fazem
+sentido depois dessas duas.

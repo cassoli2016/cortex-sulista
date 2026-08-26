@@ -3,6 +3,40 @@
 #   - a tela Documentação     (#doc)
 #   - o rótulo no rodapé      (CX-DD/MM/AAAA-vX.Y.Z)
 # A versão do TOPO é a corrente e tem de bater com o pyproject.toml.
+- versao: "0.69.0"
+  data: "2026-08-26"
+  adicionado:
+    - >-
+      Chegaram as primeiras respostas da area sobre o CT-e de contrapartida, e
+      uma delas foi testada contra a SEFAZ antes de virar codigo. A resposta
+      "prestacao normal" e INCOMPATIVEL com o que o modulo se propoe: nesse
+      enquadramento o orgao nao aceita a Sulista como tomadora (rejeicao 746)
+      nem o vinculo com o CT-e dela (747). O documento sairia contra o
+      CLIENTE, e sem nada que o ligue ao nosso CT-e - ou seja, deixaria de ser
+      contrapartida. A unica combinacao que a SEFAZ autorizou E descreve a
+      operacao real e a subcontratacao. O documento da contabilidade foi
+      atualizado pedindo a reconfirmacao, com a tabela do que foi testado.
+    - >-
+      As duas combinacoes recusadas viraram GUARDA no codigo, com o numero da
+      rejeicao e a consequencia de negocio na mensagem. Sem isso, cada uma
+      custaria uma transmissao e um numero de serie queimado para ser
+      redescoberta - e o texto da SEFAZ, sozinho, nao diz o que esta em jogo.
+    - >-
+      Sugestao de serie e numeracao, que a area pediu: serie 900, exclusiva,
+      numeracao propria por agregado. Serie alta e reservada afasta de vez a
+      colisao com o que o agregado ja emita por conta propria (numero repetido
+      e rejeitado documento a documento) e deixa auditavel, so de olhar, que
+      aquele documento saiu pela Sulista em nome dele.
+  alterado:
+    - >-
+      Com a decisao "um documento por CT-e", medimos o tamanho do problema de
+      rateio: 3.159 dos 6.594 CT-e do trimestre - QUASE METADE - dividem a
+      viagem com outro documento, e o valor pago ao agregado e lancado por
+      viagem. Se a base do valor for o que a Sulista paga, metade da fila
+      precisa de um criterio de rateio; se for o que ela cobra do cliente, o
+      problema desaparece. As duas perguntas estavam separadas no documento e
+      na verdade sao uma so.
+
 - versao: "0.68.1"
   data: "2026-08-26"
   adicionado:
