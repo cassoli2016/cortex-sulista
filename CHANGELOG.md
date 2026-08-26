@@ -4,6 +4,17 @@ Gerado de `docs/versoes.yaml` por `scripts/gerar_changelog.py` — não editar �
 Formato [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/),
 versionamento [SemVer](https://semver.org/lang/pt-BR/).
 
+## [0.60.0] — 26/08/2026  ·  CX-26/08/2026-v0.60.0
+
+### Adicionado
+- A tela de CT-e de Contrapartida passou a mostrar, por agregado, se ele esta AUTORIZADO a ter documento emitido em nome dele: procuracao vigente, certificado A1 valido, arquivo enviado e senha no cofre. Hoje sao 0 de 54 - e o KPI diz isso em vermelho, porque enquanto ninguem estiver autorizado a fila de 14 mil CT-e e diagnostico, nao trabalho.
+- Quem nao esta pronto mostra O QUE FALTA na propria linha, no lugar de um "nao" que obrigaria a abrir outra tela para descobrir. Certificado A3 aparece como IMPEDIMENTO e nao como pendencia: ele mora em token fisico e exige presenca a cada assinatura, entao nao se resolve preenchendo campo.
+- Monitor de vencimento: certificado A1 vale um ano, e vencer em silencio pararia a emissao sem ninguem perceber. Faltando 30 dias ou menos, a linha avisa - mas nao bloqueia, porque bloquear antes de vencer pararia sem motivo.
+
+### Alterado
+- A senha do certificado NUNCA entra no banco do modulo, nem mascarada: vai para o cofre local (arquivo 0600, fora do git) pela mesma regra do token da Gobrax - entra e nao volta. O repositorio do codigo e publico, e senha em banco versionado seria vazamento permanente. Ha teste de arvore sintatica garantindo que nenhuma funcao do modulo devolve senha.
+- Toda gravacao de procuracao ou certificado entra numa trilha de auditoria com quem, quando e o que: autorizar emissao em nome de terceiro tem de ser respondivel meses depois, inclusive contra o proprio CORTEX.
+
 ## [0.59.2] — 26/08/2026  ·  CX-26/08/2026-v0.59.2
 
 ### Adicionado

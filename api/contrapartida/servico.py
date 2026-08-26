@@ -46,6 +46,7 @@ from datetime import date, datetime, timedelta
 
 from api import db
 
+from api.contrapartida import cadastro
 from api.contrapartida.sql import (FROTA_AGR_SQL, PASSIVO_SQL,
 
                                    POR_AGREGADO_SQL, POR_MES_SQL)
@@ -144,6 +145,21 @@ def get_contrapartida(de: str | None = None, ate: str | None = None) -> dict:
 
 
 
+    # PRONTIDAO: procuracao vigente + certificado A1 valido + senha no cofre.
+    # Sem isto a fila diz "14 mil CT-e a emitir" sem dizer que a emissao ainda
+    # nao esta autorizada para ninguem - numero grande sem o que o desarma.
+    try:
+        pront = cadastro.mapa()
+    except Exception as exc:  # noqa: BLE001
+        log.warning("cadastro de procuracao/certificado indisponivel: %s", exc)
+        pront = {}
+    for x in agreg:
+        p = pront.get(x["documento"]) or {}
+        x["prontidao"] = p.get("prontidao") or {
+            "pronto": False, "faltas": ["sem procuração cadastrada",
+                                        "sem certificado cadastrado"],
+            "alertas": []}
+
     pj = [x for x in agreg if x["classe"] == "pj"]
 
     tac = [x for x in agreg if x["classe"] == "tac"]
@@ -199,6 +215,8 @@ def get_contrapartida(de: str | None = None, ate: str | None = None) -> dict:
             "agregados_indefinido": len(indef),
 
             "pendencia_cadastral": len(faltando),
+            "prontos_para_emitir": sum(1 for x in pj
+                                       if (x.get("prontidao") or {}).get("pronto")),
 
             "emitidas": 0,   # nenhuma contrapartida emitida ate hoje
 
@@ -289,6 +307,14 @@ def _avisos(pj, tac, indef, faltando, passivo) -> list[str]:
             "valor simbólico costuma ser anulação ou complementar, não "
             "prestação — se for, não deveria entrar na fila de contrapartida. "
             "Confirmar com a contabilidade antes de emitir para eles.")
+
+    naopronto = [x for x in pj if not (x.get("prontidao") or {}).get("pronto")]
+    if naopronto:
+        av.append(
+            f"{len(naopronto)} dos {len(pj)} agregados PJ ainda não estão "
+            "autorizados a emitir: falta procuração vigente, certificado A1 "
+            "válido ou a senha dele no cofre. Enquanto isso, a fila é "
+            "diagnóstico — nenhum documento pode ser emitido.")
 
     velho = [x for x in passivo if x["classe"] == "pj"
 

@@ -3,6 +3,37 @@
 #   - a tela Documentação     (#doc)
 #   - o rótulo no rodapé      (CX-DD/MM/AAAA-vX.Y.Z)
 # A versão do TOPO é a corrente e tem de bater com o pyproject.toml.
+- versao: "0.60.0"
+  data: "2026-08-26"
+  adicionado:
+    - >-
+      A tela de CT-e de Contrapartida passou a mostrar, por agregado, se ele
+      esta AUTORIZADO a ter documento emitido em nome dele: procuracao
+      vigente, certificado A1 valido, arquivo enviado e senha no cofre. Hoje
+      sao 0 de 54 - e o KPI diz isso em vermelho, porque enquanto ninguem
+      estiver autorizado a fila de 14 mil CT-e e diagnostico, nao trabalho.
+    - >-
+      Quem nao esta pronto mostra O QUE FALTA na propria linha, no lugar de um
+      "nao" que obrigaria a abrir outra tela para descobrir. Certificado A3
+      aparece como IMPEDIMENTO e nao como pendencia: ele mora em token fisico e
+      exige presenca a cada assinatura, entao nao se resolve preenchendo campo.
+    - >-
+      Monitor de vencimento: certificado A1 vale um ano, e vencer em silencio
+      pararia a emissao sem ninguem perceber. Faltando 30 dias ou menos, a
+      linha avisa - mas nao bloqueia, porque bloquear antes de vencer pararia
+      sem motivo.
+  alterado:
+    - >-
+      A senha do certificado NUNCA entra no banco do modulo, nem mascarada:
+      vai para o cofre local (arquivo 0600, fora do git) pela mesma regra do
+      token da Gobrax - entra e nao volta. O repositorio do codigo e publico, e
+      senha em banco versionado seria vazamento permanente. Ha teste de arvore
+      sintatica garantindo que nenhuma funcao do modulo devolve senha.
+    - >-
+      Toda gravacao de procuracao ou certificado entra numa trilha de
+      auditoria com quem, quando e o que: autorizar emissao em nome de terceiro
+      tem de ser respondivel meses depois, inclusive contra o proprio CORTEX.
+
 - versao: "0.59.2"
   data: "2026-08-26"
   corrigido:

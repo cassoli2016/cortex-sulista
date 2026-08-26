@@ -157,3 +157,100 @@ def test_serial_preserva_o_resto_dos_campos():
     from datetime import date
     r = servico._serial([{"a": 1, "b": "x", "c": None, "d": date(2026, 1, 2)}])[0]
     assert r["a"] == 1 and r["b"] == "x" and r["c"] is None and r["d"] == "2026-01-02"
+
+
+# --- procuracao e certificado -----------------------------------------------
+"""Emitir com o certificado do agregado e ASSINAR COMO ELE. Por isso a
+autorizacao e estrutura de dados, nao recomendacao: sem procuracao vigente e
+certificado A1 valido, o agregado nao fica pronto - e o motivo vai junto."""
+
+from api.contrapartida import cadastro as cad  # noqa: E402
+
+PROC_OK = {"valida_de": "2026-01-01", "valida_ate": "2027-01-01"}
+CERT_OK = {"tipo": "A1", "valida_ate": "2027-06-01", "arquivo": "x.pfx"}
+
+
+def test_sem_nada_nao_esta_pronto_e_DIZ_o_que_falta():
+    """"Nao pronto" sem motivo obriga a abrir tres telas para descobrir."""
+    r = cad.prontidao("X", None, None, False)
+    assert not r["pronto"]
+    assert any("procuração" in f for f in r["faltas"])
+    assert any("certificado" in f for f in r["faltas"])
+
+
+def test_A3_e_impedimento_e_nao_pendencia():
+    """A3 mora em token fisico e exige presenca a cada assinatura. Nao se
+    resolve preenchendo campo - falhar so na transmissao seria pior."""
+    r = cad.prontidao("X", PROC_OK, {"tipo": "A3"}, True)
+    assert not r["pronto"]
+    assert any("A3" in f and "automatiza" in f for f in r["faltas"])
+
+
+def test_procuracao_vencida_bloqueia():
+    r = cad.prontidao("X", {"valida_de": "2020-01-01", "valida_ate": "2021-01-01"},
+                      CERT_OK, True)
+    assert not r["pronto"] and any("vencida" in f for f in r["faltas"])
+
+
+def test_procuracao_futura_bloqueia():
+    r = cad.prontidao("X", {"valida_de": "2099-01-01", "valida_ate": "2099-12-31"},
+                      CERT_OK, True)
+    assert not r["pronto"]
+
+
+def test_senha_ausente_bloqueia():
+    """Sem senha no cofre o .pfx nao abre: descobrir isso na transmissao custa
+    uma rejeicao por documento."""
+    r = cad.prontidao("X", PROC_OK, CERT_OK, False)
+    assert not r["pronto"] and any("senha" in f for f in r["faltas"])
+
+
+def test_vencimento_proximo_e_ALERTA_e_nao_bloqueio():
+    """Certificado A1 vale um ano. Avisar antes da hora e o que evita a rotina
+    parar em silencio; bloquear antes de vencer pararia sem motivo."""
+    from datetime import date, timedelta
+    perto = (date.today() + timedelta(days=10)).isoformat()
+    r = cad.prontidao("X", PROC_OK, dict(CERT_OK, valida_ate=perto), True)
+    assert r["pronto"] and any("vence em 10 dias" in a for a in r["alertas"])
+
+
+def test_tudo_certo_fica_pronto():
+    assert cad.prontidao("X", PROC_OK, CERT_OK, True)["pronto"]
+
+
+def test_a_SENHA_nunca_sai_do_modulo():
+    """Guarda de codigo: nenhuma funcao pode devolver senha. O repositorio do
+    codigo e publico e o cofre e 0600 - a regra e a mesma do token da Gobrax,
+    o valor entra e nao volta."""
+    with open(cad.__file__.replace(".pyc", ".py"), encoding="utf-8") as f:
+        arvore = ast.parse(f.read())
+    for no in ast.walk(arvore):
+        if isinstance(no, ast.Return):
+            fonte = ast.dump(no)
+            assert "'senha'" not in fonte and '"senha"' not in fonte
+
+
+def test_senha_nao_entra_na_tabela():
+    """DDL sem coluna de senha: banco com senha, mesmo local, e vazamento
+    permanente esperando backup errado."""
+    assert "senha" not in cad._DDL.lower()
+
+
+def test_ha_trilha_de_auditoria():
+    """Quem autorizou emitir em nome de quem, e quando, tem de ser respondivel
+    meses depois - inclusive contra o proprio CORTEX."""
+    assert "CREATE TABLE IF NOT EXISTS auditoria" in cad._DDL
+    for campo in ("quando", "quem", "acao", "cnpj"):
+        assert campo in cad._DDL
+
+
+def test_certificado_recusa_tipo_invalido():
+    import pytest as _pt
+    with _pt.raises(ValueError):
+        cad.gravar_certificado("1", "A2", "eu")
+
+
+def test_procuracao_recusa_validade_invertida():
+    import pytest as _pt
+    with _pt.raises(ValueError):
+        cad.gravar_procuracao("1", "emitir CT-e", "2027-01-01", "2026-01-01", "eu")

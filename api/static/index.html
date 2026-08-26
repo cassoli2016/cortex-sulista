@@ -9257,7 +9257,7 @@ function cpBRL(v){ v=v||0;
     ? v.toLocaleString('pt-BR',{style:'currency',currency:'BRL',minimumFractionDigits:2})
     : v.toLocaleString('pt-BR',{style:'currency',currency:'BRL',maximumFractionDigits:0}); }
 async function loadCtecp(fundo){
-  skelKpis('kpis-ctecp',4);
+  skelKpis('kpis-ctecp',5);
   const seq=++cpSeq, btn=document.getElementById('btnRefresh'); if(btn) btn.disabled=true;
   if(!fundo) document.getElementById('content').classList.add('loading');
   try{
@@ -9290,6 +9290,10 @@ function renderCtecp(d){
    +kpi('Valor da prestação', cpBRL(k.valor_pj),
         'base do CT-e de contrapartida', '',
         'Valor total da prestação dos CT-e que aguardam contrapartida. Não é o valor do documento a emitir, que depende do contrato com cada agregado.')
+   +kpi('Autorizados a emitir', (k.prontos_para_emitir||0)+' de '+(k.agregados_pj||0),
+        'procuração vigente + certificado A1 + senha',
+        (k.prontos_para_emitir||0)===0?'bad':'warn',
+        'Enquanto nenhum agregado estiver autorizado, a fila é diagnóstico: nenhum documento pode ser emitido.')
    +kpi('Contrapartidas emitidas', (k.emitidas||0).toLocaleString('pt-BR'),
         'nenhuma rotina de emissão no ar', 'bad',
         'Zero por confirmação da própria operação, não por falta de dado. Esta tela dimensiona a fila; ela não emite.')
@@ -9301,7 +9305,7 @@ function renderCtecp(d){
   const CL={pj:'PJ',tac:'TAC',indefinido:'?'};
   const ag=(d.por_agregado||[]);
   document.getElementById('cpTab').innerHTML=
-    '<thead><tr><th>Agregado</th><th>Tipo</th><th>RNTRC</th><th>Cadastro</th><th class="r">CT-e</th><th class="r">Placas</th><th class="r">Prestação</th></tr></thead><tbody>'
+    '<thead><tr><th>Agregado</th><th>Tipo</th><th>RNTRC</th><th>Cadastro</th><th>Autorização</th><th class="r">CT-e</th><th class="r">Placas</th><th class="r">Prestação</th></tr></thead><tbody>'
     +(ag.length? ag.map(function(x){
         const tac = x.classe==='tac';
         const falta=[['razão social',x.nome],['IE',x.ie],['RNTRC',x.rntrc],['município',x.cidade]]
@@ -9313,10 +9317,14 @@ function renderCtecp(d){
           +'<td>'+(tac?'<span style="color:var(--n500)">não se aplica</span>'
                      : (falta.length? statChip('bad','falta '+falta.join(', '),'campo obrigatório ausente vira rejeição documento a documento')
                                     : statChip('good','completo','razão social, IE, RNTRC e município presentes')))+'</td>'
+          +'<td>'+(tac?'<span style="color:var(--n500)">—</span>'
+                     : ((x.prontidao||{}).pronto
+                        ? statChip('good','pronto', ((x.prontidao||{}).alertas||[]).join(' · ')||'procuração vigente, certificado A1 válido e senha no cofre')
+                        : statChip('bad','não autorizado', ((x.prontidao||{}).faltas||[]).join(' · '))))+'</td>'
           +'<td class="r mono">'+(x.ctes||0).toLocaleString('pt-BR')+'</td>'
           +'<td class="r mono">'+(x.placas||0)+'</td>'
           +'<td class="r mono">'+cpBRL(x.valor)+'</td></tr>';
-      }).join('') : '<tr><td colspan="7" class="hint">Nenhum CT-e de agregado no período.</td></tr>')
+      }).join('') : '<tr><td colspan="8" class="hint">Nenhum CT-e de agregado no período.</td></tr>')
     +'</tbody>';
   document.getElementById('hintCpTab').textContent =
     ag.length ? ag.length+' agregados · ordenado por prestação · linha esmaecida = TAC, fora da fila' : '';
