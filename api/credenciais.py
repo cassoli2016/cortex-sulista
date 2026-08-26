@@ -36,7 +36,14 @@ CONHECIDAS = {
     "MONKEY_CLIENT_SECRET": "client_secret da Monkey (se for OAuth2)",
     "MONKEY_TOKEN_URL": "URL do endpoint de token da Monkey (se for OAuth2)",
     "MONKEY_SELLER_ID": "ID da Sulista como seller na Monkey (o {id} da URL)",
+    "MONKEY_SELLER_IDS": "sellerIds da Monkey, um por CNPJ, separados por vírgula",
     "MONKEY_AMBIENTE": "Ambiente da Monkey: hmg (padrão) ou prod",
+    "MONKEY_BASE_URL": "URL base da Monkey (sobrepõe o host do ambiente)",
+    "MONKEY_GRANT_TYPE": "Grant da Monkey: client_credentials (padrão), password ou refresh_token",
+    "MONKEY_REFRESH_TOKEN": "refresh_token da Monkey (renovação do access_token)",
+    "MONKEY_SCOPE": "scope do OAuth2 da Monkey (se exigido)",
+    "MONKEY_USUARIO": "Usuário da Monkey (se o grant for password)",
+    "MONKEY_SENHA": "Senha da Monkey (se o grant for password)",
     # Prolog — gestão de pneus. Autenticação também plugável: o OpenAPI da
     # Prolog não declara securityScheme nenhum, então aceita token, Basic ou
     # OAuth2, e vale o que estiver preenchido.
@@ -57,6 +64,9 @@ CONHECIDAS = {
 # caracteres); o mínimo de 8 do token continua valendo para as demais
 TAMANHO_MINIMO = 8
 MINIMO_POR_CREDENCIAL = {"SMTP_SENHA": 4, "MONKEY_SELLER_ID": 1,
+                         "MONKEY_SELLER_IDS": 1, "MONKEY_GRANT_TYPE": 3,
+                         "MONKEY_SCOPE": 1, "MONKEY_USUARIO": 3,
+                         "MONKEY_SENHA": 4,
                          "MONKEY_AMBIENTE": 3, "PROLOG_FILIAIS": 1,
                          "PROLOG_USUARIO": 3}
 

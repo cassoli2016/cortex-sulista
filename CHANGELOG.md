@@ -4,6 +4,17 @@ Gerado de `docs/versoes.yaml` por `scripts/gerar_changelog.py` — não editar �
 Formato [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/),
 versionamento [SemVer](https://semver.org/lang/pt-BR/).
 
+## [0.69.0] — 26/08/2026  ·  CX-26/08/2026-v0.69.0
+
+### Adicionado
+- A Sulista tem UM PERFIL POR CNPJ na Monkey Exchange, e cada um e um sellerId diferente. A coleta passa a percorrer TODOS (MONKEY_SELLER_IDS, separados por virgula) com uma autenticacao so, e grava UMA posicao com tudo junto: gravar por CNPJ deixaria apenas o ultimo, porque a gravacao SUBSTITUI a posicao do portal. O resultado da coleta traz a quebra por sellerId, entao um CNPJ que parar de responder aparece como zero em vez de sumir dentro da soma.
+- MONKEY_BASE_URL sobrepoe o host do ambiente. A Monkey indicou https://sandbox.monkeyecx.com para homologacao, que NAO bate com o hmg-zuul.monkeyecx.com que estava configurado aqui; enquanto ela nao confirma qual e o host de API, o valor certo entra pela tela de Credenciais, sem versao nova.
+- O grant do OAuth2 ficou configuravel (MONKEY_GRANT_TYPE: client_credentials, password ou refresh_token) e a renovacao por refresh_token entrou. A Monkey confirmou que a autenticacao e OAuth2 e citou o fluxo de refresh, mas ainda nao disse qual e o grant do acesso maquina-a-maquina. Refresh recusado (vencido, revogado) volta a apresentar a credencial em vez de deixar a coleta presa - defeito que so apareceria depois de horas no ar.
+
+### Alterado
+- scripts/verificar_monkey.py passou a dizer o grant em uso, se ha refresh_token, quantos sellerIds estao configurados e se o host veio do ambiente ou do MONKEY_BASE_URL. Ao chamar a API, lista quantos recebiveis vieram de CADA sellerId e marca o que voltou vazio.
+- Grant escrito errado falha na hora, dizendo quais valores valem. Antes o typo voltava como "credencial recusada" e a investigacao ia parar na senha em vez do erro de digitacao.
+
 ## [0.68.0] — 26/08/2026  ·  CX-26/08/2026-v0.68.0
 
 ### Adicionado

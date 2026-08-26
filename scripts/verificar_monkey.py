@@ -14,9 +14,16 @@ print("=" * 66)
 print("INTEGRACAO MONKEY EXCHANGE (antecipacao Tupy)")
 print("=" * 66)
 modo = cli.modo_auth()
+ids = cli.seller_ids()
+host_fixo = bool(cli._cred("MONKEY_BASE_URL"))
 print(f"  autenticacao configurada : {modo or 'NENHUMA'}")
-print(f"  sellerId                 : {cli.seller_id() or 'FALTANDO'}")
-print(f"  ambiente                 : {cli.ambiente()}  ({cli.base_url()})")
+if modo == "oauth":
+    print(f"  grant_type               : {cli.grant_type()}")
+    print(f"  refresh_token            : "
+          f"{'configurado' if cli._cred('MONKEY_REFRESH_TOKEN') else 'nao'}")
+print(f"  sellerIds ({len(ids)})            : {', '.join(ids) or 'FALTANDO'}")
+print(f"  ambiente                 : {cli.ambiente()}"
+      f"  ({cli.base_url()}{'  <- MONKEY_BASE_URL' if host_fixo else ''})")
 print(f"  pronta para chamar        : {'SIM' if cli.configurado() else 'NAO'}")
 print()
 
@@ -24,8 +31,8 @@ if not cli.configurado():
     print("  O que falta:")
     if not modo:
         print("   - MONKEY_TOKEN, ou MONKEY_CLIENT_ID + MONKEY_CLIENT_SECRET")
-    if not cli.seller_id():
-        print("   - MONKEY_SELLER_ID (o {id} de /v2/sellers/{id}/receivables)")
+    if not ids:
+        print("   - MONKEY_SELLER_IDS (um por CNPJ, separados por virgula)")
     print()
     print("  Configure na tela de Gestao > Credenciais. Nada disso vai para o")
     print("  git: o cofre fica em data/credenciais.json, com permissao 0600.")
@@ -33,10 +40,21 @@ if not cli.configurado():
 
 print("  Chamando a API...")
 try:
-    linhas = cli.Cliente().recebiveis(tamanho=50, maximo_paginas=2)
+    c = cli.Cliente()
+    por_seller = c.recebiveis_por_seller(tamanho=50, maximo_paginas=2)
+except cli.MonkeyNaoConfigurado as exc:
+    print(f"  CONFIGURACAO: {exc}")
+    raise SystemExit(1)
 except cli.MonkeyIndisponivel as exc:
     print(f"  FALHOU: {exc}")
     raise SystemExit(2)
+
+linhas = [r for lote in por_seller.values() for r in lote]
+# seller que volta VAZIO aparece: com 5 CNPJs, um sem resposta somado aos
+# outros quatro nao deixaria rastro nenhum
+for s_id, lote in por_seller.items():
+    marca = "" if lote else "   <- nada (confira o sellerId neste ambiente)"
+    print(f"      seller {s_id}: {len(lote)} recebivel(is){marca}")
 
 from api.monkey import normaliza as nz
 d = nz.lote(linhas)

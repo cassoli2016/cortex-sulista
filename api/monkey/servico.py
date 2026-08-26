@@ -11,6 +11,11 @@ trilha do envio) e a impressão que evita duplicata. Escrever um caminho
 paralelo para a API criaria duas regras de "qual é a posição atual" — e um dia
 elas discordariam.
 
+VÁRIOS CNPJs: a Sulista tem um perfil (e um sellerId) por CNPJ na Monkey. A
+coleta percorre todos e grava UMA posição só, porque para a tela "Tupy" é um
+portal — a origem de cada título continua distinguível pelo CNPJ do cedente que
+vem no próprio payload.
+
 IMPRESSÃO DA COLETA: hash do conteúdo normalizado, não do horário. A coleta
 agendada roda de tempos em tempos; se nada mudou no portal, ela não pode criar
 um envio novo, senão a lista de importações mente sobre a frequência com que o
@@ -79,7 +84,11 @@ def coletar(usuario: str = "coleta automática", http=None) -> dict:
             "integração da Monkey não configurada — rode "
             "scripts/verificar_monkey.py para ver o que falta")
 
-    brutos = cli.Cliente(http=http).recebiveis()
+    # UMA gravação com tudo junto, nunca uma por CNPJ: `gravar_envio`
+    # substitui a posição do portal, então gravar em sequência deixaria só o
+    # último sellerId e os outros quatro sumiriam sem erro nenhum.
+    por_seller = cli.Cliente(http=http).recebiveis_por_seller()
+    brutos = [r for lote in por_seller.values() for r in lote]
     d = nz.lote(brutos)
     linhas, resumo = d["titulos"], d["resumo"]
     agora = datetime.now()
@@ -109,5 +118,8 @@ def coletar(usuario: str = "coleta automática", http=None) -> dict:
         "antecipaveis": resumo["antecipaveis"],
         "valor_antecipavel": resumo["valor_antecipavel"],
         "por_status": resumo["por_status"],
+        # quebra por CNPJ: seller que parou de responder some da soma sem
+        # deixar rastro, e aqui ele aparece como zero
+        "por_seller": {s: len(linhas_s) for s, linhas_s in por_seller.items()},
         "coletado_em": agora.strftime("%Y-%m-%d %H:%M"),
     }

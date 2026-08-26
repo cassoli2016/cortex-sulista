@@ -66,7 +66,7 @@ def test_pagina_vazia_encerra_mesmo_com_totalPages_mentiroso(com_token):
 
 def test_existe_freio_de_paginas():
     import inspect
-    fonte = inspect.getsource(cli.Cliente.recebiveis)
+    fonte = inspect.getsource(cli.Cliente.recebiveis_de)
     assert "maximo_paginas" in fonte
 
 
@@ -322,3 +322,167 @@ def test_nao_inventa_total_declarado(tmp_path, monkeypatch, com_token):
         linha = c.execute("SELECT total_declarado, divergencia FROM envios"
                           " WHERE id=?", (r["envio_id"],)).fetchone()
     assert linha["total_declarado"] is None and linha["divergencia"] is None
+
+
+# ------------------------------------------------- host, grant e renovacao
+def _creds(**extra):
+    base = {"MONKEY_CLIENT_ID": "id", "MONKEY_CLIENT_SECRET": "seg",
+            "MONKEY_SELLER_ID": "1", "MONKEY_TOKEN_URL": "https://x/oauth/token"}
+    base.update(extra)
+    return lambda n: base.get(n, "")
+
+
+def test_base_url_configurada_vence_o_ambiente(monkeypatch):
+    """A Monkey indicou sandbox.monkeyecx.com, que nao bate com o hmg-zuul
+    daqui. Ate ela confirmar qual e o host de API, o certo entra por
+    configuracao em vez de trocar o dicionario no escuro."""
+    monkeypatch.setattr(cli, "_cred", _creds(
+        MONKEY_BASE_URL="https://sandbox.monkeyecx.com/"))
+    assert cli.base_url() == "https://sandbox.monkeyecx.com", "a barra final sai"
+
+
+def test_sem_base_url_o_ambiente_continua_mandando(monkeypatch):
+    monkeypatch.setattr(cli, "_cred", _creds(MONKEY_AMBIENTE="prod"))
+    assert cli.base_url() == "https://zuul.monkey.exchange"
+
+
+def test_grant_type_configuravel(monkeypatch):
+    monkeypatch.setattr(cli, "_cred", _creds(
+        MONKEY_GRANT_TYPE="password", MONKEY_USUARIO="u", MONKEY_SENHA="p"))
+    http = HttpFalso([_resp({"access_token": "ac", "expires_in": 60}),
+                      _resp(_pagina([], 0, 1))])
+    cli.Cliente(http=http).recebiveis()
+    corpo = [x for x in http.chamadas if x["dados"] is not None][0]["dados"]
+    assert b"grant_type=password" in corpo and b"username=u" in corpo
+
+
+def test_grant_escrito_errado_falha_dizendo_o_que_vale(monkeypatch):
+    """Grant com typo falharia como 'credencial recusada' e a gente iria cacar
+    a senha em vez do erro de digitacao."""
+    monkeypatch.setattr(cli, "_cred", _creds(MONKEY_GRANT_TYPE="client_credential"))
+    with pytest.raises(cli.MonkeyNaoConfigurado) as e:
+        cli.Cliente(http=HttpFalso([]))
+    assert "client_credentials" in str(e.value)
+
+
+def test_password_sem_usuario_nao_passa(monkeypatch):
+    monkeypatch.setattr(cli, "_cred", _creds(MONKEY_GRANT_TYPE="password"))
+    with pytest.raises(cli.MonkeyNaoConfigurado):
+        cli.Cliente(http=HttpFalso([]))
+
+
+def test_renova_pelo_refresh_token_quando_o_access_vence(monkeypatch):
+    """O fluxo que a Monkey descreveu: o refresh vem na resposta e e ele que
+    renova, sem reapresentar a credencial."""
+    monkeypatch.setattr(cli, "_cred", _creds())
+    http = HttpFalso([
+        _resp({"access_token": "ac-1", "expires_in": 3600, "refresh_token": "rf-1"}),
+        _resp(_pagina([], 0, 1)),
+        _resp({"access_token": "ac-2", "expires_in": 3600, "refresh_token": "rf-2"}),
+        _resp(_pagina([], 0, 1)),
+    ])
+    c = cli.Cliente(http=http)
+    c.recebiveis()
+    c._tok_expira = 0            # simula o access_token vencendo
+    c.recebiveis()
+
+    tokens = [x for x in http.chamadas if x["dados"] is not None]
+    assert len(tokens) == 2
+    assert b"grant_type=refresh_token" in tokens[1]["dados"]
+    assert b"refresh_token=rf-1" in tokens[1]["dados"]
+    assert c._refresh == "rf-2", "refresh novo substitui o antigo"
+    assert http.chamadas[-1]["headers"]["Authorization"] == "Bearer ac-2"
+
+
+def test_refresh_recusado_cai_de_volta_na_credencial(monkeypatch):
+    """Refresh vencido deixaria a coleta presa para sempre — o defeito que so
+    aparece depois de horas no ar, quando ninguem esta olhando."""
+    monkeypatch.setattr(cli, "_cred", _creds())
+    http = HttpFalso([
+        _resp({"access_token": "ac-1", "expires_in": 3600, "refresh_token": "rf-1"}),
+        _resp(_pagina([], 0, 1)),
+        _resp({"erro": "refresh expirado"}, 400),      # renovacao recusada
+        _resp({"access_token": "ac-3", "expires_in": 3600}),
+        _resp(_pagina([], 0, 1)),
+    ])
+    c = cli.Cliente(http=http)
+    c.recebiveis()
+    c._tok_expira = 0
+    c.recebiveis()
+
+    tokens = [x for x in http.chamadas if x["dados"] is not None]
+    assert b"grant_type=refresh_token" in tokens[1]["dados"]
+    assert b"grant_type=client_credentials" in tokens[2]["dados"]
+    assert c._refresh == "", "refresh morto e esquecido, nao retentado toda coleta"
+    assert http.chamadas[-1]["headers"]["Authorization"] == "Bearer ac-3"
+
+
+def test_expires_in_estranho_nao_derruba_a_coleta(monkeypatch):
+    monkeypatch.setattr(cli, "_cred", _creds())
+    http = HttpFalso([_resp({"access_token": "ac", "expires_in": "3599.5"}),
+                      _resp(_pagina([], 0, 1))])
+    cli.Cliente(http=http).recebiveis()
+    assert http.chamadas[-1]["headers"]["Authorization"] == "Bearer ac"
+
+
+# ------------------------------------------------- varios CNPJs / sellerIds
+def test_cinco_sellers_uma_autenticacao_so(monkeypatch):
+    """Um perfil por CNPJ na Monkey. Cinco coletas nao podem custar cinco
+    autenticacoes."""
+    monkeypatch.setattr(cli, "_cred", _creds(MONKEY_SELLER_IDS="11, 22 ,33;44,55"))
+    http = HttpFalso([_resp({"access_token": "ac", "expires_in": 3600})]
+                     + [_resp(_pagina([{"invoiceNumber": str(i)}], 0, 1))
+                        for i in range(5)])
+    c = cli.Cliente(http=http)
+    assert c.sellers == ["11", "22", "33", "44", "55"]
+    assert len(c.recebiveis()) == 5
+    tokens = [x for x in http.chamadas if x["dados"] is not None]
+    assert len(tokens) == 1
+    gets = [x["url"] for x in http.chamadas if x["dados"] is None]
+    assert all("/v2/sellers/%s/receivables" % i in u
+               for i, u in zip(["11", "22", "33", "44", "55"], gets))
+
+
+def test_seller_repetido_nao_coleta_duas_vezes(monkeypatch):
+    monkeypatch.setattr(cli, "_cred", _creds(MONKEY_SELLER_IDS="7,7, 7 "))
+    assert cli.seller_ids() == ["7"]
+
+
+def test_seller_id_antigo_continua_valendo(monkeypatch):
+    """Quem ja configurou um so nao pode parar de funcionar."""
+    monkeypatch.setattr(cli, "_cred", _creds(MONKEY_SELLER_ID="9"))
+    assert cli.seller_ids() == ["9"] and cli.seller_id() == "9"
+
+
+def test_a_quebra_por_seller_mostra_quem_veio_vazio(monkeypatch):
+    """Seller que parou de responder, somado aos outros, sumiria sem rastro."""
+    monkeypatch.setattr(cli, "_cred", _creds(MONKEY_SELLER_IDS="a,b"))
+    http = HttpFalso([
+        _resp({"access_token": "ac", "expires_in": 3600}),
+        _resp(_pagina([{"invoiceNumber": "1"}], 0, 1)),
+        _resp(_pagina([], 0, 1)),
+    ])
+    d = cli.Cliente(http=http).recebiveis_por_seller()
+    assert len(d["a"]) == 1 and d["b"] == []
+
+
+def test_cinco_CNPJs_gravam_UMA_posicao_com_tudo(tmp_path, monkeypatch):
+    """`gravar_envio` SUBSTITUI a posicao do portal. Gravar por CNPJ deixaria
+    so o ultimo, e os outros quatro sumiriam sem erro nenhum."""
+    from api.antecipacoes import registro
+    from api.monkey import servico
+
+    monkeypatch.setattr(cli, "_cred", _creds(MONKEY_SELLER_IDS="a,b"))
+    monkeypatch.setattr(registro, "DB_PATH", tmp_path / "multi.db")
+    http = HttpFalso([
+        _resp({"access_token": "ac", "expires_in": 3600}),
+        _resp(_pagina([RECEB], 0, 1)),
+        _resp(_pagina([{**RECEB, "invoiceNumber": "888"}], 0, 1)),
+    ])
+    r = servico.coletar(http=http)
+
+    assert r["gravados"] == 2
+    assert r["por_seller"] == {"a": 1, "b": 1}
+    assert len(registro.posicao_atual()) == 1, "um portal, uma posicao"
+    docs = sorted(t["documento"] for t in registro.titulos_vigentes())
+    assert docs == ["123456", "888"], "nenhum CNPJ pode ser engolido pelo outro"
