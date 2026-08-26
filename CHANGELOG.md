@@ -4,6 +4,14 @@ Gerado de `docs/versoes.yaml` por `scripts/gerar_changelog.py` — não editar �
 Formato [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/),
 versionamento [SemVer](https://semver.org/lang/pt-BR/).
 
+## [0.57.1] — 26/08/2026  ·  CX-26/08/2026-v0.57.1
+
+### Adicionado
+- scripts/ab_modelo_milkrun.py compara dois modelos locais nas mesmas perguntas, com GABARITO calculado do proprio contexto - o teste confere se a resposta traz a placa e o numero da coleta certos, nao se ela parece boa. Modelo que escreve bem e erra a placa e pior que modelo seco e certo.
+
+### Corrigido
+- O chat da Operacao MWM errava "qual coleta teve o maior atraso". O contexto tinha ranking pronto de PERMANENCIA e nenhum de ATRASO, entao o modelo precisava varrer os pontos - e nao achava: num teste A/B em 26/08, um modelo devolveu resposta VAZIA e o outro respondeu com a maior permanencia achando que era o maior atraso. Agora vai a tabela `piores_atrasos` pronta, ordenada, com coleta, placa e local, e o prompt avisa que atraso e permanencia sao coisas diferentes.
+
 ## [0.57.0] — 26/08/2026  ·  CX-26/08/2026-v0.57.0
 
 ### Alterado

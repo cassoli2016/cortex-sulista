@@ -136,6 +136,17 @@ def contexto(de: str | None = None, ate: str | None = None,
     por_forn = _agrega(todos, "local")
     por_placa = _agrega(todos, "placa") if any(p.get("placa") for p in todos) else []
     medidos = [p for p in todos if p.get("permanencia_min") is not None]
+    # PIORES ATRASOS, tabela pronta. Sem ela o modelo tem de varrer os pontos
+    # para achar o maximo - e nao acha: medido em 26/08, gemma4 devolveu
+    # resposta VAZIA e qwen2.5 respondeu com a maior PERMANENCIA achando que
+    # era o maior atraso. Todo "top N"/"maior" precisa de tabela pronta; a de
+    # permanencia ja existia e a de atraso faltava.
+    _atr = [{"coleta": c["coleta"], "placa": c["placa"], "local": p["local"],
+             "atraso_min": p["atraso_min"], "previsto": p["previsto"],
+             "chegada": p["chegada"], "pontualidade": p.get("pontualidade")}
+            for c in coletas for p in c["pontos"]
+            if p.get("atraso_min") is not None]
+    piores = sorted(_atr, key=lambda x: -x["atraso_min"])[:15]
     saida = {
         "hoje": date.today().isoformat(),
         "periodo": {"de": d.get("de"), "ate": d.get("ate")},
@@ -147,6 +158,8 @@ def contexto(de: str | None = None, ate: str | None = None,
         "coletas": coletas,
         "ranking_fornecedores_por_permanencia": por_forn[:15],
         "ranking_placas_por_permanencia": por_placa[:15],
+        "piores_atrasos": piores,
+        "pontos_com_atraso_medido": len(_atr),
         # Sem isto o modelo responde "nao esta no contexto" e o leitor nao
         # descobre que basta abrir o periodo: no recorte de HOJE os pontos
         # costumam estar todos pendentes, sem permanencia medida ainda.
@@ -215,6 +228,7 @@ parada só é frete simples e está fora deste recorte quando tipo=milk.
 - "% realizado" tem no denominador o que JÁ DEVERIA estar resolvido \
 (coletadas + frustradas + pendentes cujo horário já passou) — pendente que \
 ainda não venceu não conta contra.
+- Para "maior atraso" ou "quem atrasou mais", USE `piores_atrasos`, que já vem ordenada do maior para o menor e traz coleta, placa e local. Não varra os pontos: atraso e permanência são coisas DIFERENTES e confundir as duas é o erro mais comum aqui.
 - Para ranking ou "top N" de tempo parado, USE as tabelas já prontas `ranking_fornecedores_por_permanencia` e `ranking_placas_por_permanencia`, que vêm ordenadas da maior para a menor permanência. Não recalcule ponto a ponto.
 - Cada linha do ranking traz mediana E média: use a que foi pedida e diga qual está usando. Some `paradas_com_medida` para o leitor saber sobre quantas paradas o número foi tirado.
 - Se `pontos_com_permanencia_medida` for 0, NÃO responda "não está no contexto": explique que nenhuma parada do período filtrado foi concluída ainda (as pendentes não têm permanência medida) e sugira ampliar o período no filtro da tela.
