@@ -4,6 +4,11 @@ Gerado de `docs/versoes.yaml` por `scripts/gerar_changelog.py` — não editar �
 Formato [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/),
 versionamento [SemVer](https://semver.org/lang/pt-BR/).
 
+## [0.61.1] — 26/08/2026  ·  CX-26/08/2026-v0.61.1
+
+### Corrigido
+- A banda de indicadores da tela de CT-e de Contrapartida tinha CINCO cartoes numa grade de quatro, entao o quinto caia sozinho numa linha. O valor da prestacao virou subtitulo do primeiro cartao, que e onde ele significa alguma coisa, e a banda voltou a ter quatro. Entrou teste que conta os cartoes de cada banda - a regra ja estava escrita no manual do projeto e mesmo assim foi quebrada.
+
 ## [0.61.0] — 26/08/2026  ·  CX-26/08/2026-v0.61.0
 
 ### Adicionado

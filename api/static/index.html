@@ -9347,7 +9347,7 @@ function cpBRL(v){ v=v||0;
     ? v.toLocaleString('pt-BR',{style:'currency',currency:'BRL',minimumFractionDigits:2})
     : v.toLocaleString('pt-BR',{style:'currency',currency:'BRL',maximumFractionDigits:0}); }
 async function loadCtecp(fundo){
-  skelKpis('kpis-ctecp',5);
+  skelKpis('kpis-ctecp',4);
   const seq=++cpSeq, btn=document.getElementById('btnRefresh'); if(btn) btn.disabled=true;
   if(!fundo) document.getElementById('content').classList.add('loading');
   try{
@@ -9375,11 +9375,8 @@ function renderCtecp(d){
      processo nao pode aparecer como se estivesse tudo certo. */
   document.getElementById('kpis-ctecp').innerHTML=
     kpi('CT-e aguardando contrapartida', (k.ctes_pj||0).toLocaleString('pt-BR'),
-        (k.agregados_pj||0)+' agregados PJ no período', 'bad',
-        'CT-e emitidos com veículo de agregado PESSOA JURÍDICA. Só estes podem ter contrapartida.')
-   +kpi('Valor da prestação', cpBRL(k.valor_pj),
-        'base do CT-e de contrapartida', '',
-        'Valor total da prestação dos CT-e que aguardam contrapartida. Não é o valor do documento a emitir, que depende do contrato com cada agregado.')
+        cpBRL(k.valor_pj)+' · '+(k.agregados_pj||0)+' agregados PJ', 'bad',
+        'CT-e emitidos com veículo de agregado PESSOA JURÍDICA — só estes podem ter contrapartida. O valor é a prestação dos CT-e da fila, não o valor do documento a emitir, que depende do contrato com cada agregado.')
    +kpi('Autorizados a emitir', (k.prontos_para_emitir||0)+' de '+(k.agregados_pj||0),
         'procuração vigente + certificado A1 + senha',
         (k.prontos_para_emitir||0)===0?'bad':'warn',

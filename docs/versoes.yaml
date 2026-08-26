@@ -3,6 +3,17 @@
 #   - a tela Documentação     (#doc)
 #   - o rótulo no rodapé      (CX-DD/MM/AAAA-vX.Y.Z)
 # A versão do TOPO é a corrente e tem de bater com o pyproject.toml.
+- versao: "0.61.1"
+  data: "2026-08-26"
+  corrigido:
+    - >-
+      A banda de indicadores da tela de CT-e de Contrapartida tinha CINCO
+      cartoes numa grade de quatro, entao o quinto caia sozinho numa linha. O
+      valor da prestacao virou subtitulo do primeiro cartao, que e onde ele
+      significa alguma coisa, e a banda voltou a ter quatro. Entrou teste que
+      conta os cartoes de cada banda - a regra ja estava escrita no manual do
+      projeto e mesmo assim foi quebrada.
+
 - versao: "0.61.0"
   data: "2026-08-26"
   adicionado:

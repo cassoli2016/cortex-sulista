@@ -98,3 +98,17 @@ def test_tela_com_filtro_proprio_esconde_o_carimbo_global(html):
     falta = sorted(v for v in ("poli", "ctecp") if v not in escondem)
     assert not falta, ("telas com filtro proprio que nao escondem o #meta "
                        "(fica 'carregando...' para sempre): " + ", ".join(falta))
+
+
+def test_banda_de_kpi_tem_multiplo_de_quatro(html):
+    """Regra do design system: `.kpis.k4` quebra 4 -> 2 -> 1, entao 5 cards
+    deixam o ultimo SOZINHO numa linha. Conta as chamadas kpi() de cada
+    render que preenche uma banda k4."""
+    for alvo, ident in ((r"kpis-ctecp", "CT-e de Contrapartida"),
+                        (r"kpis-poli", "Permanência na Planta")):
+        i = html.index("getElementById('" + alvo + "').innerHTML=")
+        # o bloco vai ate o proximo ';' de fim de atribuicao
+        bloco = html[i:html.index("\n\n", i)]
+        n = bloco.count("kpi(")
+        assert n % 4 == 0, (f"{ident}: {n} KPIs numa banda k4 - o ultimo fica "
+                            "sozinho na linha (multiplo de 4)")
