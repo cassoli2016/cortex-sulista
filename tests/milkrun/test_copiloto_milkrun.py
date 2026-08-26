@@ -222,3 +222,40 @@ def test_prompt_ensina_o_que_dizer_quando_nao_ha_medida():
     basta abrir o periodo."""
     assert "pontos_com_permanencia_medida" in mk.SISTEMA
     assert "ampliar o período" in mk.SISTEMA
+
+
+
+# --- desempenho da deteccao -------------------------------------------------
+
+def test_caixa_de_rejeicao_e_MUITO_maior_que_o_raio():
+    """A caixa descarta posicoes longe antes da haversine (era 40 s numa
+    semana). Se ela chegasse perto do raio da geocerca, descartaria posicao que
+    DEVERIA contar e a visita sumiria - a otimizacao viraria defeito de dado.
+    Meio grau sao ~55 km contra um raio de centenas de metros."""
+    from api.milkrun import deteccao as det
+    lado_m = det._CAIXA_GRAUS * 111_000
+    assert lado_m > det.RAIO_PADRAO_M * 50
+
+
+def test_preparar_ordena_e_filtra_uma_vez():
+    """O sort morava dentro de `detectar`, que roda uma vez por PONTO: a mesma
+    lista de 63 mil posicoes era reordenada 153 vezes numa semana."""
+    from datetime import datetime
+    from api.milkrun import deteccao as det
+    bruto = [{"dt": datetime(2026, 8, 25, 10), "lat": 1.0, "lng": 2.0},
+             {"dt": datetime(2026, 8, 25, 9), "lat": 1.0, "lng": 2.0},
+             {"dt": datetime(2026, 8, 25, 11), "lat": None, "lng": None}]
+    r = det.preparar(bruto)
+    assert [x["dt"].hour for x in r] == [9, 10]
+
+
+def test_detectar_com_preparadas_nao_reordena_mas_da_o_mesmo_resultado():
+    from datetime import datetime, timedelta
+    from api.milkrun import deteccao as det
+    base = datetime(2026, 8, 25, 9)
+    pos = [{"dt": base + timedelta(minutes=i), "lat": -23.5, "lng": -46.6,
+            "velocidade": 0} for i in range(40)]
+    a = det.detectar(list(reversed(pos)), -23.5, -46.6)
+    b = det.detectar(det.preparar(list(reversed(pos))), -23.5, -46.6,
+                     preparadas=True)
+    assert [(v.chegada, v.saida) for v in a] == [(v.chegada, v.saida) for v in b]

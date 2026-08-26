@@ -55,7 +55,7 @@ TELAS: dict[str, tuple[str, str]] = {  # chave -> (rótulo, grupo do menu)
     "lanc":    ("Lançamentos Bancários", "Financeiro"),
     "antec":   ("Antecipação de Recebíveis", "Financeiro"),
     "antport": ("Portais de Antecipação", "Financeiro"),
-    "milkrun": ("Milk Run — MWM", "Operação"),
+    "milkrun": ("Operação MWM", "Operação"),
     "rec":     ("Lançamentos Recorrentes", "Financeiro"),
     "fluxcon": ("Fluxo Consolidado", "Financeiro"),
     "pagar":   ("Contas a Pagar", "Financeiro"),

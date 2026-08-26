@@ -187,6 +187,10 @@ def get_milkrun(de: str | None = None, ate: str | None = None,
                 "ate": (fim_dia + timedelta(hours=FOLGA_DEPOIS_H)).isoformat()})
             for p in cur.fetchall():
                 rastro.setdefault(p["veiculo"], []).append(dict(p))
+            # filtra e ordena UMA vez por placa: `detectar` roda uma vez por
+            # PONTO e antes refazia isso a cada chamada (40 s numa semana)
+            for _pl, _ps in rastro.items():
+                rastro[_pl] = det.preparar(_ps)
 
         # POSICAO ATUAL de cada placa do periodo, para o mapa mostrar onde o
         # caminhao esta agora e nao so onde as paradas ficam. Consulta separada
@@ -213,7 +217,7 @@ def get_milkrun(de: str | None = None, ate: str | None = None,
 
         visita, visitas = None, []
         if placa_l and lat and lng and rastro.get(placa_l):
-            visitas = det.detectar(rastro[placa_l], lat, lng)
+            visitas = det.detectar(rastro[placa_l], lat, lng, preparadas=True)
             visita = det.visita_da_janela(visitas, previsto)
         estado = det.classificar(visita, previsto)
 

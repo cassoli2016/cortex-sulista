@@ -91,17 +91,38 @@ def _parado(p) -> bool:
     return v is not None and float(v) <= VEL_PARADO_KMH
 
 
+def preparar(posicoes: list[dict]) -> list[dict]:
+    """Filtra e ORDENA o rastro de uma placa, UMA vez.
+
+    Antes isto morava dentro de `detectar()`, que roda uma vez POR PONTO: numa
+    semana com 153 pontos, a mesma lista de 63 mil posicoes era filtrada e
+    reordenada 153 vezes e a tela levava 40 s (as consultas somam 1,3 s).
+
+    A garantia que o docstring de `detectar` prometia — rastro que chega por
+    lotes diferentes vem fora de ordem, e visita partida ao meio viraria duas —
+    continua valendo: so mudou de lugar, para ser paga uma vez.
+    """
+    return sorted((p for p in posicoes if _ok(p)), key=lambda p: p["dt"])
+
+
+# Meio grau ~ 55 km: qualquer posicao fora desta caixa esta ordens de grandeza
+# alem de qualquer raio de geocerca, e nao precisa de haversine para saber.
+_CAIXA_GRAUS = 0.5
+
+
 def detectar(posicoes: list[dict], lat: float, lng: float, *,
              raio_m: float = RAIO_PADRAO_M,
-             min_permanencia_min: float = MIN_PERMANENCIA_MIN) -> list[Visita]:
+             min_permanencia_min: float = MIN_PERMANENCIA_MIN,
+             preparadas: bool = False) -> list[Visita]:
     """Visitas do veículo ao ponto, na ordem em que aconteceram.
 
-    `posicoes`: [{'dt': datetime, 'lat': float, 'lng': float}, ...]. Não
-    precisa vir ordenada — a ordenação é feita aqui, porque rastro que chega
-    por lotes diferentes vem fora de ordem e uma visita partida ao meio viraria
-    duas.
+    `posicoes`: [{'dt': datetime, 'lat': float, 'lng': float}, ...].
+    `preparadas=True` promete que a lista ja passou por `preparar()` (filtrada
+    e ordenada) — e como o servico chama isto uma vez por PONTO sobre o mesmo
+    rastro, e ai que estava o custo. O default False mantem o contrato antigo
+    para quem chama de fora.
     """
-    pts = sorted((p for p in posicoes if _ok(p)), key=lambda p: p["dt"])
+    pts = posicoes if preparadas else preparar(posicoes)
     if not pts or lat is None or lng is None:
         return []
 
@@ -109,6 +130,16 @@ def detectar(posicoes: list[dict], lat: float, lng: float, *,
     atual: dict | None = None
 
     for p in pts:
+        # CAIXA antes da haversine: comparar 153 pontos contra 63 mil posicoes
+        # da ~9,7 milhoes de haversines, quase todas para posicoes a centenas
+        # de quilometros. Duas subtracoes descartam essas.
+        if abs(p["lat"] - lat) > _CAIXA_GRAUS or abs(p["lng"] - lng) > _CAIXA_GRAUS:
+            if atual is not None:
+                v = _fechar(atual, p["dt"])
+                if v:
+                    visitas.append(v)
+                atual = None
+            continue
         d = distancia_m(lat, lng, p["lat"], p["lng"])
         dentro = d <= raio_m
         if dentro:

@@ -4,6 +4,14 @@ Gerado de `docs/versoes.yaml` por `scripts/gerar_changelog.py` — não editar �
 Formato [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/),
 versionamento [SemVer](https://semver.org/lang/pt-BR/).
 
+## [0.57.0] — 26/08/2026  ·  CX-26/08/2026-v0.57.0
+
+### Alterado
+- A tela "Milk Run - MWM" passou a se chamar "Operacao MWM". O termo milk run continua valendo como conceito - solicitacao com mais de uma parada, que e o que separa do frete simples no filtro.
+
+### Corrigido
+- Filtrar uma semana na tela levava 40 segundos. As consultas ao banco somam 1,3 segundo: o resto era processamento. A funcao que detecta a chegada e a saida pelo rastro roda uma vez POR PONTO, e a primeira coisa que fazia era filtrar e reordenar a lista inteira de posicoes do veiculo - 63 mil linhas, 153 vezes, sendo que elas ja chegavam ordenadas do banco. Agora a ordenacao e paga uma vez por placa, e um teste de caixa descarta as posicoes distantes antes do calculo de distancia. Uma semana caiu de 40,5 s para 1,8 s e um mes inteiro passou a responder em 5,7 s.
+
 ## [0.56.1] — 26/08/2026  ·  CX-26/08/2026-v0.56.1
 
 ### Alterado
