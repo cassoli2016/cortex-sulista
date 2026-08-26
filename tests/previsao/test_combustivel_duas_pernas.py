@@ -137,3 +137,27 @@ def test_ctx_carrega_o_historico_para_derivar_o_bruto():
     bruto e o nivel sairia do liquido de novo."""
     c = servico._diesel_agregado_ctx(_ctx(), MESES)
     assert c["hist"]["2026-06"] == 1_100.0
+
+
+# --- o backtest tem de exercitar o caminho NOVO do combustivel -------------
+
+def test_backtest_monta_o_contexto_do_diesel():
+    """Sem `diesel_agr` no ctx sintetico, _diesel_agregado_ctx devolve None,
+    _prever_combustivel nem e chamado e a calibracao mediria o erro do metodo
+    ANTIGO - banda calibrada contra um modelo que nao existe mais."""
+    from pathlib import Path
+    raiz = Path(__file__).resolve().parent.parent.parent
+    src = (raiz / "scripts" / "backtest_previsao.py").read_text(encoding="utf-8")
+    assert "DIESEL_AGREGADO_ASOF_SQL" in src
+    assert '"diesel_agr"' in src
+    assert "km_agregado" in src
+
+
+def test_asof_do_diesel_filtra_por_dtinc():
+    """dtlancamento e competencia; dtinc e quando o lancamento ficou VISIVEL.
+    Sem o corte por dtinc a consulta enxergaria o futuro e o backtest inteiro
+    viraria ficcao otimista."""
+    from api.previsao.sql import DIESEL_AGREGADO_ASOF_SQL
+    assert "l.dtinc <= %(asof)s::date" in DIESEL_AGREGADO_ASOF_SQL
+    assert "upper(p.descricao) LIKE %(padrao)s" in DIESEL_AGREGADO_ASOF_SQL
+    DIESEL_AGREGADO_ASOF_SQL.encode("latin-1")

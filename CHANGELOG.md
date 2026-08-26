@@ -4,6 +4,12 @@ Gerado de `docs/versoes.yaml` por `scripts/gerar_changelog.py` — não editar �
 Formato [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/),
 versionamento [SemVer](https://semver.org/lang/pt-BR/).
 
+## [0.54.1] — 26/08/2026  ·  CX-26/08/2026-v0.54.1
+
+### Corrigido
+- A faixa pessimista/otimista do Fechamento do Mes estava larga demais para decidir qualquer coisa: R$ 6,49 mi de amplitude em volta de um resultado de -R$ 68 mil. A faixa sai de uma calibracao gerada por backtest, e a que estava no ar era de 04/08 - ou seja, descrevia o erro do modelo ANTIGO. Duas linhas faziam 72% da largura, e as duas eram exatamente os defeitos corrigidos na 0.54.0: OUTRAS DESPESAS/RECEITAS carregava +1650% (o evento de R$ 1,46 mi de maio) e CUSTO VARIAVEL carregava 40 pontos (o erro do combustivel). Recalibrado, a faixa caiu para R$ 3,06 mi.
+- O backtest nao montava o contexto do diesel do agregado, entao media o combustivel pelo caminho ANTIGO mesmo depois da 0.54.0 - calibrava a faixa contra um modelo que nao existe mais. Passou a reconstruir tambem a recuperacao do diesel "as-of" a data (por dtinc, como ja fazia com o razao) e o km do agregado.
+
 ## [0.54.0] — 25/08/2026  ·  CX-25/08/2026-v0.54.0
 
 ### Alterado

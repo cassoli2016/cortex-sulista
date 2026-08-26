@@ -21,6 +21,7 @@ Gera: data/previsao_calibracao.json + docs/previsao-backtest.md
 from __future__ import annotations
 
 import argparse
+import calendar
 import json
 import sys
 from datetime import date, timedelta
@@ -36,8 +37,10 @@ from api.orcamento.derivacao import indices_sazonais
 from api.previsao.completude import montar_curva
 from api.previsao.motor import linha_do_agrupador
 from api.previsao.servico import _hist_linha, montar_resposta
-from api.previsao.sql import (COMPLETUDE_SQL, DIARIO_ASOF_SQL, RAZAO_ASOF_SQL,
-                              VFC_MTD_SQL, meses_fechados_prev)
+from api.previsao.servico import PADRAO_DIESEL_AGR
+from api.previsao.sql import (COMPLETUDE_SQL, DIARIO_ASOF_SQL,
+                              DIESEL_AGREGADO_ASOF_SQL, KM_AGREGADO_MES_SQL,
+                              RAZAO_ASOF_SQL, VFC_MTD_SQL, meses_fechados_prev)
 from api.queries import DRE_MODELO, _comp_bounds
 
 ROOT = Path(__file__).resolve().parent.parent
@@ -106,6 +109,18 @@ def main() -> None:
         curva = montar_curva([dict(r) for r in rows_c],
                              {a: linha_do_agrupador(a) for a in ags})
         indices = indices_sazonais(_hist_linha(hist_ag, hist_meses), hist_meses)
+        # AS-OF tambem no diesel do agregado: sem isto _diesel_agregado_ctx
+        # devolve None, _prever_combustivel nao roda e a calibracao mediria o
+        # metodo antigo do combustivel - banda calibrada contra um fantasma.
+        diesel_hist = {r["mes"]: float(r["valor"]) for r in db.query(
+            DIESEL_AGREGADO_ASOF_SQL, {"de": de_h, "ate": ate_h,
+                                       "asof": prim.isoformat(),
+                                       "padrao": PADRAO_DIESEL_AGR})}
+        # km por dtsaida, sem as-of: mesma aproximacao ja declarada para as
+        # viagens no cabecalho deste arquivo.
+        km_hist = {r["mes"]: float(r["km"]) for r in db.query(
+            KM_AGREGADO_MES_SQL, {"de": de_h, "ate": ate_h})}
+        dias_do_mes = calendar.monthrange(prim.year, prim.month)[1]
         ath_rows = db.query(DIARIO_ASOF_SQL,
                             {"de": f"{meses_fechados_prev(prim, 3)[0]}-01",
                              "ate": de_m})
@@ -123,6 +138,10 @@ def main() -> None:
             meta_acum = sum(r["meta"] for r in diario_rows if r["dia"] <= dia)
             dias_meta = sum(1 for r in diario_rows if r["meta"] and r["dia"] <= dia)
             vfc = db.query(VFC_MTD_SQL, {"de": de_m, "ate": asof.isoformat()})
+            diesel_mtd = sum(float(r["valor"]) for r in db.query(
+                DIESEL_AGREGADO_ASOF_SQL, {"de": de_m, "ate": ate_m,
+                                           "asof": asof.isoformat(),
+                                           "padrao": PADRAO_DIESEL_AGR}))
             ctx = {"mes": mes, "modo": "corrente", "dia_rel": dia,
                    "hoje": asof.isoformat(), "dias_meta_decorridos": dias_meta,
                    "razao_ag_mes": razao_ag_mes, "hist_ag": hist_ag,
@@ -133,6 +152,14 @@ def main() -> None:
                    "vfc": dict(vfc[0]) if vfc else {"frete_compra": 0.0,
                                                     "receita_viagens": 0.0,
                                                     "viagens": 0},
+                   "diesel_agr": {
+                       "hist": diesel_hist, "km": km_hist, "cta_hist": {},
+                       "mtd": diesel_mtd,
+                       "km_mtd": float(dict(vfc[0]).get("km_agregado") or 0.0)
+                                 if vfc else 0.0,
+                       "frac_mes": min(1.0, dia / dias_do_mes)},
+                   # ctaplus None de proposito: o aviso do cartao nao entra na
+                   # calibracao (ele nao mexe em previsto nenhum).
                    "ctaplus": None, "cap": None, "breakeven": None,
                    "orcado_linha": {}, "meses_circulares": [], "calibracao": {},
                    "ajustes": {}, "indices": indices, "snapshots": [],

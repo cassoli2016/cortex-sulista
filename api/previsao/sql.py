@@ -190,3 +190,21 @@ WHERE c.data_inicio_abastecimento >= %(de)s::date
   AND coalesce(v.utilizacaoveiculo, '') NOT IN ('AGR', 'TER')
 GROUP BY 1
 """
+
+# Recuperacao do diesel do agregado COMO ERA VISIVEL numa data passada.
+# Existe para o BACKTEST: sem ela o ctx sintetico do backtest nao monta
+# `diesel_agr`, _prever_combustivel nem e chamado e a calibracao mediria o erro
+# do metodo ANTIGO (liquido dividido pela completude) para um modelo que nao
+# usa mais esse caminho - banda larga demais, calibrada contra um fantasma.
+DIESEL_AGREGADO_ASOF_SQL = """
+SELECT to_char(l.dtlancamento,'YYYY-MM') AS mes,
+       sum(coalesce(l.valorcredito,0)-coalesce(l.valordebito,0))::float8 AS valor
+FROM lancamento l
+JOIN planoconta p ON p.reduzido = l.reduzido AND p.grupo = l.grupo
+  AND p.ativoinativo = 1
+WHERE l.dtlancamento >= %(de)s::date AND l.dtlancamento < %(ate)s::date
+  AND l.dtinc <= %(asof)s::date
+  AND coalesce(l.historico, 0) <> 18
+  AND upper(p.descricao) LIKE %(padrao)s
+GROUP BY 1
+"""
