@@ -4,6 +4,23 @@ Gerado de `docs/versoes.yaml` por `scripts/gerar_changelog.py` — não editar �
 Formato [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/),
 versionamento [SemVer](https://semver.org/lang/pt-BR/).
 
+## [0.70.0] — 26/08/2026  ·  CX-26/08/2026-v0.70.0
+
+### Adicionado
+- O Extrato Bancario passou a ler o extrato do C6, que so existe em PDF - aquele banco nao oferece OFX no internet banking. Era a unica conta que nao aparecia como divergente e sim como ausente, por nao ter como entrar. O arquivo traz o saldo ao fim de cada dia movimentado, e a tela confere sozinha se esse saldo bate com o movimento; quando nao bater, ela avisa, porque e o sinal de que o banco mudou o layout do relatorio.
+- Conciliacao LANCAMENTO A LANCAMENTO, num cartao novo da mesma tela. A comparacao que ja existia diz se o dia bate no total; esta diz qual lancamento do extrato e qual linha do razao do ERP, e o que sobrou dos dois lados. Casa por mesmo dia e mesmo valor, e depois por mesmo valor a ate tres dias de distancia - que e o atraso de compensacao e, sozinho, fecha a conta do Sicredi por inteiro.
+- Cada dia recebe um diagnostico em vez de so um numero: "conciliado", "so granularidade", "diverge", "ERP nao lancou" e "so no ERP". A distincao que mais muda o trabalho e a do meio: e comum sobrar linha dos dois lados e o valor do dia fechar mesmo assim, porque o razao lanca em detalhe o que o banco mostra agrupado - na Caixa, um dia tem 15 linhas no extrato contra 372 no razao e a diferenca e de tres centavos. Isso nao e pendencia, e a tela diz isso com todas as letras.
+- A lista abre pelos dias que exigem acao, com o maior valor primeiro, e cada dia abre no clique com as linhas sem par dos dois lados. O cartao "Sem explicacao" so fica verde quando NENHUM dia esta pendente - nunca so porque o total ficou perto de zero, que aconteceria com dois dias grandes de sinais opostos se anulando.
+
+### Alterado
+- O resumo da importacao passou a dizer tudo o que aconteceu com o arquivo: alem de novos e duplicados, quantos lancamentos futuros ficaram de fora, quantos saldos do banco entraram e se a conferencia do PDF nao fechou.
+
+### Corrigido
+- A importacao de extrato descartava lancamento em silencio. Sete arquivos reais de agosto (Bradesco, Caixa, Itau, Safra, Santander e Sicredi) mostraram 53 de 756 lancamentos sumindo, contados na tela como "duplicados" - so na Caixa foram 50, somando R$ 2,46 milhoes de credito, com TEDs de R$ 287 mil, R$ 327 mil e R$ 377 mil entre eles. A causa: o identificador de transacao do arquivo, que deveria ser unico por conta, vinha repetido (a Caixa grava ali o codigo do banco de origem da TED). A identificacao de duplicata deixou de depender so desse campo.
+- Itau e Safra mandam o SALDO do dia como se fosse um lancamento, e ele entrava somando. O movimento do mes do Itau aparecia como R$ 157 mil quando o real e R$ 4 mil - trinta e nove vezes maior. Agora essas linhas viram ancora de saldo, o que melhora a conferencia em vez de piorar: as duas contas passaram de um unico saldo conferido no mes para dezoito.
+- O arquivo de COMPROMISSOS do Bradesco (DARF, boletos e conta de luz com vencimento futuro) e identico ao do extrato e entrava como se fosse movimento realizado. Pior: fazia o sistema achar que a conta estava em dia para sempre, porque o "ultimo dia com extrato" passava a ser uma data futura e o aviso de extrato velho nunca mais disparava. Lancamento com data futura agora fica de fora e e informado no resumo da importacao.
+- O saldo do Bradesco nao aparecia na comparacao. O arquivo grava a data do saldo zerada, e o sistema aceitava isso como um dia que nao existe - entao aquele saldo nunca casava com dia nenhum do ERP e sumia sem aviso.
+
 ## [0.69.0] — 26/08/2026  ·  CX-26/08/2026-v0.69.0
 
 ### Adicionado

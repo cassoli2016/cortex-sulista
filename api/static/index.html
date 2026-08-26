@@ -8236,7 +8236,7 @@ function renderExtb(d){
           +`<td class="num">${x.erp_credito!=null?brl2(x.erp_credito):'—'}</td>`
           +`<td class="num">${x.ext_debito!=null?brl2(x.ext_debito):'—'}</td>`
           +`<td class="num">${x.erp_debito!=null?brl2(x.erp_debito):'—'}</td>`
-          +`<td class="num">${x.ext_saldo!=null?brl2(x.ext_saldo):'<span style="color:var(--n500)" title="O arquivo não trouxe saldo final (LEDGERBAL): sem âncora não é possível derivar o saldo do dia.">n/d</span>'}</td>`
+          +`<td class="num">${x.ext_saldo!=null?brl2(x.ext_saldo):'<span style="color:var(--n500)" title="O arquivo não trouxe saldo utilizável para este dia: sem âncora não é possível derivar o saldo. Ou o banco não manda o saldo (LEDGERBAL ausente), ou manda com a DATA zerada — é o caso do Bradesco, cujo arquivo traz o valor com data 00000000, que não corresponde a dia nenhum e por isso é descartada.">n/d</span>'}</td>`
           +`<td class="num">${x.erp_saldo!=null?brl2(x.erp_saldo):'—'}</td></tr>`
           +`<tr class="forn-det" id="extb-det-${i}"><td colspan="10"></td></tr>`;
       }).join('')
