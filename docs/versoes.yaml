@@ -3,6 +3,20 @@
 #   - a tela Documentação     (#doc)
 #   - o rótulo no rodapé      (CX-DD/MM/AAAA-vX.Y.Z)
 # A versão do TOPO é a corrente e tem de bater com o pyproject.toml.
+- versao: "0.53.1"
+  data: "2026-08-25"
+  corrigido:
+    - >-
+      A previsao do custo de agregado tomava o frete CONTRATADO como se fosse o
+      valor contabil, 1 para 1. Ele nao e: entre contratar e lancar entram
+      glosa, acerto e diferenca de pedagio. Medido em seis meses fechados, o
+      contabil e 95,5% do contratado (94,9 / 96,1 / 100,4 / 94,2 / 92,6 /
+      96,5), com desvio de 2,4 pontos.
+    - >-
+      Como o frete de agregado e o maior componente do custo variavel, o erro
+      ia inteiro para o resultado. So em agosto eram R$ 223 mil: o resultado
+      previsto passou de -R$ 1,57 milhao para -R$ 1,34 milhao.
+
 - versao: "0.53.0"
   data: "2026-08-25"
   adicionado:

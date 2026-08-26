@@ -4,6 +4,12 @@ Gerado de `docs/versoes.yaml` por `scripts/gerar_changelog.py` — não editar �
 Formato [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/),
 versionamento [SemVer](https://semver.org/lang/pt-BR/).
 
+## [0.53.1] — 25/08/2026  ·  CX-25/08/2026-v0.53.1
+
+### Corrigido
+- A previsao do custo de agregado tomava o frete CONTRATADO como se fosse o valor contabil, 1 para 1. Ele nao e: entre contratar e lancar entram glosa, acerto e diferenca de pedagio. Medido em seis meses fechados, o contabil e 95,5% do contratado (94,9 / 96,1 / 100,4 / 94,2 / 92,6 / 96,5), com desvio de 2,4 pontos.
+- Como o frete de agregado e o maior componente do custo variavel, o erro ia inteiro para o resultado. So em agosto eram R$ 223 mil: o resultado previsto passou de -R$ 1,57 milhao para -R$ 1,34 milhao.
+
 ## [0.53.0] — 25/08/2026  ·  CX-25/08/2026-v0.53.0
 
 ### Adicionado

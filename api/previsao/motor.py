@@ -95,9 +95,18 @@ def prever_razao_completude(razao_mtd: float, frac: float, fallback: dict,
         f"razao MTD {_brl(razao_mtd)} dividido pela completude esperada {_pct(frac, 0)}"])
 
 
+# Quanto do frete CONTRATADO chega ao razao. O operacional e o combinado; ate
+# virar lancamento passa por glosa, acerto e diferenca de pedagio. Seis meses
+# fechados: 94,9 / 96,1 / 100,4 / 94,2 / 92,6 / 96,5 — mediana 95,5%, desvio
+# 2,4 p.p. Tomar o operacional 1:1 superestima o maior componente do custo
+# variavel, e o erro vai inteiro para o resultado previsto.
+CONV_FRETE_CONTABIL = 0.955
+
+
 def prever_frete_compra(razao_mtd: float, vfc_mtd: float, receita_prev: float,
                         receita_mtd: float, razao_custo_receita: float,
-                        fonte_receita_mtd: str = "faturamento MTD") -> dict:
+                        fonte_receita_mtd: str = "faturamento MTD",
+                        conv: float = CONV_FRETE_CONTABIL) -> dict:
     """As DUAS pernas tem de sair da MESMA regua de maturidade.
 
     `conhecido` vem das VIAGENS (operacional: completo para os dias decorridos,
@@ -107,12 +116,13 @@ def prever_frete_compra(razao_mtd: float, vfc_mtd: float, receita_prev: float,
     que o custo conhecido ja cobriu: dupla contagem no maior componente do CV.
     Por isso o call site passa `vfc.receita_viagens` (a receita das MESMAS
     viagens) sempre que ela existe, e diz na premissa qual regua usou."""
-    conhecido = min(razao_mtd, -abs(vfc_mtd))  # mais negativo = mais custo conhecido
+    # o operacional entra CONVERTIDO; o razao, nao (ja e contabil)
+    conhecido = min(razao_mtd, -abs(vfc_mtd) * conv)
     receita_rest = max(0.0, receita_prev - receita_mtd)
     projetado = receita_rest * razao_custo_receita
     return _res(conhecido + projetado, "frete_compra", [
         f"conhecido: max(|razao| {_brl(abs(razao_mtd))}, |frete compra viagens| "
-        f"{_brl(abs(vfc_mtd))})",
+        f"{_brl(abs(vfc_mtd))} x {_pct(conv, 1)} de conversao contabil)",
         f"receita ja coberta por esse custo: {_brl(receita_mtd)} "
         f"({fonte_receita_mtd}) - mesma regua do custo conhecido",
         f"projecao: {_pct(abs(razao_custo_receita), 1)} da receita restante prevista "

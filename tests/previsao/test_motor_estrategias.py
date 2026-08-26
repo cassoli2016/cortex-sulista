@@ -72,12 +72,32 @@ def test_razao_completude_guarda_de_dispersao_escrituracao_em_lote():
 
 
 def test_frete_compra_conhecido_mais_projecao():
-    # razao mostra -100, viagens mostram -180 (mais informacao) -> conhecido=-180
+    # razao mostra -100, viagens mostram -180. O operacional entra CONVERTIDO
+    # (95,5%): -180 x 0,955 = -171,9, ainda mais informativo que o razao -100.
     # receita prevista 1000, ja realizada 300 -> restante 700 * razao -0,5 = -350
     r = prever_frete_compra(razao_mtd=-100.0, vfc_mtd=180.0, receita_prev=1000.0,
-                            receita_mtd=300.0, razao_custo_receita=-0.5)
-    assert abs(r["previsto"] - (-180.0 + -350.0)) < 1e-9
+                            receita_mtd=300.0, razao_custo_receita=-0.5,
+                            conv=0.955)
+    assert abs(r["previsto"] - (-180.0 * 0.955 + -350.0)) < 1e-9
     assert r["estrategia"] == "frete_compra"
+
+
+def test_frete_compra_converte_o_operacional_mas_nao_o_razao():
+    """O `valorfretecompra` e o CONTRATADO; o que chega ao razao e ~95,5% dele
+    (glosa, acerto, diferenca de pedagio). Ja o razao e contabil por natureza e
+    nao pode ser convertido de novo — seria descontar duas vezes."""
+    # razao muito mais negativo que o operacional: manda o razao, sem conversao
+    r = prever_frete_compra(razao_mtd=-900.0, vfc_mtd=100.0, receita_prev=100.0,
+                            receita_mtd=100.0, razao_custo_receita=-0.5,
+                            conv=0.955)
+    assert abs(r["previsto"] - (-900.0)) < 1e-9
+
+
+def test_a_conversao_esta_ancorada_em_medicao():
+    """95,5% nao e chute: e a mediana de seis meses fechados (94,9 / 96,1 /
+    100,4 / 94,2 / 92,6 / 96,5), com desvio de 2,4 p.p."""
+    from api.previsao.motor import CONV_FRETE_CONTABIL
+    assert 0.90 <= CONV_FRETE_CONTABIL <= 1.0
 
 
 def test_sazonal_nivel_x_indice():
@@ -102,3 +122,14 @@ def test_formatacao_pt_br_percentual():
     r = prever_pct_receita(receita_prev=1000.0, pct=-0.0778, nome_pct="federais 6m")
     # Deve conter "-7,78%" (pt-BR com vírgula decimal)
     assert any("-7,78%" in p for p in r["premissas"])
+
+
+def test_a_premissa_do_frete_mostra_a_conversao_em_percentual_legivel():
+    """Saiu "9550,0%" na primeira versao: `_pct` ja multiplica por 100 e eu
+    multipliquei de novo. Premissa e texto que o usuario le para conferir a
+    conta — numero absurdo ali destroi a confianca no resto."""
+    r = prever_frete_compra(razao_mtd=-100.0, vfc_mtd=180.0, receita_prev=1000.0,
+                            receita_mtd=300.0, razao_custo_receita=-0.5,
+                            conv=0.955)
+    texto = " ".join(r["premissas"])
+    assert "95,5%" in texto and "9550" not in texto

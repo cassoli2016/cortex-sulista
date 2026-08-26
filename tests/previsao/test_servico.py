@@ -462,8 +462,10 @@ def test_frete_compra_usa_a_receita_das_viagens_e_nao_conta_duas_vezes():
 
     rec_prev = 310.0 + 680.0 * (310.0 / 320.0)          # driver fiscal intacto
     razao_cr = -1200.0 / 6000.0
-    certo = -80.0 + (rec_prev - 400.0) * razao_cr        # regua unica: viagens
-    errado = -80.0 + (rec_prev - 310.0) * razao_cr       # MTD fiscal (dupla contagem)
+    # o custo conhecido vem do operacional e entra CONVERTIDO para contabil
+    conhecido = -80.0 * motor.CONV_FRETE_CONTABIL
+    certo = conhecido + (rec_prev - 400.0) * razao_cr    # regua unica: viagens
+    errado = conhecido + (rec_prev - 310.0) * razao_cr   # MTD fiscal (dupla contagem)
     combustivel = -300.0                                 # razao -100 / completude 10/30
     assert abs(linhas["CUSTO VARIAVEL"]["previsto"] - (certo + combustivel)) < 1e-6
     assert abs(certo - errado) > 1.0                     # o teste distingue os dois
