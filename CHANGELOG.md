@@ -4,6 +4,13 @@ Gerado de `docs/versoes.yaml` por `scripts/gerar_changelog.py` — não editar �
 Formato [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/),
 versionamento [SemVer](https://semver.org/lang/pt-BR/).
 
+## [0.55.1] — 26/08/2026  ·  CX-26/08/2026-v0.55.1
+
+### Corrigido
+- A tela Permanência na Planta não abria: clicar nela levava de volta à Visão Geral, sem erro nenhum. Faltava registrá-la em `VIEWS`, que é o registro que o roteador consulta antes de navegar - ela tinha link no menu, rota, permissão e dado, e mesmo assim era inalcançável.
+- O item do menu estava sem ícone: o `data-ic` apontava para uma chave inexistente, e ícone desconhecido não levanta erro, só deixa o espaço vazio. A tela ganhou ícone próprio (contorno de área com um ponto dentro) em vez de repetir o da Torre de Controle, que faria duas linhas do mesmo grupo parecerem a mesma tela.
+- Quatro guardas novas para que isso não se repita: toda tela do menu tem de estar em `VIEWS`, toda tela de `VIEWS` tem de ter seção no HTML, todo ícone referenciado tem de existir e toda tela do menu tem de ter loader. Os dois defeitos acima falhavam em SILÊNCIO - já havia teste para a gaveta do celular e para o acordeão do menu, e nenhum para o registro que de fato autoriza a navegação.
+
 ## [0.55.0] — 26/08/2026  ·  CX-26/08/2026-v0.55.0
 
 ### Adicionado
