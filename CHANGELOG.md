@@ -4,6 +4,23 @@ Gerado de `docs/versoes.yaml` por `scripts/gerar_changelog.py` — não editar �
 Formato [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/),
 versionamento [SemVer](https://semver.org/lang/pt-BR/).
 
+## [0.71.0] — 26/08/2026  ·  CX-26/08/2026-v0.71.0
+
+### Adicionado
+- A aba Integracoes da Gestao passou a ter um CARTAO POR FORNECEDOR - Gobrax, Prolog, Monkey Exchange e o servidor de e-mail - com o estado de cada um no titulo: ativa, incompleta ou desligada. Antes era uma lista unica de 22 campos, todos com a mesma cara.
+- Cada cartao diz o que a integracao alimenta ("alimenta Pneus"), como esta autenticando no momento e o que exatamente falta para ligar. O topo da aba conta quantas estao ativas e chama pelo nome a que alguem comecou e nao terminou - integracao pela metade deixa a tela que ela alimenta sem dado, calada.
+- Seletor de FORMA DE AUTENTICACAO no cartao de quem aceita mais de uma. A Prolog aceita token, usuario e senha ou OAuth2, e mostrar os onze campos de uma vez fazia a integracao inteira parecer desconfigurada. So os campos da forma escolhida aparecem, e a que ja esta pronta leva selo.
+- Aviso de PRECEDENCIA ao trocar de forma: o sistema usa a primeira que estiver completa, entao preencher o OAuth2 com um token ja salvo nao troca nada. Sem esse aviso o operador configurava e jurava que nao funcionava.
+- Campo de configuracao (ambiente, URL base, ids de filial, cabecalho do token) agora aparece PREENCHIDO e da para conferir - eles nao sao segredo, e mascarar "hmg" como pontinhos so impedia enxergar o que estava valendo. Token, senha e client_secret continuam entrando e nunca voltando da tela.
+
+### Alterado
+- A senha do SMTP nao e mais pedida em dois lugares. Na aba Integracoes ela aparece so no panorama, com o caminho para a aba E-mail, onde ficam servidor, porta, remetente e a trilha de envio.
+- Salvar agora e por fornecedor e manda so o que mudou, em vez de um botao por campo. Campo de segredo em branco significa "nao mexi", nunca "apague" - apagar continua sendo o link ao lado do proprio campo.
+
+### Corrigido
+- "Limites de credito contratados", no Fluxo de Caixa, voltou a carregar e a salvar. O codigo das integracoes tinha funcoes com o MESMO NOME das do cartao de limites (credCarregar/credSalvar) e, como a tela e um script so, a segunda declaracao vencia a primeira: a tabela de limites ficava vazia e "Salvar limites" caia no cofre de tokens, reclamando de token nao colado.
+- Saiu da tela o campo "Codigo da empresa na Prolog", que era oferecido para preenchimento e nenhum codigo do sistema lia.
+
 ## [0.70.0] — 26/08/2026  ·  CX-26/08/2026-v0.70.0
 
 ### Adicionado

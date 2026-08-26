@@ -535,10 +535,19 @@ def telemetria_rastro(placa: str | None = None,
 
 @app.get("/api/gestao/credenciais")
 def gestao_credenciais() -> JSONResponse:
-    """Status das credenciais de integração. NUNCA devolve o valor."""
+    """Integrações por FORNECEDOR, com o estado de cada uma.
+
+    NUNCA devolve o valor de um segredo — só o mascarado. Campo de
+    configuração (ambiente, URL base, filiais) volta com o valor de propósito;
+    a regra está em `api/credenciais.py`.
+
+    `credenciais` continua indo na resposta: é a lista plana, sem agrupamento,
+    de que outros consumidores dependem.
+    """
     from api import credenciais
     # /api/gestao/* já é restrito a admin pelo AuthMiddleware (api/auth.py:654)
-    return JSONResponse({"credenciais": credenciais.listar()})
+    return JSONResponse({"servicos": credenciais.panorama(),
+                         "credenciais": credenciais.listar()})
 
 
 @app.post("/api/gestao/credenciais")

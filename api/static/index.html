@@ -980,6 +980,30 @@ button.avatar{border:0;cursor:pointer}
 .ges-cfg input{width:100%;padding:9px 10px;border:1px solid var(--n300,#d3dae2);border-radius:6px;font:inherit;font-size:14px}
 .gbtn{padding:5px 10px;font-size:12px}
 
+/* ---- Integrações (um cartão por fornecedor) ----
+   A aba era uma lista plana de 22 campos: quem abria via onze linhas PROLOG_*
+   dizendo "não configurado", quando a Prolog precisa de UM dos três modos de
+   autenticação. Agora o fornecedor é a unidade, e os campos alternativos ficam
+   atrás do seletor de modo. */
+.integ-corpo{padding:14px 18px 2px;display:flex;flex-direction:column;gap:13px}
+.integ-resumo{margin:0;font-size:13px;color:var(--n600);max-width:78ch}
+.integ-linha{font-size:12.5px;color:var(--n700);display:flex;gap:8px;
+  align-items:center;flex-wrap:wrap}
+.integ-linha .mono{font-family:var(--mono);font-size:12px}
+.integ-rot{font-size:11px;text-transform:uppercase;letter-spacing:.08em;
+  color:var(--n500);font-weight:600}
+.integ-modos{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+.integ-modos .ghost[aria-pressed="true"]{border-color:var(--orange-500);
+  color:var(--orange-600);font-weight:600}
+.integ-dica{font-size:11.5px;color:var(--n500);margin-top:5px;display:flex;
+  gap:7px;flex-wrap:wrap;align-items:center;line-height:1.45}
+.integ-dica .mono{font-family:var(--mono)}
+/* "apagar" mora colado no campo: apagar credencial é ação por CAMPO, não por
+   cartão — o botão Salvar do rodapé grava vários de uma vez. */
+.integ-lnk{background:none;border:0;padding:0;font:inherit;font-size:11.5px;
+  color:var(--orange-600);cursor:pointer;text-decoration:underline}
+.integ-lnk:hover{color:var(--red)}
+
 /* ---- impressão / PDF ---- */
 @media print{
   #sidebar,.filterbar,.btn-filtros,.bottomnav,.drawer,#btnRefresh,#btnReport,
@@ -3788,9 +3812,10 @@ body.tvfull #btnReport,body.tvmode #btnReport{display:none}
         </div>
         <div id="gpane-integracoes" style="display:none">
           <div class="card">
-            <div class="head"><h2>Credenciais de integração <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="Tokens de API dos fornecedores, guardados em data/credenciais.json na própria máquina, com permissão restrita e fora do controle de versão. O valor NUNCA é devolvido para a tela: depois de salvo, só é possível ver as pontas. Um valor salvo aqui tem precedência sobre a variável de ambiente de mesmo nome.">i</span></h2><span class="hint">só administradores · o valor não pode ser lido de volta</span></div>
-            <div id="ges-creds" style="padding:0 18px 18px"></div>
+            <div class="head"><h2>Integrações <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="Um cartão por fornecedor. As credenciais ficam em data/credenciais.json na própria máquina, com permissão restrita e fora do controle de versão. SEGREDO (token, senha, client_secret) nunca volta para a tela: depois de salvo, só é possível ver as pontas. Campo de CONFIGURAÇÃO (ambiente, URL, filiais) volta com o valor, para dar para conferir o que está valendo. Um valor salvo aqui tem precedência sobre a variável de ambiente de mesmo nome.">i</span></h2><span class="hint" id="integResumo">só administradores</span></div>
+            <div class="banner-inline" id="integAviso" style="display:none"></div>
           </div>
+          <div id="ges-creds"></div>
         </div>
         <div id="gpane-email" style="display:none">
           <div class="card">
@@ -16347,7 +16372,7 @@ function gesTab(t){
     document.getElementById('gtab-'+x).setAttribute('aria-pressed', String(x===t));
   });
   if(t==='auditoria' && !document.getElementById('ges-aud').children.length) audCarregar();
-  if(t==='integracoes') credCarregar();
+  if(t==='integracoes') integCarregar();
   if(t==='email') emailCarregar();
 }
 function renderGestao(){ renderGesUsuarios(); renderGesPerfis(); renderGesConfig(); gesTab(GES_TAB); }
@@ -16435,61 +16460,199 @@ async function emailTeste(){
   }catch(e){ err.style.color=''; err.textContent='Não foi possível falar com a API.'; }
   finally{ btn.disabled=false; btn.textContent='Enviar teste para mim'; }
 }
-/* ===================== Credenciais de integração =====================
-   O valor NUNCA volta do servidor: a tela mostra só as pontas do que está
-   guardado. O campo é sempre um password vazio — nada de preencher com o
-   segredo para o usuário "ver o que está lá". */
-async function credCarregar(){
+/* ===================== Integrações (credenciais) =====================
+   Um cartão por FORNECEDOR, não uma lista plana de campos: a Prolog pede UM
+   dos três modos de autenticação, e mostrar os onze campos de uma vez fazia a
+   tela inteira parecer desconfigurada.
+
+   SEGREDO nunca volta do servidor — o campo é password e nasce vazio, mesmo
+   "para o usuário conferir". Campo de CONFIGURAÇÃO (ambiente, URL, filiais)
+   volta com o valor de propósito: mascarar "hmg" só atrapalha.
+
+   NOME DAS FUNÇÕES: `integ*`, e não `cred*`. Os limites de crédito do Fluxo de
+   Caixa já usavam credCarregar/credSalvar; como o arquivo é UM script só, a
+   segunda declaração vencia a primeira e o card "Limites de crédito
+   contratados" ficava vazio, com "Salvar limites" caindo no cofre de tokens. */
+let INTEG = null;
+const INTEG_MODO = {};   // modo de autenticação escolhido na tela, por fornecedor
+const INTEG_ERRO = {};   // erro do último salvamento, por fornecedor
+const INTEG_EST = {ativa:['b-ok','ativa'], incompleta:['b-warn','incompleta'],
+                   desligada:['b-info','desligada']};
+
+async function integCarregar(){
   const alvo=document.getElementById('ges-creds');
-  alvo.innerHTML='<div style="color:var(--n500)">carregando…</div>';
+  const aviso=(cor,txt)=>'<div class="card"><div class="integ-corpo" style="color:var('+cor+')">'+txt+'</div></div>';
+  alvo.innerHTML=aviso('--n500','carregando…');
   try{
     const r=await fetch('/api/gestao/credenciais',{cache:'no-store'});
     const d=await r.json();
-    if(!r.ok){ alvo.innerHTML='<div style="color:var(--red)">'+esc(d.mensagem||'Erro ao ler as credenciais.')+'</div>'; return; }
-    alvo.innerHTML=(d.credenciais||[]).map(c=>{
-      const origem = c.origem==='cofre' ? 'salvo aqui na tela'
-                   : c.origem==='ambiente' ? 'vindo do arquivo .env do servidor'
-                   : 'não configurado';
-      const quando = c.atualizado_em ? ' · atualizado em '+esc(c.atualizado_em) : '';
-      return `<div style="border-top:1px solid var(--n100,#EEF1F4);padding:14px 0">
-        <div style="font-weight:600">${esc(c.nome)}</div>
-        <div style="font-size:12px;color:var(--n500);margin-bottom:8px">${esc(c.descricao||'')}</div>
-        <div style="font-size:12px;margin-bottom:10px">
-          ${c.configurado
-            ? `<span class="badge b-ok">configurado</span> <span style="font-family:var(--mono)">${esc(c.mascarado||'')}</span> <span style="color:var(--n500)">· ${esc(origem)}${quando}</span>`
-            : '<span class="badge b-warn">não configurado</span> <span style="color:var(--n500)">a integração fica desligada</span>'}
-        </div>
-        <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
-          <input type="password" id="cred-${esc(c.nome)}" placeholder="colar o token novo" autocomplete="off"
-                 style="width:340px;max-width:100%" aria-label="Novo valor para ${esc(c.nome)}">
-          <button class="btn" onclick="credSalvar('${esc(c.nome)}')">Salvar</button>
-          ${c.origem==='cofre' ? `<button class="ghost" onclick="credApagar('${esc(c.nome)}')">Apagar</button>` : ''}
-        </div>
-      </div>`;
-    }).join('') || '<div style="color:var(--n500)">nenhuma integração cadastrada</div>';
-  }catch(e){ alvo.innerHTML='<div style="color:var(--red)">Não foi possível falar com a API.</div>'; }
+    if(!r.ok){ alvo.innerHTML=aviso('--red', esc(d.mensagem||'Erro ao ler as integrações.')); return; }
+    INTEG=d.servicos||[];
+    integRender();
+  }catch(e){ alvo.innerHTML=aviso('--red','Não foi possível falar com a API.'); }
 }
-async function credSalvar(nome){
-  const campo=document.getElementById('cred-'+nome);
-  const valor=(campo&&campo.value||'').trim();
-  if(!valor){ showBanner('Cole o token antes de salvar.'); return; }
-  await credEnviar(nome, valor);
-  if(campo) campo.value='';   // o segredo não fica no DOM depois de enviado
+
+function integModoAtual(s){
+  return INTEG_MODO[s.chave] || s.modo_ativo || ((s.modos||[])[0]||{}).chave;
 }
-async function credApagar(nome){
-  if(!confirm('Apagar a credencial '+nome+'? A integração para de funcionar até um valor novo ser salvo.')) return;
-  await credEnviar(nome, '');
+function integModo(chave, modo){ INTEG_MODO[chave]=modo; integRender(); }
+
+function integRender(){
+  const svcs=INTEG||[];
+  const ativas=svcs.filter(x=>x.estado==='ativa').length;
+  document.getElementById('integResumo').textContent =
+    ativas+' de '+svcs.length+(svcs.length===1?' integração ativa':' integrações ativas')
+    +' · só administradores';
+  /* Pendência vai para o topo em texto, não só como badge no meio da lista:
+     integração incompleta é a que alguém começou e abandonou — some da vista e
+     a tela que ela alimenta fica sem dado sem ninguém saber por quê. */
+  const pend=svcs.filter(x=>x.estado==='incompleta');
+  const av=document.getElementById('integAviso');
+  if(pend.length){
+    av.style.display='block';
+    av.innerHTML='<div><b>'+pend.length+(pend.length===1?' integração começou e não fechou.':' integrações começaram e não fecharam.')+'</b> '
+      + pend.map(x=>esc(x.nome)+' — falta '+esc(x.falta.join(', '))).join(' · ')
+      + '. Enquanto isso, a tela que ela alimenta fica sem dado.</div>';
+  } else av.style.display='none';
+  document.getElementById('ges-creds').innerHTML=svcs.map(integCard).join('');
 }
-async function credEnviar(nome, valor){
+
+function integOrigem(c){
+  return c.origem==='cofre' ? 'salvo aqui na tela'
+       : c.origem==='ambiente' ? 'vindo do arquivo .env do servidor' : '';
+}
+
+function integEstadoCampo(c){
+  if(!c.configurado){
+    return c.obrigatorio
+      ? ' · <span style="color:var(--yellow-700)">não configurado</span>'
+      : ' · <span style="color:var(--n500)">vazio — vale o padrão</span>';
+  }
+  const quando=c.atualizado_em?' · atualizado em '+esc(fmtDT(String(c.atualizado_em).slice(0,16))):'';
+  const marca=c.segredo?' <span class="mono">'+esc(c.mascarado||'')+'</span>':'';
+  const apagar=c.origem==='cofre'
+    ? ' <button type="button" class="integ-lnk" onclick="integApagar(&quot;'+esc(c.nome)+'&quot;)">apagar</button>'
+    : '';
+  return ' · configurado'+marca+' · '+integOrigem(c)+quando+apagar;
+}
+
+function integCampo(c){
+  const id='cred-'+c.nome;
+  const opc=c.obrigatorio?'':' <span style="font-weight:400;color:var(--n500)">(opcional)</span>';
+  /* O segredo nasce vazio SEMPRE; o campo de configuração vem preenchido, para
+     poder ser conferido e corrigido sem redigitar. */
+  const val=c.segredo?'':esc(c.valor||'');
+  const ph=c.segredo?(c.configurado?'digite para trocar':'colar o valor')
+                    :esc(c.placeholder||'');
+  return '<div><label for="'+id+'">'+esc(c.rotulo)+opc+'</label>'
+    +'<input type="'+(c.segredo?'password':'text')+'" id="'+id+'" value="'+val+'"'
+    +' placeholder="'+ph+'" autocomplete="off" aria-label="'+esc(c.rotulo)+' — '+esc(c.nome)+'">'
+    +'<div class="integ-dica">'+esc(c.descricao||'')+integEstadoCampo(c)+'</div></div>';
+}
+
+function integCorpo(s){
+  const modo=integModoAtual(s);
+  const m=(s.modos||[]).find(x=>x.chave===modo)||(s.modos||[])[0]||{campos:[]};
+  const ativo=(s.modos||[]).find(x=>x.chave===s.modo_ativo);
+  let html='<div class="integ-corpo"><p class="integ-resumo">'+esc(s.resumo)+'</p>';
+
+  html+='<div class="integ-linha">'+(s.modo_ativo
+      ? 'Autenticando por <b>'+esc((ativo||{}).rotulo||s.modo_ativo)+'</b>'
+        +(s.falta.length?' · <span style="color:var(--yellow-700)">falta '+esc(s.falta.join(', '))+'</span>':'')
+      : '<span style="color:var(--yellow-700)">Falta '+esc(s.falta.join(', '))+'</span>')
+    +'</div>';
+
+  if((s.modos||[]).length>1){
+    html+='<div><div class="integ-rot">Forma de autenticação</div>'
+      +'<div class="integ-modos" role="group" aria-label="Forma de autenticação">'
+      +s.modos.map(x=>'<button type="button" class="ghost" aria-pressed="'+(x.chave===modo)+'"'
+        +' onclick="integModo(&quot;'+esc(s.chave)+'&quot;,&quot;'+esc(x.chave)+'&quot;)">'+esc(x.rotulo)
+        +(x.completo?' <span class="badge b-ok">pronta</span>':'')+'</button>').join('')
+      +'</div>'+(m.dica?'<div class="integ-dica">'+esc(m.dica)+'</div>':'')+'</div>';
+    /* A ORDEM MANDA: o cliente usa o PRIMEIRO modo completo (monkey/cliente.py,
+       pneus/cliente.py). Preencher o OAuth2 com um token já salvo não troca
+       nada — e sem este aviso o operador jura que configurou e não funcionou. */
+    if(s.modo_ativo && s.modo_ativo!==modo){
+      html+='<div class="integ-linha" style="color:var(--yellow-700)">'
+        +'Atenção: <b>'+esc((ativo||{}).rotulo||'')+'</b> já está configurada e tem precedência. '
+        +'Para passar a usar '+esc(m.rotulo||'')+', apague a outra primeiro.</div>';
+    }
+  }
+
+  html+='<div class="ges-cfg" style="padding:0">'+(m.campos||[]).map(integCampo).join('')+'</div>';
+  if((s.ajustes||[]).length){
+    html+='<div><div class="integ-rot">Ajustes desta integração</div>'
+      +'<div class="ges-cfg" style="padding:8px 0 0">'+s.ajustes.map(integCampo).join('')+'</div></div>';
+  }
+  html+='</div>';
+  return html
+    +'<div class="m-foot"><span class="m-err" id="integ-err-'+esc(s.chave)+'">'
+    +esc(INTEG_ERRO[s.chave]||'')+'</span>'
+    +'<button class="btn" id="integ-btn-'+esc(s.chave)+'" onclick="integSalvar(&quot;'+esc(s.chave)+'&quot;)">Salvar</button></div>';
+}
+
+function integCorpoOutraAba(s){
+  /* Editar a mesma senha em dois lugares é o que fazia salvar num e conferir
+     no outro. Aqui fica só o panorama, com o caminho para onde se edita. */
+  const c=(((s.modos||[])[0]||{}).campos||[])[0]||{};
+  return '<div class="integ-corpo"><p class="integ-resumo">'+esc(s.resumo)+'</p>'
+    +'<div class="integ-linha">'+(c.configurado
+        ? 'Senha guardada no cofre · '+integOrigem(c)
+        : '<span style="color:var(--yellow-700)">Sem senha guardada — o CÓRTEX não envia e-mail</span>')
+    +'</div></div>'
+    +'<div class="m-foot"><span class="m-err"></span>'
+    +'<button class="ghost" onclick="gesTab(&quot;email&quot;)">Configurar na aba E-mail</button></div>';
+}
+
+function integCard(s){
+  const est=INTEG_EST[s.estado]||['b-info',s.estado];
+  return '<div class="card" id="integ-'+esc(s.chave)+'" style="margin-bottom:14px">'
+    +'<div class="head"><h2>'+esc(s.nome)+' <span class="badge '+est[0]+'">'+est[1]+'</span></h2>'
+    +'<span class="hint">alimenta '+esc(s.alimenta)+'</span></div>'
+    +(s.aba?integCorpoOutraAba(s):integCorpo(s))+'</div>';
+}
+
+async function integSalvar(chave){
+  const s=(INTEG||[]).find(x=>x.chave===chave); if(!s) return;
+  const err=document.getElementById('integ-err-'+chave);
+  const m=(s.modos||[]).find(x=>x.chave===integModoAtual(s))||{campos:[]};
+  const campos=(m.campos||[]).concat(s.ajustes||[]);
+  /* Só o que MUDOU vai para a API: campo de segredo em branco significa "não
+     mexi", nunca "apague" — apagar é o link ao lado do próprio campo. */
+  const envios=[];
+  campos.forEach(c=>{
+    const el=document.getElementById('cred-'+c.nome); if(!el) return;
+    const v=(el.value||'').trim();
+    if(c.segredo){ if(v) envios.push([c.nome,v]); }
+    else if(v!==(c.valor||'')) envios.push([c.nome,v]);
+  });
+  if(!envios.length){ if(err) err.textContent='Nada mudou — preencha ou altere algum campo antes de salvar.'; return; }
+  const btn=document.getElementById('integ-btn-'+chave);
+  if(btn){ btn.disabled=true; btn.textContent='Salvando…'; }
+  delete INTEG_ERRO[chave];
+  try{
+    for(const par of envios){
+      const r=await fetch('/api/gestao/credenciais',{method:'POST',
+        headers:{'Content-Type':'application/json'},
+        body:JSON.stringify({nome:par[0], valor:par[1]})});
+      const d=await r.json();
+      if(!r.ok){ INTEG_ERRO[chave]=(d.mensagem||'Não foi possível salvar.')+' ('+par[0]+')'; break; }
+    }
+    hideBanner();
+  }catch(e){ INTEG_ERRO[chave]='Não foi possível falar com a API.'; }
+  await integCarregar();   // o estado do cartão é recalculado no servidor
+}
+
+async function integApagar(nome){
+  if(!confirm('Apagar '+nome+'? A integração para de funcionar até um valor novo ser salvo.')) return;
   try{
     const r=await fetch('/api/gestao/credenciais',{method:'POST',
       headers:{'Content-Type':'application/json'},
-      body:JSON.stringify({nome:nome, valor:valor})});
-    const d=await r.json();
-    if(!r.ok){ showBanner(d.mensagem||'Não foi possível salvar a credencial.'); return; }
+      body:JSON.stringify({nome:nome, valor:''})});
+    if(!r.ok){ const d=await r.json(); showBanner(d.mensagem||'Não foi possível apagar.'); return; }
     hideBanner();
-    credCarregar();
-  }catch(e){ showBanner('Não foi possível falar com a API.', e.message); }
+  }catch(e){ showBanner('Não foi possível falar com a API.', e.message); return; }
+  integCarregar();
 }
 function agoraLocal(){
   const n=new Date(), p=x=>String(x).padStart(2,'0');
