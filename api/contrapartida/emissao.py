@@ -52,6 +52,20 @@ log = logging.getLogger("cortex.contrapartida.emissao")
 
 HOMOLOGACAO = sefaz.HOMOLOGACAO
 
+# SÉRIE 900, exclusiva destes documentos (aprovada pela área em 26/08/2026,
+# em caráter provisório para homologação).
+#
+# Por que uma série alta e reservada, e não a 1: se o agregado já emite CT-e
+# por conta própria — pelo contador dele, por outro sistema —, estará numa
+# série baixa. Número repetido dentro da mesma série é rejeitado pela SEFAZ,
+# documento a documento, no meio de um lote de milhares; e não há como
+# levantar, agregado a agregado, o que cada um já gastou. A série reservada
+# afasta a colisão sem depender desse levantamento.
+#
+# De quebra torna a origem auditável: pela série se sabe, sem consultar
+# ninguém, que o documento saiu pela Sulista em nome do agregado.
+SERIE_PADRAO = 900
+
 _DDL_EMISSAO = """
 CREATE TABLE IF NOT EXISTS emissao (
   id            INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -129,7 +143,7 @@ def _registra(quem: str, ambiente: str, cnpj: str, serie: int, numero: int,
 
 
 def transmitir(chave_origem: str, enq: documento.Enquadramento, *, quem: str,
-               serie: int = 1, numero: int | None = None,
+               serie: int = SERIE_PADRAO, numero: int | None = None,
                ambiente: str = HOMOLOGACAO) -> dict:
     """Monta, assina e transmite. Devolve o retorno da SEFAZ, sempre gravado.
 

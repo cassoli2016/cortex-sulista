@@ -4,6 +4,16 @@ Gerado de `docs/versoes.yaml` por `scripts/gerar_changelog.py` — não editar �
 Formato [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/),
 versionamento [SemVer](https://semver.org/lang/pt-BR/).
 
+## [0.70.0] — 26/08/2026  ·  CX-26/08/2026-v0.70.0
+
+### Adicionado
+- Serie 900 aprovada e em uso: o primeiro CT-e de contrapartida da serie nova foi autorizado pela SEFAZ em homologacao. Serie alta e reservada afasta a colisao com o que o agregado ja emita por conta propria - e numero repetido e rejeitado documento a documento, no meio de um lote de milhares, sem que se possa levantar antes o que cada um ja gastou.
+
+### Alterado
+- Perguntaram se o tomador nao poderia sair do CT-e original. Nao diretamente: o tomador do NOSSO documento e quem contratou a Sulista, e o documento do agregado precisa dizer quem contratou o AGREGADO - sao elos diferentes da mesma cadeia. Mas a pergunta levou a uma resposta melhor: em 5.987 dos 6.596 CT-e do trimestre (91%) o pagamento da viagem sai da Sulista para o dono do veiculo. Quem contrata e paga e a Sulista, e isso o ERP ja registra.
+- Com isso, "prestacao normal" fica descartada pelos FATOS e nao por preferencia: o tomador e a Sulista, e a SEFAZ so aceita a Sulista nessa posicao em subcontratacao ou redespacho. A pergunta a contabilidade encolheu de tres opcoes para duas.
+- E um dado que ajuda a escolher entre as duas: o redespacho pressupoe carga ja em transito, entregue a outro transportador para completar o percurso. Nos CT-e de agregado, apenas 28 de 6.365 (0,4%) registram documento de transporte anterior - em praticamente todos, o agregado faz o percurso inteiro.
+
 ## [0.69.0] — 26/08/2026  ·  CX-26/08/2026-v0.69.0
 
 ### Adicionado

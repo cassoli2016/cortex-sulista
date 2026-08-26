@@ -15,7 +15,7 @@
 | 2 | Valor cobrado do cliente ou pago ao agregado? | *aguardando* |
 | 3 | Um documento por CT-e ou por viagem? | **Um por CT-e** |
 | 4 | Tratamento e CST do ICMS | *aguardando* |
-| 5 | Série e numeração por agregado | *sugestão nossa, abaixo* |
+| 5 | Série e numeração por agregado | **Série 900 aprovada** (provisória) |
 | 6 | Os 17 com IE "ISENTO" emitem? | em análise |
 | 7 | Documentos de valor simbólico entram? | **Não, por ora** |
 | 8 | Passivo de R$ 108,7 mi | encaminhado ao Jurídico |
@@ -57,9 +57,37 @@ A única combinação que a SEFAZ autorizou **e** descreve a operação real
 (agregado presta para a Sulista, referenciando o nosso CT-e) foi
 **subcontratação**.
 
-**Pedimos a reconfirmação da resposta 1**, ciente destas restrições. Não é
-divergência de opinião nossa: são as regras de validação do próprio órgão,
-observadas em teste.
+### Quem é o tomador não está em dúvida — e isso estreita a escolha
+
+Foi levantado se não daria para identificar o tomador pelo CT-e original.
+Não diretamente: o tomador do **nosso** CT-e é quem contratou **a Sulista** —
+no documento-piloto, o remetente da carga. O documento do agregado precisa
+dizer quem contratou **o agregado**. São elos diferentes da mesma cadeia.
+
+Mas o ponto por trás da pergunta procede: **quem contratou o agregado não é
+matéria de interpretação, e o próprio ERP registra.** Em 90 dias, em
+**5.987 dos 6.596** CT-e (91%), o pagamento da viagem sai da Sulista para o
+**dono do veículo** — o agregado. Quem contrata e quem paga é a Sulista, não o
+cliente.
+
+Disso decorre, sem opinião fiscal nenhuma:
+
+1. O tomador do documento do agregado **é a Sulista** — é o que os pagamentos
+   mostram;
+2. a SEFAZ só aceita a Sulista nessa posição em **subcontratação ou
+   redespacho** (seção acima);
+3. logo, **prestação normal fica descartada pelos fatos**, não por preferência
+   nossa.
+
+Resta escolher entre as duas. Um dado que talvez ajude: o redespacho pressupõe
+carga já em trânsito, entregue a outro transportador para completar o percurso.
+Nos CT-e de agregado, **apenas 28 de 6.365** (0,4%) registram documento de
+transporte anterior — em praticamente todos, o agregado faz o percurso inteiro,
+não um trecho de cadeia já iniciada.
+
+**Pedimos a reconfirmação da resposta 1** entre **subcontratação** e
+**redespacho**, ciente destas restrições. Não é divergência de opinião nossa:
+são as regras de validação do próprio órgão, observadas em teste.
 
 ---
 
@@ -179,9 +207,11 @@ Razões:
   a sua, e o sistema já controla isso separadamente, inclusive mantendo as
   numerações de teste e de produção apartadas.
 
-O que pedimos que a contabilidade confirme: **se a série 900 é aceitável** e se
-há alguma exigência de série específica em algum dos contratos ou regimes
-especiais.
+**Aprovada em 26/08/2026**, em caráter provisório para os testes. Já em uso: o
+primeiro documento da série 900 foi autorizado pela SEFAZ em homologação.
+
+Fica pendente apenas confirmar, antes da produção, se **há exigência de série
+específica** em algum contrato ou regime especial.
 
 ---
 
@@ -243,15 +273,14 @@ dessa data, o primeiro teste em produção aguardará a renovação do certifica
 
 ## 7. Resumo — o que pedimos
 
-Restam **quatro** definições. As demais estão respondidas ou encaminhadas.
+Restam **três** definições. As demais estão respondidas ou encaminhadas.
 
 | # | O que ainda falta | Por que trava |
 |---|---|---|
 | 0 | Há dispensa de emissão pelo subcontratado? | Se houver, **não há fila nenhuma** |
-| 1 | **Reconfirmar o enquadramento** | "Prestação normal" é recusada pela SEFAZ nesta operação (seção 2-A) |
+| 1 | **Subcontratação ou redespacho?** | "Prestação normal" está descartada pelos fatos (seção 2-A) |
 | 2 | Valor cobrado do cliente ou pago ao agregado? | Base de ICMS — e define se metade da fila precisa de critério de rateio |
 | 4 | Tratamento e CST do ICMS | Cálculo do imposto |
-| 5 | Aceitam a série 900 sugerida? | Evita rejeição por duplicidade |
 
 **A ordem importa.** A pergunta 0 pode encerrar o assunto; a 1 define se o
 documento é emitido contra a Sulista ou contra o cliente. As demais só fazem

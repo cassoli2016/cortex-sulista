@@ -365,3 +365,15 @@ def test_prestacao_normal_com_tomador_da_carga_e_valida():
 def test_subcontratacao_com_tomador_outros_e_vinculo_continua_valida():
     """E a combinacao que autorizou de verdade, protocolo 135260006358665."""
     dataclasses.replace(ENQ, tp_serv="1", toma="4", referenciar_original=True)
+
+
+def test_a_serie_padrao_e_reservada_e_nao_a_1():
+    """Serie 900, aprovada pela area. Serie baixa colidiria com o que o
+    agregado ja emita por conta propria — e numero repetido e rejeitado
+    documento a documento, no meio de um lote de milhares."""
+    import inspect
+
+    from api.contrapartida import emissao
+    assert emissao.SERIE_PADRAO == 900
+    assert inspect.signature(
+        emissao.transmitir).parameters["serie"].default == emissao.SERIE_PADRAO
