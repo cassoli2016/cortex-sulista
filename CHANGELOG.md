@@ -4,6 +4,17 @@ Gerado de `docs/versoes.yaml` por `scripts/gerar_changelog.py` — não editar �
 Formato [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/),
 versionamento [SemVer](https://semver.org/lang/pt-BR/).
 
+## [0.72.0] — 26/08/2026  ·  CX-26/08/2026-v0.72.0
+
+### Adicionado
+- Enquadramento do CT-e de contrapartida DEFINIDO: nao ha dispensa (o agregado emite) e a operacao e SUBCONTRATACAO. Com isso restam duas definicoes, e sao a mesma conversa - a base do valor e a CST do ICMS.
+- Achado que so apareceu ao emitir em trecho real, e que muda a maioria dos documentos: quando a viagem COMECA fora do estado onde o agregado e inscrito, o CFOP passa obrigatoriamente para a familia 932. A SEFAZ recusa qualquer outro ("524 - CFOP invalido, informar 5932 ou 6932"). Isso nunca aparece nos CT-e da Sulista, porque a filial que emite e sempre a da origem; com o agregado como emitente vira a MAIORIA - ele e inscrito num estado e roda em todos.
+- A distribuicao no trimestre: 3.694 documentos (58%) usam 6932; 1.931 (30%) usam 6351; 724 (11%) usam 5351; e 17 usam 5932. Um CFOP fixo, como estava, erraria seis em cada dez documentos. O sistema passou a escolher sozinho, e os dois casos principais ja foram autorizados pela SEFAZ em homologacao.
+
+### Corrigido
+- O CFOP era um valor unico e fixo. Alem da familia 932 acima, faltava o basico: 5xxx dentro do mesmo estado e 6xxx cruzando divisa. Entrou tambem uma guarda que recusa trocar um pelo outro - a SEFAZ ACEITA o documento com o CFOP do trecho errado, entao quem reclamaria seria a fiscalizacao, meses depois.
+- O documento da contabilidade foi reorganizado: o que ja foi respondido aparece marcado como tal, o historico das recusas virou anexo no fim, e a unica pergunta viva - a base do valor - ganhou secao propria explicando o que sao os dois numeros, por que a escolha nao e indiferente e por que ela arrasta um criterio de rateio para metade da fila.
+
 ## [0.71.0] — 26/08/2026  ·  CX-26/08/2026-v0.71.0
 
 ### Adicionado

@@ -71,6 +71,12 @@ MODELO_CTE = "57"
 # tentativa parecer não ter surtido efeito.
 XNOME_HOMOLOGACAO = "CTE EMITIDO EM AMBIENTE DE HOMOLOGACAO - SEM VALOR FISCAL"
 
+# Prestação iniciada em UF diferente daquela onde o emitente é inscrito. NÃO
+# entra no `Enquadramento` porque não é decisão de ninguém: a SEFAZ nomeia os
+# dois códigos na própria recusa ("524 — CFOP inválido, informar 5932 ou
+# 6932"). {interno: código} — interno = início e término na mesma UF.
+CFOP_INICIO_EM_OUTRA_UF = {True: "5932", False: "6932"}
+
 
 # ------------------------------------------------------------ enquadramento --
 
@@ -78,9 +84,13 @@ XNOME_HOMOLOGACAO = "CTE EMITIDO EM AMBIENTE DE HOMOLOGACAO - SEM VALOR FISCAL"
 class Enquadramento:
     """As seis respostas que a contabilidade tem de dar. Sem padrão nenhum.
 
-    `cfop`        CFOP do documento do agregado. A evidência do próprio ERP
-                  aponta a família 5.351/6.351 (prestação a outro transportador),
-                  que é a que a Sulista usa quando ela é a subcontratada.
+    `cfop_interno` / `cfop_interestadual`
+                  São DOIS porque o CFOP muda com o trecho, e um valor fixo
+                  estaria errado na maioria: **88% das viagens de agregado
+                  (5.624 de 6.364 no trimestre) cruzam divisa de estado**.
+                  A regra saiu do próprio ERP e não tem exceção nos 6.364
+                  documentos medidos: **6xxx quando a UF de início difere da
+                  de término, 5xxx quando são a mesma**.
     `tp_serv`     `ide/tpServ` do schema: '0' normal · '1' subcontratação ·
                   '2' redespacho · '3' redespacho intermediário · '4' multimodal.
                   ATENÇÃO: o ERP guarda esse domínio em base 1 (`tiposervico`
@@ -104,7 +114,8 @@ class Enquadramento:
                   se o CT-e da Sulista entra como documento anterior
                   (`infCTeNorm/docAnt`). É o elo que caracteriza a contrapartida.
     """
-    cfop: str
+    cfop_interno: str
+    cfop_interestadual: str
     tp_serv: str
     grupo_icms: str
     cst_icms: str
@@ -113,7 +124,42 @@ class Enquadramento:
     toma: str
     referenciar_original: bool
 
+    def cfop_de(self, d: dict) -> str:
+        """O CFOP DESTE documento. Duas perguntas, nesta ordem.
+
+        1. **A prestação começa na UF onde o emitente é inscrito?** Se NÃO,
+           o CFOP é da família 932 — e isso não é escolha: a SEFAZ recusa
+           qualquer outro com "524 — CFOP inválido, informar 5932 ou 6932".
+           Custou uma rejeição descobrir, porque o caso não existe no
+           documento da Sulista (a filial emitente é sempre a da origem) e
+           passa a existir quando o emitente é o AGREGADO, que mora num
+           estado e roda em todos.
+           **É a MAIORIA: 3.694 de 6.366 no trimestre (58%).**
+        2. Só então, o trecho: mesma UF de início e término → 5xxx; divisa
+           cruzada → 6xxx.
+
+        A regra saiu do próprio ERP e não tem exceção nos 6.366 documentos
+        medidos.
+        """
+        def _uf(k):
+            return (d.get(k) or "").strip().upper()
+
+        inicio, fim, emitente = _uf("ufcoleta"), _uf("ufentrega"), _uf("emit_uf")
+        interno = inicio == fim
+        if inicio and emitente and inicio != emitente:
+            return CFOP_INICIO_EM_OUTRA_UF[interno]
+        return self.cfop_interno if interno else self.cfop_interestadual
+
     def __post_init__(self) -> None:
+        for campo in ("cfop_interno", "cfop_interestadual"):
+            v = getattr(self, campo)
+            if not (v.isdigit() and len(v) == 4):
+                raise ValueError(f"{campo}: CFOP tem 4 dígitos ({v!r}).")
+        if self.cfop_interno[0] != "5" or self.cfop_interestadual[0] != "6":
+            raise ValueError(
+                "CFOP interno começa com 5 e interestadual com 6 — trocá-los "
+                "põe o documento no trecho errado, e a SEFAZ aceita: quem "
+                "reclama é a fiscalização, meses depois.")
         if self.base_valor not in ("prestacao", "fretecompra"):
             raise ValueError("base_valor: use 'prestacao' ou 'fretecompra'.")
         if self.grupo_icms not in ("ICMS00", "ICMS90", "ICMSSN"):
@@ -360,7 +406,7 @@ def montar(d: dict, enq: Enquadramento, *, numero: int, serie: int = 1,
 
     ide = I.Ide(
         cUF=str(_cuf(d["emit_uf"])), cCT=chave.codigo_aleatorio,
-        CFOP=enq.cfop, natOp=_natop(enq),
+        CFOP=enq.cfop_de(d), natOp=_natop(enq),
         mod=MODELO_CTE, serie=str(serie), nCT=str(numero),
         dhEmi=emitido_em.isoformat(), tpImp="1", tpEmis="1",
         cDV=str(chave.digito_verificador), tpAmb=str(ambiente),

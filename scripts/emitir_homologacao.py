@@ -33,22 +33,22 @@ CHAVE_PILOTO = "35260876104397000204570010003585231063585236"
 
 # Estado das definicoes em 26/08/2026. DECIDIDO = resposta da area; PENDENTE =
 # valor escolhido so para exercitar a transmissao, trocar quando responderem.
-# CONFLITO ABERTO, medido na SEFAZ em 26/08/2026 e ainda nao resolvido:
-# a area respondeu "prestacao normal", e prestacao normal NAO aceita a Sulista
-# como tomadora (746) nem o vinculo com o CT-e dela (747). Ou seja, a resposta
-# dada e incompativel com a premissa do modulo - um documento do agregado
-# CONTRA a Sulista. Enquanto nao houver reconciliacao, o script segue na unica
-# combinacao que autorizou E descreve a operacao real.
-ENQUADRAMENTO_TECNICO = documento.Enquadramento(
-    cfop="5351",
-    tp_serv="1",              # subcontratacao (base 0 do SCHEMA, nao do ERP)
+# DECIDIDO pela area em 26/08/2026: nao ha dispensa (o agregado emite) e o
+# enquadramento e SUBCONTRATACAO. Restam a base do valor e a CST do ICMS.
+ENQUADRAMENTO = documento.Enquadramento(
+    # 5351 no mesmo estado, 6351 cruzando divisa. Sao dois porque 88% das
+    # viagens de agregado sao interestaduais - um CFOP fixo erraria a maioria.
+    cfop_interno="5351",
+    cfop_interestadual="6351",
+    tp_serv="1",              # DECIDIDO: subcontratacao (base 0 do SCHEMA)
     grupo_icms="ICMSSN",      # PENDENTE: emitente e optante do Simples
     cst_icms="90",            # PENDENTE
     p_icms=None,
     base_valor="fretecompra",  # PENDENTE: pago ao agregado x cobrado do cliente
-    toma="4",                 # tomador "outros" - a Sulista, com CNPJ
-    referenciar_original=True,
+    toma="4",                 # a Sulista como tomadora ("outros")
+    referenciar_original=True,  # o vinculo com o nosso CT-e
 )
+ENQUADRAMENTO_TECNICO = ENQUADRAMENTO   # nome antigo, ainda usado no texto
 
 
 def main() -> int:

@@ -73,7 +73,8 @@ DADOS = {
 
 # Enquadramento de TESTE. Nao e definicao fiscal — serve so para exercitar a
 # montagem. Trocar por decisao da contabilidade quando ela vier.
-ENQ = doc.Enquadramento(cfop="5351", tp_serv="1", grupo_icms="ICMSSN",
+ENQ = doc.Enquadramento(cfop_interno="5351", cfop_interestadual="6351",
+                        tp_serv="1", grupo_icms="ICMSSN",
                         cst_icms="90", p_icms=None, base_valor="fretecompra",
                         toma="4", referenciar_original=True)
 
@@ -377,3 +378,44 @@ def test_a_serie_padrao_e_reservada_e_nao_a_1():
     assert emissao.SERIE_PADRAO == 900
     assert inspect.signature(
         emissao.transmitir).parameters["serie"].default == emissao.SERIE_PADRAO
+
+
+def test_o_cfop_segue_o_TRECHO_e_nao_e_fixo():
+    """Emitente em SP. Comecando em SP: 5351 no mesmo estado, 6351 cruzando
+    divisa. Um CFOP fixo erraria a maioria dos documentos."""
+    assert ENQ.cfop_de(DADOS) == "5351", "SP -> SP, emitente SP"
+    assert ENQ.cfop_de(dict(DADOS, ufentrega="MG")) == "6351"
+    assert ENQ.cfop_de(dict(DADOS, ufcoleta="sp", ufentrega=" SP ")) == "5351"
+
+
+def test_viagem_que_COMECA_fora_da_UF_do_emitente_usa_a_familia_932():
+    """Rejeicao 524 — "CFOP invalido, informar 5932 ou 6932". A pergunta vem
+    ANTES do trecho, e o caso e a MAIORIA (3.694 de 6.366 no trimestre): o
+    agregado mora num estado e roda em todos. No documento da Sulista isso nao
+    aparece, porque a filial emitente e sempre a da origem."""
+    assert ENQ.cfop_de(dict(DADOS, ufcoleta="MG", ufentrega="SP")) == "6932"
+    assert ENQ.cfop_de(dict(DADOS, ufcoleta="MG", ufentrega="MG")) == "5932"
+    # emitente MG saindo de MG volta para a familia normal
+    assert ENQ.cfop_de(dict(DADOS, emit_uf="MG", ufcoleta="MG",
+                            ufentrega="SP")) == "6351"
+
+
+def test_a_familia_932_nao_e_escolha_de_ninguem():
+    """Nao entra no Enquadramento: a SEFAZ nomeia os dois codigos na propria
+    recusa. Deixar isso como campo sugeriria que ha o que decidir."""
+    assert doc.CFOP_INICIO_EM_OUTRA_UF == {True: "5932", False: "6932"}
+    assert not any("932" in getattr(ENQ, c.name)
+                   for c in dataclasses.fields(doc.Enquadramento)
+                   if isinstance(getattr(ENQ, c.name), str))
+
+
+def test_cfop_trocado_entre_interno_e_interestadual_e_recusado():
+    """A SEFAZ ACEITA o documento com o CFOP do trecho errado — quem reclama e
+    a fiscalizacao, meses depois. Por isso a guarda e nossa."""
+    with pytest.raises(ValueError, match="interno começa com 5"):
+        dataclasses.replace(ENQ, cfop_interno="6351", cfop_interestadual="5351")
+
+
+def test_cfop_precisa_ter_quatro_digitos():
+    with pytest.raises(ValueError, match="4 dígitos"):
+        dataclasses.replace(ENQ, cfop_interno="535")
