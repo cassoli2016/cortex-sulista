@@ -1,6 +1,6 @@
 [project]
 name = "cortex"
-version = "0.64.0"
+version = "0.65.0"
 description = "CÓRTEX — cérebro de gestão da transportadora (backend + migrations)"
 requires-python = ">=3.12"
 dependencies = [
@@ -45,6 +45,7 @@ fiscal = [
   "erpbrasil.edoc",        # monta, assina e transmite CT-e/MDF-e as SEFAZ
   "erpbrasil.assinatura",  # assinatura XMLDSig com certificado A1
   "nfelib",                # classes geradas dos XSD dos layouts
+  "truststore>=0.10.4",
 ]
 
 [tool.ruff]

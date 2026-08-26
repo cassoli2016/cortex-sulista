@@ -4,6 +4,16 @@ Gerado de `docs/versoes.yaml` por `scripts/gerar_changelog.py` — não editar �
 Formato [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/),
 versionamento [SemVer](https://semver.org/lang/pt-BR/).
 
+## [0.65.0] — 26/08/2026  ·  CX-26/08/2026-v0.65.0
+
+### Adicionado
+- Prova de conceito da emissao propria concluida: o CORTEX conversa com a SEFAZ. Consultando o servico do Parana em homologacao com o certificado do agregado FABRETINA, veio "107 - Servico em Operacao". A pilha inteira fecha - certificado, TLS mutuo, endereco da UF certa, envio e leitura da resposta. Nenhum documento foi emitido: a consulta de status nao produz nada, nem em homologacao.
+- A camada de compatibilidade ficou em api/contrapartida/sefaz.py, com as QUATRO correcoes que a biblioteca exigiu no caminho de CT-e. Todas de infraestrutura, nenhuma de regra fiscal - resolvidas, nao voltam. E cada uma verifica antes de agir: quando a biblioteca corrigir o defeito, o remendo some sozinho.
+- scripts/spike_sefaz.py consulta a SEFAZ da UF de qualquer agregado cadastrado. Serve para conferir um certificado novo antes de confiar nele e para saber se a SEFAZ esta fora antes de culpar o codigo.
+
+### Alterado
+- O que a prova de conceito NAO resolve: montar e assinar o CT-e. O provado e a infraestrutura. A montagem do documento e codigo bem mais exercitado do lado da NF-e e bem menos do lado do CT-e, e deve pedir mais correcoes do mesmo tipo - isso entra na conta de quem decidir manter a emissao em casa.
+
 ## [0.64.0] — 26/08/2026  ·  CX-26/08/2026-v0.64.0
 
 ### Adicionado
