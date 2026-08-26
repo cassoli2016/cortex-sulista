@@ -37,6 +37,15 @@ test = [
   "pytest>=8.0",
   "playwright>=1.40",      # testes de UI contra o index.html real, sem banco
 ]
+# GRUPO SEPARADO de proposito: o `uv sync` do AutoDeploy nao instala grupo, e
+# ate a prova de conceito da emissao decidir se seguimos por aqui, producao nao
+# carrega essas dependencias. Se a emissao propria for adiante, elas sobem para
+# [project.dependencies].
+fiscal = [
+  "erpbrasil.edoc",        # monta, assina e transmite CT-e/MDF-e as SEFAZ
+  "erpbrasil.assinatura",  # assinatura XMLDSig com certificado A1
+  "nfelib",                # classes geradas dos XSD dos layouts
+]
 
 [tool.ruff]
 line-length = 100
