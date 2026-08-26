@@ -2397,6 +2397,12 @@ body.tvfull #btnReport,body.tvmode #btnReport{display:none}
           </div>
         </div>
         <div id="extb-aviso"></div>
+        <div class="card">
+          <div class="head"><h2>Saldo nos bancos <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="Posição de cada conta segundo o EXTRATO importado, ao lado da última posição que o ERP tem da mesma conta (contacorrente_saldo). NÃO segue o filtro de período desta tela — saldo é posição, não movimento de janela. O saldo do extrato vem da última âncora do arquivo (a linha de saldo do dia, ou o saldo final) mais o movimento posterior a ela. O atraso é contado em dias ÚTEIS pulados, porque a rotina é subir o extrato do dia anterior; feriado bancário não entra na conta e aparece como um dia de atraso.">i</span></h2>
+            <span class="hint" id="hintExtbPos"></span></div>
+          <div id="extb-pos-kpis" class="kpis k4"></div>
+          <div id="extb-pos-corpo"></div>
+        </div>
         <div class="kpis k4" id="kpis-extb"></div>
         <div class="card"><div class="head"><h2>Situação por conta</h2>
           <span class="hint" id="hintExtbContas"></span></div>
@@ -7931,6 +7937,92 @@ function extbDeltaCel(delta, origem){
   return {txt, attrTitle};
 }
 
+// ==================== Saldo nos bancos (rotina diaria) ====================
+// A primeira pergunta de quem sobe o extrato todo dia: os saldos estao em dia?
+// Fica no TOPO da tela e nao obedece ao filtro de periodo - saldo e posicao,
+// nao movimento de janela.
+function renderExtbPos(d){
+  const kpis=document.getElementById('extb-pos-kpis');
+  const corpo=document.getElementById('extb-pos-corpo');
+  const hint=document.getElementById('hintExtbPos');
+  const pos=(d||{}).posicao;
+  if(!pos || !(pos.linhas||[]).length){
+    kpis.innerHTML=''; corpo.innerHTML='';
+    hint.textContent='nenhuma conta com extrato importado ainda';
+    return;
+  }
+  const L=pos.linhas;
+  hint.textContent = pos.datas_diferentes
+    ? `posições de datas DIFERENTES: de ${fmtD(pos.dt_mais_antiga)} a ${fmtD(pos.dt_mais_nova)}`
+    : (pos.dt_mais_nova ? `posição de ${fmtD(pos.dt_mais_nova)}` : 'sem posição');
+
+  // Diferenca total contra o ERP: so das contas em que os DOIS lados existem.
+  const comDif=L.filter(x=>x.diferenca!=null);
+  const difTot=comDif.reduce((s,x)=>s+x.diferenca,0);
+
+  kpis.innerHTML=
+     kpi('Total nos bancos', brl2(pos.total),
+         `${pos.contas_no_total} conta(s)`
+         + (pos.contas_sem_saldo?` · ${pos.contas_sem_saldo} sem saldo, fora do total`:'')
+         + (pos.datas_diferentes?' · datas diferentes':''),
+         '',
+         'Soma do saldo de todas as contas que têm âncora de saldo. Conta sem âncora fica FORA do total e aparece como "não informado" na tabela — zero é um saldo, ausência não é. Quando as posições são de dias diferentes o subtítulo avisa: o total continua sendo o dinheiro que se sabe ter, mas não é uma foto de um instante só.')
+   + kpi('Contas atrasadas', String(pos.atrasadas),
+         pos.atrasadas ? 'dia útil pulado no envio' : 'todas com extrato do último dia útil',
+         pos.atrasadas?'warn':'good',
+         'Contas cujo último extrato importado deixou passar pelo menos um dia útil. A rotina é subir o extrato do dia anterior; sábado, domingo e o próprio dia de hoje não contam. Feriado bancário não é conhecido pelo sistema e aparece como um dia de atraso.')
+   + kpi('Sem saldo do banco', String(pos.contas_sem_saldo),
+         pos.contas_sem_saldo ? 'o arquivo não traz saldo utilizável' : 'todas com saldo',
+         pos.contas_sem_saldo?'warn':'good',
+         'Contas cujo arquivo não traz saldo que dê para usar — sem LEDGERBAL, ou com a data zerada (é o caso do Bradesco). O movimento entra normalmente; o que falta é a âncora para dizer o saldo do dia.')
+   + kpi('Diferença vs ERP', comDif.length?brl2(difTot):'não comparável',
+         comDif.length
+           ? `${comDif.length} de ${L.length} conta(s) comparáveis`
+           : (pos.erp_disponivel?'nenhuma conta vinculada ao ERP':'ERP indisponível agora'),
+         comDif.length && Math.abs(difTot)>0.01 ? 'bad' : (comDif.length?'good':''),
+         'Extrato menos ERP, somado. Só entram contas vinculadas ao ERP e com saldo dos dois lados. ATENÇÃO: as duas posições podem ser de DIAS diferentes — o ERP costuma estar atrás — então parte desta diferença é defasagem de lançamento, não erro. A coluna da tabela mostra a data de cada lado.');
+
+  const linha=x=>{
+    const at=x.atraso_uteis;
+    const chipAtraso = at==null
+      ? statChip('warn','sem extrato','Nenhum lançamento importado para esta conta.')
+      : (at===0 ? statChip('good','em dia', `Último extrato: ${fmtD(x.ultimo_extrato)}`)
+                : statChip(at>1?'bad':'warn', at===1?'1 dia útil':`${at} dias úteis`,
+                           `Último extrato: ${fmtD(x.ultimo_extrato)} — ${at} dia(s) útil(eis) sem enviar.`));
+    // Saldo ausente NUNCA sai como R$ 0,00 e jamais em verde: zero e um saldo,
+    // ausencia nao e. O motivo vai no tooltip, que e onde a pessoa procura.
+    const sal = x.saldo==null
+      ? `<span style="color:var(--n500)" title="${esc(x.sem_saldo_por||'sem saldo')}">não informado</span>`
+      : brl2(x.saldo);
+    const erp = x.erp_saldo==null
+      ? `<span style="color:var(--n500)" title="${esc(x.mapeada?'O ERP não tem posição desta conta nos últimos 90 dias.':'Conta ainda não vinculada a uma conta do ERP.')}">—</span>`
+      : `${brl2(x.erp_saldo)} <span style="color:var(--n500);font-size:11px">${fmtD(x.erp_dt)}</span>`;
+    // A diferenca so ganha cor quando as DUAS posicoes sao do mesmo dia. Em
+    // dias distintos ela mistura divergencia com defasagem de lancamento, e
+    // pintar de vermelho acusaria o ERP de um erro que pode ser so atraso.
+    const mesmoDia = x.dt && x.erp_dt && x.dt===x.erp_dt;
+    const dif = x.diferenca==null ? '<span style="color:var(--n500)">—</span>'
+      : (Math.abs(x.diferenca)<=0.01
+          ? `<span style="color:var(--green)">bate</span>`
+          : (mesmoDia
+              ? `<span style="color:var(--red)">${brl2(x.diferenca)}</span>`
+              : `<span style="color:var(--n500)" title="As duas posições são de dias diferentes (extrato em ${esc(fmtD(x.dt))}, ERP em ${esc(fmtD(x.erp_dt))}): parte desta diferença é defasagem de lançamento, não divergência.">${brl2(x.diferenca)} <span style="font-size:11px">datas ≠</span></span>`));
+    return `<tr><td>${esc(x.rotulo)}</td>`
+      +`<td>${chipAtraso}</td>`
+      +`<td>${x.ultimo_extrato?fmtD(x.ultimo_extrato):'<span style="color:var(--n500)">—</span>'}</td>`
+      +`<td class="num">${sal}${x.dt?` <span style="color:var(--n500);font-size:11px">${fmtD(x.dt)}</span>`:''}</td>`
+      +`<td class="num">${erp}</td>`
+      +`<td class="num">${dif}</td></tr>`;
+  };
+
+  corpo.innerHTML=
+     '<div class="tablewrap tabroll"><table><thead><tr>'
+    +'<th>Conta</th><th>Envio</th><th>Último extrato</th>'
+    +'<th class="num">Saldo do banco</th><th class="num">Saldo no ERP</th>'
+    +'<th class="num">Diferença</th>'
+    +'</tr></thead><tbody>'+L.map(linha).join('')+'</tbody></table></div>';
+}
+
 // ============ Conciliacao linha a linha (extrato x razao do ERP) ============
 // Sob DEMANDA, com botao proprio: puxa o razao inteiro do periodo (centenas a
 // milhares de linhas por conta) e nao pode pesar na tela que abre por padrao.
@@ -8111,6 +8203,7 @@ async function loadExtb(){
 }
 
 function renderExtb(d){
+  renderExtbPos(d);
   const ts=d.atualizado_em ? new Date(d.atualizado_em) : new Date();
   document.getElementById('meta').innerHTML='<b>Atualizado '+ts.toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'})+'</b><br>'+ts.toLocaleDateString('pt-BR');
   const k=d.kpis||{};

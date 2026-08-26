@@ -3,6 +3,49 @@
 #   - a tela Documentação     (#doc)
 #   - o rótulo no rodapé      (CX-DD/MM/AAAA-vX.Y.Z)
 # A versão do TOPO é a corrente e tem de bater com o pyproject.toml.
+- versao: "0.71.0"
+  data: "2026-08-26"
+  adicionado:
+    - >-
+      Cartao "Saldo nos bancos" no topo do Extrato Bancario: quanto ha em cada
+      conta segundo o extrato, ao lado da ultima posicao que o ERP tem da mesma
+      conta, e a diferenca. E a primeira pergunta de quem sobe o extrato todo
+      dia. Ele NAO segue o filtro de periodo da tela de proposito - saldo e
+      posicao, nao movimento de janela.
+    - >-
+      Coluna "Envio", que diz por conta se o extrato esta em dia. A conta e' em
+      dias UTEIS pulados, nao corridos: a rotina e' subir o extrato do dia
+      anterior, entao sabado, domingo e o proprio dia de hoje nao contam.
+    - >-
+      O total consolidado declara o que ficou de fora: quantas contas nao tem
+      saldo utilizavel (essas ficam FORA da soma, marcadas "nao informado" - um
+      saldo ausente nunca vira R$ 0,00) e, quando as posicoes sao de dias
+      diferentes, ele avisa em vez de fingir uma foto de um instante so.
+    - >-
+      A diferenca contra o ERP so sai em vermelho quando as duas posicoes sao
+      do MESMO dia. Em dias distintos ela mistura divergencia com defasagem de
+      lancamento, e acusar o ERP de um erro que pode ser so atraso e' pior que
+      nao dizer nada - nesse caso ela sai em cinza, marcada "datas diferentes".
+  corrigido:
+    - >-
+      Enviar o extrato dia a dia corrompia o saldo de dias ja importados. O
+      arquivo de cada dia repete o saldo final do banco, e ele costuma vir com
+      a data de um dia ANTERIOR - entao o envio de hoje reescrevia o saldo de
+      ontem. No Safra o efeito era trocar R$ 657,38 (o saldo da conta corrente,
+      que e o que o ERP guarda) por R$ 10.502,92 (a posicao consolidada, com a
+      aplicacao junto): a conta passava a divergir em R$ 9.845,54 por um numero
+      que o proprio arquivo ja tinha certo. So acontecia no envio diario -
+      importando o mes inteiro de uma vez o numero certo ficava.
+    - >-
+      O aviso de "extrato sem atualizacao" so acendia depois de SETE dias
+      corridos. Numa rotina diaria isso e uma semana inteira de silencio, e
+      ainda castigava a segunda-feira, quando tres dias corridos de atraso sao
+      zero dia util. Agora acende ao pular mais de um dia util, e o alerta diz
+      os dois numeros - "ha 4 dias sem extrato (1 dia util de movimento sem
+      enviar)" - para que ninguem ache que o aviso e' engano de quem enviou na
+      sexta. Feriado bancario nao e conhecido pelo sistema e aparece como um
+      dia de atraso.
+
 - versao: "0.70.0"
   data: "2026-08-26"
   adicionado:

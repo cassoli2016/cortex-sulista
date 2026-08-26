@@ -86,6 +86,9 @@ def init_db(path: Path = DB_PATH) -> None:
             dt            TEXT NOT NULL,
             saldo         REAL NOT NULL,
             importacao_id INTEGER REFERENCES ext_importacao(id) ON DELETE CASCADE,
+            -- 'linha' (o banco imprimiu o saldo daquele dia) vence 'ledgerbal'
+            -- (a posicao final do arquivo). Ver `gravar_saldo_extrato`.
+            origem        TEXT NOT NULL DEFAULT 'ledgerbal',
             PRIMARY KEY (conta_id, dt)
         );
         CREATE INDEX IF NOT EXISTS ix_ext_lanc_conta_dt ON ext_lancamento(conta_id, dt);
@@ -106,6 +109,13 @@ def init_db(path: Path = DB_PATH) -> None:
         if "importacao_id" not in cols:
             c.execute("ALTER TABLE ext_saldo ADD COLUMN importacao_id "
                      "INTEGER REFERENCES ext_importacao(id) ON DELETE CASCADE")
+        if "origem" not in cols:
+            # Ancora gravada antes desta revisao fica como 'ledgerbal', o valor
+            # mais fraco: assim a primeira linha de saldo de verdade que chegar
+            # a substitui. O contrario (assumir 'linha') protegeria para sempre
+            # um numero que pode ser o consolidado errado.
+            c.execute("ALTER TABLE ext_saldo ADD COLUMN origem TEXT NOT NULL "
+                      "DEFAULT 'ledgerbal'")
 
         _remigra_chaves(c)
 
@@ -306,16 +316,39 @@ def gravar_lancamentos(path: Path, conta_id: int, itens: list[dict], arquivo: st
 
 
 def gravar_saldo_extrato(path: Path, conta_id: int, dt: str, saldo: float,
-                         importacao_id: int | None = None) -> None:
-    """`importacao_id` amarra a âncora à importação que a gravou, para que
+                         importacao_id: int | None = None,
+                         origem: str = "ledgerbal") -> None:
+    """Grava a âncora de saldo de um dia, respeitando a PRECEDÊNCIA da origem.
+
+    `importacao_id` amarra a âncora à importação que a gravou, para que
     desfazer aquela importação (`apagar_importacao`) leve a âncora junto -
     sem isso ela ficava órfã e podia virar a mais recente por engano,
     corrompendo TODOS os saldos derivados dali pra frente (achado d1). No
     UPDATE do upsert o `importacao_id` também é sobrescrito: a âncora sempre
-    pertence à importação mais recente que a confirmou, nunca à primeira."""
+    pertence à importação mais recente que a confirmou, nunca à primeira.
+
+    A PRECEDÊNCIA existe por causa do uso DIÁRIO, e o defeito só aparece nele.
+    Um arquivo traz dois tipos de saldo: a linha impressa do dia ('linha') e o
+    `LEDGERBAL`, que é a posição final do arquivo ('ledgerbal'). Dentro de um
+    arquivo só, o parser já dá preferência à linha. Mas quem envia um extrato
+    por dia manda o `LEDGERBAL` de novo em CADA arquivo, e ele costuma vir com
+    a data de um dia anterior - então o envio de hoje reescrevia a âncora de
+    ontem, que era boa.
+
+    Medido no Safra: o `LEDGERBAL` de 24/08 diz R$ 10.502,92 (posição
+    consolidada, conta + aplicação) enquanto a linha do mesmo 24/08 diz
+    R$ 657,38 (a conta corrente, que é o que o `contacorrente_saldo` do ERP
+    guarda). Importando o mês inteiro de uma vez o número certo ficava;
+    importando dia a dia, o errado sobrescrevia - e a conta passava a divergir
+    do ERP em R$ 9.845,54 por um saldo que o próprio arquivo já tinha certo.
+
+    Por isso 'ledgerbal' NÃO sobrescreve 'linha'. O contrário sobrescreve (é
+    dado melhor), e origem igual sempre sobrescreve (reenvio corrige).
+    """
     with _conn(path) as c:
         c.execute(
-            "INSERT INTO ext_saldo(conta_id, dt, saldo, importacao_id) VALUES(?,?,?,?) "
+            "INSERT INTO ext_saldo(conta_id, dt, saldo, importacao_id, origem) "
+            "VALUES(?,?,?,?,?) "
             # COALESCE: reimportar o MESMO arquivo (0 lancamentos novos) chama aqui
             # com importacao_id None, porque a importacao sem novidade se autodeleta
             # da trilha. Sobrescrever com NULL destruiria o vinculo BOM criado pela
@@ -323,8 +356,12 @@ def gravar_saldo_extrato(path: Path, conta_id: int, dt: str, saldo: float,
             # ancora orfa, corrompendo todos os saldos derivados. Vinculo existente
             # so e substituido quando ha um novo de verdade para oferecer.
             "ON CONFLICT(conta_id, dt) DO UPDATE SET saldo=excluded.saldo, "
-            "importacao_id=COALESCE(excluded.importacao_id, ext_saldo.importacao_id)",
-            (conta_id, dt, float(saldo), importacao_id))
+            "importacao_id=COALESCE(excluded.importacao_id, ext_saldo.importacao_id), "
+            "origem=excluded.origem "
+            # o WHERE do upsert e' o que implementa a precedencia: sem ele o
+            # SET acima roda sempre e o LEDGERBAL de amanha apaga a linha de hoje
+            "WHERE excluded.origem='linha' OR ext_saldo.origem<>'linha'",
+            (conta_id, dt, float(saldo), importacao_id, origem))
 
 
 def saldos_extrato(path: Path, conta_id: int) -> list[dict]:

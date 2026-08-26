@@ -111,10 +111,19 @@ def _alertas_extrato(painel: dict) -> list[tuple[str, str, str]]:
                     "um extrato importado - a validação de saldo dessa conta "
                     "está cega."))
             elif d > 0:
+                # O que DISPARA o aviso e' o dia util pulado, nao o corrido: a
+                # rotina e' subir o extrato do dia anterior, e sabado, domingo e
+                # o proprio dia de hoje nao contam. Sem os dois numeros no
+                # texto, "ha 4 dias sem extrato" numa terca-feira parece erro
+                # de quem enviou na sexta - sao 4 corridos e 1 util.
+                u = f.get("atraso_uteis")
+                util = (f" ({u} {'dia útil' if u == 1 else 'dias úteis'} de movimento"
+                        " sem enviar)") if u else ""
                 out.append((
                     "atencao", "Extrato bancário sem atualização",
                     f"A conta {c['rotulo']} está há {d} {'dia' if d == 1 else 'dias'} "
-                    "sem extrato importado - a validação de saldo está cega nesse período."))
+                    f"sem extrato importado{util} - a validação de saldo está cega "
+                    "nesse período."))
             # I3: a precedência de COR do farol põe "desatualizado" acima de
             # "diverge", mas uma divergência real confirmada no último dia
             # válido não pode desaparecer do digest por causa disso - emite os
@@ -131,7 +140,7 @@ def _janela_alerta(hoje: date) -> tuple[str, str]:
     janela a um único dia (hoje) e apagaria justamente a divergência do
     fechamento do mês anterior — o caso em que o alerta mais importa. 30 dias
     atravessa qualquer virada de mês com folga acima do limiar de
-    "desatualizado" do farol (>7 dias), sem inundar o digest com histórico
+    "desatualizado" do farol (hoje: mais de um dia ÚTIL pulado), sem inundar o digest
     antigo."""
     return (hoje - timedelta(days=30)).isoformat(), hoje.isoformat()
 

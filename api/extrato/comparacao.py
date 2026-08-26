@@ -10,7 +10,7 @@ dizer "saldo divergente" sem ter saldo do banco seria falso positivo.
 """
 from __future__ import annotations
 
-from datetime import date
+from datetime import date, timedelta
 
 TOLERANCIA = 0.01
 
@@ -105,6 +105,39 @@ def _dias_entre(de: str, ate: str) -> int:
     return (date.fromisoformat(ate) - date.fromisoformat(de)).days
 
 
+# Dias em que se espera extrato. Sabado e domingo nao entram: banco nao
+# movimenta, e cobrar extrato de domingo faria a tela gritar toda segunda.
+LIMITE_UTEIS_PADRAO = 1
+
+
+def atraso_uteis(ultimo: str, hoje: str) -> int:
+    """Dias uteis PULADOS entre o ultimo dia coberto pelo extrato e hoje.
+
+    Conta os dias uteis ESTRITAMENTE entre os dois, e o "estritamente" e a
+    regra de negocio inteira: a rotina e enviar o extrato do dia ANTERIOR,
+    entao o movimento de hoje ainda nao existe para ser cobrado, e o ultimo
+    dia coberto ser ontem significa em dia, nao atrasado.
+
+      hoje terca,  ultimo segunda -> 0 (em dia)
+      hoje terca,  ultimo sexta   -> 1 (pulou a segunda)
+      hoje segunda, ultimo sexta  -> 0 (o fim de semana nao conta)
+
+    LIMITACAO CONHECIDA: feriado bancario nao entra, porque o sistema nao tem
+    calendario de feriados. O efeito e um dia de atraso falso no dia util
+    seguinte a um feriado - preferivel ao contrario, que seria silencio.
+    """
+    a = date.fromisoformat(ultimo)
+    b = date.fromisoformat(hoje)
+    if b <= a:
+        return 0
+    n, d = 0, a + timedelta(days=1)
+    while d < b:
+        if d.weekday() < 5:
+            n += 1
+        d += timedelta(days=1)
+    return n
+
+
 def _maior_delta(dia: dict | None) -> tuple[float | None, str | None]:
     """Maior divergência em módulo entre saldo/crédito/débito do dia, com o
     sinal do escolhido e a origem (mesmo padrão de `servico.painel()` ao achar
@@ -130,12 +163,20 @@ def _maior_delta(dia: dict | None) -> tuple[float | None, str | None]:
 
 
 def farol(dias: list[dict], ultimo_upload: str | None, hoje: str,
-          mapeada: bool = True) -> dict:
+          mapeada: bool = True, limite_uteis: int = LIMITE_UTEIS_PADRAO) -> dict:
     """Estado da conta = o último dia coberto pelo extrato.
 
     Ordem de precedência (da COR do farol): sem mapeamento ERP (não há o que
     comparar) > extrato velho (o verde de 12 dias atrás não diz nada sobre
-    hoje) > divergência. Essa precedência é só de cor/estado - o campo
+    hoje) > divergência.
+
+    "Velho" é medido em dias ÚTEIS PULADOS (`atraso_uteis`), não em dias de
+    calendário. A régua anterior era "mais de 7 dias corridos", desenhada para
+    quem subia extrato de vez em quando; com a rotina de enviar o extrato do
+    dia anterior TODO dia, sete dias de folga são uma semana inteira de
+    silêncio - e ainda por cima castigavam a segunda-feira, quando três dias
+    corridos de atraso são zero dia útil. O padrão passa a ser um dia útil de
+    folga: pular UM dia ainda é verde, pular dois acende. Essa precedência é só de cor/estado - o campo
     `diverge_no_ultimo_dia` abaixo garante que uma divergência real do último
     dia válido nunca fica invisível para quem não olha só `estado` (achado I3
     da revisão final: o digest só lia `estado` e uma conta desatualizada COM
@@ -151,12 +192,16 @@ def farol(dias: list[dict], ultimo_upload: str | None, hoje: str,
     validos = [d for d in dias if d["estado"] in ("OK", "DIVERGE")]
     ultimo = max(validos, key=lambda d: d["dt"]) if validos else None
     dias_sem = _dias_entre(ultimo_upload, hoje) if ultimo_upload else None
+    # `dias_sem_extrato` (corridos) continua no payload porque o digest de
+    # alertas ja o exibe para o humano - "12 dias sem extrato" e mais legivel
+    # que "8 dias uteis". Quem DECIDE e o util; quem se MOSTRA e o corrido.
+    atraso = atraso_uteis(ultimo_upload, hoje) if ultimo_upload else None
     diverge_ultimo = bool(ultimo is not None and ultimo["estado"] == "DIVERGE")
     if not mapeada:
         return {"estado": "sem_mapa", "dt": (ultimo or {}).get("dt"),
                 "delta": None, "delta_origem": None, "dias_sem_extrato": dias_sem,
-                "diverge_no_ultimo_dia": False}
-    if ultimo is None or dias_sem is None or dias_sem > 7:
+                "atraso_uteis": atraso, "diverge_no_ultimo_dia": False}
+    if ultimo is None or atraso is None or atraso > limite_uteis:
         # I5: só reporta delta/delta_origem se o último dia válido de fato
         # DIVERGIR. Um dia "OK" pode ter resíduo sub-tolerância em d_saldo/
         # d_credito/d_debito (ex.: 0,005 de arredondamento) mesmo sem DIVERGIR
@@ -166,16 +211,17 @@ def farol(dias: list[dict], ultimo_upload: str | None, hoje: str,
         delta, origem = _maior_delta(ultimo) if diverge_ultimo else (None, None)
         return {"estado": "desatualizado", "dt": (ultimo or {}).get("dt"),
                 "delta": delta, "delta_origem": origem, "dias_sem_extrato": dias_sem,
-                "diverge_no_ultimo_dia": diverge_ultimo}
+                "atraso_uteis": atraso, "diverge_no_ultimo_dia": diverge_ultimo}
     if ultimo["estado"] == "DIVERGE":
         delta, origem = _maior_delta(ultimo)
         return {"estado": "diverge", "dt": ultimo["dt"],
                 "delta": delta, "delta_origem": origem, "dias_sem_extrato": dias_sem,
-                "diverge_no_ultimo_dia": True}
+                "atraso_uteis": atraso, "diverge_no_ultimo_dia": True}
     # estado OK: o dia pode ter um residuo sub-tolerancia em d_saldo/d_credito/
     # d_debito (ex.: arredondamento) mesmo sem DIVERGIR - reportar esse residuo
     # como se fosse "a diferenca do dia" contradiz o proprio veredito "bate com
     # o banco" que este farol acabou de dar. delta/delta_origem ficam None,
     # mesmo contrato de "sem_mapa" (nenhum valor a mostrar).
     return {"estado": "ok", "dt": ultimo["dt"], "delta": None, "delta_origem": None,
-            "dias_sem_extrato": dias_sem, "diverge_no_ultimo_dia": False}
+            "dias_sem_extrato": dias_sem, "atraso_uteis": atraso,
+            "diverge_no_ultimo_dia": False}

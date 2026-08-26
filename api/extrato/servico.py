@@ -59,6 +59,23 @@ ORDER BY max(dtmovimento) DESC, banco
 """
 
 
+# Ultima posicao de saldo que o ERP tem de CADA conta, em uma consulta so.
+#
+# `DISTINCT ON` e' o que evita sete idas ao banco (uma por conta) na tela que o
+# usuario abre todo dia. A janela de 90 dias existe para o indice servir e para
+# nao ressuscitar conta encerrada anos atras; conta parada ha mais que isso
+# aparece sem posicao, que e' a verdade sobre ela.
+POSICAO_ERP_SQL = """
+SELECT DISTINCT ON (banco, agencia, conta)
+       banco, agencia, conta,
+       dtmovimento::date AS dt,
+       coalesce(valorsaldo,0)::float8 AS saldo
+FROM contacorrente_saldo
+WHERE dtmovimento >= current_date - 90
+ORDER BY banco, agencia, conta, dtmovimento DESC
+"""
+
+
 # Razao de caixa do ERP, LINHA a linha - a contraparte da conciliacao lancamento
 # a lancamento (`api/extrato/conciliacao.py`). E outra tabela e outro nivel do
 # que o `contacorrente_saldo` usado acima: aquele traz uma linha POR DIA, com o
@@ -263,7 +280,8 @@ def importar(bruto: bytes, nome: str, path=arm.DB_PATH, conta_id: int | None = N
                 if s["dt"] > hoje:
                     continue
                 arm.gravar_saldo_extrato(path, cid, s["dt"], s["saldo"],
-                                         importacao_id=res["importacao_id"] or None)
+                                         importacao_id=res["importacao_id"] or None,
+                                         origem=s.get("origem") or "ledgerbal")
             datas = sorted(i["dt"] for i in itens) or [None]
             resultados.append({"conta_id": cid, "conta": conta,
                                "novas": res["novas"], "duplicadas": res["duplicadas"],
@@ -411,6 +429,11 @@ def painel(dt_de: str, dt_ate: str, conta_id: int | None = None, path=arm.DB_PAT
         "lancamentos_dia": (arm.lancamentos(path, conta_id, dt_de, dt_ate)
                             if conta_id is not None else []),
         "importacoes": imps,
+        # A posicao NAO obedece ao filtro de periodo da tela, de proposito:
+        # saldo e posicao, nao movimento de janela. Vai no painel (e nao num
+        # endpoint proprio) porque e a primeira pergunta de quem sobe o extrato
+        # todo dia - custa UMA consulta ao ERP, com DISTINCT ON.
+        "posicao": posicao(path),
         "conciliacao_nativa": conciliacao_nativa(),
         "atualizado_em": datetime.now().isoformat(timespec="seconds"),
         "fonte": "extrato importado (OFX/CSV) x contacorrente_saldo do ERP AVA",
@@ -463,4 +486,92 @@ def conciliar(conta_id: int, dt_de: str, dt_ate: str, path=arm.DB_PATH) -> dict:
         "sobra_erp": res["sobra_erp"],
         "atualizado_em": datetime.now().strftime("%d/%m/%Y %H:%M"),
         "fonte": "ext_lancamento (import local) x contacorrente (ERP AVA)",
+    }
+
+
+def posicao(path=arm.DB_PATH) -> dict:
+    """Quanto ha em cada banco, segundo o EXTRATO, e o que o ERP diz do mesmo.
+
+    E a pergunta da rotina diaria: subi o extrato de ontem, os saldos estao
+    atualizados? Por isso ela NAO obedece ao filtro de periodo da tela - saldo
+    e posicao, nao movimento de janela; filtrar por periodo devolveria o saldo
+    de uma data escolhida por engano no filtro.
+
+    O TOTAL CONSOLIDADO soma posicoes que podem ser de DIAS DIFERENTES: uma
+    conta com extrato de ontem e outra parada ha uma semana entram juntas. Isso
+    e o certo (e o dinheiro que se sabe ter), mas nao pode ser dito calado -
+    `datas_diferentes` e `dt_mais_antiga` sobem junto para a tela declarar.
+
+    Conta sem ancora de saldo nenhuma fica com `saldo=None` e o motivo em
+    `sem_saldo_por`, nunca com zero: zero e um saldo, ausencia nao e.
+    """
+    arm.init_db(path)
+    hoje = date.today().isoformat()
+    contas = arm.listar_contas(path)
+
+    # lado ERP: uma consulta so, indexada por (banco, agencia, conta)
+    try:
+        erp = {(r["banco"], str(r["agencia"]), str(r["conta"])):
+               {"dt": r["dt"].isoformat() if hasattr(r["dt"], "isoformat") else str(r["dt"]),
+                "saldo": r["saldo"]}
+               for r in db.query(POSICAO_ERP_SQL)}
+    except Exception:              # noqa: BLE001
+        # A posicao do extrato e local (SQLite) e nao depende do ERP. Com o AVA
+        # fora, mostrar o saldo do banco mesmo assim e melhor que esconder a
+        # tela inteira - a coluna do ERP e' que fica vazia, dizendo isso.
+        erp = {}
+
+    # UMA vez, fora do laco: `ultimo_dt_por_conta` varre a tabela inteira, e
+    # chama-la por conta multiplicava isso pelo numero de contas.
+    ult_por_conta = arm.ultimo_dt_por_conta(path)
+
+    linhas, total, base_ok = [], 0.0, []
+    for c in contas:
+        saldos = arm.saldos_extrato(path, c["id"])
+        ult_lanc = ult_por_conta.get(c["id"])
+        item = {"conta_id": c["id"], "rotulo": c["rotulo"], "ident": c["ident"],
+                "mapeada": c.get("erp_banco") is not None,
+                "saldo": None, "dt": None, "sem_saldo_por": None,
+                "erp_saldo": None, "erp_dt": None, "diferenca": None,
+                "atraso_uteis": (cmp.atraso_uteis(ult_lanc, hoje) if ult_lanc else None),
+                "ultimo_extrato": ult_lanc}
+        if not saldos:
+            item["sem_saldo_por"] = (
+                "o arquivo deste banco nao traz saldo utilizavel (sem LEDGERBAL, "
+                "ou com a data zerada)" if ult_lanc else
+                "nenhum extrato importado ainda")
+        else:
+            por_dia = cmp.agregar_extrato(
+                arm.lancamentos(path, c["id"], min(s["dt"] for s in saldos), hoje))
+            der = cmp.saldo_derivado(por_dia, saldos)
+            dt = max(der) if der else None
+            if dt is not None:
+                item["saldo"] = round(der[dt], 2)
+                item["dt"] = dt
+                total += der[dt]
+                base_ok.append(dt)
+
+        if c.get("erp_banco") is not None:
+            e = erp.get((c["erp_banco"], str(c["erp_agencia"]), str(c["erp_conta"])))
+            if e:
+                item["erp_saldo"] = round(e["saldo"], 2)
+                item["erp_dt"] = e["dt"]
+                if item["saldo"] is not None:
+                    item["diferenca"] = round(item["saldo"] - e["saldo"], 2)
+        linhas.append(item)
+
+    # o que exige acao primeiro: atrasado, depois sem saldo, depois maior valor
+    linhas.sort(key=lambda x: (-(x["atraso_uteis"] or 0), x["saldo"] is not None,
+                               -abs(x["saldo"] or 0)))
+    return {
+        "linhas": linhas,
+        "total": round(total, 2),
+        "contas_no_total": len(base_ok),
+        "contas_sem_saldo": sum(1 for x in linhas if x["saldo"] is None),
+        "datas_diferentes": len(set(base_ok)) > 1,
+        "dt_mais_antiga": (min(base_ok) if base_ok else None),
+        "dt_mais_nova": (max(base_ok) if base_ok else None),
+        "atrasadas": sum(1 for x in linhas if (x["atraso_uteis"] or 0) > 0),
+        "erp_disponivel": bool(erp),
+        "hoje": hoje,
     }
