@@ -65,7 +65,11 @@ MODELO_CTE = "57"
 
 # Em homologação o nome do destinatário/tomador é fixado por norma. Sem isso o
 # documento é rejeitado mesmo estando tudo o mais correto.
-XNOME_HOMOLOGACAO = "CT-E EMITIDO EM AMBIENTE DE HOMOLOGACAO - SEM VALOR FISCAL"
+# SEM hífen em "CTE", e é literal: a SEFAZ compara caractere a caractere.
+# "CT-E EMITIDO..." (a grafia que o resto do mundo usa, e a que a NF-e pede)
+# leva rejeição 646 — a mesma que se leva sem carimbo nenhum, o que faz a
+# tentativa parecer não ter surtido efeito.
+XNOME_HOMOLOGACAO = "CTE EMITIDO EM AMBIENTE DE HOMOLOGACAO - SEM VALOR FISCAL"
 
 
 # ------------------------------------------------------------ enquadramento --
@@ -151,6 +155,21 @@ SELECT k.filial, k.serie, k.numero, k.dtemissao, k.chaveacessocte,
        f.numero AS toma_numero, f.complemento AS toma_complemento,
        f.bairro AS toma_bairro, f.cidade AS toma_cidade, f.uf AS toma_uf,
        f.cep AS toma_cep,
+       -- REMETENTE e DESTINATARIO: os mesmos da carga, copiados do CT-e da
+       -- Sulista. Nao e escolha: nos 30 CT-e em que a propria Sulista e a
+       -- subcontratada, ela mantem o remetente e o destinatario REAIS e poe a
+       -- transportadora contratante como tomador "outros". A SEFAZ recusa com
+       -- cStat 469 se o remetente faltar.
+       re.codigo AS rem_cnpj, re.razaosocial AS rem_nome,
+       re.inscricaoestadual AS rem_ie, re.endereco AS rem_logradouro,
+       re.numero AS rem_numero, re.complemento AS rem_complemento,
+       re.bairro AS rem_bairro, re.cidade AS rem_cidade, re.uf AS rem_uf,
+       re.cep AS rem_cep,
+       de.codigo AS dest_cnpj, de.razaosocial AS dest_nome,
+       de.inscricaoestadual AS dest_ie, de.endereco AS dest_logradouro,
+       de.numero AS dest_numero, de.complemento AS dest_complemento,
+       de.bairro AS dest_bairro, de.cidade AS dest_cidade, de.uf AS dest_uf,
+       de.cep AS dest_cep,
        -- o que a Sulista PAGA pela viagem, e quantos documentos dividem isso
        p.numero AS embarque, p.valorfretecompra, p.valorpedagiocompra,
        (SELECT count(*)::int FROM programacaoembarque_composicao c
@@ -161,6 +180,8 @@ SELECT k.filial, k.serie, k.numero, k.dtemissao, k.chaveacessocte,
   JOIN veiculo v   ON v.placa = k.veiculo
   JOIN cadastro cd ON cd.codigo = v.proprietario
   JOIN filial f    ON f.codigo = k.filial
+  LEFT JOIN cadastro re ON re.codigo = k.remetente
+  LEFT JOIN cadastro de ON de.codigo = k.destinatario
   LEFT JOIN programacaoembarque_composicao pc
          ON pc.filialdocumento = k.filial AND pc.seriedocumento = k.serie
         AND pc.numerodocumento = k.numero
@@ -168,6 +189,25 @@ SELECT k.filial, k.serie, k.numero, k.dtemissao, k.chaveacessocte,
          ON p.numero = pc.numero
         AND p.diferenciadornumero = pc.diferenciadornumero
  WHERE k.chaveacessocte = %(chave)s
+"""
+
+# As NOTAS TRANSPORTADAS. A SEFAZ rejeita com cStat 693 ("Grupo Documentos
+# Transportados deve ser informado") todo CT-e cujo tpServ não seja redespacho
+# intermediário nem vinculado a multimodal — ou seja, praticamente todos. O
+# XSD deixa o grupo OPCIONAL: quem o exige é a regra de negócio, então isto
+# nunca apareceria numa validação local.
+# Medido: o CT-e piloto carrega DUAS notas, então nunca foi campo único.
+NOTAS_SQL = """
+SELECT nf.chaveacessonfe AS chave, nf.modelo,
+       nf.numeronotafiscal AS numero, nf.serienotafiscal AS serie,
+       nf.cnpjcpfcodigoemissor AS emissor,
+       nf.valormercadoria::float8 AS valor, nf.pesobruto::float8 AS peso
+  FROM conhecimento k
+  JOIN conhecimento_notafiscal nf
+    ON nf.filial = k.filial AND nf.serie = k.serie AND nf.numero = k.numero
+   AND nf.diferenciadornumero = k.diferenciadornumero
+ WHERE k.chaveacessocte = %(chave)s
+ ORDER BY nf.sequencianotafiscal
 """
 
 # O acento é a única diferença entre as duas grafias; `unaccent` não está
@@ -225,6 +265,16 @@ def dados(chave: str) -> dict:
         raise ValueError(f"CT-e não encontrado na réplica: {chave}")
     d = dict(linhas[0])
 
+    for papel in ("rem", "dest"):
+        if not d.get(f"{papel}_cnpj"):
+            raise ValueError(
+                f"O CT-e {chave} não tem {papel} no cadastro do ERP. A SEFAZ "
+                f"recusa (cStat 469) CT-e sem remetente para este tipo de "
+                f"serviço.")
+        d[f"{papel}_cmun"], d[f"{papel}_xmun"] = ibge(
+            d[f"{papel}_uf"], d[f"{papel}_cidade"])
+        d[f"{papel}_cep8"] = cep(d[f"{papel}_cep"])
+
     d["emit_cmun"], d["emit_xmun"] = ibge(d["emit_uf"], d["emit_cidade"])
     d["ini_cmun"], d["ini_xmun"] = ibge(d["ufcoleta"], d["cidadecoleta"])
     d["fim_cmun"], d["fim_xmun"] = ibge(d["ufentrega"], d["cidadeentrega"])
@@ -235,6 +285,14 @@ def dados(chave: str) -> dict:
     # Rateio é decisão fiscal: o módulo mede e avisa, não divide sozinho.
     n = d.get("documentos_no_embarque") or 0
     d["exige_rateio"] = n > 1
+
+    # Só NF-e (modelo 55) entra em `infNFe`; nota em papel tem grupo PRÓPRIO
+    # (`infNF`) e chave nenhuma. Misturar os dois produz um XML que valida no
+    # schema e é rejeitado pela SEFAZ.
+    notas = db.query(NOTAS_SQL, {"chave": chave})
+    d["notas"] = [x for x in notas
+                  if str(x.get("modelo") or "") == "55" and x.get("chave")]
+    d["notas_sem_chave"] = [x for x in notas if not x.get("chave")]
     return d
 
 
@@ -299,9 +357,9 @@ def montar(d: dict, enq: Enquadramento, *, numero: int, serie: int = 1,
         ide.toma4 = toma4(
             toma="4", CNPJ=_so_digitos(d["toma_cnpj"]),
             IE=_so_digitos(d["toma_ie"]),
-            xNome=(XNOME_HOMOLOGACAO if (ambiente == "2" and
-                                         homologacao_forca_xnome)
-                   else _nome_sulista(d)),
+            # O tomador fica com o nome REAL: a rejeição 646 fala do
+            # remetente, e carimbar os dois trocaria um erro por outro.
+            xNome=_nome_sulista(d),
             enderToma=_tipo(toma4, "enderToma")(
                 xLgr=d["toma_logradouro"], nro=str(d["toma_numero"] or "S/N"),
                 xCpl=d["toma_complemento"] or None, xBairro=d["toma_bairro"],
@@ -324,6 +382,33 @@ def montar(d: dict, enq: Enquadramento, *, numero: int, serie: int = 1,
             CEP=d["emit_cep8"], UF=d["emit_uf"],
             fone=_fone(d["emit_ddd"], d["emit_fone"])))
 
+    # Remetente e destinatário são os da CARGA, iguais aos do CT-e da Sulista.
+    # O nome de homologação NÃO vem para cá: a norma fixa o nome do TOMADOR,
+    # e carimbá-lo também aqui trocaria um erro por outro.
+    homolog = ambiente == "2" and homologacao_forca_xnome
+    rem_cls = _tipo(I, "rem")
+    rem = rem_cls(
+        CNPJ=_so_digitos(d["rem_cnpj"]), IE=_so_digitos(d["rem_ie"]),
+        # É o REMETENTE que a norma carimba em homologação, não o tomador —
+        # descoberto por rejeição 646, depois de eu ter apostado no tomador.
+        # O CNPJ e o endereço continuam os reais; só a razão social troca.
+        xNome=(XNOME_HOMOLOGACAO if homolog else d["rem_nome"]),
+        enderReme=_tipo(rem_cls, "enderReme")(
+            xLgr=d["rem_logradouro"], nro=str(d["rem_numero"] or "S/N"),
+            xCpl=d["rem_complemento"] or None, xBairro=d["rem_bairro"],
+            cMun=str(d["rem_cmun"]), xMun=d["rem_xmun"],
+            CEP=d["rem_cep8"], UF=d["rem_uf"], cPais="1058", xPais="BRASIL"))
+
+    dest_cls = _tipo(I, "dest")
+    dest = dest_cls(
+        CNPJ=_so_digitos(d["dest_cnpj"]), IE=_so_digitos(d["dest_ie"]),
+        xNome=(XNOME_HOMOLOGACAO if homolog else d["dest_nome"]),
+        enderDest=_tipo(dest_cls, "enderDest")(
+            xLgr=d["dest_logradouro"], nro=str(d["dest_numero"] or "S/N"),
+            xCpl=d["dest_complemento"] or None, xBairro=d["dest_bairro"],
+            cMun=str(d["dest_cmun"]), xMun=d["dest_xmun"],
+            CEP=d["dest_cep8"], UF=d["dest_uf"], cPais="1058", xPais="BRASIL"))
+
     vprest = I.VPrest(
         vTPrest=_dec(v), vRec=_dec(v),
         comp=[_tipo(I.VPrest, "comp")(xNome="FRETE PESO", vComp=_dec(v))])
@@ -340,6 +425,19 @@ def montar(d: dict, enq: Enquadramento, *, numero: int, serie: int = 1,
                 cUnid="01", tpMed="PESO BRUTO",
                 qCarga=_dec(Decimal(str(d.get("pesobruto") or 0)), casas=4))]),
     )
+    # As notas transportadas. Sem elas a SEFAZ devolve cStat 693, e a mensagem
+    # é clara — mas só aparece na TRANSMISSÃO: o XSD deixa o grupo opcional.
+    if not d.get("notas"):
+        sem = len(d.get("notas_sem_chave") or [])
+        raise ValueError(
+            f"O CT-e {d['chave_original']} não tem NF-e com chave na réplica"
+            + (f" ({sem} nota(s) sem chave de acesso)" if sem else "")
+            + " — a SEFAZ exige o grupo de Documentos Transportados.")
+    inf_doc = _tipo(norm_cls, "infDoc")
+    norm.infDoc = inf_doc(
+        infNFe=[_tipo(inf_doc, "infNFe")(chave=n["chave"])
+                for n in d["notas"]])
+
     if enq.referenciar_original:
         # É AQUI que o documento vira contrapartida: sem este grupo ele é uma
         # prestação solta e nada o liga ao CT-e que a Sulista já emitiu.
@@ -368,8 +466,8 @@ def montar(d: dict, enq: Enquadramento, *, numero: int, serie: int = 1,
 
     # A versão mora em `infCte`, não na raiz: `Cte` só tem infCte, infCTeSupl
     # e a assinatura — que este módulo deixa vazia de propósito.
-    inf = I(ide=ide, emit=emit, vPrest=vprest, imp=imp, infCTeNorm=norm,
-            versao="4.00", Id=f"CTe{chave.chave}")
+    inf = I(ide=ide, emit=emit, rem=rem, dest=dest, vPrest=vprest, imp=imp,
+            infCTeNorm=norm, versao="4.00", Id=f"CTe{chave.chave}")
     return Cte(infCte=inf)
 
 
