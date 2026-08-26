@@ -12,7 +12,7 @@
 |---|---|---|
 | 0 | Há dispensa de emissão pelo subcontratado? | **Não há — o agregado emite** |
 | 1 | Subcontratação, redespacho ou prestação normal? | **Subcontratação** |
-| 2 | Valor cobrado do cliente ou pago ao agregado? | **Cobrado do cliente** (provisório) |
+| 2 | Valor cobrado do cliente ou pago ao agregado? | **Pago ao agregado** ⚠️ ver 3.2 |
 | 3 | Um documento por CT-e ou por viagem? | **Um por CT-e** |
 | 4 | Tratamento e CST do ICMS | *aguardando* |
 | 5 | Série e numeração por agregado | **Série 900 aprovada** (provisória) |
@@ -20,11 +20,14 @@
 | 7 | Documentos de valor simbólico entram? | **Não, por ora** |
 | 8 | Passivo de R$ 108,7 mi | encaminhado ao Jurídico |
 
-Resta **uma** definição fiscal — a **CST e o tratamento do ICMS** (seção 3.4).
+⚠️ **A resposta 2 trouxe duas perguntas novas — seção 3.2.** "O valor pago a
+ele (frete mínimo)" pode significar duas coisas que **divergem em 89% das
+viagens**, e a escolha por "valor pago" reabre a necessidade de um critério de
+rateio para metade da fila.
 
-E o que hoje mais trava a fila **não é fiscal, é cadastral**: os **17 agregados
-com inscrição estadual ausente ou "ISENTO"** respondem por **1.872 dos 6.375**
-CT-e do trimestre (29%). Ver seção 4.1 — passou a ser o caminho crítico.
+Também segue pendente a **CST e o tratamento do ICMS** (seção 3.4), e o
+levantamento cadastral dos **17 sem inscrição estadual**, que responde por 29%
+da fila (seção 4.1).
 
 O anexo, no fim, registra o que foi testado até chegar ao enquadramento
 definido.
@@ -71,83 +74,68 @@ classificados como subcontratação, com a transportadora contratante como
 tomadora. O documento do agregado contra nós é o espelho exato desse caso.
 Registramos isso como precedente interno, não como opinião fiscal.
 
-### 3.2 Valor da prestação — RESPONDIDO: valor cobrado do cliente
+### 3.2 Valor da prestação — RESPONDIDO: valor pago ao agregado
 
-**Definido em 26/08/2026, em caráter provisório: o documento do agregado sai
-pelo valor que a Sulista cobrou do cliente.**
+**Resposta recebida:** *"O valor pago a ele (frete mínimo)."*
 
-Duas consequências imediatas, ambas favoráveis à partida:
+Registramos a definição. Ela levanta **duas questões** que precisam de retorno
+antes da emissão em produção.
 
-- **O rateio deixa de existir.** Cada CT-e já tem o seu próprio valor, então
-  os 48% que dividem viagem com outro documento deixam de ser um problema. Um
-  documento que antes era recusado pelo sistema por esse motivo já foi
-  emitido e autorizado em teste.
-- **Não há mais nada a levantar** para começar: o valor está em todos os CT-e.
+#### Questão A — "frete mínimo" é qual dos dois números?
 
-Fica registrado que a definição é provisória e que, se for revista para o
-valor pago ao agregado, o critério de rateio volta a ser necessário. O texto
-abaixo permanece como fundamento da decisão.
+O parêntese admite duas leituras, e elas **não coincidem**:
 
----
+1. **O valor efetivamente pago** ao agregado (`frete de compra` no sistema); ou
+2. **O piso mínimo legal da ANTT** (Lei 13.703/2018), que o CÓRTEX já calcula
+   por viagem.
 
-*Contexto que embasou a escolha:*
+Medimos os dois no trimestre, nas viagens de agregado:
 
-#### O que são os dois números
+| | Valor |
+|---|---|
+| Pago aos agregados | **R$ 14,7 milhões** |
+| Piso mínimo ANTT das mesmas viagens | **R$ 18,7 milhões** |
+| Pago em relação ao piso | **78,6%** |
+| Viagens pagas **abaixo** do piso | **5.081 de 5.735 conferidas (89%)** |
 
-São grandezas diferentes e ambas existem no sistema, uma ao lado da outra:
+Ou seja: **o que é pago não é o frete mínimo** na grande maioria dos casos — é
+menos. Os dois nomes não descrevem o mesmo número.
 
-| Base | O que é | No documento-piloto |
-|---|---|---|
-| **Prestação** | O que a Sulista cobrou **do cliente** pelo frete | R$ 1.494,02 |
-| **Frete de compra** | O que a Sulista paga **ao agregado** pela viagem | R$ 1.066,32 |
+A escolha tem consequência direta:
 
-A diferença — cerca de **29%** — é a margem da Sulista na operação. Nos
-6.594 CT-e do trimestre, o total cobrado dos clientes e o total pago aos
-agregados guardam essa mesma ordem de proporção.
+- **Se for o valor efetivamente pago:** os documentos passarão a registrar
+  formalmente, um a um, um frete abaixo do mínimo legal — em 89% das viagens.
+  É um registro auditável de algo que hoje só existe no financeiro interno.
+- **Se for o piso da ANTT:** o valor do documento não baterá com o que o
+  financeiro efetivamente pagou (R$ 18,7 mi contra R$ 14,7 mi), e essa
+  diferença precisará de tratamento.
 
-#### Por que a escolha não é indiferente
+**Não escolhemos por conta própria.** Pedimos que a contabilidade indique qual
+dos dois, ciente da divergência.
 
-**a) É base de cálculo do ICMS.** O imposto incide sobre o valor da prestação
-declarada no documento. Emitir pelo valor cheio cobrado do cliente significa o
-agregado recolhendo sobre uma receita que não é dele.
+#### Questão B — o critério de rateio volta a ser necessário
 
-**b) Muda o que o documento representa economicamente.** O agregado prestou
-serviço **para a Sulista** e recebe dela o frete de compra — é essa a receita
-dele. O valor cobrado do cliente é receita da Sulista, e ela já a documentou
-no CT-e dela. Documentar o mesmo valor duas vezes, em dois CT-e da mesma
-cadeia, é o ponto que pedimos que seja avaliado.
+Ao contrário da definição anterior, "valor pago" **reabre o problema do
+rateio**, porque o pagamento é lançado **por viagem** e o documento é **por
+CT-e**:
 
-**c) Afeta a escrituração dos dois lados.** O documento do agregado gera
-crédito para a Sulista e débito para ele. O valor escolhido define o tamanho
-desse par.
+> **3.159 dos 6.594 CT-e do trimestre — 48% — dividem a viagem com outro
+> documento e disputam um único valor de pagamento.**
 
-#### O ponto crítico: metade da fila precisa de rateio se for "valor pago"
+Precisamos do critério para dividi-lo:
 
-Esta é a parte que pedimos atenção especial, porque decorre da definição já
-tomada de **um documento por CT-e**:
+- proporcional ao **peso** de cada carga;
+- proporcional ao **valor da mercadoria**;
+- proporcional ao **valor cobrado** de cada CT-e;
+- em **partes iguais**;
+- ou outro.
 
-> **O frete de compra é lançado por VIAGEM, não por CT-e.**
+O sistema **não divide sozinho**: interrompe e sinaliza. Arbitrar um rateio
+sem definição seria inventar base de cálculo, multiplicada por milhares de
+documentos.
 
-E **3.159 dos 6.594** CT-e do trimestre — **48%, quase metade** — pertencem a
-viagens que carregam mais de um documento. Nesses casos existe **um valor de
-frete de compra para dois ou mais CT-e**.
-
-Portanto:
-
-- **Se a base for o valor cobrado do cliente:** cada CT-e já tem o seu próprio
-  valor. Não há nada a decidir e a emissão pode começar.
-- **Se a base for o valor pago ao agregado:** metade da fila exige um
-  **critério de rateio** desse valor entre os documentos da mesma viagem.
-  Precisaríamos que a contabilidade definisse qual:
-  - proporcional ao **peso** de cada carga;
-  - proporcional ao **valor da mercadoria**;
-  - proporcional ao **valor cobrado** de cada CT-e;
-  - em **partes iguais**;
-  - ou outro.
-
-O sistema **não divide por conta própria** — ele interrompe e sinaliza.
-Arbitrar um rateio sem definição seria inventar base de cálculo, e o erro
-apareceria multiplicado por milhares de documentos.
+**Enquanto o critério não vier, 52% da fila pode ser emitida** (os CT-e que
+são o único documento da viagem) e 48% fica retida.
 
 ### 3.3 Um documento por CT-e nosso, ou por viagem? — RESPONDIDO: por CT-e
 
@@ -155,10 +143,8 @@ No trimestre, **6.594 CT-e** de agregado PJ corresponderam a **3.834 viagens**
 — 1,7 documento por viagem. Com a decisão "um por CT-e", a fila fica no número
 maior: **os 6.594**.
 
-Havia aqui um risco de rateio, porque **3.159 desses documentos (48%)**
-dividem a viagem com outro e o pagamento ao agregado é lançado por viagem. A
-decisão da seção 3.2 — emitir pelo valor cobrado do cliente — **eliminou esse
-risco**: cada CT-e tem o seu próprio valor.
+É a combinação desta decisão com a da seção 3.2 (valor pago ao agregado) que
+cria a necessidade do critério de rateio — ver Questão B.
 
 ### 3.3-B Achado novo: o CFOP não é um só — e o principal é o 6932
 
@@ -300,17 +286,17 @@ dessa data, o primeiro teste em produção aguardará a renovação do certifica
 
 ## 7. Resumo — o que pedimos
 
-Resta **uma** definição fiscal, e um levantamento cadastral que hoje pesa mais
-que ela.
-
 | O que falta | Com quem | Efeito |
 |---|---|---|
+| **"Frete mínimo" é o valor pago ou o piso da ANTT?** | Contabilidade | Os dois divergem em **89% das viagens** (R$ 14,7 mi × R$ 18,7 mi) |
+| **Critério de rateio** do valor da viagem entre os CT-e | Contabilidade | **48% da fila** fica retida sem ele |
 | **CST e tratamento do ICMS** | Contabilidade | Última definição fiscal |
-| **Os 17 sem inscrição estadual**: cadastro desatualizado ou realmente não inscritos? | Cadastro / SINTEGRA | **29% da fila** (1.872 CT-e no trimestre) |
+| **Os 17 sem inscrição estadual**: cadastro ou realmente não inscritos? | Cadastro / SINTEGRA | **29% da fila** |
 
-**Já é possível começar pelos outros 30 agregados**, assim que a CST for
-definida: cerca de 4.500 documentos no trimestre, R$ 13,4 milhões de prestação,
-sem nenhuma pendência de cadastro.
+**O que já é possível fazer:** os CT-e que são o **único documento da viagem**
+(52% da fila) não dependem do critério de rateio. Dos 47 agregados com
+movimento, 30 estão com cadastro completo. Definida a CST e a Questão A, esse
+subconjunto pode entrar em produção sem esperar o resto.
 
 ---
 

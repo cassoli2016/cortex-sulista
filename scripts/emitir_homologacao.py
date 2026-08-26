@@ -44,10 +44,10 @@ ENQUADRAMENTO = documento.Enquadramento(
     grupo_icms="ICMSSN",      # PENDENTE: emitente e optante do Simples
     cst_icms="90",            # PENDENTE
     p_icms=None,
-    # DECIDIDO (provisorio): o valor COBRADO DO CLIENTE. Com isso o rateio
-    # deixa de existir - cada CT-e ja tem o seu proprio valor, e os 48% que
-    # dividem viagem deixam de ser problema.
-    base_valor="prestacao",
+    # DECIDIDO em 26/08/2026: o valor PAGO AO AGREGADO. Com isso o rateio
+    # volta a ser necessario nos 48% de CT-e que dividem viagem - o pagamento
+    # e lancado por VIAGEM e o documento e por CT-e.
+    base_valor="fretecompra",
     toma="4",                 # a Sulista como tomadora ("outros")
     referenciar_original=True,  # o vinculo com o nosso CT-e
 )

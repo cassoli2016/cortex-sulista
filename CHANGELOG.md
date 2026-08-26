@@ -4,6 +4,16 @@ Gerado de `docs/versoes.yaml` por `scripts/gerar_changelog.py` — não editar �
 Formato [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/),
 versionamento [SemVer](https://semver.org/lang/pt-BR/).
 
+## [0.74.0] — 26/08/2026  ·  CX-26/08/2026-v0.74.0
+
+### Adicionado
+- A resposta veio como "o valor pago a ele (frete minimo)", e os dois nomes NAO descrevem o mesmo numero. Medimos: no trimestre, as viagens de agregado foram pagas em R$ 14,7 milhoes contra um piso minimo da ANTT de R$ 18,7 milhoes para as mesmas viagens - 78,6% do piso, com 5.081 de 5.735 viagens conferidas (89%) pagas ABAIXO do minimo legal.
+- A escolha tem consequencia direta e por isso voltou como pergunta: pelo valor efetivamente pago, cada documento passa a registrar formalmente um frete abaixo do piso legal, um a um; pelo piso da ANTT, o valor do documento nao bate com o que o financeiro pagou. O sistema nao arbitra entre os dois.
+
+### Alterado
+- A contabilidade reviu a base do valor: o CT-e do agregado sai pelo VALOR PAGO A ELE, e nao mais pelo cobrado do cliente. A mudanca foi aplicada, e com ela o rateio volta a ser necessario - o pagamento e lancado por VIAGEM e o documento e por CT-e, entao os 3.159 de 6.594 CT-e do trimestre (48%) que dividem viagem com outro documento voltam a ficar retidos ate que o criterio de divisao seja definido.
+- Os 52% restantes - os CT-e que sao o unico documento da viagem - nao dependem desse criterio e podem seguir.
+
 ## [0.73.0] — 26/08/2026  ·  CX-26/08/2026-v0.73.0
 
 ### Adicionado
