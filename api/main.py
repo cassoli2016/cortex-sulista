@@ -2638,6 +2638,26 @@ def extrato_apagar(imp_id: int) -> JSONResponse:
             "erro": "erro_gravacao", "mensagem": "Erro ao desfazer a importação."})
 
 
+@app.get("/api/financeiro/extrato/conciliacao")
+def extrato_conciliacao(conta_id: int, dt_de: str, dt_ate: str) -> JSONResponse:
+    """Conciliacao linha a linha de UMA conta (extrato local x razao do ERP).
+
+    Separado do `/extrato` de propósito: aquele monta o painel das contas
+    todas e é o que abre por padrão; este puxa o razão inteiro do período
+    (centenas a milhares de linhas por conta) e só faz sentido sob demanda.
+    """
+    from api.extrato.servico import conciliar
+    try:
+        return JSONResponse(conciliar(conta_id, dt_de, dt_ate))
+    except ValueError as exc:
+        return JSONResponse(status_code=422, content={
+            "erro": "parametro_invalido", "mensagem": str(exc)})
+    except Exception as exc:  # noqa: BLE001
+        log.warning("extrato_conciliacao falhou: %s", exc)
+        return JSONResponse(status_code=500, content={
+            "erro": "erro_consulta", "mensagem": "Erro ao montar a conciliação."})
+
+
 @app.get("/api/financeiro/extrato/contas-erp")
 def extrato_contas_erp() -> JSONResponse:
     from api.extrato.servico import contas_erp

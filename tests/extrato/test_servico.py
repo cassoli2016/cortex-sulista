@@ -166,9 +166,16 @@ def test_painel_traz_lancamentos_dia_da_conta_selecionada(db, monkeypatch):
     monkeypatch.setattr(servico.db, "query", lambda sql, params=None: [])
     d = servico.painel("2026-07-01", "2026-07-31", conta_id=cid, path=db)
     assert d["conta_selecionada"] == cid
-    assert d["lancamentos_dia"] == [
-        {"dt": "2026-07-02", "valor": 150.0, "tipo": "C", "historico": "ted", "numerodoc": "001"},
-    ]
+    # comparacao por CAMPO, e nao pelo dicionario inteiro: o `id` da linha passou
+    # a viajar junto (a conciliacao linha a linha precisa de referencia estavel
+    # para o par que montou), e travar o formato exato faria todo campo novo
+    # quebrar um teste que nao e sobre o formato.
+    assert len(d["lancamentos_dia"]) == 1
+    x = d["lancamentos_dia"][0]
+    assert {k: x[k] for k in ("dt", "valor", "tipo", "historico", "numerodoc")} == {
+        "dt": "2026-07-02", "valor": 150.0, "tipo": "C", "historico": "ted",
+        "numerodoc": "001"}
+    assert isinstance(x["id"], int)
 
 
 def test_painel_sem_conta_selecionada_lancamentos_dia_vazio(db, monkeypatch):

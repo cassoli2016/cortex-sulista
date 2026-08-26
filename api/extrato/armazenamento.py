@@ -337,7 +337,10 @@ def saldos_extrato(path: Path, conta_id: int) -> list[dict]:
 def lancamentos(path: Path, conta_id: int, dt_de: str, dt_ate: str) -> list[dict]:
     with _conn(path) as c:
         rows = c.execute(
-            "SELECT dt, valor, tipo, historico, numerodoc FROM ext_lancamento "
+            # o `id` viaja junto porque a conciliacao linha a linha precisa de uma
+            # referencia ESTAVEL para o par que ela montou - dt+valor+historico nao
+            # serve, que e justamente o caso de dois lancamentos gemeos no mesmo dia
+            "SELECT id, dt, valor, tipo, historico, numerodoc FROM ext_lancamento "
             "WHERE conta_id=? AND dt BETWEEN ? AND ? ORDER BY dt, id", (conta_id, dt_de, dt_ate)
         ).fetchall()
     return [dict(r) for r in rows]

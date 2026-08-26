@@ -28,6 +28,7 @@ from datetime import date, datetime
 from api import db
 from api.extrato import armazenamento as arm
 from api.extrato import comparacao as cmp
+from api.extrato import conciliacao as conc
 from api.extrato.parser_csv import parse_csv, preview_csv
 from api.extrato.parser_ofx import parse_ofx
 from api.extrato.parser_pdf import parse_pdf
@@ -55,6 +56,31 @@ FROM contacorrente_saldo
 WHERE dtmovimento >= current_date - 400
 GROUP BY 1,2,3
 ORDER BY max(dtmovimento) DESC, banco
+"""
+
+
+# Razao de caixa do ERP, LINHA a linha - a contraparte da conciliacao lancamento
+# a lancamento (`api/extrato/conciliacao.py`). E outra tabela e outro nivel do
+# que o `contacorrente_saldo` usado acima: aquele traz uma linha POR DIA, com o
+# agregado; este traz cada movimento.
+#
+# `semaforo = 1` pela mesma razao das outras tabelas satelites do ERP: sem ele
+# entram linhas canceladas.
+#
+# O valor sai com SINAL (credito positivo, debito negativo) porque e assim que
+# o extrato guarda, e casar credito com debito de mesmo valor esconderia
+# justamente o erro de sentido que a conciliacao existe para achar.
+ERP_RAZAO_SQL = """
+SELECT dtmovimento::date AS dt, sequencia,
+       (coalesce(valorcredito,0) - coalesce(valordebito,0))::float8 AS valor,
+       coalesce(historicodescricao,'') AS historico,
+       coalesce(nominal,'') AS nominal,
+       dtcompensacao::date AS dtcompensacao
+FROM contacorrente
+WHERE banco = %(banco)s AND agencia = %(agencia)s AND conta = %(conta)s
+  AND dtmovimento BETWEEN %(dt_de)s AND %(dt_ate)s
+  AND semaforo = 1
+ORDER BY dtmovimento, sequencia
 """
 
 
@@ -388,4 +414,53 @@ def painel(dt_de: str, dt_ate: str, conta_id: int | None = None, path=arm.DB_PAT
         "conciliacao_nativa": conciliacao_nativa(),
         "atualizado_em": datetime.now().isoformat(timespec="seconds"),
         "fonte": "extrato importado (OFX/CSV) x contacorrente_saldo do ERP AVA",
+    }
+
+
+def conciliar(conta_id: int, dt_de: str, dt_ate: str, path=arm.DB_PATH) -> dict:
+    """Conciliacao linha a linha de UMA conta.
+
+    Endpoint proprio, e nao mais um campo do `painel`: o painel percorre TODAS
+    as contas e ja faz uma consulta ao ERP por conta; trazer o razao inteiro de
+    cada uma (a Caixa tem 622 linhas em 26 dias, o Bradesco 1.767) multiplicaria
+    o custo da tela que abre por padrao para entregar um detalhe que so se olha
+    numa conta por vez.
+    """
+    arm.init_db(path)
+    conta = _conta_por_id(path, conta_id)
+    if conta is None:
+        raise ValueError(f"conta_id {conta_id} nao existe.")
+    if conta.get("erp_banco") is None:
+        return {"ok": False, "precisa": "mapa_erp", "conta": conta,
+                "mensagem": "Esta conta ainda nao esta vinculada a uma conta do ERP - "
+                            "sem o vinculo nao ha razao com que comparar."}
+
+    banco = [{"dt": x["dt"], "valor": x["valor"],
+              "historico": x.get("historico") or "",
+              "numerodoc": x.get("numerodoc") or "",
+              "ref": f"b{x['id']}"}
+             for x in arm.lancamentos(path, conta_id, dt_de, dt_ate)]
+
+    rows = db.query(ERP_RAZAO_SQL, {
+        "banco": conta["erp_banco"], "agencia": conta["erp_agencia"],
+        "conta": conta["erp_conta"], "dt_de": dt_de, "dt_ate": dt_ate})
+    erp = [{"dt": r["dt"].isoformat() if hasattr(r["dt"], "isoformat") else str(r["dt"]),
+            "valor": r["valor"],
+            "historico": " ".join((r["historico"] or "").split()),
+            "nominal": " ".join((r["nominal"] or "").split()),
+            "ref": f"e{r['sequencia']}"}
+           for r in rows]
+
+    res = conc.casar(banco, erp)
+    return {
+        "ok": True, "conta": conta, "dt_de": dt_de, "dt_ate": dt_ate,
+        "resumo": res["resumo"],
+        "dias": res["dias"],
+        # as linhas sem par dos DOIS lados sao o trabalho que sobra para a
+        # pessoa; os pares casados nao vao para a tela porque sao justamente o
+        # que ja nao precisa de atencao - e sao a maioria do volume.
+        "sobra_banco": res["sobra_banco"],
+        "sobra_erp": res["sobra_erp"],
+        "atualizado_em": datetime.now().strftime("%d/%m/%Y %H:%M"),
+        "fonte": "ext_lancamento (import local) x contacorrente (ERP AVA)",
     }
