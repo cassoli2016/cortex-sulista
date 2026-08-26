@@ -44,7 +44,10 @@ ENQUADRAMENTO = documento.Enquadramento(
     grupo_icms="ICMSSN",      # PENDENTE: emitente e optante do Simples
     cst_icms="90",            # PENDENTE
     p_icms=None,
-    base_valor="fretecompra",  # PENDENTE: pago ao agregado x cobrado do cliente
+    # DECIDIDO (provisorio): o valor COBRADO DO CLIENTE. Com isso o rateio
+    # deixa de existir - cada CT-e ja tem o seu proprio valor, e os 48% que
+    # dividem viagem deixam de ser problema.
+    base_valor="prestacao",
     toma="4",                 # a Sulista como tomadora ("outros")
     referenciar_original=True,  # o vinculo com o nosso CT-e
 )

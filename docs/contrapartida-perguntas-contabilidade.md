@@ -12,7 +12,7 @@
 |---|---|---|
 | 0 | Há dispensa de emissão pelo subcontratado? | **Não há — o agregado emite** |
 | 1 | Subcontratação, redespacho ou prestação normal? | **Subcontratação** |
-| 2 | Valor cobrado do cliente ou pago ao agregado? | *aguardando* |
+| 2 | Valor cobrado do cliente ou pago ao agregado? | **Cobrado do cliente** (provisório) |
 | 3 | Um documento por CT-e ou por viagem? | **Um por CT-e** |
 | 4 | Tratamento e CST do ICMS | *aguardando* |
 | 5 | Série e numeração por agregado | **Série 900 aprovada** (provisória) |
@@ -20,9 +20,11 @@
 | 7 | Documentos de valor simbólico entram? | **Não, por ora** |
 | 8 | Passivo de R$ 108,7 mi | encaminhado ao Jurídico |
 
-Restam **duas** definições, e elas são a mesma conversa: a **base do valor** e
-a **CST do ICMS** — detalhadas na seção 3.2, que é o que pedimos que seja
-analisado agora.
+Resta **uma** definição fiscal — a **CST e o tratamento do ICMS** (seção 3.4).
+
+E o que hoje mais trava a fila **não é fiscal, é cadastral**: os **17 agregados
+com inscrição estadual ausente ou "ISENTO"** respondem por **1.872 dos 6.375**
+CT-e do trimestre (29%). Ver seção 4.1 — passou a ser o caminho crítico.
 
 O anexo, no fim, registra o que foi testado até chegar ao enquadramento
 definido.
@@ -69,10 +71,26 @@ classificados como subcontratação, com a transportadora contratante como
 tomadora. O documento do agregado contra nós é o espelho exato desse caso.
 Registramos isso como precedente interno, não como opinião fiscal.
 
-### 3.2 Valor da prestação — **a definição que falta**
+### 3.2 Valor da prestação — RESPONDIDO: valor cobrado do cliente
 
-**Por qual valor o agregado emite o documento contra a Sulista: o que a Sulista
-cobrou do cliente, ou o que a Sulista paga ao agregado?**
+**Definido em 26/08/2026, em caráter provisório: o documento do agregado sai
+pelo valor que a Sulista cobrou do cliente.**
+
+Duas consequências imediatas, ambas favoráveis à partida:
+
+- **O rateio deixa de existir.** Cada CT-e já tem o seu próprio valor, então
+  os 48% que dividem viagem com outro documento deixam de ser um problema. Um
+  documento que antes era recusado pelo sistema por esse motivo já foi
+  emitido e autorizado em teste.
+- **Não há mais nada a levantar** para começar: o valor está em todos os CT-e.
+
+Fica registrado que a definição é provisória e que, se for revista para o
+valor pago ao agregado, o critério de rateio volta a ser necessário. O texto
+abaixo permanece como fundamento da decisão.
+
+---
+
+*Contexto que embasou a escolha:*
 
 #### O que são os dois números
 
@@ -131,35 +149,16 @@ O sistema **não divide por conta própria** — ele interrompe e sinaliza.
 Arbitrar um rateio sem definição seria inventar base de cálculo, e o erro
 apareceria multiplicado por milhares de documentos.
 
-#### O que precisamos de volta
-
-1. A base: **prestação** ou **frete de compra**.
-2. Se for frete de compra, o **critério de rateio** para os 48%.
-3. A **CST e o tratamento do ICMS** correspondentes (item 3.4), que dependem
-   desta mesma decisão — por isso as duas andam juntas.
-
 ### 3.3 Um documento por CT-e nosso, ou por viagem? — RESPONDIDO: por CT-e
 
-**A resposta torna a pergunta 3.2 mais urgente do que parecia.**
+No trimestre, **6.594 CT-e** de agregado PJ corresponderam a **3.834 viagens**
+— 1,7 documento por viagem. Com a decisão "um por CT-e", a fila fica no número
+maior: **os 6.594**.
 
-Medimos: **3.159 dos 6.594** CT-e do trimestre — **48%, quase metade** —
-compartilham a viagem com pelo menos um outro documento. E o valor pago ao
-agregado é lançado **por viagem**, não por CT-e.
-
-Portanto, se a resposta de 3.2 for "valor pago ao agregado", metade da fila
-precisa de um **critério de rateio** desse valor entre os documentos da mesma
-viagem — por peso? por valor da mercadoria? em partes iguais? Hoje o sistema
-**interrompe** nesses casos, de propósito.
-
-Se a resposta de 3.2 for "valor cobrado do cliente", o problema desaparece:
-cada CT-e já tem o seu próprio valor.
-
-Dividir sem critério definido seria inventar base de cálculo, e por isso o
-sistema prefere parar.
-
-Números de referência do trimestre: **6.594 CT-e** de agregado PJ
-correspondendo a **3.834 viagens** — média de 1,7 documento por viagem. Com a
-decisão "um por CT-e", a fila fica no número maior: **os 6.594**.
+Havia aqui um risco de rateio, porque **3.159 desses documentos (48%)**
+dividem a viagem com outro e o pagamento ao agregado é lançado por viagem. A
+decisão da seção 3.2 — emitir pelo valor cobrado do cliente — **eliminou esse
+risco**: cada CT-e tem o seu próprio valor.
 
 ### 3.3-B Achado novo: o CFOP não é um só — e o principal é o 6932
 
@@ -226,16 +225,33 @@ específica** em algum contrato ou regime especial.
 
 ---
 
-## 4. Três pontos que não travam a emissão, mas mudam os números
+## 4. Cadastro e escopo
 
-### 4.1 Inscrição estadual "ISENTO" — 17 de 53 agregados
+### 4.1 Inscrição estadual "ISENTO" — passou a ser o caminho crítico
 
-O CT-e é documento de ICMS e pressupõe emitente inscrito. **17 dos 53**
-agregados PJ estão com o texto "ISENTO" no campo de inscrição estadual.
+**Este item saiu do rodapé.** Com as definições fiscais praticamente fechadas,
+ele é hoje **o maior bloqueio da fila** — e não é fiscal, é cadastral.
 
-Ou o cadastro está desatualizado, ou esses 17 **não emitem CT-e** — e nesse
-caso a fila real é de **36 agregados, não 53**. Sugerimos conferência no
-SINTEGRA antes de tratar como pendência de cadastro.
+Levantamos a prontidão de tudo o que a emissão exige, nos agregados com
+movimento no trimestre:
+
+| Verificação | Resultado |
+|---|---|
+| RNTRC cadastrado | **47 de 47** — nenhum pendente |
+| CEP cadastrado | **47 de 47** — nenhum pendente |
+| Notas fiscais com chave (últimos 30 dias) | **2.372 de 2.372** — nenhum pendente |
+| **Inscrição estadual válida** | **30 de 47 — faltam 17** |
+
+O CT-e é documento de ICMS e pressupõe emitente inscrito. Os **17 agregados**
+com inscrição ausente ou marcada como "ISENTO" respondem por
+**1.872 dos 6.375 CT-e do trimestre — 29% da fila**.
+
+Os outros 30 agregados estão **prontos para emitir**: são cerca de
+**4.500 documentos** no trimestre, somando **R$ 13,4 milhões** de prestação.
+
+Precisamos saber, para cada um dos 17: **o cadastro está desatualizado** (e
+basta corrigir a inscrição) **ou ele é de fato não inscrito** — caso em que não
+emite CT-e e sai da fila. Sugerimos conferência no SINTEGRA.
 
 ### 4.2 Documentos de valor simbólico
 
@@ -284,15 +300,17 @@ dessa data, o primeiro teste em produção aguardará a renovação do certifica
 
 ## 7. Resumo — o que pedimos
 
-Restam **duas** definições, e são a mesma conversa.
+Resta **uma** definição fiscal, e um levantamento cadastral que hoje pesa mais
+que ela.
 
-| # | O que ainda falta | Por que trava |
+| O que falta | Com quem | Efeito |
 |---|---|---|
-| 2 | **Base do valor** — prestação ou frete de compra | Base de ICMS; e se for frete de compra, **48% da fila precisa de critério de rateio** (seção 3.2) |
-| 4 | **CST e tratamento do ICMS** | Decorre da resposta acima |
+| **CST e tratamento do ICMS** | Contabilidade | Última definição fiscal |
+| **Os 17 sem inscrição estadual**: cadastro desatualizado ou realmente não inscritos? | Cadastro / SINTEGRA | **29% da fila** (1.872 CT-e no trimestre) |
 
-Tudo o mais está definido. Com a resposta da 3.2 — e, se for o caso, o
-critério de rateio — a emissão pode ser configurada para produção.
+**Já é possível começar pelos outros 30 agregados**, assim que a CST for
+definida: cerca de 4.500 documentos no trimestre, R$ 13,4 milhões de prestação,
+sem nenhuma pendência de cadastro.
 
 ---
 

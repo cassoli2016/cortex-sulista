@@ -4,6 +4,17 @@ Gerado de `docs/versoes.yaml` por `scripts/gerar_changelog.py` — não editar �
 Formato [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/),
 versionamento [SemVer](https://semver.org/lang/pt-BR/).
 
+## [0.73.0] — 26/08/2026  ·  CX-26/08/2026-v0.73.0
+
+### Adicionado
+- Base do valor definida (em carater provisorio): o CT-e do agregado sai pelo valor COBRADO DO CLIENTE. Com isso o rateio deixa de existir - cada documento ja tem o seu proprio valor, e os 48% que dividiam viagem com outro documento deixam de ser problema. Um CT-e que o sistema recusava justamente por esse motivo ja foi emitido e autorizado em teste.
+- Levantamento de prontidao da fila, que ninguem tinha: dos 47 agregados PJ com movimento no trimestre, TODOS tem RNTRC e CEP cadastrados, e dos 2.372 CT-e do ultimo mes nenhum esta sem nota fiscal com chave. Ou seja, o unico bloqueio de cadastro que sobrou sao os 17 sem inscricao estadual.
+
+### Alterado
+- Os 17 agregados sem inscricao estadual sairam do rodape e passaram a ser o CAMINHO CRITICO: eles respondem por 1.872 dos 6.375 CT-e do trimestre (29% da fila). Nao e questao fiscal, e cadastral - ou o cadastro esta desatualizado, ou eles realmente nao emitem CT-e e saem da conta.
+- Os outros 30 agregados estao PRONTOS: cerca de 4.500 documentos no trimestre, R$ 13,4 milhoes de prestacao, sem nenhuma pendencia. Assim que a CST for definida, da para comecar por eles sem esperar os 17.
+- O documento da contabilidade foi enxugado: sobrou UMA pergunta fiscal (a CST) e um levantamento de cadastro. O que ja foi decidido continua no texto, marcado como respondido, para nao perder o historico.
+
 ## [0.72.0] — 26/08/2026  ·  CX-26/08/2026-v0.72.0
 
 ### Adicionado
