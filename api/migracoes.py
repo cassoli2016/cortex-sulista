@@ -53,15 +53,44 @@ def versao_atual(esquema: str | None = None) -> int | None:
     return (r or {}).get("v")
 
 
+class NumeroJaUsado(RuntimeError):
+    """Duas migrations diferentes com o mesmo número. Ver `pendentes()`."""
+
+
 def pendentes(esquema: str | None = None) -> list[tuple[int, Path]]:
     """O que falta, na ordem. Schema sem `schema_versao` é schema novo: tudo
-    está pendente, inclusive a migration que cria a própria tabela."""
+    está pendente, inclusive a migration que cria a própria tabela.
+
+    COMPARA NÚMERO **E** NOME DO ARQUIVO. Comparar só o número parece bastar —
+    e não basta: com duas frentes trabalhando no mesmo repositório, as duas
+    criam o `0009` no mesmo dia. Aconteceu em 27/08/2026: a outra sessão
+    aplicou `0009_correio_agenda.sql` em produção enquanto eu ia numerar
+    `0009_contrapartida.sql`. Sob a regra antiga o runner veria "0009 já
+    aplicada" e PULARIA A MINHA EM SILÊNCIO — sem erro, sem log, e as tabelas
+    simplesmente não existiriam. O sintoma apareceria semanas depois, noutra
+    máquina, como "tabela não existe".
+
+    Agora número repetido com arquivo diferente é ERRO ALTO. Número registrado
+    cujo arquivo não está no disco é normal e não é erro: é a migration de
+    outra frente que ainda não foi commitada.
+    """
     try:
-        feitas = {r["versao"] for r in pglocal.query(
-            "SELECT versao FROM schema_versao", esquema=esquema)}
+        registradas = {r["versao"]: r["arquivo"] for r in pglocal.query(
+            "SELECT versao, arquivo FROM schema_versao", esquema=esquema)}
     except Exception:  # noqa: BLE001
-        feitas = set()
-    return [(v, p) for v, p in _arquivos() if v not in feitas]
+        registradas = {}
+    falta: list[tuple[int, Path]] = []
+    for versao, arquivo in _arquivos():
+        registrada = registradas.get(versao)
+        if registrada is None:
+            falta.append((versao, arquivo))
+        elif registrada != arquivo.name:
+            raise NumeroJaUsado(
+                f"a migration {versao:04d} já foi aplicada neste banco como "
+                f"{registrada!r}, e o repositório traz {arquivo.name!r} com o "
+                "mesmo número. Renumere a sua para o próximo número livre — "
+                "aplicar como está deixaria uma das duas de fora, calada.")
+    return falta
 
 
 def aplicar(esquema: str | None = None, falar=None) -> list[int]:

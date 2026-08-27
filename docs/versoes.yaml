@@ -1,3 +1,18 @@
+- versao: "0.109.1"
+  data: "2026-08-27"
+  corrigido:
+    - >-
+      O sistema que aplica as mudancas de estrutura do banco novo decidia so
+      pelo NUMERO da mudanca, ignorando o nome do arquivo. Com duas frentes
+      trabalhando no mesmo repositorio, as duas criam o numero 9 no mesmo dia -
+      e aconteceu hoje. A segunda seria PULADA EM SILENCIO: sem erro, sem
+      aviso, e as tabelas dela simplesmente nao existiriam. O sintoma
+      apareceria semanas depois, em outra maquina, como "tabela nao existe".
+      Agora numero repetido com arquivo diferente para tudo e diz quais sao os
+      dois. Numero registrado cujo arquivo ainda nao foi commitado continua
+      sendo normal - e o estado de hoje, e nao pode travar o deploy de quem nao
+      tem nada a ver com isso.
+
 - versao: "0.109.0"
   data: "2026-08-27"
   adicionado:

@@ -130,3 +130,53 @@ def test_esquemas_de_teste_nao_se_enxergam(esquema_pg):
         assert arm.todas(outro) == {}
     finally:
         pglocal.apagar_esquema(outro)
+
+
+# ------------------------------------------- número de migration repetido
+#
+# Duas frentes no mesmo repositório criam o mesmo número no mesmo dia — foi o
+# que aconteceu em 27/08/2026 com o `0009`. O runner comparava só o NÚMERO e
+# teria pulado uma das duas em silêncio.
+
+
+def test_nao_existem_dois_arquivos_com_o_mesmo_numero():
+    """Pega a colisão no commit, não no deploy."""
+    numeros = [v for v, _ in migracoes._arquivos()]
+    repetidos = {n for n in numeros if numeros.count(n) > 1}
+    assert not repetidos, f"migrations com número repetido: {sorted(repetidos)}"
+
+
+def test_numero_ja_aplicado_com_outro_arquivo_e_erro_alto(esquema_pg):
+    """O caso que motivou a correção: o banco tem 0009 aplicada como
+    `0009_correio_agenda.sql` e o repositório traz outro `0009_*.sql`. Antes
+    isso era um `skip` silencioso — as tabelas nunca eram criadas, sem erro."""
+    from api import pglocal
+    n = migracoes._arquivos()[-1][0] + 1
+    pglocal.executar(
+        "INSERT INTO schema_versao(versao, arquivo) VALUES(%s, %s)",
+        (n, f"{n:04d}_de_outra_frente.sql"), esquema=esquema_pg)
+
+    class ArquivoFalso:
+        name = f"{n:04d}_minha_migration.sql"
+
+    original = migracoes._arquivos
+    try:
+        migracoes._arquivos = lambda: original() + [(n, ArquivoFalso())]
+        with pytest.raises(migracoes.NumeroJaUsado) as e:
+            migracoes.pendentes(esquema_pg)
+        assert "de_outra_frente" in str(e.value)
+        assert "minha_migration" in str(e.value)
+    finally:
+        migracoes._arquivos = original
+
+
+def test_numero_registrado_sem_arquivo_no_disco_nao_e_erro(esquema_pg):
+    """Migration de outra frente, ainda não commitada, aparece no banco e não
+    no repositório. É o estado normal enquanto ela não commita — não pode
+    quebrar o deploy de quem não tem nada a ver com isso."""
+    from api import pglocal
+    n = migracoes._arquivos()[-1][0] + 50
+    pglocal.executar(
+        "INSERT INTO schema_versao(versao, arquivo) VALUES(%s, %s)",
+        (n, f"{n:04d}_nao_commitada.sql"), esquema=esquema_pg)
+    assert migracoes.pendentes(esquema_pg) == []

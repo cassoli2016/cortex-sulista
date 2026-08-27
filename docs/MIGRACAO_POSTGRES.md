@@ -284,6 +284,30 @@ está disputada. É teste que depende de rede, o que a suíte do extrato já
 tinha evitado de propósito — fica anotado como dívida, não é dívida desta
 migração.
 
+### O número da migration é um recurso disputado
+
+Descoberto em produção no mesmo dia em que a cadeia nasceu: outra frente aplicou
+`0009_correio_agenda.sql` enquanto eu ia numerar o `0009` de contrapartida. O
+runner comparava só o NÚMERO e teria pulado a minha **em silêncio** — sem erro,
+sem log, com as tabelas simplesmente não existindo. O sintoma apareceria semanas
+depois, noutra máquina, como "tabela não existe".
+
+`pendentes()` passou a comparar número **e** nome do arquivo:
+
+| no banco | no repositório | resultado |
+|---|---|---|
+| ausente | `0010_x.sql` | pendente, aplica |
+| `0010_x.sql` | `0010_x.sql` | feito, pula |
+| `0010_x.sql` | `0010_y.sql` | **`NumeroJaUsado`** — para e manda renumerar |
+| `0009_z.sql` | (não está no disco) | normal: migration de outra frente ainda não commitada |
+
+A última linha importa tanto quanto a terceira: enquanto o arquivo do correio
+não for commitado, produção tem uma migration registrada que o repositório não
+descreve. Isso não pode travar o deploy de quem não tem nada a ver com aquilo.
+
+E um teste barato que pega a colisão no COMMIT em vez de no deploy: nenhum
+número repetido em `sql/cortex/`.
+
 ---
 
 ## 5. Riscos aceitos, com o olho aberto

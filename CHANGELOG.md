@@ -4,6 +4,11 @@ Gerado de `docs/versoes.yaml` por `scripts/gerar_changelog.py` — não editar �
 Formato [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/),
 versionamento [SemVer](https://semver.org/lang/pt-BR/).
 
+## [0.109.1] — 27/08/2026  ·  CX-27/08/2026-v0.109.1
+
+### Corrigido
+- O sistema que aplica as mudancas de estrutura do banco novo decidia so pelo NUMERO da mudanca, ignorando o nome do arquivo. Com duas frentes trabalhando no mesmo repositorio, as duas criam o numero 9 no mesmo dia - e aconteceu hoje. A segunda seria PULADA EM SILENCIO: sem erro, sem aviso, e as tabelas dela simplesmente nao existiriam. O sintoma apareceria semanas depois, em outra maquina, como "tabela nao existe". Agora numero repetido com arquivo diferente para tudo e diz quais sao os dois. Numero registrado cujo arquivo ainda nao foi commitado continua sendo normal - e o estado de hoje, e nao pode travar o deploy de quem nao tem nada a ver com isso.
+
 ## [0.109.0] — 27/08/2026  ·  CX-27/08/2026-v0.109.0
 
 ### Adicionado
