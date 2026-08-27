@@ -4,6 +4,14 @@ Gerado de `docs/versoes.yaml` por `scripts/gerar_changelog.py` — não editar �
 Formato [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/),
 versionamento [SemVer](https://semver.org/lang/pt-BR/).
 
+## [0.111.0] — 27/08/2026  ·  CX-27/08/2026-v0.111.0
+
+### Adicionado
+- Relatorios do CORTEX por e-mail, em horario marcado. Em Gestao > E-mail da para escolher o relatorio, os destinatarios e quando ele sai - todo dia, um dia da semana ou um dia do mes. A tarefa do Windows dispara de 15 em 15 minutos e quem decide se e hora e o CORTEX, entao mudar o horario vale na hora, sem reinstalar nada.
+- Dois relatorios para comecar - o despacho do dia do CT-e de Contrapartida e os alertas do painel - e o botao "Ver o relatorio" abre exatamente o que sera enviado, antes de agendar. "Enviar teste para mim" manda para o proprio usuario logado, nunca para os destinatarios configurados: testar nao pode virar atalho para disparar relatorio a diretoria fora de hora.
+- O e-mail e desenhado com as cores e a hierarquia do painel, mas montado com as regras de e-mail: tabela em vez de grade, estilo em cada elemento, 600px de largura e nenhuma imagem externa - Outlook desenha com o motor do Word e Gmail descarta folha de estilo, e sem isso a mensagem chega sem formatacao nenhuma.
+- Agendamento nasce DESLIGADO, a passagem da rotina e marcada mesmo quando nao ha o que enviar, e relatorio atrasado sai uma vez dentro de uma janela de 4 horas - depois disso nao sai, porque relatorio da manha chegando a noite ensina a ignorar o remetente. Sao as mesmas guardas que a emissao automatica de contrapartida pagou caro para aprender.
+
 ## [0.109.1] — 27/08/2026  ·  CX-27/08/2026-v0.109.1
 
 ### Corrigido

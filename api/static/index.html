@@ -4007,6 +4007,44 @@ body.tvfull #btnReport,body.tvmode #btnReport{display:none}
             </div>
           </div>
           <div class="card">
+            <div class="head"><h2>Relatórios agendados <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="O CÓRTEX monta o relatório e manda por e-mail no horário marcado. A tarefa do Windows dispara de tempos em tempos e quem decide se já passou a hora é o CÓRTEX, lendo o que está aqui — mudar horário ou destinatário vale na hora, sem reinstalar nada. Se a máquina estava desligada na hora marcada, o relatório sai atrasado UMA vez, dentro de uma janela de 4 horas; passado isso não sai, porque relatório da manhã chegando à noite ensina a ignorar o remetente.">i</span></h2><span class="hint" id="ag-status">—</span></div>
+            <div class="tablewrap"><table class="tab" id="ag-tab"></table></div>
+            <div class="ges-cfg" style="padding-top:14px">
+              <div><label for="ag-rel">Relatório</label><select id="ag-rel"></select></div>
+              <div><label for="ag-dest">Destinatários</label><input type="text" id="ag-dest" placeholder="separe por vírgula"></div>
+              <div><label for="ag-freq">Frequência</label>
+                <select id="ag-freq" onchange="agFreqMudou()">
+                  <option value="diario">Todo dia</option>
+                  <option value="semanal">Uma vez por semana</option>
+                  <option value="mensal">Uma vez por mês</option>
+                </select>
+              </div>
+              <div><label for="ag-hora">Horário</label><input type="time" id="ag-hora" value="07:00"></div>
+              <div id="ag-box-sem" hidden><label for="ag-sem">Dia da semana</label>
+                <select id="ag-sem">
+                  <option value="1">Segunda</option><option value="2">Terça</option>
+                  <option value="3">Quarta</option><option value="4">Quinta</option>
+                  <option value="5">Sexta</option><option value="6">Sábado</option>
+                  <option value="7">Domingo</option>
+                </select>
+              </div>
+              <div id="ag-box-mes" hidden><label for="ag-mes">Dia do mês</label>
+                <input type="number" id="ag-mes" min="1" max="28" value="1"></div>
+              <div><label for="ag-ativo">Situação</label>
+                <select id="ag-ativo">
+                  <option value="0">Desligado</option>
+                  <option value="1">Ligado — envia no horário</option>
+                </select>
+              </div>
+            </div>
+            <div class="m-foot">
+              <span class="m-err" id="ag-err"></span>
+              <button class="ghost" onclick="agPrevia()">Ver o relatório</button>
+              <button class="ghost" onclick="agTestar()">Enviar teste para mim</button>
+              <button class="btn" id="ag-salvar" onclick="agSalvar()">Adicionar agendamento</button>
+            </div>
+          </div>
+          <div class="card">
             <div class="head"><h2>Senha do servidor <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="Guardada no mesmo cofre do token da Gobrax. Depois de salva não é possível lê-la de volta — para trocar, basta digitar a nova. Em contas com verificação em duas etapas (Google, Microsoft) use uma senha de aplicativo, não a senha da conta.">i</span></h2><span class="hint" id="em-senha-status">—</span></div>
             <div class="ges-cfg">
               <div><label for="em-senha">Senha (ou senha de aplicativo)</label><input type="password" id="em-senha" autocomplete="new-password" placeholder="digite para trocar"></div>
@@ -17570,7 +17608,142 @@ function renderGestao(){ renderGesUsuarios(); renderGesPerfis(); renderGesConfig
 /* ===================== Envio de e-mail (SMTP) =====================
    A senha segue a mesma regra do token da Gobrax: campo sempre vazio, valor
    nunca volta do servidor. O status diz só SE existe senha guardada. */
+/* ---------- Relatorios agendados ----------
+   AG_EDIT guarda o id em edicao: sem ele, salvar depois de clicar "editar"
+   criaria um agendamento NOVO em vez de alterar o existente, e o antigo
+   continuaria mandando - dois e-mails iguais todo dia, e ninguem entenderia
+   de onde vem o segundo. */
+let AG_EDIT = null;
+
+function agFreqMudou(){
+  const f=document.getElementById('ag-freq').value;
+  document.getElementById('ag-box-sem').hidden = (f!=='semanal');
+  document.getElementById('ag-box-mes').hidden = (f!=='mensal');
+}
+function agErro(t){ const e=document.getElementById('ag-err'); if(e) e.textContent=t||''; }
+
+function agEditar(bt){
+  const d=JSON.parse(bt.dataset.item);
+  AG_EDIT=d.id;
+  const V=(id,v)=>{const e=document.getElementById(id); if(e) e.value=(v==null?'':v);};
+  V('ag-rel',d.relatorio); V('ag-dest',d.destinatarios); V('ag-freq',d.frequencia);
+  V('ag-hora',d.hora); V('ag-sem',d.dia_semana||1); V('ag-mes',d.dia_mes||1);
+  V('ag-ativo', d.ativo?'1':'0');
+  agFreqMudou();
+  document.getElementById('ag-salvar').textContent='Salvar alterações';
+  agErro('');
+  document.getElementById('ag-rel').focus();
+}
+
+function agNovo(){
+  AG_EDIT=null;
+  document.getElementById('ag-dest').value='';
+  document.getElementById('ag-salvar').textContent='Adicionar agendamento';
+  agErro('');
+}
+
+async function agCarregar(){
+  const tab=document.getElementById('ag-tab'); if(!tab) return;
+  try{
+    const r=await fetch('/api/gestao/correio/agenda',{cache:'no-store'});
+    const rr=await respostaJSON(r); const d=rr.dados;
+    if(!rr.ok){ agErro(d.mensagem||'Erro ao ler os agendamentos.'); return; }
+    const sel=document.getElementById('ag-rel');
+    if(sel && !sel.options.length){
+      sel.innerHTML=(d.relatorios||[]).map(function(x){
+        return '<option value="'+esc(x.id)+'">'+esc(x.nome)+'</option>'; }).join('');
+    }
+    const itens=d.agendamentos||[];
+    document.getElementById('ag-status').innerHTML = d.smtp_configurado
+      ? (itens.length? itens.filter(function(x){return x.ativo;}).length
+           +' de '+itens.length+' ligado(s)' : 'nenhum agendamento ainda')
+      : '<b style="color:var(--yellow-700)">SMTP não configurado</b> — agendamento nenhum sai';
+    tab.innerHTML = !itens.length
+      ? '<thead><tr><th>Relatório</th></tr></thead><tbody><tr><td class="hint">'
+        +'Nenhum relatório agendado. Preencha abaixo para criar o primeiro.</td></tr></tbody>'
+      : '<thead><tr><th>Relatório</th><th>Para</th><th>Quando</th>'
+        +'<th>Próximo envio</th><th>Última execução</th><th>Situação</th><th></th></tr></thead><tbody>'
+      + itens.map(function(x){
+          /* DESLIGADO nao e alerta: e uma escolha. O que merece cor e a
+             ultima execucao que FALHOU - essa some do olhar de quem so
+             acompanha a coluna de situacao. */
+          const sit = x.ativo ? statChip('good','ligado','envia no horário')
+                              : statChip('warn','desligado','não envia — a tarefa passa e não faz nada');
+          const ult = x.ultima_execucao
+            ? esc(fmtDT(x.ultima_execucao))+' · '+esc(x.ultimo_resultado||'')
+            : '—';
+          const falhou = /falh|erro/i.test(x.ultimo_resultado||'');
+          return '<tr>'
+            +'<td>'+esc(x.relatorio_nome||x.relatorio)+'</td>'
+            +'<td title="'+esc(x.destinatarios)+'">'
+              +esc((x.destinatarios||'').length>28
+                   ? x.destinatarios.slice(0,28)+'…' : x.destinatarios)+'</td>'
+            +'<td>'+esc(x.quando||'')+'</td>'
+            +'<td class="mono">'+(x.proxima?esc(fmtDT(x.proxima)):'—')+'</td>'
+            +'<td'+(falhou?' style="color:var(--red)"':'')+'>'+ult+'</td>'
+            +'<td>'+sit+'</td>'
+            +'<td><button class="gbtn" data-item="'+esc(JSON.stringify(x))
+              +'" onclick="agEditar(this)">editar</button> '
+            +'<button class="gbtn" data-id="'+x.id
+              +'" onclick="agRemover(this)" title="Remove o agendamento. O histórico de envios continua na trilha abaixo.">remover</button></td>'
+            +'</tr>';
+        }).join('')+'</tbody>';
+  }catch(e){ agErro('Falha de rede: '+e.message); }
+}
+
+async function agSalvar(){
+  const V=id=>{const e=document.getElementById(id);return e?e.value:'';};
+  const corpo={ id:AG_EDIT, relatorio:V('ag-rel'), destinatarios:V('ag-dest'),
+                frequencia:V('ag-freq'), hora:V('ag-hora'),
+                dia_semana:parseInt(V('ag-sem'),10), dia_mes:parseInt(V('ag-mes'),10),
+                ativo:V('ag-ativo')==='1' };
+  const bt=document.getElementById('ag-salvar');
+  bt.disabled=true; bt.textContent='Salvando…'; agErro('');
+  try{
+    const r=await fetch('/api/gestao/correio/agenda',{method:'POST',
+      headers:{'Content-Type':'application/json'}, body:JSON.stringify(corpo)});
+    const rr=await respostaJSON(r); const d=rr.dados;
+    if(!rr.ok){ agErro(d.mensagem||'Erro ao gravar.'); return; }
+    agNovo(); agCarregar();
+  }catch(e){ agErro('Falha de rede: '+e.message); }
+  finally{ bt.disabled=false;
+           bt.textContent=AG_EDIT?'Salvar alterações':'Adicionar agendamento'; }
+}
+
+async function agRemover(bt){
+  if(!confirm('Remover este agendamento? O histórico de envios continua na trilha.')) return;
+  try{
+    const r=await fetch('/api/gestao/correio/agenda/'+bt.dataset.id,{method:'DELETE'});
+    const rr=await respostaJSON(r);
+    if(!rr.ok){ agErro((rr.dados||{}).mensagem||'Erro ao remover.'); return; }
+    agNovo(); agCarregar();
+  }catch(e){ agErro('Falha de rede: '+e.message); }
+}
+
+function agPrevia(){
+  /* Abre em ABA NOVA e nao em iframe: o relatorio e um documento HTML
+     inteiro, com <html> e <body> proprios, e enfia-lo na pagina misturaria
+     dois documentos. */
+  const rel=document.getElementById('ag-rel').value;
+  window.open('/api/gestao/correio/previa?relatorio='+encodeURIComponent(rel),
+              '_blank','noopener');
+}
+
+async function agTestar(){
+  const rel=document.getElementById('ag-rel').value;
+  agErro('');
+  try{
+    const r=await fetch('/api/gestao/correio/agenda/testar',{method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({relatorio:rel})});
+    const rr=await respostaJSON(r); const d=rr.dados;
+    if(!rr.ok){ agErro(d.mensagem||'Não foi possível enviar.'); return; }
+    agErro('Enviado para '+(d.destinatario||'você')+'.');
+  }catch(e){ agErro('Falha de rede: '+e.message); }
+}
+
 async function emailCarregar(){
+  agCarregar();
   const hist=document.getElementById('em-hist');
   hist.innerHTML='<div style="padding:12px;color:var(--n500)">carregando…</div>';
   try{

@@ -841,6 +841,124 @@ async def gestao_email_salvar(req: Request) -> JSONResponse:
     return JSONResponse(st)
 
 
+@app.get("/api/gestao/correio/agenda")
+def gestao_agenda() -> JSONResponse:
+    """Agendamentos, catálogo de relatórios e estado do SMTP."""
+    from api.correio import agenda
+    try:
+        return JSONResponse(agenda.estado())
+    except Exception as exc:  # noqa: BLE001
+        log.warning("gestao_agenda falhou: %s", exc)
+        return JSONResponse(status_code=500, content={
+            "erro": "erro_consulta",
+            "mensagem": "Erro ao ler os agendamentos de e-mail."})
+
+
+@app.post("/api/gestao/correio/agenda")
+async def gestao_agenda_gravar(req: Request) -> JSONResponse:
+    """Cria ou altera um agendamento. O autor sai da SESSÃO, nunca do corpo:
+    trilha em que o autor vem do cliente não serve de trilha."""
+    from api.correio import agenda
+    try:
+        body = await req.json()
+    except Exception:  # noqa: BLE001
+        body = {}
+    body = body if isinstance(body, dict) else {}
+    sess = getattr(req.state, "sessao", None) or {}
+    autor = sess.get("email") or sess.get("nome") or ""
+    try:
+        r = agenda.gravar(body, autor)
+    except ValueError as exc:
+        return JSONResponse(status_code=422, content={
+            "erro": "parametro_invalido", "mensagem": str(exc)})
+    except Exception as exc:  # noqa: BLE001
+        log.warning("gestao_agenda_gravar falhou: %s", exc)
+        return JSONResponse(status_code=500, content={
+            "erro": "erro_gravacao",
+            "mensagem": "Erro ao gravar o agendamento."})
+    auth.audit(autor or "?", "correio_agenda",
+               alvo=f"{r['relatorio']} -> {r['destinatarios']}"[:200],
+               detalhe=("ativo" if r["ativo"] else "desligado")
+               + f" · {r['frequencia']} {r['hora']}")
+    return JSONResponse(r)
+
+
+@app.delete("/api/gestao/correio/agenda/{ident}")
+def gestao_agenda_remover(ident: int, req: Request) -> JSONResponse:
+    from api.correio import agenda
+    sess = getattr(req.state, "sessao", None) or {}
+    autor = sess.get("email") or sess.get("nome") or "?"
+    try:
+        agenda.remover(ident)
+    except Exception as exc:  # noqa: BLE001
+        log.warning("gestao_agenda_remover falhou: %s", exc)
+        return JSONResponse(status_code=500, content={
+            "erro": "erro_gravacao", "mensagem": "Erro ao remover."})
+    auth.audit(autor, "correio_agenda_remover", alvo=str(ident))
+    return JSONResponse({"ok": True})
+
+
+@app.get("/api/gestao/correio/previa")
+def gestao_correio_previa(relatorio: str = "") -> Response:
+    """Devolve o HTML do relatório para conferir ANTES de agendar.
+
+    Sem isto, o único jeito de ver o relatório é agendar e esperar — ou
+    mandar para si mesmo, que polui a trilha de envios com testes.
+    """
+    from api.correio import relatorios
+    try:
+        r = relatorios.montar(relatorio)
+    except ValueError as exc:
+        return JSONResponse(status_code=422, content={
+            "erro": "parametro_invalido", "mensagem": str(exc)})
+    except Exception as exc:  # noqa: BLE001
+        log.warning("previa de relatorio falhou: %s", exc)
+        return JSONResponse(status_code=500, content={
+            "erro": "erro_consulta", "mensagem": "Erro ao montar o relatório."})
+    # `text/html` com CSP restritiva: o corpo e montado aqui dentro, mas esta
+    # rota devolve documento inteiro e vai para um iframe - sem script, sem
+    # frame de terceiro, sem nada externo.
+    return Response(content=r["html"], media_type="text/html; charset=utf-8",
+                    headers={"Content-Security-Policy":
+                             "default-src 'none'; style-src 'unsafe-inline'",
+                             "X-Frame-Options": "SAMEORIGIN"})
+
+
+@app.post("/api/gestao/correio/agenda/testar")
+async def gestao_agenda_testar(req: Request) -> JSONResponse:
+    """Manda UM agendamento agora, para o próprio usuário logado.
+
+    Para o usuário logado e não para os destinatários configurados: testar não
+    pode virar atalho para disparar relatório à diretoria fora de hora.
+    """
+    from api.correio import relatorios
+    from api.correio.envio import enviar
+    try:
+        body = await req.json()
+    except Exception:  # noqa: BLE001
+        body = {}
+    body = body if isinstance(body, dict) else {}
+    sess = getattr(req.state, "sessao", None) or {}
+    autor = sess.get("email") or ""
+    if not autor:
+        return JSONResponse(status_code=422, content={
+            "erro": "parametro_invalido",
+            "mensagem": "Sessão sem e-mail: não há para onde mandar o teste."})
+    try:
+        r = relatorios.montar(str(body.get("relatorio") or ""))
+    except ValueError as exc:
+        return JSONResponse(status_code=422, content={
+            "erro": "parametro_invalido", "mensagem": str(exc)})
+    res = enviar([autor], "[TESTE] " + r["assunto"], r["texto"],
+                 corpo_html=r["html"], usuario=autor, origem="agenda:teste")
+    auth.audit(autor, "correio_agenda_teste", alvo=str(body.get("relatorio")),
+               detalhe=("ok" if res["ok"] else f"falha: {res['erro']}")[:200])
+    if not res["ok"]:
+        return JSONResponse(status_code=502, content={
+            "erro": "falha_envio", "mensagem": res["erro"]})
+    return JSONResponse({"ok": True, "destinatario": autor})
+
+
 @app.post("/api/gestao/email/enviar")
 async def gestao_email_enviar(req: Request) -> JSONResponse:
     """Envia um e-mail. `teste=true` manda para o próprio usuário logado.
