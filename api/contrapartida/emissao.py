@@ -66,6 +66,15 @@ HOMOLOGACAO = sefaz.HOMOLOGACAO
 # ninguém, que o documento saiu pela Sulista em nome do agregado.
 SERIE_PADRAO = 900
 
+# Quem aparece na trilha quando a emissao NAO parte de uma pessoa logada -
+# rotina agendada, script de operacao. Identidade do sistema, e-mail que
+# ninguem le: a trilha tem de dizer "foi o CORTEX", nao o e-mail pessoal de
+# quem por acaso rodou o comando naquele dia.
+#
+# Emissao disparada pela TELA continua exigindo o usuario logado: `transmitir`
+# nao tem valor padrao para `quem`, de proposito.
+IDENTIDADE_SISTEMA = "noreply@sulista.com.br"
+
 _DDL_EMISSAO = """
 CREATE TABLE IF NOT EXISTS emissao (
   id            INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -83,10 +92,21 @@ CREATE TABLE IF NOT EXISTS emissao (
 );
 """
 
+# O XML ASSINADO fica guardado. Sem ele, um documento autorizado nao se
+# reconstroi: a chave e o protocolo provam que existe, mas quem precisa
+# IMPORTAR o documento (o ERP, a contabilidade, uma fiscalizacao) precisa do
+# arquivo. Coluna acrescentada depois, entao entra por migracao.
+_MIGRACOES = ("ALTER TABLE emissao ADD COLUMN xml TEXT",)
+
 
 def _conn():
     c = cadastro._conn()          # mesmo banco, mesma disciplina (WAL, curta)
     c.executescript(_DDL_EMISSAO)
+    for ddl in _MIGRACOES:
+        try:
+            c.execute(ddl)
+        except Exception:      # noqa: BLE001 - coluna ja existe
+            pass
     return c
 
 
@@ -128,15 +148,16 @@ def _guardas(cnpj: str, d: dict, ambiente: str) -> None:
 
 
 def _registra(quem: str, ambiente: str, cnpj: str, serie: int, numero: int,
-              chave: str, chave_origem: str, resp: dict) -> None:
+              chave: str, chave_origem: str, resp: dict,
+              xml: str | None = None) -> None:
     with _conn() as c:
         c.execute(
             "INSERT INTO emissao(quando, quem, ambiente, cnpj_emitente, serie,"
-            " numero, chave, chave_origem, cstat, xmotivo, protocolo)"
-            " VALUES(?,?,?,?,?,?,?,?,?,?,?)",
+            " numero, chave, chave_origem, cstat, xmotivo, protocolo, xml)"
+            " VALUES(?,?,?,?,?,?,?,?,?,?,?,?)",
             (datetime.now().isoformat(timespec="seconds"), quem, ambiente,
              cnpj, serie, numero, chave, chave_origem, str(resp.get("cStat")),
-             resp.get("xMotivo"), resp.get("protocolo")))
+             resp.get("xMotivo"), resp.get("protocolo"), xml))
         cadastro._audita(c, quem, "transmissao", cnpj,
                          f"amb {ambiente} · {serie}/{numero} · "
                          f"cStat {resp.get('cStat')}")
@@ -192,13 +213,22 @@ def transmitir(chave_origem: str, enq: documento.Enquadramento, *, quem: str,
         qrCodCTe=doc_sefaz.monta_qrcode(chave))
     # `envia_documento` assina a raiz, comprime e posta no recebimento
     # SÍNCRONO: a resposta da autorização volta nesta mesma chamada.
+    # Assina ANTES para guardar o arquivo. A transmissao assina a copia dela;
+    # o conteudo e a chave sao os mesmos, e o que fica arquivado e um CT-e
+    # assinado de verdade - nao o rascunho sem assinatura.
+    try:
+        xml_assinado = doc_sefaz.assina_raiz(edoc, edoc.infCte.Id)
+    except Exception as exc:  # noqa: BLE001
+        log.warning("nao foi possivel guardar o XML assinado: %s", exc)
+        xml_assinado = None
+
     retorno = doc_sefaz.envia_documento(edoc)
     resp = _resposta(retorno)
     resp.update({"chave": chave, "serie": serie, "numero": numero,
                  "ambiente": ambiente, "cnpj_emitente": cnpj,
                  "chave_origem": d["chave_original"]})
     _registra(quem, ambiente, cnpj, serie, numero, chave,
-              d["chave_original"], resp)
+              d["chave_original"], resp, xml_assinado)
     return resp
 
 
@@ -224,6 +254,20 @@ def _resposta(retorno) -> dict:
 
 
 def historico(limite: int = 50) -> list[dict]:
+    """Sem a coluna `xml`: ela e grande e a tela nao a usa. Quem precisa do
+    arquivo chama `xml_de`."""
     with _conn() as c:
         return [dict(r) for r in c.execute(
-            "SELECT * FROM emissao ORDER BY id DESC LIMIT ?", (limite,))]
+            "SELECT id, quando, quem, ambiente, cnpj_emitente, serie, numero,"
+            " chave, chave_origem, cstat, xmotivo, protocolo,"
+            " (xml IS NOT NULL) AS tem_xml"
+            " FROM emissao ORDER BY id DESC LIMIT ?", (limite,))]
+
+
+def xml_de(chave: str) -> str | None:
+    """O XML assinado de um documento ja transmitido, para arquivo ou para
+    importacao no ERP."""
+    with _conn() as c:
+        r = c.execute("SELECT xml FROM emissao WHERE chave=? AND xml IS NOT NULL"
+                      " ORDER BY id DESC LIMIT 1", (chave,)).fetchone()
+    return r["xml"] if r else None

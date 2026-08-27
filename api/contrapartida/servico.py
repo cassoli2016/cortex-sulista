@@ -265,7 +265,9 @@ def _transmissoes(limite: int = 30) -> dict:
         # conciliacao nao depende dele.
         log.warning("historico de transmissoes indisponivel: %s", exc)
         return {"producao": 0, "homologacao": 0, "autorizadas": 0,
-                "recusadas": 0, "ultimas": []}
+                "recusadas": 0, "com_xml": 0, "autorizadas_sem_xml": 0,
+                "ultimas": []}
+    com_xml = [x for x in linhas if x.get("tem_xml")]
     prod = [x for x in linhas if str(x.get("ambiente")) == "1"]
     homo = [x for x in linhas if str(x.get("ambiente")) == "2"]
     ok = [x for x in linhas if str(x.get("cstat")) == "100"]
@@ -274,8 +276,14 @@ def _transmissoes(limite: int = 30) -> dict:
         "homologacao": len(homo),
         "autorizadas": len(ok),
         "recusadas": len(linhas) - len(ok),
+        # Documento autorizado sem XML guardado nao se importa no ERP nem se
+        # arquiva: a chave prova que existe, o arquivo e que serve.
+        "com_xml": len(com_xml),
+        "autorizadas_sem_xml": sum(
+            1 for x in ok if not x.get("tem_xml")),
         "ultimas": [{
             "quando": x.get("quando"), "quem": x.get("quem"),
+            "tem_xml": bool(x.get("tem_xml")),
             "ambiente": "homologação" if str(x.get("ambiente")) == "2"
                         else "produção",
             "serie": x.get("serie"), "numero": x.get("numero"),

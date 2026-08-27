@@ -4,6 +4,15 @@ Gerado de `docs/versoes.yaml` por `scripts/gerar_changelog.py` — não editar �
 Formato [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/),
 versionamento [SemVer](https://semver.org/lang/pt-BR/).
 
+## [0.79.0] — 26/08/2026  ·  CX-26/08/2026-v0.79.0
+
+### Adicionado
+- O XML ASSINADO de cada transmissao passou a ser guardado. Sem ele um documento autorizado nao se reconstroi: a chave e o protocolo provam que ele existe, mas quem precisa IMPORTAR no ERP, arquivar ou responder a uma fiscalizacao precisa do arquivo. A tela mostra, documento a documento, se o arquivo esta guardado - e conta a parte quantos foram autorizados SEM ele, que e a situacao a corrigir.
+- A tabela de transmissoes ganhou cor e as colunas que faltavam: situacao com o codigo e o motivo da SEFAZ, chave (abreviada, inteira ao passar o mouse), protocolo e arquivo. Verde so quando a SEFAZ autorizou; todo o resto e vermelho, porque codigo diferente de autorizado significa que NADA foi emitido - um tom intermediario faria "recusado" parecer "quase la". Homologacao segue com marcador proprio e fora da contagem de emitidas.
+
+### Corrigido
+- A trilha das transmissoes gravava o e-mail pessoal de quem rodou o comando. Passou a gravar a identidade do sistema (noreply@sulista.com.br) quando a emissao parte de script ou rotina - quem executa na bancada varia, e a trilha tem de dizer que foi o CORTEX. Emissao pela TELA continua exigindo o usuario logado, e nao ha valor padrao para isso.
+
 ## [0.78.0] — 26/08/2026  ·  CX-26/08/2026-v0.78.0
 
 ### Adicionado

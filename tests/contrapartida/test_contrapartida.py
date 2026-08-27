@@ -412,3 +412,46 @@ def test_a_montagem_sobrevive_ao_historico_fora_do_ar(monkeypatch):
     r = servico.get_contrapartida()
     assert r["emissoes"] == [] and r["kpis"]["emitidas"] == 0
     json.dumps(r)
+
+
+def test_a_trilha_nao_grava_email_pessoal_por_padrao():
+    """Quem roda o script na bancada varia; a trilha tem de dizer que foi o
+    CORTEX. E-mail pessoal de quem por acaso executou nao identifica o ator."""
+    import inspect
+
+    from api.contrapartida import emissao
+    assert emissao.IDENTIDADE_SISTEMA.endswith("@sulista.com.br")
+    fonte = inspect.getsource(emissao)
+    assert "gmail" not in fonte.lower()
+    # emissao pela TELA continua exigindo o usuario logado
+    assert inspect.signature(
+        emissao.transmitir).parameters["quem"].default is inspect.Parameter.empty
+
+
+def test_o_script_de_operacao_usa_a_identidade_do_sistema():
+    fonte = open("scripts/emitir_homologacao.py", encoding="utf-8").read()
+    assert "emissao.IDENTIDADE_SISTEMA" in fonte
+    assert "gmail" not in fonte.lower()
+
+
+def test_o_historico_nao_carrega_o_xml_inteiro():
+    """O XML e grande e a tela nao o usa: a listagem devolve so se EXISTE."""
+    import inspect
+
+    from api.contrapartida import emissao
+    fonte = inspect.getsource(emissao.historico)
+    assert "tem_xml" in fonte and "SELECT *" not in fonte
+
+
+def test_autorizada_sem_xml_e_contada_a_parte(monkeypatch):
+    """Documento autorizado sem arquivo guardado nao se importa no ERP nem se
+    arquiva - a chave prova que existe, o arquivo e que serve."""
+    monkeypatch.setattr(
+        "api.contrapartida.emissao.historico",
+        lambda limite=30: [
+            {"ambiente": "2", "cstat": "100", "tem_xml": 1},
+            {"ambiente": "2", "cstat": "100", "tem_xml": 0},
+            {"ambiente": "2", "cstat": "310", "tem_xml": 0},
+        ])
+    t = servico._transmissoes()
+    assert t["com_xml"] == 1 and t["autorizadas_sem_xml"] == 1

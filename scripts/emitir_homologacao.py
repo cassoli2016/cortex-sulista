@@ -66,7 +66,10 @@ def main() -> int:
     ap = argparse.ArgumentParser()
     ap.add_argument("chave", nargs="?", default=CHAVE_PILOTO)
     ap.add_argument("--numero", type=int, default=None)
-    ap.add_argument("--quem", default="cassoli2013@gmail.com")
+    # Identidade do SISTEMA, nao e-mail pessoal: quem roda o script na
+    # bancada varia, e a trilha tem de dizer que foi o CORTEX. Emissao pela
+    # tela continua exigindo o usuario logado.
+    ap.add_argument("--quem", default=emissao.IDENTIDADE_SISTEMA)
     a = ap.parse_args()
 
     print("AMBIENTE: HOMOLOGACAO - o documento nao tem valor fiscal.")
