@@ -115,3 +115,29 @@ def ultima(colecao: str, path: Path | None = None) -> dict | None:
             "SELECT competencia, quando, registros FROM coleta_log"
             " WHERE colecao=? ORDER BY id DESC LIMIT 1", (colecao,)).fetchone()
     return dict(row) if row else None
+
+
+# coleções que a tarefa agendada alimenta. Estatística e odômetro andam
+# JUNTAS: a Torre cruza as duas, e uma fresca com a outra parada é pior que as
+# duas velhas — por isso o diagnóstico reporta sempre a MAIS ATRASADA.
+COLECOES = (("estatisticas", "estatísticas"), ("odometro", "odômetro"))
+
+
+def diagnostico(path: Path | None = None) -> dict:
+    """Estado da integração Gobrax, sem expor segredo — alimenta a Saúde.
+
+    Lê o CACHE, nunca a API: uma volta em vehicle-statistics leva 73 s e a tela
+    de Saúde recarrega a cada 5 s. O que interessa aqui não é "responde?" — é
+    se o retrato que as telas mostram está fresco.
+
+    São DUAS credenciais diferentes no mesmo fornecedor, e é fácil esquecer:
+    a telemetria usa `GOBRAX_TOKEN` (cofre) e a premiação usa o login do portal
+    (`GOBRAX_EMAIL`/`GOBRAX_SENHA`). Uma pode estar de pé com a outra caída.
+    """
+    from . import cliente
+    from ..premiacao import gobrax as prem
+    return {
+        "configurado": cliente.configurado(),
+        "premiacao_configurada": prem.configurado(),
+        "colecoes": {c: competencia_atual(c, path) for c, _ in COLECOES},
+    }

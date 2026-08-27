@@ -4,6 +4,18 @@ Gerado de `docs/versoes.yaml` por `scripts/gerar_changelog.py` — não editar �
 Formato [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/),
 versionamento [SemVer](https://semver.org/lang/pt-BR/).
 
+## [0.93.0] — 27/08/2026  ·  CX-27/08/2026-v0.93.0
+
+### Adicionado
+- A Saude do Servidor passou a acompanhar tambem a Gobrax e a Monkey. Antes so a Prolog aparecia entre as integracoes de fornecedor: telemetria parada ou portal de antecipacao sem coletar nao apareciam em lugar nenhum, e a tela envelhecia calada.
+- Gobrax: competencia, quantos veiculos e ha quanto tempo foi a coleta. Vale sempre a MAIS ATRASADA entre estatisticas e odometro - as duas se cruzam na Torre, e uma fresca ao lado de outra parada faz o cruzamento mentir sem parecer. Passar de duas janelas da tarefa agendada (3 em 3 horas) vira alerta; foi assim que o cache ficou cinco dias parado sem ninguem notar.
+- Gobrax sao DUAS credenciais no mesmo fornecedor - o token move a telemetria e o login do portal move a premiacao - e uma pode estar de pe com a outra caida. Faltando o login, a linha avisa que a nota x km parou de atualizar mesmo com a telemetria em dia.
+- Monkey: quantos titulos, qual o saldo e de quando e a posicao gravada - que e a que a tela de Antecipacoes mostra. AMBIENTE DE HOMOLOGACAO vira alerta explicito: os titulos sao de teste e a tela de Antecipacoes nao tem como saber isso sozinha.
+
+### Alterado
+- Integracao sem credencial aparece como "Info", nunca como falha - o recurso apenas nao existe nesta instalacao, e vermelho todo dia treina quem opera a ignorar alarme. Quando falta algo, a linha diz o que falta e onde configurar.
+- Nenhuma dessas linhas consulta a API do fornecedor: Prolog tem cota, Gobrax leva 73 segundos por volta e a tela recarrega de 5 em 5 segundos. O que se mede e a idade do instantaneo que as telas mostram.
+
 ## [0.92.0] — 27/08/2026  ·  CX-27/08/2026-v0.92.0
 
 ### Adicionado
