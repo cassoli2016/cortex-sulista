@@ -4,6 +4,15 @@ Gerado de `docs/versoes.yaml` por `scripts/gerar_changelog.py` — não editar �
 Formato [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/),
 versionamento [SemVer](https://semver.org/lang/pt-BR/).
 
+## [0.97.0] — 27/08/2026  ·  CX-27/08/2026-v0.97.0
+
+### Adicionado
+- O cronometro ganhou dois estados que faltavam. "Parada" em vermelho quando a biblioteca de assinatura nao esta instalada - nenhum documento sai enquanto isso durar. E "atrasado", com o tempo acumulado, quando a hora da proxima rodada passou de dois disparos do agendador: sinal de que a tarefa nao esta rodando. Antes os dois casos apareciam como "liberado", que se le como se estivesse tudo bem.
+
+### Corrigido
+- TODO DEPLOY DESLIGAVA A EMISSAO. A biblioteca que assina e transmite estava declarada num grupo opcional, e a atualizacao automatica do servidor nao instala grupo: sempre que uma dependencia mudava, ela era DESINSTALADA e a emissao parava. Sem sinal nenhum - a rotina continuava passando na hora certa e cada documento morria por dentro. Ficou parada das 12h35 as 13h10 de hoje exatamente assim. A pilha fiscal virou dependencia de producao, que e o que ela e desde que o sistema passou a emitir de verdade.
+- A rotina agendada agora confere essa biblioteca ANTES de marcar que passou. Antes ela marcava a passagem e so depois falhava documento a documento, o que de fora e identico a "nao havia nada para emitir". Agora sai com erro, o agendador do Windows registra a falha e o cronometro da tela passa a acusar atraso.
+
 ## [0.96.0] — 27/08/2026  ·  CX-27/08/2026-v0.96.0
 
 ### Adicionado

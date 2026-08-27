@@ -74,6 +74,17 @@ def main() -> int:
             print(f"nada a fazer: {porque}")
             return 0
         print(f"na hora: {porque}")
+        # PILHA FISCAL ANTES DE TUDO. Sem ela cada documento morre com
+        # "No module named 'erpbrasil'" DEPOIS de a passagem ter sido
+        # registrada - de fora, "nada a emitir" e "perdi a capacidade de
+        # emitir" ficam iguais. Aqui a rotina sai com erro, o agendador do
+        # Windows guarda a falha, a passagem NAO e marcada e o cronometro da
+        # tela passa a acusar atraso.
+        ok, motivo = lote.pilha_fiscal()
+        if not ok:
+            print(f"PILHA FISCAL AUSENTE: {motivo}")
+            print("  a emissao esta parada. Reinstale com: uv sync")
+            return 3
         # MARCA A PASSAGEM ANTES DE EMITIR, e nao depois. O intervalo
         # configurado na tela so existe se alguem gravar quando a rotina
         # passou: sem isto `ultima_execucao` fica sempre vazia, `deve_rodar`

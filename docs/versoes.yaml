@@ -1,3 +1,30 @@
+- versao: "0.97.0"
+  data: "2026-08-27"
+  corrigido:
+    - >-
+      TODO DEPLOY DESLIGAVA A EMISSAO. A biblioteca que assina e transmite
+      estava declarada num grupo opcional, e a atualizacao automatica do
+      servidor nao instala grupo: sempre que uma dependencia mudava, ela era
+      DESINSTALADA e a emissao parava. Sem sinal nenhum - a rotina continuava
+      passando na hora certa e cada documento morria por dentro. Ficou parada
+      das 12h35 as 13h10 de hoje exatamente assim. A pilha fiscal virou
+      dependencia de producao, que e o que ela e desde que o sistema passou a
+      emitir de verdade.
+    - >-
+      A rotina agendada agora confere essa biblioteca ANTES de marcar que
+      passou. Antes ela marcava a passagem e so depois falhava documento a
+      documento, o que de fora e identico a "nao havia nada para emitir".
+      Agora sai com erro, o agendador do Windows registra a falha e o
+      cronometro da tela passa a acusar atraso.
+  adicionado:
+    - >-
+      O cronometro ganhou dois estados que faltavam. "Parada" em vermelho
+      quando a biblioteca de assinatura nao esta instalada - nenhum documento
+      sai enquanto isso durar. E "atrasado", com o tempo acumulado, quando a
+      hora da proxima rodada passou de dois disparos do agendador: sinal de
+      que a tarefa nao esta rodando. Antes os dois casos apareciam como
+      "liberado", que se le como se estivesse tudo bem.
+
 - versao: "0.96.0"
   data: "2026-08-27"
   adicionado:

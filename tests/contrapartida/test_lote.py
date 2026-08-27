@@ -668,3 +668,41 @@ def test_a_ordem_do_impedimento_nao_esconde_o_envio_desligado():
     from api.contrapartida import lote
     r = lote._impedimento({"cnpj": "1", "ie": "123"}, _mapa_pronto("1"), {"1"})
     assert "desligado" in r
+
+
+def test_a_pilha_fiscal_e_dependencia_de_PRODUCAO():
+    """Enquanto a pilha morava so num grupo opcional, o `uv sync` do AutoDeploy
+    a DESINSTALAVA a cada deploy que mexesse em dependencias, e a emissao
+    parava sem sinal nenhum: a rotina passava na hora certa e cada documento
+    morria com "No module named 'erpbrasil'". O sistema emite documento fiscal
+    em producao - isto e dependencia de producao, nao extra de bancada."""
+    import pathlib
+    import tomllib
+
+    raiz = pathlib.Path(__file__).resolve().parents[2]
+    cfg = tomllib.loads((raiz / "pyproject.toml").read_text(encoding="utf-8"))
+    deps = " ".join(cfg["project"]["dependencies"])
+    for pacote in ("erpbrasil.edoc", "erpbrasil.assinatura", "nfelib"):
+        assert pacote in deps, (
+            f"{pacote} fora de [project.dependencies]: o deploy vai desinstalar "
+            f"a pilha e a emissao para em silencio")
+
+
+def test_a_rotina_agendada_CONFERE_a_pilha_antes_de_marcar_a_passagem():
+    """A ordem e o que torna a falha visivel: conferir depois de marcar faria a
+    rotina registrar que passou e nao emitir nada, que e indistinguivel de
+    "nao havia fila". Antes, ela sai com erro, o agendador guarda a falha e o
+    cronometro da tela acusa atraso."""
+    import pathlib
+
+    fonte = (pathlib.Path(__file__).resolve().parents[2]
+             / "scripts" / "emitir_lote.py").read_text(encoding="utf-8")
+    assert "lote.pilha_fiscal()" in fonte
+    assert fonte.index("lote.pilha_fiscal()") < fonte.index("lote.registrar_execucao")
+
+
+def test_pilha_fiscal_responde_sem_explodir():
+    from api.contrapartida import lote
+    ok, motivo = lote.pilha_fiscal()
+    assert isinstance(ok, bool)
+    assert ok or motivo, "quando falta, tem de dizer o que falta"

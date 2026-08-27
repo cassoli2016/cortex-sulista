@@ -673,6 +673,10 @@ def contrapartida_automacao() -> JSONResponse:
             # decide se e hora. A tela precisa dizer isso, senao o cronometro
             # chega a zero, nada acontece por ate 5 minutos e parece travado.
             "passo_agendador_min": 5,
+            # Se a pilha que assina e transmite nao estiver instalada, a
+            # rotina passa e nao emite nada. Sem isto na tela, o cronometro
+            # contaria bonito enquanto nada sai.
+            "pilha_ok": lote.pilha_fiscal()[0],
         })
     except Exception as exc:  # noqa: BLE001
         log.warning("contrapartida_automacao falhou: %s", exc)

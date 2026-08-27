@@ -1,6 +1,6 @@
 [project]
 name = "cortex"
-version = "0.96.0"
+version = "0.97.0"
 description = "CÓRTEX — cérebro de gestão da transportadora (backend + migrations)"
 requires-python = ">=3.12"
 dependencies = [
@@ -27,6 +27,18 @@ dependencies = [
   # extrato do C6 so sai em PDF - nao ha OFX no internet banking deles, entao
   # sem isto a conta 336 fica fora da conciliacao. Python puro, sem binario.
   "pypdf>=5.0",
+  # PILHA FISCAL. Estava num grupo opcional enquanto a emissao propria era
+  # prova de conceito, com o combinado escrito ali: "se a emissao for adiante,
+  # elas sobem para project.dependencies". Foi adiante - ha documento
+  # autorizado em producao e rotina agendada emitindo sozinha - e o grupo
+  # cobrou a divida do jeito mais silencioso possivel: o `uv sync` do
+  # AutoDeploy nao instala grupo, entao TODO DEPLOY desinstalava a pilha e a
+  # emissao morria com "No module named 'erpbrasil'" ate alguem reinstalar a
+  # mao. Producao emite documento fiscal; estas sao dependencias de producao.
+  "erpbrasil.edoc",        # monta, assina e transmite CT-e/MDF-e as SEFAZ
+  "erpbrasil.assinatura",  # assinatura XMLDSig com certificado A1
+  "nfelib",                # classes geradas dos XSD dos layouts
+  "truststore>=0.10.4",    # raizes ICP-Brasil pelo cofre do sistema
 ]
 
 # Ferramentas de teste. Grupo "test" e NAO "dev" de proposito: o uv instala o
@@ -40,14 +52,16 @@ test = [
   "pytest>=8.0",
   "playwright>=1.40",      # testes de UI contra o index.html real, sem banco
 ]
-# GRUPO SEPARADO de proposito: o `uv sync` do AutoDeploy nao instala grupo, e
-# ate a prova de conceito da emissao decidir se seguimos por aqui, producao nao
-# carrega essas dependencias. Se a emissao propria for adiante, elas sobem para
-# [project.dependencies].
+# MANTIDO SO COMO APELIDO. A pilha fiscal subiu para [project.dependencies],
+# onde sempre deveria estar depois que a emissao saiu da prova de conceito;
+# este grupo continua declarado para que `uv sync --group test --group fiscal`,
+# que esta escrito no CLAUDE.md e na cabeca de quem trabalha aqui, siga
+# funcionando. Nao ha mais "um desinstala o outro": o `uv sync` puro ja traz a
+# pilha fiscal.
 fiscal = [
-  "erpbrasil.edoc",        # monta, assina e transmite CT-e/MDF-e as SEFAZ
-  "erpbrasil.assinatura",  # assinatura XMLDSig com certificado A1
-  "nfelib",                # classes geradas dos XSD dos layouts
+  "erpbrasil.edoc",
+  "erpbrasil.assinatura",
+  "nfelib",
   "truststore>=0.10.4",
 ]
 

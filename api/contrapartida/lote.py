@@ -390,3 +390,25 @@ def resumo_fila(de: str, ate: str,
             "envio_desligado": fora,
             "a_emitir": sum(1 for f in faltas if not f),
             "gerado_em": datetime.now().strftime("%Y-%m-%d %H:%M")}
+
+
+def pilha_fiscal() -> tuple[bool, str]:
+    """A pilha que monta, assina e transmite está instalada?
+
+    Existe porque a ausência dela é INVISÍVEL no caminho normal: a rotina
+    passava, marcava a passagem, e só então cada documento morria com
+    "No module named 'erpbrasil'". Do lado de fora não havia diferença entre
+    "não havia nada a emitir" e "o sistema perdeu a capacidade de emitir" —
+    e a segunda durou de um deploy até alguém reparar, porque o `uv sync` do
+    AutoDeploy desinstalava a pilha a cada atualização de dependências.
+
+    Conferir na entrada custa um import e transforma isso num estado que a
+    tela mostra e o agendador registra como falha.
+    """
+    try:
+        import erpbrasil.assinatura  # noqa: F401
+        import erpbrasil.edoc  # noqa: F401
+        import nfelib  # noqa: F401
+    except Exception as exc:  # noqa: BLE001
+        return False, f"{type(exc).__name__}: {exc}"
+    return True, ""

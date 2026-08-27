@@ -10086,6 +10086,23 @@ function cpCronDesenha(){
     : '<span class="badge b-info" title="Ambiente de teste da SEFAZ: o documento autorizado aqui NÃO tem valor fiscal e não gera obrigação nenhuma.">homologação</span>';
   let rel='—', cls='parado', leg='', pe='';
 
+  if(d.pilha_ok===false){
+    /* A biblioteca que assina e transmite sumiu do ambiente. A rotina
+       continua passando na hora certa e NAO emite nada - foi assim que a
+       emissao ficou parada depois de um deploy sem ninguem notar. Este
+       estado vem antes de qualquer outro porque nenhum dos outros importa
+       enquanto ele durar. */
+    leg='emissão parada — a biblioteca de assinatura não está instalada';
+    pe='A rotina até roda na hora certa, mas nenhum documento é transmitido. '
+      +'Reinstale as dependências no servidor (uv sync) e confira aqui.';
+    alvo.innerHTML=
+      '<div class="cp-cron"><span class="rel parado">parada</span>'
+      +'<span class="leg">'+esc(leg)+'</span>'
+      +'<span class="badge b-dang" title="Nenhum documento sai enquanto isto durar.">sem transmitir</span></div>'
+      +'<div class="hint">'+esc(pe)+'</div>';
+    document.getElementById('hintCpAuto').textContent='parada';
+    return;
+  }
   if(!d.ativa){
     /* Desligada NAO e erro nem alerta: e uma escolha, e o cronometro tem de
        parar em vez de contar para um disparo que nao vem. Contar assim mesmo
@@ -10108,6 +10125,14 @@ function cpCronDesenha(){
          pergunta se ja passou o intervalo. Sem dizer isto, o contador chega a
          zero, nada acontece por ate 5 minutos e a tela parece travada. */
       rel='liberado'; cls=''; leg='esperando o próximo disparo do agendador';
+      /* Passar do zero por um instante e normal - o agendador so bate de 5 em
+         5 minutos. Passar de DOIS passos nao e: quer dizer que a tarefa nao
+         esta disparando, e o cronometro tem de acusar em vez de mostrar
+         "liberado" para sempre, que se le como se estivesse tudo bem. */
+      if(-falta > passo*120){
+        rel='atrasado'; leg='há '+cpRelogio(-falta - passo*60)
+          +' além do previsto — a tarefa agendada pode não estar rodando';
+      }
     }
     pe='Última passagem '+fmtDT(d.ultima_execucao)+' · intervalo de '
       +(d.intervalo_min||'?')+' min · o agendador dispara a cada '+passo

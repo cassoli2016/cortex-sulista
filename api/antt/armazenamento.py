@@ -1,19 +1,30 @@
-"""Base local da situação do RNTRC — SQLite, como todo dado nosso.
+"""Base local da situação do RNTRC — PostgreSQL (schema `cortex`).
+
+PRIMEIRO STORE MIGRADO do SQLite. O plano, as decisões e a ordem das próximas
+fases estão em `docs/MIGRACAO_POSTGRES.md`. O `data/antt.db` continua no disco
+até a fase seguinte fechar: é o desfazer mais barato que existe.
 
 Guarda SÓ os transportadores que a Sulista contrata (222 hoje), não a base
 nacional: o casamento é por número de registro, então não há razão para trazer
 1,16 milhão de linhas para dentro. Nenhum documento de pessoa é gravado aqui.
+
+O que mudou no contrato: o parâmetro `path` (arquivo `.db`) virou `esquema`
+(schema do Postgres). É o que mantém o teste isolado — onde antes cada teste
+ganhava um arquivo em `tmp_path`, agora ganha um schema próprio.
+
+O QUE NÃO MUDOU, e é de propósito: `situacao()` e `todas()` NÃO engolem falha
+de conexão. Devolver dicionário vazio faria a tela dizer "sem base" — que ali
+significa "nunca sincronizou" — quando o problema é o banco fora do ar. Num
+módulo de compliance, esse silêncio é o pior desfecho possível.
 """
 from __future__ import annotations
 
 import re
-import sqlite3
-from contextlib import contextmanager
 from datetime import datetime
-from pathlib import Path
 
-ROOT = Path(__file__).resolve().parent.parent.parent
-DB_PATH = ROOT / "data" / "antt.db"
+import psycopg
+
+from .. import migracoes, pglocal
 
 _SO_DIGITOS = re.compile(r"\D")
 
@@ -34,84 +45,82 @@ def normalizar_rntrc(valor: str | None) -> str:
     return _SO_DIGITOS.sub("", str(valor)).lstrip("0")
 
 
-@contextmanager
-def _conn(path: Path):
-    Path(path).parent.mkdir(exist_ok=True)
-    c = sqlite3.connect(path, timeout=10)
-    c.row_factory = sqlite3.Row
-    c.execute("PRAGMA journal_mode=WAL")
-    try:
-        with c:
-            yield c
-    finally:
-        c.close()
-
-
-def init_db(path: Path | None = None) -> None:
-    with _conn(path or DB_PATH) as c:
-        c.executescript("""
-        CREATE TABLE IF NOT EXISTS rntrc_transportador(
-            rntrc         TEXT PRIMARY KEY,
-            nome          TEXT,
-            situacao      TEXT NOT NULL,
-            categoria     TEXT,
-            uf            TEXT,
-            municipio     TEXT,
-            data_situacao TEXT
-        );
-        CREATE TABLE IF NOT EXISTS rntrc_sync(
-            id          INTEGER PRIMARY KEY AUTOINCREMENT,
-            competencia TEXT NOT NULL,
-            quando      TEXT NOT NULL,
-            linhas      INTEGER NOT NULL
-        );
-        """)
+def init_db(esquema: str | None = None) -> None:
+    """Garante o schema aplicado. O DDL mora em `sql/cortex/`, não aqui: com o
+    schema declarado em código E em migration, um dia os dois discordam."""
+    migracoes.aplicar(esquema)
 
 
 def gravar_lote(linhas: list[dict], competencia: str,
-                path: Path | None = None) -> int:
+                esquema: str | None = None) -> int:
+    """Substitui a base inteira, numa transação só.
+
+    O DELETE + INSERT vive dentro de UMA transação — se o insert falhar no
+    meio, não fica base pela metade. No SQLite isso dependia do
+    `isolation_level`; aqui é o comportamento natural do `with conn`.
+    """
     if not linhas:
         raise BaseVazia(f"sync de {competencia} não trouxe nenhuma linha")
-    p = path or DB_PATH
-    init_db(p)
-    with _conn(p) as c:
-        c.execute("DELETE FROM rntrc_transportador")
-        c.executemany(
-            """INSERT OR REPLACE INTO rntrc_transportador
-               (rntrc, nome, situacao, categoria, uf, municipio, data_situacao)
-               VALUES(:rntrc, :nome, :situacao, :categoria, :uf, :municipio,
-                      :data_situacao)""",
-            [{**l, "rntrc": normalizar_rntrc(l["rntrc"])} for l in linhas])
-        c.execute("INSERT INTO rntrc_sync(competencia, quando, linhas) VALUES(?,?,?)",
-                  (competencia, datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
-                   len(linhas)))
+    init_db(esquema)
+    with pglocal.get_conn(esquema) as conn:
+        with conn.cursor() as cur:
+            cur.execute("DELETE FROM rntrc_transportador")
+            cur.executemany(
+                """INSERT INTO rntrc_transportador
+                   (rntrc, nome, situacao, categoria, uf, municipio, data_situacao)
+                   VALUES(%(rntrc)s, %(nome)s, %(situacao)s, %(categoria)s,
+                          %(uf)s, %(municipio)s, %(data_situacao)s)
+                   ON CONFLICT (rntrc) DO UPDATE SET
+                     nome=EXCLUDED.nome, situacao=EXCLUDED.situacao,
+                     categoria=EXCLUDED.categoria, uf=EXCLUDED.uf,
+                     municipio=EXCLUDED.municipio,
+                     data_situacao=EXCLUDED.data_situacao""",
+                [{**l, "rntrc": normalizar_rntrc(l["rntrc"])} for l in linhas])
+            cur.execute(
+                "INSERT INTO rntrc_sync(competencia, quando, linhas)"
+                " VALUES(%s,%s,%s)",
+                (competencia, datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+                 len(linhas)))
     return len(linhas)
 
 
-def situacao(rntrc: str, path: Path | None = None) -> dict | None:
-    p = path or DB_PATH
-    if not Path(p).exists():
-        return None
-    with _conn(p) as c:
-        row = c.execute("SELECT * FROM rntrc_transportador WHERE rntrc=?",
-                        (normalizar_rntrc(rntrc),)).fetchone()
-    return dict(row) if row else None
+def _sem_base(exc: Exception) -> bool:
+    """Tabela que ainda não existe é BASE NUNCA SINCRONIZADA, não falha.
+
+    É o mesmo caso que, no SQLite, era `if not Path(p).exists()`. A distinção
+    importa: `UndefinedTable` vira base vazia (a tela mostra "sem base", que é
+    verdade), enquanto erro de conexão SOBE — porque aí a tela não pode
+    afirmar nada sobre a regularidade de ninguém.
+    """
+    return isinstance(exc, psycopg.errors.UndefinedTable)
 
 
-def todas(path: Path | None = None) -> dict[str, dict]:
-    p = path or DB_PATH
-    if not Path(p).exists():
-        return {}
-    with _conn(p) as c:
-        return {r["rntrc"]: dict(r)
-                for r in c.execute("SELECT * FROM rntrc_transportador")}
+def situacao(rntrc: str, esquema: str | None = None) -> dict | None:
+    try:
+        return pglocal.um("SELECT * FROM rntrc_transportador WHERE rntrc=%s",
+                          (normalizar_rntrc(rntrc),), esquema=esquema)
+    except Exception as exc:  # noqa: BLE001
+        if _sem_base(exc):
+            return None
+        raise
 
 
-def ultima_sync(path: Path | None = None) -> dict | None:
-    p = path or DB_PATH
-    if not Path(p).exists():
-        return None
-    with _conn(p) as c:
-        row = c.execute("SELECT competencia, quando, linhas FROM rntrc_sync "
-                        "ORDER BY id DESC LIMIT 1").fetchone()
-    return dict(row) if row else None
+def todas(esquema: str | None = None) -> dict[str, dict]:
+    try:
+        linhas = pglocal.query("SELECT * FROM rntrc_transportador",
+                               esquema=esquema)
+    except Exception as exc:  # noqa: BLE001
+        if _sem_base(exc):
+            return {}
+        raise
+    return {r["rntrc"]: dict(r) for r in linhas}
+
+
+def ultima_sync(esquema: str | None = None) -> dict | None:
+    try:
+        return pglocal.um("SELECT competencia, quando, linhas FROM rntrc_sync"
+                          " ORDER BY id DESC LIMIT 1", esquema=esquema)
+    except Exception as exc:  # noqa: BLE001
+        if _sem_base(exc):
+            return None
+        raise
