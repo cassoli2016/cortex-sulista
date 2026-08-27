@@ -4,6 +4,15 @@ Gerado de `docs/versoes.yaml` por `scripts/gerar_changelog.py` — não editar �
 Formato [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/),
 versionamento [SemVer](https://semver.org/lang/pt-BR/).
 
+## [0.81.0] — 26/08/2026  ·  CX-26/08/2026-v0.81.0
+
+### Adicionado
+- Emissao em LOTE do CT-e de contrapartida: a rotina varre o periodo, monta e transmite os documentos da fila, um agregado de cada vez, em ordem cronologica. Continua so em homologacao.
+- A emissao MANUAL funciona sempre. A execucao DESASSISTIDA - rotina agendada, sem ninguem olhando - so roda se alguem tiver ligado, e o padrao e DESLIGADO. Ausencia de configuracao significa desligado, nunca o contrario: um padrao ligado faria a rotina comecar a emitir sozinha por causa de um banco novo ou de uma restauracao de backup. Ligar e desligar entra na trilha com autor e data.
+- Quatro guardas que a emissao manual nao precisa, porque la existe uma pessoa lendo o retorno. IDEMPOTENCIA: nunca emite duas vezes para o mesmo CT-e de origem, e so conta como feita a que foi AUTORIZADA - uma tentativa recusada nao emitiu nada. DISJUNTOR: tres falhas seguidas param o lote, porque falha sistemica rejeita tudo e um lote de mil queimaria mil numeros de serie antes de alguem perceber. TETO por execucao, obrigatorio. E ENSAIO, que percorre tudo sem transmitir.
+- O disjuntor foi conferido contra o bloqueio real do IBS: o lote parou no terceiro documento e preservou os dois restantes.
+- A fila ja desconta quem nao pode emitir. No periodo testado, dos 494 CT-e de agregado PJ, 390 sao de agregado sem certificado - contar esses prometeria um trabalho que falharia documento a documento.
+
 ## [0.80.0] — 26/08/2026  ·  CX-26/08/2026-v0.80.0
 
 ### Adicionado
