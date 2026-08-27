@@ -1,3 +1,17 @@
+- versao: "0.108.3"
+  data: "2026-08-27"
+  corrigido:
+    - >-
+      O aviso de "Ler com atencao" dizia "4 documentos autorizados em
+      PRODUCAO" enquanto o cartao logo acima dizia "producao 2 de 4" - dois
+      numeros para a mesma coisa na mesma tela. O aviso contava TENTATIVAS e
+      chamava de autorizadas; agora separa as duas coisas.
+    - >-
+      O motivo da quarentena era cortado no meio da palavra ("...inexistente
+      na bas"), o que faz o aviso parecer truncado por defeito. Passou a
+      cortar na pontuacao, e a chave do documento saiu do texto - ela nao
+      acrescenta nada a quem le o aviso.
+
 - versao: "0.108.2"
   data: "2026-08-27"
   corrigido:

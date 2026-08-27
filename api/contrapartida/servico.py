@@ -663,11 +663,18 @@ def _avisos(pj, tac, indef, faltando, tx=None) -> list[str]:
             "Para a contabilidade a fila continua inteira: o que foi emitido "
             "até agora é teste do caminho, não contrapartida.")
     else:
+        # AUTORIZADO x TRANSMITIDO. Este aviso dizia "N autorizados em
+        # PRODUCAO" usando o total de TENTATIVAS: com 4 transmissoes e 2
+        # autorizacoes, ele afirmava 4 enquanto o cartao logo acima dizia
+        # "producao 2 de 4". Dois numeros diferentes para a mesma coisa na
+        # mesma tela, e o texto era o errado.
+        pok = int((tx or {}).get("producao_autorizadas") or 0)
         av.append(
-            f"{prod} documento(s) autorizado(s) em PRODUÇÃO e {homo} em "
-            "homologação. Só os de produção existem para o fisco — os de "
-            "homologação estão na tela para conferir o caminho e não entram "
-            "em nenhuma conta fiscal.")
+            f"{pok} documento(s) AUTORIZADO(S) em produção, de {prod} "
+            f"transmitido(s); e {homo} transmissões em homologação. Só os "
+            "autorizados em produção existem para o fisco — os de homologação "
+            "estão na tela para conferir o caminho e não entram em conta "
+            "fiscal nenhuma.")
 
     # QUARENTENA: documento que a SEFAZ ja recusou tantas vezes que a rotina
     # parou de reapresentar. Sair da fila em SILENCIO seria pior que o
@@ -680,7 +687,20 @@ def _avisos(pj, tac, indef, faltando, tx=None) -> list[str]:
         log.warning("quarentena indisponivel: %s", exc)
         presos = {}
     if presos:
-        motivos = sorted({f"{v.get('cstat')} · {(v.get('xmotivo') or '')[:60]}"
+        # Cortar em N caracteres partia a palavra ao meio ("...inexistente na
+        # bas"), que faz o aviso parecer truncado por defeito. Corta na
+        # PONTUACAO e, nao havendo, no ultimo espaco.
+        def _curto(t, n=90):
+            t = " ".join((t or "").split())
+            if len(t) <= n:
+                return t
+            corte = t[:n]
+            for sep in (". ", " ["):
+                if sep in corte:
+                    return corte[:corte.rindex(sep)].rstrip(" .")
+            return corte[:corte.rfind(" ")].rstrip(" ,.") + "…"
+
+        motivos = sorted({f"{v.get('cstat')} · {_curto(v.get('xmotivo'))}"
                           for v in presos.values()})
         av.append(
             f"{len(presos)} CT-e sairam da fila por recusa repetida da SEFAZ "

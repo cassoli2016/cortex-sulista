@@ -4,6 +4,12 @@ Gerado de `docs/versoes.yaml` por `scripts/gerar_changelog.py` — não editar �
 Formato [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/),
 versionamento [SemVer](https://semver.org/lang/pt-BR/).
 
+## [0.108.3] — 27/08/2026  ·  CX-27/08/2026-v0.108.3
+
+### Corrigido
+- O aviso de "Ler com atencao" dizia "4 documentos autorizados em PRODUCAO" enquanto o cartao logo acima dizia "producao 2 de 4" - dois numeros para a mesma coisa na mesma tela. O aviso contava TENTATIVAS e chamava de autorizadas; agora separa as duas coisas.
+- O motivo da quarentena era cortado no meio da palavra ("...inexistente na bas"), o que faz o aviso parecer truncado por defeito. Passou a cortar na pontuacao, e a chave do documento saiu do texto - ela nao acrescenta nada a quem le o aviso.
+
 ## [0.108.2] — 27/08/2026  ·  CX-27/08/2026-v0.108.2
 
 ### Corrigido

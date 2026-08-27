@@ -866,3 +866,32 @@ def test_taxa_e_None_sem_nenhuma_transmissao(monkeypatch):
     monkeypatch.setattr(emissao, "por_dia", lambda n=30: [])
     monkeypatch.setattr(emissao, "totais", lambda: {"documentos": 0})
     assert servico._transmissoes()["taxa_ok"] is None
+
+
+def test_o_aviso_de_producao_conta_AUTORIZADOS_e_nao_tentativas():
+    """O aviso dizia "N autorizados em PRODUCAO" usando o total de tentativas:
+    com 4 transmissoes e 2 autorizacoes, afirmava 4 enquanto o cartao logo
+    acima dizia "producao 2 de 4". Dois numeros para a mesma coisa na mesma
+    tela, e o texto era o errado."""
+    from api.contrapartida import servico
+
+    av = servico._avisos([], [], [], [], {"producao": 4, "homologacao": 110,
+                                          "producao_autorizadas": 2})
+    assert "2 documento(s) AUTORIZADO(S) em produção" in av[0]
+    assert "de 4 transmitido" in av[0]
+
+
+def test_motivo_da_quarentena_nao_corta_no_meio_da_palavra(monkeypatch):
+    """"...inexistente na bas" faz o aviso parecer truncado por defeito."""
+    from api.contrapartida import lote, servico
+
+    monkeypatch.setattr(lote, "_quarentena", lambda amb: {
+        "X": {"cstat": "748",
+              "xmotivo": ("CTe referenciado em documentos anteriores "
+                          "inexistente na base de dados da SEFAZ. "
+                          "[chCTe:41260876104397000123]")}})
+    av = servico._avisos([], [], [], [], {"producao": 0, "homologacao": 1})
+    texto = " ".join(av)
+    assert "SEFAZ" in texto
+    assert "na bas " not in texto and not texto.rstrip().endswith("na bas")
+    assert "[chCTe" not in texto, "a chave nao acrescenta nada ao aviso"

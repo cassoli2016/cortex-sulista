@@ -176,18 +176,30 @@ def gravar_baseline(esquema: str | None, versao_id: int, linhas: list[dict]) -> 
     """Insere ou atualiza o baseline. NÃO toca em valor_ajustado."""
     if not linhas:
         return 0
+    # UM INSERT COM VÁRIAS TUPLAS, EM LOTES, e não `executemany`: o executemany
+    # do psycopg manda uma linha por vez, e uma regeração completa são 21.696
+    # idas ao banco — medido em ~12 s por chamada nos testes do plano, contra
+    # frações de segundo assim. O lote de 1.000 é o meio-termo entre round
+    # trips e tamanho de statement.
+    LOTE = 1000
     with pglocal.get_conn(_esq(esquema)) as conn:
         with conn.cursor() as c:
-            c.executemany("""
-                INSERT INTO orc_linha(versao_id, conta, mes, valor_baseline,
-                                      origem, meses_com_dado)
-                VALUES (%(v)s, %(conta)s, %(mes)s, %(valor_baseline)s,
-                        %(origem)s, %(meses_com_dado)s)
-                ON CONFLICT(versao_id, conta, mes) DO UPDATE SET
-                    valor_baseline = excluded.valor_baseline,
-                    origem         = excluded.origem,
-                    meses_com_dado = excluded.meses_com_dado
-            """, [{**l, "v": versao_id} for l in linhas])
+            for i in range(0, len(linhas), LOTE):
+                bloco = linhas[i:i + LOTE]
+                valores = ",".join(["(%s,%s,%s,%s,%s,%s)"] * len(bloco))
+                params: list = []
+                for l in bloco:
+                    params += [versao_id, l["conta"], l["mes"],
+                               l["valor_baseline"], l["origem"],
+                               l["meses_com_dado"]]
+                c.execute(
+                    "INSERT INTO orc_linha(versao_id, conta, mes,"
+                    " valor_baseline, origem, meses_com_dado) VALUES "
+                    + valores +
+                    " ON CONFLICT(versao_id, conta, mes) DO UPDATE SET"
+                    "   valor_baseline = excluded.valor_baseline,"
+                    "   origem         = excluded.origem,"
+                    "   meses_com_dado = excluded.meses_com_dado", params)
             return len(linhas)
 
 
