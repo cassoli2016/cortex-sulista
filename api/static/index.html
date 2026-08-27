@@ -193,6 +193,12 @@ tr[role="button"]:focus-visible{outline-offset:-2px}
   color:var(--n500);background:var(--n100);border:1px solid var(--n200)}
 .ihelp:hover,.ihelp:focus-visible{color:var(--navy-700);background:var(--navy-100);border-color:var(--navy-200)}
 .kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:16px}
+/* A grade de indicadores solta na pagina nao tem espacamento proprio, e
+   esta certo: ela fica ENTRE cartoes. Dentro de um, encostava nas quatro
+   bordas - o mesmo defeito que os blocos da contrapartida ja tinham tido.
+   O horizontal casa com o do titulo do cartao, senao o conteudo comeca
+   antes do titulo que o nomeia. */
+.card>.kpis{padding:14px 18px 16px}
 .kpi{padding:16px;min-width:0}
 .kpi .label{font-size:12px;color:var(--n500)}
 .kpi .val{font-size:24px;font-weight:800;line-height:1.15;margin-top:2px;overflow-wrap:anywhere}
@@ -2850,12 +2856,12 @@ body.tvfull #btnReport,body.tvmode #btnReport{display:none}
           <div class="card">
             <div class="head"><h2>Onde o tempo é gasto <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="Mediana da permanência por visita a cada polígono, não média: a cauda é longa (p99 de 151 min contra mediana de 9) e a média descreveria um veículo que não existe. O número de visitas vai ao lado justamente para dizer sobre quanto a mediana foi tirada.">i</span></h2>
               <span class="hint" id="hintPoliRank"></span></div>
-            <div id="poliRank"></div>
+            <div id="poliRank" class="cpbloco"></div>
           </div>
           <div class="card">
             <div class="head"><h2>Atendimento × fila <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="O tempo dentro do perímetro que NÃO cai em nenhum polígono mapeado. Parte é fila e manobra; parte pode ser área de serviço ainda não mapeada — por isso o rótulo é “fora de ponto mapeado” e não “espera”.">i</span></h2>
               <span class="hint" id="hintPoliDec"></span></div>
-            <div id="poliDec"></div>
+            <div id="poliDec" class="cpbloco"></div>
           </div>
         </div>
 
@@ -2867,7 +2873,7 @@ body.tvfull #btnReport,body.tvmode #btnReport{display:none}
 
         <div class="card" id="poliAvisosCard" hidden>
           <div class="head"><h2>Ler com atenção</h2></div>
-          <div id="poliAvisos"></div>
+          <div id="poliAvisos" class="cpbloco"></div>
         </div>
       </section>
 

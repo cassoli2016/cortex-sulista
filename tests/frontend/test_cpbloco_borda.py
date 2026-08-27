@@ -109,3 +109,32 @@ def test_o_js_nao_devolve_mais_margem_inline_nos_blocos():
                s.index("document.getElementById('hintCp')")]
     assert "margin:0 0" not in trecho, (
         "voltou margem inline em cpMes/cpPassivo — use o gap do .cpbloco")
+
+
+def test_grade_de_indicadores_dentro_de_cartao_tem_espacamento():
+    """`.kpis` solta na pagina nao tem espacamento proprio, e esta certo: ela
+    fica ENTRE cartoes. Dentro de UM cartao isso vira conteudo encostado nas
+    quatro bordas - o mesmo defeito que os blocos da contrapartida ja tinham
+    tido, repetido em sete cartoes do painel."""
+    import pathlib
+    import re
+
+    html = (pathlib.Path(__file__).resolve().parents[2]
+            / "api" / "static" / "index.html").read_text(encoding="utf-8")
+    regra = re.search(r'\.card>\.kpis\{([^}]*)\}', html)
+    assert regra, "sem regra de espacamento para .kpis dentro de .card"
+    assert "padding" in regra.group(1)
+    # o horizontal casa com o do titulo do cartao (.card .head usa 18px):
+    # conteudo que comeca antes do titulo que o nomeia deixa o cartao torto
+    assert "18px" in regra.group(1)
+
+
+def test_blocos_da_portaria_nao_encostam_na_borda():
+    """A Portaria repetia, intocada, o mesmo defeito que a contrapartida ja
+    tinha corrigido: blocos entrando no cartao como div cru."""
+    import pathlib
+
+    html = (pathlib.Path(__file__).resolve().parents[2]
+            / "api" / "static" / "index.html").read_text(encoding="utf-8")
+    for ident in ("poliRank", "poliDec", "poliAvisos"):
+        assert f'<div id="{ident}" class="cpbloco">' in html, ident

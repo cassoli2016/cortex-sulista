@@ -4,6 +4,13 @@ Gerado de `docs/versoes.yaml` por `scripts/gerar_changelog.py` — não editar �
 Formato [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/),
 versionamento [SemVer](https://semver.org/lang/pt-BR/).
 
+## [0.113.0] — 27/08/2026  ·  CX-27/08/2026-v0.113.0
+
+### Corrigido
+- Grade de indicadores dentro de um cartao encostava nas quatro bordas. Acontecia em sete cartoes do painel - Comercial, Ordens de Compra, Extrato Bancario e Antecipacoes - e e o mesmo defeito que os blocos da contrapartida ja tinham tido. O espacamento horizontal casa com o do titulo do cartao, senao o conteudo comeca antes do titulo que o nomeia.
+- Na Portaria, tres blocos entravam no cartao como div cru e corriam de borda a borda: o ranking, a decomposicao e o "Ler com atencao". Era a mesma correcao ja feita na contrapartida, que nunca tinha chegado la.
+- Os testes de correio liam o banco de PRODUCAO ao montar os relatorios. Era leitura, entao nada foi corrompido, mas a suite ficava dependente do estado do dia e dois testes de contrapartida quebravam quando os dois diretorios rodavam juntos - que e a ordem do CI.
+
 ## [0.112.1] — 27/08/2026  ·  CX-27/08/2026-v0.112.1
 
 ### Alterado

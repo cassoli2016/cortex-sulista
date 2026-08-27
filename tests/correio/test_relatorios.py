@@ -98,13 +98,35 @@ def test_valores_escapam_html():
     assert "<script>alert" not in html and "&lt;script&gt;" in html
 
 
-def test_texto_puro_acompanha_sempre():
+def test_texto_puro_acompanha_sempre(monkeypatch):
     """E o que aparece na previa da caixa de entrada e o que sobra quando o
-    cliente recusa HTML."""
+    cliente recusa HTML.
+
+    As fontes sao SUBSTITUIDAS: montar de verdade significaria consultar o AVA
+    e o registro de emissoes, e o teste passaria ou falharia conforme a fila
+    do dia - termometro, nao teste. O que se verifica aqui e o contrato de
+    quem monta, nao o numero que saiu.
+    """
+    monkeypatch.setattr("api.contrapartida.lote.resumo_fila",
+                        lambda *a, **k: {"a_emitir": 3, "ja_emitidos": 1,
+                                         "ctes_no_periodo": 4,
+                                         "sem_agregado_pronto": 0,
+                                         "sem_cadastro": 0, "em_quarentena": 0})
+    monkeypatch.setattr("api.contrapartida.lote.estado",
+                        lambda: {"automacao": {"ativa": False}})
+    monkeypatch.setattr("api.contrapartida.servico._transmissoes",
+                        lambda *a, **k: {"documentos": 2, "autorizadas": 1,
+                                         "taxa_ok": 50.0, "producao": 0,
+                                         "producao_autorizadas": 0})
+    monkeypatch.setattr("api.contrapartida.servico.get_contrapartida",
+                        lambda *a, **k: {"avisos": []})
+    monkeypatch.setattr("api.alertas.build_alertas", lambda: [])
+    monkeypatch.setattr("api.alertas.digest_texto", lambda: "sem alertas")
     for nome in relatorios.CATALOGO:
         r = relatorios.montar(nome)
         assert r["texto"].strip(), f"{nome} sem texto puro"
         assert r["assunto"].strip(), f"{nome} sem assunto"
+        assert r["html"].startswith("<!DOCTYPE"), f"{nome} sem documento"
 
 
 def test_catalogo_declara_o_que_fazer_com_relatorio_vazio():
