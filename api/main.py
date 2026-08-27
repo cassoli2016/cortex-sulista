@@ -577,6 +577,40 @@ async def gestao_credenciais_salvar(req: Request) -> JSONResponse:
     return JSONResponse(st)
 
 
+@app.get("/api/fiscal/contrapartida/documento/{chave}")
+def contrapartida_documento(chave: str) -> Response:
+    """Baixa o `cteProc` de um documento transmitido — XML + protocolo.
+
+    Fica sob /api/fiscal/contrapartida/* e não em /api/gestao/*: quem enxerga
+    a tela pode baixar o documento dela. Ligar produção é outra conversa e
+    continua restrito a administrador.
+    """
+    from api.contrapartida import emissao
+    limpa = "".join(c for c in (chave or "") if c.isdigit())
+    if len(limpa) != 44:
+        return JSONResponse(status_code=422, content={
+            "erro": "parametro_invalido",
+            "mensagem": "Chave de CT-e tem 44 dígitos."})
+    try:
+        proc = emissao.proc_de(limpa)
+    except Exception as exc:  # noqa: BLE001
+        log.warning("download de contrapartida %s: %s", limpa, exc)
+        return JSONResponse(status_code=500, content={
+            "erro": "erro_consulta", "mensagem": "Erro ao ler o documento."})
+    if not proc:
+        # 404 e não um XML vazio: documento recusado não tem processo, e um
+        # arquivo com cara de válido é pior que a ausência dele.
+        return JSONResponse(status_code=404, content={
+            "erro": "sem_documento",
+            "mensagem": "Sem arquivo para esta chave. Só documento AUTORIZADO "
+                        "tem processo — e os autorizados antes de o sistema "
+                        "passar a guardar o XML não têm arquivo."})
+    return Response(
+        content=proc, media_type="application/xml",
+        headers={"Content-Disposition":
+                 f'attachment; filename="{limpa}-procCTe.xml"'})
+
+
 # ------------------------------------------------- CT-e de contrapartida (emissão)
 #
 # /api/gestao/* é restrito a administrador pelo AuthMiddleware. Aqui isso não é

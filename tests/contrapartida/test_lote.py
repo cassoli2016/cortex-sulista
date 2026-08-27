@@ -472,3 +472,29 @@ def test_arquivos_NAO_vao_para_o_controle_de_versao():
     assert "!data/cte_contrapartida" not in gitignore, (
         "documento fiscal reexcluido do ignore iria para o repositorio, que "
         "e PUBLICO")
+
+
+def test_a_rota_de_download_segue_o_prefixo_da_TELA():
+    """`/api/*` fora de ROTA_TELAS e 403 para nao-admin (fail-closed). A rota
+    tem de nascer sob o prefixo da tela, e a mais ESPECIFICA vem antes da
+    generica - ROTA_TELAS casa por prefixo."""
+    from api import auth
+    main = open("api/main.py", encoding="utf-8").read()
+    assert '"/api/fiscal/contrapartida/documento/{chave}"' in main
+
+    rotas = [r for r, _ in auth.ROTA_TELAS
+             if r.startswith("/api/fiscal/contrapartida")]
+    assert "/api/fiscal/contrapartida/documento" in rotas
+    assert (rotas.index("/api/fiscal/contrapartida/documento")
+            < rotas.index("/api/fiscal/contrapartida")), (
+        "a generica casaria primeiro e engoliria a especifica")
+
+
+def test_download_de_documento_recusado_devolve_404():
+    """Documento recusado nao tem processo. Devolver um XML vazio seria pior
+    que a ausencia: um arquivo com cara de valido."""
+    main = open("api/main.py", encoding="utf-8").read()
+    i = main.index("def contrapartida_documento")
+    trecho = main[i:main.index("Content-Disposition", i)]
+    assert "status_code=404" in trecho
+    assert "sem_documento" in trecho

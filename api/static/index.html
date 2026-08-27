@@ -9754,7 +9754,11 @@ function renderCtecp(d){
           +esc(t.cstat||'?')+'</span> '+esc(t.xmotivo||'')+'</td>'
           +'<td class="mono" title="'+esc(ch)+'">'+esc(chCurta)+'</td>'
           +'<td class="mono">'+esc(t.protocolo||'—')+'</td>'
-          +'<td>'+arq+'</td>'
+          +'<td>'+arq+(t.tem_xml
+             ? ' <a class="badge b-info" style="text-decoration:none" '
+               +'href="/api/fiscal/contrapartida/documento/'+esc(ch)+'" '
+               +'download title="Baixa o XML com o protocolo — é o arquivo que o ERP importa">baixar</a>'
+             : '')+'</td>'
           +'<td>'+esc(t.quem||'')+'</td></tr>';
       }).join('')+'</tbody>';
   }

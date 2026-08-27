@@ -4,6 +4,19 @@ Gerado de `docs/versoes.yaml` por `scripts/gerar_changelog.py` — não editar �
 Formato [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/),
 versionamento [SemVer](https://semver.org/lang/pt-BR/).
 
+## [0.89.0] — 27/08/2026  ·  CX-27/08/2026-v0.89.0
+
+### Adicionado
+- Botao de DOWNLOAD em cada documento transmitido, na tela. Baixa o arquivo completo - XML assinado com o protocolo -, que e o que o ERP importa e o que se arquiva. Aparece so onde ha arquivo guardado.
+- Documento recusado nao gera arquivo: o download responde "nao existe" em vez de devolver um XML vazio, que seria um arquivo com cara de valido.
+
+### Alterado
+- Ao emitir para o Parana a SEFAZ recusou com "IE do emitente nao informada". Nao e defeito: e o orgao confirmando o que a tela ja apontava - aquele agregado esta entre os 17 sem inscricao estadual, e sem inscricao nao se emite CT-e.
+
+### Corrigido
+- A emissao para agregado do PARANA morria ANTES de chegar a SEFAZ. Cada estado descreve o campo do envio de um jeito: Sao Paulo aceita o pacote comprimido como texto simples, e o Parana exige que ele venha tipado. Mas trocar para o formato do Parana quebrava Sao Paulo, que passava a recusar com "falha na descompactacao". Agora o envio tenta o caminho simples - o provado - e so troca de formato quando a UF reclama do tipo. Conferido nos dois: Sao Paulo autorizou, Parana chegou a SEFAZ.
+- Adaptar na hora em vez de manter uma lista de estados: lista de UF com excecao envelhece calada, e o defeito volta na primeira UF nova.
+
 ## [0.88.0] — 27/08/2026  ·  CX-27/08/2026-v0.88.0
 
 ### Adicionado

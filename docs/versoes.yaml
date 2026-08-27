@@ -1,3 +1,32 @@
+- versao: "0.89.0"
+  data: "2026-08-27"
+  corrigido:
+    - >-
+      A emissao para agregado do PARANA morria ANTES de chegar a SEFAZ. Cada
+      estado descreve o campo do envio de um jeito: Sao Paulo aceita o pacote
+      comprimido como texto simples, e o Parana exige que ele venha tipado. Mas
+      trocar para o formato do Parana quebrava Sao Paulo, que passava a recusar
+      com "falha na descompactacao". Agora o envio tenta o caminho simples - o
+      provado - e so troca de formato quando a UF reclama do tipo. Conferido
+      nos dois: Sao Paulo autorizou, Parana chegou a SEFAZ.
+    - >-
+      Adaptar na hora em vez de manter uma lista de estados: lista de UF com
+      excecao envelhece calada, e o defeito volta na primeira UF nova.
+  adicionado:
+    - >-
+      Botao de DOWNLOAD em cada documento transmitido, na tela. Baixa o arquivo
+      completo - XML assinado com o protocolo -, que e o que o ERP importa e o
+      que se arquiva. Aparece so onde ha arquivo guardado.
+    - >-
+      Documento recusado nao gera arquivo: o download responde "nao existe" em
+      vez de devolver um XML vazio, que seria um arquivo com cara de valido.
+  alterado:
+    - >-
+      Ao emitir para o Parana a SEFAZ recusou com "IE do emitente nao
+      informada". Nao e defeito: e o orgao confirmando o que a tela ja
+      apontava - aquele agregado esta entre os 17 sem inscricao estadual, e sem
+      inscricao nao se emite CT-e.
+
 - versao: "0.88.0"
   data: "2026-08-27"
   adicionado:
