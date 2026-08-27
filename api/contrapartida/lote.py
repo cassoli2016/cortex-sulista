@@ -95,6 +95,7 @@ SELECT k.chaveacessocte AS chave, k.dtemissao, v.proprietario AS cnpj,
 
 CHAVE_AUTOMACAO = "automacao_ativa"
 CHAVE_INTERVALO = "automacao_intervalo_min"
+CHAVE_ULTIMA = "automacao_ultima_execucao"
 
 # Intervalo entre execuções da rotina, em minutos.
 #
@@ -166,6 +167,48 @@ def definir_intervalo(minutos: int, quem: str) -> dict:
     return {"intervalo_min": v, "quem": quem, "quando": agora}
 
 
+def ultima_execucao() -> str | None:
+    r = emissao.config_lida(CHAVE_ULTIMA)
+    return (r or {}).get("quando")
+
+
+def registrar_execucao(quem: str) -> None:
+    """Marca que a rotina rodou AGORA. Gravado mesmo quando o lote não emitiu
+    nada: o que se está medindo é a passagem da rotina, não o resultado —
+    senão um período sem fila faria a rotina rodar em looping."""
+    agora = datetime.now().isoformat(timespec="seconds")
+    with emissao._conn_config() as c:
+        c.execute(
+            "INSERT INTO lote_config(chave, valor, quem, quando)"
+            " VALUES(?,?,?,?) ON CONFLICT(chave) DO UPDATE SET"
+            " valor=excluded.valor, quem=excluded.quem, quando=excluded.quando",
+            (CHAVE_ULTIMA, agora, quem, agora))
+
+
+def deve_rodar() -> tuple[bool, str]:
+    """Está na hora da próxima execução? Devolve também o PORQUÊ.
+
+    O agendador do sistema dispara em intervalo fixo e curto; quem decide se
+    é hora é isto, lendo o intervalo configurado na tela. Assim mudar o
+    intervalo tem efeito imediato, sem reinstalar tarefa nenhuma — e a
+    configuração continua num lugar só.
+    """
+    if not automacao_ativa():
+        return False, "automação desligada"
+    ult = ultima_execucao()
+    if not ult:
+        return True, "primeira execução"
+    try:
+        passados = (datetime.now() - datetime.fromisoformat(ult)).total_seconds() / 60
+    except ValueError:
+        # carimbo ilegível: roda e regrava, em vez de travar para sempre
+        return True, "última execução com data ilegível"
+    falta = intervalo_min() - passados
+    if falta > 0:
+        return False, f"faltam {falta:.0f} min para a próxima ({intervalo_min()} min)"
+    return True, f"{passados:.0f} min desde a última ({intervalo_min()} min)"
+
+
 def estado() -> dict:
     """Tudo que a tela de configuração precisa mostrar, num lugar só."""
     a = emissao.config_lida(CHAVE_AUTOMACAO) or {}
@@ -178,6 +221,7 @@ def estado() -> dict:
             "intervalo_min": intervalo_min(),
             "intervalo_quem": i.get("quem"), "intervalo_quando": i.get("quando"),
             "intervalo_limites": [INTERVALO_MIN, INTERVALO_MAX],
+            "ultima_execucao": ultima_execucao(),
         },
         "teto": {"homologacao": TETO_ABSOLUTO,
                  "producao": TETO_ABSOLUTO_PRODUCAO},

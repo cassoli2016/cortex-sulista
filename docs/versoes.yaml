@@ -1,3 +1,33 @@
+- versao: "0.84.0"
+  data: "2026-08-27"
+  adicionado:
+    - >-
+      Tarefa agendada da emissao do CT-e de contrapartida
+      (scripts/instalar_tarefa_contrapartida.ps1). Ela dispara de 5 em 5
+      minutos, mas NAO emite de 5 em 5 minutos: ela PERGUNTA se e hora, lendo
+      o intervalo configurado na tela. Mudar o intervalo em Administracao >
+      Integracoes tem efeito imediato, sem reinstalar tarefa nenhuma.
+    - >-
+      Instalar a tarefa e seguro mesmo com tudo desligado: se a automacao
+      estiver desligada, o script sai sem fazer nada. A tarefa existir nao liga
+      a emissao - sao dois interruptores diferentes, e o segundo esta na tela.
+    - >-
+      A tarefa tambem NAO escolhe o ambiente. Deixar homologacao ou producao
+      no argumento criaria uma segunda fonte da verdade que ninguem lembraria
+      de conferir - o ambiente sai da mesma tela.
+  alterado:
+    - >-
+      Quando nao e hora de rodar, o script sai com sucesso e nao com erro: para
+      o Windows a tarefa foi bem-sucedida, e o historico do agendador nao
+      enche de "falha" a cada cinco minutos.
+    - >-
+      A passagem da rotina e registrada mesmo quando nada foi emitido - o que
+      se mede e a rotina ter rodado, nao o resultado. Sem isso, um periodo sem
+      fila faria a tarefa tentar de novo a cada cinco minutos.
+    - >-
+      Carimbo de ultima execucao ilegivel faz a rotina RODAR, nao travar: um
+      valor corrompido nao pode deixar a emissao parada indefinidamente.
+
 - versao: "0.83.0"
   data: "2026-08-27"
   adicionado:

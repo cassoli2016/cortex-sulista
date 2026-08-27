@@ -302,3 +302,71 @@ def test_estado_devolve_o_que_a_tela_precisa():
     # a frase vai para a tela para ela poder INSTRUIR, nao para validar no
     # cliente: quem valida e o servidor
     assert e["ambiente"]["confirmacao_exigida"]
+
+
+# --- a rotina agendada ------------------------------------------------------
+
+def test_automacao_desligada_faz_a_rotina_NAO_rodar(monkeypatch):
+    monkeypatch.setattr(lote, "automacao_ativa", lambda: False)
+    pode, porque = lote.deve_rodar()
+    assert pode is False and "desligada" in porque
+
+
+def test_primeira_execucao_roda(monkeypatch):
+    monkeypatch.setattr(lote, "automacao_ativa", lambda: True)
+    monkeypatch.setattr(lote, "ultima_execucao", lambda: None)
+    pode, porque = lote.deve_rodar()
+    assert pode is True and "primeira" in porque
+
+
+def test_antes_do_intervalo_NAO_roda(monkeypatch):
+    from datetime import datetime, timedelta
+    monkeypatch.setattr(lote, "automacao_ativa", lambda: True)
+    monkeypatch.setattr(lote, "intervalo_min", lambda: 60)
+    monkeypatch.setattr(lote, "ultima_execucao",
+                        lambda: (datetime.now() - timedelta(minutes=10)
+                                 ).isoformat(timespec="seconds"))
+    pode, porque = lote.deve_rodar()
+    assert pode is False and "faltam" in porque
+
+
+def test_depois_do_intervalo_roda(monkeypatch):
+    from datetime import datetime, timedelta
+    monkeypatch.setattr(lote, "automacao_ativa", lambda: True)
+    monkeypatch.setattr(lote, "intervalo_min", lambda: 60)
+    monkeypatch.setattr(lote, "ultima_execucao",
+                        lambda: (datetime.now() - timedelta(minutes=61)
+                                 ).isoformat(timespec="seconds"))
+    assert lote.deve_rodar()[0] is True
+
+
+def test_carimbo_ilegivel_roda_em_vez_de_travar_para_sempre(monkeypatch):
+    """Um valor corrompido nao pode deixar a rotina parada indefinidamente."""
+    monkeypatch.setattr(lote, "automacao_ativa", lambda: True)
+    monkeypatch.setattr(lote, "ultima_execucao", lambda: "ontem de tarde")
+    pode, porque = lote.deve_rodar()
+    assert pode is True and "ilegível" in porque
+
+
+def test_o_modo_agendado_sai_LIMPO_quando_nao_e_hora():
+    """Sair com 0 e de proposito: para o Windows a tarefa foi bem-sucedida, e
+    o historico do agendador nao enche de 'falha' a cada cinco minutos."""
+    fonte = open("scripts/emitir_lote.py", encoding="utf-8").read()
+    trecho = fonte[fonte.index("if a.agendado:"):]
+    assert 'print(f"nada a fazer' in trecho and "return 0" in trecho
+
+
+def test_a_tarefa_agendada_NAO_escolhe_ambiente():
+    """O ambiente e decisao da TELA. Deixa-lo no argumento da tarefa criaria
+    uma segunda fonte da verdade que ninguem lembraria de conferir."""
+    ps1 = open("scripts/instalar_tarefa_contrapartida.ps1",
+               encoding="utf-8-sig").read()
+    # so a LINHA DA ACAO importa: o comentario logo acima cita --producao
+    # justamente para explicar por que ele nao esta no argumento.
+    # `-ArgumentList` da auto-elevacao tambem casa com "-Argument": pega a
+    # linha do -Argument do New-ScheduledTaskAction, que e a que executa.
+    acao = [l for l in ps1.splitlines()
+            if "-Argument " in l and "$alvo" in l]
+    assert len(acao) == 1, acao
+    assert "--agendado" in acao[0] and "--producao" not in acao[0]
+    assert "Minutes 5" in ps1, "o disparo tem de bater com o piso do intervalo"

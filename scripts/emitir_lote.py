@@ -35,6 +35,8 @@ def main() -> int:
                     help="transmite de verdade (sem isto, e ensaio)")
     ap.add_argument("--desassistido", action="store_true",
                     help="modo da rotina agendada: exige a automacao LIGADA")
+    ap.add_argument("--agendado", action="store_true",
+                    help="chamado pelo agendador: so roda se estiver na hora")
     ap.add_argument("--ligar-automacao", action="store_true")
     ap.add_argument("--desligar-automacao", action="store_true")
     ap.add_argument("--producao", action="store_true",
@@ -58,6 +60,20 @@ def main() -> int:
         return 0
 
     ambiente = emissao.PRODUCAO if a.producao else emissao.HOMOLOGACAO
+
+    # O AGENDADOR dispara em intervalo fixo e curto; quem decide se e hora e o
+    # proprio CORTEX, lendo o intervalo configurado na tela. Sair com 0 quando
+    # nao e hora e de proposito: para o Windows a tarefa foi bem-sucedida, e o
+    # historico do agendador nao enche de "falha" a cada cinco minutos.
+    if a.agendado:
+        a.desassistido = True
+        a.valendo = True
+        ambiente = emissao.ambiente_ativo()
+        pode, porque = lote.deve_rodar()
+        if not pode:
+            print(f"nada a fazer: {porque}")
+            return 0
+        print(f"na hora: {porque}")
 
     if a.ligar_automacao or a.desligar_automacao:
         r = lote.definir_automacao(bool(a.ligar_automacao), a.quem)
