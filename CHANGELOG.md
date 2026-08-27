@@ -4,6 +4,14 @@ Gerado de `docs/versoes.yaml` por `scripts/gerar_changelog.py` — não editar �
 Formato [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/),
 versionamento [SemVer](https://semver.org/lang/pt-BR/).
 
+## [0.104.0] — 27/08/2026  ·  CX-27/08/2026-v0.104.0
+
+### Alterado
+- A tela de CT-e de Contrapartida foi separada em duas abas, porque ela faz duas coisas com ciclos de vida diferentes. "Despacho do dia" tem o que precisa sair hoje: o cronometro da emissao automatica, a fila e os documentos transmitidos. "Implantacao" tem o que ainda impede a fila de andar: validador de cadastro, vencimento de certificados e o historico.
+- Empilhadas, as duas davam doze blocos seguidos, com tres cartoes falando de certificado em pontos distantes da pagina. Separadas, o dia a dia abre limpo - e quando a implantacao terminar nao havera nada para desmontar: a aba simplesmente deixa de ser aberta.
+- A aba escolhida fica guardada. Quem esta em implantacao volta varias vezes por dia ao validador, e reabrir sempre no despacho custaria dois cliques por visita.
+- A varredura completa do cadastro so consulta o ERP quando a aba que a mostra e aberta, e so na primeira vez - antes ela era uma consulta pesada disparada por quem talvez nem fosse olhar.
+
 ## [0.103.0] — 27/08/2026  ·  CX-27/08/2026-v0.103.0
 
 ### Adicionado
