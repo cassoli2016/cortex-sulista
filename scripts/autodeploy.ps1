@@ -102,10 +102,26 @@ try {
     # linha, so o numero de versao) bloqueava o fast-forward, e o log dizia
     # "atualizado c66d740 -> 4332d2e" a cada dois minutos enquanto o HEAD nao
     # saia do lugar. Quem olhasse o log concluiria que o deploy tinha subido.
+    # `uv.lock` E GERADO, e e' o proprio deploy que o suja: o `uv sync` daqui
+    # de baixo reescreve a linha `version` do pacote para casar com o
+    # pyproject, e a alteracao fica pendurada na arvore. Na proxima subida o
+    # fast-forward e' RECUSADO por causa dela, e o deploy trava - aconteceu
+    # duas vezes em 27/08/2026, uma delas por uma unica linha de diferenca.
+    # Alteracao de dependencia de verdade chega COMMITADA; uma pendente aqui e'
+    # sempre residuo, entao descartar e' seguro e restaura o unico estado
+    # valido, que e' o do origin.
+    $sujo = & $git @gitOpt status --porcelain -- uv.lock
+    if ($sujo) {
+      & $git @gitOpt checkout -- uv.lock
+      Registrar 'uv.lock estava modificado na arvore (residuo do uv sync) - descartado antes do merge'
+    }
     $saidaMerge = & $git @gitOpt merge --ff-only origin/main 2>&1
     $depois = Git-Texto @('rev-parse', 'HEAD')
     if ($depois -ne $remoto) {
-      $motivo = ($saidaMerge | Out-String).Trim()
+      # O git responde em VARIAS linhas e a segunda e' que traz o nome do
+      # arquivo que travou; o log guarda uma linha por registro, entao junta
+      # tudo com ' | ' em vez de perder o resto.
+      $motivo = (($saidaMerge | Out-String).Trim() -split "`r?`n" -join ' | ')
       # Alteracao local nao commitada e' de longe a causa mais comum, e a saida
       # do git ja nomeia o arquivo - passa adiante inteira, para nao obrigar
       # ninguem a reproduzir o merge na mao so para saber o que travou.
