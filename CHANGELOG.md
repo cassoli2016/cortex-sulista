@@ -4,6 +4,11 @@ Gerado de `docs/versoes.yaml` por `scripts/gerar_changelog.py` — não editar �
 Formato [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/),
 versionamento [SemVer](https://semver.org/lang/pt-BR/).
 
+## [0.93.1] — 27/08/2026  ·  CX-27/08/2026-v0.93.1
+
+### Corrigido
+- A suite de testes falhava NO SERVIDOR e passava na maquina de quem nunca configurou nada. O teste do "modo nao configurado" da Premiacao limpava so a variavel de ambiente, e o cofre da tela de Gestao vence a variavel: onde existe token guardado de verdade, a integracao continuava ligada e o teste acusava falha que nao existia.
+
 ## [0.93.0] — 27/08/2026  ·  CX-27/08/2026-v0.93.0
 
 ### Adicionado

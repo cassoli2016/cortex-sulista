@@ -1,3 +1,13 @@
+- versao: "0.93.1"
+  data: "2026-08-27"
+  corrigido:
+    - >-
+      A suite de testes falhava NO SERVIDOR e passava na maquina de quem nunca
+      configurou nada. O teste do "modo nao configurado" da Premiacao limpava
+      so a variavel de ambiente, e o cofre da tela de Gestao vence a variavel:
+      onde existe token guardado de verdade, a integracao continuava ligada e o
+      teste acusava falha que nao existia.
+
 - versao: "0.93.0"
   data: "2026-08-27"
   corrigido:
