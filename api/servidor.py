@@ -504,6 +504,13 @@ def _bases_locais() -> list[dict]:
         caminho = raiz / arquivo
         item = {"nome": rotulo, "arquivo": arquivo}
         if not caminho.exists():
+            # BASE MIGRADA E ARQUIVO JÁ APAGADO: sai da lista. Ela não é mais
+            # uma base local — o dado vive no PostgreSQL, e a linha do banco do
+            # CÓRTEX logo acima já responde por ele. Sem este `continue` a tela
+            # diria "não usada ainda", que é o rótulo de recurso que ninguém
+            # ligou: leitura oposta da verdade para uma base em pleno uso.
+            if arquivo in MIGRADAS:
+                continue
             fora.append({**item, "status": "info", "bytes": 0,
                          "detalhe": "não usada ainda"})
             continue

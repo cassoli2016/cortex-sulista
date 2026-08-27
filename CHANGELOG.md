@@ -4,6 +4,14 @@ Gerado de `docs/versoes.yaml` por `scripts/gerar_changelog.py` — não editar �
 Formato [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/),
 versionamento [SemVer](https://semver.org/lang/pt-BR/).
 
+## [0.115.1] — 27/08/2026  ·  CX-27/08/2026-v0.115.1
+
+### Alterado
+- O cache de telemetria da Gobrax e o unico que continua em arquivo, e o codigo agora diz por que: ele guarda exatamente as duas competencias que a coleta refaz de 3 em 3 horas. Apagar custa uma coleta, nao um dado - leva-lo para o banco so encheria o backup de linhas que se refazem sozinhas antes do proximo dump.
+
+### Corrigido
+- A lista de bases locais da Saude do Servidor ia mentir no dia em que os arquivos antigos fossem apagados: uma base migrada, com o arquivo ja removido, apareceria como "nao usada ainda" - o rotulo de recurso que ninguem ligou, leitura oposta da verdade para uma base em pleno uso. Agora ela simplesmente sai da lista, porque deixou de ser uma base local: quem responde por ela e a linha do banco do CORTEX, logo acima.
+
 ## [0.115.0] — 27/08/2026  ·  CX-27/08/2026-v0.115.0
 
 ### Adicionado

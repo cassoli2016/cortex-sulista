@@ -1,3 +1,21 @@
+- versao: "0.115.1"
+  data: "2026-08-27"
+  corrigido:
+    - >-
+      A lista de bases locais da Saude do Servidor ia mentir no dia em que os
+      arquivos antigos fossem apagados: uma base migrada, com o arquivo ja
+      removido, apareceria como "nao usada ainda" - o rotulo de recurso que
+      ninguem ligou, leitura oposta da verdade para uma base em pleno uso.
+      Agora ela simplesmente sai da lista, porque deixou de ser uma base local:
+      quem responde por ela e a linha do banco do CORTEX, logo acima.
+  alterado:
+    - >-
+      O cache de telemetria da Gobrax e o unico que continua em arquivo, e o
+      codigo agora diz por que: ele guarda exatamente as duas competencias que
+      a coleta refaz de 3 em 3 horas. Apagar custa uma coleta, nao um dado -
+      leva-lo para o banco so encheria o backup de linhas que se refazem
+      sozinhas antes do proximo dump.
+
 - versao: "0.115.0"
   data: "2026-08-27"
   adicionado:

@@ -1,5 +1,16 @@
 """Cache local das coletas lentas da Gobrax — data/telemetria.db.
 
+O ÚNICO STORE QUE FICOU EM SQLITE, e de propósito. Os outros dez migraram para
+o PostgreSQL em 27/08/2026 (docs/MIGRACAO_POSTGRES.md); este não, porque é
+CACHE DESCARTÁVEL de verdade: guarda exatamente as duas competências que a
+tarefa agendada recoleta de 3 em 3 horas (mês corrente e anterior, ver
+`scripts/coletar_telemetria.py`). Apagar o arquivo custa uma coleta, não um
+dado — e levá-lo para o banco só encheria o backup de linhas que se refazem
+sozinhas antes do próximo dump.
+
+NÃO copie esta forma para módulo novo: quem ESCREVE dado da casa usa
+`api/pglocal.py`. Ver a seção "Onde o dado é ESCRITO" do CLAUDE.md.
+
 vehicle-statistics leva 73 s para a frota e vehicle-odometer 66 s. Nenhuma tela
 pode pagar isso no carregamento, então o resultado é coletado em segundo plano e
 lido daqui. O registro vai como JSON: o formato da API muda com o tempo e não
