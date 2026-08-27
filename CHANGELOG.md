@@ -4,6 +4,17 @@ Gerado de `docs/versoes.yaml` por `scripts/gerar_changelog.py` — não editar �
 Formato [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/),
 versionamento [SemVer](https://semver.org/lang/pt-BR/).
 
+## [0.101.0] — 27/08/2026  ·  CX-27/08/2026-v0.101.0
+
+### Adicionado
+- Mais dois bancos locais foram para o PostgreSQL: as inscricoes de notificacao no celular (push) e a trilha de e-mails enviados. Com o RNTRC, sao tres dos dez - e nenhuma tela mudou de aparencia, que e o objetivo de uma migracao bem feita.
+
+### Alterado
+- Toda tabela do banco novo passou a levar o prefixo do modulo. A trilha de e-mail e a de antecipacoes se chamam "envios" nas duas origens: no banco unico elas disputariam o mesmo nome, e a segunda migracao apagaria a primeira. A colisao apareceu ao escrever a migration, antes de qualquer dado se perder.
+
+### Corrigido
+- O modulo de notificacao criava as tabelas no momento em que era carregado. Com o banco de arquivo isso nao custava nada; com o PostgreSQL, o banco fora do ar faria a API INTEIRA nao subir - por causa do recurso mais acessorio do sistema. As tabelas passam a nascer na primeira inscricao, e antes disso a tela mostra zero, que e a verdade.
+
 ## [0.100.0] — 27/08/2026  ·  CX-27/08/2026-v0.100.0
 
 ### Alterado

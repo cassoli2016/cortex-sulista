@@ -1,7 +1,9 @@
 """Envio de e-mail: configuração, validação, trilha e o envio em si.
 
-Nenhum teste toca a rede nem o data/ real: `config.CAMINHO` e
-`registro.DB_PATH` são redirecionados para tmp_path, e o SMTP é dublê.
+Nenhum teste toca a rede nem o data/ real: `config.CAMINHO` vai para tmp_path,
+a trilha vai para um SCHEMA exclusivo do teste no PostgreSQL local (a trilha
+migrou do SQLite em 27/08/2026) e o SMTP é dublê. Sem banco, os testes da
+trilha se pulam dizendo por quê — ver tests/conftest.py.
 """
 from __future__ import annotations
 
@@ -14,10 +16,10 @@ from api.correio import envio, registro
 
 
 @pytest.fixture(autouse=True)
-def _isola(tmp_path, monkeypatch):
-    """Isola arquivo de config, banco da trilha e o cofre da senha."""
+def _isola(tmp_path, monkeypatch, esquema_pg):
+    """Isola arquivo de config, trilha e cofre da senha."""
     monkeypatch.setattr(cfg, "CAMINHO", tmp_path / "email_config.json")
-    monkeypatch.setattr(registro, "DB_PATH", tmp_path / "email.db")
+    monkeypatch.setattr(registro, "ESQUEMA", esquema_pg)
     monkeypatch.setattr(cfg, "senha", lambda: "segredo")
     return tmp_path
 
@@ -210,15 +212,14 @@ def test_ssl_direto_nao_chama_starttls(monkeypatch):
 
 # ----------------------------------------------------------------- trilha
 
-def test_corpo_grande_e_truncado_na_trilha():
+def test_corpo_grande_e_truncado_na_trilha(esquema_pg):
     registro.gravar(["a@b.com"], "Assunto", "x" * 10000, ok=True)
     assert len(registro.listar()[0].get("assunto")) > 0
     # o corpo não volta na listagem (é da tela), mas foi truncado ao gravar
-    import sqlite3
-    c = sqlite3.connect(registro.DB_PATH)
-    (tam,) = c.execute("SELECT length(corpo) FROM envios").fetchone()
-    c.close()
-    assert tam == registro.MAX_CORPO
+    from api import pglocal
+    r = pglocal.um("SELECT length(corpo) AS n FROM correio_envios",
+                   esquema=esquema_pg)
+    assert r["n"] == registro.MAX_CORPO
 
 
 def test_resumo_conta_ok_e_falha():

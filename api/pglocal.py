@@ -137,6 +137,18 @@ def apagar_esquema(nome: str) -> None:
                 _sql.Identifier(nome)))
 
 
+def sem_tabela(exc: Exception) -> bool:
+    """Tabela que ainda não existe é BASE VAZIA, não falha.
+
+    É o que, no SQLite, era `if not Path(p).exists()`. A distinção vale para
+    todo store migrado: `UndefinedTable` vira "nunca gravou nada" (e a tela diz
+    isso, que é verdade), enquanto erro de CONEXÃO sobe — aí a tela não pode
+    afirmar nada, e engolir a falha faria "banco fora do ar" parecer "não há
+    dado", que é a mentira mais cara desta migração.
+    """
+    return isinstance(exc, psycopg.errors.UndefinedTable)
+
+
 def diagnostico() -> dict:
     """Estado da conexão — alimenta a tela de Saúde. Não levanta: é a tela onde
     se olha justamente quando alguma coisa está errada."""

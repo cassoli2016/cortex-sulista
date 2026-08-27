@@ -22,8 +22,6 @@ from __future__ import annotations
 import re
 from datetime import datetime
 
-import psycopg
-
 from .. import migracoes, pglocal
 
 _SO_DIGITOS = re.compile(r"\D")
@@ -84,23 +82,12 @@ def gravar_lote(linhas: list[dict], competencia: str,
     return len(linhas)
 
 
-def _sem_base(exc: Exception) -> bool:
-    """Tabela que ainda não existe é BASE NUNCA SINCRONIZADA, não falha.
-
-    É o mesmo caso que, no SQLite, era `if not Path(p).exists()`. A distinção
-    importa: `UndefinedTable` vira base vazia (a tela mostra "sem base", que é
-    verdade), enquanto erro de conexão SOBE — porque aí a tela não pode
-    afirmar nada sobre a regularidade de ninguém.
-    """
-    return isinstance(exc, psycopg.errors.UndefinedTable)
-
-
 def situacao(rntrc: str, esquema: str | None = None) -> dict | None:
     try:
         return pglocal.um("SELECT * FROM rntrc_transportador WHERE rntrc=%s",
                           (normalizar_rntrc(rntrc),), esquema=esquema)
     except Exception as exc:  # noqa: BLE001
-        if _sem_base(exc):
+        if pglocal.sem_tabela(exc):
             return None
         raise
 
@@ -110,7 +97,7 @@ def todas(esquema: str | None = None) -> dict[str, dict]:
         linhas = pglocal.query("SELECT * FROM rntrc_transportador",
                                esquema=esquema)
     except Exception as exc:  # noqa: BLE001
-        if _sem_base(exc):
+        if pglocal.sem_tabela(exc):
             return {}
         raise
     return {r["rntrc"]: dict(r) for r in linhas}
@@ -121,6 +108,6 @@ def ultima_sync(esquema: str | None = None) -> dict | None:
         return pglocal.um("SELECT competencia, quando, linhas FROM rntrc_sync"
                           " ORDER BY id DESC LIMIT 1", esquema=esquema)
     except Exception as exc:  # noqa: BLE001
-        if _sem_base(exc):
+        if pglocal.sem_tabela(exc):
             return None
         raise

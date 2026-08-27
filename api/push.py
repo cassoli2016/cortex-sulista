@@ -1,6 +1,7 @@
 """Web Push — notificações no celular.
 
-Inscrições (subscriptions do navegador) ficam em `data/push.db`; o envio usa
+Inscrições (subscriptions do navegador) ficam no PostgreSQL local, schema
+`cortex` (migrado do SQLite em 27/08/2026 — ver docs/MIGRACAO_POSTGRES.md); o envio usa
 `pywebpush` com as chaves VAPID do `.env`. Um digest diário (07:00, thread
 interna) manda o resumo dos alertas críticos/atenção via `build_alertas`.
 
@@ -16,17 +17,13 @@ from __future__ import annotations
 import json
 import logging
 import os
-import sqlite3
 import threading
 import time
-from contextlib import contextmanager
 from datetime import datetime
-from pathlib import Path
+
+from . import migracoes, pglocal
 
 log = logging.getLogger("cortex.push")
-
-ROOT = Path(__file__).resolve().parent.parent
-DB_PATH = ROOT / "data" / "push.db"
 
 
 def _pub() -> str:
@@ -45,69 +42,80 @@ def habilitado() -> bool:
     return bool(_pub() and _priv())
 
 
-# ---------------------------------------------------------------- SQLite
-
-@contextmanager
-def _conn():
-    DB_PATH.parent.mkdir(exist_ok=True)
-    c = sqlite3.connect(DB_PATH, timeout=10)
-    c.row_factory = sqlite3.Row
-    try:
-        with c:
-            yield c
-    finally:
-        c.close()
+# ------------------------------------------------- PostgreSQL local (cortex)
+#
+# LEITURA NUNCA DERRUBA A TELA. Tabela ainda inexistente é "ninguém se
+# inscreveu" — o mesmo que, no SQLite, era arquivo que não existia. Erro de
+# CONEXÃO sobe (ver pglocal.sem_tabela): num contador de inscrições, zero por
+# banco caído e zero por ninguém inscrito são a mesma tela e coisas opostas.
 
 
-def init_db() -> None:
-    with _conn() as c:
-        c.execute(
-            "CREATE TABLE IF NOT EXISTS subs("
-            "endpoint TEXT PRIMARY KEY, p256dh TEXT NOT NULL, auth TEXT NOT NULL,"
-            "usuario TEXT, criado_em TEXT)")
-        c.execute("CREATE TABLE IF NOT EXISTS meta(chave TEXT PRIMARY KEY, valor TEXT)")
+def init_db(esquema: str | None = None) -> None:
+    """Garante o schema aplicado. NÃO é chamado no import: com o banco fora do
+    ar, um DDL no import derrubaria a API inteira na subida — e push é acessório
+    perto de qualquer outra tela."""
+    migracoes.aplicar(esquema)
 
 
 def _agora() -> str:
     return datetime.now().strftime("%Y-%m-%d %H:%M:%S")
 
 
-def salvar_sub(sub: dict, usuario: str | None) -> None:
+def salvar_sub(sub: dict, usuario: str | None, esquema: str | None = None) -> None:
     ep = (sub or {}).get("endpoint")
     keys = (sub or {}).get("keys") or {}
     if not ep or not keys.get("p256dh") or not keys.get("auth"):
         raise ValueError("subscription invalida")
-    with _conn() as c:
-        c.execute(
-            "INSERT INTO subs(endpoint,p256dh,auth,usuario,criado_em) VALUES(?,?,?,?,?) "
-            "ON CONFLICT(endpoint) DO UPDATE SET p256dh=excluded.p256dh, "
-            "auth=excluded.auth, usuario=excluded.usuario",
-            (ep, keys["p256dh"], keys["auth"], usuario, _agora()))
+    init_db(esquema)   # primeira inscrição da instalação cria as tabelas
+    pglocal.executar(
+        "INSERT INTO push_subs(endpoint,p256dh,auth,usuario,criado_em)"
+        " VALUES(%s,%s,%s,%s,%s)"
+        " ON CONFLICT(endpoint) DO UPDATE SET p256dh=excluded.p256dh,"
+        " auth=excluded.auth, usuario=excluded.usuario",
+        (ep, keys["p256dh"], keys["auth"], usuario, _agora()), esquema=esquema)
 
 
-def remover_sub(endpoint: str) -> None:
-    with _conn() as c:
-        c.execute("DELETE FROM subs WHERE endpoint=?", (endpoint,))
+def remover_sub(endpoint: str, esquema: str | None = None) -> None:
+    try:
+        pglocal.executar("DELETE FROM push_subs WHERE endpoint=%s", (endpoint,),
+                         esquema=esquema)
+    except Exception as exc:  # noqa: BLE001
+        if not pglocal.sem_tabela(exc):
+            raise
 
 
-def _all_subs() -> list[dict]:
-    with _conn() as c:
-        return [dict(r) for r in c.execute("SELECT * FROM subs").fetchall()]
+def _all_subs(esquema: str | None = None) -> list[dict]:
+    try:
+        return pglocal.query("SELECT * FROM push_subs", esquema=esquema)
+    except Exception as exc:  # noqa: BLE001
+        if pglocal.sem_tabela(exc):
+            return []
+        raise
 
 
-def subs_do_usuario(usuario: str | None) -> list[dict]:
-    with _conn() as c:
-        return [dict(r) for r in
-                c.execute("SELECT * FROM subs WHERE usuario=?", (usuario,)).fetchall()]
+def subs_do_usuario(usuario: str | None, esquema: str | None = None) -> list[dict]:
+    try:
+        return pglocal.query("SELECT * FROM push_subs WHERE usuario=%s", (usuario,),
+                             esquema=esquema)
+    except Exception as exc:  # noqa: BLE001
+        if pglocal.sem_tabela(exc):
+            return []
+        raise
 
 
-def contar_subs(usuario: str | None = None) -> int:
-    with _conn() as c:
-        if usuario:
-            r = c.execute("SELECT count(*) AS n FROM subs WHERE usuario=?", (usuario,)).fetchone()
-        else:
-            r = c.execute("SELECT count(*) AS n FROM subs").fetchone()
-    return r["n"]
+def contar_subs(usuario: str | None = None, esquema: str | None = None) -> int:
+    sql = "SELECT count(*) AS n FROM push_subs"
+    params = None
+    if usuario:
+        sql += " WHERE usuario=%s"
+        params = (usuario,)
+    try:
+        r = pglocal.um(sql, params, esquema=esquema)
+    except Exception as exc:  # noqa: BLE001
+        if pglocal.sem_tabela(exc):
+            return 0
+        raise
+    return int((r or {}).get("n") or 0)
 
 
 # ---------------------------------------------------------------- envio
@@ -166,18 +174,29 @@ def _hora() -> int:
 _started = False
 
 
-def _ja_enviou_hoje() -> bool:
+def _ja_enviou_hoje(esquema: str | None = None) -> bool:
     hoje = datetime.now().strftime("%Y-%m-%d")
-    with _conn() as c:
-        r = c.execute("SELECT valor FROM meta WHERE chave='ultimo_digest'").fetchone()
+    try:
+        r = pglocal.um("SELECT valor FROM push_meta WHERE chave='ultimo_digest'",
+                       esquema=esquema)
+    except Exception as exc:  # noqa: BLE001
+        if pglocal.sem_tabela(exc):
+            return False
+        raise
     return bool(r) and r["valor"] == hoje
 
 
-def _marca_hoje() -> None:
+def _marca_hoje(esquema: str | None = None) -> None:
+    # instalação onde ninguém se inscreveu ainda não tem as tabelas, e o
+    # marcador é escrito MESMO com zero envios (para o digest não repetir no
+    # dia). Sem isto, o laço tentaria e falharia de 5 em 5 minutos durante a
+    # hora inteira, enchendo o log de aviso que não é problema nenhum.
+    init_db(esquema)
     hoje = datetime.now().strftime("%Y-%m-%d")
-    with _conn() as c:
-        c.execute("INSERT INTO meta(chave,valor) VALUES('ultimo_digest',?) "
-                  "ON CONFLICT(chave) DO UPDATE SET valor=excluded.valor", (hoje,))
+    pglocal.executar(
+        "INSERT INTO push_meta(chave,valor) VALUES('ultimo_digest',%s)"
+        " ON CONFLICT(chave) DO UPDATE SET valor=excluded.valor",
+        (hoje,), esquema=esquema)
 
 
 def _loop() -> None:
@@ -198,10 +217,11 @@ def iniciar_scheduler() -> None:
     global _started
     if _started or not habilitado():
         return
-    init_db()
     _started = True
     threading.Thread(target=_loop, daemon=True, name="push-digest").start()
     log.info("scheduler de push diario iniciado (%02d:00)", _hora())
 
-
-init_db()  # garante as tabelas no import (inscrição funciona mesmo antes do 1º envio)
+# NÃO há `init_db()` no import. Enquanto era SQLite, criar o arquivo no import
+# custava nada; com o Postgres, um DDL no import faz a API inteira falhar na
+# subida se o banco estiver fora do ar. As tabelas nascem na primeira inscrição
+# (`salvar_sub`), e toda leitura antes disso responde vazio.

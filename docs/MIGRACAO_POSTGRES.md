@@ -1,8 +1,8 @@
 # Migração dos bancos locais para PostgreSQL
 
-> Estado: **em andamento** — Fase 0 concluída, piloto `antt` no ar
-> (222 transportadores lidos do PostgreSQL em 27/08/2026).
-> Próximo: Fase 2, começando por `push` ou `correio`.
+> Estado: **em andamento** — Fase 0 concluída; `antt`, `push` e `correio` no ar
+> (27/08/2026). Faltam seis stores: `previsao`, `antecipacoes`, `contrapartida`,
+> `extrato`, `orcamento` e, por último, `auth`.
 
 O CÓRTEX nasceu com dez bancos SQLite em `data/`. Este documento é o plano de
 levá-los para um PostgreSQL local, **um por vez**, sem parar de entregar. Ele é
@@ -162,7 +162,7 @@ Tradução mecânica de dialeto:
 |---|---|---|---|
 | 0 | Banco, role, `api/pglocal.py`, runner de migration, backup, padrão de teste | ~1 dia | **feito** |
 | 1 | Piloto: `antt` (223 linhas, 8 executes) | 2–4 h | **no ar** |
-| 2 | `push` · `correio` · `previsao` · `antecipacoes` · `contrapartida` · `extrato` · `orcamento` | 0,5–1,5 dia cada | a fazer |
+| 2 | ~~`push`~~ · ~~`correio`~~ · `previsao` · `antecipacoes` · `contrapartida` · `extrato` · `orcamento` | 0,5–1,5 dia cada | 2 de 7 |
 | 3 | `auth` — por último, apesar de ser o mais importante | 1–2 dias | a fazer |
 | 4 | Cache (`telemetria`, e talvez os JSON) — só se aparecer motivo | — | provavelmente nunca |
 
@@ -182,6 +182,33 @@ Cada store da Fase 2 leva junto:
 3. os testes reapontados para schema por teste;
 4. o `.db` antigo **mantido em disco** até a fase seguinte fechar — é o
    desfazer mais barato que existe.
+
+### Duas regras que os stores 2 e 3 acrescentaram
+
+**Toda tabela leva o prefixo do módulo.** `email.db` e `antecipacoes.db` têm,
+os dois, uma tabela `envios` — no schema único elas disputariam o mesmo nome. A
+colisão apareceu ao escrever a migration do correio, antes de qualquer dado se
+perder, e a regra passou a valer para trás: `subs`/`meta` viraram
+`push_subs`/`push_meta` no mesmo dia. É a convenção que o `CLAUDE.md` já manda
+para o banco grande (`fin_*`, `com_*`, `op_*`). Nome que já é inequívoco fica
+como está (`rntrc_*`), o que importa é não disputar.
+
+**Nada de DDL no import.** `api/push.py` chamava `init_db()` no nível do
+módulo: com SQLite, criar o arquivo custava nada. Com Postgres, um DDL no
+import faz a API inteira falhar na subida se o banco estiver fora do ar — por
+causa do módulo de notificação, que é o mais acessório de todos. As tabelas
+nascem na primeira escrita, e toda leitura antes disso responde vazio.
+
+### Como o teste redireciona (a manopla que substitui o `DB_PATH`)
+
+O módulo migrado expõe `ESQUEMA: str | None = None`, e o teste faz
+`monkeypatch.setattr(registro, "ESQUEMA", esquema_pg)` — exatamente o idioma
+que já existia com `DB_PATH`. O argumento `esquema=` continua valendo e vence,
+para quem precisa de dois schemas na mesma linha.
+
+É o que torna barato o resto da Fase 2: `orcamento` tem 104 referências a
+`tmp_path`/`DB_PATH` nos testes, e sem a manopla cada uma delas viraria uma
+edição.
 
 ---
 
