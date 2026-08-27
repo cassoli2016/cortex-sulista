@@ -2671,6 +2671,8 @@ body.tvfull #btnReport,body.tvmode #btnReport{display:none}
             <label>Até<input type="date" id="fCpAte" onchange="loadCtecp()" aria-label="Data final"></label>
             <label>Agregado<input type="search" id="fCpBusca" onchange="loadCtecp()"
                    placeholder="nome ou CNPJ" aria-label="Buscar agregado" style="min-width:210px"></label>
+            <label>&nbsp;<button class="btn" id="btnCpVarrer" onclick="cpVarrer()"
+                   title="Refaz a consulta ao ERP agora, sem esperar a próxima vez que a tela abrir. A consulta é sempre ao vivo — o botão existe porque hoje a única forma de repetir era trocar um filtro ou recarregar a página.">Varrer o ERP agora</button></label>
           </div>
         </div>
 
@@ -4219,8 +4221,16 @@ function posSaldo(dataMax, dataMin){
   return {txt:txt, dias:dias, velho:dias>=3};
 }
 // o ERP devolve "YYYY-MM-DD HH24:MI" (to_char); a ficha do veículo mostrava cru
-const fmtDT = s => { if(!s) return '—'; const [d,h]=String(s).split(' ');
-  return fmtD(d)+(h?' '+h.slice(0,5):''); };
+/* dd/mm/aaaa hh:mm:ss.
+   O separador ISO 'T' precisa virar espaço ANTES do split: sem isso
+   "2026-08-27T13:51:03" não separava, ia inteiro para o fmtD e saía como
+   "27T13:51:03/08/2026" na tabela de documentos transmitidos.
+   Os segundos aparecem quando a ORIGEM os tem. Completar com ":00" o que veio
+   só com minuto seria inventar precisão que o dado não tem — e num registro
+   fiscal, onde a ordem dos eventos importa, isso mente sobre a sequência. */
+const fmtDT = s => { if(!s) return '—';
+  const [d,h]=String(s).replace('T',' ').split(' ');
+  return fmtD(d)+(h?' '+h.slice(0,8):''); };
 const esc  = s => (s??'').toString().replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
 const unitOf = m => m>=1.5e6 ? {d:1e6,t:'R$ MI'} : (m>=1500 ? {d:1e3,t:'R$ MIL'} : {d:1,t:'R$'});
 
@@ -9754,6 +9764,18 @@ function cpBRL(v){ v=v||0;
   return v!==0 && Math.abs(v)<1
     ? v.toLocaleString('pt-BR',{style:'currency',currency:'BRL',minimumFractionDigits:2})
     : v.toLocaleString('pt-BR',{style:'currency',currency:'BRL',maximumFractionDigits:0}); }
+async function cpVarrer(){
+  /* A consulta ao ERP ja e ao vivo - nao ha cache para invalidar. O que
+     faltava era poder REPETIR sem trocar filtro nem recarregar a pagina.
+     O rotulo do botao muda porque a consulta leva segundos: o esmaecimento
+     da tela sozinho nao distingue "consultando" de "travou". */
+  const b=document.getElementById('btnCpVarrer');
+  const antes=b?b.textContent:'';
+  if(b){ b.disabled=true; b.textContent='Varrendo o ERP…'; }
+  try{ await loadCtecp(); }
+  finally{ if(b){ b.disabled=false; b.textContent=antes; } }
+}
+
 async function loadCtecp(fundo){
   skelKpis('kpis-ctecp',4);
   const seq=++cpSeq, btn=document.getElementById('btnRefresh'); if(btn) btn.disabled=true;
@@ -9870,7 +9892,7 @@ function renderCtecp(d){
     (umDia ? ('somente '+fmtD(per.de)+' — amplie o período para ver o acumulado')
            : ((per.de||'')+' a '+(per.ate||'')))
     +(per.busca?(' · filtrado por “'+per.busca+'”'):'')
-    +' · '+(f.gerado_em||'');
+    +' · varrido em '+fmtDT(f.gerado_em||'');
   /* TRANSMISSOES POR DIA. Quatro series empilhadas, nao duas: homologacao e
      producao nao se somam (uma nao tem valor fiscal) e autorizado e recusado
      tambem nao (recusado nao emitiu nada). Uma barra so pareceria trabalho

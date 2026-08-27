@@ -654,6 +654,27 @@ def _avisos(pj, tac, indef, faltando, tx=None) -> list[str]:
             "homologação. Só os de produção existem para o fisco — os de "
             "homologação estão na tela para conferir o caminho e não entram "
             "em nenhuma conta fiscal.")
+
+    # QUARENTENA: documento que a SEFAZ ja recusou tantas vezes que a rotina
+    # parou de reapresentar. Sair da fila em SILENCIO seria pior que o
+    # looping que ela resolve - o CT-e de origem continua sem contrapartida e
+    # ninguem ficaria sabendo.
+    try:
+        from api.contrapartida import lote as _lote
+        presos = _lote._quarentena(_lote.emissao.ambiente_ativo())
+    except Exception as exc:  # noqa: BLE001
+        log.warning("quarentena indisponivel: %s", exc)
+        presos = {}
+    if presos:
+        motivos = sorted({f"{v.get('cstat')} · {(v.get('xmotivo') or '')[:60]}"
+                          for v in presos.values()})
+        av.append(
+            f"{len(presos)} CT-e sairam da fila por recusa repetida da SEFAZ "
+            f"(a partir de {_lote.MAX_TENTATIVAS_MESMA_RECUSA} tentativas com "
+            f"o mesmo retorno). Rejeicao nao muda sozinha: insistir gastava "
+            f"uma rodada inteira e o disjuntor derrubava o lote antes de "
+            f"chegar em quem estava certo. Motivos: " + " | ".join(motivos))
+
     if tac:
 
         av.append(f"{len(tac)} dos {len(pj) + len(tac) + len(indef)} agregados "

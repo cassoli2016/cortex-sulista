@@ -21,6 +21,16 @@ versionamento [SemVer](https://semver.org/lang/pt-BR/).
 ## [0.99.0] — 27/08/2026  ·  CX-27/08/2026-v0.99.0
 
 ### Adicionado
+- Botao "Varrer o ERP agora" na tela de CT-e de Contrapartida. A consulta sempre foi ao vivo; o que faltava era poder repetir sem trocar um filtro nem recarregar a pagina. O rotulo muda para "Varrendo o ERP..." enquanto roda, porque a consulta leva segundos e o esmaecimento da tela sozinho nao distingue consultando de travado. O rodape passou a dizer a hora da varredura.
+- A fila passou a colocar em QUARENTENA o CT-e que a SEFAZ ja recusou tres vezes com o mesmo retorno, e o aviso diz quantos sao e por que. Rejeicao nao muda sozinha: o mesmo documento, com o mesmo cadastro, sera recusado igual para sempre.
+
+### Corrigido
+- A FILA ESTAVA TRAVADA. Tres CT-e impossiveis de autorizar em homologacao eram reapresentados a cada rodada; como sao os mais antigos, ficavam no topo, e as tres recusas seguidas disparavam o disjuntor toda vez. Os documentos atras deles NUNCA chegaram a ser tentados. Cada um ja tinha sido recusado 14 vezes quando isso foi percebido.
+- Data e hora na tela agora seguem dd/mm/aaaa hh:mm:ss. A tabela de documentos transmitidos mostrava "27T13:51:03/08/2026": a hora vinda com o separador ISO nao era separada da data. Os segundos aparecem quando a origem os tem - completar com ":00" o que veio so com minuto inventaria precisao, e num registro fiscal isso mente sobre a ordem dos eventos.
+
+## [0.99.0] — 27/08/2026  ·  CX-27/08/2026-v0.99.0
+
+### Adicionado
 - Comecou a migracao dos dez bancos locais para um PostgreSQL na propria maquina, um por vez. O plano inteiro - o que migra, o que nao migra, em que ordem e por que - esta em docs/MIGRACAO_POSTGRES.md. O RNTRC da ANTT e o primeiro: 223 linhas, o menor risco possivel para provar o caminho.
 - A Saude do Servidor ganhou a linha do banco novo, ao lado da replica do ERP e do Oracle da folha. Sao tres bancos agora, e a tela diz qual e qual: sem o banco local configurado a instalacao segue inteira no SQLite (Info); configurado e fora do ar, as telas ja migradas ficam sem dado (Falha, em vermelho).
 - Backup do banco novo com pg_dump e retencao de 14 dias (scripts/backup_cortex.ps1). Enquanto o dado morava em SQLite, backup era copiar um arquivo; o script existe ANTES do primeiro store migrar porque, na ordem inversa, a mudanca pioraria a seguranca do dado - e pioraria calada.

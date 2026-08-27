@@ -62,6 +62,12 @@ log = logging.getLogger("cortex.contrapartida.lote")
 # documentos de agregados diferentes é o ambiente, não o documento.
 MAX_FALHAS_SEGUIDAS = 3
 
+# Quantas vezes a MESMA chave pode levar a MESMA recusa antes de sair da fila.
+# Rejeicao e deterministica: o mesmo documento, com o mesmo cadastro e o mesmo
+# enquadramento, sera recusado com o mesmo codigo para sempre. Tres e o
+# bastante para separar "recusa de verdade" de um tropeco pontual.
+MAX_TENTATIVAS_MESMA_RECUSA = 3
+
 # Teto de segurança do teto: mesmo que alguém peça mais, o lote não passa
 # disto numa execução. Existe para o caso de um `limite` vir de configuração
 # errada — não para limitar o uso legítimo, que é recorrente e incremental.
@@ -257,6 +263,44 @@ def _ja_emitidas(ambiente: str) -> set[str]:
             " WHERE ambiente=? AND cstat='100'", (ambiente,))}
 
 
+def _quarentena(ambiente: str) -> dict[str, dict]:
+    """Chaves que a SEFAZ já recusou tantas vezes que insistir é desperdício.
+
+    REJEIÇÃO É DETERMINÍSTICA. O mesmo documento, com o mesmo cadastro e o
+    mesmo enquadramento, será recusado com o mesmo código para sempre — não
+    existe "tentar de novo mais tarde" como existe para uma indisponibilidade.
+    Sem esta guarda a rotina reapresenta o mesmo documento a cada rodada, e
+    como as recusas são consecutivas, o DISJUNTOR dispara nelas e o lote morre
+    antes de chegar em quem estava certo mais atrás na fila.
+
+    Foi medido: três CT-e recusados 14 vezes cada, no topo da fila por serem
+    os mais antigos, derrubando o lote toda rodada — e os dois documentos
+    atrás deles nunca chegaram a ser tentados.
+
+    Só entra quem NUNCA foi autorizado: uma chave autorizada já sai pela
+    idempotência, e uma recusa antiga seguida de autorização não pode
+    ressuscitar como quarentena.
+    """
+    with emissao._conn() as c:
+        linhas = [dict(r) for r in c.execute(
+            "SELECT chave_origem, cstat, xmotivo, count(*) AS n,"
+            "       max(quando) AS ultima"
+            "  FROM emissao"
+            " WHERE ambiente=? AND chave_origem IS NOT NULL"
+            "   AND cstat IS NOT NULL AND cstat NOT LIKE 'CANC:%'"
+            " GROUP BY chave_origem, cstat", (ambiente,))]
+    autorizadas = {r["chave_origem"] for r in linhas if str(r["cstat"]) == "100"}
+    fora: dict[str, dict] = {}
+    for r in linhas:
+        ch = r["chave_origem"]
+        if ch in autorizadas or str(r["cstat"]) == "100":
+            continue
+        if (r["n"] or 0) >= MAX_TENTATIVAS_MESMA_RECUSA:
+            fora[ch] = {"cstat": r["cstat"], "xmotivo": r["xmotivo"],
+                        "tentativas": r["n"], "ultima": r["ultima"]}
+    return fora
+
+
 def _impedimento(x: dict, mapa: dict, desligados) -> str | None:
     """Por que este CT-e NAO pode virar contrapartida agora — ou None.
 
@@ -287,11 +331,12 @@ def pendentes(de: str, ate: str, ambiente: str = emissao.HOMOLOGACAO,
     """
     linhas = db.query(PENDENTES_SQL, {"de": de, "ate": ate})
     feitas = _ja_emitidas(ambiente)
+    presos = _quarentena(ambiente)
     mapa = cadastro.mapa()
     desligados = emissao.envios_desligados()
     fila: list[dict] = []
     for x in linhas:
-        if x["chave"] in feitas:
+        if x["chave"] in feitas or x["chave"] in presos:
             continue
         if _impedimento(x, mapa, desligados):
             continue
@@ -375,12 +420,15 @@ def resumo_fila(de: str, ate: str,
     feitas = _ja_emitidas(ambiente)
     mapa = cadastro.mapa()
     desligados = emissao.envios_desligados()
+    presos = _quarentena(ambiente)
     total = len(linhas)
     ja = sum(1 for x in linhas if x["chave"] in feitas)
+    quarentena = sum(1 for x in linhas
+                     if x["chave"] not in feitas and x["chave"] in presos)
     # MESMO criterio da fila, pela mesma funcao: quando o resumo contava por
     # conta propria, ele prometia "16 a emitir" e a fila entregava rejeicao.
-    faltas = [_impedimento(x, mapa, desligados)
-              for x in linhas if x["chave"] not in feitas]
+    faltas = [_impedimento(x, mapa, desligados) for x in linhas
+              if x["chave"] not in feitas and x["chave"] not in presos]
     sem_prontidao = sum(1 for f in faltas if f and f.startswith("sem procuração"))
     sem_cadastro = sum(1 for f in faltas if f and f.startswith("sem inscrição"))
     fora = sum(1 for f in faltas if f and f.startswith("envio desligado"))
@@ -388,6 +436,7 @@ def resumo_fila(de: str, ate: str,
             "sem_agregado_pronto": sem_prontidao,
             "sem_cadastro": sem_cadastro,
             "envio_desligado": fora,
+            "em_quarentena": quarentena,
             "a_emitir": sum(1 for f in faltas if not f),
             "gerado_em": datetime.now().strftime("%Y-%m-%d %H:%M")}
 

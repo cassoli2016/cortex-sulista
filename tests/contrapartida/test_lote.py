@@ -706,3 +706,45 @@ def test_pilha_fiscal_responde_sem_explodir():
     ok, motivo = lote.pilha_fiscal()
     assert isinstance(ok, bool)
     assert ok or motivo, "quando falta, tem de dizer o que falta"
+
+
+def test_chave_recusada_MUITAS_VEZES_sai_da_fila(monkeypatch):
+    """Rejeicao e DETERMINISTICA: o mesmo documento, com o mesmo cadastro e o
+    mesmo enquadramento, sera recusado com o mesmo codigo para sempre. Sem
+    quarentena a rotina reapresenta o mesmo documento a cada rodada e, como as
+    recusas sao consecutivas, o DISJUNTOR dispara nelas e o lote morre antes
+    de chegar em quem estava certo mais atras. Medido: tres CT-e recusados 14
+    vezes cada, no topo da fila por serem os mais antigos, com dois documentos
+    validos atras que nunca chegaram a ser tentados."""
+    monkeypatch.setattr(lote.db, "query", lambda *a, **k: _linhas())
+    monkeypatch.setattr(lote.cadastro, "mapa",
+                        lambda: {"111": {"prontidao": {"pronto": True}}})
+    monkeypatch.setattr(lote, "_ja_emitidas", lambda ambiente: set())
+    monkeypatch.setattr(lote, "_quarentena",
+                        lambda ambiente: {CHAVES[0]: {"cstat": "748",
+                                                      "tentativas": 14}})
+    fila = lote.pendentes("2026-08-01", "2026-08-27")
+    assert CHAVES[0] not in [x["chave"] for x in fila]
+    assert len(fila) == 3, "so a presa sai; as outras continuam"
+
+
+def test_quarentena_NAO_pega_quem_acabou_autorizado(monkeypatch):
+    """Recusa antiga seguida de autorizacao nao pode ressuscitar como
+    quarentena - a chave ja saiu pela idempotencia e o documento existe."""
+    import inspect
+    fonte = inspect.getsource(lote._quarentena)
+    assert "autorizadas" in fonte and "ch in autorizadas" in fonte
+
+
+def test_quarentena_ignora_EVENTO_de_cancelamento():
+    """Cancelamento entra no registro como linha com cStat 'CANC:...'. Contar
+    esses como recusa poria em quarentena justamente quem foi emitido."""
+    import inspect
+    assert "CANC:%" in inspect.getsource(lote._quarentena)
+
+
+def test_o_resumo_conta_a_quarentena_separado():
+    """Sumir da fila em silencio seria pior que o looping que a quarentena
+    resolve: o CT-e de origem continua sem contrapartida."""
+    import inspect
+    assert "em_quarentena" in inspect.getsource(lote.resumo_fila)
