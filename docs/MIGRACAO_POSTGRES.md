@@ -1,8 +1,8 @@
 # Migração dos bancos locais para PostgreSQL
 
-> Estado: **em andamento** — Fase 0 concluída; `antt`, `push` e `correio` no ar
-> (27/08/2026). Faltam seis stores: `previsao`, `antecipacoes`, `contrapartida`,
-> `extrato`, `orcamento` e, por último, `auth`.
+> Estado: **em andamento** — Fase 0 concluída; `antt`, `push`, `correio`,
+> `previsao` e `antecipacoes` no ar (27/08/2026). Faltam quatro:
+> `contrapartida`, `extrato`, `orcamento` e, por último, `auth`.
 
 O CÓRTEX nasceu com dez bancos SQLite em `data/`. Este documento é o plano de
 levá-los para um PostgreSQL local, **um por vez**, sem parar de entregar. Ele é
@@ -162,7 +162,7 @@ Tradução mecânica de dialeto:
 |---|---|---|---|
 | 0 | Banco, role, `api/pglocal.py`, runner de migration, backup, padrão de teste | ~1 dia | **feito** |
 | 1 | Piloto: `antt` (223 linhas, 8 executes) | 2–4 h | **no ar** |
-| 2 | ~~`push`~~ · ~~`correio`~~ · `previsao` · `antecipacoes` · `contrapartida` · `extrato` · `orcamento` | 0,5–1,5 dia cada | 2 de 7 |
+| 2 | ~~`push`~~ · ~~`correio`~~ · ~~`previsao`~~ · ~~`antecipacoes`~~ · `contrapartida` · `extrato` · `orcamento` | 0,5–1,5 dia cada | 4 de 7 |
 | 3 | `auth` — por último, apesar de ser o mais importante | 1–2 dias | a fazer |
 | 4 | Cache (`telemetria`, e talvez os JSON) — só se aparecer motivo | — | provavelmente nunca |
 
@@ -209,6 +209,32 @@ para quem precisa de dois schemas na mesma linha.
 É o que torna barato o resto da Fase 2: `orcamento` tem 104 referências a
 `tmp_path`/`DB_PATH` nos testes, e sem a manopla cada uma delas viraria uma
 edição.
+
+### O que os stores 4 e 5 acrescentaram
+
+**Id que é referenciado não pode "levar a ordem".** Nos outros stores, coluna
+`IDENTITY` foi resolvida inserindo na ordem da origem e deixando o Postgres
+numerar. Não serve para `ant_envios`: `ant_titulos.envio_id` APONTA para ele.
+O script guarda o de-para `id_antigo → id_novo` e traduz cada título — sem
+isso, a posição de cada portal apontaria para o envio errado, e o total da
+tela continuaria batendo, que é o pior tipo de erro.
+
+**Renomear parâmetro é seguro; mudar a POSIÇÃO não é.** Em `previsao`, o
+primeiro argumento era `path` e virou `esquema` — na mesma posição, com as
+chamadas passando `arm.ESQUEMA` no lugar de `arm.DB_PATH`. Tirar o parâmetro
+faria uma chamada posicional antiga mandar o mês para o lugar do schema, sem
+erro nenhum e com resultado vazio.
+
+**Cuidado com o alias `arm`.** Uma troca de `arm.DB_PATH` por `arm.ESQUEMA` em
+`api/main.py` pegou 16 linhas do ORÇAMENTO, que ainda é SQLite — no mesmo
+arquivo, `arm` é o armazenamento de três módulos diferentes conforme o import
+local de cada endpoint. Conferir o `git diff` antes de commitar pegou; um
+`sed` confiante não teria pegado.
+
+**Teste que lê o banco cru precisa migrar junto.** Três testes (previsão e
+Monkey) abriam o `.db` com `sqlite3` para conferir o que FOI GRAVADO, em vez
+de confiar no retorno da função. É a asserção certa — e por isso ela também
+tem de falar Postgres.
 
 ---
 
