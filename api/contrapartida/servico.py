@@ -235,6 +235,7 @@ def get_contrapartida(de: str | None = None, ate: str | None = None,
         "frota": _serial(frota),
         "pendencia_cadastral": faltando,
         "prontidao_fila": _prontidao_fila(pj),
+        "certificados": _certificados(pj, pront),
         "classes": CLASSES,
         "avisos": _avisos(pj, tac, indef, faltando),
         "fonte": {
@@ -298,6 +299,91 @@ def _br(v: float, casas: int = 2) -> str:
     inteiro, _, dec = f"{v:,.{casas}f}".partition(".")
     inteiro = inteiro.replace(",", ".")
     return f"{inteiro},{dec}" if dec else inteiro
+
+
+# Faixas do semaforo do certificado, em dias ate vencer. Graduado e nao
+# binario porque "vence em 2 dias" e "vence em 29" pedem acoes diferentes, e
+# um chip igual para os dois nao prioriza nada (mesma licao da Manutencao
+# Preventiva). Certificado A1 vale UM ANO: 60 dias e o momento de comprar.
+CERT_CRITICO_DIAS = 15
+CERT_ALERTA_DIAS = 30
+CERT_ATENCAO_DIAS = 60
+
+
+def _situacao_cert(dias: int | None, tipo: str | None) -> tuple[str, str]:
+    """(situacao, texto) do certificado. Sem data nao e 'ok' — e desconhecido.
+
+    Tratar validade ausente como boa notícia e o erro que faz a emissao parar
+    em silencio: o certificado vence, ninguem e avisado, e a empresa descobre
+    pelo agregado.
+    """
+    if tipo == "A3":
+        return "impedido", "A3 (token físico) — não automatiza"
+    if dias is None:
+        return "desconhecido", "validade não informada"
+    if dias < 0:
+        return "vencido", f"vencido há {abs(dias)} dias"
+    if dias <= CERT_CRITICO_DIAS:
+        return "critico", f"vence em {dias} {'dia' if dias == 1 else 'dias'}"
+    if dias <= CERT_ALERTA_DIAS:
+        return "alerta", f"vence em {dias} dias"
+    if dias <= CERT_ATENCAO_DIAS:
+        return "atencao", f"vence em {dias} dias"
+    return "ok", f"vence em {dias} dias"
+
+
+def _certificados(pj: list[dict], pront: dict) -> dict:
+    """Controle de vencimento, com o VOLUME que cada certificado sustenta.
+
+    Sem o volume, a lista ordena por data e esconde o que importa: um
+    certificado vencendo em 40 dias que responde por metade da fila urge mais
+    que um vencendo em 10 e que nunca emitiu nada.
+    """
+    hoje = date.today()
+    itens: list[dict] = []
+    for x in pj:
+        reg = pront.get(x["documento"]) or {}
+        cert = reg.get("certificado") or {}
+        if not cert:
+            continue                      # sem certificado é pendência de outro card
+        dias = None
+        if cert.get("valida_ate"):
+            try:
+                dias = (date.fromisoformat(cert["valida_ate"]) - hoje).days
+            except ValueError:
+                dias = None
+        situacao, texto = _situacao_cert(dias, cert.get("tipo"))
+        itens.append({
+            "documento": x["documento"], "nome": x.get("nome"),
+            "titular": cert.get("titular"), "tipo": cert.get("tipo"),
+            "valida_ate": cert.get("valida_ate"), "dias": dias,
+            "situacao": situacao, "texto": texto,
+            "tem_senha": bool(reg.get("tem_senha")),
+            "ctes": x.get("ctes") or 0,
+            "valor": round(x.get("valor") or 0.0, 2),
+        })
+    # Ordem: o que precisa de acao primeiro. Dentro da mesma situacao, o de
+    # maior volume - e o que para mais trabalho se vencer.
+    ordem = {"vencido": 0, "critico": 1, "alerta": 2, "impedido": 3,
+             "desconhecido": 4, "atencao": 5, "ok": 6}
+    itens.sort(key=lambda i: (ordem.get(i["situacao"], 9), -i["ctes"]))
+
+    def _conta(*situacoes):
+        alvo = [i for i in itens if i["situacao"] in situacoes]
+        return {"certificados": len(alvo),
+                "ctes": sum(i["ctes"] for i in alvo)}
+
+    return {
+        "itens": itens,
+        "total": len(itens),
+        "vencidos": _conta("vencido"),
+        "criticos": _conta("critico"),
+        "ate_30": _conta("vencido", "critico", "alerta"),
+        "ate_60": _conta("vencido", "critico", "alerta", "atencao"),
+        "sem_validade": _conta("desconhecido"),
+        "faixas": {"critico": CERT_CRITICO_DIAS, "alerta": CERT_ALERTA_DIAS,
+                   "atencao": CERT_ATENCAO_DIAS},
+    }
 
 
 def _prontidao_fila(pj: list[dict]) -> dict:

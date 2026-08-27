@@ -482,3 +482,74 @@ def test_autorizada_sem_xml_e_contada_a_parte(monkeypatch):
         ])
     t = servico._transmissoes()
     assert t["com_xml"] == 1 and t["autorizadas_sem_xml"] == 1
+
+
+# --- vencimento de certificado ----------------------------------------------
+
+def test_semaforo_do_certificado_e_GRADUADO():
+    """"Vence em 2 dias" e "vence em 29" pedem acoes diferentes; chip igual
+    para os dois nao prioriza nada."""
+    assert servico._situacao_cert(-1, "A1")[0] == "vencido"
+    assert servico._situacao_cert(0, "A1")[0] == "critico"
+    assert servico._situacao_cert(15, "A1")[0] == "critico"
+    assert servico._situacao_cert(16, "A1")[0] == "alerta"
+    assert servico._situacao_cert(30, "A1")[0] == "alerta"
+    assert servico._situacao_cert(31, "A1")[0] == "atencao"
+    assert servico._situacao_cert(60, "A1")[0] == "atencao"
+    assert servico._situacao_cert(61, "A1")[0] == "ok"
+
+
+def test_validade_ausente_NAO_e_ok():
+    """Tratar validade ausente como boa noticia e o erro que faz a emissao
+    parar em silencio: o certificado vence, ninguem e avisado, e a empresa
+    descobre pelo agregado."""
+    assert servico._situacao_cert(None, "A1")[0] == "desconhecido"
+
+
+def test_A3_e_impedimento_e_nao_prazo():
+    """A3 mora em token fisico: nao se resolve esperando nem renovando data."""
+    situacao, texto = servico._situacao_cert(400, "A3")
+    assert situacao == "impedido" and "token" in texto
+
+
+def test_um_dia_no_singular():
+    assert "1 dia" in servico._situacao_cert(1, "A1")[1]
+    assert "2 dias" in servico._situacao_cert(2, "A1")[1]
+
+
+def test_a_ordem_poe_URGENCIA_antes_e_VOLUME_dentro_dela():
+    """Um certificado que vence em 40 dias e sustenta metade da fila urge mais
+    que um vencendo em 10 que nunca emitiu nada - mas so DENTRO da mesma
+    situacao: urgencia continua vindo primeiro."""
+    from datetime import date, timedelta
+    hoje = date.today()
+
+    def _cert(dias):
+        return (hoje + timedelta(days=dias)).isoformat()
+
+    pj = [
+        {"documento": "1", "nome": "POUCO VOLUME", "ctes": 1, "valor": 1.0},
+        {"documento": "2", "nome": "MUITO VOLUME", "ctes": 900, "valor": 90.0},
+        {"documento": "3", "nome": "TRANQUILO", "ctes": 500, "valor": 50.0},
+    ]
+    pront = {
+        "1": {"certificado": {"tipo": "A1", "valida_ate": _cert(5)},
+              "tem_senha": True},
+        "2": {"certificado": {"tipo": "A1", "valida_ate": _cert(10)},
+              "tem_senha": True},
+        "3": {"certificado": {"tipo": "A1", "valida_ate": _cert(300)},
+              "tem_senha": True},
+    }
+    r = servico._certificados(pj, pront)
+    # os dois criticos vem antes do tranquilo; entre eles, o de maior volume
+    assert [i["nome"] for i in r["itens"]] == [
+        "MUITO VOLUME", "POUCO VOLUME", "TRANQUILO"]
+    assert r["ate_30"]["certificados"] == 2
+    assert r["ate_30"]["ctes"] == 901, "o alerta carrega o VOLUME em risco"
+
+
+def test_agregado_sem_certificado_fica_fora_deste_card():
+    """Quem nem tem certificado e pendencia de outro cartao - misturar faria
+    o controle de VENCIMENTO virar lista de cadastro."""
+    r = servico._certificados([{"documento": "9", "nome": "X", "ctes": 5}], {})
+    assert r["itens"] == [] and r["total"] == 0

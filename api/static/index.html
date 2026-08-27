@@ -2670,6 +2670,12 @@ body.tvfull #btnReport,body.tvmode #btnReport{display:none}
           </div>
         </div>
 
+        <div class="card" id="cpCertCard" hidden>
+          <div class="head"><h2>Vencimento dos certificados <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="Certificado A1 vale UM ANO. Vencido em silêncio, a emissão para sozinha e a empresa descobre pelo agregado. A ordem é por urgência e, dentro dela, por VOLUME: um certificado que vence em 40 dias e sustenta metade da fila urge mais que um vencendo em 10 que nunca emitiu nada. Validade não informada NÃO conta como “ok” — conta como desconhecida.">i</span></h2>
+            <span class="hint" id="hintCpCert"></span></div>
+          <div class="tabroll"><table class="tab" id="cpCertTab"></table></div>
+        </div>
+
         <div class="card" id="cpTxCard" hidden>
           <div class="head"><h2>Documentos transmitidos <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="Registro local de cada transmissão (quem, quando, ambiente, série/número, chave e retorno da SEFAZ). HOMOLOGAÇÃO é o ambiente de teste do órgão: o documento autorizado lá NÃO tem valor fiscal, não é escriturado e não gera obrigação — por isso não entra na contagem de emitidas.">i</span></h2>
             <span class="hint" id="hintCpTx"></span></div>
@@ -9569,6 +9575,41 @@ function renderCtecp(d){
            : ((per.de||'')+' a '+(per.ate||'')))
     +(per.busca?(' · filtrado por “'+per.busca+'”'):'')
     +' · '+(f.gerado_em||'');
+  /* VENCIMENTO DOS CERTIFICADOS. Certificado A1 vale um ano; vencido em
+     silencio, a emissao para sozinha. O semaforo e GRADUADO porque "vence em
+     2 dias" e "vence em 29" pedem acoes diferentes - chip igual para os dois
+     nao prioriza nada. */
+  const ce=d.certificados||{}, cItens=ce.itens||[];
+  document.getElementById('cpCertCard').hidden = !cItens.length;
+  if(cItens.length){
+    const a30=(ce.ate_30||{}), a60=(ce.ate_60||{});
+    document.getElementById('hintCpCert').textContent =
+      ce.total+' '+(ce.total===1?'certificado':'certificados')
+      +' · '+(a30.certificados||0)+' vence'+((a30.certificados||0)===1?'':'m')
+      +' em ate 30 dias'+((a30.ctes||0)?' ('+(a30.ctes).toLocaleString('pt-BR')+' CT-e)':'')
+      +' · '+(a60.certificados||0)+' em ate 60';
+    const CLS={vencido:'b-dang',critico:'b-dang',alerta:'b-warn',
+               atencao:'b-warn',desconhecido:'b-dang',impedido:'b-info',ok:'b-ok'};
+    document.getElementById('cpCertTab').innerHTML =
+      '<thead><tr><th>Agregado</th><th>Titular do certificado</th><th>Tipo</th>'
+      +'<th>Validade</th><th>Situação</th><th class="num">CT-e no período</th>'
+      +'</tr></thead><tbody>'
+      +cItens.map(function(c){
+        const grave = c.situacao==='vencido'||c.situacao==='critico'
+                   || c.situacao==='desconhecido';
+        return '<tr'+(grave?' class="cp-recusada"':'')+'>'
+          +'<td>'+esc(c.nome||c.documento)+'</td>'
+          +'<td>'+esc(c.titular||'—')
+          +(c.tem_senha?'':' <span class="badge b-dang" title="Sem a senha no cofre o certificado não assina">sem senha</span>')
+          +'</td>'
+          +'<td class="mono">'+esc(c.tipo||'—')+'</td>'
+          +'<td class="mono">'+(c.valida_ate?esc(fmtD(c.valida_ate)):'—')+'</td>'
+          +'<td><span class="badge '+(CLS[c.situacao]||'b-info')+'">'
+          +esc(c.texto||c.situacao)+'</span></td>'
+          +'<td class="num mono">'+(c.ctes||0).toLocaleString('pt-BR')+'</td></tr>';
+      }).join('')+'</tbody>';
+  }
+
   /* transmissoes ja feitas. Homologacao e producao NAO se somam: documento de
      homologacao nao tem valor fiscal, e junta-los faria a tela anunciar uma
      fila resolvida que nao foi. */

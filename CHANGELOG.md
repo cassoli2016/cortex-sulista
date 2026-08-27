@@ -4,6 +4,15 @@ Gerado de `docs/versoes.yaml` por `scripts/gerar_changelog.py` — não editar �
 Formato [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/),
 versionamento [SemVer](https://semver.org/lang/pt-BR/).
 
+## [0.85.0] — 27/08/2026  ·  CX-27/08/2026-v0.85.0
+
+### Adicionado
+- Controle de vencimento dos certificados digitais na tela de CT-e de Contrapartida. Certificado A1 vale UM ANO: vencendo em silencio, a emissao para sozinha e a empresa descobre pelo agregado.
+- O semaforo e GRADUADO e nao binario - vencido, ate 15 dias, ate 30, ate 60 -, porque "vence em 2 dias" e "vence em 29" pedem acoes diferentes e um aviso igual para os dois nao prioriza nada. Sessenta dias e o momento de comprar, nao de correr.
+- A lista mostra o VOLUME que cada certificado sustenta, e ordena por urgencia e, dentro dela, por volume. Sem isso a ordem por data esconde o que importa: um certificado que vence em 40 dias e responde por metade da fila urge mais que um vencendo em 10 que nunca emitiu nada. O caso real de hoje e esse - o certificado que vence primeiro sustenta 822 CT-e do trimestre.
+- Validade nao informada NAO conta como "ok": conta como desconhecida, em vermelho. Tratar ausencia de data como boa noticia e exatamente o que faz a emissao parar sem aviso. Certificado A3 aparece como IMPEDIMENTO e nao como prazo - ele mora em token fisico e nao se resolve esperando.
+- Certificado sem a senha no cofre e marcado na propria linha: sem ela o arquivo nao assina, e a data de validade sozinha daria a impressao de que esta tudo certo.
+
 ## [0.84.0] — 27/08/2026  ·  CX-27/08/2026-v0.84.0
 
 ### Adicionado
