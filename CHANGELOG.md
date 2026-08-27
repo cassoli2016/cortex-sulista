@@ -4,6 +4,13 @@ Gerado de `docs/versoes.yaml` por `scripts/gerar_changelog.py` — não editar �
 Formato [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/),
 versionamento [SemVer](https://semver.org/lang/pt-BR/).
 
+## [0.85.2] — 27/08/2026  ·  CX-27/08/2026-v0.85.2
+
+### Corrigido
+- O controle de vencimento de certificado mostrava apenas UM dos dois cadastrados - e escondia justamente o que vence primeiro. A lista saia dos agregados COM CT-e no periodo, e a tela abre no dia de hoje: quem simplesmente nao rodou hoje desaparecia do controle. Certificado vence no calendario, nao na janela que a tela esta mostrando.
+- O cartao passou a listar TODOS os certificados cadastrados, e leva um selo dizendo que ignora o filtro de periodo - card que nao segue os filtros tem de anunciar isso, senao o numero parece furado.
+- O volume continua sendo do periodo, porque e ele que responde "quanto para se este certificado vencer". Mas quem nao teve movimento no recorte aparece como "fora do periodo" em vez de zero: zero e "nao rodou", nao "nao importa", e a diferenca some se o numero aparecer pelado.
+
 ## [0.85.1] — 27/08/2026  ·  CX-27/08/2026-v0.85.1
 
 ### Corrigido

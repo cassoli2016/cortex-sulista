@@ -2671,7 +2671,7 @@ body.tvfull #btnReport,body.tvmode #btnReport{display:none}
         </div>
 
         <div class="card" id="cpCertCard" hidden>
-          <div class="head"><h2>Vencimento dos certificados <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="Certificado A1 vale UM ANO. Vencido em silêncio, a emissão para sozinha e a empresa descobre pelo agregado. A ordem é por urgência e, dentro dela, por VOLUME: um certificado que vence em 40 dias e sustenta metade da fila urge mais que um vencendo em 10 que nunca emitiu nada. Validade não informada NÃO conta como “ok” — conta como desconhecida.">i</span></h2>
+          <div class="head"><h2>Vencimento dos certificados <span class="badge b-info" title="Certificado vence no calendário, não na janela que a tela está mostrando. Se este card seguisse o período, um agregado que não rodou no recorte sumiria do controle — foi o que aconteceu: o certificado que vence primeiro desapareceu num dia sem movimento.">ignora o período</span> <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="Certificado A1 vale UM ANO. Vencido em silêncio, a emissão para sozinha e a empresa descobre pelo agregado. A ordem é por urgência e, dentro dela, por VOLUME: um certificado que vence em 40 dias e sustenta metade da fila urge mais que um vencendo em 10 que nunca emitiu nada. Validade não informada NÃO conta como “ok” — conta como desconhecida.">i</span></h2>
             <span class="hint" id="hintCpCert"></span></div>
           <div class="tabroll"><table class="tab" id="cpCertTab"></table></div>
         </div>
@@ -9606,7 +9606,12 @@ function renderCtecp(d){
           +'<td class="mono">'+(c.valida_ate?esc(fmtD(c.valida_ate)):'—')+'</td>'
           +'<td><span class="badge '+(CLS[c.situacao]||'b-info')+'">'
           +esc(c.texto||c.situacao)+'</span></td>'
-          +'<td class="num mono">'+(c.ctes||0).toLocaleString('pt-BR')+'</td></tr>';
+          /* zero aqui e "nao rodou NO RECORTE", nao "nao importa" - e a
+             diferenca some se o numero aparecer pelado */
+          +'<td class="num mono">'+(c.no_periodo
+             ? (c.ctes||0).toLocaleString('pt-BR')
+             : '<span class="hint" title="Este agregado não teve CT-e no período filtrado. O certificado continua valendo — e vencendo.">fora do período</span>')
+          +'</td></tr>';
       }).join('')+'</tbody>';
   }
 

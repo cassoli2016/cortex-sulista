@@ -47,8 +47,8 @@ from datetime import date, datetime, timedelta
 from api import db
 
 from api.contrapartida import cadastro
-from api.contrapartida.sql import (FROTA_AGR_SQL, POR_AGREGADO_SQL,
-                                   POR_MES_SQL)
+from api.contrapartida.sql import (FROTA_AGR_SQL, NOMES_SQL,
+                                   POR_AGREGADO_SQL, POR_MES_SQL)
 
 
 
@@ -335,17 +335,38 @@ def _situacao_cert(dias: int | None, tipo: str | None) -> tuple[str, str]:
 def _certificados(pj: list[dict], pront: dict) -> dict:
     """Controle de vencimento, com o VOLUME que cada certificado sustenta.
 
-    Sem o volume, a lista ordena por data e esconde o que importa: um
-    certificado vencendo em 40 dias que responde por metade da fila urge mais
-    que um vencendo em 10 e que nunca emitiu nada.
+    **NÃO segue o filtro de período**, e isso é deliberado: certificado vence
+    no calendário, não na janela que a tela está mostrando. Antes a lista saía
+    dos agregados COM CT-e no período e, como a tela abre no dia de hoje, um
+    agregado que simplesmente não rodou hoje sumia do controle — inclusive o
+    que vencia primeiro. O card leva badge dizendo isso.
+
+    O volume, esse sim, é do período: é o que responde "quanto para se este
+    certificado vencer". Zero ali significa "não rodou no recorte", não
+    "não importa".
     """
     hoje = date.today()
+    volume = {x["documento"]: x for x in pj}
+
+    # nome de quem tem certificado mas não apareceu no período
+    faltam = [d for d, reg in pront.items()
+              if (reg or {}).get("certificado") and d not in volume]
+    nomes: dict[str, str] = {}
+    if faltam:
+        try:
+            nomes = {r["documento"]: r["nome"]
+                     for r in db.query(NOMES_SQL, {"docs": faltam})}
+        except Exception as exc:  # noqa: BLE001
+            # sem o nome ainda dá para agir pelo titular do certificado
+            log.warning("nomes dos agregados com certificado: %s", exc)
+
     itens: list[dict] = []
-    for x in pj:
-        reg = pront.get(x["documento"]) or {}
+    for documento, reg in (pront or {}).items():
+        reg = reg or {}
         cert = reg.get("certificado") or {}
         if not cert:
             continue                      # sem certificado é pendência de outro card
+        x = volume.get(documento) or {}
         dias = None
         if cert.get("valida_ate"):
             try:
@@ -354,7 +375,9 @@ def _certificados(pj: list[dict], pront: dict) -> dict:
                 dias = None
         situacao, texto = _situacao_cert(dias, cert.get("tipo"))
         itens.append({
-            "documento": x["documento"], "nome": x.get("nome"),
+            "documento": documento,
+            "nome": x.get("nome") or nomes.get(documento) or cert.get("titular"),
+            "no_periodo": documento in volume,
             "titular": cert.get("titular"), "tipo": cert.get("tipo"),
             "valida_ate": cert.get("valida_ate"), "dias": dias,
             "situacao": situacao, "texto": texto,
@@ -383,6 +406,8 @@ def _certificados(pj: list[dict], pront: dict) -> dict:
         "sem_validade": _conta("desconhecido"),
         "faixas": {"critico": CERT_CRITICO_DIAS, "alerta": CERT_ALERTA_DIAS,
                    "atencao": CERT_ATENCAO_DIAS},
+        # a tela avisa: este card ignora o filtro de período de propósito
+        "ignora_periodo": True,
     }
 
 

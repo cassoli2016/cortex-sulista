@@ -553,3 +553,41 @@ def test_agregado_sem_certificado_fica_fora_deste_card():
     o controle de VENCIMENTO virar lista de cadastro."""
     r = servico._certificados([{"documento": "9", "nome": "X", "ctes": 5}], {})
     assert r["itens"] == [] and r["total"] == 0
+
+
+def test_o_controle_de_certificado_NAO_segue_o_filtro_de_periodo():
+    """O defeito que isto trava: a tela abre no DIA DE HOJE, e a lista saia
+    dos agregados com CT-e no periodo. Num dia sem movimento o agregado sumia
+    do controle - e sumiu justamente o certificado que vencia PRIMEIRO.
+
+    Certificado vence no calendario, nao na janela que a tela mostra.
+    """
+    from datetime import date, timedelta
+    venc = (date.today() + timedelta(days=20)).isoformat()
+    pront = {
+        "111": {"certificado": {"tipo": "A1", "valida_ate": venc,
+                                "titular": "QUEM NAO RODOU HOJE"},
+                "tem_senha": True},
+    }
+    r = servico._certificados([], pront)      # nenhum CT-e no periodo
+    assert r["total"] == 1, "sumiu do controle por nao ter rodado no recorte"
+    assert r["itens"][0]["no_periodo"] is False
+    assert r["itens"][0]["nome"] == "QUEM NAO RODOU HOJE", (
+        "sem CT-e no periodo nao ha razao social na consulta - o titular do "
+        "certificado e o ultimo recurso para a linha nao sair anonima")
+    assert r["ignora_periodo"] is True
+
+
+def test_volume_zero_fora_do_periodo_nao_se_confunde_com_volume_zero():
+    """"0 CT-e" e "nao rodou no recorte" sao coisas diferentes, e a tela
+    precisa do sinal para nao mostrar um zero que engana."""
+    from datetime import date, timedelta
+    venc = (date.today() + timedelta(days=90)).isoformat()
+    pj = [{"documento": "222", "nome": "RODOU", "ctes": 7, "valor": 70.0}]
+    pront = {
+        "111": {"certificado": {"tipo": "A1", "valida_ate": venc}, "tem_senha": True},
+        "222": {"certificado": {"tipo": "A1", "valida_ate": venc}, "tem_senha": True},
+    }
+    por_doc = {i["documento"]: i for i in servico._certificados(pj, pront)["itens"]}
+    assert por_doc["222"]["no_periodo"] is True and por_doc["222"]["ctes"] == 7
+    assert por_doc["111"]["no_periodo"] is False

@@ -107,3 +107,13 @@ SELECT to_char(k.dtemissao,'YYYY') AS ano,{_CLASSE} AS classe,
 {_BASE}
 GROUP BY 1, 2 ORDER BY 1, 2
 """
+
+
+# Razao social por documento, para quem tem certificado mas NAO teve CT-e no
+# periodo filtrado. O controle de vencimento nao pode depender do filtro: um
+# certificado vence no calendario, nao na janela que a tela esta mostrando.
+NOMES_SQL = """
+SELECT codigo AS documento, razaosocial AS nome
+  FROM cadastro
+ WHERE codigo = ANY(%(docs)s)
+"""
