@@ -96,7 +96,24 @@ try {
       Registrar "DIVERGENCIA: local=$($local.Substring(0,7)) origin=$($remoto.Substring(0,7)); pull nao aplicado (resolver manualmente)."
       exit 1
     }
-    & $git @gitOpt merge --ff-only --quiet origin/main
+    # A SAIDA DO MERGE E CONFERIDA. Sem isto o script registrava "atualizado"
+    # sempre, desse certo ou nao - e um merge recusado virava um log que MENTE.
+    # Aconteceu em 27/08/2026: uma alteracao nao commitada em `uv.lock` (uma
+    # linha, so o numero de versao) bloqueava o fast-forward, e o log dizia
+    # "atualizado c66d740 -> 4332d2e" a cada dois minutos enquanto o HEAD nao
+    # saia do lugar. Quem olhasse o log concluiria que o deploy tinha subido.
+    $saidaMerge = & $git @gitOpt merge --ff-only origin/main 2>&1
+    $depois = Git-Texto @('rev-parse', 'HEAD')
+    if ($depois -ne $remoto) {
+      $motivo = ($saidaMerge | Out-String).Trim()
+      # Alteracao local nao commitada e' de longe a causa mais comum, e a saida
+      # do git ja nomeia o arquivo - passa adiante inteira, para nao obrigar
+      # ninguem a reproduzir o merge na mao so para saber o que travou.
+      Registrar ("FALHOU o fast-forward $($local.Substring(0,7)) -> " +
+                 "$($remoto.Substring(0,7)); HEAD segue em $($depois.Substring(0,7)). " +
+                 "git disse: " + $motivo)
+      exit 1
+    }
     Registrar "atualizado $($local.Substring(0,7)) -> $($remoto.Substring(0,7))"
   }
 
