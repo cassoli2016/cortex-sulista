@@ -87,6 +87,29 @@ CFOP_INICIO_EM_OUTRA_UF = {True: "5932", False: "6932"}
 # outros disponíveis convidaria a trocar por conveniência.
 CRITERIOS_RATEIO = ("cobrado",)
 
+# TRIBUTAÇÃO VINDA DO ERP (`grupo_icms="AUTO"`, decidido em 26/08/2026:
+# "use o que já existe").
+#
+# Duas fontes, e a ordem importa:
+#
+#   1. **O regime do EMITENTE manda.** Optante do Simples não destaca ICMS —
+#      vai no grupo do Simples, ponto. A CST do CT-e da Sulista descreve a
+#      prestação DELA, que não é optante; copiá-la para o agregado optante
+#      poria destaque de imposto num documento que não pode ter.
+#   2. **Não sendo optante**, aproveita-se a CST e a alíquota que o ERP já
+#      calculou para aquela rota e operação — mesma origem, mesmo destino,
+#      mesma natureza.
+#
+# Medido em 90 dias (agregado PJ): CST 000 a 12% em 5.510 documentos, a 17% em
+# 89 e a 7% em 70; CST 040 (isenta) em 322; CST 090 (outros) em 407.
+GRUPOS_ICMS = ("AUTO", "ICMS00", "ICMS45", "ICMS90", "ICMSSN")
+
+CST_ERP_PARA_CTE = {
+    "000": ("ICMS00", "00"),   # tributada integralmente
+    "040": ("ICMS45", "40"),   # isenta
+    "090": ("ICMS90", "90"),   # outros
+}
+
 
 # ------------------------------------------------------------ enquadramento --
 
@@ -105,14 +128,13 @@ class Enquadramento:
                   '2' redespacho · '3' redespacho intermediário · '4' multimodal.
                   ATENÇÃO: o ERP guarda esse domínio em base 1 (`tiposervico`
                   1 = normal, 2 = subcontratação); aqui vale o do SCHEMA.
-    `grupo_icms`  qual grupo do `imp/ICMS` usar: 'ICMS00' (tributado integral),
-                  'ICMS90' (outros), 'ICMSSN' (Simples Nacional). O Parizotto
-                  está com `optantesimples = 1` no cadastro, o que lido pela
-                  distribuição do próprio campo (728 de 8.293) significa SIM —
-                  mas inferir regime tributário de código de ERP para gravar em
-                  documento fiscal é exatamente o que este módulo não faz.
-    `cst_icms`    a CST do grupo escolhido.
-    `p_icms`      alíquota, quando o grupo pedir (ICMSSN não pede).
+    `grupo_icms`  **'AUTO'** tira a tributação do próprio ERP, documento a
+                  documento — foi a definição da área ("use o que já existe").
+                  Ver `CST_ERP_PARA_CTE` e `icms_de()`. Os grupos fixos
+                  ('ICMS00', 'ICMS45', 'ICMS90', 'ICMSSN') continuam
+                  disponíveis para quando a tributação for a mesma em todos.
+    `cst_icms`    a CST, quando o grupo é fixo. Com 'AUTO', vazio.
+    `p_icms`      alíquota, quando o grupo pedir. Com 'AUTO', None.
     `base_valor`  'prestacao'   = o que a Sulista cobrou do cliente
                   'fretecompra' = o que a Sulista paga ao agregado
                   São números diferentes: no CT-e de teste, R$ 1.494,02 contra
@@ -161,6 +183,37 @@ class Enquadramento:
             return CFOP_INICIO_EM_OUTRA_UF[interno]
         return self.cfop_interno if interno else self.cfop_interestadual
 
+    def icms_de(self, d: dict) -> tuple[str, str, Decimal | None]:
+        """(grupo, CST, alíquota) DESTE documento.
+
+        Com `grupo_icms="AUTO"` a tributação vem do ERP — ver
+        `CST_ERP_PARA_CTE`. Com qualquer outro valor, vale o que foi fixado no
+        enquadramento, sem olhar o documento.
+        """
+        if self.grupo_icms != "AUTO":
+            return self.grupo_icms, self.cst_icms, self.p_icms
+
+        if d.get("emit_optante_simples") == 1:
+            # Optante do Simples não destaca ICMS: grupo próprio, sem base
+            # nem alíquota. `indSN` é preenchido na montagem.
+            return "ICMSSN", "90", None
+
+        cst_erp = str(d.get("cst_erp") or "").strip()
+        if cst_erp not in CST_ERP_PARA_CTE:
+            raise ValueError(
+                f"O CT-e {d.get('chave_original')} tem situação tributária "
+                f"{cst_erp!r}, que não está no de-para do ERP para o CT-e "
+                f"({sorted(CST_ERP_PARA_CTE)}). Traduzir código fiscal por "
+                f"semelhança é inventar tributação — cadastre o de-para.")
+        grupo, cst = CST_ERP_PARA_CTE[cst_erp]
+        aliq = Decimal(str(d.get("aliq_erp") or 0))
+        if grupo == "ICMS00" and aliq <= 0:
+            raise ValueError(
+                f"O CT-e {d.get('chave_original')} está com CST 000 "
+                f"(tributada) e alíquota zero no ERP. Emitir assim declara "
+                f"imposto zero numa operação tributada.")
+        return grupo, cst, (None if grupo == "ICMS45" else aliq)
+
     def __post_init__(self) -> None:
         if self.criterio_rateio not in CRITERIOS_RATEIO:
             raise ValueError(
@@ -180,8 +233,15 @@ class Enquadramento:
                 "reclama é a fiscalização, meses depois.")
         if self.base_valor not in ("prestacao", "fretecompra"):
             raise ValueError("base_valor: use 'prestacao' ou 'fretecompra'.")
-        if self.grupo_icms not in ("ICMS00", "ICMS90", "ICMSSN"):
-            raise ValueError("grupo_icms: use 'ICMS00', 'ICMS90' ou 'ICMSSN'.")
+        if self.grupo_icms not in GRUPOS_ICMS:
+            raise ValueError(f"grupo_icms: use um de {sorted(GRUPOS_ICMS)}. "
+                             f"'AUTO' tira a tributação do próprio ERP.")
+        if self.grupo_icms == "AUTO" and (self.cst_icms or self.p_icms):
+            raise ValueError(
+                "Com grupo_icms='AUTO' a CST e a alíquota vêm do ERP, "
+                "documento a documento. Deixe cst_icms='' e p_icms=None — um "
+                "valor fixo aqui não seria usado e daria a impressão de estar "
+                "valendo.")
         if self.toma not in ("0", "1", "2", "3", "4"):
             raise ValueError("toma: use '0'..'4' conforme o schema.")
         if self.tp_serv not in ("0", "1", "2", "3", "4"):
@@ -537,7 +597,7 @@ def montar(d: dict, enq: Enquadramento, *, numero: int, serie: int = 1,
         vTPrest=_dec(v), vRec=_dec(v),
         comp=[_tipo(I.VPrest, "comp")(xNome="FRETE PESO", vComp=_dec(v))])
 
-    imp = I.Imp(ICMS=_icms(I, enq, v))
+    imp = I.Imp(ICMS=_icms(I, enq, v, d))
 
     norm_cls = _tipo(I, "infCTeNorm")
     carga_cls = _tipo(norm_cls, "infCarga")
@@ -631,18 +691,23 @@ def _tipo(cls, campo):
     return args[0] if args else anot
 
 
-def _icms(I, enq: Enquadramento, v: Decimal):
+def _icms(I, enq: Enquadramento, v: Decimal, d: dict):
+    """O grupo de ICMS do documento. Com `AUTO`, sai do ERP (ver `icms_de`)."""
+    nome, cst, aliq = enq.icms_de(d)
     icms_cls = _tipo(I.Imp, "ICMS")
-    grupo = _tipo(icms_cls, enq.grupo_icms)
-    if enq.grupo_icms == "ICMSSN":
+    grupo = _tipo(icms_cls, nome)
+    if nome == "ICMSSN":
         # Simples Nacional não destaca ICMS no CT-e: o grupo tem só CST e a
         # marca de que o emitente é optante.
-        return icms_cls(ICMSSN=grupo(CST=enq.cst_icms, indSN="1"))
-    icms = (v * (enq.p_icms or Decimal(0)) / Decimal(100)).quantize(
-        Decimal("0.01"))
-    campos = {"CST": enq.cst_icms, "vBC": _dec(v), "pICMS": _dec(enq.p_icms),
+        return icms_cls(ICMSSN=grupo(CST=cst, indSN="1"))
+    if nome == "ICMS45":
+        # Isenta/não tributada: sem base e sem alíquota. Mandar vBC zerado
+        # aqui seria declarar base zero numa operação que não tem base.
+        return icms_cls(ICMS45=grupo(CST=cst))
+    icms = (v * (aliq or Decimal(0)) / Decimal(100)).quantize(Decimal("0.01"))
+    campos = {"CST": cst, "vBC": _dec(v), "pICMS": _dec(aliq),
               "vICMS": _dec(icms)}
-    return icms_cls(**{enq.grupo_icms: grupo(**campos)})
+    return icms_cls(**{nome: grupo(**campos)})
 
 
 def _nome_sulista(d: dict) -> str:

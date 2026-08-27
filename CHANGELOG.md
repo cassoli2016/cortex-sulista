@@ -4,6 +4,16 @@ Gerado de `docs/versoes.yaml` por `scripts/gerar_changelog.py` — não editar �
 Formato [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/),
 versionamento [SemVer](https://semver.org/lang/pt-BR/).
 
+## [0.77.0] — 26/08/2026  ·  CX-26/08/2026-v0.77.0
+
+### Adicionado
+- A tributacao do CT-e de contrapartida passou a sair do proprio ERP, documento a documento, como a area pediu. A regra tem duas fontes e a ordem importa: o REGIME DO EMITENTE manda - optante do Simples nao destaca ICMS, ponto - e, nao sendo optante, aproveita-se a situacao tributaria e a aliquota que o ERP ja calculou para aquela rota. Copiar a situacao do CT-e da Sulista para um agregado optante poria destaque de imposto num documento que nao pode ter.
+- Situacao tributaria que nao esteja no de-para PARA a emissao dizendo qual e, em vez de traduzir por semelhanca - traduzir codigo fiscal por parecenca e inventar tributacao. E operacao marcada como tributada com aliquota zero tambem para: emitir assim declararia imposto zero onde ha imposto.
+- Tela de CT-e de Contrapartida mostra agora os DOCUMENTOS TRANSMITIDOS - quando, por quem, em que ambiente, serie e numero, o retorno da SEFAZ e o protocolo. Homologacao aparece com marcador proprio e NAO entra na contagem de emitidas: e ambiente de teste, o documento nao tem valor fiscal, e somar os dois faria a tela anunciar uma fila resolvida que nao foi.
+
+### Corrigido
+- A SEFAZ de Sao Paulo passou a exigir IBS/CBS (Reforma Tributaria) no CT-e durante os proprios testes de hoje: uma transmissao autorizou e a seguinte, minutos depois, voltou com "310 - IBS/CBS nao informado". A emissao esta bloqueada por isso ate que o grupo seja montado. O dado existe no ERP - os 2.395 CT-e do ultimo mes tem os impostos de IBS, CBS e IBS municipal vinculados - entao vale a mesma decisao de aproveitar o que ja esta calculado, mas as aliquotas e a classificacao tributaria precisam de confirmacao antes de virar documento.
+
 ## [0.76.0] — 26/08/2026  ·  CX-26/08/2026-v0.76.0
 
 ### Alterado

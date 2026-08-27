@@ -2666,6 +2666,12 @@ body.tvfull #btnReport,body.tvmode #btnReport{display:none}
           </div>
         </div>
 
+        <div class="card" id="cpTxCard" hidden>
+          <div class="head"><h2>Documentos transmitidos <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="Registro local de cada transmissão (quem, quando, ambiente, série/número, chave e retorno da SEFAZ). HOMOLOGAÇÃO é o ambiente de teste do órgão: o documento autorizado lá NÃO tem valor fiscal, não é escriturado e não gera obrigação — por isso não entra na contagem de emitidas.">i</span></h2>
+            <span class="hint" id="hintCpTx"></span></div>
+          <div class="tabroll"><table class="tab" id="cpTxTab"></table></div>
+        </div>
+
         <div class="card" id="cpAvisosCard" hidden>
           <div class="head"><h2>Ler com atenção</h2></div>
           <div id="cpAvisos" class="cpbloco"></div>
@@ -9506,6 +9512,33 @@ function renderCtecp(d){
            : ((per.de||'')+' a '+(per.ate||'')))
     +(per.busca?(' · filtrado por “'+per.busca+'”'):'')
     +' · '+(f.gerado_em||'');
+  /* transmissoes ja feitas. Homologacao e producao NAO se somam: documento de
+     homologacao nao tem valor fiscal, e junta-los faria a tela anunciar uma
+     fila resolvida que nao foi. */
+  const tx=(d.emissoes||[]);
+  document.getElementById('cpTxCard').hidden = !tx.length;
+  if(tx.length){
+    const ok=tx.filter(function(t){return t.autorizado;}).length;
+    document.getElementById('hintCpTx').textContent =
+      tx.length+' '+(tx.length===1?'transmissão':'transmissões')+' · '+ok+
+      ' autorizada'+(ok===1?'':'s')+' · '+(k.emitidas||0)+' em produção';
+    document.getElementById('cpTxTab').innerHTML =
+      '<thead><tr><th>Quando</th><th>Ambiente</th><th>Série/Nº</th>'
+      +'<th>Retorno da SEFAZ</th><th>Protocolo</th><th>Quem</th></tr></thead><tbody>'
+      +tx.map(function(t){
+        const cls=t.autorizado?'good':'bad';
+        return '<tr><td class="mono">'+esc(fmtDT(t.quando||''))+'</td>'
+          +'<td>'+(t.ambiente==='homologação'
+             ? '<span class="chip warn" title="Ambiente de teste da SEFAZ: sem valor fiscal">homologação</span>'
+             : '<span class="chip">produção</span>')+'</td>'
+          +'<td class="mono">'+esc(t.serie)+'/'+esc(t.numero)+'</td>'
+          +'<td><span class="chip '+cls+'">'+esc(t.cstat||'?')+'</span> '
+          +esc(t.xmotivo||'')+'</td>'
+          +'<td class="mono">'+esc(t.protocolo||'—')+'</td>'
+          +'<td>'+esc(t.quem||'')+'</td></tr>';
+      }).join('')+'</tbody>';
+  }
+
   const av=(d.avisos||[]);
   document.getElementById('cpAvisosCard').hidden = !av.length;
   document.getElementById('cpAvisos').innerHTML =

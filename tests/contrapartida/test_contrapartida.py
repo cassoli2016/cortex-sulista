@@ -73,12 +73,39 @@ def test_a_tela_e_SO_LEITURA():
                          "pfx", "sign", "post"})
 
 
-def test_emitidas_e_zero_declarado_e_nao_calculado():
-    """Zero por confirmacao da operacao, nao por consulta que devolveu vazio.
-    A diferenca importa: consulta vazia pode ser bug."""
+def test_homologacao_NAO_entra_na_contagem_de_emitidas():
+    """`emitidas` era zero declarado enquanto nada havia sido transmitido.
+    Agora ha transmissoes de verdade - mas so em HOMOLOGACAO, que e ambiente
+    de teste e nao tem valor fiscal. Somar as duas faria a tela anunciar uma
+    fila resolvida que nao foi, que e pior do que o zero antigo."""
     with open(servico.__file__.replace(".pyc", ".py"), encoding="utf-8") as f:
         src = f.read()
-    assert '"emitidas": 0' in src
+    assert '"emitidas": _tx["producao"]' in src
+    assert '"emitidas_homologacao": _tx["homologacao"]' in src
+
+
+def test_a_contagem_separa_ambiente_e_resultado(monkeypatch):
+    """Producao x homologacao, e autorizada x recusada: quatro numeros, porque
+    documento recusado tambem nao emitiu nada."""
+    monkeypatch.setattr(
+        "api.contrapartida.emissao.historico",
+        lambda limite=30: [
+            {"ambiente": "2", "cstat": "100", "numero": 1},
+            {"ambiente": "2", "cstat": "310", "numero": 2},
+            {"ambiente": "1", "cstat": "100", "numero": 3},
+        ])
+    t = servico._transmissoes()
+    assert (t["producao"], t["homologacao"]) == (1, 2)
+    assert (t["autorizadas"], t["recusadas"]) == (2, 1)
+
+
+def test_registro_indisponivel_nao_derruba_a_tela(monkeypatch):
+    """O resto da conciliacao nao depende do historico de transmissoes."""
+    def explode(limite=30):
+        raise RuntimeError("banco fora")
+    monkeypatch.setattr("api.contrapartida.emissao.historico", explode)
+    t = servico._transmissoes()
+    assert t["ultimas"] == [] and t["producao"] == 0
 
 
 def test_pt_br_formata_SO_o_numero():

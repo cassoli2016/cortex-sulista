@@ -43,8 +43,11 @@ ENQUADRAMENTO = documento.Enquadramento(
     # DECIDIDO: rateio proporcional ao valor cobrado do cliente.
     criterio_rateio="cobrado",
     tp_serv="1",              # DECIDIDO: subcontratacao (base 0 do SCHEMA)
-    grupo_icms="ICMSSN",      # PENDENTE: emitente e optante do Simples
-    cst_icms="90",            # PENDENTE
+    # DECIDIDO: "use o que ja existe" - a tributacao sai do ERP, documento a
+    # documento (regime do emitente manda; nao sendo optante, vale a CST e a
+    # aliquota que o ERP ja calculou para aquela rota).
+    grupo_icms="AUTO",
+    cst_icms="",
     p_icms=None,
     # DECIDIDO e CONFIRMADO em 26/08/2026: o valor pago ao agregado, que e a
     # coluna do frete de compra - a mesma que alimenta o PEF da viagem. O

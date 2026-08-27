@@ -467,3 +467,64 @@ def test_cfop_trocado_entre_interno_e_interestadual_e_recusado():
 def test_cfop_precisa_ter_quatro_digitos():
     with pytest.raises(ValueError, match="4 dígitos"):
         dataclasses.replace(ENQ, cfop_interno="535")
+
+
+# --- tributacao vinda do ERP (grupo_icms AUTO) ------------------------------
+
+AUTO = dataclasses.replace(ENQ, grupo_icms="AUTO", cst_icms="", p_icms=None)
+
+
+def test_optante_do_simples_nao_destaca_icms_venha_o_que_vier_do_ERP():
+    """A CST do CT-e da Sulista descreve a prestacao DELA, que nao e optante.
+    Copiar para um agregado optante poria destaque de imposto num documento
+    que nao pode ter. O regime do EMITENTE vem primeiro."""
+    d = dict(DADOS, emit_optante_simples=1, cst_erp="000", aliq_erp=12)
+    assert AUTO.icms_de(d) == ("ICMSSN", "90", None)
+
+
+def test_nao_optante_aproveita_a_CST_e_a_ALIQUOTA_que_o_ERP_calculou():
+    d = dict(DADOS, emit_optante_simples=2, cst_erp="000", aliq_erp=12)
+    grupo, cst, aliq = AUTO.icms_de(d)
+    assert (grupo, cst) == ("ICMS00", "00") and aliq == Decimal("12")
+
+
+def test_isenta_no_erp_vira_grupo_de_isencao_sem_base_nem_aliquota():
+    d = dict(DADOS, emit_optante_simples=2, cst_erp="040", aliq_erp=0)
+    assert AUTO.icms_de(d) == ("ICMS45", "40", None)
+    xml = doc.serializar(doc.montar(d, AUTO, numero=1))
+    assert "<ICMS45>" in xml and "<vBC>" not in xml, (
+        "isenta nao tem base de calculo: mandar vBC zerado declara base zero "
+        "numa operacao que nao tem base")
+
+
+def test_outros_no_erp_vira_ICMS90():
+    d = dict(DADOS, emit_optante_simples=2, cst_erp="090", aliq_erp=0)
+    grupo, cst, _ = AUTO.icms_de(d)
+    assert (grupo, cst) == ("ICMS90", "90")
+
+
+def test_situacao_tributaria_desconhecida_PARA_em_vez_de_adivinhar():
+    """Traduzir codigo fiscal por semelhanca e inventar tributacao."""
+    d = dict(DADOS, emit_optante_simples=2, cst_erp="051", aliq_erp=12)
+    with pytest.raises(ValueError, match="de-para"):
+        AUTO.icms_de(d)
+
+
+def test_tributada_com_aliquota_zero_no_erp_e_recusada():
+    """CST 000 e aliquota 0 declara imposto zero numa operacao tributada."""
+    d = dict(DADOS, emit_optante_simples=2, cst_erp="000", aliq_erp=0)
+    with pytest.raises(ValueError, match="alíquota zero"):
+        AUTO.icms_de(d)
+
+
+def test_AUTO_recusa_cst_fixa_junto():
+    """Um valor fixo ali nao seria usado e daria a impressao de estar valendo."""
+    with pytest.raises(ValueError, match="AUTO"):
+        dataclasses.replace(ENQ, grupo_icms="AUTO", cst_icms="00",
+                            p_icms=Decimal("12"))
+
+
+def test_grupo_fixo_continua_ignorando_o_erp():
+    """Quem fixar o grupo nao quer que o documento decida sozinho."""
+    d = dict(DADOS, emit_optante_simples=2, cst_erp="000", aliq_erp=17)
+    assert ENQ.icms_de(d) == ("ICMSSN", "90", None)

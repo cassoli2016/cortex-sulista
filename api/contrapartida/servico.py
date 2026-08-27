@@ -222,8 +222,16 @@ def get_contrapartida(de: str | None = None, ate: str | None = None,
             "sem_ie": sum(1 for x in pj if not _ie_utilizavel(x["ie"])),
             "prontos_para_emitir": sum(1 for x in pj
                                        if (x.get("prontidao") or {}).get("pronto")),
-            "emitidas": 0,   # nenhuma contrapartida emitida ate hoje
+            # Deixa de ser zero declarado: agora ha transmissoes de verdade,
+            # ainda que so em homologacao. Producao e contada a parte porque
+            # homologacao NAO tem valor fiscal - somar as duas num numero so
+            # faria a tela anunciar uma fila resolvida que nao foi.
+            "emitidas": _tx["producao"],
+            "emitidas_homologacao": _tx["homologacao"],
+            "emitidas_autorizadas": _tx["autorizadas"],
+            "emitidas_recusadas": _tx["recusadas"],
         },
+        "emissoes": _tx["ultimas"],
         "por_mes": _serial(mes),
         "por_agregado": _serial(agreg),
         "frota": _serial(frota),
@@ -239,6 +247,43 @@ def get_contrapartida(de: str | None = None, ate: str | None = None,
 
 
 
+
+
+def _transmissoes(limite: int = 30) -> dict:
+    """As transmissoes ja feitas, para a tela mostrar o que saiu.
+
+    So LEITURA do registro local - esta funcao nao emite nada. Homologacao e
+    producao ficam separadas de proposito: documento de homologacao nao tem
+    valor fiscal e nao pode entrar na mesma contagem do que valeu.
+    """
+    from api.contrapartida import emissao
+    try:
+        linhas = emissao.historico(limite)
+    except Exception as exc:  # noqa: BLE001
+        # Registro indisponivel nao pode derrubar a tela inteira: o resto da
+        # conciliacao nao depende dele.
+        log.warning("historico de transmissoes indisponivel: %s", exc)
+        return {"producao": 0, "homologacao": 0, "autorizadas": 0,
+                "recusadas": 0, "ultimas": []}
+    prod = [x for x in linhas if str(x.get("ambiente")) == "1"]
+    homo = [x for x in linhas if str(x.get("ambiente")) == "2"]
+    ok = [x for x in linhas if str(x.get("cstat")) == "100"]
+    return {
+        "producao": len(prod),
+        "homologacao": len(homo),
+        "autorizadas": len(ok),
+        "recusadas": len(linhas) - len(ok),
+        "ultimas": [{
+            "quando": x.get("quando"), "quem": x.get("quem"),
+            "ambiente": "homologação" if str(x.get("ambiente")) == "2"
+                        else "produção",
+            "serie": x.get("serie"), "numero": x.get("numero"),
+            "chave": x.get("chave"), "cstat": x.get("cstat"),
+            "xmotivo": x.get("xmotivo"), "protocolo": x.get("protocolo"),
+            "autorizado": str(x.get("cstat")) == "100",
+            "chave_origem": x.get("chave_origem"),
+        } for x in linhas],
+    }
 
 
 def _br(v: float, casas: int = 2) -> str:
