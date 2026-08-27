@@ -2818,13 +2818,13 @@ async def extrato_mapear(req: Request) -> JSONResponse:
                 "erro": "parametro_invalido",
                 "mensagem": "Informe conta_id, ou formato=csv com a conta do ERP."})
         try:
-            arm.init_db(arm.DB_PATH)
+            arm.init_db(arm.ESQUEMA)
             banco = int(body["erp_banco"])
             agencia = str(body.get("erp_agencia") or "")
             conta = str(body.get("erp_conta") or "")
             ident = ident_csv(banco, agencia, conta)
             rotulo = body.get("rotulo") or f"{banco} / ag {agencia} / cc {conta}"
-            conta_id = arm.obter_ou_criar_conta(arm.DB_PATH, ident, rotulo)
+            conta_id = arm.obter_ou_criar_conta(arm.ESQUEMA, ident, rotulo)
         except (TypeError, ValueError):
             return JSONResponse(status_code=422, content={
                 "erro": "parametro_invalido", "mensagem": "Conta do ERP inválida."})
@@ -2832,16 +2832,16 @@ async def extrato_mapear(req: Request) -> JSONResponse:
         return JSONResponse(status_code=422, content={
             "erro": "parametro_invalido", "mensagem": "conta_id inválido."})
     try:
-        arm.init_db(arm.DB_PATH)
+        arm.init_db(arm.ESQUEMA)
         if body.get("erp_banco") is not None:
-            arm.mapear_conta(arm.DB_PATH, conta_id, int(body["erp_banco"]),
+            arm.mapear_conta(arm.ESQUEMA, conta_id, int(body["erp_banco"]),
                              str(body.get("erp_agencia") or ""),
                              str(body.get("erp_conta") or ""),
                              rotulo=(body.get("rotulo") or None))
         mapa = body.get("mapa_csv")
         if isinstance(mapa, dict):
             limpo = {k: int(v) for k, v in mapa.items() if isinstance(v, (int, float))}
-            arm.salvar_mapa_csv(arm.DB_PATH, conta_id, limpo)
+            arm.salvar_mapa_csv(arm.ESQUEMA, conta_id, limpo)
         # devolve o conta_id: no fluxo CSV a tela precisa dele para reenviar o
         # arquivo (importar exige conta_id explicito para CSV)
         return JSONResponse({"ok": True, "conta_id": conta_id})
@@ -2858,8 +2858,8 @@ async def extrato_mapear(req: Request) -> JSONResponse:
 def extrato_apagar(imp_id: int) -> JSONResponse:
     from api.extrato import armazenamento as arm
     try:
-        arm.init_db(arm.DB_PATH)
-        n = arm.apagar_importacao(arm.DB_PATH, imp_id)
+        arm.init_db(arm.ESQUEMA)
+        n = arm.apagar_importacao(arm.ESQUEMA, imp_id)
         return JSONResponse({"ok": True, "apagados": n})
     except Exception as exc:  # noqa: BLE001
         log.warning("extrato_apagar falhou: %s", exc)

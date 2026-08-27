@@ -1,8 +1,9 @@
-"""Persistência local do extrato bancário (SQLite).
+"""Persistência local do extrato bancário — PostgreSQL (schema `cortex`).
+
+Sexto store migrado do SQLite (27/08/2026 — ver `docs/MIGRACAO_POSTGRES.md`).
+O `data/extrato.db` continua no disco até a fase seguinte fechar.
 
 O ERP AVA é réplica somente-leitura, então o extrato importado é dado nosso.
-Segue o padrão de `api/orcamento/armazenamento.py`: conexão curta com commit
-automático e WAL.
 
 Dedup (idempotência de re-upload): o OFX traz FITID, identificador único do
 lançamento no banco -> chave natural. CSV não tem FITID: a chave passa a ser o
@@ -21,161 +22,31 @@ from __future__ import annotations
 
 import hashlib
 import json
-import sqlite3
-from contextlib import contextmanager
-from pathlib import Path
 
-ROOT = Path(__file__).resolve().parent.parent.parent
-DB_PATH = ROOT / "data" / "extrato.db"
+from .. import migracoes, pglocal
 
-
-@contextmanager
-def _conn(path: Path):
-    Path(path).parent.mkdir(exist_ok=True)
-    c = sqlite3.connect(path, timeout=10)
-    c.row_factory = sqlite3.Row
-    c.execute("PRAGMA journal_mode=WAL")
-    c.execute("PRAGMA foreign_keys=ON")
-    try:
-        with c:
-            yield c
-    finally:
-        c.close()
+# Manopla de redirecionamento, no lugar do antigo `DB_PATH`. Aqui ela tem um
+# papel a mais: `servico.painel(..., path=arm.DB_PATH)` usava o valor como
+# ARGUMENTO PADRÃO, avaliado no import — monkeypatch depois disso não teria
+# efeito nenhum. Os padrões viraram `None`, e o None cai aqui.
+ESQUEMA: str | None = None
 
 
-def init_db(path: Path = DB_PATH) -> None:
-    with _conn(path) as c:
-        c.executescript("""
-        CREATE TABLE IF NOT EXISTS ext_conta(
-            id          INTEGER PRIMARY KEY AUTOINCREMENT,
-            ident       TEXT NOT NULL UNIQUE,
-            rotulo      TEXT NOT NULL,
-            erp_banco   INTEGER,
-            erp_agencia TEXT,
-            erp_conta   TEXT,
-            mapa_csv    TEXT,
-            criado_em   TEXT NOT NULL DEFAULT (datetime('now','localtime'))
-        );
-        CREATE TABLE IF NOT EXISTS ext_importacao(
-            id        INTEGER PRIMARY KEY AUTOINCREMENT,
-            conta_id  INTEGER NOT NULL REFERENCES ext_conta(id) ON DELETE CASCADE,
-            arquivo   TEXT NOT NULL,
-            formato   TEXT NOT NULL,
-            dt_de     TEXT,
-            dt_ate    TEXT,
-            novas     INTEGER NOT NULL DEFAULT 0,
-            duplicadas INTEGER NOT NULL DEFAULT 0,
-            ignoradas INTEGER NOT NULL DEFAULT 0,
-            quando    TEXT NOT NULL DEFAULT (datetime('now','localtime'))
-        );
-        CREATE TABLE IF NOT EXISTS ext_lancamento(
-            id            INTEGER PRIMARY KEY AUTOINCREMENT,
-            conta_id      INTEGER NOT NULL REFERENCES ext_conta(id) ON DELETE CASCADE,
-            importacao_id INTEGER NOT NULL REFERENCES ext_importacao(id) ON DELETE CASCADE,
-            dt            TEXT NOT NULL,
-            valor         REAL NOT NULL,
-            tipo          TEXT NOT NULL,
-            historico     TEXT NOT NULL DEFAULT '',
-            numerodoc     TEXT NOT NULL DEFAULT '',
-            fitid         TEXT,
-            chave         TEXT NOT NULL,
-            UNIQUE (conta_id, chave)
-        );
-        CREATE TABLE IF NOT EXISTS ext_saldo(
-            conta_id      INTEGER NOT NULL REFERENCES ext_conta(id) ON DELETE CASCADE,
-            dt            TEXT NOT NULL,
-            saldo         REAL NOT NULL,
-            importacao_id INTEGER REFERENCES ext_importacao(id) ON DELETE CASCADE,
-            -- 'linha' (o banco imprimiu o saldo daquele dia) vence 'ledgerbal'
-            -- (a posicao final do arquivo). Ver `gravar_saldo_extrato`.
-            origem        TEXT NOT NULL DEFAULT 'ledgerbal',
-            PRIMARY KEY (conta_id, dt)
-        );
-        CREATE INDEX IF NOT EXISTS ix_ext_lanc_conta_dt ON ext_lancamento(conta_id, dt);
-        CREATE INDEX IF NOT EXISTS ix_ext_lanc_imp ON ext_lancamento(importacao_id);
-        """)
-        # migração: banco criado antes desta revisão não tem `importacao_id` em
-        # ext_saldo (CREATE TABLE IF NOT EXISTS não altera tabela existente -
-        # padrão de `api/orcamento/armazenamento.py`). Sem esse vínculo,
-        # "desfazer" uma importação removia os lançamentos e deixava a âncora
-        # de saldo órfã: se a âncora órfã fosse mais recente que a âncora boa,
-        # `saldo_derivado` (que usa `max(dt)` das âncoras) partia dela e TODOS
-        # os saldos derivados saíam errados - achado d1 da revisão final. As
-        # âncoras gravadas ANTES da migração ficam com `importacao_id=NULL`
-        # (decisão: mantê-las como estão - não sabemos a qual importação
-        # pertenciam - `apagar_importacao` só remove as que casam o id exato,
-        # nunca as `NULL`).
-        cols = {r["name"] for r in c.execute("PRAGMA table_info(ext_saldo)")}
-        if "importacao_id" not in cols:
-            c.execute("ALTER TABLE ext_saldo ADD COLUMN importacao_id "
-                     "INTEGER REFERENCES ext_importacao(id) ON DELETE CASCADE")
-        if "origem" not in cols:
-            # Ancora gravada antes desta revisao fica como 'ledgerbal', o valor
-            # mais fraco: assim a primeira linha de saldo de verdade que chegar
-            # a substitui. O contrario (assumir 'linha') protegeria para sempre
-            # um numero que pode ser o consolidado errado.
-            c.execute("ALTER TABLE ext_saldo ADD COLUMN origem TEXT NOT NULL "
-                      "DEFAULT 'ledgerbal'")
-
-        _remigra_chaves(c)
+def _esq(esquema: str | None) -> str | None:
+    return esquema or ESQUEMA
 
 
-def _remigra_chaves(c) -> int:
-    """Recalcula as chaves gravadas no formato antigo `fitid:<id>` (ver `_chave`).
+def init_db(esquema: str | None = None) -> None:
+    """O DDL mora em `sql/cortex/0007_extrato.sql`.
 
-    Sem isto, uma base que ja tenha lancamentos fica com dois formatos de chave
-    convivendo, e o reimport do MESMO arquivo passa a inserir tudo de novo: as
-    linhas antigas estao sob `fitid:...` e as novas sob `hash:...`, entao o
-    `INSERT OR IGNORE` nao encontra colisao nenhuma e a conta dobra.
-
-    A reconstrucao repete exatamente o que `gravar_lancamentos` faria: agrupa
-    por importacao e percorre por `id` (a ordem de insercao original), porque o
-    contador de ocorrencia e por IMPORTACAO, nao por conta.
-
-    Duas linhas da mesma conta podem cair na mesma chave nova - acontece quando
-    o esquema antigo as manteve separadas SO por terem FITIDs diferentes sendo,
-    em tudo o mais, o mesmo lancamento importado duas vezes. Sob a regra nova
-    isso e duplicata; fica a de menor `id` (a primeira que entrou) e a outra sai,
-    com a contagem no log para que a remocao nao seja silenciosa.
+    SAIU DAQUI, e com ele duas coisas: os `ALTER TABLE` condicionais (que a
+    migration numerada substitui) e `_remigra_chaves`, a rotina que recalculava
+    chaves no formato antigo `fitid:<id>`. Ela rodava a cada `init_db` e não
+    tem mais o que fazer: a base migrada foi conferida com zero chaves nesse
+    formato, e a partir daqui só existe o formato novo. Carregar código morto
+    que mexe em chave de dedup é convite a acidente.
     """
-    import logging
-
-    antigas = c.execute(
-        "SELECT id, conta_id, importacao_id, dt, valor, historico, numerodoc, fitid "
-        "FROM ext_lancamento WHERE chave LIKE 'fitid:%' ORDER BY conta_id, importacao_id, id"
-    ).fetchall()
-    if not antigas:
-        return 0
-
-    vistos: dict[tuple, int] = {}
-    novas: dict[int, str] = {}
-    for r in antigas:
-        item = {"dt": r["dt"], "valor": r["valor"], "historico": r["historico"],
-                "numerodoc": r["numerodoc"], "fitid": r["fitid"]}
-        base = (r["importacao_id"], *_identidade(item))
-        vistos[base] = vistos.get(base, 0) + 1
-        novas[r["id"]] = _chave(item, vistos[base])
-
-    # colisao entre chaves novas dentro da MESMA conta: fica o menor id
-    dono: dict[tuple[int, str], int] = {}
-    sobra: list[int] = []
-    for r in antigas:
-        k = (r["conta_id"], novas[r["id"]])
-        if k in dono:
-            sobra.append(r["id"])
-        else:
-            dono[k] = r["id"]
-
-    if sobra:
-        c.executemany("DELETE FROM ext_lancamento WHERE id=?", [(i,) for i in sobra])
-    # a chave antiga e sempre distinta da nova (prefixo diferente), entao nao ha
-    # colisao com linhas ainda nao migradas no meio do caminho
-    c.executemany("UPDATE ext_lancamento SET chave=? WHERE id=?",
-                  [(novas[r["id"]], r["id"]) for r in antigas if r["id"] not in set(sobra)])
-    logging.getLogger(__name__).warning(
-        "extrato: %d chaves remigradas do formato fitid: para hash: (%d duplicatas removidas)",
-        len(antigas) - len(sobra), len(sobra))
-    return len(antigas) - len(sobra)
+    migracoes.aplicar(_esq(esquema))
 
 
 def _norm_historico(s: str | None) -> str:
@@ -235,88 +106,115 @@ def _chave(item: dict, ocorrencia: int) -> str:
     return "hash:" + hashlib.sha1(cru.encode("utf-8")).hexdigest()
 
 
-def obter_ou_criar_conta(path: Path, ident: str, rotulo: str) -> int:
-    with _conn(path) as c:
-        row = c.execute("SELECT id FROM ext_conta WHERE ident=?", (ident,)).fetchone()
-        if row:
-            return int(row["id"])
-        cur = c.execute("INSERT INTO ext_conta(ident, rotulo) VALUES(?,?)", (ident, rotulo))
-        return int(cur.lastrowid)
+def obter_ou_criar_conta(esquema: str | None, ident: str, rotulo: str) -> int:
+    init_db(esquema)
+    with pglocal.get_conn(_esq(esquema)) as conn:
+        with conn.cursor() as cur:
+            cur.execute("SELECT id FROM ext_conta WHERE ident=%s", (ident,))
+            row = cur.fetchone()
+            if row:
+                return int(row["id"])
+            cur.execute("INSERT INTO ext_conta(ident, rotulo) VALUES(%s,%s)"
+                        " RETURNING id", (ident, rotulo))
+            return int(cur.fetchone()["id"])
 
 
-def mapear_conta(path: Path, conta_id: int, erp_banco: int, erp_agencia: str,
-                 erp_conta: str, rotulo: str | None = None) -> None:
-    with _conn(path) as c:
-        if rotulo:
-            c.execute("UPDATE ext_conta SET erp_banco=?, erp_agencia=?, erp_conta=?, rotulo=? "
-                      "WHERE id=?", (erp_banco, erp_agencia, erp_conta, rotulo, conta_id))
-        else:
-            c.execute("UPDATE ext_conta SET erp_banco=?, erp_agencia=?, erp_conta=? WHERE id=?",
-                      (erp_banco, erp_agencia, erp_conta, conta_id))
+def mapear_conta(esquema: str | None, conta_id: int, erp_banco: int,
+                 erp_agencia: str, erp_conta: str, rotulo: str | None = None) -> None:
+    if rotulo:
+        pglocal.executar(
+            "UPDATE ext_conta SET erp_banco=%s, erp_agencia=%s, erp_conta=%s,"
+            " rotulo=%s WHERE id=%s",
+            (erp_banco, erp_agencia, erp_conta, rotulo, conta_id), esquema=_esq(esquema))
+    else:
+        pglocal.executar(
+            "UPDATE ext_conta SET erp_banco=%s, erp_agencia=%s, erp_conta=%s"
+            " WHERE id=%s",
+            (erp_banco, erp_agencia, erp_conta, conta_id), esquema=_esq(esquema))
 
 
-def salvar_mapa_csv(path: Path, conta_id: int, mapa: dict) -> None:
-    with _conn(path) as c:
-        c.execute("UPDATE ext_conta SET mapa_csv=? WHERE id=?",
-                  (json.dumps(mapa, ensure_ascii=False), conta_id))
+def salvar_mapa_csv(esquema: str | None, conta_id: int, mapa: dict) -> None:
+    pglocal.executar("UPDATE ext_conta SET mapa_csv=%s WHERE id=%s",
+                     (json.dumps(mapa, ensure_ascii=False), conta_id),
+                     esquema=_esq(esquema))
 
 
-def _conta_dict(row: sqlite3.Row) -> dict:
+def _conta_dict(row: dict) -> dict:
     d = dict(row)
     d["mapa_csv"] = json.loads(d["mapa_csv"]) if d.get("mapa_csv") else None
     return d
 
 
-def conta_por_ident(path: Path, ident: str) -> dict | None:
-    with _conn(path) as c:
-        row = c.execute("SELECT * FROM ext_conta WHERE ident=?", (ident,)).fetchone()
+def _vazio_se_sem_tabela(fn, padrao):
+    """Instalação que nunca importou extrato não tem as tabelas — é lista
+    vazia, não falha. Erro de CONEXÃO sobe."""
+    try:
+        return fn()
+    except Exception as exc:  # noqa: BLE001
+        if pglocal.sem_tabela(exc):
+            return padrao
+        raise
+
+
+def conta_por_ident(esquema: str | None, ident: str) -> dict | None:
+    row = _vazio_se_sem_tabela(lambda: pglocal.um(
+        "SELECT * FROM ext_conta WHERE ident=%s", (ident,),
+        esquema=_esq(esquema)), None)
     return _conta_dict(row) if row else None
 
 
-def listar_contas(path: Path = DB_PATH) -> list[dict]:
-    with _conn(path) as c:
-        rows = c.execute("SELECT * FROM ext_conta ORDER BY rotulo").fetchall()
+def listar_contas(esquema: str | None = None) -> list[dict]:
+    rows = _vazio_se_sem_tabela(lambda: pglocal.query(
+        "SELECT * FROM ext_conta ORDER BY rotulo", esquema=_esq(esquema)), [])
     return [_conta_dict(r) for r in rows]
 
 
-def gravar_lancamentos(path: Path, conta_id: int, itens: list[dict], arquivo: str,
-                       formato: str, ignoradas: int = 0) -> dict:
+def gravar_lancamentos(esquema: str | None, conta_id: int, itens: list[dict],
+                       arquivo: str, formato: str, ignoradas: int = 0) -> dict:
     datas = sorted(i["dt"] for i in itens) or [None]
     novas = dupl = 0
-    with _conn(path) as c:
-        cur = c.execute(
-            "INSERT INTO ext_importacao(conta_id, arquivo, formato, dt_de, dt_ate, ignoradas) "
-            "VALUES(?,?,?,?,?,?)", (conta_id, arquivo, formato, datas[0], datas[-1], ignoradas))
-        imp_id = int(cur.lastrowid)
-        vistos: dict[tuple[str, str, str, str], int] = {}
-        for item in itens:
-            base = _identidade(item)
-            vistos[base] = vistos.get(base, 0) + 1
-            chave = _chave(item, vistos[base])
-            valor = float(item["valor"])
-            tipo = "C" if valor >= 0 else "D"  # sinal manda, nunca o campo de entrada
-            ins = c.execute(
-                "INSERT OR IGNORE INTO ext_lancamento"
-                "(conta_id, importacao_id, dt, valor, tipo, historico, numerodoc, fitid, chave) "
-                "VALUES(?,?,?,?,?,?,?,?,?)",
-                (conta_id, imp_id, item["dt"], valor, tipo,
-                 item.get("historico") or "", item.get("numerodoc") or "",
-                 item.get("fitid"), chave))
-            if ins.rowcount:
-                novas += 1
-            else:
-                dupl += 1
-        c.execute("UPDATE ext_importacao SET novas=?, duplicadas=? WHERE id=?",
-                  (novas, dupl, imp_id))
-        # importação que não trouxe nada novo não fica na trilha (poluiria a lista
-        # de uploads com registros vazios a cada re-upload)
-        if novas == 0:
-            c.execute("DELETE FROM ext_importacao WHERE id=?", (imp_id,))
+    init_db(esquema)
+    with pglocal.get_conn(_esq(esquema)) as conn:
+        with conn.cursor() as cur:
+            cur.execute(
+                "INSERT INTO ext_importacao(conta_id, arquivo, formato, dt_de,"
+                " dt_ate, ignoradas) VALUES(%s,%s,%s,%s,%s,%s) RETURNING id",
+                (conta_id, arquivo, formato, datas[0], datas[-1], ignoradas))
+            imp_id = int(cur.fetchone()["id"])
+            vistos: dict[tuple[str, str, str, str], int] = {}
+            for item in itens:
+                base = _identidade(item)
+                vistos[base] = vistos.get(base, 0) + 1
+                chave = _chave(item, vistos[base])
+                valor = float(item["valor"])
+                tipo = "C" if valor >= 0 else "D"  # sinal manda, nunca o campo de entrada
+                # `ON CONFLICT DO NOTHING` é o `INSERT OR IGNORE`: o rowcount
+                # volta 0 quando a linha já existia, e é assim que se conta
+                # novas × duplicadas sem uma segunda consulta
+                cur.execute(
+                    "INSERT INTO ext_lancamento"
+                    "(conta_id, importacao_id, dt, valor, tipo, historico,"
+                    " numerodoc, fitid, chave)"
+                    " VALUES(%s,%s,%s,%s,%s,%s,%s,%s,%s)"
+                    " ON CONFLICT (conta_id, chave) DO NOTHING",
+                    (conta_id, imp_id, item["dt"], valor, tipo,
+                     item.get("historico") or "", item.get("numerodoc") or "",
+                     item.get("fitid"), chave))
+                if cur.rowcount:
+                    novas += 1
+                else:
+                    dupl += 1
+            cur.execute("UPDATE ext_importacao SET novas=%s, duplicadas=%s"
+                        " WHERE id=%s", (novas, dupl, imp_id))
+            # importação que não trouxe nada novo não fica na trilha (poluiria a
+            # lista de uploads com registros vazios a cada re-upload)
+            if novas == 0:
+                cur.execute("DELETE FROM ext_importacao WHERE id=%s", (imp_id,))
     return {"importacao_id": imp_id if novas else 0, "novas": novas, "duplicadas": dupl}
 
 
-def gravar_saldo_extrato(path: Path, conta_id: int, dt: str, saldo: float,
-                         importacao_id: int | None = None,
+def gravar_saldo_extrato(esquema: str | None, conta_id: int, dt: str,
+                         saldo: float, importacao_id: int | None = None,
                          origem: str = "ledgerbal") -> None:
     """Grava a âncora de saldo de um dia, respeitando a PRECEDÊNCIA da origem.
 
@@ -345,10 +243,9 @@ def gravar_saldo_extrato(path: Path, conta_id: int, dt: str, saldo: float,
     Por isso 'ledgerbal' NÃO sobrescreve 'linha'. O contrário sobrescreve (é
     dado melhor), e origem igual sempre sobrescreve (reenvio corrige).
     """
-    with _conn(path) as c:
-        c.execute(
+    pglocal.executar(
             "INSERT INTO ext_saldo(conta_id, dt, saldo, importacao_id, origem) "
-            "VALUES(?,?,?,?,?) "
+            "VALUES(%s,%s,%s,%s,%s) "
             # COALESCE: reimportar o MESMO arquivo (0 lancamentos novos) chama aqui
             # com importacao_id None, porque a importacao sem novidade se autodeleta
             # da trilha. Sobrescrever com NULL destruiria o vinculo BOM criado pela
@@ -361,43 +258,40 @@ def gravar_saldo_extrato(path: Path, conta_id: int, dt: str, saldo: float,
             # o WHERE do upsert e' o que implementa a precedencia: sem ele o
             # SET acima roda sempre e o LEDGERBAL de amanha apaga a linha de hoje
             "WHERE excluded.origem='linha' OR ext_saldo.origem<>'linha'",
-            (conta_id, dt, float(saldo), importacao_id, origem))
+            (conta_id, dt, float(saldo), importacao_id, origem),
+            esquema=_esq(esquema))
 
 
-def saldos_extrato(path: Path, conta_id: int) -> list[dict]:
-    with _conn(path) as c:
-        rows = c.execute("SELECT dt, saldo FROM ext_saldo WHERE conta_id=? ORDER BY dt",
-                         (conta_id,)).fetchall()
-    return [dict(r) for r in rows]
+def saldos_extrato(esquema: str | None, conta_id: int) -> list[dict]:
+    return _vazio_se_sem_tabela(lambda: pglocal.query(
+        "SELECT dt, saldo FROM ext_saldo WHERE conta_id=%s ORDER BY dt",
+        (conta_id,), esquema=_esq(esquema)), [])
 
 
-def lancamentos(path: Path, conta_id: int, dt_de: str, dt_ate: str) -> list[dict]:
-    with _conn(path) as c:
-        rows = c.execute(
+def lancamentos(esquema: str | None, conta_id: int, dt_de: str,
+                dt_ate: str) -> list[dict]:
+    return _vazio_se_sem_tabela(lambda: pglocal.query(
             # o `id` viaja junto porque a conciliacao linha a linha precisa de uma
             # referencia ESTAVEL para o par que ela montou - dt+valor+historico nao
             # serve, que e justamente o caso de dois lancamentos gemeos no mesmo dia
-            "SELECT id, dt, valor, tipo, historico, numerodoc FROM ext_lancamento "
-            "WHERE conta_id=? AND dt BETWEEN ? AND ? ORDER BY dt, id", (conta_id, dt_de, dt_ate)
-        ).fetchall()
-    return [dict(r) for r in rows]
+        "SELECT id, dt, valor, tipo, historico, numerodoc FROM ext_lancamento"
+        " WHERE conta_id=%s AND dt BETWEEN %s AND %s ORDER BY dt, id",
+        (conta_id, dt_de, dt_ate), esquema=_esq(esquema)), [])
 
 
-def listar_importacoes(path: Path = DB_PATH, limite: int = 20) -> list[dict]:
+def listar_importacoes(esquema: str | None = None, limite: int = 20) -> list[dict]:
     """As `limite` importações mais recentes, para a TABELA DA TELA. NUNCA usar
     isto para decidir o último dia coberto por conta (regra de negócio) - com
     8 contas subindo 1 extrato/dia, 20 linhas enchem em 2,5 dias e uma conta de
     upload menos frequente some da lista sem ter ficado desatualizada de
     verdade. Para isso existe `ultimo_dt_por_conta`, sem limite."""
-    with _conn(path) as c:
-        rows = c.execute(
-            "SELECT i.*, c.rotulo AS conta_rotulo FROM ext_importacao i "
-            "JOIN ext_conta c ON c.id=i.conta_id ORDER BY i.id DESC LIMIT ?", (limite,)
-        ).fetchall()
-    return [dict(r) for r in rows]
+    return _vazio_se_sem_tabela(lambda: pglocal.query(
+        "SELECT i.*, c.rotulo AS conta_rotulo FROM ext_importacao i"
+        " JOIN ext_conta c ON c.id=i.conta_id ORDER BY i.id DESC LIMIT %s",
+        (limite,), esquema=_esq(esquema)), [])
 
 
-def ultimo_dt_por_conta(path: Path = DB_PATH) -> dict[int, str]:
+def ultimo_dt_por_conta(esquema: str | None = None) -> dict[int, str]:
     """Último `dt_ate` de importação por conta, direto do banco - sem o
     `LIMIT 20` de `listar_importacoes` (que é só da listagem da tela, Task 7).
 
@@ -409,20 +303,22 @@ def ultimo_dt_por_conta(path: Path = DB_PATH) -> dict[int, str]:
     fazendo-a sumir do farol e do digest. As contas afetadas são justamente
     as de upload menos frequente, as mais expostas ao problema que este
     painel existe para pegar."""
-    with _conn(path) as c:
-        rows = c.execute(
-            "SELECT conta_id, max(dt_ate) AS dt_ate FROM ext_importacao "
-            "WHERE dt_ate IS NOT NULL GROUP BY conta_id").fetchall()
+    rows = _vazio_se_sem_tabela(lambda: pglocal.query(
+        "SELECT conta_id, max(dt_ate) AS dt_ate FROM ext_importacao"
+        " WHERE dt_ate IS NOT NULL GROUP BY conta_id", esquema=_esq(esquema)), [])
     return {int(r["conta_id"]): r["dt_ate"] for r in rows}
 
 
-def apagar_importacao(path: Path, importacao_id: int) -> int:
-    with _conn(path) as c:
-        n = c.execute("DELETE FROM ext_lancamento WHERE importacao_id=?",
-                      (importacao_id,)).rowcount
-        # remove só a(s) âncora(s) de saldo QUE PERTENCEM a esta importação -
-        # âncoras de outras importações ou anteriores à migração
-        # (`importacao_id IS NULL`) nunca são tocadas por este DELETE (d1).
-        c.execute("DELETE FROM ext_saldo WHERE importacao_id=?", (importacao_id,))
-        c.execute("DELETE FROM ext_importacao WHERE id=?", (importacao_id,))
+def apagar_importacao(esquema: str | None, importacao_id: int) -> int:
+    with pglocal.get_conn(_esq(esquema)) as conn:
+        with conn.cursor() as c:
+            c.execute("DELETE FROM ext_lancamento WHERE importacao_id=%s",
+                      (importacao_id,))
+            n = c.rowcount
+            # remove só a(s) âncora(s) de saldo QUE PERTENCEM a esta
+            # importação — âncoras de outras importações ou anteriores à
+            # migração (`importacao_id IS NULL`) nunca são tocadas (d1).
+            c.execute("DELETE FROM ext_saldo WHERE importacao_id=%s",
+                      (importacao_id,))
+            c.execute("DELETE FROM ext_importacao WHERE id=%s", (importacao_id,))
     return int(n)

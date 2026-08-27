@@ -8,10 +8,10 @@ from api.extrato import comparacao as cmp
 
 
 @pytest.fixture()
-def db(tmp_path):
-    p = tmp_path / "extrato.db"
-    arm.init_db(p)
-    return p
+def db(esquema_pg):
+    """Um SCHEMA exclusivo do teste, no lugar do arquivo em tmp_path — o
+    extrato migrou para o PostgreSQL em 27/08/2026."""
+    return esquema_pg
 
 
 def _item(dt="2026-07-01", valor=100.0, tipo="C", hist="TED RECEBIDA",

@@ -331,8 +331,8 @@ def ident_csv(erp_banco: int, erp_agencia: str, erp_conta: str) -> str:
     return f"csv:{erp_banco}/{erp_agencia}/{erp_conta}"
 
 
-def _conta_por_id(path, conta_id: int) -> dict | None:
-    return next((c for c in arm.listar_contas(path) if c["id"] == conta_id), None)
+def _conta_por_id(esquema, conta_id: int) -> dict | None:
+    return next((c for c in arm.listar_contas(esquema) if c["id"] == conta_id), None)
 
 
 def _formato(nome: str) -> str:
@@ -373,8 +373,8 @@ def contas_erp() -> list[dict]:
     return out
 
 
-def importar(bruto: bytes, nome: str, path=arm.DB_PATH, conta_id: int | None = None) -> dict:
-    arm.init_db(path)
+def importar(bruto: bytes, nome: str, esquema=None, conta_id: int | None = None) -> dict:
+    arm.init_db(esquema)
     formato = _formato(nome)
 
     if formato in ("ofx", "pdf"):
@@ -395,8 +395,8 @@ def importar(bruto: bytes, nome: str, path=arm.DB_PATH, conta_id: int | None = N
         resultados = []
         for d in extratos:
             rotulo = f"{d['banco'] or '?'} / cc {d['conta'] or '?'}"
-            cid = arm.obter_ou_criar_conta(path, d["ident"], rotulo)
-            conta = arm.conta_por_ident(path, d["ident"])
+            cid = arm.obter_ou_criar_conta(esquema, d["ident"], rotulo)
+            conta = arm.conta_por_ident(esquema, d["ident"])
 
             # LANCAMENTO COM DATA FUTURA NAO E EXTRATO - e agenda, e nao entra.
             #
@@ -416,7 +416,7 @@ def importar(bruto: bytes, nome: str, path=arm.DB_PATH, conta_id: int | None = N
             futuras = [i for i in d["itens"] if i["dt"] > hoje]
             itens = [i for i in d["itens"] if i["dt"] <= hoje]
 
-            res = arm.gravar_lancamentos(path, cid, itens, nome, formato,
+            res = arm.gravar_lancamentos(esquema, cid, itens, nome, formato,
                                          d["ignoradas"])
             # `importacao_id` amarra a âncora a ESTA importação (achado d1):
             # `res["importacao_id"]` sai 0 quando o arquivo não trouxe
@@ -433,7 +433,7 @@ def importar(bruto: bytes, nome: str, path=arm.DB_PATH, conta_id: int | None = N
             for s in d["saldos"]:
                 if s["dt"] > hoje:
                     continue
-                arm.gravar_saldo_extrato(path, cid, s["dt"], s["saldo"],
+                arm.gravar_saldo_extrato(esquema, cid, s["dt"], s["saldo"],
                                          importacao_id=res["importacao_id"] or None,
                                          origem=s.get("origem") or "ledgerbal")
             datas = sorted(i["dt"] for i in itens) or [None]
@@ -475,15 +475,15 @@ def importar(bruto: bytes, nome: str, path=arm.DB_PATH, conta_id: int | None = N
     # tela de mapeamento (Task 6) com `ident_csv()`.
     if conta_id is None:
         return {"ok": False, "precisa": "conta_csv", "preview": preview_csv(bruto),
-                "contas": arm.listar_contas(path), "novas": 0, "duplicadas": 0, "ignoradas": 0}
-    conta = _conta_por_id(path, conta_id)
+                "contas": arm.listar_contas(esquema), "novas": 0, "duplicadas": 0, "ignoradas": 0}
+    conta = _conta_por_id(esquema, conta_id)
     if conta is None:
         raise ValueError(f"conta_id {conta_id} nao existe.")
     if not conta.get("mapa_csv"):
         return {"ok": False, "precisa": "mapa_csv", "conta_id": conta_id, "conta": conta,
                 "preview": preview_csv(bruto), "novas": 0, "duplicadas": 0, "ignoradas": 0}
     d = parse_csv(bruto, conta["mapa_csv"])
-    res = arm.gravar_lancamentos(path, conta_id, d["itens"], nome, "csv", d["ignoradas"])
+    res = arm.gravar_lancamentos(esquema, conta_id, d["itens"], nome, "csv", d["ignoradas"])
     datas = sorted(i["dt"] for i in d["itens"]) or [None]
     base = {"conta_id": conta_id, "conta": conta, "novas": res["novas"],
             "duplicadas": res["duplicadas"], "ignoradas": d["ignoradas"],
@@ -493,25 +493,25 @@ def importar(bruto: bytes, nome: str, path=arm.DB_PATH, conta_id: int | None = N
     return {"ok": True, **base}
 
 
-def painel(dt_de: str, dt_ate: str, conta_id: int | None = None, path=arm.DB_PATH) -> dict:
-    arm.init_db(path)
+def painel(dt_de: str, dt_ate: str, conta_id: int | None = None, esquema=None) -> dict:
+    arm.init_db(esquema)
     hoje = date.today().isoformat()
-    contas = arm.listar_contas(path)
-    imps = arm.listar_importacoes(path)   # só para a TABELA de importações da tela
+    contas = arm.listar_contas(esquema)
+    imps = arm.listar_importacoes(esquema)   # só para a TABELA de importações da tela
     # ult_por_conta ("último dia coberto por conta") vem direto do banco, sem o
     # LIMIT 20 de `imps` acima - ele governa o farol (achado C1, crítico): usar
     # a lista limitada da tela fazia uma conta de upload pouco frequente cair
     # fora das 20 mais novas, ficar com `ultimo_upload=None` e o farol julgar
     # "desatualizado" por ausência de dado, escondendo divergência real.
-    ult_por_conta = arm.ultimo_dt_por_conta(path)
+    ult_por_conta = arm.ultimo_dt_por_conta(esquema)
 
     resumo, dias_sel = [], []
     dias_por_conta: dict[int, list[dict]] = {}
     tot_div = tot_val = 0
     pior = None
     for c in contas:
-        lancs = arm.lancamentos(path, c["id"], dt_de, dt_ate)
-        saldos = arm.saldos_extrato(path, c["id"])
+        lancs = arm.lancamentos(esquema, c["id"], dt_de, dt_ate)
+        saldos = arm.saldos_extrato(esquema, c["id"])
         # _erp_dias faz a query ao ERP (atras de tunel SSH, ~284ms) - calculada
         # UMA vez aqui e reaproveitada abaixo na selecao automatica, para nunca
         # consultar o ERP duas vezes pela mesma conta na mesma chamada de painel.
@@ -561,7 +561,7 @@ def painel(dt_de: str, dt_ate: str, conta_id: int | None = None, path=arm.DB_PAT
     # primeira conta com extrato no periodo), zero query nova ao ERP.
     if conta_id is None:
         for c in contas:
-            if arm.lancamentos(path, c["id"], dt_de, dt_ate):
+            if arm.lancamentos(esquema, c["id"], dt_de, dt_ate):
                 dias_sel = dias_por_conta[c["id"]]
                 conta_id = c["id"]
                 break
@@ -581,21 +581,21 @@ def painel(dt_de: str, dt_ate: str, conta_id: int | None = None, path=arm.DB_PAT
         "conta_selecionada": conta_id,
         "contas": resumo,
         "dias": dias_sel,
-        "lancamentos_dia": (arm.lancamentos(path, conta_id, dt_de, dt_ate)
+        "lancamentos_dia": (arm.lancamentos(esquema, conta_id, dt_de, dt_ate)
                             if conta_id is not None else []),
         "importacoes": imps,
         # A posicao NAO obedece ao filtro de periodo da tela, de proposito:
         # saldo e posicao, nao movimento de janela. Vai no painel (e nao num
         # endpoint proprio) porque e a primeira pergunta de quem sobe o extrato
         # todo dia - custa UMA consulta ao ERP, com DISTINCT ON.
-        "posicao": posicao(path),
+        "posicao": posicao(esquema),
         "conciliacao_nativa": conciliacao_nativa(),
         "atualizado_em": datetime.now().isoformat(timespec="seconds"),
         "fonte": "extrato importado (OFX/CSV) x contacorrente_saldo do ERP AVA",
     }
 
 
-def conciliar(conta_id: int, dt_de: str, dt_ate: str, path=arm.DB_PATH) -> dict:
+def conciliar(conta_id: int, dt_de: str, dt_ate: str, esquema=None) -> dict:
     """Conciliacao linha a linha de UMA conta.
 
     Endpoint proprio, e nao mais um campo do `painel`: o painel percorre TODAS
@@ -604,8 +604,8 @@ def conciliar(conta_id: int, dt_de: str, dt_ate: str, path=arm.DB_PATH) -> dict:
     o custo da tela que abre por padrao para entregar um detalhe que so se olha
     numa conta por vez.
     """
-    arm.init_db(path)
-    conta = _conta_por_id(path, conta_id)
+    arm.init_db(esquema)
+    conta = _conta_por_id(esquema, conta_id)
     if conta is None:
         raise ValueError(f"conta_id {conta_id} nao existe.")
     if conta.get("erp_banco") is None:
@@ -617,7 +617,7 @@ def conciliar(conta_id: int, dt_de: str, dt_ate: str, path=arm.DB_PATH) -> dict:
               "historico": x.get("historico") or "",
               "numerodoc": x.get("numerodoc") or "",
               "ref": f"b{x['id']}"}
-             for x in arm.lancamentos(path, conta_id, dt_de, dt_ate)]
+             for x in arm.lancamentos(esquema, conta_id, dt_de, dt_ate)]
 
     rows = db.query(ERP_RAZAO_SQL, {
         "banco": conta["erp_banco"], "agencia": conta["erp_agencia"],
@@ -647,7 +647,7 @@ def conciliar(conta_id: int, dt_de: str, dt_ate: str, path=arm.DB_PATH) -> dict:
     }
 
 
-def posicao(path=arm.DB_PATH) -> dict:
+def posicao(esquema=None) -> dict:
     """Quanto ha em cada banco, segundo o EXTRATO, e o que o ERP diz do mesmo.
 
     E a pergunta da rotina diaria: subi o extrato de ontem, os saldos estao
@@ -663,9 +663,9 @@ def posicao(path=arm.DB_PATH) -> dict:
     Conta sem ancora de saldo nenhuma fica com `saldo=None` e o motivo em
     `sem_saldo_por`, nunca com zero: zero e um saldo, ausencia nao e.
     """
-    arm.init_db(path)
+    arm.init_db(esquema)
     hoje = date.today().isoformat()
-    contas = arm.listar_contas(path)
+    contas = arm.listar_contas(esquema)
 
     # lado ERP: uma consulta so, indexada por (banco, agencia, conta)
     try:
@@ -681,11 +681,11 @@ def posicao(path=arm.DB_PATH) -> dict:
 
     # UMA vez, fora do laco: `ultimo_dt_por_conta` varre a tabela inteira, e
     # chama-la por conta multiplicava isso pelo numero de contas.
-    ult_por_conta = arm.ultimo_dt_por_conta(path)
+    ult_por_conta = arm.ultimo_dt_por_conta(esquema)
 
     linhas, total, base_ok = [], 0.0, []
     for c in contas:
-        saldos = arm.saldos_extrato(path, c["id"])
+        saldos = arm.saldos_extrato(esquema, c["id"])
         ult_lanc = ult_por_conta.get(c["id"])
         cod_banco, nome_banco = banco_da_conta(c)
         item = {"conta_id": c["id"], "rotulo": c["rotulo"], "ident": c["ident"],
@@ -702,7 +702,7 @@ def posicao(path=arm.DB_PATH) -> dict:
                 "nenhum extrato importado ainda")
         else:
             por_dia = cmp.agregar_extrato(
-                arm.lancamentos(path, c["id"], min(s["dt"] for s in saldos), hoje))
+                arm.lancamentos(esquema, c["id"], min(s["dt"] for s in saldos), hoje))
             der = cmp.saldo_derivado(por_dia, saldos)
             dt = max(der) if der else None
             if dt is not None:

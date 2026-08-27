@@ -4,6 +4,17 @@ Gerado de `docs/versoes.yaml` por `scripts/gerar_changelog.py` — não editar �
 Formato [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/),
 versionamento [SemVer](https://semver.org/lang/pt-BR/).
 
+## [0.106.0] — 27/08/2026  ·  CX-27/08/2026-v0.106.0
+
+### Adicionado
+- O extrato bancario foi para o PostgreSQL: 7 contas, 8 importacoes, 729 lancamentos e as 18 ancoras de saldo, conferidos linha a linha. Sao seis dos dez bancos locais migrados, e nenhuma tela mudou de aparencia.
+
+### Alterado
+- Saiu do sistema a rotina que reescrevia chaves de lancamento no formato antigo, criada quando a deduplicacao mudou de regra. Ela rodava a cada abertura do banco e nao tinha mais o que fazer: a base foi conferida com zero linhas naquele formato. A guarda passou para o script de carga, que se recusa a migrar uma base que ainda tenha alguma.
+
+### Corrigido
+- Tres funcoes do extrato (importar, painel, conciliar e a posicao) amarravam o banco no momento em que o arquivo era carregado, e nao na hora da chamada. Na pratica isso significava que um teste que tentasse se isolar continuaria escrevendo no banco de producao, achando que nao. O valor passou a ser resolvido na chamada.
+
 ## [0.105.0] — 27/08/2026  ·  CX-27/08/2026-v0.105.0
 
 ### Adicionado

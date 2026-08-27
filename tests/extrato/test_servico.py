@@ -11,14 +11,14 @@ from tests.extrato.test_parser_ofx import OFX_DUAS_CONTAS, OFX_SGML
 
 
 @pytest.fixture()
-def db(tmp_path):
-    p = tmp_path / "extrato.db"
-    arm.init_db(p)
-    return p
+def db(esquema_pg):
+    """Um SCHEMA exclusivo do teste, no lugar do arquivo em tmp_path — o
+    extrato migrou para o PostgreSQL em 27/08/2026."""
+    return esquema_pg
 
 
 def test_importar_ofx_conta_nova_pede_mapeamento(db):
-    r = servico.importar(OFX_SGML.encode("cp1252"), "itau.ofx", path=db)
+    r = servico.importar(OFX_SGML.encode("cp1252"), "itau.ofx", esquema=db)
     assert r["ok"] is False
     assert r["precisa"] == "mapa_erp"
     assert r["conta"]["ident"] == "341/0098/539349"
@@ -28,9 +28,9 @@ def test_importar_ofx_conta_nova_pede_mapeamento(db):
 
 
 def test_importar_ofx_conta_mapeada_grava_e_reimport_nao_duplica(db):
-    r1 = servico.importar(OFX_SGML.encode("cp1252"), "itau.ofx", path=db)
+    r1 = servico.importar(OFX_SGML.encode("cp1252"), "itau.ofx", esquema=db)
     arm.mapear_conta(db, r1["conta_id"], 341, "0098", "539349")
-    r2 = servico.importar(OFX_SGML.encode("cp1252"), "itau.ofx", path=db)
+    r2 = servico.importar(OFX_SGML.encode("cp1252"), "itau.ofx", esquema=db)
     assert r2["ok"] is True
     assert (r2["novas"], r2["duplicadas"]) == (0, 2)
     assert r2["dt_de"] == "2026-07-02" and r2["dt_ate"] == "2026-07-03"
@@ -50,7 +50,7 @@ def test_importar_ofx_conta_mapeada_grava_e_reimport_nao_duplica(db):
 
 def test_importar_csv_sem_conta_id_pede_conta_csv(db):
     bruto = b"Data;Historico;Valor\n01/07/2026;TED;10,00\n"
-    r = servico.importar(bruto, "banco.csv", path=db)
+    r = servico.importar(bruto, "banco.csv", esquema=db)
     assert r["ok"] is False
     assert r["precisa"] == "conta_csv"
     assert r["preview"]["amostra"][0] == ["Data", "Historico", "Valor"]
@@ -61,7 +61,7 @@ def test_importar_csv_sem_conta_id_pede_conta_csv(db):
 def test_importar_csv_com_conta_sem_mapa_pede_mapa_csv(db):
     bruto = b"Data;Historico;Valor\n01/07/2026;TED;10,00\n"
     cid = arm.obter_ou_criar_conta(db, servico.ident_csv(341, "0098", "539349"), "Banco X")
-    r = servico.importar(bruto, "banco.csv", path=db, conta_id=cid)
+    r = servico.importar(bruto, "banco.csv", esquema=db, conta_id=cid)
     assert r["ok"] is False
     assert r["precisa"] == "mapa_csv"
     assert r["conta_id"] == cid
@@ -74,7 +74,7 @@ def test_importar_csv_com_mapa_salvo(db):
     cid = arm.obter_ou_criar_conta(db, servico.ident_csv(341, "0098", "539349"), "Banco X")
     arm.salvar_mapa_csv(db, cid, {"dt": 0, "historico": 1, "valor": 2})
     arm.mapear_conta(db, cid, 341, "0098", "539349")
-    r2 = servico.importar(bruto, "banco.csv", path=db, conta_id=cid)
+    r2 = servico.importar(bruto, "banco.csv", esquema=db, conta_id=cid)
     assert r2["ok"] is True and r2["novas"] == 1
 
 
@@ -92,8 +92,8 @@ def test_importar_csv_mesmo_nome_arquivo_contas_diferentes_nao_mistura(db):
     arm.salvar_mapa_csv(db, cid_b, mapa)
     assert cid_a != cid_b
 
-    servico.importar(bruto_a, "extrato.csv", path=db, conta_id=cid_a)
-    servico.importar(bruto_b, "extrato.csv", path=db, conta_id=cid_b)
+    servico.importar(bruto_a, "extrato.csv", esquema=db, conta_id=cid_a)
+    servico.importar(bruto_b, "extrato.csv", esquema=db, conta_id=cid_b)
 
     lancs_a = arm.lancamentos(db, cid_a, "2026-07-01", "2026-07-31")
     lancs_b = arm.lancamentos(db, cid_b, "2026-07-01", "2026-07-31")
@@ -106,7 +106,7 @@ def test_ident_csv_formato():
 
 
 def test_importar_ofx_multiplas_contas_relata_pendentes(db):
-    r = servico.importar(OFX_DUAS_CONTAS.encode("utf-8"), "consolidado.ofx", path=db)
+    r = servico.importar(OFX_DUAS_CONTAS.encode("utf-8"), "consolidado.ofx", esquema=db)
     assert r["novas"] == 2                 # soma das duas contas (1 lancamento cada)
     assert len(r["contas"]) == 2
     assert r["pendentes"] == 2              # nenhuma das duas tem vinculo ERP ainda
@@ -115,17 +115,17 @@ def test_importar_ofx_multiplas_contas_relata_pendentes(db):
     primeira_cid = r["contas"][0]["conta_id"]
     arm.mapear_conta(db, primeira_cid, 341, "0098", "111")
 
-    r2 = servico.importar(OFX_DUAS_CONTAS.encode("utf-8"), "consolidado.ofx", path=db)
+    r2 = servico.importar(OFX_DUAS_CONTAS.encode("utf-8"), "consolidado.ofx", esquema=db)
     assert r2["pendentes"] == 1
 
 
 def test_importar_arquivo_ilegivel_levanta_valueerror(db):
     with pytest.raises(ValueError):
-        servico.importar(b"\x00\x01 nao sou extrato", "x.ofx", path=db)
+        servico.importar(b"\x00\x01 nao sou extrato", "x.ofx", esquema=db)
 
 
 def test_painel_cruza_com_erp_mockado(db, monkeypatch):
-    r = servico.importar(OFX_SGML.encode("cp1252"), "itau.ofx", path=db)
+    r = servico.importar(OFX_SGML.encode("cp1252"), "itau.ofx", esquema=db)
     arm.mapear_conta(db, r["conta_id"], 341, "0098", "539349")
 
     def fake_query(sql, params=None):
@@ -137,7 +137,7 @@ def test_painel_cruza_com_erp_mockado(db, monkeypatch):
                 {"dt": "2026-07-03", "credito": 0.0, "debito": 2340.75, "saldo": 12659.75}]
 
     monkeypatch.setattr(servico.db, "query", fake_query)
-    d = servico.painel("2026-07-01", "2026-07-31", path=db)
+    d = servico.painel("2026-07-01", "2026-07-31", esquema=db)
     assert d["kpis"]["contas"] == 1
     assert d["kpis"]["dias_validados"] == 2
     assert len(d["contas"]) == 1
@@ -148,7 +148,7 @@ def test_painel_cruza_com_erp_mockado(db, monkeypatch):
 
 def test_painel_sem_conta_nenhuma_nao_quebra(db, monkeypatch):
     monkeypatch.setattr(servico.db, "query", lambda sql, params=None: [])
-    d = servico.painel("2026-07-01", "2026-07-31", path=db)
+    d = servico.painel("2026-07-01", "2026-07-31", esquema=db)
     assert d["kpis"]["contas"] == 0
     assert d["dias"] == []
 
@@ -164,7 +164,7 @@ def test_painel_traz_lancamentos_dia_da_conta_selecionada(db, monkeypatch):
     ], "a.ofx", "ofx")
 
     monkeypatch.setattr(servico.db, "query", lambda sql, params=None: [])
-    d = servico.painel("2026-07-01", "2026-07-31", conta_id=cid, path=db)
+    d = servico.painel("2026-07-01", "2026-07-31", conta_id=cid, esquema=db)
     assert d["conta_selecionada"] == cid
     # comparacao por CAMPO, e nao pelo dicionario inteiro: o `id` da linha passou
     # a viajar junto (a conciliacao linha a linha precisa de referencia estavel
@@ -182,7 +182,7 @@ def test_painel_sem_conta_selecionada_lancamentos_dia_vazio(db, monkeypatch):
     # conta_id=None e nenhuma conta cadastrada: nao ha o que selecionar
     # automaticamente, entao lancamentos_dia tem que vir vazio, nunca quebrar.
     monkeypatch.setattr(servico.db, "query", lambda sql, params=None: [])
-    d = servico.painel("2026-07-01", "2026-07-31", path=db)
+    d = servico.painel("2026-07-01", "2026-07-31", esquema=db)
     assert d["conta_selecionada"] is None
     assert d["lancamentos_dia"] == []
 
@@ -205,7 +205,7 @@ def test_painel_maior_diferenca_usa_o_maior_delta_nao_o_saldo(db, monkeypatch):
         return [{"dt": "2026-07-01", "credito": 500.0, "debito": 0.0, "saldo": 999.993}]
 
     monkeypatch.setattr(servico.db, "query", fake_query)
-    d = servico.painel("2026-07-01", "2026-07-31", path=db)
+    d = servico.painel("2026-07-01", "2026-07-31", esquema=db)
     assert d["kpis"]["maior_diferenca"] == 500.0
 
 
@@ -226,7 +226,7 @@ def test_painel_maior_diferenca_com_saldo_zero_legitimo_nao_desvia(db, monkeypat
         return [{"dt": "2026-07-01", "credito": 0.0, "debito": 20.0, "saldo": 900.0}]
 
     monkeypatch.setattr(servico.db, "query", fake_query)
-    d = servico.painel("2026-07-01", "2026-07-31", path=db)
+    d = servico.painel("2026-07-01", "2026-07-31", esquema=db)
     assert d["kpis"]["maior_diferenca"] == 80.0
 
 
@@ -255,7 +255,7 @@ def test_painel_maior_diferenca_aponta_para_conta_e_dia_certos(db, monkeypatch):
         return [{"dt": "2026-07-05", "credito": 100.0, "debito": 0.0, "saldo": 300.0}]
 
     monkeypatch.setattr(servico.db, "query", fake_query)
-    d = servico.painel("2026-07-01", "2026-07-31", path=db)
+    d = servico.painel("2026-07-01", "2026-07-31", esquema=db)
     assert d["kpis"]["maior_diferenca"] == 200.0
     assert d["kpis"]["maior_diferenca_conta"] == "Conta B"
     assert d["kpis"]["maior_diferenca_dt"] == "2026-07-05"
@@ -287,7 +287,7 @@ def test_painel_maior_diferenca_com_vencedor_negativo_continua_absoluto(db, monk
         return [{"dt": "2026-07-01", "credito": 1000.0, "debito": 0.0, "saldo": 500.0}]
 
     monkeypatch.setattr(servico.db, "query", fake_query)
-    d = servico.painel("2026-07-01", "2026-07-31", path=db)
+    d = servico.painel("2026-07-01", "2026-07-31", esquema=db)
     assert d["kpis"]["maior_diferenca"] == 500.0   # nunca -500.0
 
 
@@ -311,7 +311,7 @@ def test_painel_nao_duplica_query_erp_na_selecao_automatica(db, monkeypatch):
         return []
 
     monkeypatch.setattr(servico.db, "query", fake_query)
-    servico.painel("2026-07-01", "2026-07-31", path=db)  # conta_id=None (default)
+    servico.painel("2026-07-01", "2026-07-31", esquema=db)  # conta_id=None (default)
     assert len(chamadas) == 1
 
 
@@ -364,7 +364,7 @@ def test_painel_farol_nao_esconde_divergencia_quando_conta_fica_fora_do_limit_20
         return []
 
     monkeypatch.setattr(servico.db, "query", fake_query)
-    d = servico.painel(hoje, hoje, path=db)
+    d = servico.painel(hoje, hoje, esquema=db)
     velha = next(c for c in d["contas"] if c["conta_id"] == cid_velha)
     assert velha["ultimo_extrato"] == hoje
     assert velha["farol"]["estado"] == "diverge"
@@ -405,6 +405,6 @@ def test_painel_maior_diferenca_conta_id_distingue_rotulos_iguais(db, monkeypatc
                 {"dt": "2026-07-05", "credito": 250.0, "debito": 0.0, "saldo": 300.0}]
 
     monkeypatch.setattr(servico.db, "query", fake_query)
-    d = servico.painel("2026-07-01", "2026-07-31", path=db)
+    d = servico.painel("2026-07-01", "2026-07-31", esquema=db)
     assert d["kpis"]["maior_diferenca_conta"] == "Itau 539349"   # rotulo identico nas duas
     assert d["kpis"]["maior_diferenca_conta_id"] == cid_b         # so o id desambigua

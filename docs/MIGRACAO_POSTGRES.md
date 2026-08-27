@@ -1,8 +1,8 @@
 # Migração dos bancos locais para PostgreSQL
 
 > Estado: **em andamento** — Fase 0 concluída; `antt`, `push`, `correio`,
-> `previsao` e `antecipacoes` no ar (27/08/2026). Faltam quatro:
-> `contrapartida`, `extrato`, `orcamento` e, por último, `auth`.
+> `previsao`, `antecipacoes` e `extrato` no ar (27/08/2026). Faltam três:
+> `contrapartida`, `orcamento` e, por último, `auth`.
 
 O CÓRTEX nasceu com dez bancos SQLite em `data/`. Este documento é o plano de
 levá-los para um PostgreSQL local, **um por vez**, sem parar de entregar. Ele é
@@ -162,7 +162,7 @@ Tradução mecânica de dialeto:
 |---|---|---|---|
 | 0 | Banco, role, `api/pglocal.py`, runner de migration, backup, padrão de teste | ~1 dia | **feito** |
 | 1 | Piloto: `antt` (223 linhas, 8 executes) | 2–4 h | **no ar** |
-| 2 | ~~`push`~~ · ~~`correio`~~ · ~~`previsao`~~ · ~~`antecipacoes`~~ · `contrapartida` · `extrato` · `orcamento` | 0,5–1,5 dia cada | 4 de 7 |
+| 2 | ~~`push`~~ · ~~`correio`~~ · ~~`previsao`~~ · ~~`antecipacoes`~~ · ~~`extrato`~~ · `contrapartida` · `orcamento` | 0,5–1,5 dia cada | 5 de 7 |
 | 3 | `auth` — por último, apesar de ser o mais importante | 1–2 dias | a fazer |
 | 4 | Cache (`telemetria`, e talvez os JSON) — só se aparecer motivo | — | provavelmente nunca |
 
@@ -235,6 +235,32 @@ local de cada endpoint. Conferir o `git diff` antes de commitar pegou; um
 Monkey) abriam o `.db` com `sqlite3` para conferir o que FOI GRAVADO, em vez
 de confiar no retorno da função. É a asserção certa — e por isso ela também
 tem de falar Postgres.
+
+### O que o `extrato` acrescentou (store 6)
+
+**A ordem da Fase 2 é uma sugestão, não um contrato.** `contrapartida` era o
+próximo da lista e foi pulado: a outra sessão estava com os cinco últimos
+commits dentro de `api/contrapartida/`, que é onde moram as três tabelas desse
+store. Disputar um módulo FISCAL arquivo a arquivo, com certificado e
+autorização da SEFAZ no meio, não vale o risco. Volta quando a frente sair de
+lá.
+
+**Argumento padrão avaliado no import é uma armadilha silenciosa.**
+`def painel(..., path=arm.DB_PATH)` amarra o valor no momento do `def`: um
+`monkeypatch` posterior em `arm.DB_PATH` não teria efeito nenhum, e o teste
+escreveria no banco de PRODUÇÃO achando que estava isolado. Os quatro padrões
+viraram `None`, resolvido em tempo de chamada.
+
+**Parâmetro que carrega schema não pode se chamar `path`.** Renomeado em
+`servico.py` e nos testes junto com a mudança de valor — nome errado que
+"funciona" custa uma hora de quem vier depois.
+
+**Código morto de migração antiga não atravessa.** `_remigra_chaves` recalculava
+chaves no formato `fitid:<id>` a cada `init_db`. A base foi conferida com ZERO
+delas, então a função ficou para trás e a guarda passou para o script de carga,
+que se recusa a migrar se encontrar uma. O teste que a protegia foi removido —
+com o porquê escrito no lugar dele, e o que ele também cobria (reimport não
+duplicar) segue coberto por outro.
 
 ---
 

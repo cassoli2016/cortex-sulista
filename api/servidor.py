@@ -481,7 +481,8 @@ BASES_LOCAIS = [
 # propósito, como desfazer da migração — mas listá-lo do mesmo jeito que os
 # outros faria a tela dizer que o CÓRTEX escreve ali, e ninguém mais escreve.
 # Some daqui quando o `.db` for apagado. Ver docs/MIGRACAO_POSTGRES.md.
-MIGRADAS = {"antt.db", "push.db", "email.db", "previsao.db", "antecipacoes.db"}
+MIGRADAS = {"antt.db", "push.db", "email.db", "previsao.db", "antecipacoes.db",
+            "extrato.db"}
 
 
 def _bases_locais() -> list[dict]:

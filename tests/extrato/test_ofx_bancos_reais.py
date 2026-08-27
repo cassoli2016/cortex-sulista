@@ -18,7 +18,6 @@ O que os sete arquivos derrubaram, e cada um tem teste abaixo:
 """
 from __future__ import annotations
 
-import sqlite3
 from datetime import date, timedelta
 
 import pytest
@@ -72,36 +71,42 @@ CAIXA_FITID_REPETIDO = _ofx(
     ]))
 
 
-def test_fitid_repetido_nao_descarta_lancamento(tmp_path):
+def _sql(esquema, sql, params=None):
+    """Lê o banco CRU: a asserção é sobre o que FOI GRAVADO. Era sqlite3,
+    agora é o schema do teste no PostgreSQL."""
+    from api import pglocal
+    return pglocal.query(sql, params, esquema=esquema)
+
+
+def test_fitid_repetido_nao_descarta_lancamento(esquema_pg):
     """Quatro créditos distintos com o mesmo FITID entram como quatro."""
-    db = tmp_path / "e.db"
-    r = importar(CAIXA_FITID_REPETIDO, "caixa.ofx", path=db)
+    db = esquema_pg
+    r = importar(CAIXA_FITID_REPETIDO, "caixa.ofx", esquema=db)
     assert r["novas"] == 4, "FITID repetido não pode colapsar lançamentos"
     assert r["duplicadas"] == 0
-    con = sqlite3.connect(db)
-    total = con.execute("SELECT round(sum(valor),2) FROM ext_lancamento").fetchone()[0]
+    total = _sql(db, "SELECT sum(valor) AS t FROM ext_lancamento")[0]["t"]
     assert total == pytest.approx(1005945.48)
 
 
-def test_reimport_do_mesmo_arquivo_continua_deduplicando(tmp_path):
+def test_reimport_do_mesmo_arquivo_continua_deduplicando(esquema_pg):
     """A troca de chave não pode custar a deduplicação — que é o motivo de ela existir."""
-    db = tmp_path / "e.db"
-    importar(CAIXA_FITID_REPETIDO, "caixa.ofx", path=db)
-    r = importar(CAIXA_FITID_REPETIDO, "caixa.ofx", path=db)
+    db = esquema_pg
+    importar(CAIXA_FITID_REPETIDO, "caixa.ofx", esquema=db)
+    r = importar(CAIXA_FITID_REPETIDO, "caixa.ofx", esquema=db)
     assert r["novas"] == 0
     assert r["duplicadas"] == 4
 
 
-def test_lancamentos_gemeos_no_mesmo_arquivo_entram_os_dois(tmp_path):
+def test_lancamentos_gemeos_no_mesmo_arquivo_entram_os_dois(esquema_pg):
     """Mesma data, mesmo valor, mesmo histórico e mesmo doc: são três de verdade
     (três tarifas PIX de R$ 8,50 no mesmo dia, caso real da Caixa)."""
-    db = tmp_path / "e.db"
+    db = esquema_pg
     bruto = _ofx("\n".join([
         _trn("20260804", "-8.50", "41527", "TAR PIX", tipo="DEBIT", doc="41527"),
         _trn("20260804", "-8.50", "41527", "TAR PIX", tipo="DEBIT", doc="41527"),
         _trn("20260804", "-8.50", "41527", "TAR PIX", tipo="DEBIT", doc="41527"),
     ]))
-    assert importar(bruto, "caixa.ofx", path=db)["novas"] == 3
+    assert importar(bruto, "caixa.ofx", esquema=db)["novas"] == 3
 
 
 # ------------------------------------------------------- 2 e 3. linha de saldo
@@ -216,34 +221,33 @@ def test_data_de_lancamento_impossivel_conta_como_ignorada():
 
 # -------------------------------------------------------------- 5. futuros
 
-def test_lancamento_futuro_nao_entra_e_e_contado(tmp_path):
+def test_lancamento_futuro_nao_entra_e_e_contado(esquema_pg):
     """O arquivo de compromissos do Bradesco é OFX idêntico ao do extrato."""
-    db = tmp_path / "e.db"
+    db = esquema_pg
     futuro = (date.today() + timedelta(days=15)).strftime("%Y%m%d")
     ontem = (date.today() - timedelta(days=1)).strftime("%Y%m%d")
     bruto = _ofx("\n".join([
         _trn(ontem, "-3.00", "B1", "TARIFA", tipo="DEBIT"),
         _trn(futuro, "-85433.92", "B2", "PARCELAMENTO DE DARF", tipo="DEBIT"),
     ]), banco="237", conta="123906")
-    r = importar(bruto, "bradesco_comp.ofx", path=db)
+    r = importar(bruto, "bradesco_comp.ofx", esquema=db)
     assert r["novas"] == 1
     assert r["futuras"] == 1
-    con = sqlite3.connect(db)
-    maior = con.execute("SELECT max(dt) FROM ext_lancamento").fetchone()[0]
+    maior = _sql(db, "SELECT max(dt) AS m FROM ext_lancamento")[0]["m"]
     assert maior <= date.today().isoformat()
 
 
-def test_futuro_nao_desliga_o_alerta_de_extrato_velho(tmp_path):
+def test_futuro_nao_desliga_o_alerta_de_extrato_velho(esquema_pg):
     """Era o efeito prático: `dias_sem_extrato` saía -20 e a conta ficava
     permanentemente "em dia", porque o farol só acusa atraso acima de 7 dias."""
-    db = tmp_path / "e.db"
+    db = esquema_pg
     velho = (date.today() - timedelta(days=40)).strftime("%Y%m%d")
     futuro = (date.today() + timedelta(days=20)).strftime("%Y%m%d")
     bruto = _ofx("\n".join([
         _trn(velho, "-3.00", "B1", "TARIFA", tipo="DEBIT"),
         _trn(futuro, "-100.00", "B2", "CONTA DE LUZ", tipo="DEBIT"),
     ]), banco="237", conta="123906")
-    importar(bruto, "bradesco_comp.ofx", path=db)
+    importar(bruto, "bradesco_comp.ofx", esquema=db)
     ultimos = arm.ultimo_dt_por_conta(db)
     assert ultimos, "a conta tem de existir"
     assert all(dt <= date.today().isoformat() for dt in ultimos.values())
@@ -251,34 +255,12 @@ def test_futuro_nao_desliga_o_alerta_de_extrato_velho(tmp_path):
 
 # ------------------------------------------------------------- 6. migração
 
-def test_migracao_reescreve_chaves_no_formato_antigo(tmp_path):
-    """Base gravada antes da correção: sem remigrar, o reimport do mesmo
-    arquivo dobraria a conta (chave antiga e nova nunca colidem entre si)."""
-    db = tmp_path / "e.db"
-    arm.init_db(db)
-    cid = arm.obter_ou_criar_conta(db, "104/?/0005772214779", "104 / cc x")
-    con = sqlite3.connect(db)
-    con.execute("INSERT INTO ext_importacao(conta_id, arquivo, formato) VALUES(?,?,?)",
-                (cid, "caixa.ofx", "ofx"))
-    imp = con.execute("SELECT max(id) FROM ext_importacao").fetchone()[0]
-    for v in (3589.77, 287641.95):
-        con.execute(
-            "INSERT INTO ext_lancamento(conta_id, importacao_id, dt, valor, tipo,"
-            " historico, numerodoc, fitid, chave) VALUES(?,?,?,?,?,?,?,?,?)",
-            (cid, imp, "2026-08-03", v, "C", "CRED TED", "341", "341",
-             "fitid:341:" + str(v)))
-    con.commit()
-    con.close()
-
-    arm.init_db(db)          # dispara a remigração
-
-    con = sqlite3.connect(db)
-    chaves = [r[0] for r in con.execute("SELECT chave FROM ext_lancamento")]
-    con.close()
-    assert len(chaves) == 2, "as duas linhas sobrevivem"
-    assert all(k.startswith("hash:") for k in chaves)
-    assert len(set(chaves)) == 2
-
-    r = importar(CAIXA_FITID_REPETIDO, "caixa.ofx", path=db)
-    assert r["duplicadas"] == 2, "as duas já gravadas são reconhecidas"
-    assert r["novas"] == 2, "as outras duas do arquivo entram"
+# `test_migracao_reescreve_chaves_no_formato_antigo` FOI REMOVIDO na migração
+# para o PostgreSQL (27/08/2026), junto com `_remigra_chaves`, a função que ele
+# protegia. Ela recalculava chaves no formato antigo `fitid:<id>`, e a base foi
+# conferida com ZERO linhas nesse formato antes de migrar; a partir daqui só
+# existe o formato novo. `scripts/migrar_extrato.py` se recusa a rodar se
+# encontrar uma chave antiga — é onde a guarda passou a morar.
+#
+# O que aquele teste também cobria — reimport do mesmo arquivo não duplicar —
+# segue coberto por `test_reimport_do_mesmo_arquivo_continua_deduplicando`.
