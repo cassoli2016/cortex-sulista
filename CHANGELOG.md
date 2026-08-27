@@ -4,6 +4,12 @@ Gerado de `docs/versoes.yaml` por `scripts/gerar_changelog.py` — não editar �
 Formato [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/),
 versionamento [SemVer](https://semver.org/lang/pt-BR/).
 
+## [0.108.1] — 27/08/2026  ·  CX-27/08/2026-v0.108.1
+
+### Corrigido
+- Abrir a aba de Implantacao no meio do carregamento disparava a varredura completa do cadastro por cima da consulta que ja estava rodando. O AVA e uma replica compartilhada e duas consultas grandes ao mesmo tempo se atrapalham: as duas demoravam mais. Agora, havendo carga em andamento, a varredura espera o fim dela.
+- A aba tambem abria quase em branco enquanto a consulta corria, porque "sem dado ainda" e "sem achado" levavam ao mesmo resultado - o cartao escondido. Agora o cartao aparece dizendo que esta consultando.
+
 ## [0.108.0] — 27/08/2026  ·  CX-27/08/2026-v0.108.0
 
 ### Alterado

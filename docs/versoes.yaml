@@ -1,3 +1,17 @@
+- versao: "0.108.1"
+  data: "2026-08-27"
+  corrigido:
+    - >-
+      Abrir a aba de Implantacao no meio do carregamento disparava a varredura
+      completa do cadastro por cima da consulta que ja estava rodando. O AVA e
+      uma replica compartilhada e duas consultas grandes ao mesmo tempo se
+      atrapalham: as duas demoravam mais. Agora, havendo carga em andamento, a
+      varredura espera o fim dela.
+    - >-
+      A aba tambem abria quase em branco enquanto a consulta corria, porque
+      "sem dado ainda" e "sem achado" levavam ao mesmo resultado - o cartao
+      escondido. Agora o cartao aparece dizendo que esta consultando.
+
 - versao: "0.108.0"
   data: "2026-08-27"
   alterado:

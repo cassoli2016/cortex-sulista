@@ -9975,6 +9975,7 @@ async function loadCtecp(fundo){
     const rr=await respostaJSON(r); const d=rr.dados; if(seq!==cpSeq) return;
     if(!rr.ok){ showBanner(d.mensagem||'Erro ao montar a conciliação.'); return; }
     hideBanner(); DATACP=d; renderCtecp(d);
+    if(CP_VALPEND){ CP_VALPEND=false; cpValidarTudo(); }
   }catch(e){ if(seq===cpSeq) showBanner('Não foi possível falar com a API.', e.message); }
   finally{ if(seq===cpSeq){ if(btn) btn.disabled=false;
     document.getElementById('content').classList.remove('loading'); } }
@@ -10279,7 +10280,7 @@ function renderCtecp(d){
    pessoas diferentes: cadastro e trabalho interno; certificado depende do
    agregado entregar o arquivo. Mesma regra do CRM, que abre nos projetos
    ativos e nao nos 135 entregues. */
-var CP_VAL = null, CP_VALCAT = 'cadastro';
+var CP_VAL = null, CP_VALCAT = 'cadastro', CP_VALPEND = false;
 
 /* A aba escolhida FICA GUARDADA. Quem esta em implantacao volta varias vezes
    por dia ao validador; reabrir sempre no despacho obrigaria a dois cliques a
@@ -10297,8 +10298,15 @@ function cpAba(nome){
     : 'cadastro e certificado — o que ainda impede a fila de andar';
   try{ localStorage.setItem('cp_aba', d ? 'despacho' : 'implantacao'); }catch(e){}
   /* A varredura completa e uma consulta pesada ao ERP: so dispara quando a
-     aba que a mostra e aberta, e so na primeira vez. */
-  if(!d && !(CP_VAL && CP_VAL.escopo)) cpValidarTudo();
+     aba que a mostra e aberta, e so na primeira vez. E NUNCA por cima de uma
+     carga em andamento - o AVA e uma replica compartilhada, e duas consultas
+     grandes ao mesmo tempo se atrapalham: abrir a aba durante o carregamento
+     da tela dobrava a espera das duas. Havendo carga, ela fica marcada e
+     `loadCtecp` a dispara ao terminar. */
+  if(!d && !(CP_VAL && CP_VAL.escopo)){
+    if(document.getElementById('content').classList.contains('loading')) CP_VALPEND=true;
+    else cpValidarTudo();
+  }
 }
 
 function cpValidCat(c){ CP_VALCAT=c; cpValidRender(); }
@@ -10324,7 +10332,22 @@ function cpValidRender(){
   const card=document.getElementById('cpValidCard');
   if(!card) return;
   const v=CP_VAL;
-  if(!v || !(v.achados||[]).length){ card.hidden=true; return; }
+  if(!v){
+    /* SEM DADO AINDA nao e o mesmo que SEM ACHADO. Escondendo os dois casos,
+       abrir a aba durante uma consulta lenta mostrava uma pagina quase vazia,
+       sem dizer que havia algo a caminho. */
+    const carregando=document.getElementById('content').classList.contains('loading')
+                     || CP_VALPEND;
+    card.hidden=!carregando;
+    if(carregando){
+      document.getElementById('cpValidTab').innerHTML='';
+      document.getElementById('cpValidChips').innerHTML='';
+      document.getElementById('hintCpValid').textContent='consultando o cadastro no ERP…';
+      document.getElementById('cpValidEscopo').textContent='';
+    }
+    return;
+  }
+  if(!(v.achados||[]).length){ card.hidden=true; return; }
   card.hidden=false;
   const cat=v.por_categoria||{};
   const ROT={cadastro:'Cadastro no ERP', certificado:'Certificado e procuração',
