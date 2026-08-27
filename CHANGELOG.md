@@ -13,6 +13,8 @@ versionamento [SemVer](https://semver.org/lang/pt-BR/).
 
 ### Corrigido
 - O rotulo das bandas de indicadores desta tela e da Portaria saia como texto solto: as duas usavam uma classe que NAO EXISTE na folha de estilo, entao ficavam sem o versalete e sem a linha divisoria que todas as outras bandas do painel tem.
+- E o rotulo de qualquer banda de indicadores ficava a distancias quase iguais do bloco de cima e dos indicadores que ele nomeia, o que o fazia parecer texto perdido entre dois blocos. Vale para o painel inteiro.
+- O cronometro perdeu o tamanho grande ao virar grade - a regra do relogio estava presa ao arranjo antigo e ele encolheu para o tamanho dos dados de apoio, deixando de parecer um cronometro.
 
 ## [0.107.0] — 27/08/2026  ·  CX-27/08/2026-v0.107.0
 

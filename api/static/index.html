@@ -201,7 +201,11 @@ tr[role="button"]:focus-visible{outline-offset:-2px}
 /* BANDAS DE KPI (Visão Geral): rótulo do tema + grade com nº de colunas FIXO.
    O auto-fit do .kpis deixava o último card sozinho numa linha quando a banda
    tinha 5 ou 7 cards; 4 colunas caem para 2 e 1 sem nunca sobrar órfão. */
-.kband{display:flex;flex-direction:column;gap:9px}
+/* O rotulo da banda ficava a 12px do cartao ACIMA e a 9px dos indicadores
+   que ele nomeia - praticamente equidistante, e por isso lia-se como texto
+   solto entre dois blocos em vez de titulo do de baixo. Um rotulo tem de
+   estar visivelmente mais perto do que nomeia. */
+.kband{display:flex;flex-direction:column;gap:9px;margin-top:7px}
 .kband>h3{margin:0;font-size:11px;font-weight:700;letter-spacing:.14em;text-transform:uppercase;
   color:var(--n500);display:flex;align-items:center;gap:10px}
 .kband>h3::after{content:"";flex:1;height:1px;background:var(--n200)}
@@ -1004,7 +1008,20 @@ button.avatar{border:0;cursor:pointer}
   text-transform:uppercase;color:var(--n500)}
 .cp-crongrid .val{font:600 15px/1.2 var(--mono);color:var(--n900);
   font-variant-numeric:tabular-nums}
-.cp-crongrid .sep{width:1px;background:var(--n200);align-self:stretch}
+.cp-crongrid .sep{width:1px;background:var(--n300);align-self:stretch;margin:2px 0}
+/* O NUMERO PRECISA CONTINUAR GRANDE. A regra do relogio estava presa a
+   `.cp-cron`, o contêiner antigo; ao virar grade ele herdou o tamanho dos
+   valores de apoio e o cronometro deixou de ser cronometro - virou mais um
+   campo entre quatro. Ele e o unico dado da linha que muda a cada segundo e
+   e o motivo de o cartao existir. */
+.cp-crongrid .rel{font:600 30px/1 var(--mono);font-variant-numeric:tabular-nums;
+  letter-spacing:.5px;color:var(--n900)}
+.cp-crongrid .rel.parado{color:var(--n500)}
+.cp-crongrid .bloco:first-child{min-width:150px}
+/* os apoios alinham pela BASE do relogio, e nao pelo centro de cada coluna:
+   rotulos em alturas diferentes e o que faz uma linha parecer torta */
+.cp-crongrid{align-items:flex-end}
+.cp-crongrid .bloco{padding-bottom:2px}
 .cpabas .hint{margin-left:4px}
 .cp-cron{display:flex;align-items:baseline;gap:12px;flex-wrap:wrap}
 .cp-cron .rel{font:600 30px/1 var(--mono);font-variant-numeric:tabular-nums;
