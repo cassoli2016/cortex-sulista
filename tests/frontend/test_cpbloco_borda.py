@@ -18,8 +18,10 @@ import pytest
 
 HTML = Path(__file__).resolve().parents[2] / "api" / "static" / "index.html"
 
-# Os tres blocos que o usuario apontou, com a classe que passaram a ter.
-BLOCOS = ("cpMes", "cpPassivo", "cpAvisos")
+# Os blocos que entram no cartao como div cru e precisam do proprio
+# espacamento. `cpPassivo` saiu da tela (o acumulado nao vira trabalho) e deu
+# lugar a `cpPront`, a prontidao da fila.
+BLOCOS = ("cpMes", "cpPront", "cpAvisos")
 
 
 def test_os_tres_blocos_declaram_a_classe():

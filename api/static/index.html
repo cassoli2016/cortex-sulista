@@ -2665,8 +2665,8 @@ body.tvfull #btnReport,body.tvmode #btnReport{display:none}
             <div id="cpMes" class="cpbloco"></div>
           </div>
           <div class="card">
-            <div class="head"><h2>Passivo acumulado <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="CT-e NÃO se emite retroativo: a SEFAZ recusa data de emissão fora da janela. Este bloco não é fila de trabalho — é o número para a decisão da contabilidade e do jurídico.">i</span></h2></div>
-            <div id="cpPassivo" class="cpbloco"></div>
+            <div class="head"><h2>Prontidão da fila <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="De tudo que entrou no período, quanto dá para emitir AGORA e o que trava o resto. São dois portões diferentes: ter o CADASTRO completo (inscrição estadual, RNTRC, município) e estar AUTORIZADO (certificado A1 válido, com senha no cofre, e autorização vigente). Cadastro impecável sem certificado não emite nada.">i</span></h2></div>
+            <div id="cpPront" class="cpbloco"></div>
           </div>
         </div>
 
@@ -9494,21 +9494,38 @@ function renderCtecp(d){
       +'</div></div>';
   }).join('') : '<div class="hint">Sem dados no período.</div>';
 
-  const pas=(d.passivo||[]).filter(function(x){return x.classe==='pj';});
-  const maxv=Math.max(1,...pas.map(function(x){return x.valor||0;}));
-  document.getElementById('cpPassivo').innerHTML = pas.length ? pas.map(function(x){
-    return '<div>'
+  /* PRONTIDAO DA FILA, no lugar do passivo acumulado. O passivo olhava para
+     tras e nunca virava trabalho - CT-e nao se emite retroativo. Este responde
+     a pergunta da tela: do que entrou, quanto da para emitir agora.
+     A barra e do VOLUME DE CT-e, nao do numero de agregados: dois agregados
+     autorizados podem responder por um quinto da fila. */
+  const pf=d.prontidao_fila||{};
+  const faixas=[
+    ['autorizados','Autorizados a emitir','var(--green)',
+     'Certificado A1 válido, senha no cofre e autorização vigente'],
+    ['cadastro_ok_sem_certificado','Cadastro completo, sem certificado','var(--yellow)',
+     'Só falta o certificado digital — nada trava do lado do cadastro'],
+    ['sem_ie_contribuinte','Sem inscrição, mas marcado contribuinte','var(--red)',
+     'Contradição de cadastro: se é contribuinte de ICMS, tem inscrição. Conferir no SINTEGRA'],
+    ['sem_ie_nao_contribuinte','Não contribuinte de ICMS','var(--n400)',
+     'Cadastro coerente: provavelmente não emite CT-e e sai da fila']];
+  const totCt=((pf.total||{}).ctes)||0;
+  document.getElementById('cpPront').innerHTML = totCt ? faixas.map(function(f){
+    const b=pf[f[0]]||{}, ct=b.ctes||0;
+    if(!b.agregados) return '';
+    return '<div title="'+esc(f[3])+'">'
       +'<div style="display:flex;justify-content:space-between;font-size:12px">'
-      +'<span>'+esc(x.ano)+'</span><span class="mono" style="color:var(--n500)">'
-      +(x.ctes||0).toLocaleString('pt-BR')+' CT-e · '+cpBRL(x.valor)+'</span></div>'
+      +'<span>'+esc(f[1])+'</span><span class="mono" style="color:var(--n500)">'
+      +(b.agregados||0)+' agreg. · '+ct.toLocaleString('pt-BR')+' CT-e · '
+      +cpBRL(b.valor)+'</span></div>'
       +'<div style="height:10px;border-radius:5px;background:var(--n100);margin-top:3px">'
-      +'<div style="height:100%;width:'+(100*(x.valor||0)/maxv).toFixed(1)+'%;background:var(--n400);border-radius:5px"></div>'
-      +'</div></div>';
-  }).join('')+'<div class="hint">Não é fila de trabalho: CT-e não se emite retroativo.</div>'
-    : '<div class="hint">Sem histórico.</div>';
+      +'<div style="height:100%;width:'+(100*ct/totCt).toFixed(1)+'%;background:'
+      +f[2]+';border-radius:5px"></div></div></div>';
+  }).join('')+'<div class="hint">Barras proporcionais ao VOLUME de CT-e, não ao número de agregados.</div>'
+    : '<div class="hint">Sem agregados PJ no período.</div>';
 
-  /* o periodo abre no DIA: sem dizer isso, "20 CT-e aguardando" parece que o
-     passivo evaporou. O bloco de passivo acumulado ignora este filtro. */
+  /* o periodo abre no DIA: sem dizer isso, "20 CT-e aguardando" parece que a
+     fila evaporou. */
   const umDia = per.de && per.ate &&
     (new Date(per.ate)-new Date(per.de))<=86400000*1.5;
   document.getElementById('hintCp').textContent =

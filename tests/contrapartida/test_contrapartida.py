@@ -128,30 +128,57 @@ def _pj(n): return [{"documento": str(i), "nome": "X", "ie": "1",
 
 
 def test_avisa_SEMPRE_que_nada_foi_emitido():
-    av = servico._avisos(_pj(3), [], [], [], [])
+    av = servico._avisos(_pj(3), [], [], [])
     assert any("Nenhuma contrapartida emitida" in a for a in av)
 
 
 def test_aviso_do_TAC_explica_que_e_do_DOCUMENTO_e_nao_do_certificado():
     """O usuario disse ter certificado de todos. Para o TAC isso nao resolve:
     ele nao e sujeito passivo do CT-e."""
-    av = servico._avisos(_pj(53), [{"documento": "1"}] * 30, [], [], [])
+    av = servico._avisos(_pj(53), [{"documento": "1"}] * 30, [], [])
     texto = " ".join(av)
     assert "CIOT" in texto and "certificado" in texto
 
 
-def test_passivo_historico_NAO_vira_fila_de_trabalho():
-    """CT-e nao se emite retroativo: a SEFAZ recusa data fora da janela."""
-    av = servico._avisos(_pj(1), [], [], [], [
-        {"ano": "2025", "classe": "pj", "ctes": 34188, "valor": 108713961.0}])
-    alvo = [a for a in av if "Passivo" in a][0]
-    assert "108.713.961" in alvo and "retroativo" in alvo
-    assert "34.188" in alvo
+def test_o_passivo_historico_SAIU_da_tela():
+    """CT-e nao se emite retroativo, entao o acumulado nunca virava trabalho -
+    so ocupava espaco numa tela cuja pergunta e "o que preciso emitir agora".
+    O numero segue registrado no documento da contabilidade, que e onde ele
+    serve: decisao de contabilidade e juridico.
+
+    Tirar tambem removeu uma consulta que varria desde 2022."""
+    import inspect
+    fonte = inspect.getsource(servico)
+    assert "PASSIVO_SQL" not in fonte
+    av = servico._avisos(_pj(1), [], [], [])
+    assert not any("Passivo" in a for a in av)
+
+
+def test_prontidao_separa_os_DOIS_portoes():
+    """Cadastro completo e autorizacao sao coisas diferentes: um agregado pode
+    ter o cadastro impecavel e nao emitir nada por falta de certificado."""
+    pj = [
+        {"documento": "1", "ie": "123", "falta": [], "ctes": 10, "valor": 100.0,
+         "prontidao": {"pronto": True}},
+        {"documento": "2", "ie": "123", "falta": [], "ctes": 20, "valor": 200.0,
+         "prontidao": {"pronto": False}},
+        {"documento": "3", "ie": "ISENTO", "ind_ie": 1, "falta": ["x"],
+         "ctes": 30, "valor": 300.0, "prontidao": {"pronto": False}},
+        {"documento": "4", "ie": "ISENTO", "ind_ie": 9, "falta": ["x"],
+         "ctes": 40, "valor": 400.0, "prontidao": {"pronto": False}},
+    ]
+    r = servico._prontidao_fila(pj)
+    assert r["autorizados"]["agregados"] == 1
+    assert r["cadastro_ok_sem_certificado"]["agregados"] == 1
+    assert r["sem_ie_contribuinte"]["agregados"] == 1
+    assert r["sem_ie_nao_contribuinte"]["agregados"] == 1
+    # o volume acompanha o agregado, nao a contagem
+    assert r["autorizados"]["ctes"] == 10 and r["total"]["ctes"] == 100
 
 
 def test_pendencia_cadastral_nomeia_o_campo_que_falta():
     av = servico._avisos(_pj(1), [], [],
-                         [{"documento": "9", "nome": "ACME", "falta": ["RNTRC"]}], [])
+                         [{"documento": "9", "nome": "ACME", "falta": ["RNTRC"]}])
     assert any("ACME" in a and "RNTRC" in a for a in av)
 
 
@@ -347,7 +374,7 @@ def test_pendencia_de_IE_mostra_O_VALOR_encontrado():
         [{"documento": "1", "nome": "ACME", "ie": "ISENTO", "rntrc": "9",
           "cidade": "X"}], [], [],
         [{"documento": "1", "nome": "ACME",
-          "falta": ["inscrição estadual (ISENTO)"]}], [])
+          "falta": ["inscrição estadual (ISENTO)"]}])
     assert any("ISENTO" in a for a in av)
 
 
@@ -355,7 +382,7 @@ def test_aviso_de_IE_diz_o_TAMANHO_REAL_da_fila():
     """O numero que decide: se os 17 nao emitem, a fila e de 36 e nao de 53."""
     pj = [{"documento": str(i), "nome": "X", "ie": "" if i < 17 else "123",
            "rntrc": "9", "cidade": "C"} for i in range(53)]
-    av = servico._avisos(pj, [], [], [], [])
+    av = servico._avisos(pj, [], [], [])
     alvo = [a for a in av if "inscrição" in a][0]
     assert "17 de 53" in alvo and "36" in alvo and "SINTEGRA" in alvo
 

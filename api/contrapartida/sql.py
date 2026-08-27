@@ -70,6 +70,9 @@ SELECT v.proprietario AS documento,{_CLASSE} AS classe,
        -- RNTRC e obrigatorio no CT-e: sem ele a transmissao e
        -- rejeitada documento a documento
        max(cd.numerorntrc) AS rntrc,
+       -- 1 = contribuinte de ICMS, 9 = nao contribuinte. Separa
+       -- contradicao de cadastro de isencao real.
+       max(cd.indicadorinscricaoestadual) AS ind_ie,
        max(cd.cidade) AS cidade,
        max(cd.uf) AS uf,
        count(*)::int AS ctes,

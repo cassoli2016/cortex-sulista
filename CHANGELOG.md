@@ -4,6 +4,16 @@ Gerado de `docs/versoes.yaml` por `scripts/gerar_changelog.py` — não editar �
 Formato [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/),
 versionamento [SemVer](https://semver.org/lang/pt-BR/).
 
+## [0.80.0] — 26/08/2026  ·  CX-26/08/2026-v0.80.0
+
+### Adicionado
+- No lugar entrou PRONTIDAO DA FILA, que olha para a frente: de tudo que entrou no periodo, quanto da para emitir agora e o que trava o resto. Separa DOIS PORTOES que sao diferentes e costumam ser confundidos - ter o CADASTRO completo (inscricao, RNTRC, municipio) e estar AUTORIZADO (certificado A1 valido, senha no cofre, autorizacao vigente). Cadastro impecavel sem certificado nao emite nada, e hoje e o caso de 29 dos 31 com cadastro em ordem.
+- Os travados aparecem separados por um detalhe que muda o encaminhamento: quem esta sem inscricao mas marcado como CONTRIBUINTE de ICMS e contradicao de cadastro (se e contribuinte, tem inscricao - da para corrigir), e quem esta marcado como NAO CONTRIBUINTE e coerente, e provavelmente sai da fila em vez de virar pendencia eterna.
+- As barras sao proporcionais ao VOLUME DE CT-e e nao ao numero de agregados, e o rodape diz isso: dois agregados autorizados respondem por um quinto da fila, e uma barra por contagem esconderia justamente isso.
+
+### Alterado
+- O bloco de PASSIVO ACUMULADO saiu da tela de CT-e de Contrapartida, e o aviso que o citava tambem. CT-e nao se emite retroativo - a SEFAZ recusa data fora da janela -, entao aquele numero nunca virava trabalho: so ocupava espaco numa tela cuja pergunta e "o que preciso emitir agora". O valor segue registrado no documento da contabilidade, que e onde ele serve, e a tela ficou mais rapida por uma consulta a menos - ela varria desde 2022.
+
 ## [0.79.1] — 26/08/2026  ·  CX-26/08/2026-v0.79.1
 
 ### Corrigido

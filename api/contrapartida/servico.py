@@ -26,11 +26,11 @@ numero na mao.
 
 
 
-E nao trata o passivo historico como fila de trabalho: CT-e NAO se emite
-
-retroativo (a SEFAZ recusa data de emissao fora da janela). O acumulado sai
-
-num bloco separado, rotulado como numero para decisao juridica.
+E nao mostra passivo historico. CT-e NAO se emite retroativo (a SEFAZ recusa
+data de emissao fora da janela), entao o acumulado de anos anteriores nao e
+trabalho desta tela - a pergunta aqui e "o que preciso emitir agora". O numero
+fica registrado em docs/contrapartida-perguntas-contabilidade.md, que e onde
+ele serve: decisao de contabilidade e juridico.
 
 """
 
@@ -47,9 +47,8 @@ from datetime import date, datetime, timedelta
 from api import db
 
 from api.contrapartida import cadastro
-from api.contrapartida.sql import (FROTA_AGR_SQL, PASSIVO_SQL,
-
-                                   POR_AGREGADO_SQL, POR_MES_SQL)
+from api.contrapartida.sql import (FROTA_AGR_SQL, POR_AGREGADO_SQL,
+                                   POR_MES_SQL)
 
 
 
@@ -102,8 +101,7 @@ def _janela(de: str | None, ate: str | None) -> tuple[str, str]:
     A fila de contrapartida e trabalho DIARIO: o CT-e sai hoje e o documento do
     agregado tem de sair junto. Abrir em seis meses fazia a tela responder
     "quanto acumulou" quando a pergunta do dia e "o que preciso emitir agora" -
-    e o acumulado continua a um clique, alem de estar sempre no bloco de
-    passivo, que ignora este filtro.
+    e o acumulado continua a um clique no filtro.
     """
     hoje = date.today()
     d_ate = date.fromisoformat(ate) if ate else hoje
@@ -137,7 +135,6 @@ def get_contrapartida(de: str | None = None, ate: str | None = None,
     agreg = db.query(POR_AGREGADO_SQL, par)
 
     frota = db.query(FROTA_AGR_SQL, {})
-    passivo = db.query(PASSIVO_SQL, {"de": "2022-01-01", "ate": d_ate})
 
 
 
@@ -163,7 +160,7 @@ def get_contrapartida(de: str | None = None, ate: str | None = None,
     # BUSCA por nome ou CNPJ, em memoria. A consulta ja traz os ~85 agregados;
     # refazer o SQL por um filtro de texto multiplicaria a chave de cache sem
     # ganho (mesmo padrao do Painel de Custos). Vale para a TABELA e para os
-    # KPIs do recorte - o passivo acumulado continua do periodo inteiro.
+    # KPIs do recorte.
     if (busca or "").strip():
         alvo = " ".join((busca or "").lower().split())
         so_dig = "".join(c for c in alvo if c.isdigit())
@@ -236,10 +233,10 @@ def get_contrapartida(de: str | None = None, ate: str | None = None,
         "por_mes": _serial(mes),
         "por_agregado": _serial(agreg),
         "frota": _serial(frota),
-        "passivo": _serial(passivo),
         "pendencia_cadastral": faltando,
+        "prontidao_fila": _prontidao_fila(pj),
         "classes": CLASSES,
-        "avisos": _avisos(pj, tac, indef, faltando, passivo),
+        "avisos": _avisos(pj, tac, indef, faltando),
         "fonte": {
             "tabela": "conhecimento × veiculo (utilizacaoveiculo='AGR') × cadastro",
             "gerado_em": datetime.now().strftime("%Y-%m-%d %H:%M"),
@@ -303,7 +300,50 @@ def _br(v: float, casas: int = 2) -> str:
     return f"{inteiro},{dec}" if dec else inteiro
 
 
-def _avisos(pj, tac, indef, faltando, passivo) -> list[str]:
+def _prontidao_fila(pj: list[dict]) -> dict:
+    """Quem da fila PODE emitir hoje, e o que trava quem nao pode.
+
+    Substituiu o bloco de passivo acumulado. O passivo olhava para tras e nao
+    virava trabalho - CT-e nao se emite retroativo. Este olha para a frente e
+    responde a pergunta da tela: de tudo que entrou, quanto da para emitir
+    agora, e o que falta no resto.
+
+    A separacao dos travados por INDICADOR DE INSCRICAO ESTADUAL importa
+    porque os dois grupos tem encaminhamentos diferentes:
+
+      - marcado como CONTRIBUINTE e com inscricao "ISENTO" e CONTRADICAO de
+        cadastro: se e contribuinte, tem inscricao. Da para corrigir.
+      - marcado como NAO CONTRIBUINTE e coerente: provavelmente nao emite
+        CT-e mesmo, e sai da fila em vez de virar pendencia eterna.
+    """
+    def _bloco(itens):
+        return {"agregados": len(itens),
+                "ctes": sum(x.get("ctes") or 0 for x in itens),
+                "valor": round(sum(x.get("valor") or 0.0 for x in itens), 2)}
+
+    # DOIS PORTOES DIFERENTES, e confundi-los faz a tela mentir:
+    #   cadastro  = tem os campos que o documento exige (IE, RNTRC, municipio)
+    #   autorizado = TEM CERTIFICADO e autorizacao vigente para assinar
+    # Um agregado pode estar com o cadastro impecavel e nao emitir nada por
+    # falta de certificado - foi o caso de 28 dos 30 no primeiro levantamento.
+    autorizados = [x for x in pj if (x.get("prontidao") or {}).get("pronto")]
+    cadastro_ok = [x for x in pj
+                   if _ie_utilizavel(x.get("ie")) and not x.get("falta")]
+    sem_certificado = [x for x in cadastro_ok if x not in autorizados]
+    sem_ie = [x for x in pj if not _ie_utilizavel(x.get("ie"))]
+    # 1 = contribuinte de ICMS; 9 = nao contribuinte (dominio do ERP)
+    contradicao = [x for x in sem_ie if str(x.get("ind_ie") or "") != "9"]
+    nao_contrib = [x for x in sem_ie if str(x.get("ind_ie") or "") == "9"]
+    return {
+        "autorizados": _bloco(autorizados),
+        "cadastro_ok_sem_certificado": _bloco(sem_certificado),
+        "sem_ie_contribuinte": _bloco(contradicao),
+        "sem_ie_nao_contribuinte": _bloco(nao_contrib),
+        "total": _bloco(pj),
+    }
+
+
+def _avisos(pj, tac, indef, faltando) -> list[str]:
 
     av: list[str] = []
     av.append(
@@ -360,21 +400,5 @@ def _avisos(pj, tac, indef, faltando, passivo) -> list[str]:
             "autorizados a emitir: falta procuração vigente, certificado A1 "
             "válido ou a senha dele no cofre. Enquanto isso, a fila é "
             "diagnóstico — nenhum documento pode ser emitido.")
-    velho = [x for x in passivo if x["classe"] == "pj"
-
-             and x["ano"] < str(date.today().year)]
-    if velho:
-
-        n = sum(x["ctes"] for x in velho)
-        v = sum(x["valor"] for x in velho)
-        # formata SO o numero. Aplicar replace(",", ".") na frase inteira
-        # comeu as virgulas do texto - a mesma armadilha da substituicao em
-        # massa que o CLAUDE.md descreve, em miniatura.
-        av.append(
-            f"Passivo de anos anteriores: {_br(n, 0)} CT-e de agregado PJ, "
-            f"R$ {_br(v, 0)} de prestação. CT-e NÃO se emite retroativo (a "
-            "SEFAZ recusa data de emissão fora da janela), então isto não é "
-            "fila de trabalho — é número para a decisão da contabilidade e do "
-            "jurídico.")
     return av
 
