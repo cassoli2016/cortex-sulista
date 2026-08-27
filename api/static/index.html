@@ -2760,6 +2760,7 @@ body.tvfull #btnReport,body.tvmode #btnReport{display:none}
               <span class="hint" id="cpValidEscopo"></span>
             </div>
             <div id="cpValidChips" class="chips"></div>
+            <div class="hint" id="cpValidAcao" hidden></div>
           </div>
           <div class="tabroll"><table class="tab" id="cpValidTab"></table></div>
         </div>
@@ -10368,9 +10369,21 @@ function cpValidRender(){
 
   const lin=(v.achados||[]).filter(function(a){
     return CP_VALCAT==='tudo' || a.categoria===CP_VALCAT; });
+  /* COLUNA QUE REPETE O MESMO VALOR EM TODA LINHA SAI DA TABELA - a regra ja
+     estava escrita no projeto e eu a quebrei aqui: "O que fazer" trazia o
+     mesmo texto nas 29 linhas de certificado e nas 8 de inscricao, ocupando
+     40% da largura para dizer uma coisa so. Sendo a acao a mesma para o
+     recorte inteiro, ela vira UMA frase acima da tabela; divergindo, a coluna
+     volta, porque ai ela informa de verdade. */
+  const acoes = Array.from(new Set(lin.map(function(a){ return a.acao||''; })));
+  const acaoUnica = acoes.length===1 ? acoes[0] : '';
+  document.getElementById('cpValidAcao').innerHTML = acaoUnica
+    ? '<b>O que fazer:</b> '+esc(acaoUnica) : '';
+  document.getElementById('cpValidAcao').hidden = !acaoUnica;
   document.getElementById('cpValidTab').innerHTML=
     '<thead><tr><th>Agregado</th><th>UF</th><th class="num">CT-e</th>'
-    +'<th>O que está errado</th><th>O que fazer</th><th></th></tr></thead><tbody>'
+    +'<th>O que está errado</th>'+(acaoUnica?'':'<th>O que fazer</th>')
+    +'<th></th></tr></thead><tbody>'
     +lin.map(function(a){
       const rej=a.rejeicao
         ? ' <span class="badge b-dang" title="Código medido na transmissão, não estimado.">'+esc(a.rejeicao)+'</span>'
@@ -10382,13 +10395,16 @@ function cpValidRender(){
          maos; ter de sair para outra tabela e procurar o mesmo nome era o
          caminho mais longo entre saber e resolver. So aparece no que se
          resolve cadastrando: "nao contribuinte" nao tem certificado a pedir. */
-      const pode = a.categoria==='certificado' || a.categoria==='cadastro';
+      /* O BOTAO SO ONDE ELE E A ACAO. Nas linhas de cadastro a correcao e no
+         ERP ou no SINTEGRA - abrir aqui o cadastro de certificado nao resolve
+         nada e contradiz a propria instrucao da linha. */
+      const pode = a.categoria==='certificado';
       return '<tr'+(a.grave?'':' style="opacity:.62"')+'>'
         +'<td>'+esc(a.nome||a.documento||'')+'</td>'
         +'<td>'+esc(a.uf||'')+'</td>'
         +'<td class="num">'+(a.ctes||0).toLocaleString('pt-BR')+'</td>'
         +'<td>'+esc(a.defeito||'')+rej+'</td>'
-        +'<td><span class="hint">'+esc(a.acao||'')+'</span></td>'
+        +(acaoUnica?'':'<td><span class="hint">'+esc(a.acao||'')+'</span></td>')
         +'<td>'+(pode
            ? '<button class="gbtn" data-doc="'+esc(a.documento||'')+'"'
              +' onclick="cpAbrir(this.dataset.doc)"'

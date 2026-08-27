@@ -1,3 +1,18 @@
+- versao: "0.108.2"
+  data: "2026-08-27"
+  corrigido:
+    - >-
+      No validador, a coluna "O que fazer" repetia o mesmo texto em todas as
+      linhas do recorte - identico nas 29 de certificado e nas 8 de inscricao
+      estadual - ocupando 40% da largura da tabela para dizer uma coisa so.
+      Sendo a acao a mesma para o recorte inteiro, ela virou uma frase acima
+      da tabela; divergindo, a coluna volta.
+    - >-
+      O botao de cadastrar aparecia tambem nas linhas de cadastro, onde a
+      correcao e no ERP ou no SINTEGRA: ele abria o cadastro de certificado,
+      que nao resolve nada ali e contradiz a instrucao da propria linha. Agora
+      so aparece onde ele e de fato a acao.
+
 - versao: "0.108.1"
   data: "2026-08-27"
   corrigido:

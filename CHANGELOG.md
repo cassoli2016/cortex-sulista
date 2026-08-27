@@ -4,6 +4,12 @@ Gerado de `docs/versoes.yaml` por `scripts/gerar_changelog.py` — não editar �
 Formato [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/),
 versionamento [SemVer](https://semver.org/lang/pt-BR/).
 
+## [0.108.2] — 27/08/2026  ·  CX-27/08/2026-v0.108.2
+
+### Corrigido
+- No validador, a coluna "O que fazer" repetia o mesmo texto em todas as linhas do recorte - identico nas 29 de certificado e nas 8 de inscricao estadual - ocupando 40% da largura da tabela para dizer uma coisa so. Sendo a acao a mesma para o recorte inteiro, ela virou uma frase acima da tabela; divergindo, a coluna volta.
+- O botao de cadastrar aparecia tambem nas linhas de cadastro, onde a correcao e no ERP ou no SINTEGRA: ele abria o cadastro de certificado, que nao resolve nada ali e contradiz a instrucao da propria linha. Agora so aparece onde ele e de fato a acao.
+
 ## [0.108.1] — 27/08/2026  ·  CX-27/08/2026-v0.108.1
 
 ### Corrigido

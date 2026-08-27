@@ -131,6 +131,10 @@ def apagar_esquema(nome: str) -> None:
     propósito: um `apagar_esquema()` sem argumento por engano apagaria tudo."""
     if nome == ESQUEMA_PADRAO:
         raise ValueError(f"recusado: {nome!r} é o schema de produção")
+    # o runner memoriza quais schemas já estão na última versão; apagar sem
+    # esquecer faria o próximo schema de mesmo nome nascer sem tabela nenhuma
+    from .migracoes import _EM_DIA
+    _EM_DIA.discard(nome)
     with get_conn() as conn:
         with conn.cursor() as cur:
             cur.execute(_sql.SQL("DROP SCHEMA IF EXISTS {} CASCADE").format(

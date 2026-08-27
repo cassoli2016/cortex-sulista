@@ -27,6 +27,17 @@ ROOT = Path(__file__).resolve().parent.parent
 DIR_SQL = ROOT / "sql" / "cortex"
 _NUM = re.compile(r"^(\d{4})_")
 
+# Schemas que ESTE PROCESSO já viu na última versão. `init_db()` é chamado a
+# cada escrita (é o que garante que a primeira gravação de uma instalação crie
+# as tabelas), e sem esta memória cada chamada custava duas idas ao banco só
+# para descobrir que não havia nada a aplicar. Medido: a suíte do orçamento
+# passou de 2 para mais de 10 minutos ao migrar.
+#
+# Seguro porque migration nova só chega com DEPLOY, e deploy reinicia a API —
+# processo novo, memória vazia. O `--esquema` do runner também não é afetado:
+# ele roda em outro processo.
+_EM_DIA: set[str] = set()
+
 
 def _arquivos() -> list[tuple[int, Path]]:
     return sorted(((int(m.group(1)), p) for p in DIR_SQL.glob("*.sql")
@@ -56,6 +67,8 @@ def pendentes(esquema: str | None = None) -> list[tuple[int, Path]]:
 def aplicar(esquema: str | None = None, falar=None) -> list[int]:
     """Aplica o que falta. Devolve as versões aplicadas NESTA chamada."""
     alvo = esquema or pglocal.ESQUEMA_PADRAO
+    if alvo in _EM_DIA:
+        return []
     pglocal.criar_esquema(alvo)
     feitas: list[int] = []
     for versao, arquivo in pendentes(alvo):
@@ -68,4 +81,5 @@ def aplicar(esquema: str | None = None, falar=None) -> list[int]:
         feitas.append(versao)
         if falar:
             falar(f"aplicada {versao:04d} — {arquivo.name}")
+    _EM_DIA.add(alvo)
     return feitas
