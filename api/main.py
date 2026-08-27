@@ -577,6 +577,40 @@ async def gestao_credenciais_salvar(req: Request) -> JSONResponse:
     return JSONResponse(st)
 
 
+@app.post("/api/fiscal/contrapartida/envio")
+async def contrapartida_envio(req: Request) -> JSONResponse:
+    """Liga ou desliga a emissão para UM agregado.
+
+    Serve para testar com um de cada vez e para tirar da fila quem rejeita
+    sempre — sem apagar certificado nem autorização, que são registros de
+    outra natureza. O autor sai da SESSÃO, nunca do corpo.
+    """
+    from api.contrapartida import emissao
+    quem = (getattr(req.state, "sessao", None) or {}).get("email") or ""
+    if not quem:
+        return JSONResponse(status_code=401, content={
+            "erro": "sem_sessao",
+            "mensagem": "Sessão sem e-mail: não dá para registrar o autor."})
+    try:
+        body = await req.json()
+    except Exception:  # noqa: BLE001
+        body = None
+    if not isinstance(body, dict) or not body.get("cnpj"):
+        return JSONResponse(status_code=422, content={
+            "erro": "parametro_invalido", "mensagem": "Informe o agregado."})
+    try:
+        r = emissao.definir_envio(str(body["cnpj"]), bool(body.get("ativo")),
+                                  quem)
+    except ValueError as exc:
+        return JSONResponse(status_code=422, content={
+            "erro": "parametro_invalido", "mensagem": str(exc)})
+    except Exception as exc:  # noqa: BLE001
+        log.warning("contrapartida_envio falhou: %s", exc)
+        return JSONResponse(status_code=500, content={
+            "erro": "erro_gravacao", "mensagem": "Não foi possível gravar."})
+    return JSONResponse(r)
+
+
 @app.get("/api/fiscal/contrapartida/documento/{chave}")
 def contrapartida_documento(chave: str) -> Response:
     """Baixa o `cteProc` de um documento transmitido — XML + protocolo.

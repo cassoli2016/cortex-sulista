@@ -1,3 +1,23 @@
+- versao: "0.90.0"
+  data: "2026-08-27"
+  adicionado:
+    - >-
+      Botao de ATIVAR e DESATIVAR envio por agregado, na linha de cada
+      certificado. Serve para testar com um de cada vez e para tirar da fila
+      quem esta sendo recusado sempre - sem apagar certificado nem autorizacao,
+      que sao registros de outra natureza e nao deveriam ser removidos por
+      conveniencia operacional. Cada mudanca fica na trilha com autor e data.
+    - >-
+      A contagem da fila passou a mostrar quantos CT-e estao fora por envio
+      desativado, separado de quantos estao fora por falta de certificado. Sao
+      motivos diferentes e pedem acoes diferentes.
+  alterado:
+    - >-
+      Este interruptor e o unico do modulo em que a AUSENCIA de registro
+      significa LIGADO. Nos outros o padrao seguro e desligado; aqui o padrao
+      seguro e o comportamento de hoje, porque um padrao desligado esvaziaria a
+      fila em silencio - e fila vazia parece trabalho concluido.
+
 - versao: "0.89.0"
   data: "2026-08-27"
   corrigido:

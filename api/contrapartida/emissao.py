@@ -125,6 +125,15 @@ CREATE TABLE IF NOT EXISTS lote_config (
 CHAVE_PRODUCAO = "producao_liberada"
 CHAVE_AMBIENTE = "ambiente_ativo"
 
+# Interruptor POR AGREGADO. Chave = "envio:<cnpj>".
+#
+# Ausencia de registro significa HABILITADO, ao contrario dos outros
+# interruptores deste modulo. A razao e que aqui o padrao seguro e o
+# comportamento de HOJE: quem tem certificado e autorizacao ja entrava na
+# fila. Um padrao desligado esvaziaria a fila em silencio - e uma fila vazia
+# parece trabalho concluido.
+PREFIXO_ENVIO = "envio:"
+
 
 def _conn():
     c = cadastro._conn()          # mesmo banco, mesma disciplina (WAL, curta)
@@ -229,6 +238,38 @@ def liberar_producao(ativa: bool, quem: str, confirmacao: str = "") -> dict:
     """Atalho antigo, mantido para os scripts: liga/desliga produção."""
     r = definir_ambiente(PRODUCAO if ativa else HOMOLOGACAO, quem, confirmacao)
     return {"ativa": r["producao"], "quem": r["quem"], "quando": r["quando"]}
+
+
+def envio_habilitado(cnpj: str) -> bool:
+    """Este agregado entra na fila de emissão? Sem registro, SIM."""
+    r = config_lida(f"{PREFIXO_ENVIO}{cnpj}")
+    return not r or r["valor"] != "0"
+
+
+def definir_envio(cnpj: str, ativo: bool, quem: str) -> dict:
+    """Liga ou desliga a emissão para UM agregado. Entra na auditoria.
+
+    Serve para testar com um de cada vez e para tirar da fila quem está
+    rejeitando sempre — sem mexer no certificado nem na autorização, que são
+    registros de outra natureza e não deveriam ser apagados por conveniência
+    operacional.
+    """
+    if not cnpj:
+        raise ValueError("Informe o agregado.")
+    r = config_grava(f"{PREFIXO_ENVIO}{cnpj}", ativo, quem, "envio_agregado")
+    return {"cnpj": cnpj, "habilitado": ativo,
+            "quem": r["quem"], "quando": r["quando"]}
+
+
+def envios_desligados() -> dict[str, dict]:
+    """{cnpj: {quem, quando}} dos que estão fora da fila por decisão."""
+    with _conn_config() as c:
+        linhas = [dict(r) for r in c.execute(
+            "SELECT chave, valor, quem, quando FROM lote_config"
+            " WHERE chave LIKE ? AND valor='0'", (f"{PREFIXO_ENVIO}%",))]
+    return {r["chave"][len(PREFIXO_ENVIO):]: {"quem": r["quem"],
+                                              "quando": r["quando"]}
+            for r in linhas}
 
 
 def proximo_numero(cnpj: str, serie: int, ambiente: str) -> int:

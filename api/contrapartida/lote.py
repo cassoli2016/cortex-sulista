@@ -268,12 +268,15 @@ def pendentes(de: str, ate: str, ambiente: str = emissao.HOMOLOGACAO,
     linhas = db.query(PENDENTES_SQL, {"de": de, "ate": ate})
     feitas = _ja_emitidas(ambiente)
     mapa = cadastro.mapa()
+    desligados = emissao.envios_desligados()
     fila: list[dict] = []
     for x in linhas:
         if x["chave"] in feitas:
             continue
         pront = (mapa.get(x["cnpj"]) or {}).get("prontidao") or {}
         if not pront.get("pronto"):
+            continue
+        if x["cnpj"] in desligados:
             continue
         fila.append(dict(x, dtemissao=str(x["dtemissao"])[:10]))
         if len(fila) >= min(limite, teto_do(ambiente)):
@@ -354,12 +357,16 @@ def resumo_fila(de: str, ate: str,
     linhas = db.query(PENDENTES_SQL, {"de": de, "ate": ate})
     feitas = _ja_emitidas(ambiente)
     mapa = cadastro.mapa()
+    desligados = emissao.envios_desligados()
     total = len(linhas)
     ja = sum(1 for x in linhas if x["chave"] in feitas)
+    fora = sum(1 for x in linhas if x["chave"] not in feitas
+               and x["cnpj"] in desligados)
     sem_prontidao = sum(
         1 for x in linhas if x["chave"] not in feitas
         and not ((mapa.get(x["cnpj"]) or {}).get("prontidao") or {}).get("pronto"))
     return {"ctes_no_periodo": total, "ja_emitidos": ja,
             "sem_agregado_pronto": sem_prontidao,
-            "a_emitir": total - ja - sem_prontidao,
+            "envio_desligado": fora,
+            "a_emitir": total - ja - sem_prontidao - fora,
             "gerado_em": datetime.now().strftime("%Y-%m-%d %H:%M")}

@@ -359,6 +359,12 @@ def _certificados(pj: list[dict], pront: dict) -> dict:
     """
     hoje = date.today()
     volume = {x["documento"]: x for x in pj}
+    try:
+        from api.contrapartida import emissao
+        desligados = emissao.envios_desligados()
+    except Exception as exc:  # noqa: BLE001
+        log.warning("estado do envio por agregado indisponivel: %s", exc)
+        desligados = {}
 
     # nome de quem tem certificado mas não apareceu no período
     faltam = [d for d, reg in pront.items()
@@ -394,6 +400,8 @@ def _certificados(pj: list[dict], pront: dict) -> dict:
             "valida_ate": cert.get("valida_ate"), "dias": dias,
             "situacao": situacao, "texto": texto,
             "tem_senha": bool(reg.get("tem_senha")),
+            "envio": documento not in desligados,
+            "envio_quem": (desligados.get(documento) or {}).get("quem"),
             "ctes": x.get("ctes") or 0,
             "valor": round(x.get("valor") or 0.0, 2),
         })

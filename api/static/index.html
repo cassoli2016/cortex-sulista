@@ -9673,6 +9673,21 @@ function renderCtecp(d){
       +(CORFX[f.chave]||'var(--n400)')+';border-radius:5px"></div></div></div>';
   }).join('') : '<div class="hint">Nenhum certificado cadastrado.</div>';
 
+async function cpEnvio(bt){
+  /* Liga/desliga a emissao de UM agregado. O autor sai da sessao no servidor;
+     aqui so vai o que mudou. Recarrega a tela para o estado vir do servidor e
+     nao de uma suposicao do cliente. */
+  try{
+    const r=await fetch('/api/fiscal/contrapartida/envio',{method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({cnpj:bt.dataset.cnpj,
+                           ativo:bt.dataset.liga==='1'})});
+    const d=await r.json();
+    if(!r.ok){ alert(d.mensagem||'Não foi possível mudar o envio.'); return; }
+    loadCtecp();
+  }catch(e){ alert('Falha de rede: '+e.message); }
+}
+
   /* VENCIMENTO DOS CERTIFICADOS. Certificado A1 vale um ano; vencido em
      silencio, a emissao para sozinha. O semaforo e GRADUADO porque "vence em
      2 dias" e "vence em 29" pedem acoes diferentes - chip igual para os dois
@@ -9690,7 +9705,8 @@ function renderCtecp(d){
                atencao:'b-warn',desconhecido:'b-dang',impedido:'b-info',ok:'b-ok'};
     document.getElementById('cpCertTab').innerHTML =
       '<thead><tr><th>Agregado</th><th>Titular do certificado</th><th>Tipo</th>'
-      +'<th>Validade</th><th>Situação</th><th class="num">CT-e no período</th>'
+      +'<th>Validade</th><th>Situação</th><th>Envio</th>'
+      +'<th class="num">CT-e no período</th>'
       +'</tr></thead><tbody>'
       +cItens.map(function(c){
         const grave = c.situacao==='vencido'||c.situacao==='critico'
@@ -9706,6 +9722,17 @@ function renderCtecp(d){
           +esc(c.texto||c.situacao)+'</span></td>'
           /* zero aqui e "nao rodou NO RECORTE", nao "nao importa" - e a
              diferenca some se o numero aparecer pelado */
+          /* CNPJ vai em data- e o handler o le de la: sem aspa dentro de
+             aspa dentro de atributo, que e onde o escape quebra. */
+          +'<td>'+(c.envio
+             ? '<button class="gbtn" data-cnpj="'+esc(c.documento)+'" data-liga="0"'
+               +' onclick="cpEnvio(this)" title="Tira este agregado da fila de emissão.'
+               +' Não apaga certificado nem autorização — só suspende o envio.">desativar envio</button>'
+             : '<button class="gbtn" data-cnpj="'+esc(c.documento)+'" data-liga="1"'
+               +' onclick="cpEnvio(this)" title="'
+               +esc('Fora da fila'+(c.envio_quem?' por '+c.envio_quem:'')+'. Clique para voltar a emitir.')
+               +'"><span class="badge b-dang">envio desativado</span> ativar</button>')
+          +'</td>'
           +'<td class="num mono">'+(c.no_periodo
              ? (c.ctes||0).toLocaleString('pt-BR')
              : '<span class="hint" title="Este agregado não teve CT-e no período filtrado. O certificado continua valendo — e vencendo.">fora do período</span>')

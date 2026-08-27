@@ -4,6 +4,15 @@ Gerado de `docs/versoes.yaml` por `scripts/gerar_changelog.py` — não editar �
 Formato [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/),
 versionamento [SemVer](https://semver.org/lang/pt-BR/).
 
+## [0.90.0] — 27/08/2026  ·  CX-27/08/2026-v0.90.0
+
+### Adicionado
+- Botao de ATIVAR e DESATIVAR envio por agregado, na linha de cada certificado. Serve para testar com um de cada vez e para tirar da fila quem esta sendo recusado sempre - sem apagar certificado nem autorizacao, que sao registros de outra natureza e nao deveriam ser removidos por conveniencia operacional. Cada mudanca fica na trilha com autor e data.
+- A contagem da fila passou a mostrar quantos CT-e estao fora por envio desativado, separado de quantos estao fora por falta de certificado. Sao motivos diferentes e pedem acoes diferentes.
+
+### Alterado
+- Este interruptor e o unico do modulo em que a AUSENCIA de registro significa LIGADO. Nos outros o padrao seguro e desligado; aqui o padrao seguro e o comportamento de hoje, porque um padrao desligado esvaziaria a fila em silencio - e fila vazia parece trabalho concluido.
+
 ## [0.89.0] — 27/08/2026  ·  CX-27/08/2026-v0.89.0
 
 ### Adicionado
