@@ -4,6 +4,11 @@ Gerado de `docs/versoes.yaml` por `scripts/gerar_changelog.py` — não editar �
 Formato [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/),
 versionamento [SemVer](https://semver.org/lang/pt-BR/).
 
+## [0.114.1] — 27/08/2026  ·  CX-27/08/2026-v0.114.1
+
+### Alterado
+- O criterio para a versao 1.0 passou a estar escrito. Ele nao vem de regra automatica: o padrao de versionamento usa o numero MAIOR para avisar o codigo de outras pessoas que algo quebrou, e aqui nao ha outras pessoas - nao existe API publica e a tela sobe junto com o servidor. Prova disso: em 19 dias foram 157 versoes e nenhuma de MAIOR, nem no dia em que os dez bancos locais mudaram de tecnologia. O 1.0 passa a ser DECLARADO, quando o painel puder ser tratado como fonte oficial - backup com restauracao testada de verdade, divergencias com o ERP documentadas e com dono, e as tres telas de receita batendo entre si. Ate la o 0.x diz a verdade.
+
 ## [0.114.0] — 27/08/2026  ·  CX-27/08/2026-v0.114.0
 
 ### Alterado
