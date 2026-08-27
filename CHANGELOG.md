@@ -4,6 +4,15 @@ Gerado de `docs/versoes.yaml` por `scripts/gerar_changelog.py` — não editar �
 Formato [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/),
 versionamento [SemVer](https://semver.org/lang/pt-BR/).
 
+## [0.82.0] — 26/08/2026  ·  CX-26/08/2026-v0.82.0
+
+### Adicionado
+- Os DOIS AMBIENTES da emissao passaram a existir: homologacao, que segue sendo o padrao de tudo, e producao. Homologacao e o ambiente de teste da SEFAZ - o documento autorizado la nao tem valor fiscal, nao e escriturado e nao gera obrigacao. Producao emite documento real, em nome de outra empresa.
+- Producao NASCE TRAVADA e nao destrava sozinha. Liberar exige uma frase de confirmacao digitada por inteiro, e fica registrado quem liberou e quando. A frase existe porque uma opcao de linha de comando e facil demais de digitar por engano, e o engano aqui custa cancelamento e retificacao: CT-e autorizado errado nao se apaga - cancela-se, dentro de prazo, com justificativa, e repercute na escrituracao dos dois lados.
+- DESLIGAR producao nao pede frase nenhuma. Desligar e sempre seguro e nao pode depender de lembrar de uma frase no meio de um problema.
+- O teto do lote em producao e MENOR que em homologacao (50 contra 500): lote errado em teste custa tempo, em producao custa cancelamento documento a documento. Comecar devagar e o comportamento correto do primeiro dia.
+- A numeracao ja era separada por ambiente, entao o primeiro documento de producao nao nasce com um numero gasto em teste.
+
 ## [0.81.0] — 26/08/2026  ·  CX-26/08/2026-v0.81.0
 
 ### Adicionado

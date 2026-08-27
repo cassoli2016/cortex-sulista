@@ -37,7 +37,27 @@ def main() -> int:
                     help="modo da rotina agendada: exige a automacao LIGADA")
     ap.add_argument("--ligar-automacao", action="store_true")
     ap.add_argument("--desligar-automacao", action="store_true")
+    ap.add_argument("--producao", action="store_true",
+                    help="emite em PRODUCAO (exige liberacao previa)")
+    ap.add_argument("--liberar-producao", metavar="CONFIRMACAO",
+                    help=f"destrava producao; confirme com "
+                         f"'{emissao.CONFIRMACAO_PRODUCAO}'")
+    ap.add_argument("--travar-producao", action="store_true")
     a = ap.parse_args()
+
+    if a.liberar_producao is not None or a.travar_producao:
+        try:
+            r = emissao.liberar_producao(
+                not a.travar_producao, a.quem,
+                confirmacao=a.liberar_producao or "")
+        except PermissionError as exc:
+            print(f"RECUSADO: {exc}")
+            return 2
+        print(f"producao {'LIBERADA' if r['ativa'] else 'travada'} "
+              f"por {r['quem']} em {r['quando']}")
+        return 0
+
+    ambiente = emissao.PRODUCAO if a.producao else emissao.HOMOLOGACAO
 
     if a.ligar_automacao or a.desligar_automacao:
         r = lote.definir_automacao(bool(a.ligar_automacao), a.quem)
@@ -46,7 +66,7 @@ def main() -> int:
         return 0
     ate = (date.fromisoformat(a.ate) + timedelta(days=1)).isoformat()
 
-    r = lote.resumo_fila(a.de, ate)
+    r = lote.resumo_fila(a.de, ate, ambiente)
     print(f"FILA de {a.de} a {a.ate}")
     print(f"  CT-e de agregado PJ no periodo .. {r['ctes_no_periodo']}")
     print(f"  ja com contrapartida ............ {r['ja_emitidos']}")
@@ -59,7 +79,8 @@ def main() -> int:
 
     try:
         res = lote.processar_lote(a.de, ate, ENQUADRAMENTO, quem=a.quem,
-                                  limite=a.limite, dry_run=not a.valendo,
+                                  limite=a.limite, ambiente=ambiente,
+                                  dry_run=not a.valendo,
                                   desassistido=a.desassistido)
     except PermissionError as exc:
         print(f"RECUSADO: {exc}")

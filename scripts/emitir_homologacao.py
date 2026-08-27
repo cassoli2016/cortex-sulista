@@ -70,9 +70,15 @@ def main() -> int:
     # bancada varia, e a trilha tem de dizer que foi o CORTEX. Emissao pela
     # tela continua exigindo o usuario logado.
     ap.add_argument("--quem", default=emissao.IDENTIDADE_SISTEMA)
+    ap.add_argument("--producao", action="store_true",
+                    help="emite em PRODUCAO (exige liberacao previa)")
     a = ap.parse_args()
 
-    print("AMBIENTE: HOMOLOGACAO - o documento nao tem valor fiscal.")
+    ambiente = emissao.PRODUCAO if a.producao else emissao.HOMOLOGACAO
+    if ambiente == emissao.HOMOLOGACAO:
+        print("AMBIENTE: HOMOLOGACAO - o documento nao tem valor fiscal.")
+    else:
+        print("AMBIENTE: PRODUCAO - documento REAL, em nome de terceiro.")
     print("Enquadramento TECNICO (a contabilidade ainda nao respondeu):")
     for campo, valor in vars(ENQUADRAMENTO_TECNICO).items():
         print(f"   {campo:22} {valor!r}")
@@ -90,7 +96,7 @@ def main() -> int:
 
     try:
         r = emissao.transmitir(a.chave, ENQUADRAMENTO_TECNICO, quem=a.quem,
-                               numero=a.numero)
+                               numero=a.numero, ambiente=ambiente)
     except Exception as exc:  # noqa: BLE001
         print(f"FALHOU: {type(exc).__name__}: {str(exc)[:500]}")
         return 1

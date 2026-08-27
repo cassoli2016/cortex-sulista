@@ -26,6 +26,9 @@ existem no caminho manual porque lá não fazem falta.
   4. **ENSAIO.** `dry_run=True` percorre tudo — seleção, montagem, guardas —
      e não transmite. É como se confere um lote novo antes de soltar.
 
+  5. **TETO MENOR EM PRODUÇÃO.** Em homologação um lote errado custa tempo;
+     em produção custa cancelamento e retificação, documento a documento.
+
 MANUAL SEMPRE; AUTOMÁTICO SÓ SE ALGUÉM LIGAR
 --------------------------------------------
 A emissão sob demanda — um documento, ou um lote disparado por uma pessoa —
@@ -37,11 +40,12 @@ alguém para ler o retorno e parar. Desassistido não tem. Ligar e desligar
 entra na trilha de auditoria com autor e data, porque é a decisão que muda
 quem responde por um documento emitido às três da manhã.
 
-O QUE ELE NÃO FAZ
+OS DOIS AMBIENTES
 -----------------
-Produção. `emissao.transmitir` recusa, e este módulo não tem como contornar:
-ele não escolhe ambiente, repassa. Abrir produção continua sendo decisão de
-quem responde pelo fiscal.
+O lote atende homologação e produção, mas **não decide** qual: repassa o
+ambiente para `emissao.transmitir`, que recusa produção enquanto ela não tiver
+sido liberada — com confirmação e registro de autor. O padrão aqui continua
+sendo homologação.
 """
 from __future__ import annotations
 
@@ -63,6 +67,12 @@ MAX_FALHAS_SEGUIDAS = 3
 # errada — não para limitar o uso legítimo, que é recorrente e incremental.
 TETO_ABSOLUTO = 500
 
+# Em produção o teto absoluto é MENOR. Um lote errado em homologação custa
+# tempo; em produção custa cancelamento e retificação, documento a documento,
+# dentro de prazo. Começar devagar é o comportamento correto do primeiro dia —
+# e do segundo, até alguém decidir o contrário com número na mão.
+TETO_ABSOLUTO_PRODUCAO = 50
+
 # CT-e de agregado PJ no período, do mais antigo para o mais novo. A ordem
 # importa: numeração de série sai sequencial e acompanhar a fila em ordem
 # cronológica é o que um fiscal espera ver.
@@ -83,22 +93,7 @@ SELECT k.chaveacessocte AS chave, k.dtemissao, v.proprietario AS cnpj,
 """
 
 
-_DDL_CONFIG = """
-CREATE TABLE IF NOT EXISTS lote_config (
-  chave      TEXT PRIMARY KEY,
-  valor      TEXT NOT NULL,
-  quem       TEXT NOT NULL,
-  quando     TEXT NOT NULL
-);
-"""
-
 CHAVE_AUTOMACAO = "automacao_ativa"
-
-
-def _conn_config():
-    c = emissao._conn()
-    c.executescript(_DDL_CONFIG)
-    return c
 
 
 def automacao_ativa() -> bool:
@@ -107,10 +102,12 @@ def automacao_ativa() -> bool:
     Ausência de registro significa desligado — nunca o contrário. Um default
     ligado faria a automação começar a emitir por causa de um banco novo ou
     de uma restauração de backup.
+
+    A configuração mora com a da liberação de produção (`emissao`): são
+    interruptores da mesma natureza — ligam algo que emite documento sem
+    alguém confirmando na hora.
     """
-    with _conn_config() as c:
-        r = c.execute("SELECT valor FROM lote_config WHERE chave=?",
-                      (CHAVE_AUTOMACAO,)).fetchone()
+    r = emissao.config_lida(CHAVE_AUTOMACAO)
     return bool(r) and r["valor"] == "1"
 
 
@@ -120,20 +117,14 @@ def definir_automacao(ativa: bool, quem: str) -> dict:
     `quem` é obrigatório: esta é a decisão que define quem responde por um
     documento emitido sem ninguém olhando.
     """
-    if not quem:
-        raise ValueError("Informe quem está ligando/desligando a automação.")
-    agora = datetime.now().isoformat(timespec="seconds")
-    with _conn_config() as c:
-        c.execute(
-            "INSERT INTO lote_config(chave, valor, quem, quando)"
-            " VALUES(?,?,?,?) ON CONFLICT(chave) DO UPDATE SET"
-            " valor=excluded.valor, quem=excluded.quem, quando=excluded.quando",
-            (CHAVE_AUTOMACAO, "1" if ativa else "0", quem, agora))
-        cadastro._audita(c, quem, "automacao_emissao", "-",
-                         "ligada" if ativa else "desligada")
-    log.warning("automacao de emissao %s por %s",
-                "LIGADA" if ativa else "desligada", quem)
-    return {"ativa": ativa, "quem": quem, "quando": agora}
+    return emissao.config_grava(CHAVE_AUTOMACAO, ativa, quem,
+                                "automacao_emissao")
+
+
+def teto_do(ambiente: str) -> int:
+    """Teto absoluto do ambiente. Produção começa devagar, de propósito."""
+    return (TETO_ABSOLUTO_PRODUCAO if ambiente == emissao.PRODUCAO
+            else TETO_ABSOLUTO)
 
 
 def _ja_emitidas(ambiente: str) -> set[str]:
@@ -167,7 +158,7 @@ def pendentes(de: str, ate: str, ambiente: str = emissao.HOMOLOGACAO,
         if not pront.get("pronto"):
             continue
         fila.append(dict(x, dtemissao=str(x["dtemissao"])[:10]))
-        if len(fila) >= min(limite, TETO_ABSOLUTO):
+        if len(fila) >= min(limite, teto_do(ambiente)):
             break
     return fila
 

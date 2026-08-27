@@ -9,17 +9,21 @@ em nome de outra pessoa jurídica. `documento.py` tem guarda de árvore sintáti
 que o proíbe de alcançar certificado, assinatura ou transmissão — e essa guarda
 só continua significando alguma coisa se este módulo for separado.
 
-O QUE ESTE MÓDULO SE RECUSA A FAZER
------------------------------------
-**Produção.** Não é omissão nem "ainda não implementei": é recusa explícita,
-com a razão no erro. O enquadramento fiscal (CFOP, tpServ, CST, base do valor)
-continua indefinido, e um CT-e autorizado em produção com enquadramento
-errado não se apaga — cancela-se, dentro de prazo, com justificativa, e entra
-na escrituração dos dois lados. Enquanto as seis respostas de
-`documento.Enquadramento` forem chute, produção fica fechada aqui.
+OS DOIS AMBIENTES, E POR QUE UM TEM TRANCA
+------------------------------------------
+**Homologação** é o ambiente de teste da SEFAZ: o documento autorizado lá não
+tem valor fiscal, não é escriturado e não gera obrigação. É o padrão de tudo
+neste módulo.
 
-Homologação é outro assunto: o ambiente existe exatamente para isto, o
-documento autorizado lá **não tem valor fiscal** e não escritura nada.
+**Produção** emite documento de verdade, em nome de outra pessoa jurídica. Um
+CT-e autorizado com enquadramento errado **não se apaga**: cancela-se, dentro
+de prazo, com justificativa, e repercute na escrituração dos dois lados. Por
+isso produção não é só um parâmetro diferente — exige uma LIBERAÇÃO explícita,
+que nasce desligada, pede uma frase de confirmação e fica registrada com autor
+e data.
+
+A frase existe porque `--producao` numa linha de comando é fácil demais de
+digitar por engano, e o engano aqui custa cancelamento e retificação.
 
 AS TRÊS GUARDAS ANTES DE ASSINAR
 --------------------------------
@@ -51,6 +55,12 @@ from api.contrapartida import cadastro, documento, sefaz
 log = logging.getLogger("cortex.contrapartida.emissao")
 
 HOMOLOGACAO = sefaz.HOMOLOGACAO
+PRODUCAO = "1"
+AMBIENTES = {HOMOLOGACAO: "homologação", PRODUCAO: "produção"}
+
+# Quem quiser ligar produção digita isto. Não é senha — é atrito deliberado,
+# para que ninguém libere emissão fiscal por autocompletar de terminal.
+CONFIRMACAO_PRODUCAO = "EMITIR EM PRODUCAO"
 
 # SÉRIE 900, exclusiva destes documentos (aprovada pela área em 26/08/2026,
 # em caráter provisório para homologação).
@@ -98,6 +108,20 @@ CREATE TABLE IF NOT EXISTS emissao (
 # arquivo. Coluna acrescentada depois, entao entra por migracao.
 _MIGRACOES = ("ALTER TABLE emissao ADD COLUMN xml TEXT",)
 
+# Chaves de configuração do módulo (liberação de produção, automação do lote).
+# Mesma tabela para os dois: são interruptores da mesma natureza — ligam algo
+# que emite documento sem alguém confirmando na hora.
+_DDL_CONFIG = """
+CREATE TABLE IF NOT EXISTS lote_config (
+  chave      TEXT PRIMARY KEY,
+  valor      TEXT NOT NULL,
+  quem       TEXT NOT NULL,
+  quando     TEXT NOT NULL
+);
+"""
+
+CHAVE_PRODUCAO = "producao_liberada"
+
 
 def _conn():
     c = cadastro._conn()          # mesmo banco, mesma disciplina (WAL, curta)
@@ -108,6 +132,56 @@ def _conn():
         except Exception:      # noqa: BLE001 - coluna ja existe
             pass
     return c
+
+
+def _conn_config():
+    c = _conn()
+    c.executescript(_DDL_CONFIG)
+    return c
+
+
+def config_lida(chave: str) -> dict | None:
+    with _conn_config() as c:
+        r = c.execute("SELECT valor, quem, quando FROM lote_config WHERE chave=?",
+                      (chave,)).fetchone()
+    return dict(r) if r else None
+
+
+def config_grava(chave: str, ativa: bool, quem: str, acao: str) -> dict:
+    if not quem:
+        raise ValueError("Informe quem está mudando esta configuração.")
+    agora = datetime.now().isoformat(timespec="seconds")
+    with _conn_config() as c:
+        c.execute(
+            "INSERT INTO lote_config(chave, valor, quem, quando)"
+            " VALUES(?,?,?,?) ON CONFLICT(chave) DO UPDATE SET"
+            " valor=excluded.valor, quem=excluded.quem, quando=excluded.quando",
+            (chave, "1" if ativa else "0", quem, agora))
+        cadastro._audita(c, quem, acao, "-", "ligada" if ativa else "desligada")
+    log.warning("%s %s por %s", acao, "LIGADA" if ativa else "desligada", quem)
+    return {"ativa": ativa, "quem": quem, "quando": agora}
+
+
+def producao_liberada() -> bool:
+    """Produção está destravada? PADRÃO: não, e ausência de registro é NÃO."""
+    r = config_lida(CHAVE_PRODUCAO)
+    return bool(r) and r["valor"] == "1"
+
+
+def liberar_producao(ativa: bool, quem: str, confirmacao: str = "") -> dict:
+    """Destrava (ou trava de volta) a emissão em produção.
+
+    LIGAR exige a frase de confirmação; DESLIGAR não — desligar é sempre
+    seguro e não pode depender de lembrar de uma frase no meio de um problema.
+    """
+    if ativa and confirmacao.strip().upper() != CONFIRMACAO_PRODUCAO:
+        raise PermissionError(
+            f"Para liberar produção, confirme com a frase "
+            f"'{CONFIRMACAO_PRODUCAO}'. Em produção o documento é real e "
+            f"emitido em nome de outra empresa: se sair errado, não se apaga "
+            f"— cancela-se, dentro de prazo, com justificativa, e repercute na "
+            f"escrituração dos dois lados.")
+    return config_grava(CHAVE_PRODUCAO, ativa, quem, "liberacao_producao")
 
 
 def proximo_numero(cnpj: str, serie: int, ambiente: str) -> int:
@@ -124,12 +198,16 @@ def proximo_numero(cnpj: str, serie: int, ambiente: str) -> int:
 
 
 def _guardas(cnpj: str, d: dict, ambiente: str) -> None:
-    if ambiente != HOMOLOGACAO:
+    if ambiente not in AMBIENTES:
+        raise ValueError(
+            f"Ambiente {ambiente!r} não existe. Use "
+            f"'{HOMOLOGACAO}' (homologação) ou '{PRODUCAO}' (produção).")
+    if ambiente == PRODUCAO and not producao_liberada():
         raise PermissionError(
-            "Este módulo só transmite em HOMOLOGAÇÃO. Produção depende do "
-            "enquadramento fiscal definido (CFOP, tpServ, CST e base do "
-            "valor) — um CT-e autorizado com enquadramento errado não se "
-            "apaga, e liberar produção é decisão de quem responde pelo fiscal.")
+            "A emissão em PRODUÇÃO está travada. Ela nasce assim e não "
+            "destrava sozinha: alguém precisa liberar, com confirmação, e "
+            "essa liberação fica registrada com autor e data. Homologação "
+            "continua disponível para testar o documento inteiro.")
 
     reg = cadastro.mapa().get(cnpj) or {}
     pront = reg.get("prontidao") or {}

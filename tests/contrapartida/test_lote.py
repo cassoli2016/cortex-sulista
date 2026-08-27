@@ -42,19 +42,16 @@ def test_automacao_nasce_DESLIGADA(monkeypatch):
     """Ausencia de registro significa desligado, nunca o contrario: um padrao
     ligado faria a rotina comecar a emitir por causa de um banco novo ou de
     uma restauracao de backup."""
-    monkeypatch.setattr(lote, "_conn_config", lambda: _ConnVazia())
+    monkeypatch.setattr(lote.emissao, "config_lida", lambda chave: None)
     assert lote.automacao_ativa() is False
 
 
-class _ConnVazia:
-    def __enter__(self): return self
-    def __exit__(self, *a): return False
-    def execute(self, *a, **k): return _Cursor(None)
-
-
-class _Cursor:
-    def __init__(self, r): self._r = r
-    def fetchone(self): return self._r
+def test_valor_desconhecido_tambem_conta_como_DESLIGADO(monkeypatch):
+    """So a string "1" liga. Lixo na configuracao nao pode virar autorizacao
+    para emitir sozinho."""
+    monkeypatch.setattr(lote.emissao, "config_lida",
+                        lambda chave: {"valor": "talvez"})
+    assert lote.automacao_ativa() is False
 
 
 def test_desassistido_com_automacao_desligada_e_RECUSADO(base):
@@ -171,11 +168,64 @@ def test_ensaio_NAO_transmite(base, monkeypatch):
     assert all(i["situacao"] == "ensaio" for i in r["itens"])
 
 
-def test_o_lote_NAO_escolhe_ambiente(base):
-    """Producao continua fechada em `emissao.transmitir`; o lote repassa o
-    ambiente e nao tem como contornar."""
+def test_o_lote_NAO_DECIDE_o_ambiente(base):
+    """Ele atende os dois, mas quem recusa producao nao liberada e
+    `emissao.transmitir`. O lote repassa - e o padrao segue homologacao."""
     import inspect
-    fonte = inspect.getsource(lote)
-    assert "PRODUCAO" not in fonte
     assert inspect.signature(
         lote.processar_lote).parameters["ambiente"].default == "2"
+    fonte = inspect.getsource(lote.processar_lote)
+    assert "liberar_producao" not in fonte, (
+        "o lote nao pode destravar producao por conta propria")
+
+
+def test_producao_tem_teto_MENOR_que_homologacao():
+    """Lote errado em homologacao custa tempo; em producao custa cancelamento
+    e retificacao, documento a documento."""
+    assert lote.teto_do(lote.emissao.PRODUCAO) < lote.teto_do("2")
+    assert lote.teto_do(lote.emissao.PRODUCAO) == lote.TETO_ABSOLUTO_PRODUCAO
+
+
+def test_a_fila_de_producao_respeita_o_teto_menor(base):
+    fila = lote.pendentes("2026-08-01", "2026-08-27",
+                          ambiente=lote.emissao.PRODUCAO, limite=10_000)
+    assert len(fila) <= lote.TETO_ABSOLUTO_PRODUCAO
+
+
+# --- os dois ambientes ------------------------------------------------------
+
+def test_producao_nasce_TRAVADA(monkeypatch):
+    """Nasce assim e nao destrava sozinha."""
+    monkeypatch.setattr(lote.emissao, "config_lida", lambda chave: None)
+    assert lote.emissao.producao_liberada() is False
+
+
+def test_liberar_producao_EXIGE_a_frase_de_confirmacao():
+    """`--producao` numa linha de comando e facil demais de digitar por
+    engano, e o engano aqui custa cancelamento e retificacao."""
+    with pytest.raises(PermissionError, match="confirme com a frase"):
+        lote.emissao.liberar_producao(True, "fulano", confirmacao="sim")
+    with pytest.raises(PermissionError):
+        lote.emissao.liberar_producao(True, "fulano", confirmacao="")
+
+
+def test_DESLIGAR_producao_nao_pede_frase(monkeypatch):
+    """Desligar e sempre seguro e nao pode depender de lembrar de uma frase no
+    meio de um problema."""
+    vistos = {}
+    monkeypatch.setattr(lote.emissao, "config_grava",
+                        lambda c, a, q, acao: vistos.update(ativa=a, quem=q))
+    lote.emissao.liberar_producao(False, "fulano")
+    assert vistos == {"ativa": False, "quem": "fulano"}
+
+
+def test_transmitir_em_producao_TRAVADA_e_recusado(monkeypatch):
+    monkeypatch.setattr(lote.emissao, "producao_liberada", lambda: False)
+    with pytest.raises(PermissionError, match="PRODUÇÃO está travada"):
+        lote.emissao._guardas("111", {"emit_cnpj": "111"},
+                              lote.emissao.PRODUCAO)
+
+
+def test_ambiente_inexistente_e_recusado():
+    with pytest.raises(ValueError, match="não existe"):
+        lote.emissao._guardas("111", {"emit_cnpj": "111"}, "9")
