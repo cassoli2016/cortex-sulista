@@ -121,6 +121,7 @@ CREATE TABLE IF NOT EXISTS lote_config (
 """
 
 CHAVE_PRODUCAO = "producao_liberada"
+CHAVE_AMBIENTE = "ambiente_ativo"
 
 
 def _conn():
@@ -162,26 +163,70 @@ def config_grava(chave: str, ativa: bool, quem: str, acao: str) -> dict:
     return {"ativa": ativa, "quem": quem, "quando": agora}
 
 
-def producao_liberada() -> bool:
-    """Produção está destravada? PADRÃO: não, e ausência de registro é NÃO."""
-    r = config_lida(CHAVE_PRODUCAO)
-    return bool(r) and r["valor"] == "1"
+def ambiente_ativo() -> str:
+    """Ambiente que a operação está usando. PADRÃO: homologação.
 
-
-def liberar_producao(ativa: bool, quem: str, confirmacao: str = "") -> dict:
-    """Destrava (ou trava de volta) a emissão em produção.
-
-    LIGAR exige a frase de confirmação; DESLIGAR não — desligar é sempre
-    seguro e não pode depender de lembrar de uma frase no meio de um problema.
+    Ausência de registro é HOMOLOGAÇÃO — nunca produção. Banco novo, backup
+    restaurado ou configuração corrompida caem no ambiente que não emite
+    documento de verdade.
     """
-    if ativa and confirmacao.strip().upper() != CONFIRMACAO_PRODUCAO:
+    r = config_lida(CHAVE_AMBIENTE)
+    return PRODUCAO if (r and r["valor"] == PRODUCAO) else HOMOLOGACAO
+
+
+def estado_ambiente() -> dict:
+    """O ambiente e quem o colocou assim — para a tela mostrar responsável."""
+    r = config_lida(CHAVE_AMBIENTE) or {}
+    amb = ambiente_ativo()
+    return {"ambiente": amb, "nome": AMBIENTES[amb],
+            "producao": amb == PRODUCAO,
+            "quem": r.get("quem"), "quando": r.get("quando"),
+            "confirmacao_exigida": CONFIRMACAO_PRODUCAO}
+
+
+def definir_ambiente(ambiente: str, quem: str, confirmacao: str = "") -> dict:
+    """Troca o ambiente da operação.
+
+    Ir para PRODUÇÃO exige a frase; VOLTAR para homologação não exige nada —
+    voltar é sempre seguro, e não pode depender de lembrar de uma frase no
+    meio de um problema.
+    """
+    if ambiente not in AMBIENTES:
+        raise ValueError(f"Ambiente {ambiente!r} não existe.")
+    if ambiente == PRODUCAO and confirmacao.strip().upper() != CONFIRMACAO_PRODUCAO:
         raise PermissionError(
-            f"Para liberar produção, confirme com a frase "
+            f"Para emitir em PRODUÇÃO, confirme com a frase "
             f"'{CONFIRMACAO_PRODUCAO}'. Em produção o documento é real e "
             f"emitido em nome de outra empresa: se sair errado, não se apaga "
             f"— cancela-se, dentro de prazo, com justificativa, e repercute na "
             f"escrituração dos dois lados.")
-    return config_grava(CHAVE_PRODUCAO, ativa, quem, "liberacao_producao")
+    if not quem:
+        raise ValueError("Informe quem está mudando o ambiente.")
+    agora = datetime.now().isoformat(timespec="seconds")
+    with _conn_config() as c:
+        c.execute(
+            "INSERT INTO lote_config(chave, valor, quem, quando)"
+            " VALUES(?,?,?,?) ON CONFLICT(chave) DO UPDATE SET"
+            " valor=excluded.valor, quem=excluded.quem, quando=excluded.quando",
+            (CHAVE_AMBIENTE, ambiente, quem, agora))
+        cadastro._audita(c, quem, "ambiente_emissao", "-", AMBIENTES[ambiente])
+    log.warning("ambiente de emissao -> %s por %s", AMBIENTES[ambiente], quem)
+    return estado_ambiente()
+
+
+def producao_liberada() -> bool:
+    """Produção está destravada? É o mesmo que o ambiente ativo ser produção.
+
+    Mantido como nome próprio porque é assim que a guarda pergunta, e porque
+    deixa explícito no ponto de uso que a resposta padrão é NÃO.
+    """
+    return ambiente_ativo() == PRODUCAO
+
+
+def liberar_producao(ativa: bool, quem: str, confirmacao: str = "") -> dict:
+    """Atalho antigo, mantido para os scripts: liga/desliga produção."""
+    r = definir_ambiente(PRODUCAO if ativa else HOMOLOGACAO, quem, confirmacao)
+    return {"ativa": r["producao"], "quem": r["quem"], "quando": r["quando"]}
 
 
 def proximo_numero(cnpj: str, serie: int, ambiente: str) -> int:

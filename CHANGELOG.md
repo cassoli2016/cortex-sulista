@@ -4,6 +4,18 @@ Gerado de `docs/versoes.yaml` por `scripts/gerar_changelog.py` — não editar �
 Formato [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/),
 versionamento [SemVer](https://semver.org/lang/pt-BR/).
 
+## [0.83.0] — 27/08/2026  ·  CX-27/08/2026-v0.83.0
+
+### Adicionado
+- Os interruptores da emissao sairam da linha de comando e foram para a tela, em Administracao > Integracoes: trocar de HOMOLOGACAO para PRODUCAO, ligar ou desligar a emissao AUTOMATICA e definir de quanto em quanto tempo a rotina roda. So administrador enxerga e muda.
+- O intervalo da rotina agora e configuravel, de 5 minutos a 24 horas, com uma hora de padrao. Valor fora dos limites e RECUSADO em vez de aparado em silencio: quem digitou 1 minuto quis dizer alguma coisa, e gravar 5 caladamente esconderia isso. O piso existe porque cada execucao consulta o ERP, le o cadastro inteiro e conversa com a SEFAZ - rodar de minuto em minuto nao emite mais rapido, ja que a fila so cresce quando um CT-e novo e digitado.
+- O cartao mostra o ambiente ativo, se a automacao esta ligada, de quanto em quanto tempo, e QUEM mudou cada coisa e quando - que e a informacao procurada meses depois.
+
+### Alterado
+- Trocar para producao pela tela exige a mesma frase de confirmacao da linha de comando, e o campo so aparece quando se esta indo para producao. Pedir a frase sempre treinaria a digita-la por reflexo, que e o oposto do atrito que ela existe para criar. Voltar para homologacao nao pede nada.
+- O AUTOR da mudanca sai da sessao no servidor, nunca do corpo do pedido: quem responde por ligar producao nao pode ser um campo que o proprio cliente preenche. Ha teste garantindo isso.
+- Configuracao corrompida ou ausente cai sempre no lado seguro - ambiente de homologacao e automacao desligada. Banco novo ou backup restaurado nao comeca emitindo documento de verdade.
+
 ## [0.82.0] — 26/08/2026  ·  CX-26/08/2026-v0.82.0
 
 ### Adicionado

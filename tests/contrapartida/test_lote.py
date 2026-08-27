@@ -209,14 +209,55 @@ def test_liberar_producao_EXIGE_a_frase_de_confirmacao():
         lote.emissao.liberar_producao(True, "fulano", confirmacao="")
 
 
-def test_DESLIGAR_producao_nao_pede_frase(monkeypatch):
-    """Desligar e sempre seguro e nao pode depender de lembrar de uma frase no
+def test_VOLTAR_para_homologacao_nao_pede_frase(monkeypatch):
+    """Voltar e sempre seguro e nao pode depender de lembrar de uma frase no
     meio de um problema."""
-    vistos = {}
-    monkeypatch.setattr(lote.emissao, "config_grava",
-                        lambda c, a, q, acao: vistos.update(ativa=a, quem=q))
-    lote.emissao.liberar_producao(False, "fulano")
-    assert vistos == {"ativa": False, "quem": "fulano"}
+    gravado = {}
+
+    class _C:
+        def __enter__(self): return self
+        def __exit__(self, *a): return False
+        def execute(self, sql, par=()):
+            gravado["par"] = par
+            return self
+
+    monkeypatch.setattr(lote.emissao, "_conn_config", lambda: _C())
+    monkeypatch.setattr(lote.emissao.cadastro, "_audita",
+                        lambda *a, **k: None)
+    monkeypatch.setattr(lote.emissao, "config_lida", lambda chave: None)
+    r = lote.emissao.definir_ambiente(lote.emissao.HOMOLOGACAO, "fulano")
+    assert r["producao"] is False
+    assert gravado["par"][1] == lote.emissao.HOMOLOGACAO
+
+
+def test_ambiente_ativo_nasce_em_HOMOLOGACAO(monkeypatch):
+    """Banco novo, backup restaurado ou configuracao corrompida caem no
+    ambiente que NAO emite documento de verdade."""
+    monkeypatch.setattr(lote.emissao, "config_lida", lambda chave: None)
+    assert lote.emissao.ambiente_ativo() == lote.emissao.HOMOLOGACAO
+    monkeypatch.setattr(lote.emissao, "config_lida",
+                        lambda chave: {"valor": "lixo"})
+    assert lote.emissao.ambiente_ativo() == lote.emissao.HOMOLOGACAO
+
+
+def test_intervalo_padrao_e_os_limites():
+    """Abaixo do piso a rotina vira carga constante sem emitir mais rapido: a
+    fila so cresce quando um CT-e novo e digitado."""
+    assert lote.INTERVALO_MIN >= 5 and lote.INTERVALO_MAX <= 1440
+    for ruim in (0, 1, lote.INTERVALO_MAX + 1, "muito"):
+        with pytest.raises(ValueError):
+            lote.definir_intervalo(ruim, "fulano")
+
+
+def test_intervalo_corrompido_cai_no_padrao_em_vez_de_derrubar(monkeypatch):
+    monkeypatch.setattr(lote.emissao, "config_lida",
+                        lambda chave: {"valor": "abacaxi"})
+    assert lote.intervalo_min() == lote.INTERVALO_PADRAO_MIN
+
+
+def test_intervalo_exige_autor():
+    with pytest.raises(ValueError, match="Informe quem"):
+        lote.definir_intervalo(60, "")
 
 
 def test_transmitir_em_producao_TRAVADA_e_recusado(monkeypatch):
@@ -229,3 +270,35 @@ def test_transmitir_em_producao_TRAVADA_e_recusado(monkeypatch):
 def test_ambiente_inexistente_e_recusado():
     with pytest.raises(ValueError, match="não existe"):
         lote.emissao._guardas("111", {"emit_cnpj": "111"}, "9")
+
+
+# --- a tela de configuracao -------------------------------------------------
+
+def test_a_rota_de_configuracao_e_de_ADMINISTRADOR():
+    """Estes dois interruptores decidem se o sistema emite documento fiscal
+    real e se faz isso sem ninguem olhando. `/api/gestao/*` ja e restrito a
+    admin pelo AuthMiddleware - o teste garante que a rota nasceu nesse
+    prefixo, e nao num caminho aberto a qualquer logado."""
+    fonte = open("api/main.py", encoding="utf-8").read()
+    assert '@app.get("/api/gestao/contrapartida")' in fonte
+    assert '@app.post("/api/gestao/contrapartida")' in fonte
+    assert "/api/contrapartida/config" not in fonte
+
+
+def test_o_autor_sai_da_SESSAO_e_nao_do_corpo():
+    """Quem responde por ligar producao nao pode ser um campo que o proprio
+    cliente preenche."""
+    fonte = open("api/main.py", encoding="utf-8").read()
+    trecho = fonte[fonte.index("async def gestao_contrapartida_salvar"):]
+    trecho = trecho[:trecho.index("return JSONResponse(lote.estado())")]
+    assert 'req.state, "sessao"' in trecho
+    assert 'body.get("quem")' not in trecho and 'body["quem"]' not in trecho
+
+
+def test_estado_devolve_o_que_a_tela_precisa():
+    e = lote.estado()
+    assert set(e) >= {"ambiente", "automacao", "teto", "falhas_para_parar"}
+    assert set(e["automacao"]) >= {"ativa", "intervalo_min", "intervalo_limites"}
+    # a frase vai para a tela para ela poder INSTRUIR, nao para validar no
+    # cliente: quem valida e o servidor
+    assert e["ambiente"]["confirmacao_exigida"]

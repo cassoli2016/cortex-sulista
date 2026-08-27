@@ -94,6 +94,20 @@ SELECT k.chaveacessocte AS chave, k.dtemissao, v.proprietario AS cnpj,
 
 
 CHAVE_AUTOMACAO = "automacao_ativa"
+CHAVE_INTERVALO = "automacao_intervalo_min"
+
+# Intervalo entre execuções da rotina, em minutos.
+#
+# O piso não é capricho: cada execução consulta o ERP, lê o cadastro de todos
+# os agregados e conversa com a SEFAZ. Rodar de minuto em minuto não emite
+# nada mais rápido — a fila só cresce quando um CT-e novo é digitado — e
+# transforma uma rotina em carga constante sobre o banco e sobre o órgão.
+#
+# O teto existe para que "automático" continue significando alguma coisa:
+# acima de um dia, é mais honesto rodar manual quando precisar.
+INTERVALO_PADRAO_MIN = 60
+INTERVALO_MIN = 5
+INTERVALO_MAX = 1440
 
 
 def automacao_ativa() -> bool:
@@ -109,6 +123,66 @@ def automacao_ativa() -> bool:
     """
     r = emissao.config_lida(CHAVE_AUTOMACAO)
     return bool(r) and r["valor"] == "1"
+
+
+def intervalo_min() -> int:
+    """Minutos entre execuções da rotina. Padrão: uma hora."""
+    r = emissao.config_lida(CHAVE_INTERVALO)
+    try:
+        v = int((r or {}).get("valor") or INTERVALO_PADRAO_MIN)
+    except (TypeError, ValueError):
+        # configuração corrompida cai no padrão em vez de derrubar a rotina
+        log.warning("intervalo de automacao ilegivel - usando o padrao")
+        return INTERVALO_PADRAO_MIN
+    return min(max(v, INTERVALO_MIN), INTERVALO_MAX)
+
+
+def definir_intervalo(minutos: int, quem: str) -> dict:
+    """Grava o intervalo, dentro dos limites. Fora deles, RECUSA.
+
+    Recusar em vez de aparar em silêncio: quem digitou 1 minuto quis dizer
+    alguma coisa, e aceitar calado gravando 5 esconderia isso.
+    """
+    if not quem:
+        raise ValueError("Informe quem está mudando o intervalo.")
+    try:
+        v = int(minutos)
+    except (TypeError, ValueError):
+        raise ValueError("O intervalo é em minutos, um número inteiro.") from None
+    if not (INTERVALO_MIN <= v <= INTERVALO_MAX):
+        raise ValueError(
+            f"Intervalo fora do permitido ({INTERVALO_MIN} a {INTERVALO_MAX} "
+            f"minutos). Abaixo do piso a rotina vira carga constante sobre o "
+            f"ERP e a SEFAZ sem emitir mais rápido — a fila só cresce quando "
+            f"um CT-e novo é digitado.")
+    agora = datetime.now().isoformat(timespec="seconds")
+    with emissao._conn_config() as c:
+        c.execute(
+            "INSERT INTO lote_config(chave, valor, quem, quando)"
+            " VALUES(?,?,?,?) ON CONFLICT(chave) DO UPDATE SET"
+            " valor=excluded.valor, quem=excluded.quem, quando=excluded.quando",
+            (CHAVE_INTERVALO, str(v), quem, agora))
+        cadastro._audita(c, quem, "intervalo_automacao", "-", f"{v} min")
+    return {"intervalo_min": v, "quem": quem, "quando": agora}
+
+
+def estado() -> dict:
+    """Tudo que a tela de configuração precisa mostrar, num lugar só."""
+    a = emissao.config_lida(CHAVE_AUTOMACAO) or {}
+    i = emissao.config_lida(CHAVE_INTERVALO) or {}
+    return {
+        "ambiente": emissao.estado_ambiente(),
+        "automacao": {
+            "ativa": automacao_ativa(),
+            "quem": a.get("quem"), "quando": a.get("quando"),
+            "intervalo_min": intervalo_min(),
+            "intervalo_quem": i.get("quem"), "intervalo_quando": i.get("quando"),
+            "intervalo_limites": [INTERVALO_MIN, INTERVALO_MAX],
+        },
+        "teto": {"homologacao": TETO_ABSOLUTO,
+                 "producao": TETO_ABSOLUTO_PRODUCAO},
+        "falhas_para_parar": MAX_FALHAS_SEGUIDAS,
+    }
 
 
 def definir_automacao(ativa: bool, quem: str) -> dict:

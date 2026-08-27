@@ -3826,6 +3826,42 @@ body.tvfull #btnReport,body.tvmode #btnReport{display:none}
             <div class="banner-inline" id="integAviso" style="display:none"></div>
           </div>
           <div id="ges-creds"></div>
+
+          <div class="card" id="cpcfg-card">
+            <div class="head"><h2>Emissão do CT-e de contrapartida <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="Estes dois interruptores decidem se o CÓRTEX emite documento fiscal REAL, em nome de outra empresa, e se faz isso sem ninguém olhando. Ambos nascem desligados e cada mudança fica na trilha de auditoria com autor e data. Homologação é o ambiente de teste da SEFAZ: o documento autorizado lá não tem valor fiscal, não é escriturado e não gera obrigação.">i</span></h2>
+              <span class="hint" id="cpcfg-status">—</span></div>
+
+            <div class="toast t-warn" style="margin:14px 18px 0" id="cpcfg-aviso-prod" hidden>
+              <b>Produção emite documento real</b>
+              Um CT-e autorizado em produção <b>não se apaga</b>: cancela-se, dentro de prazo,
+              com justificativa, e repercute na escrituração da Sulista e do agregado.
+            </div>
+
+            <div class="ges-cfg">
+              <div><label for="cpcfg-amb">Ambiente</label>
+                <select id="cpcfg-amb" onchange="cpcfgAmbMudou()">
+                  <option value="2">Homologação — teste, sem valor fiscal</option>
+                  <option value="1">Produção — documento real</option>
+                </select>
+              </div>
+              <div id="cpcfg-conf-box" hidden><label for="cpcfg-conf">Confirmação para produção</label>
+                <input type="text" id="cpcfg-conf" placeholder="digite: EMITIR EM PRODUCAO"
+                       autocomplete="off"></div>
+              <div><label for="cpcfg-auto">Emissão automática</label>
+                <select id="cpcfg-auto">
+                  <option value="0">Desligada — só quando alguém disparar</option>
+                  <option value="1">Ligada — rotina emite sozinha</option>
+                </select>
+              </div>
+              <div><label for="cpcfg-int">Intervalo da rotina (minutos)</label>
+                <input type="number" id="cpcfg-int" min="5" max="1440" step="5"
+                       inputmode="numeric" placeholder="60"></div>
+            </div>
+            <div class="m-foot">
+              <span class="m-err" id="cpcfg-err"></span>
+              <button class="btn" id="cpcfg-salvar" onclick="cpcfgSalvar()">Salvar</button>
+            </div>
+          </div>
         </div>
         <div id="gpane-email" style="display:none">
           <div class="card">
@@ -16549,6 +16585,71 @@ async function emailTeste(){
 let INTEG = null;
 const INTEG_MODO = {};   // modo de autenticação escolhido na tela, por fornecedor
 const INTEG_ERRO = {};   // erro do último salvamento, por fornecedor
+/* --- Emissao do CT-e de contrapartida: ambiente e automacao ---------------
+   Os dois interruptores que decidem se o sistema emite documento fiscal real
+   e se faz isso sem ninguem olhando. O AUTOR nao viaja no corpo do pedido:
+   sai da sessao no servidor - quem responde por ligar producao nao pode ser
+   um campo que o proprio cliente preenche. */
+let CPCFG = null;
+
+function cpcfgPinta(d){
+  CPCFG = d || null;
+  if(!d) return;
+  const amb=d.ambiente||{}, au=d.automacao||{};
+  const sel=document.getElementById('cpcfg-amb');
+  sel.value = amb.ambiente || '2';
+  document.getElementById('cpcfg-auto').value = au.ativa ? '1' : '0';
+  document.getElementById('cpcfg-int').value = au.intervalo_min || 60;
+  const lim=au.intervalo_limites||[5,1440];
+  document.getElementById('cpcfg-int').min = lim[0];
+  document.getElementById('cpcfg-int').max = lim[1];
+  /* quem mudou e quando: e a informacao que se procura meses depois */
+  const por = amb.quem ? (' · por '+esc(amb.quem)+(amb.quando?' em '+fmtDT(amb.quando):'')) : '';
+  document.getElementById('cpcfg-status').innerHTML =
+    '<span class="badge '+(amb.producao?'b-dang':'b-warn')+'">'+esc(amb.nome||'—')+'</span> '
+    +'<span class="badge '+(au.ativa?'b-ok':'b-info')+'">automática '
+    +(au.ativa?('a cada '+(au.intervalo_min||60)+' min'):'desligada')+'</span>'+por;
+  document.getElementById('cpcfg-aviso-prod').hidden = !amb.producao;
+  cpcfgAmbMudou();
+}
+
+function cpcfgAmbMudou(){
+  /* A confirmacao so aparece quando se ESTA indo para producao. Pedir sempre
+     treinaria a digitar a frase por reflexo, que e o oposto do atrito. */
+  const indo = document.getElementById('cpcfg-amb').value === '1';
+  const atual = ((CPCFG||{}).ambiente||{}).producao;
+  document.getElementById('cpcfg-conf-box').hidden = !(indo && !atual);
+}
+
+async function cpcfgCarregar(){
+  try{
+    const r=await fetch('/api/gestao/contrapartida',{cache:'no-store'});
+    const d=await r.json();
+    if(r.ok) cpcfgPinta(d);
+    else document.getElementById('cpcfg-status').textContent = d.mensagem||'indisponível';
+  }catch(e){ document.getElementById('cpcfg-status').textContent='indisponível'; }
+}
+
+async function cpcfgSalvar(){
+  const err=document.getElementById('cpcfg-err'), bt=document.getElementById('cpcfg-salvar');
+  err.textContent=''; bt.disabled=true; bt.textContent='Salvando…';
+  const corpo={
+    ambiente: document.getElementById('cpcfg-amb').value,
+    automacao: document.getElementById('cpcfg-auto').value==='1',
+    intervalo_min: parseInt(document.getElementById('cpcfg-int').value||'60',10),
+    confirmacao: document.getElementById('cpcfg-conf').value||''
+  };
+  try{
+    const r=await fetch('/api/gestao/contrapartida',{method:'POST',
+      headers:{'Content-Type':'application/json'}, body:JSON.stringify(corpo)});
+    const d=await r.json();
+    if(!r.ok){ err.textContent=d.mensagem||'Não foi possível gravar.'; return; }
+    document.getElementById('cpcfg-conf').value='';
+    cpcfgPinta(d);
+  }catch(e){ err.textContent='Falha de rede: '+e.message; }
+  finally{ bt.disabled=false; bt.textContent='Salvar'; }
+}
+
 const INTEG_EST = {ativa:['b-ok','ativa'], incompleta:['b-warn','incompleta'],
                    desligada:['b-info','desligada']};
 
@@ -16562,6 +16663,7 @@ async function integCarregar(){
     if(!r.ok){ alvo.innerHTML=aviso('--red', esc(d.mensagem||'Erro ao ler as integrações.')); return; }
     INTEG=d.servicos||[];
     integRender();
+    cpcfgCarregar();
   }catch(e){ alvo.innerHTML=aviso('--red','Não foi possível falar com a API.'); }
 }
 
