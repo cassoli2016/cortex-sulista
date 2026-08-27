@@ -101,34 +101,62 @@ ORDER BY dtmovimento, sequencia
 """
 
 
-# Conciliação NATIVA do ERP (extratobancario.situacao), achada explorando o
-# Avacorp ao vivo: o AVA tem feed automático de extrato bancário (29 mil
-# linhas), separado do import manual OFX/CSV acima, com seu próprio farol
-# (1 Pendente, 2 Conciliado, 3 Oculto - valores confirmados no <select> da
-# tela nativa "Extrato Bancário - Conciliação"; código 4 existe no dado mas
-# não aparece nesse filtro, cai em "outro"). Hoje só UMA conta tem esse feed
-# (Bradesco 237/36455/1239066) e 93,9% do que ela recebeu desde 2023 está
-# Pendente, incluindo lançamentos do mês corrente - não é só passivo
-# histórico. Mostrado à parte do farol OFX/CSV: são fontes e mecanismos
-# diferentes, não podem se misturar num único número.
+# Conciliação NATIVA do ERP, achada explorando o Avacorp ao vivo: o AVA tem
+# feed automático de extrato bancário, separado do import manual desta tela, e
+# hoje só UMA conta o recebe (Bradesco 237/36455/1239066). Fontes e mecanismos
+# diferentes, mostrados à parte para não virarem um número só.
+#
+# DUAS MARCAS DE "CONCILIADO", E ELAS DISCORDAM
+# ============================================
+# `extratobancario.situacao` é a marca que a tela nativa grava (1 Pendente,
+# 2 Conciliado, 3 Oculto; o código 4 existe no dado e não aparece no filtro
+# daquela tela, então cai em "outro"). Essa marcação PAROU: os 1.604
+# conciliados são todos de movimento de junho a agosto de 2023, e desde então
+# não houve mais um.
+#
+# Só que o trabalho não parou - ele mudou de caminho. A tabela
+# `extratobancario_contacorrente` liga a linha do feed ao lançamento do razão,
+# e continua recebendo linhas TODO dia (132 em 2026, a última hoje). O vínculo
+# é criado e a `situacao` fica em 1.
+#
+# Resultado medido: 2.856 linhas com vínculo com o razão contadas como
+# pendentes. Lendo só a `situacao`, a tela anunciava 27.581 pendentes e
+# R$ 994 milhões - inflado por essas 2.856. Por isso o pendente daqui é
+# "sem situação 2 E sem vínculo", e as duas marcas viajam separadas para a
+# tela poder mostrar que uma delas foi abandonada.
+#
+# O DISTINCT no subselect não é decoração: uma linha do feed pode ter VÁRIOS
+# vínculos (um lançamento do banco casado com vários do razão), e sem ele o
+# join multiplicaria a linha e todo `count`/`sum` sairia inflado.
 CONCIL_SITUACAO = {1: "Pendente", 2: "Conciliado", 3: "Oculto"}
 
-CONCIL_RESUMO_SQL = """
-SELECT situacao, count(*)::int AS qtd,
-       coalesce(sum(CASE WHEN tipo='C' THEN valor ELSE 0 END),0)::float8 AS creditos,
-       coalesce(sum(CASE WHEN tipo='D' THEN valor ELSE 0 END),0)::float8 AS debitos
-FROM extratobancario
-GROUP BY 1 ORDER BY 1
+_VINC = "(SELECT DISTINCT idextratobancario FROM extratobancario_contacorrente)"
+
+CONCIL_RESUMO_SQL = f"""
+SELECT e.situacao, (v.idextratobancario IS NOT NULL) AS vinculada,
+       count(*)::int AS qtd,
+       coalesce(sum(CASE WHEN e.tipo='C' THEN e.valor ELSE 0 END),0)::float8 AS creditos,
+       coalesce(sum(CASE WHEN e.tipo='D' THEN e.valor ELSE 0 END),0)::float8 AS debitos
+FROM extratobancario e
+LEFT JOIN {_VINC} v ON v.idextratobancario = e.id
+GROUP BY 1,2 ORDER BY 1,2
 """
 
-CONCIL_CONTA_SQL = """
+CONCIL_CONTA_SQL = f"""
 SELECT e.banco, coalesce(b.nome, 'Banco '||e.banco) AS banco_nome, e.agencia, e.conta,
        count(*)::int AS total,
-       sum(CASE WHEN e.situacao=1 THEN 1 ELSE 0 END)::int AS pendentes,
-       coalesce(sum(CASE WHEN e.situacao=1 THEN e.valor ELSE 0 END),0)::float8 AS valor_pendente,
-       min(CASE WHEN e.situacao=1 THEN e.dtmovimento END)::text AS pendente_mais_antigo,
+       sum(CASE WHEN e.situacao=1 AND v.idextratobancario IS NULL
+                THEN 1 ELSE 0 END)::int AS pendentes,
+       coalesce(sum(CASE WHEN e.situacao=1 AND v.idextratobancario IS NULL
+                         THEN e.valor ELSE 0 END),0)::float8 AS valor_pendente,
+       sum(CASE WHEN e.situacao=2 THEN 1 ELSE 0 END)::int AS marcadas,
+       sum(CASE WHEN e.situacao<>2 AND v.idextratobancario IS NOT NULL
+                THEN 1 ELSE 0 END)::int AS vinculadas,
+       min(CASE WHEN e.situacao=1 AND v.idextratobancario IS NULL
+                THEN e.dtmovimento END)::text AS pendente_mais_antigo,
        max(e.dtmovimento)::text AS ultimo_movimento
 FROM extratobancario e
+LEFT JOIN {_VINC} v ON v.idextratobancario = e.id
 LEFT JOIN banco b ON b.codigo = e.banco
 GROUP BY e.banco, b.nome, e.agencia, e.conta
 ORDER BY pendentes DESC
@@ -136,14 +164,30 @@ ORDER BY pendentes DESC
 
 # Só os 12 meses mais recentes: o backlog desde 2023 é grande demais para um
 # gráfico mensal legível, e o que importa para ação é se o atraso é CORRENTE.
-CONCIL_MENSAL_SQL = """
-SELECT to_char(dtmovimento,'YYYY-MM') AS mes,
-       sum(CASE WHEN situacao=1 THEN 1 ELSE 0 END)::int AS pendentes,
-       sum(CASE WHEN situacao=2 THEN 1 ELSE 0 END)::int AS conciliados,
-       coalesce(sum(CASE WHEN situacao=1 THEN valor ELSE 0 END),0)::float8 AS valor_pendente
-FROM extratobancario
-WHERE dtmovimento >= current_date - interval '12 months'
+CONCIL_MENSAL_SQL = f"""
+SELECT to_char(e.dtmovimento,'YYYY-MM') AS mes,
+       sum(CASE WHEN e.situacao=1 AND v.idextratobancario IS NULL
+                THEN 1 ELSE 0 END)::int AS pendentes,
+       sum(CASE WHEN e.situacao=2 THEN 1 ELSE 0 END)::int AS conciliados,
+       sum(CASE WHEN e.situacao<>2 AND v.idextratobancario IS NOT NULL
+                THEN 1 ELSE 0 END)::int AS vinculados,
+       coalesce(sum(CASE WHEN e.situacao=1 AND v.idextratobancario IS NULL
+                         THEN e.valor ELSE 0 END),0)::float8 AS valor_pendente
+FROM extratobancario e
+LEFT JOIN {_VINC} v ON v.idextratobancario = e.id
+WHERE e.dtmovimento >= current_date - interval '12 months'
 GROUP BY 1 ORDER BY 1
+"""
+
+# Quando cada uma das duas marcas foi usada pela ultima vez. E o que mostra que
+# a `situacao` foi abandonada enquanto o vinculo segue vivo - sem isso, "94%
+# pendente" parece desleixo geral em vez de marcacao que ninguem mais usa.
+CONCIL_ATIVIDADE_SQL = """
+SELECT (SELECT max(dtalt)::date::text FROM extratobancario WHERE situacao=2)
+         AS ultima_marcacao,
+       (SELECT max(dtinc)::date::text FROM extratobancario_contacorrente)
+         AS ultimo_vinculo,
+       (SELECT max(dtinc)::date::text FROM extratobancario) AS ultima_carga
 """
 
 
@@ -227,16 +271,35 @@ def conciliacao_nativa() -> dict:
     resumo = db.query(CONCIL_RESUMO_SQL)
     contas = db.query(CONCIL_CONTA_SQL)
     mensal = db.query(CONCIL_MENSAL_SQL)
+    atividade = (db.query(CONCIL_ATIVIDADE_SQL) or [{}])[0]
 
     total = sum(r["qtd"] for r in resumo)
-    pend = next((r for r in resumo if r["situacao"] == 1), None)
-    pend_qtd = pend["qtd"] if pend else 0
-    pend_valor = (pend["creditos"] + pend["debitos"]) if pend else 0.0
+    # Pendente de VERDADE: nem marcada como conciliada, nem vinculada ao razao.
+    # Ler so a `situacao` contava as 2.856 linhas ja vinculadas como pendentes.
+    def _soma(cond):
+        alvo = [r for r in resumo if cond(r)]
+        return (sum(r["qtd"] for r in alvo),
+                sum(r["creditos"] + r["debitos"] for r in alvo))
+
+    pend_qtd, pend_valor = _soma(lambda r: r["situacao"] == 1 and not r["vinculada"])
+    marcadas, _ = _soma(lambda r: r["situacao"] == 2)
+    vinculadas, _ = _soma(lambda r: r["situacao"] != 2 and r["vinculada"])
+    pend_pela_situacao, _ = _soma(lambda r: r["situacao"] == 1)
+
+    # o resumo por situacao continua existindo, agora somando as duas metades
+    por_situacao: dict[int, dict] = {}
+    for r in resumo:
+        d = por_situacao.setdefault(r["situacao"], {"qtd": 0, "creditos": 0.0,
+                                                    "debitos": 0.0, "vinculadas": 0})
+        d["qtd"] += r["qtd"]
+        d["creditos"] += r["creditos"]
+        d["debitos"] += r["debitos"]
+        if r["vinculada"]:
+            d["vinculadas"] += r["qtd"]
 
     return {
-        "resumo": [{"situacao": CONCIL_SITUACAO.get(r["situacao"], "Outro"),
-                     "qtd": r["qtd"], "creditos": r["creditos"], "debitos": r["debitos"]}
-                    for r in resumo],
+        "resumo": [{"situacao": CONCIL_SITUACAO.get(s, "Outro"), **d}
+                    for s, d in sorted(por_situacao.items())],
         "contas": [{**c, "rotulo": f"{c['banco_nome']} ag. {c['agencia']} cc {c['conta']}"}
                     for c in contas if c["total"] > 0],
         "mensal": mensal,
@@ -244,9 +307,20 @@ def conciliacao_nativa() -> dict:
             "total": total, "pendentes": pend_qtd,
             "pct_pendente": round(100 * pend_qtd / total, 1) if total else 0.0,
             "valor_pendente": pend_valor,
+            "marcadas": marcadas,
+            "vinculadas": vinculadas,
+            # o que a leitura ANTIGA (so `situacao=1`) diria: fica exposto para a
+            # tela explicar a diferenca, em vez de o numero mudar sozinho de uma
+            # versao para a outra sem ninguem entender por que
+            "pendentes_pela_situacao": pend_pela_situacao,
+            "ultima_marcacao": atividade.get("ultima_marcacao"),
+            "ultimo_vinculo": atividade.get("ultimo_vinculo"),
+            "ultima_carga": atividade.get("ultima_carga"),
             "contas_com_feed": sum(1 for c in contas if c["total"] > 0),
         },
-        "fonte": "ERP AVA - extratobancario.situacao (feed nativo do banco, separado do import OFX/CSV acima)",
+        "fonte": ("ERP AVA - extratobancario (feed nativo do banco) cruzado com "
+                  "extratobancario_contacorrente (o vinculo com o razao). Separado "
+                  "do import de arquivo desta tela."),
     }
 
 

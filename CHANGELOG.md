@@ -7,6 +7,17 @@ versionamento [SemVer](https://semver.org/lang/pt-BR/).
 ## [0.101.0] — 27/08/2026  ·  CX-27/08/2026-v0.101.0
 
 ### Adicionado
+- O cartao passou a mostrar as duas marcas separadas - quantos lancamentos foram MARCADOS como conciliados e quantos estao apenas VINCULADOS ao razao - e a data em que cada uma foi usada pela ultima vez, lado a lado. E o que revela que uma delas foi abandonada em 2023 enquanto a outra segue viva; sem isso, "84% pendente" parece desleixo geral em vez de uma marcacao que ninguem mais usa.
+- Um aviso no proprio cartao explica por que o numero mudou, citando os dois valores e as duas datas. Numero que muda de uma versao para outra sem dizer por que faz o leitor desconfiar do painel inteiro.
+- A tabela por conta ganhou as colunas "Marcadas" e "So vinculadas", e o grafico mensal passou a separar os vinculados dos conciliados.
+
+### Corrigido
+- O cartao "Conciliacao nativa do ERP" contava como pendente 2.856 lancamentos que JA estao conciliados. Existem duas marcas de "conciliado" no AVA e elas discordam: a situacao gravada pela tela nativa do ERP, que nao e usada desde 28/08/2023, e o vinculo com o lancamento do razao, que continua sendo criado todo dia - o ultimo hoje. O cartao lia so a situacao. Passou a considerar as duas: o pendente caiu de 27.581 para 24.725 (de 94% para 84,2%) e o valor de R$ 994 milhoes para R$ 932 milhoes.
+- O percentual saia com PONTO ("84.2%") num painel que e todo em virgula. Defeito antigo do cartao, que so apareceu quando o numero deixou de ser redondo.
+
+## [0.101.0] — 27/08/2026  ·  CX-27/08/2026-v0.101.0
+
+### Adicionado
 - Mais dois bancos locais foram para o PostgreSQL: as inscricoes de notificacao no celular (push) e a trilha de e-mails enviados. Com o RNTRC, sao tres dos dez - e nenhuma tela mudou de aparencia, que e o objetivo de uma migracao bem feita.
 
 ### Alterado

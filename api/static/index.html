@@ -8556,27 +8556,82 @@ function renderExtbConcil(c){
       '<div style="padding:16px;color:var(--n500)">O ERP não tem feed nativo de extrato para nenhuma conta cadastrada — só o import manual OFX/CSV acima se aplica.</div>';
     return;
   }
+  const tratadas = (k.marcadas||0) + (k.vinculadas||0);
   document.getElementById('extb-concil-kpis').innerHTML=[
-    kpi('Pendente de conciliação', k.pct_pendente+'%', k.pendentes.toLocaleString('pt-BR')+' de '+k.total.toLocaleString('pt-BR')+' lançamentos', k.pct_pendente>50?'neg':'',
-        'extratobancario WHERE situacao=1 (Pendente), sobre o total histórico do feed. Marcação feita dentro do próprio ERP, não pelo CÓRTEX.'),
-    kpi('Valor pendente', BRL.format(k.valor_pendente||0), 'crédito + débito ainda não conciliados', '',
-        'Soma bruta (crédito+débito) dos lançamentos Pendente — não é um saldo, é o tamanho do que falta revisar.'),
-    kpi('Contas com feed nativo', String(k.contas_com_feed), (c.contas||[]).length===1 ? 'as demais contas não têm esse feed' : '', '',
-        'Quantas contas de banco_conta têm QUALQUER linha em extratobancario. As demais dependem só do import manual (OFX/CSV) desta tela.'),
-    kpi('Pendente mais antigo', (c.contas||[])[0] ? fmtD((c.contas||[])[0].pendente_mais_antigo) : '—', 'na conta com mais pendências', '',
-        'Data do lançamento Pendente mais antigo da conta com maior volume — mostra se é atraso recente ou acumulado há anos.'),
+    // pt-BR: `k.pct_pendente+'%'` sai "84.2%" com PONTO, num app que e todo
+    // virgula. Defeito antigo do cartao, exposto quando o numero deixou de ser
+    // redondo.
+    kpi('Pendente de conciliação',
+        (k.pct_pendente||0).toLocaleString('pt-BR',{minimumFractionDigits:1,maximumFractionDigits:1})+'%',
+        k.pendentes.toLocaleString('pt-BR')+' de '+k.total.toLocaleString('pt-BR')+' lançamentos',
+        k.pct_pendente>50?'neg':'',
+        'Linha do feed que NÃO está marcada como conciliada E NÃO tem vínculo com o razão. '
+        + 'Contar só a marcação (situacao=1) inflava o número: ' + (k.pendentes_pela_situacao||0).toLocaleString('pt-BR')
+        + ' contra ' + k.pendentes.toLocaleString('pt-BR') + ', porque ' + (k.vinculadas||0).toLocaleString('pt-BR')
+        + ' linhas já foram amarradas ao razão sem que ninguém mexesse na situação. '
+        + 'A conciliação é feita dentro do ERP, não pelo CÓRTEX.'),
+    kpi('Valor pendente', BRL.format(k.valor_pendente||0), 'crédito + débito, do que não foi tratado', '',
+        'Soma bruta (crédito + débito) das linhas pendentes — NÃO é um saldo nem uma exposição, '
+        + 'é o tamanho do que falta revisar, acumulado desde 2023.'),
+    kpi('Já tratadas', tratadas.toLocaleString('pt-BR'),
+        (k.marcadas||0).toLocaleString('pt-BR')+' marcadas · '+(k.vinculadas||0).toLocaleString('pt-BR')+' só vinculadas',
+        '',
+        'Duas marcas diferentes de "conciliado", e elas discordam. "Marcadas" é a situação gravada pela '
+        + 'tela nativa do ERP; "só vinculadas" são linhas ligadas a um lançamento do razão '
+        + '(extratobancario_contacorrente) cuja situação continua "Pendente". As duas contam como tratadas.'),
+    kpi('Última conciliação', k.ultima_marcacao ? fmtD(k.ultima_marcacao) : '—',
+        k.ultimo_vinculo ? ('último vínculo em '+fmtD(k.ultimo_vinculo)) : 'nenhum vínculo registrado',
+        extbConcilCls(k),
+        'À esquerda, quando alguém mexeu pela última vez na SITUAÇÃO dentro do ERP. Abaixo, quando '
+        + 'foi criado o último VÍNCULO com o razão. Se as duas datas estão longe uma da outra, a '
+        + 'marcação de situação foi abandonada e o trabalho passou a ser feito só pelo vínculo — que '
+        + 'é exatamente o que acontece aqui.'),
   ].join('');
   document.getElementById('extb-concil-corpo').innerHTML=
-    '<div class="tablewrap"><table><thead><tr><th>Conta</th><th class="num">Total</th>'
-    +'<th class="num">Pendentes</th><th class="num">Valor pendente</th><th>Pendente desde</th><th>Último movimento</th></tr></thead><tbody>'
+    extbConcilAviso(k)
+    + '<div class="tablewrap"><table><thead><tr><th>Conta</th><th class="num">Total</th>'
+    +'<th class="num">Marcadas</th><th class="num">Só vinculadas</th>'
+    +'<th class="num">Pendentes</th><th class="num">Valor pendente</th>'
+    +'<th>Pendente desde</th><th>Último movimento</th></tr></thead><tbody>'
     + (c.contas||[]).map(x=>`<tr>
         <td>${esc(x.rotulo)}</td>
         <td class="num">${x.total.toLocaleString('pt-BR')}</td>
+        <td class="num">${(x.marcadas||0).toLocaleString('pt-BR')}</td>
+        <td class="num">${(x.vinculadas||0).toLocaleString('pt-BR')}</td>
         <td class="num" style="${x.pendentes>0?'color:var(--red);font-weight:600':''}">${x.pendentes.toLocaleString('pt-BR')}</td>
         <td class="num">${BRL.format(x.valor_pendente||0)}</td>
         <td>${x.pendente_mais_antigo?fmtD(x.pendente_mais_antigo):'—'}</td>
         <td>${fmtD(x.ultimo_movimento)}</td></tr>`).join('')
     + '</tbody></table></div>';
+}
+
+// A cor do cartao "Ultima conciliacao" sai da DISTANCIA entre as duas marcas.
+// Marcacao parada ha mais de 90 dias enquanto o vinculo segue vivo nao e
+// atraso: e uma marca que caiu em desuso, e pintar de vermelho como se fosse
+// pendencia mandaria alguem caçar um problema que nao existe.
+function extbConcilCls(k){
+  if(!k.ultima_marcacao || !k.ultimo_vinculo) return '';
+  const dias = (new Date(k.ultimo_vinculo) - new Date(k.ultima_marcacao))/86400000;
+  return dias > 90 ? 'warn' : '';
+}
+
+// Explica, em uma frase, por que o numero mudou e o que ele quer dizer. Sem
+// isto o "84,2%" apareceria no lugar do "94%" de ontem sem nenhuma pista.
+function extbConcilAviso(k){
+  const v = k.vinculadas||0;
+  if(!v) return '';
+  const dias = (k.ultima_marcacao && k.ultimo_vinculo)
+    ? Math.round((new Date(k.ultimo_vinculo) - new Date(k.ultima_marcacao))/86400000) : 0;
+  const abandono = dias > 90
+    ? ` A marcação de situação dentro do ERP não é usada desde ${fmtD(k.ultima_marcacao)}`
+      + `, enquanto vínculos continuam sendo criados — o último em ${fmtD(k.ultimo_vinculo)}.`
+    : '';
+  return `<div style="padding:12px 16px;margin-bottom:12px;border-left:3px solid var(--yellow);`
+    + `background:var(--n50);font-size:13px;line-height:1.5;color:var(--n700)">`
+    + `<b>${v.toLocaleString('pt-BR')} lançamentos já estão ligados ao razão mas continuam com `
+    + `situação "Pendente".</b> Eles NÃO entram na contagem de pendentes acima — entravam antes, `
+    + `e por isso o número era ${(k.pendentes_pela_situacao||0).toLocaleString('pt-BR')} em vez de `
+    + `${(k.pendentes||0).toLocaleString('pt-BR')}.${abandono}</div>`;
 }
 
 /* ---------------- Lançamentos Recorrentes ----------------
