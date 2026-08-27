@@ -154,12 +154,7 @@ versionamento [SemVer](https://semver.org/lang/pt-BR/).
 ### Alterado
 - A ordenacao acontece sobre a lista que ja esta na tela, sem refazer a consulta - o ERP leva segundos para responder e reordenar nao muda o dado. O rodape diz por qual coluna e em que sentido a lista esta.
 
-## [0.93.1] — 27/08/2026  ·  CX-27/08/2026-v0.93.1
-
-### Corrigido
-- A suite de testes falhava NO SERVIDOR e passava na maquina de quem nunca configurou nada. O teste do "modo nao configurado" da Premiacao limpava so a variavel de ambiente, e o cofre da tela de Gestao vence a variavel: onde existe token guardado de verdade, a integracao continuava ligada e o teste acusava falha que nao existia.
-
-## [0.93.1] — 27/08/2026  ·  CX-27/08/2026-v0.93.1
+## [0.93.2] — 27/08/2026  ·  CX-27/08/2026-v0.93.2
 
 ### Adicionado
 - Botao de CANCELAR em cada documento transmitido e autorizado. Pede a justificativa, confirma antes - cancelar nao se desfaz - e some quando o documento ja esta cancelado, que aparece com marcador proprio.
@@ -171,6 +166,11 @@ versionamento [SemVer](https://semver.org/lang/pt-BR/).
 ### Corrigido
 - O botao de reativar o envio de um agregado nao funcionava - o clique dava erro e nada acontecia. A funcao estava escrita na margem esquerda, mas DENTRO de outra: indentacao nao define escopo, e o clique de um botao e avaliado no escopo global, onde ela nao existia.
 - O registro do cancelamento ficava sem protocolo. O evento REGISTROU na SEFAZ, mas a leitura da resposta procurava um nivel que so existe no retorno de autorizacao - e a segunda tentativa, recusada por duplicidade, trazia o protocolo do primeiro no proprio texto. Agora esse protocolo e extraido, e duplicidade de evento passa a contar como cancelado: o evento existe, so nao foi aquele envio que o criou.
+
+## [0.93.1] — 27/08/2026  ·  CX-27/08/2026-v0.93.1
+
+### Corrigido
+- A suite de testes falhava NO SERVIDOR e passava na maquina de quem nunca configurou nada. O teste do "modo nao configurado" da Premiacao limpava so a variavel de ambiente, e o cofre da tela de Gestao vence a variavel: onde existe token guardado de verdade, a integracao continuava ligada e o teste acusava falha que nao existia.
 
 ## [0.93.0] — 27/08/2026  ·  CX-27/08/2026-v0.93.0
 
