@@ -2718,6 +2718,15 @@ body.tvfull #btnReport,body.tvmode #btnReport{display:none}
           <div class="tabroll"><table class="tab" id="cpCertTab"></table></div>
         </div>
 
+        <div class="card" id="cpValidCard" hidden>
+          <div class="head"><h2>Validador do cadastro <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="Roda, agregado por agregado, as mesmas conferências que a emissão vai fazer — antes dela. Sem isto o defeito só aparece na transmissão, um documento por vez: foi assim que a rejeição 229 (IE do emitente não informada) apareceu, com o disjuntor derrubando o lote. O código da SEFAZ só é citado onde foi MEDIDO; para os outros campos o efeito é descrito sem inventar número de rejeição.">i</span></h2>
+            <span class="hint" id="hintCpValid"></span></div>
+          <div class="cpbloco" style="padding-bottom:0">
+            <div id="cpValidChips" class="chips"></div>
+          </div>
+          <div class="tabroll"><table class="tab" id="cpValidTab"></table></div>
+        </div>
+
         <div class="card" id="cpTxCard" hidden>
           <div class="head"><h2>Documentos transmitidos <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="Registro local de cada transmissão (quem, quando, ambiente, série/número, chave e retorno da SEFAZ). HOMOLOGAÇÃO é o ambiente de teste do órgão: o documento autorizado lá NÃO tem valor fiscal, não é escriturado e não gera obrigação — por isso não entra na contagem de emitidas.">i</span></h2>
             <span class="hint" id="hintCpTx"></span></div>
@@ -4013,7 +4022,7 @@ body.tvfull #btnReport,body.tvmode #btnReport{display:none}
         <div class="kpis" id="kpis-srv"></div>
         <div class="grid2">
           <div class="card">
-            <div class="head"><h2>Serviços do CÓRTEX <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="Checagem ao vivo do que o painel precisa: a própria API (uvicorn), o banco do ERP pelo túnel, o Oracle da folha (GLOBUS), o Cloudflare Tunnel, o Ollama do Copiloto e as três integrações de fornecedor — Prolog (pneus), Gobrax (telemetria) e Monkey (antecipação da Tupy). São DOIS bancos externos: se o Oracle cai, RH e Custo de Folha ficam sem dado enquanto o resto do painel segue normal. As integrações NÃO são consultadas daqui: Prolog e Gobrax têm cota e coleta lenta, então o que se mede é a idade do instantâneo que as telas mostram. Integração não configurada aparece como Info, não como falha: o recurso simplesmente não existe nesta instalação. Esta tela mede a MÁQUINA ONDE A API RODA — aberta fora do servidor, o túnel e as tarefas agendadas aparecem indisponíveis mesmo estando de pé em produção.">i</span></h2><span class="hint">API · dois bancos · túnel · copiloto · integrações</span></div>
+            <div class="head"><h2>Serviços do CÓRTEX <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="Checagem ao vivo do que o painel precisa: a própria API (uvicorn), o banco do ERP pelo túnel, o Oracle da folha (GLOBUS), o Cloudflare Tunnel, o Ollama do Copiloto e as três integrações de fornecedor — Prolog (pneus), Gobrax (telemetria) e Monkey (antecipação da Tupy). São TRÊS bancos: a réplica do ERP (remota, somente leitura), o Oracle da folha e o PostgreSQL local, que é onde o CÓRTEX escreve o que é dele. Se o Oracle cai, RH e Custo de Folha ficam sem dado enquanto o resto do painel segue normal; se o banco local cai, as telas já migradas para ele ficam sem dado. As integrações NÃO são consultadas daqui: Prolog e Gobrax têm cota e coleta lenta, então o que se mede é a idade do instantâneo que as telas mostram. Integração não configurada aparece como Info, não como falha: o recurso simplesmente não existe nesta instalação. Esta tela mede a MÁQUINA ONDE A API RODA — aberta fora do servidor, o túnel e as tarefas agendadas aparecem indisponíveis mesmo estando de pé em produção.">i</span></h2><span class="hint">API · dois bancos · túnel · copiloto · integrações</span></div>
             <div class="tablewrap"><table><thead><tr>
               <th>Serviço</th><th>Situação</th><th>Detalhe</th>
             </tr></thead><tbody id="srv-servicos"></tbody></table></div>
@@ -10046,9 +10055,67 @@ function renderCtecp(d){
   }
 
   const av=(d.avisos||[]);
+  CP_VAL = d.validacao || null; cpValidRender();
   document.getElementById('cpAvisosCard').hidden = !av.length;
   document.getElementById('cpAvisos').innerHTML =
     av.map(function(a){ return '<div class="hint">'+esc(a)+'</div>'; }).join('');
+}
+
+/* CATEGORIA PADRAO = cadastro. Dos 88 achados, 76 sao "sem certificado" -
+   verdade, e ja contada no cartao de prontidao, mas afogaria os 9 defeitos de
+   CADASTRO, que sao os unicos que se resolvem digitando no ERP. Sao filas de
+   pessoas diferentes: cadastro e trabalho interno; certificado depende do
+   agregado entregar o arquivo. Mesma regra do CRM, que abre nos projetos
+   ativos e nao nos 135 entregues. */
+var CP_VAL = null, CP_VALCAT = 'cadastro';
+
+function cpValidCat(c){ CP_VALCAT=c; cpValidRender(); }
+
+function cpValidRender(){
+  const card=document.getElementById('cpValidCard');
+  if(!card) return;
+  const v=CP_VAL;
+  if(!v || !(v.achados||[]).length){ card.hidden=true; return; }
+  card.hidden=false;
+  const cat=v.por_categoria||{};
+  const ROT={cadastro:'Cadastro no ERP', certificado:'Certificado e procuração',
+             natureza:'Não emite CT-e'};
+  const ordem=['cadastro','certificado','natureza'].filter(function(k){ return cat[k]; });
+  /* Se a categoria padrao nao existe neste recorte, cai na primeira que
+     existe - senao a tabela abriria vazia com o cartao dizendo que ha
+     achados, que e a pior combinacao possivel. */
+  if(ordem.indexOf(CP_VALCAT)<0 && CP_VALCAT!=='tudo') CP_VALCAT=ordem[0]||'tudo';
+  document.getElementById('cpValidChips').innerHTML=
+    ordem.map(function(k){
+      return '<button class="chip'+(CP_VALCAT===k?' active':'')+'" data-cat="'+k
+        +'" onclick="cpValidCat(this.dataset.cat)">'+esc(ROT[k]||k)
+        +' ('+cat[k]+')</button>';
+    }).join('')
+    +'<button class="chip'+(CP_VALCAT==='tudo'?' active':'')+'" data-cat="tudo"'
+    +' onclick="cpValidCat(this.dataset.cat)">Tudo ('+(v.achados||[]).length+')</button>';
+
+  const lin=(v.achados||[]).filter(function(a){
+    return CP_VALCAT==='tudo' || a.categoria===CP_VALCAT; });
+  document.getElementById('cpValidTab').innerHTML=
+    '<thead><tr><th>Agregado</th><th>UF</th><th class="num">CT-e</th>'
+    +'<th>O que está errado</th><th>O que fazer</th></tr></thead><tbody>'
+    +lin.map(function(a){
+      const rej=a.rejeicao
+        ? ' <span class="badge b-dang" title="Código medido na transmissão, não estimado.">'+esc(a.rejeicao)+'</span>'
+        : '';
+      return '<tr'+(a.grave?'':' style="opacity:.62"')+'>'
+        +'<td>'+esc(a.nome||a.documento||'')+'</td>'
+        +'<td>'+esc(a.uf||'')+'</td>'
+        +'<td class="num">'+(a.ctes||0).toLocaleString('pt-BR')+'</td>'
+        +'<td>'+esc(a.defeito||'')+rej+'</td>'
+        +'<td><span class="hint">'+esc(a.acao||'')+'</span></td></tr>';
+    }).join('')+'</tbody>';
+
+  const okc=(v.cadastro_ok||0), tot=(v.agregados||0);
+  document.getElementById('hintCpValid').textContent=
+    lin.length+' de '+(v.achados||[]).length+' achados · '
+    +okc+' de '+tot+' agregados com o cadastro em ordem · '
+    +(v.aprovados||0)+' passam em TUDO e podem emitir hoje';
 }
 
 function cpAutoCarrega(){

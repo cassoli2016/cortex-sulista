@@ -14,7 +14,6 @@ import io
 import json
 import re
 import urllib.request
-from pathlib import Path
 
 from api.antt.armazenamento import gravar_lote, normalizar_rntrc
 
@@ -96,10 +95,10 @@ def _baixar_padrao():
 
 
 def sincronizar(interessantes: set[str], baixar=None,
-                path: Path | None = None) -> dict:
+                esquema: str | None = None) -> dict:
     """Baixa, varre e grava. Devolve o que aconteceu, para a tela mostrar."""
     fonte, competencia = (baixar or _baixar_padrao)()
     achadas = varrer(fonte, interessantes)
-    gravadas = gravar_lote(achadas, competencia, path)   # BaseVazia se vier 0
+    gravadas = gravar_lote(achadas, competencia, esquema)  # BaseVazia se vier 0
     return {"competencia": competencia, "gravadas": gravadas,
             "procurados": len(interessantes)}

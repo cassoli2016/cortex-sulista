@@ -1,6 +1,7 @@
 # Migração dos bancos locais para PostgreSQL
 
-> Estado: **em andamento** — Fase 0 concluída, piloto `antt` migrado.
+> Estado: **em andamento** — Fase 0 concluída; piloto `antt` com o código
+> pronto, aguardando a criação da role para a carga dos dados.
 > Atualizado em 27/08/2026.
 
 O CÓRTEX nasceu com dez bancos SQLite em `data/`. Este documento é o plano de
@@ -96,6 +97,34 @@ justamente no trecho que não dá para conferir contra o dado antigo.
 arquivo. Agora é `pg_dump` agendado com restauração testada. Sem isso a
 migração **piora** a segurança do dado, e piora calada.
 
+### Criando o banco (uma vez, e só com superusuário)
+
+A senha da aplicação é gerada e gravada em `.env` (`CORTEX_PG_PASSWORD`) — que
+nunca é versionado. A criação da role exige o superusuário `postgres`, e o
+`psql` a pede interativamente:
+
+```
+& "C:/Program Files/PostgreSQL/17/bin/psql.exe" -h 127.0.0.1 -p 5432 -U postgres
+```
+
+```sql
+CREATE ROLE cortex LOGIN PASSWORD '<a senha do .env>';
+CREATE DATABASE cortex OWNER cortex;
+```
+
+Depois, o schema:
+
+```bash
+uv run python scripts/migrar_schema.py           # aplica o que falta
+uv run python scripts/migrar_antt.py             # carrega o antt.db
+uv run python scripts/migrar_antt.py --conferir  # compara os dois lados
+```
+
+**ATENÇÃO À ORDEM.** A partir do momento em que `CORTEX_PG_PASSWORD` existe no
+`.env`, os módulos já migrados param de usar SQLite e passam a exigir o
+Postgres. Encher o `.env` antes de existir a role deixa a tela do RNTRC sem
+dado — e a Saúde do Servidor acusa em vermelho, que é como se descobre.
+
 ---
 
 ## 3. Como fica um módulo migrado
@@ -132,7 +161,7 @@ Tradução mecânica de dialeto:
 | Fase | O quê | Custo | Estado |
 |---|---|---|---|
 | 0 | Banco, role, `api/pglocal.py`, runner de migration, backup, padrão de teste | ~1 dia | **feito** |
-| 1 | Piloto: `antt` (223 linhas, 8 executes) | 2–4 h | **feito** |
+| 1 | Piloto: `antt` (223 linhas, 8 executes) | 2–4 h | código pronto |
 | 2 | `push` · `correio` · `previsao` · `antecipacoes` · `contrapartida` · `extrato` · `orcamento` | 0,5–1,5 dia cada | a fazer |
 | 3 | `auth` — por último, apesar de ser o mais importante | 1–2 dias | a fazer |
 | 4 | Cache (`telemetria`, e talvez os JSON) — só se aparecer motivo | — | provavelmente nunca |

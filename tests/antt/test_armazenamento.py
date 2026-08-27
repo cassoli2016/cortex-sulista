@@ -1,8 +1,11 @@
-"""Base local do RNTRC: normalização, substituição atômica e a guarda da sync vazia."""
-from __future__ import annotations
+"""Base local do RNTRC: normalização, substituição atômica e a guarda da sync vazia.
 
-import tempfile
-from pathlib import Path
+Primeiro store migrado para o PostgreSQL local: `base` deixou de ser um arquivo
+`.db` em pasta temporária e passou a ser um SCHEMA exclusivo deste teste. Sem
+banco, os testes que tocam a base são pulados dizendo por quê — a fixture
+`esquema_pg` mora em `tests/conftest.py`.
+"""
+from __future__ import annotations
 
 import pytest
 
@@ -10,10 +13,8 @@ from api.antt import armazenamento as arm
 
 
 @pytest.fixture
-def base():
-    p = Path(tempfile.mkdtemp()) / "antt.db"
-    arm.init_db(p)
-    return p
+def base(esquema_pg):
+    return esquema_pg
 
 
 def _linha(rntrc, situacao="ATIVO", nome="TRANSP", categoria="ETC", uf="SP"):

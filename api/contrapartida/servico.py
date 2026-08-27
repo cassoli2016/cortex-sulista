@@ -234,6 +234,7 @@ def get_contrapartida(de: str | None = None, ate: str | None = None,
         "frota": _serial(frota),
         "pendencia_cadastral": faltando,
         "prontidao_fila": _prontidao_fila(pj),
+        "validacao": _validacao(pj),
         "certificados": _certificados(pj, pront),
         "classes": CLASSES,
         "avisos": _avisos(pj, tac, indef, faltando, _tx),
@@ -502,6 +503,102 @@ def _prontidao_fila(pj: list[dict]) -> dict:
         "sem_ie_contribuinte": _bloco(contradicao),
         "sem_ie_nao_contribuinte": _bloco(nao_contrib),
         "total": _bloco(pj),
+    }
+
+
+def _validacao(pj: list[dict]) -> dict:
+    """Confere, agregado a agregado, o que a emissão vai exigir — ANTES dela.
+
+    A tela já dizia QUANTOS estavam travados; o que faltava era o item a item
+    com o encaminhamento de cada um. Sem isso, o defeito só aparece na
+    transmissão, um documento por vez: a rejeição 229 ("IE do emitente não
+    informada") foi descoberta assim, com o disjuntor derrubando o lote.
+
+    Cada achado carrega a AÇÃO, não só o rótulo, porque os motivos pedem
+    coisas diferentes de pessoas diferentes: cadastro se corrige no ERP,
+    certificado se pede ao agregado, e "não contribuinte" não se corrige —
+    sai da fila por natureza do documento.
+
+    O código da SEFAZ só aparece onde foi MEDIDO (229). Inventar número de
+    rejeição para os outros campos daria autoridade a um palpite.
+    """
+    achados: list[dict] = []
+
+    def _add(x, categoria, defeito, acao, rejeicao=None, grave=True):
+        # CATEGORIA e o que torna a lista utilizavel. Sem ela, 39 dos 46
+        # agregados aparecem por "sem certificado" - que e verdade, e afoga os
+        # defeitos de CADASTRO, que sao os que se resolvem digitando no ERP.
+        # Sao filas de pessoas diferentes: cadastro e trabalho interno,
+        # certificado depende do agregado entregar o arquivo.
+        achados.append({
+            "documento": x.get("documento"), "nome": x.get("nome"),
+            "uf": x.get("uf"), "ctes": x.get("ctes") or 0,
+            "valor": round(x.get("valor") or 0.0, 2),
+            "categoria": categoria,
+            "defeito": defeito, "acao": acao, "rejeicao": rejeicao,
+            "grave": grave,
+        })
+
+    for x in pj:
+        ind = str(x.get("ind_ie") or "")
+        ie = (x.get("ie") or "").strip()
+        pront = x.get("prontidao") or {}
+
+        if not _ie_utilizavel(ie):
+            if ind == "9":
+                # Coerente: nao contribuinte de ICMS nao emite CT-e. Nao e
+                # pendencia a resolver - e um agregado que sai da fila.
+                _add(x, "natureza", "não contribuinte de ICMS" + (f" (IE “{ie}”)" if ie else ""),
+                     "Confirmar com a contabilidade que ele não emite CT-e e "
+                     "tirar da fila — não há o que corrigir no cadastro.",
+                     grave=False)
+            else:
+                _add(x, "cadastro", f"marcado contribuinte, inscrição “{ie or 'em branco'}”",
+                     "Consultar no SINTEGRA. Tendo inscrição, corrigir no ERP; "
+                     "sendo isento mesmo, mudar o indicador para não "
+                     "contribuinte — hoje o cadastro se contradiz.",
+                     rejeicao="229 · IE do emitente não informada")
+        elif ind == "9":
+            # A contradicao no sentido inverso, que passava despercebida: tem
+            # inscricao valida e esta marcado como nao contribuinte. Nao trava
+            # a emissao, mas um dos dois campos esta errado.
+            _add(x, "cadastro", f"inscrição {ie} preenchida, mas marcado não contribuinte",
+                 "Um dos dois campos está errado. Não impede a emissão hoje, "
+                 "mas decide se ele entra ou não na fila.", grave=False)
+
+        for rotulo, presente in (("razão social", bool(x.get("nome"))),
+                                 ("RNTRC", bool(x.get("rntrc"))),
+                                 ("município/UF", bool(x.get("cidade")))):
+            if not presente:
+                _add(x, "cadastro", f"sem {rotulo}",
+                     f"Preencher {rotulo} no cadastro do ERP — campo "
+                     "obrigatório no CT-e, vira rejeição documento a documento.")
+
+        if not pront.get("pronto"):
+            for f in (pront.get("faltas") or []):
+                _add(x, "certificado", f, "Certificado A1 e procuração são do agregado: sem "
+                           "eles a Sulista não pode assinar em nome dele.")
+        for a in (pront.get("alertas") or []):
+            _add(x, "certificado", a, "Renovar antes do vencimento: certificado vencido para "
+                       "a emissão desse agregado sem aviso nenhum.", grave=False)
+
+    com_defeito = {a["documento"] for a in achados if a["grave"]}
+    por_cat: dict[str, int] = {}
+    for a in achados:
+        por_cat[a["categoria"]] = por_cat.get(a["categoria"], 0) + 1
+    return {
+        "achados": sorted(achados,
+                          key=lambda a: (not a["grave"], -(a["ctes"] or 0))),
+        "por_categoria": por_cat,
+        "agregados": len(pj),
+        "aprovados": len([x for x in pj
+                          if x.get("documento") not in com_defeito]),
+        "com_impedimento": len(com_defeito),
+        # Quantos agregados PASSARIAM se so o certificado faltasse - e a
+        # medida do trabalho interno, separada do que depende de terceiro.
+        "cadastro_ok": len([x for x in pj if x.get("documento") not in {
+            a["documento"] for a in achados
+            if a["grave"] and a["categoria"] == "cadastro"}]),
     }
 
 

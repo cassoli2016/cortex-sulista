@@ -61,12 +61,11 @@ def test_conjunto_vazio_de_interessantes_nao_varre_nada():
     assert rntrc.varrer(_fonte(), set()) == []
 
 
-def test_sincronizar_grava_e_relata(tmp_path):
+def test_sincronizar_grava_e_relata(esquema_pg):
     from api.antt import armazenamento as arm
-    base = tmp_path / "antt.db"
-    arm.init_db(base)
+    base = esquema_pg
     r = rntrc.sincronizar({"7600540", "6242260"},
-                          baixar=lambda: (_fonte(), "2026-07"), path=base)
+                          baixar=lambda: (_fonte(), "2026-07"), esquema=base)
     assert r["gravadas"] == 2
     assert r["competencia"] == "2026-07"
     assert arm.situacao("7600540", base)["situacao"] == "ATIVO"

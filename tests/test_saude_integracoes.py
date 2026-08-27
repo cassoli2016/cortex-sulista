@@ -175,3 +175,47 @@ def test_diagnostico_da_monkey_nao_conta_a_planilha_como_coleta():
         assert mk.diagnostico()["coletado_em"] is None
     finally:
         mk.registro = original
+
+
+# ------------------------------------------------ banco de escrita (local)
+#
+# Terceiro banco da tela, ao lado do ERP e do Oracle da folha. A diferença de
+# severidade é a regra: não configurado é instalação que não migrou nada
+# (info); configurado e fora do ar é tela sem dado (erro).
+
+
+def diag_pg(**kw) -> dict:
+    d = {"configurado": True, "conectado": True, "onde": "127.0.0.1:5432/cortex",
+         "erro": None, "ms": 4, "versao_schema": 2}
+    d.update(kw)
+    return d
+
+
+def test_banco_local_ausente_e_info_nao_falha():
+    """Quem ainda não migrou nada segue com os SQLite e está inteiro."""
+    s = sv._servico_pglocal(diag_pg(configurado=False, conectado=False))
+    assert s["status"] == "info"
+    assert "SQLite" in s["detalhe"]
+
+
+def test_banco_local_configurado_e_fora_do_ar_e_erro():
+    """Depois do primeiro store migrado, sem este banco a tela fica sem dado —
+    e isso não pode sair em cinza."""
+    s = sv._servico_pglocal(diag_pg(conectado=False, erro="OperationalError"))
+    assert s["status"] == "erro"
+    assert "OperationalError" in s["detalhe"]
+
+
+def test_banco_local_no_ar_diz_onde_e_em_que_versao():
+    s = sv._servico_pglocal(diag_pg())
+    assert s["status"] == "ok"
+    assert "127.0.0.1:5432/cortex" in s["detalhe"]
+    assert "schema v2" in s["detalhe"]
+
+
+def test_banco_sem_migration_aplicada_e_alerta():
+    """Conectar não basta: banco vazio responde SELECT e não tem tabela
+    nenhuma — o que a tela precisa dizer é que falta aplicar."""
+    s = sv._servico_pglocal(diag_pg(versao_schema=None))
+    assert s["status"] == "alerta"
+    assert "migration" in s["detalhe"]

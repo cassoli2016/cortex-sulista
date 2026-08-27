@@ -4,6 +4,17 @@ Gerado de `docs/versoes.yaml` por `scripts/gerar_changelog.py` — não editar �
 Formato [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/),
 versionamento [SemVer](https://semver.org/lang/pt-BR/).
 
+## [0.98.0] — 27/08/2026  ·  CX-27/08/2026-v0.98.0
+
+### Adicionado
+- Validador do cadastro na tela de CT-e de Contrapartida: roda, agregado por agregado, as mesmas conferencias que a emissao vai fazer - antes dela. Cada linha diz o que esta errado E o que fazer, porque os motivos pedem coisas diferentes de pessoas diferentes.
+- Os achados vem separados por categoria e a lista abre em CADASTRO NO ERP, que e o que se resolve digitando. Sem isso, os 76 achados de "sem certificado" - verdadeiros, e ja contados no cartao de prontidao - afogariam os 9 de cadastro.
+- A contradicao INVERSA passou a aparecer: agregado com inscricao estadual valida marcado como nao contribuinte. Nao impede a emissao hoje, mas decide se ele entra ou nao na fila, e passava despercebido porque so se olhava para a falta de inscricao.
+- Quem esta marcado como nao contribuinte sai da lista de impedimentos e vai para uma categoria propria. Nao ha o que corrigir: ele nao emite CT-e por natureza do documento, e mante-lo como pendencia criaria uma fila que ninguem consegue zerar.
+
+### Alterado
+- O codigo de rejeicao da SEFAZ so aparece onde foi MEDIDO na transmissao (229, inscricao do emitente). Nos demais campos o efeito e descrito sem numero - dar codigo a um palpite faria a tela parecer mais certa do que e.
+
 ## [0.97.0] — 27/08/2026  ·  CX-27/08/2026-v0.97.0
 
 ### Adicionado

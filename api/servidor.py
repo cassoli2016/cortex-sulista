@@ -214,6 +214,29 @@ def _processo_cloudflared() -> int:
     return n
 
 
+def _servico_pglocal(d: dict) -> dict:
+    """Linha do banco de escrita do CÓRTEX (PostgreSQL local).
+
+    Não configurado é `info`, não falha: a instalação que ainda não migrou nada
+    segue com os SQLite de `data/` e está inteira. Configurado e FORA é `erro`
+    de verdade — desde o primeiro store migrado, tela sem este banco é tela sem
+    dado (ver docs/MIGRACAO_POSTGRES.md).
+    """
+    nome = "Banco do CÓRTEX (PostgreSQL local)"
+    if not d["configurado"]:
+        return {"nome": nome, "status": "info",
+                "detalhe": "não configurado nesta instalação — "
+                           "os módulos seguem no SQLite de data/"}
+    if not d["conectado"]:
+        return {"nome": nome, "status": "erro",
+                "detalhe": f"sem conexão com {d['onde']} ({d['erro']}) — "
+                           "as telas que já migraram ficam sem dado"}
+    versao = (f"schema v{d['versao_schema']}" if d["versao_schema"]
+              else "schema ainda sem migration aplicada")
+    return {"nome": nome, "status": "ok" if d["versao_schema"] else "alerta",
+            "detalhe": f"conectado · {d['onde']} · {d['ms']} ms · {versao}"}
+
+
 def _servico_gobrax(d: dict) -> dict:
     """Linha da Gobrax na Saúde, a partir do diagnóstico do CACHE.
 
@@ -329,6 +352,17 @@ def _servicos() -> list[dict]:
     except Exception:  # noqa: BLE001
         servicos.append({"nome": "Banco da Folha (Oracle)", "status": "info",
                          "detalhe": "driver indisponível"})
+
+    # BANCO DE ESCRITA DO CÓRTEX (PostgreSQL local). É o destino dos dez SQLite
+    # de data/, migrados um por vez. Fica ao lado dos outros dois bancos porque
+    # é o terceiro: ERP (réplica de terceiro), Folha (Oracle) e este, o da casa.
+    try:
+        from . import pglocal
+        servicos.append(_servico_pglocal(pglocal.diagnostico()))
+    except Exception as exc:  # noqa: BLE001
+        servicos.append({"nome": "Banco do CÓRTEX (PostgreSQL local)",
+                         "status": "info", "detalhe": "camada indisponível"})
+        log.warning("saude: pglocal: %s", exc)
 
     # PROLOG (pneus). Integração externa com COTA: a coleta é agendada e
     # retomável, então o que interessa aqui não é "responde?" — é se o

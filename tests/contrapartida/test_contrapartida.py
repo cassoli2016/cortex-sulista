@@ -657,3 +657,71 @@ def test_o_cronometro_nao_expoe_quem_mexeu_na_configuracao():
     for campo in ("ativa", "intervalo_min", "ultima_execucao",
                   "passo_agendador_min"):
         assert campo in fonte
+
+
+def _ag(doc, nome="AG", ie="9120970051", ind="1", rntrc="1", cidade="X",
+        uf="PR", ctes=10, pronto=True, faltas=(), alertas=()):
+    return {"documento": doc, "nome": nome, "ie": ie, "ind_ie": ind,
+            "rntrc": rntrc, "cidade": cidade, "uf": uf, "ctes": ctes,
+            "valor": 100.0,
+            "prontidao": {"pronto": pronto, "faltas": list(faltas),
+                          "alertas": list(alertas)}}
+
+
+def test_validador_separa_CADASTRO_de_CERTIFICADO():
+    """Sao filas de pessoas diferentes: cadastro se corrige digitando no ERP,
+    certificado depende do agregado entregar o arquivo. Sem a separacao, os 76
+    achados de certificado afogam os 9 de cadastro e a lista fica inutil."""
+    from api.contrapartida import servico
+
+    v = servico._validacao([
+        _ag("1", ie="ISENTO"),
+        _ag("2", pronto=False, faltas=["sem certificado cadastrado"]),
+    ])
+    cats = v["por_categoria"]
+    assert cats.get("cadastro") == 1
+    assert cats.get("certificado") == 1
+
+
+def test_contradicao_de_cadastro_cita_a_rejeicao_MEDIDA():
+    """229 foi medida na transmissao. Os outros campos NAO ganham codigo
+    inventado - dar numero a um palpite e o que faz a tela parecer mais certa
+    do que e."""
+    from api.contrapartida import servico
+
+    v = servico._validacao([_ag("1", ie="ISENTO"), _ag("2", rntrc=None)])
+    por_defeito = {a["defeito"]: a for a in v["achados"]}
+    ie = [a for a in v["achados"] if "contribuinte" in a["defeito"]][0]
+    assert ie["rejeicao"] and "229" in ie["rejeicao"]
+    assert por_defeito["sem RNTRC"]["rejeicao"] is None
+
+
+def test_nao_contribuinte_nao_e_pendencia_a_corrigir():
+    """Marcado como nao contribuinte e coerente: ele nao emite CT-e. Sai da
+    fila por natureza do documento, e nao entra na conta de impedimento -
+    senao vira pendencia eterna que ninguem consegue resolver."""
+    from api.contrapartida import servico
+
+    v = servico._validacao([_ag("1", ie="ISENTO", ind="9")])
+    assert v["achados"][0]["categoria"] == "natureza"
+    assert v["achados"][0]["grave"] is False
+    assert v["com_impedimento"] == 0
+
+
+def test_a_contradicao_INVERSA_tambem_aparece():
+    """IE valida com o indicador de NAO contribuinte: um dos dois campos esta
+    errado. Nao trava a emissao hoje, mas decide se ele entra na fila - e
+    passava despercebido porque so se olhava para a falta de IE."""
+    from api.contrapartida import servico
+
+    v = servico._validacao([_ag("1", ie="9101585112", ind="9")])
+    assert v["achados"], "a contradicao inversa sumiu"
+    a = v["achados"][0]
+    assert a["categoria"] == "cadastro" and a["grave"] is False
+
+
+def test_agregado_sem_defeito_nao_gera_achado():
+    from api.contrapartida import servico
+    v = servico._validacao([_ag("1")])
+    assert v["achados"] == []
+    assert v["aprovados"] == 1 and v["com_impedimento"] == 0
