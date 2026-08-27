@@ -1,3 +1,18 @@
+- versao: "0.98.1"
+  data: "2026-08-27"
+  corrigido:
+    - >-
+      O validador repetia o mesmo agregado varias vezes. Cada campo virava uma
+      linha propria, entao "sem procuracao cadastrada" e "sem certificado
+      cadastrado" - que sao o mesmo item de trabalho - apareciam separados: 34
+      dos 38 agregados duplicados, 72 linhas para 38 problemas. Agora e uma
+      linha por agregado em cada categoria, com os motivos juntos.
+    - >-
+      A acao sugerida passou a sair da natureza da falta, e nao de um texto
+      unico: certificado vencido se RENOVA, ausente se COLETA com o agregado e
+      senha se CADASTRA no cofre. O texto unico mandava pedir ao agregado o
+      arquivo que ja estava aqui.
+
 - versao: "0.99.0"
   data: "2026-08-27"
   adicionado:

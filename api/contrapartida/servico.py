@@ -566,21 +566,44 @@ def _validacao(pj: list[dict]) -> dict:
                  "Um dos dois campos está errado. Não impede a emissão hoje, "
                  "mas decide se ele entra ou não na fila.", grave=False)
 
-        for rotulo, presente in (("razão social", bool(x.get("nome"))),
-                                 ("RNTRC", bool(x.get("rntrc"))),
-                                 ("município/UF", bool(x.get("cidade")))):
-            if not presente:
-                _add(x, "cadastro", f"sem {rotulo}",
-                     f"Preencher {rotulo} no cadastro do ERP — campo "
-                     "obrigatório no CT-e, vira rejeição documento a documento.")
+        # UMA LINHA POR AGREGADO E POR AÇÃO, nunca por campo. Cada falta virava
+        # uma linha própria e o mesmo agregado aparecia duas e três vezes:
+        # "sem procuração" e "sem certificado" são o mesmo item de trabalho —
+        # 34 dos 38 agregados apareciam repetidos, e a lista deixava de ser
+        # lista de trabalho para virar lista de campos.
+        faltam = [r for r, ok in (("razão social", bool(x.get("nome"))),
+                                  ("RNTRC", bool(x.get("rntrc"))),
+                                  ("município/UF", bool(x.get("cidade"))))
+                  if not ok]
+        if faltam:
+            _add(x, "cadastro", "sem " + ", ".join(faltam),
+                 f"Preencher no cadastro do ERP: {', '.join(faltam)}. São "
+                 "campos obrigatórios no CT-e — cada um vira rejeição "
+                 "documento a documento.")
 
-        if not pront.get("pronto"):
-            for f in (pront.get("faltas") or []):
-                _add(x, "certificado", f, "Certificado A1 e procuração são do agregado: sem "
-                           "eles a Sulista não pode assinar em nome dele.")
-        for a in (pront.get("alertas") or []):
-            _add(x, "certificado", a, "Renovar antes do vencimento: certificado vencido para "
-                       "a emissão desse agregado sem aviso nenhum.", grave=False)
+        fal = list(pront.get("faltas") or []) if not pront.get("pronto") else []
+        if fal:
+            # A ação sai da NATUREZA da falta, não de um texto único: vencido
+            # se renova, ausente se coleta, senha se cadastra. Um texto só
+            # para os três mandaria pedir ao agregado o que já está com a
+            # gente.
+            junto = " · ".join(fal)
+            if any("vencid" in f.lower() for f in fal):
+                acao = ("Renovar o certificado A1 com o agregado. Vencido, a "
+                        "emissão dele para sozinha e sem aviso.")
+            elif any("senha" in f.lower() for f in fal):
+                acao = ("Cadastrar a senha do certificado no cofre — o arquivo "
+                        "já está aqui, falta a senha para conseguir assinar.")
+            else:
+                acao = ("Certificado A1 e procuração são do agregado: sem eles "
+                        "a Sulista não pode assinar em nome dele.")
+            _add(x, "certificado", junto, acao)
+
+        alertas = list(pront.get("alertas") or [])
+        if alertas:
+            _add(x, "certificado", " · ".join(alertas),
+                 "Renovar antes do vencimento: vencido, a emissão desse "
+                 "agregado para sem aviso nenhum.", grave=False)
 
     com_defeito = {a["documento"] for a in achados if a["grave"]}
     por_cat: dict[str, int] = {}

@@ -725,3 +725,51 @@ def test_agregado_sem_defeito_nao_gera_achado():
     v = servico._validacao([_ag("1")])
     assert v["achados"] == []
     assert v["aprovados"] == 1 and v["com_impedimento"] == 0
+
+
+def test_UMA_LINHA_por_agregado_em_cada_categoria():
+    """Cada falta virava uma linha propria e o mesmo agregado aparecia duas e
+    tres vezes - 34 dos 38 repetidos. "Sem procuracao" e "sem certificado" sao
+    o MESMO item de trabalho: junta-los e o que faz a lista voltar a ser lista
+    de trabalho em vez de lista de campos."""
+    from api.contrapartida import servico
+
+    v = servico._validacao([
+        _ag("1", nome=None, rntrc=None, cidade=None, pronto=False,
+            faltas=["sem procuração cadastrada", "sem certificado cadastrado"]),
+    ])
+    por_cat = {}
+    for a in v["achados"]:
+        por_cat.setdefault(a["categoria"], []).append(a)
+    for cat, linhas in por_cat.items():
+        docs = [a["documento"] for a in linhas]
+        assert len(docs) == len(set(docs)), f"{cat} repetiu o agregado"
+    assert len(por_cat["certificado"]) == 1
+    assert "procuração" in por_cat["certificado"][0]["defeito"]
+    assert "certificado" in por_cat["certificado"][0]["defeito"]
+
+
+def test_campos_faltantes_saem_JUNTOS_e_a_acao_lista_todos():
+    from api.contrapartida import servico
+    v = servico._validacao([_ag("1", rntrc=None, cidade=None)])
+    a = [x for x in v["achados"] if x["categoria"] == "cadastro"][0]
+    assert "RNTRC" in a["defeito"] and "município" in a["defeito"]
+    assert "RNTRC" in a["acao"] and "município" in a["acao"]
+
+
+def test_a_acao_do_certificado_sai_da_NATUREZA_da_falta():
+    """Vencido se renova, ausente se coleta, senha se cadastra. Um texto unico
+    para os tres mandaria pedir ao agregado o que ja esta com a gente."""
+    from api.contrapartida import servico
+
+    venc = servico._validacao([_ag("1", pronto=False,
+                                   faltas=["certificado vencido há 86 dias"])])
+    assert "Renovar" in venc["achados"][0]["acao"]
+
+    senha = servico._validacao([_ag("2", pronto=False,
+                                    faltas=["senha ausente no cofre"])])
+    assert "cofre" in senha["achados"][0]["acao"]
+
+    sem = servico._validacao([_ag("3", pronto=False,
+                                  faltas=["sem certificado cadastrado"])])
+    assert "do agregado" in sem["achados"][0]["acao"]
