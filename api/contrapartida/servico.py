@@ -75,14 +75,11 @@ CLASSES = {
 
 # CIOT + RPA. Isto nao e limitacao da rotina - e do documento.
 
-def _ie_utilizavel(ie: str | None) -> bool:
-    """IE que serve para emitir tem DIGITO. "ISENTO", "-" ou vazio, nao.
-
-    Nao afirmamos que quem esta como ISENTO fica de fora - pode ser cadastro
-    velho no ERP. Mas nao da para tratar como PRONTO quem talvez nem possa
-    emitir: o erro apareceria na transmissao, documento a documento.
-    """
-    return bool("".join(c for c in (ie or "") if c.isdigit()))
+# A regra mora em `cadastro` porque o LOTE tambem precisa dela: enquanto ela
+# so existia aqui, a tela marcava o agregado sem IE como pendente e o lote
+# emitia para ele assim mesmo. O apelido continua para quem ja chamava por
+# este nome.
+_ie_utilizavel = cadastro.ie_utilizavel
 
 
 NOTA_TAC = ("Transportador Autônomo de Cargas não emite CT-e — a documentação "
@@ -239,7 +236,7 @@ def get_contrapartida(de: str | None = None, ate: str | None = None,
         "prontidao_fila": _prontidao_fila(pj),
         "certificados": _certificados(pj, pront),
         "classes": CLASSES,
-        "avisos": _avisos(pj, tac, indef, faltando),
+        "avisos": _avisos(pj, tac, indef, faltando, _tx),
         "fonte": {
             "tabela": "conhecimento × veiculo (utilizacaoveiculo='AGR') × cadastro",
             "gerado_em": datetime.now().strftime("%Y-%m-%d %H:%M"),
@@ -508,14 +505,35 @@ def _prontidao_fila(pj: list[dict]) -> dict:
     }
 
 
-def _avisos(pj, tac, indef, faltando) -> list[str]:
+def _avisos(pj, tac, indef, faltando, tx=None) -> list[str]:
 
     av: list[str] = []
-    av.append(
-
-        "Nenhuma contrapartida emitida até hoje: esta tela dimensiona a fila, "
-        "não mede cobertura. O número de emitidas é zero por confirmação da "
-        "própria operação, não por falta de dado.")
+    # ESTE AVISO ERA UM TEXTO FIXO dizendo "nenhuma contrapartida emitida ate
+    # hoje". Era verdade quando foi escrito e continuou na tela depois das
+    # primeiras emissoes, inclusive a de PRODUCAO - o cartao "Ler com atencao"
+    # ficou afirmando o contrario do que os cartoes ao lado mostravam. Aviso e
+    # leitura do dado, nao anotacao: se ele nao sai de uma contagem, envelhece
+    # calado e no dia em que erra ninguem desconfia dos outros numeros.
+    tx = tx or {}
+    prod = int(tx.get("producao") or 0)
+    homo = int(tx.get("homologacao") or 0)
+    if not (prod or homo):
+        av.append(
+            "Nenhuma contrapartida emitida até hoje: esta tela dimensiona a "
+            "fila, não mede cobertura. O número de emitidas é zero por "
+            "confirmação da própria operação, não por falta de dado.")
+    elif not prod:
+        av.append(
+            f"{homo} documento(s) transmitido(s), todos em HOMOLOGAÇÃO — que "
+            "não tem valor fiscal e não substitui a obrigação do agregado. "
+            "Para a contabilidade a fila continua inteira: o que foi emitido "
+            "até agora é teste do caminho, não contrapartida.")
+    else:
+        av.append(
+            f"{prod} documento(s) autorizado(s) em PRODUÇÃO e {homo} em "
+            "homologação. Só os de produção existem para o fisco — os de "
+            "homologação estão na tela para conferir o caminho e não entram "
+            "em nenhuma conta fiscal.")
     if tac:
 
         av.append(f"{len(tac)} dos {len(pj) + len(tac) + len(indef)} agregados "

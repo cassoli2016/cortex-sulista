@@ -76,6 +76,19 @@ def _endereco(m) -> None:
             # do Ambiente de recebimento", que nao diz onde esta o erro.
             amb = (m.AMBIENTE_PRODUCAO if ambiente == 1
                    else m.AMBIENTE_HOMOLOGACAO)
+            # O QR CODE NAO E ENDERECO DE WEB SERVICE. Todos os outros
+            # servicos sao CAMINHO dentro do servidor da SEFAZ e se montam
+            # como servidor + caminho; o do QR Code ja e uma URL COMPLETA, de
+            # outro dominio (o portal de consulta, nao o de transmissao).
+            # Concatenar produzia
+            # "https://homologacao.cte.fazenda.pr.gov.br/http://www.fazenda..."
+            # dentro do proprio documento, e a SEFAZ recusa com "851 -
+            # Endereco do site da UF da Consulta via QR Code diverge do
+            # previsto" - que acusa o campo certo sem dizer que ele foi
+            # concatenado. So aparece em estado de SEFAZ propria: SP e SVSP e
+            # nunca passou por aqui.
+            if service == getattr(m, "QR_CODE_URL", "QRCode"):
+                return cfg[amb][m.QR_CODE_URL]
             return "https://" + cfg[amb]["servidor"] + "/" + cfg[amb][service]
         return _orig(sigla, service, ambiente)
 

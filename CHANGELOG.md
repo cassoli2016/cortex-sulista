@@ -7,6 +7,18 @@ versionamento [SemVer](https://semver.org/lang/pt-BR/).
 ## [0.95.0] — 27/08/2026  ·  CX-27/08/2026-v0.95.0
 
 ### Adicionado
+- A emissao automatica do CT-e de contrapartida passou a rodar de verdade. A tarefa agendada do Windows nunca tinha sido criada: o interruptor na tela estava ligado, o intervalo configurado, e nada chamava a rotina. Agora a tarefa dispara de 5 em 5 minutos e quem decide se e hora continua sendo o CORTEX, lendo o intervalo da tela.
+- A fila do lote passou a conferir a INSCRICAO ESTADUAL do agregado antes de emitir, do mesmo jeito que a tela ja conferia. O resumo da fila diz quantos ficaram de fora por isso, separado de quem nao tem certificado - sao pendencias de areas diferentes.
+
+### Corrigido
+- O CT-e de agregado do Parana era recusado com "851 - Endereco do site da UF da Consulta via QR Code diverge do previsto". O endereco do QR Code estava sendo colado depois do endereco do servidor da SEFAZ, virando uma URL dentro da outra no documento assinado. So acontecia em estado com SEFAZ propria; Sao Paulo nunca passou por esse caminho. Com a correcao saiu a primeira autorizacao do Parana.
+- A rotina automatica ignorava o intervalo configurado e rodava a cada disparo do agendador - de 5 em 5 minutos, fosse qual fosse o valor escolhido na tela. Ela nunca registrava a propria passagem, entao toda execucao se achava a primeira. A passagem passou a ser marcada ANTES de emitir: lote que trava no meio nao volta a disparar em cinco minutos.
+- Agregado com certificado valido mas SEM inscricao estadual no cadastro do ERP entrava na fila e era recusado pela SEFAZ documento a documento, ate o disjuntor de tres falhas seguidas derrubar o lote inteiro - e levar junto os agregados que estavam certos e vinham depois na fila.
+- O cartao "Ler com atencao" abria afirmando que nenhuma contrapartida havia sido emitida ate hoje. Era um texto fixo, escrito quando era verdade, e continuou la depois das primeiras emissoes - inclusive a de producao. Agora ele sai da contagem real e separa o que foi emitido em homologacao (sem valor fiscal) do que valeu.
+
+## [0.95.0] — 27/08/2026  ·  CX-27/08/2026-v0.95.0
+
+### Adicionado
 - O Extrato Bancario passou a ler o extrato do C6, que so existe em PDF - aquele banco nao oferece OFX no internet banking. Era a unica conta que nao aparecia como divergente e sim como ausente, por nao ter como entrar. O arquivo traz o saldo ao fim de cada dia movimentado, e a tela confere sozinha se esse saldo bate com o movimento; quando nao bater, ela avisa, porque e o sinal de que o banco mudou o layout do relatorio.
 - Conciliacao LANCAMENTO A LANCAMENTO, num cartao novo da mesma tela. A comparacao que ja existia diz se o dia bate no total; esta diz qual lancamento do extrato e qual linha do razao do ERP, e o que sobrou dos dois lados. Casa por mesmo dia e mesmo valor, e depois por mesmo valor a ate tres dias de distancia - que e o atraso de compensacao e, sozinho, fecha a conta do Sicredi por inteiro.
 - Cada dia recebe um diagnostico em vez de so um numero: "conciliado", "so granularidade", "diverge", "ERP nao lancou" e "so no ERP". A distincao que mais muda o trabalho e a do meio: e comum sobrar linha dos dois lados e o valor do dia fechar mesmo assim, porque o razao lanca em detalhe o que o banco mostra agrupado - na Caixa, um dia tem 15 linhas no extrato contra 372 no razao e a diferenca e de tres centavos. Isso nao e pendencia, e a tela diz isso com todas as letras.

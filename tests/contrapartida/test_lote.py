@@ -21,7 +21,10 @@ CHAVES = ["3526...A", "3526...B", "3526...C", "3526...D"]
 
 
 def _linhas(n=4):
-    return [{"chave": CHAVES[i], "dtemissao": "2026-08-20",
+    # `ie` faz parte da linha porque a fila confere a inscricao estadual antes
+    # de emitir: agregado com certificado valido e sem IE no ERP vira rejeicao
+    # 229 na SEFAZ, documento a documento.
+    return [{"chave": CHAVES[i], "dtemissao": "2026-08-20", "ie": "9120970051",
              "cnpj": "111", "nome": "AGREGADO", "valor": 100.0 * (i + 1)}
             for i in range(n)]
 
@@ -592,3 +595,76 @@ def test_135_e_o_unico_que_cancela():
     assert lote.emissao._resposta_evento(
         type("R", (), {"infEvento": type("I", (), {"cStat": "136"})()})()
     )["cancelado"] is False
+
+
+def test_o_caminho_AGENDADO_marca_a_passagem_da_rotina():
+    """`registrar_execucao` existia, estava testada e NUNCA ERA CHAMADA. Sem
+    ela `ultima_execucao` fica vazia para sempre, `deve_rodar` responde
+    "primeira execucao" a cada tique e o lote emite de 5 em 5 minutos - o
+    intervalo configurado na tela vira enfeite. O teste le o script do
+    agendador, que e o unico caminho por onde a rotina passa sozinha."""
+    import ast
+    import pathlib
+
+    fonte = (pathlib.Path(__file__).resolve().parents[2]
+             / "scripts" / "emitir_lote.py").read_text(encoding="utf-8")
+    arvore = ast.parse(fonte)
+    chamadas = {
+        f"{n.func.value.id}.{n.func.attr}"
+        for n in ast.walk(arvore)
+        if isinstance(n, ast.Call) and isinstance(n.func, ast.Attribute)
+        and isinstance(n.func.value, ast.Name)
+    }
+    assert "lote.registrar_execucao" in chamadas, (
+        "o script do agendador nao marca a passagem da rotina: o intervalo "
+        "configurado sera ignorado e o lote rodara a cada tique")
+
+
+def test_marca_a_passagem_ANTES_de_processar_o_lote():
+    """Ordem importa: lote que trava ou morre no meio nao pode voltar a
+    disparar em cinco minutos."""
+    import pathlib
+
+    fonte = (pathlib.Path(__file__).resolve().parents[2]
+             / "scripts" / "emitir_lote.py").read_text(encoding="utf-8")
+    assert (fonte.index("lote.registrar_execucao")
+            < fonte.index("lote.processar_lote"))
+
+
+def _mapa_pronto(*cnpjs):
+    return {c: {"prontidao": {"pronto": True}} for c in cnpjs}
+
+
+def test_agregado_SEM_IE_nao_entra_na_fila():
+    """A regra existia so na camada de tela: o painel marcava o agregado sem
+    inscricao estadual como pendente e o lote emitia para ele assim mesmo. A
+    SEFAZ recusava com 229, um documento por vez, ate o disjuntor de tres
+    falhas seguidas derrubar o lote - levando junto quem estava certo e vinha
+    depois na ordem."""
+    from api.contrapartida import lote
+
+    mapa = _mapa_pronto("1", "2", "3")
+    assert lote._impedimento({"cnpj": "1", "ie": "9120970051"}, mapa, set()) is None
+    assert "inscri" in lote._impedimento({"cnpj": "2", "ie": "ISENTO"}, mapa, set())
+    assert "inscri" in lote._impedimento({"cnpj": "3", "ie": None}, mapa, set())
+
+
+def test_impedimento_diz_QUAL_e_o_impedimento():
+    """Tres motivos diferentes pedem tres acoes diferentes: renovar procuracao,
+    corrigir o cadastro no ERP e religar o envio. "nao pronto" nao decide
+    nada."""
+    from api.contrapartida import lote
+
+    ie = "9120970051"
+    assert lote._impedimento({"cnpj": "x", "ie": ie}, {}, set()) is not None
+    assert "certificado" in lote._impedimento({"cnpj": "x", "ie": ie}, {}, set())
+    d = lote._impedimento({"cnpj": "1", "ie": ie}, _mapa_pronto("1"), {"1"})
+    assert "desligado" in d
+
+
+def test_a_ordem_do_impedimento_nao_esconde_o_envio_desligado():
+    """Quem tem cadastro completo e envio desligado tem de aparecer como
+    DESLIGADO - o botao da tela e o que explica a ausencia dele na fila."""
+    from api.contrapartida import lote
+    r = lote._impedimento({"cnpj": "1", "ie": "123"}, _mapa_pronto("1"), {"1"})
+    assert "desligado" in r

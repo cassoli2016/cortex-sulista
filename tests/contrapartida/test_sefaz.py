@@ -34,7 +34,9 @@ class _Mod:
     SVRS_STATES = ("RS",)
     AMBIENTE_PRODUCAO = "producao"
     AMBIENTE_HOMOLOGACAO = "homologacao"
-    PR = {"homologacao": {"servidor": "hom.pr", "STATUS": "cte4/x"}}
+    QR_CODE_URL = "QRCode"
+    PR = {"homologacao": {"servidor": "hom.pr", "STATUS": "cte4/x",
+                          "QRCode": "http://portal.pr/cte/qrcode"}}
 
     @staticmethod
     def get_service_url(sigla, service, ambiente):
@@ -47,6 +49,21 @@ def test_endereco_resolve_estado_com_sefaz_propria():
     m = _Mod()
     sefaz._endereco(m)
     assert m.get_service_url("PR", "STATUS", 2) == "https://hom.pr/cte4/x"
+
+
+def test_qrcode_NAO_e_concatenado_com_o_servidor():
+    """O QR Code nao e caminho dentro do servidor da SEFAZ: e uma URL completa,
+    de OUTRO dominio (o portal de consulta publica). Concatenar produzia
+    "https://hom.pr/http://portal.pr/..." dentro do documento assinado, e a
+    SEFAZ recusava com 851 - que acusa o campo certo sem dizer que ele veio
+    concatenado. So aparecia em estado de SEFAZ propria; SP e SVSP e nunca
+    passou por aqui."""
+    m = _Mod()
+    sefaz._endereco(m)
+    url = m.get_service_url("PR", "QRCode", 2)
+    assert url == "http://portal.pr/cte/qrcode"
+    assert "hom.pr" not in url
+    assert url.count("http") == 1
 
 
 def test_endereco_nao_mexe_nos_grupos_que_a_biblioteca_ja_resolve():

@@ -78,7 +78,7 @@ TETO_ABSOLUTO_PRODUCAO = 50
 # cronológica é o que um fiscal espera ver.
 PENDENTES_SQL = """
 SELECT k.chaveacessocte AS chave, k.dtemissao, v.proprietario AS cnpj,
-       cd.razaosocial AS nome,
+       cd.razaosocial AS nome, cd.inscricaoestadual AS ie,
        coalesce(k.valortotalprestacao, 0)::float8 AS valor
   FROM conhecimento k
   JOIN veiculo v   ON v.placa = k.veiculo
@@ -257,6 +257,26 @@ def _ja_emitidas(ambiente: str) -> set[str]:
             " WHERE ambiente=? AND cstat='100'", (ambiente,))}
 
 
+def _impedimento(x: dict, mapa: dict, desligados) -> str | None:
+    """Por que este CT-e NAO pode virar contrapartida agora — ou None.
+
+    Uma funcao so, usada pela fila e pelo resumo, porque as duas ja divergiram:
+    a fila conferia apenas certificado e procuracao, e o cadastro do ERP ficava
+    para a tela. Resultado: agregado com certificado valido e SEM INSCRICAO
+    ESTADUAL entrava na fila todo dia e a SEFAZ recusava com "229 - IE do
+    emitente nao informada", um documento por vez, ate o disjuntor de tres
+    falhas seguidas derrubar o lote inteiro — levando junto os agregados que
+    estavam certos e vinham depois na ordem.
+    """
+    if not ((mapa.get(x["cnpj"]) or {}).get("prontidao") or {}).get("pronto"):
+        return "sem procuração, certificado ou senha"
+    if not cadastro.ie_utilizavel(x.get("ie")):
+        return "sem inscrição estadual utilizável no cadastro do ERP"
+    if x["cnpj"] in desligados:
+        return "envio desligado para este agregado"
+    return None
+
+
 def pendentes(de: str, ate: str, ambiente: str = emissao.HOMOLOGACAO,
               limite: int = 50) -> list[dict]:
     """A fila REAL: CT-e sem contrapartida, de agregado que pode emitir hoje.
@@ -273,10 +293,7 @@ def pendentes(de: str, ate: str, ambiente: str = emissao.HOMOLOGACAO,
     for x in linhas:
         if x["chave"] in feitas:
             continue
-        pront = (mapa.get(x["cnpj"]) or {}).get("prontidao") or {}
-        if not pront.get("pronto"):
-            continue
-        if x["cnpj"] in desligados:
+        if _impedimento(x, mapa, desligados):
             continue
         fila.append(dict(x, dtemissao=str(x["dtemissao"])[:10]))
         if len(fila) >= min(limite, teto_do(ambiente)):
@@ -360,13 +377,16 @@ def resumo_fila(de: str, ate: str,
     desligados = emissao.envios_desligados()
     total = len(linhas)
     ja = sum(1 for x in linhas if x["chave"] in feitas)
-    fora = sum(1 for x in linhas if x["chave"] not in feitas
-               and x["cnpj"] in desligados)
-    sem_prontidao = sum(
-        1 for x in linhas if x["chave"] not in feitas
-        and not ((mapa.get(x["cnpj"]) or {}).get("prontidao") or {}).get("pronto"))
+    # MESMO criterio da fila, pela mesma funcao: quando o resumo contava por
+    # conta propria, ele prometia "16 a emitir" e a fila entregava rejeicao.
+    faltas = [_impedimento(x, mapa, desligados)
+              for x in linhas if x["chave"] not in feitas]
+    sem_prontidao = sum(1 for f in faltas if f and f.startswith("sem procuração"))
+    sem_cadastro = sum(1 for f in faltas if f and f.startswith("sem inscrição"))
+    fora = sum(1 for f in faltas if f and f.startswith("envio desligado"))
     return {"ctes_no_periodo": total, "ja_emitidos": ja,
             "sem_agregado_pronto": sem_prontidao,
+            "sem_cadastro": sem_cadastro,
             "envio_desligado": fora,
-            "a_emitir": total - ja - sem_prontidao - fora,
+            "a_emitir": sum(1 for f in faltas if not f),
             "gerado_em": datetime.now().strftime("%Y-%m-%d %H:%M")}

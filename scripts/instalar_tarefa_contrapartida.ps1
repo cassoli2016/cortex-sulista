@@ -83,14 +83,20 @@ $acao = New-ScheduledTaskAction -Execute $py `
 # emite a cada 5 minutos: ela PERGUNTA se esta na hora. Rodar mais rapido que o
 # piso so gastaria consulta; mais devagar impediria de honrar um intervalo
 # curto configurado na tela.
-$inicio = (Get-Date).Date.AddHours(5).AddMinutes(5)
+#
+# GATILHO DIARIO, e nao "uma vez, repetindo para sempre": o
+# [TimeSpan]::MaxValue que a documentacao ensina para "indefinidamente" vira
+# P99999999DT23H59M59S no XML, que o Agendador do Windows RECUSA - "valor
+# formatado incorretamente ou fora do intervalo". Nao ha aviso: a tarefa
+# simplesmente nao e criada. Diario + 23h55 de repeticao cobre o dia inteiro e
+# e o mesmo padrao das tarefas de telemetria e pneus, que ja rodam ha meses.
 $gatilhos = @(
-  (New-ScheduledTaskTrigger -Once -At $inicio),
+  (New-ScheduledTaskTrigger -Daily -At 00:01),
   (New-ScheduledTaskTrigger -AtStartup)
 )
-$gatilhos[0].Repetition = (New-ScheduledTaskTrigger -Once -At $inicio `
+$gatilhos[0].Repetition = (New-ScheduledTaskTrigger -Once -At 00:01 `
   -RepetitionInterval (New-TimeSpan -Minutes 5) `
-  -RepetitionDuration ([TimeSpan]::MaxValue)).Repetition
+  -RepetitionDuration (New-TimeSpan -Hours 23 -Minutes 55)).Repetition
 
 $principal = New-ScheduledTaskPrincipal -UserId 'SYSTEM' -LogonType ServiceAccount `
   -RunLevel Highest

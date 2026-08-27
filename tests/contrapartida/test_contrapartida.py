@@ -591,3 +591,32 @@ def test_volume_zero_fora_do_periodo_nao_se_confunde_com_volume_zero():
     por_doc = {i["documento"]: i for i in servico._certificados(pj, pront)["itens"]}
     assert por_doc["222"]["no_periodo"] is True and por_doc["222"]["ctes"] == 7
     assert por_doc["111"]["no_periodo"] is False
+
+
+def test_aviso_de_emissao_SAI_DA_CONTAGEM_e_nao_de_texto_fixo():
+    """O primeiro aviso de "Ler com atencao" era um TEXTO FIXO: "nenhuma
+    contrapartida emitida ate hoje". Era verdade quando foi escrito e continuou
+    na tela depois das primeiras emissoes, inclusive a de PRODUCAO - o cartao
+    passou a afirmar o contrario dos cartoes ao lado. Aviso que nao sai de uma
+    contagem envelhece calado, e no dia em que erra ninguem desconfia dos
+    outros numeros da tela."""
+    from api.contrapartida import servico
+
+    zero = servico._avisos([], [], [], [], {"producao": 0, "homologacao": 0})
+    assert "Nenhuma contrapartida emitida" in zero[0]
+
+    homo = servico._avisos([], [], [], [], {"producao": 0, "homologacao": 4})
+    assert "Nenhuma contrapartida emitida" not in homo[0]
+    assert "HOMOLOGA" in homo[0].upper()
+    assert "4" in homo[0]
+
+    prod = servico._avisos([], [], [], [], {"producao": 2, "homologacao": 4})
+    assert "PRODU" in prod[0].upper()
+    assert "2" in prod[0]
+
+
+def test_aviso_sem_transmissoes_nao_quebra_sem_o_argumento():
+    """A tela nao pode cair se o registro de transmissoes estiver indisponivel:
+    o resto da conciliacao nao depende dele."""
+    from api.contrapartida import servico
+    assert servico._avisos([], [], [], [])[0].startswith("Nenhuma")

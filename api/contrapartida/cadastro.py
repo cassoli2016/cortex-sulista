@@ -290,3 +290,20 @@ def auditoria(limite: int = 200) -> list[dict]:
     with _conn() as c:
         return [dict(r) for r in c.execute(
             "SELECT * FROM auditoria ORDER BY id DESC LIMIT ?", (limite,))]
+
+
+def ie_utilizavel(ie: str | None) -> bool:
+    """IE que serve para emitir tem DIGITO. "ISENTO", "-" ou vazio, nao.
+
+    Mora AQUI e nao na camada de tela porque quem emite tambem precisa da
+    regra. Ela nascera em `servico`, so a tela consultava, e o lote saia
+    emitindo para quem nao tem IE - a SEFAZ recusava com "229 - IE do emitente
+    nao informada", documento a documento, exatamente o que o comentario
+    original dizia que aconteceria. Regra de aptidao usada por duas camadas
+    tem de ficar embaixo das duas.
+
+    Nao se afirma que quem esta como ISENTO fica de fora para sempre - pode
+    ser cadastro velho no ERP. Mas nao da para tratar como PRONTO quem talvez
+    nem possa emitir.
+    """
+    return bool("".join(c for c in (ie or "") if c.isdigit()))

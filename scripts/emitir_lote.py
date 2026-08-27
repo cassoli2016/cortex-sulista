@@ -74,6 +74,15 @@ def main() -> int:
             print(f"nada a fazer: {porque}")
             return 0
         print(f"na hora: {porque}")
+        # MARCA A PASSAGEM ANTES DE EMITIR, e nao depois. O intervalo
+        # configurado na tela so existe se alguem gravar quando a rotina
+        # passou: sem isto `ultima_execucao` fica sempre vazia, `deve_rodar`
+        # responde "primeira execucao" toda vez e o lote emite a CADA TIQUE do
+        # agendador - de 5 em 5 minutos - qualquer que seja o intervalo
+        # escolhido. Antes e nao depois porque lote que trava ou morre no meio
+        # nao pode voltar a disparar em cinco minutos: a proxima passagem tem
+        # de esperar o intervalo inteiro de qualquer jeito.
+        lote.registrar_execucao(emissao.IDENTIDADE_SISTEMA)
 
     if a.ligar_automacao or a.desligar_automacao:
         r = lote.definir_automacao(bool(a.ligar_automacao), a.quem)
@@ -87,6 +96,8 @@ def main() -> int:
     print(f"  CT-e de agregado PJ no periodo .. {r['ctes_no_periodo']}")
     print(f"  ja com contrapartida ............ {r['ja_emitidos']}")
     print(f"  agregado sem certificado ........ {r['sem_agregado_pronto']}")
+    print(f"  agregado sem IE no cadastro ..... {r.get('sem_cadastro', 0)}")
+    print(f"  envio desligado ................. {r.get('envio_desligado', 0)}")
     print(f"  A EMITIR ........................ {r['a_emitir']}")
     print()
 
