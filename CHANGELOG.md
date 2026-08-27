@@ -4,6 +4,44 @@ Gerado de `docs/versoes.yaml` por `scripts/gerar_changelog.py` — não editar �
 Formato [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/),
 versionamento [SemVer](https://semver.org/lang/pt-BR/).
 
+## [0.102.0] — 27/08/2026  ·  CX-27/08/2026-v0.102.0
+
+### Adicionado
+- Mais dois bancos locais foram para o PostgreSQL: a previsao de fechamento (598 fotos diarias e os ajustes manuais) e as antecipacoes (a posicao dos portais, 226 titulos e os sacados com convenio). Sao cinco dos dez, e nenhuma tela mudou de aparencia.
+- A lista de bases locais da Saude do Servidor passou a dizer quais ja migraram. O arquivo .db continua no disco de proposito, como desfazer da migracao - mas aparecia igual aos outros, como se o CORTEX ainda escrevesse ali.
+
+### Corrigido
+- Na importacao das antecipacoes, o arquivo e os titulos passaram a ser gravados numa transacao unica. Antes cada comando ia por conta propria: uma falha no meio podia deixar o envio registrado sem os titulos - uma posicao zerada com cara de posicao real.
+
+## [0.101.3] — 27/08/2026  ·  CX-27/08/2026-v0.101.3
+
+### Alterado
+- O texto de ajuda do cartao passou a avisar que o denominador carrega a fase de ajuste do enquadramento e as recusas que so existem em homologacao. A taxa e verdadeira, mas ler 30% como qualidade do sistema hoje seria errado.
+
+### Corrigido
+- O cartao "Retorno da SEFAZ" contava em cima das 30 ultimas linhas da tabela e apresentava esse LIMITE como se fosse o total: dizia "16,7% · 5 de 30 autorizadas · 0 em producao". O correto e 30,3% - 30 autorizadas em 99 documentos - e as duas autorizacoes de PRODUCAO existiam, so eram mais antigas que as trinta ultimas linhas. O cartao afirmava que nunca havia emissao em producao no dia seguinte a termos emitido.
+- "N em producao" ao lado de "autorizadas" lia-se como autorizadas em producao, e era o total de tentativas. Agora diz as duas coisas: "producao 2 de 4".
+- Os numeros de arquivo guardado tinham o mesmo defeito - respondiam quanto falta arquivar das ultimas trinta linhas, que nao e pergunta que alguem faca.
+
+## [0.101.2] — 27/08/2026  ·  CX-27/08/2026-v0.101.2
+
+### Adicionado
+- Botao "Varrer todos os agregados" no validador de cadastro. Confere TODOS os agregados que rodaram nos ultimos 90 dias, sem o filtro de periodo da tela.
+- O cartao passou a declarar o proprio escopo e a hora da varredura. Os mesmos numeros significam coisas diferentes conforme a lista tenha vindo do filtro da tela ou da varredura completa, e nao havia como distinguir olhando.
+
+### Corrigido
+- O validador so enxergava quem tinha CT-e no periodo filtrado. Como a tela abre no dia de hoje, quem nao rodou hoje nao era validado: viam-se 18 agregados em vez de 46 - e as duas contradicoes de cadastro mais caras, de 188 e 190 CT-e, ficavam FORA da lista. Defeito de cadastro nao pertence a uma janela de datas, do mesmo jeito que o vencimento de certificado ja ignorava o periodo.
+
+## [0.101.1] — 27/08/2026  ·  CX-27/08/2026-v0.101.1
+
+### Adicionado
+- Botao "Varrer o ERP agora" na tela de CT-e de Contrapartida. A consulta sempre foi ao vivo; o que faltava era poder repetir sem trocar um filtro nem recarregar a pagina. O rotulo muda para "Varrendo o ERP..." enquanto roda, porque a consulta leva segundos e o esmaecimento da tela sozinho nao distingue consultando de travado. O rodape passou a dizer a hora da varredura.
+- A fila passou a colocar em QUARENTENA o CT-e que a SEFAZ ja recusou tres vezes com o mesmo retorno, e o aviso diz quantos sao e por que. Rejeicao nao muda sozinha: o mesmo documento, com o mesmo cadastro, sera recusado igual para sempre.
+
+### Corrigido
+- A FILA ESTAVA TRAVADA. Tres CT-e impossiveis de autorizar em homologacao eram reapresentados a cada rodada; como sao os mais antigos, ficavam no topo, e as tres recusas seguidas disparavam o disjuntor toda vez. Os documentos atras deles NUNCA chegaram a ser tentados. Cada um ja tinha sido recusado 14 vezes quando isso foi percebido.
+- Data e hora na tela agora seguem dd/mm/aaaa hh:mm:ss. A tabela de documentos transmitidos mostrava "27T13:51:03/08/2026": a hora vinda com o separador ISO nao era separada da data. Os segundos aparecem quando a origem os tem - completar com ":00" o que veio so com minuto inventaria precisao, e num registro fiscal isso mente sobre a ordem dos eventos.
+
 ## [0.101.0] — 27/08/2026  ·  CX-27/08/2026-v0.101.0
 
 ### Adicionado
@@ -14,25 +52,6 @@ versionamento [SemVer](https://semver.org/lang/pt-BR/).
 
 ### Corrigido
 - O modulo de notificacao criava as tabelas no momento em que era carregado. Com o banco de arquivo isso nao custava nada; com o PostgreSQL, o banco fora do ar faria a API INTEIRA nao subir - por causa do recurso mais acessorio do sistema. As tabelas passam a nascer na primeira inscricao, e antes disso a tela mostra zero, que e a verdade.
-
-## [0.100.1] — 27/08/2026  ·  CX-27/08/2026-v0.100.1
-
-### Alterado
-- O texto de ajuda do cartao passou a avisar que o denominador carrega a fase de ajuste do enquadramento e as recusas que so existem em homologacao. A taxa e verdadeira, mas ler 30% como qualidade do sistema hoje seria errado.
-
-### Corrigido
-- O cartao "Retorno da SEFAZ" contava em cima das 30 ultimas linhas da tabela e apresentava esse LIMITE como se fosse o total: dizia "16,7% · 5 de 30 autorizadas · 0 em producao". O correto e 30,3% - 30 autorizadas em 99 documentos - e as duas autorizacoes de PRODUCAO existiam, so eram mais antigas que as trinta ultimas linhas. O cartao afirmava que nunca havia emissao em producao no dia seguinte a termos emitido.
-- "N em producao" ao lado de "autorizadas" lia-se como autorizadas em producao, e era o total de tentativas. Agora diz as duas coisas: "producao 2 de 4".
-- Os numeros de arquivo guardado tinham o mesmo defeito - respondiam quanto falta arquivar das ultimas trinta linhas, que nao e pergunta que alguem faca.
-
-## [0.100.0] — 27/08/2026  ·  CX-27/08/2026-v0.100.0
-
-### Adicionado
-- Botao "Varrer todos os agregados" no validador de cadastro. Confere TODOS os agregados que rodaram nos ultimos 90 dias, sem o filtro de periodo da tela.
-- O cartao passou a declarar o proprio escopo e a hora da varredura. Os mesmos numeros significam coisas diferentes conforme a lista tenha vindo do filtro da tela ou da varredura completa, e nao havia como distinguir olhando.
-
-### Corrigido
-- O validador so enxergava quem tinha CT-e no periodo filtrado. Como a tela abre no dia de hoje, quem nao rodou hoje nao era validado: viam-se 18 agregados em vez de 46 - e as duas contradicoes de cadastro mais caras, de 188 e 190 CT-e, ficavam FORA da lista. Defeito de cadastro nao pertence a uma janela de datas, do mesmo jeito que o vencimento de certificado ja ignorava o periodo.
 
 ## [0.100.0] — 27/08/2026  ·  CX-27/08/2026-v0.100.0
 
@@ -54,16 +73,6 @@ versionamento [SemVer](https://semver.org/lang/pt-BR/).
 
 ### Corrigido
 - O primeiro uso do banco local nao funcionava: para saber se o banco respondia, o sistema perguntava em que versao o schema estava - e num banco recem-criado essa tabela ainda nao existe. O erro subia como "sem conexao" e o comando se recusava a aplicar justamente a criacao da tabela. Agora sao duas perguntas separadas, e banco de pe com schema vazio aparece como "aplicar as migrations", nao como banco caido.
-
-## [0.99.0] — 27/08/2026  ·  CX-27/08/2026-v0.99.0
-
-### Adicionado
-- Botao "Varrer o ERP agora" na tela de CT-e de Contrapartida. A consulta sempre foi ao vivo; o que faltava era poder repetir sem trocar um filtro nem recarregar a pagina. O rotulo muda para "Varrendo o ERP..." enquanto roda, porque a consulta leva segundos e o esmaecimento da tela sozinho nao distingue consultando de travado. O rodape passou a dizer a hora da varredura.
-- A fila passou a colocar em QUARENTENA o CT-e que a SEFAZ ja recusou tres vezes com o mesmo retorno, e o aviso diz quantos sao e por que. Rejeicao nao muda sozinha: o mesmo documento, com o mesmo cadastro, sera recusado igual para sempre.
-
-### Corrigido
-- A FILA ESTAVA TRAVADA. Tres CT-e impossiveis de autorizar em homologacao eram reapresentados a cada rodada; como sao os mais antigos, ficavam no topo, e as tres recusas seguidas disparavam o disjuntor toda vez. Os documentos atras deles NUNCA chegaram a ser tentados. Cada um ja tinha sido recusado 14 vezes quando isso foi percebido.
-- Data e hora na tela agora seguem dd/mm/aaaa hh:mm:ss. A tabela de documentos transmitidos mostrava "27T13:51:03/08/2026": a hora vinda com o separador ISO nao era separada da data. Os segundos aparecem quando a origem os tem - completar com ":00" o que veio so com minuto inventaria precisao, e num registro fiscal isso mente sobre a ordem dos eventos.
 
 ## [0.99.0] — 27/08/2026  ·  CX-27/08/2026-v0.99.0
 
@@ -102,7 +111,7 @@ versionamento [SemVer](https://semver.org/lang/pt-BR/).
 - O cartao diz que sao DOIS relogios. O agendador do Windows dispara de 5 em 5 minutos e o CORTEX so entao pergunta se ja passou o intervalo, entao a emissao pode sair ate 5 minutos depois do cronometro zerar. Sem isso escrito, o contador chega a zero, nada acontece e a tela parece travada. Ao zerar ele mostra "liberado", nao "00:00".
 - Com a automacao desligada o cronometro PARA, em vez de contar para um disparo que nao vem, e diz onde se liga. Emissao manual nao depende dele - sao interruptores diferentes.
 
-## [0.95.0] — 27/08/2026  ·  CX-27/08/2026-v0.95.0
+## [0.95.1] — 27/08/2026  ·  CX-27/08/2026-v0.95.1
 
 ### Adicionado
 - A emissao automatica do CT-e de contrapartida passou a rodar de verdade. A tarefa agendada do Windows nunca tinha sido criada: o interruptor na tela estava ligado, o intervalo configurado, e nada chamava a rotina. Agora a tarefa dispara de 5 em 5 minutos e quem decide se e hora continua sendo o CORTEX, lendo o intervalo da tela.
@@ -150,7 +159,7 @@ versionamento [SemVer](https://semver.org/lang/pt-BR/).
 ### Corrigido
 - A suite de testes falhava NO SERVIDOR e passava na maquina de quem nunca configurou nada. O teste do "modo nao configurado" da Premiacao limpava so a variavel de ambiente, e o cofre da tela de Gestao vence a variavel: onde existe token guardado de verdade, a integracao continuava ligada e o teste acusava falha que nao existia.
 
-## [0.93.0] — 27/08/2026  ·  CX-27/08/2026-v0.93.0
+## [0.93.1] — 27/08/2026  ·  CX-27/08/2026-v0.93.1
 
 ### Adicionado
 - Botao de CANCELAR em cada documento transmitido e autorizado. Pede a justificativa, confirma antes - cancelar nao se desfaz - e some quando o documento ja esta cancelado, que aparece com marcador proprio.

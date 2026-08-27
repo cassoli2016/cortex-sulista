@@ -1,4 +1,24 @@
-- versao: "0.100.1"
+- versao: "0.102.0"
+  data: "2026-08-27"
+  adicionado:
+    - >-
+      Mais dois bancos locais foram para o PostgreSQL: a previsao de fechamento
+      (598 fotos diarias e os ajustes manuais) e as antecipacoes (a posicao dos
+      portais, 226 titulos e os sacados com convenio). Sao cinco dos dez, e
+      nenhuma tela mudou de aparencia.
+    - >-
+      A lista de bases locais da Saude do Servidor passou a dizer quais ja
+      migraram. O arquivo .db continua no disco de proposito, como desfazer da
+      migracao - mas aparecia igual aos outros, como se o CORTEX ainda
+      escrevesse ali.
+  corrigido:
+    - >-
+      Na importacao das antecipacoes, o arquivo e os titulos passaram a ser
+      gravados numa transacao unica. Antes cada comando ia por conta propria:
+      uma falha no meio podia deixar o envio registrado sem os titulos - uma
+      posicao zerada com cara de posicao real.
+
+- versao: "0.101.3"
   data: "2026-08-27"
   corrigido:
     - >-
@@ -23,7 +43,7 @@
       homologacao. A taxa e verdadeira, mas ler 30% como qualidade do sistema
       hoje seria errado.
 
-- versao: "0.100.0"
+- versao: "0.101.2"
   data: "2026-08-27"
   adicionado:
     - >-
@@ -43,6 +63,35 @@
       caras, de 188 e 190 CT-e, ficavam FORA da lista. Defeito de cadastro nao
       pertence a uma janela de datas, do mesmo jeito que o vencimento de
       certificado ja ignorava o periodo.
+
+- versao: "0.101.1"
+  data: "2026-08-27"
+  adicionado:
+    - >-
+      Botao "Varrer o ERP agora" na tela de CT-e de Contrapartida. A consulta
+      sempre foi ao vivo; o que faltava era poder repetir sem trocar um filtro
+      nem recarregar a pagina. O rotulo muda para "Varrendo o ERP..." enquanto
+      roda, porque a consulta leva segundos e o esmaecimento da tela sozinho
+      nao distingue consultando de travado. O rodape passou a dizer a hora da
+      varredura.
+    - >-
+      A fila passou a colocar em QUARENTENA o CT-e que a SEFAZ ja recusou tres
+      vezes com o mesmo retorno, e o aviso diz quantos sao e por que. Rejeicao
+      nao muda sozinha: o mesmo documento, com o mesmo cadastro, sera recusado
+      igual para sempre.
+  corrigido:
+    - >-
+      A FILA ESTAVA TRAVADA. Tres CT-e impossiveis de autorizar em homologacao
+      eram reapresentados a cada rodada; como sao os mais antigos, ficavam no
+      topo, e as tres recusas seguidas disparavam o disjuntor toda vez. Os
+      documentos atras deles NUNCA chegaram a ser tentados. Cada um ja tinha
+      sido recusado 14 vezes quando isso foi percebido.
+    - >-
+      Data e hora na tela agora seguem dd/mm/aaaa hh:mm:ss. A tabela de
+      documentos transmitidos mostrava "27T13:51:03/08/2026": a hora vinda com
+      o separador ISO nao era separada da data. Os segundos aparecem quando a
+      origem os tem - completar com ":00" o que veio so com minuto inventaria
+      precisao, e num registro fiscal isso mente sobre a ordem dos eventos.
 
 - versao: "0.101.0"
   data: "2026-08-27"
@@ -90,35 +139,6 @@
       proprio arquivo importado - e justamente quando falta o vinculo que se
       precisa saber de que banco a conta e, para escolher o certo. Com o ERP
       fora do ar a tela volta ao rotulo antigo, que ao menos traz o codigo.
-
-- versao: "0.99.0"
-  data: "2026-08-27"
-  adicionado:
-    - >-
-      Botao "Varrer o ERP agora" na tela de CT-e de Contrapartida. A consulta
-      sempre foi ao vivo; o que faltava era poder repetir sem trocar um filtro
-      nem recarregar a pagina. O rotulo muda para "Varrendo o ERP..." enquanto
-      roda, porque a consulta leva segundos e o esmaecimento da tela sozinho
-      nao distingue consultando de travado. O rodape passou a dizer a hora da
-      varredura.
-    - >-
-      A fila passou a colocar em QUARENTENA o CT-e que a SEFAZ ja recusou tres
-      vezes com o mesmo retorno, e o aviso diz quantos sao e por que. Rejeicao
-      nao muda sozinha: o mesmo documento, com o mesmo cadastro, sera recusado
-      igual para sempre.
-  corrigido:
-    - >-
-      A FILA ESTAVA TRAVADA. Tres CT-e impossiveis de autorizar em homologacao
-      eram reapresentados a cada rodada; como sao os mais antigos, ficavam no
-      topo, e as tres recusas seguidas disparavam o disjuntor toda vez. Os
-      documentos atras deles NUNCA chegaram a ser tentados. Cada um ja tinha
-      sido recusado 14 vezes quando isso foi percebido.
-    - >-
-      Data e hora na tela agora seguem dd/mm/aaaa hh:mm:ss. A tabela de
-      documentos transmitidos mostrava "27T13:51:03/08/2026": a hora vinda com
-      o separador ISO nao era separada da data. Os segundos aparecem quando a
-      origem os tem - completar com ":00" o que veio so com minuto inventaria
-      precisao, e num registro fiscal isso mente sobre a ordem dos eventos.
 
 - versao: "0.99.2"
   data: "2026-08-27"
@@ -258,7 +278,7 @@
       disparo que nao vem, e diz onde se liga. Emissao manual nao depende
       dele - sao interruptores diferentes.
 
-- versao: "0.95.0"
+- versao: "0.95.1"
   data: "2026-08-27"
   adicionado:
     - >-
@@ -425,7 +445,7 @@
       onde existe token guardado de verdade, a integracao continuava ligada e o
       teste acusava falha que nao existia.
 
-- versao: "0.93.0"
+- versao: "0.93.1"
   data: "2026-08-27"
   corrigido:
     - >-

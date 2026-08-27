@@ -474,7 +474,14 @@ BASES_LOCAIS = [
     ("Previsão de fechamento", "previsao.db"),
     ("Envios de e-mail", "email.db"),
     ("Notificações push", "push.db"),
+    ("RNTRC (ANTT)", "antt.db"),
 ]
+
+# Bases JÁ MIGRADAS para o PostgreSQL. O arquivo continua no disco de
+# propósito, como desfazer da migração — mas listá-lo do mesmo jeito que os
+# outros faria a tela dizer que o CÓRTEX escreve ali, e ninguém mais escreve.
+# Some daqui quando o `.db` for apagado. Ver docs/MIGRACAO_POSTGRES.md.
+MIGRADAS = {"antt.db", "push.db", "email.db", "previsao.db", "antecipacoes.db"}
 
 
 def _bases_locais() -> list[dict]:
@@ -515,6 +522,10 @@ def _bases_locais() -> list[dict]:
                 # e a tela que usa ela falharia sozinha, sem ninguém ligar os
                 # pontos
                 st, det = "erro", "sem permissão de escrita"
+            elif arquivo in MIGRADAS:
+                # não é falha nem uso: é o retrato antigo, guardado
+                st, det = "info", ("migrada para o PostgreSQL · arquivo mantido "
+                                   f"como desfazer (último uso {mod})")
             else:
                 st, det = "ok", f"íntegra · escrita em {mod}"
             fora.append({**item, "status": st, "bytes": tam,
