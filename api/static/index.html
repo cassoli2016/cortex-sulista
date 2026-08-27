@@ -9515,39 +9515,8 @@ function renderCtecp(d){
         'warn',
         'Transportador Autônomo de Cargas não emite CT-e: a documentação dele é CIOT e RPA. Não entra na fila por natureza do documento, não por falta de certificado.');
 
-  const CL={pj:'PJ',tac:'TAC',indefinido:'?'};
-  const ag=(d.por_agregado||[]);
-  document.getElementById('cpTab').innerHTML=
-    '<thead><tr><th>Agregado</th><th>Tipo</th><th>RNTRC</th><th>Cadastro</th><th>Autorização</th><th class="r">CT-e</th><th class="r">Placas</th><th class="r">Prestação</th></tr></thead><tbody>'
-    +(ag.length? ag.map(function(x){
-        const tac = x.classe==='tac';
-        /* a lista vem PRONTA do servidor. Recalcular aqui duplicava a
-           regra, e a duplicata divergiu no mesmo dia: o servico passou a
-           recusar "ISENTO" como inscricao estadual e esta coluna continuou
-           dizendo "completo" nas mesmas 17 linhas. */
-        const falta=(x.falta||[]);
-        return '<tr'+(tac?' style="opacity:.62"':'')+'>'
-          +'<td>'+esc(x.nome||x.documento||'—')+'</td>'
-          +'<td>'+(tac? statChip('warn','TAC','não emite CT-e — CIOT/RPA') : esc(CL[x.classe]||'?'))+'</td>'
-          +'<td class="mono">'+esc(x.rntrc||'—')+'</td>'
-          +'<td>'+(tac?'<span style="color:var(--n500)">não se aplica</span>'
-                     : (falta.length? statChip('bad','falta '+falta.join(', '),'campo obrigatório ausente vira rejeição documento a documento')
-                                    : statChip('good','completo','razão social, IE, RNTRC e município presentes')))+'</td>'
-          +'<td>'+(tac?'<span style="color:var(--n500)">—</span>'
-                     : '<button class="ghost" style="padding:2px 7px;font-size:11px"'
-                       +' onclick="cpAbrir(\''+esc(x.documento)+'\')"'
-                       +' title="Cadastrar autorização e certificado">'
-                       +((x.prontidao||{}).pronto
-                          ? statChip('good','pronto', ((x.prontidao||{}).alertas||[]).join(' · ')||'autorização vigente, certificado A1 válido e senha no cofre')
-                          : statChip('bad','não autorizado', ((x.prontidao||{}).faltas||[]).join(' · ')))
-                       +'</button>')+'</td>'
-          +'<td class="r mono">'+(x.ctes||0).toLocaleString('pt-BR')+'</td>'
-          +'<td class="r mono">'+(x.placas||0)+'</td>'
-          +'<td class="r mono">'+cpBRL(x.valor)+'</td></tr>';
-      }).join('') : '<tr><td colspan="8" class="hint">Nenhum CT-e de agregado no período.</td></tr>')
-    +'</tbody>';
-  document.getElementById('hintCpTab').textContent =
-    ag.length ? ag.length+' agregados · ordenado por prestação · linha esmaecida = TAC, fora da fila' : '';
+  CP_AG = (d.por_agregado||[]);
+  cpTabRender();
 
   /* barra empilhada PJ x TAC por mes: parte-do-todo com duas categorias */
   const ms={}; (d.por_mes||[]).forEach(function(x){ (ms[x.mes]=ms[x.mes]||{})[x.classe]=x; });
@@ -9826,6 +9795,103 @@ async function cpCancelar(bt){
    avaliado no escopo GLOBAL. Escrita na coluna zero mas DENTRO de
    outra funcao, esta virava local e o clique dava "cpEnvio is not
    defined" - indentacao nao define escopo. */
+/* --- Fila por agregado: ordenacao por coluna ------------------------------
+   Guardadas FORA do render para o clique no cabecalho poder reordenar sem
+   refazer a consulta - a lista ja esta em memoria, e o AVA leva segundos. */
+let CP_AG = [];
+let CP_ORD = {col:'valor', dir:-1};
+
+const CP_COLS = [
+  ['nome',     'Agregado',  ''],
+  ['classe',   'Tipo',      ''],
+  ['rntrc',    'RNTRC',     ''],
+  ['cadastro', 'Cadastro',  ''],
+  ['autoriz',  'Autorização', ''],
+  ['ctes',     'CT-e',      'r'],
+  ['placas',   'Placas',    'r'],
+  ['valor',    'Prestação', 'r'],
+];
+
+function cpOrdenar(col){
+  /* Mesma coluna inverte; coluna nova comeca DESCENDENTE nos numericos e
+     ascendente no texto - e o que se espera de cada um. */
+  if(CP_ORD.col===col) CP_ORD.dir = -CP_ORD.dir;
+  else CP_ORD = {col:col, dir:(['nome','classe','rntrc'].indexOf(col)>=0?1:-1)};
+  cpTabRender();
+}
+
+function cpChaveOrd(x, col){
+  if(col==='cadastro') return (x.falta||[]).length;      /* pendente primeiro */
+  if(col==='autoriz'){
+    const p=x.prontidao||{}, f=(p.faltas||[]).join(' ');
+    /* 0 pronto · 1 vence em breve · 2 vencido · 3 nao autorizado: a ordem e a
+       da URGENCIA, nao a alfabetica */
+    if(p.pronto) return ((p.alertas||[]).length?1:0);
+    return /vencid/i.test(f) ? 2 : 3;
+  }
+  const v = x[col];
+  return (typeof v==='number') ? v : String(v||'').toLowerCase();
+}
+
+function cpTabRender(){
+  const CL={pj:'PJ',tac:'TAC',indefinido:'?'};
+  const ag = CP_AG.slice().sort(function(a,b){
+    const va=cpChaveOrd(a,CP_ORD.col), vb=cpChaveOrd(b,CP_ORD.col);
+    if(va<vb) return -CP_ORD.dir;
+    if(va>vb) return CP_ORD.dir;
+    return 0;
+  });
+  const cab = CP_COLS.map(function(c){
+    const ativa = CP_ORD.col===c[0];
+    const seta = ativa ? (CP_ORD.dir>0?' ▲':' ▼') : '';
+    return '<th'+(c[2]?' class="'+c[2]+'"':'')
+      +' style="cursor:pointer;user-select:none"'
+      +' data-col="'+c[0]+'" onclick="cpOrdenar(this.dataset.col)"'
+      +' title="Clique para ordenar por esta coluna">'+esc(c[1])+seta+'</th>';
+  }).join('');
+
+  document.getElementById('cpTab').innerHTML =
+    '<thead><tr>'+cab+'</tr></thead><tbody>'
+    +(ag.length? ag.map(function(x){
+        const tac = x.classe==='tac';
+        /* a lista vem PRONTA do servidor. Recalcular aqui duplicava a
+           regra, e a duplicata divergiu no mesmo dia. */
+        const falta=(x.falta||[]);
+        const p=x.prontidao||{}, fal=(p.faltas||[]);
+        /* VENCIDO e estado proprio: "nao autorizado" sugere cadastro que
+           falta, e vencido e cadastro que EXISTE e caducou - a acao e
+           renovar, nao preencher. */
+        const venceu = fal.some(function(f){ return /vencid/i.test(f); });
+        const autoriz = p.pronto
+          ? ((p.alertas||[]).length
+              ? statChip('warn', (p.alertas||[])[0], (p.alertas||[]).join(' · '))
+              : statChip('good','pronto','autorização vigente, certificado A1 válido e senha no cofre'))
+          : (venceu ? statChip('bad','vencido', fal.join(' · '))
+                    : statChip('bad','não autorizado', fal.join(' · ')));
+        return '<tr'+(tac?' style="opacity:.62"':'')+'>'
+          +'<td>'+esc(x.nome||x.documento||'—')+'</td>'
+          +'<td>'+(tac? statChip('warn','TAC','não emite CT-e — CIOT/RPA') : esc(CL[x.classe]||'?'))+'</td>'
+          +'<td class="mono">'+esc(x.rntrc||'—')+'</td>'
+          +'<td>'+(tac?'<span style="color:var(--n500)">não se aplica</span>'
+                     : (falta.length? statChip('bad','falta '+falta.join(', '),'campo obrigatório ausente vira rejeição documento a documento')
+                                    : statChip('good','completo','razão social, IE, RNTRC e município presentes')))+'</td>'
+          +'<td>'+(tac?'<span style="color:var(--n500)">—</span>'
+                     : '<button class="ghost" style="padding:2px 7px;font-size:11px"'
+                       +' data-doc="'+esc(x.documento)+'" onclick="cpAbrir(this.dataset.doc)"'
+                       +' title="Cadastrar autorização e certificado">'+autoriz+'</button>')+'</td>'
+          +'<td class="r mono">'+(x.ctes||0).toLocaleString('pt-BR')+'</td>'
+          +'<td class="r mono">'+(x.placas||0)+'</td>'
+          +'<td class="r mono">'+cpBRL(x.valor)+'</td></tr>';
+      }).join('') : '<tr><td colspan="8" class="hint">Nenhum CT-e de agregado no período.</td></tr>')
+    +'</tbody>';
+
+  const nome=(CP_COLS.find(function(c){return c[0]===CP_ORD.col;})||[,'—'])[1];
+  document.getElementById('hintCpTab').textContent =
+    CP_AG.length ? CP_AG.length+' agregados · ordenado por '+nome.toLowerCase()
+      +(CP_ORD.dir>0?' (crescente)':' (decrescente)')
+      +' · linha esmaecida = TAC, fora da fila' : '';
+}
+
 async function cpEnvio(bt){
   /* Liga/desliga a emissao de UM agregado. O autor sai da sessao no servidor;
      aqui so vai o que mudou. Recarrega a tela para o estado vir do servidor e

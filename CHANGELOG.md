@@ -4,6 +4,16 @@ Gerado de `docs/versoes.yaml` por `scripts/gerar_changelog.py` — não editar �
 Formato [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/),
 versionamento [SemVer](https://semver.org/lang/pt-BR/).
 
+## [0.94.0] — 27/08/2026  ·  CX-27/08/2026-v0.94.0
+
+### Adicionado
+- A coluna de autorizacao na fila por agregado ganhou o estado VENCIDO, separado de "nao autorizado". Sao situacoes diferentes e pedem acoes diferentes: nao autorizado e cadastro que FALTA, vencido e cadastro que EXISTE e caducou - um se preenche, o outro se renova. Quem esta pronto mas com vencimento proximo aparece em ambar com o prazo, em vez do verde liso de antes.
+- As colunas da fila por agregado passaram a ordenar por clique no cabecalho, com a seta indicando o sentido. Coluna numerica comeca decrescente e coluna de texto crescente, que e o que se espera de cada uma.
+- Cadastro e autorizacao ordenam por URGENCIA e nao por texto: pendente antes de completo, e vencido antes de nao autorizado. Ordenar essas duas alfabeticamente nao ajudaria ninguem.
+
+### Alterado
+- A ordenacao acontece sobre a lista que ja esta na tela, sem refazer a consulta - o ERP leva segundos para responder e reordenar nao muda o dado. O rodape diz por qual coluna e em que sentido a lista esta.
+
 ## [0.93.1] — 27/08/2026  ·  CX-27/08/2026-v0.93.1
 
 ### Corrigido
