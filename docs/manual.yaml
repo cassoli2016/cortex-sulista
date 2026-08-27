@@ -96,6 +96,7 @@ grupos:
   - receber
   - pagar
   - cob
+  - banc
   - extb
   - lanc
   - antec

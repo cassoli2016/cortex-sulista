@@ -2441,6 +2441,26 @@ def _tamanho_excede(content_length: str | None, limite: int) -> bool:
         return False
 
 
+@app.get("/api/financeiro/bancos")
+def bancos(dt_de: str | None = None, dt_ate: str | None = None) -> JSONResponse:
+    """Visao estrategica de bancos: saldo, volume e custo por instituicao.
+
+    Separada de `/extrato` porque responde outra pergunta - "quanto tenho, onde
+    e quanto custa?" contra "o ERP bate com o banco?". Le so o extrato local
+    (mais UMA consulta ao ERP, dentro de `posicao`), entao e barata.
+    """
+    from api.extrato.bancos import painel
+    hoje = date.today()
+    de = dt_de or hoje.replace(day=1).isoformat()
+    ate = dt_ate or hoje.isoformat()
+    try:
+        return JSONResponse(painel(de, ate))
+    except Exception as exc:  # noqa: BLE001
+        log.warning("bancos falhou: %s", exc)
+        return JSONResponse(status_code=500, content={
+            "erro": "erro_consulta", "mensagem": "Erro ao montar a visão de bancos."})
+
+
 @app.get("/api/financeiro/extrato")
 def extrato(dt_de: str | None = None, dt_ate: str | None = None,
             conta_id: int | None = None) -> JSONResponse:
