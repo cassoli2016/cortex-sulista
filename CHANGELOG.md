@@ -4,6 +4,16 @@ Gerado de `docs/versoes.yaml` por `scripts/gerar_changelog.py` — não editar �
 Formato [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/),
 versionamento [SemVer](https://semver.org/lang/pt-BR/).
 
+## [0.112.0] — 27/08/2026  ·  CX-27/08/2026-v0.112.0
+
+### Adicionado
+- MIGRACAO CONCLUIDA: os dez bancos locais estao no PostgreSQL. Os dois ultimos foram o CT-e de contrapartida (autorizacoes, certificados, emissoes e a trilha fiscal) e o de ACESSO - usuarios, perfis, auditoria e politicas de senha. Nenhuma tela mudou de aparencia, que era o objetivo.
+- Agora existe UM lugar para fazer backup, e ele e feito todo dia as 03:20. Antes eram dez arquivos soltos em data/, cada um com o seu risco.
+
+### Corrigido
+- Os testes do CT-e de contrapartida gravavam no banco DE PRODUCAO. Nao era novidade da migracao - era assim antes tambem -, mas num modulo onde uma tabela guarda o interruptor que libera emissao em producao e outra guarda a numeracao dos documentos, e serio. Passaram a rodar isolados, e teste novo nasce isolado sem ninguem precisar lembrar.
+- O modulo de acesso criava as tabelas no momento em que era carregado. Com o banco fora do ar, a API INTEIRA nao subiria - e sem API nao ha nem tela de erro para explicar o que houve. A criacao passou para a partida do sistema, tolerante a falha: a aplicacao sobe, o erro vai para o log e a Saude do Servidor mostra o banco em vermelho.
+
 ## [0.111.1] — 27/08/2026  ·  CX-27/08/2026-v0.111.1
 
 ### Corrigido

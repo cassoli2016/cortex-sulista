@@ -247,6 +247,14 @@ def _local_direto(headers: Headers, cliente: str) -> bool:
 
 # ---------------------------------------------------------------- SQLite
 
+def _muitos(c, sql: str, params: list) -> None:
+    """`executemany` é do CURSOR, não da conexão — ao contrário de `execute`,
+    que o psycopg oferece nos dois. Este atalho mantém as chamadas de seed
+    legíveis em vez de aninhar um `with` a cada uma."""
+    with c.cursor() as cur:
+        cur.executemany(sql, params)
+
+
 def _conn():
     """Conexão curta no schema em vigor: transação automática, close garantido.
 
@@ -339,8 +347,7 @@ def _seed_perfis_modelo(c: psycopg.Connection) -> None:
                 (nome, desc, _agora()))
             novo = cur.fetchone()   # None quando o nome já existia
             if novo:
-                with c.cursor() as _cur:
-                    _cur.executemany(
+                _muitos(c, 
                     "INSERT INTO perfil_telas(perfil_id, tela) VALUES(%s,%s)"
                     " ON CONFLICT DO NOTHING",
                     [(novo["id"], t) for t in telas])
@@ -463,8 +470,7 @@ def _seed_perfis_modelo(c: psycopg.Connection) -> None:
             ("Recursos Humanos", "Vagas, headcount, custo de folha, indicadores e horas extras.", _agora()))
         novo = cur.fetchone()
         if novo:
-            with c.cursor() as _cur:
-                _cur.executemany(
+            _muitos(c, 
                 "INSERT INTO perfil_telas(perfil_id, tela) VALUES(%s,%s)"
                 " ON CONFLICT DO NOTHING",
                 [(novo["id"], t) for t in ("rh", "hc", "folha", "folhaind", "he")])
@@ -592,8 +598,7 @@ def _seed_perfis_modelo(c: psycopg.Connection) -> None:
             row = c.execute("SELECT id FROM perfis WHERE nome=%s",
                             (nome_perfil,)).fetchone()
             if row:
-                with c.cursor() as _cur:
-                    _cur.executemany("INSERT INTO perfil_telas(perfil_id, tela)"
+                _muitos(c, "INSERT INTO perfil_telas(perfil_id, tela)"
                               " VALUES(%s,%s) ON CONFLICT DO NOTHING", [(row["id"], t) for t in telas])
         c.execute("INSERT INTO config(chave, valor) VALUES('perfis_modelo_v26', '1') ON CONFLICT(chave) DO NOTHING")
 
@@ -1201,8 +1206,7 @@ def perfil_criar(payload: dict, request: Request) -> JSONResponse:
         except psycopg.errors.UniqueViolation:
             return JSONResponse(status_code=422, content={
                 "erro": "nome_em_uso", "mensagem": "Já existe perfil com esse nome."})
-        with c.cursor() as _cur:
-            _cur.executemany("INSERT INTO perfil_telas(perfil_id, tela) VALUES(%s,%s) ON CONFLICT DO NOTHING",
+        _muitos(c, "INSERT INTO perfil_telas(perfil_id, tela) VALUES(%s,%s) ON CONFLICT DO NOTHING",
                       [(pid, t) for t in telas])
     audit(sess["email"], "perfil_criar", alvo=nome,
           detalhe=f"admin={admin}; telas={','.join(telas) or '-'}", ip=_ip(request))
@@ -1237,8 +1241,7 @@ def perfil_editar(perfil_id: int, payload: dict, request: Request) -> JSONRespon
             return JSONResponse(status_code=422, content={
                 "erro": "nome_em_uso", "mensagem": "Já existe perfil com esse nome."})
         c.execute("DELETE FROM perfil_telas WHERE perfil_id=%s", (perfil_id,))
-        with c.cursor() as _cur:
-            _cur.executemany("INSERT INTO perfil_telas(perfil_id, tela) VALUES(%s,%s) ON CONFLICT DO NOTHING",
+        _muitos(c, "INSERT INTO perfil_telas(perfil_id, tela) VALUES(%s,%s) ON CONFLICT DO NOTHING",
                       [(perfil_id, t) for t in telas])
     audit(sess["email"], "perfil_editar", alvo=nome,
           detalhe=f"admin={admin}; telas={','.join(telas) or '-'}", ip=_ip(request))
@@ -1322,4 +1325,8 @@ def config_set(payload: dict, request: Request) -> JSONResponse:
     return JSONResponse({"ok": True, "config": {k: cfg(k) for k in _CONFIG_PADRAO}})
 
 
-init_db()
+# NÃO há `init_db()` no import. Enquanto era SQLite, criar o arquivo custava
+# nada; com o Postgres, um DDL no import faz a API INTEIRA não subir se o banco
+# estiver fora do ar — e sem API não há nem tela de erro para explicar.
+# Quem chama é o `startup` do `api/main.py`, com try/except: a API sobe, e a
+# falha aparece na Saúde do Servidor, que é onde se olha.

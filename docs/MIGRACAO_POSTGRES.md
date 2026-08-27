@@ -1,8 +1,8 @@
 # Migração dos bancos locais para PostgreSQL
 
-> Estado: **em andamento** — Fase 0 concluída; `antt`, `push`, `correio`,
-> `previsao`, `antecipacoes`, `extrato` e `orcamento` no ar (27/08/2026).
-> Faltam dois: `contrapartida` (quando a outra frente sair de lá) e `auth`.
+> Estado: **CONCLUÍDA** em 27/08/2026 — os dez bancos de estado migrados, do
+> `antt` (223 linhas) ao `auth` (o do login). O que ficou de fora ficou de
+> propósito: cache reconstruível e segredo em arquivo (seção 1).
 
 O CÓRTEX nasceu com dez bancos SQLite em `data/`. Este documento é o plano de
 levá-los para um PostgreSQL local, **um por vez**, sem parar de entregar. Ele é
@@ -162,8 +162,8 @@ Tradução mecânica de dialeto:
 |---|---|---|---|
 | 0 | Banco, role, `api/pglocal.py`, runner de migration, backup, padrão de teste | ~1 dia | **feito** |
 | 1 | Piloto: `antt` (223 linhas, 8 executes) | 2–4 h | **no ar** |
-| 2 | ~~`push`~~ · ~~`correio`~~ · ~~`previsao`~~ · ~~`antecipacoes`~~ · ~~`extrato`~~ · ~~`orcamento`~~ · `contrapartida` | 0,5–1,5 dia cada | 6 de 7 |
-| 3 | `auth` — por último, apesar de ser o mais importante | 1–2 dias | a fazer |
+| 2 | ~~`push`~~ · ~~`correio`~~ · ~~`previsao`~~ · ~~`antecipacoes`~~ · ~~`extrato`~~ · ~~`orcamento`~~ · ~~`contrapartida`~~ | 0,5–1,5 dia cada | **7 de 7** |
+| 3 | ~~`auth`~~ — por último, apesar de ser o mais importante | 1–2 dias | **feito** |
 | 4 | Cache (`telemetria`, e talvez os JSON) — só se aparecer motivo | — | provavelmente nunca |
 
 **Por que o `auth` por último**, sendo o mais crítico: é o mais acoplado (167
@@ -307,6 +307,44 @@ descreve. Isso não pode travar o deploy de quem não tem nada a ver com aquilo.
 
 E um teste barato que pega a colisão no COMMIT em vez de no deploy: nenhum
 número repetido em `sql/cortex/`.
+
+### Os dois últimos (stores 8 e 9)
+
+**Contrapartida ficou por último da Fase 2 por causa de gente, não de código.**
+A outra frente estava com os cinco últimos commits dentro de
+`api/contrapartida/`; entrei quando os arquivos que eu precisava tocar estavam
+parados havia horas, e avisei antes. Num módulo fiscal, disputar arquivo é pior
+que esperar.
+
+**Os testes de contrapartida escreviam no banco de PRODUÇÃO.** Não era regressão
+da migração — era assim com o `.db` real também: nenhum deles redirecionava o
+banco, então `config_grava` e o cadastro gravavam na base de verdade. Ficou
+visível porque um teste passou a depender do estado que o outro deixou. Num
+módulo onde `lote_config` guarda o interruptor que libera emissão em produção e
+`emissao` guarda a numeração dos documentos, isso é sério. Agora há um
+`conftest.py` **autouse** no diretório: teste novo nasce isolado sem ninguém
+precisar lembrar.
+
+**Rotina de migração antiga não atravessa.** `_migrar_procuracao` copiava a
+tabela `procuracao` (nome anterior de `autorizacao`) a cada conexão. Ficou para
+trás, e o script de carga se recusa a rodar se a origem ainda tiver a tabela
+antiga — autorização perdida é justamente o registro que permite emitir em nome
+de alguém.
+
+**`init_db()` no import derruba a API inteira** — de novo, agora no `auth`. Era
+o mesmo caso do `push`, e aqui com consequência maior: com o banco fora do ar, a
+API não subiria e não haveria nem tela de erro para explicar. A chamada foi para
+o `startup` de `api/main.py`, dentro de `try/except`: a aplicação sobe, o erro
+vai para o log e a Saúde mostra o banco em vermelho, que é onde se olha.
+
+**`executemany` é do cursor, `execute` é dos dois.** Foi o que permitiu converter
+os ~160 comandos do `auth` sem mudar a forma de nenhum: `with _conn() as c:
+c.execute(...).fetchone()` funciona igual no psycopg. Só os cinco `executemany`
+precisaram de um atalho.
+
+**O login foi conferido de ponta a ponta antes de subir**: setup → senha errada
+(401) → senha certa (200) → `/api/auth/me` com as 62 telas → e os três eventos
+na trilha (`setup_admin`, `login_falha`, `login_ok`).
 
 ---
 

@@ -2109,6 +2109,23 @@ def _startup_push() -> None:
     push.iniciar_scheduler()  # digest diário; no-op se VAPID não configurado
 
 
+@app.on_event("startup")
+def _startup_auth() -> None:
+    """Cria o schema de acesso, se ainda não existir.
+
+    Saiu do import de `api/auth.py` na migração para o PostgreSQL: um DDL no
+    import faria a API inteira NÃO SUBIR com o banco fora do ar — e sem API não
+    há nem tela de erro para explicar o que houve. Aqui a falha é registrada e
+    a aplicação sobe; a Saúde do Servidor mostra o banco em vermelho, que é
+    onde se olha.
+    """
+    try:
+        auth.init_db()
+    except Exception as exc:  # noqa: BLE001
+        log.error("nao foi possivel preparar o banco de acesso: %s: %s",
+                  type(exc).__name__, exc)
+
+
 @app.get("/api/push/config")
 def push_config(request: Request) -> JSONResponse:
     sess = request.state.sessao or {}

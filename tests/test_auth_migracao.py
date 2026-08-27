@@ -10,15 +10,15 @@ from api import auth
 def _tela_no_perfil(conn, perfil: str, tela: str) -> bool:
     row = conn.execute(
         "SELECT 1 FROM perfil_telas pt JOIN perfis p ON p.id = pt.perfil_id "
-        "WHERE p.nome=? AND pt.tela=?", (perfil, tela)).fetchone()
+        "WHERE p.nome=%s AND pt.tela=%s", (perfil, tela)).fetchone()
     return row is not None
 
 
-def test_v17_acrescenta_orc_ao_controladoria_ja_existente(tmp_path, monkeypatch):
+def test_v17_acrescenta_orc_ao_controladoria_ja_existente(esquema_pg, monkeypatch):
     """Simula uma base já migrada até v16 (o estado real de produção): o
     perfil Controladoria existe, mas sem a tela 'orc' porque ela nasceu
     depois. init_db() de novo precisa acrescentar a tela sem recriar nada."""
-    monkeypatch.setattr(auth, "DB_PATH", tmp_path / "auth.db")
+    monkeypatch.setattr(auth, "ESQUEMA", esquema_pg)
 
     # 1) init_db() normal deixa a base no estado atual (todas as migrações,
     #    inclusive a v17 que estamos testando, já aplicadas).
@@ -66,12 +66,12 @@ def test_v17_acrescenta_orc_ao_controladoria_ja_existente(tmp_path, monkeypatch)
         assert flag["valor"] == "1"
 
 
-def test_v18_acrescenta_prem_ao_frota_e_diretoria_ja_existentes(tmp_path, monkeypatch):
+def test_v18_acrescenta_prem_ao_frota_e_diretoria_ja_existentes(esquema_pg, monkeypatch):
     """Mesma mecânica da v17: os perfis Frota e Diretoria já existem numa base
     migrada anteriormente, mas sem a tela 'prem' porque ela nasceu depois
     (premiação de motoristas). init_db() de novo precisa acrescentar a tela
     aos DOIS perfis sem recriar nada."""
-    monkeypatch.setattr(auth, "DB_PATH", tmp_path / "auth.db")
+    monkeypatch.setattr(auth, "ESQUEMA", esquema_pg)
 
     # 1) init_db() normal deixa a base no estado atual (todas as migrações,
     #    inclusive a v18 que estamos testando, já aplicadas).
@@ -100,7 +100,7 @@ def test_v18_acrescenta_prem_ao_frota_e_diretoria_ja_existentes(tmp_path, monkey
             n = c.execute("""
                 SELECT count(*) AS n FROM perfil_telas pt
                 JOIN perfis p ON p.id = pt.perfil_id
-                WHERE p.nome=? AND pt.tela='prem'
+                WHERE p.nome=%s AND pt.tela='prem'
             """, (perfil,)).fetchone()["n"]
             assert n == 1  # nada duplicado nessa primeira reaplicação
 
@@ -114,7 +114,7 @@ def test_v18_acrescenta_prem_ao_frota_e_diretoria_ja_existentes(tmp_path, monkey
             n = c.execute("""
                 SELECT count(*) AS n FROM perfil_telas pt
                 JOIN perfis p ON p.id = pt.perfil_id
-                WHERE p.nome=? AND pt.tela='prem'
+                WHERE p.nome=%s AND pt.tela='prem'
             """, (perfil,)).fetchone()["n"]
             assert n == 1
         flag = c.execute(
@@ -122,13 +122,13 @@ def test_v18_acrescenta_prem_ao_frota_e_diretoria_ja_existentes(tmp_path, monkey
         assert flag["valor"] == "1"
 
 
-def test_v19_acrescenta_extb_ao_financeiro_e_controladoria_ja_existentes(tmp_path, monkeypatch):
+def test_v19_acrescenta_extb_ao_financeiro_e_controladoria_ja_existentes(esquema_pg, monkeypatch):
     """Mesma mecânica da v17/v18: os perfis Financeiro e Controladoria já
     existem numa base migrada anteriormente, mas sem a tela 'extb' porque ela
     nasceu depois (extrato bancário). init_db() de novo precisa acrescentar a
     tela aos DOIS perfis sem recriar nada e sem tocar em nenhuma outra tela
     já concedida a eles."""
-    monkeypatch.setattr(auth, "DB_PATH", tmp_path / "auth.db")
+    monkeypatch.setattr(auth, "ESQUEMA", esquema_pg)
 
     # 1) init_db() normal deixa a base no estado atual (todas as migrações,
     #    inclusive a v19 que estamos testando, já aplicadas).
@@ -160,7 +160,7 @@ def test_v19_acrescenta_extb_ao_financeiro_e_controladoria_ja_existentes(tmp_pat
             n = c.execute("""
                 SELECT count(*) AS n FROM perfil_telas pt
                 JOIN perfis p ON p.id = pt.perfil_id
-                WHERE p.nome=? AND pt.tela='extb'
+                WHERE p.nome=%s AND pt.tela='extb'
             """, (perfil,)).fetchone()["n"]
             assert n == 1  # nada duplicado nessa primeira reaplicação
         # nada foi removido de outras telas já concedidas aos dois perfis
@@ -177,7 +177,7 @@ def test_v19_acrescenta_extb_ao_financeiro_e_controladoria_ja_existentes(tmp_pat
             n = c.execute("""
                 SELECT count(*) AS n FROM perfil_telas pt
                 JOIN perfis p ON p.id = pt.perfil_id
-                WHERE p.nome=? AND pt.tela='extb'
+                WHERE p.nome=%s AND pt.tela='extb'
             """, (perfil,)).fetchone()["n"]
             assert n == 1
         flag = c.execute(
