@@ -646,6 +646,24 @@ async def contrapartida_cancelar(req: Request) -> JSONResponse:
     return JSONResponse(r)
 
 
+@app.get("/api/fiscal/contrapartida/validacao")
+def contrapartida_validacao(dias: int = 90) -> JSONResponse:
+    """Valida o cadastro de TODOS os agregados ativos, sem o filtro da tela.
+
+    Rota própria porque o recorte é outro: a tela abre no dia de hoje e o
+    validador dentro dela seguia esse recorte, então quem não rodou hoje não
+    era validado. Defeito de cadastro não pertence a uma janela de datas.
+    """
+    from api.contrapartida import servico
+    try:
+        return JSONResponse(servico.validacao_completa(dias))
+    except Exception as exc:  # noqa: BLE001
+        log.warning("contrapartida_validacao falhou: %s", exc)
+        return JSONResponse(status_code=500, content={
+            "erro": "erro_consulta",
+            "mensagem": "Erro ao validar o cadastro dos agregados."})
+
+
 @app.get("/api/fiscal/contrapartida/automacao")
 def contrapartida_automacao() -> JSONResponse:
     """Estado da rotina automática — só o que o cronômetro da tela precisa.

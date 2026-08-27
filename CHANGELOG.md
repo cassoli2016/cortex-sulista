@@ -17,6 +17,15 @@ versionamento [SemVer](https://semver.org/lang/pt-BR/).
 
 ## [0.100.0] — 27/08/2026  ·  CX-27/08/2026-v0.100.0
 
+### Adicionado
+- Botao "Varrer todos os agregados" no validador de cadastro. Confere TODOS os agregados que rodaram nos ultimos 90 dias, sem o filtro de periodo da tela.
+- O cartao passou a declarar o proprio escopo e a hora da varredura. Os mesmos numeros significam coisas diferentes conforme a lista tenha vindo do filtro da tela ou da varredura completa, e nao havia como distinguir olhando.
+
+### Corrigido
+- O validador so enxergava quem tinha CT-e no periodo filtrado. Como a tela abre no dia de hoje, quem nao rodou hoje nao era validado: viam-se 18 agregados em vez de 46 - e as duas contradicoes de cadastro mais caras, de 188 e 190 CT-e, ficavam FORA da lista. Defeito de cadastro nao pertence a uma janela de datas, do mesmo jeito que o vencimento de certificado ja ignorava o periodo.
+
+## [0.100.0] — 27/08/2026  ·  CX-27/08/2026-v0.100.0
+
 ### Alterado
 - As tabelas do Extrato Bancario passaram a mostrar o NOME do banco - Itau, Bradesco, Caixa, C6 - no lugar do codigo. Vale no cartao "Saldo nos bancos", na tabela "Situacao por conta", no seletor de conta e no cabecalho da conciliacao linha a linha. O nome sai da tabela de bancos do proprio ERP, a mesma que a Conciliacao nativa ja usava, entao banco novo aparece sozinho.
 - O NUMERO da conta continua ao lado do nome, sempre. Nao e detalhe: a empresa tem duas contas no mesmo banco (duas no Bradesco e duas no Santander), e so o nome nao distingue uma da outra - foi exatamente essa confusao que fez duas contas serem vinculadas a conta errada do ERP. Razao social comprida e cortada com reticencias e aparece inteira no hover, com o codigo do banco e o vinculo com o ERP junto; o numero da conta nunca e cortado.

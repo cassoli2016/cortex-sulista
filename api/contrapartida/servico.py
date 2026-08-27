@@ -726,3 +726,48 @@ def _avisos(pj, tac, indef, faltando, tx=None) -> list[str]:
             "diagnóstico — nenhum documento pode ser emitido.")
     return av
 
+
+
+DIAS_VARREDURA_PADRAO = 90
+
+
+def validacao_completa(dias: int = DIAS_VARREDURA_PADRAO) -> dict:
+    """Valida o cadastro de TODOS os agregados, ignorando o filtro da tela.
+
+    A tela abre no dia de hoje, e o validador dentro dela obedecia esse
+    recorte: quem não rodou hoje não era validado. Só que defeito de cadastro
+    não pertence a uma janela de datas — é a mesma lição do cartão de
+    vencimento de certificado, que ignora o período de propósito. Com o filtro
+    do dia via-se 18 agregados; a varredura completa encontra 46, e as duas
+    contradições mais caras (188 e 190 CT-e) estavam fora do recorte.
+
+    A janela de 90 dias não é filtro de validação: é a definição de "agregado
+    ATIVO". Validar quem não roda há um ano encheria a lista de trabalho que
+    ninguém vai fazer.
+    """
+    try:
+        d = max(1, min(int(dias), 730))
+    except (TypeError, ValueError):
+        d = DIAS_VARREDURA_PADRAO
+    hoje = date.today()
+    par = {"de": (hoje - timedelta(days=d)).isoformat(),
+           "ate": (hoje + timedelta(days=1)).isoformat()}
+    agreg = db.query(POR_AGREGADO_SQL, par)
+    try:
+        pront = cadastro.mapa()
+    except Exception as exc:  # noqa: BLE001
+        log.warning("cadastro de procuracao/certificado indisponivel: %s", exc)
+        pront = {}
+    for x in agreg:
+        p = pront.get(x["documento"]) or {}
+        x["prontidao"] = p.get("prontidao") or {
+            "pronto": False, "faltas": ["sem procuração cadastrada",
+                                        "sem certificado cadastrado"],
+            "alertas": []}
+    pj = [x for x in agreg if x["classe"] == "pj"]
+    out = _validacao(pj)
+    out["janela_dias"] = d
+    out["escopo"] = (f"todos os agregados PJ com CT-e nos últimos {d} dias — "
+                     "não segue o filtro de período da tela")
+    out["gerado_em"] = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    return out

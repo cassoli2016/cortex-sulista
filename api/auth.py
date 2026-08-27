@@ -136,6 +136,7 @@ ROTA_TELAS: list[tuple[str, frozenset[str]]] = [
     ("/api/operacional/poligonos",    frozenset({"poli"})),
     # sub-rotas ANTES da generica: ROTA_TELAS casa por PREFIXO
     # mais especifica ANTES da generica: ROTA_TELAS casa por PREFIXO
+    ("/api/fiscal/contrapartida/validacao", frozenset({"ctecp"})),
     ("/api/fiscal/contrapartida/automacao", frozenset({"ctecp"})),
     ("/api/fiscal/contrapartida/documento", frozenset({"ctecp"})),
     ("/api/fiscal/contrapartida/envio", frozenset({"ctecp"})),

@@ -1,3 +1,24 @@
+- versao: "0.100.0"
+  data: "2026-08-27"
+  adicionado:
+    - >-
+      Botao "Varrer todos os agregados" no validador de cadastro. Confere
+      TODOS os agregados que rodaram nos ultimos 90 dias, sem o filtro de
+      periodo da tela.
+    - >-
+      O cartao passou a declarar o proprio escopo e a hora da varredura. Os
+      mesmos numeros significam coisas diferentes conforme a lista tenha vindo
+      do filtro da tela ou da varredura completa, e nao havia como distinguir
+      olhando.
+  corrigido:
+    - >-
+      O validador so enxergava quem tinha CT-e no periodo filtrado. Como a
+      tela abre no dia de hoje, quem nao rodou hoje nao era validado: viam-se
+      18 agregados em vez de 46 - e as duas contradicoes de cadastro mais
+      caras, de 188 e 190 CT-e, ficavam FORA da lista. Defeito de cadastro nao
+      pertence a uma janela de datas, do mesmo jeito que o vencimento de
+      certificado ja ignorava o periodo.
+
 - versao: "0.101.0"
   data: "2026-08-27"
   adicionado:

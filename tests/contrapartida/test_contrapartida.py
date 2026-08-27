@@ -773,3 +773,50 @@ def test_a_acao_do_certificado_sai_da_NATUREZA_da_falta():
     sem = servico._validacao([_ag("3", pronto=False,
                                   faltas=["sem certificado cadastrado"])])
     assert "do agregado" in sem["achados"][0]["acao"]
+
+
+def test_varredura_completa_IGNORA_o_filtro_da_tela():
+    """A tela abre no dia de hoje e o validador seguia esse recorte: quem nao
+    rodou hoje nao era validado. Defeito de cadastro nao pertence a uma janela
+    de datas - mesma licao do cartao de vencimento de certificado. Com o
+    filtro do dia viam-se 18 agregados; a varredura completa encontra 46, e as
+    duas contradicoes mais caras estavam fora do recorte."""
+    import inspect
+
+    from api.contrapartida import servico
+
+    fonte = inspect.getsource(servico.validacao_completa)
+    assert "date.today()" in fonte and "timedelta(days=d)" in fonte
+    assert "de" in fonte and "ate" in fonte
+
+
+def test_a_varredura_declara_o_proprio_escopo():
+    """Os mesmos numeros significam coisas diferentes conforme a lista tenha
+    vindo do filtro da tela ou da varredura completa, e nao da para distinguir
+    olhando."""
+    import inspect
+    from api.contrapartida import servico
+    fonte = inspect.getsource(servico.validacao_completa)
+    assert '"escopo"' in fonte and '"janela_dias"' in fonte
+    assert "não segue o filtro" in fonte
+
+
+def test_janela_da_varredura_e_limitada():
+    """A janela nao e filtro de validacao: e a definicao de agregado ATIVO.
+    Validar quem nao roda ha um ano encheria a lista de trabalho que ninguem
+    vai fazer - e um `dias` absurdo vindo da URL nao pode virar consulta
+    infinita no ERP."""
+    import inspect
+    from api.contrapartida import servico
+    fonte = inspect.getsource(servico.validacao_completa)
+    assert "min(int(dias), 730)" in fonte and "max(1," in fonte
+
+
+def test_rota_da_varredura_e_alcancavel_e_vem_antes_do_generico():
+    from api import auth
+    alvo = "/api/fiscal/contrapartida/validacao"
+    casadas = [t for p, t in auth.ROTA_TELAS if alvo.startswith(p)]
+    assert casadas and "ctecp" in casadas[0]
+    ordem = [p for p, _ in auth.ROTA_TELAS
+             if p.startswith("/api/fiscal/contrapartida")]
+    assert ordem.index(alvo) < ordem.index("/api/fiscal/contrapartida")
