@@ -325,6 +325,10 @@ SELECT k.filial, k.serie, k.numero, k.dtemissao, k.chaveacessocte,
        dfc.classificacaotributariaibscbs AS ibs_classtrib,
        dfu.percaliquota AS ibs_p_uf,
        dfm.percaliquota AS ibs_p_mun,
+       -- o que sai da base do IBS/CBS: os tributos que ele vem substituir
+       coalesce(k.valoricms,0)::float8   AS erp_icms,
+       coalesce(k.valorpis,0)::float8    AS erp_pis,
+       coalesce(k.valorcofins,0)::float8 AS erp_cofins,
        dcb.percaliquota AS cbs_p,
        -- o que a Sulista PAGA pela viagem, e quantos documentos dividem isso
        p.numero AS embarque, p.valorfretecompra, p.valorpedagiocompra,
@@ -348,7 +352,14 @@ SELECT k.filial, k.serie, k.numero, k.dtemissao, k.chaveacessocte,
   JOIN cadastro cd ON cd.codigo = v.proprietario
   JOIN filial f    ON f.codigo = k.filial
   LEFT JOIN impostoibscbs_define dfc ON dfc.id = k.idimpostoibscbsdefine
-  LEFT JOIN impostoibs_define dfu ON dfu.id = k.idimpostoibsufdefine
+  -- IBS da UF tem tabela PROPRIA (`impostoibsuf_define`), separada da do
+  -- IBS geral. Lendo `impostoibs_define` a alíquota vinha ZERADA e a emissão
+  -- parava com "316 - Alíquota do IBS da UF inválida", como se o imposto não
+  -- estivesse configurado. Estava: 0,1000 em "Tributado", na outra tabela.
+  LEFT JOIN impostoibsuf_define dfu ON dfu.id = k.idimpostoibsufdefine
+  -- IBS MUNICIPAL não tem tabela neste ERP e o vínculo vem nulo. Não é
+  -- pendência: a SEFAZ autoriza com alíquota municipal zerada, e há CT-e da
+  -- Sulista em PRODUÇÃO provando isso.
   LEFT JOIN impostoibs_define dfm ON dfm.id = k.idimpostoibsmunicipiodefine
   LEFT JOIN impostocbs_define dcb ON dcb.id = k.idimpostocbsdefine
   LEFT JOIN cadastro re ON re.codigo = k.remetente
@@ -615,7 +626,14 @@ def montar(d: dict, enq: Enquadramento, *, numero: int, serie: int = 1,
     # `vTotDFe` chegou junto com o IBS/CBS (rejeição 360, "Total do DFe de
     # preenchimento obrigatório"): é o total do documento eletrônico, e para
     # este CT-e é o próprio valor da prestação — ele não tem outros itens.
-    imp = I.Imp(ICMS=_icms(I, enq, v, d), IBSCBS=_ibscbs(I, v, d),
+    # O ICMS que ESTE documento destaca sai da base do IBS/CBS. Simples
+    # Nacional e isenta não destacam nada.
+    _grupo, _cst, _aliq = enq.icms_de(d)
+    icms_destacado = (Decimal(0) if _grupo in ("ICMSSN", "ICMS45")
+                      else (v * (_aliq or Decimal(0)) / Decimal(100)
+                            ).quantize(Decimal("0.01")))
+    imp = I.Imp(ICMS=_icms(I, enq, v, d),
+                IBSCBS=_ibscbs(I, v, d, icms_destacado),
                 vTotDFe=_dec(v))
 
     norm_cls = _tipo(I, "infCTeNorm")
@@ -729,7 +747,7 @@ def _icms(I, enq: Enquadramento, v: Decimal, d: dict):
     return icms_cls(**{nome: grupo(**campos)})
 
 
-def _ibscbs(I, v: Decimal, d: dict):
+def _ibscbs(I, v: Decimal, d: dict, icms_destacado: Decimal):
     """Grupo do IBS/CBS (Reforma Tributária). Obrigatório desde 26/08/2026.
 
     A SEFAZ ligou a validação no meio dos nossos testes: uma transmissão
@@ -737,12 +755,15 @@ def _ibscbs(I, v: Decimal, d: dict):
     informado". Nada aqui é inventado — CST, classificação tributária e
     alíquotas saem do que o ERP já calcula, do mesmo jeito que o ICMS.
 
-    A BASE é o valor DESTE documento. Não tentamos reproduzir a base que o
-    ERP usa no CT-e da Sulista: lá o total carrega taxas, pedágio e seguro, e
-    a base observada (R$ 1.340,00 sobre R$ 1.494,02) não sai de nenhuma
-    combinação desses componentes — há uma regra que não conhecemos. O
-    documento do agregado tem UM componente só, o frete, então a base é ele
-    inteiro. Se houver exclusão a aplicar, é definição fiscal.
+    A BASE **exclui os tributos que o IBS/CBS vem substituir** — ICMS, PIS e
+    COFINS. A regra saiu do próprio ERP e foi conferida em seis CT-e, todos
+    exatos: no CT-e 358571, R$ 3.792,23 − (455,07 + 55,06 + 253,62) =
+    R$ 3.028,48, que é o `vBC` que a SEFAZ autorizou em produção.
+
+    Aqui ela é aplicada aos números DESTE documento, não aos do CT-e da
+    Sulista: o que sai da base é o ICMS que ESTE documento destaca. Emitente
+    do Simples não destaca nada, então a base é o valor cheio — e é o caso do
+    piloto.
     """
     if not d.get("ibs_cst"):
         raise ValueError(
@@ -756,19 +777,26 @@ def _ibscbs(I, v: Decimal, d: dict):
     def _parte(nome, campo_p, campo_v, pct):
         """gIBSUF/gIBSMun/gCBS têm a mesma forma: alíquota e valor."""
         sub = _tipo(g_cls, nome)
-        valor_ = (v * pct / Decimal(100)).quantize(Decimal("0.01"))
+        valor_ = (base * pct / Decimal(100)).quantize(Decimal("0.01"))
         return sub(**{campo_p: _dec(pct, casas=4), campo_v: _dec(valor_)}), valor_
+
+    # Base: o valor do documento MENOS o ICMS que ele destaca. PIS e COFINS
+    # não existem neste CT-e (o ERP os calcula no documento da Sulista, não
+    # no do agregado), então não há o que subtrair deles.
+    base = (v - icms_destacado).quantize(Decimal("0.01"))
+    if base <= 0:
+        raise ValueError(
+            f"A base do IBS/CBS ficou {base} depois de tirar o ICMS "
+            f"destacado ({icms_destacado}) de {v}. Base zero ou negativa não "
+            f"é prestação — confira os valores antes de emitir.")
 
     p_uf = Decimal(str(d.get("ibs_p_uf") or 0))
     if p_uf <= 0:
         raise ValueError(
-            "A alíquota do IBS da UF está zerada no ERP e a SEFAZ recusa o "
-            "documento (cStat 316 — 'Alíquota do IBS da UF inválida'). Existe "
-            "UMA definição de IBS cadastrada, com 0,0000, e o cadastro do "
-            "imposto está marcado como não configurado — enquanto a CBS já "
-            "está, com 0,9. Não é caso de escolher um número aqui: é "
-            "configuração fiscal do ERP, e ela vale para a emissão da própria "
-            "Sulista no dia em que a SEFAZ ligar essa validação em produção.")
+            "A alíquota do IBS da UF está zerada para este CT-e e a SEFAZ "
+            "recusa o documento (cStat 316). Confira o imposto vinculado ao "
+            "CT-e de origem: a definição 'Tributado' tem alíquota, a de "
+            "'Exportação' é zero por natureza.")
     p_mun = Decimal(str(d.get("ibs_p_mun") or 0))
     p_cbs = Decimal(str(d.get("cbs_p") or 0))
 
@@ -778,7 +806,7 @@ def _ibscbs(I, v: Decimal, d: dict):
 
     return cls(
         CST=d["ibs_cst"], cClassTrib=d["ibs_classtrib"],
-        gIBSCBS=g_cls(vBC=_dec(v), gIBSUF=g_uf, gIBSMun=g_mun,
+        gIBSCBS=g_cls(vBC=_dec(base), gIBSUF=g_uf, gIBSMun=g_mun,
                       # vIBS é a soma das duas parcelas do IBS — estadual e
                       # municipal. A CBS é tributo à parte e não entra aqui.
                       vIBS=_dec(v_uf + v_mun), gCBS=g_cbs))

@@ -619,3 +619,49 @@ def test_TODO_teste_que_monta_documento_tem_o_marcador():
     assert not faltando, (
         "sem @precisa_fiscal, estes quebram o CI (que roda sem o grupo "
         "fiscal, como producao): " + ", ".join(faltando))
+
+
+@precisa_fiscal
+def test_a_base_do_ibs_cbs_TIRA_o_icms_destacado():
+    """Regra do proprio ERP, conferida em seis CT-e sem divergencia: a base do
+    IBS/CBS exclui os tributos que ele vem substituir. No CT-e 358571,
+    3.792,23 - (455,07 + 55,06 + 253,62) = 3.028,48, que e o vBC que a SEFAZ
+    autorizou em PRODUCAO.
+
+    Aqui a regra vale sobre os numeros DESTE documento: sai o ICMS que ele
+    destaca. Emitente do Simples nao destaca nada.
+    """
+    tributado = dataclasses.replace(
+        ENQ, grupo_icms="ICMS00", cst_icms="00", p_icms=Decimal("12"))
+    d = dict(DADOS, base_valor="prestacao")
+    xml = doc.serializar(doc.montar(d, tributado, numero=1))
+    bloco = xml[xml.index("<IBSCBS>"):xml.index("</IBSCBS>")]
+    # valor do documento 1066.32, ICMS 12% = 127.96 -> base 938.36
+    assert "<vBC>938.36</vBC>" in bloco, bloco[:300]
+    # e o ICMS destacado continua sobre o valor CHEIO, nao sobre a base
+    assert "<vBC>1066.32</vBC>" in xml[xml.index("<ICMS>"):xml.index("</ICMS>")]
+
+
+@precisa_fiscal
+def test_simples_nacional_nao_reduz_a_base_do_ibs():
+    """Nao destaca ICMS, entao nao ha o que tirar: a base e o valor cheio."""
+    xml = doc.serializar(doc.montar(DADOS, AUTO, numero=1))
+    bloco = xml[xml.index("<IBSCBS>"):xml.index("</IBSCBS>")]
+    assert f"<vBC>{doc.valor(DADOS, AUTO)}</vBC>" in bloco
+
+
+def test_a_aliquota_do_ibs_UF_vem_da_tabela_PROPRIA():
+    """`impostoibsuf_define`, e nao `impostoibs_define`. Lendo a errada a
+    aliquota vinha ZERADA e a emissao parava com 316, como se o imposto nao
+    estivesse configurado - estava, com 0,1000, na outra tabela."""
+    assert "impostoibsuf_define dfu" in doc.DADOS_SQL
+
+
+@precisa_fiscal
+def test_ibs_MUNICIPAL_ausente_nao_e_pendencia():
+    """Nao ha tabela de IBS municipal neste ERP e o vinculo vem nulo. A SEFAZ
+    autoriza com a aliquota municipal zerada - ha CT-e da Sulista em PRODUCAO
+    provando isso -, entao nao existe guarda contra ela."""
+    d = dict(DADOS, ibs_p_mun=None)
+    xml = doc.serializar(doc.montar(d, AUTO, numero=1))
+    assert "<pIBSMun>0.0000</pIBSMun>" in xml

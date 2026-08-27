@@ -1,3 +1,41 @@
+- versao: "0.88.0"
+  data: "2026-08-27"
+  adicionado:
+    - >-
+      A SEFAZ AUTORIZOU o primeiro CT-e de contrapartida com o grupo da
+      Reforma Tributaria - protocolo 135260006389275, em homologacao. Era o
+      bloqueio que restava do lado tecnico.
+    - >-
+      O que destravou foi um XML do proprio ERP, de um CT-e da Sulista
+      autorizado em PRODUCAO. Ele mostrou tres coisas que nenhuma consulta
+      tinha revelado.
+    - >-
+      PRIMEIRA: a aliquota do IBS da UF nao estava zerada - estava numa tabela
+      PROPRIA, que o sistema nao lia. Havia uma tabela de IBS geral com
+      aliquota zero, e outra so do IBS da UF com 0,1000. Lendo a errada, a
+      emissao parava dizendo que o imposto nao estava configurado, quando
+      estava.
+    - >-
+      SEGUNDA: o IBS MUNICIPAL nao existe neste ERP e vem zerado - e a SEFAZ
+      aceita assim. Nao e pendencia de cadastro, e como a operacao e hoje.
+    - >-
+      TERCEIRA: a base do IBS/CBS EXCLUI os tributos que ele vem substituir -
+      ICMS, PIS e COFINS. A regra foi conferida em seis documentos, todos
+      exatos. Antes o sistema usava o valor cheio, o que declararia imposto a
+      mais.
+  corrigido:
+    - >-
+      O aviso de que o IBS nao estava configurado deixou de existir, porque a
+      premissa dele estava errada. No lugar ficou uma verificacao por
+      documento: aliquota zerada agora aponta para o imposto vinculado AQUELE
+      CT-e, e lembra que a definicao de exportacao e zero por natureza.
+  alterado:
+    - >-
+      Descoberto no caminho um segundo problema, ainda em aberto e sem relacao
+      com o IBS: a emissao para agregado do PARANA falha no envio, antes mesmo
+      de chegar a SEFAZ. O envio compactado que Sao Paulo aceita e recusado na
+      montagem da mensagem para o Parana. Sao Paulo segue funcionando.
+
 - versao: "0.87.0"
   data: "2026-08-27"
   adicionado:
