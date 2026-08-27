@@ -1,8 +1,8 @@
 # Migração dos bancos locais para PostgreSQL
 
-> Estado: **em andamento** — Fase 0 concluída; piloto `antt` com o código
-> pronto, aguardando a criação da role para a carga dos dados.
-> Atualizado em 27/08/2026.
+> Estado: **em andamento** — Fase 0 concluída, piloto `antt` no ar
+> (222 transportadores lidos do PostgreSQL em 27/08/2026).
+> Próximo: Fase 2, começando por `push` ou `correio`.
 
 O CÓRTEX nasceu com dez bancos SQLite em `data/`. Este documento é o plano de
 levá-los para um PostgreSQL local, **um por vez**, sem parar de entregar. Ele é
@@ -161,7 +161,7 @@ Tradução mecânica de dialeto:
 | Fase | O quê | Custo | Estado |
 |---|---|---|---|
 | 0 | Banco, role, `api/pglocal.py`, runner de migration, backup, padrão de teste | ~1 dia | **feito** |
-| 1 | Piloto: `antt` (223 linhas, 8 executes) | 2–4 h | código pronto |
+| 1 | Piloto: `antt` (223 linhas, 8 executes) | 2–4 h | **no ar** |
 | 2 | `push` · `correio` · `previsao` · `antecipacoes` · `contrapartida` · `extrato` · `orcamento` | 0,5–1,5 dia cada | a fazer |
 | 3 | `auth` — por último, apesar de ser o mais importante | 1–2 dias | a fazer |
 | 4 | Cache (`telemetria`, e talvez os JSON) — só se aparecer motivo | — | provavelmente nunca |
@@ -201,6 +201,25 @@ finge que passou.
 **Ordem de partida no Windows.** A tarefa agendada da API passa a depender do
 serviço do Postgres. Os dois são automáticos; se um dia a API subir antes, a
 primeira consulta falha e a Saúde acusa.
+
+### O que a primeira execução ensinou
+
+**Conectar e ler a versão do schema são duas perguntas diferentes.** O
+diagnóstico fazia `SELECT max(versao) FROM schema_versao` para saber se o banco
+respondia; num banco recém-criado a tabela não existe, o `UndefinedTable` subia
+como falha de conexão e o runner se recusava a aplicar justamente a migration
+que criaria a tabela. Hoje são dois passos: `SELECT 1` diz se conectou, e a
+versão vem depois, podendo ser nula.
+
+**A ordem entre `.env` e role é uma armadilha real, não teórica.** Com a senha
+no `.env` e a role ainda inexistente, a tela do RNTRC ficou fora do ar — o
+código já estava em produção. Em toda fase seguinte: criar a role e carregar o
+dado ANTES de o módulo passar a apontar para cá.
+
+**Backup agendado, não só escrito.** `scripts/instalar_tarefa_backup.ps1`
+registra a tarefa "Cortex Sulista - Backup" (diária, 03:20, conta SISTEMA). Um
+script de backup que ninguém roda é pior que não ter backup, porque parece que
+tem. O dump foi conferido com `pg_restore -l`: as três tabelas estão lá.
 
 ---
 

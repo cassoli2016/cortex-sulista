@@ -4,6 +4,20 @@ Gerado de `docs/versoes.yaml` por `scripts/gerar_changelog.py` — não editar �
 Formato [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/),
 versionamento [SemVer](https://semver.org/lang/pt-BR/).
 
+## [0.99.2] — 27/08/2026  ·  CX-27/08/2026-v0.99.2
+
+### Corrigido
+- O validador repetia o mesmo agregado varias vezes. Cada campo virava uma linha propria, entao "sem procuracao cadastrada" e "sem certificado cadastrado" - que sao o mesmo item de trabalho - apareciam separados: 34 dos 38 agregados duplicados, 72 linhas para 38 problemas. Agora e uma linha por agregado em cada categoria, com os motivos juntos.
+- A acao sugerida passou a sair da natureza da falta, e nao de um texto unico: certificado vencido se RENOVA, ausente se COLETA com o agregado e senha se CADASTRA no cofre. O texto unico mandava pedir ao agregado o arquivo que ja estava aqui.
+
+## [0.99.1] — 27/08/2026  ·  CX-27/08/2026-v0.99.1
+
+### Adicionado
+- O backup do banco novo virou tarefa agendada de verdade (scripts/instalar_tarefa_backup.ps1, diaria as 03:20), e ela aparece na lista de tarefas da Saude do Servidor. Script de backup que ninguem roda e pior que nao ter backup, porque parece que tem.
+
+### Corrigido
+- O primeiro uso do banco local nao funcionava: para saber se o banco respondia, o sistema perguntava em que versao o schema estava - e num banco recem-criado essa tabela ainda nao existe. O erro subia como "sem conexao" e o comando se recusava a aplicar justamente a criacao da tabela. Agora sao duas perguntas separadas, e banco de pe com schema vazio aparece como "aplicar as migrations", nao como banco caido.
+
 ## [0.99.0] — 27/08/2026  ·  CX-27/08/2026-v0.99.0
 
 ### Adicionado
@@ -13,12 +27,6 @@ versionamento [SemVer](https://semver.org/lang/pt-BR/).
 
 ### Alterado
 - Nas telas ja migradas, banco fora do ar deixou de virar "sem base". No RNTRC isso era grave: "sem base" significa "nunca sincronizou", e um modulo de compliance dizendo isso com o banco caido faria parecer que ninguem foi conferido - quando na verdade nada pode ser afirmado. Tabela que ainda nao existe continua sendo base vazia; falha de conexao sobe como erro.
-
-## [0.98.1] — 27/08/2026  ·  CX-27/08/2026-v0.98.1
-
-### Corrigido
-- O validador repetia o mesmo agregado varias vezes. Cada campo virava uma linha propria, entao "sem procuracao cadastrada" e "sem certificado cadastrado" - que sao o mesmo item de trabalho - apareciam separados: 34 dos 38 agregados duplicados, 72 linhas para 38 problemas. Agora e uma linha por agregado em cada categoria, com os motivos juntos.
-- A acao sugerida passou a sair da natureza da falta, e nao de um texto unico: certificado vencido se RENOVA, ausente se COLETA com o agregado e senha se CADASTRA no cofre. O texto unico mandava pedir ao agregado o arquivo que ja estava aqui.
 
 ## [0.98.0] — 27/08/2026  ·  CX-27/08/2026-v0.98.0
 

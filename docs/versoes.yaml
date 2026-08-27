@@ -1,4 +1,4 @@
-- versao: "0.98.1"
+- versao: "0.99.2"
   data: "2026-08-27"
   corrigido:
     - >-
@@ -12,6 +12,23 @@
       unico: certificado vencido se RENOVA, ausente se COLETA com o agregado e
       senha se CADASTRA no cofre. O texto unico mandava pedir ao agregado o
       arquivo que ja estava aqui.
+
+- versao: "0.99.1"
+  data: "2026-08-27"
+  adicionado:
+    - >-
+      O backup do banco novo virou tarefa agendada de verdade
+      (scripts/instalar_tarefa_backup.ps1, diaria as 03:20), e ela aparece na
+      lista de tarefas da Saude do Servidor. Script de backup que ninguem roda
+      e pior que nao ter backup, porque parece que tem.
+  corrigido:
+    - >-
+      O primeiro uso do banco local nao funcionava: para saber se o banco
+      respondia, o sistema perguntava em que versao o schema estava - e num
+      banco recem-criado essa tabela ainda nao existe. O erro subia como "sem
+      conexao" e o comando se recusava a aplicar justamente a criacao da
+      tabela. Agora sao duas perguntas separadas, e banco de pe com schema
+      vazio aparece como "aplicar as migrations", nao como banco caido.
 
 - versao: "0.99.0"
   data: "2026-08-27"

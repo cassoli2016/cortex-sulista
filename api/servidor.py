@@ -45,7 +45,7 @@ except ImportError:  # pragma: no cover
 # uma coleta agendada que ninguem ve parar envelhece o painel calada.
 _TAREFAS = ["Cortex Sulista - API", "Cortex Sulista - AutoDeploy",
             "Cortex Sulista - Tunnel", "Cortex Sulista - Telemetria",
-            "Cortex Sulista - Pneus"]
+            "Cortex Sulista - Pneus", "Cortex Sulista - Backup"]
 
 
 def _iso(ts: float) -> str:

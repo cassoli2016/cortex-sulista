@@ -148,11 +148,20 @@ def diagnostico() -> dict:
     try:
         with get_conn() as conn:
             with conn.cursor() as cur:
-                cur.execute("SELECT max(versao) AS v FROM schema_versao")
-                v = (cur.fetchone() or {}).get("v")
+                # CONECTAR e LER A VERSÃO são duas perguntas diferentes, e
+                # juntá-las custou a primeira execução do runner: banco
+                # recém-criado não tem `schema_versao`, o UndefinedTable subia
+                # como falha de conexão e o script se recusava a aplicar
+                # justamente a migration que criaria a tabela.
+                cur.execute("SELECT 1")
+                ms = round((time.perf_counter() - t0) * 1000)
+                try:
+                    cur.execute("SELECT max(versao) AS v FROM schema_versao")
+                    v = (cur.fetchone() or {}).get("v")
+                except psycopg.errors.UndefinedTable:
+                    v = None   # banco de pé, schema ainda por aplicar
         return {"configurado": True, "conectado": True, "onde": onde(),
-                "erro": None, "ms": round((time.perf_counter() - t0) * 1000),
-                "versao_schema": v}
+                "erro": None, "ms": ms, "versao_schema": v}
     except Exception as exc:  # noqa: BLE001
         # o TIPO do erro é o que ajuda (conexão recusada × senha × schema
         # ausente); o texto do psycopg pode trazer o conninfo inteiro
