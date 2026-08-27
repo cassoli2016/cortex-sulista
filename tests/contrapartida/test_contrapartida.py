@@ -620,3 +620,40 @@ def test_aviso_sem_transmissoes_nao_quebra_sem_o_argumento():
     o resto da conciliacao nao depende dele."""
     from api.contrapartida import servico
     assert servico._avisos([], [], [], [])[0].startswith("Nenhuma")
+
+
+def test_rota_do_cronometro_e_alcancavel_por_quem_ve_a_tela():
+    """`AuthMiddleware` e fail-closed: rota /api/* fora de ROTA_TELAS devolve
+    403 para nao-admin. O cronometro apareceria vazio so para o administrador
+    e ninguem perceberia."""
+    from api import auth
+
+    casadas = [t for p, t in auth.ROTA_TELAS
+               if "/api/fiscal/contrapartida/automacao".startswith(p)]
+    assert casadas, "rota do cronometro fora de ROTA_TELAS"
+    assert "ctecp" in casadas[0], "o primeiro prefixo que casa manda"
+
+
+def test_prefixo_especifico_vem_ANTES_do_generico():
+    """A busca e por prefixo, na ordem da lista. Se o generico
+    /api/fiscal/contrapartida vier primeiro, ele engole todas as rotas
+    especificas - e o erro so aparece quando alguem restringe a tela."""
+    from api import auth
+
+    ordem = [p for p, _ in auth.ROTA_TELAS if p.startswith("/api/fiscal/contrapartida")]
+    generico = ordem.index("/api/fiscal/contrapartida")
+    assert generico == len(ordem) - 1, f"o prefixo generico nao e o ultimo: {ordem}"
+
+
+def test_o_cronometro_nao_expoe_quem_mexeu_na_configuracao():
+    """A rota de gestao diz quem ligou a automacao e quem liberou producao -
+    isso e de administrador. A da tela leva so o relogio."""
+    import inspect
+
+    from api import main
+
+    fonte = inspect.getsource(main.contrapartida_automacao)
+    assert '"quem"' not in fonte and "'quem'" not in fonte
+    for campo in ("ativa", "intervalo_min", "ultima_execucao",
+                  "passo_agendador_min"):
+        assert campo in fonte

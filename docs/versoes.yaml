@@ -1,3 +1,24 @@
+- versao: "0.96.0"
+  data: "2026-08-27"
+  adicionado:
+    - >-
+      A tela de CT-e de Contrapartida ganhou o cronometro da emissao
+      automatica: quanto falta para a proxima rodada, quando foi a ultima
+      passagem, o intervalo configurado e em que ambiente ela esta emitindo.
+      O relogio corre de segundo em segundo sem consultar o servidor - o
+      estado e buscado a cada 30 segundos, que e o que basta para perceber
+      que a rotina rodou.
+    - >-
+      O cartao diz que sao DOIS relogios. O agendador do Windows dispara de 5
+      em 5 minutos e o CORTEX so entao pergunta se ja passou o intervalo, entao
+      a emissao pode sair ate 5 minutos depois do cronometro zerar. Sem isso
+      escrito, o contador chega a zero, nada acontece e a tela parece travada.
+      Ao zerar ele mostra "liberado", nao "00:00".
+    - >-
+      Com a automacao desligada o cronometro PARA, em vez de contar para um
+      disparo que nao vem, e diz onde se liga. Emissao manual nao depende
+      dele - sao interruptores diferentes.
+
 - versao: "0.95.0"
   data: "2026-08-27"
   adicionado:

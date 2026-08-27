@@ -979,6 +979,16 @@ button.avatar{border:0;cursor:pointer}
    10px em "Volume por mês", 0 em "Passivo acumulado" e 8px em "Ler com
    atenção", sobre um padding que não existia. */
 .card>.cpbloco{padding:12px 18px 14px;display:flex;flex-direction:column;gap:10px}
+
+/* ---- Cronometro da emissao automatica ----
+   O numero e MONO e tabular: sem `tabular-nums` cada digito tem largura
+   propria e a linha inteira TREME a cada segundo, o que num contador que fica
+   permanentemente na tela cansa mais do que informa. */
+.cp-cron{display:flex;align-items:baseline;gap:12px;flex-wrap:wrap}
+.cp-cron .rel{font:600 30px/1 var(--mono);font-variant-numeric:tabular-nums;
+  letter-spacing:.5px;color:var(--n900)}
+.cp-cron .rel.parado{color:var(--n500)}
+.cp-cron .leg{font-size:13px;color:var(--n600)}
 .ges-cfg{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:14px}
 .ges-cfg label{display:block;font-size:12px;font-weight:600;color:var(--n600,#6B7280);margin-bottom:4px}
 .ges-cfg input{width:100%;padding:9px 10px;border:1px solid var(--n300,#d3dae2);border-radius:6px;font:inherit;font-size:14px}
@@ -2667,6 +2677,12 @@ body.tvfull #btnReport,body.tvmode #btnReport{display:none}
         <div class="kband"><div class="klabel">Fila de contrapartida &mdash; só agregado PJ</div>
           <div class="kpis k4" id="kpis-ctecp"></div></div>
 
+        <div class="card" id="cpAutoCard" hidden>
+          <div class="head"><h2>Emissão automática <span class="badge b-info" title="Não segue o filtro de período: a rotina roda sobre o dia de HOJE, seja qual for o recorte que a tela está mostrando.">roda sobre hoje</span> <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="São DOIS relógios. O agendador do Windows dispara a rotina de 5 em 5 minutos; o CÓRTEX é quem decide se já passou o intervalo configurado em Gestão › Integrações. Por isso a próxima emissão pode sair até 5 minutos depois do cronômetro zerar — o zero significa liberado, não disparado. O cronômetro conta a partir da última passagem REGISTRADA da rotina, que é gravada mesmo quando não havia nada a emitir.">i</span></h2>
+            <span class="hint" id="hintCpAuto"></span></div>
+          <div id="cpAuto" class="cpbloco"></div>
+        </div>
+
         <div class="card">
           <div class="head"><h2>Fila por agregado <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="Ordenada por valor, que é como a implantação deve ser atacada: os primeiros concentram a maior parte do volume. A coluna Cadastro mostra o que a emissão vai exigir — campo faltando vira rejeição documento a documento na transmissão.">i</span></h2>
             <span class="hint" id="hintCpTab"></span></div>
@@ -4269,6 +4285,13 @@ let homeSeq = 0;
 let kmSeq = 0;
 let torreSeq = 0;
 let torreTimer = null;
+/* Cronometro da emissao automatica: DOIS temporizadores, de proposito.
+   `cpCronTimer` desenha de segundo em segundo e nao vai a rede - conta em cima
+   do que ja esta na memoria. `cpAutoTimer` busca o estado a cada 30s, que e o
+   unico jeito de perceber que a rotina rodou. Um relogio de segundo que
+   consultasse o servidor seria 60 chamadas por minuto para mover um digito. */
+let cpCronTimer = null, cpAutoTimer = null;
+let CP_AUTO = null;
 let veicSeq = 0;
 let progSeq = 0;
 let DATACOB = null;
@@ -4598,6 +4621,14 @@ function router(){
   // saúde do servidor: auto-refresh de 5s enquanto a tela está ativa
   if(srvTimer){ clearInterval(srvTimer); srvTimer=null; }
   if(v==='srv'){ srvTimer=setInterval(()=>{ if(currentView()==='srv') loadSrv(true); }, 5000); }
+  // cronômetro da emissão automática: só vive enquanto a tela está aberta
+  if(cpCronTimer){ clearInterval(cpCronTimer); cpCronTimer=null; }
+  if(cpAutoTimer){ clearInterval(cpAutoTimer); cpAutoTimer=null; }
+  if(v==='ctecp'){
+    cpAutoCarrega();
+    cpCronTimer=setInterval(cpCronDesenha, 1000);
+    cpAutoTimer=setInterval(()=>{ if(currentView()==='ctecp') cpAutoCarrega(); }, 30000);
+  }
   // filtros com o vocabulário de cada tela
   document.getElementById('lblEmiDe').textContent =
     comb ? 'Abastecimento de' : mul ? 'Infração de' : man ? 'Emissão da OS de' : lanc ? 'Movimento de' : (agr||kmv||com||rent||anpiso) ? 'Emissão da viagem de' : 'Emissão da OC de';
@@ -10018,6 +10049,77 @@ function renderCtecp(d){
   document.getElementById('cpAvisosCard').hidden = !av.length;
   document.getElementById('cpAvisos').innerHTML =
     av.map(function(a){ return '<div class="hint">'+esc(a)+'</div>'; }).join('');
+}
+
+function cpAutoCarrega(){
+  /* X-Carga-Fundo vai no TIMER, nunca na URL: recarga automatica nao pode
+     acender a barra de carregamento da topbar - a tela pareceria estar
+     consultando o banco sozinha de 30 em 30 segundos, e o clique manual
+     deixaria de se distinguir dela. Mesmo padrao da Torre e da Saude. */
+  fetch('/api/fiscal/contrapartida/automacao',
+        {cache:'no-store', headers:{'X-Carga-Fundo':'1'}})
+    .then(function(r){ return r.ok ? r.json() : null; })
+    .then(function(d){ if(d && !d.erro) CP_AUTO=d; cpCronDesenha(); })
+    .catch(function(){ /* rede caiu: segura o ultimo estado e segue contando */ });
+}
+
+function cpRelogio(seg){
+  /* Sempre com dois digitos nos minutos e segundos: "5:3" nao se le como
+     tempo. Acima de uma hora entra o campo de hora, porque o intervalo
+     configuravel vai ate 1440 minutos. */
+  const s=Math.max(0, Math.floor(seg));
+  const h=Math.floor(s/3600), m=Math.floor((s%3600)/60), r=s%60;
+  const dd=function(n){ return (n<10?'0':'')+n; };
+  return h ? (h+':'+dd(m)+':'+dd(r)) : (dd(m)+':'+dd(r));
+}
+
+function cpCronDesenha(){
+  const card=document.getElementById('cpAutoCard');
+  if(!card) return;
+  const d=CP_AUTO;
+  if(!d){ card.hidden=true; return; }
+  card.hidden=false;
+  const alvo=document.getElementById('cpAuto');
+  const passo=d.passo_agendador_min||5;
+  const amb=d.producao
+    ? '<span class="badge b-ok" title="Documento com valor fiscal. Emitido em nome do agregado, escriturado, e só se desfaz por cancelamento.">produção</span>'
+    : '<span class="badge b-info" title="Ambiente de teste da SEFAZ: o documento autorizado aqui NÃO tem valor fiscal e não gera obrigação nenhuma.">homologação</span>';
+  let rel='—', cls='parado', leg='', pe='';
+
+  if(!d.ativa){
+    /* Desligada NAO e erro nem alerta: e uma escolha, e o cronometro tem de
+       parar em vez de contar para um disparo que nao vem. Contar assim mesmo
+       seria a tela prometendo trabalho que ninguem pediu. */
+    leg='automação desligada — nada sai sozinho';
+    pe='A tarefa do Windows continua disparando e a rotina sai sem fazer nada. '
+      +'Para ligar: Gestão › Integrações. Emissão manual não depende disto.';
+  } else if(!d.ultima_execucao){
+    leg='aguardando a primeira passagem da rotina';
+    pe='A automação está ligada e a rotina ainda não passou nenhuma vez. '
+      +'A primeira sai no próximo disparo do agendador (até '+passo+' min).';
+  } else {
+    const ult=new Date(d.ultima_execucao);
+    const prox=new Date(ult.getTime()+(d.intervalo_min||0)*60000);
+    const falta=(prox-new Date())/1000;
+    if(falta>0){ rel=cpRelogio(falta); cls=''; leg='até a próxima rodada'; }
+    else {
+      /* ZERO SIGNIFICA LIBERADO, NAO DISPARADO. Sao dois relogios: o
+         agendador do Windows bate de 5 em 5 minutos e o CORTEX so entao
+         pergunta se ja passou o intervalo. Sem dizer isto, o contador chega a
+         zero, nada acontece por ate 5 minutos e a tela parece travada. */
+      rel='liberado'; cls=''; leg='esperando o próximo disparo do agendador';
+    }
+    pe='Última passagem '+fmtDT(d.ultima_execucao)+' · intervalo de '
+      +(d.intervalo_min||'?')+' min · o agendador dispara a cada '+passo
+      +' min, então a emissão pode sair até '+passo+' min depois do zero.';
+  }
+
+  alvo.innerHTML=
+    '<div class="cp-cron"><span class="rel '+cls+'">'+esc(rel)+'</span>'
+    +'<span class="leg">'+esc(leg)+'</span>'+amb+'</div>'
+    +'<div class="hint">'+esc(pe)+'</div>';
+  document.getElementById('hintCpAuto').textContent =
+    d.ativa ? ('a cada '+(d.intervalo_min||'?')+' min') : 'desligada';
 }
 
 async function cpCancelar(bt){

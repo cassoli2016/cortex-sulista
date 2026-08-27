@@ -4,6 +4,13 @@ Gerado de `docs/versoes.yaml` por `scripts/gerar_changelog.py` — não editar �
 Formato [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/),
 versionamento [SemVer](https://semver.org/lang/pt-BR/).
 
+## [0.96.0] — 27/08/2026  ·  CX-27/08/2026-v0.96.0
+
+### Adicionado
+- A tela de CT-e de Contrapartida ganhou o cronometro da emissao automatica: quanto falta para a proxima rodada, quando foi a ultima passagem, o intervalo configurado e em que ambiente ela esta emitindo. O relogio corre de segundo em segundo sem consultar o servidor - o estado e buscado a cada 30 segundos, que e o que basta para perceber que a rotina rodou.
+- O cartao diz que sao DOIS relogios. O agendador do Windows dispara de 5 em 5 minutos e o CORTEX so entao pergunta se ja passou o intervalo, entao a emissao pode sair ate 5 minutos depois do cronometro zerar. Sem isso escrito, o contador chega a zero, nada acontece e a tela parece travada. Ao zerar ele mostra "liberado", nao "00:00".
+- Com a automacao desligada o cronometro PARA, em vez de contar para um disparo que nao vem, e diz onde se liga. Emissao manual nao depende dele - sao interruptores diferentes.
+
 ## [0.95.0] — 27/08/2026  ·  CX-27/08/2026-v0.95.0
 
 ### Adicionado

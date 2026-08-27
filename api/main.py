@@ -646,6 +646,41 @@ async def contrapartida_cancelar(req: Request) -> JSONResponse:
     return JSONResponse(r)
 
 
+@app.get("/api/fiscal/contrapartida/automacao")
+def contrapartida_automacao() -> JSONResponse:
+    """Estado da rotina automática — só o que o cronômetro da tela precisa.
+
+    Rota SEPARADA da de gestão de propósito, e só de LEITURA: quem enxerga a
+    tela precisa saber quando sai a próxima rodada, mas ligar a automação,
+    mudar o intervalo e liberar produção continuam restritos a administrador
+    em /api/gestao/*. Aqui não vai quem mexeu em quê.
+
+    Lê só o SQLite local (não toca no ERP), porque a tela chama isto a cada
+    30 segundos — uma consulta ao AVA nessa cadência seria carga constante
+    para mostrar um relógio.
+    """
+    from api.contrapartida import lote
+    try:
+        e = lote.estado()
+        a = e.get("automacao") or {}
+        return JSONResponse({
+            "ativa": bool(a.get("ativa")),
+            "intervalo_min": a.get("intervalo_min"),
+            "ultima_execucao": a.get("ultima_execucao"),
+            "ambiente": (e.get("ambiente") or {}).get("nome"),
+            "producao": bool((e.get("ambiente") or {}).get("producao")),
+            # O agendador do Windows dispara de 5 em 5 minutos e o CORTEX
+            # decide se e hora. A tela precisa dizer isso, senao o cronometro
+            # chega a zero, nada acontece por ate 5 minutos e parece travado.
+            "passo_agendador_min": 5,
+        })
+    except Exception as exc:  # noqa: BLE001
+        log.warning("contrapartida_automacao falhou: %s", exc)
+        return JSONResponse(status_code=500, content={
+            "erro": "erro_consulta",
+            "mensagem": "Erro ao ler o estado da automação."})
+
+
 @app.get("/api/fiscal/contrapartida/documento/{chave}")
 def contrapartida_documento(chave: str) -> Response:
     """Baixa o `cteProc` de um documento transmitido — XML + protocolo.
