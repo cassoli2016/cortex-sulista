@@ -46,9 +46,12 @@ ENQUADRAMENTO = documento.Enquadramento(
     grupo_icms="ICMSSN",      # PENDENTE: emitente e optante do Simples
     cst_icms="90",            # PENDENTE
     p_icms=None,
-    # DECIDIDO em 26/08/2026: o valor PAGO AO AGREGADO. Com isso o rateio
-    # volta a ser necessario nos 48% de CT-e que dividem viagem - o pagamento
-    # e lancado por VIAGEM e o documento e por CT-e.
+    # DECIDIDO e CONFIRMADO em 26/08/2026: o valor pago ao agregado, que e a
+    # coluna do frete de compra - a mesma que alimenta o PEF da viagem. O
+    # "contrato de transporte" citado pela area E este valor; os campos de PEF
+    # da replica nao servem (ver docs/contrapartida-perguntas-contabilidade.md).
+    # Como o pagamento e por VIAGEM e o documento e por CT-e, os 48% que
+    # dividem viagem passam pelo rateio acima.
     base_valor="fretecompra",
     toma="4",                 # a Sulista como tomadora ("outros")
     referenciar_original=True,  # o vinculo com o nosso CT-e

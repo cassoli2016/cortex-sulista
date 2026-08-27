@@ -1,3 +1,29 @@
+- versao: "0.76.0"
+  data: "2026-08-26"
+  alterado:
+    - >-
+      Confirmado que o valor do contrato de transporte no PEF e a COLUNA DO
+      FRETE DE COMPRA - a mesma que o sistema ja usava. A definicao do valor
+      esta fechada e NENHUM codigo precisou mudar. Fica so a CST do ICMS
+      pendente do lado fiscal.
+    - >-
+      Antes de confirmar, procuramos um valor de PEF proprio na base, e vale
+      registrar por que nenhum serve: o PEF do embarque cobre 65% das viagens
+      e seu campo de valor soma R$ 26,37 no total; o PEF do acerto cobre 4,4%
+      com valores sem proporcao estavel; as parcelas de adiantamento estao
+      vazias; e o valor total de frete do transporte chega a 3,7 vezes o valor
+      do CT-e. Emitir por qualquer um deles produziria documento varias vezes
+      maior que a operacao - e a SEFAZ autorizaria, porque ela nao sabe quanto
+      vale o servico.
+    - >-
+      Fica registrado o efeito da definicao, que nao e pendencia mas e
+      consequencia: emitindo pelo valor pago, os documentos passam a registrar
+      formalmente o frete praticado, e no trimestre as viagens de agregado
+      foram pagas em R$ 14,7 milhoes contra um piso minimo da ANTT de R$ 18,7
+      milhoes - 78,6% do piso, com 89% das viagens conferidas abaixo do minimo
+      legal. Hoje isso so existe no controle interno; a partir da emissao,
+      passa a existir documento a documento.
+
 - versao: "0.75.0"
   data: "2026-08-26"
   adicionado:

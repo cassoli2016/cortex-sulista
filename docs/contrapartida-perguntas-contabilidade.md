@@ -12,7 +12,7 @@
 |---|---|---|
 | 0 | Há dispensa de emissão pelo subcontratado? | **Não há — o agregado emite** |
 | 1 | Subcontratação, redespacho ou prestação normal? | **Subcontratação** |
-| 2 | Valor cobrado do cliente ou pago ao agregado? | **Pago ao agregado** ⚠️ ver 3.2 |
+| 2 | Valor cobrado do cliente ou pago ao agregado? | **Pago ao agregado** (coluna do frete de compra) |
 | 3 | Um documento por CT-e ou por viagem? | **Um por CT-e** |
 | 4 | Tratamento e CST do ICMS | *aguardando* |
 | 5 | Série e numeração por agregado | **Série 900 aprovada** (provisória) |
@@ -20,14 +20,13 @@
 | 7 | Documentos de valor simbólico entram? | **Não, por ora** |
 | 8 | Passivo de R$ 108,7 mi | encaminhado ao Jurídico |
 
-⚠️ **A resposta 2 trouxe duas perguntas novas — seção 3.2.** "O valor pago a
-ele (frete mínimo)" pode significar duas coisas que **divergem em 89% das
-viagens**, e a escolha por "valor pago" reabre a necessidade de um critério de
-rateio para metade da fila.
+Restam **duas** pendências, e só uma é da contabilidade:
 
-Também segue pendente a **CST e o tratamento do ICMS** (seção 3.4), e o
-levantamento cadastral dos **17 sem inscrição estadual**, que responde por 29%
-da fila (seção 4.1).
+- **CST e tratamento do ICMS** (seção 3.4) — a última definição fiscal;
+- **os 17 sem inscrição estadual** (seção 4.1) — levantamento de cadastro, que
+  responde por 29% da fila.
+
+O anexo, no fim, registra o que foi testado até chegar às definições atuais.
 
 O anexo, no fim, registra o que foi testado até chegar ao enquadramento
 definido.
@@ -81,37 +80,29 @@ Registramos isso como precedente interno, não como opinião fiscal.
 Registramos a definição. Ela levanta **duas questões** que precisam de retorno
 antes da emissão em produção.
 
-#### Questão A — "frete mínimo" é qual dos dois números?
+#### Questão A — RESPONDIDO: é a coluna do frete de compra
 
-O parêntese admite duas leituras, e elas **não coincidem**:
+Confirmado em 26/08/2026: **o valor do contrato de transporte no PEF é a
+coluna do frete de compra** — a mesma que o sistema já vinha usando. A Parte 1
+está fechada e nada precisou ser alterado.
 
-1. **O valor efetivamente pago** ao agregado (`frete de compra` no sistema); ou
-2. **O piso mínimo legal da ANTT** (Lei 13.703/2018), que o CÓRTEX já calcula
-   por viagem.
+*Registro da checagem feita antes de confirmar:* procuramos um valor de PEF
+próprio na base e nenhum campo serve — `programacaoembarque_pef` cobre 65% das
+viagens e seu campo de valor soma R$ 26,37 no total; o PEF do acerto cobre
+4,4%; as parcelas de adiantamento estão vazias; e `transporte.valortotalfrete`
+chega a 3,7× o valor do CT-e sem relação estável. Emitir por qualquer um deles
+produziria documento várias vezes maior que a operação.
 
-Medimos os dois no trimestre, nas viagens de agregado:
+#### Observação que fica registrada: frete abaixo do piso da ANTT
 
-| | Valor |
-|---|---|
-| Pago aos agregados | **R$ 14,7 milhões** |
-| Piso mínimo ANTT das mesmas viagens | **R$ 18,7 milhões** |
-| Pago em relação ao piso | **78,6%** |
-| Viagens pagas **abaixo** do piso | **5.081 de 5.735 conferidas (89%)** |
+Não é pendência, é consequência conhecida da definição. Emitindo pelo valor
+pago, os documentos passam a registrar formalmente o frete praticado — e no
+trimestre as viagens de agregado foram pagas em **R$ 14,7 milhões** contra um
+piso mínimo da ANTT de **R$ 18,7 milhões** para as mesmas viagens: **78,6% do
+piso, com 5.081 de 5.735 viagens conferidas (89%) abaixo do mínimo legal**.
 
-Ou seja: **o que é pago não é o frete mínimo** na grande maioria dos casos — é
-menos. Os dois nomes não descrevem o mesmo número.
-
-A escolha tem consequência direta:
-
-- **Se for o valor efetivamente pago:** os documentos passarão a registrar
-  formalmente, um a um, um frete abaixo do mínimo legal — em 89% das viagens.
-  É um registro auditável de algo que hoje só existe no financeiro interno.
-- **Se for o piso da ANTT:** o valor do documento não baterá com o que o
-  financeiro efetivamente pagou (R$ 18,7 mi contra R$ 14,7 mi), e essa
-  diferença precisará de tratamento.
-
-**Não escolhemos por conta própria.** Pedimos que a contabilidade indique qual
-dos dois, ciente da divergência.
+Hoje isso só existe no controle interno. A partir da emissão, passa a existir
+documento a documento. Registramos para que a decisão seja consciente.
 
 #### Questão B — critério de rateio: RESPONDIDO, proporcional ao valor cobrado
 
@@ -287,19 +278,23 @@ dessa data, o primeiro teste em produção aguardará a renovação do certifica
 
 ---
 
-## 7. Resumo — o que pedimos
+## 7. Resumo — o que falta
+
+Todas as definições fiscais estão tomadas, **menos uma**.
 
 | O que falta | Com quem | Efeito |
 |---|---|---|
-| **"Frete mínimo" é o valor pago ou o piso da ANTT?** | Contabilidade | Os dois divergem em **89% das viagens** (R$ 14,7 mi × R$ 18,7 mi) |
-| **Critério de rateio** do valor da viagem entre os CT-e | Contabilidade | **48% da fila** fica retida sem ele |
-| **CST e tratamento do ICMS** | Contabilidade | Última definição fiscal |
-| **Os 17 sem inscrição estadual**: cadastro ou realmente não inscritos? | Cadastro / SINTEGRA | **29% da fila** |
+| **CST e tratamento do ICMS** | Contabilidade | Única definição fiscal pendente |
+| **Os 17 sem inscrição estadual** — 13 com cadastro contraditório, 4 possivelmente não inscritos | Cadastro / SINTEGRA | **29% da fila** (1.872 CT-e) |
 
-**O que já é possível fazer:** os CT-e que são o **único documento da viagem**
-(52% da fila) não dependem do critério de rateio. Dos 47 agregados com
-movimento, 30 estão com cadastro completo. Definida a CST e a Questão A, esse
-subconjunto pode entrar em produção sem esperar o resto.
+**Assim que a CST for definida, 30 agregados podem entrar em produção** — 4.524
+CT-e no trimestre, R$ 13,4 milhões, sem nenhuma pendência de cadastro. Não é
+preciso esperar os 17.
+
+Uma sugestão para a definição da CST: o ERP **já calcula ICMS** nessa operação
+(o contrato de transporte traz R$ 1,38 milhão em 60 dias, e o PEF do acerto
+traz ICMS a recolher em 254 de 267 registros). Pode ser que a resposta seja
+usar o que já existe, em vez de definir do zero.
 
 ---
 
