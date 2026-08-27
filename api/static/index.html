@@ -101,6 +101,24 @@ nav .group .chev{margin-left:auto;transition:transform .15s;width:14px;height:14
 nav .group[aria-expanded="false"] .chev{transform:rotate(-90deg)}
 .subs{display:flex;flex-direction:column;gap:2px}
 .subs.closed{display:none}
+/* TERCEIRO NÍVEL do menu (Business Intelligence > Painéis TV > painel).
+   Existe só onde há uma FAMÍLIA de telas dentro de uma área — não para
+   aninhar por aninhar: um nível a mais é um clique a mais para todo mundo
+   que passa por ali. O recuo cresce 12px, o mesmo salto do nível anterior,
+   para a hierarquia se ler sem precisar de linha guia. */
+nav .subgrupo{width:100%;background:none;border:0;cursor:pointer;color:var(--n400);
+  font-family:var(--font);font-size:13px;display:flex;align-items:center;gap:9px;
+  padding:6px 12px 6px 22px;border-radius:var(--radius-md);text-align:left;
+  border-left:3px solid transparent}
+nav .subgrupo:hover{color:#fff;background:var(--navy-800)}
+nav .subgrupo .chev{margin-left:auto;transition:transform .15s;width:13px;height:13px}
+nav .subgrupo[aria-expanded="false"] .chev{transform:rotate(-90deg)}
+/* submenu com tela ATIVA dentro fica marcado mesmo recolhido: sem isso, quem
+   está num painel de TV não vê onde está quando o submenu fecha */
+nav .subgrupo.tem-ativa{color:#fff;font-weight:600}
+.subs2{display:flex;flex-direction:column;gap:2px}
+.subs2.closed{display:none}
+nav a.sub2{padding-left:46px}
 nav a{display:flex;align-items:center;gap:9px;padding:6px 12px;border-radius:var(--radius-md);text-decoration:none;
   font-size:13px;color:var(--n400);border-left:3px solid transparent}
 nav a.sub{padding-left:22px}
@@ -1322,6 +1340,18 @@ body.tvfull #btnReport,body.tvmode #btnReport{display:none}
         <a href="#anpiso" class="sub" data-view="anpiso" title="Piso Mínimo de Frete — confere o que se paga ao agregado contra a tabela da ANTT"><span class="ic" data-ic="pisoic"></span><span>Piso Mínimo de Frete</span></a>
         <a href="#anrntrc" class="sub" data-view="anrntrc" title="RNTRC — situação do registro dos transportadores contratados"><span class="ic" data-ic="rntrcic"></span><span>RNTRC dos Transportadores</span></a>
       </div>
+      <button class="group" id="grpBi" aria-expanded="false" aria-controls="subsBi" onclick="toggleGroup('grpBi','subsBi','cs.biGroup')" title="Business Intelligence">
+        <span class="ic" data-ic="bi"></span><span>Business Intelligence</span><span class="ic chev" data-ic="chev"></span>
+      </button>
+      <div class="subs closed" id="subsBi">
+        <button class="subgrupo" id="sgTv" aria-expanded="false" aria-controls="subsTv" onclick="toggleSubgrupo('sgTv','subsTv')" title="Painéis TV — telão e quiosque">
+          <span class="ic" data-ic="tv"></span><span>Painéis TV</span><span class="ic chev" data-ic="chev"></span>
+        </button>
+        <div class="subs2 closed" id="subsTv">
+          <a href="#tvfat" class="sub sub2" data-view="tvfat" title="Painel de Faturamento para TV"><span class="ic" data-ic="tvfatic"></span><span>Faturamento</span></a>
+          <a href="#tvope" class="sub sub2" data-view="tvope" title="Painel de Operação para TV"><span class="ic" data-ic="tv"></span><span>Operação</span></a>
+        </div>
+      </div>
       <button class="group" id="grpCom" aria-expanded="false" aria-controls="subsCom" onclick="toggleGroup('grpCom','subsCom','cs.comGroup')" title="Comercial">
         <span class="ic" data-ic="com"></span><span>Comercial</span><span class="ic chev" data-ic="chev"></span>
       </button>
@@ -1387,13 +1417,6 @@ body.tvfull #btnReport,body.tvmode #btnReport{display:none}
         <a href="#prog" class="sub" data-view="prog" title="Programação Inteligente"><span class="ic" data-ic="prog"></span><span>Programação Intel.</span></a>
         <a href="#sac" class="sub" data-view="sac" title="SAC / Freetime e Estadia"><span class="ic" data-ic="sacic"></span><span>SAC / Freetime</span></a>
         <a href="#torre" class="sub" data-view="torre" title="Torre de Controle"><span class="ic" data-ic="tor"></span><span>Torre de Controle</span></a>
-      </div>
-      <button class="group" id="grpTv" aria-expanded="false" aria-controls="subsTv" onclick="toggleGroup('grpTv','subsTv','cs.tvGroup')" title="Painéis TV">
-        <span class="ic" data-ic="tv"></span><span>Painéis TV</span><span class="ic chev" data-ic="chev"></span>
-      </button>
-      <div class="subs closed" id="subsTv">
-        <a href="#tvfat" class="sub" data-view="tvfat" title="Painel de Faturamento para TV"><span class="ic" data-ic="tvfatic"></span><span>Faturamento</span></a>
-        <a href="#tvope" class="sub" data-view="tvope" title="Painel de Operação para TV"><span class="ic" data-ic="tv"></span><span>Operação</span></a>
       </div>
       <button class="group" id="grpRh" aria-expanded="false" aria-controls="subsRh" onclick="toggleGroup('grpRh','subsRh','cs.rhGroup')" title="Recursos Humanos">
         <span class="ic" data-ic="orgp"></span><span>Recursos Humanos</span><span class="ic chev" data-ic="chev"></span>
@@ -4284,6 +4307,10 @@ const ICONS = {
   mvb:  IC('<path d="M12 3v18M8 21h8M2 7h20"/><path d="M5 7l-3 6a3.5 3.5 0 0 0 6 0zM19 7l-3 6a3.5 3.5 0 0 0 6 0z"/>'),
   comb: IC('<path d="M4 21V5a2 2 0 0 1 2-2h6a2 2 0 0 1 2 2v16M3 21h12M7 8h6"/><path d="M14 12h1a2 2 0 0 1 2 2v3.5a1.5 1.5 0 0 0 3 0V10l-2.5-2.5"/>'),
   tv:   IC('<rect x="3" y="5" width="18" height="12" rx="2" fill="none"/><path d="M9 21h6M12 17v4"/>'),
+  /* Business Intelligence: três barras crescendo + a lupa da análise. Não é o
+     mesmo `rent` (só barras) porque BI não é "um gráfico", é o lugar onde se
+     olha para eles. */
+  bi:   IC('<path d="M4 20V13m5 7V8m5 12v-5"/><path d="M3 20h18"/><circle cx="18" cy="7" r="3"/><path d="M20.2 9.2 22.5 11.5"/>'),
   rent: IC('<path d="M4 20V10m5.3 10V4m5.4 16v-9m5.3 9V7"/><path d="M3 20h18"/>'),
   cob:  IC('<path d="M4 6h16v12H4z" fill="none"/><path d="M4 10h16M8 14h4"/><circle cx="17" cy="15" r="0.8"/>'),
   cop:  IC('<path d="M12 3l1.7 4.3L18 9l-4.3 1.7L12 15l-1.7-4.3L6 9l4.3-1.7z"/><path d="M18.5 14.5l.9 2.1 2.1.9-2.1.9-.9 2.1-.9-2.1-2.1-.9 2.1-.9z"/>'),
@@ -4518,9 +4545,21 @@ function toggleMini(){
   document.getElementById('miniIcon').innerHTML = ICONS[mini?'chevr':'chevl'];
 }
 // grupos do menu (botão, submenu). Ordem = ordem visual da sidebar.
-const GRUPOS = [['grpCom','subsCom'],['grpFin','subsFin'],['grpCtr','subsCtr'],
-  ['grpOpe','subsOpe'],['grpFro','subsFro'],['grpSup','subsSup'],['grpRh','subsRh'],
-  ['grpTv','subsTv'],['grpAdm','subsAdm']];
+const GRUPOS = [['grpBi','subsBi'],['grpCom','subsCom'],['grpFin','subsFin'],
+  ['grpCtr','subsCtr'],['grpOpe','subsOpe'],['grpFro','subsFro'],['grpSup','subsSup'],
+  ['grpRh','subsRh'],['grpAdm','subsAdm']];
+
+/* SUBMENUS de terceiro nível: [botão, submenu, grupo a que pertencem].
+   Hoje só os Painéis TV, dentro de Business Intelligence. */
+const SUBGRUPOS = [['sgTv','subsTv','grpBi']];
+
+function toggleSubgrupo(bid, sid){
+  const b=document.getElementById(bid), s=document.getElementById(sid);
+  if(!b||!s) return;
+  const abrir = b.getAttribute('aria-expanded')!=='true';
+  b.setAttribute('aria-expanded', String(abrir));
+  s.classList.toggle('closed', !abrir);
+}
 function fecharGrupos(exceto){
   GRUPOS.forEach(([gid,sid])=>{
     if(gid===exceto) return;
@@ -4551,7 +4590,7 @@ const VIEW_GROUP = {home:'',cop:'',
   torre:'Ope',milkrun:'Ope',poli:'Ope',prog:'Ope',jorn:'Ope',jornf:'Ope',cex:'Ope',sac:'Ope',port:'Ope',km:'Ope',agr:'Ope',mvb:'Ope',
   veic:'Fro',veicf:'Fro',mprev:'Fro',comrast:'Fro',comb:'Fro',man:'Fro',mul:'Fro',pneus:'Fro',
   oc:'Sup',custos:'Sup',
-  tvfat:'Tv',tvope:'Tv',
+  tvfat:'Bi',tvope:'Bi',
   rh:'Rh',hc:'Rh',folha:'Rh',folhaind:'Rh',he:'Rh',cnh:'Rh',ferias:'Rh',people:'Rh',gestao:'Adm',srv:'Adm',doc:'Adm',
   // Telemetria e ANTT tinham grupo na barra lateral mas ficaram de fora deste
   // mapa: o acordeao nao abria sozinho ao navegar para elas (agora a busca
@@ -4565,12 +4604,26 @@ function syncGroups(v){
      e o Copiloto sao os unicos que legitimamente nao tem grupo, e para eles o
      mapa traz '' de proposito. */
   if(ativo===undefined) return;
-  ['Com','Fin','Ctr','Ope','Fro','Sup','Rh','Tv','Adm','Tel','Antt'].forEach(k=>{
+  ['Bi','Com','Fin','Ctr','Ope','Fro','Sup','Rh','Adm','Tel','Antt'].forEach(k=>{
     const btn=document.getElementById('grp'+k), subs=document.getElementById('subs'+k);
     if(!btn||!subs) return;
     const open = (k===ativo);
     btn.setAttribute('aria-expanded', String(open));
     subs.classList.toggle('closed', !open);
+  });
+  /* Terceiro nível: abre também o SUBMENU que contém a tela ativa, senão
+     navegar para um painel de TV abriria o grupo BI e a tela ficaria escondida
+     atrás de um submenu fechado — o menu diria que você não está onde está.
+     E marca o submenu mesmo quando ele fecha depois. */
+  SUBGRUPOS.forEach(([bid, sid, gid])=>{
+    const b=document.getElementById(bid), sub=document.getElementById(sid);
+    if(!b||!sub) return;
+    const dentro = !!sub.querySelector('[data-view="'+v+'"]');
+    b.classList.toggle('tem-ativa', dentro);
+    if(dentro){
+      b.setAttribute('aria-expanded','true');
+      sub.classList.remove('closed');
+    }
   });
 }
 
@@ -17062,7 +17115,7 @@ const BUSCA_SINONIMOS = {
   home:['visao geral','resumo','inicio','dashboard'],
 };
 const BUSCA_GRUPO_LBL = {Com:'Comercial',Fin:'Financeiro',Ctr:'Controladoria',Ope:'Operação',
-  Fro:'Frota',Sup:'Suprimentos',Rh:'Recursos Humanos',Tv:'Painéis TV',Adm:'Administração',
+  Fro:'Frota',Sup:'Suprimentos',Rh:'Recursos Humanos',Bi:'Business Intelligence',Adm:'Administração',
   Tel:'Telemetria',Antt:'ANTT'};
 // ABC1234 (antiga) e ABC1D23 (Mercosul) — a busca não valida placa, só
 // reconhece o formato para OFERECER o atalho; quem valida é a tela de destino
@@ -17193,7 +17246,7 @@ function aplicarPermissoes(){
   // foi para o rodapé da sidebar, fora do <nav> — sem isto ele apareceria para
   // quem não tem a tela
   document.querySelectorAll('nav a[data-view], .side-foot a[data-view]').forEach(a=>{ a.style.display = podeVer(a.dataset.view) ? '' : 'none'; });
-  [['grpCom','subsCom'],['grpFin','subsFin'],['grpCtr','subsCtr'],['grpOpe','subsOpe'],['grpFro','subsFro'],['grpSup','subsSup'],['grpRh','subsRh'],['grpTv','subsTv'],['grpAdm','subsAdm']].forEach(([g,s])=>{
+  [['grpBi','subsBi'],['grpCom','subsCom'],['grpFin','subsFin'],['grpCtr','subsCtr'],['grpOpe','subsOpe'],['grpFro','subsFro'],['grpSup','subsSup'],['grpRh','subsRh'],['grpAdm','subsAdm']].forEach(([g,s])=>{
     const subs=document.getElementById(s); if(!subs) return;
     const tem=[...subs.querySelectorAll('a[data-view]')].some(a=>a.style.display!=='none');
     const btn=document.getElementById(g); if(btn) btn.style.display = tem ? '' : 'none';
@@ -18744,6 +18797,13 @@ boot();
         <a href="#anrntrc" onclick="fecharDrawer()"><span class="ic" data-ic="qualic"></span>RNTRC</a>
       </div>
     </div>
+    <div class="dgrp" data-grp="Bi">
+      <button class="dgrp-h" onclick="toggleDGrp(this)"><span>Business Intelligence</span><span class="dchev">›</span></button>
+      <div class="dgrp-b">
+        <a href="#tvfat" onclick="fecharDrawer()"><span class="ic" data-ic="tvfatic"></span>Painéis TV — Faturamento</a>
+        <a href="#tvope" onclick="fecharDrawer()"><span class="ic" data-ic="tv"></span>Painéis TV — Operação</a>
+      </div>
+    </div>
     <div class="dgrp" data-grp="Com">
       <button class="dgrp-h" onclick="toggleDGrp(this)"><span>Comercial</span><span class="dchev">›</span></button>
       <div class="dgrp-b">
@@ -18808,13 +18868,6 @@ boot();
         <a href="#prog" onclick="fecharDrawer()"><span class="ic" data-ic="prog"></span>Programação Intel.</a>
         <a href="#sac" onclick="fecharDrawer()"><span class="ic" data-ic="sacic"></span>SAC / Freetime</a>
         <a href="#torre" onclick="fecharDrawer()"><span class="ic" data-ic="tor"></span>Torre de Controle</a>
-      </div>
-    </div>
-    <div class="dgrp" data-grp="Tv">
-      <button class="dgrp-h" onclick="toggleDGrp(this)"><span>Painéis TV</span><span class="dchev">›</span></button>
-      <div class="dgrp-b">
-        <a href="#tvfat" onclick="fecharDrawer()"><span class="ic" data-ic="tv"></span>Faturamento (TV)</a>
-        <a href="#tvope" onclick="fecharDrawer()"><span class="ic" data-ic="tv"></span>Operação (TV)</a>
       </div>
     </div>
     <div class="dgrp" data-grp="Rh">

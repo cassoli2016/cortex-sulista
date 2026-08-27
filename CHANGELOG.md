@@ -4,6 +4,15 @@ Gerado de `docs/versoes.yaml` por `scripts/gerar_changelog.py` — não editar �
 Formato [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/),
 versionamento [SemVer](https://semver.org/lang/pt-BR/).
 
+## [0.116.0] — 27/08/2026  ·  CX-27/08/2026-v0.116.0
+
+### Adicionado
+- Area de BUSINESS INTELLIGENCE no menu - o lugar onde vao ficar os paineis de leitura da empresa inteira. Comeca com os Paineis de TV dentro dela, como um submenu que abre so quando alguem clica: eles sao uma familia de telas, nao itens soltos, e ocupando a altura do grupo inteiro atrapalhariam quem vier depois.
+- O menu ganhou um TERCEIRO NIVEL para isso (area > familia > painel), com o submenu se abrindo sozinho quando a tela aberta esta dentro dele - e ficando marcado mesmo depois de recolhido, para nao esconder de voce onde voce esta.
+
+### Alterado
+- Os dois paineis de TV sairam do grupo proprio e entraram na area nova. Na barra lateral, no menu do celular, na busca por telas e na tela de permissoes - os quatro lugares, para ninguem aprender um caminho no computador e nao achar no telefone. Quem ja tinha acesso continua tendo: a permissao e por tela, e as telas sao as mesmas.
+
 ## [0.115.1] — 27/08/2026  ·  CX-27/08/2026-v0.115.1
 
 ### Alterado
