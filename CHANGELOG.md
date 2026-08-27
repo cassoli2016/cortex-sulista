@@ -4,6 +4,15 @@ Gerado de `docs/versoes.yaml` por `scripts/gerar_changelog.py` — não editar �
 Formato [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/),
 versionamento [SemVer](https://semver.org/lang/pt-BR/).
 
+## [0.109.0] — 27/08/2026  ·  CX-27/08/2026-v0.109.0
+
+### Adicionado
+- O orcamento foi para o PostgreSQL - o maior dos dez bancos locais, com 21.696 linhas, 5 versoes e a trilha de ajuste manual, conferidos linha a linha. Sao sete dos dez migrados.
+
+### Corrigido
+- Regerar o orcamento ficou MUITO mais rapido: as 21.696 linhas eram gravadas uma a uma, e passaram a ir em lotes de mil. Medido: 3.600 linhas em 0,21 segundo.
+- Toda gravacao reconferia se o banco estava atualizado, mesmo quando nao havia nada a fazer - duas consultas a toa por gravacao. O sistema passa a lembrar disso enquanto esta no ar.
+
 ## [0.108.3] — 27/08/2026  ·  CX-27/08/2026-v0.108.3
 
 ### Corrigido
