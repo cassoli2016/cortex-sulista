@@ -460,6 +460,34 @@ def exportar(destino: str | None = None, ambiente: str = HOMOLOGACAO,
             "arquivos": escritos}
 
 
+def por_dia(dias: int = 30) -> list[dict]:
+    """Transmissões por DIA, separadas por ambiente e por resultado.
+
+    Quatro séries e não duas: homologação e produção não se somam (uma não
+    tem valor fiscal), e autorizado e recusado não se somam (recusado não
+    emitiu nada). Juntar qualquer par produziria uma barra que parece
+    trabalho feito e não é.
+
+    O corte é por DATA da transmissão, não do CT-e de origem: o que este
+    gráfico responde é "quanto saiu por dia", que é ritmo de operação.
+    """
+    with _conn() as c:
+        linhas = [dict(r) for r in c.execute(
+            "SELECT substr(quando,1,10) AS dia, ambiente,"
+            " CASE WHEN cstat='100' THEN 1 ELSE 0 END AS ok,"
+            " count(*) AS n"
+            " FROM emissao WHERE date(quando) >= date('now', ?)"
+            " GROUP BY 1,2,3 ORDER BY 1", (f"-{int(dias)} day",))]
+    por: dict[str, dict] = {}
+    for r in linhas:
+        d = por.setdefault(r["dia"], {
+            "dia": r["dia"], "homologacao_ok": 0, "homologacao_nao": 0,
+            "producao_ok": 0, "producao_nao": 0})
+        amb = "producao" if str(r["ambiente"]) == PRODUCAO else "homologacao"
+        d[f"{amb}_{'ok' if r['ok'] else 'nao'}"] += r["n"]
+    return [por[k] for k in sorted(por)]
+
+
 def historico(limite: int = 50) -> list[dict]:
     """Sem a coluna `xml`: ela e grande e a tela nao a usa. Quem precisa do
     arquivo chama `xml_de`."""

@@ -228,8 +228,10 @@ def get_contrapartida(de: str | None = None, ate: str | None = None,
             "emitidas_homologacao": _tx["homologacao"],
             "emitidas_autorizadas": _tx["autorizadas"],
             "emitidas_recusadas": _tx["recusadas"],
+            "taxa_retorno_ok": _tx["taxa_ok"],
         },
         "emissoes": _tx["ultimas"],
+        "emissoes_por_dia": _tx["por_dia"],
         "por_mes": _serial(mes),
         "por_agregado": _serial(agreg),
         "frota": _serial(frota),
@@ -264,7 +266,12 @@ def _transmissoes(limite: int = 30) -> dict:
         log.warning("historico de transmissoes indisponivel: %s", exc)
         return {"producao": 0, "homologacao": 0, "autorizadas": 0,
                 "recusadas": 0, "com_xml": 0, "autorizadas_sem_xml": 0,
-                "ultimas": []}
+                "por_dia": [], "taxa_ok": None, "ultimas": []}
+    try:
+        serie_dia = emissao.por_dia(30)
+    except Exception as exc:  # noqa: BLE001
+        log.warning("serie diaria de transmissoes indisponivel: %s", exc)
+        serie_dia = []
     com_xml = [x for x in linhas if x.get("tem_xml")]
     prod = [x for x in linhas if str(x.get("ambiente")) == "1"]
     homo = [x for x in linhas if str(x.get("ambiente")) == "2"]
@@ -274,6 +281,11 @@ def _transmissoes(limite: int = 30) -> dict:
         "homologacao": len(homo),
         "autorizadas": len(ok),
         "recusadas": len(linhas) - len(ok),
+        "por_dia": serie_dia,
+        # Taxa de retorno OK. `None` e nao 0 quando nao houve transmissao:
+        # "0% de acerto" sem nenhuma tentativa e um numero que acusa alguem.
+        "taxa_ok": (round(100.0 * len(ok) / len(linhas), 1)
+                    if linhas else None),
         # Documento autorizado sem XML guardado nao se importa no ERP nem se
         # arquiva: a chave prova que existe, o arquivo e que serve.
         "com_xml": len(com_xml),
@@ -396,9 +408,30 @@ def _certificados(pj: list[dict], pront: dict) -> dict:
         return {"certificados": len(alvo),
                 "ctes": sum(i["ctes"] for i in alvo)}
 
+    faixas_contagem = [
+        {"rotulo": "vencido", "chave": "vencido",
+         "n": sum(1 for i in itens if i["situacao"] == "vencido")},
+        {"rotulo": f"até {CERT_CRITICO_DIAS} dias", "chave": "critico",
+         "n": sum(1 for i in itens if i["situacao"] == "critico")},
+        {"rotulo": f"{CERT_CRITICO_DIAS + 1} a {CERT_ALERTA_DIAS} dias",
+         "chave": "alerta",
+         "n": sum(1 for i in itens if i["situacao"] == "alerta")},
+        {"rotulo": f"{CERT_ALERTA_DIAS + 1} a {CERT_ATENCAO_DIAS} dias",
+         "chave": "atencao",
+         "n": sum(1 for i in itens if i["situacao"] == "atencao")},
+        {"rotulo": f"mais de {CERT_ATENCAO_DIAS} dias", "chave": "ok",
+         "n": sum(1 for i in itens if i["situacao"] == "ok")},
+        # Estes dois NAO sao faixa de prazo, e por isso vao no fim e
+        # separados: um nao tem data e o outro nao se resolve esperando.
+        {"rotulo": "sem validade informada", "chave": "desconhecido",
+         "n": sum(1 for i in itens if i["situacao"] == "desconhecido")},
+        {"rotulo": "A3 — não automatiza", "chave": "impedido",
+         "n": sum(1 for i in itens if i["situacao"] == "impedido")},
+    ]
     return {
         "itens": itens,
         "total": len(itens),
+        "faixas_contagem": faixas_contagem,
         "vencidos": _conta("vencido"),
         "criticos": _conta("critico"),
         "ate_30": _conta("vencido", "critico", "alerta"),

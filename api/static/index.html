@@ -2670,6 +2670,18 @@ body.tvfull #btnReport,body.tvmode #btnReport{display:none}
           </div>
         </div>
 
+        <div class="grid2" id="cpDiaLinha" hidden>
+          <div class="card">
+            <div class="head"><h2>Documentos transmitidos por dia <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="Últimos 30 dias, pela DATA DA TRANSMISSÃO — o que este gráfico responde é o ritmo da operação, não a data do CT-e de origem. Homologação e produção NÃO se somam (uma não tem valor fiscal) e autorizado e recusado também não (recusado não emitiu nada): são quatro séries, e juntar qualquer par produziria uma barra que parece trabalho feito e não é.">i</span></h2>
+              <span class="hint" id="hintCpDia"></span></div>
+            <div class="chartwrap narrow"><svg id="cpDiaSvg" viewBox="0 0 640 240" role="img" aria-label="Documentos transmitidos por dia"></svg></div>
+          </div>
+          <div class="card">
+            <div class="head"><h2>Faixas de vencimento <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="Certificados cadastrados por prazo até vencer. As duas últimas linhas NÃO são faixa de prazo e por isso aparecem separadas: “sem validade informada” não tem data, e A3 não se resolve esperando — mora em token físico e não automatiza.">i</span></h2></div>
+            <div id="cpCertFaixas" class="cpbloco"></div>
+          </div>
+        </div>
+
         <div class="card" id="cpCertCard" hidden>
           <div class="head"><h2>Vencimento dos certificados <span class="badge b-info" title="Certificado vence no calendário, não na janela que a tela está mostrando. Se este card seguisse o período, um agregado que não rodou no recorte sumiria do controle — foi o que aconteceu: o certificado que vence primeiro desapareceu num dia sem movimento.">ignora o período</span> <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="Certificado A1 vale UM ANO. Vencido em silêncio, a emissão para sozinha e a empresa descobre pelo agregado. A ordem é por urgência e, dentro dela, por VOLUME: um certificado que vence em 40 dias e sustenta metade da fila urge mais que um vencendo em 10 que nunca emitiu nada. Validade não informada NÃO conta como “ok” — conta como desconhecida.">i</span></h2>
             <span class="hint" id="hintCpCert"></span></div>
@@ -9479,9 +9491,25 @@ function renderCtecp(d){
         'autorização vigente + certificado A1 + senha',
         (k.prontos_para_emitir||0)===0?'bad':'warn',
         'Enquanto nenhum agregado estiver autorizado, a fila é diagnóstico: nenhum documento pode ser emitido.')
-   +kpi('Contrapartidas emitidas', (k.emitidas||0).toLocaleString('pt-BR'),
-        'nenhuma rotina de emissão no ar', 'bad',
-        'Zero por confirmação da própria operação, não por falta de dado. Esta tela dimensiona a fila; ela não emite.')
+   +(function(){
+      /* RETORNO DA SEFAZ. UMA chamada so, com os argumentos calculados
+         antes: o teste que confere a banda conta as chamadas no codigo, e
+         duas em ramos diferentes fariam a banda parecer ter cinco cartoes
+         quando ela tem quatro. (O contador e textual, entao nem o comentario
+         pode citar a funcao com o parentese - ja aconteceu aqui.)
+         Sem transmissao nenhuma o valor e "—" e nao "0%": zero por cento de
+         acerto sem tentativa e um numero que acusa alguem por um trabalho que
+         nao existiu. */
+      const t=k.taxa_retorno_ok, ok=k.emitidas_autorizadas||0,
+            nao=k.emitidas_recusadas||0, tot=ok+nao;
+      const vazio = (t===null||t===undefined||!tot);
+      const valor = vazio ? '—' : t.toLocaleString('pt-BR')+'%';
+      const sub = vazio ? 'nenhuma transmissão ainda'
+        : (ok+' de '+tot+' autorizadas · '+(k.emitidas||0)+' em produção');
+      const cls = vazio ? 'warn' : (t>=95?'good' : (t>=70?'warn':'bad'));
+      return kpi('Retorno da SEFAZ', valor, sub, cls,
+        'Percentual de transmissões que a SEFAZ autorizou. Recusada não emitiu nada — por isso entra no denominador e não é somada aos autorizados. Homologação e produção contam juntas AQUI, porque a pergunta é se o documento está correto, não se ele vale. Sem tentativa nenhuma o valor é “—”: um “0%” acusaria um trabalho que não existiu.');
+    })()
    +kpi('Fora da fila (TAC)', (k.ctes_tac||0).toLocaleString('pt-BR'),
         (k.agregados_tac||0)+' agregados pessoa física · '+cpBRL(k.valor_tac),
         'warn',
@@ -9575,6 +9603,76 @@ function renderCtecp(d){
            : ((per.de||'')+' a '+(per.ate||'')))
     +(per.busca?(' · filtrado por “'+per.busca+'”'):'')
     +' · '+(f.gerado_em||'');
+  /* TRANSMISSOES POR DIA. Quatro series empilhadas, nao duas: homologacao e
+     producao nao se somam (uma nao tem valor fiscal) e autorizado e recusado
+     tambem nao (recusado nao emitiu nada). Uma barra so pareceria trabalho
+     feito. */
+  const dias=(d.emissoes_por_dia||[]);
+  document.getElementById('cpDiaLinha').hidden = !dias.length;
+  if(dias.length){
+    const SER=[['producao_ok','produção autorizado','var(--green)'],
+               ['producao_nao','produção recusado','var(--red)'],
+               ['homologacao_ok','homologação autorizado','var(--navy-400)'],
+               ['homologacao_nao','homologação recusado','var(--yellow)']];
+    const tot=function(x){ return SER.reduce(function(a,s){return a+(x[s[0]]||0);},0); };
+    const maxv=Math.max(1,...dias.map(tot));
+    const L=44, R=10, T=14, B=42, W=640, H=240;
+    const larg=(W-L-R)/dias.length, barW=Math.max(4,Math.min(30,larg*0.62));
+    let g='';
+    /* eixo Y com tres marcas: sem elas a altura da barra nao tem leitura */
+    for(let i=0;i<=3;i++){
+      const v=Math.round(maxv*i/3), y=H-B-(H-B-T)*(i/3);
+      g+='<line x1="'+L+'" y1="'+y.toFixed(1)+'" x2="'+(W-R)+'" y2="'+y.toFixed(1)
+        +'" stroke="var(--n200)" stroke-width="1"/>'
+        +'<text x="'+(L-6)+'" y="'+(y+4).toFixed(1)+'" text-anchor="end" font-size="10" fill="var(--n500)">'+v+'</text>';
+    }
+    dias.forEach(function(x,i){
+      const cx=L+larg*i+larg/2; let base=H-B;
+      SER.forEach(function(sr){
+        const v=x[sr[0]]||0; if(!v) return;
+        const h=(H-B-T)*v/maxv;
+        g+='<rect x="'+(cx-barW/2).toFixed(1)+'" y="'+(base-h).toFixed(1)+'" width="'+barW.toFixed(1)
+          +'" height="'+h.toFixed(1)+'" fill="'+sr[2]+'"><title>'+esc(fmtD(x.dia))+' · '
+          +esc(sr[1])+': '+v+'</title></rect>';
+        base-=h;
+      });
+      /* rotulo de dia so quando cabe - senao vira borrao */
+      if(dias.length<=12 || i%Math.ceil(dias.length/12)===0){
+        g+='<text x="'+cx.toFixed(1)+'" y="'+(H-B+16)+'" text-anchor="middle" font-size="10" fill="var(--n500)">'
+          +esc((x.dia||'').slice(8)+'/'+(x.dia||'').slice(5,7))+'</text>';
+      }
+    });
+    /* legenda: sem ela quatro cores empilhadas nao dizem nada */
+    let lx=L;
+    SER.forEach(function(sr){
+      g+='<rect x="'+lx+'" y="'+(H-16)+'" width="9" height="9" fill="'+sr[2]+'"/>'
+        +'<text x="'+(lx+13)+'" y="'+(H-8)+'" font-size="9.5" fill="var(--n600)">'+esc(sr[1])+'</text>';
+      lx+=sr[1].length*5.2+26;
+    });
+    document.getElementById('cpDiaSvg').innerHTML=g;
+    const somaOk=dias.reduce(function(a,x){return a+(x.producao_ok||0)+(x.homologacao_ok||0);},0);
+    document.getElementById('hintCpDia').textContent =
+      dias.length+' '+(dias.length===1?'dia':'dias')+' com transmissão · '
+      +somaOk+' autorizado'+(somaOk===1?'':'s');
+  }
+
+  /* FAIXAS DE VENCIMENTO dos certificados. */
+  const fx=((d.certificados||{}).faixas_contagem)||[];
+  const totFx=fx.reduce(function(a,f){return a+(f.n||0);},0);
+  const CORFX={vencido:'var(--red)',critico:'var(--red)',alerta:'var(--yellow)',
+               atencao:'var(--yellow)',ok:'var(--green)',
+               desconhecido:'var(--red)',impedido:'var(--n400)'};
+  document.getElementById('cpCertFaixas').innerHTML = totFx ? fx.map(function(f){
+    if(!f.n) return '';
+    return '<div>'
+      +'<div style="display:flex;justify-content:space-between;font-size:12px">'
+      +'<span>'+esc(f.rotulo)+'</span><span class="mono" style="color:var(--n500)">'
+      +f.n+' '+(f.n===1?'certificado':'certificados')+'</span></div>'
+      +'<div style="height:10px;border-radius:5px;background:var(--n100);margin-top:3px">'
+      +'<div style="height:100%;width:'+(100*f.n/totFx).toFixed(1)+'%;background:'
+      +(CORFX[f.chave]||'var(--n400)')+';border-radius:5px"></div></div></div>';
+  }).join('') : '<div class="hint">Nenhum certificado cadastrado.</div>';
+
   /* VENCIMENTO DOS CERTIFICADOS. Certificado A1 vale um ano; vencido em
      silencio, a emissao para sozinha. O semaforo e GRADUADO porque "vence em
      2 dias" e "vence em 29" pedem acoes diferentes - chip igual para os dois

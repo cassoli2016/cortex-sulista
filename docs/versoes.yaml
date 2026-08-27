@@ -1,3 +1,31 @@
+- versao: "0.87.0"
+  data: "2026-08-27"
+  adicionado:
+    - >-
+      Grafico de documentos transmitidos por dia na tela de CT-e de
+      Contrapartida, com 30 dias. Sao QUATRO series empilhadas e nao duas:
+      homologacao e producao nao se somam, porque uma nao tem valor fiscal, e
+      autorizado e recusado tambem nao, porque recusado nao emitiu nada. Juntar
+      qualquer par produziria uma barra que parece trabalho feito e nao e.
+    - >-
+      Indicador de RETORNO DA SEFAZ: o percentual de transmissoes autorizadas,
+      com a contagem embaixo e quantas foram em producao. Verde a partir de
+      95, ambar de 70 a 94, vermelho abaixo.
+    - >-
+      Cartao de faixas de vencimento dos certificados - vencido, ate 15 dias,
+      16 a 30, 31 a 60, mais de 60. As duas ultimas linhas aparecem separadas
+      porque NAO sao faixa de prazo: "sem validade informada" nao tem data, e
+      A3 nao se resolve esperando.
+  alterado:
+    - >-
+      Sem nenhuma transmissao, o retorno da SEFAZ mostra travessao e nao "0%".
+      Zero por cento de acerto sem nenhuma tentativa e um numero que acusa
+      alguem por um trabalho que nao existiu.
+    - >-
+      O cartao de "contrapartidas emitidas" deu lugar ao de retorno: ele dizia
+      "nenhuma rotina de emissao no ar", o que deixou de ser verdade, e a
+      contagem de producao virou subtitulo do novo.
+
 - versao: "0.86.0"
   data: "2026-08-27"
   adicionado:
