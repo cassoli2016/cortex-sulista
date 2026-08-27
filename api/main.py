@@ -535,10 +535,19 @@ def telemetria_rastro(placa: str | None = None,
 
 @app.get("/api/gestao/credenciais")
 def gestao_credenciais() -> JSONResponse:
-    """Status das credenciais de integração. NUNCA devolve o valor."""
+    """Integrações por FORNECEDOR, com o estado de cada uma.
+
+    NUNCA devolve o valor de um segredo — só o mascarado. Campo de
+    configuração (ambiente, URL base, filiais) volta com o valor de propósito;
+    a regra está em `api/credenciais.py`.
+
+    `credenciais` continua indo na resposta: é a lista plana, sem agrupamento,
+    de que outros consumidores dependem.
+    """
     from api import credenciais
     # /api/gestao/* já é restrito a admin pelo AuthMiddleware (api/auth.py:654)
-    return JSONResponse({"credenciais": credenciais.listar()})
+    return JSONResponse({"servicos": credenciais.panorama(),
+                         "credenciais": credenciais.listar()})
 
 
 @app.post("/api/gestao/credenciais")
@@ -566,6 +575,169 @@ async def gestao_credenciais_salvar(req: Request) -> JSONResponse:
             "erro": "erro_gravacao",
             "mensagem": "Não foi possível gravar a credencial."})
     return JSONResponse(st)
+
+
+@app.post("/api/fiscal/contrapartida/envio")
+async def contrapartida_envio(req: Request) -> JSONResponse:
+    """Liga ou desliga a emissão para UM agregado.
+
+    Serve para testar com um de cada vez e para tirar da fila quem rejeita
+    sempre — sem apagar certificado nem autorização, que são registros de
+    outra natureza. O autor sai da SESSÃO, nunca do corpo.
+    """
+    from api.contrapartida import emissao
+    quem = (getattr(req.state, "sessao", None) or {}).get("email") or ""
+    if not quem:
+        return JSONResponse(status_code=401, content={
+            "erro": "sem_sessao",
+            "mensagem": "Sessão sem e-mail: não dá para registrar o autor."})
+    try:
+        body = await req.json()
+    except Exception:  # noqa: BLE001
+        body = None
+    if not isinstance(body, dict) or not body.get("cnpj"):
+        return JSONResponse(status_code=422, content={
+            "erro": "parametro_invalido", "mensagem": "Informe o agregado."})
+    try:
+        r = emissao.definir_envio(str(body["cnpj"]), bool(body.get("ativo")),
+                                  quem)
+    except ValueError as exc:
+        return JSONResponse(status_code=422, content={
+            "erro": "parametro_invalido", "mensagem": str(exc)})
+    except Exception as exc:  # noqa: BLE001
+        log.warning("contrapartida_envio falhou: %s", exc)
+        return JSONResponse(status_code=500, content={
+            "erro": "erro_gravacao", "mensagem": "Não foi possível gravar."})
+    return JSONResponse(r)
+
+
+@app.post("/api/fiscal/contrapartida/cancelar")
+async def contrapartida_cancelar(req: Request) -> JSONResponse:
+    """Cancela um CT-e já autorizado. Ato fiscal, com prazo e justificativa.
+
+    Não exige a liberação de produção: liberar existe para impedir que se
+    EMITA sem querer, e exigi-la para cancelar seria pedir para destravar a
+    emissão a fim de corrigir uma emissão.
+    """
+    from api.contrapartida import emissao
+    quem = (getattr(req.state, "sessao", None) or {}).get("email") or ""
+    if not quem:
+        return JSONResponse(status_code=401, content={
+            "erro": "sem_sessao",
+            "mensagem": "Sessão sem e-mail: não dá para registrar o autor."})
+    try:
+        body = await req.json()
+    except Exception:  # noqa: BLE001
+        body = None
+    if not isinstance(body, dict) or not body.get("chave"):
+        return JSONResponse(status_code=422, content={
+            "erro": "parametro_invalido", "mensagem": "Informe a chave."})
+    try:
+        r = emissao.cancelar(str(body["chave"]),
+                             str(body.get("justificativa") or ""), quem=quem)
+    except (ValueError, FileNotFoundError) as exc:
+        return JSONResponse(status_code=422, content={
+            "erro": "parametro_invalido", "mensagem": str(exc)})
+    except Exception as exc:  # noqa: BLE001
+        log.warning("contrapartida_cancelar falhou: %s", exc)
+        return JSONResponse(status_code=500, content={
+            "erro": "erro_cancelamento",
+            "mensagem": f"Falha ao cancelar: {str(exc)[:200]}"})
+    return JSONResponse(r)
+
+
+@app.get("/api/fiscal/contrapartida/documento/{chave}")
+def contrapartida_documento(chave: str) -> Response:
+    """Baixa o `cteProc` de um documento transmitido — XML + protocolo.
+
+    Fica sob /api/fiscal/contrapartida/* e não em /api/gestao/*: quem enxerga
+    a tela pode baixar o documento dela. Ligar produção é outra conversa e
+    continua restrito a administrador.
+    """
+    from api.contrapartida import emissao
+    limpa = "".join(c for c in (chave or "") if c.isdigit())
+    if len(limpa) != 44:
+        return JSONResponse(status_code=422, content={
+            "erro": "parametro_invalido",
+            "mensagem": "Chave de CT-e tem 44 dígitos."})
+    try:
+        proc = emissao.proc_de(limpa)
+    except Exception as exc:  # noqa: BLE001
+        log.warning("download de contrapartida %s: %s", limpa, exc)
+        return JSONResponse(status_code=500, content={
+            "erro": "erro_consulta", "mensagem": "Erro ao ler o documento."})
+    if not proc:
+        # 404 e não um XML vazio: documento recusado não tem processo, e um
+        # arquivo com cara de válido é pior que a ausência dele.
+        return JSONResponse(status_code=404, content={
+            "erro": "sem_documento",
+            "mensagem": "Sem arquivo para esta chave. Só documento AUTORIZADO "
+                        "tem processo — e os autorizados antes de o sistema "
+                        "passar a guardar o XML não têm arquivo."})
+    return Response(
+        content=proc, media_type="application/xml",
+        headers={"Content-Disposition":
+                 f'attachment; filename="{limpa}-procCTe.xml"'})
+
+
+# ------------------------------------------------- CT-e de contrapartida (emissão)
+#
+# /api/gestao/* é restrito a administrador pelo AuthMiddleware. Aqui isso não é
+# detalhe: estes dois interruptores decidem se o sistema emite documento fiscal
+# real, em nome de outra empresa, e se faz isso sem ninguém olhando.
+
+@app.get("/api/gestao/contrapartida")
+def gestao_contrapartida() -> JSONResponse:
+    """Ambiente ativo, automação e intervalo — com quem mudou cada coisa."""
+    from api.contrapartida import lote
+    try:
+        return JSONResponse(lote.estado())
+    except Exception as exc:  # noqa: BLE001
+        log.warning("gestao_contrapartida falhou: %s", exc)
+        return JSONResponse(status_code=500, content={
+            "erro": "erro_consulta",
+            "mensagem": "Erro ao ler a configuração de emissão."})
+
+
+@app.post("/api/gestao/contrapartida")
+async def gestao_contrapartida_salvar(req: Request) -> JSONResponse:
+    """Muda ambiente, automação ou intervalo. Tudo entra na trilha.
+
+    O autor sai da SESSÃO, nunca do corpo do pedido: quem responde por ligar
+    produção não pode ser um campo que o próprio cliente preenche.
+    """
+    from api.contrapartida import emissao, lote
+    quem = (getattr(req.state, "sessao", None) or {}).get("email") or ""
+    if not quem:
+        return JSONResponse(status_code=401, content={
+            "erro": "sem_sessao",
+            "mensagem": "Sessão sem e-mail: não dá para registrar o autor."})
+    try:
+        body = await req.json()
+    except Exception:  # noqa: BLE001
+        body = None
+    if not isinstance(body, dict):
+        return JSONResponse(status_code=422, content={
+            "erro": "parametro_invalido", "mensagem": "Corpo inválido."})
+    try:
+        if "ambiente" in body:
+            emissao.definir_ambiente(str(body["ambiente"]), quem,
+                                     str(body.get("confirmacao") or ""))
+        if "automacao" in body:
+            lote.definir_automacao(bool(body["automacao"]), quem)
+        if "intervalo_min" in body:
+            lote.definir_intervalo(body["intervalo_min"], quem)
+    except PermissionError as exc:
+        return JSONResponse(status_code=403, content={
+            "erro": "confirmacao_necessaria", "mensagem": str(exc)})
+    except ValueError as exc:
+        return JSONResponse(status_code=422, content={
+            "erro": "parametro_invalido", "mensagem": str(exc)})
+    except Exception as exc:  # noqa: BLE001
+        log.warning("gestao_contrapartida_salvar falhou: %s", exc)
+        return JSONResponse(status_code=500, content={
+            "erro": "erro_gravacao", "mensagem": "Não foi possível gravar."})
+    return JSONResponse(lote.estado())
 
 
 # ---------------------------------------------------------------- E-mail (SMTP)

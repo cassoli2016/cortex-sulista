@@ -111,3 +111,22 @@ def coletar(usuario: str = "coleta automática", http=None) -> dict:
         "por_status": resumo["por_status"],
         "coletado_em": agora.strftime("%Y-%m-%d %H:%M"),
     }
+
+
+def diagnostico() -> dict:
+    """Estado da integração, sem expor segredo — alimenta a tela de Saúde.
+
+    Não chama a API: a Saúde recarrega a cada 5 s e uma volta em
+    `/receivables` pagina até o portal inteiro. O que se mede é a POSIÇÃO
+    GRAVADA — que é o que a tela de Antecipações mostra.
+    """
+    ultimo = registro.ultimo_envio(PORTAL) or {}
+    return {
+        "configurado": cli.configurado(),
+        "modo_auth": cli.modo_auth() or "nenhuma",
+        "seller_id": bool(cli.seller_id()),
+        "ambiente": cli.ambiente(),
+        "coletado_em": ultimo.get("ts") if ultimo.get("origem") == ORIGEM else None,
+        "titulos": ultimo.get("titulos") or 0,
+        "valor_saldo": ultimo.get("valor_saldo") or 0.0,
+    }

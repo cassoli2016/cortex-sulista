@@ -73,12 +73,39 @@ def test_a_tela_e_SO_LEITURA():
                          "pfx", "sign", "post"})
 
 
-def test_emitidas_e_zero_declarado_e_nao_calculado():
-    """Zero por confirmacao da operacao, nao por consulta que devolveu vazio.
-    A diferenca importa: consulta vazia pode ser bug."""
+def test_homologacao_NAO_entra_na_contagem_de_emitidas():
+    """`emitidas` era zero declarado enquanto nada havia sido transmitido.
+    Agora ha transmissoes de verdade - mas so em HOMOLOGACAO, que e ambiente
+    de teste e nao tem valor fiscal. Somar as duas faria a tela anunciar uma
+    fila resolvida que nao foi, que e pior do que o zero antigo."""
     with open(servico.__file__.replace(".pyc", ".py"), encoding="utf-8") as f:
         src = f.read()
-    assert '"emitidas": 0' in src
+    assert '"emitidas": _tx["producao"]' in src
+    assert '"emitidas_homologacao": _tx["homologacao"]' in src
+
+
+def test_a_contagem_separa_ambiente_e_resultado(monkeypatch):
+    """Producao x homologacao, e autorizada x recusada: quatro numeros, porque
+    documento recusado tambem nao emitiu nada."""
+    monkeypatch.setattr(
+        "api.contrapartida.emissao.historico",
+        lambda limite=30: [
+            {"ambiente": "2", "cstat": "100", "numero": 1},
+            {"ambiente": "2", "cstat": "310", "numero": 2},
+            {"ambiente": "1", "cstat": "100", "numero": 3},
+        ])
+    t = servico._transmissoes()
+    assert (t["producao"], t["homologacao"]) == (1, 2)
+    assert (t["autorizadas"], t["recusadas"]) == (2, 1)
+
+
+def test_registro_indisponivel_nao_derruba_a_tela(monkeypatch):
+    """O resto da conciliacao nao depende do historico de transmissoes."""
+    def explode(limite=30):
+        raise RuntimeError("banco fora")
+    monkeypatch.setattr("api.contrapartida.emissao.historico", explode)
+    t = servico._transmissoes()
+    assert t["ultimas"] == [] and t["producao"] == 0
 
 
 def test_pt_br_formata_SO_o_numero():
@@ -101,30 +128,57 @@ def _pj(n): return [{"documento": str(i), "nome": "X", "ie": "1",
 
 
 def test_avisa_SEMPRE_que_nada_foi_emitido():
-    av = servico._avisos(_pj(3), [], [], [], [])
+    av = servico._avisos(_pj(3), [], [], [])
     assert any("Nenhuma contrapartida emitida" in a for a in av)
 
 
 def test_aviso_do_TAC_explica_que_e_do_DOCUMENTO_e_nao_do_certificado():
     """O usuario disse ter certificado de todos. Para o TAC isso nao resolve:
     ele nao e sujeito passivo do CT-e."""
-    av = servico._avisos(_pj(53), [{"documento": "1"}] * 30, [], [], [])
+    av = servico._avisos(_pj(53), [{"documento": "1"}] * 30, [], [])
     texto = " ".join(av)
     assert "CIOT" in texto and "certificado" in texto
 
 
-def test_passivo_historico_NAO_vira_fila_de_trabalho():
-    """CT-e nao se emite retroativo: a SEFAZ recusa data fora da janela."""
-    av = servico._avisos(_pj(1), [], [], [], [
-        {"ano": "2025", "classe": "pj", "ctes": 34188, "valor": 108713961.0}])
-    alvo = [a for a in av if "Passivo" in a][0]
-    assert "108.713.961" in alvo and "retroativo" in alvo
-    assert "34.188" in alvo
+def test_o_passivo_historico_SAIU_da_tela():
+    """CT-e nao se emite retroativo, entao o acumulado nunca virava trabalho -
+    so ocupava espaco numa tela cuja pergunta e "o que preciso emitir agora".
+    O numero segue registrado no documento da contabilidade, que e onde ele
+    serve: decisao de contabilidade e juridico.
+
+    Tirar tambem removeu uma consulta que varria desde 2022."""
+    import inspect
+    fonte = inspect.getsource(servico)
+    assert "PASSIVO_SQL" not in fonte
+    av = servico._avisos(_pj(1), [], [], [])
+    assert not any("Passivo" in a for a in av)
+
+
+def test_prontidao_separa_os_DOIS_portoes():
+    """Cadastro completo e autorizacao sao coisas diferentes: um agregado pode
+    ter o cadastro impecavel e nao emitir nada por falta de certificado."""
+    pj = [
+        {"documento": "1", "ie": "123", "falta": [], "ctes": 10, "valor": 100.0,
+         "prontidao": {"pronto": True}},
+        {"documento": "2", "ie": "123", "falta": [], "ctes": 20, "valor": 200.0,
+         "prontidao": {"pronto": False}},
+        {"documento": "3", "ie": "ISENTO", "ind_ie": 1, "falta": ["x"],
+         "ctes": 30, "valor": 300.0, "prontidao": {"pronto": False}},
+        {"documento": "4", "ie": "ISENTO", "ind_ie": 9, "falta": ["x"],
+         "ctes": 40, "valor": 400.0, "prontidao": {"pronto": False}},
+    ]
+    r = servico._prontidao_fila(pj)
+    assert r["autorizados"]["agregados"] == 1
+    assert r["cadastro_ok_sem_certificado"]["agregados"] == 1
+    assert r["sem_ie_contribuinte"]["agregados"] == 1
+    assert r["sem_ie_nao_contribuinte"]["agregados"] == 1
+    # o volume acompanha o agregado, nao a contagem
+    assert r["autorizados"]["ctes"] == 10 and r["total"]["ctes"] == 100
 
 
 def test_pendencia_cadastral_nomeia_o_campo_que_falta():
     av = servico._avisos(_pj(1), [], [],
-                         [{"documento": "9", "nome": "ACME", "falta": ["RNTRC"]}], [])
+                         [{"documento": "9", "nome": "ACME", "falta": ["RNTRC"]}])
     assert any("ACME" in a and "RNTRC" in a for a in av)
 
 
@@ -320,7 +374,7 @@ def test_pendencia_de_IE_mostra_O_VALOR_encontrado():
         [{"documento": "1", "nome": "ACME", "ie": "ISENTO", "rntrc": "9",
           "cidade": "X"}], [], [],
         [{"documento": "1", "nome": "ACME",
-          "falta": ["inscrição estadual (ISENTO)"]}], [])
+          "falta": ["inscrição estadual (ISENTO)"]}])
     assert any("ISENTO" in a for a in av)
 
 
@@ -328,7 +382,7 @@ def test_aviso_de_IE_diz_o_TAMANHO_REAL_da_fila():
     """O numero que decide: se os 17 nao emitem, a fila e de 36 e nao de 53."""
     pj = [{"documento": str(i), "nome": "X", "ie": "" if i < 17 else "123",
            "rntrc": "9", "cidade": "C"} for i in range(53)]
-    av = servico._avisos(pj, [], [], [], [])
+    av = servico._avisos(pj, [], [], [])
     alvo = [a for a in av if "inscrição" in a][0]
     assert "17 de 53" in alvo and "36" in alvo and "SINTEGRA" in alvo
 
@@ -347,3 +401,193 @@ def test_a_lista_de_pendencias_vai_PRONTA_para_a_tela():
     # o front nao pode montar a lista de novo
     assert "['razão social',x.nome]" not in html
     assert "const falta=(x.falta||[]);" in html
+
+
+def test_a_MONTAGEM_INTEIRA_roda_e_serializa(monkeypatch):
+    """Guarda de integracao, e ela existe porque faltou.
+
+    Um NameError dentro de `get_contrapartida` foi para producao e quem
+    encontrou foi o usuario, com a tela dizendo "Erro ao montar a
+    conciliacao". A suite passava: os testes exercitavam `_serial`, `_br`,
+    `_avisos` — cada peca — e NENHUM chamava a funcao que a tela chama.
+
+    Este roda o caminho todo com o banco mockado e serializa o resultado, que
+    e exatamente o que a rota faz.
+    """
+    import json
+
+    monkeypatch.setattr(servico.db, "query", lambda *a, **k: [])
+    monkeypatch.setattr("api.contrapartida.cadastro.mapa", lambda: {})
+    monkeypatch.setattr("api.contrapartida.emissao.historico",
+                        lambda limite=30: [])
+    r = servico.get_contrapartida()
+    assert {"periodo", "kpis", "emissoes", "por_agregado"} <= set(r)
+    json.dumps(r)
+
+
+def test_a_montagem_sobrevive_ao_historico_fora_do_ar(monkeypatch):
+    """O registro de transmissoes e acessorio: se ele cair, a conciliacao —
+    que e o motivo da tela existir — tem de continuar aparecendo."""
+    import json
+
+    def explode(limite=30):
+        raise RuntimeError("registro fora")
+
+    monkeypatch.setattr(servico.db, "query", lambda *a, **k: [])
+    monkeypatch.setattr("api.contrapartida.cadastro.mapa", lambda: {})
+    monkeypatch.setattr("api.contrapartida.emissao.historico", explode)
+    r = servico.get_contrapartida()
+    assert r["emissoes"] == [] and r["kpis"]["emitidas"] == 0
+    json.dumps(r)
+
+
+def test_a_trilha_nao_grava_email_pessoal_por_padrao():
+    """Quem roda o script na bancada varia; a trilha tem de dizer que foi o
+    CORTEX. E-mail pessoal de quem por acaso executou nao identifica o ator."""
+    import inspect
+
+    from api.contrapartida import emissao
+    assert emissao.IDENTIDADE_SISTEMA.endswith("@sulista.com.br")
+    fonte = inspect.getsource(emissao)
+    assert "gmail" not in fonte.lower()
+    # emissao pela TELA continua exigindo o usuario logado
+    assert inspect.signature(
+        emissao.transmitir).parameters["quem"].default is inspect.Parameter.empty
+
+
+def test_o_script_de_operacao_usa_a_identidade_do_sistema():
+    fonte = open("scripts/emitir_homologacao.py", encoding="utf-8").read()
+    assert "emissao.IDENTIDADE_SISTEMA" in fonte
+    assert "gmail" not in fonte.lower()
+
+
+def test_o_historico_nao_carrega_o_xml_inteiro():
+    """O XML e grande e a tela nao o usa: a listagem devolve so se EXISTE."""
+    import inspect
+
+    from api.contrapartida import emissao
+    fonte = inspect.getsource(emissao.historico)
+    assert "tem_xml" in fonte and "SELECT *" not in fonte
+
+
+def test_autorizada_sem_xml_e_contada_a_parte(monkeypatch):
+    """Documento autorizado sem arquivo guardado nao se importa no ERP nem se
+    arquiva - a chave prova que existe, o arquivo e que serve."""
+    monkeypatch.setattr(
+        "api.contrapartida.emissao.historico",
+        lambda limite=30: [
+            {"ambiente": "2", "cstat": "100", "tem_xml": 1},
+            {"ambiente": "2", "cstat": "100", "tem_xml": 0},
+            {"ambiente": "2", "cstat": "310", "tem_xml": 0},
+        ])
+    t = servico._transmissoes()
+    assert t["com_xml"] == 1 and t["autorizadas_sem_xml"] == 1
+
+
+# --- vencimento de certificado ----------------------------------------------
+
+def test_semaforo_do_certificado_e_GRADUADO():
+    """"Vence em 2 dias" e "vence em 29" pedem acoes diferentes; chip igual
+    para os dois nao prioriza nada."""
+    assert servico._situacao_cert(-1, "A1")[0] == "vencido"
+    assert servico._situacao_cert(0, "A1")[0] == "critico"
+    assert servico._situacao_cert(15, "A1")[0] == "critico"
+    assert servico._situacao_cert(16, "A1")[0] == "alerta"
+    assert servico._situacao_cert(30, "A1")[0] == "alerta"
+    assert servico._situacao_cert(31, "A1")[0] == "atencao"
+    assert servico._situacao_cert(60, "A1")[0] == "atencao"
+    assert servico._situacao_cert(61, "A1")[0] == "ok"
+
+
+def test_validade_ausente_NAO_e_ok():
+    """Tratar validade ausente como boa noticia e o erro que faz a emissao
+    parar em silencio: o certificado vence, ninguem e avisado, e a empresa
+    descobre pelo agregado."""
+    assert servico._situacao_cert(None, "A1")[0] == "desconhecido"
+
+
+def test_A3_e_impedimento_e_nao_prazo():
+    """A3 mora em token fisico: nao se resolve esperando nem renovando data."""
+    situacao, texto = servico._situacao_cert(400, "A3")
+    assert situacao == "impedido" and "token" in texto
+
+
+def test_um_dia_no_singular():
+    assert "1 dia" in servico._situacao_cert(1, "A1")[1]
+    assert "2 dias" in servico._situacao_cert(2, "A1")[1]
+
+
+def test_a_ordem_poe_URGENCIA_antes_e_VOLUME_dentro_dela():
+    """Um certificado que vence em 40 dias e sustenta metade da fila urge mais
+    que um vencendo em 10 que nunca emitiu nada - mas so DENTRO da mesma
+    situacao: urgencia continua vindo primeiro."""
+    from datetime import date, timedelta
+    hoje = date.today()
+
+    def _cert(dias):
+        return (hoje + timedelta(days=dias)).isoformat()
+
+    pj = [
+        {"documento": "1", "nome": "POUCO VOLUME", "ctes": 1, "valor": 1.0},
+        {"documento": "2", "nome": "MUITO VOLUME", "ctes": 900, "valor": 90.0},
+        {"documento": "3", "nome": "TRANQUILO", "ctes": 500, "valor": 50.0},
+    ]
+    pront = {
+        "1": {"certificado": {"tipo": "A1", "valida_ate": _cert(5)},
+              "tem_senha": True},
+        "2": {"certificado": {"tipo": "A1", "valida_ate": _cert(10)},
+              "tem_senha": True},
+        "3": {"certificado": {"tipo": "A1", "valida_ate": _cert(300)},
+              "tem_senha": True},
+    }
+    r = servico._certificados(pj, pront)
+    # os dois criticos vem antes do tranquilo; entre eles, o de maior volume
+    assert [i["nome"] for i in r["itens"]] == [
+        "MUITO VOLUME", "POUCO VOLUME", "TRANQUILO"]
+    assert r["ate_30"]["certificados"] == 2
+    assert r["ate_30"]["ctes"] == 901, "o alerta carrega o VOLUME em risco"
+
+
+def test_agregado_sem_certificado_fica_fora_deste_card():
+    """Quem nem tem certificado e pendencia de outro cartao - misturar faria
+    o controle de VENCIMENTO virar lista de cadastro."""
+    r = servico._certificados([{"documento": "9", "nome": "X", "ctes": 5}], {})
+    assert r["itens"] == [] and r["total"] == 0
+
+
+def test_o_controle_de_certificado_NAO_segue_o_filtro_de_periodo():
+    """O defeito que isto trava: a tela abre no DIA DE HOJE, e a lista saia
+    dos agregados com CT-e no periodo. Num dia sem movimento o agregado sumia
+    do controle - e sumiu justamente o certificado que vencia PRIMEIRO.
+
+    Certificado vence no calendario, nao na janela que a tela mostra.
+    """
+    from datetime import date, timedelta
+    venc = (date.today() + timedelta(days=20)).isoformat()
+    pront = {
+        "111": {"certificado": {"tipo": "A1", "valida_ate": venc,
+                                "titular": "QUEM NAO RODOU HOJE"},
+                "tem_senha": True},
+    }
+    r = servico._certificados([], pront)      # nenhum CT-e no periodo
+    assert r["total"] == 1, "sumiu do controle por nao ter rodado no recorte"
+    assert r["itens"][0]["no_periodo"] is False
+    assert r["itens"][0]["nome"] == "QUEM NAO RODOU HOJE", (
+        "sem CT-e no periodo nao ha razao social na consulta - o titular do "
+        "certificado e o ultimo recurso para a linha nao sair anonima")
+    assert r["ignora_periodo"] is True
+
+
+def test_volume_zero_fora_do_periodo_nao_se_confunde_com_volume_zero():
+    """"0 CT-e" e "nao rodou no recorte" sao coisas diferentes, e a tela
+    precisa do sinal para nao mostrar um zero que engana."""
+    from datetime import date, timedelta
+    venc = (date.today() + timedelta(days=90)).isoformat()
+    pj = [{"documento": "222", "nome": "RODOU", "ctes": 7, "valor": 70.0}]
+    pront = {
+        "111": {"certificado": {"tipo": "A1", "valida_ate": venc}, "tem_senha": True},
+        "222": {"certificado": {"tipo": "A1", "valida_ate": venc}, "tem_senha": True},
+    }
+    por_doc = {i["documento"]: i for i in servico._certificados(pj, pront)["itens"]}
+    assert por_doc["222"]["no_periodo"] is True and por_doc["222"]["ctes"] == 7
+    assert por_doc["111"]["no_periodo"] is False

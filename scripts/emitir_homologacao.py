@@ -33,32 +33,52 @@ CHAVE_PILOTO = "35260876104397000204570010003585231063585236"
 
 # Estado das definicoes em 26/08/2026. DECIDIDO = resposta da area; PENDENTE =
 # valor escolhido so para exercitar a transmissao, trocar quando responderem.
-# CONFLITO ABERTO, medido na SEFAZ em 26/08/2026 e ainda nao resolvido:
-# a area respondeu "prestacao normal", e prestacao normal NAO aceita a Sulista
-# como tomadora (746) nem o vinculo com o CT-e dela (747). Ou seja, a resposta
-# dada e incompativel com a premissa do modulo - um documento do agregado
-# CONTRA a Sulista. Enquanto nao houver reconciliacao, o script segue na unica
-# combinacao que autorizou E descreve a operacao real.
-ENQUADRAMENTO_TECNICO = documento.Enquadramento(
-    cfop="5351",
-    tp_serv="1",              # subcontratacao (base 0 do SCHEMA, nao do ERP)
-    grupo_icms="ICMSSN",      # PENDENTE: emitente e optante do Simples
-    cst_icms="90",            # PENDENTE
+# DECIDIDO pela area em 26/08/2026: nao ha dispensa (o agregado emite) e o
+# enquadramento e SUBCONTRATACAO. Restam a base do valor e a CST do ICMS.
+ENQUADRAMENTO = documento.Enquadramento(
+    # 5351 no mesmo estado, 6351 cruzando divisa. Sao dois porque 88% das
+    # viagens de agregado sao interestaduais - um CFOP fixo erraria a maioria.
+    cfop_interno="5351",
+    cfop_interestadual="6351",
+    # DECIDIDO: rateio proporcional ao valor cobrado do cliente.
+    criterio_rateio="cobrado",
+    tp_serv="1",              # DECIDIDO: subcontratacao (base 0 do SCHEMA)
+    # DECIDIDO: "use o que ja existe" - a tributacao sai do ERP, documento a
+    # documento (regime do emitente manda; nao sendo optante, vale a CST e a
+    # aliquota que o ERP ja calculou para aquela rota).
+    grupo_icms="AUTO",
+    cst_icms="",
     p_icms=None,
-    base_valor="fretecompra",  # PENDENTE: pago ao agregado x cobrado do cliente
-    toma="4",                 # tomador "outros" - a Sulista, com CNPJ
-    referenciar_original=True,
+    # DECIDIDO e CONFIRMADO em 26/08/2026: o valor pago ao agregado, que e a
+    # coluna do frete de compra - a mesma que alimenta o PEF da viagem. O
+    # "contrato de transporte" citado pela area E este valor; os campos de PEF
+    # da replica nao servem (ver docs/contrapartida-perguntas-contabilidade.md).
+    # Como o pagamento e por VIAGEM e o documento e por CT-e, os 48% que
+    # dividem viagem passam pelo rateio acima.
+    base_valor="fretecompra",
+    toma="4",                 # a Sulista como tomadora ("outros")
+    referenciar_original=True,  # o vinculo com o nosso CT-e
 )
+ENQUADRAMENTO_TECNICO = ENQUADRAMENTO   # nome antigo, ainda usado no texto
 
 
 def main() -> int:
     ap = argparse.ArgumentParser()
     ap.add_argument("chave", nargs="?", default=CHAVE_PILOTO)
     ap.add_argument("--numero", type=int, default=None)
-    ap.add_argument("--quem", default="cassoli2013@gmail.com")
+    # Identidade do SISTEMA, nao e-mail pessoal: quem roda o script na
+    # bancada varia, e a trilha tem de dizer que foi o CORTEX. Emissao pela
+    # tela continua exigindo o usuario logado.
+    ap.add_argument("--quem", default=emissao.IDENTIDADE_SISTEMA)
+    ap.add_argument("--producao", action="store_true",
+                    help="emite em PRODUCAO (exige liberacao previa)")
     a = ap.parse_args()
 
-    print("AMBIENTE: HOMOLOGACAO - o documento nao tem valor fiscal.")
+    ambiente = emissao.PRODUCAO if a.producao else emissao.HOMOLOGACAO
+    if ambiente == emissao.HOMOLOGACAO:
+        print("AMBIENTE: HOMOLOGACAO - o documento nao tem valor fiscal.")
+    else:
+        print("AMBIENTE: PRODUCAO - documento REAL, em nome de terceiro.")
     print("Enquadramento TECNICO (a contabilidade ainda nao respondeu):")
     for campo, valor in vars(ENQUADRAMENTO_TECNICO).items():
         print(f"   {campo:22} {valor!r}")
@@ -76,7 +96,7 @@ def main() -> int:
 
     try:
         r = emissao.transmitir(a.chave, ENQUADRAMENTO_TECNICO, quem=a.quem,
-                               numero=a.numero)
+                               numero=a.numero, ambiente=ambiente)
     except Exception as exc:  # noqa: BLE001
         print(f"FALHOU: {type(exc).__name__}: {str(exc)[:500]}")
         return 1

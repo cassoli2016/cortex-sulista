@@ -1,14 +1,21 @@
 """CÓRTEX — saúde do servidor (infra desta máquina).
 
 Coleta métricas do host (CPU, memória, disco, rede, uptime) e o estado dos
-serviços do CÓRTEX (API, banco ERP, túnel Cloudflare, Ollama) e das tarefas
-agendadas. Área administrativa — a rota vive sob /api/gestao (só admin).
+serviços do CÓRTEX (API, banco ERP, túnel Cloudflare, Ollama), das integrações
+de fornecedor (Prolog, Gobrax, Monkey) e das tarefas agendadas.
+
+INTEGRAÇÃO NÃO SE CONSULTA DAQUI. Prolog tem cota, Gobrax leva 73 s por volta
+e esta tela recarrega de 5 em 5 s: o que se mede é a IDADE DO INSTANTÂNEO que
+as telas mostram. E integração sem credencial é `info`, não falha — o recurso
+não existe nesta instalação, e pintar isso de vermelho todo dia treina o
+operador a ignorar alarme. Área administrativa — a rota vive sob /api/gestao (só admin).
 
 Tudo é best-effort: cada bloco é isolado em try/except para que a falha de uma
 métrica (ex.: psutil ausente) não derrube o painel inteiro.
 """
 from __future__ import annotations
 
+import importlib
 import json
 import logging
 import os
@@ -170,6 +177,30 @@ def _idade_min(iso: str) -> int | None:
     return None
 
 
+def _competencia_br(competencia: str) -> str:
+    """'2026-08' -> '08/2026'. A competência é guardada no formato que ordena
+    (alfabético = cronológico); quem lê a tela espera o formato daqui."""
+    ano, _, mes = (competencia or "").partition("-")
+    return f"{mes}/{ano}" if mes else (competencia or "—")
+
+
+def _ha_quanto(idade: int | None) -> str:
+    """"há 12 min", "há 3 h", "há 2 dias" — a idade como quem opera a lê.
+
+    `None` é carimbo ilegível, não "agora": tratar os dois como a mesma coisa
+    pintaria de verde uma coleta cuja data ninguém consegue ler.
+    """
+    if idade is None:
+        return "em data ilegível"
+    if idade < 2:
+        return "agora"
+    if idade < 120:
+        return f"há {idade} min"
+    if idade < 2880:
+        return f"há {round(idade / 60)} h"
+    return f"há {round(idade / 1440)} dias"
+
+
 def _processo_cloudflared() -> int:
     if not psutil:
         return 0
@@ -181,6 +212,73 @@ def _processo_cloudflared() -> int:
         except (psutil.NoSuchProcess, psutil.AccessDenied):
             continue
     return n
+
+
+def _servico_gobrax(d: dict) -> dict:
+    """Linha da Gobrax na Saúde, a partir do diagnóstico do CACHE.
+
+    Estatística e odômetro andam juntas na Torre, então o que sai aqui é a MAIS
+    ATRASADA das duas: uma fresca ao lado de outra parada é pior que as duas
+    velhas, porque o cruzamento passa a mentir sem parecer.
+    """
+    from .gobrax.armazenamento import COLECOES
+    nome = "Gobrax (telemetria)"
+    # a premiação usa OUTRA credencial (login do portal, não o token): sem ela
+    # a nota × km congela sem que a telemetria acuse nada
+    falta_prem = ("" if d["premiacao_configurada"]
+                  else " · premiação sem login no .env (GOBRAX_EMAIL/"
+                       "GOBRAX_SENHA) — a nota × km não atualiza")
+    if not d["configurado"]:
+        return {"nome": nome, "status": "info",
+                "detalhe": "não configurada — falta o token, em "
+                           "Gestão › Integrações"}
+    atrasada, idade = None, None
+    for colecao, _rot in COLECOES:
+        c = (d["colecoes"] or {}).get(colecao)
+        if not c:
+            continue
+        i = _idade_min(c["quando"])
+        if atrasada is None or (i or 0) > (idade or 0):
+            atrasada, idade = c, i
+    if atrasada is None:
+        return {"nome": nome, "status": "alerta",
+                "detalhe": "configurada, mas nenhuma coleta ainda" + falta_prem}
+    ausentes = [rot for colecao, rot in COLECOES
+                if not (d["colecoes"] or {}).get(colecao)]
+    sem = (" · sem coleta de " + " e ".join(ausentes)) if ausentes else ""
+    # a tarefa agendada roda de 3 em 3 h; passar de duas janelas é coleta
+    # parada — e aí a Torre envelhece calada, que foi como se perdeu 5 dias
+    velha = idade is None or idade > 390
+    return {"nome": nome, "status": "alerta" if (velha or falta_prem) else "ok",
+            "detalhe": f"competência {_competencia_br(atrasada['competencia'])}"
+                       f" · {atrasada['registros']} veículos · atualizado "
+                       f"{_ha_quanto(idade)}{sem}{falta_prem}"}
+
+
+def _servico_monkey(d: dict) -> dict:
+    """Linha da Monkey. Mede a POSIÇÃO GRAVADA, não a API: é ela que a tela de
+    Antecipações mostra, e uma volta em /receivables pagina o portal inteiro."""
+    nome = "Monkey (antecipação Tupy)"
+    if not d["configurado"]:
+        falta = ("credencial" if d["modo_auth"] == "nenhuma"
+                 else "o sellerId da Sulista (MONKEY_SELLER_ID)")
+        return {"nome": nome, "status": "info",
+                "detalhe": f"não configurada — falta {falta}"}
+    if not d["coletado_em"]:
+        return {"nome": nome, "status": "alerta",
+                "detalhe": "configurada, mas nenhuma coleta ainda — a Tupy "
+                           "segue entrando por planilha"}
+    idade = _idade_min(str(d["coletado_em"]).replace("T", " ")[:19])
+    # HOMOLOGAÇÃO não é produção: os títulos são de teste, e a tela de
+    # Antecipações não tem como saber disso sozinha
+    hmg = d["ambiente"] != "prod"
+    velha = idade is None or idade > 1440
+    valor = f"{d['valor_saldo']:,.2f}".replace(",", "@").replace(".", ",").replace("@", ".")
+    return {"nome": nome, "status": "alerta" if (hmg or velha) else "ok",
+            "detalhe": f"{d['titulos']} títulos · R$ {valor} · coletado "
+                       f"{_ha_quanto(idade)}"
+                       + (" · ambiente de HOMOLOGAÇÃO, os títulos são de teste"
+                          if hmg else "")}
 
 
 def _servicos() -> list[dict]:
@@ -251,9 +349,7 @@ def _servicos() -> list[dict]:
             idade = _idade_min(d["coletado_em"])
             lidos, total = d["lidos"], d["total_na_api"]
             cob = f"{lidos} de {total}" if total else f"{lidos}"
-            quando = ("agora" if idade is None or idade < 2
-                      else f"há {idade} min" if idade < 120
-                      else f"há {round(idade/60)} h")
+            quando = _ha_quanto(idade)
             # a coleta anda de 20 em 20 min; passar de 90 min sem avancar
             # significa tarefa parada, e ai o numero da tela envelhece calado
             servicos.append({
@@ -265,6 +361,19 @@ def _servicos() -> list[dict]:
         servicos.append({"nome": "Prolog (pneus)", "status": "info",
                          "detalhe": "integração indisponível"})
         log.warning("saude: prolog: %s", exc)
+
+    for nome, modulo, monta in (
+            ("Gobrax (telemetria)", "gobrax.armazenamento", _servico_gobrax),
+            ("Monkey (antecipação Tupy)", "monkey.servico", _servico_monkey)):
+        try:
+            mod = importlib.import_module("." + modulo, __package__)
+            servicos.append(monta(mod.diagnostico()))
+        except Exception as exc:  # noqa: BLE001
+            # integração que explode no diagnóstico não pode derrubar a tela
+            # onde se olha justamente quando algo está errado
+            servicos.append({"nome": nome, "status": "info",
+                             "detalhe": "integração indisponível"})
+            log.warning("saude: %s: %s", modulo, exc)
 
     # Túnel Cloudflare
     n = _processo_cloudflared()

@@ -394,6 +394,10 @@ tr:last-child td{border-bottom:0}
 .b-warn{background:var(--yellow-100);color:var(--yellow-700)}
 .b-dang{background:var(--red-100);color:var(--red)}
 .b-ok{background:var(--green-100);color:var(--green)}
+/* Transmissão recusada: fundo leve, porque a coluna de situação já carrega o
+   vermelho. Pintar a linha inteira forte competiria com ela e cansaria numa
+   lista longa. */
+tr.cp-recusada td{background:var(--red-50,#fdf2f0)}
 /* linhas expansíveis (fornecedores → OCs) */
 tr.forn-row{cursor:pointer}
 tr.forn-row:hover td{background:var(--navy-50)}
@@ -979,6 +983,30 @@ button.avatar{border:0;cursor:pointer}
 .ges-cfg label{display:block;font-size:12px;font-weight:600;color:var(--n600,#6B7280);margin-bottom:4px}
 .ges-cfg input{width:100%;padding:9px 10px;border:1px solid var(--n300,#d3dae2);border-radius:6px;font:inherit;font-size:14px}
 .gbtn{padding:5px 10px;font-size:12px}
+
+/* ---- Integrações (um cartão por fornecedor) ----
+   A aba era uma lista plana de 22 campos: quem abria via onze linhas PROLOG_*
+   dizendo "não configurado", quando a Prolog precisa de UM dos três modos de
+   autenticação. Agora o fornecedor é a unidade, e os campos alternativos ficam
+   atrás do seletor de modo. */
+.integ-corpo{padding:14px 18px 2px;display:flex;flex-direction:column;gap:13px}
+.integ-resumo{margin:0;font-size:13px;color:var(--n600);max-width:78ch}
+.integ-linha{font-size:12.5px;color:var(--n700);display:flex;gap:8px;
+  align-items:center;flex-wrap:wrap}
+.integ-linha .mono{font-family:var(--mono);font-size:12px}
+.integ-rot{font-size:11px;text-transform:uppercase;letter-spacing:.08em;
+  color:var(--n500);font-weight:600}
+.integ-modos{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+.integ-modos .ghost[aria-pressed="true"]{border-color:var(--orange-500);
+  color:var(--orange-600);font-weight:600}
+.integ-dica{font-size:11.5px;color:var(--n500);margin-top:5px;display:flex;
+  gap:7px;flex-wrap:wrap;align-items:center;line-height:1.45}
+.integ-dica .mono{font-family:var(--mono)}
+/* "apagar" mora colado no campo: apagar credencial é ação por CAMPO, não por
+   cartão — o botão Salvar do rodapé grava vários de uma vez. */
+.integ-lnk{background:none;border:0;padding:0;font:inherit;font-size:11.5px;
+  color:var(--orange-600);cursor:pointer;text-decoration:underline}
+.integ-lnk:hover{color:var(--red)}
 
 /* ---- impressão / PDF ---- */
 @media print{
@@ -2651,9 +2679,33 @@ body.tvfull #btnReport,body.tvmode #btnReport{display:none}
             <div id="cpMes" class="cpbloco"></div>
           </div>
           <div class="card">
-            <div class="head"><h2>Passivo acumulado <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="CT-e NÃO se emite retroativo: a SEFAZ recusa data de emissão fora da janela. Este bloco não é fila de trabalho — é o número para a decisão da contabilidade e do jurídico.">i</span></h2></div>
-            <div id="cpPassivo" class="cpbloco"></div>
+            <div class="head"><h2>Prontidão da fila <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="De tudo que entrou no período, quanto dá para emitir AGORA e o que trava o resto. São dois portões diferentes: ter o CADASTRO completo (inscrição estadual, RNTRC, município) e estar AUTORIZADO (certificado A1 válido, com senha no cofre, e autorização vigente). Cadastro impecável sem certificado não emite nada.">i</span></h2></div>
+            <div id="cpPront" class="cpbloco"></div>
           </div>
+        </div>
+
+        <div class="grid2" id="cpDiaLinha" hidden>
+          <div class="card">
+            <div class="head"><h2>Documentos transmitidos por dia <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="Últimos 30 dias, pela DATA DA TRANSMISSÃO — o que este gráfico responde é o ritmo da operação, não a data do CT-e de origem. Homologação e produção NÃO se somam (uma não tem valor fiscal) e autorizado e recusado também não (recusado não emitiu nada): são quatro séries, e juntar qualquer par produziria uma barra que parece trabalho feito e não é.">i</span></h2>
+              <span class="hint" id="hintCpDia"></span></div>
+            <div class="chartwrap narrow"><svg id="cpDiaSvg" viewBox="0 0 640 240" role="img" aria-label="Documentos transmitidos por dia"></svg></div>
+          </div>
+          <div class="card">
+            <div class="head"><h2>Faixas de vencimento <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="Certificados cadastrados por prazo até vencer. As duas últimas linhas NÃO são faixa de prazo e por isso aparecem separadas: “sem validade informada” não tem data, e A3 não se resolve esperando — mora em token físico e não automatiza.">i</span></h2></div>
+            <div id="cpCertFaixas" class="cpbloco"></div>
+          </div>
+        </div>
+
+        <div class="card" id="cpCertCard" hidden>
+          <div class="head"><h2>Vencimento dos certificados <span class="badge b-info" title="Certificado vence no calendário, não na janela que a tela está mostrando. Se este card seguisse o período, um agregado que não rodou no recorte sumiria do controle — foi o que aconteceu: o certificado que vence primeiro desapareceu num dia sem movimento.">ignora o período</span> <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="Certificado A1 vale UM ANO. Vencido em silêncio, a emissão para sozinha e a empresa descobre pelo agregado. A ordem é por urgência e, dentro dela, por VOLUME: um certificado que vence em 40 dias e sustenta metade da fila urge mais que um vencendo em 10 que nunca emitiu nada. Validade não informada NÃO conta como “ok” — conta como desconhecida.">i</span></h2>
+            <span class="hint" id="hintCpCert"></span></div>
+          <div class="tabroll"><table class="tab" id="cpCertTab"></table></div>
+        </div>
+
+        <div class="card" id="cpTxCard" hidden>
+          <div class="head"><h2>Documentos transmitidos <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="Registro local de cada transmissão (quem, quando, ambiente, série/número, chave e retorno da SEFAZ). HOMOLOGAÇÃO é o ambiente de teste do órgão: o documento autorizado lá NÃO tem valor fiscal, não é escriturado e não gera obrigação — por isso não entra na contagem de emitidas.">i</span></h2>
+            <span class="hint" id="hintCpTx"></span></div>
+          <div class="tabroll"><table class="tab" id="cpTxTab"></table></div>
         </div>
 
         <div class="card" id="cpAvisosCard" hidden>
@@ -3802,8 +3854,45 @@ body.tvfull #btnReport,body.tvmode #btnReport{display:none}
         </div>
         <div id="gpane-integracoes" style="display:none">
           <div class="card">
-            <div class="head"><h2>Credenciais de integração <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="Tokens de API dos fornecedores, guardados em data/credenciais.json na própria máquina, com permissão restrita e fora do controle de versão. O valor NUNCA é devolvido para a tela: depois de salvo, só é possível ver as pontas. Um valor salvo aqui tem precedência sobre a variável de ambiente de mesmo nome.">i</span></h2><span class="hint">só administradores · o valor não pode ser lido de volta</span></div>
-            <div id="ges-creds" style="padding:0 18px 18px"></div>
+            <div class="head"><h2>Integrações <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="Um cartão por fornecedor. As credenciais ficam em data/credenciais.json na própria máquina, com permissão restrita e fora do controle de versão. SEGREDO (token, senha, client_secret) nunca volta para a tela: depois de salvo, só é possível ver as pontas. Campo de CONFIGURAÇÃO (ambiente, URL, filiais) volta com o valor, para dar para conferir o que está valendo. Um valor salvo aqui tem precedência sobre a variável de ambiente de mesmo nome.">i</span></h2><span class="hint" id="integResumo">só administradores</span></div>
+            <div class="banner-inline" id="integAviso" style="display:none"></div>
+          </div>
+          <div id="ges-creds"></div>
+
+          <div class="card" id="cpcfg-card">
+            <div class="head"><h2>Emissão do CT-e de contrapartida <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="Estes dois interruptores decidem se o CÓRTEX emite documento fiscal REAL, em nome de outra empresa, e se faz isso sem ninguém olhando. Ambos nascem desligados e cada mudança fica na trilha de auditoria com autor e data. Homologação é o ambiente de teste da SEFAZ: o documento autorizado lá não tem valor fiscal, não é escriturado e não gera obrigação.">i</span></h2>
+              <span class="hint" id="cpcfg-status">—</span></div>
+
+            <div class="toast t-warn" style="margin:14px 18px 0" id="cpcfg-aviso-prod" hidden>
+              <b>Produção emite documento real</b>
+              Um CT-e autorizado em produção <b>não se apaga</b>: cancela-se, dentro de prazo,
+              com justificativa, e repercute na escrituração da Sulista e do agregado.
+            </div>
+
+            <div class="ges-cfg">
+              <div><label for="cpcfg-amb">Ambiente</label>
+                <select id="cpcfg-amb" onchange="cpcfgAmbMudou()">
+                  <option value="2">Homologação — teste, sem valor fiscal</option>
+                  <option value="1">Produção — documento real</option>
+                </select>
+              </div>
+              <div id="cpcfg-conf-box" hidden><label for="cpcfg-conf">Confirmação para produção</label>
+                <input type="text" id="cpcfg-conf" placeholder="digite: EMITIR EM PRODUCAO"
+                       autocomplete="off"></div>
+              <div><label for="cpcfg-auto">Emissão automática</label>
+                <select id="cpcfg-auto">
+                  <option value="0">Desligada — só quando alguém disparar</option>
+                  <option value="1">Ligada — rotina emite sozinha</option>
+                </select>
+              </div>
+              <div><label for="cpcfg-int">Intervalo da rotina (minutos)</label>
+                <input type="number" id="cpcfg-int" min="5" max="1440" step="5"
+                       inputmode="numeric" placeholder="60"></div>
+            </div>
+            <div class="m-foot">
+              <span class="m-err" id="cpcfg-err"></span>
+              <button class="btn" id="cpcfg-salvar" onclick="cpcfgSalvar()">Salvar</button>
+            </div>
           </div>
         </div>
         <div id="gpane-email" style="display:none">
@@ -3908,7 +3997,7 @@ body.tvfull #btnReport,body.tvmode #btnReport{display:none}
         <div class="kpis" id="kpis-srv"></div>
         <div class="grid2">
           <div class="card">
-            <div class="head"><h2>Serviços do CÓRTEX <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="Checagem ao vivo dos serviços que o painel precisa: a própria API (uvicorn), o banco do ERP pelo túnel, o Oracle da folha (GLOBUS), o Cloudflare Tunnel e o Ollama do Copiloto. São DOIS bancos externos: se o Oracle cai, RH e Custo de Folha ficam sem dado enquanto o resto do painel segue normal. Esta tela mede a MÁQUINA ONDE A API RODA — aberta fora do servidor, o túnel e as tarefas agendadas aparecem indisponíveis mesmo estando de pé em produção.">i</span></h2><span class="hint">API · dois bancos · túnel · copiloto</span></div>
+            <div class="head"><h2>Serviços do CÓRTEX <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="Checagem ao vivo do que o painel precisa: a própria API (uvicorn), o banco do ERP pelo túnel, o Oracle da folha (GLOBUS), o Cloudflare Tunnel, o Ollama do Copiloto e as três integrações de fornecedor — Prolog (pneus), Gobrax (telemetria) e Monkey (antecipação da Tupy). São DOIS bancos externos: se o Oracle cai, RH e Custo de Folha ficam sem dado enquanto o resto do painel segue normal. As integrações NÃO são consultadas daqui: Prolog e Gobrax têm cota e coleta lenta, então o que se mede é a idade do instantâneo que as telas mostram. Integração não configurada aparece como Info, não como falha: o recurso simplesmente não existe nesta instalação. Esta tela mede a MÁQUINA ONDE A API RODA — aberta fora do servidor, o túnel e as tarefas agendadas aparecem indisponíveis mesmo estando de pé em produção.">i</span></h2><span class="hint">API · dois bancos · túnel · copiloto · integrações</span></div>
             <div class="tablewrap"><table><thead><tr>
               <th>Serviço</th><th>Situação</th><th>Detalhe</th>
             </tr></thead><tbody id="srv-servicos"></tbody></table></div>
@@ -9661,47 +9750,32 @@ function renderCtecp(d){
         'autorização vigente + certificado A1 + senha',
         (k.prontos_para_emitir||0)===0?'bad':'warn',
         'Enquanto nenhum agregado estiver autorizado, a fila é diagnóstico: nenhum documento pode ser emitido.')
-   +kpi('Contrapartidas emitidas', (k.emitidas||0).toLocaleString('pt-BR'),
-        'nenhuma rotina de emissão no ar', 'bad',
-        'Zero por confirmação da própria operação, não por falta de dado. Esta tela dimensiona a fila; ela não emite.')
+   +(function(){
+      /* RETORNO DA SEFAZ. UMA chamada so, com os argumentos calculados
+         antes: o teste que confere a banda conta as chamadas no codigo, e
+         duas em ramos diferentes fariam a banda parecer ter cinco cartoes
+         quando ela tem quatro. (O contador e textual, entao nem o comentario
+         pode citar a funcao com o parentese - ja aconteceu aqui.)
+         Sem transmissao nenhuma o valor e "—" e nao "0%": zero por cento de
+         acerto sem tentativa e um numero que acusa alguem por um trabalho que
+         nao existiu. */
+      const t=k.taxa_retorno_ok, ok=k.emitidas_autorizadas||0,
+            nao=k.emitidas_recusadas||0, tot=ok+nao;
+      const vazio = (t===null||t===undefined||!tot);
+      const valor = vazio ? '—' : t.toLocaleString('pt-BR')+'%';
+      const sub = vazio ? 'nenhuma transmissão ainda'
+        : (ok+' de '+tot+' autorizadas · '+(k.emitidas||0)+' em produção');
+      const cls = vazio ? 'warn' : (t>=95?'good' : (t>=70?'warn':'bad'));
+      return kpi('Retorno da SEFAZ', valor, sub, cls,
+        'Percentual de transmissões que a SEFAZ autorizou. Recusada não emitiu nada — por isso entra no denominador e não é somada aos autorizados. Homologação e produção contam juntas AQUI, porque a pergunta é se o documento está correto, não se ele vale. Sem tentativa nenhuma o valor é “—”: um “0%” acusaria um trabalho que não existiu.');
+    })()
    +kpi('Fora da fila (TAC)', (k.ctes_tac||0).toLocaleString('pt-BR'),
         (k.agregados_tac||0)+' agregados pessoa física · '+cpBRL(k.valor_tac),
         'warn',
         'Transportador Autônomo de Cargas não emite CT-e: a documentação dele é CIOT e RPA. Não entra na fila por natureza do documento, não por falta de certificado.');
 
-  const CL={pj:'PJ',tac:'TAC',indefinido:'?'};
-  const ag=(d.por_agregado||[]);
-  document.getElementById('cpTab').innerHTML=
-    '<thead><tr><th>Agregado</th><th>Tipo</th><th>RNTRC</th><th>Cadastro</th><th>Autorização</th><th class="r">CT-e</th><th class="r">Placas</th><th class="r">Prestação</th></tr></thead><tbody>'
-    +(ag.length? ag.map(function(x){
-        const tac = x.classe==='tac';
-        /* a lista vem PRONTA do servidor. Recalcular aqui duplicava a
-           regra, e a duplicata divergiu no mesmo dia: o servico passou a
-           recusar "ISENTO" como inscricao estadual e esta coluna continuou
-           dizendo "completo" nas mesmas 17 linhas. */
-        const falta=(x.falta||[]);
-        return '<tr'+(tac?' style="opacity:.62"':'')+'>'
-          +'<td>'+esc(x.nome||x.documento||'—')+'</td>'
-          +'<td>'+(tac? statChip('warn','TAC','não emite CT-e — CIOT/RPA') : esc(CL[x.classe]||'?'))+'</td>'
-          +'<td class="mono">'+esc(x.rntrc||'—')+'</td>'
-          +'<td>'+(tac?'<span style="color:var(--n500)">não se aplica</span>'
-                     : (falta.length? statChip('bad','falta '+falta.join(', '),'campo obrigatório ausente vira rejeição documento a documento')
-                                    : statChip('good','completo','razão social, IE, RNTRC e município presentes')))+'</td>'
-          +'<td>'+(tac?'<span style="color:var(--n500)">—</span>'
-                     : '<button class="ghost" style="padding:2px 7px;font-size:11px"'
-                       +' onclick="cpAbrir(\''+esc(x.documento)+'\')"'
-                       +' title="Cadastrar autorização e certificado">'
-                       +((x.prontidao||{}).pronto
-                          ? statChip('good','pronto', ((x.prontidao||{}).alertas||[]).join(' · ')||'autorização vigente, certificado A1 válido e senha no cofre')
-                          : statChip('bad','não autorizado', ((x.prontidao||{}).faltas||[]).join(' · ')))
-                       +'</button>')+'</td>'
-          +'<td class="r mono">'+(x.ctes||0).toLocaleString('pt-BR')+'</td>'
-          +'<td class="r mono">'+(x.placas||0)+'</td>'
-          +'<td class="r mono">'+cpBRL(x.valor)+'</td></tr>';
-      }).join('') : '<tr><td colspan="8" class="hint">Nenhum CT-e de agregado no período.</td></tr>')
-    +'</tbody>';
-  document.getElementById('hintCpTab').textContent =
-    ag.length ? ag.length+' agregados · ordenado por prestação · linha esmaecida = TAC, fora da fila' : '';
+  CP_AG = (d.por_agregado||[]);
+  cpTabRender();
 
   /* barra empilhada PJ x TAC por mes: parte-do-todo com duas categorias */
   const ms={}; (d.por_mes||[]).forEach(function(x){ (ms[x.mes]=ms[x.mes]||{})[x.classe]=x; });
@@ -9718,21 +9792,38 @@ function renderCtecp(d){
       +'</div></div>';
   }).join('') : '<div class="hint">Sem dados no período.</div>';
 
-  const pas=(d.passivo||[]).filter(function(x){return x.classe==='pj';});
-  const maxv=Math.max(1,...pas.map(function(x){return x.valor||0;}));
-  document.getElementById('cpPassivo').innerHTML = pas.length ? pas.map(function(x){
-    return '<div>'
+  /* PRONTIDAO DA FILA, no lugar do passivo acumulado. O passivo olhava para
+     tras e nunca virava trabalho - CT-e nao se emite retroativo. Este responde
+     a pergunta da tela: do que entrou, quanto da para emitir agora.
+     A barra e do VOLUME DE CT-e, nao do numero de agregados: dois agregados
+     autorizados podem responder por um quinto da fila. */
+  const pf=d.prontidao_fila||{};
+  const faixas=[
+    ['autorizados','Autorizados a emitir','var(--green)',
+     'Certificado A1 válido, senha no cofre e autorização vigente'],
+    ['cadastro_ok_sem_certificado','Cadastro completo, sem certificado','var(--yellow)',
+     'Só falta o certificado digital — nada trava do lado do cadastro'],
+    ['sem_ie_contribuinte','Sem inscrição, mas marcado contribuinte','var(--red)',
+     'Contradição de cadastro: se é contribuinte de ICMS, tem inscrição. Conferir no SINTEGRA'],
+    ['sem_ie_nao_contribuinte','Não contribuinte de ICMS','var(--n400)',
+     'Cadastro coerente: provavelmente não emite CT-e e sai da fila']];
+  const totCt=((pf.total||{}).ctes)||0;
+  document.getElementById('cpPront').innerHTML = totCt ? faixas.map(function(f){
+    const b=pf[f[0]]||{}, ct=b.ctes||0;
+    if(!b.agregados) return '';
+    return '<div title="'+esc(f[3])+'">'
       +'<div style="display:flex;justify-content:space-between;font-size:12px">'
-      +'<span>'+esc(x.ano)+'</span><span class="mono" style="color:var(--n500)">'
-      +(x.ctes||0).toLocaleString('pt-BR')+' CT-e · '+cpBRL(x.valor)+'</span></div>'
+      +'<span>'+esc(f[1])+'</span><span class="mono" style="color:var(--n500)">'
+      +(b.agregados||0)+' agreg. · '+ct.toLocaleString('pt-BR')+' CT-e · '
+      +cpBRL(b.valor)+'</span></div>'
       +'<div style="height:10px;border-radius:5px;background:var(--n100);margin-top:3px">'
-      +'<div style="height:100%;width:'+(100*(x.valor||0)/maxv).toFixed(1)+'%;background:var(--n400);border-radius:5px"></div>'
-      +'</div></div>';
-  }).join('')+'<div class="hint">Não é fila de trabalho: CT-e não se emite retroativo.</div>'
-    : '<div class="hint">Sem histórico.</div>';
+      +'<div style="height:100%;width:'+(100*ct/totCt).toFixed(1)+'%;background:'
+      +f[2]+';border-radius:5px"></div></div></div>';
+  }).join('')+'<div class="hint">Barras proporcionais ao VOLUME de CT-e, não ao número de agregados.</div>'
+    : '<div class="hint">Sem agregados PJ no período.</div>';
 
-  /* o periodo abre no DIA: sem dizer isso, "20 CT-e aguardando" parece que o
-     passivo evaporou. O bloco de passivo acumulado ignora este filtro. */
+  /* o periodo abre no DIA: sem dizer isso, "20 CT-e aguardando" parece que a
+     fila evaporou. */
   const umDia = per.de && per.ate &&
     (new Date(per.ate)-new Date(per.de))<=86400000*1.5;
   document.getElementById('hintCp').textContent =
@@ -9740,10 +9831,339 @@ function renderCtecp(d){
            : ((per.de||'')+' a '+(per.ate||'')))
     +(per.busca?(' · filtrado por “'+per.busca+'”'):'')
     +' · '+(f.gerado_em||'');
+  /* TRANSMISSOES POR DIA. Quatro series empilhadas, nao duas: homologacao e
+     producao nao se somam (uma nao tem valor fiscal) e autorizado e recusado
+     tambem nao (recusado nao emitiu nada). Uma barra so pareceria trabalho
+     feito. */
+  const dias=(d.emissoes_por_dia||[]);
+  document.getElementById('cpDiaLinha').hidden = !dias.length;
+  if(dias.length){
+    const SER=[['producao_ok','produção autorizado','var(--green)'],
+               ['producao_nao','produção recusado','var(--red)'],
+               ['homologacao_ok','homologação autorizado','var(--navy-400)'],
+               ['homologacao_nao','homologação recusado','var(--yellow)']];
+    const tot=function(x){ return SER.reduce(function(a,s){return a+(x[s[0]]||0);},0); };
+    const maxv=Math.max(1,...dias.map(tot));
+    const L=44, R=10, T=14, B=42, W=640, H=240;
+    const larg=(W-L-R)/dias.length, barW=Math.max(4,Math.min(30,larg*0.62));
+    let g='';
+    /* eixo Y com tres marcas: sem elas a altura da barra nao tem leitura */
+    for(let i=0;i<=3;i++){
+      const v=Math.round(maxv*i/3), y=H-B-(H-B-T)*(i/3);
+      g+='<line x1="'+L+'" y1="'+y.toFixed(1)+'" x2="'+(W-R)+'" y2="'+y.toFixed(1)
+        +'" stroke="var(--n200)" stroke-width="1"/>'
+        +'<text x="'+(L-6)+'" y="'+(y+4).toFixed(1)+'" text-anchor="end" font-size="10" fill="var(--n500)">'+v+'</text>';
+    }
+    dias.forEach(function(x,i){
+      const cx=L+larg*i+larg/2; let base=H-B;
+      SER.forEach(function(sr){
+        const v=x[sr[0]]||0; if(!v) return;
+        const h=(H-B-T)*v/maxv;
+        g+='<rect x="'+(cx-barW/2).toFixed(1)+'" y="'+(base-h).toFixed(1)+'" width="'+barW.toFixed(1)
+          +'" height="'+h.toFixed(1)+'" fill="'+sr[2]+'"><title>'+esc(fmtD(x.dia))+' · '
+          +esc(sr[1])+': '+v+'</title></rect>';
+        base-=h;
+      });
+      /* rotulo de dia so quando cabe - senao vira borrao */
+      if(dias.length<=12 || i%Math.ceil(dias.length/12)===0){
+        g+='<text x="'+cx.toFixed(1)+'" y="'+(H-B+16)+'" text-anchor="middle" font-size="10" fill="var(--n500)">'
+          +esc((x.dia||'').slice(8)+'/'+(x.dia||'').slice(5,7))+'</text>';
+      }
+    });
+    /* legenda: sem ela quatro cores empilhadas nao dizem nada */
+    let lx=L;
+    SER.forEach(function(sr){
+      g+='<rect x="'+lx+'" y="'+(H-16)+'" width="9" height="9" fill="'+sr[2]+'"/>'
+        +'<text x="'+(lx+13)+'" y="'+(H-8)+'" font-size="9.5" fill="var(--n600)">'+esc(sr[1])+'</text>';
+      lx+=sr[1].length*5.2+26;
+    });
+    document.getElementById('cpDiaSvg').innerHTML=g;
+    const somaOk=dias.reduce(function(a,x){return a+(x.producao_ok||0)+(x.homologacao_ok||0);},0);
+    document.getElementById('hintCpDia').textContent =
+      dias.length+' '+(dias.length===1?'dia':'dias')+' com transmissão · '
+      +somaOk+' autorizado'+(somaOk===1?'':'s');
+  }
+
+  /* FAIXAS DE VENCIMENTO dos certificados. */
+  const fx=((d.certificados||{}).faixas_contagem)||[];
+  const totFx=fx.reduce(function(a,f){return a+(f.n||0);},0);
+  const CORFX={vencido:'var(--red)',critico:'var(--red)',alerta:'var(--yellow)',
+               atencao:'var(--yellow)',ok:'var(--green)',
+               desconhecido:'var(--red)',impedido:'var(--n400)'};
+  document.getElementById('cpCertFaixas').innerHTML = totFx ? fx.map(function(f){
+    if(!f.n) return '';
+    return '<div>'
+      +'<div style="display:flex;justify-content:space-between;font-size:12px">'
+      +'<span>'+esc(f.rotulo)+'</span><span class="mono" style="color:var(--n500)">'
+      +f.n+' '+(f.n===1?'certificado':'certificados')+'</span></div>'
+      +'<div style="height:10px;border-radius:5px;background:var(--n100);margin-top:3px">'
+      +'<div style="height:100%;width:'+(100*f.n/totFx).toFixed(1)+'%;background:'
+      +(CORFX[f.chave]||'var(--n400)')+';border-radius:5px"></div></div></div>';
+  }).join('') : '<div class="hint">Nenhum certificado cadastrado.</div>';
+
+
+  /* VENCIMENTO DOS CERTIFICADOS. Certificado A1 vale um ano; vencido em
+     silencio, a emissao para sozinha. O semaforo e GRADUADO porque "vence em
+     2 dias" e "vence em 29" pedem acoes diferentes - chip igual para os dois
+     nao prioriza nada. */
+  const ce=d.certificados||{}, cItens=ce.itens||[];
+  document.getElementById('cpCertCard').hidden = !cItens.length;
+  if(cItens.length){
+    const a30=(ce.ate_30||{}), a60=(ce.ate_60||{});
+    document.getElementById('hintCpCert').textContent =
+      ce.total+' '+(ce.total===1?'certificado':'certificados')
+      +' · '+(a30.certificados||0)+' vence'+((a30.certificados||0)===1?'':'m')
+      +' em ate 30 dias'+((a30.ctes||0)?' ('+(a30.ctes).toLocaleString('pt-BR')+' CT-e)':'')
+      +' · '+(a60.certificados||0)+' em ate 60';
+    const CLS={vencido:'b-dang',critico:'b-dang',alerta:'b-warn',
+               atencao:'b-warn',desconhecido:'b-dang',impedido:'b-info',ok:'b-ok'};
+    document.getElementById('cpCertTab').innerHTML =
+      '<thead><tr><th>Agregado</th><th>Titular do certificado</th><th>Tipo</th>'
+      +'<th>Validade</th><th>Situação</th><th>Envio</th>'
+      +'<th class="num">CT-e no período</th>'
+      +'</tr></thead><tbody>'
+      +cItens.map(function(c){
+        const grave = c.situacao==='vencido'||c.situacao==='critico'
+                   || c.situacao==='desconhecido';
+        return '<tr'+(grave?' class="cp-recusada"':'')+'>'
+          +'<td>'+esc(c.nome||c.documento)+'</td>'
+          +'<td>'+esc(c.titular||'—')
+          +(c.tem_senha?'':' <span class="badge b-dang" title="Sem a senha no cofre o certificado não assina">sem senha</span>')
+          +'</td>'
+          +'<td class="mono">'+esc(c.tipo||'—')+'</td>'
+          +'<td class="mono">'+(c.valida_ate?esc(fmtD(c.valida_ate)):'—')+'</td>'
+          +'<td><span class="badge '+(CLS[c.situacao]||'b-info')+'">'
+          +esc(c.texto||c.situacao)+'</span></td>'
+          /* zero aqui e "nao rodou NO RECORTE", nao "nao importa" - e a
+             diferenca some se o numero aparecer pelado */
+          /* CNPJ vai em data- e o handler o le de la: sem aspa dentro de
+             aspa dentro de atributo, que e onde o escape quebra. */
+          +'<td>'+(c.envio
+             ? '<button class="gbtn" data-cnpj="'+esc(c.documento)+'" data-liga="0"'
+               +' onclick="cpEnvio(this)" title="Tira este agregado da fila de emissão.'
+               +' Não apaga certificado nem autorização — só suspende o envio.">desativar envio</button>'
+             : '<button class="gbtn" data-cnpj="'+esc(c.documento)+'" data-liga="1"'
+               +' onclick="cpEnvio(this)" title="'
+               +esc('Fora da fila'+(c.envio_quem?' por '+c.envio_quem:'')+'. Clique para voltar a emitir.')
+               +'"><span class="badge b-dang">envio desativado</span> ativar</button>')
+          +'</td>'
+          +'<td class="num mono">'+(c.no_periodo
+             ? (c.ctes||0).toLocaleString('pt-BR')
+             : '<span class="hint" title="Este agregado não teve CT-e no período filtrado. O certificado continua valendo — e vencendo.">fora do período</span>')
+          +'</td></tr>';
+      }).join('')+'</tbody>';
+  }
+
+  /* transmissoes ja feitas. Homologacao e producao NAO se somam: documento de
+     homologacao nao tem valor fiscal, e junta-los faria a tela anunciar uma
+     fila resolvida que nao foi. */
+  const tx=(d.emissoes||[]);
+  document.getElementById('cpTxCard').hidden = !tx.length;
+  if(tx.length){
+    const ok=tx.filter(function(t){return t.autorizado;}).length;
+    const semXml=k.autorizadas_sem_xml||0;
+    document.getElementById('hintCpTx').textContent =
+      tx.length+' '+(tx.length===1?'transmissão':'transmissões')+' · '+ok+
+      ' autorizada'+(ok===1?'':'s')+' · '+(k.emitidas||0)+' em produção'
+      +(semXml? ' · '+semXml+' sem XML guardado':'');
+    document.getElementById('cpTxTab').innerHTML =
+      '<thead><tr><th>Quando</th><th>Ambiente</th><th>Série/Nº</th>'
+      +'<th>Situação</th><th>Chave</th><th>Protocolo</th>'
+      +'<th>Cancelamento</th><th>Arquivo</th>'
+      +'<th>Quem</th></tr></thead><tbody>'
+      +tx.map(function(t){
+        /* Verde SO quando a SEFAZ autorizou; todo o resto vermelho. Codigo
+           diferente de 100 significa que NADA foi emitido, e um tom
+           intermediario faria "recusado" parecer "quase la". */
+        const b=t.autorizado?'b-ok':'b-dang';
+        const amb=t.ambiente==='homologação'
+          ? '<span class="badge b-warn" title="Ambiente de teste da SEFAZ: o documento não tem valor fiscal, não é escriturado e não gera obrigação">homologação</span>'
+          : '<span class="badge b-ok">produção</span>';
+        /* A chave tem 44 digitos e nao cabe na linha: pontas na celula e a
+           inteira no title, que e o que se copia para conferir no portal. */
+        const ch=t.chave||'';
+        const chCurta=ch.length>20 ? ch.slice(0,8)+'…'+ch.slice(-8) : (ch||'—');
+        const arq=t.tem_xml
+          ? '<span class="badge b-ok" title="XML assinado guardado — é o arquivo que o ERP importa">guardado</span>'
+          : (t.autorizado
+             ? '<span class="badge b-dang" title="Autorizado mas sem o XML: a chave prova que existe, o arquivo é que se importa">falta</span>'
+             : '<span class="hint">—</span>');
+        return '<tr'+(t.autorizado?'':' class="cp-recusada"')+'>'
+          +'<td class="mono">'+esc(fmtDT(t.quando||''))+'</td>'
+          +'<td>'+amb+'</td>'
+          +'<td class="mono">'+esc(t.serie)+'/'+esc(t.numero)+'</td>'
+          +'<td><span class="badge '+b+'" title="'+esc(t.xmotivo||'')+'">'
+          +esc(t.cstat||'?')+'</span> '+esc(t.xmotivo||'')+'</td>'
+          +'<td class="mono" title="'+esc(ch)+'">'+esc(chCurta)+'</td>'
+          +'<td class="mono">'+esc(t.protocolo||'—')+'</td>'
+          +'<td>'+(t.evento
+             ? '<span class="hint">evento</span>'
+             : (t.cancelado
+                ? '<span class="badge b-dang" title="Documento cancelado — o evento está registrado na SEFAZ">cancelado</span>'
+                : (t.autorizado
+                   ? '<button class="gbtn" data-chave="'+esc(ch)+'" onclick="cpCancelar(this)"'
+                     +' title="Cancela o documento na SEFAZ. Ato fiscal com prazo: passado o prazo da UF não se cancela mais.">cancelar</button>'
+                   : '<span class="hint">—</span>')))
+          +'</td>'
+          +'<td>'+arq+(t.tem_xml
+             ? ' <a class="badge b-info" style="text-decoration:none" '
+               +'href="/api/fiscal/contrapartida/documento/'+esc(ch)+'" '
+               +'download title="Baixa o XML com o protocolo — é o arquivo que o ERP importa">baixar</a>'
+             : '')+'</td>'
+          +'<td>'+esc(t.quem||'')+'</td></tr>';
+      }).join('')+'</tbody>';
+  }
+
   const av=(d.avisos||[]);
   document.getElementById('cpAvisosCard').hidden = !av.length;
   document.getElementById('cpAvisos').innerHTML =
     av.map(function(a){ return '<div class="hint">'+esc(a)+'</div>'; }).join('');
+}
+
+async function cpCancelar(bt){
+  /* Cancelamento e ato fiscal com PRAZO e justificativa. Pede o motivo, valida
+     o tamanho AQUI so para nao gastar uma ida ao servidor - quem valida de
+     verdade e a SEFAZ - e confirma antes, porque cancelar nao se desfaz.
+     Sem escape de quebra de linha nas mensagens: ele ja se perdeu uma vez no
+     caminho ate o arquivo e derrubou o script inteiro. */
+  const QUEBRA=String.fromCharCode(10);
+  const just=prompt('Justificativa do cancelamento (mínimo 15 caracteres).'
+    +QUEBRA+'Ela fica no evento e é o que alguém vai ler daqui a um ano:');
+  if(just===null) return;
+  if((just||'').trim().length<15){
+    alert('A justificativa precisa de ao menos 15 caracteres.'); return; }
+  if(!confirm('Cancelar este documento na SEFAZ?'+QUEBRA+QUEBRA
+      +'O cancelamento é definitivo e tem prazo: depois do prazo da UF o '
+      +'documento não se cancela mais.')) return;
+  bt.disabled=true; bt.textContent='Cancelando…';
+  try{
+    const r=await fetch('/api/fiscal/contrapartida/cancelar',{method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({chave:bt.dataset.chave, justificativa:just})});
+    const d=await r.json();
+    if(!r.ok){ alert(d.mensagem||'Não foi possível cancelar.');
+               bt.disabled=false; bt.textContent='cancelar'; return; }
+    alert((d.cancelado?'Cancelado. ':'NÃO cancelado. ')
+          +'Retorno '+d.cStat+' — '+d.xMotivo);
+    loadCtecp();
+  }catch(e){ alert('Falha de rede: '+e.message);
+             bt.disabled=false; bt.textContent='cancelar'; }
+}
+
+/* NIVEL GLOBAL, e nao dentro do render: `onclick` de atributo e
+   avaliado no escopo GLOBAL. Escrita na coluna zero mas DENTRO de
+   outra funcao, esta virava local e o clique dava "cpEnvio is not
+   defined" - indentacao nao define escopo. */
+/* --- Fila por agregado: ordenacao por coluna ------------------------------
+   Guardadas FORA do render para o clique no cabecalho poder reordenar sem
+   refazer a consulta - a lista ja esta em memoria, e o AVA leva segundos. */
+let CP_AG = [];
+let CP_ORD = {col:'valor', dir:-1};
+
+const CP_COLS = [
+  ['nome',     'Agregado',  ''],
+  ['classe',   'Tipo',      ''],
+  ['rntrc',    'RNTRC',     ''],
+  ['cadastro', 'Cadastro',  ''],
+  ['autoriz',  'Autorização', ''],
+  ['ctes',     'CT-e',      'r'],
+  ['placas',   'Placas',    'r'],
+  ['valor',    'Prestação', 'r'],
+];
+
+function cpOrdenar(col){
+  /* Mesma coluna inverte; coluna nova comeca DESCENDENTE nos numericos e
+     ascendente no texto - e o que se espera de cada um. */
+  if(CP_ORD.col===col) CP_ORD.dir = -CP_ORD.dir;
+  else CP_ORD = {col:col, dir:(['nome','classe','rntrc'].indexOf(col)>=0?1:-1)};
+  cpTabRender();
+}
+
+function cpChaveOrd(x, col){
+  if(col==='cadastro') return (x.falta||[]).length;      /* pendente primeiro */
+  if(col==='autoriz'){
+    const p=x.prontidao||{}, f=(p.faltas||[]).join(' ');
+    /* 0 pronto · 1 vence em breve · 2 vencido · 3 nao autorizado: a ordem e a
+       da URGENCIA, nao a alfabetica */
+    if(p.pronto) return ((p.alertas||[]).length?1:0);
+    return /vencid/i.test(f) ? 2 : 3;
+  }
+  const v = x[col];
+  return (typeof v==='number') ? v : String(v||'').toLowerCase();
+}
+
+function cpTabRender(){
+  const CL={pj:'PJ',tac:'TAC',indefinido:'?'};
+  const ag = CP_AG.slice().sort(function(a,b){
+    const va=cpChaveOrd(a,CP_ORD.col), vb=cpChaveOrd(b,CP_ORD.col);
+    if(va<vb) return -CP_ORD.dir;
+    if(va>vb) return CP_ORD.dir;
+    return 0;
+  });
+  const cab = CP_COLS.map(function(c){
+    const ativa = CP_ORD.col===c[0];
+    const seta = ativa ? (CP_ORD.dir>0?' ▲':' ▼') : '';
+    return '<th'+(c[2]?' class="'+c[2]+'"':'')
+      +' style="cursor:pointer;user-select:none"'
+      +' data-col="'+c[0]+'" onclick="cpOrdenar(this.dataset.col)"'
+      +' title="Clique para ordenar por esta coluna">'+esc(c[1])+seta+'</th>';
+  }).join('');
+
+  document.getElementById('cpTab').innerHTML =
+    '<thead><tr>'+cab+'</tr></thead><tbody>'
+    +(ag.length? ag.map(function(x){
+        const tac = x.classe==='tac';
+        /* a lista vem PRONTA do servidor. Recalcular aqui duplicava a
+           regra, e a duplicata divergiu no mesmo dia. */
+        const falta=(x.falta||[]);
+        const p=x.prontidao||{}, fal=(p.faltas||[]);
+        /* VENCIDO e estado proprio: "nao autorizado" sugere cadastro que
+           falta, e vencido e cadastro que EXISTE e caducou - a acao e
+           renovar, nao preencher. */
+        const venceu = fal.some(function(f){ return /vencid/i.test(f); });
+        const autoriz = p.pronto
+          ? ((p.alertas||[]).length
+              ? statChip('warn', (p.alertas||[])[0], (p.alertas||[]).join(' · '))
+              : statChip('good','pronto','autorização vigente, certificado A1 válido e senha no cofre'))
+          : (venceu ? statChip('bad','vencido', fal.join(' · '))
+                    : statChip('bad','não autorizado', fal.join(' · ')));
+        return '<tr'+(tac?' style="opacity:.62"':'')+'>'
+          +'<td>'+esc(x.nome||x.documento||'—')+'</td>'
+          +'<td>'+(tac? statChip('warn','TAC','não emite CT-e — CIOT/RPA') : esc(CL[x.classe]||'?'))+'</td>'
+          +'<td class="mono">'+esc(x.rntrc||'—')+'</td>'
+          +'<td>'+(tac?'<span style="color:var(--n500)">não se aplica</span>'
+                     : (falta.length? statChip('bad','falta '+falta.join(', '),'campo obrigatório ausente vira rejeição documento a documento')
+                                    : statChip('good','completo','razão social, IE, RNTRC e município presentes')))+'</td>'
+          +'<td>'+(tac?'<span style="color:var(--n500)">—</span>'
+                     : '<button class="ghost" style="padding:2px 7px;font-size:11px"'
+                       +' data-doc="'+esc(x.documento)+'" onclick="cpAbrir(this.dataset.doc)"'
+                       +' title="Cadastrar autorização e certificado">'+autoriz+'</button>')+'</td>'
+          +'<td class="r mono">'+(x.ctes||0).toLocaleString('pt-BR')+'</td>'
+          +'<td class="r mono">'+(x.placas||0)+'</td>'
+          +'<td class="r mono">'+cpBRL(x.valor)+'</td></tr>';
+      }).join('') : '<tr><td colspan="8" class="hint">Nenhum CT-e de agregado no período.</td></tr>')
+    +'</tbody>';
+
+  const nome=(CP_COLS.find(function(c){return c[0]===CP_ORD.col;})||[,'—'])[1];
+  document.getElementById('hintCpTab').textContent =
+    CP_AG.length ? CP_AG.length+' agregados · ordenado por '+nome.toLowerCase()
+      +(CP_ORD.dir>0?' (crescente)':' (decrescente)')
+      +' · linha esmaecida = TAC, fora da fila' : '';
+}
+
+async function cpEnvio(bt){
+  /* Liga/desliga a emissao de UM agregado. O autor sai da sessao no servidor;
+     aqui so vai o que mudou. Recarrega a tela para o estado vir do servidor e
+     nao de uma suposicao do cliente. */
+  try{
+    const r=await fetch('/api/fiscal/contrapartida/envio',{method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({cnpj:bt.dataset.cnpj,
+                           ativo:bt.dataset.liga==='1'})});
+    const d=await r.json();
+    if(!r.ok){ alert(d.mensagem||'Não foi possível mudar o envio.'); return; }
+    loadCtecp();
+  }catch(e){ alert('Falha de rede: '+e.message); }
 }
 
 async function loadPoli(fundo){
@@ -16623,7 +17043,7 @@ function gesTab(t){
     document.getElementById('gtab-'+x).setAttribute('aria-pressed', String(x===t));
   });
   if(t==='auditoria' && !document.getElementById('ges-aud').children.length) audCarregar();
-  if(t==='integracoes') credCarregar();
+  if(t==='integracoes') integCarregar();
   if(t==='email') emailCarregar();
 }
 function renderGestao(){ renderGesUsuarios(); renderGesPerfis(); renderGesConfig(); gesTab(GES_TAB); }
@@ -16711,61 +17131,265 @@ async function emailTeste(){
   }catch(e){ err.style.color=''; err.textContent='Não foi possível falar com a API.'; }
   finally{ btn.disabled=false; btn.textContent='Enviar teste para mim'; }
 }
-/* ===================== Credenciais de integração =====================
-   O valor NUNCA volta do servidor: a tela mostra só as pontas do que está
-   guardado. O campo é sempre um password vazio — nada de preencher com o
-   segredo para o usuário "ver o que está lá". */
-async function credCarregar(){
+/* ===================== Integrações (credenciais) =====================
+   Um cartão por FORNECEDOR, não uma lista plana de campos: a Prolog pede UM
+   dos três modos de autenticação, e mostrar os onze campos de uma vez fazia a
+   tela inteira parecer desconfigurada.
+
+   SEGREDO nunca volta do servidor — o campo é password e nasce vazio, mesmo
+   "para o usuário conferir". Campo de CONFIGURAÇÃO (ambiente, URL, filiais)
+   volta com o valor de propósito: mascarar "hmg" só atrapalha.
+
+   NOME DAS FUNÇÕES: `integ*`, e não `cred*`. Os limites de crédito do Fluxo de
+   Caixa já usavam credCarregar/credSalvar; como o arquivo é UM script só, a
+   segunda declaração vencia a primeira e o card "Limites de crédito
+   contratados" ficava vazio, com "Salvar limites" caindo no cofre de tokens. */
+let INTEG = null;
+const INTEG_MODO = {};   // modo de autenticação escolhido na tela, por fornecedor
+const INTEG_ERRO = {};   // erro do último salvamento, por fornecedor
+/* --- Emissao do CT-e de contrapartida: ambiente e automacao ---------------
+   Os dois interruptores que decidem se o sistema emite documento fiscal real
+   e se faz isso sem ninguem olhando. O AUTOR nao viaja no corpo do pedido:
+   sai da sessao no servidor - quem responde por ligar producao nao pode ser
+   um campo que o proprio cliente preenche. */
+let CPCFG = null;
+
+function cpcfgPinta(d){
+  CPCFG = d || null;
+  if(!d) return;
+  const amb=d.ambiente||{}, au=d.automacao||{};
+  const sel=document.getElementById('cpcfg-amb');
+  sel.value = amb.ambiente || '2';
+  document.getElementById('cpcfg-auto').value = au.ativa ? '1' : '0';
+  document.getElementById('cpcfg-int').value = au.intervalo_min || 60;
+  const lim=au.intervalo_limites||[5,1440];
+  document.getElementById('cpcfg-int').min = lim[0];
+  document.getElementById('cpcfg-int').max = lim[1];
+  /* quem mudou e quando: e a informacao que se procura meses depois */
+  const por = amb.quem ? (' · por '+esc(amb.quem)+(amb.quando?' em '+fmtDT(amb.quando):'')) : '';
+  document.getElementById('cpcfg-status').innerHTML =
+    '<span class="badge '+(amb.producao?'b-dang':'b-warn')+'">'+esc(amb.nome||'—')+'</span> '
+    +'<span class="badge '+(au.ativa?'b-ok':'b-info')+'">automática '
+    +(au.ativa?('a cada '+(au.intervalo_min||60)+' min'):'desligada')+'</span>'+por;
+  document.getElementById('cpcfg-aviso-prod').hidden = !amb.producao;
+  cpcfgAmbMudou();
+}
+
+function cpcfgAmbMudou(){
+  /* A confirmacao so aparece quando se ESTA indo para producao. Pedir sempre
+     treinaria a digitar a frase por reflexo, que e o oposto do atrito. */
+  const indo = document.getElementById('cpcfg-amb').value === '1';
+  const atual = ((CPCFG||{}).ambiente||{}).producao;
+  document.getElementById('cpcfg-conf-box').hidden = !(indo && !atual);
+}
+
+async function cpcfgCarregar(){
+  try{
+    const r=await fetch('/api/gestao/contrapartida',{cache:'no-store'});
+    const d=await r.json();
+    if(r.ok) cpcfgPinta(d);
+    else document.getElementById('cpcfg-status').textContent = d.mensagem||'indisponível';
+  }catch(e){ document.getElementById('cpcfg-status').textContent='indisponível'; }
+}
+
+async function cpcfgSalvar(){
+  const err=document.getElementById('cpcfg-err'), bt=document.getElementById('cpcfg-salvar');
+  err.textContent=''; bt.disabled=true; bt.textContent='Salvando…';
+  const corpo={
+    ambiente: document.getElementById('cpcfg-amb').value,
+    automacao: document.getElementById('cpcfg-auto').value==='1',
+    intervalo_min: parseInt(document.getElementById('cpcfg-int').value||'60',10),
+    confirmacao: document.getElementById('cpcfg-conf').value||''
+  };
+  try{
+    const r=await fetch('/api/gestao/contrapartida',{method:'POST',
+      headers:{'Content-Type':'application/json'}, body:JSON.stringify(corpo)});
+    const d=await r.json();
+    if(!r.ok){ err.textContent=d.mensagem||'Não foi possível gravar.'; return; }
+    document.getElementById('cpcfg-conf').value='';
+    cpcfgPinta(d);
+  }catch(e){ err.textContent='Falha de rede: '+e.message; }
+  finally{ bt.disabled=false; bt.textContent='Salvar'; }
+}
+
+const INTEG_EST = {ativa:['b-ok','ativa'], incompleta:['b-warn','incompleta'],
+                   desligada:['b-info','desligada']};
+
+async function integCarregar(){
   const alvo=document.getElementById('ges-creds');
-  alvo.innerHTML='<div style="color:var(--n500)">carregando…</div>';
+  const aviso=(cor,txt)=>'<div class="card"><div class="integ-corpo" style="color:var('+cor+')">'+txt+'</div></div>';
+  alvo.innerHTML=aviso('--n500','carregando…');
   try{
     const r=await fetch('/api/gestao/credenciais',{cache:'no-store'});
     const d=await r.json();
-    if(!r.ok){ alvo.innerHTML='<div style="color:var(--red)">'+esc(d.mensagem||'Erro ao ler as credenciais.')+'</div>'; return; }
-    alvo.innerHTML=(d.credenciais||[]).map(c=>{
-      const origem = c.origem==='cofre' ? 'salvo aqui na tela'
-                   : c.origem==='ambiente' ? 'vindo do arquivo .env do servidor'
-                   : 'não configurado';
-      const quando = c.atualizado_em ? ' · atualizado em '+esc(c.atualizado_em) : '';
-      return `<div style="border-top:1px solid var(--n100,#EEF1F4);padding:14px 0">
-        <div style="font-weight:600">${esc(c.nome)}</div>
-        <div style="font-size:12px;color:var(--n500);margin-bottom:8px">${esc(c.descricao||'')}</div>
-        <div style="font-size:12px;margin-bottom:10px">
-          ${c.configurado
-            ? `<span class="badge b-ok">configurado</span> <span style="font-family:var(--mono)">${esc(c.mascarado||'')}</span> <span style="color:var(--n500)">· ${esc(origem)}${quando}</span>`
-            : '<span class="badge b-warn">não configurado</span> <span style="color:var(--n500)">a integração fica desligada</span>'}
-        </div>
-        <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
-          <input type="password" id="cred-${esc(c.nome)}" placeholder="colar o token novo" autocomplete="off"
-                 style="width:340px;max-width:100%" aria-label="Novo valor para ${esc(c.nome)}">
-          <button class="btn" onclick="credSalvar('${esc(c.nome)}')">Salvar</button>
-          ${c.origem==='cofre' ? `<button class="ghost" onclick="credApagar('${esc(c.nome)}')">Apagar</button>` : ''}
-        </div>
-      </div>`;
-    }).join('') || '<div style="color:var(--n500)">nenhuma integração cadastrada</div>';
-  }catch(e){ alvo.innerHTML='<div style="color:var(--red)">Não foi possível falar com a API.</div>'; }
+    if(!r.ok){ alvo.innerHTML=aviso('--red', esc(d.mensagem||'Erro ao ler as integrações.')); return; }
+    INTEG=d.servicos||[];
+    integRender();
+    cpcfgCarregar();
+  }catch(e){ alvo.innerHTML=aviso('--red','Não foi possível falar com a API.'); }
 }
-async function credSalvar(nome){
-  const campo=document.getElementById('cred-'+nome);
-  const valor=(campo&&campo.value||'').trim();
-  if(!valor){ showBanner('Cole o token antes de salvar.'); return; }
-  await credEnviar(nome, valor);
-  if(campo) campo.value='';   // o segredo não fica no DOM depois de enviado
+
+function integModoAtual(s){
+  return INTEG_MODO[s.chave] || s.modo_ativo || ((s.modos||[])[0]||{}).chave;
 }
-async function credApagar(nome){
-  if(!confirm('Apagar a credencial '+nome+'? A integração para de funcionar até um valor novo ser salvo.')) return;
-  await credEnviar(nome, '');
+function integModo(chave, modo){ INTEG_MODO[chave]=modo; integRender(); }
+
+function integRender(){
+  const svcs=INTEG||[];
+  const ativas=svcs.filter(x=>x.estado==='ativa').length;
+  document.getElementById('integResumo').textContent =
+    ativas+' de '+svcs.length+(svcs.length===1?' integração ativa':' integrações ativas')
+    +' · só administradores';
+  /* Pendência vai para o topo em texto, não só como badge no meio da lista:
+     integração incompleta é a que alguém começou e abandonou — some da vista e
+     a tela que ela alimenta fica sem dado sem ninguém saber por quê. */
+  const pend=svcs.filter(x=>x.estado==='incompleta');
+  const av=document.getElementById('integAviso');
+  if(pend.length){
+    av.style.display='block';
+    av.innerHTML='<div><b>'+pend.length+(pend.length===1?' integração começou e não fechou.':' integrações começaram e não fecharam.')+'</b> '
+      + pend.map(x=>esc(x.nome)+' — falta '+esc(x.falta.join(', '))).join(' · ')
+      + '. Enquanto isso, a tela que ela alimenta fica sem dado.</div>';
+  } else av.style.display='none';
+  document.getElementById('ges-creds').innerHTML=svcs.map(integCard).join('');
 }
-async function credEnviar(nome, valor){
+
+function integOrigem(c){
+  return c.origem==='cofre' ? 'salvo aqui na tela'
+       : c.origem==='ambiente' ? 'vindo do arquivo .env do servidor' : '';
+}
+
+function integEstadoCampo(c){
+  if(!c.configurado){
+    return c.obrigatorio
+      ? ' · <span style="color:var(--yellow-700)">não configurado</span>'
+      : ' · <span style="color:var(--n500)">vazio — vale o padrão</span>';
+  }
+  const quando=c.atualizado_em?' · atualizado em '+esc(fmtDT(String(c.atualizado_em).slice(0,16))):'';
+  const marca=c.segredo?' <span class="mono">'+esc(c.mascarado||'')+'</span>':'';
+  const apagar=c.origem==='cofre'
+    ? ' <button type="button" class="integ-lnk" onclick="integApagar(&quot;'+esc(c.nome)+'&quot;)">apagar</button>'
+    : '';
+  return ' · configurado'+marca+' · '+integOrigem(c)+quando+apagar;
+}
+
+function integCampo(c){
+  const id='cred-'+c.nome;
+  const opc=c.obrigatorio?'':' <span style="font-weight:400;color:var(--n500)">(opcional)</span>';
+  /* O segredo nasce vazio SEMPRE; o campo de configuração vem preenchido, para
+     poder ser conferido e corrigido sem redigitar. */
+  const val=c.segredo?'':esc(c.valor||'');
+  const ph=c.segredo?(c.configurado?'digite para trocar':'colar o valor')
+                    :esc(c.placeholder||'');
+  return '<div><label for="'+id+'">'+esc(c.rotulo)+opc+'</label>'
+    +'<input type="'+(c.segredo?'password':'text')+'" id="'+id+'" value="'+val+'"'
+    +' placeholder="'+ph+'" autocomplete="off" aria-label="'+esc(c.rotulo)+' — '+esc(c.nome)+'">'
+    +'<div class="integ-dica">'+esc(c.descricao||'')+integEstadoCampo(c)+'</div></div>';
+}
+
+function integCorpo(s){
+  const modo=integModoAtual(s);
+  const m=(s.modos||[]).find(x=>x.chave===modo)||(s.modos||[])[0]||{campos:[]};
+  const ativo=(s.modos||[]).find(x=>x.chave===s.modo_ativo);
+  let html='<div class="integ-corpo"><p class="integ-resumo">'+esc(s.resumo)+'</p>';
+
+  html+='<div class="integ-linha">'+(s.modo_ativo
+      ? 'Autenticando por <b>'+esc((ativo||{}).rotulo||s.modo_ativo)+'</b>'
+        +(s.falta.length?' · <span style="color:var(--yellow-700)">falta '+esc(s.falta.join(', '))+'</span>':'')
+      : '<span style="color:var(--yellow-700)">Falta '+esc(s.falta.join(', '))+'</span>')
+    +'</div>';
+
+  if((s.modos||[]).length>1){
+    html+='<div><div class="integ-rot">Forma de autenticação</div>'
+      +'<div class="integ-modos" role="group" aria-label="Forma de autenticação">'
+      +s.modos.map(x=>'<button type="button" class="ghost" aria-pressed="'+(x.chave===modo)+'"'
+        +' onclick="integModo(&quot;'+esc(s.chave)+'&quot;,&quot;'+esc(x.chave)+'&quot;)">'+esc(x.rotulo)
+        +(x.completo?' <span class="badge b-ok">pronta</span>':'')+'</button>').join('')
+      +'</div>'+(m.dica?'<div class="integ-dica">'+esc(m.dica)+'</div>':'')+'</div>';
+    /* A ORDEM MANDA: o cliente usa o PRIMEIRO modo completo (monkey/cliente.py,
+       pneus/cliente.py). Preencher o OAuth2 com um token já salvo não troca
+       nada — e sem este aviso o operador jura que configurou e não funcionou. */
+    if(s.modo_ativo && s.modo_ativo!==modo){
+      html+='<div class="integ-linha" style="color:var(--yellow-700)">'
+        +'Atenção: <b>'+esc((ativo||{}).rotulo||'')+'</b> já está configurada e tem precedência. '
+        +'Para passar a usar '+esc(m.rotulo||'')+', apague a outra primeiro.</div>';
+    }
+  }
+
+  html+='<div class="ges-cfg" style="padding:0">'+(m.campos||[]).map(integCampo).join('')+'</div>';
+  if((s.ajustes||[]).length){
+    html+='<div><div class="integ-rot">Ajustes desta integração</div>'
+      +'<div class="ges-cfg" style="padding:8px 0 0">'+s.ajustes.map(integCampo).join('')+'</div></div>';
+  }
+  html+='</div>';
+  return html
+    +'<div class="m-foot"><span class="m-err" id="integ-err-'+esc(s.chave)+'">'
+    +esc(INTEG_ERRO[s.chave]||'')+'</span>'
+    +'<button class="btn" id="integ-btn-'+esc(s.chave)+'" onclick="integSalvar(&quot;'+esc(s.chave)+'&quot;)">Salvar</button></div>';
+}
+
+function integCorpoOutraAba(s){
+  /* Editar a mesma senha em dois lugares é o que fazia salvar num e conferir
+     no outro. Aqui fica só o panorama, com o caminho para onde se edita. */
+  const c=(((s.modos||[])[0]||{}).campos||[])[0]||{};
+  return '<div class="integ-corpo"><p class="integ-resumo">'+esc(s.resumo)+'</p>'
+    +'<div class="integ-linha">'+(c.configurado
+        ? 'Senha guardada no cofre · '+integOrigem(c)
+        : '<span style="color:var(--yellow-700)">Sem senha guardada — o CÓRTEX não envia e-mail</span>')
+    +'</div></div>'
+    +'<div class="m-foot"><span class="m-err"></span>'
+    +'<button class="ghost" onclick="gesTab(&quot;email&quot;)">Configurar na aba E-mail</button></div>';
+}
+
+function integCard(s){
+  const est=INTEG_EST[s.estado]||['b-info',s.estado];
+  return '<div class="card" id="integ-'+esc(s.chave)+'" style="margin-bottom:14px">'
+    +'<div class="head"><h2>'+esc(s.nome)+' <span class="badge '+est[0]+'">'+est[1]+'</span></h2>'
+    +'<span class="hint">alimenta '+esc(s.alimenta)+'</span></div>'
+    +(s.aba?integCorpoOutraAba(s):integCorpo(s))+'</div>';
+}
+
+async function integSalvar(chave){
+  const s=(INTEG||[]).find(x=>x.chave===chave); if(!s) return;
+  const err=document.getElementById('integ-err-'+chave);
+  const m=(s.modos||[]).find(x=>x.chave===integModoAtual(s))||{campos:[]};
+  const campos=(m.campos||[]).concat(s.ajustes||[]);
+  /* Só o que MUDOU vai para a API: campo de segredo em branco significa "não
+     mexi", nunca "apague" — apagar é o link ao lado do próprio campo. */
+  const envios=[];
+  campos.forEach(c=>{
+    const el=document.getElementById('cred-'+c.nome); if(!el) return;
+    const v=(el.value||'').trim();
+    if(c.segredo){ if(v) envios.push([c.nome,v]); }
+    else if(v!==(c.valor||'')) envios.push([c.nome,v]);
+  });
+  if(!envios.length){ if(err) err.textContent='Nada mudou — preencha ou altere algum campo antes de salvar.'; return; }
+  const btn=document.getElementById('integ-btn-'+chave);
+  if(btn){ btn.disabled=true; btn.textContent='Salvando…'; }
+  delete INTEG_ERRO[chave];
+  try{
+    for(const par of envios){
+      const r=await fetch('/api/gestao/credenciais',{method:'POST',
+        headers:{'Content-Type':'application/json'},
+        body:JSON.stringify({nome:par[0], valor:par[1]})});
+      const d=await r.json();
+      if(!r.ok){ INTEG_ERRO[chave]=(d.mensagem||'Não foi possível salvar.')+' ('+par[0]+')'; break; }
+    }
+    hideBanner();
+  }catch(e){ INTEG_ERRO[chave]='Não foi possível falar com a API.'; }
+  await integCarregar();   // o estado do cartão é recalculado no servidor
+}
+
+async function integApagar(nome){
+  if(!confirm('Apagar '+nome+'? A integração para de funcionar até um valor novo ser salvo.')) return;
   try{
     const r=await fetch('/api/gestao/credenciais',{method:'POST',
       headers:{'Content-Type':'application/json'},
-      body:JSON.stringify({nome:nome, valor:valor})});
-    const d=await r.json();
-    if(!r.ok){ showBanner(d.mensagem||'Não foi possível salvar a credencial.'); return; }
+      body:JSON.stringify({nome:nome, valor:''})});
+    if(!r.ok){ const d=await r.json(); showBanner(d.mensagem||'Não foi possível apagar.'); return; }
     hideBanner();
-    credCarregar();
-  }catch(e){ showBanner('Não foi possível falar com a API.', e.message); }
+  }catch(e){ showBanner('Não foi possível falar com a API.', e.message); return; }
+  integCarregar();
 }
 function agoraLocal(){
   const n=new Date(), p=x=>String(x).padStart(2,'0');

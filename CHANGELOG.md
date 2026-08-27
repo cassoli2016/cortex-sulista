@@ -4,25 +4,15 @@ Gerado de `docs/versoes.yaml` por `scripts/gerar_changelog.py` — não editar �
 Formato [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/),
 versionamento [SemVer](https://semver.org/lang/pt-BR/).
 
-## [0.71.0] — 26/08/2026  ·  CX-26/08/2026-v0.71.0
-
-### Adicionado
-- Cartao "Saldo nos bancos" no topo do Extrato Bancario: quanto ha em cada conta segundo o extrato, ao lado da ultima posicao que o ERP tem da mesma conta, e a diferenca. E a primeira pergunta de quem sobe o extrato todo dia. Ele NAO segue o filtro de periodo da tela de proposito - saldo e posicao, nao movimento de janela.
-- Coluna "Envio", que diz por conta se o extrato esta em dia. A conta e' em dias UTEIS pulados, nao corridos: a rotina e' subir o extrato do dia anterior, entao sabado, domingo e o proprio dia de hoje nao contam.
-- O total consolidado declara o que ficou de fora: quantas contas nao tem saldo utilizavel (essas ficam FORA da soma, marcadas "nao informado" - um saldo ausente nunca vira R$ 0,00) e, quando as posicoes sao de dias diferentes, ele avisa em vez de fingir uma foto de um instante so.
-- A diferenca contra o ERP so sai em vermelho quando as duas posicoes sao do MESMO dia. Em dias distintos ela mistura divergencia com defasagem de lancamento, e acusar o ERP de um erro que pode ser so atraso e' pior que nao dizer nada - nesse caso ela sai em cinza, marcada "datas diferentes".
-
-### Corrigido
-- Enviar o extrato dia a dia corrompia o saldo de dias ja importados. O arquivo de cada dia repete o saldo final do banco, e ele costuma vir com a data de um dia ANTERIOR - entao o envio de hoje reescrevia o saldo de ontem. No Safra o efeito era trocar R$ 657,38 (o saldo da conta corrente, que e o que o ERP guarda) por R$ 10.502,92 (a posicao consolidada, com a aplicacao junto): a conta passava a divergir em R$ 9.845,54 por um numero que o proprio arquivo ja tinha certo. So acontecia no envio diario - importando o mes inteiro de uma vez o numero certo ficava.
-- O aviso de "extrato sem atualizacao" so acendia depois de SETE dias corridos. Numa rotina diaria isso e uma semana inteira de silencio, e ainda castigava a segunda-feira, quando tres dias corridos de atraso sao zero dia util. Agora acende ao pular mais de um dia util, e o alerta diz os dois numeros - "ha 4 dias sem extrato (1 dia util de movimento sem enviar)" - para que ninguem ache que o aviso e' engano de quem enviou na sexta. Feriado bancario nao e conhecido pelo sistema e aparece como um dia de atraso.
-
-## [0.70.0] — 26/08/2026  ·  CX-26/08/2026-v0.70.0
+## [0.95.0] — 27/08/2026  ·  CX-27/08/2026-v0.95.0
 
 ### Adicionado
 - O Extrato Bancario passou a ler o extrato do C6, que so existe em PDF - aquele banco nao oferece OFX no internet banking. Era a unica conta que nao aparecia como divergente e sim como ausente, por nao ter como entrar. O arquivo traz o saldo ao fim de cada dia movimentado, e a tela confere sozinha se esse saldo bate com o movimento; quando nao bater, ela avisa, porque e o sinal de que o banco mudou o layout do relatorio.
 - Conciliacao LANCAMENTO A LANCAMENTO, num cartao novo da mesma tela. A comparacao que ja existia diz se o dia bate no total; esta diz qual lancamento do extrato e qual linha do razao do ERP, e o que sobrou dos dois lados. Casa por mesmo dia e mesmo valor, e depois por mesmo valor a ate tres dias de distancia - que e o atraso de compensacao e, sozinho, fecha a conta do Sicredi por inteiro.
 - Cada dia recebe um diagnostico em vez de so um numero: "conciliado", "so granularidade", "diverge", "ERP nao lancou" e "so no ERP". A distincao que mais muda o trabalho e a do meio: e comum sobrar linha dos dois lados e o valor do dia fechar mesmo assim, porque o razao lanca em detalhe o que o banco mostra agrupado - na Caixa, um dia tem 15 linhas no extrato contra 372 no razao e a diferenca e de tres centavos. Isso nao e pendencia, e a tela diz isso com todas as letras.
-- A lista abre pelos dias que exigem acao, com o maior valor primeiro, e cada dia abre no clique com as linhas sem par dos dois lados. O cartao "Sem explicacao" so fica verde quando NENHUM dia esta pendente - nunca so porque o total ficou perto de zero, que aconteceria com dois dias grandes de sinais opostos se anulando.
+- Cartao "Saldo nos bancos" no topo da tela: quanto ha em cada conta segundo o extrato, ao lado da ultima posicao que o ERP tem da mesma conta, e a diferenca. E a primeira pergunta de quem sobe o extrato todo dia. Ele NAO segue o filtro de periodo da tela de proposito - saldo e posicao, nao movimento de janela.
+- Coluna "Envio", que diz por conta se o extrato esta em dia. A conta e em dias UTEIS pulados, nao corridos: a rotina e subir o extrato do dia anterior, entao sabado, domingo e o proprio dia de hoje nao contam.
+- O total dos bancos declara o que ficou de fora: quantas contas nao tem saldo utilizavel (essas ficam FORA da soma, marcadas "nao informado" - um saldo ausente nunca vira R$ 0,00) e, quando as posicoes sao de dias diferentes, ele avisa em vez de fingir uma foto de um instante so. A diferenca contra o ERP so sai em vermelho quando as duas posicoes sao do MESMO dia: em dias distintos ela mistura divergencia com defasagem de lancamento.
 
 ### Alterado
 - O resumo da importacao passou a dizer tudo o que aconteceu com o arquivo: alem de novos e duplicados, quantos lancamentos futuros ficaram de fora, quantos saldos do banco entraram e se a conferencia do PDF nao fechou.
@@ -30,8 +20,324 @@ versionamento [SemVer](https://semver.org/lang/pt-BR/).
 ### Corrigido
 - A importacao de extrato descartava lancamento em silencio. Sete arquivos reais de agosto (Bradesco, Caixa, Itau, Safra, Santander e Sicredi) mostraram 53 de 756 lancamentos sumindo, contados na tela como "duplicados" - so na Caixa foram 50, somando R$ 2,46 milhoes de credito, com TEDs de R$ 287 mil, R$ 327 mil e R$ 377 mil entre eles. A causa: o identificador de transacao do arquivo, que deveria ser unico por conta, vinha repetido (a Caixa grava ali o codigo do banco de origem da TED). A identificacao de duplicata deixou de depender so desse campo.
 - Itau e Safra mandam o SALDO do dia como se fosse um lancamento, e ele entrava somando. O movimento do mes do Itau aparecia como R$ 157 mil quando o real e R$ 4 mil - trinta e nove vezes maior. Agora essas linhas viram ancora de saldo, o que melhora a conferencia em vez de piorar: as duas contas passaram de um unico saldo conferido no mes para dezoito.
+- Enviar o extrato dia a dia corrompia o saldo de dias ja importados. O arquivo de cada dia repete o saldo final do banco, e ele costuma vir com a data de um dia ANTERIOR - entao o envio de hoje reescrevia o saldo de ontem. No Safra o efeito era trocar R$ 657,38 (o saldo da conta corrente, que e o que o ERP guarda) por R$ 10.502,92 (a posicao consolidada, com a aplicacao junto): a conta passava a divergir em R$ 9.845,54 por um numero que o proprio arquivo ja tinha certo. So acontecia no envio diario.
 - O arquivo de COMPROMISSOS do Bradesco (DARF, boletos e conta de luz com vencimento futuro) e identico ao do extrato e entrava como se fosse movimento realizado. Pior: fazia o sistema achar que a conta estava em dia para sempre, porque o "ultimo dia com extrato" passava a ser uma data futura e o aviso de extrato velho nunca mais disparava. Lancamento com data futura agora fica de fora e e informado no resumo da importacao.
 - O saldo do Bradesco nao aparecia na comparacao. O arquivo grava a data do saldo zerada, e o sistema aceitava isso como um dia que nao existe - entao aquele saldo nunca casava com dia nenhum do ERP e sumia sem aviso.
+- O aviso de "extrato sem atualizacao" so acendia depois de SETE dias corridos. Numa rotina diaria isso e uma semana inteira de silencio, e ainda castigava a segunda-feira, quando tres dias corridos de atraso sao zero dia util. Agora acende ao pular mais de um dia util, e o alerta diz os dois numeros - "ha 4 dias sem extrato (1 dia util de movimento sem enviar)". Feriado bancario nao e conhecido pelo sistema e aparece como um dia de atraso.
+
+## [0.94.0] — 27/08/2026  ·  CX-27/08/2026-v0.94.0
+
+### Adicionado
+- A coluna de autorizacao na fila por agregado ganhou o estado VENCIDO, separado de "nao autorizado". Sao situacoes diferentes e pedem acoes diferentes: nao autorizado e cadastro que FALTA, vencido e cadastro que EXISTE e caducou - um se preenche, o outro se renova. Quem esta pronto mas com vencimento proximo aparece em ambar com o prazo, em vez do verde liso de antes.
+- As colunas da fila por agregado passaram a ordenar por clique no cabecalho, com a seta indicando o sentido. Coluna numerica comeca decrescente e coluna de texto crescente, que e o que se espera de cada uma.
+- Cadastro e autorizacao ordenam por URGENCIA e nao por texto: pendente antes de completo, e vencido antes de nao autorizado. Ordenar essas duas alfabeticamente nao ajudaria ninguem.
+
+### Alterado
+- A ordenacao acontece sobre a lista que ja esta na tela, sem refazer a consulta - o ERP leva segundos para responder e reordenar nao muda o dado. O rodape diz por qual coluna e em que sentido a lista esta.
+
+## [0.93.1] — 27/08/2026  ·  CX-27/08/2026-v0.93.1
+
+### Corrigido
+- A suite de testes falhava NO SERVIDOR e passava na maquina de quem nunca configurou nada. O teste do "modo nao configurado" da Premiacao limpava so a variavel de ambiente, e o cofre da tela de Gestao vence a variavel: onde existe token guardado de verdade, a integracao continuava ligada e o teste acusava falha que nao existia.
+
+## [0.93.0] — 27/08/2026  ·  CX-27/08/2026-v0.93.0
+
+### Adicionado
+- Botao de CANCELAR em cada documento transmitido e autorizado. Pede a justificativa, confirma antes - cancelar nao se desfaz - e some quando o documento ja esta cancelado, que aparece com marcador proprio.
+- Linhas de evento (cancelamento) aparecem marcadas e ficam fora da contagem de transmissoes: evento nao e documento, e conta-lo junto inflaria a fila e estragaria a taxa de retorno.
+
+### Alterado
+- O marcador de PRODUCAO nos documentos transmitidos ficou verde.
+
+### Corrigido
+- O botao de reativar o envio de um agregado nao funcionava - o clique dava erro e nada acontecia. A funcao estava escrita na margem esquerda, mas DENTRO de outra: indentacao nao define escopo, e o clique de um botao e avaliado no escopo global, onde ela nao existia.
+- O registro do cancelamento ficava sem protocolo. O evento REGISTROU na SEFAZ, mas a leitura da resposta procurava um nivel que so existe no retorno de autorizacao - e a segunda tentativa, recusada por duplicidade, trazia o protocolo do primeiro no proprio texto. Agora esse protocolo e extraido, e duplicidade de evento passa a contar como cancelado: o evento existe, so nao foi aquele envio que o criou.
+
+## [0.93.0] — 27/08/2026  ·  CX-27/08/2026-v0.93.0
+
+### Adicionado
+- A Saude do Servidor passou a acompanhar tambem a Gobrax e a Monkey. Antes so a Prolog aparecia entre as integracoes de fornecedor: telemetria parada ou portal de antecipacao sem coletar nao apareciam em lugar nenhum, e a tela envelhecia calada.
+- Gobrax: competencia, quantos veiculos e ha quanto tempo foi a coleta. Vale sempre a MAIS ATRASADA entre estatisticas e odometro - as duas se cruzam na Torre, e uma fresca ao lado de outra parada faz o cruzamento mentir sem parecer. Passar de duas janelas da tarefa agendada (3 em 3 horas) vira alerta; foi assim que o cache ficou cinco dias parado sem ninguem notar.
+- Gobrax sao DUAS credenciais no mesmo fornecedor - o token move a telemetria e o login do portal move a premiacao - e uma pode estar de pe com a outra caida. Faltando o login, a linha avisa que a nota x km parou de atualizar mesmo com a telemetria em dia.
+- Monkey: quantos titulos, qual o saldo e de quando e a posicao gravada - que e a que a tela de Antecipacoes mostra. AMBIENTE DE HOMOLOGACAO vira alerta explicito: os titulos sao de teste e a tela de Antecipacoes nao tem como saber isso sozinha.
+
+### Alterado
+- Integracao sem credencial aparece como "Info", nunca como falha - o recurso apenas nao existe nesta instalacao, e vermelho todo dia treina quem opera a ignorar alarme. Quando falta algo, a linha diz o que falta e onde configurar.
+- Nenhuma dessas linhas consulta a API do fornecedor: Prolog tem cota, Gobrax leva 73 segundos por volta e a tela recarrega de 5 em 5 segundos. O que se mede e a idade do instantaneo que as telas mostram.
+
+## [0.92.0] — 27/08/2026  ·  CX-27/08/2026-v0.92.0
+
+### Adicionado
+- Cancelamento de CT-e ja autorizado. Ato fiscal com PRAZO: passado o prazo da UF o documento nao se cancela mais, e resolve-se por outros meios, mais caros. A justificativa tem minimo de 15 caracteres - exigencia da SEFAZ, e o que alguem vai ler daqui a um ano para entender por que o documento caiu.
+- Cancelar NAO exige a liberacao de producao. Liberar existe para impedir que se EMITA sem querer; exigi-la para cancelar seria pedir para destravar a emissao a fim de corrigir uma emissao. Desfazer tem de ser mais facil que fazer.
+- O ambiente do cancelamento sai do REGISTRO do documento, nao de quem chama: cancelar em homologacao um documento de producao nao faz nada e daria a impressao de ter resolvido.
+- O CT-e emitido em duplicidade foi CANCELADO e a SEFAZ confirmou: consultado o documento, o duplicado responde "cancelamento homologado" e o valido segue autorizado.
+
+### Corrigido
+- A leitura da resposta do evento procurava um nivel que so existe no retorno de autorizacao. O cancelamento REGISTROU na SEFAZ e o sistema leu como falha - a segunda tentativa e que revelou, ao ser recusada por duplicidade de evento. Falha silenciosa que dizia o contrario do que acontecera.
+
+## [0.91.0] — 27/08/2026  ·  CX-27/08/2026-v0.91.0
+
+### Adicionado
+- PRIMEIRO CT-e DE CONTRAPARTIDA EMITIDO EM PRODUCAO, autorizado pela SEFAZ de Sao Paulo. Emitido pelo agregado RODRIGO ANTONIO PARIZOTTO contra a Sulista, referenciando o CT-e de origem. Documento real, com valor fiscal.
+
+### Corrigido
+- O ambiente viajava como TEXTO no sistema e a biblioteca o comparava como NUMERO. Producao caia no endereco de homologacao dizendo ser de producao, e a SEFAZ recusava com uma mensagem que nao aponta onde esta o erro ("Ambiente informado diverge do Ambiente de recebimento").
+- O protocolo de autorizacao era remontado a partir do objeto lido, e saia com o nome da CLASSE no lugar do nome do elemento - arquivo que nao importa em lugar nenhum. Agora e guardado exatamente como a SEFAZ enviou, que e o que se arquiva.
+- A verificacao de "ja existe contrapartida para este CT-e" vivia so no caminho em LOTE; o caminho de um documento passava por fora. Foi assim que a mesma prestacao ganhou DOIS documentos autorizados em producao. A guarda passou para o ponto por onde todo envio passa, e vem ANTES de reservar numero de serie - barrar depois ja teria gasto um.
+- Repetir a emissao para a mesma origem agora exige pedido explicito, e a recusa diz qual documento ja existe e lembra que o primeiro continua valendo ate ser cancelado.
+
+## [0.90.0] — 27/08/2026  ·  CX-27/08/2026-v0.90.0
+
+### Adicionado
+- Botao de ATIVAR e DESATIVAR envio por agregado, na linha de cada certificado. Serve para testar com um de cada vez e para tirar da fila quem esta sendo recusado sempre - sem apagar certificado nem autorizacao, que sao registros de outra natureza e nao deveriam ser removidos por conveniencia operacional. Cada mudanca fica na trilha com autor e data.
+- A contagem da fila passou a mostrar quantos CT-e estao fora por envio desativado, separado de quantos estao fora por falta de certificado. Sao motivos diferentes e pedem acoes diferentes.
+
+### Alterado
+- Este interruptor e o unico do modulo em que a AUSENCIA de registro significa LIGADO. Nos outros o padrao seguro e desligado; aqui o padrao seguro e o comportamento de hoje, porque um padrao desligado esvaziaria a fila em silencio - e fila vazia parece trabalho concluido.
+
+## [0.89.0] — 27/08/2026  ·  CX-27/08/2026-v0.89.0
+
+### Adicionado
+- Botao de DOWNLOAD em cada documento transmitido, na tela. Baixa o arquivo completo - XML assinado com o protocolo -, que e o que o ERP importa e o que se arquiva. Aparece so onde ha arquivo guardado.
+- Documento recusado nao gera arquivo: o download responde "nao existe" em vez de devolver um XML vazio, que seria um arquivo com cara de valido.
+
+### Alterado
+- Ao emitir para o Parana a SEFAZ recusou com "IE do emitente nao informada". Nao e defeito: e o orgao confirmando o que a tela ja apontava - aquele agregado esta entre os 17 sem inscricao estadual, e sem inscricao nao se emite CT-e.
+
+### Corrigido
+- A emissao para agregado do PARANA morria ANTES de chegar a SEFAZ. Cada estado descreve o campo do envio de um jeito: Sao Paulo aceita o pacote comprimido como texto simples, e o Parana exige que ele venha tipado. Mas trocar para o formato do Parana quebrava Sao Paulo, que passava a recusar com "falha na descompactacao". Agora o envio tenta o caminho simples - o provado - e so troca de formato quando a UF reclama do tipo. Conferido nos dois: Sao Paulo autorizou, Parana chegou a SEFAZ.
+- Adaptar na hora em vez de manter uma lista de estados: lista de UF com excecao envelhece calada, e o defeito volta na primeira UF nova.
+
+## [0.88.0] — 27/08/2026  ·  CX-27/08/2026-v0.88.0
+
+### Adicionado
+- A SEFAZ AUTORIZOU o primeiro CT-e de contrapartida com o grupo da Reforma Tributaria - protocolo 135260006389275, em homologacao. Era o bloqueio que restava do lado tecnico.
+- O que destravou foi um XML do proprio ERP, de um CT-e da Sulista autorizado em PRODUCAO. Ele mostrou tres coisas que nenhuma consulta tinha revelado.
+- PRIMEIRA: a aliquota do IBS da UF nao estava zerada - estava numa tabela PROPRIA, que o sistema nao lia. Havia uma tabela de IBS geral com aliquota zero, e outra so do IBS da UF com 0,1000. Lendo a errada, a emissao parava dizendo que o imposto nao estava configurado, quando estava.
+- SEGUNDA: o IBS MUNICIPAL nao existe neste ERP e vem zerado - e a SEFAZ aceita assim. Nao e pendencia de cadastro, e como a operacao e hoje.
+- TERCEIRA: a base do IBS/CBS EXCLUI os tributos que ele vem substituir - ICMS, PIS e COFINS. A regra foi conferida em seis documentos, todos exatos. Antes o sistema usava o valor cheio, o que declararia imposto a mais.
+
+### Alterado
+- Descoberto no caminho um segundo problema, ainda em aberto e sem relacao com o IBS: a emissao para agregado do PARANA falha no envio, antes mesmo de chegar a SEFAZ. O envio compactado que Sao Paulo aceita e recusado na montagem da mensagem para o Parana. Sao Paulo segue funcionando.
+
+### Corrigido
+- O aviso de que o IBS nao estava configurado deixou de existir, porque a premissa dele estava errada. No lugar ficou uma verificacao por documento: aliquota zerada agora aponta para o imposto vinculado AQUELE CT-e, e lembra que a definicao de exportacao e zero por natureza.
+
+## [0.87.0] — 27/08/2026  ·  CX-27/08/2026-v0.87.0
+
+### Adicionado
+- Grafico de documentos transmitidos por dia na tela de CT-e de Contrapartida, com 30 dias. Sao QUATRO series empilhadas e nao duas: homologacao e producao nao se somam, porque uma nao tem valor fiscal, e autorizado e recusado tambem nao, porque recusado nao emitiu nada. Juntar qualquer par produziria uma barra que parece trabalho feito e nao e.
+- Indicador de RETORNO DA SEFAZ: o percentual de transmissoes autorizadas, com a contagem embaixo e quantas foram em producao. Verde a partir de 95, ambar de 70 a 94, vermelho abaixo.
+- Cartao de faixas de vencimento dos certificados - vencido, ate 15 dias, 16 a 30, 31 a 60, mais de 60. As duas ultimas linhas aparecem separadas porque NAO sao faixa de prazo: "sem validade informada" nao tem data, e A3 nao se resolve esperando.
+
+### Alterado
+- Sem nenhuma transmissao, o retorno da SEFAZ mostra travessao e nao "0%". Zero por cento de acerto sem nenhuma tentativa e um numero que acusa alguem por um trabalho que nao existiu.
+- O cartao de "contrapartidas emitidas" deu lugar ao de retorno: ele dizia "nenhuma rotina de emissao no ar", o que deixou de ser verdade, e a contagem de producao virou subtitulo do novo.
+
+## [0.86.0] — 27/08/2026  ·  CX-27/08/2026-v0.86.0
+
+### Adicionado
+- Exportacao dos CT-e de contrapartida para importar no ERP. Sai um arquivo por documento no formato completo - o XML assinado MAIS o protocolo de autorizacao -, que e o que um importador espera: o documento sozinho nao prova que foi autorizado.
+- O protocolo passou a ser guardado em XML, e nao so o numero. Sem ele a autorizacao existe e nao se prova: nao da para importar, arquivar nem responder a uma fiscalizacao.
+- Arquivos separados por AMBIENTE, em pastas diferentes. Misturar homologacao com producao e o caminho mais curto para alguem importar um documento de teste como se valesse.
+- Nomeados pela CHAVE, que e como todo importador de CT-e procura, e o que impede um documento de sobrescrever outro. Reexportar e seguro: reescreve o mesmo arquivo com o mesmo conteudo.
+
+### Alterado
+- Documento recusado NAO vira arquivo. Um processo montado sobre documento recusado seria um arquivo com cara de valido - e alguem o importaria.
+- A exportacao conta a parte os autorizados SEM arquivo guardado. Hoje sao 12: foram emitidos antes de o sistema passar a guardar o XML, entao nao ha o que gerar. Sem esse numero, o total exportado pareceria menor do que deveria sem explicacao.
+- Os arquivos ficam em data/, que esta fora do controle de versao - o repositorio do codigo e publico e documento fiscal carrega CNPJ, valor e chave. Ha teste garantindo que ninguem reexclua essa pasta do ignore.
+
+## [0.85.2] — 27/08/2026  ·  CX-27/08/2026-v0.85.2
+
+### Corrigido
+- O controle de vencimento de certificado mostrava apenas UM dos dois cadastrados - e escondia justamente o que vence primeiro. A lista saia dos agregados COM CT-e no periodo, e a tela abre no dia de hoje: quem simplesmente nao rodou hoje desaparecia do controle. Certificado vence no calendario, nao na janela que a tela esta mostrando.
+- O cartao passou a listar TODOS os certificados cadastrados, e leva um selo dizendo que ignora o filtro de periodo - card que nao segue os filtros tem de anunciar isso, senao o numero parece furado.
+- O volume continua sendo do periodo, porque e ele que responde "quanto para se este certificado vencer". Mas quem nao teve movimento no recorte aparece como "fora do periodo" em vez de zero: zero e "nao rodou", nao "nao importa", e a diferenca some se o numero aparecer pelado.
+
+## [0.85.1] — 27/08/2026  ·  CX-27/08/2026-v0.85.1
+
+### Corrigido
+- O GitHub mandava e-mail de falha a cada envio. Cinco testes novos, os do IBS/CBS, montavam o documento sem o marcador que os faz pular quando as bibliotecas fiscais nao estao instaladas. Aqui na maquina passavam, porque o grupo esta instalado; no servidor de testes - que instala exatamente o que producao instala - quebravam todos. O aviso chegou por e-mail, nao pela suite, que e o pior jeito de descobrir.
+- Entrou uma guarda que le a propria suite e acusa qualquer teste que monte documento sem estar protegido. Ela distingue CHAMAR de mencionar - um teste que so inspeciona a assinatura da funcao nao precisa das bibliotecas - e aceita tanto o marcador quanto um pulo proprio.
+
+## [0.85.0] — 27/08/2026  ·  CX-27/08/2026-v0.85.0
+
+### Adicionado
+- Controle de vencimento dos certificados digitais na tela de CT-e de Contrapartida. Certificado A1 vale UM ANO: vencendo em silencio, a emissao para sozinha e a empresa descobre pelo agregado.
+- O semaforo e GRADUADO e nao binario - vencido, ate 15 dias, ate 30, ate 60 -, porque "vence em 2 dias" e "vence em 29" pedem acoes diferentes e um aviso igual para os dois nao prioriza nada. Sessenta dias e o momento de comprar, nao de correr.
+- A lista mostra o VOLUME que cada certificado sustenta, e ordena por urgencia e, dentro dela, por volume. Sem isso a ordem por data esconde o que importa: um certificado que vence em 40 dias e responde por metade da fila urge mais que um vencendo em 10 que nunca emitiu nada. O caso real de hoje e esse - o certificado que vence primeiro sustenta 822 CT-e do trimestre.
+- Validade nao informada NAO conta como "ok": conta como desconhecida, em vermelho. Tratar ausencia de data como boa noticia e exatamente o que faz a emissao parar sem aviso. Certificado A3 aparece como IMPEDIMENTO e nao como prazo - ele mora em token fisico e nao se resolve esperando.
+- Certificado sem a senha no cofre e marcado na propria linha: sem ela o arquivo nao assina, e a data de validade sozinha daria a impressao de que esta tudo certo.
+
+## [0.84.0] — 27/08/2026  ·  CX-27/08/2026-v0.84.0
+
+### Adicionado
+- Tarefa agendada da emissao do CT-e de contrapartida (scripts/instalar_tarefa_contrapartida.ps1). Ela dispara de 5 em 5 minutos, mas NAO emite de 5 em 5 minutos: ela PERGUNTA se e hora, lendo o intervalo configurado na tela. Mudar o intervalo em Administracao > Integracoes tem efeito imediato, sem reinstalar tarefa nenhuma.
+- Instalar a tarefa e seguro mesmo com tudo desligado: se a automacao estiver desligada, o script sai sem fazer nada. A tarefa existir nao liga a emissao - sao dois interruptores diferentes, e o segundo esta na tela.
+- A tarefa tambem NAO escolhe o ambiente. Deixar homologacao ou producao no argumento criaria uma segunda fonte da verdade que ninguem lembraria de conferir - o ambiente sai da mesma tela.
+
+### Alterado
+- Quando nao e hora de rodar, o script sai com sucesso e nao com erro: para o Windows a tarefa foi bem-sucedida, e o historico do agendador nao enche de "falha" a cada cinco minutos.
+- A passagem da rotina e registrada mesmo quando nada foi emitido - o que se mede e a rotina ter rodado, nao o resultado. Sem isso, um periodo sem fila faria a tarefa tentar de novo a cada cinco minutos.
+- Carimbo de ultima execucao ilegivel faz a rotina RODAR, nao travar: um valor corrompido nao pode deixar a emissao parada indefinidamente.
+
+## [0.83.0] — 27/08/2026  ·  CX-27/08/2026-v0.83.0
+
+### Adicionado
+- Os interruptores da emissao sairam da linha de comando e foram para a tela, em Administracao > Integracoes: trocar de HOMOLOGACAO para PRODUCAO, ligar ou desligar a emissao AUTOMATICA e definir de quanto em quanto tempo a rotina roda. So administrador enxerga e muda.
+- O intervalo da rotina agora e configuravel, de 5 minutos a 24 horas, com uma hora de padrao. Valor fora dos limites e RECUSADO em vez de aparado em silencio: quem digitou 1 minuto quis dizer alguma coisa, e gravar 5 caladamente esconderia isso. O piso existe porque cada execucao consulta o ERP, le o cadastro inteiro e conversa com a SEFAZ - rodar de minuto em minuto nao emite mais rapido, ja que a fila so cresce quando um CT-e novo e digitado.
+- O cartao mostra o ambiente ativo, se a automacao esta ligada, de quanto em quanto tempo, e QUEM mudou cada coisa e quando - que e a informacao procurada meses depois.
+
+### Alterado
+- Trocar para producao pela tela exige a mesma frase de confirmacao da linha de comando, e o campo so aparece quando se esta indo para producao. Pedir a frase sempre treinaria a digita-la por reflexo, que e o oposto do atrito que ela existe para criar. Voltar para homologacao nao pede nada.
+- O AUTOR da mudanca sai da sessao no servidor, nunca do corpo do pedido: quem responde por ligar producao nao pode ser um campo que o proprio cliente preenche. Ha teste garantindo isso.
+- Configuracao corrompida ou ausente cai sempre no lado seguro - ambiente de homologacao e automacao desligada. Banco novo ou backup restaurado nao comeca emitindo documento de verdade.
+
+## [0.82.0] — 26/08/2026  ·  CX-26/08/2026-v0.82.0
+
+### Adicionado
+- Os DOIS AMBIENTES da emissao passaram a existir: homologacao, que segue sendo o padrao de tudo, e producao. Homologacao e o ambiente de teste da SEFAZ - o documento autorizado la nao tem valor fiscal, nao e escriturado e nao gera obrigacao. Producao emite documento real, em nome de outra empresa.
+- Producao NASCE TRAVADA e nao destrava sozinha. Liberar exige uma frase de confirmacao digitada por inteiro, e fica registrado quem liberou e quando. A frase existe porque uma opcao de linha de comando e facil demais de digitar por engano, e o engano aqui custa cancelamento e retificacao: CT-e autorizado errado nao se apaga - cancela-se, dentro de prazo, com justificativa, e repercute na escrituracao dos dois lados.
+- DESLIGAR producao nao pede frase nenhuma. Desligar e sempre seguro e nao pode depender de lembrar de uma frase no meio de um problema.
+- O teto do lote em producao e MENOR que em homologacao (50 contra 500): lote errado em teste custa tempo, em producao custa cancelamento documento a documento. Comecar devagar e o comportamento correto do primeiro dia.
+- A numeracao ja era separada por ambiente, entao o primeiro documento de producao nao nasce com um numero gasto em teste.
+
+## [0.81.0] — 26/08/2026  ·  CX-26/08/2026-v0.81.0
+
+### Adicionado
+- Emissao em LOTE do CT-e de contrapartida: a rotina varre o periodo, monta e transmite os documentos da fila, um agregado de cada vez, em ordem cronologica. Continua so em homologacao.
+- A emissao MANUAL funciona sempre. A execucao DESASSISTIDA - rotina agendada, sem ninguem olhando - so roda se alguem tiver ligado, e o padrao e DESLIGADO. Ausencia de configuracao significa desligado, nunca o contrario: um padrao ligado faria a rotina comecar a emitir sozinha por causa de um banco novo ou de uma restauracao de backup. Ligar e desligar entra na trilha com autor e data.
+- Quatro guardas que a emissao manual nao precisa, porque la existe uma pessoa lendo o retorno. IDEMPOTENCIA: nunca emite duas vezes para o mesmo CT-e de origem, e so conta como feita a que foi AUTORIZADA - uma tentativa recusada nao emitiu nada. DISJUNTOR: tres falhas seguidas param o lote, porque falha sistemica rejeita tudo e um lote de mil queimaria mil numeros de serie antes de alguem perceber. TETO por execucao, obrigatorio. E ENSAIO, que percorre tudo sem transmitir.
+- O disjuntor foi conferido contra o bloqueio real do IBS: o lote parou no terceiro documento e preservou os dois restantes.
+- A fila ja desconta quem nao pode emitir. No periodo testado, dos 494 CT-e de agregado PJ, 390 sao de agregado sem certificado - contar esses prometeria um trabalho que falharia documento a documento.
+
+## [0.80.0] — 26/08/2026  ·  CX-26/08/2026-v0.80.0
+
+### Adicionado
+- No lugar entrou PRONTIDAO DA FILA, que olha para a frente: de tudo que entrou no periodo, quanto da para emitir agora e o que trava o resto. Separa DOIS PORTOES que sao diferentes e costumam ser confundidos - ter o CADASTRO completo (inscricao, RNTRC, municipio) e estar AUTORIZADO (certificado A1 valido, senha no cofre, autorizacao vigente). Cadastro impecavel sem certificado nao emite nada, e hoje e o caso de 29 dos 31 com cadastro em ordem.
+- Os travados aparecem separados por um detalhe que muda o encaminhamento: quem esta sem inscricao mas marcado como CONTRIBUINTE de ICMS e contradicao de cadastro (se e contribuinte, tem inscricao - da para corrigir), e quem esta marcado como NAO CONTRIBUINTE e coerente, e provavelmente sai da fila em vez de virar pendencia eterna.
+- As barras sao proporcionais ao VOLUME DE CT-e e nao ao numero de agregados, e o rodape diz isso: dois agregados autorizados respondem por um quinto da fila, e uma barra por contagem esconderia justamente isso.
+
+### Alterado
+- O bloco de PASSIVO ACUMULADO saiu da tela de CT-e de Contrapartida, e o aviso que o citava tambem. CT-e nao se emite retroativo - a SEFAZ recusa data fora da janela -, entao aquele numero nunca virava trabalho: so ocupava espaco numa tela cuja pergunta e "o que preciso emitir agora". O valor segue registrado no documento da contabilidade, que e onde ele serve, e a tela ficou mais rapida por uma consulta a menos - ela varria desde 2022.
+
+## [0.79.1] — 26/08/2026  ·  CX-26/08/2026-v0.79.1
+
+### Corrigido
+- O sistema ficava TRAVADO. A tabela de transmissoes da versao anterior foi escrita por substituicao de texto que atravessou DUAS funcoes e comeu uma chave de fechamento: o JavaScript parou de compilar e, no navegador, isso nao quebra so aquela tela - mata o script inteiro no carregamento, e o app inteiro fica parado. Quem encontrou foi o usuario.
+- Nada pegava esse tipo de defeito: a verificacao de estrutura olha atributos e classes do HTML, o smoke conta cartoes, e os testes de tela carregavam a pagina sem falhar por erro de console. Entrou teste que compila o JavaScript do arquivo, e outro que conta o bloco novo para acusar duplicacao - a mesma fatia que quebrou o arquivo tambem havia duplicado o trecho.
+
+## [0.79.0] — 26/08/2026  ·  CX-26/08/2026-v0.79.0
+
+### Adicionado
+- O XML ASSINADO de cada transmissao passou a ser guardado. Sem ele um documento autorizado nao se reconstroi: a chave e o protocolo provam que ele existe, mas quem precisa IMPORTAR no ERP, arquivar ou responder a uma fiscalizacao precisa do arquivo. A tela mostra, documento a documento, se o arquivo esta guardado - e conta a parte quantos foram autorizados SEM ele, que e a situacao a corrigir.
+- A tabela de transmissoes ganhou cor e as colunas que faltavam: situacao com o codigo e o motivo da SEFAZ, chave (abreviada, inteira ao passar o mouse), protocolo e arquivo. Verde so quando a SEFAZ autorizou; todo o resto e vermelho, porque codigo diferente de autorizado significa que NADA foi emitido - um tom intermediario faria "recusado" parecer "quase la". Homologacao segue com marcador proprio e fora da contagem de emitidas.
+
+### Corrigido
+- A trilha das transmissoes gravava o e-mail pessoal de quem rodou o comando. Passou a gravar a identidade do sistema (noreply@sulista.com.br) quando a emissao parte de script ou rotina - quem executa na bancada varia, e a trilha tem de dizer que foi o CORTEX. Emissao pela TELA continua exigindo o usuario logado, e nao ha valor padrao para isso.
+
+## [0.78.0] — 26/08/2026  ·  CX-26/08/2026-v0.78.0
+
+### Adicionado
+- O CT-e de contrapartida passou a montar o grupo de IBS/CBS da Reforma Tributaria, que a SEFAZ comecou a exigir no meio dos testes de hoje. Situacao tributaria, classificacao e aliquotas saem do que o ERP JA calcula - a mesma regra do ICMS, nada inventado. Entrou junto o total do documento eletronico, que a SEFAZ passou a cobrar na mesma leva.
+- A base do IBS/CBS e o valor DESTE documento. Nao se tentou reproduzir a base que o ERP usa no CT-e da Sulista: la o total carrega taxas, pedagio e seguro, e a base observada (R$ 1.340,00 sobre R$ 1.494,02) nao sai de nenhuma combinacao desses componentes - ha uma regra que nao conhecemos. O documento do agregado tem um componente so.
+
+### Corrigido
+- ACHADO QUE PASSA DO NOSSO MODULO: o IBS nao esta configurado no ERP. Existe UMA aliquota cadastrada, zerada, com o imposto marcado como nao configurado - enquanto a CBS ja esta, com 0,9. A SEFAZ recusa aliquota de IBS zerada, e a emissao para com essa explicacao em vez de tentar e levar rejeicao. Vale o alerta: essa mesma configuracao serve a emissao da PROPRIA Sulista no dia em que o orgao ligar a validacao em producao.
+- Comentario dentro de consulta SQL nao pode conter o sinal de porcentagem: o driver o interpreta como marcador de parametro e a consulta nem chega ao banco. Custou uma rodada.
+
+## [0.77.1] — 26/08/2026  ·  CX-26/08/2026-v0.77.1
+
+### Corrigido
+- A tela de CT-e de Contrapartida abria com "Erro ao montar a conciliacao". Ao acrescentar a contagem de transmissoes, a linha que faz esse calculo nao entrou no lugar certo - o resultado era usado sem existir, e a tela inteira caia. Quem encontrou foi o usuario, no celular.
+- A suite passava com 209 testes verdes. O motivo e que os testes exercitavam as PECAS da tela - formatacao, avisos, serializacao - e nenhum chamava a montagem inteira, que e o que a tela chama. Entrou teste que roda o caminho todo com o banco simulado e serializa o resultado, mais um que derruba de proposito o registro de transmissoes para garantir que a conciliacao continua aparecendo sem ele.
+
+## [0.77.0] — 26/08/2026  ·  CX-26/08/2026-v0.77.0
+
+### Adicionado
+- A tributacao do CT-e de contrapartida passou a sair do proprio ERP, documento a documento, como a area pediu. A regra tem duas fontes e a ordem importa: o REGIME DO EMITENTE manda - optante do Simples nao destaca ICMS, ponto - e, nao sendo optante, aproveita-se a situacao tributaria e a aliquota que o ERP ja calculou para aquela rota. Copiar a situacao do CT-e da Sulista para um agregado optante poria destaque de imposto num documento que nao pode ter.
+- Situacao tributaria que nao esteja no de-para PARA a emissao dizendo qual e, em vez de traduzir por semelhanca - traduzir codigo fiscal por parecenca e inventar tributacao. E operacao marcada como tributada com aliquota zero tambem para: emitir assim declararia imposto zero onde ha imposto.
+- Tela de CT-e de Contrapartida mostra agora os DOCUMENTOS TRANSMITIDOS - quando, por quem, em que ambiente, serie e numero, o retorno da SEFAZ e o protocolo. Homologacao aparece com marcador proprio e NAO entra na contagem de emitidas: e ambiente de teste, o documento nao tem valor fiscal, e somar os dois faria a tela anunciar uma fila resolvida que nao foi.
+
+### Corrigido
+- A SEFAZ de Sao Paulo passou a exigir IBS/CBS (Reforma Tributaria) no CT-e durante os proprios testes de hoje: uma transmissao autorizou e a seguinte, minutos depois, voltou com "310 - IBS/CBS nao informado". A emissao esta bloqueada por isso ate que o grupo seja montado. O dado existe no ERP - os 2.395 CT-e do ultimo mes tem os impostos de IBS, CBS e IBS municipal vinculados - entao vale a mesma decisao de aproveitar o que ja esta calculado, mas as aliquotas e a classificacao tributaria precisam de confirmacao antes de virar documento.
+
+## [0.76.0] — 26/08/2026  ·  CX-26/08/2026-v0.76.0
+
+### Alterado
+- Confirmado que o valor do contrato de transporte no PEF e a COLUNA DO FRETE DE COMPRA - a mesma que o sistema ja usava. A definicao do valor esta fechada e NENHUM codigo precisou mudar. Fica so a CST do ICMS pendente do lado fiscal.
+- Antes de confirmar, procuramos um valor de PEF proprio na base, e vale registrar por que nenhum serve: o PEF do embarque cobre 65% das viagens e seu campo de valor soma R$ 26,37 no total; o PEF do acerto cobre 4,4% com valores sem proporcao estavel; as parcelas de adiantamento estao vazias; e o valor total de frete do transporte chega a 3,7 vezes o valor do CT-e. Emitir por qualquer um deles produziria documento varias vezes maior que a operacao - e a SEFAZ autorizaria, porque ela nao sabe quanto vale o servico.
+- Fica registrado o efeito da definicao, que nao e pendencia mas e consequencia: emitindo pelo valor pago, os documentos passam a registrar formalmente o frete praticado, e no trimestre as viagens de agregado foram pagas em R$ 14,7 milhoes contra um piso minimo da ANTT de R$ 18,7 milhoes - 78,6% do piso, com 89% das viagens conferidas abaixo do minimo legal. Hoje isso so existe no controle interno; a partir da emissao, passa a existir documento a documento.
+
+## [0.75.0] — 26/08/2026  ·  CX-26/08/2026-v0.75.0
+
+### Adicionado
+- Criterio de rateio definido e implementado: quando varios CT-e dividem a mesma viagem, cada um recebe a MESMA FATIA que teve no valor cobrado dos clientes naquela viagem. Com isso os 48% da fila que estavam retidos passaram a ser emitiveis - um deles ja foi autorizado pela SEFAZ em homologacao: viagem com 8 documentos, R$ 1.591,50 pagos ao agregado, e o CT-e saiu com R$ 46,11 por representar 2,9% do que se cobrou na viagem.
+- Os outros criterios (peso, valor da mercadoria, partes iguais) NAO foram implementados, de proposito. Todos fecham a soma, entao nenhum "erra" numa conferencia - o que muda e quanto imposto cada documento carrega. Num caso real de 3 CT-e numa viagem de R$ 3.398,36, o mesmo documento valeria R$ 201,70 por peso e R$ 1.132,79 em partes iguais: 5,6 vezes. Trocar tem de ser decisao registrada, nao conveniencia de codigo.
+
+### Alterado
+- O arredondamento acontece DEPOIS de ratear e por documento: cada CT-e e independente, emitido em momento proprio, e nao um lote que precise fechar. A soma das fatias pode diferir do valor da viagem em centavos, e isso e do arredondamento.
+- Dois casos continuam parando em vez de emitir: viagem com valor cobrado total zero (nao ha proporcao a calcular) e CT-e com valor cobrado zero dentro de uma viagem com outros documentos - pelo criterio ele receberia R$ 0,00, e documento fiscal de valor zero nao e prestacao.
+
+## [0.74.0] — 26/08/2026  ·  CX-26/08/2026-v0.74.0
+
+### Adicionado
+- A resposta veio como "o valor pago a ele (frete minimo)", e os dois nomes NAO descrevem o mesmo numero. Medimos: no trimestre, as viagens de agregado foram pagas em R$ 14,7 milhoes contra um piso minimo da ANTT de R$ 18,7 milhoes para as mesmas viagens - 78,6% do piso, com 5.081 de 5.735 viagens conferidas (89%) pagas ABAIXO do minimo legal.
+- A escolha tem consequencia direta e por isso voltou como pergunta: pelo valor efetivamente pago, cada documento passa a registrar formalmente um frete abaixo do piso legal, um a um; pelo piso da ANTT, o valor do documento nao bate com o que o financeiro pagou. O sistema nao arbitra entre os dois.
+
+### Alterado
+- A contabilidade reviu a base do valor: o CT-e do agregado sai pelo VALOR PAGO A ELE, e nao mais pelo cobrado do cliente. A mudanca foi aplicada, e com ela o rateio volta a ser necessario - o pagamento e lancado por VIAGEM e o documento e por CT-e, entao os 3.159 de 6.594 CT-e do trimestre (48%) que dividem viagem com outro documento voltam a ficar retidos ate que o criterio de divisao seja definido.
+- Os 52% restantes - os CT-e que sao o unico documento da viagem - nao dependem desse criterio e podem seguir.
+
+## [0.73.0] — 26/08/2026  ·  CX-26/08/2026-v0.73.0
+
+### Adicionado
+- Base do valor definida (em carater provisorio): o CT-e do agregado sai pelo valor COBRADO DO CLIENTE. Com isso o rateio deixa de existir - cada documento ja tem o seu proprio valor, e os 48% que dividiam viagem com outro documento deixam de ser problema. Um CT-e que o sistema recusava justamente por esse motivo ja foi emitido e autorizado em teste.
+- Levantamento de prontidao da fila, que ninguem tinha: dos 47 agregados PJ com movimento no trimestre, TODOS tem RNTRC e CEP cadastrados, e dos 2.372 CT-e do ultimo mes nenhum esta sem nota fiscal com chave. Ou seja, o unico bloqueio de cadastro que sobrou sao os 17 sem inscricao estadual.
+
+### Alterado
+- Os 17 agregados sem inscricao estadual sairam do rodape e passaram a ser o CAMINHO CRITICO: eles respondem por 1.872 dos 6.375 CT-e do trimestre (29% da fila). Nao e questao fiscal, e cadastral - ou o cadastro esta desatualizado, ou eles realmente nao emitem CT-e e saem da conta.
+- Os outros 30 agregados estao PRONTOS: cerca de 4.500 documentos no trimestre, R$ 13,4 milhoes de prestacao, sem nenhuma pendencia. Assim que a CST for definida, da para comecar por eles sem esperar os 17.
+- O documento da contabilidade foi enxugado: sobrou UMA pergunta fiscal (a CST) e um levantamento de cadastro. O que ja foi decidido continua no texto, marcado como respondido, para nao perder o historico.
+
+## [0.72.0] — 26/08/2026  ·  CX-26/08/2026-v0.72.0
+
+### Adicionado
+- Enquadramento do CT-e de contrapartida DEFINIDO: nao ha dispensa (o agregado emite) e a operacao e SUBCONTRATACAO. Com isso restam duas definicoes, e sao a mesma conversa - a base do valor e a CST do ICMS.
+- Achado que so apareceu ao emitir em trecho real, e que muda a maioria dos documentos: quando a viagem COMECA fora do estado onde o agregado e inscrito, o CFOP passa obrigatoriamente para a familia 932. A SEFAZ recusa qualquer outro ("524 - CFOP invalido, informar 5932 ou 6932"). Isso nunca aparece nos CT-e da Sulista, porque a filial que emite e sempre a da origem; com o agregado como emitente vira a MAIORIA - ele e inscrito num estado e roda em todos.
+- A distribuicao no trimestre: 3.694 documentos (58%) usam 6932; 1.931 (30%) usam 6351; 724 (11%) usam 5351; e 17 usam 5932. Um CFOP fixo, como estava, erraria seis em cada dez documentos. O sistema passou a escolher sozinho, e os dois casos principais ja foram autorizados pela SEFAZ em homologacao.
+
+### Corrigido
+- O CFOP era um valor unico e fixo. Alem da familia 932 acima, faltava o basico: 5xxx dentro do mesmo estado e 6xxx cruzando divisa. Entrou tambem uma guarda que recusa trocar um pelo outro - a SEFAZ ACEITA o documento com o CFOP do trecho errado, entao quem reclamaria seria a fiscalizacao, meses depois.
+- O documento da contabilidade foi reorganizado: o que ja foi respondido aparece marcado como tal, o historico das recusas virou anexo no fim, e a unica pergunta viva - a base do valor - ganhou secao propria explicando o que sao os dois numeros, por que a escolha nao e indiferente e por que ela arrasta um criterio de rateio para metade da fila.
+
+## [0.71.0] — 26/08/2026  ·  CX-26/08/2026-v0.71.0
+
+### Adicionado
+- A aba Integracoes da Gestao passou a ter um CARTAO POR FORNECEDOR - Gobrax, Prolog, Monkey Exchange e o servidor de e-mail - com o estado de cada um no titulo: ativa, incompleta ou desligada. Antes era uma lista unica de 22 campos, todos com a mesma cara.
+- Cada cartao diz o que a integracao alimenta ("alimenta Pneus"), como esta autenticando no momento e o que exatamente falta para ligar. O topo da aba conta quantas estao ativas e chama pelo nome a que alguem comecou e nao terminou - integracao pela metade deixa a tela que ela alimenta sem dado, calada.
+- Seletor de FORMA DE AUTENTICACAO no cartao de quem aceita mais de uma. A Prolog aceita token, usuario e senha ou OAuth2, e mostrar os onze campos de uma vez fazia a integracao inteira parecer desconfigurada. So os campos da forma escolhida aparecem, e a que ja esta pronta leva selo.
+- Aviso de PRECEDENCIA ao trocar de forma: o sistema usa a primeira que estiver completa, entao preencher o OAuth2 com um token ja salvo nao troca nada. Sem esse aviso o operador configurava e jurava que nao funcionava.
+- Campo de configuracao (ambiente, URL base, ids de filial, cabecalho do token) agora aparece PREENCHIDO e da para conferir - eles nao sao segredo, e mascarar "hmg" como pontinhos so impedia enxergar o que estava valendo. Token, senha e client_secret continuam entrando e nunca voltando da tela.
+
+### Alterado
+- A senha do SMTP nao e mais pedida em dois lugares. Na aba Integracoes ela aparece so no panorama, com o caminho para a aba E-mail, onde ficam servidor, porta, remetente e a trilha de envio.
+- Salvar agora e por fornecedor e manda so o que mudou, em vez de um botao por campo. Campo de segredo em branco significa "nao mexi", nunca "apague" - apagar continua sendo o link ao lado do proprio campo.
+
+### Corrigido
+- "Limites de credito contratados", no Fluxo de Caixa, voltou a carregar e a salvar. O codigo das integracoes tinha funcoes com o MESMO NOME das do cartao de limites (credCarregar/credSalvar) e, como a tela e um script so, a segunda declaracao vencia a primeira: a tabela de limites ficava vazia e "Salvar limites" caia no cofre de tokens, reclamando de token nao colado.
+- Saiu da tela o campo "Codigo da empresa na Prolog", que era oferecido para preenchimento e nenhum codigo do sistema lia.
+
+## [0.70.0] — 26/08/2026  ·  CX-26/08/2026-v0.70.0
+
+### Adicionado
+- Serie 900 aprovada e em uso: o primeiro CT-e de contrapartida da serie nova foi autorizado pela SEFAZ em homologacao. Serie alta e reservada afasta a colisao com o que o agregado ja emita por conta propria - e numero repetido e rejeitado documento a documento, no meio de um lote de milhares, sem que se possa levantar antes o que cada um ja gastou.
+
+### Alterado
+- Perguntaram se o tomador nao poderia sair do CT-e original. Nao diretamente: o tomador do NOSSO documento e quem contratou a Sulista, e o documento do agregado precisa dizer quem contratou o AGREGADO - sao elos diferentes da mesma cadeia. Mas a pergunta levou a uma resposta melhor: em 5.987 dos 6.596 CT-e do trimestre (91%) o pagamento da viagem sai da Sulista para o dono do veiculo. Quem contrata e paga e a Sulista, e isso o ERP ja registra.
+- Com isso, "prestacao normal" fica descartada pelos FATOS e nao por preferencia: o tomador e a Sulista, e a SEFAZ so aceita a Sulista nessa posicao em subcontratacao ou redespacho. A pergunta a contabilidade encolheu de tres opcoes para duas.
+- E um dado que ajuda a escolher entre as duas: o redespacho pressupoe carga ja em transito, entregue a outro transportador para completar o percurso. Nos CT-e de agregado, apenas 28 de 6.365 (0,4%) registram documento de transporte anterior - em praticamente todos, o agregado faz o percurso inteiro.
 
 ## [0.69.0] — 26/08/2026  ·  CX-26/08/2026-v0.69.0
 

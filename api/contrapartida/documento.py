@@ -71,6 +71,45 @@ MODELO_CTE = "57"
 # tentativa parecer não ter surtido efeito.
 XNOME_HOMOLOGACAO = "CTE EMITIDO EM AMBIENTE DE HOMOLOGACAO - SEM VALOR FISCAL"
 
+# Prestação iniciada em UF diferente daquela onde o emitente é inscrito. NÃO
+# entra no `Enquadramento` porque não é decisão de ninguém: a SEFAZ nomeia os
+# dois códigos na própria recusa ("524 — CFOP inválido, informar 5932 ou
+# 6932"). {interno: código} — interno = início e término na mesma UF.
+CFOP_INICIO_EM_OUTRA_UF = {True: "5932", False: "6932"}
+
+# Critério de divisão do valor da VIAGEM entre os CT-e que a compartilham.
+# Definido pela área em 26/08/2026: proporcional ao valor cobrado do cliente.
+#
+# Por que só um está implementado: os quatro fecham a soma, então nenhum
+# "erra" na conferência — o que muda é quanto imposto cada documento carrega.
+# Num caso real de 3 CT-e numa viagem de R$ 3.398,36, o mesmo documento vale
+# R$ 201,70 por peso e R$ 1.132,79 em partes iguais: **5,6 vezes**. Deixar os
+# outros disponíveis convidaria a trocar por conveniência.
+CRITERIOS_RATEIO = ("cobrado",)
+
+# TRIBUTAÇÃO VINDA DO ERP (`grupo_icms="AUTO"`, decidido em 26/08/2026:
+# "use o que já existe").
+#
+# Duas fontes, e a ordem importa:
+#
+#   1. **O regime do EMITENTE manda.** Optante do Simples não destaca ICMS —
+#      vai no grupo do Simples, ponto. A CST do CT-e da Sulista descreve a
+#      prestação DELA, que não é optante; copiá-la para o agregado optante
+#      poria destaque de imposto num documento que não pode ter.
+#   2. **Não sendo optante**, aproveita-se a CST e a alíquota que o ERP já
+#      calculou para aquela rota e operação — mesma origem, mesmo destino,
+#      mesma natureza.
+#
+# Medido em 90 dias (agregado PJ): CST 000 a 12% em 5.510 documentos, a 17% em
+# 89 e a 7% em 70; CST 040 (isenta) em 322; CST 090 (outros) em 407.
+GRUPOS_ICMS = ("AUTO", "ICMS00", "ICMS45", "ICMS90", "ICMSSN")
+
+CST_ERP_PARA_CTE = {
+    "000": ("ICMS00", "00"),   # tributada integralmente
+    "040": ("ICMS45", "40"),   # isenta
+    "090": ("ICMS90", "90"),   # outros
+}
+
 
 # ------------------------------------------------------------ enquadramento --
 
@@ -78,21 +117,24 @@ XNOME_HOMOLOGACAO = "CTE EMITIDO EM AMBIENTE DE HOMOLOGACAO - SEM VALOR FISCAL"
 class Enquadramento:
     """As seis respostas que a contabilidade tem de dar. Sem padrão nenhum.
 
-    `cfop`        CFOP do documento do agregado. A evidência do próprio ERP
-                  aponta a família 5.351/6.351 (prestação a outro transportador),
-                  que é a que a Sulista usa quando ela é a subcontratada.
+    `cfop_interno` / `cfop_interestadual`
+                  São DOIS porque o CFOP muda com o trecho, e um valor fixo
+                  estaria errado na maioria: **88% das viagens de agregado
+                  (5.624 de 6.364 no trimestre) cruzam divisa de estado**.
+                  A regra saiu do próprio ERP e não tem exceção nos 6.364
+                  documentos medidos: **6xxx quando a UF de início difere da
+                  de término, 5xxx quando são a mesma**.
     `tp_serv`     `ide/tpServ` do schema: '0' normal · '1' subcontratação ·
                   '2' redespacho · '3' redespacho intermediário · '4' multimodal.
                   ATENÇÃO: o ERP guarda esse domínio em base 1 (`tiposervico`
                   1 = normal, 2 = subcontratação); aqui vale o do SCHEMA.
-    `grupo_icms`  qual grupo do `imp/ICMS` usar: 'ICMS00' (tributado integral),
-                  'ICMS90' (outros), 'ICMSSN' (Simples Nacional). O Parizotto
-                  está com `optantesimples = 1` no cadastro, o que lido pela
-                  distribuição do próprio campo (728 de 8.293) significa SIM —
-                  mas inferir regime tributário de código de ERP para gravar em
-                  documento fiscal é exatamente o que este módulo não faz.
-    `cst_icms`    a CST do grupo escolhido.
-    `p_icms`      alíquota, quando o grupo pedir (ICMSSN não pede).
+    `grupo_icms`  **'AUTO'** tira a tributação do próprio ERP, documento a
+                  documento — foi a definição da área ("use o que já existe").
+                  Ver `CST_ERP_PARA_CTE` e `icms_de()`. Os grupos fixos
+                  ('ICMS00', 'ICMS45', 'ICMS90', 'ICMSSN') continuam
+                  disponíveis para quando a tributação for a mesma em todos.
+    `cst_icms`    a CST, quando o grupo é fixo. Com 'AUTO', vazio.
+    `p_icms`      alíquota, quando o grupo pedir. Com 'AUTO', None.
     `base_valor`  'prestacao'   = o que a Sulista cobrou do cliente
                   'fretecompra' = o que a Sulista paga ao agregado
                   São números diferentes: no CT-e de teste, R$ 1.494,02 contra
@@ -104,7 +146,9 @@ class Enquadramento:
                   se o CT-e da Sulista entra como documento anterior
                   (`infCTeNorm/docAnt`). É o elo que caracteriza a contrapartida.
     """
-    cfop: str
+    cfop_interno: str
+    cfop_interestadual: str
+    criterio_rateio: str
     tp_serv: str
     grupo_icms: str
     cst_icms: str
@@ -113,11 +157,91 @@ class Enquadramento:
     toma: str
     referenciar_original: bool
 
+    def cfop_de(self, d: dict) -> str:
+        """O CFOP DESTE documento. Duas perguntas, nesta ordem.
+
+        1. **A prestação começa na UF onde o emitente é inscrito?** Se NÃO,
+           o CFOP é da família 932 — e isso não é escolha: a SEFAZ recusa
+           qualquer outro com "524 — CFOP inválido, informar 5932 ou 6932".
+           Custou uma rejeição descobrir, porque o caso não existe no
+           documento da Sulista (a filial emitente é sempre a da origem) e
+           passa a existir quando o emitente é o AGREGADO, que mora num
+           estado e roda em todos.
+           **É a MAIORIA: 3.694 de 6.366 no trimestre (58%).**
+        2. Só então, o trecho: mesma UF de início e término → 5xxx; divisa
+           cruzada → 6xxx.
+
+        A regra saiu do próprio ERP e não tem exceção nos 6.366 documentos
+        medidos.
+        """
+        def _uf(k):
+            return (d.get(k) or "").strip().upper()
+
+        inicio, fim, emitente = _uf("ufcoleta"), _uf("ufentrega"), _uf("emit_uf")
+        interno = inicio == fim
+        if inicio and emitente and inicio != emitente:
+            return CFOP_INICIO_EM_OUTRA_UF[interno]
+        return self.cfop_interno if interno else self.cfop_interestadual
+
+    def icms_de(self, d: dict) -> tuple[str, str, Decimal | None]:
+        """(grupo, CST, alíquota) DESTE documento.
+
+        Com `grupo_icms="AUTO"` a tributação vem do ERP — ver
+        `CST_ERP_PARA_CTE`. Com qualquer outro valor, vale o que foi fixado no
+        enquadramento, sem olhar o documento.
+        """
+        if self.grupo_icms != "AUTO":
+            return self.grupo_icms, self.cst_icms, self.p_icms
+
+        if d.get("emit_optante_simples") == 1:
+            # Optante do Simples não destaca ICMS: grupo próprio, sem base
+            # nem alíquota. `indSN` é preenchido na montagem.
+            return "ICMSSN", "90", None
+
+        cst_erp = str(d.get("cst_erp") or "").strip()
+        if cst_erp not in CST_ERP_PARA_CTE:
+            raise ValueError(
+                f"O CT-e {d.get('chave_original')} tem situação tributária "
+                f"{cst_erp!r}, que não está no de-para do ERP para o CT-e "
+                f"({sorted(CST_ERP_PARA_CTE)}). Traduzir código fiscal por "
+                f"semelhança é inventar tributação — cadastre o de-para.")
+        grupo, cst = CST_ERP_PARA_CTE[cst_erp]
+        aliq = Decimal(str(d.get("aliq_erp") or 0))
+        if grupo == "ICMS00" and aliq <= 0:
+            raise ValueError(
+                f"O CT-e {d.get('chave_original')} está com CST 000 "
+                f"(tributada) e alíquota zero no ERP. Emitir assim declara "
+                f"imposto zero numa operação tributada.")
+        return grupo, cst, (None if grupo == "ICMS45" else aliq)
+
     def __post_init__(self) -> None:
+        if self.criterio_rateio not in CRITERIOS_RATEIO:
+            raise ValueError(
+                f"criterio_rateio: use um de {sorted(CRITERIOS_RATEIO)}. "
+                f"Os outros (peso, mercadoria, iguais) foram avaliados e NÃO "
+                f"estão implementados de propósito — não basta trocar a "
+                f"constante, cada um precisa da definição de quem responde "
+                f"pelo fiscal.")
+        for campo in ("cfop_interno", "cfop_interestadual"):
+            v = getattr(self, campo)
+            if not (v.isdigit() and len(v) == 4):
+                raise ValueError(f"{campo}: CFOP tem 4 dígitos ({v!r}).")
+        if self.cfop_interno[0] != "5" or self.cfop_interestadual[0] != "6":
+            raise ValueError(
+                "CFOP interno começa com 5 e interestadual com 6 — trocá-los "
+                "põe o documento no trecho errado, e a SEFAZ aceita: quem "
+                "reclama é a fiscalização, meses depois.")
         if self.base_valor not in ("prestacao", "fretecompra"):
             raise ValueError("base_valor: use 'prestacao' ou 'fretecompra'.")
-        if self.grupo_icms not in ("ICMS00", "ICMS90", "ICMSSN"):
-            raise ValueError("grupo_icms: use 'ICMS00', 'ICMS90' ou 'ICMSSN'.")
+        if self.grupo_icms not in GRUPOS_ICMS:
+            raise ValueError(f"grupo_icms: use um de {sorted(GRUPOS_ICMS)}. "
+                             f"'AUTO' tira a tributação do próprio ERP.")
+        if self.grupo_icms == "AUTO" and (self.cst_icms or self.p_icms):
+            raise ValueError(
+                "Com grupo_icms='AUTO' a CST e a alíquota vêm do ERP, "
+                "documento a documento. Deixe cst_icms='' e p_icms=None — um "
+                "valor fixo aqui não seria usado e daria a impressão de estar "
+                "valendo.")
         if self.toma not in ("0", "1", "2", "3", "4"):
             raise ValueError("toma: use '0'..'4' conforme o schema.")
         if self.tp_serv not in ("0", "1", "2", "3", "4"):
@@ -191,16 +315,53 @@ SELECT k.filial, k.serie, k.numero, k.dtemissao, k.chaveacessocte,
        de.numero AS dest_numero, de.complemento AS dest_complemento,
        de.bairro AS dest_bairro, de.cidade AS dest_cidade, de.uf AS dest_uf,
        de.cep AS dest_cep,
+       -- IBS/CBS (Reforma Tributaria). A SEFAZ passou a EXIGIR o grupo em
+       -- 26/08/2026 ("310 - IBS/CBS nao informado"), e o ERP ja calcula: nos
+       -- 2.396 CT-e do ultimo mes, CST 000, classificacao 000001, IBS-UF
+       -- zerado e CBS em 0,9 (aliquota de transicao de 2026), uniforme.
+       -- CUIDADO: comentario de SQL nao pode ter o sinal de porcentagem -
+       -- o psycopg o le como placeholder e a consulta nem chega ao banco.
+       dfc.situacaotributariaibscbs   AS ibs_cst,
+       dfc.classificacaotributariaibscbs AS ibs_classtrib,
+       dfu.percaliquota AS ibs_p_uf,
+       dfm.percaliquota AS ibs_p_mun,
+       -- o que sai da base do IBS/CBS: os tributos que ele vem substituir
+       coalesce(k.valoricms,0)::float8   AS erp_icms,
+       coalesce(k.valorpis,0)::float8    AS erp_pis,
+       coalesce(k.valorcofins,0)::float8 AS erp_cofins,
+       dcb.percaliquota AS cbs_p,
        -- o que a Sulista PAGA pela viagem, e quantos documentos dividem isso
        p.numero AS embarque, p.valorfretecompra, p.valorpedagiocompra,
        (SELECT count(*)::int FROM programacaoembarque_composicao c
          WHERE c.numero = p.numero
            AND c.diferenciadornumero = p.diferenciadornumero)
-         AS documentos_no_embarque
+         AS documentos_no_embarque,
+       -- Denominador do rateio: o que a Sulista cobrou dos clientes somando
+       -- TODOS os CT-e da mesma viagem. O numerador e o `valortotalprestacao`
+       -- deste documento, que ja vem acima.
+       (SELECT coalesce(sum(k2.valortotalprestacao), 0)::float8
+          FROM programacaoembarque_composicao c2
+          JOIN conhecimento k2
+            ON k2.filial = c2.filialdocumento AND k2.serie = c2.seriedocumento
+           AND k2.numero = c2.numerodocumento
+         WHERE c2.numero = p.numero
+           AND c2.diferenciadornumero = p.diferenciadornumero)
+         AS prestacao_do_embarque
   FROM conhecimento k
   JOIN veiculo v   ON v.placa = k.veiculo
   JOIN cadastro cd ON cd.codigo = v.proprietario
   JOIN filial f    ON f.codigo = k.filial
+  LEFT JOIN impostoibscbs_define dfc ON dfc.id = k.idimpostoibscbsdefine
+  -- IBS da UF tem tabela PROPRIA (`impostoibsuf_define`), separada da do
+  -- IBS geral. Lendo `impostoibs_define` a alíquota vinha ZERADA e a emissão
+  -- parava com "316 - Alíquota do IBS da UF inválida", como se o imposto não
+  -- estivesse configurado. Estava: 0,1000 em "Tributado", na outra tabela.
+  LEFT JOIN impostoibsuf_define dfu ON dfu.id = k.idimpostoibsufdefine
+  -- IBS MUNICIPAL não tem tabela neste ERP e o vínculo vem nulo. Não é
+  -- pendência: a SEFAZ autoriza com alíquota municipal zerada, e há CT-e da
+  -- Sulista em PRODUÇÃO provando isso.
+  LEFT JOIN impostoibs_define dfm ON dfm.id = k.idimpostoibsmunicipiodefine
+  LEFT JOIN impostocbs_define dcb ON dcb.id = k.idimpostocbsdefine
   LEFT JOIN cadastro re ON re.codigo = k.remetente
   LEFT JOIN cadastro de ON de.codigo = k.destinatario
   LEFT JOIN programacaoembarque_composicao pc
@@ -303,7 +464,9 @@ def dados(chave: str) -> dict:
     d["toma_cep8"] = cep(d["toma_cep"])
     d["chave_original"] = chave
 
-    # Rateio é decisão fiscal: o módulo mede e avisa, não divide sozinho.
+    # 48% dos CT-e dividem a viagem com outro documento, e o pagamento é
+    # lançado por VIAGEM. O critério de divisão é decisão fiscal — está em
+    # `Enquadramento.criterio_rateio` e é aplicado em `valor()`.
     n = d.get("documentos_no_embarque") or 0
     d["exige_rateio"] = n > 1
 
@@ -317,23 +480,49 @@ def dados(chave: str) -> dict:
     return d
 
 
+def fator_rateio(d: dict, enq: Enquadramento) -> Decimal:
+    """Quanto do valor da VIAGEM cabe a ESTE CT-e. 1 quando ele é o único.
+
+    Critério `cobrado`: a fatia de cada documento é a fatia dele no que a
+    Sulista cobrou dos clientes naquela viagem.
+    """
+    if not d.get("exige_rateio"):
+        return Decimal(1)
+    total = Decimal(str(d.get("prestacao_do_embarque") or 0))
+    minha = Decimal(str(d.get("valortotalprestacao") or 0))
+    if total <= 0:
+        raise ValueError(
+            f"O embarque {d['embarque']} tem {d['documentos_no_embarque']} "
+            f"documentos e prestação total zero — não há como ratear por "
+            f"valor cobrado. Conferir os valores no ERP antes de emitir.")
+    if minha <= 0:
+        raise ValueError(
+            f"Este CT-e tem prestação zero dentro de um embarque com "
+            f"{d['documentos_no_embarque']} documentos: pelo critério de "
+            f"valor cobrado ele receberia R$ 0,00, o que não é prestação.")
+    return minha / total
+
+
 def valor(d: dict, enq: Enquadramento) -> Decimal:
-    """O valor da prestação do documento novo, segundo a base escolhida."""
+    """O valor da prestação do documento novo, segundo a base escolhida.
+
+    Arredonda DEPOIS de ratear, e cada documento é arredondado por si: são
+    documentos independentes, emitidos em momentos diferentes, e não um lote
+    que precise fechar. A soma das fatias pode diferir do valor da viagem em
+    alguns centavos — é do arredondamento, não do critério.
+    """
     if enq.base_valor == "prestacao":
-        v = d.get("valortotalprestacao")
+        # Cada CT-e já tem o seu próprio valor: não há o que ratear.
+        v = Decimal(str(d.get("valortotalprestacao") or 0))
     else:
-        v = d.get("valorfretecompra")
-        if v is None:
+        bruto = d.get("valorfretecompra")
+        if bruto is None:
             raise ValueError(
                 "Este CT-e não tem embarque com valor de frete de compra "
                 "(vale para 535 dos 6.578 do trimestre) — não dá para usar "
                 "'fretecompra' como base aqui.")
-        if d.get("exige_rateio"):
-            raise ValueError(
-                f"O embarque {d['embarque']} tem {d['documentos_no_embarque']} "
-                f"documentos e um único valor de frete de compra. Ratear entre "
-                f"eles é definição fiscal, não aritmética — resolva antes.")
-    return Decimal(str(v or 0)).quantize(Decimal("0.01"))
+        v = Decimal(str(bruto)) * fator_rateio(d, enq)
+    return v.quantize(Decimal("0.01"))
 
 
 # --------------------------------------------------------------- o esqueleto --
@@ -360,7 +549,7 @@ def montar(d: dict, enq: Enquadramento, *, numero: int, serie: int = 1,
 
     ide = I.Ide(
         cUF=str(_cuf(d["emit_uf"])), cCT=chave.codigo_aleatorio,
-        CFOP=enq.cfop, natOp=_natop(enq),
+        CFOP=enq.cfop_de(d), natOp=_natop(enq),
         mod=MODELO_CTE, serie=str(serie), nCT=str(numero),
         dhEmi=emitido_em.isoformat(), tpImp="1", tpEmis="1",
         cDV=str(chave.digito_verificador), tpAmb=str(ambiente),
@@ -434,7 +623,18 @@ def montar(d: dict, enq: Enquadramento, *, numero: int, serie: int = 1,
         vTPrest=_dec(v), vRec=_dec(v),
         comp=[_tipo(I.VPrest, "comp")(xNome="FRETE PESO", vComp=_dec(v))])
 
-    imp = I.Imp(ICMS=_icms(I, enq, v))
+    # `vTotDFe` chegou junto com o IBS/CBS (rejeição 360, "Total do DFe de
+    # preenchimento obrigatório"): é o total do documento eletrônico, e para
+    # este CT-e é o próprio valor da prestação — ele não tem outros itens.
+    # O ICMS que ESTE documento destaca sai da base do IBS/CBS. Simples
+    # Nacional e isenta não destacam nada.
+    _grupo, _cst, _aliq = enq.icms_de(d)
+    icms_destacado = (Decimal(0) if _grupo in ("ICMSSN", "ICMS45")
+                      else (v * (_aliq or Decimal(0)) / Decimal(100)
+                            ).quantize(Decimal("0.01")))
+    imp = I.Imp(ICMS=_icms(I, enq, v, d),
+                IBSCBS=_ibscbs(I, v, d, icms_destacado),
+                vTotDFe=_dec(v))
 
     norm_cls = _tipo(I, "infCTeNorm")
     carga_cls = _tipo(norm_cls, "infCarga")
@@ -528,18 +728,88 @@ def _tipo(cls, campo):
     return args[0] if args else anot
 
 
-def _icms(I, enq: Enquadramento, v: Decimal):
+def _icms(I, enq: Enquadramento, v: Decimal, d: dict):
+    """O grupo de ICMS do documento. Com `AUTO`, sai do ERP (ver `icms_de`)."""
+    nome, cst, aliq = enq.icms_de(d)
     icms_cls = _tipo(I.Imp, "ICMS")
-    grupo = _tipo(icms_cls, enq.grupo_icms)
-    if enq.grupo_icms == "ICMSSN":
+    grupo = _tipo(icms_cls, nome)
+    if nome == "ICMSSN":
         # Simples Nacional não destaca ICMS no CT-e: o grupo tem só CST e a
         # marca de que o emitente é optante.
-        return icms_cls(ICMSSN=grupo(CST=enq.cst_icms, indSN="1"))
-    icms = (v * (enq.p_icms or Decimal(0)) / Decimal(100)).quantize(
-        Decimal("0.01"))
-    campos = {"CST": enq.cst_icms, "vBC": _dec(v), "pICMS": _dec(enq.p_icms),
+        return icms_cls(ICMSSN=grupo(CST=cst, indSN="1"))
+    if nome == "ICMS45":
+        # Isenta/não tributada: sem base e sem alíquota. Mandar vBC zerado
+        # aqui seria declarar base zero numa operação que não tem base.
+        return icms_cls(ICMS45=grupo(CST=cst))
+    icms = (v * (aliq or Decimal(0)) / Decimal(100)).quantize(Decimal("0.01"))
+    campos = {"CST": cst, "vBC": _dec(v), "pICMS": _dec(aliq),
               "vICMS": _dec(icms)}
-    return icms_cls(**{enq.grupo_icms: grupo(**campos)})
+    return icms_cls(**{nome: grupo(**campos)})
+
+
+def _ibscbs(I, v: Decimal, d: dict, icms_destacado: Decimal):
+    """Grupo do IBS/CBS (Reforma Tributária). Obrigatório desde 26/08/2026.
+
+    A SEFAZ ligou a validação no meio dos nossos testes: uma transmissão
+    autorizou e a seguinte, minutos depois, voltou "310 — IBS/CBS não
+    informado". Nada aqui é inventado — CST, classificação tributária e
+    alíquotas saem do que o ERP já calcula, do mesmo jeito que o ICMS.
+
+    A BASE **exclui os tributos que o IBS/CBS vem substituir** — ICMS, PIS e
+    COFINS. A regra saiu do próprio ERP e foi conferida em seis CT-e, todos
+    exatos: no CT-e 358571, R$ 3.792,23 − (455,07 + 55,06 + 253,62) =
+    R$ 3.028,48, que é o `vBC` que a SEFAZ autorizou em produção.
+
+    Aqui ela é aplicada aos números DESTE documento, não aos do CT-e da
+    Sulista: o que sai da base é o ICMS que ESTE documento destaca. Emitente
+    do Simples não destaca nada, então a base é o valor cheio — e é o caso do
+    piloto.
+    """
+    if not d.get("ibs_cst"):
+        raise ValueError(
+            f"O CT-e {d.get('chave_original')} está sem a tributação de "
+            f"IBS/CBS no ERP. A SEFAZ recusa o documento sem esse grupo "
+            f"(cStat 310) — não há como emitir sem essa definição.")
+
+    cls = _tipo(I.Imp, "IBSCBS")
+    g_cls = _tipo(cls, "gIBSCBS")
+
+    def _parte(nome, campo_p, campo_v, pct):
+        """gIBSUF/gIBSMun/gCBS têm a mesma forma: alíquota e valor."""
+        sub = _tipo(g_cls, nome)
+        valor_ = (base * pct / Decimal(100)).quantize(Decimal("0.01"))
+        return sub(**{campo_p: _dec(pct, casas=4), campo_v: _dec(valor_)}), valor_
+
+    # Base: o valor do documento MENOS o ICMS que ele destaca. PIS e COFINS
+    # não existem neste CT-e (o ERP os calcula no documento da Sulista, não
+    # no do agregado), então não há o que subtrair deles.
+    base = (v - icms_destacado).quantize(Decimal("0.01"))
+    if base <= 0:
+        raise ValueError(
+            f"A base do IBS/CBS ficou {base} depois de tirar o ICMS "
+            f"destacado ({icms_destacado}) de {v}. Base zero ou negativa não "
+            f"é prestação — confira os valores antes de emitir.")
+
+    p_uf = Decimal(str(d.get("ibs_p_uf") or 0))
+    if p_uf <= 0:
+        raise ValueError(
+            "A alíquota do IBS da UF está zerada para este CT-e e a SEFAZ "
+            "recusa o documento (cStat 316). Confira o imposto vinculado ao "
+            "CT-e de origem: a definição 'Tributado' tem alíquota, a de "
+            "'Exportação' é zero por natureza.")
+    p_mun = Decimal(str(d.get("ibs_p_mun") or 0))
+    p_cbs = Decimal(str(d.get("cbs_p") or 0))
+
+    g_uf, v_uf = _parte("gIBSUF", "pIBSUF", "vIBSUF", p_uf)
+    g_mun, v_mun = _parte("gIBSMun", "pIBSMun", "vIBSMun", p_mun)
+    g_cbs, _ = _parte("gCBS", "pCBS", "vCBS", p_cbs)
+
+    return cls(
+        CST=d["ibs_cst"], cClassTrib=d["ibs_classtrib"],
+        gIBSCBS=g_cls(vBC=_dec(base), gIBSUF=g_uf, gIBSMun=g_mun,
+                      # vIBS é a soma das duas parcelas do IBS — estadual e
+                      # municipal. A CBS é tributo à parte e não entra aqui.
+                      vIBS=_dec(v_uf + v_mun), gCBS=g_cbs))
 
 
 def _nome_sulista(d: dict) -> str:

@@ -26,11 +26,11 @@ numero na mao.
 
 
 
-E nao trata o passivo historico como fila de trabalho: CT-e NAO se emite
-
-retroativo (a SEFAZ recusa data de emissao fora da janela). O acumulado sai
-
-num bloco separado, rotulado como numero para decisao juridica.
+E nao mostra passivo historico. CT-e NAO se emite retroativo (a SEFAZ recusa
+data de emissao fora da janela), entao o acumulado de anos anteriores nao e
+trabalho desta tela - a pergunta aqui e "o que preciso emitir agora". O numero
+fica registrado em docs/contrapartida-perguntas-contabilidade.md, que e onde
+ele serve: decisao de contabilidade e juridico.
 
 """
 
@@ -47,8 +47,7 @@ from datetime import date, datetime, timedelta
 from api import db
 
 from api.contrapartida import cadastro
-from api.contrapartida.sql import (FROTA_AGR_SQL, PASSIVO_SQL,
-
+from api.contrapartida.sql import (FROTA_AGR_SQL, NOMES_SQL,
                                    POR_AGREGADO_SQL, POR_MES_SQL)
 
 
@@ -102,8 +101,7 @@ def _janela(de: str | None, ate: str | None) -> tuple[str, str]:
     A fila de contrapartida e trabalho DIARIO: o CT-e sai hoje e o documento do
     agregado tem de sair junto. Abrir em seis meses fazia a tela responder
     "quanto acumulou" quando a pergunta do dia e "o que preciso emitir agora" -
-    e o acumulado continua a um clique, alem de estar sempre no bloco de
-    passivo, que ignora este filtro.
+    e o acumulado continua a um clique no filtro.
     """
     hoje = date.today()
     d_ate = date.fromisoformat(ate) if ate else hoje
@@ -137,7 +135,6 @@ def get_contrapartida(de: str | None = None, ate: str | None = None,
     agreg = db.query(POR_AGREGADO_SQL, par)
 
     frota = db.query(FROTA_AGR_SQL, {})
-    passivo = db.query(PASSIVO_SQL, {"de": "2022-01-01", "ate": d_ate})
 
 
 
@@ -163,7 +160,7 @@ def get_contrapartida(de: str | None = None, ate: str | None = None,
     # BUSCA por nome ou CNPJ, em memoria. A consulta ja traz os ~85 agregados;
     # refazer o SQL por um filtro de texto multiplicaria a chave de cache sem
     # ganho (mesmo padrao do Painel de Custos). Vale para a TABELA e para os
-    # KPIs do recorte - o passivo acumulado continua do periodo inteiro.
+    # KPIs do recorte.
     if (busca or "").strip():
         alvo = " ".join((busca or "").lower().split())
         so_dig = "".join(c for c in alvo if c.isdigit())
@@ -207,6 +204,7 @@ def get_contrapartida(de: str | None = None, ate: str | None = None,
 
 
 
+    _tx = _transmissoes()
     return {
         "periodo": {"de": d_de, "ate": d_ate, "busca": busca or ""},
         "kpis": {
@@ -222,15 +220,26 @@ def get_contrapartida(de: str | None = None, ate: str | None = None,
             "sem_ie": sum(1 for x in pj if not _ie_utilizavel(x["ie"])),
             "prontos_para_emitir": sum(1 for x in pj
                                        if (x.get("prontidao") or {}).get("pronto")),
-            "emitidas": 0,   # nenhuma contrapartida emitida ate hoje
+            # Deixa de ser zero declarado: agora ha transmissoes de verdade,
+            # ainda que so em homologacao. Producao e contada a parte porque
+            # homologacao NAO tem valor fiscal - somar as duas num numero so
+            # faria a tela anunciar uma fila resolvida que nao foi.
+            "emitidas": _tx["producao"],
+            "emitidas_homologacao": _tx["homologacao"],
+            "emitidas_autorizadas": _tx["autorizadas"],
+            "emitidas_recusadas": _tx["recusadas"],
+            "taxa_retorno_ok": _tx["taxa_ok"],
         },
+        "emissoes": _tx["ultimas"],
+        "emissoes_por_dia": _tx["por_dia"],
         "por_mes": _serial(mes),
         "por_agregado": _serial(agreg),
         "frota": _serial(frota),
-        "passivo": _serial(passivo),
         "pendencia_cadastral": faltando,
+        "prontidao_fila": _prontidao_fila(pj),
+        "certificados": _certificados(pj, pront),
         "classes": CLASSES,
-        "avisos": _avisos(pj, tac, indef, faltando, passivo),
+        "avisos": _avisos(pj, tac, indef, faltando),
         "fonte": {
             "tabela": "conhecimento × veiculo (utilizacaoveiculo='AGR') × cadastro",
             "gerado_em": datetime.now().strftime("%Y-%m-%d %H:%M"),
@@ -241,6 +250,74 @@ def get_contrapartida(de: str | None = None, ate: str | None = None,
 
 
 
+def _transmissoes(limite: int = 30) -> dict:
+    """As transmissoes ja feitas, para a tela mostrar o que saiu.
+
+    So LEITURA do registro local - esta funcao nao emite nada. Homologacao e
+    producao ficam separadas de proposito: documento de homologacao nao tem
+    valor fiscal e nao pode entrar na mesma contagem do que valeu.
+    """
+    from api.contrapartida import emissao
+    try:
+        linhas = emissao.historico(limite)
+    except Exception as exc:  # noqa: BLE001
+        # Registro indisponivel nao pode derrubar a tela inteira: o resto da
+        # conciliacao nao depende dele.
+        log.warning("historico de transmissoes indisponivel: %s", exc)
+        return {"producao": 0, "homologacao": 0, "autorizadas": 0,
+                "recusadas": 0, "com_xml": 0, "autorizadas_sem_xml": 0,
+                "por_dia": [], "taxa_ok": None, "ultimas": []}
+    try:
+        serie_dia = emissao.por_dia(30)
+    except Exception as exc:  # noqa: BLE001
+        log.warning("serie diaria de transmissoes indisponivel: %s", exc)
+        serie_dia = []
+    # Chaves com cancelamento REGISTRADO. O cancelamento entra como linha
+    # propria, com cStat "CANC:<codigo>": 135 e registrado e 631 e duplicidade
+    # de evento, que tambem significa que o evento existe.
+    canceladas = {x.get("chave") for x in linhas
+                  if str(x.get("cstat") or "").startswith("CANC:")
+                  and str(x.get("cstat"))[5:] in ("135", "631")}
+    com_xml = [x for x in linhas if x.get("tem_xml")]
+    # Evento (cancelamento) nao e transmissao de documento: contar junto
+    # inflaria a fila e estragaria a taxa de retorno.
+    linhas = [x for x in linhas
+              if not str(x.get("cstat") or "").startswith("CANC:")] + [
+        x for x in linhas if str(x.get("cstat") or "").startswith("CANC:")]
+    prod = [x for x in linhas if str(x.get("ambiente")) == "1"]
+    homo = [x for x in linhas if str(x.get("ambiente")) == "2"]
+    ok = [x for x in linhas if str(x.get("cstat")) == "100"]
+    return {
+        "producao": len(prod),
+        "homologacao": len(homo),
+        "autorizadas": len(ok),
+        "recusadas": len(linhas) - len(ok),
+        "por_dia": serie_dia,
+        # Taxa de retorno OK. `None` e nao 0 quando nao houve transmissao:
+        # "0% de acerto" sem nenhuma tentativa e um numero que acusa alguem.
+        "taxa_ok": (round(100.0 * len(ok) / len(linhas), 1)
+                    if linhas else None),
+        # Documento autorizado sem XML guardado nao se importa no ERP nem se
+        # arquiva: a chave prova que existe, o arquivo e que serve.
+        "com_xml": len(com_xml),
+        "autorizadas_sem_xml": sum(
+            1 for x in ok if not x.get("tem_xml")),
+        "ultimas": [{
+            "quando": x.get("quando"), "quem": x.get("quem"),
+            "tem_xml": bool(x.get("tem_xml")),
+            "ambiente": "homologação" if str(x.get("ambiente")) == "2"
+                        else "produção",
+            "serie": x.get("serie"), "numero": x.get("numero"),
+            "chave": x.get("chave"), "cstat": x.get("cstat"),
+            "xmotivo": x.get("xmotivo"), "protocolo": x.get("protocolo"),
+            "autorizado": str(x.get("cstat")) == "100",
+            "cancelado": x.get("chave") in canceladas,
+            "evento": str(x.get("cstat") or "").startswith("CANC:"),
+            "chave_origem": x.get("chave_origem"),
+        } for x in linhas],
+    }
+
+
 def _br(v: float, casas: int = 2) -> str:
     """Numero em pt-BR. Existe para NAO precisar mexer na string ja montada:
     aplicar replace na frase inteira comeu as virgulas do texto do aviso."""
@@ -249,7 +326,189 @@ def _br(v: float, casas: int = 2) -> str:
     return f"{inteiro},{dec}" if dec else inteiro
 
 
-def _avisos(pj, tac, indef, faltando, passivo) -> list[str]:
+# Faixas do semaforo do certificado, em dias ate vencer. Graduado e nao
+# binario porque "vence em 2 dias" e "vence em 29" pedem acoes diferentes, e
+# um chip igual para os dois nao prioriza nada (mesma licao da Manutencao
+# Preventiva). Certificado A1 vale UM ANO: 60 dias e o momento de comprar.
+CERT_CRITICO_DIAS = 15
+CERT_ALERTA_DIAS = 30
+CERT_ATENCAO_DIAS = 60
+
+
+def _situacao_cert(dias: int | None, tipo: str | None) -> tuple[str, str]:
+    """(situacao, texto) do certificado. Sem data nao e 'ok' — e desconhecido.
+
+    Tratar validade ausente como boa notícia e o erro que faz a emissao parar
+    em silencio: o certificado vence, ninguem e avisado, e a empresa descobre
+    pelo agregado.
+    """
+    if tipo == "A3":
+        return "impedido", "A3 (token físico) — não automatiza"
+    if dias is None:
+        return "desconhecido", "validade não informada"
+    if dias < 0:
+        return "vencido", f"vencido há {abs(dias)} dias"
+    if dias <= CERT_CRITICO_DIAS:
+        return "critico", f"vence em {dias} {'dia' if dias == 1 else 'dias'}"
+    if dias <= CERT_ALERTA_DIAS:
+        return "alerta", f"vence em {dias} dias"
+    if dias <= CERT_ATENCAO_DIAS:
+        return "atencao", f"vence em {dias} dias"
+    return "ok", f"vence em {dias} dias"
+
+
+def _certificados(pj: list[dict], pront: dict) -> dict:
+    """Controle de vencimento, com o VOLUME que cada certificado sustenta.
+
+    **NÃO segue o filtro de período**, e isso é deliberado: certificado vence
+    no calendário, não na janela que a tela está mostrando. Antes a lista saía
+    dos agregados COM CT-e no período e, como a tela abre no dia de hoje, um
+    agregado que simplesmente não rodou hoje sumia do controle — inclusive o
+    que vencia primeiro. O card leva badge dizendo isso.
+
+    O volume, esse sim, é do período: é o que responde "quanto para se este
+    certificado vencer". Zero ali significa "não rodou no recorte", não
+    "não importa".
+    """
+    hoje = date.today()
+    volume = {x["documento"]: x for x in pj}
+    try:
+        from api.contrapartida import emissao
+        desligados = emissao.envios_desligados()
+    except Exception as exc:  # noqa: BLE001
+        log.warning("estado do envio por agregado indisponivel: %s", exc)
+        desligados = {}
+
+    # nome de quem tem certificado mas não apareceu no período
+    faltam = [d for d, reg in pront.items()
+              if (reg or {}).get("certificado") and d not in volume]
+    nomes: dict[str, str] = {}
+    if faltam:
+        try:
+            nomes = {r["documento"]: r["nome"]
+                     for r in db.query(NOMES_SQL, {"docs": faltam})}
+        except Exception as exc:  # noqa: BLE001
+            # sem o nome ainda dá para agir pelo titular do certificado
+            log.warning("nomes dos agregados com certificado: %s", exc)
+
+    itens: list[dict] = []
+    for documento, reg in (pront or {}).items():
+        reg = reg or {}
+        cert = reg.get("certificado") or {}
+        if not cert:
+            continue                      # sem certificado é pendência de outro card
+        x = volume.get(documento) or {}
+        dias = None
+        if cert.get("valida_ate"):
+            try:
+                dias = (date.fromisoformat(cert["valida_ate"]) - hoje).days
+            except ValueError:
+                dias = None
+        situacao, texto = _situacao_cert(dias, cert.get("tipo"))
+        itens.append({
+            "documento": documento,
+            "nome": x.get("nome") or nomes.get(documento) or cert.get("titular"),
+            "no_periodo": documento in volume,
+            "titular": cert.get("titular"), "tipo": cert.get("tipo"),
+            "valida_ate": cert.get("valida_ate"), "dias": dias,
+            "situacao": situacao, "texto": texto,
+            "tem_senha": bool(reg.get("tem_senha")),
+            "envio": documento not in desligados,
+            "envio_quem": (desligados.get(documento) or {}).get("quem"),
+            "ctes": x.get("ctes") or 0,
+            "valor": round(x.get("valor") or 0.0, 2),
+        })
+    # Ordem: o que precisa de acao primeiro. Dentro da mesma situacao, o de
+    # maior volume - e o que para mais trabalho se vencer.
+    ordem = {"vencido": 0, "critico": 1, "alerta": 2, "impedido": 3,
+             "desconhecido": 4, "atencao": 5, "ok": 6}
+    itens.sort(key=lambda i: (ordem.get(i["situacao"], 9), -i["ctes"]))
+
+    def _conta(*situacoes):
+        alvo = [i for i in itens if i["situacao"] in situacoes]
+        return {"certificados": len(alvo),
+                "ctes": sum(i["ctes"] for i in alvo)}
+
+    faixas_contagem = [
+        {"rotulo": "vencido", "chave": "vencido",
+         "n": sum(1 for i in itens if i["situacao"] == "vencido")},
+        {"rotulo": f"até {CERT_CRITICO_DIAS} dias", "chave": "critico",
+         "n": sum(1 for i in itens if i["situacao"] == "critico")},
+        {"rotulo": f"{CERT_CRITICO_DIAS + 1} a {CERT_ALERTA_DIAS} dias",
+         "chave": "alerta",
+         "n": sum(1 for i in itens if i["situacao"] == "alerta")},
+        {"rotulo": f"{CERT_ALERTA_DIAS + 1} a {CERT_ATENCAO_DIAS} dias",
+         "chave": "atencao",
+         "n": sum(1 for i in itens if i["situacao"] == "atencao")},
+        {"rotulo": f"mais de {CERT_ATENCAO_DIAS} dias", "chave": "ok",
+         "n": sum(1 for i in itens if i["situacao"] == "ok")},
+        # Estes dois NAO sao faixa de prazo, e por isso vao no fim e
+        # separados: um nao tem data e o outro nao se resolve esperando.
+        {"rotulo": "sem validade informada", "chave": "desconhecido",
+         "n": sum(1 for i in itens if i["situacao"] == "desconhecido")},
+        {"rotulo": "A3 — não automatiza", "chave": "impedido",
+         "n": sum(1 for i in itens if i["situacao"] == "impedido")},
+    ]
+    return {
+        "itens": itens,
+        "total": len(itens),
+        "faixas_contagem": faixas_contagem,
+        "vencidos": _conta("vencido"),
+        "criticos": _conta("critico"),
+        "ate_30": _conta("vencido", "critico", "alerta"),
+        "ate_60": _conta("vencido", "critico", "alerta", "atencao"),
+        "sem_validade": _conta("desconhecido"),
+        "faixas": {"critico": CERT_CRITICO_DIAS, "alerta": CERT_ALERTA_DIAS,
+                   "atencao": CERT_ATENCAO_DIAS},
+        # a tela avisa: este card ignora o filtro de período de propósito
+        "ignora_periodo": True,
+    }
+
+
+def _prontidao_fila(pj: list[dict]) -> dict:
+    """Quem da fila PODE emitir hoje, e o que trava quem nao pode.
+
+    Substituiu o bloco de passivo acumulado. O passivo olhava para tras e nao
+    virava trabalho - CT-e nao se emite retroativo. Este olha para a frente e
+    responde a pergunta da tela: de tudo que entrou, quanto da para emitir
+    agora, e o que falta no resto.
+
+    A separacao dos travados por INDICADOR DE INSCRICAO ESTADUAL importa
+    porque os dois grupos tem encaminhamentos diferentes:
+
+      - marcado como CONTRIBUINTE e com inscricao "ISENTO" e CONTRADICAO de
+        cadastro: se e contribuinte, tem inscricao. Da para corrigir.
+      - marcado como NAO CONTRIBUINTE e coerente: provavelmente nao emite
+        CT-e mesmo, e sai da fila em vez de virar pendencia eterna.
+    """
+    def _bloco(itens):
+        return {"agregados": len(itens),
+                "ctes": sum(x.get("ctes") or 0 for x in itens),
+                "valor": round(sum(x.get("valor") or 0.0 for x in itens), 2)}
+
+    # DOIS PORTOES DIFERENTES, e confundi-los faz a tela mentir:
+    #   cadastro  = tem os campos que o documento exige (IE, RNTRC, municipio)
+    #   autorizado = TEM CERTIFICADO e autorizacao vigente para assinar
+    # Um agregado pode estar com o cadastro impecavel e nao emitir nada por
+    # falta de certificado - foi o caso de 28 dos 30 no primeiro levantamento.
+    autorizados = [x for x in pj if (x.get("prontidao") or {}).get("pronto")]
+    cadastro_ok = [x for x in pj
+                   if _ie_utilizavel(x.get("ie")) and not x.get("falta")]
+    sem_certificado = [x for x in cadastro_ok if x not in autorizados]
+    sem_ie = [x for x in pj if not _ie_utilizavel(x.get("ie"))]
+    # 1 = contribuinte de ICMS; 9 = nao contribuinte (dominio do ERP)
+    contradicao = [x for x in sem_ie if str(x.get("ind_ie") or "") != "9"]
+    nao_contrib = [x for x in sem_ie if str(x.get("ind_ie") or "") == "9"]
+    return {
+        "autorizados": _bloco(autorizados),
+        "cadastro_ok_sem_certificado": _bloco(sem_certificado),
+        "sem_ie_contribuinte": _bloco(contradicao),
+        "sem_ie_nao_contribuinte": _bloco(nao_contrib),
+        "total": _bloco(pj),
+    }
+
+
+def _avisos(pj, tac, indef, faltando) -> list[str]:
 
     av: list[str] = []
     av.append(
@@ -306,21 +565,5 @@ def _avisos(pj, tac, indef, faltando, passivo) -> list[str]:
             "autorizados a emitir: falta procuração vigente, certificado A1 "
             "válido ou a senha dele no cofre. Enquanto isso, a fila é "
             "diagnóstico — nenhum documento pode ser emitido.")
-    velho = [x for x in passivo if x["classe"] == "pj"
-
-             and x["ano"] < str(date.today().year)]
-    if velho:
-
-        n = sum(x["ctes"] for x in velho)
-        v = sum(x["valor"] for x in velho)
-        # formata SO o numero. Aplicar replace(",", ".") na frase inteira
-        # comeu as virgulas do texto - a mesma armadilha da substituicao em
-        # massa que o CLAUDE.md descreve, em miniatura.
-        av.append(
-            f"Passivo de anos anteriores: {_br(n, 0)} CT-e de agregado PJ, "
-            f"R$ {_br(v, 0)} de prestação. CT-e NÃO se emite retroativo (a "
-            "SEFAZ recusa data de emissão fora da janela), então isto não é "
-            "fila de trabalho — é número para a decisão da contabilidade e do "
-            "jurídico.")
     return av
 

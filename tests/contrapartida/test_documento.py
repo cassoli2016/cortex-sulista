@@ -69,11 +69,19 @@ DADOS = {
          "modelo": "55", "numero": 38609},
     ],
     "notas_sem_chave": [],
+    # IBS/CBS: obrigatorio desde 26/08/2026 (cStat 310 sem ele). CST,
+    # classificacao e aliquotas vem do ERP. O IBS-UF aqui esta com 0,1 porque
+    # o cadastro real ainda esta zerado e a SEFAZ recusa zero (316) - o valor
+    # do ERP entra quando o imposto for configurado.
+    "ibs_cst": "000", "ibs_classtrib": "000001",
+    "ibs_p_uf": Decimal("0.1"), "ibs_p_mun": None, "cbs_p": Decimal("0.9"),
 }
 
 # Enquadramento de TESTE. Nao e definicao fiscal — serve so para exercitar a
 # montagem. Trocar por decisao da contabilidade quando ela vier.
-ENQ = doc.Enquadramento(cfop="5351", tp_serv="1", grupo_icms="ICMSSN",
+ENQ = doc.Enquadramento(cfop_interno="5351", cfop_interestadual="6351",
+                        criterio_rateio="cobrado",
+                        tp_serv="1", grupo_icms="ICMSSN",
                         cst_icms="90", p_icms=None, base_valor="fretecompra",
                         toma="4", referenciar_original=True)
 
@@ -173,12 +181,59 @@ def test_as_duas_bases_dao_numeros_DIFERENTES():
         ENQ, base_valor="prestacao")) == Decimal("1494.02")
 
 
-def test_embarque_com_mais_de_um_documento_NAO_e_rateado_sozinho():
-    """1,7 CT-e por embarque no trimestre. O valor de frete de compra e do
-    embarque inteiro: dividir por conta propria inventaria base de ICMS."""
-    d = dict(DADOS, documentos_no_embarque=3, exige_rateio=True)
-    with pytest.raises(ValueError, match="definição fiscal"):
+def test_rateio_por_valor_cobrado_reproduz_a_viagem_real():
+    """Viagem 169646: R$ 3.398,36 pagos, TRES CT-e cobrados a 1.156,00,
+    4.661,35 e 2.675,53. Pelo criterio decidido (valor cobrado), as fatias
+    sao 462,56 / 1.865,20 / 1.070,59 — conferidas contra a base."""
+    viagem = {"valorfretecompra": Decimal("3398.36"),
+              "documentos_no_embarque": 3, "exige_rateio": True,
+              "prestacao_do_embarque": 8492.88, "embarque": 169646}
+    esperado = {"1156.00": "462.56", "4661.35": "1865.20",
+                "2675.53": "1070.59"}
+    for cobrado, fatia in esperado.items():
+        d = dict(DADOS, **viagem, valortotalprestacao=Decimal(cobrado))
+        assert doc.valor(d, ENQ) == Decimal(fatia), cobrado
+
+
+def test_documento_sozinho_na_viagem_leva_o_valor_INTEIRO():
+    """52% dos CT-e sao o unico documento da viagem: fator 1, sem divisao."""
+    assert doc.fator_rateio(DADOS, ENQ) == 1
+    assert doc.valor(DADOS, ENQ) == Decimal("1066.32")
+
+
+def test_a_base_prestacao_nao_rateia_nunca():
+    """Se a base for o valor cobrado do cliente, cada CT-e ja tem o seu — o
+    rateio deixa de existir mesmo com varios documentos na viagem."""
+    d = dict(DADOS, documentos_no_embarque=3, exige_rateio=True,
+             prestacao_do_embarque=8492.88)
+    enq = dataclasses.replace(ENQ, base_valor="prestacao")
+    assert doc.valor(d, enq) == Decimal("1494.02")
+
+
+def test_prestacao_zero_na_viagem_PARA_em_vez_de_dividir_por_zero():
+    d = dict(DADOS, documentos_no_embarque=2, exige_rateio=True,
+             prestacao_do_embarque=0)
+    with pytest.raises(ValueError, match="prestação total zero"):
         doc.valor(d, ENQ)
+
+
+def test_documento_com_prestacao_zero_nao_recebe_fatia_zero():
+    """Pelo criterio, ele receberia R$ 0,00 — e documento fiscal de valor
+    zero nao e prestacao. Para e avisa."""
+    d = dict(DADOS, documentos_no_embarque=2, exige_rateio=True,
+             prestacao_do_embarque=1000.0,
+             valortotalprestacao=Decimal("0"))
+    with pytest.raises(ValueError, match="prestação zero"):
+        doc.valor(d, ENQ)
+
+
+def test_o_criterio_e_explicito_e_os_outros_nao_entram_por_engano():
+    """Os quatro criterios fecham a soma; o que muda e quanto imposto cada
+    documento carrega. Trocar tem de ser decisao, nao conveniencia."""
+    assert doc.CRITERIOS_RATEIO == ("cobrado",)
+    for outro in ("peso", "mercadoria", "iguais"):
+        with pytest.raises(ValueError, match="criterio_rateio"):
+            dataclasses.replace(ENQ, criterio_rateio=outro)
 
 
 def test_sem_frete_de_compra_a_base_nao_cai_para_zero():
@@ -365,3 +420,248 @@ def test_prestacao_normal_com_tomador_da_carga_e_valida():
 def test_subcontratacao_com_tomador_outros_e_vinculo_continua_valida():
     """E a combinacao que autorizou de verdade, protocolo 135260006358665."""
     dataclasses.replace(ENQ, tp_serv="1", toma="4", referenciar_original=True)
+
+
+def test_a_serie_padrao_e_reservada_e_nao_a_1():
+    """Serie 900, aprovada pela area. Serie baixa colidiria com o que o
+    agregado ja emita por conta propria — e numero repetido e rejeitado
+    documento a documento, no meio de um lote de milhares."""
+    import inspect
+
+    from api.contrapartida import emissao
+    assert emissao.SERIE_PADRAO == 900
+    assert inspect.signature(
+        emissao.transmitir).parameters["serie"].default == emissao.SERIE_PADRAO
+
+
+def test_o_cfop_segue_o_TRECHO_e_nao_e_fixo():
+    """Emitente em SP. Comecando em SP: 5351 no mesmo estado, 6351 cruzando
+    divisa. Um CFOP fixo erraria a maioria dos documentos."""
+    assert ENQ.cfop_de(DADOS) == "5351", "SP -> SP, emitente SP"
+    assert ENQ.cfop_de(dict(DADOS, ufentrega="MG")) == "6351"
+    assert ENQ.cfop_de(dict(DADOS, ufcoleta="sp", ufentrega=" SP ")) == "5351"
+
+
+def test_viagem_que_COMECA_fora_da_UF_do_emitente_usa_a_familia_932():
+    """Rejeicao 524 — "CFOP invalido, informar 5932 ou 6932". A pergunta vem
+    ANTES do trecho, e o caso e a MAIORIA (3.694 de 6.366 no trimestre): o
+    agregado mora num estado e roda em todos. No documento da Sulista isso nao
+    aparece, porque a filial emitente e sempre a da origem."""
+    assert ENQ.cfop_de(dict(DADOS, ufcoleta="MG", ufentrega="SP")) == "6932"
+    assert ENQ.cfop_de(dict(DADOS, ufcoleta="MG", ufentrega="MG")) == "5932"
+    # emitente MG saindo de MG volta para a familia normal
+    assert ENQ.cfop_de(dict(DADOS, emit_uf="MG", ufcoleta="MG",
+                            ufentrega="SP")) == "6351"
+
+
+def test_a_familia_932_nao_e_escolha_de_ninguem():
+    """Nao entra no Enquadramento: a SEFAZ nomeia os dois codigos na propria
+    recusa. Deixar isso como campo sugeriria que ha o que decidir."""
+    assert doc.CFOP_INICIO_EM_OUTRA_UF == {True: "5932", False: "6932"}
+    assert not any("932" in getattr(ENQ, c.name)
+                   for c in dataclasses.fields(doc.Enquadramento)
+                   if isinstance(getattr(ENQ, c.name), str))
+
+
+def test_cfop_trocado_entre_interno_e_interestadual_e_recusado():
+    """A SEFAZ ACEITA o documento com o CFOP do trecho errado — quem reclama e
+    a fiscalizacao, meses depois. Por isso a guarda e nossa."""
+    with pytest.raises(ValueError, match="interno começa com 5"):
+        dataclasses.replace(ENQ, cfop_interno="6351", cfop_interestadual="5351")
+
+
+def test_cfop_precisa_ter_quatro_digitos():
+    with pytest.raises(ValueError, match="4 dígitos"):
+        dataclasses.replace(ENQ, cfop_interno="535")
+
+
+# --- tributacao vinda do ERP (grupo_icms AUTO) ------------------------------
+
+AUTO = dataclasses.replace(ENQ, grupo_icms="AUTO", cst_icms="", p_icms=None)
+
+
+def test_optante_do_simples_nao_destaca_icms_venha_o_que_vier_do_ERP():
+    """A CST do CT-e da Sulista descreve a prestacao DELA, que nao e optante.
+    Copiar para um agregado optante poria destaque de imposto num documento
+    que nao pode ter. O regime do EMITENTE vem primeiro."""
+    d = dict(DADOS, emit_optante_simples=1, cst_erp="000", aliq_erp=12)
+    assert AUTO.icms_de(d) == ("ICMSSN", "90", None)
+
+
+def test_nao_optante_aproveita_a_CST_e_a_ALIQUOTA_que_o_ERP_calculou():
+    d = dict(DADOS, emit_optante_simples=2, cst_erp="000", aliq_erp=12)
+    grupo, cst, aliq = AUTO.icms_de(d)
+    assert (grupo, cst) == ("ICMS00", "00") and aliq == Decimal("12")
+
+
+@precisa_fiscal
+def test_isenta_no_erp_vira_grupo_de_isencao_sem_base_nem_aliquota():
+    d = dict(DADOS, emit_optante_simples=2, cst_erp="040", aliq_erp=0)
+    assert AUTO.icms_de(d) == ("ICMS45", "40", None)
+    xml = doc.serializar(doc.montar(d, AUTO, numero=1))
+    # Escopo IMPORTA: o grupo do IBS/CBS tem base propria e legitima. Procurar
+    # "<vBC>" no XML inteiro acusaria a base do IBS como se fosse a do ICMS.
+    bloco_icms = xml[xml.index("<ICMS>"):xml.index("</ICMS>")]
+    assert "<ICMS45>" in bloco_icms and "<vBC>" not in bloco_icms, (
+        "isenta nao tem base de calculo: mandar vBC zerado declara base zero "
+        "numa operacao que nao tem base")
+
+
+def test_outros_no_erp_vira_ICMS90():
+    d = dict(DADOS, emit_optante_simples=2, cst_erp="090", aliq_erp=0)
+    grupo, cst, _ = AUTO.icms_de(d)
+    assert (grupo, cst) == ("ICMS90", "90")
+
+
+def test_situacao_tributaria_desconhecida_PARA_em_vez_de_adivinhar():
+    """Traduzir codigo fiscal por semelhanca e inventar tributacao."""
+    d = dict(DADOS, emit_optante_simples=2, cst_erp="051", aliq_erp=12)
+    with pytest.raises(ValueError, match="de-para"):
+        AUTO.icms_de(d)
+
+
+def test_tributada_com_aliquota_zero_no_erp_e_recusada():
+    """CST 000 e aliquota 0 declara imposto zero numa operacao tributada."""
+    d = dict(DADOS, emit_optante_simples=2, cst_erp="000", aliq_erp=0)
+    with pytest.raises(ValueError, match="alíquota zero"):
+        AUTO.icms_de(d)
+
+
+def test_AUTO_recusa_cst_fixa_junto():
+    """Um valor fixo ali nao seria usado e daria a impressao de estar valendo."""
+    with pytest.raises(ValueError, match="AUTO"):
+        dataclasses.replace(ENQ, grupo_icms="AUTO", cst_icms="00",
+                            p_icms=Decimal("12"))
+
+
+def test_grupo_fixo_continua_ignorando_o_erp():
+    """Quem fixar o grupo nao quer que o documento decida sozinho."""
+    d = dict(DADOS, emit_optante_simples=2, cst_erp="000", aliq_erp=17)
+    assert ENQ.icms_de(d) == ("ICMSSN", "90", None)
+
+
+# --- IBS/CBS (Reforma Tributaria) -------------------------------------------
+
+IBS = {}   # DADOS ja carrega a tributacao de IBS/CBS
+
+
+@precisa_fiscal
+def test_o_grupo_de_ibs_cbs_sai_com_o_que_o_ERP_calcula():
+    """cStat 310 sem ele. CST, classificacao e aliquotas vem do ERP — nada
+    inventado, mesma regra do ICMS."""
+    xml = doc.serializar(doc.montar(dict(DADOS, **IBS), AUTO, numero=1))
+    assert "<IBSCBS>" in xml
+    assert "<CST>000</CST>" in xml and "<cClassTrib>000001</cClassTrib>" in xml
+    assert "<pCBS>0.9000</pCBS>" in xml
+    assert "<vTotDFe>" in xml, "rejeicao 360 veio junto com o IBS/CBS"
+
+
+@precisa_fiscal
+def test_a_base_do_ibs_cbs_e_o_valor_DESTE_documento():
+    """Nao se tenta reproduzir a base do CT-e da Sulista: la o total carrega
+    taxas, pedagio e seguro. Este documento tem UM componente."""
+    d = dict(DADOS, **IBS)
+    xml = doc.serializar(doc.montar(d, AUTO, numero=1))
+    assert f"<vBC>{doc.valor(d, AUTO)}</vBC>" in xml
+
+
+@precisa_fiscal
+def test_ibs_zerado_no_erp_PARA_e_explica_que_e_configuracao():
+    """cStat 316. Ha UMA definicao de IBS cadastrada, com 0,0000, e o imposto
+    marcado como nao configurado — escolher um numero aqui seria inventar
+    aliquota."""
+    d = dict(DADOS, **IBS, )
+    d["ibs_p_uf"] = Decimal("0")
+    with pytest.raises(ValueError, match="316"):
+        doc.montar(d, AUTO, numero=1)
+
+
+@precisa_fiscal
+def test_sem_tributacao_de_ibs_cbs_no_erp_tambem_para():
+    d = dict(DADOS, **IBS)
+    d["ibs_cst"] = None
+    with pytest.raises(ValueError, match="310"):
+        doc.montar(d, AUTO, numero=1)
+
+
+def test_TODO_teste_que_monta_documento_tem_o_marcador():
+    """Guarda que existe porque faltou.
+
+    Cinco testes novos chamavam `doc.montar()` sem `@precisa_fiscal`. Local
+    passava - o grupo `fiscal` estava instalado - e o CI, que roda `uv sync
+    --group test` como producao, ficou VERMELHO em todo push. O aviso chegou
+    por e-mail, nao pela suite.
+
+    Varre a arvore sintatica: toda funcao de teste que alcanca `montar` ou
+    `serializar` precisa do marcador.
+    """
+    import ast
+
+    fonte = open(__file__, encoding="utf-8").read()
+    arvore = ast.parse(fonte)
+    faltando = []
+    for no in arvore.body:
+        if not isinstance(no, ast.FunctionDef) or not no.name.startswith("test_"):
+            continue
+        # CHAMA, nao apenas menciona: `inspect.signature(doc.montar)` nao
+        # executa nada e nao precisa do grupo.
+        chama = any(isinstance(n, ast.Call) and isinstance(n.func, ast.Attribute)
+                    and n.func.attr in ("montar", "serializar")
+                    for n in ast.walk(no))
+        # `@precisa_fiscal` ou qualquer skipif proprio servem: o que importa e
+        # o teste NAO rodar sem o grupo.
+        protegido = any(
+            (isinstance(d, ast.Name) and d.id == "precisa_fiscal")
+            or "skipif" in ast.dump(d)
+            for d in no.decorator_list)
+        if chama and not protegido:
+            faltando.append(no.name)
+    assert not faltando, (
+        "sem @precisa_fiscal, estes quebram o CI (que roda sem o grupo "
+        "fiscal, como producao): " + ", ".join(faltando))
+
+
+@precisa_fiscal
+def test_a_base_do_ibs_cbs_TIRA_o_icms_destacado():
+    """Regra do proprio ERP, conferida em seis CT-e sem divergencia: a base do
+    IBS/CBS exclui os tributos que ele vem substituir. No CT-e 358571,
+    3.792,23 - (455,07 + 55,06 + 253,62) = 3.028,48, que e o vBC que a SEFAZ
+    autorizou em PRODUCAO.
+
+    Aqui a regra vale sobre os numeros DESTE documento: sai o ICMS que ele
+    destaca. Emitente do Simples nao destaca nada.
+    """
+    tributado = dataclasses.replace(
+        ENQ, grupo_icms="ICMS00", cst_icms="00", p_icms=Decimal("12"))
+    d = dict(DADOS, base_valor="prestacao")
+    xml = doc.serializar(doc.montar(d, tributado, numero=1))
+    bloco = xml[xml.index("<IBSCBS>"):xml.index("</IBSCBS>")]
+    # valor do documento 1066.32, ICMS 12% = 127.96 -> base 938.36
+    assert "<vBC>938.36</vBC>" in bloco, bloco[:300]
+    # e o ICMS destacado continua sobre o valor CHEIO, nao sobre a base
+    assert "<vBC>1066.32</vBC>" in xml[xml.index("<ICMS>"):xml.index("</ICMS>")]
+
+
+@precisa_fiscal
+def test_simples_nacional_nao_reduz_a_base_do_ibs():
+    """Nao destaca ICMS, entao nao ha o que tirar: a base e o valor cheio."""
+    xml = doc.serializar(doc.montar(DADOS, AUTO, numero=1))
+    bloco = xml[xml.index("<IBSCBS>"):xml.index("</IBSCBS>")]
+    assert f"<vBC>{doc.valor(DADOS, AUTO)}</vBC>" in bloco
+
+
+def test_a_aliquota_do_ibs_UF_vem_da_tabela_PROPRIA():
+    """`impostoibsuf_define`, e nao `impostoibs_define`. Lendo a errada a
+    aliquota vinha ZERADA e a emissao parava com 316, como se o imposto nao
+    estivesse configurado - estava, com 0,1000, na outra tabela."""
+    assert "impostoibsuf_define dfu" in doc.DADOS_SQL
+
+
+@precisa_fiscal
+def test_ibs_MUNICIPAL_ausente_nao_e_pendencia():
+    """Nao ha tabela de IBS municipal neste ERP e o vinculo vem nulo. A SEFAZ
+    autoriza com a aliquota municipal zerada - ha CT-e da Sulista em PRODUCAO
+    provando isso -, entao nao existe guarda contra ela."""
+    d = dict(DADOS, ibs_p_mun=None)
+    xml = doc.serializar(doc.montar(d, AUTO, numero=1))
+    assert "<pIBSMun>0.0000</pIBSMun>" in xml

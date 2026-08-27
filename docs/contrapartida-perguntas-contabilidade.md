@@ -10,56 +10,26 @@
 
 | # | Pergunta | Resposta |
 |---|---|---|
-| 0 | Há dispensa de emissão pelo subcontratado? | *aguardando* |
-| 1 | Subcontratação, redespacho ou prestação normal? | **Prestação normal** ⚠️ |
-| 2 | Valor cobrado do cliente ou pago ao agregado? | *aguardando* |
+| 0 | Há dispensa de emissão pelo subcontratado? | **Não há — o agregado emite** |
+| 1 | Subcontratação, redespacho ou prestação normal? | **Subcontratação** |
+| 2 | Valor cobrado do cliente ou pago ao agregado? | **Pago ao agregado** (coluna do frete de compra) |
 | 3 | Um documento por CT-e ou por viagem? | **Um por CT-e** |
 | 4 | Tratamento e CST do ICMS | *aguardando* |
-| 5 | Série e numeração por agregado | *sugestão nossa, abaixo* |
+| 5 | Série e numeração por agregado | **Série 900 aprovada** (provisória) |
 | 6 | Os 17 com IE "ISENTO" emitem? | em análise |
 | 7 | Documentos de valor simbólico entram? | **Não, por ora** |
 | 8 | Passivo de R$ 108,7 mi | encaminhado ao Jurídico |
 
-⚠️ **A resposta 1 precisa ser reconciliada — ver seção 2-A.** Testamos
-"prestação normal" contra a SEFAZ e ela é incompatível com a premissa deste
-trabalho.
+Restam **duas** pendências, e só uma é da contabilidade:
 
----
+- **CST e tratamento do ICMS** (seção 3.4) — a última definição fiscal;
+- **os 17 sem inscrição estadual** (seção 4.1) — levantamento de cadastro, que
+  responde por 29% da fila.
 
-## 2-A. URGENTE — "prestação normal" não permite emitir contra a Sulista
+O anexo, no fim, registra o que foi testado até chegar às definições atuais.
 
-Levamos a resposta "prestação normal" ao ambiente de teste da SEFAZ. O órgão
-**recusou** o documento, por duas regras próprias de validação:
-
-| O que tentamos | Resposta da SEFAZ |
-|---|---|
-| Prestação normal, **Sulista como tomadora** | **Recusado (746)** — "Tipo de Serviço inválido para o tomador informado" |
-| Prestação normal, **vinculando ao CT-e da Sulista** | **Recusado (747)** — "Documentos anteriores informados para Tipo de Serviço Normal" |
-| Prestação normal, tomador = remetente da carga | Autorizado |
-| Prestação normal, tomador = destinatário da carga | Autorizado |
-| **Subcontratação, Sulista como tomadora, com vínculo** | **Autorizado** |
-
-Em linguagem direta: **na prestação normal, o tomador tem obrigatoriamente de
-ser uma das partes da carga** — remetente, expedidor, recebedor ou
-destinatário. A Sulista não é nenhuma delas.
-
-As consequências de manter "prestação normal" são duas, e ambas contrariam o
-que se pretendia:
-
-1. **O documento sairia contra o cliente, não contra a Sulista.** Mas quem
-   contratou e quem paga o agregado é a Sulista — o dinheiro e o documento
-   apontariam para lados diferentes.
-2. **Nada ligaria esse documento ao nosso CT-e.** O campo que faz o vínculo
-   eletrônico é recusado em prestação normal. Sem ele não existe
-   "contrapartida": existe uma prestação avulsa.
-
-A única combinação que a SEFAZ autorizou **e** descreve a operação real
-(agregado presta para a Sulista, referenciando o nosso CT-e) foi
-**subcontratação**.
-
-**Pedimos a reconfirmação da resposta 1**, ciente destas restrições. Não é
-divergência de opinião nossa: são as regras de validação do próprio órgão,
-observadas em teste.
+O anexo, no fim, registra o que foi testado até chegar ao enquadramento
+definido.
 
 ---
 
@@ -78,74 +48,122 @@ que as respostas destravam o trabalho.
 
 ---
 
-## 2. A pergunta que vem antes de todas
+## 2. Dispensa de emissão — RESPONDIDO: não há
 
-> **Na subcontratação, o subcontratado está dispensado de emitir o CT-e,
-> ficando a prestação amparada pelo documento do subcontratante?**
+Foi verificado se, na subcontratação, o subcontratado estaria dispensado de
+emitir o CT-e, ficando a prestação amparada pelo documento do subcontratante.
 
-Pedimos que esta seja verificada **primeiro**, e antes de responder as demais.
-
-Se a dispensa se aplicar ao nosso caso, **não há fila nenhuma a emitir**: os
-cerca de 3.100 documentos por mês simplesmente não existem como obrigação, e o
-trabalho vira conferência, não emissão. Todas as perguntas seguintes deixam de
-fazer sentido.
-
-Se não se aplicar, seguem as demais.
+**Não é o caso: o agregado emite.** A fila de cerca de 3.100 documentos por mês
+é obrigação real, e o trabalho é de emissão.
 
 ---
 
 ## 3. Definições necessárias
 
-### 3.1 Enquadramento da operação
+### 3.1 Enquadramento da operação — RESPONDIDO: subcontratação
 
-**Subcontratação, redespacho ou prestação normal?**
+Define o CFOP e a natureza da operação declarada no documento. Os testes na
+SEFAZ confirmaram que é a única classificação compatível com a operação real
+(seção 2-A).
 
-A resposta define o CFOP e a natureza da operação declarada no documento.
-
-*Observação, não sugestão:* a própria Sulista, quando é **ela** a contratada
+*Precedente interno que sustenta a definição:* a própria Sulista, quando é **ela** a contratada
 por outra transportadora, emite esses documentos com **CFOP 6351 — prestação
 de serviço de transporte para execução de serviço da mesma natureza**,
 classificados como subcontratação, com a transportadora contratante como
 tomadora. O documento do agregado contra nós é o espelho exato desse caso.
 Registramos isso como precedente interno, não como opinião fiscal.
 
-### 3.2 Valor da prestação
+### 3.2 Valor da prestação — RESPONDIDO: valor pago ao agregado
 
-**O documento do agregado vale o que a Sulista cobrou do cliente, ou o que a
-Sulista paga ao agregado?**
+**Resposta recebida:** *"O valor pago a ele (frete mínimo)."*
 
-Os dois números existem e são bem diferentes. No documento usado como piloto:
+Registramos a definição. Ela levanta **duas questões** que precisam de retorno
+antes da emissão em produção.
 
-| Base | Valor |
-|---|---|
-| Prestação cobrada do cliente | R$ 1.494,02 |
-| Frete pago ao agregado | R$ 1.066,32 |
+#### Questão A — RESPONDIDO: é a coluna do frete de compra
 
-O valor pago corresponde a cerca de **71%** do cobrado. Como se trata de base
-de cálculo de ICMS, a escolha não é do sistema.
+Confirmado em 26/08/2026: **o valor do contrato de transporte no PEF é a
+coluna do frete de compra** — a mesma que o sistema já vinha usando. A Parte 1
+está fechada e nada precisou ser alterado.
+
+*Registro da checagem feita antes de confirmar:* procuramos um valor de PEF
+próprio na base e nenhum campo serve — `programacaoembarque_pef` cobre 65% das
+viagens e seu campo de valor soma R$ 26,37 no total; o PEF do acerto cobre
+4,4%; as parcelas de adiantamento estão vazias; e `transporte.valortotalfrete`
+chega a 3,7× o valor do CT-e sem relação estável. Emitir por qualquer um deles
+produziria documento várias vezes maior que a operação.
+
+#### Observação que fica registrada: frete abaixo do piso da ANTT
+
+Não é pendência, é consequência conhecida da definição. Emitindo pelo valor
+pago, os documentos passam a registrar formalmente o frete praticado — e no
+trimestre as viagens de agregado foram pagas em **R$ 14,7 milhões** contra um
+piso mínimo da ANTT de **R$ 18,7 milhões** para as mesmas viagens: **78,6% do
+piso, com 5.081 de 5.735 viagens conferidas (89%) abaixo do mínimo legal**.
+
+Hoje isso só existe no controle interno. A partir da emissão, passa a existir
+documento a documento. Registramos para que a decisão seja consciente.
+
+#### Questão B — critério de rateio: RESPONDIDO, proporcional ao valor cobrado
+
+**Definido em 26/08/2026.** Como o pagamento é lançado **por viagem** e o
+documento é **por CT-e**, os **3.159 de 6.594 CT-e (48%)** que dividem viagem
+precisavam de um critério. Ficou: **cada documento recebe a mesma fatia que
+teve no valor cobrado dos clientes naquela viagem**.
+
+Exemplo real já emitido em teste: viagem com **8 documentos** e R$ 1.591,50
+pagos ao agregado. O CT-e em questão respondeu por R$ 189,48 dos R$ 6.540,32
+cobrados na viagem — 2,90% — e saiu com **R$ 46,11**. Autorizado pela SEFAZ.
+
+Registramos duas observações:
+
+- **Os outros critérios não foram implementados**, de propósito. Todos os
+  quatro fecham a soma, então nenhum "erra" numa conferência — o que muda é
+  quanto imposto cada documento carrega. Num caso de 3 CT-e numa viagem de
+  R$ 3.398,36, o mesmo documento valeria R$ 201,70 por peso e R$ 1.132,79 em
+  partes iguais: **5,6 vezes**. Trocar o critério tem de ser decisão, não
+  conveniência.
+- **O arredondamento é por documento.** A soma das fatias pode diferir do
+  valor da viagem em alguns centavos, porque cada CT-e é um documento
+  independente e não um lote que precise fechar.
+
+Casos em que o sistema ainda **para**: viagem com prestação total zero (não há
+como calcular proporção) e CT-e com prestação zero dentro de uma viagem com
+outros (receberia R$ 0,00, e documento fiscal de valor zero não é prestação).
 
 ### 3.3 Um documento por CT-e nosso, ou por viagem? — RESPONDIDO: por CT-e
 
-**A resposta torna a pergunta 3.2 mais urgente do que parecia.**
+No trimestre, **6.594 CT-e** de agregado PJ corresponderam a **3.834 viagens**
+— 1,7 documento por viagem. Com a decisão "um por CT-e", a fila fica no número
+maior: **os 6.594**.
 
-Medimos: **3.159 dos 6.594** CT-e do trimestre — **48%, quase metade** —
-compartilham a viagem com pelo menos um outro documento. E o valor pago ao
-agregado é lançado **por viagem**, não por CT-e.
+É a combinação desta decisão com a da seção 3.2 (valor pago ao agregado) que
+cria a necessidade do critério de rateio — ver Questão B.
 
-Portanto, se a resposta de 3.2 for "valor pago ao agregado", metade da fila
-precisa de um **critério de rateio** desse valor entre os documentos da mesma
-viagem — por peso? por valor da mercadoria? em partes iguais? Hoje o sistema
-**interrompe** nesses casos, de propósito.
+### 3.3-B Achado novo: o CFOP não é um só — e o principal é o 6932
 
-Se a resposta de 3.2 for "valor cobrado do cliente", o problema desaparece:
-cada CT-e já tem o seu próprio valor.
+Com a subcontratação definida, testamos a emissão em trechos reais e a SEFAZ
+recusou um deles: **"524 — CFOP inválido, informar 5932 ou 6932"**.
 
-Dividir sem critério definido seria inventar base de cálculo, e por isso o
-sistema prefere parar.
+O motivo é uma característica desta operação que não aparece nos nossos
+próprios CT-e: **o agregado é inscrito em um estado e roda em todos**. Quando a
+viagem **começa fora do estado onde o agregado é inscrito**, o CFOP passa
+obrigatoriamente para a família 932.
 
-Números de referência do trimestre: **6.594 CT-e** de agregado PJ
-correspondendo a **3.834 viagens** — média de 1,7 documento por viagem. Com a
-decisão "um por CT-e", a fila fica no número maior: **os 6.594**.
+Nos documentos da Sulista isso nunca ocorre, porque a filial que emite é sempre
+a da origem da carga. Com o agregado como emitente, passa a ser **a maioria**:
+
+| Situação | CFOP | Documentos no trimestre |
+|---|---|---|
+| Começa **fora** da UF do agregado, cruzando divisa | **6932** | **3.694 (58%)** |
+| Começa na UF do agregado, cruzando divisa | 6351 | 1.931 (30%) |
+| Começa e termina na UF do agregado | 5351 | 724 (11%) |
+| Começa fora da UF do agregado, sem cruzar divisa | 5932 | 17 (0,3%) |
+
+O sistema já aplica a regra automaticamente, e os dois casos principais foram
+autorizados pela SEFAZ em homologação. **Registramos para conhecimento e
+confirmação** — não é uma pergunta em aberto, é a regra do próprio órgão, mas
+tem efeito na escrituração e convém que a contabilidade esteja ciente.
 
 ### 3.4 Tratamento do ICMS
 
@@ -179,22 +197,41 @@ Razões:
   a sua, e o sistema já controla isso separadamente, inclusive mantendo as
   numerações de teste e de produção apartadas.
 
-O que pedimos que a contabilidade confirme: **se a série 900 é aceitável** e se
-há alguma exigência de série específica em algum dos contratos ou regimes
-especiais.
+**Aprovada em 26/08/2026**, em caráter provisório para os testes. Já em uso: o
+primeiro documento da série 900 foi autorizado pela SEFAZ em homologação.
+
+Fica pendente apenas confirmar, antes da produção, se **há exigência de série
+específica** em algum contrato ou regime especial.
 
 ---
 
-## 4. Três pontos que não travam a emissão, mas mudam os números
+## 4. Cadastro e escopo
 
-### 4.1 Inscrição estadual "ISENTO" — 17 de 53 agregados
+### 4.1 Inscrição estadual "ISENTO" — passou a ser o caminho crítico
 
-O CT-e é documento de ICMS e pressupõe emitente inscrito. **17 dos 53**
-agregados PJ estão com o texto "ISENTO" no campo de inscrição estadual.
+**Este item saiu do rodapé.** Com as definições fiscais praticamente fechadas,
+ele é hoje **o maior bloqueio da fila** — e não é fiscal, é cadastral.
 
-Ou o cadastro está desatualizado, ou esses 17 **não emitem CT-e** — e nesse
-caso a fila real é de **36 agregados, não 53**. Sugerimos conferência no
-SINTEGRA antes de tratar como pendência de cadastro.
+Levantamos a prontidão de tudo o que a emissão exige, nos agregados com
+movimento no trimestre:
+
+| Verificação | Resultado |
+|---|---|
+| RNTRC cadastrado | **47 de 47** — nenhum pendente |
+| CEP cadastrado | **47 de 47** — nenhum pendente |
+| Notas fiscais com chave (últimos 30 dias) | **2.372 de 2.372** — nenhum pendente |
+| **Inscrição estadual válida** | **30 de 47 — faltam 17** |
+
+O CT-e é documento de ICMS e pressupõe emitente inscrito. Os **17 agregados**
+com inscrição ausente ou marcada como "ISENTO" respondem por
+**1.872 dos 6.375 CT-e do trimestre — 29% da fila**.
+
+Os outros 30 agregados estão **prontos para emitir**: são cerca de
+**4.500 documentos** no trimestre, somando **R$ 13,4 milhões** de prestação.
+
+Precisamos saber, para cada um dos 17: **o cadastro está desatualizado** (e
+basta corrigir a inscrição) **ou ele é de fato não inscrito** — caso em que não
+emite CT-e e sai da fila. Sugerimos conferência no SINTEGRA.
 
 ### 4.2 Documentos de valor simbólico
 
@@ -241,18 +278,90 @@ dessa data, o primeiro teste em produção aguardará a renovação do certifica
 
 ---
 
-## 7. Resumo — o que pedimos
+## 7. Resumo — o que falta
 
-Restam **quatro** definições. As demais estão respondidas ou encaminhadas.
+Todas as definições fiscais estão tomadas, **menos uma**.
 
-| # | O que ainda falta | Por que trava |
+| O que falta | Com quem | Efeito |
 |---|---|---|
-| 0 | Há dispensa de emissão pelo subcontratado? | Se houver, **não há fila nenhuma** |
-| 1 | **Reconfirmar o enquadramento** | "Prestação normal" é recusada pela SEFAZ nesta operação (seção 2-A) |
-| 2 | Valor cobrado do cliente ou pago ao agregado? | Base de ICMS — e define se metade da fila precisa de critério de rateio |
-| 4 | Tratamento e CST do ICMS | Cálculo do imposto |
-| 5 | Aceitam a série 900 sugerida? | Evita rejeição por duplicidade |
+| **CST e tratamento do ICMS** | Contabilidade | Única definição fiscal pendente |
+| **Os 17 sem inscrição estadual** — 13 com cadastro contraditório, 4 possivelmente não inscritos | Cadastro / SINTEGRA | **29% da fila** (1.872 CT-e) |
 
-**A ordem importa.** A pergunta 0 pode encerrar o assunto; a 1 define se o
-documento é emitido contra a Sulista ou contra o cliente. As demais só fazem
-sentido depois dessas duas.
+**Assim que a CST for definida, 30 agregados podem entrar em produção** — 4.524
+CT-e no trimestre, R$ 13,4 milhões, sem nenhuma pendência de cadastro. Não é
+preciso esperar os 17.
+
+Uma sugestão para a definição da CST: o ERP **já calcula ICMS** nessa operação
+(o contrato de transporte traz R$ 1,38 milhão em 60 dias, e o PEF do acerto
+traz ICMS a recolher em 254 de 267 registros). Pode ser que a resposta seja
+usar o que já existe, em vez de definir do zero.
+
+---
+
+## 8. Anexo — por que a classificação ficou em subcontratação
+
+*Seção mantida como registro do que foi testado. A definição já está tomada:
+subcontratação.*
+
+A primeira resposta recebida foi "prestação normal". Levamos ao ambiente de
+teste da SEFAZ antes de implementar, e o órgão **recusou**, por duas regras
+próprias de validação:
+
+| O que tentamos | Resposta da SEFAZ |
+|---|---|
+| Prestação normal, **Sulista como tomadora** | **Recusado (746)** — "Tipo de Serviço inválido para o tomador informado" |
+| Prestação normal, **vinculando ao CT-e da Sulista** | **Recusado (747)** — "Documentos anteriores informados para Tipo de Serviço Normal" |
+| Prestação normal, tomador = remetente da carga | Autorizado |
+| Prestação normal, tomador = destinatário da carga | Autorizado |
+| **Subcontratação, Sulista como tomadora, com vínculo** | **Autorizado** |
+
+Em linguagem direta: **na prestação normal, o tomador tem obrigatoriamente de
+ser uma das partes da carga** — remetente, expedidor, recebedor ou
+destinatário. A Sulista não é nenhuma delas.
+
+As consequências de manter "prestação normal" são duas, e ambas contrariam o
+que se pretendia:
+
+1. **O documento sairia contra o cliente, não contra a Sulista.** Mas quem
+   contratou e quem paga o agregado é a Sulista — o dinheiro e o documento
+   apontariam para lados diferentes.
+2. **Nada ligaria esse documento ao nosso CT-e.** O campo que faz o vínculo
+   eletrônico é recusado em prestação normal. Sem ele não existe
+   "contrapartida": existe uma prestação avulsa.
+
+A única combinação que a SEFAZ autorizou **e** descreve a operação real
+(agregado presta para a Sulista, referenciando o nosso CT-e) foi
+**subcontratação**.
+
+### Quem é o tomador não está em dúvida — e isso estreita a escolha
+
+Foi levantado se não daria para identificar o tomador pelo CT-e original.
+Não diretamente: o tomador do **nosso** CT-e é quem contratou **a Sulista** —
+no documento-piloto, o remetente da carga. O documento do agregado precisa
+dizer quem contratou **o agregado**. São elos diferentes da mesma cadeia.
+
+Mas o ponto por trás da pergunta procede: **quem contratou o agregado não é
+matéria de interpretação, e o próprio ERP registra.** Em 90 dias, em
+**5.987 dos 6.596** CT-e (91%), o pagamento da viagem sai da Sulista para o
+**dono do veículo** — o agregado. Quem contrata e quem paga é a Sulista, não o
+cliente.
+
+Disso decorre, sem opinião fiscal nenhuma:
+
+1. O tomador do documento do agregado **é a Sulista** — é o que os pagamentos
+   mostram;
+2. a SEFAZ só aceita a Sulista nessa posição em **subcontratação ou
+   redespacho** (seção acima);
+3. logo, **prestação normal fica descartada pelos fatos**, não por preferência
+   nossa.
+
+Resta escolher entre as duas. Um dado que talvez ajude: o redespacho pressupõe
+carga já em trânsito, entregue a outro transportador para completar o percurso.
+Nos CT-e de agregado, **apenas 28 de 6.365** (0,4%) registram documento de
+transporte anterior — em praticamente todos, o agregado faz o percurso inteiro,
+não um trecho de cadeia já iniciada.
+
+Com esses elementos, a classificação foi definida como **subcontratação** — o
+que os testes já haviam mostrado ser a única compatível com a operação.
+
+---

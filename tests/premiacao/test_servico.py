@@ -12,12 +12,18 @@ from datetime import datetime
 
 import pytest
 
+from api import credenciais
 from api.gobrax import cliente as gbx
 from api.premiacao import coleta, params, servico
 
 
 @pytest.fixture(autouse=True)
 def _com_token(monkeypatch, tmp_path):
+    # O COFRE VENCE A VARIÁVEL DE AMBIENTE (api/credenciais.py). Sem apontar o
+    # cofre para o tmp_path, "sem token" só limpava METADE das fontes: na
+    # máquina que tem `data/credenciais.json` de verdade — o servidor — o
+    # token continuava valendo e o teste do modo não-configurado falhava.
+    monkeypatch.setattr(credenciais, "CAMINHO", tmp_path / "credenciais.json")
     monkeypatch.setenv("GOBRAX_TOKEN", "token-de-teste")
     monkeypatch.setattr(servico, "SNAP_DIR", tmp_path)
     monkeypatch.setattr(coleta, "SNAP_DIR", tmp_path)
