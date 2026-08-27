@@ -47,13 +47,19 @@ def test_acao_repetida_sai_da_tabela_e_vira_frase():
     """"Coluna que repete o mesmo valor em todas as linhas sai da tabela" ja
     era regra escrita do projeto, e o validador a quebrou: "O que fazer"
     trazia o mesmo texto nas 29 linhas de certificado e nas 8 de inscricao,
-    ocupando 40% da largura para dizer uma coisa so."""
+    ocupando 40% da largura para dizer uma coisa so.
+
+    Colapsa pela acao DOMINANTE e nao so quando todas sao iguais: no recorte
+    de cadastro sao 8 linhas iguais e 1 diferente, e exigir unanimidade
+    devolvia as oito repeticoes.
+    """
     i = HTML.index("function cpValidRender()")
-    corpo = HTML[i:i + 4500]
-    assert "acaoUnica" in corpo
-    assert "cpValidAcao" in corpo
-    # a coluna so e desenhada quando as acoes DIVERGEM
-    assert "(acaoUnica?'':'<th>O que fazer</th>')" in corpo
+    corpo = HTML[i:HTML.index("function cpAutoCarrega()", i)]
+    assert "dominante" in corpo and "cpValidAcao" in corpo
+    # a coluna some por inteiro so quando ha UMA acao; havendo excecao ela
+    # continua, com as repetidas atenuadas
+    assert "(acaoUnica && soUma)" in corpo
+    assert "a mesma acima" in corpo
 
 
 def test_botao_de_cadastro_so_na_categoria_de_certificado():
@@ -61,5 +67,5 @@ def test_botao_de_cadastro_so_na_categoria_de_certificado():
     cadastro de certificado nao resolve nada e contradiz a instrucao da
     propria linha."""
     i = HTML.index("function cpValidRender()")
-    corpo = HTML[i:i + 4500]
+    corpo = HTML[i:HTML.index("function cpAutoCarrega()", i)]
     assert "const pode = a.categoria==='certificado';" in corpo

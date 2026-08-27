@@ -989,6 +989,17 @@ button.avatar{border:0;cursor:pointer}
    10px em "Volume por mês", 0 em "Passivo acumulado" e 8px em "Ler com
    atenção", sobre um padding que não existia. */
 .card>.cpbloco{padding:12px 18px 14px;display:flex;flex-direction:column;gap:10px}
+/* LARGURA DE LEITURA. Num monitor largo o cartao passa de 1600px e a
+   frase corria a linha inteira: 221 caracteres por linha, contra os 60 a
+   90 em que se le sem perder o comeco da linha seguinte. E o que se
+   enxerga como "texto colado na borda" - a borda esta certa, quem esta
+   errada e a medida da linha. Mesmo limite ja usado em `.integ-resumo`.
+   Vale so para PROSA: tabela, grafico e barra continuam usando a largura
+   toda, que e onde ela ajuda.
+   72ch e nao 96ch: medido no navegador, 96ch dava 121 caracteres reais - a
+   unidade `ch` e a largura do zero, mais generosa que a media das letras. Com
+   72ch saem 91, dentro da faixa. */
+.card>.cpbloco>.hint,.card>.cpbloco>p{max-width:72ch}
 
 /* ---- Cronometro da emissao automatica ----
    O numero e MONO e tabular: sem `tabular-nums` cada digito tem largura
@@ -10408,9 +10419,17 @@ function renderCtecp(d){
   if(tx.length){
     const ok=tx.filter(function(t){return t.autorizado;}).length;
     const semXml=k.autorizadas_sem_xml||0;
+    /* O RODAPE CONTAVA A PAGINA E PARECIA O TOTAL: dizia "30 transmissoes ·
+       13 autorizadas · 4 em producao" enquanto o cartao logo acima dizia
+       "38 de 122 autorizadas · producao 2 de 4". Sao os dois certos e os dois
+       falando de coisas diferentes, o que na mesma tela e pior que um errado.
+       Agora ele diz que esta mostrando as ULTIMAS, e o total continua sendo
+       assunto do cartao. "4 em producao" tambem confundia: era tentativa, e do
+       lado da palavra "autorizadas" lia-se como autorizada. */
     document.getElementById('hintCpTx').textContent =
-      tx.length+' '+(tx.length===1?'transmissão':'transmissões')+' · '+ok+
-      ' autorizada'+(ok===1?'':'s')+' · '+(k.emitidas||0)+' em produção'
+      'as '+tx.length+' últimas · '+ok+' autorizada'+(ok===1?'':'s')
+      +' aqui · '+(k.emitidas_producao_autorizadas||0)+' de '+(k.emitidas||0)
+      +' autorizadas em produção no total'
       +(semXml? ' · '+semXml+' sem XML guardado':'');
     document.getElementById('cpTxTab').innerHTML =
       '<thead><tr><th>Quando</th><th>Ambiente</th><th>Série/Nº</th>'
@@ -10567,14 +10586,29 @@ function cpValidRender(){
      40% da largura para dizer uma coisa so. Sendo a acao a mesma para o
      recorte inteiro, ela vira UMA frase acima da tabela; divergindo, a coluna
      volta, porque ai ela informa de verdade. */
-  const acoes = Array.from(new Set(lin.map(function(a){ return a.acao||''; })));
-  const acaoUnica = acoes.length===1 ? acoes[0] : '';
+  /* A regra "so colapsa se TODAS forem iguais" era estrita demais: no recorte
+     de cadastro, 8 linhas trazem a mesma instrucao do SINTEGRA e 1 (a
+     contradicao inversa) traz outra - e a coluna voltava a repetir oito vezes
+     o mesmo paragrafo. Colapsa quando ha UMA acao dominante; a excecao
+     continua na coluna, que e onde ela precisa ser vista. */
+  const conta = {};
+  lin.forEach(function(a){ const k=a.acao||''; conta[k]=(conta[k]||0)+1; });
+  const acoes = Object.keys(conta);
+  const dominante = acoes.sort(function(x,y){ return conta[y]-conta[x]; })[0]||'';
+  const soUma = acoes.length===1;
+  /* dominante so vira frase se cobrir a maioria: cobrindo metade, o leitor
+     acharia que vale para todos */
+  const colapsa = soUma || (lin.length>3 && conta[dominante] > lin.length*0.6);
+  const acaoUnica = colapsa ? dominante : '';
   document.getElementById('cpValidAcao').innerHTML = acaoUnica
-    ? '<b>O que fazer:</b> '+esc(acaoUnica) : '';
+    ? '<b>O que fazer'+(soUma?'':' na maioria')+':</b> '+esc(acaoUnica)
+      +(soUma?'':' <span style="color:var(--n500)">— as demais estão na coluna.</span>')
+    : '';
   document.getElementById('cpValidAcao').hidden = !acaoUnica;
   document.getElementById('cpValidTab').innerHTML=
     '<thead><tr><th>Agregado</th><th>UF</th><th class="num">CT-e</th>'
-    +'<th>O que está errado</th>'+(acaoUnica?'':'<th>O que fazer</th>')
+    +'<th>O que está errado</th>'
+    +((acaoUnica && soUma)?'':'<th>O que fazer</th>')
     +'<th></th></tr></thead><tbody>'
     +lin.map(function(a){
       const rej=a.rejeicao
@@ -10596,7 +10630,11 @@ function cpValidRender(){
         +'<td>'+esc(a.uf||'')+'</td>'
         +'<td class="num">'+(a.ctes||0).toLocaleString('pt-BR')+'</td>'
         +'<td>'+esc(a.defeito||'')+rej+'</td>'
-        +(acaoUnica?'':'<td><span class="hint">'+esc(a.acao||'')+'</span></td>')
+        +((acaoUnica && soUma) ? ''
+           : '<td>'+((a.acao||'')===acaoUnica
+               ? '<span class="hint" style="color:var(--n400)" title="'
+                 +esc(a.acao||'')+'">a mesma acima</span>'
+               : '<span class="hint">'+esc(a.acao||'')+'</span>')+'</td>')
         +'<td>'+(pode
            ? '<button class="gbtn" data-doc="'+esc(a.documento||'')+'"'
              +' onclick="cpAbrir(this.dataset.doc)"'

@@ -4,6 +4,13 @@ Gerado de `docs/versoes.yaml` por `scripts/gerar_changelog.py` — não editar �
 Formato [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/),
 versionamento [SemVer](https://semver.org/lang/pt-BR/).
 
+## [0.113.1] — 27/08/2026  ·  CX-27/08/2026-v0.113.1
+
+### Corrigido
+- Os textos do "Ler com atencao" e do cronometro corriam a largura inteira do cartao: 221 caracteres por linha num monitor largo, contra os 60 a 90 em que se le sem perder o comeco da linha seguinte. Era isso que se enxergava como texto colado na borda - a borda estava certa, errada estava a medida da linha. Agora a prosa para em 72ch (91 caracteres medidos no navegador); tabela e grafico seguem usando a largura toda.
+- O rodape de "Documentos transmitidos" contava as linhas da PAGINA e parecia total: dizia "30 transmissoes · 13 autorizadas · 4 em producao" enquanto o cartao logo acima dizia "38 de 122 autorizadas · producao 2 de 4". Agora ele diz que mostra as ultimas, e o total continua sendo assunto do cartao.
+- No validador, a coluna "O que fazer" voltava a repetir o mesmo paragrafo oito vezes: a regra so colapsava com unanimidade, e no recorte de cadastro ha 8 linhas iguais e 1 diferente. Passou a colapsar pela acao dominante, com a excecao continuando visivel na coluna.
+
 ## [0.113.0] — 27/08/2026  ·  CX-27/08/2026-v0.113.0
 
 ### Corrigido
