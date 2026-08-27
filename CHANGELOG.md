@@ -4,6 +4,15 @@ Gerado de `docs/versoes.yaml` por `scripts/gerar_changelog.py` — não editar �
 Formato [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/),
 versionamento [SemVer](https://semver.org/lang/pt-BR/).
 
+## [0.112.1] — 27/08/2026  ·  CX-27/08/2026-v0.112.1
+
+### Alterado
+- Backup do banco novo virou tarefa agendada de verdade: roda todo dia as 03:20 e guarda 14 dias. O primeiro rodou junto com a instalacao, as 18:32.
+- O contexto do projeto (CLAUDE.md) passou a explicar que sao DOIS bancos PostgreSQL e nao um: a replica do ERP, somente leitura, e o banco da casa onde o sistema escreve. Confundir os dois faz uma consulta do ERP cair no banco errado, e o sintoma e "os numeros sumiram", nao um erro de conexao.
+
+### Corrigido
+- Tres telas ainda diziam que o dado ficava num arquivo local: a Gestao falava em "base local (data/auth.db)", a Previsao citava o previsao.db e o Correio o email.db. Todos migraram para o banco do CORTEX ontem; os textos agora dizem onde o dado esta de verdade. O cache de telemetria continua sendo arquivo, e o texto dele continua certo.
+
 ## [0.112.0] — 27/08/2026  ·  CX-27/08/2026-v0.112.0
 
 ### Adicionado

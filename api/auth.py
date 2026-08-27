@@ -1,7 +1,7 @@
 """CÓRTEX — autenticação, perfis de acesso e auditoria (área de Gestão).
 
-Armazenamento local em SQLite (data/auth.db) — o ERP AVA é somente leitura,
-então usuários/perfis/audit vivem aqui. Senhas com Argon2; sessão via JWT
+Armazenamento no banco local do CÓRTEX (PostgreSQL, schema `cortex`) — o ERP
+AVA é somente leitura, então usuários/perfis/audit vivem aqui. Senhas com Argon2; sessão via JWT
 (HS256, APP_SECRET do .env) em cookie HttpOnly com renovação deslizante.
 
 A permissão é POR TELA do painel (as chaves do objeto VIEWS do frontend).
@@ -245,7 +245,7 @@ def _local_direto(headers: Headers, cliente: str) -> bool:
     return cliente in ("127.0.0.1", "::1") and not headers.get("cf-connecting-ip")
 
 
-# ---------------------------------------------------------------- SQLite
+# ------------------------------------------------- PostgreSQL local (cortex)
 
 def _muitos(c, sql: str, params: list) -> None:
     """`executemany` é do CURSOR, não da conexão — ao contrário de `execute`,

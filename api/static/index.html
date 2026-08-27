@@ -2362,7 +2362,7 @@ body.tvfull #btnReport,body.tvmode #btnReport{display:none}
         <div id="fech-avisos"></div>
         <div class="kpis" id="kpis-fech"></div>
         <div class="grid2">
-          <div class="card"><div class="head"><h2>Evolução da previsão <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="Snapshot diário gravado a cada consulta (data/previsao.db): como o resultado previsto do mês evoluiu conforme o dado chegou. A linha do orçado é a referência fixa da versão vigente.">i</span><span class="hint">resultado previsto por dia · linha = orçado</span></div>
+          <div class="card"><div class="head"><h2>Evolução da previsão <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="Snapshot diário gravado a cada consulta (tabela prev_snapshot do banco do CÓRTEX): como o resultado previsto do mês evoluiu conforme o dado chegou. A linha do orçado é a referência fixa da versão vigente.">i</span><span class="hint">resultado previsto por dia · linha = orçado</span></div>
             <div class="chartwrap narrow"><svg id="chartFechEvol" viewBox="0 0 640 200" preserveAspectRatio="xMidYMid meet" role="img"></svg></div></div>
           <div class="card"><div class="head"><h2>Maiores desvios vs orçado <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="Linhas diretas da DRE com maior |previsto - orçado| do mês. Cor pelo EFEITO no resultado (custo acima do orçado = ruim), não pelo sinal.">i</span><span class="hint">explicar o delta, não só mostrá-lo</span></div>
             <div id="fech-desvios"></div></div>
@@ -3926,7 +3926,7 @@ body.tvfull #btnReport,body.tvmode #btnReport{display:none}
       </section>
       <section class="view" id="view-gestao">
         <div class="card">
-          <div class="head"><h2>Gestão de acesso e segurança <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="Usuários, perfis de acesso, trilha de auditoria e políticas de senha, guardados na base local data/auth.db — não no ERP. Excluir usuário pede confirmação e não pode ser desfeito.">i</span></h2><span class="hint">usuários, perfis, auditoria e políticas · base local (data/auth.db)</span></div>
+          <div class="head"><h2>Gestão de acesso e segurança <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="Usuários, perfis de acesso, trilha de auditoria e políticas de senha, guardados no banco do CÓRTEX (PostgreSQL local, schema cortex) — não no ERP. Excluir usuário pede confirmação e não pode ser desfeito.">i</span></h2><span class="hint">usuários, perfis, auditoria e políticas · banco local do CÓRTEX</span></div>
           <div class="ges-tabs">
             <button class="ghost" id="gtab-usuarios" aria-pressed="true" onclick="gesTab('usuarios')">Usuários</button>
             <button class="ghost" id="gtab-perfis" aria-pressed="false" onclick="gesTab('perfis')">Perfis de acesso</button>
@@ -4091,7 +4091,7 @@ body.tvfull #btnReport,body.tvmode #btnReport{display:none}
             </div>
           </div>
           <div class="card">
-            <div class="head"><h2>Últimos envios <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="Trilha de tudo que o CÓRTEX tentou enviar, gravada em data/email.db. A falha também entra — é o registro dela que responde 'o destinatário diz que não recebeu'.">i</span></h2><span class="hint" id="em-hist-hint">—</span></div>
+            <div class="head"><h2>Últimos envios <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="Trilha de tudo que o CÓRTEX tentou enviar, gravada na tabela correio_envios do banco do CÓRTEX. A falha também entra — é o registro dela que responde 'o destinatário diz que não recebeu'.">i</span></h2><span class="hint" id="em-hist-hint">—</span></div>
             <div class="tablewrap tabroll" id="em-hist"></div>
           </div>
         </div>

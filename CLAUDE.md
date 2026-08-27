@@ -35,6 +35,32 @@ rastreável entra em decisão.
 Um único Postgres é a fonte da verdade. TimescaleDB resolve telemetria de alta cadência
 (hypertables, retenção, downsampling) sem trazer outro banco. Detalhes: `docs/ARQUITETURA.md`.
 
+### Onde o dado é ESCRITO (estado real, 27/08/2026)
+
+São **dois** PostgreSQL, e confundi-los custa caro:
+
+| | Quem é | Como se fala com ele |
+|---|---|---|
+| **AVA (ERP)** | réplica do ERP legado, de terceiro, **somente leitura**, remota | `api/db.py` · variáveis `POSTGRES_*` |
+| **CÓRTEX** | o banco da casa, onde o sistema **escreve**, local, schema `cortex` | `api/pglocal.py` · variáveis `CORTEX_PG_*` |
+
+Toda escrita do CÓRTEX (usuários e RBAC, orçamento, extrato, antecipações,
+previsão, contrapartida, RNTRC, correio, push) vive no segundo. Os dez bancos
+SQLite de `data/` foram migrados para lá em 27/08/2026; os arquivos `.db`
+continuam no disco como desfazer e a Saúde do Servidor os marca como migrados.
+
+**Ao criar módulo novo que escreve:** use `api/pglocal.py`, nunca abra SQLite.
+A tabela leva o **prefixo do módulo** (`fin_*`, `ext_*`, `orc_*`…) e o DDL vira
+uma migration numerada em `sql/cortex/`, aplicada por
+`scripts/migrar_schema.py`. O módulo expõe `ESQUEMA` para o teste redirecionar,
+e o teste usa a fixture `esquema_pg` (schema por teste). Plano, decisões e as
+armadilhas encontradas: **`docs/MIGRACAO_POSTGRES.md`**.
+
+Continuam FORA do banco, de propósito: cache reconstruível
+(`data/telemetria.db`, `data/pneus/`, `data/premiacao/`, `data/dre_cliente/`) e
+segredo em arquivo com permissão 0600 (`data/credenciais.json`, os `.pfx` e
+`data/certificados/senhas.json`).
+
 ---
 
 ## 3. Módulos do portal
@@ -432,8 +458,9 @@ a query ignora sai; dimensão que a query aceita e é a pergunta natural da tela
   agendadas aparecem indisponíveis sem que haja falha. O ⓘ diz isso.
 
 **Orçamento (módulo novo, 2026-07-26):**
-- **Escrita fica em SQLite local** (`data/orcamento.db`), porque o AVA é réplica
-  somente-leitura. Padrão do `auth.db`: conexão curta, WAL, commit automático.
+- **Escrita fica no banco local do CÓRTEX**, porque o AVA é réplica
+  somente-leitura. Nasceu em SQLite e migrou para o PostgreSQL em 27/08/2026,
+  junto com os outros nove — ver "Onde o dado é ESCRITO", na seção 2.
 - **`valor_efetivo = coalesce(valor_ajustado, valor_baseline)`** — regerar o baseline
   nunca apaga ajuste manual. Mesmo princípio do `ajustes_contabeis.json`.
 - **Derivação por mês espelho, não média.** Dezembro cai ~40% na Sulista e há queda

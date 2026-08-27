@@ -1,3 +1,23 @@
+- versao: "0.112.1"
+  data: "2026-08-27"
+  corrigido:
+    - >-
+      Tres telas ainda diziam que o dado ficava num arquivo local: a Gestao
+      falava em "base local (data/auth.db)", a Previsao citava o previsao.db e
+      o Correio o email.db. Todos migraram para o banco do CORTEX ontem; os
+      textos agora dizem onde o dado esta de verdade. O cache de telemetria
+      continua sendo arquivo, e o texto dele continua certo.
+  alterado:
+    - >-
+      Backup do banco novo virou tarefa agendada de verdade: roda todo dia as
+      03:20 e guarda 14 dias. O primeiro rodou junto com a instalacao, as
+      18:32.
+    - >-
+      O contexto do projeto (CLAUDE.md) passou a explicar que sao DOIS bancos
+      PostgreSQL e nao um: a replica do ERP, somente leitura, e o banco da casa
+      onde o sistema escreve. Confundir os dois faz uma consulta do ERP cair no
+      banco errado, e o sintoma e "os numeros sumiram", nao um erro de conexao.
+
 - versao: "0.112.0"
   data: "2026-08-27"
   adicionado:
