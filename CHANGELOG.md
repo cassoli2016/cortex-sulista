@@ -4,6 +4,16 @@ Gerado de `docs/versoes.yaml` por `scripts/gerar_changelog.py` — não editar �
 Formato [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/),
 versionamento [SemVer](https://semver.org/lang/pt-BR/).
 
+## [0.78.0] — 26/08/2026  ·  CX-26/08/2026-v0.78.0
+
+### Adicionado
+- O CT-e de contrapartida passou a montar o grupo de IBS/CBS da Reforma Tributaria, que a SEFAZ comecou a exigir no meio dos testes de hoje. Situacao tributaria, classificacao e aliquotas saem do que o ERP JA calcula - a mesma regra do ICMS, nada inventado. Entrou junto o total do documento eletronico, que a SEFAZ passou a cobrar na mesma leva.
+- A base do IBS/CBS e o valor DESTE documento. Nao se tentou reproduzir a base que o ERP usa no CT-e da Sulista: la o total carrega taxas, pedagio e seguro, e a base observada (R$ 1.340,00 sobre R$ 1.494,02) nao sai de nenhuma combinacao desses componentes - ha uma regra que nao conhecemos. O documento do agregado tem um componente so.
+
+### Corrigido
+- ACHADO QUE PASSA DO NOSSO MODULO: o IBS nao esta configurado no ERP. Existe UMA aliquota cadastrada, zerada, com o imposto marcado como nao configurado - enquanto a CBS ja esta, com 0,9. A SEFAZ recusa aliquota de IBS zerada, e a emissao para com essa explicacao em vez de tentar e levar rejeicao. Vale o alerta: essa mesma configuracao serve a emissao da PROPRIA Sulista no dia em que o orgao ligar a validacao em producao.
+- Comentario dentro de consulta SQL nao pode conter o sinal de porcentagem: o driver o interpreta como marcador de parametro e a consulta nem chega ao banco. Custou uma rodada.
+
 ## [0.77.1] — 26/08/2026  ·  CX-26/08/2026-v0.77.1
 
 ### Corrigido

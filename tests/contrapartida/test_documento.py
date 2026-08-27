@@ -69,6 +69,12 @@ DADOS = {
          "modelo": "55", "numero": 38609},
     ],
     "notas_sem_chave": [],
+    # IBS/CBS: obrigatorio desde 26/08/2026 (cStat 310 sem ele). CST,
+    # classificacao e aliquotas vem do ERP. O IBS-UF aqui esta com 0,1 porque
+    # o cadastro real ainda esta zerado e a SEFAZ recusa zero (316) - o valor
+    # do ERP entra quando o imposto for configurado.
+    "ibs_cst": "000", "ibs_classtrib": "000001",
+    "ibs_p_uf": Decimal("0.1"), "ibs_p_mun": None, "cbs_p": Decimal("0.9"),
 }
 
 # Enquadramento de TESTE. Nao e definicao fiscal — serve so para exercitar a
@@ -492,7 +498,10 @@ def test_isenta_no_erp_vira_grupo_de_isencao_sem_base_nem_aliquota():
     d = dict(DADOS, emit_optante_simples=2, cst_erp="040", aliq_erp=0)
     assert AUTO.icms_de(d) == ("ICMS45", "40", None)
     xml = doc.serializar(doc.montar(d, AUTO, numero=1))
-    assert "<ICMS45>" in xml and "<vBC>" not in xml, (
+    # Escopo IMPORTA: o grupo do IBS/CBS tem base propria e legitima. Procurar
+    # "<vBC>" no XML inteiro acusaria a base do IBS como se fosse a do ICMS.
+    bloco_icms = xml[xml.index("<ICMS>"):xml.index("</ICMS>")]
+    assert "<ICMS45>" in bloco_icms and "<vBC>" not in bloco_icms, (
         "isenta nao tem base de calculo: mandar vBC zerado declara base zero "
         "numa operacao que nao tem base")
 
@@ -528,3 +537,43 @@ def test_grupo_fixo_continua_ignorando_o_erp():
     """Quem fixar o grupo nao quer que o documento decida sozinho."""
     d = dict(DADOS, emit_optante_simples=2, cst_erp="000", aliq_erp=17)
     assert ENQ.icms_de(d) == ("ICMSSN", "90", None)
+
+
+# --- IBS/CBS (Reforma Tributaria) -------------------------------------------
+
+IBS = {}   # DADOS ja carrega a tributacao de IBS/CBS
+
+
+def test_o_grupo_de_ibs_cbs_sai_com_o_que_o_ERP_calcula():
+    """cStat 310 sem ele. CST, classificacao e aliquotas vem do ERP — nada
+    inventado, mesma regra do ICMS."""
+    xml = doc.serializar(doc.montar(dict(DADOS, **IBS), AUTO, numero=1))
+    assert "<IBSCBS>" in xml
+    assert "<CST>000</CST>" in xml and "<cClassTrib>000001</cClassTrib>" in xml
+    assert "<pCBS>0.9000</pCBS>" in xml
+    assert "<vTotDFe>" in xml, "rejeicao 360 veio junto com o IBS/CBS"
+
+
+def test_a_base_do_ibs_cbs_e_o_valor_DESTE_documento():
+    """Nao se tenta reproduzir a base do CT-e da Sulista: la o total carrega
+    taxas, pedagio e seguro. Este documento tem UM componente."""
+    d = dict(DADOS, **IBS)
+    xml = doc.serializar(doc.montar(d, AUTO, numero=1))
+    assert f"<vBC>{doc.valor(d, AUTO)}</vBC>" in xml
+
+
+def test_ibs_zerado_no_erp_PARA_e_explica_que_e_configuracao():
+    """cStat 316. Ha UMA definicao de IBS cadastrada, com 0,0000, e o imposto
+    marcado como nao configurado — escolher um numero aqui seria inventar
+    aliquota."""
+    d = dict(DADOS, **IBS, )
+    d["ibs_p_uf"] = Decimal("0")
+    with pytest.raises(ValueError, match="316"):
+        doc.montar(d, AUTO, numero=1)
+
+
+def test_sem_tributacao_de_ibs_cbs_no_erp_tambem_para():
+    d = dict(DADOS, **IBS)
+    d["ibs_cst"] = None
+    with pytest.raises(ValueError, match="310"):
+        doc.montar(d, AUTO, numero=1)
