@@ -4,6 +4,16 @@ Gerado de `docs/versoes.yaml` por `scripts/gerar_changelog.py` — não editar �
 Formato [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/),
 versionamento [SemVer](https://semver.org/lang/pt-BR/).
 
+## [0.99.0] — 27/08/2026  ·  CX-27/08/2026-v0.99.0
+
+### Adicionado
+- Comecou a migracao dos dez bancos locais para um PostgreSQL na propria maquina, um por vez. O plano inteiro - o que migra, o que nao migra, em que ordem e por que - esta em docs/MIGRACAO_POSTGRES.md. O RNTRC da ANTT e o primeiro: 223 linhas, o menor risco possivel para provar o caminho.
+- A Saude do Servidor ganhou a linha do banco novo, ao lado da replica do ERP e do Oracle da folha. Sao tres bancos agora, e a tela diz qual e qual: sem o banco local configurado a instalacao segue inteira no SQLite (Info); configurado e fora do ar, as telas ja migradas ficam sem dado (Falha, em vermelho).
+- Backup do banco novo com pg_dump e retencao de 14 dias (scripts/backup_cortex.ps1). Enquanto o dado morava em SQLite, backup era copiar um arquivo; o script existe ANTES do primeiro store migrar porque, na ordem inversa, a mudanca pioraria a seguranca do dado - e pioraria calada.
+
+### Alterado
+- Nas telas ja migradas, banco fora do ar deixou de virar "sem base". No RNTRC isso era grave: "sem base" significa "nunca sincronizou", e um modulo de compliance dizendo isso com o banco caido faria parecer que ninguem foi conferido - quando na verdade nada pode ser afirmado. Tabela que ainda nao existe continua sendo base vazia; falha de conexao sobe como erro.
+
 ## [0.98.0] — 27/08/2026  ·  CX-27/08/2026-v0.98.0
 
 ### Adicionado
