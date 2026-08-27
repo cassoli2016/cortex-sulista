@@ -1,5 +1,33 @@
 - versao: "0.93.0"
   data: "2026-08-27"
+  corrigido:
+    - >-
+      O botao de reativar o envio de um agregado nao funcionava - o clique
+      dava erro e nada acontecia. A funcao estava escrita na margem esquerda,
+      mas DENTRO de outra: indentacao nao define escopo, e o clique de um botao
+      e avaliado no escopo global, onde ela nao existia.
+    - >-
+      O registro do cancelamento ficava sem protocolo. O evento REGISTROU na
+      SEFAZ, mas a leitura da resposta procurava um nivel que so existe no
+      retorno de autorizacao - e a segunda tentativa, recusada por duplicidade,
+      trazia o protocolo do primeiro no proprio texto. Agora esse protocolo e
+      extraido, e duplicidade de evento passa a contar como cancelado: o evento
+      existe, so nao foi aquele envio que o criou.
+  adicionado:
+    - >-
+      Botao de CANCELAR em cada documento transmitido e autorizado. Pede a
+      justificativa, confirma antes - cancelar nao se desfaz - e some quando o
+      documento ja esta cancelado, que aparece com marcador proprio.
+    - >-
+      Linhas de evento (cancelamento) aparecem marcadas e ficam fora da
+      contagem de transmissoes: evento nao e documento, e conta-lo junto
+      inflaria a fila e estragaria a taxa de retorno.
+  alterado:
+    - >-
+      O marcador de PRODUCAO nos documentos transmitidos ficou verde.
+
+- versao: "0.93.0"
+  data: "2026-08-27"
   adicionado:
     - >-
       A Saude do Servidor passou a acompanhar tambem a Gobrax e a Monkey. Antes

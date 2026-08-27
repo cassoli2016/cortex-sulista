@@ -272,7 +272,18 @@ def _transmissoes(limite: int = 30) -> dict:
     except Exception as exc:  # noqa: BLE001
         log.warning("serie diaria de transmissoes indisponivel: %s", exc)
         serie_dia = []
+    # Chaves com cancelamento REGISTRADO. O cancelamento entra como linha
+    # propria, com cStat "CANC:<codigo>": 135 e registrado e 631 e duplicidade
+    # de evento, que tambem significa que o evento existe.
+    canceladas = {x.get("chave") for x in linhas
+                  if str(x.get("cstat") or "").startswith("CANC:")
+                  and str(x.get("cstat"))[5:] in ("135", "631")}
     com_xml = [x for x in linhas if x.get("tem_xml")]
+    # Evento (cancelamento) nao e transmissao de documento: contar junto
+    # inflaria a fila e estragaria a taxa de retorno.
+    linhas = [x for x in linhas
+              if not str(x.get("cstat") or "").startswith("CANC:")] + [
+        x for x in linhas if str(x.get("cstat") or "").startswith("CANC:")]
     prod = [x for x in linhas if str(x.get("ambiente")) == "1"]
     homo = [x for x in linhas if str(x.get("ambiente")) == "2"]
     ok = [x for x in linhas if str(x.get("cstat")) == "100"]
@@ -300,6 +311,8 @@ def _transmissoes(limite: int = 30) -> dict:
             "chave": x.get("chave"), "cstat": x.get("cstat"),
             "xmotivo": x.get("xmotivo"), "protocolo": x.get("protocolo"),
             "autorizado": str(x.get("cstat")) == "100",
+            "cancelado": x.get("chave") in canceladas,
+            "evento": str(x.get("cstat") or "").startswith("CANC:"),
             "chave_origem": x.get("chave_origem"),
         } for x in linhas],
     }

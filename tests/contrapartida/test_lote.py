@@ -579,9 +579,8 @@ def test_a_resposta_do_evento_le_infEvento_DIRETO():
     fonte = inspect.getsource(lote.emissao._resposta_evento)
     assert 'getattr(retorno, "infEvento", None)' in fonte
     # so o COMENTARIO pode citar o nivel errado, para explicar o defeito
-    codigo = "
-".join(l for l in fonte.splitlines()
-                       if not l.strip().startswith("#"))
+    codigo = " ".join(l for l in fonte.splitlines()
+                      if not l.strip().startswith("#"))
     assert "retEvento" not in codigo
 
 

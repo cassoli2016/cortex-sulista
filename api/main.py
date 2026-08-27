@@ -611,6 +611,41 @@ async def contrapartida_envio(req: Request) -> JSONResponse:
     return JSONResponse(r)
 
 
+@app.post("/api/fiscal/contrapartida/cancelar")
+async def contrapartida_cancelar(req: Request) -> JSONResponse:
+    """Cancela um CT-e já autorizado. Ato fiscal, com prazo e justificativa.
+
+    Não exige a liberação de produção: liberar existe para impedir que se
+    EMITA sem querer, e exigi-la para cancelar seria pedir para destravar a
+    emissão a fim de corrigir uma emissão.
+    """
+    from api.contrapartida import emissao
+    quem = (getattr(req.state, "sessao", None) or {}).get("email") or ""
+    if not quem:
+        return JSONResponse(status_code=401, content={
+            "erro": "sem_sessao",
+            "mensagem": "Sessão sem e-mail: não dá para registrar o autor."})
+    try:
+        body = await req.json()
+    except Exception:  # noqa: BLE001
+        body = None
+    if not isinstance(body, dict) or not body.get("chave"):
+        return JSONResponse(status_code=422, content={
+            "erro": "parametro_invalido", "mensagem": "Informe a chave."})
+    try:
+        r = emissao.cancelar(str(body["chave"]),
+                             str(body.get("justificativa") or ""), quem=quem)
+    except (ValueError, FileNotFoundError) as exc:
+        return JSONResponse(status_code=422, content={
+            "erro": "parametro_invalido", "mensagem": str(exc)})
+    except Exception as exc:  # noqa: BLE001
+        log.warning("contrapartida_cancelar falhou: %s", exc)
+        return JSONResponse(status_code=500, content={
+            "erro": "erro_cancelamento",
+            "mensagem": f"Falha ao cancelar: {str(exc)[:200]}"})
+    return JSONResponse(r)
+
+
 @app.get("/api/fiscal/contrapartida/documento/{chave}")
 def contrapartida_documento(chave: str) -> Response:
     """Baixa o `cteProc` de um documento transmitido — XML + protocolo.

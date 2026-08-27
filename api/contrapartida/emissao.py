@@ -49,6 +49,7 @@ from __future__ import annotations
 
 import logging
 import pathlib
+import re
 from datetime import date, datetime
 
 from api.contrapartida import cadastro, documento, sefaz
@@ -519,11 +520,26 @@ def _resposta_evento(retorno) -> dict:
         inf = inf[0] if inf else None
     fonte = inf if inf is not None else retorno
     cstat = str(v(fonte, "cStat") or "")
-    return {"cStat": cstat, "xMotivo": str(v(fonte, "xMotivo") or ""),
-            "protocolo": str(v(fonte, "nProt") or "") or None,
-            # 135 = evento registrado; 136 = registrado fora de prazo (vale,
-            # mas nao cancela); qualquer outro nao registrou.
-            "cancelado": cstat == "135"}
+    motivo = str(v(fonte, "xMotivo") or "")
+    prot = str(v(fonte, "nProt") or "") or None
+
+    # DUPLICIDADE DE EVENTO (573/631) significa que o cancelamento JA FOI
+    # registrado - possivelmente por uma tentativa anterior que pareceu
+    # falhar. A SEFAZ devolve o protocolo do evento original no proprio texto,
+    # e ele e a unica prova que sobra: sem extrair, o registro local fica sem
+    # protocolo e o cancelamento parece nao ter acontecido.
+    duplicado = cstat in ("573", "631")
+    if duplicado and not prot:
+        achado = re.search(r"nProt:\s*(\d+)", motivo)
+        if achado:
+            prot = achado.group(1)
+
+    return {"cStat": cstat, "xMotivo": motivo, "protocolo": prot,
+            "duplicado": duplicado,
+            # 135 = evento registrado. 136 e "registrado fora de prazo": vale
+            # como evento e NAO cancela. Duplicidade conta como cancelado
+            # porque o evento existe - so nao foi este envio que o criou.
+            "cancelado": cstat == "135" or duplicado}
 
 
 def _xml_do_protocolo(retorno) -> str | None:

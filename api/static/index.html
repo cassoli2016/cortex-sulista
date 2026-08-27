@@ -9673,20 +9673,6 @@ function renderCtecp(d){
       +(CORFX[f.chave]||'var(--n400)')+';border-radius:5px"></div></div></div>';
   }).join('') : '<div class="hint">Nenhum certificado cadastrado.</div>';
 
-async function cpEnvio(bt){
-  /* Liga/desliga a emissao de UM agregado. O autor sai da sessao no servidor;
-     aqui so vai o que mudou. Recarrega a tela para o estado vir do servidor e
-     nao de uma suposicao do cliente. */
-  try{
-    const r=await fetch('/api/fiscal/contrapartida/envio',{method:'POST',
-      headers:{'Content-Type':'application/json'},
-      body:JSON.stringify({cnpj:bt.dataset.cnpj,
-                           ativo:bt.dataset.liga==='1'})});
-    const d=await r.json();
-    if(!r.ok){ alert(d.mensagem||'Não foi possível mudar o envio.'); return; }
-    loadCtecp();
-  }catch(e){ alert('Falha de rede: '+e.message); }
-}
 
   /* VENCIMENTO DOS CERTIFICADOS. Certificado A1 vale um ano; vencido em
      silencio, a emissao para sozinha. O semaforo e GRADUADO porque "vence em
@@ -9754,7 +9740,8 @@ async function cpEnvio(bt){
       +(semXml? ' · '+semXml+' sem XML guardado':'');
     document.getElementById('cpTxTab').innerHTML =
       '<thead><tr><th>Quando</th><th>Ambiente</th><th>Série/Nº</th>'
-      +'<th>Situação</th><th>Chave</th><th>Protocolo</th><th>Arquivo</th>'
+      +'<th>Situação</th><th>Chave</th><th>Protocolo</th>'
+      +'<th>Cancelamento</th><th>Arquivo</th>'
       +'<th>Quem</th></tr></thead><tbody>'
       +tx.map(function(t){
         /* Verde SO quando a SEFAZ autorizou; todo o resto vermelho. Codigo
@@ -9763,7 +9750,7 @@ async function cpEnvio(bt){
         const b=t.autorizado?'b-ok':'b-dang';
         const amb=t.ambiente==='homologação'
           ? '<span class="badge b-warn" title="Ambiente de teste da SEFAZ: o documento não tem valor fiscal, não é escriturado e não gera obrigação">homologação</span>'
-          : '<span class="badge b-info">produção</span>';
+          : '<span class="badge b-ok">produção</span>';
         /* A chave tem 44 digitos e nao cabe na linha: pontas na celula e a
            inteira no title, que e o que se copia para conferir no portal. */
         const ch=t.chave||'';
@@ -9781,6 +9768,15 @@ async function cpEnvio(bt){
           +esc(t.cstat||'?')+'</span> '+esc(t.xmotivo||'')+'</td>'
           +'<td class="mono" title="'+esc(ch)+'">'+esc(chCurta)+'</td>'
           +'<td class="mono">'+esc(t.protocolo||'—')+'</td>'
+          +'<td>'+(t.evento
+             ? '<span class="hint">evento</span>'
+             : (t.cancelado
+                ? '<span class="badge b-dang" title="Documento cancelado — o evento está registrado na SEFAZ">cancelado</span>'
+                : (t.autorizado
+                   ? '<button class="gbtn" data-chave="'+esc(ch)+'" onclick="cpCancelar(this)"'
+                     +' title="Cancela o documento na SEFAZ. Ato fiscal com prazo: passado o prazo da UF não se cancela mais.">cancelar</button>'
+                   : '<span class="hint">—</span>')))
+          +'</td>'
           +'<td>'+arq+(t.tem_xml
              ? ' <a class="badge b-info" style="text-decoration:none" '
                +'href="/api/fiscal/contrapartida/documento/'+esc(ch)+'" '
@@ -9794,6 +9790,55 @@ async function cpEnvio(bt){
   document.getElementById('cpAvisosCard').hidden = !av.length;
   document.getElementById('cpAvisos').innerHTML =
     av.map(function(a){ return '<div class="hint">'+esc(a)+'</div>'; }).join('');
+}
+
+async function cpCancelar(bt){
+  /* Cancelamento e ato fiscal com PRAZO e justificativa. Pede o motivo, valida
+     o tamanho AQUI so para nao gastar uma ida ao servidor - quem valida de
+     verdade e a SEFAZ - e confirma antes, porque cancelar nao se desfaz.
+     Sem escape de quebra de linha nas mensagens: ele ja se perdeu uma vez no
+     caminho ate o arquivo e derrubou o script inteiro. */
+  const QUEBRA=String.fromCharCode(10);
+  const just=prompt('Justificativa do cancelamento (mínimo 15 caracteres).'
+    +QUEBRA+'Ela fica no evento e é o que alguém vai ler daqui a um ano:');
+  if(just===null) return;
+  if((just||'').trim().length<15){
+    alert('A justificativa precisa de ao menos 15 caracteres.'); return; }
+  if(!confirm('Cancelar este documento na SEFAZ?'+QUEBRA+QUEBRA
+      +'O cancelamento é definitivo e tem prazo: depois do prazo da UF o '
+      +'documento não se cancela mais.')) return;
+  bt.disabled=true; bt.textContent='Cancelando…';
+  try{
+    const r=await fetch('/api/fiscal/contrapartida/cancelar',{method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({chave:bt.dataset.chave, justificativa:just})});
+    const d=await r.json();
+    if(!r.ok){ alert(d.mensagem||'Não foi possível cancelar.');
+               bt.disabled=false; bt.textContent='cancelar'; return; }
+    alert((d.cancelado?'Cancelado. ':'NÃO cancelado. ')
+          +'Retorno '+d.cStat+' — '+d.xMotivo);
+    loadCtecp();
+  }catch(e){ alert('Falha de rede: '+e.message);
+             bt.disabled=false; bt.textContent='cancelar'; }
+}
+
+/* NIVEL GLOBAL, e nao dentro do render: `onclick` de atributo e
+   avaliado no escopo GLOBAL. Escrita na coluna zero mas DENTRO de
+   outra funcao, esta virava local e o clique dava "cpEnvio is not
+   defined" - indentacao nao define escopo. */
+async function cpEnvio(bt){
+  /* Liga/desliga a emissao de UM agregado. O autor sai da sessao no servidor;
+     aqui so vai o que mudou. Recarrega a tela para o estado vir do servidor e
+     nao de uma suposicao do cliente. */
+  try{
+    const r=await fetch('/api/fiscal/contrapartida/envio',{method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({cnpj:bt.dataset.cnpj,
+                           ativo:bt.dataset.liga==='1'})});
+    const d=await r.json();
+    if(!r.ok){ alert(d.mensagem||'Não foi possível mudar o envio.'); return; }
+    loadCtecp();
+  }catch(e){ alert('Falha de rede: '+e.message); }
 }
 
 async function loadPoli(fundo){
