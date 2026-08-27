@@ -494,6 +494,7 @@ def test_nao_optante_aproveita_a_CST_e_a_ALIQUOTA_que_o_ERP_calculou():
     assert (grupo, cst) == ("ICMS00", "00") and aliq == Decimal("12")
 
 
+@precisa_fiscal
 def test_isenta_no_erp_vira_grupo_de_isencao_sem_base_nem_aliquota():
     d = dict(DADOS, emit_optante_simples=2, cst_erp="040", aliq_erp=0)
     assert AUTO.icms_de(d) == ("ICMS45", "40", None)
@@ -544,6 +545,7 @@ def test_grupo_fixo_continua_ignorando_o_erp():
 IBS = {}   # DADOS ja carrega a tributacao de IBS/CBS
 
 
+@precisa_fiscal
 def test_o_grupo_de_ibs_cbs_sai_com_o_que_o_ERP_calcula():
     """cStat 310 sem ele. CST, classificacao e aliquotas vem do ERP — nada
     inventado, mesma regra do ICMS."""
@@ -554,6 +556,7 @@ def test_o_grupo_de_ibs_cbs_sai_com_o_que_o_ERP_calcula():
     assert "<vTotDFe>" in xml, "rejeicao 360 veio junto com o IBS/CBS"
 
 
+@precisa_fiscal
 def test_a_base_do_ibs_cbs_e_o_valor_DESTE_documento():
     """Nao se tenta reproduzir a base do CT-e da Sulista: la o total carrega
     taxas, pedagio e seguro. Este documento tem UM componente."""
@@ -562,6 +565,7 @@ def test_a_base_do_ibs_cbs_e_o_valor_DESTE_documento():
     assert f"<vBC>{doc.valor(d, AUTO)}</vBC>" in xml
 
 
+@precisa_fiscal
 def test_ibs_zerado_no_erp_PARA_e_explica_que_e_configuracao():
     """cStat 316. Ha UMA definicao de IBS cadastrada, com 0,0000, e o imposto
     marcado como nao configurado — escolher um numero aqui seria inventar
@@ -572,8 +576,46 @@ def test_ibs_zerado_no_erp_PARA_e_explica_que_e_configuracao():
         doc.montar(d, AUTO, numero=1)
 
 
+@precisa_fiscal
 def test_sem_tributacao_de_ibs_cbs_no_erp_tambem_para():
     d = dict(DADOS, **IBS)
     d["ibs_cst"] = None
     with pytest.raises(ValueError, match="310"):
         doc.montar(d, AUTO, numero=1)
+
+
+def test_TODO_teste_que_monta_documento_tem_o_marcador():
+    """Guarda que existe porque faltou.
+
+    Cinco testes novos chamavam `doc.montar()` sem `@precisa_fiscal`. Local
+    passava - o grupo `fiscal` estava instalado - e o CI, que roda `uv sync
+    --group test` como producao, ficou VERMELHO em todo push. O aviso chegou
+    por e-mail, nao pela suite.
+
+    Varre a arvore sintatica: toda funcao de teste que alcanca `montar` ou
+    `serializar` precisa do marcador.
+    """
+    import ast
+
+    fonte = open(__file__, encoding="utf-8").read()
+    arvore = ast.parse(fonte)
+    faltando = []
+    for no in arvore.body:
+        if not isinstance(no, ast.FunctionDef) or not no.name.startswith("test_"):
+            continue
+        # CHAMA, nao apenas menciona: `inspect.signature(doc.montar)` nao
+        # executa nada e nao precisa do grupo.
+        chama = any(isinstance(n, ast.Call) and isinstance(n.func, ast.Attribute)
+                    and n.func.attr in ("montar", "serializar")
+                    for n in ast.walk(no))
+        # `@precisa_fiscal` ou qualquer skipif proprio servem: o que importa e
+        # o teste NAO rodar sem o grupo.
+        protegido = any(
+            (isinstance(d, ast.Name) and d.id == "precisa_fiscal")
+            or "skipif" in ast.dump(d)
+            for d in no.decorator_list)
+        if chama and not protegido:
+            faltando.append(no.name)
+    assert not faltando, (
+        "sem @precisa_fiscal, estes quebram o CI (que roda sem o grupo "
+        "fiscal, como producao): " + ", ".join(faltando))

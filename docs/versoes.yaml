@@ -1,3 +1,19 @@
+- versao: "0.85.1"
+  data: "2026-08-27"
+  corrigido:
+    - >-
+      O GitHub mandava e-mail de falha a cada envio. Cinco testes novos, os do
+      IBS/CBS, montavam o documento sem o marcador que os faz pular quando as
+      bibliotecas fiscais nao estao instaladas. Aqui na maquina passavam,
+      porque o grupo esta instalado; no servidor de testes - que instala
+      exatamente o que producao instala - quebravam todos. O aviso chegou por
+      e-mail, nao pela suite, que e o pior jeito de descobrir.
+    - >-
+      Entrou uma guarda que le a propria suite e acusa qualquer teste que monte
+      documento sem estar protegido. Ela distingue CHAMAR de mencionar - um
+      teste que so inspeciona a assinatura da funcao nao precisa das
+      bibliotecas - e aceita tanto o marcador quanto um pulo proprio.
+
 - versao: "0.85.0"
   data: "2026-08-27"
   adicionado:

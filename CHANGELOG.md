@@ -4,6 +4,12 @@ Gerado de `docs/versoes.yaml` por `scripts/gerar_changelog.py` — não editar �
 Formato [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/),
 versionamento [SemVer](https://semver.org/lang/pt-BR/).
 
+## [0.85.1] — 27/08/2026  ·  CX-27/08/2026-v0.85.1
+
+### Corrigido
+- O GitHub mandava e-mail de falha a cada envio. Cinco testes novos, os do IBS/CBS, montavam o documento sem o marcador que os faz pular quando as bibliotecas fiscais nao estao instaladas. Aqui na maquina passavam, porque o grupo esta instalado; no servidor de testes - que instala exatamente o que producao instala - quebravam todos. O aviso chegou por e-mail, nao pela suite, que e o pior jeito de descobrir.
+- Entrou uma guarda que le a propria suite e acusa qualquer teste que monte documento sem estar protegido. Ela distingue CHAMAR de mencionar - um teste que so inspeciona a assinatura da funcao nao precisa das bibliotecas - e aceita tanto o marcador quanto um pulo proprio.
+
 ## [0.85.0] — 27/08/2026  ·  CX-27/08/2026-v0.85.0
 
 ### Adicionado
