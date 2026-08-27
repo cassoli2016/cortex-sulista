@@ -4,6 +4,12 @@ Gerado de `docs/versoes.yaml` por `scripts/gerar_changelog.py` — não editar �
 Formato [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/),
 versionamento [SemVer](https://semver.org/lang/pt-BR/).
 
+## [0.77.1] — 26/08/2026  ·  CX-26/08/2026-v0.77.1
+
+### Corrigido
+- A tela de CT-e de Contrapartida abria com "Erro ao montar a conciliacao". Ao acrescentar a contagem de transmissoes, a linha que faz esse calculo nao entrou no lugar certo - o resultado era usado sem existir, e a tela inteira caia. Quem encontrou foi o usuario, no celular.
+- A suite passava com 209 testes verdes. O motivo e que os testes exercitavam as PECAS da tela - formatacao, avisos, serializacao - e nenhum chamava a montagem inteira, que e o que a tela chama. Entrou teste que roda o caminho todo com o banco simulado e serializa o resultado, mais um que derruba de proposito o registro de transmissoes para garantir que a conciliacao continua aparecendo sem ele.
+
 ## [0.77.0] — 26/08/2026  ·  CX-26/08/2026-v0.77.0
 
 ### Adicionado

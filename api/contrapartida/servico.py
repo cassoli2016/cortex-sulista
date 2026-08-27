@@ -207,6 +207,7 @@ def get_contrapartida(de: str | None = None, ate: str | None = None,
 
 
 
+    _tx = _transmissoes()
     return {
         "periodo": {"de": d_de, "ate": d_ate, "busca": busca or ""},
         "kpis": {

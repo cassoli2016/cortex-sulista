@@ -374,3 +374,41 @@ def test_a_lista_de_pendencias_vai_PRONTA_para_a_tela():
     # o front nao pode montar a lista de novo
     assert "['razão social',x.nome]" not in html
     assert "const falta=(x.falta||[]);" in html
+
+
+def test_a_MONTAGEM_INTEIRA_roda_e_serializa(monkeypatch):
+    """Guarda de integracao, e ela existe porque faltou.
+
+    Um NameError dentro de `get_contrapartida` foi para producao e quem
+    encontrou foi o usuario, com a tela dizendo "Erro ao montar a
+    conciliacao". A suite passava: os testes exercitavam `_serial`, `_br`,
+    `_avisos` — cada peca — e NENHUM chamava a funcao que a tela chama.
+
+    Este roda o caminho todo com o banco mockado e serializa o resultado, que
+    e exatamente o que a rota faz.
+    """
+    import json
+
+    monkeypatch.setattr(servico.db, "query", lambda *a, **k: [])
+    monkeypatch.setattr("api.contrapartida.cadastro.mapa", lambda: {})
+    monkeypatch.setattr("api.contrapartida.emissao.historico",
+                        lambda limite=30: [])
+    r = servico.get_contrapartida()
+    assert {"periodo", "kpis", "emissoes", "por_agregado"} <= set(r)
+    json.dumps(r)
+
+
+def test_a_montagem_sobrevive_ao_historico_fora_do_ar(monkeypatch):
+    """O registro de transmissoes e acessorio: se ele cair, a conciliacao —
+    que e o motivo da tela existir — tem de continuar aparecendo."""
+    import json
+
+    def explode(limite=30):
+        raise RuntimeError("registro fora")
+
+    monkeypatch.setattr(servico.db, "query", lambda *a, **k: [])
+    monkeypatch.setattr("api.contrapartida.cadastro.mapa", lambda: {})
+    monkeypatch.setattr("api.contrapartida.emissao.historico", explode)
+    r = servico.get_contrapartida()
+    assert r["emissoes"] == [] and r["kpis"]["emitidas"] == 0
+    json.dumps(r)
