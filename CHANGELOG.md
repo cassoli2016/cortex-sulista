@@ -4,6 +4,17 @@ Gerado de `docs/versoes.yaml` por `scripts/gerar_changelog.py` — não editar �
 Formato [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/),
 versionamento [SemVer](https://semver.org/lang/pt-BR/).
 
+## [0.92.0] — 27/08/2026  ·  CX-27/08/2026-v0.92.0
+
+### Adicionado
+- Cancelamento de CT-e ja autorizado. Ato fiscal com PRAZO: passado o prazo da UF o documento nao se cancela mais, e resolve-se por outros meios, mais caros. A justificativa tem minimo de 15 caracteres - exigencia da SEFAZ, e o que alguem vai ler daqui a um ano para entender por que o documento caiu.
+- Cancelar NAO exige a liberacao de producao. Liberar existe para impedir que se EMITA sem querer; exigi-la para cancelar seria pedir para destravar a emissao a fim de corrigir uma emissao. Desfazer tem de ser mais facil que fazer.
+- O ambiente do cancelamento sai do REGISTRO do documento, nao de quem chama: cancelar em homologacao um documento de producao nao faz nada e daria a impressao de ter resolvido.
+- O CT-e emitido em duplicidade foi CANCELADO e a SEFAZ confirmou: consultado o documento, o duplicado responde "cancelamento homologado" e o valido segue autorizado.
+
+### Corrigido
+- A leitura da resposta do evento procurava um nivel que so existe no retorno de autorizacao. O cancelamento REGISTROU na SEFAZ e o sistema leu como falha - a segunda tentativa e que revelou, ao ser recusada por duplicidade de evento. Falha silenciosa que dizia o contrario do que acontecera.
+
 ## [0.91.0] — 27/08/2026  ·  CX-27/08/2026-v0.91.0
 
 ### Adicionado

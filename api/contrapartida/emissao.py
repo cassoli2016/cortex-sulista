@@ -52,6 +52,7 @@ import pathlib
 from datetime import date, datetime
 
 from api.contrapartida import cadastro, documento, sefaz
+from api.contrapartida.cadastro import DIR_CERT, ler_senha, mapa
 
 log = logging.getLogger("cortex.contrapartida.emissao")
 
@@ -423,6 +424,106 @@ def transmitir(chave_origem: str, enq: documento.Enquadramento, *, quem: str,
     _registra(quem, ambiente, cnpj, serie, numero, chave,
               d["chave_original"], resp, xml_assinado, xml_prot)
     return resp
+
+
+# Justificativa de cancelamento tem minimo legal de 15 caracteres. O limite
+# nao e capricho do sistema: e o que a SEFAZ valida, e uma justificativa de
+# tres palavras nao explica nada a quem ler o evento daqui a um ano.
+JUSTIFICATIVA_MINIMA = 15
+
+
+def cancelar(chave: str, justificativa: str, *, quem: str,
+             ambiente: str | None = None) -> dict:
+    """Cancela um CT-e JA AUTORIZADO. Ato fiscal, com prazo e justificativa.
+
+    NAO exige a liberacao de producao. Liberar existe para impedir que se
+    EMITA sem querer; exigi-la para CANCELAR seria pedir para destravar a
+    emissao a fim de corrigir uma emissao — o contrario do que se quer numa
+    hora dessas. Desfazer tem de ser sempre mais facil que fazer.
+
+    O ambiente sai do REGISTRO do documento, não de quem chama: cancelar em
+    homologacao um documento de producao nao faz nada e daria a impressao de
+    ter resolvido.
+    """
+    from erpbrasil.assinatura.certificado import Certificado
+    from erpbrasil.transmissao import TransmissaoSOAP
+
+    if not quem:
+        raise ValueError("Informe quem está cancelando.")
+    justificativa = " ".join((justificativa or "").split())
+    if len(justificativa) < JUSTIFICATIVA_MINIMA:
+        raise ValueError(
+            f"A justificativa precisa de ao menos {JUSTIFICATIVA_MINIMA} "
+            f"caracteres — é o que a SEFAZ exige, e é o que alguém vai ler "
+            f"daqui a um ano para entender por que o documento caiu.")
+
+    limpa = "".join(c for c in (chave or "") if c.isdigit())
+    with _conn() as c:
+        r = c.execute(
+            "SELECT * FROM emissao WHERE chave=? AND cstat='100'"
+            " ORDER BY id DESC LIMIT 1", (limpa,)).fetchone()
+    if not r:
+        raise ValueError(
+            f"Não há documento AUTORIZADO com a chave {limpa} no registro. "
+            f"Só se cancela o que foi autorizado — recusado não existe para "
+            f"a SEFAZ.")
+    reg = dict(r)
+    amb = ambiente or str(reg["ambiente"])
+    cnpj = reg["cnpj_emitente"]
+
+    cte_mod = sefaz.compatibilizar()
+    senha = ler_senha(cnpj)
+    arq = DIR_CERT / ((mapa().get(cnpj, {}).get("certificado") or {}).get(
+        "arquivo") or "")
+    if not (senha and arq.exists()):
+        raise FileNotFoundError(f"Certificado ou senha ausentes para {cnpj}.")
+    uf = limpa[:2]
+    sigla = next((k for k, v in cte_mod.SIGLA_ESTADO.items()
+                  if str(v) == uf), None)
+    if not sigla:
+        raise ValueError(f"UF {uf} da chave não reconhecida.")
+
+    doc = cte_mod.CTe(TransmissaoSOAP(Certificado(str(arq), senha)),
+                      cte_mod.SIGLA_ESTADO[sigla], ambiente=amb)
+    evento = doc.cancela_documento(limpa, reg["protocolo"], justificativa)
+    retorno = doc.enviar_lote_evento([evento])
+    resp = _resposta_evento(retorno)
+
+    with _conn() as c:
+        c.execute(
+            "INSERT INTO emissao(quando, quem, ambiente, cnpj_emitente, serie,"
+            " numero, chave, chave_origem, cstat, xmotivo, protocolo)"
+            " VALUES(?,?,?,?,?,?,?,?,?,?,?)",
+            (datetime.now().isoformat(timespec="seconds"), quem, amb, cnpj,
+             reg["serie"], reg["numero"], limpa, reg["chave_origem"],
+             f"CANC:{resp.get('cStat')}", resp.get("xMotivo"),
+             resp.get("protocolo")))
+        cadastro._audita(c, quem, "cancelamento", cnpj,
+                         f"{limpa} · {resp.get('cStat')} · {justificativa}")
+    resp.update({"chave": limpa, "justificativa": justificativa,
+                 "ambiente": amb})
+    return resp
+
+
+def _resposta_evento(retorno) -> dict:
+    """Retorno do evento. 135 e 'registrado', que e o que vale."""
+    def v(obj, campo):
+        x = getattr(obj, campo, None)
+        return getattr(x, "value", x)
+
+    # `RetEventoCte` traz `infEvento` DIRETO - nao ha nivel `retEvento` como
+    # no retorno da autorizacao. Procurando o nivel errado, cStat vinha vazio
+    # e o cancelamento parecia ter falhado em silencio, sem dizer por que.
+    inf = getattr(retorno, "infEvento", None)
+    if isinstance(inf, list):
+        inf = inf[0] if inf else None
+    fonte = inf if inf is not None else retorno
+    cstat = str(v(fonte, "cStat") or "")
+    return {"cStat": cstat, "xMotivo": str(v(fonte, "xMotivo") or ""),
+            "protocolo": str(v(fonte, "nProt") or "") or None,
+            # 135 = evento registrado; 136 = registrado fora de prazo (vale,
+            # mas nao cancela); qualquer outro nao registrou.
+            "cancelado": cstat == "135"}
 
 
 def _xml_do_protocolo(retorno) -> str | None:

@@ -528,3 +528,68 @@ def test_repetir_e_EXPLICITO_e_avisa_do_primeiro():
     # a frase esta na mensagem da guarda, que fica em `transmitir`
     fonte = inspect.getsource(lote.emissao)
     assert "continua valendo até ser" in fonte
+
+
+# --- cancelamento -----------------------------------------------------------
+
+def test_cancelar_NAO_exige_a_liberacao_de_producao():
+    """Liberar existe para impedir que se EMITA sem querer. Exigi-la para
+    CANCELAR seria pedir para destravar a emissao a fim de corrigir uma
+    emissao - desfazer tem de ser mais facil que fazer."""
+    import inspect
+    fonte = inspect.getsource(lote.emissao.cancelar)
+    assert "producao_liberada" not in fonte
+    assert "_guardas" not in fonte
+
+
+def test_justificativa_tem_minimo():
+    """Minimo legal, e nao capricho: e o que a SEFAZ valida - e o que alguem
+    vai ler daqui a um ano para entender por que o documento caiu."""
+    assert lote.emissao.JUSTIFICATIVA_MINIMA == 15
+    with pytest.raises(ValueError, match="15"):
+        lote.emissao.cancelar("352608", "curta", quem="x")
+
+
+def test_so_cancela_o_que_foi_AUTORIZADO():
+    """Recusado nao existe para a SEFAZ - nao ha o que cancelar."""
+    with pytest.raises(ValueError, match="AUTORIZADO"):
+        lote.emissao.cancelar("35260846929365000104579000000000991737520892",
+                              "justificativa suficientemente longa", quem="x")
+
+
+def test_cancelar_exige_autor():
+    with pytest.raises(ValueError, match="Informe quem"):
+        lote.emissao.cancelar("352608", "justificativa longa o bastante",
+                              quem="")
+
+
+def test_o_ambiente_do_cancelamento_sai_do_REGISTRO():
+    """Cancelar em homologacao um documento de PRODUCAO nao faz nada e daria a
+    impressao de ter resolvido."""
+    import inspect
+    fonte = inspect.getsource(lote.emissao.cancelar)
+    assert 'amb = ambiente or str(reg["ambiente"])' in fonte
+
+
+def test_a_resposta_do_evento_le_infEvento_DIRETO():
+    """`RetEventoCte` nao tem o nivel `retEvento` do retorno de autorizacao.
+    Procurando o nivel errado, o cStat vinha vazio e o cancelamento parecia
+    ter falhado em silencio - quando tinha funcionado."""
+    import inspect
+    fonte = inspect.getsource(lote.emissao._resposta_evento)
+    assert 'getattr(retorno, "infEvento", None)' in fonte
+    # so o COMENTARIO pode citar o nivel errado, para explicar o defeito
+    codigo = "
+".join(l for l in fonte.splitlines()
+                       if not l.strip().startswith("#"))
+    assert "retEvento" not in codigo
+
+
+def test_135_e_o_unico_que_cancela():
+    """136 e "registrado fora de prazo": vale como evento e NAO cancela."""
+    assert lote.emissao._resposta_evento(
+        type("R", (), {"infEvento": type("I", (), {"cStat": "135"})()})()
+    )["cancelado"] is True
+    assert lote.emissao._resposta_evento(
+        type("R", (), {"infEvento": type("I", (), {"cStat": "136"})()})()
+    )["cancelado"] is False
