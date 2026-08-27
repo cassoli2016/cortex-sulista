@@ -12,6 +12,18 @@ versionamento [SemVer](https://semver.org/lang/pt-BR/).
 - O e-mail e desenhado com as cores e a hierarquia do painel, mas montado com as regras de e-mail: tabela em vez de grade, estilo em cada elemento, 600px de largura e nenhuma imagem externa - Outlook desenha com o motor do Word e Gmail descarta folha de estilo, e sem isso a mensagem chega sem formatacao nenhuma.
 - Agendamento nasce DESLIGADO, a passagem da rotina e marcada mesmo quando nao ha o que enviar, e relatorio atrasado sai uma vez dentro de uma janela de 4 horas - depois disso nao sai, porque relatorio da manha chegando a noite ensina a ignorar o remetente. Sao as mesmas guardas que a emissao automatica de contrapartida pagou caro para aprender.
 
+## [0.110.0] — 27/08/2026  ·  CX-27/08/2026-v0.110.0
+
+### Adicionado
+- Tela nova, "Bancos", no Financeiro: quanto ha em cada instituicao, por onde entra o dinheiro e quanto cada banco cobra por isso. A tela de Extrato Bancario responde outra pergunta - se o ERP bate com o banco - e as duas estavam nos mesmos oito cartoes: quem abria para decidir onde deixar o dinheiro atravessava cinco cartoes de conferencia antes de chegar ao numero. O cartao de saldo mudou de lugar; o Extrato ficou so com a conciliacao.
+- O CUSTO BANCARIO passou a ser medido: tarifas, IOF e juros cobrados pelo banco, direto das linhas do extrato. Em agosto foram R$ 46,3 mil em 26 dias, e 86,5% disso e juro de limite - seis lancamentos. A tela mostra o ritmo anualizado ao lado, projetado a partir do periodo escolhido (nao e x12 cego: o filtro pode trazer meio mes).
+- A tabela por banco e ordenada por CUSTO POR R$ MIL RECEBIDO, nao por valor absoluto - e o denominador que denuncia. Em valor absoluto o Sicredi (R$ 1.659) parece barato ao lado do Itau (R$ 36.935); por R$ mil movimentado ele consome 35% de tudo que passa por la. E o Itau e o Bradesco movimentam quase o mesmo, com o Itau custando 125 vezes mais. Clicar na linha abre a quebra do custo por natureza.
+- Grafico do saldo consolidado por dia, com a COBERTURA de cada ponto. Nem todo banco manda saldo diario: Itau, Safra e C6 mandam (19, 18 e 12 dias em agosto), Caixa, Santander e Sicredi mandam so o saldo final do arquivo e o resto e derivado por soma, e o Bradesco nao manda nenhum utilizavel. Dia com cobertura parcial sai hachurado e diz isso no tooltip - dia com menos conta medida nao e dia com menos dinheiro, e sem a marca o grafico inventaria uma queda de caixa.
+- Alertas com o numero medido em cada frase: conta que consome fatia grande do que movimenta, conta que pagou juros de limite, conta fora do saldo consolidado e conta com extrato atrasado.
+
+### Alterado
+- O rotulo do saldo passou a ser "Saldo em conta corrente", e nao "Total nos bancos". Nao e preciosismo: o dinheiro varrido para aplicacao NAO aparece - nenhum dos sete arquivos traz saldo de investimento e o ERP nao tem tabela de aplicacao. O unico banco que denuncia o tamanho disso e o Safra, que reporta R$ 10.502,92 de posicao consolidada contra R$ 657,38 na conta. Chamar isso de "total nos bancos" seria mentira por omissao.
+
 ## [0.109.1] — 27/08/2026  ·  CX-27/08/2026-v0.109.1
 
 ### Corrigido

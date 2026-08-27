@@ -1331,6 +1331,7 @@ body.tvfull #btnReport,body.tvmode #btnReport{display:none}
       </button>
       <div class="subs closed" id="subsFin">
         <a href="#antec" class="sub" data-view="antec" title="Antecipação de Recebíveis — quanto antecipar para o caixa não furar"><span class="ic" data-ic="antecic"></span><span>Antecipação</span></a>
+        <a href="#banc" class="sub" data-view="banc" title="Bancos — saldo, volume e custo por instituição"><span class="ic" data-ic="bancic"></span><span>Bancos</span></a>
         <a href="#cob" class="sub" data-view="cob" title="Régua de Cobrança"><span class="ic" data-ic="cob"></span><span>Cobrança</span></a>
         <a href="#pagar" class="sub" data-view="pagar" title="Contas a Pagar"><span class="ic" data-ic="pag"></span><span>Contas a Pagar</span></a>
         <a href="#receber" class="sub" data-view="receber" title="Contas a Receber"><span class="ic" data-ic="rec"></span><span>Contas a Receber</span></a>
@@ -2460,6 +2461,40 @@ body.tvfull #btnReport,body.tvmode #btnReport{display:none}
         </div>
       </section>
 
+      <!-- ===================== BANCOS ===================== -->
+      <section class="view" id="view-banc">
+        <div class="card">
+          <div class="head"><h2>Bancos <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="Extrato importado (ext_lancamento e ext_saldo), sem passar pelo ERP exceto na coluna de saldo do ERP. O SALDO aqui é o de CONTA CORRENTE: dinheiro varrido para aplicação NÃO aparece — nenhum dos arquivos traz saldo de investimento e o ERP não tem tabela de aplicação. O único banco que denuncia o tamanho disso é o Safra, que manda R$ 10.502,92 de posição consolidada contra R$ 657,38 na conta.">i</span></h2>
+            <span class="hint" id="hintBanc">saldo, volume e custo por instituição</span>
+          </div>
+          <div class="cardfilters" id="banc-filtros">
+            <input type="text" id="fBancDe" placeholder="Data inicial" inputmode="numeric" aria-label="Data inicial">
+            <input type="text" id="fBancAte" placeholder="Data final" inputmode="numeric" aria-label="Data final">
+            <button class="ghost" onclick="loadBanc()">Aplicar</button>
+          </div>
+        </div>
+        <div class="kpis k4" id="kpis-banc"></div>
+        <div class="card">
+          <div class="head"><h2>Saldo consolidado por dia <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="Soma do saldo das contas que têm saldo CONHECIDO naquele dia. A cobertura muda de dia para dia e vai no rótulo de cada ponto: Itaú, Safra e C6 mandam saldo diário (19, 18 e 12 âncoras em agosto); Caixa, Santander e Sicredi mandam um só, o saldo final do arquivo, e o resto é derivado por soma; o Bradesco não manda nenhum utilizável. Dia com cobertura parcial NÃO é dia com menos dinheiro — é dia com menos conta medida.">i</span></h2>
+            <span class="hint" id="hintBancSerie"></span></div>
+          <div id="banc-serie"></div>
+        </div>
+        <div class="card">
+          <div class="head"><h2>Por onde entra o dinheiro <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="Soma dos créditos do período por instituição, e o custo que cada uma cobrou por esse volume. Barra ordenada, não rosca: um banco domina o recebimento e parte-do-todo com categoria dominante fica ilegível em rosca.">i</span></h2>
+            <span class="hint" id="hintBancVol"></span></div>
+          <div id="banc-vol"></div>
+        </div>
+        <div class="card">
+          <div class="head"><h2>Custo por banco <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="Ordenada por CUSTO POR R$ MIL RECEBIDO, não por valor absoluto — é o denominador que denuncia. Em valor absoluto o Sicredi (R$ 1.659) parece barato ao lado do Itaú (R$ 36.935); por R$ mil movimentado, ele consome 35% de tudo que passa por lá. Clique numa linha para ver a quebra do custo por natureza.">i</span></h2>
+            <span class="hint" id="hintBancTab"></span></div>
+          <div id="banc-tab"></div>
+        </div>
+        <div class="card">
+          <div class="head"><h2>O que exige ação <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="Cada alerta carrega o número medido que o sustenta — alerta sem número é opinião.">i</span></h2></div>
+          <div id="banc-alertas"></div>
+        </div>
+      </section>
+
       <!-- ===================== EXTRATO BANCÁRIO ===================== -->
       <section class="view" id="view-extb">
         <div class="card">
@@ -2474,12 +2509,6 @@ body.tvfull #btnReport,body.tvmode #btnReport{display:none}
           </div>
         </div>
         <div id="extb-aviso"></div>
-        <div class="card">
-          <div class="head"><h2>Saldo nos bancos <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="Posição de cada conta segundo o EXTRATO importado, ao lado da última posição que o ERP tem da mesma conta (contacorrente_saldo). NÃO segue o filtro de período desta tela — saldo é posição, não movimento de janela. O saldo do extrato vem da última âncora do arquivo (a linha de saldo do dia, ou o saldo final) mais o movimento posterior a ela. O atraso é contado em dias ÚTEIS pulados, porque a rotina é subir o extrato do dia anterior; feriado bancário não entra na conta e aparece como um dia de atraso.">i</span></h2>
-            <span class="hint" id="hintExtbPos"></span></div>
-          <div id="extb-pos-kpis" class="kpis k4"></div>
-          <div id="extb-pos-corpo"></div>
-        </div>
         <div class="kpis k4" id="kpis-extb"></div>
         <div class="card"><div class="head"><h2>Situação por conta</h2>
           <span class="hint" id="hintExtbContas"></span></div>
@@ -4265,6 +4294,7 @@ const ICONS = {
   fluxconic: IC('<path d="M3 20h18"/><path d="M3.5 15.5 8 9l4 4 3.5-6 4.5 5.5"/><circle cx="8" cy="9" r="1.3"/><circle cx="15.5" cy="7" r="1.3"/>'),
   antecic: IC('<rect x="2.5" y="6.5" width="13" height="9" rx="1.5"/><circle cx="9" cy="11" r="2"/><path d="M17.5 8.5l4 2.5-4 2.5zM17.5 15v3"/>'),
   lancic: IC('<rect x="3" y="4" width="18" height="16" rx="2"/><path d="M7 9h6M7 12.5h4M7 16h5"/><path d="M16.2 9.5h3.6M18 7.7v3.6M16.2 16h3.6"/>'),
+  bancic: IC('<path d="M3 21h18"/><path d="M5 21V10M9.5 21V10M14.5 21V10M19 21V10"/><path d="M12 3 21 8H3z"/>'),
   extbic: IC('<path d="M5 3h14v18l-2.3-1.4-2.4 1.4-2.3-1.4L9.7 21l-2.4-1.4L5 21z"/><path d="M8.5 8h7M8.5 11.5h4"/><path d="M8.5 15.5h7"/>'),
   pisoic: IC('<path d="M3 20h18"/><path d="M12 4v10M8.5 10.5 12 14l3.5-3.5"/><path d="M5 17.5h14"/>'),
   rntrcic: IC('<rect x="2.5" y="5" width="19" height="14" rx="2"/><circle cx="8.5" cy="11" r="2.3"/><path d="M5 16.2a4 4 0 0 1 7 0"/><path d="M14.5 10h4.5M14.5 13.5h3"/>'),
@@ -4298,7 +4328,7 @@ const FAIXAS = {
   '4_vencido_91_365':['Vencido 91–365d','b-dang'],
   '5_vencido_mais_365':['Vencido > 365d','b-dang'],
 };
-const VIEWS = { home:'Visão Geral', fluxo:'Fluxo de Caixa e Bancos', receber:'Contas a Receber', pagar:'Contas a Pagar', oc:'Ordens de Compra', custos:'Painel de Custos', agr:'Agregados e Terceiros', mvb:'Make vs Buy', comb:'Combustível', man:'Manutenção', com:'Clientes e RKM', clif:'Consulta de Cliente', crm:'CRM — Leads e Projetos', km:'Análise de KM', torre:'Torre de Controle', poli:'Permanência na Planta', ctecp:'CT-e de Contrapartida', veic:'Veículos', veicf:'Consulta de Veículo', mprev:'Manutenção Preventiva', comrast:'Comunicação Rastreadora', mul:'Multas', prog:'Programação Inteligente', jorn:'Jornada do Motorista', jornf:'Ficha de Jornada', cex:'Custos Extras', sac:'SAC / Freetime', port:'Portaria', cop:'Copiloto Cortex', cob:'Régua de Cobrança', extb:'Extrato Bancário', lanc:'Lançamentos Bancários', antec:'Antecipação de Recebíveis', antport:'Portais de Antecipação', milkrun:'Operação MWM', rec:'Lançamentos Recorrentes', fluxcon:'Fluxo de Caixa Consolidado', cont:'Contabilidade', qual:'Qualidade e Certidões', orc:'Orçamento', fech:'Fechamento do Mês', prem:'Premiação de Motoristas', dre:'DRE Gerencial', bal:'Balanço Patrimonial', drecli:'DRE por Cliente', tvfat:'Painel TV — Faturamento', tvope:'Painel TV — Operação', rh:'RH — Vagas', hc:'Headcount', folha:'Custo de Folha', folhaind:'Indicadores de Folha', he:'Horas Extras', cnh:'CNH dos Motoristas', ferias:'Férias — Vencimento', people:'People Analytics', pneus:'Pneus', gestao:'Gestão', srv:'Saúde do Servidor', doc:'Documentação', anpiso:'Piso Mínimo de Frete', anrntrc:'RNTRC dos Transportadores', telcon:'Consumo e Estatísticas', telcond:'Condução Econômica', telhod:'Hodômetro e Rastro' };
+const VIEWS = { home:'Visão Geral', fluxo:'Fluxo de Caixa e Bancos', receber:'Contas a Receber', pagar:'Contas a Pagar', oc:'Ordens de Compra', custos:'Painel de Custos', agr:'Agregados e Terceiros', mvb:'Make vs Buy', comb:'Combustível', man:'Manutenção', com:'Clientes e RKM', clif:'Consulta de Cliente', crm:'CRM — Leads e Projetos', km:'Análise de KM', torre:'Torre de Controle', poli:'Permanência na Planta', ctecp:'CT-e de Contrapartida', veic:'Veículos', veicf:'Consulta de Veículo', mprev:'Manutenção Preventiva', comrast:'Comunicação Rastreadora', mul:'Multas', prog:'Programação Inteligente', jorn:'Jornada do Motorista', jornf:'Ficha de Jornada', cex:'Custos Extras', sac:'SAC / Freetime', port:'Portaria', cop:'Copiloto Cortex', cob:'Régua de Cobrança', banc:'Bancos', extb:'Extrato Bancário', lanc:'Lançamentos Bancários', antec:'Antecipação de Recebíveis', antport:'Portais de Antecipação', milkrun:'Operação MWM', rec:'Lançamentos Recorrentes', fluxcon:'Fluxo de Caixa Consolidado', cont:'Contabilidade', qual:'Qualidade e Certidões', orc:'Orçamento', fech:'Fechamento do Mês', prem:'Premiação de Motoristas', dre:'DRE Gerencial', bal:'Balanço Patrimonial', drecli:'DRE por Cliente', tvfat:'Painel TV — Faturamento', tvope:'Painel TV — Operação', rh:'RH — Vagas', hc:'Headcount', folha:'Custo de Folha', folhaind:'Indicadores de Folha', he:'Horas Extras', cnh:'CNH dos Motoristas', ferias:'Férias — Vencimento', people:'People Analytics', pneus:'Pneus', gestao:'Gestão', srv:'Saúde do Servidor', doc:'Documentação', anpiso:'Piso Mínimo de Frete', anrntrc:'RNTRC dos Transportadores', telcon:'Consumo e Estatísticas', telcond:'Condução Econômica', telhod:'Hodômetro e Rastro' };
 const periodoLabel = p => { if(p==='atrasado') return 'Atrasado'; const [y,m]=p.split('-'); return MES[+m-1]+'/'+y.slice(2); };
 const fmtD = s => { if(!s) return ''; const [y,m,dd]=s.split('-'); return dd+'/'+m+'/'+y; };
 /* Idade da posicao bancaria. Cada conta e lancada num dia diferente: mostrar
@@ -4499,7 +4529,7 @@ function toggleGroup(gid,sid,key){
 
 const VIEW_GROUP = {home:'',cop:'',
   com:'Com',clif:'Com',crm:'Com',rent:'Com',drecli:'Com',
-  fluxo:'Fin',receber:'Fin',pagar:'Fin',cob:'Fin',extb:'Fin',lanc:'Fin',antec:'Fin',antport:'Fin',fluxcon:'Fin',rec:'Fin',
+  fluxo:'Fin',receber:'Fin',pagar:'Fin',cob:'Fin',banc:'Fin',extb:'Fin',lanc:'Fin',antec:'Fin',antport:'Fin',fluxcon:'Fin',rec:'Fin',
   dre:'Ctr',bal:'Ctr',cont:'Ctr',qual:'Ctr',orc:'Ctr',fech:'Ctr',ctecp:'Ctr',
   torre:'Ope',milkrun:'Ope',poli:'Ope',prog:'Ope',jorn:'Ope',jornf:'Ope',cex:'Ope',sac:'Ope',port:'Ope',km:'Ope',agr:'Ope',mvb:'Ope',
   veic:'Fro',veicf:'Fro',mprev:'Fro',comrast:'Fro',comb:'Fro',man:'Fro',mul:'Fro',pneus:'Fro',
@@ -4680,7 +4710,7 @@ function semFilterbar(v){
   // filtros", que não tinha o que aplicar.
   return v==='cop'||v==='gestao'||v==='srv'||v==='home'||v==='veicf'||v==='clif'||v==='jorn'||v==='jornf'||v==='prog'||
          v==='cex'||v==='sac'||v==='mprev'||v==='comrast'||v==='qual'||v==='port'||v==='crm'||v==='rh'||
-         v==='hc'||v==='folha'||v==='folhaind'||v==='he'||v==='custos'||v==='orc'||v==='prem'||v==='extb'||v==='fech'||v==='doc'||v==='anrntrc'||v==='telcon'||v==='telcond'||v==='telhod'||v==='milkrun'||v==='cnh'||v==='ferias'||v==='pneus'||v==='people'||v==='poli'||v==='ctecp';
+         v==='hc'||v==='folha'||v==='folhaind'||v==='he'||v==='custos'||v==='orc'||v==='prem'||v==='banc'||v==='extb'||v==='fech'||v==='doc'||v==='anrntrc'||v==='telcon'||v==='telcond'||v==='telhod'||v==='milkrun'||v==='cnh'||v==='ferias'||v==='pneus'||v==='people'||v==='poli'||v==='ctecp';
 }
 function currentView(){
   const h = (location.hash||'').replace('#','');
@@ -4786,8 +4816,8 @@ function router(){
   // carga da vista: dispara se não há dados OU se os filtros visíveis
   // divergem dos usados na última carga (nunca mostrar dado velho com filtro novo)
   const key=viewKey(v);
-  const DATAMAP={fin:DATA,oc:DATAOC,agr:DATAAGR,anpiso:DATAANPISO,anrntrc:DATAANRNTRC,telcon:DATATELCON,telcond:DATATELCOND,telhod:DATATELHOD,mvb:DATAMVB,comb:DATACOMB,man:DATAMAN,com:DATACOM,clif:DATACLIF,dre:DATADRE,bal:DATABAL,drecli:DATADRECLI,home:DATAHOME,km:DATAKM,torre:DATATORRE,veic:DATAVEIC,veicf:DATAVEICF,mul:DATAMUL,prog:DATAPROG,jorn:DATAJORN,jornf:DATAJORNF,cex:DATACEX,sac:DATASAC,mprev:DATAMPREV,comrast:DATACOMRAST,qual:DATAQUAL,port:DATAPORT,crm:DATACRM,rh:DATARH,hc:DATAHC,folha:DATAFOLHA,folhaind:DATAFOLHAIND,he:DATAHE,custos:DATACUSTOS,cob:DATACOB,extb:DATAEXTB,lanc:DATALANC,antec:DATAANTEC,antport:DATAANTPORT,milkrun:DATAMILK,fluxcon:DATAFLUXCON,rec:DATAREC,rent:DATARENT,cont:DATACONT,orc:DATAORC,fech:DATAFECH,prem:DATAPREM,gestao:DATAGES,srv:DATASRV,doc:DATADOC,tvfat:null,tvope:null,cop:(COP_MSGS.length?{}:null)};
-  const LOADMAP={fin:load,oc:loadOc,agr:loadAgr,anpiso:loadAnpiso,anrntrc:loadAnrntrc,telcon:loadTelcon,telcond:loadTelcond,telhod:loadTelhod,mvb:loadMvb,comb:loadComb,man:loadMan,com:loadCom,clif:loadClif,dre:loadDre,bal:loadBal,drecli:loadDreCli,home:loadHome,km:loadKm,torre:loadTorre,veic:loadVeic,veicf:loadVeicf,mul:loadMul,prog:loadProg,jorn:loadJorn,jornf:loadJornf,cex:loadCex,sac:loadSac,mprev:loadMPrev,comrast:loadComRast,qual:loadQual,port:loadPort,crm:loadCrm,rh:loadRh,hc:loadHc,folha:loadFolha,folhaind:loadFolhaInd,he:loadHe,custos:loadCustos,cob:loadCob,extb:loadExtb,lanc:loadLanc,antec:loadAntec,antport:loadAntport,milkrun:loadMilkrun,cnh:loadCnh,ferias:loadFerias,people:loadPeople,pneus:loadPneus,poli:loadPoli,ctecp:loadCtecp,fluxcon:loadFluxcon,rec:loadRec,rent:loadRent,cont:loadCont,orc:loadOrc,fech:loadFech,prem:loadPrem,gestao:loadGestao,srv:loadSrv,doc:loadDoc,cop:loadCop,tvfat:loadTvFat,tvope:loadTvOpe};
+  const DATAMAP={fin:DATA,oc:DATAOC,agr:DATAAGR,anpiso:DATAANPISO,anrntrc:DATAANRNTRC,telcon:DATATELCON,telcond:DATATELCOND,telhod:DATATELHOD,mvb:DATAMVB,comb:DATACOMB,man:DATAMAN,com:DATACOM,clif:DATACLIF,dre:DATADRE,bal:DATABAL,drecli:DATADRECLI,home:DATAHOME,km:DATAKM,torre:DATATORRE,veic:DATAVEIC,veicf:DATAVEICF,mul:DATAMUL,prog:DATAPROG,jorn:DATAJORN,jornf:DATAJORNF,cex:DATACEX,sac:DATASAC,mprev:DATAMPREV,comrast:DATACOMRAST,qual:DATAQUAL,port:DATAPORT,crm:DATACRM,rh:DATARH,hc:DATAHC,folha:DATAFOLHA,folhaind:DATAFOLHAIND,he:DATAHE,custos:DATACUSTOS,cob:DATACOB,banc:DATABANC,extb:DATAEXTB,lanc:DATALANC,antec:DATAANTEC,antport:DATAANTPORT,milkrun:DATAMILK,fluxcon:DATAFLUXCON,rec:DATAREC,rent:DATARENT,cont:DATACONT,orc:DATAORC,fech:DATAFECH,prem:DATAPREM,gestao:DATAGES,srv:DATASRV,doc:DATADOC,tvfat:null,tvope:null,cop:(COP_MSGS.length?{}:null)};
+  const LOADMAP={fin:load,oc:loadOc,agr:loadAgr,anpiso:loadAnpiso,anrntrc:loadAnrntrc,telcon:loadTelcon,telcond:loadTelcond,telhod:loadTelhod,mvb:loadMvb,comb:loadComb,man:loadMan,com:loadCom,clif:loadClif,dre:loadDre,bal:loadBal,drecli:loadDreCli,home:loadHome,km:loadKm,torre:loadTorre,veic:loadVeic,veicf:loadVeicf,mul:loadMul,prog:loadProg,jorn:loadJorn,jornf:loadJornf,cex:loadCex,sac:loadSac,mprev:loadMPrev,comrast:loadComRast,qual:loadQual,port:loadPort,crm:loadCrm,rh:loadRh,hc:loadHc,folha:loadFolha,folhaind:loadFolhaInd,he:loadHe,custos:loadCustos,cob:loadCob,banc:loadBanc,extb:loadExtb,lanc:loadLanc,antec:loadAntec,antport:loadAntport,milkrun:loadMilkrun,cnh:loadCnh,ferias:loadFerias,people:loadPeople,pneus:loadPneus,poli:loadPoli,ctecp:loadCtecp,fluxcon:loadFluxcon,rec:loadRec,rent:loadRent,cont:loadCont,orc:loadOrc,fech:loadFech,prem:loadPrem,gestao:loadGestao,srv:loadSrv,doc:loadDoc,cop:loadCop,tvfat:loadTvFat,tvope:loadTvOpe};
   if(!DATAMAP[key] || (key!=='home' && LOADEDQS[key]!==qsView(key))) LOADMAP[key]();
   // mobile: estado da navegação inferior + fecha gaveta/painel de filtros
   document.querySelectorAll('.bottomnav [data-bview]').forEach(a=>a.classList.toggle('ativo', a.dataset.bview===v));
@@ -6585,7 +6615,7 @@ function reloadCurrent(){
   // recarrega a TELA ATUAL — antes caía em load() (Financeiro) para várias telas.
   const M={home:loadHome,fluxo:load,receber:load,pagar:load,dre:loadDre,drecli:loadDreCli,oc:loadOc,
     agr:loadAgr,mvb:loadMvb,comb:loadComb,man:loadMan,com:loadCom,clif:loadClif,km:loadKm,
-    torre:loadTorre,veic:loadVeic,veicf:loadVeicf,mul:loadMul,prog:loadProg,jorn:loadJorn,jornf:loadJornf,cex:loadCex,sac:loadSac,mprev:loadMPrev,comrast:loadComRast,qual:loadQual,port:loadPort,crm:loadCrm,rh:loadRh,hc:loadHc,folha:loadFolha,folhaind:loadFolhaInd,he:loadHe,custos:loadCustos,cob:loadCob,extb:loadExtb,rent:loadRent,
+    torre:loadTorre,veic:loadVeic,veicf:loadVeicf,mul:loadMul,prog:loadProg,jorn:loadJorn,jornf:loadJornf,cex:loadCex,sac:loadSac,mprev:loadMPrev,comrast:loadComRast,qual:loadQual,port:loadPort,crm:loadCrm,rh:loadRh,hc:loadHc,folha:loadFolha,folhaind:loadFolhaInd,he:loadHe,custos:loadCustos,cob:loadCob,banc:loadBanc,extb:loadExtb,rent:loadRent,
     cont:loadCont,orc:loadOrc,fech:loadFech,prem:loadPrem,gestao:loadGestao,srv:loadSrv,doc:loadDoc,cop:loadCop,tvfat:loadTvFat,tvope:loadTvOpe};
   (M[currentView()]||load)();
 }
@@ -8201,90 +8231,209 @@ function extbContaTitulo(x){
   return p.join(' · ');
 }
 
-// ==================== Saldo nos bancos (rotina diaria) ====================
-// A primeira pergunta de quem sobe o extrato todo dia: os saldos estao em dia?
-// Fica no TOPO da tela e nao obedece ao filtro de periodo - saldo e posicao,
-// nao movimento de janela.
-function renderExtbPos(d){
-  const kpis=document.getElementById('extb-pos-kpis');
-  const corpo=document.getElementById('extb-pos-corpo');
-  const hint=document.getElementById('hintExtbPos');
-  const pos=(d||{}).posicao;
-  if(!pos || !(pos.linhas||[]).length){
-    kpis.innerHTML=''; corpo.innerHTML='';
-    hint.textContent='nenhuma conta com extrato importado ainda';
-    return;
-  }
-  const L=pos.linhas;
-  hint.textContent = pos.datas_diferentes
-    ? `posições de datas DIFERENTES: de ${fmtD(pos.dt_mais_antiga)} a ${fmtD(pos.dt_mais_nova)}`
-    : (pos.dt_mais_nova ? `posição de ${fmtD(pos.dt_mais_nova)}` : 'sem posição');
+// ============================ Tela: Bancos ============================
+// Responde "quanto tenho, onde, e quanto custa?". A tela de Extrato responde
+// "o ERP bate com o banco?" - eram os mesmos oito cartoes, e quem abria para
+// decidir onde deixar o dinheiro atravessava cinco de conferencia antes.
+let DATABANC=null, bancSeq=0;
 
-  // Diferenca total contra o ERP: so das contas em que os DOIS lados existem.
-  const comDif=L.filter(x=>x.diferenca!=null);
-  const difTot=comDif.reduce((s,x)=>s+x.diferenca,0);
+async function loadBanc(){
+  const seq=++bancSeq, btn=document.getElementById('btnRefresh'); if(btn) btn.disabled=true;
+  document.getElementById('content').classList.add('loading');
+  skelKpis('kpis-banc',4);
+  const de=document.getElementById('fBancDe'), ate=document.getElementById('fBancAte');
+  if(de && !de.value){ const h=new Date(); de.value=_iso(new Date(h.getFullYear(),h.getMonth(),1)); }
+  if(ate && !ate.value){ ate.value=_iso(new Date()); }
+  try{
+    const p=new URLSearchParams({dt_de:de.value, dt_ate:ate.value});
+    const r=await fetch('/api/financeiro/bancos?'+p.toString(),{cache:'no-store'});
+    const d=await r.json(); if(seq!==bancSeq) return;
+    if(!r.ok){ showBanner(d.mensagem||'Erro ao consultar os bancos.'); return; }
+    hideBanner(); DATABANC=d; LOADEDQS.banc=''; renderBanc(d);
+  }catch(e){ if(seq===bancSeq) showBanner('Não foi possível falar com a API.', e.message); }
+  finally{ if(seq===bancSeq){ if(btn) btn.disabled=false;
+    document.getElementById('content').classList.remove('loading'); } }
+}
 
-  kpis.innerHTML=
-     kpi('Total nos bancos', brl2(pos.total),
-         `${pos.contas_no_total} conta(s)`
-         + (pos.contas_sem_saldo?` · ${pos.contas_sem_saldo} sem saldo, fora do total`:'')
-         + (pos.datas_diferentes?' · datas diferentes':''),
+function renderBanc(d){
+  const k=d.kpis||{}, bancos=d.bancos||[];
+  document.getElementById('hintBanc').textContent =
+    `${fmtD(d.dt_de)} a ${fmtD(d.dt_ate)} · ${bancos.length} conta(s) · atualizado ${d.atualizado_em||''}`;
+
+  // O SALDO e o numero-rei, mas o rotulo diz "em conta corrente" de proposito:
+  // o dinheiro varrido para aplicacao nao esta aqui, e chamar isso de "total
+  // nos bancos" seria mentira por omissao. O unico banco que denuncia o
+  // tamanho do buraco e o Safra (R$ 10.502,92 consolidado x R$ 657,38 em conta).
+  document.getElementById('kpis-banc').innerHTML=
+     kpi('Saldo em conta corrente', brl2(k.saldo_total),
+         `${k.contas} conta(s)` + (k.contas_sem_saldo?` · ${k.contas_sem_saldo} sem saldo, fora do total`:''),
          '',
-         'Soma do saldo de todas as contas que têm âncora de saldo. Conta sem âncora fica FORA do total e aparece como "não informado" na tabela — zero é um saldo, ausência não é. Quando as posições são de dias diferentes o subtítulo avisa: o total continua sendo o dinheiro que se sabe ter, mas não é uma foto de um instante só.')
-   + kpi('Contas atrasadas', String(pos.atrasadas),
-         pos.atrasadas ? 'dia útil pulado no envio' : 'todas com extrato do último dia útil',
-         pos.atrasadas?'warn':'good',
-         'Contas cujo último extrato importado deixou passar pelo menos um dia útil. A rotina é subir o extrato do dia anterior; sábado, domingo e o próprio dia de hoje não contam. Feriado bancário não é conhecido pelo sistema e aparece como um dia de atraso.')
-   + kpi('Sem saldo do banco', String(pos.contas_sem_saldo),
-         pos.contas_sem_saldo ? 'o arquivo não traz saldo utilizável' : 'todas com saldo',
-         pos.contas_sem_saldo?'warn':'good',
-         'Contas cujo arquivo não traz saldo que dê para usar — sem LEDGERBAL, ou com a data zerada (é o caso do Bradesco). O movimento entra normalmente; o que falta é a âncora para dizer o saldo do dia.')
-   + kpi('Diferença vs ERP', comDif.length?brl2(difTot):'não comparável',
-         comDif.length
-           ? `${comDif.length} de ${L.length} conta(s) comparáveis`
-           : (pos.erp_disponivel?'nenhuma conta vinculada ao ERP':'ERP indisponível agora'),
-         comDif.length && Math.abs(difTot)>0.01 ? 'bad' : (comDif.length?'good':''),
-         'Extrato menos ERP, somado. Só entram contas vinculadas ao ERP e com saldo dos dois lados. ATENÇÃO: as duas posições podem ser de DIAS diferentes — o ERP costuma estar atrás — então parte desta diferença é defasagem de lançamento, não erro. A coluna da tabela mostra a data de cada lado.');
+         'Soma do saldo mais recente de cada conta. NÃO é o caixa da empresa: dinheiro varrido para aplicação não aparece — nenhum dos arquivos traz saldo de investimento e o ERP não tem tabela de aplicação. Conta sem âncora fica FORA do total e é contada no subtítulo.')
+   + kpi('Custo bancário', brl2(k.custo),
+         `${brl2(k.custo_ano)}/ano no mesmo ritmo` + (k.custo_juros_pct?` · ${pctBR(k.custo_juros_pct)} é juro de limite`:''),
+         k.custo>0?'bad':'',
+         'Tarifas, IOF e juros cobrados PELO banco no período — linhas do próprio extrato, sem derivação. O anualizado projeta o ritmo do período escolhido (não é ×12 cego: o filtro pode trazer meio mês).')
+   + kpi('Contas com juro de limite', String(k.contas_com_juros||0),
+         k.contas_com_juros ? brl2(k.custo_juros)+' no período' : 'nenhuma usou limite',
+         k.contas_com_juros?'bad':'good',
+         'Contas que pagaram juros de cheque especial ou de limite. É o item mais caro do custo bancário e o mais fácil de atacar: depende de para onde o caixa é direcionado, não de negociação de tarifa.')
+   + kpi('Concentração', pctBR(k.concentracao_2),
+         'do que entra passa por 2 bancos', k.concentracao_2>=70?'warn':'',
+         'Percentual dos créditos do período recebido pelas duas maiores instituições. Concentração alta não é erro — é risco operacional e poder de barganha concentrado.');
 
-  const linha=x=>{
-    const at=x.atraso_uteis;
-    const chipAtraso = at==null
-      ? statChip('warn','sem extrato','Nenhum lançamento importado para esta conta.')
-      : (at===0 ? statChip('good','em dia', `Último extrato: ${fmtD(x.ultimo_extrato)}`)
+  renderBancSerie(d.serie||[]);
+  renderBancVol(bancos, k);
+  renderBancTab(bancos);
+  renderBancAlertas(d.alertas||[]);
+}
+
+// ---- serie do saldo consolidado, com a COBERTURA de cada dia
+function renderBancSerie(serie){
+  const alvo=document.getElementById('banc-serie');
+  const hint=document.getElementById('hintBancSerie');
+  if(!serie.length){ alvo.innerHTML='<div style="padding:16px;color:var(--n500)">Sem saldo conhecido no período.</div>';
+    hint.textContent=''; return; }
+  const maxC=Math.max(...serie.map(p=>p.contas));
+  const parciais=serie.filter(p=>p.contas<maxC).length;
+  hint.textContent=`${serie.length} dia(s)`
+    + (parciais?` · ${parciais} com cobertura parcial (menos contas medidas, não menos dinheiro)`:'');
+
+  const W=960,H=210,ml=76,mr=14,mt=14,mb=34;
+  const iw=W-ml-mr, ih=H-mt-mb;
+  const vals=serie.map(p=>p.saldo);
+  const lo=Math.min(0,...vals), hi=Math.max(0,...vals), amp=(hi-lo)||1;
+  const x=i=>ml+(serie.length===1?iw/2:i*iw/(serie.length-1));
+  const y=v=>mt+ih-((v-lo)/amp)*ih;
+  const bw=Math.max(3, Math.min(26, iw/serie.length-4));
+
+  const barras=serie.map((p,i)=>{
+    // Dia com cobertura PARCIAL sai hachurado, mesma convencao do "mes parcial"
+    // do resto do painel: o numero e menor porque falta conta medida, nao
+    // porque falta dinheiro.
+    const parcial=p.contas<maxC;
+    const yv=y(p.saldo), y0=y(0);
+    const alt=Math.max(1,Math.abs(yv-y0));
+    const cor=p.saldo<0?'var(--red)':CC.navy500;
+    return `<rect x="${x(i)-bw/2}" y="${Math.min(yv,y0)}" width="${bw}" height="${alt}"
+      fill="${cor}" ${parcial?'fill-opacity=".45" stroke="'+cor+'" stroke-dasharray="2 2"':''}>
+      <title>${fmtD(p.dt)} — ${brl2(p.saldo)} · ${p.contas} de ${maxC} contas medidas${parcial?' (cobertura parcial)':''}</title>
+      </rect>`;
+  }).join('');
+  const rotulos=serie.map((p,i)=> (serie.length<=14 || i%Math.ceil(serie.length/12)===0)
+    ? `<text x="${x(i)}" y="${H-12}" text-anchor="middle" font-size="10" fill="var(--n500)">${p.dt.slice(8,10)}/${p.dt.slice(5,7)}</text>` : '').join('');
+  alvo.innerHTML=`<div class="chartwrap"><svg viewBox="0 0 ${W} ${H}" role="img"
+      aria-label="Saldo consolidado por dia"><line x1="${ml}" x2="${W-mr}" y1="${y(0)}" y2="${y(0)}"
+      stroke="var(--n300)"/><text x="6" y="${mt+10}" font-size="10" fill="var(--n500)">${brl2(hi)}</text>
+      <text x="6" y="${mt+ih}" font-size="10" fill="var(--n500)">${brl2(lo)}</text>
+      ${barras}${rotulos}</svg></div>`;
+}
+
+// ---- por onde entra o dinheiro: barra empilhada ordenada
+function renderBancVol(bancos, k){
+  const alvo=document.getElementById('banc-vol');
+  const ord=bancos.slice().filter(b=>b.recebido>0).sort((a,b)=>b.recebido-a.recebido);
+  document.getElementById('hintBancVol').textContent =
+    `${brl2(k.recebido)} recebidos no período`;
+  if(!ord.length){ alvo.innerHTML='<div style="padding:16px;color:var(--n500)">Nenhum crédito no período.</div>'; return; }
+  const tons=[CC.navy700,CC.navy500,CC.navy400,'var(--orange-500)','var(--n400)','var(--n300)','var(--n200)'];
+  const faixa=ord.map((b,i)=>
+    `<div style="width:${b.pct_recebido}%;background:${tons[i%tons.length]};height:26px"
+       title="${esc((b.banco_nome||b.rotulo)+' — '+brl2(b.recebido)+' ('+b.pct_recebido+'%)')}"></div>`).join('');
+  const leg=ord.map((b,i)=>
+    `<div style="display:flex;align-items:center;gap:7px;font-size:12.5px">
+       <span style="width:11px;height:11px;background:${tons[i%tons.length]};border-radius:2px;flex:none"></span>
+       <span>${esc((b.banco_nome||b.rotulo).slice(0,26))}</span>
+       <span style="color:var(--n500)">${brl2(b.recebido)} · ${pctBR(b.pct_recebido)}</span>
+     </div>`).join('');
+  alvo.innerHTML=`<div style="padding:2px 18px 14px">
+      <div style="display:flex;border-radius:4px;overflow:hidden">${faixa}</div>
+      <div style="display:flex;flex-wrap:wrap;gap:8px 20px;margin-top:12px">${leg}</div></div>`;
+}
+
+// ---- tabela por banco, ordenada por custo POR R$ MIL
+function renderBancTab(bancos){
+  const alvo=document.getElementById('banc-tab');
+  document.getElementById('hintBancTab').textContent =
+    `${bancos.length} conta(s) · ordenada por custo por R$ mil recebido`;
+  if(!bancos.length){ alvo.innerHTML=''; return; }
+  const linha=(b,i)=>{
+    const temDet=(b.custo_natureza||[]).length>0;
+    const cpm = b.custo_por_mil==null
+      ? '<span style="color:var(--n500)" title="Volume abaixo de R$ 1 mil no período — a razão não é comparável.">—</span>'
+      : `<span style="${b.custo_por_mil>50?'color:var(--red);font-weight:600':''}">${brl2(b.custo_por_mil)}</span>`;
+    const saldo = b.saldo==null
+      ? `<span style="color:var(--n500)" title="${esc(b.sem_saldo_por||'sem âncora de saldo')}">não informado</span>`
+      : brl2(b.saldo);
+    // Ancora unica: o saldo dos demais dias e DERIVADO por soma, nao medido.
+    const anc = b.ancoras>1 ? `${b.ancoras} dias`
+      : `<span style="color:var(--n500)" title="Só o saldo final do arquivo; o resto da série é derivado por soma, não medido.">${b.ancoras||0}</span>`;
+    const at=b.atraso_uteis;
+    // Extrato atrasado deixa o SALDO desta tela velho - o sinal de frescor
+    // pertence aqui, nao so a tela de conciliacao.
+    const envio = at==null ? statChip('warn','sem extrato','Nenhum lançamento importado.')
+      : (at===0 ? statChip('good','em dia','Extrato do último dia útil já importado.')
                 : statChip(at>1?'bad':'warn', at===1?'1 dia útil':`${at} dias úteis`,
-                           `Último extrato: ${fmtD(x.ultimo_extrato)} — ${at} dia(s) útil(eis) sem enviar.`));
-    // Saldo ausente NUNCA sai como R$ 0,00 e jamais em verde: zero e um saldo,
-    // ausencia nao e. O motivo vai no tooltip, que e onde a pessoa procura.
-    const sal = x.saldo==null
-      ? `<span style="color:var(--n500)" title="${esc(x.sem_saldo_por||'sem saldo')}">não informado</span>`
-      : brl2(x.saldo);
-    const erp = x.erp_saldo==null
-      ? `<span style="color:var(--n500)" title="${esc(x.mapeada?'O ERP não tem posição desta conta nos últimos 90 dias.':'Conta ainda não vinculada a uma conta do ERP.')}">—</span>`
-      : `${brl2(x.erp_saldo)} <span style="color:var(--n500);font-size:11px">${fmtD(x.erp_dt)}</span>`;
-    // A diferenca so ganha cor quando as DUAS posicoes sao do mesmo dia. Em
-    // dias distintos ela mistura divergencia com defasagem de lancamento, e
-    // pintar de vermelho acusaria o ERP de um erro que pode ser so atraso.
-    const mesmoDia = x.dt && x.erp_dt && x.dt===x.erp_dt;
-    const dif = x.diferenca==null ? '<span style="color:var(--n500)">—</span>'
-      : (Math.abs(x.diferenca)<=0.01
-          ? `<span style="color:var(--green)">bate</span>`
-          : (mesmoDia
-              ? `<span style="color:var(--red)">${brl2(x.diferenca)}</span>`
-              : `<span style="color:var(--n500)" title="As duas posições são de dias diferentes (extrato em ${esc(fmtD(x.dt))}, ERP em ${esc(fmtD(x.erp_dt))}): parte desta diferença é defasagem de lançamento, não divergência.">${brl2(x.diferenca)} <span style="font-size:11px">datas ≠</span></span>`));
-    return `<tr><td title="${esc(extbContaTitulo(x))}">${extbConta(x)}</td>`
-      +`<td>${chipAtraso}</td>`
-      +`<td>${x.ultimo_extrato?fmtD(x.ultimo_extrato):'<span style="color:var(--n500)">—</span>'}</td>`
-      +`<td class="num">${sal}${x.dt?` <span style="color:var(--n500);font-size:11px">${fmtD(x.dt)}</span>`:''}</td>`
-      +`<td class="num">${erp}</td>`
-      +`<td class="num">${dif}</td></tr>`;
+                    `${at} dia(s) útil(eis) de movimento sem importar — o saldo ao lado é dessa data.`));
+    return `<tr${temDet?` class="forn-row" aria-expanded="false" aria-controls="banc-det-${i}" tabindex="0" role="button"
+        onclick="bancDetalhe(${i})" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();bancDetalhe(${i});}"`:''}>`
+      +`<td>${temDet?`<span class="expander">${ICONS['chevr2']}</span>`:''}</td>`
+      +`<td>${esc((b.banco_nome||b.rotulo).slice(0,30))} <span style="color:var(--n500);font-size:11px">cc ${esc((b.ident||'').split('/').pop())}</span></td>`
+      +`<td>${envio}</td>`
+      +`<td class="num">${brl2(b.recebido)}</td>`
+      +`<td class="num">${pctBR(b.pct_recebido)}</td>`
+      +`<td class="num">${brl2(b.pago)}</td>`
+      +`<td class="num">${saldo}</td>`
+      +`<td class="num">${anc}</td>`
+      +`<td class="num">${brl2(b.custo)}</td>`
+      +`<td class="num">${cpm}</td></tr>`
+      +(temDet?`<tr class="forn-det" id="banc-det-${i}"><td colspan="10"></td></tr>`:'');
   };
+  alvo.innerHTML='<div class="tablewrap tabroll"><table><thead><tr>'
+    +'<th style="width:34px"></th><th>Banco</th><th>Envio</th>'
+    +'<th class="num">Recebido</th>'
+    +'<th class="num">%</th><th class="num">Pago</th><th class="num">Saldo</th>'
+    +'<th class="num">Dias<br>medidos</th><th class="num">Custo</th>'
+    +'<th class="num">Custo por<br>R$ mil</th></tr></thead><tbody>'
+    + bancos.map(linha).join('') + '</tbody></table></div>';
+}
 
-  corpo.innerHTML=
-     '<div class="tablewrap tabroll"><table><thead><tr>'
-    +'<th>Conta</th><th>Envio</th><th>Último extrato</th>'
-    +'<th class="num">Saldo do banco</th><th class="num">Saldo no ERP</th>'
-    +'<th class="num">Diferença</th>'
-    +'</tr></thead><tbody>'+L.map(linha).join('')+'</tbody></table></div>';
+const BANC_NAT={juros:'Juros de limite / cheque especial', iof:'IOF',
+                pacote:'Pacote / manutenção de conta',
+                transacao:'Tarifa por transação', outras:'Outras tarifas'};
+
+function bancDetalhe(i){
+  const det=document.getElementById('banc-det-'+i); if(!det) return;
+  const open=det.classList.toggle('open');
+  det.previousElementSibling.setAttribute('aria-expanded', String(open));
+  if(!open || det.dataset.pronto) return;
+  const b=(DATABANC.bancos||[])[i];
+  const nat=(b&&b.custo_natureza)||[];
+  det.querySelector('td').innerHTML = !nat.length
+    ? '<p style="color:var(--n500)">Sem custo no período.</p>'
+    : '<table><thead><tr><th>Natureza</th><th class="num">Lançamentos</th>'
+      +'<th class="num">Valor</th></tr></thead><tbody>'
+      + nat.map(n=>`<tr><td>${esc(BANC_NAT[n.chave]||n.chave)}</td>`
+          +`<td class="num">${n.qtd}</td><td class="num">${brl2(n.valor)}</td></tr>`).join('')
+      + '</tbody></table>';
+  det.dataset.pronto='1';
+}
+
+function renderBancAlertas(alertas){
+  const alvo=document.getElementById('banc-alertas');
+  if(!alertas.length){ alvo.innerHTML='<div style="padding:16px;color:var(--green)">Nada exigindo ação no período.</div>'; return; }
+  alvo.innerHTML='<div style="padding:4px 18px 16px;display:flex;flex-direction:column;gap:9px">'
+    + alertas.map(a=>{
+        const cor=a.nivel==='critico'?'var(--red)':'var(--yellow)';
+        return `<div style="display:flex;gap:10px;align-items:flex-start;font-size:13px;line-height:1.5">
+          <span style="width:3px;align-self:stretch;background:${cor};border-radius:2px;flex:none"></span>
+          <span>${esc(a.texto)}</span></div>`;
+      }).join('') + '</div>';
+}
+
+// Percentual em pt-BR. O painel inteiro usa virgula; concatenar o numero cru
+// devolvia "84.2%" com ponto.
+function pctBR(v){
+  return (v==null?0:v).toLocaleString('pt-BR',{minimumFractionDigits:1,maximumFractionDigits:1})+'%';
 }
 
 // ============ Conciliacao linha a linha (extrato x razao do ERP) ============
@@ -8469,7 +8618,6 @@ async function loadExtb(){
 }
 
 function renderExtb(d){
-  renderExtbPos(d);
   const ts=d.atualizado_em ? new Date(d.atualizado_em) : new Date();
   document.getElementById('meta').innerHTML='<b>Atualizado '+ts.toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'})+'</b><br>'+ts.toLocaleDateString('pt-BR');
   const k=d.kpis||{};
@@ -18570,6 +18718,7 @@ boot();
       <button class="dgrp-h" onclick="toggleDGrp(this)"><span>Financeiro</span><span class="dchev">›</span></button>
       <div class="dgrp-b">
         <a href="#antec" onclick="fecharDrawer()"><span class="ic" data-ic="antecic"></span>Antecipação</a>
+        <a href="#banc" onclick="fecharDrawer()"><span class="ic" data-ic="bancic"></span>Bancos</a>
         <a href="#cob" onclick="fecharDrawer()"><span class="ic" data-ic="cob"></span>Cobrança</a>
         <a href="#pagar" onclick="fecharDrawer()"><span class="ic" data-ic="pag"></span>Contas a Pagar</a>
         <a href="#receber" onclick="fecharDrawer()"><span class="ic" data-ic="rec"></span>Contas a Receber</a>
