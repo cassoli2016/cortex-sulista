@@ -4,7 +4,7 @@ Gerado de `docs/versoes.yaml` por `scripts/gerar_changelog.py` — não editar �
 Formato [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/),
 versionamento [SemVer](https://semver.org/lang/pt-BR/).
 
-## [0.109.0] — 27/08/2026  ·  CX-27/08/2026-v0.109.0
+## [0.110.0] — 27/08/2026  ·  CX-27/08/2026-v0.110.0
 
 ### Adicionado
 - Tela nova, "Bancos", no Financeiro: quanto ha em cada instituicao, por onde entra o dinheiro e quanto cada banco cobra por isso. A tela de Extrato Bancario responde outra pergunta - se o ERP bate com o banco - e as duas estavam nos mesmos oito cartoes: quem abria para decidir onde deixar o dinheiro atravessava cinco cartoes de conferencia antes de chegar ao numero. O cartao de saldo mudou de lugar; o Extrato ficou so com a conciliacao.
@@ -15,6 +15,15 @@ versionamento [SemVer](https://semver.org/lang/pt-BR/).
 
 ### Alterado
 - O rotulo do saldo passou a ser "Saldo em conta corrente", e nao "Total nos bancos". Nao e preciosismo: o dinheiro varrido para aplicacao NAO aparece - nenhum dos sete arquivos traz saldo de investimento e o ERP nao tem tabela de aplicacao. O unico banco que denuncia o tamanho disso e o Safra, que reporta R$ 10.502,92 de posicao consolidada contra R$ 657,38 na conta. Chamar isso de "total nos bancos" seria mentira por omissao.
+
+## [0.109.0] — 27/08/2026  ·  CX-27/08/2026-v0.109.0
+
+### Adicionado
+- O orcamento foi para o PostgreSQL - o maior dos dez bancos locais, com 21.696 linhas, 5 versoes e a trilha de ajuste manual, conferidos linha a linha. Sao sete dos dez migrados.
+
+### Corrigido
+- Regerar o orcamento ficou MUITO mais rapido: as 21.696 linhas eram gravadas uma a uma, e passaram a ir em lotes de mil. Medido: 3.600 linhas em 0,21 segundo.
+- Toda gravacao reconferia se o banco estava atualizado, mesmo quando nao havia nada a fazer - duas consultas a toa por gravacao. O sistema passa a lembrar disso enquanto esta no ar.
 
 ## [0.108.3] — 27/08/2026  ·  CX-27/08/2026-v0.108.3
 

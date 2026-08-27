@@ -1,4 +1,4 @@
-- versao: "0.109.0"
+- versao: "0.110.0"
   data: "2026-08-27"
   adicionado:
     - >-
@@ -42,6 +42,23 @@
       tem tabela de aplicacao. O unico banco que denuncia o tamanho disso e o
       Safra, que reporta R$ 10.502,92 de posicao consolidada contra R$ 657,38
       na conta. Chamar isso de "total nos bancos" seria mentira por omissao.
+
+- versao: "0.109.0"
+  data: "2026-08-27"
+  adicionado:
+    - >-
+      O orcamento foi para o PostgreSQL - o maior dos dez bancos locais, com
+      21.696 linhas, 5 versoes e a trilha de ajuste manual, conferidos linha a
+      linha. Sao sete dos dez migrados.
+  corrigido:
+    - >-
+      Regerar o orcamento ficou MUITO mais rapido: as 21.696 linhas eram
+      gravadas uma a uma, e passaram a ir em lotes de mil. Medido: 3.600 linhas
+      em 0,21 segundo.
+    - >-
+      Toda gravacao reconferia se o banco estava atualizado, mesmo quando nao
+      havia nada a fazer - duas consultas a toa por gravacao. O sistema passa a
+      lembrar disso enquanto esta no ar.
 
 - versao: "0.108.3"
   data: "2026-08-27"

@@ -1,8 +1,8 @@
 # Migração dos bancos locais para PostgreSQL
 
 > Estado: **em andamento** — Fase 0 concluída; `antt`, `push`, `correio`,
-> `previsao`, `antecipacoes` e `extrato` no ar (27/08/2026). Faltam três:
-> `contrapartida`, `orcamento` e, por último, `auth`.
+> `previsao`, `antecipacoes`, `extrato` e `orcamento` no ar (27/08/2026).
+> Faltam dois: `contrapartida` (quando a outra frente sair de lá) e `auth`.
 
 O CÓRTEX nasceu com dez bancos SQLite em `data/`. Este documento é o plano de
 levá-los para um PostgreSQL local, **um por vez**, sem parar de entregar. Ele é
@@ -162,7 +162,7 @@ Tradução mecânica de dialeto:
 |---|---|---|---|
 | 0 | Banco, role, `api/pglocal.py`, runner de migration, backup, padrão de teste | ~1 dia | **feito** |
 | 1 | Piloto: `antt` (223 linhas, 8 executes) | 2–4 h | **no ar** |
-| 2 | ~~`push`~~ · ~~`correio`~~ · ~~`previsao`~~ · ~~`antecipacoes`~~ · ~~`extrato`~~ · `contrapartida` · `orcamento` | 0,5–1,5 dia cada | 5 de 7 |
+| 2 | ~~`push`~~ · ~~`correio`~~ · ~~`previsao`~~ · ~~`antecipacoes`~~ · ~~`extrato`~~ · ~~`orcamento`~~ · `contrapartida` | 0,5–1,5 dia cada | 6 de 7 |
 | 3 | `auth` — por último, apesar de ser o mais importante | 1–2 dias | a fazer |
 | 4 | Cache (`telemetria`, e talvez os JSON) — só se aparecer motivo | — | provavelmente nunca |
 
@@ -261,6 +261,28 @@ delas, então a função ficou para trás e a guarda passou para o script de car
 que se recusa a migrar se encontrar uma. O teste que a protegia foi removido —
 com o porquê escrito no lugar dele, e o que ele também cobria (reimport não
 duplicar) segue coberto por outro.
+
+### O que o `orcamento` acrescentou (store 7, o maior)
+
+**`init_db()` a cada escrita precisava ficar barato.** Ele é chamado em toda
+gravação — é o que garante que a primeira escrita de uma instalação crie as
+tabelas — e reaplicava a checagem de migrations toda vez: duas idas ao banco só
+para descobrir que não havia nada a fazer. A suíte do orçamento passou de 2 para
+mais de 10 minutos. `api/migracoes.py` passou a lembrar, POR PROCESSO, quais
+schemas já estão na última versão. É seguro porque migration nova só chega com
+deploy, e deploy reinicia a API. `apagar_esquema()` esquece junto, senão um
+schema de teste recriado com o mesmo nome nasceria sem tabela nenhuma.
+
+**`executemany` manda uma linha por vez.** Numa regeração são 21.696 linhas, ou
+seja 21.696 idas ao banco. `gravar_baseline` passou a montar UM insert com
+várias tuplas, em lotes de 1.000: **3.600 linhas em 0,21 s** medidos.
+
+**Nem toda lentidão é do banco novo.** Os testes do plano levavam ~12 s cada e
+eu atribuí ao insert; o profiler mostrou `api/db.py` — eles consultam o AVA
+REMOTO de verdade. Um deles chega a estourar o timeout de 60 s quando a máquina
+está disputada. É teste que depende de rede, o que a suíte do extrato já
+tinha evitado de propósito — fica anotado como dívida, não é dívida desta
+migração.
 
 ---
 
