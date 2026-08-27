@@ -185,14 +185,54 @@ try {
     $eapPrev = $ErrorActionPreference
     $ErrorActionPreference = 'Continue'
     try {
-      if (Test-Path $uvExe) { & $uvExe sync 2>&1 | Out-Null }
-      elseif (Get-Command uv -ErrorAction SilentlyContinue) { uv sync 2>&1 | Out-Null }
-      else { Registrar "AVISO: uv nao encontrado; dependencias podem estar desatualizadas" }
-      if ($LASTEXITCODE -and $LASTEXITCODE -ne 0) { Registrar "AVISO: uv sync saiu $LASTEXITCODE (seguindo assim mesmo)" }
+      # DUAS TENTATIVAS, e a saida do uv vai INTEIRA para o log quando falha.
+      #
+      # A causa mais comum aqui e transitoria e nao tem nada a ver com
+      # dependencia: `uv sync` sem grupo REMOVE o pytest (correto - producao nao
+      # carrega pytest), e a remocao falha com "os error 32" quando alguem esta
+      # rodando a suite nesta mesma arvore. Foi o que aconteceu em 27/08/2026,
+      # em tres deploys seguidos.
+      #
+      # Antes, a saida ia para Out-Null e o log dizia so "saiu 2" - sem o
+      # motivo, ninguem tinha como saber se era um arquivo travado (inofensivo)
+      # ou um pacote que nao instalou (a API sobe e quebra na primeira
+      # requisicao que o usar).
+      $saidaUv = $null
+      foreach ($tentativa in 1, 2) {
+        if (Test-Path $uvExe) { $saidaUv = & $uvExe sync 2>&1 }
+        elseif (Get-Command uv -ErrorAction SilentlyContinue) { $saidaUv = uv sync 2>&1 }
+        else { Registrar "AVISO: uv nao encontrado; dependencias podem estar desatualizadas"; break }
+        if (-not $LASTEXITCODE -or $LASTEXITCODE -eq 0) { break }
+        if ($tentativa -eq 1) { Start-Sleep -Seconds 5 }
+      }
+      if ($LASTEXITCODE -and $LASTEXITCODE -ne 0) {
+        $txt = (($saidaUv | Out-String).Trim() -split "`r?`n" | Where-Object { $_ -match '\S' })
+        $ultimas = ($txt | Select-Object -Last 3) -join ' | '
+        Registrar ("AVISO: uv sync saiu $LASTEXITCODE nas 2 tentativas (seguindo assim mesmo): " + $ultimas)
+      }
     } catch {
       Registrar ("AVISO: uv sync falhou (seguindo assim mesmo): " + $_.Exception.Message)
     } finally {
       $ErrorActionPreference = $eapPrev
+    }
+
+    # O `uv sync` e best-effort, entao ele PODE ter deixado de instalar um
+    # pacote novo - e disso a API nao reclama no boot: ela sobe e quebra so na
+    # primeira requisicao que usar o pacote, possivelmente dias depois. Uma
+    # importacao de teste custa menos de um segundo e transforma isso num aviso
+    # no log, no minuto do deploy.
+    $pyVenv = Join-Path $repo '.venv\Scripts\python.exe'
+    if (Test-Path $pyVenv) {
+      # `sys.path` explicito em vez de depender do Set-Location la de cima:
+      # a checagem passaria a acusar ModuleNotFoundError em TODO deploy no dia
+      # em que alguem mexesse no diretorio de trabalho do script, e um alarme
+      # que dispara sempre e' um alarme que ninguem le.
+      $chk = & $pyVenv -c "import sys; sys.path.insert(0, sys.argv[1]); import api.main" $repo 2>&1
+      if ($LASTEXITCODE -ne 0) {
+        $motivo = (($chk | Out-String).Trim() -split "`r?`n" | Where-Object { $_ -match '\S' } |
+                   Select-Object -Last 2) -join ' | '
+        Registrar ("ERRO: o codigo novo NAO importa neste ambiente - a API vai subir quebrada. " + $motivo)
+      }
     }
   }
 

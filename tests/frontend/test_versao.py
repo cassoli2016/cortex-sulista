@@ -41,6 +41,25 @@ def test_changelog_esta_em_dia_com_o_yaml():
         "CHANGELOG.md desatualizado — rode: uv run python scripts/gerar_changelog.py")
 
 
+def test_nenhum_numero_de_versao_se_repete():
+    """Duas sessoes trabalhando em paralelo escolhem o proximo numero cada uma
+    do seu lado e acabam nas duas no mesmo - aconteceu TRES vezes em
+    27/08/2026, e uma delas so foi descoberta dias depois, com dois blocos
+    diferentes disputando o mesmo rotulo no historico.
+
+    O merge nem sempre acusa: se os dois blocos entram em pontos distintos do
+    arquivo, o git junta os dois sem conflito e o numero repetido passa.
+
+    Para escolher o proximo numero com seguranca:
+        uv run python scripts/proxima_versao.py
+    """
+    numeros = [v["versao"] for v in documentacao.versoes()]
+    repetidos = sorted({n for n in numeros if numeros.count(n) > 1})
+    assert not repetidos, (
+        "numero de versao repetido em docs/versoes.yaml: " + ", ".join(repetidos)
+        + " - rode `uv run python scripts/proxima_versao.py` para achar um livre")
+
+
 def test_toda_versao_tem_data_e_ao_menos_uma_mudanca():
     for v in documentacao.versoes():
         assert v["data"], v

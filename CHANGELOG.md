@@ -4,6 +4,16 @@ Gerado de `docs/versoes.yaml` por `scripts/gerar_changelog.py` — não editar �
 Formato [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/),
 versionamento [SemVer](https://semver.org/lang/pt-BR/).
 
+## [0.105.0] — 27/08/2026  ·  CX-27/08/2026-v0.105.0
+
+### Adicionado
+- `scripts/proxima_versao.py` diz qual e o proximo numero de versao livre, consultando TAMBEM o que ja foi publicado - nao so o arquivo desta copia. Duas pessoas trabalhando em paralelo escolhiam o proximo numero cada uma pelo que via do seu lado e caiam no mesmo; aconteceu tres vezes em um unico dia. Junto, um teste passou a recusar numero de versao repetido no historico, que era o jeito de a colisao passar despercebida quando os dois blocos entram em pontos diferentes do arquivo e o merge nao acusa.
+
+### Corrigido
+- O deploy automatico registrava "uv sync saiu 2" sem dizer o motivo, e seguia adiante. Motivo apurado: com alguem rodando a suite de testes na mesma pasta, o `uv sync` nao consegue remover o pytest (producao nao carrega pytest de proposito) e para no meio. Agora ele tenta duas vezes, com cinco segundos entre elas, e quando falha o log recebe as ultimas linhas do proprio uv - sem elas ninguem tinha como saber se era um arquivo travado, que e inofensivo, ou um pacote que nao instalou.
+- Depois do sync, o deploy confere se o codigo novo IMPORTA no ambiente. Um pacote que faltou nao impede a API de subir: ela sobe e quebra so na primeira requisicao que o usar, o que pode levar dias para aparecer. A conferencia custa menos de um segundo e transforma isso num ERRO no log, no minuto do deploy.
+- Dois arquivos vazios com nome `teste_<codigo>` tinham entrado na raiz do repositorio - sobra de um teste de escrita que nao apagou o que criou. Foram removidos, e a raiz passou a barrar esse padrao. Um `teste_*.py` legitimo dentro de tests/ continua entrando normalmente.
+
 ## [0.104.0] — 27/08/2026  ·  CX-27/08/2026-v0.104.0
 
 ### Alterado

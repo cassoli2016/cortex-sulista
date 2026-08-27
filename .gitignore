@@ -59,6 +59,13 @@ cx_*.js
 cx_*.png
 cx_*.txt
 
+# Sonda de escrita na raiz. Em 27/08/2026 dois arquivos VAZIOS com nome
+# `teste_<hex>` entraram num commit - saida de um teste que verifica se da para
+# escrever no diretorio e nao apagou o que criou. Sao inofensivos (0 byte) e sao
+# lixo num repositorio publico. Com barra: o que se quer barrar e a raiz, nunca
+# um `teste_*.py` legitimo dentro de tests/.
+/teste_*
+
 # CAPTURA DE TELA NENHUMA entra: print do CORTEX carrega nome de motorista,
 # chapa, placa, cliente e faturamento, e o repositorio e publico. Um prefixo
 # so (cx_*) nao bastou — os arquivos cnh-*.png escaparam por nao casarem com
