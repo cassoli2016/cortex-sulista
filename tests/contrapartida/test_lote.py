@@ -370,3 +370,105 @@ def test_a_tarefa_agendada_NAO_escolhe_ambiente():
     assert len(acao) == 1, acao
     assert "--agendado" in acao[0] and "--producao" not in acao[0]
     assert "Minutes 5" in ps1, "o disparo tem de bater com o piso do intervalo"
+
+
+# --- exportacao para o ERP --------------------------------------------------
+
+CTE_ASSINADO = ('<?xml version="1.0" encoding="UTF-8"?>'
+                '<CTe xmlns="http://www.portalfiscal.inf.br/cte">'
+                '<infCte Id="CTe123"/><Signature>xxx</Signature></CTe>')
+PROT = '<protCTe versao="4.00"><infProt><nProt>135</nProt></infProt></protCTe>'
+
+
+def test_o_proc_envelopa_documento_E_protocolo():
+    """O documento sozinho nao prova autorizacao: o que o ERP importa e o
+    `cteProc`, que carrega os dois."""
+    proc = lote.emissao.montar_proc(CTE_ASSINADO, PROT)
+    assert proc.startswith('<?xml version="1.0" encoding="UTF-8"?><cteProc')
+    assert "<infCte" in proc and "<nProt>135</nProt>" in proc
+    assert proc.rstrip().endswith("</cteProc>")
+
+
+def test_o_xml_assinado_entra_INTACTO():
+    """Reserializar quebraria a assinatura: qualquer mudanca de espaco em
+    branco ou de ordem de atributo faz o arquivo ser recusado por quem for
+    validar. Por isso o envelope e montado por TEXTO."""
+    proc = lote.emissao.montar_proc(CTE_ASSINADO, PROT)
+    corpo = CTE_ASSINADO[CTE_ASSINADO.index("<CTe"):]
+    assert corpo in proc, "o documento assinado foi alterado no caminho"
+
+
+def test_a_declaracao_do_documento_interno_e_removida():
+    """Dois '<?xml ...?>' no mesmo arquivo nao e XML valido."""
+    proc = lote.emissao.montar_proc(CTE_ASSINADO, PROT)
+    assert proc.count("<?xml") == 1
+
+
+def test_so_documento_AUTORIZADO_vira_proc(monkeypatch):
+    """`cteProc` montado com documento recusado seria um arquivo com cara de
+    valido. A consulta filtra por cStat 100."""
+    import inspect
+    fonte = inspect.getsource(lote.emissao.proc_de)
+    assert "cstat='100'" in fonte
+    assert "xml_prot IS NOT NULL" in fonte
+
+
+def test_exportacao_separa_os_ambientes(tmp_path, monkeypatch):
+    """Misturar homologacao com producao na mesma pasta e o caminho mais curto
+    para alguem importar documento de teste como se valesse."""
+    monkeypatch.setattr(lote.emissao, "_conn", lambda: _ConnFake([]))
+    r = lote.emissao.exportar(str(tmp_path), ambiente=lote.emissao.HOMOLOGACAO)
+    assert r["pasta"].endswith("homologacao")
+    r = lote.emissao.exportar(str(tmp_path), ambiente=lote.emissao.PRODUCAO)
+    assert r["pasta"].endswith("producao")
+
+
+class _ConnFake:
+    """Conexao minima: devolve as linhas dadas e um contador zerado."""
+
+    def __init__(self, linhas): self._linhas = linhas
+
+    def __enter__(self): return self
+    def __exit__(self, *a): return False
+
+    def execute(self, sql, par=()):
+        if "count(*)" in sql:
+            return _Um({"n": 0})
+        return iter(self._linhas)
+
+
+class _Um:
+    """Cursor de uma linha só: `count(*)` e lido com fetchone()."""
+
+    def __init__(self, r): self._r = r
+    def fetchone(self): return self._r
+
+
+def test_exportacao_grava_um_arquivo_por_CHAVE(tmp_path, monkeypatch):
+    linhas = [{"chave": "3526AAA", "quando": "2026-08-27",
+               "xml": CTE_ASSINADO, "xml_prot": PROT},
+              {"chave": "3526BBB", "quando": "2026-08-27",
+               "xml": CTE_ASSINADO, "xml_prot": PROT}]
+    monkeypatch.setattr(lote.emissao, "_conn", lambda: _ConnFake(linhas))
+    r = lote.emissao.exportar(str(tmp_path))
+    assert r["exportados"] == 2
+    nomes = sorted(p.name for p in (tmp_path / "homologacao").iterdir())
+    assert nomes == ["3526AAA-procCTe.xml", "3526BBB-procCTe.xml"]
+    conteudo = (tmp_path / "homologacao" / "3526AAA-procCTe.xml").read_text(
+        encoding="utf-8")
+    assert "<cteProc" in conteudo and "<nProt>135</nProt>" in conteudo
+
+
+def test_arquivos_NAO_vao_para_o_controle_de_versao():
+    """Documento fiscal carrega CNPJ, valor e chave - e o repositorio do
+    codigo e PUBLICO."""
+    import inspect
+    fonte = inspect.getsource(lote.emissao)
+    assert 'DIR_EXPORTACAO = cadastro.ROOT / "data"' in fonte
+    # o .gitignore usa `data/*` e nao `data/` de proposito, para conseguir
+    # reexcluir um arquivo especifico depois com `!data/...`
+    gitignore = open(".gitignore", encoding="utf-8").read()
+    assert "data/*" in gitignore
+    assert "!data/cte_contrapartida" not in gitignore, (
+        "documento fiscal reexcluido do ignore iria para o repositorio, que "
+        "e PUBLICO")

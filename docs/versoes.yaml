@@ -1,3 +1,37 @@
+- versao: "0.86.0"
+  data: "2026-08-27"
+  adicionado:
+    - >-
+      Exportacao dos CT-e de contrapartida para importar no ERP. Sai um arquivo
+      por documento no formato completo - o XML assinado MAIS o protocolo de
+      autorizacao -, que e o que um importador espera: o documento sozinho nao
+      prova que foi autorizado.
+    - >-
+      O protocolo passou a ser guardado em XML, e nao so o numero. Sem ele a
+      autorizacao existe e nao se prova: nao da para importar, arquivar nem
+      responder a uma fiscalizacao.
+    - >-
+      Arquivos separados por AMBIENTE, em pastas diferentes. Misturar
+      homologacao com producao e o caminho mais curto para alguem importar um
+      documento de teste como se valesse.
+    - >-
+      Nomeados pela CHAVE, que e como todo importador de CT-e procura, e o que
+      impede um documento de sobrescrever outro. Reexportar e seguro: reescreve
+      o mesmo arquivo com o mesmo conteudo.
+  alterado:
+    - >-
+      Documento recusado NAO vira arquivo. Um processo montado sobre documento
+      recusado seria um arquivo com cara de valido - e alguem o importaria.
+    - >-
+      A exportacao conta a parte os autorizados SEM arquivo guardado. Hoje sao
+      12: foram emitidos antes de o sistema passar a guardar o XML, entao nao
+      ha o que gerar. Sem esse numero, o total exportado pareceria menor do que
+      deveria sem explicacao.
+    - >-
+      Os arquivos ficam em data/, que esta fora do controle de versao - o
+      repositorio do codigo e publico e documento fiscal carrega CNPJ, valor e
+      chave. Ha teste garantindo que ninguem reexclua essa pasta do ignore.
+
 - versao: "0.85.2"
   data: "2026-08-27"
   corrigido:

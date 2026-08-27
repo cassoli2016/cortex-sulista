@@ -48,6 +48,7 @@ meses depois, inclusive contra o próprio CÓRTEX.
 from __future__ import annotations
 
 import logging
+import pathlib
 from datetime import date, datetime
 
 from api.contrapartida import cadastro, documento, sefaz
@@ -106,7 +107,8 @@ CREATE TABLE IF NOT EXISTS emissao (
 # reconstroi: a chave e o protocolo provam que existe, mas quem precisa
 # IMPORTAR o documento (o ERP, a contabilidade, uma fiscalizacao) precisa do
 # arquivo. Coluna acrescentada depois, entao entra por migracao.
-_MIGRACOES = ("ALTER TABLE emissao ADD COLUMN xml TEXT",)
+_MIGRACOES = ("ALTER TABLE emissao ADD COLUMN xml TEXT",
+              "ALTER TABLE emissao ADD COLUMN xml_prot TEXT")
 
 # Chaves de configuração do módulo (liberação de produção, automação do lote).
 # Mesma tabela para os dois: são interruptores da mesma natureza — ligam algo
@@ -272,15 +274,15 @@ def _guardas(cnpj: str, d: dict, ambiente: str) -> None:
 
 def _registra(quem: str, ambiente: str, cnpj: str, serie: int, numero: int,
               chave: str, chave_origem: str, resp: dict,
-              xml: str | None = None) -> None:
+              xml: str | None = None, xml_prot: str | None = None) -> None:
     with _conn() as c:
         c.execute(
             "INSERT INTO emissao(quando, quem, ambiente, cnpj_emitente, serie,"
-            " numero, chave, chave_origem, cstat, xmotivo, protocolo, xml)"
-            " VALUES(?,?,?,?,?,?,?,?,?,?,?,?)",
+            " numero, chave, chave_origem, cstat, xmotivo, protocolo, xml,"
+            " xml_prot) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?)",
             (datetime.now().isoformat(timespec="seconds"), quem, ambiente,
              cnpj, serie, numero, chave, chave_origem, str(resp.get("cStat")),
-             resp.get("xMotivo"), resp.get("protocolo"), xml))
+             resp.get("xMotivo"), resp.get("protocolo"), xml, xml_prot))
         cadastro._audita(c, quem, "transmissao", cnpj,
                          f"amb {ambiente} · {serie}/{numero} · "
                          f"cStat {resp.get('cStat')}")
@@ -347,12 +349,36 @@ def transmitir(chave_origem: str, enq: documento.Enquadramento, *, quem: str,
 
     retorno = doc_sefaz.envia_documento(edoc)
     resp = _resposta(retorno)
+    xml_prot = _xml_do_protocolo(retorno)
     resp.update({"chave": chave, "serie": serie, "numero": numero,
                  "ambiente": ambiente, "cnpj_emitente": cnpj,
                  "chave_origem": d["chave_original"]})
     _registra(quem, ambiente, cnpj, serie, numero, chave,
-              d["chave_original"], resp, xml_assinado)
+              d["chave_original"], resp, xml_assinado, xml_prot)
     return resp
+
+
+def _xml_do_protocolo(retorno) -> str | None:
+    """O protocolo de autorização, em XML.
+
+    Guardar só o NÚMERO do protocolo não basta: o que o ERP importa, o que se
+    arquiva e o que se apresenta numa fiscalização é o `cteProc` — o documento
+    assinado MAIS este bloco. Sem ele, a autorização existe e não se prova.
+    """
+    prot = getattr(retorno, "protCTe", None) or getattr(retorno, "protCte", None)
+    if prot is None:
+        return None
+    try:
+        from xsdata.formats.dataclass.serializers import XmlSerializer
+        from xsdata.formats.dataclass.serializers.config import SerializerConfig
+        cfg = SerializerConfig(xml_declaration=False)
+        return XmlSerializer(config=cfg).render(
+            prot, ns_map={None: "http://www.portalfiscal.inf.br/cte"})
+    except Exception as exc:  # noqa: BLE001
+        # não derruba a transmissão: o documento foi autorizado de qualquer
+        # jeito, e o protocolo em número continua registrado.
+        log.warning("nao foi possivel guardar o XML do protocolo: %s", exc)
+        return None
 
 
 def _resposta(retorno) -> dict:
@@ -376,6 +402,64 @@ def _resposta(retorno) -> dict:
     }
 
 
+# Onde os arquivos ficam. `data/` inteiro esta no .gitignore - e o repositorio
+# do codigo e PUBLICO. Documento fiscal com CNPJ, valor e chave nao pode entrar
+# em controle de versao nem por acidente.
+DIR_EXPORTACAO = cadastro.ROOT / "data" / "cte_contrapartida"
+
+
+def exportar(destino: str | None = None, ambiente: str = HOMOLOGACAO,
+             desde: str | None = None) -> dict:
+    """Grava em disco o `cteProc` de cada documento AUTORIZADO, para o ERP.
+
+    Um arquivo por documento, nomeado pela CHAVE — que é como todo importador
+    de CT-e espera encontrar, e o que evita sobrescrever um documento com
+    outro. Separados por ambiente: misturar homologação com produção na mesma
+    pasta é o caminho mais curto para alguém importar um documento de teste
+    como se valesse.
+
+    Reexportar é seguro: sobrescreve o mesmo arquivo com o mesmo conteúdo.
+    """
+    raiz = pathlib.Path(destino) if destino else DIR_EXPORTACAO
+    pasta = raiz / ("producao" if ambiente == PRODUCAO else "homologacao")
+    pasta.mkdir(parents=True, exist_ok=True)
+
+    sql = ("SELECT chave, quando, xml, xml_prot FROM emissao"
+           " WHERE ambiente=? AND cstat='100'"
+           " AND xml IS NOT NULL AND xml_prot IS NOT NULL")
+    par: list = [ambiente]
+    if desde:
+        sql += " AND quando >= ?"
+        par.append(desde)
+    sql += " ORDER BY id"
+
+    with _conn() as c:
+        linhas = [dict(r) for r in c.execute(sql, par)]
+
+    escritos, falhas = [], []
+    for r in linhas:
+        alvo = pasta / f"{r['chave']}-procCTe.xml"
+        try:
+            alvo.write_text(montar_proc(r["xml"], r["xml_prot"]),
+                            encoding="utf-8")
+            escritos.append(str(alvo))
+        except Exception as exc:  # noqa: BLE001
+            # um arquivo que falha nao pode abortar a exportacao dos outros
+            log.warning("falha ao exportar %s: %s", r["chave"], exc)
+            falhas.append({"chave": r["chave"], "erro": str(exc)[:200]})
+
+    # Sem protocolo nao ha processo: contamos a parte para o numero de
+    # exportados nao parecer menor do que deveria sem explicacao.
+    with _conn() as c:
+        sem_proc = c.execute(
+            "SELECT count(*) AS n FROM emissao WHERE ambiente=? AND cstat='100'"
+            " AND (xml IS NULL OR xml_prot IS NULL)", (ambiente,)).fetchone()["n"]
+
+    return {"pasta": str(pasta), "exportados": len(escritos),
+            "falhas": falhas, "autorizados_sem_arquivo": sem_proc,
+            "arquivos": escritos}
+
+
 def historico(limite: int = 50) -> list[dict]:
     """Sem a coluna `xml`: ela e grande e a tela nao a usa. Quem precisa do
     arquivo chama `xml_de`."""
@@ -388,9 +472,45 @@ def historico(limite: int = 50) -> list[dict]:
 
 
 def xml_de(chave: str) -> str | None:
-    """O XML assinado de um documento ja transmitido, para arquivo ou para
-    importacao no ERP."""
+    """O XML assinado de um documento ja transmitido."""
     with _conn() as c:
         r = c.execute("SELECT xml FROM emissao WHERE chave=? AND xml IS NOT NULL"
                       " ORDER BY id DESC LIMIT 1", (chave,)).fetchone()
     return r["xml"] if r else None
+
+
+def proc_de(chave: str) -> str | None:
+    """O `cteProc` — documento assinado + protocolo —, que é o arquivo que o
+    ERP importa e que se arquiva.
+
+    Só existe para documento AUTORIZADO: sem protocolo não há processo, e um
+    `cteProc` montado com documento recusado seria um arquivo com cara de
+    válido. Devolve None nos demais casos, de propósito.
+    """
+    with _conn() as c:
+        r = c.execute(
+            "SELECT xml, xml_prot FROM emissao"
+            " WHERE chave=? AND cstat='100' AND xml IS NOT NULL"
+            " AND xml_prot IS NOT NULL ORDER BY id DESC LIMIT 1",
+            (chave,)).fetchone()
+    if not r:
+        return None
+    return montar_proc(r["xml"], r["xml_prot"])
+
+
+def montar_proc(xml_assinado: str, xml_protocolo: str) -> str:
+    """Envelopa documento e protocolo no `cteProc`, como a SEFAZ define.
+
+    Feito por texto e não por árvore: o XML assinado NÃO pode ser reserializado
+    — qualquer mudança de espaço em branco ou de ordem de atributo quebra a
+    assinatura, e o arquivo passa a ser recusado por quem for validar.
+    """
+    def _corpo(x: str) -> str:
+        x = x.strip()
+        if x.startswith("<?xml"):
+            x = x[x.index("?>") + 2:].lstrip()
+        return x
+
+    return ('<?xml version="1.0" encoding="UTF-8"?>'
+            '<cteProc xmlns="http://www.portalfiscal.inf.br/cte" versao="4.00">'
+            + _corpo(xml_assinado) + _corpo(xml_protocolo) + '</cteProc>')
