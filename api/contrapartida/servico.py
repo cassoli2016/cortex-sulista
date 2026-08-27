@@ -251,6 +251,31 @@ def get_contrapartida(de: str | None = None, ate: str | None = None,
 
 
 
+def _por_cstat(limite: int = 8) -> list[dict]:
+    """Retornos da SEFAZ agrupados, do mais frequente para o menos.
+
+    É o que responde "quais erros aconteceram" sem precisar ler linha a linha
+    — a pergunta do acompanhamento diário, e a que a lista das últimas trinta
+    transmissões não responde.
+    """
+    from api.contrapartida import emissao
+    try:
+        with emissao._conn() as c:
+            linhas = [dict(r) for r in c.execute(
+                "SELECT cstat, max(xmotivo) AS xmotivo, count(*) AS n,"
+                "       max(quando) AS ultima"
+                "  FROM emissao"
+                " WHERE cstat IS NOT NULL AND cstat NOT LIKE 'CANC:%'"
+                " GROUP BY cstat ORDER BY count(*) DESC")]
+    except Exception as exc:  # noqa: BLE001
+        log.warning("agrupamento por cStat indisponivel: %s", exc)
+        return []
+    return [{"cstat": str(r["cstat"]), "n": int(r["n"] or 0),
+             "xmotivo": (r["xmotivo"] or "")[:120], "ultima": r["ultima"],
+             "autorizado": str(r["cstat"]) == "100"}
+            for r in linhas[:limite]]
+
+
 def _transmissoes(limite: int = 30) -> dict:
     """As transmissoes ja feitas, para a tela mostrar o que saiu.
 
@@ -315,6 +340,7 @@ def _transmissoes(limite: int = 30) -> dict:
         # Taxa de retorno OK. `None` e nao 0 quando nao houve transmissao:
         # "0% de acerto" sem nenhuma tentativa e um numero que acusa alguem.
         "esperadas_homologacao": esperadas,
+        "por_cstat": _por_cstat(),
         "avaliadas": base,
         "taxa_ok": (round(100.0 * ok_n / base, 1) if base else None),
         # Documento autorizado sem XML guardado nao se importa no ERP nem se

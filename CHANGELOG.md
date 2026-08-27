@@ -4,6 +4,17 @@ Gerado de `docs/versoes.yaml` por `scripts/gerar_changelog.py` — não editar �
 Formato [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/),
 versionamento [SemVer](https://semver.org/lang/pt-BR/).
 
+## [0.115.0] — 27/08/2026  ·  CX-27/08/2026-v0.115.0
+
+### Adicionado
+- O relatorio por e-mail ganhou graficos de barra: autorizados por dia e recusados por dia, nos ultimos sete dias. O numero de um dia sozinho nao diz se a rotina vai bem - 12 autorizados e otimo depois de 3 e ruim depois de 40 - e a serie responde isso em duas linhas.
+- Entraram tambem as recusas AGRUPADAS POR CODIGO sobre o registro inteiro, o que trava a fila por categoria e a lista de certificados vencidos ou proximos do vencimento. E o que transforma o acompanhamento diario numa lista de coisas a corrigir.
+- Os graficos sao desenhados com celulas de tabela, e nao com imagem: o cliente de e-mail bloqueia imagem remota por padrao e o Outlook nao desenha SVG - grafico que chega como retangulo cinza e pior que nenhum.
+
+### Corrigido
+- Gmail e Outlook invertem as cores da mensagem quando o aparelho esta em tema escuro, e o resultado nao e o design system de ninguem. A mensagem passou a declarar que so tem tema claro, e para o Outlook.com, que reescreve as cores mesmo assim, as superficies sao repostas uma a uma.
+- O e-mail repetia o numero enganoso que a tela ja tinha deixado de mostrar: dizia "39 de 123 autorizadas" contando a recusa que so existe em homologacao. Agora sao 39 de 63, com as 60 fora da conta citadas ao lado.
+
 ## [0.114.1] — 27/08/2026  ·  CX-27/08/2026-v0.114.1
 
 ### Alterado

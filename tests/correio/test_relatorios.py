@@ -45,10 +45,16 @@ def test_o_html_nao_usa_flex_nem_grid():
 
 def test_o_estilo_e_INLINE():
     """Gmail remove <style> do <head> em parte dos casos e a mensagem chegaria
-    sem formatacao nenhuma - pior do que nunca ter tido."""
+    sem formatacao nenhuma - pior do que nunca ter tido.
+
+    Ha UM bloco <style>, so para declarar o tema claro (ver o teste seguinte,
+    que garante que ele nao carrega layout). Todo o resto e inline.
+    """
     html = painel.documento("t", [painel.paragrafo("oi")])
-    assert "<style" not in html
+    assert html.count("<style") == 1
     assert 'style="' in html
+    corpo = html.split("</head>")[1]
+    assert "<style" not in corpo, "estilo no corpo nao sobrevive ao Gmail"
 
 
 def test_nao_ha_imagem_externa():
@@ -157,3 +163,56 @@ def test_so_o_tipo_Html_escapa_da_higienizacao():
     perigoso = "<span onload=x>oi</span>"   # str comum, ainda que pareca HTML
     html = painel.tabela(["a"], [[perigoso]])
     assert "onload" not in html or "&lt;span" in html
+
+
+def test_defesa_de_tema_escuro_NAO_reescreve_a_paleta():
+    """A primeira versao desta defesa usava `background:inherit !important` e
+    APAGOU a faixa navy do cabecalho - o !important vence o estilo inline, e o
+    titulo virou branco sobre branco. Visto no navegador em tema escuro.
+    Defender-se do tema escuro e DECLARAR o tema, nunca reescrever por cima da
+    paleta que ja esta correta."""
+    html = painel.documento("t", [])
+    assert "color-scheme" in html and "light only" in html
+    assert "background-color:inherit" not in html
+    assert "!important" not in html.split("</style>")[0].replace(
+        "[data-ogsc]", "").replace("[data-ogsb]", "") or "data-ogsc" in html
+    # a faixa continua navy no estilo inline, que e quem manda
+    assert f"background:{painel.NAVY}" in html
+
+
+def test_o_bloco_de_estilo_nao_carrega_layout():
+    """Gmail descarta <style> em parte dos casos: se o layout dependesse dele,
+    a mensagem chegaria desmontada. Ele so declara tema."""
+    html = painel.documento("t", [painel.kpis([{"rotulo": "a", "valor": 1}])])
+    bloco = html.split("<style>")[1].split("</style>")[0]
+    for proibido in ("display:", "width:", "padding:", "margin:", "font:"):
+        assert proibido not in bloco, f"{proibido} nao pode viver no <style>"
+
+
+def test_grafico_de_barras_e_feito_de_celula_e_nao_de_imagem():
+    """Cliente de e-mail bloqueia imagem remota, e Outlook nao renderiza SVG:
+    um grafico que chega como retangulo cinza e pior que nenhum."""
+    html = painel.barras([{"rotulo": "27/08", "valor": 27},
+                          {"rotulo": "26/08", "valor": 12}])
+    assert "<img" not in html and "<svg" not in html
+    assert "width=" in html and "%" in html
+
+
+def test_a_barra_e_proporcional_ao_MAIOR_e_nao_a_cem():
+    """Com escala fixa em 100, valores pequenos somem e o grafico nao diz
+    nada."""
+    html = painel.barras([{"rotulo": "a", "valor": 10},
+                          {"rotulo": "b", "valor": 5}])
+    assert 'width="100%"' in html.replace('width="100%" cellpadding', "X")  # a maior
+    assert 'width="50%"' in html
+
+
+def test_dia_sem_movimento_continua_ocupando_a_linha():
+    """Zero e informacao: sumir com a linha faria o dia parado desaparecer do
+    grafico como se nao tivesse existido."""
+    html = painel.barras([{"rotulo": "a", "valor": 0},
+                          {"rotulo": "b", "valor": 4}])
+    # uma linha por item; a barra desenhada tem tabela propria por dentro,
+    # entao a contagem e das linhas que carregam o ROTULO
+    assert html.count('width="130"') == 2
+    assert "border-bottom:1px dashed" in html, "o dia zerado perdeu a linha"

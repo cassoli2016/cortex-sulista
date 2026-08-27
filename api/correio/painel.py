@@ -91,7 +91,7 @@ def cabecalho(titulo: str, subtitulo: str = "") -> str:
     sub = (f'<div style="font:400 13px/1.4 {FONTE};color:#B9C2CC;'
            f'margin-top:5px">{_esc(subtitulo)}</div>') if subtitulo else ""
     return f"""
-<tr><td style="background:{NAVY};padding:22px 26px 20px">
+<tr><td class="faixa" style="background:{NAVY};padding:22px 26px 20px">
   <div style="font:700 11px/1 {FONTE};letter-spacing:.22em;color:{BRAND};
               text-transform:uppercase">CÓRTEX · SULISTA</div>
   <div style="font:700 21px/1.25 {FONTE};color:{BRANCO};margin-top:9px">
@@ -205,6 +205,63 @@ def paragrafo(texto: str, *, destaque: bool = False) -> str:
     {_esc(texto)}</div></td></tr>"""
 
 
+def barras(itens: list[dict], *, unidade: str = "") -> str:
+    """Gráfico de barras horizontais desenhado com CÉLULAS DE TABELA.
+
+    Não é `<img>` de propósito: cliente de e-mail bloqueia imagem remota por
+    padrão, e um gráfico que chega como retângulo cinza é pior que nenhum.
+    Não é SVG porque Outlook não renderiza SVG em e-mail. Célula com largura
+    percentual é o único desenho que todos concordam em mostrar.
+
+    Cada item: {rotulo, valor, total?, cor?, sub?}. A barra é proporcional ao
+    MAIOR valor da lista, não a 100%: com valores pequenos e escala fixa todas
+    as barras somem e o gráfico não diz nada.
+    """
+    if not itens:
+        return ""
+    topo = max((float(i.get("valor") or 0) for i in itens), default=0) or 1
+    linhas = []
+    for i in itens:
+        v = float(i.get("valor") or 0)
+        pct = max(round(100 * v / topo), 1) if v else 0
+        cor = i.get("cor") or NAVY_MEDIO
+        rotulo = _esc(i.get("rotulo"))
+        num = i.get("texto") or (inteiro(v) + (f" {unidade}" if unidade else ""))
+        # a barra vazia ainda ocupa a linha: dia sem movimento e informacao
+        barra = (f'<table role="presentation" width="100%" cellpadding="0" '
+                 f'cellspacing="0"><tr>'
+                 f'<td width="{pct}%" style="background:{cor};height:14px;'
+                 f'border-radius:3px;font-size:0;line-height:0">&nbsp;</td>'
+                 f'<td style="font-size:0;line-height:0">&nbsp;</td></tr></table>'
+                 if pct else
+                 f'<div style="height:14px;border-bottom:1px dashed {BORDA}"></div>')
+        linhas.append(f"""
+<tr>
+  <td width="130" valign="middle" style="font:400 12.5px/1.3 {FONTE};
+      color:{TINTA};padding:5px 10px 5px 0;white-space:nowrap">{rotulo}</td>
+  <td valign="middle" style="padding:5px 10px 5px 0">{barra}</td>
+  <td width="86" align="right" valign="middle" style="font:600 12.5px/1.3 {MONO};
+      color:{TINTA};padding:5px 0">{_esc(num)}</td>
+</tr>""")
+    return f"""
+<tr><td style="padding:14px 26px 0">
+  <table role="presentation" width="100%" cellpadding="0" cellspacing="0">
+    {''.join(linhas)}
+  </table></td></tr>"""
+
+
+def legenda(itens: list[tuple[str, str]]) -> str:
+    """Chaves de cor do gráfico. Sem ela, barra colorida é enfeite."""
+    partes = "".join(
+        f'<span style="display:inline-block;margin-right:14px">'
+        f'<span style="display:inline-block;width:9px;height:9px;'
+        f'background:{cor};border-radius:2px"></span>'
+        f'<span style="font:400 11.5px/1 {FONTE};color:{CINZA};'
+        f'padding-left:5px">{_esc(rot)}</span></span>'
+        for rot, cor in itens)
+    return (f'<tr><td style="padding:8px 26px 0">{partes}</td></tr>')
+
+
 def rodape(origem: str) -> str:
     quando = datetime.now().strftime("%d/%m/%Y às %H:%M")
     return f"""
@@ -226,12 +283,35 @@ def documento(titulo: str, blocos: list[str], *, subtitulo: str = "",
 <html><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <meta name="color-scheme" content="light only">
-<title>{_esc(titulo)}</title></head>
+<meta name="supported-color-schemes" content="light only">
+<title>{_esc(titulo)}</title>
+<!-- MODO ESCURO DO CLIENTE. Gmail e Outlook INVERTEM as cores da mensagem
+     quando o aparelho esta em tema escuro: o fundo branco vira quase preto, o
+     navy da faixa clareia e o amarelo da marca fica ilegivel - o cliente
+     reescreve a paleta e o resultado nao e o design system de ninguem. As
+     duas metas acima declaram que a mensagem SO tem tema claro, e este bloco
+     e a segunda linha de defesa para quem le a meta e ignora. Ele NAO carrega
+     regra de layout: o layout inteiro esta inline, e continua de pe se o
+     cliente jogar este bloco fora (que e o que o Gmail faz as vezes). -->
+<style>
+  :root{{color-scheme:light only;supported-color-schemes:light only}}
+  /* NADA de `background:inherit !important` aqui. A primeira versao deste
+     bloco fazia exatamente isso e APAGOU a faixa navy do cabecalho - o
+     `!important` vence o estilo inline, e o titulo virou branco sobre branco.
+     A defesa contra o tema escuro e DECLARAR o tema (as metas acima), nunca
+     reescrever a paleta por cima da que ja esta correta.
+     O `[data-ogsc]` e a marca que o Outlook.com poe quando reescreve as
+     cores: para ele repomos o fundo claro, um por um, sem tocar no resto. */
+  [data-ogsc] .corpo, [data-ogsb] .corpo {{background:{BRANCO} !important}}
+  [data-ogsc] .fundo, [data-ogsb] .fundo {{background:{FUNDO} !important}}
+  [data-ogsc] .faixa, [data-ogsb] .faixa {{background:{NAVY} !important}}
+</style></head>
 <body style="margin:0;padding:0;background:{FUNDO};">
-<table role="presentation" width="100%" cellpadding="0" cellspacing="0"
-       style="background:{FUNDO};padding:20px 10px">
+<table role="presentation" class="fundo" width="100%" cellpadding="0"
+       cellspacing="0" style="background:{FUNDO};padding:20px 10px">
  <tr><td align="center">
-  <table role="presentation" width="600" cellpadding="0" cellspacing="0"
+  <table role="presentation" class="corpo" width="600" cellpadding="0"
+         cellspacing="0"
          style="width:600px;max-width:100%;background:{BRANCO};
                 border:1px solid {BORDA};border-radius:10px;overflow:hidden">
    {cabecalho(titulo, subtitulo)}

@@ -25,6 +25,16 @@ from api.correio import painel as p
 log = logging.getLogger("cortex.correio.relatorios")
 
 
+def _dia_br(iso) -> str:
+    t = str(iso or "")[:10].split("-")
+    return f"{t[2]}/{t[1]}" if len(t) == 3 else str(iso or "—")
+
+
+def _data_br(iso) -> str:
+    t = str(iso or "")[:10].split("-")
+    return f"{t[2]}/{t[1]}/{t[0]}" if len(t) == 3 else "—"
+
+
 def _falhou(titulo: str, exc: Exception) -> dict:
     txt = (f"{titulo}\n\nO CÓRTEX não conseguiu montar este relatório:\n"
            f"{type(exc).__name__}: {str(exc)[:300]}\n\n"
@@ -102,14 +112,20 @@ def contrapartida() -> dict:
                   if ult else "ainda não rodou"]]))
 
         blocos.append(p.secao("Retorno da SEFAZ", "registro completo"))
-        docs = int(tx.get("documentos") or 0)
+        # DENOMINADOR = AVALIADAS. `documentos` inclui a recusa que so existe
+        # em homologacao; usa-la aqui repetiria no e-mail o numero enganoso
+        # que a tela ja tinha deixado de mostrar.
+        docs = int(tx.get("avaliadas") or tx.get("documentos") or 0)
+        esperadas = int(tx.get("esperadas_homologacao") or 0)
         ok_n = int(tx.get("autorizadas") or 0)
         taxa = tx.get("taxa_ok")
         blocos.append(p.kpis([
             {"rotulo": "Autorizadas", "valor": f"{ok_n} de {docs}",
              "estado": "ok" if taxa and taxa >= 70 else "warn",
              # virgula decimal: o e-mail sai em pt-BR como o resto do painel
-             "sub": (f"{taxa:.1f}% de retorno OK".replace(".", ",")
+             "sub": ((f"{taxa:.1f}".replace(".", ",") + "% de retorno OK"
+                      + (f" · {esperadas} recusas só de homologação fora "
+                         "da conta" if esperadas else ""))
                      if taxa is not None else "nenhuma transmissão ainda")},
             {"rotulo": "Em produção",
              "valor": f"{tx.get('producao_autorizadas', 0)} de "
@@ -117,6 +133,82 @@ def contrapartida() -> dict:
              "estado": "ok",
              "sub": "autorizadas de transmitidas — só estas valem para o fisco"},
         ]))
+
+        # ---- ritmo dos ultimos dias -------------------------------------
+        # O numero do dia sozinho nao diz se a rotina esta indo bem: 12
+        # autorizados e otimo depois de 3 e ruim depois de 40. A serie responde
+        # isso em duas linhas, e e a pergunta de quem acompanha um periodo de
+        # teste.
+        serie = (tx.get("por_dia") or [])[-7:]
+        if serie:
+            blocos.append(p.secao("Autorizados por dia", "últimos 7 dias"))
+            def _ok(d):
+                return int(d.get("homologacao_ok") or 0) + int(d.get("producao_ok") or 0)
+
+            def _nao(d):
+                return int(d.get("homologacao_nao") or 0) + int(d.get("producao_nao") or 0)
+
+            blocos.append(p.barras([
+                {"rotulo": _dia_br(d.get("dia")), "valor": _ok(d), "cor": p.VERDE}
+                for d in serie]))
+            recusas = [{"rotulo": _dia_br(d.get("dia")), "valor": _nao(d),
+                        "cor": p.VERMELHO} for d in serie]
+            if any(r["valor"] for r in recusas):
+                blocos.append(p.secao("Recusados por dia"))
+                blocos.append(p.barras(recusas))
+
+        # ---- o que a SEFAZ respondeu ------------------------------------
+        # A lista das ultimas trinta transmissoes nao responde "quais erros
+        # aconteceram": responde "o que passou por aqui agora". Agrupado por
+        # codigo, o periodo de teste vira uma lista de coisas a corrigir.
+        codigos = [c for c in (tx.get("por_cstat") or []) if not c["autorizado"]]
+        if codigos:
+            blocos.append(p.secao("Recusas por código",
+                                  "sobre todo o registro, não só as últimas"))
+            blocos.append(p.tabela(
+                ["Código", "Vezes", "Motivo"],
+                [[p.chip(c["cstat"], "bad"), c["n"], c["xmotivo"]]
+                 for c in codigos[:6]], alinha_dir=(1,)))
+
+        # ---- quem ainda trava a fila ------------------------------------
+        try:
+            val = servico.validacao_completa(90)
+            porc = val.get("por_categoria") or {}
+            if porc:
+                blocos.append(p.secao("O que trava a fila",
+                                      f"{val.get('agregados')} agregados ativos"))
+                blocos.append(p.barras([
+                    {"rotulo": "Certificado", "valor": porc.get("certificado", 0),
+                     "cor": p.VERMELHO},
+                    {"rotulo": "Cadastro no ERP", "valor": porc.get("cadastro", 0),
+                     "cor": p.AMBAR},
+                    {"rotulo": "Não emite CT-e", "valor": porc.get("natureza", 0),
+                     "cor": p.CINZA},
+                ], unidade="agregados"))
+                blocos.append(p.paragrafo(
+                    f"{val.get('aprovados')} de {val.get('agregados')} passam em "
+                    "tudo e podem emitir hoje. O resto está listado no "
+                    "validador, com a ação de cada um."))
+        except Exception as exc:  # noqa: BLE001
+            log.warning("validacao no relatorio indisponivel: %s", exc)
+
+        # ---- certificados a vencer --------------------------------------
+        try:
+            cert = (servico.get_contrapartida(hoje.isoformat(), hoje.isoformat())
+                    .get("certificados") or {})
+            itens = [c for c in (cert.get("itens") or [])
+                     if c.get("situacao") in ("vencido", "critico", "alerta")]
+            if itens:
+                blocos.append(p.secao("Certificados vencidos ou vencendo"))
+                blocos.append(p.tabela(
+                    ["Agregado", "Validade", "Situação"],
+                    [[c.get("nome") or c.get("documento"),
+                      _data_br(c.get("valida_ate")),
+                      p.chip(c.get("texto") or c.get("situacao"),
+                             "bad" if c.get("situacao") == "vencido" else "warn")]
+                     for c in itens[:8]]))
+        except Exception as exc:  # noqa: BLE001
+            log.warning("certificados no relatorio indisponiveis: %s", exc)
 
         avisos = [a for a in (servico.get_contrapartida(
             hoje.isoformat(), hoje.isoformat()).get("avisos") or [])][:3]
