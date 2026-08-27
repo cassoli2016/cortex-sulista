@@ -394,9 +394,9 @@ tr:last-child td{border-bottom:0}
 .b-warn{background:var(--yellow-100);color:var(--yellow-700)}
 .b-dang{background:var(--red-100);color:var(--red)}
 .b-ok{background:var(--green-100);color:var(--green)}
-/* Linha de transmissão recusada: tinta de fundo leve, porque a coluna de
-   situação já carrega o vermelho. Pintar a linha inteira forte competiria com
-   ela e cansaria numa lista de milhares. */
+/* Transmissão recusada: fundo leve, porque a coluna de situação já carrega o
+   vermelho. Pintar a linha inteira forte competiria com ela e cansaria numa
+   lista longa. */
 tr.cp-recusada td{background:var(--red-50,#fdf2f0)}
 /* linhas expansíveis (fornecedores → OCs) */
 tr.forn-row{cursor:pointer}
@@ -9526,196 +9526,38 @@ function renderCtecp(d){
     const semXml=k.autorizadas_sem_xml||0;
     document.getElementById('hintCpTx').textContent =
       tx.length+' '+(tx.length===1?'transmissão':'transmissões')+' · '+ok+
-      ' autorizada'+(ok===1?'':'s')+' · '+(k.emitidas||0)+' em produção'+
-      (semXml? ' · '+semXml+' sem XML guardado':'');
+      ' autorizada'+(ok===1?'':'s')+' · '+(k.emitidas||0)+' em produção'
+      +(semXml? ' · '+semXml+' sem XML guardado':'');
     document.getElementById('cpTxTab').innerHTML =
       '<thead><tr><th>Quando</th><th>Ambiente</th><th>Série/Nº</th>'
       +'<th>Situação</th><th>Chave</th><th>Protocolo</th><th>Arquivo</th>'
       +'<th>Quem</th></tr></thead><tbody>'
       +tx.map(function(t){
-        /* Verde so quando a SEFAZ autorizou. Todo o resto e vermelho: cStat
-           que nao seja 100 significa que NADA foi emitido, e um tom
+        /* Verde SO quando a SEFAZ autorizou; todo o resto vermelho. Codigo
+           diferente de 100 significa que NADA foi emitido, e um tom
            intermediario faria "recusado" parecer "quase la". */
-        const b = t.autorizado ? 'b-ok' : 'b-dang';
-        const amb = t.ambiente==='homologação'
+        const b=t.autorizado?'b-ok':'b-dang';
+        const amb=t.ambiente==='homologação'
           ? '<span class="badge b-warn" title="Ambiente de teste da SEFAZ: o documento não tem valor fiscal, não é escriturado e não gera obrigação">homologação</span>'
           : '<span class="badge b-info">produção</span>';
-        /* A chave tem 44 digitos e nao cabe na linha: mostra as pontas e o
-           inteiro no title, que e o que se copia para conferir no portal. */
-        const ch = t.chave||'';
-        const chCurta = ch.length>20 ? ch.slice(0,8)+'…'+ch.slice(-8) : (ch||'—');
+        /* A chave tem 44 digitos e nao cabe na linha: pontas na celula e a
+           inteira no title, que e o que se copia para conferir no portal. */
+        const ch=t.chave||'';
+        const chCurta=ch.length>20 ? ch.slice(0,8)+'…'+ch.slice(-8) : (ch||'—');
+        const arq=t.tem_xml
+          ? '<span class="badge b-ok" title="XML assinado guardado — é o arquivo que o ERP importa">guardado</span>'
+          : (t.autorizado
+             ? '<span class="badge b-dang" title="Autorizado mas sem o XML: a chave prova que existe, o arquivo é que se importa">falta</span>'
+             : '<span class="hint">—</span>');
         return '<tr'+(t.autorizado?'':' class="cp-recusada"')+'>'
           +'<td class="mono">'+esc(fmtDT(t.quando||''))+'</td>'
           +'<td>'+amb+'</td>'
           +'<td class="mono">'+esc(t.serie)+'/'+esc(t.numero)+'</td>'
           +'<td><span class="badge '+b+'" title="'+esc(t.xmotivo||'')+'">'
-            +esc(t.cstat||'?')+'</span> '+esc(t.xmotivo||'')+'</td>'
+          +esc(t.cstat||'?')+'</span> '+esc(t.xmotivo||'')+'</td>'
           +'<td class="mono" title="'+esc(ch)+'">'+esc(chCurta)+'</td>'
           +'<td class="mono">'+esc(t.protocolo||'—')+'</td>'
-          +'<td>'+(t.tem_xml
-             ? '<span class="badge b-ok" title="XML assinado guardado — é o arquivo que o ERP importa">guardado</span>'
-             : (t.autorizado
-                ? '<span class="badge b-dang" title="Autorizado mas sem o XML: a chave prova que existe, o arquivo é que se importa">falta</span>'
-                : '<span class="hint">—</span>'))+'</td>'
-          +'<td>'+esc(t.quem||'')+'</td></tr>';
-      }).join('')+'</tbody>';
-  }
-
-  const av=(d.avisos||[]);
-    cpOk('Certificado gravado'+(d.titular?(' — '+d.titular):'')
-         +(d.valida_ate?(', válido até '+fmtD(d.valida_ate)):'')
-         +(av.length?(' · '+av.join(' · ')):''));
-    loadCtecp(true);
-  }catch(e){ cpErro('Falha de rede: '+e.message); }
-}
-
-
-/* Abaixo de R$ 1 mostra CENTAVOS. Ha agregados com 4 CT-e somando R$ 0,04 -
-   arredondar para "R$ 0" faria parecer erro de sistema, quando o dado esta
-   certo e o que e estranho e o documento. Mesma regra do resto do painel:
-   zero exibido tem de ser zero de verdade. */
-function cpBRL(v){ v=v||0;
-  return v!==0 && Math.abs(v)<1
-    ? v.toLocaleString('pt-BR',{style:'currency',currency:'BRL',minimumFractionDigits:2})
-    : v.toLocaleString('pt-BR',{style:'currency',currency:'BRL',maximumFractionDigits:0}); }
-async function loadCtecp(fundo){
-  skelKpis('kpis-ctecp',4);
-  const seq=++cpSeq, btn=document.getElementById('btnRefresh'); if(btn) btn.disabled=true;
-  if(!fundo) document.getElementById('content').classList.add('loading');
-  try{
-    const V=id=>{const e=document.getElementById(id);return e?e.value.trim():'';};
-    const p=new URLSearchParams();
-    if(V('fCpDe')) p.set('de', V('fCpDe'));
-    if(V('fCpAte')) p.set('ate', V('fCpAte'));
-    if(V('fCpBusca')) p.set('busca', V('fCpBusca'));
-    const r=await fetch('/api/fiscal/contrapartida?'+p.toString(),
-      {cache:'no-store', headers: fundo?{'X-Carga-Fundo':'1'}:{}});
-    const d=await r.json(); if(seq!==cpSeq) return;
-    if(!r.ok){ showBanner(d.mensagem||'Erro ao montar a conciliação.'); return; }
-    hideBanner(); DATACP=d; renderCtecp(d);
-  }catch(e){ if(seq===cpSeq) showBanner('Não foi possível falar com a API.', e.message); }
-  finally{ if(seq===cpSeq){ if(btn) btn.disabled=false;
-    document.getElementById('content').classList.remove('loading'); } }
-}
-function renderCtecp(d){
-  const k=d.kpis||{}, per=d.periodo||{}, f=d.fonte||{};
-  const de=document.getElementById('fCpDe'), ate=document.getElementById('fCpAte');
-  if(de && !de.value && per.de) de.value=per.de;
-  if(ate && !ate.value && per.ate){ const x=new Date(per.ate+'T12:00:00'); x.setDate(x.getDate()-1); ate.value=_iso(x); }
-
-  /* "0 emitidas" NAO e verde: e a medida do passivo corrente, nao um indicador
-     saudavel. Mesma regra do CRM - KPI que so pode dar zero por ausencia de
-     processo nao pode aparecer como se estivesse tudo certo. */
-  document.getElementById('kpis-ctecp').innerHTML=
-    kpi('CT-e aguardando contrapartida', (k.ctes_pj||0).toLocaleString('pt-BR'),
-        cpBRL(k.valor_pj)+' · '+(k.agregados_pj||0)+' agregados PJ', 'bad',
-        'CT-e emitidos com veículo de agregado PESSOA JURÍDICA — só estes podem ter contrapartida. O valor é a prestação dos CT-e da fila, não o valor do documento a emitir, que depende do contrato com cada agregado.')
-   +kpi('Autorizados a emitir', (k.prontos_para_emitir||0)+' de '+(k.agregados_pj||0),
-        'autorização vigente + certificado A1 + senha',
-        (k.prontos_para_emitir||0)===0?'bad':'warn',
-        'Enquanto nenhum agregado estiver autorizado, a fila é diagnóstico: nenhum documento pode ser emitido.')
-   +kpi('Contrapartidas emitidas', (k.emitidas||0).toLocaleString('pt-BR'),
-        'nenhuma rotina de emissão no ar', 'bad',
-        'Zero por confirmação da própria operação, não por falta de dado. Esta tela dimensiona a fila; ela não emite.')
-   +kpi('Fora da fila (TAC)', (k.ctes_tac||0).toLocaleString('pt-BR'),
-        (k.agregados_tac||0)+' agregados pessoa física · '+cpBRL(k.valor_tac),
-        'warn',
-        'Transportador Autônomo de Cargas não emite CT-e: a documentação dele é CIOT e RPA. Não entra na fila por natureza do documento, não por falta de certificado.');
-
-  const CL={pj:'PJ',tac:'TAC',indefinido:'?'};
-  const ag=(d.por_agregado||[]);
-  document.getElementById('cpTab').innerHTML=
-    '<thead><tr><th>Agregado</th><th>Tipo</th><th>RNTRC</th><th>Cadastro</th><th>Autorização</th><th class="r">CT-e</th><th class="r">Placas</th><th class="r">Prestação</th></tr></thead><tbody>'
-    +(ag.length? ag.map(function(x){
-        const tac = x.classe==='tac';
-        /* a lista vem PRONTA do servidor. Recalcular aqui duplicava a
-           regra, e a duplicata divergiu no mesmo dia: o servico passou a
-           recusar "ISENTO" como inscricao estadual e esta coluna continuou
-           dizendo "completo" nas mesmas 17 linhas. */
-        const falta=(x.falta||[]);
-        return '<tr'+(tac?' style="opacity:.62"':'')+'>'
-          +'<td>'+esc(x.nome||x.documento||'—')+'</td>'
-          +'<td>'+(tac? statChip('warn','TAC','não emite CT-e — CIOT/RPA') : esc(CL[x.classe]||'?'))+'</td>'
-          +'<td class="mono">'+esc(x.rntrc||'—')+'</td>'
-          +'<td>'+(tac?'<span style="color:var(--n500)">não se aplica</span>'
-                     : (falta.length? statChip('bad','falta '+falta.join(', '),'campo obrigatório ausente vira rejeição documento a documento')
-                                    : statChip('good','completo','razão social, IE, RNTRC e município presentes')))+'</td>'
-          +'<td>'+(tac?'<span style="color:var(--n500)">—</span>'
-                     : '<button class="ghost" style="padding:2px 7px;font-size:11px"'
-                       +' onclick="cpAbrir(\''+esc(x.documento)+'\')"'
-                       +' title="Cadastrar autorização e certificado">'
-                       +((x.prontidao||{}).pronto
-                          ? statChip('good','pronto', ((x.prontidao||{}).alertas||[]).join(' · ')||'autorização vigente, certificado A1 válido e senha no cofre')
-                          : statChip('bad','não autorizado', ((x.prontidao||{}).faltas||[]).join(' · ')))
-                       +'</button>')+'</td>'
-          +'<td class="r mono">'+(x.ctes||0).toLocaleString('pt-BR')+'</td>'
-          +'<td class="r mono">'+(x.placas||0)+'</td>'
-          +'<td class="r mono">'+cpBRL(x.valor)+'</td></tr>';
-      }).join('') : '<tr><td colspan="8" class="hint">Nenhum CT-e de agregado no período.</td></tr>')
-    +'</tbody>';
-  document.getElementById('hintCpTab').textContent =
-    ag.length ? ag.length+' agregados · ordenado por prestação · linha esmaecida = TAC, fora da fila' : '';
-
-  /* barra empilhada PJ x TAC por mes: parte-do-todo com duas categorias */
-  const ms={}; (d.por_mes||[]).forEach(function(x){ (ms[x.mes]=ms[x.mes]||{})[x.classe]=x; });
-  const meses=Object.keys(ms).sort();
-  document.getElementById('cpMes').innerHTML = meses.length ? meses.map(function(m){
-    const pj=(ms[m].pj||{}).ctes||0, tac=(ms[m].tac||{}).ctes||0, tot=(pj+tac)||1;
-    return '<div>'
-      +'<div style="display:flex;justify-content:space-between;font-size:12px">'
-      +'<span>'+esc(m)+'</span><span class="mono" style="color:var(--n500)">'
-      +pj.toLocaleString('pt-BR')+' PJ · '+tac.toLocaleString('pt-BR')+' TAC</span></div>'
-      +'<div style="display:flex;height:14px;border-radius:6px;overflow:hidden;margin-top:3px">'
-      +'<div title="PJ - entram na fila" style="width:'+(100*pj/tot).toFixed(1)+'%;background:var(--red)"></div>'
-      +'<div title="TAC - fora da fila" style="width:'+(100*tac/tot).toFixed(1)+'%;background:var(--n300)"></div>'
-      +'</div></div>';
-  }).join('') : '<div class="hint">Sem dados no período.</div>';
-
-  const pas=(d.passivo||[]).filter(function(x){return x.classe==='pj';});
-  const maxv=Math.max(1,...pas.map(function(x){return x.valor||0;}));
-  document.getElementById('cpPassivo').innerHTML = pas.length ? pas.map(function(x){
-    return '<div>'
-      +'<div style="display:flex;justify-content:space-between;font-size:12px">'
-      +'<span>'+esc(x.ano)+'</span><span class="mono" style="color:var(--n500)">'
-      +(x.ctes||0).toLocaleString('pt-BR')+' CT-e · '+cpBRL(x.valor)+'</span></div>'
-      +'<div style="height:10px;border-radius:5px;background:var(--n100);margin-top:3px">'
-      +'<div style="height:100%;width:'+(100*(x.valor||0)/maxv).toFixed(1)+'%;background:var(--n400);border-radius:5px"></div>'
-      +'</div></div>';
-  }).join('')+'<div class="hint">Não é fila de trabalho: CT-e não se emite retroativo.</div>'
-    : '<div class="hint">Sem histórico.</div>';
-
-  /* o periodo abre no DIA: sem dizer isso, "20 CT-e aguardando" parece que o
-     passivo evaporou. O bloco de passivo acumulado ignora este filtro. */
-  const umDia = per.de && per.ate &&
-    (new Date(per.ate)-new Date(per.de))<=86400000*1.5;
-  document.getElementById('hintCp').textContent =
-    (umDia ? ('somente '+fmtD(per.de)+' — amplie o período para ver o acumulado')
-           : ((per.de||'')+' a '+(per.ate||'')))
-    +(per.busca?(' · filtrado por “'+per.busca+'”'):'')
-    +' · '+(f.gerado_em||'');
-  /* transmissoes ja feitas. Homologacao e producao NAO se somam: documento de
-     homologacao nao tem valor fiscal, e junta-los faria a tela anunciar uma
-     fila resolvida que nao foi. */
-  const tx=(d.emissoes||[]);
-  document.getElementById('cpTxCard').hidden = !tx.length;
-  if(tx.length){
-    const ok=tx.filter(function(t){return t.autorizado;}).length;
-    document.getElementById('hintCpTx').textContent =
-      tx.length+' '+(tx.length===1?'transmissão':'transmissões')+' · '+ok+
-      ' autorizada'+(ok===1?'':'s')+' · '+(k.emitidas||0)+' em produção';
-    document.getElementById('cpTxTab').innerHTML =
-      '<thead><tr><th>Quando</th><th>Ambiente</th><th>Série/Nº</th>'
-      +'<th>Retorno da SEFAZ</th><th>Protocolo</th><th>Quem</th></tr></thead><tbody>'
-      +tx.map(function(t){
-        const cls=t.autorizado?'good':'bad';
-        return '<tr><td class="mono">'+esc(fmtDT(t.quando||''))+'</td>'
-          +'<td>'+(t.ambiente==='homologação'
-             ? '<span class="chip warn" title="Ambiente de teste da SEFAZ: sem valor fiscal">homologação</span>'
-             : '<span class="chip">produção</span>')+'</td>'
-          +'<td class="mono">'+esc(t.serie)+'/'+esc(t.numero)+'</td>'
-          +'<td><span class="chip '+cls+'">'+esc(t.cstat||'?')+'</span> '
-          +esc(t.xmotivo||'')+'</td>'
-          +'<td class="mono">'+esc(t.protocolo||'—')+'</td>'
+          +'<td>'+arq+'</td>'
           +'<td>'+esc(t.quem||'')+'</td></tr>';
       }).join('')+'</tbody>';
   }

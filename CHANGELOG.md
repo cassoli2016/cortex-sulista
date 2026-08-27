@@ -4,6 +4,12 @@ Gerado de `docs/versoes.yaml` por `scripts/gerar_changelog.py` — não editar �
 Formato [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/),
 versionamento [SemVer](https://semver.org/lang/pt-BR/).
 
+## [0.79.1] — 26/08/2026  ·  CX-26/08/2026-v0.79.1
+
+### Corrigido
+- O sistema ficava TRAVADO. A tabela de transmissoes da versao anterior foi escrita por substituicao de texto que atravessou DUAS funcoes e comeu uma chave de fechamento: o JavaScript parou de compilar e, no navegador, isso nao quebra so aquela tela - mata o script inteiro no carregamento, e o app inteiro fica parado. Quem encontrou foi o usuario.
+- Nada pegava esse tipo de defeito: a verificacao de estrutura olha atributos e classes do HTML, o smoke conta cartoes, e os testes de tela carregavam a pagina sem falhar por erro de console. Entrou teste que compila o JavaScript do arquivo, e outro que conta o bloco novo para acusar duplicacao - a mesma fatia que quebrou o arquivo tambem havia duplicado o trecho.
+
 ## [0.79.0] — 26/08/2026  ·  CX-26/08/2026-v0.79.0
 
 ### Adicionado
