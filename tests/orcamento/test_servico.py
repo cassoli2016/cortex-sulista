@@ -110,15 +110,15 @@ def test_serie_mensal_marca_o_mes_sem_realizado():
     assert serie[5]["fechado"] is False
 
 
-def test_gerar_e_comparativo_respeitam_db_path_trocado_em_runtime(tmp_path, monkeypatch):
-    """Achado 3 da revisão: `path=arm.DB_PATH` como default resolve em tempo de
-    IMPORT (uma vez só, quando o módulo carrega). Se `gerar`/`comparativo` forem
-    chamados sem `path=` depois de um `monkeypatch.setattr(arm, "DB_PATH", ...)`
-    (como este teste faz), eles têm que gravar/ler no destino trocado — não no
-    valor congelado na assinatura da função. Isolado do Postgres real: stub em
-    `db.query` e em `ler_ajustes` cobre o histórico e o agrupador."""
-    destino = tmp_path / "orcamento.db"
-    monkeypatch.setattr(arm, "DB_PATH", destino)
+def test_gerar_e_comparativo_respeitam_esquema_trocado_em_runtime(esquema_pg, monkeypatch):
+    """Achado 3 da revisão, que sobreviveu à migração: default resolvido em
+    tempo de IMPORT (uma vez só, quando o módulo carrega) ignora um
+    `monkeypatch.setattr(arm, "ESQUEMA", ...)` feito depois — e o teste
+    escreveria no banco de PRODUÇÃO achando que estava isolado. `gerar` e
+    `comparativo` chamados sem `esquema=` têm de ir para o destino trocado.
+    Isolado do AVA: stub em `db.query` e em `ler_ajustes`."""
+    destino = esquema_pg
+    monkeypatch.setattr(arm, "ESQUEMA", destino)
     monkeypatch.setattr(svc, "ler_ajustes", lambda: {})
 
     hoje = date(2026, 7, 1)
@@ -133,13 +133,12 @@ def test_gerar_e_comparativo_respeitam_db_path_trocado_em_runtime(tmp_path, monk
 
     monkeypatch.setattr(svc.db, "query", fake_query)
 
-    # gerar() sem path=: tem que gravar em `destino`, não no DB_PATH original.
-    r = svc.gerar(2026, "teste path default", 0.0, "teste", hoje=hoje)
-    assert destino.exists()
+    # gerar() sem esquema=: grava em `destino`, não no schema de produção.
+    r = svc.gerar(2026, "teste esquema default", 0.0, "teste", hoje=hoje)
     assert r["contas_sem_linha"] == []
     assert arm.listar_versoes(destino)[0]["id"] == r["versao_id"]
 
-    # comparativo() sem path=: tem que ler de `destino` também.
+    # comparativo() sem esquema=: lê de `destino` também.
     out = svc.comparativo(r["versao_id"], ate_mes=0)
     assert out["versao"]["id"] == r["versao_id"]
     assert len(out["grade"]) == 1
@@ -147,15 +146,15 @@ def test_gerar_e_comparativo_respeitam_db_path_trocado_em_runtime(tmp_path, monk
     assert out["grade"][0]["linha"] == "CUSTO VARIAVEL"
 
 
-def test_regerar_a_versao_preserva_o_ajuste_manual(tmp_path, monkeypatch):
+def test_regerar_a_versao_preserva_o_ajuste_manual(esquema_pg, monkeypatch):
     """Critério de aceite 3, pelo caminho que a aplicação usa de verdade.
 
     O teste antigo chamava `gravar_baseline` direto e por isso passava mesmo com
     `gerar()` sempre criando versão nova — o `ON CONFLICT` nunca era alcançado em
     produção. Aqui a regeração vai por `gerar(versao_id=...)`, o mesmo que o botão
     "Regerar" da tela dispara."""
-    destino = tmp_path / "orcamento.db"
-    monkeypatch.setattr(arm, "DB_PATH", destino)
+    destino = esquema_pg
+    monkeypatch.setattr(arm, "ESQUEMA", destino)
     monkeypatch.setattr(svc, "ler_ajustes", lambda: {})
     hoje = date(2026, 7, 1)
     meses_base = sql_mod.meses_fechados(hoje, 12)
@@ -214,10 +213,10 @@ def test_regerar_a_versao_preserva_o_ajuste_manual(tmp_path, monkeypatch):
     arm.ajustar(destino, r1["versao_id"], "1|100", 5, -1.0, "controladoria")  # não levanta
 
 
-def test_regerar_versao_aprovada_e_imutavel(tmp_path, monkeypatch):
+def test_regerar_versao_aprovada_e_imutavel(esquema_pg, monkeypatch):
     """Aprovar trava o regerar: reabrir é o único caminho de volta."""
-    destino = tmp_path / "orcamento.db"
-    monkeypatch.setattr(arm, "DB_PATH", destino)
+    destino = esquema_pg
+    monkeypatch.setattr(arm, "ESQUEMA", destino)
     monkeypatch.setattr(svc, "ler_ajustes", lambda: {})
     hoje = date(2026, 7, 1)
     meses_base = sql_mod.meses_fechados(hoje, 12)
@@ -247,13 +246,13 @@ def test_regerar_versao_aprovada_e_imutavel(tmp_path, monkeypatch):
     assert r2["arquivada_id"] is not None
 
 
-def test_regerar_arquiva_e_a_vigente_continua_sendo_a_original(tmp_path, monkeypatch):
+def test_regerar_arquiva_e_a_vigente_continua_sendo_a_original(esquema_pg, monkeypatch):
     """Revisão (HIGH): regerar cria uma cópia arquivada com id MAIOR que a
     original — `arm.versao_vigente` (usado pelo GET /orcamento sem versao_id
     e por `caixa.provisao_do_ano`) não pode escolher essa cópia só porque o
     id dela é mais alto. A vigente continua sendo a rascunho re-derivada."""
-    destino = tmp_path / "orcamento.db"
-    monkeypatch.setattr(arm, "DB_PATH", destino)
+    destino = esquema_pg
+    monkeypatch.setattr(arm, "ESQUEMA", destino)
     monkeypatch.setattr(svc, "ler_ajustes", lambda: {})
     hoje = date(2026, 7, 1)
     meses_base = sql_mod.meses_fechados(hoje, 12)
@@ -278,13 +277,13 @@ def test_regerar_arquiva_e_a_vigente_continua_sendo_a_original(tmp_path, monkeyp
     assert vigente["status"] == "rascunho"
 
 
-def test_versao_vigente_prefere_aprovada_mais_antiga_que_rascunho_mais_novo(tmp_path, monkeypatch):
+def test_versao_vigente_prefere_aprovada_mais_antiga_que_rascunho_mais_novo(esquema_pg, monkeypatch):
     """Mesmo cenário do HIGH, mas com uma aprovada de verdade no meio: uma
     versão aprovada mais antiga tem prioridade sobre um rascunho recém
     gerado (id maior) — o GET /orcamento sem versao_id não pode saltar
     silenciosamente para o rascunho só porque ele é mais novo."""
-    destino = tmp_path / "orcamento.db"
-    monkeypatch.setattr(arm, "DB_PATH", destino)
+    destino = esquema_pg
+    monkeypatch.setattr(arm, "ESQUEMA", destino)
     monkeypatch.setattr(svc, "ler_ajustes", lambda: {})
     hoje = date(2026, 7, 1)
     meses_base = sql_mod.meses_fechados(hoje, 12)
@@ -307,14 +306,14 @@ def test_versao_vigente_prefere_aprovada_mais_antiga_que_rascunho_mais_novo(tmp_
     assert vigente["status"] == "aprovado"
 
 
-def test_regerar_com_falha_na_recoleta_deixa_arquivada_orfa_mas_original_intacta(tmp_path, monkeypatch):
+def test_regerar_com_falha_na_recoleta_deixa_arquivada_orfa_mas_original_intacta(esquema_pg, monkeypatch):
     """MEDIUM da revisão: o snapshot (`arquivar_copia`) acontece ANTES da
     re-derivação. Se a re-derivação falhar depois (ex.: túnel caiu no meio),
     a cópia arquivada fica órfã — mas isso não pode corromper a original
     (linhas/ajustes intactos) nem fazer o default (`versao_vigente`) apontar
     para a órfã."""
-    destino = tmp_path / "orcamento.db"
-    monkeypatch.setattr(arm, "DB_PATH", destino)
+    destino = esquema_pg
+    monkeypatch.setattr(arm, "ESQUEMA", destino)
     monkeypatch.setattr(svc, "ler_ajustes", lambda: {})
     hoje = date(2026, 7, 1)
     meses_base = sql_mod.meses_fechados(hoje, 12)
@@ -360,9 +359,9 @@ def test_regerar_com_falha_na_recoleta_deixa_arquivada_orfa_mas_original_intacta
     assert vigente["id"] != orfa["id"]
 
 
-def test_regerar_versao_inexistente_da_erro(tmp_path, monkeypatch):
-    destino = tmp_path / "orcamento.db"
-    monkeypatch.setattr(arm, "DB_PATH", destino)
+def test_regerar_versao_inexistente_da_erro(esquema_pg, monkeypatch):
+    destino = esquema_pg
+    monkeypatch.setattr(arm, "ESQUEMA", destino)
     monkeypatch.setattr(svc, "ler_ajustes", lambda: {})
     hoje = date(2026, 7, 1)
     meses_base = sql_mod.meses_fechados(hoje, 12)
@@ -409,9 +408,9 @@ def test_meses_circulares_derivados_do_ano_e_da_base():
     assert svc.meses_circulares(2027, base) == []
 
 
-def test_gerar_grava_a_base_e_comparativo_exclui_os_circulares(tmp_path, monkeypatch):
-    destino = tmp_path / "orcamento.db"
-    monkeypatch.setattr(arm, "DB_PATH", destino)
+def test_gerar_grava_a_base_e_comparativo_exclui_os_circulares(esquema_pg, monkeypatch):
+    destino = esquema_pg
+    monkeypatch.setattr(arm, "ESQUEMA", destino)
     monkeypatch.setattr(svc, "ler_ajustes", lambda: {})
     hoje = date(2026, 7, 15)                       # base = jul/25..jun/26
     meses_base = sql_mod.meses_fechados(hoje, 12)
@@ -440,11 +439,11 @@ def test_gerar_grava_a_base_e_comparativo_exclui_os_circulares(tmp_path, monkeyp
     assert not any(m["circular"] for m in out["mensal"][6:])
 
 
-def test_versao_antiga_sem_meses_base_nao_exclui_nada(tmp_path, monkeypatch):
+def test_versao_antiga_sem_meses_base_nao_exclui_nada(esquema_pg, monkeypatch):
     """Banco criado antes da coluna: a versão não sabe sua base — segue sem
     exclusão (comportamento anterior), sem quebrar."""
-    destino = tmp_path / "orcamento.db"
-    monkeypatch.setattr(arm, "DB_PATH", destino)
+    destino = esquema_pg
+    monkeypatch.setattr(arm, "ESQUEMA", destino)
     monkeypatch.setattr(svc, "ler_ajustes", lambda: {})
     arm.init_db(destino)
     vid = arm.criar_versao(destino, 2026, "antiga", 0.0, "t")   # sem meses_base
@@ -512,11 +511,11 @@ def test_serie_por_linha_soma_contas_da_mesma_linha_e_ignora_sem_linha():
     assert serie == {"CUSTO VARIAVEL": {"2026-01": 120.0, "2026-02": 50.0}}
 
 
-def test_gerar_semestre_deriva_nivel_x_indice(tmp_path, monkeypatch):
+def test_gerar_semestre_deriva_nivel_x_indice(esquema_pg, monkeypatch):
     """fake_query devolve: HIST 6m p/ a conta (600 no total) e HIST 24m p/ os
     índices (linha com dez=40/resto=100 => índice dez=40/95). Confere dez orçado."""
-    destino = tmp_path / "orcamento.db"
-    monkeypatch.setattr(arm, "DB_PATH", destino)
+    destino = esquema_pg
+    monkeypatch.setattr(arm, "ESQUEMA", destino)
     monkeypatch.setattr(svc, "ler_ajustes", lambda: {})
     hoje = date(2026, 7, 1)
     meses6 = sql_mod.meses_fechados(hoje, 6)
@@ -544,10 +543,10 @@ def test_gerar_semestre_deriva_nivel_x_indice(tmp_path, monkeypatch):
     assert linhas[("1|100", 3)]["valor_baseline"] == round(100.0 * (100.0 / 95.0), 2)
 
 
-def test_gerar_semestre_bloqueia_base_incompleta(tmp_path, monkeypatch):
+def test_gerar_semestre_bloqueia_base_incompleta(esquema_pg, monkeypatch):
     """5 dos 6 meses com dado -> ValueError com o mês faltante na mensagem."""
-    destino = tmp_path / "orcamento.db"
-    monkeypatch.setattr(arm, "DB_PATH", destino)
+    destino = esquema_pg
+    monkeypatch.setattr(arm, "ESQUEMA", destino)
     monkeypatch.setattr(svc, "ler_ajustes", lambda: {})
     hoje = date(2026, 7, 1)
     meses6 = sql_mod.meses_fechados(hoje, 6)
@@ -565,12 +564,12 @@ def test_gerar_semestre_bloqueia_base_incompleta(tmp_path, monkeypatch):
         svc.gerar(2026, "x", 0.0, "teste", hoje=hoje, metodo="semestre")
 
 
-def test_gerar_espelho_continua_identico(tmp_path, monkeypatch):
+def test_gerar_espelho_continua_identico(esquema_pg, monkeypatch):
     """REGRESSÃO: gerar(metodo='espelho') e gerar() sem metodo produzem as
     MESMAS linhas que hoje (fake 12m; comparar com o resultado esperado do
     espelho para 2-3 contas, incluindo uma esporádica pela mediana)."""
-    destino = tmp_path / "orcamento.db"
-    monkeypatch.setattr(arm, "DB_PATH", destino)
+    destino = esquema_pg
+    monkeypatch.setattr(arm, "ESQUEMA", destino)
     monkeypatch.setattr(svc, "ler_ajustes", lambda: {})
     hoje = date(2026, 8, 1)
     meses = sql_mod.meses_fechados(hoje, 12)   # ago/25..jul/26
@@ -613,12 +612,12 @@ def test_gerar_espelho_continua_identico(tmp_path, monkeypatch):
     assert por_mes[("9|900", 1)]["origem"] == "sem_base"
 
 
-def test_regerar_usa_metodo_gravado_e_preserva_ajuste(tmp_path, monkeypatch):
+def test_regerar_usa_metodo_gravado_e_preserva_ajuste(esquema_pg, monkeypatch):
     """Gera com metodo='semestre'; ajusta uma célula; regerar SEM metodo (ou
     com metodo='espelho' no body — deve ser ignorado) mantém metodo='semestre',
     re-deriva pela base semestral e o ajuste sobrevive."""
-    destino = tmp_path / "orcamento.db"
-    monkeypatch.setattr(arm, "DB_PATH", destino)
+    destino = esquema_pg
+    monkeypatch.setattr(arm, "ESQUEMA", destino)
     monkeypatch.setattr(svc, "ler_ajustes", lambda: {})
     hoje = date(2026, 7, 1)
     meses6 = sql_mod.meses_fechados(hoje, 6)
@@ -664,9 +663,9 @@ def test_regerar_usa_metodo_gravado_e_preserva_ajuste(tmp_path, monkeypatch):
     assert linhas[("1|100", 4)]["valor_efetivo"] == -90.0
 
 
-def test_resposta_traz_metodo_e_linhas_flat(tmp_path, monkeypatch):
-    destino = tmp_path / "orcamento.db"
-    monkeypatch.setattr(arm, "DB_PATH", destino)
+def test_resposta_traz_metodo_e_linhas_flat(esquema_pg, monkeypatch):
+    destino = esquema_pg
+    monkeypatch.setattr(arm, "ESQUEMA", destino)
     monkeypatch.setattr(svc, "ler_ajustes", lambda: {})
     hoje = date(2026, 7, 1)
     meses6 = sql_mod.meses_fechados(hoje, 6)
@@ -722,9 +721,9 @@ def _campos_da_conta(conteudo: str, conta: str) -> list[str]:
     return linha.split(";")
 
 
-def test_exportar_csv_comeca_com_bom_e_usa_ponto_e_virgula(tmp_path, monkeypatch):
-    destino = tmp_path / "orcamento.db"
-    monkeypatch.setattr(arm, "DB_PATH", destino)
+def test_exportar_csv_comeca_com_bom_e_usa_ponto_e_virgula(esquema_pg, monkeypatch):
+    destino = esquema_pg
+    monkeypatch.setattr(arm, "ESQUEMA", destino)
     arm.init_db(destino)
     vid = arm.criar_versao(destino, 2026, "Orçamento 2026", 0.0, "teste")
     arm.gravar_baseline(destino, vid, [
@@ -733,7 +732,7 @@ def test_exportar_csv_comeca_com_bom_e_usa_ponto_e_virgula(tmp_path, monkeypatch
     monkeypatch.setattr(svc, "_nomes", lambda: {})
     monkeypatch.setattr(svc, "_mapa", lambda: ({}, {}))
 
-    conteudo, filename = svc.exportar_csv(vid, path=destino)
+    conteudo, filename = svc.exportar_csv(vid, esquema=destino)
 
     assert conteudo.startswith("﻿")
     assert filename == f"orcamento-2026-v{vid}.csv"
@@ -746,9 +745,9 @@ def test_exportar_csv_comeca_com_bom_e_usa_ponto_e_virgula(tmp_path, monkeypatch
     assert campos[17] == f"{12 * 1234.5:.2f}".replace(".", ",")  # total dos 12 meses
 
 
-def test_exportar_csv_coluna_ajustadas_lista_os_meses_com_ajuste(tmp_path, monkeypatch):
-    destino = tmp_path / "orcamento.db"
-    monkeypatch.setattr(arm, "DB_PATH", destino)
+def test_exportar_csv_coluna_ajustadas_lista_os_meses_com_ajuste(esquema_pg, monkeypatch):
+    destino = esquema_pg
+    monkeypatch.setattr(arm, "ESQUEMA", destino)
     arm.init_db(destino)
     vid = arm.criar_versao(destino, 2026, "Orçamento 2026", 0.0, "teste")
     arm.gravar_baseline(destino, vid, [
@@ -759,7 +758,7 @@ def test_exportar_csv_coluna_ajustadas_lista_os_meses_com_ajuste(tmp_path, monke
     monkeypatch.setattr(svc, "_nomes", lambda: {})
     monkeypatch.setattr(svc, "_mapa", lambda: ({}, {}))
 
-    conteudo, _ = svc.exportar_csv(vid, path=destino)
+    conteudo, _ = svc.exportar_csv(vid, esquema=destino)
 
     campos = _campos_da_conta(conteudo, "1|100")
     assert campos[-1] == "3,7"                          # vírgula é segura dentro do campo ;
@@ -767,20 +766,20 @@ def test_exportar_csv_coluna_ajustadas_lista_os_meses_com_ajuste(tmp_path, monke
     assert campos[17] == f"{total_esperado:.2f}".replace(".", ",")
 
 
-def test_exportar_csv_versao_inexistente_da_key_error(tmp_path, monkeypatch):
-    destino = tmp_path / "orcamento.db"
-    monkeypatch.setattr(arm, "DB_PATH", destino)
+def test_exportar_csv_versao_inexistente_da_key_error(esquema_pg, monkeypatch):
+    destino = esquema_pg
+    monkeypatch.setattr(arm, "ESQUEMA", destino)
     arm.init_db(destino)
     import pytest
     with pytest.raises(KeyError):
-        svc.exportar_csv(999, path=destino)
+        svc.exportar_csv(999, esquema=destino)
 
 
-def test_exportar_csv_com_erp_fora_do_ar_sai_com_nome_e_linha_dre_vazios(tmp_path, monkeypatch):
+def test_exportar_csv_com_erp_fora_do_ar_sai_com_nome_e_linha_dre_vazios(esquema_pg, monkeypatch):
     """Túnel/ERP fora não pode quebrar o export — só perde as duas colunas
     best-effort (nome do plano de contas e linha da DRE)."""
-    destino = tmp_path / "orcamento.db"
-    monkeypatch.setattr(arm, "DB_PATH", destino)
+    destino = esquema_pg
+    monkeypatch.setattr(arm, "ESQUEMA", destino)
     arm.init_db(destino)
     vid = arm.criar_versao(destino, 2026, "Orçamento 2026", 0.0, "teste")
     arm.gravar_baseline(destino, vid, [
@@ -791,20 +790,20 @@ def test_exportar_csv_com_erp_fora_do_ar_sai_com_nome_e_linha_dre_vazios(tmp_pat
         raise RuntimeError("túnel SSH fora do ar")
     monkeypatch.setattr(svc.db, "query", explode)
 
-    conteudo, _ = svc.exportar_csv(vid, path=destino)   # não levanta
+    conteudo, _ = svc.exportar_csv(vid, esquema=destino)   # não levanta
     campos = _campos_da_conta(conteudo, "1|100")
     assert campos[1] == ""      # nome
     assert campos[2] == ""      # linha_dre
 
 
-def test_exportar_csv_neutraliza_formula_em_texto_mas_nao_no_valor_negativo(tmp_path, monkeypatch):
+def test_exportar_csv_neutraliza_formula_em_texto_mas_nao_no_valor_negativo(esquema_pg, monkeypatch):
     """A3 da revisão final: célula de texto que começa com = + - @ ganha
     apóstrofo de neutralização contra injeção de fórmula, mas o valor
     monetário (sempre lançado NEGATIVO neste ERP) passa intacto — aplicar o
     apóstrofo em "-1234,50" faria o Excel ler o custo como TEXTO, quebrando
     todo o relatório."""
-    destino = tmp_path / "orcamento.db"
-    monkeypatch.setattr(arm, "DB_PATH", destino)
+    destino = esquema_pg
+    monkeypatch.setattr(arm, "ESQUEMA", destino)
     arm.init_db(destino)
     vid = arm.criar_versao(destino, 2026, "=cmd|' /C calc'!A0", 0.0, "teste")
     arm.gravar_baseline(destino, vid, [
@@ -813,7 +812,7 @@ def test_exportar_csv_neutraliza_formula_em_texto_mas_nao_no_valor_negativo(tmp_
     monkeypatch.setattr(svc, "_nomes", lambda: {"1|100": "=cmd"})
     monkeypatch.setattr(svc, "_mapa", lambda: ({}, {}))
 
-    conteudo, _ = svc.exportar_csv(vid, path=destino)
+    conteudo, _ = svc.exportar_csv(vid, esquema=destino)
 
     # 1ª linha carrega o BOM (`conteudo.startswith("﻿")`, já coberto em outro
     # teste) antes de "rotulo;" — comparar por substring evita acoplar este
@@ -826,12 +825,12 @@ def test_exportar_csv_neutraliza_formula_em_texto_mas_nao_no_valor_negativo(tmp_
     assert campos[17] == f"{12 * -1234.5:.2f}".replace(".", ",")  # total idem
 
 
-def test_exportar_csv_neutraliza_nome_iniciado_com_hifen_acidental(tmp_path, monkeypatch):
+def test_exportar_csv_neutraliza_nome_iniciado_com_hifen_acidental(esquema_pg, monkeypatch):
     """Descrição contábil legítima começando com "-" (ex.: "- IMPOSTOS") não
     precisa de atacante nenhum: sem o apóstrofo o Excel lê como fórmula
     quebrada (#NAME?) em vez de texto."""
-    destino = tmp_path / "orcamento.db"
-    monkeypatch.setattr(arm, "DB_PATH", destino)
+    destino = esquema_pg
+    monkeypatch.setattr(arm, "ESQUEMA", destino)
     arm.init_db(destino)
     vid = arm.criar_versao(destino, 2026, "Orçamento 2026", 0.0, "teste")
     arm.gravar_baseline(destino, vid, [
@@ -840,7 +839,7 @@ def test_exportar_csv_neutraliza_nome_iniciado_com_hifen_acidental(tmp_path, mon
     monkeypatch.setattr(svc, "_nomes", lambda: {"1|100": "- IMPOSTOS"})
     monkeypatch.setattr(svc, "_mapa", lambda: ({}, {}))
 
-    conteudo, _ = svc.exportar_csv(vid, path=destino)
+    conteudo, _ = svc.exportar_csv(vid, esquema=destino)
 
     campos = _campos_da_conta(conteudo, "1|100")
     assert campos[1] == "'- IMPOSTOS"
@@ -918,11 +917,11 @@ def test_janela_base_defaults_e_validacoes():
         ["2025-11", "2025-12", "2026-01", "2026-02"]
 
 
-def test_gerar_com_janela_trimestral_nivel_e_circulares(tmp_path, monkeypatch):
+def test_gerar_com_janela_trimestral_nivel_e_circulares(esquema_pg, monkeypatch):
     """base_de/base_ate=abr-jun/26 (3 meses de 300 cada) -> nível = soma/3 =
     300 no orçado (índice flat, sem 24 meses completos de histórico distinto)."""
-    destino = tmp_path / "orcamento.db"
-    monkeypatch.setattr(arm, "DB_PATH", destino)
+    destino = esquema_pg
+    monkeypatch.setattr(arm, "ESQUEMA", destino)
     monkeypatch.setattr(svc, "ler_ajustes", lambda: {})
     hoje = date(2026, 7, 1)
     janela = ["2026-04", "2026-05", "2026-06"]
@@ -952,11 +951,11 @@ def test_gerar_com_janela_trimestral_nivel_e_circulares(tmp_path, monkeypatch):
         assert linhas[("1|100", mes)]["origem"] == "semestre"
 
 
-def test_gerar_espelho_com_base_da_422(tmp_path, monkeypatch):
+def test_gerar_espelho_com_base_da_422(esquema_pg, monkeypatch):
     """metodo='espelho' (default) + base_de/base_ate informados: a janela
     de base é conceito do método sazonal, não existe no espelho."""
-    destino = tmp_path / "orcamento.db"
-    monkeypatch.setattr(arm, "DB_PATH", destino)
+    destino = esquema_pg
+    monkeypatch.setattr(arm, "ESQUEMA", destino)
     import pytest
     with pytest.raises(ValueError, match="método sazonal"):
         svc.gerar(2026, "x", 0.0, "teste", hoje=date(2026, 7, 1),
@@ -967,12 +966,12 @@ def test_gerar_espelho_com_base_da_422(tmp_path, monkeypatch):
                  metodo="espelho", base_ate="2026-03")
 
 
-def test_regerar_semestre_mantem_janela_gravada(tmp_path, monkeypatch):
+def test_regerar_semestre_mantem_janela_gravada(esquema_pg, monkeypatch):
     """Gera semestre com base_de/base_ate=fev-abr/26; regera bem mais tarde
     (hoje avançado) e com base_* DIFERENTES no chamador -> meses_base
     continua fev-abr, porque regerar ignora base_* e usa a janela GRAVADA."""
-    destino = tmp_path / "orcamento.db"
-    monkeypatch.setattr(arm, "DB_PATH", destino)
+    destino = esquema_pg
+    monkeypatch.setattr(arm, "ESQUEMA", destino)
     monkeypatch.setattr(svc, "ler_ajustes", lambda: {})
     hoje = date(2026, 5, 1)          # último fechado = abr/26
     janela = ["2026-02", "2026-03", "2026-04"]

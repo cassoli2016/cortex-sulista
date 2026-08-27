@@ -4,6 +4,16 @@ Gerado de `docs/versoes.yaml` por `scripts/gerar_changelog.py` — não editar �
 Formato [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/),
 versionamento [SemVer](https://semver.org/lang/pt-BR/).
 
+## [0.108.0] — 27/08/2026  ·  CX-27/08/2026-v0.108.0
+
+### Alterado
+- O cadastro de autorizacao e certificado saiu da tabela "Fila por agregado" e foi para a aba de Implantacao, ao lado das listas que dizem de quem falta certificado. A fila do dia responde "o que sai hoje" e voltou a ser so status; quem vai cadastrar esta na outra aba, lendo a linha do agregado, com o arquivo em maos - sair dali para procurar o mesmo nome noutra tabela era o caminho mais longo entre saber e resolver.
+- O validador e a lista de certificados ganharam o botao na propria linha: "cadastrar" no validador e "trocar" ao lado da validade. So aparece em quem se resolve cadastrando - agregado nao contribuinte nao tem certificado a pedir.
+- O cronometro virou uma linha de estatisticas: o relogio grande e, ao lado, ultima passagem, intervalo e ambiente em colunas rotuladas. Antes esses tres dados vinham dentro de um paragrafo corrido, e a hora da ultima passagem so se achava lendo a frase inteira - num cartao que existe para ser consultado de relance.
+
+### Corrigido
+- O rotulo das bandas de indicadores desta tela e da Portaria saia como texto solto: as duas usavam uma classe que NAO EXISTE na folha de estilo, entao ficavam sem o versalete e sem a linha divisoria que todas as outras bandas do painel tem.
+
 ## [0.107.0] — 27/08/2026  ·  CX-27/08/2026-v0.107.0
 
 ### Corrigido

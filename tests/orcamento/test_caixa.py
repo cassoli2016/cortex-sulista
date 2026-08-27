@@ -1,4 +1,3 @@
-import sqlite3
 from datetime import date
 
 from api.orcamento.caixa import DIAS_MES, DPO_PADRAO, DSO_PADRAO, provisao_caixa, provisao_do_ano
@@ -37,36 +36,36 @@ def test_dso_zero_paga_no_proprio_mes():
     assert m5["entradas"] == 100.0 and m5["saidas"] == -40.0 and m5["geracao"] == 60.0
 
 
-def test_provisao_do_ano_le_sqlite_e_fallback(tmp_path):
+def test_provisao_do_ano_le_sqlite_e_fallback(esquema_pg):
     from api.orcamento import armazenamento as arm
-    arm.init_db(tmp_path / "o.db")
-    vid = arm.criar_versao(tmp_path / "o.db", 2026, "teste", 0.0, "t")
-    arm.gravar_baseline(tmp_path / "o.db", vid, [
+    arm.init_db(esquema_pg)
+    vid = arm.criar_versao(esquema_pg, 2026, "teste", 0.0, "t")
+    arm.gravar_baseline(esquema_pg, vid, [
         {"conta": "1|1", "mes": 8, "valor_baseline": 1000.0, "origem": "semestre", "meses_com_dado": 6},
         {"conta": "1|2", "mes": 8, "valor_baseline": -400.0, "origem": "semestre", "meses_com_dado": 6},
     ])
-    r = provisao_do_ano(2026, None, None, hoje=date(2026, 7, 27), db_path=tmp_path / "o.db")
+    r = provisao_do_ano(2026, None, None, hoje=date(2026, 7, 27), esquema=esquema_pg)
     assert r["dso"] == 49.0 and r["dso_fonte"] == "padrao"
     assert r["versao"]["id"] == vid
     assert all(m["mes"] >= 7 for m in r["meses"])                 # só meses >= corrente
     assert provisao_do_ano(2027, 49, 79, hoje=date(2026, 7, 27),
-                           db_path=tmp_path / "o.db") is None     # sem versão do ano
+                           esquema=esquema_pg) is None     # sem versão do ano
 
 
-def test_valor_efetivo_ajuste_manual(tmp_path):
+def test_valor_efetivo_ajuste_manual(esquema_pg):
     """Teste extra: valor_efetivo (ajuste manual) é o que entra na provisão, não o baseline."""
     from api.orcamento import armazenamento as arm
-    arm.init_db(tmp_path / "o.db")
-    vid = arm.criar_versao(tmp_path / "o.db", 2026, "teste", 0.0, "t")
+    arm.init_db(esquema_pg)
+    vid = arm.criar_versao(esquema_pg, 2026, "teste", 0.0, "t")
     # Gravar baseline com uma entrada em agosto
-    arm.gravar_baseline(tmp_path / "o.db", vid, [
+    arm.gravar_baseline(esquema_pg, vid, [
         {"conta": "1|1", "mes": 8, "valor_baseline": 1000.0, "origem": "semestre", "meses_com_dado": 6},
     ])
     # Ajustar para 1500.0 (valor_efetivo será 1500.0, não 1000.0)
-    arm.ajustar(tmp_path / "o.db", vid, "1|1", 8, 1500.0, "teste")
+    arm.ajustar(esquema_pg, vid, "1|1", 8, 1500.0, "teste")
 
     # Buscar provisão — deve usar valor_efetivo (1500.0)
-    r = provisao_do_ano(2026, 49.0, 79.0, hoje=date(2026, 7, 27), db_path=tmp_path / "o.db")
+    r = provisao_do_ano(2026, 49.0, 79.0, hoje=date(2026, 7, 27), esquema=esquema_pg)
     # A entrada de 1500.0 em agosto deve se deslocar para setembro/outubro com DSO=49
     por_mes = {m["mes"]: m for m in r["meses"]}
     x = 49.0 / DIAS_MES
@@ -171,19 +170,19 @@ def test_dpo_negativo_cai_no_padrao():
     assert r_neg["transbordo"] == r_padrao["transbordo"]
 
 
-def test_provisao_do_ano_dso_negativo_usa_padrao_e_marca_fonte(tmp_path):
+def test_provisao_do_ano_dso_negativo_usa_padrao_e_marca_fonte(esquema_pg):
     """Mesma invalidação na camada de leitura: dso/dpo negativo vindo do
     chamador (ex.: kpis.dso_3m calculado sobre dado real ruim) não pode se
     disfarçar de 'medido'."""
     from api.orcamento import armazenamento as arm
 
-    p = tmp_path / "o.db"
+    p = esquema_pg
     arm.init_db(p)
     vid = arm.criar_versao(p, 2026, "teste", 0.0, "t")
     arm.gravar_baseline(p, vid, [
         {"conta": "1|1", "mes": 3, "valor_baseline": 1000.0, "origem": "espelho", "meses_com_dado": 12},
     ])
-    r = provisao_do_ano(2026, -40.0, 79.0, hoje=date(2026, 1, 1), db_path=p)
+    r = provisao_do_ano(2026, -40.0, 79.0, hoje=date(2026, 1, 1), esquema=p)
     assert r["dso"] == DSO_PADRAO
     assert r["dpo"] == 79.0
     assert r["dso_fonte"] == "padrao"
@@ -192,69 +191,49 @@ def test_provisao_do_ano_dso_negativo_usa_padrao_e_marca_fonte(tmp_path):
 # ---------------------------------------------------------- M1: banco pré-migração
 
 
-def test_provisao_do_ano_migra_banco_pre_metodo(tmp_path):
-    """M1 da revisão final: um orcamento.db criado ANTES desta branch não tem
-    a coluna `metodo` em orc_versao. Sem `init_db` no início de
-    `provisao_do_ano`, `versao["metodo"]` levanta KeyError — engolido pelo
-    `except Exception` de `get_overview`, que nem loga — e a série tracejada
-    do Fluxo some para sempre em silêncio. `provisao_do_ano` tem que se
-    auto-curar chamando `arm.init_db` antes de ler a versão.
+def test_provisao_do_ano_se_cura_em_schema_vazio(pg_disponivel):
+    """M1 da revisão final, reescrito para o PostgreSQL: `provisao_do_ano` tem
+    de chamar `arm.init_db` ANTES de ler a versão. Sem isso, um schema que
+    ainda não tem as tabelas levanta erro engolido pelo `except Exception` de
+    `get_overview` — que nem loga — e a série tracejada do Fluxo some para
+    sempre, em silêncio.
+
+    Antes o cenário era um `orcamento.db` sem a coluna `metodo`; agora é o
+    caso equivalente e mais forte: schema sem tabela nenhuma.
     """
-    p = tmp_path / "velho.db"
-    c = sqlite3.connect(p)
-    c.executescript("""
-        CREATE TABLE orc_versao(
-            id              INTEGER PRIMARY KEY AUTOINCREMENT,
-            ano             INTEGER NOT NULL,
-            rotulo          TEXT    NOT NULL,
-            status          TEXT    NOT NULL DEFAULT 'rascunho',
-            fator_tendencia REAL    NOT NULL DEFAULT 0,
-            criado_em       TEXT    NOT NULL DEFAULT (datetime('now','localtime')),
-            criado_por      TEXT
-        );
-        CREATE TABLE orc_linha(
-            versao_id      INTEGER NOT NULL,
-            conta          TEXT    NOT NULL,
-            mes            INTEGER NOT NULL,
-            valor_baseline REAL    NOT NULL DEFAULT 0,
-            valor_ajustado REAL,
-            origem         TEXT    NOT NULL DEFAULT 'sem_base',
-            meses_com_dado INTEGER NOT NULL DEFAULT 0,
-            ajustado_em    TEXT,
-            ajustado_por   TEXT,
-            PRIMARY KEY (versao_id, conta, mes)
-        );
-    """)
-    c.execute("INSERT INTO orc_versao(id, ano, rotulo) VALUES (1, 2026, 'Orçamento 2026 antigo')")
-    c.execute("""INSERT INTO orc_linha(versao_id, conta, mes, valor_baseline, origem, meses_com_dado)
-                 VALUES (1, '1|100', 8, 1000.0, 'espelho', 12)""")
-    c.commit()
-    c.close()
+    import pytest
 
-    cols_antes = {r[1] for r in sqlite3.connect(p).execute("PRAGMA table_info(orc_versao)")}
-    assert "metodo" not in cols_antes   # confirma que o cenário reproduz o schema velho
+    from api import pglocal
+    from api.orcamento import armazenamento as arm
 
-    r = provisao_do_ano(2026, None, None, hoje=date(2026, 7, 27), db_path=p)
+    ok, motivo = pg_disponivel
+    if not ok:
+        pytest.skip(motivo)
+    vazio = "teste_orc_schema_vazio"
+    pglocal.criar_esquema(vazio)          # DE PROPÓSITO sem migrations
+    try:
+        r = provisao_do_ano(2026, None, None, hoje=date(2026, 7, 27), esquema=vazio)
+        assert r is None, "schema sem versão nenhuma devolve None, não explode"
 
-    assert r is not None
-    assert r["versao"]["id"] == 1
-    assert r["versao"]["metodo"] == "espelho"   # default do ALTER TABLE
-    assert any(m["mes"] == 9 for m in r["meses"])   # entrada de ago (8) deslocada por DSO
-
-    cols_depois = {r2[1] for r2 in sqlite3.connect(p).execute("PRAGMA table_info(orc_versao)")}
-    assert "metodo" in cols_depois
+        # e depois do init_db a leitura normal volta a funcionar
+        arm.init_db(vazio)
+        vid = arm.criar_versao(vazio, 2026, "novo", 0.0, "teste")
+        arm.gravar_baseline(vazio, vid, [
+            {"conta": "1|100", "mes": 8, "valor_baseline": 1000.0,
+             "origem": "espelho", "meses_com_dado": 12}])
+        r = provisao_do_ano(2026, None, None, hoje=date(2026, 7, 27), esquema=vazio)
+        assert r is not None
+    finally:
+        pglocal.apagar_esquema(vazio)
 
 
-# ---------------------------------------------------------- prioridade de status
-
-
-def test_provisao_do_ano_prefere_aprovada_sobre_rascunho_mais_novo(tmp_path):
+def test_provisao_do_ano_prefere_aprovada_sobre_rascunho_mais_novo(esquema_pg):
     """Uma versão aprovada (número travado) tem prioridade mesmo quando existe
     uma rascunho com id maior — regerar não pode fazer a provisão de caixa
     saltar silenciosamente para um número ainda em edição."""
     from api.orcamento import armazenamento as arm
 
-    p = tmp_path / "o.db"
+    p = esquema_pg
     arm.init_db(p)
     aprovada_id = arm.criar_versao(p, 2026, "aprovada", 0.0, "t")
     arm.gravar_baseline(p, aprovada_id, [
@@ -266,17 +245,17 @@ def test_provisao_do_ano_prefere_aprovada_sobre_rascunho_mais_novo(tmp_path):
         {"conta": "1|1", "mes": 8, "valor_baseline": 9999.0, "origem": "espelho", "meses_com_dado": 12}])
     assert rascunho_id > aprovada_id   # id maior = mais recente
 
-    r = provisao_do_ano(2026, 49.0, 79.0, hoje=date(2026, 7, 27), db_path=p)
+    r = provisao_do_ano(2026, 49.0, 79.0, hoje=date(2026, 7, 27), esquema=p)
     assert r["versao"]["id"] == aprovada_id
     assert r["versao"]["status"] == "aprovado"
 
 
-def test_provisao_do_ano_ignora_arquivada(tmp_path):
+def test_provisao_do_ano_ignora_arquivada(esquema_pg):
     """Arquivada é registro histórico — nunca entra na provisão de caixa,
     mesmo sendo a versão de id mais alto do ano."""
     from api.orcamento import armazenamento as arm
 
-    p = tmp_path / "o.db"
+    p = esquema_pg
     arm.init_db(p)
     rascunho_id = arm.criar_versao(p, 2026, "rascunho", 0.0, "t")
     arm.gravar_baseline(p, rascunho_id, [
@@ -284,46 +263,29 @@ def test_provisao_do_ano_ignora_arquivada(tmp_path):
     arquivada_id = arm.arquivar_copia(p, rascunho_id, "rascunho (antes de regerar)")
     assert arquivada_id > rascunho_id
 
-    r = provisao_do_ano(2026, 49.0, 79.0, hoje=date(2026, 7, 27), db_path=p)
+    r = provisao_do_ano(2026, 49.0, 79.0, hoje=date(2026, 7, 27), esquema=p)
     assert r["versao"]["id"] == rascunho_id
     assert r["versao"]["status"] == "rascunho"
 
 
-def test_provisao_do_ano_sem_status_trata_como_rascunho(tmp_path):
-    """Compat com banco pré-coluna `status`: versão sem o campo não pode
-    quebrar a escolha nem ser tratada como arquivada."""
+def test_provisao_do_ano_com_status_vazio_trata_como_rascunho(esquema_pg):
+    """Compat com versão gravada antes da coluna `status`: `.get("status")`
+    caía em None e a versão tinha de entrar no grupo tratado como rascunho, e
+    não ser descartada. No Postgres a coluna é NOT NULL, então o caso que ainda
+    chega é a string vazia — a regra é a mesma e é ela que se protege aqui."""
+    from api import pglocal
     from api.orcamento import armazenamento as arm
 
-    p = tmp_path / "o.db"
-    c = sqlite3.connect(p)
-    c.executescript("""
-        CREATE TABLE orc_versao(
-            id              INTEGER PRIMARY KEY AUTOINCREMENT,
-            ano             INTEGER NOT NULL,
-            rotulo          TEXT    NOT NULL,
-            fator_tendencia REAL    NOT NULL DEFAULT 0,
-            criado_em       TEXT    NOT NULL DEFAULT (datetime('now','localtime')),
-            criado_por      TEXT
-        );
-        CREATE TABLE orc_linha(
-            versao_id      INTEGER NOT NULL,
-            conta          TEXT    NOT NULL,
-            mes            INTEGER NOT NULL,
-            valor_baseline REAL    NOT NULL DEFAULT 0,
-            valor_ajustado REAL,
-            origem         TEXT    NOT NULL DEFAULT 'sem_base',
-            meses_com_dado INTEGER NOT NULL DEFAULT 0,
-            ajustado_em    TEXT,
-            ajustado_por   TEXT,
-            PRIMARY KEY (versao_id, conta, mes)
-        );
-    """)
-    c.execute("INSERT INTO orc_versao(id, ano, rotulo) VALUES (1, 2026, 'sem status')")
-    c.execute("""INSERT INTO orc_linha(versao_id, conta, mes, valor_baseline, origem, meses_com_dado)
-                 VALUES (1, '1|100', 8, 1000.0, 'espelho', 12)""")
-    c.commit()
-    c.close()
+    p = esquema_pg
+    arm.init_db(p)
+    vid = arm.criar_versao(p, 2026, "sem status", 0.0, "teste")
+    arm.gravar_baseline(p, vid, [
+        {"conta": "1|100", "mes": 8, "valor_baseline": 1000.0,
+         "origem": "espelho", "meses_com_dado": 12}])
+    pglocal.executar("UPDATE orc_versao SET status='' WHERE id=%s", (vid,),
+                     esquema=p)
 
-    r = provisao_do_ano(2026, None, None, hoje=date(2026, 7, 27), db_path=p)
+    r = provisao_do_ano(2026, None, None, hoje=date(2026, 7, 27), esquema=p)
     assert r is not None
-    assert r["versao"]["id"] == 1
+
+

@@ -992,6 +992,19 @@ button.avatar{border:0;cursor:pointer}
    Separadas, o dia a dia abre limpo e a implantacao nao precisa ser
    desmontada depois: some do uso sozinha. */
 .cpabas{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin:-4px 0 2px}
+/* O cronometro ocupava uma faixa larga com o numero encostado a esquerda e
+   todo o resto vazio, e a explicacao vinha como um paragrafo corrido - o
+   leitor tinha de garimpar a hora da ultima passagem no meio da frase. Virou
+   uma linha de ESTATISTICAS: o relogio grande a esquerda e os apoios em
+   colunas rotuladas, cada um com o seu rotulo em cima. */
+.cp-crongrid{display:flex;align-items:stretch;gap:26px;flex-wrap:wrap}
+.cp-crongrid .bloco{display:flex;flex-direction:column;justify-content:center;
+  gap:3px;min-width:112px}
+.cp-crongrid .rot{font-size:10.5px;font-weight:700;letter-spacing:.06em;
+  text-transform:uppercase;color:var(--n500)}
+.cp-crongrid .val{font:600 15px/1.2 var(--mono);color:var(--n900);
+  font-variant-numeric:tabular-nums}
+.cp-crongrid .sep{width:1px;background:var(--n200);align-self:stretch}
 .cpabas .hint{margin-left:4px}
 .cp-cron{display:flex;align-items:baseline;gap:12px;flex-wrap:wrap}
 .cp-cron .rel{font:600 30px/1 var(--mono);font-variant-numeric:tabular-nums;
@@ -2698,7 +2711,7 @@ body.tvfull #btnReport,body.tvmode #btnReport{display:none}
           <div id="cpAuto" class="cpbloco"></div>
         </div>
 
-        <div class="kband"><div class="klabel">Fila de contrapartida &mdash; só agregado PJ</div>
+        <div class="kband"><h3>Fila de contrapartida &mdash; só agregado PJ</h3>
           <div class="kpis k4" id="kpis-ctecp"></div></div>
 
         <div class="card">
@@ -2783,7 +2796,7 @@ body.tvfull #btnReport,body.tvmode #btnReport{display:none}
           </div>
         </div>
 
-        <div class="kband"><div class="klabel">Tempo dentro da planta &mdash; por visita com atendimento</div>
+        <div class="kband"><h3>Tempo dentro da planta &mdash; por visita com atendimento</h3>
           <div class="kpis k4" id="kpis-poli"></div></div>
 
         <div class="grid2">
@@ -9809,7 +9822,16 @@ async function respostaJSON(r){
 let CP_ALVO=null;
 function cpAbrir(cnpj){
   CP_ALVO=cnpj;
-  const x=((DATACP||{}).por_agregado||[]).find(function(y){return y.documento===cnpj;})||{};
+  /* O nome pode vir de TRES lugares agora: a fila do periodo, a varredura
+     completa do cadastro (que enxerga 46 agregados contra os 19 do dia) e a
+     lista de certificados. Procurar so na fila fazia o titulo do modal sair
+     com o CNPJ pelado justamente para quem nao rodou hoje - que e a maioria
+     de quem precisa de cadastro. */
+  const naFila=((DATACP||{}).por_agregado||[]).find(function(y){return y.documento===cnpj;});
+  const naVarredura=((CP_VAL||{}).achados||[]).find(function(y){return y.documento===cnpj;});
+  const noCert=((DATACP||{}).certificados||{});
+  const naCert=((noCert.itens||noCert.lista||[])||[]).find(function(y){return y.documento===cnpj;});
+  const x = naFila || naVarredura || naCert || {};
   const p=(x.prontidao||{});
   const falta=(p.faltas||[]).length
     ? '<div class="hint" style="color:var(--red);margin-bottom:8px">Falta: '+esc((p.faltas||[]).join(' · '))+'</div>' : '';
@@ -10141,7 +10163,10 @@ function renderCtecp(d){
           +(c.tem_senha?'':' <span class="badge b-dang" title="Sem a senha no cofre o certificado não assina">sem senha</span>')
           +'</td>'
           +'<td class="mono">'+esc(c.tipo||'—')+'</td>'
-          +'<td class="mono">'+(c.valida_ate?esc(fmtD(c.valida_ate)):'—')+'</td>'
+          +'<td class="mono">'+(c.valida_ate?esc(fmtD(c.valida_ate)):'—')
+          +' <button class="gbtn" data-doc="'+esc(c.documento)+'"'
+          +' onclick="cpAbrir(this.dataset.doc)"'
+          +' title="Substituir o arquivo .pfx e a senha deste agregado. O cadastro anterior e sobrescrito.">trocar</button></td>'
           +'<td><span class="badge '+(CLS[c.situacao]||'b-info')+'">'
           +esc(c.texto||c.situacao)+'</span></td>'
           /* zero aqui e "nao rodou NO RECORTE", nao "nao importa" - e a
@@ -10305,17 +10330,30 @@ function cpValidRender(){
     return CP_VALCAT==='tudo' || a.categoria===CP_VALCAT; });
   document.getElementById('cpValidTab').innerHTML=
     '<thead><tr><th>Agregado</th><th>UF</th><th class="num">CT-e</th>'
-    +'<th>O que está errado</th><th>O que fazer</th></tr></thead><tbody>'
+    +'<th>O que está errado</th><th>O que fazer</th><th></th></tr></thead><tbody>'
     +lin.map(function(a){
       const rej=a.rejeicao
         ? ' <span class="badge b-dang" title="Código medido na transmissão, não estimado.">'+esc(a.rejeicao)+'</span>'
         : '';
+      /* A ACAO FICA AO LADO DO DIAGNOSTICO. Antes o cadastro de certificado
+         so abria pela coluna Autorizacao da fila do dia - a tabela que
+         responde "o que sai hoje", nao "de quem falta certificado". Quem vai
+         cadastrar esta AQUI, lendo esta linha, com o arquivo do agregado em
+         maos; ter de sair para outra tabela e procurar o mesmo nome era o
+         caminho mais longo entre saber e resolver. So aparece no que se
+         resolve cadastrando: "nao contribuinte" nao tem certificado a pedir. */
+      const pode = a.categoria==='certificado' || a.categoria==='cadastro';
       return '<tr'+(a.grave?'':' style="opacity:.62"')+'>'
         +'<td>'+esc(a.nome||a.documento||'')+'</td>'
         +'<td>'+esc(a.uf||'')+'</td>'
         +'<td class="num">'+(a.ctes||0).toLocaleString('pt-BR')+'</td>'
         +'<td>'+esc(a.defeito||'')+rej+'</td>'
-        +'<td><span class="hint">'+esc(a.acao||'')+'</span></td></tr>';
+        +'<td><span class="hint">'+esc(a.acao||'')+'</span></td>'
+        +'<td>'+(pode
+           ? '<button class="gbtn" data-doc="'+esc(a.documento||'')+'"'
+             +' onclick="cpAbrir(this.dataset.doc)"'
+             +' title="Cadastrar ou substituir a autorização e o certificado A1 deste agregado.">cadastrar</button>'
+           : '')+'</td></tr>';
     }).join('')+'</tbody>';
 
   /* O ESCOPO tem de estar visivel: os mesmos numeros significam coisas
@@ -10414,15 +10452,31 @@ function cpCronDesenha(){
           +' além do previsto — a tarefa agendada pode não estar rodando';
       }
     }
-    pe='Última passagem '+fmtDT(d.ultima_execucao)+' · intervalo de '
-      +(d.intervalo_min||'?')+' min · o agendador dispara a cada '+passo
-      +' min, então a emissão pode sair até '+passo+' min depois do zero.';
+    pe='O agendador dispara a cada '+passo+' min e só então o CÓRTEX pergunta '
+      +'se já passou o intervalo — por isso a emissão pode sair até '+passo
+      +' min depois do zero.';
   }
 
+  /* Os apoios saem do paragrafo e viram colunas rotuladas: a hora da ultima
+     passagem e o intervalo sao consultados de relance, e no meio de uma frase
+     nao se acha nenhum dos dois. O que sobra de explicacao - a regra dos dois
+     relogios - continua embaixo, porque e leitura de uma vez so, nao de
+     acompanhamento. */
+  function bloco(rotulo, valor){
+    return '<div class="bloco"><span class="rot">'+esc(rotulo)+'</span>'
+          +'<span class="val">'+esc(valor)+'</span></div>';
+  }
+  const ult = d.ultima_execucao ? fmtDT(d.ultima_execucao) : '—';
   alvo.innerHTML=
-    '<div class="cp-cron"><span class="rel '+cls+'">'+esc(rel)+'</span>'
-    +'<span class="leg">'+esc(leg)+'</span>'+amb+'</div>'
-    +'<div class="hint">'+esc(pe)+'</div>';
+    '<div class="cp-crongrid">'
+    +'<div class="bloco"><span class="rot">'+esc(leg||'próxima rodada')+'</span>'
+    +'<span class="rel '+cls+'">'+esc(rel)+'</span></div>'
+    +'<div class="sep"></div>'
+    +bloco('última passagem', ult)
+    +bloco('intervalo', (d.intervalo_min||'?')+' min')
+    +'<div class="bloco"><span class="rot">ambiente</span><span>'+amb+'</span></div>'
+    +'</div>'
+    +(pe?'<div class="hint">'+esc(pe)+'</div>':'');
   document.getElementById('hintCpAuto').textContent =
     d.ativa ? ('a cada '+(d.intervalo_min||'?')+' min') : 'desligada';
 }
@@ -10541,10 +10595,12 @@ function cpTabRender(){
           +'<td>'+(tac?'<span style="color:var(--n500)">não se aplica</span>'
                      : (falta.length? statChip('bad','falta '+falta.join(', '),'campo obrigatório ausente vira rejeição documento a documento')
                                     : statChip('good','completo','razão social, IE, RNTRC e município presentes')))+'</td>'
-          +'<td>'+(tac?'<span style="color:var(--n500)">—</span>'
-                     : '<button class="ghost" style="padding:2px 7px;font-size:11px"'
-                       +' data-doc="'+esc(x.documento)+'" onclick="cpAbrir(this.dataset.doc)"'
-                       +' title="Cadastrar autorização e certificado">'+autoriz+'</button>')+'</td>'
+          /* AQUI E STATUS, NAO TRABALHO. Esta tabela e a do despacho do dia:
+             quem a abre quer saber o que sai hoje. O cadastro de autorizacao e
+             certificado mudou para a aba de Implantacao, ao lado da lista que
+             diz de quem e o certificado que falta - que e onde a pessoa esta
+             quando vai fazer isso, e com o arquivo do agregado em maos. */
+          +'<td>'+(tac?'<span style="color:var(--n500)">—</span>':autoriz)+'</td>'
           +'<td class="r mono">'+(x.ctes||0).toLocaleString('pt-BR')+'</td>'
           +'<td class="r mono">'+(x.placas||0)+'</td>'
           +'<td class="r mono">'+cpBRL(x.valor)+'</td></tr>';

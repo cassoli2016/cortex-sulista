@@ -98,16 +98,16 @@ def test_peso_usa_modulo_e_nao_o_sinal():
     assert p["a"] == pytest.approx(0.75)
 
 
-def test_importar_cria_versao_nova_sem_tocar_nas_existentes(tmp_path):
+def test_importar_cria_versao_nova_sem_tocar_nas_existentes(esquema_pg):
     from api.orcamento import armazenamento as arm
-    db = tmp_path / "orcamento.db"
+    db = esquema_pg
     arm.init_db(db)
     antiga = arm.criar_versao(db, 2026, "derivada do histórico", 0.0, "teste")
-    r = plano.importar(ARQUIVO, 2026, "Plano 2026", "teste", _meses(), path=db)
+    r = plano.importar(ARQUIVO, 2026, "Plano 2026", "teste", _meses(), esquema=db)
     assert r["versao_id"] != antiga
-    import sqlite3
-    with sqlite3.connect(db) as c:
-        assert c.execute("SELECT count(*) FROM orc_versao").fetchone()[0] == 2
-        n = c.execute("SELECT count(*) FROM orc_linha WHERE versao_id=?",
-                      (r["versao_id"],)).fetchone()[0]
-        assert n == r["contas"] * 12
+    from api import pglocal
+    assert pglocal.um("SELECT count(*) AS n FROM orc_versao",
+                      esquema=db)["n"] == 2
+    n = pglocal.um("SELECT count(*) AS n FROM orc_linha WHERE versao_id=%s",
+                   (r["versao_id"],), esquema=db)["n"]
+    assert n == r["contas"] * 12
