@@ -56,9 +56,24 @@ def _endereco(m) -> None:
     _orig = m.get_service_url
 
     def resolvido(sigla, service, ambiente):
+        # NORMALIZA para INTEIRO antes de qualquer coisa. O ambiente viaja
+        # como TEXTO em todo o modulo, porque e assim que ele vai no XML
+        # (tpAmb), mas a biblioteca compara com o inteiro 1. Com "1" a
+        # comparacao dava falso e PRODUCAO ia para o endereco de HOMOLOGACAO
+        # dizendo ser de producao - a SEFAZ recusa com "252 - Ambiente
+        # informado diverge do Ambiente de recebimento", que nao aponta onde
+        # esta o erro. Vale para os estados com SEFAZ propria E para os que
+        # caem na funcao original.
+        ambiente = 1 if str(ambiente) == "1" else 2
         cfg = getattr(m, sigla, None)
         if (isinstance(cfg, dict) and sigla not in m.SVSP_STATES
                 and sigla not in m.SVRS_STATES):
+            # `str(ambiente)` e nao `ambiente == 1`: o ambiente viaja como
+            # TEXTO ("1"/"2") em todo o modulo, porque e assim que ele vai no
+            # XML (tpAmb). Comparando com o inteiro, producao caia no `else` e
+            # o documento ia para o endereco de HOMOLOGACAO dizendo ser de
+            # producao - a SEFAZ recusa com "252 - Ambiente informado diverge
+            # do Ambiente de recebimento", que nao diz onde esta o erro.
             amb = (m.AMBIENTE_PRODUCAO if ambiente == 1
                    else m.AMBIENTE_HOMOLOGACAO)
             return "https://" + cfg[amb]["servidor"] + "/" + cfg[amb][service]
@@ -207,7 +222,20 @@ def _leitura(*modulos) -> None:
             raise ValueError(
                 f"A SEFAZ respondeu sem o elemento <{esperado}>. "
                 f"Resposta: {corpo[:300]}")
-        return XmlParser().parse(io.BytesIO(etree.tostring(alvo)), classe)
+        obj = XmlParser().parse(io.BytesIO(etree.tostring(alvo)), classe)
+        # GUARDA O PROTOCOLO COMO A SEFAZ MANDOU. Reserializar o objeto sai
+        # com o nome da CLASSE (`TProtCTe`) e com os filhos prefixados, em vez
+        # de `protCTe` no namespace do CT-e - e um arquivo assim nao importa em
+        # lugar nenhum. O que se arquiva tem de ser o que o orgao enviou.
+        try:
+            for el in doc.iter():
+                if etree.QName(el).localname.lower() == "protcte":
+                    obj._xml_protocolo = etree.tostring(
+                        el, encoding="unicode")
+                    break
+        except Exception:  # noqa: BLE001
+            pass
+        return obj
 
     analisa._cortex = True
     resp.analisar_retorno_raw = analisa

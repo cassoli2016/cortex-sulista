@@ -498,3 +498,33 @@ def test_download_de_documento_recusado_devolve_404():
     trecho = main[i:main.index("Content-Disposition", i)]
     assert "status_code=404" in trecho
     assert "sem_documento" in trecho
+
+
+def test_a_idempotencia_mora_no_TRANSMITIR_e_nao_so_no_lote():
+    """Guarda que existe porque faltou.
+
+    A verificacao de "ja emitiu para esta origem" vivia apenas no caminho em
+    LOTE. O caminho de UM documento passava por fora - e foi assim que a mesma
+    prestacao ganhou DOIS CT-e autorizados em PRODUCAO, com dois protocolos.
+    Documento fiscal duplicado nao se apaga: cancela-se, dentro de prazo, com
+    justificativa.
+
+    Agora a guarda esta no ponto por onde TODO envio passa.
+    """
+    import inspect
+    fonte = inspect.getsource(lote.emissao.transmitir)
+    assert "_autorizado_para" in fonte
+    # e vem ANTES de reservar numero de serie: barrar depois ja teria gasto um
+    assert (fonte.index("_autorizado_para")
+            < fonte.index("proximo_numero"))
+
+
+def test_repetir_e_EXPLICITO_e_avisa_do_primeiro():
+    """Ha casos legitimos de reemissao, mas nao pode ser o padrao - e quem
+    pedir tem de saber que o primeiro continua valendo ate ser cancelado."""
+    import inspect
+    assert inspect.signature(
+        lote.emissao.transmitir).parameters["repetir"].default is False
+    # a frase esta na mensagem da guarda, que fica em `transmitir`
+    fonte = inspect.getsource(lote.emissao)
+    assert "continua valendo até ser" in fonte

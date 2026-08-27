@@ -329,9 +329,19 @@ def _registra(quem: str, ambiente: str, cnpj: str, serie: int, numero: int,
                          f"cStat {resp.get('cStat')}")
 
 
+def _autorizado_para(chave_origem: str, ambiente: str) -> dict | None:
+    """O CT-e de origem já tem contrapartida autorizada neste ambiente?"""
+    with _conn() as c:
+        r = c.execute(
+            "SELECT serie, numero, protocolo, chave FROM emissao"
+            " WHERE chave_origem=? AND ambiente=? AND cstat='100'"
+            " ORDER BY id DESC LIMIT 1", (chave_origem, ambiente)).fetchone()
+    return dict(r) if r else None
+
+
 def transmitir(chave_origem: str, enq: documento.Enquadramento, *, quem: str,
                serie: int = SERIE_PADRAO, numero: int | None = None,
-               ambiente: str = HOMOLOGACAO) -> dict:
+               ambiente: str = HOMOLOGACAO, repetir: bool = False) -> dict:
     """Monta, assina e transmite. Devolve o retorno da SEFAZ, sempre gravado.
 
     `quem` é obrigatório e não tem valor padrão: uma trilha de auditoria que
@@ -348,6 +358,22 @@ def transmitir(chave_origem: str, enq: documento.Enquadramento, *, quem: str,
     d = documento.dados(chave_origem)
     cnpj = d["emit_cnpj"]
     _guardas(cnpj, d, ambiente)
+
+    # IDEMPOTENCIA AQUI, e nao so no lote. Esta guarda existia apenas no
+    # caminho em lote, e o caminho de UM documento passava por fora: foi assim
+    # que a mesma prestacao ganhou DOIS CT-e autorizados em producao, com dois
+    # protocolos. Documento fiscal duplicado nao se apaga - cancela-se, dentro
+    # de prazo, com justificativa. A guarda mora no lugar por onde TODO envio
+    # passa.
+    ja = _autorizado_para(d["chave_original"], ambiente)
+    if ja and not repetir:
+        raise PermissionError(
+            f"Já existe CT-e AUTORIZADO em {AMBIENTES[ambiente]} para o CT-e "
+            f"{d['chave_original']}: série {ja['serie']}/{ja['numero']}, "
+            f"protocolo {ja['protocolo']}. Emitir de novo criaria uma segunda "
+            f"prestação para o mesmo serviço. Se for mesmo o caso, chame com "
+            f"repetir=True — e saiba que o primeiro continua valendo até ser "
+            f"cancelado.")
 
     if numero is None:
         numero = proximo_numero(cnpj, serie, ambiente)
@@ -406,6 +432,13 @@ def _xml_do_protocolo(retorno) -> str | None:
     arquiva e o que se apresenta numa fiscalização é o `cteProc` — o documento
     assinado MAIS este bloco. Sem ele, a autorização existe e não se prova.
     """
+    # Preferencia ABSOLUTA pelo XML que a SEFAZ mandou (guardado na leitura
+    # da resposta): e o que se arquiva e o que o ERP importa. A reserializacao
+    # abaixo e so um ultimo recurso, e sai com o nome da classe no lugar do
+    # nome do elemento - serve para nao perder o dado, nao para importar.
+    bruto = getattr(retorno, "_xml_protocolo", None)
+    if bruto:
+        return bruto
     prot = getattr(retorno, "protCTe", None) or getattr(retorno, "protCte", None)
     if prot is None:
         return None

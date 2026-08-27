@@ -4,6 +4,17 @@ Gerado de `docs/versoes.yaml` por `scripts/gerar_changelog.py` — não editar �
 Formato [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/),
 versionamento [SemVer](https://semver.org/lang/pt-BR/).
 
+## [0.91.0] — 27/08/2026  ·  CX-27/08/2026-v0.91.0
+
+### Adicionado
+- PRIMEIRO CT-e DE CONTRAPARTIDA EMITIDO EM PRODUCAO, autorizado pela SEFAZ de Sao Paulo. Emitido pelo agregado RODRIGO ANTONIO PARIZOTTO contra a Sulista, referenciando o CT-e de origem. Documento real, com valor fiscal.
+
+### Corrigido
+- O ambiente viajava como TEXTO no sistema e a biblioteca o comparava como NUMERO. Producao caia no endereco de homologacao dizendo ser de producao, e a SEFAZ recusava com uma mensagem que nao aponta onde esta o erro ("Ambiente informado diverge do Ambiente de recebimento").
+- O protocolo de autorizacao era remontado a partir do objeto lido, e saia com o nome da CLASSE no lugar do nome do elemento - arquivo que nao importa em lugar nenhum. Agora e guardado exatamente como a SEFAZ enviou, que e o que se arquiva.
+- A verificacao de "ja existe contrapartida para este CT-e" vivia so no caminho em LOTE; o caminho de um documento passava por fora. Foi assim que a mesma prestacao ganhou DOIS documentos autorizados em producao. A guarda passou para o ponto por onde todo envio passa, e vem ANTES de reservar numero de serie - barrar depois ja teria gasto um.
+- Repetir a emissao para a mesma origem agora exige pedido explicito, e a recusa diz qual documento ja existe e lembra que o primeiro continua valendo ate ser cancelado.
+
 ## [0.90.0] — 27/08/2026  ·  CX-27/08/2026-v0.90.0
 
 ### Adicionado
