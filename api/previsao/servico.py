@@ -726,7 +726,7 @@ def snapshot_se_integro(resp: dict, mes: str, data_foto: str) -> bool:
                     "anterior, se houver.", mes, data_foto, ", ".join(fora))
         return False
     try:  # snapshot diario best-effort (idempotente por dia)
-        arm.gravar_snapshot(arm.DB_PATH, data_foto, mes, [
+        arm.gravar_snapshot(arm.ESQUEMA, data_foto, mes, [
             {"linha": ln["linha"], "previsto_base": ln["previsto"],
              "previsto_otim": ln["previsto_otim"], "previsto_pess": ln["previsto_pess"],
              "realizado_contabil": ln["realizado"], "estrategia": ln["estrategia"]}
@@ -953,7 +953,7 @@ def get_previsao(mes: str | None = None, hoje: date | None = None) -> dict:
     except Exception:  # noqa: BLE001
         pass
 
-    arm.init_db(arm.DB_PATH)
+    arm.init_db(arm.ESQUEMA)
     ctx = {"mes": mes, "modo": modo, "dia_rel": dia_rel, "hoje": hoje.isoformat(),
            "dias_meta_decorridos": dias_meta_decorridos,
            "razao_ag_mes": razao_ag_mes, "hist_ag": hist_ag, "meses_hist": meses24,
@@ -968,9 +968,9 @@ def get_previsao(mes: str | None = None, hoje: date | None = None) -> dict:
            "breakeven": breakeven, "orcado_linha": orcado_linha,
            "avisos_previos": avisos_previos,
            "meses_circulares": circulares, "calibracao": calib,
-           "ajustes": arm.ler_ajustes_prev(arm.DB_PATH, mes),
+           "ajustes": arm.ler_ajustes_prev(arm.ESQUEMA, mes),
            "indices": indices,
-           "snapshots": arm.ler_snapshots(arm.DB_PATH, mes), "fontes": fontes}
+           "snapshots": arm.ler_snapshots(arm.ESQUEMA, mes), "fontes": fontes}
     resp = montar_resposta(ctx)
     snapshot_se_integro(resp, mes, hoje.isoformat())
     return resp

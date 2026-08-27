@@ -224,6 +224,7 @@ def get_contrapartida(de: str | None = None, ate: str | None = None,
             "emitidas": _tx["producao"],
             "emitidas_homologacao": _tx["homologacao"],
             "emitidas_autorizadas": _tx["autorizadas"],
+            "emitidas_producao_autorizadas": _tx.get("producao_autorizadas", 0),
             "emitidas_recusadas": _tx["recusadas"],
             "taxa_retorno_ok": _tx["taxa_ok"],
         },
@@ -282,24 +283,37 @@ def _transmissoes(limite: int = 30) -> dict:
     linhas = [x for x in linhas
               if not str(x.get("cstat") or "").startswith("CANC:")] + [
         x for x in linhas if str(x.get("cstat") or "").startswith("CANC:")]
-    prod = [x for x in linhas if str(x.get("ambiente")) == "1"]
-    homo = [x for x in linhas if str(x.get("ambiente")) == "2"]
-    ok = [x for x in linhas if str(x.get("cstat")) == "100"]
+    # AS CONTAGENS VEM DO REGISTRO INTEIRO, nao das `limite` ultimas linhas.
+    # A tela contava em cima da propria pagina e mostrava o LIMITE como
+    # universo: "5 de 30 autorizadas · 0 em producao", quando eram 30
+    # autorizadas em 99 documentos e 2 delas em producao - que sumiam por
+    # serem mais antigas que as trinta ultimas. `linhas` continua servindo
+    # para a LISTA; para contar, nunca.
+    try:
+        tot = emissao.totais()
+    except Exception as exc:  # noqa: BLE001
+        log.warning("totais de transmissao indisponiveis: %s", exc)
+        tot = {}
+    docs = int(tot.get("documentos") or 0)
+    ok_n = int(tot.get("autorizados") or 0)
     return {
-        "producao": len(prod),
-        "homologacao": len(homo),
-        "autorizadas": len(ok),
-        "recusadas": len(linhas) - len(ok),
+        "producao": int(tot.get("producao") or 0),
+        "producao_autorizadas": int(tot.get("producao_ok") or 0),
+        "homologacao": int(tot.get("homologacao") or 0),
+        "autorizadas": ok_n,
+        "recusadas": docs - ok_n,
+        "documentos": docs,
         "por_dia": serie_dia,
         # Taxa de retorno OK. `None` e nao 0 quando nao houve transmissao:
         # "0% de acerto" sem nenhuma tentativa e um numero que acusa alguem.
-        "taxa_ok": (round(100.0 * len(ok) / len(linhas), 1)
-                    if linhas else None),
+        "taxa_ok": (round(100.0 * ok_n / docs, 1) if docs else None),
         # Documento autorizado sem XML guardado nao se importa no ERP nem se
         # arquiva: a chave prova que existe, o arquivo e que serve.
-        "com_xml": len(com_xml),
-        "autorizadas_sem_xml": sum(
-            1 for x in ok if not x.get("tem_xml")),
+        # Tambem sobre o registro inteiro: contados na pagina, os dois
+        # numeros diziam quanto falta arquivar das ULTIMAS trinta linhas, que
+        # nao e pergunta que alguem faca.
+        "com_xml": int(tot.get("com_xml") or 0),
+        "autorizadas_sem_xml": int(tot.get("autorizados_sem_xml") or 0),
         "ultimas": [{
             "quando": x.get("quando"), "quem": x.get("quem"),
             "tem_xml": bool(x.get("tem_xml")),

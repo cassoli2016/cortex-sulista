@@ -15,6 +15,16 @@ versionamento [SemVer](https://semver.org/lang/pt-BR/).
 ### Corrigido
 - O modulo de notificacao criava as tabelas no momento em que era carregado. Com o banco de arquivo isso nao custava nada; com o PostgreSQL, o banco fora do ar faria a API INTEIRA nao subir - por causa do recurso mais acessorio do sistema. As tabelas passam a nascer na primeira inscricao, e antes disso a tela mostra zero, que e a verdade.
 
+## [0.100.1] — 27/08/2026  ·  CX-27/08/2026-v0.100.1
+
+### Alterado
+- O texto de ajuda do cartao passou a avisar que o denominador carrega a fase de ajuste do enquadramento e as recusas que so existem em homologacao. A taxa e verdadeira, mas ler 30% como qualidade do sistema hoje seria errado.
+
+### Corrigido
+- O cartao "Retorno da SEFAZ" contava em cima das 30 ultimas linhas da tabela e apresentava esse LIMITE como se fosse o total: dizia "16,7% · 5 de 30 autorizadas · 0 em producao". O correto e 30,3% - 30 autorizadas em 99 documentos - e as duas autorizacoes de PRODUCAO existiam, so eram mais antigas que as trinta ultimas linhas. O cartao afirmava que nunca havia emissao em producao no dia seguinte a termos emitido.
+- "N em producao" ao lado de "autorizadas" lia-se como autorizadas em producao, e era o total de tentativas. Agora diz as duas coisas: "producao 2 de 4".
+- Os numeros de arquivo guardado tinham o mesmo defeito - respondiam quanto falta arquivar das ultimas trinta linhas, que nao e pergunta que alguem faca.
+
 ## [0.100.0] — 27/08/2026  ·  CX-27/08/2026-v0.100.0
 
 ### Adicionado

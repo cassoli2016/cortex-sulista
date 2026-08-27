@@ -86,14 +86,18 @@ def test_homologacao_NAO_entra_na_contagem_de_emitidas():
 
 def test_a_contagem_separa_ambiente_e_resultado(monkeypatch):
     """Producao x homologacao, e autorizada x recusada: quatro numeros, porque
-    documento recusado tambem nao emitiu nada."""
-    monkeypatch.setattr(
-        "api.contrapartida.emissao.historico",
-        lambda limite=30: [
-            {"ambiente": "2", "cstat": "100", "numero": 1},
-            {"ambiente": "2", "cstat": "310", "numero": 2},
-            {"ambiente": "1", "cstat": "100", "numero": 3},
-        ])
+    documento recusado tambem nao emitiu nada.
+
+    A contagem sai de `totais`, que le o registro INTEIRO, e nao de
+    `historico`, que devolve so a ultima pagina - contar na pagina fazia o
+    limite da consulta passar por universo.
+    """
+    monkeypatch.setattr("api.contrapartida.emissao.historico",
+                        lambda limite=30: [])
+    monkeypatch.setattr("api.contrapartida.emissao.por_dia", lambda n=30: [])
+    monkeypatch.setattr("api.contrapartida.emissao.totais", lambda: {
+        "documentos": 3, "autorizados": 2, "producao": 1, "producao_ok": 1,
+        "homologacao": 2, "com_xml": 0, "autorizados_sem_xml": 2})
     t = servico._transmissoes()
     assert (t["producao"], t["homologacao"]) == (1, 2)
     assert (t["autorizadas"], t["recusadas"]) == (2, 1)
@@ -473,13 +477,12 @@ def test_o_historico_nao_carrega_o_xml_inteiro():
 def test_autorizada_sem_xml_e_contada_a_parte(monkeypatch):
     """Documento autorizado sem arquivo guardado nao se importa no ERP nem se
     arquiva - a chave prova que existe, o arquivo e que serve."""
-    monkeypatch.setattr(
-        "api.contrapartida.emissao.historico",
-        lambda limite=30: [
-            {"ambiente": "2", "cstat": "100", "tem_xml": 1},
-            {"ambiente": "2", "cstat": "100", "tem_xml": 0},
-            {"ambiente": "2", "cstat": "310", "tem_xml": 0},
-        ])
+    monkeypatch.setattr("api.contrapartida.emissao.historico",
+                        lambda limite=30: [])
+    monkeypatch.setattr("api.contrapartida.emissao.por_dia", lambda n=30: [])
+    monkeypatch.setattr("api.contrapartida.emissao.totais", lambda: {
+        "documentos": 3, "autorizados": 2, "producao": 0, "producao_ok": 0,
+        "homologacao": 3, "com_xml": 1, "autorizados_sem_xml": 1})
     t = servico._transmissoes()
     assert t["com_xml"] == 1 and t["autorizadas_sem_xml"] == 1
 
@@ -820,3 +823,46 @@ def test_rota_da_varredura_e_alcancavel_e_vem_antes_do_generico():
     ordem = [p for p, _ in auth.ROTA_TELAS
              if p.startswith("/api/fiscal/contrapartida")]
     assert ordem.index(alvo) < ordem.index("/api/fiscal/contrapartida")
+
+
+def test_as_contagens_NAO_saem_da_pagina_do_historico(monkeypatch):
+    """O card contava em cima de `historico(30)` e apresentava o LIMITE como
+    universo: "5 de 30 autorizadas · 0 em producao", quando eram 30
+    autorizadas em 99 documentos e 2 delas em producao - que sumiam por serem
+    mais antigas que as trinta ultimas linhas. Um KPI dizendo que nunca
+    emitimos em producao no dia seguinte a termos emitido."""
+    from api.contrapartida import emissao, servico
+
+    # a PAGINA e pequena e so tem homologacao recusada; o REGISTRO tem mais
+    monkeypatch.setattr(emissao, "historico", lambda limite=50: [
+        {"chave": "A", "cstat": "748", "ambiente": "2", "tem_xml": 0},
+        {"chave": "B", "cstat": "748", "ambiente": "2", "tem_xml": 0},
+    ])
+    monkeypatch.setattr(emissao, "por_dia", lambda n=30: [])
+    monkeypatch.setattr(emissao, "totais", lambda: {
+        "documentos": 99, "autorizados": 30, "producao": 4, "producao_ok": 2,
+        "homologacao": 95, "com_xml": 73, "autorizados_sem_xml": 12})
+
+    tx = servico._transmissoes()
+    assert tx["autorizadas"] == 30 and tx["recusadas"] == 69
+    assert tx["documentos"] == 99
+    assert tx["producao"] == 4 and tx["producao_autorizadas"] == 2
+    assert tx["taxa_ok"] == 30.3
+    assert len(tx["ultimas"]) == 2, "a LISTA continua sendo a pagina"
+
+
+def test_totais_ignoram_o_evento_de_cancelamento():
+    """Evento nao e transmissao de documento: conta-lo estragaria a taxa nos
+    dois sentidos."""
+    import inspect
+    from api.contrapartida import emissao
+    assert "CANC:%" in inspect.getsource(emissao.totais)
+
+
+def test_taxa_e_None_sem_nenhuma_transmissao(monkeypatch):
+    """"0% de acerto" sem tentativa nenhuma e um numero que acusa alguem."""
+    from api.contrapartida import emissao, servico
+    monkeypatch.setattr(emissao, "historico", lambda limite=50: [])
+    monkeypatch.setattr(emissao, "por_dia", lambda n=30: [])
+    monkeypatch.setattr(emissao, "totais", lambda: {"documentos": 0})
+    assert servico._transmissoes()["taxa_ok"] is None

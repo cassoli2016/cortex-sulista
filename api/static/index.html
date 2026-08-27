@@ -9867,11 +9867,14 @@ function renderCtecp(d){
             nao=k.emitidas_recusadas||0, tot=ok+nao;
       const vazio = (t===null||t===undefined||!tot);
       const valor = vazio ? '—' : t.toLocaleString('pt-BR')+'%';
+      /* "N em producao" ao lado de "autorizadas" lia-se como autorizadas em
+         producao, e era o total de TENTATIVAS. Agora diz as duas coisas. */
+      const pOk=k.emitidas_producao_autorizadas||0, pTot=k.emitidas||0;
       const sub = vazio ? 'nenhuma transmissão ainda'
-        : (ok+' de '+tot+' autorizadas · '+(k.emitidas||0)+' em produção');
+        : (ok+' de '+tot+' autorizadas · produção '+pOk+' de '+pTot);
       const cls = vazio ? 'warn' : (t>=95?'good' : (t>=70?'warn':'bad'));
       return kpi('Retorno da SEFAZ', valor, sub, cls,
-        'Percentual de transmissões que a SEFAZ autorizou. Recusada não emitiu nada — por isso entra no denominador e não é somada aos autorizados. Homologação e produção contam juntas AQUI, porque a pergunta é se o documento está correto, não se ele vale. Sem tentativa nenhuma o valor é “—”: um “0%” acusaria um trabalho que não existiu.');
+        'Percentual de transmissões que a SEFAZ autorizou, sobre o REGISTRO INTEIRO — não sobre a última página da tabela abaixo. Recusada não emitiu nada, por isso entra no denominador e não é somada aos autorizados. Homologação e produção contam juntas AQUI, porque a pergunta é se o documento está correto, não se ele vale. Leia com contexto: o denominador carrega a fase de ajuste do enquadramento (cada rejeição corrigida está lá) e as recusas que só existem em homologação, como o CT-e de origem que a base de teste não conhece. Sem tentativa nenhuma o valor é “—”: um “0%” acusaria um trabalho que não existiu.');
     })()
    +kpi('Fora da fila (TAC)', (k.ctes_tac||0).toLocaleString('pt-BR'),
         (k.agregados_tac||0)+' agregados pessoa física · '+cpBRL(k.valor_tac),

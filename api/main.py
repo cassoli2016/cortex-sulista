@@ -2402,11 +2402,11 @@ async def previsao_ajuste(req: Request) -> JSONResponse:
     valor = body.get("valor")
     quem = (req.state.sessao or {}).get("nome") or "sistema"
     try:
-        parm.init_db(parm.DB_PATH)
+        parm.init_db(parm.ESQUEMA)
         if valor is None:
-            parm.remover_ajuste_prev(parm.DB_PATH, mes, linha, quem)
+            parm.remover_ajuste_prev(parm.ESQUEMA, mes, linha, quem)
         else:
-            parm.salvar_ajuste_prev(parm.DB_PATH, mes, linha,
+            parm.salvar_ajuste_prev(parm.ESQUEMA, mes, linha,
                                     str(body.get("tipo") or "delta"),
                                     float(valor), str(body.get("motivo") or ""), quem)
         _RESP_CACHE.clear()

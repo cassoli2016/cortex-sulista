@@ -218,9 +218,11 @@ def test_resumo_separa_as_filiais_cedentes():
 # --------------------------------------------------------------------------
 
 @pytest.fixture
-def _base(tmp_path, monkeypatch):
-    monkeypatch.setattr(reg, "DB_PATH", tmp_path / "antecipacoes.db")
-    return tmp_path
+def _base(esquema_pg, monkeypatch):
+    """Um SCHEMA exclusivo do teste, no lugar do arquivo em tmp_path — o
+    registro migrou para o PostgreSQL em 27/08/2026."""
+    monkeypatch.setattr(reg, "ESQUEMA", esquema_pg)
+    return esquema_pg
 
 
 def test_elegibilidade_e_por_raiz_do_cnpj(_base):

@@ -690,6 +690,33 @@ def historico(limite: int = 50) -> list[dict]:
             " FROM emissao ORDER BY id DESC LIMIT ?", (limite,))]
 
 
+def totais() -> dict:
+    """Contagem sobre o registro INTEIRO, não sobre a última página.
+
+    Existe porque a tela contava em cima de `historico(30)` e apresentava o
+    LIMITE como se fosse o universo: "5 de 30 autorizadas · 0 em produção",
+    quando havia 30 autorizadas em 99 documentos e 2 delas em produção. As de
+    produção eram mais antigas que as trinta últimas linhas e sumiam da conta
+    — um KPI que dizia "nunca emitimos em produção" no dia seguinte a termos
+    emitido.
+
+    O evento de cancelamento fica de fora: não é transmissão de documento, e
+    contá-lo estragaria a taxa nos dois sentidos.
+    """
+    with _conn() as c:
+        r = dict(c.execute(
+            "SELECT count(*) AS documentos,"
+            " sum(cstat='100') AS autorizados,"
+            " sum(ambiente='1') AS producao,"
+            " sum(ambiente='1' AND cstat='100') AS producao_ok,"
+            " sum(ambiente='2') AS homologacao,"
+            " sum(xml IS NOT NULL) AS com_xml,"
+            " sum(cstat='100' AND xml IS NULL) AS autorizados_sem_xml"
+            " FROM emissao"
+            " WHERE cstat IS NOT NULL AND cstat NOT LIKE 'CANC:%'").fetchone())
+    return {k: int(v or 0) for k, v in r.items()}
+
+
 def xml_de(chave: str) -> str | None:
     """O XML assinado de um documento ja transmitido."""
     with _conn() as c:
