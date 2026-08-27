@@ -4,6 +4,12 @@ Gerado de `docs/versoes.yaml` por `scripts/gerar_changelog.py` — não editar �
 Formato [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/),
 versionamento [SemVer](https://semver.org/lang/pt-BR/).
 
+## [0.114.0] — 27/08/2026  ·  CX-27/08/2026-v0.114.0
+
+### Alterado
+- A recusa que so existe em homologacao - o CT-e de origem que a base de teste nao conhece, porque foi autorizado em producao - saiu da conta do "Retorno da SEFAZ" e passou a ser contada a parte, no subtitulo. Ela era METADE das transmissoes de homologacao e derrubava a taxa de 63% para 31%: quem olhasse o numero durante o periodo de teste estaria medindo o ambiente, e nao o trabalho.
+- Essa mesma recusa deixou de ser repetida tres vezes. Ela e conhecida e nao muda entre uma tentativa e outra, entao uma basta para registrar que aconteceu - as outras duas so gastavam chamada a SEFAZ e afundavam as recusas de verdade no meio. Recusa NOVA continua com tres tentativas, porque pode ser intermitente.
+
 ## [0.113.1] — 27/08/2026  ·  CX-27/08/2026-v0.113.1
 
 ### Corrigido

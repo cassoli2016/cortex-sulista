@@ -224,6 +224,8 @@ def get_contrapartida(de: str | None = None, ate: str | None = None,
             "emitidas": _tx["producao"],
             "emitidas_homologacao": _tx["homologacao"],
             "emitidas_autorizadas": _tx["autorizadas"],
+            "emitidas_avaliadas": _tx.get("avaliadas", 0),
+            "emitidas_esperadas": _tx.get("esperadas_homologacao", 0),
             "emitidas_producao_autorizadas": _tx.get("producao_autorizadas", 0),
             "emitidas_recusadas": _tx["recusadas"],
             "taxa_retorno_ok": _tx["taxa_ok"],
@@ -296,6 +298,12 @@ def _transmissoes(limite: int = 30) -> dict:
         tot = {}
     docs = int(tot.get("documentos") or 0)
     ok_n = int(tot.get("autorizados") or 0)
+    # A taxa mede o que o DOCUMENTO acertou. A recusa que so existe em
+    # homologacao - o CT-e de origem que a base de teste nao conhece - nao
+    # diz nada sobre o documento e sai do denominador, contada a parte. Deixa-
+    # la dentro faria o periodo de teste medir o ambiente em vez do trabalho.
+    esperadas = int(tot.get("esperadas_homologacao") or 0)
+    base = max(docs - esperadas, 0)
     return {
         "producao": int(tot.get("producao") or 0),
         "producao_autorizadas": int(tot.get("producao_ok") or 0),
@@ -306,7 +314,9 @@ def _transmissoes(limite: int = 30) -> dict:
         "por_dia": serie_dia,
         # Taxa de retorno OK. `None` e nao 0 quando nao houve transmissao:
         # "0% de acerto" sem nenhuma tentativa e um numero que acusa alguem.
-        "taxa_ok": (round(100.0 * ok_n / docs, 1) if docs else None),
+        "esperadas_homologacao": esperadas,
+        "avaliadas": base,
+        "taxa_ok": (round(100.0 * ok_n / base, 1) if base else None),
         # Documento autorizado sem XML guardado nao se importa no ERP nem se
         # arquiva: a chave prova que existe, o arquivo e que serve.
         # Tambem sobre o registro inteiro: contados na pagina, os dois

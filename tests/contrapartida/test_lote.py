@@ -748,3 +748,21 @@ def test_o_resumo_conta_a_quarentena_separado():
     resolve: o CT-e de origem continua sem contrapartida."""
     import inspect
     assert "em_quarentena" in inspect.getsource(lote.resumo_fila)
+
+
+def test_recusa_conhecida_nao_e_repetida_tres_vezes(monkeypatch):
+    """748 diz que o CT-e de origem nao consta na base da SEFAZ, e em
+    homologacao ele NUNCA vai constar - foi autorizado em producao. Repetir
+    tres vezes cada uma enchia o registro: 60 das 119 transmissoes do dia eram
+    isso. Uma tentativa basta para registrar; as outras duas so gastam chamada
+    e afundam as recusas de verdade."""
+    assert "748" in lote.RECUSA_SEM_REPETICAO
+    fonte = __import__("inspect").getsource(lote._quarentena)
+    assert "RECUSA_SEM_REPETICAO" in fonte
+
+
+def test_recusa_desconhecida_ainda_ganha_tres_tentativas():
+    """So entra na lista o que se PROVOU deterministico. Recusa nova pode ser
+    intermitente - SEFAZ instavel, timeout - e merece a segunda chance."""
+    assert lote.MAX_TENTATIVAS_MESMA_RECUSA == 3
+    assert "229" not in lote.RECUSA_SEM_REPETICAO

@@ -10210,15 +10210,22 @@ function renderCtecp(d){
          Sem transmissao nenhuma o valor e "—" e nao "0%": zero por cento de
          acerto sem tentativa e um numero que acusa alguem por um trabalho que
          nao existiu. */
+      /* O denominador e o que foi AVALIADO: fora dele fica a recusa que so
+         existe em homologacao (o CT-e de origem que a base de teste nao
+         conhece). Ela e metade das transmissoes e derrubava a taxa de 63%
+         para 31% - o periodo de teste passaria a medir o ambiente em vez do
+         trabalho. Some da conta, nao da tela: vai no subtitulo. */
       const t=k.taxa_retorno_ok, ok=k.emitidas_autorizadas||0,
-            nao=k.emitidas_recusadas||0, tot=ok+nao;
+            esp=k.emitidas_esperadas||0,
+            tot=k.emitidas_avaliadas||((k.emitidas_recusadas||0)+ok);
       const vazio = (t===null||t===undefined||!tot);
       const valor = vazio ? '—' : t.toLocaleString('pt-BR')+'%';
       /* "N em producao" ao lado de "autorizadas" lia-se como autorizadas em
          producao, e era o total de TENTATIVAS. Agora diz as duas coisas. */
       const pOk=k.emitidas_producao_autorizadas||0, pTot=k.emitidas||0;
       const sub = vazio ? 'nenhuma transmissão ainda'
-        : (ok+' de '+tot+' autorizadas · produção '+pOk+' de '+pTot);
+        : (ok+' de '+tot+' autorizadas · produção '+pOk+' de '+pTot
+           +(esp? ' · '+esp+' recusas só de homologação fora da conta':''));
       const cls = vazio ? 'warn' : (t>=95?'good' : (t>=70?'warn':'bad'));
       return kpi('Retorno da SEFAZ', valor, sub, cls,
         'Percentual de transmissões que a SEFAZ autorizou, sobre o REGISTRO INTEIRO — não sobre a última página da tabela abaixo. Recusada não emitiu nada, por isso entra no denominador e não é somada aos autorizados. Homologação e produção contam juntas AQUI, porque a pergunta é se o documento está correto, não se ele vale. Leia com contexto: o denominador carrega a fase de ajuste do enquadramento (cada rejeição corrigida está lá) e as recusas que só existem em homologação, como o CT-e de origem que a base de teste não conhece. Sem tentativa nenhuma o valor é “—”: um “0%” acusaria um trabalho que não existiu.');

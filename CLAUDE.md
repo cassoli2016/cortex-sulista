@@ -659,9 +659,33 @@ data DA VERSÃO, não a de hoje. Aparece no rodapé da sidebar, no cabeçalho da
 de Documentação e em `GET /api/versao` — é como se confirma, olhando o painel, o
 que o AutoDeploy do Windows colocou no ar.
 
-Quando MAIOR/MENOR/CORREÇÃO: recurso novo retrocompatível sobe o MENOR (0.2 → 0.3);
-correção sem recurso sobe a CORREÇÃO (0.2.0 → 0.2.1); quebra de contrato de API ou
-de dado sobe o MAIOR.
+Quando MENOR/CORREÇÃO: recurso novo retrocompatível sobe o MENOR (0.2 → 0.3);
+correção sem recurso sobe a CORREÇÃO (0.2.0 → 0.2.1).
+
+**O MAIOR não tem regra automática, e é de propósito.** SemVer usa o MAIOR para
+avisar o código de OUTRAS PESSOAS que algo quebrou — e aqui não há outras
+pessoas: não existe API pública nem SDK, e o frontend sobe junto com o backend
+no mesmo deploy. O gatilho nunca dispararia sozinho: são 157 versões em 19 dias
+(0.1.0 em 08/08/2026 → 0.113 em 27/08), 113 de MENOR e 44 de correção, nenhuma
+de MAIOR — nem quando os dez bancos locais migraram para o PostgreSQL, que é a
+maior mudança de contrato de dado que o projeto já teve.
+
+Então o **`1.0.0` é DECLARADO, não derivado**: quando o painel puder ser tratado
+como fonte oficial. Três coisas, e as três são verificáveis:
+
+1. **Restauração de backup testada de verdade** — não basta o dump existir e
+   passar no `pg_restore -l`, que só prova que o arquivo está íntegro. É
+   restaurar num banco vazio e conferir que o sistema sobe em cima dele.
+2. **Reconciliação com o ERP documentada** — a divergência de cada número que
+   decide dinheiro conhecida, explicada e com dono, em vez de descoberta na
+   reunião.
+3. **As três telas de receita batendo entre si** — faturas emitidas × frete das
+   viagens × CT-e+KMM+NFS-e da meta, com o ⓘ de cada uma dizendo por que
+   diferem quando diferem.
+
+Até lá o `0.x` diz a verdade: está no ar e em uso, e ainda muda de forma toda
+semana. Deixar o `1.` chegar por acidente — no dia em que alguém quebrar um
+contrato — seria pior que não chegar.
 
 ---
 

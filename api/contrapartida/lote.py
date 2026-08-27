@@ -68,6 +68,19 @@ MAX_FALHAS_SEGUIDAS = 3
 # bastante para separar "recusa de verdade" de um tropeco pontual.
 MAX_TENTATIVAS_MESMA_RECUSA = 3
 
+# Recusas que NAO adianta repetir nem uma vez: sao conhecidas, deterministicas
+# e nao dependem de nada que mude entre uma tentativa e outra.
+#
+#   748 = o CT-e de origem nao consta na base da SEFAZ. Em homologacao ele
+#         nunca vai constar, porque foi autorizado em PRODUCAO - conferido por
+#         consulta as duas bases (217 la, 100 aqui).
+#
+# Tres tentativas cada uma enchiam o registro: 60 das 119 transmissoes de
+# homologacao de hoje sao esta recusa. Uma tentativa basta para registrar que
+# aconteceu; a segunda e a terceira so gastam chamada a SEFAZ e afundam as
+# recusas de verdade no meio.
+RECUSA_SEM_REPETICAO = {"748"}
+
 # Teto de segurança do teto: mesmo que alguém peça mais, o lote não passa
 # disto numa execução. Existe para o caso de um `limite` vir de configuração
 # errada — não para limitar o uso legítimo, que é recorrente e incremental.
@@ -300,7 +313,9 @@ def _quarentena(ambiente: str) -> dict[str, dict]:
         ch = r["chave_origem"]
         if ch in autorizadas or str(r["cstat"]) == "100":
             continue
-        if (r["n"] or 0) >= MAX_TENTATIVAS_MESMA_RECUSA:
+        teto = (1 if str(r["cstat"]) in RECUSA_SEM_REPETICAO
+                else MAX_TENTATIVAS_MESMA_RECUSA)
+        if (r["n"] or 0) >= teto:
             fora[ch] = {"cstat": r["cstat"], "xmotivo": r["xmotivo"],
                         "tentativas": r["n"], "ultima": r["ultima"]}
     return fora

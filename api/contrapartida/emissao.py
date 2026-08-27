@@ -690,7 +690,17 @@ def totais() -> dict:
             " count(*) FILTER (WHERE ambiente='2') AS homologacao,"
             " count(*) FILTER (WHERE xml IS NOT NULL) AS com_xml,"
             " count(*) FILTER (WHERE cstat='100' AND xml IS NULL)"
-            "     AS autorizados_sem_xml"
+            "     AS autorizados_sem_xml,"
+            # RECUSA ESPERADA DE HOMOLOGACAO. A 748 diz que o CT-e de origem
+            # nao consta na base da SEFAZ - e ele nunca vai constar em
+            # homologacao, porque foi autorizado em PRODUCAO. Provado por
+            # consulta as duas bases: 217 la, 100 aqui. Nao e defeito do
+            # documento nem do cadastro, e some sozinha ao virar a chave.
+            # Contada a parte para nao afundar as recusas de verdade: hoje ela
+            # e METADE das transmissoes de homologacao e derruba a taxa de
+            # 63% para 31%.
+            " count(*) FILTER (WHERE ambiente='2' AND cstat='748')"
+            "     AS esperadas_homologacao"
             " FROM emissao"
             " WHERE cstat IS NOT NULL AND cstat NOT LIKE 'CANC:%'").fetchone())
     return {k: int(v or 0) for k, v in r.items()}
