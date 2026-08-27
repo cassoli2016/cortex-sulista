@@ -22,9 +22,14 @@ vira requisito de estrutura de dados, não recomendação de rodapé:
 
 ONDE MORA CADA COISA, E POR QUÊ
 -------------------------------
-  metadados (validade, escopo, tipo)  -> data/contrapartida.db (SQLite local)
+  metadados (validade, escopo, tipo)  -> PostgreSQL local, schema `cortex`
   SENHA do certificado                -> data/certificados/senhas.json (0600)
   arquivo .pfx                        -> data/certificados/, 0600
+
+Os metadados migraram do SQLite em 27/08/2026 (docs/MIGRACAO_POSTGRES.md); o
+`data/contrapartida.db` continua no disco como desfazer. A senha e o .pfx NÃO
+migraram, e não vão: segredo em arquivo com permissão restrita é melhor que
+segredo em tabela.
 
 `data/*` está inteiro no .gitignore — e isso importa porque **o repositório do
 código é público**. Senha de certificado em banco versionado seria um vazamento
@@ -38,15 +43,18 @@ from __future__ import annotations
 
 import json
 import logging
-import sqlite3
 from datetime import date, datetime
 from pathlib import Path
+
+from .. import migracoes, pglocal
 
 log = logging.getLogger("cortex.contrapartida.cadastro")
 
 ROOT = Path(__file__).resolve().parent.parent.parent
-DB_PATH = ROOT / "data" / "contrapartida.db"
 DIR_CERT = ROOT / "data" / "certificados"
+
+# Manopla de redirecionamento, no lugar do antigo `DB_PATH`.
+ESQUEMA: str | None = None
 
 # Certificado A1 vale um ano. Avisar com 30 dias dá tempo de renovar sem
 # parar a emissão; avisar no dia do vencimento não serve para nada.
@@ -93,76 +101,36 @@ def ler_senha(cnpj: str) -> str | None:
     return (_senhas().get(cnpj) or {}).get("valor")
 
 
-_DDL = """
-CREATE TABLE IF NOT EXISTS autorizacao (
-  cnpj        TEXT PRIMARY KEY,
-  escopo      TEXT NOT NULL,
-  valida_de   TEXT NOT NULL,
-  valida_ate  TEXT NOT NULL,
-  observacao  TEXT,
-  criado_em   TEXT NOT NULL,
-  criado_por  TEXT NOT NULL
-);
-CREATE TABLE IF NOT EXISTS certificado (
-  cnpj        TEXT PRIMARY KEY,
-  tipo        TEXT NOT NULL,          -- 'A1' | 'A3'
-  arquivo     TEXT,                   -- nome do .pfx em data/certificados
-  valida_ate  TEXT,
-  titular     TEXT,
-  criado_em   TEXT NOT NULL,
-  criado_por  TEXT NOT NULL
-);
--- Trilha de auditoria. Quem autorizou emitir em nome de quem, e quando, tem
--- de ser respondivel meses depois - inclusive contra o proprio CORTEX.
-CREATE TABLE IF NOT EXISTS auditoria (
-  id          INTEGER PRIMARY KEY AUTOINCREMENT,
-  quando      TEXT NOT NULL,
-  quem        TEXT NOT NULL,
-  acao        TEXT NOT NULL,
-  cnpj        TEXT NOT NULL,
-  detalhe     TEXT
-);
-"""
+def _conn():
+    """Conexão no schema em vigor.
+
+    O DDL saiu daqui para `sql/cortex/0010_contrapartida.sql`, e com ele o
+    `_migrar_procuracao`: a tabela se chamou `procuracao` antes de se chamar
+    `autorizacao`, e a rotina copiava o conteúdo de uma para a outra a cada
+    conexão. Ela já rodou — a base migrada não tem `procuracao` — e carregar
+    para sempre um `INSERT ... SELECT` que mexe em autorização para emitir
+    documento fiscal é risco sem contrapartida. O script de carga confere que a
+    tabela antiga não existe antes de trazer o dado.
+    """
+    return pglocal.get_conn(ESQUEMA)
 
 
-def _conn() -> sqlite3.Connection:
-    """Conexao curta, WAL, commit automatico — mesmo padrao do auth.db."""
-    DB_PATH.parent.mkdir(parents=True, exist_ok=True)
-    c = sqlite3.connect(DB_PATH, isolation_level=None, timeout=10)
-    c.row_factory = sqlite3.Row
-    c.execute("PRAGMA journal_mode=WAL")
-    c.executescript(_DDL)
-    _migrar_procuracao(c)
-    return c
-
-
-def _migrar_procuracao(c: sqlite3.Connection) -> None:
-    """A tabela se chamava `procuracao`. Renomear jogando fora o que ja estava
-    cadastrado obrigaria a redigitar - e o registro perdido seria justamente a
-    autorizacao de alguem."""
-    try:
-        existe = c.execute(
-            "SELECT 1 FROM sqlite_master WHERE type='table' AND name='procuracao'"
-        ).fetchone()
-        if not existe:
-            return
-        c.execute("INSERT OR IGNORE INTO autorizacao SELECT * FROM procuracao")
-        c.execute("DROP TABLE procuracao")
-        log.info("tabela procuracao migrada para autorizacao")
-    except Exception as exc:  # noqa: BLE001
-        log.warning("migracao procuracao->autorizacao falhou: %s", exc)
+def init_db(esquema: str | None = None) -> None:
+    migracoes.aplicar(esquema or ESQUEMA)
 
 
 def _hoje() -> str:
     return date.today().isoformat()
 
 
-def _audita(c: sqlite3.Connection, quem: str, acao: str, cnpj: str,
-            detalhe: str = "") -> None:
-    c.execute("INSERT INTO auditoria(quando, quem, acao, cnpj, detalhe)"
-              " VALUES(?,?,?,?,?)",
-              (datetime.now().isoformat(timespec="seconds"), quem, acao,
-               cnpj, detalhe))
+def _audita(cur, quem: str, acao: str, cnpj: str, detalhe: str = "") -> None:
+    """Recebe o CURSOR, não a conexão: a trilha entra na MESMA transação do que
+    está sendo auditado. Autorização gravada sem registro de quem a concedeu é
+    exatamente o que uma fiscalização vem procurar."""
+    cur.execute("INSERT INTO auditoria(quando, quem, acao, cnpj, detalhe)"
+                " VALUES(%s,%s,%s,%s,%s)",
+                (datetime.now().isoformat(timespec="seconds"), quem, acao,
+                 cnpj, detalhe))
 
 
 # --------------------------------------------------------------- escrita ---
@@ -173,17 +141,19 @@ def gravar_autorizacao(cnpj: str, escopo: str, valida_de: str, valida_ate: str,
         raise ValueError("CNPJ, escopo e as duas datas de validade são obrigatórios.")
     if valida_ate < valida_de:
         raise ValueError("A validade final é anterior à inicial.")
-    with _conn() as c:
-        c.execute(
-            "INSERT INTO autorizacao(cnpj, escopo, valida_de, valida_ate,"
-            " observacao, criado_em, criado_por) VALUES(?,?,?,?,?,?,?)"
-            " ON CONFLICT(cnpj) DO UPDATE SET escopo=excluded.escopo,"
-            " valida_de=excluded.valida_de, valida_ate=excluded.valida_ate,"
-            " observacao=excluded.observacao, criado_em=excluded.criado_em,"
-            " criado_por=excluded.criado_por",
-            (cnpj, escopo, valida_de, valida_ate, observacao,
-             datetime.now().isoformat(timespec="seconds"), quem))
-        _audita(c, quem, "autorizacao", cnpj, f"{valida_de} a {valida_ate}")
+    init_db()
+    with _conn() as conn:
+        with conn.cursor() as c:
+            c.execute(
+                "INSERT INTO autorizacao(cnpj, escopo, valida_de, valida_ate,"
+                " observacao, criado_em, criado_por) VALUES(%s,%s,%s,%s,%s,%s,%s)"
+                " ON CONFLICT(cnpj) DO UPDATE SET escopo=excluded.escopo,"
+                " valida_de=excluded.valida_de, valida_ate=excluded.valida_ate,"
+                " observacao=excluded.observacao, criado_em=excluded.criado_em,"
+                " criado_por=excluded.criado_por",
+                (cnpj, escopo, valida_de, valida_ate, observacao,
+                 datetime.now().isoformat(timespec="seconds"), quem))
+            _audita(c, quem, "autorizacao", cnpj, f"{valida_de} a {valida_ate}")
     return {"ok": True}
 
 
@@ -193,23 +163,29 @@ def gravar_certificado(cnpj: str, tipo: str, quem: str, arquivo: str = "",
     """A SENHA nao entra na tabela: vai para o cofre, e de la nao volta."""
     if tipo not in ("A1", "A3"):
         raise ValueError("Tipo de certificado deve ser A1 ou A3.")
-    with _conn() as c:
-        c.execute(
-            "INSERT INTO certificado(cnpj, tipo, arquivo, valida_ate, titular,"
-            " criado_em, criado_por) VALUES(?,?,?,?,?,?,?)"
-            " ON CONFLICT(cnpj) DO UPDATE SET tipo=excluded.tipo,"
-            " arquivo=excluded.arquivo, valida_ate=excluded.valida_ate,"
-            " titular=excluded.titular, criado_em=excluded.criado_em,"
-            " criado_por=excluded.criado_por",
-            (cnpj, tipo, arquivo or None, valida_ate or None, titular or None,
-             datetime.now().isoformat(timespec="seconds"), quem))
-        _audita(c, quem, "certificado", cnpj, f"{tipo} valido ate {valida_ate or '?'}")
+    init_db()
+    with _conn() as conn:
+        with conn.cursor() as c:
+            c.execute(
+                "INSERT INTO certificado(cnpj, tipo, arquivo, valida_ate,"
+                " titular, criado_em, criado_por) VALUES(%s,%s,%s,%s,%s,%s,%s)"
+                " ON CONFLICT(cnpj) DO UPDATE SET tipo=excluded.tipo,"
+                " arquivo=excluded.arquivo, valida_ate=excluded.valida_ate,"
+                " titular=excluded.titular, criado_em=excluded.criado_em,"
+                " criado_por=excluded.criado_por",
+                (cnpj, tipo, arquivo or None, valida_ate or None,
+                 titular or None,
+                 datetime.now().isoformat(timespec="seconds"), quem))
+            _audita(c, quem, "certificado", cnpj,
+                    f"{tipo} valido ate {valida_ate or '?'}")
     if senha:
         # cofre 0600, fora do git. A auditoria registra QUE houve senha, nunca
         # qual: o proprio log seria um vazamento.
         gravar_senha(cnpj, senha)
-        with _conn() as c:
-            _audita(c, quem, "senha_certificado", cnpj, "senha gravada no cofre")
+        with _conn() as conn:
+            with conn.cursor() as c:
+                _audita(c, quem, "senha_certificado", cnpj,
+                        "senha gravada no cofre")
     return {"ok": True}
 
 
@@ -267,11 +243,23 @@ def prontidao(cnpj: str, autz: dict | None, cert: dict | None,
     return {"pronto": not faltas, "faltas": faltas, "alertas": alertas}
 
 
+def _vazio_se_sem_tabela(fn, padrao):
+    """Instalação que nunca cadastrou nada não tem as tabelas — é vazio, não
+    falha. Erro de CONEXÃO sobe."""
+    try:
+        return fn()
+    except Exception as exc:  # noqa: BLE001
+        if pglocal.sem_tabela(exc):
+            return padrao
+        raise
+
+
 def mapa() -> dict[str, dict]:
     """{cnpj: {autorizacao, certificado, prontidao}} para a tela cruzar."""
-    with _conn() as c:
-        autz = {r["cnpj"]: dict(r) for r in c.execute("SELECT * FROM autorizacao")}
-        certs = {r["cnpj"]: dict(r) for r in c.execute("SELECT * FROM certificado")}
+    autz = {r["cnpj"]: dict(r) for r in _vazio_se_sem_tabela(
+        lambda: pglocal.query("SELECT * FROM autorizacao", esquema=ESQUEMA), [])}
+    certs = {r["cnpj"]: dict(r) for r in _vazio_se_sem_tabela(
+        lambda: pglocal.query("SELECT * FROM certificado", esquema=ESQUEMA), [])}
     out: dict[str, dict] = {}
     for cnpj in set(autz) | set(certs):
         cert = certs.get(cnpj)
@@ -287,9 +275,9 @@ def mapa() -> dict[str, dict]:
 
 
 def auditoria(limite: int = 200) -> list[dict]:
-    with _conn() as c:
-        return [dict(r) for r in c.execute(
-            "SELECT * FROM auditoria ORDER BY id DESC LIMIT ?", (limite,))]
+    return _vazio_se_sem_tabela(lambda: pglocal.query(
+        "SELECT * FROM auditoria ORDER BY id DESC LIMIT %s", (limite,),
+        esquema=ESQUEMA), [])
 
 
 def ie_utilizavel(ie: str | None) -> bool:

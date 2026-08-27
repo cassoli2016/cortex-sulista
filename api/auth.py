@@ -14,7 +14,6 @@ from __future__ import annotations
 import logging
 import os
 import re
-import sqlite3
 from contextlib import contextmanager
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
@@ -22,17 +21,22 @@ from pathlib import Path
 import jwt
 from argon2 import PasswordHasher
 from argon2.exceptions import VerifyMismatchError
+import psycopg
 from fastapi import APIRouter, Request, Response
 from fastapi.responses import JSONResponse
 from starlette.datastructures import Headers
 
 from . import db as _db  # noqa: F401  (importa para garantir o .env carregado)
+from . import migracoes, pglocal
 
 log = logging.getLogger("cortex.auth")
 
 ROOT = Path(__file__).resolve().parent.parent
-DB_PATH = ROOT / "data" / "auth.db"
 COOKIE = "cortex_sess"
+
+# Manopla de redirecionamento, no lugar do antigo `DB_PATH`: o teste faz
+# `monkeypatch.setattr(auth, "ESQUEMA", <schema do teste>)`.
+ESQUEMA: str | None = None
 _ph = PasswordHasher()
 
 # Segredo de assinatura: sem APP_SECRET no .env, gera um efêmero (derruba as
@@ -243,19 +247,15 @@ def _local_direto(headers: Headers, cliente: str) -> bool:
 
 # ---------------------------------------------------------------- SQLite
 
-@contextmanager
 def _conn():
-    """Conexão curta: transação automática (commit/rollback) e close garantido."""
-    DB_PATH.parent.mkdir(exist_ok=True)
-    c = sqlite3.connect(DB_PATH, timeout=10)
-    c.row_factory = sqlite3.Row
-    c.execute("PRAGMA journal_mode=WAL")
-    c.execute("PRAGMA foreign_keys=ON")
-    try:
-        with c:
-            yield c
-    finally:
-        c.close()
+    """Conexão curta no schema em vigor: transação automática, close garantido.
+
+    Devolve a CONEXÃO do psycopg, que tem `.execute()` própria — por isso os
+    ~160 `c.execute(...).fetchone()` deste arquivo continuam funcionando sem
+    mudar de forma. O que mudou foi o dialeto (`?` -> `%s`, `INSERT OR IGNORE`
+    -> `ON CONFLICT DO NOTHING`, `lastrowid` -> `RETURNING id`).
+    """
+    return pglocal.get_conn(ESQUEMA)
 
 
 _CONFIG_PADRAO = {
@@ -304,60 +304,27 @@ _PERFIS_MODELO = [
 
 
 def init_db() -> None:
+    """Aplica o schema e semeia o mínimo: as políticas padrão, o perfil de
+    administrador (o setup cria o primeiro usuário nele) e os perfis-modelo.
+
+    O DDL saiu para `sql/cortex/0011_auth.sql`; o SEED continua aqui porque é
+    dado, não estrutura — e porque ele é versionado por flags em `config`
+    (`perfis_modelo_v1..vN`), que é o que impede de recriar perfil que o admin
+    excluiu de propósito.
+    """
+    migracoes.aplicar(ESQUEMA)
     with _conn() as c:
-        c.executescript("""
-        CREATE TABLE IF NOT EXISTS perfis(
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            nome TEXT NOT NULL UNIQUE,
-            descricao TEXT DEFAULT '',
-            admin INTEGER NOT NULL DEFAULT 0,
-            criado_em TEXT NOT NULL
-        );
-        CREATE TABLE IF NOT EXISTS perfil_telas(
-            perfil_id INTEGER NOT NULL REFERENCES perfis(id) ON DELETE CASCADE,
-            tela TEXT NOT NULL,
-            PRIMARY KEY(perfil_id, tela)
-        );
-        CREATE TABLE IF NOT EXISTS usuarios(
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            nome TEXT NOT NULL,
-            email TEXT NOT NULL UNIQUE,
-            senha_hash TEXT NOT NULL,
-            perfil_id INTEGER NOT NULL REFERENCES perfis(id),
-            ativo INTEGER NOT NULL DEFAULT 1,
-            deve_trocar_senha INTEGER NOT NULL DEFAULT 1,
-            token_ver INTEGER NOT NULL DEFAULT 0,
-            falhas INTEGER NOT NULL DEFAULT 0,
-            bloqueado_ate TEXT,
-            criado_em TEXT NOT NULL,
-            ultimo_login TEXT
-        );
-        CREATE TABLE IF NOT EXISTS audit_log(
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            ts TEXT NOT NULL,
-            usuario TEXT NOT NULL,
-            acao TEXT NOT NULL,
-            alvo TEXT DEFAULT '',
-            detalhe TEXT DEFAULT '',
-            ip TEXT DEFAULT ''
-        );
-        CREATE INDEX IF NOT EXISTS ix_audit_ts ON audit_log(ts);
-        CREATE TABLE IF NOT EXISTS config(
-            chave TEXT PRIMARY KEY,
-            valor TEXT NOT NULL
-        );
-        """)
         for k, v in _CONFIG_PADRAO.items():
-            c.execute("INSERT OR IGNORE INTO config(chave, valor) VALUES(?,?)", (k, v))
+            c.execute("INSERT INTO config(chave, valor) VALUES(%s,%s) ON CONFLICT(chave) DO NOTHING", (k, v))
         # perfil administrador sempre existe (o setup cria o primeiro usuário nele)
         c.execute(
-            "INSERT OR IGNORE INTO perfis(nome, descricao, admin, criado_em) VALUES(?,?,1,?)",
+            "INSERT INTO perfis(nome, descricao, admin, criado_em) VALUES(%s,%s,1,%s) ON CONFLICT(nome) DO NOTHING",
             ("Administrador", "Acesso total, inclusive à área de Gestão.", _agora()),
         )
         _seed_perfis_modelo(c)
 
 
-def _seed_perfis_modelo(c: sqlite3.Connection) -> None:
+def _seed_perfis_modelo(c: psycopg.Connection) -> None:
     """Semeia os perfis-modelo por área UMA única vez (idempotente via flag).
 
     Não recria perfis que o admin tenha excluído: o flag 'perfis_modelo_v1'
@@ -368,132 +335,140 @@ def _seed_perfis_modelo(c: sqlite3.Connection) -> None:
     if not c.execute("SELECT 1 FROM config WHERE chave='perfis_modelo_v2'").fetchone():
         for nome, desc, telas in _PERFIS_MODELO:
             cur = c.execute(
-                "INSERT OR IGNORE INTO perfis(nome, descricao, admin, criado_em) VALUES(?,?,0,?)",
+                "INSERT INTO perfis(nome, descricao, admin, criado_em) VALUES(%s,%s,0,%s) ON CONFLICT(nome) DO NOTHING RETURNING id",
                 (nome, desc, _agora()))
-            if cur.rowcount:  # inserido agora (nome ainda não existia)
-                c.executemany("INSERT OR IGNORE INTO perfil_telas(perfil_id, tela) VALUES(?,?)",
-                              [(cur.lastrowid, t) for t in telas])
-        c.execute("INSERT OR IGNORE INTO config(chave, valor) VALUES('perfis_modelo_v1', '1')")
-        c.execute("INSERT OR IGNORE INTO config(chave, valor) VALUES('perfis_modelo_v2', '1')")
+            novo = cur.fetchone()   # None quando o nome já existia
+            if novo:
+                with c.cursor() as _cur:
+                    _cur.executemany(
+                    "INSERT INTO perfil_telas(perfil_id, tela) VALUES(%s,%s)"
+                    " ON CONFLICT DO NOTHING",
+                    [(novo["id"], t) for t in telas])
+        c.execute("INSERT INTO config(chave, valor) VALUES('perfis_modelo_v1', '1') ON CONFLICT(chave) DO NOTHING")
+        c.execute("INSERT INTO config(chave, valor) VALUES('perfis_modelo_v2', '1') ON CONFLICT(chave) DO NOTHING")
 
     # v3 (jornada 2026-07-17): adiciona a tela 'jorn' aos perfis Operação e
     # Diretoria já existentes (sem recriar perfis editados pelo admin).
     if not c.execute("SELECT 1 FROM config WHERE chave='perfis_modelo_v3'").fetchone():
         for perfil_nome in ("Operação", "Diretoria"):
-            row = c.execute("SELECT id FROM perfis WHERE nome=?", (perfil_nome,)).fetchone()
+            row = c.execute("SELECT id FROM perfis WHERE nome=%s", (perfil_nome,)).fetchone()
             if row:
-                c.execute("INSERT OR IGNORE INTO perfil_telas(perfil_id, tela) VALUES(?,?)",
+                c.execute("INSERT INTO perfil_telas(perfil_id, tela) VALUES(%s,%s) ON CONFLICT DO NOTHING",
                           (row["id"], "jorn"))
-        c.execute("INSERT OR IGNORE INTO config(chave, valor) VALUES('perfis_modelo_v3', '1')")
+        c.execute("INSERT INTO config(chave, valor) VALUES('perfis_modelo_v3', '1') ON CONFLICT(chave) DO NOTHING")
 
     # v4 (custos extras 2026-07-17): adiciona a tela 'cex' ao perfil Operação.
     if not c.execute("SELECT 1 FROM config WHERE chave='perfis_modelo_v4'").fetchone():
         row = c.execute("SELECT id FROM perfis WHERE nome='Operação'").fetchone()
         if row:
-            c.execute("INSERT OR IGNORE INTO perfil_telas(perfil_id, tela) VALUES(?,?)",
+            c.execute("INSERT INTO perfil_telas(perfil_id, tela) VALUES(%s,%s) ON CONFLICT DO NOTHING",
                       (row["id"], "cex"))
-        c.execute("INSERT OR IGNORE INTO config(chave, valor) VALUES('perfis_modelo_v4', '1')")
+        c.execute("INSERT INTO config(chave, valor) VALUES('perfis_modelo_v4', '1') ON CONFLICT(chave) DO NOTHING")
 
     # v5 (SAC/freetime 2026-07-17): adiciona a tela 'sac' ao perfil Operação.
     if not c.execute("SELECT 1 FROM config WHERE chave='perfis_modelo_v5'").fetchone():
         row = c.execute("SELECT id FROM perfis WHERE nome='Operação'").fetchone()
         if row:
-            c.execute("INSERT OR IGNORE INTO perfil_telas(perfil_id, tela) VALUES(?,?)",
+            c.execute("INSERT INTO perfil_telas(perfil_id, tela) VALUES(%s,%s) ON CONFLICT DO NOTHING",
                       (row["id"], "sac"))
-        c.execute("INSERT OR IGNORE INTO config(chave, valor) VALUES('perfis_modelo_v5', '1')")
+        c.execute("INSERT INTO config(chave, valor) VALUES('perfis_modelo_v5', '1') ON CONFLICT(chave) DO NOTHING")
 
     # v6 (manutenção preventiva 2026-07-17): adiciona a tela 'mprev' ao perfil Frota.
     if not c.execute("SELECT 1 FROM config WHERE chave='perfis_modelo_v6'").fetchone():
         row = c.execute("SELECT id FROM perfis WHERE nome='Frota'").fetchone()
         if row:
-            c.execute("INSERT OR IGNORE INTO perfil_telas(perfil_id, tela) VALUES(?,?)",
+            c.execute("INSERT INTO perfil_telas(perfil_id, tela) VALUES(%s,%s) ON CONFLICT DO NOTHING",
                       (row["id"], "mprev"))
-        c.execute("INSERT OR IGNORE INTO config(chave, valor) VALUES('perfis_modelo_v6', '1')")
+        c.execute("INSERT INTO config(chave, valor) VALUES('perfis_modelo_v6', '1') ON CONFLICT(chave) DO NOTHING")
 
     # v7 (comunicação rastreadora 2026-07-17): adiciona 'comrast' ao perfil Frota.
     if not c.execute("SELECT 1 FROM config WHERE chave='perfis_modelo_v7'").fetchone():
         row = c.execute("SELECT id FROM perfis WHERE nome='Frota'").fetchone()
         if row:
-            c.execute("INSERT OR IGNORE INTO perfil_telas(perfil_id, tela) VALUES(?,?)",
+            c.execute("INSERT INTO perfil_telas(perfil_id, tela) VALUES(%s,%s) ON CONFLICT DO NOTHING",
                       (row["id"], "comrast"))
-        c.execute("INSERT OR IGNORE INTO config(chave, valor) VALUES('perfis_modelo_v7', '1')")
+        c.execute("INSERT INTO config(chave, valor) VALUES('perfis_modelo_v7', '1') ON CONFLICT(chave) DO NOTHING")
 
     # v8 (qualidade 2026-07-17): adiciona a tela 'qual' ao perfil Controladoria.
     if not c.execute("SELECT 1 FROM config WHERE chave='perfis_modelo_v8'").fetchone():
         row = c.execute("SELECT id FROM perfis WHERE nome='Controladoria'").fetchone()
         if row:
-            c.execute("INSERT OR IGNORE INTO perfil_telas(perfil_id, tela) VALUES(?,?)",
+            c.execute("INSERT INTO perfil_telas(perfil_id, tela) VALUES(%s,%s) ON CONFLICT DO NOTHING",
                       (row["id"], "qual"))
-        c.execute("INSERT OR IGNORE INTO config(chave, valor) VALUES('perfis_modelo_v8', '1')")
+        c.execute("INSERT INTO config(chave, valor) VALUES('perfis_modelo_v8', '1') ON CONFLICT(chave) DO NOTHING")
 
     # v9 (portaria 2026-07-17): adiciona a tela 'port' ao perfil Operação.
     if not c.execute("SELECT 1 FROM config WHERE chave='perfis_modelo_v9'").fetchone():
         row = c.execute("SELECT id FROM perfis WHERE nome='Operação'").fetchone()
         if row:
-            c.execute("INSERT OR IGNORE INTO perfil_telas(perfil_id, tela) VALUES(?,?)",
+            c.execute("INSERT INTO perfil_telas(perfil_id, tela) VALUES(%s,%s) ON CONFLICT DO NOTHING",
                       (row["id"], "port"))
-        c.execute("INSERT OR IGNORE INTO config(chave, valor) VALUES('perfis_modelo_v9', '1')")
+        c.execute("INSERT INTO config(chave, valor) VALUES('perfis_modelo_v9', '1') ON CONFLICT(chave) DO NOTHING")
 
     # v10 (CRM 2026-07-17): adiciona a tela 'crm' ao perfil Comercial.
     if not c.execute("SELECT 1 FROM config WHERE chave='perfis_modelo_v10'").fetchone():
         row = c.execute("SELECT id FROM perfis WHERE nome='Comercial'").fetchone()
         if row:
-            c.execute("INSERT OR IGNORE INTO perfil_telas(perfil_id, tela) VALUES(?,?)",
+            c.execute("INSERT INTO perfil_telas(perfil_id, tela) VALUES(%s,%s) ON CONFLICT DO NOTHING",
                       (row["id"], "crm"))
-        c.execute("INSERT OR IGNORE INTO config(chave, valor) VALUES('perfis_modelo_v10', '1')")
+        c.execute("INSERT INTO config(chave, valor) VALUES('perfis_modelo_v10', '1') ON CONFLICT(chave) DO NOTHING")
 
     # v11 (RH vagas 2026-07-17): adiciona a tela 'rh' ao perfil Diretoria.
     if not c.execute("SELECT 1 FROM config WHERE chave='perfis_modelo_v11'").fetchone():
         row = c.execute("SELECT id FROM perfis WHERE nome='Diretoria'").fetchone()
         if row:
-            c.execute("INSERT OR IGNORE INTO perfil_telas(perfil_id, tela) VALUES(?,?)",
+            c.execute("INSERT INTO perfil_telas(perfil_id, tela) VALUES(%s,%s) ON CONFLICT DO NOTHING",
                       (row["id"], "rh"))
-        c.execute("INSERT OR IGNORE INTO config(chave, valor) VALUES('perfis_modelo_v11', '1')")
+        c.execute("INSERT INTO config(chave, valor) VALUES('perfis_modelo_v11', '1') ON CONFLICT(chave) DO NOTHING")
 
     # v12 (folha GLOBUS 2026-07-18): telas 'hc' e 'folha' ao perfil Diretoria.
     if not c.execute("SELECT 1 FROM config WHERE chave='perfis_modelo_v12'").fetchone():
         row = c.execute("SELECT id FROM perfis WHERE nome='Diretoria'").fetchone()
         if row:
             for t in ("hc", "folha"):
-                c.execute("INSERT OR IGNORE INTO perfil_telas(perfil_id, tela) VALUES(?,?)",
+                c.execute("INSERT INTO perfil_telas(perfil_id, tela) VALUES(%s,%s) ON CONFLICT DO NOTHING",
                           (row["id"], t))
-        c.execute("INSERT OR IGNORE INTO config(chave, valor) VALUES('perfis_modelo_v12', '1')")
+        c.execute("INSERT INTO config(chave, valor) VALUES('perfis_modelo_v12', '1') ON CONFLICT(chave) DO NOTHING")
 
     # v13 (painel de custos 2026-07-18): tela 'custos' ao perfil Suprimentos.
     if not c.execute("SELECT 1 FROM config WHERE chave='perfis_modelo_v13'").fetchone():
         row = c.execute("SELECT id FROM perfis WHERE nome='Suprimentos'").fetchone()
         if row:
-            c.execute("INSERT OR IGNORE INTO perfil_telas(perfil_id, tela) VALUES(?,?)",
+            c.execute("INSERT INTO perfil_telas(perfil_id, tela) VALUES(%s,%s) ON CONFLICT DO NOTHING",
                       (row["id"], "custos"))
-        c.execute("INSERT OR IGNORE INTO config(chave, valor) VALUES('perfis_modelo_v13', '1')")
+        c.execute("INSERT INTO config(chave, valor) VALUES('perfis_modelo_v13', '1') ON CONFLICT(chave) DO NOTHING")
 
     # v14 (indicadores de folha 2026-07-18): tela 'folhaind' ao perfil Diretoria.
     if not c.execute("SELECT 1 FROM config WHERE chave='perfis_modelo_v14'").fetchone():
         row = c.execute("SELECT id FROM perfis WHERE nome='Diretoria'").fetchone()
         if row:
-            c.execute("INSERT OR IGNORE INTO perfil_telas(perfil_id, tela) VALUES(?,?)",
+            c.execute("INSERT INTO perfil_telas(perfil_id, tela) VALUES(%s,%s) ON CONFLICT DO NOTHING",
                       (row["id"], "folhaind"))
-        c.execute("INSERT OR IGNORE INTO config(chave, valor) VALUES('perfis_modelo_v14', '1')")
+        c.execute("INSERT INTO config(chave, valor) VALUES('perfis_modelo_v14', '1') ON CONFLICT(chave) DO NOTHING")
 
     # v15 (horas extras 2026-07-18): tela 'he' ao perfil Diretoria.
     if not c.execute("SELECT 1 FROM config WHERE chave='perfis_modelo_v15'").fetchone():
         row = c.execute("SELECT id FROM perfis WHERE nome='Diretoria'").fetchone()
         if row:
-            c.execute("INSERT OR IGNORE INTO perfil_telas(perfil_id, tela) VALUES(?,?)",
+            c.execute("INSERT INTO perfil_telas(perfil_id, tela) VALUES(%s,%s) ON CONFLICT DO NOTHING",
                       (row["id"], "he"))
-        c.execute("INSERT OR IGNORE INTO config(chave, valor) VALUES('perfis_modelo_v15', '1')")
+        c.execute("INSERT INTO config(chave, valor) VALUES('perfis_modelo_v15', '1') ON CONFLICT(chave) DO NOTHING")
 
     # v16 (2026-07-18): perfil-modelo dedicado de Recursos Humanos — antes as
     # telas de RH só existiam embutidas no perfil amplo Diretoria, obrigando
     # a dar acesso a caixa/DRE/comercial só para liberar folha/headcount.
     if not c.execute("SELECT 1 FROM config WHERE chave='perfis_modelo_v16'").fetchone():
         cur = c.execute(
-            "INSERT OR IGNORE INTO perfis(nome, descricao, admin, criado_em) VALUES(?,?,0,?)",
+            "INSERT INTO perfis(nome, descricao, admin, criado_em) VALUES(%s,%s,0,%s) ON CONFLICT(nome) DO NOTHING RETURNING id",
             ("Recursos Humanos", "Vagas, headcount, custo de folha, indicadores e horas extras.", _agora()))
-        if cur.rowcount:
-            c.executemany("INSERT OR IGNORE INTO perfil_telas(perfil_id, tela) VALUES(?,?)",
-                          [(cur.lastrowid, t) for t in ("rh", "hc", "folha", "folhaind", "he")])
-        c.execute("INSERT OR IGNORE INTO config(chave, valor) VALUES('perfis_modelo_v16', '1')")
+        novo = cur.fetchone()
+        if novo:
+            with c.cursor() as _cur:
+                _cur.executemany(
+                "INSERT INTO perfil_telas(perfil_id, tela) VALUES(%s,%s)"
+                " ON CONFLICT DO NOTHING",
+                [(novo["id"], t) for t in ("rh", "hc", "folha", "folhaind", "he")])
+        c.execute("INSERT INTO config(chave, valor) VALUES('perfis_modelo_v16', '1') ON CONFLICT(chave) DO NOTHING")
 
     # v17 (orçamento 2026-07-26): tela 'orc' ao perfil Controladoria. A tela
     # nasceu depois que o perfil já existia nas bases em uso — editar
@@ -501,9 +476,9 @@ def _seed_perfis_modelo(c: sqlite3.Connection) -> None:
     if not c.execute("SELECT 1 FROM config WHERE chave='perfis_modelo_v17'").fetchone():
         row = c.execute("SELECT id FROM perfis WHERE nome='Controladoria'").fetchone()
         if row:
-            c.execute("INSERT OR IGNORE INTO perfil_telas(perfil_id, tela) VALUES(?,?)",
+            c.execute("INSERT INTO perfil_telas(perfil_id, tela) VALUES(%s,%s) ON CONFLICT DO NOTHING",
                       (row["id"], "orc"))
-        c.execute("INSERT OR IGNORE INTO config(chave, valor) VALUES('perfis_modelo_v17', '1')")
+        c.execute("INSERT INTO config(chave, valor) VALUES('perfis_modelo_v17', '1') ON CONFLICT(chave) DO NOTHING")
 
     # v18 (premiação de motoristas 2026-07-27): tela 'prem' aos perfis Frota e
     # Diretoria. A tela nasceu depois que os perfis já existiam nas bases em
@@ -511,11 +486,11 @@ def _seed_perfis_modelo(c: sqlite3.Connection) -> None:
     # v8/'qual' e v17/'orc').
     if not c.execute("SELECT 1 FROM config WHERE chave='perfis_modelo_v18'").fetchone():
         for nome_perfil in ("Frota", "Diretoria"):
-            row = c.execute("SELECT id FROM perfis WHERE nome=?", (nome_perfil,)).fetchone()
+            row = c.execute("SELECT id FROM perfis WHERE nome=%s", (nome_perfil,)).fetchone()
             if row:
-                c.execute("INSERT OR IGNORE INTO perfil_telas(perfil_id, tela) VALUES(?,?)",
+                c.execute("INSERT INTO perfil_telas(perfil_id, tela) VALUES(%s,%s) ON CONFLICT DO NOTHING",
                           (row["id"], "prem"))
-        c.execute("INSERT OR IGNORE INTO config(chave, valor) VALUES('perfis_modelo_v18', '1')")
+        c.execute("INSERT INTO config(chave, valor) VALUES('perfis_modelo_v18', '1') ON CONFLICT(chave) DO NOTHING")
 
     # v19 (extrato bancário 2026-08-01): tela 'extb' aos perfis Financeiro e
     # Controladoria. A tela nasceu depois que os perfis já existiam nas bases em
@@ -523,31 +498,31 @@ def _seed_perfis_modelo(c: sqlite3.Connection) -> None:
     # v8/'qual', v17/'orc' e v18/'prem').
     if not c.execute("SELECT 1 FROM config WHERE chave='perfis_modelo_v19'").fetchone():
         for nome_perfil in ("Financeiro", "Controladoria"):
-            row = c.execute("SELECT id FROM perfis WHERE nome=?", (nome_perfil,)).fetchone()
+            row = c.execute("SELECT id FROM perfis WHERE nome=%s", (nome_perfil,)).fetchone()
             if row:
-                c.execute("INSERT OR IGNORE INTO perfil_telas(perfil_id, tela) VALUES(?,?)",
+                c.execute("INSERT INTO perfil_telas(perfil_id, tela) VALUES(%s,%s) ON CONFLICT DO NOTHING",
                           (row["id"], "extb"))
-        c.execute("INSERT OR IGNORE INTO config(chave, valor) VALUES('perfis_modelo_v19', '1')")
+        c.execute("INSERT INTO config(chave, valor) VALUES('perfis_modelo_v19', '1') ON CONFLICT(chave) DO NOTHING")
 
     # v20 (previsao de fechamento 2026-08-02): tela 'fech' aos perfis
     # Controladoria e Diretoria. Mesmo caso da v19/'extb': a tela nasceu depois
     # que os perfis ja existiam nas bases em uso.
     if not c.execute("SELECT 1 FROM config WHERE chave='perfis_modelo_v20'").fetchone():
         for nome_perfil in ("Controladoria", "Diretoria"):
-            row = c.execute("SELECT id FROM perfis WHERE nome=?", (nome_perfil,)).fetchone()
+            row = c.execute("SELECT id FROM perfis WHERE nome=%s", (nome_perfil,)).fetchone()
             if row:
-                c.execute("INSERT OR IGNORE INTO perfil_telas(perfil_id, tela) VALUES(?,?)",
+                c.execute("INSERT INTO perfil_telas(perfil_id, tela) VALUES(%s,%s) ON CONFLICT DO NOTHING",
                           (row["id"], "fech"))
-        c.execute("INSERT OR IGNORE INTO config(chave, valor) VALUES('perfis_modelo_v20', '1')")
+        c.execute("INSERT INTO config(chave, valor) VALUES('perfis_modelo_v20', '1') ON CONFLICT(chave) DO NOTHING")
 
     # v21 (documentacao 2026-08-08): tela 'doc' a TODOS os perfis existentes.
     # Diferente da v19/v20, aqui nao ha lista de perfis: documentacao nao e dado
     # sensivel e serve a todo mundo que usa o painel.
     if not c.execute("SELECT 1 FROM config WHERE chave='perfis_modelo_v21'").fetchone():
         for row in c.execute("SELECT id FROM perfis").fetchall():
-            c.execute("INSERT OR IGNORE INTO perfil_telas(perfil_id, tela) VALUES(?,?)",
+            c.execute("INSERT INTO perfil_telas(perfil_id, tela) VALUES(%s,%s) ON CONFLICT DO NOTHING",
                       (row["id"], "doc"))
-        c.execute("INSERT OR IGNORE INTO config(chave, valor) VALUES('perfis_modelo_v21', '1')")
+        c.execute("INSERT INTO config(chave, valor) VALUES('perfis_modelo_v21', '1') ON CONFLICT(chave) DO NOTHING")
 
     # v22 (piso minimo ANTT 2026-08-18): tela 'anpiso' SO a Controladoria e
     # Diretoria -- deliberadamente restrita, ao contrario da v21.
@@ -563,22 +538,22 @@ def _seed_perfis_modelo(c: sqlite3.Connection) -> None:
     # foi o que aconteceu com 'extb' na v19.
     if not c.execute("SELECT 1 FROM config WHERE chave='perfis_modelo_v22'").fetchone():
         for nome_perfil in ("Controladoria", "Diretoria"):
-            row = c.execute("SELECT id FROM perfis WHERE nome=?", (nome_perfil,)).fetchone()
+            row = c.execute("SELECT id FROM perfis WHERE nome=%s", (nome_perfil,)).fetchone()
             if row:
-                c.execute("INSERT OR IGNORE INTO perfil_telas(perfil_id, tela) VALUES(?,?)",
+                c.execute("INSERT INTO perfil_telas(perfil_id, tela) VALUES(%s,%s) ON CONFLICT DO NOTHING",
                           (row["id"], "anpiso"))
-        c.execute("INSERT OR IGNORE INTO config(chave, valor) VALUES('perfis_modelo_v22', '1')")
+        c.execute("INSERT INTO config(chave, valor) VALUES('perfis_modelo_v22', '1') ON CONFLICT(chave) DO NOTHING")
 
     # v23 (RNTRC 2026-08-18): mesma restricao da v22. A tela nomeia
     # transportadores contratados com registro fora de ATIVO e o valor pago a
     # cada um -- informacao de compliance, nao operacional.
     if not c.execute("SELECT 1 FROM config WHERE chave='perfis_modelo_v23'").fetchone():
         for nome_perfil in ("Controladoria", "Diretoria"):
-            row = c.execute("SELECT id FROM perfis WHERE nome=?", (nome_perfil,)).fetchone()
+            row = c.execute("SELECT id FROM perfis WHERE nome=%s", (nome_perfil,)).fetchone()
             if row:
-                c.execute("INSERT OR IGNORE INTO perfil_telas(perfil_id, tela) VALUES(?,?)",
+                c.execute("INSERT INTO perfil_telas(perfil_id, tela) VALUES(%s,%s) ON CONFLICT DO NOTHING",
                           (row["id"], "anrntrc"))
-        c.execute("INSERT OR IGNORE INTO config(chave, valor) VALUES('perfis_modelo_v23', '1')")
+        c.execute("INSERT INTO config(chave, valor) VALUES('perfis_modelo_v23', '1') ON CONFLICT(chave) DO NOTHING")
 
     # v24 (Telemetria 2026-08-19): a Premiacao saiu do grupo Frota e passou a
     # viver em Telemetria. O perfil Frota perdeu a tela no modelo, mas quem ja
@@ -586,22 +561,22 @@ def _seed_perfis_modelo(c: sqlite3.Connection) -> None:
     # para tirar acesso de ninguem. Diretoria ja tinha 'prem' desde o modelo.
     if not c.execute("SELECT 1 FROM config WHERE chave='perfis_modelo_v24'").fetchone():
         for nome_perfil in ("Frota", "Diretoria"):
-            row = c.execute("SELECT id FROM perfis WHERE nome=?", (nome_perfil,)).fetchone()
+            row = c.execute("SELECT id FROM perfis WHERE nome=%s", (nome_perfil,)).fetchone()
             if row:
-                c.execute("INSERT OR IGNORE INTO perfil_telas(perfil_id, tela) VALUES(?,?)",
+                c.execute("INSERT INTO perfil_telas(perfil_id, tela) VALUES(%s,%s) ON CONFLICT DO NOTHING",
                           (row["id"], "prem"))
-        c.execute("INSERT OR IGNORE INTO config(chave, valor) VALUES('perfis_modelo_v24', '1')")
+        c.execute("INSERT INTO config(chave, valor) VALUES('perfis_modelo_v24', '1') ON CONFLICT(chave) DO NOTHING")
 
     # v25 (telas de Telemetria 2026-08-19): consumo, conducao e hodometro para
     # Frota (e a operacao da frota) e Diretoria (unico perfil com usuario real).
     if not c.execute("SELECT 1 FROM config WHERE chave='perfis_modelo_v25'").fetchone():
         for nome_perfil in ("Frota", "Diretoria"):
-            row = c.execute("SELECT id FROM perfis WHERE nome=?", (nome_perfil,)).fetchone()
+            row = c.execute("SELECT id FROM perfis WHERE nome=%s", (nome_perfil,)).fetchone()
             if row:
                 for tela in ("telcon", "telcond", "telhod"):
-                    c.execute("INSERT OR IGNORE INTO perfil_telas(perfil_id, tela)"
-                              " VALUES(?,?)", (row["id"], tela))
-        c.execute("INSERT OR IGNORE INTO config(chave, valor) VALUES('perfis_modelo_v25', '1')")
+                    c.execute("INSERT INTO perfil_telas(perfil_id, tela)"
+                              " VALUES(%s,%s) ON CONFLICT DO NOTHING", (row["id"], tela))
+        c.execute("INSERT INTO config(chave, valor) VALUES('perfis_modelo_v25', '1') ON CONFLICT(chave) DO NOTHING")
 
     # v26 (2026-08-25): perfil de CLIENTE do milk run. O seed geral e travado
     # pela flag 'perfis_modelo_v2', marcada em julho — sem um bloco novo, um
@@ -612,78 +587,79 @@ def _seed_perfis_modelo(c: sqlite3.Connection) -> None:
             if not nome_perfil.startswith("Cliente"):
                 continue
             cur = c.execute(
-                "INSERT OR IGNORE INTO perfis(nome, descricao, admin, criado_em)"
-                " VALUES(?,?,0,?)", (nome_perfil, desc, _agora()))
-            row = c.execute("SELECT id FROM perfis WHERE nome=?",
+                "INSERT INTO perfis(nome, descricao, admin, criado_em)"
+                " VALUES(%s,%s,0,%s) ON CONFLICT(nome) DO NOTHING RETURNING id", (nome_perfil, desc, _agora()))
+            row = c.execute("SELECT id FROM perfis WHERE nome=%s",
                             (nome_perfil,)).fetchone()
             if row:
-                c.executemany("INSERT OR IGNORE INTO perfil_telas(perfil_id, tela)"
-                              " VALUES(?,?)", [(row["id"], t) for t in telas])
-        c.execute("INSERT OR IGNORE INTO config(chave, valor) VALUES('perfis_modelo_v26', '1')")
+                with c.cursor() as _cur:
+                    _cur.executemany("INSERT INTO perfil_telas(perfil_id, tela)"
+                              " VALUES(%s,%s) ON CONFLICT DO NOTHING", [(row["id"], t) for t in telas])
+        c.execute("INSERT INTO config(chave, valor) VALUES('perfis_modelo_v26', '1') ON CONFLICT(chave) DO NOTHING")
 
     # v27 (2026-08-25): tela 'cnh' aos perfis que ja cuidam de gente e de
     # frota. Mesmo motivo dos blocos acima: o seed geral esta travado desde
     # julho, entao tela nova nunca chega sozinha a um perfil existente.
     if not c.execute("SELECT 1 FROM config WHERE chave='perfis_modelo_v27'").fetchone():
         for nome_perfil in ("Recursos Humanos", "Diretoria", "Frota"):
-            row = c.execute("SELECT id FROM perfis WHERE nome=?",
+            row = c.execute("SELECT id FROM perfis WHERE nome=%s",
                             (nome_perfil,)).fetchone()
             if row:
-                c.execute("INSERT OR IGNORE INTO perfil_telas(perfil_id, tela)"
-                          " VALUES(?,?)", (row["id"], "cnh"))
-        c.execute("INSERT OR IGNORE INTO config(chave, valor) VALUES('perfis_modelo_v27', '1')")
+                c.execute("INSERT INTO perfil_telas(perfil_id, tela)"
+                          " VALUES(%s,%s) ON CONFLICT DO NOTHING", (row["id"], "cnh"))
+        c.execute("INSERT INTO config(chave, valor) VALUES('perfis_modelo_v27', '1') ON CONFLICT(chave) DO NOTHING")
 
     # v28 (2026-08-25): tela 'ferias'. Mesmo motivo dos blocos anteriores — o
     # seed geral esta travado desde julho e tela nova nao chega sozinha a
     # perfil que ja existe.
     if not c.execute("SELECT 1 FROM config WHERE chave='perfis_modelo_v28'").fetchone():
         for nome_perfil in ("Recursos Humanos", "Diretoria"):
-            row = c.execute("SELECT id FROM perfis WHERE nome=?",
+            row = c.execute("SELECT id FROM perfis WHERE nome=%s",
                             (nome_perfil,)).fetchone()
             if row:
-                c.execute("INSERT OR IGNORE INTO perfil_telas(perfil_id, tela)"
-                          " VALUES(?,?)", (row["id"], "ferias"))
-        c.execute("INSERT OR IGNORE INTO config(chave, valor) VALUES('perfis_modelo_v28', '1')")
+                c.execute("INSERT INTO perfil_telas(perfil_id, tela)"
+                          " VALUES(%s,%s) ON CONFLICT DO NOTHING", (row["id"], "ferias"))
+        c.execute("INSERT INTO config(chave, valor) VALUES('perfis_modelo_v28', '1') ON CONFLICT(chave) DO NOTHING")
 
     # v29 (2026-08-25): tela 'pneus'.
     if not c.execute("SELECT 1 FROM config WHERE chave='perfis_modelo_v29'").fetchone():
         for nome_perfil in ("Frota", "Diretoria"):
-            row = c.execute("SELECT id FROM perfis WHERE nome=?",
+            row = c.execute("SELECT id FROM perfis WHERE nome=%s",
                             (nome_perfil,)).fetchone()
             if row:
-                c.execute("INSERT OR IGNORE INTO perfil_telas(perfil_id, tela)"
-                          " VALUES(?,?)", (row["id"], "pneus"))
-        c.execute("INSERT OR IGNORE INTO config(chave, valor) VALUES('perfis_modelo_v29', '1')")
+                c.execute("INSERT INTO perfil_telas(perfil_id, tela)"
+                          " VALUES(%s,%s) ON CONFLICT DO NOTHING", (row["id"], "pneus"))
+        c.execute("INSERT INTO config(chave, valor) VALUES('perfis_modelo_v29', '1') ON CONFLICT(chave) DO NOTHING")
 
     # v30 (2026-08-25): tela 'people'.
     if not c.execute("SELECT 1 FROM config WHERE chave='perfis_modelo_v30'").fetchone():
         for nome_perfil in ("Recursos Humanos", "Diretoria"):
-            row = c.execute("SELECT id FROM perfis WHERE nome=?",
+            row = c.execute("SELECT id FROM perfis WHERE nome=%s",
                             (nome_perfil,)).fetchone()
             if row:
-                c.execute("INSERT OR IGNORE INTO perfil_telas(perfil_id, tela)"
-                          " VALUES(?,?)", (row["id"], "people"))
-        c.execute("INSERT OR IGNORE INTO config(chave, valor) VALUES('perfis_modelo_v30', '1')")
+                c.execute("INSERT INTO perfil_telas(perfil_id, tela)"
+                          " VALUES(%s,%s) ON CONFLICT DO NOTHING", (row["id"], "people"))
+        c.execute("INSERT INTO config(chave, valor) VALUES('perfis_modelo_v30', '1') ON CONFLICT(chave) DO NOTHING")
 
     # v31 (2026-08-26): tela 'poli' (permanencia nos poligonos da Tupy).
     if not c.execute("SELECT 1 FROM config WHERE chave='perfis_modelo_v31'").fetchone():
         for nome_perfil in ("Operação", "Diretoria"):
-            row = c.execute("SELECT id FROM perfis WHERE nome=?",
+            row = c.execute("SELECT id FROM perfis WHERE nome=%s",
                             (nome_perfil,)).fetchone()
             if row:
-                c.execute("INSERT OR IGNORE INTO perfil_telas(perfil_id, tela)"
-                          " VALUES(?,?)", (row["id"], "poli"))
-        c.execute("INSERT OR IGNORE INTO config(chave, valor) VALUES('perfis_modelo_v31', '1')")
+                c.execute("INSERT INTO perfil_telas(perfil_id, tela)"
+                          " VALUES(%s,%s) ON CONFLICT DO NOTHING", (row["id"], "poli"))
+        c.execute("INSERT INTO config(chave, valor) VALUES('perfis_modelo_v31', '1') ON CONFLICT(chave) DO NOTHING")
 
     # v32 (2026-08-26): tela 'ctecp' (CT-e de contrapartida do agregado).
     if not c.execute("SELECT 1 FROM config WHERE chave='perfis_modelo_v32'").fetchone():
         for nome_perfil in ("Controladoria", "Diretoria"):
-            row = c.execute("SELECT id FROM perfis WHERE nome=?",
+            row = c.execute("SELECT id FROM perfis WHERE nome=%s",
                             (nome_perfil,)).fetchone()
             if row:
-                c.execute("INSERT OR IGNORE INTO perfil_telas(perfil_id, tela)"
-                          " VALUES(?,?)", (row["id"], "ctecp"))
-        c.execute("INSERT OR IGNORE INTO config(chave, valor) VALUES('perfis_modelo_v32', '1')")
+                c.execute("INSERT INTO perfil_telas(perfil_id, tela)"
+                          " VALUES(%s,%s) ON CONFLICT DO NOTHING", (row["id"], "ctecp"))
+        c.execute("INSERT INTO config(chave, valor) VALUES('perfis_modelo_v32', '1') ON CONFLICT(chave) DO NOTHING")
 
 
 def _agora() -> str:
@@ -692,7 +668,7 @@ def _agora() -> str:
 
 def cfg(chave: str) -> int:
     with _conn() as c:
-        row = c.execute("SELECT valor FROM config WHERE chave=?", (chave,)).fetchone()
+        row = c.execute("SELECT valor FROM config WHERE chave=%s", (chave,)).fetchone()
     try:
         return int(row["valor"]) if row else int(_CONFIG_PADRAO[chave])
     except (ValueError, KeyError):
@@ -702,15 +678,15 @@ def cfg(chave: str) -> int:
 def audit(usuario: str, acao: str, alvo: str = "", detalhe: str = "", ip: str = "") -> None:
     with _conn() as c:
         c.execute(
-            "INSERT INTO audit_log(ts, usuario, acao, alvo, detalhe, ip) VALUES(?,?,?,?,?,?)",
+            "INSERT INTO audit_log(ts, usuario, acao, alvo, detalhe, ip) VALUES(%s,%s,%s,%s,%s,%s)",
             (_agora(), usuario, acao, alvo, detalhe, ip),
         )
 
 
-def _telas_do_perfil(c: sqlite3.Connection, perfil_id: int, admin: bool) -> list[str]:
+def _telas_do_perfil(c: psycopg.Connection, perfil_id: int, admin: bool) -> list[str]:
     if admin:
         return list(TELAS.keys())
-    rows = c.execute("SELECT tela FROM perfil_telas WHERE perfil_id=?", (perfil_id,)).fetchall()
+    rows = c.execute("SELECT tela FROM perfil_telas WHERE perfil_id=%s", (perfil_id,)).fetchall()
     return [r["tela"] for r in rows if r["tela"] in TELAS]
 
 
@@ -750,7 +726,7 @@ def sessao_atual(token: str | None) -> dict | None:
         u = c.execute(
             """SELECT u.*, p.nome AS perfil_nome, p.admin AS perfil_admin
                FROM usuarios u JOIN perfis p ON p.id = u.perfil_id
-               WHERE u.id = ?""", (int(claims["sub"]),),
+               WHERE u.id = %s""", (int(claims["sub"]),),
         ).fetchone()
         if not u or not u["ativo"] or u["token_ver"] != claims.get("ver"):
             return None
@@ -914,9 +890,9 @@ def setup(payload: dict, request: Request) -> JSONResponse:
         cur = c.execute(
             """INSERT INTO usuarios(nome, email, senha_hash, perfil_id, ativo,
                                     deve_trocar_senha, criado_em)
-               VALUES(?,?,?,?,1,0,?)""",
+               VALUES(%s,%s,%s,%s,1,0,%s) RETURNING id""",
             (nome, email, _ph.hash(senha), perfil["id"], _agora()))
-        uid = cur.lastrowid
+        uid = cur.fetchone()["id"]
     audit(email, "setup_admin", alvo=email, detalhe="primeiro administrador criado",
           ip=_ip(request))
     resp = JSONResponse({"ok": True})
@@ -933,7 +909,7 @@ def login(payload: dict, request: Request) -> JSONResponse:
     if not email or not senha:
         return generico
     with _conn() as c:
-        u = c.execute("SELECT * FROM usuarios WHERE email=?", (email,)).fetchone()
+        u = c.execute("SELECT * FROM usuarios WHERE email=%s", (email,)).fetchone()
     if not u:
         _ph.hash(senha)  # iguala o tempo de resposta p/ e-mail inexistente
         audit(email, "login_falha", detalhe="usuario_inexistente", ip=_ip(request))
@@ -952,20 +928,20 @@ def login(payload: dict, request: Request) -> JSONResponse:
         # incremento atômico (evita corrida que esticaria o limite de tentativas)
         with _conn() as c:
             falhas = c.execute(
-                "UPDATE usuarios SET falhas=falhas+1 WHERE id=? RETURNING falhas",
+                "UPDATE usuarios SET falhas=falhas+1 WHERE id=%s RETURNING falhas",
                 (u["id"],)).fetchone()["falhas"]
             bloqueio = None
             if falhas >= cfg("max_tentativas"):
                 bloqueio = (datetime.now() + timedelta(minutes=cfg("bloqueio_min"))
                             ).strftime("%Y-%m-%d %H:%M:%S")
-                c.execute("UPDATE usuarios SET falhas=0, bloqueado_ate=? WHERE id=?",
+                c.execute("UPDATE usuarios SET falhas=0, bloqueado_ate=%s WHERE id=%s",
                           (bloqueio, u["id"]))
         audit(email, "login_falha",
               detalhe="senha_incorreta" + ("; conta bloqueada" if bloqueio else ""),
               ip=_ip(request))
         return generico
     with _conn() as c:
-        c.execute("UPDATE usuarios SET falhas=0, bloqueado_ate=NULL, ultimo_login=? WHERE id=?",
+        c.execute("UPDATE usuarios SET falhas=0, bloqueado_ate=NULL, ultimo_login=%s WHERE id=%s",
                   (_agora(), u["id"]))
     audit(email, "login_ok", ip=_ip(request))
     token = _emitir_token(u["id"], u["token_ver"])
@@ -985,7 +961,7 @@ def logout(request: Request) -> JSONResponse:
     sess = request.state.sessao
     # invalida a sessão no servidor (token roubado deixa de valer, não só o cookie)
     with _conn() as c:
-        c.execute("UPDATE usuarios SET token_ver=token_ver+1 WHERE id=?", (sess["id"],))
+        c.execute("UPDATE usuarios SET token_ver=token_ver+1 WHERE id=%s", (sess["id"],))
     audit(sess["email"], "logout", ip=_ip(request))
     resp = JSONResponse({"ok": True})
     resp.delete_cookie(COOKIE, path="/")
@@ -1001,7 +977,7 @@ def trocar_senha(payload: dict, request: Request) -> JSONResponse:
             "erro": "senha_fraca",
             "mensagem": f"A nova senha precisa de ao menos {cfg('senha_min')} caracteres."})
     with _conn() as c:
-        u = c.execute("SELECT senha_hash FROM usuarios WHERE id=?", (sess["id"],)).fetchone()
+        u = c.execute("SELECT senha_hash FROM usuarios WHERE id=%s", (sess["id"],)).fetchone()
     try:
         _ph.verify(u["senha_hash"], atual)
     except VerifyMismatchError:
@@ -1009,7 +985,7 @@ def trocar_senha(payload: dict, request: Request) -> JSONResponse:
             "erro": "senha_incorreta", "mensagem": "A senha atual não confere."})
     nova_ver = sess["token_ver"] + 1
     with _conn() as c:
-        c.execute("UPDATE usuarios SET senha_hash=?, deve_trocar_senha=0, token_ver=? WHERE id=?",
+        c.execute("UPDATE usuarios SET senha_hash=%s, deve_trocar_senha=0, token_ver=%s WHERE id=%s",
                   (_ph.hash(nova), nova_ver, sess["id"]))
     audit(sess["email"], "trocar_senha", ip=_ip(request))
     resp = JSONResponse({"ok": True})
@@ -1051,10 +1027,10 @@ def _valida_usuario_payload(payload: dict, novo: bool) -> tuple[dict | None, str
     return {"nome": nome, "email": email}, None
 
 
-def _admins_ativos_exceto(c: sqlite3.Connection, usuario_id: int) -> int:
+def _admins_ativos_exceto(c: psycopg.Connection, usuario_id: int) -> int:
     return c.execute(
         """SELECT COUNT(*) AS n FROM usuarios u JOIN perfis p ON p.id=u.perfil_id
-           WHERE p.admin=1 AND u.ativo=1 AND u.id<>?""", (usuario_id,)).fetchone()["n"]
+           WHERE p.admin=1 AND u.ativo=1 AND u.id<>%s""", (usuario_id,)).fetchone()["n"]
 
 
 @router_gestao.post("/usuarios")
@@ -1071,21 +1047,22 @@ def usuario_criar(payload: dict, request: Request) -> JSONResponse:
     perfil_id = payload.get("perfil_id")
     with _conn() as c:
         if not isinstance(perfil_id, int) or not c.execute(
-                "SELECT 1 FROM perfis WHERE id=?", (perfil_id,)).fetchone():
+                "SELECT 1 FROM perfis WHERE id=%s", (perfil_id,)).fetchone():
             return JSONResponse(status_code=422, content={
                 "erro": "parametro_invalido", "mensagem": "Perfil inexistente."})
         try:
             cur = c.execute(
                 """INSERT INTO usuarios(nome, email, senha_hash, perfil_id, ativo,
                                         deve_trocar_senha, criado_em)
-                   VALUES(?,?,?,?,1,1,?)""",
+                   VALUES(%s,%s,%s,%s,1,1,%s) RETURNING id""",
                 (dados["nome"], dados["email"], _ph.hash(senha), perfil_id, _agora()))
-        except sqlite3.IntegrityError:
+            novo_id = cur.fetchone()["id"]
+        except psycopg.errors.UniqueViolation:
             return JSONResponse(status_code=422, content={
                 "erro": "email_em_uso", "mensagem": "Já existe usuário com esse e-mail."})
     audit(sess["email"], "usuario_criar", alvo=dados["email"],
           detalhe=f"perfil_id={perfil_id}", ip=_ip(request))
-    return JSONResponse({"ok": True, "id": cur.lastrowid})
+    return JSONResponse({"ok": True, "id": novo_id})
 
 
 @router_gestao.post("/usuarios/{usuario_id}")
@@ -1097,19 +1074,19 @@ def usuario_editar(usuario_id: int, payload: dict, request: Request) -> JSONResp
     with _conn() as c:
         u = c.execute(
             """SELECT u.*, p.admin AS perfil_admin FROM usuarios u
-               JOIN perfis p ON p.id=u.perfil_id WHERE u.id=?""", (usuario_id,)).fetchone()
+               JOIN perfis p ON p.id=u.perfil_id WHERE u.id=%s""", (usuario_id,)).fetchone()
         if not u:
             return JSONResponse(status_code=404, content={
                 "erro": "nao_encontrado", "mensagem": "Usuário não existe."})
 
         mudancas, valores, detalhes = [], [], []
         if dados["nome"]:
-            mudancas.append("nome=?"); valores.append(dados["nome"]); detalhes.append("nome")
+            mudancas.append("nome=%s"); valores.append(dados["nome"]); detalhes.append("nome")
         if dados["email"] and dados["email"] != u["email"]:
-            mudancas.append("email=?"); valores.append(dados["email"]); detalhes.append("email")
+            mudancas.append("email=%s"); valores.append(dados["email"]); detalhes.append("email")
 
         if isinstance(payload.get("perfil_id"), int) and payload["perfil_id"] != u["perfil_id"]:
-            novo_p = c.execute("SELECT * FROM perfis WHERE id=?", (payload["perfil_id"],)).fetchone()
+            novo_p = c.execute("SELECT * FROM perfis WHERE id=%s", (payload["perfil_id"],)).fetchone()
             if not novo_p:
                 return JSONResponse(status_code=422, content={
                     "erro": "parametro_invalido", "mensagem": "Perfil inexistente."})
@@ -1118,7 +1095,7 @@ def usuario_editar(usuario_id: int, payload: dict, request: Request) -> JSONResp
                 return JSONResponse(status_code=422, content={
                     "erro": "ultimo_admin",
                     "mensagem": "Não é possível rebaixar o último administrador ativo."})
-            mudancas.append("perfil_id=?"); valores.append(payload["perfil_id"])
+            mudancas.append("perfil_id=%s"); valores.append(payload["perfil_id"])
             detalhes.append(f"perfil_id={payload['perfil_id']}")
             mudancas.append("token_ver=token_ver+1")  # força novo login com o novo perfil
 
@@ -1132,7 +1109,7 @@ def usuario_editar(usuario_id: int, payload: dict, request: Request) -> JSONResp
                     return JSONResponse(status_code=422, content={
                         "erro": "ultimo_admin",
                         "mensagem": "Não é possível desativar o último administrador ativo."})
-            mudancas.append("ativo=?"); valores.append(int(payload["ativo"]))
+            mudancas.append("ativo=%s"); valores.append(int(payload["ativo"]))
             mudancas.append("token_ver=token_ver+1")
             detalhes.append("ativado" if payload["ativo"] else "desativado")
 
@@ -1142,7 +1119,7 @@ def usuario_editar(usuario_id: int, payload: dict, request: Request) -> JSONResp
                 return JSONResponse(status_code=422, content={
                     "erro": "senha_fraca",
                     "mensagem": f"A senha precisa de ao menos {cfg('senha_min')} caracteres."})
-            mudancas += ["senha_hash=?", "deve_trocar_senha=1", "token_ver=token_ver+1",
+            mudancas += ["senha_hash=%s", "deve_trocar_senha=1", "token_ver=token_ver+1",
                          "falhas=0", "bloqueado_ate=NULL"]
             valores.append(_ph.hash(senha_nova))
             detalhes.append("senha_resetada")
@@ -1154,9 +1131,9 @@ def usuario_editar(usuario_id: int, payload: dict, request: Request) -> JSONResp
         if not mudancas:
             return JSONResponse({"ok": True, "mensagem": "Nada a alterar."})
         try:
-            c.execute(f"UPDATE usuarios SET {', '.join(mudancas)} WHERE id=?",
+            c.execute(f"UPDATE usuarios SET {', '.join(mudancas)} WHERE id=%s",
                       (*valores, usuario_id))
-        except sqlite3.IntegrityError:
+        except psycopg.errors.UniqueViolation:
             return JSONResponse(status_code=422, content={
                 "erro": "email_em_uso", "mensagem": "Já existe usuário com esse e-mail."})
     audit(sess["email"], "usuario_editar", alvo=u["email"],
@@ -1173,7 +1150,7 @@ def usuario_excluir(usuario_id: int, request: Request) -> JSONResponse:
     with _conn() as c:
         u = c.execute(
             """SELECT u.email, u.ativo, p.admin AS perfil_admin FROM usuarios u
-               JOIN perfis p ON p.id=u.perfil_id WHERE u.id=?""", (usuario_id,)).fetchone()
+               JOIN perfis p ON p.id=u.perfil_id WHERE u.id=%s""", (usuario_id,)).fetchone()
         if not u:
             return JSONResponse(status_code=404, content={
                 "erro": "nao_encontrado", "mensagem": "Usuário não existe."})
@@ -1181,7 +1158,7 @@ def usuario_excluir(usuario_id: int, request: Request) -> JSONResponse:
             return JSONResponse(status_code=422, content={
                 "erro": "ultimo_admin",
                 "mensagem": "Não é possível excluir o último administrador ativo."})
-        c.execute("DELETE FROM usuarios WHERE id=?", (usuario_id,))
+        c.execute("DELETE FROM usuarios WHERE id=%s", (usuario_id,))
     audit(sess["email"], "usuario_excluir", alvo=u["email"], ip=_ip(request))
     return JSONResponse({"ok": True})
 
@@ -1217,13 +1194,15 @@ def perfil_criar(payload: dict, request: Request) -> JSONResponse:
     with _conn() as c:
         try:
             cur = c.execute(
-                "INSERT INTO perfis(nome, descricao, admin, criado_em) VALUES(?,?,?,?)",
+                "INSERT INTO perfis(nome, descricao, admin, criado_em)"
+                " VALUES(%s,%s,%s,%s) RETURNING id",
                 (nome, (payload.get("descricao") or "").strip(), admin, _agora()))
-        except sqlite3.IntegrityError:
+            pid = cur.fetchone()["id"]
+        except psycopg.errors.UniqueViolation:
             return JSONResponse(status_code=422, content={
                 "erro": "nome_em_uso", "mensagem": "Já existe perfil com esse nome."})
-        pid = cur.lastrowid
-        c.executemany("INSERT INTO perfil_telas(perfil_id, tela) VALUES(?,?)",
+        with c.cursor() as _cur:
+            _cur.executemany("INSERT INTO perfil_telas(perfil_id, tela) VALUES(%s,%s) ON CONFLICT DO NOTHING",
                       [(pid, t) for t in telas])
     audit(sess["email"], "perfil_criar", alvo=nome,
           detalhe=f"admin={admin}; telas={','.join(telas) or '-'}", ip=_ip(request))
@@ -1238,27 +1217,28 @@ def perfil_editar(perfil_id: int, payload: dict, request: Request) -> JSONRespon
         return JSONResponse(status_code=422, content={"erro": "parametro_invalido", "mensagem": erro})
     admin = 1 if payload.get("admin") else 0
     with _conn() as c:
-        p = c.execute("SELECT * FROM perfis WHERE id=?", (perfil_id,)).fetchone()
+        p = c.execute("SELECT * FROM perfis WHERE id=%s", (perfil_id,)).fetchone()
         if not p:
             return JSONResponse(status_code=404, content={
                 "erro": "nao_encontrado", "mensagem": "Perfil não existe."})
         if p["admin"] and not admin:
             outros = c.execute(
                 """SELECT COUNT(*) AS n FROM usuarios u JOIN perfis p2 ON p2.id=u.perfil_id
-                   WHERE p2.admin=1 AND u.ativo=1 AND p2.id<>?""", (perfil_id,)).fetchone()["n"]
+                   WHERE p2.admin=1 AND u.ativo=1 AND p2.id<>%s""", (perfil_id,)).fetchone()["n"]
             if outros == 0:
                 return JSONResponse(status_code=422, content={
                     "erro": "ultimo_admin",
                     "mensagem": "Este é o único perfil com administradores ativos — "
                                 "crie outro admin antes de rebaixá-lo."})
         try:
-            c.execute("UPDATE perfis SET nome=?, descricao=?, admin=? WHERE id=?",
+            c.execute("UPDATE perfis SET nome=%s, descricao=%s, admin=%s WHERE id=%s",
                       (nome, (payload.get("descricao") or "").strip(), admin, perfil_id))
-        except sqlite3.IntegrityError:
+        except psycopg.errors.UniqueViolation:
             return JSONResponse(status_code=422, content={
                 "erro": "nome_em_uso", "mensagem": "Já existe perfil com esse nome."})
-        c.execute("DELETE FROM perfil_telas WHERE perfil_id=?", (perfil_id,))
-        c.executemany("INSERT INTO perfil_telas(perfil_id, tela) VALUES(?,?)",
+        c.execute("DELETE FROM perfil_telas WHERE perfil_id=%s", (perfil_id,))
+        with c.cursor() as _cur:
+            _cur.executemany("INSERT INTO perfil_telas(perfil_id, tela) VALUES(%s,%s) ON CONFLICT DO NOTHING",
                       [(perfil_id, t) for t in telas])
     audit(sess["email"], "perfil_editar", alvo=nome,
           detalhe=f"admin={admin}; telas={','.join(telas) or '-'}", ip=_ip(request))
@@ -1269,17 +1249,17 @@ def perfil_editar(perfil_id: int, payload: dict, request: Request) -> JSONRespon
 def perfil_excluir(perfil_id: int, request: Request) -> JSONResponse:
     sess = request.state.sessao
     with _conn() as c:
-        p = c.execute("SELECT * FROM perfis WHERE id=?", (perfil_id,)).fetchone()
+        p = c.execute("SELECT * FROM perfis WHERE id=%s", (perfil_id,)).fetchone()
         if not p:
             return JSONResponse(status_code=404, content={
                 "erro": "nao_encontrado", "mensagem": "Perfil não existe."})
-        em_uso = c.execute("SELECT COUNT(*) AS n FROM usuarios WHERE perfil_id=?",
+        em_uso = c.execute("SELECT COUNT(*) AS n FROM usuarios WHERE perfil_id=%s",
                            (perfil_id,)).fetchone()["n"]
         if em_uso:
             return JSONResponse(status_code=422, content={
                 "erro": "perfil_em_uso",
                 "mensagem": f"Perfil em uso por {em_uso} usuário(s). Reatribua antes de excluir."})
-        c.execute("DELETE FROM perfis WHERE id=?", (perfil_id,))
+        c.execute("DELETE FROM perfis WHERE id=%s", (perfil_id,))
     audit(sess["email"], "perfil_excluir", alvo=p["nome"], ip=_ip(request))
     return JSONResponse({"ok": True})
 
@@ -1291,10 +1271,10 @@ def auditoria(limite: int = 200, busca: str | None = None) -> JSONResponse:
     sql = "SELECT * FROM audit_log"
     params: tuple = ()
     if busca:
-        sql += " WHERE usuario LIKE ? OR acao LIKE ? OR alvo LIKE ? OR detalhe LIKE ?"
+        sql += " WHERE usuario LIKE %s OR acao LIKE %s OR alvo LIKE %s OR detalhe LIKE %s"
         like = f"%{busca}%"
         params = (like, like, like, like)
-    sql += " ORDER BY id DESC LIMIT ?"
+    sql += " ORDER BY id DESC LIMIT %s"
     with _conn() as c:
         rows = c.execute(sql, (*params, limite)).fetchall()
     return JSONResponse({"eventos": [dict(r) for r in rows]})
@@ -1334,7 +1314,7 @@ def config_set(payload: dict, request: Request) -> JSONResponse:
     if novos:
         with _conn() as c:
             for chave, valor in novos.items():
-                c.execute("INSERT INTO config(chave, valor) VALUES(?,?) "
+                c.execute("INSERT INTO config(chave, valor) VALUES(%s,%s) "
                           "ON CONFLICT(chave) DO UPDATE SET valor=excluded.valor",
                           (chave, str(valor)))
         audit(sess["email"], "config_seguranca",

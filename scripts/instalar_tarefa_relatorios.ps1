@@ -69,7 +69,7 @@ $alvo = Join-Path $repo "scripts\enviar_agendados.py"
 if (-not (Test-Path $alvo)) { throw "script nao encontrado em $alvo" }
 
 Write-Host "repo: $repo"
-Log "acao: $py $alvo --agendado"
+Log "acao: $py $alvo"
 
 # Sem argumento nenhum de proposito: tudo que decide o envio - o que, para
 # quem, quando - mora na tela. Um parametro aqui criaria uma segunda fonte da

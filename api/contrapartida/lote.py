@@ -166,7 +166,7 @@ def definir_intervalo(minutos: int, quem: str) -> dict:
     with emissao._conn_config() as c:
         c.execute(
             "INSERT INTO lote_config(chave, valor, quem, quando)"
-            " VALUES(?,?,?,?) ON CONFLICT(chave) DO UPDATE SET"
+            " VALUES(%s,%s,%s,%s) ON CONFLICT(chave) DO UPDATE SET"
             " valor=excluded.valor, quem=excluded.quem, quando=excluded.quando",
             (CHAVE_INTERVALO, str(v), quem, agora))
         cadastro._audita(c, quem, "intervalo_automacao", "-", f"{v} min")
@@ -186,7 +186,7 @@ def registrar_execucao(quem: str) -> None:
     with emissao._conn_config() as c:
         c.execute(
             "INSERT INTO lote_config(chave, valor, quem, quando)"
-            " VALUES(?,?,?,?) ON CONFLICT(chave) DO UPDATE SET"
+            " VALUES(%s,%s,%s,%s) ON CONFLICT(chave) DO UPDATE SET"
             " valor=excluded.valor, quem=excluded.quem, quando=excluded.quando",
             (CHAVE_ULTIMA, agora, quem, agora))
 
@@ -260,7 +260,7 @@ def _ja_emitidas(ambiente: str) -> set[str]:
     with emissao._conn() as c:
         return {r["chave_origem"] for r in c.execute(
             "SELECT DISTINCT chave_origem FROM emissao"
-            " WHERE ambiente=? AND cstat='100'", (ambiente,))}
+            " WHERE ambiente=%s AND cstat='100'", (ambiente,))}
 
 
 def _quarentena(ambiente: str) -> dict[str, dict]:
@@ -283,11 +283,16 @@ def _quarentena(ambiente: str) -> dict[str, dict]:
     """
     with emissao._conn() as c:
         linhas = [dict(r) for r in c.execute(
-            "SELECT chave_origem, cstat, xmotivo, count(*) AS n,"
-            "       max(quando) AS ultima"
+            # `max(xmotivo)` e nao `xmotivo` cru: o SQLite aceitava coluna
+            # solta num GROUP BY e escolhia uma linha qualquer; o PostgreSQL
+            # recusa, e com razao. Agrupando por chave+cStat as mensagens sao
+            # iguais entre si, entao qualquer uma serve - mas quem escolhe
+            # tem de ser a consulta, nao o acaso.
+            "SELECT chave_origem, cstat, max(xmotivo) AS xmotivo,"
+            "       count(*) AS n, max(quando) AS ultima"
             "  FROM emissao"
-            " WHERE ambiente=? AND chave_origem IS NOT NULL"
-            "   AND cstat IS NOT NULL AND cstat NOT LIKE 'CANC:%'"
+            " WHERE ambiente=%s AND chave_origem IS NOT NULL"
+            "   AND cstat IS NOT NULL AND cstat NOT LIKE 'CANC:%%'"
             " GROUP BY chave_origem, cstat", (ambiente,))]
     autorizadas = {r["chave_origem"] for r in linhas if str(r["cstat"]) == "100"}
     fora: dict[str, dict] = {}

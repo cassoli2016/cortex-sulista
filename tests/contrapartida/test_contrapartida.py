@@ -222,7 +222,11 @@ def test_serial_preserva_o_resto_dos_campos():
 autorizacao e estrutura de dados, nao recomendacao: sem procuracao vigente e
 certificado A1 valido, o agregado nao fica pronto - e o motivo vai junto."""
 
-from api.contrapartida import cadastro as cad  # noqa: E402
+from pathlib import Path
+
+from api.contrapartida import cadastro as cad
+
+ROOT = Path(__file__).resolve().parents[2]  # noqa: E402
 
 PROC_OK = {"valida_de": "2026-01-01", "valida_ate": "2027-01-01"}
 CERT_OK = {"tipo": "A1", "valida_ate": "2027-06-01", "arquivo": "x.pfx"}
@@ -324,15 +328,24 @@ def test_so_existe_UM_caminho_de_saida_para_a_senha():
 def test_senha_nao_entra_na_tabela():
     """DDL sem coluna de senha: banco com senha, mesmo local, e vazamento
     permanente esperando backup errado."""
-    assert "senha" not in cad._DDL.lower()
+    ddl = (ROOT / "sql" / "cortex" / "0010_contrapartida.sql").read_text(
+        encoding="utf-8")
+    # só as linhas de DDL: os comentários FALAM de senha de propósito, para
+    # explicar por que ela não está aqui — e essa explicação tem de continuar
+    # podendo ser escrita
+    codigo = chr(10).join(l for l in ddl.splitlines()
+                          if not l.strip().startswith("--"))
+    assert "senha" not in codigo.lower()
 
 
 def test_ha_trilha_de_auditoria():
     """Quem autorizou emitir em nome de quem, e quando, tem de ser respondivel
     meses depois - inclusive contra o proprio CORTEX."""
-    assert "CREATE TABLE IF NOT EXISTS auditoria" in cad._DDL
+    ddl = (ROOT / "sql" / "cortex" / "0010_contrapartida.sql").read_text(
+        encoding="utf-8")
+    assert "CREATE TABLE IF NOT EXISTS auditoria" in ddl
     for campo in ("quando", "quem", "acao", "cnpj"):
-        assert campo in cad._DDL
+        assert campo in ddl
 
 
 def test_certificado_recusa_tipo_invalido():

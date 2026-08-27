@@ -50,7 +50,7 @@ from __future__ import annotations
 import logging
 import pathlib
 import re
-from datetime import date, datetime
+from datetime import date, datetime, timedelta
 
 from api.contrapartida import cadastro, documento, sefaz
 from api.contrapartida.cadastro import DIR_CERT, ler_senha, mapa
@@ -88,41 +88,15 @@ SERIE_PADRAO = 900
 # nao tem valor padrao para `quem`, de proposito.
 IDENTIDADE_SISTEMA = "noreply@sulista.com.br"
 
-_DDL_EMISSAO = """
-CREATE TABLE IF NOT EXISTS emissao (
-  id            INTEGER PRIMARY KEY AUTOINCREMENT,
-  quando        TEXT NOT NULL,
-  quem          TEXT NOT NULL,
-  ambiente      TEXT NOT NULL,
-  cnpj_emitente TEXT NOT NULL,
-  serie         INTEGER NOT NULL,
-  numero        INTEGER NOT NULL,
-  chave         TEXT,
-  chave_origem  TEXT NOT NULL,
-  cstat         TEXT,
-  xmotivo       TEXT,
-  protocolo     TEXT
-);
-"""
-
-# O XML ASSINADO fica guardado. Sem ele, um documento autorizado nao se
-# reconstroi: a chave e o protocolo provam que existe, mas quem precisa
-# IMPORTAR o documento (o ERP, a contabilidade, uma fiscalizacao) precisa do
-# arquivo. Coluna acrescentada depois, entao entra por migracao.
-_MIGRACOES = ("ALTER TABLE emissao ADD COLUMN xml TEXT",
-              "ALTER TABLE emissao ADD COLUMN xml_prot TEXT")
-
-# Chaves de configuração do módulo (liberação de produção, automação do lote).
-# Mesma tabela para os dois: são interruptores da mesma natureza — ligam algo
-# que emite documento sem alguém confirmando na hora.
-_DDL_CONFIG = """
-CREATE TABLE IF NOT EXISTS lote_config (
-  chave      TEXT PRIMARY KEY,
-  valor      TEXT NOT NULL,
-  quem       TEXT NOT NULL,
-  quando     TEXT NOT NULL
-);
-"""
+# O DDL de `emissao` e `lote_config` mora em
+# `sql/cortex/0010_contrapartida.sql` desde a migração para o PostgreSQL
+# (27/08/2026). As colunas `xml`/`xml_prot`, que aqui entravam por ALTER a cada
+# conexão, já nascem na migration.
+#
+# O XML ASSINADO continua guardado: sem ele um documento autorizado não se
+# reconstrói. A chave e o protocolo provam que existe, mas quem precisa
+# IMPORTAR o documento (o ERP, a contabilidade, uma fiscalização) precisa do
+# arquivo.
 
 CHAVE_PRODUCAO = "producao_liberada"
 CHAVE_AMBIENTE = "ambiente_ativo"
@@ -138,25 +112,20 @@ PREFIXO_ENVIO = "envio:"
 
 
 def _conn():
-    c = cadastro._conn()          # mesmo banco, mesma disciplina (WAL, curta)
-    c.executescript(_DDL_EMISSAO)
-    for ddl in _MIGRACOES:
-        try:
-            c.execute(ddl)
-        except Exception:      # noqa: BLE001 - coluna ja existe
-            pass
-    return c
+    """Mesmo banco do cadastro, mesma disciplina (conexão curta)."""
+    return cadastro._conn()
 
 
 def _conn_config():
-    c = _conn()
-    c.executescript(_DDL_CONFIG)
-    return c
+    """Era uma função à parte porque cada uma criava o SEU DDL na conexão.
+    Agora as duas tabelas vêm da mesma migration; o nome fica porque as
+    chamadas dizem qual assunto estão tratando."""
+    return cadastro._conn()
 
 
 def config_lida(chave: str) -> dict | None:
     with _conn_config() as c:
-        r = c.execute("SELECT valor, quem, quando FROM lote_config WHERE chave=?",
+        r = c.execute("SELECT valor, quem, quando FROM lote_config WHERE chave=%s",
                       (chave,)).fetchone()
     return dict(r) if r else None
 
@@ -168,7 +137,7 @@ def config_grava(chave: str, ativa: bool, quem: str, acao: str) -> dict:
     with _conn_config() as c:
         c.execute(
             "INSERT INTO lote_config(chave, valor, quem, quando)"
-            " VALUES(?,?,?,?) ON CONFLICT(chave) DO UPDATE SET"
+            " VALUES(%s,%s,%s,%s) ON CONFLICT(chave) DO UPDATE SET"
             " valor=excluded.valor, quem=excluded.quem, quando=excluded.quando",
             (chave, "1" if ativa else "0", quem, agora))
         cadastro._audita(c, quem, acao, "-", "ligada" if ativa else "desligada")
@@ -219,7 +188,7 @@ def definir_ambiente(ambiente: str, quem: str, confirmacao: str = "") -> dict:
     with _conn_config() as c:
         c.execute(
             "INSERT INTO lote_config(chave, valor, quem, quando)"
-            " VALUES(?,?,?,?) ON CONFLICT(chave) DO UPDATE SET"
+            " VALUES(%s,%s,%s,%s) ON CONFLICT(chave) DO UPDATE SET"
             " valor=excluded.valor, quem=excluded.quem, quando=excluded.quando",
             (CHAVE_AMBIENTE, ambiente, quem, agora))
         cadastro._audita(c, quem, "ambiente_emissao", "-", AMBIENTES[ambiente])
@@ -268,7 +237,7 @@ def envios_desligados() -> dict[str, dict]:
     with _conn_config() as c:
         linhas = [dict(r) for r in c.execute(
             "SELECT chave, valor, quem, quando FROM lote_config"
-            " WHERE chave LIKE ? AND valor='0'", (f"{PREFIXO_ENVIO}%",))]
+            " WHERE chave LIKE %s AND valor='0'", (f"{PREFIXO_ENVIO}%",))]
     return {r["chave"][len(PREFIXO_ENVIO):]: {"quem": r["quem"],
                                               "quando": r["quando"]}
             for r in linhas}
@@ -282,8 +251,8 @@ def proximo_numero(cnpj: str, serie: int, ambiente: str) -> int:
     """
     with _conn() as c:
         r = c.execute(
-            "SELECT max(numero) AS n FROM emissao WHERE cnpj_emitente=?"
-            " AND serie=? AND ambiente=?", (cnpj, serie, ambiente)).fetchone()
+            "SELECT max(numero) AS n FROM emissao WHERE cnpj_emitente=%s"
+            " AND serie=%s AND ambiente=%s", (cnpj, serie, ambiente)).fetchone()
     return int((r["n"] or 0)) + 1
 
 
@@ -322,7 +291,7 @@ def _registra(quem: str, ambiente: str, cnpj: str, serie: int, numero: int,
         c.execute(
             "INSERT INTO emissao(quando, quem, ambiente, cnpj_emitente, serie,"
             " numero, chave, chave_origem, cstat, xmotivo, protocolo, xml,"
-            " xml_prot) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?)",
+            " xml_prot) VALUES(%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)",
             (datetime.now().isoformat(timespec="seconds"), quem, ambiente,
              cnpj, serie, numero, chave, chave_origem, str(resp.get("cStat")),
              resp.get("xMotivo"), resp.get("protocolo"), xml, xml_prot))
@@ -336,7 +305,7 @@ def _autorizado_para(chave_origem: str, ambiente: str) -> dict | None:
     with _conn() as c:
         r = c.execute(
             "SELECT serie, numero, protocolo, chave FROM emissao"
-            " WHERE chave_origem=? AND ambiente=? AND cstat='100'"
+            " WHERE chave_origem=%s AND ambiente=%s AND cstat='100'"
             " ORDER BY id DESC LIMIT 1", (chave_origem, ambiente)).fetchone()
     return dict(r) if r else None
 
@@ -461,7 +430,7 @@ def cancelar(chave: str, justificativa: str, *, quem: str,
     limpa = "".join(c for c in (chave or "") if c.isdigit())
     with _conn() as c:
         r = c.execute(
-            "SELECT * FROM emissao WHERE chave=? AND cstat='100'"
+            "SELECT * FROM emissao WHERE chave=%s AND cstat='100'"
             " ORDER BY id DESC LIMIT 1", (limpa,)).fetchone()
     if not r:
         raise ValueError(
@@ -494,7 +463,7 @@ def cancelar(chave: str, justificativa: str, *, quem: str,
         c.execute(
             "INSERT INTO emissao(quando, quem, ambiente, cnpj_emitente, serie,"
             " numero, chave, chave_origem, cstat, xmotivo, protocolo)"
-            " VALUES(?,?,?,?,?,?,?,?,?,?,?)",
+            " VALUES(%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)",
             (datetime.now().isoformat(timespec="seconds"), quem, amb, cnpj,
              reg["serie"], reg["numero"], limpa, reg["chave_origem"],
              f"CANC:{resp.get('cStat')}", resp.get("xMotivo"),
@@ -616,11 +585,11 @@ def exportar(destino: str | None = None, ambiente: str = HOMOLOGACAO,
     pasta.mkdir(parents=True, exist_ok=True)
 
     sql = ("SELECT chave, quando, xml, xml_prot FROM emissao"
-           " WHERE ambiente=? AND cstat='100'"
+           " WHERE ambiente=%s AND cstat='100'"
            " AND xml IS NOT NULL AND xml_prot IS NOT NULL")
     par: list = [ambiente]
     if desde:
-        sql += " AND quando >= ?"
+        sql += " AND quando >= %s"
         par.append(desde)
     sql += " ORDER BY id"
 
@@ -643,7 +612,7 @@ def exportar(destino: str | None = None, ambiente: str = HOMOLOGACAO,
     # exportados nao parecer menor do que deveria sem explicacao.
     with _conn() as c:
         sem_proc = c.execute(
-            "SELECT count(*) AS n FROM emissao WHERE ambiente=? AND cstat='100'"
+            "SELECT count(*) AS n FROM emissao WHERE ambiente=%s AND cstat='100'"
             " AND (xml IS NULL OR xml_prot IS NULL)", (ambiente,)).fetchone()["n"]
 
     return {"pasta": str(pasta), "exportados": len(escritos),
@@ -667,8 +636,12 @@ def por_dia(dias: int = 30) -> list[dict]:
             "SELECT substr(quando,1,10) AS dia, ambiente,"
             " CASE WHEN cstat='100' THEN 1 ELSE 0 END AS ok,"
             " count(*) AS n"
-            " FROM emissao WHERE date(quando) >= date('now', ?)"
-            " GROUP BY 1,2,3 ORDER BY 1", (f"-{int(dias)} day",))]
+            " FROM emissao WHERE quando >= %s"
+            " GROUP BY 1,2,3 ORDER BY 1",
+            # era `date('now', ?)` com "-N day", aritmética do SQLite. O corte
+            # passa a ser calculado aqui: `quando` é ISO em texto, e comparação
+            # de string em ISO é cronológica.
+            ((date.today() - timedelta(days=int(dias))).isoformat(),))]
     por: dict[str, dict] = {}
     for r in linhas:
         d = por.setdefault(r["dia"], {
@@ -687,7 +660,7 @@ def historico(limite: int = 50) -> list[dict]:
             "SELECT id, quando, quem, ambiente, cnpj_emitente, serie, numero,"
             " chave, chave_origem, cstat, xmotivo, protocolo,"
             " (xml IS NOT NULL) AS tem_xml"
-            " FROM emissao ORDER BY id DESC LIMIT ?", (limite,))]
+            " FROM emissao ORDER BY id DESC LIMIT %s", (limite,))]
 
 
 def totais() -> dict:
@@ -705,13 +678,19 @@ def totais() -> dict:
     """
     with _conn() as c:
         r = dict(c.execute(
+            # `count(*) FILTER (WHERE ...)` e nao `sum(condicao)`: o SQLite
+            # somava booleano como 0/1, o PostgreSQL nao tem soma de boolean e
+            # recusa a funcao. Esta forma e a padrao em SQL e diz melhor o que
+            # se quer - CONTAR as linhas que atendem a condicao.
             "SELECT count(*) AS documentos,"
-            " sum(cstat='100') AS autorizados,"
-            " sum(ambiente='1') AS producao,"
-            " sum(ambiente='1' AND cstat='100') AS producao_ok,"
-            " sum(ambiente='2') AS homologacao,"
-            " sum(xml IS NOT NULL) AS com_xml,"
-            " sum(cstat='100' AND xml IS NULL) AS autorizados_sem_xml"
+            " count(*) FILTER (WHERE cstat='100') AS autorizados,"
+            " count(*) FILTER (WHERE ambiente='1') AS producao,"
+            " count(*) FILTER (WHERE ambiente='1' AND cstat='100')"
+            "     AS producao_ok,"
+            " count(*) FILTER (WHERE ambiente='2') AS homologacao,"
+            " count(*) FILTER (WHERE xml IS NOT NULL) AS com_xml,"
+            " count(*) FILTER (WHERE cstat='100' AND xml IS NULL)"
+            "     AS autorizados_sem_xml"
             " FROM emissao"
             " WHERE cstat IS NOT NULL AND cstat NOT LIKE 'CANC:%'").fetchone())
     return {k: int(v or 0) for k, v in r.items()}
@@ -720,7 +699,7 @@ def totais() -> dict:
 def xml_de(chave: str) -> str | None:
     """O XML assinado de um documento ja transmitido."""
     with _conn() as c:
-        r = c.execute("SELECT xml FROM emissao WHERE chave=? AND xml IS NOT NULL"
+        r = c.execute("SELECT xml FROM emissao WHERE chave=%s AND xml IS NOT NULL"
                       " ORDER BY id DESC LIMIT 1", (chave,)).fetchone()
     return r["xml"] if r else None
 
@@ -736,7 +715,7 @@ def proc_de(chave: str) -> str | None:
     with _conn() as c:
         r = c.execute(
             "SELECT xml, xml_prot FROM emissao"
-            " WHERE chave=? AND cstat='100' AND xml IS NOT NULL"
+            " WHERE chave=%s AND cstat='100' AND xml IS NOT NULL"
             " AND xml_prot IS NOT NULL ORDER BY id DESC LIMIT 1",
             (chave,)).fetchone()
     if not r:

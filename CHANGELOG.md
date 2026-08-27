@@ -4,6 +4,12 @@ Gerado de `docs/versoes.yaml` por `scripts/gerar_changelog.py` — não editar �
 Formato [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/),
 versionamento [SemVer](https://semver.org/lang/pt-BR/).
 
+## [0.111.1] — 27/08/2026  ·  CX-27/08/2026-v0.111.1
+
+### Corrigido
+- A tela de CT-e de Contrapartida parou de carregar depois da migracao do banco local para o PostgreSQL: quatro consultas do lote ainda usavam a sintaxe do SQLite. A fila, a quarentena e o retorno da SEFAZ voltaram.
+- O contador do retorno da SEFAZ vinha zerado pelo mesmo motivo e, sem isso, a tela dizia "nenhuma transmissao ainda" com 117 documentos no registro.
+
 ## [0.111.0] — 27/08/2026  ·  CX-27/08/2026-v0.111.0
 
 ### Adicionado

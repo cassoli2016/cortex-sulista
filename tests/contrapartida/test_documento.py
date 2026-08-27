@@ -387,7 +387,7 @@ def test_numeracao_e_por_ambiente():
 
     from api.contrapartida import emissao
     fonte = inspect.getsource(emissao.proximo_numero)
-    assert "ambiente=?" in fonte
+    assert "ambiente=%s" in fonte, "o filtro por ambiente sumiu da consulta"
 
 
 # --- o que a SEFAZ recusa por REGRA, medido em homologacao ------------------

@@ -1,3 +1,15 @@
+- versao: "0.111.1"
+  data: "2026-08-27"
+  corrigido:
+    - >-
+      A tela de CT-e de Contrapartida parou de carregar depois da migracao do
+      banco local para o PostgreSQL: quatro consultas do lote ainda usavam a
+      sintaxe do SQLite. A fila, a quarentena e o retorno da SEFAZ voltaram.
+    - >-
+      O contador do retorno da SEFAZ vinha zerado pelo mesmo motivo e, sem
+      isso, a tela dizia "nenhuma transmissao ainda" com 117 documentos no
+      registro.
+
 - versao: "0.111.0"
   data: "2026-08-27"
   adicionado:
