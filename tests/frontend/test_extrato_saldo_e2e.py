@@ -17,29 +17,35 @@ POSICAO = {
     "dt_mais_nova": "2026-08-26", "atrasadas": 2, "erp_disponivel": True,
     "hoje": "2026-08-26",
     "linhas": [
-        {"conta_id": 6, "rotulo": "748 / cc 7300000000075455", "ident": "748/?/73",
+        {"conta_id": 6, "rotulo": "748 / cc 7300000000075455", "ident": "748/?/7300000000075455",
+         "banco": 748, "banco_nome": "Banco Cooperativo Sicredi S.A. - Bansicredi",
          "mapeada": True, "saldo": 7.41, "dt": "2026-08-26", "sem_saldo_por": None,
          "erp_saldo": 7.41, "erp_dt": "2026-08-17", "diferenca": 0.0,
          "atraso_uteis": 5, "ultimo_extrato": "2026-08-18"},
-        {"conta_id": 2, "rotulo": "336 / cc 000034988068-9", "ident": "336/0001/00",
+        {"conta_id": 2, "rotulo": "336 / cc 000034988068-9", "ident": "336/0001/000034988068-9",
+         "banco": 336, "banco_nome": "C6 Bank",
          "mapeada": True, "saldo": 202.02, "dt": "2026-08-26", "sem_saldo_por": None,
          "erp_saldo": 408000.0, "erp_dt": "2026-08-19", "diferenca": -407797.98,
          "atraso_uteis": 4, "ultimo_extrato": "2026-08-19"},
         {"conta_id": 1, "rotulo": "237 / cc 123906", "ident": "0237/?/123906",
+         "banco": 237, "banco_nome": "Banco Bradesco S.A.",
          "mapeada": True, "saldo": None, "dt": None,
          "sem_saldo_por": "o arquivo deste banco nao traz saldo utilizavel "
                           "(sem LEDGERBAL, ou com a data zerada)",
          "erp_saldo": -1129794.18, "erp_dt": "2026-08-25", "diferenca": None,
          "atraso_uteis": 0, "ultimo_extrato": "2026-08-26"},
-        {"conta_id": 3, "rotulo": "341 / cc 0098539349", "ident": "0341/?/00",
+        {"conta_id": 3, "rotulo": "341 / cc 0098539349", "ident": "0341/?/0098539349",
+         "banco": 341, "banco_nome": "Banco Itaú S.A.",
          "mapeada": True, "saldo": 1325.59, "dt": "2026-08-26", "sem_saldo_por": None,
          "erp_saldo": 293943.14, "erp_dt": "2026-08-25", "diferenca": -292617.55,
          "atraso_uteis": 0, "ultimo_extrato": "2026-08-25"},
-        {"conta_id": 4, "rotulo": "422 / cc 00380012235", "ident": "422/?/00",
+        {"conta_id": 4, "rotulo": "422 / cc 00380012235", "ident": "422/?/00380012235",
+         "banco": 422, "banco_nome": None,
          "mapeada": True, "saldo": 0.96, "dt": "2026-08-26", "sem_saldo_por": None,
          "erp_saldo": None, "erp_dt": None, "diferenca": None,
          "atraso_uteis": 0, "ultimo_extrato": "2026-08-26"},
-        {"conta_id": 5, "rotulo": "33 / cc 4849130000265", "ident": "033/?/48",
+        {"conta_id": 5, "rotulo": "33 / cc 4849130000265", "ident": "033/?/4849130000265",
+         "banco": 33, "banco_nome": "Banco Santander",
          "mapeada": True, "saldo": 19.77, "dt": "2026-08-26", "sem_saldo_por": None,
          "erp_saldo": 19.77, "erp_dt": "2026-08-26", "diferenca": 0.0,
          "atraso_uteis": 0, "ultimo_extrato": "2026-08-25"},
@@ -77,7 +83,7 @@ def test_saldo_ausente_nao_vira_zero(pagina):
     _abrir(pg, base)
     linha = pg.evaluate("""() => {
         const tr = [...document.querySelectorAll('#extb-pos-corpo tbody tr')]
-          .find(t => t.children[0].textContent.includes('237'));
+          .find(t => t.children[0].textContent.includes('cc 123906'));
         const td = tr.children[3];
         const sp = td.querySelector('span');
         return {texto: td.textContent.trim(), titulo: sp && sp.getAttribute('title')};
@@ -92,7 +98,7 @@ def test_conta_atrasada_mostra_dias_uteis(pagina):
     _abrir(pg, base)
     txt = pg.evaluate("""() => {
         const tr = [...document.querySelectorAll('#extb-pos-corpo tbody tr')]
-          .find(t => t.children[0].textContent.includes('748'));
+          .find(t => t.children[0].textContent.includes('cc 7300000000075455'));
         return tr.children[1].textContent.trim();
     }""")
     assert "5 dias úteis" in txt
@@ -103,7 +109,7 @@ def test_conta_em_dia_nao_alarma(pagina):
     _abrir(pg, base)
     txt = pg.evaluate("""() => {
         const tr = [...document.querySelectorAll('#extb-pos-corpo tbody tr')]
-          .find(t => t.children[0].textContent.includes('341'));
+          .find(t => t.children[0].textContent.includes('cc 0098539349'));
         return tr.children[1].textContent.trim();
     }""")
     assert "em dia" in txt
@@ -117,7 +123,7 @@ def test_diferenca_de_datas_diferentes_nao_sai_em_vermelho(pagina):
     _abrir(pg, base)
     r = pg.evaluate("""() => {
         const tr = [...document.querySelectorAll('#extb-pos-corpo tbody tr')]
-          .find(t => t.children[0].textContent.includes('336'));
+          .find(t => t.children[0].textContent.includes('cc 000034988068-9'));
         const sp = tr.children[5].querySelector('span');
         return {texto: tr.children[5].textContent, cor: getComputedStyle(sp).color,
                 titulo: sp.getAttribute('title')};
@@ -137,7 +143,7 @@ def test_diferenca_do_mesmo_dia_sai_marcada(pagina):
     _abrir(pg, base, painel=p)
     r = pg.evaluate("""() => {
         const tr = [...document.querySelectorAll('#extb-pos-corpo tbody tr')]
-          .find(t => t.children[0].textContent.includes('341'));
+          .find(t => t.children[0].textContent.includes('cc 0098539349'));
         const sp = tr.children[5].querySelector('span');
         return {texto: tr.children[5].textContent.trim(), cor: getComputedStyle(sp).color};
     }""")
@@ -151,7 +157,7 @@ def test_saldo_que_bate_diz_bate(pagina):
     _abrir(pg, base)
     txt = pg.evaluate("""() => {
         const tr = [...document.querySelectorAll('#extb-pos-corpo tbody tr')]
-          .find(t => t.children[0].textContent.includes('33 / cc'));
+          .find(t => t.children[0].textContent.includes('cc 4849130000265'));
         return tr.children[5].textContent.trim();
     }""")
     assert txt == "bate"
@@ -201,3 +207,54 @@ def test_sem_conta_nenhuma_o_card_explica(pagina):
         "() => document.getElementById('hintExtbPos').textContent.includes('nenhuma conta')",
         timeout=15000)
     assert pg.inner_html("#extb-pos-corpo").strip() == ""
+
+
+def test_nome_do_banco_aparece_na_tabela(pagina):
+    pg, base = pagina
+    _abrir(pg, base)
+    nomes = pg.eval_on_selector_all(
+        "#extb-pos-corpo tbody tr td:first-child",
+        "els => els.map(e => e.textContent.trim())")
+    assert any(n.startswith("C6 Bank") for n in nomes), nomes
+    assert any(n.startswith("Banco Itaú") for n in nomes), nomes
+
+
+def test_o_numero_da_conta_nunca_some(pagina):
+    """A empresa tem DUAS contas no mesmo banco (237/1239066 e 237/00001);
+    só o nome não distingue uma da outra — foi essa confusão que fez duas
+    contas serem vinculadas ao ERP errado."""
+    pg, base = pagina
+    _abrir(pg, base)
+    celulas = pg.eval_on_selector_all(
+        "#extb-pos-corpo tbody tr td:first-child",
+        "els => els.map(e => e.textContent.trim())")
+    for c in celulas:
+        assert "cc " in c, f"celula sem o numero da conta: {c!r}"
+
+
+def test_nome_comprido_e_cortado_mas_o_numero_fica(pagina):
+    """O Sicredi tem 43 caracteres de razao social; sem corte ele empurraria o
+    numero da conta para fora."""
+    pg, base = pagina
+    _abrir(pg, base)
+    r = pg.evaluate("""() => {
+        const td = [...document.querySelectorAll('#extb-pos-corpo tbody tr td:first-child')]
+          .find(e => e.textContent.includes('Sicredi'));
+        return {texto: td.textContent.trim(), titulo: td.getAttribute('title')};
+    }""")
+    assert "…" in r["texto"], r["texto"]
+    assert "cc 7300000000075455" in r["texto"]
+    assert "Bansicredi" in (r["titulo"] or ""), "o nome inteiro tem de estar no hover"
+    assert "COMPE 748" in (r["titulo"] or "")
+
+
+def test_sem_nome_cai_no_rotulo_antigo(pagina):
+    """ERP fora, ou codigo que a tabela `banco` nao tem."""
+    pg, base = pagina
+    _abrir(pg, base)
+    txt = pg.evaluate("""() => {
+        const td = [...document.querySelectorAll('#extb-pos-corpo tbody tr td:first-child')]
+          .find(e => e.textContent.includes('422'));
+        return td ? td.textContent.trim() : null;
+    }""")
+    assert txt and "422" in txt, txt

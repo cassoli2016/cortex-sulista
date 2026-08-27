@@ -147,6 +147,82 @@ GROUP BY 1 ORDER BY 1
 """
 
 
+# Nome do banco pelo codigo COMPE, da tabela `banco` do proprio ERP - a mesma
+# fonte que a Conciliacao nativa ja usa. Chumbar uma lista aqui envelheceria
+# calada no dia em que a empresa abrisse conta num banco novo; a tabela tem 216.
+BANCO_NOME_SQL = "SELECT codigo, coalesce(nome,'') AS nome FROM banco"
+
+_NOMES: dict[int, str] = {}
+
+
+# Palavras que ficam como estao (siglas) e as que ficam em minuscula (ligacoes).
+_SIGLAS = {"S.A.", "S/A", "S.A", "IP", "TB", "ME", "EPP"}
+_LIGACOES = {"do", "da", "de", "dos", "das", "e"}
+
+
+def _bonito(nome: str) -> str:
+    """"BANCO DO BRASIL S.A." -> "Banco do Brasil S.A."
+
+    Normalizacao DELIBERADAMENTE timida: caixa de titulo, siglas preservadas e
+    ligacoes em minuscula. NAO corta nada.
+
+    Duas tentacoes recusadas, as duas por perderem informacao:
+      - tirar o "BANCO " do inicio: em "BANCO DO BRASIL" sobraria "do Brasil";
+      - cortar no " - ": em "NSTECH IP - EFRETE" sobraria "Nstech IP", e
+        "EFRETE" e' exatamente o que identifica aquela pseudo-conta.
+    Nome comprido a tela resolve com truncagem e tooltip; nome mutilado, nao.
+    """
+    n = " ".join((nome or "").split())
+    saida = []
+    for i, palavra in enumerate(n.split(" ")):
+        u = palavra.upper()
+        if u in _SIGLAS or any(c.isdigit() for c in palavra):
+            saida.append(palavra)
+        elif i and u.lower() in _LIGACOES:
+            saida.append(u.lower())
+        else:
+            saida.append(palavra.capitalize())
+    return " ".join(saida)
+
+
+def nomes_banco() -> dict[int, str]:
+    """Cache de processo. A tabela nao muda em producao, e a tela de extrato
+    consulta o nome para cada conta a cada carregamento."""
+    global _NOMES
+    if _NOMES:
+        return _NOMES
+    try:
+        _NOMES = {r["codigo"]: _bonito(r["nome"]) for r in db.query(BANCO_NOME_SQL)
+                  if r["nome"]}
+    except Exception:                      # noqa: BLE001
+        # Sem ERP a tela continua funcionando com o codigo; devolver {} deixa o
+        # chamador cair no rotulo antigo em vez de esconder a conta.
+        return {}
+    return _NOMES
+
+
+def _codigo_do_ident(ident: str) -> int | None:
+    """O codigo do banco que veio no ARQUIVO, extraido do `ident`.
+
+    Serve quando a conta ainda nao foi vinculada ao ERP - que e justamente
+    quando o usuario mais precisa saber de que banco ela e, para escolher o
+    vinculo certo. `ident` de CSV vem com o prefixo "csv:".
+    """
+    bruto = (ident or "").split("/")[0].removeprefix("csv:")
+    try:
+        return int(bruto)
+    except ValueError:
+        return None
+
+
+def banco_da_conta(conta: dict) -> tuple[int | None, str | None]:
+    """(codigo, nome) de uma conta local. Prefere o vinculo com o ERP."""
+    cod = conta.get("erp_banco")
+    if cod is None:
+        cod = _codigo_do_ident(conta.get("ident") or "")
+    return cod, (nomes_banco().get(cod) if cod is not None else None)
+
+
 def conciliacao_nativa() -> dict:
     resumo = db.query(CONCIL_RESUMO_SQL)
     contas = db.query(CONCIL_CONTA_SQL)
@@ -210,11 +286,15 @@ def contas_erp() -> list[dict]:
     out = []
     for r in rows:
         ultimo = r["ultimo_movimento"]
+        nome = nomes_banco().get(r["banco"])
         out.append({
-            "banco": r["banco"], "agencia": r["agencia"], "conta": r["conta"],
+            "banco": r["banco"], "banco_nome": nome,
+            "agencia": r["agencia"], "conta": r["conta"],
             "ultimo_movimento": ultimo.isoformat() if hasattr(ultimo, "isoformat") else str(ultimo),
             "dias": r["dias"],
-            "rotulo": f"{r['banco']} / ag {r['agencia']} / cc {r['conta']}",
+            # o codigo continua no rotulo: e por ele que se confere o vinculo
+            "rotulo": (f"{nome} ({r['banco']}) / ag {r['agencia']} / cc {r['conta']}"
+                       if nome else f"{r['banco']} / ag {r['agencia']} / cc {r['conta']}"),
         })
     return out
 
@@ -391,6 +471,7 @@ def painel(dt_de: str, dt_ate: str, conta_id: int | None = None, path=arm.DB_PAT
                         "dt": d["dt"]}
         resumo.append({
             "conta_id": c["id"], "rotulo": c["rotulo"], "ident": c["ident"],
+            "banco": banco_da_conta(c)[0], "banco_nome": banco_da_conta(c)[1],
             "mapeada": c.get("erp_banco") is not None,
             "erp": (f"{c['erp_banco']} / ag {c['erp_agencia']} / cc {c['erp_conta']}"
                     if c.get("erp_banco") is not None else None),
@@ -475,8 +556,11 @@ def conciliar(conta_id: int, dt_de: str, dt_ate: str, path=arm.DB_PATH) -> dict:
            for r in rows]
 
     res = conc.casar(banco, erp)
+    cod_banco, nome_banco = banco_da_conta(conta)
     return {
-        "ok": True, "conta": conta, "dt_de": dt_de, "dt_ate": dt_ate,
+        "ok": True,
+        "conta": {**conta, "banco": cod_banco, "banco_nome": nome_banco},
+        "dt_de": dt_de, "dt_ate": dt_ate,
         "resumo": res["resumo"],
         "dias": res["dias"],
         # as linhas sem par dos DOIS lados sao o trabalho que sobra para a
@@ -529,7 +613,9 @@ def posicao(path=arm.DB_PATH) -> dict:
     for c in contas:
         saldos = arm.saldos_extrato(path, c["id"])
         ult_lanc = ult_por_conta.get(c["id"])
+        cod_banco, nome_banco = banco_da_conta(c)
         item = {"conta_id": c["id"], "rotulo": c["rotulo"], "ident": c["ident"],
+                "banco": cod_banco, "banco_nome": nome_banco,
                 "mapeada": c.get("erp_banco") is not None,
                 "saldo": None, "dt": None, "sem_saldo_por": None,
                 "erp_saldo": None, "erp_dt": None, "diferenca": None,

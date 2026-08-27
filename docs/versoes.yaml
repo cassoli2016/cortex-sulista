@@ -1,3 +1,27 @@
+- versao: "0.100.0"
+  data: "2026-08-27"
+  alterado:
+    - >-
+      As tabelas do Extrato Bancario passaram a mostrar o NOME do banco - Itau,
+      Bradesco, Caixa, C6 - no lugar do codigo. Vale no cartao "Saldo nos
+      bancos", na tabela "Situacao por conta", no seletor de conta e no
+      cabecalho da conciliacao linha a linha. O nome sai da tabela de bancos do
+      proprio ERP, a mesma que a Conciliacao nativa ja usava, entao banco novo
+      aparece sozinho.
+    - >-
+      O NUMERO da conta continua ao lado do nome, sempre. Nao e detalhe: a
+      empresa tem duas contas no mesmo banco (duas no Bradesco e duas no
+      Santander), e so o nome nao distingue uma da outra - foi exatamente essa
+      confusao que fez duas contas serem vinculadas a conta errada do ERP. Razao
+      social comprida e cortada com reticencias e aparece inteira no hover, com
+      o codigo do banco e o vinculo com o ERP junto; o numero da conta nunca e
+      cortado.
+    - >-
+      Conta ainda sem vinculo com o ERP tambem mostra o nome do banco, tirado do
+      proprio arquivo importado - e justamente quando falta o vinculo que se
+      precisa saber de que banco a conta e, para escolher o certo. Com o ERP
+      fora do ar a tela volta ao rotulo antigo, que ao menos traz o codigo.
+
 - versao: "0.99.0"
   data: "2026-08-27"
   adicionado:

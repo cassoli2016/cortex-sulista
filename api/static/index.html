@@ -8076,6 +8076,35 @@ function extbDeltaCel(delta, origem){
   return {txt, attrTitle};
 }
 
+// Rotulo de conta com o NOME do banco na frente. O nome vem da tabela `banco`
+// do ERP; sem ele (ERP fora, ou codigo que a tabela nao tem) cai no rotulo
+// antigo, que ao menos traz o codigo - some com a conta seria pior.
+//
+// O numero da conta fica SEMPRE visivel ao lado: a empresa tem duas contas no
+// mesmo banco (237/1239066 e 237/00001, 33/130000265 e 33/00001), e so o nome
+// nao distingue uma da outra - foi exatamente essa confusao que fez duas contas
+// serem vinculadas ao ERP errado.
+function extbConta(x){
+  const cc = (x.ident||'').split('/').pop();
+  if(!x.banco_nome) return esc(x.rotulo||cc);
+  // O nome vem da razao social do ERP e chega a 43 caracteres ("BANCO
+  // COOPERATIVO SICREDI S.A. - BANSICREDI"). Sem corte ele empurra o numero da
+  // conta para a linha de baixo justamente na conta em que o numero importa -
+  // e o numero e' o que distingue duas contas do mesmo banco. Corta o NOME,
+  // nunca o numero; o nome inteiro fica no title da celula.
+  const n = x.banco_nome.length > 30 ? x.banco_nome.slice(0,29).trimEnd()+'…' : x.banco_nome;
+  return `${esc(n)} <span style="color:var(--n500)">· cc ${esc(cc)}</span>`;
+}
+// Titulo completo para o hover: nome, codigo COMPE e a conta do ERP quando ha.
+function extbContaTitulo(x){
+  const p=[];
+  if(x.banco_nome) p.push(x.banco_nome + (x.banco?` (COMPE ${x.banco})`:''));
+  p.push('Conta no arquivo: ' + (x.ident||'—'));
+  if(x.erp) p.push('Vinculada ao ERP: ' + x.erp);
+  else if(x.mapeada===false) p.push('Ainda sem vínculo com o ERP');
+  return p.join(' · ');
+}
+
 // ==================== Saldo nos bancos (rotina diaria) ====================
 // A primeira pergunta de quem sobe o extrato todo dia: os saldos estao em dia?
 // Fica no TOPO da tela e nao obedece ao filtro de periodo - saldo e posicao,
@@ -8146,7 +8175,7 @@ function renderExtbPos(d){
           : (mesmoDia
               ? `<span style="color:var(--red)">${brl2(x.diferenca)}</span>`
               : `<span style="color:var(--n500)" title="As duas posições são de dias diferentes (extrato em ${esc(fmtD(x.dt))}, ERP em ${esc(fmtD(x.erp_dt))}): parte desta diferença é defasagem de lançamento, não divergência.">${brl2(x.diferenca)} <span style="font-size:11px">datas ≠</span></span>`));
-    return `<tr><td>${esc(x.rotulo)}</td>`
+    return `<tr><td title="${esc(extbContaTitulo(x))}">${extbConta(x)}</td>`
       +`<td>${chipAtraso}</td>`
       +`<td>${x.ultimo_extrato?fmtD(x.ultimo_extrato):'<span style="color:var(--n500)">—</span>'}</td>`
       +`<td class="num">${sal}${x.dt?` <span style="color:var(--n500);font-size:11px">${fmtD(x.dt)}</span>`:''}</td>`
@@ -8218,7 +8247,9 @@ function renderExtbLinha(d){
     return;
   }
   const s=d.resumo, dias=d.dias||[];
-  hint.textContent=`${d.conta.rotulo} · ${fmtD(d.dt_de)} a ${fmtD(d.dt_ate)} · ${s.dias_total} dia(s)`;
+  const cn=d.conta.banco_nome ? `${d.conta.banco_nome} · cc ${(d.conta.ident||'').split('/').pop()}`
+                              : d.conta.rotulo;
+  hint.textContent=`${cn} · ${fmtD(d.dt_de)} a ${fmtD(d.dt_ate)} · ${s.dias_total} dia(s)`;
 
   // "sem explicacao" so conta os dias que NAO fecham; o verde exige zero dias a
   // tratar, nunca so o valor perto de zero - dois dias grandes de sinais
@@ -8399,7 +8430,7 @@ function renderExtb(d){
         // compartilhada com a tabela "Comparação dia a dia" logo abaixo) põe
         // a origem em rótulo discreto ao lado do valor, sempre visível.
         const dcel = extbDeltaCel(f.delta, f.delta_origem);
-        return `<tr><td>${esc(c.rotulo)}${acao}</td>`
+        return `<tr><td title="${esc(extbContaTitulo(c))}">${extbConta(c)}${acao}</td>`
           +`<td>${c.erp?esc(c.erp):'<span style="color:var(--n500)">não vinculada</span>'}</td>`
           +`<td>${f.dt?fmtD(f.dt):'—'}</td>`
           +`<td class="num"${dcel.attrTitle}>${dcel.txt}</td>`
@@ -8413,7 +8444,13 @@ function renderExtb(d){
   const sel=document.getElementById('fExtbConta');
   if(sel){
     const atual=String(d.conta_selecionada||'');
-    sel.innerHTML=contas.map(c=>`<option value="${c.conta_id}">${esc(c.rotulo)}</option>`).join('');
+    // No <option> nao cabe marcacao, entao o nome e o numero da conta vao no
+    // texto puro - e o numero e' obrigatorio: ha duas contas no mesmo banco.
+    sel.innerHTML=contas.map(c=>{
+      const cc=(c.ident||'').split('/').pop();
+      const rot=c.banco_nome ? `${c.banco_nome} · cc ${cc}` : c.rotulo;
+      return `<option value="${c.conta_id}">${esc(rot)}</option>`;
+    }).join('');
     if(atual) sel.value=atual;
   }
 
