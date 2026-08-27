@@ -919,14 +919,14 @@ def get_previsao(mes: str | None = None, hoje: date | None = None) -> dict:
     orcado_linha: dict[str, float] = {}
     circulares: list[int] = []
     try:
-        orc_arm.init_db(orc_arm.DB_PATH)
-        vig = orc_arm.versao_vigente(orc_arm.DB_PATH, ano=int(mes[:4]))
+        orc_arm.init_db(orc_arm.ESQUEMA)
+        vig = orc_arm.versao_vigente(orc_arm.ESQUEMA, ano=int(mes[:4]))
         if vig:
             agrup_rows = db.query(AGRUP_CONTA_SQL)
             agrup_por_conta = {r["conta"]: r["agrupador"] for r in agrup_rows}
             mapa = rollup.mapa_conta_linha(agrup_por_conta, ajustes_ctb)
             mnum = int(mes[5:7])
-            for ln in orc_arm.ler_linhas(orc_arm.DB_PATH, vig["id"]):
+            for ln in orc_arm.ler_linhas(orc_arm.ESQUEMA, vig["id"]):
                 if ln["mes"] != mnum:
                     continue
                 rot = mapa.get(ln["conta"])

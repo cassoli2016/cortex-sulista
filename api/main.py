@@ -2109,8 +2109,8 @@ def contabil_export() -> PlainTextResponse:
 def orcamento_versoes(ano: int | None = None) -> JSONResponse:
     from api.orcamento import armazenamento as arm
     try:
-        arm.init_db(arm.DB_PATH)
-        versoes = arm.listar_versoes(arm.DB_PATH, ano)
+        arm.init_db(arm.ESQUEMA)
+        versoes = arm.listar_versoes(arm.ESQUEMA, ano)
         # seletor da tela: não-arquivadas primeiro (mais recentes primeiro),
         # arquivadas depois — histórico não deve competir com o que está em
         # uso pelo topo da lista.
@@ -2130,13 +2130,13 @@ def orcamento(versao_id: int | None = None, ate_mes: int | None = None) -> JSONR
         return JSONResponse(status_code=422, content={
             "erro": "parametro_invalido", "mensagem": "ate_mes deve estar entre 0 e 12."})
     try:
-        arm.init_db(arm.DB_PATH)
+        arm.init_db(arm.ESQUEMA)
         if versao_id is None:
             # a versão vigente (não a de id mais alto cru): prefere aprovada,
             # nunca escolhe arquivada — sem isso, regerar (que arquiva uma
             # cópia do estado anterior) fazia a tela abrir sozinha no
             # snapshot congelado, por ele ter o id mais novo.
-            vigente = arm.versao_vigente(arm.DB_PATH)
+            vigente = arm.versao_vigente(arm.ESQUEMA)
             if vigente is None:
                 return JSONResponse({"vazio": True,
                                      "mensagem": "Nenhuma versão de orçamento criada ainda."})
@@ -2270,7 +2270,7 @@ async def orcamento_ajustar(req: Request) -> JSONResponse:
                 "erro": "parametro_invalido", "mensagem": "valor deve ser numérico ou nulo."})
     try:
         quem = (req.state.sessao or {}).get("nome") or "sistema"
-        arm.ajustar(arm.DB_PATH, versao_id, conta, mes, valor, quem)
+        arm.ajustar(arm.ESQUEMA, versao_id, conta, mes, valor, quem)
         return JSONResponse({"ok": True})
     except KeyError:
         return JSONResponse(status_code=404, content={
@@ -2302,8 +2302,8 @@ async def orcamento_aprovar(req: Request) -> JSONResponse:
             "erro": "parametro_invalido", "mensagem": "Informe um versao_id válido (inteiro > 0)."})
     try:
         quem = (req.state.sessao or {}).get("nome") or "sistema"
-        arm.aprovar(arm.DB_PATH, versao_id, quem)
-        versao = next(v for v in arm.listar_versoes(arm.DB_PATH) if v["id"] == versao_id)
+        arm.aprovar(arm.ESQUEMA, versao_id, quem)
+        versao = next(v for v in arm.listar_versoes(arm.ESQUEMA) if v["id"] == versao_id)
         return JSONResponse({"ok": True, "versao": versao})
     except KeyError:
         return JSONResponse(status_code=404, content={
@@ -2332,8 +2332,8 @@ async def orcamento_reabrir(req: Request) -> JSONResponse:
         return JSONResponse(status_code=422, content={
             "erro": "parametro_invalido", "mensagem": "Informe um versao_id válido (inteiro > 0)."})
     try:
-        arm.reabrir(arm.DB_PATH, versao_id)
-        versao = next(v for v in arm.listar_versoes(arm.DB_PATH) if v["id"] == versao_id)
+        arm.reabrir(arm.ESQUEMA, versao_id)
+        versao = next(v for v in arm.listar_versoes(arm.ESQUEMA) if v["id"] == versao_id)
         return JSONResponse({"ok": True, "versao": versao})
     except KeyError:
         return JSONResponse(status_code=404, content={

@@ -243,13 +243,13 @@ def preparar(caminho: str | Path, meses_hist: list[str]) -> dict:
 
 
 def importar(caminho: str | Path, ano: int, rotulo: str, quem: str,
-             meses_hist: list[str], path=None) -> dict:
+             meses_hist: list[str], esquema=None) -> dict:
     """Cria uma versão NOVA com o plano. Nunca toca nas versões existentes —
     a derivada do histórico continua lá para comparação."""
     prep = preparar(caminho, meses_hist)
-    caminho_db = path or arm.DB_PATH
-    arm.init_db(caminho_db)
-    versao_id = arm.criar_versao(caminho_db, ano, rotulo, 0.0, quem,
+    esquema = esquema or arm.ESQUEMA
+    arm.init_db(esquema)
+    versao_id = arm.criar_versao(esquema, ano, rotulo, 0.0, quem,
                                  metodo="plano", meses_base=[])
-    arm.gravar_baseline(caminho_db, versao_id, prep["linhas"])
+    arm.gravar_baseline(esquema, versao_id, prep["linhas"])
     return {**prep, "versao_id": versao_id, "ano": ano, "rotulo": rotulo}

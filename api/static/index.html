@@ -9780,6 +9780,32 @@ async function mkchatSend(){
    PJ e TAC nunca sao somados - o TAC nao emite CT-e (Lei 11.442), entao juntar
    os dois inflaria a fila em um terco com documento que nao pode existir. */
 let cpSeq=0, DATACP=null;
+/* LER A RESPOSTA SEM SUPOR QUE E JSON.
+   `r.json()` direto transforma qualquer resposta HTML - pagina de login do
+   Cloudflare Access com a sessao expirada, erro de gateway, 502 do tunel - em
+   "Unexpected token '<'", que nao diz nada a quem esta usando e nem a quem vai
+   depurar. Aqui a resposta e lida como TEXTO primeiro: sendo JSON, devolve o
+   objeto; nao sendo, o erro carrega o status, o tipo de conteudo e o
+   diagnostico provavel.
+   Detectar a pagina de login importa em separado: ela costuma vir com 200, e
+   por isso escapa do tratamento de 401 que ja existe no wrapper de fetch. */
+async function respostaJSON(r){
+  const txt = await r.text();
+  try{ return { ok:r.ok, dados: JSON.parse(txt) }; }
+  catch(e){
+    const ct = r.headers.get('content-type') || 'sem content-type';
+    const html = /^\s*(<!DOCTYPE|<html)/i.test(txt);
+    const login = html && /login|sign in|access|autentic/i.test(txt.slice(0, 4000));
+    let diag;
+    if(login) diag = 'A sessão expirou e o servidor devolveu a página de login. '
+                    +'Recarregue a página (F5), entre de novo e repita.';
+    else if(html) diag = 'O servidor devolveu uma página HTML em vez da resposta. '
+                    +'Costuma ser o túnel ou o proxy respondendo no lugar da aplicação.';
+    else diag = 'Resposta em formato inesperado.';
+    throw new Error('HTTP '+r.status+' · '+ct+' — '+diag);
+  }
+}
+
 let CP_ALVO=null;
 function cpAbrir(cnpj){
   CP_ALVO=cnpj;
@@ -9839,8 +9865,8 @@ async function cpSalvarAutz(){
       headers:{'Content-Type':'application/json'},
       body:JSON.stringify({cnpj:CP_ALVO, escopo:V('cpPrEsc'),
         valida_de:V('cpPrDe'), valida_ate:V('cpPrAte')})});
-    const d=await r.json();
-    if(!r.ok){ cpErro(d.mensagem||'Erro ao gravar.'); return; }
+    const rr=await respostaJSON(r); const d=rr.dados;
+    if(!rr.ok){ cpErro(d.mensagem||'Erro ao gravar.'); return; }
     cpOk('Autorização registrada.'); loadCtecp(true);
   }catch(e){ cpErro('Falha de rede: '+e.message); }
 }
@@ -9860,8 +9886,8 @@ async function cpSalvarCert(){
   try{
     const r=await fetch('/api/fiscal/contrapartida/certificado',{method:'POST',
       headers:{'Content-Type':'application/json'}, body:JSON.stringify(corpo)});
-    const d=await r.json();
-    if(!r.ok){ cpErro(d.mensagem||'Erro ao gravar.'); return; }
+    const rr=await respostaJSON(r); const d=rr.dados;
+    if(!rr.ok){ cpErro(d.mensagem||'Erro ao gravar.'); return; }
     /* NAO limpa o formulario no erro (refazer custa reabrir arquivo), mas
        limpa a senha no sucesso: ela nao tem por que continuar na memoria da
        pagina depois de gravada no cofre */
@@ -9907,8 +9933,8 @@ async function loadCtecp(fundo){
     if(V('fCpBusca')) p.set('busca', V('fCpBusca'));
     const r=await fetch('/api/fiscal/contrapartida?'+p.toString(),
       {cache:'no-store', headers: fundo?{'X-Carga-Fundo':'1'}:{}});
-    const d=await r.json(); if(seq!==cpSeq) return;
-    if(!r.ok){ showBanner(d.mensagem||'Erro ao montar a conciliação.'); return; }
+    const rr=await respostaJSON(r); const d=rr.dados; if(seq!==cpSeq) return;
+    if(!rr.ok){ showBanner(d.mensagem||'Erro ao montar a conciliação.'); return; }
     hideBanner(); DATACP=d; renderCtecp(d);
   }catch(e){ if(seq===cpSeq) showBanner('Não foi possível falar com a API.', e.message); }
   finally{ if(seq===cpSeq){ if(btn) btn.disabled=false;
@@ -10246,7 +10272,7 @@ async function cpValidarTudo(){
   try{
     const r=await fetch('/api/fiscal/contrapartida/validacao?dias=90',
                         {cache:'no-store'});
-    const d=await r.json();
+    const d=(await respostaJSON(r)).dados;
     if(d && !d.erro){ CP_VAL=d; cpValidRender(); }
   }catch(e){ /* rede: mantem o que ja estava na tela */ }
   finally{ if(b){ b.disabled=false; b.textContent=antes; } }
@@ -10421,8 +10447,8 @@ async function cpCancelar(bt){
     const r=await fetch('/api/fiscal/contrapartida/cancelar',{method:'POST',
       headers:{'Content-Type':'application/json'},
       body:JSON.stringify({chave:bt.dataset.chave, justificativa:just})});
-    const d=await r.json();
-    if(!r.ok){ alert(d.mensagem||'Não foi possível cancelar.');
+    const rr=await respostaJSON(r); const d=rr.dados;
+    if(!rr.ok){ alert(d.mensagem||'Não foi possível cancelar.');
                bt.disabled=false; bt.textContent='cancelar'; return; }
     alert((d.cancelado?'Cancelado. ':'NÃO cancelado. ')
           +'Retorno '+d.cStat+' — '+d.xMotivo);
@@ -10541,8 +10567,8 @@ async function cpEnvio(bt){
       headers:{'Content-Type':'application/json'},
       body:JSON.stringify({cnpj:bt.dataset.cnpj,
                            ativo:bt.dataset.liga==='1'})});
-    const d=await r.json();
-    if(!r.ok){ alert(d.mensagem||'Não foi possível mudar o envio.'); return; }
+    const rr=await respostaJSON(r); const d=rr.dados;
+    if(!rr.ok){ alert(d.mensagem||'Não foi possível mudar o envio.'); return; }
     loadCtecp();
   }catch(e){ alert('Falha de rede: '+e.message); }
 }

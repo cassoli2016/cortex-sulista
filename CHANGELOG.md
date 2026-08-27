@@ -4,6 +4,12 @@ Gerado de `docs/versoes.yaml` por `scripts/gerar_changelog.py` — não editar �
 Formato [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/),
 versionamento [SemVer](https://semver.org/lang/pt-BR/).
 
+## [0.107.0] — 27/08/2026  ·  CX-27/08/2026-v0.107.0
+
+### Corrigido
+- Trocar o certificado de um agregado falhava com "Falha de rede: Unexpected token '<'". O servidor respondia certo; quem devolveu HTML foi a camada de fora - pagina de login com a sessao expirada, ou o tunel respondendo no lugar da aplicacao - e a tela chamava o interpretador de JSON em cima disso.
+- Todas as chamadas da tela passaram a ler a resposta como texto antes de interpretar. Quando nao e JSON, a mensagem diz o codigo HTTP, o tipo de conteudo e o que fazer. Pagina de login e reconhecida a parte porque costuma vir com codigo 200 e escapava do tratamento de sessao expirada que ja existia: agora ela pede para recarregar e entrar de novo, em vez de dizer "erro".
+
 ## [0.106.0] — 27/08/2026  ·  CX-27/08/2026-v0.106.0
 
 ### Adicionado

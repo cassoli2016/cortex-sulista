@@ -15,7 +15,6 @@ Algoritmo:
 from __future__ import annotations
 
 from datetime import date
-from pathlib import Path
 
 from . import armazenamento as arm
 
@@ -136,7 +135,7 @@ def provisao_do_ano(
     dso: float | None,
     dpo: float | None,
     hoje: date,
-    db_path: Path | None = None,
+    esquema: str | None = None,
 ) -> dict | None:
     """Lê versão mais recente do ano no SQLite e monta provisão de caixa.
 
@@ -145,7 +144,7 @@ def provisao_do_ano(
         dso: dias de venda em atraso (None → usa DSO_PADRAO)
         dpo: dias de pagamento em atraso (None → usa DPO_PADRAO)
         hoje: data de referência para filtrar meses >= hoje.month
-        db_path: caminho do DB (default: arm.DB_PATH)
+        esquema: schema do banco local (default: o de produção)
 
     Returns:
         {
@@ -158,15 +157,15 @@ def provisao_do_ano(
         }
         ou None se nenhuma versão encontrada para o ano.
     """
-    if db_path is None:
-        db_path = arm.DB_PATH
+    if esquema is None:
+        esquema = arm.ESQUEMA
     # Migra o schema (coluna `metodo`/`meses_base`) ANTES de ler a versão.
     # Sem isso, um orcamento.db criado antes desta branch não tem a coluna
     # `metodo`: `versao["metodo"]` levanta KeyError, engolido pelo
     # `except Exception` do fluxo — a série tracejada some em silêncio até
     # alguém abrir a tela de Orçamento (só ali `gerar()` roda init_db).
     # M1 da revisão final.
-    arm.init_db(db_path)
+    arm.init_db(esquema)
 
     # Buscar versão do ano: aprovada tem prioridade sobre rascunho (a
     # provisão de caixa não pode usar um número já superado por uma versão
@@ -174,7 +173,7 @@ def provisao_do_ano(
     # vigente. Regra compartilhada com o endpoint /orcamento (main.py) via
     # `arm.versao_vigente` — as duas leituras de "a versão em uso" não podem
     # divergir.
-    versao = arm.versao_vigente(db_path, ano=ano)
+    versao = arm.versao_vigente(esquema, ano=ano)
     if versao is None:      # sem versão do ano, ou só sobraram arquivadas
         return None
     versao_id = versao["id"]
@@ -189,7 +188,7 @@ def provisao_do_ano(
     fonte_final = "padrao" if not (dso_valido and dpo_valido) else "medido"
 
     # Ler linhas e agrupar por mês
-    linhas = arm.ler_linhas(db_path, versao_id)
+    linhas = arm.ler_linhas(esquema, versao_id)
     entradas: dict[int, float] = {}
     saidas: dict[int, float] = {}
 

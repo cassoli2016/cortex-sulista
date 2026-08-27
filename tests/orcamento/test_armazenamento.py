@@ -7,10 +7,10 @@ from api.orcamento import armazenamento as arm
 
 
 @pytest.fixture()
-def db(tmp_path):
-    p = tmp_path / "orcamento.db"
-    arm.init_db(p)
-    return p
+def db(esquema_pg):
+    """Um SCHEMA exclusivo do teste, no lugar do arquivo em tmp_path — o
+    orçamento migrou para o PostgreSQL em 27/08/2026."""
+    return esquema_pg
 
 
 def _linhas(conta="1|100", valor=1000.0, origem="espelho"):
@@ -89,36 +89,14 @@ def test_cada_ajuste_vira_linha_de_auditoria(db):
 
 # ---------------------------------------------------------- coluna `metodo`
 
-def test_migracao_adiciona_coluna_metodo_a_banco_velho(tmp_path):
-    """Banco criado antes da coluna existir (mesmo padrão de `meses_base`):
-    PRAGMA confirma que o `init_db` acrescenta `metodo` com o padrão 'espelho',
-    inclusive retroativo nas linhas já existentes."""
-    import sqlite3
-
-    p = tmp_path / "velho.db"
-    c = sqlite3.connect(p)
-    c.execute("""
-        CREATE TABLE orc_versao(
-            id              INTEGER PRIMARY KEY AUTOINCREMENT,
-            ano             INTEGER NOT NULL,
-            rotulo          TEXT    NOT NULL,
-            status          TEXT    NOT NULL DEFAULT 'rascunho',
-            fator_tendencia REAL    NOT NULL DEFAULT 0,
-            criado_em       TEXT    NOT NULL DEFAULT (datetime('now','localtime')),
-            criado_por      TEXT
-        )
-    """)
-    c.execute("INSERT INTO orc_versao(ano, rotulo) VALUES (2025, 'antigo')")
-    c.commit()
-    c.close()
-
-    arm.init_db(p)
-
-    with sqlite3.connect(p) as c2:
-        cols = {r[1] for r in c2.execute("PRAGMA table_info(orc_versao)")}
-        assert "metodo" in cols
-        row = c2.execute("SELECT metodo FROM orc_versao WHERE ano=2025").fetchone()
-        assert row[0] == "espelho"
+def test_versao_nasce_com_o_metodo_padrao(db):
+    """Era `test_migracao_adiciona_coluna_metodo_a_banco_velho`, que exercitava
+    o `ALTER TABLE` condicional do `init_db` — código que a migration numerada
+    substituiu (sql/cortex/0008_orcamento.sql). O que importava continua
+    valendo: versão sem método declarado é 'espelho'."""
+    vid = arm.criar_versao(db, 2027, "v1", 0.0, "cristian")
+    v = next(x for x in arm.listar_versoes(db, 2027) if x["id"] == vid)
+    assert v["metodo"] == "espelho"
 
 
 def test_criar_versao_grava_metodo_e_listar_versoes_devolve(db):
@@ -276,46 +254,15 @@ def test_arquivar_copia_preserva_baseline_e_ajuste_de_todas_as_linhas(db):
     assert copiadas[3]["valor_ajustado"] == 7777.0   # o ajuste específico, conferido
 
 
-def test_migracao_adiciona_colunas_aprovado_a_banco_velho(tmp_path):
-    """Mesma mecânica do teste de migração de `metodo`: banco criado sem as
-    colunas de aprovação, `init_db` acrescenta ambas."""
-    import sqlite3
+def test_versao_nasce_sem_aprovacao(db):
+    """Era `test_migracao_adiciona_colunas_aprovado_a_banco_velho`. Mesmo
+    motivo do anterior: o ALTER virou coluna da migration. O que se protege é
+    que rascunho não nasce com carimbo de aprovação."""
+    vid = arm.criar_versao(db, 2027, "v1", 0.0, "cristian")
+    v = next(x for x in arm.listar_versoes(db, 2027) if x["id"] == vid)
+    assert v["aprovado_em"] is None and v["aprovado_por"] is None
+    assert v["status"] == "rascunho"
 
-    p = tmp_path / "velho_aprovado.db"
-    c = sqlite3.connect(p)
-    c.execute("""
-        CREATE TABLE orc_versao(
-            id              INTEGER PRIMARY KEY AUTOINCREMENT,
-            ano             INTEGER NOT NULL,
-            rotulo          TEXT    NOT NULL,
-            status          TEXT    NOT NULL DEFAULT 'rascunho',
-            fator_tendencia REAL    NOT NULL DEFAULT 0,
-            criado_em       TEXT    NOT NULL DEFAULT (datetime('now','localtime')),
-            criado_por      TEXT
-        )
-    """)
-    c.execute("INSERT INTO orc_versao(ano, rotulo) VALUES (2025, 'antigo')")
-    c.commit()
-    c.close()
-
-    arm.init_db(p)
-
-    with sqlite3.connect(p) as c2:
-        cols = {r[1] for r in c2.execute("PRAGMA table_info(orc_versao)")}
-        assert "aprovado_em" in cols
-        assert "aprovado_por" in cols
-        row = c2.execute(
-            "SELECT aprovado_em, aprovado_por FROM orc_versao WHERE ano=2025").fetchone()
-        assert row == (None, None)
-
-
-# ------------------------------------------- versao_vigente
-#
-# Regra compartilhada por `caixa.provisao_do_ano` e pelo endpoint
-# GET /api/controladoria/orcamento (main.py, quando `versao_id` não vem na
-# querystring): aprovada tem prioridade sobre rascunho; arquivada nunca é a
-# vigente, mesmo com id mais alto (é o snapshot que `arquivar_copia`/regerar
-# acabou de criar, não o orçamento em uso).
 
 def test_versao_vigente_prefere_aprovada_sobre_rascunho_mais_novo(db):
     aprovada_id = _versao(db)
@@ -338,36 +285,25 @@ def test_versao_vigente_nunca_escolhe_arquivada(db):
     assert v["status"] == "rascunho"
 
 
-def test_versao_vigente_sem_status_trata_como_rascunho(tmp_path):
-    """Compat com banco pré-coluna `status`: `.get("status")` devolve None
-    e a versão entra no grupo tratado como rascunho, não é descartada."""
-    import sqlite3
+def test_versao_vigente_com_status_vazio_trata_como_rascunho(db):
+    """`versao_vigente` aceita None/'' como rascunho — compatibilidade com
+    versão gravada antes da coluna `status` existir. No Postgres a coluna é NOT
+    NULL, então o caso que ainda pode chegar é a string vazia; a regra continua
+    a mesma e é ela que este teste guarda."""
+    from api import pglocal
 
-    p = tmp_path / "sem_status.db"
-    c = sqlite3.connect(p)
-    c.executescript("""
-        CREATE TABLE orc_versao(
-            id              INTEGER PRIMARY KEY AUTOINCREMENT,
-            ano             INTEGER NOT NULL,
-            rotulo          TEXT    NOT NULL,
-            fator_tendencia REAL    NOT NULL DEFAULT 0,
-            criado_em       TEXT    NOT NULL DEFAULT (datetime('now','localtime')),
-            criado_por      TEXT
-        );
-    """)
-    c.execute("INSERT INTO orc_versao(id, ano, rotulo) VALUES (1, 2026, 'sem status')")
-    c.commit()
-    c.close()
-
-    v = arm.versao_vigente(p, 2026)
-    assert v is not None and v["id"] == 1
+    vid = _versao(db)
+    pglocal.executar("UPDATE orc_versao SET status='' WHERE id=%s", (vid,),
+                     esquema=db)
+    v = arm.versao_vigente(db, 2027)
+    assert v is not None and v["id"] == vid
 
 
 def test_versao_vigente_so_arquivadas_devolve_none(db):
     vid = _versao(db)
-    import sqlite3
-    with sqlite3.connect(db) as c:
-        c.execute("UPDATE orc_versao SET status='arquivada' WHERE id=?", (vid,))
+    from api import pglocal
+    pglocal.executar("UPDATE orc_versao SET status='arquivada' WHERE id=%s",
+                     (vid,), esquema=db)
     assert arm.versao_vigente(db, 2027) is None
 
 

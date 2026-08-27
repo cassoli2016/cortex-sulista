@@ -265,7 +265,7 @@ def janela_base(base_de: str | None, base_ate: str | None, hoje: date) -> list[s
 
 
 def gerar(ano: int, rotulo: str, fator: float, quem: str,
-          path=None, hoje: date | None = None,
+          esquema=None, hoje: date | None = None,
           versao_id: int | None = None, metodo: str = "espelho",
           agora: datetime | None = None,
           base_de: str | None = None, base_ate: str | None = None) -> dict:
@@ -303,14 +303,14 @@ def gerar(ano: int, rotulo: str, fator: float, quem: str,
     regerar"; a resposta traz o id dessa cópia em `arquivada_id` (None
     quando é geração de versão nova, sem nada para arquivar).
     """
-    path = path or arm.DB_PATH
+    esquema = esquema or arm.ESQUEMA
     hoje = hoje or date.today()
     agora = agora or datetime.now()
-    arm.init_db(path)
+    arm.init_db(esquema)
 
     arquivada_id: int | None = None
     if versao_id is not None:
-        versoes = {v["id"]: v for v in arm.listar_versoes(path)}
+        versoes = {v["id"]: v for v in arm.listar_versoes(esquema)}
         if versao_id not in versoes:
             raise KeyError(f"versão inexistente: {versao_id}")
         versao_atual = versoes[versao_id]
@@ -319,7 +319,7 @@ def gerar(ano: int, rotulo: str, fator: float, quem: str,
                 "Versão aprovada/arquivada é imutável — reabra antes de regerar.")
         metodo = versao_atual.get("metodo") or "espelho"
         arquivada_id = arm.arquivar_copia(
-            path, versao_id,
+            esquema, versao_id,
             f"{versao_atual['rotulo']} (antes de regerar {agora.strftime('%d/%m %H:%M')})")
     elif metodo == "espelho" and (base_de is not None or base_ate is not None):
         raise ValueError(
@@ -373,18 +373,18 @@ def gerar(ano: int, rotulo: str, fator: float, quem: str,
     linhas = [l for l in linhas if l["conta"] not in set(pendentes)]
 
     if versao_id is None:
-        vid = arm.criar_versao(path, ano, rotulo, fator, quem,
+        vid = arm.criar_versao(esquema, ano, rotulo, fator, quem,
                                meses_base=meses, metodo=metodo)
         regerada, zeradas = False, 0
     else:
         vid, regerada = versao_id, True
         # metodo regravado (coerência) mesmo sendo o mesmo já lido acima —
         # a atualização também troca a base para a janela ATUAL do método
-        arm.atualizar_versao(path, vid, fator, meses_base=meses, metodo=metodo)
-    arm.gravar_baseline(path, vid, linhas)
+        arm.atualizar_versao(esquema, vid, fator, meses_base=meses, metodo=metodo)
+    arm.gravar_baseline(esquema, vid, linhas)
     if regerada:
         zeradas = arm.zerar_fora_do_conjunto(
-            path, vid, {(l["conta"], l["mes"]) for l in linhas})
+            esquema, vid, {(l["conta"], l["mes"]) for l in linhas})
     return {"versao_id": vid, "linhas": len(linhas), "meses_base": meses,
             "contas_sem_linha": pendentes, "regerada": regerada,
             "celulas_zeradas": zeradas,
@@ -405,11 +405,11 @@ def meses_circulares(ano: int, meses_base: list[str]) -> list[int]:
 
 
 def comparativo(versao_id: int, ate_mes: int | None = None,
-                path=None, hoje: date | None = None) -> dict:
+                esquema=None, hoje: date | None = None) -> dict:
     """Orçado x realizado da versão, acumulado até o último mês fechado."""
-    path = path or arm.DB_PATH
+    esquema = esquema or arm.ESQUEMA
     hoje = hoje or date.today()
-    versoes = {v["id"]: v for v in arm.listar_versoes(path)}
+    versoes = {v["id"]: v for v in arm.listar_versoes(esquema)}
     if versao_id not in versoes:
         raise KeyError(f"versão inexistente: {versao_id}")
     v = versoes[versao_id]
@@ -419,7 +419,7 @@ def comparativo(versao_id: int, ate_mes: int | None = None,
         ate_mes = (hoje.month - 1) if hoje.year == ano else (12 if hoje.year > ano else 0)
     ate_mes = max(0, min(12, ate_mes))
 
-    linhas_orc = arm.ler_linhas(path, versao_id)
+    linhas_orc = arm.ler_linhas(esquema, versao_id)
     realizado: dict = {}
     if ate_mes > 0:
         fim_ano, fim_mes = (ano, ate_mes + 1) if ate_mes < 12 else (ano + 1, 1)
@@ -443,7 +443,7 @@ def comparativo(versao_id: int, ate_mes: int | None = None,
     return out
 
 
-def exportar_csv(versao_id: int, path=None, agora: datetime | None = None) -> tuple[str, str]:
+def exportar_csv(versao_id: int, esquema=None, agora: datetime | None = None) -> tuple[str, str]:
     """Exporta a versão inteira como CSV pt-BR: BOM, `;`, decimal vírgula.
 
     Qualquer status exporta (rascunho/aprovado/arquivada) — não há guarda de
@@ -452,14 +452,14 @@ def exportar_csv(versao_id: int, path=None, agora: datetime | None = None) -> tu
     esforço com try/except — o export não pode quebrar por isso, as duas
     colunas só saem vazias.
     """
-    path = path or arm.DB_PATH
+    esquema = esquema or arm.ESQUEMA
     agora = agora or datetime.now()
-    arm.init_db(path)
-    versoes = {v["id"]: v for v in arm.listar_versoes(path)}
+    arm.init_db(esquema)
+    versoes = {v["id"]: v for v in arm.listar_versoes(esquema)}
     if versao_id not in versoes:
         raise KeyError(f"versão inexistente: {versao_id}")
     v = versoes[versao_id]
-    linhas = arm.ler_linhas(path, versao_id)
+    linhas = arm.ler_linhas(esquema, versao_id)
 
     try:
         nomes = _nomes()
