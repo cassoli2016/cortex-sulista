@@ -300,13 +300,36 @@ def _registra(quem: str, ambiente: str, cnpj: str, serie: int, numero: int,
                          f"cStat {resp.get('cStat')}")
 
 
+# CANCELAMENTO entra como linha PROPRIA na mesma chave, com cStat "CANC:<cod>":
+# 135 e "evento registrado" e 631 e "duplicidade de evento", que tambem prova
+# que o evento existe. A linha ORIGINAL continua com cstat='100' — ela registra
+# o que a SEFAZ respondeu na hora, e reescreve-la seria apagar historico.
+#
+# Por isso toda pergunta do tipo "ja existe documento valendo?" tem de excluir
+# as canceladas EXPLICITAMENTE. Sem isso um CT-e cancelado continua bloqueando
+# a origem dele para sempre: a contrapartida some (foi cancelada) e a fila diz
+# que ja foi feita. Descoberto ao cancelar e reemitir os documentos que sairam
+# com o CRT errado — o cancelamento funcionou e a reemissao foi recusada pela
+# propria guarda de idempotencia.
+CANCELAMENTOS = ("CANC:135", "CANC:631")
+
+_NAO_CANCELADA = (" AND NOT EXISTS (SELECT 1 FROM emissao k"
+                  " WHERE k.chave = emissao.chave AND k.cstat = ANY(%s))")
+
+
 def _autorizado_para(chave_origem: str, ambiente: str) -> dict | None:
-    """O CT-e de origem já tem contrapartida autorizada neste ambiente?"""
+    """O CT-e de origem já tem contrapartida autorizada E VALENDO?
+
+    "Valendo" exclui a cancelada: um documento que caiu não é contrapartida de
+    nada, e a prestação volta a precisar de uma.
+    """
     with _conn() as c:
         r = c.execute(
             "SELECT serie, numero, protocolo, chave FROM emissao"
             " WHERE chave_origem=%s AND ambiente=%s AND cstat='100'"
-            " ORDER BY id DESC LIMIT 1", (chave_origem, ambiente)).fetchone()
+            + _NAO_CANCELADA +
+            " ORDER BY id DESC LIMIT 1",
+            (chave_origem, ambiente, list(CANCELAMENTOS))).fetchone()
     return dict(r) if r else None
 
 

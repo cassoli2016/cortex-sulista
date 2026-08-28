@@ -1,3 +1,91 @@
+- versao: "0.128.0"
+  data: "2026-08-28"
+  adicionado:
+    - >-
+      TELA NOVA "CT-e - Documentos Transmitidos", em Controladoria. A tela de
+      conciliacao responde QUANTO FALTA FAZER; esta responde o que ja saiu, o
+      que esta valendo agora, o que foi cancelado, o que a SEFAZ recusou e o que
+      chegou a contabilidade. O registro do que saiu morava dentro da outra como
+      uma tabela de trinta linhas no meio de nove cartoes.
+    - >-
+      Oito indicadores em duas bandas: valendo em producao, valor transmitido,
+      cancelados, arquivo guardado; taxa de autorizacao, homologacao, enviados a
+      contabilidade e fila de envio. Mais quatro visuais: transmissoes por dia
+      (quatro series), valor por emitente, retorno da SEFAZ por codigo e a
+      tabela de emitentes com a faixa da serie 900.
+    - >-
+      A tela nao soma o que nao se soma, e e por isso que ela existe:
+      AUTORIZADO NAO E VALENDO (o cancelado sai de todo total, mas continua na
+      lista com o selo), HOMOLOGACAO NAO SOMA COM PRODUCAO (documento de teste
+      nao tem valor fiscal e aparece como "autorizado (teste)", nunca como
+      "valendo") e RECUSADO NAO EMITIU NADA (conta como tentativa, nunca como
+      documento).
+  corrigido:
+    - >-
+      A MESMA CHAVE EM DOIS AMBIENTES marcava o documento de TESTE como enviado
+      a contabilidade. A chave de 44 digitos nao carrega o ambiente e o codigo
+      numerico dela nao e aleatorio - e uma soma dos campos anteriores -, entao
+      o mesmo emitente, serie e numero no mesmo mes produz a MESMA chave em
+      homologacao e em producao. A consulta cruzava as duas.
+
+- versao: "0.127.0"
+  data: "2026-08-28"
+  adicionado:
+    - >-
+      Os XML dos CT-e de contrapartida emitidos em PRODUCAO passam a ir sozinhos
+      para a contabilidade, por e-mail, logo depois de cada rodada da emissao.
+      Vai o cteProc - o documento assinado MAIS o protocolo da SEFAZ -, que e o
+      arquivo que se escritura; o documento sozinho nao prova autorizacao
+      nenhuma. Um XML por anexo, e nao um zip, porque a caixa que recebe costuma
+      ser lida por importador automatico e importador procura anexo .xml.
+    - >-
+      Destinatario configuravel em Gestao > Integracoes, com xml@sulista.com.br
+      de padrao. A rotina NASCE DESLIGADA e ligar entra na trilha de auditoria
+      com autor e data, como todo interruptor deste modulo.
+    - >-
+      Coluna EMITENTE na tabela de transmissoes do CT-e de contrapartida. A
+      numeracao do CT-e e por emitente, e cada agregado e um emitente: o
+      primeiro documento de cada um e o "900/1". Sem a coluna a tela mostrava
+      tres linhas "900/1" seguidas e nao havia como distinguir isso de uma
+      duplicidade - que e o defeito mais caro deste modulo.
+  alterado:
+    - >-
+      O envio de e-mail do CORTEX passa a aceitar ANEXO, com teto proprio de
+      15 MB conferido ANTES de abrir conexao. Sem o teto a mensagem sai, o
+      servidor recusa la na frente com um erro generico, e quem chamou descobre
+      depois de ja ter lido o banco e montado tudo. A trilha de envios registra
+      quantos e quais arquivos sairam - um e-mail com anexo e o arquivo, nao o
+      texto.
+    - >-
+      XML que ja existia em producao quando a rotina nasceu fica FORA: despejar
+      o acumulado numa caixa que ninguem avisou faz o primeiro e-mail virar
+      spam, e com ele os seguintes, que sao os que importam.
+    - >-
+      XML que falha cinco vezes seguidas para de ser retentado e fica PARADO,
+      visivel na tela com o erro e um botao para devolve-lo a fila depois de a
+      causa ser consertada - nunca sai da fila em silencio.
+  corrigido:
+    - >-
+      REGIME TRIBUTARIO DO EMITENTE SAIA ERRADO EM TODO CT-e DE CONTRAPARTIDA.
+      O documento declarava CRT=3 (Regime Normal) e, no mesmo XML, o grupo de
+      ICMS do Simples Nacional - duas coisas que se contradizem. O CRT lia o
+      grupo CONFIGURADO no enquadramento, que no lote vale "AUTO" e nunca
+      "ICMSSN", entao a comparacao era sempre falsa. A SEFAZ nao cruza os dois
+      campos e autorizou tudo calada. Nao houve imposto a menos (optante do
+      Simples nao destaca ICMS), mas o documento se desmentia. Os dez CT-e de
+      producao emitidos assim foram cancelados e reemitidos.
+    - >-
+      Documento CANCELADO deixa de trancar o CT-e de origem para sempre. A
+      linha original guarda o "autorizado" da SEFAZ para sempre - reescreve-la
+      seria apagar historico -, e o cancelamento entra como linha propria. Sem
+      excluir a cancelada, a guarda de idempotencia recusava a reemissao: a
+      contrapartida nao existia mais e a fila jurava que ja tinha sido feita.
+      Achado ao cancelar e reemitir os documentos com o CRT errado.
+    - >-
+      A coluna Emitente da tabela de transmissoes: sem ela, tres linhas "900/1"
+      seguidas eram indistinguiveis de uma duplicidade. Sao agregados
+      diferentes, cada um estreando na propria serie 900.
+
 - versao: "0.126.0"
   data: "2026-08-28"
   adicionado:

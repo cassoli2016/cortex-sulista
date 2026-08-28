@@ -171,10 +171,22 @@ def definir(quem: str, *, ligado: bool | None = None,
 
 # -------------------------------------------------------------------- fila ---
 
+# Um so lugar define o que e "cancelado" (`emissao.CANCELAMENTOS`): tres
+# modulos ja perguntavam isso com a lista escrita a mao, e a que divergisse
+# mandaria um documento cancelado para a contabilidade.
+_CANC = emissao.CANCELAMENTOS
+
 # DISTINCT ON pela chave: uma retransmissão da mesma chave gera OUTRA linha em
 # `emissao`, e sem isto o mesmo documento apareceria duas vezes na mesma fila —
 # duas leituras do banco, dois anexos idênticos, e o `ON CONFLICT` da marcação
 # escondendo o problema em vez de o denunciar. Fica a mais recente.
+#
+# DOCUMENTO CANCELADO NÃO VAI. O `cteProc` de um CT-e cancelado é um arquivo
+# com cara de válido: quem recebe escritura, e desfazer isso é retificação. O
+# que a contabilidade precisaria nesse caso é o XML DO EVENTO de cancelamento,
+# que é outro arquivo e outra conversa — mandar meia informação é pior que
+# nenhuma. Já aconteceu em produção: o 900/3 de 27/08 foi autorizado, virou
+# duplicidade e foi cancelado 14 minutos depois.
 _PENDENTES_SQL = """
 SELECT DISTINCT ON (e.chave)
        e.id, e.chave, e.chave_origem, e.cnpj_emitente, e.serie, e.numero,
@@ -186,6 +198,8 @@ SELECT DISTINCT ON (e.chave)
    AND e.xml IS NOT NULL AND e.xml_prot IS NOT NULL
    AND e.quando >= %s
    AND (m.chave IS NULL OR (m.ok = false AND m.tentativas < %s))
+   AND NOT EXISTS (SELECT 1 FROM emissao k
+                    WHERE k.chave = e.chave AND k.cstat = ANY(%s))
  ORDER BY e.chave, e.id DESC
 """
 
@@ -199,7 +213,8 @@ def pendentes(limite: int = MAX_POR_EXECUCAO) -> list[dict]:
     """
     with _conn() as c:
         linhas = [dict(r) for r in c.execute(
-            _PENDENTES_SQL, (emissao.PRODUCAO, corte(), MAX_TENTATIVAS))]
+            _PENDENTES_SQL,
+            (emissao.PRODUCAO, corte(), MAX_TENTATIVAS, list(_CANC)))]
     # ordenar por id devolve a ordem cronológica que o DISTINCT ON desfez
     linhas.sort(key=lambda r: r["id"])
     return linhas[:max(0, int(limite))]

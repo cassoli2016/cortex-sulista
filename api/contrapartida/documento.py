@@ -541,6 +541,20 @@ def montar(d: dict, enq: Enquadramento, *, numero: int, serie: int = 1,
     emitido_em = datetime.now(FUSO).replace(microsecond=0)
     v = valor(d, enq)
 
+    # O GRUPO DE ICMS RESOLVIDO, uma vez só, no começo.
+    #
+    # Existe aqui porque o CRT do emitente lia `enq.grupo_icms` CRU, e no lote
+    # ele vale "AUTO" — nunca "ICMSSN". Resultado: todo documento saía com
+    # CRT=3 (Regime Normal) e, ao mesmo tempo, com o grupo <ICMSSN indSN="1">,
+    # que só existe para optante do Simples. As duas coisas no mesmo XML se
+    # contradizem, e a SEFAZ NÃO cruza as duas — autorizou os dez documentos de
+    # produção assim, calada.
+    #
+    # `icms_de` também é quem levanta quando a CST do ERP não tem de-para;
+    # chamá-la antes de montar qualquer coisa faz a recusa acontecer antes, que
+    # é onde ela custa menos.
+    grupo_icms, _, _ = enq.icms_de(d)
+
     chave = ChaveEdoc(
         codigo_uf=_cuf(d["emit_uf"]), ano_mes=emitido_em.strftime("%y%m"),
         cnpj_cpf_emitente=d["emit_cnpj"], modelo_documento=MODELO_CTE,
@@ -582,9 +596,11 @@ def montar(d: dict, enq: Enquadramento, *, numero: int, serie: int = 1,
     emit = I.Emit(
         CNPJ=_so_digitos(d["emit_cnpj"]), IE=_so_digitos(d["emit_ie"]),
         xNome=d["emit_nome"], xFant=d["emit_fantasia"] or None,
-        # CRT vem do enquadramento: ler regime tributário de código de ERP
-        # para gravar em documento fiscal é o erro que este módulo evita.
-        CRT="1" if enq.grupo_icms == "ICMSSN" else "3",
+        # CRT do GRUPO RESOLVIDO, nunca do configurado: com "AUTO" a
+        # comparação contra "ICMSSN" era sempre falsa e o optante do Simples
+        # saía declarado como Regime Normal, contradizendo o próprio bloco de
+        # ICMS do documento. 1 = Simples Nacional, 3 = Regime Normal.
+        CRT="1" if grupo_icms == "ICMSSN" else "3",
         enderEmit=_tipo(I.Emit, "enderEmit")(
             xLgr=d["emit_logradouro"], nro=str(d["emit_numero"] or "S/N"),
             xCpl=d["emit_complemento"] or None, xBairro=d["emit_bairro"],
@@ -628,8 +644,8 @@ def montar(d: dict, enq: Enquadramento, *, numero: int, serie: int = 1,
     # este CT-e é o próprio valor da prestação — ele não tem outros itens.
     # O ICMS que ESTE documento destaca sai da base do IBS/CBS. Simples
     # Nacional e isenta não destacam nada.
-    _grupo, _cst, _aliq = enq.icms_de(d)
-    icms_destacado = (Decimal(0) if _grupo in ("ICMSSN", "ICMS45")
+    _, _cst, _aliq = enq.icms_de(d)
+    icms_destacado = (Decimal(0) if grupo_icms in ("ICMSSN", "ICMS45")
                       else (v * (_aliq or Decimal(0)) / Decimal(100)
                             ).quantize(Decimal("0.01")))
     imp = I.Imp(ICMS=_icms(I, enq, v, d),

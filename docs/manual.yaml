@@ -3,6 +3,30 @@ sistema: 'O CÓRTEX é o painel de gestão da Transportadora Sulista S/A. Ele l�
   — financeiro, comercial, operação, frota, pessoas e controladoria. Nenhum número é digitado aqui: tudo
   vem do ERP, e cada card diz no ⓘ de qual tabela e de qual regra ele saiu.'
 glossario:
+- termo: XML da contrapartida para a contabilidade
+  definicao: >-
+    Cada CT-e de contrapartida autorizado em PRODUCAO gera um cteProc — o XML
+    assinado MAIS o protocolo de autorizacao da SEFAZ. E esse arquivo que a
+    contabilidade escritura: o documento sozinho, sem o protocolo, nao prova
+    autorizacao nenhuma. O CORTEX manda por e-mail o que ainda nao saiu, logo
+    depois de cada rodada da emissao, um XML por anexo (e nao um .zip, porque a
+    caixa que recebe costuma ser lida por importador automatico, e importador
+    procura anexo .xml). Homologacao NUNCA vai — documento de teste nao tem
+    valor fiscal, e escriturar um sai de la por retificacao. Documento
+    CANCELADO tambem nao: o arquivo dele tem cara de valido, e o que a
+    contabilidade precisaria ali e o XML do evento de cancelamento, que e outro
+    arquivo. Destinatario e interruptor ficam em Gestao > Integracoes; a rotina
+    nasce desligada e ligar entra na trilha de auditoria.
+- termo: Numeracao do CT-e de contrapartida (serie 900)
+  definicao: >-
+    A numeracao do CT-e e POR EMITENTE, e na contrapartida cada agregado e o
+    emitente do proprio documento. Cada um tem a sua serie 900, comecando do 1:
+    por isso a lista de transmissoes mostra varios "900/1" — sao agregados
+    diferentes, e nao duplicidade. A coluna Emitente diz de quem e cada linha.
+    Homologacao e producao tambem tem numeracao separada, para o primeiro
+    documento de producao nao nascer com um numero gasto num teste. Numero
+    recusado pela SEFAZ NAO e reaproveitado: fica queimado, e a proxima
+    tentativa usa o seguinte.
 - termo: Rotina agendada de WhatsApp
   definicao: Mensagem que o CORTEX manda sozinho, no horario marcado — diaria, semanal ou mensal,
     com a opcao "so em dias uteis". O agendador do Windows nao decide nada; ele passa de tempos em
@@ -175,6 +199,7 @@ grupos:
   telas:
   - dre
   - ctecp
+  - ctetx
   - bal
   - drecli
   - cont

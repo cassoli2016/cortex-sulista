@@ -11,6 +11,7 @@ import smtplib
 
 import pytest
 
+from api import pglocal
 from api.correio import config as cfg
 from api.correio import envio, registro
 
@@ -289,3 +290,88 @@ def test_falha_no_m365_cita_o_smtp_autenticado_desligado(monkeypatch):
     monkeypatch.setattr(smtplib, "SMTP", _explode)
     r = envio.enviar("a@sulista.com.br", "assunto", "corpo")
     assert "Authenticated SMTP" in r["erro"]
+
+
+# --- ANEXOS -----------------------------------------------------------------
+#
+# Entraram para o envio dos XML de CT-e de contrapartida (28/08/2026). O teto
+# e NOSSO e nao do servidor: sem ele a mensagem sai, o servidor recusa la na
+# frente com um erro generico, e quem chamou descobre depois de ja ter lido o
+# banco e montado tudo.
+
+def test_anexo_chega_na_mensagem_com_o_nome_e_o_tipo(monkeypatch):
+    _config_valida()
+    monkeypatch.setattr(smtplib, "SMTP", SMTPFake)
+    r = envio.enviar("a@b.com", "com anexo", "corpo",
+                     anexos=[{"nome": "doc.xml", "conteudo": "<a/>"}])
+    assert r["ok"] is True
+
+    anexos = list(SMTPFake.ultima.enviadas[0].iter_attachments())
+    assert len(anexos) == 1
+    assert anexos[0].get_filename() == "doc.xml"
+    # `application/xml` e nao `text/*`: XML anunciado como texto chega
+    # renderizado no corpo em alguns clientes, e o importador nao acha o arquivo
+    assert anexos[0].get_content_type() == "application/xml"
+
+
+def test_anexo_convive_com_o_corpo_HTML(monkeypatch):
+    """`add_attachment` converte para multipart/mixed sozinho — inclusive
+    quando ja existe a alternativa HTML. Se a ordem estivesse errada, o corpo
+    sumiria e sobraria so o arquivo."""
+    _config_valida()
+    monkeypatch.setattr(smtplib, "SMTP", SMTPFake)
+    envio.enviar("a@b.com", "x", "texto puro", corpo_html="<p>rico</p>",
+                 anexos=[{"nome": "doc.xml", "conteudo": "<a/>"}])
+
+    msg = SMTPFake.ultima.enviadas[0]
+    assert "texto puro" in msg.get_body(("plain",)).get_content()
+    assert "rico" in msg.get_body(("html",)).get_content()
+    assert len(list(msg.iter_attachments())) == 1
+
+
+def test_anexo_grande_demais_e_RECUSADO_antes_de_conectar(monkeypatch):
+    """Recusar aqui diz o que fazer — mandar em partes — enquanto ainda da
+    para dividir. Do servidor viria "message too large" e mais nada."""
+    _config_valida()
+    monkeypatch.setattr(smtplib, "SMTP", SMTPFake)
+    SMTPFake.ultima = None
+    grande = b"x" * (envio.MAX_ANEXOS_BYTES + 1)
+    r = envio.enviar("a@b.com", "x", "corpo",
+                     anexos=[{"nome": "g.xml", "conteudo": grande}])
+    assert r["ok"] is False and "partes" in r["erro"]
+    assert SMTPFake.ultima is None
+
+
+def test_a_conta_do_teto_e_DEPOIS_do_base64():
+    """E o tamanho codificado que o servidor mede: base64 cresce 4 bytes a
+    cada 3, e era esse terco que faltava na conta."""
+    quase = b"x" * int(envio.MAX_ANEXOS_BYTES * 0.80)
+    assert envio.problema_de_anexo([{"nome": "a.xml", "conteudo": quase}])
+
+
+def test_anexo_sem_nome_e_recusado():
+    assert "sem nome" in envio.problema_de_anexo(
+        [{"nome": "", "conteudo": b"x"}])
+
+
+def test_extensao_desconhecida_vira_octet_stream():
+    """Errar o tipo declarado e pior que ser generico: octet-stream todo
+    cliente sabe salvar."""
+    assert envio._tipo_de("coisa.qualquer") == ("application", "octet-stream")
+    assert envio._tipo_de("doc.PDF") == ("application", "pdf")
+
+
+def test_a_trilha_registra_QUANTOS_e_QUAIS_arquivos_sairam(monkeypatch):
+    """Um e-mail com anexo e o arquivo, nao o texto: sem esta linha o registro
+    mostraria um corpo curto e nenhum sinal de que documentos fiscais deixaram
+    a empresa."""
+    _config_valida()
+    monkeypatch.setattr(smtplib, "SMTP", SMTPFake)
+    envio.enviar("a@b.com", "x", "corpo", origem="teste",
+                 anexos=[{"nome": "um.xml", "conteudo": "<a/>"},
+                         {"nome": "dois.xml", "conteudo": "<b/>"}])
+
+    with pglocal.get_conn(registro.ESQUEMA) as c:
+        corpo = c.execute("SELECT corpo FROM correio_envios ORDER BY id DESC"
+                          " LIMIT 1").fetchone()["corpo"]
+    assert "[anexos: 2]" in corpo and "um.xml" in corpo and "dois.xml" in corpo

@@ -752,6 +752,29 @@ def contrapartida_automacao() -> JSONResponse:
             "mensagem": "Erro ao ler o estado da automação."})
 
 
+@app.get("/api/fiscal/contrapartida/transmitidos")
+def contrapartida_transmitidos(dias: int = 90, limite: int = 200) -> JSONResponse:
+    """Acompanhamento dos CT-e de contrapartida JA transmitidos.
+
+    Rota propria, e nao um pedaco da conciliacao: a tela `ctecp` responde
+    "quanto falta fazer" e esta responde "o que ja saiu, esta valendo e chegou
+    a contabilidade". Sao duas perguntas, dois publicos e dois recortes de
+    RBAC — e juntar as duas num payload so faria a tela pesada carregar o que
+    nao usa.
+
+    Rota `def` (nao `async`): o FastAPI a roda num threadpool, entao a consulta
+    ao Postgres nao trava o event loop.
+    """
+    from api.contrapartida import transmitidos
+    try:
+        return JSONResponse(transmitidos.painel(dias=dias, limite=limite))
+    except Exception as exc:  # noqa: BLE001
+        log.warning("contrapartida_transmitidos falhou: %s", exc)
+        return JSONResponse(status_code=500, content={
+            "erro": "erro_consulta",
+            "mensagem": "Erro ao montar o acompanhamento dos transmitidos."})
+
+
 @app.get("/api/fiscal/contrapartida/documento/{chave}")
 def contrapartida_documento(chave: str) -> Response:
     """Baixa o `cteProc` de um documento transmitido — XML + protocolo.
@@ -812,7 +835,7 @@ async def gestao_contrapartida_salvar(req: Request) -> JSONResponse:
     O autor sai da SESSÃO, nunca do corpo do pedido: quem responde por ligar
     produção não pode ser um campo que o próprio cliente preenche.
     """
-    from api.contrapartida import emissao, lote
+    from api.contrapartida import emissao, lote, xml_email
     quem = (getattr(req.state, "sessao", None) or {}).get("email") or ""
     if not quem:
         return JSONResponse(status_code=401, content={
@@ -833,6 +856,19 @@ async def gestao_contrapartida_salvar(req: Request) -> JSONResponse:
             lote.definir_automacao(bool(body["automacao"]), quem)
         if "intervalo_min" in body:
             lote.definir_intervalo(body["intervalo_min"], quem)
+        # XML para a contabilidade. CHAVE AUSENTE = NAO MEXE: a tela salva o
+        # formulario inteiro, e um `body.get(...)` comum leria o campo que o
+        # usuario nao tocou como vazio e apagaria o destinatario — mesmo
+        # sentinela do cadastro de usuario (`api/auth.py`).
+        if "xml_email_ativo" in body or "xml_email_destino" in body:
+            await sem_travar(
+                xml_email.definir, quem,
+                ligado=(bool(body["xml_email_ativo"])
+                        if "xml_email_ativo" in body else None),
+                para=(str(body["xml_email_destino"])
+                      if "xml_email_destino" in body else None))
+        if body.get("xml_email_reenfileirar"):
+            await sem_travar(xml_email.reenfileirar, quem)
     except PermissionError as exc:
         return JSONResponse(status_code=403, content={
             "erro": "confirmacao_necessaria", "mensagem": str(exc)})
@@ -843,7 +879,9 @@ async def gestao_contrapartida_salvar(req: Request) -> JSONResponse:
         log.warning("gestao_contrapartida_salvar falhou: %s", exc)
         return JSONResponse(status_code=500, content={
             "erro": "erro_gravacao", "mensagem": "Não foi possível gravar."})
-    return JSONResponse(lote.estado())
+    # `estado()` vai ao banco e esta rota e `async def`: no event loop, o
+    # psycopg travaria o CORTEX inteiro pelo tempo da consulta.
+    return JSONResponse(await sem_travar(lote.estado))
 
 
 # ---------------------------------------------------------------- E-mail (SMTP)

@@ -304,6 +304,21 @@ def _transmissoes(limite: int = 30) -> dict:
     canceladas = {x.get("chave") for x in linhas
                   if str(x.get("cstat") or "").startswith("CANC:")
                   and str(x.get("cstat"))[5:] in ("135", "631")}
+    # NOME DO EMITENTE. A numeracao do CT-e e POR EMITENTE, e cada agregado e
+    # um emitente: o primeiro documento de cada um e "900/1", entao a serie e o
+    # numero repetidos na lista sao o comportamento CERTO. Sem esta coluna a
+    # tela mostrava tres linhas "900/1" seguidas e nao havia como distinguir
+    # isso de uma duplicidade - que e o defeito mais caro deste modulo.
+    #
+    # Do cadastro LOCAL (titular do certificado), nao do AVA: e uma leitura que
+    # ja esta em memoria, e a lista de transmissoes nao pode passar a depender
+    # do ERP para desenhar.
+    try:
+        titulares = {c: (v.get("certificado") or {}).get("titular")
+                     for c, v in cadastro.mapa().items()}
+    except Exception as exc:  # noqa: BLE001
+        log.warning("titulares dos certificados indisponiveis: %s", exc)
+        titulares = {}
     com_xml = [x for x in linhas if x.get("tem_xml")]
     # Evento (cancelamento) nao e transmissao de documento: contar junto
     # inflaria a fila e estragaria a taxa de retorno.
@@ -356,6 +371,8 @@ def _transmissoes(limite: int = 30) -> dict:
             "ambiente": "homologação" if str(x.get("ambiente")) == "2"
                         else "produção",
             "serie": x.get("serie"), "numero": x.get("numero"),
+            "cnpj_emitente": x.get("cnpj_emitente"),
+            "emitente": titulares.get(x.get("cnpj_emitente")),
             "chave": x.get("chave"), "cstat": x.get("cstat"),
             "xmotivo": x.get("xmotivo"), "protocolo": x.get("protocolo"),
             "autorizado": str(x.get("cstat")) == "100",

@@ -665,3 +665,50 @@ def test_ibs_MUNICIPAL_ausente_nao_e_pendencia():
     d = dict(DADOS, ibs_p_mun=None)
     xml = doc.serializar(doc.montar(d, AUTO, numero=1))
     assert "<pIBSMun>0.0000</pIBSMun>" in xml
+
+
+# --- CRT x grupo de ICMS ----------------------------------------------------
+#
+# Achado validando os DEZ documentos que ja estao em producao (28/08/2026):
+# todos sairam com CRT=3 (Regime Normal) e, no mesmo XML, o grupo
+# <ICMSSN indSN="1">, que so existe para optante do Simples. As duas coisas se
+# contradizem. A SEFAZ nao cruza uma com a outra e autorizou os dez, calada.
+#
+# Causa: o CRT lia `enq.grupo_icms` CRU, e no lote ele vale "AUTO" - nunca
+# "ICMSSN". A comparacao era sempre falsa.
+
+# `AUTO` exige cst_icms vazia e p_icms None: com AUTO a tributacao vem do ERP,
+# documento a documento, e um valor fixo aqui daria a impressao de estar valendo.
+ENQ_AUTO = dataclasses.replace(ENQ, grupo_icms="AUTO", cst_icms="", p_icms=None)
+
+
+@precisa_fiscal
+def test_CRT_do_optante_do_simples_e_1_mesmo_com_AUTO():
+    """O caso que quebrou: enquadramento em AUTO, emitente optante."""
+    edoc = doc.montar(dict(DADOS, emit_optante_simples=1), ENQ_AUTO,
+                      numero=1, serie=900, ambiente="2")
+    assert edoc.infCte.emit.CRT == "1"
+
+
+@precisa_fiscal
+def test_CRT_e_o_grupo_de_ICMS_NUNCA_se_contradizem():
+    """CRT=1 sem ICMSSN, ou ICMSSN sem CRT=1, e documento que se desmente."""
+    # nao optante cai no de-para do ERP: 090 -> ICMS90, que NAO e grupo de
+    # Simples e por isso tem de sair com CRT=3
+    for optante, crt in ((1, "1"), (0, "3")):
+        d = dict(DADOS, emit_optante_simples=optante,
+                 cst_erp="090", aliq_erp=12)
+        edoc = doc.montar(d, ENQ_AUTO, numero=1, serie=900, ambiente="2")
+        usa_sn = edoc.infCte.imp.ICMS.ICMSSN is not None
+        assert edoc.infCte.emit.CRT == crt
+        assert usa_sn == (crt == "1"), (
+            f"optante={optante}: CRT={edoc.infCte.emit.CRT} mas ICMSSN={usa_sn}")
+
+
+@precisa_fiscal
+def test_grupo_FIXO_no_enquadramento_continua_mandando_no_CRT():
+    """Quem fixa ICMSSN a mao nao pode perder o CRT 1 na correcao."""
+    enq = dataclasses.replace(ENQ, grupo_icms="ICMSSN", cst_icms="90", p_icms=None)
+    edoc = doc.montar(dict(DADOS, emit_optante_simples=0), enq,
+                      numero=1, serie=900, ambiente="2")
+    assert edoc.infCte.emit.CRT == "1"

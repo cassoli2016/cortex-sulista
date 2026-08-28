@@ -11,6 +11,7 @@ por substituicao.
 from __future__ import annotations
 
 import dataclasses
+import inspect
 
 import pytest
 
@@ -293,7 +294,10 @@ def test_o_autor_sai_da_SESSAO_e_nao_do_corpo():
     cliente preenche."""
     fonte = open("api/main.py", encoding="utf-8").read()
     trecho = fonte[fonte.index("async def gestao_contrapartida_salvar"):]
-    trecho = trecho[:trecho.index("return JSONResponse(lote.estado())")]
+    # ancora no INICIO da rota seguinte, e nao no `return` dela: o `return`
+    # ja mudou uma vez (ganhou `sem_travar`, porque `estado()` vai ao banco e a
+    # rota e `async def`) e o teste caiu por causa da mudanca certa.
+    trecho = trecho[:trecho.index("@app.get(", 1)]
     assert 'req.state, "sessao"' in trecho
     assert 'body.get("quem")' not in trecho and 'body["quem"]' not in trecho
 
@@ -766,3 +770,65 @@ def test_recusa_desconhecida_ainda_ganha_tres_tentativas():
     intermitente - SEFAZ instavel, timeout - e merece a segunda chance."""
     assert lote.MAX_TENTATIVAS_MESMA_RECUSA == 3
     assert "229" not in lote.RECUSA_SEM_REPETICAO
+
+
+# --- documento CANCELADO volta para a fila ----------------------------------
+#
+# Achado ao preparar o cancelamento e a reemissao dos documentos que sairam com
+# o CRT errado (28/08/2026). A linha original guarda `cstat='100'` PARA SEMPRE -
+# e o que a SEFAZ respondeu na hora, e reescreve-la seria apagar historico. O
+# cancelamento entra como linha propria, com "CANC:<cod>", na mesma chave.
+#
+# Sem excluir a cancelada, o cancelamento funcionava e a reemissao era recusada
+# pela propria guarda de idempotencia: a contrapartida nao existia mais e a fila
+# jurava que ja tinha sido feita. A origem ficaria trancada para sempre.
+
+def test_cancelada_NAO_conta_como_ja_emitida(esquema_pg, monkeypatch):
+    monkeypatch.setattr(lote.cadastro, "ESQUEMA", esquema_pg)
+    with lote.emissao._conn() as c:
+        for cstat, chave in (("100", "CH-A"), ("CANC:135", "CH-A"),
+                             ("100", "CH-B")):
+            c.execute(
+                "INSERT INTO emissao(quando, quem, ambiente, cnpj_emitente,"
+                " serie, numero, chave, chave_origem, cstat)"
+                " VALUES('2026-08-28T10:00:00','t','1','111',900,1,%s,%s,%s)",
+                (chave, "ORIG-" + chave[-1], cstat))
+    # CH-A foi cancelada: a origem dela volta a precisar de contrapartida
+    assert lote._ja_emitidas("1") == {"ORIG-B"}
+
+
+def test_autorizado_para_ignora_a_cancelada(esquema_pg, monkeypatch):
+    """A guarda de idempotencia do `transmitir` segue a mesma regra — se
+    divergisse, a fila mandaria emitir e o transmitir recusaria."""
+    monkeypatch.setattr(lote.cadastro, "ESQUEMA", esquema_pg)
+    with lote.emissao._conn() as c:
+        c.execute(
+            "INSERT INTO emissao(quando, quem, ambiente, cnpj_emitente, serie,"
+            " numero, chave, chave_origem, cstat, protocolo)"
+            " VALUES('2026-08-28T10:00:00','t','1','111',900,1,'CH-A','ORIG',"
+            " '100','p1')")
+        c.execute(
+            "INSERT INTO emissao(quando, quem, ambiente, cnpj_emitente, serie,"
+            " numero, chave, chave_origem, cstat)"
+            " VALUES('2026-08-28T10:10:00','t','1','111',900,1,'CH-A','ORIG',"
+            " 'CANC:135')")
+    assert lote.emissao._autorizado_para("ORIG", "1") is None
+
+    # e a SEGUNDA emissao, valendo, volta a bloquear
+    with lote.emissao._conn() as c:
+        c.execute(
+            "INSERT INTO emissao(quando, quem, ambiente, cnpj_emitente, serie,"
+            " numero, chave, chave_origem, cstat, protocolo)"
+            " VALUES('2026-08-28T11:00:00','t','1','111',900,2,'CH-B','ORIG',"
+            " '100','p2')")
+    assert (lote.emissao._autorizado_para("ORIG", "1") or {}).get("numero") == 2
+
+
+def test_as_duas_guardas_usam_a_MESMA_lista_de_cancelamento():
+    """Tres modulos perguntam "isto foi cancelado?". Listas escritas a mao em
+    cada um divergiriam, e a que divergisse mandaria documento cancelado para a
+    contabilidade."""
+    from api.contrapartida import xml_email
+    assert xml_email._CANC is lote.emissao.CANCELAMENTOS
+    fonte = inspect.getsource(lote._ja_emitidas)
+    assert "emissao.CANCELAMENTOS" in fonte

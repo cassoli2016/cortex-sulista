@@ -53,7 +53,7 @@ import logging
 from datetime import date, datetime
 
 from api import db
-from api.contrapartida import cadastro, documento, emissao
+from api.contrapartida import cadastro, documento, emissao, xml_email
 
 log = logging.getLogger("cortex.contrapartida.lote")
 
@@ -245,6 +245,7 @@ def estado() -> dict:
         "teto": {"homologacao": TETO_ABSOLUTO,
                  "producao": TETO_ABSOLUTO_PRODUCAO},
         "falhas_para_parar": MAX_FALHAS_SEGUIDAS,
+        "xml_email": xml_email.estado(),
     }
 
 
@@ -265,15 +266,24 @@ def teto_do(ambiente: str) -> int:
 
 
 def _ja_emitidas(ambiente: str) -> set[str]:
-    """Chaves de origem que JÁ têm documento autorizado neste ambiente.
+    """Chaves de origem que JÁ têm documento autorizado E VALENDO.
 
     Só as autorizadas contam: uma tentativa recusada não emitiu nada, e o
     CT-e de origem continua pendente.
+
+    E a CANCELADA também não conta. A linha original guarda `cstat='100'` para
+    sempre — é o que a SEFAZ respondeu na hora —, então sem excluí-la aqui um
+    documento cancelado trancaria a origem dele para sempre: a contrapartida
+    não existe mais e a fila jura que já foi feita. Mesma regra de
+    `emissao._autorizado_para`, pela mesma razão.
     """
     with emissao._conn() as c:
         return {r["chave_origem"] for r in c.execute(
-            "SELECT DISTINCT chave_origem FROM emissao"
-            " WHERE ambiente=%s AND cstat='100'", (ambiente,))}
+            "SELECT DISTINCT chave_origem FROM emissao e"
+            " WHERE ambiente=%s AND cstat='100'"
+            "   AND NOT EXISTS (SELECT 1 FROM emissao k"
+            "        WHERE k.chave = e.chave AND k.cstat = ANY(%s))",
+            (ambiente, list(emissao.CANCELAMENTOS)))}
 
 
 def _quarentena(ambiente: str) -> dict[str, dict]:
@@ -429,6 +439,29 @@ def processar_lote(de: str, ate: str, enq: documento.Enquadramento, *,
             break
 
     resultado["restante"] = max(0, len(fila) - len(resultado["itens"]))
+
+    # XML PARA A CONTABILIDADE. Pendurado aqui e nao num segundo agendador
+    # porque o gatilho natural e este: o arquivo passa a existir e sai minutos
+    # depois, sem outra tarefa para instalar, configurar e esquecer de ligar.
+    #
+    # Roda mesmo quando ESTA rodada nao autorizou nada: a fila e "o que ainda
+    # nao saiu", entao uma falha de SMTP da rodada anterior se conserta sozinha
+    # nesta. Gatear por `autorizados` deixaria o atrasado preso ate o dia em
+    # que houvesse documento novo.
+    #
+    # Producao e so producao: homologacao nao tem valor fiscal, e um documento
+    # de teste na contabilidade sai de la por retificacao.
+    if ambiente == emissao.PRODUCAO and not dry_run:
+        try:
+            resultado["xml_email"] = xml_email.enviar_pendentes(quem=quem)
+        except Exception as exc:  # noqa: BLE001
+            # O documento fiscal JA existe e JA esta autorizado. Perder o
+            # retorno do lote por causa de um servidor de e-mail transformaria
+            # um incomodo em incidente.
+            log.warning("envio de XML para a contabilidade falhou: %s", exc)
+            resultado["xml_email"] = {"ok": False, "enviados": 0,
+                                      "motivo": f"falha inesperada: "
+                                                f"{type(exc).__name__}"}
     return resultado
 
 
