@@ -1,3 +1,24 @@
+- versao: "0.130.0"
+  data: "2026-08-28"
+  corrigido:
+    - >-
+      A aba Transmitidos aparecia COLADA nas bordas da tela, mais larga que as
+      outras duas. A causa nao era estilo: sobrava um </div> de um grid que
+      virou card, e o navegador fechava a <section> mais cedo por causa dele -
+      a aba inteira era reparenteada para fora da tela, herdando as margens
+      erradas. Um saldo de <div> negativo nao aparece como erro em lugar
+      nenhum; aparece como layout torto.
+    - >-
+      Ficara um card "Documentos transmitidos por dia" no Despacho sem o codigo
+      que o preenchia (ele migrou para a aba nova): grafico permanentemente
+      vazio. Removido.
+  alterado:
+    - >-
+      Os tres botoes de aba (Despacho do dia, Implantacao, Transmitidos) subiram
+      para o topo da tela, acima do card de filtros. Como o card de filtros some
+      na aba Transmitidos, as abas saltavam de lugar a cada troca e o alvo do
+      clique mudava de posicao entre uma e outra.
+
 - versao: "0.129.0"
   data: "2026-08-28"
   adicionado:

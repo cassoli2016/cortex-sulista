@@ -4,6 +4,15 @@ Gerado de `docs/versoes.yaml` por `scripts/gerar_changelog.py` — não editar �
 Formato [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/),
 versionamento [SemVer](https://semver.org/lang/pt-BR/).
 
+## [0.130.0] — 28/08/2026  ·  CX-28/08/2026-v0.130.0
+
+### Alterado
+- Os tres botoes de aba (Despacho do dia, Implantacao, Transmitidos) subiram para o topo da tela, acima do card de filtros. Como o card de filtros some na aba Transmitidos, as abas saltavam de lugar a cada troca e o alvo do clique mudava de posicao entre uma e outra.
+
+### Corrigido
+- A aba Transmitidos aparecia COLADA nas bordas da tela, mais larga que as outras duas. A causa nao era estilo: sobrava um </div> de um grid que virou card, e o navegador fechava a <section> mais cedo por causa dele - a aba inteira era reparenteada para fora da tela, herdando as margens erradas. Um saldo de <div> negativo nao aparece como erro em lugar nenhum; aparece como layout torto.
+- Ficara um card "Documentos transmitidos por dia" no Despacho sem o codigo que o preenchia (ele migrou para a aba nova): grafico permanentemente vazio. Removido.
+
 ## [0.129.0] — 28/08/2026  ·  CX-28/08/2026-v0.129.0
 
 ### Adicionado

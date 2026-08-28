@@ -2869,6 +2869,13 @@ body.tvfull #btnReport,body.tvmode #btnReport{display:none}
       </section>
 
       <section class="view" id="view-ctecp">
+        <div class="cpabas">
+          <button class="chip active" data-aba="despacho" onclick="cpAba(this.dataset.aba)">Despacho do dia</button>
+          <button class="chip" data-aba="implantacao" onclick="cpAba(this.dataset.aba)">Implantação</button>
+          <button class="chip" data-aba="transmitidos" onclick="cpAba(this.dataset.aba)">Transmitidos</button>
+          <span class="hint" id="cpAbaHint"></span>
+        </div>
+
         <div class="card" id="cpFiltrosCard">
           <div class="head"><h2>Filtros <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="CT-e emitidos pela Sulista com veículo de agregado (utilizacaoveiculo AGR), cruzados com o cadastro do proprietário. A tela é SÓ LEITURA: não emite, não assina e não transmite nada.">i</span></h2>
             <span class="hint" id="hintCp"></span></div>
@@ -2882,12 +2889,6 @@ body.tvfull #btnReport,body.tvmode #btnReport{display:none}
           </div>
         </div>
 
-        <div class="cpabas">
-          <button class="chip active" data-aba="despacho" onclick="cpAba(this.dataset.aba)">Despacho do dia</button>
-          <button class="chip" data-aba="implantacao" onclick="cpAba(this.dataset.aba)">Implantação</button>
-          <button class="chip" data-aba="transmitidos" onclick="cpAba(this.dataset.aba)">Transmitidos</button>
-          <span class="hint" id="cpAbaHint"></span>
-        </div>
 
         <div id="cpAbaDespacho">
         <div class="card" id="cpAutoCard" hidden>
@@ -2944,15 +2945,9 @@ body.tvfull #btnReport,body.tvmode #btnReport{display:none}
           </div>
         </div>
 
-        <div class="card" id="cpDiaLinha" hidden>
-            <div class="head"><h2>Documentos transmitidos por dia <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="Últimos 30 dias, pela DATA DA TRANSMISSÃO — o que este gráfico responde é o ritmo da operação, não a data do CT-e de origem. Homologação e produção NÃO se somam (uma não tem valor fiscal) e autorizado e recusado também não (recusado não emitiu nada): são quatro séries, e juntar qualquer par produziria uma barra que parece trabalho feito e não é.">i</span></h2>
-              <span class="hint" id="hintCpDia"></span></div>
-            <div class="chartwrap narrow"><svg id="cpDiaSvg" viewBox="0 0 640 240" role="img" aria-label="Documentos transmitidos por dia"></svg></div>
-          </div>
-          <div class="card">
+        <div class="card">
             <div class="head"><h2>Faixas de vencimento <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="Certificados cadastrados por prazo até vencer. As duas últimas linhas NÃO são faixa de prazo e por isso aparecem separadas: “sem validade informada” não tem data, e A3 não se resolve esperando — mora em token físico e não automatiza.">i</span></h2></div>
             <div id="cpCertFaixas" class="cpbloco"></div>
-          </div>
         </div>
 
         </div>
