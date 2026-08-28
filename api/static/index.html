@@ -4106,12 +4106,6 @@ body.tvfull #btnReport,body.tvmode #btnReport{display:none}
         <div id="gpane-email" style="display:none">
           <div class="card">
             <div class="head"><h2>Servidor de envio (SMTP) <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="Configuração do servidor que o CÓRTEX usa para enviar e-mail, guardada em data/email_config.json na própria máquina. A SENHA fica no cofre de credenciais (data/credenciais.json, permissão restrita) e nunca volta para a tela — como o token da Gobrax. Enviar e-mail é ação para fora da empresa: só administrador configura, e todo envio entra na trilha abaixo com o autor.">i</span></h2><span class="hint" id="email-status">—</span></div>
-            <div class="toast t-info" style="margin:14px 18px 0">
-              <b>Se o seu provedor falou em &ldquo;conta POP&rdquo;, é aqui mesmo</b>
-              POP e IMAP servem só para <b>receber</b> e-mail; para <b>enviar</b> existe apenas o SMTP.
-              Toda conta POP vem acompanhada de um servidor SMTP de saída — normalmente o mesmo endereço
-              trocando <code>pop</code> por <code>smtp</code>, na porta 587. É esse que vai nos campos abaixo.
-            </div>
             <div class="ges-cfg">
               <div><label for="em-host">Servidor SMTP</label><input type="text" id="em-host" placeholder="smtp.empresa.com.br"></div>
               <div><label for="em-porta">Porta</label><input type="number" id="em-porta" min="1" max="65535" placeholder="587"></div>

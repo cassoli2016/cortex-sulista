@@ -4,6 +4,11 @@ Gerado de `docs/versoes.yaml` por `scripts/gerar_changelog.py` — não editar �
 Formato [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/),
 versionamento [SemVer](https://semver.org/lang/pt-BR/).
 
+## [0.118.1] — 27/08/2026  ·  CX-27/08/2026-v0.118.1
+
+### Alterado
+- Saiu o aviso sobre "conta POP" da tela de configuracao de e-mail. Ele explicava a diferenca entre POP/IMAP (receber) e SMTP (enviar) e ocupava um bloco inteiro acima dos campos, toda vez que alguem abria a tela.
+
 ## [0.118.0] — 27/08/2026  ·  CX-27/08/2026-v0.118.0
 
 ### Adicionado
