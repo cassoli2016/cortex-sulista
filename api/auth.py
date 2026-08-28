@@ -109,6 +109,7 @@ TELAS: dict[str, tuple[str, str]] = {  # chave -> (rótulo, grupo do menu)
     "telcon":  ("Consumo e Estatísticas", "Telemetria"),
     "telcond": ("Condução Econômica", "Telemetria"),
     "telhod":  ("Hodômetro e Rastro", "Telemetria"),
+    "prodveic": ("Produtividade de Veículos", "Business Intelligence"),
     "tvfat":   ("Painel TV — Faturamento", "Business Intelligence"),
     "tvope":   ("Painel TV — Operação", "Business Intelligence"),
     "doc":     ("Documentação", "Administração"),
@@ -196,6 +197,7 @@ ROTA_TELAS: list[tuple[str, frozenset[str]]] = [
     ("/api/operacao/torre",           frozenset({"torre", "tvope"})),
     ("/api/operacao/programacao",     frozenset({"prog", "tvope"})),
     ("/api/operacao/seguranca",       frozenset({"tvope"})),
+    ("/api/bi/produtividade-veiculos", frozenset({"prodveic"})),
     ("/api/operacao/analise-km",      frozenset({"km", "tvope"})),
     ("/api/operacao/make-vs-buy",     frozenset({"mvb"})),
     ("/api/jornada/painel",           frozenset({"jorn"})),
@@ -306,7 +308,7 @@ _PERFIS_MODELO = [
     ("Recursos Humanos", "Vagas, headcount, custo de folha, indicadores, horas extras e CNH.",
      ["rh", "hc", "folha", "folhaind", "he", "cnh", "ferias", "people"]),
     ("Diretoria",   "Visão executiva ampla: consolidado, copiloto e principais indicadores.",
-     ["home", "cop", "fluxo", "dre", "drecli", "com", "km", "torre", "jorn", "mvb", "veic", "prem", "rh", "hc", "folha", "folhaind", "he", "fech", "anpiso", "anrntrc",
+     ["home", "cop", "fluxo", "dre", "drecli", "com", "km", "prodveic", "torre", "jorn", "mvb", "veic", "prem", "rh", "hc", "folha", "folhaind", "he", "fech", "anpiso", "anrntrc",
       "telcon", "telcond", "telhod"]),
 ]
 

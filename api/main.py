@@ -1447,6 +1447,44 @@ def lancamentos_bancarios(
             "erro": "erro_consulta", "mensagem": "Erro ao consultar os lançamentos bancários."})
 
 
+@app.get("/api/bi/produtividade-veiculos")
+def bi_produtividade_veiculos(
+    filial: int | None = None,
+    dt_de: str | None = None,
+    dt_ate: str | None = None,
+    modalidade: str | None = None,
+) -> JSONResponse:
+    """Produtividade por veículo — quanto cada um produz e quem produz pouco."""
+    from datetime import timedelta
+    hoje = date.today()
+    dt_ate = dt_ate or hoje.isoformat()
+    dt_de = dt_de or (hoje - timedelta(days=90)).isoformat()
+    for nome, valor in (("dt_de", dt_de), ("dt_ate", dt_ate)):
+        if _bad_date(valor):
+            return JSONResponse(status_code=422, content={
+                "erro": "parametro_invalido",
+                "mensagem": f"Parâmetro {nome} inválido: use o formato AAAA-MM-DD."})
+    if dt_de > dt_ate:
+        dt_de, dt_ate = dt_ate, dt_de
+    if modalidade and modalidade not in ("TRA", "LOC", "AGR", "TER"):
+        return JSONResponse(status_code=422, content={
+            "erro": "parametro_invalido",
+            "mensagem": "modalidade deve ser TRA (frota), LOC (locação), AGR (agregado) ou TER (terceiro)."})
+    try:
+        return JSONResponse(queries.get_produtividade_veiculos(
+            filial, dt_de, dt_ate, modalidade=modalidade))
+    except psycopg.OperationalError as exc:
+        log.warning("banco inacessivel: %s", exc)
+        return JSONResponse(status_code=503, content={
+            "erro": "banco_inacessivel",
+            "mensagem": "O banco do ERP não respondeu."})
+    except Exception as exc:  # noqa: BLE001
+        log.warning("produtividade de veiculos falhou: %s", exc)
+        return JSONResponse(status_code=500, content={
+            "erro": "erro_consulta",
+            "mensagem": "Erro ao consultar a produtividade de veículos."})
+
+
 @app.get("/api/operacao/analise-km")
 def analise_km(
     filial: int | None = None,

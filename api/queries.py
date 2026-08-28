@@ -7061,3 +7061,228 @@ def get_antecipacao(dias: int = 90, reserva: float = 0.0, taxa_mes: float = 2.0,
         "fonte": ("ERP AVA · a receber oficial (fatura_composicao) + contaapagar por "
                   "vencimento, contra saldo de bancos e caixa · só o LANÇADO · leitura"),
     }
+
+# ============================================================================
+# Produtividade de Veículos (Business Intelligence)
+# ============================================================================
+# A pergunta: quanto cada veículo PRODUZ, e quem está produzindo pouco.
+#
+# TRÊS RECORTES QUE O DADO OBRIGA, e que foram medidos antes de desenhar a tela:
+#
+# 1. SÓ QUEM PUXA FRETE. A viagem é lançada na placa do CAVALO; carreta nunca
+#    aparece. Sem este filtro o painel diria "643 veículos sem viagem" — os 643
+#    implementos ativos — e o número seria puro cadastro.
+#    AUTOMÓVEL entra na mesma exclusão, e isso foi MEDIDO: são 12 ativos com
+#    ZERO viagem em 12 meses, contra 19/20 dos caminhões truck e 16/16 dos
+#    cavalos trucados. Carro de passeio é da administração e nunca vai puxar
+#    carga; mantê-lo inflava o denominador da ociosidade (78 → 66) e enchia o
+#    cartão de cadastro com 12 placas que jamais poderiam aparecer nele.
+#    CAMINHÃO TOCO FICA: é veículo de carga, e parado ele é informação real.
+#
+# 2. OCIOSIDADE SÓ DE QUEM CUSTA. Terceiro cadastrado não é frota nossa: são
+#    594 tração ativos e só 43 rodaram no trimestre. Contar os 551 restantes
+#    como "parados" é o erro do rastreador ("664 sem sinal" quando 341 eram de
+#    terceiro). O denominador de ociosidade é FROTA + LOCAÇÃO: é por eles que
+#    a Sulista paga estando parados.
+#
+# 3. VAZIO DE TERCEIRO É `n/d`, NÃO ZERO. O ERP não recebe o deslocamento
+#    vazio do terceiro — 0 km em 256 viagens. Pintar isso como "0% de retorno
+#    vazio" faria o terceiro parecer o melhor da frota.
+#
+# `programacaoembarque.tipo = 3` é o deslocamento vazio; `kmfretecompra` é o km
+# da perna e `valorfrete` a receita cobrada do cliente.
+
+_PROD_BASE = """
+FROM programacaoembarque p
+JOIN veiculo v ON v.placa = p.veiculo
+LEFT JOIN utilizacaoveiculo u ON u.codigo = v.utilizacaoveiculo
+LEFT JOIN tipoveiculo tv ON tv.codigo = v.tipoveiculo
+WHERE p.dtcancelamento IS NULL AND p.semaforo = 1 AND p.numero < 1000000
+  AND p.dtemissao >= %(dt_de)s::date AND p.dtemissao < %(dt_ate)s::date + 1
+  AND (p.filial = %(filial)s OR %(filial)s::int IS NULL)
+  AND (v.utilizacaoveiculo = %(modalidade)s OR %(modalidade)s::text IS NULL)
+  AND NOT (tv.descricao ILIKE 'CARRETA%%' OR tv.descricao ILIKE 'EMPILHADEIRA%%'
+           OR tv.descricao ILIKE 'GERADOR%%' OR tv.descricao ILIKE 'AUTOM%%VEL')
+"""
+
+PROD_KPI_SQL = f"""
+SELECT count(DISTINCT p.veiculo)::int AS veiculos,
+       count(*)::int AS viagens,
+       count(DISTINCT p.dtemissao::date)::int AS dias_com_viagem,
+       sum(CASE WHEN p.tipo <> 3 THEN coalesce(p.kmfretecompra,0) ELSE 0 END)::float8 AS km_carregado,
+       sum(CASE WHEN p.tipo =  3 THEN coalesce(p.kmfretecompra,0) ELSE 0 END)::float8 AS km_vazio,
+       sum(CASE WHEN p.tipo <> 3 THEN coalesce(p.valorfrete,0) ELSE 0 END)::float8 AS receita
+{_PROD_BASE}
+"""
+
+PROD_MENSAL_SQL = f"""
+SELECT to_char(p.dtemissao,'YYYY-MM') AS mes,
+       count(DISTINCT p.veiculo)::int AS veiculos,
+       sum(CASE WHEN p.tipo <> 3 THEN coalesce(p.kmfretecompra,0) ELSE 0 END)::float8 AS km_carregado,
+       sum(CASE WHEN p.tipo =  3 THEN coalesce(p.kmfretecompra,0) ELSE 0 END)::float8 AS km_vazio,
+       sum(CASE WHEN p.tipo <> 3 THEN coalesce(p.valorfrete,0) ELSE 0 END)::float8 AS receita
+{_PROD_BASE}
+GROUP BY 1 ORDER BY 1
+"""
+
+PROD_MODAL_SQL = f"""
+SELECT coalesce(u.descricao,'(sem modalidade)') AS modalidade,
+       count(DISTINCT p.veiculo)::int AS veiculos,
+       count(*)::int AS viagens,
+       sum(CASE WHEN p.tipo <> 3 THEN coalesce(p.kmfretecompra,0) ELSE 0 END)::float8 AS km_carregado,
+       sum(CASE WHEN p.tipo =  3 THEN coalesce(p.kmfretecompra,0) ELSE 0 END)::float8 AS km_vazio,
+       sum(CASE WHEN p.tipo <> 3 THEN coalesce(p.valorfrete,0) ELSE 0 END)::float8 AS receita
+{_PROD_BASE}
+GROUP BY 1 ORDER BY 4 DESC
+"""
+
+# `dias_ativos` é o denominador da produtividade REAL: 10.000 km em 90 dias e
+# 10.000 km em 12 dias são veículos diferentes, e a média por veículo esconde
+# isso. Conta o dia em que houve viagem, não o dia de calendário.
+PROD_VEIC_SQL = f"""
+SELECT p.veiculo AS placa,
+       coalesce(u.descricao,'(sem modalidade)') AS modalidade,
+       coalesce(tv.descricao,'(sem tipo)') AS tipo,
+       count(*)::int AS viagens,
+       count(DISTINCT p.dtemissao::date)::int AS dias_ativos,
+       sum(CASE WHEN p.tipo <> 3 THEN coalesce(p.kmfretecompra,0) ELSE 0 END)::float8 AS km_carregado,
+       sum(CASE WHEN p.tipo =  3 THEN coalesce(p.kmfretecompra,0) ELSE 0 END)::float8 AS km_vazio,
+       sum(CASE WHEN p.tipo <> 3 THEN coalesce(p.valorfrete,0) ELSE 0 END)::float8 AS receita,
+       max(p.dtemissao)::date AS ultima_viagem
+{_PROD_BASE}
+GROUP BY 1,2,3
+ORDER BY 6 DESC
+"""
+
+# Frota que PODE ficar ociosa: tração, ativa, e de modalidade que custa parada
+# (própria ou locada). Terceiro e agregado ficam de fora — parado, o agregado
+# não custa nada à Sulista, e cobrá-lo por isso seria contar cadastro.
+PROD_PARADOS_SQL = """
+WITH frota AS (
+  SELECT v.placa, coalesce(u.descricao,'(sem modalidade)') AS modalidade,
+         coalesce(tv.descricao,'(sem tipo)') AS tipo
+  FROM veiculo v
+  LEFT JOIN utilizacaoveiculo u ON u.codigo = v.utilizacaoveiculo
+  LEFT JOIN tipoveiculo tv ON tv.codigo = v.tipoveiculo
+  WHERE v.ativoinativo = 1
+    AND u.descricao IN ('FROTA','LOCACAO')
+    AND NOT (tv.descricao ILIKE 'CARRETA%%' OR tv.descricao ILIKE 'EMPILHADEIRA%%'
+             OR tv.descricao ILIKE 'GERADOR%%' OR tv.descricao ILIKE 'AUTOM%%VEL'
+             OR tv.descricao IS NULL)
+    AND (v.utilizacaoveiculo = %(modalidade)s OR %(modalidade)s::text IS NULL)
+),
+historia AS (
+  SELECT p.veiculo AS placa, max(p.dtemissao)::date AS ultima,
+         count(*)::int AS viagens_historicas
+  FROM programacaoembarque p
+  WHERE p.dtcancelamento IS NULL AND p.semaforo = 1 AND p.numero < 1000000
+  GROUP BY 1
+),
+janela AS (
+  SELECT DISTINCT p.veiculo AS placa
+  FROM programacaoembarque p
+  WHERE p.dtcancelamento IS NULL AND p.semaforo = 1 AND p.numero < 1000000
+    AND p.dtemissao >= %(dt_de)s::date AND p.dtemissao < %(dt_ate)s::date + 1
+    AND (p.filial = %(filial)s OR %(filial)s::int IS NULL)
+)
+SELECT f.placa, f.modalidade, f.tipo,
+       h.ultima AS ultima_viagem,
+       coalesce(h.viagens_historicas, 0) AS viagens_historicas,
+       CASE WHEN h.ultima IS NULL THEN NULL
+            ELSE (current_date - h.ultima) END AS dias_parado
+FROM frota f
+LEFT JOIN historia h ON h.placa = f.placa
+LEFT JOIN janela j ON j.placa = f.placa
+WHERE j.placa IS NULL
+ORDER BY h.viagens_historicas DESC NULLS LAST, h.ultima DESC NULLS LAST
+"""
+
+# Denominador dos KPIs de ociosidade: quantos tração próprios/locados existem.
+PROD_FROTA_SQL = """
+SELECT count(*)::int AS n
+FROM veiculo v
+LEFT JOIN utilizacaoveiculo u ON u.codigo = v.utilizacaoveiculo
+LEFT JOIN tipoveiculo tv ON tv.codigo = v.tipoveiculo
+WHERE v.ativoinativo = 1
+  AND u.descricao IN ('FROTA','LOCACAO')
+  AND NOT (tv.descricao ILIKE 'CARRETA%%' OR tv.descricao ILIKE 'EMPILHADEIRA%%'
+           OR tv.descricao ILIKE 'GERADOR%%' OR tv.descricao ILIKE 'AUTOM%%VEL'
+           OR tv.descricao IS NULL)
+  AND (v.utilizacaoveiculo = %(modalidade)s OR %(modalidade)s::text IS NULL)
+"""
+
+
+def _prod_enrich(d: dict) -> dict:
+    """Deriva os índices que a tela lê, com as ausências marcadas.
+
+    `retorno_vazio` vira None quando NÃO HÁ km vazio lançado e a modalidade é
+    a que sabidamente não lança (terceiro): zero ali é ausência de registro, e
+    zero em verde faria o terceiro parecer o mais eficiente da frota.
+    """
+    carr, vaz = d.get("km_carregado") or 0.0, d.get("km_vazio") or 0.0
+    total = carr + vaz
+    d["km_total"] = total
+    modal = (d.get("modalidade") or "").upper()
+    sem_lancamento = vaz == 0 and modal.startswith("TERCEIRO")
+    d["retorno_vazio"] = None if (sem_lancamento or not total) else vaz / total
+    d["vazio_nao_lancado"] = sem_lancamento
+    d["rkm"] = (d["receita"] / carr) if carr else None
+    dias = d.get("dias_ativos")
+    d["km_por_dia_ativo"] = (carr / dias) if dias else None
+    return d
+
+
+def get_produtividade_veiculos(filial: int | None, dt_de: str, dt_ate: str,
+                               modalidade: str | None = None,
+                               limite: int = 40) -> dict:
+    params = {"filial": filial, "dt_de": dt_de, "dt_ate": dt_ate,
+              "modalidade": modalidade}
+    with db.get_conn() as conn, conn.cursor() as cur:
+        cur.execute(PROD_KPI_SQL, params)
+        kpis = cur.fetchone() or {}
+        cur.execute(PROD_MENSAL_SQL, params)
+        mensal = cur.fetchall()
+        cur.execute(PROD_MODAL_SQL, params)
+        modalidades = cur.fetchall()
+        cur.execute(PROD_VEIC_SQL, params)
+        veiculos = cur.fetchall()
+        cur.execute(PROD_PARADOS_SQL, params)
+        parados = cur.fetchall()
+        cur.execute(PROD_FROTA_SQL, params)
+        frota = cur.fetchone() or {"n": 0}
+        cur.execute("SELECT current_timestamp AS ts")
+        meta = cur.fetchone()
+
+    for linha in (kpis, *mensal, *modalidades, *veiculos):
+        _prod_enrich(linha)
+
+    # OS PARADOS SE SEPARAM EM DOIS, e misturá-los seria crying wolf: dos 20
+    # que a consulta traz hoje, 14 NUNCA rodaram — placas sequenciais, zero
+    # viagem na história. Isso é cadastro a corrigir, não veículo ocioso. Só
+    # quem já produziu alguma vez entra no número que cobra ação.
+    ociosos = [x for x in parados if x["viagens_historicas"] > 0]
+    nunca = [x for x in parados if x["viagens_historicas"] == 0]
+
+    total_veic = kpis.get("veiculos") or 0
+    carr = kpis.get("km_carregado") or 0.0
+    kpis["km_por_veiculo"] = (carr / total_veic) if total_veic else None
+    kpis["receita_por_veiculo"] = ((kpis.get("receita") or 0.0) / total_veic
+                                   if total_veic else None)
+    kpis["frota_ociosa_base"] = frota["n"]
+    kpis["ociosos"] = len(ociosos)
+    kpis["nunca_rodaram"] = len(nunca)
+    kpis["ociosidade"] = (len(ociosos) / frota["n"]) if frota["n"] else None
+
+    return {
+        "kpis": kpis,
+        "mensal": mensal,
+        "modalidades": modalidades,
+        "veiculos": veiculos[:limite],
+        "veiculos_total": len(veiculos),
+        "ociosos": ociosos,
+        "nunca_rodaram": nunca,
+        "filtros": {"filial": filial, "dt_de": dt_de, "dt_ate": dt_ate,
+                    "modalidade": modalidade},
+        "fonte": "AVA · programacaoembarque × veiculo",
+        "ts": meta["ts"].isoformat() if meta and meta.get("ts") else None,
+    }

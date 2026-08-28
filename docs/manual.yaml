@@ -183,11 +183,12 @@ grupos:
   - anrntrc
 - nome: Business Intelligence
   resumo: >-
-    A área onde ficam os painéis de leitura da empresa inteira. Começa com os
-    painéis de TV, que são uma família dentro dela: telas de mural, sem
-    interação e sem tooltip — cada número precisa se explicar sozinho, de
-    longe, para quem passa pelo corredor.
+    A área onde ficam os painéis de leitura da empresa inteira: quem produz,
+    quanto, e o que exige ação. Os painéis de TV são uma família dentro dela —
+    telas de mural, sem interação e sem tooltip, em que cada número precisa se
+    explicar sozinho, de longe, para quem passa pelo corredor.
   telas:
+  - prodveic
   - tvfat
   - tvope
 - nome: Administração

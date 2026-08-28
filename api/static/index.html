@@ -1351,6 +1351,7 @@ body.tvfull #btnReport,body.tvmode #btnReport{display:none}
           <a href="#tvfat" class="sub sub2" data-view="tvfat" title="Painel de Faturamento para TV"><span class="ic" data-ic="tvfatic"></span><span>Faturamento</span></a>
           <a href="#tvope" class="sub sub2" data-view="tvope" title="Painel de Operação para TV"><span class="ic" data-ic="tv"></span><span>Operação</span></a>
         </div>
+        <a href="#prodveic" class="sub" data-view="prodveic" title="Produtividade de Veículos — quanto cada veículo produz e quem produz pouco"><span class="ic" data-ic="kmv"></span><span>Produtividade de Veículos</span></a>
       </div>
       <button class="group" id="grpCom" aria-expanded="false" aria-controls="subsCom" onclick="toggleGroup('grpCom','subsCom','cs.comGroup')" title="Comercial">
         <span class="ic" data-ic="com"></span><span>Comercial</span><span class="ic chev" data-ic="chev"></span>
@@ -1648,7 +1649,7 @@ body.tvfull #btnReport,body.tvmode #btnReport{display:none}
         <div class="rangegrp" id="grpKm" style="display:none">
           <div class="field">
             <label for="fKmTipo">Modalidade</label>
-            <select id="fKmTipo" onchange="loadKm()">
+            <select id="fKmTipo" onchange="currentView()==='prodveic'?loadProdveic():loadKm()">
               <option value="">Todas</option>
               <option value="TRA">Frota</option>
               <option value="LOC">Locação</option>
@@ -3750,6 +3751,59 @@ body.tvfull #btnReport,body.tvmode #btnReport{display:none}
       </section>
 
       <!-- ===================== ANÁLISE DE KM ===================== -->
+      <section class="view" id="view-prodveic">
+        <div class="kpis k4" id="kpis-prodveic"></div>
+        <div class="card">
+          <div class="head"><h2>Km carregado e veículos ativos por mês <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="programacaoembarque (não cancelada, semáforo = 1, número &lt; 1.000.000) × veiculo × tipoveiculo, pela data de emissão. Km = kmfretecompra; CARREGADO = tipo ≠ 3, VAZIO = tipo = 3; receita = valorfrete. SÓ VEÍCULOS DE TRAÇÃO: a viagem é lançada na placa do cavalo, e carreta nunca aparece — incluí-las poria 643 implementos ativos na conta como se estivessem parados. A barra é o km carregado do mês; a linha é quantos veículos DIFERENTES rodaram nele. As duas juntas respondem se o km cresceu porque a frota produziu mais ou porque entrou mais veículo.">i</span></h2><span class="hint" id="hintProdMes">no período filtrado</span></div>
+          <div class="legend">
+            <span class="k"><i class="sw" style="background:var(--green)"></i>Km carregado</span>
+            <span class="k"><i class="sw hatch"></i>Mês parcial (corrente ou cortado pelo filtro)</span>
+            <span class="k"><i class="ln" style="border-top-color:var(--navy-700)"></i>Veículos que rodaram</span>
+          </div>
+          <div class="chartwrap" id="wrapProd">
+            <svg id="chartProd" viewBox="0 0 960 250" preserveAspectRatio="xMidYMid meet"
+                 tabindex="0" role="img" aria-label="Quilômetros carregados por mês e número de veículos que rodaram."></svg>
+            <div class="tip" id="tipProd"></div>
+          </div>
+        </div>
+        <div class="card">
+          <div class="head"><h2>Produtividade por modalidade <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="programacaoembarque (não cancelada, semáforo = 1, número &lt; 1.000.000) × veiculo × tipoveiculo, pela data de emissão. Km = kmfretecompra; CARREGADO = tipo ≠ 3, VAZIO = tipo = 3; receita = valorfrete. SÓ VEÍCULOS DE TRAÇÃO: a viagem é lançada na placa do cavalo, e carreta nunca aparece — incluí-las poria 643 implementos ativos na conta como se estivessem parados. Km por veículo = km carregado ÷ veículos DISTINTOS que rodaram naquela modalidade no período — não é a frota cadastrada, é quem de fato rodou. RKM = receita ÷ km carregado. “n/d” no retorno vazio significa que a modalidade não lança o deslocamento vazio no ERP: é o caso do terceiro, com 0 km vazio em 256 viagens. Zero ali seria ausência de registro, não eficiência.">i</span></h2><span class="hint">no período filtrado</span></div>
+          <div class="tablewrap"><table><thead><tr>
+            <th>Modalidade</th><th class="num">Veículos</th><th class="num">Viagens</th>
+            <th class="num">Km carregado</th><th class="num">Km por veículo</th>
+            <th class="num">Retorno vazio</th><th class="num">Receita</th><th class="num">RKM</th>
+          </tr></thead><tbody id="prod-modal"></tbody></table></div>
+        </div>
+        <div class="card">
+          <div class="head"><h2>Produtividade por veículo <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="programacaoembarque (não cancelada, semáforo = 1, número &lt; 1.000.000) × veiculo × tipoveiculo, pela data de emissão. Km = kmfretecompra; CARREGADO = tipo ≠ 3, VAZIO = tipo = 3; receita = valorfrete. SÓ VEÍCULOS DE TRAÇÃO: a viagem é lançada na placa do cavalo, e carreta nunca aparece — incluí-las poria 643 implementos ativos na conta como se estivessem parados. DIAS ATIVOS = dias distintos em que houve viagem daquela placa, e é o denominador da produtividade real: 10 mil km em 90 dias e 10 mil km em 12 dias são veículos diferentes. Km/dia usa esse denominador, não o calendário — um veículo que ficou 60 dias na oficina não é comparado como se tivesse rodado o período inteiro.">i</span></h2><span class="hint" id="hintProdVeic"></span></div>
+          <div class="tablewrap tabroll"><table><thead><tr>
+            <th scope="col">Placa</th><th scope="col">Modalidade</th>
+            <th class="num" scope="col">Viagens</th><th class="num" scope="col">Dias ativos</th>
+            <th class="num" scope="col">Km carregado</th><th class="num" scope="col">Km/dia ativo</th>
+            <th class="num" scope="col">Retorno vazio</th><th class="num" scope="col">Receita</th>
+            <th class="num" scope="col">RKM</th>
+          </tr></thead><tbody id="prod-veic"></tbody></table></div>
+        </div>
+        <div class="grid2">
+          <div class="card">
+            <div class="head"><h2>Parados no período <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="Veículos de TRAÇÃO, ATIVOS no cadastro, de frota própria ou locação, sem nenhuma viagem na janela filtrada — e que JÁ RODARAM alguma vez. O recorte por modalidade é deliberado: agregado e terceiro parados não custam nada à Sulista, e contá-los repetiria o erro de denominador do painel de rastreadores. Quem nunca rodou está no cartão ao lado, porque é cadastro e não ociosidade.">i</span></h2><span class="hint" id="hintProdParados">ordenado por histórico — quem mais produzia primeiro</span></div>
+            <div class="tablewrap tabroll"><table><thead><tr>
+              <th>Placa</th><th>Modalidade</th><th class="num">Parado há</th>
+              <th>Última viagem</th><th class="num">Viagens na história</th>
+            </tr></thead><tbody id="prod-parados"></tbody></table></div>
+          </div>
+          <div class="card">
+            <div class="head"><h2>Nunca rodaram — cadastro a conferir <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="Veículos de tração ativos, próprios ou locados, com ZERO viagem em toda a história do ERP. Não é ociosidade: é veículo que nunca entrou em operação, placa cadastrada por engano, ou implemento classificado como tração. Fica FORA do indicador de parados de propósito — misturado, ele dobraria o número e a tela viraria alarme falso.">i</span></h2><span class="hint" id="hintProdNunca"></span></div>
+            <div class="tablewrap tabroll"><table><thead><tr>
+              <th>Placa</th><th>Modalidade</th><th>Tipo cadastrado</th>
+            </tr></thead><tbody id="prod-nunca"></tbody></table></div>
+          </div>
+        </div>
+        <div class="card">
+          <div class="head"><h2>Alertas <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="Regras fixas sobre os números desta tela: veículos próprios/locados parados com histórico de produção, concentração do km em poucos veículos e retorno vazio acima da referência de 20% para FTL.">i</span></h2></div>
+          <div class="alerts" id="prod-alertas"></div>
+        </div>
+      </section>
       <section class="view" id="view-km">
         <div class="kpis" id="kpis-km"></div>
         <div class="card">
@@ -4372,7 +4426,7 @@ const FAIXAS = {
   '4_vencido_91_365':['Vencido 91–365d','b-dang'],
   '5_vencido_mais_365':['Vencido > 365d','b-dang'],
 };
-const VIEWS = { home:'Visão Geral', fluxo:'Fluxo de Caixa e Bancos', receber:'Contas a Receber', pagar:'Contas a Pagar', oc:'Ordens de Compra', custos:'Painel de Custos', agr:'Agregados e Terceiros', mvb:'Make vs Buy', comb:'Combustível', man:'Manutenção', com:'Clientes e RKM', clif:'Consulta de Cliente', crm:'CRM — Leads e Projetos', km:'Análise de KM', torre:'Torre de Controle', poli:'Permanência na Planta', ctecp:'CT-e de Contrapartida', veic:'Veículos', veicf:'Consulta de Veículo', mprev:'Manutenção Preventiva', comrast:'Comunicação Rastreadora', mul:'Multas', prog:'Programação Inteligente', jorn:'Jornada do Motorista', jornf:'Ficha de Jornada', cex:'Custos Extras', sac:'SAC / Freetime', port:'Portaria', cop:'Copiloto Cortex', cob:'Régua de Cobrança', banc:'Bancos', extb:'Extrato Bancário', lanc:'Lançamentos Bancários', antec:'Antecipação de Recebíveis', antport:'Portais de Antecipação', milkrun:'Operação MWM', rec:'Lançamentos Recorrentes', fluxcon:'Fluxo de Caixa Consolidado', cont:'Contabilidade', qual:'Qualidade e Certidões', orc:'Orçamento', fech:'Fechamento do Mês', prem:'Premiação de Motoristas', dre:'DRE Gerencial', bal:'Balanço Patrimonial', drecli:'DRE por Cliente', tvfat:'Painel TV — Faturamento', tvope:'Painel TV — Operação', rh:'RH — Vagas', hc:'Headcount', folha:'Custo de Folha', folhaind:'Indicadores de Folha', he:'Horas Extras', cnh:'CNH dos Motoristas', ferias:'Férias — Vencimento', people:'People Analytics', pneus:'Pneus', gestao:'Gestão', srv:'Saúde do Servidor', doc:'Documentação', anpiso:'Piso Mínimo de Frete', anrntrc:'RNTRC dos Transportadores', telcon:'Consumo e Estatísticas', telcond:'Condução Econômica', telhod:'Hodômetro e Rastro' };
+const VIEWS = { home:'Visão Geral', fluxo:'Fluxo de Caixa e Bancos', receber:'Contas a Receber', pagar:'Contas a Pagar', oc:'Ordens de Compra', custos:'Painel de Custos', agr:'Agregados e Terceiros', mvb:'Make vs Buy', comb:'Combustível', man:'Manutenção', com:'Clientes e RKM', clif:'Consulta de Cliente', crm:'CRM — Leads e Projetos', km:'Análise de KM', prodveic:'Produtividade de Veículos', torre:'Torre de Controle', poli:'Permanência na Planta', ctecp:'CT-e de Contrapartida', veic:'Veículos', veicf:'Consulta de Veículo', mprev:'Manutenção Preventiva', comrast:'Comunicação Rastreadora', mul:'Multas', prog:'Programação Inteligente', jorn:'Jornada do Motorista', jornf:'Ficha de Jornada', cex:'Custos Extras', sac:'SAC / Freetime', port:'Portaria', cop:'Copiloto Cortex', cob:'Régua de Cobrança', banc:'Bancos', extb:'Extrato Bancário', lanc:'Lançamentos Bancários', antec:'Antecipação de Recebíveis', antport:'Portais de Antecipação', milkrun:'Operação MWM', rec:'Lançamentos Recorrentes', fluxcon:'Fluxo de Caixa Consolidado', cont:'Contabilidade', qual:'Qualidade e Certidões', orc:'Orçamento', fech:'Fechamento do Mês', prem:'Premiação de Motoristas', dre:'DRE Gerencial', bal:'Balanço Patrimonial', drecli:'DRE por Cliente', tvfat:'Painel TV — Faturamento', tvope:'Painel TV — Operação', rh:'RH — Vagas', hc:'Headcount', folha:'Custo de Folha', folhaind:'Indicadores de Folha', he:'Horas Extras', cnh:'CNH dos Motoristas', ferias:'Férias — Vencimento', people:'People Analytics', pneus:'Pneus', gestao:'Gestão', srv:'Saúde do Servidor', doc:'Documentação', anpiso:'Piso Mínimo de Frete', anrntrc:'RNTRC dos Transportadores', telcon:'Consumo e Estatísticas', telcond:'Condução Econômica', telhod:'Hodômetro e Rastro' };
 const periodoLabel = p => { if(p==='atrasado') return 'Atrasado'; const [y,m]=p.split('-'); return MES[+m-1]+'/'+y.slice(2); };
 const fmtD = s => { if(!s) return ''; const [y,m,dd]=s.split('-'); return dd+'/'+m+'/'+y; };
 /* Idade da posicao bancaria. Cada conta e lancada num dia diferente: mostrar
@@ -4590,7 +4644,7 @@ const VIEW_GROUP = {home:'',cop:'',
   torre:'Ope',milkrun:'Ope',poli:'Ope',prog:'Ope',jorn:'Ope',jornf:'Ope',cex:'Ope',sac:'Ope',port:'Ope',km:'Ope',agr:'Ope',mvb:'Ope',
   veic:'Fro',veicf:'Fro',mprev:'Fro',comrast:'Fro',comb:'Fro',man:'Fro',mul:'Fro',pneus:'Fro',
   oc:'Sup',custos:'Sup',
-  tvfat:'Bi',tvope:'Bi',
+  prodveic:'Bi',tvfat:'Bi',tvope:'Bi',
   rh:'Rh',hc:'Rh',folha:'Rh',folhaind:'Rh',he:'Rh',cnh:'Rh',ferias:'Rh',people:'Rh',gestao:'Adm',srv:'Adm',doc:'Adm',
   // Telemetria e ANTT tinham grupo na barra lateral mas ficaram de fora deste
   // mapa: o acordeao nao abria sozinho ao navegar para elas (agora a busca
@@ -4653,6 +4707,14 @@ function qsView(k){
     if(V('fEmiAte'))p.set('dt_ate',V('fEmiAte'));
     if(V('fAgrTipo'))p.set('modalidade',V('fAgrTipo'));
     if(T('fAgrTransp'))p.set('transportador',T('fAgrTransp'));
+  } else if(k==='prodveic'){
+    /* Mesmos filtros da Analise de KM — sao a mesma pergunta recortada de dois
+       jeitos, e ter vocabulario diferente faria o usuario achar que o recorte
+       mudou ao trocar de tela. */
+    if(V('fFilial'))p.set('filial',V('fFilial'));
+    if(V('fEmiDe'))p.set('dt_de',V('fEmiDe'));
+    if(V('fEmiAte'))p.set('dt_ate',V('fEmiAte'));
+    if(V('fKmTipo'))p.set('modalidade',V('fKmTipo'));
   } else if(k==='anpiso'){
     if(V('fFilial'))p.set('filial',V('fFilial'));
     if(V('fEmiDe'))p.set('dt_de',V('fEmiDe'));
@@ -4827,7 +4889,7 @@ function router(){
   navRegistraUso(v);
   syncGroups(v);
   const anpiso = (v==='anpiso');
-  const dre = (v==='dre'), oc = (v==='oc'), agr = (v==='agr'), mvb = (v==='mvb'), comb = (v==='comb'), man = (v==='man'), com = (v==='com'), home = (v==='home'), kmv = (v==='km'), torre = (v==='torre'), veic = (v==='veic'), mul = (v==='mul'), prog = (v==='prog'), cop = (v==='cop'), cob = (v==='cob'), rent = (v==='rent'), contab = (v==='cont'), dreCli = (v==='drecli'), orc = (v==='orc'), lanc = (v==='lanc'), bal = (v==='bal'), antec = (v==='antec'), fluxcon = (v==='fluxcon'), recorr = (v==='rec');
+  const dre = (v==='dre'), oc = (v==='oc'), agr = (v==='agr'), mvb = (v==='mvb'), comb = (v==='comb'), man = (v==='man'), com = (v==='com'), home = (v==='home'), kmv = (v==='km'||v==='prodveic'), torre = (v==='torre'), veic = (v==='veic'), mul = (v==='mul'), prog = (v==='prog'), cop = (v==='cop'), cob = (v==='cob'), rent = (v==='rent'), contab = (v==='cont'), dreCli = (v==='drecli'), orc = (v==='orc'), lanc = (v==='lanc'), bal = (v==='bal'), antec = (v==='antec'), fluxcon = (v==='fluxcon'), recorr = (v==='rec');
   // torre: só filial; auto-refresh de 120s enquanto ativa
   if(torreTimer){ clearInterval(torreTimer); torreTimer=null; }
   if(torre){ torreTimer=setInterval(()=>{ if(currentView()==='torre') loadTorre(true); }, 120000); }
@@ -4887,7 +4949,7 @@ function router(){
   // divergem dos usados na última carga (nunca mostrar dado velho com filtro novo)
   const key=viewKey(v);
   const DATAMAP={fin:DATA,oc:DATAOC,agr:DATAAGR,anpiso:DATAANPISO,anrntrc:DATAANRNTRC,telcon:DATATELCON,telcond:DATATELCOND,telhod:DATATELHOD,mvb:DATAMVB,comb:DATACOMB,man:DATAMAN,com:DATACOM,clif:DATACLIF,dre:DATADRE,bal:DATABAL,drecli:DATADRECLI,home:DATAHOME,km:DATAKM,torre:DATATORRE,veic:DATAVEIC,veicf:DATAVEICF,mul:DATAMUL,prog:DATAPROG,jorn:DATAJORN,jornf:DATAJORNF,cex:DATACEX,sac:DATASAC,mprev:DATAMPREV,comrast:DATACOMRAST,qual:DATAQUAL,port:DATAPORT,crm:DATACRM,rh:DATARH,hc:DATAHC,folha:DATAFOLHA,folhaind:DATAFOLHAIND,he:DATAHE,custos:DATACUSTOS,cob:DATACOB,banc:DATABANC,extb:DATAEXTB,lanc:DATALANC,antec:DATAANTEC,antport:DATAANTPORT,milkrun:DATAMILK,fluxcon:DATAFLUXCON,rec:DATAREC,rent:DATARENT,cont:DATACONT,orc:DATAORC,fech:DATAFECH,prem:DATAPREM,gestao:DATAGES,srv:DATASRV,doc:DATADOC,tvfat:null,tvope:null,cop:(COP_MSGS.length?{}:null)};
-  const LOADMAP={fin:load,oc:loadOc,agr:loadAgr,anpiso:loadAnpiso,anrntrc:loadAnrntrc,telcon:loadTelcon,telcond:loadTelcond,telhod:loadTelhod,mvb:loadMvb,comb:loadComb,man:loadMan,com:loadCom,clif:loadClif,dre:loadDre,bal:loadBal,drecli:loadDreCli,home:loadHome,km:loadKm,torre:loadTorre,veic:loadVeic,veicf:loadVeicf,mul:loadMul,prog:loadProg,jorn:loadJorn,jornf:loadJornf,cex:loadCex,sac:loadSac,mprev:loadMPrev,comrast:loadComRast,qual:loadQual,port:loadPort,crm:loadCrm,rh:loadRh,hc:loadHc,folha:loadFolha,folhaind:loadFolhaInd,he:loadHe,custos:loadCustos,cob:loadCob,banc:loadBanc,extb:loadExtb,lanc:loadLanc,antec:loadAntec,antport:loadAntport,milkrun:loadMilkrun,cnh:loadCnh,ferias:loadFerias,people:loadPeople,pneus:loadPneus,poli:loadPoli,ctecp:loadCtecp,fluxcon:loadFluxcon,rec:loadRec,rent:loadRent,cont:loadCont,orc:loadOrc,fech:loadFech,prem:loadPrem,gestao:loadGestao,srv:loadSrv,doc:loadDoc,cop:loadCop,tvfat:loadTvFat,tvope:loadTvOpe};
+  const LOADMAP={fin:load,oc:loadOc,agr:loadAgr,anpiso:loadAnpiso,anrntrc:loadAnrntrc,telcon:loadTelcon,telcond:loadTelcond,telhod:loadTelhod,mvb:loadMvb,comb:loadComb,man:loadMan,com:loadCom,clif:loadClif,dre:loadDre,bal:loadBal,drecli:loadDreCli,home:loadHome,km:loadKm,prodveic:loadProdveic,torre:loadTorre,veic:loadVeic,veicf:loadVeicf,mul:loadMul,prog:loadProg,jorn:loadJorn,jornf:loadJornf,cex:loadCex,sac:loadSac,mprev:loadMPrev,comrast:loadComRast,qual:loadQual,port:loadPort,crm:loadCrm,rh:loadRh,hc:loadHc,folha:loadFolha,folhaind:loadFolhaInd,he:loadHe,custos:loadCustos,cob:loadCob,banc:loadBanc,extb:loadExtb,lanc:loadLanc,antec:loadAntec,antport:loadAntport,milkrun:loadMilkrun,cnh:loadCnh,ferias:loadFerias,people:loadPeople,pneus:loadPneus,poli:loadPoli,ctecp:loadCtecp,fluxcon:loadFluxcon,rec:loadRec,rent:loadRent,cont:loadCont,orc:loadOrc,fech:loadFech,prem:loadPrem,gestao:loadGestao,srv:loadSrv,doc:loadDoc,cop:loadCop,tvfat:loadTvFat,tvope:loadTvOpe};
   if(!DATAMAP[key] || (key!=='home' && LOADEDQS[key]!==qsView(key))) LOADMAP[key]();
   // mobile: estado da navegação inferior + fecha gaveta/painel de filtros
   document.querySelectorAll('.bottomnav [data-bview]').forEach(a=>a.classList.toggle('ativo', a.dataset.bview===v));
@@ -6684,7 +6746,7 @@ function reloadCurrent(){
   // mapa COMPLETO: qualquer filtro compartilhado (Filial, datas, competência)
   // recarrega a TELA ATUAL — antes caía em load() (Financeiro) para várias telas.
   const M={home:loadHome,fluxo:load,receber:load,pagar:load,dre:loadDre,drecli:loadDreCli,oc:loadOc,
-    agr:loadAgr,mvb:loadMvb,comb:loadComb,man:loadMan,com:loadCom,clif:loadClif,km:loadKm,
+    agr:loadAgr,mvb:loadMvb,comb:loadComb,man:loadMan,com:loadCom,clif:loadClif,km:loadKm,prodveic:loadProdveic,
     torre:loadTorre,veic:loadVeic,veicf:loadVeicf,mul:loadMul,prog:loadProg,jorn:loadJorn,jornf:loadJornf,cex:loadCex,sac:loadSac,mprev:loadMPrev,comrast:loadComRast,qual:loadQual,port:loadPort,crm:loadCrm,rh:loadRh,hc:loadHc,folha:loadFolha,folhaind:loadFolhaInd,he:loadHe,custos:loadCustos,cob:loadCob,banc:loadBanc,extb:loadExtb,rent:loadRent,
     cont:loadCont,orc:loadOrc,fech:loadFech,prem:loadPrem,gestao:loadGestao,srv:loadSrv,doc:loadDoc,cop:loadCop,tvfat:loadTvFat,tvope:loadTvOpe};
   (M[currentView()]||load)();
@@ -14991,6 +15053,204 @@ async function torreMapa(){
 
 /* ---------------- Análise de KM ---------------- */
 const fmtKm2 = v => v!=null ? v.toLocaleString('pt-BR',{maximumFractionDigits:0})+' km' : '—';
+/* ============ Produtividade de Veículos (Business Intelligence) ============
+   O que a tela responde: quanto cada veículo produz, e quem produz pouco.
+
+   TRÊS DECISÕES QUE VIERAM DO DADO, não do desenho (medidas antes de existir
+   tela — ver o comentário do SQL em api/queries.py):
+
+   1. Só TRAÇÃO. A viagem é lançada na placa do cavalo; carreta nunca aparece.
+      Sem o recorte, 643 implementos ativos entrariam como "parados".
+   2. Ociosidade só de quem CUSTA parado (frota + locação). Terceiro tem 594
+      tração ativos e 43 rodando: contá-los repetiria o erro do painel de
+      rastreadores, que acusava 664 sem sinal sendo 341 de terceiro.
+   3. "Parados" e "nunca rodaram" são cartões SEPARADOS. Dos 20 que a consulta
+      traz, 14 nunca fizeram uma viagem — isso é cadastro. Juntos, o número
+      dobraria e a tela viraria alarme falso. */
+let prodSeq = 0, DATAPROD = null;
+
+async function loadProdveic(){
+  skelKpis('kpis-prodveic', 4);
+  const seq = ++prodSeq;
+  const btn = document.getElementById('btnRefresh');
+  btn.disabled = true;
+  document.getElementById('content').classList.add('loading');
+  try{
+    const q = qsView('prodveic');
+    const r = await fetch('/api/bi/produtividade-veiculos?'+q, {cache:'no-store'});
+    const d = await r.json();
+    if(seq !== prodSeq) return;
+    if(!r.ok){ showBanner(d.mensagem||'Erro ao consultar a produtividade de veículos.', d.detalhe); return; }
+    hideBanner(); DATAPROD = d; renderProdveic(d); LOADEDQS.prodveic = qsView('prodveic');
+  }catch(e){ if(seq===prodSeq) showBanner('Não foi possível falar com a API.', e.message); }
+  finally{ if(seq===prodSeq){ btn.disabled=false; document.getElementById('content').classList.remove('loading'); } }
+}
+
+/* Retorno vazio: `null` é AUSÊNCIA DE LANÇAMENTO, não desempenho. Sai como
+   "n/d" em cinza — jamais como 0% em verde, que faria o terceiro parecer o
+   mais eficiente da frota por não reportar o vazio dele. */
+function prodPct(v){ return v==null ? '—' : pctBR(v*100); }
+
+function prodVazio(v){
+  if(v == null) return '<span style="color:var(--n500)" title="a modalidade não lança o deslocamento vazio no ERP — zero aqui seria ausência de registro, não eficiência">n/d</span>';
+  return prodPct(v);
+}
+
+function renderProdveic(d){
+  const k = d.kpis || {};
+  const nf = n => (n==null ? '—' : Math.round(n).toLocaleString('pt-BR'));
+
+  /* O km por veículo é o número-rei: km total cresce contratando caminhão, e
+     essa divisão mostra se a frota que já existe está produzindo mais. */
+  document.getElementById('kpis-prodveic').innerHTML =
+      kpi('Km carregado', nf(k.km_carregado), `${nf(k.viagens)} viagens · ${nf(k.veiculos)} veículos`, '',
+          'Soma do km das pernas CARREGADAS (tipo ≠ 3) das viagens do período, só de veículos de tração.')
+    + kpi('Km por veículo', nf(k.km_por_veiculo), 'no período, por veículo que rodou', '',
+          'Km carregado ÷ veículos DISTINTOS que rodaram. O denominador é quem rodou, não a frota cadastrada: assim o número não cai só porque entrou placa nova no cadastro.')
+    + kpi('Receita por veículo', k.receita_por_veiculo==null?'—':BRL.format(k.receita_por_veiculo),
+          'frete cobrado do cliente', '',
+          'valorfrete das pernas carregadas ÷ veículos que rodaram. É a receita que a Sulista COBROU, não o que foi pago ao agregado.')
+    + kpi('Parados', `${nf(k.ociosos)}`,
+          `de ${nf(k.frota_ociosa_base)} próprios e locados${k.nunca_rodaram?` · ${nf(k.nunca_rodaram)} nunca rodaram, ao lado`:''}`,
+          (k.ociosos>0?'warn':'ok'),
+          'Tração ativa de frota própria ou locação, sem viagem na janela E com histórico de produção. Agregado e terceiro ficam fora: parados, não custam nada à Sulista. Quem nunca rodou está no cartão de cadastro, para não dobrar o número.',
+          k.ociosidade==null?'':statChip(k.ociosos?'warn':'good', prodPct(k.ociosidade), 'da frota própria e locada de tração'));
+
+  // ---- série mensal
+  const m = d.mensal || [];
+  document.getElementById('hintProdMes').textContent =
+    m.length ? `${m.length} ${m.length===1?'mês':'meses'} no período filtrado` : 'sem viagem no período';
+  desenhaProdMensal(m, d.filtros||{});
+
+  // ---- por modalidade
+  document.getElementById('prod-modal').innerHTML = (d.modalidades||[]).map(x=>`<tr>
+    <td>${esc(x.modalidade)}</td>
+    <td class="num">${nf(x.veiculos)}</td>
+    <td class="num">${nf(x.viagens)}</td>
+    <td class="num">${nf(x.km_carregado)}</td>
+    <td class="num" style="font-weight:600">${nf(x.veiculos ? x.km_carregado/x.veiculos : null)}</td>
+    <td class="num">${prodVazio(x.retorno_vazio)}</td>
+    <td class="num">${BRL.format(x.receita||0)}</td>
+    <td class="num">${x.rkm==null?'—':BRL.format(x.rkm)}</td>
+  </tr>`).join('') || '<tr><td colspan="8">Sem viagem no período.</td></tr>';
+
+  // ---- por veículo (tabela cortada: o hint diz o quanto o recorte explica)
+  const vs = d.veiculos||[], kmMostrado = vs.reduce((a,x)=>a+(x.km_carregado||0),0);
+  document.getElementById('hintProdVeic').textContent =
+    `${vs.length} de ${nf(d.veiculos_total)} veículos · ${prodPct(k.km_carregado?kmMostrado/k.km_carregado:0)} do km — ordenado por km carregado`;
+  document.getElementById('prod-veic').innerHTML = vs.map(x=>`<tr>
+    <td style="font-family:var(--mono)">${esc(x.placa)}</td>
+    <td style="color:var(--n500)">${esc(x.modalidade)}</td>
+    <td class="num">${nf(x.viagens)}</td>
+    <td class="num">${nf(x.dias_ativos)}</td>
+    <td class="num" style="font-weight:600">${nf(x.km_carregado)}</td>
+    <td class="num">${nf(x.km_por_dia_ativo)}</td>
+    <td class="num">${prodVazio(x.retorno_vazio)}</td>
+    <td class="num">${BRL.format(x.receita||0)}</td>
+    <td class="num">${x.rkm==null?'—':BRL.format(x.rkm)}</td>
+  </tr>`).join('') || '<tr><td colspan="9">Sem viagem no período.</td></tr>';
+
+  // ---- parados: a cor gradua pelo TEMPO, e o histórico diz o peso
+  const par = d.ociosos||[];
+  document.getElementById('prod-parados').innerHTML = par.map(x=>{
+    const dias = x.dias_parado;
+    const cor = dias>=180 ? 'var(--red)' : dias>=90 ? 'var(--yellow-700)' : 'inherit';
+    return `<tr>
+      <td style="font-family:var(--mono)">${esc(x.placa)}</td>
+      <td style="color:var(--n500)">${esc(x.modalidade)}</td>
+      <td class="num" style="color:${cor};font-weight:600">${dias==null?'—':nf(dias)+' d'}</td>
+      <td>${x.ultima_viagem?fmtD(x.ultima_viagem):'—'}</td>
+      <td class="num">${nf(x.viagens_historicas)}</td>
+    </tr>`;
+  }).join('') || '<tr><td colspan="5">Nenhum veículo próprio ou locado parado no período.</td></tr>';
+
+  // ---- nunca rodaram
+  const nunca = d.nunca_rodaram||[];
+  document.getElementById('hintProdNunca').textContent =
+    nunca.length ? `${nunca.length} ${nunca.length===1?'placa':'placas'} — não entram no indicador de parados` : 'nenhuma';
+  document.getElementById('prod-nunca').innerHTML = nunca.map(x=>`<tr>
+    <td style="font-family:var(--mono)">${esc(x.placa)}</td>
+    <td style="color:var(--n500)">${esc(x.modalidade)}</td>
+    <td style="color:var(--n500)">${esc(x.tipo)}</td>
+  </tr>`).join('') || '<tr><td colspan="3">Nenhuma.</td></tr>';
+
+  // ---- alertas
+  const al = [];
+  if(par.length){
+    const pior = par[0];
+    al.push(['t-warn', `${par.length} ${par.length===1?'veículo':'veículos'} de frota própria ou locação sem viagem no período`,
+      `O de maior histórico é ${pior.placa} (${nf(pior.viagens_historicas)} viagens, parado há ${nf(pior.dias_parado)} dias). Veículo próprio parado custa depreciação, IPVA e seguro; locado custa aluguel.`]);
+  }
+  if(nunca.length){
+    al.push(['t-info', `${nunca.length} placas de tração ativas nunca fizeram uma viagem`,
+      'Isso é cadastro, não ociosidade: placa que nunca entrou em operação, baixa não registrada ou implemento classificado como tração. Conferir antes de tratar como frota disponível.']);
+  }
+  if(k.retorno_vazio!=null && k.retorno_vazio > 0.20){
+    al.push(['t-warn', `Retorno vazio em ${prodPct(k.retorno_vazio)} — acima da referência de 20% para FTL`,
+      `São ${nf(k.km_vazio)} km rodados sem receita no período.`]);
+  }
+  const top5 = vs.slice(0,5).reduce((a,x)=>a+(x.km_carregado||0),0);
+  if(k.km_carregado && vs.length>=5 && top5/k.km_carregado > 0.25){
+    al.push(['t-info', `Os 5 veículos mais produtivos fazem ${prodPct(top5/k.km_carregado)} do km`,
+      'Concentração alta significa que a parada de um deles derruba o volume — vale conferir se há dependência de motorista ou de rota.']);
+  }
+  document.getElementById('prod-alertas').innerHTML = al.length
+    ? al.map(([c,t,x])=>`<div class="toast ${c}"><b>${esc(t)}</b>${esc(x)}</div>`).join('')
+    : '<div class="toast t-ok"><b>Nada exigindo ação</b>Nenhum veículo próprio parado, retorno vazio dentro da referência e produção distribuída.</div>';
+}
+
+/* Barras de km + linha de veículos ativos. Duas escalas no mesmo eixo, então a
+   linha vai ROTULADA ponto a ponto: sem rótulo direto, uma série em eixo
+   secundário sem escala é um desenho bonito que não se lê. */
+function desenhaProdMensal(m, filtros){
+  const svg = document.getElementById('chartProd');
+  if(!m.length){ svg.innerHTML=''; return; }
+  const W=960, H=250, ml=70, mr=48, mt=18, mb=34;
+  const iw=W-ml-mr, ih=H-mt-mb;
+  const kmMax = Math.max(...m.map(x=>x.km_carregado||0), 1);
+  const vMax  = Math.max(...m.map(x=>x.veiculos||0), 1);
+  const esc0 = v => ih - (v/kmMax)*ih;
+  const barW = Math.min(46, iw/m.length*0.6);
+  const px = i => ml + (iw/m.length)*(i+0.5);
+  // Rótulo com a unidade FINAL: "MIL KM ×1000" obrigava o leitor a multiplicar
+  // de cabeça e era lido como mil valendo milhão (lição da Análise de KM).
+  const un = kmMax >= 1.5e6 ? {d:1e6, rot:'MILHÕES DE KM'}
+           : kmMax >= 1500  ? {d:1e3, rot:'MIL KM'}
+           : {d:1, rot:'KM'};
+  un.fmt = v => (v/un.d).toLocaleString('pt-BR',{maximumFractionDigits: un.d>1?1:0});
+  let out = `<g transform="translate(0,${mt})">`;
+  // grade + eixo do km, com a unidade FINAL no rótulo (nunca "×1000")
+  for(let i=0;i<=4;i++){
+    const y=ih-(ih/4)*i, v=(kmMax/4)*i;
+    out += `<line x1="${ml}" x2="${W-mr}" y1="${y}" y2="${y}" stroke="var(--n200)" stroke-width="1"/>`
+        +  `<text x="${ml-8}" y="${y+4}" text-anchor="end" font-size="10" fill="#6E7883" font-family="IBM Plex Mono,monospace">${un.fmt(v)}</text>`;
+  }
+  out += `<text x="${ml-8}" y="-4" text-anchor="end" font-size="11" fill="#6E7883" font-weight="600" letter-spacing="1.5">${un.rot}</text>`;
+  m.forEach((x,i)=>{
+    const h = ih-esc0(x.km_carregado||0), y = esc0(x.km_carregado||0);
+    const parcial = comParcial(x.mes, filtros.dt_de, filtros.dt_ate);
+    out += `<rect x="${px(i)-barW/2}" y="${y}" width="${barW}" height="${Math.max(0,h)}" rx="3" `
+        +  `fill="${parcial?'url(#hatchProd)':'var(--green)'}" data-i="${i}"/>`;
+    out += `<text x="${px(i)}" y="${ih+16}" text-anchor="middle" font-size="10" fill="#6E7883">${MES[+x.mes.slice(5,7)-1]}/${x.mes.slice(2,4)}</text>`;
+    if(parcial) out += `<text x="${px(i)}" y="${ih+28}" text-anchor="middle" font-size="9" fill="#9AA3AE">parcial</text>`;
+  });
+  // linha de veículos, rotulada ponto a ponto
+  const ly = v => ih - (v/vMax)*ih*0.82;
+  out += `<polyline fill="none" stroke="var(--navy-700)" stroke-width="2.5" points="`
+      +  m.map((x,i)=>`${px(i)},${ly(x.veiculos||0)}`).join(' ') + `"/>`;
+  m.forEach((x,i)=>{
+    out += `<circle cx="${px(i)}" cy="${ly(x.veiculos||0)}" r="3.5" fill="var(--navy-700)"/>`;
+    out += `<text x="${px(i)}" y="${ly(x.veiculos||0)-9}" text-anchor="middle" font-size="10.5" fill="#17344F" font-weight="700" `
+        +  `stroke="#fff" stroke-width="3" paint-order="stroke" stroke-linejoin="round">${x.veiculos}</text>`;
+  });
+  out += '</g>';
+  const defs = '<defs><pattern id="hatchProd" width="6" height="6" '
+    + 'patternTransform="rotate(45)" patternUnits="userSpaceOnUse">'
+    + '<rect width="6" height="6" fill="#1E7F4F"/>'
+    + '<rect width="2.4" height="6" fill="#fff" opacity=".62"/></pattern></defs>';
+  svg.innerHTML = defs + out;
+}
+
 async function loadKm(){
   skelKpis('kpis-km',4);
   const seq = ++kmSeq;
@@ -17110,6 +17370,7 @@ const BUSCA_SINONIMOS = {
   he:['hora extra','banco de horas','sobreaviso'],
   gestao:['usuario','permissao','perfil','acesso','auditoria','senha','email','smtp','integracao','token'],
   srv:['servidor','saude','cpu','disco','memoria'],
+  prodveic:['produtividade','veiculo','veiculos','km por veiculo','ocioso','ociosidade','parado','frota parada','bi'],
   doc:['documentacao','manual','ajuda','glossario','versao'],
   cop:['copiloto','ia','perguntar','chat'],
   home:['visao geral','resumo','inicio','dashboard'],
@@ -18802,6 +19063,7 @@ boot();
       <div class="dgrp-b">
         <a href="#tvfat" onclick="fecharDrawer()"><span class="ic" data-ic="tvfatic"></span>Painéis TV — Faturamento</a>
         <a href="#tvope" onclick="fecharDrawer()"><span class="ic" data-ic="tv"></span>Painéis TV — Operação</a>
+        <a href="#prodveic" onclick="fecharDrawer()"><span class="ic" data-ic="kmv"></span>Produtividade de Veículos</a>
       </div>
     </div>
     <div class="dgrp" data-grp="Com">

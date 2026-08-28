@@ -79,6 +79,7 @@ _SNAP_TTL = 600      # 10 min: o snapshot custa ~12 consultas no ERP
 # usuário conhece. O front mostra essa lista no ⓘ de procedência — quem lê a
 # resposta precisa saber o que a IA viu (e o que ela NÃO viu).
 _FONTES_ROTULO = {
+    "produtividade_veiculos": "Produtividade de Veículos",
     "visao_geral": "Visão Geral",
     "financeiro_caixa": "Fluxo de Caixa e Bancos",
     "analise_km_ano": "Análise de KM",
@@ -260,6 +261,14 @@ def _fontes_do_snapshot() -> dict:
         "torre_seguranca": lambda: queries.get_seguranca(),
         "programacao_disponibilidade": lambda: queries.get_programacao(),
         "frota": lambda: queries.get_veiculos(),
+        # Produtividade por veiculo: 90 dias, a mesma janela padrao da tela.
+        # So KPIs escalares vao para o prompt (o filtro de PII do snapshot
+        # descarta placa, nome e CNPJ) — o que sobra e km por veiculo,
+        # receita por veiculo e quantos estao parados, que e o que o gestor
+        # pergunta no chat.
+        "produtividade_veiculos": lambda: queries.get_produtividade_veiculos(
+            None, (date.today() - timedelta(days=90)).isoformat(),
+            date.today().isoformat()),
         "antt_piso": _antt_piso,
         "antt_rntrc": _antt_rntrc,
         "telemetria_consumo": _telemetria,

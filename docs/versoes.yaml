@@ -1,3 +1,36 @@
+- versao: "0.117.0"
+  data: "2026-08-27"
+  adicionado:
+    - >-
+      Primeiro painel da area de Business Intelligence: PRODUTIVIDADE DE
+      VEICULOS. Responde quanto cada veiculo produz e quem produz pouco - km
+      por veiculo, receita por veiculo, dias em que de fato rodou, km por dia
+      ativo, retorno vazio e RKM, com o ranking dos 40 maiores e o quanto eles
+      explicam do total.
+    - >-
+      O painel separa PARADO de NUNCA RODOU, e essa distincao e o coracao dele.
+      Sao 6 veiculos proprios ou locados com historico de producao sem viagem
+      no periodo - um deles com 873 viagens, parado ha 99 dias - contra 2
+      placas que nunca fizeram viagem nenhuma, que sao cadastro a conferir e
+      NAO ociosidade. Juntos, o numero dobraria e a tela viraria alarme falso.
+    - >-
+      Km por dia ATIVO, e nao por dia de calendario: 10 mil km em 90 dias e 10
+      mil km em 12 dias sao veiculos diferentes, e a media por veiculo esconde
+      isso. Assim um caminhao que passou dois meses na oficina nao e comparado
+      como se tivesse rodado o periodo inteiro.
+  corrigido:
+    - >-
+      O recorte de "quem puxa frete" foi medido no banco, nao suposto: carreta,
+      empilhadeira e gerador nunca aparecem numa viagem (ela e lancada na placa
+      do cavalo), e AUTOMOVEL tambem nao - sao 12 carros da administracao com
+      zero viagem em 12 meses, contra 19 de 20 dos caminhoes truck. Sem essa
+      exclusao o painel acusaria 643 implementos "parados" e o denominador da
+      ociosidade sairia com 78 veiculos em vez de 66.
+    - >-
+      Retorno vazio do terceiro aparece como "n/d", nunca como 0%. O ERP nao
+      recebe o deslocamento vazio dele: sao 0 km em 256 viagens. Zero ali faria
+      o terceiro parecer o mais eficiente da frota.
+
 - versao: "0.116.0"
   data: "2026-08-27"
   adicionado:
