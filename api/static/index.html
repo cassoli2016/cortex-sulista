@@ -1069,7 +1069,21 @@ button.avatar{border:0;cursor:pointer}
    seguidos, com tres cartoes falando de certificado em lugares distantes.
    Separadas, o dia a dia abre limpo e a implantacao nao precisa ser
    desmontada depois: some do uso sozinha. */
-.cpabas{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin:-4px 0 2px}
+/* AS ABAS FICAM FIXAS no topo enquanto a tela rola. Sao a navegacao da tela e
+   as listas passam de mil pixels: rolar ate o fim da fila e ter de voltar ao
+   topo so para trocar de aba e a viagem que a barra evita.
+
+   `--n50` e o fundo da pagina: sem ele o conteudo passa POR BAIXO e aparece
+   atras dos chips. A sombra so existe quando ela descola do topo — e o que
+   diferencia "fixa" de "no lugar". */
+.cpabas{display:flex;gap:8px;align-items:center;flex-wrap:wrap;
+  position:sticky;top:0;z-index:6;background:var(--n50);
+  margin:-20px -24px 2px;padding:16px 24px 10px}
+/* O `top:0` mede o VIEWPORT. Como a topbar rola junto, a barra encosta no alto
+   da janela — que e onde ela deve ficar. */
+@supports (animation-timeline: view()){
+  .cpabas{box-shadow:0 6px 12px -10px rgba(20,24,29,.35)}
+}
 /* O cronometro ocupava uma faixa larga com o numero encostado a esquerda e
    todo o resto vazio, e a explicacao vinha como um paragrafo corrido - o
    leitor tinha de garimpar a hora da ultima passagem no meio da frase. Virou
@@ -1118,6 +1132,33 @@ button.avatar{border:0;cursor:pointer}
 .cp-regua .pontas{display:flex;justify-content:space-between;
   font:500 11px/1 var(--font);color:var(--n500)}
 .cp-crongrid .rel.parado{color:var(--n500)}
+/* GRUPOS DA FILA, marcados na propria linha. Antes o TAC vinha com
+   `opacity:.62` inline: apagava a linha inteira — inclusive o selo, que perdia
+   a cor — e esmaecer e a marca de "menos importante", nao de "outra
+   populacao". PJ e TAC nao sao graus da mesma coisa; sao duas listas que nao
+   se somam, e a barra lateral separa as duas sem apagar nenhuma.
+
+   A cor de cada barra e a do selo da coluna Tipo: quem ja associou "ambar =
+   TAC" le a linha inteira sem voltar a coluna. */
+/* HOVER na linha: a fila tem nove colunas e o olho perde a linha no meio do
+   caminho entre o nome e a prestacao. A cor da faixa nao pode ser a mesma do
+   grupo, senao o hover se confunde com a classificacao. */
+.tab tbody tr:hover td{background:var(--n100)}
+.cp-pager{display:flex;align-items:center;gap:10px;justify-content:flex-end;
+  padding:10px 18px 12px;border-top:1px solid var(--n200)}
+.cp-pager .hint{margin-right:auto}
+.tab tr.cp-l-tac:hover td{background:#F4F1EA}
+/* TABELA MAIOR nesta tela: as listas aqui sao de trabalho, percorridas de
+   ponta a ponta, e 430px mostravam nove linhas de vinte e oito. */
+#view-ctecp .tabroll{max-height:560px}
+.tab tr.cp-l-pj  td:first-child{box-shadow:inset 3px 0 0 var(--navy-400)}
+.tab tr.cp-l-tac td:first-child{box-shadow:inset 3px 0 0 var(--yellow)}
+.tab tr.cp-l-tac{background:#FBFAF7}
+.tab tr.cp-l-tac td{color:var(--n500)}
+/* o nome e o selo ficam legiveis: o que esmaece e o DADO da fila, que para o
+   TAC nao se aplica mesmo */
+.tab tr.cp-l-tac td:first-child,
+.tab tr.cp-l-tac td:nth-child(2){color:var(--n700)}
 .cp-crongrid .rel.alerta{color:var(--yellow)}
 /* Aviso de acao: so aparece quando ha o que fazer, e por isso pode ter cor.
    Quando era paragrafo fixo em toda rodada normal, cor nenhuma servia. */
@@ -2967,12 +3008,9 @@ body.tvfull #btnReport,body.tvmode #btnReport{display:none}
             </label>
           </div>
           <div class="tabroll"><table class="tab" id="cpTab"></table></div>
+          <div class="cp-pager" id="cpPaginador" hidden></div>
         </div>
 
-        <div class="card" id="cpAvisosCard" hidden>
-          <div class="head"><h2>Ler com atenção</h2></div>
-          <div id="cpAvisos" class="cpbloco"></div>
-        </div>
               </div>
 
         <div id="cpAbaImplantacao" hidden>
@@ -10728,11 +10766,13 @@ function renderCtecp(d){
            : ((per.de||'')+' a '+(per.ate||'')))
     +(per.busca?(' · filtrado por “'+per.busca+'”'):'')
     +' · varrido em '+fmtDT(f.gerado_em||'');
-  const av=(d.avisos||[]);
+  /* `d.avisos` continua vindo do servidor e NAO e mais desenhado aqui: era
+     uma lista corrida de frases no meio da tela, competindo com os cartoes e
+     com a fila sem dizer o que fazer com nenhuma delas. O campo segue vivo
+     porque o relatorio de e-mail da contrapartida o consome
+     (`api/correio/relatorios.py`) — e porque ele deve voltar a tela em outra
+     forma, ligado ao numero que o originou. */
   CP_VAL = d.validacao || null; cpValidRender();
-  document.getElementById('cpAvisosCard').hidden = !av.length;
-  document.getElementById('cpAvisos').innerHTML =
-    av.map(function(a){ return '<div class="hint">'+esc(a)+'</div>'; }).join('');
 }
 
 /* CATEGORIA PADRAO = cadastro. Dos 88 achados, 76 sao "sem certificado" -
@@ -10963,7 +11003,8 @@ function cpCronDesenha(){
      luz: 'ok' verde (contando) · 'espera' ambar (liberado, aguardando o
      agendador) · 'ruim' vermelho (nao transmite) · 'off' cinza (desligada). */
   let luz='ok', rel='—', cls='parado', leg='próxima rodada';
-  let selo=['b-ok','ligada'], acao='', prog=null;
+  let selo=['b-ok','ligada'], acao='', prog=null, pontas=null;
+  const ultTxt = d.ultima_execucao ? fmtDT(d.ultima_execucao) : '—';
 
   if(d.pilha_ok===false){
     /* A biblioteca que assina e transmite sumiu do ambiente: a rotina passa na
@@ -10988,20 +11029,34 @@ function cpCronDesenha(){
     if(falta>0){ rel=cpRelogio(falta); cls=''; leg='até a próxima rodada'; }
     else{
       /* ZERO SIGNIFICA LIBERADO, NAO DISPARADO: sao dois relogios, e a tarefa
-         do Windows so bate de `passo` em `passo` minutos. O relogio marca
-         00:00 e a luz fica AMBAR — nao verde, porque nada saiu ainda; nao
-         vermelha, porque nada esta errado. */
-      rel='00:00'; cls=''; luz='espera';
-      leg='aguardando o agendador — até '+passo+' min';
-      selo=['b-warn','na hora'];
-      /* Passar do zero por um instante e normal. Passar de DOIS passos nao e:
+         do Windows so bate de `passo` em `passo` minutos.
+
+         O NUMERO NAO PODE CONGELAR EM 00:00. Parado por ate cinco minutos ele
+         se le como tela travada. Aqui o relogio VIRA e passa a contar PARA
+         CIMA dentro da janela do agendador, com a regua medindo essa janela em
+         vez do intervalo: o numero anda a cada segundo e o rotulo diz de
+         quanto e a espera maxima.
+
+         A luz fica AMBAR: nao verde, porque nada saiu ainda; nao vermelha,
+         porque nada esta errado. */
+      const espera = -falta;                 // segundos desde que liberou
+      const janela = passo*60;
+      rel=cpRelogio(espera); cls=''; luz='espera';
+      leg='aguardando o agendador — até '+cpRelogio(janela);
+      selo=['b-warn','na fila do agendador'];
+      prog = Math.min(1, espera/janela);
+      pontas = ['liberada desde '+ultTxt,
+                'o agendador dispara a cada '+passo+' min'];
+      /* Passar do zero por um instante e normal. Passar de DOIS janelas nao e:
          quer dizer que a tarefa nao esta disparando, e a tela tem de acusar em
-         vez de mostrar "na hora" para sempre. */
-      if(-falta > passo*120){
-        luz='ruim'; cls='alerta';
-        leg='há '+cpRelogio(-falta - passo*60)+' além do previsto';
+         vez de contar para sempre. */
+      if(espera > janela*2){
+        luz='ruim'; cls='alerta'; prog=1;
+        leg='há '+cpRelogio(espera - janela)+' além do previsto';
         selo=['b-dang','tarefa parada'];
         acao='A tarefa agendada do Windows parece não estar disparando.';
+        pontas=['liberada desde '+ultTxt,
+                'deveria ter rodado há '+cpRelogio(espera - janela)];
       }
     }
   }
@@ -11012,7 +11067,7 @@ function cpCronDesenha(){
   const bloco=(rotulo, valor)=>
     '<div class="bloco"><span class="rot">'+esc(rotulo)+'</span>'
     +'<span class="val">'+valor+'</span></div>';
-  const ult = d.ultima_execucao ? fmtDT(d.ultima_execucao) : '—';
+  const ult = ultTxt;
   /* `toISOString()` converte para UTC: em UTC-3 a hora saia TRES HORAS a
      frente ("liberada desde 18:06" para uma passagem das 15:01). E a mesma
      armadilha que ja mordeu o filtro de datas desta casa. Formata-se local. */
@@ -11028,13 +11083,13 @@ function cpCronDesenha(){
      intervalo ja correu — que era exatamente o que o numero sozinho nao
      mostrava. Fora do estado "contando" ela nao aparece: barra parada em 0
      pareceria progresso que nao anda. */
+  const pt = pontas || ['última ' + ult, 'próxima ' + prox];
   const regua = (prog===null) ? '' :
     '<div class="cp-regua">'
     + '<div class="trilho"><span class="cheio '+luz+'" style="width:'
     +   (prog*100).toFixed(1)+'%"></span></div>'
-    + '<div class="pontas"><span>última ' + esc(ult) + '</span>'
-    +   '<span>' + (prog>=1 ? 'liberada desde ' : 'próxima ') + esc(prox)
-    +   '</span></div></div>';
+    + '<div class="pontas"><span>'+esc(pt[0])+'</span>'
+    +   '<span>'+esc(pt[1])+'</span></div></div>';
 
   alvo.innerHTML=
     '<div class="cp-crongrid">'
@@ -11126,8 +11181,33 @@ function cpChaveOrd(x, col){
   return (typeof v==='number') ? v : String(v||'').toLowerCase();
 }
 
+/* TIPO DO PROPRIETARIO como SELO, os tres. So o TAC era selo e o PJ saia como
+   texto pelado, entao a coluna parecia ter uma marca de excecao em vez de uma
+   classificacao — e a leitura virava "TAC e o diferente", quando na verdade os
+   dois sao populacoes que nao se somam.
+
+   As cores dizem o que cada um FAZ, nao se e bom ou ruim:
+     PJ         azul     emite CT-e, e a fila de trabalho
+     TAC        ambar    nao emite (Lei 11.442: CIOT + RPA), fora da fila
+     indefinido vermelho o documento nao tem 11 nem 14 digitos - e cadastro
+                         quebrado, e nao um terceiro tipo de transportador */
+const CP_TIPO = {
+  pj:  ['b-info', 'PJ',
+        'Pessoa juridica: emite CT-e. E esta a fila de contrapartida.'],
+  tac: ['b-warn', 'TAC',
+        'Transportador Autonomo de Cargas (Lei 11.442): NAO e sujeito passivo '
+        + 'do CT-e. A documentacao dele e CIOT + RPA, e por isso fica fora da fila.'],
+};
+
+function cpTipoTag(classe){
+  const t = CP_TIPO[classe];
+  if(t) return '<span class="badge '+t[0]+'" title="'+esc(t[2])+'">'+t[1]+'</span>';
+  return '<span class="badge b-dang" title="O documento do proprietario nao tem '
+    + '11 nem 14 digitos: nao da para dizer se emite CT-e. E cadastro a '
+    + 'corrigir no ERP, nao um terceiro tipo de transportador.">indefinido</span>';
+}
+
 function cpTabRender(){
-  const CL={pj:'PJ',tac:'TAC',indefinido:'?'};
   /* FILTROS DESTA TABELA, e nao da tela. Ficam no card dela de proposito: os
      cartoes do topo vem agregados do servidor e nao os obedeceriam, e KPI que
      ignora filtro da tela e defeito conhecido desta casa. Em memoria, sobre a
@@ -11135,6 +11215,10 @@ function cpTabRender(){
      causa de um select. */
   const V = id => { const e=document.getElementById(id); return e ? e.value : ''; };
   const fcl = V('fCpClasse'), fpr = V('fCpPronto'), fuf = V('fCpUf');
+  /* Recorte novo recomeca na primeira pagina: manter a pagina 7 depois de
+     filtrar mostraria uma tabela vazia com dados existindo. */
+  const assin = fcl+'|'+fpr+'|'+fuf;
+  if(assin !== CP_RECORTE){ CP_RECORTE = assin; CP_PAGINA = 1; }
   const ag = CP_AG.filter(function(x){
     if(fcl && x.classe !== fcl) return false;
     if(fuf && (x.uf||'') !== fuf) return false;
@@ -11148,6 +11232,18 @@ function cpTabRender(){
     return 0;
   });
   cpUfOpcoes();
+
+  /* PAGINACAO so quando a lista fica GRANDE. Ate `CP_PAG` linhas ela rola
+     dentro do cartao, que e o padrao da casa e nao custa clique nenhum;
+     passando disso, rolar 200 linhas dentro de uma janela de 560px vira
+     trabalho, e o rodape deixa de dizer onde a pessoa esta. A pagina volta ao
+     inicio sempre que o RECORTE muda — manter a pagina 7 depois de filtrar
+     mostraria uma tabela vazia com dados existindo. */
+  const totalPag = Math.max(1, Math.ceil(ag.length / CP_PAG));
+  if(CP_PAGINA > totalPag) CP_PAGINA = totalPag;
+  const pagina = ag.length > CP_PAG
+    ? ag.slice((CP_PAGINA-1)*CP_PAG, CP_PAGINA*CP_PAG) : ag;
+
   const cab = CP_COLS.map(function(c){
     const ativa = CP_ORD.col===c[0];
     const seta = ativa ? (CP_ORD.dir>0?' ▲':' ▼') : '';
@@ -11159,7 +11255,7 @@ function cpTabRender(){
 
   document.getElementById('cpTab').innerHTML =
     '<thead><tr>'+cab+'</tr></thead><tbody>'
-    +(ag.length? ag.map(function(x){
+    +(pagina.length? pagina.map(function(x){
         const tac = x.classe==='tac';
         /* a lista vem PRONTA do servidor. Recalcular aqui duplicava a
            regra, e a duplicata divergiu no mesmo dia. */
@@ -11175,9 +11271,9 @@ function cpTabRender(){
               : statChip('good','pronto','autorização vigente, certificado A1 válido e senha no cofre'))
           : (venceu ? statChip('bad','vencido', fal.join(' · '))
                     : statChip('bad','não autorizado', fal.join(' · ')));
-        return '<tr'+(tac?' style="opacity:.62"':'')+'>'
+        return '<tr class="'+(tac?'cp-l-tac':'cp-l-pj')+'">'
           +'<td>'+esc(x.nome||x.documento||'—')+'</td>'
-          +'<td>'+(tac? statChip('warn','TAC','não emite CT-e — CIOT/RPA') : esc(CL[x.classe]||'?'))+'</td>'
+          +'<td>'+cpTipoTag(x.classe)+'</td>'
           +'<td class="mono">'+esc(x.rntrc||'—')+'</td>'
           +'<td>'+(tac?'<span style="color:var(--n500)">não se aplica</span>'
                      : (falta.length? statChip('bad','falta '+falta.join(', '),'campo obrigatório ausente vira rejeição documento a documento')
@@ -11207,10 +11303,43 @@ function cpTabRender(){
     CP_AG.length
       ? (corte ? ag.length+' de '+CP_AG.length+' agregados'
                : CP_AG.length+' agregados')
+        + (ag.length > CP_PAG
+            ? ' · página '+CP_PAGINA+' de '+totalPag : '')
         +' · ordenado por '+nome.toLowerCase()
         +(CP_ORD.dir>0?' (crescente)':' (decrescente)')
-        +' · linha esmaecida = TAC, fora da fila'
+        +' · barra âmbar = TAC, fora da fila'
       : '';
+  cpPaginador(ag.length, totalPag);
+}
+
+/* Quantas linhas por pagina. Acima disso a lista pagina; abaixo ela so rola
+   dentro do cartao, que nao custa clique nenhum. */
+const CP_PAG = 50;
+var CP_PAGINA = 1, CP_RECORTE = '';
+
+function cpPagina(n){
+  CP_PAGINA = Math.max(1, n);
+  cpTabRender();
+  /* Volta ao topo da TABELA e nao da pagina: trocar de pagina e continuar a
+     leitura, nao recomecar a tela. */
+  const t = document.getElementById('cpTab');
+  if(t && t.parentElement) t.parentElement.scrollTop = 0;
+}
+
+function cpPaginador(total, totalPag){
+  const alvo = document.getElementById('cpPaginador');
+  if(!alvo) return;
+  if(total <= CP_PAG){ alvo.innerHTML=''; alvo.hidden=true; return; }
+  alvo.hidden=false;
+  const de = (CP_PAGINA-1)*CP_PAG + 1;
+  const ate = Math.min(CP_PAGINA*CP_PAG, total);
+  const bt = (n, txt, hab) =>
+    '<button class="gbtn" '+(hab?'':'disabled ')
+    +'onclick="cpPagina('+n+')">'+txt+'</button>';
+  alvo.innerHTML =
+    '<span class="hint">'+de+'–'+ate+' de '+total+'</span>'
+    + bt(CP_PAGINA-1, '‹ anterior', CP_PAGINA>1)
+    + bt(CP_PAGINA+1, 'próxima ›', CP_PAGINA<totalPag);
 }
 
 /* As UFs saem da propria lista: fixar uma lista de estados aqui obrigaria a

@@ -1,3 +1,53 @@
+- versao: "0.132.0"
+  data: "2026-08-28"
+  adicionado:
+    - >-
+      A fila por agregado PAGINA quando fica grande: ate 50 linhas ela so rola
+      dentro do cartao, que e o padrao da casa e nao custa clique nenhum; acima
+      disso entra o paginador, com "51-100 de 140" e o numero da pagina no
+      rodape. Trocar de filtro volta para a primeira pagina - manter a pagina 7
+      depois de filtrar mostraria uma tabela vazia com dados existindo.
+  alterado:
+    - >-
+      As tres abas ficam FIXAS no topo enquanto a tela rola. Sao a navegacao da
+      tela e as listas passam de mil pixels: rolar ate o fim da fila e ter de
+      voltar ao topo so para trocar de aba era a viagem que a barra evita.
+    - >-
+      A linha da fila muda de cor sob o mouse. Sao nove colunas, e o olho perdia
+      a linha entre o nome e a prestacao. A cor do hover nao e a do grupo, para
+      nao se confundir com a classificacao.
+    - >-
+      As tabelas desta tela cresceram de 430px para 560px: sao listas de
+      trabalho, percorridas de ponta a ponta, e 430px mostravam nove linhas de
+      vinte e oito.
+    - >-
+      O CRONOMETRO DA EMISSAO NAO CONGELA MAIS EM 00:00. Parado por ate cinco
+      minutos ele se lia como tela travada. Ao fechar o intervalo o relogio VIRA
+      e passa a contar PARA CIMA dentro da janela do agendador ("aguardando o
+      agendador — ate 05:00"), com a regua medindo essa janela: o numero anda a
+      cada segundo e o rotulo diz de quanto e a espera maxima. Passadas duas
+      janelas, a luz vai para o vermelho e a tela acusa que a tarefa do Windows
+      pode nao estar disparando.
+    - >-
+      Na fila por agregado, o TIPO virou selo colorido nos tres casos. So o TAC
+      era selo e o PJ saia como texto pelado, entao a coluna parecia ter uma
+      marca de excecao em vez de uma classificacao. Azul para PJ (emite CT-e, e
+      a fila de trabalho), ambar para TAC (nao emite: CIOT e RPA) e vermelho
+      para indefinido - que nao e um terceiro tipo de transportador e sim
+      cadastro a corrigir, com o documento sem 11 nem 14 digitos.
+    - >-
+      A linha de cada agregado ganhou barra lateral na cor do grupo: azul para
+      PJ, ambar para TAC. Antes o TAC vinha com opacidade reduzida, o que
+      apagava a linha inteira - inclusive o selo, que perdia a cor - e
+      esmaecer e a marca de "menos importante", nao de "outra populacao". PJ e
+      TAC nao sao graus da mesma coisa: sao duas listas que nao se somam.
+    - >-
+      Saiu o cartao "Ler com atencao" da tela de CT-e de contrapartida. Era uma
+      lista corrida de frases no meio da tela, competindo com os cartoes e com a
+      fila sem dizer o que fazer com nenhuma delas. Os avisos continuam sendo
+      gerados pelo servidor - o relatorio de e-mail da contrapartida os consome
+      - e devem voltar a tela em outra forma, ligados ao numero que os originou.
+
 - versao: "0.131.0"
   data: "2026-08-28"
   adicionado:

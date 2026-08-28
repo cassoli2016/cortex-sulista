@@ -20,8 +20,11 @@ HTML = Path(__file__).resolve().parents[2] / "api" / "static" / "index.html"
 
 # Os blocos que entram no cartao como div cru e precisam do proprio
 # espacamento. `cpPassivo` saiu da tela (o acumulado nao vira trabalho) e deu
-# lugar a `cpPront`, a prontidao da fila.
-BLOCOS = ("cpMes", "cpPront", "cpAvisos")
+# lugar a `cpPront`, a prontidao da fila; `cpAvisos` saiu em 28/08/2026 - o
+# cartao "Ler com atencao" era uma lista corrida de frases competindo com os
+# cartoes e com a fila. Os avisos continuam vindo do servidor, porque o
+# relatorio de e-mail da contrapartida os consome.
+BLOCOS = ("cpMes", "cpPront")
 
 
 def test_os_tres_blocos_declaram_a_classe():
