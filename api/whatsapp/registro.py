@@ -41,15 +41,17 @@ def init_db(esquema: str | None = None) -> None:
 
 def gravar(telefone: str, mensagem: str, *, usuario: str = "",
            origem: str = "", ok: bool = False, erro: str = "",
-           message_id: str = "", esquema: str | None = None) -> int:
+           message_id: str = "", modelo: str = "",
+           esquema: str | None = None) -> int:
     init_db(esquema)
     r = pglocal.um(
         "INSERT INTO zap_envios"
-        " (ts, usuario, telefone, mensagem, origem, ok, erro, message_id)"
-        " VALUES(%s,%s,%s,%s,%s,%s,%s,%s) RETURNING id",
+        " (ts, usuario, telefone, mensagem, origem, ok, erro, message_id,"
+        "  modelo)"
+        " VALUES(%s,%s,%s,%s,%s,%s,%s,%s,%s) RETURNING id",
         (datetime.now().strftime("%Y-%m-%d %H:%M:%S"), usuario or "",
          telefone or "", (mensagem or "")[:MAX_MENSAGEM], origem or "",
-         1 if ok else 0, erro or "", message_id or ""),
+         1 if ok else 0, erro or "", message_id or "", modelo or ""),
         esquema=_esq(esquema))
     return int(r["id"])
 
@@ -58,7 +60,7 @@ def listar(limite: int = 100, esquema: str | None = None) -> list[dict]:
     init_db(esquema)
     return pglocal.query(
         "SELECT id, ts, usuario, telefone, mensagem, origem, ok, erro,"
-        " message_id FROM zap_envios ORDER BY id DESC LIMIT %s",
+        " message_id, modelo FROM zap_envios ORDER BY id DESC LIMIT %s",
         (int(limite),), esquema=_esq(esquema))
 
 

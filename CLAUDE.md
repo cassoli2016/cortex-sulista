@@ -83,7 +83,7 @@ Cada módulo é unidade de RBAC (papel × módulo × escopo de linha via RLS).
 | `antt` | Piso mínimo de frete da compra e situação do RNTRC dos transportadores contratados | `config/antt_coeficientes.yaml`, `config/antt_eixos.yaml`, `programacaoembarque` (AVA) |
 | `gestao` | Metas, KPIs, OKRs, atas de reunião, planos de ação | `ges_metas`, `ges_okr`, `ges_atas`, `ges_acoes` |
 | `integracoes` | Central de integração com APIs de fornecedores (hub de conectores) | `int_conectores`, `int_sync_state`, `int_raw_events`, `int_dead_letter` |
-| `whatsapp` | Envio de mensagens por WhatsApp via Z-API (aba de Gestão, só admin) | `api/whatsapp/`, `zap_envios` |
+| `whatsapp` | Envio de mensagens por WhatsApp via Z-API e os MODELOS de texto reusáveis pelas áreas (aba de Gestão, só admin) | `api/whatsapp/`, `zap_envios`, `zap_modelos` |
 | `analytics` | Painel CEO consolidado, previsões e projeções | views materializadas + skill previsao-projecao |
 | `copiloto` | Interface conversacional (Gemma + agentes) | — |
 
@@ -568,6 +568,48 @@ a query ignora sai; dimensão que a query aceita e é a pergunta natural da tela
   trilha, o mesmo limite e a mesma auditoria. Um caminho paralelo viraria o
   atalho para disparar sem as regras.
 
+**Modelo de mensagem: o contexto é o que impede o texto de sair furado (lições dos modelos de WhatsApp):**
+- **O CONTEXTO não é categoria de organização — é o conjunto de variáveis permitidas,
+  validado NA GRAVAÇÃO.** Um modelo de cobrança conhece `{{titulo}}` e `{{vencimento}}`;
+  a torre de controle não teria com que preencher isso. Sem a amarra, o mesmo texto
+  disparado da tela errada chega ao cliente com buraco, e quem descobre é o cliente. A
+  gravação é o único momento em que alguém está olhando.
+- **Variável sem valor NÃO vira string vazia.** `renderizar()` estrito levanta; a
+  alternativa silenciosa manda "Prezado , seu título vence em ." e o sistema reporta
+  sucesso. A rede é DUPLA: `enviar_modelo` renderiza estrito, e `enviar` recusa qualquer
+  texto que ainda tenha `{{...}}` — mesmo vindo de área que não usou modelo. Parece
+  redundante e não é: quem monta mensagem é código de área, e a chamada errada de uma
+  delas não pode virar mensagem no celular do cliente.
+- **NUNCA `str.format()` nem f-string sobre texto que um usuário escreveu.**
+  `"{0.__class__.__mro__}".format(x)` alcança atributo de objeto — aplicar `format` a
+  template editável é dar ao autor um pedaço do interpretador. A substituição é por
+  regex que só reconhece `{{nome_simples}}`; `{0}` e `{conta.saldo}` continuam texto.
+- **A CHAVE (slug) existe além do id porque quem chama o modelo é outra área.** Pelo
+  `id`, restaurar backup noutra ordem troca a mensagem; pelo NOME, renomear
+  "Cobrança — 1º aviso" quebra a rotina em silêncio. Renomear não muda a chave; trocar a
+  chave é mudança de contrato, e a tela diz isso.
+- **Com modelo escolhido, a caixa de mensagem é PRÉVIA e não campo, e o POST manda a
+  CHAVE e os VALORES — nunca o texto.** Quem monta a mensagem final é o servidor, a
+  partir do modelo gravado. Aceitar texto pronto junto com a chave deixaria gravar "veio
+  do modelo de cobrança" numa trilha em que o texto é outro qualquer, e a coluna `modelo`
+  deixaria de ser prova. Para escrever livre existe "Sem modelo".
+- **A prévia é do SERVIDOR, inclusive a do formulário de envio.** Reescrever a
+  substituição em JavaScript é trivial — e cria duas regras que podem discordar, com a
+  descoberta acontecendo depois de a mensagem chegar ao cliente.
+- **Contexto sem tela que o dispare é DITO na tela** ("sem tela ainda"), não escondido:
+  o catálogo é o contrato para quem for ligar a área, e um modelo pronto esperando
+  consumidor não pode parecer em operação.
+- **O teto do corpo é menor que o do WhatsApp (3.000 × 4.096)** porque o texto cresce
+  duas vezes depois: `{{cliente}}` tem 13 caracteres e "TUPY FUNDIÇÕES DO BRASIL LTDA"
+  tem 29, e a assinatura entra no envio. Validar só o corpo deixa passar o modelo que
+  estoura depois de preenchido — o tamanho FINAL é conferido em `renderizar()`.
+- Recusa por chamada errada de código (modelo inexistente, desligado, variável faltando)
+  **não entra em `zap_envios`**: nada foi tentado contra número nenhum, e a trilha existe
+  para responder "o que saiu para fora da empresa". Já a recusa da oitava regra entra —
+  ali houve tentativa contra um número real.
+- **GOTCHA de teste e2e:** `tr:nth-child(1)` sem `tbody` casa a linha do CABEÇALHO, e
+  `inner_text` devolve o texto já em CAIXA ALTA quando o CSS tem `text-transform`.
+
 **Campo opcional, foto e quem edita o quê (lições do cadastro de usuário):**
 - **Campo AUSENTE e campo VAZIO são coisas diferentes no payload de edição.** A tela de
   Minha Conta manda dois campos; um `payload.get(campo, "")` comum leria os outros como
@@ -765,7 +807,7 @@ playwright em produção):
 ```bash
 uv sync --group test
 uv run playwright install chromium   # só na primeira vez, e a cada bump do playwright
-uv run pytest -q                     # 1.747
+uv run pytest -q                     # 1.788
 node --test "tests/frontend/*.test.js"  # 8 (núcleo do indicador de carga)
 uv run python scripts/verificar_estrutura.py
 ```

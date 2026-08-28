@@ -1098,6 +1098,27 @@ button.avatar{border:0;cursor:pointer}
 .wa-msgbox label{display:block;font-size:12px;font-weight:600;color:var(--n600,#6B7280);margin-bottom:4px}
 .wa-msgbox textarea{width:100%;resize:vertical;min-height:84px;padding:9px 10px;
   border:1px solid var(--n300,#d3dae2);border-radius:6px;font:inherit;font-size:14px}
+/* Com modelo escolhido a caixa vira PRÉVIA e não campo: quem monta o texto
+   final é o servidor, a partir do modelo gravado. Deixá-la editável faria a
+   coluna "Modelo" da trilha mentir — diria que a mensagem veio de um texto
+   revisado quando alguém a reescreveu por cima. */
+.wa-msgbox textarea[readonly]{background:var(--n50,#f7f9fb);color:var(--n700,#3c4551)}
+.wa-vars{padding:12px 18px 0;display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:10px}
+.wa-vars .campo label{display:block;font-size:11px;text-transform:uppercase;letter-spacing:.05em;
+  color:var(--n500);font-weight:600;margin-bottom:3px}
+.wa-vars .campo input{width:100%;padding:8px 9px;border:1px solid var(--n300,#d3dae2);
+  border-radius:6px;font:inherit;font-size:13px}
+.wa-vars .aviso{grid-column:1/-1;font-size:12px;color:var(--n500)}
+/* ---- editor de modelo ---- */
+.mod-vars{display:flex;flex-wrap:wrap;gap:6px;margin-top:4px}
+.mod-vars button{border:1px dashed var(--n300,#d3dae2);background:var(--n50,#f7f9fb);
+  border-radius:6px;padding:4px 8px;font-family:var(--mono);font-size:11.5px;
+  color:var(--navy-700);cursor:pointer}
+.mod-vars button:hover{border-style:solid;background:var(--navy-50)}
+.mod-prev{white-space:pre-wrap;background:var(--n50,#f7f9fb);border:1px solid var(--n200,#e5eaf0);
+  border-radius:8px;padding:11px 13px;font-size:13.5px;min-height:60px;line-height:1.5}
+.mod-conta{font-size:11px;color:var(--n500);text-align:right;margin-top:3px}
+.mod-conta.cheio{color:var(--red)}
 
 /* ---- Integrações (um cartão por fornecedor) ----
    A aba era uma lista plana de 22 campos: quem abria via onze linhas PROLOG_*
@@ -4255,12 +4276,23 @@ body.tvfull #btnReport,body.tvmode #btnReport{display:none}
             </div>
           </div>
           <div class="card">
+            <div class="head"><h2>Modelos de mensagem <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="O texto que sai com o número da empresa, escrito uma vez e revisado. Cada modelo tem um CONTEXTO, e é ele que decide quais variáveis o texto pode usar: um modelo de cobrança conhece {{titulo}} e {{vencimento}}; a torre de controle não teria com que preencher esses campos, e a mensagem chegaria ao cliente com buracos. Por isso variável fora do contexto é recusada na gravação. A CHAVE é o nome estável pelo qual o resto do sistema chama o modelo — renomear o modelo não a muda. Guardado na tabela zap_modelos do banco do CÓRTEX.">i</span></h2>
+              <span class="hint" id="wa-mod-hint">—</span>
+              <button class="btn" onclick="whatsModeloModal(null)">+ Novo modelo</button></div>
+            <div class="tablewrap tabroll" id="wa-mod-lista"></div>
+          </div>
+          <div class="card">
             <div class="head"><h2>Enviar mensagem <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="É o mesmo caminho que qualquer rotina do CÓRTEX usa: passa pelo limite diário, pela janela de horário e entra na trilha abaixo com o seu usuário. Não existe um modo de teste mais frouxo, de propósito — ele viraria o atalho para disparar sem as regras. O telefone é normalizado antes de sair: (47) 99999-8888 e 5547999998888 são o mesmo destinatário.">i</span></h2><span class="hint" id="wa-envio-hint">—</span></div>
             <div class="ges-cfg">
               <div style="grid-column:1/-1"><label for="wa-tel">Telefone(s)</label><input type="text" id="wa-tel" placeholder="(47) 99999-8888 — separe vários por vírgula"></div>
+              <div style="grid-column:1/-1"><label for="wa-modelo">Modelo</label>
+                <select id="wa-modelo" onchange="whatsModeloEscolher()">
+                  <option value="">Sem modelo — escrever à mão</option>
+                </select></div>
             </div>
+            <div class="wa-vars" id="wa-vars" hidden></div>
             <div class="wa-msgbox">
-              <label for="wa-msg">Mensagem</label>
+              <label for="wa-msg" id="wa-msg-rot">Mensagem</label>
               <textarea id="wa-msg" rows="4" placeholder="Escreva a mensagem…"></textarea>
             </div>
             <div class="m-foot">
@@ -18670,6 +18702,10 @@ async function emailTeste(){
       mensagem sai, e ele fica ao lado do botão que envia — não escondido numa
       tela de configuração que ninguém abre na hora de mandar. */
 async function whatsCarregar(){
+  /* os modelos vêm em paralelo: o select de "Enviar mensagem" depende deles, e
+     encadear as duas chamadas deixaria o formulário meio segundo sem opção
+     nenhuma logo depois de abrir a aba */
+  whatsModelosCarregar();
   const hist=document.getElementById('wa-hist');
   hist.innerHTML='<div style="padding:12px;color:var(--n500)">carregando…</div>';
   try{
@@ -18703,11 +18739,12 @@ async function whatsCarregar(){
       ? `${rs.total} envio${rs.total===1?'':'s'} · ${rs.ok||0} ok · ${rs.falha||0} recusado/falhou · ${rs.numeros||0} número${rs.numeros===1?'':'s'} distinto${rs.numeros===1?'':'s'}`
       : 'nenhum envio registrado';
     hist.innerHTML = !envios.length ? '<div style="padding:12px;color:var(--n500)">nenhum envio ainda</div>'
-      : '<table><thead><tr><th>Quando</th><th>Para</th><th>Mensagem</th><th>Origem</th><th>Autor</th><th>Status</th></tr></thead><tbody>'
+      : '<table><thead><tr><th>Quando</th><th>Para</th><th>Mensagem</th><th>Modelo</th><th>Origem</th><th>Autor</th><th>Status</th></tr></thead><tbody>'
       + envios.map(e=>`<tr>
           <td>${esc(fmtDT(e.ts))}</td>
           <td class="mono">${esc(whatsFmtTel(e.telefone))}</td>
           <td title="${esc(e.mensagem||'')}">${esc((e.mensagem||'').length>46?e.mensagem.slice(0,46)+'…':(e.mensagem||'—'))}</td>
+          <td>${e.modelo?esc(e.modelo):'<span style="color:var(--n500)">avulsa</span>'}</td>
           <td>${esc(e.origem||'—')}</td>
           <td>${esc(shortName(e.usuario||'—'))}</td>
           <td>${e.ok?statChip('good','enviado'):statChip('bad','não saiu',e.erro||'')}</td></tr>`).join('')
@@ -18799,19 +18836,32 @@ async function whatsEnviar(){
   const err=document.getElementById('wa-env-err'); err.textContent=''; err.style.color='';
   const tel=document.getElementById('wa-tel').value.trim();
   const msg=document.getElementById('wa-msg').value.trim();
+  const chave=(document.getElementById('wa-modelo')||{}).value||'';
   if(!tel){ err.textContent='Informe ao menos um telefone.'; return; }
-  if(!msg){ err.textContent='Escreva a mensagem.'; return; }
+  if(!chave && !msg){ err.textContent='Escreva a mensagem.'; return; }
+  /* COM MODELO NÃO SE MANDA O TEXTO — só a chave e os valores. Quem monta a
+     mensagem é o servidor, a partir do modelo gravado; a caixa acima é prévia.
+     Mandar o texto junto deixaria a coluna "Modelo" da trilha registrar um
+     texto que não é o do modelo. */
+  const corpo = chave
+    ? {telefones:tel, modelo:chave, valores:whatsValoresDoFormulario()}
+    : {telefones:tel, mensagem:msg};
   const btn=document.getElementById('wa-enviar'); btn.disabled=true; btn.textContent='Enviando…';
   try{
     const r=await fetch('/api/gestao/whatsapp/enviar',{method:'POST',headers:{'Content-Type':'application/json'},
-      body:JSON.stringify({telefones:tel, mensagem:msg})});
+      body:JSON.stringify(corpo)});
     const d=await r.json();
     if(r.ok){
       err.style.color='var(--green)';
       err.textContent = d.falhas
         ? `${d.enviados} enviada(s), ${d.falhas} não saiu(íram) — veja a trilha abaixo`
         : `enviada para ${d.enviados} número(s)`;
-      document.getElementById('wa-msg').value='';
+      /* com modelo, limpa os VALORES e deixa o modelo escolhido: o uso normal é
+         mandar o mesmo aviso para vários clientes seguidos */
+      if(chave){ document.querySelectorAll('#wa-vars input[data-var]').forEach(i=>{ i.value=''; });
+                 whatsPreviaEnvio(); }
+      else document.getElementById('wa-msg').value='';
+      document.getElementById('wa-tel').value='';
     }else{
       /* A recusa é a informação: quase sempre é limite do dia, janela de
          horário ou instância desconectada — todas com conserto diferente. */
@@ -18820,6 +18870,244 @@ async function whatsEnviar(){
     await whatsCarregar();
   }catch(e){ err.style.color=''; err.textContent='Não foi possível falar com a API.'; }
   finally{ btn.disabled=false; btn.textContent='Enviar'; }
+}
+
+/* ===================== Modelos de mensagem =====================
+   O texto que sai com o número da empresa, escrito uma vez e revisado.
+
+   DUAS COISAS AQUI SÃO DE PROPÓSITO E PARECEM RODEIO:
+
+   1. **A prévia é feita no SERVIDOR** (`/modelos/previa`), inclusive a do
+      formulário de envio. Reescrever a substituição de {{var}} em JavaScript
+      seria trivial — e passaria a existir duas regras que podem discordar. A
+      hora de descobrir que discordam é depois de a mensagem chegar ao cliente.
+   2. **Com modelo escolhido, a caixa de mensagem é PRÉVIA, não campo.** Quem
+      monta o texto final é o servidor, a partir do modelo gravado; a tela manda
+      a chave e os valores. Se desse para editar por cima, a coluna "Modelo" da
+      trilha diria que a mensagem veio de um texto revisado quando ela é outra
+      coisa. Para escrever livre existe a opção "Sem modelo". */
+let WAMOD = {modelos: [], contextos: [], limites: {}};
+let _waPrevTimer = null;
+
+function waCtx(chave){ return (WAMOD.contextos||[]).find(c=>c.chave===chave) || null; }
+
+async function whatsModelosCarregar(){
+  const lista=document.getElementById('wa-mod-lista'); if(!lista) return;
+  try{
+    const r=await fetch('/api/gestao/whatsapp/modelos',{cache:'no-store'});
+    const d=await r.json();
+    if(!r.ok){ lista.innerHTML='<div style="padding:12px;color:var(--red)">'+esc(d.mensagem||'Erro ao ler os modelos.')+'</div>'; return; }
+    WAMOD=d; renderWaModelos();
+  }catch(e){ lista.innerHTML='<div style="padding:12px;color:var(--red)">Não foi possível falar com a API.</div>'; }
+}
+
+function renderWaModelos(){
+  const ms=WAMOD.modelos||[], lista=document.getElementById('wa-mod-lista');
+  const ativos=ms.filter(m=>m.ativo).length;
+  document.getElementById('wa-mod-hint').innerHTML = ms.length
+    ? `${ms.length} modelo${ms.length===1?'':'s'} · ${ativos} ligado${ativos===1?'':'s'}`
+    : 'nenhum modelo ainda — o primeiro costuma ser o aviso de vencimento';
+  lista.innerHTML = !ms.length
+    ? '<div style="padding:12px;color:var(--n500)">Nenhum modelo cadastrado. Um modelo é o texto pronto que outras áreas do sistema disparam pela CHAVE.</div>'
+    : '<table><thead><tr><th>Modelo</th><th>Contexto</th><th>Chave</th><th>Prévia</th><th>Situação</th><th></th></tr></thead><tbody>'
+      + ms.map(m=>{
+          const ctx=waCtx(m.contexto)||{};
+          const usada=(ctx.consumidores||[]).length;
+          return `<tr>
+            <td>${esc(m.nome)}${m.descricao?`<span class="sub">${esc(m.descricao)}</span>`:''}</td>
+            <td>${esc(m.contexto_rotulo||m.contexto)}${usada?'':' '+statChip('warn','sem tela ainda','Nenhuma tela do CÓRTEX dispara com este contexto hoje. O texto fica pronto para quando uma passar a usar.')}</td>
+            <td class="mono">${esc(m.chave)}</td>
+            <td title="${esc(m.previa||'')}">${esc((m.previa||'').length>52?m.previa.slice(0,52)+'…':(m.previa||''))}</td>
+            <td>${m.ativo?statChip('good','ligado'):statChip('warn','desligado','Não é usado por ninguém enquanto estiver assim.')}</td>
+            <td class="num"><button class="ghost gbtn" onclick="whatsModeloModal(${m.id})">Editar</button>
+              <button class="ghost gbtn" onclick="whatsModeloExcluir(${m.id})">Excluir</button></td>
+          </tr>`;
+        }).join('')
+      + '</tbody></table>';
+  whatsModeloSelectPintar();
+}
+
+/* ---- editor ---- */
+function whatsModeloModal(id){
+  const m = id ? (WAMOD.modelos||[]).find(x=>x.id===id) : null;
+  const opts=(WAMOD.contextos||[]).map(c=>
+    `<option value="${esc(c.chave)}" ${m&&m.contexto===c.chave?'selected':''}>${esc(c.rotulo)}</option>`).join('');
+  abrirModal(`
+    <h3>${m?'Editar modelo':'Novo modelo'}</h3>
+    <div class="ges-form">
+      <div><label for="mo-nome">Nome</label>
+        <input type="text" id="mo-nome" value="${m?esc(m.nome):''}" placeholder="Cobrança — 1º aviso"
+               oninput="whatsModeloPrevia()"></div>
+      <div><label for="mo-ctx">Contexto — de onde a mensagem vai ser disparada</label>
+        <select id="mo-ctx" onchange="whatsModeloCtxMudou()">${opts}</select>
+        <div id="mo-ctx-ajuda" style="font-size:11px;color:var(--n500);margin-top:4px"></div></div>
+      <div><label for="mo-desc">Descrição (opcional)</label>
+        <input type="text" id="mo-desc" value="${m?esc(m.descricao||''):''}" placeholder="quando usar este texto"></div>
+      <div><label for="mo-corpo">Mensagem</label>
+        <textarea id="mo-corpo" rows="7" style="width:100%;resize:vertical;padding:9px 10px;border:1px solid var(--n300);border-radius:6px;font:inherit;font-size:14px"
+                  oninput="whatsModeloPrevia()" placeholder="Olá {{cliente}}, …">${m?esc(m.corpo):''}</textarea>
+        <div class="mod-conta" id="mo-conta"></div>
+        <div class="mod-vars" id="mo-vars"></div></div>
+      <div><label>Prévia — com os valores de exemplo do contexto</label>
+        <div class="mod-prev" id="mo-prev">—</div>
+        <div style="font-size:11px;color:var(--n500);margin-top:4px">A assinatura configurada em “Regras de envio” é acrescentada no fim, no envio — não a repita aqui.</div></div>
+      <div><label for="mo-chave">Chave — é por ela que o resto do sistema chama este modelo</label>
+        <input type="text" id="mo-chave" value="${m?esc(m.chave):''}" placeholder="gerada do nome"
+               ${m?'':'readonly'} style="font-family:var(--mono);font-size:13px">
+        ${m?'<div style="font-size:11px;color:var(--yellow-700);margin-top:4px">Trocar a chave quebra qualquer rotina que já a use. Renomear o modelo NÃO exige trocá-la.</div>':''}</div>
+      <div><label><input type="checkbox" id="mo-ativo" ${(!m||m.ativo)?'checked':''}> Modelo ligado (pode ser usado)</label></div>
+    </div>
+    <div class="m-err" id="m-err"></div>
+    <div class="m-foot"><button class="ghost" onclick="fecharModal()">Cancelar</button>
+      <button class="btn" id="mo-salvar" onclick="whatsModeloSalvar(${id||'null'})">${m?'Salvar':'Criar modelo'}</button></div>`);
+  whatsModeloCtxMudou();
+}
+
+function whatsModeloCtxMudou(){
+  const ctx=waCtx(document.getElementById('mo-ctx').value) || {variaveis:[], consumidores:[]};
+  document.getElementById('mo-ctx-ajuda').innerHTML =
+    esc(ctx.ajuda||'')
+    + ((ctx.consumidores||[]).length
+        ? ' <b>Usado hoje por:</b> '+esc(ctx.consumidores.join(', '))+'.'
+        : ' <b>Nenhuma tela dispara com este contexto ainda</b> — o texto fica pronto para quando uma passar a usar.');
+  const vs=ctx.variaveis||[];
+  document.getElementById('mo-vars').innerHTML = !vs.length
+    ? '<span style="font-size:11.5px;color:var(--n500)">Este contexto não tem variáveis: a mensagem é escrita inteira.</span>'
+    : vs.map(v=>`<button type="button" title="${esc(v.rotulo)} — ex.: ${esc(v.exemplo)}" onclick="whatsModeloInserir('${esc(v.chave)}')">{{${esc(v.chave)}}}</button>`).join('');
+  whatsModeloPrevia();
+}
+
+/* Insere no CURSOR, não no fim: escrevendo "Olá , seu título…" a variável
+   entra onde o texto já está esperando por ela. */
+function whatsModeloInserir(nome){
+  const t=document.getElementById('mo-corpo');
+  const i=t.selectionStart==null?t.value.length:t.selectionStart;
+  const j=t.selectionEnd==null?i:t.selectionEnd;
+  const marca='{{'+nome+'}}';
+  t.value=t.value.slice(0,i)+marca+t.value.slice(j);
+  t.focus(); t.selectionStart=t.selectionEnd=i+marca.length;
+  whatsModeloPrevia();
+}
+
+function whatsModeloPrevia(){
+  clearTimeout(_waPrevTimer);
+  _waPrevTimer=setTimeout(async ()=>{
+    const corpo=document.getElementById('mo-corpo'); if(!corpo) return;
+    const teto=(WAMOD.limites||{}).corpo||3000;
+    const conta=document.getElementById('mo-conta');
+    conta.textContent=`${corpo.value.length} de ${teto} caracteres`;
+    conta.classList.toggle('cheio', corpo.value.length>teto);
+    try{
+      const r=await fetch('/api/gestao/whatsapp/modelos/previa',{method:'POST',
+        headers:{'Content-Type':'application/json'},
+        body:JSON.stringify({corpo:corpo.value, contexto:document.getElementById('mo-ctx').value,
+                             nome:document.getElementById('mo-nome').value})});
+      const d=await r.json();
+      const prev=document.getElementById('mo-prev'); if(!prev) return;
+      prev.textContent = d.texto || '—';
+      /* O erro aparece ENQUANTO se digita, não só ao salvar: variável fora do
+         contexto é o engano mais comum, e descobri-lo depois de escrever o
+         texto inteiro é o pior momento. */
+      mErro(d.erro||'');
+    }catch(e){ /* prévia é conforto: falha de rede não pode travar a edição */ }
+  }, 300);
+}
+
+async function whatsModeloSalvar(id){
+  const btn=document.getElementById('mo-salvar'); btn.disabled=true;
+  const corpo={
+    nome:(document.getElementById('mo-nome').value||'').trim(),
+    contexto:document.getElementById('mo-ctx').value,
+    descricao:(document.getElementById('mo-desc').value||'').trim(),
+    corpo:document.getElementById('mo-corpo').value,
+    chave:(document.getElementById('mo-chave').value||'').trim(),
+    ativo:document.getElementById('mo-ativo').checked?1:0,
+  };
+  if(id) corpo.id=id;
+  try{
+    const r=await fetch('/api/gestao/whatsapp/modelos',{method:'POST',
+      headers:{'Content-Type':'application/json'}, body:JSON.stringify(corpo)});
+    const d=await r.json();
+    if(!r.ok){ mErro(d.mensagem||'Não foi possível salvar.'); return; }
+    fecharModal(); await whatsModelosCarregar();
+  }catch(e){ mErro('Não foi possível falar com a API.'); }
+  finally{ btn.disabled=false; }
+}
+
+async function whatsModeloExcluir(id){
+  const m=(WAMOD.modelos||[]).find(x=>x.id===id); if(!m) return;
+  if(!confirm('Excluir o modelo “'+m.nome+'”?\n\nQualquer rotina que chame a chave '+m.chave+' passa a recusar o envio dizendo que o modelo não existe. Para só parar de usar, DESLIGUE em vez de excluir.')) return;
+  try{
+    const r=await fetch(`/api/gestao/whatsapp/modelos/${id}/excluir`,{method:'POST'});
+    const d=await r.json();
+    if(!r.ok){ alert(d.mensagem||'Não foi possível excluir.'); return; }
+    await whatsModelosCarregar();
+  }catch(e){ alert('Não foi possível falar com a API.'); }
+}
+
+/* ---- uso no formulário de envio ---- */
+function whatsModeloSelectPintar(){
+  const sel=document.getElementById('wa-modelo'); if(!sel) return;
+  const atual=sel.value;
+  const ativos=(WAMOD.modelos||[]).filter(m=>m.ativo);
+  sel.innerHTML='<option value="">Sem modelo — escrever à mão</option>'
+    + ativos.map(m=>`<option value="${esc(m.chave)}">${esc(m.nome)} — ${esc(m.contexto_rotulo||m.contexto)}</option>`).join('');
+  if(atual && ativos.some(m=>m.chave===atual)) sel.value=atual;
+  whatsModeloEscolher();
+}
+
+function whatsModeloEscolher(){
+  const chave=document.getElementById('wa-modelo').value;
+  const m=(WAMOD.modelos||[]).find(x=>x.chave===chave);
+  const box=document.getElementById('wa-vars'), msg=document.getElementById('wa-msg');
+  const rot=document.getElementById('wa-msg-rot');
+  if(!m){
+    box.hidden=true; box.innerHTML='';
+    msg.readOnly=false; msg.value=''; msg.placeholder='Escreva a mensagem…';
+    rot.textContent='Mensagem';
+    return;
+  }
+  const ctx=waCtx(m.contexto)||{variaveis:[]};
+  const usadas=m.variaveis||[];
+  const rotulos={}; (ctx.variaveis||[]).forEach(v=>{ rotulos[v.chave]=v; });
+  box.hidden=false;
+  box.innerHTML = usadas.length
+    ? usadas.map(v=>{
+        const meta=rotulos[v]||{rotulo:v, exemplo:''};
+        return `<div class="campo"><label for="wav-${esc(v)}">${esc(meta.rotulo||v)}</label>
+          <input type="text" id="wav-${esc(v)}" data-var="${esc(v)}" placeholder="${esc(meta.exemplo||'')}"
+                 oninput="whatsPreviaEnvio()"></div>`;
+      }).join('')
+    : '<div class="aviso">Este modelo não tem variáveis — o texto sai como está.</div>';
+  msg.readOnly=true;
+  rot.textContent='Mensagem (prévia do modelo — o texto final é montado no servidor)';
+  whatsPreviaEnvio();
+}
+
+function whatsValoresDoFormulario(){
+  const fora={};
+  document.querySelectorAll('#wa-vars input[data-var]').forEach(i=>{
+    fora[i.dataset.var]=(i.value||'').trim();
+  });
+  return fora;
+}
+
+function whatsPreviaEnvio(){
+  clearTimeout(_waPrevTimer);
+  _waPrevTimer=setTimeout(async ()=>{
+    const chave=document.getElementById('wa-modelo').value;
+    const m=(WAMOD.modelos||[]).find(x=>x.chave===chave);
+    const msg=document.getElementById('wa-msg');
+    if(!m) return;
+    try{
+      const r=await fetch('/api/gestao/whatsapp/modelos/previa',{method:'POST',
+        headers:{'Content-Type':'application/json'},
+        body:JSON.stringify({corpo:m.corpo, contexto:m.contexto,
+                             valores:whatsValoresDoFormulario()})});
+      const d=await r.json();
+      msg.value=d.texto||'';
+    }catch(e){ /* prévia é conforto */ }
+  }, 250);
 }
 
 /* ===================== Integrações (credenciais) =====================

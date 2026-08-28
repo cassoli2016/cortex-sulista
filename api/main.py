@@ -1085,7 +1085,7 @@ async def gestao_whatsapp_enviar(req: Request) -> JSONResponse:
     diário e a mesma auditoria. Um caminho paralelo mais frouxo viraria o
     atalho para disparar sem passar pelas regras.
     """
-    from api.whatsapp.envio import enviar_varios
+    from api.whatsapp.envio import enviar_modelo, enviar_varios
     try:
         body = await req.json()
     except Exception:  # noqa: BLE001
@@ -1093,19 +1093,140 @@ async def gestao_whatsapp_enviar(req: Request) -> JSONResponse:
     body = body if isinstance(body, dict) else {}
     sess = getattr(req.state, "sessao", None) or {}
     autor = sess.get("email", "")
+    telefones = body.get("telefones") or body.get("telefone") or ""
+    chave = str(body.get("modelo") or "").strip()
 
-    r = enviar_varios(body.get("telefones") or body.get("telefone") or "",
-                      str(body.get("mensagem") or ""),
-                      usuario=autor, origem=str(body.get("origem") or "manual"))
+    # COM MODELO, QUEM MONTA O TEXTO É O SERVIDOR — a tela manda a chave e os
+    # valores, nunca a mensagem pronta. Aceitar o texto do cliente junto com a
+    # chave deixaria gravar "veio do modelo de cobrança" numa trilha em que o
+    # texto é outro qualquer, e a coluna `modelo` deixaria de ser prova.
+    if chave:
+        valores = body.get("valores")
+        r = enviar_modelo(telefones, chave,
+                          valores if isinstance(valores, dict) else {},
+                          usuario=autor,
+                          origem=str(body.get("origem") or "") or "")
+    else:
+        r = enviar_varios(telefones, str(body.get("mensagem") or ""),
+                          usuario=autor,
+                          origem=str(body.get("origem") or "manual"))
     alvos = ", ".join(x["telefone"] for x in r["resultados"])
     auth.audit(autor or "?", "whatsapp_enviar", alvo=alvos[:200],
-               detalhe=(f"{r['enviados']} enviada(s), {r['falhas']} falha(s)"
+               detalhe=((f"modelo={chave} · " if chave else "")
+                        + f"{r['enviados']} enviada(s), {r['falhas']} falha(s)"
                         + (f": {r['erro']}" if r["erro"] else ""))[:200])
     if not r["ok"]:
         return JSONResponse(status_code=502, content={
             "erro": "envio_falhou", "mensagem": r["erro"],
             "resultados": r["resultados"]})
     return JSONResponse(r)
+
+
+@app.get("/api/gestao/whatsapp/modelos")
+def gestao_whatsapp_modelos() -> JSONResponse:
+    """Os modelos + o catálogo de contextos.
+
+    O catálogo vai JUNTO, e não numa rota à parte, porque a tela não consegue
+    desenhar um modelo sem ele: é dele que saem as variáveis permitidas, os
+    exemplos da prévia e a informação de quais telas já disparam cada contexto.
+    """
+    from api.whatsapp import modelos as zmod
+    try:
+        return JSONResponse({"modelos": zmod.listar(),
+                             "contextos": zmod.contextos(),
+                             "limites": {"corpo": zmod.CORPO_MAX,
+                                         "texto": zmod.TEXTO_MAX}})
+    except Exception as exc:  # noqa: BLE001
+        log.warning("gestao_whatsapp_modelos falhou: %s", exc)
+        return JSONResponse(status_code=500, content={
+            "erro": "erro_consulta",
+            "mensagem": "Erro ao ler os modelos de mensagem."})
+
+
+@app.post("/api/gestao/whatsapp/modelos/previa")
+async def gestao_whatsapp_modelo_previa(req: Request) -> JSONResponse:
+    """Valida e renderiza SEM gravar — é o que a tela mostra enquanto se digita.
+
+    Fica no servidor, e não em JavaScript, porque a regra que decide se um
+    modelo é válido tem de ser UMA: uma prévia que aceitasse o que a gravação
+    recusa ensinaria a escrever errado.
+    """
+    from api.whatsapp import modelos as zmod
+    try:
+        body = await req.json()
+    except Exception:  # noqa: BLE001
+        body = {}
+    body = body if isinstance(body, dict) else {}
+    corpo = str(body.get("corpo") or "")
+    contexto = str(body.get("contexto") or zmod.CONTEXTO_PADRAO)
+    try:
+        zmod.validar({**body, "nome": body.get("nome") or "previa",
+                      "corpo": corpo or "."})
+        erro = ""
+    except zmod.ModeloInvalido as exc:
+        erro = str(exc)
+    # Com `valores`, a prévia é a do FORMULÁRIO DE ENVIO (o que vai sair de
+    # verdade); sem eles, é a do editor, com os exemplos do catálogo. Os dois
+    # passam pelo mesmo `renderizar()` de propósito: uma prévia escrita em
+    # JavaScript acabaria discordando do que o servidor manda, e a hora de
+    # descobrir isso seria depois de a mensagem chegar ao cliente.
+    valores = body.get("valores")
+    texto = (zmod.renderizar(corpo, valores, estrito=False)
+             if isinstance(valores, dict) else zmod.previa(corpo, contexto))
+    return JSONResponse({
+        "erro": erro,
+        "texto": texto,
+        "variaveis": zmod.variaveis_usadas(corpo),
+        "caracteres": len(corpo)})
+
+
+@app.post("/api/gestao/whatsapp/modelos")
+async def gestao_whatsapp_modelo_salvar(req: Request) -> JSONResponse:
+    from api.whatsapp import modelos as zmod
+    try:
+        body = await req.json()
+    except Exception:  # noqa: BLE001
+        body = None
+    if not isinstance(body, dict):
+        return JSONResponse(status_code=422, content={
+            "erro": "parametro_invalido", "mensagem": "Envie o modelo."})
+    sess = getattr(req.state, "sessao", None) or {}
+    autor = sess.get("email", "")
+    modelo_id = body.get("id")
+    modelo_id = int(modelo_id) if isinstance(modelo_id, int) else None
+    try:
+        d = zmod.gravar(body, usuario=autor, modelo_id=modelo_id)
+    except zmod.ModeloInvalido as exc:
+        return JSONResponse(status_code=422, content={
+            "erro": "parametro_invalido", "mensagem": str(exc)})
+    except Exception as exc:  # noqa: BLE001
+        log.warning("gestao_whatsapp_modelo_salvar falhou: %s", type(exc).__name__)
+        return JSONResponse(status_code=500, content={
+            "erro": "erro_gravacao",
+            "mensagem": "Não foi possível gravar o modelo."})
+    # O TEXTO ENTRA NA AUDITORIA porque ele sai em nome da empresa: saber quem
+    # escreveu "pague hoje para evitar protesto" importa tanto quanto saber
+    # quem ligou o envio. Cortado em 200 para não empurrar a trilha para fora
+    # da tela — o texto inteiro está no próprio modelo.
+    auth.audit(autor or "?", "whatsapp_modelo",
+               alvo=d["chave"],
+               detalhe=(f"{'editado' if modelo_id else 'criado'} · "
+                        f"contexto={d['contexto']} · ativo={d['ativo']} · "
+                        f"{d['corpo'][:200]}"))
+    return JSONResponse(d)
+
+
+@app.post("/api/gestao/whatsapp/modelos/{modelo_id}/excluir")
+def gestao_whatsapp_modelo_excluir(modelo_id: int, req: Request) -> JSONResponse:
+    from api.whatsapp import modelos as zmod
+    apagado = zmod.excluir(modelo_id)
+    if not apagado:
+        return JSONResponse(status_code=404, content={
+            "erro": "nao_encontrado", "mensagem": "Este modelo não existe mais."})
+    sess = getattr(req.state, "sessao", None) or {}
+    auth.audit(sess.get("email", "?"), "whatsapp_modelo_excluir",
+               alvo=apagado["chave"], detalhe=apagado["nome"])
+    return JSONResponse({"ok": True})
 
 
 @app.get("/api/operacao/antt/rntrc")

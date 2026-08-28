@@ -4,6 +4,20 @@ Gerado de `docs/versoes.yaml` por `scripts/gerar_changelog.py` — não editar �
 Formato [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/),
 versionamento [SemVer](https://semver.org/lang/pt-BR/).
 
+## [0.121.0] — 28/08/2026  ·  CX-28/08/2026-v0.121.0
+
+### Adicionado
+- Area de MODELOS DE MENSAGEM em Gestao > WhatsApp. O texto que sai com o numero da empresa passa a ser escrito uma vez, revisado, e reusado - em vez de cada pessoa reescrever de cabeca na hora de mandar.
+- Cada modelo tem um CONTEXTO (Livre, Cobranca, Viagem/Torre, SAC/Freetime, Frota/Manutencao), e e ele que decide quais variaveis o texto pode usar. Um modelo de cobranca conhece {{cliente}}, {{documento}} e {{vencimento}}; a torre de controle nao teria com que preencher esses campos. Variavel fora do contexto e recusada na hora de salvar, com a lista do que existe.
+- Editor com os campos do contexto em botoes (clicar insere no cursor), previa ao vivo com valores de exemplo e contador de caracteres. O limite do texto e menor que o do WhatsApp de proposito: a mensagem ainda cresce quando as variaveis viram valores e a assinatura entra.
+- O formulario de envio ganhou o seletor de modelo. Escolhendo um, aparece um campo por variavel e a caixa de mensagem vira PREVIA - o texto final e montado no servidor, a partir do modelo gravado. Assim a trilha registra de qual modelo cada mensagem saiu, e esse registro e prova.
+- A trilha de envios tem agora a coluna Modelo. Responde a pergunta que sempre aparece depois: "essa frase que o cliente reclamou saiu de onde?".
+- Cada modelo tem uma CHAVE estavel - e por ela que outras areas do sistema vao chamar o texto. Renomear o modelo nao muda a chave.
+
+### Alterado
+- Nenhuma mensagem com variavel por preencher sai mais do CORTEX. Texto com {{cliente}} literal e recusado no envio, venha de onde vier - inclusive de uma area que monte a mensagem por conta propria. O que sairia seria "Prezado {{cliente}}" no celular de um cliente de verdade.
+- Modelo DESLIGADO nao dispara, e continua guardado com o historico. E o jeito de aposentar um texto sem excluir - excluir faz qualquer rotina que use a chave recusar o envio.
+
 ## [0.120.0] — 28/08/2026  ·  CX-28/08/2026-v0.120.0
 
 ### Adicionado

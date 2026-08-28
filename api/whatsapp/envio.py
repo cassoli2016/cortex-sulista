@@ -26,14 +26,21 @@ documentado pelo próprio fornecedor.
                             mensagens, disparando tudo quando o aparelho
                             voltar — a cobrança de terça chegando sábado à
                             noite, em lote
+    8. variável por preencher texto com `{{cliente}}` literal chegando a um
+                            cliente de verdade
 
 A sétima é a menos óbvia e a mais cara: sem ela o sistema reporta "enviado com
 sucesso" para uma mensagem que ninguém recebeu ainda e que vai chegar na pior
 hora possível.
+
+A oitava nasceu com os modelos e vale para TODO envio, não só para quem usa
+modelo: é a última rede antes do texto sair. Quem monta a mensagem já valida os
+valores, mas quem monta a mensagem é código de área — e a chamada errada de uma
+delas não pode virar "Prezado {{cliente}}" no celular do cliente.
 """
 from __future__ import annotations
 
-from . import cliente, config as cfg, numeros, registro
+from . import cliente, config as cfg, modelos, numeros, registro
 
 
 def _resultado(telefone_bruto: str, erro: str = "", *, telefone: str = "",
@@ -43,7 +50,8 @@ def _resultado(telefone_bruto: str, erro: str = "", *, telefone: str = "",
 
 
 def _recusar(bruto: str, normalizado: str, motivo: str, *, usuario: str,
-             origem: str, registrar: bool, esquema: str | None) -> dict:
+             origem: str, registrar: bool, esquema: str | None,
+             modelo: str = "") -> dict:
     """A recusa entra na trilha SEM o texto da mensagem, ao contrário do que o
     correio faz com o e-mail que falhou.
 
@@ -56,7 +64,7 @@ def _recusar(bruto: str, normalizado: str, motivo: str, *, usuario: str,
     if registrar:
         registro.gravar(normalizado or numeros.so_digitos(bruto), "",
                         usuario=usuario, origem=origem, ok=False, erro=motivo,
-                        esquema=esquema)
+                        modelo=modelo, esquema=esquema)
     return _resultado(bruto, motivo, telefone=normalizado)
 
 
@@ -75,34 +83,46 @@ def montar_texto(mensagem: str) -> str:
 
 
 def enviar(telefone: str, mensagem: str, *, usuario: str = "",
-           origem: str = "manual", registrar: bool = True,
+           origem: str = "manual", registrar: bool = True, modelo: str = "",
            http=None, esquema: str | None = None) -> dict:
     """Envia UMA mensagem. Nunca levanta."""
     bruto = str(telefone or "").strip()
     c = cfg.ler()
+    # os mesmos cinco argumentos em todas as recusas: com oito pontos de saída,
+    # repeti-los à mão é exatamente onde um deles fica para trás — foi assim que
+    # `modelo` quase não chegou à trilha da RECUSA, só à do sucesso
+    recusa = dict(usuario=usuario, origem=origem, registrar=registrar,
+                  esquema=esquema, modelo=modelo)
 
     try:
         numero = numeros.normalizar(bruto)
     except numeros.TelefoneInvalido as exc:
-        return _recusar(bruto, "", str(exc), usuario=usuario, origem=origem,
-                        registrar=registrar, esquema=esquema)
+        return _recusar(bruto, "", str(exc), **recusa)
 
     texto = montar_texto(mensagem)
     if not texto:
-        return _recusar(bruto, numero, "Mensagem vazia.", usuario=usuario,
-                        origem=origem, registrar=registrar, esquema=esquema)
+        return _recusar(bruto, numero, "Mensagem vazia.", **recusa)
+
+    # Rede final: `{{algo}}` que sobrou no texto é variável que ninguém
+    # preencheu. Chega aqui quando uma área monta a mensagem sem passar por
+    # `enviar_modelo` — e o que sairia é "Prezado {{cliente}}".
+    sobrando = modelos.variaveis_usadas(texto)
+    if sobrando:
+        return _recusar(
+            bruto, numero,
+            "A mensagem ainda tem variável sem preencher: "
+            + ", ".join("{{%s}}" % v for v in sobrando)
+            + ". Ela sairia assim, literal, para o destinatário.", **recusa)
 
     if not cliente.configurado():
         return _recusar(bruto, numero,
                         "WhatsApp não configurado. Configure a Z-API em "
-                        "Gestão › WhatsApp.", usuario=usuario, origem=origem,
-                        registrar=registrar, esquema=esquema)
+                        "Gestão › WhatsApp.", **recusa)
 
     if not c["ativo"]:
         return _recusar(bruto, numero,
                         "Envio por WhatsApp está DESLIGADO em Gestão › "
-                        "WhatsApp.", usuario=usuario, origem=origem,
-                        registrar=registrar, esquema=esquema)
+                        "WhatsApp.", **recusa)
 
     if not cfg.dentro_da_janela():
         return _recusar(
@@ -110,7 +130,7 @@ def enviar(telefone: str, mensagem: str, *, usuario: str = "",
             f"Fora da janela de envio ({c['janela_inicio']}–{c['janela_fim']}). "
             "Mensagem de empresa fora do horário comercial gera reclamação — "
             "ajuste a janela em Gestão › WhatsApp se for mesmo o caso.",
-            usuario=usuario, origem=origem, registrar=registrar, esquema=esquema)
+            **recusa)
 
     # O limite conta destinatários NOVOS do dia. Continuar uma conversa já
     # aberta hoje não consome cota: é o caso de menor risco que existe, e
@@ -123,8 +143,7 @@ def enviar(telefone: str, mensagem: str, *, usuario: str = "",
                 f"Limite diário atingido: {usados} destinatários diferentes "
                 f"hoje (máximo {c['limite_dia']}). O limite existe para o "
                 "número não ser banido pelo WhatsApp; ele zera à meia-noite.",
-                usuario=usuario, origem=origem, registrar=registrar,
-                esquema=esquema)
+                **recusa)
 
     # A Z-API aceita e enfileira quando o celular está fora — 200 sem entrega.
     est = cliente.estado(http=http)
@@ -135,7 +154,7 @@ def enviar(telefone: str, mensagem: str, *, usuario: str = "",
             f"A instância da Z-API não está conectada ({detalhe}). A mensagem "
             "NÃO foi enviada — se tivesse sido, ficaria na fila deles e "
             "dispararia toda de uma vez quando o aparelho voltasse.",
-            usuario=usuario, origem=origem, registrar=registrar, esquema=esquema)
+            **recusa)
 
     try:
         r = cliente.Cliente(http=http).enviar_texto(
@@ -143,23 +162,22 @@ def enviar(telefone: str, mensagem: str, *, usuario: str = "",
         message_id = str(r.get("messageId") or r.get("id") or "")
         if registrar:
             registro.gravar(numero, texto, usuario=usuario, origem=origem,
-                            ok=True, message_id=message_id, esquema=esquema)
+                            ok=True, message_id=message_id, modelo=modelo,
+                            esquema=esquema)
         return _resultado(bruto, telefone=numero, ok=True,
                           message_id=message_id)
     except (cliente.ZapiIndisponivel, cliente.ZapiNaoConfigurado) as exc:
         # `str(exc)` aqui é seguro: quem levanta já sanitizou. A garantia está
         # em cliente._sanitizar, com teste próprio.
-        return _recusar(bruto, numero, str(exc), usuario=usuario,
-                        origem=origem, registrar=registrar, esquema=esquema)
+        return _recusar(bruto, numero, str(exc), **recusa)
     except Exception as exc:   # noqa: BLE001 - contrato: nunca levanta
         return _recusar(bruto, numero,
                         f"Falha inesperada no envio: {type(exc).__name__}.",
-                        usuario=usuario, origem=origem, registrar=registrar,
-                        esquema=esquema)
+                        **recusa)
 
 
 def enviar_varios(telefones, mensagem: str, *, usuario: str = "",
-                  origem: str = "manual", http=None,
+                  origem: str = "manual", modelo: str = "", http=None,
                   esquema: str | None = None) -> dict:
     """Manda para vários e devolve o resultado de CADA um.
 
@@ -173,8 +191,51 @@ def enviar_varios(telefones, mensagem: str, *, usuario: str = "",
                 "enviados": 0, "falhas": 0, "resultados": []}
 
     resultados = [enviar(t, mensagem, usuario=usuario, origem=origem,
-                         http=http, esquema=esquema) for t in alvos]
+                         modelo=modelo, http=http, esquema=esquema)
+                  for t in alvos]
     enviados = sum(1 for r in resultados if r["ok"])
     return {"ok": enviados > 0, "erro": "" if enviados else resultados[0]["erro"],
             "enviados": enviados, "falhas": len(resultados) - enviados,
             "resultados": resultados}
+
+
+def enviar_modelo(telefones, chave: str, valores: dict | None = None, *,
+                  usuario: str = "", origem: str = "", http=None,
+                  esquema: str | None = None) -> dict:
+    """ESTA é a porta que as outras áreas do sistema usam.
+
+    Chama-se pela CHAVE do modelo, nunca pelo id nem pelo nome: o id muda se um
+    backup for restaurado noutra ordem, e o nome muda no dia em que alguém
+    reescrever o título do modelo na tela. A chave é o contrato.
+
+    As três recusas próprias daqui acontecem ANTES de qualquer regra de envio,
+    porque nenhuma delas depende do destinatário — e errar aqui é erro de quem
+    chamou, não do operador:
+
+        modelo não existe   a área pede um texto que ninguém cadastrou
+        modelo desligado    alguém desligou o texto de propósito; respeitar
+                            isso é o que faz o interruptor existir
+        variável faltando   `renderizar()` estrito, para a mensagem não sair
+                            com buraco no lugar do nome do cliente
+
+    Recusa daqui NÃO entra na trilha `zap_envios`: nada foi tentado contra
+    número nenhum, e uma linha por chamada errada de código encheria a trilha
+    que existe para responder "o que saiu para fora da empresa".
+    """
+    modelo = modelos.obter(chave, esquema=esquema)
+    if not modelo:
+        return {"ok": False, "erro": f"Modelo “{chave}” não existe.",
+                "enviados": 0, "falhas": 0, "resultados": []}
+    if not modelo["ativo"]:
+        return {"ok": False,
+                "erro": f"O modelo “{modelo['nome']}” está desligado.",
+                "enviados": 0, "falhas": 0, "resultados": []}
+    try:
+        texto = modelos.renderizar(modelo["corpo"], valores)
+    except modelos.VariavelFaltando as exc:
+        return {"ok": False, "erro": str(exc), "enviados": 0, "falhas": 0,
+                "resultados": []}
+
+    return enviar_varios(telefones, texto, usuario=usuario,
+                         origem=origem or f"modelo:{modelo['chave']}",
+                         modelo=modelo["chave"], http=http, esquema=esquema)
