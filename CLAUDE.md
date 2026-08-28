@@ -558,6 +558,29 @@ a query ignora sai; dimensão que a query aceita e é a pergunta natural da tela
   documenta que valida a existência do número a cada envio — pedindo
   explicitamente que NÃO se cheque antes. Inventar o dígito manda para outro
   assinante.
+**Rota `async def` com I/O bloqueante para o SERVIDOR INTEIRO (lição do 502 no envio):**
+- O FastAPI roda rota `def` num threadpool e rota `async def` **no próprio event
+  loop**. Toda rota que recebe corpo nasce `async def` (precisa de `await
+  req.json()`) — e aí um `urllib`, `psycopg` ou `smtplib` dentro dela trava o loop,
+  isto é, o CÓRTEX inteiro, pelo tempo da chamada. Ninguém é atendido: nem outra
+  tela, nem a recarga da Torre, nem o `/api/health`.
+- **Medido, não suposto:** com a Z-API demorando 3 s, o `/api/health` levou **5,7 s**.
+  Em produção o envio chega a 30 s por destinatário (10 s de `/status` + 20 s de
+  `/send-text`) e `enviar_varios` repete isso EM SÉRIE — um disparo para cinco
+  clientes deixava o painel fora do ar por minutos.
+- **O sintoma não parece o que é:** o Cloudflare Tunnel, sem resposta da origem,
+  devolve **502 Bad Gateway em HTML**. A tela não consegue lê-lo como JSON e acusa
+  "erro interno da API". Quem investiga vai procurar defeito na rota — que está
+  correta. Ao ver 502/504 sem JSON com a API de pé, suspeite do event loop antes
+  do código da rota.
+- A regra: em rota `async def`, **tudo que faz I/O passa por `sem_travar()`**
+  (`api/main.py`). Já aplicado no envio de WhatsApp e de e-mail, na coleta da
+  Gobrax ("leva mais de dois minutos"), no download da ANTT (~158 MB), no
+  cancelamento na SEFAZ e no teste da agenda de relatórios.
+- **O `TestClient` NÃO pega isso** — ele serializa as chamadas e um loop travado
+  passa despercebido. `tests/test_rotas_nao_travam.py` sobe o uvicorn de verdade e
+  mede o `/api/health` durante um envio lento; sem o conserto ele acusa 3,8 s.
+
 - **Recarregar a tela depois de agir NÃO pode ficar no `try` da ação.** O
   `await whatsCarregar()` estava dentro do bloco do envio: uma falha ao
   repintar a trilha sobrescrevia "enviada para 1 número" por "não foi possível

@@ -20,11 +20,39 @@ from fastapi import FastAPI, Request, Response
 from fastapi.middleware.gzip import GZipMiddleware
 from fastapi.responses import FileResponse, JSONResponse, PlainTextResponse, StreamingResponse
 from fastapi.staticfiles import StaticFiles
+from starlette.concurrency import run_in_threadpool
 
 from . import (alertas, auth, copiloto, db, documentacao, dre_cliente, push, queries,
                queries_folha, servidor)
 
 log = logging.getLogger("cortex.financeiro")
+
+
+async def sem_travar(fn, *args, **kwargs):
+    """Roda trabalho BLOQUEANTE fora do event loop.
+
+    POR QUE ISTO EXISTE — e por que é obrigatório em toda rota `async def` que
+    fale com o mundo lá fora:
+
+    O FastAPI roda rota `def` num threadpool e rota `async def` NO PRÓPRIO
+    EVENT LOOP. Como as rotas que recebem corpo precisam de `await req.json()`,
+    elas nascem `async def` — e aí qualquer `urllib`, `psycopg` ou `smtplib`
+    dentro delas trava o loop, ou seja, o SERVIDOR INTEIRO, pelo tempo da
+    chamada. Ninguém mais é atendido: nem outra tela, nem a recarga automática
+    da Torre, nem o `/api/health`.
+
+    Não é teoria. Foi MEDIDO nesta bancada com o envio de WhatsApp: com a
+    Z-API demorando 3 s, o `/api/health` — rota trivial e pública — levou
+    5,7 s. Em produção o envio chega a 30 s por destinatário (10 s de
+    `/status` + 20 s de `/send-text`), e `enviar_varios` repete isso em série,
+    um número por vez. O Cloudflare Tunnel, sem resposta da origem, devolve
+    **502 Bad Gateway em HTML** — que a tela não consegue nem ler como JSON.
+    Foi exatamente esse o defeito relatado, e o teste
+    `tests/test_rotas_nao_travam.py` existe para ele não voltar.
+
+    A regra, então: em rota `async def`, tudo que faz I/O passa por aqui.
+    """
+    return await run_in_threadpool(fn, *args, **kwargs)
 
 
 def _versao() -> str:
@@ -419,8 +447,10 @@ async def telemetria_consumo_atualizar(req: Request) -> JSONResponse:
         return JSONResponse(status_code=422, content={
             "erro": "parametro_invalido", "mensagem": str(exc)})
     try:
-        e = estatisticas.sincronizar(comp)
-        o = odometro.sincronizar(comp)
+        # dois minutos de coleta na Gobrax: no event loop, seriam dois minutos
+        # com o CÓRTEX inteiro fora do ar para todo mundo
+        e = await sem_travar(estatisticas.sincronizar, comp)
+        o = await sem_travar(odometro.sincronizar, comp)
         return JSONResponse({"competencia": comp, "estatisticas": e["gravadas"],
                              "odometro": o["gravadas"]})
     except ColetaVazia as exc:
@@ -633,7 +663,8 @@ async def contrapartida_cancelar(req: Request) -> JSONResponse:
         return JSONResponse(status_code=422, content={
             "erro": "parametro_invalido", "mensagem": "Informe a chave."})
     try:
-        r = emissao.cancelar(str(body["chave"]),
+        # ida à SEFAZ: lenta e imprevisível, e o event loop não pode esperar
+        r = await sem_travar(emissao.cancelar, str(body["chave"]),
                              str(body.get("justificativa") or ""), quem=quem)
     except (ValueError, FileNotFoundError) as exc:
         return JSONResponse(status_code=422, content={
@@ -945,12 +976,15 @@ async def gestao_agenda_testar(req: Request) -> JSONResponse:
             "erro": "parametro_invalido",
             "mensagem": "Sessão sem e-mail: não há para onde mandar o teste."})
     try:
-        r = relatorios.montar(str(body.get("relatorio") or ""))
+        # montar o relatório consulta o AVA e enviar abre SMTP: os dois são
+        # bloqueantes e não podem rodar no event loop
+        r = await sem_travar(relatorios.montar, str(body.get("relatorio") or ""))
     except ValueError as exc:
         return JSONResponse(status_code=422, content={
             "erro": "parametro_invalido", "mensagem": str(exc)})
-    res = enviar([autor], "[TESTE] " + r["assunto"], r["texto"],
-                 corpo_html=r["html"], usuario=autor, origem="agenda:teste")
+    res = await sem_travar(enviar, [autor], "[TESTE] " + r["assunto"], r["texto"],
+                           corpo_html=r["html"], usuario=autor,
+                           origem="agenda:teste")
     auth.audit(autor, "correio_agenda_teste", alvo=str(body.get("relatorio")),
                detalhe=("ok" if res["ok"] else f"falha: {res['erro']}")[:200])
     if not res["ok"]:
@@ -991,7 +1025,10 @@ async def gestao_email_enviar(req: Request) -> JSONResponse:
         assunto = str(body.get("assunto") or "")
         corpo = str(body.get("mensagem") or body.get("corpo") or "")
 
-    r = enviar(destinatarios, assunto, corpo, usuario=autor, origem=origem)
+    # SMTP é bloqueante como a Z-API: sem isto, um servidor de e-mail lento
+    # trava o CÓRTEX inteiro pelo tempo do handshake
+    r = await sem_travar(enviar, destinatarios, assunto, corpo,
+                         usuario=autor, origem=origem)
     auth.audit(autor or "?", "email_enviar",
                alvo=", ".join(r["destinatarios"])[:200],
                detalhe=("ok" if r["ok"] else f"falha: {r['erro']}")[:200])
@@ -1109,14 +1146,14 @@ async def gestao_whatsapp_enviar(req: Request) -> JSONResponse:
     try:
         if chave:
             valores = body.get("valores")
-            r = enviar_modelo(telefones, chave,
-                              valores if isinstance(valores, dict) else {},
-                              usuario=autor,
-                              origem=str(body.get("origem") or "") or "")
+            r = await sem_travar(
+                enviar_modelo, telefones, chave,
+                valores if isinstance(valores, dict) else {},
+                usuario=autor, origem=str(body.get("origem") or "") or "")
         else:
-            r = enviar_varios(telefones, str(body.get("mensagem") or ""),
-                              usuario=autor,
-                              origem=str(body.get("origem") or "manual"))
+            r = await sem_travar(
+                enviar_varios, telefones, str(body.get("mensagem") or ""),
+                usuario=autor, origem=str(body.get("origem") or "manual"))
     except Exception as exc:  # noqa: BLE001
         from api.whatsapp.cliente import _sanitizar
         log.exception("whatsapp_enviar falhou")
@@ -1291,7 +1328,9 @@ async def antt_rntrc_atualizar(req: Request) -> JSONResponse:
     from api.antt.rntrc_servico import atualizar_base
     hoje = date.today()
     try:
-        return JSONResponse(atualizar_base(
+        # 158 MB de download: o event loop não pode ficar esperando por isso
+        return JSONResponse(await sem_travar(
+            atualizar_base,
             (hoje - timedelta(days=365)).isoformat(), hoje.isoformat()))
     except BaseVazia as exc:
         log.warning("sync do rntrc veio vazia: %s", exc)

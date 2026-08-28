@@ -4,6 +4,12 @@ Gerado de `docs/versoes.yaml` por `scripts/gerar_changelog.py` — não editar �
 Formato [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/),
 versionamento [SemVer](https://semver.org/lang/pt-BR/).
 
+## [0.121.3] — 28/08/2026  ·  CX-28/08/2026-v0.121.3
+
+### Corrigido
+- O erro 502 no envio de WhatsApp tinha uma causa que nao estava no envio: a rota travava o CORTEX INTEIRO enquanto falava com a Z-API. Medido: com a Z-API demorando 3 segundos, uma tela qualquer do painel ficava 5,7 segundos sem resposta. Em producao o envio chega a 30 segundos por destinatario, e um disparo para varios clientes deixava o painel fora do ar por minutos - para todo mundo, nao so para quem enviava. Sem resposta do servidor, o tunel devolvia 502.
+- A mesma trava existia em outras rotas demoradas: envio de e-mail, coleta da Gobrax (que leva mais de dois minutos), download da base da ANTT (158 MB), cancelamento de CT-e na SEFAZ e o teste da agenda de relatorios. Agora nenhuma delas segura o resto do sistema - o painel continua respondendo enquanto elas trabalham.
+
 ## [0.121.2] — 28/08/2026  ·  CX-28/08/2026-v0.121.2
 
 ### Corrigido
