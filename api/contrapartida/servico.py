@@ -241,6 +241,7 @@ def get_contrapartida(de: str | None = None, ate: str | None = None,
         "certificados": _certificados(pj, pront),
         "classes": CLASSES,
         "avisos": _avisos(pj, tac, indef, faltando, _tx),
+        "pendencias": _pendencias(pj, tac, indef, faltando),
         "fonte": {
             "tabela": "conhecimento × veiculo (utilizacaoveiculo='AGR') × cadastro",
             "gerado_em": datetime.now().strftime("%Y-%m-%d %H:%M"),
@@ -690,6 +691,111 @@ def _validacao(pj: list[dict]) -> dict:
             a["documento"] for a in achados
             if a["grave"] and a["categoria"] == "cadastro"}]),
     }
+
+
+# ALVO de cada pendencia: o KPI que ela explica. `None` significa que nao ha
+# cartao para ela, e ai ela cai no bloco de pendencias no fim da banda.
+#
+# Uma pendencia por CARTAO, e nao uma por causa: o cartao "Autorizados a
+# emitir" tem tres motivos de trava (certificado, inscricao estadual, cadastro
+# incompleto) e tres chips no mesmo numero viram ruido. O chip diz QUANTOS
+# estao travados; a quebra por motivo vai no tooltip, que e onde se procura o
+# detalhe depois de ver que ha um.
+ALVO_FILA = "ctes_pj"
+ALVO_PRONTOS = "prontos"
+ALVO_TAC = "tac"
+
+
+def _pendencias(pj, tac, indef, faltando) -> list[dict]:
+    """O que EXIGE alguem, em forma estruturada.
+
+    Nasceu do cartao "Ler com atencao", que era uma lista corrida de frases no
+    meio da tela: sempre presente (mesmo sem nada a fazer), longa, e sem dizer
+    o que fazer nem com qual numero cada frase falava. Aqui cada item carrega:
+
+      `alvo`    o KPI que ele explica, para virar chip colado ao numero;
+      `curto`   o texto do chip, com a CONTAGEM na frente;
+      `texto`   a explicacao inteira, que vai para o tooltip;
+      `nivel`   'bad' trava a emissao · 'warn' pede conferencia.
+
+    So entra o que alguem tem de RESOLVER. Descricao de estado ("16 sao pessoa
+    fisica", "N autorizados em producao") ficou de fora: ja esta nos cartoes, e
+    um bloco que quase sempre tem uma linha ensina a ignorar o bloco.
+    """
+    pend: list[dict] = []
+
+    # --- travam a emissao, e todos apontam para o mesmo cartao ---------------
+    naopronto = [x for x in pj if not (x.get("prontidao") or {}).get("pronto")]
+    sem_ie = [x for x in pj if not _ie_utilizavel(x["ie"])]
+    motivos = []
+    if naopronto:
+        motivos.append(f"{len(naopronto)} sem procuração vigente, certificado "
+                       f"A1 válido ou a senha dele no cofre")
+    if sem_ie:
+        motivos.append(f"{len(sem_ie)} sem inscrição estadual utilizável no "
+                       f"cadastro (a maioria com o texto “ISENTO”)")
+    if faltando:
+        quais = ", ".join(f"{x['nome'] or x['documento']}"
+                          for x in faltando[:3])
+        motivos.append(f"{len(faltando)} com cadastro incompleto no ERP "
+                       f"({quais}{'…' if len(faltando) > 3 else ''})")
+    if motivos:
+        # o travado e a UNIAO, nao a soma: o mesmo agregado costuma aparecer em
+        # dois motivos, e somar diria mais travados do que agregados existem
+        travados = {x["documento"] for x in naopronto} |                    {x["documento"] for x in sem_ie} |                    {x["documento"] for x in faltando}
+        pend.append({
+            "alvo": ALVO_PRONTOS, "nivel": "bad",
+            "curto": f"{len(travados)} travado" + ("s" if len(travados) != 1 else ""),
+            "acao": "Implantação",
+            "texto": ("Não podem emitir hoje: " + "; ".join(motivos)
+                      + ". CT-e é documento de ICMS, então transportadora "
+                      "emitente precisa ser inscrita; campo faltando vira "
+                      "rejeição documento a documento na transmissão."),
+        })
+
+    # --- pede conferencia da contabilidade, e fala da FILA -------------------
+    centavos = [x for x in pj if (x.get("valor") or 0) < 1.0]
+    if centavos:
+        pend.append({
+            "alvo": ALVO_FILA, "nivel": "warn",
+            "curto": f"{len(centavos)} de valor simbólico",
+            "acao": "confirmar com a contabilidade",
+            "texto": (f"{len(centavos)} agregado(s) PJ com CT-e somando menos "
+                      "de R$ 1,00 no período. Documento de valor simbólico "
+                      "costuma ser anulação ou complementar, não prestação — "
+                      "se for, não deveria entrar na fila de contrapartida."),
+        })
+
+    # --- sem cartao proprio: caem no bloco de pendencias --------------------
+    if indef:
+        pend.append({
+            "alvo": None, "nivel": "warn",
+            "curto": f"{len(indef)} com documento fora do padrão",
+            "acao": "conferir o cadastro do veículo",
+            "texto": (f"{len(indef)} agregados com documento de proprietário "
+                      "fora do padrão de CNPJ ou CPF: não dá para dizer se "
+                      "emitem CT-e."),
+        })
+    try:
+        from api.contrapartida import lote as _lote
+        presos = _lote._quarentena(_lote.emissao.ambiente_ativo())
+    except Exception as exc:  # noqa: BLE001
+        log.warning("quarentena indisponivel: %s", exc)
+        presos = {}
+    if presos:
+        motivos_q = sorted({str(v.get("cstat")) for v in presos.values()})
+        pend.append({
+            "alvo": None, "nivel": "bad",
+            "curto": f"{len(presos)} CT-e fora da fila",
+            "acao": "Transmitidos",
+            "texto": (f"{len(presos)} CT-e saíram da fila por recusa repetida "
+                      f"da SEFAZ (a partir de "
+                      f"{_lote.MAX_TENTATIVAS_MESMA_RECUSA} tentativas com o "
+                      f"mesmo retorno: {', '.join(motivos_q)}). Rejeição não "
+                      "muda sozinha — insistir gastava a rodada e o disjuntor "
+                      "derrubava o lote antes de chegar em quem estava certo."),
+        })
+    return pend
 
 
 def _avisos(pj, tac, indef, faltando, tx=None) -> list[str]:

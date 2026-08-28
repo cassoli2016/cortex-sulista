@@ -1180,6 +1180,29 @@ button.avatar{border:0;cursor:pointer}
 #view-ctecp .grid2{gap:20px}
 /* o cabecalho grudado so faz sentido com rolagem interna */
 #view-ctecp .tabroll thead th{position:static}
+/* PENDENCIAS SEM CARTAO. Linha fina abaixo da banda, com um filete da cor do
+   nivel: e uma nota de rodape do conjunto de indicadores, nao um cartao
+   competindo com eles. Some inteira quando nao ha nenhuma. */
+/* BOTOES DE ACAO NA TABELA. "desativar envio" quebrava em duas linhas nas 24
+   linhas do cartao de certificados, e cada botao ficava com altura diferente
+   do vizinho. Uma linha so, altura igual, sem quebra — e o verbo curto, que e
+   o que cabe numa celula ("desativar", nao "desativar envio": a coluna se
+   chama Acoes e a linha ja e do agregado). */
+.tab .acoes{display:flex;gap:6px;align-items:center;flex-wrap:nowrap}
+.tab .acoes .gbtn{white-space:nowrap;line-height:1.1}
+/* A acao que RESTABELECE ganha peso: entre "desativar" e "ativar", a segunda e
+   a que devolve o agregado para a fila e a que alguem procura. */
+.gbtn.primaria{border-color:var(--green);color:var(--green);font-weight:600}
+.gbtn.primaria:hover{background:#E8F5EE}
+.cp-pend{display:flex;flex-wrap:wrap;gap:8px}
+.cp-pend .item{display:flex;align-items:center;gap:8px;font-size:12.5px;
+  background:var(--n0);border:1px solid var(--n200);border-radius:8px;
+  padding:7px 12px;cursor:help}
+.cp-pend .item.bad{box-shadow:inset 3px 0 0 var(--red)}
+.cp-pend .item.warn{box-shadow:inset 3px 0 0 var(--yellow)}
+.cp-pend .txt{color:var(--n800);font-weight:500}
+.cp-pend .acao{color:var(--n500);border-left:1px solid var(--n200);
+  padding-left:8px}
 .cp-pager{display:grid;grid-template-columns:1fr auto 1fr;align-items:center;
   padding:12px 18px 14px;border-top:1px solid var(--n200)}
 .cp-pager .botoes{display:flex;align-items:center;gap:8px;justify-content:center}
@@ -3022,7 +3045,8 @@ body.tvfull #btnReport,body.tvmode #btnReport{display:none}
         </div>
 
         <div class="kband"><h3>Fila de contrapartida &mdash; só agregado PJ</h3>
-          <div class="kpis k4" id="kpis-ctecp"></div></div>
+          <div class="kpis k4" id="kpis-ctecp"></div>
+          <div class="cp-pend" id="cpPend" hidden></div></div>
 
         <div class="card">
           <div class="head"><h2>Fila por agregado <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="Ordenada por valor, que é como a implantação deve ser atacada: os primeiros concentram a maior parte do volume. A coluna Cadastro mostra o que a emissão vai exigir — campo faltando vira rejeição documento a documento na transmissão.">i</span></h2>
@@ -10802,11 +10826,13 @@ function renderCtecp(d){
   document.getElementById('kpis-ctecp').innerHTML=
     kpi('CT-e aguardando contrapartida', (k.ctes_pj||0).toLocaleString('pt-BR'),
         cpBRL(k.valor_pj)+' · '+(k.agregados_pj||0)+' agregados PJ', 'bad',
-        'CT-e emitidos com veículo de agregado PESSOA JURÍDICA — só estes podem ter contrapartida. O valor é a prestação dos CT-e da fila, não o valor do documento a emitir, que depende do contrato com cada agregado.')
+        'CT-e emitidos com veículo de agregado PESSOA JURÍDICA — só estes podem ter contrapartida. O valor é a prestação dos CT-e da fila, não o valor do documento a emitir, que depende do contrato com cada agregado.',
+        cpPendChip(d, 'ctes_pj'))
    +kpi('Autorizados a emitir', (k.prontos_para_emitir||0)+' de '+(k.agregados_pj||0),
         'autorização vigente + certificado A1 + senha',
         (k.prontos_para_emitir||0)===0?'bad':'warn',
-        'Enquanto nenhum agregado estiver autorizado, a fila é diagnóstico: nenhum documento pode ser emitido.')
+        'Enquanto nenhum agregado estiver autorizado, a fila é diagnóstico: nenhum documento pode ser emitido.',
+        cpPendChip(d, 'prontos'))
    +(function(){
       /* RETORNO DA SEFAZ. UMA chamada so, com os argumentos calculados
          antes: o teste que confere a banda conta as chamadas no codigo, e
@@ -10933,44 +10959,81 @@ function renderCtecp(d){
                atencao:'b-warn',desconhecido:'b-dang',impedido:'b-info',ok:'b-ok'};
     pagRecorte('cpCertTab', String(cItens.length));
     const pagCert = pagFatia('cpCertTab', cItens);
+    /* AS ACOES FICAM NUMA COLUNA SO, no fim. Antes "trocar" morava dentro da
+       celula da VALIDADE (o botao caia embaixo da data, e a celula ficava com
+       duas coisas de naturezas diferentes) e "desativar envio" era uma coluna
+       inteira chamada "Envio". Duas colunas de acao espalhadas fazem o olho
+       procurar o botao em lugares diferentes conforme a linha.
+
+       A coluna TIPO saiu: era "A1" nas vinte e quatro linhas. Coluna que
+       repete o mesmo valor em todas as linhas nao informa nada — vira nota no
+       rodape, e o A3 (que NAO automatiza) ganha selo proprio quando aparecer.
+
+       TITULAR so aparece quando DIFERE do agregado. Certificado trocado assina
+       o documento errado e isso nao aparece em conferencia nenhuma depois — e
+       o unico caso em que a coluna diz algo. Igual, ela repetia o nome ao lado
+       do nome. */
+    const a3 = cItens.filter(function(c){ return (c.tipo||'') !== 'A1'; }).length;
     document.getElementById('cpCertTab').innerHTML =
-      '<thead><tr><th>Agregado</th><th>Titular do certificado</th><th>Tipo</th>'
-      +'<th>Validade</th><th>Situação</th><th>Envio</th>'
-      +'<th class="num">CT-e no período</th>'
-      +'</tr></thead><tbody>'
+      '<thead><tr><th>Agregado</th><th>Situação</th><th>Validade</th>'
+      +'<th class="num" title="CT-e do agregado no período filtrado. “—” quer dizer que ele não rodou no recorte; o certificado continua valendo e vencendo.">CT-e</th>'
+      +'<th>Ações</th></tr></thead><tbody>'
       +pagCert.map(function(c){
         const grave = c.situacao==='vencido'||c.situacao==='critico'
                    || c.situacao==='desconhecido';
+        /* O nome do TITULAR so entra quando difere: comparacao frouxa, porque
+           o ERP e o certificado escrevem "E" e "&" de jeitos diferentes. */
+        /* "&" e "E" sao a mesma palavra num nome de empresa, e o ERP e o
+           certificado escolhem um ou outro: sem trocar antes de limpar, o
+           comparador acusava "REZENDE & CARDOSO" contra "REZENDE E CARDOSO"
+           como titular DIFERENTE — que e o alarme mais grave desta tela. */
+        const norm = t => (t||'').toUpperCase().replace(/&/g,'E')
+                                 .replace(/[^A-Z0-9]/g,'');
+        const nome = c.nome||c.documento;
+        const difere = c.titular && norm(c.titular) !== norm(nome);
         return '<tr'+(grave?' class="cp-recusada"':'')+'>'
-          +'<td>'+esc(c.nome||c.documento)+'</td>'
-          +'<td>'+esc(c.titular||'—')
-          +(c.tem_senha?'':' <span class="badge b-dang" title="Sem a senha no cofre o certificado não assina">sem senha</span>')
+          +'<td><div>'+esc(nome)+'</div>'
+          +(difere
+            ? '<div class="hint" style="color:var(--red)" title="O certificado é de OUTRO titular. Assinar com ele é assinar como essa empresa — confira antes de emitir.">certificado de '+esc(c.titular)+'</div>'
+            : '')
+          +((c.tipo||'A1')!=='A1'
+            ? ' <span class="badge b-warn" title="A3 mora em token físico e NÃO automatiza.">'+esc(c.tipo)+'</span>'
+            : '')
+          +(c.tem_senha===false
+            ? ' <span class="badge b-dang" title="Sem a senha no cofre o certificado não assina.">sem senha</span>'
+            : '')
           +'</td>'
-          +'<td class="mono">'+esc(c.tipo||'—')+'</td>'
-          +'<td class="mono">'+(c.valida_ate?esc(fmtD(c.valida_ate)):'—')
-          +' <button class="gbtn" data-doc="'+esc(c.documento)+'"'
-          +' onclick="cpAbrir(this.dataset.doc)"'
-          +' title="Substituir o arquivo .pfx e a senha deste agregado. O cadastro anterior e sobrescrito.">trocar</button></td>'
           +'<td><span class="badge '+(CLS[c.situacao]||'b-info')+'">'
-          +esc(c.texto||c.situacao)+'</span></td>'
-          /* zero aqui e "nao rodou NO RECORTE", nao "nao importa" - e a
-             diferenca some se o numero aparecer pelado */
-          /* CNPJ vai em data- e o handler o le de la: sem aspa dentro de
-             aspa dentro de atributo, que e onde o escape quebra. */
-          +'<td>'+(c.envio
-             ? '<button class="gbtn" data-cnpj="'+esc(c.documento)+'" data-liga="0"'
-               +' onclick="cpEnvio(this)" title="Tira este agregado da fila de emissão.'
-               +' Não apaga certificado nem autorização — só suspende o envio.">desativar envio</button>'
-             : '<button class="gbtn" data-cnpj="'+esc(c.documento)+'" data-liga="1"'
-               +' onclick="cpEnvio(this)" title="'
-               +esc('Fora da fila'+(c.envio_quem?' por '+c.envio_quem:'')+'. Clique para voltar a emitir.')
-               +'"><span class="badge b-dang">envio desativado</span> ativar</button>')
+          +esc(c.texto||c.situacao)+'</span>'
+          +(c.envio ? '' : ' <span class="badge b-dang" title="'
+             +esc('Fora da fila de emissão'+(c.envio_quem?' por '+c.envio_quem:'')+'.')
+             +'">envio off</span>')
           +'</td>'
+          +'<td class="mono">'+(c.valida_ate?esc(fmtD(c.valida_ate)):'—')+'</td>'
+          /* zero aqui e "nao rodou NO RECORTE", nao "nao importa": travessao
+             em vez de frase, para a coluna numerica continuar alinhada */
           +'<td class="num mono">'+(c.no_periodo
              ? (c.ctes||0).toLocaleString('pt-BR')
-             : '<span class="hint" title="Este agregado não teve CT-e no período filtrado. O certificado continua valendo — e vencendo.">fora do período</span>')
-          +'</td></tr>';
+             : '<span class="hint" title="Não teve CT-e no período filtrado. O certificado continua valendo — e vencendo.">—</span>')
+          +'</td>'
+          +'<td><div class="acoes">'
+          +'<button class="gbtn" data-doc="'+esc(c.documento)+'"'
+          +' onclick="cpAbrir(this.dataset.doc)"'
+          +' title="Substituir o arquivo .pfx e a senha deste agregado. O cadastro anterior é sobrescrito.">trocar</button>'
+          /* CNPJ vai em data- e o handler o le de la: sem aspa dentro de aspa
+             dentro de atributo, que e onde o escape quebra. */
+          +(c.envio
+             ? '<button class="gbtn" data-cnpj="'+esc(c.documento)+'" data-liga="0"'
+               +' onclick="cpEnvio(this)" title="Tira este agregado da fila de emissão.'
+               +' Não apaga certificado nem autorização — só suspende o envio.">desativar</button>'
+             : '<button class="gbtn primaria" data-cnpj="'+esc(c.documento)+'" data-liga="1"'
+               +' onclick="cpEnvio(this)" title="Volta a emitir para este agregado.">ativar</button>')
+          +'</div></td></tr>';
       }).join('')+'</tbody>';
+    /* O que saiu da tabela vai para o rodape: o tipo do certificado so importa
+       quando NAO e A1. */
+    document.getElementById('hintCpCert').textContent +=
+      (a3 ? ' · '+a3+' em A3 (token físico, não automatiza)' : ' · todos A1');
   }
 
   /* `d.avisos` continua vindo do servidor e NAO e mais desenhado aqui: era
@@ -10980,6 +11043,7 @@ function renderCtecp(d){
      (`api/correio/relatorios.py`) — e porque ele deve voltar a tela em outra
      forma, ligado ao numero que o originou. */
   CP_VAL = d.validacao || null; cpValidRender();
+  cpPendSoltas(d);
 }
 
 /* CATEGORIA PADRAO = cadastro. Dos 88 achados, 76 sao "sem certificado" -
@@ -11417,6 +11481,42 @@ function cpTipoTag(classe){
   return '<span class="badge b-dang" title="O documento do proprietario nao tem '
     + '11 nem 14 digitos: nao da para dizer se emite CT-e. E cadastro a '
     + 'corrigir no ERP, nao um terceiro tipo de transportador.">indefinido</span>';
+}
+
+/* ========= PENDENCIAS: cada uma COLADA no numero que ela explica ==========
+   Vieram do cartao "Ler com atencao", que era uma lista corrida de frases no
+   meio da tela: sempre presente (mesmo sem nada a fazer), longa, e sem dizer
+   com qual numero cada frase falava. Agora a pendencia vira CHIP no proprio
+   cartao, com a quebra por motivo no tooltip — que e onde se procura o detalhe
+   depois de ver que ha um.
+
+   As que nao tem cartao (quarentena, documento fora do padrao) caem no bloco
+   abaixo da banda, que SOME quando nao ha nenhuma. Bloco que quase sempre tem
+   uma linha ensina a ignorar o bloco. */
+function cpPendChip(d, alvo){
+  const x = ((d||{}).pendencias||[]).find(function(p){ return p.alvo === alvo; });
+  if(!x) return '';
+  /* A classe e a LEITURA, como em todo chip desta casa: `bad` trava a emissao,
+     `warn` pede conferencia. O tooltip carrega o texto inteiro e a acao. */
+  return statChip(x.nivel === 'bad' ? 'bad' : 'warn', x.curto,
+                  x.texto + (x.acao ? '  →  ' + x.acao : ''));
+}
+
+function cpPendSoltas(d){
+  const alvo = document.getElementById('cpPend');
+  if(!alvo) return;
+  const soltas = ((d||{}).pendencias||[]).filter(function(p){ return !p.alvo; });
+  alvo.hidden = !soltas.length;
+  if(!soltas.length){ alvo.innerHTML=''; return; }
+  alvo.innerHTML = soltas.map(function(x){
+    /* A acao vira o fim da linha, e nao um paragrafo: quem le uma pendencia
+       quer saber para onde ir. */
+    return '<div class="item ' + (x.nivel==='bad'?'bad':'warn') + '"'
+      + ' title="' + esc(x.texto) + '">'
+      + '<span class="txt">' + esc(x.curto) + '</span>'
+      + (x.acao ? '<span class="acao">' + esc(x.acao) + '</span>' : '')
+      + '</div>';
+  }).join('');
 }
 
 function cpTabRender(){

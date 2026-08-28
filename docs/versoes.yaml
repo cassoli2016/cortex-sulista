@@ -1,3 +1,42 @@
+- versao: "0.134.0"
+  data: "2026-08-28"
+  alterado:
+    - >-
+      OS AVISOS VOLTARAM, COLADOS NO NUMERO QUE EXPLICAM. O cartao "Ler com
+      atencao" era uma lista corrida de frases no meio da tela: sempre
+      presente, longa, e sem dizer com qual numero cada frase falava. Agora a
+      pendencia vira CHIP no proprio cartao - "Autorizados a emitir 13 de 21
+      [9 travados]" - com a quebra por motivo no tooltip, que e onde se procura
+      o detalhe depois de ver que ha um. As que nao tem cartao (CT-e em
+      quarentena, documento de proprietario fora do padrao) caem num bloco fino
+      abaixo da banda, que SOME quando nao ha nenhuma.
+    - >-
+      So entra o que exige acao de alguem. Descricao de estado ("16 sao pessoa
+      fisica", "N autorizados em producao") ficou de fora: ja esta nos cartoes,
+      e um bloco que quase sempre tem uma linha ensina a ignorar o bloco.
+    - >-
+      O numero do chip e a UNIAO dos motivos, nao a soma: o mesmo agregado
+      costuma estar sem certificado E sem inscricao estadual, e somar diria
+      mais travados do que agregados existem.
+    - >-
+      VENCIMENTO DOS CERTIFICADOS reorganizado. As acoes ficavam em DUAS
+      colunas ("trocar" caia embaixo da data, dentro da celula de validade, e
+      "desativar envio" era uma coluna inteira), entao o olho procurava o botao
+      em lugares diferentes conforme a linha; e "desativar envio" quebrava em
+      duas linhas nas 24 linhas do cartao. Agora ha uma coluna Acoes, com os
+      botoes lado a lado, mesma altura e sem quebra.
+    - >-
+      Saiu a coluna TIPO, que trazia "A1" nas 24 linhas - coluna que repete o
+      mesmo valor nao informa nada. Virou nota no rodape, e o A3 (token fisico,
+      que NAO automatiza) ganha selo proprio quando aparecer. O TITULAR do
+      certificado so aparece quando DIFERE do agregado, que e o unico caso em
+      que a coluna diz algo: certificado trocado assina o documento errado.
+      A comparacao troca "&" por "E" antes de comparar, senao "REZENDE &
+      CARDOSO" contra "REZENDE E CARDOSO" disparava o alarme mais grave da tela.
+    - >-
+      "fora do periodo" na coluna de CT-e virou travessao com o texto no
+      tooltip: frase dentro de coluna numerica desalinha os numeros.
+
 - versao: "0.133.1"
   data: "2026-08-28"
   corrigido:
