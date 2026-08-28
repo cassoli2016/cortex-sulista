@@ -1,3 +1,19 @@
+- versao: "0.133.1"
+  data: "2026-08-28"
+  corrigido:
+    - >-
+      A TELA DE CT-e DE CONTRAPARTIDA APARECIA POR CIMA DE TODAS AS OUTRAS. Para
+      dar respiro entre os cartoes eu declarei `display:flex` no seletor de ID
+      da tela; ele venceu o `.view{display:none}` que liga e desliga cada tela,
+      por especificidade, e a contrapartida passou a ser desenhada em qualquer
+      rota. So o `gap` muda agora - o `display` continua com quem sempre foi
+      dele.
+    - >-
+      O ESPACO ENTRE OS CARTOES ERA ZERO. O `gap` estava na tela, mas os cartoes
+      sao filhos dos PAINEIS DAS ABAS, e nao da tela: eles ficavam colados um no
+      outro. Medido: vao de 0px entre cada par de cartoes nas tres abas, agora
+      20px. Era esse o aperto que sobrava depois de arrumar a altura das linhas.
+
 - versao: "0.133.0"
   data: "2026-08-28"
   alterado:

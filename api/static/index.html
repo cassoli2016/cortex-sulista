@@ -1158,11 +1158,26 @@ button.avatar{border:0;cursor:pointer}
    lista percorrida de ponta a ponta, com selo e chip em quase toda celula. */
 #view-ctecp .tab td{padding:13px 18px}
 #view-ctecp .tab th{padding:11px 18px}
-/* respiro entre os cartoes desta tela, que empilha muitos */
-#view-ctecp{display:flex;flex-direction:column;gap:20px}
+/* RESPIRO ENTRE OS CARTOES. Aqui NAO se declara `display`: `.view{display:none}`
+   e `.view.on{display:flex}` e que ligam e desligam a tela, e um `display:flex`
+   com especificidade de ID venceria os dois — a tela de contrapartida aparecia
+   em TODAS as outras. So o `gap` muda.
+
+   E o gap tem de ir nos PAINEIS das abas tambem: os cartoes sao filhos deles,
+   nao do `.view`, e sem isto ficavam com vao ZERO, colados um no outro. Era
+   esse o aperto que sobrava depois de arrumar a altura das linhas.
+
+   `display:flex` nos paineis e seguro porque `[hidden]{display:none !important}`
+   ja existe neste arquivo e vence — a aba escondida continua escondida. */
+#view-ctecp{gap:20px}
+#cpAbaDespacho,#cpAbaImplantacao,#cpAbaTransmitidos{
+  display:flex;flex-direction:column;gap:20px}
 /* a banda de indicadores separa dois assuntos: precisa de mais ar que a
    distancia padrao entre cartoes */
-#view-ctecp .kband{margin-top:6px;gap:11px}
+#view-ctecp .kband{margin-top:4px;gap:11px}
+/* e o grid2 dentro do painel nao pode herdar o gap da coluna como se fosse
+   distancia entre cartoes lado a lado */
+#view-ctecp .grid2{gap:20px}
 /* o cabecalho grudado so faz sentido com rolagem interna */
 #view-ctecp .tabroll thead th{position:static}
 .cp-pager{display:grid;grid-template-columns:1fr auto 1fr;align-items:center;

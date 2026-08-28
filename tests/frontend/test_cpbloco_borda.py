@@ -141,3 +141,29 @@ def test_blocos_da_portaria_nao_encostam_na_borda():
             / "api" / "static" / "index.html").read_text(encoding="utf-8")
     for ident in ("poliRank", "poliDec", "poliAvisos"):
         assert f'<div id="{ident}" class="cpbloco">' in html, ident
+
+
+def test_a_tela_de_contrapartida_nao_declara_display_no_id():
+    """Guarda de um defeito que foi ao ar: para dar respiro entre os cartoes,
+    um `display:flex` foi declarado em `#view-ctecp`. Seletor de ID vence o
+    `.view{display:none}` que liga e desliga cada tela, e a contrapartida
+    passou a ser desenhada POR CIMA de todas as outras.
+
+    Quem manda no `display` de uma tela e `.view` / `.view.on`. Regra de tela
+    especifica pode mudar `gap`, `padding`, cor - nunca `display`."""
+    import re
+    s = HTML.read_text(encoding="utf-8")
+    for m in re.finditer(r"#view-[a-z]+\s*\{([^}]*)\}", s):
+        assert "display" not in m.group(1), (
+            "regra de #view-* declarando display vence o .view{display:none} e "
+            "faz a tela aparecer em todas as outras: " + m.group(0)[:120])
+
+
+def test_os_paineis_das_abas_separam_os_cartoes():
+    """O `gap` da tela nao alcanca os cartoes: eles sao filhos dos PAINEIS das
+    abas. Sem gap no painel, os cartoes ficam colados (medido: 0px)."""
+    s = HTML.read_text(encoding="utf-8")
+    regra = "#cpAbaDespacho,#cpAbaImplantacao,#cpAbaTransmitidos{"
+    assert regra in s, "os paineis das abas voltaram a ficar sem espacamento"
+    corpo = s[s.index(regra):s.index("}", s.index(regra))]
+    assert "gap" in corpo and "flex" in corpo

@@ -4,6 +4,12 @@ Gerado de `docs/versoes.yaml` por `scripts/gerar_changelog.py` — não editar �
 Formato [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/),
 versionamento [SemVer](https://semver.org/lang/pt-BR/).
 
+## [0.133.1] — 28/08/2026  ·  CX-28/08/2026-v0.133.1
+
+### Corrigido
+- A TELA DE CT-e DE CONTRAPARTIDA APARECIA POR CIMA DE TODAS AS OUTRAS. Para dar respiro entre os cartoes eu declarei `display:flex` no seletor de ID da tela; ele venceu o `.view{display:none}` que liga e desliga cada tela, por especificidade, e a contrapartida passou a ser desenhada em qualquer rota. So o `gap` muda agora - o `display` continua com quem sempre foi dele.
+- O ESPACO ENTRE OS CARTOES ERA ZERO. O `gap` estava na tela, mas os cartoes sao filhos dos PAINEIS DAS ABAS, e nao da tela: eles ficavam colados um no outro. Medido: vao de 0px entre cada par de cartoes nas tres abas, agora 20px. Era esse o aperto que sobrava depois de arrumar a altura das linhas.
+
 ## [0.133.0] — 28/08/2026  ·  CX-28/08/2026-v0.133.0
 
 ### Alterado
