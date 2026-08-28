@@ -1,3 +1,19 @@
+- versao: "0.117.1"
+  data: "2026-08-27"
+  corrigido:
+    - >-
+      O painel de Produtividade de Veiculos subiu quebrado e mostrava "Erro ao
+      consultar" em vez dos numeros. A data da ultima viagem saia do banco como
+      DATA e o servidor nao sabe converter data para o formato que a tela le -
+      a resposta inteira falhava por causa de uma coluna. Agora a data vira
+      texto antes de sair.
+    - >-
+      O teste que deveria ter pego isso nao pegou, e essa e a parte que
+      importa: o dublê de rede usado para conferir a tela convertia data em
+      texto por conta propria, enquanto o servidor de verdade nao converte.
+      Dublê mais permissivo que o real esconde exatamente o erro que ele
+      deveria expor. Entraram tres testes que serializam do jeito do servidor.
+
 - versao: "0.117.0"
   data: "2026-08-27"
   adicionado:

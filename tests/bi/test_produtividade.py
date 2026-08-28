@@ -86,3 +86,48 @@ def test_a_consulta_ignora_viagem_cancelada():
     for sql in (q._PROD_BASE, q.PROD_PARADOS_SQL):
         assert "dtcancelamento IS NULL" in sql
         assert "semaforo = 1" in sql
+
+
+# ----------------------------------------------- a resposta tem de SERIALIZAR
+#
+# A primeira versão desta tela subiu QUEBRADA em produção com "Erro ao
+# consultar a produtividade de veículos": `ultima_viagem` vinha como `date`, e
+# o `JSONResponse` do Starlette usa `json.dumps` PURO, que levanta TypeError.
+#
+# O teste de render não pegou porque o dublê de rede serializava o payload com
+# `json.dumps(default=str)` — que converte data em texto calado. Um dublê mais
+# permissivo que o real esconde exatamente a classe de erro que ele deveria
+# expor. Estes dois testes serializam do jeito que o servidor serializa.
+
+
+def test_data_vira_texto_iso():
+    from datetime import date as _date
+    linha = q._prod_iso({"ultima_viagem": _date(2026, 5, 20)}, "ultima_viagem")
+    assert linha["ultima_viagem"] == "2026-05-20"
+
+
+def test_ausencia_de_data_continua_none():
+    """Veículo que nunca rodou não tem última viagem — e `None` tem de
+    atravessar sem virar a string 'None'."""
+    linha = q._prod_iso({"ultima_viagem": None}, "ultima_viagem")
+    assert linha["ultima_viagem"] is None
+
+
+def test_o_payload_inteiro_passa_pelo_json_do_servidor():
+    """Fecha o buraco do dublê: serializa com o `json.dumps` PURO, sem
+    `default=str`, que é o que o Starlette faz."""
+    import json
+    from datetime import date as _date
+
+    payload = {
+        "kpis": q._prod_enrich({"modalidade": "FROTA", "km_carregado": 1.0,
+                                "km_vazio": 0.0, "receita": 1.0}),
+        "veiculos": [q._prod_iso(q._prod_enrich(
+            {"modalidade": "FROTA", "km_carregado": 1.0, "km_vazio": 0.0,
+             "receita": 1.0, "dias_ativos": 1,
+             "ultima_viagem": _date(2026, 5, 20)}), "ultima_viagem")],
+        "ociosos": [q._prod_iso({"placa": "AAA0A00",
+                                 "ultima_viagem": _date(2024, 9, 5)},
+                                "ultima_viagem")],
+    }
+    json.dumps(payload)   # sem default=: levanta se sobrou algum date

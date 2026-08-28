@@ -4,6 +4,12 @@ Gerado de `docs/versoes.yaml` por `scripts/gerar_changelog.py` — não editar �
 Formato [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/),
 versionamento [SemVer](https://semver.org/lang/pt-BR/).
 
+## [0.117.1] — 27/08/2026  ·  CX-27/08/2026-v0.117.1
+
+### Corrigido
+- O painel de Produtividade de Veiculos subiu quebrado e mostrava "Erro ao consultar" em vez dos numeros. A data da ultima viagem saia do banco como DATA e o servidor nao sabe converter data para o formato que a tela le - a resposta inteira falhava por causa de uma coluna. Agora a data vira texto antes de sair.
+- O teste que deveria ter pego isso nao pegou, e essa e a parte que importa: o dublê de rede usado para conferir a tela convertia data em texto por conta propria, enquanto o servidor de verdade nao converte. Dublê mais permissivo que o real esconde exatamente o erro que ele deveria expor. Entraram tres testes que serializam do jeito do servidor.
+
 ## [0.117.0] — 27/08/2026  ·  CX-27/08/2026-v0.117.0
 
 ### Adicionado

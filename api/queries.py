@@ -7212,6 +7212,22 @@ WHERE v.ativoinativo = 1
 """
 
 
+def _prod_iso(d: dict, *campos: str) -> dict:
+    """Converte `date` para texto ISO.
+
+    `JSONResponse` NÃO serializa `date` — e o erro só aparece no endpoint, não
+    em quem chama a função direto. Foi assim que a primeira versão desta tela
+    subiu quebrada: o teste de render usava `json.dumps(default=str)` no dublê,
+    que engole o problema calado, enquanto o Starlette usa `json.dumps` puro e
+    levanta TypeError. O teste que fecha isso agora serializa do jeito real.
+    """
+    for c in campos:
+        v = d.get(c)
+        if hasattr(v, "isoformat"):
+            d[c] = v.isoformat()
+    return d
+
+
 def _prod_enrich(d: dict) -> dict:
     """Deriva os índices que a tela lê, com as ausências marcadas.
 
@@ -7255,6 +7271,8 @@ def get_produtividade_veiculos(filial: int | None, dt_de: str, dt_ate: str,
 
     for linha in (kpis, *mensal, *modalidades, *veiculos):
         _prod_enrich(linha)
+    for linha in (*veiculos, *parados):
+        _prod_iso(linha, "ultima_viagem")
 
     # OS PARADOS SE SEPARAM EM DOIS, e misturá-los seria crying wolf: dos 20
     # que a consulta traz hoje, 14 NUNCA rodaram — placas sequenciais, zero
