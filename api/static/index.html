@@ -18952,17 +18952,20 @@ async function whatsEnviar(){
   try{
     const r=await fetch('/api/gestao/whatsapp/enviar',{method:'POST',headers:{'Content-Type':'application/json'},
       body:JSON.stringify(corpo)});
-    /* O json() é lido À PARTE: resposta de erro interno vem em TEXTO, e um
-       `await r.json()` solto estoura ali e cai no catch de rede — que então
-       acusa "não foi possível falar com a API" para um servidor que
-       respondeu. Os dois casos têm conserto diferente e precisam de mensagem
-       diferente. */
-    let d=null;
-    try{ d=await r.json(); }catch(_){ d=null; }
-    if(d===null){
-      err.textContent = `O servidor respondeu ${r.status} sem JSON — é erro interno da API, não recusa de envio. `
-        + `A mensagem NÃO saiu; veja o log da API antes de tentar de novo.`;
-    }else if(r.ok){
+    /* `respostaJSON` é o padrão da casa para isto (ver
+       tests/frontend/test_resposta_json.py): lê como TEXTO antes, e distingue
+       a página de login do túnel devolvendo HTML. Improvisar um
+       `try{r.json()}catch{}` aqui, como esta tela fazia, dava a mesma frase
+       para "sessão expirou", "o proxy respondeu no lugar da API" e "erro
+       interno" — três consertos diferentes. */
+    let d=null, ok=false;
+    try{ const rr=await respostaJSON(r); d=rr.dados; ok=rr.ok; }
+    catch(e){
+      err.textContent = (e && e.message ? e.message : 'Resposta inesperada do servidor.')
+        + ' A mensagem NÃO saiu.';
+      return;
+    }
+    if(ok){
       err.style.color='var(--green)';
       err.textContent = d.falhas
         ? `${d.enviados} enviada(s), ${d.falhas} não saiu(íram) — veja a trilha abaixo`
@@ -18974,9 +18977,12 @@ async function whatsEnviar(){
       else document.getElementById('wa-msg').value='';
       document.getElementById('wa-tel').value='';
     }else{
-      /* A recusa é a informação: quase sempre é limite do dia, janela de
-         horário ou instância desconectada — todas com conserto diferente. */
-      err.textContent = d.mensagem||'Não foi possível enviar.';
+      /* A RECUSA É A INFORMAÇÃO: quase sempre é o envio desligado, o limite do
+         dia, a janela de horário ou a instância desconectada — cada uma com um
+         conserto diferente. Ela chega como 409, e não 5xx, justamente para
+         atravessar o túnel: o Cloudflare troca o corpo das respostas 5xx da
+         origem pela página de erro dele, e a mensagem nunca chegava aqui. */
+      err.textContent = (d && d.mensagem) || 'Não foi possível enviar.';
     }
   }catch(e){
     err.style.color='';

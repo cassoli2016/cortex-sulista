@@ -122,9 +122,12 @@ def test_sem_configuracao_devolve_503():
     assert json.loads(resp.body)["erro"] == "nao_configurado"
 
 
-def test_falha_do_github_devolve_502_com_o_motivo():
+def test_falha_do_github_devolve_RECUSA_legivel_e_nao_5xx():
+    """4xx, e não 502: o Cloudflare troca o corpo das respostas 5xx da origem
+    pela página de erro dele, e a mensagem — que é a informação — não
+    atravessa o túnel. Medido: um 401 passa intacto, um 502 chega sem JSON."""
     resp = _responder(_payload(), ClienteFalso(ErroGitHub("GitHub respondeu 401")))
-    assert resp.status_code == 502
+    assert resp.status_code < 500
     assert "401" in json.loads(resp.body)["mensagem"]
 
 

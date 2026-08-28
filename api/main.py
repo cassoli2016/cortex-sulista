@@ -28,6 +28,24 @@ from . import (alertas, auth, copiloto, db, documentacao, dre_cliente, push, que
 log = logging.getLogger("cortex.financeiro")
 
 
+# Recusa NÃO é erro de servidor — e a diferença é visível para o usuário.
+#
+# "O envio está desligado", "o limite do dia acabou", "a Gobrax não respondeu":
+# em todos, o CÓRTEX funcionou perfeitamente e está dizendo NÃO, com um motivo
+# que a pessoa precisa ler. Isso é 4xx. 502 significa "meu gateway está ruim",
+# que é outra coisa.
+#
+# E não é preciosismo de vocabulário HTTP: **o Cloudflare substitui o corpo das
+# respostas 5xx da origem pela página de erro dele**. Medido nesta bancada — um
+# 401 atravessa o túnel intacto (`content-type: application/json`, mesmo
+# tamanho), e o 502 chegava à tela sem JSON nenhum. O usuário via "erro interno
+# da API" durante horas enquanto o servidor respondia, corretamente, "o envio
+# está DESLIGADO em Gestão › WhatsApp" — mensagem que nunca cruzou o túnel.
+#
+# Regra: 5xx só para falha NOSSA de verdade (exceção não tratada). Tudo que o
+# usuário precisa LER usa 4xx.
+HTTP_RECUSA = 409
+
 async def sem_travar(fn, *args, **kwargs):
     """Roda trabalho BLOQUEANTE fora do event loop.
 
@@ -455,7 +473,7 @@ async def telemetria_consumo_atualizar(req: Request) -> JSONResponse:
                              "odometro": o["gravadas"]})
     except ColetaVazia as exc:
         log.warning("coleta de telemetria vazia: %s", exc)
-        return JSONResponse(status_code=502, content={
+        return JSONResponse(status_code=HTTP_RECUSA, content={
             "erro": "coleta_vazia",
             "mensagem": ("A Gobrax não devolveu nenhum veículo. "
                          "A coleta anterior foi mantida.")})
@@ -466,7 +484,7 @@ async def telemetria_consumo_atualizar(req: Request) -> JSONResponse:
                          "Defina em Administração › Gestão › Integrações.")})
     except GobraxIndisponivel as exc:
         log.warning("gobrax indisponivel: %s", exc)
-        return JSONResponse(status_code=502, content={
+        return JSONResponse(status_code=HTTP_RECUSA, content={
             "erro": "gobrax_indisponivel",
             "mensagem": "A Gobrax não respondeu. Tente novamente em alguns minutos."})
     except Exception as exc:  # noqa: BLE001
@@ -499,7 +517,7 @@ def telemetria_conducao(placa: str | None = None,
                          "Defina em Administração › Gestão › Integrações.")})
     except GobraxIndisponivel as exc:
         log.warning("gobrax indisponivel: %s", exc)
-        return JSONResponse(status_code=502, content={
+        return JSONResponse(status_code=HTTP_RECUSA, content={
             "erro": "gobrax_indisponivel",
             "mensagem": "A Gobrax não respondeu para este veículo."})
     except Exception as exc:  # noqa: BLE001
@@ -553,7 +571,7 @@ def telemetria_rastro(placa: str | None = None,
                          "Defina em Administração › Gestão › Integrações.")})
     except GobraxIndisponivel as exc:
         log.warning("gobrax indisponivel: %s", exc)
-        return JSONResponse(status_code=502, content={
+        return JSONResponse(status_code=HTTP_RECUSA, content={
             "erro": "gobrax_indisponivel", "mensagem": "A Gobrax não respondeu."})
     except Exception as exc:  # noqa: BLE001
         log.warning("telemetria_rastro falhou: %s", exc)
@@ -988,7 +1006,7 @@ async def gestao_agenda_testar(req: Request) -> JSONResponse:
     auth.audit(autor, "correio_agenda_teste", alvo=str(body.get("relatorio")),
                detalhe=("ok" if res["ok"] else f"falha: {res['erro']}")[:200])
     if not res["ok"]:
-        return JSONResponse(status_code=502, content={
+        return JSONResponse(status_code=HTTP_RECUSA, content={
             "erro": "falha_envio", "mensagem": res["erro"]})
     return JSONResponse({"ok": True, "destinatario": autor})
 
@@ -1033,7 +1051,7 @@ async def gestao_email_enviar(req: Request) -> JSONResponse:
                alvo=", ".join(r["destinatarios"])[:200],
                detalhe=("ok" if r["ok"] else f"falha: {r['erro']}")[:200])
     if not r["ok"]:
-        return JSONResponse(status_code=502, content={
+        return JSONResponse(status_code=HTTP_RECUSA, content={
             "erro": "envio_falhou", "mensagem": r["erro"]})
     return JSONResponse({"ok": True, "destinatarios": r["destinatarios"]})
 
@@ -1200,7 +1218,7 @@ async def gestao_whatsapp_enviar(req: Request) -> JSONResponse:
                         + f"{r['enviados']} enviada(s), {r['falhas']} falha(s)"
                         + (f": {r['erro']}" if r["erro"] else ""))[:200])
     if not r["ok"]:
-        return JSONResponse(status_code=502, content={
+        return JSONResponse(status_code=HTTP_RECUSA, content={
             "erro": "envio_falhou", "mensagem": r["erro"],
             "resultados": r["resultados"]})
     return JSONResponse(r)
@@ -1362,14 +1380,14 @@ async def antt_rntrc_atualizar(req: Request) -> JSONResponse:
             (hoje - timedelta(days=365)).isoformat(), hoje.isoformat()))
     except BaseVazia as exc:
         log.warning("sync do rntrc veio vazia: %s", exc)
-        return JSONResponse(status_code=502, content={
+        return JSONResponse(status_code=HTTP_RECUSA, content={
             "erro": "sync_vazia",
             "mensagem": ("A base da ANTT não trouxe nenhum dos transportadores "
                          "procurados. A base anterior foi mantida."),
         })
     except LayoutInesperado as exc:
         log.warning("layout do csv do rntrc mudou: %s", exc)
-        return JSONResponse(status_code=502, content={
+        return JSONResponse(status_code=HTTP_RECUSA, content={
             "erro": "layout_inesperado",
             "mensagem": f"O arquivo da ANTT mudou de formato: {exc}",
         })
@@ -3831,7 +3849,7 @@ def _report_responder(bruto: bytes, usuario: dict, cliente) -> JSONResponse:
         # mensagem do próprio GitHub ("Bad credentials", "Not Found") — já é
         # sanitizada e é o que a pessoa precisa ver para saber que não é culpa
         # dela; o token nunca passa por aqui
-        return JSONResponse(status_code=502, content={
+        return JSONResponse(status_code=HTTP_RECUSA, content={
             "erro": "github_falhou", "mensagem": str(exc)})
     except Exception as exc:  # noqa: BLE001
         # detalhe interno fica no log do servidor, nunca na resposta: uma

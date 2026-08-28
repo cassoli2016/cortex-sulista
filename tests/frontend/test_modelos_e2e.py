@@ -342,7 +342,11 @@ def test_recarga_que_falha_NAO_apaga_a_confirmacao_de_envio(pagina):
 def test_erro_interno_sem_json_nao_vira_falha_de_rede(pagina):
     """500 em texto puro e rede caída são coisas diferentes, com consertos
     diferentes. Dizer "não foi possível falar com a API" para um servidor que
-    respondeu manda procurar no lugar errado."""
+    respondeu manda procurar no lugar errado.
+
+    A leitura passa por `respostaJSON`, o padrão da casa: ele nomeia o
+    `content-type` que voltou, que é o que separa "o proxy respondeu HTML" de
+    "a API devolveu texto"."""
     pg, base = pagina
 
     def rota(route):
@@ -373,5 +377,6 @@ def test_erro_interno_sem_json_nao_vira_falha_de_rede(pagina):
     pg.wait_for_timeout(900)
 
     texto = pg.inner_text("#wa-env-err")
-    assert "500" in texto and "erro interno" in texto.lower()
-    assert "NÃO saiu" in texto
+    assert "500" in texto                      # o status, para saber onde olhar
+    assert "text/plain" in texto               # e o que voltou no lugar do JSON
+    assert "NÃO saiu" in texto                 # a pergunta de quem está enviando

@@ -4,6 +4,12 @@ Gerado de `docs/versoes.yaml` por `scripts/gerar_changelog.py` — não editar �
 Formato [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/),
 versionamento [SemVer](https://semver.org/lang/pt-BR/).
 
+## [0.122.1] — 28/08/2026  ·  CX-28/08/2026-v0.122.1
+
+### Corrigido
+- O envio de WhatsApp acusava "erro interno da API" quando na verdade o servidor estava respondendo, certinho, que O ENVIO ESTAVA DESLIGADO. A recusa saia com codigo 502, e o Cloudflare troca o conteudo das respostas 5xx da origem pela pagina de erro dele - entao a mensagem, que era a informacao, nunca chegava a tela. Recusa agora sai como 409 e atravessa o tunel inteira. Vale para todas: envio desligado, limite do dia, fora da janela, instancia desconectada, Gobrax e ANTT sem resposta, e falha ao abrir issue de report.
+- A tela de envio passou a usar a mesma leitura de resposta das outras telas, que distingue "a sessao expirou", "o tunel respondeu no lugar da API" e "erro interno" - antes as tres davam a mesma frase, e cada uma tem um conserto diferente.
+
 ## [0.122.0] — 28/08/2026  ·  CX-28/08/2026-v0.122.0
 
 ### Adicionado

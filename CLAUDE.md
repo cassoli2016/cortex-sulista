@@ -558,6 +558,29 @@ a query ignora sai; dimensão que a query aceita e é a pergunta natural da tela
   documenta que valida a existência do número a cada envio — pedindo
   explicitamente que NÃO se cheque antes. Inventar o dígito manda para outro
   assinante.
+**RECUSA NÃO É 5xx — o proxy engole a mensagem (lição que custou uma manhã):**
+- "O envio está DESLIGADO", "o limite do dia acabou", "a Gobrax não respondeu": em
+  todos, o CÓRTEX funcionou e está dizendo NÃO, com um motivo que a pessoa precisa
+  LER. Isso é **4xx** (`HTTP_RECUSA = 409` em `api/main.py`). 502 significa "meu
+  gateway está ruim", que é outra coisa.
+- **Não é preciosismo de vocabulário: o Cloudflare TROCA o corpo das respostas 5xx
+  da origem pela página de erro dele.** Medido nesta bancada — `curl` num 401
+  atravessa o túnel intacto (mesmo `content-type: application/json`, mesmo
+  `content-length`); o 502 chegava à tela sem JSON nenhum. O usuário via "erro
+  interno da API" por horas enquanto o backend respondia, corretamente, "o envio
+  está DESLIGADO em Gestão › WhatsApp" — e a trilha registrava a recusa. A
+  mensagem existia e nunca cruzou o túnel.
+- **O diagnóstico enganava porque tudo parecia certo:** API de pé, rota testada,
+  trilha gravando. O que faltava olhar era o CÓDIGO DE STATUS, não o código.
+- Regra: 5xx só para falha NOSSA de verdade (exceção não tratada). Tudo que o
+  usuário precisa ler usa 4xx.
+- **Na tela, use `respostaJSON(r)`** — o padrão da casa, que lê como TEXTO antes e
+  distingue "sessão expirou / página de login", "o proxy respondeu no lugar da
+  API" e "erro interno". Um `try{await r.json()}catch{}` improvisado dá a mesma
+  frase para os três, que têm consertos diferentes. Já existia
+  `tests/frontend/test_resposta_json.py` cobrando isso, e o card do WhatsApp não
+  seguia.
+
 **Rota `async def` com I/O bloqueante para o SERVIDOR INTEIRO (lição do 502 no envio):**
 - O FastAPI roda rota `def` num threadpool e rota `async def` **no próprio event
   loop**. Toda rota que recebe corpo nasce `async def` (precisa de `await

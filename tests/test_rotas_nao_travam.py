@@ -140,3 +140,32 @@ def test_envio_lento_de_whatsapp_nao_para_o_resto_do_sistema(servidor):
         f"/api/health levou {pior:.2f}s durante o envio — o event loop está "
         f"travado. Toda rota `async def` que faz I/O precisa passar por "
         f"`sem_travar()` (api/main.py).")
+
+
+def test_recusa_de_envio_NAO_pode_ser_5xx(servidor):
+    """O defeito que custou uma manhã inteira de investigação.
+
+    "O envio está DESLIGADO em Gestão › WhatsApp" é o servidor funcionando e
+    dizendo NÃO, com um motivo que a pessoa precisa LER. Isso é 4xx. Enquanto
+    foi 502, **o Cloudflare trocava o corpo pela página de erro dele** e a
+    mensagem nunca cruzava o túnel: a tela dizia "erro interno da API" durante
+    horas enquanto o backend respondia certo e a trilha registrava a recusa.
+
+    Medido: um 401 atravessa o túnel intacto (mesmo `content-type`, mesmo
+    tamanho); um 502 chega sem JSON nenhum.
+    """
+    base, httpx = servidor
+    from api.whatsapp import config as zcfg
+    cli = httpx.Client(base_url=base, timeout=60)
+    assert cli.post("/api/auth/login", json={
+        "email": "chefe@sulista.com.br", "senha": SENHA}).status_code == 200
+
+    zcfg.gravar({**zcfg.ler(), "ativo": False})     # o interruptor desligado
+    r = cli.post("/api/gestao/whatsapp/enviar",
+                 json={"telefones": "(47) 99999-8888", "mensagem": "Bom dia"})
+
+    assert r.status_code < 500, (
+        f"recusa devolveu {r.status_code}: um proxy tem licença para trocar o "
+        f"corpo de 5xx, e a mensagem não chega a quem precisa lê-la")
+    assert r.headers["content-type"].startswith("application/json")
+    assert "DESLIGADO" in r.json()["mensagem"]
