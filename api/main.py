@@ -1001,6 +1001,113 @@ async def gestao_email_enviar(req: Request) -> JSONResponse:
     return JSONResponse({"ok": True, "destinatarios": r["destinatarios"]})
 
 
+# ------------------------------------------------------------------ WhatsApp
+#
+# Tudo sob /api/gestao/*, que o middleware já restringe ao ADMINISTRADOR. Não é
+# só simetria com o e-mail: disparar WhatsApp em nome da empresa é ação para
+# fora, com um número que pode ser banido — a permissão certa é a mais estreita
+# que existe hoje no sistema.
+
+@app.get("/api/gestao/whatsapp")
+def gestao_whatsapp() -> JSONResponse:
+    """Configuração + estado da conexão + trilha. NUNCA devolve os tokens."""
+    from api.whatsapp import cliente as zcli
+    from api.whatsapp import config as zcfg
+    from api.whatsapp import registro as zreg
+    try:
+        conta = {"total": 0, "ok": 0, "falha": 0, "numeros": 0,
+                 "ultimo": None, "hoje": 0}
+        envios: list = []
+        try:
+            conta, envios = zreg.resumo(), zreg.listar(50)
+        except Exception as exc:   # noqa: BLE001
+            # banco local fora não pode esconder a configuração: é justamente
+            # onde se olha para entender por que nada está saindo
+            log.warning("gestao_whatsapp: trilha indisponível: %s", exc)
+        return JSONResponse({"config": zcfg.status(), "resumo": conta,
+                             "envios": envios, "conexao": zcli.estado()})
+    except Exception as exc:  # noqa: BLE001
+        log.warning("gestao_whatsapp falhou: %s", exc)
+        return JSONResponse(status_code=500, content={
+            "erro": "erro_consulta",
+            "mensagem": "Erro ao ler a configuração do WhatsApp."})
+
+
+@app.post("/api/gestao/whatsapp")
+async def gestao_whatsapp_salvar(req: Request) -> JSONResponse:
+    from api.whatsapp import cliente as zcli
+    from api.whatsapp import config as zcfg
+    try:
+        body = await req.json()
+    except Exception:  # noqa: BLE001
+        body = None
+    if not isinstance(body, dict):
+        return JSONResponse(status_code=422, content={
+            "erro": "parametro_invalido", "mensagem": "Envie a configuração."})
+    try:
+        st = zcfg.gravar(body)
+    except ValueError as exc:
+        return JSONResponse(status_code=422, content={
+            "erro": "parametro_invalido", "mensagem": str(exc)})
+    except Exception as exc:  # noqa: BLE001
+        log.warning("gestao_whatsapp_salvar falhou: %s", type(exc).__name__)
+        return JSONResponse(status_code=500, content={
+            "erro": "erro_gravacao",
+            "mensagem": "Não foi possível gravar a configuração."})
+    # credencial nova invalida o cache de 60 s — sem isto a tela continuaria
+    # mostrando o erro da configuração anterior por um minuto inteiro
+    zcli.limpar_cache()
+    sess = getattr(req.state, "sessao", None) or {}
+    # LIGAR/DESLIGAR é a informação que importa na auditoria: é o que autoriza
+    # o sistema a falar com clientes em nome da empresa.
+    auth.audit(sess.get("email", "?"), "whatsapp_config",
+               detalhe=f"ativo={st['ativo']} limite={st['limite_dia']}")
+    return JSONResponse(st)
+
+
+@app.post("/api/gestao/whatsapp/conexao")
+def gestao_whatsapp_conexao() -> JSONResponse:
+    """Relê o status da instância IGNORANDO o cache — é o botão 'testar
+    conexão'. Não manda mensagem nenhuma: só pergunta à Z-API se o aparelho
+    está pareado."""
+    from api.whatsapp import cliente as zcli
+    return JSONResponse(zcli.estado(force=True))
+
+
+@app.post("/api/gestao/whatsapp/enviar")
+async def gestao_whatsapp_enviar(req: Request) -> JSONResponse:
+    """Envia mensagem de WhatsApp.
+
+    DIFERENÇA DELIBERADA PARA O TESTE DE E-MAIL: lá o teste vai para o e-mail
+    do próprio usuário logado, e não aceita destinatário. Aqui não existe
+    telefone na sessão, então o teste PRECISA de um número — e por isso não há
+    "modo teste" separado: é o mesmo envio, com a mesma trilha, o mesmo limite
+    diário e a mesma auditoria. Um caminho paralelo mais frouxo viraria o
+    atalho para disparar sem passar pelas regras.
+    """
+    from api.whatsapp.envio import enviar_varios
+    try:
+        body = await req.json()
+    except Exception:  # noqa: BLE001
+        body = {}
+    body = body if isinstance(body, dict) else {}
+    sess = getattr(req.state, "sessao", None) or {}
+    autor = sess.get("email", "")
+
+    r = enviar_varios(body.get("telefones") or body.get("telefone") or "",
+                      str(body.get("mensagem") or ""),
+                      usuario=autor, origem=str(body.get("origem") or "manual"))
+    alvos = ", ".join(x["telefone"] for x in r["resultados"])
+    auth.audit(autor or "?", "whatsapp_enviar", alvo=alvos[:200],
+               detalhe=(f"{r['enviados']} enviada(s), {r['falhas']} falha(s)"
+                        + (f": {r['erro']}" if r["erro"] else ""))[:200])
+    if not r["ok"]:
+        return JSONResponse(status_code=502, content={
+            "erro": "envio_falhou", "mensagem": r["erro"],
+            "resultados": r["resultados"]})
+    return JSONResponse(r)
+
+
 @app.get("/api/operacao/antt/rntrc")
 def antt_rntrc(dt_de: str | None = None, dt_ate: str | None = None) -> JSONResponse:
     """Situação do RNTRC dos transportadores contratados no período."""

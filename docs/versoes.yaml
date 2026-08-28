@@ -1,3 +1,34 @@
+- versao: "0.119.0"
+  data: "2026-08-27"
+  adicionado:
+    - >-
+      O CORTEX passou a enviar mensagens de WhatsApp, pela Z-API. A aba nova
+      fica em Gestao > WhatsApp e tem tudo num lugar: as credenciais, o estado
+      da conexao, as regras de envio, o formulario para mandar e a trilha do
+      que saiu. So o administrador ve.
+    - >-
+      A tela mostra se a instancia esta CONECTADA. Isso importa mais do que
+      parece: com o celular fora do ar a Z-API aceita a mensagem, responde
+      "ok" e guarda numa fila de ate mil - disparando tudo de uma vez quando o
+      aparelho voltar. O CORTEX prefere nao enviar e dizer por que.
+    - >-
+      Limite de destinatarios diferentes por dia (padrao 60), janela de
+      horario (padrao 8h as 20h) e assinatura no fim da mensagem. Nao e
+      preferencia: a documentacao da propria Z-API diz que o numero e banido
+      pela quantidade de destinatarios NOVOS num periodo curto. Continuar uma
+      conversa ja aberta no mesmo dia nao gasta o limite. O contador do dia
+      aparece ao lado do botao de enviar.
+    - >-
+      O envio nasce DESLIGADO. Configurar nao e autorizar a disparar - e
+      preciso ligar de proposito, e a mudanca fica na auditoria.
+    - >-
+      Telefone e aceito em qualquer formato: (47) 99999-8888, 47999998888 ou
+      +55 47 99999-8888 sao a mesma pessoa, e o mesmo cliente repetido na
+      lista recebe uma mensagem so.
+    - >-
+      A Saude do Servidor ganhou a linha da Z-API: conectada ou nao, quanto do
+      limite ja foi usado hoje e se o envio esta ligado.
+
 - versao: "0.118.1"
   data: "2026-08-27"
   alterado:

@@ -83,6 +83,7 @@ Cada módulo é unidade de RBAC (papel × módulo × escopo de linha via RLS).
 | `antt` | Piso mínimo de frete da compra e situação do RNTRC dos transportadores contratados | `config/antt_coeficientes.yaml`, `config/antt_eixos.yaml`, `programacaoembarque` (AVA) |
 | `gestao` | Metas, KPIs, OKRs, atas de reunião, planos de ação | `ges_metas`, `ges_okr`, `ges_atas`, `ges_acoes` |
 | `integracoes` | Central de integração com APIs de fornecedores (hub de conectores) | `int_conectores`, `int_sync_state`, `int_raw_events`, `int_dead_letter` |
+| `whatsapp` | Envio de mensagens por WhatsApp via Z-API (aba de Gestão, só admin) | `api/whatsapp/`, `zap_envios` |
 | `analytics` | Painel CEO consolidado, previsões e projeções | views materializadas + skill previsao-projecao |
 | `copiloto` | Interface conversacional (Gemma + agentes) | — |
 
@@ -521,6 +522,51 @@ a query ignora sai; dimensão que a query aceita e é a pergunta natural da tela
   por regex ANTES de converter, porque `parseFloat` aceita prefixo válido e ignora o resto
   (`1.234.56` viraria `1,234`). Ponto em grupos de exatamente 3 dígitos é milhar pt-BR
   (`1.234` = 1234), não decimal.
+
+**Canal que pode ser DESLIGADO PELO FORNECEDOR (lições da Z-API / WhatsApp):**
+- **O segredo vai dentro da URL, e isso muda o que pode ser logado.** Gobrax,
+  Monkey e Prolog mandam token em cabeçalho — registrar a URL era inofensivo.
+  A Z-API é `/instances/{id}/token/{token}/send-text`: a **URL é a credencial**.
+  `str(exc)` de `urllib` traz a URL, e a mensagem de erro do envio vai para a
+  tela, para o log E para a trilha no banco. Nada em `api/whatsapp/cliente.py`
+  devolve exceção crua; tudo passa por `_sanitizar()`, com teste que reproduz o
+  `URLError` com a URL dentro. **O id da instância também é segredo** — é metade
+  da chave, apesar de "id" sugerir o contrário.
+- **Aceitar não é entregar.** Com o celular pareado fora do ar, a Z-API responde
+  **200 e enfileira até 1.000 mensagens**, disparando tudo quando o aparelho
+  volta. Reportar "enviado" ali é mentira duas vezes: não foi, e vai chegar em
+  lote no sábado à noite. O envio consulta o estado da conexão antes e recusa.
+- **O limite de envio é a funcionalidade, não a configuração.** A documentação
+  do próprio fornecedor diz que o gatilho nº 1 de banimento é a quantidade de
+  **destinatários DISTINTOS** numa janela curta (relato de bloqueio a partir de
+  10 números novos), e que **tópico financeiro — "boleto", "PIX", "cartão" —
+  eleva o risco**. Ou seja: a régua de cobrança, que é o uso natural aqui, é
+  justamente o padrão mais perigoso. Daí `ativo` nascer **desligado**, o teto
+  diário nascer em 60 e a janela em 08:00–20:00. Perder o número não é "a
+  integração caiu": é o WhatsApp comercial fora do ar, com as conversas dentro.
+- **Continuar conversa aberta não gasta cota.** O freio conta destinatário
+  NOVO do dia; responder quem já falou hoje é o caso de menor risco que existe,
+  e bloqueá-lo faria a proteção atrapalhar só o uso legítimo.
+- **Normalizar telefone é controle de acesso, não formatação.** O contador de
+  destinatários distintos lê a trilha: se `(47) 99999-8888` e `5547999998888`
+  virassem duas linhas, ele mediria formato de digitação, não pessoas. A trilha
+  guarda **sempre o normalizado**; a tela reformata na exibição. O `separar()`
+  deduplica pelo NÚMERO normalizado — deduplicar por dígitos crus deixava a
+  mesma cliente receber duas vezes, e foi um teste que pegou.
+- **Não "consertar" o nono dígito.** A tentação é acrescentar/remover o 9 de
+  celular antigo. Quem resolve essa equivalência é o WhatsApp, e a Z-API
+  documenta que valida a existência do número a cada envio — pedindo
+  explicitamente que NÃO se cheque antes. Inventar o dígito manda para outro
+  assinante.
+- **Diagnóstico de integração cujo estado só existe na API do fornecedor precisa
+  de cache.** A Saúde recarrega a cada 5 s; sem o TTL de 60 s em
+  `cliente.estado()` seriam ~17 mil chamadas por dia à Z-API para desenhar um
+  cartão. Gobrax e Monkey escapam disso porque medem posição gravada em disco.
+- **Não existe "modo teste" mais frouxo.** No e-mail o teste vai para o próprio
+  usuário logado e não aceita destinatário. Aqui não há telefone na sessão, então
+  o teste precisa de um número — e por isso ele é o **mesmo** envio, com a mesma
+  trilha, o mesmo limite e a mesma auditoria. Um caminho paralelo viraria o
+  atalho para disparar sem as regras.
 
 **Telas de consulta (busca própria, filterbar global escondida — ex.: Consulta de Cliente):**
 - Campo de busca com **`<datalist>`** alimentado por endpoint LEVE e cacheado

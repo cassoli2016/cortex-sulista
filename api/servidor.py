@@ -304,6 +304,40 @@ def _servico_monkey(d: dict) -> dict:
                           if hmg else "")}
 
 
+def _servico_whatsapp(d: dict) -> dict:
+    """Linha da Z-API. É a única integração cujo estado só existe na API do
+    fornecedor — não há posição gravada para medir, como na Monkey. Por isso o
+    `cliente.estado()` tem cache de 60 s: sem ele, o refresh de 5 s desta tela
+    faria ~17 mil chamadas por dia à Z-API só para desenhar um cartão.
+
+    DESCONECTADO É ALERTA DE VERDADE, e não informação: enquanto o aparelho
+    está fora, a Z-API aceita as mensagens (HTTP 200) e as empilha até 1.000,
+    disparando tudo de uma vez quando ele voltar. Uma cobrança de terça
+    chegando no sábado à noite, em lote, é o pior resultado possível.
+    """
+    nome = "Z-API (WhatsApp)"
+    if not d["configurado"]:
+        return {"nome": nome, "status": "info",
+                "detalhe": "não configurada — falta instância e token"}
+    if not d["ativo"]:
+        return {"nome": nome, "status": "info",
+                "detalhe": "configurada, mas o envio está DESLIGADO em "
+                           "Gestão › WhatsApp"}
+    if not d["conectado"]:
+        motivo = d.get("erro") or "instância desconectada"
+        return {"nome": nome, "status": "alerta",
+                "detalhe": f"{motivo} — nada sai, e o que for mandado ficaria "
+                           "na fila da Z-API"}
+    partes = [f"conectado · {d['hoje']} de {d['limite_dia']} destinatários hoje"]
+    if not d.get("celular"):
+        partes.append("o celular pareado está sem internet")
+    if not d["dentro_da_janela"]:
+        partes.append(f"fora da janela de envio ({d['janela']})")
+    return {"nome": nome,
+            "status": "alerta" if not d.get("celular") else "ok",
+            "detalhe": " · ".join(partes)}
+
+
 def _servicos() -> list[dict]:
     servicos: list[dict] = []
 
@@ -398,7 +432,8 @@ def _servicos() -> list[dict]:
 
     for nome, modulo, monta in (
             ("Gobrax (telemetria)", "gobrax.armazenamento", _servico_gobrax),
-            ("Monkey (antecipação Tupy)", "monkey.servico", _servico_monkey)):
+            ("Monkey (antecipação Tupy)", "monkey.servico", _servico_monkey),
+            ("Z-API (WhatsApp)", "whatsapp.servico", _servico_whatsapp)):
         try:
             mod = importlib.import_module("." + modulo, __package__)
             servicos.append(monta(mod.diagnostico()))

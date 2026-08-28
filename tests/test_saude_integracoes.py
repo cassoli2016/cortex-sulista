@@ -219,3 +219,72 @@ def test_banco_sem_migration_aplicada_e_alerta():
     s = sv._servico_pglocal(diag_pg(versao_schema=None))
     assert s["status"] == "alerta"
     assert "migration" in s["detalhe"]
+
+
+# ---------------------------------------------------------- Z-API (WhatsApp)
+#
+# A Z-API é a única integração cujo estado NÃO existe como posição gravada: a
+# Gobrax e a Monkey deixam um instantâneo em disco e a Saúde mede a idade dele;
+# aqui a pergunta ("o aparelho está pareado?") só a API do fornecedor responde.
+# O cache de 60 s do `cliente.estado()` é o que torna isso viável numa tela que
+# recarrega a cada 5 s — sem ele seriam ~17 mil chamadas por dia.
+
+
+def diag_zapi(**kw) -> dict:
+    d = {"configurado": True, "ativo": True, "client_token": True,
+         "limite_dia": 60, "janela": "08:00–20:00", "dentro_da_janela": True,
+         "conectado": True, "celular": True, "erro": "", "hoje": 12,
+         "ultimo": _agora(20), "falhas": 0}
+    d.update(kw)
+    return d
+
+
+def test_zapi_sem_credencial_e_info():
+    """Integração não instalada não é falha — vermelho todo dia treina o
+    operador a ignorar alarme."""
+    s = sv._servico_whatsapp(diag_zapi(configurado=False))
+    assert s["status"] == "info"
+    assert "instância e token" in s["detalhe"]
+
+
+def test_zapi_configurada_mas_desligada_e_info():
+    """Configurar não é autorizar a disparar: o interruptor desligado é um
+    estado deliberado, não um defeito."""
+    s = sv._servico_whatsapp(diag_zapi(ativo=False))
+    assert s["status"] == "info"
+    assert "DESLIGADO" in s["detalhe"]
+
+
+def test_zapi_desconectada_e_ALERTA_e_explica_a_fila():
+    """O ponto todo do cartão. Com o aparelho fora, a Z-API aceita as mensagens
+    (HTTP 200) e as empilha até 1.000, disparando tudo quando ele voltar. Um
+    cinza discreto aqui deixaria a cobrança de terça chegar no sábado à noite,
+    em lote."""
+    s = sv._servico_whatsapp(diag_zapi(conectado=False,
+                                       erro="You are not connected."))
+    assert s["status"] == "alerta"
+    assert "fila" in s["detalhe"]
+    assert "You are not connected." in s["detalhe"]
+
+
+def test_zapi_conectada_mostra_quanto_do_limite_ja_foi():
+    """É o número que decide se a próxima mensagem sai."""
+    s = sv._servico_whatsapp(diag_zapi(hoje=41, limite_dia=60))
+    assert s["status"] == "ok"
+    assert "41 de 60 destinatários hoje" in s["detalhe"]
+
+
+def test_zapi_pareada_com_o_celular_offline_e_alerta():
+    """Instância conectada e aparelho sem internet é o estado que ninguém olha
+    e que faz a mensagem parar na fila do mesmo jeito."""
+    s = sv._servico_whatsapp(diag_zapi(celular=False))
+    assert s["status"] == "alerta"
+    assert "sem internet" in s["detalhe"]
+
+
+def test_zapi_fora_da_janela_diz_isso_sem_virar_alarme():
+    """Às 22h o envio está suspenso de propósito — é configuração, não
+    problema."""
+    s = sv._servico_whatsapp(diag_zapi(dentro_da_janela=False))
+    assert s["status"] == "ok"
+    assert "fora da janela de envio" in s["detalhe"]

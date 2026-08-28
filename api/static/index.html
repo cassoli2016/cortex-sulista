@@ -1067,6 +1067,13 @@ button.avatar{border:0;cursor:pointer}
 .ges-cfg label{display:block;font-size:12px;font-weight:600;color:var(--n600,#6B7280);margin-bottom:4px}
 .ges-cfg input{width:100%;padding:9px 10px;border:1px solid var(--n300,#d3dae2);border-radius:6px;font:inherit;font-size:14px}
 .gbtn{padding:5px 10px;font-size:12px}
+/* Campo de mensagem do WhatsApp: fora da grade `.ges-cfg` de propósito — numa
+   coluna de 220px o texto ficaria numa fresta, e é o campo que a pessoa relê
+   antes de mandar para um cliente. */
+.wa-msgbox{padding:14px 18px 0}
+.wa-msgbox label{display:block;font-size:12px;font-weight:600;color:var(--n600,#6B7280);margin-bottom:4px}
+.wa-msgbox textarea{width:100%;resize:vertical;min-height:84px;padding:9px 10px;
+  border:1px solid var(--n300,#d3dae2);border-radius:6px;font:inherit;font-size:14px}
 
 /* ---- Integrações (um cartão por fornecedor) ----
    A aba era uma lista plana de 22 campos: quem abria via onze linhas PROLOG_*
@@ -4030,6 +4037,7 @@ body.tvfull #btnReport,body.tvmode #btnReport{display:none}
             <button class="ghost" id="gtab-config" aria-pressed="false" onclick="gesTab('config')">Segurança</button>
             <button class="ghost" id="gtab-integracoes" aria-pressed="false" onclick="gesTab('integracoes')">Integrações</button>
             <button class="ghost" id="gtab-email" aria-pressed="false" onclick="gesTab('email')">E-mail</button>
+            <button class="ghost" id="gtab-whatsapp" aria-pressed="false" onclick="gesTab('whatsapp')">WhatsApp</button>
           </div>
         </div>
         <div id="gpane-usuarios">
@@ -4183,6 +4191,59 @@ body.tvfull #btnReport,body.tvmode #btnReport{display:none}
           <div class="card">
             <div class="head"><h2>Últimos envios <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="Trilha de tudo que o CÓRTEX tentou enviar, gravada na tabela correio_envios do banco do CÓRTEX. A falha também entra — é o registro dela que responde 'o destinatário diz que não recebeu'.">i</span></h2><span class="hint" id="em-hist-hint">—</span></div>
             <div class="tablewrap tabroll" id="em-hist"></div>
+          </div>
+        </div>
+        <div id="gpane-whatsapp" style="display:none">
+          <div class="card">
+            <div class="head"><h2>Conexão com a Z-API <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="A Z-API conecta um número de WhatsApp REAL da empresa — não é a API oficial do WhatsApp. O id da instância e o token formam o endereço das chamadas, então os DOIS são segredo: ficam no cofre (data/credenciais.json, permissão restrita) e nunca voltam para a tela, como o token da Gobrax. O terceiro campo só é necessário se você ativou a validação por token na aba Segurança do painel da Z-API.">i</span></h2><span class="hint" id="wa-conexao">—</span></div>
+            <div class="ges-cfg">
+              <div><label for="wa-inst">ID da instância</label><input type="password" id="wa-inst" autocomplete="off" placeholder="digite para trocar"></div>
+              <div><label for="wa-tok">Token da instância</label><input type="password" id="wa-tok" autocomplete="new-password" placeholder="digite para trocar"></div>
+              <div><label for="wa-ctok">Token de segurança da conta</label><input type="password" id="wa-ctok" autocomplete="new-password" placeholder="só se ativado no painel Z-API"></div>
+            </div>
+            <div class="m-foot">
+              <span class="m-err" id="wa-cred-err"></span>
+              <button class="ghost" id="wa-testar" onclick="whatsConexao()">Testar conexão</button>
+              <button class="btn" id="wa-cred-salvar" onclick="whatsCredSalvar()">Salvar credenciais</button>
+            </div>
+          </div>
+          <div class="card">
+            <div class="head"><h2>Regras de envio <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="Estes limites não são preferência: a documentação da própria Z-API diz que o principal motivo de um número ser BANIDO pelo WhatsApp é a quantidade de destinatários DIFERENTES alcançados num período curto — há relato de bloqueio depois de 10 mensagens para números novos. Perder o número não é a integração parar: é o WhatsApp comercial da Sulista fora do ar, com o histórico das conversas dentro. Continuar uma conversa já aberta hoje não consome o limite.">i</span></h2><span class="hint" id="wa-cfg-status">—</span></div>
+            <div class="ges-cfg">
+              <div><label for="wa-ativo">Situação</label>
+                <select id="wa-ativo">
+                  <option value="0">Desligado</option>
+                  <option value="1">Ligado — o CÓRTEX pode enviar</option>
+                </select>
+              </div>
+              <div><label for="wa-limite">Destinatários diferentes por dia</label><input type="number" id="wa-limite" min="1" max="500"></div>
+              <div><label for="wa-intervalo">Intervalo entre mensagens (segundos)</label><input type="number" id="wa-intervalo" min="1" max="15"></div>
+              <div><label for="wa-jini">Só enviar a partir de</label><input type="time" id="wa-jini"></div>
+              <div><label for="wa-jfim">Só enviar até</label><input type="time" id="wa-jfim"></div>
+              <div><label for="wa-assin">Assinatura no fim da mensagem</label><input type="text" id="wa-assin" placeholder="Sulista Transportes"></div>
+            </div>
+            <div class="m-foot">
+              <span class="m-err" id="wa-cfg-err"></span>
+              <button class="btn" id="wa-salvar" onclick="whatsSalvar()">Salvar regras</button>
+            </div>
+          </div>
+          <div class="card">
+            <div class="head"><h2>Enviar mensagem <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="É o mesmo caminho que qualquer rotina do CÓRTEX usa: passa pelo limite diário, pela janela de horário e entra na trilha abaixo com o seu usuário. Não existe um modo de teste mais frouxo, de propósito — ele viraria o atalho para disparar sem as regras. O telefone é normalizado antes de sair: (47) 99999-8888 e 5547999998888 são o mesmo destinatário.">i</span></h2><span class="hint" id="wa-envio-hint">—</span></div>
+            <div class="ges-cfg">
+              <div style="grid-column:1/-1"><label for="wa-tel">Telefone(s)</label><input type="text" id="wa-tel" placeholder="(47) 99999-8888 — separe vários por vírgula"></div>
+            </div>
+            <div class="wa-msgbox">
+              <label for="wa-msg">Mensagem</label>
+              <textarea id="wa-msg" rows="4" placeholder="Escreva a mensagem…"></textarea>
+            </div>
+            <div class="m-foot">
+              <span class="m-err" id="wa-env-err"></span>
+              <button class="btn" id="wa-enviar" onclick="whatsEnviar()">Enviar</button>
+            </div>
+          </div>
+          <div class="card">
+            <div class="head"><h2>Últimos envios <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="Trilha de tudo que o CÓRTEX tentou enviar, na tabela zap_envios do banco do CÓRTEX. A recusa também entra — é o registro dela que responde por que a mensagem não saiu. Esta mesma tabela é o que conta os destinatários do dia para o limite: por isso o telefone é guardado sempre normalizado.">i</span></h2><span class="hint" id="wa-hist-hint">—</span></div>
+            <div class="tablewrap tabroll" id="wa-hist"></div>
           </div>
         </div>
         <div id="gpane-config" style="display:none">
@@ -18192,13 +18253,14 @@ async function loadGestao(){
 }
 function gesTab(t){
   GES_TAB=t;
-  ['usuarios','perfis','auditoria','config','integracoes','email'].forEach(x=>{
+  ['usuarios','perfis','auditoria','config','integracoes','email','whatsapp'].forEach(x=>{
     document.getElementById('gpane-'+x).style.display = (x===t)?'':'none';
     document.getElementById('gtab-'+x).setAttribute('aria-pressed', String(x===t));
   });
   if(t==='auditoria' && !document.getElementById('ges-aud').children.length) audCarregar();
   if(t==='integracoes') integCarregar();
   if(t==='email') emailCarregar();
+  if(t==='whatsapp') whatsCarregar();
 }
 function renderGestao(){ renderGesUsuarios(); renderGesPerfis(); renderGesConfig(); gesTab(GES_TAB); }
 
@@ -18420,6 +18482,174 @@ async function emailTeste(){
   }catch(e){ err.style.color=''; err.textContent='Não foi possível falar com a API.'; }
   finally{ btn.disabled=false; btn.textContent='Enviar teste para mim'; }
 }
+/* ========================= WhatsApp (Z-API) =========================
+   Os três campos de credencial seguem a regra da senha do SMTP: sempre vazios,
+   o valor nunca volta do servidor. O status diz só SE existe.
+
+   A tela mostra DUAS coisas que o e-mail não precisa mostrar, e as duas são a
+   diferença entre os canais:
+
+   1. O ESTADO DA CONEXÃO. A Z-API pendura um número real num WhatsApp Web; se
+      o aparelho cai, ela continua respondendo 200 e ENFILEIRA — até mil
+      mensagens — disparando tudo quando ele voltar. "Desconectado" aqui não é
+      detalhe técnico, é a diferença entre não enviar e enviar tudo no sábado
+      à noite.
+   2. QUANTOS DESTINATÁRIOS JÁ FORAM HOJE. É o número que decide se a próxima
+      mensagem sai, e ele fica ao lado do botão que envia — não escondido numa
+      tela de configuração que ninguém abre na hora de mandar. */
+async function whatsCarregar(){
+  const hist=document.getElementById('wa-hist');
+  hist.innerHTML='<div style="padding:12px;color:var(--n500)">carregando…</div>';
+  try{
+    const r=await fetch('/api/gestao/whatsapp',{cache:'no-store'});
+    const d=await r.json();
+    if(!r.ok){ hist.innerHTML='<div style="padding:12px;color:var(--red)">'+esc(d.mensagem||'Erro ao ler a configuração.')+'</div>'; return; }
+    const c=d.config||{}, cx=d.conexao||{}, rs=d.resumo||{}, envios=d.envios||[];
+    const V=(id,v)=>{ const e=document.getElementById(id); if(e) e.value=(v==null?'':v); };
+    V('wa-ativo', c.ativo?'1':'0'); V('wa-limite', c.limite_dia);
+    V('wa-intervalo', c.intervalo_seg); V('wa-jini', c.janela_inicio);
+    V('wa-jfim', c.janela_fim); V('wa-assin', c.assinatura);
+
+    document.getElementById('wa-conexao').innerHTML = whatsChipConexao(c, cx);
+    const partes=[];
+    partes.push(c.ativo ? statChip('good','envio ligado')
+                        : statChip('warn','envio desligado','Nada sai enquanto estiver desligado.'));
+    if(!c.dentro_da_janela) partes.push(statChip('warn','fora da janela agora',
+      'A janela configurada é '+c.janela_inicio+'–'+c.janela_fim+'.'));
+    if(c.atualizado_em) partes.push('atualizado em '+esc(c.atualizado_em));
+    document.getElementById('wa-cfg-status').innerHTML = partes.join(' · ');
+
+    /* O contador do dia fica ao lado do botão de enviar, não na configuração:
+       é aqui que a pergunta "ainda posso mandar?" aparece. */
+    const usados=rs.hoje||0, teto=c.limite_dia||0;
+    const sobra=Math.max(0, teto-usados);
+    document.getElementById('wa-envio-hint').innerHTML =
+      `${usados} de ${teto} destinatário${teto===1?'':'s'} diferente${teto===1?'':'s'} hoje · `
+      + (sobra ? `restam ${sobra}` : statChip('bad','limite atingido','Zera à meia-noite.'));
+
+    document.getElementById('wa-hist-hint').textContent = rs.total
+      ? `${rs.total} envio${rs.total===1?'':'s'} · ${rs.ok||0} ok · ${rs.falha||0} recusado/falhou · ${rs.numeros||0} número${rs.numeros===1?'':'s'} distinto${rs.numeros===1?'':'s'}`
+      : 'nenhum envio registrado';
+    hist.innerHTML = !envios.length ? '<div style="padding:12px;color:var(--n500)">nenhum envio ainda</div>'
+      : '<table><thead><tr><th>Quando</th><th>Para</th><th>Mensagem</th><th>Origem</th><th>Autor</th><th>Status</th></tr></thead><tbody>'
+      + envios.map(e=>`<tr>
+          <td>${esc(fmtDT(e.ts))}</td>
+          <td class="mono">${esc(whatsFmtTel(e.telefone))}</td>
+          <td title="${esc(e.mensagem||'')}">${esc((e.mensagem||'').length>46?e.mensagem.slice(0,46)+'…':(e.mensagem||'—'))}</td>
+          <td>${esc(e.origem||'—')}</td>
+          <td>${esc(shortName(e.usuario||'—'))}</td>
+          <td>${e.ok?statChip('good','enviado'):statChip('bad','não saiu',e.erro||'')}</td></tr>`).join('')
+      + '</tbody></table>';
+  }catch(err){ hist.innerHTML='<div style="padding:12px;color:var(--red)">Não foi possível falar com a API.</div>'; }
+}
+
+/* (47) 99999-8888 a partir do normalizado. O mesmo formato do numeros.py do
+   backend — a trilha guarda só dígitos para o contador de destinatários
+   distintos funcionar, e ninguém lê telefone assim. */
+function whatsFmtTel(n){
+  const d=String(n||'').replace(/\D/g,'');
+  const b=(d.length===12||d.length===13)&&d.startsWith('55') ? d.slice(2) : d;
+  if(b.length===11) return `(${b.slice(0,2)}) ${b.slice(2,7)}-${b.slice(7)}`;
+  if(b.length===10) return `(${b.slice(0,2)}) ${b.slice(2,6)}-${b.slice(6)}`;
+  return n||'—';
+}
+
+function whatsChipConexao(c, cx){
+  if(!c.credenciais_ok) return '<b style="color:var(--yellow-700)">sem credenciais</b> — informe a instância e o token';
+  const quem='instância '+esc(c.instancia||'—')
+    + (c.client_token_ok?' · com token de segurança da conta':'');
+  if(cx.conectado){
+    const cel = cx.celular ? '' : ' · '+statChip('warn','celular sem internet',
+      'A instância está pareada, mas o aparelho não está na rede.');
+    return statChip('good','conectado')+' · '+quem+cel;
+  }
+  return statChip('bad','desconectado', cx.erro||'A instância não está pareada a um WhatsApp.')
+       + ' · '+quem;
+}
+
+async function whatsConexao(){
+  const err=document.getElementById('wa-cred-err'); err.textContent=''; err.style.color='';
+  const btn=document.getElementById('wa-testar'); btn.disabled=true; btn.textContent='Testando…';
+  try{
+    const r=await fetch('/api/gestao/whatsapp/conexao',{method:'POST'});
+    const d=await r.json();
+    err.style.color = d.conectado ? 'var(--green)' : '';
+    err.textContent = d.conectado ? 'conectado' : (d.erro||'não conectado');
+    await whatsCarregar();
+  }catch(e){ err.textContent='Não foi possível falar com a API.'; }
+  finally{ btn.disabled=false; btn.textContent='Testar conexão'; }
+}
+
+/* Grava só o que foi digitado: campo em branco significa "não mexer", nunca
+   "apagar". Sem isso, salvar o Client-Token novo apagaria a instância e o
+   token, e a integração cairia sem ninguém entender por quê. */
+async function whatsCredSalvar(){
+  const err=document.getElementById('wa-cred-err'); err.textContent=''; err.style.color='';
+  const btn=document.getElementById('wa-cred-salvar'); btn.disabled=true;
+  const campos=[['wa-inst','ZAPI_INSTANCIA'],['wa-tok','ZAPI_TOKEN'],['wa-ctok','ZAPI_CLIENT_TOKEN']];
+  const mudou=campos.filter(([id])=>document.getElementById(id).value.trim());
+  if(!mudou.length){ err.textContent='Digite ao menos um campo antes de salvar.'; btn.disabled=false; return; }
+  try{
+    for(const [id,nome] of mudou){
+      const campo=document.getElementById(id);
+      const r=await fetch('/api/gestao/credenciais',{method:'POST',headers:{'Content-Type':'application/json'},
+        body:JSON.stringify({nome, valor:campo.value.trim()})});
+      const d=await r.json();
+      if(!r.ok){ err.textContent=d.mensagem||('Erro ao salvar '+nome+'.'); return; }
+      campo.value='';               // o segredo não fica na tela depois de salvo
+    }
+    await whatsConexao();           // credencial nova: vale conferir na hora
+  }catch(e){ err.textContent='Não foi possível falar com a API.'; }
+  finally{ btn.disabled=false; }
+}
+
+async function whatsSalvar(){
+  const err=document.getElementById('wa-cfg-err'); err.textContent=''; err.style.color='';
+  const btn=document.getElementById('wa-salvar'); btn.disabled=true;
+  try{
+    const corpo={
+      ativo: document.getElementById('wa-ativo').value==='1',
+      limite_dia: document.getElementById('wa-limite').value,
+      intervalo_seg: document.getElementById('wa-intervalo').value,
+      janela_inicio: document.getElementById('wa-jini').value,
+      janela_fim: document.getElementById('wa-jfim').value,
+      assinatura: document.getElementById('wa-assin').value.trim(),
+    };
+    const r=await fetch('/api/gestao/whatsapp',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(corpo)});
+    const d=await r.json();
+    if(!r.ok){ err.textContent=d.mensagem||'Erro ao salvar.'; return; }
+    await whatsCarregar();
+  }catch(e){ err.textContent='Não foi possível falar com a API.'; }
+  finally{ btn.disabled=false; }
+}
+
+async function whatsEnviar(){
+  const err=document.getElementById('wa-env-err'); err.textContent=''; err.style.color='';
+  const tel=document.getElementById('wa-tel').value.trim();
+  const msg=document.getElementById('wa-msg').value.trim();
+  if(!tel){ err.textContent='Informe ao menos um telefone.'; return; }
+  if(!msg){ err.textContent='Escreva a mensagem.'; return; }
+  const btn=document.getElementById('wa-enviar'); btn.disabled=true; btn.textContent='Enviando…';
+  try{
+    const r=await fetch('/api/gestao/whatsapp/enviar',{method:'POST',headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({telefones:tel, mensagem:msg})});
+    const d=await r.json();
+    if(r.ok){
+      err.style.color='var(--green)';
+      err.textContent = d.falhas
+        ? `${d.enviados} enviada(s), ${d.falhas} não saiu(íram) — veja a trilha abaixo`
+        : `enviada para ${d.enviados} número(s)`;
+      document.getElementById('wa-msg').value='';
+    }else{
+      /* A recusa é a informação: quase sempre é limite do dia, janela de
+         horário ou instância desconectada — todas com conserto diferente. */
+      err.textContent = d.mensagem||'Não foi possível enviar.';
+    }
+    await whatsCarregar();
+  }catch(e){ err.style.color=''; err.textContent='Não foi possível falar com a API.'; }
+  finally{ btn.disabled=false; btn.textContent='Enviar'; }
+}
+
 /* ===================== Integrações (credenciais) =====================
    Um cartão por FORNECEDOR, não uma lista plana de campos: a Prolog pede UM
    dos três modos de autenticação, e mostrar os onze campos de uma vez fazia a

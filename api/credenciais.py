@@ -50,6 +50,24 @@ CAMPOS: dict[str, dict] = {
         "rotulo": "Senha do servidor",
         "descricao": "Senha do servidor de e-mail (envio pelo CÓRTEX)"},
 
+    # Z-API — envio de WhatsApp. Os TRÊS campos são segredo, inclusive o id da
+    # instância: na Z-API a credencial é a própria URL
+    # (/instances/{id}/token/{token}), então o id é metade da chave — e não a
+    # parte pública que "id" sugere. Mascarado (`3d2f…a91b`) ainda dá para
+    # conferir qual instância está configurada, que é o motivo de o resto do
+    # catálogo abrir campo de configuração.
+    "ZAPI_INSTANCIA": {
+        "rotulo": "ID da instância",
+        "descricao": "O {id} de /instances/{id}/token/… no painel Z-API"},
+    "ZAPI_TOKEN": {
+        "rotulo": "Token da instância",
+        "descricao": "Token daquela instância — junto com o id, forma o endereço"},
+    "ZAPI_CLIENT_TOKEN": {
+        "rotulo": "Token de segurança da conta", "obrigatorio": False,
+        "descricao": "Aba Segurança do painel Z-API. Só é obrigatório se a "
+                     "validação por token estiver ATIVADA lá — e aí sem ele "
+                     "toda chamada volta 'null not allowed'"},
+
     # Monkey Exchange — portal de antecipação da Tupy. A autenticação é
     # PLUGÁVEL porque a documentação pública não diz qual é: vale token
     # estático OU o par client_id/client_secret (OAuth2 client_credentials).
@@ -174,6 +192,23 @@ SERVICOS: list[dict] = [
                    "campos": ["SMTP_SENHA"]}],
         "ajustes": [],
         "aba": "email",
+    },
+    {
+        # Editada na aba WhatsApp, que tem o interruptor, os limites de envio
+        # e a trilha. Aqui aparece no panorama pelo mesmo motivo do SMTP:
+        # quem abre "Integrações" para conferir o que está ligado tem de ver
+        # todas, e não descobrir que uma mora em outra aba.
+        "chave": "zapi",
+        "nome": "Z-API (WhatsApp)",
+        "resumo": "Envio de mensagens de WhatsApp. NÃO é a API oficial: "
+                  "conecta um número real da empresa, que pode ser banido por "
+                  "disparo em volume — por isso o envio tem limite diário.",
+        "alimenta": "WhatsApp",
+        "modos": [{"chave": "instancia", "rotulo": "Instância e token",
+                   "dica": "os dois compõem a URL da Z-API",
+                   "campos": ["ZAPI_INSTANCIA", "ZAPI_TOKEN"]}],
+        "ajustes": ["ZAPI_CLIENT_TOKEN"],
+        "aba": "whatsapp",
     },
 ]
 
