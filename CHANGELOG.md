@@ -4,6 +4,22 @@ Gerado de `docs/versoes.yaml` por `scripts/gerar_changelog.py` — não editar �
 Formato [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/),
 versionamento [SemVer](https://semver.org/lang/pt-BR/).
 
+## [0.131.0] — 28/08/2026  ·  CX-28/08/2026-v0.131.0
+
+### Adicionado
+- Tres filtros na tabela "Fila por agregado": tipo (PJ ou TAC), situacao (pronto para emitir ou faltando cadastro/certificado) e UF. Ficam no card DA TABELA e nao na barra de filtros do topo, de proposito: os cartoes do topo vem agregados do servidor e nao os obedeceriam, e KPI que ignora filtro da tela e defeito conhecido desta casa. Filtram em memoria, sobre a lista que ja veio - a consulta ao ERP leva segundos e nao se repete por causa de um select. O rodape passa a dizer "X de Y".
+
+### Alterado
+- O BLOCO DA EMISSAO AUTOMATICA ganhou SEMAFORO e regua do ciclo. O estado saia escrito em mono de 30px ("liberado", "atrasado", "parada") no lugar reservado ao cronometro - a unica coisa da tela que muda a cada segundo. Agora o estado e uma luz de tres cores e o numero volta a ser numero: fechado o intervalo, o relogio marca 00:00 e a luz vai para o ambar. A luz apagada continua visivel, entao a leitura e "esta no ambar" e nao "esta amarelo"; quem nao distingue cor le pela posicao.
+- Uma regua do ciclo preenche a linha que sobrava em branco e mostra quanto do intervalo ja correu, com a ultima passagem e a proxima nas pontas - o que o numero sozinho nao mostrava. Fora do estado "contando" ela nao aparece: barra parada em zero pareceria progresso que nao anda.
+- Saiu o paragrafo que explicava a regra dos dois relogios em toda rodada normal - texto que se le uma vez e depois vira ruido. Foi para o ⓘ do cabecalho. Frase no corpo agora SO aparece quando ha o que fazer, e por isso pode ter cor.
+- ESPACO ENTRE AS INFORMACOES nas tres abas. Botao, chips de recorte, frase de acao e tabela sao quatro leituras diferentes e estavam a 10px uma da outra, lidas como uma coisa so. Ganharam respiro e uma divisoria marcando onde a ferramenta acaba e o dado comeca - o mesmo para os filtros que vivem dentro do card de uma tabela.
+- O botao "Varrer o ERP agora" saiu. A consulta ja e ao vivo a cada abertura e a cada troca de filtro, e o "Atualizar" da barra do topo refaz tudo - o botao repetia o que ja existia, e ainda por cima dentro do card de FILTROS, onde nao era filtro nenhum.
+
+### Corrigido
+- A regua do ciclo mostrava a proxima rodada TRES HORAS a frente ("liberada desde 18:06" para uma passagem das 15:01): `toISOString()` converte para UTC, e o painel roda em UTC-3. E a mesma armadilha que ja mordeu o filtro de datas desta casa.
+- Os campos da barra de filtros ficavam desalinhados. Medido: `input` de data mede 34px de altura e o de busca media 37px, porque o Chrome da a cada tipo um box-model proprio; como a barra alinha pelo FUNDO, os fundos batiam e os TOPOS nao, e o campo de busca subia 4px. Vale para as 17 telas que usam esta barra.
+
 ## [0.130.0] — 28/08/2026  ·  CX-28/08/2026-v0.130.0
 
 ### Alterado
