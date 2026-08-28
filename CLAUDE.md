@@ -558,6 +558,26 @@ a query ignora sai; dimensão que a query aceita e é a pergunta natural da tela
   documenta que valida a existência do número a cada envio — pedindo
   explicitamente que NÃO se cheque antes. Inventar o dígito manda para outro
   assinante.
+- **`error` NEM SEMPRE É ERRO — leia o campo que o fornecedor usa como
+  VERDADE.** O `GET /status` da Z-API responde, com a instância no ar,
+  `{"connected": true, "error": "You are already connected."}`: o campo é
+  DESCRITIVO (explica por que não há QR Code a ler). A regra "200 com `error`
+  no corpo é falha" — certa para o `/send-text` — fazia o CÓRTEX ler
+  CONECTADO como desconectado, e como a sétima recusa do envio consulta esse
+  estado, **todo envio ficava barrado exatamente quando o WhatsApp estava
+  funcionando**. Quem decide é `connected`; `error` só vale como motivo quando
+  ele é falso. A regra genérica vale por endpoint, nunca por integração
+  inteira.
+- **Dublê de teste otimista demais testa um fornecedor que não existe.** O
+  `http_falso` do WhatsApp devolvia `{"connected": true, "smartphoneConnected":
+  true}` e OMITIA o `error` que a Z-API sempre manda — por isso a suíte inteira
+  passava com a produção quebrada. Ao dublar resposta de fornecedor, copie o
+  corpo REAL, campos "inúteis" inclusive: é neles que mora a surpresa.
+- **Mensagem do fornecedor que vai para a tela precisa dizer o conserto.** "You
+  are not connected." não diz nada a quem opera; virou "A instância não está
+  pareada a um WhatsApp. Leia o QR Code no painel da Z-API." Traduzir só o que
+  se conhece (`_STATUS_PT`) — inventar texto para mensagem nova esconderia
+  justamente o caso que ninguém viu ainda.
 - **Diagnóstico de integração cujo estado só existe na API do fornecedor precisa
   de cache.** A Saúde recarrega a cada 5 s; sem o TTL de 60 s em
   `cliente.estado()` seriam ~17 mil chamadas por dia à Z-API para desenhar um

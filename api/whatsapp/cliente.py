@@ -31,6 +31,16 @@ TRÊS COISAS DESTA API QUE NÃO SE PARECEM COM NENHUMA OUTRA INTEGRAÇÃO DAQUI:
    em lote, é o pior resultado possível. Por isso `envio.py` consulta
    `conectado()` antes de mandar, e por isso este cliente guarda o estado da
    conexão em cache curto em vez de deixar cada chamador decidir.
+
+4. **O `/status` USA O CAMPO `error` PARA DIZER QUE ESTÁ TUDO BEM.** Com a
+   instância conectada ele responde 200 com
+   `{"connected": true, "error": "You are already connected."}` — o campo é
+   descritivo (explica por que não há QR Code para ler), não é falha. Custou
+   caro descobrir: a regra "200 com `error` no corpo é erro", que está certa
+   para o `/send-text`, fazia o CÓRTEX ler CONECTADO como desconectado. Como a
+   sétima recusa do `envio.py` depende disso, o envio ficava barrado
+   exatamente quando o WhatsApp estava no ar. Quem decide o estado é
+   `connected`; `error` só é problema quando ele é falso.
 """
 from __future__ import annotations
 
@@ -132,7 +142,7 @@ class Cliente:
 
     # ------------------------------------------------------------------ http
     def _chamar(self, caminho: str, corpo: dict | None = None,
-                timeout: int = TIMEOUT) -> dict:
+                timeout: int = TIMEOUT, erro_em_200: bool = True) -> dict:
         cab = {"Accept": "application/json"}
         if client_token():
             cab["Client-Token"] = client_token()
@@ -159,8 +169,11 @@ class Cliente:
 
         if status != 200:
             raise ZapiIndisponivel(_erro_legivel(status, d))
-        # 200 com corpo de erro acontece em alguns caminhos da Z-API
-        if d.get("error"):
+        # 200 com corpo de erro acontece em alguns caminhos da Z-API — mas NÃO
+        # em todos: o `/status` usa `error` como texto descritivo e responde
+        # "You are already connected." justamente quando está tudo certo. Por
+        # isso quem chama diz se o campo vale como falha ali.
+        if erro_em_200 and d.get("error"):
             raise ZapiIndisponivel(_erro_legivel(200, d))
         return d
 
@@ -174,7 +187,9 @@ class Cliente:
         return self._chamar("/send-text", corpo)
 
     def status(self) -> dict:
-        return self._chamar("/status", timeout=10)
+        """O corpo cru do `/status`. A leitura de `connected`/`error` é de
+        `estado()` — aqui só não se pode confundir descrição com falha."""
+        return self._chamar("/status", timeout=10, erro_em_200=False)
 
 
 def _erro_legivel(http_status: int, corpo: dict) -> str:
@@ -210,6 +225,27 @@ def _erro_legivel(http_status: int, corpo: dict) -> str:
 
 # ------------------------------------------------------------------- status
 
+# O `/status` responde em inglês e com frases que não dizem o que fazer. Elas
+# vão para a tela de Saúde e para o motivo da recusa de envio, então valem uma
+# tradução que aponte o conserto. O que não estiver aqui passa sanitizado, em
+# inglês mesmo — inventar tradução para mensagem desconhecida esconderia
+# justamente o caso novo.
+_STATUS_PT = {
+    "you are not connected": (
+        "A instância não está pareada a um WhatsApp. Leia o QR Code no painel "
+        "da Z-API para conectar o número."),
+    "you are disconnected": (
+        "A instância foi desconectada. Releia o QR Code no painel da Z-API."),
+    "you need to be connected": (
+        "A instância não está conectada. Releia o QR Code no painel da Z-API."),
+}
+
+
+def _status_legivel(bruto: str) -> str:
+    chave = bruto.strip().rstrip(".").lower()
+    return _STATUS_PT.get(chave, bruto)
+
+
 def estado(force: bool = False, http=None) -> dict:
     """Estado da conexão, com cache de `TTL_STATUS`.
 
@@ -227,10 +263,17 @@ def estado(force: bool = False, http=None) -> dict:
     else:
         try:
             r = Cliente(http=http).status()
+            conectado_ = bool(r.get("connected"))
+            # `error` aqui é DESCRIÇÃO, não falha: com a instância no ar ele
+            # vem "You are already connected.". Repassá-lo como erro fazia a
+            # tela dizer "desconectado" com o WhatsApp funcionando — e o
+            # envio recusar tudo. Só vale como motivo quando `connected` é
+            # falso.
+            motivo = _sanitizar(str(r.get("error") or ""))
             d = {"ok": True,
-                 "conectado": bool(r.get("connected")),
+                 "conectado": conectado_,
                  "celular": bool(r.get("smartphoneConnected")),
-                 "erro": _sanitizar(str(r.get("error") or "")),
+                 "erro": "" if conectado_ else _status_legivel(motivo),
                  "configurado": True}
         except (ZapiIndisponivel, ZapiNaoConfigurado) as exc:
             d = {"ok": False, "conectado": False, "celular": False,

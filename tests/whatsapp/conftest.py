@@ -44,15 +44,26 @@ def gravar_config(**kw) -> dict:
 
 def http_falso(*, conectado=True, celular=True, envio_status=200,
                envio_corpo=None, ao_enviar=None):
-    """Dublê de `cliente._http`. Guarda as chamadas para o teste inspecionar."""
+    """Dublê de `cliente._http`. Guarda as chamadas para o teste inspecionar.
+
+    O `/status` DEVOLVE O CAMPO `error` TAMBÉM QUANDO ESTÁ TUDO BEM: com a
+    instância no ar a Z-API responde "You are already connected." — o campo é
+    descritivo, explica por que não há QR Code a ler. Este dublê omitia o
+    campo, e por isso a suíte inteira passava enquanto a produção lia
+    CONECTADO como desconectado e recusava todo envio. Dublê otimista demais
+    testa um fornecedor que não existe.
+    """
     chamadas: list[dict] = []
 
     def _http(url, headers, timeout, dados=None):
         import json as _json
         chamadas.append({"url": url, "headers": headers, "dados": dados})
         if url.endswith("/status"):
-            return 200, _json.dumps({"connected": conectado,
-                                     "smartphoneConnected": celular}).encode()
+            return 200, _json.dumps({
+                "connected": conectado,
+                "smartphoneConnected": celular,
+                "error": ("You are already connected." if conectado
+                          else "You are not connected.")}).encode()
         if url.endswith("/send-text"):
             if ao_enviar is not None:
                 ao_enviar()

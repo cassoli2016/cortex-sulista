@@ -108,3 +108,77 @@ def test_sem_credencial_o_cliente_nao_nasce(monkeypatch):
     monkeypatch.setattr(cliente, "_cred", lambda nome: "")
     with pytest.raises(cliente.ZapiNaoConfigurado):
         cliente.Cliente(http=http_falso())
+
+
+# ------------------------------------------------- o `error` que não é erro
+
+def _http_status(corpo: dict):
+    """Dublê cru do `/status`, com o corpo EXATO que a Z-API devolve."""
+    import json
+
+    def _http(url, headers, timeout, dados=None):
+        assert url.endswith("/status")
+        return 200, json.dumps(corpo).encode()
+    return _http
+
+
+def test_conectado_e_lido_como_CONECTADO_apesar_do_campo_error():
+    """O defeito que derrubou o envio inteiro em produção.
+
+    Com a instância no ar, o `/status` responde 200 com
+    `{"connected": true, "error": "You are already connected."}` — o campo é
+    DESCRITIVO (explica por que não há QR Code a ler). A regra "200 com `error`
+    é erro", correta para o `/send-text`, fazia isto virar "desconectado"; e
+    como a sétima recusa do envio consulta este estado, o CÓRTEX recusava toda
+    mensagem exatamente quando o WhatsApp estava funcionando.
+    """
+    cliente.limpar_cache()
+    d = cliente.estado(force=True, http=_http_status({
+        "connected": True, "smartphoneConnected": True,
+        "error": "You are already connected."}))
+    assert d["conectado"] is True
+    assert d["ok"] is True
+    # e a descrição NÃO é repassada como erro: a tela mostraria "conectado"
+    # com uma mensagem de falha ao lado
+    assert d["erro"] == ""
+
+
+def test_desconectado_ganha_a_instrucao_do_que_fazer():
+    """Aqui o campo é motivo de verdade — e "You are not connected." não diz a
+    ninguém o que fazer."""
+    cliente.limpar_cache()
+    d = cliente.estado(force=True, http=_http_status({
+        "connected": False, "smartphoneConnected": False,
+        "error": "You are not connected."}))
+    assert d["conectado"] is False
+    assert "QR Code" in d["erro"]
+
+
+def test_mensagem_desconhecida_do_status_passa_como_veio():
+    """Traduzir só o que se conhece: inventar texto para mensagem nova
+    esconderia justamente o caso que ninguém viu ainda."""
+    cliente.limpar_cache()
+    d = cliente.estado(force=True, http=_http_status({
+        "connected": False, "error": "Instance suspended for overdue payment"}))
+    assert d["erro"] == "Instance suspended for overdue payment"
+
+
+def test_no_ENVIO_o_erro_em_200_continua_sendo_erro():
+    """O afrouxamento vale só para o `/status`. No `/send-text`, 200 com
+    `error` é falha — e tratá-lo como sucesso faria o sistema reportar
+    "enviado" para mensagem que não saiu."""
+    import json
+
+    def _http(url, headers, timeout, dados=None):
+        return 200, json.dumps({"error": "phone is required"}).encode()
+
+    with pytest.raises(cliente.ZapiIndisponivel, match="phone is required"):
+        cliente.Cliente(http=_http).enviar_texto("5547999998888", "oi")
+
+
+def test_o_status_bruto_nao_esconde_o_campo_error():
+    """`Cliente.status()` devolve o corpo como veio: quem interpreta é
+    `estado()`. Filtrar aqui tiraria a informação de quem for depurar."""
+    r = cliente.Cliente(http=_http_status({
+        "connected": True, "error": "You are already connected."})).status()
+    assert r["error"] == "You are already connected."

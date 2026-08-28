@@ -4,6 +4,12 @@ Gerado de `docs/versoes.yaml` por `scripts/gerar_changelog.py` — não editar �
 Formato [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/),
 versionamento [SemVer](https://semver.org/lang/pt-BR/).
 
+## [0.121.1] — 28/08/2026  ·  CX-28/08/2026-v0.121.1
+
+### Corrigido
+- O CORTEX dizia "desconectado" e RECUSAVA TODO ENVIO de WhatsApp justamente quando a instancia estava no ar. A causa: com a conexao funcionando, a Z-API responde HTTP 200 com o campo error preenchido - "You are already connected." - porque ali esse campo e descritivo, explica por que nao ha QR Code a ler. O CORTEX tratava qualquer error no corpo como falha, o que esta certo no envio e errado no status. Agora quem decide o estado e o campo connected.
+- A mensagem de instancia desconectada passou a dizer o que fazer ("leia o QR Code no painel da Z-API") em vez de repetir o ingles do fornecedor.
+
 ## [0.121.0] — 28/08/2026  ·  CX-28/08/2026-v0.121.0
 
 ### Adicionado
