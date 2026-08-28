@@ -1,3 +1,39 @@
+- versao: "0.133.0"
+  data: "2026-08-28"
+  alterado:
+    - >-
+      AS TABELAS DA TELA DE CT-e NAO ROLAM MAIS POR DENTRO: elas PAGINAM. Duas
+      barras de rolagem, uma dentro da outra, faziam a roda do mouse mover ora
+      a tabela ora a pagina conforme onde estava o ponteiro, e o fim da lista
+      sumia sem aviso. Agora sao 25 linhas por pagina, com "26-50 de 200" e o
+      numero da pagina no rodape, e o paginador aparece so quando a lista passa
+      de uma pagina. Vale para as cinco tabelas da tela: fila por agregado,
+      validador do cadastro, vencimento dos certificados, emitentes e
+      documentos transmitidos.
+    - >-
+      Trocar de filtro, de categoria ou de ordenacao volta para a primeira
+      pagina - continuar na pagina 4 depois de filtrar mostraria uma tabela
+      vazia com dados existindo.
+    - >-
+      Mais espaco para ler: a altura da linha subiu de 10 para 13px (sem
+      rolagem interna a tabela deixou de ser uma janelinha e virou o corpo do
+      cartao) e os cartoes desta tela ganharam respiro entre si. Os botoes do
+      paginador ficam no CENTRO do cartao, com a contagem a esquerda.
+  corrigido:
+    - >-
+      O APP NAO CARREGAVA. O bloco de paginacao nasceu no fim do arquivo e era
+      chamado por telas definidas antes dele: chamada de topo executa na ordem
+      do arquivo, entao a primeira chamada encontrava a constante ainda na zona
+      morta (TDZ) e estourava ReferenceError - que nao quebra so aquela tela,
+      MATA o script inteiro no boot. E a mesma armadilha ja documentada aqui
+      para as cores do CC. O bloco passou para o topo.
+    - >-
+      As "Faixas de vencimento" e a tabela "Vencimento dos certificados" tinham
+      parado de ser preenchidas: uma remocao por fatia de texto, feita para
+      tirar o grafico de transmissoes por dia do Despacho, levou junto os dois
+      blocos que vinham logo depois. Os cartoes continuavam na tela, vazios.
+      Recuperados do historico.
+
 - versao: "0.132.0"
   data: "2026-08-28"
   adicionado:

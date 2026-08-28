@@ -1148,9 +1148,33 @@ button.avatar{border:0;cursor:pointer}
   padding:10px 18px 12px;border-top:1px solid var(--n200)}
 .cp-pager .hint{margin-right:auto}
 .tab tr.cp-l-tac:hover td{background:#F4F1EA}
-/* TABELA MAIOR nesta tela: as listas aqui sao de trabalho, percorridas de
-   ponta a ponta, e 430px mostravam nove linhas de vinte e oito. */
-#view-ctecp .tabroll{max-height:560px}
+/* SEM ROLAGEM INTERNA nesta tela: as tabelas PAGINAM. Duas barras de rolagem
+   uma dentro da outra fazem a roda do mouse mover ora a tabela, ora a pagina,
+   conforme onde o ponteiro esta - e o fim da lista some sem aviso. Aqui a
+   pagina fica curta pela paginacao, e o rodape diz sempre onde a pessoa esta. */
+#view-ctecp .tabroll{max-height:none;overflow:visible}
+/* ESPACO PARA LER. Sem rolagem interna a tabela deixou de ser uma janelinha e
+   virou o corpo do cartao: 10px de altura de linha eram apertados para uma
+   lista percorrida de ponta a ponta, com selo e chip em quase toda celula. */
+#view-ctecp .tab td{padding:13px 18px}
+#view-ctecp .tab th{padding:11px 18px}
+/* respiro entre os cartoes desta tela, que empilha muitos */
+#view-ctecp{display:flex;flex-direction:column;gap:20px}
+/* a banda de indicadores separa dois assuntos: precisa de mais ar que a
+   distancia padrao entre cartoes */
+#view-ctecp .kband{margin-top:6px;gap:11px}
+/* o cabecalho grudado so faz sentido com rolagem interna */
+#view-ctecp .tabroll thead th{position:static}
+.cp-pager{display:grid;grid-template-columns:1fr auto 1fr;align-items:center;
+  padding:12px 18px 14px;border-top:1px solid var(--n200)}
+.cp-pager .botoes{display:flex;align-items:center;gap:8px;justify-content:center}
+.cp-pager .hint{white-space:nowrap}
+/* A contagem some antes dos botoes quando a tela aperta: quem esta paginando
+   precisa do PROXIMO, e "26-50 de 200" e apoio. */
+@media (max-width:640px){
+  .cp-pager{grid-template-columns:1fr}
+  .cp-pager>.hint:first-child,.cp-pager>span:last-child{display:none}
+}
 .tab tr.cp-l-pj  td:first-child{box-shadow:inset 3px 0 0 var(--navy-400)}
 .tab tr.cp-l-tac td:first-child{box-shadow:inset 3px 0 0 var(--yellow)}
 .tab tr.cp-l-tac{background:#FBFAF7}
@@ -3008,7 +3032,7 @@ body.tvfull #btnReport,body.tvmode #btnReport{display:none}
             </label>
           </div>
           <div class="tabroll"><table class="tab" id="cpTab"></table></div>
-          <div class="cp-pager" id="cpPaginador" hidden></div>
+          <div class="cp-pager" id="cpTabPag" hidden></div>
         </div>
 
               </div>
@@ -3027,12 +3051,14 @@ body.tvfull #btnReport,body.tvmode #btnReport{display:none}
             <div class="hint" id="cpValidAcao" hidden></div>
           </div>
           <div class="tabroll"><table class="tab" id="cpValidTab"></table></div>
+          <div class="cp-pager" id="cpValidTabPag" hidden></div>
         </div>
 
         <div class="card" id="cpCertCard" hidden>
           <div class="head"><h2>Vencimento dos certificados <span class="badge b-info" title="Certificado vence no calendário, não na janela que a tela está mostrando. Se este card seguisse o período, um agregado que não rodou no recorte sumiria do controle — foi o que aconteceu: o certificado que vence primeiro desapareceu num dia sem movimento.">ignora o período</span> <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="Certificado A1 vale UM ANO. Vencido em silêncio, a emissão para sozinha e a empresa descobre pelo agregado. A ordem é por urgência e, dentro dela, por VOLUME: um certificado que vence em 40 dias e sustenta metade da fila urge mais que um vencendo em 10 que nunca emitiu nada. Validade não informada NÃO conta como “ok” — conta como desconhecida.">i</span></h2>
             <span class="hint" id="hintCpCert"></span></div>
           <div class="tabroll"><table class="tab" id="cpCertTab"></table></div>
+          <div class="cp-pager" id="cpCertTabPag" hidden></div>
         </div>
 
         <div class="grid2">
@@ -3087,6 +3113,7 @@ body.tvfull #btnReport,body.tvmode #btnReport{display:none}
             <div class="head"><h2>Emitentes <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="Um agregado por linha, em produção. Cada um emite na própria série 900 com numeração independente — por isso vários começam no 900/1, e isso não é duplicidade. “Buracos” são números da faixa que nenhuma linha ocupou.">i</span></h2>
               <span class="hint" id="hintCtetxTabEmi"></span></div>
             <div class="tabroll"><table class="tab" id="ctetxTabEmi"></table></div>
+          <div class="cp-pager" id="ctetxTabEmiPag" hidden></div>
           </div>
 
           <div class="card">
@@ -3120,6 +3147,7 @@ body.tvfull #btnReport,body.tvmode #btnReport{display:none}
               </div>
             </div>
             <div class="tabroll"><table class="tab" id="ctetxTab"></table></div>
+          <div class="cp-pager" id="ctetxTabPag" hidden></div>
           </div>
         </div>
 
@@ -4661,6 +4689,91 @@ body.tvfull #btnReport,body.tvmode #btnReport{display:none}
 
 <script src="/static/carga.js"></script>
 <script>
+/* Este bloco fica NO TOPO de proposito. Ele e chamado por `pagRegistrar(...)`
+   em varias telas mais abaixo, e chamada de topo executa na ORDEM DO ARQUIVO:
+   com o bloco no fim, `const PAG_RENDER` ainda estava na zona morta (TDZ) e a
+   primeira chamada estourava ReferenceError — que nao quebra so aquela tela,
+   MATA o script inteiro no boot e o app aparece travado. Mesma armadilha ja
+   documentada aqui para as cores do `CC`. */
+/* ================= PAGINACAO SEM ROLAGEM INTERNA =========================
+   As tabelas desta tela nao rolam dentro do cartao: elas paginam.
+
+   O padrao antigo da casa era `.tabroll` — rolar dentro do card, com cabecalho
+   grudado. Resolve a pagina quilometrica (o CRM ja passou de 16.000px), mas
+   cria uma segunda barra de rolagem dentro da primeira: a roda do mouse ora
+   move a tabela, ora a pagina, dependendo de onde o ponteiro esta, e o fim da
+   lista some sem aviso porque nao ha nada dizendo que ha mais abaixo.
+
+   A paginacao resolve as duas coisas: a pagina fica curta E o rodape diz
+   sempre onde a pessoa esta ("51-75 de 140"). O preco e um clique, que so
+   aparece quando a lista passa do tamanho de uma pagina.
+
+   UM ESTADO POR TABELA (`PAG_EST`) e uma funcao de redesenho registrada
+   (`PAG_RENDER`): sem o registro, cada tabela precisaria do proprio par de
+   botoes chamando o proprio render, e foi assim que a primeira versao disto
+   duplicou a logica em quatro lugares. */
+const PAG_EST = {};        // id da tabela -> pagina atual
+const PAG_RENDER = {};     // id da tabela -> funcao que redesenha
+const PAG_ASSIN = {};      // id -> assinatura do recorte, para voltar a pag. 1
+
+/* Quantas linhas por pagina. Sem rolagem interna, cada linha cresce a pagina:
+   25 e o que cabe numa tela de trabalho sem obrigar a rolar muito. */
+const PAG_TAM = 25;
+
+function pagRegistrar(id, render){ PAG_RENDER[id] = render; }
+
+/* Recorte novo recomeca na pagina 1. Manter a pagina 7 depois de filtrar
+   mostraria uma tabela vazia com dados existindo. */
+function pagRecorte(id, assinatura){
+  if(PAG_ASSIN[id] !== assinatura){ PAG_ASSIN[id] = assinatura; PAG_EST[id] = 1; }
+}
+
+function pagFatia(id, linhas, tam){
+  tam = tam || PAG_TAM;
+  const total = linhas.length;
+  const paginas = Math.max(1, Math.ceil(total / tam));
+  let p = PAG_EST[id] || 1;
+  if(p > paginas) p = paginas;
+  PAG_EST[id] = p;
+  pagBarra(id, total, tam, p, paginas);
+  return total > tam ? linhas.slice((p - 1) * tam, p * tam) : linhas;
+}
+
+function pagIr(id, n){
+  PAG_EST[id] = Math.max(1, n);
+  const f = PAG_RENDER[id];
+  if(f) f();
+  /* Volta ao topo da TABELA, e nao da pagina: trocar de pagina e continuar a
+     leitura, nao recomecar a tela. */
+  const t = document.getElementById(id);
+  if(t) t.scrollIntoView({block:'nearest'});
+}
+
+function pagBarra(id, total, tam, p, paginas){
+  const alvo = document.getElementById(id + 'Pag');
+  if(!alvo) return;
+  if(total <= tam){ alvo.innerHTML = ''; alvo.hidden = true; return; }
+  alvo.hidden = false;
+  const de = (p - 1) * tam + 1, ate = Math.min(p * tam, total);
+  const bt = (n, txt, hab) =>
+    '<button class="gbtn"' + (hab ? '' : ' disabled')
+    + ' onclick="pagIr(\'' + id + '\',' + n + ')">' + txt + '</button>';
+  /* Grade de TRES colunas e nao flex: a contagem fica a esquerda e os botoes
+     no CENTRO do cartao, nao no centro do espaco que sobrou dela. Com flex, o
+     grupo escorregava para a direita conforme o texto da contagem crescia. */
+  alvo.innerHTML =
+    '<span class="hint">' + de + '–' + ate + ' de ' + total + '</span>'
+    + '<span class="botoes">'
+    +   bt(1, '«', p > 1)
+    +   bt(p - 1, '‹ anterior', p > 1)
+    +   '<span class="hint mono">' + p + ' / ' + paginas + '</span>'
+    +   bt(p + 1, 'próxima ›', p < paginas)
+    +   bt(paginas, '»', p < paginas)
+    + '</span>'
+    + '<span></span>';
+}
+
+
 'use strict';
 /* Buffer das ultimas falhas, para viajar junto do report. `var` + declaracao
    de funcao sao hoisted: se um erro estourar durante a avaliacao do proprio
@@ -10658,6 +10771,10 @@ async function loadCtecp(fundo){
   finally{ if(seq===cpSeq){ if(btn) btn.disabled=false;
     document.getElementById('content').classList.remove('loading'); } }
 }
+/* A tabela de certificados e desenhada dentro do render da tela inteira, e
+   nao tem funcao propria. Redesenhar tudo nao custa consulta: `DATACP` ja
+   esta em memoria. */
+pagRegistrar('cpCertTab', function(){ if(DATACP) renderCtecp(DATACP); });
 function renderCtecp(d){
   const k=d.kpis||{}, per=d.periodo||{}, f=d.fonte||{};
   const de=document.getElementById('fCpDe'), ate=document.getElementById('fCpAte');
@@ -10766,6 +10883,81 @@ function renderCtecp(d){
            : ((per.de||'')+' a '+(per.ate||'')))
     +(per.busca?(' · filtrado por “'+per.busca+'”'):'')
     +' · varrido em '+fmtDT(f.gerado_em||'');
+  /* FAIXAS DE VENCIMENTO dos certificados. */
+  const fx=((d.certificados||{}).faixas_contagem)||[];
+  const totFx=fx.reduce(function(a,f){return a+(f.n||0);},0);
+  const CORFX={vencido:'var(--red)',critico:'var(--red)',alerta:'var(--yellow)',
+               atencao:'var(--yellow)',ok:'var(--green)',
+               desconhecido:'var(--red)',impedido:'var(--n400)'};
+  document.getElementById('cpCertFaixas').innerHTML = totFx ? fx.map(function(f){
+    if(!f.n) return '';
+    return '<div>'
+      +'<div style="display:flex;justify-content:space-between;font-size:12px">'
+      +'<span>'+esc(f.rotulo)+'</span><span class="mono" style="color:var(--n500)">'
+      +f.n+' '+(f.n===1?'certificado':'certificados')+'</span></div>'
+      +'<div style="height:10px;border-radius:5px;background:var(--n100);margin-top:3px">'
+      +'<div style="height:100%;width:'+(100*f.n/totFx).toFixed(1)+'%;background:'
+      +(CORFX[f.chave]||'var(--n400)')+';border-radius:5px"></div></div></div>';
+  }).join('') : '<div class="hint">Nenhum certificado cadastrado.</div>';
+
+
+  /* VENCIMENTO DOS CERTIFICADOS. Certificado A1 vale um ano; vencido em
+     silencio, a emissao para sozinha. O semaforo e GRADUADO porque "vence em
+     2 dias" e "vence em 29" pedem acoes diferentes - chip igual para os dois
+     nao prioriza nada. */
+  const ce=d.certificados||{}, cItens=ce.itens||[];
+  document.getElementById('cpCertCard').hidden = !cItens.length;
+  if(cItens.length){
+    const a30=(ce.ate_30||{}), a60=(ce.ate_60||{});
+    document.getElementById('hintCpCert').textContent =
+      ce.total+' '+(ce.total===1?'certificado':'certificados')
+      +' · '+(a30.certificados||0)+' vence'+((a30.certificados||0)===1?'':'m')
+      +' em ate 30 dias'+((a30.ctes||0)?' ('+(a30.ctes).toLocaleString('pt-BR')+' CT-e)':'')
+      +' · '+(a60.certificados||0)+' em ate 60';
+    const CLS={vencido:'b-dang',critico:'b-dang',alerta:'b-warn',
+               atencao:'b-warn',desconhecido:'b-dang',impedido:'b-info',ok:'b-ok'};
+    pagRecorte('cpCertTab', String(cItens.length));
+    const pagCert = pagFatia('cpCertTab', cItens);
+    document.getElementById('cpCertTab').innerHTML =
+      '<thead><tr><th>Agregado</th><th>Titular do certificado</th><th>Tipo</th>'
+      +'<th>Validade</th><th>Situação</th><th>Envio</th>'
+      +'<th class="num">CT-e no período</th>'
+      +'</tr></thead><tbody>'
+      +pagCert.map(function(c){
+        const grave = c.situacao==='vencido'||c.situacao==='critico'
+                   || c.situacao==='desconhecido';
+        return '<tr'+(grave?' class="cp-recusada"':'')+'>'
+          +'<td>'+esc(c.nome||c.documento)+'</td>'
+          +'<td>'+esc(c.titular||'—')
+          +(c.tem_senha?'':' <span class="badge b-dang" title="Sem a senha no cofre o certificado não assina">sem senha</span>')
+          +'</td>'
+          +'<td class="mono">'+esc(c.tipo||'—')+'</td>'
+          +'<td class="mono">'+(c.valida_ate?esc(fmtD(c.valida_ate)):'—')
+          +' <button class="gbtn" data-doc="'+esc(c.documento)+'"'
+          +' onclick="cpAbrir(this.dataset.doc)"'
+          +' title="Substituir o arquivo .pfx e a senha deste agregado. O cadastro anterior e sobrescrito.">trocar</button></td>'
+          +'<td><span class="badge '+(CLS[c.situacao]||'b-info')+'">'
+          +esc(c.texto||c.situacao)+'</span></td>'
+          /* zero aqui e "nao rodou NO RECORTE", nao "nao importa" - e a
+             diferenca some se o numero aparecer pelado */
+          /* CNPJ vai em data- e o handler o le de la: sem aspa dentro de
+             aspa dentro de atributo, que e onde o escape quebra. */
+          +'<td>'+(c.envio
+             ? '<button class="gbtn" data-cnpj="'+esc(c.documento)+'" data-liga="0"'
+               +' onclick="cpEnvio(this)" title="Tira este agregado da fila de emissão.'
+               +' Não apaga certificado nem autorização — só suspende o envio.">desativar envio</button>'
+             : '<button class="gbtn" data-cnpj="'+esc(c.documento)+'" data-liga="1"'
+               +' onclick="cpEnvio(this)" title="'
+               +esc('Fora da fila'+(c.envio_quem?' por '+c.envio_quem:'')+'. Clique para voltar a emitir.')
+               +'"><span class="badge b-dang">envio desativado</span> ativar</button>')
+          +'</td>'
+          +'<td class="num mono">'+(c.no_periodo
+             ? (c.ctes||0).toLocaleString('pt-BR')
+             : '<span class="hint" title="Este agregado não teve CT-e no período filtrado. O certificado continua valendo — e vencendo.">fora do período</span>')
+          +'</td></tr>';
+      }).join('')+'</tbody>';
+  }
+
   /* `d.avisos` continua vindo do servidor e NAO e mais desenhado aqui: era
      uma lista corrida de frases no meio da tela, competindo com os cartoes e
      com a fila sem dizer o que fazer com nenhuma delas. O campo segue vivo
@@ -10848,6 +11040,7 @@ async function cpValidarTudo(){
   finally{ if(b){ b.disabled=false; b.textContent=antes; } }
 }
 
+pagRegistrar('cpValidTab', function(){ cpValidRender(); });
 function cpValidRender(){
   const card=document.getElementById('cpValidCard');
   if(!card) return;
@@ -10913,12 +11106,16 @@ function cpValidRender(){
       +(soUma?'':' <span style="color:var(--n500)">— as demais estão na coluna.</span>')
     : '';
   document.getElementById('cpValidAcao').hidden = !acaoUnica;
+  /* O recorte inclui a CATEGORIA: trocar de chip e outro conjunto, e continuar
+     na pagina 4 mostraria uma tabela vazia com achados existindo. */
+  pagRecorte('cpValidTab', CP_VALCAT+'|'+lin.length);
+  const pagVal = pagFatia('cpValidTab', lin);
   document.getElementById('cpValidTab').innerHTML=
     '<thead><tr><th>Agregado</th><th>UF</th><th class="num">CT-e</th>'
     +'<th>O que está errado</th>'
     +((acaoUnica && soUma)?'':'<th>O que fazer</th>')
     +'<th></th></tr></thead><tbody>'
-    +lin.map(function(a){
+    +pagVal.map(function(a){
       const rej=a.rejeicao
         ? ' <span class="badge b-dang" title="Código medido na transmissão, não estimado.">'+esc(a.rejeicao)+'</span>'
         : '';
@@ -11215,10 +11412,7 @@ function cpTabRender(){
      causa de um select. */
   const V = id => { const e=document.getElementById(id); return e ? e.value : ''; };
   const fcl = V('fCpClasse'), fpr = V('fCpPronto'), fuf = V('fCpUf');
-  /* Recorte novo recomeca na primeira pagina: manter a pagina 7 depois de
-     filtrar mostraria uma tabela vazia com dados existindo. */
-  const assin = fcl+'|'+fpr+'|'+fuf;
-  if(assin !== CP_RECORTE){ CP_RECORTE = assin; CP_PAGINA = 1; }
+  pagRecorte('cpTab', fcl+'|'+fpr+'|'+fuf+'|'+CP_ORD.col+CP_ORD.dir);
   const ag = CP_AG.filter(function(x){
     if(fcl && x.classe !== fcl) return false;
     if(fuf && (x.uf||'') !== fuf) return false;
@@ -11239,10 +11433,7 @@ function cpTabRender(){
      trabalho, e o rodape deixa de dizer onde a pessoa esta. A pagina volta ao
      inicio sempre que o RECORTE muda — manter a pagina 7 depois de filtrar
      mostraria uma tabela vazia com dados existindo. */
-  const totalPag = Math.max(1, Math.ceil(ag.length / CP_PAG));
-  if(CP_PAGINA > totalPag) CP_PAGINA = totalPag;
-  const pagina = ag.length > CP_PAG
-    ? ag.slice((CP_PAGINA-1)*CP_PAG, CP_PAGINA*CP_PAG) : ag;
+  const pagina = pagFatia('cpTab', ag);
 
   const cab = CP_COLS.map(function(c){
     const ativa = CP_ORD.col===c[0];
@@ -11303,44 +11494,12 @@ function cpTabRender(){
     CP_AG.length
       ? (corte ? ag.length+' de '+CP_AG.length+' agregados'
                : CP_AG.length+' agregados')
-        + (ag.length > CP_PAG
-            ? ' · página '+CP_PAGINA+' de '+totalPag : '')
         +' · ordenado por '+nome.toLowerCase()
         +(CP_ORD.dir>0?' (crescente)':' (decrescente)')
         +' · barra âmbar = TAC, fora da fila'
       : '';
-  cpPaginador(ag.length, totalPag);
 }
-
-/* Quantas linhas por pagina. Acima disso a lista pagina; abaixo ela so rola
-   dentro do cartao, que nao custa clique nenhum. */
-const CP_PAG = 50;
-var CP_PAGINA = 1, CP_RECORTE = '';
-
-function cpPagina(n){
-  CP_PAGINA = Math.max(1, n);
-  cpTabRender();
-  /* Volta ao topo da TABELA e nao da pagina: trocar de pagina e continuar a
-     leitura, nao recomecar a tela. */
-  const t = document.getElementById('cpTab');
-  if(t && t.parentElement) t.parentElement.scrollTop = 0;
-}
-
-function cpPaginador(total, totalPag){
-  const alvo = document.getElementById('cpPaginador');
-  if(!alvo) return;
-  if(total <= CP_PAG){ alvo.innerHTML=''; alvo.hidden=true; return; }
-  alvo.hidden=false;
-  const de = (CP_PAGINA-1)*CP_PAG + 1;
-  const ate = Math.min(CP_PAGINA*CP_PAG, total);
-  const bt = (n, txt, hab) =>
-    '<button class="gbtn" '+(hab?'':'disabled ')
-    +'onclick="cpPagina('+n+')">'+txt+'</button>';
-  alvo.innerHTML =
-    '<span class="hint">'+de+'–'+ate+' de '+total+'</span>'
-    + bt(CP_PAGINA-1, '‹ anterior', CP_PAGINA>1)
-    + bt(CP_PAGINA+1, 'próxima ›', CP_PAGINA<totalPag);
-}
+pagRegistrar('cpTab', function(){ cpTabRender(); });
 
 /* As UFs saem da propria lista: fixar uma lista de estados aqui obrigaria a
    lembrar dela quando um agregado de UF nova entrasse na frota. O valor
@@ -20088,6 +20247,7 @@ function ctetxCstat(rows){
   });
 }
 
+pagRegistrar('ctetxTabEmi', function(){ ctetxTabEmitentes((CTETX||{}).por_emitente||[]); });
 function ctetxTabEmitentes(rows){
   const alvo = document.getElementById('ctetxTabEmi');
   if(!alvo) return;
@@ -20096,13 +20256,15 @@ function ctetxTabEmitentes(rows){
     document.getElementById('hintCtetxTabEmi').textContent = 'nenhum em produção';
     return;
   }
+  pagRecorte('ctetxTabEmi', String(rows.length));
+  const pag = pagFatia('ctetxTabEmi', rows);
   alvo.innerHTML =
     '<thead><tr><th>Emitente</th><th class="num">Valendo</th>'
     +'<th class="num">Cancelados</th><th class="num">Recusados</th>'
     +'<th class="num">Valor</th><th>Faixa</th>'
     +'<th class="num" title="Números da faixa que nenhuma linha ocupou: transmissão que falhou antes de ser gravada. O documento pode ter chegado à SEFAZ mesmo assim.">Buracos</th>'
     +'<th>Último</th></tr></thead><tbody>'
-    + rows.map(function(r){
+    + pag.map(function(r){
         const faixa = (r.n_de==null) ? '—'
           : ('900/'+r.n_de + (r.n_ate!==r.n_de ? '–'+r.n_ate : ''));
         return '<tr>'
@@ -20125,6 +20287,7 @@ function ctetxTabEmitentes(rows){
     rows.length+' emitente'+(rows.length===1?'':'s')+' · '+validos+' valendo';
 }
 
+pagRegistrar('ctetxTab', function(){ ctetxTabela((CTETX||{}).documentos||[]); });
 function ctetxTabela(docs){
   const alvo = document.getElementById('ctetxTab');
   if(!alvo) return;
@@ -20145,12 +20308,14 @@ function ctetxTabela(docs){
       : 'nenhuma transmissão na janela';
     return;
   }
+  pagRecorte('ctetxTab', amb+'|'+sit+'|'+lista.length);
+  const pag = pagFatia('ctetxTab', lista);
   alvo.innerHTML =
     '<thead><tr><th>Quando</th><th>Emitente</th>'
     +'<th title="A numeração é POR EMITENTE: cada agregado tem a própria série 900 e o primeiro documento de cada um é o 900/1. Repetição com emitentes diferentes não é duplicidade.">Série/Nº</th>'
     +'<th class="num">Valor</th><th>Situação</th><th>Contabilidade</th>'
     +'<th>Chave</th><th>Ações</th></tr></thead><tbody>'
-    + lista.map(function(t){
+    + pag.map(function(t){
         const ch = t.chave||'';
         const prod = String(t.ambiente)==='1';
         const chCurta = ch.length>20 ? ch.slice(0,8)+'…'+ch.slice(-8) : (ch||'—');
