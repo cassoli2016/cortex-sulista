@@ -647,6 +647,34 @@ a query ignora sai; dimensão que a query aceita e é a pergunta natural da tela
   trilha, o mesmo limite e a mesma auditoria. Um caminho paralelo viraria o
   atalho para disparar sem as regras.
 
+**Regra por modelo: o que pode variar e o que é teto (lições das regras de envio):**
+- **Sub-limite de modelo NUNCA CRIA COTA.** O teto de destinatários é do NÚMERO e
+  vale para tudo somado; o do modelo só APERTA (`min` dos dois, e as duas
+  contagens são feitas no envio). O WhatsApp não sabe o que é um modelo — vê uma
+  linha telefônica falando com N desconhecidos por dia. Dez modelos com 60 cada
+  não são 600 disparos permitidos: são 600 motivos para perder a conta.
+- **`None` significa HERDA, nunca zero.** Sem isso, cada modelo carregaria uma
+  cópia congelada da configuração do dia em que nasceu, e mudar a regra geral
+  deixaria de valer para quem já existe. Vale para todo campo de regra opcional.
+- **Assinatura tem TRÊS estados** — `None` herda, texto substitui, string VAZIA
+  manda sem assinatura (aviso interno para motorista não leva assinatura
+  comercial). A tela precisa distinguir os três no payload: mandar `''` para "não
+  mexi" apagaria a assinatura sem ninguém pedir. Daí o checkbox separado do campo.
+- **Janela do modelo PODE ampliar a geral**, e essa é a única regra que afrouxa:
+  alerta de ocorrência às 3h é legítimo para um motorista e é reclamação certa
+  para um cliente. Quem edita decide, e a tela AVISA ao ampliar — porque no
+  formulário os dois campos perigosos (limite acima do teto, janela maior)
+  parecem inofensivos enquanto se digita.
+- **A recusa diz QUAL limite barrou.** "Limite atingido" sem qualificar, quando
+  foi o sub-limite do modelo, manda esperar à toa — o número ainda tem cota.
+- **Janela pela metade é recusada:** informar só uma ponta deixaria metade
+  herdada e metade própria, e ninguém consegue prever isso lendo a tela.
+- **Número preferido do modelo é SUGESTÃO**, sobreponível por quem envia — uma
+  preferência que não desse para sobrepor viraria uma trava escondida.
+- **Lista de colunas do SELECT num lugar só** (`_COLUNAS`): estava repetida em
+  `listar()` e `obter()`, e acrescentar campo em uma e esquecer da outra faria o
+  ENVIO (que usa `obter`) trabalhar com regra pela metade.
+
 **Dois números de WhatsApp: o que se duplica e o que NÃO se duplica:**
 - **O freio é POR NÚMERO.** O limite conta destinatários distintos porque é esse o
   gatilho de banimento que a Z-API documenta — e a reputação é de cada linha

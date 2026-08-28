@@ -1234,10 +1234,23 @@ def gestao_whatsapp_modelos() -> JSONResponse:
     """
     from api.whatsapp import modelos as zmod
     try:
+        from api.whatsapp import config as zcfg
+        geral = zcfg.ler()
         return JSONResponse({"modelos": zmod.listar(),
                              "contextos": zmod.contextos(),
+                             # a regra GERAL vai junto: o editor precisa dela
+                             # para dizer "isto aperta" ou "isto amplia", e sem
+                             # a comparação os dois campos perigosos (limite
+                             # acima do teto, janela maior que a geral) parecem
+                             # inofensivos ao digitar
+                             "geral": {k: geral[k] for k in
+                                       ("limite_dia", "janela_inicio",
+                                        "janela_fim", "assinatura",
+                                        "intervalo_seg")},
                              "limites": {"corpo": zmod.CORPO_MAX,
-                                         "texto": zmod.TEXTO_MAX}})
+                                         "texto": zmod.TEXTO_MAX,
+                                         "assinatura": zmod.ASSINATURA_MAX,
+                                         "limite_dia": zmod.LIMITE_MAX}})
     except Exception as exc:  # noqa: BLE001
         log.warning("gestao_whatsapp_modelos falhou: %s", exc)
         return JSONResponse(status_code=500, content={

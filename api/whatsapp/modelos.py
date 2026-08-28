@@ -54,6 +54,18 @@ TEXTO_MAX = 4096
 NOME_MAX = 60
 DESCRICAO_MAX = 200
 CHAVE_MAX = 40
+ASSINATURA_MAX = 120
+INTERVALO_MIN, INTERVALO_MAX = 1, 15      # a fila da Z-API aceita 1..15
+LIMITE_MAX = 500
+
+# Campos de REGRA do modelo. `None` em qualquer um significa HERDA A GERAL — e
+# não zero. É o que faz mudar a tela de Regras de envio continuar valendo para
+# os modelos que já existem, em vez de cada um carregar uma cópia congelada da
+# configuração do dia em que nasceu.
+CAMPOS_REGRA = ("limite_dia", "janela_inicio", "janela_fim", "assinatura",
+                "instancia", "intervalo_seg")
+
+_HORA = re.compile(r"^([01]\d|2[0-3]):([0-5]\d)$")
 
 # `{{nome}}` com espaço opcional. Só letra minúscula, dígito e sublinhado: o
 # nome da variável é identificador, não texto livre — assim a mensagem de erro
@@ -279,16 +291,116 @@ def validar(dados: dict) -> dict:
             "Não foi possível gerar a chave a partir do nome — use ao menos "
             "uma letra ou número.")
 
-    return {
+    fora = {
         "chave": chave, "nome": nome, "contexto": contexto,
         "descricao": " ".join(str(dados.get("descricao") or "").split())[:DESCRICAO_MAX],
         "corpo": corpo,
         "ativo": 0 if str(dados.get("ativo", 1)) in ("0", "False", "false") else 1,
         "variaveis": usadas,
     }
+    fora.update(_valida_regras(dados))
+    return fora
+
+
+def _num_ou_none(valor, rotulo: str, minimo: int, maximo: int) -> int | None:
+    """Campo de regra em branco é HERDA, nunca zero."""
+    if valor is None or str(valor).strip() == "":
+        return None
+    try:
+        n = int(str(valor).strip())
+    except ValueError:
+        raise ModeloInvalido(f"O {rotulo} precisa ser um número inteiro.") from None
+    if not (minimo <= n <= maximo):
+        raise ModeloInvalido(f"O {rotulo} tem de ficar entre {minimo} e {maximo}.")
+    return n
+
+
+def _valida_regras(dados: dict) -> dict:
+    """Os ajustes por modelo. Tudo opcional; em branco herda a regra geral."""
+    limite = _num_ou_none(dados.get("limite_dia"), "limite diário", 1, LIMITE_MAX)
+    intervalo = _num_ou_none(dados.get("intervalo_seg"), "intervalo entre mensagens",
+                             INTERVALO_MIN, INTERVALO_MAX)
+
+    horas = {}
+    for campo, rotulo in (("janela_inicio", "início da janela"),
+                          ("janela_fim", "fim da janela")):
+        v = str(dados.get(campo) or "").strip()
+        if not v:
+            horas[campo] = None
+        elif not _HORA.match(v):
+            raise ModeloInvalido(f"O {rotulo} tem de estar no formato HH:MM.")
+        else:
+            horas[campo] = v
+    # os dois juntos ou nenhum: só um lado deixaria metade da janela herdada e
+    # metade própria, que ninguém consegue prever ao ler a tela
+    if (horas["janela_inicio"] is None) != (horas["janela_fim"] is None):
+        raise ModeloInvalido(
+            "Informe as DUAS pontas da janela deste modelo, ou deixe as duas "
+            "em branco para usar a janela geral.")
+
+    inst = str(dados.get("instancia") or "").strip().lower()
+    if inst and inst not in ("principal", "backup"):
+        raise ModeloInvalido(f"Número preferido “{inst}” não existe.")
+
+    # assinatura tem TRÊS estados: ausente/None herda, texto substitui, string
+    # vazia manda sem assinatura nenhuma
+    assin = dados.get("assinatura", None)
+    if assin is None:
+        assinatura = None
+    else:
+        assinatura = str(assin).strip()[:ASSINATURA_MAX]
+
+    return {"limite_dia": limite, "intervalo_seg": intervalo,
+            "assinatura": assinatura, "instancia": inst or None, **horas}
+
+
+def regras_efetivas(geral: dict, modelo: dict | None) -> dict:
+    """A configuração que REALMENTE vale para um envio.
+
+    O contrato de cada campo, e por que não é o mesmo para todos:
+
+    * `limite_dia` — **o menor dos dois manda, e o teto do número continua
+      valendo por cima.** O modelo só APERTA. O WhatsApp não sabe o que é um
+      modelo: ele vê uma linha telefônica falando com N desconhecidos por dia.
+      Dez modelos com 60 cada não são 600 disparos permitidos.
+    * `janela` — do modelo, se tiver, **mesmo que seja MAIOR que a geral**.
+      Alerta de ocorrência às 3h é legítimo para um motorista e é reclamação
+      certa para um cliente; quem edita decide, e a tela avisa ao ampliar.
+    * `assinatura` — `None` herda; texto substitui; vazio manda sem assinatura.
+    * `intervalo_seg` — do modelo, se tiver.
+
+    `limite_numero` sai à parte do `limite_dia` de propósito: o envio precisa
+    dos DOIS para saber qual dos limites recusou, e dizer isso a quem enviou.
+    """
+    fora = dict(geral)
+    fora["limite_numero"] = geral["limite_dia"]
+    fora["limite_modelo"] = None
+    if not modelo:
+        return fora
+
+    sub_limite = modelo.get("limite_dia")
+    if sub_limite is not None:
+        fora["limite_modelo"] = min(int(sub_limite), int(geral["limite_dia"]))
+    if modelo.get("janela_inicio") and modelo.get("janela_fim"):
+        fora["janela_inicio"] = modelo["janela_inicio"]
+        fora["janela_fim"] = modelo["janela_fim"]
+    if modelo.get("assinatura") is not None:
+        fora["assinatura"] = modelo["assinatura"]
+    if modelo.get("intervalo_seg"):
+        fora["intervalo_seg"] = int(modelo["intervalo_seg"])
+    return fora
 
 
 # ------------------------------------------------------------------- store
+
+# Todas as colunas do modelo, num lugar só: a lista estava repetida em
+# `listar()` e `obter()`, e acrescentar campo em uma e esquecer da outra faria
+# o envio (que usa `obter`) trabalhar com regra pela metade.
+_COLUNAS = ("id, chave, nome, contexto, descricao, corpo, ativo,"
+            " criado_em, criado_por, atualizado_em, atualizado_por,"
+            " limite_dia, janela_inicio, janela_fim, assinatura, instancia,"
+            " intervalo_seg")
+
 
 def _esq(esquema: str | None) -> str | None:
     return esquema or ESQUEMA
@@ -308,7 +420,28 @@ def _enriquecer(m: dict) -> dict:
     m["variaveis"] = variaveis_usadas(m["corpo"])
     m["previa"] = previa(m["corpo"], m["contexto"])
     m["ativo"] = int(m["ativo"] or 0)
+    # O QUE ESTE MODELO MUDA da regra geral, em texto, para a lista não obrigar
+    # a abrir cada um para descobrir. Vazio quer dizer "segue a regra geral" —
+    # que é o caso da maioria e não precisa de enfeite.
+    m["regras_resumo"] = _resumo_regras(m)
     return m
+
+
+def _resumo_regras(m: dict) -> list[str]:
+    fora = []
+    if m.get("limite_dia") is not None:
+        fora.append(f"máx. {m['limite_dia']}/dia")
+    if m.get("janela_inicio") and m.get("janela_fim"):
+        fora.append(f"{m['janela_inicio']}–{m['janela_fim']}")
+    if m.get("instancia"):
+        fora.append("nº " + ("reserva" if m["instancia"] == "backup"
+                             else "principal"))
+    if m.get("assinatura") is not None:
+        fora.append("sem assinatura" if not m["assinatura"]
+                    else "assinatura própria")
+    if m.get("intervalo_seg"):
+        fora.append(f"{m['intervalo_seg']}s entre envios")
+    return fora
 
 
 def listar(esquema: str | None = None, *, contexto: str | None = None,
@@ -320,8 +453,7 @@ def listar(esquema: str | None = None, *, contexto: str | None = None,
         params.append(contexto)
     if so_ativos:
         onde.append("ativo=1")
-    sql = ("SELECT id, chave, nome, contexto, descricao, corpo, ativo,"
-           " criado_em, criado_por, atualizado_em, atualizado_por"
+    sql = (f"SELECT {_COLUNAS}"
            " FROM zap_modelos"
            + (" WHERE " + " AND ".join(onde) if onde else "")
            + " ORDER BY contexto, nome")
@@ -332,10 +464,8 @@ def listar(esquema: str | None = None, *, contexto: str | None = None,
 def obter(chave: str, esquema: str | None = None) -> dict | None:
     init_db(esquema)
     r = pglocal.um(
-        "SELECT id, chave, nome, contexto, descricao, corpo, ativo,"
-        " criado_em, criado_por, atualizado_em, atualizado_por"
-        " FROM zap_modelos WHERE chave=%s", (str(chave or ""),),
-        esquema=_esq(esquema))
+        f"SELECT {_COLUNAS} FROM zap_modelos WHERE chave=%s",
+        (str(chave or ""),), esquema=_esq(esquema))
     return _enriquecer(dict(r)) if r else None
 
 
@@ -361,19 +491,26 @@ def gravar(dados: dict, *, usuario: str = "", modelo_id: int | None = None,
     if modelo_id is None:
         r = pglocal.um(
             "INSERT INTO zap_modelos(chave, nome, contexto, descricao, corpo,"
-            " ativo, criado_em, criado_por, atualizado_em, atualizado_por)"
-            " VALUES(%s,%s,%s,%s,%s,%s,%s,%s,%s,%s) RETURNING id",
+            " ativo, criado_em, criado_por, atualizado_em, atualizado_por,"
+            " limite_dia, janela_inicio, janela_fim, assinatura, instancia,"
+            " intervalo_seg)"
+            " VALUES(%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)"
+            " RETURNING id",
             (d["chave"], d["nome"], d["contexto"], d["descricao"], d["corpo"],
-             d["ativo"], agora, usuario or "", agora, usuario or ""),
+             d["ativo"], agora, usuario or "", agora, usuario or "",
+             *[d[c] for c in CAMPOS_REGRA]),
             esquema=esq)
         d["id"] = int(r["id"])
     else:
         r = pglocal.um(
             "UPDATE zap_modelos SET chave=%s, nome=%s, contexto=%s,"
             " descricao=%s, corpo=%s, ativo=%s, atualizado_em=%s,"
-            " atualizado_por=%s WHERE id=%s RETURNING id",
+            " atualizado_por=%s, limite_dia=%s, janela_inicio=%s,"
+            " janela_fim=%s, assinatura=%s, instancia=%s, intervalo_seg=%s"
+            " WHERE id=%s RETURNING id",
             (d["chave"], d["nome"], d["contexto"], d["descricao"], d["corpo"],
-             d["ativo"], agora, usuario or "", int(modelo_id)), esquema=esq)
+             d["ativo"], agora, usuario or "",
+             *[d[c] for c in CAMPOS_REGRA], int(modelo_id)), esquema=esq)
         if not r:
             raise ModeloInvalido("Este modelo não existe mais — recarregue a tela.")
         d["id"] = int(r["id"])

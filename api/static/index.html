@@ -1123,6 +1123,19 @@ button.avatar{border:0;cursor:pointer}
   border-radius:8px;padding:11px 13px;font-size:13.5px;min-height:60px;line-height:1.5}
 .mod-conta{font-size:11px;color:var(--n500);text-align:right;margin-top:3px}
 .mod-conta.cheio{color:var(--red)}
+.mod-regras{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));
+  gap:10px;border:1px solid var(--n200,#e5eaf0);border-radius:8px;padding:12px}
+.mod-regras .campo{min-width:0}
+.mod-regras label{font-size:11px;text-transform:uppercase;letter-spacing:.05em;
+  color:var(--n500);font-weight:600;margin-bottom:3px;display:block}
+.mod-regras input,.mod-regras select{width:100%;padding:8px 9px;
+  border:1px solid var(--n300,#d3dae2);border-radius:6px;font:inherit;font-size:13px}
+.mod-regras .larga{grid-column:1/-1}
+.mod-regras .nota{grid-column:1/-1;font-size:11px;color:var(--n500);line-height:1.5}
+.mod-regras .aviso{grid-column:1/-1;font-size:11.5px;color:var(--yellow-700);
+  line-height:1.5;font-weight:600}
+.mod-chip{display:inline-block;font-size:10.5px;background:var(--n100,#f1f4f7);
+  color:var(--n600,#6B7280);border-radius:5px;padding:1px 6px;margin:0 3px 3px 0}
 
 /* ---- Integrações (um cartão por fornecedor) ----
    A aba era uma lista plana de 22 campos: quem abria via onze linhas PROLOG_*
@@ -19034,13 +19047,16 @@ function renderWaModelos(){
     : 'nenhum modelo ainda — o primeiro costuma ser o aviso de vencimento';
   lista.innerHTML = !ms.length
     ? '<div style="padding:12px;color:var(--n500)">Nenhum modelo cadastrado. Um modelo é o texto pronto que outras áreas do sistema disparam pela CHAVE.</div>'
-    : '<table><thead><tr><th>Modelo</th><th>Contexto</th><th>Chave</th><th>Prévia</th><th>Situação</th><th></th></tr></thead><tbody>'
+      : '<table><thead><tr><th>Modelo</th><th>Contexto</th><th>Regras</th><th>Chave</th><th>Prévia</th><th>Situação</th><th></th></tr></thead><tbody>'
       + ms.map(m=>{
           const ctx=waCtx(m.contexto)||{};
           const usada=(ctx.consumidores||[]).length;
           return `<tr>
             <td>${esc(m.nome)}${m.descricao?`<span class="sub">${esc(m.descricao)}</span>`:''}</td>
             <td>${esc(m.contexto_rotulo||m.contexto)}${usada?'':' '+statChip('warn','sem tela ainda','Nenhuma tela do CÓRTEX dispara com este contexto hoje. O texto fica pronto para quando uma passar a usar.')}</td>
+            <td>${(m.regras_resumo||[]).length
+              ? (m.regras_resumo||[]).map(x=>`<span class="mod-chip">${esc(x)}</span>`).join('')
+              : '<span style="color:var(--n500)">regra geral</span>'}</td>
             <td class="mono">${esc(m.chave)}</td>
             <td title="${esc(m.previa||'')}">${esc((m.previa||'').length>52?m.previa.slice(0,52)+'…':(m.previa||''))}</td>
             <td>${m.ativo?statChip('good','ligado'):statChip('warn','desligado','Não é usado por ninguém enquanto estiver assim.')}</td>
@@ -19076,6 +19092,36 @@ function whatsModeloModal(id){
       <div><label>Prévia — com os valores de exemplo do contexto</label>
         <div class="mod-prev" id="mo-prev">—</div>
         <div style="font-size:11px;color:var(--n500);margin-top:4px">A assinatura configurada em “Regras de envio” é acrescentada no fim, no envio — não a repita aqui.</div></div>
+      <div><label>Regras de envio deste modelo <span style="font-weight:400;text-transform:none;color:var(--n500)">— em branco, segue a regra geral</span></label>
+        <div class="mod-regras">
+          <div class="campo"><label for="mo-limite">Máx. destinatários/dia</label>
+            <input type="text" id="mo-limite" inputmode="numeric" placeholder="geral"
+                   value="${m&&m.limite_dia!=null?m.limite_dia:''}" oninput="whatsModeloAvisos()"></div>
+          <div class="campo"><label for="mo-jini">Enviar a partir de</label>
+            <input type="time" id="mo-jini" value="${m&&m.janela_inicio?esc(m.janela_inicio):''}"
+                   oninput="whatsModeloAvisos()"></div>
+          <div class="campo"><label for="mo-jfim">Enviar até</label>
+            <input type="time" id="mo-jfim" value="${m&&m.janela_fim?esc(m.janela_fim):''}"
+                   oninput="whatsModeloAvisos()"></div>
+          <div class="campo"><label for="mo-inst">Número preferido</label>
+            <select id="mo-inst">
+              <option value="">Sem preferência</option>
+              <option value="principal" ${m&&m.instancia==='principal'?'selected':''}>Principal</option>
+              <option value="backup" ${m&&m.instancia==='backup'?'selected':''}>Reserva</option>
+            </select></div>
+          <div class="campo"><label for="mo-interv">Intervalo (s)</label>
+            <input type="text" id="mo-interv" inputmode="numeric" placeholder="geral"
+                   value="${m&&m.intervalo_seg!=null?m.intervalo_seg:''}"></div>
+          <div class="campo larga"><label for="mo-assin">Assinatura própria</label>
+            <input type="text" id="mo-assin" placeholder="em branco: usa a assinatura geral"
+                   value="${m&&m.assinatura?esc(m.assinatura):''}" oninput="whatsModeloAvisos()"></div>
+          <div class="campo larga"><label style="text-transform:none;font-weight:500;color:inherit">
+            <input type="checkbox" id="mo-semassin" style="width:auto;margin-right:6px"
+                   ${m&&m.assinatura===''?'checked':''} onchange="whatsModeloAvisos()">
+            Enviar SEM assinatura (aviso interno não precisa da assinatura comercial)</label></div>
+          <div class="nota" id="mo-regras-nota"></div>
+          <div class="aviso" id="mo-regras-aviso" hidden></div>
+        </div></div>
       <div><label for="mo-chave">Chave — é por ela que o resto do sistema chama este modelo</label>
         <input type="text" id="mo-chave" value="${m?esc(m.chave):''}" placeholder="gerada do nome"
                ${m?'':'readonly'} style="font-family:var(--mono);font-size:13px">
@@ -19086,6 +19132,43 @@ function whatsModeloModal(id){
     <div class="m-foot"><button class="ghost" onclick="fecharModal()">Cancelar</button>
       <button class="btn" id="mo-salvar" onclick="whatsModeloSalvar(${id||'null'})">${m?'Salvar':'Criar modelo'}</button></div>`);
   whatsModeloCtxMudou();
+  whatsModeloAvisos();
+}
+
+/* Os avisos que a regra por modelo EXIGE, porque as duas decisões perigosas
+   não parecem perigosas ao digitar:
+
+   1. limite acima do teto geral não libera nada — o teto do NÚMERO manda, e
+      sem dizer isso a pessoa acha que ampliou a cota;
+   2. janela maior que a geral é legítima (alerta noturno para motorista) e é
+      exatamente o que gera reclamação quando o destinatário é cliente. */
+function whatsModeloAvisos(){
+  const g = (WAMOD.geral)||{};
+  const nota=document.getElementById('mo-regras-nota');
+  const aviso=document.getElementById('mo-regras-aviso');
+  if(!nota) return;
+  const semAssin=document.getElementById('mo-semassin');
+  const assin=document.getElementById('mo-assin');
+  if(semAssin && assin){ assin.disabled=semAssin.checked; if(semAssin.checked) assin.value=''; }
+
+  nota.textContent = `Regra geral hoje: até ${g.limite_dia||'—'} destinatários/dia · `
+    + `${g.janela_inicio||'—'}–${g.janela_fim||'—'} · `
+    + (g.assinatura ? `assina "${g.assinatura}"` : 'sem assinatura');
+
+  const avisos=[];
+  const lim=parseInt((document.getElementById('mo-limite').value||'').trim(),10);
+  if(!isNaN(lim) && g.limite_dia && lim>g.limite_dia){
+    avisos.push(`O limite ${lim} está ACIMA do teto geral (${g.limite_dia}) e não libera nada: `
+      + `o teto é do NÚMERO e vale para tudo somado. O modelo só consegue APERTAR.`);
+  }
+  const ini=document.getElementById('mo-jini').value, fim=document.getElementById('mo-jfim').value;
+  if(ini && fim && g.janela_inicio && g.janela_fim && (ini<g.janela_inicio || fim>g.janela_fim)){
+    avisos.push(`Esta janela (${ini}–${fim}) é MAIOR que a geral (${g.janela_inicio}–${g.janela_fim}). `
+      + `Legítimo para aviso interno a motorista; para cliente, mensagem fora de hora vira `
+      + `reclamação — e denúncia é o que derruba o número.`);
+  }
+  aviso.hidden = !avisos.length;
+  aviso.innerHTML = avisos.map(esc).join('<br>');
 }
 
 function whatsModeloCtxMudou(){
@@ -19140,14 +19223,23 @@ function whatsModeloPrevia(){
 
 async function whatsModeloSalvar(id){
   const btn=document.getElementById('mo-salvar'); btn.disabled=true;
+  const V=id=>(document.getElementById(id).value||'').trim();
   const corpo={
-    nome:(document.getElementById('mo-nome').value||'').trim(),
+    nome:V('mo-nome'),
     contexto:document.getElementById('mo-ctx').value,
-    descricao:(document.getElementById('mo-desc').value||'').trim(),
+    descricao:V('mo-desc'),
     corpo:document.getElementById('mo-corpo').value,
-    chave:(document.getElementById('mo-chave').value||'').trim(),
+    chave:V('mo-chave'),
     ativo:document.getElementById('mo-ativo').checked?1:0,
+    limite_dia:V('mo-limite'), intervalo_seg:V('mo-interv'),
+    janela_inicio:V('mo-jini'), janela_fim:V('mo-jfim'),
+    instancia:document.getElementById('mo-inst').value,
   };
+  /* Assinatura tem TRÊS estados e o payload precisa distinguir: a chave
+     AUSENTE herda a geral, string vazia manda sem assinatura, texto substitui.
+     Mandar '' para "não mexi" apagaria a assinatura sem ninguém pedir. */
+  if(document.getElementById('mo-semassin').checked) corpo.assinatura='';
+  else if(V('mo-assin')) corpo.assinatura=V('mo-assin');
   if(id) corpo.id=id;
   try{
     const r=await fetch('/api/gestao/whatsapp/modelos',{method:'POST',

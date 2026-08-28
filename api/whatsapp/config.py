@@ -87,16 +87,24 @@ def _hhmm(txt: str) -> int:
     return int(h) * 60 + int(m)
 
 
-def dentro_da_janela(agora: datetime | None = None) -> bool:
+def dentro_da_janela(agora: datetime | None = None, *,
+                     inicio: str | None = None, fim: str | None = None) -> bool:
     """A janela é fechada nas pontas ao contrário: 08:00–20:00 aceita 08:00 e
-    recusa 20:01. Janela invertida (22:00–06:00) atravessa a meia-noite."""
+    recusa 20:01. Janela invertida (22:00–06:00) atravessa a meia-noite.
+
+    `inicio`/`fim` permitem perguntar por OUTRA janela que não a geral — é o
+    que um modelo com horário próprio usa (alerta de ocorrência para motorista
+    às 3h é legítimo; cobrança no mesmo horário é reclamação). Sem eles, vale a
+    configuração geral.
+    """
     c = ler()
     agora = agora or datetime.now()
     minutos = agora.hour * 60 + agora.minute
-    ini, fim = _hhmm(c["janela_inicio"]), _hhmm(c["janela_fim"])
-    if ini <= fim:
-        return ini <= minutos <= fim
-    return minutos >= ini or minutos <= fim
+    ini = _hhmm(inicio or c["janela_inicio"])
+    fimm = _hhmm(fim or c["janela_fim"])
+    if ini <= fimm:
+        return ini <= minutos <= fimm
+    return minutos >= ini or minutos <= fimm
 
 
 def status() -> dict:

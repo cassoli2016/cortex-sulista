@@ -76,15 +76,21 @@ def _recusar(bruto: str, normalizado: str, motivo: str, *, usuario: str,
     return _resultado(bruto, motivo, telefone=normalizado)
 
 
-def montar_texto(mensagem: str) -> str:
-    """Acrescenta a assinatura configurada.
+def montar_texto(mensagem: str, assinatura: str | None = None) -> str:
+    """Acrescenta a assinatura.
 
     Sem ela o destinatário recebe um texto de um número que não tem salvo e
     não sabe quem está falando — que é exatamente o perfil de mensagem que as
     pessoas denunciam, e denúncia é o que derruba o número.
+
+    `assinatura` vem das regras EFETIVAS quando há modelo: string vazia
+    significa "não assinar", escolha legítima num aviso interno para o
+    motorista. `None` cai na configuração geral.
     """
     texto = (mensagem or "").strip()
-    assinatura = (cfg.ler().get("assinatura") or "").strip()
+    if assinatura is None:
+        assinatura = cfg.ler().get("assinatura") or ""
+    assinatura = str(assinatura).strip()
     if assinatura and assinatura.lower() not in texto.lower():
         texto = f"{texto}\n\n{assinatura}"
     return texto
@@ -92,11 +98,17 @@ def montar_texto(mensagem: str) -> str:
 
 def enviar(telefone: str, mensagem: str, *, usuario: str = "",
            origem: str = "manual", registrar: bool = True, modelo: str = "",
-           instancia: str | None = None, http=None,
-           esquema: str | None = None) -> dict:
-    """Envia UMA mensagem por UMA instância. Nunca levanta."""
+           instancia: str | None = None, regras: dict | None = None,
+           http=None, esquema: str | None = None) -> dict:
+    """Envia UMA mensagem por UMA instância. Nunca levanta.
+
+    `regras` são as regras EFETIVAS (geral + ajustes do modelo), montadas por
+    `modelos.regras_efetivas`. Sem elas, vale a configuração geral — que é o
+    caso da mensagem avulsa.
+    """
     bruto = str(telefone or "").strip()
-    c = cfg.ler()
+    c = regras or {**cfg.ler(), "limite_numero": cfg.ler()["limite_dia"],
+                   "limite_modelo": None}
     inst = cliente.qual_valida(instancia)
     # os mesmos seis argumentos em todas as recusas: com oito pontos de saída,
     # repeti-los à mão é exatamente onde um deles fica para trás — foi assim que
@@ -109,7 +121,7 @@ def enviar(telefone: str, mensagem: str, *, usuario: str = "",
     except numeros.TelefoneInvalido as exc:
         return _recusar(bruto, "", str(exc), **recusa)
 
-    texto = montar_texto(mensagem)
+    texto = montar_texto(mensagem, c.get("assinatura"))
     if not texto:
         return _recusar(bruto, numero, "Mensagem vazia.", **recusa)
 
@@ -136,30 +148,55 @@ def enviar(telefone: str, mensagem: str, *, usuario: str = "",
                         "Envio por WhatsApp está DESLIGADO em Gestão › "
                         "WhatsApp.", **recusa)
 
-    if not cfg.dentro_da_janela():
+    # a janela pode ser a geral ou a do modelo — um alerta de ocorrência para o
+    # motorista tem horário diferente de uma cobrança
+    if not cfg.dentro_da_janela(inicio=c["janela_inicio"], fim=c["janela_fim"]):
+        de_onde = ("deste modelo" if c.get("limite_modelo") is not None
+                   or c["janela_inicio"] != cfg.ler()["janela_inicio"] else "")
         return _recusar(
             bruto, numero,
-            f"Fora da janela de envio ({c['janela_inicio']}–{c['janela_fim']}). "
+            f"Fora da janela de envio {de_onde} "
+            f"({c['janela_inicio']}–{c['janela_fim']}). "
             "Mensagem de empresa fora do horário comercial gera reclamação — "
-            "ajuste a janela em Gestão › WhatsApp se for mesmo o caso.",
+            "ajuste a janela em Gestão › WhatsApp se for mesmo o caso.".replace(
+                "  ", " "),
             **recusa)
 
     # O limite conta destinatários NOVOS do dia. Continuar uma conversa já
     # aberta hoje não consome cota: é o caso de menor risco que existe, e
     # bloqueá-lo faria o freio atrapalhar justamente o uso legítimo.
     if not registro.ja_falou_hoje(numero, esquema=esquema, instancia=inst):
+        # DOIS LIMITES, e o teto do NÚMERO vem primeiro porque é o que protege
+        # a linha telefônica. O sub-limite do modelo só aperta: dez modelos com
+        # 60 cada não são 600 disparos, são 600 motivos para perder a conta.
+        teto = int(c.get("limite_numero") or c["limite_dia"])
         usados = registro.contar_destinatarios_hoje(esquema=esquema,
                                                     instancia=inst)
-        if usados >= c["limite_dia"]:
-            # o limite é DESTA instância: dizer qual evita o engano de achar
-            # que o sistema inteiro travou quando o outro número está livre
+        if usados >= teto:
+            # dizer QUAL número evita o engano de achar que o sistema inteiro
+            # travou quando o outro aparelho está livre
             return _recusar(
                 bruto, numero,
                 f"Limite diário atingido no número {cliente.ROTULOS[inst].lower()}: "
-                f"{usados} destinatários diferentes hoje (máximo "
-                f"{c['limite_dia']}). O limite existe para o número não ser "
-                "banido pelo WhatsApp; ele zera à meia-noite.",
+                f"{usados} destinatários diferentes hoje (máximo {teto}). O "
+                "limite existe para o número não ser banido pelo WhatsApp; ele "
+                "zera à meia-noite.",
                 **recusa)
+
+        sub_limite = c.get("limite_modelo")
+        if sub_limite is not None and modelo:
+            usados_mod = registro.contar_destinatarios_hoje(
+                esquema=esquema, instancia=inst, modelo=modelo)
+            if usados_mod >= int(sub_limite):
+                # e dizer que foi o do MODELO: o número ainda tem cota, então
+                # "limite atingido" sem qualificar mandaria esperar à toa
+                return _recusar(
+                    bruto, numero,
+                    f"Limite deste modelo atingido: {usados_mod} destinatários "
+                    f"diferentes hoje (máximo {sub_limite} para “{modelo}”). O "
+                    f"número {cliente.ROTULOS[inst].lower()} ainda tem cota — o "
+                    "teto menor é uma regra deste texto, editável no modelo.",
+                    **recusa)
 
     # A Z-API aceita e enfileira quando o celular está fora — 200 sem entrega.
     est = cliente.estado(http=http, qual=inst)
@@ -197,8 +234,8 @@ def enviar(telefone: str, mensagem: str, *, usuario: str = "",
 
 def enviar_varios(telefones, mensagem: str, *, usuario: str = "",
                   origem: str = "manual", modelo: str = "",
-                  instancia: str | None = None, http=None,
-                  esquema: str | None = None) -> dict:
+                  instancia: str | None = None, regras: dict | None = None,
+                  http=None, esquema: str | None = None) -> dict:
     """Manda para vários e devolve o resultado de CADA um.
 
     O limite é reavaliado a cada destinatário, de propósito: uma lista de 200
@@ -211,8 +248,8 @@ def enviar_varios(telefones, mensagem: str, *, usuario: str = "",
                 "enviados": 0, "falhas": 0, "resultados": []}
 
     resultados = [enviar(t, mensagem, usuario=usuario, origem=origem,
-                         modelo=modelo, instancia=instancia, http=http,
-                         esquema=esquema)
+                         modelo=modelo, instancia=instancia, regras=regras,
+                         http=http, esquema=esquema)
                   for t in alvos]
     enviados = sum(1 for r in resultados if r["ok"])
     return {"ok": enviados > 0, "erro": "" if enviados else resultados[0]["erro"],
@@ -258,7 +295,12 @@ def enviar_modelo(telefones, chave: str, valores: dict | None = None, *,
         return {"ok": False, "erro": str(exc), "enviados": 0, "falhas": 0,
                 "resultados": []}
 
+    regras = modelos.regras_efetivas(cfg.ler(), modelo)
+    # o número preferido do modelo é SUGESTÃO: quem chamou escolhendo outro
+    # tem a última palavra, senão a preferência viraria uma trava escondida
+    alvo = instancia or modelo.get("instancia")
+
     return enviar_varios(telefones, texto, usuario=usuario,
                          origem=origem or f"modelo:{modelo['chave']}",
-                         modelo=modelo["chave"], instancia=instancia,
+                         modelo=modelo["chave"], instancia=alvo, regras=regras,
                          http=http, esquema=esquema)

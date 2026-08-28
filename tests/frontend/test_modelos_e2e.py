@@ -380,3 +380,117 @@ def test_erro_interno_sem_json_nao_vira_falha_de_rede(pagina):
     assert "500" in texto                      # o status, para saber onde olhar
     assert "text/plain" in texto               # e o que voltou no lugar do JSON
     assert "NÃO saiu" in texto                 # a pergunta de quem está enviando
+
+
+# --------------------------------------------- regras de envio por modelo
+
+GERAL = {"limite_dia": 60, "janela_inicio": "08:00", "janela_fim": "20:00",
+         "assinatura": "Sulista Transportes", "intervalo_seg": 5}
+MODELOS_REGRA = {**MODELOS, "geral": GERAL,
+                 "limites": {"corpo": 3000, "texto": 4096, "assinatura": 120,
+                             "limite_dia": 500}}
+
+
+def _abrir_regras(pg, base, posts=None):
+    def rota(route):
+        u, req = route.request.url, route.request
+        if req.method == "POST" and posts is not None:
+            posts.append((u, json.loads(req.post_data or "{}")))
+        if "/api/auth/me" in u:
+            corpo = ADMIN
+        elif "/whatsapp/modelos/previa" in u:
+            corpo = {"erro": "", "variaveis": [], "caracteres": 0, "texto": "ok"}
+        elif "/whatsapp/modelos" in u:
+            corpo = MODELOS_REGRA
+        elif "/gestao/whatsapp" in u:
+            corpo = WHATS
+        else:
+            corpo = {}
+        route.fulfill(status=200, content_type="application/json",
+                      body=json.dumps(corpo))
+
+    pg.route("**/api/**", rota)
+    pg.goto(f"{base}/static/index.html#gestao")
+    pg.wait_for_selector("#gtab-whatsapp", timeout=20000)
+    pg.click("#gtab-whatsapp")
+    pg.wait_for_selector("#wa-mod-lista table", timeout=10000)
+
+
+def test_limite_ACIMA_do_teto_geral_avisa_que_nao_libera_nada(pagina):
+    """O engano mais fácil de cometer: pôr 200 no modelo achando que ampliou a
+    cota. O teto é do NÚMERO e vale para tudo somado — o modelo só APERTA."""
+    pg, base = pagina
+    _abrir_regras(pg, base)
+    pg.click("text=+ Novo modelo")
+    pg.wait_for_selector("#mo-limite", timeout=5000)
+
+    pg.fill("#mo-limite", "200")
+    pg.wait_for_timeout(200)
+    aviso = pg.inner_text("#mo-regras-aviso")
+    assert "ACIMA do teto geral" in aviso and "só consegue APERTAR" in aviso
+
+    pg.fill("#mo-limite", "20")          # apertar não avisa nada
+    pg.wait_for_timeout(200)
+    assert pg.get_attribute("#mo-regras-aviso", "hidden") is not None
+
+
+def test_janela_maior_que_a_geral_avisa_sobre_reclamacao(pagina):
+    """Ampliar é legítimo (alerta noturno para motorista) e é exatamente o que
+    gera denúncia quando o destinatário é cliente. A tela diz as duas coisas."""
+    pg, base = pagina
+    _abrir_regras(pg, base)
+    pg.click("text=+ Novo modelo")
+    pg.wait_for_selector("#mo-jini", timeout=5000)
+    pg.fill("#mo-jini", "00:00")
+    pg.fill("#mo-jfim", "23:59")
+    pg.wait_for_timeout(200)
+    aviso = pg.inner_text("#mo-regras-aviso")
+    assert "MAIOR que a geral" in aviso and "denúncia" in aviso
+
+
+def test_o_editor_mostra_qual_e_a_regra_geral_hoje(pagina):
+    """Sem isso, "em branco herda" não diz o que se está herdando."""
+    pg, base = pagina
+    _abrir_regras(pg, base)
+    pg.click("text=+ Novo modelo")
+    pg.wait_for_selector("#mo-regras-nota", timeout=5000)
+    nota = pg.inner_text("#mo-regras-nota")
+    assert "60 destinatários/dia" in nota and "08:00–20:00" in nota
+
+
+def test_sem_assinatura_desabilita_o_campo_e_manda_string_vazia(pagina):
+    """Assinatura tem TRÊS estados. Mandar '' para "não mexi" apagaria a
+    assinatura sem ninguém pedir."""
+    pg, base = pagina
+    posts = []
+    _abrir_regras(pg, base, posts=posts)
+    pg.click("text=+ Novo modelo")
+    pg.wait_for_selector("#mo-semassin", timeout=5000)
+    pg.fill("#mo-nome", "Aviso interno")
+    pg.select_option("#mo-ctx", "livre")
+    pg.fill("#mo-corpo", "Passe na oficina hoje.")
+    pg.check("#mo-semassin")
+    pg.wait_for_timeout(200)
+    assert pg.eval_on_selector("#mo-assin", "e=>e.disabled") is True
+
+    pg.click("#mo-salvar")
+    pg.wait_for_timeout(500)
+    corpo = [c for u, c in posts if u.endswith("/whatsapp/modelos")][0]
+    assert corpo["assinatura"] == ""
+
+
+def test_campos_em_branco_NAO_viram_assinatura_no_payload(pagina):
+    """Quem não mexeu na assinatura não pode ter a geral apagada."""
+    pg, base = pagina
+    posts = []
+    _abrir_regras(pg, base, posts=posts)
+    pg.click("text=+ Novo modelo")
+    pg.wait_for_selector("#mo-nome", timeout=5000)
+    pg.fill("#mo-nome", "Simples")
+    pg.select_option("#mo-ctx", "livre")
+    pg.fill("#mo-corpo", "Bom dia.")
+    pg.click("#mo-salvar")
+    pg.wait_for_timeout(500)
+    corpo = [c for u, c in posts if u.endswith("/whatsapp/modelos")][0]
+    assert "assinatura" not in corpo
+    assert corpo["limite_dia"] == "" and corpo["janela_inicio"] == ""

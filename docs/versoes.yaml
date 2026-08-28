@@ -1,3 +1,36 @@
+- versao: "0.123.0"
+  data: "2026-08-28"
+  adicionado:
+    - >-
+      Cada MODELO de mensagem passa a ter as proprias regras de envio: maximo de
+      destinatarios por dia, janela de horario, assinatura, numero preferido
+      (principal ou reserva) e intervalo entre mensagens. Campo em branco segue
+      a regra geral - entao mudar a configuracao geral continua valendo para os
+      modelos que ja existem.
+    - >-
+      A janela por modelo PODE ser maior que a geral, e e o caso de uso que
+      motivou tudo: um alerta de ocorrencia para o motorista pode precisar sair
+      as 3h da manha; uma cobranca, nao. Ao ampliar, a tela avisa que mensagem
+      fora de hora vira reclamacao - e denuncia e o que derruba o numero.
+    - >-
+      Assinatura por modelo, inclusive a opcao de enviar SEM assinatura: aviso
+      interno para motorista nao precisa da assinatura comercial no fim.
+    - >-
+      A lista de modelos mostra, em cada linha, o que aquele modelo muda da
+      regra geral - sem precisar abrir um por um.
+  alterado:
+    - >-
+      O limite por modelo NAO CRIA COTA NOVA. O teto continua sendo o do NUMERO
+      e vale para tudo somado; o do modelo so aperta. Dez modelos com 60 cada
+      nao sao 600 disparos por dia: o WhatsApp nao sabe o que e um modelo, ele
+      ve uma linha telefonica falando com gente demais. Se alguem digitar um
+      limite acima do teto geral, a tela avisa na hora que aquilo nao libera
+      nada.
+    - >-
+      Quando o envio e recusado, a mensagem diz QUAL limite barrou - o do numero
+      ou o do modelo. Antes, "limite atingido" mandava esperar ate a meia-noite
+      mesmo quando o numero ainda tinha cota de sobra.
+
 - versao: "0.122.1"
   data: "2026-08-28"
   corrigido:

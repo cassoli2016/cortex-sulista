@@ -73,7 +73,8 @@ def listar(limite: int = 100, esquema: str | None = None) -> list[dict]:
 
 
 def contar_destinatarios_hoje(esquema: str | None = None, *,
-                              instancia: str = "principal") -> int:
+                              instancia: str = "principal",
+                              modelo: str | None = None) -> int:
     """Números DISTINTOS que ESTA instância alcançou hoje, com sucesso.
 
     É este número — e não o total de mensagens — que o WhatsApp usa como sinal
@@ -83,13 +84,20 @@ def contar_destinatarios_hoje(esquema: str | None = None, *,
 
     Por instância porque a reputação é do NÚMERO: o que o principal fez não
     aproxima o reserva de um banimento, e vice-versa.
+
+    Com `modelo`, conta só o que saiu DAQUELE texto — é o sub-limite por
+    modelo, que APERTA o teto do número mas nunca cria cota nova. Sem ele,
+    conta tudo que o aparelho falou, que é o teto de verdade.
     """
     init_db(esquema)
     hoje = datetime.now().strftime("%Y-%m-%d")
-    r = pglocal.um(
-        "SELECT count(DISTINCT telefone) AS n FROM zap_envios"
-        " WHERE ok=1 AND instancia=%s AND ts >= %s",
-        (instancia or "principal", hoje + " 00:00:00"), esquema=_esq(esquema))
+    sql = ("SELECT count(DISTINCT telefone) AS n FROM zap_envios"
+           " WHERE ok=1 AND instancia=%s AND ts >= %s")
+    params: list = [instancia or "principal", hoje + " 00:00:00"]
+    if modelo is not None:
+        sql += " AND modelo=%s"
+        params.append(modelo)
+    r = pglocal.um(sql, tuple(params), esquema=_esq(esquema))
     return int(r["n"] or 0)
 
 

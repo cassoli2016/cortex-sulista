@@ -91,3 +91,22 @@ def test_grupo_sem_nenhuma_tela_visivel_nao_aparece():
 def test_sem_filtro_traz_o_painel_inteiro():
     """None = admin (e os testes): nada e escondido."""
     assert len(documentacao.montar()["telas"]) == len(documentacao.extrair_telas())
+
+
+def test_manual_yaml_e_yaml_valido():
+    """Guarda contra um erro que já quebrou o manual DUAS vezes na mesma tarde:
+    `dois pontos seguidos de espaço` dentro de um escalar simples de várias
+    linhas encerra o valor e o YAML deixa de carregar.
+
+    Sem este teste, o estrago só aparece quando alguém abre a tela de
+    Documentação — e o `yaml.safe_load` de `documentacao.py` engole a falha
+    como "manual vazio", que é pior: a tela some sem dizer por quê.
+    """
+    import yaml
+
+    from api.documentacao import MANUAL_YAML
+    dados = yaml.safe_load(MANUAL_YAML.read_text(encoding="utf-8"))
+    assert isinstance(dados, dict), "manual.yaml não carregou como mapa"
+    assert dados.get("glossario"), "glossário vazio"
+    for termo in dados["glossario"]:
+        assert termo.get("termo") and termo.get("definicao"), termo
