@@ -248,12 +248,180 @@ def proximo_numero(cnpj: str, serie: int, ambiente: str) -> int:
 
     Homologação e produção têm numerações independentes; misturar as duas faria
     o primeiro CT-e de produção nascer com o número gasto num teste.
+
+    ISTO SOZINHO NÃO SERIALIZA NADA — é só a leitura. Quem emite chama
+    `reservar_numero`, que fecha a corrida no banco. Esta função continua
+    existindo porque a tela e os scripts perguntam "qual é o próximo" sem
+    querer consumi-lo.
     """
     with _conn() as c:
         r = c.execute(
             "SELECT max(numero) AS n FROM emissao WHERE cnpj_emitente=%s"
             " AND serie=%s AND ambiente=%s", (cnpj, serie, ambiente)).fetchone()
     return int((r["n"] or 0)) + 1
+
+
+# Quantas colisões seguidas a reserva tolera antes de desistir. Cada uma
+# significa que outra execução pegou o número entre o `max()` e o `INSERT` —
+# com duas ou três execuções concorrentes isso acontece uma vez e resolve na
+# tentativa seguinte. Vinte seguidas não é concorrência: é defeito, e insistir
+# só transformaria um erro num laço.
+MAX_COLISOES = 20
+
+
+class NumeroIndisponivel(RuntimeError):
+    """Não foi possível reservar um número depois de `MAX_COLISOES` tentativas."""
+
+
+def reservar_numero(cnpj: str, serie: int, ambiente: str, quem: str,
+                    chave_origem: str) -> tuple[int, int]:
+    """Toma um número para si, ANTES de montar qualquer coisa. (id, numero).
+
+    POR QUE RESERVAR EM VEZ DE SÓ LER O MÁXIMO
+    ------------------------------------------
+    A leitura acontecia numa transação, o `INSERT` do resultado em outra, e no
+    meio havia uma chamada SOAP de segundos. Sem nada entre as duas, duas
+    execuções simultâneas liam o mesmo máximo e escolhiam o mesmo número — e
+    como o cNF da chave é DETERMINÍSTICO (soma dos campos anteriores, não
+    sorteio), número igual produz chave igual, bit a bit. Não é "às vezes dá
+    539": é sempre.
+
+    A linha nasce com `cstat` NULO, e o índice parcial `ux_emissao_numero`
+    recusa a segunda tentativa com o mesmo número. Quem perde a corrida não
+    descobre isso depois de assinar — descobre aqui, e pega o próximo.
+
+    O QUE UM NÚMERO RESERVADO SIGNIFICA
+    -----------------------------------
+    `cstat IS NULL` quer dizer "consumido, sem retorno". Ou está em voo agora,
+    ou a transmissão morreu depois de o documento partir — e nesse caso ele PODE
+    ter sido autorizado sem que soubéssemos. Por isso a reserva não é apagada
+    quando a SEFAZ não responde: apagá-la devolveria o número à fila e a próxima
+    emissão nasceria duplicando um documento que talvez exista. Quem falha ANTES
+    de transmitir chama `liberar_reserva` e devolve o número, porque aí não há
+    documento nenhum lá fora.
+    """
+    import psycopg
+
+    agora = datetime.now().isoformat(timespec="seconds")
+    ultimo = None
+    for _ in range(MAX_COLISOES):
+        numero = proximo_numero(cnpj, serie, ambiente)
+        try:
+            with _conn() as c:
+                r = c.execute(
+                    "INSERT INTO emissao(quando, quem, ambiente, cnpj_emitente,"
+                    " serie, numero, chave_origem, xmotivo)"
+                    " VALUES(%s,%s,%s,%s,%s,%s,%s,'reservado') RETURNING id",
+                    (agora, quem, ambiente, cnpj, serie, numero,
+                     chave_origem)).fetchone()
+            return int(r["id"]), numero
+        except psycopg.errors.UniqueViolation as exc:
+            # outra execução levou este número entre o max() e o INSERT
+            ultimo = exc
+            log.info("numero %s/%s de %s ja tomado - tentando o proximo",
+                     serie, numero, cnpj)
+    raise NumeroIndisponivel(
+        f"Não foi possível reservar número na série {serie} de {cnpj} depois "
+        f"de {MAX_COLISOES} tentativas. Isso não é concorrência normal — "
+        f"confira se há outra rotina emitindo para o mesmo emitente. "
+        f"({type(ultimo).__name__})")
+
+
+def _reservar_numero_fixo(cnpj: str, serie: int, ambiente: str, quem: str,
+                          chave_origem: str, numero: int) -> int:
+    """Reserva um número ESCOLHIDO por quem chama, em vez do próximo da série.
+
+    Existe porque `transmitir(numero=...)` é usado pelos scripts de operação.
+    A corrida é a mesma, então a reserva também: número já tomado é recusado
+    AQUI, antes de montar e de assinar, com uma frase que diz o que aconteceu —
+    em vez de virar rejeição 539 depois de o documento ter sido assinado em
+    nome de outra empresa.
+    """
+    import psycopg
+    agora = datetime.now().isoformat(timespec="seconds")
+    try:
+        with _conn() as c:
+            r = c.execute(
+                "INSERT INTO emissao(quando, quem, ambiente, cnpj_emitente,"
+                " serie, numero, chave_origem, xmotivo)"
+                " VALUES(%s,%s,%s,%s,%s,%s,%s,'reservado') RETURNING id",
+                (agora, quem, ambiente, cnpj, serie, int(numero),
+                 chave_origem)).fetchone()
+        return int(r["id"])
+    except psycopg.errors.UniqueViolation:
+        raise ValueError(
+            f"O número {serie}/{numero} de {cnpj} já foi usado em "
+            f"{AMBIENTES.get(ambiente, ambiente)}. Numeração não se repete: "
+            f"deixe o sistema escolher o próximo (sem informar o número) ou "
+            f"escolha outro."
+        ) from None
+
+
+def liberar_reserva(ident: int) -> None:
+    """Devolve o número à fila. SÓ para falha ANTES de transmitir.
+
+    Montagem, certificado ausente, UF desconhecida: nada saiu da máquina, não
+    existe documento lá fora, e queimar um número por causa de um cadastro
+    incompleto encheria a série de buracos que alguém teria de inutilizar
+    depois.
+
+    Depois que o documento parte, o número NÃO se libera — ver
+    `reservar_numero`.
+    """
+    with _conn() as c:
+        c.execute("DELETE FROM emissao WHERE id=%s AND cstat IS NULL",
+                  (int(ident),))
+
+
+def _sem_retorno(ident: int, exc: Exception) -> None:
+    """A transmissão partiu e não voltou. O número FICA consumido.
+
+    Este é o buraco que a auditoria da numeração apontou: um timeout depois de
+    a SEFAZ ter recebido e autorizado deixava o documento órfão e o número
+    livre para ser reusado — 539 na próxima rodada, ou pior. Agora a linha
+    permanece, com `cstat` nulo e o motivo, e a tela de transmitidos a mostra
+    à parte para alguém conferir no portal da SEFAZ.
+    """
+    with _conn() as c:
+        c.execute(
+            "UPDATE emissao SET xmotivo=%s WHERE id=%s AND cstat IS NULL",
+            (f"SEM RETORNO DA SEFAZ ({type(exc).__name__}) — o documento pode "
+             f"ter sido autorizado. Confira a chave no portal antes de "
+             f"reemitir.", int(ident)))
+
+
+def _concluir(ident: int, chave: str, resp: dict, xml: str | None,
+              xml_prot: str | None, quem: str, cnpj: str, ambiente: str,
+              serie: int, numero: int) -> None:
+    """Grava o retorno da SEFAZ na linha JÁ RESERVADA.
+
+    UPDATE e não INSERT: a linha existe desde antes de o documento ser montado,
+    e é ela que segura o número. Um INSERT aqui criaria a segunda linha com a
+    mesma numeração — exatamente o que o índice existe para impedir.
+    """
+    with _conn() as c:
+        c.execute(
+            "UPDATE emissao SET chave=%s, cstat=%s, xmotivo=%s, protocolo=%s,"
+            " xml=%s, xml_prot=%s WHERE id=%s",
+            (chave, str(resp.get("cStat")), resp.get("xMotivo"),
+             resp.get("protocolo"), xml, xml_prot, int(ident)))
+        cadastro._audita(c, quem, "transmissao", cnpj,
+                         f"amb {ambiente} · {serie}/{numero} · "
+                         f"cStat {resp.get('cStat')}")
+
+
+def sem_retorno() -> list[dict]:
+    """Números consumidos sem retorno da SEFAZ — a fila que precisa de gente.
+
+    Cada um é um documento que PODE existir no órgão sem existir aqui. Não se
+    resolve por software: alguém consulta a chave no portal e decide.
+    """
+    with _conn() as c:
+        return [dict(r) for r in c.execute(
+            "SELECT id, quando, quem, ambiente, cnpj_emitente, serie, numero,"
+            " chave_origem, xmotivo FROM emissao"
+            " WHERE cstat IS NULL AND xmotivo <> 'reservado'"
+            " ORDER BY id DESC")]
 
 
 def _guardas(cnpj: str, d: dict, ambiente: str) -> None:
@@ -282,22 +450,6 @@ def _guardas(cnpj: str, d: dict, ambiente: str) -> None:
     venc = (reg.get("certificado") or {}).get("valida_ate")
     if venc and date.fromisoformat(venc) < date.today():
         raise PermissionError(f"Certificado de {cnpj} venceu em {venc}.")
-
-
-def _registra(quem: str, ambiente: str, cnpj: str, serie: int, numero: int,
-              chave: str, chave_origem: str, resp: dict,
-              xml: str | None = None, xml_prot: str | None = None) -> None:
-    with _conn() as c:
-        c.execute(
-            "INSERT INTO emissao(quando, quem, ambiente, cnpj_emitente, serie,"
-            " numero, chave, chave_origem, cstat, xmotivo, protocolo, xml,"
-            " xml_prot) VALUES(%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)",
-            (datetime.now().isoformat(timespec="seconds"), quem, ambiente,
-             cnpj, serie, numero, chave, chave_origem, str(resp.get("cStat")),
-             resp.get("xMotivo"), resp.get("protocolo"), xml, xml_prot))
-        cadastro._audita(c, quem, "transmissao", cnpj,
-                         f"amb {ambiente} · {serie}/{numero} · "
-                         f"cStat {resp.get('cStat')}")
 
 
 # CANCELAMENTO entra como linha PROPRIA na mesma chave, com cStat "CANC:<cod>":
@@ -370,52 +522,80 @@ def transmitir(chave_origem: str, enq: documento.Enquadramento, *, quem: str,
             f"cancelado.")
 
     if numero is None:
-        numero = proximo_numero(cnpj, serie, ambiente)
+        # RESERVA, e não só leitura: a linha nasce aqui com `cstat` nulo e é
+        # ela que segura o número contra outra execução. Ver `reservar_numero`.
+        ident, numero = reservar_numero(cnpj, serie, ambiente, quem,
+                                        d["chave_original"])
+    else:
+        # Número informado à mão (scripts de operação). Reserva do mesmo jeito,
+        # porque a corrida existe igual — e se o número já estiver tomado, o
+        # índice recusa AQUI, antes de assinar, em vez de virar rejeição 539.
+        ident = _reservar_numero_fixo(cnpj, serie, ambiente, quem,
+                                      d["chave_original"], numero)
 
-    edoc = documento.montar(d, enq, numero=numero, serie=serie,
-                            ambiente=ambiente)
-    chave = (edoc.infCte.Id or "")[3:]
-
-    senha = cadastro.ler_senha(cnpj)
-    arq = cadastro.DIR_CERT / (
-        (cadastro.mapa()[cnpj].get("certificado") or {}).get("arquivo") or "")
-    if not (senha and arq.exists()):
-        raise FileNotFoundError(f"Certificado ou senha ausentes para {cnpj}.")
-
-    uf = d["emit_uf"]
-    if uf not in cte_mod.SIGLA_ESTADO:
-        raise ValueError(f"UF desconhecida: {uf}")
-
-    log.info("transmitindo CT-e %s/%s de %s para a SEFAZ %s (amb %s)",
-             serie, numero, cnpj, uf, ambiente)
-    doc_sefaz = cte_mod.CTe(TransmissaoSOAP(Certificado(str(arq), senha)),
-                            cte_mod.SIGLA_ESTADO[uf], ambiente=ambiente)
-
-    # QR CODE (cStat 850 sem ele). Não é decoração do DACTE: é campo do
-    # documento e entra ANTES da assinatura, senão o hash não fecha. Fica aqui
-    # e não em `documento.py` porque a URL depende do endereço da SEFAZ da UF —
-    # informação de transmissão, não de montagem.
-    edoc.infCTeSupl = documento._tipo(type(edoc), "infCTeSupl")(
-        qrCodCTe=doc_sefaz.monta_qrcode(chave))
-    # `envia_documento` assina a raiz, comprime e posta no recebimento
-    # SÍNCRONO: a resposta da autorização volta nesta mesma chamada.
-    # Assina ANTES para guardar o arquivo. A transmissao assina a copia dela;
-    # o conteudo e a chave sao os mesmos, e o que fica arquivado e um CT-e
-    # assinado de verdade - nao o rascunho sem assinatura.
+    # DAQUI ATÉ A TRANSMISSÃO, toda falha DEVOLVE o número: nada saiu da
+    # máquina, não existe documento lá fora, e queimar numeração por causa de
+    # um cadastro incompleto encheria a série de buracos para inutilizar depois.
     try:
-        xml_assinado = doc_sefaz.assina_raiz(edoc, edoc.infCte.Id)
-    except Exception as exc:  # noqa: BLE001
-        log.warning("nao foi possivel guardar o XML assinado: %s", exc)
-        xml_assinado = None
+        edoc = documento.montar(d, enq, numero=numero, serie=serie,
+                                ambiente=ambiente)
+        chave = (edoc.infCte.Id or "")[3:]
 
-    retorno = doc_sefaz.envia_documento(edoc)
+        senha = cadastro.ler_senha(cnpj)
+        arq = cadastro.DIR_CERT / (
+            (cadastro.mapa()[cnpj].get("certificado") or {}).get("arquivo") or "")
+        if not (senha and arq.exists()):
+            raise FileNotFoundError(f"Certificado ou senha ausentes para {cnpj}.")
+
+        uf = d["emit_uf"]
+        if uf not in cte_mod.SIGLA_ESTADO:
+            raise ValueError(f"UF desconhecida: {uf}")
+
+        log.info("transmitindo CT-e %s/%s de %s para a SEFAZ %s (amb %s)",
+                 serie, numero, cnpj, uf, ambiente)
+        doc_sefaz = cte_mod.CTe(TransmissaoSOAP(Certificado(str(arq), senha)),
+                                cte_mod.SIGLA_ESTADO[uf], ambiente=ambiente)
+
+        # QR CODE (cStat 850 sem ele). Não é decoração do DACTE: é campo do
+        # documento e entra ANTES da assinatura, senão o hash não fecha. Fica
+        # aqui e não em `documento.py` porque a URL depende do endereço da
+        # SEFAZ da UF — informação de transmissão, não de montagem.
+        edoc.infCTeSupl = documento._tipo(type(edoc), "infCTeSupl")(
+            qrCodCTe=doc_sefaz.monta_qrcode(chave))
+
+        # Assina ANTES para guardar o arquivo. A transmissao assina a copia
+        # dela; o conteudo e a chave sao os mesmos, e o que fica arquivado e um
+        # CT-e assinado de verdade - nao o rascunho sem assinatura.
+        try:
+            xml_assinado = doc_sefaz.assina_raiz(edoc, edoc.infCte.Id)
+        except Exception as exc:  # noqa: BLE001
+            log.warning("nao foi possivel guardar o XML assinado: %s", exc)
+            xml_assinado = None
+    except Exception:
+        liberar_reserva(ident)
+        raise
+
+    # A PARTIR DAQUI O DOCUMENTO PODE TER PARTIDO. Se `envia_documento` estourar
+    # depois de a SEFAZ receber, o documento pode estar autorizado lá sem estar
+    # aqui — e devolver o número faria a próxima emissão duplicá-lo. A reserva
+    # FICA, com o motivo, e aparece na tela para alguém conferir no portal.
+    try:
+        # `envia_documento` assina a raiz, comprime e posta no recebimento
+        # SÍNCRONO: a resposta da autorização volta nesta mesma chamada.
+        retorno = doc_sefaz.envia_documento(edoc)
+    except Exception as exc:  # noqa: BLE001
+        _sem_retorno(ident, exc)
+        log.error("CT-e %s/%s de %s partiu sem retorno da SEFAZ: %s",
+                  serie, numero, cnpj, exc)
+        raise
+
     resp = _resposta(retorno)
     xml_prot = _xml_do_protocolo(retorno)
     resp.update({"chave": chave, "serie": serie, "numero": numero,
                  "ambiente": ambiente, "cnpj_emitente": cnpj,
                  "chave_origem": d["chave_original"]})
-    _registra(quem, ambiente, cnpj, serie, numero, chave,
-              d["chave_original"], resp, xml_assinado, xml_prot)
+    _concluir(ident, chave, resp, xml_assinado, xml_prot, quem, cnpj,
+              ambiente, serie, numero)
     return resp
 
 

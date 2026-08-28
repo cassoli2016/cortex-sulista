@@ -1463,7 +1463,6 @@ body.tvfull #btnReport,body.tvmode #btnReport{display:none}
         <a href="#bal" class="sub" data-view="bal" title="Balanço Patrimonial"><span class="ic" data-ic="balanca"></span><span>Balanço Patrimonial</span></a>
         <a href="#cont" class="sub" data-view="cont" title="Contabilidade — ajuste de agrupadores"><span class="ic" data-ic="ctb"></span><span>Contabilidade</span></a>
         <a href="#ctecp" class="sub" data-view="ctecp" title="CT-e de Contrapartida — conciliação dos CT-e de agregado que aguardam documento do transportador"><span class="ic" data-ic="ctb"></span><span>CT-e de Contrapartida</span></a>
-        <a href="#ctetx" class="sub" data-view="ctetx" title="CT-e — Documentos Transmitidos: o que já saiu para a SEFAZ, o que está valendo, o que foi cancelado e o que chegou à contabilidade"><span class="ic" data-ic="ctb"></span><span>CT-e — Transmitidos</span></a>
         <a href="#dre" class="sub" data-view="dre" title="DRE Gerencial"><span class="ic" data-ic="dre"></span><span>DRE Gerencial</span></a>
         <a href="#fech" class="sub" data-view="fech" title="Fechamento do Mês — previsão do resultado antes de fechar"><span class="ic" data-ic="fechic"></span><span>Fechamento do Mês</span></a>
         <a href="#orc" class="sub" data-view="orc" title="Orçamento — orçado × realizado"><span class="ic" data-ic="orcic"></span><span>Orçamento</span></a>
@@ -2870,7 +2869,7 @@ body.tvfull #btnReport,body.tvmode #btnReport{display:none}
       </section>
 
       <section class="view" id="view-ctecp">
-        <div class="card">
+        <div class="card" id="cpFiltrosCard">
           <div class="head"><h2>Filtros <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="CT-e emitidos pela Sulista com veículo de agregado (utilizacaoveiculo AGR), cruzados com o cadastro do proprietário. A tela é SÓ LEITURA: não emite, não assina e não transmite nada.">i</span></h2>
             <span class="hint" id="hintCp"></span></div>
           <div class="milk-filtros">
@@ -2886,6 +2885,7 @@ body.tvfull #btnReport,body.tvmode #btnReport{display:none}
         <div class="cpabas">
           <button class="chip active" data-aba="despacho" onclick="cpAba(this.dataset.aba)">Despacho do dia</button>
           <button class="chip" data-aba="implantacao" onclick="cpAba(this.dataset.aba)">Implantação</button>
+          <button class="chip" data-aba="transmitidos" onclick="cpAba(this.dataset.aba)">Transmitidos</button>
           <span class="hint" id="cpAbaHint"></span>
         </div>
 
@@ -2903,12 +2903,6 @@ body.tvfull #btnReport,body.tvmode #btnReport{display:none}
           <div class="head"><h2>Fila por agregado <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="Ordenada por valor, que é como a implantação deve ser atacada: os primeiros concentram a maior parte do volume. A coluna Cadastro mostra o que a emissão vai exigir — campo faltando vira rejeição documento a documento na transmissão.">i</span></h2>
             <span class="hint" id="hintCpTab"></span></div>
           <div class="tabroll"><table class="tab" id="cpTab"></table></div>
-        </div>
-
-        <div class="card" id="cpTxCard" hidden>
-          <div class="head"><h2>Documentos transmitidos <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="Registro local de cada transmissão (quem, quando, ambiente, série/número, chave e retorno da SEFAZ). HOMOLOGAÇÃO é o ambiente de teste do órgão: o documento autorizado lá NÃO tem valor fiscal, não é escriturado e não gera obrigação — por isso não entra na contagem de emitidas.">i</span></h2>
-            <span class="hint" id="hintCpTx"></span></div>
-          <div class="tabroll"><table class="tab" id="cpTxTab"></table></div>
         </div>
 
         <div class="card" id="cpAvisosCard" hidden>
@@ -2950,8 +2944,7 @@ body.tvfull #btnReport,body.tvmode #btnReport{display:none}
           </div>
         </div>
 
-        <div class="grid2" id="cpDiaLinha" hidden>
-          <div class="card">
+        <div class="card" id="cpDiaLinha" hidden>
             <div class="head"><h2>Documentos transmitidos por dia <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="Últimos 30 dias, pela DATA DA TRANSMISSÃO — o que este gráfico responde é o ritmo da operação, não a data do CT-e de origem. Homologação e produção NÃO se somam (uma não tem valor fiscal) e autorizado e recusado também não (recusado não emitiu nada): são quatro séries, e juntar qualquer par produziria uma barra que parece trabalho feito e não é.">i</span></h2>
               <span class="hint" id="hintCpDia"></span></div>
             <div class="chartwrap narrow"><svg id="cpDiaSvg" viewBox="0 0 640 240" role="img" aria-label="Documentos transmitidos por dia"></svg></div>
@@ -2963,87 +2956,77 @@ body.tvfull #btnReport,body.tvmode #btnReport{display:none}
         </div>
 
         </div>
-</section>
 
-      <!-- ================= CT-e transmitidos ==================
-           Separada da conciliacao de proposito: `ctecp` responde QUANTO FALTA
-           FAZER (fila, cadastro, certificado) e esta responde O QUE JA SAIU e
-           se chegou ao fim do caminho. O registro do que saiu morava la dentro
-           como uma tabela de trinta linhas no meio de nove cartoes. -->
-      <section class="view" id="view-ctetx">
-        <div class="card">
-          <div class="head"><h2>Filtros <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="Registro local de cada transmissão à SEFAZ (tabela emissao do banco do CÓRTEX), cruzado com a trilha de envio dos XML à contabilidade (cte_xml_email). AUTORIZADO NÃO É O MESMO QUE VALENDO: o cancelamento entra como linha própria e a original guarda o retorno da SEFAZ para sempre, então todo total desta tela exclui o que foi cancelado. Homologação é o ambiente de teste do órgão — não tem valor fiscal, não é escriturado, e por isso não soma com produção em número nenhum.">i</span></h2>
-            <span class="hint" id="hintCtetx">—</span></div>
-          <div class="milk-filtros">
-            <label>Janela da lista
-              <select id="fCtetxDias" onchange="loadCtetx()" aria-label="Janela da lista de documentos">
-                <option value="30">Últimos 30 dias</option>
-                <option value="90" selected>Últimos 90 dias</option>
-                <option value="180">Últimos 180 dias</option>
-                <option value="365">Últimos 12 meses</option>
-              </select>
-            </label>
-            <label>Ambiente
-              <select id="fCtetxAmb" onchange="ctetxRender()" aria-label="Ambiente">
-                <option value="">Todos</option>
-                <option value="1">Só produção</option>
-                <option value="2">Só homologação</option>
-              </select>
-            </label>
-            <label>Situação
-              <select id="fCtetxSit" onchange="ctetxRender()" aria-label="Situação do documento">
-                <option value="">Todas</option>
-                <option value="valendo">Valendo</option>
-                <option value="cancelado">Canceladas</option>
-                <option value="recusado">Recusadas</option>
-              </select>
-            </label>
+        <div id="cpAbaTransmitidos" hidden>
+          <div class="kband"><h3>Em produção</h3>
+            <div class="kpis k4" id="kpis-ctetx-a"></div></div>
+          <div class="kband"><h3>Precisa de ação</h3>
+            <div class="kpis k4" id="kpis-ctetx-b"></div></div>
+
+          <div class="card" id="ctetxAlertasCard" hidden>
+            <div class="head"><h2>Ação necessária</h2></div>
+            <div id="ctetxAlertas" class="cpbloco"></div>
           </div>
-          <div class="hint" style="padding:0 18px 14px">Os cartões e os gráficos abaixo
-            olham o registro INTEIRO. Só a tabela obedece à janela — recorte de lista
-            não pode virar total.</div>
-        </div>
 
-        <div class="kband"><h3>Em produção &mdash; o que está valendo agora</h3>
-          <div class="kpis k4" id="kpis-ctetx-a"></div></div>
-        <div class="kband"><h3>Qualidade da transmissão e destino do arquivo</h3>
-          <div class="kpis k4" id="kpis-ctetx-b"></div></div>
-
-        <div class="card" id="ctetxAlertasCard" hidden>
-          <div class="head"><h2>Ler com atenção</h2></div>
-          <div id="ctetxAlertas" class="cpbloco"></div>
-        </div>
-
-        <div class="card">
-          <div class="head"><h2>Transmissões por dia <span class="badge b-info" title="Últimos 30 dias, sempre — não segue a janela da lista escolhida no filtro acima.">últimos 30 dias</span> <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="Pela DATA DA TRANSMISSÃO, não a do CT-e de origem: o que este gráfico responde é o ritmo da operação. São QUATRO séries e não duas. Homologação e produção não se somam (uma não tem valor fiscal) e autorizado e recusado não se somam (recusado não emitiu nada) — juntar qualquer par produziria uma barra que parece trabalho feito e não é.">i</span></h2>
-            <span class="hint" id="hintCtetxDia"></span></div>
-          <div class="chartwrap"><svg id="ctetxDiaSvg" viewBox="0 0 960 260" role="img" aria-label="Transmissões por dia"></svg></div>
-        </div>
-
-        <div class="grid2">
           <div class="card">
-            <div class="head"><h2>Valor por emitente <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="Soma do valor da prestação dos documentos de produção que estão VALENDO, por agregado emitente. O valor sai do XML guardado de cada documento — a tabela `emissao` não tem coluna de valor, e criar uma significaria mexer no caminho que monta, assina e transmite. Cancelado não entra.">i</span></h2>
-              <span class="hint" id="hintCtetxEmi"></span></div>
-            <div class="chartwrap narrow"><svg id="ctetxEmiSvg" viewBox="0 0 640 260" role="img" aria-label="Valor por emitente"></svg></div>
+            <div class="head"><h2>Transmissões por dia <span class="badge b-info">30 dias</span> <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="Pela data da transmissão. Quatro séries e não duas: homologação não soma com produção (uma não tem valor fiscal) e autorizado não soma com recusado (recusado não emitiu nada).">i</span></h2>
+              <span class="hint" id="hintCtetxDia"></span></div>
+            <div id="chartCtetxDia" style="height:280px;margin:0 12px 12px"></div>
           </div>
+
+          <div class="grid2">
+            <div class="card">
+              <div class="head"><h2>Valor por emitente <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="Prestação dos documentos de produção que estão valendo, por agregado. Cancelado não entra. O valor vem do XML guardado de cada documento.">i</span></h2>
+                <span class="hint" id="hintCtetxEmi"></span></div>
+              <div id="chartCtetxEmi" style="height:260px;margin:0 12px 12px"></div>
+            </div>
+            <div class="card">
+              <div class="head"><h2>Retorno da SEFAZ <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="Cada código de retorno sobre o registro inteiro. A 748 aparece em âmbar: ela só existe em homologação, porque o CT-e de origem foi autorizado em produção e nunca vai constar na base de teste.">i</span></h2>
+                <span class="hint" id="hintCtetxCstat"></span></div>
+              <div id="chartCtetxCstat" style="height:260px;margin:0 12px 12px"></div>
+            </div>
+          </div>
+
           <div class="card">
-            <div class="head"><h2>Retorno da SEFAZ <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="Cada código de retorno, do mais frequente ao menos, sobre o registro inteiro. Responde “quais erros aconteceram” sem ler linha a linha. A rejeição 748 aparece destacada: ela diz que o CT-e de origem não consta na base da SEFAZ, e em HOMOLOGAÇÃO ele nunca vai constar, porque foi autorizado em produção — não é defeito do documento nem do cadastro, e some sozinha ao virar a chave.">i</span></h2>
-              <span class="hint" id="hintCtetxCstat"></span></div>
-            <div id="ctetxCstat" class="cpbloco"></div>
+            <div class="head"><h2>Emitentes <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="Um agregado por linha, em produção. Cada um emite na própria série 900 com numeração independente — por isso vários começam no 900/1, e isso não é duplicidade. “Buracos” são números da faixa que nenhuma linha ocupou.">i</span></h2>
+              <span class="hint" id="hintCtetxTabEmi"></span></div>
+            <div class="tabroll"><table class="tab" id="ctetxTabEmi"></table></div>
+          </div>
+
+          <div class="card">
+            <div class="head"><h2>Documentos <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="Uma linha por transmissão, da mais recente para a mais antiga. Só esta lista obedece à janela — os cartões e os gráficos olham o registro inteiro.">i</span></h2>
+              <span class="hint" id="hintCtetxTab"></span></div>
+            <div class="cpbloco" style="padding-bottom:6px">
+              <div class="milk-filtros" style="margin:0">
+                <label>Janela
+                  <select id="fCtetxDias" onchange="loadCtetx()" aria-label="Janela da lista">
+                    <option value="30">30 dias</option>
+                    <option value="90" selected>90 dias</option>
+                    <option value="180">180 dias</option>
+                    <option value="365">12 meses</option>
+                  </select>
+                </label>
+                <label>Ambiente
+                  <select id="fCtetxAmb" onchange="ctetxTabela(CTETX.documentos||[])" aria-label="Ambiente">
+                    <option value="">Todos</option>
+                    <option value="1">Produção</option>
+                    <option value="2">Homologação</option>
+                  </select>
+                </label>
+                <label>Situação
+                  <select id="fCtetxSit" onchange="ctetxTabela(CTETX.documentos||[])" aria-label="Situação">
+                    <option value="">Todas</option>
+                    <option value="valendo">Valendo</option>
+                    <option value="cancelado">Canceladas</option>
+                    <option value="recusado">Recusadas</option>
+                  </select>
+                </label>
+              </div>
+            </div>
+            <div class="tabroll"><table class="tab" id="ctetxTab"></table></div>
           </div>
         </div>
 
-        <div class="card">
-          <div class="head"><h2>Emitentes <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="Um agregado por linha, em PRODUÇÃO. Cada um é uma empresa emitindo na própria série 900, com numeração independente — por isso vários começam no 900/1, e isso não é duplicidade. A faixa mostra o menor e o maior número usados; “queimados” são os números da faixa que nenhuma transmissão ocupou, porque recusa da SEFAZ consome o número e ele não volta.">i</span></h2>
-            <span class="hint" id="hintCtetxTabEmi"></span></div>
-          <div class="tabroll"><table class="tab" id="ctetxTabEmi"></table></div>
-        </div>
-
-        <div class="card">
-          <div class="head"><h2>Documentos <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="Uma linha por transmissão, da mais recente para a mais antiga, dentro da janela escolhida. A coluna Contabilidade diz se o XML já foi por e-mail: “—” significa que o documento ainda não entrou na fila (homologação nunca entra, e produção anterior ao corte também não).">i</span></h2>
-            <span class="hint" id="hintCtetxTab"></span></div>
-          <div class="tabroll"><table class="tab" id="ctetxTab"></table></div>
-        </div>
 </section>
 
       <section class="view" id="view-poli">
@@ -4718,7 +4701,7 @@ const FAIXAS = {
   '4_vencido_91_365':['Vencido 91–365d','b-dang'],
   '5_vencido_mais_365':['Vencido > 365d','b-dang'],
 };
-const VIEWS = { home:'Visão Geral', fluxo:'Fluxo de Caixa e Bancos', receber:'Contas a Receber', pagar:'Contas a Pagar', oc:'Ordens de Compra', custos:'Painel de Custos', agr:'Agregados e Terceiros', mvb:'Make vs Buy', comb:'Combustível', man:'Manutenção', com:'Clientes e RKM', clif:'Consulta de Cliente', crm:'CRM — Leads e Projetos', km:'Análise de KM', prodveic:'Produtividade de Veículos', torre:'Torre de Controle', poli:'Permanência na Planta', ctecp:'CT-e de Contrapartida', ctetx:'CT-e — Documentos Transmitidos', veic:'Veículos', veicf:'Consulta de Veículo', mprev:'Manutenção Preventiva', comrast:'Comunicação Rastreadora', mul:'Multas', prog:'Programação Inteligente', jorn:'Jornada do Motorista', jornf:'Ficha de Jornada', cex:'Custos Extras', sac:'SAC / Freetime', port:'Portaria', cop:'Copiloto Cortex', cob:'Régua de Cobrança', banc:'Bancos', extb:'Extrato Bancário', lanc:'Lançamentos Bancários', antec:'Antecipação de Recebíveis', antport:'Portais de Antecipação', milkrun:'Operação MWM', rec:'Lançamentos Recorrentes', fluxcon:'Fluxo de Caixa Consolidado', cont:'Contabilidade', qual:'Qualidade e Certidões', orc:'Orçamento', fech:'Fechamento do Mês', prem:'Premiação de Motoristas', dre:'DRE Gerencial', bal:'Balanço Patrimonial', drecli:'DRE por Cliente', tvfat:'Painel TV — Faturamento', tvope:'Painel TV — Operação', rh:'RH — Vagas', hc:'Headcount', folha:'Custo de Folha', folhaind:'Indicadores de Folha', he:'Horas Extras', cnh:'CNH dos Motoristas', ferias:'Férias — Vencimento', people:'People Analytics', pneus:'Pneus', gestao:'Gestão', srv:'Saúde do Servidor', doc:'Documentação', anpiso:'Piso Mínimo de Frete', anrntrc:'RNTRC dos Transportadores', telcon:'Consumo e Estatísticas', telcond:'Condução Econômica', telhod:'Hodômetro e Rastro' };
+const VIEWS = { home:'Visão Geral', fluxo:'Fluxo de Caixa e Bancos', receber:'Contas a Receber', pagar:'Contas a Pagar', oc:'Ordens de Compra', custos:'Painel de Custos', agr:'Agregados e Terceiros', mvb:'Make vs Buy', comb:'Combustível', man:'Manutenção', com:'Clientes e RKM', clif:'Consulta de Cliente', crm:'CRM — Leads e Projetos', km:'Análise de KM', prodveic:'Produtividade de Veículos', torre:'Torre de Controle', poli:'Permanência na Planta', ctecp:'CT-e de Contrapartida', veic:'Veículos', veicf:'Consulta de Veículo', mprev:'Manutenção Preventiva', comrast:'Comunicação Rastreadora', mul:'Multas', prog:'Programação Inteligente', jorn:'Jornada do Motorista', jornf:'Ficha de Jornada', cex:'Custos Extras', sac:'SAC / Freetime', port:'Portaria', cop:'Copiloto Cortex', cob:'Régua de Cobrança', banc:'Bancos', extb:'Extrato Bancário', lanc:'Lançamentos Bancários', antec:'Antecipação de Recebíveis', antport:'Portais de Antecipação', milkrun:'Operação MWM', rec:'Lançamentos Recorrentes', fluxcon:'Fluxo de Caixa Consolidado', cont:'Contabilidade', qual:'Qualidade e Certidões', orc:'Orçamento', fech:'Fechamento do Mês', prem:'Premiação de Motoristas', dre:'DRE Gerencial', bal:'Balanço Patrimonial', drecli:'DRE por Cliente', tvfat:'Painel TV — Faturamento', tvope:'Painel TV — Operação', rh:'RH — Vagas', hc:'Headcount', folha:'Custo de Folha', folhaind:'Indicadores de Folha', he:'Horas Extras', cnh:'CNH dos Motoristas', ferias:'Férias — Vencimento', people:'People Analytics', pneus:'Pneus', gestao:'Gestão', srv:'Saúde do Servidor', doc:'Documentação', anpiso:'Piso Mínimo de Frete', anrntrc:'RNTRC dos Transportadores', telcon:'Consumo e Estatísticas', telcond:'Condução Econômica', telhod:'Hodômetro e Rastro' };
 const periodoLabel = p => { if(p==='atrasado') return 'Atrasado'; const [y,m]=p.split('-'); return MES[+m-1]+'/'+y.slice(2); };
 const fmtD = s => { if(!s) return ''; const [y,m,dd]=s.split('-'); return dd+'/'+m+'/'+y; };
 /* Idade da posicao bancaria. Cada conta e lancada num dia diferente: mostrar
@@ -4932,7 +4915,7 @@ function toggleGroup(gid,sid,key){
 const VIEW_GROUP = {home:'',cop:'',
   com:'Com',clif:'Com',crm:'Com',rent:'Com',drecli:'Com',
   fluxo:'Fin',receber:'Fin',pagar:'Fin',cob:'Fin',banc:'Fin',extb:'Fin',lanc:'Fin',antec:'Fin',antport:'Fin',fluxcon:'Fin',rec:'Fin',
-  dre:'Ctr',bal:'Ctr',cont:'Ctr',qual:'Ctr',orc:'Ctr',fech:'Ctr',ctecp:'Ctr',ctetx:'Ctr',
+  dre:'Ctr',bal:'Ctr',cont:'Ctr',qual:'Ctr',orc:'Ctr',fech:'Ctr',ctecp:'Ctr',
   torre:'Ope',milkrun:'Ope',poli:'Ope',prog:'Ope',jorn:'Ope',jornf:'Ope',cex:'Ope',sac:'Ope',port:'Ope',km:'Ope',agr:'Ope',mvb:'Ope',
   veic:'Fro',veicf:'Fro',mprev:'Fro',comrast:'Fro',comb:'Fro',man:'Fro',mul:'Fro',pneus:'Fro',
   oc:'Sup',custos:'Sup',
@@ -5116,7 +5099,7 @@ function qsView(k){
     if(V('fHeComp'))p.set('comp',V('fHeComp'));
   } else if(k==='fech'){
     if(V('fFechMes'))p.set('mes',V('fFechMes'));
-  } else if(k==='mprev'||k==='comrast'||k==='qual'||k==='port'||k==='crm'||k==='rh'||k==='hc'||k==='folhaind'||k==='cnh'||k==='ferias'||k==='pneus'||k==='people'||k==='poli'||k==='ctecp'||k==='ctetx'){
+  } else if(k==='mprev'||k==='comrast'||k==='qual'||k==='port'||k==='crm'||k==='rh'||k==='hc'||k==='folhaind'||k==='cnh'||k==='ferias'||k==='pneus'||k==='people'||k==='poli'||k==='ctecp'){
     // vistas-snapshot sem filtro local: qsView() sempre devolve '' — o
     // loader grava LOADEDQS[k]='' (não '1') para o cache de staleness
     // funcionar (senão nunca bate e cada navegação refaz a consulta).
@@ -5134,7 +5117,7 @@ function semFilterbar(v){
   // filtros", que não tinha o que aplicar.
   return v==='cop'||v==='gestao'||v==='srv'||v==='home'||v==='veicf'||v==='clif'||v==='jorn'||v==='jornf'||v==='prog'||
          v==='cex'||v==='sac'||v==='mprev'||v==='comrast'||v==='qual'||v==='port'||v==='crm'||v==='rh'||
-         v==='hc'||v==='folha'||v==='folhaind'||v==='he'||v==='custos'||v==='orc'||v==='prem'||v==='banc'||v==='extb'||v==='fech'||v==='doc'||v==='anrntrc'||v==='telcon'||v==='telcond'||v==='telhod'||v==='milkrun'||v==='cnh'||v==='ferias'||v==='pneus'||v==='people'||v==='poli'||v==='ctecp'||v==='ctetx';
+         v==='hc'||v==='folha'||v==='folhaind'||v==='he'||v==='custos'||v==='orc'||v==='prem'||v==='banc'||v==='extb'||v==='fech'||v==='doc'||v==='anrntrc'||v==='telcon'||v==='telcond'||v==='telhod'||v==='milkrun'||v==='cnh'||v==='ferias'||v==='pneus'||v==='people'||v==='poli'||v==='ctecp';
 }
 function currentView(){
   const h = (location.hash||'').replace('#','');
@@ -5217,7 +5200,7 @@ function router(){
   document.getElementById('grpFluxcon').style.display = fluxcon ? 'flex' : 'none';
   const ges = (v==='gestao');
   const fbar=document.getElementById('filterbar'); if(fbar) fbar.style.display = semFilterbar(v) ? 'none' : '';
-  const metaEl=document.getElementById('meta'); if(metaEl) metaEl.style.display = (cop||ges||v==='srv'||v==='veicf'||v==='clif'||v==='jorn'||v==='jornf'||v==='cex'||v==='sac'||v==='mprev'||v==='comrast'||v==='qual'||v==='port'||v==='crm'||v==='rh'||v==='hc'||v==='folha'||v==='folhaind'||v==='he'||v==='custos'||v==='prem'||v==='doc'||v==='poli'||v==='ctecp'||v==='ctetx') ? 'none' : '';
+  const metaEl=document.getElementById('meta'); if(metaEl) metaEl.style.display = (cop||ges||v==='srv'||v==='veicf'||v==='clif'||v==='jorn'||v==='jornf'||v==='cex'||v==='sac'||v==='mprev'||v==='comrast'||v==='qual'||v==='port'||v==='crm'||v==='rh'||v==='hc'||v==='folha'||v==='folhaind'||v==='he'||v==='custos'||v==='prem'||v==='doc'||v==='poli'||v==='ctecp') ? 'none' : '';
   // classe em vez de style: o CSS mobile usa !important no display
   const bfil=document.getElementById('btnFiltros'); if(bfil){ bfil.classList.toggle('oculto', semFilterbar(v)); bfil.style.display=''; }
   document.getElementById('grpKm').style.display = kmv ? 'flex' : 'none';
@@ -5241,7 +5224,7 @@ function router(){
   // divergem dos usados na última carga (nunca mostrar dado velho com filtro novo)
   const key=viewKey(v);
   const DATAMAP={fin:DATA,oc:DATAOC,agr:DATAAGR,anpiso:DATAANPISO,anrntrc:DATAANRNTRC,telcon:DATATELCON,telcond:DATATELCOND,telhod:DATATELHOD,mvb:DATAMVB,comb:DATACOMB,man:DATAMAN,com:DATACOM,clif:DATACLIF,dre:DATADRE,bal:DATABAL,drecli:DATADRECLI,home:DATAHOME,km:DATAKM,torre:DATATORRE,veic:DATAVEIC,veicf:DATAVEICF,mul:DATAMUL,prog:DATAPROG,jorn:DATAJORN,jornf:DATAJORNF,cex:DATACEX,sac:DATASAC,mprev:DATAMPREV,comrast:DATACOMRAST,qual:DATAQUAL,port:DATAPORT,crm:DATACRM,rh:DATARH,hc:DATAHC,folha:DATAFOLHA,folhaind:DATAFOLHAIND,he:DATAHE,custos:DATACUSTOS,cob:DATACOB,banc:DATABANC,extb:DATAEXTB,lanc:DATALANC,antec:DATAANTEC,antport:DATAANTPORT,milkrun:DATAMILK,fluxcon:DATAFLUXCON,rec:DATAREC,rent:DATARENT,cont:DATACONT,orc:DATAORC,fech:DATAFECH,prem:DATAPREM,gestao:DATAGES,srv:DATASRV,doc:DATADOC,tvfat:null,tvope:null,cop:(COP_MSGS.length?{}:null)};
-  const LOADMAP={fin:load,oc:loadOc,agr:loadAgr,anpiso:loadAnpiso,anrntrc:loadAnrntrc,telcon:loadTelcon,telcond:loadTelcond,telhod:loadTelhod,mvb:loadMvb,comb:loadComb,man:loadMan,com:loadCom,clif:loadClif,dre:loadDre,bal:loadBal,drecli:loadDreCli,home:loadHome,km:loadKm,prodveic:loadProdveic,torre:loadTorre,veic:loadVeic,veicf:loadVeicf,mul:loadMul,prog:loadProg,jorn:loadJorn,jornf:loadJornf,cex:loadCex,sac:loadSac,mprev:loadMPrev,comrast:loadComRast,qual:loadQual,port:loadPort,crm:loadCrm,rh:loadRh,hc:loadHc,folha:loadFolha,folhaind:loadFolhaInd,he:loadHe,custos:loadCustos,cob:loadCob,banc:loadBanc,extb:loadExtb,lanc:loadLanc,antec:loadAntec,antport:loadAntport,milkrun:loadMilkrun,cnh:loadCnh,ferias:loadFerias,people:loadPeople,pneus:loadPneus,poli:loadPoli,ctecp:loadCtecp,ctetx:loadCtetx,fluxcon:loadFluxcon,rec:loadRec,rent:loadRent,cont:loadCont,orc:loadOrc,fech:loadFech,prem:loadPrem,gestao:loadGestao,srv:loadSrv,doc:loadDoc,cop:loadCop,tvfat:loadTvFat,tvope:loadTvOpe};
+  const LOADMAP={fin:load,oc:loadOc,agr:loadAgr,anpiso:loadAnpiso,anrntrc:loadAnrntrc,telcon:loadTelcon,telcond:loadTelcond,telhod:loadTelhod,mvb:loadMvb,comb:loadComb,man:loadMan,com:loadCom,clif:loadClif,dre:loadDre,bal:loadBal,drecli:loadDreCli,home:loadHome,km:loadKm,prodveic:loadProdveic,torre:loadTorre,veic:loadVeic,veicf:loadVeicf,mul:loadMul,prog:loadProg,jorn:loadJorn,jornf:loadJornf,cex:loadCex,sac:loadSac,mprev:loadMPrev,comrast:loadComRast,qual:loadQual,port:loadPort,crm:loadCrm,rh:loadRh,hc:loadHc,folha:loadFolha,folhaind:loadFolhaInd,he:loadHe,custos:loadCustos,cob:loadCob,banc:loadBanc,extb:loadExtb,lanc:loadLanc,antec:loadAntec,antport:loadAntport,milkrun:loadMilkrun,cnh:loadCnh,ferias:loadFerias,people:loadPeople,pneus:loadPneus,poli:loadPoli,ctecp:loadCtecp,fluxcon:loadFluxcon,rec:loadRec,rent:loadRent,cont:loadCont,orc:loadOrc,fech:loadFech,prem:loadPrem,gestao:loadGestao,srv:loadSrv,doc:loadDoc,cop:loadCop,tvfat:loadTvFat,tvope:loadTvOpe};
   if(!DATAMAP[key] || (key!=='home' && LOADEDQS[key]!==qsView(key))) LOADMAP[key]();
   // mobile: estado da navegação inferior + fecha gaveta/painel de filtros
   document.querySelectorAll('.bottomnav [data-bview]').forEach(a=>a.classList.toggle('ativo', a.dataset.bview===v));
@@ -10699,213 +10682,6 @@ function renderCtecp(d){
            : ((per.de||'')+' a '+(per.ate||'')))
     +(per.busca?(' · filtrado por “'+per.busca+'”'):'')
     +' · varrido em '+fmtDT(f.gerado_em||'');
-  /* TRANSMISSOES POR DIA. Quatro series empilhadas, nao duas: homologacao e
-     producao nao se somam (uma nao tem valor fiscal) e autorizado e recusado
-     tambem nao (recusado nao emitiu nada). Uma barra so pareceria trabalho
-     feito. */
-  const dias=(d.emissoes_por_dia||[]);
-  document.getElementById('cpDiaLinha').hidden = !dias.length;
-  if(dias.length){
-    const SER=[['producao_ok','produção autorizado','var(--green)'],
-               ['producao_nao','produção recusado','var(--red)'],
-               ['homologacao_ok','homologação autorizado','var(--navy-400)'],
-               ['homologacao_nao','homologação recusado','var(--yellow)']];
-    const tot=function(x){ return SER.reduce(function(a,s){return a+(x[s[0]]||0);},0); };
-    const maxv=Math.max(1,...dias.map(tot));
-    const L=44, R=10, T=14, B=42, W=640, H=240;
-    const larg=(W-L-R)/dias.length, barW=Math.max(4,Math.min(30,larg*0.62));
-    let g='';
-    /* eixo Y com tres marcas: sem elas a altura da barra nao tem leitura */
-    for(let i=0;i<=3;i++){
-      const v=Math.round(maxv*i/3), y=H-B-(H-B-T)*(i/3);
-      g+='<line x1="'+L+'" y1="'+y.toFixed(1)+'" x2="'+(W-R)+'" y2="'+y.toFixed(1)
-        +'" stroke="var(--n200)" stroke-width="1"/>'
-        +'<text x="'+(L-6)+'" y="'+(y+4).toFixed(1)+'" text-anchor="end" font-size="10" fill="var(--n500)">'+v+'</text>';
-    }
-    dias.forEach(function(x,i){
-      const cx=L+larg*i+larg/2; let base=H-B;
-      SER.forEach(function(sr){
-        const v=x[sr[0]]||0; if(!v) return;
-        const h=(H-B-T)*v/maxv;
-        g+='<rect x="'+(cx-barW/2).toFixed(1)+'" y="'+(base-h).toFixed(1)+'" width="'+barW.toFixed(1)
-          +'" height="'+h.toFixed(1)+'" fill="'+sr[2]+'"><title>'+esc(fmtD(x.dia))+' · '
-          +esc(sr[1])+': '+v+'</title></rect>';
-        base-=h;
-      });
-      /* rotulo de dia so quando cabe - senao vira borrao */
-      if(dias.length<=12 || i%Math.ceil(dias.length/12)===0){
-        g+='<text x="'+cx.toFixed(1)+'" y="'+(H-B+16)+'" text-anchor="middle" font-size="10" fill="var(--n500)">'
-          +esc((x.dia||'').slice(8)+'/'+(x.dia||'').slice(5,7))+'</text>';
-      }
-    });
-    /* legenda: sem ela quatro cores empilhadas nao dizem nada */
-    let lx=L;
-    SER.forEach(function(sr){
-      g+='<rect x="'+lx+'" y="'+(H-16)+'" width="9" height="9" fill="'+sr[2]+'"/>'
-        +'<text x="'+(lx+13)+'" y="'+(H-8)+'" font-size="9.5" fill="var(--n600)">'+esc(sr[1])+'</text>';
-      lx+=sr[1].length*5.2+26;
-    });
-    document.getElementById('cpDiaSvg').innerHTML=g;
-    const somaOk=dias.reduce(function(a,x){return a+(x.producao_ok||0)+(x.homologacao_ok||0);},0);
-    document.getElementById('hintCpDia').textContent =
-      dias.length+' '+(dias.length===1?'dia':'dias')+' com transmissão · '
-      +somaOk+' autorizado'+(somaOk===1?'':'s');
-  }
-
-  /* FAIXAS DE VENCIMENTO dos certificados. */
-  const fx=((d.certificados||{}).faixas_contagem)||[];
-  const totFx=fx.reduce(function(a,f){return a+(f.n||0);},0);
-  const CORFX={vencido:'var(--red)',critico:'var(--red)',alerta:'var(--yellow)',
-               atencao:'var(--yellow)',ok:'var(--green)',
-               desconhecido:'var(--red)',impedido:'var(--n400)'};
-  document.getElementById('cpCertFaixas').innerHTML = totFx ? fx.map(function(f){
-    if(!f.n) return '';
-    return '<div>'
-      +'<div style="display:flex;justify-content:space-between;font-size:12px">'
-      +'<span>'+esc(f.rotulo)+'</span><span class="mono" style="color:var(--n500)">'
-      +f.n+' '+(f.n===1?'certificado':'certificados')+'</span></div>'
-      +'<div style="height:10px;border-radius:5px;background:var(--n100);margin-top:3px">'
-      +'<div style="height:100%;width:'+(100*f.n/totFx).toFixed(1)+'%;background:'
-      +(CORFX[f.chave]||'var(--n400)')+';border-radius:5px"></div></div></div>';
-  }).join('') : '<div class="hint">Nenhum certificado cadastrado.</div>';
-
-
-  /* VENCIMENTO DOS CERTIFICADOS. Certificado A1 vale um ano; vencido em
-     silencio, a emissao para sozinha. O semaforo e GRADUADO porque "vence em
-     2 dias" e "vence em 29" pedem acoes diferentes - chip igual para os dois
-     nao prioriza nada. */
-  const ce=d.certificados||{}, cItens=ce.itens||[];
-  document.getElementById('cpCertCard').hidden = !cItens.length;
-  if(cItens.length){
-    const a30=(ce.ate_30||{}), a60=(ce.ate_60||{});
-    document.getElementById('hintCpCert').textContent =
-      ce.total+' '+(ce.total===1?'certificado':'certificados')
-      +' · '+(a30.certificados||0)+' vence'+((a30.certificados||0)===1?'':'m')
-      +' em ate 30 dias'+((a30.ctes||0)?' ('+(a30.ctes).toLocaleString('pt-BR')+' CT-e)':'')
-      +' · '+(a60.certificados||0)+' em ate 60';
-    const CLS={vencido:'b-dang',critico:'b-dang',alerta:'b-warn',
-               atencao:'b-warn',desconhecido:'b-dang',impedido:'b-info',ok:'b-ok'};
-    document.getElementById('cpCertTab').innerHTML =
-      '<thead><tr><th>Agregado</th><th>Titular do certificado</th><th>Tipo</th>'
-      +'<th>Validade</th><th>Situação</th><th>Envio</th>'
-      +'<th class="num">CT-e no período</th>'
-      +'</tr></thead><tbody>'
-      +cItens.map(function(c){
-        const grave = c.situacao==='vencido'||c.situacao==='critico'
-                   || c.situacao==='desconhecido';
-        return '<tr'+(grave?' class="cp-recusada"':'')+'>'
-          +'<td>'+esc(c.nome||c.documento)+'</td>'
-          +'<td>'+esc(c.titular||'—')
-          +(c.tem_senha?'':' <span class="badge b-dang" title="Sem a senha no cofre o certificado não assina">sem senha</span>')
-          +'</td>'
-          +'<td class="mono">'+esc(c.tipo||'—')+'</td>'
-          +'<td class="mono">'+(c.valida_ate?esc(fmtD(c.valida_ate)):'—')
-          +' <button class="gbtn" data-doc="'+esc(c.documento)+'"'
-          +' onclick="cpAbrir(this.dataset.doc)"'
-          +' title="Substituir o arquivo .pfx e a senha deste agregado. O cadastro anterior e sobrescrito.">trocar</button></td>'
-          +'<td><span class="badge '+(CLS[c.situacao]||'b-info')+'">'
-          +esc(c.texto||c.situacao)+'</span></td>'
-          /* zero aqui e "nao rodou NO RECORTE", nao "nao importa" - e a
-             diferenca some se o numero aparecer pelado */
-          /* CNPJ vai em data- e o handler o le de la: sem aspa dentro de
-             aspa dentro de atributo, que e onde o escape quebra. */
-          +'<td>'+(c.envio
-             ? '<button class="gbtn" data-cnpj="'+esc(c.documento)+'" data-liga="0"'
-               +' onclick="cpEnvio(this)" title="Tira este agregado da fila de emissão.'
-               +' Não apaga certificado nem autorização — só suspende o envio.">desativar envio</button>'
-             : '<button class="gbtn" data-cnpj="'+esc(c.documento)+'" data-liga="1"'
-               +' onclick="cpEnvio(this)" title="'
-               +esc('Fora da fila'+(c.envio_quem?' por '+c.envio_quem:'')+'. Clique para voltar a emitir.')
-               +'"><span class="badge b-dang">envio desativado</span> ativar</button>')
-          +'</td>'
-          +'<td class="num mono">'+(c.no_periodo
-             ? (c.ctes||0).toLocaleString('pt-BR')
-             : '<span class="hint" title="Este agregado não teve CT-e no período filtrado. O certificado continua valendo — e vencendo.">fora do período</span>')
-          +'</td></tr>';
-      }).join('')+'</tbody>';
-  }
-
-  /* transmissoes ja feitas. Homologacao e producao NAO se somam: documento de
-     homologacao nao tem valor fiscal, e junta-los faria a tela anunciar uma
-     fila resolvida que nao foi. */
-  const tx=(d.emissoes||[]);
-  document.getElementById('cpTxCard').hidden = !tx.length;
-  if(tx.length){
-    const ok=tx.filter(function(t){return t.autorizado;}).length;
-    const semXml=k.autorizadas_sem_xml||0;
-    /* O RODAPE CONTAVA A PAGINA E PARECIA O TOTAL: dizia "30 transmissoes ·
-       13 autorizadas · 4 em producao" enquanto o cartao logo acima dizia
-       "38 de 122 autorizadas · producao 2 de 4". Sao os dois certos e os dois
-       falando de coisas diferentes, o que na mesma tela e pior que um errado.
-       Agora ele diz que esta mostrando as ULTIMAS, e o total continua sendo
-       assunto do cartao. "4 em producao" tambem confundia: era tentativa, e do
-       lado da palavra "autorizadas" lia-se como autorizada. */
-    document.getElementById('hintCpTx').textContent =
-      'as '+tx.length+' últimas · '+ok+' autorizada'+(ok===1?'':'s')
-      +' aqui · '+(k.emitidas_producao_autorizadas||0)+' de '+(k.emitidas||0)
-      +' autorizadas em produção no total'
-      +(semXml? ' · '+semXml+' sem XML guardado':'');
-    document.getElementById('cpTxTab').innerHTML =
-      '<thead><tr><th>Quando</th><th>Ambiente</th><th>Emitente</th>'
-      +'<th title="A numeração do CT-e é POR EMITENTE: cada agregado tem a '
-      +'própria série 900, e o primeiro documento de cada um é o 900/1. '
-      +'Série e número repetidos na lista, com emitentes diferentes, é o '
-      +'comportamento correto — não é duplicidade.">Série/Nº</th>'
-      +'<th>Situação</th><th>Chave</th><th>Protocolo</th>'
-      +'<th>Cancelamento</th><th>Arquivo</th>'
-      +'<th>Quem</th></tr></thead><tbody>'
-      +tx.map(function(t){
-        /* Verde SO quando a SEFAZ autorizou; todo o resto vermelho. Codigo
-           diferente de 100 significa que NADA foi emitido, e um tom
-           intermediario faria "recusado" parecer "quase la". */
-        const b=t.autorizado?'b-ok':'b-dang';
-        const amb=t.ambiente==='homologação'
-          ? '<span class="badge b-warn" title="Ambiente de teste da SEFAZ: o documento não tem valor fiscal, não é escriturado e não gera obrigação">homologação</span>'
-          : '<span class="badge b-ok">produção</span>';
-        /* A chave tem 44 digitos e nao cabe na linha: pontas na celula e a
-           inteira no title, que e o que se copia para conferir no portal. */
-        const ch=t.chave||'';
-        const chCurta=ch.length>20 ? ch.slice(0,8)+'…'+ch.slice(-8) : (ch||'—');
-        const arq=t.tem_xml
-          ? '<span class="badge b-ok" title="XML assinado guardado — é o arquivo que o ERP importa">guardado</span>'
-          : (t.autorizado
-             ? '<span class="badge b-dang" title="Autorizado mas sem o XML: a chave prova que existe, o arquivo é que se importa">falta</span>'
-             : '<span class="hint">—</span>');
-        /* EMITENTE. Sem esta celula a tabela mostrava "900/1" em linhas
-           seguidas e nao havia como distinguir a numeracao normal (cada
-           agregado comeca no 1) de uma duplicidade. Nome quando o cadastro
-           local conhece o titular do certificado; senao o CNPJ, que sempre
-           existe - celula vazia faria parecer erro de gravacao. */
-        const emi = t.emitente
-          ? '<span title="'+esc(t.cnpj_emitente||'')+'">'+esc(t.emitente)+'</span>'
-          : '<span class="mono">'+esc(t.cnpj_emitente||'—')+'</span>';
-        return '<tr'+(t.autorizado?'':' class="cp-recusada"')+'>'
-          +'<td class="mono">'+esc(fmtDT(t.quando||''))+'</td>'
-          +'<td>'+amb+'</td>'
-          +'<td>'+emi+'</td>'
-          +'<td class="mono" title="série 900 do emitente desta linha — a numeração é por emitente">'+esc(t.serie)+'/'+esc(t.numero)+'</td>'
-          +'<td><span class="badge '+b+'" title="'+esc(t.xmotivo||'')+'">'
-          +esc(t.cstat||'?')+'</span> '+esc(t.xmotivo||'')+'</td>'
-          +'<td class="mono" title="'+esc(ch)+'">'+esc(chCurta)+'</td>'
-          +'<td class="mono">'+esc(t.protocolo||'—')+'</td>'
-          +'<td>'+(t.evento
-             ? '<span class="hint">evento</span>'
-             : (t.cancelado
-                ? '<span class="badge b-dang" title="Documento cancelado — o evento está registrado na SEFAZ">cancelado</span>'
-                : (t.autorizado
-                   ? '<button class="gbtn" data-chave="'+esc(ch)+'" onclick="cpCancelar(this)"'
-                     +' title="Cancela o documento na SEFAZ. Ato fiscal com prazo: passado o prazo da UF não se cancela mais.">cancelar</button>'
-                   : '<span class="hint">—</span>')))
-          +'</td>'
-          +'<td>'+arq+(t.tem_xml
-             ? ' <a class="badge b-info" style="text-decoration:none" '
-               +'href="/api/fiscal/contrapartida/documento/'+esc(ch)+'" '
-               +'download title="Baixa o XML com o protocolo — é o arquivo que o ERP importa">baixar</a>'
-             : '')+'</td>'
-          +'<td>'+esc(t.quem||'')+'</td></tr>';
-      }).join('')+'</tbody>';
-  }
-
   const av=(d.avisos||[]);
   CP_VAL = d.validacao || null; cpValidRender();
   document.getElementById('cpAvisosCard').hidden = !av.length;
@@ -10925,24 +10701,43 @@ var CP_VAL = null, CP_VALCAT = 'cadastro', CP_VALPEND = false;
    por dia ao validador; reabrir sempre no despacho obrigaria a dois cliques a
    cada visita. E quando a implantacao acabar, ninguem precisa mudar nada: a
    aba simplesmente deixa de ser aberta. */
+const CP_ABAS = {
+  despacho:     'o que precisa sair hoje',
+  implantacao:  'cadastro e certificado — o que ainda impede a fila de andar',
+  transmitidos: 'o que já saiu, o que está valendo e o que chegou à contabilidade',
+};
+
 function cpAba(nome){
-  const d = (nome !== 'implantacao');
-  document.getElementById('cpAbaDespacho').hidden = !d;
-  document.getElementById('cpAbaImplantacao').hidden = d;
+  if(!CP_ABAS[nome]) nome = 'despacho';
+  document.getElementById('cpAbaDespacho').hidden = nome !== 'despacho';
+  document.getElementById('cpAbaImplantacao').hidden = nome !== 'implantacao';
+  document.getElementById('cpAbaTransmitidos').hidden = nome !== 'transmitidos';
   document.querySelectorAll('.cpabas .chip').forEach(function(b){
-    b.classList.toggle('active', b.dataset.aba === (d ? 'despacho' : 'implantacao'));
+    b.classList.toggle('active', b.dataset.aba === nome);
   });
-  document.getElementById('cpAbaHint').textContent = d
-    ? 'o que precisa sair hoje'
-    : 'cadastro e certificado — o que ainda impede a fila de andar';
-  try{ localStorage.setItem('cp_aba', d ? 'despacho' : 'implantacao'); }catch(e){}
+  document.getElementById('cpAbaHint').textContent = CP_ABAS[nome];
+  /* O card de filtros recorta a FILA (período e agregado). Em "Transmitidos"
+     nenhuma consulta o consome — e filtro que a query ignora sai da vista, em
+     vez de convidar a mexer. Esta aba tem a própria janela, na lista. */
+  const fcp = document.getElementById('cpFiltrosCard');
+  if(fcp) fcp.hidden = (nome === 'transmitidos');
+  try{ localStorage.setItem('cp_aba', nome); }catch(e){}
+  /* O ECharts mede o container no init: um gráfico desenhado com a aba
+     escondida nasce com largura zero e fica assim. Por isso a aba só carrega
+     ao ser aberta, e um `resize` corre depois de ela aparecer. */
+  if(nome === 'transmitidos'){
+    if(!CTETX) loadCtetx();
+    else setTimeout(function(){
+      _echartsVivos.forEach(function(i){ try{ i.resize(); }catch(_){} });
+    }, 30);
+  }
   /* A varredura completa e uma consulta pesada ao ERP: so dispara quando a
      aba que a mostra e aberta, e so na primeira vez. E NUNCA por cima de uma
      carga em andamento - o AVA e uma replica compartilhada, e duas consultas
      grandes ao mesmo tempo se atrapalham: abrir a aba durante o carregamento
      da tela dobrava a espera das duas. Havendo carga, ela fica marcada e
      `loadCtecp` a dispara ao terminar. */
-  if(!d && !(CP_VAL && CP_VAL.escopo)){
+  if(nome === 'implantacao' && !(CP_VAL && CP_VAL.escopo)){
     if(document.getElementById('content').classList.contains('loading')) CP_VALPEND=true;
     else cpValidarTudo();
   }
@@ -19787,24 +19582,37 @@ async function whatsAgendaTestar(id){
 let INTEG = null;
 const INTEG_MODO = {};   // modo de autenticação escolhido na tela, por fornecedor
 const INTEG_ERRO = {};   // erro do último salvamento, por fornecedor
-/* ============ CT-e de contrapartida: DOCUMENTOS TRANSMITIDOS ==============
-   Tela separada da conciliacao. Tres regras carregam esta tela inteira, e
-   quebrar qualquer uma produz um numero que nao existe:
+/* ====== ABA "TRANSMITIDOS" da tela de CT-e de contrapartida ================
+   Nao e tela propria: acompanhar a fila e acompanhar o que saiu sao a mesma
+   sessao de trabalho, e duas entradas no menu obrigariam a navegar entre elas
+   para responder uma pergunta so.
 
-   1. AUTORIZADO NAO E VALENDO. O cancelamento entra como linha propria e a
-      original guarda cstat='100' para sempre. Todo total exclui o cancelado.
-   2. HOMOLOGACAO NAO SOMA COM PRODUCAO. Uma nao tem valor fiscal.
-   3. RECUSADO NAO EMITIU NADA. Conta como tentativa, nunca como documento.
+   Tres regras carregam a aba inteira, e quebrar qualquer uma produz um numero
+   que nao existe: AUTORIZADO NAO E VALENDO (cancelado sai de todo total),
+   HOMOLOGACAO NAO SOMA COM PRODUCAO (uma nao tem valor fiscal) e RECUSADO NAO
+   EMITIU NADA (conta como tentativa, nunca como documento).
 
-   Os cartoes e os graficos leem o registro INTEIRO; so a tabela obedece a
-   janela do filtro. Recorte de lista virando total foi o defeito que a tela de
-   conciliacao ja teve ("5 de 30 autorizadas" quando eram 30 em 99). */
+   Os cartoes e os graficos leem o registro INTEIRO; so a lista obedece a
+   janela. Recorte de lista virando total ja foi defeito desta tela. */
 var CTETX = null;
 const nfInt = v => (v==null ? '—' : Math.round(v).toLocaleString('pt-BR'));
 
+/* Paleta dos graficos: as MESMAS quatro do semaforo da casa, resolvidas aqui
+   dentro e nao no topo do arquivo — `CC` so existe no fim, e ler antes estoura
+   TDZ e mata o script no boot. */
+const CTETX_COR = {ok:'#1E7F4F', nao:'#C03221', teste:'#5B7C99',
+                   testeNao:'#B97709', navy:'#2F4A63', n500:'#6B7580'};
+const CTETX_FONTE = 'Saira, sans-serif';
+const CTETX_MONO = 'IBM Plex Mono, monospace';
+
+function ctetxTooltip(){
+  return {backgroundColor:'#fff', borderColor:'#DCE0E5', borderWidth:1,
+          textStyle:{color:'#14181D', fontSize:12.5, fontFamily:CTETX_FONTE}};
+}
+
 function loadCtetx(){
-  const dias = document.getElementById('fCtetxDias').value || '90';
-  document.getElementById('hintCtetx').textContent = 'consultando…';
+  const el = document.getElementById('fCtetxDias');
+  const dias = el ? (el.value || '90') : '90';
   skelKpis('kpis-ctetx-a', 4); skelKpis('kpis-ctetx-b', 4);
   fetch('/api/fiscal/contrapartida/transmitidos?dias='+encodeURIComponent(dias),
         {cache:'no-store'})
@@ -19812,15 +19620,14 @@ function loadCtetx(){
     .then(function(res){
       /* `respostaJSON` devolve o ENVELOPE {ok, dados}, nao o payload: ela le
          como texto antes para distinguir "sessao expirou", "o proxy respondeu
-         no lugar da API" e "erro interno", que tem consertos diferentes.
-         Tratar o envelope como se fosse o dado enche a tela de travessoes sem
-         erro nenhum aparecer - foi o que aconteceu na primeira montagem. */
+         no lugar da API" e "erro interno". Tratar o envelope como dado enche a
+         tela de travessoes sem erro nenhum aparecer. */
       const d = res.dados || {};
       if(!res.ok){ throw new Error(d.mensagem || d.erro || 'falha na consulta'); }
-      CTETX = d; LOADEDQS.ctetx = dias; ctetxRender();
+      CTETX = d; ctetxRender();
     })
     .catch(function(e){
-      document.getElementById('hintCtetx').textContent =
+      document.getElementById('hintCtetxTab').textContent =
         'não foi possível carregar: ' + (e.message || e);
     });
 }
@@ -19829,84 +19636,54 @@ function ctetxRender(){
   const d = CTETX; if(!d) return;
   const k = d.kpis || {};
 
-  /* --- banda 1: o que esta valendo -------------------------------------- */
-  /* "Valendo" e nao "autorizados": e o unico numero que responde quantos
-     documentos existem hoje. */
-  const semArq = k.sem_arquivo || 0;
+  /* BANDA 1 — o estado. "Valendo" e nao "autorizados": e o unico numero que
+     responde quantos documentos existem hoje. */
   document.getElementById('kpis-ctetx-a').innerHTML =
-      kpi('Valendo em produção', nfInt(k.validos),
-          (k.emitentes||0) + ' emitente' + ((k.emitentes===1)?'':'s') + ' · ' +
-          (k.ultimo ? 'último em ' + fmtDT(k.ultimo) : 'nenhum ainda'),
-          (k.validos ? 'ok' : ''), null,
-          k.cancelados ? statChip('warn', k.cancelados + ' cancelado' +
-              (k.cancelados===1?'':'s'),
-              'Cancelados NÃO entram neste número — o documento caiu e a '
-              + 'prestação voltou a precisar de contrapartida.') : '')
+      kpi('Valendo', nfInt(k.validos),
+          (k.emitentes||0)+' emitente'+((k.emitentes===1)?'':'s'),
+          (k.validos ? 'ok' : ''),
+          'Autorizados em produção e não cancelados. Homologação não entra.')
     + kpi('Valor transmitido', brl2(k.valor_valido),
-          'soma da prestação dos que estão valendo',
-          '', 'Sai do vTPrest do XML guardado de cada documento. Só produção, '
-            + 'só valendo: cancelado e homologação ficam de fora.')
+          'prestação dos que estão valendo', '',
+          'Do vTPrest do XML guardado. Só produção, só valendo.')
     + kpi('Cancelados', nfInt(k.cancelados),
-          k.cancelados ? 'não estão valendo' : 'nenhum cancelamento',
-          (k.cancelados ? 'warn' : ''), 'Documento cancelado tem o evento '
-            + 'registrado na SEFAZ. A linha original continua no registro com o '
-            + '“autorizado” que o órgão respondeu na hora — é história, não '
-            + 'estado atual.')
-    + kpi('Arquivo guardado', (k.pct_arquivo==null ? '—' : k.pct_arquivo + '%'),
-          semArq ? (semArq + ' sem o XML') : 'todos com XML e protocolo',
-          (semArq ? 'bad' : (k.validos ? 'ok' : '')),
-          'O cteProc — documento assinado mais o protocolo — é o que o ERP '
-            + 'importa, o que a contabilidade escritura e o que se apresenta '
-            + 'numa fiscalização. A chave prova que existe; o arquivo é o que '
-            + 'serve.');
+          k.cancelados ? 'fora de todos os totais' : 'nenhum',
+          (k.cancelados ? 'warn' : ''),
+          'O evento está registrado na SEFAZ. A linha original guarda o '
+          + '“autorizado” do órgão para sempre — é história, não estado atual.')
+    + kpi('Homologação', nfInt(k.autorizados_homo),
+          (k.taxa_homo==null ? 'sem base' : k.taxa_homo+'% de acerto'), '',
+          'Ambiente de teste: não tem valor fiscal e não soma com produção. '
+          + (k.esperadas_homo||0) + ' recusas 748 ficam fora da taxa — o CT-e '
+          + 'de origem nunca vai constar na base de teste.');
 
-  /* --- banda 2: qualidade e destino ------------------------------------- */
-  /* A taxa de homologacao exclui a 748, que so existe naquele ambiente: o
-     CT-e de origem nunca vai constar na base de teste porque foi autorizado
-     em producao. Deixa-la dentro faria o teste medir o ambiente. */
-  const tp = k.taxa_prod, th = k.taxa_homo;
-  const xmlEstado = (k.xml_ativo===null || k.xml_ativo===undefined)
-    ? statChip('warn','indisponível','Não foi possível ler o estado do envio.')
-    : (k.xml_ativo ? statChip('good','ligado','O envio automático dos XML à '
-        + 'contabilidade está ligado.')
-                   : statChip('bad','desligado','Enquanto estiver desligado, '
-        + 'nenhum XML sai — nem os que estão na fila.'));
+  /* BANDA 2 — o que exige alguem. Cada cartao aqui vira zero quando o
+     trabalho acaba; e essa a diferenca dele para os de cima. */
+  const tp = k.taxa_prod;
   document.getElementById('kpis-ctetx-b').innerHTML =
-      kpi('Autorização em produção', (tp==null ? '—' : tp + '%'),
-          (k.autorizados_prod||0) + ' de ' + (k.tentativas_prod||0) + ' tentativas',
+      kpi('Sem retorno da SEFAZ', nfInt(k.sem_retorno),
+          k.sem_retorno ? 'confira a chave no portal' : 'nenhum',
+          (k.sem_retorno ? 'bad' : ''),
+          'O documento partiu e a resposta não voltou: pode estar autorizado '
+          + 'no órgão sem estar aqui. O número não é reaproveitado.')
+    + kpi('Sem XML guardado', nfInt(k.sem_arquivo),
+          k.sem_arquivo ? 'não há o que escriturar' : 'todos arquivados',
+          (k.sem_arquivo ? 'bad' : 'ok'),
+          'A chave prova que o documento existe; o cteProc é o que o ERP '
+          + 'importa e a contabilidade escritura.')
+    + kpi('Na fila da contabilidade', nfInt(k.xml_fila),
+          k.xml_parados ? (k.xml_parados+' parado'+(k.xml_parados===1?'':'s'))
+                        : (k.xml_destino || 'destino não configurado'),
+          (k.xml_parados ? 'bad' : (k.xml_fila ? 'warn' : 'ok')),
+          'XML de produção que ainda não saíram por e-mail. Saem sozinhos '
+          + 'após a próxima rodada de emissão.',
+          (k.xml_ativo===false
+            ? statChip('bad','envio desligado','Nenhum XML sai enquanto estiver assim.')
+            : (k.xml_enviados ? statChip('good', k.xml_enviados+' enviados', '') : '')))
+    + kpi('Autorização em produção', (tp==null ? '—' : tp+'%'),
+          (k.autorizados_prod||0)+' de '+(k.tentativas_prod||0)+' tentativas',
           (tp==null ? '' : (tp>=95 ? 'ok' : (tp>=70 ? 'warn' : 'bad'))),
-          'Quantas transmissões a SEFAZ autorizou. Recusa não emitiu nada — '
-            + 'conta como tentativa, nunca como documento. Cancelamento não é '
-            + 'transmissão e fica fora dos dois lados da conta.')
-    + kpi('Homologação (testes)', nfInt(k.autorizados_homo),
-          (th==null ? 'sem base' : th + '% de acerto') + ' · '
-            + (k.esperadas_homo||0) + ' recusas esperadas',
-          '', 'Ambiente de teste da SEFAZ: NÃO tem valor fiscal, não é '
-            + 'escriturado e não gera obrigação. Nunca soma com produção. As '
-            + '“recusas esperadas” são o código 748 — o CT-e de origem não '
-            + 'consta na base de teste porque foi autorizado em produção, e '
-            + 'nunca vai constar. Ficam fora da taxa para não medir o ambiente '
-            + 'em vez do trabalho.')
-    + kpi('Enviados à contabilidade', nfInt(k.xml_enviados),
-          k.xml_destino ? ('para ' + k.xml_destino) : 'destino não configurado',
-          (k.xml_enviados ? 'ok' : ''),
-          'XML que já saíram por e-mail, com registro na trilha de envios. '
-            + 'Transmitir não é o fim: um CT-e autorizado que não chega a quem '
-            + 'escritura ainda não serviu para nada.', xmlEstado)
-    + kpi('Na fila do envio', nfInt(k.xml_fila),
-          k.xml_parados ? (k.xml_parados + ' parado' +
-              (k.xml_parados===1?'':'s') + ' — precisa de gente')
-            : (k.xml_ultimo ? 'último envio em ' + fmtDT(k.xml_ultimo)
-                            : 'nada enviado ainda'),
-          (k.xml_parados ? 'bad' : (k.xml_fila ? 'warn' : '')),
-          'Documentos de produção autorizados que ainda não foram por e-mail. '
-            + 'Saem sozinhos depois da próxima rodada de emissão em produção. '
-            + '“Parado” é o que bateu o teto de tentativas e não volta à fila '
-            + 'sozinho.');
-
-  document.getElementById('hintCtetx').textContent =
-    (k.primeiro ? 'primeira transmissão em ' + fmtDT(k.primeiro) + ' · ' : '')
-    + 'registro do CÓRTEX · gerado em ' + fmtDT(d.gerado_em);
+          'Recusa não emitiu nada: conta como tentativa, nunca como documento.');
 
   ctetxAlertas(d.alertas || []);
   ctetxDia(d.por_dia || []);
@@ -19917,162 +19694,184 @@ function ctetxRender(){
 }
 
 function ctetxAlertas(av){
+  /* "Ação necessária" mostra o que precisa de GENTE. Informativo entra na
+     lista, nao no cartao de acao: um card de alerta que quase sempre tem uma
+     linha ensina a ignorar o card. */
+  av = av.filter(a => a.nivel === 'bad' || a.nivel === 'warn');
   document.getElementById('ctetxAlertasCard').hidden = !av.length;
   const cor = {bad:'--red', warn:'--yellow', info:'--n600'};
   document.getElementById('ctetxAlertas').innerHTML = av.map(function(a){
-    return '<div class="hint" style="color:var(' + (cor[a.nivel]||'--n600')
-      + ')">' + esc(a.texto) + '</div>';
+    return '<div class="hint" style="color:var('+(cor[a.nivel]||'--n600')+')">'
+      + esc(a.texto) + '</div>';
   }).join('');
 }
 
-/* TRANSMISSOES POR DIA — quatro series empilhadas. Mesmo desenho da tela de
-   conciliacao, em viewBox largo porque aqui o cartao ocupa a linha inteira. */
+function ctetxVazio(id, texto){
+  const el = document.getElementById(id);
+  if(el) el.innerHTML = '<div style="padding:26px;color:var(--n500);'
+    + 'font-size:13px">' + esc(texto) + '</div>';
+}
+
+/* TRANSMISSOES POR DIA — barras empilhadas, quatro series.
+   ECharts porque a serie cresce todo dia e o `dataZoom` e o que evita a tela
+   ter de escolher entre "30 dias legiveis" e "o historico inteiro". */
 function ctetxDia(dias){
-  const SER=[['producao_ok','produção autorizado','var(--green)'],
-             ['producao_nao','produção recusado','var(--red)'],
-             ['homologacao_ok','homologação autorizado','var(--navy-400)'],
-             ['homologacao_nao','homologação recusado','var(--yellow)']];
-  const tot = x => SER.reduce((a,sr)=>a+(x[sr[0]]||0), 0);
-  const alvo = document.getElementById('ctetxDiaSvg');
-  if(!dias.length){
-    alvo.innerHTML='';
-    document.getElementById('hintCtetxDia').textContent='sem transmissão nos últimos 30 dias';
-    return;
-  }
-  const maxv=Math.max(1,...dias.map(tot));
-  const L=48,R=12,T=16,B=46,W=960,H=260;
-  const larg=(W-L-R)/dias.length, barW=Math.max(4,Math.min(34,larg*0.62));
-  let g='';
-  for(let i=0;i<=3;i++){
-    const v=Math.round(maxv*i/3), y=H-B-(H-B-T)*(i/3);
-    g+='<line x1="'+L+'" y1="'+y.toFixed(1)+'" x2="'+(W-R)+'" y2="'+y.toFixed(1)
-      +'" stroke="var(--n200)" stroke-width="1"/>'
-      +'<text x="'+(L-6)+'" y="'+(y+4).toFixed(1)+'" text-anchor="end" font-size="10" fill="var(--n500)">'+v+'</text>';
-  }
-  dias.forEach(function(x,i){
-    const cx=L+larg*i+larg/2; let base=H-B;
-    SER.forEach(function(sr){
-      const v=x[sr[0]]||0; if(!v) return;
-      const h=(H-B-T)*v/maxv;
-      g+='<rect x="'+(cx-barW/2).toFixed(1)+'" y="'+(base-h).toFixed(1)+'" width="'+barW.toFixed(1)
-        +'" height="'+h.toFixed(1)+'" fill="'+sr[2]+'"><title>'+esc(fmtD(x.dia))+' · '
-        +esc(sr[1])+': '+v+'</title></rect>';
-      base-=h;
-    });
-    /* rotulo de dia so quando cabe - senao vira borrao */
-    if(dias.length<=16 || i%Math.ceil(dias.length/16)===0){
-      g+='<text x="'+cx.toFixed(1)+'" y="'+(H-B+16)+'" text-anchor="middle" font-size="10" fill="var(--n500)">'
-        +esc((x.dia||'').slice(8)+'/'+(x.dia||'').slice(5,7))+'</text>';
-    }
+  const el = document.getElementById('chartCtetxDia');
+  if(!el) return;
+  const prod = dias.reduce((a,x)=>a+(x.producao_ok||0),0);
+  const homo = dias.reduce((a,x)=>a+(x.homologacao_ok||0),0);
+  document.getElementById('hintCtetxDia').textContent = dias.length
+    ? dias.length+' '+(dias.length===1?'dia':'dias')+' · '+prod
+      +' autorizado'+(prod===1?'':'s')+' em produção · '+homo+' em teste'
+    : '';
+  if(!dias.length){ ctetxVazio('chartCtetxDia','Sem transmissão nos últimos 30 dias.'); return; }
+
+  carregarECharts().then(function(ec){
+    const inst = ec.init(el, null, {renderer:'svg'});
+    echartsRegistrar('chartCtetxDia', inst);
+    const SER = [['producao_ok','Produção · autorizado', CTETX_COR.ok],
+                 ['producao_nao','Produção · recusado', CTETX_COR.nao],
+                 ['homologacao_ok','Teste · autorizado', CTETX_COR.teste],
+                 ['homologacao_nao','Teste · recusado', CTETX_COR.testeNao]];
+    inst.setOption({
+      animation: false,
+      grid: {left: 52, right: 20, top: 16, bottom: 62},
+      tooltip: {trigger:'axis', axisPointer:{type:'shadow'}, ...ctetxTooltip()},
+      legend: {bottom: 0, itemWidth: 10, itemHeight: 10, icon: 'roundRect',
+               textStyle:{color:'#6E7883', fontSize:11, fontFamily:CTETX_FONTE}},
+      xAxis: {type:'category', data: dias.map(x => fmtD(x.dia).slice(0,5)),
+              axisLine:{lineStyle:{color:'#C2C8D0'}}, axisTick:{show:false},
+              axisLabel:{color:'#6E7883', fontSize:10, fontFamily:CTETX_FONTE}},
+      yAxis: {type:'value', splitLine:{lineStyle:{color:'#ECEEF1'}},
+              axisLine:{show:false}, axisTick:{show:false},
+              axisLabel:{color:'#6E7883', fontSize:10, fontFamily:CTETX_MONO}},
+      series: SER.map(function(sr){
+        return {name: sr[1], type:'bar', stack:'t', barMaxWidth: 34,
+                itemStyle:{color: sr[2]},
+                data: dias.map(x => x[sr[0]]||0)};
+      }),
+    }, true);
+  }).catch(function(e){
+    /* Falha ao carregar a biblioteca e DITA no cartao: cartao vazio faria
+       parecer "sem transmissao no periodo". */
+    ctetxVazio('chartCtetxDia','Não foi possível carregar o gráfico: '+e.message);
   });
-  let lx=L;
-  SER.forEach(function(sr){
-    g+='<rect x="'+lx+'" y="'+(H-16)+'" width="9" height="9" fill="'+sr[2]+'"/>'
-      +'<text x="'+(lx+13)+'" y="'+(H-8)+'" font-size="9.5" fill="var(--n600)">'+esc(sr[1])+'</text>';
-    lx+=sr[1].length*5.4+28;
-  });
-  alvo.innerHTML=g;
-  const prod=dias.reduce((a,x)=>a+(x.producao_ok||0),0);
-  const homo=dias.reduce((a,x)=>a+(x.homologacao_ok||0),0);
-  document.getElementById('hintCtetxDia').textContent =
-    dias.length+' '+(dias.length===1?'dia':'dias')+' com transmissão · '
-    +prod+' autorizado'+(prod===1?'':'s')+' em produção · '+homo+' em homologação';
 }
 
-/* VALOR POR EMITENTE — barra horizontal, e nao rosca: sao poucos emitentes e
-   um deles domina. Rotulo direto no fim da barra; sem legenda. */
+/* VALOR POR EMITENTE — barra horizontal ordenada, rotulo direto no fim.
+   Nao e rosca: sao poucos emitentes e um domina; parte-do-todo com categoria
+   dominante vira barra empilhada ou barra ordenada, nunca donut. */
 function ctetxEmitentes(rows){
-  const com = rows.filter(r=>(r.valor||0) > 0).slice(0, 8);
-  const alvo = document.getElementById('ctetxEmiSvg');
-  if(!com.length){
-    alvo.innerHTML='';
-    document.getElementById('hintCtetxEmi').textContent =
-      'nenhum documento valendo em produção';
-    return;
-  }
-  /* ALTURA ACOMPANHA AS LINHAS. Com viewBox fixo, quatro emitentes deixavam
-     metade do cartao em branco e as barras espremidas no topo. */
-  const W=640, L=8, R=12, T=12, linha=30, barH=17;
-  const H=Math.max(90, T + linha*com.length + 10);
-  document.getElementById('ctetxEmiSvg').setAttribute('viewBox','0 0 '+W+' '+H);
-  const maxv=Math.max(...com.map(r=>r.valor||0));
-  const rotW=210, larg=W-L-R-rotW-64;
-  let g='';
-  com.forEach(function(r,i){
-    const y=T+linha*i, nome=(r.nome||r.cnpj_emitente||'—');
-    const w=Math.max(2, larg*(r.valor||0)/maxv);
-    g+='<text x="'+L+'" y="'+(y+barH*0.8).toFixed(1)+'" font-size="11" fill="var(--n700)">'
-      +esc(nome.length>32?nome.slice(0,31)+'…':nome)+'</text>'
-      +'<rect x="'+(L+rotW)+'" y="'+y.toFixed(1)+'" width="'+w.toFixed(1)+'" height="'+barH
-      +'" rx="2" fill="var(--navy-500)"><title>'+esc(nome)+' · '+esc(brl2(r.valor))
-      +' · '+r.validos+' documento'+(r.validos===1?'':'s')+' valendo</title></rect>'
-      +'<text x="'+(L+rotW+w+6).toFixed(1)+'" y="'+(y+barH*0.8).toFixed(1)
-      +'" font-size="10.5" fill="var(--n600)">'+esc(brlAbbr(r.valor))+'</text>';
+  const el = document.getElementById('chartCtetxEmi');
+  if(!el) return;
+  const com = rows.filter(r => (r.valor||0) > 0).slice(0, 8).reverse();
+  document.getElementById('hintCtetxEmi').textContent = com.length
+    ? com.length+' de '+rows.length+' · '+brl2(com.reduce((a,r)=>a+(r.valor||0),0))
+    : '';
+  if(!com.length){ ctetxVazio('chartCtetxEmi','Nenhum documento valendo em produção.'); return; }
+
+  carregarECharts().then(function(ec){
+    const inst = ec.init(el, null, {renderer:'svg'});
+    echartsRegistrar('chartCtetxEmi', inst);
+    const nome = r => (r.nome || r.cnpj_emitente || '—');
+    inst.setOption({
+      animation: false,
+      grid: {left: 6, right: 74, top: 8, bottom: 8, containLabel: true},
+      tooltip: {trigger:'item', ...ctetxTooltip(),
+        formatter: function(p){
+          const r = com[p.dataIndex];
+          return '<b>'+esc(nome(r))+'</b><br>'+brl2(r.valor)+'<br>'
+               + r.validos+' documento'+(r.validos===1?'':'s')+' valendo'
+               + (r.cancelados ? '<br>'+r.cancelados+' cancelado(s)' : '');
+        }},
+      xAxis: {type:'value', show:false},
+      yAxis: {type:'category', data: com.map(r => {
+                const n = nome(r); return n.length>26 ? n.slice(0,25)+'…' : n; }),
+              axisLine:{show:false}, axisTick:{show:false},
+              axisLabel:{color:'#4A525C', fontSize:11, fontFamily:CTETX_FONTE}},
+      series: [{
+        type:'bar', barMaxWidth: 18, itemStyle:{color: CTETX_COR.navy, borderRadius:[0,3,3,0]},
+        data: com.map(r => r.valor||0),
+        label: {show:true, position:'right', color:'#6E7883', fontSize:10.5,
+                fontFamily:CTETX_MONO, formatter: p => brlAbbr(p.value)},
+      }],
+    }, true);
+  }).catch(function(e){
+    ctetxVazio('chartCtetxEmi','Não foi possível carregar o gráfico: '+e.message);
   });
-  alvo.innerHTML=g;
-  const soma=com.reduce((a,r)=>a+(r.valor||0),0);
-  document.getElementById('hintCtetxEmi').textContent =
-    com.length+' de '+rows.length+' emitente'+(rows.length===1?'':'s')+' · '
-    +brl2(soma)+' no gráfico';
 }
 
-/* RETORNO DA SEFAZ — barra proporcional por codigo. Verde SO no 100; todo o
-   resto vermelho, porque codigo diferente de 100 significa que nada foi
-   emitido e um tom intermediario faria "recusado" parecer "quase la". A 748
-   sai em ambar com a explicacao: ela e esperada em homologacao. */
-function cortaPalavra(txt, n){
-  txt = (txt||'').trim();
-  if(txt.length <= n) return txt;
-  const corte = txt.slice(0, n);
-  const esp = corte.lastIndexOf(' ');
-  return (esp > n*0.6 ? corte.slice(0, esp) : corte).replace(/[.,;:]$/, '') + '…';
-}
-
+/* RETORNO DA SEFAZ — verde SO no 100. Todo o resto vermelho, porque codigo
+   diferente de 100 significa que nada foi emitido e um tom intermediario faria
+   "recusado" parecer "quase la". A 748 sai em ambar: e a unica recusa que nao
+   acusa defeito nenhum. */
 function ctetxCstat(rows){
-  const alvo = document.getElementById('ctetxCstat');
-  if(!rows.length){ alvo.innerHTML='<div class="hint">sem transmissão registrada</div>';
-    document.getElementById('hintCtetxCstat').textContent=''; return; }
-  const maxv=Math.max(...rows.map(r=>r.n||0));
-  alvo.innerHTML = rows.map(function(r){
-    const esperada = r.cstat==='748';
-    const cor = r.autorizado ? '--green' : (esperada ? '--yellow' : '--red');
-    const w = Math.max(2, 100*(r.n||0)/maxv);
-    const t = (r.xmotivo||'') + (esperada
-      ? '\n\nEsperada em homologação: o CT-e de origem não consta na base de '
-        + 'teste da SEFAZ porque foi autorizado em produção. Não é defeito do '
-        + 'documento nem do cadastro, e some sozinha ao virar a chave.'
-      : '');
-    return '<div style="display:flex;align-items:center;gap:10px;padding:5px 0" title="'+esc(t)+'">'
-      + '<span class="mono" style="min-width:44px;color:var('+cor+');font-weight:600">'+esc(r.cstat)+'</span>'
-      + '<span style="flex:0 0 120px;height:9px;background:var(--n100);border-radius:5px;overflow:hidden">'
-      +   '<span style="display:block;height:9px;width:'+w.toFixed(1)+'%;background:var('+cor+')"></span></span>'
-      + '<span class="mono" style="min-width:46px;text-align:right">'+nfInt(r.n)+'</span>'
-      + '<span class="hint" style="flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">'
-      +   esc(cortaPalavra((r.xmotivo||'').split('[')[0], 74))
-      +   (esperada?' — esperada em homologação':'') + '</span>'
-      + '</div>';
-  }).join('');
-  const tot=rows.reduce((a,r)=>a+(r.n||0),0);
-  document.getElementById('hintCtetxCstat').textContent =
-    rows.length+' código'+(rows.length===1?'':'s')+' · '+nfInt(tot)+' transmissões';
+  const el = document.getElementById('chartCtetxCstat');
+  if(!el) return;
+  const top = rows.slice(0, 8).reverse();
+  document.getElementById('hintCtetxCstat').textContent = rows.length
+    ? rows.length+' código'+(rows.length===1?'':'s')+' · '
+      + nfInt(rows.reduce((a,r)=>a+(r.n||0),0))+' transmissões'
+    : '';
+  if(!top.length){ ctetxVazio('chartCtetxCstat','Sem transmissão registrada.'); return; }
+
+  carregarECharts().then(function(ec){
+    const inst = ec.init(el, null, {renderer:'svg'});
+    echartsRegistrar('chartCtetxCstat', inst);
+    inst.setOption({
+      animation: false,
+      grid: {left: 6, right: 56, top: 8, bottom: 8, containLabel: true},
+      tooltip: {trigger:'item', ...ctetxTooltip(),
+        formatter: function(p){
+          const r = top[p.dataIndex];
+          return '<b>'+esc(r.cstat)+'</b> · '+nfInt(r.n)+'<br>'+esc(r.xmotivo||'')
+               + (r.cstat==='748'
+                  ? '<br><i>Esperada em teste: o CT-e de origem foi autorizado '
+                    + 'em produção e nunca vai constar na base de homologação.</i>'
+                  : '');
+        }},
+      xAxis: {type:'value', show:false},
+      yAxis: {type:'category', data: top.map(r => r.cstat),
+              axisLine:{show:false}, axisTick:{show:false},
+              axisLabel:{color:'#4A525C', fontSize:11, fontFamily:CTETX_MONO,
+                         fontWeight:600}},
+      series: [{
+        type:'bar', barMaxWidth: 18,
+        data: top.map(function(r){
+          return {value: r.n||0, itemStyle:{
+            color: r.autorizado ? CTETX_COR.ok
+                 : (r.cstat==='748' ? CTETX_COR.testeNao : CTETX_COR.nao),
+            borderRadius:[0,3,3,0]}};
+        }),
+        label: {show:true, position:'right', color:'#6E7883', fontSize:10.5,
+                fontFamily:CTETX_MONO, formatter: p => nfInt(p.value)},
+      }],
+    }, true);
+  }).catch(function(e){
+    ctetxVazio('chartCtetxCstat','Não foi possível carregar o gráfico: '+e.message);
+  });
 }
 
 function ctetxTabEmitentes(rows){
-  const alvo=document.getElementById('ctetxTabEmi');
-  if(!rows.length){ alvo.innerHTML='';
-    document.getElementById('hintCtetxTabEmi').textContent='nenhum emitente em produção';
-    return; }
+  const alvo = document.getElementById('ctetxTabEmi');
+  if(!alvo) return;
+  if(!rows.length){
+    alvo.innerHTML = '';
+    document.getElementById('hintCtetxTabEmi').textContent = 'nenhum em produção';
+    return;
+  }
   alvo.innerHTML =
-    '<thead><tr><th>Emitente</th><th>CNPJ</th><th class="num">Valendo</th>'
+    '<thead><tr><th>Emitente</th><th class="num">Valendo</th>'
     +'<th class="num">Cancelados</th><th class="num">Recusados</th>'
-    +'<th class="num">Valor</th><th>Faixa da série 900</th>'
-    +'<th class="num" title="Números entre o menor e o maior da faixa que NENHUMA linha ocupou. Não é o mesmo que recusado — o recusado continua registrado. Buraco é número que sumiu, e a única forma disso acontecer é uma transmissão que falhou antes de ser gravada.">Buracos</th><th>Último</th></tr></thead><tbody>'
+    +'<th class="num">Valor</th><th>Faixa</th>'
+    +'<th class="num" title="Números da faixa que nenhuma linha ocupou: transmissão que falhou antes de ser gravada. O documento pode ter chegado à SEFAZ mesmo assim.">Buracos</th>'
+    +'<th>Último</th></tr></thead><tbody>'
     + rows.map(function(r){
         const faixa = (r.n_de==null) ? '—'
-          : ('900/'+r.n_de + (r.n_ate!==r.n_de ? ' … 900/'+r.n_ate : ''));
+          : ('900/'+r.n_de + (r.n_ate!==r.n_de ? '–'+r.n_ate : ''));
         return '<tr>'
-          +'<td>'+esc(r.nome||'—')+'</td>'
-          +'<td class="mono">'+esc(r.cnpj_emitente)+'</td>'
+          +'<td>'+esc(r.nome||r.cnpj_emitente)
+          +'<div class="hint mono">'+esc(r.cnpj_emitente)+'</div></td>'
           +'<td class="num">'+(r.validos
               ? '<span class="badge b-ok">'+r.validos+'</span>' : '0')+'</td>'
           +'<td class="num">'+(r.cancelados
@@ -20082,91 +19881,81 @@ function ctetxTabEmitentes(rows){
           +'<td class="num mono">'+esc(r.valor ? brl2(r.valor) : '—')+'</td>'
           +'<td class="mono">'+esc(faixa)+'</td>'
           +'<td class="num">'+(r.buracos
-              ? '<span class="badge b-warn" title="Número escolhido que não virou linha no registro: transmissão que falhou antes de ser gravada. O documento pode ter chegado à SEFAZ mesmo assim — confira no portal antes de reemitir.">'+r.buracos+'</span>' : '—')+'</td>'
-          +'<td class="mono">'+esc(r.ultimo?fmtDT(r.ultimo):'—')+'</td>'
-          +'</tr>';
+              ? '<span class="badge b-warn">'+r.buracos+'</span>' : '—')+'</td>'
+          +'<td class="mono">'+esc(r.ultimo?fmtDT(r.ultimo):'—')+'</td></tr>';
       }).join('') + '</tbody>';
-  const validos=rows.reduce((a,r)=>a+(r.validos||0),0);
+  const validos = rows.reduce((a,r)=>a+(r.validos||0),0);
   document.getElementById('hintCtetxTabEmi').textContent =
-    rows.length+' emitente'+(rows.length===1?'':'s')+' com transmissão em produção · '
-    +validos+' documento'+(validos===1?'':'s')+' valendo';
+    rows.length+' emitente'+(rows.length===1?'':'s')+' · '+validos+' valendo';
 }
 
 function ctetxTabela(docs){
-  const amb=document.getElementById('fCtetxAmb').value;
-  const sit=document.getElementById('fCtetxSit').value;
-  const lista=docs.filter(function(t){
+  const alvo = document.getElementById('ctetxTab');
+  if(!alvo) return;
+  docs = docs || [];
+  const V = id => { const e=document.getElementById(id); return e ? e.value : ''; };
+  const amb = V('fCtetxAmb'), sit = V('fCtetxSit');
+  const lista = docs.filter(function(t){
     if(amb && String(t.ambiente)!==amb) return false;
-    if(sit==='valendo'   && !(t.autorizado && !t.cancelado)) return false;
+    if(sit==='valendo'   && !(String(t.ambiente)==='1' && t.autorizado && !t.cancelado)) return false;
     if(sit==='cancelado' && !t.cancelado) return false;
     if(sit==='recusado'  && t.autorizado) return false;
     return true;
   });
-  const alvo=document.getElementById('ctetxTab');
   if(!lista.length){
-    alvo.innerHTML='';
-    document.getElementById('hintCtetxTab').textContent =
-      docs.length ? 'nenhum documento com este recorte (de '+docs.length+' na janela)'
-                  : 'nenhuma transmissão na janela';
+    alvo.innerHTML = '';
+    document.getElementById('hintCtetxTab').textContent = docs.length
+      ? 'nenhum documento com este recorte (de '+docs.length+' na janela)'
+      : 'nenhuma transmissão na janela';
     return;
   }
   alvo.innerHTML =
-    '<thead><tr><th>Quando</th><th>Ambiente</th><th>Emitente</th>'
-    +'<th title="A numeração do CT-e é POR EMITENTE: cada agregado tem a própria série 900, e o primeiro documento de cada um é o 900/1. Série e número repetidos com emitentes diferentes é o comportamento correto — não é duplicidade.">Série/Nº</th>'
-    +'<th class="num">Valor</th><th>Situação</th><th>Arquivo</th>'
-    +'<th>Contabilidade</th><th>Chave</th><th>Quem</th></tr></thead><tbody>'
+    '<thead><tr><th>Quando</th><th>Emitente</th>'
+    +'<th title="A numeração é POR EMITENTE: cada agregado tem a própria série 900 e o primeiro documento de cada um é o 900/1. Repetição com emitentes diferentes não é duplicidade.">Série/Nº</th>'
+    +'<th class="num">Valor</th><th>Situação</th><th>Contabilidade</th>'
+    +'<th>Chave</th><th>Ações</th></tr></thead><tbody>'
     + lista.map(function(t){
-        const ch=t.chave||'';
-        const chCurta = ch.length>20 ? ch.slice(0,8)+'…'+ch.slice(-8) : (ch||'—');
-        const amb2 = String(t.ambiente)==='2'
-          ? '<span class="badge b-warn" title="Ambiente de teste da SEFAZ: o documento não tem valor fiscal, não é escriturado e não gera obrigação">homologação</span>'
-          : '<span class="badge b-ok">produção</span>';
-        /* SITUACAO em uma coluna so, com a hierarquia certa: cancelado vence
-           autorizado, porque o documento nao esta valendo. */
+        const ch = t.chave||'';
         const prod = String(t.ambiente)==='1';
-        /* "VALENDO" so existe em PRODUCAO. Documento de homologacao autorizado
-           nao vale nada: nao e escriturado e nao gera obrigacao. Chama-lo de
-           "valendo" seria a mentira que esta tela existe para nao contar. */
+        const chCurta = ch.length>20 ? ch.slice(0,8)+'…'+ch.slice(-8) : (ch||'—');
+        /* "VALENDO" so existe em PRODUCAO: documento de teste nao e
+           escriturado e nao gera obrigacao. O ambiente vira selo na propria
+           coluna de situacao, em vez de uma coluna so para ele. */
         const sit2 = t.cancelado
-          ? '<span class="badge b-dang" title="Documento cancelado — o evento está registrado na SEFAZ e ele NÃO está valendo">cancelado</span>'
+          ? '<span class="badge b-dang" title="Evento de cancelamento registrado na SEFAZ">cancelado</span>'
           : (t.autorizado
-             ? (prod
-                ? '<span class="badge b-ok" title="'+esc(t.xmotivo||'')+'">valendo</span>'
-                : '<span class="badge b-warn" title="Autorizado no ambiente de TESTE da SEFAZ: não tem valor fiscal, não é escriturado e não gera obrigação.">autorizado (teste)</span>')
+             ? (prod ? '<span class="badge b-ok">valendo</span>'
+                     : '<span class="badge b-warn" title="Ambiente de teste: sem valor fiscal">teste</span>')
              : '<span class="badge b-dang" title="'+esc(t.xmotivo||'')+'">'+esc(t.cstat||'?')+'</span>');
-        const arq = t.tem_arquivo
-          ? '<span class="badge b-ok" title="cteProc guardado — documento assinado mais o protocolo">guardado</span>'
-            +' <a class="badge b-info" style="text-decoration:none" href="/api/fiscal/contrapartida/documento/'+esc(ch)+'" download title="Baixa o XML com o protocolo">baixar</a>'
-          : (t.autorizado
-             ? '<span class="badge b-dang" title="Autorizado mas sem o XML: a chave prova que existe, o arquivo é que se importa">falta</span>'
-             : '<span class="hint">—</span>');
-        /* CONTABILIDADE: null nao e falha - significa que o documento nunca
-           entrou na fila (homologacao nunca entra, e producao anterior ao
-           corte tambem nao). Pintar de vermelho acusaria o que esta certo. */
+        /* CONTABILIDADE: travessao NAO e falha — significa que o documento
+           nunca entrou na fila (homologacao nunca entra, e producao anterior
+           ao corte da rotina tambem nao). Pintar de vermelho acusaria o que
+           esta certo. */
         const cont = (t.xml_enviado===true)
-          ? '<span class="badge b-ok" title="XML já enviado por e-mail à contabilidade">enviado</span>'
+          ? '<span class="badge b-ok">enviado</span>'
           : (t.xml_enviado===false
-             ? '<span class="badge b-warn" title="Entrou na fila e ainda não saiu">na fila</span>'
-             : '<span class="hint" title="Não entrou na fila: homologação nunca entra, e produção anterior ao corte da rotina também não.">—</span>');
-        return '<tr'+((t.autorizado && !t.cancelado)?'':' class="cp-recusada"')+'>'
+             ? '<span class="badge b-warn" title="Na fila, ainda não saiu">na fila</span>'
+             : '<span class="hint" title="Não entra na fila: homologação nunca entra, e produção anterior ao corte da rotina também não.">—</span>');
+        const acoes = (t.tem_arquivo
+            ? '<a class="badge b-info" style="text-decoration:none" href="/api/fiscal/contrapartida/documento/'+esc(ch)+'" download title="Baixa o cteProc — XML assinado + protocolo">XML</a> '
+            : (t.autorizado ? '<span class="badge b-dang" title="Autorizado sem o XML guardado: não há o que importar nem arquivar">sem XML</span> ' : ''))
+          + (t.autorizado && !t.cancelado && !t.evento
+             ? '<button class="gbtn" data-chave="'+esc(ch)+'" onclick="cpCancelar(this)" title="Cancela na SEFAZ. Ato fiscal com prazo: passado o prazo da UF não se cancela mais.">cancelar</button>'
+             : '');
+        return '<tr'+((prod && t.autorizado && !t.cancelado)?'':' class="cp-recusada"')+'>'
           +'<td class="mono">'+esc(fmtDT(t.quando||''))+'</td>'
-          +'<td>'+amb2+'</td>'
           +'<td>'+esc(t.nome||t.cnpj_emitente||'—')+'</td>'
-          +'<td class="mono" title="série 900 do emitente desta linha — a numeração é por emitente">'+esc(t.serie)+'/'+esc(t.numero)+'</td>'
+          +'<td class="mono">'+esc(t.serie)+'/'+esc(t.numero)+'</td>'
           +'<td class="num mono">'+esc(t.valor?brl2(t.valor):'—')+'</td>'
           +'<td>'+sit2+'</td>'
-          +'<td>'+arq+'</td>'
           +'<td>'+cont+'</td>'
           +'<td class="mono" title="'+esc(ch)+'">'+esc(chCurta)+'</td>'
-          +'<td>'+esc(t.quem||'')+'</td></tr>';
+          +'<td>'+acoes+'</td></tr>';
       }).join('') + '</tbody>';
-  /* "valendo" conta SO producao — em homologacao nada vale. Contar as duas
-     juntas era o mesmo erro que a tela toda evita nos cartoes. */
-  const valendo=lista.filter(t=>String(t.ambiente)==='1' && t.autorizado && !t.cancelado).length;
-  const teste=lista.filter(t=>String(t.ambiente)==='2' && t.autorizado).length;
+  const valendo = lista.filter(t => String(t.ambiente)==='1' && t.autorizado && !t.cancelado).length;
   document.getElementById('hintCtetxTab').textContent =
-    lista.length+' de '+docs.length+' transmissões na janela de '+(CTETX.dias||90)
-    +' dias · '+valendo+' valendo em produção · '+teste+' autorizadas em teste';
+    lista.length+' de '+docs.length+' na janela de '+(CTETX.dias||90)+' dias · '
+    + valendo+' valendo em produção';
 }
 
 /* --- Emissao do CT-e de contrapartida: ambiente e automacao ---------------
@@ -20996,7 +20785,6 @@ boot();
         <a href="#bal" onclick="fecharDrawer()"><span class="ic" data-ic="dre"></span>Balanço Patrimonial</a>
         <a href="#cont" onclick="fecharDrawer()"><span class="ic" data-ic="ctb"></span>Contabilidade</a>
         <a href="#ctecp" onclick="fecharDrawer()"><span class="ic" data-ic="ctb"></span>CT-e de Contrapartida</a>
-        <a href="#ctetx" onclick="fecharDrawer()"><span class="ic" data-ic="ctb"></span>CT-e — Transmitidos</a>
         <a href="#dre" onclick="fecharDrawer()"><span class="ic" data-ic="dre"></span>DRE Gerencial</a>
         <a href="#fech" onclick="fecharDrawer()"><span class="ic" data-ic="dre"></span>Fechamento do Mês</a>
         <a href="#orc" onclick="fecharDrawer()"><span class="ic" data-ic="dre"></span>Orçamento</a>

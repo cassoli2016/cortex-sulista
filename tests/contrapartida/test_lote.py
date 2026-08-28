@@ -521,9 +521,10 @@ def test_a_idempotencia_mora_no_TRANSMITIR_e_nao_so_no_lote():
     import inspect
     fonte = inspect.getsource(lote.emissao.transmitir)
     assert "_autorizado_para" in fonte
-    # e vem ANTES de reservar numero de serie: barrar depois ja teria gasto um
+    # e vem ANTES de RESERVAR o numero: barrar depois ja teria consumido um,
+    # e desde a trava de concorrencia a reserva GRAVA linha no banco
     assert (fonte.index("_autorizado_para")
-            < fonte.index("proximo_numero"))
+            < fonte.index("reservar_numero("))
 
 
 def test_repetir_e_EXPLICITO_e_avisa_do_primeiro():
@@ -786,13 +787,16 @@ def test_recusa_desconhecida_ainda_ganha_tres_tentativas():
 def test_cancelada_NAO_conta_como_ja_emitida(esquema_pg, monkeypatch):
     monkeypatch.setattr(lote.cadastro, "ESQUEMA", esquema_pg)
     with lote.emissao._conn() as c:
-        for cstat, chave in (("100", "CH-A"), ("CANC:135", "CH-A"),
-                             ("100", "CH-B")):
+        # numeros DIFERENTES: desde a trava de concorrencia o banco tem indice
+        # unico por (ambiente, cnpj, serie, numero), e so o evento de
+        # cancelamento pode reusar a numeracao do documento que derruba.
+        for cstat, chave, numero in (("100", "CH-A", 1), ("CANC:135", "CH-A", 1),
+                                     ("100", "CH-B", 2)):
             c.execute(
                 "INSERT INTO emissao(quando, quem, ambiente, cnpj_emitente,"
                 " serie, numero, chave, chave_origem, cstat)"
-                " VALUES('2026-08-28T10:00:00','t','1','111',900,1,%s,%s,%s)",
-                (chave, "ORIG-" + chave[-1], cstat))
+                " VALUES('2026-08-28T10:00:00','t','1','111',900,%s,%s,%s,%s)",
+                (numero, chave, "ORIG-" + chave[-1], cstat))
     # CH-A foi cancelada: a origem dela volta a precisar de contrapartida
     assert lote._ja_emitidas("1") == {"ORIG-B"}
 

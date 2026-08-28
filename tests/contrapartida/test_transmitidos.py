@@ -211,3 +211,35 @@ def test_lista_de_cancelamento_vem_de_emissao():
     que divergisse contaria documento morto como vigente."""
     import inspect
     assert "emissao.CANCELAMENTOS" in inspect.getsource(transmitidos.painel)
+
+
+# --- numero consumido sem retorno da SEFAZ ----------------------------------
+
+def test_numero_SEM_RETORNO_aparece_no_painel_e_no_alerta():
+    """E a unica pendencia desta tela que nao se resolve sozinha: o documento
+    partiu, a resposta nao voltou, e ele PODE estar autorizado no orgao sem
+    estar aqui. Some da vista = numero consumido que ninguem confere."""
+    _grava("ok", numero=1)
+    with transmitidos._conn() as c:
+        c.execute(
+            "INSERT INTO emissao(quando, quem, ambiente, cnpj_emitente, serie,"
+            " numero, chave_origem, xmotivo)"
+            " VALUES('2099-01-01T11:00','t','1','11111111111111',900,2,'o2',"
+            " 'SEM RETORNO DA SEFAZ (TimeoutError) — confira no portal')")
+
+    p = transmitidos.painel()
+    assert p["kpis"]["sem_retorno"] == 1
+    assert p["kpis"]["validos"] == 1, "reserva nao e documento"
+    assert any("SEM retorno" in a["texto"] for a in p["alertas"])
+
+
+def test_reserva_EM_VOO_nao_conta_como_sem_retorno():
+    """Uma reserva que acabou de nascer esta em voo, nao parada — acusa-la
+    faria a tela gritar durante cada emissao normal."""
+    with transmitidos._conn() as c:
+        c.execute(
+            "INSERT INTO emissao(quando, quem, ambiente, cnpj_emitente, serie,"
+            " numero, chave_origem, xmotivo)"
+            " VALUES('2099-01-01T11:00','t','1','11111111111111',900,1,'o',"
+            " 'reservado')")
+    assert transmitidos.painel()["kpis"]["sem_retorno"] == 0

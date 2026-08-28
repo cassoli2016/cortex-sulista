@@ -79,7 +79,13 @@ MAX_TENTATIVAS_MESMA_RECUSA = 3
 # homologacao de hoje sao esta recusa. Uma tentativa basta para registrar que
 # aconteceu; a segunda e a terceira so gastam chamada a SEFAZ e afundam as
 # recusas de verdade no meio.
-RECUSA_SEM_REPETICAO = {"748"}
+#   539 = duplicidade de numero. Com a reserva de numero e o indice unico
+#         (`emissao.reservar_numero`), este codigo passa a ser quase
+#         impossivel; se ainda assim aparecer, significa que o numero existe na
+#         SEFAZ e NAO existe aqui - reapresentar so queima o proximo numero, e
+#         cada tentativa queima mais um. Uma basta para registrar; o conserto e
+#         consultar a chave no portal.
+RECUSA_SEM_REPETICAO = {"748", "539"}
 
 # Teto de segurança do teto: mesmo que alguém peça mais, o lote não passa
 # disto numa execução. Existe para o caso de um `limite` vir de configuração

@@ -80,6 +80,12 @@ SELECT
                      AND e.xml_prot IS NOT NULL)                AS com_arquivo,
   count(DISTINCT e.cnpj_emitente) FILTER (WHERE e.ambiente='1'
                      AND e.cstat='100' AND {_NAO_CANCELADO})    AS emitentes,
+  -- NUMERO CONSUMIDO SEM RETORNO. `cstat` nulo com motivo diferente de
+  -- 'reservado' significa que o documento PARTIU e a resposta nao voltou: ele
+  -- pode estar autorizado na SEFAZ sem estar aqui. Nao se resolve por
+  -- software - alguem consulta a chave no portal e decide.
+  count(*) FILTER (WHERE e.cstat IS NULL
+                     AND coalesce(e.xmotivo,'') <> 'reservado')  AS sem_retorno,
   min(e.quando) FILTER (WHERE e.ambiente='1' AND e.cstat='100') AS primeiro,
   max(e.quando) FILTER (WHERE e.ambiente='1' AND e.cstat='100') AS ultimo
 FROM emissao e
@@ -184,6 +190,7 @@ def painel(dias: int = 90, limite: int = 200) -> dict:
         "com_arquivo": int(k["com_arquivo"] or 0),
         "sem_arquivo": max(validos - int(k["com_arquivo"] or 0), 0),
         "pct_arquivo": _pct(int(k["com_arquivo"] or 0), validos),
+        "sem_retorno": int(k["sem_retorno"] or 0),
         "primeiro": k["primeiro"], "ultimo": k["ultimo"],
     }
     kpis.update(_contabilidade())
@@ -275,6 +282,14 @@ def _alertas(k: dict, por_emi: list[dict]) -> list[dict]:
     """O que exige ação AGORA. Cada um diz o número e o que fazer com ele."""
     av: list[dict] = []
 
+    if k.get("sem_retorno"):
+        av.append({"nivel": "bad", "texto":
+                   f"{k['sem_retorno']} número(s) consumido(s) SEM retorno da "
+                   f"SEFAZ. O documento partiu e a resposta não voltou — ele "
+                   f"pode estar AUTORIZADO no órgão sem estar aqui. O número "
+                   f"não é reaproveitado de propósito; consulte a chave no "
+                   f"portal da SEFAZ antes de reemitir a origem."})
+
     if k.get("sem_arquivo"):
         av.append({"nivel": "bad", "texto":
                    f"{k['sem_arquivo']} documento(s) valendo SEM o XML "
@@ -305,12 +320,6 @@ def _alertas(k: dict, por_emi: list[dict]) -> list[dict]:
                    f"falhou antes de ser gravada — e o documento pode ter "
                    f"chegado à SEFAZ mesmo assim. Confira no portal antes de "
                    f"reemitir."})
-
-    if k.get("cancelados"):
-        av.append({"nivel": "info", "texto":
-                   f"{k['cancelados']} documento(s) cancelado(s) em produção. "
-                   f"Eles NÃO estão valendo e não entram em nenhum total desta "
-                   f"tela — aparecem na tabela com o selo de cancelado."})
 
     if not k.get("validos"):
         av.append({"nivel": "info", "texto":

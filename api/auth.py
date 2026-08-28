@@ -105,7 +105,6 @@ TELAS: dict[str, tuple[str, str]] = {  # chave -> (rótulo, grupo do menu)
     "he":      ("Horas Extras", "Recursos Humanos"),
     "poli":    ("Permanência na Planta — Tupy", "Operação"),
     "ctecp":   ("CT-e de Contrapartida", "Controladoria"),
-    "ctetx":   ("CT-e — Documentos Transmitidos", "Controladoria"),
     "anpiso":  ("Piso Mínimo de Frete", "ANTT"),
     "anrntrc": ("RNTRC dos Transportadores", "ANTT"),
     "telcon":  ("Consumo e Estatísticas", "Telemetria"),
@@ -144,12 +143,10 @@ ROTA_TELAS: list[tuple[str, frozenset[str]]] = [
     ("/api/operacional/poligonos",    frozenset({"poli"})),
     # sub-rotas ANTES da generica: ROTA_TELAS casa por PREFIXO
     # mais especifica ANTES da generica: ROTA_TELAS casa por PREFIXO
-    # MAIS ESPECIFICA ANTES DA GENERICA: `/api/fiscal/contrapartida` casaria
-    # `/transmitidos` pelo prefixo e barraria quem so tem a tela nova.
-    ("/api/fiscal/contrapartida/transmitidos", frozenset({"ctetx"})),
+    ("/api/fiscal/contrapartida/transmitidos", frozenset({"ctecp"})),
     ("/api/fiscal/contrapartida/validacao", frozenset({"ctecp"})),
     ("/api/fiscal/contrapartida/automacao", frozenset({"ctecp"})),
-    ("/api/fiscal/contrapartida/documento", frozenset({"ctecp", "ctetx"})),
+    ("/api/fiscal/contrapartida/documento", frozenset({"ctecp"})),
     ("/api/fiscal/contrapartida/envio", frozenset({"ctecp"})),
     ("/api/fiscal/contrapartida/cancelar", frozenset({"ctecp"})),
     ("/api/fiscal/contrapartida/autorizacao", frozenset({"ctecp"})),
@@ -303,7 +300,7 @@ _PERFIS_MODELO = [
      ["fluxo", "fluxcon", "receber", "pagar", "cob", "banc", "extb", "lanc", "antec", "rec", "antport"]),
     ("Controladoria", "DRE gerencial, balanço patrimonial, contabilidade, DRE/margem por cliente, qualidade/certidões e extrato bancário.",
      ["dre", "bal", "cont", "drecli", "qual", "orc", "banc", "extb", "fech", "anpiso",
-      "anrntrc", "ctecp", "ctetx"]),
+      "anrntrc", "ctecp"]),
     ("Operação",    "Torre de controle, programação, jornada, custos extras, SAC/freetime, portaria, análise de KM, agregados e make-vs-buy.",
      ["torre", "prog", "jorn", "cex", "sac", "port", "km", "agr", "mvb",
       "poli"]),
@@ -677,18 +674,18 @@ def _seed_perfis_modelo(c: psycopg.Connection) -> None:
                           " VALUES(%s,%s) ON CONFLICT DO NOTHING", (row["id"], "ctecp"))
         c.execute("INSERT INTO config(chave, valor) VALUES('perfis_modelo_v32', '1') ON CONFLICT(chave) DO NOTHING")
 
-    # v33 (2026-08-28): tela 'ctetx' (acompanhamento dos CT-e transmitidos).
-    # Mesmos perfis da 'ctecp': quem acompanha a fila e quem acompanha o que
-    # saiu sao a mesma pessoa, e separar so criaria um perfil que ninguem lembra
-    # de conceder.
-    if not c.execute("SELECT 1 FROM config WHERE chave='perfis_modelo_v33'").fetchone():
-        for nome_perfil in ("Controladoria", "Diretoria"):
-            row = c.execute("SELECT id FROM perfis WHERE nome=%s",
-                            (nome_perfil,)).fetchone()
-            if row:
-                c.execute("INSERT INTO perfil_telas(perfil_id, tela)"
-                          " VALUES(%s,%s) ON CONFLICT DO NOTHING", (row["id"], "ctetx"))
-        c.execute("INSERT INTO config(chave, valor) VALUES('perfis_modelo_v33', '1') ON CONFLICT(chave) DO NOTHING")
+    # v33 (2026-08-28): concedeu a tela 'ctetx' a Controladoria e Diretoria.
+    # A tela durou horas: virou ABA dentro da 'ctecp', porque acompanhar a fila
+    # e acompanhar o que saiu sao a mesma sessao de trabalho e nao mereciam
+    # duas entradas no menu. O bloco fica registrado aqui como historia; quem
+    # limpa e a v34.
+
+    # v34 (2026-08-28): recolhe as concessoes da v33. Sem isto, `perfil_telas`
+    # guarda para sempre linhas apontando para uma tela que nao existe mais em
+    # `TELAS` - invisiveis na interface e confusas para quem for ler a tabela.
+    if not c.execute("SELECT 1 FROM config WHERE chave='perfis_modelo_v34'").fetchone():
+        c.execute("DELETE FROM perfil_telas WHERE tela='ctetx'")
+        c.execute("INSERT INTO config(chave, valor) VALUES('perfis_modelo_v34', '1') ON CONFLICT(chave) DO NOTHING")
 
 
 def _agora() -> str:

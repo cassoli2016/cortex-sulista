@@ -194,8 +194,8 @@ def test_o_que_e_ANTERIOR_ao_corte_fica_de_fora():
     tudo numa caixa que ninguem avisou faz o primeiro e-mail virar spam — e
     com ele os seguintes, que sao os que importam."""
     _ligar()
-    _grava("antigo", quando="2000-01-01T10:00:00")
-    _grava("novo", quando="2099-01-01T10:00:00")
+    _grava("antigo", numero=1, quando="2000-01-01T10:00:00")
+    _grava("novo", numero=2, quando="2099-01-01T10:00:00")
     assert [x["chave"] for x in xml_email.pendentes()] == ["novo"]
 
 
@@ -219,14 +219,24 @@ def test_nao_reenvia_o_que_ja_saiu(monkeypatch):
     assert len(SMTPFake.enviadas) == 1
 
 
-def test_retransmissao_da_mesma_chave_nao_vira_dois_anexos(monkeypatch):
-    """Uma retransmissao gera OUTRA linha em `emissao` com a mesma chave. Sem
-    o DISTINCT ON o mesmo documento iria duas vezes na mesma mensagem."""
+def test_a_mesma_chave_em_duas_linhas_nao_vira_dois_anexos(monkeypatch):
+    """O DISTINCT ON da fila.
+
+    Duas linhas AUTORIZADAS com a mesma chave viraram impossiveis quando a
+    numeracao ganhou indice unico — mas a chave ainda aparece duas vezes
+    sempre que ha cancelamento, porque o evento entra como linha propria na
+    mesma chave. A guarda continua valendo e continua barata."""
     _smtp_pronto(monkeypatch)
     _ligar()
     _grava("repetida", numero=1)
-    _grava("repetida", numero=1)
-    assert len(xml_email.pendentes()) == 1
+    with xml_email._conn() as c:
+        c.execute(
+            "INSERT INTO emissao(quando, quem, ambiente, cnpj_emitente, serie,"
+            " numero, chave, chave_origem, cstat, xmotivo)"
+            " VALUES('2099-01-03T10:00:00','t','1','11111111111111',900,1,"
+            " 'repetida','origem-repetida','CANC:631','duplicidade de evento')")
+    # cancelada NAO vai para a contabilidade, e nao vai DUAS vezes
+    assert xml_email.pendentes() == []
 
 
 # --- o anexo ----------------------------------------------------------------

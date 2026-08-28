@@ -45,7 +45,19 @@ def test_o_script_do_app_compila(tmp_path):
 
 def test_o_bloco_de_transmissoes_aparece_UMA_vez():
     """A fatia que quebrou o arquivo tambem DUPLICOU o trecho, porque o
-    marcador de fim casou dentro de outra funcao. Contar e barato."""
+    marcador de fim casou dentro de outra funcao. Contar e barato.
+
+    A guarda ja valeu duas vezes, com dois anos de distancia entre uma linha e
+    outra deste arquivo: em 26/08, quando nasceu, e em 28/08, quando a tabela
+    virou a aba "Transmitidos" e um `s.index` pegou uma ocorrencia ANTERIOR ao
+    trecho a remover — a fatia `s[:i] + s[j:]` com j < i nao remove, DUPLICA.
+    Os ids mudaram (`cpTxTab` -> `ctetxTab`); a contagem continua barata.
+    """
     fonte = HTML.read_text(encoding="utf-8")
-    assert fonte.count("cpTxTab').innerHTML") == 1
-    assert fonte.count("id=\"cpTxTab\"") == 1
+    # a tabela: uma no HTML, uma no script que a preenche
+    assert fonte.count('id="ctetxTab"') == 1
+    assert fonte.count("getElementById('ctetxTab')") == 1
+    # e cada funcao da aba, uma vez so. `loadCtecp` esta aqui porque foi ELA
+    # que duplicou em 28/08 — a fatia atravessou o fim dela.
+    for f in ("ctetxTabela", "ctetxRender", "loadCtetx", "loadCtecp"):
+        assert fonte.count(f"function {f}(") == 1, f"{f} nao aparece uma vez so"

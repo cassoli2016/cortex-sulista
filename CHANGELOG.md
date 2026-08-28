@@ -4,6 +4,19 @@ Gerado de `docs/versoes.yaml` por `scripts/gerar_changelog.py` — não editar �
 Formato [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/),
 versionamento [SemVer](https://semver.org/lang/pt-BR/).
 
+## [0.129.0] — 28/08/2026  ·  CX-28/08/2026-v0.129.0
+
+### Adicionado
+- TRAVA DE CONCORRENCIA NA NUMERACAO DO CT-e. O numero agora e RESERVADO no banco antes de o documento ser montado, e um indice unico por (ambiente, emitente, serie, numero) recusa quem chegar depois. Antes a leitura do maior numero acontecia numa transacao e a gravacao em outra, com uma chamada de segundos a SEFAZ no meio: duas execucoes simultaneas escolhiam o mesmo numero. E nao pararia em numero repetido - o codigo numerico da chave nao e aleatorio, e sim uma soma dos campos anteriores, entao numero igual produz CHAVE igual, bit a bit.
+- Reserva em vez de lock porque um lock teria de ser segurado com transacao aberta durante a chamada a SEFAZ, que pode levar 30 segundos e pendurar - trocaria uma corrida por uma conexao presa. Quem perde a corrida descobre ao reservar, antes de montar e antes de assinar, e simplesmente pega o proximo numero.
+- NUMERO QUE PARTIU SEM RESPOSTA NAO E REAPROVEITADO. Se a transmissao estoura depois de o documento sair, ele pode estar autorizado na SEFAZ sem estar aqui - reusar o numero criaria uma segunda chave identica a de um documento que talvez exista. A linha fica registrada, aparece na tela e diz para conferir a chave no portal. Falha ANTES de transmitir devolve o numero, porque ai nao ha documento nenhum la fora.
+
+### Alterado
+- A tela "Documentos Transmitidos" virou ABA da tela de CT-e de Contrapartida, ao lado de Despacho do dia e Implantacao. Acompanhar a fila e acompanhar o que saiu sao a mesma sessao de trabalho, e duas entradas no menu obrigavam a navegar entre elas para responder uma pergunta so. A lista antiga de transmissoes saiu do Despacho e virou a lista da aba, com emitente, valor, situacao e o estado do envio a contabilidade.
+- Os graficos da aba passaram a usar a biblioteca de graficos (ECharts), carregada SOB DEMANDA - so quem abre a aba baixa o arquivo. Transmissoes por dia, valor por emitente e retorno da SEFAZ.
+- O card de filtros do topo some na aba Transmitidos: periodo e busca por agregado recortam a FILA, e nenhuma consulta da aba os consome. Filtro que a query ignora sai da vista em vez de convidar a mexer.
+- Rejeicao 539 (duplicidade de numero) entrou na lista de recusas que NAO se repetem. Com a reserva ela virou quase impossivel; se ainda assim aparecer, significa que o numero existe na SEFAZ e nao existe aqui, e cada reapresentacao queima mais um numero.
+
 ## [0.128.0] — 28/08/2026  ·  CX-28/08/2026-v0.128.0
 
 ### Adicionado
