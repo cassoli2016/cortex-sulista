@@ -4,6 +4,11 @@ Gerado de `docs/versoes.yaml` por `scripts/gerar_changelog.py` — não editar �
 Formato [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/),
 versionamento [SemVer](https://semver.org/lang/pt-BR/).
 
+## [0.117.2] — 27/08/2026  ·  CX-27/08/2026-v0.117.2
+
+### Alterado
+- Registrada a decisao sobre biblioteca de graficos: o CORTEX continua com SVG escrito a mao. O amCharts 5 foi avaliado e nao adotado - a licenca para aplicacao atras de login custa US$ 650 por assento, a versao gratis proibe esconder o logo (que apareceria no mural do corredor), e os 43 graficos atuais carregam comportamentos que levariam semanas para reconstruir. Fica escrito para ninguem refazer a pesquisa, com o criterio que reabriria a conversa: painel que precise de zoom, drill-down, gantt ou mapa.
+
 ## [0.117.1] — 27/08/2026  ·  CX-27/08/2026-v0.117.1
 
 ### Corrigido

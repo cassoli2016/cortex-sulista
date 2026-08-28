@@ -126,6 +126,25 @@ Toda construção de painel segue a skill `dashboard-builder` e este padrão:
 4. **Tabela acionável**: linhas ordenadas por prioridade/risco, com ação sugerida.
 5. **Alertas**: ocorrências que exigem ação agora.
 
+**Gráfico é SVG escrito à mão, e isso foi decidido, não herdado.** São 43 no
+`index.html`, sem NENHUMA dependência de JavaScript externo — sem build, sem
+CDN, servido do disco e funcionando atrás do túnel sem falar com ninguém.
+O amCharts 5 foi avaliado em 27/08/2026 e **não adotado**:
+
+- licença — o CÓRTEX é atrás de login, então a Basic (US$ 180) não cobre; seria
+  a Single App/SaaS a US$ 650 perpétua por assento. A versão grátis é linkware
+  e a licença PROÍBE esconder o logo, que apareceria no mural do corredor;
+- peso — +663 KB (core 455 + xy 179 + percent 28) contra 1.335 KB do arquivo
+  inteiro;
+- risco — os 43 gráficos carregam os comportamentos que esta seção documenta
+  (mês parcial hachurado, rótulo direto, semáforo discreto, anti-colisão,
+  teclado). Migrar é semanas e arrisca perder cada um.
+
+O que ele traria e não temos: zoom/pan em série longa, drill-down, exportação,
+gantt e mapas. Se um painel novo precisar DISSO — e não de um gráfico melhor —
+a conversa se reabre, começando por um piloto na área de BI, com os arquivos
+vendorizados localmente e nunca por CDN.
+
 **Design system (valores reais implementados — tokens em `api/static/index.html`):**
 - **Marca:** amarelo Sulista `#FFD31C` = `--brand`, usado SÓ em superfície escura (trilho
   do nav ativo na sidebar/bottomnav navy, logo) — contraste ruim no branco (1,44:1), NÃO é

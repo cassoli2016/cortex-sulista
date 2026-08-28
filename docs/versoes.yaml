@@ -1,3 +1,16 @@
+- versao: "0.117.2"
+  data: "2026-08-27"
+  alterado:
+    - >-
+      Registrada a decisao sobre biblioteca de graficos: o CORTEX continua com
+      SVG escrito a mao. O amCharts 5 foi avaliado e nao adotado - a licenca
+      para aplicacao atras de login custa US$ 650 por assento, a versao gratis
+      proibe esconder o logo (que apareceria no mural do corredor), e os 43
+      graficos atuais carregam comportamentos que levariam semanas para
+      reconstruir. Fica escrito para ninguem refazer a pesquisa, com o criterio
+      que reabriria a conversa: painel que precise de zoom, drill-down, gantt
+      ou mapa.
+
 - versao: "0.117.1"
   data: "2026-08-27"
   corrigido:
