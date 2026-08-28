@@ -37,6 +37,14 @@ A oitava nasceu com os modelos e vale para TODO envio, não só para quem usa
 modelo: é a última rede antes do texto sair. Quem monta a mensagem já valida os
 valores, mas quem monta a mensagem é código de área — e a chamada errada de uma
 delas não pode virar "Prezado {{cliente}}" no celular do cliente.
+
+DUAS INSTÂNCIAS. `instancia=` escolhe o aparelho — "principal" (padrão) ou
+"backup". Ela atravessa TUDO: o cliente HTTP (outro par de credenciais), o
+freio (contador de destinatários próprio, porque a reputação é de cada número)
+e a trilha (para "por qual número saiu isso?" ter resposta). Não há troca
+automática de uma para a outra: se o sistema disparasse pelo reserva sozinho
+quando o principal cai, queimaria o segundo número também — e ter reserva é
+justamente para não ficar sem nenhum. Quem envia escolhe.
 """
 from __future__ import annotations
 
@@ -51,7 +59,7 @@ def _resultado(telefone_bruto: str, erro: str = "", *, telefone: str = "",
 
 def _recusar(bruto: str, normalizado: str, motivo: str, *, usuario: str,
              origem: str, registrar: bool, esquema: str | None,
-             modelo: str = "") -> dict:
+             modelo: str = "", instancia: str = "principal") -> dict:
     """A recusa entra na trilha SEM o texto da mensagem, ao contrário do que o
     correio faz com o e-mail que falhou.
 
@@ -64,7 +72,7 @@ def _recusar(bruto: str, normalizado: str, motivo: str, *, usuario: str,
     if registrar:
         registro.gravar(normalizado or numeros.so_digitos(bruto), "",
                         usuario=usuario, origem=origem, ok=False, erro=motivo,
-                        modelo=modelo, esquema=esquema)
+                        modelo=modelo, instancia=instancia, esquema=esquema)
     return _resultado(bruto, motivo, telefone=normalizado)
 
 
@@ -84,15 +92,17 @@ def montar_texto(mensagem: str) -> str:
 
 def enviar(telefone: str, mensagem: str, *, usuario: str = "",
            origem: str = "manual", registrar: bool = True, modelo: str = "",
-           http=None, esquema: str | None = None) -> dict:
-    """Envia UMA mensagem. Nunca levanta."""
+           instancia: str | None = None, http=None,
+           esquema: str | None = None) -> dict:
+    """Envia UMA mensagem por UMA instância. Nunca levanta."""
     bruto = str(telefone or "").strip()
     c = cfg.ler()
-    # os mesmos cinco argumentos em todas as recusas: com oito pontos de saída,
+    inst = cliente.qual_valida(instancia)
+    # os mesmos seis argumentos em todas as recusas: com oito pontos de saída,
     # repeti-los à mão é exatamente onde um deles fica para trás — foi assim que
     # `modelo` quase não chegou à trilha da RECUSA, só à do sucesso
     recusa = dict(usuario=usuario, origem=origem, registrar=registrar,
-                  esquema=esquema, modelo=modelo)
+                  esquema=esquema, modelo=modelo, instancia=inst)
 
     try:
         numero = numeros.normalizar(bruto)
@@ -114,9 +124,11 @@ def enviar(telefone: str, mensagem: str, *, usuario: str = "",
             + ", ".join("{{%s}}" % v for v in sobrando)
             + ". Ela sairia assim, literal, para o destinatário.", **recusa)
 
-    if not cliente.configurado():
+    if not cliente.configurado(inst):
+        de = ("" if inst == cliente.PADRAO
+              else f" da instância {cliente.ROTULOS[inst].lower()}")
         return _recusar(bruto, numero,
-                        "WhatsApp não configurado. Configure a Z-API em "
+                        f"WhatsApp não configurado{de}. Configure a Z-API em "
                         "Gestão › WhatsApp.", **recusa)
 
     if not c["ativo"]:
@@ -135,37 +147,44 @@ def enviar(telefone: str, mensagem: str, *, usuario: str = "",
     # O limite conta destinatários NOVOS do dia. Continuar uma conversa já
     # aberta hoje não consome cota: é o caso de menor risco que existe, e
     # bloqueá-lo faria o freio atrapalhar justamente o uso legítimo.
-    if not registro.ja_falou_hoje(numero, esquema=esquema):
-        usados = registro.contar_destinatarios_hoje(esquema=esquema)
+    if not registro.ja_falou_hoje(numero, esquema=esquema, instancia=inst):
+        usados = registro.contar_destinatarios_hoje(esquema=esquema,
+                                                    instancia=inst)
         if usados >= c["limite_dia"]:
+            # o limite é DESTA instância: dizer qual evita o engano de achar
+            # que o sistema inteiro travou quando o outro número está livre
             return _recusar(
                 bruto, numero,
-                f"Limite diário atingido: {usados} destinatários diferentes "
-                f"hoje (máximo {c['limite_dia']}). O limite existe para o "
-                "número não ser banido pelo WhatsApp; ele zera à meia-noite.",
+                f"Limite diário atingido no número {cliente.ROTULOS[inst].lower()}: "
+                f"{usados} destinatários diferentes hoje (máximo "
+                f"{c['limite_dia']}). O limite existe para o número não ser "
+                "banido pelo WhatsApp; ele zera à meia-noite.",
                 **recusa)
 
     # A Z-API aceita e enfileira quando o celular está fora — 200 sem entrega.
-    est = cliente.estado(http=http)
+    est = cliente.estado(http=http, qual=inst)
     if not est.get("conectado"):
         detalhe = est.get("erro") or "o aparelho não está conectado"
         return _recusar(
             bruto, numero,
-            f"A instância da Z-API não está conectada ({detalhe}). A mensagem "
-            "NÃO foi enviada — se tivesse sido, ficaria na fila deles e "
-            "dispararia toda de uma vez quando o aparelho voltasse.",
+            f"A instância {cliente.ROTULOS[inst].lower()} da Z-API não está "
+            f"conectada ({detalhe}). A mensagem NÃO foi enviada — se tivesse "
+            "sido, ficaria na fila deles e dispararia toda de uma vez quando o "
+            "aparelho voltasse.",
             **recusa)
 
     try:
-        r = cliente.Cliente(http=http).enviar_texto(
+        r = cliente.Cliente(http=http, qual=inst).enviar_texto(
             numero, texto, intervalo_seg=c["intervalo_seg"])
         message_id = str(r.get("messageId") or r.get("id") or "")
         if registrar:
             registro.gravar(numero, texto, usuario=usuario, origem=origem,
                             ok=True, message_id=message_id, modelo=modelo,
-                            esquema=esquema)
-        return _resultado(bruto, telefone=numero, ok=True,
+                            instancia=inst, esquema=esquema)
+        fora = _resultado(bruto, telefone=numero, ok=True,
                           message_id=message_id)
+        fora["instancia"] = inst
+        return fora
     except (cliente.ZapiIndisponivel, cliente.ZapiNaoConfigurado) as exc:
         # `str(exc)` aqui é seguro: quem levanta já sanitizou. A garantia está
         # em cliente._sanitizar, com teste próprio.
@@ -177,7 +196,8 @@ def enviar(telefone: str, mensagem: str, *, usuario: str = "",
 
 
 def enviar_varios(telefones, mensagem: str, *, usuario: str = "",
-                  origem: str = "manual", modelo: str = "", http=None,
+                  origem: str = "manual", modelo: str = "",
+                  instancia: str | None = None, http=None,
                   esquema: str | None = None) -> dict:
     """Manda para vários e devolve o resultado de CADA um.
 
@@ -191,7 +211,8 @@ def enviar_varios(telefones, mensagem: str, *, usuario: str = "",
                 "enviados": 0, "falhas": 0, "resultados": []}
 
     resultados = [enviar(t, mensagem, usuario=usuario, origem=origem,
-                         modelo=modelo, http=http, esquema=esquema)
+                         modelo=modelo, instancia=instancia, http=http,
+                         esquema=esquema)
                   for t in alvos]
     enviados = sum(1 for r in resultados if r["ok"])
     return {"ok": enviados > 0, "erro": "" if enviados else resultados[0]["erro"],
@@ -200,7 +221,8 @@ def enviar_varios(telefones, mensagem: str, *, usuario: str = "",
 
 
 def enviar_modelo(telefones, chave: str, valores: dict | None = None, *,
-                  usuario: str = "", origem: str = "", http=None,
+                  usuario: str = "", origem: str = "",
+                  instancia: str | None = None, http=None,
                   esquema: str | None = None) -> dict:
     """ESTA é a porta que as outras áreas do sistema usam.
 
@@ -238,4 +260,5 @@ def enviar_modelo(telefones, chave: str, valores: dict | None = None, *,
 
     return enviar_varios(telefones, texto, usuario=usuario,
                          origem=origem or f"modelo:{modelo['chave']}",
-                         modelo=modelo["chave"], http=http, esquema=esquema)
+                         modelo=modelo["chave"], instancia=instancia,
+                         http=http, esquema=esquema)

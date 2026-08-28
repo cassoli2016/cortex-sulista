@@ -1094,6 +1094,10 @@ button.avatar{border:0;cursor:pointer}
 /* Campo de mensagem do WhatsApp: fora da grade `.ges-cfg` de propósito — numa
    coluna de 220px o texto ficaria numa fresta, e é o campo que a pessoa relê
    antes de mandar para um cliente. */
+.wa-inst-rot{padding:14px 18px 0;font-size:11px;text-transform:uppercase;
+  letter-spacing:.06em;color:var(--n500);font-weight:700}
+.wa-inst-rot .wa-inst-sub{text-transform:none;letter-spacing:0;font-weight:500}
+.wa-inst-nota{padding:4px 18px 0;font-size:11px;color:var(--n500);line-height:1.5}
 .wa-msgbox{padding:14px 18px 0}
 .wa-msgbox label{display:block;font-size:12px;font-weight:600;color:var(--n600,#6B7280);margin-bottom:4px}
 .wa-msgbox textarea{width:100%;resize:vertical;min-height:84px;padding:9px 10px;
@@ -4243,11 +4247,19 @@ body.tvfull #btnReport,body.tvmode #btnReport{display:none}
         </div>
         <div id="gpane-whatsapp" style="display:none">
           <div class="card">
-            <div class="head"><h2>Conexão com a Z-API <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="A Z-API conecta um número de WhatsApp REAL da empresa — não é a API oficial do WhatsApp. O id da instância e o token formam o endereço das chamadas, então os DOIS são segredo: ficam no cofre (data/credenciais.json, permissão restrita) e nunca voltam para a tela, como o token da Gobrax. O terceiro campo só é necessário se você ativou a validação por token na aba Segurança do painel da Z-API.">i</span></h2><span class="hint" id="wa-conexao">—</span></div>
+            <div class="head"><h2>Conexão com a Z-API <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="A Z-API conecta um número de WhatsApp REAL da empresa — não é a API oficial do WhatsApp. O id da instância e o token formam o endereço das chamadas, então os DOIS são segredo: ficam no cofre (data/credenciais.json, permissão restrita) e nunca voltam para a tela, como o token da Gobrax. O terceiro campo só é necessário se você ativou a validação por token na aba Segurança do painel da Z-API. A instância RESERVA é opcional e é outro número, com outra reputação no WhatsApp: o limite diário é contado separadamente para cada uma, e não existe troca automática entre elas — quem envia escolhe por qual número mandar.">i</span></h2><span class="hint" id="wa-conexao">—</span></div>
+            <div class="wa-inst-rot">Número principal — o do dia a dia</div>
             <div class="ges-cfg">
               <div><label for="wa-inst">ID da instância</label><input type="password" id="wa-inst" autocomplete="off" placeholder="digite para trocar"></div>
               <div><label for="wa-tok">Token da instância</label><input type="password" id="wa-tok" autocomplete="new-password" placeholder="digite para trocar"></div>
               <div><label for="wa-ctok">Token de segurança da conta</label><input type="password" id="wa-ctok" autocomplete="new-password" placeholder="só se ativado no painel Z-API"></div>
+            </div>
+            <div class="wa-inst-rot">Número reserva <span class="wa-inst-sub">(opcional) <span id="wa-conexao2">—</span></span></div>
+            <div class="wa-inst-nota">Pode ficar cadastrado e desconectado — é o normal de um reserva. As credenciais são salvas do mesmo jeito, e ele só passa a aparecer no seletor de envio depois de pareado na Z-API.</div>
+            <div class="ges-cfg">
+              <div><label for="wa-inst2">ID da instância</label><input type="password" id="wa-inst2" autocomplete="off" placeholder="deixe em branco se não houver reserva"></div>
+              <div><label for="wa-tok2">Token da instância</label><input type="password" id="wa-tok2" autocomplete="new-password" placeholder="digite para trocar"></div>
+              <div><label for="wa-ctok2">Token de segurança da conta</label><input type="password" id="wa-ctok2" autocomplete="new-password" placeholder="só se ativado no painel Z-API"></div>
             </div>
             <div class="m-foot">
               <span class="m-err" id="wa-cred-err"></span>
@@ -4285,6 +4297,8 @@ body.tvfull #btnReport,body.tvmode #btnReport{display:none}
             <div class="head"><h2>Enviar mensagem <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="É o mesmo caminho que qualquer rotina do CÓRTEX usa: passa pelo limite diário, pela janela de horário e entra na trilha abaixo com o seu usuário. Não existe um modo de teste mais frouxo, de propósito — ele viraria o atalho para disparar sem as regras. O telefone é normalizado antes de sair: (47) 99999-8888 e 5547999998888 são o mesmo destinatário.">i</span></h2><span class="hint" id="wa-envio-hint">—</span></div>
             <div class="ges-cfg">
               <div style="grid-column:1/-1"><label for="wa-tel">Telefone(s)</label><input type="text" id="wa-tel" placeholder="(47) 99999-8888 — separe vários por vírgula"></div>
+              <div id="wa-inst-box" hidden><label for="wa-envinst">Enviar pelo número</label>
+                <select id="wa-envinst" onchange="whatsInstMudou()"></select></div>
               <div style="grid-column:1/-1"><label for="wa-modelo">Modelo</label>
                 <select id="wa-modelo" onchange="whatsModeloEscolher()">
                   <option value="">Sem modelo — escrever à mão</option>
@@ -18719,6 +18733,7 @@ async function whatsCarregar(){
     V('wa-jfim', c.janela_fim); V('wa-assin', c.assinatura);
 
     document.getElementById('wa-conexao').innerHTML = whatsChipConexao(c, cx);
+    whatsInstPintar(d);
     const partes=[];
     partes.push(c.ativo ? statChip('good','envio ligado')
                         : statChip('warn','envio desligado','Nada sai enquanto estiver desligado.'));
@@ -18728,8 +18743,11 @@ async function whatsCarregar(){
     document.getElementById('wa-cfg-status').innerHTML = partes.join(' · ');
 
     /* O contador do dia fica ao lado do botão de enviar, não na configuração:
-       é aqui que a pergunta "ainda posso mandar?" aparece. */
-    const usados=rs.hoje||0, teto=c.limite_dia||0;
+       é aqui que a pergunta "ainda posso mandar?" aparece. E é o contador DO
+       NÚMERO escolhido: a cota é por aparelho, porque a reputação é dele. */
+    const escolhida=(document.getElementById('wa-envinst')||{}).value||'principal';
+    const porInst=rs.hoje_por_instancia||{};
+    const usados=(porInst[escolhida]!==undefined?porInst[escolhida]:(rs.hoje||0)), teto=c.limite_dia||0;
     const sobra=Math.max(0, teto-usados);
     document.getElementById('wa-envio-hint').innerHTML =
       `${usados} de ${teto} destinatário${teto===1?'':'s'} diferente${teto===1?'':'s'} hoje · `
@@ -18739,9 +18757,10 @@ async function whatsCarregar(){
       ? `${rs.total} envio${rs.total===1?'':'s'} · ${rs.ok||0} ok · ${rs.falha||0} recusado/falhou · ${rs.numeros||0} número${rs.numeros===1?'':'s'} distinto${rs.numeros===1?'':'s'}`
       : 'nenhum envio registrado';
     hist.innerHTML = !envios.length ? '<div style="padding:12px;color:var(--n500)">nenhum envio ainda</div>'
-      : '<table><thead><tr><th>Quando</th><th>Para</th><th>Mensagem</th><th>Modelo</th><th>Origem</th><th>Autor</th><th>Status</th></tr></thead><tbody>'
+      : '<table><thead><tr><th>Quando</th><th>Por</th><th>Para</th><th>Mensagem</th><th>Modelo</th><th>Origem</th><th>Autor</th><th>Status</th></tr></thead><tbody>'
       + envios.map(e=>`<tr>
           <td>${esc(fmtDT(e.ts))}</td>
+          <td>${e.instancia==='backup'?'Reserva':'Principal'}</td>
           <td class="mono">${esc(whatsFmtTel(e.telefone))}</td>
           <td title="${esc(e.mensagem||'')}">${esc((e.mensagem||'').length>46?e.mensagem.slice(0,46)+'…':(e.mensagem||'—'))}</td>
           <td>${e.modelo?esc(e.modelo):'<span style="color:var(--n500)">avulsa</span>'}</td>
@@ -18776,16 +18795,83 @@ function whatsChipConexao(c, cx){
        + ' · '+quem;
 }
 
-async function whatsConexao(){
-  const err=document.getElementById('wa-cred-err'); err.textContent=''; err.style.color='';
+/* Pinta o seletor de instância e o estado da reserva.
+
+   O SELETOR SÓ APARECE QUANDO EXISTEM DUAS. Com uma instância só, oferecer uma
+   escolha de um item é ruído — e pior, sugere que existe um reserva que
+   ninguém cadastrou. */
+let WAINST = [];
+function whatsInstPintar(d){
+  const insts=(d && d.instancias)||[];
+  WAINST = insts;
+  const conf=insts.filter(i=>i.configurado);
+  const box=document.getElementById('wa-inst-box');
+  const sel=document.getElementById('wa-envinst');
+  const reserva=insts.find(i=>i.chave==='backup');
+
+  /* estado da reserva, ao lado do rótulo dos campos dela */
+  const el=document.getElementById('wa-conexao2');
+  if(el){
+    if(!reserva || !reserva.configurado){
+      el.innerHTML='<span style="color:var(--n500)">não configurada</span>';
+    }else{
+      const cx=reserva.conexao||{};
+      el.innerHTML = cx.conectado
+        ? statChip('good','conectada')
+        : statChip('warn','não conectada', cx.erro||'A instância reserva não está pareada.');
+    }
+  }
+  if(!box||!sel) return;
+
+  if(conf.length<2){ box.hidden=true; sel.innerHTML=''; return; }
+  const atual=sel.value;
+  box.hidden=false;
+  /* o rótulo carrega a cota DAQUELE número: a pergunta "ainda posso mandar?"
+     tem resposta diferente para cada aparelho */
+  sel.innerHTML = conf.map(i=>{
+    const cx=i.conexao||{};
+    const marca = cx.conectado ? '' : ' — desconectado';
+    return `<option value="${esc(i.chave)}">${esc(i.rotulo)}${esc(marca)} · ${i.hoje||0} hoje</option>`;
+  }).join('');
+  if(atual && conf.some(i=>i.chave===atual)) sel.value=atual;
+}
+
+/* Trocar de número muda a cota que vale — o contador ao lado do botão tem de
+   acompanhar, senão ele mostra a do outro aparelho. */
+function whatsInstMudou(){ whatsCarregar(); }
+
+/* `silencioso` deixa quem chamou decidir o que mostrar — é o que permite o
+   "credenciais salvas · reserva não conectada" numa linha só, em vez de o
+   teste apagar a confirmação. Devolve o texto do resultado. */
+async function whatsConexao(opts){
+  const silencioso = !!(opts && opts.silencioso);
+  const err=document.getElementById('wa-cred-err');
+  if(!silencioso){ err.textContent=''; err.style.color=''; }
   const btn=document.getElementById('wa-testar'); btn.disabled=true; btn.textContent='Testando…';
   try{
-    const r=await fetch('/api/gestao/whatsapp/conexao',{method:'POST'});
+    /* O botão é um só e a pergunta de quem clica é "está tudo pronto?" —
+       então testa as DUAS. Testar só a principal deixaria o reserva sem
+       diagnóstico justamente no dia em que ele fosse precisar ser usado. */
+    const r=await fetch('/api/gestao/whatsapp/conexao?instancia=principal',{method:'POST'});
     const d=await r.json();
-    err.style.color = d.conectado ? 'var(--green)' : '';
-    err.textContent = d.conectado ? 'conectado' : (d.erro||'não conectado');
+    let texto = d.conectado ? 'principal conectada' : ('principal: '+(d.erro||'não conectada'));
+    let tudoOk = !!d.conectado;
+    if(WAINST.some(i=>i.chave==='backup' && i.configurado)){
+      const r2=await fetch('/api/gestao/whatsapp/conexao?instancia=backup',{method:'POST'});
+      const d2=await r2.json();
+      texto += ' · ' + (d2.conectado ? 'reserva conectada' : ('reserva: '+(d2.erro||'não conectada')));
+      tudoOk = tudoOk && !!d2.conectado;
+    }
+    if(!silencioso){
+      err.style.color = tudoOk ? 'var(--green)' : '';
+      err.textContent = texto;
+    }
     await whatsCarregar();
-  }catch(e){ err.textContent='Não foi possível falar com a API.'; }
+    return texto;
+  }catch(e){
+    if(!silencioso) err.textContent='Não foi possível falar com a API.';
+    return '';
+  }
   finally{ btn.disabled=false; btn.textContent='Testar conexão'; }
 }
 
@@ -18795,7 +18881,8 @@ async function whatsConexao(){
 async function whatsCredSalvar(){
   const err=document.getElementById('wa-cred-err'); err.textContent=''; err.style.color='';
   const btn=document.getElementById('wa-cred-salvar'); btn.disabled=true;
-  const campos=[['wa-inst','ZAPI_INSTANCIA'],['wa-tok','ZAPI_TOKEN'],['wa-ctok','ZAPI_CLIENT_TOKEN']];
+  const campos=[['wa-inst','ZAPI_INSTANCIA'],['wa-tok','ZAPI_TOKEN'],['wa-ctok','ZAPI_CLIENT_TOKEN'],
+                ['wa-inst2','ZAPI2_INSTANCIA'],['wa-tok2','ZAPI2_TOKEN'],['wa-ctok2','ZAPI2_CLIENT_TOKEN']];
   const mudou=campos.filter(([id])=>document.getElementById(id).value.trim());
   if(!mudou.length){ err.textContent='Digite ao menos um campo antes de salvar.'; btn.disabled=false; return; }
   try{
@@ -18807,8 +18894,19 @@ async function whatsCredSalvar(){
       if(!r.ok){ err.textContent=d.mensagem||('Erro ao salvar '+nome+'.'); return; }
       campo.value='';               // o segredo não fica na tela depois de salvo
     }
-    await whatsConexao();           // credencial nova: vale conferir na hora
-  }catch(e){ err.textContent='Não foi possível falar com a API.'; }
+    /* A CONFIRMAÇÃO DE QUE SALVOU VEM ANTES DO TESTE, e em linha própria.
+       Guardar um número RESERVA desconectado é o uso normal dele — fica
+       cadastrado, parado, esperando o dia em que for preciso. Se o resultado
+       do teste ("reserva: não conectada") caísse por cima do "salvo", a tela
+       diria que falhou justamente no caso que ela precisa aceitar, e a pessoa
+       tentaria de novo achando que não gravou. */
+    err.style.color='var(--green)';
+    err.textContent = mudou.length===1 ? 'credencial salva' : 'credenciais salvas';
+    const salvo = err.textContent;
+    const r2 = await whatsConexao({silencioso:true});
+    if(r2) err.innerHTML = esc(salvo) + ' · <span style="color:var(--n600)">'
+                         + esc(r2) + '</span>';
+  }catch(e){ err.style.color=''; err.textContent='Não foi possível falar com a API.'; }
   finally{ btn.disabled=false; }
 }
 
@@ -18843,9 +18941,13 @@ async function whatsEnviar(){
      mensagem é o servidor, a partir do modelo gravado; a caixa acima é prévia.
      Mandar o texto junto deixaria a coluna "Modelo" da trilha registrar um
      texto que não é o do modelo. */
+  const inst=(document.getElementById('wa-envinst')||{}).value||'';
   const corpo = chave
     ? {telefones:tel, modelo:chave, valores:whatsValoresDoFormulario()}
     : {telefones:tel, mensagem:msg};
+  /* só vai quando há escolha de verdade: com uma instância só, mandar o campo
+     seria fingir que existe uma decisão a tomar */
+  if(inst) corpo.instancia=inst;
   const btn=document.getElementById('wa-enviar'); btn.disabled=true; btn.textContent='Enviando…';
   try{
     const r=await fetch('/api/gestao/whatsapp/enviar',{method:'POST',headers:{'Content-Type':'application/json'},

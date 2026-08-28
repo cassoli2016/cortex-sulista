@@ -68,6 +68,22 @@ CAMPOS: dict[str, dict] = {
                      "validação por token estiver ATIVADA lá — e aí sem ele "
                      "toda chamada volta 'null not allowed'"},
 
+    # SEGUNDA INSTÂNCIA (número reserva). É outro aparelho, outro número e —
+    # o que mais importa — OUTRA REPUTAÇÃO no WhatsApp: o limite diário de
+    # destinatários distintos é contado separadamente para cada uma, porque
+    # banir um número não tem relação com o que o outro fez. Opcional: quem
+    # não tiver reserva deixa os três em branco e nada muda.
+    "ZAPI2_INSTANCIA": {
+        "rotulo": "ID da instância (reserva)", "obrigatorio": False,
+        "descricao": "O {id} da SEGUNDA instância, se houver número reserva"},
+    "ZAPI2_TOKEN": {
+        "rotulo": "Token da instância (reserva)", "obrigatorio": False,
+        "descricao": "Token da segunda instância — com o id, forma o endereço"},
+    "ZAPI2_CLIENT_TOKEN": {
+        "rotulo": "Token de segurança da conta (reserva)", "obrigatorio": False,
+        "descricao": "Só se a validação por token estiver ativada na conta da "
+                     "segunda instância"},
+
     # Monkey Exchange — portal de antecipação da Tupy. A autenticação é
     # PLUGÁVEL porque a documentação pública não diz qual é: vale token
     # estático OU o par client_id/client_secret (OAuth2 client_credentials).
@@ -207,7 +223,8 @@ SERVICOS: list[dict] = [
         "modos": [{"chave": "instancia", "rotulo": "Instância e token",
                    "dica": "os dois compõem a URL da Z-API",
                    "campos": ["ZAPI_INSTANCIA", "ZAPI_TOKEN"]}],
-        "ajustes": ["ZAPI_CLIENT_TOKEN"],
+        "ajustes": ["ZAPI_CLIENT_TOKEN", "ZAPI2_INSTANCIA", "ZAPI2_TOKEN",
+                    "ZAPI2_CLIENT_TOKEN"],
         "aba": "whatsapp",
     },
 ]

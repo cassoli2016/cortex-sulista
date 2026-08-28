@@ -624,6 +624,45 @@ a query ignora sai; dimensão que a query aceita e é a pergunta natural da tela
   trilha, o mesmo limite e a mesma auditoria. Um caminho paralelo viraria o
   atalho para disparar sem as regras.
 
+**Dois números de WhatsApp: o que se duplica e o que NÃO se duplica:**
+- **O freio é POR NÚMERO.** O limite conta destinatários distintos porque é esse o
+  gatilho de banimento que a Z-API documenta — e a reputação é de cada linha
+  telefônica. Contador compartilhado erra nas duas direções: 60 envios pelo
+  principal bloqueariam o reserva, que não fez nada; e ignorar a separação
+  deixaria passar o dobro do limite achando que é um número só. Daí a coluna
+  `instancia` em `zap_envios` e o índice `(instancia, telefone, ts)`, que é a
+  consulta feita A CADA mensagem.
+- **"Já falou hoje" é do PAR (aparelho, cliente).** O cliente ter conversado com o
+  número principal não abre conversa nenhuma no reserva — para ele, o reserva é um
+  desconhecido, que é exatamente o caso que o freio existe para conter.
+- **NÃO existe troca automática.** Se o sistema disparasse pelo reserva sozinho
+  quando o principal cai, queimaria o segundo número também — e ter reserva é
+  justamente para não ficar sem nenhum. A escolha é de quem envia; a tela mostra o
+  estado dos dois. Pedir o reserva sem ele estar configurado RECUSA, em vez de cair
+  na principal: mandar pelo número errado sem avisar é pior que não mandar.
+- **`_sanitizar` varre os DOIS pares, sempre**, não só o da vez: com dois conjuntos
+  de credenciais o mesmo texto passa por caminhos diferentes, e limpar só um é a
+  brecha que ninguém revisaria. São seis substituições de string.
+- **Cache de estado por instância.** Com um dicionário só, perguntar pelo reserva
+  devolveria o do principal durante os 60 s de TTL — e a tela mostraria um aparelho
+  no lugar do outro, que aqui leva a mandar pelo número errado.
+- **Toda mensagem de erro diz DE QUAL número fala.** "A Z-API recusou as
+  credenciais" sem isso manda conferir o par errado; "Limite diário atingido" sem
+  isso faz parecer que o sistema inteiro travou quando o outro aparelho está livre.
+- **O que NÃO se duplica:** interruptor, janela de horário, assinatura e o VALOR do
+  limite continuam únicos. O limite é um teto por aparelho, aplicado a cada um —
+  dois números não são licença para dobrar o disparo, são dois riscos separados.
+- **Reserva CADASTRADO e DESCONECTADO é o estado normal dele**, não um erro a
+  consertar: ele espera parado até o dia em que for preciso. Salvar credencial
+  não depende de parear nada — e a CONFIRMAÇÃO DE QUE SALVOU tem de vir separada
+  do resultado do teste de conexão. Quando o "reserva não conectado" caía por
+  cima do "salvo", a tela dizia que falhou justamente no caso que ela precisa
+  aceitar, e quem lia tentava de novo achando que não gravou. Vale para qualquer
+  formulário que salve e teste na mesma linha.
+- Na Saúde, o reserva é DETALHE e não segunda linha de estado: reserva desconectado
+  é o estado normal de um reserva (pareado e parado), e dar o mesmo peso faria a
+  tela acusar problema onde não há.
+
 **Modelo de mensagem: o contexto é o que impede o texto de sair furado (lições dos modelos de WhatsApp):**
 - **O CONTEXTO não é categoria de organização — é o conjunto de variáveis permitidas,
   validado NA GRAVAÇÃO.** Um modelo de cobrança conhece `{{titulo}}` e `{{vencimento}}`;

@@ -1061,8 +1061,25 @@ def gestao_whatsapp() -> JSONResponse:
             # banco local fora não pode esconder a configuração: é justamente
             # onde se olha para entender por que nada está saindo
             log.warning("gestao_whatsapp: trilha indisponível: %s", exc)
+        # UMA ENTRADA POR INSTÂNCIA. A tela precisa mostrar as duas lado a
+        # lado: com dois números, "conectado" sem dizer QUAL é a informação
+        # que leva a mandar pelo aparelho errado. `conexao` (singular) fica
+        # como está, apontando para a principal, porque a Saúde e os testes
+        # antigos já leem essa chave.
+        instancias = [
+            {"chave": q, "rotulo": zcli.ROTULOS[q],
+             "configurado": zcli.configurado(q),
+             "instancia": zcli.instancia_mascarada(q) if zcli.configurado(q) else "",
+             "client_token_ok": bool(zcli.client_token(q)),
+             "conexao": zcli.estado(qual=q) if zcli.configurado(q) else {
+                 "ok": False, "conectado": False, "celular": False,
+                 "configurado": False,
+                 "erro": "Instância não configurada."},
+             "hoje": (conta.get("hoje_por_instancia") or {}).get(q, 0)}
+            for q in zcli.INSTANCIAS]
         return JSONResponse({"config": zcfg.status(), "resumo": conta,
-                             "envios": envios, "conexao": zcli.estado()})
+                             "envios": envios, "conexao": zcli.estado(),
+                             "instancias": instancias})
     except Exception as exc:  # noqa: BLE001
         log.warning("gestao_whatsapp falhou: %s", exc)
         return JSONResponse(status_code=500, content={
@@ -1103,12 +1120,16 @@ async def gestao_whatsapp_salvar(req: Request) -> JSONResponse:
 
 
 @app.post("/api/gestao/whatsapp/conexao")
-def gestao_whatsapp_conexao() -> JSONResponse:
-    """Relê o status da instância IGNORANDO o cache — é o botão 'testar
+def gestao_whatsapp_conexao(instancia: str | None = None) -> JSONResponse:
+    """Relê o status de UMA instância IGNORANDO o cache — é o botão 'testar
     conexão'. Não manda mensagem nenhuma: só pergunta à Z-API se o aparelho
-    está pareado."""
+    está pareado.
+
+    Continua sendo rota `def` (não `async`): o FastAPI a roda em threadpool,
+    então a ida à Z-API não trava o event loop — ver `sem_travar()`.
+    """
     from api.whatsapp import cliente as zcli
-    return JSONResponse(zcli.estado(force=True))
+    return JSONResponse(zcli.estado(force=True, qual=instancia))
 
 
 @app.post("/api/gestao/whatsapp/enviar")
@@ -1132,6 +1153,10 @@ async def gestao_whatsapp_enviar(req: Request) -> JSONResponse:
     autor = sess.get("email", "")
     telefones = body.get("telefones") or body.get("telefone") or ""
     chave = str(body.get("modelo") or "").strip()
+    # instância desconhecida cai na principal (`qual_valida`), em vez de virar
+    # erro: é o que a pessoa espera de "não escolhi nada"
+    from api.whatsapp.cliente import qual_valida
+    inst = qual_valida(body.get("instancia"))
 
     # COM MODELO, QUEM MONTA O TEXTO É O SERVIDOR — a tela manda a chave e os
     # valores, nunca a mensagem pronta. Aceitar o texto do cliente junto com a
@@ -1149,11 +1174,13 @@ async def gestao_whatsapp_enviar(req: Request) -> JSONResponse:
             r = await sem_travar(
                 enviar_modelo, telefones, chave,
                 valores if isinstance(valores, dict) else {},
-                usuario=autor, origem=str(body.get("origem") or "") or "")
+                usuario=autor, origem=str(body.get("origem") or "") or "",
+                instancia=inst)
         else:
             r = await sem_travar(
                 enviar_varios, telefones, str(body.get("mensagem") or ""),
-                usuario=autor, origem=str(body.get("origem") or "manual"))
+                usuario=autor, origem=str(body.get("origem") or "manual"),
+                instancia=inst)
     except Exception as exc:  # noqa: BLE001
         from api.whatsapp.cliente import _sanitizar
         log.exception("whatsapp_enviar falhou")
@@ -1168,7 +1195,8 @@ async def gestao_whatsapp_enviar(req: Request) -> JSONResponse:
                 "saiu. Confira a Saúde do Servidor e o banco local do CÓRTEX.")})
     alvos = ", ".join(x["telefone"] for x in r["resultados"])
     auth.audit(autor or "?", "whatsapp_enviar", alvo=alvos[:200],
-               detalhe=((f"modelo={chave} · " if chave else "")
+               detalhe=(f"por={inst} · "
+                        + (f"modelo={chave} · " if chave else "")
                         + f"{r['enviados']} enviada(s), {r['falhas']} falha(s)"
                         + (f": {r['erro']}" if r["erro"] else ""))[:200])
     if not r["ok"]:

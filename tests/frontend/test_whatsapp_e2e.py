@@ -114,3 +114,132 @@ def test_recusa_registrada_aparece_como_NAO_SAIU_com_o_motivo(pagina):
     html = pg.inner_html("#wa-hist")
     assert "não saiu" in html
     assert "Limite diário atingido" in html
+
+
+# ------------------------------------------------------- duas instâncias
+
+def _inst(chave, rotulo, *, configurado=True, conectado=True, hoje=0):
+    return {"chave": chave, "rotulo": rotulo, "configurado": configurado,
+            "instancia": "3D2F…9077" if configurado else "",
+            "client_token_ok": False, "hoje": hoje,
+            "conexao": {"ok": configurado, "conectado": conectado,
+                        "celular": conectado, "configurado": configurado,
+                        "erro": "" if conectado else "não pareada"}}
+
+
+SO_UMA = {**RESPOSTA, "instancias": [
+    _inst("principal", "Principal", hoje=41),
+    _inst("backup", "Reserva", configurado=False, conectado=False)]}
+
+AS_DUAS = {**RESPOSTA,
+           "resumo": {**RESPOSTA["resumo"], "hoje_por_instancia":
+                      {"principal": 41, "backup": 3}},
+           "instancias": [_inst("principal", "Principal", hoje=41),
+                          _inst("backup", "Reserva", hoje=3)]}
+
+
+def test_com_uma_instancia_o_seletor_NAO_aparece(pagina):
+    """Escolha de um item é ruído — e pior, sugere um reserva que ninguém
+    cadastrou."""
+    pg, base = pagina
+    _abrir(pg, base, SO_UMA)
+    assert pg.get_attribute("#wa-inst-box", "hidden") is not None
+    assert "não configurada" in pg.inner_text("#wa-conexao2")
+
+
+def test_com_duas_o_seletor_aparece_com_a_cota_de_CADA_numero(pagina):
+    """A pergunta "ainda posso mandar?" tem resposta diferente para cada
+    aparelho: a cota é por número, porque a reputação é dele."""
+    pg, base = pagina
+    _abrir(pg, base, AS_DUAS)
+    assert pg.get_attribute("#wa-inst-box", "hidden") is None
+    opcoes = pg.inner_text("#wa-envinst")
+    assert "Principal" in opcoes and "41 hoje" in opcoes
+    assert "Reserva" in opcoes and "3 hoje" in opcoes
+
+
+def test_reserva_desconectado_aparece_no_seletor_e_no_cabecalho(pagina):
+    """Escolher um aparelho fora do ar sem aviso é mandar para uma fila que
+    dispara sozinha depois."""
+    pg, base = pagina
+    resposta = {**AS_DUAS, "instancias": [
+        _inst("principal", "Principal", hoje=41),
+        _inst("backup", "Reserva", conectado=False, hoje=3)]}
+    _abrir(pg, base, resposta)
+    assert "desconectado" in pg.inner_text("#wa-envinst")
+    assert "não conectada" in pg.inner_text("#wa-conexao2")
+
+
+def test_a_trilha_diz_por_qual_numero_cada_mensagem_saiu(pagina):
+    pg, base = pagina
+    resposta = {**AS_DUAS, "envios": [
+        {"id": 9, "ts": "2026-08-28 10:00:00", "usuario": "ana@sulista",
+         "telefone": "5547999998888", "mensagem": "oi", "origem": "manual",
+         "ok": 1, "erro": "", "message_id": "M", "modelo": "",
+         "instancia": "backup"}]}
+    _abrir(pg, base, resposta)
+    assert "Reserva" in pg.inner_text("#wa-hist")
+
+
+def test_salvar_reserva_DESCONECTADA_confirma_que_salvou(pagina):
+    """O caso real: um número reserva fica cadastrado e PARADO, esperando o dia
+    em que for preciso. Se o resultado do teste de conexão ("reserva: não
+    conectada") caísse por cima da confirmação, a tela diria que falhou
+    justamente no caso que ela precisa aceitar — e a pessoa tentaria de novo
+    achando que não gravou.
+    """
+    pg, base = pagina
+    salvos = []
+
+    resposta = {**AS_DUAS, "instancias": [
+        _inst("principal", "Principal", hoje=41),
+        _inst("backup", "Reserva", conectado=False, hoje=0)]}
+
+    def rota(route):
+        u, req = route.request.url, route.request
+        if "/api/gestao/credenciais" in u and req.method == "POST":
+            salvos.append(json.loads(req.post_data or "{}")["nome"])
+            corpo = {"ok": True}
+        elif "/whatsapp/conexao" in u:
+            corpo = ({"conectado": True, "erro": ""} if "principal" in u
+                     else {"conectado": False, "erro": "não pareada"})
+        elif "/api/auth/me" in u:
+            corpo = ADMIN
+        elif "/gestao/whatsapp" in u:
+            corpo = resposta
+        else:
+            corpo = {}
+        route.fulfill(status=200, content_type="application/json",
+                      body=json.dumps(corpo))
+
+    pg.route("**/api/**", rota)
+    pg.goto(f"{base}/static/index.html#gestao")
+    pg.wait_for_selector("#gtab-whatsapp", timeout=20000)
+    pg.click("#gtab-whatsapp")
+    pg.wait_for_timeout(600)
+
+    pg.fill("#wa-inst2", "77AA11BB22CC3344")
+    pg.fill("#wa-tok2", "99DD88EE77FF6655")
+    pg.click("#wa-cred-salvar")
+    pg.wait_for_timeout(900)
+
+    assert salvos == ["ZAPI2_INSTANCIA", "ZAPI2_TOKEN"], salvos
+    texto = pg.inner_text("#wa-cred-err")
+    assert "salvas" in texto, f"a confirmação sumiu: {texto!r}"
+    # o estado da reserva aparece JUNTO, sem apagar a confirmação
+    assert "reserva" in texto.lower()
+    # e os campos de segredo ficam vazios depois de salvos
+    assert pg.input_value("#wa-inst2") == "" and pg.input_value("#wa-tok2") == ""
+
+
+def test_reserva_desconectada_ainda_assim_fica_no_cadastro(pagina):
+    """Salvar não depende de estar conectada — e a tela diz isso, para ninguém
+    achar que precisa parear antes de cadastrar."""
+    pg, base = pagina
+    resposta = {**AS_DUAS, "instancias": [
+        _inst("principal", "Principal", hoje=41),
+        _inst("backup", "Reserva", conectado=False, hoje=0)]}
+    _abrir(pg, base, resposta)
+    nota = pg.inner_text(".wa-inst-nota")
+    assert "cadastrado e desconectado" in nota
+    assert "salvas do mesmo jeito" in nota

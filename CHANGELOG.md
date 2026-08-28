@@ -4,6 +4,20 @@ Gerado de `docs/versoes.yaml` por `scripts/gerar_changelog.py` — não editar �
 Formato [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/),
 versionamento [SemVer](https://semver.org/lang/pt-BR/).
 
+## [0.122.0] — 28/08/2026  ·  CX-28/08/2026-v0.122.0
+
+### Adicionado
+- O CORTEX passa a aceitar DOIS numeros de WhatsApp: o principal, do dia a dia, e um reserva. Os campos do reserva ficam em Gestao > WhatsApp, logo abaixo dos do principal, e sao opcionais - quem nao tiver segundo numero nao ve diferenca nenhuma.
+- Com os dois configurados, o formulario de envio ganha o seletor "Enviar pelo numero", com o estado de cada aparelho e quantos destinatarios cada um ja gastou hoje. Com um numero so, o seletor nem aparece.
+- A trilha de envios mostra por qual numero cada mensagem saiu.
+- A Saude do Servidor diz se ha reserva e se ele esta pronto.
+- O numero reserva pode ficar CADASTRADO E DESCONECTADO - e o normal de um reserva, que espera parado ate o dia em que for preciso. Salvar as credenciais dele nao depende de parear nada, e a tela confirma a gravacao em separado do teste de conexao: antes, o "reserva nao conectado" cairia por cima do "salvo" e faria parecer que falhou.
+
+### Alterado
+- O LIMITE DIARIO PASSOU A SER POR NUMERO. Cada linha telefonica tem a sua propria reputacao no WhatsApp: o que o principal fez nao aproxima o reserva de um banimento, e o contrario tambem vale. Antes de existir o segundo numero isso dava no mesmo; agora e o que impede tanto de um numero bloquear o outro a toa quanto de os dois somarem o dobro do limite sem ninguem perceber.
+- Nao existe troca automatica de um numero para o outro, de proposito. Se o sistema disparasse pelo reserva sozinho quando o principal cai, queimaria o segundo numero tambem - e ter reserva e justamente para nao ficar sem nenhum. Quem envia escolhe, vendo o estado dos dois.
+- As mensagens de erro passaram a dizer de QUAL numero falam. "A Z-API recusou as credenciais" mandava conferir o par errado, e "limite diario atingido" fazia parecer que o sistema inteiro tinha travado quando o outro aparelho estava livre.
+
 ## [0.121.3] — 28/08/2026  ·  CX-28/08/2026-v0.121.3
 
 ### Corrigido

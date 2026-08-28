@@ -8,6 +8,13 @@ conectado?) só existe na API do fornecedor — não há posição gravada para 
 A saída é `cliente.estado()`, que tem cache de 60 s. Assim a tela mostra o
 estado real com até um minuto de atraso, custando ~1.440 chamadas por dia em
 vez das ~17.000 que o refresh de 5 s produziria.
+
+COM DUAS INSTÂNCIAS, o cartão continua tendo UMA linha de estado — a da
+principal, que é por onde sai o dia a dia — e a reserva entra como detalhe ao
+lado. Dar o mesmo peso às duas faria a Saúde acusar problema quando o número
+reserva estivesse desconectado, que é o estado NORMAL de um reserva: ele fica
+pareado e parado. O que a tela precisa dizer é "existe reserva e ele está
+pronto", não "há um aparelho fora do ar".
 """
 from __future__ import annotations
 
@@ -21,6 +28,9 @@ def diagnostico() -> dict:
         "configurado": cliente.configurado(),
         "ativo": bool(c["ativo"]),
         "client_token": bool(cliente.client_token()),
+        # a reserva é opcional: `None` quer dizer "não existe", que é
+        # diferente de "existe e está fora do ar"
+        "reserva": None,
         "limite_dia": c["limite_dia"],
         "janela": f"{c['janela_inicio']}–{c['janela_fim']}",
         "dentro_da_janela": cfg.dentro_da_janela(),
@@ -39,11 +49,19 @@ def diagnostico() -> dict:
     d["celular"] = bool(est.get("celular"))
     d["erro"] = est.get("erro") or ""
 
+    if cliente.configurado("backup"):
+        est2 = cliente.estado(qual="backup")
+        d["reserva"] = {"conectado": bool(est2.get("conectado")),
+                        "celular": bool(est2.get("celular")),
+                        "erro": est2.get("erro") or "", "hoje": 0}
+
     try:
         r = registro.resumo()
         d["hoje"] = r["hoje"]
         d["ultimo"] = r["ultimo"]
         d["falhas"] = r["falha"]
+        if d["reserva"] is not None:
+            d["reserva"]["hoje"] = r["hoje_por_instancia"]["backup"]
     except Exception:   # noqa: BLE001
         # banco local fora não pode apagar a linha da integração na Saúde —
         # é justamente onde se olha quando algo está errado

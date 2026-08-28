@@ -288,3 +288,43 @@ def test_zapi_fora_da_janela_diz_isso_sem_virar_alarme():
     s = sv._servico_whatsapp(diag_zapi(dentro_da_janela=False))
     assert s["status"] == "ok"
     assert "fora da janela de envio" in s["detalhe"]
+
+
+# ------------------------------------------------- Z-API com número reserva
+
+def _base_zapi(**troca) -> dict:
+    d = {"configurado": True, "ativo": True, "client_token": True,
+         "limite_dia": 60, "janela": "08:00–20:00", "dentro_da_janela": True,
+         "conectado": True, "celular": True, "erro": "", "hoje": 12,
+         "ultimo": None, "falhas": 0, "reserva": None}
+    d.update(troca)
+    return d
+
+
+def test_sem_reserva_a_linha_nao_fala_dele():
+    """Quem não tem segundo número não pode ver a Saúde citar um."""
+    from api.servidor import _servico_whatsapp
+    r = _servico_whatsapp(_base_zapi())
+    assert "reserva" not in r["detalhe"]
+    assert r["status"] == "ok"
+
+
+def test_reserva_desconectado_NAO_vira_alerta():
+    """Pareado e parado é o estado normal de um reserva. Alerta que sempre
+    aparece deixa de ser lido."""
+    from api.servidor import _servico_whatsapp
+    r = _servico_whatsapp(_base_zapi(
+        reserva={"conectado": False, "celular": False, "erro": "", "hoje": 0}))
+    assert r["status"] == "ok"
+    assert "reserva não conectado" in r["detalhe"]
+
+
+def test_reserva_pronto_aparece_com_a_cota_dele():
+    """A cota é por número: mostrar a do principal para os dois faria decidir
+    errado na hora de escolher por onde mandar."""
+    from api.servidor import _servico_whatsapp
+    r = _servico_whatsapp(_base_zapi(
+        hoje=55, reserva={"conectado": True, "celular": True, "erro": "",
+                          "hoje": 3}))
+    assert "55 de 60 destinatários hoje" in r["detalhe"]
+    assert "reserva pronto · 3 de 60 hoje" in r["detalhe"]

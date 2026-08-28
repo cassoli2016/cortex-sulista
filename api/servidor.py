@@ -333,6 +333,16 @@ def _servico_whatsapp(d: dict) -> dict:
         partes.append("o celular pareado está sem internet")
     if not d["dentro_da_janela"]:
         partes.append(f"fora da janela de envio ({d['janela']})")
+    # O RESERVA É DETALHE, NÃO SEGUNDA LINHA DE ESTADO. Reserva desconectado é
+    # o estado normal de um reserva (pareado e parado): dar a ele o mesmo peso
+    # faria a Saúde acusar problema onde não há, e alerta que sempre aparece
+    # deixa de ser lido. O que a linha precisa dizer é se existe reserva e se
+    # ele está pronto — e a cota dele é própria, porque o limite é por número.
+    reserva = d.get("reserva")
+    if reserva is not None:
+        partes.append(
+            f"reserva {'pronto' if reserva['conectado'] else 'não conectado'}"
+            f" · {reserva['hoje']} de {d['limite_dia']} hoje")
     return {"nome": nome,
             "status": "alerta" if not d.get("celular") else "ok",
             "detalhe": " · ".join(partes)}
