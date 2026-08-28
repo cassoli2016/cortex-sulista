@@ -3761,9 +3761,11 @@ body.tvfull #btnReport,body.tvmode #btnReport{display:none}
             <span class="k"><i class="ln" style="border-top-color:var(--navy-700)"></i>Veículos que rodaram</span>
           </div>
           <div class="chartwrap" id="wrapProd">
-            <svg id="chartProd" viewBox="0 0 960 250" preserveAspectRatio="xMidYMid meet"
-                 tabindex="0" role="img" aria-label="Quilômetros carregados por mês e número de veículos que rodaram."></svg>
-            <div class="tip" id="tipProd"></div>
+            <!-- ECharts precisa de um elemento com ALTURA definida: ele mede o
+                 container no init, e num elemento sem altura o gráfico nasce
+                 com 0px e não desenha nada. -->
+            <div id="chartProd" style="width:100%;height:280px"
+                 role="img" aria-label="Quilômetros carregados por mês e número de veículos que rodaram."></div>
           </div>
         </div>
         <div class="card">
@@ -15053,6 +15055,48 @@ async function torreMapa(){
 
 /* ---------------- Análise de KM ---------------- */
 const fmtKm2 = v => v!=null ? v.toLocaleString('pt-BR',{maximumFractionDigits:0})+' km' : '—';
+/* ====================== ECharts (Apache 2.0, vendorizado) ==================
+   Carregado SOB DEMANDA, e por dois motivos:
+
+   1. São 990 KB. O CÓRTEX tem 62 telas e só uma usa gráfico de biblioteca —
+      pendurar isso no <script> do topo faria as outras 61 pagarem por algo que
+      não abrem. A primeira tela que precisa puxa; da segunda em diante já está
+      em memória.
+   2. VEM DO NOSSO DISCO, nunca de CDN. O painel roda atrás do túnel e hoje não
+      depende de nenhum host externo em tempo de execução — trocar isso por uma
+      dependência de rede alheia seria pagar um ponto de falha por conveniência.
+
+   Falha de carga NÃO é silenciosa: quem chamou recebe a rejeição e escreve o
+   motivo no próprio cartão. Gráfico que some sem dizer por que é pior que
+   gráfico feio. */
+let _echartsProm = null;
+function carregarECharts(){
+  if(window.echarts) return Promise.resolve(window.echarts);
+  if(_echartsProm) return _echartsProm;
+  _echartsProm = new Promise((ok, falhou)=>{
+    const t = document.createElement('script');
+    t.src = '/static/vendor/echarts.min.js';
+    t.onload = () => window.echarts ? ok(window.echarts)
+                                    : falhou(new Error('echarts carregou sem se registrar'));
+    t.onerror = () => { _echartsProm = null; falhou(new Error('não foi possível carregar /static/vendor/echarts.min.js')); };
+    document.head.appendChild(t);
+  });
+  return _echartsProm;
+}
+
+/* Redesenha os gráficos ao mudar a largura. O ECharts NÃO faz isso sozinho:
+   ele mede o container uma vez, no init, e um painel aberto em tela cheia
+   depois de aberto na metade ficaria com o desenho do tamanho antigo. */
+const _echartsVivos = new Map();
+function echartsRegistrar(id, inst){
+  const antigo = _echartsVivos.get(id);
+  if(antigo && antigo !== inst) antigo.dispose();
+  _echartsVivos.set(id, inst);
+}
+window.addEventListener('resize', () => {
+  _echartsVivos.forEach(i => { try{ i.resize(); }catch(_){} });
+});
+
 /* ============ Produtividade de Veículos (Business Intelligence) ============
    O que a tela responde: quanto cada veículo produz, e quem produz pouco.
 
@@ -15199,56 +15243,102 @@ function renderProdveic(d){
     : '<div class="toast t-ok"><b>Nada exigindo ação</b>Nenhum veículo próprio parado, retorno vazio dentro da referência e produção distribuída.</div>';
 }
 
-/* Barras de km + linha de veículos ativos. Duas escalas no mesmo eixo, então a
-   linha vai ROTULADA ponto a ponto: sem rótulo direto, uma série em eixo
-   secundário sem escala é um desenho bonito que não se lê. */
+/* Km por mês (barra) + veículos que rodaram (linha), em ECharts.
+   PRIMEIRO GRÁFICO DE BIBLIOTECA DO CÓRTEX — os outros 43 continuam SVG à mão.
+   Ver a seção de gráficos do CLAUDE.md para o critério de quando usar cada um.
+
+   O que a biblioteca NÃO pode nos fazer perder, e por isso está explícito aqui:
+
+   - MÊS PARCIAL HACHURADO. `decal` do ECharts 5 faz o mesmo que o `<pattern>`
+     que a gente desenhava. Mês cortado pelo filtro com barra cheia mente sobre
+     a queda — é a regra mais antiga dos painéis desta casa.
+   - RÓTULO DIRETO na linha. Ela vive num segundo eixo com escala própria;
+     sem o número em cima do ponto, o leitor não tem como ler valor nenhum.
+   - EIXO COM A UNIDADE FINAL ("MILHÕES DE KM"), nunca composta com ×1000.
+   - SEMÁFORO DISCRETO: a cor da barra não gradua com o valor. */
 function desenhaProdMensal(m, filtros){
-  const svg = document.getElementById('chartProd');
-  if(!m.length){ svg.innerHTML=''; return; }
-  const W=960, H=250, ml=70, mr=48, mt=18, mb=34;
-  const iw=W-ml-mr, ih=H-mt-mb;
-  const kmMax = Math.max(...m.map(x=>x.km_carregado||0), 1);
-  const vMax  = Math.max(...m.map(x=>x.veiculos||0), 1);
-  const esc0 = v => ih - (v/kmMax)*ih;
-  const barW = Math.min(46, iw/m.length*0.6);
-  const px = i => ml + (iw/m.length)*(i+0.5);
-  // Rótulo com a unidade FINAL: "MIL KM ×1000" obrigava o leitor a multiplicar
-  // de cabeça e era lido como mil valendo milhão (lição da Análise de KM).
-  const un = kmMax >= 1.5e6 ? {d:1e6, rot:'MILHÕES DE KM'}
-           : kmMax >= 1500  ? {d:1e3, rot:'MIL KM'}
-           : {d:1, rot:'KM'};
-  un.fmt = v => (v/un.d).toLocaleString('pt-BR',{maximumFractionDigits: un.d>1?1:0});
-  let out = `<g transform="translate(0,${mt})">`;
-  // grade + eixo do km, com a unidade FINAL no rótulo (nunca "×1000")
-  for(let i=0;i<=4;i++){
-    const y=ih-(ih/4)*i, v=(kmMax/4)*i;
-    out += `<line x1="${ml}" x2="${W-mr}" y1="${y}" y2="${y}" stroke="var(--n200)" stroke-width="1"/>`
-        +  `<text x="${ml-8}" y="${y+4}" text-anchor="end" font-size="10" fill="#6E7883" font-family="IBM Plex Mono,monospace">${un.fmt(v)}</text>`;
-  }
-  out += `<text x="${ml-8}" y="-4" text-anchor="end" font-size="11" fill="#6E7883" font-weight="600" letter-spacing="1.5">${un.rot}</text>`;
-  m.forEach((x,i)=>{
-    const h = ih-esc0(x.km_carregado||0), y = esc0(x.km_carregado||0);
-    const parcial = comParcial(x.mes, filtros.dt_de, filtros.dt_ate);
-    out += `<rect x="${px(i)-barW/2}" y="${y}" width="${barW}" height="${Math.max(0,h)}" rx="3" `
-        +  `fill="${parcial?'url(#hatchProd)':'var(--green)'}" data-i="${i}"/>`;
-    out += `<text x="${px(i)}" y="${ih+16}" text-anchor="middle" font-size="10" fill="#6E7883">${MES[+x.mes.slice(5,7)-1]}/${x.mes.slice(2,4)}</text>`;
-    if(parcial) out += `<text x="${px(i)}" y="${ih+28}" text-anchor="middle" font-size="9" fill="#9AA3AE">parcial</text>`;
+  const el = document.getElementById('chartProd');
+  if(!el) return;
+  if(!m.length){ el.innerHTML = '<div style="padding:26px;color:var(--n500);font-size:13px">Sem viagem no período.</div>'; return; }
+
+  carregarECharts().then(ec => {
+    const inst = ec.init(el, null, {renderer:'svg'});
+    echartsRegistrar('chartProd', inst);
+
+    const kmMax = Math.max(...m.map(x=>x.km_carregado||0), 1);
+    const un = kmMax >= 1.5e6 ? {d:1e6, rot:'MILHÕES DE KM'}
+             : kmMax >= 1500  ? {d:1e3, rot:'MIL KM'}
+             : {d:1, rot:'KM'};
+    const nf = v => (v==null?'—':Math.round(v).toLocaleString('pt-BR'));
+    const parciais = m.map(x => comParcial(x.mes, filtros.dt_de, filtros.dt_ate));
+    const rotMes = x => MES[+x.mes.slice(5,7)-1] + '/' + x.mes.slice(2,4);
+
+    inst.setOption({
+      /* Sem `animation`: o painel recarrega a cada troca de filtro, e o
+         gráfico redesenhando com animação a cada clique vira ruído. */
+      animation: false,
+      grid: {left: 78, right: 26, top: 34, bottom: 46},
+      tooltip: {
+        trigger: 'axis',
+        backgroundColor: '#fff', borderColor: '#DCE0E5', borderWidth: 1,
+        textStyle: {color:'#14181D', fontSize:12.5, fontFamily:'Saira, sans-serif'},
+        formatter: p => {
+          const i = p[0].dataIndex, x = m[i];
+          return `<b>${rotMes(x)}</b>${parciais[i] ? ' <span style="color:#B97709">· mês parcial</span>' : ''}<br>`
+               + `Km carregado: <b>${nf(x.km_carregado)}</b><br>`
+               + `Km vazio: ${nf(x.km_vazio)}<br>`
+               + `Veículos que rodaram: <b>${x.veiculos}</b><br>`
+               + `Km por veículo: <b>${nf(x.veiculos ? x.km_carregado/x.veiculos : null)}</b>`;
+        },
+      },
+      xAxis: {
+        type: 'category',
+        data: m.map(x => rotMes(x) + (parciais[m.indexOf(x)] ? '\nparcial' : '')),
+        axisLine: {lineStyle:{color:'#C2C8D0'}},
+        axisTick: {show:false},
+        axisLabel: {color:'#6E7883', fontSize:10, lineHeight:13, fontFamily:'Saira, sans-serif'},
+      },
+      yAxis: [
+        { type:'value', name: un.rot, nameLocation:'end', nameGap:14,
+          nameTextStyle:{color:'#6E7883', fontSize:11, fontWeight:600, align:'right'},
+          splitLine:{lineStyle:{color:'#ECEEF1'}}, axisLine:{show:false}, axisTick:{show:false},
+          axisLabel:{color:'#6E7883', fontSize:10, fontFamily:'IBM Plex Mono, monospace',
+                     formatter: v => (v/un.d).toLocaleString('pt-BR',{maximumFractionDigits: un.d>1?1:0})} },
+        /* Segundo eixo REAL para os veículos, em vez do fator 0,82 que o
+           desenho à mão usava para a linha não encostar no topo. Escala
+           inventada é o tipo de coisa que ninguém confere depois. */
+        { type:'value', show:false, max: Math.max(...m.map(x=>x.veiculos||0),1) * 1.35 },
+      ],
+      series: [
+        { name:'Km carregado', type:'bar', yAxisIndex:0, barMaxWidth:52,
+          itemStyle:{
+            color:'#1E7F4F', borderRadius:[3,3,0,0],
+            /* hachura só no mês parcial — o `decal` é por item */
+            decal: null,
+          },
+          data: m.map((x,i)=>({
+            value: x.km_carregado||0,
+            itemStyle: parciais[i] ? {color:'#1E7F4F', borderRadius:[3,3,0,0],
+              decal:{symbol:'rect', color:'rgba(255,255,255,.62)', dashArrayX:[1,0],
+                     dashArrayY:[2,4], rotation:-Math.PI/4}} : undefined,
+          })) },
+        { name:'Veículos que rodaram', type:'line', yAxisIndex:1, smooth:false,
+          symbol:'circle', symbolSize:7,
+          lineStyle:{color:'#17344F', width:2.5}, itemStyle:{color:'#17344F'},
+          label:{show:true, position:'top', color:'#17344F', fontWeight:700,
+                 fontSize:10.5, fontFamily:'Saira, sans-serif',
+                 textBorderColor:'#fff', textBorderWidth:3},
+          data: m.map(x => x.veiculos||0) },
+      ],
+    }, true);
+  }).catch(e => {
+    /* Falha de carga é dita, não escondida: o arquivo vem do nosso disco, então
+       isso significa deploy quebrado — e um cartão vazio faria parecer que não
+       houve viagem no período. */
+    el.innerHTML = '<div style="padding:22px;color:var(--red);font-size:13px">'
+      + 'Não foi possível carregar a biblioteca de gráficos (' + esc(e.message) + ').'
+      + '<br><span style="color:var(--n500)">Os números das tabelas abaixo continuam corretos.</span></div>';
   });
-  // linha de veículos, rotulada ponto a ponto
-  const ly = v => ih - (v/vMax)*ih*0.82;
-  out += `<polyline fill="none" stroke="var(--navy-700)" stroke-width="2.5" points="`
-      +  m.map((x,i)=>`${px(i)},${ly(x.veiculos||0)}`).join(' ') + `"/>`;
-  m.forEach((x,i)=>{
-    out += `<circle cx="${px(i)}" cy="${ly(x.veiculos||0)}" r="3.5" fill="var(--navy-700)"/>`;
-    out += `<text x="${px(i)}" y="${ly(x.veiculos||0)-9}" text-anchor="middle" font-size="10.5" fill="#17344F" font-weight="700" `
-        +  `stroke="#fff" stroke-width="3" paint-order="stroke" stroke-linejoin="round">${x.veiculos}</text>`;
-  });
-  out += '</g>';
-  const defs = '<defs><pattern id="hatchProd" width="6" height="6" '
-    + 'patternTransform="rotate(45)" patternUnits="userSpaceOnUse">'
-    + '<rect width="6" height="6" fill="#1E7F4F"/>'
-    + '<rect width="2.4" height="6" fill="#fff" opacity=".62"/></pattern></defs>';
-  svg.innerHTML = defs + out;
 }
 
 async function loadKm(){

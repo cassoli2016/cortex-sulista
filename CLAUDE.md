@@ -126,24 +126,38 @@ Toda construção de painel segue a skill `dashboard-builder` e este padrão:
 4. **Tabela acionável**: linhas ordenadas por prioridade/risco, com ação sugerida.
 5. **Alertas**: ocorrências que exigem ação agora.
 
-**Gráfico é SVG escrito à mão, e isso foi decidido, não herdado.** São 43 no
-`index.html`, sem NENHUMA dependência de JavaScript externo — sem build, sem
-CDN, servido do disco e funcionando atrás do túnel sem falar com ninguém.
-O amCharts 5 foi avaliado em 27/08/2026 e **não adotado**:
+**Gráfico: SVG à mão por padrão, ECharts quando a interação for o ponto.**
+São 43 gráficos SVG escritos à mão no `index.html` — e continuam sendo, porque
+carregam as regras que esta seção documenta (mês parcial hachurado, rótulo
+direto, semáforo discreto, anti-colisão, teclado) e reescrevê-los seria semanas
+para perder cada uma.
 
-- licença — o CÓRTEX é atrás de login, então a Basic (US$ 180) não cobre; seria
-  a Single App/SaaS a US$ 650 perpétua por assento. A versão grátis é linkware
-  e a licença PROÍBE esconder o logo, que apareceria no mural do corredor;
-- peso — +663 KB (core 455 + xy 179 + percent 28) contra 1.335 KB do arquivo
-  inteiro;
-- risco — os 43 gráficos carregam os comportamentos que esta seção documenta
-  (mês parcial hachurado, rótulo direto, semáforo discreto, anti-colisão,
-  teclado). Migrar é semanas e arrisca perder cada um.
+**ECharts 5 (Apache 2.0) entrou em 27/08/2026**, vendorizado em
+`api/static/vendor/echarts.min.js` com a licença ao lado, e é a escolha quando
+o painel precisar de **zoom/pan em série longa, drill-down, exportação, gantt
+ou mapa** — coisas que o SVG à mão não faz. Primeiro uso: o gráfico mensal da
+Produtividade de Veículos.
 
-O que ele traria e não temos: zoom/pan em série longa, drill-down, exportação,
-gantt e mapas. Se um painel novo precisar DISSO — e não de um gráfico melhor —
-a conversa se reabre, começando por um piloto na área de BI, com os arquivos
-vendorizados localmente e nunca por CDN.
+Três regras para usá-lo, todas com teste em `tests/frontend/test_echarts_e2e.py`:
+
+1. **Carga SOB DEMANDA** (`carregarECharts()`): são 990 KB, e as 62 telas que
+   não usam biblioteca não pagam por ele. Há teste que falha se a Visão Geral
+   baixar o arquivo.
+2. **Vendorizado, NUNCA CDN.** O painel roda atrás do túnel e hoje não depende
+   de host externo em tempo de execução; trocar isso por conveniência seria
+   comprar um ponto de falha.
+3. **A biblioteca não dispensa as regras da casa.** Mês parcial continua
+   hachurado (`decal`), linha em eixo secundário continua com rótulo direto, e
+   eixo continua com a unidade FINAL. Falha ao carregar é DITA no cartão —
+   cartão vazio faria parecer "sem viagem no período".
+
+**Não usadas, e por quê:** amCharts 5 — o CÓRTEX é atrás de login, então a
+licença seria a Single App a US$ 650 perpétua/assento, e a versão grátis proíbe
+esconder o logo, que apareceria no mural do corredor. **ApexCharts — cuidado:
+parece livre e não é.** Deixou de ser MIT e hoje cobra de organização com mais
+de US$ 2 milhões de receita anual, incluindo ferramenta interna. Chart.js (MIT)
+entrega menos que os 43 gráficos já fazem. uPlot (MIT, 49 KB) fica como opção
+se algum dia o problema for só série temporal longa.
 
 **Design system (valores reais implementados — tokens em `api/static/index.html`):**
 - **Marca:** amarelo Sulista `#FFD31C` = `--brand`, usado SÓ em superfície escura (trilho

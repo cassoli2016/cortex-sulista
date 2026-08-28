@@ -4,6 +4,15 @@ Gerado de `docs/versoes.yaml` por `scripts/gerar_changelog.py` — não editar �
 Formato [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/),
 versionamento [SemVer](https://semver.org/lang/pt-BR/).
 
+## [0.118.0] — 27/08/2026  ·  CX-27/08/2026-v0.118.0
+
+### Adicionado
+- O CORTEX ganhou sua primeira biblioteca de graficos: ECharts, da Apache Software Foundation, livre e sem marca d'agua. O grafico mensal do painel de Produtividade de Veiculos foi o primeiro a usar - com tooltip que mostra km vazio e km por veiculo ao passar o mouse, e os valores do eixo em numeros redondos.
+- Ela e carregada SO na tela que precisa: sao 990 KB, e as outras 62 telas nao pagam por um arquivo que nao abrem. O arquivo vem do proprio servidor, nunca de um site externo - o painel funciona atras do tunel sem depender de ninguem.
+
+### Alterado
+- Os outros 43 graficos continuam desenhados a mao, de proposito: eles carregam as regras da casa (mes parcial hachurado, rotulo direto, semaforo sem degrade) que levariam semanas para reconstruir. A biblioteca entra quando o painel precisar de zoom, drill-down, gantt ou mapa - e as mesmas regras valem la dentro, com teste que falha se alguma se perder.
+
 ## [0.117.2] — 27/08/2026  ·  CX-27/08/2026-v0.117.2
 
 ### Alterado
