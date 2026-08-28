@@ -4,6 +4,15 @@ Gerado de `docs/versoes.yaml` por `scripts/gerar_changelog.py` — não editar �
 Formato [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/),
 versionamento [SemVer](https://semver.org/lang/pt-BR/).
 
+## [0.135.0] — 28/08/2026  ·  CX-28/08/2026-v0.135.0
+
+### Alterado
+- VALIDADOR DO CADASTRO reorganizado. O cabecalho trazia TRES numeros de tres universos diferentes colados numa frase - "8 de 37 achados · 39 de 46 agregados com o cadastro em ordem · 21 passam em TUDO" -, cada um respondendo outra pergunta e com outro denominador. Em texto corrido nao se le nenhum. Viraram tres blocos rotulados: podem emitir hoje, cadastro em ordem, achados.
+- O escopo da varredura era uma frase de cem caracteres ao lado do botao, disputando espaco com ele. Virou selo curto ("ultimos 90 dias") com o texto inteiro no tooltip, mais a hora da varredura.
+- A COLUNA "O QUE FAZER" SAI quando ha acao dominante. Ela ja tinha sido colapsada antes, mas continuava na tabela repetindo "a mesma acima" oito vezes - o pior dos dois mundos, porque ocupava a largura e nao dizia nada. Agora a acao dominante e uma faixa acima da tabela, com rotulo, e as linhas que divergem levam a propria instrucao embaixo do diagnostico, onde ela se le junto com o defeito que a motivou.
+- As linhas do validador passam a ser marcadas por barra lateral (vermelha para o que trava a emissao, cinza para o que nao trava) em vez de opacidade reduzida: apagar a linha inteira mata a cor dos selos e diz "menos importante" onde se quer dizer "este nao trava".
+- A coluna de acoes ganhou nome ("Acoes", como na de certificados) e mostra travessao onde nao ha botao - antes era uma coluna sem cabecalho, vazia na maioria das linhas.
+
 ## [0.134.0] — 28/08/2026  ·  CX-28/08/2026-v0.134.0
 
 ### Alterado

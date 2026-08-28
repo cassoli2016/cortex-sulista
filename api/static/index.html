@@ -1188,6 +1188,29 @@ button.avatar{border:0;cursor:pointer}
    do vizinho. Uma linha so, altura igual, sem quebra — e o verbo curto, que e
    o que cabe numa celula ("desativar", nao "desativar envio": a coluna se
    chama Acoes e a linha ja e do agregado). */
+/* FAIXA DA ACAO DOMINANTE, acima da tabela. Ela substitui uma coluna inteira
+   que repetia o mesmo paragrafo; por isso tem rotulo, e nao e so um paragrafo
+   solto que se confunde com o resto do texto do cartao. */
+.cp-acaofaixa{display:flex;align-items:baseline;gap:10px;flex-wrap:wrap;
+  background:var(--n50);border-left:3px solid var(--navy-400);
+  border-radius:0 8px 8px 0;padding:10px 14px}
+.cp-acaofaixa .rot{font:700 10.5px/1 var(--font);letter-spacing:.06em;
+  text-transform:uppercase;color:var(--n500);white-space:nowrap}
+.cp-acaofaixa .txt{font-size:13px;color:var(--n800);flex:1;min-width:240px}
+.cp-acaofaixa .excecao{font-size:12px;color:var(--yellow);white-space:nowrap}
+/* GRUPOS DO VALIDADOR: `grave` trava a emissao hoje, `leve` e defeito que nao
+   impede. Barra lateral, e nao opacidade — apagar a linha mata a cor dos selos
+   e diz "menos importante" onde se quer dizer "este nao trava". */
+.tab tr.cp-l-grave td:first-child{box-shadow:inset 3px 0 0 var(--red)}
+.tab tr.cp-l-leve  td:first-child{box-shadow:inset 3px 0 0 var(--n300)}
+.tab tr.cp-l-leve td{color:var(--n600)}
+.tab tr.cp-l-leve td:first-child{color:var(--n800)}
+/* o resumo do validador usa a mesma grade do cronometro, com valores menores */
+#cpValidResumo .val{font:700 22px/1.1 var(--font);color:var(--n900)}
+#cpValidResumo .val.ok{color:var(--green)}
+#cpValidResumo .val.ruim{color:var(--red)}
+#cpValidResumo .sub{font-size:11.5px;color:var(--n500)}
+#cpValidResumo .bloco{min-width:150px}
 .tab .acoes{display:flex;gap:6px;align-items:center;flex-wrap:nowrap}
 .tab .acoes .gbtn{white-space:nowrap;line-height:1.1}
 /* A acao que RESTABELECE ganha peso: entre "desativar" e "ativar", a segunda e
@@ -3086,8 +3109,9 @@ body.tvfull #btnReport,body.tvmode #btnReport{display:none}
                 title="Confere o cadastro de TODOS os agregados que rodaram nos últimos 90 dias, sem o filtro de período da tela. Defeito de cadastro não pertence a uma janela de datas — com o filtro do dia, quem não rodou hoje não era validado.">Varrer todos os agregados</button>
               <span class="hint" id="cpValidEscopo"></span>
             </div>
+            <div class="cp-crongrid" id="cpValidResumo"></div>
             <div id="cpValidChips" class="chips"></div>
-            <div class="hint" id="cpValidAcao" hidden></div>
+            <div class="cp-acaofaixa" id="cpValidAcao" hidden></div>
           </div>
           <div class="tabroll"><table class="tab" id="cpValidTab"></table></div>
           <div class="cp-pager" id="cpValidTabPag" hidden></div>
@@ -11160,17 +11184,17 @@ function cpValidRender(){
 
   const lin=(v.achados||[]).filter(function(a){
     return CP_VALCAT==='tudo' || a.categoria===CP_VALCAT; });
-  /* COLUNA QUE REPETE O MESMO VALOR EM TODA LINHA SAI DA TABELA - a regra ja
-     estava escrita no projeto e eu a quebrei aqui: "O que fazer" trazia o
-     mesmo texto nas 29 linhas de certificado e nas 8 de inscricao, ocupando
-     40% da largura para dizer uma coisa so. Sendo a acao a mesma para o
-     recorte inteiro, ela vira UMA frase acima da tabela; divergindo, a coluna
-     volta, porque ai ela informa de verdade. */
-  /* A regra "so colapsa se TODAS forem iguais" era estrita demais: no recorte
-     de cadastro, 8 linhas trazem a mesma instrucao do SINTEGRA e 1 (a
-     contradicao inversa) traz outra - e a coluna voltava a repetir oito vezes
-     o mesmo paragrafo. Colapsa quando ha UMA acao dominante; a excecao
-     continua na coluna, que e onde ela precisa ser vista. */
+  /* COLUNA QUE REPETE O MESMO VALOR EM TODA LINHA SAI DA TABELA. A regra ja
+     estava escrita no projeto e eu a quebrei aqui duas vezes: primeiro a
+     coluna "O que fazer" trazia o mesmo paragrafo nas 29 linhas de
+     certificado; depois, "consertada", ela passou a trazer "a mesma acima"
+     oito vezes — que e o pior dos dois mundos, porque ocupa a largura e nao
+     diz nada.
+
+     Agora: havendo acao dominante, a coluna SOME e a acao vira uma faixa
+     acima da tabela. As linhas que divergem levam a propria acao embaixo do
+     diagnostico, onde ela se le junto com o defeito que a motivou — e nao
+     numa coluna que existe so por causa delas. */
   const conta = {};
   lin.forEach(function(a){ const k=a.acao||''; conta[k]=(conta[k]||0)+1; });
   const acoes = Object.keys(conta);
@@ -11180,9 +11204,12 @@ function cpValidRender(){
      acharia que vale para todos */
   const colapsa = soUma || (lin.length>3 && conta[dominante] > lin.length*0.6);
   const acaoUnica = colapsa ? dominante : '';
+  const divergentes = colapsa ? lin.length - conta[dominante] : 0;
   document.getElementById('cpValidAcao').innerHTML = acaoUnica
-    ? '<b>O que fazer'+(soUma?'':' na maioria')+':</b> '+esc(acaoUnica)
-      +(soUma?'':' <span style="color:var(--n500)">— as demais estão na coluna.</span>')
+    ? '<span class="rot">o que fazer</span><span class="txt">'+esc(acaoUnica)+'</span>'
+      +(divergentes
+         ? '<span class="excecao">'+divergentes+' com outra instrução, marcada na linha</span>'
+         : '')
     : '';
   document.getElementById('cpValidAcao').hidden = !acaoUnica;
   /* O recorte inclui a CATEGORIA: trocar de chip e outro conjunto, e continuar
@@ -11192,51 +11219,77 @@ function cpValidRender(){
   document.getElementById('cpValidTab').innerHTML=
     '<thead><tr><th>Agregado</th><th>UF</th><th class="num">CT-e</th>'
     +'<th>O que está errado</th>'
-    +((acaoUnica && soUma)?'':'<th>O que fazer</th>')
-    +'<th></th></tr></thead><tbody>'
+    +(colapsa ? '' : '<th>O que fazer</th>')
+    +'<th>Ações</th></tr></thead><tbody>'
     +pagVal.map(function(a){
       const rej=a.rejeicao
         ? ' <span class="badge b-dang" title="Código medido na transmissão, não estimado.">'+esc(a.rejeicao)+'</span>'
         : '';
-      /* A ACAO FICA AO LADO DO DIAGNOSTICO. Antes o cadastro de certificado
-         so abria pela coluna Autorizacao da fila do dia - a tabela que
-         responde "o que sai hoje", nao "de quem falta certificado". Quem vai
-         cadastrar esta AQUI, lendo esta linha, com o arquivo do agregado em
-         maos; ter de sair para outra tabela e procurar o mesmo nome era o
-         caminho mais longo entre saber e resolver. So aparece no que se
-         resolve cadastrando: "nao contribuinte" nao tem certificado a pedir. */
+      /* A ACAO FICA AO LADO DO DIAGNOSTICO. Quem vai cadastrar esta AQUI,
+         lendo esta linha, com o arquivo do agregado em maos; ter de sair para
+         outra tabela e procurar o mesmo nome era o caminho mais longo entre
+         saber e resolver. */
       /* O BOTAO SO ONDE ELE E A ACAO. Nas linhas de cadastro a correcao e no
-         ERP ou no SINTEGRA - abrir aqui o cadastro de certificado nao resolve
+         ERP ou no SINTEGRA — abrir aqui o cadastro de certificado nao resolve
          nada e contradiz a propria instrucao da linha. */
       const pode = a.categoria==='certificado';
-      return '<tr'+(a.grave?'':' style="opacity:.62"')+'>'
+      /* A EXCECAO vai embaixo do defeito, e nao numa coluna: assim ela se le
+         junto com o que a motivou, e a coluna nao precisa existir por causa
+         de uma linha em oito. */
+      const propria = (colapsa && (a.acao||'') !== acaoUnica && a.acao)
+        ? '<div class="hint" style="color:var(--yellow);margin-top:3px">'
+          + esc(a.acao) + '</div>' : '';
+      /* `grave` marca a linha com barra lateral, e nao com opacidade: apagar a
+         linha inteira mata a cor dos selos, e esmaecer diz "menos importante"
+         quando o que se quer dizer e "este trava a emissao". */
+      return '<tr class="'+(a.grave?'cp-l-grave':'cp-l-leve')+'">'
         +'<td>'+esc(a.nome||a.documento||'')+'</td>'
         +'<td>'+esc(a.uf||'')+'</td>'
         +'<td class="num">'+(a.ctes||0).toLocaleString('pt-BR')+'</td>'
-        +'<td>'+esc(a.defeito||'')+rej+'</td>'
-        +((acaoUnica && soUma) ? ''
-           : '<td>'+((a.acao||'')===acaoUnica
-               ? '<span class="hint" style="color:var(--n400)" title="'
-                 +esc(a.acao||'')+'">a mesma acima</span>'
-               : '<span class="hint">'+esc(a.acao||'')+'</span>')+'</td>')
+        +'<td>'+esc(a.defeito||'')+rej+propria+'</td>'
+        +(colapsa ? ''
+           : '<td><span class="hint">'+esc(a.acao||'')+'</span></td>')
         +'<td>'+(pode
-           ? '<button class="gbtn" data-doc="'+esc(a.documento||'')+'"'
+           ? '<div class="acoes"><button class="gbtn" data-doc="'+esc(a.documento||'')+'"'
              +' onclick="cpAbrir(this.dataset.doc)"'
-             +' title="Cadastrar ou substituir a autorização e o certificado A1 deste agregado.">cadastrar</button>'
-           : '')+'</td></tr>';
+             +' title="Cadastrar ou substituir a autorização e o certificado A1 deste agregado.">cadastrar</button></div>'
+           : '<span class="hint">—</span>')+'</td></tr>';
     }).join('')+'</tbody>';
 
   /* O ESCOPO tem de estar visivel: os mesmos numeros significam coisas
      diferentes conforme a lista tenha vindo do filtro da tela ou da varredura
      completa, e nao ha como distinguir olhando. */
-  document.getElementById('cpValidEscopo').textContent = v.escopo
-    ? (v.escopo + (v.gerado_em ? ' · varrido em '+fmtDT(v.gerado_em) : ''))
-    : 'segue o filtro de período da tela';
+  /* O ESCOPO tem de estar visivel — os mesmos numeros significam coisas
+     diferentes conforme a lista tenha vindo do filtro da tela ou da varredura
+     completa. Mas em UMA linha curta ao lado do botao: a frase inteira
+     competia com ele e ocupava metade da largura do cartao. O texto completo
+     esta no ⓘ do cabecalho. */
+  const dias = (v.escopo||'').match(/(\d+)\s*dias/);
+  document.getElementById('cpValidEscopo').innerHTML = v.escopo
+    ? '<span class="badge b-info" title="'+esc(v.escopo)+'">'
+      + (dias ? 'últimos '+dias[1]+' dias' : 'varredura completa')
+      + '</span>'
+      + (v.gerado_em ? ' <span class="hint">varrido '+esc(fmtDT(v.gerado_em))+'</span>' : '')
+    : '<span class="badge b-warn">segue o filtro da tela</span>';
+  /* TRES NUMEROS DE TRES UNIVERSOS numa frase so, colados por pontos, era o
+     que estava no cabecalho: "8 de 37 achados · 39 de 46 agregados com o
+     cadastro em ordem · 21 passam em TUDO". Cada um responde outra pergunta e
+     tem outro denominador — em texto corrido nao se le nenhum. Viraram blocos
+     rotulados, o mesmo desenho do cronometro da emissao. */
   const okc=(v.cadastro_ok||0), tot=(v.agregados||0);
-  document.getElementById('hintCpValid').textContent=
-    lin.length+' de '+(v.achados||[]).length+' achados · '
-    +okc+' de '+tot+' agregados com o cadastro em ordem · '
-    +(v.aprovados||0)+' passam em TUDO e podem emitir hoje';
+  const bloco=(rot,val,sub2,cls)=>
+    '<div class="bloco"><span class="rot">'+esc(rot)+'</span>'
+    +'<span class="val'+(cls?' '+cls:'')+'">'+esc(val)+'</span>'
+    +(sub2?'<span class="sub">'+esc(sub2)+'</span>':'')+'</div>';
+  document.getElementById('cpValidResumo').innerHTML =
+      bloco('podem emitir hoje', (v.aprovados||0),
+            'passam em todas as conferências', 'ok')
+    + bloco('cadastro em ordem', okc+' de '+tot, 'no ERP')
+    + bloco('achados', (v.achados||[]).length,
+            lin.length !== (v.achados||[]).length
+              ? lin.length+' nesta categoria' : 'em todas as categorias',
+            (v.achados||[]).length ? 'ruim' : '');
+  document.getElementById('hintCpValid').textContent = '';
 }
 
 function cpAutoCarrega(){

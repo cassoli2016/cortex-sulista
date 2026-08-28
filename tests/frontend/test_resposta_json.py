@@ -52,14 +52,25 @@ def test_acao_repetida_sai_da_tabela_e_vira_frase():
     Colapsa pela acao DOMINANTE e nao so quando todas sao iguais: no recorte
     de cadastro sao 8 linhas iguais e 1 diferente, e exigir unanimidade
     devolvia as oito repeticoes.
+
+    ESTA GUARDA JA TRAVOU UM MEIO-TERMO RUIM. A primeira correcao mantinha a
+    coluna quando havia excecao, preenchendo as demais com "a mesma acima" —
+    que ocupa a largura e nao diz nada, o pior dos dois mundos. Agora a coluna
+    SOME sempre que ha acao dominante, e a excecao leva a propria instrucao
+    embaixo do diagnostico, onde ela se le junto com o defeito que a motivou.
     """
     i = HTML.index("function cpValidRender()")
     corpo = HTML[i:HTML.index("function cpAutoCarrega()", i)]
     assert "dominante" in corpo and "cpValidAcao" in corpo
-    # a coluna some por inteiro so quando ha UMA acao; havendo excecao ela
-    # continua, com as repetidas atenuadas
-    assert "(acaoUnica && soUma)" in corpo
-    assert "a mesma acima" in corpo
+    # havendo acao dominante, a coluna nao e desenhada
+    assert "(colapsa ? '' : '<th>O que fazer</th>')" in corpo
+    # e a excecao aparece NA LINHA, e nao numa coluna que existe por causa dela
+    assert "divergentes" in corpo
+    # A FORMA RENDERIZADA, e nao a frase: o comentario que explica por que o
+    # preenchimento repetido saiu cita "a mesma acima", e uma guarda textual
+    # nao distingue codigo de prosa — ela acusaria a propria documentacao.
+    assert "a mesma acima</span>" not in corpo, (
+        "voltou o preenchimento repetido da coluna colapsada")
 
 
 def test_botao_de_cadastro_so_na_categoria_de_certificado():
