@@ -4,6 +4,14 @@ Gerado de `docs/versoes.yaml` por `scripts/gerar_changelog.py` — não editar �
 Formato [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/),
 versionamento [SemVer](https://semver.org/lang/pt-BR/).
 
+## [0.124.0] — 28/08/2026  ·  CX-28/08/2026-v0.124.0
+
+### Adicionado
+- Contexto "Faturamento do dia" nos modelos de mensagem, com as nove variaveis do resumo diario - faturado no dia, meta do dia, acumulado do mes, meta do periodo, atingimento, quanto falta e o mesmo periodo do mes passado.
+- Botao "Preencher com os numeros de hoje" no formulario de envio: escolheu o modelo de faturamento, um clique traz os valores da Visao Geral. Digitar nove numeros a mao todo dia e onde o erro passa - um digito a menos no acumulado e a mensagem sai dizendo que a empresa faturou um decimo do que faturou.
+- Modelo "Faturamento diario" ja cadastrado e pronto para usar, com teto de 10 destinatarios por dia: o resumo vai para um punhado de pessoas da casa, e o teto baixo transforma um disparo acidental em massa numa recusa em vez de numa lista de clientes recebendo o faturamento da empresa.
+- A mensagem AVISA quando o dia ainda esta em curso. As 11h da manha o dia tinha 20% da meta - numero correto e leitura desastrosa, porque faltavam nove horas de faturamento. E a mesma regra da barra hachurada do painel, dita por escrito porque no celular nao ha hachura.
+
 ## [0.123.0] — 28/08/2026  ·  CX-28/08/2026-v0.123.0
 
 ### Adicionado

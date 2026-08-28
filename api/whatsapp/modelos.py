@@ -145,6 +145,25 @@ CONTEXTOS: dict[str, dict] = {
             _v("prazo", "Prazo / fim do freetime", "29/08/2026 18:00"),
         ],
     },
+    "faturamento": {
+        "rotulo": "Faturamento do dia",
+        "ajuda": "Resumo diário para a diretoria e a equipe comercial. Os "
+                 "números saem da Visão Geral — o botão “Preencher com os "
+                 "números de hoje” dispensa digitar um por um.",
+        "consumidores": ["Visão Geral (preenchimento automático)"],
+        "provedor": "faturamento_diario",
+        "variaveis": [
+            _v("data", "Data do resumo", "28/08/2026"),
+            _v("faturado_dia", "Faturado no dia", "R$ 104.007,09"),
+            _v("meta_dia", "Meta do dia", "R$ 552.857,99"),
+            _v("atingimento_dia", "Atingimento do dia", "18,8%"),
+            _v("acumulado_mes", "Acumulado do mês", "R$ 10.735.390,66"),
+            _v("meta_mes", "Meta do mês até hoje", "R$ 11.756.257,68"),
+            _v("atingimento_mes", "Atingimento do mês", "91,3%"),
+            _v("falta_mes", "Falta para a meta do mês", "R$ 1.020.867,02"),
+            _v("mes_anterior", "Mesmo período do mês anterior", "R$ 10.390.732,37"),
+        ],
+    },
     "frota": {
         "rotulo": "Frota / Manutenção",
         "ajuda": "Aviso de manutenção preventiva ou documento vencendo. "
@@ -163,6 +182,16 @@ CONTEXTOS: dict[str, dict] = {
 }
 
 CONTEXTO_PADRAO = "livre"
+
+
+def provedor_do_contexto(contexto: str) -> str:
+    """Nome do provedor de valores, ou "" se o contexto não tem um.
+
+    É o que separa "escreva os valores à mão" de "clique e o CÓRTEX preenche".
+    Fica no catálogo, junto das variáveis, porque quem acrescenta uma variável
+    é quem precisa lembrar de ensiná-la ao provedor.
+    """
+    return (CONTEXTOS.get(contexto or CONTEXTO_PADRAO) or {}).get("provedor", "")
 
 
 def contextos() -> list[dict]:

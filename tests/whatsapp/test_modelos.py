@@ -90,8 +90,11 @@ def test_contexto_livre_nao_aceita_variavel_nenhuma():
 
 
 def test_contexto_inexistente_e_recusado():
+    """O nome escolhido aqui não pode ser um candidato a virar contexto de
+    verdade — este teste já quebrou no dia em que "faturamento" foi criado."""
     with pytest.raises(md.ModeloInvalido, match="não existe"):
-        md.validar({"nome": "x", "contexto": "faturamento", "corpo": "oi"})
+        md.validar({"nome": "x", "contexto": "contexto-que-nunca-existira",
+                    "corpo": "oi"})
 
 
 def test_todo_contexto_declara_exemplo_para_toda_variavel():

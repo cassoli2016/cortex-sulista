@@ -1258,6 +1258,36 @@ def gestao_whatsapp_modelos() -> JSONResponse:
             "mensagem": "Erro ao ler os modelos de mensagem."})
 
 
+@app.get("/api/gestao/whatsapp/modelos/valores")
+async def gestao_whatsapp_modelo_valores(contexto: str = "") -> JSONResponse:
+    """Preenche as variáveis de um contexto com os números de agora.
+
+    Existe para o modelo de faturamento diário não obrigar alguém a copiar nove
+    valores da Visão Geral todo dia — que é o tipo de tarefa em que um dígito a
+    menos passa despercebido e vira mensagem dizendo que a empresa faturou um
+    décimo do que faturou.
+
+    `sem_travar` porque a Visão Geral consulta o AVA e demora: no event loop,
+    seriam segundos com o CÓRTEX inteiro parado para todo mundo.
+    """
+    from api.whatsapp import modelos as zmod
+    from api.whatsapp import valores as zval
+    provedor = zmod.provedor_do_contexto(contexto)
+    if not provedor:
+        # contexto sem provedor é resposta NORMAL, não erro: a tela pergunta
+        # por todos e só mostra o botão onde há o que preencher
+        return JSONResponse({"provedor": "", "valores": {}})
+    try:
+        return JSONResponse({"provedor": provedor,
+                             "valores": await sem_travar(zval.obter, provedor)})
+    except Exception as exc:  # noqa: BLE001
+        log.warning("valores de %s falharam: %s", provedor, exc)
+        return JSONResponse(status_code=HTTP_RECUSA, content={
+            "erro": "valores_indisponiveis",
+            "mensagem": ("Não foi possível ler os números agora (o banco do ERP "
+                         "respondeu?). Preencha à mão ou tente de novo.")})
+
+
 @app.post("/api/gestao/whatsapp/modelos/previa")
 async def gestao_whatsapp_modelo_previa(req: Request) -> JSONResponse:
     """Valida e renderiza SEM gravar — é o que a tela mostra enquanto se digita.

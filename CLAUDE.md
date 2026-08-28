@@ -647,6 +647,33 @@ a query ignora sai; dimensão que a query aceita e é a pergunta natural da tela
   trilha, o mesmo limite e a mesma auditoria. Um caminho paralelo viraria o
   atalho para disparar sem as regras.
 
+**Mensagem que carrega número do painel (lições do resumo de faturamento):**
+- **O CÓRTEX tem TRÊS recortes de receita na mesma resposta** da Visão Geral, e eles
+  não são o mesmo número: `faturamento_mes` (faturas emitidas, R$ 11,28 mi),
+  `realizado_acumulado` (a régua da META, R$ 10,73 mi) e `receita_mes_cte`. Misturar
+  o numerador de uma régua com o denominador de outra dá 96% de atingimento onde o
+  real é 91,3% — e a mensagem sai para a diretoria dizendo que a meta está quase
+  batida quando falta um milhão. O par que fecha é `realizado_acumulado /
+  meta_acumulada`, e o `atingimento_mes` é lido PRONTO em vez de recalculado.
+- **O dia do resumo é o último COM MOVIMENTO, não o último da série** — os
+  posteriores ainda não aconteceram, e um deles é o dia corrente pela manhã, que
+  sairia como "faturamos R$ 0".
+- **Dia em curso é DITO por escrito.** Às 11h o dia tinha 20% da meta: certo e
+  desastroso. No painel isso é a hachura de "parcial"; num WhatsApp não há hachura,
+  então a marca vai no próprio atingimento, que é onde a pessoa está olhando.
+- **Preencher número à mão é onde o erro passa.** Nove valores copiados todo dia,
+  um dígito a menos no acumulado, e a mensagem anuncia um décimo do faturamento. O
+  contexto declara um `provedor` e a tela ganha "Preencher com os números de hoje";
+  o botão diz QUANTOS campos preencheu, porque variável que o provedor não conhece
+  fica em branco e ninguém repara.
+- **Um teste amarra o catálogo ao provedor**: as variáveis declaradas têm de ser
+  exatamente as entregues. Uma faltando só apareceria na hora de mandar, como
+  "variável sem preencher".
+- **Modelo que vai para poucos leva sub-limite baixo.** O resumo de faturamento vai
+  para um punhado de pessoas da casa; o teto de 10 não atrapalha o uso real e
+  transforma um disparo acidental em massa numa recusa, em vez de numa lista de
+  clientes recebendo o faturamento da empresa.
+
 **Regra por modelo: o que pode variar e o que é teto (lições das regras de envio):**
 - **Sub-limite de modelo NUNCA CRIA COTA.** O teto de destinatários é do NÚMERO e
   vale para tudo somado; o do modelo só APERTA (`min` dos dois, e as duas

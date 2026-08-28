@@ -19288,17 +19288,49 @@ function whatsModeloEscolher(){
   const usadas=m.variaveis||[];
   const rotulos={}; (ctx.variaveis||[]).forEach(v=>{ rotulos[v.chave]=v; });
   box.hidden=false;
-  box.innerHTML = usadas.length
+  box.innerHTML = (usadas.length
     ? usadas.map(v=>{
         const meta=rotulos[v]||{rotulo:v, exemplo:''};
         return `<div class="campo"><label for="wav-${esc(v)}">${esc(meta.rotulo||v)}</label>
           <input type="text" id="wav-${esc(v)}" data-var="${esc(v)}" placeholder="${esc(meta.exemplo||'')}"
                  oninput="whatsPreviaEnvio()"></div>`;
       }).join('')
-    : '<div class="aviso">Este modelo não tem variáveis — o texto sai como está.</div>';
+    : '<div class="aviso">Este modelo não tem variáveis — o texto sai como está.</div>')
+    /* Onde o CÓRTEX sabe os números, digitar à mão é onde o erro passa: um
+       dígito a menos no acumulado do mês manda a mensagem dizendo que a
+       empresa faturou um décimo do que faturou. */
+    + (usadas.length && ctx.provedor
+        ? `<div class="aviso"><button type="button" class="ghost" id="wa-preencher"
+             onclick="whatsPreencherValores()">Preencher com os números de hoje</button>
+           <span id="wa-preencher-msg" style="margin-left:8px"></span></div>`
+        : '');
   msg.readOnly=true;
   rot.textContent='Mensagem (prévia do modelo — o texto final é montado no servidor)';
   whatsPreviaEnvio();
+}
+
+async function whatsPreencherValores(){
+  const chave=document.getElementById('wa-modelo').value;
+  const m=(WAMOD.modelos||[]).find(x=>x.chave===chave); if(!m) return;
+  const btn=document.getElementById('wa-preencher');
+  const msg=document.getElementById('wa-preencher-msg');
+  btn.disabled=true; btn.textContent='Buscando…';
+  try{
+    const r=await fetch('/api/gestao/whatsapp/modelos/valores?contexto='
+                        + encodeURIComponent(m.contexto), {cache:'no-store'});
+    const d=await respostaJSON(r);
+    if(!d.ok){ msg.textContent=(d.dados&&d.dados.mensagem)||'Não foi possível ler os números.'; return; }
+    const vals=d.dados.valores||{};
+    let n=0;
+    document.querySelectorAll('#wa-vars input[data-var]').forEach(i=>{
+      if(vals[i.dataset.var]!==undefined){ i.value=vals[i.dataset.var]; n++; }
+    });
+    /* diz QUANTOS preencheu: variável que o provedor não conhece continua em
+       branco, e sem o contador ninguém repara que sobrou campo vazio */
+    msg.textContent = n ? `${n} campo${n===1?'':'s'} preenchido${n===1?'':'s'}` : 'nada a preencher';
+    whatsPreviaEnvio();
+  }catch(e){ msg.textContent = (e&&e.message) || 'Não foi possível falar com a API.'; }
+  finally{ btn.disabled=false; btn.textContent='Preencher com os números de hoje'; }
 }
 
 function whatsValoresDoFormulario(){
