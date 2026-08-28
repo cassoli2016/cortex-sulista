@@ -4,6 +4,17 @@ Gerado de `docs/versoes.yaml` por `scripts/gerar_changelog.py` — não editar �
 Formato [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/),
 versionamento [SemVer](https://semver.org/lang/pt-BR/).
 
+## [0.120.0] — 28/08/2026  ·  CX-28/08/2026-v0.120.0
+
+### Adicionado
+- O cadastro de usuario ficou mais completo: telefone, cargo, setor e ramal, todos OPCIONAIS. Quem ja esta cadastrado continua entrando sem preencher nada.
+- Foto de perfil. Aparece no avatar da barra de cima e ao lado do nome na lista de usuarios; quem nao puser foto continua com as iniciais, como hoje. A imagem e recortada em quadrado pelo centro e reduzida a 256px pelo proprio navegador antes de subir - foto de celular de 6 MB nao trafega inteira.
+- Menu "Minha conta", no avatar: cada pessoa troca a propria foto, o proprio telefone e o proprio ramal, sem depender do administrador. Nome, e-mail, cargo e setor aparecem so para leitura - nome e e-mail assinam a trilha de auditoria, e cargo e setor sao estrutura da empresa.
+- O telefone e aceito em qualquer formato - (47) 99999-8888, 47999998888 ou +55 47 99999-8888 sao o mesmo numero. E o mesmo validador que o envio de WhatsApp usa, entao numero que o cadastro aceita e numero que o envio consegue mandar. DDD que nao existe e recusado na hora.
+
+### Alterado
+- A lista de usuarios da Gestao mostra agora foto, cargo/setor embaixo do nome e telefone/ramal embaixo do e-mail, nas mesmas seis colunas.
+
 ## [0.119.0] — 27/08/2026  ·  CX-27/08/2026-v0.119.0
 
 ### Adicionado

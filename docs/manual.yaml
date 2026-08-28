@@ -3,6 +3,13 @@ sistema: 'O CÓRTEX é o painel de gestão da Transportadora Sulista S/A. Ele l�
   — financeiro, comercial, operação, frota, pessoas e controladoria. Nenhum número é digitado aqui: tudo
   vem do ERP, e cada card diz no ⓘ de qual tabela e de qual regra ele saiu.'
 glossario:
+- termo: Minha conta (avatar da barra)
+  definicao: Menu do avatar, no canto superior direito. Cada pessoa troca ali a própria foto de perfil,
+    o próprio telefone e o próprio ramal. Nome, e-mail, cargo e setor aparecem só para leitura e são
+    alterados pelo administrador, em Gestão › Usuários — nome e e-mail assinam a trilha de auditoria,
+    e cargo e setor são estrutura da empresa, lida pelos colegas como informação conferida. Todos esses
+    campos são opcionais; sem foto, o avatar continua mostrando as iniciais. A imagem é recortada em
+    quadrado pelo centro e reduzida a 256px pelo próprio navegador antes de subir.
 - termo: WhatsApp (Z-API) e o limite de destinatários
   definicao: O CÓRTEX envia WhatsApp pela Z-API, que NÃO é a API oficial do WhatsApp — ela conecta um
     número real da empresa, e esse número pode ser banido. A documentação da própria Z-API diz que o

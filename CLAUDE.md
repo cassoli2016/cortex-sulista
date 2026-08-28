@@ -568,6 +568,46 @@ a query ignora sai; dimensão que a query aceita e é a pergunta natural da tela
   trilha, o mesmo limite e a mesma auditoria. Um caminho paralelo viraria o
   atalho para disparar sem as regras.
 
+**Campo opcional, foto e quem edita o quê (lições do cadastro de usuário):**
+- **Campo AUSENTE e campo VAZIO são coisas diferentes no payload de edição.** A tela de
+  Minha Conta manda dois campos; um `payload.get(campo, "")` comum leria os outros como
+  string vazia e APAGARIA o cargo que o administrador preencheu — sem erro, sem aviso.
+  Daí o sentinela `_AUSENTE` em `api/auth.py`: chave ausente = não mexe; chave vazia =
+  limpa. Vale para toda edição parcial.
+- **O que a própria pessoa edita é decisão, não conveniência de formulário.** Nome e
+  e-mail assinam a trilha de auditoria (quem reescreve o próprio nome reescreve a
+  assinatura do que já fez) e cargo/setor são estrutura da empresa, lida como informação
+  conferida. `POST /api/auth/perfil` aceita SÓ telefone, ramal e foto — e a tela não
+  oferece o resto, porque convidar a preencher o que vai ser ignorado é pior que não ter
+  o campo.
+- **Telefone é guardado NORMALIZADO, com o validador do WhatsApp** (`api/whatsapp/
+  numeros.py`). Duas noções de "telefone válido" na casa dariam número que o cadastro
+  aceita e o envio recusa — descoberto na hora em que a mensagem não chega. A tela
+  reformata na exibição (`telefone_fmt` vem pronto do servidor).
+- **A foto não mora na tabela do usuário.** `sessao_atual()` faz `SELECT u.*` a CADA
+  requisição autenticada: uma coluna `bytea` ali poria os bytes da imagem em toda chamada
+  de API, dezenas por tela, para desenhar um avatar de 34px que o navegador já tem em
+  cache. Tabela `usuario_fotos` ao lado, com `ON DELETE CASCADE` (sem ele, excluir
+  usuário passa a falhar por chave estrangeira — e só aparece no dia da exclusão).
+- **A imagem é reduzida no CLIENTE e validada no SERVIDOR — as duas coisas.** O canvas
+  faz o recorte quadrado central e o JPEG 256px (foto de celular de 6 MB não trafega
+  inteira); `api/fotos.py` decide o que entra, porque a rota aceita o que mandarem nela.
+  Três conferências: tipo pelos BYTES (mime do `data:` URL é escrito pelo remetente, e
+  **SVG não entra — é XML com script**), teto de bytes, e **teto de DIMENSÃO**: um PNG de
+  180 KB pode declarar 25000x25000 e estourar o navegador de quem abrir a lista. Ler
+  largura/altura do cabeçalho de PNG/JPEG/WEBP custa 60 linhas; a alternativa era o
+  Pillow, uma dependência C de produção inteira para conferir dois inteiros.
+- **Fundo branco no canvas ANTES do `drawImage`**: PNG com transparência vira PRETO ao
+  virar JPEG, e o recorte redondo mostraria um halo escuro em volta do rosto.
+- **`?v=<carimbo>` na URL da foto**: troca de foto aparece na hora sem proibir o cache
+  das outras. O ETag do servidor é a segunda linha, não a única.
+- Avatar sem foto são as INICIAIS, não um ícone de imagem quebrada: a foto é opcional e
+  "sem foto" é estado normal. Mesma regra da linha de cargo/telefone no menu, que some
+  quando não há dado em vez de aparecer vazia.
+- **GOTCHA de teste:** `let` de topo no `index.html` NÃO vira propriedade de `window` —
+  `pg.wait_for_function("window.FOTOED && …")` espera para sempre. E `#avCargo` vive
+  dentro do menu `display:none`: `is_visible` só responde depois do clique no avatar.
+
 **Telas de consulta (busca própria, filterbar global escondida — ex.: Consulta de Cliente):**
 - Campo de busca com **`<datalist>`** alimentado por endpoint LEVE e cacheado
   (`/api/comercial/clientes-lista`, ~34 grupos). Nunca reusar o endpoint do painel
@@ -725,7 +765,7 @@ playwright em produção):
 ```bash
 uv sync --group test
 uv run playwright install chromium   # só na primeira vez, e a cada bump do playwright
-uv run pytest -q                     # 481
+uv run pytest -q                     # 1.747
 node --test "tests/frontend/*.test.js"  # 8 (núcleo do indicador de carga)
 uv run python scripts/verificar_estrutura.py
 ```

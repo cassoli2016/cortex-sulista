@@ -27,7 +27,8 @@ from fastapi.responses import JSONResponse
 from starlette.datastructures import Headers
 
 from . import db as _db  # noqa: F401  (importa para garantir o .env carregado)
-from . import migracoes, pglocal
+from . import fotos, migracoes, pglocal
+from .whatsapp import numeros as telefones
 
 log = logging.getLogger("cortex.auth")
 
@@ -223,13 +224,17 @@ _PUBLICAS = ("/api/auth/login", "/api/auth/setup", "/api/auth/setup-status", "/a
 # específica — todo usuário autenticado pode ver o próprio perfil/trocar a
 # própria senha/sair. /api/gestao/* não entra aqui: já é checado à parte
 # (admin) antes de chegar em _telas_da_rota.
-_ROTAS_AUTOSERVICO = ("/api/auth/me", "/api/auth/logout", "/api/auth/trocar-senha")
+_ROTAS_AUTOSERVICO = ("/api/auth/me", "/api/auth/logout", "/api/auth/trocar-senha",
+                      "/api/auth/perfil")
 
 # Rotas /api/* que EXIGEM sessão mas não pertencem a tela nenhuma: valem para
 # qualquer usuário logado. Push é assinatura do próprio aparelho; report é
 # avisar de defeito/pedir melhoria — negar isso a quem não é admin deixaria o
 # botão visível para todos e funcionando só para um.
-_ROTAS_SEM_TELA = ("/api/push/", "/api/report")
+# `/api/auth/foto/` entra aqui, e não em _ROTAS_AUTOSERVICO, porque não é só a
+# PRÓPRIA foto: a lista de usuários e a auditoria mostram a foto de outras
+# pessoas, então o caminho carrega um id e precisa casar por prefixo.
+_ROTAS_SEM_TELA = ("/api/push/", "/api/report", "/api/auth/foto/")
 
 
 def rota_sem_tela(path: str) -> bool:
@@ -731,8 +736,11 @@ def sessao_atual(token: str | None) -> dict | None:
         return None
     with _conn() as c:
         u = c.execute(
-            """SELECT u.*, p.nome AS perfil_nome, p.admin AS perfil_admin
-               FROM usuarios u JOIN perfis p ON p.id = u.perfil_id
+            """SELECT u.*, p.nome AS perfil_nome, p.admin AS perfil_admin,
+                      f.atualizado_em AS foto_em
+               FROM usuarios u
+               JOIN perfis p ON p.id = u.perfil_id
+               LEFT JOIN usuario_fotos f ON f.usuario_id = u.id
                WHERE u.id = %s""", (int(claims["sub"]),),
         ).fetchone()
         if not u or not u["ativo"] or u["token_ver"] != claims.get("ver"):
@@ -743,13 +751,24 @@ def sessao_atual(token: str | None) -> dict | None:
         "perfil_id": u["perfil_id"], "perfil": u["perfil_nome"],
         "admin": bool(u["perfil_admin"]), "telas": telas,
         "deve_trocar_senha": bool(u["deve_trocar_senha"]),
+        "telefone": u["telefone"] or "", "cargo": u["cargo"] or "",
+        "setor": u["setor"] or "", "ramal": u["ramal"] or "",
+        "foto_em": u["foto_em"],
         "token_ver": u["token_ver"], "exp": claims["exp"], "iat": claims["iat"],
     }
 
 
 def _payload_me(s: dict) -> dict:
-    return {k: s[k] for k in ("id", "nome", "email", "perfil", "perfil_id",
-                              "admin", "telas", "deve_trocar_senha")}
+    # `telefone_fmt` vai junto do normalizado de propósito: o banco guarda
+    # `5547999998888` (é o que faz contagem e comparação baterem) e a tela
+    # mostra `(47) 99999-8888`. Formatar no cliente seria reescrever em
+    # JavaScript uma regra que já existe em Python, com o risco de as duas
+    # discordarem em algum caso de borda.
+    dados = {k: s[k] for k in ("id", "nome", "email", "perfil", "perfil_id",
+                               "admin", "telas", "deve_trocar_senha",
+                               "telefone", "cargo", "setor", "ramal", "foto_em")}
+    dados["telefone_fmt"] = telefones.formatar(s["telefone"]) if s["telefone"] else ""
+    return dados
 
 
 # ---------------------------------------------------------------- middleware
@@ -843,6 +862,74 @@ class AuthMiddleware:
             await send(message)
 
         return await self.app(scope, receive, send_com_cookie if novo_cookie else send)
+
+
+# ------------------------------------------- cadastro: campos opcionais e foto
+
+# Telefone, cargo, setor, ramal e foto são OPCIONAIS. A base de produção já
+# tinha usuários quando estes campos nasceram, e um campo obrigatório aqui
+# significaria alguém sem conseguir entrar no sistema por causa do próprio
+# cadastro — preço alto demais para um dado de conveniência.
+#
+# "Ausente" e "vazio" são coisas DIFERENTES no payload de edição, e por isso o
+# sentinela: a tela de Minha Conta manda só telefone e ramal, e um `.get()`
+# comum leria os campos que ela não manda como string vazia, APAGANDO o cargo
+# que o administrador preencheu. Chave ausente = não mexe; chave vazia = limpa.
+_AUSENTE = object()
+
+# Limites de tamanho: o suficiente para o que existe ("Coordenadora de
+# Controladoria" tem 27), curto o bastante para não virar campo de observação.
+_CAMPOS_TEXTO = {"cargo": 60, "setor": 60, "ramal": 12}
+_ROTULO = {"cargo": "cargo", "setor": "setor", "ramal": "ramal"}
+
+
+def _cadastro_do_payload(payload: dict) -> tuple[dict, str | None]:
+    """Os campos opcionais que vieram no payload, já normalizados.
+
+    O telefone passa pelo MESMO validador do WhatsApp (`api/whatsapp/numeros`):
+    ter duas noções de "telefone válido" na casa acabaria com um número que o
+    cadastro aceita e o envio recusa — e a pessoa descobrindo isso na hora em
+    que a mensagem não chega.
+    """
+    dados: dict = {}
+    if payload.get("telefone", _AUSENTE) is not _AUSENTE:
+        bruto = str(payload.get("telefone") or "").strip()
+        if not bruto:
+            dados["telefone"] = None
+        else:
+            try:
+                dados["telefone"] = telefones.normalizar(bruto)
+            except telefones.TelefoneInvalido as exc:
+                return {}, str(exc)
+    for campo, limite in _CAMPOS_TEXTO.items():
+        if payload.get(campo, _AUSENTE) is _AUSENTE:
+            continue
+        # espaço duplo vindo de copiar-colar não pode virar duas grafias do
+        # mesmo setor (mesmo cuidado do Painel de Custos com "1 - FIL  MTZ")
+        valor = " ".join(str(payload.get(campo) or "").split())
+        if len(valor) > limite:
+            return {}, f"O {_ROTULO[campo]} passa de {limite} caracteres."
+        dados[campo] = valor or None
+    return dados, None
+
+
+def _gravar_foto(c, usuario_id: int, valor) -> str:
+    """Grava (ou remove, se o valor vier vazio) a foto. Devolve o rótulo para a
+    trilha de auditoria. Levanta `fotos.FotoInvalida` com a mensagem pronta."""
+    if not str(valor or "").strip():
+        c.execute("DELETE FROM usuario_fotos WHERE usuario_id=%s", (usuario_id,))
+        return "foto_removida"
+    dados, mime, largura, altura = fotos.validar(str(valor))
+    c.execute(
+        """INSERT INTO usuario_fotos(usuario_id, mime, largura, altura, bytes,
+                                     atualizado_em)
+           VALUES(%s,%s,%s,%s,%s,%s)
+           ON CONFLICT(usuario_id) DO UPDATE SET
+             mime=EXCLUDED.mime, largura=EXCLUDED.largura,
+             altura=EXCLUDED.altura, bytes=EXCLUDED.bytes,
+             atualizado_em=EXCLUDED.atualizado_em""",
+        (usuario_id, mime, largura, altura, dados, _agora()))
+    return f"foto_atualizada ({largura}x{altura}, {len(dados) // 1024} KB)"
 
 
 # ---------------------------------------------------------------- rotas: auth
@@ -1000,6 +1087,77 @@ def trocar_senha(payload: dict, request: Request) -> JSONResponse:
     return resp
 
 
+@router_auth.post("/perfil")
+def perfil_editar(payload: dict, request: Request) -> JSONResponse:
+    """O que o próprio usuário mexe na conta dele: telefone, ramal e foto.
+
+    NOME, E-MAIL, CARGO E SETOR NÃO ESTÃO AQUI, e a ausência é a decisão. Nome
+    e e-mail identificam a pessoa na trilha de auditoria — quem pode reescrever
+    o próprio nome reescreve a assinatura de tudo o que já fez. Cargo e setor
+    são estrutura da empresa, que outras pessoas leem como se fosse verdade
+    conferida; é dado do administrador, não autodeclaração. Telefone e foto são
+    contato e rosto: só a própria pessoa sabe.
+    """
+    sess = request.state.sessao
+    dados, erro = _cadastro_do_payload(
+        {k: payload[k] for k in ("telefone", "ramal") if k in payload})
+    if erro:
+        return JSONResponse(status_code=422, content={
+            "erro": "parametro_invalido", "mensagem": erro})
+    detalhes = []
+    with _conn() as c:
+        if dados:
+            campos = ", ".join(f"{k}=%s" for k in dados)
+            c.execute(f"UPDATE usuarios SET {campos} WHERE id=%s",
+                      (*dados.values(), sess["id"]))
+            detalhes += list(dados)
+        if payload.get("foto", _AUSENTE) is not _AUSENTE:
+            try:
+                detalhes.append(_gravar_foto(c, sess["id"], payload["foto"]))
+            except fotos.FotoInvalida as exc:
+                # o UPDATE acima está na MESMA transação: sem o rollback, a
+                # tela diria "foto recusada" e o telefone teria mudado assim
+                # mesmo — meia gravação que ninguém pediu
+                c.rollback()
+                return JSONResponse(status_code=422, content={
+                    "erro": "foto_invalida", "mensagem": str(exc)})
+    if not detalhes:
+        return JSONResponse({"ok": True, "mensagem": "Nada a alterar."})
+    audit(sess["email"], "perfil_editar", alvo=sess["email"],
+          detalhe="; ".join(detalhes), ip=_ip(request))
+    # devolve o `me` já atualizado: a tela usa isso para repintar o avatar e o
+    # menu sem uma segunda ida à API
+    return JSONResponse(_payload_me(sessao_atual(request.cookies.get(COOKIE)) or sess))
+
+
+@router_auth.get("/foto/{usuario_id}")
+def foto_servir(usuario_id: int, request: Request) -> Response:
+    """A foto de um usuário, para o avatar da barra e a lista da Gestão.
+
+    Qualquer usuário logado enxerga a foto de qualquer outro — é o rosto de um
+    colega numa tela interna, não dado de escopo. O que NÃO pode é sair sem
+    sessão: o middleware cobre isso (a rota está em `_ROTAS_SEM_TELA`, que
+    exige sessão e dispensa tela).
+
+    Cache com ETag e não com validade longa: a foto trocada tem de aparecer no
+    mesmo dia. A tela ainda assim manda `?v=<carimbo>` na URL, então o 304 aqui
+    é a segunda linha de defesa, não a única.
+    """
+    with _conn() as c:
+        f = c.execute(
+            "SELECT mime, bytes, atualizado_em FROM usuario_fotos WHERE usuario_id=%s",
+            (usuario_id,)).fetchone()
+    if not f:
+        return JSONResponse(status_code=404, content={
+            "erro": "sem_foto", "mensagem": "Este usuário não tem foto de perfil."})
+    etag = '"%s"' % str(f["atualizado_em"]).replace('"', "")
+    cabecalhos = {"ETag": etag, "Cache-Control": "private, max-age=300"}
+    if request.headers.get("if-none-match") == etag:
+        return Response(status_code=304, headers=cabecalhos)
+    return Response(content=bytes(f["bytes"]), media_type=f["mime"],
+                    headers=cabecalhos)
+
+
 # ---------------------------------------------------------------- rotas: gestão
 # (middleware já garante sessão + admin em tudo que está sob /api/gestao)
 
@@ -1018,10 +1176,22 @@ def usuarios_lista() -> JSONResponse:
         rows = c.execute(
             """SELECT u.id, u.nome, u.email, u.perfil_id, p.nome AS perfil,
                       p.admin AS perfil_admin, u.ativo, u.deve_trocar_senha,
-                      u.bloqueado_ate, u.criado_em, u.ultimo_login
-               FROM usuarios u JOIN perfis p ON p.id=u.perfil_id
+                      u.bloqueado_ate, u.criado_em, u.ultimo_login,
+                      u.telefone, u.cargo, u.setor, u.ramal,
+                      f.atualizado_em AS foto_em
+               FROM usuarios u
+               JOIN perfis p ON p.id=u.perfil_id
+               LEFT JOIN usuario_fotos f ON f.usuario_id=u.id
                ORDER BY u.nome""").fetchall()
-    return JSONResponse({"usuarios": [dict(r) for r in rows]})
+    # `foto_em` (e nunca os bytes) é o que a lista precisa: diz se há foto e
+    # serve de versão na URL da imagem, para trocar de foto aparecer na hora
+    # sem que o navegador precise deixar de cachear as outras.
+    usuarios = []
+    for r in rows:
+        u = dict(r)
+        u["telefone_fmt"] = telefones.formatar(u["telefone"]) if u["telefone"] else ""
+        usuarios.append(u)
+    return JSONResponse({"usuarios": usuarios})
 
 
 def _valida_usuario_payload(payload: dict, novo: bool) -> tuple[dict | None, str | None]:
@@ -1031,7 +1201,10 @@ def _valida_usuario_payload(payload: dict, novo: bool) -> tuple[dict | None, str
         return None, "Informe nome e e-mail válidos."
     if email and not _EMAIL_RE.match(email):
         return None, "E-mail inválido."
-    return {"nome": nome, "email": email}, None
+    extras, erro = _cadastro_do_payload(payload)
+    if erro:
+        return None, erro
+    return {"nome": nome, "email": email, "extras": extras}, None
 
 
 def _admins_ativos_exceto(c: psycopg.Connection, usuario_id: int) -> int:
@@ -1057,18 +1230,36 @@ def usuario_criar(payload: dict, request: Request) -> JSONResponse:
                 "SELECT 1 FROM perfis WHERE id=%s", (perfil_id,)).fetchone():
             return JSONResponse(status_code=422, content={
                 "erro": "parametro_invalido", "mensagem": "Perfil inexistente."})
+        extras = dados["extras"]
+        colunas = ", ".join(extras)
+        marcas = ", ".join(["%s"] * len(extras))
         try:
             cur = c.execute(
-                """INSERT INTO usuarios(nome, email, senha_hash, perfil_id, ativo,
-                                        deve_trocar_senha, criado_em)
-                   VALUES(%s,%s,%s,%s,1,1,%s) RETURNING id""",
-                (dados["nome"], dados["email"], _ph.hash(senha), perfil_id, _agora()))
+                f"""INSERT INTO usuarios(nome, email, senha_hash, perfil_id, ativo,
+                                         deve_trocar_senha, criado_em
+                                         {", " + colunas if colunas else ""})
+                    VALUES(%s,%s,%s,%s,1,1,%s{", " + marcas if marcas else ""})
+                    RETURNING id""",
+                (dados["nome"], dados["email"], _ph.hash(senha), perfil_id, _agora(),
+                 *extras.values()))
             novo_id = cur.fetchone()["id"]
         except psycopg.errors.UniqueViolation:
             return JSONResponse(status_code=422, content={
                 "erro": "email_em_uso", "mensagem": "Já existe usuário com esse e-mail."})
+        extra_foto = []
+        if payload.get("foto", _AUSENTE) is not _AUSENTE:
+            try:
+                extra_foto.append(_gravar_foto(c, novo_id, payload["foto"]))
+            except fotos.FotoInvalida as exc:
+                # o usuário JÁ foi criado nesta transação; recusar a foto agora
+                # e deixar o INSERT valer seria criar alguém pela metade sem
+                # dizer. A transação inteira volta atrás.
+                c.rollback()
+                return JSONResponse(status_code=422, content={
+                    "erro": "foto_invalida", "mensagem": str(exc)})
     audit(sess["email"], "usuario_criar", alvo=dados["email"],
-          detalhe=f"perfil_id={perfil_id}", ip=_ip(request))
+          detalhe="; ".join([f"perfil_id={perfil_id}", *dados["extras"], *extra_foto]),
+          ip=_ip(request))
     return JSONResponse({"ok": True, "id": novo_id})
 
 
@@ -1091,6 +1282,11 @@ def usuario_editar(usuario_id: int, payload: dict, request: Request) -> JSONResp
             mudancas.append("nome=%s"); valores.append(dados["nome"]); detalhes.append("nome")
         if dados["email"] and dados["email"] != u["email"]:
             mudancas.append("email=%s"); valores.append(dados["email"]); detalhes.append("email")
+
+        for campo, valor in dados["extras"].items():
+            if valor != u[campo]:
+                mudancas.append(f"{campo}=%s"); valores.append(valor)
+                detalhes.append(campo if valor else f"{campo} (limpo)")
 
         if isinstance(payload.get("perfil_id"), int) and payload["perfil_id"] != u["perfil_id"]:
             novo_p = c.execute("SELECT * FROM perfis WHERE id=%s", (payload["perfil_id"],)).fetchone()
@@ -1135,7 +1331,19 @@ def usuario_editar(usuario_id: int, payload: dict, request: Request) -> JSONResp
             mudancas += ["falhas=0", "bloqueado_ate=NULL"]
             detalhes.append("desbloqueado")
 
+        if payload.get("foto", _AUSENTE) is not _AUSENTE:
+            try:
+                detalhes.append(_gravar_foto(c, usuario_id, payload["foto"]))
+            except fotos.FotoInvalida as exc:
+                c.rollback()
+                return JSONResponse(status_code=422, content={
+                    "erro": "foto_invalida", "mensagem": str(exc)})
+
         if not mudancas:
+            if detalhes:   # só a foto mudou — já gravada acima
+                audit(sess["email"], "usuario_editar", alvo=u["email"],
+                      detalhe="; ".join(detalhes), ip=_ip(request))
+                return JSONResponse({"ok": True})
             return JSONResponse({"ok": True, "mensagem": "Nada a alterar."})
         try:
             c.execute(f"UPDATE usuarios SET {', '.join(mudancas)} WHERE id=%s",
