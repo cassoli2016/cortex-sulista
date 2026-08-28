@@ -1100,16 +1100,35 @@ async def gestao_whatsapp_enviar(req: Request) -> JSONResponse:
     # valores, nunca a mensagem pronta. Aceitar o texto do cliente junto com a
     # chave deixaria gravar "veio do modelo de cobrança" numa trilha em que o
     # texto é outro qualquer, e a coluna `modelo` deixaria de ser prova.
-    if chave:
-        valores = body.get("valores")
-        r = enviar_modelo(telefones, chave,
-                          valores if isinstance(valores, dict) else {},
-                          usuario=autor,
-                          origem=str(body.get("origem") or "") or "")
-    else:
-        r = enviar_varios(telefones, str(body.get("mensagem") or ""),
-                          usuario=autor,
-                          origem=str(body.get("origem") or "manual"))
+    # REDE DE SEGURANÇA. `enviar`/`enviar_varios` têm contrato de nunca levantar,
+    # mas o que roda antes deles (ler o modelo, tocar o banco local) não tem — e
+    # exceção que escapa daqui vira "Internal Server Error" em TEXTO PURO, que o
+    # `r.json()` da tela não consegue ler. O usuário então vê "não foi possível
+    # falar com a API" para um servidor que respondeu, e o motivo real fica só
+    # no log de um processo que roda sem janela. Toda saída desta rota é JSON.
+    try:
+        if chave:
+            valores = body.get("valores")
+            r = enviar_modelo(telefones, chave,
+                              valores if isinstance(valores, dict) else {},
+                              usuario=autor,
+                              origem=str(body.get("origem") or "") or "")
+        else:
+            r = enviar_varios(telefones, str(body.get("mensagem") or ""),
+                              usuario=autor,
+                              origem=str(body.get("origem") or "manual"))
+    except Exception as exc:  # noqa: BLE001
+        from api.whatsapp.cliente import _sanitizar
+        log.exception("whatsapp_enviar falhou")
+        auth.audit(autor or "?", "whatsapp_enviar", alvo=str(telefones)[:200],
+                   detalhe=f"erro interno: {type(exc).__name__}")
+        return JSONResponse(status_code=500, content={
+            "erro": "erro_interno",
+            # o tipo, não o texto: `str(exc)` de urllib carrega a URL da Z-API,
+            # e a URL é a credencial. Sanitizado ainda assim, por via das dúvidas
+            "mensagem": _sanitizar(
+                f"Erro interno ao enviar ({type(exc).__name__}). A mensagem NÃO "
+                "saiu. Confira a Saúde do Servidor e o banco local do CÓRTEX.")})
     alvos = ", ".join(x["telefone"] for x in r["resultados"])
     auth.audit(autor or "?", "whatsapp_enviar", alvo=alvos[:200],
                detalhe=((f"modelo={chave} · " if chave else "")

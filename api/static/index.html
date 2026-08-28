@@ -18850,8 +18850,17 @@ async function whatsEnviar(){
   try{
     const r=await fetch('/api/gestao/whatsapp/enviar',{method:'POST',headers:{'Content-Type':'application/json'},
       body:JSON.stringify(corpo)});
-    const d=await r.json();
-    if(r.ok){
+    /* O json() é lido À PARTE: resposta de erro interno vem em TEXTO, e um
+       `await r.json()` solto estoura ali e cai no catch de rede — que então
+       acusa "não foi possível falar com a API" para um servidor que
+       respondeu. Os dois casos têm conserto diferente e precisam de mensagem
+       diferente. */
+    let d=null;
+    try{ d=await r.json(); }catch(_){ d=null; }
+    if(d===null){
+      err.textContent = `O servidor respondeu ${r.status} sem JSON — é erro interno da API, não recusa de envio. `
+        + `A mensagem NÃO saiu; veja o log da API antes de tentar de novo.`;
+    }else if(r.ok){
       err.style.color='var(--green)';
       err.textContent = d.falhas
         ? `${d.enviados} enviada(s), ${d.falhas} não saiu(íram) — veja a trilha abaixo`
@@ -18867,9 +18876,17 @@ async function whatsEnviar(){
          horário ou instância desconectada — todas com conserto diferente. */
       err.textContent = d.mensagem||'Não foi possível enviar.';
     }
-    await whatsCarregar();
-  }catch(e){ err.style.color=''; err.textContent='Não foi possível falar com a API.'; }
+  }catch(e){
+    err.style.color='';
+    err.textContent='Não foi possível alcançar a API (rede, túnel, ou a API reiniciando). '
+      + 'A mensagem pode ou não ter saído — confira a trilha abaixo antes de reenviar.';
+  }
   finally{ btn.disabled=false; btn.textContent='Enviar'; }
+  /* A RECARGA FICA FORA DO TRY. Dentro dele, uma falha ao repintar a trilha
+     sobrescrevia a confirmação verde por "não foi possível falar com a API" —
+     com a mensagem JÁ ENVIADA. Quem lê isso reenvia, e o cliente recebe duas
+     vezes. Recarregar a tela não pode transformar sucesso em erro. */
+  try{ await whatsCarregar(); }catch(e){}
 }
 
 /* ===================== Modelos de mensagem =====================

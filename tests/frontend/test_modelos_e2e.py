@@ -290,3 +290,88 @@ def test_salvar_manda_o_modelo_inteiro(pagina):
     assert corpo["contexto"] == "cobranca"
     assert corpo["ativo"] == 1
     assert "id" not in corpo                 # é criação, não edição
+
+
+# ----------------------------------------------- o que a tela diz quando falha
+
+def test_recarga_que_falha_NAO_apaga_a_confirmacao_de_envio(pagina):
+    """O defeito mais perigoso desta tela.
+
+    `await whatsCarregar()` ficava DENTRO do try do envio: qualquer falha ao
+    repintar a trilha sobrescrevia o "enviada para 1 número" por "não foi
+    possível falar com a API" — com a mensagem JÁ ENVIADA. Quem lê isso
+    reenvia, e o cliente recebe duas vezes.
+    """
+    pg, base = pagina
+
+    def rota(route):
+        u = route.request.url
+        if "/api/auth/me" in u:
+            corpo = ADMIN
+        elif "/whatsapp/enviar" in u:
+            corpo = {"ok": True, "enviados": 1, "falhas": 0, "resultados": []}
+        elif "/whatsapp/modelos" in u:
+            corpo = MODELOS
+        elif "/gestao/whatsapp" in u:
+            corpo = WHATS
+        else:
+            corpo = {}
+        route.fulfill(status=200, content_type="application/json",
+                      body=json.dumps(corpo))
+
+    pg.route("**/api/**", rota)
+    pg.goto(f"{base}/static/index.html#gestao")
+    pg.wait_for_selector("#gtab-whatsapp", timeout=20000)
+    pg.click("#gtab-whatsapp")
+    pg.wait_for_selector("#wa-mod-lista table", timeout=10000)
+
+    # a partir daqui a recarga da aba QUEBRA
+    pg.unroute("**/api/**")
+    pg.route("**/api/gestao/whatsapp", lambda r: r.abort())
+    pg.route("**/api/**", rota)
+
+    pg.fill("#wa-tel", "(47) 99999-8888")
+    pg.fill("#wa-msg", "Bom dia")
+    pg.click("#wa-enviar")
+    pg.wait_for_timeout(900)
+
+    texto = pg.inner_text("#wa-env-err")
+    assert "enviada para 1" in texto, f"a confirmação sumiu: {texto!r}"
+
+
+def test_erro_interno_sem_json_nao_vira_falha_de_rede(pagina):
+    """500 em texto puro e rede caída são coisas diferentes, com consertos
+    diferentes. Dizer "não foi possível falar com a API" para um servidor que
+    respondeu manda procurar no lugar errado."""
+    pg, base = pagina
+
+    def rota(route):
+        u = route.request.url
+        if "/whatsapp/enviar" in u:
+            return route.fulfill(status=500, content_type="text/plain",
+                                 body="Internal Server Error")
+        if "/api/auth/me" in u:
+            corpo = ADMIN
+        elif "/whatsapp/modelos" in u:
+            corpo = MODELOS
+        elif "/gestao/whatsapp" in u:
+            corpo = WHATS
+        else:
+            corpo = {}
+        route.fulfill(status=200, content_type="application/json",
+                      body=json.dumps(corpo))
+
+    pg.route("**/api/**", rota)
+    pg.goto(f"{base}/static/index.html#gestao")
+    pg.wait_for_selector("#gtab-whatsapp", timeout=20000)
+    pg.click("#gtab-whatsapp")
+    pg.wait_for_selector("#wa-mod-lista table", timeout=10000)
+
+    pg.fill("#wa-tel", "(47) 99999-8888")
+    pg.fill("#wa-msg", "Bom dia")
+    pg.click("#wa-enviar")
+    pg.wait_for_timeout(900)
+
+    texto = pg.inner_text("#wa-env-err")
+    assert "500" in texto and "erro interno" in texto.lower()
+    assert "NÃO saiu" in texto

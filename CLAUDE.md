@@ -558,6 +558,19 @@ a query ignora sai; dimensão que a query aceita e é a pergunta natural da tela
   documenta que valida a existência do número a cada envio — pedindo
   explicitamente que NÃO se cheque antes. Inventar o dígito manda para outro
   assinante.
+- **Recarregar a tela depois de agir NÃO pode ficar no `try` da ação.** O
+  `await whatsCarregar()` estava dentro do bloco do envio: uma falha ao
+  repintar a trilha sobrescrevia "enviada para 1 número" por "não foi possível
+  falar com a API" — com a mensagem JÁ ENVIADA. Quem lê isso reenvia, e o
+  cliente recebe duas vezes. Confirmação de ação irreversível não pode depender
+  do sucesso do que vem depois dela.
+- **`await r.json()` solto transforma erro do SERVIDOR em erro de REDE.** 500
+  volta em texto puro; o `json()` estoura e cai no mesmo `catch` do `fetch`,
+  fazendo a tela acusar rede para um servidor que respondeu — e mandando
+  procurar no lugar errado. Ler o JSON num `try` próprio e mostrar o status
+  HTTP separa os dois. Do lado do servidor, a rota que age para fora ganha
+  `try/except` geral: toda saída é JSON, com o TIPO da exceção (nunca
+  `str(exc)`, que na Z-API carrega a URL, e a URL é a credencial).
 - **`error` NEM SEMPRE É ERRO — leia o campo que o fornecedor usa como
   VERDADE.** O `GET /status` da Z-API responde, com a instância no ar,
   `{"connected": true, "error": "You are already connected."}`: o campo é

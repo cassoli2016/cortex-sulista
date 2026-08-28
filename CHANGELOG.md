@@ -4,6 +4,13 @@ Gerado de `docs/versoes.yaml` por `scripts/gerar_changelog.py` — não editar �
 Formato [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/),
 versionamento [SemVer](https://semver.org/lang/pt-BR/).
 
+## [0.121.2] — 28/08/2026  ·  CX-28/08/2026-v0.121.2
+
+### Corrigido
+- "Nao foi possivel falar com a API" aparecia no envio de WhatsApp mesmo quando a mensagem TINHA SAIDO. A recarga da trilha, logo depois do envio, rodava dentro do mesmo bloco de erro: se ela falhasse, apagava a confirmacao verde e punha a mensagem de falha no lugar. Quem lia isso reenviava, e o cliente recebia duas vezes.
+- A mesma frase aparecia para tres problemas diferentes: rede fora, API reiniciando e erro interno do servidor. Agora cada um tem a sua, com o codigo HTTP quando existe, e todas dizem se a mensagem saiu ou nao.
+- A rota de envio nunca mais responde em texto puro. Erro interno agora volta como JSON explicando o que houve - antes virava "Internal Server Error" cru, que a tela nao conseguia ler e reportava como falha de rede.
+
 ## [0.121.1] — 28/08/2026  ·  CX-28/08/2026-v0.121.1
 
 ### Corrigido
