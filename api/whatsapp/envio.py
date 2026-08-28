@@ -117,7 +117,11 @@ def enviar(telefone: str, mensagem: str, *, usuario: str = "",
                   esquema=esquema, modelo=modelo, instancia=inst)
 
     try:
-        numero = numeros.normalizar(bruto)
+        # `destino` aceita telefone E grupo; `normalizar` continua só telefone.
+        # O tipo importa adiante: grupo conta como UM destinatário no freio
+        # (para o WhatsApp é uma conversa só) e não pode ser formatado como
+        # telefone na tela.
+        tipo, numero = numeros.destino(bruto)
     except numeros.TelefoneInvalido as exc:
         return _recusar(bruto, "", str(exc), **recusa)
 
@@ -221,6 +225,7 @@ def enviar(telefone: str, mensagem: str, *, usuario: str = "",
         fora = _resultado(bruto, telefone=numero, ok=True,
                           message_id=message_id)
         fora["instancia"] = inst
+        fora["tipo"] = tipo
         return fora
     except (cliente.ZapiIndisponivel, cliente.ZapiNaoConfigurado) as exc:
         # `str(exc)` aqui é seguro: quem levanta já sanitizou. A garantia está

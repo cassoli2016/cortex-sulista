@@ -1374,6 +1374,171 @@ def gestao_whatsapp_modelo_excluir(modelo_id: int, req: Request) -> JSONResponse
     return JSONResponse({"ok": True})
 
 
+@app.get("/api/gestao/whatsapp/grupos")
+async def gestao_whatsapp_grupos(instancia: str | None = None) -> JSONResponse:
+    """Os grupos de que o número participa — para o seletor de envio.
+
+    Só a Z-API sabe quais são. É por isso que a tela LISTA em vez de pedir o id
+    digitado: id de grupo é uma sequência de 18 dígitos que ninguém decora e
+    que, digitada com um erro, manda a mensagem para outro grupo qualquer.
+    """
+    from api.whatsapp import cliente as zcli
+    qual = zcli.qual_valida(instancia)
+    if not zcli.configurado(qual):
+        return JSONResponse({"grupos": [], "erro": "Instância não configurada."})
+    try:
+        crus = await sem_travar(lambda: zcli.Cliente(qual=qual).grupos())
+    except (zcli.ZapiIndisponivel, zcli.ZapiNaoConfigurado) as exc:
+        return JSONResponse({"grupos": [], "erro": zcli._sanitizar(str(exc))})
+    except Exception as exc:  # noqa: BLE001
+        log.warning("grupos da z-api falharam: %s", type(exc).__name__)
+        return JSONResponse({"grupos": [],
+                             "erro": "Não foi possível ler os grupos agora."})
+    # só o que a tela usa: id e nome. O resto da resposta da Z-API traz
+    # participantes e telefones, que não têm por que trafegar para desenhar
+    # um <select>
+    grupos = [{"id": str(g.get("phone") or g.get("id") or ""),
+               "nome": str(g.get("name") or g.get("subject") or "(sem nome)")}
+              for g in crus if isinstance(g, dict)]
+    return JSONResponse({"grupos": [g for g in grupos if g["id"]], "erro": ""})
+
+
+@app.get("/api/gestao/whatsapp/playground")
+def gestao_whatsapp_playground() -> JSONResponse:
+    """O catálogo do playground. É documentação: nada a esconder."""
+    from api.whatsapp import playground as zpg
+    return JSONResponse({"endpoints": zpg.catalogo()})
+
+
+@app.post("/api/gestao/whatsapp/playground")
+async def gestao_whatsapp_playground_executar(req: Request) -> JSONResponse:
+    """Executa UM endpoint do catálogo. Nunca uma URL livre.
+
+    O caminho é montado por `playground.preparar()` a partir de um id — a tela
+    manda id e parâmetros, jamais um endereço. É essa diferença que impede o
+    playground de virar um proxy para `/send-text` sem limite, sem janela e sem
+    trilha.
+    """
+    from api.whatsapp import cliente as zcli
+    from api.whatsapp import playground as zpg
+    try:
+        body = await req.json()
+    except Exception:  # noqa: BLE001
+        body = {}
+    body = body if isinstance(body, dict) else {}
+    sess = getattr(req.state, "sessao", None) or {}
+    autor = sess.get("email", "")
+    ident = str(body.get("id") or "")
+    qual = zcli.qual_valida(body.get("instancia"))
+
+    try:
+        metodo, caminho = zpg.preparar(ident, body.get("params"))
+    except zpg.ChamadaRecusada as exc:
+        return JSONResponse(status_code=HTTP_RECUSA, content={
+            "erro": "recusado", "mensagem": str(exc)})
+
+    e = zpg.POR_ID[ident]
+    # ESCRITA vai para a auditoria SEMPRE, e antes de acontecer: `/disconnect`
+    # derruba o WhatsApp da empresa, e a pergunta seguinte é sempre "quem fez?"
+    if e["risco"] == zpg.ESCRITA:
+        auth.audit(autor or "?", "whatsapp_playground", alvo=ident,
+                   detalhe=f"{metodo} {caminho} · instância={qual}")
+    try:
+        dados = await sem_travar(
+            lambda: zcli.Cliente(qual=qual).explorar(metodo, caminho))
+    except (zcli.ZapiIndisponivel, zcli.ZapiNaoConfigurado) as exc:
+        return JSONResponse(status_code=HTTP_RECUSA, content={
+            "erro": "zapi", "mensagem": zcli._sanitizar(str(exc))})
+    except Exception as exc:  # noqa: BLE001
+        log.warning("playground %s falhou: %s", ident, type(exc).__name__)
+        return JSONResponse(status_code=HTTP_RECUSA, content={
+            "erro": "falhou",
+            "mensagem": f"A chamada falhou ({type(exc).__name__})."})
+
+    # a resposta passa por _sanitizar: o token viaja na URL desta API, e um eco
+    # de erro do fornecedor pode trazê-la de volta
+    bruto = json.dumps(dados, ensure_ascii=False, indent=2, default=str)
+    return JSONResponse({"metodo": metodo, "caminho": caminho,
+                         "instancia": qual,
+                         "resposta": zcli._sanitizar(bruto)[:20000]})
+
+
+@app.get("/api/gestao/whatsapp/agenda")
+def gestao_whatsapp_agenda() -> JSONResponse:
+    """As rotinas agendadas, com o motivo de cada uma não estar pronta.
+
+    O motivo é a informação: "por que a mensagem não saiu hoje?" é a pergunta
+    que sempre aparece, e sem ela sobra abrir o log da tarefa do Windows.
+    """
+    from api.whatsapp import agenda as zag
+    try:
+        return JSONResponse(zag.estado())
+    except Exception as exc:  # noqa: BLE001
+        log.warning("gestao_whatsapp_agenda falhou: %s", exc)
+        return JSONResponse(status_code=500, content={
+            "erro": "erro_consulta",
+            "mensagem": "Erro ao ler as rotinas agendadas."})
+
+
+@app.post("/api/gestao/whatsapp/agenda")
+async def gestao_whatsapp_agenda_salvar(req: Request) -> JSONResponse:
+    from api.whatsapp import agenda as zag
+    try:
+        body = await req.json()
+    except Exception:  # noqa: BLE001
+        body = None
+    if not isinstance(body, dict):
+        return JSONResponse(status_code=422, content={
+            "erro": "parametro_invalido", "mensagem": "Envie a rotina."})
+    sess = getattr(req.state, "sessao", None) or {}
+    autor = sess.get("email", "")
+    try:
+        d = await sem_travar(zag.gravar, body, autor)
+    except ValueError as exc:
+        return JSONResponse(status_code=422, content={
+            "erro": "parametro_invalido", "mensagem": str(exc)})
+    except Exception as exc:  # noqa: BLE001
+        log.warning("agenda de whatsapp falhou: %s", type(exc).__name__)
+        return JSONResponse(status_code=500, content={
+            "erro": "erro_gravacao", "mensagem": "Não foi possível gravar."})
+    # LIGAR uma rotina é autorizar o sistema a falar com gente sozinho, todo
+    # dia, sem ninguém olhando — é o que a auditoria precisa registrar
+    auth.audit(autor or "?", "whatsapp_agenda", alvo=d["modelo"],
+               detalhe=(f"{'editada' if body.get('id') else 'criada'} · "
+                        f"ativo={d['ativo']} · {d['frequencia']} {d['hora']} · "
+                        f"{d['destinatarios'][:80]}"))
+    return JSONResponse(d)
+
+
+@app.post("/api/gestao/whatsapp/agenda/{ident}/excluir")
+def gestao_whatsapp_agenda_excluir(ident: int, req: Request) -> JSONResponse:
+    from api.whatsapp import agenda as zag
+    zag.remover(ident)
+    sess = getattr(req.state, "sessao", None) or {}
+    auth.audit(sess.get("email", "?"), "whatsapp_agenda_excluir", alvo=str(ident))
+    return JSONResponse({"ok": True})
+
+
+@app.post("/api/gestao/whatsapp/agenda/{ident}/testar")
+async def gestao_whatsapp_agenda_testar(ident: int, req: Request) -> JSONResponse:
+    """Roda a rotina AGORA, fora do horário.
+
+    É o mesmo caminho do disparo automático — mesmo freio, mesma janela, mesma
+    trilha. Não existe um "modo teste" mais frouxo: ele viraria o atalho para
+    disparar sem as regras, que é como se perde o número.
+    """
+    from api.whatsapp import agenda as zag
+    alvo = [x for x in zag.listar() if int(x["id"]) == ident]
+    if not alvo:
+        return JSONResponse(status_code=404, content={
+            "erro": "nao_encontrado", "mensagem": "Esta rotina não existe."})
+    sess = getattr(req.state, "sessao", None) or {}
+    linha = await sem_travar(zag.executar, alvo[0], forcado=True)
+    auth.audit(sess.get("email", "?"), "whatsapp_agenda_testar",
+               alvo=str(ident), detalhe=linha[:200])
+    return JSONResponse({"ok": linha.startswith("OK"), "resultado": linha})
+
+
 @app.get("/api/operacao/antt/rntrc")
 def antt_rntrc(dt_de: str | None = None, dt_ate: str | None = None) -> JSONResponse:
     """Situação do RNTRC dos transportadores contratados no período."""

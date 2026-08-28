@@ -24,10 +24,26 @@ verificação antes do envio, porque duplica a checagem. O que se manda é o que
 cadastro tem, e a trilha guarda exatamente isso: se um número não recebe, dá
 para ver o que saiu.
 
-GRUPO NÃO ENTRA. A Z-API aceita o id de um grupo no mesmo campo `phone`, mas
-mandar para grupo é outra decisão (todo mundo lê, ninguém responde em
-particular) e nenhum fluxo do CÓRTEX pede isso hoje. O validador recusa; quando
-houver caso de uso, entra aqui com nome próprio.
+GRUPO ENTRA — COM NOME PRÓPRIO, como este arquivo prometeu quando ainda não
+havia caso de uso. Ele apareceu: o resumo diário de faturamento vai para a
+diretoria, e um grupo é o destino natural disso.
+
+O que "nome próprio" quer dizer na prática: `normalizar()` continua sendo SÓ
+telefone e continua recusando grupo. Quem aceita os dois é `destino()`, que
+devolve o TIPO junto com o valor — porque quase toda decisão a jusante depende
+de saber qual é qual:
+
+* o freio conta grupo como UM destinatário, porque para o WhatsApp é uma
+  conversa só (mandar para um grupo de 40 pessoas não é o mesmo risco que
+  mandar para 40 números novos — é o oposto disso);
+* a trilha guarda o id do grupo, que não é telefone de ninguém e não pode ser
+  formatado como se fosse;
+* a tela mostra o NOME do grupo, que só a Z-API sabe.
+
+O ID DE GRUPO NÃO É VALIDÁVEL DE VERDADE AQUI, e o formato abaixo é só um
+filtro de digitação. Quem sabe se um grupo existe é a Z-API (`GET /groups`), e
+é de lá que a tela tira a lista — inventar validação mais esperta daria falso
+negativo em grupo legítimo de formato novo.
 """
 from __future__ import annotations
 
@@ -67,6 +83,32 @@ DDDS = frozenset({
 })
 
 DDI_BR = "55"
+
+# Id de grupo da Z-API. TRÊS formatos convivem, e o primeiro só apareceu quando
+# se olhou a resposta de verdade — as duas suposições anteriores estavam certas
+# na documentação e erradas nesta conta:
+#
+#   120363421141267015-group      é o que o `GET /groups` devolve AQUI
+#   120363421141267015@g.us       o formato clássico do WhatsApp
+#   5547999998888-1616969528      o antigo, criador + timestamp
+#
+# Reconhecer só os dois últimos fazia o grupo real desta conta cair na porta do
+# TELEFONE e sair recusado com "DDD 12 não existe" — mensagem que manda
+# conferir DDD onde não há DDD nenhum. Foi o playground que mostrou.
+_GRUPO_SUFIXOS = ("@g.us", "-group")
+_GRUPO_ANTIGO = re.compile(r"^\d{10,15}-\d{6,}$")
+_GRUPO_NOVO = re.compile(r"^\d{16,}$")
+
+
+def _sem_sufixo(texto: str) -> str:
+    t = str(texto or "").strip()
+    for suf in _GRUPO_SUFIXOS:
+        if t.lower().endswith(suf):
+            return t[: -len(suf)]
+    return t
+
+TIPO_TELEFONE = "telefone"
+TIPO_GRUPO = "grupo"
 
 
 class TelefoneInvalido(ValueError):
@@ -138,12 +180,68 @@ def valido(bruto: str) -> bool:
         return False
 
 
+def e_grupo(bruto: str) -> bool:
+    """Parece id de grupo? Filtro de digitação, não prova de existência."""
+    t = _sem_sufixo(bruto)
+    return bool(_GRUPO_ANTIGO.match(t) or _GRUPO_NOVO.match(t))
+
+
+def normalizar_grupo(bruto: str) -> str:
+    """Tudo vira a forma canônica `120363...-group`.
+
+    DUAS RAZÕES, e a segunda foi MEDIDA contra a API de verdade:
+
+    1. O mesmo grupo chega de jeitos diferentes — da lista do `GET /groups` vem
+       com `-group`, de um link copiado vem com `@g.us`, e digitado à mão vem
+       pelado. Guardar como veio faria o mesmo grupo contar como três
+       destinatários distintos na trilha, e o freio mediria formato em vez de
+       conversa.
+    2. **O SUFIXO É OBRIGATÓRIO PARA A Z-API.** A escolha óbvia seria guardar
+       só os dígitos, que é o mais limpo; testado contra a API real, o id sem
+       sufixo devolve `HTTP 400: Phone is wrong`. Então o canônico é o que ela
+       aceita, não o que é bonito.
+
+    O formato antigo (`5547999998888-1616969528`) fica como está: já é um id
+    completo, e acrescentar `-group` a ele seria inventar.
+    """
+    t = _sem_sufixo(bruto)
+    if not e_grupo(t):
+        raise TelefoneInvalido(f"“{bruto}” não parece um id de grupo.")
+    return t if _GRUPO_ANTIGO.match(t) else f"{t}-group"
+
+
+def destino(bruto: str) -> tuple[str, str]:
+    """`(tipo, valor)` — o único lugar que aceita telefone E grupo.
+
+    Grupo é testado ANTES do telefone: um id novo (`120363…`, 18 dígitos)
+    passaria pela porta do telefone como "número com dígitos demais" e sairia
+    com a mensagem errada, mandando conferir DDD onde não há DDD nenhum.
+    """
+    t = str(bruto or "").strip()
+    if e_grupo(t):
+        return TIPO_GRUPO, normalizar_grupo(t)
+    return TIPO_TELEFONE, normalizar(t)
+
+
+def destino_valido(bruto: str) -> bool:
+    try:
+        destino(bruto)
+        return True
+    except TelefoneInvalido:
+        return False
+
+
 def formatar(numero: str) -> str:
     """`5547999998888` -> `(47) 99999-8888`, para a tela e a trilha.
 
     O que vai para a Z-API é sempre o normalizado; isto existe só para o humano
     conferir que é o número que ele quis.
+
+    ID DE GRUPO SAI COMO ESTÁ: aplicar máscara de telefone nele produziria
+    `(12) 03630-19502650977`, que parece um número e não é o de ninguém.
     """
+    if e_grupo(numero):
+        return str(numero or "").strip()
     d = so_digitos(numero)
     if len(d) in (12, 13) and d.startswith(DDI_BR):
         d = d[2:]
@@ -179,7 +277,7 @@ def separar(texto: str | list) -> list[str]:
         if not b:
             continue
         try:
-            chave = normalizar(b)
+            chave = destino(b)[1]
         except TelefoneInvalido:
             chave = so_digitos(b) or b
         if chave in vistos:

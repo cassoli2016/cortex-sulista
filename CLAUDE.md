@@ -647,6 +647,37 @@ a query ignora sai; dimensão que a query aceita e é a pergunta natural da tela
   trilha, o mesmo limite e a mesma auditoria. Um caminho paralelo viraria o
   atalho para disparar sem as regras.
 
+**Grupo, playground e o que só se descobre OLHANDO a API (lições da Z-API):**
+- **O formato documentado não era o formato real.** O id de grupo desta conta é
+  `120363421141267015-group` — não `@g.us` nem `<criador>-<timestamp>`. Reconhecer
+  só os documentados fazia o grupo real cair na porta do TELEFONE e sair recusado
+  com "DDD 12 não existe", mandando conferir DDD onde não há DDD nenhum.
+- **E o sufixo é OBRIGATÓRIO.** Guardar só os dígitos, que é o mais limpo, devolve
+  `HTTP 400: Phone is wrong`. O canônico é o que a API aceita, não o que é bonito.
+  Os dois fatos saíram de um `GET /group-metadata` de leitura, sem enviar nada —
+  **quando a dúvida for sobre formato, teste com um endpoint que não escreve.**
+- **Grupo conta como UM destinatário no freio**, porque para o WhatsApp é uma
+  conversa só. Mandar para um grupo de 40 pessoas não é o mesmo risco que mandar
+  para 40 números novos — é o oposto. Mas `normalizar()` continua sendo só
+  telefone: quem aceita os dois é `destino()`, que devolve o TIPO junto, porque
+  quase toda decisão a jusante depende de saber qual é qual (formatar na tela,
+  contar no freio, gravar na trilha).
+- **Grupo é testado ANTES de telefone**: um id de 18 dígitos passaria pela porta
+  do telefone como "número com dígitos demais" e sairia com a mensagem errada.
+- **Playground de API de fornecedor: sem URL livre, nunca.** Um campo "digite o
+  caminho" daria acesso a `/send-text` sem limite diário, sem janela e sem
+  trilha — o jeito de perder o número embrulhado como ferramenta de diagnóstico.
+  A tela manda um ID do catálogo e os parâmetros; o SERVIDOR monta o caminho. Os
+  endpoints de envio ficam listados e BLOQUEADOS, apontando para o formulário
+  certo; os que mudam estado (reiniciar, desconectar, limpar fila) pedem
+  confirmação com o texto do que vai acontecer e entram na auditoria ANTES de
+  acontecer.
+- **Parâmetro que entra em segmento de URL é validado**: `../send-text` alcançaria
+  endpoint fora do catálogo, inclusive o de envio.
+- **`_chamar` precisava saber que resposta pode ser LISTA no topo.** O `/groups`
+  responde um array; enfiá-lo num dict vazio transformava a resposta certa em
+  "nenhum grupo", sem erro nenhum aparecer.
+
 **Mensagem que carrega número do painel (lições do resumo de faturamento):**
 - **O CÓRTEX tem TRÊS recortes de receita na mesma resposta** da Visão Geral, e eles
   não são o mesmo número: `faturamento_mes` (faturas emitidas, R$ 11,28 mi),

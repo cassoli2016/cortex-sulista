@@ -1,42 +1,27 @@
-"""Agendamento dos relatórios por e-mail.
+"""Agendamento dos relatórios por e-mail — o QUE mandar e para QUEM.
 
-O AGENDADOR DO SISTEMA NÃO DECIDE NADA. Ele dispara de tempos em tempos e
-pergunta ao CÓRTEX se já passou a hora de cada agendamento — mesmo desenho da
-emissão de contrapartida, e pela mesma razão: mudar horário ou destinatário na
-tela vale na hora, sem reinstalar tarefa, e a configuração continua num lugar
-só.
+O QUANDO mora em `api/agendamento.py`, de onde os nomes abaixo são importados.
+Ele saiu daqui quando o WhatsApp ganhou agenda própria: a lógica de tempo é a
+parte delicada de um agendador (idempotência, janela de atraso, padrão
+desligado), e duplicá-la para o segundo canal seria duplicar a chance de errar
+justamente onde já se errou uma vez, na automação de emissão de CT-e.
 
-TRÊS GUARDAS, todas aprendidas doendo no módulo de emissão:
-
-1. **PADRÃO DESLIGADO.** Ausência de decisão nunca significa "manda e-mail
-   para fora da empresa".
-2. **A PASSAGEM É MARCADA MESMO SEM ENVIAR.** Sem isso a rotina se acha
-   sempre na primeira execução e reenvia a cada disparo do agendador — foi
-   exatamente o defeito da automação de emissão, e lá ele ficou invisível por
-   horas.
-3. **JANELA DE ATRASO.** Se a máquina estava desligada às 7h e a rotina só
-   roda às 11h, o relatório das 7h sai — uma vez — porque atrasado ainda serve.
-   Passada a janela, não sai: relatório de ontem chegando hoje à tarde é ruído
-   que ensina a ignorar o remetente.
+Os nomes continuam visíveis por aqui (`deve_rodar`, `proxima`, `descrever`,
+`FREQUENCIAS`…) porque o script da rotina, as rotas e os testes já os chamam
+assim — extrair não podia virar renomeação em cascata.
 """
 from __future__ import annotations
 
 import logging
-from datetime import datetime, timedelta
+from datetime import datetime
 
 from .. import migracoes, pglocal
+from ..agendamento import (DIAS, FREQUENCIAS, JANELA_ATRASO_MIN,  # noqa: F401
+                           descrever, deve_rodar, proxima)
+from ..agendamento import hhmm as _hhmm
+from ..agendamento import marcado_para as _marcado_para  # noqa: F401
 
 log = logging.getLogger("cortex.correio.agenda")
-
-FREQUENCIAS = ("diario", "semanal", "mensal")
-
-# Atraso tolerado entre a hora marcada e o disparo do agendador. Quatro horas
-# cobrem máquina que dormiu, deploy demorado e reinício — e ainda entrega o
-# relatório dentro do mesmo turno de trabalho.
-JANELA_ATRASO_MIN = 240
-
-DIAS = {1: "segunda", 2: "terça", 3: "quarta", 4: "quinta", 5: "sexta",
-        6: "sábado", 7: "domingo"}
 
 ESQUEMA: str | None = None
 
@@ -47,21 +32,6 @@ def _esq(esquema: str | None) -> str | None:
 
 def init_db(esquema: str | None = None) -> None:
     migracoes.aplicar(_esq(esquema))
-
-
-def _hhmm(txt: str) -> tuple[int, int]:
-    """'07:30' -> (7, 30). Recusa em vez de assumir: hora ilegível gravada na
-    agenda faria o relatório sair na hora errada todo dia, calado."""
-    partes = str(txt or "").strip().split(":")
-    if len(partes) != 2:
-        raise ValueError("Horário deve estar no formato HH:MM.")
-    try:
-        h, m = int(partes[0]), int(partes[1])
-    except ValueError:
-        raise ValueError("Horário deve estar no formato HH:MM.") from None
-    if not (0 <= h <= 23 and 0 <= m <= 59):
-        raise ValueError("Horário fora do intervalo (00:00 a 23:59).")
-    return h, m
 
 
 def validar(dados: dict) -> dict:
@@ -174,73 +144,6 @@ def registrar_execucao(ident: int, resultado: str,
                      " ultimo_resultado=%s WHERE id=%s",
                      (agora, str(resultado)[:200], int(ident)),
                      esquema=_esq(esquema))
-
-
-def _marcado_para(ag: dict, quando: datetime) -> datetime | None:
-    """O horário marcado NO DIA de `quando`, ou None se não é dia dele."""
-    try:
-        h, m = _hhmm(ag.get("hora"))
-    except ValueError:
-        log.warning("agendamento %s com hora ilegivel: %r",
-                    ag.get("id"), ag.get("hora"))
-        return None
-    freq = str(ag.get("frequencia") or "diario")
-    if freq == "semanal" and quando.isoweekday() != (ag.get("dia_semana") or 0):
-        return None
-    if freq == "mensal" and quando.day != (ag.get("dia_mes") or 0):
-        return None
-    return quando.replace(hour=h, minute=m, second=0, microsecond=0)
-
-
-def deve_rodar(ag: dict, agora: datetime | None = None) -> tuple[bool, str]:
-    """Está na hora deste agendamento? Devolve também o PORQUÊ."""
-    agora = agora or datetime.now()
-    if not ag.get("ativo"):
-        return False, "agendamento desligado"
-    marcado = _marcado_para(ag, agora)
-    if marcado is None:
-        return False, "não é o dia deste agendamento"
-    if agora < marcado:
-        falta = (marcado - agora).total_seconds() / 60
-        return False, f"faltam {falta:.0f} min para as {ag.get('hora')}"
-    atraso = (agora - marcado).total_seconds() / 60
-    if atraso > JANELA_ATRASO_MIN:
-        # Relatorio de manha chegando a noite ensina a ignorar o remetente.
-        return False, (f"passou {atraso/60:.0f}h da hora marcada — fora da "
-                       f"janela de {JANELA_ATRASO_MIN//60}h")
-    ult = ag.get("ultima_execucao")
-    if ult:
-        try:
-            quando = datetime.fromisoformat(str(ult).replace(" ", "T"))
-        except ValueError:
-            return True, "última execução com data ilegível"
-        if quando >= marcado:
-            return False, "já enviado nesta janela"
-    return True, f"na hora ({ag.get('hora')}, atraso de {atraso:.0f} min)"
-
-
-def proxima(ag: dict, agora: datetime | None = None) -> str | None:
-    """Quando sai o próximo — para a tela dizer, em vez de deixar adivinhar."""
-    agora = agora or datetime.now()
-    if not ag.get("ativo"):
-        return None
-    for d in range(0, 400):
-        alvo = agora + timedelta(days=d)
-        marcado = _marcado_para(ag, alvo)
-        if marcado and marcado > agora:
-            return marcado.strftime("%Y-%m-%d %H:%M")
-    return None
-
-
-def descrever(ag: dict) -> str:
-    """Frase que a tela mostra no lugar de três campos soltos."""
-    freq = str(ag.get("frequencia") or "diario")
-    hora = ag.get("hora") or "?"
-    if freq == "semanal":
-        return f"toda {DIAS.get(ag.get('dia_semana'), '?')} às {hora}"
-    if freq == "mensal":
-        return f"todo dia {ag.get('dia_mes')} do mês às {hora}"
-    return f"todo dia às {hora}"
 
 
 def estado(esquema: str | None = None) -> dict:

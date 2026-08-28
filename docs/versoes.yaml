@@ -1,3 +1,61 @@
+- versao: "0.126.0"
+  data: "2026-08-28"
+  adicionado:
+    - >-
+      Mensagem para GRUPO. O campo de destinatario aceita telefone e grupo
+      juntos, e o botao "Escolher um grupo" traz a lista de grupos do numero -
+      id de grupo e uma sequencia de 18 digitos que ninguem decora e que, com
+      um erro, manda a mensagem para outro grupo qualquer.
+    - >-
+      Grupo conta como UM destinatario no limite diario, porque para o WhatsApp
+      e uma conversa so. Mandar para um grupo de 40 pessoas nao e o mesmo risco
+      que mandar para 40 numeros novos - e o oposto disso.
+    - >-
+      PLAYGROUND DA API Z-API, para descobrir o que o fornecedor responde de
+      verdade em vez de supor. Instancia, grupos, conversas, contatos e fila,
+      cada um com o que faz e o que esperar. Ja rendeu duas descobertas: o
+      formato real do id de grupo desta conta e o fato de o sufixo ser
+      obrigatorio.
+  alterado:
+    - >-
+      O playground NAO tem URL livre e NAO envia mensagem, de proposito. So o
+      que esta no catalogo e chamavel: um campo "digite o caminho" daria acesso
+      ao envio sem o limite diario, sem a janela de horario e sem a trilha - o
+      jeito de perder o numero, embrulhado como ferramenta de diagnostico. Os
+      endpoints de envio aparecem listados, bloqueados, apontando para o
+      formulario certo. Os que mudam o estado (reiniciar, desconectar, limpar a
+      fila) pedem confirmacao e entram na auditoria.
+
+- versao: "0.125.0"
+  data: "2026-08-28"
+  adicionado:
+    - >-
+      ROTINAS AGENDADAS de WhatsApp: escolha o modelo, os destinatarios e o
+      horario, e o CORTEX manda sozinho. Diario, semanal ou mensal, com a opcao
+      "so em dias uteis" - um resumo de faturamento no domingo sai com "sem
+      meta no dia" e vira ruido que ensina a ignorar o remetente.
+    - >-
+      Cada rotina mostra na tela quando sai a proxima, o que aconteceu na
+      ultima e, quando nao esta pronta, O MOTIVO - "por que a mensagem de hoje
+      nao saiu?" e a pergunta que sempre aparece, e sem isso so restaria abrir
+      o log da tarefa do Windows.
+    - >-
+      Botao "Enviar agora" para disparar fora do horario. E o MESMO caminho do
+      envio automatico: mesmo limite, mesma janela, mesma trilha. Nao existe um
+      modo de teste mais frouxo, de proposito - ele viraria o atalho para
+      disparar sem as regras.
+  alterado:
+    - >-
+      DADO RUIM NAO VIRA MENSAGEM. Se os numeros nao vierem completos (o ERP
+      fora do ar, por exemplo), a rotina registra o motivo e NAO ENVIA. Uma
+      automacao que manda "Faturamento de hoje: R$ 0,00" as 8h da manha para a
+      diretoria assusta na primeira vez e, na segunda, vira um remetente que
+      ninguem le.
+    - >-
+      A rotina passa pelas MESMAS regras do envio manual - interruptor geral,
+      janela de horario, limite do numero, limite do modelo e checagem de
+      conexao. Automatico nao e sinonimo de mais permissivo.
+
 - versao: "0.124.0"
   data: "2026-08-28"
   adicionado:

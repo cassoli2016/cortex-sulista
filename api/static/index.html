@@ -1098,6 +1098,31 @@ button.avatar{border:0;cursor:pointer}
   letter-spacing:.06em;color:var(--n500);font-weight:700}
 .wa-inst-rot .wa-inst-sub{text-transform:none;letter-spacing:0;font-weight:500}
 .wa-inst-nota{padding:4px 18px 0;font-size:11px;color:var(--n500);line-height:1.5}
+.wa-grupos{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-top:6px}
+.wa-grupos .dica{font-size:11px;color:var(--n500)}
+.wa-grupos select{max-width:340px;padding:7px 8px;border:1px solid var(--n300);
+  border-radius:6px;font:inherit;font-size:13px}
+.wa-pg{padding:14px 18px 18px;display:flex;flex-direction:column;gap:14px}
+.wa-pg .grupo h4{margin:0 0 6px;font-size:11px;text-transform:uppercase;
+  letter-spacing:.06em;color:var(--n500)}
+.wa-pg .ep{display:flex;align-items:flex-start;gap:10px;padding:9px 11px;
+  border:1px solid var(--n200,#e5eaf0);border-radius:8px;margin-bottom:6px}
+.wa-pg .ep .met{font-family:var(--mono);font-size:10.5px;font-weight:700;
+  padding:2px 6px;border-radius:4px;background:var(--navy-50);color:var(--navy-700);
+  flex:0 0 auto;margin-top:2px}
+.wa-pg .ep.escrita .met{background:#FDF3E3;color:var(--yellow-700)}
+.wa-pg .ep.envio{opacity:.72}
+.wa-pg .ep.envio .met{background:#FBE9E7;color:var(--red)}
+.wa-pg .ep .corpo{flex:1;min-width:0}
+.wa-pg .ep .nome{font-weight:600;font-size:13.5px}
+.wa-pg .ep .cam{font-family:var(--mono);font-size:11px;color:var(--n500)}
+.wa-pg .ep .desc{font-size:11.5px;color:var(--n600);line-height:1.5;margin-top:3px}
+.wa-pg .ep .par{display:flex;gap:6px;margin-top:6px;flex-wrap:wrap}
+.wa-pg .ep .par input{width:130px;padding:5px 7px;border:1px solid var(--n300);
+  border-radius:5px;font:inherit;font-size:12px}
+.wa-pg .saida{white-space:pre-wrap;font-family:var(--mono);font-size:11.5px;
+  background:var(--n50,#f7f9fb);border:1px solid var(--n200,#e5eaf0);
+  border-radius:8px;padding:10px 12px;max-height:340px;overflow:auto;margin-top:8px}
 .wa-msgbox{padding:14px 18px 0}
 .wa-msgbox label{display:block;font-size:12px;font-weight:600;color:var(--n600,#6B7280);margin-bottom:4px}
 .wa-msgbox textarea{width:100%;resize:vertical;min-height:84px;padding:9px 10px;
@@ -4307,9 +4332,21 @@ body.tvfull #btnReport,body.tvmode #btnReport{display:none}
             <div class="tablewrap tabroll" id="wa-mod-lista"></div>
           </div>
           <div class="card">
+            <div class="head"><h2>Rotinas agendadas <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="Mensagens que o CORTEX manda sozinho, no horario marcado. O agendador do Windows nao decide nada: ele passa de tempos em tempos e pergunta se ja deu a hora, entao mudar horario ou destinatario aqui vale na hora, sem reinstalar tarefa. A rotina passa pelas MESMAS regras do envio manual - interruptor geral, janela, limite do numero e do modelo, e a checagem de conexao. E se os numeros nao vierem completos (ERP fora do ar, por exemplo), ela REGISTRA e NAO ENVIA: uma mensagem dizendo 'faturamento de hoje: R$ 0,00' assusta na primeira vez e, na segunda, vira remetente que ninguem le.">i</span></h2>
+              <span class="hint" id="wa-ag-hint">—</span>
+              <button class="btn" onclick="whatsAgendaModal(null)">+ Nova rotina</button></div>
+            <div class="tablewrap tabroll" id="wa-ag-lista"></div>
+          </div>
+          <div class="card">
             <div class="head"><h2>Enviar mensagem <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="É o mesmo caminho que qualquer rotina do CÓRTEX usa: passa pelo limite diário, pela janela de horário e entra na trilha abaixo com o seu usuário. Não existe um modo de teste mais frouxo, de propósito — ele viraria o atalho para disparar sem as regras. O telefone é normalizado antes de sair: (47) 99999-8888 e 5547999998888 são o mesmo destinatário.">i</span></h2><span class="hint" id="wa-envio-hint">—</span></div>
             <div class="ges-cfg">
-              <div style="grid-column:1/-1"><label for="wa-tel">Telefone(s)</label><input type="text" id="wa-tel" placeholder="(47) 99999-8888 — separe vários por vírgula"></div>
+              <div style="grid-column:1/-1"><label for="wa-tel">Telefone(s) ou grupo</label>
+                <input type="text" id="wa-tel" placeholder="(47) 99999-8888 — separe vários por vírgula">
+                <div class="wa-grupos" id="wa-grupos-box">
+                  <button type="button" class="ghost" id="wa-grupos-btn" onclick="whatsGruposCarregar()">Escolher um grupo…</button>
+                  <span id="wa-grupos-msg" class="dica"></span>
+                  <select id="wa-grupos-sel" onchange="whatsGrupoEscolher()" hidden></select>
+                </div></div>
               <div id="wa-inst-box" hidden><label for="wa-envinst">Enviar pelo número</label>
                 <select id="wa-envinst" onchange="whatsInstMudou()"></select></div>
               <div style="grid-column:1/-1"><label for="wa-modelo">Modelo</label>
@@ -4330,6 +4367,11 @@ body.tvfull #btnReport,body.tvmode #btnReport{display:none}
           <div class="card">
             <div class="head"><h2>Últimos envios <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="Trilha de tudo que o CÓRTEX tentou enviar, na tabela zap_envios do banco do CÓRTEX. A recusa também entra — é o registro dela que responde por que a mensagem não saiu. Esta mesma tabela é o que conta os destinatários do dia para o limite: por isso o telefone é guardado sempre normalizado.">i</span></h2><span class="hint" id="wa-hist-hint">—</span></div>
             <div class="tablewrap tabroll" id="wa-hist"></div>
+          </div>
+          <div class="card">
+            <div class="head"><h2>Playground da API Z-API <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="Para descobrir o que a Z-API responde DE VERDADE. Tres defeitos desta integracao vieram de supor a resposta em vez de olhar - o /status que devolve 'error: You are already connected' quando esta tudo bem foi um deles, e o formato do id de grupo foi outro. Nao ha URL livre: so o que esta no catalogo e chamavel, porque um proxy generico daria acesso a /send-text sem o limite diario, sem a janela de horario e sem a trilha. Envio fica listado mas BLOQUEADO, apontando para o formulario certo. Escrita pede confirmacao e vai para a auditoria. A resposta e sanitizada: o token viaja na URL desta API.">i</span></h2>
+              <span class="hint">explora a API do fornecedor · sem URL livre, sem atalho de envio</span></div>
+            <div class="wa-pg" id="wa-pg"></div>
           </div>
         </div>
         <div id="gpane-config" style="display:none">
@@ -18733,6 +18775,8 @@ async function whatsCarregar(){
      encadear as duas chamadas deixaria o formulário meio segundo sem opção
      nenhuma logo depois de abrir a aba */
   whatsModelosCarregar();
+  whatsAgendaCarregar();
+  if(!WAPG.length) whatsPgCarregar();   // catálogo é estático: uma vez basta
   const hist=document.getElementById('wa-hist');
   hist.innerHTML='<div style="padding:12px;color:var(--n500)">carregando…</div>';
   try{
@@ -19357,6 +19401,255 @@ function whatsPreviaEnvio(){
       msg.value=d.texto||'';
     }catch(e){ /* prévia é conforto */ }
   }, 250);
+}
+
+/* ===================== Grupos e playground =====================
+   A LISTA DE GRUPOS VEM DA Z-API, e a tela lista em vez de pedir o id
+   digitado: id de grupo é uma sequência de 18 dígitos que ninguém decora e
+   que, com um erro, manda a mensagem para outro grupo qualquer. */
+async function whatsGruposCarregar(){
+  const btn=document.getElementById('wa-grupos-btn');
+  const msg=document.getElementById('wa-grupos-msg');
+  const sel=document.getElementById('wa-grupos-sel');
+  const inst=(document.getElementById('wa-envinst')||{}).value||'';
+  btn.disabled=true; btn.textContent='Buscando…'; msg.textContent='';
+  try{
+    const r=await fetch('/api/gestao/whatsapp/grupos'+(inst?('?instancia='+encodeURIComponent(inst)):''),
+                        {cache:'no-store'});
+    const d=await respostaJSON(r);
+    const gs=(d.dados&&d.dados.grupos)||[];
+    if(d.dados&&d.dados.erro){ msg.textContent=d.dados.erro; return; }
+    if(!gs.length){ msg.textContent='este número não participa de nenhum grupo'; return; }
+    sel.innerHTML='<option value="">— escolha o grupo —</option>'
+      + gs.map(g=>`<option value="${esc(g.id)}">${esc(g.nome)}</option>`).join('');
+    sel.hidden=false; btn.hidden=true;
+    msg.textContent=`${gs.length} grupo${gs.length===1?'':'s'}`;
+  }catch(e){ msg.textContent=(e&&e.message)||'Não foi possível falar com a API.'; }
+  finally{ btn.disabled=false; btn.textContent='Escolher um grupo…'; }
+}
+
+function whatsGrupoEscolher(){
+  const sel=document.getElementById('wa-grupos-sel');
+  if(!sel.value) return;
+  /* ACRESCENTA, não substitui: o campo aceita telefone e grupo juntos, e
+     apagar o que já estava digitado seria perder trabalho sem avisar. */
+  const campo=document.getElementById('wa-tel');
+  const atual=(campo.value||'').trim();
+  campo.value = atual ? (atual.replace(/,\s*$/,'') + ', ' + sel.value) : sel.value;
+  document.getElementById('wa-grupos-msg').textContent =
+    'grupo “'+sel.options[sel.selectedIndex].text+'” adicionado';
+}
+
+/* ---- playground ----
+   Sem URL livre: a tela manda o ID do endpoint e os parâmetros, e o servidor
+   monta o caminho a partir do catálogo. É essa diferença que impede esta
+   ferramenta de virar um atalho para `/send-text` sem freio. */
+let WAPG = [];
+
+async function whatsPgCarregar(){
+  const alvo=document.getElementById('wa-pg'); if(!alvo) return;
+  try{
+    const r=await fetch('/api/gestao/whatsapp/playground',{cache:'no-store'});
+    const d=await respostaJSON(r);
+    WAPG=(d.dados&&d.dados.endpoints)||[];
+    renderWaPg();
+  }catch(e){ alvo.innerHTML='<div style="color:var(--red)">'+esc((e&&e.message)||'falhou')+'</div>'; }
+}
+
+function renderWaPg(){
+  const alvo=document.getElementById('wa-pg'); if(!alvo) return;
+  const grupos={};
+  WAPG.forEach(e=>{ (grupos[e.grupo]=grupos[e.grupo]||[]).push(e); });
+  alvo.innerHTML = Object.entries(grupos).map(([g, eps])=>`
+    <div class="grupo"><h4>${esc(g)}</h4>
+      ${eps.map(e=>`
+        <div class="ep ${esc(e.risco)}">
+          <span class="met">${esc(e.metodo)}</span>
+          <div class="corpo">
+            <div class="nome">${esc(e.nome)}
+              ${e.risco==='escrita'?statChip('warn','muda o estado','Pede confirmação e entra na auditoria.'):''}
+              ${e.risco==='envio'?statChip('bad','bloqueado aqui','Enviar por aqui pularia o limite, a janela e a trilha.'):''}</div>
+            <div class="cam">${esc(e.caminho)}</div>
+            <div class="desc">${esc(e.descricao)}</div>
+            ${(e.params||[]).length?`<div class="par">${(e.params||[]).map(pp=>
+              `<input type="text" id="pg-${esc(e.id)}-${esc(pp.nome)}" placeholder="${esc(pp.rotulo||pp.nome)}"
+                      value="${esc(pp.padrao||'')}" title="${esc(pp.dica||pp.rotulo||pp.nome)}">`).join('')}</div>`:''}
+            ${e.risco==='envio'?'' :`<div style="margin-top:7px">
+              <button type="button" class="ghost" onclick="whatsPgExecutar('${esc(e.id)}')">Executar</button></div>`}
+            <div class="saida" id="pg-out-${esc(e.id)}" hidden></div>
+          </div>
+        </div>`).join('')}
+    </div>`).join('');
+}
+
+async function whatsPgExecutar(id){
+  const e=WAPG.find(x=>x.id===id); if(!e) return;
+  /* Confirmação só na ESCRITA — e com o texto dizendo o que acontece, não um
+     "tem certeza?" genérico que todo mundo aprende a clicar sem ler. */
+  if(e.risco==='escrita' && !confirm(e.nome+'\n\n'+e.descricao+'\n\nConfirma? A ação entra na auditoria com o seu usuário.')) return;
+  const out=document.getElementById('pg-out-'+id);
+  out.hidden=false; out.textContent='chamando…';
+  const params={};
+  (e.params||[]).forEach(pp=>{
+    const el=document.getElementById('pg-'+id+'-'+pp.nome);
+    if(el) params[pp.nome]=el.value;
+  });
+  try{
+    const r=await fetch('/api/gestao/whatsapp/playground',{method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({id, params, instancia:(document.getElementById('wa-envinst')||{}).value||''})});
+    const d=await respostaJSON(r);
+    if(!d.ok){ out.textContent=(d.dados&&d.dados.mensagem)||'falhou'; return; }
+    out.textContent = d.dados.metodo+' '+d.dados.caminho+'\n\n'+d.dados.resposta;
+  }catch(err){ out.textContent=(err&&err.message)||'Não foi possível falar com a API.'; }
+}
+
+/* ===================== Rotinas agendadas =====================
+   A pergunta que esta tela precisa responder o tempo todo é "por que a
+   mensagem de hoje não saiu?" — por isso cada linha mostra o MOTIVO que o
+   servidor deu, e não só um sinal de ligado/desligado. */
+let WAAG = {rotinas: []};
+
+async function whatsAgendaCarregar(){
+  const lista=document.getElementById('wa-ag-lista'); if(!lista) return;
+  try{
+    const r=await fetch('/api/gestao/whatsapp/agenda',{cache:'no-store'});
+    const d=await respostaJSON(r);
+    if(!d.ok){ lista.innerHTML='<div style="padding:12px;color:var(--red)">'
+      +esc((d.dados&&d.dados.mensagem)||'Erro ao ler as rotinas.')+'</div>'; return; }
+    WAAG=d.dados; renderWaAgenda();
+  }catch(e){ lista.innerHTML='<div style="padding:12px;color:var(--red)">'
+    +esc((e&&e.message)||'Não foi possível falar com a API.')+'</div>'; }
+}
+
+function renderWaAgenda(){
+  const rs=WAAG.rotinas||[], lista=document.getElementById('wa-ag-lista');
+  const ligadas=rs.filter(r=>r.ativo).length;
+  document.getElementById('wa-ag-hint').innerHTML = rs.length
+    ? `${rs.length} rotina${rs.length===1?'':'s'} · ${ligadas} ligada${ligadas===1?'':'s'}`
+    : 'nenhuma rotina — nada sai sozinho';
+  lista.innerHTML = !rs.length
+    ? '<div style="padding:12px;color:var(--n500)">Nenhuma rotina agendada. Uma rotina manda um modelo no horário marcado, todo dia, sem ninguém clicar.</div>'
+    : '<table><thead><tr><th>Modelo</th><th>Quando</th><th>Para</th><th>Próxima</th><th>Última</th><th>Situação</th><th></th></tr></thead><tbody>'
+      + rs.map(a=>{
+          const tels=(a.destinatarios||'').split(',').map(t=>whatsFmtTel(t.trim())).join(', ');
+          return `<tr>
+            <td>${esc(a.modelo_nome||a.modelo)}${a.instancia?`<span class="sub">nº ${a.instancia==='backup'?'reserva':'principal'}</span>`:''}</td>
+            <td>${esc(a.quando||'—')}</td>
+            <td class="mono" title="${esc(tels)}">${esc(tels.length>34?tels.slice(0,34)+'…':tels)}</td>
+            <td>${a.proxima?esc(fmtDT(a.proxima)):'<span style="color:var(--n500)">—</span>'}</td>
+            <td title="${esc(a.ultimo_resultado||'')}">${a.ultima_execucao
+              ? esc(fmtDT(String(a.ultima_execucao).slice(0,16)))
+                + (a.ultimo_resultado?`<span class="sub">${esc(String(a.ultimo_resultado).slice(0,42))}</span>`:'')
+              : '<span style="color:var(--n500)">nunca rodou</span>'}</td>
+            <td>${a.ativo
+              ? statChip(a.pronto?'good':'warn', a.pronto?'na hora':'ligada', a.motivo||'')
+              : statChip('warn','desligada','Nada sai enquanto estiver assim.')}</td>
+            <td class="num"><button class="ghost gbtn" onclick="whatsAgendaModal(${a.id})">Editar</button>
+              <button class="ghost gbtn" onclick="whatsAgendaTestar(${a.id})">Enviar agora</button>
+              <button class="ghost gbtn" onclick="whatsAgendaExcluir(${a.id})">Excluir</button></td>
+          </tr>`;
+        }).join('')
+      + '</tbody></table>';
+}
+
+function whatsAgendaModal(id){
+  const a = id ? (WAAG.rotinas||[]).find(x=>x.id===id) : null;
+  const ativos=(WAMOD.modelos||[]).filter(m=>m.ativo);
+  const opts=ativos.map(m=>`<option value="${esc(m.chave)}" ${a&&a.modelo===m.chave?'selected':''}>${esc(m.nome)}</option>`).join('')
+    || '<option value="">— nenhum modelo ligado —</option>';
+  const freq=(a&&a.frequencia)||'diario';
+  abrirModal(`
+    <h3>${a?'Editar rotina':'Nova rotina agendada'}</h3>
+    <div class="ges-form">
+      <div><label for="ag-modelo">Modelo</label><select id="ag-modelo">${opts}</select></div>
+      <div><label for="ag-dest">Telefone(s)</label>
+        <input type="text" id="ag-dest" placeholder="(47) 99999-8888 — separe vários por vírgula"
+               value="${a?esc((a.destinatarios||'').split(',').map(t=>whatsFmtTel(t.trim())).join(', ')):''}"></div>
+      <div style="display:flex;gap:10px">
+        <div style="flex:1"><label for="ag-freq">Frequência</label>
+          <select id="ag-freq" onchange="whatsAgendaFreq()">
+            <option value="diario" ${freq==='diario'?'selected':''}>Todo dia</option>
+            <option value="semanal" ${freq==='semanal'?'selected':''}>Semanal</option>
+            <option value="mensal" ${freq==='mensal'?'selected':''}>Mensal</option>
+          </select></div>
+        <div style="flex:1"><label for="ag-hora">Horário</label>
+          <input type="time" id="ag-hora" value="${a?esc(a.hora||'08:00'):'08:00'}"></div>
+      </div>
+      <div id="ag-dia-semana" ${freq==='semanal'?'':'hidden'}><label for="ag-ds">Dia da semana</label>
+        <select id="ag-ds">${[1,2,3,4,5,6,7].map(n=>`<option value="${n}" ${a&&a.dia_semana===n?'selected':''}>${['segunda','terça','quarta','quinta','sexta','sábado','domingo'][n-1]}</option>`).join('')}</select></div>
+      <div id="ag-dia-mes" ${freq==='mensal'?'':'hidden'}><label for="ag-dm">Dia do mês (1 a 28)</label>
+        <input type="text" id="ag-dm" inputmode="numeric" value="${a&&a.dia_mes?a.dia_mes:''}"></div>
+      <div><label for="ag-inst">Enviar pelo número</label>
+        <select id="ag-inst">
+          <option value="">Padrão do modelo</option>
+          <option value="principal" ${a&&a.instancia==='principal'?'selected':''}>Principal</option>
+          <option value="backup" ${a&&a.instancia==='backup'?'selected':''}>Reserva</option>
+        </select></div>
+      <div id="ag-uteis-box"><label><input type="checkbox" id="ag-uteis" ${(!a||a.dias_uteis)?'checked':''}>
+        Só em dias úteis</label>
+        <div style="font-size:11px;color:var(--n500);margin-top:3px">Um resumo de faturamento no domingo sai com “sem meta no dia” e vira ruído.</div></div>
+      <div><label><input type="checkbox" id="ag-ativo" ${a&&a.ativo?'checked':''}> Rotina ligada</label>
+        <div style="font-size:11px;color:var(--n500);margin-top:3px">Ligada, o CÓRTEX manda sozinho no horário. Continua passando pelo interruptor geral, pela janela e pelos limites.</div></div>
+    </div>
+    <div class="m-err" id="m-err"></div>
+    <div class="m-foot"><button class="ghost" onclick="fecharModal()">Cancelar</button>
+      <button class="btn" id="ag-salvar" onclick="whatsAgendaSalvar(${id||'null'})">${a?'Salvar':'Criar rotina'}</button></div>`);
+}
+
+function whatsAgendaFreq(){
+  const f=document.getElementById('ag-freq').value;
+  document.getElementById('ag-dia-semana').hidden = f!=='semanal';
+  document.getElementById('ag-dia-mes').hidden = f!=='mensal';
+  /* "só dias úteis" só faz sentido no diário: no semanal quem escolhe o dia é
+     o próprio campo, e no mensal ele esconderia a rotina em metade dos meses */
+  document.getElementById('ag-uteis-box').hidden = f!=='diario';
+}
+
+async function whatsAgendaSalvar(id){
+  const btn=document.getElementById('ag-salvar'); btn.disabled=true;
+  const corpo={
+    modelo:document.getElementById('ag-modelo').value,
+    destinatarios:(document.getElementById('ag-dest').value||'').trim(),
+    frequencia:document.getElementById('ag-freq').value,
+    hora:document.getElementById('ag-hora').value,
+    dia_semana:document.getElementById('ag-ds').value,
+    dia_mes:(document.getElementById('ag-dm').value||'').trim(),
+    instancia:document.getElementById('ag-inst').value,
+    dias_uteis:document.getElementById('ag-uteis').checked,
+    ativo:document.getElementById('ag-ativo').checked,
+  };
+  if(id) corpo.id=id;
+  try{
+    const r=await fetch('/api/gestao/whatsapp/agenda',{method:'POST',
+      headers:{'Content-Type':'application/json'}, body:JSON.stringify(corpo)});
+    const d=await respostaJSON(r);
+    if(!d.ok){ mErro((d.dados&&d.dados.mensagem)||'Não foi possível salvar.'); return; }
+    fecharModal(); await whatsAgendaCarregar();
+  }catch(e){ mErro((e&&e.message)||'Não foi possível falar com a API.'); }
+  finally{ btn.disabled=false; }
+}
+
+async function whatsAgendaExcluir(id){
+  const a=(WAAG.rotinas||[]).find(x=>x.id===id); if(!a) return;
+  if(!confirm('Excluir esta rotina? A mensagem deixa de sair sozinha.\n\nPara só pausar, DESLIGUE em vez de excluir.')) return;
+  try{
+    const r=await fetch(`/api/gestao/whatsapp/agenda/${id}/excluir`,{method:'POST'});
+    if(!r.ok){ alert('Não foi possível excluir.'); return; }
+    await whatsAgendaCarregar();
+  }catch(e){ alert('Não foi possível falar com a API.'); }
+}
+
+async function whatsAgendaTestar(id){
+  /* "Enviar agora" é o MESMO caminho do disparo automático: mesmo freio, mesma
+     janela, mesma trilha. Por isso o aviso — não é um ensaio. */
+  if(!confirm('Enviar AGORA, de verdade, para os destinatários desta rotina?\n\nÉ o mesmo caminho do envio automático: passa pelo limite do dia e entra na trilha.')) return;
+  try{
+    const r=await fetch(`/api/gestao/whatsapp/agenda/${id}/testar`,{method:'POST'});
+    const d=await respostaJSON(r);
+    alert((d.dados&&d.dados.resultado)||'Sem resposta.');
+    await whatsAgendaCarregar(); await whatsCarregar();
+  }catch(e){ alert((e&&e.message)||'Não foi possível falar com a API.'); }
 }
 
 /* ===================== Integrações (credenciais) =====================

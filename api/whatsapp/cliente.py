@@ -163,9 +163,11 @@ def _base(qual: str | None = None) -> str:
     return f"{BASE}/instances/{instancia(qual)}/token/{token(qual)}"
 
 
-def _http(url: str, headers: dict, timeout: int, dados: bytes | None = None):
-    req = urllib.request.Request(url, headers=headers, data=dados,
-                                 method="POST" if dados is not None else "GET")
+def _http(url: str, headers: dict, timeout: int, dados: bytes | None = None,
+          metodo: str | None = None):
+    req = urllib.request.Request(
+        url, headers=headers, data=dados,
+        method=metodo or ("POST" if dados is not None else "GET"))
     try:
         with urllib.request.urlopen(req, timeout=timeout, context=_CTX) as r:
             return r.status, r.read()
@@ -193,7 +195,8 @@ class Cliente:
 
     # ------------------------------------------------------------------ http
     def _chamar(self, caminho: str, corpo: dict | None = None,
-                timeout: int = TIMEOUT, erro_em_200: bool = True) -> dict:
+                timeout: int = TIMEOUT, erro_em_200: bool = True,
+                bruto_lista: bool = False, metodo: str | None = None):
         cab = {"Accept": "application/json"}
         if client_token(self.qual):
             cab["Client-Token"] = client_token(self.qual)
@@ -203,8 +206,12 @@ class Cliente:
             dados = json.dumps(corpo).encode()
 
         try:
+            # `metodo` só é passado quando há um: os dublês dos testes têm a
+            # assinatura antiga, e obrigá-los a mudar quebraria dez arquivos
+            # para acrescentar um DELETE
+            extra = {"metodo": metodo} if metodo else {}
             status, bruto = self._http(_base(self.qual) + caminho, cab, timeout,
-                                       dados)
+                                       dados, **extra)
         except Exception as exc:   # noqa: BLE001
             # SÓ o nome da classe: str(exc) de urllib carrega a URL, e a URL
             # carrega o token.
@@ -215,6 +222,13 @@ class Cliente:
         try:
             d = json.loads(bruto) if bruto else {}
         except json.JSONDecodeError:
+            d = {}
+        # alguns endpoints (o `/groups`, por exemplo) respondem uma LISTA no
+        # topo. Enfiá-la num dict vazio, como se fazia, transformava a resposta
+        # certa em "nenhum grupo" sem erro nenhum aparecer.
+        if isinstance(d, list):
+            if bruto_lista:
+                return d
             d = {}
         if not isinstance(d, dict):
             d = {}
@@ -237,6 +251,35 @@ class Cliente:
         if intervalo_seg:
             corpo["delayMessage"] = int(intervalo_seg)
         return self._chamar("/send-text", corpo)
+
+    def explorar(self, metodo: str, caminho: str):
+        """Chamada CRUA de um endpoint do catálogo do playground.
+
+        Não recebe URL: recebe o que `playground.preparar()` montou a partir de
+        um id do catálogo. A diferença é o que impede esta porta de virar um
+        proxy para `/send-text` sem freio.
+
+        `erro_em_200=False` porque no playground o corpo de erro É o resultado
+        que se quer ver — traduzi-lo em exceção esconderia justamente a
+        resposta que se foi investigar.
+        """
+        return self._chamar(caminho, timeout=25, erro_em_200=False,
+                            bruto_lista=True, metodo=metodo.upper())
+
+    def grupos(self, pagina: int = 1, por_pagina: int = 100) -> list[dict]:
+        """Os grupos que ESTE número participa.
+
+        Só a Z-API sabe quais são — não há nada gravado aqui para consultar. E
+        é por isso que a tela lista em vez de pedir o id digitado: id de grupo
+        é uma sequência de 18 dígitos que ninguém decora e que, digitada
+        errada, manda a mensagem para outro grupo qualquer.
+
+        `GET /groups` devolve uma lista; a Z-API pagina, e 100 por página cobre
+        com folga o número de grupos de uma transportadora.
+        """
+        r = self._chamar(f"/groups?page={int(pagina)}&pageSize={int(por_pagina)}",
+                         timeout=20, erro_em_200=False, bruto_lista=True)
+        return r if isinstance(r, list) else []
 
     def status(self) -> dict:
         """O corpo cru do `/status`. A leitura de `connected`/`error` é de
