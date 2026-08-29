@@ -45,7 +45,8 @@ except ImportError:  # pragma: no cover
 # uma coleta agendada que ninguem ve parar envelhece o painel calada.
 _TAREFAS = ["Cortex Sulista - API", "Cortex Sulista - AutoDeploy",
             "Cortex Sulista - Tunnel", "Cortex Sulista - Telemetria",
-            "Cortex Sulista - Pneus", "Cortex Sulista - Backup"]
+            "Cortex Sulista - Pneus", "Cortex Sulista - Backup",
+            "Cortex Sulista - Jornada"]
 
 
 def _iso(ts: float) -> str:
@@ -235,6 +236,49 @@ def _servico_pglocal(d: dict) -> dict:
               else "schema ainda sem migration aplicada")
     return {"nome": nome, "status": "ok" if d["versao_schema"] else "alerta",
             "detalhe": f"conectado · {d['onde']} · {d['ms']} ms · {versao}"}
+
+
+def _servico_jornada() -> dict:
+    """A coleta da jornada está chegando?
+
+    ISTO MUDOU DE NATUREZA quando a integração veio para dentro. Antes a
+    rotina que alimentava `sulista.rasterjor_*` era externa e esta linha só
+    podia DENUNCIAR; hoje o CÓRTEX é quem coleta, grava em `jor_*` e registra
+    cada passagem em `jor_carga` — inclusive a que falhou e a que não trouxe
+    nada. Então aqui o alarme aponta para um conserto que existe deste lado.
+
+    A linha continua existindo pelo mesmo motivo de sempre: o sintoma de uma
+    parada é uma tela de jornada VAZIA, que se lê como "ninguém rodou" em vez
+    de "parou de chegar". Foi assim que quatro meses e meio passaram sem
+    ninguém notar.
+    """
+    nome = "Jornada (RasterJOR)"
+    try:
+        from .jornada.leitura import defasagem
+        d = defasagem()
+    except Exception as exc:  # noqa: BLE001
+        log.warning("saude: rasterjor: %s", exc)
+        return {"nome": nome, "status": "info", "detalhe": "camada indisponível"}
+    if d.get("erro"):
+        return {"nome": nome, "status": "info", "detalhe": d["erro"]}
+    # Sem credencial NÃO é falha: é instalação que ainda não ligou a coleta.
+    if not d.get("coleta_configurada"):
+        return {"nome": nome, "status": "info",
+                "detalhe": (d.get("coleta_falta")
+                            or "coleta não configurada") +
+                           (f" · {d['jornadas']:,} jornadas do histórico"
+                            .replace(",", ".") if d.get("jornadas") else "")}
+    if d.get("falhas_48h"):
+        return {"nome": nome, "status": "erro",
+                "detalhe": f"{d['falhas_48h']} falha(s) de coleta em 48 h · "
+                           f"último dado {d.get('ultimo_dado') or '—'}"}
+    if d.get("parada"):
+        return {"nome": nome, "status": "erro",
+                "detalhe": f"sem dado novo há {d['dias']} dias · último "
+                           f"{d.get('ultimo_dado') or '—'}"}
+    return {"nome": nome, "status": "ok",
+            "detalhe": (f"{d['jornadas']:,} jornadas · último dado "
+                        f"{d.get('ultimo_dado') or '—'}").replace(",", ".")}
 
 
 def _servico_gestao() -> dict:
@@ -454,6 +498,10 @@ def _servicos() -> list[dict]:
     # migration faltando é indistinguível de tela vazia por falta de uso — esta
     # linha é o que separa as duas.
     servicos.append(_servico_gestao())
+
+    # Jornada: vem do AVA, não do banco local — mas a pergunta é a mesma
+    # (o dado está chegando?), então fica ao lado.
+    servicos.append(_servico_jornada())
 
     # PROLOG (pneus). Integração externa com COTA: a coleta é agendada e
     # retomável, então o que interessa aqui não é "responde?" — é se o

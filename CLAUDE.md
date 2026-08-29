@@ -77,7 +77,7 @@ Cada módulo é unidade de RBAC (papel × módulo × escopo de linha via RLS).
 | `torre_seguranca` | Segurança em tempo real: eventos de risco, score, sinistralidade, alertas | `ts_eventos` (hypertable), `ts_scores`, `vw_sinistralidade` |
 | `telemetria` | Telemetria avançada (CAN/J1939) com insights: consumo, ECO, falhas, DTCs | `tel_sinais` (hypertable), `tel_dtc`, `vw_consumo_veiculo` |
 | `frota` | Ativos, disponibilidade, manutenção, pneus, depreciação | `fro_veiculos`, `fro_manutencao`, `fro_pneus` |
-| `jornada` | Jornada do motorista (Lei 13.103/2015): direção/descanso/intervalo, compliance | `jor_eventos` (hypertable), `jor_jornadas`, `vw_compliance_jornada` |
+| `jornada` | Jornada do motorista (Lei 13.103/2015). DUAS apurações, de propósito: a do ERP (`jornada`, usada pela tela antiga e pela folha) e a da RASTERJOR, coletada pelo próprio CÓRTEX | `jor_jornadas`, `jor_inconformidades`, `jor_motoristas`, `jor_ausencias`, `jor_carga` (banco local) |
 | `suprimentos` | Agregados, fornecedores, contratos, make-vs-buy | `sup_agregados`, `sup_fornecedores`, `sup_contratos` |
 | `telemetria` | Dados da plataforma Gobrax por API com token: premiação por nota × km, consumo × abastecimento, condução e hodômetro/rastro | `api/gobrax/`, `data/premiacao/` |
 | `antt` | Piso mínimo de frete da compra e situação do RNTRC dos transportadores contratados | `config/antt_coeficientes.yaml`, `config/antt_eixos.yaml`, `programacaoembarque` (AVA) |
@@ -1011,6 +1011,200 @@ em estrutura de topo: resolver dentro de **função**, na hora de desenhar.
 - **Pauta, discussão e decisões são campos SEPARADOS.** É a diferença entre ata
   e transcrição: em texto corrido, três meses depois, duas pessoas leem a mesma
   ata e discordam sobre o que ficou combinado.
+
+**Onde mora o dado do fornecedor não é onde o nome dele aparece (lição da RasterJOR):**
+- Procurei jornada da Raster em `public`, no schema `rastreamento`, na tabela
+  `rastreadora_retorno` (3 milhões de XML da Raster, vivos) — e a resposta
+  estava em **`sulista.rasterjor_*`**, sete tabelas no schema DA CASA,
+  alimentadas por rotina externa que consome a API do fornecedor. **Antes de
+  concluir que um dado não existe, listar os schemas**: são 19 neste banco, e
+  `information_schema.tables` sem filtro de schema teria achado na primeira
+  tentativa.
+- **A cadeia de rastreamento engana.** `ocorrenciarastreamento` grava
+  `idrastreadora = 3` e o CNPJ da ONIXSAT, o que parece dizer que a jornada vem
+  do OnixSat. **Isso é a TECNOLOGIA do equipamento, não o fornecedor do dado**:
+  a Raster é hub e entrega mensagens de 132 placas agregando ONIXSAT, SASCAR,
+  POSITRON e OMNILINK. Conclusão tirada de uma coluna de id sem olhar o payload
+  estava errada, e só o XML de `getMensagens` desfez.
+- **Duas apurações da mesma coisa não é duplicação, é o ponto.** O ERP monta
+  jornada a partir dos macros; a RasterJOR entrega a jornada apurada por quem
+  faz jornada. Quando divergirem, é a divergência que interessa — e ela só
+  existe se cada uma for lida de onde nasce. A do ERP é a que alimenta a folha;
+  a do fornecedor tem hora extra, repouso faltante e inconformidade nomeada.
+
+**Integração de terceiro que o CÓRTEX não coleta é integração que ninguém vigia:**
+- A carga da RasterJOR vivia numa rotina EXTERNA que escrevia em
+  `sulista.rasterjor_*` no AVA. Ela parou em 15/04/2026 e ficou **136 dias**
+  parada — o CÓRTEX não tinha como consertar nem como saber. A correção não foi
+  monitorar melhor: foi **trazer a coleta para dentro**, gravando em `jor_*` no
+  banco local, com `jor_carga` registrando toda passagem (inclusive a que
+  falhou e a que não trouxe nada). Alarme só existe onde há trilha.
+- **Sem credencial NÃO é falha, é instalação incompleta**: a Saúde marca `info`
+  e diz qual campo falta. Marcar vermelho ali ensinaria a ignorar o vermelho.
+- **Recoletar é o caso NORMAL, não a exceção.** A API devolve o dia inteiro a
+  cada chamada e o dia só fecha à noite: toda gravação é `ON CONFLICT … DO
+  UPDATE` sobre chave natural. Idempotência aqui é requisito, não otimização.
+- **A URL do fornecedor não tem valor padrão.** Adivinhar host no melhor caso
+  dá 404 e no pior acerta o endpoint de outra empresa.
+
+**`GROUP BY` não devolve o mês que não existe (a lição central desta rodada):**
+- A série mensal da jornada saía de um `GROUP BY to_char(data,'YYYY-MM')`.
+  Maio, junho e julho de 2026 **não têm uma linha** — a coleta ficou parada de
+  15/04 a 27/08 —, então esses meses simplesmente não voltavam da consulta, o
+  gráfico emendava **abril em agosto** e desenhava uma série contínua. Quem
+  olha lê **queda de operação** onde houve **ausência de coleta**. É a mesma
+  confusão que deixou a parada anterior passar quatro meses e meio sem alarme,
+  agora escondida dentro de um gráfico bonito.
+- A saída é o intervalo de meses ser **gerado**, não colhido: `_mensal_com_
+  cobertura()` percorre de `de` a `ate` e marca `sem_coleta` no que faltou. No
+  eixo o mês aparece rotulado "sem coleta", com a barra em cinza claro e a
+  linha **aberta** (`null`, não zero) — barra zerada diria "ninguém dirigiu".
+- **Cobertura parcial é o mesmo erro, mais discreto.** Outubro/25 tem 10 dias
+  de dado e 1.206 jornadas contra 3.672 de setembro: parece despencar, mas
+  **por dia coletado são 121 contra 122** — está plano. Todo mês carrega
+  `dias`, `dias_possiveis`, `cobertura` e `jornadas_dia`, e o número
+  comparável entre meses é o POR DIA.
+- **O divisor da cobertura é o RECORTE, não o mês inteiro**: uma janela que
+  começa dia 30 não torna janeiro parcial.
+- **O corte de parcial é 90%, não 100%.** Mês fechado normal tem domingo e
+  feriado sem jornada; exigir todos os dias hachuraria a série inteira e a
+  hachura deixaria de significar alguma coisa.
+
+**Recursos da MESMA API com limites diferentes quebram toda razão entre eles:**
+- A taxa de inconformidade por jornada saiu **8,55 onde o real é 0,67** — dez
+  vezes. Não houve erro de conta: o relatório de produtividade da RasterJOR
+  aceita **uma consulta a cada 10 minutos** e as inconformidades não, então a
+  coleta tinha **90 dias de numerador e 8 de denominador**. A divisão media a
+  COLETA, não a operação.
+- Regra: **toda razão entre dois recursos coletados separadamente é calculada
+  só sobre a interseção** — aqui, os dias que têm jornada gravada (`EXISTS`
+  contra `jor_jornadas`). E a tela DIZ quantos eventos ficaram fora da divisão;
+  esconder isso faria a taxa parecer completa.
+- É a mesma família do "664 de 836 rastreadores sem sinal": o denominador
+  precisa conter só quem podia aparecer no numerador.
+
+**O evento mais frequente do fornecedor pode não ser o problema:**
+- `DIRECAO NOTURNA` é **35% de tudo** que a RasterJOR classifica como
+  "unconformity" — e **não é violação de nada**: é trabalho noturno, que é
+  legal e gera adicional. Somada ao resto, inflava a taxa por jornada em um
+  terço, e o KPI de risco trabalhista passava a medir desenho de escala.
+- A tela separa **tempo** (as quatro regras da Lei 13.103: direção
+  ininterrupta, interjornada, refeição, excesso de jornada) de **marcação**
+  (noturna, falha de posição). A classificação é NOSSA e está dita na coluna;
+  o tipo cru continua na tabela, porque numa discussão trabalhista quem
+  classifica jornada é o fornecedor.
+- **Tipo novo do fornecedor entra como `tempo`**: errar para o lado de MOSTRAR
+  o risco. Um tipo que ninguém viu ainda caindo num balde silencioso é o jeito
+  de descobrir tarde.
+
+**Limites de API que só aparecem chamando (RasterJOR):**
+- **Janela máxima de 31 dias**, e a recusa chega de **duas formas na mesma
+  API**: HTTP 400 com `{"detail": …}` nas inconformidades e HTTP **200** com
+  `{"mensagem": …}` nas ausências. Quem tratar só o 400 acha que a segunda deu
+  certo e trouxe zero. O cliente **fatia** a janela sozinho.
+- **Limite de taxa entre chamadas**, que a recusa quantifica ("aguarde 30
+  segundos"). O cliente espera e repete **uma vez**, com teto de 90 s — dormir
+  os dez minutos que o relatório de produtividade pede seria pior que a
+  recusa, então acima do teto ela sobe com o motivo. O preenchimento histórico
+  é script separado, que espera de fora.
+- **A API e a tabela do AVA chamam os mesmos campos por nomes diferentes**
+  (`unconformity`/`date`/`start` contra `unconformity_type`/
+  `unconformity_date`/`event_start`). O gravador só conhecia o vocabulário do
+  AVA e o sintoma foi **425 lidos, 0 gravados** — sem erro nenhum, porque o
+  campo ausente virava string vazia e a linha era pulada.
+
+**Renderizar com DADO REAL acha o que o teste com dublê não acha:**
+- Três defeitos desta tela só apareceram ao abrir a página com o payload do
+  banco, e nenhum deles falhava teste nenhum: a coluna "por jornada" repetindo
+  um denominador que o KPI já tinha corrigido (3,05 contra 0,26); o km/h um
+  quarto abaixo porque `km` é nulo em dois terços das jornadas; e "40 de 135
+  motoristas atingidos" que era o **teto do `LIMIT`** e não a realidade — o
+  real é **131 de 135**.
+- Fixture é escrita por quem já sabe o que espera. O dado real traz o nulo em
+  dois terços das linhas, o `LIMIT` batendo e o acento que quebra o console.
+  Vale um script que suba um `http.server`, sirva o `index.html`, responda a
+  rota com `get_...()` de verdade e imprima os KPIs — foi assim que os três
+  saíram.
+- **Corrigir o cartão e esquecer a tabela logo abaixo dele** é a forma mais
+  fácil de deixar a tela se desmentindo. Ao consertar um denominador, procurar
+  todos os lugares que dividem pela mesma coisa.
+
+**`%` dentro de string de SQL vira placeholder do psycopg:**
+- Um comentário `-- km é NULO em 65% das jornadas` dentro do `"""…"""` derruba
+  a consulta com `incomplete placeholder: '%'`. A explicação vai em comentário
+  **Python**, acima da constante — que é onde ela é lida de qualquer forma.
+
+**ECharts na Jornada — o segundo uso, e o critério que o autorizou:**
+- Entrou porque a **série diária tem centenas de pontos e precisa de zoom**,
+  que é exatamente o critério da seção de gráficos. Os outros três gráficos da
+  tela acompanham por coerência: meia tela com tooltip de biblioteca e meia
+  com `<title>` de SVG seria pior que qualquer das duas.
+- **Uma carga serve os quatro** (`carregarECharts()` memoiza), e há teste que
+  falha se a Visão Geral baixar o arquivo.
+- **Eixo de TEMPO, não de categoria, na série diária.** Com eixo categórico os
+  dias sem coleta não existiriam e o gráfico poria 15/04 ao lado de 21/08,
+  desenhando continuidade sobre quatro meses de buraco.
+- **`connectNulls:false`** na linha mensal: o mês sem coleta ABRE a linha, que
+  é a leitura certa — não há média de dia nenhum ali.
+
+**UNIQUE sobre coluna nula não restringe nada (custou 55 mil linhas):**
+- 56% das inconformidades da RasterJOR **não têm hora de início** — são fato do
+  DIA, não intervalo. A primeira versão do carregador as descartava por exigir
+  a hora na chave; a segunda quase as duplicou a cada recarga, porque no
+  Postgres `NULL` é sempre distinto de `NULL` e o UNIQUE não pega.
+- A saída foi separar as duas coisas: **`inicio` guarda a verdade (nulo quando
+  é nulo) e `chave_evento` guarda o que serve para deduplicar**. Preencher
+  `inicio` com meia-noite resolveria o UNIQUE inventando um horário que a fonte
+  não deu — e horário inventado vira gráfico.
+- **Tabela de origem sem chave acumula duplicata em silêncio**: eram 98.109
+  linhas para 49.208 eventos, e a taxa de inconformidade por jornada saía 2,22
+  quando o real é 0,85.
+
+**Arredondar antes de dividir move o número de lado da fronteira:**
+- `razao_parado_direcao` saía 1,52 onde o certo é 1,50, porque a conta era
+  feita sobre horas já arredondadas a uma casa (5,0 ÷ 3,3) em vez dos minutos
+  (300 ÷ 200). Num indicador cujo limiar de leitura é 1,00, isso decide se a
+  frase é "passa mais tempo parado" ou não. Razão e percentual saem sempre da
+  unidade de origem.
+
+**Integração parada se disfarça de tela vazia (a lição mais cara desta rodada):**
+- A carga da RasterJOR estava **parada há 136 dias** e ninguém notara, porque o
+  sintoma é uma tela sem dado — que se lê como "ninguém rodou" em vez de "parou
+  de chegar". `rasterjor_anomalies` estava parada havia **quinze meses**.
+- **Janela ancorada no ÚLTIMO DADO, nunca em `current_date`.** Com a carga
+  parada, `current_date - 90` devolve zero linha e a tela abre em branco,
+  escondendo o problema justamente na página que o revelaria. Ancorar no
+  máximo da coluna de data faz a tela mostrar os últimos 90 dias QUE EXISTEM,
+  e a tarja diz de quando são.
+- **O atraso anunciado conta só as fontes que AQUELA tela usa.** Sem separar,
+  o pior atraso pegava os 459 dias de uma tabela que a tela nem lê e anunciava
+  459 sobre números de 136. Alarme com o número errado ensina a ignorar o
+  alarme.
+- Quando a rotina de carga **não roda no CÓRTEX**, a Saúde não conserta: ela
+  DENUNCIA, com o número de dias e dizendo que o conserto é externo.
+
+**Código sem domínio: decodificar por evidência, ou não decodificar:**
+- `jornada_registro.tipojornada` (AVA) tem 9 valores e nenhuma tabela de
+  domínio. Decodifiquei somando o tempo por tipo dentro de cada jornada e
+  comparando com as colunas NOMEADAS do cabeçalho, sobre 2.756 jornadas: tipos
+  3, 4, 5 e 10 batem em 100%, e **direção é a SOMA dos tipos 2 e 6** (nenhum
+  sozinho passa de 15%). Evidência assim vai escrita no módulo, senão o
+  próximo "corrige" para outra coisa.
+- Quando NÃO dá para decodificar, não se inventa: `journey_type` da RasterJOR
+  vem como letra (N, D, A, F) sem domínio nem no `raw_api_data`, e a tela
+  mostra a letra com a direção média, o tempo médio e o km de cada uma. Mesma
+  regra da coluna "Tipo (cód.)" da Manutenção.
+- **Regra montada sobre campo vazio conta o que não existe.** Uma versão do
+  ciclo de direção contava "acima de 5h30 sem descanso de 30 min" e devolvia
+  2.666 violações — mas `tempodescanso` daquela tabela vem ZERO em 64% das
+  linhas: media preenchimento. **O sinal foi o número bater EXATAMENTE com o
+  total acima de 5h30** — quando dois recortes que deveriam diferir dão o
+  mesmo número, um dos dois não filtra nada.
+
+**O AVA é PostgreSQL 9.3.** Sem `FILTER (WHERE …)`, que só chegou no 9.4 — todo
+agregado condicional é `CASE WHEN`. O erro aponta para o meio do agregado
+(`syntax error at or near "("`), não para a versão. O banco local do CÓRTEX é
+16 e aceita `FILTER` normalmente.
 
 Regra: todo painel tem **fonte do dado + timestamp**; nenhum gráfico sem rótulo direto;
 todo número-chave traz **comparação** (vs meta, vs período anterior).

@@ -2225,6 +2225,47 @@ def _comp_defaults(comp_de: str | None, comp_ate: str | None):
     return comp_de, comp_ate
 
 
+@app.post("/api/jornada/coletar")
+async def jornada_coletar(req: Request) -> JSONResponse:
+    """Dispara uma coleta agora. MESMO caminho da tarefa agendada.
+
+    Não existe "modo teste" mais frouxo: a coleta da tela é a mesma chamada,
+    com a mesma trilha em `jor_carga` e a mesma janela. Caminho paralelo vira
+    o atalho para rodar sem registro.
+
+    `sem_travar` porque a coleta faz I/O de rede: numa rota `async def` isso
+    trava o event loop e o CÓRTEX inteiro para de responder pelo tempo da
+    chamada — foi assim que o envio de WhatsApp derrubou o painel por minutos.
+    """
+    try:
+        body = await req.json()
+    except Exception:  # noqa: BLE001
+        body = {}
+    if not isinstance(body, dict):
+        body = {}
+    from api.jornada import coleta as jcol
+    sess = getattr(req.state, "sessao", None) or {}
+    autor = sess.get("email", "")
+    try:
+        r = await sem_travar(lambda: jcol.coletar(
+            de=body.get("de") or None, ate=body.get("ate") or None))
+    except Exception as exc:  # noqa: BLE001
+        log.warning("jornada_coletar falhou: %s", type(exc).__name__)
+        return JSONResponse(status_code=500, content={
+            "erro": "erro_coleta",
+            "mensagem": "Não foi possível rodar a coleta da jornada."})
+    auth.audit(autor or "?", "jornada_coletar",
+               alvo=f"{r['de']}..{r['ate']}",
+               detalhe=" · ".join(f"{k}:{v['gravados']}"
+                                  for k, v in r["recursos"].items()) or r["erro"])
+    # RECUSA NÃO É 5xx: sem credencial o CÓRTEX está dizendo NÃO com um motivo
+    # que a pessoa precisa ler, e o Cloudflare troca o corpo dos 5xx pelo dele.
+    if not r["ok"] and not r["recursos"]:
+        return JSONResponse(status_code=HTTP_RECUSA, content={
+            "erro": "nao_configurado", "mensagem": r["erro"]})
+    return JSONResponse(r)
+
+
 @app.get("/api/jornada/painel")
 def jornada_painel(comp_de: str | None = None, comp_ate: str | None = None,
                    busca: str | None = None) -> JSONResponse:
@@ -2673,6 +2714,29 @@ def sac_freetime(dt_de: str | None = None, dt_ate: str | None = None) -> JSONRes
         log.warning("sac_freetime falhou: %s", exc)
         return JSONResponse(status_code=500, content={
             "erro": "erro_consulta", "mensagem": "Erro ao consultar o SAC/freetime."})
+
+
+@app.get("/api/jornada/raster")
+def jornada_raster(de: str | None = None, ate: str | None = None) -> JSONResponse:
+    """Jornada apurada pela RASTERJOR, lida do BANCO LOCAL do CÓRTEX.
+
+    As tabelas `jor_*` são alimentadas pela coleta própria (a API do
+    fornecedor) e pela carga inicial do histórico. Não se lê mais
+    `sulista.rasterjor_*` no AVA: aquela rotina é externa e ficou 136 dias
+    parada sem que o CÓRTEX pudesse saber.
+
+    A janela padrão é ancorada no ÚLTIMO DADO, não em hoje — com a coleta
+    parada, uma janela contada de hoje devolveria tela vazia, que se lê como
+    "ninguém rodou" em vez de "parou de chegar".
+    """
+    from api.jornada.leitura import get_jornada_raster
+    try:
+        return JSONResponse(get_jornada_raster(de, ate))
+    except Exception as exc:  # noqa: BLE001
+        log.warning("jornada_raster falhou: %s", exc)
+        return JSONResponse(status_code=500, content={
+            "erro": "erro_consulta",
+            "mensagem": "Erro ao consultar a jornada da RasterJOR."})
 
 
 @app.get("/api/jornada/motorista")

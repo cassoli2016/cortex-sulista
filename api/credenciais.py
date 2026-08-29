@@ -107,6 +107,47 @@ CAMPOS: dict[str, dict] = {
         "rotulo": "Ambiente", "segredo": False, "obrigatorio": False,
         "descricao": "hmg (homologação, padrão) ou prod", "placeholder": "hmg"},
 
+    # RasterJOR — jornada do motorista. A URL NÃO TEM PADRÃO de propósito:
+    # adivinhar host de fornecedor no melhor caso dá 404 e no pior acerta o
+    # endpoint de outra empresa. Sem ela a coleta recusa dizendo o que falta.
+    "RASTERJOR_API_BASE_URL": {
+        "rotulo": "URL base da API", "segredo": False,
+        "descricao": "Endereço da API da RasterJOR, sem barra no fim",
+        "placeholder": "https://www.rasterjor.com.br"},
+    "RASTERJOR_TOKEN": {
+        "rotulo": "Token de API",
+        "descricao": "Vai no cabeçalho Authorization como Bearer"},
+    "RASTERJOR_USUARIO": {
+        "rotulo": "Usuário", "segredo": False, "obrigatorio": False,
+        "descricao": "Só se a conta usar Basic em vez de token"},
+    "RASTERJOR_SENHA": {
+        "rotulo": "Senha", "obrigatorio": False,
+        "descricao": "Só se a conta usar Basic em vez de token"},
+    "RASTERJOR_AUTH_HEADER": {
+        "rotulo": "Cabeçalho do token", "segredo": False, "obrigatorio": False,
+        "descricao": "Padrão Authorization — trocar só se a RasterJOR mudar",
+        "placeholder": "Authorization"},
+    "RASTERJOR_AUTH_PREFIXO": {
+        "rotulo": "Prefixo do token", "segredo": False, "obrigatorio": False,
+        "descricao": "Padrão Bearer; vazio se o token vai cru no cabeçalho",
+        "placeholder": "Bearer"},
+    "RASTERJOR_PATH_JORNADAS": {
+        "rotulo": "Caminho da jornada", "segredo": False, "obrigatorio": False,
+        "descricao": "Padrão /external-api/productivity-report",
+        "placeholder": "/external-api/productivity-report"},
+    "RASTERJOR_PATH_INCONFORMIDADES": {
+        "rotulo": "Caminho das inconformidades", "segredo": False,
+        "obrigatorio": False, "descricao": "Padrão /external-api/unconformities/",
+        "placeholder": "/external-api/unconformities/"},
+    "RASTERJOR_PATH_MOTORISTAS": {
+        "rotulo": "Caminho dos motoristas", "segredo": False,
+        "obrigatorio": False, "descricao": "Padrão /external-api/drivers/",
+        "placeholder": "/external-api/drivers/"},
+    "RASTERJOR_PATH_AUSENCIAS": {
+        "rotulo": "Caminho das ausências", "segredo": False,
+        "obrigatorio": False, "descricao": "Padrão /external-api/absences/",
+        "placeholder": "/external-api/absences/"},
+
     # Prolog — gestão de pneus. O OpenAPI da Prolog não declara
     # securityScheme nenhum, então aceita token, Basic ou OAuth2.
     "PROLOG_TOKEN": {
@@ -159,6 +200,25 @@ SERVICOS: list[dict] = [
                    "dica": "o mesmo token usado no portal da Gobrax",
                    "campos": ["GOBRAX_TOKEN"]}],
         "ajustes": [],
+    },
+    {
+        "chave": "rasterjor",
+        "nome": "RasterJOR",
+        "resumo": "Jornada do motorista — jornada apurada, inconformidades "
+                  "nomeadas, hora extra e repouso faltante. A coleta grava no "
+                  "banco local do CÓRTEX e toda passagem fica em jor_carga, "
+                  "para uma parada virar alerta no dia em que acontece.",
+        "alimenta": "Jornada RasterJOR",
+        "modos": [
+            {"chave": "token", "rotulo": "Token de API",
+             "campos": ["RASTERJOR_API_BASE_URL", "RASTERJOR_TOKEN"]},
+            {"chave": "basic", "rotulo": "Usuário e senha",
+             "campos": ["RASTERJOR_API_BASE_URL", "RASTERJOR_USUARIO",
+                        "RASTERJOR_SENHA"]},
+        ],
+        "ajustes": ["RASTERJOR_AUTH_HEADER", "RASTERJOR_AUTH_PREFIXO",
+                    "RASTERJOR_PATH_JORNADAS", "RASTERJOR_PATH_INCONFORMIDADES",
+                    "RASTERJOR_PATH_MOTORISTAS", "RASTERJOR_PATH_AUSENCIAS"],
     },
     {
         "chave": "prolog",

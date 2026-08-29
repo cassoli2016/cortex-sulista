@@ -102,6 +102,7 @@ _FONTES_ROTULO = {
     "ferias": "Férias — Vencimento",
     "cnh_motoristas": "CNH dos Motoristas",
     "gestao_acoes": "Planos de Ação",
+    "jornada_raster": "Jornada RasterJOR",
 }
 
 
@@ -249,6 +250,28 @@ def _fontes_do_snapshot() -> dict:
         from api.queries_folha import get_cnh
         return get_cnh()
 
+    def _jornada_raster():
+        """Só os KPIs e a defasagem — nunca a lista de motoristas.
+
+        A lista de inconformidades traz NOME DE MOTORISTA e o snapshot vai
+        para modelo externo. O que sobe é escalar.
+
+        A DEFASAGEM E A COBERTURA vão junto de propósito. Sem a defasagem o
+        chat responderia sobre jornada como se o dado fosse de hoje; sem a
+        cobertura (`dias_com_dado`, `meses_sem_coleta`, que já vêm nos KPIs)
+        ele leria um mês sem coleta como mês sem operação — que é exatamente
+        a confusão que deixou a carga parada quatro meses e meio sem alarme.
+
+        `defasagem_dias` sai de `.get("dias")`: a chave `pior_dias` era do
+        formato antigo, que media várias tabelas do AVA. Ela sumiu quando a
+        coleta veio para cá, e ler direto no dicionário levantava KeyError —
+        o que apagava a jornada do snapshot inteiro sem dizer por quê.
+        """
+        from api.jornada.leitura import get_jornada_raster
+        d = get_jornada_raster()
+        return {**d["kpis"], "dados_ate": d["ate"],
+                "defasagem_dias": d["defasagem"].get("dias")}
+
     def _gestao():
         """Só o RESUMO do acompanhamento — nunca a lista de ações.
 
@@ -292,6 +315,7 @@ def _fontes_do_snapshot() -> dict:
         "ferias": _ferias,
         "cnh_motoristas": _cnh,
         "gestao_acoes": _gestao,
+        "jornada_raster": _jornada_raster,
     }
 
 

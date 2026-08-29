@@ -1,3 +1,305 @@
+- versao: "0.139.0"
+  data: "2026-08-29"
+  adicionado:
+    - >-
+      scripts/instalar_tarefa_jornada.ps1 registra a tarefa agendada do
+      Windows, e a Saude do Servidor passou a vigia-la junto das outras seis.
+      Sao DUAS passagens por dia e nao de hora em hora, por tres razoes
+      medidas: a API so aceita consulta retroativa (D-1), entao nao ha dado
+      novo de hoje para buscar; o relatorio de produtividade aceita uma
+      consulta a cada 10 minutos, e agendar apertado transformaria a rotina
+      numa fila de recusas; e a janela padrao ja e de 7 dias, porque a
+      RasterJOR corrige jornada retroativamente. A segunda passagem existe
+      como RETENTATIVA - sem ela, uma falha de rede pela manha ficaria sem
+      nova tentativa ate o dia seguinte.
+    - >-
+      Botao "Coletar agora" na propria tela, que usa o MESMO caminho da tarefa
+      agendada - mesma janela, mesma trilha em jor_carga, mesma auditoria. Nao
+      existe modo teste mais frouxo: caminho paralelo viraria o atalho para
+      rodar sem registro. Ele so aparece com a coleta CONFIGURADA, porque
+      oferecer uma acao que vai recusar por falta de credencial e convidar ao
+      erro - e a tarja logo acima ja diz qual campo preencher. Recusa do
+      fornecedor (limite de taxa, por exemplo) volta como MENSAGEM a ler, nao
+      como erro de API, e o botao continua utilizavel.
+    - >-
+      A INTEGRACAO DA RASTERJOR PASSOU A SER DO CORTEX. Antes o painel lia
+      sulista.rasterjor_* no AVA, alimentadas por uma rotina externa que parou
+      em 15/04/2026 e ficou 136 dias parada sem que ninguem pudesse saber - o
+      unico sintoma era uma tela vazia. Agora a coleta e nossa: chama a API da
+      RasterJOR e grava em tabelas jor_* no banco local (migration 0021).
+    - >-
+      Toda passagem da coleta grava em jor_carga, INCLUSIVE a que falhou e a
+      que nao trouxe nada. E dessa trilha que a Saude do Servidor tira o
+      alarme: uma parada vira linha vermelha no dia em que acontece, com o
+      numero de dias sem dado e as falhas das ultimas 48 h.
+    - >-
+      Credenciais da RasterJOR em Gestao > Integracoes, com dois modos (token
+      ou usuario e senha) e ajustes de cabecalho e caminho. A URL NAO TEM
+      PADRAO de proposito: adivinhar host de fornecedor no melhor caso da 404
+      e no pior acerta o endpoint de outra empresa. Sem credencial a coleta
+      RECUSA dizendo qual campo falta, e a Saude marca "nao configurado" -
+      que e informacao, nao falha.
+    - >-
+      scripts/coletar_jornada.py e o comando da tarefa agendada. Rodar duas
+      vezes e seguro e e o modo NORMAL de usar: a API devolve o dia inteiro a
+      cada chamada e o dia so fecha a noite, entao toda gravacao e ON CONFLICT
+      sobre a chave natural. A tela tambem dispara a coleta, pelo MESMO
+      caminho - nao existe modo teste mais frouxo.
+    - >-
+      Carga inicial (--carga-ava) trouxe o historico que a rotina externa
+      chegou a coletar: 314 motoristas, 53.621 jornadas e 954 ausencias de
+      01/01/2025 a 15/04/2026. A coluna `origem` distingue o que veio do AVA do
+      que vier da coleta propria - no dia em que os numeros divergirem, e ela
+      que responde.
+    - >-
+      OS QUATRO MESES E MEIO QUE A ROTINA EXTERNA NUNCA TROUXE FORAM
+      RECUPERADOS. A API tinha o dado o tempo todo - quem tinha parado era o
+      carregador -, e o preenchimento pela nossa coleta gravou 16.536 jornadas
+      e 13.126 inconformidades de 16/04 a 28/08/2026. Maio, junho e julho, que
+      nao tinham UMA linha, estao completos: 31, 30 e 31 dias. O banco local
+      passou a ter 64.232 jornadas de 01/01/2025 a 28/08/2026.
+    - >-
+      O preenchimento historico e script separado, que espera de FORA. O
+      relatorio de produtividade aceita uma consulta a cada 10 minutos, e o
+      cliente recusa esperas acima de 90 s de proposito: dormir dez minutos
+      dentro de uma requisicao seria pior que a recusa.
+    - >-
+      A TELA DE JORNADA FOI REFEITA e os graficos agora usam ECharts. Entra
+      pelo criterio da casa: a serie diaria tem centenas de pontos e precisa
+      de ZOOM, que o SVG a mao nao faz. Sao quatro graficos servidos por UMA
+      carga da biblioteca, sob demanda - a Visao Geral continua sem baixar os
+      990 KB. As regras da casa seguem valendo dentro da biblioteca: mes
+      parcial hachurado com decal, rotulo direto na linha de eixo secundario,
+      eixo com a unidade final e falha de carga DITA no cartao.
+    - >-
+      Os KPIs viraram tres bandas por tema - operacao apurada, conformidade
+      com a Lei 13.103/2015 e custo do tempo -, com quatro cartoes cada.
+    - >-
+      Cartao "Dias com dado": quantos dias do periodo tem ao menos uma jornada
+      gravada. E o primeiro numero a olhar, porque todos os outros descrevem
+      so os dias que existem.
+    - >-
+      Grafico "Dia a dia" com zoom e recorte por arrasto, e grafico
+      "Inconformidades de tempo ao longo dos meses" empilhado por tipo.
+    - >-
+      A tabela de motoristas ganhou o DENOMINADOR (jornadas do proprio
+      motorista no periodo) e a taxa por jornada ao lado da contagem. Sem ele
+      o ranking premiava quem rodou mais dias. Quem tem menos de 5 jornadas
+      fica atenuado e marcado - baixo volume e atenuado, nunca escondido.
+  corrigido:
+    - >-
+      "MOTORISTAS ATINGIDOS" DIZIA 40 DE 135 E O REAL SAO 131 DE 135. O numero
+      saia do tamanho da lista do ranking, que tem teto de 40 linhas: ele
+      diria "40" tanto para 41 motoristas quanto para 130, e escondia que
+      quase toda a frota tem ao menos uma inconformidade de tempo. A contagem
+      passou a vir de consulta propria e a tela DIZ quando a lista esta
+      cortada.
+    - >-
+      A PRODUTIVIDADE EM KM/H ESTAVA UM QUARTO ABAIXO: 35,9 onde o honesto e
+      43,2. O campo km vem NULO em dois tercos das jornadas (16.950 de 25.990,
+      na mesma proporcao nas duas origens) porque o fornecedor nao reporta
+      hodometro em toda jornada - e a conta dividia o km de um terco delas
+      pelas HORAS DE TODAS. Agora usa so as horas das jornadas que tem km, e o
+      cartao declara a cobertura ("km informado em 9.040 de 25.990 jornadas").
+    - >-
+      A coluna "por jornada" da tabela de tipos repetia o denominador errado
+      que o KPI ja tinha corrigido - mostrava 3,05 na direcao noturna, contra
+      0,26. So apareceu ao RENDERIZAR a tela com dado real: corrigir o cartao
+      e esquecer a tabela logo abaixo dele deixa os dois se desmentindo.
+    - >-
+      O recorte inicial do grafico dia a dia era calculado como porcentagem da
+      CONTAGEM de pontos, mas num eixo de tempo o dataZoom trabalha em
+      porcentagem do INTERVALO DE DATAS. Com um vao de quatro meses no meio da
+      serie, a janela abria no lugar errado justamente nas series com buraco -
+      as que mais precisam de precisao. Passou a usar a data.
+    - >-
+      MES SEM COLETA NAO E MAIS DESENHADO COMO MES SEM OPERACAO. A serie
+      mensal saia de um GROUP BY, que simplesmente NAO DEVOLVE o mes sem
+      linha: maio, junho e julho de 2026 nao tem uma jornada, entao o grafico
+      emendava abril em agosto e desenhava uma serie continua. Quem olhasse
+      leria queda de operacao onde houve ausencia de coleta - a mesma
+      confusao que deixou a carga parada quatro meses e meio sem alarme. Os
+      meses vazios agora existem no eixo, rotulados "sem coleta", e nunca como
+      barra zerada.
+    - >-
+      MES DE COBERTURA PARCIAL SAI HACHURADO E GANHOU O NUMERO COMPARAVEL.
+      Outubro/25 tem 10 dias de dado e 1.206 jornadas contra 3.672 de
+      setembro: parece despencar, mas por dia coletado sao 121 contra 122 -
+      esta plano. A barra e a contagem do mes; a linha, com rotulo direto, e a
+      media POR DIA COLETADO. O corte de parcial e 90%, nao 100%, porque mes
+      fechado normal tem domingo e feriado sem jornada.
+    - >-
+      A TAXA DE INCONFORMIDADE POR JORNADA ESTAVA DEZ VEZES ERRADA: 8,55 onde
+      o real e 0,67. Os recursos da API tem limites diferentes - o relatorio
+      de produtividade aceita UMA consulta a cada 10 minutos, as
+      inconformidades nao -, entao a coleta tinha tres meses de um lado e uma
+      semana do outro, e a divisao ingenua media a coleta em vez da operacao.
+      A taxa passou a usar so os dias que tem OS DOIS LADOS, e a tela diz
+      quantas ocorrencias ficaram fora da divisao.
+    - >-
+      DIRECAO NOTURNA SAIU DO KPI DE CONFORMIDADE. Ela e 35% dos eventos que a
+      RasterJOR chama de inconformidade e NAO E VIOLACAO de nada: e trabalho
+      noturno, que e legal e gera adicional. Somada ao resto, inflava a taxa
+      por jornada em um terco. O KPI que decide acao conta so as quatro regras
+      de tempo da Lei 13.103; o total do fornecedor continua na tela, ao lado,
+      com a quebra que o desarma.
+    - >-
+      As inconformidades vindas da API nao eram gravadas: 425 lidas e ZERO
+      gravadas. A API e a tabela do AVA chamam os mesmos campos por nomes
+      diferentes (unconformity/date/start contra
+      unconformity_type/unconformity_date/event_start) e o gravador so conhecia
+      o vocabulario do AVA. Com o conserto, o periodo de fevereiro a agosto
+      trouxe 13.126 ocorrencias.
+    - >-
+      A tarja do topo mostrava "undefined": ela lia defasagem.pior_dias e
+      defasagem.fontes, chaves do formato antigo que media varias tabelas do
+      AVA e que sumiram quando a coleta veio para ca. O mesmo campo morto
+      derrubava a jornada do snapshot do Copiloto com KeyError, sem dizer por
+      que.
+    - >-
+      O nome do motorista na tabela de inconformidades cai de volta para o da
+      jornada: nem toda linha da API traz driver_name, e sem isso a coluna do
+      motorista aparecia em branco.
+    - >-
+      O comando de coleta quebrava com UnicodeEncodeError ao imprimir uma seta
+      no console cp1252 do Windows - falha que nao era falha, DEPOIS de a
+      coleta ter dado certo, e que o agendador registrava como erro.
+    - >-
+      98.109 LINHAS DE INCONFORMIDADE VIRARAM 49.208 EVENTOS. A tabela de
+      origem no AVA nao tem chave nenhuma e acumulou ~50% de duplicata por
+      recarga repetida. Com a dedup, a taxa caiu de 2,22 para 0,85
+      inconformidade por jornada - a primeira estava inflada pela duplicacao,
+      nao pela operacao.
+    - >-
+      56% DAS INCONFORMIDADES NAO TEM HORA DE INICIO e a primeira versao do
+      carregador as DESCARTAVA - 55.017 de 98.109 linhas, justamente os tipos
+      mais frequentes (EXCESSO DE JORNADA, JORNADA SEM PARADA PARA REFEICAO,
+      NAO CUMPRIMENTO DO INTERVALO). Sao fato do DIA, nao intervalo. Um UNIQUE
+      sobre coluna nula nao restringe nada no Postgres, entao entrou a coluna
+      `chave_evento`: `inicio` guarda a verdade (nulo quando e nulo) e a chave
+      guarda o que serve para deduplicar. Preencher `inicio` com meia-noite
+      inventaria um horario que a fonte nao deu.
+    - >-
+      A razao parado/direcao e os percentuais da composicao passaram a ser
+      calculados sobre os MINUTOS, nao sobre as horas ja arredondadas: 300 min
+      sobre 200 min e 1,50, mas 5,0 h sobre 3,3 h da 1,52. Num indicador que
+      tem 1,00 como limiar de leitura, arredondar antes de dividir muda o lado
+      da fronteira.
+  alterado:
+    - >-
+      A janela padrao da tela passou de 90 dias para DOZE MESES. A tela nao tem
+      filtro de periodo, entao esse numero e o unico recorte que existe - e com
+      90 dias o grafico mensal mostrava tres barras, o que nao e serie nenhuma.
+      O detalhe diario, que ficaria ilegivel num ano, e justamente o que o zoom
+      resolve: o grafico dia a dia abre nos ultimos 120 dias.
+    - >-
+      O cliente da API passou a FATIAR a janela em 31 dias (teto do
+      fornecedor, que chega como HTTP 400 num endpoint e como HTTP 200 com
+      mensagem noutro) e a esperar o tempo que a propria recusa pede, ate um
+      teto de 90 s. Sem isso, preencher o buraco de quatro meses exigiria oito
+      comandos a mao.
+    - >-
+      A coleta corta a janela em ONTEM sozinha: a API so aceita consulta
+      retroativa (D-1), e deixar o agendador descobrir isso todo dia as 00h05
+      seria uma falha diaria evitavel.
+    - >-
+      Um HTTP 200 com mensagem e recusa, nao registro. O limite de taxa da
+      RasterJOR responde 200 com {"mensagem": "Faltam 10 minutos..."} e o
+      corpo virava UM registro falso na trilha - janelas de 7 e de 93 dias
+      "trazendo 1 registro" em 145 ms, contra 632 em 7 s.
+    - >-
+      api/jornada/raster.py, que lia o AVA, foi REMOVIDO - nao apenas deixado
+      sem uso. Modulo orfao volta a ser importado por engano. A leitura agora
+      e api/jornada/leitura.py, sobre as tabelas locais, com o mesmo contrato
+      de saida: a tela nao mudou.
+    - >-
+      O erro do fornecedor passa por sanitizacao antes de ir para tela, log ou
+      trilha, e a resposta e aceita tanto como lista no topo quanto dentro de
+      envelope - enfiar uma lista num dict.get() devolve "nenhum registro" sem
+      erro nenhum, que foi o que aconteceu com o /groups da Z-API.
+    - >-
+      A rota de coleta usa sem_travar: I/O de rede em rota async trava o event
+      loop e o CORTEX inteiro para de responder pelo tempo da chamada.
+
+- versao: "0.138.0"
+  data: "2026-08-29"
+  adicionado:
+    - >-
+      JORNADA DO MOTORISTA PELA RASTERJOR, tela nova, lendo as tabelas do
+      proprio fornecedor de jornada (sulista.rasterjor_*) e nao a apuracao do
+      Avacorp. A diferenca importa: o ERP monta jornada a partir dos macros
+      que a Raster entrega; a RasterJOR entrega a jornada ja apurada por quem
+      faz jornada, com hora extra, repouso e tempo parado separados.
+    - >-
+      O ACHADO: o motorista passa 1,58 vez mais tempo PARADO do que dirigindo.
+      Na janela de 90 dias apurada sao 34.942 h parado em jornada contra
+      22.131 h ao volante, em 8.899 jornadas de 117 motoristas. Tempo parado e
+      pago e nao roda quilometro - e o mesmo cavalo, a mesma folha e menos
+      frete. Em todas as cinco filiais o parado fica entre 43% e 59% da
+      jornada.
+    - >-
+      INCONFORMIDADES COM O NOME QUE A RASTER DA, sem codigo traduzido a dedo:
+      DIRECAO NOTURNA (7.933 ocorrencias, 40%), EXCESSO DE JORNADA (5.086),
+      JORNADA SEM PARADA PARA REFEICAO (3.951), DIRECAO ININTERRUPTA (1.625) e
+      NAO CUMPRIMENTO DO INTERVALO DE JORNADAS (1.183). Sao 2,22 por jornada.
+      A tela de Jornada do ERP tem duas flags; aqui sao cinco tipos nomeados.
+    - >-
+      Metricas que o ERP nao calcula: 20.618 h de hora extra apurada pelo
+      fornecedor (compare com o que a folha pagou - divergencia ai e dinheiro)
+      e 4.926 h de REPOUSO FALTANTE, que e a medida de fadiga acumulada.
+    - >-
+      Ausencias por tipo, a parte, porque e a UNICA fonte da RasterJOR que
+      segue recebendo carga - o dado mais recente e de 25/08/2026 enquanto
+      jornada e inconformidades pararam em 15/04. Mostra-la junto do resto
+      faria parecer que tudo parou.
+  corrigido:
+    - >-
+      A CARGA DA RASTERJOR ESTA PARADA HA 136 DIAS e ninguem tinha notado. O
+      ultimo dado de rasterjor_productivity_report e rasterjor_unconformities e
+      de 15/04/2026; rasterjor_produtividade parou em 18/05 e
+      rasterjor_anomalies em 27/05/2025 - quinze meses. A rotina que alimenta
+      essas tabelas NAO roda no CORTEX, e externa, entao o painel nao conserta:
+      denuncia. Saude do Servidor passa a marcar ERRO com os dias de atraso, e
+      a tela abre com tarja dizendo ate quando vao os numeros.
+    - >-
+      A JANELA DA TELA E ANCORADA NO ULTIMO DADO, nao em hoje. Com a carga
+      parada, uma janela de 90 dias contada de hoje devolveria zero linha e a
+      tela abriria vazia - que se le como "ninguem rodou" em vez de "parou de
+      chegar". Foi exatamente essa confusao que deixou a parada passar meses.
+    - >-
+      O atraso anunciado na tarja conta so as tabelas que a TELA usa. Sem essa
+      distincao, o pior atraso pegava os 459 dias da tabela de anomalias - que
+      a tela nem le - e a tarja anunciava 459 dias sobre numeros de 136.
+      Alarme com o numero errado ensina a ignorar o alarme.
+  alterado:
+    - >-
+      A PRIMEIRA VERSAO DESTA ENTREGA LIA AS TABELAS DE JORNADA DO AVACORP
+      (jornada, jornada_registro, jornadamotorista) e foi refeita. O engano foi
+      de leitura de cadeia: ocorrenciarastreamento grava idrastreadora=3 e o
+      CNPJ da ONIXSAT, o que parecia dizer que a jornada vinha do OnixSat -
+      mas isso e a TECNOLOGIA do equipamento. A Raster e o hub: entrega
+      mensagens de 132 placas agregando ONIXSAT, SASCAR, POSITRON e OMNILINK.
+      Ainda assim, o que o ERP guarda e a apuracao DELE, e o negocio pediu a do
+      fornecedor. Os modulos api/jornada/espera.py e api/jornada/sql.py foram
+      REMOVIDOS, nao apenas deixados sem uso - modulo orfao volta a ser
+      importado por engano.
+    - >-
+      Com isso sai a analise de espera por CLIENTE, e vale registrar por que:
+      ela dependia do GPS de cada evento cruzado com a cerca em
+      cadastro_poligono, e as tabelas da RasterJOR trazem placa e motorista mas
+      nunca coordenada. A pergunta "em que cliente o motorista esperou" so se
+      responde pelo detalhe do AVA.
+    - >-
+      journey_type vem como letra (N, D, A, F) e nao ha tabela de dominio nem
+      rotulo no raw_api_data. Codigo sem dominio nao vira rotulo inventado: a
+      tela mostra a letra com a direcao media, o tempo medio e o km de cada
+      uma - a mesma regra da coluna "Tipo (cod.)" da Manutencao.
+  seguranca:
+    - >-
+      O snapshot do Copiloto recebe os KPIs escalares E A DEFASAGEM, nunca a
+      lista de motoristas. A defasagem vai junto de proposito: sem ela o chat
+      responderia sobre jornada como se o dado fosse de hoje.
+
 - versao: "0.137.0"
   data: "2026-08-29"
   adicionado:

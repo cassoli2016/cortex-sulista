@@ -81,6 +81,7 @@ TELAS: dict[str, tuple[str, str]] = {  # chave -> (rótulo, grupo do menu)
     "prog":    ("Programação Inteligente", "Operação"),
     "torre":   ("Torre de Controle", "Operação"),
     "jorn":    ("Jornada do Motorista", "Operação"),
+    "jorraster": ("Jornada RasterJOR", "Operação"),
     "cex":     ("Custos Extras", "Operação"),
     "sac":     ("SAC / Freetime", "Operação"),
     "port":    ("Portaria", "Operação"),
@@ -159,6 +160,9 @@ ROTA_TELAS: list[tuple[str, frozenset[str]]] = [
     ("/api/gestao/painel",            frozenset({"gesacao", "gesata"})),
     ("/api/gestao/atas",              frozenset({"gesata", "gesacao"})),
     ("/api/gestao/acoes",             frozenset({"gesacao", "gesata"})),
+    # jornada: /raster ANTES da generica /api/jornada
+    ("/api/jornada/raster",           frozenset({"jorraster"})),
+    ("/api/jornada/coletar",          frozenset({"jorraster"})),
     ("/api/rh/folha-custo",           frozenset({"folha"})),
     ("/api/rh/horas-extras",          frozenset({"he"})),
     ("/api/rh/vagas",                 frozenset({"rh"})),

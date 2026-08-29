@@ -250,6 +250,8 @@ tr[role="button"]:focus-visible{outline-offset:-2px}
 .view{display:none;flex-direction:column;gap:18px}
 .view.on{display:flex}
 /* gráficos */
+.jr-acao{display:flex;align-items:center;gap:10px;margin:0 0 14px;flex-wrap:wrap}
+.jr-acao .hint{margin:0}
 .chartwrap{padding:6px 16px 14px;overflow-x:auto;position:relative}
 .chartwrap svg{display:block;width:100%;height:auto;min-width:680px}
 /* .narrow = gráfico de card de MEIA largura (viewBox 640): o min-width de 680
@@ -1827,6 +1829,7 @@ body.tvfull #btnReport,body.tvmode #btnReport{display:none}
         <a href="#km" class="sub" data-view="km" title="Análise de KM"><span class="ic" data-ic="kmv"></span><span>Análise de KM</span></a>
         <a href="#cex" class="sub" data-view="cex" title="Custos Extras por CT-e"><span class="ic" data-ic="cexic"></span><span>Custos Extras</span></a>
         <a href="#jorn" class="sub" data-view="jorn" title="Jornada do Motorista (Lei 13.103)"><span class="ic" data-ic="jornic"></span><span>Jornada do Motorista</span></a>
+        <a href="#jorraster" class="sub" data-view="jorraster" title="Jornada RasterJOR — a apuração do fornecedor de jornada, com as inconformidades nomeadas"><span class="ic" data-ic="jornic"></span><span>Jornada RasterJOR</span></a>
         <a href="#mvb" class="sub" data-view="mvb" title="Make vs Buy"><span class="ic" data-ic="mvb"></span><span>Make vs Buy</span></a>
         <a href="#milkrun" class="sub" data-view="milkrun" title="Operação MWM: chegada e saída detectadas pelo rastreamento"><span class="ic" data-ic="milkic"></span><span>Operação MWM</span></a>
         <a href="#poli" class="sub" data-view="poli" title="Permanência na Planta — quanto tempo o veículo passa dentro da planta da Tupy e em quais polígonos"><span class="ic" data-ic="poliic"></span><span>Permanência na Planta</span></a>
@@ -4912,6 +4915,105 @@ body.tvfull #btnReport,body.tvmode #btnReport{display:none}
         </div>
       </section>
 
+      <section class="view" id="view-jorraster">
+        <div id="jr-tarja"></div>
+        <div class="jr-acao" id="jr-acao" hidden>
+          <button class="ghost" id="btnJrColetar" onclick="jrColetar()">Coletar agora</button>
+          <span class="hint" id="jrColetaMsg"></span>
+        </div>
+
+        <div class="kband">
+          <h3>Operação apurada</h3>
+          <div class="kpis k4" id="kpis-jr"></div>
+        </div>
+        <div class="kband">
+          <h3>Conformidade — Lei 13.103/2015</h3>
+          <div class="kpis k4" id="kpis-jr2"></div>
+        </div>
+        <div class="kband">
+          <h3>Custo do tempo</h3>
+          <div class="kpis k4" id="kpis-jr3"></div>
+        </div>
+
+        <div class="card">
+          <div class="head"><h2>Volume e cobertura da coleta <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="jor_jornadas (banco local). A barra é a contagem de jornadas do mês; a linha é a média POR DIA COLETADO, que é o único número comparável entre meses de cobertura diferente. Mês com menos de 90% dos dias sai hachurado, e mês sem UMA jornada aparece como falha no eixo — não como zero, porque zero se lê como “ninguém dirigiu”.">i</span></h2>
+            <span class="hint" id="hintJrMes"></span></div>
+          <div id="jr-mensal" style="width:100%;height:300px"
+               role="img" aria-label="Jornadas por mês e média por dia coletado"></div>
+        </div>
+
+        <div class="card">
+          <div class="head"><h2>Dia a dia <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="Uma barra por dia com jornada gravada, e a linha de horas de direção. É a série que justifica a biblioteca de gráficos nesta tela: com centenas de dias, ler sem zoom não é leitura. Arraste a barra de baixo para recortar o período; o buraco no meio é ausência de coleta, não dia sem operação.">i</span></h2>
+            <span class="hint" id="hintJrDia"></span></div>
+          <div id="jr-diario" style="width:100%;height:300px"
+               role="img" aria-label="Jornadas e horas de direção por dia"></div>
+        </div>
+
+        <div class="grid2">
+          <div class="card">
+            <div class="head"><h2>Para onde vai o dia <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="Composição da jornada como a RasterJOR apura, não o ERP: driving_time, stopped_in_journey, meal_time e rest_time. A diferença para o total é o que o fornecedor não classifica em nenhuma das quatro, e aparece declarada em vez de ser diluída nas outras.">i</span></h2>
+              <span class="hint" id="hintJrComp"></span></div>
+            <div id="jr-comp" style="width:100%;height:190px"
+                 role="img" aria-label="Composição do dia de trabalho"></div>
+          </div>
+          <div class="card">
+            <div class="head"><h2>Inconformidades por tipo <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="jor_inconformidades. Os nomes são os que a própria RasterJOR dá, não código traduzido a dedo. A classificação tempo × marcação é NOSSA e está dita na coluna: DIRECAO NOTURNA é trabalho noturno, que é legal e gera adicional — somada ao resto, ela inflava a taxa por jornada em um terço.">i</span></h2>
+              <span class="hint" id="hintJrUnc"></span></div>
+            <div class="tablewrap tabroll"><table><thead><tr>
+              <th>Tipo</th><th></th><th class="num">Ocorrências</th>
+              <th class="num">%</th><th class="num">Por jornada</th><th class="num">Motoristas</th>
+            </tr></thead><tbody id="jr-unconf"></tbody></table></div>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="head"><h2>Inconformidades de tempo ao longo dos meses <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="Contagem por tipo e por mês. Sem o corte temporal não dá para dizer se um tipo está piorando ou se só houve mais jornada no mês — por isso o mês sem coleta aparece vazio e rotulado, em vez de sumir do eixo e emendar dois meses distantes numa série contínua.">i</span></h2>
+            <span class="hint" id="hintJrUncMes"></span></div>
+          <div id="jr-uncmes" style="width:100%;height:290px"
+               role="img" aria-label="Inconformidades por tipo e por mês"></div>
+        </div>
+
+        <div class="card">
+          <div class="head"><h2>Por filial <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="branch_name vem preenchido em 100% das jornadas da RasterJOR. É o recorte que separa problema de escala de problema de operação: filial com muito tempo parado e pouca direção não tem motorista de menos, tem carga esperando.">i</span></h2>
+            <span class="hint" id="hintJrFil"></span></div>
+          <div class="tablewrap tabroll"><table><thead><tr>
+            <th>Filial</th><th class="num">Jornadas</th><th class="num">Motoristas</th>
+            <th class="num">Direção</th><th class="num">Parado</th><th></th>
+            <th class="num">% parado</th><th class="num">Hora extra</th>
+          </tr></thead><tbody id="jr-filiais"></tbody></table></div>
+        </div>
+
+        <div class="card">
+          <div class="head"><h2>Motoristas — inconformidades de tempo <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="NÃO é ranking de culpa. A ordem padrão é a CONTAGEM (materialidade), e a taxa por jornada vai ao lado porque sem o denominador o ranking premia quem rodou mais dias. Quem tem menos de 5 jornadas no período fica atenuado e marcado: baixo volume é atenuado, nunca escondido. Só contam as inconformidades de TEMPO — direção noturna não entra.">i</span></h2>
+            <span class="hint" id="hintJrMot"></span></div>
+          <div class="tablewrap tabroll"><table><thead><tr>
+            <th>Motorista</th><th>Filial</th><th class="num">De tempo</th>
+            <th class="num">Jornadas</th><th class="num">Por jornada</th>
+            <th class="num">Tipos</th><th class="num">Hora extra</th>
+          </tr></thead><tbody id="jr-motoristas"></tbody></table></div>
+        </div>
+
+        <div class="grid2">
+          <div class="card">
+            <div class="head"><h2>Tipo de jornada <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="journey_type vem como letra e NÃO há tabela de domínio nem rótulo no payload da RasterJOR. Código sem domínio não vira rótulo inventado: a tela mostra a letra e o que se observa em cada uma — direção média, tempo médio e km —, que é o que permite deduzir sem chutar. Mesma regra da coluna “Tipo (cód.)” da Manutenção.">i</span></h2>
+              <span class="hint">código do fornecedor, sem domínio publicado</span></div>
+            <div class="tablewrap"><table><thead><tr>
+              <th>Código</th><th class="num">Jornadas</th><th class="num">Direção média</th>
+              <th class="num">Tempo médio</th><th class="num">Km</th>
+            </tr></thead><tbody id="jr-tipos"></tbody></table></div>
+          </div>
+          <div class="card">
+            <div class="head"><h2>Ausências <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="jor_ausencias, últimos 12 meses a partir do início da janela. É recurso separado da jornada na API da RasterJOR e com limite de consulta próprio, por isso a cobertura dele pode não acompanhar a da jornada — o que estiver defasado está dito na tarja do topo.">i</span></h2>
+              <span class="hint" id="hintJrAus"></span></div>
+            <div class="tablewrap tabroll"><table><thead><tr>
+              <th>Tipo</th><th class="num">Ocorrências</th>
+              <th class="num">Motoristas</th><th class="num">Mais recente</th>
+            </tr></thead><tbody id="jr-ausencias"></tbody></table></div>
+          </div>
+        </div>
+        <div id="jr-avisos"></div>
+      </section>
+
       <section class="view" id="view-doc">
         <div class="doc-top">
           <div>
@@ -5222,7 +5324,7 @@ const FAIXAS = {
   '4_vencido_91_365':['Vencido 91–365d','b-dang'],
   '5_vencido_mais_365':['Vencido > 365d','b-dang'],
 };
-const VIEWS = { home:'Visão Geral', fluxo:'Fluxo de Caixa e Bancos', receber:'Contas a Receber', pagar:'Contas a Pagar', oc:'Ordens de Compra', custos:'Painel de Custos', agr:'Agregados e Terceiros', mvb:'Make vs Buy', comb:'Combustível', man:'Manutenção', com:'Clientes e RKM', clif:'Consulta de Cliente', crm:'CRM — Leads e Projetos', km:'Análise de KM', prodveic:'Produtividade de Veículos', torre:'Torre de Controle', poli:'Permanência na Planta', ctecp:'CT-e de Contrapartida', veic:'Veículos', veicf:'Consulta de Veículo', mprev:'Manutenção Preventiva', comrast:'Comunicação Rastreadora', mul:'Multas', prog:'Programação Inteligente', jorn:'Jornada do Motorista', jornf:'Ficha de Jornada', cex:'Custos Extras', sac:'SAC / Freetime', port:'Portaria', cop:'Copiloto Cortex', cob:'Régua de Cobrança', banc:'Bancos', extb:'Extrato Bancário', lanc:'Lançamentos Bancários', antec:'Antecipação de Recebíveis', antport:'Portais de Antecipação', milkrun:'Operação MWM', rec:'Lançamentos Recorrentes', fluxcon:'Fluxo de Caixa Consolidado', cont:'Contabilidade', qual:'Qualidade e Certidões', orc:'Orçamento', fech:'Fechamento do Mês', prem:'Premiação de Motoristas', dre:'DRE Gerencial', bal:'Balanço Patrimonial', drecli:'DRE por Cliente', tvfat:'Painel TV — Faturamento', tvope:'Painel TV — Operação', rh:'RH — Vagas', hc:'Headcount', folha:'Custo de Folha', folhaind:'Indicadores de Folha', he:'Horas Extras', cnh:'CNH dos Motoristas', ferias:'Férias — Vencimento', people:'People Analytics', pneus:'Pneus', gestao:'Gestão', gesacao:'Planos de Ação', gesata:'Atas de Reunião', srv:'Saúde do Servidor', doc:'Documentação', anpiso:'Piso Mínimo de Frete', anrntrc:'RNTRC dos Transportadores', telcon:'Consumo e Estatísticas', telcond:'Condução Econômica', telhod:'Hodômetro e Rastro' };
+const VIEWS = { home:'Visão Geral', fluxo:'Fluxo de Caixa e Bancos', receber:'Contas a Receber', pagar:'Contas a Pagar', oc:'Ordens de Compra', custos:'Painel de Custos', agr:'Agregados e Terceiros', mvb:'Make vs Buy', comb:'Combustível', man:'Manutenção', com:'Clientes e RKM', clif:'Consulta de Cliente', crm:'CRM — Leads e Projetos', km:'Análise de KM', prodveic:'Produtividade de Veículos', torre:'Torre de Controle', poli:'Permanência na Planta', ctecp:'CT-e de Contrapartida', veic:'Veículos', veicf:'Consulta de Veículo', mprev:'Manutenção Preventiva', comrast:'Comunicação Rastreadora', mul:'Multas', prog:'Programação Inteligente', jorn:'Jornada do Motorista', jorraster:'Jornada RasterJOR', jornf:'Ficha de Jornada', cex:'Custos Extras', sac:'SAC / Freetime', port:'Portaria', cop:'Copiloto Cortex', cob:'Régua de Cobrança', banc:'Bancos', extb:'Extrato Bancário', lanc:'Lançamentos Bancários', antec:'Antecipação de Recebíveis', antport:'Portais de Antecipação', milkrun:'Operação MWM', rec:'Lançamentos Recorrentes', fluxcon:'Fluxo de Caixa Consolidado', cont:'Contabilidade', qual:'Qualidade e Certidões', orc:'Orçamento', fech:'Fechamento do Mês', prem:'Premiação de Motoristas', dre:'DRE Gerencial', bal:'Balanço Patrimonial', drecli:'DRE por Cliente', tvfat:'Painel TV — Faturamento', tvope:'Painel TV — Operação', rh:'RH — Vagas', hc:'Headcount', folha:'Custo de Folha', folhaind:'Indicadores de Folha', he:'Horas Extras', cnh:'CNH dos Motoristas', ferias:'Férias — Vencimento', people:'People Analytics', pneus:'Pneus', gestao:'Gestão', gesacao:'Planos de Ação', gesata:'Atas de Reunião', srv:'Saúde do Servidor', doc:'Documentação', anpiso:'Piso Mínimo de Frete', anrntrc:'RNTRC dos Transportadores', telcon:'Consumo e Estatísticas', telcond:'Condução Econômica', telhod:'Hodômetro e Rastro' };
 const periodoLabel = p => { if(p==='atrasado') return 'Atrasado'; const [y,m]=p.split('-'); return MES[+m-1]+'/'+y.slice(2); };
 const fmtD = s => { if(!s) return ''; const [y,m,dd]=s.split('-'); return dd+'/'+m+'/'+y; };
 /* Idade da posicao bancaria. Cada conta e lancada num dia diferente: mostrar
@@ -5437,7 +5539,7 @@ const VIEW_GROUP = {home:'',cop:'',
   com:'Com',clif:'Com',crm:'Com',rent:'Com',drecli:'Com',
   fluxo:'Fin',receber:'Fin',pagar:'Fin',cob:'Fin',banc:'Fin',extb:'Fin',lanc:'Fin',antec:'Fin',antport:'Fin',fluxcon:'Fin',rec:'Fin',
   dre:'Ctr',bal:'Ctr',cont:'Ctr',qual:'Ctr',orc:'Ctr',fech:'Ctr',ctecp:'Ctr',
-  torre:'Ope',milkrun:'Ope',poli:'Ope',prog:'Ope',jorn:'Ope',jornf:'Ope',cex:'Ope',sac:'Ope',port:'Ope',km:'Ope',agr:'Ope',mvb:'Ope',
+  torre:'Ope',milkrun:'Ope',poli:'Ope',prog:'Ope',jorn:'Ope',jorraster:'Ope',jornf:'Ope',cex:'Ope',sac:'Ope',port:'Ope',km:'Ope',agr:'Ope',mvb:'Ope',
   veic:'Fro',veicf:'Fro',mprev:'Fro',comrast:'Fro',comb:'Fro',man:'Fro',mul:'Fro',pneus:'Fro',
   oc:'Sup',custos:'Sup',
   prodveic:'Bi',tvfat:'Bi',tvope:'Bi',
@@ -5636,7 +5738,7 @@ function semFilterbar(v){
   // prog entrou aqui na auditoria de filtros: TODOS os grupos ficam ocultos
   // nela, então a barra aparecia sem um único campo — só o botão "Aplicar
   // filtros", que não tinha o que aplicar.
-  return v==='cop'||v==='gestao'||v==='gesacao'||v==='gesata'||v==='srv'||v==='home'||v==='veicf'||v==='clif'||v==='jorn'||v==='jornf'||v==='prog'||
+  return v==='cop'||v==='gestao'||v==='gesacao'||v==='gesata'||v==='srv'||v==='home'||v==='veicf'||v==='clif'||v==='jorn'||v==='jorraster'||v==='jornf'||v==='prog'||
          v==='cex'||v==='sac'||v==='mprev'||v==='comrast'||v==='qual'||v==='port'||v==='crm'||v==='rh'||
          v==='hc'||v==='folha'||v==='folhaind'||v==='he'||v==='custos'||v==='orc'||v==='prem'||v==='banc'||v==='extb'||v==='fech'||v==='doc'||v==='anrntrc'||v==='telcon'||v==='telcond'||v==='telhod'||v==='milkrun'||v==='cnh'||v==='ferias'||v==='pneus'||v==='people'||v==='poli'||v==='ctecp';
 }
@@ -5721,7 +5823,7 @@ function router(){
   document.getElementById('grpFluxcon').style.display = fluxcon ? 'flex' : 'none';
   const ges = (v==='gestao');
   const fbar=document.getElementById('filterbar'); if(fbar) fbar.style.display = semFilterbar(v) ? 'none' : '';
-  const metaEl=document.getElementById('meta'); if(metaEl) metaEl.style.display = (cop||ges||v==='gesacao'||v==='gesata'||v==='srv'||v==='veicf'||v==='clif'||v==='jorn'||v==='jornf'||v==='cex'||v==='sac'||v==='mprev'||v==='comrast'||v==='qual'||v==='port'||v==='crm'||v==='rh'||v==='hc'||v==='folha'||v==='folhaind'||v==='he'||v==='custos'||v==='prem'||v==='doc'||v==='poli'||v==='ctecp') ? 'none' : '';
+  const metaEl=document.getElementById('meta'); if(metaEl) metaEl.style.display = (cop||ges||v==='gesacao'||v==='gesata'||v==='srv'||v==='veicf'||v==='clif'||v==='jorn'||v==='jorraster'||v==='jornf'||v==='cex'||v==='sac'||v==='mprev'||v==='comrast'||v==='qual'||v==='port'||v==='crm'||v==='rh'||v==='hc'||v==='folha'||v==='folhaind'||v==='he'||v==='custos'||v==='prem'||v==='doc'||v==='poli'||v==='ctecp') ? 'none' : '';
   // classe em vez de style: o CSS mobile usa !important no display
   const bfil=document.getElementById('btnFiltros'); if(bfil){ bfil.classList.toggle('oculto', semFilterbar(v)); bfil.style.display=''; }
   document.getElementById('grpKm').style.display = kmv ? 'flex' : 'none';
@@ -5745,7 +5847,7 @@ function router(){
   // divergem dos usados na última carga (nunca mostrar dado velho com filtro novo)
   const key=viewKey(v);
   const DATAMAP={fin:DATA,oc:DATAOC,agr:DATAAGR,anpiso:DATAANPISO,anrntrc:DATAANRNTRC,telcon:DATATELCON,telcond:DATATELCOND,telhod:DATATELHOD,mvb:DATAMVB,comb:DATACOMB,man:DATAMAN,com:DATACOM,clif:DATACLIF,dre:DATADRE,bal:DATABAL,drecli:DATADRECLI,home:DATAHOME,km:DATAKM,torre:DATATORRE,veic:DATAVEIC,veicf:DATAVEICF,mul:DATAMUL,prog:DATAPROG,jorn:DATAJORN,jornf:DATAJORNF,cex:DATACEX,sac:DATASAC,mprev:DATAMPREV,comrast:DATACOMRAST,qual:DATAQUAL,port:DATAPORT,crm:DATACRM,rh:DATARH,hc:DATAHC,folha:DATAFOLHA,folhaind:DATAFOLHAIND,he:DATAHE,custos:DATACUSTOS,cob:DATACOB,banc:DATABANC,extb:DATAEXTB,lanc:DATALANC,antec:DATAANTEC,antport:DATAANTPORT,milkrun:DATAMILK,fluxcon:DATAFLUXCON,rec:DATAREC,rent:DATARENT,cont:DATACONT,orc:DATAORC,fech:DATAFECH,prem:DATAPREM,gestao:DATAGES,srv:DATASRV,doc:DATADOC,tvfat:null,tvope:null,cop:(COP_MSGS.length?{}:null)};
-  const LOADMAP={fin:load,oc:loadOc,agr:loadAgr,anpiso:loadAnpiso,anrntrc:loadAnrntrc,telcon:loadTelcon,telcond:loadTelcond,telhod:loadTelhod,mvb:loadMvb,comb:loadComb,man:loadMan,com:loadCom,clif:loadClif,dre:loadDre,bal:loadBal,drecli:loadDreCli,home:loadHome,km:loadKm,prodveic:loadProdveic,torre:loadTorre,veic:loadVeic,veicf:loadVeicf,mul:loadMul,prog:loadProg,jorn:loadJorn,jornf:loadJornf,cex:loadCex,sac:loadSac,mprev:loadMPrev,comrast:loadComRast,qual:loadQual,port:loadPort,crm:loadCrm,rh:loadRh,hc:loadHc,folha:loadFolha,folhaind:loadFolhaInd,he:loadHe,custos:loadCustos,cob:loadCob,banc:loadBanc,extb:loadExtb,lanc:loadLanc,antec:loadAntec,antport:loadAntport,milkrun:loadMilkrun,cnh:loadCnh,ferias:loadFerias,people:loadPeople,pneus:loadPneus,poli:loadPoli,ctecp:loadCtecp,fluxcon:loadFluxcon,rec:loadRec,rent:loadRent,cont:loadCont,orc:loadOrc,fech:loadFech,prem:loadPrem,gesacao:loadGesacao,gesata:loadGesata,gestao:loadGestao,srv:loadSrv,doc:loadDoc,cop:loadCop,tvfat:loadTvFat,tvope:loadTvOpe};
+  const LOADMAP={fin:load,oc:loadOc,agr:loadAgr,anpiso:loadAnpiso,anrntrc:loadAnrntrc,telcon:loadTelcon,telcond:loadTelcond,telhod:loadTelhod,mvb:loadMvb,comb:loadComb,man:loadMan,com:loadCom,clif:loadClif,dre:loadDre,bal:loadBal,drecli:loadDreCli,home:loadHome,km:loadKm,prodveic:loadProdveic,torre:loadTorre,veic:loadVeic,veicf:loadVeicf,mul:loadMul,prog:loadProg,jorn:loadJorn,jorraster:loadJorraster,jornf:loadJornf,cex:loadCex,sac:loadSac,mprev:loadMPrev,comrast:loadComRast,qual:loadQual,port:loadPort,crm:loadCrm,rh:loadRh,hc:loadHc,folha:loadFolha,folhaind:loadFolhaInd,he:loadHe,custos:loadCustos,cob:loadCob,banc:loadBanc,extb:loadExtb,lanc:loadLanc,antec:loadAntec,antport:loadAntport,milkrun:loadMilkrun,cnh:loadCnh,ferias:loadFerias,people:loadPeople,pneus:loadPneus,poli:loadPoli,ctecp:loadCtecp,fluxcon:loadFluxcon,rec:loadRec,rent:loadRent,cont:loadCont,orc:loadOrc,fech:loadFech,prem:loadPrem,gesacao:loadGesacao,gesata:loadGesata,gestao:loadGestao,srv:loadSrv,doc:loadDoc,cop:loadCop,tvfat:loadTvFat,tvope:loadTvOpe};
   if(!DATAMAP[key] || (key!=='home' && LOADEDQS[key]!==qsView(key))) LOADMAP[key]();
   // mobile: estado da navegação inferior + fecha gaveta/painel de filtros
   document.querySelectorAll('.bottomnav [data-bview]').forEach(a=>a.classList.toggle('ativo', a.dataset.bview===v));
@@ -7543,7 +7645,7 @@ function reloadCurrent(){
   // recarrega a TELA ATUAL — antes caía em load() (Financeiro) para várias telas.
   const M={home:loadHome,fluxo:load,receber:load,pagar:load,dre:loadDre,drecli:loadDreCli,oc:loadOc,
     agr:loadAgr,mvb:loadMvb,comb:loadComb,man:loadMan,com:loadCom,clif:loadClif,km:loadKm,prodveic:loadProdveic,
-    torre:loadTorre,veic:loadVeic,veicf:loadVeicf,mul:loadMul,prog:loadProg,jorn:loadJorn,jornf:loadJornf,cex:loadCex,sac:loadSac,mprev:loadMPrev,comrast:loadComRast,qual:loadQual,port:loadPort,crm:loadCrm,rh:loadRh,hc:loadHc,folha:loadFolha,folhaind:loadFolhaInd,he:loadHe,custos:loadCustos,cob:loadCob,banc:loadBanc,extb:loadExtb,rent:loadRent,
+    torre:loadTorre,veic:loadVeic,veicf:loadVeicf,mul:loadMul,prog:loadProg,jorn:loadJorn,jorraster:loadJorraster,jornf:loadJornf,cex:loadCex,sac:loadSac,mprev:loadMPrev,comrast:loadComRast,qual:loadQual,port:loadPort,crm:loadCrm,rh:loadRh,hc:loadHc,folha:loadFolha,folhaind:loadFolhaInd,he:loadHe,custos:loadCustos,cob:loadCob,banc:loadBanc,extb:loadExtb,rent:loadRent,
     cont:loadCont,orc:loadOrc,fech:loadFech,prem:loadPrem,gesacao:loadGesacao,gesata:loadGesata,gestao:loadGestao,srv:loadSrv,doc:loadDoc,cop:loadCop,tvfat:loadTvFat,tvope:loadTvOpe};
   (M[currentView()]||load)();
 }
@@ -19774,6 +19876,644 @@ async function gtExcluir(id, acoes){
   if(ok){ fecharModal(); loadGesata(); }
 }
 
+/* ============ Jornada RasterJOR ==========================================
+   A apuração de quem FAZ jornada, lida de sulista.rasterjor_*. Não é a do
+   Avacorp: quando as duas divergirem, é a divergência que interessa.
+
+   A TARJA DE DEFASAGEM VEM ANTES DE TUDO. A carga está parada desde 15/04 nas
+   duas tabelas principais, e tela de jornada vazia se lê como "ninguém rodou"
+   em vez de "parou de chegar". A janela padrão é ancorada no último dado, não
+   em hoje, justamente para a tela não abrir em branco.
+   ========================================================================= */
+
+let DATAJR = null, jrSeq = 0;
+
+const jrH = v => (v == null ? '—'
+  : v.toLocaleString('pt-BR', {maximumFractionDigits: 0}) + ' h');
+const jrMin = v => (v == null ? '—'
+  : (v >= 60 ? (Math.floor(v/60) + 'h' + String(Math.round(v%60)).padStart(2,'0'))
+             : Math.round(v) + ' min'));
+
+async function loadJorraster(fundo){
+  skelKpis('kpis-jr', 4); skelKpis('kpis-jr2', 4); skelKpis('kpis-jr3', 4);
+  const seq = ++jrSeq, btn = document.getElementById('btnRefresh');
+  if(btn) btn.disabled = true;
+  if(!fundo) document.getElementById('content').classList.add('loading');
+  try{
+    const r = await fetch('/api/jornada/raster',
+      {cache:'no-store', headers: fundo?{'X-Carga-Fundo':'1'}:{}});
+    const rr = await respostaJSON(r); if(seq !== jrSeq) return;
+    if(!rr.ok){ showBanner(rr.dados.mensagem || 'Erro ao consultar a jornada.'); return; }
+    hideBanner(); DATAJR = rr.dados; renderJorraster(rr.dados);
+  }catch(e){ if(seq === jrSeq) showBanner('Não foi possível falar com a API.', e.message); }
+  finally{ if(seq === jrSeq){ if(btn) btn.disabled = false;
+    document.getElementById('content').classList.remove('loading'); } }
+}
+
+function renderJorraster(d){
+  const k = d.kpis;
+  jrTarja(d);
+
+  /* BANDA 1 — a operação apurada. */
+  document.getElementById('kpis-jr').innerHTML = [
+    kpi('Jornadas apuradas', (k.jornadas||0).toLocaleString('pt-BR'),
+        (k.motoristas||0) + ' motoristas · ' + (k.km||0).toLocaleString('pt-BR') + ' km',
+        '',
+        'Uma linha por motorista por dia, do relatório de produtividade da RasterJOR — a apuração de quem faz jornada, não a do ERP. O CÓRTEX coleta e grava em jor_jornadas; a coluna origem separa o que veio da nossa coleta do histórico carregado do AVA.'),
+    kpi('Dias com dado', (k.dias_com_dado||0) + ' de ' + (k.dias_no_periodo||0),
+        jrCobTexto(k),
+        jrCobClasse(k),
+        'Quantos dias do período têm ao menos uma jornada gravada. É o primeiro número a olhar: todos os outros descrevem só os dias que existem. Cobertura baixa não é operação parada, é coleta faltando — e a diferença muda toda a leitura da tela.'),
+    kpi('Direção', jrH(k.h_direcao),
+        (k.pct_direcao == null ? '' : k.pct_direcao.toLocaleString('pt-BR',{maximumFractionDigits:1}) + '% da jornada'),
+        '',
+        'driving_time. É a única fatia da jornada que produz quilômetro.'),
+    kpi('Produtividade', (k.km_por_h_direcao == null ? 'não informado'
+        : k.km_por_h_direcao.toLocaleString('pt-BR',{maximumFractionDigits:1}) + ' km/h'),
+        (k.pct_jornadas_com_km == null ? 'sem jornada com km informado'
+         : 'km informado em ' + (k.jornadas_com_km||0).toLocaleString('pt-BR')
+           + ' de ' + (k.jornadas||0).toLocaleString('pt-BR') + ' jornadas ('
+           + k.pct_jornadas_com_km.toLocaleString('pt-BR',{maximumFractionDigits:0}) + '%)'),
+        (k.pct_jornadas_com_km != null && k.pct_jornadas_com_km < 50) ? 'warn' : '',
+        'Km rodados ÷ horas de direção DAS JORNADAS QUE TÊM KM. NÃO é velocidade média de estrada: inclui manobra, pátio e trânsito urbano dentro do tempo de direção. O fornecedor não reporta hodômetro em toda jornada — cerca de dois terços vêm sem km —, e usar as horas de todas elas no divisor derrubava o número em um quarto sem que nada tivesse mudado na operação.'),
+  ].join('');
+
+  /* BANDA 2 — conformidade. O KPI que decide ação é o de TEMPO: o total
+     inclui direção noturna, que é trabalho legal e gera adicional. */
+  const tx = k.unconf_tempo_por_jornada;
+  document.getElementById('kpis-jr2').innerHTML = [
+    kpi('Inconformidades de tempo', (k.unconf_tempo||0).toLocaleString('pt-BR'),
+        (tx == null ? '' : tx.toLocaleString('pt-BR',{minimumFractionDigits:2}) + ' por jornada'),
+        (tx||0) >= 1 ? 'bad' : ((tx||0) >= 0.5 ? 'warn' : ''),
+        'Só as ocorrências ligadas a tempo de direção e descanso: direção ininterrupta, intervalo entre jornadas, parada para refeição e excesso de jornada — os quatro que a Lei 13.103/2015 regula. A classificação é NOSSA; o nome do tipo é o que a RasterJOR dá.'),
+    kpi('Total classificado pelo fornecedor', (k.unconformidades||0).toLocaleString('pt-BR'),
+        (k.pct_noturna == null ? '' : k.pct_noturna.toLocaleString('pt-BR',{maximumFractionDigits:1}) + '% é direção noturna'),
+        'warn',
+        'Tudo que a RasterJOR marca como inconformidade, direção noturna incluída. Ela sozinha é mais de um terço dos eventos e NÃO é violação de nada — é trabalho noturno, que é legal e gera adicional. Somada ao resto, inflava a taxa por jornada em um terço; por isso o KPI de ação ao lado a exclui.'),
+    kpi('Repouso faltante', jrH(k.h_falta_repouso),
+        'de ' + jrH(k.h_repouso) + ' de repouso apurado',
+        (k.h_falta_repouso||0) > 0 ? 'warn' : 'pos',
+        'missing_repose_time: quanto faltou do repouso que a Lei 13.103 exige entre jornadas. É a métrica de fadiga que o ERP não calcula.'),
+    kpi('Motoristas atingidos', jrMotAtingidos(d),
+        'com ao menos uma inconformidade de tempo',
+        '',
+        'Quantos motoristas distintos aparecem no ranking de inconformidades de TEMPO, sobre o total com jornada no período. Concentração alta é problema de escala ou de rota; espalhado por todo mundo é desenho da operação.'),
+  ].join('');
+
+  /* BANDA 3 — o tempo que custa. */
+  document.getElementById('kpis-jr3').innerHTML = [
+    kpi('Hora extra', jrH(k.h_extra),
+        'e ' + jrH(k.h_falta) + ' de tempo faltante',
+        (k.h_extra||0) > 0 ? 'warn' : '',
+        'over_time somado no período, apurado pela RasterJOR. Compare com o que a folha pagou: divergência aqui é dinheiro, e é o tipo de conferência que só existe lendo as duas fontes.'),
+    kpi('Tempo parado', jrH(k.h_parado),
+        (k.pct_parado == null ? '' : k.pct_parado.toLocaleString('pt-BR',{maximumFractionDigits:1}) + '% da jornada'),
+        (k.pct_parado||0) >= 50 ? 'bad' : ((k.pct_parado||0) >= 30 ? 'warn' : ''),
+        'stopped_in_journey: o motorista está EM jornada, à disposição, sem dirigir. É capacidade parada e custo de folha ao mesmo tempo.'),
+    kpi('Parado ÷ dirigindo', (k.razao_parado_direcao == null ? '—'
+        : k.razao_parado_direcao.toLocaleString('pt-BR',{minimumFractionDigits:2})+'×'),
+        jrH(k.h_parado) + ' parado contra ' + jrH(k.h_direcao) + ' ao volante',
+        k.razao_parado_direcao >= 1 ? 'bad' : (k.razao_parado_direcao >= 0.7 ? 'warn' : ''),
+        'Quanto tempo o motorista passa parado DENTRO da jornada para cada hora dirigindo. Acima de 1 ele passa mais tempo parado do que ao volante — e o tempo parado é pago, mas não roda quilômetro. A razão sai dos MINUTOS, não das horas arredondadas: 300 sobre 200 é 1,50, mas 5,0 h sobre 3,3 h daria 1,52, e o limiar de leitura aqui é justamente 1,00.'),
+    kpi('Jornada média', jrMin(jrMedia(k)),
+        (k.jornadas||0).toLocaleString('pt-BR') + ' jornadas · ' + jrH(k.h_total) + ' no total',
+        '',
+        'Tempo total apurado ÷ número de jornadas. É a jornada do dia típico, útil para comparar filiais e escalas sem que o tamanho da operação domine a conta.'),
+  ].join('');
+
+  jrAcaoVisivel(d);
+  jrMensalEC(d); jrDiarioEC(d); jrCompEC(d); jrUncMesEC(d);
+  jrUnconf(d); jrFiliais(d); jrMotoristas(d); jrTipos(d); jrAusencias(d); jrAvisos(d);
+
+  const mt = document.getElementById('meta');
+  if(mt && d.atualizado_em){
+    const t = fmtDT(d.atualizado_em);
+    mt.innerHTML = '<b>' + esc(t.slice(11)) + '</b><br>' + esc(t.slice(0,10));
+    mt.title = 'Leitura das tabelas jor_* do banco local em ' + t;
+  }
+}
+
+/* ---- auxiliares de leitura ---- */
+const jrPct = (a,b) => (b ? 100*a/b : null);
+function jrCobTexto(k){
+  const p = jrPct(k.dias_com_dado||0, k.dias_no_periodo||0);
+  if(p == null) return 'sem período';
+  const falta = (k.meses_sem_coleta||0);
+  return p.toLocaleString('pt-BR',{maximumFractionDigits:0}) + '% do período'
+       + (falta ? ' · ' + falta + (falta===1?' mês':' meses') + ' sem coleta nenhuma' : '');
+}
+function jrCobClasse(k){
+  const p = jrPct(k.dias_com_dado||0, k.dias_no_periodo||0);
+  return p == null ? '' : (p < 50 ? 'bad' : (p < 90 ? 'warn' : 'pos'));
+}
+function jrMedia(k){
+  return k.jornadas ? Math.round(60*(k.h_total||0)/k.jornadas) : null;
+}
+/* A contagem vem do SERVIDOR, não do tamanho da lista: o ranking tem teto de
+   `ranking_limite`, então contar as linhas devolvidas diria sempre 40 — o
+   mesmo para 41 motoristas e para 130. Top-N sem contador vira total falso. */
+function jrMotAtingidos(d){
+  const n = d.kpis.motoristas_com_unconf_tempo || 0;
+  const tot = d.kpis.motoristas || 0;
+  return tot ? (n + ' de ' + tot) : String(n);
+}
+/* Rótulo curto do mês, sem depender de fuso: 'YYYY-MM' é fatiado, não parseado.
+   `new Date('2026-08')` em UTC−3 volta julho. */
+const jrMesRot = m => MES[+m.slice(5,7)-1] + '/' + m.slice(2,4);
+
+/* Mensagem única de falha da biblioteca. O arquivo vem do NOSSO disco, então
+   não carregar significa deploy quebrado — e cartão vazio faria parecer que
+   não houve jornada no período. */
+function jrFalhaGrafico(el, e){
+  el.innerHTML = '<div style="padding:22px;color:var(--red);font-size:13px">'
+    + 'Não foi possível carregar a biblioteca de gráficos (' + esc(e.message) + ').'
+    + '<br><span style="color:var(--n500)">Os números dos cartões e das tabelas continuam corretos.</span></div>';
+}
+/* Hachura do ECharts, igual à do `<pattern>` que os 43 SVGs desenham à mão. */
+function jrDecal(){
+  return {symbol:'rect', color:'rgba(255,255,255,.62)', dashArrayX:[1,0],
+          dashArrayY:[2,4], rotation:-Math.PI/4};
+}
+function jrTooltipBase(){
+  return {backgroundColor:'#fff', borderColor:'#DCE0E5', borderWidth:1,
+          textStyle:{color:'#14181D', fontSize:12.5, fontFamily:'Saira, sans-serif'}};
+}
+
+/* A TARJA. Primeira coisa da tela, antes de qualquer número.
+   Agora a coleta é NOSSA, então a tarja mudou de recado: antes ela dizia
+   "a rotina é externa, só quem a mantém pode religá-la"; hoje ela diz o que
+   a última passagem fez e o que falta configurar, porque o conserto está
+   aqui dentro. */
+function jrTarja(d){
+  const f = d.defasagem || {}, k = d.kpis || {}, alvo = document.getElementById('jr-tarja');
+  if(!alvo) return;
+  const av = [];
+
+  if(f.erro){
+    av.push(['t-err', 'A jornada não pôde ser lida do banco local',
+      esc(f.erro) + '. Enquanto isso a tela não tem o que mostrar — não é ausência de operação.']);
+  }
+  if(!f.coleta_configurada){
+    av.push(['t-info', 'A coleta da RasterJOR ainda não está configurada',
+      esc(f.coleta_falta || 'faltam credenciais') + '. Sem isso o CÓRTEX mostra só o histórico já carregado e não busca dia novo. Não é falha: é instalação incompleta.']);
+  }
+  if(f.parada && f.ultimo_dado){
+    av.push(['t-warn',
+      'A jornada não chega há ' + f.dias + (f.dias===1?' dia':' dias')
+        + ' — os números abaixo vão até ' + fmtD(f.ultimo_dado),
+      'A janela desta tela é ancorada no ÚLTIMO DADO QUE EXISTE, não em hoje: com ela presa a hoje a tela abriria vazia, e vazio se lê como "ninguém rodou" em vez de "parou de chegar". '
+      + (f.falhas_48h ? ('Houve ' + f.falhas_48h + ' falha(s) de coleta nas últimas 48 h — veja a Saúde do Servidor.')
+                      : 'A última passagem registrada não acusou falha, então provavelmente ninguém executou a coleta.')]);
+  }
+  if((k.meses_sem_coleta||0) > 0){
+    av.push(['t-info',
+      (k.meses_sem_coleta) + (k.meses_sem_coleta===1 ? ' mês sem coleta nenhuma dentro do período'
+                                                     : ' meses sem coleta nenhuma dentro do período'),
+      'Eles aparecem VAZIOS e rotulados nos gráficos, nunca como zero: uma barra zerada diria que ninguém dirigiu naquele mês, quando o que houve foi ausência de coleta. Foi assim que a parada anterior passou meses sem alarme.']);
+  }
+  if((k.unconf_fora_do_pareamento||0) > 0){
+    av.push(['t-info',
+      'As taxas por jornada usam só os ' + (k.dias_pareados||0) + ' dia(s) que têm os dois lados',
+      (k.unconf_fora_do_pareamento||0).toLocaleString('pt-BR') + ' inconformidade(s) caem em dias sem jornada gravada e ficam FORA da divisão — a contagem delas continua certa nos cartões e na tabela. '
+      + 'Os recursos têm limites diferentes na API (o relatório de produtividade aceita uma consulta a cada 10 minutos, as inconformidades não), então é normal um lado ter mais dias coletados que o outro. '
+      + 'Dividir um lado pelo outro sem esse cuidado mediria a COLETA e não a operação.']);
+  }
+  alvo.innerHTML = av.map(([c,t,m]) =>
+    '<div class="toast ' + c + '" style="margin:0 0 12px"><b>' + t + '</b>' + m + '</div>').join('');
+}
+
+/* Coleta sob demanda. MESMO caminho da tarefa agendada — não existe modo
+   teste mais frouxo: mesma janela, mesma trilha em `jor_carga`, mesma
+   auditoria. Rodar duas vezes é seguro e é o modo normal de usar, porque a
+   API devolve o dia inteiro a cada chamada e toda gravação é ON CONFLICT.
+
+   O botão só aparece com a coleta CONFIGURADA: oferecer uma ação que vai
+   recusar por falta de credencial é convidar ao erro, e a tarja logo acima
+   já diz o que preencher. */
+function jrAcaoVisivel(d){
+  const caixa = document.getElementById('jr-acao');
+  if(!caixa) return;
+  caixa.hidden = !((d.defasagem||{}).coleta_configurada);
+}
+
+async function jrColetar(){
+  const btn = document.getElementById('btnJrColetar');
+  const msg = document.getElementById('jrColetaMsg');
+  const rot = btn.textContent;
+  btn.disabled = true; btn.textContent = 'Coletando…';
+  msg.textContent = 'a API da RasterJOR pode levar alguns segundos por recurso';
+  msg.style.color = '';
+  let ok = false, texto = '';
+  try{
+    const r = await fetch('/api/jornada/coletar', {
+      method:'POST', headers:{'Content-Type':'application/json'}, body:'{}'});
+    const rr = await respostaJSON(r);
+    if(!r.ok){
+      /* RECUSA NÃO É FALHA: 409 é o CÓRTEX dizendo não, com um motivo que a
+         pessoa precisa ler (sem credencial, limite de taxa do fornecedor). */
+      texto = rr.dados.mensagem || ('a coleta não foi aceita (HTTP ' + r.status + ')');
+    }else{
+      ok = true;
+      const R = rr.dados.recursos || {};
+      const partes = Object.keys(R).map(k =>
+        k + ': ' + (R[k].ok ? (R[k].gravados||0).toLocaleString('pt-BR') + ' gravados'
+                            : 'falhou'));
+      texto = 'janela ' + fmtD(rr.dados.de) + ' a ' + fmtD(rr.dados.ate)
+            + (partes.length ? ' · ' + partes.join(' · ') : '');
+      const falhou = Object.keys(R).filter(k => !R[k].ok);
+      if(falhou.length) texto += ' · ' + (R[falhou[0]].erro || 'falha');
+    }
+  }catch(e){
+    texto = 'não foi possível falar com a API: ' + e.message;
+  }finally{
+    btn.disabled = false; btn.textContent = rot;
+  }
+  msg.textContent = texto;
+  msg.style.color = ok ? 'var(--green)' : 'var(--red)';
+  /* A RECARGA FICA FORA DO try DA AÇÃO. Se ela falhar, a mensagem do que a
+     coleta fez não pode ser sobrescrita por "erro ao carregar" — quem lê isso
+     manda coletar de novo achando que não aconteceu nada. */
+  if(ok){ try{ await loadJorraster(true); }catch(_){ } }
+}
+
+/* ============================ GRÁFICOS (ECharts) ============================
+   Por que biblioteca aqui e não mais um SVG à mão, que é o padrão da casa:
+   a série diária tem centenas de pontos e precisa de ZOOM — critério que o
+   CLAUDE.md já fixa para escolher ECharts. Os outros três gráficos desta tela
+   acompanham por coerência visual dentro da mesma página; não seria bom ter
+   metade da tela com tooltip de biblioteca e metade com <title> de SVG.
+
+   O que a biblioteca NÃO nos faz perder, e por isso está explícito:
+   - mês parcial HACHURADO (decal) e mês sem coleta como FALHA, não zero;
+   - rótulo DIRETO na linha de eixo secundário, que não tem escala visível;
+   - eixo com a unidade FINAL;
+   - semáforo DISCRETO: a cor não gradua com o valor. */
+
+/* 1. Volume mensal + média por dia coletado.
+   A barra é a contagem do mês e a linha é o número COMPARÁVEL entre meses de
+   cobertura diferente. Sem a linha, outubro/25 (10 dias, 1.206 jornadas)
+   parece desabar ao lado de setembro (30 dias, 3.672) quando por dia coletado
+   são 121 contra 122 — está plano. */
+function jrMensalEC(d){
+  const el = document.getElementById('jr-mensal'); if(!el) return;
+  const M = d.mensal || [];
+  const hint = document.getElementById('hintJrMes');
+  const vazios = M.filter(m => m.sem_coleta).length;
+  const parciais = M.filter(m => m.parcial).length;
+  if(hint) hint.textContent = M.length + ' mês(es) no período'
+    + (vazios ? ' · ' + vazios + ' sem coleta' : '')
+    + (parciais ? ' · ' + parciais + ' com cobertura parcial' : '');
+  if(!M.length){ el.innerHTML = '<div class="gx-vazio">sem série no período</div>'; return; }
+
+  carregarECharts().then(ec => {
+    const inst = ec.init(el, null, {renderer:'svg'});
+    echartsRegistrar('jr-mensal', inst);
+    const nf = v => (v==null ? '—' : Math.round(v).toLocaleString('pt-BR'));
+    inst.setOption({
+      animation: false,
+      grid: {left: 62, right: 30, top: 34, bottom: 54},
+      tooltip: {trigger:'axis', ...jrTooltipBase(), formatter: p => {
+        const m = M[p[0].dataIndex];
+        if(m.sem_coleta) return '<b>' + jrMesRot(m.mes) + '</b><br>'
+          + '<span style="color:#C03221">nenhuma jornada coletada neste mês</span><br>'
+          + '<span style="color:#6B7580">não é mês sem operação — é ausência de coleta</span>';
+        return '<b>' + jrMesRot(m.mes) + '</b>'
+          + (m.parcial ? ' <span style="color:#B97709">· cobertura parcial</span>' : '') + '<br>'
+          + 'Jornadas: <b>' + nf(m.jornadas) + '</b><br>'
+          + 'Dias com dado: <b>' + m.dias + '</b> de ' + m.dias_possiveis + '<br>'
+          + 'Por dia coletado: <b>' + (m.jornadas_dia==null?'—':m.jornadas_dia.toLocaleString('pt-BR')) + '</b><br>'
+          + 'Motoristas: ' + m.motoristas + '<br>'
+          + 'Hora extra: ' + nf(m.h_extra) + ' h';
+      }},
+      legend: {data:['Jornadas no mês','Jornadas por dia coletado'], bottom:0,
+               itemWidth:14, itemHeight:9,
+               textStyle:{color:'#6E7883', fontSize:11, fontFamily:'Saira, sans-serif'}},
+      xAxis: {type:'category',
+        data: M.map(m => jrMesRot(m.mes) + (m.sem_coleta ? '\nsem coleta' : (m.parcial ? '\nparcial' : ''))),
+        axisLine:{lineStyle:{color:'#C2C8D0'}}, axisTick:{show:false},
+        axisLabel:{color:'#6E7883', fontSize:10, lineHeight:13, fontFamily:'Saira, sans-serif'}},
+      yAxis: [
+        {type:'value', name:'JORNADAS', nameLocation:'end', nameGap:14,
+         nameTextStyle:{color:'#6E7883', fontSize:11, fontWeight:600, align:'right'},
+         splitLine:{lineStyle:{color:'#ECEEF1'}}, axisLine:{show:false}, axisTick:{show:false},
+         axisLabel:{color:'#6E7883', fontSize:10, fontFamily:'IBM Plex Mono, monospace',
+                    formatter: v => v.toLocaleString('pt-BR')}},
+        {type:'value', show:false,
+         max: Math.max(...M.map(m => m.jornadas_dia||0), 1) * 1.45},
+      ],
+      series: [
+        {name:'Jornadas no mês', type:'bar', yAxisIndex:0, barMaxWidth:54,
+         data: M.map(m => ({
+           value: m.jornadas || 0,
+           itemStyle: m.sem_coleta
+             ? {color:'#ECEEF1'}
+             : (m.parcial
+                ? {color:CC.navy500, borderRadius:[3,3,0,0], decal: jrDecal()}
+                : {color:CC.navy700, borderRadius:[3,3,0,0]}),
+         }))},
+        /* RÓTULO DIRETO: a linha vive num eixo escondido, então sem o número
+           em cima do ponto não há como ler valor nenhum. E o mês sem coleta
+           entra como null — o ECharts ABRE A LINHA no ponto, que é a leitura
+           certa: não há média de dia nenhum ali. */
+        {name:'Jornadas por dia coletado', type:'line', yAxisIndex:1,
+         symbol:'circle', symbolSize:7, connectNulls:false,
+         lineStyle:{color:CC.laranja, width:2.5}, itemStyle:{color:CC.laranja},
+         label:{show:true, position:'top', color:CC.laranja, fontWeight:700,
+                fontSize:10.5, fontFamily:'Saira, sans-serif',
+                textBorderColor:'#fff', textBorderWidth:3,
+                formatter: p => (p.value==null ? '' : p.value.toLocaleString('pt-BR'))},
+         data: M.map(m => (m.sem_coleta ? null : m.jornadas_dia))},
+      ],
+    }, true);
+  }).catch(e => jrFalhaGrafico(el, e));
+}
+
+/* 2. Dia a dia com zoom. É este gráfico que justifica a biblioteca: são
+   centenas de dias, e o buraco da coleta parada tem de aparecer como buraco. */
+function jrDiarioEC(d){
+  const el = document.getElementById('jr-diario'); if(!el) return;
+  const D = d.diario || [], hint = document.getElementById('hintJrDia');
+  if(hint) hint.textContent = D.length
+    ? (D.length.toLocaleString('pt-BR') + ' dia(s) com jornada gravada · arraste para recortar')
+    : 'nenhum dia com jornada no período';
+  if(!D.length){ el.innerHTML = '<div class="gx-vazio">sem dia com jornada no período</div>'; return; }
+
+  carregarECharts().then(ec => {
+    const inst = ec.init(el, null, {renderer:'svg'});
+    echartsRegistrar('jr-diario', inst);
+    /* Eixo de TEMPO, não de categoria: com o eixo categórico os dias sem
+       coleta simplesmente não existiriam e o gráfico emendaria 15/04 em
+       21/08 lado a lado, desenhando continuidade onde há quatro meses de
+       buraco. No eixo de tempo o vão aparece como vão. */
+    const pontos = D.map(x => [x.dia, x.jornadas]);
+    const dir = D.map(x => [x.dia, x.h_direcao]);
+    /* O RECORTE INICIAL É POR DATA, não por porcentagem.
+       Num eixo de TEMPO o `start` do dataZoom é percentual do INTERVALO DE
+       DATAS, não da contagem de pontos — e esta série tem um vão de quatro
+       meses no meio. Calcular `100*(1 - 120/n)` trataria os pontos como
+       igualmente espaçados e abriria a janela no lugar errado, justamente
+       nas séries com buraco, que são as que mais precisam de precisão.
+       `startValue` com a data resolve porque quem faz a conta é o eixo. */
+    const ultimo = new Date(D[D.length-1].dia + 'T12:00:00');
+    const corte = new Date(ultimo.getTime() - 120*86400000);
+    const zoomDe = D.length > 120 ? corte.toISOString().slice(0,10) : D[0].dia;
+    inst.setOption({
+      animation: false,
+      grid: {left: 58, right: 52, top: 30, bottom: 74},
+      tooltip: {trigger:'axis', ...jrTooltipBase(), formatter: p => {
+        const i = p[0].dataIndex, x = D[i];
+        return '<b>' + fmtD(x.dia) + '</b><br>'
+          + 'Jornadas: <b>' + x.jornadas + '</b><br>'
+          + 'Motoristas: ' + x.motoristas + '<br>'
+          + 'Direção: <b>' + x.h_direcao.toLocaleString('pt-BR',{maximumFractionDigits:1}) + ' h</b><br>'
+          + 'Hora extra: ' + x.h_extra.toLocaleString('pt-BR',{maximumFractionDigits:1}) + ' h';
+      }},
+      dataZoom: [
+        {type:'inside', startValue: zoomDe},
+        {type:'slider', startValue: zoomDe, height: 20, bottom: 30,
+         borderColor:'#DCE0E5', fillerColor:'rgba(232,93,16,.10)',
+         handleStyle:{color:'#E85D10'}, moveHandleStyle:{color:'#E85D10'},
+         textStyle:{color:'#6E7883', fontSize:10, fontFamily:'IBM Plex Mono, monospace'}},
+      ],
+      xAxis: {type:'time', axisLine:{lineStyle:{color:'#C2C8D0'}}, axisTick:{show:false},
+              axisLabel:{color:'#6E7883', fontSize:10, fontFamily:'Saira, sans-serif',
+                         hideOverlap:true}},
+      yAxis: [
+        {type:'value', name:'JORNADAS', nameLocation:'end', nameGap:14,
+         nameTextStyle:{color:'#6E7883', fontSize:11, fontWeight:600, align:'right'},
+         splitLine:{lineStyle:{color:'#ECEEF1'}}, axisLine:{show:false}, axisTick:{show:false},
+         axisLabel:{color:'#6E7883', fontSize:10, fontFamily:'IBM Plex Mono, monospace'}},
+        {type:'value', name:'HORAS DE DIREÇÃO', nameLocation:'end', nameGap:14, position:'right',
+         nameTextStyle:{color:'#6E7883', fontSize:10, fontWeight:600, align:'left'},
+         splitLine:{show:false}, axisLine:{show:false}, axisTick:{show:false},
+         axisLabel:{color:'#6E7883', fontSize:10, fontFamily:'IBM Plex Mono, monospace'}},
+      ],
+      series: [
+        {name:'Jornadas', type:'bar', yAxisIndex:0, barMaxWidth:14,
+         itemStyle:{color:CC.navy500, borderRadius:[2,2,0,0]}, data: pontos},
+        {name:'Horas de direção', type:'line', yAxisIndex:1, symbol:'none',
+         smooth:false, lineStyle:{color:CC.laranja, width:1.8}, data: dir},
+      ],
+      legend: {data:['Jornadas','Horas de direção'], bottom:0, itemWidth:14, itemHeight:9,
+               textStyle:{color:'#6E7883', fontSize:11, fontFamily:'Saira, sans-serif'}},
+    }, true);
+  }).catch(e => jrFalhaGrafico(el, e));
+}
+
+/* 3. Para onde vai o dia — barra horizontal empilhada.
+   Parte-do-todo com uma categoria dominante NÃO é rosca (regra da casa), e
+   "não classificado" entra declarado em vez de ser diluído nas outras. */
+function jrCompEC(d){
+  const el = document.getElementById('jr-comp'); if(!el) return;
+  const P = (d.partes||[]).filter(p => p.horas > 0);
+  const hint = document.getElementById('hintJrComp');
+  if(hint) hint.textContent = jrH(d.kpis.h_total) + ' de jornada apurada · '
+    + (d.kpis.jornadas||0).toLocaleString('pt-BR') + ' jornadas';
+  if(!P.length){ el.innerHTML = '<div class="gx-vazio">sem jornada no período</div>'; return; }
+
+  carregarECharts().then(ec => {
+    const inst = ec.init(el, null, {renderer:'svg'});
+    echartsRegistrar('jr-comp', inst);
+    const cores = {direcao:CC.navy700, parado:CC.laranja,
+                   refeicao:CC.navy500, descanso:CC.navy400};
+    const itens = P.map(p => ({nome:p.rotulo, h:p.horas, cor:cores[p.chave]||CC.n400}));
+    if(d.diferenca > 0) itens.push({nome:'Não classificado', h:d.diferenca, cor:CC.n300});
+    const tot = itens.reduce((a,i) => a + i.h, 0) || 1;
+    inst.setOption({
+      animation: false,
+      grid: {left: 12, right: 12, top: 16, bottom: 40, containLabel: false},
+      tooltip: {trigger:'item', ...jrTooltipBase(), formatter: p =>
+        '<b>' + p.seriesName + '</b><br>'
+        + Math.round(p.value).toLocaleString('pt-BR') + ' h · '
+        + (100*p.value/tot).toFixed(1) + '%'},
+      legend: {bottom:0, itemWidth:12, itemHeight:9,
+               textStyle:{color:'#6E7883', fontSize:11, fontFamily:'Saira, sans-serif'}},
+      xAxis: {type:'value', show:false, max: tot},
+      yAxis: {type:'category', show:false, data:['']},
+      series: itens.map(it => ({
+        name: it.nome, type:'bar', stack:'dia', barWidth: 46,
+        itemStyle:{color: it.cor},
+        /* Rótulo DENTRO da fatia só quando ela é larga o bastante para
+           caber; nas finas o número sai na legenda, e não sobreposto. */
+        label:{show: 100*it.h/tot >= 9, position:'inside', color:'#fff',
+               fontSize:11, fontWeight:600, fontFamily:'Saira, sans-serif',
+               formatter: () => (100*it.h/tot).toFixed(1) + '%'},
+        data:[it.h],
+      })),
+    }, true);
+  }).catch(e => jrFalhaGrafico(el, e));
+}
+
+/* 4. Inconformidades de tempo por mês, empilhadas por tipo.
+   Mês sem coleta fica VAZIO e rotulado — se sumisse do eixo, dois meses
+   distantes ficariam lado a lado sugerindo continuidade. */
+function jrUncMesEC(d){
+  const el = document.getElementById('jr-uncmes'); if(!el) return;
+  const linhas = d.unconf_por_mes || [];
+  const tipos = (d.unconf_tipos_mes || []).filter(t =>
+    (d.unconformidades||[]).some(u => u.tipo === t && u.classe === 'tempo'));
+  const hint = document.getElementById('hintJrUncMes');
+  if(hint) hint.textContent = tipos.length
+    ? (tipos.length + ' tipo(s) de tempo · direção noturna fica de fora')
+    : 'nenhuma inconformidade de tempo no período';
+  if(!linhas.length || !tipos.length){
+    el.innerHTML = '<div class="gx-vazio">sem inconformidade de tempo no período</div>'; return; }
+
+  carregarECharts().then(ec => {
+    const inst = ec.init(el, null, {renderer:'svg'});
+    echartsRegistrar('jr-uncmes', inst);
+    const paleta = [CC.navy700, CC.laranja, CC.navy500, CC.navy400, CC.amarelo, CC.n500];
+    inst.setOption({
+      animation: false,
+      grid: {left: 62, right: 26, top: 30, bottom: 74},
+      tooltip: {trigger:'axis', axisPointer:{type:'shadow'}, ...jrTooltipBase(),
+        formatter: p => {
+          const l = linhas[p[0].dataIndex];
+          if(l.sem_coleta) return '<b>' + jrMesRot(l.mes) + '</b><br>'
+            + '<span style="color:#C03221">sem coleta neste mês</span>';
+          const tot = p.reduce((a,x) => a + (x.value||0), 0);
+          return '<b>' + jrMesRot(l.mes) + '</b><br>'
+            + p.filter(x => x.value).map(x =>
+                x.marker + ' ' + x.seriesName + ': <b>' + x.value.toLocaleString('pt-BR') + '</b>').join('<br>')
+            + '<br><span style="color:#6B7580">total ' + tot.toLocaleString('pt-BR') + '</span>';
+        }},
+      legend: {bottom:0, itemWidth:12, itemHeight:9, type:'scroll',
+               textStyle:{color:'#6E7883', fontSize:10.5, fontFamily:'Saira, sans-serif'}},
+      xAxis: {type:'category',
+        data: linhas.map(l => jrMesRot(l.mes) + (l.sem_coleta ? '\nsem coleta' : '')),
+        axisLine:{lineStyle:{color:'#C2C8D0'}}, axisTick:{show:false},
+        axisLabel:{color:'#6E7883', fontSize:10, lineHeight:13, fontFamily:'Saira, sans-serif'}},
+      yAxis: {type:'value', name:'OCORRÊNCIAS', nameLocation:'end', nameGap:14,
+        nameTextStyle:{color:'#6E7883', fontSize:11, fontWeight:600, align:'right'},
+        splitLine:{lineStyle:{color:'#ECEEF1'}}, axisLine:{show:false}, axisTick:{show:false},
+        axisLabel:{color:'#6E7883', fontSize:10, fontFamily:'IBM Plex Mono, monospace',
+                   formatter: v => v.toLocaleString('pt-BR')}},
+      series: tipos.map((t, i) => ({
+        name: _trunc(t, 30), type:'bar', stack:'u', barMaxWidth: 54,
+        itemStyle:{color: paleta[i % paleta.length]},
+        data: linhas.map(l => (l.sem_coleta ? null : (l.por_tipo[t] || 0))),
+      })),
+    }, true);
+  }).catch(e => jrFalhaGrafico(el, e));
+}
+
+/* ============================== TABELAS ============================== */
+
+function jrUnconf(d){
+  const U = d.unconformidades || [];
+  document.getElementById('hintJrUnc').textContent = U.length
+    ? (U.length + ' tipos · ' + (d.kpis.unconformidades||0).toLocaleString('pt-BR') + ' ocorrências')
+    : 'nenhuma inconformidade no período';
+  const max = Math.max(1, ...U.map(x => x.n));
+  document.getElementById('jr-unconf').innerHTML = U.map(x => {
+    const tempo = x.classe === 'tempo';
+    return '<tr>'
+      + '<td>' + esc(x.tipo) + '</td>'
+      + '<td>' + (tempo
+          ? statChip('warn','tempo','Regra de tempo de direção ou descanso da Lei 13.103/2015 — é o que entra no KPI de conformidade.')
+          : statChip('','marcação','Não é violação de regra de tempo: direção noturna é trabalho legal com adicional, e falha de posição é equipamento. Fica fora do KPI de conformidade.')) + '</td>'
+      + '<td class="num" style="font-weight:600">' + x.n.toLocaleString('pt-BR') + '</td>'
+      + '<td class="num">' + (x.pct==null?'—':x.pct.toLocaleString('pt-BR',{maximumFractionDigits:1})+'%') + '</td>'
+      + '<td class="num">' + (x.por_jornada==null?'—':x.por_jornada.toLocaleString('pt-BR',{minimumFractionDigits:2})) + '</td>'
+      + '<td class="num">' + x.motoristas + '</td></tr>';
+  }).join('') || '<tr><td colspan="6" style="color:var(--n500)">nenhuma</td></tr>';
+}
+
+function jrFiliais(d){
+  const F = d.filiais || [];
+  document.getElementById('hintJrFil').textContent =
+    F.length ? (F.length + ' filial(is) · ordenado por jornada total') : 'sem filial no período';
+  const max = Math.max(1, ...F.map(x => x.pct_parado || 0));
+  document.getElementById('jr-filiais').innerHTML = F.map(x => '<tr>'
+      + '<td>' + esc(x.filial) + '</td>'
+      + '<td class="num">' + x.jornadas.toLocaleString('pt-BR') + '</td>'
+      + '<td class="num">' + x.motoristas + '</td>'
+      + '<td class="num">' + jrH(x.h_direcao) + '</td>'
+      + '<td class="num" style="font-weight:600">' + jrH(x.h_parado) + '</td>'
+      + '<td style="width:90px">' + pplBarra(100*(x.pct_parado||0)/max, (x.pct_parado||0)>=50?'var(--red)':'var(--yellow-700)') + '</td>'
+      + '<td class="num" style="font-weight:700;color:' + ((x.pct_parado||0)>=50?'var(--red)':'var(--n700)') + '">'
+      + (x.pct_parado==null?'—':x.pct_parado.toLocaleString('pt-BR',{maximumFractionDigits:1})+'%') + '</td>'
+      + '<td class="num">' + jrH(x.h_extra) + '</td></tr>').join('')
+    || '<tr><td colspan="8" style="color:var(--n500)">sem dado</td></tr>';
+}
+
+/* Piso de materialidade: quem tem menos de 5 jornadas no período aparece
+   ATENUADO e marcado, nunca escondido — e nunca no topo por taxa, que é
+   como um motorista com 1 jornada e 3 ocorrências lideraria o ranking. */
+const JR_PISO_JORNADAS = 5;
+function jrMotoristas(d){
+  const M = (d.unconf_motoristas || []).filter(x => (x.n_tempo||0) > 0);
+  const fracos = M.filter(x => (x.jornadas||0) < JR_PISO_JORNADAS).length;
+  const atingidos = d.kpis.motoristas_com_unconf_tempo || 0;
+  document.getElementById('hintJrMot').textContent = M.length
+    ? (M.length + ' de ' + atingidos + ' motoristas com inconformidade de tempo'
+       + (atingidos > M.length ? ' (lista cortada em ' + (d.kpis.ranking_limite||M.length) + ')' : '')
+       + ' · ordenado por contagem'
+       + (fracos ? ' · ' + fracos + ' com menos de ' + JR_PISO_JORNADAS + ' jornadas, atenuado' : ''))
+    : 'ninguém com inconformidade de tempo no período';
+  document.getElementById('jr-motoristas').innerHTML = M.map(x => {
+    const fraco = (x.jornadas||0) < JR_PISO_JORNADAS;
+    const st = fraco ? ' style="opacity:.55"' : '';
+    return '<tr' + st + '>'
+      + '<td>' + esc(x.nome||'—')
+        + (fraco ? ' ' + statChip('','baixo volume','Menos de ' + JR_PISO_JORNADAS + ' jornadas no período: a taxa por jornada aqui é instável e não deve ser comparada com a dos demais.') : '')
+        + '</td>'
+      + '<td style="font-size:12px;color:var(--n600)">' + esc(x.filial||'—') + '</td>'
+      + '<td class="num" style="font-weight:600">' + (x.n_tempo||0).toLocaleString('pt-BR') + '</td>'
+      + '<td class="num">' + (x.jornadas||0).toLocaleString('pt-BR') + '</td>'
+      + '<td class="num" style="font-weight:700;color:' + ((x.por_jornada||0)>=1?'var(--red)':'var(--n700)') + '">'
+        + (x.por_jornada==null?'—':x.por_jornada.toLocaleString('pt-BR',{minimumFractionDigits:2})) + '</td>'
+      + '<td class="num" style="color:' + (x.tipos>=4?'var(--red)':'var(--n700)') + '">' + x.tipos + '</td>'
+      + '<td class="num">' + jrH(x.h_extra) + '</td></tr>';
+  }).join('') || '<tr><td colspan="7" style="color:var(--n500)">ninguém</td></tr>';
+}
+
+function jrTipos(d){
+  const T = d.tipos || [];
+  document.getElementById('jr-tipos').innerHTML = T.map(x => '<tr>'
+      + '<td style="font-family:var(--mono);font-weight:600">' + esc(x.tipo||'—') + '</td>'
+      + '<td class="num">' + x.jornadas.toLocaleString('pt-BR') + '</td>'
+      + '<td class="num">' + jrMin(x.med_direcao_min) + '</td>'
+      + '<td class="num">' + jrMin(x.med_total_min) + '</td>'
+      + '<td class="num">' + x.km.toLocaleString('pt-BR') + '</td></tr>').join('')
+    || '<tr><td colspan="5" style="color:var(--n500)">sem dado</td></tr>';
+}
+
+function jrAusencias(d){
+  const A = d.ausencias || [];
+  const rec = A.reduce((a,x) => (x.mais_recente && x.mais_recente > a ? x.mais_recente : a), '');
+  document.getElementById('hintJrAus').textContent = A.length
+    ? (A.length + ' tipo(s) · última em ' + (rec ? fmtD(rec) : '—'))
+    : 'sem ausência registrada';
+  document.getElementById('jr-ausencias').innerHTML = A.map(x => '<tr>'
+      + '<td>' + esc(x.tipo||'—') + '</td>'
+      + '<td class="num">' + x.n.toLocaleString('pt-BR') + '</td>'
+      + '<td class="num">' + x.motoristas + '</td>'
+      + '<td class="num" style="font-family:var(--mono);font-size:12px">'
+      + (x.mais_recente ? fmtD(x.mais_recente) : '—') + '</td></tr>').join('')
+    || '<tr><td colspan="4" style="color:var(--n500)">nenhuma</td></tr>';
+}
+
+function jrAvisos(d){
+  const k = d.kpis, A = [];
+  if((k.razao_parado_direcao||0) >= 1) A.push(['t-warn',
+    'O motorista passa mais tempo parado do que dirigindo ('
+      + k.razao_parado_direcao.toLocaleString('pt-BR',{minimumFractionDigits:2}) + '×)',
+    'São ' + jrH(k.h_parado) + ' parado em jornada contra ' + jrH(k.h_direcao)
+      + ' ao volante. O tempo parado é pago e não roda quilômetro — é o mesmo cavalo, a mesma folha e menos frete. A pergunta que isto abre é ONDE ele espera, e a resposta depende do GPS do evento, que estas tabelas não trazem.']);
+  const tx = k.unconf_tempo_por_jornada;
+  if((tx||0) >= 1) A.push(['t-warn',
+    (k.unconf_tempo||0).toLocaleString('pt-BR') + ' inconformidades de tempo em '
+      + (k.jornadas||0).toLocaleString('pt-BR') + ' jornadas ('
+      + tx.toLocaleString('pt-BR',{minimumFractionDigits:2}) + ' por jornada)',
+    'Mais de uma por jornada significa que a exceção virou regra. Estas são só as de tempo de direção e descanso — direção noturna já está fora da conta —, então aqui não cabe explicar pelo desenho de escala: é jornada estourando.']);
+  if((k.h_falta_repouso||0) > 0) A.push(['t-info',
+    jrH(k.h_falta_repouso) + ' de repouso faltante no período',
+    'É quanto faltou do descanso entre jornadas que a Lei 13.103 exige. A RasterJOR calcula; o módulo de jornada do ERP não. Fadiga acumulada não aparece em nenhum outro indicador da casa.']);
+  document.getElementById('jr-avisos').innerHTML = A.map(([c,t,m]) =>
+    '<div class="toast ' + c + '"><b>' + esc(t) + '</b>' + esc(m) + '</div>').join('');
+}
+
 async function loadDoc(){
   const seq=++docSeq;
   const btn=document.getElementById('btnRefresh');
@@ -22419,6 +23159,7 @@ boot();
         <a href="#km" onclick="fecharDrawer()"><span class="ic" data-ic="kmv"></span>Análise de KM</a>
         <a href="#cex" onclick="fecharDrawer()"><span class="ic" data-ic="cexic"></span>Custos Extras</a>
         <a href="#jorn" onclick="fecharDrawer()"><span class="ic" data-ic="jornic"></span>Jornada do Motorista</a>
+        <a href="#jorraster" onclick="fecharDrawer()"><span class="ic" data-ic="jornic"></span>Jornada RasterJOR</a>
         <a href="#mvb" onclick="fecharDrawer()"><span class="ic" data-ic="mvb"></span>Make vs Buy</a>
         <a href="#milkrun" onclick="fecharDrawer()"><span class="ic" data-ic="milkic"></span>Operação MWM</a>
         <a href="#poli" onclick="fecharDrawer()"><span class="ic" data-ic="poliic"></span>Permanência na Planta</a>
