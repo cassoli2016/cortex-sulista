@@ -111,3 +111,124 @@ def test_a_rota_esta_no_rbac():
     assert '"people":  ("People Analytics", "Recursos Humanos"),' in auth
     assert '("/api/rh/people",                frozenset({"people"})),' in auth
     assert "perfis_modelo_v30" in auth
+
+
+# ------------------------------------------------------ filtro de liderança
+#
+# Liderança = coordenador, supervisor, gerente e diretor, como o negócio
+# definiu. Medido em 29/08/2026: 16 pessoas em 10 cargos — 8,4% do quadro e
+# 20,1% da massa salarial, com 10,9 liderados por chefia. Salário mediano de
+# R$ 7.038 contra R$ 2.933 do restante. DIRETOR: nenhum ativo (os três da base
+# são de 2006/2010 e estão desligados).
+
+def test_lideranca_le_o_campo_completo_e_nao_o_truncado(fonte):
+    """`descfuncao` é VARCHAR2(16) e chega truncado: 'COOR DE FATURAM',
+    'GER DE PROJETOS', 'COORDENADOR DE M'. Filtrar por ele perderia chefia de
+    verdade — o mesmo defeito que a tela de CNH já teve com 'MOT CARRETEIRO'."""
+    assert "descfuncaocompleta" in fonte
+    assert '_CAMPO_CARGO = _CARGO' in fonte
+    m = re.search(r"^LIDERANCA = .*?\n\n", fonte, re.S | re.M)
+    assert m, "LIDERANCA não encontrado"
+    assert "descfuncao)" not in m.group(0), (
+        "o predicado de liderança está lendo o campo truncado de 16 caracteres")
+
+
+def test_lideranca_casa_no_inicio_de_palavra(fonte):
+    """`LIKE '%GER%'` classificaria AJUDANTE GERAL, AUXILIAR SERVICOS GERAIS e
+    SERVENTE LIMPEZA E SERVIÇOS GERAIS como gerência — três pessoas do chão de
+    fábrica viradas em chefia, inflando a massa salarial de liderança."""
+    # o predicado REAL, e não o comentário que explica por que %GER% é errado
+    import api.people as ppl
+    assert "'%GER%'" not in ppl.LIDERANCA, (
+        "o predicado montado casaria GERAL e GERAIS no meio da palavra")
+    # cada prefixo é ancorado no início do texto ou depois de um espaço
+    assert "LIKE '{p}%'" in fonte and "LIKE '% {p}%'" in fonte
+    assert "LIKE 'GERENTE%'" in ppl.LIDERANCA
+    assert "LIKE '% GERENTE%'" in ppl.LIDERANCA
+
+
+def test_lideranca_reconhece_a_abreviacao_do_cadastro(fonte):
+    """Existe 'COORD DE SUPORTE E IMPLANTAÇÃO' escrito assim no campo COMPLETO
+    — a abreviação está no cadastro, não no truncamento. `COORDENADOR%` sozinho
+    deixaria essa pessoa de fora do filtro."""
+    assert '"COOR"' in fonte, "prefixo curto de coordenador ausente"
+    assert '"SUPERV"' in fonte
+    assert '"GERENTE"' in fonte and '"DIRETOR"' in fonte
+
+
+def test_diretor_continua_no_predicado_mesmo_sem_ocupante(fonte):
+    """Hoje não há diretor ativo. Tirar o nível do predicado faria o primeiro
+    diretor contratado não aparecer em liderança, e ninguém repararia."""
+    assert '"DIRETOR"' in fonte
+
+
+def test_o_escopo_entra_em_todas_as_consultas(fonte):
+    """Filtro que só alguns cartões obedecem é pior que filtro nenhum: era o
+    que fazia a Análise de KM dizer 143.326 km vazios no cabeçalho e 95.632 na
+    tabela logo abaixo. As sete consultas da tela recebem `{esc}`."""
+    assert fonte.count("{esc}") >= 7, (
+        f"só {fonte.count('{esc}')} consultas recebem o escopo — alguma "
+        f"ficaria mostrando o quadro inteiro dentro do recorte de liderança")
+
+
+def test_escopo_invalido_cai_em_todos_e_nao_recusa(fonte):
+    """Recorte digitado errado na URL não pode deixar a tela em branco."""
+    assert 'escopo = escopo if escopo in ESCOPOS else "todos"' in fonte
+    assert 'ESCOPOS = ("todos", "lideranca", "demais")' in fonte
+
+
+def test_a_composicao_da_lideranca_e_auditavel(fonte):
+    """Filtro que não se audita vira número que ninguém defende numa reunião:
+    a tela mostra cargo a cargo o que entrou na conta."""
+    assert '"cargos": lid_cargos' in fonte
+    assert '"limitrofes": limitrofes' in fonte, (
+        "os cargos deixados de fora de propósito têm de ser declarados")
+
+
+def test_o_denominador_de_liderados_e_o_quadro_inteiro(fonte):
+    """`por_liderado` usa o total geral, não o do escopo — com o filtrado a aba
+    Liderança mostraria 1 liderado por chefia."""
+    assert "geral_n - lid_n) / lid_n" in fonte
+    assert "WHERE {_ATIVO}\"\"\", p)[0]" in fonte.replace("'''", '"""')
+
+
+def test_nivel_sem_ocupante_continua_na_tela(html):
+    """Zero silencioso lê-se como filtro quebrado. E 'nunca existiu na casa' é
+    diferente de 'existiu e hoje não há' — a tela separa os dois."""
+    assert "ja_existiu" in html
+    assert "já houve na casa · hoje ninguém" in html
+    assert "nunca houve na folha" in html
+
+
+def test_a_tela_diz_qual_recorte_esta_ativo(html):
+    """Ler número de liderança achando que é o quadro inteiro é o erro que o
+    filtro cria — o rótulo abaixo dos chips existe para impedi-lo."""
+    assert "ppl-escopo-hint" in html
+    assert "TODOS os números abaixo são apenas deles" in html
+
+
+def test_trocar_o_escopo_refaz_a_consulta(html):
+    """Mediana, dispersão e massa não se recalculam a partir do agregado já
+    recebido — filtrar em memória devolveria número errado."""
+    assert "PPL_ESCOPO = e;" in html
+    assert re.search(r"pplEscopo\(e\)\{.*?loadPeople\(\)", html, re.S)
+    assert "escopo='+encodeURIComponent(PPL_ESCOPO)" in html
+
+
+def test_o_cartao_que_nao_segue_o_recorte_se_declara(html):
+    """O cartão de composição mostra a liderança em QUALQUER escopo — inclusive
+    em "Demais", onde ela é exatamente quem o recorte exclui do resto da tela.
+    Sem o selo, os 16 do cartão e os 175 dos KPIs acima pareceriam a mesma
+    população. É a regra da casa: card fora do filtro leva badge visível."""
+    assert 'id="ppl-lid-selo"' in html
+    assert "não segue o recorte" in html
+    assert "PPL_ESCOPO !== 'lideranca'" in html
+
+
+def test_o_cargo_e_normalizado_no_agrupamento(fonte):
+    """O cadastro tem "AUXILIAR ADMINISTRATIVO" e "AUXILIAR ADMINISTRATIVo".
+    Sem UPPER/TRIM a tela contaria dois cargos onde há um, medindo grafia em
+    vez de função — a mesma razão de o telefone do WhatsApp ser normalizado."""
+    assert '_CARGO = "UPPER(TRIM(vf.descfuncaocompleta))"' in fonte
+    assert "GROUP BY vf.descfuncaocompleta" not in fonte, (
+        "algum agrupamento por cargo ficou sem normalizar")

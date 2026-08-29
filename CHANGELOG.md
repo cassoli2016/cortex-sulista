@@ -4,6 +4,23 @@ Gerado de `docs/versoes.yaml` por `scripts/gerar_changelog.py` — não editar �
 Formato [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/),
 versionamento [SemVer](https://semver.org/lang/pt-BR/).
 
+## [0.137.0] — 29/08/2026  ·  CX-29/08/2026-v0.137.0
+
+### Adicionado
+- PEOPLE ANALYTICS GANHOU RECORTE POR NIVEL: Todos, Lideranca e Demais. Lideranca sao os cargos de coordenador, supervisor, gerente e diretor, e o recorte vale para a TELA INTEIRA - quadro, massa, piramide etaria, tempo de casa, afastamentos, custo por area e dispersao salarial. Filtro que so alguns cartoes obedecem e pior que filtro nenhum: era o que fazia a Analise de KM dizer 143.326 km vazios no cabecalho e 95.632 na tabela logo abaixo.
+- Cartao "Composicao da lideranca": os quatro niveis com quantas pessoas e quanta massa cada um carrega, e a tabela cargo a cargo do que entrou na conta. A classificacao fica AUDITAVEL - filtro que ninguem consegue conferir vira numero que ninguem defende numa reuniao.
+- Medido em 29/08/2026: 16 pessoas em 10 cargos, 8,4% do quadro e 20,1% da massa salarial, 10,9 liderados por chefia. Salario mediano de R$ 7.038 contra R$ 2.933 do restante.
+
+### Alterado
+- O NIVEL SEM NENHUM OCUPANTE CONTINUA NA TELA, esmaecido, dizendo se ja houve na casa. Hoje nao ha DIRETOR ativo - os tres do cadastro sao de 2006 e 2010 e estao desligados. Sumir com o cartao faria o filtro parecer quebrado a quem procura diretor, e "nunca existiu" e "existiu e hoje nao ha" sao conversas diferentes numa reuniao de sucessao.
+- Os cargos LIMITROFES sao declarados em vez de escondidos: CONTADOR, BUSINESS PARTNER, os tres ESPECIALISTA, LIDER OPERACAO e LIDER DE PATIO - 8 pessoas com senioridade alta ou lideranca de turno, sem o titulo que o negocio usou para definir lideranca. Quem discorda da classificacao ve o que ficou de fora.
+- O cartao de composicao leva selo "nao segue o recorte" fora da aba de lideranca: na aba Demais ele mostra justamente quem o filtro exclui do resto da tela, e sem o selo os 16 do cartao e os 175 dos KPIs acima pareceriam a mesma populacao.
+
+### Corrigido
+- A DISPERSAO SALARIAL AGRUPAVA CARGOS DIFERENTES. A tabela lia `descfuncao`, que o ERP trunca em 16 caracteres, entao "ASSISTENTE OPERA" juntava ASSISTENTE OPERACIONAL com ASSISTENTE OPERACIONAL I - dois cargos e duas faixas somados numa linha so, com amplitude inflada. Passou a ler `descfuncaocompleta` normalizado, e a contagem de cargos foi de 59 para 60.
+- A coluna Funcao dos afastamentos mostrava o nome truncado ("MOT CARRETEIRO"); agora mostra o cargo por extenso.
+- O cargo passou a ser normalizado (UPPER/TRIM) no agrupamento: o cadastro tem "AUXILIAR ADMINISTRATIVO" e "AUXILIAR ADMINISTRATIVo", e sem isso a tela contaria dois cargos onde ha um - medindo grafia em vez de funcao.
+
 ## [0.136.0] — 28/08/2026  ·  CX-28/08/2026-v0.136.0
 
 ### Adicionado

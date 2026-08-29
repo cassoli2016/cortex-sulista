@@ -2499,12 +2499,16 @@ def rh_ferias(dias: int = 90, filial: str = "") -> JSONResponse:
 
 
 @app.get("/api/rh/people")
-def rh_people() -> JSONResponse:
+def rh_people(escopo: str = "todos") -> JSONResponse:
     """People Analytics: afastados, sucessao, dispersao salarial e custo por
-    area. Devolve nome so na lista de afastados, que e onde o RH precisa agir."""
+    area. Devolve nome so na lista de afastados, que e onde o RH precisa agir.
+
+    `escopo` recorta a tela INTEIRA em todos | lideranca | demais. Valor
+    desconhecido cai em "todos" dentro de get_people, e nao em recusa: um
+    recorte digitado errado na URL nao pode deixar a tela em branco."""
     from api.people import get_people
     try:
-        return JSONResponse(get_people())
+        return JSONResponse(get_people(escopo))
     except Exception as exc:  # noqa: BLE001
         log.warning("rh_people falhou: %s", exc)
         return JSONResponse(status_code=503, content={

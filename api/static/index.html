@@ -1561,6 +1561,40 @@ body.tvfull #btnReport,body.tvmode #btnReport{display:none}
 .rep-ok{text-align:center;padding:8px 4px 4px}
 .rep-ok b{display:block;font-size:16px;margin-bottom:6px}
 .rep-ok a{color:var(--orange-600)}
+/* ---------- People: recorte por nível ---------------------------------- */
+.ppl-escopo{display:flex;flex-wrap:wrap;gap:6px;margin:0 0 8px}
+.ppl-escopo button{border:1px solid var(--n200);background:#fff;color:var(--n700);
+  border-radius:999px;padding:5px 14px;font:inherit;font-size:13px;cursor:pointer;
+  line-height:1.5}
+.ppl-escopo button:hover{border-color:var(--n400)}
+.ppl-escopo button.on{background:var(--navy-700);border-color:var(--navy-700);
+  color:#fff;font-weight:600}
+.ppl-escopo button .n{font-family:var(--mono);font-size:11.5px;opacity:.75;margin-left:6px}
+.ppl-escopo button:focus-visible{outline:2px solid var(--orange-500);outline-offset:2px}
+
+/* Os quatro níveis pedidos pelo negócio. Nível com ZERO ocupante continua
+   aparecendo, esmaecido: sumir com ele faria o filtro parecer quebrado — e
+   "nunca existiu" e "existiu e hoje não há" são leituras diferentes. */
+/* Selo de cartão que NÃO segue o recorte da tela. Este é o único: ele mostra
+   a liderança sempre, inclusive na aba "Demais", onde ela é exatamente o que
+   está EXCLUÍDO de todo o resto. Enterrar isso no tooltip faria o número
+   parecer furado — a regra da casa é que o card fora do filtro se declare. */
+.ppl-selo{display:inline-block;vertical-align:2px;font-family:var(--mono);
+  font-size:10px;font-weight:600;letter-spacing:.04em;text-transform:uppercase;
+  background:var(--yellow-100);color:var(--yellow-700);padding:2px 7px;
+  border-radius:3px}
+
+.ppl-niveis{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;padding:14px 18px 4px}
+.ppl-niv{border:1px solid var(--n200);border-radius:6px;padding:9px 11px;background:#fff}
+.ppl-niv.vazio{background:var(--n50);border-style:dashed}
+.ppl-niv .r{font-size:10.5px;text-transform:uppercase;letter-spacing:.05em;
+  color:var(--n500);font-weight:600}
+.ppl-niv .v{font-family:var(--mono);font-size:20px;font-weight:600;color:var(--n900);
+  line-height:1.2;margin:2px 0 1px}
+.ppl-niv.vazio .v{color:var(--n400)}
+.ppl-niv .s{font-size:11.5px;color:var(--n500);line-height:1.35}
+@media(max-width:760px){ .ppl-niveis{grid-template-columns:repeat(2,1fr)} }
+
 /* ---------- Gestão: planos de ação e atas ----------------------------- */
 /* Barra de filtros PRÓPRIA da tela: a filterbar global fica escondida
    (semFilterbar), porque nenhum dos filtros dela — emissão, filial,
@@ -3102,6 +3136,8 @@ body.tvfull #btnReport,body.tvmode #btnReport{display:none}
 
       <!-- ===================== MILK RUN — MWM ===================== -->
       <section class="view" id="view-people">
+        <div class="ppl-escopo" id="ppl-escopo" role="group" aria-label="Recorte do quadro"></div>
+        <div class="hint" id="ppl-escopo-hint" style="margin:-4px 0 12px"></div>
         <div class="kpis k4" id="kpis-people"></div>
         <div class="kpis k4" id="kpis-people2"></div>
         <div class="grid2">
@@ -3152,6 +3188,16 @@ body.tvfull #btnReport,body.tvmode #btnReport{display:none}
               <th>Cargo</th><th class="num">Salário</th>
             </tr></thead><tbody id="ppl-unicos"></tbody></table></div>
           </div>
+        </div>
+        <div class="card" id="ppl-lid-card">
+          <div class="head"><h2>Composição da liderança <span class="ppl-selo" id="ppl-lid-selo" hidden></span> <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="Quem a tela conta como liderança: cargos cujo título começa por GERENTE, COOR (coordenador), SUPERV (supervisor) ou DIRETOR, lidos em descfuncaocompleta. O campo curto descfuncao tem 16 caracteres e chega truncado (COOR DE FATURAM, GER DE PROJETOS) — filtrar por ele perderia chefia. A tabela mostra cargo a cargo o que entrou, para a classificação poder ser conferida em vez de aceita.">i</span></h2>
+            <span class="hint" id="hintPplLid"></span></div>
+          <div class="ppl-niveis" id="ppl-niveis"></div>
+          <div class="tablewrap tabroll"><table><thead><tr>
+            <th>Cargo</th><th class="num">Pessoas</th><th class="num">Salário médio</th>
+            <th class="num">Massa salarial</th><th></th>
+          </tr></thead><tbody id="ppl-lid-cargos"></tbody></table></div>
+          <div id="ppl-limitrofes"></div>
         </div>
         <div id="ppl-avisos"></div>
       </section>
@@ -12197,14 +12243,14 @@ function renderPneus(d){
 //
 // AFASTADO NAO ENTRA NO QUADRO ATIVO. Somar inflaria a capacidade; ignorar
 // esconderia o custo e a reposicao. Fica ao lado, sempre.
-let DATAPPL = null, pplSeq = 0;
+let DATAPPL = null, pplSeq = 0, PPL_ESCOPO = 'todos';
 
 async function loadPeople(fundo){
   skelKpis('kpis-people',4); skelKpis('kpis-people2',4);
   const seq=++pplSeq, btn=document.getElementById('btnRefresh'); if(btn) btn.disabled=true;
   if(!fundo) document.getElementById('content').classList.add('loading');
   try{
-    const r=await fetch('/api/rh/people',
+    const r=await fetch('/api/rh/people?escopo='+encodeURIComponent(PPL_ESCOPO),
       {cache:'no-store', headers: fundo?{'X-Carga-Fundo':'1'}:{}});
     const d=await r.json(); if(seq!==pplSeq) return;
     if(!r.ok){ showBanner(d.mensagem||'Erro ao consultar a folha.'); return; }
@@ -12216,6 +12262,36 @@ async function loadPeople(fundo){
 
 /* percentual em pt-BR. Concatenar o numero direto imprime "9.2%" com
    PONTO, no meio de uma tela toda em portugues. */
+function pplEscopo(e){
+  if(e === PPL_ESCOPO) return;
+  PPL_ESCOPO = e;
+  pplChips();                 // pinta o chip ativo antes da resposta chegar
+  loadPeople();               // refaz a consulta: mediana, dispersao e massa
+}                             // nao se recalculam a partir do agregado antigo
+
+/* Os chips. A contagem ao lado sai do bloco `lideranca`, que o servidor manda
+   em QUALQUER escopo — sem isso o chip "Lideranca" nao saberia dizer quantos
+   sao enquanto voce estivesse em "Demais". */
+function pplChips(){
+  const L = (DATAPPL && DATAPPL.lideranca) || null;
+  const tot = L ? L.quadro_total : null;
+  const lid = L ? L.n : null;
+  const dem = (tot != null && lid != null) ? (tot - lid) : null;
+  const itens = [['todos','Todos', tot], ['lideranca','Liderança', lid],
+                 ['demais','Demais', dem]];
+  const el = document.getElementById('ppl-escopo'); if(!el) return;
+  el.innerHTML = itens.map(([k,r,n]) =>
+    `<button type="button" class="${PPL_ESCOPO===k?'on':''}" onclick="pplEscopo('${k}')"`
+    + ` aria-pressed="${PPL_ESCOPO===k}">${r}${n!=null?`<span class="n">${n}</span>`:''}</button>`
+  ).join('');
+  const h = document.getElementById('ppl-escopo-hint');
+  if(h) h.textContent = PPL_ESCOPO==='todos'
+    ? 'quadro ativo inteiro · todos os cartões desta tela seguem este recorte'
+    : (PPL_ESCOPO==='lideranca'
+        ? 'só coordenador, supervisor, gerente e diretor — TODOS os números abaixo são apenas deles'
+        : 'todo o quadro EXCETO a liderança — os números abaixo excluem coordenador, supervisor, gerente e diretor');
+}
+
 function pplPct(v, casas){
   return v==null ? '—'
     : v.toLocaleString('pt-BR',{maximumFractionDigits: casas==null?1:casas})+'%';
@@ -12225,8 +12301,84 @@ function pplBarra(pct, cor){
     <i style="display:block;height:100%;width:${Math.max(0,Math.min(100,pct))}%;background:${cor||'var(--navy-500)'}"></i></div>`;
 }
 
+/* A composicao da lideranca. Aparece em QUALQUER escopo, e nao so na aba
+   dela: em "Todos" responde "quanto da folha e chefia"; na aba de lideranca e
+   a conferencia do proprio filtro.
+
+   NIVEL COM ZERO OCUPANTE CONTINUA NA TELA, esmaecido. Sumir com ele faria o
+   recorte parecer quebrado a quem procura diretor — e a tela precisa separar
+   "nunca existiu na casa" de "existiu e hoje nao ha", que sao conversas
+   diferentes numa reuniao de sucessao. */
+function pplLideranca(d){
+  const L = d.lideranca; if(!L) return;
+  const cx = document.getElementById('ppl-lid-card'); if(!cx) return;
+
+  /* O cartão mostra a liderança em QUALQUER recorte — inclusive em "Demais",
+     onde ela é justamente quem ficou de fora do resto da tela. Sem o selo, os
+     16 aqui e os 175 acima pareceriam a mesma população. */
+  const selo = document.getElementById('ppl-lid-selo');
+  if(selo){
+    const fora = (PPL_ESCOPO !== 'lideranca');
+    selo.hidden = !fora;
+    if(fora){
+      selo.textContent = 'não segue o recorte';
+      selo.title = PPL_ESCOPO === 'demais'
+        ? 'Este cartão mostra a LIDERANÇA, que é exatamente quem o recorte '
+          + '"Demais" exclui do restante da tela. Os números aqui não estão '
+          + 'em nenhum outro cartão desta página.'
+        : 'Este cartão mostra só a liderança; o restante da tela mostra o '
+          + 'quadro ativo inteiro.';
+    }
+  }
+
+  document.getElementById('hintPplLid').textContent =
+    L.n ? (L.n + ' pessoa(s) em ' + L.cargos.length + ' cargo(s) · '
+           + pplPct(L.pct_pessoas) + ' do quadro e ' + pplPct(L.pct_massa)
+           + ' da massa salarial'
+           + (L.por_liderado!=null
+              ? ' · ' + L.por_liderado.toLocaleString('pt-BR',{maximumFractionDigits:1})
+                + ' liderados por chefia' : ''))
+         : 'nenhum cargo de liderança no quadro ativo';
+
+  document.getElementById('ppl-niveis').innerHTML = (L.niveis||[]).map(x=>{
+    const vazio = !x.n;
+    const sub = vazio
+      ? (x.ja_existiu ? 'já houve na casa · hoje ninguém' : 'nunca houve na folha')
+      : BRL.format(x.massa||0);
+    return `<div class="ppl-niv${vazio?' vazio':''}">
+      <div class="r">${esc(x.nivel)}</div>
+      <div class="v">${x.n}</div>
+      <div class="s">${esc(sub)}</div></div>`;
+  }).join('');
+
+  const maxM = Math.max(1, ...(L.cargos||[]).map(c=>c.massa||0));
+  document.getElementById('ppl-lid-cargos').innerHTML = (L.cargos||[]).map(c=>`<tr>
+      <td>${esc(c.cargo)}</td>
+      <td class="num">${c.n}</td>
+      <td class="num">${BRL.format(c.media||0)}</td>
+      <td class="num" style="font-weight:600">${BRL.format(c.massa||0)}</td>
+      <td style="width:110px">${pplBarra(100*(c.massa||0)/maxM)}</td></tr>`).join('')
+    || '<tr><td colspan="5" style="color:var(--n500)">nenhum</td></tr>';
+
+  /* OS LIMITROFES SAO DITOS, nao escondidos. Sao os cargos que alguem espera
+     ver aqui e que a regra deixou de fora: quem discorda precisa ver o que foi
+     excluido, senao a discussao vira "o filtro esta errado" sem base. */
+  const LIM = L.limitrofes || [];
+  document.getElementById('ppl-limitrofes').innerHTML = LIM.length
+    ? `<div class="toast t-info" style="margin:10px 18px 16px"><b>Não entram nesta conta`
+      + ` — ${LIM.reduce((a,x)=>a+x.n,0)} pessoa(s)</b>`
+      + esc(LIM.map(x=>x.cargo + (x.n>1?` (${x.n})`:'')).join(' · '))
+      + '. São senioridade alta ou liderança de turno, sem o título de coordenador, '
+      + 'supervisor, gerente ou diretor que o negócio usou para definir liderança. '
+      + 'Se algum deles deve contar, a regra muda no servidor e vale para a tela inteira.'
+      + '</div>'
+    : '';
+}
+
 function renderPeople(d){
   const k=d.kpis||{};
+  pplChips();
+  pplLideranca(d);
 
   document.getElementById('kpis-people').innerHTML=[
     kpi('Quadro ativo', (k.ativos||0).toLocaleString('pt-BR'),
