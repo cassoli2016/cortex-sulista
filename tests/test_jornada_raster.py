@@ -710,3 +710,54 @@ def test_motoristas_atingidos_nao_e_o_tamanho_do_ranking(esq):
     assert len(d["unconf_motoristas"]) == leitura.RANKING_LIMITE
     assert d["kpis"]["motoristas_com_unconf_tempo"] == n
     assert d["kpis"]["ranking_limite"] == leitura.RANKING_LIMITE
+
+
+# ── A COR DA SAÚDE ───────────────────────────────────────────────────────────
+# Regra: VERMELHO é "não está chegando", e só isso. Recusa do fornecedor é
+# resposta NORMAL — dois cliques seguidos em "Coletar agora" já produzem uma,
+# porque o relatório de produtividade só aceita uma consulta a cada 10 minutos.
+# Deixar a Saúde vermelha por 48 h por causa disso ensina a ignorar o vermelho,
+# que é o oposto do que a linha existe para fazer.
+
+
+def _carga(cx, recurso, ok, ts, msg=""):
+    cx.cursor().execute(
+        "INSERT INTO jor_carga (ts, recurso, ok, lidos, gravados, ms,"
+        " mensagem, origem) VALUES (%s,%s,%s,0,0,0,%s,'api')",
+        (ts, recurso, 1 if ok else 0, msg))
+
+
+def test_recusa_ja_superada_nao_deixa_a_saude_vermelha(esq):
+    """O caso real: três recusas do fornecedor durante o dia (janela acima de
+    31 dias, limite de taxa) e, depois delas, a coleta passando. A última
+    passagem de cada recurso deu certo — o dado ESTÁ chegando."""
+    from datetime import datetime as _dt
+    agora = _dt.now()
+    with pglocal.get_conn(esq) as cx:
+        coleta._grava_jornadas(
+            cx.cursor(), [_jornada(date=agora.date().isoformat())], "t", "api")
+        _carga(cx, "jornadas", False, (agora.replace(microsecond=0)).isoformat(),
+               "Limite de consultas excedido aguarde 30 segundos.")
+        _carga(cx, "jornadas", True, (agora.replace(microsecond=0)).isoformat())
+        cx.commit()
+    d = leitura.defasagem(esq)
+    assert d["falhas_48h"] == 1            # a falha continua registrada
+    assert d["recursos_falhando"] == []    # mas a ÚLTIMA passagem deu certo
+    assert d["parada"] is False
+
+
+def test_ultima_passagem_falhando_e_que_acusa(esq):
+    """O contrário: o histórico não importa se a tentativa mais recente
+    falhou — aí o dado realmente parou de chegar, e a Saúde tem de dizer QUAL
+    recurso, porque cada um tem causa e conserto diferentes."""
+    from datetime import datetime as _dt
+    agora = _dt.now()
+    with pglocal.get_conn(esq) as cx:
+        coleta._grava_jornadas(
+            cx.cursor(), [_jornada(date=agora.date().isoformat())], "t", "api")
+        _carga(cx, "inconformidades", True, agora.replace(microsecond=0).isoformat())
+        _carga(cx, "inconformidades", False,
+               agora.replace(microsecond=0).isoformat(), "HTTP 401")
+        cx.commit()
+    d = leitura.defasagem(esq)
+    assert d["recursos_falhando"] == ["inconformidades"]

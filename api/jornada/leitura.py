@@ -129,6 +129,20 @@ def defasagem(esquema: str | None = None) -> dict:
                        ((datetime.now() - timedelta(days=2)).isoformat(),),
                        esquema=_esq(esquema)) or {}
         d["falhas_48h"] = f.get("n") or 0
+        # A ÚLTIMA passagem DE CADA RECURSO, que é o que diz se a coleta está
+        # de pé AGORA. A contagem de falhas em 48 h sozinha não serve para
+        # decidir a cor: recusa por limite de taxa é resposta NORMAL do
+        # fornecedor (clicar "Coletar agora" duas vezes já produz uma), e
+        # pintar a Saúde de vermelho por dois dias por causa disso é a receita
+        # para ensinar todo mundo a ignorar o vermelho.
+        ult = pglocal.query("""
+            SELECT DISTINCT ON (recurso) recurso, ok, ts, mensagem
+              FROM jor_carga ORDER BY recurso, id DESC""",
+                            esquema=_esq(esquema))
+        d["ultima_por_recurso"] = [
+            {"recurso": r["recurso"], "ok": bool(r["ok"]),
+             "ts": r["ts"], "mensagem": r["mensagem"]} for r in ult]
+        d["recursos_falhando"] = [r["recurso"] for r in ult if not r["ok"]]
     except Exception as exc:  # noqa: BLE001
         d["erro"] = ("tabelas ausentes — rode scripts/migrar_schema.py"
                      if pglocal.sem_tabela(exc) else type(exc).__name__)

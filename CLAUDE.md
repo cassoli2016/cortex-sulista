@@ -1113,6 +1113,19 @@ em estrutura de topo: resolver dentro de **função**, na hora de desenhar.
   AVA e o sintoma foi **425 lidos, 0 gravados** — sem erro nenhum, porque o
   campo ausente virava string vazia e a linha era pulada.
 
+**Alarme que acende sem haver problema ensina a ignorar o alarme:**
+- A Saúde ficava VERMELHA por qualquer falha de coleta nas últimas 48 h. Mas
+  recusa do fornecedor é resposta **normal** aqui: o relatório de produtividade
+  só aceita uma consulta a cada 10 minutos, e dois cliques seguidos em "Coletar
+  agora" já produzem uma. O cartão ficava vermelho por dois dias com a coleta
+  funcionando perfeitamente.
+- Vermelho significa **"não está chegando"**, e só isso: dado parado, ou a
+  **última** passagem de algum recurso tendo falhado — e diz QUAL recurso,
+  porque cada um tem causa e conserto diferentes. O histórico de recusas vai
+  para o detalhe, que é onde ele é útil.
+- É a mesma família do "sem credencial não é falha, é instalação incompleta".
+  O que decide a cor é o estado AGORA, não a contagem de tropeços no caminho.
+
 **Renderizar com DADO REAL acha o que o teste com dublê não acha:**
 - Três defeitos desta tela só apareceram ao abrir a página com o payload do
   banco, e nenhum deles falhava teste nenhum: a coluna "por jornada" repetindo

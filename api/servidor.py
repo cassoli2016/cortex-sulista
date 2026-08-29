@@ -268,17 +268,28 @@ def _servico_jornada() -> dict:
                             or "coleta não configurada") +
                            (f" · {d['jornadas']:,} jornadas do histórico"
                             .replace(",", ".") if d.get("jornadas") else "")}
-    if d.get("falhas_48h"):
-        return {"nome": nome, "status": "erro",
-                "detalhe": f"{d['falhas_48h']} falha(s) de coleta em 48 h · "
-                           f"último dado {d.get('ultimo_dado') or '—'}"}
+    # VERMELHO É "NÃO ESTÁ CHEGANDO", e só isso: dado parado, ou a última
+    # tentativa de algum recurso tendo falhado. A contagem de falhas em 48 h
+    # NÃO decide a cor — recusa por limite de taxa é resposta normal do
+    # fornecedor (dois cliques seguidos em "Coletar agora" já produzem uma), e
+    # deixar a Saúde vermelha por dois dias por causa disso ensina todo mundo
+    # a ignorar o vermelho. Ela entra como DETALHE, que é onde é útil.
     if d.get("parada"):
         return {"nome": nome, "status": "erro",
                 "detalhe": f"sem dado novo há {d['dias']} dias · último "
                            f"{d.get('ultimo_dado') or '—'}"}
+    falhando = d.get("recursos_falhando") or []
+    if falhando:
+        return {"nome": nome, "status": "erro",
+                "detalhe": ("última coleta de " + ", ".join(falhando)
+                            + " falhou · último dado "
+                            + (d.get("ultimo_dado") or "—"))}
+    resto = (f" · {d['falhas_48h']} recusa(s) do fornecedor em 48 h, já "
+             f"superadas" if d.get("falhas_48h") else "")
     return {"nome": nome, "status": "ok",
             "detalhe": (f"{d['jornadas']:,} jornadas · último dado "
-                        f"{d.get('ultimo_dado') or '—'}").replace(",", ".")}
+                        f"{d.get('ultimo_dado') or '—'}").replace(",", ".")
+                       + resto}
 
 
 def _servico_gestao() -> dict:
