@@ -139,7 +139,7 @@ def _abrir(pg, base_url, *, payload=None, coleta_resp=None):
     pg.route("**/api/**", rota_api)
     pg.route("**/vendor/echarts.min.js", rota_vendor)
     pg.on("pageerror", lambda e: erros.append(str(e)))
-    pg.goto(f"{base_url}/static/index.html#jorraster")
+    pg.goto(f"{base_url}/static/index.html#jorn")
     return erros, baixados
 
 

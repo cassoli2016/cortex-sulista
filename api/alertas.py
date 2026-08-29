@@ -259,14 +259,16 @@ def build_alertas() -> list[dict]:
         log.warning("alertas seguranca: %s", exc)
 
     try:
-        hoje = date.today()
-        mes = f"{hoje.year}-{hoje.month:02d}"
-        j = queries.get_jornada(mes, mes)["kpis"]
-        if j["viol_direcao"]:
-            nivel = "critico" if j["viol_direcao"] >= 20 else "atencao"
+        # A FONTE MUDOU do ERP para a RasterJOR, que é quem apura jornada: lá a
+        # violação dos 5h30 vem NOMEADA (`DIRECAO ININTERRUPTA`) em vez de
+        # derivada dos macros. Mesma regra da Lei 13.103, origem melhor.
+        from api.jornada.leitura import alerta_direcao_continua
+        j = alerta_direcao_continua()
+        if j:
+            nivel = "critico" if j["n"] >= 20 else "atencao"
             add(nivel, "Excesso de direção contínua no mês",
-                f"{j['viol_direcao']} jornada(s) acima de 5h30 de direção contínua neste mês "
-                f"(Lei 13.103), entre {j['motoristas']} motorista(s) com controle de jornada. "
+                f"{j['n']} ocorrência(s) de direção contínua acima de 5h30 neste mês "
+                f"(Lei 13.103), entre {j['motoristas']} motorista(s). "
                 "Detalhe: Operação > Jornada do Motorista.")
     except Exception as exc:  # noqa: BLE001
         log.warning("alertas jornada: %s", exc)

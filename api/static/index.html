@@ -1828,8 +1828,7 @@ body.tvfull #btnReport,body.tvmode #btnReport{display:none}
         <a href="#agr" class="sub" data-view="agr" title="Agregados e Terceiros"><span class="ic" data-ic="agr"></span><span>Agregados e Terceiros</span></a>
         <a href="#km" class="sub" data-view="km" title="Análise de KM"><span class="ic" data-ic="kmv"></span><span>Análise de KM</span></a>
         <a href="#cex" class="sub" data-view="cex" title="Custos Extras por CT-e"><span class="ic" data-ic="cexic"></span><span>Custos Extras</span></a>
-        <a href="#jorn" class="sub" data-view="jorn" title="Jornada do Motorista (Lei 13.103)"><span class="ic" data-ic="jornic"></span><span>Jornada do Motorista</span></a>
-        <a href="#jorraster" class="sub" data-view="jorraster" title="Jornada RasterJOR — a apuração do fornecedor de jornada, com as inconformidades nomeadas"><span class="ic" data-ic="jornic"></span><span>Jornada RasterJOR</span></a>
+        <a href="#jorn" class="sub" data-view="jorn" title="Jornada do Motorista (Lei 13.103) — apuração da RasterJOR, com as inconformidades nomeadas pelo fornecedor"><span class="ic" data-ic="jornic"></span><span>Jornada do Motorista</span></a>
         <a href="#mvb" class="sub" data-view="mvb" title="Make vs Buy"><span class="ic" data-ic="mvb"></span><span>Make vs Buy</span></a>
         <a href="#milkrun" class="sub" data-view="milkrun" title="Operação MWM: chegada e saída detectadas pelo rastreamento"><span class="ic" data-ic="milkic"></span><span>Operação MWM</span></a>
         <a href="#poli" class="sub" data-view="poli" title="Permanência na Planta — quanto tempo o veículo passa dentro da planta da Tupy e em quais polígonos"><span class="ic" data-ic="poliic"></span><span>Permanência na Planta</span></a>
@@ -3878,33 +3877,6 @@ body.tvfull #btnReport,body.tvmode #btnReport{display:none}
         </div>
         <div id="veicf-conteudo"></div>
       </section>
-      <section class="view" id="view-jorn">
-        <div class="card">
-          <div class="head"><h2>Jornada do Motorista <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="Apuração OFICIAL do módulo de jornada do ERP (tabela jornada), não recálculo a partir de GPS: usa as flags tempodirecaocontinuaultrapassado e tempointervaloinsuficiente. COBERTURA: só motoristas com controle de jornada — agregados e terceiros não têm apuração e ficam fora desta tela. O CPF nunca sai da API: aparece mascarado e a ficha é aberta por token opaco.">i</span></h2><span class="hint">compliance Lei 13.103 · apuração oficial do ERP · só motoristas com controle de jornada</span></div>
-          <div class="cardfilters">
-            <input type="month" id="fJornDe">
-            <span style="color:var(--n500)">até</span>
-            <input type="month" id="fJornAte">
-            <input type="search" id="fJornBusca" aria-label="Buscar motorista por nome" placeholder="Motorista (nome)" autocomplete="off"
-                   onkeydown="if(event.key==='Enter')loadJorn()">
-            <button class="btn" onclick="loadJorn()">Atualizar</button>
-          </div>
-        </div>
-        <div class="kpis" id="kpis-jorn"></div>
-        <div class="grid2">
-          <div class="card"><div class="head"><h2>Violações por tipo <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="Contagem de jornadas do período por tipo de violação, direto das flags do ERP. Interjornada (11h) e descanso semanal (35h) NÃO entram: os registros da tabela jornada são fragmentados (vários por dia, com lacunas), e derivar essas duas geraria falso positivo em massa.">i</span></h2><span class="hint">no período</span></div>
-            <div id="jorn-violacoes" style="padding:6px 16px 16px"></div></div>
-          <div class="card"><div class="head"><h2>Alertas <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="Motoristas que combinam excesso de direção com problema de habilitação. Clique para abrir a ficha com a linha do tempo das jornadas.">i</span></h2><span class="hint">CNH e excesso de direção</span></div>
-            <div id="jorn-alertas" style="padding:6px 16px 16px"></div></div>
-        </div>
-        <div class="card">
-          <div class="head"><h2>Motoristas <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="Ordenado pela FRAÇÃO de jornadas com excesso, não pela contagem: quem tem 100% de 20 jornadas é mais urgente do que quem tem 50 violações em 400. O badge de Risco vem da regra do backend e hoje marca quase todo mundo como crítico — use a coluna de percentual para priorizar.">i</span></h2><span class="hint">ordenados por risco · clique para ver a ficha</span></div>
-          <div class="tablewrap tabroll" id="jorn-tabela" style="max-height:560px"></div>
-        </div>
-      </section>
-      <section class="view" id="view-jornf">
-        <div id="jornf-conteudo"></div>
-      </section>
       <section class="view" id="view-cex">
         <div class="card">
           <div class="head"><h2>Custos Extras <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="sulista.custoextra: custos que a operação incorre além do frete (estadia, descarga, ajudante, balança) e que deveriam ser repassados ao cliente. Cada lançamento tem o CT-e, o cliente, a justificativa e quem lançou.">i</span></h2><span class="hint">acessórios por CT-e (descarga, estadia, diária, ajudante, escolta…) · status de cobrança</span></div>
@@ -4915,7 +4887,7 @@ body.tvfull #btnReport,body.tvmode #btnReport{display:none}
         </div>
       </section>
 
-      <section class="view" id="view-jorraster">
+      <section class="view" id="view-jorn">
         <div id="jr-tarja"></div>
         <div class="jr-acao" id="jr-acao" hidden>
           <button class="ghost" id="btnJrColetar" onclick="jrColetar()">Coletar agora</button>
@@ -5324,7 +5296,7 @@ const FAIXAS = {
   '4_vencido_91_365':['Vencido 91–365d','b-dang'],
   '5_vencido_mais_365':['Vencido > 365d','b-dang'],
 };
-const VIEWS = { home:'Visão Geral', fluxo:'Fluxo de Caixa e Bancos', receber:'Contas a Receber', pagar:'Contas a Pagar', oc:'Ordens de Compra', custos:'Painel de Custos', agr:'Agregados e Terceiros', mvb:'Make vs Buy', comb:'Combustível', man:'Manutenção', com:'Clientes e RKM', clif:'Consulta de Cliente', crm:'CRM — Leads e Projetos', km:'Análise de KM', prodveic:'Produtividade de Veículos', torre:'Torre de Controle', poli:'Permanência na Planta', ctecp:'CT-e de Contrapartida', veic:'Veículos', veicf:'Consulta de Veículo', mprev:'Manutenção Preventiva', comrast:'Comunicação Rastreadora', mul:'Multas', prog:'Programação Inteligente', jorn:'Jornada do Motorista', jorraster:'Jornada RasterJOR', jornf:'Ficha de Jornada', cex:'Custos Extras', sac:'SAC / Freetime', port:'Portaria', cop:'Copiloto Cortex', cob:'Régua de Cobrança', banc:'Bancos', extb:'Extrato Bancário', lanc:'Lançamentos Bancários', antec:'Antecipação de Recebíveis', antport:'Portais de Antecipação', milkrun:'Operação MWM', rec:'Lançamentos Recorrentes', fluxcon:'Fluxo de Caixa Consolidado', cont:'Contabilidade', qual:'Qualidade e Certidões', orc:'Orçamento', fech:'Fechamento do Mês', prem:'Premiação de Motoristas', dre:'DRE Gerencial', bal:'Balanço Patrimonial', drecli:'DRE por Cliente', tvfat:'Painel TV — Faturamento', tvope:'Painel TV — Operação', rh:'RH — Vagas', hc:'Headcount', folha:'Custo de Folha', folhaind:'Indicadores de Folha', he:'Horas Extras', cnh:'CNH dos Motoristas', ferias:'Férias — Vencimento', people:'People Analytics', pneus:'Pneus', gestao:'Gestão', gesacao:'Planos de Ação', gesata:'Atas de Reunião', srv:'Saúde do Servidor', doc:'Documentação', anpiso:'Piso Mínimo de Frete', anrntrc:'RNTRC dos Transportadores', telcon:'Consumo e Estatísticas', telcond:'Condução Econômica', telhod:'Hodômetro e Rastro' };
+const VIEWS = { home:'Visão Geral', fluxo:'Fluxo de Caixa e Bancos', receber:'Contas a Receber', pagar:'Contas a Pagar', oc:'Ordens de Compra', custos:'Painel de Custos', agr:'Agregados e Terceiros', mvb:'Make vs Buy', comb:'Combustível', man:'Manutenção', com:'Clientes e RKM', clif:'Consulta de Cliente', crm:'CRM — Leads e Projetos', km:'Análise de KM', prodveic:'Produtividade de Veículos', torre:'Torre de Controle', poli:'Permanência na Planta', ctecp:'CT-e de Contrapartida', veic:'Veículos', veicf:'Consulta de Veículo', mprev:'Manutenção Preventiva', comrast:'Comunicação Rastreadora', mul:'Multas', prog:'Programação Inteligente', jorn:'Jornada do Motorista', cex:'Custos Extras', sac:'SAC / Freetime', port:'Portaria', cop:'Copiloto Cortex', cob:'Régua de Cobrança', banc:'Bancos', extb:'Extrato Bancário', lanc:'Lançamentos Bancários', antec:'Antecipação de Recebíveis', antport:'Portais de Antecipação', milkrun:'Operação MWM', rec:'Lançamentos Recorrentes', fluxcon:'Fluxo de Caixa Consolidado', cont:'Contabilidade', qual:'Qualidade e Certidões', orc:'Orçamento', fech:'Fechamento do Mês', prem:'Premiação de Motoristas', dre:'DRE Gerencial', bal:'Balanço Patrimonial', drecli:'DRE por Cliente', tvfat:'Painel TV — Faturamento', tvope:'Painel TV — Operação', rh:'RH — Vagas', hc:'Headcount', folha:'Custo de Folha', folhaind:'Indicadores de Folha', he:'Horas Extras', cnh:'CNH dos Motoristas', ferias:'Férias — Vencimento', people:'People Analytics', pneus:'Pneus', gestao:'Gestão', gesacao:'Planos de Ação', gesata:'Atas de Reunião', srv:'Saúde do Servidor', doc:'Documentação', anpiso:'Piso Mínimo de Frete', anrntrc:'RNTRC dos Transportadores', telcon:'Consumo e Estatísticas', telcond:'Condução Econômica', telhod:'Hodômetro e Rastro' };
 const periodoLabel = p => { if(p==='atrasado') return 'Atrasado'; const [y,m]=p.split('-'); return MES[+m-1]+'/'+y.slice(2); };
 const fmtD = s => { if(!s) return ''; const [y,m,dd]=s.split('-'); return dd+'/'+m+'/'+y; };
 /* Idade da posicao bancaria. Cada conta e lancada num dia diferente: mostrar
@@ -5381,11 +5353,6 @@ let veicfSeq = 0;
 let DATAVEICF = null;
 let clifSeq = 0;
 let DATACLIF = null;
-let jornSeq = 0;
-let jornfSeq = 0;
-let DATAJORN = null;
-let DATAJORNF = null;
-let jornCtx = {token:'', nome:''};   // motorista selecionado p/ a ficha
 let cexSeq = 0;
 let DATACEX = null;
 let sacSeq = 0;
@@ -5539,7 +5506,7 @@ const VIEW_GROUP = {home:'',cop:'',
   com:'Com',clif:'Com',crm:'Com',rent:'Com',drecli:'Com',
   fluxo:'Fin',receber:'Fin',pagar:'Fin',cob:'Fin',banc:'Fin',extb:'Fin',lanc:'Fin',antec:'Fin',antport:'Fin',fluxcon:'Fin',rec:'Fin',
   dre:'Ctr',bal:'Ctr',cont:'Ctr',qual:'Ctr',orc:'Ctr',fech:'Ctr',ctecp:'Ctr',
-  torre:'Ope',milkrun:'Ope',poli:'Ope',prog:'Ope',jorn:'Ope',jorraster:'Ope',jornf:'Ope',cex:'Ope',sac:'Ope',port:'Ope',km:'Ope',agr:'Ope',mvb:'Ope',
+  torre:'Ope',milkrun:'Ope',poli:'Ope',prog:'Ope',jorn:'Ope',cex:'Ope',sac:'Ope',port:'Ope',km:'Ope',agr:'Ope',mvb:'Ope',
   veic:'Fro',veicf:'Fro',mprev:'Fro',comrast:'Fro',comb:'Fro',man:'Fro',mul:'Fro',pneus:'Fro',
   oc:'Sup',custos:'Sup',
   prodveic:'Bi',tvfat:'Bi',tvope:'Bi',
@@ -5683,14 +5650,6 @@ function qsView(k){
   } else if(k==='cob'){
     if(V('fFilial'))p.set('filial',V('fFilial'));
     if(T('fCobCli'))p.set('cliente',T('fCobCli'));
-  } else if(k==='jorn'){
-    if(V('fJornDe'))p.set('comp_de',V('fJornDe'));
-    if(V('fJornAte'))p.set('comp_ate',V('fJornAte'));
-    if(T('fJornBusca'))p.set('busca',T('fJornBusca'));
-  } else if(k==='jornf'){
-    if(jornCtx.token)p.set('id',jornCtx.token);
-    if(V('fJornDe'))p.set('comp_de',V('fJornDe'));
-    if(V('fJornAte'))p.set('comp_ate',V('fJornAte'));
   } else if(k==='cex'){
     if(V('fCexDe'))p.set('dt_de',V('fCexDe'));
     if(V('fCexAte'))p.set('dt_ate',V('fCexAte'));
@@ -5738,7 +5697,7 @@ function semFilterbar(v){
   // prog entrou aqui na auditoria de filtros: TODOS os grupos ficam ocultos
   // nela, então a barra aparecia sem um único campo — só o botão "Aplicar
   // filtros", que não tinha o que aplicar.
-  return v==='cop'||v==='gestao'||v==='gesacao'||v==='gesata'||v==='srv'||v==='home'||v==='veicf'||v==='clif'||v==='jorn'||v==='jorraster'||v==='jornf'||v==='prog'||
+  return v==='cop'||v==='gestao'||v==='gesacao'||v==='gesata'||v==='srv'||v==='home'||v==='veicf'||v==='clif'||v==='jorn'||v==='prog'||
          v==='cex'||v==='sac'||v==='mprev'||v==='comrast'||v==='qual'||v==='port'||v==='crm'||v==='rh'||
          v==='hc'||v==='folha'||v==='folhaind'||v==='he'||v==='custos'||v==='orc'||v==='prem'||v==='banc'||v==='extb'||v==='fech'||v==='doc'||v==='anrntrc'||v==='telcon'||v==='telcond'||v==='telhod'||v==='milkrun'||v==='cnh'||v==='ferias'||v==='pneus'||v==='people'||v==='poli'||v==='ctecp';
 }
@@ -5823,7 +5782,7 @@ function router(){
   document.getElementById('grpFluxcon').style.display = fluxcon ? 'flex' : 'none';
   const ges = (v==='gestao');
   const fbar=document.getElementById('filterbar'); if(fbar) fbar.style.display = semFilterbar(v) ? 'none' : '';
-  const metaEl=document.getElementById('meta'); if(metaEl) metaEl.style.display = (cop||ges||v==='gesacao'||v==='gesata'||v==='srv'||v==='veicf'||v==='clif'||v==='jorn'||v==='jorraster'||v==='jornf'||v==='cex'||v==='sac'||v==='mprev'||v==='comrast'||v==='qual'||v==='port'||v==='crm'||v==='rh'||v==='hc'||v==='folha'||v==='folhaind'||v==='he'||v==='custos'||v==='prem'||v==='doc'||v==='poli'||v==='ctecp') ? 'none' : '';
+  const metaEl=document.getElementById('meta'); if(metaEl) metaEl.style.display = (cop||ges||v==='gesacao'||v==='gesata'||v==='srv'||v==='veicf'||v==='clif'||v==='jorn'||v==='cex'||v==='sac'||v==='mprev'||v==='comrast'||v==='qual'||v==='port'||v==='crm'||v==='rh'||v==='hc'||v==='folha'||v==='folhaind'||v==='he'||v==='custos'||v==='prem'||v==='doc'||v==='poli'||v==='ctecp') ? 'none' : '';
   // classe em vez de style: o CSS mobile usa !important no display
   const bfil=document.getElementById('btnFiltros'); if(bfil){ bfil.classList.toggle('oculto', semFilterbar(v)); bfil.style.display=''; }
   document.getElementById('grpKm').style.display = kmv ? 'flex' : 'none';
@@ -5846,8 +5805,8 @@ function router(){
   // carga da vista: dispara se não há dados OU se os filtros visíveis
   // divergem dos usados na última carga (nunca mostrar dado velho com filtro novo)
   const key=viewKey(v);
-  const DATAMAP={fin:DATA,oc:DATAOC,agr:DATAAGR,anpiso:DATAANPISO,anrntrc:DATAANRNTRC,telcon:DATATELCON,telcond:DATATELCOND,telhod:DATATELHOD,mvb:DATAMVB,comb:DATACOMB,man:DATAMAN,com:DATACOM,clif:DATACLIF,dre:DATADRE,bal:DATABAL,drecli:DATADRECLI,home:DATAHOME,km:DATAKM,torre:DATATORRE,veic:DATAVEIC,veicf:DATAVEICF,mul:DATAMUL,prog:DATAPROG,jorn:DATAJORN,jornf:DATAJORNF,cex:DATACEX,sac:DATASAC,mprev:DATAMPREV,comrast:DATACOMRAST,qual:DATAQUAL,port:DATAPORT,crm:DATACRM,rh:DATARH,hc:DATAHC,folha:DATAFOLHA,folhaind:DATAFOLHAIND,he:DATAHE,custos:DATACUSTOS,cob:DATACOB,banc:DATABANC,extb:DATAEXTB,lanc:DATALANC,antec:DATAANTEC,antport:DATAANTPORT,milkrun:DATAMILK,fluxcon:DATAFLUXCON,rec:DATAREC,rent:DATARENT,cont:DATACONT,orc:DATAORC,fech:DATAFECH,prem:DATAPREM,gestao:DATAGES,srv:DATASRV,doc:DATADOC,tvfat:null,tvope:null,cop:(COP_MSGS.length?{}:null)};
-  const LOADMAP={fin:load,oc:loadOc,agr:loadAgr,anpiso:loadAnpiso,anrntrc:loadAnrntrc,telcon:loadTelcon,telcond:loadTelcond,telhod:loadTelhod,mvb:loadMvb,comb:loadComb,man:loadMan,com:loadCom,clif:loadClif,dre:loadDre,bal:loadBal,drecli:loadDreCli,home:loadHome,km:loadKm,prodveic:loadProdveic,torre:loadTorre,veic:loadVeic,veicf:loadVeicf,mul:loadMul,prog:loadProg,jorn:loadJorn,jorraster:loadJorraster,jornf:loadJornf,cex:loadCex,sac:loadSac,mprev:loadMPrev,comrast:loadComRast,qual:loadQual,port:loadPort,crm:loadCrm,rh:loadRh,hc:loadHc,folha:loadFolha,folhaind:loadFolhaInd,he:loadHe,custos:loadCustos,cob:loadCob,banc:loadBanc,extb:loadExtb,lanc:loadLanc,antec:loadAntec,antport:loadAntport,milkrun:loadMilkrun,cnh:loadCnh,ferias:loadFerias,people:loadPeople,pneus:loadPneus,poli:loadPoli,ctecp:loadCtecp,fluxcon:loadFluxcon,rec:loadRec,rent:loadRent,cont:loadCont,orc:loadOrc,fech:loadFech,prem:loadPrem,gesacao:loadGesacao,gesata:loadGesata,gestao:loadGestao,srv:loadSrv,doc:loadDoc,cop:loadCop,tvfat:loadTvFat,tvope:loadTvOpe};
+  const DATAMAP={fin:DATA,oc:DATAOC,agr:DATAAGR,anpiso:DATAANPISO,anrntrc:DATAANRNTRC,telcon:DATATELCON,telcond:DATATELCOND,telhod:DATATELHOD,mvb:DATAMVB,comb:DATACOMB,man:DATAMAN,com:DATACOM,clif:DATACLIF,dre:DATADRE,bal:DATABAL,drecli:DATADRECLI,home:DATAHOME,km:DATAKM,torre:DATATORRE,veic:DATAVEIC,veicf:DATAVEICF,mul:DATAMUL,prog:DATAPROG,jorn:DATAJR,cex:DATACEX,sac:DATASAC,mprev:DATAMPREV,comrast:DATACOMRAST,qual:DATAQUAL,port:DATAPORT,crm:DATACRM,rh:DATARH,hc:DATAHC,folha:DATAFOLHA,folhaind:DATAFOLHAIND,he:DATAHE,custos:DATACUSTOS,cob:DATACOB,banc:DATABANC,extb:DATAEXTB,lanc:DATALANC,antec:DATAANTEC,antport:DATAANTPORT,milkrun:DATAMILK,fluxcon:DATAFLUXCON,rec:DATAREC,rent:DATARENT,cont:DATACONT,orc:DATAORC,fech:DATAFECH,prem:DATAPREM,gestao:DATAGES,srv:DATASRV,doc:DATADOC,tvfat:null,tvope:null,cop:(COP_MSGS.length?{}:null)};
+  const LOADMAP={fin:load,oc:loadOc,agr:loadAgr,anpiso:loadAnpiso,anrntrc:loadAnrntrc,telcon:loadTelcon,telcond:loadTelcond,telhod:loadTelhod,mvb:loadMvb,comb:loadComb,man:loadMan,com:loadCom,clif:loadClif,dre:loadDre,bal:loadBal,drecli:loadDreCli,home:loadHome,km:loadKm,prodveic:loadProdveic,torre:loadTorre,veic:loadVeic,veicf:loadVeicf,mul:loadMul,prog:loadProg,jorn:loadJorraster,cex:loadCex,sac:loadSac,mprev:loadMPrev,comrast:loadComRast,qual:loadQual,port:loadPort,crm:loadCrm,rh:loadRh,hc:loadHc,folha:loadFolha,folhaind:loadFolhaInd,he:loadHe,custos:loadCustos,cob:loadCob,banc:loadBanc,extb:loadExtb,lanc:loadLanc,antec:loadAntec,antport:loadAntport,milkrun:loadMilkrun,cnh:loadCnh,ferias:loadFerias,people:loadPeople,pneus:loadPneus,poli:loadPoli,ctecp:loadCtecp,fluxcon:loadFluxcon,rec:loadRec,rent:loadRent,cont:loadCont,orc:loadOrc,fech:loadFech,prem:loadPrem,gesacao:loadGesacao,gesata:loadGesata,gestao:loadGestao,srv:loadSrv,doc:loadDoc,cop:loadCop,tvfat:loadTvFat,tvope:loadTvOpe};
   if(!DATAMAP[key] || (key!=='home' && LOADEDQS[key]!==qsView(key))) LOADMAP[key]();
   // mobile: estado da navegação inferior + fecha gaveta/painel de filtros
   document.querySelectorAll('.bottomnav [data-bview]').forEach(a=>a.classList.toggle('ativo', a.dataset.bview===v));
@@ -5899,7 +5858,7 @@ const NAV_KW={
   fech:'previsao fechamento forecast resultado projecao mes corrente cenario banda',
   prem:'premiacao premio bonus motorista economia consumo km/l telemetria gobrax',
   torre:'rastreamento posicao mapa gps viagem transito atraso', prog:'programacao radar vazio casamento malha ocioso',
-  jorn:'motorista jornada 13103 descanso direcao infracao', cex:'custo extra estadia devolucao reentrega',
+  jorn:'motorista jornada 13103 descanso direcao inconformidade raster rasterjor hora extra repouso', cex:'custo extra estadia devolucao reentrega',
   sac:'freetime estadia detention ocorrencia atendimento', port:'portaria patio visitante entrada saida',
   km:'quilometragem vazio carregado retorno rkm', agr:'agregado terceiro frete comprado transportador',
   mvb:'make buy proprio agregado ckm decisao', veic:'frota veiculo cavalo carreta ativo placa',
@@ -5951,7 +5910,7 @@ function drawerEnter(ev){
 /* Uso por tela (localStorage). A bottomnav continua fixa de propósito — nav que
    troca de posição destrói memória muscular; quem se adapta é a gaveta. */
 function navRegistraUso(v){
-  if(!v||v==='jornf'||v==='veicf') return;      // drill-downs não contam
+  if(!v||v==='veicf') return;                   // drill-downs não contam
   try{
     const u=JSON.parse(localStorage.getItem('cs.navUso')||'{}');
     u[v]=(u[v]||0)+1;
@@ -7645,7 +7604,7 @@ function reloadCurrent(){
   // recarrega a TELA ATUAL — antes caía em load() (Financeiro) para várias telas.
   const M={home:loadHome,fluxo:load,receber:load,pagar:load,dre:loadDre,drecli:loadDreCli,oc:loadOc,
     agr:loadAgr,mvb:loadMvb,comb:loadComb,man:loadMan,com:loadCom,clif:loadClif,km:loadKm,prodveic:loadProdveic,
-    torre:loadTorre,veic:loadVeic,veicf:loadVeicf,mul:loadMul,prog:loadProg,jorn:loadJorn,jorraster:loadJorraster,jornf:loadJornf,cex:loadCex,sac:loadSac,mprev:loadMPrev,comrast:loadComRast,qual:loadQual,port:loadPort,crm:loadCrm,rh:loadRh,hc:loadHc,folha:loadFolha,folhaind:loadFolhaInd,he:loadHe,custos:loadCustos,cob:loadCob,banc:loadBanc,extb:loadExtb,rent:loadRent,
+    torre:loadTorre,veic:loadVeic,veicf:loadVeicf,mul:loadMul,prog:loadProg,jorn:loadJorraster,cex:loadCex,sac:loadSac,mprev:loadMPrev,comrast:loadComRast,qual:loadQual,port:loadPort,crm:loadCrm,rh:loadRh,hc:loadHc,folha:loadFolha,folhaind:loadFolhaInd,he:loadHe,custos:loadCustos,cob:loadCob,banc:loadBanc,extb:loadExtb,rent:loadRent,
     cont:loadCont,orc:loadOrc,fech:loadFech,prem:loadPrem,gesacao:loadGesacao,gesata:loadGesata,gestao:loadGestao,srv:loadSrv,doc:loadDoc,cop:loadCop,tvfat:loadTvFat,tvope:loadTvOpe};
   (M[currentView()]||load)();
 }
@@ -14748,144 +14707,6 @@ function barrasMixClif(mix){
     `<a href="#mvb" style="margin-left:auto;color:var(--navy-700);font-weight:600;text-decoration:none">Make vs Buy →</a></div>`;
 }
 // ---------------- Jornada do Motorista (Lei 13.103) ----------------
-function jornDefaults(){
-  const hoje=new Date(), yyyy=hoje.getFullYear(), mm=String(hoje.getMonth()+1).padStart(2,'0');
-  const de=document.getElementById('fJornDe'), ate=document.getElementById('fJornAte');
-  if(de && !de.value) de.value=yyyy+'-01';
-  if(ate && !ate.value) ate.value=yyyy+'-'+mm;
-}
-function jorRiscoBadge(r){
-  const m={critico:['Crítico','b-dang'],atencao:['Atenção','b-warn'],ok:['OK','b-ok']};
-  const [l,c]=m[r]||['—',''];
-  return `<span class="badge ${c}">${l}</span>`;
-}
-function jorCnhCell(m){
-  if(!m.cnh_venc) return '<span style="color:var(--n500)">—</span>';
-  const st=m.cnh_status, c=st==='vencida'?'b-dang':(st==='vencendo'?'b-warn':'b-ok');
-  const lbl=st==='vencida'?'vencida':(st==='vencendo'?'vence logo':'ok');
-  return `<span class="badge ${c}">${lbl}</span> <span style="color:var(--n600)">${fmtD(m.cnh_venc)}${m.cnh_cat?' · '+esc(m.cnh_cat):''}</span>`;
-}
-async function loadJorn(){
-  jornDefaults();
-  const seq=++jornSeq, btn=document.getElementById('btnRefresh'); if(btn) btn.disabled=true;
-  document.getElementById('content').classList.add('loading');
-  skelKpis('kpis-jorn',4);
-  try{
-    const q=qsView('jorn');
-    const r=await fetch('/api/jornada/painel?'+q,{cache:'no-store'});
-    const d=await r.json(); if(seq!==jornSeq) return;
-    if(!r.ok){ showBanner(d.mensagem||'Erro ao consultar a jornada.', d.detalhe); return; }
-    hideBanner(); DATAJORN=d; LOADEDQS.jorn=q; renderJorn(d);
-  }catch(e){ if(seq===jornSeq) showBanner('Não foi possível falar com a API.', e.message); }
-  finally{ if(seq===jornSeq){ if(btn) btn.disabled=false; document.getElementById('content').classList.remove('loading'); } }
-}
-function renderJorn(d){
-  const k=d.kpis||{};
-  const mots=d.motoristas||[];
-  const totJor=mots.reduce((a,m)=>a+(m.jornadas||0),0);
-  const totExc=mots.reduce((a,m)=>a+(m.v_direcao||0),0);
-  const totInt=mots.reduce((a,m)=>a+(m.v_intervalo||0),0);
-  const limpos=mots.filter(m=>!(m.v_direcao||0)&&!(m.v_intervalo||0)).length;
-  const taxa=totJor?totExc/totJor:0;
-  document.getElementById('kpis-jorn').innerHTML=[
-    kpi('Motoristas', (k.motoristas||0).toLocaleString('pt-BR'), 'com controle de jornada no período','', null,
-      statChip('flat','só CLT monitorado',
-        'A tela cobre apenas os motoristas com controle de jornada no ERP. Agregados e terceiros NÃO aparecem aqui — a frota total é bem maior.','trFlat')),
-    // "Em compliance" era binário sobre a competência inteira: bastava UMA
-    // violação em 7 meses para o motorista sair da conta, e o número virava
-    // 4,2% sem distinguir quem violou uma vez de quem viola em toda jornada.
-    kpi('Jornadas com excesso', totJor?(100*taxa).toFixed(1).replace('.',',')+'%':'—',
-      totExc.toLocaleString('pt-BR')+' de '+totJor.toLocaleString('pt-BR')+' jornadas · '+limpos+' motoristas sem nenhuma violação',
-      taxa>0.1?'neg':'pos', null,
-      statChip(taxa>0.2?'bad':(taxa>0.05?'warn':'good'),
-        taxa>0.2?'endêmico':(taxa>0.05?'recorrente':'pontual'),
-        'Fração das jornadas do período em que a apuração do ERP acusou direção contínua acima de 5h30. Mede INTENSIDADE: um binário "está em compliance" sobre vários meses não separa quem escorregou uma vez de quem viola todo dia.',
-        taxa>0.2?'sevCrit':(taxa>0.05?'sevWarn':'sevOk'))),
-    kpi('Intervalo insuficiente', totInt.toLocaleString('pt-BR'),
-      totJor?((100*totInt/totJor).toFixed(1).replace('.',',')+'% das jornadas'):'', totInt>0?'neg':'pos'),
-    kpi('CNH vencida', (k.cnh_vencida||0).toLocaleString('pt-BR'), (k.cnh_vencendo||0)+' vencendo em 30 dias', (k.cnh_vencida||0)>0?'neg':'pos'),
-  ].join('');
-  const vt=d.violacoes_tipo||[], maxv=Math.max(1,...vt.map(x=>x.n));
-  document.getElementById('jorn-violacoes').innerHTML = vt.map(x=>
-    `<div style="margin:8px 0"><div style="display:flex;justify-content:space-between;font-size:13px"><span>${esc(x.tipo)}</span><b>${x.n.toLocaleString('pt-BR')}</b></div>
-     <div style="height:8px;background:var(--n100,#EEF1F4);border-radius:5px;overflow:hidden"><div style="height:100%;width:${Math.round(100*x.n/maxv)}%;background:${x.n>0?'#C03221':'#9AA5B1'}"></div></div></div>`
-  ).join('') || '<div style="color:var(--n500)">sem violações no período</div>';
-  const al=d.alertas||[];
-  document.getElementById('jorn-alertas').innerHTML = al.map(m=>{
-    const motivos=[];
-    if(m.v_direcao>0) motivos.push(m.v_direcao+'× excesso de direção');
-    if(m.cnh_status==='vencida') motivos.push('CNH vencida');
-    else if(m.cnh_status==='vencendo') motivos.push('CNH vencendo');
-    return `<div style="display:flex;justify-content:space-between;gap:10px;padding:6px 0;border-bottom:1px solid var(--n100,#EEF1F4);cursor:pointer" onclick="abrirJornf('${m.id}')">
-      <span>${jorRiscoBadge(m.risco)} ${esc(m.nome)}</span><span style="color:var(--n600);text-align:right">${motivos.join(' · ')||'—'}</span></div>`;
-  }).join('') || '<div style="color:var(--n500)">nenhum alerta</div>';
-  /* O semáforo que vem do backend marcava 114 dos 119 como "crítico" — farol
-     onde 96% é vermelho não prioriza nada. A coluna nova é a TAXA de jornadas
-     com excesso, que separa quem viola em 100% das jornadas de quem violou
-     uma vez, e a lista passa a vir ordenada por ela: é a fila de quem chamar
-     primeiro. O badge de risco do backend fica, sem alterar a regra dele. */
-  const _tx=m=>(m.jornadas||0)?((m.v_direcao||0)/m.jornadas):0;
-  const ordenados=[...(d.motoristas||[])].sort((a,b)=>_tx(b)-_tx(a) || (b.v_direcao||0)-(a.v_direcao||0));
-  const rows=ordenados.map(m=>{
-    const t=_tx(m), cor=t>=0.7?'var(--red)':(t>=0.3?'var(--yellow-700)':(t>0?'var(--n700)':'var(--green)'));
-    return `<tr style="cursor:pointer" onclick="abrirJornf('${m.id}')">
-    <td>${jorRiscoBadge(m.risco)}</td>
-    <td><b>${esc(m.nome)}</b><br><span style="color:var(--n500);font-size:11px">${esc(m.doc)}</span></td>
-    <td class="num">${m.jornadas}</td>
-    <td class="num" style="font-weight:700;color:${cor}" title="${(m.v_direcao||0)} de ${m.jornadas||0} jornadas com direção contínua acima de 5h30">${(100*t).toFixed(0)}%</td>
-    <td class="num">${m.h_direcao.toLocaleString('pt-BR',{maximumFractionDigits:0})} h</td>
-    <td class="num">${m.h_jornada.toLocaleString('pt-BR',{maximumFractionDigits:0})} h</td>
-    <td class="num" style="${m.v_direcao>0?'color:var(--red);font-weight:700':''}">${m.v_direcao}</td>
-    <td class="num" style="${m.v_intervalo>0?'color:#B45309;font-weight:700':''}">${m.v_intervalo}</td>
-    <td>${jorCnhCell(m)}</td></tr>`;
-  }).join('') ||
-    '<tr><td colspan="9" style="color:var(--n500)">nenhum motorista com controle de jornada no período</td></tr>';
-  document.getElementById('jorn-tabela').innerHTML=
-    `<table><thead><tr><th>Risco</th><th>Motorista</th><th class="num">Jornadas</th><th class="num" title="fração das jornadas do motorista com direção contínua acima de 5h30">% com excesso</th><th class="num">Direção</th><th class="num">Jornada</th><th class="num">Exc. direção</th><th class="num">Interv. insuf.</th><th>CNH</th></tr></thead><tbody>${rows}</tbody></table>`;
-}
-function abrirJornf(token){ jornCtx={token:token, nome:''}; location.hash='#jornf'; }
-async function loadJornf(){
-  const cont=document.getElementById('jornf-conteudo');
-  if(!jornCtx.token){ if(cont) cont.innerHTML='<div class="card"><div style="padding:28px 18px;color:var(--n500)">Selecione um motorista no painel de Jornada.</div></div>'; DATAJORNF={}; return; }
-  const seq=++jornfSeq, btn=document.getElementById('btnRefresh'); if(btn) btn.disabled=true;
-  document.getElementById('content').classList.add('loading');
-  try{
-    const q=qsView('jornf');
-    const r=await fetch('/api/jornada/motorista?'+q,{cache:'no-store'});
-    const d=await r.json(); if(seq!==jornfSeq) return;
-    if(!r.ok){ showBanner(d.mensagem||'Erro ao consultar o motorista.', d.detalhe); return; }
-    hideBanner(); DATAJORNF=d; LOADEDQS.jornf=q; renderJornf(d);
-  }catch(e){ if(seq===jornfSeq) showBanner('Não foi possível falar com a API.', e.message); }
-  finally{ if(seq===jornfSeq){ if(btn) btn.disabled=false; document.getElementById('content').classList.remove('loading'); } }
-}
-function renderJornf(d){
-  const cont=document.getElementById('jornf-conteudo'); if(!cont) return;
-  if(!d || d.erro){ cont.innerHTML=`<div class="card"><div style="padding:28px 18px;color:var(--n500)">${esc((d&&d.erro)||'Motorista não encontrado.')} · <a href="#jorn">voltar ao painel</a></div></div>`; return; }
-  const k=d.kpis||{}, cnh=d.cnh||{};
-  const cnhBadge = cnh.status==='vencida'?'<span class="badge b-dang">CNH vencida</span>':(cnh.status==='vencendo'?'<span class="badge b-warn">CNH vencendo</span>':(cnh.status==='ok'?'<span class="badge b-ok">CNH ok</span>':''));
-  let h=`<div class="card"><div style="padding:16px 18px">
-     <a href="#jorn" style="color:var(--n600);font-size:13px">← voltar ao painel</a>
-     <div style="display:flex;flex-wrap:wrap;gap:14px;align-items:baseline;margin-top:6px">
-       <div style="font-size:24px;font-weight:800">${esc(d.nome)}</div>
-       <div>${jorRiscoBadge(d.risco)}</div>
-       <div style="color:var(--n600)">${esc(d.doc)} · CNH ${cnh.venc?fmtD(cnh.venc):'—'}${cnh.cat?' · cat '+esc(cnh.cat):''}${cnh.uf?' · '+esc(cnh.uf):''} ${cnhBadge}</div>
-     </div></div></div>`;
-  h+=`<div class="kpis">`+[
-    kpi('Jornadas', (k.jornadas||0).toLocaleString('pt-BR'), 'no período',''),
-    kpi('Horas de direção', (k.h_direcao||0).toLocaleString('pt-BR',{maximumFractionDigits:0})+' h', 'jornada '+(k.h_jornada||0).toLocaleString('pt-BR',{maximumFractionDigits:0})+' h',''),
-    kpi('Excesso de direção', (k.v_direcao||0).toLocaleString('pt-BR'), 'acima de 5h30 contínuas', (k.v_direcao||0)>0?'neg':'pos'),
-    kpi('Intervalo insuf.', (k.v_intervalo||0).toLocaleString('pt-BR'), 'paradas abaixo do mínimo', (k.v_intervalo||0)>0?'neg':'pos'),
-  ].join('')+`</div>`;
-  const jr=(d.jornadas||[]).map(j=>{
-    const flags=[]; if(j.v_direcao) flags.push('<span class="badge b-dang">direção</span>'); if(j.v_intervalo) flags.push('<span class="badge b-warn">intervalo</span>');
-    const ini=j.inicio?j.inicio.slice(8,10)+'/'+j.inicio.slice(5,7)+' '+j.inicio.slice(11,16):'—';
-    return `<tr><td>${ini}</td><td class="num">${j.h_direcao} h</td><td class="num">${j.h_jornada} h</td><td class="num">${j.h_descanso} h</td><td class="num">${j.h_repouso} h</td><td>${flags.join(' ')||'<span class="badge b-ok">ok</span>'}</td></tr>`;
-  }).join('') || '<tr><td colspan="6" style="color:var(--n500)">sem jornadas no período</td></tr>';
-  h+=`<div class="card"><div class="head"><h2>Jornadas do período</h2><span class="hint">mais recentes primeiro · até 90</span></div>
-    <div class="tablewrap"><table><thead><tr><th>Início</th><th class="num">Direção</th><th class="num">Jornada</th><th class="num">Descanso</th><th class="num">Repouso</th><th>Violações</th></tr></thead><tbody>${jr}</tbody></table></div></div>`;
-  cont.innerHTML=h;
-}
-// ---------------- Custos Extras ----------------
 function cexDefaults(){
   const hoje=new Date(), yyyy=hoje.getFullYear();
   const de=document.getElementById('fCexDe'), ate=document.getElementById('fCexAte');
@@ -18512,7 +18333,7 @@ function pararTimers(){   // sessão caiu: silencia auto-refresh de torre/TV (se
   try{ if(tvClock){ clearInterval(tvClock); tvClock=null; } }catch(e){}
   try{ if(tvTour){ clearInterval(tvTour); tvTour=null; } }catch(e){}
 }
-function podeVer(v){ if(v==='jornf') v='jorn'; return !!USER && ((v==='gestao'||v==='srv') ? USER.admin : (USER.admin || (USER.telas||[]).includes(v))); }
+function podeVer(v){ return !!USER && ((v==='gestao'||v==='srv') ? USER.admin : (USER.admin || (USER.telas||[]).includes(v))); }
 
 /* ===================== Busca global =====================
    Três coisas na mesma caixa, em ordem de utilidade:
@@ -23159,7 +22980,6 @@ boot();
         <a href="#km" onclick="fecharDrawer()"><span class="ic" data-ic="kmv"></span>Análise de KM</a>
         <a href="#cex" onclick="fecharDrawer()"><span class="ic" data-ic="cexic"></span>Custos Extras</a>
         <a href="#jorn" onclick="fecharDrawer()"><span class="ic" data-ic="jornic"></span>Jornada do Motorista</a>
-        <a href="#jorraster" onclick="fecharDrawer()"><span class="ic" data-ic="jornic"></span>Jornada RasterJOR</a>
         <a href="#mvb" onclick="fecharDrawer()"><span class="ic" data-ic="mvb"></span>Make vs Buy</a>
         <a href="#milkrun" onclick="fecharDrawer()"><span class="ic" data-ic="milkic"></span>Operação MWM</a>
         <a href="#poli" onclick="fecharDrawer()"><span class="ic" data-ic="poliic"></span>Permanência na Planta</a>

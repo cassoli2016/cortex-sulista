@@ -102,7 +102,7 @@ _FONTES_ROTULO = {
     "ferias": "Férias — Vencimento",
     "cnh_motoristas": "CNH dos Motoristas",
     "gestao_acoes": "Planos de Ação",
-    "jornada_raster": "Jornada RasterJOR",
+    "jornada_raster": "Jornada do Motorista",
 }
 
 

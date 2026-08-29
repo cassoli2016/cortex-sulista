@@ -425,6 +425,40 @@ def _mensal_com_cobertura(linhas: list, de: str, ate: str) -> list:
     return saida
 
 
+# Consulta enxuta para o painel de ALERTAS, que roda a cada carga da Visao
+# Geral e nao pode pagar as nove consultas do payload da tela.
+#
+# `DIRECAO ININTERRUPTA` e o nome que a RasterJOR da para a violacao dos 5h30
+# de direcao continua da Lei 13.103 — a MESMA regra que o alerta media pelo
+# ERP antes. A troca de fonte importa: a apuracao do fornecedor de jornada
+# nomeia a inconformidade, enquanto a do ERP a derivava dos macros.
+_ALERTA = """
+SELECT count(*)::int AS n, count(DISTINCT documento)::int AS motoristas,
+       max(data)::date AS ultimo
+FROM jor_inconformidades
+WHERE tipo = 'DIRECAO ININTERRUPTA'
+  AND data >= date_trunc('month', current_date)::date
+"""
+
+
+def alerta_direcao_continua(esquema: str | None = None) -> dict:
+    """Violações de direção contínua no mês corrente, para o painel de alertas.
+
+    Devolve `{}` quando não há o que alertar — inclusive quando a tabela ainda
+    não existe nesta instalação, porque um alerta que estoura é pior que um
+    alerta ausente: ele derruba a lista inteira, com os outros dez avisos
+    dentro.
+    """
+    try:
+        r = pglocal.um(_ALERTA, esquema=_esq(esquema)) or {}
+    except Exception:  # noqa: BLE001
+        return {}
+    if not (r.get("n") or 0):
+        return {}
+    return {"n": r["n"], "motoristas": r.get("motoristas") or 0,
+            "ultimo": r["ultimo"].isoformat() if r.get("ultimo") else None}
+
+
 def get_jornada_raster(de: str | None = None, ate: str | None = None,
                        esquema: str | None = None) -> dict:
     """O payload da tela. Nome mantido: o contrato com o front não mudou."""

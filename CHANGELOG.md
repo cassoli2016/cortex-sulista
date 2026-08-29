@@ -4,6 +4,13 @@ Gerado de `docs/versoes.yaml` por `scripts/gerar_changelog.py` — não editar �
 Formato [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/),
 versionamento [SemVer](https://semver.org/lang/pt-BR/).
 
+## [0.140.0] — 29/08/2026  ·  CX-29/08/2026-v0.140.0
+
+### Alterado
+- UM MENU DE JORNADA SO, e ele le a apuracao da RasterJOR. Havia dois - "Jornada do Motorista", que derivava a jornada dos macros do ERP, e "Jornada RasterJOR", que le a apuracao de quem faz jornada. Manter as duas so fazia sentido enquanto a segunda era novidade a conferir contra a primeira; com a coleta propria no ar, duas telas com numeros parecidos e definicoes diferentes viram fonte de discussao, nao de informacao.
+- A TELA DA RASTER ASSUMIU O ID `jorn`, que era o da tela antiga. Nao e detalhe tecnico: as concessoes de RBAC ja existentes continuam valendo, e quem tinha a jornada no menu ontem continua tendo hoje. Um id novo exigiria migration so para devolver acesso que as pessoas ja tinham - e, no intervalo, a jornada sumiria do menu de todo mundo que nao e administrador. Favorito antigo (#jorn) tambem continua abrindo.
+- O alerta de "excesso de direcao continua no mes" da Visao Geral mudou de fonte junto: era derivado dos macros do ERP e passou a contar as inconformidades DIRECAO ININTERRUPTA da RasterJOR - a mesma regra dos 5h30 da Lei 13.103, agora NOMEADA por quem apura jornada em vez de deduzida.
+
 ## [0.139.0] — 29/08/2026  ·  CX-29/08/2026-v0.139.0
 
 ### Adicionado

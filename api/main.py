@@ -2266,27 +2266,6 @@ async def jornada_coletar(req: Request) -> JSONResponse:
     return JSONResponse(r)
 
 
-@app.get("/api/jornada/painel")
-def jornada_painel(comp_de: str | None = None, comp_ate: str | None = None,
-                   busca: str | None = None) -> JSONResponse:
-    r = _comp_defaults(comp_de, comp_ate)
-    if isinstance(r, JSONResponse):
-        return r
-    comp_de, comp_ate = r
-    busca = (busca or "").strip() or None
-    try:
-        return JSONResponse(queries.get_jornada(comp_de, comp_ate, busca))
-    except psycopg.OperationalError as exc:
-        log.warning("banco inacessivel: %s", exc)
-        return JSONResponse(status_code=503, content={
-            "erro": "banco_inacessivel",
-            "mensagem": "Sem conexão com o banco. O túnel SSH está aberto?"})
-    except Exception as exc:  # noqa: BLE001
-        log.warning("jornada_painel falhou: %s", exc)
-        return JSONResponse(status_code=500, content={
-            "erro": "erro_consulta", "mensagem": "Erro ao consultar a jornada."})
-
-
 @app.get("/api/operacao/custos-extras")
 def custos_extras(dt_de: str | None = None, dt_ate: str | None = None) -> JSONResponse:
     hoje = date.today()
@@ -2737,35 +2716,6 @@ def jornada_raster(de: str | None = None, ate: str | None = None) -> JSONRespons
         return JSONResponse(status_code=500, content={
             "erro": "erro_consulta",
             "mensagem": "Erro ao consultar a jornada da RasterJOR."})
-
-
-@app.get("/api/jornada/motorista")
-def jornada_motorista(id: str | None = None, comp_de: str | None = None,
-                      comp_ate: str | None = None) -> JSONResponse:
-    tok = (id or "").strip()
-    if not tok:
-        return JSONResponse(status_code=422, content={
-            "erro": "parametro_invalido", "mensagem": "Informe o motorista."})
-    r = _comp_defaults(comp_de, comp_ate)
-    if isinstance(r, JSONResponse):
-        return r
-    comp_de, comp_ate = r
-    try:
-        return JSONResponse(queries.get_motorista_jornada(tok, comp_de, comp_ate))
-    except psycopg.OperationalError as exc:
-        log.warning("banco inacessivel: %s", exc)
-        return JSONResponse(status_code=503, content={
-            "erro": "banco_inacessivel",
-            "mensagem": "Sem conexão com o banco. O túnel SSH está aberto?"})
-    except Exception as exc:  # noqa: BLE001
-        log.warning("jornada_motorista falhou: %s", exc)
-        return JSONResponse(status_code=500, content={
-            "erro": "erro_consulta", "mensagem": "Erro ao consultar o motorista."})
-
-
-# Rentabilidade por Cliente APOSENTADA (2026-07-17): superada pela DRE por
-# Cliente (bottom-up, reconciliada). A matriz margem x receita migrou p/ a DRE
-# por Cliente. queries.get_rentabilidade fica dormente (sem rota/menu).
 
 
 @app.get("/api/alertas")

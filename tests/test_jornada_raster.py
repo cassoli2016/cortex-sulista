@@ -403,10 +403,22 @@ def test_o_leitor_do_ava_saiu_do_pacote():
 
 
 def test_a_tela_esta_registrada(html):
-    for marca in ('id="view-jorraster"', "jorraster:loadJorraster",
-                  'href="#jorraster"'):
+    """A tela da RasterJOR ASSUMIU o id `jorn`, que era da apuração do ERP.
+
+    Reusar o id em vez de criar um novo tem uma razão prática: as concessões
+    de RBAC já existentes (a migration v3 deu `jorn` aos perfis Operação e
+    Diretoria) continuam valendo, e quem tinha a tela ontem continua tendo
+    hoje. Um id novo exigiria migration só para devolver o acesso que as
+    pessoas já tinham — e, no intervalo, a jornada sumiria do menu de todo
+    mundo que não é administrador. Favorito antigo (#jorn) também continua
+    abrindo.
+    """
+    for marca in ('id="view-jorn"', "jorn:loadJorraster", 'href="#jorn"'):
         assert marca in html, marca
-    assert "jorespera" not in html
+    # a apuração do ERP saiu inteira: tela, ficha e o JS das duas
+    for morta in ('id="view-jornf"', "loadJornf", "renderJorn(", "DATAJORN",
+                  "jorraster", "abrirJornf"):
+        assert morta not in html, f"sobrou {morta}"
 
 
 # ── A COBERTURA DA COLETA ────────────────────────────────────────────────────

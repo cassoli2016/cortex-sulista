@@ -77,7 +77,7 @@ Cada módulo é unidade de RBAC (papel × módulo × escopo de linha via RLS).
 | `torre_seguranca` | Segurança em tempo real: eventos de risco, score, sinistralidade, alertas | `ts_eventos` (hypertable), `ts_scores`, `vw_sinistralidade` |
 | `telemetria` | Telemetria avançada (CAN/J1939) com insights: consumo, ECO, falhas, DTCs | `tel_sinais` (hypertable), `tel_dtc`, `vw_consumo_veiculo` |
 | `frota` | Ativos, disponibilidade, manutenção, pneus, depreciação | `fro_veiculos`, `fro_manutencao`, `fro_pneus` |
-| `jornada` | Jornada do motorista (Lei 13.103/2015). DUAS apurações, de propósito: a do ERP (`jornada`, usada pela tela antiga e pela folha) e a da RASTERJOR, coletada pelo próprio CÓRTEX | `jor_jornadas`, `jor_inconformidades`, `jor_motoristas`, `jor_ausencias`, `jor_carga` (banco local) |
+| `jornada` | Jornada do motorista (Lei 13.103/2015). UMA tela, lendo a apuração da **RasterJOR** coletada pelo próprio CÓRTEX. A apuração do ERP continua no banco e continua alimentando a FOLHA — o que saiu do painel foi a leitura dela | `jor_jornadas`, `jor_inconformidades`, `jor_motoristas`, `jor_ausencias`, `jor_carga` (banco local) |
 | `suprimentos` | Agregados, fornecedores, contratos, make-vs-buy | `sup_agregados`, `sup_fornecedores`, `sup_contratos` |
 | `telemetria` | Dados da plataforma Gobrax por API com token: premiação por nota × km, consumo × abastecimento, condução e hodômetro/rastro | `api/gobrax/`, `data/premiacao/` |
 | `antt` | Piso mínimo de frete da compra e situação do RNTRC dos transportadores contratados | `config/antt_coeficientes.yaml`, `config/antt_eixos.yaml`, `programacaoembarque` (AVA) |
@@ -1112,6 +1112,26 @@ em estrutura de topo: resolver dentro de **função**, na hora de desenhar.
   `unconformity_date`/`event_start`). O gravador só conhecia o vocabulário do
   AVA e o sintoma foi **425 lidos, 0 gravados** — sem erro nenhum, porque o
   campo ausente virava string vazia e a linha era pulada.
+
+**Ao aposentar uma tela, a substituta HERDA o id — não ganha um novo:**
+- A jornada tinha duas telas (a do ERP e a da RasterJOR) e virou uma. A da
+  Raster assumiu o id `jorn`, que era da antiga, em vez de manter `jorraster`.
+- A razão é RBAC, não estética: `jorn` já estava concedido aos perfis Operação
+  e Diretoria por migration. Com um id novo, **a jornada sumiria do menu de
+  todo mundo que não é administrador** até alguém escrever uma migration só
+  para devolver o acesso que as pessoas já tinham. Favorito e link antigo
+  também continuam abrindo.
+- O corolário: só herda o id quem substitui MESMO. Se as duas telas fossem
+  conviver, ids separados seriam obrigatórios.
+
+**Duas telas do mesmo assunto com definições diferentes viram discussão:**
+- Manter a apuração do ERP ao lado da do fornecedor fazia sentido enquanto a
+  segunda era novidade a conferir contra a primeira. Depois disso, dois
+  números parecidos e não iguais para "jornada do motorista" só produzem
+  reunião sobre qual está certo.
+- O que saiu foi a LEITURA pelo painel; o dado do ERP continua no banco e
+  continua alimentando a folha. Aposentar a tela não é apagar a fonte — e
+  dizer isso explicitamente evita o susto de quem depende dela.
 
 **Alarme que acende sem haver problema ensina a ignorar o alarme:**
 - A Saúde ficava VERMELHA por qualquer falha de coleta nas últimas 48 h. Mas

@@ -1,3 +1,44 @@
+- versao: "0.140.0"
+  data: "2026-08-29"
+  alterado:
+    - >-
+      UM MENU DE JORNADA SO, e ele le a apuracao da RasterJOR. Havia dois -
+      "Jornada do Motorista", que derivava a jornada dos macros do ERP, e
+      "Jornada RasterJOR", que le a apuracao de quem faz jornada. Manter as
+      duas so fazia sentido enquanto a segunda era novidade a conferir contra
+      a primeira; com a coleta propria no ar, duas telas com numeros
+      parecidos e definicoes diferentes viram fonte de discussao, nao de
+      informacao.
+    - >-
+      A TELA DA RASTER ASSUMIU O ID `jorn`, que era o da tela antiga. Nao e
+      detalhe tecnico: as concessoes de RBAC ja existentes continuam valendo,
+      e quem tinha a jornada no menu ontem continua tendo hoje. Um id novo
+      exigiria migration so para devolver acesso que as pessoas ja tinham -
+      e, no intervalo, a jornada sumiria do menu de todo mundo que nao e
+      administrador. Favorito antigo (#jorn) tambem continua abrindo.
+    - >-
+      O alerta de "excesso de direcao continua no mes" da Visao Geral mudou de
+      fonte junto: era derivado dos macros do ERP e passou a contar as
+      inconformidades DIRECAO ININTERRUPTA da RasterJOR - a mesma regra dos
+      5h30 da Lei 13.103, agora NOMEADA por quem apura jornada em vez de
+      deduzida.
+  removido:
+    - >-
+      A tela "Jornada do Motorista" do ERP e a "Ficha de Jornada" (a
+      consulta por motorista que se abria a partir dela), com as rotas
+      /api/jornada/painel e /api/jornada/motorista e as consultas que as
+      alimentavam. Modulo orfao volta a ser importado por engano, entao saiu
+      inteiro em vez de ficar sem uso.
+    - >-
+      ATENCAO ao que isto tira: a ficha por motorista nao tem substituta. A
+      tela nova traz o ranking com contagem, taxa por jornada e horas extras
+      de cada um, mas nao a pagina individual com o historico dele. Se ela
+      fizer falta, da para reconstrui-la sobre `jor_jornadas`, que tem o dado
+      por motorista e por dia.
+    - >-
+      A apuracao do ERP CONTINUA EXISTINDO no banco e continua alimentando a
+      folha - o que saiu foi a leitura dela pelo painel, nao o dado.
+
 - versao: "0.139.0"
   data: "2026-08-29"
   adicionado:
