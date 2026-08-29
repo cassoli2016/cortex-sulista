@@ -1,3 +1,63 @@
+- versao: "0.136.0"
+  data: "2026-08-28"
+  adicionado:
+    - >-
+      MODULO DE GESTAO: atas de reuniao e planos de acao com responsavel,
+      prazo e acompanhamento. Duas telas novas no menu ("Planos de Acao" e
+      "Atas de Reuniao"), num grupo Gestao proprio. A ata guarda pauta,
+      discussao e decisoes em CAMPOS SEPARADOS - e a diferenca entre ata e
+      transcricao: texto corrido faz duas pessoas lerem a mesma ata tres meses
+      depois e discordarem sobre o que ficou combinado.
+    - >-
+      O plano de acao e 5W2H completo (o que, por que, como, onde, quanto,
+      quem, quando) e o responsavel pode ser um usuario do CORTEX ou o nome de
+      quem nao tem login - contador externo, motorista, fornecedor. Com
+      usuario, a acao entra em "minhas acoes" e a cobranca por e-mail sabe
+      para onde ir; sem ele, a tarefa continua atribuida e cobravel.
+    - >-
+      ATRASO NAO E UM STATUS GRAVADO. E calculado a cada leitura como prazo
+      vencido com a acao ainda aberta. Status de atraso guardado precisa de
+      alguem para virar, e no dia em que a rotina nao roda a tela diz que esta
+      tudo em dia - a mesma armadilha do marcador de manutencao preventiva que
+      parou em 77.534 km com o odometro em 531.970.
+    - >-
+      HISTORICO POR ACAO, append-only. Prorrogar prazo, trocar responsavel e
+      mudar status geram registro automatico; quem acompanha escreve o
+      andamento em dois cliques, sem abrir o formulario inteiro. O contador de
+      prorrogacoes aparece na lista: sem ele, a acao adiada seis vezes e
+      indistinguivel da que nasceu ontem.
+    - >-
+      Cartao "sem andamento ha mais de 21 dias" - o alerta que o status nao
+      da. Acao "em andamento" ha dois meses sem ninguem escrever nada nao esta
+      em andamento, esta esquecida, e o status diz o contrario com todas as
+      letras.
+    - >-
+      Relatorio "Planos de acao - pendencias" no catalogo de e-mail, para
+      agendar em Gestao > E-mail. Traz atrasadas, o que vence em 7 dias e o
+      que esta parado, com responsavel. Nasce DESLIGADO, como toda rotina que
+      manda mensagem sozinha.
+    - >-
+      Ranking por responsavel ordenado por ATRASADAS, nunca por percentual de
+      conclusao: quem tem uma acao concluida apareceria em primeiro com 100%
+      na frente de quem carrega trinta. Quem tem menos de tres acoes fica
+      marcado como base fraca, atenuado e nao escondido.
+    - >-
+      O tempo de ciclo e MEDIANA e some quando nao ha base: sem nenhuma acao
+      concluida ele nao e "0 dias", e "nao informado". Zero em verde faria
+      parecer velocidade perfeita onde nao houve conclusao nenhuma.
+  alterado:
+    - >-
+      Apagar uma ata NAO apaga as acoes que sairam dela - elas continuam no
+      acompanhamento, sem ata de origem, e a confirmacao diz isso antes. O
+      compromisso assumido numa reuniao nao deixa de existir porque alguem
+      arrumou o registro dela.
+    - >-
+      Copiloto e Saude do Servidor ja conhecem o modulo: o snapshot do chat
+      recebe o RESUMO do acompanhamento (so numeros, nunca a lista de acoes,
+      que carrega nome de pessoa e de cliente) e a Saude ganhou linha propria,
+      que separa "tela vazia porque ninguem usou" de "tela vazia porque a
+      migration nao foi aplicada".
+
 - versao: "0.135.0"
   data: "2026-08-28"
   alterado:

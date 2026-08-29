@@ -237,6 +237,48 @@ def _servico_pglocal(d: dict) -> dict:
             "detalhe": f"conectado · {d['onde']} · {d['ms']} ms · {versao}"}
 
 
+def _servico_gestao() -> dict:
+    """Módulo de Gestão — atas e planos de ação.
+
+    Não é integração externa: o que pode dar errado aqui é a migration não ter
+    sido aplicada nesta instalação, e o sintoma disso seria a tela abrir VAZIA,
+    que se lê como "ainda não usaram" em vez de "está quebrado". A linha existe
+    para separar as duas coisas.
+
+    O número de ATRASADAS vai junto porque é o único sinal do módulo que pede
+    ação de alguém — e quem abre a Saúde já está olhando o que precisa de
+    atenção.
+    """
+    nome = "Gestão (atas e planos de ação)"
+    try:
+        from . import pglocal
+        if not pglocal.configurado():
+            return {"nome": nome, "status": "info",
+                    "detalhe": "banco local não configurado nesta instalação"}
+        r = pglocal.um(
+            "SELECT (SELECT count(*) FROM ges_reunioes)::int AS atas,"
+            "       (SELECT count(*) FROM ges_acoes)::int    AS acoes,"
+            "       (SELECT count(*) FROM ges_acoes"
+            "         WHERE status IN ('aberta','em_andamento')"
+            "           AND prazo < current_date)::int       AS atrasadas")
+    except Exception as exc:  # noqa: BLE001
+        if pglocal.sem_tabela(exc):
+            return {"nome": nome, "status": "erro",
+                    "detalhe": "tabelas ausentes — rode "
+                               "scripts/migrar_schema.py (migration 0020)"}
+        log.warning("saude: gestao: %s", exc)
+        return {"nome": nome, "status": "info", "detalhe": "módulo indisponível"}
+    if not r["acoes"]:
+        return {"nome": nome, "status": "info",
+                "detalhe": f"pronto para uso · {r['atas']} ata(s), "
+                           f"nenhuma ação cadastrada ainda"}
+    return {"nome": nome,
+            "status": "alerta" if r["atrasadas"] else "ok",
+            "detalhe": (f"{r['atas']} ata(s) · {r['acoes']} ação(ões) · "
+                        + (f"{r['atrasadas']} atrasada(s)" if r["atrasadas"]
+                           else "nenhuma atrasada"))}
+
+
 def _servico_gobrax(d: dict) -> dict:
     """Linha da Gobrax na Saúde, a partir do diagnóstico do CACHE.
 
@@ -407,6 +449,11 @@ def _servicos() -> list[dict]:
         servicos.append({"nome": "Banco do CÓRTEX (PostgreSQL local)",
                          "status": "info", "detalhe": "camada indisponível"})
         log.warning("saude: pglocal: %s", exc)
+
+    # Gestão: mora no banco local, então vem logo depois dele. A tela vazia por
+    # migration faltando é indistinguível de tela vazia por falta de uso — esta
+    # linha é o que separa as duas.
+    servicos.append(_servico_gestao())
 
     # PROLOG (pneus). Integração externa com COTA: a coleta é agendada e
     # retomável, então o que interessa aqui não é "responde?" — é se o

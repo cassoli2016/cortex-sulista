@@ -1561,6 +1561,115 @@ body.tvfull #btnReport,body.tvmode #btnReport{display:none}
 .rep-ok{text-align:center;padding:8px 4px 4px}
 .rep-ok b{display:block;font-size:16px;margin-bottom:6px}
 .rep-ok a{color:var(--orange-600)}
+/* ---------- Gestão: planos de ação e atas ----------------------------- */
+/* Barra de filtros PRÓPRIA da tela: a filterbar global fica escondida
+   (semFilterbar), porque nenhum dos filtros dela — emissão, filial,
+   competência — recorta ação nem ata. Filtro que a query ignora sai. */
+.gx-bar{display:flex;flex-wrap:wrap;gap:8px;align-items:flex-end;margin:0 0 14px}
+.gx-bar .f{display:flex;flex-direction:column;gap:3px}
+.gx-bar label{font-size:10.5px;text-transform:uppercase;letter-spacing:.055em;
+  color:var(--n500);font-weight:600}
+.gx-bar select,.gx-bar input{height:32px;border:1px solid var(--n200);border-radius:6px;
+  padding:0 8px;font:inherit;font-size:13px;background:#fff;color:var(--n900)}
+.gx-bar input[type=search]{min-width:210px}
+.gx-bar .cresce{flex:1;min-width:180px}
+.gx-bar select:focus,.gx-bar input:focus{outline:2px solid var(--orange-500);
+  outline-offset:1px;border-color:var(--orange-500)}
+
+/* Chips de recorte rápido. O default cai em "abertas": lista dominada por
+   registro encerrado enterra o que precisa de ação — lição do CRM, onde 135
+   de 150 projetos "Entregue" escondiam os 9 em andamento. */
+.gx-chips{display:flex;flex-wrap:wrap;gap:6px;margin:0 0 12px}
+.gx-chip{border:1px solid var(--n200);background:#fff;color:var(--n700);
+  border-radius:999px;padding:4px 12px;font-size:12.5px;cursor:pointer;
+  font-family:inherit;line-height:1.5}
+.gx-chip:hover{border-color:var(--n400)}
+.gx-chip.on{background:var(--navy-700);border-color:var(--navy-700);color:#fff;
+  font-weight:600}
+.gx-chip .n{font-family:var(--mono);font-size:11.5px;opacity:.75;margin-left:5px}
+.gx-chip.crit.on{background:var(--red);border-color:var(--red)}
+
+/* Linha de ação. A borda esquerda é o semáforo — discreto, nunca degradê. */
+.gx-lista{display:flex;flex-direction:column;gap:7px}
+.gx-item{border:1px solid var(--n200);border-left:3px solid var(--n300);
+  border-radius:6px;background:#fff;padding:10px 13px;cursor:pointer;
+  display:grid;grid-template-columns:1fr auto;gap:4px 14px;align-items:start}
+.gx-item:hover{border-color:var(--n400);box-shadow:0 1px 6px rgba(20,24,29,.07)}
+.gx-item:focus-visible{outline:2px solid var(--orange-500);outline-offset:2px}
+.gx-item.critico{border-left-color:var(--red)}
+.gx-item.atencao{border-left-color:var(--yellow)}
+.gx-item.ok{border-left-color:var(--green)}
+.gx-item.neutro{border-left-color:var(--n300)}
+.gx-item.fim{opacity:.62}
+.gx-t{font-weight:600;font-size:14.5px;line-height:1.35;color:var(--n900)}
+.gx-m{grid-column:1/-1;display:flex;flex-wrap:wrap;gap:5px 10px;align-items:center;
+  font-size:12px;color:var(--n500)}
+.gx-m b{font-weight:600;color:var(--n700)}
+.gx-dir{text-align:right;display:flex;flex-direction:column;gap:3px;align-items:flex-end}
+
+/* Barra de avanço: fina, e SEMPRE com o número ao lado — barra sozinha faz
+   40% e 60% parecerem a mesma coisa numa lista longa. */
+.gx-pb{width:74px;height:5px;border-radius:3px;background:var(--n100);overflow:hidden}
+.gx-pb i{display:block;height:100%;background:var(--navy-500);border-radius:3px}
+.gx-pb.done i{background:var(--green)}
+
+.gx-vazio{border:1px dashed var(--n200);border-radius:8px;padding:26px 18px;
+  text-align:center;color:var(--n500);font-size:13.5px}
+.gx-vazio b{display:block;color:var(--n700);font-size:15px;margin-bottom:4px}
+
+/* Ficha lateral (drawer). Reusa o padrão do drawer que já existe na casa. */
+.gx-hist{display:flex;flex-direction:column;gap:0;margin-top:6px}
+.gx-h{display:grid;grid-template-columns:14px 1fr;gap:9px;padding:8px 0;
+  border-bottom:1px solid var(--n100)}
+.gx-h:last-child{border-bottom:none}
+.gx-h .pt{width:8px;height:8px;border-radius:50%;background:var(--n300);
+  margin-top:5px}
+.gx-h.mud .pt{background:var(--orange-500)}
+.gx-h .tx{font-size:13px;color:var(--n900);line-height:1.45}
+.gx-h .qd{font-size:11px;color:var(--n500);font-family:var(--mono);margin-top:2px}
+
+.gx-5w{display:grid;grid-template-columns:repeat(2,1fr);gap:10px;margin:10px 0}
+.gx-5w>div{background:var(--n50);border-radius:6px;padding:9px 11px}
+.gx-5w .r{font-size:10px;text-transform:uppercase;letter-spacing:.06em;
+  color:var(--n500);font-weight:600;margin-bottom:2px}
+.gx-5w .v{font-size:13.5px;color:var(--n900);line-height:1.4;white-space:pre-wrap}
+
+/* Cartão de ata */
+.gx-atas{display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:10px}
+.gx-ata{border:1px solid var(--n200);border-radius:8px;background:#fff;padding:13px 15px;
+  cursor:pointer;display:flex;flex-direction:column;gap:5px}
+.gx-ata:hover{border-color:var(--n400);box-shadow:0 1px 6px rgba(20,24,29,.07)}
+.gx-ata:focus-visible{outline:2px solid var(--orange-500);outline-offset:2px}
+.gx-ata .cod{font-family:var(--mono);font-size:11px;color:var(--orange-500);
+  font-weight:600;letter-spacing:.03em}
+.gx-ata .tt{font-weight:600;font-size:15px;line-height:1.3;color:var(--n900)}
+.gx-ata .mt{font-size:12px;color:var(--n500);display:flex;flex-wrap:wrap;gap:4px 9px}
+.gx-ata.rasc{border-style:dashed;background:var(--n50)}
+
+@media(max-width:640px){
+  .gx-5w{grid-template-columns:1fr}
+  .gx-item{grid-template-columns:1fr}
+  .gx-dir{align-items:flex-start;text-align:left;flex-direction:row;gap:8px}
+}
+
+/* Faixa de alerta da ficha. Borda + fundo do semáforo, nunca só texto
+   vermelho: a frase que diz "atrasada há 18 dias" é a razão de a ficha estar
+   aberta. */
+.gx-alerta{border-left:3px solid var(--red);background:var(--red-100);
+  padding:9px 12px;border-radius:0 5px 5px 0;margin:0 0 12px;font-size:13.5px;
+  line-height:1.45;color:var(--n900)}
+.gx-alerta b{color:var(--red)}
+.gx-alerta.warn{border-left-color:var(--yellow);background:var(--yellow-100)}
+
+/* grade do formulário dentro do modal (o .ges-form da casa é coluna única) */
+.gx-form{display:grid;grid-template-columns:1fr 1fr;gap:10px 12px}
+.gx-form textarea,.gx-form input[type=date],.gx-form input[type=time],
+.gx-form input[type=search],.gx-form select[multiple]{width:100%;padding:9px 10px;
+  border:1px solid var(--n300,#d3dae2);border-radius:6px;font:inherit;font-size:14px;
+  font-family:inherit;background:#fff;color:var(--n900)}
+.gx-form textarea{resize:vertical;line-height:1.45}
+.gx-sub{margin:-6px 0 12px}
+@media(max-width:560px){ .gx-form{grid-template-columns:1fr} }
 </style>
 </head>
 <body>
@@ -1668,6 +1777,13 @@ body.tvfull #btnReport,body.tvmode #btnReport{display:none}
         <a href="#mul" class="sub" data-view="mul" title="Multas"><span class="ic" data-ic="mul"></span><span>Multas</span></a>
         <a href="#pneus" class="sub" data-view="pneus" title="Pneus — sulco, pressão, vida e CPK (Prolog)"><span class="ic" data-ic="pneuic"></span><span>Pneus</span></a>
         <a href="#veic" class="sub" data-view="veic" title="Veículos"><span class="ic" data-ic="veic"></span><span>Veículos</span></a>
+      </div>
+      <button class="group" id="grpGes" aria-expanded="false" aria-controls="subsGes" onclick="toggleGroup('grpGes','subsGes','cs.gesGroup')" title="Gestão">
+        <span class="ic" data-ic="orgp"></span><span>Gestão</span><span class="ic chev" data-ic="chev"></span>
+      </button>
+      <div class="subs closed" id="subsGes">
+        <a href="#gesata" class="sub" data-view="gesata" title="Atas de Reunião — pauta, decisões e o plano de ação que saiu delas"><span class="ic" data-ic="doc"></span><span>Atas de Reunião</span></a>
+        <a href="#gesacao" class="sub" data-view="gesacao" title="Planos de Ação — 5W2H com responsável, prazo e acompanhamento"><span class="ic" data-ic="fechic"></span><span>Planos de Ação</span></a>
       </div>
       <button class="group" id="grpOpe" aria-expanded="false" aria-controls="subsOpe" onclick="toggleGroup('grpOpe','subsOpe','cs.opeGroup')" title="Operação">
         <span class="ic" data-ic="ope"></span><span>Operação</span><span class="ic chev" data-ic="chev"></span>
@@ -4663,6 +4779,93 @@ body.tvfull #btnReport,body.tvmode #btnReport{display:none}
           </div>
         </div>
       </section>
+      <section class="view" id="view-gesacao">
+        <div class="kband">
+          <div class="kband-rot">Acompanhamento</div>
+          <div class="kpis k4" id="ga-kpis"></div>
+        </div>
+
+        <div class="card">
+          <h2>Fila de ações
+            <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="ges_acoes (banco local do CÓRTEX). Atraso NÃO é um status gravado: é calculado a cada leitura como prazo &lt; hoje com a ação ainda aberta. Status de atraso gravado depende de uma rotina virar, e no dia em que ela falha a tela diz que está tudo em dia.">i</span>
+          </h2>
+          <div class="hint" id="ga-hint">—</div>
+          <div class="gx-chips" id="ga-chips"></div>
+          <div class="gx-bar">
+            <div class="f cresce"><label for="ga-q">Buscar</label>
+              <input type="search" id="ga-q" placeholder="ação, responsável, motivo…" oninput="gaFiltra()" autocomplete="off"></div>
+            <div class="f"><label for="ga-resp">Responsável</label>
+              <select id="ga-resp" onchange="gaFiltra()"><option value="">Todos</option></select></div>
+            <div class="f"><label for="ga-area">Área</label>
+              <select id="ga-area" onchange="gaFiltra()"><option value="">Todas</option></select></div>
+            <div class="f"><label for="ga-nova">&nbsp;</label>
+              <button class="btn" id="ga-nova" onclick="gaForm(null)">+ Nova ação</button></div>
+          </div>
+          <div id="ga-lista"></div>
+        </div>
+
+        <div class="grid2">
+          <div class="card">
+            <h2>Por responsável
+              <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="Ordenado por ATRASADAS, não por percentual de conclusão: quem tem uma ação concluída apareceria em primeiro com 100% na frente de quem carrega trinta. Quem tem menos de 3 ações fica atenuado e marcado como base fraca.">i</span>
+            </h2>
+            <div class="hint" id="ga-resp-hint">—</div>
+            <div class="tabroll" id="ga-resp-tab"></div>
+          </div>
+          <div class="card">
+            <h2>Sem andamento há mais de 21 dias
+              <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="ges_andamentos. É o alerta que o status não dá: uma ação 'em andamento' há dois meses sem ninguém escrever nada não está em andamento, está esquecida — e o status diz o contrário.">i</span>
+            </h2>
+            <div class="hint" id="ga-par-hint">—</div>
+            <div class="tabroll" id="ga-par-tab"></div>
+          </div>
+        </div>
+
+        <div class="grid2">
+          <div class="card">
+            <h2>Criadas × concluídas por mês
+              <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="Mais criadas que concluídas, mês após mês, é backlog crescendo — nenhum KPI pontual mostra isso. O mês corrente sai hachurado porque está incompleto.">i</span>
+            </h2>
+            <div class="chartwrap narrow" id="ga-evo"></div>
+          </div>
+          <div class="card">
+            <h2>Por área
+              <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="ges_acoes.area. Ação sem área preenchida aparece como (sem área), nunca some da conta.">i</span>
+            </h2>
+            <div class="tabroll" id="ga-area-tab"></div>
+          </div>
+        </div>
+      </section>
+
+      <section class="view" id="view-gesata">
+        <div class="kband">
+          <div class="kband-rot">Registro de reuniões</div>
+          <div class="kpis k4" id="gt-kpis"></div>
+        </div>
+
+        <div class="card">
+          <h2>Atas
+            <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="ges_reunioes (banco local do CÓRTEX). Pauta, discussão e decisões são campos separados de propósito: é a diferença entre ata e transcrição — texto corrido faz duas pessoas lerem a mesma ata e discordarem sobre o que foi combinado.">i</span>
+          </h2>
+          <div class="hint" id="gt-hint">—</div>
+          <div class="gx-bar">
+            <div class="f cresce"><label for="gt-q">Buscar</label>
+              <input type="search" id="gt-q" placeholder="título, código, pauta, decisão…" oninput="gtFiltra()" autocomplete="off"></div>
+            <div class="f"><label for="gt-tipo">Tipo</label>
+              <select id="gt-tipo" onchange="gtFiltra()"><option value="">Todos</option></select></div>
+            <div class="f"><label for="gt-status">Situação</label>
+              <select id="gt-status" onchange="gtFiltra()">
+                <option value="">Todas</option>
+                <option value="publicada">Publicadas</option>
+                <option value="rascunho">Rascunhos</option>
+              </select></div>
+            <div class="f"><label for="gt-nova">&nbsp;</label>
+              <button class="btn" id="gt-nova" onclick="gtForm(null)">+ Nova ata</button></div>
+          </div>
+          <div id="gt-lista"></div>
+        </div>
+      </section>
+
       <section class="view" id="view-doc">
         <div class="doc-top">
           <div>
@@ -4973,7 +5176,7 @@ const FAIXAS = {
   '4_vencido_91_365':['Vencido 91–365d','b-dang'],
   '5_vencido_mais_365':['Vencido > 365d','b-dang'],
 };
-const VIEWS = { home:'Visão Geral', fluxo:'Fluxo de Caixa e Bancos', receber:'Contas a Receber', pagar:'Contas a Pagar', oc:'Ordens de Compra', custos:'Painel de Custos', agr:'Agregados e Terceiros', mvb:'Make vs Buy', comb:'Combustível', man:'Manutenção', com:'Clientes e RKM', clif:'Consulta de Cliente', crm:'CRM — Leads e Projetos', km:'Análise de KM', prodveic:'Produtividade de Veículos', torre:'Torre de Controle', poli:'Permanência na Planta', ctecp:'CT-e de Contrapartida', veic:'Veículos', veicf:'Consulta de Veículo', mprev:'Manutenção Preventiva', comrast:'Comunicação Rastreadora', mul:'Multas', prog:'Programação Inteligente', jorn:'Jornada do Motorista', jornf:'Ficha de Jornada', cex:'Custos Extras', sac:'SAC / Freetime', port:'Portaria', cop:'Copiloto Cortex', cob:'Régua de Cobrança', banc:'Bancos', extb:'Extrato Bancário', lanc:'Lançamentos Bancários', antec:'Antecipação de Recebíveis', antport:'Portais de Antecipação', milkrun:'Operação MWM', rec:'Lançamentos Recorrentes', fluxcon:'Fluxo de Caixa Consolidado', cont:'Contabilidade', qual:'Qualidade e Certidões', orc:'Orçamento', fech:'Fechamento do Mês', prem:'Premiação de Motoristas', dre:'DRE Gerencial', bal:'Balanço Patrimonial', drecli:'DRE por Cliente', tvfat:'Painel TV — Faturamento', tvope:'Painel TV — Operação', rh:'RH — Vagas', hc:'Headcount', folha:'Custo de Folha', folhaind:'Indicadores de Folha', he:'Horas Extras', cnh:'CNH dos Motoristas', ferias:'Férias — Vencimento', people:'People Analytics', pneus:'Pneus', gestao:'Gestão', srv:'Saúde do Servidor', doc:'Documentação', anpiso:'Piso Mínimo de Frete', anrntrc:'RNTRC dos Transportadores', telcon:'Consumo e Estatísticas', telcond:'Condução Econômica', telhod:'Hodômetro e Rastro' };
+const VIEWS = { home:'Visão Geral', fluxo:'Fluxo de Caixa e Bancos', receber:'Contas a Receber', pagar:'Contas a Pagar', oc:'Ordens de Compra', custos:'Painel de Custos', agr:'Agregados e Terceiros', mvb:'Make vs Buy', comb:'Combustível', man:'Manutenção', com:'Clientes e RKM', clif:'Consulta de Cliente', crm:'CRM — Leads e Projetos', km:'Análise de KM', prodveic:'Produtividade de Veículos', torre:'Torre de Controle', poli:'Permanência na Planta', ctecp:'CT-e de Contrapartida', veic:'Veículos', veicf:'Consulta de Veículo', mprev:'Manutenção Preventiva', comrast:'Comunicação Rastreadora', mul:'Multas', prog:'Programação Inteligente', jorn:'Jornada do Motorista', jornf:'Ficha de Jornada', cex:'Custos Extras', sac:'SAC / Freetime', port:'Portaria', cop:'Copiloto Cortex', cob:'Régua de Cobrança', banc:'Bancos', extb:'Extrato Bancário', lanc:'Lançamentos Bancários', antec:'Antecipação de Recebíveis', antport:'Portais de Antecipação', milkrun:'Operação MWM', rec:'Lançamentos Recorrentes', fluxcon:'Fluxo de Caixa Consolidado', cont:'Contabilidade', qual:'Qualidade e Certidões', orc:'Orçamento', fech:'Fechamento do Mês', prem:'Premiação de Motoristas', dre:'DRE Gerencial', bal:'Balanço Patrimonial', drecli:'DRE por Cliente', tvfat:'Painel TV — Faturamento', tvope:'Painel TV — Operação', rh:'RH — Vagas', hc:'Headcount', folha:'Custo de Folha', folhaind:'Indicadores de Folha', he:'Horas Extras', cnh:'CNH dos Motoristas', ferias:'Férias — Vencimento', people:'People Analytics', pneus:'Pneus', gestao:'Gestão', gesacao:'Planos de Ação', gesata:'Atas de Reunião', srv:'Saúde do Servidor', doc:'Documentação', anpiso:'Piso Mínimo de Frete', anrntrc:'RNTRC dos Transportadores', telcon:'Consumo e Estatísticas', telcond:'Condução Econômica', telhod:'Hodômetro e Rastro' };
 const periodoLabel = p => { if(p==='atrasado') return 'Atrasado'; const [y,m]=p.split('-'); return MES[+m-1]+'/'+y.slice(2); };
 const fmtD = s => { if(!s) return ''; const [y,m,dd]=s.split('-'); return dd+'/'+m+'/'+y; };
 /* Idade da posicao bancaria. Cada conta e lancada num dia diferente: mostrar
@@ -5192,7 +5395,7 @@ const VIEW_GROUP = {home:'',cop:'',
   veic:'Fro',veicf:'Fro',mprev:'Fro',comrast:'Fro',comb:'Fro',man:'Fro',mul:'Fro',pneus:'Fro',
   oc:'Sup',custos:'Sup',
   prodveic:'Bi',tvfat:'Bi',tvope:'Bi',
-  rh:'Rh',hc:'Rh',folha:'Rh',folhaind:'Rh',he:'Rh',cnh:'Rh',ferias:'Rh',people:'Rh',gestao:'Adm',srv:'Adm',doc:'Adm',
+  rh:'Rh',hc:'Rh',folha:'Rh',folhaind:'Rh',he:'Rh',cnh:'Rh',ferias:'Rh',people:'Rh',gestao:'Adm',srv:'Adm',doc:'Adm',gesacao:'Ges',gesata:'Ges',
   // Telemetria e ANTT tinham grupo na barra lateral mas ficaram de fora deste
   // mapa: o acordeao nao abria sozinho ao navegar para elas (agora a busca
   // global navega, entao isso passou a incomodar de verdade).
@@ -5205,7 +5408,7 @@ function syncGroups(v){
      e o Copiloto sao os unicos que legitimamente nao tem grupo, e para eles o
      mapa traz '' de proposito. */
   if(ativo===undefined) return;
-  ['Bi','Com','Fin','Ctr','Ope','Fro','Sup','Rh','Adm','Tel','Antt'].forEach(k=>{
+  ['Bi','Com','Fin','Ctr','Ope','Fro','Sup','Rh','Ges','Adm','Tel','Antt'].forEach(k=>{
     const btn=document.getElementById('grp'+k), subs=document.getElementById('subs'+k);
     if(!btn||!subs) return;
     const open = (k===ativo);
@@ -5387,7 +5590,7 @@ function semFilterbar(v){
   // prog entrou aqui na auditoria de filtros: TODOS os grupos ficam ocultos
   // nela, então a barra aparecia sem um único campo — só o botão "Aplicar
   // filtros", que não tinha o que aplicar.
-  return v==='cop'||v==='gestao'||v==='srv'||v==='home'||v==='veicf'||v==='clif'||v==='jorn'||v==='jornf'||v==='prog'||
+  return v==='cop'||v==='gestao'||v==='gesacao'||v==='gesata'||v==='srv'||v==='home'||v==='veicf'||v==='clif'||v==='jorn'||v==='jornf'||v==='prog'||
          v==='cex'||v==='sac'||v==='mprev'||v==='comrast'||v==='qual'||v==='port'||v==='crm'||v==='rh'||
          v==='hc'||v==='folha'||v==='folhaind'||v==='he'||v==='custos'||v==='orc'||v==='prem'||v==='banc'||v==='extb'||v==='fech'||v==='doc'||v==='anrntrc'||v==='telcon'||v==='telcond'||v==='telhod'||v==='milkrun'||v==='cnh'||v==='ferias'||v==='pneus'||v==='people'||v==='poli'||v==='ctecp';
 }
@@ -5472,7 +5675,7 @@ function router(){
   document.getElementById('grpFluxcon').style.display = fluxcon ? 'flex' : 'none';
   const ges = (v==='gestao');
   const fbar=document.getElementById('filterbar'); if(fbar) fbar.style.display = semFilterbar(v) ? 'none' : '';
-  const metaEl=document.getElementById('meta'); if(metaEl) metaEl.style.display = (cop||ges||v==='srv'||v==='veicf'||v==='clif'||v==='jorn'||v==='jornf'||v==='cex'||v==='sac'||v==='mprev'||v==='comrast'||v==='qual'||v==='port'||v==='crm'||v==='rh'||v==='hc'||v==='folha'||v==='folhaind'||v==='he'||v==='custos'||v==='prem'||v==='doc'||v==='poli'||v==='ctecp') ? 'none' : '';
+  const metaEl=document.getElementById('meta'); if(metaEl) metaEl.style.display = (cop||ges||v==='gesacao'||v==='gesata'||v==='srv'||v==='veicf'||v==='clif'||v==='jorn'||v==='jornf'||v==='cex'||v==='sac'||v==='mprev'||v==='comrast'||v==='qual'||v==='port'||v==='crm'||v==='rh'||v==='hc'||v==='folha'||v==='folhaind'||v==='he'||v==='custos'||v==='prem'||v==='doc'||v==='poli'||v==='ctecp') ? 'none' : '';
   // classe em vez de style: o CSS mobile usa !important no display
   const bfil=document.getElementById('btnFiltros'); if(bfil){ bfil.classList.toggle('oculto', semFilterbar(v)); bfil.style.display=''; }
   document.getElementById('grpKm').style.display = kmv ? 'flex' : 'none';
@@ -5496,7 +5699,7 @@ function router(){
   // divergem dos usados na última carga (nunca mostrar dado velho com filtro novo)
   const key=viewKey(v);
   const DATAMAP={fin:DATA,oc:DATAOC,agr:DATAAGR,anpiso:DATAANPISO,anrntrc:DATAANRNTRC,telcon:DATATELCON,telcond:DATATELCOND,telhod:DATATELHOD,mvb:DATAMVB,comb:DATACOMB,man:DATAMAN,com:DATACOM,clif:DATACLIF,dre:DATADRE,bal:DATABAL,drecli:DATADRECLI,home:DATAHOME,km:DATAKM,torre:DATATORRE,veic:DATAVEIC,veicf:DATAVEICF,mul:DATAMUL,prog:DATAPROG,jorn:DATAJORN,jornf:DATAJORNF,cex:DATACEX,sac:DATASAC,mprev:DATAMPREV,comrast:DATACOMRAST,qual:DATAQUAL,port:DATAPORT,crm:DATACRM,rh:DATARH,hc:DATAHC,folha:DATAFOLHA,folhaind:DATAFOLHAIND,he:DATAHE,custos:DATACUSTOS,cob:DATACOB,banc:DATABANC,extb:DATAEXTB,lanc:DATALANC,antec:DATAANTEC,antport:DATAANTPORT,milkrun:DATAMILK,fluxcon:DATAFLUXCON,rec:DATAREC,rent:DATARENT,cont:DATACONT,orc:DATAORC,fech:DATAFECH,prem:DATAPREM,gestao:DATAGES,srv:DATASRV,doc:DATADOC,tvfat:null,tvope:null,cop:(COP_MSGS.length?{}:null)};
-  const LOADMAP={fin:load,oc:loadOc,agr:loadAgr,anpiso:loadAnpiso,anrntrc:loadAnrntrc,telcon:loadTelcon,telcond:loadTelcond,telhod:loadTelhod,mvb:loadMvb,comb:loadComb,man:loadMan,com:loadCom,clif:loadClif,dre:loadDre,bal:loadBal,drecli:loadDreCli,home:loadHome,km:loadKm,prodveic:loadProdveic,torre:loadTorre,veic:loadVeic,veicf:loadVeicf,mul:loadMul,prog:loadProg,jorn:loadJorn,jornf:loadJornf,cex:loadCex,sac:loadSac,mprev:loadMPrev,comrast:loadComRast,qual:loadQual,port:loadPort,crm:loadCrm,rh:loadRh,hc:loadHc,folha:loadFolha,folhaind:loadFolhaInd,he:loadHe,custos:loadCustos,cob:loadCob,banc:loadBanc,extb:loadExtb,lanc:loadLanc,antec:loadAntec,antport:loadAntport,milkrun:loadMilkrun,cnh:loadCnh,ferias:loadFerias,people:loadPeople,pneus:loadPneus,poli:loadPoli,ctecp:loadCtecp,fluxcon:loadFluxcon,rec:loadRec,rent:loadRent,cont:loadCont,orc:loadOrc,fech:loadFech,prem:loadPrem,gestao:loadGestao,srv:loadSrv,doc:loadDoc,cop:loadCop,tvfat:loadTvFat,tvope:loadTvOpe};
+  const LOADMAP={fin:load,oc:loadOc,agr:loadAgr,anpiso:loadAnpiso,anrntrc:loadAnrntrc,telcon:loadTelcon,telcond:loadTelcond,telhod:loadTelhod,mvb:loadMvb,comb:loadComb,man:loadMan,com:loadCom,clif:loadClif,dre:loadDre,bal:loadBal,drecli:loadDreCli,home:loadHome,km:loadKm,prodveic:loadProdveic,torre:loadTorre,veic:loadVeic,veicf:loadVeicf,mul:loadMul,prog:loadProg,jorn:loadJorn,jornf:loadJornf,cex:loadCex,sac:loadSac,mprev:loadMPrev,comrast:loadComRast,qual:loadQual,port:loadPort,crm:loadCrm,rh:loadRh,hc:loadHc,folha:loadFolha,folhaind:loadFolhaInd,he:loadHe,custos:loadCustos,cob:loadCob,banc:loadBanc,extb:loadExtb,lanc:loadLanc,antec:loadAntec,antport:loadAntport,milkrun:loadMilkrun,cnh:loadCnh,ferias:loadFerias,people:loadPeople,pneus:loadPneus,poli:loadPoli,ctecp:loadCtecp,fluxcon:loadFluxcon,rec:loadRec,rent:loadRent,cont:loadCont,orc:loadOrc,fech:loadFech,prem:loadPrem,gesacao:loadGesacao,gesata:loadGesata,gestao:loadGestao,srv:loadSrv,doc:loadDoc,cop:loadCop,tvfat:loadTvFat,tvope:loadTvOpe};
   if(!DATAMAP[key] || (key!=='home' && LOADEDQS[key]!==qsView(key))) LOADMAP[key]();
   // mobile: estado da navegação inferior + fecha gaveta/painel de filtros
   document.querySelectorAll('.bottomnav [data-bview]').forEach(a=>a.classList.toggle('ativo', a.dataset.bview===v));
@@ -7295,7 +7498,7 @@ function reloadCurrent(){
   const M={home:loadHome,fluxo:load,receber:load,pagar:load,dre:loadDre,drecli:loadDreCli,oc:loadOc,
     agr:loadAgr,mvb:loadMvb,comb:loadComb,man:loadMan,com:loadCom,clif:loadClif,km:loadKm,prodveic:loadProdveic,
     torre:loadTorre,veic:loadVeic,veicf:loadVeicf,mul:loadMul,prog:loadProg,jorn:loadJorn,jornf:loadJornf,cex:loadCex,sac:loadSac,mprev:loadMPrev,comrast:loadComRast,qual:loadQual,port:loadPort,crm:loadCrm,rh:loadRh,hc:loadHc,folha:loadFolha,folhaind:loadFolhaInd,he:loadHe,custos:loadCustos,cob:loadCob,banc:loadBanc,extb:loadExtb,rent:loadRent,
-    cont:loadCont,orc:loadOrc,fech:loadFech,prem:loadPrem,gestao:loadGestao,srv:loadSrv,doc:loadDoc,cop:loadCop,tvfat:loadTvFat,tvope:loadTvOpe};
+    cont:loadCont,orc:loadOrc,fech:loadFech,prem:loadPrem,gesacao:loadGesacao,gesata:loadGesata,gestao:loadGestao,srv:loadSrv,doc:loadDoc,cop:loadCop,tvfat:loadTvFat,tvope:loadTvOpe};
   (M[currentView()]||load)();
 }
 
@@ -9440,7 +9643,7 @@ function renderExtb(d){
   // "20 mais recentes" quando a lista vier cheia evita virar total falso (a
   // mesma regra do CLAUDE.md sobre top-N sem contador virar contagem oficial).
   document.getElementById('hintExtbImps').textContent= !imps.length ? 'nenhuma importação registrada'
-    : (imps.length===20 ? '20 mais recentes' : imps.length+' importação'+(imps.length===1?'':'ões'))
+    : (imps.length===20 ? '20 mais recentes' : imps.length+(imps.length===1?' importação':' importações'))
       +' · desfazer remove os lançamentos daquele arquivo';
   document.getElementById('extb-imps').innerHTML= !imps.length ? '' :
     '<table><thead><tr><th>Quando</th><th>Arquivo</th><th>Conta</th><th>Período</th>'
@@ -18758,6 +18961,667 @@ async function loadSrv(fundo){
   finally{ if(primeira) document.getElementById('content').classList.remove('loading'); }
 }
 /* ---------------- Documentação ---------------- */
+/* ================= Gestão — planos de ação e atas =========================
+   Duas telas sobre o mesmo banco local. O que elas protegem:
+
+   - ATRASO NUNCA É LIDO DE UM CAMPO. O servidor calcula `atrasada` e
+     `dias_atraso` a cada leitura; aqui só se pinta. Um status de atraso
+     gravado depende de rotina para virar, e no dia em que ela falha a tela
+     diz que está tudo em dia.
+   - A LISTA ABRE NOS ABERTOS. Lista dominada por registro encerrado enterra
+     o que precisa de ação — foi a lição do CRM.
+   - RECARREGAR DEPOIS DE AGIR FICA FORA DO try DA AÇÃO. Uma falha ao repintar
+     não pode sobrescrever "ação gravada" por "não foi possível falar com a
+     API", com a ação JÁ GRAVADA: quem lê isso grava de novo.
+   ========================================================================= */
+
+/* Concordância com a palavra INTEIRA, nunca sufixo: 'ação'+'ões' dava
+   "açãoões" na tela. Mesma classe do "1 dias" da Comunicação Rastreadora. */
+const plural = (n, um, muitos) => `${n} ${n === 1 ? um : muitos}`;
+
+var GA = { dados:null, filtro:'abertas', lista:[], total:0 };
+var GT = { dados:null, lista:[], total:0 };
+
+const GA_STATUS = { aberta:'Aberta', em_andamento:'Em andamento',
+                    concluida:'Concluída', cancelada:'Cancelada' };
+const GA_PRIO  = { baixa:'Baixa', media:'Média', alta:'Alta', critica:'Crítica' };
+const GA_TIPO  = { diretoria:'Diretoria', area:'Área', projeto:'Projeto',
+                   comite:'Comitê', cliente:'Cliente', outra:'Outra' };
+
+function gaQS(){
+  const p = new URLSearchParams();
+  const q = (document.getElementById('ga-q')||{}).value || '';
+  const r = (document.getElementById('ga-resp')||{}).value || '';
+  const a = (document.getElementById('ga-area')||{}).value || '';
+  if(q) p.set('busca', q);
+  if(r) p.set('responsavel_id', r);
+  if(a) p.set('area', a);
+  if(GA.filtro === 'atrasadas') p.set('atrasadas', '1');
+  else if(GA.filtro) p.set('status', GA.filtro);
+  return p.toString();
+}
+
+async function loadGesacao(){
+  try{
+    const r = await fetch('/api/gestao/painel');
+    const rr = await respostaJSON(r);
+    if(!rr.ok){ document.getElementById('ga-lista').innerHTML =
+      `<div class="gx-vazio"><b>Não foi possível carregar</b>${esc(rr.dados.mensagem||'')}</div>`; return; }
+    GA.dados = rr.dados;
+    gaSelects();
+    gaPintaPainel();
+    await gaFiltra();
+  }catch(e){
+    document.getElementById('ga-lista').innerHTML =
+      `<div class="gx-vazio"><b>Falha de rede</b>${esc(e.message)}</div>`;
+  }
+}
+
+function gaSelects(){
+  const d = GA.dados; if(!d) return;
+  const sr = document.getElementById('ga-resp');
+  if(sr && sr.options.length <= 1){
+    (d.usuarios||[]).forEach(u=>{
+      const o = document.createElement('option');
+      o.value = u.id; o.textContent = u.nome; sr.appendChild(o);
+    });
+  }
+  const sa = document.getElementById('ga-area');
+  if(sa && sa.options.length <= 1){
+    (d.areas||[]).forEach(a=>{
+      const o = document.createElement('option'); o.value = a; o.textContent = a;
+      sa.appendChild(o);
+    });
+  }
+}
+
+function gaPintaPainel(){
+  const d = GA.dados, r = d.resumo;
+  // O KPI de abertas traz a QUEBRA: "84 abertas" não diz se são 84 em dia ou
+  // 60 atrasadas, e é a quebra que decide se alguém age hoje.
+  const cicloTxt = (r.ciclo_mediano != null)
+    ? r.ciclo_mediano.toLocaleString('pt-BR',{maximumFractionDigits:0})+' dias'
+    : 'não informado';
+  const cicloSub = (r.ciclo_mediano != null)
+    ? ('mediana de '+r.ciclo_n+' concluída'+(r.ciclo_n===1?'':'s'))
+    : 'nenhuma ação concluída ainda';
+  const pontual = (r.pct_no_prazo != null)
+    ? Math.round(r.pct_no_prazo*100)+'%' : 'não informado';
+
+  document.getElementById('ga-kpis').innerHTML =
+      kpi('Atrasadas', String(r.atrasadas),
+          r.abertas ? ('de '+r.abertas+' abertas') : 'nenhuma ação aberta',
+          r.atrasadas ? 'bad' : 'good',
+          'prazo < hoje com a ação ainda aberta. Calculado na leitura, nunca gravado.')
+    + kpi('Vencem em 7 dias', String(r.vence_7), 'entram nesta semana',
+          r.vence_7 ? 'warn' : '',
+          'Abertas com prazo entre hoje e hoje+7.')
+    + kpi('Concluídas no mês', String(r.concluidas_mes),
+          'ciclo mediano: '+cicloTxt, '',
+          'Mediana, não média: uma ação muito longa distorce a média. '
+        + 'Sem nenhuma conclusão o número não existe — aparece como não informado, jamais 0.')
+    + kpi('Entregues no prazo', pontual, cicloSub,
+          (r.pct_no_prazo!=null && r.pct_no_prazo>=0.8) ? 'good'
+          : (r.pct_no_prazo!=null && r.pct_no_prazo<0.5) ? 'bad' : '',
+          'Entre as CONCLUÍDAS, quantas fecharam até o prazo. É o indicador de '
+        + 'confiabilidade do plano — diz se os prazos combinados são realistas.');
+
+  // chips de recorte; o default é "abertas"
+  const r2 = d.resumo;
+  const chips = [
+    ['abertas',   'Abertas',    r2.abertas],
+    ['atrasadas', 'Atrasadas',  r2.atrasadas],
+    ['concluida', 'Concluídas', r2.concluidas],
+    ['cancelada', 'Canceladas', r2.canceladas],
+    ['',          'Todas',      r2.total],
+  ];
+  document.getElementById('ga-chips').innerHTML = chips.map(([k,rot,n])=>
+    `<button class="gx-chip${GA.filtro===k?' on':''}${k==='atrasadas'?' crit':''}" `
+    + `onclick="gaChip('${k}')">${esc(rot)}<span class="n">${n}</span></button>`).join('');
+
+  gaPintaResp(); gaPintaParadas(); gaPintaArea(); gaEvolucao();
+}
+
+function gaChip(k){ GA.filtro = k; gaPintaPainel(); gaFiltra(); }
+
+function gaPintaResp(){
+  const linhas = GA.dados.por_responsavel || [];
+  document.getElementById('ga-resp-hint').textContent =
+    linhas.length ? (linhas.length+' responsáve'+(linhas.length===1?'l':'is')
+      +' · ordenado por atrasadas') : 'nenhuma ação atribuída';
+  if(!linhas.length){ document.getElementById('ga-resp-tab').innerHTML =
+    '<div class="gx-vazio">Sem ações atribuídas.</div>'; return; }
+  document.getElementById('ga-resp-tab').innerHTML =
+    '<table><thead><tr><th>Responsável</th><th class="num">Abertas</th>'
+  + '<th class="num">Atrasadas</th><th class="num">Pior atraso</th>'
+  + '<th class="num">Concluídas</th></tr></thead><tbody>'
+  + linhas.map(l=>{
+      // base fraca fica ATENUADA e marcada, nunca escondida
+      const fraca = l.base_fraca ? ' style="opacity:.62"' : '';
+      const badge = l.base_fraca
+        ? ' <span class="badge" title="Menos de 3 ações — o percentual aqui é anedota, não série">base fraca</span>' : '';
+      const at = l.atrasadas
+        ? `<b style="color:var(--red)">${l.atrasadas}</b>` : '0';
+      return `<tr${fraca}><td>${esc(l.responsavel||'—')}${badge}`
+        + (l.setor?`<span class="sub2">${esc(l.setor)}</span>`:'')
+        + `</td><td class="num">${l.abertas}</td><td class="num">${at}</td>`
+        + `<td class="num">${l.pior_atraso? l.pior_atraso+'d':'—'}</td>`
+        + `<td class="num">${l.concluidas}</td></tr>`;
+    }).join('') + '</tbody></table>';
+}
+
+function gaPintaParadas(){
+  const p = GA.dados.paradas || [];
+  document.getElementById('ga-par-hint').textContent = p.length
+    ? (plural(p.length, 'ação', 'ações') + ' sem nenhum registro de andamento')
+    : 'nenhuma ação parada — todas tiveram andamento recente';
+  if(!p.length){ document.getElementById('ga-par-tab').innerHTML =
+    '<div class="gx-vazio"><b>Nada parado</b>Toda ação aberta teve andamento nos últimos 21 dias.</div>'; return; }
+  document.getElementById('ga-par-tab').innerHTML =
+    '<table><thead><tr><th class="num">Parada há</th><th>Ação</th>'
+  + '<th>Responsável</th></tr></thead><tbody>'
+  + p.map(a=>`<tr onclick="gaFicha(${a.id})" style="cursor:pointer">`
+      + `<td class="num"><b style="color:var(--yellow)">${a.parada_dias}d</b></td>`
+      + `<td>${esc(a.o_que)}</td><td>${esc(a.responsavel||'—')}</td></tr>`).join('')
+  + '</tbody></table>';
+}
+
+function gaPintaArea(){
+  const linhas = GA.dados.por_area || [];
+  if(!linhas.length){ document.getElementById('ga-area-tab').innerHTML =
+    '<div class="gx-vazio">Sem ações.</div>'; return; }
+  document.getElementById('ga-area-tab').innerHTML =
+    '<table><thead><tr><th>Área</th><th class="num">Abertas</th>'
+  + '<th class="num">Atrasadas</th><th class="num">Concluídas</th>'
+  + '<th class="num">Total</th></tr></thead><tbody>'
+  + linhas.map(l=>`<tr><td>${esc(l.area)}</td><td class="num">${l.abertas}</td>`
+      + `<td class="num">${l.atrasadas?`<b style="color:var(--red)">${l.atrasadas}</b>`:'0'}</td>`
+      + `<td class="num">${l.concluidas}</td><td class="num">${l.total}</td></tr>`).join('')
+  + '</tbody></table>';
+}
+
+function gaEvolucao(){
+  const dados = GA.dados.evolucao || [];
+  const box = document.getElementById('ga-evo');
+  if(!dados.length){ box.innerHTML = '<div class="gx-vazio">Sem histórico.</div>'; return; }
+  // cor resolvida DENTRO da função: CC só existe no fim do arquivo (TDZ)
+  const cNav = CC.navy500, cVer = CC.verde, cLinha = CC.grid, cTx = CC.n500;
+  const W = 640, H = 210, L = 40, R = 626, T = 16, B = 168;
+  const max = Math.max(4, ...dados.map(d=>Math.max(d.criadas, d.concluidas)));
+  const n = dados.length, step = (R-L)/n, bw = Math.min(step*0.34, 15);
+  const y = v => B - v*(B-T)/max;
+  const mesAtual = new Date().toISOString().slice(0,7);
+  let s = `<svg viewBox="0 0 ${W} ${H}" role="img" aria-label="Ações criadas e concluídas por mês">`;
+  s += `<defs><pattern id="gaHx" width="5" height="5" patternUnits="userSpaceOnUse" patternTransform="rotate(45)">`
+     + `<rect width="5" height="5" fill="${cNav}" fill-opacity=".2"/>`
+     + `<rect width="2" height="5" fill="${cNav}" fill-opacity=".8"/></pattern></defs>`;
+  [0, Math.ceil(max/2), max].forEach(v=>{
+    s += `<line x1="${L}" y1="${y(v)}" x2="${R}" y2="${y(v)}" stroke="${v?cLinha:cTx}" stroke-width="1"/>`
+       + `<text x="${L-6}" y="${y(v)+4}" text-anchor="end" font-size="10" fill="${cTx}" font-family="var(--mono)">${v}</text>`;
+  });
+  dados.forEach((d,i)=>{
+    const cx = L + step*(i+0.5);
+    // MÊS CORRENTE HACHURADO: período incompleto nunca é barra cheia
+    const parcial = d.mes === mesAtual;
+    s += `<rect x="${cx-bw-1}" y="${y(d.criadas)}" width="${bw}" height="${Math.max(B-y(d.criadas),0)}" `
+       + `fill="${parcial?'url(#gaHx)':cNav}" rx="1"><title>${d.mes}: ${d.criadas} criadas${parcial?' (mês em curso)':''}</title></rect>`;
+    s += `<rect x="${cx+1}" y="${y(d.concluidas)}" width="${bw}" height="${Math.max(B-y(d.concluidas),0)}" `
+       + `fill="${cVer}" fill-opacity="${parcial?.55:1}" rx="1"><title>${d.mes}: ${d.concluidas} concluídas${parcial?' (mês em curso)':''}</title></rect>`;
+    if(i % 2 === 0 || n <= 8)
+      s += `<text x="${cx}" y="${B+14}" text-anchor="middle" font-size="9.5" fill="${cTx}" font-family="var(--mono)">${d.mes.slice(5)}/${d.mes.slice(2,4)}</text>`;
+  });
+  s += `<rect x="${L}" y="${B+26}" width="9" height="9" fill="${cNav}" rx="1"/>`
+     + `<text x="${L+13}" y="${B+34}" font-size="10.5" fill="${cTx}">criadas</text>`
+     + `<rect x="${L+80}" y="${B+26}" width="9" height="9" fill="${cVer}" rx="1"/>`
+     + `<text x="${L+93}" y="${B+34}" font-size="10.5" fill="${cTx}">concluídas</text>`
+     + `<text x="${R}" y="${B+34}" text-anchor="end" font-size="10" fill="${cTx}">mês corrente hachurado · parcial</text>`;
+  s += '</svg>';
+  box.innerHTML = s;
+}
+
+async function gaFiltra(){
+  const alvo = document.getElementById('ga-lista');
+  try{
+    const r = await fetch('/api/gestao/acoes?' + gaQS());
+    const rr = await respostaJSON(r);
+    if(!rr.ok){ alvo.innerHTML = `<div class="gx-vazio"><b>Erro</b>${esc(rr.dados.mensagem||'')}</div>`; return; }
+    GA.lista = rr.dados.acoes || []; GA.total = rr.dados.total || 0;
+    gaPintaLista();
+  }catch(e){ alvo.innerHTML = `<div class="gx-vazio"><b>Falha de rede</b>${esc(e.message)}</div>`; }
+}
+
+function gaPintaLista(){
+  // "X de Y": top-N sem contador vira total falso
+  document.getElementById('ga-hint').textContent =
+    GA.lista.length
+      ? (GA.lista.length === GA.total
+          ? plural(GA.total, 'ação', 'ações') + ' no recorte'
+          : `${GA.lista.length} de ${GA.total} ações no recorte`)
+      : 'nenhuma ação neste recorte';
+  const alvo = document.getElementById('ga-lista');
+  if(!GA.lista.length){
+    alvo.innerHTML = '<div class="gx-vazio"><b>Nenhuma ação aqui</b>'
+      + 'Troque o recorte acima ou crie a primeira ação.</div>'; return;
+  }
+  alvo.innerHTML = '<div class="gx-lista">' + GA.lista.map(a=>{
+    const fim = (a.status==='concluida'||a.status==='cancelada') ? ' fim' : '';
+    const prazo = a.atrasada
+      ? `<span style="color:var(--red);font-weight:600">${fmtD(a.prazo)} · ${a.dias_atraso}d de atraso</span>`
+      : (a.vence_em_7
+          ? `<span style="color:var(--yellow);font-weight:600">${fmtD(a.prazo)} · ${a.dias_para_prazo===0?'hoje':'em '+a.dias_para_prazo+'d'}</span>`
+          : fmtD(a.prazo));
+    const done = a.percentual >= 100 ? ' done' : '';
+    return `<div class="gx-item ${a.farol}${fim}" tabindex="0" role="button" `
+      + `onclick="gaFicha(${a.id})" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();gaFicha(${a.id})}">`
+      + `<div class="gx-t">${esc(a.o_que)}</div>`
+      + `<div class="gx-dir"><div class="gx-pb${done}"><i style="width:${a.percentual}%"></i></div>`
+      + `<span style="font-size:11px;color:var(--n500);font-family:var(--mono)">${a.percentual}%</span></div>`
+      + `<div class="gx-m">`
+      + `<span>${prazo}</span>`
+      + `<span>·</span><span><b>${esc(a.responsavel||'—')}</b></span>`
+      + (a.area?`<span>·</span><span>${esc(a.area)}</span>`:'')
+      + `<span>·</span><span>${esc(GA_STATUS[a.status]||a.status)}</span>`
+      + (a.prioridade!=='media'?`<span>·</span><span>${esc(GA_PRIO[a.prioridade])}</span>`:'')
+      + (a.reuniao_codigo?`<span>·</span><span title="${esc(a.reuniao_titulo||'')}">${esc(a.reuniao_codigo)}</span>`:'')
+      + (a.prorrogacoes?`<span>·</span><span style="color:var(--yellow)" title="O prazo já foi adiado ${a.prorrogacoes}x — sem esse contador a ação adiada seis vezes é igual à que nasceu ontem">adiada ${a.prorrogacoes}x</span>`:'')
+      + (a.parada_dias!=null && a.parada_dias>=21?`<span>·</span><span style="color:var(--yellow)">parada há ${a.parada_dias}d</span>`:'')
+      + `</div></div>`;
+  }).join('') + '</div>';
+}
+
+/* ---------- ficha da ação (modal) ---------- */
+async function gaFicha(id){
+  abrirModal('<h3>Carregando…</h3>');
+  let d;
+  try{
+    const r = await fetch('/api/gestao/acoes/'+id);
+    const rr = await respostaJSON(r);
+    if(!rr.ok){ abrirModal(`<h3>Erro</h3><p>${esc(rr.dados.mensagem||'')}</p>`
+      + '<div class="m-foot"><button class="btn" onclick="fecharModal()">Fechar</button></div>'); return; }
+    d = rr.dados;
+  }catch(e){
+    abrirModal(`<h3>Falha de rede</h3><p>${esc(e.message)}</p>`
+      + '<div class="m-foot"><button class="btn" onclick="fecharModal()">Fechar</button></div>'); return;
+  }
+  const w5 = [['O que','o_que'],['Por que','por_que'],['Como','como'],['Onde','onde']]
+    .filter(([,k])=>d[k]).map(([r,k])=>
+      `<div><div class="r">${r}</div><div class="v">${esc(d[k])}</div></div>`).join('');
+  const hist = (d.historico||[]).map(h=>{
+    const mud = (h.status_para && h.status_de && h.status_para!==h.status_de);
+    let txt = h.texto || '';
+    if(mud) txt = (txt? txt+' ' : '') + `— de ${GA_STATUS[h.status_de]||h.status_de} para ${GA_STATUS[h.status_para]||h.status_para}`;
+    else if(!txt && h.status_para) txt = 'Status: '+(GA_STATUS[h.status_para]||h.status_para);
+    if(h.percentual!=null && mud) txt += ` (${h.percentual}%)`;
+    return `<div class="gx-h${mud?' mud':''}"><div class="pt"></div><div>`
+      + `<div class="tx">${esc(txt)}</div>`
+      + `<div class="qd">${fmtDT(h.ts)}${h.usuario?' · '+esc(h.usuario):''}</div></div></div>`;
+  }).join('') || '<div class="gx-vazio">Nenhum andamento registrado.</div>';
+
+  const alerta = d.atrasada
+    ? `<div class="gx-alerta">Atrasada há <b>${plural(d.dias_atraso,'dia','dias')}</b>.`
+      + (d.prorrogacoes?` O prazo já foi adiado <b>${d.prorrogacoes}x</b>.`:'') + '</div>'
+    : (d.vence_em_7
+        ? `<div class="gx-alerta warn">Vence ${d.dias_para_prazo===0?'<b>hoje</b>':'em <b>'+plural(d.dias_para_prazo,'dia','dias')+'</b>'}.</div>`
+        : '');
+
+  abrirModal(
+    `<h3>${esc(d.o_que)}</h3>`
+  + `<div class="hint gx-sub">${esc(GA_STATUS[d.status]||d.status)} · ${d.percentual}% · `
+  + `prazo ${fmtD(d.prazo)} · <b>${esc(d.responsavel||'—')}</b>`
+  + (d.reuniao_codigo?` · ${esc(d.reuniao_codigo)}`:'') + '</div>'
+  + '' + alerta
+  + (w5?`<div class="gx-5w">${w5}</div>`:'')
+  + (d.quanto!=null?`<p class="hint">Valor estimado: R$ ${fmtNumBR(d.quanto)}</p>`:'')
+  + '<h4 style="margin:14px 0 4px;font-size:13px">Registrar andamento</h4>'
+  + '<div class="ges-form gx-form">'
+  + '<div style="grid-column:1/-1"><label for="gaa-txt">O que andou</label>'
+  + '<textarea id="gaa-txt" rows="2" placeholder="Ex.: fornecedor confirmou entrega para dia 12."></textarea></div>'
+  + `<div><label for="gaa-st">Status</label><select id="gaa-st">`
+  + Object.entries(GA_STATUS).map(([k,v])=>`<option value="${k}"${k===d.status?' selected':''}>${v}</option>`).join('')
+  + '</select></div>'
+  + `<div><label for="gaa-pct">Avanço (%)</label><input type="text" inputmode="numeric" id="gaa-pct" value="${d.percentual}"></div>`
+  + '</div>'
+  + `<h4 style="margin:16px 0 4px;font-size:13px">Histórico <span class="hint">${(d.historico||[]).length} registro(s)</span></h4>`
+  + `<div class="gx-hist">${hist}</div>`
+  + '<div class="m-err" id="m-err"></div><div class="m-err" id="m-err"></div><div class="m-foot">'
+  + `<button class="ghost" onclick="gaForm(${d.id})">Editar</button>`
+  + `<button class="btn" onclick="gaAndamento(${d.id})">Registrar andamento</button></div>`);
+}
+
+async function gaAndamento(id){
+  const txt = (document.getElementById('gaa-txt')||{}).value || '';
+  const st  = (document.getElementById('gaa-st')||{}).value || '';
+  const pct = (document.getElementById('gaa-pct')||{}).value || '';
+  mErro('');
+  let ok = false;
+  try{
+    const r = await fetch('/api/gestao/acoes/'+id+'/andamento', {
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({texto:txt, status:st, percentual:pct}) });
+    const rr = await respostaJSON(r);
+    if(!rr.ok){ mErro(rr.dados.mensagem||'Não foi possível registrar.'); return; }
+    ok = true;
+  }catch(e){ mErro('Falha de rede: '+e.message); return; }
+  // FORA do try da ação: uma falha ao repintar não pode sobrescrever
+  // "registrado" por "erro de rede" com o andamento JÁ GRAVADO.
+  if(ok){ fecharModal(); loadGesacao(); }
+}
+
+/* ---------- formulário de ação ---------- */
+async function gaForm(id){
+  const d = id ? (GA.lista.find(a=>a.id===id) || await gaBusca(id)) : null;
+  const us = (GA.dados&&GA.dados.usuarios)||[];
+  const ar = (GA.dados&&GA.dados.areas)||[];
+  const atas = (GT.lista&&GT.lista.length) ? GT.lista : [];
+  abrirModal(
+    `<h3>${id?'Editar ação':'Nova ação'}</h3>`
+  + '<div class="hint gx-sub">Plano de ação 5W2H — o que, por quê, como, quem e quando</div>'
+  + '<div class="ges-form gx-form">'
+  + `<div style="grid-column:1/-1"><label for="gf-oque">O que será feito *</label>`
+  + `<input type="text" id="gf-oque" maxlength="200" value="${d?esc(d.o_que):''}" placeholder="Levantar o limite de crédito do Bradesco"></div>`
+  + `<div style="grid-column:1/-1"><label for="gf-porque">Por que</label>`
+  + `<textarea id="gf-porque" rows="2" placeholder="A projeção de caixa depende disso">${d?esc(d.por_que||''):''}</textarea></div>`
+  + `<div style="grid-column:1/-1"><label for="gf-como">Como</label>`
+  + `<textarea id="gf-como" rows="2">${d?esc(d.como||''):''}</textarea></div>`
+  + `<div><label for="gf-resp">Responsável com login</label><select id="gf-resp" onchange="gfResp()">`
+  + '<option value="">— sem login no CÓRTEX —</option>'
+  + us.map(u=>`<option value="${u.id}"${d&&d.responsavel_id===u.id?' selected':''}>${esc(u.nome)}</option>`).join('')
+  + '</select></div>'
+  + `<div><label for="gf-respn">…ou nome de quem não tem login</label>`
+  + `<input type="text" id="gf-respn" maxlength="120" value="${d&&!d.responsavel_id?esc(d.responsavel_nome||''):''}" placeholder="Contador externo"></div>`
+  + `<div><label for="gf-prazo">Prazo *</label><input type="date" id="gf-prazo" value="${d?esc(d.prazo||''):''}"></div>`
+  + `<div><label for="gf-prio">Prioridade</label><select id="gf-prio">`
+  + Object.entries(GA_PRIO).map(([k,v])=>`<option value="${k}"${(d?d.prioridade:'media')===k?' selected':''}>${v}</option>`).join('')
+  + '</select></div>'
+  + `<div><label for="gf-area">Área</label><select id="gf-area"><option value="">—</option>`
+  + ar.map(a=>`<option value="${esc(a)}"${d&&d.area===a?' selected':''}>${esc(a)}</option>`).join('')
+  + '</select></div>'
+  + `<div><label for="gf-onde">Onde</label><input type="text" id="gf-onde" maxlength="200" value="${d?esc(d.onde||''):''}"></div>`
+  + `<div><label for="gf-quanto">Quanto (R$)</label>`
+  // type="text" + inputmode: <input type=number> DESCARTA a vírgula em vez de
+  // recusá-la — "1234,56" viraria 123456, cem vezes o valor, sem aviso.
+  + `<input type="text" inputmode="decimal" id="gf-quanto" value="${d&&d.quanto!=null?fmtNumBR(d.quanto):''}" placeholder="1.234,56"></div>`
+  + `<div><label for="gf-status">Status</label><select id="gf-status">`
+  + Object.entries(GA_STATUS).map(([k,v])=>`<option value="${k}"${(d?d.status:'aberta')===k?' selected':''}>${v}</option>`).join('')
+  + '</select></div>'
+  + `<div style="grid-column:1/-1"><label for="gf-ata">Ata de origem</label><select id="gf-ata"><option value="">— sem ata —</option>`
+  + atas.map(a=>`<option value="${a.id}"${d&&d.reuniao_id===a.id?' selected':''}>${esc(a.codigo)} — ${esc(a.titulo)}</option>`).join('')
+  + '</select></div>'
+  + '</div>'
+  + '<div class="m-err" id="m-err"></div><div class="m-err" id="m-err"></div><div class="m-foot">'
+  + (id?`<button class="ghost" onclick="gaExcluir(${id})">Excluir</button>`:'')
+  + `<button class="btn" onclick="gaSalvar(${id||'null'})">Salvar</button></div>`);
+  gfResp();
+}
+
+function gfResp(){
+  // Um OU outro. Escolher no seletor desabilita o campo de nome livre, para
+  // não existir ação com dois donos aparentes.
+  const s = document.getElementById('gf-resp'), n = document.getElementById('gf-respn');
+  if(!s||!n) return;
+  n.disabled = !!s.value;
+  n.style.opacity = s.value ? .5 : 1;
+}
+
+async function gaBusca(id){
+  try{
+    const r = await fetch('/api/gestao/acoes/'+id);
+    const rr = await respostaJSON(r);
+    return rr.ok ? rr.dados : null;
+  }catch(e){ return null; }
+}
+
+async function gaSalvar(id){
+  const v = s => (document.getElementById(s)||{}).value || '';
+  const body = {
+    o_que:v('gf-oque'), por_que:v('gf-porque'), como:v('gf-como'),
+    onde:v('gf-onde'), quanto:v('gf-quanto'), prazo:v('gf-prazo'),
+    area:v('gf-area'), prioridade:v('gf-prio'), status:v('gf-status'),
+    responsavel_id: v('gf-resp') ? parseInt(v('gf-resp'),10) : null,
+    responsavel_nome: v('gf-resp') ? '' : v('gf-respn'),
+    reuniao_id: v('gf-ata') ? parseInt(v('gf-ata'),10) : null,
+  };
+  if(id) body.id = id;
+  mErro('');
+  let ok = false;
+  try{
+    const r = await fetch('/api/gestao/acoes', {method:'POST',
+      headers:{'Content-Type':'application/json'}, body: JSON.stringify(body)});
+    const rr = await respostaJSON(r);
+    if(!rr.ok){ mErro(rr.dados.mensagem||'Não foi possível gravar.'); return; }
+    ok = true;
+  }catch(e){ mErro('Falha de rede: '+e.message); return; }
+  if(ok){ fecharModal(); loadGesacao(); }
+}
+
+async function gaExcluir(id){
+  if(!confirm('Excluir esta ação e todo o histórico dela?\n\nSe a ação apenas '
+    + 'não vai mais acontecer, prefira marcá-la como Cancelada: o histórico '
+    + 'fica e ela continua contando no acompanhamento.')) return;
+  let ok = false;
+  try{
+    const r = await fetch('/api/gestao/acoes/'+id+'/excluir', {method:'POST'});
+    const rr = await respostaJSON(r);
+    if(!rr.ok){ mErro(rr.dados.mensagem||'Não foi possível excluir.'); return; }
+    ok = true;
+  }catch(e){ mErro('Falha de rede: '+e.message); return; }
+  if(ok){ fecharModal(); loadGesacao(); }
+}
+
+/* ================= atas ================================================= */
+
+function gtQS(){
+  const p = new URLSearchParams();
+  const q = (document.getElementById('gt-q')||{}).value || '';
+  const t = (document.getElementById('gt-tipo')||{}).value || '';
+  const s = (document.getElementById('gt-status')||{}).value || '';
+  if(q) p.set('busca', q);
+  if(t) p.set('tipo', t);
+  if(s) p.set('status', s);
+  return p.toString();
+}
+
+async function loadGesata(){ await gtFiltra(true); }
+
+async function gtFiltra(primeira){
+  const alvo = document.getElementById('gt-lista');
+  try{
+    const r = await fetch('/api/gestao/atas?' + gtQS());
+    const rr = await respostaJSON(r);
+    if(!rr.ok){ alvo.innerHTML = `<div class="gx-vazio"><b>Erro</b>${esc(rr.dados.mensagem||'')}</div>`; return; }
+    GT.dados = rr.dados; GT.lista = rr.dados.atas || []; GT.total = rr.dados.total || 0;
+    if(primeira){
+      const st = document.getElementById('gt-tipo');
+      if(st && st.options.length <= 1)
+        (rr.dados.tipos||[]).forEach(t=>{
+          const o=document.createElement('option'); o.value=t.chave; o.textContent=t.rotulo;
+          st.appendChild(o); });
+    }
+    gtPinta();
+  }catch(e){ alvo.innerHTML = `<div class="gx-vazio"><b>Falha de rede</b>${esc(e.message)}</div>`; }
+}
+
+function gtPinta(){
+  const l = GT.lista;
+  const rasc = l.filter(a=>a.status==='rascunho').length;
+  const comAtraso = l.filter(a=>a.acoes_atrasadas>0).length;
+  const acoes = l.reduce((s,a)=>s+a.acoes, 0);
+  const abertas = l.reduce((s,a)=>s+a.acoes_abertas, 0);
+  document.getElementById('gt-kpis').innerHTML =
+      kpi('Atas no recorte', String(GT.total), l.length===GT.total?'todas listadas':`${l.length} listadas`, '',
+          'ges_reunioes. O filtro acima recorta esta contagem.')
+    + kpi('Rascunhos', String(rasc), rasc?'ainda não publicadas':'nenhum pendente', rasc?'warn':'good',
+          'Ata publicada vira documento que outras pessoas citam — publicar é um ato, não o efeito de abrir o formulário.')
+    + kpi('Ações geradas', String(acoes), abertas+' ainda abertas', '',
+          'Ações vinculadas às atas do recorte. Apagar a ata NÃO apaga as ações.')
+    + kpi('Atas com ação atrasada', String(comAtraso), comAtraso?'decisão sem execução':'nenhuma',
+          comAtraso?'bad':'good',
+          'É o indicador de que a reunião decidiu e a decisão não andou.');
+
+  document.getElementById('gt-hint').textContent = l.length
+    ? (l.length===GT.total ? `${GT.total} ata${GT.total===1?'':'s'}` : `${l.length} de ${GT.total} atas`)
+    : 'nenhuma ata neste recorte';
+  const alvo = document.getElementById('gt-lista');
+  if(!l.length){ alvo.innerHTML =
+    '<div class="gx-vazio"><b>Nenhuma ata aqui</b>Crie a primeira reunião registrada.</div>'; return; }
+  alvo.innerHTML = '<div class="gx-atas">' + l.map(a=>
+    `<div class="gx-ata${a.status==='rascunho'?' rasc':''}" tabindex="0" role="button" `
+    + `onclick="gtFicha(${a.id})" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();gtFicha(${a.id})}">`
+    + `<div class="cod">${esc(a.codigo)}${a.status==='rascunho'?' · rascunho':''}</div>`
+    + `<div class="tt">${esc(a.titulo)}</div>`
+    + `<div class="mt"><span>${fmtD(a.data)}</span>`
+    + `<span>${esc(GA_TIPO[a.tipo]||a.tipo)}</span>`
+    + (a.area?`<span>${esc(a.area)}</span>`:'')
+    + `<span>${a.presentes}/${a.participantes} presentes</span></div>`
+    + `<div class="mt">`
+    + (a.acoes ? `<span><b>${a.acoes}</b> ${a.acoes===1?'ação':'ações'}</span>`
+               + (a.acoes_abertas?`<span>${a.acoes_abertas} aberta${a.acoes_abertas===1?'':'s'}</span>`:'')
+               + (a.acoes_atrasadas?`<span style="color:var(--red);font-weight:600">${a.acoes_atrasadas} atrasada${a.acoes_atrasadas===1?'':'s'}</span>`:'')
+               : '<span style="color:var(--n400)">sem plano de ação</span>')
+    + '</div></div>').join('') + '</div>';
+}
+
+async function gtFicha(id){
+  abrirModal('<h3>Carregando…</h3>');
+  let d;
+  try{
+    const r = await fetch('/api/gestao/atas/'+id);
+    const rr = await respostaJSON(r);
+    if(!rr.ok){ abrirModal(`<h3>Erro</h3><p>${esc(rr.dados.mensagem||'')}</p>`
+      + '<div class="m-foot"><button class="btn" onclick="fecharModal()">Fechar</button></div>'); return; }
+    d = rr.dados;
+  }catch(e){
+    abrirModal(`<h3>Falha de rede</h3><p>${esc(e.message)}</p>`
+      + '<div class="m-foot"><button class="btn" onclick="fecharModal()">Fechar</button></div>'); return;
+  }
+  const secao = (rot, txt) => txt
+    ? `<h4 style="margin:14px 0 3px;font-size:13px">${rot}</h4>`
+      + `<div style="white-space:pre-wrap;font-size:13.5px;line-height:1.5">${esc(txt)}</div>` : '';
+  const parts = (d.lista_participantes||[]).map(p=>
+    `<span class="badge"${p.presente?'':' style="opacity:.5"'} title="${p.presente?'presente':'ausente'}${p.papel?' · '+esc(p.papel):''}">`
+    + `${esc(p.nome)}${p.presente?'':' (ausente)'}</span>`).join(' ') || '<span class="hint">nenhum participante registrado</span>';
+  const acs = (d.lista_acoes||[]).map(a=>
+    `<div class="gx-item ${a.farol}" tabindex="0" role="button" style="margin-bottom:5px" onclick="gaFicha(${a.id})" `
+    + `onkeydown="if(event.key==='Enter'){gaFicha(${a.id})}">`
+    + `<div class="gx-t">${esc(a.o_que)}</div>`
+    + `<div class="gx-m"><span>${a.atrasada?`<b style="color:var(--red)">${fmtD(a.prazo)} · ${a.dias_atraso}d atraso</b>`:fmtD(a.prazo)}</span>`
+    + `<span>·</span><span>${esc(a.responsavel||'—')}</span>`
+    + `<span>·</span><span>${esc(GA_STATUS[a.status]||a.status)}</span></div></div>`).join('')
+    || '<div class="gx-vazio">Nenhuma ação vinculada a esta ata.</div>';
+
+  abrirModal(
+    `<h3>${esc(d.titulo)}</h3>`
+  + `<div class="hint gx-sub">${esc(d.codigo)} · ${fmtD(d.data)}`
+  + (d.hora_inicio?` · ${esc(d.hora_inicio)}${d.hora_fim?'–'+esc(d.hora_fim):''}`:'')
+  + ` · ${esc(GA_TIPO[d.tipo]||d.tipo)}`
+  + (d.local?` · ${esc(d.local)}`:'')
+  + (d.status==='rascunho'?' · <b style="color:var(--yellow)">rascunho</b>':'') + '</div>'
+  + ''
+  + `<h4 style="margin:0 0 4px;font-size:13px">Participantes <span class="hint">${d.presentes} de ${d.participantes} presentes</span></h4>`
+  + `<div style="display:flex;flex-wrap:wrap;gap:4px">${parts}</div>`
+  + secao('Pauta', d.pauta) + secao('Discussão', d.discussao)
+  + secao('Decisões', d.decisoes) + secao('Observações', d.observacoes)
+  + `<h4 style="margin:16px 0 5px;font-size:13px">Plano de ação <span class="hint">${d.acoes} ação(ões) · ${d.acoes_abertas} aberta(s)</span></h4>`
+  + acs
+  + '<div class="m-err" id="m-err"></div><div class="m-err" id="m-err"></div><div class="m-foot">'
+  + `<button class="ghost" onclick="gtForm(${d.id})">Editar</button>`
+  + `<button class="btn" onclick="fecharModal()">Fechar</button></div>`);
+}
+
+async function gtForm(id){
+  const d = id ? (GT.lista.find(a=>a.id===id) || null) : null;
+  let full = null;
+  if(id){
+    try{
+      const r = await fetch('/api/gestao/atas/'+id);
+      const rr = await respostaJSON(r); if(rr.ok) full = rr.dados;
+    }catch(e){}
+  }
+  const a = full || d;
+  const us = (GA.dados&&GA.dados.usuarios) || (GT.dados&&GT.dados.usuarios) || [];
+  const ar = (GT.dados&&GT.dados.areas) || [];
+  const sel = new Set(((a&&a.lista_participantes)||[]).filter(p=>p.usuario_id).map(p=>p.usuario_id));
+  const livres = ((a&&a.lista_participantes)||[]).filter(p=>!p.usuario_id).map(p=>p.nome).join(', ');
+  abrirModal(
+    `<h3>${id?'Editar ata':'Nova ata'}</h3>`
+  + '<div class="hint gx-sub">Pauta, discussão e decisões são campos separados — é a diferença entre ata e transcrição</div>'
+  + '<div class="ges-form gx-form">'
+  + `<div style="grid-column:1/-1"><label for="gt-tit">Título *</label>`
+  + `<input type="text" id="gt-tit" maxlength="200" value="${a?esc(a.titulo):''}" placeholder="Diretoria — fechamento de agosto"></div>`
+  + `<div><label for="gt-data">Data *</label><input type="date" id="gt-data" value="${a?esc(a.data||''):''}"></div>`
+  + `<div><label for="gt-tp">Tipo</label><select id="gt-tp">`
+  + Object.entries(GA_TIPO).map(([k,v])=>`<option value="${k}"${(a?a.tipo:'outra')===k?' selected':''}>${v}</option>`).join('')
+  + '</select></div>'
+  + `<div><label for="gt-hi">Início</label><input type="time" id="gt-hi" value="${a?esc(a.hora_inicio||''):''}"></div>`
+  + `<div><label for="gt-hf">Término</label><input type="time" id="gt-hf" value="${a?esc(a.hora_fim||''):''}"></div>`
+  + `<div><label for="gt-ar">Área</label><select id="gt-ar"><option value="">—</option>`
+  + ar.map(x=>`<option value="${esc(x)}"${a&&a.area===x?' selected':''}>${esc(x)}</option>`).join('')
+  + '</select></div>'
+  + `<div><label for="gt-loc">Local</label><input type="text" id="gt-loc" maxlength="200" value="${a?esc(a.local||''):''}"></div>`
+  + `<div style="grid-column:1/-1"><label for="gt-parts">Participantes com login</label>`
+  + `<select id="gt-parts" multiple size="5">`
+  + us.map(u=>`<option value="${u.id}"${sel.has(u.id)?' selected':''}>${esc(u.nome)}</option>`).join('')
+  + '</select></div>'
+  + `<div style="grid-column:1/-1"><label for="gt-partl">Outros participantes (separados por vírgula)</label>`
+  + `<input type="text" id="gt-partl" value="${esc(livres)}" placeholder="Contador externo, Cliente X"></div>`
+  + `<div style="grid-column:1/-1"><label for="gt-pauta">Pauta</label><textarea id="gt-pauta" rows="2">${a?esc(a.pauta||''):''}</textarea></div>`
+  + `<div style="grid-column:1/-1"><label for="gt-disc">Discussão</label><textarea id="gt-disc" rows="3">${a?esc(a.discussao||''):''}</textarea></div>`
+  + `<div style="grid-column:1/-1"><label for="gt-dec">Decisões</label><textarea id="gt-dec" rows="3" placeholder="Uma decisão por linha. O que ficou combinado, não o que foi debatido.">${a?esc(a.decisoes||''):''}</textarea></div>`
+  + `<div style="grid-column:1/-1"><label for="gt-obs">Observações</label><textarea id="gt-obs" rows="2">${a?esc(a.observacoes||''):''}</textarea></div>`
+  + `<div><label for="gt-st">Situação</label><select id="gt-st">`
+  + `<option value="rascunho"${(a?a.status:'rascunho')==='rascunho'?' selected':''}>Rascunho</option>`
+  + `<option value="publicada"${a&&a.status==='publicada'?' selected':''}>Publicada</option>`
+  + '</select></div>'
+  + '</div>'
+  + '<div class="m-err" id="m-err"></div><div class="m-err" id="m-err"></div><div class="m-foot">'
+  + (id?`<button class="ghost" onclick="gtExcluir(${id},${(a&&a.acoes)||0})">Excluir</button>`:'')
+  + `<button class="btn" onclick="gtSalvar(${id||'null'})">Salvar</button></div>`);
+}
+
+async function gtSalvar(id){
+  const v = s => (document.getElementById(s)||{}).value || '';
+  const sel = Array.from((document.getElementById('gt-parts')||{selectedOptions:[]}).selectedOptions||[])
+    .map(o=>({usuario_id: parseInt(o.value,10)}));
+  const livres = v('gt-partl').split(',').map(s=>s.trim()).filter(Boolean)
+    .map(nome=>({nome}));
+  const body = {
+    titulo:v('gt-tit'), data:v('gt-data'), tipo:v('gt-tp'), area:v('gt-ar'),
+    hora_inicio:v('gt-hi'), hora_fim:v('gt-hf'), local:v('gt-loc'),
+    pauta:v('gt-pauta'), discussao:v('gt-disc'), decisoes:v('gt-dec'),
+    observacoes:v('gt-obs'), status:v('gt-st'),
+    participantes: sel.concat(livres),
+  };
+  if(id) body.id = id;
+  mErro('');
+  let ok = false;
+  try{
+    const r = await fetch('/api/gestao/atas', {method:'POST',
+      headers:{'Content-Type':'application/json'}, body: JSON.stringify(body)});
+    const rr = await respostaJSON(r);
+    if(!rr.ok){ mErro(rr.dados.mensagem||'Não foi possível gravar.'); return; }
+    ok = true;
+  }catch(e){ mErro('Falha de rede: '+e.message); return; }
+  if(ok){ fecharModal(); loadGesata(); }
+}
+
+async function gtExcluir(id, acoes){
+  // A consequência que não se vê ao clicar: as ações SOBREVIVEM à ata.
+  const aviso = acoes
+    ? `\n\nAs ${acoes} ação(ões) desta ata NÃO serão apagadas — elas continuam `
+      + 'no acompanhamento, sem ata de origem. O compromisso assumido não deixa '
+      + 'de existir porque o registro da reunião foi removido.'
+    : '';
+  if(!confirm('Excluir a ata "'+((GT.lista.find(x=>x.id===id)||{}).titulo||'')+'"?'+aviso)) return;
+  let ok = false;
+  try{
+    const r = await fetch('/api/gestao/atas/'+id+'/excluir', {method:'POST'});
+    const rr = await respostaJSON(r);
+    if(!rr.ok){ mErro(rr.dados.mensagem||'Não foi possível excluir.'); return; }
+    ok = true;
+  }catch(e){ mErro('Falha de rede: '+e.message); return; }
+  if(ok){ fecharModal(); loadGesata(); }
+}
+
 async function loadDoc(){
   const seq=++docSeq;
   const btn=document.getElementById('btnRefresh');
@@ -21387,6 +22251,13 @@ boot();
         <a href="#mul" onclick="fecharDrawer()"><span class="ic" data-ic="mul"></span>Multas</a>
         <a href="#pneus" onclick="fecharDrawer()"><span class="ic" data-ic="pneuic"></span>Pneus</a>
         <a href="#veic" onclick="fecharDrawer()"><span class="ic" data-ic="veic"></span>Veículos</a>
+      </div>
+    </div>
+    <div class="dgrp" data-grp="Ges">
+      <button class="dgrp-h" onclick="toggleDGrp(this)"><span>Gestão</span><span class="dchev">›</span></button>
+      <div class="dgrp-b">
+        <a href="#gesata" onclick="fecharDrawer()"><span class="ic" data-ic="doc"></span>Atas de Reunião</a>
+        <a href="#gesacao" onclick="fecharDrawer()"><span class="ic" data-ic="fechic"></span>Planos de Ação</a>
       </div>
     </div>
     <div class="dgrp" data-grp="Ope">

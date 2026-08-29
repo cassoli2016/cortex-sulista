@@ -3098,6 +3098,225 @@ async def orcamento_reabrir(req: Request) -> JSONResponse:
             "erro": "erro_consulta", "mensagem": "Erro ao reabrir a versão."})
 
 
+# ---------------------------------------------------------------- Gestão — atas e planos de ação
+
+def _ges_erro(nome: str, exc: Exception, msg: str) -> JSONResponse:
+    """Toda rota deste bloco erra do mesmo jeito.
+
+    `DadoInvalido` é RECUSA — o CÓRTEX funcionou e está dizendo não, com um
+    motivo que a pessoa precisa ler, então é 422 e a mensagem vai inteira.
+    O resto é falha nossa: 500 com mensagem genérica e o TIPO da exceção no
+    log, nunca `str(exc)` na tela.
+    """
+    from api.gestao.comum import DadoInvalido
+    if isinstance(exc, DadoInvalido):
+        return JSONResponse(status_code=422, content={
+            "erro": "parametro_invalido", "mensagem": str(exc)})
+    log.warning("%s falhou: %s", nome, type(exc).__name__)
+    return JSONResponse(status_code=500, content={
+        "erro": "erro_consulta", "mensagem": msg})
+
+
+def _ges_usuario(req: Request) -> tuple[str, int | None]:
+    sess = getattr(req.state, "sessao", None) or {}
+    return sess.get("email", ""), sess.get("id")
+
+
+@app.get("/api/gestao/painel")
+def gestao_painel(req: Request) -> JSONResponse:
+    """A tela de acompanhamento inteira, numa chamada.
+
+    Vai tudo junto — resumo, ranking, paradas, atrasadas e o catálogo de
+    usuários/áreas — porque a tela não desenha nada sem o conjunto, e sete
+    chamadas para montar uma tela é sete chances de meia tela na rede ruim.
+    """
+    try:
+        from api.gestao import painel as gp
+        dados = gp.tudo()
+        _, uid = _ges_usuario(req)
+        dados["minhas"] = gp.minhas(uid)
+        return JSONResponse(dados)
+    except Exception as exc:  # noqa: BLE001
+        return _ges_erro("gestao_painel", exc,
+                         "Erro ao montar o painel de acompanhamento.")
+
+
+@app.get("/api/gestao/acoes")
+def gestao_acoes(status: str = "", responsavel_id: int = 0, area: str = "",
+                 reuniao_id: int = 0, atrasadas: int = 0, busca: str = "",
+                 prazo_de: str = "", prazo_ate: str = "") -> JSONResponse:
+    try:
+        from api.gestao import acoes as ga
+        from api.gestao.comum import AREAS, usuarios_ativos
+        f = {"status": status or None, "responsavel_id": responsavel_id or None,
+             "area": area or None, "reuniao_id": reuniao_id or None,
+             "atrasadas": bool(atrasadas), "busca": busca,
+             "prazo_de": prazo_de or None, "prazo_ate": prazo_ate or None}
+        lista = ga.listar(**f)
+        # "X de Y" no hint: top-N sem contador vira total falso.
+        return JSONResponse({"acoes": lista, "total": ga.contar(**f),
+                             "mostrando": len(lista),
+                             "usuarios": usuarios_ativos(),
+                             "areas": list(AREAS)})
+    except Exception as exc:  # noqa: BLE001
+        return _ges_erro("gestao_acoes", exc, "Erro ao listar as ações.")
+
+
+@app.get("/api/gestao/acoes/{acao_id}")
+def gestao_acao(acao_id: int) -> JSONResponse:
+    try:
+        from api.gestao import acoes as ga
+        a = ga.obter(acao_id)
+        if not a:
+            return JSONResponse(status_code=404, content={
+                "erro": "nao_encontrado", "mensagem": "Esta ação não existe mais."})
+        return JSONResponse(a)
+    except Exception as exc:  # noqa: BLE001
+        return _ges_erro("gestao_acao", exc, "Erro ao ler a ação.")
+
+
+@app.post("/api/gestao/acoes")
+async def gestao_acao_salvar(req: Request) -> JSONResponse:
+    try:
+        body = await req.json()
+    except Exception:  # noqa: BLE001
+        body = None
+    if not isinstance(body, dict):
+        return JSONResponse(status_code=422, content={
+            "erro": "parametro_invalido", "mensagem": "Envie a ação."})
+    autor, _ = _ges_usuario(req)
+    acao_id = body.get("id")
+    acao_id = int(acao_id) if isinstance(acao_id, int) else None
+    try:
+        from api.gestao import acoes as ga
+        d = ga.gravar(body, usuario=autor, acao_id=acao_id)
+    except Exception as exc:  # noqa: BLE001
+        return _ges_erro("gestao_acao_salvar", exc,
+                         "Não foi possível gravar a ação.")
+    auth.audit(autor or "?", "gestao_acao",
+               alvo=f"#{d['id']}",
+               detalhe=(f"{'editada' if acao_id else 'criada'} · "
+                        f"resp={d['responsavel']} · prazo={d['prazo']} · "
+                        f"{d['status']} · {d['o_que'][:120]}"))
+    return JSONResponse(d)
+
+
+@app.post("/api/gestao/acoes/{acao_id}/andamento")
+async def gestao_acao_andamento(acao_id: int, req: Request) -> JSONResponse:
+    """O caminho curto do acompanhamento — escrever o que andou.
+
+    Rota própria, e não o `POST /acoes` com o corpo inteiro, porque é a
+    operação FREQUENTE: obrigar o formulário completo para dizer "o fornecedor
+    retorna dia 12" é o que faz o histórico ficar vazio.
+    """
+    try:
+        body = await req.json()
+    except Exception:  # noqa: BLE001
+        body = None
+    if not isinstance(body, dict):
+        return JSONResponse(status_code=422, content={
+            "erro": "parametro_invalido", "mensagem": "Envie o andamento."})
+    autor, _ = _ges_usuario(req)
+    try:
+        from api.gestao import acoes as ga
+        d = ga.registrar_andamento(
+            acao_id, body.get("texto", ""), usuario=autor,
+            status=body.get("status"), percentual=body.get("percentual"))
+    except Exception as exc:  # noqa: BLE001
+        return _ges_erro("gestao_acao_andamento", exc,
+                         "Não foi possível registrar o andamento.")
+    auth.audit(autor or "?", "gestao_andamento", alvo=f"#{acao_id}",
+               detalhe=f"{d['status']} · {str(body.get('texto',''))[:160]}")
+    return JSONResponse(d)
+
+
+@app.post("/api/gestao/acoes/{acao_id}/excluir")
+def gestao_acao_excluir(acao_id: int, req: Request) -> JSONResponse:
+    from api.gestao import acoes as ga
+    apagada = ga.excluir(acao_id)
+    if not apagada:
+        return JSONResponse(status_code=404, content={
+            "erro": "nao_encontrado", "mensagem": "Esta ação não existe mais."})
+    autor, _ = _ges_usuario(req)
+    auth.audit(autor or "?", "gestao_acao_excluir", alvo=f"#{acao_id}",
+               detalhe=f"{apagada['o_que'][:160]} · resp={apagada['responsavel']}")
+    return JSONResponse({"ok": True})
+
+
+@app.get("/api/gestao/atas")
+def gestao_atas(status: str = "", tipo: str = "", area: str = "",
+                de: str = "", ate: str = "", busca: str = "") -> JSONResponse:
+    try:
+        from api.gestao import atas as gt
+        from api.gestao.comum import (AREAS, ROTULO_TIPO, TIPOS_REUNIAO,
+                                      usuarios_ativos)
+        f = {"status": status or None, "tipo": tipo or None,
+             "area": area or None, "de": de or None, "ate": ate or None,
+             "busca": busca}
+        lista = gt.listar(**f)
+        return JSONResponse({"atas": lista, "total": gt.contar(**f),
+                             "mostrando": len(lista),
+                             "usuarios": usuarios_ativos(),
+                             "areas": list(AREAS),
+                             "tipos": [{"chave": t, "rotulo": ROTULO_TIPO[t]}
+                                       for t in TIPOS_REUNIAO]})
+    except Exception as exc:  # noqa: BLE001
+        return _ges_erro("gestao_atas", exc, "Erro ao listar as atas.")
+
+
+@app.get("/api/gestao/atas/{reuniao_id}")
+def gestao_ata(reuniao_id: int) -> JSONResponse:
+    try:
+        from api.gestao import atas as gt
+        a = gt.obter(reuniao_id)
+        if not a:
+            return JSONResponse(status_code=404, content={
+                "erro": "nao_encontrado", "mensagem": "Esta ata não existe mais."})
+        return JSONResponse(a)
+    except Exception as exc:  # noqa: BLE001
+        return _ges_erro("gestao_ata", exc, "Erro ao ler a ata.")
+
+
+@app.post("/api/gestao/atas")
+async def gestao_ata_salvar(req: Request) -> JSONResponse:
+    try:
+        body = await req.json()
+    except Exception:  # noqa: BLE001
+        body = None
+    if not isinstance(body, dict):
+        return JSONResponse(status_code=422, content={
+            "erro": "parametro_invalido", "mensagem": "Envie a ata."})
+    autor, _ = _ges_usuario(req)
+    reuniao_id = body.get("id")
+    reuniao_id = int(reuniao_id) if isinstance(reuniao_id, int) else None
+    try:
+        from api.gestao import atas as gt
+        d = gt.gravar(body, usuario=autor, reuniao_id=reuniao_id)
+    except Exception as exc:  # noqa: BLE001
+        return _ges_erro("gestao_ata_salvar", exc,
+                         "Não foi possível gravar a ata.")
+    auth.audit(autor or "?", "gestao_ata", alvo=d["codigo"],
+               detalhe=(f"{'editada' if reuniao_id else 'criada'} · "
+                        f"{d['status']} · {d['titulo'][:120]}"))
+    return JSONResponse(d)
+
+
+@app.post("/api/gestao/atas/{reuniao_id}/excluir")
+def gestao_ata_excluir(reuniao_id: int, req: Request) -> JSONResponse:
+    from api.gestao import atas as gt
+    apagada = gt.excluir(reuniao_id)
+    if not apagada:
+        return JSONResponse(status_code=404, content={
+            "erro": "nao_encontrado", "mensagem": "Esta ata não existe mais."})
+    autor, _ = _ges_usuario(req)
+    # Quantas ações ficaram órfãs ENTRA na auditoria: é a consequência que a
+    # pessoa não vê ao clicar, e a que alguém vai querer reconstituir depois.
+    auth.audit(autor or "?", "gestao_ata_excluir", alvo=apagada["codigo"],
+               detalhe=(f"{apagada['titulo'][:120]} · "
+                        f"{apagada['acoes']} ações mantidas sem ata"))
+    return JSONResponse({"ok": True, "acoes_orfas": apagada["acoes"]})
+
+
 # ---------------------------------------------------------------- Previsão de fechamento
 
 @app.get("/api/controladoria/previsao")

@@ -101,6 +101,7 @@ _FONTES_ROTULO = {
     "people": "People Analytics",
     "ferias": "Férias — Vencimento",
     "cnh_motoristas": "CNH dos Motoristas",
+    "gestao_acoes": "Planos de Ação",
 }
 
 
@@ -248,6 +249,18 @@ def _fontes_do_snapshot() -> dict:
         from api.queries_folha import get_cnh
         return get_cnh()
 
+    def _gestao():
+        """Só o RESUMO do acompanhamento — nunca a lista de ações.
+
+        O texto de uma ação carrega nome de responsável, de cliente e de
+        fornecedor, e o snapshot vai para modelo externo. O resumo é escalar:
+        quantas atrasadas, quantas vencem, tempo de ciclo. É o que o gestor
+        pergunta no chat ("temos coisa atrasada?") sem que nada identificável
+        saia da empresa.
+        """
+        from api.gestao import painel as _p
+        return _p.resumo()
+
     return {
         "visao_geral": lambda: queries.get_visao_geral(),
         "financeiro_caixa": lambda: queries.get_overview(),
@@ -278,6 +291,7 @@ def _fontes_do_snapshot() -> dict:
         "people": _people,
         "ferias": _ferias,
         "cnh_motoristas": _cnh,
+        "gestao_acoes": _gestao,
     }
 
 

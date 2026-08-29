@@ -113,6 +113,8 @@ TELAS: dict[str, tuple[str, str]] = {  # chave -> (rótulo, grupo do menu)
     "prodveic": ("Produtividade de Veículos", "Business Intelligence"),
     "tvfat":   ("Painel TV — Faturamento", "Business Intelligence"),
     "tvope":   ("Painel TV — Operação", "Business Intelligence"),
+    "gesacao": ("Planos de Ação", "Gestão"),
+    "gesata":  ("Atas de Reunião", "Gestão"),
     "doc":     ("Documentação", "Administração"),
 }
 
@@ -152,6 +154,11 @@ ROTA_TELAS: list[tuple[str, frozenset[str]]] = [
     ("/api/fiscal/contrapartida/autorizacao", frozenset({"ctecp"})),
     ("/api/fiscal/contrapartida/certificado", frozenset({"ctecp"})),
     ("/api/fiscal/contrapartida",     frozenset({"ctecp"})),
+    # Gestão: o painel de acompanhamento serve as DUAS telas (é o mesmo
+    # dado), e /atas vem antes de /acoes só pela convenção do arquivo.
+    ("/api/gestao/painel",            frozenset({"gesacao", "gesata"})),
+    ("/api/gestao/atas",              frozenset({"gesata", "gesacao"})),
+    ("/api/gestao/acoes",             frozenset({"gesacao", "gesata"})),
     ("/api/rh/folha-custo",           frozenset({"folha"})),
     ("/api/rh/horas-extras",          frozenset({"he"})),
     ("/api/rh/vagas",                 frozenset({"rh"})),

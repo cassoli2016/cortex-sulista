@@ -295,6 +295,18 @@ grupos:
   - prodveic
   - tvfat
   - tvope
+- nome: Gestão
+  resumo: >-
+    O ciclo de gestão: o que foi decidido em reunião e o que se comprometeu a
+    fazer depois. A ata registra pauta, discussão e decisões em campos
+    separados — é a diferença entre ata e transcrição. O plano de ação sai
+    dela em 5W2H, com responsável e prazo, e o acompanhamento cobra. Atraso
+    NUNCA é um campo gravado: é calculado a cada leitura, porque status de
+    atraso guardado depende de uma rotina virar, e no dia em que ela falha a
+    tela diz que está tudo em dia.
+  telas:
+  - gesacao
+  - gesata
 - nome: Administração
   resumo: Usuários, perfis e permissões por tela, saúde da máquina onde a API roda, e esta documentação.
   telas:

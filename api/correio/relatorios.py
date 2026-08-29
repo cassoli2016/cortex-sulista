@@ -21,6 +21,7 @@ import logging
 from datetime import date, datetime, timedelta
 
 from api.correio import painel as p
+from api.gestao.comum import ROTULO_PRIORIDADE
 
 log = logging.getLogger("cortex.correio.relatorios")
 
@@ -297,6 +298,133 @@ def digest() -> dict:
         return _falhou(titulo, exc)
 
 
+# ------------------------------------------------------------------- gestão
+
+def _rot_prazo(a: dict) -> tuple:
+    """Como o prazo aparece na linha, e com que cor.
+
+    Dizer só a data faz "05/09" e "05/07" parecerem a mesma coisa numa lista
+    lida de manhã. O tempo decorrido é o que prioriza — foi a lição da tela de
+    Vagas, onde a data sozinha escondia uma vaga congelada há 376 dias.
+    """
+    if a.get("atrasada"):
+        d = a["dias_atraso"]
+        return f"{_data_br(a['prazo'])} · {d} {'dia' if d == 1 else 'dias'}", "bad"
+    d = a.get("dias_para_prazo")
+    if d == 0:
+        return f"{_data_br(a['prazo'])} · hoje", "warn"
+    if d is not None and d <= 7:
+        return f"{_data_br(a['prazo'])} · em {d} {'dia' if d == 1 else 'dias'}", "warn"
+    return _data_br(a.get("prazo")), "neutro"
+
+
+def acoes_pendentes() -> dict:
+    """Planos de ação — o que venceu e o que vence esta semana.
+
+    É o consolidado da DIRETORIA, não a lista de cada um: quem cobra precisa
+    ver a fila inteira ordenada por atraso, e o responsável aparece em coluna.
+    """
+    titulo = "Planos de ação — pendências"
+    try:
+        from api.gestao import acoes as ga
+        from api.gestao import painel as gp
+
+        r = gp.resumo()
+        atrasadas = [a for a in ga.listar(atrasadas=True, limite=25)]
+        vencendo = [a for a in ga.listar(status="abertas", limite=200)
+                    if a["vence_em_7"]][:15]
+        paradas = gp.paradas(dias=21, limite=8)
+
+        # O KPI de abertas traz a QUEBRA: "84 abertas" não diz se são 84 em dia
+        # ou 60 atrasadas, e é a quebra que decide se alguém precisa agir hoje.
+        blocos = [p.kpis([
+            {"rotulo": "Atrasadas", "valor": p.inteiro(r["atrasadas"]),
+             "estado": "bad" if r["atrasadas"] else "ok",
+             "sub": (f"de {r['abertas']} abertas"
+                     if r["abertas"] else "nenhuma ação aberta")},
+            {"rotulo": "Vencem em 7 dias", "valor": p.inteiro(r["vence_7"]),
+             "estado": "warn" if r["vence_7"] else "ok",
+             "sub": "entram na semana"},
+            {"rotulo": "Em dia", "valor": p.inteiro(r["em_dia"]),
+             "estado": "ok", "sub": "abertas dentro do prazo"},
+            {"rotulo": "Concluídas no mês", "valor": p.inteiro(r["concluidas_mes"]),
+             "estado": "ok",
+             # Sem base concluída o número não existe — "0 dias" em verde faria
+             # parecer velocidade perfeita onde não houve conclusão nenhuma.
+             "sub": (f"ciclo mediano {r['ciclo_mediano']:.0f} dias"
+                     if r.get("ciclo_mediano") is not None
+                     else "sem base para tempo de ciclo")},
+        ])]
+
+        if atrasadas:
+            total = r["atrasadas"]
+            hint = (f"{len(atrasadas)} de {total}" if total > len(atrasadas)
+                    else f"{total} ação(ões)")
+            blocos.append(p.secao("Atrasadas", hint))
+            blocos.append(p.tabela(
+                ["Prazo", "Ação", "Responsável", "Prioridade"],
+                [[p.chip(*_rot_prazo(a)),
+                  str(a["o_que"])[:70],
+                  str(a["responsavel"] or "—")[:26],
+                  p.chip(ROTULO_PRIORIDADE.get(a["prioridade"], a["prioridade"]),
+                         "bad" if a["prioridade"] in ("alta", "critica")
+                         else "neutro")]
+                 for a in atrasadas]))
+
+        if vencendo:
+            blocos.append(p.secao("Vencem nos próximos 7 dias",
+                                  f"{len(vencendo)} ação(ões)"))
+            blocos.append(p.tabela(
+                ["Prazo", "Ação", "Responsável", "Avanço"],
+                [[p.chip(*_rot_prazo(a)),
+                  str(a["o_que"])[:70],
+                  str(a["responsavel"] or "—")[:26],
+                  f"{a['percentual']}%"]
+                 for a in vencendo]))
+
+        if paradas:
+            # O alerta que o status NÃO dá: 'em andamento' há dois meses sem
+            # ninguém escrever nada não está em andamento, está esquecida.
+            blocos.append(p.secao("Sem andamento há mais de 21 dias",
+                                  f"{len(paradas)} ação(ões)"))
+            blocos.append(p.tabela(
+                ["Parada há", "Ação", "Responsável"],
+                [[p.chip(f"{a['parada_dias']} dias", "warn"),
+                  str(a["o_que"])[:70],
+                  str(a["responsavel"] or "—")[:26]]
+                 for a in paradas]))
+
+        if not (atrasadas or vencendo or paradas):
+            blocos.append(p.paragrafo(
+                "Nenhuma ação atrasada, vencendo nesta semana ou parada. "
+                "O plano está em dia."))
+
+        linhas = [titulo, "",
+                  f"Atrasadas: {r['atrasadas']} (de {r['abertas']} abertas)",
+                  f"Vencem em 7 dias: {r['vence_7']}",
+                  f"Concluídas no mês: {r['concluidas_mes']}", ""]
+        for a in atrasadas[:15]:
+            linhas.append(f"  [{a['dias_atraso']}d] {a['o_que'][:60]} "
+                          f"— {a['responsavel']}")
+        texto = "\n".join(linhas)
+
+        return {
+            "assunto": (f"[CÓRTEX] {r['atrasadas']} ação(ões) atrasada(s) e "
+                        f"{r['vence_7']} vencendo"),
+            "html": p.documento(titulo, blocos,
+                                subtitulo=date.today().strftime("%d/%m/%Y"),
+                                origem="ges_acoes · banco local"),
+            "texto": texto,
+            # Nada pendente NÃO é silêncio: "o plano está em dia" é justamente
+            # a notícia que a diretoria quer receber, e sumir com ela faria
+            # duvidar do envio. Mesma escolha do digest de alertas.
+            "vazio": False,
+        }
+    except Exception as exc:  # noqa: BLE001
+        log.warning("acoes_pendentes falhou: %s", exc)
+        return _falhou(titulo, exc)
+
+
 CATALOGO = {
     "contrapartida": {
         "nome": "CT-e de Contrapartida — despacho do dia",
@@ -305,6 +433,15 @@ CATALOGO = {
         "monta": contrapartida,
         # Fila vazia com tudo em ordem nao precisa virar e-mail diario.
         "pular_vazio": True,
+    },
+    "acoes_pendentes": {
+        "nome": "Planos de ação — pendências",
+        "descricao": "Ações atrasadas, vencendo em 7 dias e paradas há mais "
+                     "de 21 dias, com responsável.",
+        "monta": acoes_pendentes,
+        # "O plano está em dia" é a notícia que se quer receber — sumir com
+        # ela faria o destinatário duvidar do envio.
+        "pular_vazio": False,
     },
     "digest": {
         "nome": "Alertas do painel",

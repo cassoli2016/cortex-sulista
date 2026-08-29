@@ -81,7 +81,7 @@ Cada módulo é unidade de RBAC (papel × módulo × escopo de linha via RLS).
 | `suprimentos` | Agregados, fornecedores, contratos, make-vs-buy | `sup_agregados`, `sup_fornecedores`, `sup_contratos` |
 | `telemetria` | Dados da plataforma Gobrax por API com token: premiação por nota × km, consumo × abastecimento, condução e hodômetro/rastro | `api/gobrax/`, `data/premiacao/` |
 | `antt` | Piso mínimo de frete da compra e situação do RNTRC dos transportadores contratados | `config/antt_coeficientes.yaml`, `config/antt_eixos.yaml`, `programacaoembarque` (AVA) |
-| `gestao` | Metas, KPIs, OKRs, atas de reunião, planos de ação | `ges_metas`, `ges_okr`, `ges_atas`, `ges_acoes` |
+| `gestao` | Atas de reunião e planos de ação (5W2H) com responsável, prazo e acompanhamento. Metas/OKR ainda não implementados | `ges_reunioes`, `ges_participantes`, `ges_acoes`, `ges_andamentos` (banco local) |
 | `integracoes` | Central de integração com APIs de fornecedores (hub de conectores) | `int_conectores`, `int_sync_state`, `int_raw_events`, `int_dead_letter` |
 | `whatsapp` | Envio de mensagens por WhatsApp via Z-API e os MODELOS de texto reusáveis pelas áreas (aba de Gestão, só admin) | `api/whatsapp/`, `zap_envios`, `zap_modelos` |
 | `analytics` | Painel CEO consolidado, previsões e projeções | views materializadas + skill previsao-projecao |
@@ -981,6 +981,36 @@ em estrutura de topo: resolver dentro de **função**, na hora de desenhar.
   aviso. Dos preferidos fixos, só 2 de 5 ainda existiam no catálogo. O desempate do
   resto lê o porte do próprio id (`-550b-` → 550B), e um teste de manutenção compara
   os preferidos contra o catálogo real (faz skip sem chave/rede).
+
+**Estado que envelhece sozinho não se GRAVA, se calcula (lição da Gestão):**
+- **Não existe status "atrasada" em `ges_acoes`.** Atraso é `prazo < hoje AND
+  status IN (aberta, em_andamento)`, derivado a cada leitura. Status de atraso
+  gravado precisa de alguém para virar, e no dia em que a rotina não roda a
+  tela diz que está tudo em dia — a mesma armadilha do marcador de manutenção
+  preventiva parado em 77.534 km com o odômetro em 531.970. O CHECK do banco
+  recusa o valor, e há teste que quebra se alguém tentar.
+- **A mesma regra vale para o que já aconteceu:** `concluida_em` é carimbado na
+  transição para concluída e **volta a NULL ao reabrir**. Manter o carimbo
+  antigo faria o tempo de ciclo medir a primeira conclusão de uma tarefa que
+  seguiu aberta mais dois meses.
+- **Prorrogar prazo deixa rastro automático.** Sem o contador, a ação adiada
+  seis vezes é indistinguível da que nasceu ontem — e é justamente ela que
+  precisa de atenção. Idem troca de responsável.
+- **"Em andamento" há dois meses sem ninguém escrever nada não está em
+  andamento, está esquecida.** O status diz o contrário com todas as letras;
+  quem desmente é o último andamento (`parada_dias`), e ele tem cartão próprio.
+- **Responsável é FK para `usuarios` COM alternativa de texto livre.** Só com o
+  id dá para montar "minhas ações" e mandar a cobrança ao e-mail certo; mas
+  contador externo e motorista não têm login, e recusá-los obrigaria a inventar
+  usuário falso. CHECK garante "um ou outro, nunca nenhum", e o nome é gravado
+  junto do id para sobreviver à exclusão do usuário.
+- **Apagar a ata NÃO apaga as ações** (`ON DELETE SET NULL`): o compromisso
+  assumido não deixa de existir porque alguém arrumou o registro da reunião. A
+  confirmação na tela diz quantas ficarão órfãs, porque é a consequência que
+  não se vê ao clicar.
+- **Pauta, discussão e decisões são campos SEPARADOS.** É a diferença entre ata
+  e transcrição: em texto corrido, três meses depois, duas pessoas leem a mesma
+  ata e discordam sobre o que ficou combinado.
 
 Regra: todo painel tem **fonte do dado + timestamp**; nenhum gráfico sem rótulo direto;
 todo número-chave traz **comparação** (vs meta, vs período anterior).
