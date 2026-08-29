@@ -107,6 +107,16 @@ CAMPOS: dict[str, dict] = {
         "rotulo": "Ambiente", "segredo": False, "obrigatorio": False,
         "descricao": "hmg (homologação, padrão) ou prod", "placeholder": "hmg"},
 
+    # Endereço público do painel. Existe para UMA coisa: o e-mail de
+    # boas-vindas precisa dizer ONDE entrar, e um e-mail de acesso sem
+    # endereço é papel picado. Fica em configuração e não em constante porque
+    # o host muda com o túnel, e um endereço errado num e-mail de acesso manda
+    # gente nova para lugar nenhum no primeiro contato com o sistema.
+    "CORTEX_URL": {
+        "rotulo": "Endereço do painel", "segredo": False,
+        "descricao": "URL pública do CÓRTEX, usada no e-mail de boas-vindas",
+        "placeholder": "https://cortex.exemplo.com.br"},
+
     # RasterJOR — jornada do motorista. A URL NÃO TEM PADRÃO de propósito:
     # adivinhar host de fornecedor no melhor caso dá 404 e no pior acerta o
     # endpoint de outra empresa. Sem ela a coleta recusa dizendo o que falta.
@@ -190,6 +200,21 @@ CAMPOS: dict[str, dict] = {
 # diria "autenticando por usuário e senha" enquanto o código usa o token — e o
 # teste `test_modo_ativo_bate_com_o_cliente` quebra de propósito.
 SERVICOS: list[dict] = [
+    # NÃO É INTEGRAÇÃO — é ajuste do próprio CÓRTEX, e está aqui porque é
+    # aqui que a tela de configuração lê. Campo que não entra em serviço
+    # nenhum fica invisível e ninguém descobre por que o e-mail não sai.
+    {
+        "chave": "cortex",
+        "nome": "CÓRTEX",
+        "resumo": "Endereço público do painel. Ele entra nos e-mails que o "
+                  "sistema envia — sem ele, o e-mail de boas-vindas não tem "
+                  "como dizer onde entrar.",
+        "alimenta": "E-mail de boas-vindas",
+        "modos": [{"chave": "url", "rotulo": "Endereço do painel",
+                   "dica": "a mesma URL que você usa no navegador",
+                   "campos": ["CORTEX_URL"]}],
+        "ajustes": [],
+    },
     {
         "chave": "gobrax",
         "nome": "Gobrax",

@@ -641,8 +641,11 @@ def test_a_tela_desenha_os_quatro_graficos_com_echarts(html):
 def test_a_falha_da_biblioteca_e_dita_no_cartao(html):
     """Cartão vazio faria parecer que não houve jornada no período. O arquivo
     vem do nosso disco: não carregar significa deploy quebrado."""
-    assert "jrFalhaGrafico" in html
-    i = html.index("function jrFalhaGrafico")
+    # `jrFalhaGrafico` virou `ecFalha` quando a Visão Geral passou a usar a
+    # biblioteca: o auxiliar deixou de ser só da jornada, e nome de módulo em
+    # helper compartilhado envelhece mal.
+    assert "ecFalha" in html
+    i = html.index("function ecFalha")
     trecho = html[i:i + 600]
     assert "biblioteca de gráficos" in trecho
     assert "continuam corretos" in trecho

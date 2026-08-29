@@ -2258,11 +2258,8 @@ body.tvfull #btnReport,body.tvmode #btnReport{display:none}
             <span class="k"><i class="ln" style="border-top-color:var(--navy-500)"></i>Meta do dia</span>
             <span class="k"><i class="band" style="background:var(--n100)"></i>Dias a realizar</span>
           </div>
-          <div class="chartwrap" id="wrapHdia">
-            <svg id="chartHdia" viewBox="0 0 960 250" preserveAspectRatio="xMidYMid meet" tabindex="0" role="img"
-                 aria-label="Faturamento realizado versus meta por dia do mês corrente."></svg>
-            <div class="tip" id="tipHdia"></div>
-          </div>
+          <div id="chartHdia" style="width:100%;height:250px" role="img"
+               aria-label="Faturamento realizado versus meta por dia do mês corrente."></div>
         </div>
         <div class="grid2">
           <div class="card">
@@ -2275,11 +2272,8 @@ body.tvfull #btnReport,body.tvmode #btnReport{display:none}
               <span class="k"><i class="sw hatch"></i>Mês corrente (parcial)</span>
               <span class="k"><i class="ln dash"></i>Média dos 12 meses</span>
             </div>
-            <div class="chartwrap narrow" id="wrapHrec">
-              <svg id="chartHrec" viewBox="0 0 640 260" preserveAspectRatio="xMidYMid meet" tabindex="0" role="img"
-                   aria-label="Receita de frete por mês, últimos 12 meses."></svg>
-              <div class="tip" id="tipHrec"></div>
-            </div>
+            <div id="chartHrec" style="width:100%;height:260px" role="img"
+                 aria-label="Receita de frete por mês, últimos 12 meses."></div>
           </div>
           <div class="card">
             <div class="head">
@@ -2290,11 +2284,8 @@ body.tvfull #btnReport,body.tvmode #btnReport{display:none}
               <span class="k"><i class="ln" style="border-top-color:var(--navy-700)"></i>Saldo projetado</span>
               <span class="k"><i class="sw" style="background:var(--red-100);border:1px solid var(--red)"></i>Faixa negativa</span>
             </div>
-            <div class="chartwrap narrow" id="wrapHsal">
-              <svg id="chartHsal" viewBox="0 0 640 260" preserveAspectRatio="xMidYMid meet" tabindex="0" role="img"
-                   aria-label="Saldo de caixa projetado para os próximos meses."></svg>
-              <div class="tip" id="tipHsal"></div>
-            </div>
+            <div id="chartHsal" style="width:100%;height:260px" role="img"
+                 aria-label="Saldo de caixa projetado para os próximos meses."></div>
           </div>
         </div>
         <div class="grid2">
@@ -2825,7 +2816,7 @@ body.tvfull #btnReport,body.tvmode #btnReport{display:none}
         <div class="kpis" id="kpis-fech"></div>
         <div class="grid2">
           <div class="card"><div class="head"><h2>Evolução da previsão <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="Snapshot diário gravado a cada consulta (tabela prev_snapshot do banco do CÓRTEX): como o resultado previsto do mês evoluiu conforme o dado chegou. A linha do orçado é a referência fixa da versão vigente.">i</span><span class="hint">resultado previsto por dia · linha = orçado</span></div>
-            <div class="chartwrap narrow"><svg id="chartFechEvol" viewBox="0 0 640 200" preserveAspectRatio="xMidYMid meet" role="img"></svg></div></div>
+            <div class="chartwrap narrow"><div id="chartFechEvol" style="width:100%;height:200px" role="img"></div></div></div>
           <div class="card"><div class="head"><h2>Maiores desvios vs orçado <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="Linhas diretas da DRE com maior |previsto - orçado| do mês. Cor pelo EFEITO no resultado (custo acima do orçado = ruim), não pelo sinal.">i</span><span class="hint">explicar o delta, não só mostrá-lo</span></div>
             <div id="fech-desvios"></div></div>
         </div>
@@ -2873,7 +2864,7 @@ body.tvfull #btnReport,body.tvmode #btnReport{display:none}
             <div class="head"><h2>Comparativo mensal <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" id="prem-comp-help" title="">i</span></h2><span class="hint">média da frota × meta por mês · série calculada dos snapshots — não recoleta · mês parcial aparece com os dados coletados até agora</span></div>
             <div class="chartwrap">
               <div id="prem-comp-loading" style="display:none;color:var(--n500);font-size:13px;padding:24px 6px">carregando série…</div>
-              <svg id="chartPrem" viewBox="0 0 960 260" preserveAspectRatio="xMidYMid meet" role="img" aria-label="Média da frota e meta de consumo por mês."></svg>
+              <div id="chartPrem" style="width:100%;height:260px" role="img"></div>
             </div>
             <div style="padding:0 18px 14px;font-size:12px;color:var(--n500)" id="prem-comp-premios"></div>
           </div>
@@ -3706,8 +3697,7 @@ body.tvfull #btnReport,body.tvmode #btnReport{display:none}
         <div class="card">
           <div class="head"><h2>Movimento por mês <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="contacorrente do ERP AVA — razão bancário lançamento a lançamento (débito/crédito), não o saldo. Inclui transferência entre contas próprias, que aparece como débito na origem e crédito no destino ao mesmo tempo: não é receita nem despesa, ver categoria própria abaixo.">i</span></h2><span class="hint" id="hintLanc">crédito × débito no período filtrado</span></div>
           <div class="chartwrap" id="wrapLanc">
-            <svg id="chartLanc" viewBox="0 0 960 240" preserveAspectRatio="xMidYMid meet" tabindex="0" role="img"
-                 aria-label="Crédito e débito por mês no período filtrado."></svg>
+            <div id="chartLanc" style="width:100%;height:240px" role="img"></div>
             <div class="tip" id="tipLanc"></div>
           </div>
         </div>
@@ -3965,9 +3955,9 @@ body.tvfull #btnReport,body.tvmode #btnReport{display:none}
         <div class="kpis" id="kpis-qual"></div>
         <div class="grid2">
           <div class="card"><div class="head"><h2>Atingimento ESG <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="sulista.indicadorescorporativos da matriz: realizado do último dia do mês sobre a meta do dia 1º, casados por ANO-MÊS. A barra é realizado em % da meta — em indicador onde MENOR é melhor (resíduos, km vazio, absenteísmo), passar de 100% é ruim, e a cor já reflete isso.">i</span><span class="hint">realizado em % da meta · verde = na meta</span></div>
-            <div class="chartwrap"><svg id="chartQualEsg" viewBox="0 0 960 200" preserveAspectRatio="xMidYMid meet" role="img"></svg></div></div>
+            <div class="chartwrap"><div id="chartQualEsg" style="width:100%;height:200px" role="img"></div></div></div>
           <div class="card"><div class="head"><h2>Certidões por situação <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="sulista.certidoes por faixa de vencimento contra hoje. ATENÇÃO: documentos que a própria observação declara sem validade recebem data fictícia no ERP e caem em 'em dia', inflando a fatia verde — eles aparecem marcados na tabela abaixo.">i</span><span class="hint">semáforo de vencimento</span></div>
-            <div class="chartwrap" style="min-height:210px"><svg id="chartQualCert" viewBox="0 0 380 200" preserveAspectRatio="xMidYMid meet" style="min-width:300px;max-width:520px;margin:0 auto" role="img"></svg></div></div>
+            <div class="chartwrap" style="min-height:210px"><div id="chartQualCert" style="width:100%;height:200px" role="img"></div></div></div>
         </div>
         <div class="card">
           <div class="head"><h2>Indicadores ESG <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="Meta (tipo 1, dia 1º) × realizado (tipo 2, último dia do mês) de sulista.indicadorescorporativos, casados por ANO-MÊS e não por data exata. A coluna Direção diz se menor ou maior é melhor — o status já considera isso. Indicador sem meta cadastrada aparece como 'sem meta', não como aprovado.">i</span><span class="hint">meta × realizado (mês mais recente) · matriz</span></div>
@@ -3999,7 +3989,7 @@ body.tvfull #btnReport,body.tvmode #btnReport{display:none}
           <div class="card"><div class="head"><h2>Funil por temperatura <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="Leads ativos do CRM (sulista.gestaocomercial) por temperatura informada pelo vendedor, com o potencial declarado de cada faixa. Temperatura e potencial são preenchimento manual do time comercial — não saem de nenhum cálculo do ERP.">i</span></h2><span class="hint">leads e potencial por faixa</span></div>
             <div class="modl" id="crm-temp-mix"></div></div>
           <div class="card"><div class="head"><h2>Maiores oportunidades <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="Os 14 leads ativos com maior potencial declarado. A cor é a temperatura: vermelho quente, âmbar morno, navy frio. Potencial alto em lead FRIO não é pipeline — é intenção registrada.">i</span></h2><span class="hint">potencial declarado · top 14</span></div>
-            <div class="chartwrap"><svg id="chartCrmPot" viewBox="0 0 960 200" preserveAspectRatio="xMidYMid meet" role="img"></svg></div></div>
+            <div class="chartwrap"><div id="chartCrmPot" style="width:100%;height:200px" role="img"></div></div></div>
         </div>
         <div class="card">
           <div class="head"><h2>Leads ativos <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="Funil de sulista.gestaocomercial, ordenado por potencial declarado. E-mail e telefone do lead NÃO são expostos neste painel. 'Previsão vencida' = data prevista de fechamento já passou e o lead segue aberto.">i</span></h2><span class="hint" id="crm-leads-hint">funil comercial · por potencial de receita</span></div>
@@ -4050,19 +4040,19 @@ body.tvfull #btnReport,body.tvmode #btnReport{display:none}
         <div class="kpis" id="kpis-hc"></div>
         <div class="card">
           <div class="head"><h2>Movimentação (12 meses)</h2><span class="hint">admissões × demissões por mês</span></div>
-          <div class="chartwrap"><svg id="chartHcMov" viewBox="0 0 960 260" preserveAspectRatio="xMidYMid meet" role="img" aria-label="Admissões e demissões por mês nos últimos 12 meses."></svg></div>
+          <div class="chartwrap"><div id="chartHcMov" style="width:100%;height:260px" role="img"></div></div>
           <div class="tablewrap" id="hc-mov"></div>
         </div>
         <div class="grid2">
           <div class="card"><div class="head"><h2>Por filial</h2><span class="hint">quadro ativo</span></div>
-            <div class="chartwrap"><svg id="chartHcFilial" viewBox="0 0 960 200" preserveAspectRatio="xMidYMid meet" role="img"></svg></div>
+            <div class="chartwrap"><div id="chartHcFilial" style="width:100%;height:200px" role="img"></div></div>
             <div class="tablewrap" id="hc-filial"></div></div>
           <div class="card"><div class="head"><h2>Por área</h2><span class="hint">top 14</span></div>
-            <div class="chartwrap"><svg id="chartHcArea" viewBox="0 0 960 200" preserveAspectRatio="xMidYMid meet" role="img"></svg></div>
+            <div class="chartwrap"><div id="chartHcArea" style="width:100%;height:200px" role="img"></div></div>
             <div class="tablewrap" id="hc-area"></div></div>
         </div>
         <div class="card"><div class="head"><h2>Tempo de casa</h2><span class="hint">faixas do quadro ativo</span></div>
-          <div class="chartwrap"><svg id="chartHcTempo" viewBox="0 0 960 180" preserveAspectRatio="xMidYMid meet" role="img"></svg></div>
+          <div class="chartwrap"><div id="chartHcTempo" style="width:100%;height:180px" role="img"></div></div>
           <div class="tablewrap" id="hc-tempo"></div></div>
       </section>
       <section class="view" id="view-folha">
@@ -4076,11 +4066,11 @@ body.tvfull #btnReport,body.tvmode #btnReport{display:none}
         <div class="kpis" id="kpis-folha"></div>
         <div class="card">
           <div class="head"><h2>Evolução do custo (12 meses)</h2><span class="hint">proventos × descontos por competência</span></div>
-          <div class="chartwrap"><svg id="chartFolhaSerie" viewBox="0 0 960 260" preserveAspectRatio="xMidYMid meet" role="img" aria-label="Evolução de proventos e descontos nos últimos 12 meses."></svg></div>
+          <div class="chartwrap"><div id="chartFolhaSerie" style="width:100%;height:260px" role="img"></div></div>
         </div>
         <div class="card">
           <div class="head"><h2>Por centro de custo</h2><span class="hint">líquido por área · top 14</span></div>
-          <div class="chartwrap"><svg id="chartFolhaCC" viewBox="0 0 960 200" preserveAspectRatio="xMidYMid meet" role="img"></svg></div>
+          <div class="chartwrap"><div id="chartFolhaCC" style="width:100%;height:200px" role="img"></div></div>
           <div class="tablewrap" id="folha-cc"></div>
         </div>
         <div class="grid2">
@@ -4100,10 +4090,10 @@ body.tvfull #btnReport,body.tvmode #btnReport{display:none}
         </div>
         <div class="grid2">
           <div class="card"><div class="head"><h2>Hora extra</h2><span class="hint">custo mensal · mesma definição da tela Horas Extras</span></div>
-            <div class="chartwrap"><svg id="chartHe" viewBox="0 0 960 260" preserveAspectRatio="xMidYMid meet" role="img"></svg></div>
+            <div class="chartwrap"><div id="chartHe" style="width:100%;height:260px" role="img"></div></div>
             <div class="tablewrap" id="fi-he"></div></div>
           <div class="card"><div class="head"><h2>Banco de horas</h2><span class="hint">saldo por competência</span></div>
-            <div class="chartwrap"><svg id="chartBh" viewBox="0 0 960 260" preserveAspectRatio="xMidYMid meet" role="img"></svg></div>
+            <div class="chartwrap"><div id="chartBh" style="width:100%;height:260px" role="img"></div></div>
             <div class="tablewrap" id="fi-bh"></div></div>
         </div>
       </section>
@@ -4118,13 +4108,13 @@ body.tvfull #btnReport,body.tvmode #btnReport{display:none}
         <div class="kpis" id="kpis-he"></div>
         <div class="grid2">
           <div class="card"><div class="head"><h2>Composição por família</h2><span class="hint">participação na competência</span></div>
-            <div class="chartwrap" style="min-height:210px"><svg id="chartHeFam" viewBox="0 0 380 200" preserveAspectRatio="xMidYMid meet" style="min-width:300px;max-width:520px;margin:0 auto" role="img"></svg></div></div>
+            <div class="chartwrap" style="min-height:210px"><div id="chartHeFam" style="width:100%;height:200px" role="img"></div></div></div>
           <div class="card"><div class="head"><h2>Por área / setor</h2><span class="hint">onde a HE é gerada · top 14</span></div>
-            <div class="chartwrap"><svg id="chartHeArea" viewBox="0 0 960 200" preserveAspectRatio="xMidYMid meet" role="img"></svg></div></div>
+            <div class="chartwrap"><div id="chartHeArea" style="width:100%;height:200px" role="img"></div></div></div>
         </div>
         <div class="card">
           <div class="head"><h2>Evolução (12 meses)</h2><span class="hint">composição empilhada por família</span></div>
-          <div class="chartwrap"><svg id="chartHeSerie" viewBox="0 0 960 260" preserveAspectRatio="xMidYMid meet" role="img" aria-label="Evolução das horas extras por família nos últimos 12 meses."></svg></div>
+          <div class="chartwrap"><div id="chartHeSerie" style="width:100%;height:260px" role="img"></div></div>
         </div>
         <div class="card">
           <div class="head"><h2>Eventos que compõem a hora extra</h2><span class="hint" id="he-ev-hint">na competência · valor e nº de colaboradores</span></div>
@@ -4159,7 +4149,7 @@ body.tvfull #btnReport,body.tvmode #btnReport{display:none}
           <div class="card"><div class="head"><h2>Concentração do custo <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="Quanto do custo do período está nos maiores agrupadores. Substituiu a rosca de participação, que mostrava exatamente o mesmo dado do gráfico ao lado. Aqui a pergunta é outra: se poucos agrupadores explicam quase tudo, é neles que a negociação tem efeito.">i</span></h2><span class="hint">quanto está nos maiores agrupadores</span></div>
             <div class="modl" id="custos-conc"></div></div>
           <div class="card"><div class="head"><h2>Por agrupador (grupo DRE) <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="Itens de abastecimento (CTA Plus) e de ordens de compra, classificados pelo agrupador gerencial do plano de contas — o mesmo usado na DRE Gerencial. CV é custo variável, CF é custo fixo e OVERHEAD é estrutura.">i</span></h2><span class="hint">top 14 por valor</span></div>
-            <div class="chartwrap"><svg id="chartCustosAgr" viewBox="0 0 960 200" preserveAspectRatio="xMidYMid meet" role="img"></svg></div></div>
+            <div class="chartwrap"><div id="chartCustosAgr" style="width:100%;height:200px" role="img"></div></div></div>
         </div>
         <div class="grid2">
           <div class="card"><div class="head"><h2>Por agrupador — detalhe <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="Mesma classificação do gráfico acima, em tabela, com a contagem de itens. A linha (sem agrupador) é item cuja conta não está mapeada no plano gerencial — some do rateio por natureza e precisa de classificação.">i</span></h2><span class="hint" id="hintCustAgr">top 20</span></div>
@@ -4185,8 +4175,7 @@ body.tvfull #btnReport,body.tvmode #btnReport{display:none}
         <div class="card">
           <div class="head"><h2>Multas por mês <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="Quantidade de multas por mês da data da infração. A barra conta MULTAS e não valor: o campo de valor existe em uma fração pequena dos registros e, quando o gráfico usava valor, meses inteiros com multa apareciam vazios. O valor lançado no mês continua no tooltip.">i</span></h2><span class="hint" id="hintMul">quantidade no período filtrado · valor no tooltip</span></div>
           <div class="chartwrap" id="wrapMul">
-            <svg id="chartMul" viewBox="0 0 960 240" preserveAspectRatio="xMidYMid meet" tabindex="0" role="img"
-                 aria-label="Valor de multas por mês no período filtrado."></svg>
+            <div id="chartMul" style="width:100%;height:240px" role="img"></div>
             <div class="tip" id="tipMul"></div>
           </div>
         </div>
@@ -5769,8 +5758,15 @@ function router(){
   if(torreTimer){ clearInterval(torreTimer); torreTimer=null; }
   if(torre){ torreTimer=setInterval(()=>{ if(currentView()==='torre') loadTorre(true); }, 120000); }
   // saúde do servidor: auto-refresh de 5s enquanto a tela está ativa
-  if(srvTimer){ clearInterval(srvTimer); srvTimer=null; }
-  if(v==='srv'){ srvTimer=setInterval(()=>{ if(currentView()==='srv') loadSrv(true); }, 5000); }
+  if(srvTimer){ clearTimeout(srvTimer); srvTimer=null; }
+  /* RECARGA ENCADEADA, não `setInterval`. O intervalo fixo disparava a cada
+     5 s mesmo com a requisição anterior em voo; quando a resposta passou a
+     levar 4,8 s, quase toda resposta chegava depois de uma mais nova ter
+     começado e o guard de sequência a DESCARTAVA — a tela ficava em branco
+     para sempre, sem erro nenhum aparecer. Agendar o próximo ciclo só DEPOIS
+     de o anterior terminar torna a tela imune à lentidão do servidor: ela
+     fica mais lenta, nunca vazia. */
+  if(v==='srv') srvAgendar();
   // cronômetro da emissão automática: só vive enquanto a tela está aberta
   if(cpCronTimer){ clearInterval(cpCronTimer); cpCronTimer=null; }
   if(cpAutoTimer){ clearInterval(cpAutoTimer); cpAutoTimer=null; }
@@ -7469,45 +7465,6 @@ function setActive(svgId,i,clientY,announce){
     tipRow(tip,'Passivo exigível',BRL.format(r.exigivel||0),{borderTop:'3px solid #C03221'});
     tipRow(tip,'Patrimônio líquido',BRL.format(r.pl||0),{borderTop:'3px solid #1E7F4F'});
     liveTxt=`${periodoLabel(r.mes)}: ativo ${BRL.format(r.ativo||0)}, PL ${BRL.format(r.pl||0)}`;
-  } else if(g.kind==='hdia'){
-    const r=g.rows[i];
-    const rat=(r.meta>0)?(r.realizado||0)/r.meta:null;
-    const fut=g.hoje!=null && r.dia>g.hoje;
-    tt.textContent='Dia '+r.dia+(r.dia===g.hoje?' (hoje)':(fut?' · a realizar':''));
-    tip.append(tt);
-    tipRow(tip,'Realizado',BRL.format(r.realizado||0),{borderTop:'3px solid '+corAtingimento(rat)});
-    tipRow(tip,'Meta do dia',r.meta>0?BRL.format(r.meta):'sem meta',{borderTop:'3px solid '+CC.navy500});
-    if(rat!=null){   // dia sem meta (domingo/feriado) não tem % nem "falta"
-      const sep=document.createElement('div'); sep.className='sep'; tip.append(sep);
-      tipRow(tip,'% da meta',(100*rat).toLocaleString('pt-BR',{maximumFractionDigits:0})+'%',null);
-      tipRow(tip,(r.realizado||0)>=r.meta?'Acima da meta':'Falta',BRL.format(Math.abs(r.meta-(r.realizado||0))),null);
-    }
-    liveTxt=`Dia ${r.dia}: realizado ${BRL.format(r.realizado||0)}, meta ${BRL.format(r.meta||0)}`;
-  } else if(g.kind==='hrec'){
-    const r=g.rows[i], ant=i>0?g.rows[i-1]:null;
-    const parcial=r.mes===g.mAtual;
-    tt.textContent=periodoLabel(r.mes)+(parcial?' · mês incompleto':'');
-    tip.append(tt);
-    tipRow(tip,'Receita de frete',BRL.format(r.receita),{borderTop:'3px solid '+CC.verde});
-    if(ant && ant.receita>0){
-      const v=100*(r.receita-ant.receita)/ant.receita;
-      tipRow(tip,'vs '+periodoLabel(ant.mes),(v>0?'+':'−')+Math.abs(v).toLocaleString('pt-BR',{maximumFractionDigits:1})+'%',null);
-    }
-    if(g.media){
-      const v=100*(r.receita-g.media)/g.media;
-      tipRow(tip,'vs média 12m',(v>0?'+':'−')+Math.abs(v).toLocaleString('pt-BR',{maximumFractionDigits:1})+'%',{borderTop:'3px dashed '+CC.navy700});
-    }
-    const sep=document.createElement('div'); sep.className='sep'; tip.append(sep);
-    tipRow(tip,'Fonte','viagens carregadas',null);
-    liveTxt=`${periodoLabel(r.mes)}: ${BRL.format(r.receita)}`;
-  } else if(g.kind==='hsal'){
-    const r=g.rows[i], ant=i>0?g.rows[i-1]:null;
-    tt.textContent=periodoLabel(r.periodo)+(r.periodo==='atrasado'?' · vencidos até hoje':'');
-    tip.append(tt);
-    tipRow(tip,'Saldo projetado',BRL.format(r.saldo_projetado),{borderTop:'3px solid '+(r.saldo_projetado<0?CC.vermelho:CC.navy700)});
-    if(ant) tipRow(tip,'Variação no mês',(r.saldo_projetado-ant.saldo_projetado>=0?'+':'−')+BRL.format(Math.abs(r.saldo_projetado-ant.saldo_projetado)).replace('R$ ','R$ '),null);
-    tipRow(tip,'Situação',r.saldo_projetado<0?'negativo':'positivo',null);
-    liveTxt=`${periodoLabel(r.periodo)}: ${BRL.format(r.saldo_projetado)}`;
   } else if(g.kind==='kmv'){
     const r=g.rows[i];
     tt.textContent=periodoLabel(r.mes);
@@ -8316,142 +8273,386 @@ function corAtingimento(ratio){
 }
 const _mesAtual = () => { const d=new Date(); return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0'); };
 
-/* Faturamento diário × meta. A meta virou LINHA EM DEGRAU (antes eram 2 barras
-   por dia = 60 barras num mês, ilegível) e os dias que ainda não chegaram
-   ganharam faixa própria, para não parecerem dias com realizado zero. */
+/* ═══════════ GRÁFICOS DA VISÃO GERAL — ECharts ═══════════════════════════
+   Eram três SVGs à mão. Passaram para a biblioteca a pedido, e o que MUDA de
+   verdade nesta tela é que ela agora baixa os 990 KB do ECharts: a Visão Geral
+   é a primeira tela de todo mundo. O custo é uma vez por deploy (o navegador
+   cacheia), e a carga continua SOB DEMANDA — telas sem gráfico de biblioteca
+   seguem sem pagar por ele, e há teste que cobra isso.
+
+   NENHUMA regra da casa foi trocada por conveniência da biblioteca. Estão
+   todas aqui, e cada uma tem teste:
+     · semáforo DISCRETO por atingimento (≥95% / 70–94% / <70%), nunca degradê;
+     · meta em LINHA DE DEGRAU, INTERROMPIDA nos dias sem meta — descer a zero
+       criaria vales que se leem como meta batendo no chão;
+     · dia futuro NÃO desenha barra de realizado (senão parece dia zerado) e a
+       faixa "a realizar" o marca;
+     · mês corrente HACHURADO e rotulado "parcial";
+     · média sobre os meses FECHADOS apenas;
+     · rótulo DIRETO onde o número decide (melhor dia, melhor mês, mês parcial,
+       gap e pior saldo);
+     · eixo com a unidade FINAL (`unitOf`), nunca composta. */
+
+/* ═══════════════ CONSTRUTORES DE GRÁFICO (ECharts) ═══════════════════════
+   As telas convertidas usam os mesmos poucos formatos. Estes construtores
+   existem para que cada REGRA DA CASA seja escrita UMA vez — hachura de
+   período parcial, rótulo direto, semáforo discreto, unidade FINAL no eixo,
+   ausência que não vira zero. Reimplementá-las gráfico a gráfico é
+   exatamente como elas se perdem, uma de cada vez, sem ninguém notar.
+
+   O SVG à mão continua válido onde ainda existe; o que não se aceita é meia
+   regra. Ao converter um gráfico, a lista de regras dele vem junto. */
+
+/* Unidade do eixo: sempre a FINAL, nunca composta com ×1000. Se o rótulo
+   pede aritmética de cabeça, está errado — "MIL KM ×1000" já mandou gente
+   ler milhão como mil nesta casa. */
+const EC_UNIDADES = {
+  moeda:  m => (m >= 1.5e6 ? {d:1e6, t:'R$ MI'}  : m >= 1500 ? {d:1e3, t:'R$ MIL'} : {d:1, t:'R$'}),
+  num:    m => (m >= 1.5e6 ? {d:1e6, t:'MILHÕES'} : m >= 1500 ? {d:1e3, t:'MIL'}   : {d:1, t:''}),
+  km:     m => (m >= 1.5e6 ? {d:1e6, t:'MILHÕES DE KM'} : m >= 1500 ? {d:1e3, t:'MIL KM'} : {d:1, t:'KM'}),
+  litros: m => (m >= 1.5e6 ? {d:1e6, t:'MILHÕES DE LITROS'} : m >= 1500 ? {d:1e3, t:'MIL LITROS'} : {d:1, t:'LITROS'}),
+  horas:  m => (m >= 1500 ? {d:1e3, t:'MIL HORAS'} : {d:1, t:'HORAS'}),
+  pct:    () => ({d:1, t:'%'}),
+  dias:   () => ({d:1, t:'DIAS'}),
+};
+function ecUnidade(max, tipo){
+  return (EC_UNIDADES[tipo] || EC_UNIDADES.moeda)(Math.abs(max || 0));
+}
+
+/* Eixo de valor no padrão da casa: unidade no nome, número em monoespaçada. */
+function ecEixoValor(max, tipo, extra){
+  const u = ecUnidade(max, tipo);
+  return Object.assign({
+    type:'value', name: u.t, nameLocation:'end', nameGap:14,
+    nameTextStyle:{color:CC.n500, fontSize:11, fontWeight:600, align:'left'},
+    splitLine:{lineStyle:{color:CC.grid}}, axisLine:{show:false}, axisTick:{show:false},
+    /* SEM CASA DECIMAL QUANDO NÃO HÁ DIVISÃO. `NMI` sempre põe uma casa, e
+       num eixo de CONTAGEM isso vira "0,0  5,0  10,0" — meia multa não
+       existe. A casa só faz sentido quando o número foi dividido por mil ou
+       por milhão e a fração carrega informação. */
+    axisLabel:{color:CC.n500, fontSize:10, fontFamily:'IBM Plex Mono, monospace',
+               formatter: v => (u.d === 1
+                 ? Math.round(v).toLocaleString('pt-BR')
+                 : NMI.format(v/u.d))},
+  }, extra || {});
+}
+
+/* Esqueleto de gráfico de categoria (mês, dia, faixa, nome). */
+function ecOpcoes(rotulos, max, cfg){
+  cfg = cfg || {};
+  const o = {
+    animation: false,
+    grid: {left: cfg.left != null ? cfg.left : 66, right: cfg.right != null ? cfg.right : 20,
+           top: cfg.top != null ? cfg.top : 30, bottom: cfg.bottom != null ? cfg.bottom : 36},
+    tooltip: Object.assign({trigger:'axis',
+        axisPointer:{type: cfg.sombra ? 'shadow' : 'line',
+                     lineStyle:{color:CC.navy400, width:1}}}, ecTooltip()),
+    xAxis: {type:'category', data: rotulos,
+            axisLine:{lineStyle:{color:CC.n300}}, axisTick:{show:false},
+            axisLabel:{color:CC.n600, fontSize:10.5, lineHeight:13,
+                       hideOverlap:true,
+                       interval: cfg.intervalo != null ? cfg.intervalo : 'auto'}},
+    yAxis: ecEixoValor(max, cfg.tipo, cfg.eixoY),
+    series: [],
+  };
+  if(cfg.legenda) o.legend = {data: cfg.legenda, bottom: 0, itemWidth:14, itemHeight:9,
+    textStyle:{color:CC.n500, fontSize:11, fontFamily:'Saira, sans-serif'}};
+  return o;
+}
+
+/* Série de barras.
+   `opt.parcial` (array de bool) HACHURA o período incompleto — é a regra mais
+   antiga dos painéis desta casa: barra cheia num período cortado mente sobre
+   a queda. `opt.cor` pode ser função do índice, para semáforo DISCRETO. */
+function ecBarras(nome, valores, cor, opt){
+  opt = opt || {};
+  const corDe = (typeof cor === 'function') ? cor : () => cor;
+  return {
+    name: nome, type:'bar',
+    stack: opt.empilhar || undefined,
+    barMaxWidth: opt.largura || 30,
+    yAxisIndex: opt.eixo || 0,
+    data: valores.map((v, i) => {
+      const c = corDe(i, v);
+      const est = {color: c};
+      if(opt.raio !== false) est.borderRadius = [3,3,0,0];
+      if(opt.parcial && opt.parcial[i]) est.decal = ecDecal();
+      const d = {value: v, itemStyle: est};
+      if(opt.rotulo){
+        const txt = opt.rotulo(i, v);
+        d.label = txt ? {show:true, position:'top', formatter: () => txt,
+                         color: CC.n700, fontWeight:700, fontSize:10.5,
+                         textBorderColor:'#fff', textBorderWidth:3} : {show:false};
+      }
+      return d;
+    }),
+  };
+}
+
+/* Série de linha.
+   RÓTULO DIRETO quando ela vive em eixo secundário: lá a escala não é
+   visível, e sem o número em cima do ponto o leitor não tem como ler valor
+   nenhum. `connectNulls` fica FALSO de propósito — período sem dado abre a
+   linha em vez de emendar dois pontos distantes. */
+function ecLinha(nome, valores, cor, opt){
+  opt = opt || {};
+  const s = {
+    name: nome, type:'line', yAxisIndex: opt.eixo || 0,
+    symbol: opt.simbolo || 'circle', symbolSize: opt.tamanho || 7,
+    smooth: false, connectNulls: false,
+    lineStyle: Object.assign({color: cor, width: opt.largura || 2.2},
+                             opt.tracejada ? {type:[4,4]} : {}),
+    itemStyle: {color: cor},
+    data: valores,
+  };
+  if(opt.rotulo) s.label = {show:true, position: opt.posRotulo || 'top', color: cor,
+    fontWeight:700, fontSize:10.5, fontFamily:'Saira, sans-serif',
+    textBorderColor:'#fff', textBorderWidth:3,
+    formatter: p => (p.value == null ? '' : opt.rotulo(p.value, p.dataIndex))};
+  if(opt.area) s.areaStyle = {color: cor, opacity: 0.12};
+  return s;
+}
+
+/* Eixo secundário ESCONDIDO, com folga no topo para o rótulo direto não
+   encostar. Escala própria de verdade, não o fator 0,82 que o desenho à mão
+   usava — escala inventada é o tipo de coisa que ninguém confere depois. */
+function ecEixoOculto(max, folga){
+  return {type:'value', show:false, max: (max || 1) * (folga || 1.35)};
+}
+
+/* Desenha. Concentra as quatro coisas que todo gráfico precisa fazer igual:
+   estado vazio com frase própria, carga sob demanda, registro para o
+   redesenho no resize, e FALHA DITA — cartão vazio faria parecer ausência de
+   dado, que é a leitura errada. */
+function ecDesenhar(elId, montar, vazio){
+  const el = document.getElementById(elId); if(!el) return;
+  if(!montar){
+    el.innerHTML = '<div class="gx-vazio">' + esc(vazio || 'sem dados no período') + '</div>';
+    return;
+  }
+  carregarECharts().then(ec => {
+    /* LIMPA ANTES DE INICIAR. Uma tela que renderizou vazia e depois recebeu
+       dado guardava o "sem dados" como filho do contêiner, e o ECharts
+       desenhava ABAIXO da frase — gráfico cheio com "sem dados" em cima.
+       Só limpa o que é nosso: se já há uma instância viva ali, `init`
+       reaproveita e apagar o nó mataria o canvas dela. */
+    if(!ec.getInstanceByDom(el)) el.innerHTML = '';
+    const inst = ec.init(el, null, {renderer:'svg'});
+    echartsRegistrar(elId, inst);
+    inst.setOption(montar(), true);
+  }).catch(e => ecFalha(el, e));
+}
+
+/* Faturamento diário × meta. */
 function chartHomeDiario(diario){
-  const svg=document.getElementById('chartHdia');
-  GEOM['chartHdia']=null; ACTIVE['chartHdia']=-1;
-  if(!diario.length){ svg.innerHTML=`<text x="480" y="115" text-anchor="middle" fill="${CC.n500}" font-size="14">sem dados no mês</text>`; return; }
-  const W=960,H=250,mL=64,mR=16,mT=24,mB=34, iw=W-mL-mR, ih=H-mT-mB;
-  const n=diario.length, bandW=iw/n;
-  const maxV=Math.max(1,...diario.map(r=>Math.max(r.realizado||0,r.meta||0)));
-  // 8% de folga acima do último tick: sem ela o rótulo do melhor dia colide com
-  // o topo da área e com o rótulo de unidade do eixo
-  const tks=niceTicks(0,maxV,4), top=tks[tks.length-1]*1.08, u=unitOf(top);
-  const y=v=>mT+ih-(v/top)*ih, y0=y(0);
-  const px=i=>mL+bandW*i+bandW/2;
-  const barW=Math.min(17,bandW*0.62);
-  const hoje=new Date().getDate();
-  let iFut=diario.findIndex(r=>r.dia>hoje); if(iFut<0) iFut=n;   // 1º dia a realizar
-  let s='';
-  s+=`<rect id="chartHdia-hband" x="0" y="${mT-8}" width="${bandW}" height="${ih+8}" fill="${CC.navy100}" opacity="0"/>`;
-  if(iFut<n){ const xf=mL+bandW*iFut;
-    s+=`<rect x="${xf}" y="${mT-8}" width="${W-mR-xf}" height="${ih+8}" fill="${CC.grid}"/>`;
-    s+=`<text x="${xf+7}" y="${mT+5}" font-size="10" font-weight="600" fill="${CC.n500}">a realizar</text>`; }
-  s+=`<text x="${mL}" y="${mT-9}" font-size="11" fill="${CC.n500}" font-weight="600" letter-spacing="1.5">${u.t}</text>`;
-  tks.forEach(v=>{ const yy=y(v);
-    s+=`<line x1="${mL}" y1="${yy}" x2="${W-mR}" y2="${yy}" stroke="${v===0?CC.n300:CC.grid}" stroke-width="1"/>`;
-    s+=`<text x="${mL-8}" y="${yy+4}" text-anchor="end" font-size="10" fill="${CC.n500}" font-family="IBM Plex Mono,monospace">${NMI.format(v/u.d)}</text>`; });
-  diario.forEach((r,i)=>{ const rat=(r.meta>0)?(r.realizado||0)/r.meta:null;
-    s+=colPath(px(i)-barW/2,barW,y(r.realizado||0),y0,4,corAtingimento(rat)); });
-  // Meta em degrau, INTERROMPIDA nos dias sem meta (domingos/feriados): descer a
-  // linha até zero nesses dias criava vales que pareciam meta batendo no chão.
-  let mp='', aberto=false;
-  diario.forEach((r,i)=>{
-    if(!(r.meta>0)){ aberto=false; return; }
-    const yy=y(r.meta).toFixed(1), x1=(mL+bandW*i).toFixed(1), x2=(mL+bandW*(i+1)).toFixed(1);
-    mp += (aberto?'L':'M')+x1+','+yy+' L'+x2+','+yy+' ';
-    aberto=true;
-  });
-  if(mp) s+=`<path d="${mp.trim()}" fill="none" stroke="${CC.navy500}" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/>`;
-  if(iFut>0 && iFut<n){ const xf=mL+bandW*iFut;
-    s+=`<line x1="${xf}" x2="${xf}" y1="${mT-8}" y2="${y0}" stroke="${CC.navy400}" stroke-width="1.5" stroke-dasharray="3 3"/>`; }
-  // rótulo direto só no melhor dia do mês (número em todo dia viraria ruído)
-  const iMax=diario.reduce((b,r,i)=>((r.realizado||0)>(diario[b].realizado||0)?i:b),0);
-  if((diario[iMax].realizado||0)>0)
-    s+=`<text x="${px(iMax)}" y="${y(diario[iMax].realizado)-8}" text-anchor="middle" font-size="10" font-weight="700" fill="${CC.n700}" stroke="#fff" stroke-width="3" paint-order="stroke" stroke-linejoin="round">${brlAbbr(diario[iMax].realizado)}</text>`;
-  diario.forEach((r,i)=>{ if(i%2===0||n<=16)
-    s+=`<text x="${px(i)}" y="${H-mB+17}" text-anchor="middle" font-size="10" font-weight="${r.dia===hoje?'700':'400'}" fill="${r.dia===hoje?CC.n900:CC.n600}">${r.dia}</text>`; });
-  s+=`<line id="chartHdia-xhair" x1="0" x2="0" y1="${mT-8}" y2="${y0}" stroke="${CC.navy400}" stroke-width="1" opacity="0"/>`;
-  s+=`<rect x="${mL}" y="${mT-8}" width="${iw}" height="${ih+8}" fill="transparent"/>`;
-  svg.innerHTML=s;
-  GEOM['chartHdia']={kind:'hdia',rows:diario,n,bandW,mL,W,px,topY:mT-8,botY:y0,wrap:'wrapHdia',tip:'tipHdia',hoje};
-  bindHover('chartHdia');
+  const el = document.getElementById('chartHdia'); if(!el) return;
+  if(!diario.length){
+    el.innerHTML = '<div class="gx-vazio">sem dados no mês</div>'; return; }
+
+  carregarECharts().then(ec => {
+    const inst = ec.init(el, null, {renderer:'svg'});
+    echartsRegistrar('chartHdia', inst);
+    const hoje = new Date().getDate();
+    let iFut = diario.findIndex(r => r.dia > hoje); if(iFut < 0) iFut = diario.length;
+    const maxV = Math.max(1, ...diario.map(r => Math.max(r.realizado||0, r.meta||0)));
+    const eixo = ecEixoValor(maxV * 1.08, 'moeda');
+    /* O melhor dia é o único com rótulo: número em cada barra viraria ruído. */
+    const iMax = diario.reduce((b,r,i) => ((r.realizado||0) > (diario[b].realizado||0) ? i : b), 0);
+
+    inst.setOption({
+      animation: false,
+      grid: {left: 66, right: 18, top: 30, bottom: 34},
+      /* O tooltip diz o MESMO que o do SVG dizia. Trocar a ferramenta e
+         perder conteúdo seria a pior parte do negócio: o "falta R$ X" é o
+         número que a pessoa usa, não o percentual. */
+      tooltip: {trigger:'axis', ...ecTooltip(), formatter: p => {
+        const r = diario[p[0].dataIndex];
+        const fut = r.dia > hoje;
+        const rat = (r.meta > 0) ? (r.realizado||0)/r.meta : null;
+        let h = '<b>Dia ' + r.dia + '</b>'
+          + (r.dia === hoje ? ' <span style="color:#6B7580">(hoje)</span>'
+             : (fut ? ' <span style="color:#6B7580">· ainda não aconteceu</span>' : '')) + '<br>';
+        if(!fut) h += 'Realizado: <b>' + BRL.format(r.realizado||0) + '</b><br>';
+        h += 'Meta do dia: ' + (r.meta > 0 ? BRL.format(r.meta)
+             : '<span style="color:#6B7580">sem meta (fim de semana ou feriado)</span>');
+        if(rat != null && !fut){
+          const bateu = (r.realizado||0) >= r.meta;
+          h += '<br>% da meta: <b>' + (100*rat).toLocaleString('pt-BR',{maximumFractionDigits:0}) + '%</b>'
+             + '<br>' + (bateu ? 'Acima da meta: ' : 'Falta: ')
+             + '<b>' + BRL.format(Math.abs(r.meta - (r.realizado||0))) + '</b>';
+        }
+        return h;
+      }},
+      xAxis: {type:'category', data: diario.map(r => String(r.dia)),
+        axisLine:{lineStyle:{color:CC.n300}}, axisTick:{show:false},
+        axisLabel:{color:CC.n600, fontSize:10, interval: diario.length > 16 ? 1 : 0,
+          /* o dia corrente em negrito, como no desenho à mão */
+          formatter: v => v,
+          fontWeight: 'normal'}},
+      yAxis: eixo,
+      series: [
+        {name:'Realizado', type:'bar', barMaxWidth: 17,
+         /* DIA FUTURO NÃO TEM BARRA: `null`, não zero. Zero desenharia uma
+            barra rente ao eixo que se lê como "faturou nada", quando o dia
+            simplesmente ainda não chegou. */
+         data: diario.map((r,i) => (r.dia > hoje ? null : {
+           value: r.realizado||0,
+           itemStyle: {color: corAtingimento(r.meta > 0 ? (r.realizado||0)/r.meta : null),
+                       borderRadius:[4,4,0,0]},
+           label: (i === iMax && (r.realizado||0) > 0) ? {
+             show:true, position:'top', formatter: () => brlAbbr(r.realizado),
+             color:CC.n700, fontWeight:700, fontSize:10,
+             textBorderColor:'#fff', textBorderWidth:3} : {show:false},
+         })),
+         markArea: iFut < diario.length ? {silent:true, itemStyle:{color:CC.grid},
+           label:{show:true, position:'insideTopLeft', color:CC.n500,
+                  fontSize:10, fontWeight:600, formatter:'a realizar'},
+           data: [[{xAxis: iFut}, {xAxis: diario.length - 1}]]} : undefined,
+         markLine: (iFut > 0 && iFut < diario.length) ? {silent:true, symbol:'none',
+           lineStyle:{color:CC.navy400, width:1.5, type:[3,3]},
+           label:{show:false}, data:[{xAxis: iFut - 0.5}]} : undefined},
+        /* META EM DEGRAU, com `null` nos dias SEM meta: descer a linha até
+           zero nesses dias criava vales que se leem como meta batendo no
+           chão. `connectNulls:false` mantém o buraco aberto. */
+        {name:'Meta', type:'line', step:'middle', symbol:'none', connectNulls:false,
+         lineStyle:{color:CC.navy500, width:2},
+         data: diario.map(r => (r.meta > 0 ? r.meta : null))},
+      ],
+    }, true);
+  }).catch(e => ecFalha(el, e));
 }
 
-/* Receita mensal (12m). Ganhou linha de MÉDIA dos meses fechados e hachura no
-   mês corrente — barra cheia num mês incompleto lia-se como queda real. */
+/* Receita mensal (12 meses). */
 function chartHomeReceita(mensal){
-  const svg=document.getElementById('chartHrec');
-  GEOM['chartHrec']=null; ACTIVE['chartHrec']=-1;
-  if(!mensal.length){ svg.innerHTML=`<text x="480" y="115" text-anchor="middle" fill="${CC.n500}" font-size="14">sem dados</text>`; return; }
-  // viewBox estreito (640) porque o card ocupa METADE da largura: com 960 o SVG
-  // era reduzido a ~70% e a tipografia dos eixos ficava ilegível
-  const W=640,H=260,mL=54,mR=14,mT=26,mB=40, iw=W-mL-mR, ih=H-mT-mB;
-  const n=mensal.length, bandW=iw/n;
-  const mAtual=_mesAtual();
-  const fechados=mensal.filter(r=>r.mes!==mAtual);
-  const media=fechados.length ? fechados.reduce((s,r)=>s+r.receita,0)/fechados.length : null;
-  const maxV=Math.max(1,...mensal.map(r=>r.receita), media||0);
-  const tks=niceTicks(0,maxV,4), top=tks[tks.length-1]*1.10, u=unitOf(top);
-  const y=v=>mT+ih-(v/top)*ih, y0=y(0);
-  const px=i=>mL+bandW*i+bandW/2;
-  const barW=Math.min(26,bandW*0.58);
-  let s=`<defs><pattern id="hatchRec" width="6" height="6" patternTransform="rotate(45)" patternUnits="userSpaceOnUse">`+
-        `<rect width="6" height="6" fill="${CC.verde}"/><rect width="2.4" height="6" fill="#fff" opacity=".62"/></pattern></defs>`;
-  s+=`<rect id="chartHrec-hband" x="0" y="${mT-8}" width="${bandW}" height="${ih+8}" fill="${CC.navy100}" opacity="0"/>`;
-  s+=`<text x="${mL}" y="${mT-9}" font-size="11" fill="${CC.n500}" font-weight="600" letter-spacing="1.5">${u.t}</text>`;
-  tks.forEach(v=>{ const yy=y(v);
-    s+=`<line x1="${mL}" y1="${yy}" x2="${W-mR}" y2="${yy}" stroke="${v===0?CC.n300:CC.grid}" stroke-width="1"/>`;
-    s+=`<text x="${mL-8}" y="${yy+4}" text-anchor="end" font-size="10" fill="${CC.n500}" font-family="IBM Plex Mono,monospace">${NMI.format(v/u.d)}</text>`; });
-  mensal.forEach((r,i)=>{ const parcial=r.mes===mAtual;
-    s+=colPath(px(i)-barW/2,barW,y(r.receita),y0,4,parcial?'url(#hatchRec)':CC.verde); });
-  if(media!=null){ const ym=y(media);
-    s+=`<line x1="${mL}" y1="${ym}" x2="${W-mR}" y2="${ym}" stroke="${CC.navy700}" stroke-width="1.5" stroke-dasharray="5 4"/>`;
-    s+=`<text x="${W-mR}" y="${ym-6}" text-anchor="end" font-size="10.5" font-weight="700" fill="${CC.navy700}" stroke="#fff" stroke-width="3" paint-order="stroke" stroke-linejoin="round">média ${brlAbbr(media)}</text>`; }
-  // rótulos diretos: melhor mês e mês corrente (parcial)
-  const iMax=mensal.reduce((b,r,i)=>(r.receita>mensal[b].receita?i:b),0);
-  const iPar=mensal.findIndex(r=>r.mes===mAtual);
-  [iMax,iPar].filter((v,k,a)=>v>=0&&a.indexOf(v)===k).forEach(i=>{
-    s+=`<text x="${px(i)}" y="${y(mensal[i].receita)-8}" text-anchor="middle" font-size="10.5" font-weight="700" fill="${CC.n700}" stroke="#fff" stroke-width="3" paint-order="stroke" stroke-linejoin="round">${brlAbbr(mensal[i].receita)}</text>`; });
-  mensal.forEach((r,i)=>{ const parcial=r.mes===mAtual;
-    s+=`<text x="${px(i)}" y="${H-mB+18}" text-anchor="middle" font-size="11" font-weight="${parcial?'700':'400'}" fill="${parcial?CC.n900:CC.n600}">${periodoLabel(r.mes)}</text>`;
-    if(parcial) s+=`<text x="${px(i)}" y="${H-mB+31}" text-anchor="middle" font-size="9.5" font-weight="600" fill="${CC.n500}">parcial</text>`; });
-  s+=`<line id="chartHrec-xhair" x1="0" x2="0" y1="${mT-8}" y2="${y0}" stroke="${CC.navy400}" stroke-width="1" opacity="0"/>`;
-  s+=`<rect x="${mL}" y="${mT-8}" width="${iw}" height="${ih+8}" fill="transparent"/>`;
-  svg.innerHTML=s;
-  GEOM['chartHrec']={kind:'hrec',rows:mensal,n,bandW,mL,W,px,topY:mT-8,botY:y0,wrap:'wrapHrec',tip:'tipHrec',media,mAtual};
-  bindHover('chartHrec');
+  const el = document.getElementById('chartHrec'); if(!el) return;
+  if(!mensal.length){ el.innerHTML = '<div class="gx-vazio">sem dados</div>'; return; }
+
+  carregarECharts().then(ec => {
+    const inst = ec.init(el, null, {renderer:'svg'});
+    echartsRegistrar('chartHrec', inst);
+    const mAtual = _mesAtual();
+    /* A MÉDIA SÓ CONTA MÊS FECHADO. Incluir o corrente, que está pela metade,
+       puxaria a referência para baixo e faria o mês parcial parecer normal. */
+    const fechados = mensal.filter(r => r.mes !== mAtual);
+    const media = fechados.length
+      ? fechados.reduce((a,r) => a + r.receita, 0) / fechados.length : null;
+    const maxV = Math.max(1, ...mensal.map(r => r.receita), media||0);
+    const eixo = ecEixoValor(maxV * 1.10, 'moeda');
+    const iMax = mensal.reduce((b,r,i) => (r.receita > mensal[b].receita ? i : b), 0);
+    const iPar = mensal.findIndex(r => r.mes === mAtual);
+
+    inst.setOption({
+      animation: false,
+      grid: {left: 62, right: 16, top: 30, bottom: 44},
+      tooltip: {trigger:'axis', ...ecTooltip(), formatter: p => {
+        const i = p[0].dataIndex, r = mensal[i], ant = i > 0 ? mensal[i-1] : null;
+        const pc = (v) => (v > 0 ? '+' : '−')
+          + Math.abs(v).toLocaleString('pt-BR',{maximumFractionDigits:1}) + '%';
+        let h = '<b>' + periodoLabel(r.mes) + '</b>'
+          + (r.mes === mAtual ? ' <span style="color:#B97709">· mês incompleto</span>' : '') + '<br>'
+          + 'Receita de frete: <b>' + BRL.format(r.receita) + '</b>';
+        if(ant && ant.receita > 0)
+          h += '<br>vs ' + periodoLabel(ant.mes) + ': ' + pc(100*(r.receita-ant.receita)/ant.receita);
+        if(media) h += '<br>vs média dos fechados: ' + pc(100*(r.receita-media)/media);
+        return h + '<br><span style="color:#6B7580">fonte: viagens carregadas</span>';
+      }},
+      xAxis: {type:'category',
+        data: mensal.map(r => periodoLabel(r.mes) + (r.mes === mAtual ? '\nparcial' : '')),
+        axisLine:{lineStyle:{color:CC.n300}}, axisTick:{show:false},
+        axisLabel:{color:CC.n600, fontSize:10.5, lineHeight:13}},
+      yAxis: eixo,
+      series: [{
+        name:'Receita', type:'bar', barMaxWidth: 26,
+        data: mensal.map((r,i) => ({
+          value: r.receita,
+          /* MÊS CORRENTE HACHURADO: barra cheia num mês incompleto lê-se como
+             queda real. É a regra mais antiga dos painéis desta casa. */
+          itemStyle: (r.mes === mAtual)
+            ? {color: CC.verde, borderRadius:[4,4,0,0], decal: ecDecal()}
+            : {color: CC.verde, borderRadius:[4,4,0,0]},
+          label: (i === iMax || i === iPar) ? {
+            show:true, position:'top', formatter: () => brlAbbr(r.receita),
+            color:CC.n700, fontWeight:700, fontSize:10.5,
+            textBorderColor:'#fff', textBorderWidth:3} : {show:false},
+        })),
+        markLine: media != null ? {silent:true, symbol:'none',
+          lineStyle:{color:CC.navy700, width:1.5, type:[5,4]},
+          /* RÓTULO DIRETO na média: linha sem número não diz valor nenhum. */
+          label:{show:true, position:'end', formatter: 'média ' + brlAbbr(media),
+                 color:CC.navy700, fontWeight:700, fontSize:10.5,
+                 textBorderColor:'#fff', textBorderWidth:3},
+          data:[{yAxis: media}]} : undefined,
+      }],
+    }, true);
+  }).catch(e => ecFalha(el, e));
 }
 
-/* Saldo de caixa projetado. Pontos com semáforo por sinal, faixa negativa
-   sombreada e o 1º período negativo anotado como "gap". */
+/* Saldo de caixa projetado. */
 function chartHomeSaldo(serie){
-  const svg=document.getElementById('chartHsal');
-  GEOM['chartHsal']=null; ACTIVE['chartHsal']=-1;
-  if(!serie.length){ svg.innerHTML=`<text x="480" y="115" text-anchor="middle" fill="${CC.n500}" font-size="14">sem dados</text>`; return; }
-  // mesmo motivo do gráfico de receita: card de meia largura pede viewBox estreito
-  const W=640,H=260,mL=58,mR=14,mT=30,mB=38, iw=W-mL-mR, ih=H-mT-mB;
-  const n=serie.length, bandW=iw/n;
-  let lo=Math.min(0,...serie.map(r=>r.saldo_projetado)), hi=Math.max(0,...serie.map(r=>r.saldo_projetado));
-  const tks=niceTicks(lo,hi,4); lo=tks[0]; hi=tks[tks.length-1];
-  const u=unitOf(Math.max(Math.abs(lo),Math.abs(hi)));
-  const y=v=>mT+ih-((v-lo)/(hi-lo))*ih;
-  const px=i=>mL+bandW*i+bandW/2;
-  let s='';
-  s+=`<rect id="chartHsal-hband" x="0" y="${mT-8}" width="${bandW}" height="${ih+8}" fill="${CC.navy100}" opacity="0"/>`;
-  s+=`<text x="${mL}" y="${mT-13}" font-size="11" fill="${CC.n500}" font-weight="600" letter-spacing="1.5">${u.t}</text>`;
-  if(lo<0) s+=`<rect x="${mL}" y="${y(0)}" width="${iw}" height="${mT+ih-y(0)}" fill="${CC.vermelho}" opacity=".055"/>`;
-  tks.forEach(v=>{ const yy=y(v), zero=Math.abs(v)<(hi-lo)/1e4;
-    s+=`<line x1="${mL}" y1="${yy}" x2="${W-mR}" y2="${yy}" stroke="${zero?CC.n400:CC.grid}" stroke-width="${zero?1.2:1}"/>`;
-    s+=`<text x="${mL-8}" y="${yy+4}" text-anchor="end" font-size="10" fill="${CC.n500}" font-family="IBM Plex Mono,monospace">${NMI.format(v/u.d)}</text>`; });
-  s+=`<polyline points="${serie.map((r,i)=>px(i)+','+y(r.saldo_projetado)).join(' ')}" fill="none" stroke="${CC.navy700}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>`;
-  serie.forEach((r,i)=>{ const neg=r.saldo_projetado<0;
-    s+=`<circle cx="${px(i)}" cy="${y(r.saldo_projetado)}" r="${neg?4.5:3.5}" fill="${neg?CC.vermelho:CC.navy700}" stroke="#fff" stroke-width="2"/>`; });
-  // anota o 1º período negativo (o gap) e o pior saldo do horizonte
-  const iGap=serie.findIndex(r=>r.saldo_projetado<0);
-  const iMin=serie.reduce((b,r,i)=>(r.saldo_projetado<serie[b].saldo_projetado?i:b),0);
-  [[iGap,'gap'],[iMin!==iGap?iMin:-1,'pior']].forEach(([i,txt])=>{ if(i<0) return;
-    const yy=y(serie[i].saldo_projetado), acima=yy>mT+24;
-    s+=`<text x="${px(i)}" y="${acima?yy-12:yy+19}" text-anchor="middle" font-size="10.5" font-weight="700" `+
-       `fill="${CC.vermelho}" stroke="#fff" stroke-width="3.2" paint-order="stroke" stroke-linejoin="round">${txt} ${brlAbbr(serie[i].saldo_projetado)}</text>`; });
-  serie.forEach((r,i)=>{ s+=`<text x="${px(i)}" y="${H-mB+18}" text-anchor="middle" font-size="11" fill="${CC.n600}">${periodoLabel(r.periodo)}</text>`; });
-  s+=`<line id="chartHsal-xhair" x1="0" x2="0" y1="${mT-8}" y2="${mT+ih}" stroke="${CC.navy400}" stroke-width="1" opacity="0"/>`;
-  s+=`<rect x="${mL}" y="${mT-8}" width="${iw}" height="${ih+8}" fill="transparent"/>`;
-  svg.innerHTML=s;
-  GEOM['chartHsal']={kind:'hsal',rows:serie,n,bandW,mL,W,px,topY:mT-8,botY:mT+ih,wrap:'wrapHsal',tip:'tipHsal'};
-  bindHover('chartHsal');
+  const el = document.getElementById('chartHsal'); if(!el) return;
+  if(!serie.length){ el.innerHTML = '<div class="gx-vazio">sem dados</div>'; return; }
+
+  carregarECharts().then(ec => {
+    const inst = ec.init(el, null, {renderer:'svg'});
+    echartsRegistrar('chartHsal', inst);
+    const lo = Math.min(0, ...serie.map(r => r.saldo_projetado));
+    const hi = Math.max(0, ...serie.map(r => r.saldo_projetado));
+    const eixo = ecEixoValor(Math.max(Math.abs(lo), Math.abs(hi)), 'moeda');
+    /* O primeiro período NEGATIVO é o gap — é o número que decide se falta
+       caixa e quando. Ele e o pior saldo do horizonte são anotados. */
+    const iGap = serie.findIndex(r => r.saldo_projetado < 0);
+    const iMin = serie.reduce((b,r,i) => (r.saldo_projetado < serie[b].saldo_projetado ? i : b), 0);
+    const anota = {};
+    if(iGap >= 0) anota[iGap] = 'gap';
+    if(iMin !== iGap) anota[iMin] = 'pior';
+
+    inst.setOption({
+      animation: false,
+      grid: {left: 66, right: 18, top: 34, bottom: 34},
+      tooltip: {trigger:'axis', ...ecTooltip(), formatter: p => {
+        const i = p[0].dataIndex, r = serie[i], ant = i > 0 ? serie[i-1] : null;
+        let h = '<b>' + periodoLabel(r.periodo) + '</b>'
+          + (r.periodo === 'atrasado' ? ' <span style="color:#6B7580">· vencidos até hoje</span>' : '')
+          + '<br>Saldo projetado: <b style="color:'
+          + (r.saldo_projetado < 0 ? '#C03221' : '#14181D') + '">'
+          + BRL.format(r.saldo_projetado) + '</b>';
+        if(ant){
+          const d = r.saldo_projetado - ant.saldo_projetado;
+          h += '<br>Variação no mês: ' + (d >= 0 ? '+' : '−') + BRL.format(Math.abs(d));
+        }
+        return h + '<br>Situação: <b>' + (r.saldo_projetado < 0 ? 'negativo' : 'positivo') + '</b>';
+      }},
+      xAxis: {type:'category', data: serie.map(r => periodoLabel(r.periodo)),
+        axisLine:{lineStyle:{color:CC.n300}}, axisTick:{show:false},
+        axisLabel:{color:CC.n600, fontSize:10.5}},
+      yAxis: {...eixo, min: lo, max: hi},
+      series: [{
+        name:'Saldo projetado', type:'line', symbolSize: 8,
+        lineStyle:{color:CC.navy700, width:2},
+        /* SEMÁFORO POR SINAL, não por escala: o ponto negativo é vermelho e
+           maior. Cor que gradua com o valor não diz em que estado ele está. */
+        itemStyle:{color: p => (serie[p.dataIndex].saldo_projetado < 0 ? CC.vermelho : CC.navy700),
+                   borderColor:'#fff', borderWidth:2},
+        data: serie.map((r,i) => ({
+          value: r.saldo_projetado,
+          symbolSize: r.saldo_projetado < 0 ? 10 : 7,
+          label: anota[i] ? {
+            show:true, position: r.saldo_projetado < 0 ? 'bottom' : 'top',
+            formatter: anota[i] + ' ' + brlAbbr(r.saldo_projetado),
+            color:CC.vermelho, fontWeight:700, fontSize:10.5,
+            textBorderColor:'#fff', textBorderWidth:3.2} : {show:false},
+        })),
+        /* FAIXA NEGATIVA SOMBREADA: o zero deixa de ser mais uma linha do
+           grid e passa a separar duas regiões com leitura diferente. */
+        markArea: lo < 0 ? {silent:true,
+          itemStyle:{color:CC.vermelho, opacity:0.055},
+          data: [[{yAxis: lo}, {yAxis: 0}]]} : undefined,
+        markLine: {silent:true, symbol:'none',
+          lineStyle:{color:CC.n400, width:1.2}, label:{show:false},
+          data:[{yAxis: 0}]},
+      }],
+    }, true);
+  }).catch(e => ecFalha(el, e));
 }
 
 /* Km por modalidade (30 dias) — barra horizontal empilhada carregado + vazio,
@@ -14343,70 +14544,59 @@ function mulToggle(i){
   const open=det.classList.toggle('open');
   det.previousElementSibling.setAttribute('aria-expanded', String(open));
 }
+/* Multas por mês. O gráfico plota a CONTAGEM, não o valor: o valor sai em
+   metade das multas, e meses inteiros apareciam vazios como se não houvesse
+   multa nenhuma. O eixo é contagem inteira, não `unitOf` de dinheiro. */
 function chartMulRender(mensal, dtDe, dtAte){
-  const svg=document.getElementById('chartMul');
-  GEOM['chartMul']=null; ACTIVE['chartMul']=-1;
-  if(!mensal.length){ svg.innerHTML='<text x="480" y="110" text-anchor="middle" fill="#6E7883" font-size="14">sem dados</text>'; return; }
-  const W=960,H=240,mL=64,mR=16,mT=20,mB=30, iw=W-mL-mR, ih=H-mT-mB;
-  const n=mensal.length, bandW=iw/n;
-  const maxV=Math.max(1,...mensal.map(r=>r.multas||0));
-  // o eixo era R$ (unitOf); agora conta multas, então a unidade é a própria contagem
-  const tks=niceTicks(0,maxV,4), top=tks[tks.length-1], u={d:1,t:'MULTAS'};
-  const y=v=>mT+ih-(v/top)*ih, y0=y(0);
-  const px=i=>mL+bandW*i+bandW/2;
-  const barW=Math.min(28,bandW*0.5);
-  const parc=mensal.map(r=>_mesParcial(r.mes,dtDe,dtAte));
-  let s=`<defs><pattern id="hatchMul" width="6" height="6" patternTransform="rotate(45)" patternUnits="userSpaceOnUse">`+
-        `<rect width="6" height="6" fill="#B97709"/><rect width="2.4" height="6" fill="#fff" opacity=".62"/></pattern></defs>`;
-  s+=`<rect id="chartMul-hband" x="0" y="${mT-8}" width="${bandW}" height="${ih+8}" fill="${CC.navy100}" opacity="0"/>`;
-  s+=`<text x="${mL}" y="${mT-6}" font-size="11" fill="#6E7883" font-weight="600" letter-spacing="1.5">${u.t}</text>`;
-  tks.forEach(v=>{ const yy=y(v);
-    s+=`<line x1="${mL}" y1="${yy}" x2="${W-mR}" y2="${yy}" stroke="${v===0?'#C2C8D0':'#ECEEF1'}" stroke-width="1"/>`;
-    s+=`<text x="${mL-8}" y="${yy+4}" text-anchor="end" font-size="10" fill="#6E7883" font-family="IBM Plex Mono,monospace">${(v/u.d).toLocaleString('pt-BR',{maximumFractionDigits:0})}</text>`; });
-  mensal.forEach((r,i)=>{ s+=colPath(px(i)-barW/2,barW,y(r.multas||0),y0,4,parc[i]?'url(#hatchMul)':'#B97709');
-    if(r.multas>0) s+=`<text x="${px(i)}" y="${y(r.multas)-8}" text-anchor="middle" font-size="10.5" font-weight="700" fill="${CC.n700}" `+
-      `stroke="#fff" stroke-width="3" paint-order="stroke" stroke-linejoin="round">${r.multas}</text>`; });
-  mensal.forEach((r,i)=>{ s+=`<text x="${px(i)}" y="${H-mB+16}" text-anchor="middle" font-size="10" fill="#4F5860">${periodoLabel(r.mes)}</text>`; });
-  s+=`<line id="chartMul-xhair" x1="0" x2="0" y1="${mT-8}" y2="${y0}" stroke="${CC.navy400}" stroke-width="1" opacity="0"/>`;
-  s+=`<rect x="${mL}" y="${mT-8}" width="${iw}" height="${ih+8}" fill="transparent"/>`;
-  svg.innerHTML=s;
-  GEOM['chartMul']={kind:'mul',rows:mensal,n,bandW,mL,W,px,topY:mT-8,botY:y0,wrap:'wrapMul',tip:'tipMul'};
-  bindHover('chartMul');
+  const parc = mensal.map(r => _mesParcial(r.mes, dtDe, dtAte));
+  ecDesenhar('chartMul', mensal.length && (() => {
+    const o = ecOpcoes(mensal.map(r => periodoLabel(r.mes)),
+                       Math.max(1, ...mensal.map(r => r.multas || 0)),
+                       {tipo: 'num', eixoY: {name: 'MULTAS', minInterval: 1}});
+    o.tooltip.formatter = p => {
+      const r = mensal[p[0].dataIndex];
+      return '<b>' + periodoLabel(r.mes) + '</b>'
+        + (parc[p[0].dataIndex] ? ' <span style="color:#B97709">· mês parcial</span>' : '')
+        + '<br>Multas: <b>' + (r.multas || 0) + '</b>'
+        + (r.valor ? '<br>Valor lançado: ' + BRL.format(r.valor) : '');
+    };
+    o.series = [ecBarras('Multas', mensal.map(r => r.multas || 0), CC.amarelo,
+      {parcial: parc, largura: 28,
+       /* rótulo em TODA barra: são poucos meses e a contagem é o número que
+          se lê — diferente de dinheiro, onde o rótulo em tudo vira ruído */
+       rotulo: (i, v) => (v > 0 ? String(v) : '')})];
+    return o;
+  }), 'sem dados');
 }
 
-// Crédito × débito por mês — mesmo par de barras do painel "Entradas × Saídas"
+// Crédito × débito por mês// Crédito × débito por mês — mesmo par de barras do painel "Entradas × Saídas"
 // do Fluxo de Caixa (colPath verde/vermelho lado a lado), num único painel
 // porque aqui não há saldo acumulado para desenhar embaixo.
 function chartLancRender(mensal, dtDe, dtAte){
-  const svg=document.getElementById('chartLanc');
-  GEOM['chartLanc']=null; ACTIVE['chartLanc']=-1;
-  if(!mensal.length){ svg.innerHTML='<text x="480" y="120" text-anchor="middle" fill="#6E7883" font-size="14">sem dados</text>'; return; }
-  const W=960,H=240,mL=64,mR=16,mT=28,mB=34, iw=W-mL-mR, ih=H-mT-mB;
-  const n=mensal.length, bandW=iw/n;
-  const maxV=Math.max(1,...mensal.map(r=>Math.max(r.credito||0,r.debito||0)));
-  const tks=niceTicks(0,maxV,4), top=tks[tks.length-1], u=unitOf(top);
-  const y=v=>mT+ih-(v/top)*ih, y0=y(0);
-  const px=i=>mL+bandW*i+bandW/2;
-  const barW=Math.min(22,bandW*0.26);
-  let s=`<text x="${mL}" y="${mT-12}" font-size="11" fill="#6E7883" font-weight="600" letter-spacing="1.5">${u.t}</text>`;
-  s+=`<rect id="chartLanc-hband" x="0" y="${mT-14}" width="${bandW}" height="${ih+14}" fill="${CC.navy100}" opacity="0"/>`;
-  tks.forEach(v=>{ const yy=y(v);
-    s+=`<line x1="${mL}" y1="${yy}" x2="${W-mR}" y2="${yy}" stroke="${v===0?'#C2C8D0':'#ECEEF1'}" stroke-width="1"/>`;
-    s+=`<text x="${mL-8}" y="${yy+4}" text-anchor="end" font-size="11" fill="#6E7883" font-family="IBM Plex Mono,monospace">${NMI.format(v/u.d)}</text>`; });
-  mensal.forEach((r,i)=>{ const cx=px(i);
-    s+=colPath(cx-barW-1,barW,y(r.credito||0),y0,4,'#1E7F4F');
-    s+=colPath(cx+1,barW,y(r.debito||0),y0,4,'#C03221'); });
-  mensal.forEach((r,i)=>{ s+=`<text x="${px(i)}" y="${H-mB+18}" text-anchor="middle" font-size="10.5" fill="#4F5860">${periodoLabel(r.mes)}</text>`; });
-  s+=`<line id="chartLanc-xhair" x1="0" x2="0" y1="${mT-14}" y2="${y0}" stroke="${CC.navy400}" stroke-width="1" opacity="0"/>`;
-  s+=`<rect x="${mL}" y="${mT-14}" width="${iw}" height="${ih+14}" fill="transparent"/>`;
-  svg.innerHTML=s;
-  GEOM['chartLanc']={kind:'lanc',rows:mensal,n,bandW,mL,W,px,topY:mT-14,botY:y0,wrap:'wrapLanc',tip:'tipLanc'};
-  bindHover('chartLanc');
+  const parc = mensal.map(r => _mesParcial(r.mes, dtDe, dtAte));
+  ecDesenhar('chartLanc', mensal.length && (() => {
+    const max = Math.max(1, ...mensal.map(r => Math.max(r.credito||0, r.debito||0)));
+    const o = ecOpcoes(mensal.map(r => periodoLabel(r.mes)), max,
+                       {tipo: 'moeda', legenda: ['Crédito', 'Débito'], bottom: 42});
+    o.tooltip.formatter = p => {
+      const i = p[0].dataIndex, r = mensal[i];
+      return '<b>' + periodoLabel(r.mes) + '</b>'
+        + (parc[i] ? ' <span style="color:#B97709">· mês parcial</span>' : '')
+        + '<br>Crédito: <b>' + BRL.format(r.credito||0) + '</b>'
+        + '<br>Débito: <b>' + BRL.format(r.debito||0) + '</b>'
+        + '<br>Saldo: <b>' + BRL.format((r.credito||0)-(r.debito||0)) + '</b>';
+    };
+    o.series = [
+      ecBarras('Crédito', mensal.map(r => r.credito||0), CC.verde,
+               {parcial: parc, largura: 22}),
+      ecBarras('Débito', mensal.map(r => r.debito||0), CC.vermelho,
+               {parcial: parc, largura: 22}),
+    ];
+    return o;
+  }), 'sem dados');
 }
 
-/* ---------------- Torre de Controle ---------------- */
 
-let leafletPromise=null, torreMap=null, torreLayer=null;
 function ensureLeaflet(){
   if(leafletPromise) return leafletPromise;
   leafletPromise=new Promise((res,rej)=>{
@@ -15496,99 +15686,140 @@ function numAbbr(v){ v=Number(v)||0; const a=Math.abs(v);
   if(a>=1e3) return (v/1e3).toLocaleString('pt-BR',{maximumFractionDigits:1})+'k';
   return v.toLocaleString('pt-BR',{maximumFractionDigits:0}); }
 // Barras horizontais: rows=[{rotulo,valor}], opts={fmt,cor(row),labelW,top}
+/* ═══ Auxiliares genéricos de gráfico — ECharts ═══════════════════════════
+   Estes quatro desenham 17 dos gráficos do painel (RH, qualidade, CRM,
+   custos, prêmio, fechamento). As ASSINATURAS não mudaram na conversão para a
+   biblioteca: é por isso que ela coube aqui em vez de gráfico a gráfico.
+
+   O que a conversão ACRESCENTA, e que o SVG destes quatro não tinha: tooltip
+   de verdade (era `<title>` do navegador, que demora a aparecer e não formata),
+   redesenho no resize e eixo com a unidade final. O que ela NÃO pode perder
+   está marcado em cada um. */
+
+/* Barras horizontais (ranking). Parte-do-todo com uma categoria dominante não
+   é rosca — esta é a forma que a casa usa para ranking. */
 function chartHBars(id, rows, opts){
-  opts=opts||{}; const el=_chartEl(id); if(!el) return;
-  rows=(rows||[]).filter(r=>r&&isFinite(r.valor)).slice(0, opts.top||14);
-  const fmt=opts.fmt||(v=>Number(v).toLocaleString('pt-BR'));
-  if(!rows.length){ el.setAttribute('viewBox','0 0 960 60'); el.innerHTML='<text x="12" y="34" font-size="13" fill="#6B7280">sem dados no período</text>'; return; }
-  const W=960, rowH=32, labelW=opts.labelW||210, valW=140, barX=labelW+12, barW=W-barX-valW-12;
-  const max=Math.max(1, ...rows.map(r=>Math.abs(r.valor)));
-  const H=rows.length*rowH+8;
-  const cor=r=> typeof opts.cor==='function'?opts.cor(r):(opts.cor||CC.amarelo);
-  el.setAttribute('viewBox',`0 0 ${W} ${H}`);
-  el.innerHTML=rows.map((r,i)=>{ const y=i*rowH+4, w=Math.max(2, Math.abs(r.valor)/max*barW);
-    return `<text x="4" y="${y+rowH/2}" dominant-baseline="middle" font-size="13" fill="#334155">${_trunc(esc(r.rotulo),32)}</text>`+
-      `<rect x="${barX}" y="${y+5}" width="${barW}" height="${rowH-14}" rx="4" fill="${CC.grid}"></rect>`+
-      `<rect x="${barX}" y="${y+5}" width="${w}" height="${rowH-14}" rx="4" fill="${cor(r)}"></rect>`+
-      `<text x="${W-8}" y="${y+rowH/2}" text-anchor="end" dominant-baseline="middle" font-size="13" font-weight="700" fill="#1E1E1E">${fmt(r.valor)}</text>`;
-  }).join('');
+  opts = opts || {};
+  const el = _chartEl(id); if(!el) return;
+  rows = (rows || []).filter(r => r && isFinite(r.valor)).slice(0, opts.top || 14);
+  const fmt = opts.fmt || (v => Number(v).toLocaleString('pt-BR'));
+  if(!rows.length){
+    el.style.height = '60px';
+    el.innerHTML = '<div class="gx-vazio">sem dados no período</div>'; return; }
+  /* Altura PROPORCIONAL ao número de linhas, como no desenho à mão: altura
+     fixa espremeria 14 barras no mesmo espaço de 3. */
+  el.style.height = (rows.length * 30 + 40) + 'px';
+  const cor = r => (typeof opts.cor === 'function' ? opts.cor(r) : (opts.cor || CC.amarelo));
+  ecDesenhar(id, () => {
+    const max = Math.max(1, ...rows.map(r => Math.abs(r.valor)));
+    return {
+      animation: false,
+      grid: {left: 8, right: 96, top: 8, bottom: 8, containLabel: true},
+      tooltip: Object.assign({trigger:'item', axisPointer:{type:'shadow'}}, ecTooltip(),
+        {formatter: p => '<b>' + esc(rows[p.dataIndex].rotulo) + '</b><br>'
+                         + fmt(rows[p.dataIndex].valor)}),
+      xAxis: {type:'value', show:false, max: max * 1.02},
+      /* invertido: a maior em CIMA, que é como se lê ranking */
+      yAxis: {type:'category', inverse:true,
+              data: rows.map(r => _trunc(String(r.rotulo), 32)),
+              axisLine:{show:false}, axisTick:{show:false},
+              axisLabel:{color:CC.n700, fontSize:12.5, fontFamily:'Saira, sans-serif'}},
+      series: [{
+        type:'bar', barMaxWidth: 18,
+        /* trilho cinza atrás: dá a escala sem precisar de eixo numérico */
+        showBackground: true, backgroundStyle: {color: CC.grid, borderRadius: 4},
+        itemStyle: {borderRadius: 4},
+        data: rows.map(r => ({value: Math.abs(r.valor), itemStyle:{color: cor(r)}})),
+        label: {show:true, position:'right', formatter: p => fmt(rows[p.dataIndex].valor),
+                color: CC.n900, fontWeight:700, fontSize:12.5,
+                fontFamily:'Saira, sans-serif'},
+      }],
+    };
+  });
 }
-// Colunas agrupadas: cats=[label], series=[{nome,cor,valores:[]}], opts={fmt}
+
+/* Colunas agrupadas ou empilhadas. */
 function chartCols(id, cats, series, opts){
-  opts=opts||{}; const el=_chartEl(id); if(!el) return;
-  cats=cats||[]; series=series||[];
-  const fmt=opts.fmt||(v=>Number(v).toLocaleString('pt-BR'));
-  if(!cats.length){ el.setAttribute('viewBox','0 0 960 60'); el.innerHTML='<text x="12" y="34" font-size="13" fill="#6B7280">sem dados</text>'; return; }
-  const W=960, H=260, padL=54, padR=14, padT=16, padB=42, iw=W-padL-padR, ih=H-padT-padB;
-  const stacked=!!opts.stacked;
-  const max = stacked
-    ? Math.max(1, ...cats.map((_,i)=>series.reduce((a,s)=>a+Math.abs(s.valores[i]||0),0)))
-    : Math.max(1, ...series.flatMap(s=>s.valores.map(v=>Math.abs(v||0))));
-  const gap=iw/cats.length, bw=stacked?Math.min(52,gap*0.6):Math.min(46, gap*0.7/Math.max(1,series.length));
-  const ticks=4; let g='';
-  for(let t=0;t<=ticks;t++){ const v=max*t/ticks, y=padT+ih-(v/max)*ih;
-    g+=`<line x1="${padL}" y1="${y}" x2="${W-padR}" y2="${y}" stroke="${CC.grid}"></line><text x="${padL-8}" y="${y+4}" text-anchor="end" font-size="11" fill="#9AA5B1">${opts.axisFmt?opts.axisFmt(v):fmt(v)}</text>`; }
-  cats.forEach((c,i)=>{ const cx=padL+gap*i+gap/2;
-    if(stacked){ let acc=0;
-      series.forEach(s=>{ const v=Math.abs(s.valores[i]||0); if(v<=0) return; const bh=(v/max)*ih, y=padT+ih-((acc+v)/max)*ih;
-        g+=`<rect x="${cx-bw/2}" y="${y}" width="${bw}" height="${Math.max(0,bh)}" fill="${s.cor}"><title>${esc(s.nome)}: ${fmt(v)}</title></rect>`; acc+=v; });
-    } else { const grpW=bw*series.length; let bx=cx-grpW/2;
-      series.forEach(s=>{ const v=Math.abs(s.valores[i]||0), bh=(v/max)*ih, y=padT+ih-bh;
-        g+=`<rect x="${bx}" y="${y}" width="${bw-3}" height="${Math.max(0,bh)}" rx="3" fill="${s.cor}"><title>${esc(s.nome)}: ${fmt(s.valores[i]||0)}</title></rect>`; bx+=bw; });
-    }
-    g+=`<text x="${cx}" y="${H-padB+18}" text-anchor="middle" font-size="11" fill="#6B7280">${esc(_trunc(c,7))}</text>`; });
-  // legenda
-  let lx=padL; g+=series.map(s=>{ const t=`<rect x="${lx}" y="2" width="11" height="11" rx="2" fill="${s.cor}"></rect><text x="${lx+16}" y="11.5" font-size="11.5" fill="#334155">${esc(s.nome)}</text>`; lx+=48+s.nome.length*6.5; return t; }).join('');
-  el.setAttribute('viewBox',`0 0 ${W} ${H}`); el.innerHTML=g;
+  opts = opts || {};
+  cats = cats || []; series = series || [];
+  const fmt = opts.fmt || (v => Number(v).toLocaleString('pt-BR'));
+  if(!cats.length){ ecDesenhar(id, null, 'sem dados'); return; }
+  ecDesenhar(id, () => {
+    const stacked = !!opts.stacked;
+    const max = stacked
+      ? Math.max(1, ...cats.map((_,i) => series.reduce((a,s) => a + Math.abs(s.valores[i]||0), 0)))
+      : Math.max(1, ...series.flatMap(s => s.valores.map(v => Math.abs(v||0))));
+    const o = ecOpcoes(cats.map(c => _trunc(String(c), 9)), max, {
+      tipo: opts.tipo || (opts.axisFmt ? 'moeda' : 'num'),
+      legenda: series.map(s => s.nome), bottom: 40, sombra: true});
+    /* O eixo respeita o formatador que o chamador passou — várias telas
+       mandam `brlAbbr`, e trocar isso por conta própria mudaria a unidade
+       debaixo de quem já lia o gráfico. */
+    /* Formatador do chamador JÁ CARREGA a unidade (brlAbbr devolve "R$ 200
+       mil"). Manter também o nome do eixo poria "R$ MI" no topo com rótulos
+       em mil — duas unidades brigando no mesmo eixo. */
+    if(opts.axisFmt){ o.yAxis.axisLabel.formatter = v => opts.axisFmt(v); o.yAxis.name = ''; }
+    o.tooltip.formatter = p => '<b>' + esc(String(cats[p[0].dataIndex])) + '</b><br>'
+      + p.map(x => x.marker + ' ' + x.seriesName + ': <b>' + fmt(x.value) + '</b>').join('<br>');
+    o.series = series.map(sr => ecBarras(sr.nome,
+      sr.valores.map(v => Math.abs(v||0)), sr.cor,
+      {empilhar: stacked ? 'g' : undefined, largura: stacked ? 52 : 46}));
+    return o;
+  });
 }
-// Área/linha temporal: cats=[label], series=[{nome,cor,valores:[],fill?}], opts={fmt,axisFmt}
+
+/* Área/linha temporal. */
 function chartArea(id, cats, series, opts){
-  opts=opts||{}; const el=_chartEl(id); if(!el) return;
-  cats=cats||[]; series=series||[];
-  const fmt=opts.fmt||(v=>Number(v).toLocaleString('pt-BR'));
-  if(cats.length<2){ el.setAttribute('viewBox','0 0 960 60'); el.innerHTML='<text x="12" y="34" font-size="13" fill="#6B7280">série insuficiente</text>'; return; }
-  const W=960, H=260, padL=58, padR=16, padT=16, padB=40, iw=W-padL-padR, ih=H-padT-padB;
-  const all=series.flatMap(s=>s.valores.map(v=>v||0)); const max=Math.max(1,...all.map(Math.abs)), min=Math.min(0,...all);
-  const X=i=>padL+iw*i/(cats.length-1), Y=v=>padT+ih-((v-min)/(max-min||1))*ih;
-  const ticks=4; let g='';
-  for(let t=0;t<=ticks;t++){ const v=min+(max-min)*t/ticks, y=Y(v);
-    g+=`<line x1="${padL}" y1="${y}" x2="${W-padR}" y2="${y}" stroke="${CC.grid}"></line><text x="${padL-8}" y="${y+4}" text-anchor="end" font-size="11" fill="#9AA5B1">${opts.axisFmt?opts.axisFmt(v):fmt(v)}</text>`; }
-  const step=Math.ceil(cats.length/8);
-  cats.forEach((c,i)=>{ if(i%step===0||i===cats.length-1) g+=`<text x="${X(i)}" y="${H-padB+18}" text-anchor="middle" font-size="11" fill="#6B7280">${esc(c)}</text>`; });
-  series.forEach(s=>{ const pts=s.valores.map((v,i)=>`${X(i)},${Y(v||0)}`).join(' ');
-    if(s.fill!==false) g+=`<polygon points="${X(0)},${Y(min)} ${pts} ${X(cats.length-1)},${Y(min)}" fill="${s.cor}" opacity="0.10"></polygon>`;
-    g+=`<polyline points="${pts}" fill="none" stroke="${s.cor}" stroke-width="2.5" stroke-linejoin="round" stroke-linecap="round"></polyline>`;
-    g+=s.valores.map((v,i)=>`<circle cx="${X(i)}" cy="${Y(v||0)}" r="3" fill="#fff" stroke="${s.cor}" stroke-width="2"><title>${esc(cats[i])}: ${fmt(v||0)}</title></circle>`).join(''); });
-  let lx=padL; g+=series.map(s=>{ const t=`<rect x="${lx}" y="2" width="11" height="11" rx="2" fill="${s.cor}"></rect><text x="${lx+16}" y="11.5" font-size="11.5" fill="#334155">${esc(s.nome)}</text>`; lx+=52+s.nome.length*6.5; return t; }).join('');
-  el.setAttribute('viewBox',`0 0 ${W} ${H}`); el.innerHTML=g;
+  opts = opts || {};
+  cats = cats || []; series = series || [];
+  const fmt = opts.fmt || (v => Number(v).toLocaleString('pt-BR'));
+  if(cats.length < 2){ ecDesenhar(id, null, 'série insuficiente'); return; }
+  ecDesenhar(id, () => {
+    const todos = series.flatMap(s => s.valores.map(v => v||0));
+    const max = Math.max(1, ...todos.map(Math.abs));
+    const o = ecOpcoes(cats.map(String), max, {
+      tipo: opts.tipo || (opts.axisFmt ? 'moeda' : 'num'),
+      legenda: series.map(s => s.nome), bottom: 40});
+    if(opts.axisFmt){ o.yAxis.axisLabel.formatter = v => opts.axisFmt(v); o.yAxis.name = ''; }
+    if(Math.min(0, ...todos) < 0) o.yAxis.min = Math.min(0, ...todos);
+    o.tooltip.formatter = p => '<b>' + esc(String(cats[p[0].dataIndex])) + '</b><br>'
+      + p.map(x => x.marker + ' ' + x.seriesName + ': <b>' + fmt(x.value) + '</b>').join('<br>');
+    o.series = series.map(sr => ecLinha(sr.nome, sr.valores.map(v => v||0), sr.cor,
+      {area: sr.fill !== false, tamanho: 6}));
+    return o;
+  });
 }
-// Rosca: segs=[{rotulo,valor,cor}], opts={fmt,centro,centroSub}
+
+/* Rosca. Ela FICA onde já estava, mas com a ressalva de sempre: parte-do-todo
+   com uma categoria dominante não é rosca — nesses casos a casa usa barra
+   horizontal empilhada. Aqui as fatias são comparáveis. */
 function chartDonut(id, segs, opts){
-  opts=opts||{}; const el=_chartEl(id); if(!el) return;
-  segs=(segs||[]).filter(s=>s&&s.valor>0);
-  const tot=segs.reduce((a,s)=>a+s.valor,0);
-  if(!tot){ el.setAttribute('viewBox','0 0 380 200'); el.innerHTML='<text x="12" y="34" font-size="13" fill="#6B7280">sem dados</text>'; return; }
-  const fmt=opts.fmt||(v=>Number(v).toLocaleString('pt-BR'));
-  const W=380, H=200, cx=100, cy=H/2, r=82, rin=57; let a0=-Math.PI/2, g='';
-  segs.forEach(s=>{ let frac=s.valor/tot; if(frac>0.9999) frac=0.9999; const a1=a0+frac*Math.PI*2;
-    const x0=cx+r*Math.cos(a0), y0=cy+r*Math.sin(a0), x1=cx+r*Math.cos(a1), y1=cy+r*Math.sin(a1);
-    const xi1=cx+rin*Math.cos(a1), yi1=cy+rin*Math.sin(a1), xi0=cx+rin*Math.cos(a0), yi0=cy+rin*Math.sin(a0);
-    const big=(a1-a0)>Math.PI?1:0;
-    g+=`<path d="M${x0},${y0} A${r},${r} 0 ${big} 1 ${x1},${y1} L${xi1},${yi1} A${rin},${rin} 0 ${big} 0 ${xi0},${yi0} Z" fill="${s.cor}" stroke="#fff" stroke-width="1.5"><title>${esc(s.rotulo)}: ${fmt(s.valor)} (${(100*s.valor/tot).toFixed(1)}%)</title></path>`; a0=a1; });
-  // rótulo central — fonte ajustada ao tamanho do texto para não estourar o furo
-  const ctxt=String(opts.centro||''); const cFont = ctxt.length<=6?21 : (ctxt.length<=9?16 : (ctxt.length<=12?13:11));
-  g+=`<text x="${cx}" y="${cy+(opts.centroSub?-2:5)}" text-anchor="middle" font-size="${cFont}" font-weight="800" fill="#1E1E1E">${esc(ctxt)}</text>`;
-  if(opts.centroSub) g+=`<text x="${cx}" y="${cy+16}" text-anchor="middle" font-size="10.5" fill="#6B7280">${esc(opts.centroSub)}</text>`;
-  // legenda centralizada verticalmente à direita do donut
-  const legX=208, rowH=22, startY=Math.max(14, cy-(segs.length*rowH)/2)+11;
-  g+=segs.map((s,i)=>{ const y=startY+i*rowH;
-    return `<rect x="${legX}" y="${y-9}" width="12" height="12" rx="3" fill="${s.cor}"></rect>`+
-      `<text x="${legX+18}" y="${y+1}" font-size="12" fill="#334155">${_trunc(esc(s.rotulo),15)}</text>`+
-      `<text x="${W-6}" y="${y+1}" text-anchor="end" font-size="12" font-weight="700" fill="#1E1E1E">${(100*s.valor/tot).toFixed(0)}%</text>`;
-  }).join('');
-  el.setAttribute('viewBox',`0 0 ${W} ${H}`); el.innerHTML=g;
+  opts = opts || {};
+  segs = (segs || []).filter(s => s && s.valor > 0);
+  const tot = segs.reduce((a,s) => a + s.valor, 0);
+  if(!tot){ ecDesenhar(id, null, 'sem dados'); return; }
+  const fmt = opts.fmt || (v => Number(v).toLocaleString('pt-BR'));
+  ecDesenhar(id, () => ({
+    animation: false,
+    tooltip: Object.assign({trigger:'item'}, ecTooltip(), {
+      formatter: p => '<b>' + esc(p.name) + '</b><br>' + fmt(p.value)
+                      + ' · ' + (100*p.value/tot).toFixed(1) + '%'}),
+    legend: {orient:'vertical', right: 8, top:'middle', itemWidth:12, itemHeight:9,
+             textStyle:{color:CC.n600, fontSize:11.5, fontFamily:'Saira, sans-serif'}},
+    series: [{
+      type:'pie', radius:['58%','82%'], center:['32%','50%'],
+      avoidLabelOverlap:true, itemStyle:{borderColor:'#fff', borderWidth:2},
+      label: opts.centro ? {show:true, position:'center',
+        formatter: () => opts.centro + (opts.centroSub ? '\n' + opts.centroSub : ''),
+        color:CC.n900, fontSize:15, fontWeight:700, lineHeight:18,
+        fontFamily:'Saira, sans-serif'} : {show:false},
+      labelLine:{show:false},
+      data: segs.map(x => ({name: x.rotulo, value: x.valor,
+                            itemStyle:{color: x.cor || CC.n400}})),
+    }],
+  }));
 }
-// ---------------- Headcount (folha GLOBUS) ----------------
+
 async function loadHc(){
   const seq=++hcSeq, btn=document.getElementById('btnRefresh'); if(btn) btn.disabled=true;
   document.getElementById('content').classList.add('loading'); skelKpis('kpis-hc',4);
@@ -19038,6 +19269,15 @@ function srvKpi(label,val,sub,cor){
   return `<div class="card kpi"><div class="label">${esc(label)}</div>`+
          `<div class="val" style="color:${cor||'inherit'}">${esc(val)}</div><div class="sub">${esc(sub)}</div></div>`;
 }
+function srvAgendar(){
+  if(srvTimer){ clearTimeout(srvTimer); srvTimer=null; }
+  srvTimer = setTimeout(async () => {
+    if(currentView()!=='srv') return;
+    await loadSrv(true);
+    if(currentView()==='srv') srvAgendar();
+  }, 5000);
+}
+
 async function loadSrv(fundo){
   if(!USER || !USER.admin) return;
   const seq=++srvSeq;
@@ -19889,20 +20129,20 @@ function jrMotAtingidos(d){
    `new Date('2026-08')` em UTC−3 volta julho. */
 const jrMesRot = m => MES[+m.slice(5,7)-1] + '/' + m.slice(2,4);
 
-/* Mensagem única de falha da biblioteca. O arquivo vem do NOSSO disco, então
-   não carregar significa deploy quebrado — e cartão vazio faria parecer que
-   não houve jornada no período. */
-function jrFalhaGrafico(el, e){
+/* Mensagem única de falha da biblioteca, para QUALQUER tela. O arquivo vem do
+   NOSSO disco, então não carregar significa deploy quebrado — e um cartão
+   vazio faria parecer ausência de dado, que é a leitura errada. */
+function ecFalha(el, e){
   el.innerHTML = '<div style="padding:22px;color:var(--red);font-size:13px">'
     + 'Não foi possível carregar a biblioteca de gráficos (' + esc(e.message) + ').'
     + '<br><span style="color:var(--n500)">Os números dos cartões e das tabelas continuam corretos.</span></div>';
 }
 /* Hachura do ECharts, igual à do `<pattern>` que os 43 SVGs desenham à mão. */
-function jrDecal(){
+function ecDecal(){
   return {symbol:'rect', color:'rgba(255,255,255,.62)', dashArrayX:[1,0],
           dashArrayY:[2,4], rotation:-Math.PI/4};
 }
-function jrTooltipBase(){
+function ecTooltip(){
   return {backgroundColor:'#fff', borderColor:'#DCE0E5', borderWidth:1,
           textStyle:{color:'#14181D', fontSize:12.5, fontFamily:'Saira, sans-serif'}};
 }
@@ -20040,7 +20280,7 @@ function jrMensalEC(d){
     inst.setOption({
       animation: false,
       grid: {left: 62, right: 30, top: 34, bottom: 54},
-      tooltip: {trigger:'axis', ...jrTooltipBase(), formatter: p => {
+      tooltip: {trigger:'axis', ...ecTooltip(), formatter: p => {
         const m = M[p[0].dataIndex];
         if(m.sem_coleta) return '<b>' + jrMesRot(m.mes) + '</b><br>'
           + '<span style="color:#C03221">nenhuma jornada coletada neste mês</span><br>'
@@ -20076,7 +20316,7 @@ function jrMensalEC(d){
            itemStyle: m.sem_coleta
              ? {color:'#ECEEF1'}
              : (m.parcial
-                ? {color:CC.navy500, borderRadius:[3,3,0,0], decal: jrDecal()}
+                ? {color:CC.navy500, borderRadius:[3,3,0,0], decal: ecDecal()}
                 : {color:CC.navy700, borderRadius:[3,3,0,0]}),
          }))},
         /* RÓTULO DIRETO: a linha vive num eixo escondido, então sem o número
@@ -20093,7 +20333,7 @@ function jrMensalEC(d){
          data: M.map(m => (m.sem_coleta ? null : m.jornadas_dia))},
       ],
     }, true);
-  }).catch(e => jrFalhaGrafico(el, e));
+  }).catch(e => ecFalha(el, e));
 }
 
 /* 2. Dia a dia com zoom. É este gráfico que justifica a biblioteca: são
@@ -20128,7 +20368,7 @@ function jrDiarioEC(d){
     inst.setOption({
       animation: false,
       grid: {left: 58, right: 52, top: 30, bottom: 74},
-      tooltip: {trigger:'axis', ...jrTooltipBase(), formatter: p => {
+      tooltip: {trigger:'axis', ...ecTooltip(), formatter: p => {
         const i = p[0].dataIndex, x = D[i];
         return '<b>' + fmtD(x.dia) + '</b><br>'
           + 'Jornadas: <b>' + x.jornadas + '</b><br>'
@@ -20165,7 +20405,7 @@ function jrDiarioEC(d){
       legend: {data:['Jornadas','Horas de direção'], bottom:0, itemWidth:14, itemHeight:9,
                textStyle:{color:'#6E7883', fontSize:11, fontFamily:'Saira, sans-serif'}},
     }, true);
-  }).catch(e => jrFalhaGrafico(el, e));
+  }).catch(e => ecFalha(el, e));
 }
 
 /* 3. Para onde vai o dia — barra horizontal empilhada.
@@ -20190,7 +20430,7 @@ function jrCompEC(d){
     inst.setOption({
       animation: false,
       grid: {left: 12, right: 12, top: 16, bottom: 40, containLabel: false},
-      tooltip: {trigger:'item', ...jrTooltipBase(), formatter: p =>
+      tooltip: {trigger:'item', ...ecTooltip(), formatter: p =>
         '<b>' + p.seriesName + '</b><br>'
         + Math.round(p.value).toLocaleString('pt-BR') + ' h · '
         + (100*p.value/tot).toFixed(1) + '%'},
@@ -20209,7 +20449,7 @@ function jrCompEC(d){
         data:[it.h],
       })),
     }, true);
-  }).catch(e => jrFalhaGrafico(el, e));
+  }).catch(e => ecFalha(el, e));
 }
 
 /* 4. Inconformidades de tempo por mês, empilhadas por tipo.
@@ -20234,7 +20474,7 @@ function jrUncMesEC(d){
     inst.setOption({
       animation: false,
       grid: {left: 62, right: 26, top: 30, bottom: 74},
-      tooltip: {trigger:'axis', axisPointer:{type:'shadow'}, ...jrTooltipBase(),
+      tooltip: {trigger:'axis', axisPointer:{type:'shadow'}, ...ecTooltip(),
         formatter: p => {
           const l = linhas[p[0].dataIndex];
           if(l.sem_coleta) return '<b>' + jrMesRot(l.mes) + '</b><br>'
@@ -20262,7 +20502,7 @@ function jrUncMesEC(d){
         data: linhas.map(l => (l.sem_coleta ? null : (l.por_tipo[t] || 0))),
       })),
     }, true);
-  }).catch(e => jrFalhaGrafico(el, e));
+  }).catch(e => ecFalha(el, e));
 }
 
 /* ============================== TABELAS ============================== */
@@ -20615,7 +20855,7 @@ function jfDiario(d){
     inst.setOption({
       animation: false,
       grid: {left: 56, right: 20, top: 30, bottom: 74},
-      tooltip: {trigger:'axis', ...jrTooltipBase(), formatter: p => {
+      tooltip: {trigger:'axis', ...ecTooltip(), formatter: p => {
         const x = D[p[0].dataIndex];
         return '<b>' + fmtD(x.dia) + '</b>'
           + (x.inicio ? ' · ' + x.inicio + (x.fim ? '–' + x.fim : '') : '') + '<br>'
@@ -20647,7 +20887,7 @@ function jfDiario(d){
          lineStyle:{color:CC.navy700, width:1.6}, data: dir},
       ],
     }, true);
-  }).catch(e => jrFalhaGrafico(el, e));
+  }).catch(e => ecFalha(el, e));
 }
 
 function jfUnconf(d){
@@ -22890,12 +23130,33 @@ async function gesUsuarioSalvar(id){
     const r=await fetch('/api/gestao/usuarios'+(id?'/'+id:''),{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)});
     const d=await r.json();
     if(!r.ok){ mErro(d.mensagem||'Não foi possível salvar.'); return; }
+    /* O E-MAIL PODE TER FALHADO COM O CADASTRO FEITO. Fechar o modal em
+       silêncio deixaria um usuário criado sem ninguém saber a senha dele — e o
+       servidor devolve a senha JUSTAMENTE nesse caso, para quem cadastrou
+       entregar por outro caminho. Isso não pode passar despercebido. */
+    if(d.email && !d.email.ok){
+      const L = ['Usuário criado, mas o e-mail de boas-vindas NÃO saiu:', '',
+                 (d.email.erro || 'erro desconhecido')];
+      if(d.senha_temporaria)
+        L.push('', 'Entregue a senha provisória por outro caminho:', d.senha_temporaria);
+      alert(L.join(String.fromCharCode(10)));
+    }
     fecharModal(); loadGestao();
     /* o admin pode ter editado a SI MESMO: sem isto o avatar da barra e o menu
        continuariam com o nome e a foto antigos até o próximo F5 */
     if(id===USER.id){ try{ USER=await (await fetch('/api/auth/me',{cache:'no-store'})).json(); avatarRender(); }catch(e){} }
   }catch(e){ mErro('Não foi possível falar com a API.'); }
 }
+/* O aviso muda com o interruptor: sem e-mail, a senha TEM de ser digitada,
+   porque não há por onde entregá-la depois. */
+function gesBvAviso(){
+  const bv=document.getElementById('gu-bv'), h=document.getElementById('gu-bv-hint');
+  if(!bv||!h) return;
+  h.textContent = bv.checked
+    ? 'O e-mail traz o endereço do painel, o usuário, a senha provisória e um resumo do que este perfil abre. Deixando a senha em branco, o sistema gera uma forte — a troca no primeiro acesso continua obrigatória.'
+    : 'Sem o e-mail, digite a senha temporária acima e entregue-a por outro caminho — ela não é mostrada depois.';
+}
+
 async function gesUsuarioExcluir(id){
   const u=DATAGES.usuarios.find(x=>x.id===id); if(!u) return;
   if(!confirm(`Excluir o usuário "${u.nome}" (${u.email})? Essa ação não pode ser desfeita.`)) return;

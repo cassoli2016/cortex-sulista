@@ -4,6 +4,47 @@ Gerado de `docs/versoes.yaml` por `scripts/gerar_changelog.py` — não editar �
 Formato [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/),
 versionamento [SemVer](https://semver.org/lang/pt-BR/).
 
+## [0.144.0] — 29/08/2026  ·  CX-29/08/2026-v0.144.0
+
+### Alterado
+- Mais dois graficos em ECharts: multas por mes e lancamentos bancarios (credito x debito). Sao 19 dos 39 convertidos - os 20 restantes ficam para as proximas versoes, tela a tela, com as regras de cada um reimplementadas e testadas na chegada.
+- Quatro construtores reusaveis (ecOpcoes, ecBarras, ecLinha, ecDesenhar) concentram as regras da casa num lugar so: hachura de periodo parcial, rotulo direto, unidade FINAL no eixo, ausencia que nao vira zero e falha de carga DITA no cartao. Reimplementa-las grafico a grafico e exatamente como elas se perdem, uma de cada vez, sem ninguem notar.
+- O e-mail de boas-vindas passou a USAR o layout compartilhado (api/correio/painel.py) em vez de ter marcacao propria. Foi ter HTML so dele que o fez nascer escuro: a regra da casa vivia no outro modulo. Com um layout so, ela vale para o proximo e-mail sem ninguem precisar lembrar. Entraram dois blocos que faltavam la: botao() e campos().
+- Um teste agora percorre TODOS os e-mails do sistema - boas-vindas em quatro variacoes e os tres relatorios agendados - e falha se algum ganhar fundo com luminancia abaixo de 110. A regra ja tinha sido dita antes e voltou porque nada a cobrava. O semaforo (verde, ambar, vermelho) e o laranja do accent sao excecao DECLARADA: numa barra de autorizados x rejeitados a cor e a informacao, e clarea-la seria inventar tons de estado que o design system proibe.
+
+### Corrigido
+- O eixo de CONTAGEM mostrava casa decimal - "0,0 5,0 10,0" no grafico de multas por mes. Meia multa nao existe: a casa so faz sentido quando o numero foi dividido por mil ou por milhao e a fracao carrega informacao.
+- A SAUDE DO SERVIDOR PAROU DE CARREGAR, e nao era erro: a resposta levava 4,8 s e a tela recarregava a cada 5 s. Como o setInterval dispara mesmo com a requisicao anterior em voo, quase toda resposta chegava depois de uma mais nova ter comecado - e o guard de sequencia do front, que existe para descartar resposta obsoleta ao trocar de filtro, a descartava. A tela ficava em branco para sempre, sem erro nenhum aparecer.
+- Eram DOIS defeitos independentes. O servidor era lento a toa: 3,6 s dos 4,8 eram sete consultas ao agendador de tarefas do Windows, refeitas a cada 5 s para descobrir uma coisa que muda quando alguem roda um instalador. Entrou cache de 60 s - o mesmo TTL do estado da Z-API, pela mesma razao - e coletar() caiu de 5,6 s para 0,95 s.
+- E a tela atropelava a si mesma. A recarga passou a ser ENCADEADA: o proximo ciclo so e agendado DEPOIS de o anterior terminar. Assim ela fica mais lenta quando o servidor esta lento, nunca vazia. Intervalo fixo com requisicao em voo e bomba-relogio: funciona ate o dia em que a resposta encosta no intervalo.
+- NENHUM E-MAIL DO CORTEX TEM MAIS AREA ESCURA. A faixa do cabecalho dos relatorios era navy e o e-mail de boas-vindas nasceu copiando o padrao. Fundo escuro em e-mail imprime mal, some no modo de leitura de varios clientes e briga com o tema escuro do aparelho, que ja inverte tudo por conta propria. O cabecalho passou a ser claro, com um filete laranja no topo e borda embaixo dando a estrutura que o bloco de cor dava.
+- O AMARELO DA MARCA SAIU DOS E-MAILS junto com o fundo escuro, e nao por acaso: ele tem 1,44:1 de contraste no branco e so era legivel porque havia navy embaixo. Em superficie clara o accent e o laranja, que e o que o design system manda - a mesma regra que ja vale no painel.
+- A barra de dado padrao passou do navy-500 para o navy-400: uma barra cheia de navy-500 ainda e um bloco escuro no meio da mensagem, e o 400 le igual de bem sobre claro.
+
+## [0.143.0] — 29/08/2026  ·  CX-29/08/2026-v0.143.0
+
+### Adicionado
+- E-MAIL DE BOAS-VINDAS ao cadastrar usuario. Traz o endereco do painel, o usuario, a senha provisoria e um resumo do que AQUELE perfil abre - so as telas dele, porque mandar as 65 para quem tem 8 e promessa quebrada no primeiro clique, e faz a pessoa achar que o sistema esta com defeito quando esta so com perfil. Fecha com quatro orientacoes de leitura do painel (o i de procedencia, a hachura de periodo parcial, o escopo dos filtros e o Copiloto).
+- A SENHA PROVISORIA E GERADA PELO SISTEMA quando se pede o e-mail. Senha escolhida por gente vira "Mudar@123" em toda a empresa - e ai o elo fraco deixa de ser o e-mail e passa a ser o padrao que todo mundo conhece. Sao 14 caracteres de secrets.choice, sem O/0 nem l/1/I, que e o que faz alguem digitar errado e pedir outra. Quem prefere entregar pessoalmente continua digitando a sua.
+- CORTEX_URL em Gestao > Integracoes: o endereco publico do painel. Sem padrao de proposito - um endereco chutado num e-mail de acesso manda gente nova para lugar nenhum no primeiro contato com o sistema. Sem ele o envio RECUSA dizendo o que falta.
+
+### Alterado
+- O e-mail nao pode derrubar o cadastro: ele sai DEPOIS do commit, e se falhar o usuario continua criado. A resposta separa as duas coisas, e a tela avisa em vez de fechar em silencio - com a senha provisoria de volta, que e a unica forma de a pessoa entrar. Quando o e-mail SAI, a senha nao volta: ja esta na caixa de quem vai usar, e ecoa-la poria o segredo tambem no navegador de quem cadastrou.
+- A SENHA NAO ENTRA NA TRILHA NEM NO LOG. Registra-se que o e-mail saiu, para quem e quando. Um audit_log com senhas seria pior que o e-mail: o e-mail perde valor quando a pessoa troca a senha, a trilha fica para sempre e e lida por mais gente. Ha teste que quebra se a senha vazar para um metadado.
+- O HTML e feito para o OUTLOOK, que e onde ele vai ser lido: tabelas de largura fixa e estilo em linha, sem flex, sem grid e sem imagem de fundo - o Outlook renderiza com o motor do Word e ignora tudo isso calado, e o e-mail chega desmontado sem ninguem saber. Ha teste que recusa esses seletores.
+
+## [0.142.0] — 29/08/2026  ·  CX-29/08/2026-v0.142.0
+
+### Alterado
+- OS TRES GRAFICOS DA VISAO GERAL passaram de SVG a mao para ECharts: faturamento diario x meta, receita mensal e saldo de caixa projetado. Ganham tooltip e redesenho da biblioteca; nenhuma regra da casa foi trocada por conveniencia dela.
+- A VISAO GERAL AGORA BAIXA OS 990 KB DA BIBLIOTECA, e ate ontem havia uma regra dizendo o contrario justamente porque ela e a primeira tela de todo mundo. O custo e uma vez por deploy (o navegador cacheia) e UMA carga serve os tres graficos. A carga segue sob demanda: tela que nao desenha com a biblioteca continua sem paga-la.
+- Tudo que o desenho a mao garantia continua: semaforo DISCRETO por atingimento, meta em linha de degrau INTERROMPIDA nos dias sem meta ( descer a zero criava vales que se leem como meta batendo no chao), dia futuro SEM barra de realizado com a faixa "a realizar", mes corrente hachurado e rotulado "parcial", media so dos meses FECHADOS com rotulo direto, gap e pior saldo anotados no grafico, faixa negativa sombreada e eixo com a unidade FINAL.
+- Os tooltips dizem o MESMO que os do SVG diziam - "falta R$ X para a meta", "vs mes anterior", "vs media dos fechados", "variacao no mes". Trocar a ferramenta e perder conteudo seria a pior parte do negocio: o quanto falta e o numero que a pessoa usa, nao o percentual.
+
+### Corrigido
+- O TESTE QUE PROTEGIA A CARGA SOB DEMANDA PASSAVA POR VACUIDADE. Ele exigia que a Visao Geral NAO baixasse a biblioteca e continuou verde depois da conversao, porque o duble devolvia payload vazio e os graficos saiam antes de chegar ao carregador - nao media nada. Foi reescrito para medir o que passou a importar: uma carga servindo os tres graficos, tela sem grafico continuando sem baixar, e as regras da casa presentes no SVG renderizado. Teste de "nao faz X" precisa provar que chegaria a fazer X.
+- Os tres ramos de tooltip do sistema de hover do SVG ficaram orfaos com a conversao e foram removidos: modulo orfao volta a ser chamado por engano.
+
 ## [0.141.0] — 29/08/2026  ·  CX-29/08/2026-v0.141.0
 
 ### Adicionado

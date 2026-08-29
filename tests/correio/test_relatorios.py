@@ -167,17 +167,24 @@ def test_so_o_tipo_Html_escapa_da_higienizacao():
 
 def test_defesa_de_tema_escuro_NAO_reescreve_a_paleta():
     """A primeira versao desta defesa usava `background:inherit !important` e
-    APAGOU a faixa navy do cabecalho - o !important vence o estilo inline, e o
+    APAGOU a faixa do cabecalho - o !important vence o estilo inline, e o
     titulo virou branco sobre branco. Visto no navegador em tema escuro.
     Defender-se do tema escuro e DECLARAR o tema, nunca reescrever por cima da
-    paleta que ja esta correta."""
+    paleta que ja esta correta.
+
+    A FAIXA DEIXOU DE SER NAVY em 29/08/2026: e-mail do CORTEX nao tem area
+    escura, e o cabecalho passou a ser branco com filete laranja. A defesa
+    continua valendo - o que ela repoe agora e o BRANCO, e o teste segue o
+    token em vez da cor literal, para nao precisar mudar de novo."""
     html = painel.documento("t", [])
     assert "color-scheme" in html and "light only" in html
     assert "background-color:inherit" not in html
     assert "!important" not in html.split("</style>")[0].replace(
         "[data-ogsc]", "").replace("[data-ogsb]", "") or "data-ogsc" in html
-    # a faixa continua navy no estilo inline, que e quem manda
-    assert f"background:{painel.NAVY}" in html
+    # a faixa continua com a cor do token no estilo inline, que e quem manda
+    assert f"background:{painel.BRANCO}" in html
+    # e o navy nao volta por nenhuma porta
+    assert "#14181D" not in html.replace(f"color:{painel.TINTA}", "")
 
 
 def test_o_bloco_de_estilo_nao_carrega_layout():

@@ -32,9 +32,26 @@ from __future__ import annotations
 from datetime import datetime
 
 # Tokens do design system, em hexadecimal — ver o cabeçalho do módulo.
-NAVY = "#14181D"
-NAVY_MEDIO = "#2C3742"
-BRAND = "#FFD31C"
+#
+# ── E-MAIL DO CÓRTEX NÃO TEM ÁREA ESCURA ────────────────────────────────────
+# Regra da casa, e ela já foi quebrada duas vezes: a faixa do cabeçalho era
+# navy e o boas-vindas nasceu copiando o padrão. Fundo escuro em e-mail não é
+# só questão de gosto — ele imprime mal, some no modo de leitura de vários
+# clientes e briga com o tema escuro do aparelho, que já inverte tudo por
+# conta própria.
+#
+# A CONSEQUÊNCIA DIRETA: o amarelo da marca NÃO PODE APARECER. Ele tem 1,44:1
+# de contraste no branco e vira um borrão ilegível — ele existia aqui porque
+# havia fundo escuro embaixo dele. Sem o fundo escuro, o accent é o LARANJA,
+# que é o que o design system manda usar em superfície clara.
+#
+# Texto continua escuro, evidentemente: a regra é sobre ÁREA (fundo, faixa,
+# bloco), não sobre tinta.
+TINTA_FORTE = "#14181D"          # texto, nunca fundo
+AZUL_GRAFICO = "#5F87AC"         # navy-400: barra sobre claro.
+# O navy-500 (#38648D) era escuro demais para a regra — uma barra cheia
+# dele ainda é um bloco escuro no meio da mensagem. O 400 lê igual de bem
+# como barra e não cria área escura nenhuma.
 LARANJA = "#E85D10"
 VERDE = "#1E7F4F"
 AMBAR = "#B97709"
@@ -86,16 +103,28 @@ def inteiro(v) -> str:
 
 
 def cabecalho(titulo: str, subtitulo: str = "") -> str:
-    """Faixa escura com o nome do relatório. O amarelo da marca só aparece
-    sobre fundo escuro — no claro ele tem contraste de 1,44:1 e some."""
-    sub = (f'<div style="font:400 13px/1.4 {FONTE};color:#B9C2CC;'
+    """Cabeçalho CLARO com o nome do relatório.
+
+    A estrutura vem de um filete laranja no topo e de uma borda embaixo, não
+    de um bloco de cor: e-mail do CÓRTEX não tem área escura. O amarelo da
+    marca não aparece porque ele só é legível sobre escuro (1,44:1 no branco)
+    — em superfície clara o accent é o laranja, que é o que o design system
+    manda.
+    """
+    sub = (f'<div style="font:400 13px/1.45 {FONTE};color:{CINZA};'
            f'margin-top:5px">{_esc(subtitulo)}</div>') if subtitulo else ""
     return f"""
-<tr><td class="faixa" style="background:{NAVY};padding:22px 26px 20px">
-  <div style="font:700 11px/1 {FONTE};letter-spacing:.22em;color:{BRAND};
-              text-transform:uppercase">CÓRTEX · SULISTA</div>
-  <div style="font:700 21px/1.25 {FONTE};color:{BRANCO};margin-top:9px">
-    {_esc(titulo)}</div>{sub}
+<tr><td class="faixa" style="background:{BRANCO};padding:0">
+  <table role="presentation" width="100%" cellpadding="0" cellspacing="0">
+   <tr><td style="background:{LARANJA};font-size:0;line-height:0;height:4px">
+     &nbsp;</td></tr>
+   <tr><td style="padding:20px 26px 18px;border-bottom:1px solid {BORDA}">
+    <div style="font:700 11px/1 {FONTE};letter-spacing:.22em;color:{LARANJA};
+                text-transform:uppercase">CÓRTEX · SULISTA</div>
+    <div style="font:700 21px/1.25 {FONTE};color:{TINTA};margin-top:9px">
+      {_esc(titulo)}</div>{sub}
+   </td></tr>
+  </table>
 </td></tr>"""
 
 
@@ -224,7 +253,7 @@ def barras(itens: list[dict], *, unidade: str = "") -> str:
     for i in itens:
         v = float(i.get("valor") or 0)
         pct = max(round(100 * v / topo), 1) if v else 0
-        cor = i.get("cor") or NAVY_MEDIO
+        cor = i.get("cor") or AZUL_GRAFICO
         rotulo = _esc(i.get("rotulo"))
         num = i.get("texto") or (inteiro(v) + (f" {unidade}" if unidade else ""))
         # a barra vazia ainda ocupa a linha: dia sem movimento e informacao
@@ -262,6 +291,49 @@ def legenda(itens: list[tuple[str, str]]) -> str:
     return (f'<tr><td style="padding:8px 26px 0">{partes}</td></tr>')
 
 
+def botao(texto: str, url: str) -> str:
+    """Botão de ação. `<td>` com fundo, não `<button>` nem imagem: botão de
+    e-mail que depende de CSS de borda some no Outlook, e como imagem some em
+    quem bloqueia imagem — que é a maioria, por padrão."""
+    return f"""
+<tr><td style="padding:18px 26px 4px">
+  <table role="presentation" cellpadding="0" cellspacing="0"><tr>
+    <td style="background:{LARANJA};border-radius:7px">
+      <a href="{_esc(url)}" style="display:inline-block;padding:12px 26px;
+         font:700 14.5px/1 {FONTE};color:{BRANCO};text-decoration:none">
+        {_esc(texto)}</a></td>
+  </tr></table>
+</td></tr>"""
+
+
+def campos(itens: list[tuple[str, str]], *, titulo: str = "",
+           mono: tuple = ()) -> str:
+    """Caixa de rótulo → valor, para dado que a pessoa vai LER e DIGITAR.
+
+    `mono` marca os índices que saem em monoespaçada: endereço, usuário e
+    senha são copiados à mão, e em fonte proporcional o l vira 1 e o O vira 0
+    justamente no momento em que errar custa um chamado.
+    """
+    tit = (f'<div style="font:700 11px/1 {FONTE};letter-spacing:.16em;'
+           f'color:{CINZA};text-transform:uppercase;margin:0 0 10px">'
+           f'{_esc(titulo)}</div>') if titulo else ""
+    linhas = "".join(
+        f'<tr><td style="padding:6px 12px 6px 0;font:400 12.5px/1.4 {FONTE};'
+        f'color:{CINZA};vertical-align:top;white-space:nowrap">{_esc(r)}</td>'
+        f'<td style="padding:6px 0;font:{"700 15px/1.4 " + MONO if i in mono else "400 14px/1.5 " + FONTE};'
+        f'color:{TINTA};word-break:break-all">{v if isinstance(v, Html) else _esc(v)}</td></tr>'
+        for i, (r, v) in enumerate(itens))
+    return f"""
+<tr><td style="padding:14px 26px 0">
+  <table role="presentation" width="100%" cellpadding="0" cellspacing="0"
+         style="background:{FUNDO};border:1px solid {BORDA};border-radius:8px">
+   <tr><td style="padding:16px 18px">{tit}
+    <table role="presentation" width="100%" cellpadding="0" cellspacing="0">
+      {linhas}</table>
+   </td></tr></table>
+</td></tr>"""
+
+
 def rodape(origem: str) -> str:
     quando = datetime.now().strftime("%d/%m/%Y às %H:%M")
     return f"""
@@ -286,9 +358,10 @@ def documento(titulo: str, blocos: list[str], *, subtitulo: str = "",
 <meta name="supported-color-schemes" content="light only">
 <title>{_esc(titulo)}</title>
 <!-- MODO ESCURO DO CLIENTE. Gmail e Outlook INVERTEM as cores da mensagem
-     quando o aparelho esta em tema escuro: o fundo branco vira quase preto, o
-     navy da faixa clareia e o amarelo da marca fica ilegivel - o cliente
-     reescreve a paleta e o resultado nao e o design system de ninguem. As
+     quando o aparelho esta em tema escuro: o fundo branco vira quase preto e
+     o cliente reescreve a paleta inteira - o resultado nao e o design system
+     de ninguem. E a razao a mais para a mensagem nao ter area escura PROPRIA:
+     ela ja corre o risco de ganhar uma sem pedir. As
      duas metas acima declaram que a mensagem SO tem tema claro, e este bloco
      e a segunda linha de defesa para quem le a meta e ignora. Ele NAO carrega
      regra de layout: o layout inteiro esta inline, e continua de pe se o
@@ -304,7 +377,7 @@ def documento(titulo: str, blocos: list[str], *, subtitulo: str = "",
      cores: para ele repomos o fundo claro, um por um, sem tocar no resto. */
   [data-ogsc] .corpo, [data-ogsb] .corpo {{background:{BRANCO} !important}}
   [data-ogsc] .fundo, [data-ogsb] .fundo {{background:{FUNDO} !important}}
-  [data-ogsc] .faixa, [data-ogsb] .faixa {{background:{NAVY} !important}}
+  [data-ogsc] .faixa, [data-ogsb] .faixa {{background:{BRANCO} !important}}
 </style></head>
 <body style="margin:0;padding:0;background:{FUNDO};">
 <table role="presentation" class="fundo" width="100%" cellpadding="0"

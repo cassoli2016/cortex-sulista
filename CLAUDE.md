@@ -127,23 +127,31 @@ Toda construção de painel segue a skill `dashboard-builder` e este padrão:
 4. **Tabela acionável**: linhas ordenadas por prioridade/risco, com ação sugerida.
 5. **Alertas**: ocorrências que exigem ação agora.
 
-**Gráfico: SVG à mão por padrão, ECharts quando a interação for o ponto.**
-São 43 gráficos SVG escritos à mão no `index.html` — e continuam sendo, porque
-carregam as regras que esta seção documenta (mês parcial hachurado, rótulo
-direto, semáforo discreto, anti-colisão, teclado) e reescrevê-los seria semanas
-para perder cada uma.
+**Gráfico: ECharts nas telas convertidas, SVG à mão no resto.**
+Restam **39 gráficos SVG escritos à mão** no `index.html`, e eles continuam
+assim porque carregam as regras que esta seção documenta (mês parcial
+hachurado, rótulo direto, semáforo discreto, anti-colisão, teclado) e
+reescrevê-los em bloco seria semanas para perder cada uma. A conversão é feita
+por TELA, quando há motivo, e cada regra é reimplementada e testada na chegada.
 
 **ECharts 5 (Apache 2.0) entrou em 27/08/2026**, vendorizado em
-`api/static/vendor/echarts.min.js` com a licença ao lado, e é a escolha quando
-o painel precisar de **zoom/pan em série longa, drill-down, exportação, gantt
-ou mapa** — coisas que o SVG à mão não faz. Primeiro uso: o gráfico mensal da
-Produtividade de Veículos.
+`api/static/vendor/echarts.min.js` com a licença ao lado. Nasceu como escolha
+para o que o SVG à mão não faz — **zoom/pan em série longa, drill-down,
+exportação, gantt, mapa** — e hoje também é o padrão das telas já convertidas:
+Produtividade de Veículos, Jornada (4 gráficos) e **Visão Geral (3)**.
 
 Três regras para usá-lo, todas com teste em `tests/frontend/test_echarts_e2e.py`:
 
-1. **Carga SOB DEMANDA** (`carregarECharts()`): são 990 KB, e as 62 telas que
-   não usam biblioteca não pagam por ele. Há teste que falha se a Visão Geral
-   baixar o arquivo.
+1. **Carga SOB DEMANDA** (`carregarECharts()`), e ela memoiza: são 990 KB, uma
+   vez por sessão, e **uma carga serve todos os gráficos da tela**. Quem não
+   desenha continua sem pagar — é isso que o teste vigia hoje.
+   **A Visão Geral BAIXA a biblioteca desde 29/08/2026**, e a regra anterior
+   dizia o contrário. Duas lições ficaram: a tela de entrada é onde esse custo
+   pesa mais (é a primeira de todo mundo, embora o navegador cacheie depois do
+   primeiro deploy); e o teste que a protegia **passou por vacuidade** depois
+   da conversão, porque o dublê devolvia payload vazio e os gráficos saíam
+   antes de chegar ao carregador. Teste de "não faz X" precisa provar que
+   chegaria a fazer X.
 2. **Vendorizado, NUNCA CDN.** O painel roda atrás do túnel e hoje não depende
    de host externo em tempo de execução; trocar isso por conveniência seria
    comprar um ponto de falha.
@@ -157,7 +165,7 @@ licença seria a Single App a US$ 650 perpétua/assento, e a versão grátis pro
 esconder o logo, que apareceria no mural do corredor. **ApexCharts — cuidado:
 parece livre e não é.** Deixou de ser MIT e hoje cobra de organização com mais
 de US$ 2 milhões de receita anual, incluindo ferramenta interna. Chart.js (MIT)
-entrega menos que os 43 gráficos já fazem. uPlot (MIT, 49 KB) fica como opção
+entrega menos que os gráficos da casa já fazem. uPlot (MIT, 49 KB) fica como opção
 se algum dia o problema for só série temporal longa.
 
 **Design system (valores reais implementados — tokens em `api/static/index.html`):**
@@ -1132,6 +1140,73 @@ em estrutura de topo: resolver dentro de **função**, na hora de desenhar.
 - O que saiu foi a LEITURA pelo painel; o dado do ERP continua no banco e
   continua alimentando a folha. Aposentar a tela não é apagar a fonte — e
   dizer isso explicitamente evita o susto de quem depende dela.
+
+**Segredo por e-mail: o que o torna aceitável (lições do boas-vindas):**
+- Senha provisória por e-mail é o elo fraco e vale DIZER isso por escrito: o
+  e-mail fica na caixa, é encaminhável e sobrevive a backup. O padrão forte
+  seria link de primeiro acesso com validade curta. Quando a senha for mesmo o
+  pedido, ela vem com quatro defesas — **gerada pelo sistema** (a escolhida por
+  gente vira "Mudar@123" em toda a empresa, e aí o padrão conhecido é o elo
+  fraco, não o e-mail), **troca obrigatória no primeiro acesso**, **fora da
+  trilha e do log**, e o e-mail **dizendo que é provisória**.
+- **A senha NÃO entra no `audit_log`.** Registra-se que o e-mail saiu, para
+  quem e quando. Trilha com segredo dentro é pior que o e-mail: este perde
+  valor quando a pessoa troca a senha, aquela fica para sempre e é lida por
+  mais gente.
+- **Senha lida de e-mail não tem O/0 nem l/1/I.** É o que faz alguém digitar
+  errado e pedir outra — e cada pedido é mais uma senha circulando.
+- **Devolver a senha para quem cadastrou só quando o e-mail FALHOU.** Se saiu,
+  ela já está com quem vai usar; ecoá-la na resposta a poria também no
+  navegador de quem cadastrou, sem necessidade nenhuma.
+- **Ação que sai para fora não pode derrubar o cadastro.** O e-mail vai depois
+  do commit; se falhar, o usuário continua criado e a tela AVISA — fechar o
+  modal em silêncio deixaria alguém criado sem ninguém saber a senha.
+
+**`setInterval` + guard de sequência = tela VAZIA quando o servidor fica lento:**
+- A Saúde recarregava a cada 5 s e a resposta passou a levar 4,8 s. O
+  `setInterval` dispara **com a requisição anterior em voo**, então quase toda
+  resposta chegava depois de uma mais nova ter começado — e o guard
+  `if(seq!==meuSeq) return`, que existe para descartar resposta obsoleta ao
+  trocar de filtro, a descartava. `DATASRV` nunca era preenchido: **tela em
+  branco para sempre, sem erro nenhum aparecer**.
+- O sintoma não parece o que é. Não há exceção, não há banner, o endpoint
+  responde 200 — e a tela está vazia. Quem investiga vai procurar defeito no
+  render.
+- Regra: **recarga automática é ENCADEADA**, não por intervalo fixo. Agendar o
+  próximo ciclo só DEPOIS de o anterior terminar (`await` e então
+  `setTimeout`) torna a tela imune: ela fica mais lenta quando o servidor está
+  lento, nunca vazia. Vale para a Torre (120 s) tanto quanto para a Saúde.
+- **E consertar só o front seria consertar metade.** 3,6 s dos 4,8 eram sete
+  consultas ao agendador do Windows refeitas a cada 5 s, para descobrir uma
+  coisa que muda quando alguém roda um instalador. Diagnóstico cujo custo é
+  EXTERNO leva cache com TTL — o mesmo padrão do estado da Z-API. Com ele,
+  `coletar()` caiu de 5,6 s para 0,95 s.
+
+**E-MAIL DO CÓRTEX NÃO TEM ÁREA ESCURA** (regra dita duas vezes, quebrada duas):
+- Fundo escuro em e-mail imprime mal, some no modo de leitura de vários
+  clientes e briga com o tema escuro do aparelho — que já inverte tudo por
+  conta própria, e é razão a mais para a mensagem não ter área escura PRÓPRIA.
+- **A consequência que não é óbvia: o amarelo da marca sai junto.** `#FFD31C`
+  tem 1,44:1 no branco e só era legível porque havia navy embaixo dele. Sem o
+  fundo escuro, o accent é o **laranja** `#E85D10`, exatamente como no painel.
+  A estrutura que o bloco de cor dava vem de um filete no topo e uma borda
+  embaixo.
+- **A regra é sobre MOLDURA, não sobre cor que carrega significado.** Semáforo
+  (`#1E7F4F`/`#B97709`/`#C03221`) numa barra de dado fica: ali a cor é a
+  informação, e clareá-la seria inventar tons de estado. A exceção é
+  declarada no teste, não descoberta caso a caso.
+- **Um layout só.** O boas-vindas nasceu escuro porque tinha HTML próprio
+  enquanto a regra vivia em `correio/painel.py`. Todo e-mail passa por lá
+  agora — é assim que a regra vale para o PRÓXIMO e-mail sem ninguém lembrar.
+- E há teste varrendo todos os e-mails do sistema por fundo com luminância
+  abaixo de 110. Regra sem teste volta: esta voltou.
+
+**E-mail é lido no Outlook, que renderiza com o motor do Word:**
+- `flex`, `grid`, `background-image`, `position` e `<style>` são ignorados
+  CALADOS — o e-mail chega desmontado e ninguém fica sabendo. Tabela de largura
+  fixa e estilo em linha, sempre, com teste recusando esses seletores.
+- E o **corpo em texto puro não é formalidade**: é o que garante que dá para
+  ENTRAR mesmo quando o HTML não renderiza.
 
 **Alarme que acende sem haver problema ensina a ignorar o alarme:**
 - A Saúde ficava VERMELHA por qualquer falha de coleta nas últimas 48 h. Mas

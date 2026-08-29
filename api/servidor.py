@@ -581,12 +581,43 @@ def _servicos() -> list[dict]:
     return servicos
 
 
-def _tarefas() -> list[dict]:
+# ── CACHE DAS TAREFAS AGENDADAS ──────────────────────────────────────────────
+#
+# Consultar as tarefas custa 3,6 s: são sete chamadas ao agendador do Windows
+# dentro de UM processo PowerShell, que ainda precisa subir. A Saúde recarrega
+# a cada 5 s — ou seja, sem cache o servidor passava 72% do tempo perguntando
+# ao Windows uma coisa que muda quando alguém roda um instalador.
+#
+# Foi isso que fez a tela PARAR DE CARREGAR: com a resposta em 4,8 s contra
+# recarga de 5 s, quase toda resposta chegava depois de a próxima requisição
+# ter começado, e o guard de sequência do front a descartava. A tela ficava em
+# branco para sempre — não por erro, por corrida perdida.
+#
+# 60 s é o mesmo TTL do estado da Z-API, e pela mesma razão: diagnóstico cujo
+# custo é externo não pode ser refeito a cada pintura de cartão. O atraso
+# máximo para uma tarefa recém-instalada aparecer é um minuto, o que é
+# aceitável num cartão de monitoramento — e o payload diz a idade da leitura.
+_TAREFAS_TTL = 60.0
+_tarefas_cache: tuple[float, list[dict]] | None = None
+
+
+def _tarefas(forcar: bool = False) -> list[dict]:
     """Estado + última/próxima execução das tarefas agendadas do CÓRTEX.
 
     Usa Get-ScheduledTaskInfo (dados estruturados, independentes de idioma) em
     vez de parsear o texto localizado do schtasks. Best-effort: sem PowerShell
     (ex.: dev no Mac) devolve só os nomes."""
+    global _tarefas_cache
+    agora = time.monotonic()
+    if not forcar and _tarefas_cache and (agora - _tarefas_cache[0]) < _TAREFAS_TTL:
+        return _tarefas_cache[1]
+    r = _tarefas_consultar()
+    _tarefas_cache = (agora, r)
+    return r
+
+
+def _tarefas_consultar() -> list[dict]:
+    """A consulta de verdade. Separada para o cache não misturar as duas."""
     nomes = ",".join("'" + t.replace("'", "''") + "'" for t in _TAREFAS)
     ps = (
         "$ns=@(" + nomes + ");"

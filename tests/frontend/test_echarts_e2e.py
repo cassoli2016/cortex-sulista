@@ -1,16 +1,23 @@
-"""ECharts no CÓRTEX — carga sob demanda e o gráfico da Produtividade.
+"""ECharts no CÓRTEX — carga sob demanda e as regras que ela não dispensa.
 
-O que se protege:
+O QUE ESTE ARQUIVO PROTEGIA MUDOU. A Visão Geral passou a desenhar com a
+biblioteca, então o teste que exigia que ela NÃO a baixasse virou mentira — e
+pior, passava por vacuidade: com o payload vazio do dublê os gráficos saíam
+antes de chegar ao carregador, e o teste dava verde sem medir nada.
 
-1. **990 KB não podem pesar nas 62 telas que não usam gráfico de biblioteca.**
-   A promessa do carregamento sob demanda só vale se alguém conferir que a
-   Visão Geral não baixa o arquivo.
-2. **A biblioteca não pode nos fazer perder o que os gráficos à mão já
-   garantiam**: mês parcial hachurado e rótulo direto na linha. Trocar a
-   ferramenta e perder a regra seria a pior parte do negócio.
-3. **Falha de carga é dita, não escondida.** O arquivo vem do nosso disco: se
-   sumir, é deploy quebrado, e um cartão vazio faria parecer "sem viagem no
-   período".
+O que se protege agora:
+
+1. **A carga continua SOB DEMANDA.** A Visão Geral baixa os 990 KB porque
+   desenha com eles; uma tela que não desenha continua sem pagar por isso. É a
+   diferença entre "todo mundo paga" e "quem usa paga".
+2. **UMA carga serve todos os gráficos da tela.** São três na Visão Geral e
+   quatro na Jornada; baixar por gráfico seria o mesmo custo várias vezes.
+3. **A biblioteca não nos faz perder o que os gráficos à mão garantiam**: mês
+   parcial hachurado, rótulo direto onde o número decide, unidade FINAL no
+   eixo e semáforo discreto. Trocar a ferramenta e perder a regra seria a pior
+   parte do negócio.
+4. **Falha de carga é dita, não escondida.** O arquivo vem do nosso disco: se
+   sumir, é deploy quebrado, e um cartão vazio faria parecer ausência de dado.
 """
 from __future__ import annotations
 
@@ -71,14 +78,100 @@ def _abrir(pg, base_url, hash_tela, *, quebrar_vendor=False):
     return baixados, erros
 
 
-def test_a_visao_geral_NAO_baixa_a_biblioteca(pagina):
-    """990 KB numa tela que não desenha gráfico de biblioteca é 990 KB de
-    conta de outra pessoa."""
+# Payload mínimo da Visão Geral: só o que os três gráficos consomem. Um
+# dublê VAZIO faria os gráficos saírem antes do carregador e o teste passaria
+# sem medir nada — foi exatamente assim que a versão anterior deste arquivo
+# continuou verde depois de a tela mudar de ferramenta.
+HOME = {
+    "diario": [{"dia": d, "realizado": (0 if d > 20 else 40000 + d*900),
+                "meta": (0 if d % 7 == 0 else 45000)} for d in range(1, 32)],
+    "receita_12m": [{"mes": f"2026-{m:02d}", "receita": 9_000_000 + m*90_000}
+                    for m in range(1, 9)],
+    "fluxo_serie": [{"periodo": "atrasado", "saldo_projetado": 2_500_000},
+                    {"periodo": "2026-09", "saldo_projetado": 1_200_000},
+                    {"periodo": "2026-10", "saldo_projetado": -800_000},
+                    {"periodo": "2026-11", "saldo_projetado": -2_100_000}],
+}
+
+
+def _home(pg, base_url):
+    """Abre a Visão Geral e desenha os três gráficos com o payload acima.
+
+    As funções são chamadas DIRETO em vez de esperar o render completo da
+    tela: o `renderHome` lê dezenas de escalares que não têm nada a ver com o
+    que se mede aqui, e completá-los todos faria o teste falhar por causa da
+    fixture, não do código.
+    """
+    baixados = []
+
+    def rota_api(route):
+        corpo = ADMIN if "/api/auth/me" in route.request.url else {}
+        route.fulfill(status=200, content_type="application/json",
+                      body=json.dumps(corpo))
+
+    def rota_vendor(route):
+        baixados.append(route.request.url)
+        route.continue_()
+
+    pg.route("**/api/**", rota_api)
+    pg.route("**/vendor/echarts.min.js", rota_vendor)
+    erros = []
+    pg.on("pageerror", lambda e: erros.append(str(e)))
+    pg.goto(f"{base_url}/static/index.html#home")
+    pg.wait_for_timeout(600)
+    for fn, campo in (("chartHomeDiario", "diario"),
+                      ("chartHomeReceita", "receita_12m"),
+                      ("chartHomeSaldo", "fluxo_serie")):
+        r = pg.evaluate("(a) => { try { window[a[0]](a[1]); return 'ok'; }"
+                        " catch(e){ return 'ERRO: ' + e.message; } }",
+                        [fn, HOME[campo]])
+        assert r == "ok", f"{fn}: {r}"
+    for cid in ("#chartHdia", "#chartHrec", "#chartHsal"):
+        pg.wait_for_selector(f"{cid} svg", timeout=20000)
+    pg.wait_for_timeout(300)
+    return baixados, erros
+
+
+def test_uma_carga_da_biblioteca_serve_os_TRES_graficos_da_visao_geral(pagina):
+    """Baixar por gráfico seria pagar o mesmo custo três vezes. O
+    `carregarECharts()` memoiza a promessa justamente para isso."""
     pg, base = pagina
-    baixados, erros = _abrir(pg, base, "home")
+    baixados, erros = _home(pg, base)
+    assert len(baixados) == 1, f"esperava UMA carga, veio {len(baixados)}"
+    assert erros == [], erros
+
+
+def test_tela_SEM_grafico_de_biblioteca_continua_sem_baixar(pagina):
+    """A promessa da carga sob demanda: quem não desenha não paga. Se um dia
+    alguém puser uma tag <script> fixa, é aqui que aparece."""
+    pg, base = pagina
+    baixados, erros = _abrir(pg, base, "veic")
     pg.wait_for_timeout(1500)
-    assert baixados == [], f"a Visão Geral baixou o echarts: {baixados}"
+    assert baixados == [], f"a tela de Veículos baixou o echarts: {baixados}"
     assert erros == []
+
+
+def test_a_visao_geral_mantem_as_REGRAS_da_casa(pagina):
+    """Mês parcial hachurado, rótulo direto onde o número decide, dia futuro
+    sem barra de realizado e unidade FINAL no eixo. A biblioteca entrou para
+    desenhar melhor, não para dispensar isto."""
+    pg, base = pagina
+    _home(pg, base)
+    dia = pg.inner_text("#chartHdia")
+    rec = pg.inner_text("#chartHrec")
+    sal = pg.inner_text("#chartHsal")
+    # dia futuro é marcado, e não desenhado como realizado zero
+    assert "a realizar" in dia
+    # rótulo direto no melhor dia e no melhor mês
+    assert "R$" in dia and "R$" in rec
+    # a média é dos meses FECHADOS e tem rótulo direto na linha
+    assert "média" in rec
+    # mês corrente hachurado (o `decal` do ECharts vira <pattern> no SVG)
+    assert "pattern" in pg.inner_html("#chartHrec").lower()
+    # o gap e o pior saldo são anotados no gráfico, não só no tooltip
+    assert "gap" in sal and "pior" in sal
+    # eixo com a unidade FINAL, nunca composta com ×1000
+    assert "R$ MI" in rec.upper()
 
 
 def test_a_produtividade_baixa_a_biblioteca_e_desenha(pagina):

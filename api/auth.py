@@ -1242,7 +1242,16 @@ def usuario_criar(payload: dict, request: Request) -> JSONResponse:
     dados, erro = _valida_usuario_payload(payload, novo=True)
     if erro:
         return JSONResponse(status_code=422, content={"erro": "parametro_invalido", "mensagem": erro})
+    # SENHA GERADA quando quem cadastra pede o e-mail de boas-vindas: senha
+    # provisória escolhida por gente vira "Mudar@123" em toda a empresa, e aí
+    # o elo fraco deixa de ser o e-mail e passa a ser o padrão que todo mundo
+    # conhece. Quem prefere entregar a senha pessoalmente continua digitando a
+    # sua.
+    manda_email = bool(payload.get("enviar_boas_vindas"))
     senha = payload.get("senha_temporaria") or ""
+    if manda_email and not senha:
+        from api.correio.boas_vindas import gerar_senha
+        senha = gerar_senha()
     if len(senha) < cfg("senha_min"):
         return JSONResponse(status_code=422, content={
             "erro": "senha_fraca",
@@ -1283,7 +1292,47 @@ def usuario_criar(payload: dict, request: Request) -> JSONResponse:
     audit(sess["email"], "usuario_criar", alvo=dados["email"],
           detalhe="; ".join([f"perfil_id={perfil_id}", *dados["extras"], *extra_foto]),
           ip=_ip(request))
-    return JSONResponse({"ok": True, "id": novo_id})
+
+    # O E-MAIL VEM DEPOIS DO COMMIT, E A FALHA DELE NÃO DESFAZ O CADASTRO.
+    # O usuário já existe quando isto roda; se o envio falhar, quem cadastrou
+    # precisa SABER para entregar a senha por outro caminho — mas apagar o
+    # usuário por causa do e-mail seria trocar um problema pequeno por um
+    # grande. A resposta diz as duas coisas separadas.
+    resp = {"ok": True, "id": novo_id}
+    if manda_email:
+        from api.correio import boas_vindas
+        with _conn() as c:
+            p = c.execute("SELECT nome, admin FROM perfis WHERE id=%s",
+                          (perfil_id,)).fetchone() or {}
+            tl = [r["tela"] for r in c.execute(
+                "SELECT tela FROM perfil_telas WHERE perfil_id=%s",
+                (perfil_id,)).fetchall()]
+        r = boas_vindas.enviar_boas_vindas(
+            dados["email"], dados["nome"], senha, _url_painel(),
+            telas=tl, admin=bool(p.get("admin")), perfil=p.get("nome") or "",
+            autor=sess["email"])
+        resp["email"] = {"ok": bool(r.get("ok")), "erro": r.get("erro") or ""}
+        # A SENHA NÃO ENTRA NA TRILHA. Registra-se que o e-mail saiu, para quem
+        # e quando — trilha com segredo dentro é pior que o e-mail.
+        audit(sess["email"], "usuario_boas_vindas", alvo=dados["email"],
+              detalhe="enviado" if r.get("ok") else f"falhou: {r.get('erro','')}",
+              ip=_ip(request))
+        # Quando o e-mail NÃO saiu, a senha volta para quem cadastrou — é a
+        # única forma de a pessoa entrar. Quando saiu, ela não volta: já está
+        # na caixa de quem vai usar, e ecoá-la aqui a poria também no log do
+        # navegador de quem cadastrou.
+        if not r.get("ok"):
+            resp["senha_temporaria"] = senha
+    return JSONResponse(resp)
+
+
+def _url_painel() -> str:
+    """Endereço público do painel, de `CORTEX_URL`. Sem padrão de propósito."""
+    try:
+        from api import credenciais
+        return (credenciais.ler("CORTEX_URL") or "").strip().rstrip("/")
+    except Exception:  # noqa: BLE001
+        return ""
 
 
 @router_gestao.post("/usuarios/{usuario_id}")
