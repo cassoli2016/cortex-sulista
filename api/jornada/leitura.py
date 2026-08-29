@@ -67,6 +67,55 @@ JOURNEY_TYPE_SEM_DOMINIO = True
 # "40 de N" em vez de deixar o corte passar por total.
 RANKING_LIMITE = 40
 
+# ── DIA DE FOLGA NÃO É JORNADA ───────────────────────────────────────────────
+#
+# O relatório de produtividade emite UMA LINHA POR MOTORISTA POR DIA, inclusive
+# nos dias em que não houve trabalho: elas vêm com todos os tempos ZERADOS.
+# São 15.565 de 34.548 linhas em doze meses — 45%.
+#
+# A assinatura é inequívoca: 88% dos domingos e 85% dos sábados são zerados,
+# contra 24% a 36% nos dias úteis. Só 15% casam com uma ausência registrada,
+# então a maioria é folga de escala, não afastamento.
+#
+# Contá-las como jornada inflava o KPI em 45% E diluía toda média na mesma
+# proporção: a "jornada média" saía 6h57 quando a real, sobre os dias
+# trabalhados, passa de 12h. O dia sem jornada não sumiu — virou o número ao
+# lado, que é o que permite falar de folga e absenteísmo.
+TRABALHADA = "min_total > 0"
+
+# ── JORNADA NÃO FECHADA ──────────────────────────────────────────────────────
+#
+# 485 linhas (2,6% das trabalhadas) têm mais de 24 h de jornada em UM dia, e a
+# maior tem 592 h — vinte e quatro dias dentro da linha de um dia. São jornadas
+# que ninguém fechou: o sistema acumulou até algo reiniciar.
+#
+# O peso não é desprezível: elas carregam 10.314 h das 69.498 h de hora extra
+# do período, 15% do total. Deixá-las dentro faz a média mentir e o total não
+# bater com folha nenhuma; tirá-las em silêncio esconderia um problema de
+# cadastro que alguém precisa consertar. Então elas saem de TODAS as contas de
+# tempo e são CONTADAS num cartão próprio, com as horas que ficaram de fora.
+#
+# Mesma regra do alerta impossível da Manutenção Preventiva: desvio maior que
+# um ciclo inteiro do próprio indicador é dado furado, não desempenho.
+#
+# Nas consultas agregadas o filtro entra como `AND min_total <= 1440` no WHERE,
+# e não como CASE em cada soma: a linha ZERADA (folga) tem min_total = 0 e
+# passa, que é o que se quer — só a não fechada sai. O `_COMP` é a exceção,
+# porque é ele que CONTA as não fechadas.
+JORNADA_MAX_MIN = 24 * 60
+
+# ── FAIXA FÍSICA DO KM DIÁRIO ────────────────────────────────────────────────
+#
+# `kilometers_driven` traz leitura impossível no histórico: 10.520.569 km num
+# único dia, e mais seis linhas acima de 1.500 km — todas da carga do AVA.
+# Caminhão não roda dez milhões de km em 24 h; aquilo é odômetro ou lixo, e
+# somado ao total ele empurrava 100 mil km para dentro do KPI.
+#
+# Mesma lição do Combustível: régua de saneamento não basta, é preciso validar
+# a FAIXA FÍSICA. 1.500 km/dia já é folgado — são ~19 h a 80 km/h.
+KM_MAX_DIA = 1500
+KM_SANO = f"(km > 0 AND km <= {KM_MAX_DIA})"
+
 TIPOS_TEMPO = (
     "DIRECAO ININTERRUPTA",
     "NAO CUMPRIMENTO DO INTERVALO DE JORNADAS",
@@ -198,35 +247,59 @@ def _janela(de, ate, esquema) -> tuple[str, str]:
 # (A explicação fica AQUI e não dentro da string: `%` dentro do SQL vira
 # placeholder para o psycopg e derruba a consulta com "incomplete placeholder".)
 _COMP = """
-SELECT count(*)::int                         AS jornadas,
+SELECT sum(CASE WHEN min_total > 0 AND min_total <= 1440
+                THEN 1 ELSE 0 END)::int      AS jornadas,
+       count(*)::int                         AS linhas,
+       sum(CASE WHEN min_total = 0 THEN 1 ELSE 0 END)::int AS dias_sem_jornada,
+       sum(CASE WHEN min_total > 1440 THEN 1 ELSE 0 END)::int AS nao_fechadas,
+       sum(CASE WHEN min_total > 1440 THEN min_extra ELSE 0 END)::bigint
+                                             AS m_extra_nao_fechadas,
+       max(CASE WHEN min_total > 1440 THEN min_total ELSE 0 END)::int
+                                             AS maior_nao_fechada,
        count(DISTINCT documento)::int        AS motoristas,
-       sum(min_direcao)::bigint              AS m_direcao,
-       sum(min_parado)::bigint               AS m_parado,
-       sum(min_refeicao)::bigint             AS m_refeicao,
-       sum(min_descanso)::bigint             AS m_descanso,
-       sum(min_repouso)::bigint              AS m_repouso,
-       sum(min_extra)::bigint                AS m_extra,
-       sum(min_falta)::bigint                AS m_falta,
-       sum(min_falta_repouso)::bigint        AS m_falta_repouso,
-       sum(min_total)::bigint                AS m_total,
-       sum(km)::numeric                      AS km,
-       sum(CASE WHEN km > 0 THEN 1 ELSE 0 END)::int
-                                             AS n_com_km,
-       sum(CASE WHEN km > 0 THEN min_direcao ELSE 0 END)::bigint
+       sum(CASE WHEN min_total <= 1440 THEN min_direcao ELSE 0 END)::bigint
+                                             AS m_direcao,
+       sum(CASE WHEN min_total <= 1440 THEN min_parado ELSE 0 END)::bigint
+                                             AS m_parado,
+       sum(CASE WHEN min_total <= 1440 THEN min_refeicao ELSE 0 END)::bigint
+                                             AS m_refeicao,
+       sum(CASE WHEN min_total <= 1440 THEN min_descanso ELSE 0 END)::bigint
+                                             AS m_descanso,
+       sum(CASE WHEN min_total <= 1440 THEN min_repouso ELSE 0 END)::bigint
+                                             AS m_repouso,
+       sum(CASE WHEN min_total <= 1440 THEN min_extra ELSE 0 END)::bigint
+                                             AS m_extra,
+       sum(CASE WHEN min_total <= 1440 THEN min_falta ELSE 0 END)::bigint
+                                             AS m_falta,
+       sum(CASE WHEN min_total <= 1440 THEN min_falta_repouso ELSE 0 END)::bigint
+                                             AS m_falta_repouso,
+       sum(CASE WHEN min_total <= 1440 THEN min_total ELSE 0 END)::bigint
+                                             AS m_total,
+       sum(CASE WHEN km > 0 AND km <= 1500 AND min_total <= 1440
+                THEN km ELSE 0 END)::numeric AS km,
+       sum(CASE WHEN km > 0 AND km <= 1500 AND min_total <= 1440
+                THEN 1 ELSE 0 END)::int      AS n_com_km,
+       sum(CASE WHEN km > 1500 THEN 1 ELSE 0 END)::int
+                                             AS km_fora_da_faixa,
+       sum(CASE WHEN km > 0 AND km <= 1500 AND min_total <= 1440
+                THEN min_direcao ELSE 0 END)::bigint
                                              AS m_direcao_com_km
 FROM jor_jornadas WHERE data >= %(de)s::date AND data <= %(ate)s::date
 """
 
 _MENSAL = """
 SELECT to_char(data,'YYYY-MM')               AS mes,
-       count(*)::int                         AS jornadas,
+       sum(CASE WHEN min_total > 0 THEN 1 ELSE 0 END)::int AS jornadas,
+       sum(CASE WHEN min_total = 0 THEN 1 ELSE 0 END)::int AS folgas,
        count(DISTINCT documento)::int        AS motoristas,
        sum(min_direcao)::bigint              AS m_direcao,
        sum(min_parado)::bigint               AS m_parado,
        sum(min_extra)::bigint                AS m_extra,
        sum(min_total)::bigint                AS m_total,
        count(DISTINCT data)::int             AS dias
-FROM jor_jornadas WHERE data >= %(de)s::date AND data <= %(ate)s::date
+FROM jor_jornadas
+WHERE data >= %(de)s::date AND data <= %(ate)s::date
+  AND min_total <= 1440
 GROUP BY 1 ORDER BY 1
 """
 
@@ -234,12 +307,16 @@ GROUP BY 1 ORDER BY 1
 # ~600 dias, e ler isso à mão num SVG sem zoom não é leitura, é adivinhação.
 _DIARIO = """
 SELECT data::text                            AS dia,
-       count(*)::int                         AS jornadas,
-       count(DISTINCT documento)::int        AS motoristas,
+       sum(CASE WHEN min_total > 0 THEN 1 ELSE 0 END)::int AS jornadas,
+       count(DISTINCT CASE WHEN min_total > 0 THEN documento END)::int
+                                             AS motoristas,
        sum(min_direcao)::bigint              AS m_direcao,
        sum(min_extra)::bigint                AS m_extra
-FROM jor_jornadas WHERE data >= %(de)s::date AND data <= %(ate)s::date
-GROUP BY 1 ORDER BY 1
+FROM jor_jornadas
+WHERE data >= %(de)s::date AND data <= %(ate)s::date
+  AND min_total <= 1440
+GROUP BY 1 HAVING sum(CASE WHEN min_total > 0 THEN 1 ELSE 0 END) > 0
+ORDER BY 1
 """
 
 # TAXA POR JORNADA: só os dias que têm OS DOIS LADOS.
@@ -273,7 +350,8 @@ SELECT count(*)::int AS n,
        count(DISTINCT data)::int AS dias
 FROM jor_inconformidades i
 WHERE data >= %(de)s::date AND data <= %(ate)s::date
-  AND EXISTS (SELECT 1 FROM jor_jornadas j WHERE j.data = i.data)
+  AND EXISTS (SELECT 1 FROM jor_jornadas j
+              WHERE j.data = i.data AND j.min_total > 0)
 """
 
 # Inconformidade por tipo E por mês: sem o corte temporal não dá para dizer se
@@ -293,7 +371,8 @@ GROUP BY 1,2 ORDER BY 1,2
 _UNCONF = """
 SELECT tipo, count(*)::int AS n, count(DISTINCT documento)::int AS motoristas,
        sum(duracao_min)::bigint AS minutos, avg(duracao_min)::numeric AS media_min,
-       sum(CASE WHEN EXISTS (SELECT 1 FROM jor_jornadas j WHERE j.data = i.data)
+       sum(CASE WHEN EXISTS (SELECT 1 FROM jor_jornadas j
+                              WHERE j.data = i.data AND j.min_total > 0)
                 THEN 1 ELSE 0 END)::int AS n_pareado
 FROM jor_inconformidades i
 WHERE data >= %(de)s::date AND data <= %(ate)s::date
@@ -315,11 +394,13 @@ WITH u AS (
    WHERE data >= %(de)s::date AND data <= %(ate)s::date
    GROUP BY 1
 ), j AS (
-  SELECT documento AS doc, count(*)::int AS jornadas,
+  SELECT documento AS doc,
+         sum(CASE WHEN min_total > 0 THEN 1 ELSE 0 END)::int AS jornadas,
          max(filial) AS filial, max(nome) AS nome,
          sum(min_extra)::bigint AS m_extra
     FROM jor_jornadas
    WHERE data >= %(de)s::date AND data <= %(ate)s::date
+     AND min_total <= 1440
    GROUP BY 1
 )
 -- O nome CAI DE VOLTA para o da jornada: nem toda linha de inconformidade
@@ -335,20 +416,73 @@ SELECT u.doc,
 """
 
 _FILIAL = """
-SELECT filial, count(*)::int AS jornadas,
+SELECT filial, sum(CASE WHEN min_total > 0 THEN 1 ELSE 0 END)::int AS jornadas,
        count(DISTINCT documento)::int AS motoristas,
        sum(min_direcao)::bigint AS m_direcao, sum(min_parado)::bigint AS m_parado,
        sum(min_extra)::bigint AS m_extra, sum(min_total)::bigint AS m_total
-FROM jor_jornadas WHERE data >= %(de)s::date AND data <= %(ate)s::date
+FROM jor_jornadas
+WHERE data >= %(de)s::date AND data <= %(ate)s::date
+  AND min_total <= 1440
 GROUP BY 1 ORDER BY 7 DESC
 """
 
 _TIPO = """
 SELECT tipo, count(*)::int AS jornadas,
        avg(min_direcao)::numeric AS med_direcao,
-       avg(min_total)::numeric AS med_total, sum(km)::numeric AS km
-FROM jor_jornadas WHERE data >= %(de)s::date AND data <= %(ate)s::date
+       avg(min_total)::numeric AS med_total,
+       sum(CASE WHEN km > 0 AND km <= 1500 THEN km ELSE 0 END)::numeric AS km
+FROM jor_jornadas
+WHERE data >= %(de)s::date AND data <= %(ate)s::date
+  AND min_total > 0 AND min_total <= 1440
 GROUP BY 1 ORDER BY 2 DESC
+"""
+
+# ── POR ESCALA ───────────────────────────────────────────────────────────────
+#
+# `work_schedule_name` vem preenchido em 100% das jornadas, e a dispersão é o
+# achado: a hora extra média vai de 23 min numa escala a 293 min noutra — quase
+# cinco horas de diferença entre turnos da mesma empresa. Isso é alavanca de
+# gestão, não característica do motorista: quem define a escala define quanta
+# hora extra vai pagar.
+_ESCALA = """
+SELECT escala,
+       sum(CASE WHEN min_total > 0 THEN 1 ELSE 0 END)::int AS jornadas,
+       count(DISTINCT documento)::int        AS motoristas,
+       max(filial)                           AS filial,
+       sum(min_extra)::bigint                AS m_extra,
+       sum(min_total)::bigint                AS m_total,
+       sum(min_direcao)::bigint              AS m_direcao,
+       sum(min_falta_repouso)::bigint        AS m_falta_repouso
+FROM jor_jornadas
+WHERE data >= %(de)s::date AND data <= %(ate)s::date AND escala <> ''
+  AND min_total <= 1440
+GROUP BY 1 HAVING sum(CASE WHEN min_total > 0 THEN 1 ELSE 0 END) > 0
+ORDER BY 5 DESC
+"""
+
+# ── AUSÊNCIAS ────────────────────────────────────────────────────────────────
+#
+# `jor_ausencias` tem início E fim em 100% das linhas, então dá para medir
+# DURAÇÃO — que é o que separa uma folga (1,1 dia) de férias (19,6 dias) e de
+# um afastamento médico (12,2). O tipo sozinho não diz o peso.
+# Dos dias SEM jornada, quantos têm uma ausência registrada. É a decomposição
+# que desarma o número grande: 15.565 dias sem jornada assusta até se ver que
+# 85% são FOLGA DE ESCALA e só 15% são ausência (atestado, férias, falta).
+_SEM_JORNADA_AUSENCIA = """
+SELECT count(*)::int AS n
+FROM jor_jornadas j
+WHERE j.data >= %(de)s::date AND j.data <= %(ate)s::date AND j.min_total = 0
+  AND EXISTS (SELECT 1 FROM jor_ausencias a
+               WHERE a.documento = j.documento
+                 AND j.data BETWEEN a.inicio::date AND a.fim::date)
+"""
+
+_AUSENCIA_RESUMO = """
+SELECT count(*)::int AS n,
+       count(DISTINCT documento)::int AS motoristas,
+       sum(GREATEST((fim::date - inicio::date) + 1, 1))::int AS dias
+FROM jor_ausencias
+WHERE inicio::date <= %(ate)s::date AND fim::date >= %(de)s::date
 """
 
 _AUSENCIA = """
@@ -404,6 +538,7 @@ def _mensal_com_cobertura(linhas: list, de: str, ate: str) -> list:
         saida.append({
             "mes": mes,
             "jornadas": (l or {}).get("jornadas") or 0,
+            "folgas": (l or {}).get("folgas") or 0,
             "motoristas": (l or {}).get("motoristas") or 0,
             "h_direcao": _h((l or {}).get("m_direcao")),
             "h_parado": _h((l or {}).get("m_parado")),
@@ -459,6 +594,235 @@ def alerta_direcao_continua(esquema: str | None = None) -> dict:
             "ultimo": r["ultimo"].isoformat() if r.get("ultimo") else None}
 
 
+# ══════════════════════════════════════════════════════════════════════════
+#  FICHA DO MOTORISTA
+# ══════════════════════════════════════════════════════════════════════════
+#
+# Substitui a ficha que lia a apuração do ERP. Três decisões que vieram das
+# lições das outras fichas desta casa:
+#
+# 1. A JANELA É A MESMA DA TELA PRINCIPAL. Uma ficha com janela própria fixa
+#    gera contradição entre telas — foi o que aconteceu na Consulta de Veículo,
+#    onde 30 dias fixos davam 9% de retorno vazio numa placa que a Análise de
+#    KM mostrava com 33,5%, e os dois estavam certos. Aqui a ficha recebe `de`
+#    e `ate` e os ecoa no rótulo.
+# 2. TODO NÚMERO VEM COM A REFERÊNCIA. Uma ficha isolada não diz se 3h de hora
+#    extra por jornada é muito: o que responde é a média da FILIAL e a da
+#    frota, lado a lado.
+# 3. O CPF NÃO APARECE INTEIRO. Ele é a chave da consulta, mas identificar o
+#    motorista na tela é trabalho do nome; mostrar o documento completo é PII
+#    sem função. Vai mascarado.
+
+_FICHA_CAB = """
+SELECT m.documento, m.nome, m.filial, m.escala, m.cargo, m.cidade_base,
+       m.ativo, m.admissao
+FROM jor_motoristas m WHERE m.documento = %(doc)s
+"""
+
+# Se o motorista não estiver no cadastro (a coleta de `drivers` traz os ATIVOS,
+# e um desligado tem jornada mas pode não ter cadastro), o cabeçalho é montado
+# a partir da própria jornada. Ficha que recusa a abrir por falta de cadastro
+# esconderia justamente o histórico de quem saiu.
+_FICHA_CAB_JOR = """
+SELECT max(nome) AS nome, max(filial) AS filial, max(escala) AS escala
+FROM jor_jornadas WHERE documento = %(doc)s
+"""
+
+_FICHA_KPIS = """
+SELECT sum(CASE WHEN min_total > 0 AND min_total <= 1440
+                THEN 1 ELSE 0 END)::int      AS jornadas,
+       count(*)::int                         AS linhas,
+       sum(CASE WHEN min_total = 0 THEN 1 ELSE 0 END)::int AS dias_sem_jornada,
+       sum(CASE WHEN min_total > 1440 THEN 1 ELSE 0 END)::int AS nao_fechadas,
+       count(DISTINCT CASE WHEN min_total > 0 AND min_total <= 1440
+                           THEN filial END)::int AS filiais,
+       max(CASE WHEN min_total > 0 THEN filial END) AS filial,
+       -- A escala do cabeçalho é a MAIS FREQUENTE, não a última: o nome
+       -- carrega o tipo do dia, então `max()` costumava devolver a variante
+       -- alfabeticamente maior (FÉRIAS, Feriado) e a ficha abria dizendo que
+       -- a escala do motorista é "férias".
+       (SELECT j2.escala FROM jor_jornadas j2
+         WHERE j2.documento = %(doc)s AND j2.min_total > 0
+           AND j2.data >= %(de)s::date AND j2.data <= %(ate)s::date
+         GROUP BY j2.escala ORDER BY count(*) DESC, j2.escala LIMIT 1) AS escala,
+       min(data)::date                       AS primeira,
+       max(CASE WHEN min_total > 0 THEN data END)::date AS ultima,
+       sum(CASE WHEN min_total <= 1440 THEN min_total ELSE 0 END)::bigint AS m_total,
+       sum(CASE WHEN min_total <= 1440 THEN min_direcao ELSE 0 END)::bigint AS m_direcao,
+       sum(CASE WHEN min_total <= 1440 THEN min_parado ELSE 0 END)::bigint AS m_parado,
+       sum(CASE WHEN min_total <= 1440 THEN min_extra ELSE 0 END)::bigint AS m_extra,
+       sum(CASE WHEN min_total <= 1440 THEN min_falta_repouso ELSE 0 END)::bigint
+                                             AS m_falta_repouso,
+       sum(CASE WHEN km > 0 AND km <= 1500 AND min_total <= 1440
+                THEN km ELSE 0 END)::numeric AS km
+FROM jor_jornadas
+WHERE documento = %(doc)s AND data >= %(de)s::date AND data <= %(ate)s::date
+"""
+
+# A REFERÊNCIA: a média por jornada da filial do motorista e a da frota. Sem
+# ela a ficha é um número solto, e número solto não decide nada.
+_FICHA_REF = """
+SELECT
+  sum(CASE WHEN min_total > 0 THEN 1 ELSE 0 END)::int AS jornadas,
+  sum(min_extra)::bigint  AS m_extra,
+  sum(min_total)::bigint  AS m_total,
+  sum(min_direcao)::bigint AS m_direcao
+FROM jor_jornadas
+WHERE data >= %(de)s::date AND data <= %(ate)s::date
+  AND min_total <= 1440
+  AND (%(filial)s = '' OR filial = %(filial)s)
+"""
+
+_FICHA_DIA = """
+SELECT data::text AS dia, min_total, min_direcao, min_parado, min_extra,
+       min_falta_repouso, km, escala, tipo,
+       to_char(inicio,'HH24:MI') AS h_inicio, to_char(fim,'HH24:MI') AS h_fim
+FROM jor_jornadas
+WHERE documento = %(doc)s AND data >= %(de)s::date AND data <= %(ate)s::date
+  AND min_total > 0 AND min_total <= 1440
+ORDER BY data
+"""
+
+_FICHA_UNCONF = """
+SELECT tipo, count(*)::int AS n, count(DISTINCT data)::int AS dias,
+       max(data)::date AS ultima,
+       sum(CASE WHEN duracao_min > 0 THEN duracao_min ELSE 0 END)::bigint AS minutos
+FROM jor_inconformidades
+WHERE documento = %(doc)s AND data >= %(de)s::date AND data <= %(ate)s::date
+GROUP BY 1 ORDER BY 2 DESC
+"""
+
+_FICHA_AUS = """
+SELECT tipo, descricao, inicio::date AS de, fim::date AS ate,
+       GREATEST((fim::date - inicio::date) + 1, 1)::int AS dias
+FROM jor_ausencias
+WHERE documento = %(doc)s
+  AND inicio::date <= %(ate)s::date AND fim::date >= %(de)s::date - 365
+ORDER BY inicio DESC LIMIT 40
+"""
+
+
+def mascara_documento(doc: str) -> str:
+    """CPF na tela vira `***.***.891-**`.
+
+    O documento é a CHAVE da consulta e precisa trafegar; o que não precisa é
+    aparecer inteiro para quem abre a ficha. Quem identifica o motorista é o
+    nome — o CPF completo ali seria PII sem função.
+    """
+    d = "".join(ch for ch in (doc or "") if ch.isdigit())
+    if len(d) != 11:
+        return doc or "—"
+    return f"***.***.{d[6:9]}-**"
+
+
+def ficha_motorista(documento: str, de: str | None = None,
+                    ate: str | None = None, esquema: str | None = None) -> dict:
+    """Tudo o que a RasterJOR sabe sobre um motorista na janela."""
+    doc = "".join(ch for ch in (documento or "") if ch.isdigit())
+    if not doc:
+        return {"erro": "Informe o motorista."}
+    p_de, p_ate = _janela(de, ate, esquema)
+    par = {"doc": doc, "de": p_de, "ate": p_ate}
+    esq = _esq(esquema)
+    q = lambda sql, pr=par: pglocal.query(sql, pr, esquema=esq)  # noqa: E731
+
+    cab = pglocal.um(_FICHA_CAB, {"doc": doc}, esquema=esq) or {}
+    k = pglocal.um(_FICHA_KPIS, par, esquema=esq) or {}
+    if not cab.get("nome"):
+        # sem cadastro: monta do que a jornada guardou
+        j = pglocal.um(_FICHA_CAB_JOR, {"doc": doc}, esquema=esq) or {}
+        cab = {"documento": doc, "nome": j.get("nome") or "", "ativo": None,
+               "filial": j.get("filial") or "", "escala": j.get("escala") or "",
+               "cargo": "", "cidade_base": "", "admissao": None,
+               "sem_cadastro": True}
+    if not (k.get("linhas") or 0) and not cab.get("nome"):
+        return {"erro": "Motorista não encontrado na apuração da RasterJOR."}
+
+    filial = k.get("filial") or cab.get("filial") or ""
+    ref_fil = pglocal.um(_FICHA_REF, {**par, "filial": filial},
+                         esquema=esq) or {}
+    ref_frota = pglocal.um(_FICHA_REF, {**par, "filial": ""},
+                           esquema=esq) or {}
+
+    def _med(r, campo):
+        n = r.get("jornadas") or 0
+        return round(float(r.get(campo) or 0) / n) if n else None
+
+    jor = k.get("jornadas") or 0
+    dias = q(_FICHA_DIA)
+    unconf = q(_FICHA_UNCONF)
+    n_tempo = sum(u["n"] for u in unconf if _classe(u["tipo"]) == "tempo")
+
+    return {
+        "documento": doc,
+        "documento_fmt": mascara_documento(doc),
+        "nome": cab.get("nome") or "—",
+        "filial": filial,
+        "escala": k.get("escala") or cab.get("escala") or "",
+        "cargo": cab.get("cargo") or "",
+        "cidade_base": cab.get("cidade_base") or "",
+        "ativo": cab.get("ativo"),
+        "sem_cadastro": bool(cab.get("sem_cadastro")),
+        "admissao": (cab["admissao"].isoformat() if cab.get("admissao") else None),
+        "filiais": k.get("filiais") or 0,
+        "primeira": (k["primeira"].isoformat() if k.get("primeira") else None),
+        "ultima": (k["ultima"].isoformat() if k.get("ultima") else None),
+        "kpis": {
+            "jornadas": jor,
+            "linhas": k.get("linhas") or 0,
+            "dias_sem_jornada": k.get("dias_sem_jornada") or 0,
+            "nao_fechadas": k.get("nao_fechadas") or 0,
+            "h_total": _h(k.get("m_total")),
+            "h_direcao": _h(k.get("m_direcao")),
+            "h_parado": _h(k.get("m_parado")),
+            "h_extra": _h(k.get("m_extra")),
+            "h_falta_repouso": _h(k.get("m_falta_repouso")),
+            "km": round(float(k.get("km") or 0)),
+            "min_total_medio": (round(float(k.get("m_total") or 0) / jor)
+                                if jor else None),
+            "min_extra_medio": (round(float(k.get("m_extra") or 0) / jor)
+                                if jor else None),
+            "unconf": sum(u["n"] for u in unconf),
+            "unconf_tempo": n_tempo,
+            "unconf_tempo_por_jornada": (round(n_tempo / jor, 2) if jor else None),
+        },
+        # A referência é o que transforma o número da ficha em leitura.
+        "referencia": {
+            "filial": filial,
+            "filial_min_extra": _med(ref_fil, "m_extra"),
+            "filial_min_total": _med(ref_fil, "m_total"),
+            "filial_jornadas": ref_fil.get("jornadas") or 0,
+            "frota_min_extra": _med(ref_frota, "m_extra"),
+            "frota_min_total": _med(ref_frota, "m_total"),
+            "frota_jornadas": ref_frota.get("jornadas") or 0,
+        },
+        "dias": [{
+            "dia": r["dia"], "min_total": r["min_total"],
+            "min_direcao": r["min_direcao"], "min_parado": r["min_parado"],
+            "min_extra": r["min_extra"],
+            "min_falta_repouso": r["min_falta_repouso"],
+            "km": (round(float(r["km"])) if r["km"] is not None else None),
+            "escala": r["escala"] or "", "tipo": r["tipo"] or "",
+            "inicio": r["h_inicio"], "fim": r["h_fim"],
+        } for r in dias],
+        "unconformidades": [{
+            "tipo": u["tipo"], "n": u["n"], "dias": u["dias"],
+            "classe": _classe(u["tipo"]),
+            "horas": _h(u["minutos"]),
+            "ultima": (u["ultima"].isoformat() if u.get("ultima") else None),
+        } for u in unconf],
+        "ausencias": [{
+            "tipo": a["tipo"] or "—", "descricao": a["descricao"] or "",
+            "de": a["de"].isoformat() if a["de"] else None,
+            "ate": a["ate"].isoformat() if a["ate"] else None,
+            "dias": a["dias"],
+        } for a in q(_FICHA_AUS)],
+        "de": p_de, "ate": p_ate,
+        "atualizado_em": datetime.now().isoformat(timespec="seconds"),
+        "fonte": "CÓRTEX · jor_* (banco local) · apuração da RasterJOR",
+    }
+
+
 def get_jornada_raster(de: str | None = None, ate: str | None = None,
                        esquema: str | None = None) -> dict:
     """O payload da tela. Nome mantido: o contrato com o front não mudou."""
@@ -472,6 +836,10 @@ def get_jornada_raster(de: str | None = None, ate: str | None = None,
     unconf_mot, filiais = q(_UNCONF_MOT), q(_FILIAL)
     tipos, ausencias = q(_TIPO), q(_AUSENCIA)
     diario, unconf_mes = q(_DIARIO), q(_UNCONF_MES)
+    escalas = q(_ESCALA)
+    aus_r = (pglocal.um(_AUSENCIA_RESUMO, par, esquema=_esq(esquema)) or {})
+    sj_aus = (pglocal.um(_SEM_JORNADA_AUSENCIA, par,
+                         esquema=_esq(esquema)) or {}).get("n") or 0
     par_ = (pglocal.um(_UNCONF_PAREADO, par, esquema=_esq(esquema)) or {})
     mot_at = (pglocal.um(_MOT_ATINGIDOS, par, esquema=_esq(esquema)) or {})
 
@@ -508,7 +876,14 @@ def get_jornada_raster(de: str | None = None, ate: str | None = None,
     return {
         "defasagem": defasagem(esquema),
         "kpis": {
+            # JORNADAS TRABALHADAS, não linhas do relatório: o dia de
+            # folga vem como linha zerada e inflava isto em 45%.
             "jornadas": jornadas,
+            "linhas_relatorio": comp.get("linhas") or 0,
+            "dias_sem_jornada": comp.get("dias_sem_jornada") or 0,
+            "pct_dias_sem_jornada": (
+                round(100 * (comp.get("dias_sem_jornada") or 0)
+                      / comp["linhas"], 1) if comp.get("linhas") else None),
             "motoristas": comp.get("motoristas") or 0,
             "h_total": total, "h_direcao": direcao, "h_parado": parado,
             "h_extra": _h(comp.get("m_extra")),
@@ -556,6 +931,16 @@ def get_jornada_raster(de: str | None = None, ate: str | None = None,
                       / (float(comp["m_direcao_com_km"]) / 60.0), 1)
                 if comp.get("m_direcao_com_km") else None),
             "jornadas_com_km": comp.get("n_com_km") or 0,
+            "km_fora_da_faixa": comp.get("km_fora_da_faixa") or 0,
+            "jornadas_nao_fechadas": comp.get("nao_fechadas") or 0,
+            "h_extra_nao_fechadas": _h(comp.get("m_extra_nao_fechadas")),
+            "maior_nao_fechada_h": round(
+                float(comp.get("maior_nao_fechada") or 0) / 60.0),
+            "ausencias": aus_r.get("n") or 0,
+            "ausencias_motoristas": aus_r.get("motoristas") or 0,
+            "ausencias_dias": aus_r.get("dias") or 0,
+            "sem_jornada_com_ausencia": sj_aus,
+            "sem_jornada_folga": (comp.get("dias_sem_jornada") or 0) - sj_aus,
             "pct_jornadas_com_km": (
                 round(100 * (comp.get("n_com_km") or 0) / jornadas, 1)
                 if jornadas else None),
@@ -582,6 +967,10 @@ def get_jornada_raster(de: str | None = None, ate: str | None = None,
                             if jornadas else None),
         } for u in unconf],
         "unconf_motoristas": [{
+            # O documento vai para a tela porque é a chave da ficha. Ele NÃO
+            # entra na URL: a tela o guarda em memória e navega para #jornf,
+            # que mantém o CPF fora do histórico do navegador.
+            "documento": u["doc"],
             "nome": u["nome"], "n": u["n"], "tipos": u["tipos"],
             "dias": u["dias"], "n_tempo": u["n_tempo"],
             "jornadas": u["jornadas"], "filial": u["filial"],
@@ -605,6 +994,19 @@ def get_jornada_raster(de: str | None = None, ate: str | None = None,
                    "med_direcao_min": round(float(t["med_direcao"] or 0)),
                    "med_total_min": round(float(t["med_total"] or 0)),
                    "km": round(float(t["km"] or 0))} for t in tipos],
+        "escalas": [{
+            "escala": e["escala"], "jornadas": e["jornadas"],
+            "motoristas": e["motoristas"], "filial": e["filial"] or "",
+            "h_extra": _h(e["m_extra"]), "h_total": _h(e["m_total"]),
+            "h_direcao": _h(e["m_direcao"]),
+            "h_falta_repouso": _h(e["m_falta_repouso"]),
+            # A MÉDIA POR JORNADA é o número comparável entre escalas: o total
+            # só diz qual escala tem mais gente.
+            "min_extra_medio": (round(float(e["m_extra"]) / e["jornadas"])
+                                if e["jornadas"] else None),
+            "min_total_medio": (round(float(e["m_total"]) / e["jornadas"])
+                                if e["jornadas"] else None),
+        } for e in escalas],
         "ausencias": [{"tipo": a["tipo"] or "—", "n": a["n"],
                        "motoristas": a["motoristas"],
                        "mais_recente": (a["mais_recente"].isoformat()

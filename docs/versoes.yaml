@@ -1,3 +1,75 @@
+- versao: "0.141.0"
+  data: "2026-08-29"
+  corrigido:
+    - >-
+      DIA DE FOLGA ESTAVA CONTANDO COMO JORNADA, e isso inflava o numero
+      central da tela em 78%. A RasterJOR emite uma linha por motorista por
+      dia INCLUSIVE nos dias sem trabalho, com todos os tempos zerados: sao
+      15.565 de 34.548 linhas em doze meses. A assinatura e inequivoca - 88%
+      dos domingos e 85% dos sabados sao zerados, contra 24% a 36% dos dias
+      uteis. "Jornadas apuradas 33.847" virou "Jornadas trabalhadas 18.500", e
+      TODA media deixou de ser diluida junto: a jornada media saia 6h57 e a
+      real e 11h25.
+    - >-
+      485 JORNADAS DE MAIS DE 24 HORAS NUM DIA SO saiam nas medias como se
+      fossem operacao. A maior tem 592 h - vinte e quatro dias dentro da linha
+      de um dia. Sao jornadas abertas e nunca fechadas, e carregavam 10.314 h
+      das 69.498 h de hora extra do periodo, 15% do total. Agora ficam FORA
+      das contas e sao CONTADAS num aviso proprio, porque sao cadastro a
+      corrigir - e porque essas horas nao vao bater com a folha enquanto
+      ninguem as fechar.
+    - >-
+      KM DE 10.520.569 NUM UNICO DIA entrava no total. Caminhao nao roda dez
+      milhoes de quilometros em 24 h; aquilo e odometro ou lixo. Entrou a
+      faixa fisica de 1.500 km/dia, e as 7 linhas fora dela sao contadas em
+      vez de somadas. Mesma licao do Combustivel: regua de saneamento nao
+      basta, e preciso validar a FAIXA FISICA.
+    - >-
+      A taxa de inconformidade e a produtividade em km/h passaram a usar o
+      denominador certo depois das correcoes acima: 1,02 inconformidade de
+      TEMPO por jornada trabalhada (era 0,55 sobre o denominador inflado) e
+      44 km/h.
+  adicionado:
+    - >-
+      A FICHA DO MOTORISTA VOLTOU, agora sobre a apuracao da RasterJOR. Abre
+      clicando no nome na tabela de motoristas e traz cabecalho com filial,
+      cargo, tempo de casa e cidade base; jornadas trabalhadas, jornada media,
+      hora extra media e direcao; conformidade com a Lei 13.103; grafico dia a
+      dia com zoom, com a hora extra empilhada dentro da jornada; e as
+      inconformidades e ausencias dele.
+    - >-
+      TODO NUMERO DA FICHA VEM COM REFERENCIA. Ficha isolada nao decide nada -
+      5 h de hora extra por jornada e muito? Quem responde e a media da FILIAL
+      dele e a da FROTA, na mesma janela, em chip ao lado do valor.
+    - >-
+      O CPF NAO ENTRA NA URL nem aparece inteiro. Ele e a chave da consulta e
+      viaja em memoria; pô-lo no hash o gravaria no historico do navegador,
+      nos favoritos e em qualquer print da barra de endereco - sem ganho
+      nenhum, porque quem identifica o motorista na tela e o nome. Na tela sai
+      como ***.***.039-**.
+    - >-
+      A ficha ABRE para quem saiu do cadastro. A coleta de motoristas traz os
+      ATIVOS; recusar por falta de cadastro esconderia justamente o historico
+      de quem saiu, que e quando alguem costuma precisar dele. O cabecalho e
+      montado das proprias jornadas e a ficha diz isso.
+    - >-
+      CARTAO "POR ESCALA": quanta hora extra cada turno gera. work_schedule_name
+      vem preenchido em 100% das jornadas e a dispersao e o achado - MATRIZ
+      08:00 tem 14h24 de jornada media e 5h38 de hora extra, contra 10h47 e
+      2h33 da RODOVIARIO SBC. Isso e alavanca de gestao, nao caracteristica do
+      motorista: quem define a escala define quanta hora extra vai pagar. A
+      escala de DESCANSO (DSR, folga, feriado) fica marcada, porque nela o dia
+      inteiro e hora extra por definicao e comparar as duas seria media de
+      populacoes diferentes.
+    - >-
+      BANDA "PRESENCA E AUSENCIAS": dias sem jornada, com a quebra que o
+      desarma - 85% e folga de escala e 15% tem ausencia lancada. E as
+      ausencias do periodo com a duracao somada, que e o que separa uma folga
+      (1,1 dia) de ferias (19,6) e de um afastamento medico (12,2).
+    - >-
+      Preenchimento historico concluido: a janela de doze meses passou a ter
+      366 de 366 dias com dado, contra 8 quando a coleta comecou.
+
 - versao: "0.140.0"
   data: "2026-08-29"
   alterado:

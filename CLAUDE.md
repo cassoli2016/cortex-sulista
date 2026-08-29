@@ -1146,6 +1146,53 @@ em estrutura de topo: resolver dentro de **função**, na hora de desenhar.
 - É a mesma família do "sem credencial não é falha, é instalação incompleta".
   O que decide a cor é o estado AGORA, não a contagem de tropeços no caminho.
 
+**Linha por dia NÃO é linha por jornada (o número central saiu 78% inflado):**
+- A RasterJOR emite **uma linha por motorista por dia**, inclusive nos dias sem
+  trabalho — todos os tempos zerados. São **15.565 de 34.548 linhas** em doze
+  meses. Contadas como jornada, elas inflavam o KPI em 78% e **diluíam toda
+  média na mesma proporção**: a jornada média saía 6h57 quando a real é 11h25.
+- A assinatura é inequívoca e vale procurar em qualquer fonte diária: **88% dos
+  domingos e 85% dos sábados** zerados, contra 24% a 36% dos dias úteis. Se o
+  fim de semana some, a linha é do CALENDÁRIO, não do evento.
+- O dia sem jornada não sumiu — virou o número ao lado, com a quebra que o
+  desarma: 85% é folga de escala e 15% tem ausência lançada. Número grande sem
+  a decomposição vira alarme falso.
+
+**Faixa física também vale para TEMPO, não só para km:**
+- 485 jornadas (2,6%) com **mais de 24 h num único dia**, a maior com 592 h —
+  vinte e quatro dias dentro da linha de um dia. São jornadas abertas e nunca
+  fechadas, e carregavam **15% de toda a hora extra do período**.
+- Elas saem das médias E são contadas num aviso, porque são cadastro a corrigir
+  e porque essas horas não vão bater com a folha enquanto ninguém as fechar.
+  Tirar em silêncio esconderia o problema; deixar dentro faz a média mentir.
+- O mesmo dado trouxe km de **10.520.569 num dia**. Régua: 1.500 km/dia.
+
+**Ficha de pessoa: comparação e PII (lições da ficha do motorista):**
+- **Ficha isolada não decide nada.** "5 h de hora extra por jornada" é muito?
+  Só a média da FILIAL e a da FROTA, na mesma janela, respondem — e elas vão em
+  chip ao lado do valor, não no rodapé.
+- **A janela é a da tela principal**, não uma própria: janela fixa em ficha já
+  produziu 9% de retorno vazio numa placa que outra tela mostrava com 33,5%,
+  ambas certas.
+- **CPF não entra na URL e não aparece inteiro.** Ele é a chave da consulta e
+  viaja em memória; no hash ele iria para o histórico do navegador, para os
+  favoritos e para qualquer print da barra de endereço. Quem identifica a
+  pessoa na tela é o nome.
+- **A ficha abre para quem saiu.** A coleta de cadastro traz os ATIVOS; recusar
+  por falta de cadastro esconde justamente o histórico de quem saiu, que é
+  quando alguém costuma precisar dele. Monta-se o cabeçalho do próprio
+  movimento, dizendo que foi isso.
+
+**`JSON.stringify` dentro de atributo HTML quebra a PÁGINA, não o link:**
+- `onclick="f(' + JSON.stringify(nome) + ')"` fecha o atributo na primeira aspa
+  do valor. O sintoma não é um link que não funciona: é **"Unexpected end of
+  input" e a tela em branco**. Nome com apóstrofo (D'ÁVILA) quebra a variante
+  com aspas simples pelo mesmo motivo.
+- A saída que dispensa citação: `data-doc="..."` com `esc()` e
+  `onclick="f(this.dataset.doc)"`.
+- E o subtítulo do `kpi()` passa por `esc()`: chip mandado por ali sai como
+  texto com as tags à mostra. O slot cru é o **sexto** parâmetro (`trend`).
+
 **Renderizar com DADO REAL acha o que o teste com dublê não acha:**
 - Três defeitos desta tela só apareceram ao abrir a página com o payload do
   banco, e nenhum deles falhava teste nenhum: a coluna "por jornada" repetindo

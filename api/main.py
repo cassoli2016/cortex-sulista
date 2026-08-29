@@ -2695,6 +2695,32 @@ def sac_freetime(dt_de: str | None = None, dt_ate: str | None = None) -> JSONRes
             "erro": "erro_consulta", "mensagem": "Erro ao consultar o SAC/freetime."})
 
 
+@app.get("/api/jornada/motorista")
+def jornada_motorista(doc: str | None = None, de: str | None = None,
+                      ate: str | None = None) -> JSONResponse:
+    """A ficha de um motorista, da apuração da RasterJOR.
+
+    Substitui a rota de mesmo caminho que lia o ERP. O parâmetro mudou de `id`
+    (token do ERP) para `doc` (o CPF, que é a chave natural em `jor_*`) — o
+    nome antigo não sobreviveria à troca de fonte sem virar mentira.
+    """
+    if not (doc or "").strip():
+        return JSONResponse(status_code=422, content={
+            "erro": "parametro_invalido", "mensagem": "Informe o motorista."})
+    try:
+        from api.jornada.leitura import ficha_motorista
+        r = ficha_motorista(doc, de, ate)
+    except Exception as exc:  # noqa: BLE001
+        log.warning("jornada_motorista: %s", type(exc).__name__)
+        return JSONResponse(status_code=500, content={
+            "erro": "erro_ficha",
+            "mensagem": "Não foi possível montar a ficha do motorista."})
+    if r.get("erro"):
+        return JSONResponse(status_code=404, content={
+            "erro": "nao_encontrado", "mensagem": r["erro"]})
+    return JSONResponse(r)
+
+
 @app.get("/api/jornada/raster")
 def jornada_raster(de: str | None = None, ate: str | None = None) -> JSONResponse:
     """Jornada apurada pela RASTERJOR, lida do BANCO LOCAL do CÓRTEX.

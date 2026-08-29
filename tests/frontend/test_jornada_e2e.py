@@ -93,10 +93,12 @@ PAYLOAD = {
          "media_min": 36, "pct": 62.5, "classe": "tempo", "por_jornada": 0.56},
     ],
     "unconf_motoristas": [
-        {"nome": "MOTORISTA DE MUITAS VIAGENS", "n": 60, "tipos": 4, "dias": 30,
+        {"documento": "04475303990",
+         "nome": "MOTORISTA DE MUITAS VIAGENS", "n": 60, "tipos": 4, "dias": 30,
          "n_tempo": 40, "jornadas": 30, "filial": "SULISTA - MTZ",
          "h_extra": 20.0, "por_jornada": 1.33},
-        {"nome": "MOTORISTA DE UMA VIAGEM", "n": 3, "tipos": 1, "dias": 1,
+        {"documento": "11122233344",
+         "nome": "MOTORISTA DE UMA VIAGEM", "n": 3, "tipos": 1, "dias": 1,
          "n_tempo": 3, "jornadas": 1, "filial": "FILIAL JOI",
          "h_extra": 1.0, "por_jornada": 3.0},
     ],
@@ -121,6 +123,10 @@ def _abrir(pg, base_url, *, payload=None, coleta_resp=None):
 
     def rota_api(route):
         u = route.request.url
+        if "/api/jornada/motorista" in u:
+            route.fulfill(status=200, content_type="application/json",
+                          body=json.dumps(FICHA))
+            return
         if "/api/jornada/coletar" in u:
             st, corpo = coleta_resp or (200, {})
             route.fulfill(status=st, content_type="application/json",
@@ -299,3 +305,128 @@ def test_recusa_da_coleta_e_MENSAGEM_e_nao_erro_de_api(pagina):
     assert "Faltam 10 minutos" in pg.inner_text("#jrColetaMsg")
     # o botão volta a funcionar: recusa não deixa a tela travada
     assert pg.locator("#btnJrColetar").is_enabled()
+
+
+# Ficha de um motorista, com a referência que é o ponto dela: 300 min de hora
+# extra contra 200 da filial e 150 da frota.
+FICHA = {
+    "documento": "04475303990", "documento_fmt": "***.***.039-**",
+    "nome": "MOTORISTA DE MUITAS VIAGENS", "filial": "SULISTA - MTZ",
+    "escala": "RODOVIARIO - MTZ - 08:00", "cargo": "Motorista carreteiro",
+    "cidade_base": "PIRAQUARA, PR", "ativo": 1, "sem_cadastro": False,
+    "admissao": "2025-03-18", "filiais": 1,
+    "primeira": "2026-01-01", "ultima": "2026-04-30",
+    "kpis": {
+        "jornadas": 30, "linhas": 40, "dias_sem_jornada": 10,
+        "nao_fechadas": 2, "h_total": 300.0, "h_direcao": 120.0,
+        "h_parado": 150.0, "h_extra": 150.0, "h_falta_repouso": 12.0,
+        "km": 9000, "min_total_medio": 600, "min_extra_medio": 300,
+        "unconf": 60, "unconf_tempo": 40, "unconf_tempo_por_jornada": 1.33,
+    },
+    "referencia": {
+        "filial": "SULISTA - MTZ", "filial_min_extra": 200,
+        "filial_min_total": 590, "filial_jornadas": 500,
+        "frota_min_extra": 150, "frota_min_total": 580,
+        "frota_jornadas": 900,
+    },
+    "dias": [
+        {"dia": "2026-04-20", "min_total": 620, "min_direcao": 240,
+         "min_parado": 300, "min_extra": 320, "min_falta_repouso": 0,
+         "km": 300, "escala": "RODOVIARIO - MTZ - 08:00", "tipo": "N",
+         "inicio": "05:10", "fim": "15:30"},
+        {"dia": "2026-04-21", "min_total": 580, "min_direcao": 220,
+         "min_parado": 280, "min_extra": 280, "min_falta_repouso": 30,
+         "km": 280, "escala": "RODOVIARIO - MTZ - 08:00", "tipo": "N",
+         "inicio": "05:00", "fim": "14:40"},
+    ],
+    "unconformidades": [
+        {"tipo": "EXCESSO DE JORNADA", "n": 40, "dias": 38, "classe": "tempo",
+         "horas": 20.0, "ultima": "2026-04-28"},
+        {"tipo": "DIRECAO NOTURNA", "n": 20, "dias": 18, "classe": "fora",
+         "horas": 30.0, "ultima": "2026-04-27"},
+    ],
+    "ausencias": [
+        {"tipo": "FÉRIAS", "descricao": "Ferias coletiva", "de": "2025-12-22",
+         "ate": "2026-01-04", "dias": 14},
+    ],
+    "de": "2026-01-01", "ate": "2026-04-30",
+    "atualizado_em": "2026-04-30T18:00:00",
+    "fonte": "CÓRTEX · jor_*",
+}
+
+
+def _abrir_ficha(pg, base_url):
+    """Abre a tela de jornada e clica no primeiro motorista do ranking."""
+    _abrir(pg, base_url)
+    pg.wait_for_selector("#jr-motoristas a", timeout=20000)
+    pg.locator("#jr-motoristas a").first.click()
+    pg.wait_for_selector("#jf-diario svg", timeout=20000)
+    pg.wait_for_timeout(400)
+
+
+def test_a_ficha_abre_pelo_ranking_e_desenha(pagina):
+    """A ficha é drill-down da tabela de motoristas — não tem entrada no menu,
+    porque é um recorte da tela de jornada e não uma tela por si."""
+    pg, base = pagina
+    erros, _ = _abrir(pg, base)
+    pg.wait_for_selector("#jr-motoristas a", timeout=20000)
+    pg.locator("#jr-motoristas a").first.click()
+    pg.wait_for_selector("#jf-diario svg", timeout=20000)
+    pg.wait_for_timeout(400)
+    assert erros == [], erros
+    t = pg.inner_text("#jornf-conteudo")
+    assert "MOTORISTA DE MUITAS VIAGENS" in t
+    assert "Motorista carreteiro" in t
+
+
+def test_o_CPF_nao_entra_na_URL_e_sai_mascarado(pagina):
+    """O documento é a chave da consulta e viaja em memória. Pô-lo no hash o
+    gravaria no histórico do navegador, nos favoritos e em qualquer print da
+    barra de endereço — sem ganho nenhum, porque quem identifica o motorista
+    na tela é o nome."""
+    pg, base = pagina
+    _abrir_ficha(pg, base)
+    assert pg.evaluate("location.hash") == "#jornf"
+    assert "04475303990" not in pg.url
+    t = pg.inner_text("#jornf-conteudo")
+    assert "***.***.039-**" in t
+    assert "04475303990" not in t
+
+
+def test_a_ficha_compara_com_a_filial_e_com_a_frota(pagina):
+    """Ficha isolada não decide nada: 5 h de hora extra por jornada é muito?
+    Quem responde é a média da filial dele e a da frota, na MESMA janela."""
+    pg, base = pagina
+    _abrir_ficha(pg, base)
+    t = pg.inner_text("#jornf-conteudo").replace("\n", " ")
+    # 300 min contra 200 da filial (+50%) e 150 da frota (+100%)
+    assert "+50% vs filial" in t
+    assert "+100% vs frota" in t
+
+
+def test_a_ficha_de_quem_saiu_do_cadastro_e_marcada(pagina):
+    """A coleta de motoristas traz os ATIVOS. Quem saiu continua com histórico,
+    e a ficha diz que o cabeçalho veio das próprias jornadas."""
+    pg, base = pagina
+    fora = {**FICHA, "sem_cadastro": True, "cargo": "", "admissao": None}
+    erros = []
+    pg.on("pageerror", lambda e: erros.append(str(e)))
+
+    def rota(route):
+        u = route.request.url
+        if "/api/jornada/motorista" in u:
+            route.fulfill(status=200, content_type="application/json",
+                          body=json.dumps(fora))
+            return
+        corpo = (ADMIN if "/api/auth/me" in u
+                 else PAYLOAD if "/api/jornada/raster" in u else {})
+        route.fulfill(status=200, content_type="application/json",
+                      body=json.dumps(corpo))
+
+    pg.route("**/api/**", rota)
+    pg.goto(f"{base}/static/index.html#jorn")
+    pg.wait_for_selector("#jr-motoristas a", timeout=20000)
+    pg.locator("#jr-motoristas a").first.click()
+    pg.wait_for_selector("#jornf-conteudo .kpi", timeout=20000)
+    assert "sem cadastro" in pg.inner_text("#jornf-conteudo").lower()
+    assert erros == [], erros

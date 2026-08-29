@@ -415,10 +415,14 @@ def test_a_tela_esta_registrada(html):
     """
     for marca in ('id="view-jorn"', "jorn:loadJorraster", 'href="#jorn"'):
         assert marca in html, marca
-    # a apuração do ERP saiu inteira: tela, ficha e o JS das duas
-    for morta in ('id="view-jornf"', "loadJornf", "renderJorn(", "DATAJORN",
-                  "jorraster", "abrirJornf"):
+    # a apuração do ERP saiu inteira. A FICHA VOLTOU, mas sobre a RasterJOR:
+    # `view-jornf` e `loadJornf` existem de novo e por isso não entram aqui.
+    for morta in ("renderJorn(", "DATAJORN ", "jorraster", "abrirJornf",
+                  "jornada/painel", "jorCnhCell"):
         assert morta not in html, f"sobrou {morta}"
+    # e a ficha nova está registrada
+    for viva in ('id="view-jornf"', "jornf:loadJornf", "abrirFichaJornada"):
+        assert viva in html, viva
 
 
 # ── A COBERTURA DA COLETA ────────────────────────────────────────────────────
@@ -773,3 +777,142 @@ def test_ultima_passagem_falhando_e_que_acusa(esq):
         cx.commit()
     d = leitura.defasagem(esq)
     assert d["recursos_falhando"] == ["inconformidades"]
+
+
+# ── DIA DE FOLGA NÃO É JORNADA ───────────────────────────────────────────────
+
+
+def test_dia_sem_jornada_nao_conta_como_jornada(esq):
+    """O relatório emite uma linha por motorista por dia INCLUSIVE quando não
+    houve trabalho — todos os tempos zerados. São 45% das linhas, e contá-las
+    inflava o KPI e diluía TODA média na mesma proporção: a jornada média saía
+    6h57 quando a real passa de 11h."""
+    with pglocal.get_conn(esq) as cx:
+        cur = cx.cursor()
+        coleta._grava_jornadas(cur, [
+            _jornada(date="2026-01-05", total_time=600),
+            _jornada(date="2026-01-06", total_time=0, driving_time=0,
+                     stopped_in_journey_time=0, meal_time=0, rest_time=0,
+                     over_time=0, kilometers_driven=None),
+        ], "t", "api")
+        cx.commit()
+    k = leitura.get_jornada_raster("2026-01-01", "2026-01-31",
+                                   esquema=esq)["kpis"]
+    assert k["jornadas"] == 1              # e não 2
+    assert k["linhas_relatorio"] == 2
+    assert k["dias_sem_jornada"] == 1
+    assert k["h_total"] == 10.0            # a média não foi diluída
+
+
+def test_jornada_de_mais_de_24h_sai_das_contas_e_e_contada(esq):
+    """485 linhas têm mais de 24 h num único dia, e a maior tem 592 h — vinte
+    e quatro dias dentro da linha de um dia. É jornada aberta e nunca fechada.
+    Elas carregam 15% de toda a hora extra do período: deixá-las dentro faz a
+    média mentir, e tirá-las em silêncio esconde cadastro a corrigir."""
+    with pglocal.get_conn(esq) as cx:
+        cur = cx.cursor()
+        coleta._grava_jornadas(cur, [
+            _jornada(date="2026-01-05", total_time=600, over_time=60),
+            _jornada(date="2026-01-06", driver_document="222",
+                     total_time=35565, over_time=3507),
+        ], "t", "api")
+        cx.commit()
+    k = leitura.get_jornada_raster("2026-01-01", "2026-01-31",
+                                   esquema=esq)["kpis"]
+    assert k["jornadas"] == 1
+    assert k["jornadas_nao_fechadas"] == 1
+    assert k["h_extra"] == 1.0                     # só a sana
+    assert k["h_extra_nao_fechadas"] == 58.5       # e a outra, dita à parte
+    assert k["maior_nao_fechada_h"] == 593
+
+
+def test_km_fora_da_faixa_fisica_nao_entra_no_total(esq):
+    """10.520.569 km num dia é odômetro ou lixo, não distância diária."""
+    with pglocal.get_conn(esq) as cx:
+        cur = cx.cursor()
+        coleta._grava_jornadas(cur, [
+            _jornada(date="2026-01-05", kilometers_driven=300),
+            _jornada(date="2026-01-06", driver_document="222",
+                     kilometers_driven=10520569),
+        ], "t", "api")
+        cx.commit()
+    k = leitura.get_jornada_raster("2026-01-01", "2026-01-31",
+                                   esquema=esq)["kpis"]
+    assert k["km"] == 300
+    assert k["km_fora_da_faixa"] == 1
+
+
+# ── A FICHA DO MOTORISTA ─────────────────────────────────────────────────────
+
+
+def test_o_documento_sai_mascarado(esq):
+    """O CPF é a CHAVE da consulta e precisa trafegar; o que não precisa é
+    aparecer inteiro na tela. Quem identifica o motorista ali é o nome."""
+    # 044.753.039-90 -> o terceiro grupo do CPF é o que sobra visível
+    assert leitura.mascara_documento("04475303990") == "***.***.039-**"
+    assert leitura.mascara_documento("044.753.039-90") == "***.***.039-**"
+    # o que não é CPF volta como veio, em vez de virar uma máscara mentirosa
+    assert leitura.mascara_documento("ABC") == "ABC"
+
+
+def test_a_ficha_traz_a_referencia_da_filial_e_da_frota(esq):
+    """Ficha isolada não decide nada: 5 h de hora extra por jornada é muito?
+    Quem responde é a média da filial dele e a da frota, na MESMA janela."""
+    with pglocal.get_conn(esq) as cx:
+        cur = cx.cursor()
+        # o motorista da ficha: 120 min de extra por jornada
+        coleta._grava_jornadas(cur, [
+            _jornada(date=f"2026-01-0{i+1}", driver_document="1",
+                     driver_name="ALVO", branch_name="MTZ",
+                     total_time=600, over_time=120) for i in range(2)], "t", "api")
+        # um colega da MESMA filial, com metade disso
+        coleta._grava_jornadas(cur, [
+            _jornada(date="2026-01-01", driver_document="2",
+                     driver_name="COLEGA", branch_name="MTZ",
+                     total_time=600, over_time=60)], "t", "api")
+        # e alguém de OUTRA filial, que só entra na média da frota
+        coleta._grava_jornadas(cur, [
+            _jornada(date="2026-01-01", driver_document="3",
+                     driver_name="OUTRA", branch_name="JOI",
+                     total_time=600, over_time=0)], "t", "api")
+        cx.commit()
+    f = leitura.ficha_motorista("1", "2026-01-01", "2026-01-31", esquema=esq)
+    assert f["nome"] == "ALVO"
+    assert f["kpis"]["jornadas"] == 2
+    assert f["kpis"]["min_extra_medio"] == 120
+    r = f["referencia"]
+    assert r["filial"] == "MTZ"
+    assert r["filial_min_extra"] == 100     # (120+120+60)/3
+    assert r["frota_min_extra"] == 75       # (120+120+60+0)/4
+
+
+def test_a_ficha_abre_para_quem_saiu_do_cadastro(esq):
+    """A coleta de `drivers` traz os ATIVOS. Recusar a ficha por falta de
+    cadastro esconderia justamente o histórico de quem saiu — que é quando
+    alguém costuma precisar dele."""
+    with pglocal.get_conn(esq) as cx:
+        coleta._grava_jornadas(cx.cursor(), [
+            _jornada(date="2026-01-05", driver_document="999",
+                     driver_name="DESLIGADO")], "t", "api")
+        cx.commit()
+    f = leitura.ficha_motorista("999", "2026-01-01", "2026-01-31", esquema=esq)
+    assert f.get("erro") is None
+    assert f["nome"] == "DESLIGADO" and f["sem_cadastro"] is True
+
+
+def test_a_ficha_recusa_documento_vazio(esq):
+    assert "erro" in leitura.ficha_motorista("", esquema=esq)
+    assert "erro" in leitura.ficha_motorista("123", esquema=esq)
+
+
+def test_a_ficha_usa_a_MESMA_janela_da_tela(esq):
+    """Ficha com janela própria gera contradição entre telas: na Consulta de
+    Veículo, 30 dias fixos davam 9% de retorno vazio numa placa que a Análise
+    de KM mostrava com 33,5%, e os dois estavam certos."""
+    with pglocal.get_conn(esq) as cx:
+        coleta._grava_jornadas(cx.cursor(),
+                               [_jornada(date="2026-01-05")], "t", "api")
+        cx.commit()
+    painel = leitura.get_jornada_raster(esquema=esq)
+    ficha = leitura.ficha_motorista("111", esquema=esq)
+    assert (ficha["de"], ficha["ate"]) == (painel["de"], painel["ate"])
