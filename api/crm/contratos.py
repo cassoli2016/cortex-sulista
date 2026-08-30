@@ -14,7 +14,7 @@ tipo de coisa que só aparece quando alguém pergunta.
 """
 from __future__ import annotations
 
-from datetime import date, timedelta
+from datetime import date
 
 from .. import pglocal
 from . import oportunidades as op

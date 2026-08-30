@@ -167,7 +167,7 @@ def _funil(abertas: list[dict]) -> list[dict]:
             for e in ESTAGIOS]
 
 
-def _previsao(abertas: list[dict], meses: int = 6) -> list[dict]:
+def _previsao(abertas: list[dict], meses: int = 6) -> dict:
     """Fechamento previsto por mês, ponderado — o mês É GERADO, não colhido.
 
     Mês sem nenhuma previsão entra zerado. Sem isso o gráfico emenda outubro em

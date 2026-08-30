@@ -17,8 +17,8 @@ from __future__ import annotations
 from .. import pglocal
 from . import ava
 from .comum import (DadoInvalido, ORIGENS, SEGMENTOS, TITULO_MAX, _esq, agora,
-                    cnpj, cnpj_fmt, dias_desde, email, escolha, hoje, init_db,
-                    inteiro, iso, pessoa, telefone, telefone_fmt, texto, uf)
+                    cnpj, cnpj_fmt, dias_desde, email, escolha, init_db,
+                    inteiro, pessoa, telefone, telefone_fmt, texto, uf)
 from .comum import PAPEIS_CONTATO, ROTULO_PAPEL
 
 # Lista de colunas NUM LUGAR SÓ. Estava repetida em `listar()` e `obter()` no
