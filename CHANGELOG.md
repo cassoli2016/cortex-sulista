@@ -4,6 +4,15 @@ Gerado de `docs/versoes.yaml` por `scripts/gerar_changelog.py` — não editar �
 Formato [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/),
 versionamento [SemVer](https://semver.org/lang/pt-BR/).
 
+## [0.150.1] — 30/08/2026  ·  CX-30/08/2026-v0.150.1
+
+### Adicionado
+- Guarda para essa familia inteira de falha: um teste percorre tudo que sai do banco local rumo a uma tela e recusa qualquer valor que nao caiba no formato da resposta, dizendo em qual campo esta. Ele MONTA a resposta de verdade em vez de so conferir o tipo do campo - senao passaria de novo no dia em que outra coluna decimal entrasse.
+
+### Corrigido
+- A TELA DE PREMIACAO VOLTOU A ABRIR. Ela estava respondendo erro 500 desde a noite de 29/08, mostrando o aviso vermelho "nao foi possivel falar com a API" por cima dos numeros da carga anterior - o que fazia parecer problema de conexao quando era defeito nosso. A causa: o peso de cada tipo de ocorrencia e guardado como numero decimal no banco, e esse formato nao cabe direto na resposta que a tela recebe. Como a falha acontecia na hora de montar a resposta, e nao ao buscar o dado, ela escapava do tratamento de erro da rota e chegava ao navegador sem explicacao nenhuma.
+- O defeito so apareceu quando a classificacao automatica de ocorrencias rodou pela primeira vez e criou as 54 linhas: com a tabela vazia nao havia numero decimal nenhum na resposta, e a tela abria normalmente.
+
 ## [0.150.0] — 30/08/2026  ·  CX-30/08/2026-v0.150.0
 
 ### Adicionado

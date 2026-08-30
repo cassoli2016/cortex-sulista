@@ -210,6 +210,15 @@ def listar(esquema: str | None = None) -> list[dict]:
         l["motoristas"] = v.get("motoristas") or 0
         l["ultima"] = (v["ultima"].isoformat()
                        if v.get("ultima") else None)
+        # `peso` é `numeric` no banco e o psycopg devolve `Decimal`, que o
+        # `json` NÃO serializa. E a explosão não acontece aqui: acontece lá na
+        # frente, dentro do `JSONResponse.render()` — ou seja, DEPOIS do
+        # try/except da rota. O que chega ao navegador é um 500 em text/plain
+        # dizendo "resposta em formato inesperado", que não aponta para cá.
+        # A conversão é no limite do módulo, onde o tipo do banco para de
+        # importar.
+        if l.get("peso") is not None:
+            l["peso"] = float(l["peso"])
     linhas.sort(key=lambda x: (-x["ocorrencias"], x["descricao"]))
     return linhas
 
