@@ -53,6 +53,28 @@ AZUL_GRAFICO = "#5F87AC"         # navy-400: barra sobre claro.
 # dele ainda é um bloco escuro no meio da mensagem. O 400 lê igual de bem
 # como barra e não cria área escura nenhuma.
 LARANJA = "#E85D10"
+
+# ── A MARCA NO E-MAIL (pedido do usuário, 30/08/2026) ───────────────────────
+# O e-mail usava a paleta neutra e não carregava identidade nenhuma.
+#
+# CORREÇÃO DO USUÁRIO, NO MEIO DO TRABALHO: **não há amarelo na marca da
+# Sulista.** Eu tinha posto `#FFD31C` como filete, seguindo o que o CLAUDE.md
+# afirma ("amarelo Sulista = --brand"). A afirmação do projeto está errada, e
+# quem é dono da marca disse. O amarelo saiu daqui na hora; corrigir o token
+# `--brand` no painel inteiro é outra conversa, anotada à parte, porque mexe em
+# 68 telas e precisa da paleta real.
+#
+#   NAVY     — escura o bastante para ser TINTA de título sobre branco (13:1),
+#              e é a superfície de identidade do painel (a barra lateral). Como
+#              ÁREA continua proibido: uma faixa de navy é o bloco escuro que a
+#              regra da casa veta, e o teste de luminância a barraria.
+#   LARANJA  — segue como accent e como filete do topo, que é o que ele já era.
+#
+# Não há LOGO, e não é por esquecimento: o único arquivo é
+# `sulista-logo-branco.svg`, branco puro e invisível aqui; imagem em e-mail vem
+# bloqueada por padrão em boa parte dos clientes; e o Outlook não renderiza
+# SVG. A identidade fica no TIPOGRÁFICO, que chega em 100% dos casos.
+NAVY = "#17344F"                 # navy-700: tinta de título, nunca fundo
 VERDE = "#1E7F4F"
 AMBAR = "#B97709"
 VERMELHO = "#C03221"
@@ -105,11 +127,13 @@ def inteiro(v) -> str:
 def cabecalho(titulo: str, subtitulo: str = "") -> str:
     """Cabeçalho CLARO com o nome do relatório.
 
-    A estrutura vem de um filete laranja no topo e de uma borda embaixo, não
-    de um bloco de cor: e-mail do CÓRTEX não tem área escura. O amarelo da
-    marca não aparece porque ele só é legível sobre escuro (1,44:1 no branco)
-    — em superfície clara o accent é o laranja, que é o que o design system
-    manda.
+    A estrutura vem de um filete no topo e de uma borda embaixo, não de um
+    bloco de cor: e-mail do CÓRTEX não tem área escura.
+
+    O NAVY é a tinta do título — 13:1 sobre branco, e é a cor de identidade da
+    casa; como ÁREA continuaria proibido. O LARANJA é o filete e o accent.
+    NÃO há amarelo: o usuário corrigiu, em 30/08/2026, que ele não faz parte
+    da marca da Sulista, ao contrário do que o CLAUDE.md afirmava.
     """
     sub = (f'<div style="font:400 13px/1.45 {FONTE};color:{CINZA};'
            f'margin-top:5px">{_esc(subtitulo)}</div>') if subtitulo else ""
@@ -121,7 +145,7 @@ def cabecalho(titulo: str, subtitulo: str = "") -> str:
    <tr><td style="padding:20px 26px 18px;border-bottom:1px solid {BORDA}">
     <div style="font:700 11px/1 {FONTE};letter-spacing:.22em;color:{LARANJA};
                 text-transform:uppercase">CÓRTEX · SULISTA</div>
-    <div style="font:700 21px/1.25 {FONTE};color:{TINTA};margin-top:9px">
+    <div style="font:700 21px/1.25 {FONTE};color:{NAVY};margin-top:9px">
       {_esc(titulo)}</div>{sub}
    </td></tr>
   </table>

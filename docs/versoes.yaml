@@ -1,3 +1,10 @@
+- versao: "0.163.0"
+  data: "2026-08-30"
+  alterado:
+    - >-
+      Os títulos dos e-mails passaram a sair no azul da casa, em vez do preto
+      neutro — o e-mail não carregava identidade nenhuma.
+
 - versao: "0.162.0"
   data: "2026-08-30"
   adicionado:

@@ -388,9 +388,16 @@ achados**, não 205, e todos com endereço. Quatro lições:
   inexistente é a forma mais silenciosa de hard-code.
 
 **Design system (valores reais implementados — tokens em `api/static/index.html`):**
-- **Marca:** amarelo Sulista `#FFD31C` = `--brand`, usado SÓ em superfície escura (trilho
-  do nav ativo na sidebar/bottomnav navy, logo) — contraste ruim no branco (1,44:1), NÃO é
-  accent de UI clara. **Accent geral da UI clara:** laranja `#E85D10` = `--orange-500` (foco,
+- **`--brand` (#FFD31C) NÃO É A MARCA — corrigido pelo usuário em 30/08/2026.**
+  Este documento afirmava "amarelo Sulista" e o token propagou isso pelo painel
+  inteiro; **não há amarelo na marca da Sulista**. O valor segue no código
+  porque trocá-lo sem saber a paleta REAL seria substituir um erro por outro:
+  são 6 usos no CSS (todos sobre a barra lateral navy — trilho do menu ativo,
+  foco da busca) mais o `CC.ouro` dos gráficos. Está anotado como pendência,
+  junto com o que se sabe: o logo é silhueta branca pura e os ícones PNG são
+  genéricos, então o repositório não guarda a resposta. O que continua VERDADE
+  sobre esse hex: 1,44:1 no branco, ou seja ele nunca pode ser tinta em
+  superfície clara. **Accent geral da UI clara:** laranja `#E85D10` = `--orange-500` (foco,
   drawer ativo, destaque de gráfico contratado).
 - **Semáforo:** ok verde `#1E7F4F` (`--green`), warn âmbar `#B97709` (`--yellow`), alerta
   vermelho `#C03221` (`--red`). Painéis de TV (fundo escuro) usam o conjunto brilhante

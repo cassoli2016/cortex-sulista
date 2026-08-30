@@ -4,6 +4,11 @@ Gerado de `docs/versoes.yaml` por `scripts/gerar_changelog.py` — não editar �
 Formato [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/),
 versionamento [SemVer](https://semver.org/lang/pt-BR/).
 
+## [0.163.0] — 30/08/2026  ·  CX-30/08/2026-v0.163.0
+
+### Alterado
+- Os títulos dos e-mails passaram a sair no azul da casa, em vez do preto neutro — o e-mail não carregava identidade nenhuma.
+
 ## [0.162.0] — 30/08/2026  ·  CX-30/08/2026-v0.162.0
 
 ### Adicionado
