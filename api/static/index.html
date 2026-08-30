@@ -609,6 +609,18 @@ tr.forn-det td{padding:7px 12px}
   /* atalhos por USO REAL: a bottomnav é fixa e escolhida no projeto; com 40
      telas e perfis diferentes, metade dos atalhos não serve para quem está
      olhando. Esta faixa se adapta sozinha ao que a pessoa abre. */
+
+/* FAVORITOS. A estrela fica na barra de topo, ao lado do titulo da tela: e
+   onde a pessoa esta olhando quando decide que vai voltar ali. */
+.favs{padding:4px 0 8px;margin-bottom:4px;border-bottom:1px solid rgba(255,255,255,.10)}
+.favs-h{font-size:10.5px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;
+        color:rgba(255,255,255,.45);padding:2px 12px 5px}
+#btnFav{background:none;border:0;cursor:pointer;padding:6px;border-radius:8px;
+        color:var(--n400);display:inline-flex;align-items:center;line-height:0}
+#btnFav:hover{background:var(--n100);color:var(--n600)}
+#btnFav.on{color:var(--orange-500)}
+#btnFav.on .ic svg{fill:currentColor}
+#btnFav:focus-visible{outline:2px solid var(--orange-500);outline-offset:2px}
   .dfreq{padding:2px 0 10px;border-bottom:1px solid var(--n100,#EEF1F4)}
   .dfreq-h{font-size:11.5px;font-weight:700;text-transform:uppercase;letter-spacing:.07em;
     color:var(--orange-600);padding:9px 4px 7px}
@@ -1736,6 +1748,10 @@ body.tvfull #btnReport,body.tvmode #btnReport{display:none}
       <div class="buscares" id="buscaRes" role="listbox" hidden></div>
     </div>
     <nav aria-label="Seções do painel">
+      <div class="favs" id="favsSidebar" hidden>
+        <div class="favs-h">Favoritos</div>
+        <div id="favsSidebarB"></div>
+      </div>
       <a href="#home" class="sub" data-view="home" title="Visão Geral" style="padding-left:12px;font-weight:600"><span class="ic" data-ic="home"></span><span>Visão Geral</span></a>
       <a href="#cop" class="sub" data-view="cop" title="Copiloto Cortex" style="padding-left:12px;font-weight:600"><span class="ic" data-ic="cop"></span><span>Copiloto Cortex</span></a>
       <button class="group" id="grpAntt" aria-expanded="false" aria-controls="subsAntt" onclick="toggleGroup('grpAntt','subsAntt','cs.anttGroup')" title="ANTT">
@@ -1881,6 +1897,9 @@ body.tvfull #btnReport,body.tvmode #btnReport{display:none}
         <h1 id="viewTitle">Fluxo de Caixa e Bancos</h1>
         <div class="emp" id="empNome">—</div>
       </div>
+      <button id="btnFav" onclick="favAlternar()" hidden
+              aria-pressed="false" title="Favoritar esta tela"
+              aria-label="Favoritar esta tela"><span class="ic" data-ic="estrela"></span></button>
       <div class="spacer"></div>
       <div class="meta" id="meta"><span class="skeleton">carregando…</span></div>
       <button class="btn-filtros" id="btnFiltros" onclick="document.getElementById('filterbar').classList.toggle('aberto')">☰ Filtros</button>
@@ -5295,6 +5314,7 @@ const ICONS = {
   dre:  IC('<path d="M3 3v18h18"/><path d="M7 9V6h4v6h4v5h4"/>'),
   sup:  IC('<circle cx="9" cy="20" r="1.6"/><circle cx="17" cy="20" r="1.6"/><path d="M3 4h2l2.5 11h10L20 8H7"/>'),
   oc:   IC('<rect x="5" y="3" width="14" height="18" rx="2"/><path d="M9 3v3h6V3M9 11h6M9 15h4"/>'),
+  estrela: IC('<path d="M12 2.5l2.9 6 6.6.9-4.8 4.6 1.2 6.5L12 17.4 6.1 20.5l1.2-6.5L2.5 9.4l6.6-.9z"/>'),
   kmv:  IC('<path d="M12 2a10 10 0 1 0 10 10"/><path d="M12 6v6l4 2"/><path d="M16 3.5 22 2l-1.5 6"/>'),
   mvb:  IC('<path d="M12 3v18M8 21h8M2 7h20"/><path d="M5 7l-3 6a3.5 3.5 0 0 0 6 0zM19 7l-3 6a3.5 3.5 0 0 0 6 0z"/>'),
   comb: IC('<path d="M4 21V5a2 2 0 0 1 2-2h6a2 2 0 0 1 2 2v16M3 21h12M7 8h6"/><path d="M14 12h1a2 2 0 0 1 2 2v3.5a1.5 1.5 0 0 0 3 0V10l-2.5-2.5"/>'),
@@ -5836,6 +5856,7 @@ function currentView(){
 function router(){
   if(!USER) return;                              // nada roda antes do login
   const v = currentView();
+  favBotao();          // a estrela reflete a tela ATUAL, entao muda com ela
   document.querySelectorAll('.view').forEach(s=>s.classList.toggle('on', s.id==='view-'+v));
   window.scrollTo(0,0);
   const cont=document.getElementById('content'); if(cont) cont.scrollTop=0;
@@ -6015,7 +6036,8 @@ function filtrarDrawer(q){
   if(!n){
     _drawerVisibPermissao(); _drawerAbreAtivo();
     if(semres) semres.style.display='none';
-    navFreqRender();
+    favPintar();
+  navFreqRender();
     return;
   }
   if(freq) freq.style.display='none';            // buscando: a faixa de atalhos sai
@@ -6049,6 +6071,106 @@ function navRegistraUso(v){
     localStorage.setItem('cs.navUso', JSON.stringify(u));
   }catch(e){}
 }
+/* ===================== FAVORITOS =====================
+   Convive com "Suas mais usadas", e a diferenca entre os dois e o ponto:
+   aquela e DERIVADA de comportamento (ninguem escolhe, ela se forma sozinha);
+   esta e ESCOLHA. Por isso favorito mora no BANCO e segue a pessoa entre o
+   computador e o celular, enquanto a frequencia fica no `localStorage` do
+   aparelho.
+
+   O RBAC e aplicado NO SERVIDOR, na leitura -- favorito de tela cujo acesso
+   foi revogado nao e apagado, so deixa de vir. Mas a tela filtra de novo por
+   `podeVer()` antes de desenhar: a lista pode ter sido carregada antes de uma
+   troca de perfil, e oferecer atalho para tela que a pessoa nao ve mais seria
+   vazamento de navegacao, mesmo com a rota barrando depois. */
+let FAVS = null;
+
+async function favCarregar(){
+  try{
+    const r = await fetch('/api/favoritos', {cache:'no-store'});
+    if(!r.ok){ FAVS = []; return FAVS; }
+    const d = await r.json();
+    FAVS = d.favoritos || [];
+  }catch(e){
+    /* FALHA NAO PODE TIRAR O MENU DO AR: sem favoritos a navegacao continua
+       inteira, que e exatamente como era antes deste recurso existir. */
+    FAVS = [];
+  }
+  favPintar();
+  return FAVS;
+}
+
+function favPintar(){
+  const lista = (FAVS || []).filter(v => VIEWS[v] && podeVer(v));
+
+  const box = document.getElementById('favsSidebar');
+  const b = document.getElementById('favsSidebarB');
+  if(box && b){
+    box.hidden = !lista.length;
+    b.innerHTML = lista.map(v => {
+      const orig = document.querySelector(`nav .sub[data-view="${v}"]`);
+      const ico = orig ? ((orig.querySelector('.ic') || {}).outerHTML || '') : '';
+      return `<a href="#${v}" class="sub" data-view="${v}" title="${esc(VIEWS[v])}"
+                 style="padding-left:12px">${ico}<span>${esc(VIEWS[v])}</span></a>`;
+    }).join('');
+  }
+
+  const dbox = document.getElementById('dfav'), db = document.getElementById('dfav-b');
+  if(dbox && db){
+    const atual = currentView();
+    dbox.style.display = lista.length ? '' : 'none';
+    db.innerHTML = lista.map(v => {
+      const orig = document.querySelector(`#drawer .dgrp-b a[href="#${v}"]`);
+      const ico = orig ? ((orig.querySelector('.ic') || {}).outerHTML || '') : '';
+      return `<a href="#${v}" class="${v === atual ? 'ativo' : ''}"
+                 onclick="fecharDrawer()">${ico}${esc(VIEWS[v])}</a>`;
+    }).join('');
+  }
+  favBotao();
+}
+
+/* A ESTRELA SO APARECE ONDE FAZ SENTIDO: em tela que existe no menu. Nos
+   drill-downs (ficha de veiculo, ficha de jornada) ela some -- favoritar uma
+   ficha sem o veiculo que a preenche levaria a uma tela vazia. */
+function favBotao(){
+  const btn = document.getElementById('btnFav');
+  if(!btn) return;
+  const v = currentView();
+  const vale = !!(v && VIEWS[v] && podeVer(v) && v !== 'veicf' && v !== 'jornf');
+  btn.hidden = !vale;
+  if(!vale) return;
+  const on = (FAVS || []).includes(v);
+  btn.classList.toggle('on', on);
+  btn.setAttribute('aria-pressed', String(on));
+  const rot = on ? 'Remover dos favoritos' : 'Favoritar esta tela';
+  btn.title = rot;
+  btn.setAttribute('aria-label', rot);
+}
+
+async function favAlternar(){
+  const v = currentView();
+  if(!v || !VIEWS[v]) return;
+  const btn = document.getElementById('btnFav');
+  if(btn) btn.disabled = true;
+  try{
+    const r = await fetch('/api/favoritos', {method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({tela: v})});
+    const rr = await respostaJSON(r);
+    if(!r.ok){
+      /* O TETO E A RECUSA MAIS PROVAVEL, e a mensagem dela explica o porque
+         (lista grande deixa de ser atalho). Mostrar so "erro" faria a pessoa
+         tentar de novo. */
+      showBanner(rr.dados.mensagem || 'Não foi possível favoritar.');
+      return;
+    }
+    hideBanner();
+    FAVS = rr.dados.favoritos || [];
+    favPintar();
+  }catch(e){ showBanner('Não foi possível falar com a API.', e.message); }
+  finally{ if(btn) btn.disabled = false; }
+}
+
 function navFreqRender(){
   const box=document.getElementById('dfreq'), b=document.getElementById('dfreq-b');
   if(!box||!b) return;
@@ -19752,7 +19874,10 @@ async function boot(){
   let r=null;
   try{ r=await _fetch0('/api/auth/me',{cache:'no-store'}); }
   catch(e){ mostrarLogin('login'); lgErro('API fora do ar — verifique o serviço e recarregue.'); return; }
-  if(r.ok){ USER=await r.json(); entrar(); return; }
+  if(r.ok){ USER=await r.json(); entrar();
+    // depois do `entrar()`: `podeVer` depende de USER, e a lista e
+    // filtrada por ele antes de desenhar
+    favCarregar(); return; }
   try{
     const s=await _fetch0('/api/auth/setup-status',{cache:'no-store'});
     const d=await s.json();
@@ -24281,6 +24406,10 @@ boot();
   <div class="painel">
     <div class="alca"></div>
     <input type="search" class="dbusca" id="dbusca" placeholder="Buscar tela…" oninput="filtrarDrawer(this.value)" onkeydown="drawerEnter(event)" autocomplete="off" aria-label="Buscar tela">
+    <div class="dfreq" id="dfav" style="display:none">
+      <div class="dfreq-h">Favoritos</div>
+      <div class="dfreq-b" id="dfav-b"></div>
+    </div>
     <div class="dfreq" id="dfreq" style="display:none">
       <div class="dfreq-h">Suas mais usadas</div>
       <div class="dfreq-b" id="dfreq-b"></div>

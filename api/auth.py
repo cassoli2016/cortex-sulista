@@ -250,7 +250,39 @@ _ROTAS_AUTOSERVICO = ("/api/auth/me", "/api/auth/logout", "/api/auth/trocar-senh
 # `/api/auth/foto/` entra aqui, e não em _ROTAS_AUTOSERVICO, porque não é só a
 # PRÓPRIA foto: a lista de usuários e a auditoria mostram a foto de outras
 # pessoas, então o caminho carrega um id e precisa casar por prefixo.
-_ROTAS_SEM_TELA = ("/api/push/", "/api/report", "/api/auth/foto/")
+_ROTAS_SEM_TELA = ("/api/push/", "/api/report", "/api/auth/foto/",
+                   "/api/favoritos")
+
+# Telas que EXISTEM no menu mas nao tem entrada em `TELAS`, porque o acesso a
+# elas e decidido de outro jeito:
+#   `srv` e `gestao` sao liberadas pelo `sess["admin"]` (a Gestao pelo proprio
+#   middleware, que barra `/api/gestao` para nao-administrador);
+#   `jornf` e drill-down da Jornada, alcancada a partir dela.
+#
+# A lista existe para o FAVORITO: sem ela, o administrador nao conseguiria
+# favoritar a Saude do Servidor -- a validacao usaria `TELAS` e a recusaria
+# como "sem acesso", que e o oposto da verdade. Ha teste comparando isto com o
+# `VIEWS` do `index.html`, entao tela nova fora dos dois quebra a suite em vez
+# de aparecer como favorito impossivel.
+TELAS_FORA_DO_RBAC = {
+    "srv":    ("Saúde do Servidor", "Sistema"),
+    "gestao": ("Gestão", "Sistema"),
+    "jornf":  ("Ficha de Jornada", "Operação"),
+}
+
+
+def telas_favoritaveis(sess: dict | None) -> set[str]:
+    """O que esta pessoa pode favoritar.
+
+    ADMIN VE TUDO: `sess["telas"]` do administrador nao enumera as telas (o
+    middleware o libera por `sess["admin"]`), entao usar aquele conjunto como
+    filtro esconderia todas elas dele.
+    """
+    if not sess:
+        return set()
+    if sess.get("admin"):
+        return set(TELAS) | set(TELAS_FORA_DO_RBAC)
+    return set(sess.get("telas") or ())
 
 
 def rota_sem_tela(path: str) -> bool:

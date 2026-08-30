@@ -4,6 +4,15 @@ Gerado de `docs/versoes.yaml` por `scripts/gerar_changelog.py` — não editar �
 Formato [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/),
 versionamento [SemVer](https://semver.org/lang/pt-BR/).
 
+## [0.152.0] — 30/08/2026  ·  CX-30/08/2026-v0.152.0
+
+### Adicionado
+- Favoritos por usuário: a estrela na barra de topo fixa a tela atual, e os favoritos aparecem no alto da barra lateral e do menu do celular. Ficam no banco, não no navegador, então seguem a pessoa entre o computador e o telefone.
+- O favorito respeita o acesso de cada um: tela cujo acesso foi revogado deixa de aparecer sem apagar a escolha, e volta se o acesso voltar.
+
+### Alterado
+- O menu do celular passou a mostrar "Favoritos" acima de "Suas mais usadas" — uma é escolha, a outra se forma sozinha pelo uso.
+
 ## [0.151.2] — 30/08/2026  ·  CX-30/08/2026-v0.151.2
 
 ### Adicionado
