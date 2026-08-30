@@ -130,10 +130,25 @@ def test_veiculo_sem_cadastro_vira_pendencia_e_nao_irregular(pagina):
 
 
 def test_grafico_desenha_uma_barra_por_mes_conferido(pagina):
+    """A promessa é UMA BARRA POR MÊS CONFERIDO, e é ela que se verifica.
+
+    A versão anterior contava elementos `<path>` do SVG, o que amarrava o
+    teste ao desenho à mão: quando o gráfico passou para o ECharts, o `path`
+    deixou de ser só a barra (grade e eixo também são) e o teste quebrou sem
+    que nada tivesse deixado de funcionar. Contar o RÓTULO DIRETO de cada mês
+    mede a mesma coisa e sobrevive à troca de renderizador.
+    """
     pg, base = pagina
     dados, _ = _abrir(pg, base)
-    caminhos = pg.eval_on_selector_all("#chartAnpiso path", "e=>e.length")
-    assert caminhos == len(dados["mensal"])
+    pg.wait_for_selector("#chartAnpiso svg", timeout=20000)
+    pg.wait_for_timeout(400)
+    texto = pg.inner_text("#chartAnpiso")
+    # o eixo nomeia a unidade FINAL, nunca composta
+    assert "% NO PISO OU ACIMA" in texto.upper()
+    # e cada mês conferido aparece com o seu percentual
+    for m in dados["mensal"]:
+        pct = round(100 * m["aderencia"])
+        assert f"{pct}%" in texto, f"faltou o rótulo do mês {m['mes']}"
 
 
 def test_menu_mostra_o_grupo_antt(pagina):

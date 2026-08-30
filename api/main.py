@@ -4243,6 +4243,145 @@ async def premiacao_atualizar(req: Request) -> JSONResponse:
             "erro": "erro_consulta", "mensagem": "Erro ao atualizar a premiação."})
 
 
+@app.get("/api/premiacao/config")
+def premiacao_config(competencia: str | None = None) -> JSONResponse:
+    """Parâmetros e pesos vigentes, mais o catálogo para a tela se desenhar."""
+    from api.premiacao import classificacao, config
+    comp = (competencia or datetime.now().strftime("%Y-%m")).strip()
+    try:
+        d = config.ler(comp)
+    except ValueError as exc:
+        return JSONResponse(status_code=422, content={
+            "erro": "parametro_invalido", "mensagem": str(exc)})
+    except Exception as exc:  # noqa: BLE001
+        log.warning("premiacao_config: %s", type(exc).__name__)
+        return JSONResponse(status_code=500, content={
+            "erro": "erro_config",
+            "mensagem": "Não foi possível ler a configuração da premiação."})
+    d["catalogo"] = config.catalogo()
+    d["versoes"] = config.versoes()
+    from api.premiacao import apuracao
+    d["apuracao"] = apuracao.estado(comp)
+    try:
+        d["ocorrencias"] = classificacao.listar()
+        d["pendentes"] = classificacao.pendentes()
+    except Exception as exc:  # noqa: BLE001
+        # sem o AVA a classificação não carrega, mas os PARÂMETROS carregam:
+        # travar a tela inteira por causa de uma metade seria pior.
+        d["ocorrencias"] = []
+        d["pendentes"] = None
+        d["erro_ocorrencias"] = type(exc).__name__
+    return JSONResponse(d)
+
+
+@app.post("/api/premiacao/config")
+async def premiacao_config_salvar(req: Request) -> JSONResponse:
+    """Grava a versão que passa a valer a partir da competência informada."""
+    from api.premiacao import config
+    try:
+        body = await req.json()
+    except Exception:  # noqa: BLE001
+        body = {}
+    sess = getattr(req.state, "sessao", None) or {}
+    try:
+        d = config.salvar(
+            (body.get("competencia") or "").strip(),
+            body.get("params") or {}, body.get("eixos") or {},
+            autor=sess.get("email", ""), nota=(body.get("nota") or "").strip())
+    except ValueError as exc:
+        # RECUSA por regra é 4xx: o Cloudflare troca o corpo dos 5xx pelo dele
+        # e a mensagem que a pessoa precisa ler nunca chegaria à tela.
+        return JSONResponse(status_code=HTTP_RECUSA, content={
+            "erro": "parametro_invalido", "mensagem": str(exc)})
+    except Exception as exc:  # noqa: BLE001
+        log.warning("premiacao_config_salvar: %s", type(exc).__name__)
+        return JSONResponse(status_code=500, content={
+            "erro": "erro_salvar",
+            "mensagem": "Não foi possível gravar a configuração."})
+    auth.audit(sess.get("email", "?"), "premiacao_config",
+               alvo=body.get("competencia", ""),
+               detalhe=(body.get("nota") or "")[:200])
+    return JSONResponse(d)
+
+
+@app.post("/api/premiacao/recoletar")
+async def premiacao_recoletar(req: Request) -> JSONResponse:
+    """Refaz a coleta das competências do período.
+
+    `sem_travar` porque cada competência é uma volta na API da Gobrax: numa
+    rota `async def`, isso travaria o event loop e o CÓRTEX inteiro pelo tempo
+    da chamada — seis meses de recoleta deixariam o painel fora do ar.
+    """
+    from api.premiacao import apuracao
+    try:
+        body = await req.json()
+    except Exception:  # noqa: BLE001
+        body = {}
+    sess = getattr(req.state, "sessao", None) or {}
+    autor = sess.get("email", "")
+    de = (body.get("de") or "").strip()
+    ate = (body.get("ate") or de).strip()
+    try:
+        r = await sem_travar(lambda: apuracao.recoletar(de, ate, autor=autor))
+    except ValueError as exc:
+        return JSONResponse(status_code=HTTP_RECUSA, content={
+            "erro": "parametro_invalido", "mensagem": str(exc)})
+    except Exception as exc:  # noqa: BLE001
+        log.warning("premiacao_recoletar: %s", type(exc).__name__)
+        return JSONResponse(status_code=500, content={
+            "erro": "erro_recoleta",
+            "mensagem": "Não foi possível recoletar o período."})
+    # Recoleta muda valor de prêmio: quem pediu e o que saiu ficam na trilha.
+    auth.audit(autor or "?", "premiacao_recoletar", alvo=f"{de}..{ate}",
+               detalhe="; ".join(
+                   f"{c['competencia']}:{'ok' if c['ok'] else c['erro']}"
+                   for c in r["competencias"])[:400])
+    return JSONResponse(r)
+
+
+@app.post("/api/premiacao/ocorrencias")
+async def premiacao_ocorrencia_classe(req: Request) -> JSONResponse:
+    """Classifica um tipo de ocorrência (demérito, neutro, mérito)."""
+    from api.premiacao import classificacao
+    try:
+        body = await req.json()
+    except Exception:  # noqa: BLE001
+        body = {}
+    sess = getattr(req.state, "sessao", None) or {}
+    try:
+        classificacao.salvar(
+            int(body.get("codigo")), (body.get("classe") or "").strip(),
+            peso=float(body.get("peso") or 1), grupo=(body.get("grupo") or "").strip(),
+            bloqueia=int(body.get("bloqueia") or 0),
+            autor=sess.get("email", ""))
+    except (ValueError, TypeError) as exc:
+        return JSONResponse(status_code=HTTP_RECUSA, content={
+            "erro": "parametro_invalido", "mensagem": str(exc)})
+    except Exception as exc:  # noqa: BLE001
+        log.warning("premiacao_ocorrencia: %s", type(exc).__name__)
+        return JSONResponse(status_code=500, content={
+            "erro": "erro_salvar", "mensagem": "Não foi possível classificar."})
+    auth.audit(sess.get("email", "?"), "premiacao_ocorrencia",
+               alvo=str(body.get("codigo")), detalhe=str(body.get("classe")))
+    return JSONResponse({"ok": True, "pendentes": classificacao.pendentes()})
+
+
+@app.post("/api/premiacao/ocorrencias/sincronizar")
+async def premiacao_ocorrencia_sync(req: Request) -> JSONResponse:
+    """Traz tipos novos do ERP. NUNCA sobrescreve classificação já decidida."""
+    from api.premiacao import classificacao
+    sess = getattr(req.state, "sessao", None) or {}
+    try:
+        r = await sem_travar(lambda: classificacao.sincronizar(
+            autor=sess.get("email", "")))
+    except Exception as exc:  # noqa: BLE001
+        log.warning("premiacao_sync: %s", type(exc).__name__)
+        return JSONResponse(status_code=500, content={
+            "erro": "erro_sync",
+            "mensagem": "Não foi possível ler o catálogo do ERP."})
+    return JSONResponse({**r, "pendentes": classificacao.pendentes()})
+
+
 @app.post("/api/frota/premiacao/params")
 async def premiacao_params(req: Request) -> JSONResponse:
     from api.premiacao import params as premiacao_params_mod

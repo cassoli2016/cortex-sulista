@@ -2851,6 +2851,54 @@ body.tvfull #btnReport,body.tvmode #btnReport{display:none}
             </div>
             <div style="padding:0 18px 14px;font-size:12px;color:var(--n500)" id="prem-refs"></div>
           </div>
+
+          <div class="card">
+            <div class="head"><h2>Configuração por eixos <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="Parâmetros e pesos da premiação de seis eixos, guardados no banco do CÓRTEX e VERSIONADOS POR COMPETÊNCIA: configurar agosto não mexe em julho, e o cálculo de um mês usa a última versão vigente até ele. Premiação decide dinheiro de gente, e a pergunta “por que recebi isso em março?” aparece meses depois — editar por cima deixaria ela sem resposta.">i</span></h2>
+              <span class="hint" id="prem-cfg-hint"></span></div>
+            <div class="banner-inline" id="prem-cfg-aviso" style="display:none"></div>
+            <div class="cardfilters">
+              <label style="display:flex;flex-direction:column;gap:2px;font-size:11px;color:var(--n500)">Vigente a partir de
+                <input type="month" id="fPremCfgComp" style="width:150px" onchange="premCfgCarregar()"></label>
+              <label style="display:flex;flex-direction:column;gap:2px;font-size:11px;color:var(--n500);flex:1;min-width:220px">Por que mudou (fica no histórico)
+                <input type="text" id="fPremCfgNota" placeholder="ex.: peso de diesel subiu após reunião de 29/08"></label>
+              <button class="btn" id="btnPremCfgSalvar" onclick="premCfgSalvar()">Salvar versão</button>
+            </div>
+            <div id="prem-cfg-params" class="cardfilters"></div>
+            <div style="padding:4px 18px 0"><div style="color:var(--n500);font-size:11px;font-weight:700;letter-spacing:.14em;text-transform:uppercase">Pesos dos eixos</div></div>
+            <div class="tablewrap"><table><thead><tr>
+              <th>Eixo</th><th>Mede</th><th class="num">Peso</th><th class="num">Ativo</th>
+            </tr></thead><tbody id="prem-cfg-eixos"></tbody></table></div>
+            <div style="padding:0 18px 14px;font-size:12px" id="prem-cfg-soma"></div>
+          </div>
+
+          <div class="card">
+            <div class="head"><h2>Apuração e recoleta <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="Depois que a competência fecha, dado continua chegando por dias: ocorrência é lançada por quem apurou, multa chega do órgão semanas depois, abastecimento externo entra por integração com atraso, e há o ajuste normal. A CARÊNCIA é o prazo antes de considerar o mês fechado — sem ela, um snapshot tirado no dia 1º congela um mês incompleto e nunca mais é recoletado, e nada acusa. A recoleta refaz um período quando alguém corrigiu algo e não dá para esperar o ciclo.">i</span></h2>
+              <span class="hint" id="prem-apu-hint"></span></div>
+            <div id="prem-apu-estado" style="padding:0 18px"></div>
+            <div class="cardfilters">
+              <label style="display:flex;flex-direction:column;gap:2px;font-size:11px;color:var(--n500)">Recoletar de
+                <input type="month" id="fPremRecDe" style="width:150px"></label>
+              <label style="display:flex;flex-direction:column;gap:2px;font-size:11px;color:var(--n500)">até
+                <input type="month" id="fPremRecAte" style="width:150px"></label>
+              <button class="ghost" id="btnPremRec" onclick="premRecoletar()">Recoletar período</button>
+              <span class="hint" id="prem-rec-msg"></span>
+            </div>
+            <div id="prem-rec-res" style="padding:0 18px 14px"></div>
+          </div>
+
+          <div class="card">
+            <div class="head"><h2>Classificação das ocorrências <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="Os tipos de ocorrência de motorista do ERP (cadastro_vinculo_motoristaocorrencia), classificados entre demérito, neutro e mérito. O tipo mais frequente NÃO é demérito: “pontos de contratação novo agregado” é registro de entrada e responde por um terço das linhas — uma contagem ingênua penalizaria todo agregado por ter sido contratado. Tipo novo nasce NÃO CLASSIFICADO e aparece aqui pedindo decisão, em vez de virar neutro e sumir.">i</span></h2>
+              <span class="hint" id="prem-oco-hint"></span></div>
+            <div class="cardfilters">
+              <button class="ghost" onclick="premOcoSync()" id="btnPremOcoSync">Buscar tipos novos no ERP</button>
+              <label style="font-size:12px;color:var(--n600)"><input type="checkbox" id="fPremOcoPend" onchange="premOcoRender()"> só os que faltam decidir</label>
+            </div>
+            <div class="tablewrap tabroll"><table><thead><tr>
+              <th>Ocorrência</th><th class="num">Vezes</th><th class="num">Motoristas</th>
+              <th>Classe</th><th class="num">Peso</th><th class="num">Bloqueia</th>
+            </tr></thead><tbody id="prem-oco"></tbody></table></div>
+          </div>
+
           <div class="card">
             <div class="head"><h2>Ranking de motoristas <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" id="prem-rank-help" title="">i</span></h2><span class="hint" id="prem-rank-hint"></span></div>
             <div class="tablewrap tabroll"><table><thead><tr>
@@ -7613,6 +7661,10 @@ async function loadPrem(forceSerie){
     hideBanner(); DATAPREM=d; LOADEDQS.prem='';
     _premSyncMeses(d, selM);
     renderPrem(d);
+    /* A configuração por eixos carrega DEPOIS e por conta própria: ela lê o
+       ERP para o catálogo de ocorrências, e uma falha lá não pode impedir a
+       premiação — que é o que a pessoa veio ver — de aparecer. */
+    premCfgCarregar();
     premCarregarSerie(!!forceSerie);
   }catch(e){ if(seq===premSeq) showBanner('Não foi possível falar com a API.', e.message); }
   finally{ if(seq===premSeq){ if(btn) btn.disabled=false; document.getElementById('content').classList.remove('loading'); } }
@@ -7758,6 +7810,256 @@ function premToggle(i){
   const open=det.classList.toggle('open');
   row.setAttribute('aria-expanded', String(open));
 }
+/* ═══════════ Configuração da premiação por eixos ═══════════════════════════
+   O motor de seis eixos AINDA NÃO CALCULA — o que existe hoje é a regra
+   "nota × km" do cartão acima. Esta tela configura o que virá, e diz isso em
+   letras: painel de configuração que parece ativo sem estar faz alguém
+   acreditar que mudou um pagamento quando não mudou nada. */
+let DATAPREMCFG = null;
+
+async function premCfgCarregar(){
+  const comp = (document.getElementById('fPremCfgComp').value || '').trim();
+  try{
+    const r = await fetch('/api/premiacao/config' + (comp ? '?competencia=' + comp : ''),
+                          {cache:'no-store'});
+    const rr = await respostaJSON(r);
+    if(!r.ok){ showBanner(rr.dados.mensagem || 'Erro ao ler a configuração.'); return; }
+    DATAPREMCFG = rr.dados; premCfgRender();
+  }catch(e){ showBanner('Não foi possível falar com a API.', e.message); }
+}
+
+function premCfgRender(){
+  const d = DATAPREMCFG; if(!d) return;
+  const cat = d.catalogo || {params:{}, eixos:{}};
+  if(!document.getElementById('fPremCfgComp').value && d.competencia)
+    document.getElementById('fPremCfgComp').value = d.competencia;
+
+  const hint = document.getElementById('prem-cfg-hint');
+  if(hint) hint.textContent = d.padrao
+    ? 'nenhuma versão gravada ainda — os valores abaixo são os padrões do sistema'
+    : ('versão vigente desde ' + d.versao.vigente_de
+       + (d.versao.criado_por ? ' · por ' + d.versao.criado_por : '')
+       + (d.versao.nota ? ' · ' + d.versao.nota : ''));
+
+  /* O aviso é permanente enquanto o motor não calcular. */
+  const av = document.getElementById('prem-cfg-aviso');
+  if(av){ av.style.display = ''; av.innerHTML =
+    '<b>Esta configuração ainda não paga ninguém.</b> O prêmio de hoje sai da regra '
+    + '“nota × km” do cartão acima. Os eixos e pesos daqui ficam guardados e '
+    + 'versionados para quando o cálculo por eixos entrar — configurar agora não '
+    + 'muda nenhum valor pago.'; }
+
+  document.getElementById('prem-cfg-params').innerHTML =
+    Object.entries(cat.params).map(([k, m]) =>
+      '<label style="display:flex;flex-direction:column;gap:2px;font-size:11px;color:var(--n500)"'
+      + ' title="' + esc(m.ajuda) + '">' + esc(m.rotulo)
+      + (m.unidade ? ' (' + esc(m.unidade) + ')' : '')
+      + '<input type="text" inputmode="decimal" id="fPremP_' + esc(k) + '"'
+      + ' style="width:130px" value="' + esc(fmtNumBR(d.params[k])) + '"></label>').join('');
+
+  document.getElementById('prem-cfg-eixos').innerHTML =
+    Object.entries(cat.eixos).map(([k, m]) => {
+      const e = d.eixos[k] || {peso:0, ativo:1};
+      return '<tr>'
+        + '<td><b>' + esc(m.rotulo) + '</b><div style="font-size:11.5px;color:var(--n500)">'
+          + esc(m.fonte) + '</div></td>'
+        + '<td style="font-size:12px;color:var(--n600)">' + esc(m.medida)
+          + '<div style="font-size:11.5px;color:var(--n500);margin-top:3px">' + esc(m.porque) + '</div></td>'
+        + '<td class="num"><input type="text" inputmode="decimal" id="fPremE_' + esc(k)
+          + '" value="' + esc(fmtNumBR(e.peso)) + '" style="width:70px;text-align:right"'
+          + ' oninput="premCfgSoma()"></td>'
+        + '<td class="num"><input type="checkbox" id="fPremA_' + esc(k) + '"'
+          + (e.ativo ? ' checked' : '') + ' onchange="premCfgSoma()"></td></tr>';
+    }).join('');
+  premCfgSoma();
+  premApuRender();
+  premOcoRender();
+}
+
+/* A SOMA DOS PESOS NÃO PRECISA DAR 100 — a nota final é média PONDERADA, então
+   pesos 2/1/1 valem o mesmo que 50/25/25. Mas mostrar a soma evita a confusão
+   de quem digita achando que precisa fechar em 100, e mostra na hora quando um
+   eixo desligado deixou de contar. */
+function premCfgSoma(){
+  const d = DATAPREMCFG; if(!d) return;
+  let soma = 0, ativos = 0, desl = 0;
+  Object.keys(d.catalogo.eixos).forEach(k => {
+    const on = document.getElementById('fPremA_' + k);
+    const p = numBR(document.getElementById('fPremE_' + k).value);
+    if(on && on.checked){ soma += (p || 0); ativos++; } else desl++;
+  });
+  const el = document.getElementById('prem-cfg-soma');
+  el.innerHTML = ativos
+    ? ('<span style="color:var(--n600)">' + ativos + ' eixo(s) ativo(s) · soma dos pesos '
+       + '<b>' + fmtNumBR(soma) + '</b> — a nota é média ponderada, então a soma não precisa dar 100'
+       + (desl ? ' · ' + desl + ' desligado(s)' : '') + '</span>')
+    : '<span style="color:var(--red)"><b>Nenhum eixo ativo.</b> Com todos desligados não há o que calcular.</span>';
+}
+
+async function premCfgSalvar(){
+  const d = DATAPREMCFG; if(!d) return;
+  const btn = document.getElementById('btnPremCfgSalvar');
+  const params = {}, eixos = {};
+  Object.keys(d.catalogo.params).forEach(k =>
+    params[k] = numBR(document.getElementById('fPremP_' + k).value));
+  Object.keys(d.catalogo.eixos).forEach(k => eixos[k] = {
+    peso: numBR(document.getElementById('fPremE_' + k).value) || 0,
+    ativo: document.getElementById('fPremA_' + k).checked ? 1 : 0});
+  const corpo = {competencia: document.getElementById('fPremCfgComp').value,
+                 nota: document.getElementById('fPremCfgNota').value,
+                 params, eixos};
+  btn.disabled = true; const rot = btn.textContent; btn.textContent = 'Salvando…';
+  try{
+    const r = await fetch('/api/premiacao/config', {method:'POST',
+      headers:{'Content-Type':'application/json'}, body:JSON.stringify(corpo)});
+    const rr = await respostaJSON(r);
+    /* RECUSA POR REGRA vem como 409 e é MENSAGEM a ler, não erro de API. */
+    if(!r.ok){ showBanner(rr.dados.mensagem || 'Não foi possível salvar.'); return; }
+    hideBanner();
+    DATAPREMCFG = {...DATAPREMCFG, ...rr.dados};
+    document.getElementById('fPremCfgNota').value = '';
+    premCfgRender();
+  }catch(e){ showBanner('Não foi possível falar com a API.', e.message); }
+  finally{ btn.disabled = false; btn.textContent = rot; }
+}
+
+/* Estado da apuração da competência aberta na tela. Três estados, não dois:
+   "em curso" (o mês não acabou), "em carência" (acabou, mas o dado ainda se
+   move) e "apurável". O do meio é o que faltava — e é ele que impede um
+   snapshot do dia 1º de congelar um mês incompleto. */
+function premApuRender(){
+  const d = DATAPREMCFG, el = document.getElementById('prem-apu-estado');
+  if(!d || !el) return;
+  const a = d.apuracao;
+  const hint = document.getElementById('prem-apu-hint');
+  if(!a){ el.innerHTML = ''; if(hint) hint.textContent = ''; return; }
+  const cor = a.estado === 'apuravel' ? 't-ok'
+            : (a.estado === 'em_carencia' ? 't-warn' : 't-info');
+  const rot = {em_curso:'Competência em curso',
+               em_carencia:'Em carência de ajuste',
+               apuravel:'Apurável'}[a.estado] || a.estado;
+  if(hint) hint.textContent = 'carência de ' + a.dias_apuracao + ' dia(s) · '
+    + 'configurável no cartão acima';
+  el.innerHTML = '<div class="toast ' + cor + '" style="margin:10px 0 0">'
+    + '<b>' + esc(d.competencia + ' — ' + rot) + '</b>' + esc(a.motivo)
+    + (a.faltam ? ' Libera em ' + fmtD(a.libera_em) + '.' : '') + '</div>';
+  /* o período de recoleta já vem preenchido com a competência da tela: o
+     caso comum é recoletar o mês que se está olhando */
+  const de = document.getElementById('fPremRecDe');
+  const ate = document.getElementById('fPremRecAte');
+  if(de && !de.value) de.value = d.competencia;
+  if(ate && !ate.value) ate.value = d.competencia;
+}
+
+async function premRecoletar(){
+  const de = document.getElementById('fPremRecDe').value;
+  const ate = document.getElementById('fPremRecAte').value || de;
+  const msg = document.getElementById('prem-rec-msg');
+  const res = document.getElementById('prem-rec-res');
+  if(!de){ msg.textContent = 'Escolha ao menos a competência inicial.'; return; }
+  const btn = document.getElementById('btnPremRec');
+  const rot = btn.textContent;
+  btn.disabled = true; btn.textContent = 'Recoletando…';
+  msg.style.color = ''; msg.textContent = 'cada mês é uma volta na API da Gobrax — pode levar minutos';
+  res.innerHTML = '';
+  try{
+    const r = await fetch('/api/premiacao/recoletar', {method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({de:de, ate:ate})});
+    const rr = await respostaJSON(r);
+    if(!r.ok){ msg.style.color = 'var(--red)';
+      msg.textContent = rr.dados.mensagem || 'Não foi possível recoletar.'; return; }
+    const cs = rr.dados.competencias || [];
+    const falhas = cs.filter(c => !c.ok);
+    msg.style.color = falhas.length ? 'var(--yellow-700)' : 'var(--green)';
+    msg.textContent = (cs.length - falhas.length) + ' de ' + cs.length
+      + ' competência(s) recoletada(s)'
+      + (falhas.length ? ' · ' + falhas.length + ' falhou(aram)' : '');
+    /* Uma competência que falha NÃO derruba as outras, e a tela diz QUAL —
+       "recoletou 4 de 6" sem dizer quais deixa a pessoa refazendo tudo. */
+    res.innerHTML = '<div class="tablewrap"><table><thead><tr><th>Competência</th>'
+      + '<th>Estado</th><th class="num">Motoristas</th><th>Resultado</th></tr></thead><tbody>'
+      + cs.map(c => '<tr><td>' + esc(c.competencia) + '</td>'
+          + '<td style="font-size:12px;color:var(--n600)">' + esc(c.estado) + '</td>'
+          + '<td class="num">' + (c.motoristas || 0) + '</td>'
+          + '<td>' + (c.ok ? statChip('good','recoletada','')
+                            : statChip('bad', c.erro || 'falhou',
+                                'A competência falhou sozinha — as outras do período seguiram.')) + '</td></tr>').join('')
+      + '</tbody></table></div>';
+    await premCfgCarregar();
+  }catch(e){ msg.style.color = 'var(--red)';
+    msg.textContent = 'Não foi possível falar com a API: ' + e.message; }
+  finally{ btn.disabled = false; btn.textContent = rot; }
+}
+
+const PREM_CLASSES = [['demerito','Demérito'],['neutro','Neutro'],
+                      ['merito','Mérito'],['nao_classificado','A decidir']];
+
+function premOcoRender(){
+  const d = DATAPREMCFG; if(!d) return;
+  const so = document.getElementById('fPremOcoPend');
+  const todas = d.ocorrencias || [];
+  const L = (so && so.checked) ? todas.filter(x => x.classe === 'nao_classificado') : todas;
+  const pend = todas.filter(x => x.classe === 'nao_classificado').length;
+  const hint = document.getElementById('prem-oco-hint');
+  if(hint) hint.textContent = d.erro_ocorrencias
+    ? 'o ERP não respondeu — os parâmetros acima continuam válidos'
+    : (todas.length + ' tipo(s)'
+       + (pend ? ' · ' + pend + ' esperando decisão' : ' · todos classificados')
+       + ' · ordenado por volume, para começar pelo que mais pesa');
+
+  document.getElementById('prem-oco').innerHTML = L.map(x => {
+    const pend1 = x.classe === 'nao_classificado';
+    return '<tr' + (pend1 ? ' style="background:#FFF7E6"' : '') + '>'
+      + '<td>' + esc(x.descricao || ('código ' + x.codigo))
+        + (pend1 ? ' ' + statChip('warn','a decidir','Tipo ainda não classificado: ele NÃO entra na conta da premiação até alguém decidir. Nasce assim de propósito — entrar como neutro faria a premiação ignorar em silêncio algo que talvez devesse contar.') : '')
+        + '</td>'
+      + '<td class="num">' + (x.ocorrencias || 0).toLocaleString('pt-BR') + '</td>'
+      + '<td class="num">' + (x.motoristas || 0) + '</td>'
+      + '<td><select onchange="premOcoSalvar(' + x.codigo + ')" id="fOcoC_' + x.codigo + '">'
+        + PREM_CLASSES.map(([v,r]) => '<option value="' + v + '"'
+            + (x.classe === v ? ' selected' : '') + '>' + r + '</option>').join('')
+        + '</select></td>'
+      + '<td class="num"><input type="text" inputmode="decimal" id="fOcoP_' + x.codigo
+        + '" value="' + esc(fmtNumBR(x.peso)) + '" style="width:60px;text-align:right"'
+        + ' onchange="premOcoSalvar(' + x.codigo + ')"></td>'
+      + '<td class="num"><input type="checkbox" id="fOcoB_' + x.codigo + '"'
+        + (x.bloqueia ? ' checked' : '') + ' onchange="premOcoSalvar(' + x.codigo + ')"'
+        + ' title="Trava o prêmio do mês inteiro, em vez de descontar pontos."></td>'
+      + '</tr>';
+  }).join('') || '<tr><td colspan="6" style="color:var(--n500)">nenhum tipo</td></tr>';
+}
+
+async function premOcoSalvar(codigo){
+  const corpo = {codigo: codigo,
+    classe: document.getElementById('fOcoC_' + codigo).value,
+    peso: numBR(document.getElementById('fOcoP_' + codigo).value) || 0,
+    bloqueia: document.getElementById('fOcoB_' + codigo).checked ? 1 : 0};
+  try{
+    const r = await fetch('/api/premiacao/ocorrencias', {method:'POST',
+      headers:{'Content-Type':'application/json'}, body:JSON.stringify(corpo)});
+    const rr = await respostaJSON(r);
+    if(!r.ok){ showBanner(rr.dados.mensagem || 'Não foi possível classificar.'); return; }
+    hideBanner();
+    const x = (DATAPREMCFG.ocorrencias || []).find(o => o.codigo === codigo);
+    if(x){ x.classe = corpo.classe; x.peso = corpo.peso; x.bloqueia = corpo.bloqueia; }
+    premOcoRender();
+  }catch(e){ showBanner('Não foi possível falar com a API.', e.message); }
+}
+
+async function premOcoSync(){
+  const btn = document.getElementById('btnPremOcoSync');
+  btn.disabled = true; const rot = btn.textContent; btn.textContent = 'Buscando…';
+  try{
+    const r = await fetch('/api/premiacao/ocorrencias/sincronizar', {method:'POST'});
+    const rr = await respostaJSON(r);
+    if(!r.ok){ showBanner(rr.dados.mensagem || 'Não foi possível sincronizar.'); return; }
+    hideBanner();
+    await premCfgCarregar();
+  }catch(e){ showBanner('Não foi possível falar com a API.', e.message); }
+  finally{ btn.disabled = false; btn.textContent = rot; }
+}
+
 async function premSalvarParams(){
   const valorKm=numBR(document.getElementById('fPremValorKm').value);
   const notaMin=numBR(document.getElementById('fPremNotaMin').value);

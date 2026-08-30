@@ -4,6 +4,24 @@ Gerado de `docs/versoes.yaml` por `scripts/gerar_changelog.py` — não editar �
 Formato [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/),
 versionamento [SemVer](https://semver.org/lang/pt-BR/).
 
+## [0.146.0] — 29/08/2026  ·  CX-29/08/2026-v0.146.0
+
+### Adicionado
+- CARENCIA DE APURACAO. Depois que a competencia fecha, dado continua chegando por dias: ocorrencia e lancada por quem apurou, multa chega do orgao semanas depois, abastecimento externo entra por integracao com atraso. O snapshot tinha DOIS estados - parcial (mes em curso) e fechado -, e por isso um snapshot tirado no dia 1o ficava com parcial=False e NUNCA MAIS era recoletado: congelava um mes incompleto sem erro nenhum aparecer, so um numero menor do que devia, para sempre. Agora sao TRES estados (em curso, em carencia, apuravel) e a recoleta continua enquanto o dado se move. O prazo e parametro da versao, entao mudar de 10 para 20 dias nao reabre meses ja apurados sob o prazo antigo.
+- RECOLETA DE UM PERIODO, com competencia inicial e final. Serve para o caso real: alguem corrigiu uma placa, reclassificou uma ocorrencia, lancou a multa que faltava, e o numero precisa refletir isso sem esperar o ciclo. Uma competencia que falha NAO derruba as outras e a tela diz QUAIS falharam - recoletar seis meses e perder tudo porque o quarto deu timeout seria pior que nao ter o botao. Teto de 24 competencias, que RECUSA em vez de truncar: truncar devolveria um resultado que parece completo e nao e. Fica na trilha com quem pediu.
+- A CONFIGURACAO DA PREMIACAO VEIO PARA DENTRO DO CORTEX. Os parametros viviam num JSON com tres campos, que servia enquanto a regra era "nota x km" e nao serve para uma premiacao de seis eixos que decide dinheiro de gente. Agora sao tabelas no banco local (migration 0022), com sete parametros e o peso de cada eixo.
+- VERSIONADO POR COMPETENCIA, nao editado no lugar. Cada mudanca cria uma versao com "vigente a partir de"; o calculo de um mes usa a ultima versao vigente ate ele. Configurar agosto nao mexe em julho. A pergunta "por que recebi isso em marco?" aparece meses depois, quando quem configurou ja mudou o peso tres vezes - editar por cima deixaria ela sem resposta.
+- Seis eixos com peso configuravel: economia de diesel, conducao, produtividade, efetividade no servico, conduta e seguranca, e conformidade de jornada. Cada um traz na tela a FONTE e o PORQUE da medida - "km/l contra a media do MESMO veiculo no mes" existe porque 2,8 km/l nao e bom nem ruim sem saber o veiculo, a rota e a carga.
+- Eixo com peso ZERO nao e o mesmo que eixo DESLIGADO: zero e uma escolha ("mediu, nao vale nota") e desligado e "nao entra na conta". A diferenca importa ao ligar um eixo aos poucos, sem perder o numero ja combinado.
+- CLASSIFICACAO DOS 54 TIPOS DE OCORRENCIA do ERP entre demerito, neutro e merito, com peso por gravidade e marca de bloqueio. O sistema PROPOE o obvio (multa por gravidade, colisao, merito, elogio) e deixa 14 tipos "a decidir", que e onde a operacao precisa entrar. O tipo mais frequente NAO e demerito: "pontos de contratacao novo agregado" e registro de entrada e responde por um terco das linhas - como demerito, todo agregado novo nasceria penalizado.
+- Tipo novo nasce NAO CLASSIFICADO, nunca neutro. O ERP ganha tipo sem avisar, e um tipo novo entrando como neutro sumiria da tela enquanto a premiacao seguia ignorando algo que talvez devesse contar.
+- Cartao na Saude do Servidor: tipo sem classificacao deixa a premiacao incompleta, e isso nao pode ser descoberto depois de pagar.
+
+### Alterado
+- O teste do grafico da ANTT contava elementos <path> do SVG, o que amarrava a verificacao ao desenho a mao: com o ECharts o path deixou de ser so a barra (grade e eixo tambem sao) e ele quebrou sem que nada tivesse deixado de funcionar. Passou a cobrar a PROMESSA - um rotulo direto por mes conferido e a unidade final no eixo -, que mede a mesma coisa e sobrevive a troca de renderizador.
+- A tela DIZ que a configuracao por eixos ainda nao paga ninguem - o premio de hoje sai da regra "nota x km". Painel de configuracao que parece ativo sem estar faz alguem acreditar que mudou um pagamento quando nao mudou nada.
+- Validacao da premiacao valida a validade do abastecimento contra a Gobrax: em julho/2026 as duas medidas independentes do mesmo consumo ficaram a 3,9% uma da outra (56.607 L de telemetria contra 58.902 da bomba), o que e concordancia. As divergencias que sobram tem TODAS o mesmo sinal - a bomba entregou mais litros do que o motor gastou -, e divergencia sistematica num sentido so aponta para lancamento no veiculo errado ou desvio, nao para consumo.
+
 ## [0.145.0] — 29/08/2026  ·  CX-29/08/2026-v0.145.0
 
 ### Alterado

@@ -292,6 +292,38 @@ def _servico_jornada() -> dict:
                        + resto}
 
 
+def _servico_premiacao() -> dict:
+    """A configuração da premiação está completa?
+
+    O sinal que importa é o TIPO DE OCORRÊNCIA NÃO CLASSIFICADO: ele não entra
+    na conta, e uma premiação calculada com tipos pendentes está incompleta
+    sem que nada acuse. Isso não pode ser descoberto depois de pagar.
+
+    `info` e não `alerta`: pendência de classificação é trabalho a fazer, não
+    sistema quebrado — e marcar vermelho no que não está quebrado ensina a
+    ignorar o vermelho.
+    """
+    nome = "Premiação (configuração)"
+    try:
+        from api.premiacao import classificacao, config
+        pend = classificacao.pendentes()
+        vs = config.versoes()
+    except Exception as exc:  # noqa: BLE001
+        return {"nome": nome, "status": "info",
+                "detalhe": ("tabelas ausentes — rode scripts/migrar_schema.py"
+                            if pglocal.sem_tabela(exc) else type(exc).__name__)}
+    if not vs:
+        return {"nome": nome, "status": "info",
+                "detalhe": "nenhuma versão de parâmetros gravada — a tela usa "
+                           "os padrões do sistema"}
+    base = f"{len(vs)} versão(ões) · vigente desde {vs[0]['vigente_de']}"
+    if pend:
+        return {"nome": nome, "status": "alerta",
+                "detalhe": f"{pend} tipo(s) de ocorrência sem classificação — "
+                           f"eles ficam FORA da conta · {base}"}
+    return {"nome": nome, "status": "ok", "detalhe": base}
+
+
 def _servico_gestao() -> dict:
     """Módulo de Gestão — atas e planos de ação.
 
@@ -509,6 +541,7 @@ def _servicos() -> list[dict]:
     # migration faltando é indistinguível de tela vazia por falta de uso — esta
     # linha é o que separa as duas.
     servicos.append(_servico_gestao())
+    servicos.append(_servico_premiacao())
 
     # Jornada: vem do AVA, não do banco local — mas a pergunta é a mesma
     # (o dado está chegando?), então fica ao lado.
