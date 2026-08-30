@@ -299,6 +299,60 @@ de US$ 2 milhões de receita anual, incluindo ferramenta interna. Chart.js (MIT)
 entrega menos que os gráficos da casa já fazem. uPlot (MIT, 49 KB) fica como opção
 se algum dia o problema for só série temporal longa.
 
+**TEMA CLARO E ESCURO (pedido do usuário, 30/08/2026):**
+O painel tem **três** estados, não dois: escolha explícita carimba
+`data-theme` na raiz; o padrão — seguir o sistema — **não carimba nada**, e aí
+só o `prefers-color-scheme` decide. Isso obriga a estrutura do CSS:
+- a paleta CLARA completa mora no `:root` puro;
+- `@media (prefers-color-scheme: dark)` redefine **só tokens**, guardado por
+  `:not([data-theme="light"])`, para a escolha clara vencer um sistema escuro;
+- `:root[data-theme="dark"]` repete os mesmos tokens, para a escolha escura
+  vencer um sistema claro. **Um teste exige que os dois blocos sejam
+  idênticos** — são duas cópias, e cópias divergem.
+- Regra de COMPONENTE dentro do bloco de mídia nunca vale no estado "sistema",
+  e o sintoma é texto de um tema sobre o fundo do outro.
+- O carimbo é feito por um script no `<head>`, **antes do primeiro pixel**: no
+  fim do arquivo, quem escolheu escuro veria a tela clara piscar a cada carga.
+
+**O que NÃO muda com o tema:** `--navy-800/900` (a barra lateral, que já era
+escura nos dois), o `--brand` (é MARCA, não accent — no escuro ele finalmente
+tem contraste, e promovê-lo mudaria a identidade entre temas) e os painéis de
+TV, escuros de propósito. O **semáforo muda de TOM, não de significado**:
+assume o conjunto brilhante que a TV já usava (`#4ADE80`/`#FBBF24`/`#F87171`),
+porque `#1E7F4F` some no escuro.
+
+**A paleta dos GRÁFICOS não acompanha sozinha.** `CC` lê os tokens uma vez e o
+ECharts **copia** as cores para dentro da `option` no desenho. Sem
+`ccAtualizar()` + `echartsRepintar()` (que refaz a `option` do `montar`
+guardado em `_ecMontar`), trocar de tema deixa barra navy escura sobre card
+escuro. Gráfico que chama `init` na mão sem passar por `ecDesenhar` só é
+redimensionado — degradação visível, não erro escondido.
+
+**`scripts/auditar_tema.py` é o que tornou isso viável.** São ~205 literais de
+cor fora do `:root` e ~98 em `style=`; trocar todos às cegas quebraria o tema
+claro, que estava certo. O auditor abre as 68 telas no navegador e mede o que
+o usuário vê — contraste de cada texto contra o fundo REAL (subindo a árvore
+até o primeiro ancestral opaco) e "ilha" de fundo do tema errado. Foram **21
+achados**, não 205, e todos com endereço. Quatro lições:
+- **A régua é ASSIMÉTRICA porque o design é.** No claro, controle com fundo
+  escuro é o botão primário da casa — acusá-lo deu 146 achados de um padrão
+  só, ou seja um relatório que ninguém leria. No escuro não existe padrão de
+  controle claro: um `select` branco ali é literal esquecido.
+- **Amostra de cor não é superfície.** A primeira versão acusava o quadradinho
+  de 14px da legenda, que É o verde do semáforo.
+- **Metade do tema passava por vacuidade:** o auditor rodava só com a
+  preferência do navegador, então sabotar o `[data-theme="dark"]` não produzia
+  achado nenhum. Daí o modo `--fixo`, que carimba a escolha e põe o sistema no
+  oposto.
+- **`--n500` era AA na teoria e reprovava na prática:** calibrado para
+  exatamente 4,5:1 sobre BRANCO, margem zero, e quase nada no painel é branco
+  puro (sobre `--n50` dava 4,37). Idem `--green-100` e `--red-100`. Token com
+  margem zero é token que falha em uso.
+- **`var(--ink, #1E2833)` parecia token e era literal disfarçado:** `--ink`
+  nunca existiu no `:root`, então as cinco regras caíam no fallback — cor
+  certa por acidente no claro, invisível no escuro. Fallback de variável
+  inexistente é a forma mais silenciosa de hard-code.
+
 **Design system (valores reais implementados — tokens em `api/static/index.html`):**
 - **Marca:** amarelo Sulista `#FFD31C` = `--brand`, usado SÓ em superfície escura (trilho
   do nav ativo na sidebar/bottomnav navy, logo) — contraste ruim no branco (1,44:1), NÃO é

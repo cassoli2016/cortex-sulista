@@ -25,15 +25,77 @@
      da UI clara = --orange-500. Não é o warn do semáforo (esse é --yellow). */
   --brand:#FFD31C;
   --n0:#fff;--n50:#F6F7F8;--n100:#ECEEF1;--n200:#DCE0E5;--n300:#C2C8D0;--n400:#9AA3AE;
-  --n500:#6B7580;--n600:#4F5860;--n700:#39414A;--n900:#14181D;  /* n500 ajustado p/ contraste AA 4.5:1 sobre branco */
+  --n500:#636C76;--n600:#4F5860;--n700:#39414A;--n900:#14181D;  /* n500: ANTES era #6B7580, calibrado para EXATAMENTE 4,5:1 sobre BRANCO
+     -- margem zero, então ele reprovava em todo card com fundo levemente
+     cinza (--n50 dava 4,37). Como quase nada no painel é branco puro, o
+     token AA na teoria falhava na prática. #636C76 dá 5,33 no branco,
+     4,97 no --n50 e 4,59 no --n100 — passa onde ele de fato é usado.
+     Mesma correção nas tintas: --green-100 e --red-100 estavam com o
+     par de texto em 4,25 e 4,50. Medido por scripts/auditar_tema.py. */
   /* SEMÁFORO (fonte-da-verdade). UI clara: ok=var(--green) warn=var(--yellow)
      crit=var(--red). Painéis de TV (fundo escuro, precisa de brilho p/
      contraste): ok #4ADE80 · warn #FBBF24 · crit #F87171. Não introduzir
      outros verdes/âmbares/vermelhos p/ estado — usar estes. */
-  --green:#1E7F4F;--green-100:#DCF2E6;--yellow:#B97709;--yellow-100:#FBEED3;--yellow-700:#7E5106;
-  --red:#C03221;--red-100:#F9E0DD;
+  --green:#1E7F4F;--green-100:#EDF8F2;--yellow:#B97709;--yellow-100:#FBEED3;--yellow-700:#7E5106;
+  --red:#C03221;--red-100:#FDEEEC;
   --font:'Saira',system-ui,-apple-system,sans-serif;--mono:'IBM Plex Mono',ui-monospace,monospace;
   --radius:10px;--radius-md:6px;--shadow:0 2px 8px rgba(11,25,38,.10),0 1px 2px rgba(11,25,38,.06);
+  /* TEXTO SOBRE ACCENT SÓLIDO. Existe porque `background:var(--navy-700);
+     color:#fff` deixa de funcionar quando o navy clareia no tema escuro — o
+     branco fica com 3:1 sobre ele. Com token, o par vira o inverso sozinho. */
+  --on-accent:#fff;
+  color-scheme:light;
+}
+
+/* ═══════════════════ TEMA ESCURO ═══════════════════
+   TRÊS ESTADOS, não dois. Uma escolha explícita carimba `data-theme` na raiz;
+   o padrão ("sistema") não carimba nada, e aí só o `prefers-color-scheme`
+   separa. Por isso a paleta clara COMPLETA mora no `:root` puro, o bloco de
+   mídia é guardado por `:not([data-theme="light"])` (para a escolha CLARA
+   vencer um sistema escuro) e o bloco `[data-theme="dark"]` repete os mesmos
+   tokens (para a escolha ESCURA vencer um sistema claro).
+
+   SÓ TOKENS mudam aqui. Regra de componente que definisse cor dentro do bloco
+   de mídia nunca valeria no estado "sistema" sem carimbo — é o defeito
+   clássico de página que aparece com texto de um tema sobre o fundo do outro.
+
+   O QUE **NÃO** MUDA, e por quê:
+   - `--navy-800/900`: são a barra lateral, que já é escura nos dois temas.
+     Clareá-los mudaria a única superfície que estava certa.
+   - `--brand` (#FFD31C): amarelo do logo, 1,44:1 no branco. No tema escuro ele
+     finalmente TEM contraste, mas continua reservado a superfície escura — é
+     marca, não accent de UI.
+   - O SEMÁFORO muda de TOM, não de significado: assume o conjunto brilhante
+     que os painéis de TV já usavam (#4ADE80 / #FBBF24 / #F87171), porque
+     verde #1E7F4F sobre fundo escuro some. Não são cores novas: são as que o
+     design system já tinha para fundo escuro. */
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --n0:#151E2A;--n50:#0E1620;--n100:#1E2833;--n200:#2B3745;--n300:#3B4A5A;
+    --n400:#7A8796;--n500:#95A2B0;--n600:#B5C0CC;--n700:#D0D9E2;--n900:#E9EEF4;
+    --navy-50:#18242F;--navy-100:#1D2B3A;--navy-200:#2A3D50;
+    --navy-400:#8FB8DC;--navy-500:#7FA8CC;--navy-600:#5E8FBF;--navy-700:#6FA0CC;
+    --orange-100:#3A2418;--orange-500:#FF7A33;--orange-600:#E85D10;
+    --green:#4ADE80;--green-100:#12301F;
+    --yellow:#FBBF24;--yellow-100:#33280C;--yellow-700:#FBBF24;
+    --red:#F87171;--red-100:#3A1D1D;
+    --on-accent:#0B1926;
+    --shadow:0 2px 10px rgba(0,0,0,.45),0 1px 2px rgba(0,0,0,.30);
+    color-scheme:dark;
+  }
+}
+:root[data-theme="dark"]{
+  --n0:#151E2A;--n50:#0E1620;--n100:#1E2833;--n200:#2B3745;--n300:#3B4A5A;
+  --n400:#7A8796;--n500:#95A2B0;--n600:#B5C0CC;--n700:#D0D9E2;--n900:#E9EEF4;
+  --navy-50:#18242F;--navy-100:#1D2B3A;--navy-200:#2A3D50;
+  --navy-400:#8FB8DC;--navy-500:#7FA8CC;--navy-600:#5E8FBF;--navy-700:#6FA0CC;
+  --orange-100:#3A2418;--orange-500:#FF7A33;--orange-600:#E85D10;
+  --green:#4ADE80;--green-100:#12301F;
+  --yellow:#FBBF24;--yellow-100:#33280C;--yellow-700:#FBBF24;
+  --red:#F87171;--red-100:#3A1D1D;
+  --on-accent:#0B1926;
+  --shadow:0 2px 10px rgba(0,0,0,.45),0 1px 2px rgba(0,0,0,.30);
+  color-scheme:dark;
 }
 *{box-sizing:border-box}
 body{margin:0;background:var(--n50);font-family:var(--font);color:var(--n900);font-size:15px;line-height:1.5;-webkit-font-smoothing:antialiased}
@@ -164,12 +226,12 @@ main{flex:1;min-width:0;display:flex;flex-direction:column}
 .spacer{flex:1}
 .meta{font-size:12px;color:var(--n500);text-align:right;line-height:1.3}
 .meta b{color:var(--n700)}
-button.btn{font-family:var(--font);font-size:13px;font-weight:600;color:#fff;background:var(--navy-700);border:0;border-radius:var(--radius-md);padding:9px 16px;cursor:pointer;display:inline-flex;gap:7px;align-items:center}
+button.btn{font-family:var(--font);font-size:13px;font-weight:600;color:var(--on-accent);background:var(--navy-700);border:0;border-radius:var(--radius-md);padding:9px 16px;cursor:pointer;display:inline-flex;gap:7px;align-items:center}
 button.btn:hover{background:var(--navy-600)}
 button.btn:disabled{opacity:.6;cursor:progress}
 button.ghost{background:transparent;color:var(--navy-700);border:1px solid var(--n300);font-weight:600;font-size:12px;padding:6px 12px;border-radius:var(--radius-md);cursor:pointer;font-family:var(--font)}
 button.ghost:hover{background:var(--navy-50)}
-button.ghost[aria-pressed="true"]{background:var(--navy-700);color:#fff;border-color:var(--navy-700)}
+button.ghost[aria-pressed="true"]{background:var(--navy-700);color:var(--on-accent);border-color:var(--navy-700)}
 .avatar{width:34px;height:34px;border-radius:50%;background:var(--navy-200);color:var(--navy-800);display:inline-flex;align-items:center;justify-content:center;font-weight:600;font-size:13px}
 .content{padding:20px 24px;display:flex;flex-direction:column;gap:18px;transition:opacity .18s cubic-bezier(.2,.6,.2,1)}
 .content.loading{opacity:.55;pointer-events:none}
@@ -192,7 +254,12 @@ tr[role="button"]:focus-visible{outline-offset:-2px}
 .chips{display:flex;gap:6px;flex-wrap:wrap}
 .chip{font-family:var(--font);font-size:13px;font-weight:600;color:var(--n600);background:var(--n0);border:1px solid var(--n300);border-radius:999px;padding:6px 13px;cursor:pointer;transition:all .12s}
 .chip:hover{border-color:var(--n400);background:var(--n100)}
-.chip.active{background:var(--ink,#1E1E1E);color:#fff;border-color:var(--ink,#1E1E1E)}
+/* Chip LIGADO usa o mesmo tratamento de `.gx-chip.on` e `.ppl-escopo
+   button.on`: accent sólido + `--on-accent`. Antes era um pastilha quase
+   preta (via o fantasma `--ink`), que no tema escuro virava uma pastilha
+   quase BRANCA gritando no meio do painel. Três estilos diferentes para
+   "chip selecionado" também eram três coisas a manter. */
+.chip.active{background:var(--navy-700);color:var(--on-accent);border-color:var(--navy-700)}
 .banner{display:none;background:var(--red-100);border:1px solid var(--red);color:var(--red);border-radius:var(--radius);padding:14px 18px;font-weight:600}
 .banner.show{display:block}
 /* aviso dentro do card (não é erro de API: é limite do dado) */
@@ -313,7 +380,7 @@ svg:focus-visible{outline:2px solid var(--orange-500);outline-offset:2px;border-
 .milk-legenda .milk-leg-b.off i{background:var(--n300)!important;
   border-color:var(--n300)}
 .milk-legenda .milk-leg-veic i{width:20px;height:14px;border-radius:4px;
-  background:var(--navy-700);color:#fff;display:inline-flex;align-items:center;
+  background:var(--navy-700);color:var(--on-accent);display:inline-flex;align-items:center;
   justify-content:center;border:1.5px solid #fff;vertical-align:-3px;
   margin-right:7px;box-shadow:0 0 0 1px rgba(11,25,38,.2)}
 .milk-legenda .milk-leg-veic i.velho{background:#fff;color:var(--n500);
@@ -333,10 +400,10 @@ svg:focus-visible{outline:2px solid var(--orange-500);outline-offset:2px;border-
 .ppl-longo{display:block;font-weight:600;font-size:10.5px;color:var(--yellow-700);
   letter-spacing:.02em;margin-top:2px}
 .pn-dir{display:inline-block;margin-left:8px;padding:1px 7px;border-radius:999px;
-  background:var(--red);color:#fff;font-size:10.5px;font-weight:700;
+  background:var(--red);color:var(--on-accent);font-size:10.5px;font-weight:700;
   letter-spacing:.02em;vertical-align:1px}
 .fer-agora{display:inline-block;margin-left:8px;padding:1px 7px;border-radius:999px;
-  background:var(--green);color:#fff;font-size:10.5px;font-weight:700;
+  background:var(--green);color:var(--on-accent);font-size:10.5px;font-weight:700;
   letter-spacing:.02em;vertical-align:1px}
 .milk-venc,.milk-andam{display:block;font-weight:600;font-size:10.5px;
   letter-spacing:.02em;margin-top:2px}
@@ -349,7 +416,7 @@ svg:focus-visible{outline:2px solid var(--orange-500);outline-offset:2px;border-
   color:var(--n500)}
 .milk-filtros label>span{display:flex;gap:6px}
 .milk-filtros select{padding:7px 10px;border:1px solid var(--n300);
-  border-radius:8px;font:inherit;background:#fff;color:var(--n900)}
+  border-radius:8px;font:inherit;background:var(--n0);color:var(--n900)}
 .milk-filtros select:focus{outline:2px solid var(--orange-500);outline-offset:-1px}
 .milk-filtros input{padding:7px 10px;border:1px solid var(--n300);
   border-radius:8px;font:inherit;font-size:13px;min-width:0}
@@ -503,7 +570,7 @@ tr.forn-det td{padding:7px 12px}
 .diadash .dd-row{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}
 .diadash .dd{background:var(--n50,#F7F9FA);border:1px solid var(--n200,#E4E7EB);border-radius:12px;padding:12px 14px;display:flex;flex-direction:column;gap:3px}
 .diadash .dd-l{font-size:11px;color:var(--n500);font-weight:600}
-.diadash .dd-v{font-size:20px;font-weight:700;color:var(--ink,#1E1E1E);font-variant-numeric:tabular-nums}
+.diadash .dd-v{font-size:20px;font-weight:700;color:var(--n900);font-variant-numeric:tabular-nums}
 /* notebook: nessa faixa cabem 4 colunas, mas valor + seta na mesma linha só
    couberam nos cards de número curto — uns quebravam e outros não. Empilhar
    sempre é mais consistente. (Sem chip, .valrow tem 1 filho e nada muda.) */
@@ -615,6 +682,10 @@ tr.forn-det td{padding:7px 12px}
 .favs{padding:4px 0 8px;margin-bottom:4px;border-bottom:1px solid rgba(255,255,255,.10)}
 .favs-h{font-size:10.5px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;
         color:rgba(255,255,255,.45);padding:2px 12px 5px}
+#btnTema{background:none;border:0;cursor:pointer;padding:6px;border-radius:8px;
+        color:var(--n400);display:inline-flex;align-items:center;line-height:0}
+#btnTema:hover{background:var(--n100);color:var(--n600)}
+#btnTema:focus-visible{outline:2px solid var(--orange-500);outline-offset:2px}
 #btnFav{background:none;border:0;cursor:pointer;padding:6px;border-radius:8px;
         color:var(--n400);display:inline-flex;align-items:center;line-height:0}
 #btnFav:hover{background:var(--n100);color:var(--n600)}
@@ -724,7 +795,7 @@ tr.forn-det td{padding:7px 12px}
 .cop-acts button:hover,.cop-acts a:hover{border-color:var(--navy-200);color:var(--navy-700);background:var(--navy-50)}
 .cop-b{max-width:78%;padding:10px 14px;border-radius:14px;font-size:14px;line-height:1.55;white-space:normal;word-wrap:break-word}
 .cop-b.user{align-self:flex-end;background:var(--navy-700,#17344F);color:#fff;border-bottom-right-radius:4px}
-.cop-b.ai{align-self:flex-start;background:var(--n100,#F2F4F6);color:var(--ink,#1E2833);border-bottom-left-radius:4px}
+.cop-b.ai{align-self:flex-start;background:var(--n100);color:var(--n900);border-bottom-left-radius:4px}
 .cop-b.ai code{background:#E4E9EE;padding:1px 5px;border-radius:4px;font-family:var(--mono);font-size:12.5px}
 .cop-b.ai ul{margin:6px 0 6px 18px}
 .cop-b.pensando{color:var(--n500);font-style:italic}
@@ -737,10 +808,10 @@ tr.forn-det td{padding:7px 12px}
 .cop-bar textarea:focus{border-color:var(--navy-500,#38648D)}
 .cop-aviso{font-size:11px;color:var(--n500,#6E7883);margin-top:6px}
 .cop-head .ghost{border:1px solid var(--n300,#C2C8D0);background:transparent;border-radius:8px;padding:4px 10px;font-size:12px;cursor:pointer;color:var(--n500,#6E7883)}
-.cop-head .ghost:hover{background:var(--n100,#F2F4F6);color:var(--ink,#1E2833)}
+.cop-head .ghost:hover{background:var(--n100);color:var(--n900)}
 .cop-hero{text-align:center;padding:4px 12px 10px}
 .cop-hero .glyph{width:56px;height:56px;border-radius:18px;margin:0 auto 12px;display:flex;align-items:center;justify-content:center;font-size:28px;background:linear-gradient(135deg,#17344F,#38648D);box-shadow:0 6px 18px rgba(23,52,79,.25)}
-.cop-hero h3{font-size:19px;margin:0 0 4px;color:var(--ink,#1E2833)}
+.cop-hero h3{font-size:19px;margin:0 0 4px;color:var(--n900)}
 .cop-hero p{font-size:13px;color:var(--n500,#6E7883);margin:0 auto;max-width:420px}
 /* avatar no TOPO da bolha: com resposta longa o flex-end deixava o ✨ solto
    no rodapé, desalinhado do começo do texto */
@@ -785,7 +856,7 @@ tr.dre-tot td{font-weight:700}
 tr.dre-tot td:first-child{color:var(--navy-700)}
 tr.dre-res td{background:var(--navy-50,#EEF4FA) !important;font-weight:800;border-top:2px solid var(--navy-200,#C9DAEB);border-bottom:2px solid var(--navy-200,#C9DAEB)}
 tr.dre-res td:first-child{color:var(--navy-800,#122A42);font-size:14.5px}
-tr.dre-final td{background:var(--navy-700) !important;color:#fff !important;font-weight:800;font-size:14.5px}
+tr.dre-final td{background:var(--navy-700) !important;color:var(--on-accent) !important;font-weight:800;font-size:14.5px}
 tr.dre-final td:first-child{color:#fff}
 tr.dre-final td .neg{color:#FCA5A5 !important}
 tr.dre-nv1>td:first-child{padding-left:34px;color:var(--n700)}
@@ -1590,12 +1661,12 @@ body.tvfull #btnReport,body.tvmode #btnReport{display:none}
 .rep-ok a{color:var(--orange-600)}
 /* ---------- People: recorte por nível ---------------------------------- */
 .ppl-escopo{display:flex;flex-wrap:wrap;gap:6px;margin:0 0 8px}
-.ppl-escopo button{border:1px solid var(--n200);background:#fff;color:var(--n700);
+.ppl-escopo button{border:1px solid var(--n200);background:var(--n0);color:var(--n700);
   border-radius:999px;padding:5px 14px;font:inherit;font-size:13px;cursor:pointer;
   line-height:1.5}
 .ppl-escopo button:hover{border-color:var(--n400)}
 .ppl-escopo button.on{background:var(--navy-700);border-color:var(--navy-700);
-  color:#fff;font-weight:600}
+  color:var(--on-accent);font-weight:600}
 .ppl-escopo button .n{font-family:var(--mono);font-size:11.5px;opacity:.75;margin-left:6px}
 .ppl-escopo button:focus-visible{outline:2px solid var(--orange-500);outline-offset:2px}
 
@@ -1631,7 +1702,7 @@ body.tvfull #btnReport,body.tvmode #btnReport{display:none}
 .gx-bar label{font-size:10.5px;text-transform:uppercase;letter-spacing:.055em;
   color:var(--n500);font-weight:600}
 .gx-bar select,.gx-bar input{height:32px;border:1px solid var(--n200);border-radius:6px;
-  padding:0 8px;font:inherit;font-size:13px;background:#fff;color:var(--n900)}
+  padding:0 8px;font:inherit;font-size:13px;background:var(--n0);color:var(--n900)}
 .gx-bar input[type=search]{min-width:210px}
 .gx-bar .cresce{flex:1;min-width:180px}
 .gx-bar select:focus,.gx-bar input:focus{outline:2px solid var(--orange-500);
@@ -1645,7 +1716,7 @@ body.tvfull #btnReport,body.tvmode #btnReport{display:none}
   border-radius:999px;padding:4px 12px;font-size:12.5px;cursor:pointer;
   font-family:inherit;line-height:1.5}
 .gx-chip:hover{border-color:var(--n400)}
-.gx-chip.on{background:var(--navy-700);border-color:var(--navy-700);color:#fff;
+.gx-chip.on{background:var(--navy-700);border-color:var(--navy-700);color:var(--on-accent);
   font-weight:600}
 .gx-chip .n{font-family:var(--mono);font-size:11.5px;opacity:.75;margin-left:5px}
 .gx-chip.crit.on{background:var(--red);border-color:var(--red)}
@@ -1732,6 +1803,26 @@ body.tvfull #btnReport,body.tvmode #btnReport{display:none}
 .gx-sub{margin:-6px 0 12px}
 @media(max-width:560px){ .gx-form{grid-template-columns:1fr} }
 </style>
+<script>
+/* TEMA — carimbado ANTES do primeiro pixel.
+   Se isto rodasse junto com o resto do JS (no fim do arquivo), quem escolheu
+   escuro veria a tela CLARA piscar a cada carregamento: o navegador pinta com
+   o CSS que já tem, e só depois o script trocaria o atributo. Um flash branco
+   num painel operacional usado no escuro é pior que não ter o tema.
+
+   TRÊS ESTADOS: 'claro' e 'escuro' carimbam `data-theme`; 'sistema' — o padrão
+   — NÃO carimba nada e deixa o `prefers-color-scheme` decidir. Guardar
+   "sistema" como se fosse uma cor congelaria a escolha do dia em que a pessoa
+   configurou. */
+(function(){
+  try{
+    var t = localStorage.getItem('cortex-tema');
+    if(t === 'claro' || t === 'escuro')
+      document.documentElement.setAttribute('data-theme',
+        t === 'escuro' ? 'dark' : 'light');
+  }catch(e){ /* navegador com storage bloqueado: fica no tema do sistema */ }
+})();
+</script>
 </head>
 <body>
 <div id="loginOverlay">
@@ -1916,6 +2007,8 @@ body.tvfull #btnReport,body.tvmode #btnReport{display:none}
         <h1 id="viewTitle">Fluxo de Caixa e Bancos</h1>
         <div class="emp" id="empNome">—</div>
       </div>
+      <button id="btnTema" onclick="temaAlternar()" title="Alternar tema"
+              aria-label="Alternar entre tema claro e escuro"><span class="ic" id="btnTemaIc"></span></button>
       <button id="btnFav" onclick="favAlternar()" hidden
               aria-pressed="false" title="Favoritar esta tela"
               aria-label="Favoritar esta tela"><span class="ic" data-ic="estrela"></span></button>
@@ -5353,6 +5446,8 @@ const ICONS = {
   dre:  IC('<path d="M3 3v18h18"/><path d="M7 9V6h4v6h4v5h4"/>'),
   sup:  IC('<circle cx="9" cy="20" r="1.6"/><circle cx="17" cy="20" r="1.6"/><path d="M3 4h2l2.5 11h10L20 8H7"/>'),
   oc:   IC('<rect x="5" y="3" width="14" height="18" rx="2"/><path d="M9 3v3h6V3M9 11h6M9 15h4"/>'),
+  sol: IC('<circle cx="12" cy="12" r="4.2"/><path d="M12 2v2.6M12 19.4V22M2 12h2.6M19.4 12H22M4.9 4.9l1.9 1.9M17.2 17.2l1.9 1.9M19.1 4.9l-1.9 1.9M6.8 17.2l-1.9 1.9" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>'),
+  lua: IC('<path d="M20 14.5A8.5 8.5 0 0 1 9.5 4a8.5 8.5 0 1 0 10.5 10.5z"/>'),
   estrela: IC('<path d="M12 2.5l2.9 6 6.6.9-4.8 4.6 1.2 6.5L12 17.4 6.1 20.5l1.2-6.5L2.5 9.4l6.6-.9z"/>'),
   kmv:  IC('<path d="M12 2a10 10 0 1 0 10 10"/><path d="M12 6v6l4 2"/><path d="M16 3.5 22 2l-1.5 6"/>'),
   mvb:  IC('<path d="M12 3v18M8 21h8M2 7h20"/><path d="M5 7l-3 6a3.5 3.5 0 0 0 6 0zM19 7l-3 6a3.5 3.5 0 0 0 6 0z"/>'),
@@ -6110,6 +6205,78 @@ function navRegistraUso(v){
     localStorage.setItem('cs.navUso', JSON.stringify(u));
   }catch(e){}
 }
+/* ===================== TEMA CLARO / ESCURO =====================
+   TRÊS ESTADOS e não dois: 'sistema' (o padrão) NÃO carimba nada e segue o
+   `prefers-color-scheme`; 'claro' e 'escuro' carimbam `data-theme` e vencem o
+   sistema nos dois sentidos. Guardar "sistema" como se fosse uma cor
+   congelaria a escolha do dia em que a pessoa configurou -- quem trabalha com
+   o sistema em automático espera que o painel acompanhe.
+
+   O carimbo inicial é feito por um script no `<head>`, ANTES do primeiro
+   pixel: aqui, no fim do arquivo, a tela clara já teria piscado.
+
+   O ciclo do botão é sistema -> claro -> escuro -> sistema. Três cliques
+   voltam ao começo, e o título diz em que estado se está -- sem isso "seguir o
+   sistema" seria um estado invisível, indistinguível daquele que por acaso
+   coincide com ele agora. */
+const TEMAS = ['sistema', 'claro', 'escuro'];
+
+function temaGuardado(){
+  try{
+    const t = localStorage.getItem('cortex-tema');
+    return TEMAS.includes(t) ? t : 'sistema';
+  }catch(e){ return 'sistema'; }
+}
+
+function temaEfetivo(){
+  const t = temaGuardado();
+  if(t !== 'sistema') return t;
+  return (window.matchMedia && matchMedia('(prefers-color-scheme: dark)').matches)
+    ? 'escuro' : 'claro';
+}
+
+function temaAplicar(t){
+  const raiz = document.documentElement;
+  if(t === 'sistema') raiz.removeAttribute('data-theme');
+  else raiz.setAttribute('data-theme', t === 'escuro' ? 'dark' : 'light');
+  try{ localStorage.setItem('cortex-tema', t); }catch(e){}
+  temaPintarBotao();
+  /* A PALETA DOS GRÁFICOS NÃO SE ATUALIZA SOZINHA. `CC` leu os tokens uma vez
+     e o ECharts copiou as cores para dentro da `option` no desenho. Sem estas
+     duas linhas, o painel troca de tema e os gráficos ficam com a paleta
+     anterior -- barra navy escura sobre card escuro. */
+  ccAtualizar();
+  echartsRepintar();
+}
+
+function temaPintarBotao(){
+  const bt = document.getElementById('btnTema');
+  const ic = document.getElementById('btnTemaIc');
+  if(!bt || !ic) return;
+  const escolhido = temaGuardado(), agora = temaEfetivo();
+  ic.innerHTML = (agora === 'escuro' ? ICONS['lua'] : ICONS['sol']);
+  const comoEsta = escolhido === 'sistema'
+    ? 'seguindo o sistema (' + agora + ')' : 'fixo em ' + escolhido;
+  const proximo = TEMAS[(TEMAS.indexOf(escolhido) + 1) % TEMAS.length];
+  bt.title = 'Tema: ' + comoEsta + ' — clique para ' + proximo;
+  bt.setAttribute('aria-label', bt.title);
+}
+
+function temaAlternar(){
+  const i = TEMAS.indexOf(temaGuardado());
+  temaAplicar(TEMAS[(i + 1) % TEMAS.length]);
+}
+
+/* Quem está em 'sistema' acompanha a troca do sistema operacional AO VIVO --
+   é para isso que 'sistema' existe. Quem fixou não é incomodado. */
+if(window.matchMedia){
+  try{
+    matchMedia('(prefers-color-scheme: dark)').addEventListener('change', () => {
+      if(temaGuardado() === 'sistema') temaAplicar('sistema');
+    });
+  }catch(e){ /* Safari antigo: sem addEventListener no MediaQueryList */ }
+}
+
 /* ===================== FAVORITOS =====================
    Convive com "Suas mais usadas", e a diferenca entre os dois e o ponto:
    aquela e DERIVADA de comportamento (ninguem escolhe, ela se forma sozinha);
@@ -8886,8 +9053,17 @@ function ecDesenhar(elId, montar, vazio){
   const el = document.getElementById(elId); if(!el) return;
   if(!montar){
     el.innerHTML = '<div class="gx-vazio">' + esc(vazio || 'sem dados no período') + '</div>';
+    _ecMontar.delete(elId);
     return;
   }
+  /* O `montar` fica GUARDADO porque a troca de tema precisa dele. As cores do
+     gráfico saem de `CC`, que lê os tokens do CSS — mas o ECharts as copiou
+     para dentro da `option` no momento do desenho, e não relê nada sozinho.
+     Sem isto, alternar para o escuro deixaria os gráficos com a paleta clara:
+     barra navy escura sobre card escuro, eixo cinza-claro sobre fundo escuro.
+     Guardar a função é o que permite refazer a `option` com a paleta nova sem
+     recarregar a tela nem repetir a consulta. */
+  _ecMontar.set(elId, montar);
   carregarECharts().then(ec => {
     /* LIMPA ANTES DE INICIAR. Uma tela que renderizou vazia e depois recebeu
        dado guardava o "sem dados" como filho do contêiner, e o ECharts
@@ -16284,12 +16460,32 @@ const _cssv = (n,f) => (getComputedStyle(document.documentElement).getPropertyVa
 // semáforo e neutros também DERIVAM dos tokens (eram literais em paralelo aos
 // var(--...) do CSS — mesma cor hoje, mas duas fontes-da-verdade divergem)
 const CC = { verde:_cssv('--green','#1E7F4F'), vermelho:_cssv('--red','#C03221'), amarelo:_cssv('--yellow','#B97709'),
-  ouro:_cssv('--brand','#FFD31C'), azul:'#2563EB', roxo:'#7C3AED', ink:'#1E1E1E',
+  ouro:_cssv('--brand','#FFD31C'), azul:'#2563EB', roxo:'#7C3AED',
+  /* `ink` era o literal #1E1E1E — texto quase preto, que no tema escuro
+     ficaria invisível sobre o card. Deriva do token como o resto. */
+  ink:_cssv('--n900','#14181D'),
   n300:_cssv('--n300','#C2C8D0'), n400:_cssv('--n400','#9AA3AE'), n500:_cssv('--n500','#6B7580'),
   n600:_cssv('--n600','#4F5860'), n700:_cssv('--n700','#39414A'), n900:_cssv('--n900','#14181D'),
   grid:_cssv('--n100','#ECEEF1'),
   navy700:_cssv('--navy-700','#17344F'), navy500:_cssv('--navy-500','#38648D'), navy400:_cssv('--navy-400','#5F87AC'), navy100:_cssv('--navy-100','#DCE6F0'),
-  laranja:_cssv('--orange-500','#E85D10') };  // accent visível no branco (o 'ouro' #FFD31C é invisível em gráfico claro — não usar)
+  laranja:_cssv('--orange-500','#E85D10') };
+/* CC é `const` e MUTÁVEL de propósito: dezenas de lugares guardam a referência
+   ao objeto, então trocar o objeto quebraria todos eles. Na troca de tema os
+   VALORES são reescritos no mesmo objeto. */
+function ccAtualizar(){
+  Object.assign(CC, {
+    verde:_cssv('--green','#1E7F4F'), vermelho:_cssv('--red','#C03221'),
+    amarelo:_cssv('--yellow','#B97709'), ouro:_cssv('--brand','#FFD31C'),
+    ink:_cssv('--n900','#14181D'),
+    n300:_cssv('--n300','#C2C8D0'), n400:_cssv('--n400','#9AA3AE'),
+    n500:_cssv('--n500','#6B7580'), n600:_cssv('--n600','#4F5860'),
+    n700:_cssv('--n700','#39414A'), n900:_cssv('--n900','#14181D'),
+    grid:_cssv('--n100','#ECEEF1'),
+    navy700:_cssv('--navy-700','#17344F'), navy500:_cssv('--navy-500','#38648D'),
+    navy400:_cssv('--navy-400','#5F87AC'), navy100:_cssv('--navy-100','#DCE6F0'),
+    laranja:_cssv('--orange-500','#E85D10'),
+  });
+}  // accent visível no branco (o 'ouro' #FFD31C é invisível em gráfico claro — não usar)
 function _chartEl(id){ return document.getElementById(id); }
 function _trunc(s,n){ s=String(s); return s.length>n? s.slice(0,n-1)+'…' : s; }
 // moeda compacta p/ eixos e barras: 1.250.000 -> "1,3 mi"
@@ -16912,6 +17108,24 @@ const _echartsOlho = (typeof ResizeObserver === 'function')
       }
     }))
   : null;
+/* elId -> a função que monta a `option`. Ver o comentário em `ecDesenhar`. */
+const _ecMontar = new Map();
+
+/* Refaz TODOS os gráficos vivos com a paleta atual. Chamado só na troca de
+   tema: é caro (remonta a option de cada um), e caro uma vez por clique é
+   diferente de caro a cada render. Gráfico que chamou `init` na mão sem passar
+   por `ecDesenhar` não tem `montar` guardado e é apenas redimensionado — sai
+   com a paleta antiga até a tela recarregar, que é degradação aceitável e
+   visível, não um erro escondido. */
+function echartsRepintar(){
+  _echartsVivos.forEach((inst, id) => {
+    if(!inst || inst.isDisposed()) return;
+    const montar = _ecMontar.get(id);
+    if(!montar) return;
+    try{ inst.setOption(montar(), true); }catch(_){}
+  });
+}
+
 function echartsRegistrar(id, inst){
   const antigo = _echartsVivos.get(id);
   if(antigo && antigo !== inst) antigo.dispose();
@@ -19989,6 +20203,13 @@ async function pushTestar(btn){
   if(btn) btn.disabled=false;
 }
 async function boot(){
+  /* O tema já foi CARIMBADO pelo script do `<head>`, antes do primeiro pixel.
+     Aqui só se pinta o botão — ele precisa do `ICONS`, que só existe neste
+     script. E `ccAtualizar()` porque `CC` foi montado com os tokens da paleta
+     que estiver valendo: sem isto, abrir a página já no escuro daria gráficos
+     com a paleta clara logo no primeiro desenho. */
+  ccAtualizar();
+  temaPintarBotao();
   if('serviceWorker' in navigator){ navigator.serviceWorker.register('/sw.js').catch(()=>{}); }
   let r=null;
   try{ r=await _fetch0('/api/auth/me',{cache:'no-store'}); }

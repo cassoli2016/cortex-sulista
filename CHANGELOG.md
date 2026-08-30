@@ -4,6 +4,16 @@ Gerado de `docs/versoes.yaml` por `scripts/gerar_changelog.py` — não editar �
 Formato [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/),
 versionamento [SemVer](https://semver.org/lang/pt-BR/).
 
+## [0.156.0] — 30/08/2026  ·  CX-30/08/2026-v0.156.0
+
+### Adicionado
+- O painel passou a ter tema claro e escuro, com um botão na barra de topo. São três estados: seguir o sistema (o padrão), fixo em claro e fixo em escuro. A escolha fica guardada e vale nas próximas aberturas.
+- Os gráficos acompanham o tema na hora da troca, sem recarregar a tela.
+
+### Corrigido
+- Textos secundários, o chip de tendência e os avisos ficavam pouco abaixo do contraste mínimo de leitura em cards com fundo levemente cinza — o cinza do sistema estava calibrado só para fundo branco puro.
+- Cinco lugares usavam uma cor de texto que nunca existiu de verdade e caía num valor fixo escuro; no tema escuro eles ficariam ilegíveis.
+
 ## [0.155.0] — 30/08/2026  ·  CX-30/08/2026-v0.155.0
 
 ### Adicionado
