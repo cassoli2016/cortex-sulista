@@ -92,6 +92,54 @@ class JSONResponse(_JSONResponseBase):
 
 log = logging.getLogger("cortex.financeiro")
 
+# LOG EM ARQUIVO, e nao so no stdout do uvicorn. A API roda por TAREFA
+# AGENDADA do Windows: o stdout dela nao vai para lugar nenhum, entao todo
+# `log.warning` que este arquivo escreve ha meses estava sendo escrito no
+# vazio. Foi por isso que a Premiacao ficou dois dias em 500 sem que houvesse
+# onde olhar -- e por isso o diagnostico virou tentativa e erro.
+#
+# Rotaciona em 5 MB e guarda 3: log que enche disco derruba o servidor
+# inteiro, e ai o remedio virou a doenca (mesma regra da retencao do backup).
+def _ligar_log_em_arquivo() -> None:
+    from logging.handlers import RotatingFileHandler
+
+    class _Rotativo(RotatingFileHandler):
+        """Cala no ENCERRAMENTO do interpretador.
+
+        O `__del__` do pool do psycopg registra um aviso quando o processo
+        morre, e nesse ponto o modulo `logging.handlers` ja foi desmontado --
+        o `emit` estoura com `AttributeError: 'NoneType' object has no
+        attribute 'FileHandler'` e imprime um traceback assustador que nao e
+        defeito nenhum. Ruido no encerramento treina a ignorar a saida, que e
+        o oposto do que este log existe para fazer.
+        """
+
+        def handleError(self, record):
+            """O `emit` do logging JA engole a excecao -- e imprime o traceback
+            por conta propria, aqui. Sobrescrever o `emit` nao adianta: e este
+            metodo que faz o barulho."""
+            pass
+
+    raiz = logging.getLogger()
+    alvo = Path(__file__).resolve().parent.parent / "logs" / "api.log"
+    if any(getattr(h, "baseFilename", "") == str(alvo)
+           for h in raiz.handlers):
+        return                      # ja ligado (recarga de modulo em teste)
+    try:
+        alvo.parent.mkdir(parents=True, exist_ok=True)
+        h = _Rotativo(alvo, maxBytes=5 * 1024 * 1024,
+                      backupCount=3, encoding="utf-8")
+        h.setFormatter(logging.Formatter(
+            "%(asctime)s %(levelname)s %(name)s %(message)s"))
+        raiz.addHandler(h)
+        if raiz.level > logging.INFO or raiz.level == logging.NOTSET:
+            raiz.setLevel(logging.INFO)
+    except Exception:  # noqa: BLE001 - log e apoio: nao pode impedir a API de subir
+        pass
+
+
+_ligar_log_em_arquivo()
+
 
 # Recusa NÃO é erro de servidor — e a diferença é visível para o usuário.
 #
@@ -166,6 +214,43 @@ ROTULO = _rotulo()
 # docs/openapi desligados: o painel é exposto na internet via Cloudflare Tunnel
 app = FastAPI(title="Cortex Sulista — Financeiro (MVP)",
               docs_url=None, redoc_url=None, openapi_url=None)
+
+
+@app.exception_handler(Exception)
+async def _erro_nao_tratado(request: Request, exc: Exception) -> JSONResponse:
+    """Exceção que escapou de tudo: REGISTRA o traceback e devolve JSON.
+
+    POR QUE ISTO EXISTE (30/08/2026, Premiação em 500 por quase dois dias)
+    =====================================================================
+    Sem este handler, exceção não tratada vira o `Internal Server Error` do
+    Starlette: **500 em `text/plain`**, sem corpo útil, e o traceback fica só
+    na saída do uvicorn — que aqui roda por tarefa agendada, sem log em
+    arquivo. Ou seja: o usuário vê "resposta em formato inesperado", e não há
+    onde olhar.
+
+    Foi exatamente o que aconteceu. Passei três rodadas testando rota por rota
+    para descobrir QUAL falhava, porque a tela não dizia e o servidor não
+    registrava. O `Decimal` que eu achei era real, mas o erro continuou depois
+    de corrigido — e eu não tinha como saber por quê.
+
+    O que muda:
+    - o traceback COMPLETO vai para o log, com o caminho pedido;
+    - a tela recebe JSON, então `respostaJSON()` consegue ler e mostrar algo
+      melhor que "formato inesperado";
+    - o `tipo` da exceção vai na resposta, e ele basta para saber onde olhar.
+      **`str(exc)` NÃO vai** — a lição da Z-API: mensagem de exceção carrega
+      credencial (lá era a URL inteira), e esta resposta vai para o navegador.
+    """
+    import traceback
+    log.error("erro nao tratado em %s %s" + chr(10) + "%s",
+              request.method, request.url.path,
+              traceback.format_exc())
+    return JSONResponse(status_code=500, content={
+        "erro": "erro_interno",
+        "tipo": type(exc).__name__,
+        "caminho": request.url.path,
+        "mensagem": ("Erro interno ao montar esta resposta. O detalhe foi "
+                     "registrado no log do servidor.")})
 class SecurityHeadersMiddleware:
     """ASGI puro — MESMO motivo do AuthMiddleware: @app.middleware("http")
     (Starlette BaseHTTPMiddleware) bufferiza a resposta e quebraria o SSE

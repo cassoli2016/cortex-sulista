@@ -1,3 +1,27 @@
+- versao: "0.151.1"
+  data: "2026-08-30"
+  corrigido:
+    - >-
+      O SERVIDOR VOLTOU A REGISTRAR SEUS PROPRIOS ERROS. A API roda como tarefa
+      agendada do Windows, cuja saida nao vai para lugar nenhum -- entao todo
+      aviso de erro que o codigo escrevia ha meses estava sendo jogado fora.
+      Quando a tela de Premiacao comecou a falhar, nao havia onde olhar: o
+      diagnostico virou tentativa e erro, rota por rota, por dois dias. Agora
+      tudo vai para logs/api.log, com rotacao para nao encher o disco.
+    - >-
+      Erro inesperado deixa de chegar a tela como "resposta em formato
+      inesperado". Antes, uma falha que escapasse do tratamento da rota virava
+      uma resposta crua que a tela nao conseguia ler, e o aviso vermelho nao
+      dizia nada sobre o que aconteceu. Agora a resposta identifica o tipo do
+      erro e o endereco que falhou, e o detalhe completo fica no log do
+      servidor.
+    - >-
+      A mensagem interna do erro NAO vai para a tela, de proposito: mensagem de
+      excecao costuma carregar credencial -- foi assim com a Z-API, cuja URL de
+      erro continha o token inteiro -- e essa resposta vai para o navegador,
+      para o log do proxy e para qualquer print de tela. O tipo do erro basta
+      para saber onde procurar.
+
 - versao: "0.151.0"
   data: "2026-08-30"
   adicionado:
