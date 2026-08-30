@@ -15,12 +15,14 @@ O QUE SOBROU, E POR QUÊ
 =======================
 - **A tabela** lista só o que está VIVO — hoje `telemetria.db`, que fica fora
   do PostgreSQL de propósito por ser cache reconstruível.
-- **Uma linha de resumo** para os arquivos da migração, com os três números
-  que sustentam a decisão de apagá-los: quantos, quanto ocupam, desde quando
-  estão parados. Ela some sozinha quando o último for apagado.
-- **E essa linha é um SENSOR**, que é o que a tira de "informação morta":
-  fica âmbar se um arquivo migrado voltar a ser escrito, ou se aparecer um
-  `.db` que ninguém declarou.
+- **A linha de resumo dos arquivos da migração SUMIU da tela em 30/08/2026**,
+  quando eles foram arquivados em `data/arquivo/` — a restauração do backup
+  passou a ser o caminho de volta, testada de verdade. Ela some sozinha porque
+  a varredura é da PASTA: zero arquivos, zero linha.
+- **Mas o código não virou resíduo, e é o ponto destes testes.** Ele continua
+  sendo o sensor de duas coisas vivas: um `.db` que VOLTE para `data/` (o
+  rollback, que reaparece na hora e como conhecido, não como alarme) e um
+  `.db` que ninguém declarou (módulo novo escrevendo em SQLite contra a regra).
 """
 from __future__ import annotations
 
@@ -107,15 +109,21 @@ def test_sem_arquivo_nenhum_o_resumo_SOME(dados):
     assert sv._migradas() is None
 
 
-def test_o_resumo_conta_e_soma_os_arquivos_da_migracao(dados):
+def test_arquivo_migrado_DE_VOLTA_em_data_reaparece_no_cartao(dados):
+    """O caminho de rollback, e é por isso que a lista MIGRADAS não virou
+    resíduo depois do arquivamento de 30/08/2026.
+
+    Devolver um `.db` para `data/` o faz reaparecer na hora — a varredura é da
+    PASTA, não de uma lista fixa. E ele volta como conhecido (`info`), não
+    como banco não declarado: uma volta deliberada não é alarme.
+    """
     antes = sv.LIMITE_MIGRACAO - timedelta(days=1)
     for nome in ("auth.db", "orcamento.db", "push.db"):
         _cria(dados, nome, antes)
     m = sv._migradas()
     assert m["arquivos"] == 3 and m["bytes"] > 0
     assert m["status"] == "info"
-    # os tres numeros que sustentam a decisao de apagar
-    assert "27/08/2026" in m["detalhe"] and "desfazer" in m["detalhe"]
+    assert "27/08/2026" in m["detalhe"] and "volta" in m["detalhe"]
 
 
 def test_o_cache_VIVO_nao_entra_no_resumo(dados):

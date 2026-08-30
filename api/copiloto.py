@@ -95,6 +95,8 @@ _FONTES_ROTULO = {
     "antt_piso": "ANTT — Piso Mínimo de Frete",
     "antt_rntrc": "ANTT — RNTRC dos Transportadores",
     "telemetria_consumo": "Telemetria — Consumo e Estatísticas",
+    "telemetria_conducao": "Telemetria — Indicadores de Condução",
+    "telemetria_comunicacao": "Telemetria — Veículo sem comunicar",
     "premiacao": "Premiação de Motoristas",
     "dre_fechamento": "Fechamento do Mês",
     "pneus": "Pneus",
@@ -223,6 +225,25 @@ def _fontes_do_snapshot() -> dict:
         from api.gobrax.consumo import get_consumo
         return get_consumo(mes_passado)   # o mês corrente pode não ter coleta
 
+    def _conducao():
+        # SO O RESUMO da frota, nunca a lista de veiculos: o snapshot leva
+        # KPI escalar, e placa e nome de motorista sao PII que nao sai daqui.
+        from api.gobrax.performance import resumo_frota
+        r = resumo_frota(mes_passado)
+        return {"competencia": r["competencia"], "veiculos": r["veiculos"],
+                "indicadores": [{"rotulo": i["rotulo"], "mediana": i["mediana"],
+                                 "p25": i["p25"], "p75": i["p75"]}
+                                for i in r["indicadores"]]}
+
+    def _comunicacao():
+        # CONTAGENS, nao placas: quantos estao calados e contra que universo.
+        from api.gobrax import comunicacao as com
+        e = com.estado()
+        return {"universo": e["universo"], "em_dia": e["em_dia"],
+                "limite_h": e["limite_h"], "a_olhar": e["a_olhar"],
+                "atrasados": len(e["atrasados"]),
+                "sem_posicao": len(e["sem_posicao"])}
+
     def _premiacao():
         from api.premiacao import servico as prem
         return prem.obter(mes_passado)    # SEM force: nao chamar a Gobrax aqui
@@ -308,6 +329,8 @@ def _fontes_do_snapshot() -> dict:
         "antt_piso": _antt_piso,
         "antt_rntrc": _antt_rntrc,
         "telemetria_consumo": _telemetria,
+        "telemetria_conducao": _conducao,
+        "telemetria_comunicacao": _comunicacao,
         "premiacao": _premiacao,
         "dre_fechamento": _fechamento,
         "pneus": _pneus,

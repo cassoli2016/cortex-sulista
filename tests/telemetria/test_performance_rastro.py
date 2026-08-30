@@ -43,12 +43,14 @@ def test_performance_exige_placa():
         performance.coletar("", "2026-07", cliente=ClienteFalso(RESP_PERF))
 
 
-def test_performance_traz_os_tres_indicadores_com_rotulo():
+def test_performance_devolve_SO_os_indicadores_que_vieram():
+    """Devolver os 14 do catálogo com valor nulo inventaria medida que a API
+    não fez — e a tela desenharia linha vazia como se fosse desempenho zero."""
     d = performance.coletar("ABC-1234", "2026-07", cliente=ClienteFalso(RESP_PERF))
     rotulos = {i["rotulo"] for i in d["indicadores"]}
     assert rotulos == {"Faixa econômica", "Piloto automático", "Eco-roll (embalo)"}
     eco = [i for i in d["indicadores"] if i["chave"] == "economicRange"][0]
-    assert eco["percentual"] == 36.92 and eco["nota"] == 1
+    assert eco["percentual"] == 36.92 and eco["nota_fornecedor"] == 1
 
 
 def test_performance_traz_o_motorista_sem_o_cpf():

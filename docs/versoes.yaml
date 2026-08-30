@@ -1,3 +1,83 @@
+- versao: "0.149.0"
+  data: "2026-08-30"
+  adicionado:
+    - >-
+      OS 14 INDICADORES DE CONDUCAO DA GOBRAX, e nao mais tres. A resposta do
+      fornecedor sempre trouxe catorze e o CORTEX lia so faixa economica,
+      piloto automatico e eco-roll - os outros onze eram descartados em
+      silencio, inclusive MOTOR LIGADO PARADO e FAIXA VERDE. Nao ha chamada
+      nova: e a mesma requisicao, lendo a resposta inteira. Entram tambem
+      excesso de velocidade, pressao de pedal em tres faixas, freio motor,
+      aproveitamento de embalo, tempo em movimento e as faixas extra-economica
+      e de potencia.
+    - >-
+      Cartao novo na Conducao Economica: O QUE SEPARA OS MOTORISTAS. Para cada
+      indicador, a barra mostra onde esta a metade central da frota e o traco
+      mostra a mediana, ordenados por quanto o indicador DISTINGUE um motorista
+      de outro. Barra larga separa; barra curta descreve a frota e nao serve
+      para premiar. Medido nas 98 placas de agosto: pressao de pedal baixa abre
+      29,7 pontos e piloto automatico abre 0,2 - praticamente ninguem usa
+      piloto automatico na frota, que e um achado operacional em si.
+    - >-
+      Tabela por veiculo com os quatro indicadores que mais separam, com a cor
+      comparando cada um contra a MEDIANA da frota na mesma competencia. Em
+      motor ligado parado, excesso de velocidade e pedal pesado, MENOS e
+      melhor, e a cor ja leva isso em conta.
+    - >-
+      VEICULO SEM COMUNICAR, na tela de Consumo. Lista quem parou de mandar
+      dado para a Gobrax, com limite escolhivel de 12 horas a 7 dias. O
+      denominador contem SO quem tem equipamento - veiculo que nao pode cumprir
+      a regra nao entra na conta, que foi o erro que fez a Comunicacao
+      Rastreadora anunciar 664 de 836 sem sinal quando 79% daquilo era
+      cadastro. Estado real na estreia: 100 veiculos com equipamento, 95
+      comunicando, 5 a olhar.
+    - >-
+      REGUA DE CONDUCAO NA PREMIACAO, com quatro parametros por competencia.
+      Motor ligado parado GRADUA (nota cheia ate 10%, zero a partir de 25%,
+      linear no meio) porque a frota se espalha de verdade nesse indicador. Ja
+      faixa verde EXCEPCIONA em vez de graduar: metade da frota esta entre
+      93,8% e 98,8%, cinco pontos, e graduar ali daria a mesma nota para todo
+      mundo - entao ela so desconta abaixo de um piso. Na frota de agosto a
+      regua devolve 28,6% dos veiculos com nota cheia e mediana 82.
+    - >-
+      TESTE DE RESTAURACAO DO BACKUP, repetivel por um comando. Ate agora o
+      backup era uma suposicao: o arquivo existia e passava na conferencia de
+      integridade, o que so prova que ele nao esta corrompido. Agora ele e
+      restaurado num banco vazio de verdade e o sistema sobe em cima dele - as
+      48 tabelas voltam, o migrador confirma que o schema restaurado e o que o
+      codigo espera, a API sobe apontada para ele e os modulos leem pelos
+      caminhos normais. Passou na primeira execucao, em 30/08/2026, com o dump
+      de 3,6 MB e 150.657 linhas. Isso fecha um dos tres criterios declarados
+      para a versao 1.0 e libera a exclusao dos nove arquivos SQLite que
+      estavam guardados como desfazer da migracao.
+  alterado:
+    - >-
+      A nota que a Gobrax manda para cada indicador passou a ser mostrada como
+      CONFERENCIA, e nao como a regua que paga. Motivo medido: seis dos catorze
+      indicadores vieram com nota zero em TODOS os 98 veiculos. Uma nota que
+      zera a frota inteira nao separa ninguem e nao teria como ser explicada a
+      um motorista que perguntasse por que perdeu o premio. A tela avisa
+      quando isso acontece, senao parece que a frota foi mal.
+    - >-
+      A varredura dos indicadores roda uma vez por dia dentro da tarefa de
+      telemetria que ja existia, sem instalador novo. O modulo dizia que cada
+      consulta levava 17 segundos e que varrer a frota passaria de 20 minutos;
+      medido agora, sao 0,79 segundo por veiculo e 90 segundos a frota inteira.
+      Era essa premissa errada que impedia a coleta em lote.
+    - >-
+      OS NOVE ARQUIVOS SQLITE DA MIGRACAO SAIRAM DA SAUDE DO SERVIDOR, porque
+      sairam da pasta: foram arquivados em data/arquivo/, com um LEIA-ME
+      explicando o que sao e como devolve-los. Eles existiam como desfazer da
+      migracao de 27/08, e o gatilho para arquiva-los era a restauracao do
+      backup passar - o que aconteceu nesta mesma versao. A linha some da tela
+      sozinha porque a varredura e da PASTA, e VOLTA sozinha se algum arquivo
+      for devolvido, o que mantem o caminho de rollback visivel.
+    - >-
+      Na Saude do Servidor, os indicadores de conducao aparecem com prazo
+      proprio. Eles sao coletados uma vez ao dia e as outras coletas de tres em
+      tres horas: cobrar todos pelo mesmo relogio acenderia o alarme todo dia
+      com tudo funcionando.
+
 - versao: "0.148.0"
   data: "2026-08-30"
   adicionado:

@@ -315,9 +315,15 @@ def main() -> int:
               f"{', '.join(sobrando)}")
 
     print("4. schema em dia (o migrador olhando o restaurado)…")
+    # CASAR SUBSTRING EM PROSA É FRÁGIL, e esta linha já deu falso positivo:
+    # procurava "pendente" e casava com "nada pendente (versão 22)". O migrador
+    # imprime uma linha POR migration faltando, cada uma começando com
+    # "pendente NNNN — arquivo.sql" — é o começo da linha que decide, não a
+    # presença da palavra. Alarme que acende sem haver problema, no script que
+    # existe justamente para dizer se há problema.
     for l in migrations_pendentes(cfg, args.alvo):
         print(f"   {l}")
-        if "pendente" in l.lower() and "nenhuma" not in l.lower():
+        if l.startswith("pendente "):
             falhas.append(f"migration pendente no restaurado: {l}")
 
     print("5. volume por tabela…")

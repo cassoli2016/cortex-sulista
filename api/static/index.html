@@ -2469,10 +2469,54 @@ body.tvfull #btnReport,body.tvmode #btnReport{display:none}
             <th>Placa</th><th class="num">Km telemetria</th><th class="num">Km/l telemetria</th><th class="num">Km/l abastecimento</th><th class="num">Diferença</th><th class="num">Cobertura</th><th class="num">Freadas</th><th>Situação</th>
           </tr></thead><tbody id="telcon-lista"></tbody></table></div>
         </div>
+        <div class="card">
+          <div class="head">
+            <h2>Veículo sem comunicar <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="Última posição de cada veículo em Gobrax /api/v2/positions, comparada com o limite de horas. O DENOMINADOR contém só quem a Gobrax conhece na competência, isto é, quem tem equipamento — veículo que não pode cumprir a regra não entra na conta. ATENÇÃO a um limite da fonte: a API devolve as últimas 20 posições de cada veículo e ignora a janela pedida, então de quem não aparece só se sabe que está calado há mais tempo do que essas 20 posições cobrem; esse caso sai à parte, e não como um número grande de horas que a fonte não afirmou.">i</span></h2>
+            <span class="hint" id="telconComHint"></span>
+          </div>
+          <div style="padding:0 14px 10px;display:flex;gap:10px;align-items:flex-end;flex-wrap:wrap">
+            <label style="font-size:11px;color:var(--n500);display:flex;flex-direction:column;gap:2px">Limite
+              <select id="fTelconComLim" onchange="loadTelconComunicacao()" style="width:150px">
+                <option value="12">12 horas</option>
+                <option value="24" selected>24 horas</option>
+                <option value="48">48 horas</option>
+                <option value="72">3 dias</option>
+                <option value="168">7 dias</option>
+              </select></label>
+          </div>
+          <div class="kpis k4" id="kpis-telconcom"></div>
+          <div class="tablewrap tabroll"><table><thead><tr>
+            <th>Placa</th><th>Situação</th><th class="num">Sem comunicar há</th><th class="num">Última posição</th>
+          </tr></thead><tbody id="telconcom-tab"></tbody></table></div>
+          <div id="telconComAviso" style="padding:0 16px 14px"></div>
+        </div>
       </section>
 
       <!-- ===================== CONDUÇÃO ECONÔMICA ===================== -->
       <section class="view" id="view-telcond">
+        <div class="kpis k4" id="kpis-telcondfrota"></div>
+        <div class="card">
+          <div class="head">
+            <h2>O que separa os motoristas <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="Gobrax vehicle-performance, os 14 indicadores, lidos do cache local — a varredura roda uma vez ao dia porque a API exige uma chamada por placa. A barra é o intervalo entre o 1º e o 3º quartil da frota (a metade central) e o traço é a mediana. Indicador ordenado por AMPLITUDE: quanto mais larga a barra, mais aquele indicador distingue um motorista de outro. Barra curta significa que quase todo mundo está no mesmo lugar — o indicador descreve a frota, mas não serve para premiar.">i</span></h2>
+            <span class="hint" id="telcondFrotaHint"></span>
+          </div>
+          <div class="chartwrap"><div id="chartTelcondDist" style="width:100%;height:400px" role="img" aria-label="Dispersão de cada indicador na frota"></div></div>
+          <div id="telcondFrotaAviso" style="padding:0 16px 14px"></div>
+        </div>
+        <div class="card">
+          <div class="head">
+            <h2>Indicadores por veículo <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="Uma linha por veículo, com os quatro indicadores que mais distinguem motoristas na frota. A cor compara o veículo com a MEDIANA da frota na mesma competência: verde é melhor que a mediana, vermelho é pior. Em motor ligado parado, excesso de velocidade e pedal pesado, MENOS é melhor — a cor já leva isso em conta. Clique na placa para abrir os 14 indicadores dela.">i</span></h2>
+            <span class="hint" id="telcondTabHint"></span>
+          </div>
+          <div class="tablewrap tabroll"><table><thead><tr>
+            <th>Placa</th>
+            <th class="num">Motor ligado parado</th>
+            <th class="num">Faixa verde</th>
+            <th class="num">Excesso de velocidade</th>
+            <th class="num">Pedal pesado</th>
+            <th>Motorista no período</th>
+          </tr></thead><tbody id="telcondfrota-tab"></tbody></table></div>
+        </div>
         <div class="card">
           <div class="head">
             <h2>Condução econômica por veículo <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="Gobrax vehicle-performance, consultada ao vivo para UM veículo por vez — a API exige a placa e responde 404 sem ela. Traz faixa econômica, piloto automático e eco-roll, com duração, percentual e nota, mais os motoristas vinculados ao veículo no período. É o detalhe por trás da nota que a premiação usa.">i</span></h2>
@@ -17550,6 +17594,7 @@ function telconMesAtual(){
 }
 let telconSeq=0;
 async function loadTelcon(){
+  loadTelconComunicacao();
   skelKpis('kpis-telcon',4);
   const seq=++telconSeq;
   const btn=document.getElementById('btnRefresh'); btn.disabled=true;
@@ -17619,7 +17664,236 @@ function telcondPlacas(){
   sel.innerHTML='<option value="">Escolha a placa</option>'
     +placas.map(p=>`<option value="${esc(p)}">${esc(p)}</option>`).join('');
 }
+/* ===================== INDICADORES DA FROTA (Gobrax) =====================
+   Os 14 indicadores de `vehicle-performance`, lidos do cache. A tela NAO
+   dispara a varredura: sao 108 chamadas (uma por placa) e uma tela que manda
+   coletar e uma tela que trava quando o fornecedor demora. */
+let DATATELFROTA=null, telfrotaSeq=0, telfrotaOrd='idle';
+/* pt-BR em TODO numero: `toFixed` devolve ponto decimal, e o painel
+   inteiro usa virgula -- misturar os dois na mesma tela e o tipo de
+   desleixo que faz o leitor duvidar do resto. */
+/* `v===0?0:v` normaliza o ZERO NEGATIVO: `-0` e igual a `0` em comparacao mas
+   `toLocaleString` o imprime como "-0,0", e "motor ligado parado vai de -0,0%"
+   e um numero que nao existe. */
+const _tfNum = v => (v==null?null:(v===0?0:v));
+const _tfPct = v => (v==null?'—':_tfNum(v).toLocaleString('pt-BR',{minimumFractionDigits:1,maximumFractionDigits:1})+'%');
+const _tfPts = v => (v==null?'—':_tfNum(v).toLocaleString('pt-BR',{minimumFractionDigits:1,maximumFractionDigits:1}));
+/* Onde MENOS e melhor. Declarado ANTES de quem le, e nao depois:
+   `const` de topo lido por codigo acima dele e a armadilha de TDZ que ja
+   derrubou o painel inteiro nesta casa. */
+const TELFROTA_MENOR = new Set(['idle','speeding','pedalPressureOnHig','powerRange']);
+
+
+async function loadTelcondFrota(){
+  const el=document.getElementById('fTelcondMes');
+  if(el && !el.value){ const h=new Date(); el.value=h.toISOString().slice(0,7); }
+  const seq=++telfrotaSeq;
+  try{
+    const r=await fetch('/api/telemetria/conducao/frota?competencia='
+      +encodeURIComponent(el.value),{cache:'no-store'});
+    const rr=await respostaJSON(r);
+    if(seq!==telfrotaSeq) return;
+    if(!rr.ok){ document.getElementById('telcondFrotaHint').textContent=
+      rr.dados.mensagem||'erro ao ler'; return; }
+    DATATELFROTA=rr.dados; renderTelcondFrota(rr.dados);
+  }catch(e){ if(seq===telfrotaSeq)
+    document.getElementById('telcondFrotaHint').textContent='falha de rede'; }
+}
+
+function renderTelcondFrota(d){
+  const res=d.resumo||{}, inds=(res.indicadores||[]), veic=(d.veiculos||[]);
+  document.getElementById('telcondFrotaHint').textContent =
+    veic.length ? `${veic.length} veículo(s) · competência ${periodoLabel(d.competencia)}`
+                  + (d.coletado_em?` · coletado ${fmtDT(d.coletado_em)}`:'')
+                : 'sem coleta nesta competência — a varredura roda uma vez ao dia';
+
+  /* AMPLITUDE INTERQUARTIL, e a ordenacao por ela, e o conteudo do cartao:
+     indicador com barra larga separa motoristas, indicador com barra curta
+     descreve a frota e nao serve para premiar. Medido na frota de 108:
+     motor ligado parado vai de 9,4% a 15,9% na metade central (util) e faixa
+     verde de 93,5% a 98,8% -- cinco pontos, quase todo mundo no mesmo lugar. */
+  const ord=inds.slice().sort((a,b)=>(b.p75-b.p25)-(a.p75-a.p25));
+  const kpi4=[];
+  const acha=k=>inds.find(i=>i.chave===k);
+  const idle=acha('idle'), verde=acha('greenRange');
+  kpi4.push(kpi('Motor ligado parado', _tfPct(idle&&idle.mediana),
+    idle?`mediana da frota · vai de ${_tfPct(idle.min)} a ${_tfPct(idle.max)}`:'sem coleta',
+    idle&&idle.mediana>20?'neg':''));
+  kpi4.push(kpi('Faixa verde', _tfPct(verde&&verde.mediana),
+    verde?`mediana · metade da frota entre ${_tfPct(verde.p25)} e ${_tfPct(verde.p75)}`:'sem coleta',''));
+  const maior=ord[0], menor=ord[ord.length-1];
+  kpi4.push(kpi('Mais separa motoristas', maior?maior.rotulo:'—',
+    maior?`metade central abre ${_tfPts(maior.p75-maior.p25)} pontos`:'', ''));
+  kpi4.push(kpi('Menos separa', menor?menor.rotulo:'—',
+    menor?`abre só ${_tfPts(menor.p75-menor.p25)} pontos — descreve a frota, não premia`:'',''));
+  document.getElementById('kpis-telcondfrota').innerHTML=kpi4.join('');
+
+  /* AVISO DA NOTA ZERADA: sem ele, a nota do fornecedor em zero na frota
+     inteira passaria como desempenho ruim generalizado. */
+  const zeradas=inds.filter(i=>i.nota_zerada).map(i=>i.rotulo);
+  document.getElementById('telcondFrotaAviso').innerHTML = zeradas.length
+    ? `<div style="font-size:12px;color:var(--n600);border-left:3px solid var(--yellow);padding-left:10px">
+        <b>A nota da Gobrax vem ZERADA na frota inteira</b> em ${zeradas.length} indicador(es):
+        ${esc(zeradas.join(', '))}. Não é desempenho ruim generalizado — é régua do fornecedor
+        que não pontua esses itens. A premiação usa a régua da casa, sobre o percentual.</div>`
+    : '';
+
+  ecDesenhar('chartTelcondDist', ord.length && (() => {
+    const rot=ord.map(i=>i.rotulo);
+    const o=ecOpcoes(rot, 100, {tipo:'pct', left:150, right:24, bottom:30, sombra:true});
+    /* HORIZONTAL: sao 14 rotulos longos, e na vertical eles se sobrepoem ou
+       viram texto girado, que ninguem le. */
+    const eixoCat=o.xAxis, eixoVal=o.yAxis;
+    o.xAxis=Object.assign({}, eixoVal, {max:100, min:0});
+    o.yAxis=Object.assign({}, eixoCat, {inverse:true, name:''});
+    o.tooltip.formatter=p=>{
+      const i=ord[p[0].dataIndex];
+      return '<b>'+esc(i.rotulo)+'</b>'
+        +(i.menor_melhor?' <span style="color:#6B7580">menos é melhor</span>':'')
+        +'<br>Mediana: <b>'+_tfPct(i.mediana)+'</b>'
+        +'<br>Metade central: '+_tfPct(i.p25)+' a '+_tfPct(i.p75)
+        +'<br>Extremos: '+_tfPct(i.min)+' a '+_tfPct(i.max)
+        +'<br>Abre <b>'+_tfPts(i.p75-i.p25)+' pontos</b> — '
+        +((i.p75-i.p25)>=10?'separa bem':'separa pouco')
+        +'<br><span style="color:#6B7580">'+i.veiculos+' veículos</span>'
+        +(i.nota_zerada?'<br><span style="color:#B97709">nota do fornecedor zerada em todos</span>':'');
+    };
+    /* A barra do intervalo interquartil pela receita padrao: um piso invisivel
+       ate o p25 e a diferenca empilhada em cima. */
+    o.series=[
+      {name:'', type:'bar', stack:'iqr', silent:true, itemStyle:{opacity:0},
+       tooltip:{show:false}, data:ord.map(i=>i.p25)},
+      {name:'metade central', type:'bar', stack:'iqr', barMaxWidth:16,
+       itemStyle:{color:CC.navy500, borderRadius:[0,3,3,0]},
+       data:ord.map(i=>i.p75-i.p25)},
+      {name:'mediana', type:'scatter', symbol:'rect', symbolSize:[3,20],
+       itemStyle:{color:CC.navy700},
+       data:ord.map((i,k)=>[i.mediana,k]), tooltip:{show:false}},
+    ];
+    return o;
+  }), 'sem coleta nesta competência');
+
+  /* A TABELA mostra os quatro que mais separam, nao os 14: linha com catorze
+     numeros nao se le, e os dez restantes ficam na ficha do veiculo. */
+  const med={}; inds.forEach(i=>med[i.chave]=i.mediana);
+  const cel=(v,chave)=>{
+    if(v==null||v.pct==null) return '<td class="num">—</td>';
+    const m=med[chave]; const menor=TELFROTA_MENOR.has(chave);
+    let cor='';
+    if(m!=null){ const melhor = menor ? v.pct<m : v.pct>m;
+      cor = melhor?'color:var(--green)':'color:var(--red)'; }
+    return `<td class="num" style="font-weight:600;${cor}">`
+      +v.pct.toLocaleString('pt-BR',{maximumFractionDigits:1})+'%</td>';
+  };
+  const linhas=veic.slice().sort((a,b)=>{
+    const va=(a[telfrotaOrd]||{}).pct, vb=(b[telfrotaOrd]||{}).pct;
+    if(va==null) return 1; if(vb==null) return -1;
+    return TELFROTA_MENOR.has(telfrotaOrd) ? vb-va : va-vb;
+  });
+  document.getElementById('telcondTabHint').textContent =
+    linhas.length ? `${linhas.length} veículo(s) · ordenado por ${
+      (inds.find(i=>i.chave===telfrotaOrd)||{}).rotulo||telfrotaOrd
+    } · clique na placa para ver os 14` : '';
+  document.getElementById('telcondfrota-tab').innerHTML = linhas.map(v=>{
+    const mot=(v.motoristas||[]).map(m=>m.nome).filter(Boolean);
+    return `<tr>
+      <td><a href="#telcond" onclick="telcondAbrir(this.dataset.p);return false"
+          data-p="${esc(v.placa)}" style="font-family:var(--mono);font-weight:600">${esc(v.placa)}</a></td>
+      ${cel(v.idle,'idle')}${cel(v.greenRange,'greenRange')}
+      ${cel(v.speeding,'speeding')}${cel(v.pedalPressureOnHig,'pedalPressureOnHig')}
+      <td style="font-size:12px;color:var(--n600)" title="${esc(mot.join(' · '))}">${
+        mot.length? esc(mot[0].length>26?mot[0].slice(0,26)+'…':mot[0])
+                    +(mot.length>1?` <span style="color:var(--n500)">+${mot.length-1}</span>`:'')
+        : '<span style="color:var(--n500)">sem vínculo no período</span>'}</td>
+    </tr>`;
+  }).join('') || '<tr><td colspan="6" style="color:var(--n500)">sem coleta nesta competência</td></tr>';
+}
+
+function telcondAbrir(placa){
+  const sel=document.getElementById('fTelcondPlaca');
+  if(sel){ sel.value=placa; loadTelcond(); }
+  const c=document.getElementById('telcond-conteudo');
+  if(c) c.scrollIntoView({behavior:'smooth', block:'center'});
+}
+
+/* ===================== VEÍCULO SEM COMUNICAR ===================== */
+let DATATELCOM=null, telcomSeq=0;
+
+async function loadTelconComunicacao(){
+  const lim=(document.getElementById('fTelconComLim')||{}).value||'24';
+  const seq=++telcomSeq;
+  try{
+    const r=await fetch('/api/telemetria/comunicacao?limite='+encodeURIComponent(lim),
+                        {cache:'no-store'});
+    const rr=await respostaJSON(r);
+    if(seq!==telcomSeq) return;
+    if(!rr.ok){ document.getElementById('telconComHint').textContent=
+      rr.dados.mensagem||'erro ao apurar'; return; }
+    DATATELCOM=rr.dados; renderTelconComunicacao(rr.dados);
+  }catch(e){ if(seq===telcomSeq)
+    document.getElementById('telconComHint').textContent='falha de rede'; }
+}
+
+function renderTelconComunicacao(d){
+  const atr=d.atrasados||[], sem=d.sem_posicao||[];
+  const cob = d.universo ? (100*d.em_dia/d.universo) : null;
+  document.getElementById('telconComHint').textContent =
+    `${d.universo} veículo(s) com equipamento · medido ${fmtDT(d.medido_em)}`;
+  /* A COBERTURA e sobre quem PODE cumprir a regra. Denominador com veiculo sem
+     equipamento dentro faz o alarme parecer crise e ser cadastro -- foi o que
+     aconteceu na Comunicacao Rastreadora (664 de 836 "sem sinal", 79% cadastro). */
+  document.getElementById('kpis-telconcom').innerHTML=[
+    kpi('Comunicando', _tfPct(cob),
+        `${d.em_dia} de ${d.universo} com equipamento Gobrax`,
+        cob!=null&&cob<90?'neg':(cob!=null&&cob<98?'warn':'pos')),
+    kpi('A olhar', String(d.a_olhar),
+        `sem comunicar há mais de ${d.limite_h}h`, d.a_olhar?'neg':'pos'),
+    kpi('Atrasados', String(atr.length),
+        atr.length?`o pior está há ${Math.round(atr[0].horas)}h`:'nenhum', atr.length?'warn':''),
+    kpi('Sem posição alguma', String(sem.length),
+        'calados há mais do que a API mostra', sem.length?'neg':''),
+  ].join('');
+
+  /* SEM POSICAO PRIMEIRO: e o caso mais grave e o unico de que nao se sabe
+     "ha quanto". Enterra-lo abaixo dos atrasados o esconderia. */
+  const linhas=[
+    ...sem.map(x=>({placa:x.placa, grave:true})),
+    ...atr.map(x=>({placa:x.placa, horas:x.horas, ultima:x.ultima})),
+  ];
+  document.getElementById('telconcom-tab').innerHTML = linhas.map(x=>`<tr>
+    <td style="font-family:var(--mono);font-weight:600">${esc(x.placa)}</td>
+    <td>${x.grave
+      ? '<span class="badge b-dang">sem posição</span>'
+      : (x.horas>=72?'<span class="badge b-dang">parado</span>'
+                    :'<span class="badge b-warn">atrasado</span>')}</td>
+    <td class="num" style="font-weight:600;color:${x.grave?'var(--red)':(x.horas>=72?'var(--red)':'var(--yellow)')}">${
+      x.grave ? '—' : Math.round(x.horas)+'h'}</td>
+    <td class="num">${x.grave?'<span style="color:var(--n500)">fora da janela da API</span>'
+                             :fmtDT(x.ultima)}</td>
+  </tr>`).join('')
+    || '<tr><td colspan="4" style="color:var(--n500)">todos comunicaram dentro do limite</td></tr>';
+
+  /* O LIMITE DA FONTE, DITO. Sem isto alguem leria "sem posicao" como
+     "equipamento morto" quando pode ser so um veiculo parado ha mais tempo do
+     que as 20 ultimas posicoes cobrem. */
+  const extra=(d.fora_do_universo||[]);
+  document.getElementById('telconComAviso').innerHTML =
+    (sem.length? `<div style="font-size:12px;color:var(--n600);border-left:3px solid var(--red);padding-left:10px;margin-bottom:8px">
+      <b>${sem.length} veículo(s) sem posição nenhuma.</b> A Gobrax devolve as
+      últimas 20 posições de cada veículo e ignora a janela pedida, então destes
+      só se sabe que estão calados há mais tempo do que isso cobre — não dá para
+      dizer há quantas horas, e inventar o número seria afirmar o que a fonte
+      não disse.</div>`:'')
+    + (extra.length? `<div style="font-size:12px;color:var(--n500)">
+      ${extra.length} placa(s) com posição que a estatística do mês não conhece
+      (${esc(extra.slice(0,6).join(', '))}${extra.length>6?'…':''}) — veículo que
+      rodou sem gerar estatística na competência.</div>`:'');
+}
+
 async function loadTelcond(){
+  // a frota vem do CACHE (rapida) e o veiculo vem AO VIVO: sao dois custos
+  // diferentes, e por isso duas chamadas em vez de uma so
+  loadTelcondFrota();
   const el=document.getElementById('fTelcondMes');
   if(el && !el.value){ const h=new Date(); el.value=h.toISOString().slice(0,7); }
   telcondPlacas();
@@ -17640,7 +17914,11 @@ async function loadTelcond(){
   }catch(e){ if(seq===telcondSeq) alvo.innerHTML='<div style="color:var(--red)">Não foi possível falar com a API.</div>'; }
 }
 function renderTelcond(d){
-  const ind=(d.indicadores||[]).filter(i=>i.percentual!=null||i.nota!=null);
+  /* `nota_fornecedor` e nao `nota`: a regra que PAGA e a da casa, e o nome do
+     campo existe para impedir que alguem use uma pela outra sem perceber.
+     Medido em 30/08/2026: 6 dos 14 indicadores vieram com nota 0 em 108 de 108
+     veiculos, entao a nota deles nao serve de regua. */
+  const ind=(d.indicadores||[]).filter(i=>i.percentual!=null||i.nota_fornecedor!=null);
   const mot=(d.motoristas||[]);
   document.getElementById('telcond-conteudo').innerHTML = (ind.length? `
     <div class="tablewrap"><table><thead><tr>
@@ -17649,7 +17927,7 @@ function renderTelcond(d){
       <td>${esc(i.rotulo)}</td>
       <td class="num" style="font-weight:600">${i.percentual!=null?i.percentual.toLocaleString('pt-BR',{maximumFractionDigits:2})+'%':'—'}</td>
       <td class="num">${i.duracao_h!=null?i.duracao_h.toLocaleString('pt-BR',{maximumFractionDigits:1}):'—'}</td>
-      <td class="num">${i.nota!=null?_premNotaChip(i.nota):'—'}</td>
+      <td class="num">${i.nota_fornecedor!=null?_premNotaChip(i.nota_fornecedor):'—'}</td>
     </tr>`).join('')}</tbody></table></div>`
     : '<div style="color:var(--n500)">a Gobrax não devolveu indicadores para este veículo no período</div>')
     + (mot.length? `<div style="margin-top:14px">

@@ -526,6 +526,74 @@ def telemetria_conducao(placa: str | None = None,
             "erro": "erro_consulta", "mensagem": "Erro ao consultar a condução."})
 
 
+@app.get("/api/telemetria/conducao/frota")
+def telemetria_conducao_frota(competencia: str | None = None) -> JSONResponse:
+    """Os 14 indicadores de condução, a frota inteira, LIDOS DO CACHE.
+
+    Não chama a Gobrax: a varredura é uma requisição POR PLACA (108 na frota) e
+    quem a faz é a tarefa agendada, uma vez ao dia. A tela que dispara coleta
+    de fundo vira uma tela que trava quando o fornecedor demora.
+
+    Vem com o `resumo`, que é o que dá sentido ao número individual: "motor
+    ligado parado 18%" não decide nada sozinho — só ao lado da mediana da
+    frota.
+    """
+    from api.gobrax import armazenamento, performance
+    try:
+        comp = _competencia_valida(competencia)
+    except ValueError as exc:
+        return JSONResponse(status_code=422, content={
+            "erro": "parametro_invalido", "mensagem": str(exc)})
+    try:
+        linhas = performance.ler(comp)
+        u = armazenamento.ultima(performance.COLECAO)
+        return JSONResponse({
+            "competencia": comp,
+            "veiculos": linhas,
+            "resumo": performance.resumo_frota(comp),
+            "catalogo": [{"chave": c, "rotulo": r,
+                          "menor_melhor": c in performance.MENOR_MELHOR}
+                         for c, r in performance.INDICADORES.items()],
+            "familias": [{"chave": c, "rotulo": r, "indicadores": ks}
+                         for c, r, ks in performance.FAMILIAS],
+            "coletado_em": (u or {}).get("quando"),
+        })
+    except Exception as exc:  # noqa: BLE001
+        log.warning("telemetria_conducao_frota falhou: %s", exc)
+        return JSONResponse(status_code=500, content={
+            "erro": "erro_consulta",
+            "mensagem": "Erro ao ler os indicadores da frota."})
+
+
+@app.get("/api/telemetria/comunicacao")
+def telemetria_comunicacao(limite: int | None = None,
+                           competencia: str | None = None) -> JSONResponse:
+    """Veículo que parou de mandar dado para a Gobrax.
+
+    O denominador contém SÓ quem a Gobrax conhece na competência — veículo sem
+    equipamento não pode cumprir a regra e não entra na conta. É a lição dos
+    664 de 836 rastreadores "sem sinal", que eram 79% cadastro.
+    """
+    from api.gobrax import comunicacao
+    try:
+        comp = _competencia_valida(competencia)
+    except ValueError as exc:
+        return JSONResponse(status_code=422, content={
+            "erro": "parametro_invalido", "mensagem": str(exc)})
+    lim = comunicacao.LIMITE_H if limite is None else int(limite)
+    if not (1 <= lim <= 720):
+        return JSONResponse(status_code=422, content={
+            "erro": "parametro_invalido",
+            "mensagem": "O limite vai de 1 hora a 30 dias."})
+    try:
+        return JSONResponse(comunicacao.estado(comp, limite_h=lim))
+    except Exception as exc:  # noqa: BLE001
+        log.warning("telemetria_comunicacao falhou: %s", exc)
+        return JSONResponse(status_code=500, content={
+            "erro": "erro_consulta",
+            "mensagem": "Erro ao apurar a comunicação dos veículos."})
+
+
 @app.get("/api/telemetria/hodometro")
 def telemetria_hodometro(competencia: str | None = None) -> JSONResponse:
     """Hodômetro por veículo, do cache, com a data da última leitura."""

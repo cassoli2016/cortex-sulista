@@ -133,6 +133,17 @@ def ultima(colecao: str, path: Path | None = None) -> dict | None:
 # duas velhas — por isso o diagnóstico reporta sempre a MAIS ATRASADA.
 COLECOES = (("estatisticas", "estatísticas"), ("odometro", "odômetro"))
 
+# CADÊNCIA DIÁRIA, e por isso FORA da lista acima. `vehicle-performance` exige
+# uma chamada POR PLACA: são 108 chamadas contra 1 das outras duas, e varrer a
+# frota de 3 em 3 horas seriam ~860 requisições por dia ao fornecedor para um
+# dado que muda devagar (o acumulado do mês).
+#
+# Misturá-la com o par acima quebraria o alarme da Saúde: aquele limiar é de
+# duas janelas de 3 h, e uma coleta diária o estouraria TODO DIA — o cartão
+# ficaria vermelho com a integração funcionando, que é a forma conhecida de
+# ensinar a ignorar o alarme.
+COLECOES_DIARIAS = (("performance", "indicadores de condução"),)
+
 
 def diagnostico(path: Path | None = None) -> dict:
     """Estado da integração Gobrax, sem expor segredo — alimenta a Saúde.
@@ -151,4 +162,6 @@ def diagnostico(path: Path | None = None) -> dict:
         "configurado": cliente.configurado(),
         "premiacao_configurada": prem.configurado(),
         "colecoes": {c: competencia_atual(c, path) for c, _ in COLECOES},
+        "diarias": {c: competencia_atual(c, path)
+                    for c, _ in COLECOES_DIARIAS},
     }

@@ -51,7 +51,8 @@ EIXOS: dict[str, dict] = {
     "conducao": {
         "rotulo": "Condução",
         "fonte": "Gobrax vehicle-performance",
-        "medida": "uso de ECO e embalo, frenagem brusca por 1.000 km",
+        "medida": "motor ligado parado e faixa verde (Gobrax), uso de ECO e "
+                  "embalo, frenagem brusca por 1.000 km",
         "porque": "É o comportamento que gera economia e reduz sinistro, "
                   "medido antes de virar consequência.",
         "peso": 15,
@@ -101,6 +102,35 @@ PARAMS: dict[str, dict] = {
         "padrao": 70.0, "min": 0.0, "max": 100.0,
         "ajuda": "Abaixo disto a linha aparece na lista com o motivo, e fica "
                  "fora do total — não some."},
+    # ── régua de condução (Gobrax) ──────────────────────────────────────
+    # Os padrões saem da frota REAL medida em 30/08/2026 sobre 98 placas, não
+    # de número redondo: motor ligado parado tem p25 9,2% / mediana 12,7% /
+    # p75 16,7% / máximo 60,4%. O alvo fica no quartil de cima e o teto acima
+    # do p75, onde começa a cauda que realmente destoa.
+    "idle_alvo": {
+        "rotulo": "Motor ligado parado — alvo", "unidade": "%", "padrao": 10.0,
+        "min": 0.0, "max": 100.0,
+        "ajuda": "Neste percentual ou abaixo, nota cheia no indicador. O padrão "
+                 "de 10% fica no quartil superior da frota (p25 = 9,2%)."},
+    "idle_teto": {
+        "rotulo": "Motor ligado parado — teto", "unidade": "%", "padrao": 25.0,
+        "min": 0.0, "max": 100.0,
+        "ajuda": "Neste percentual ou acima, nota zero. Entre alvo e teto a "
+                 "nota cai linearmente. O padrão de 25% fica acima do p75 da "
+                 "frota (16,7%), onde começa a cauda que destoa."},
+    # FAIXA VERDE É PISO, NÃO GRADAÇÃO: a metade central da frota vai de 93,8%
+    # a 98,8% — cinco pontos. Graduar aí daria a mesma nota para todo mundo.
+    "verde_piso": {
+        "rotulo": "Faixa verde — piso", "unidade": "%", "padrao": 85.0,
+        "min": 0.0, "max": 100.0,
+        "ajuda": "Acima disto não pontua nem penaliza: metade da frota está "
+                 "entre 93,8% e 98,8% e premiar diferença aí seria premiar "
+                 "ruído. Abaixo, desconta — porque aí é desvio de verdade."},
+    "verde_desconto_max": {
+        "rotulo": "Faixa verde — desconto máximo", "unidade": "pontos",
+        "padrao": 20.0, "min": 0.0, "max": 100.0,
+        "ajuda": "Desconto na nota de condução quando a faixa verde chega a "
+                 "zero. Entre o piso e zero o desconto cresce linearmente."},
     "km_minimo": {
         "rotulo": "Km mínimo no mês", "unidade": "km", "padrao": 1500.0,
         "min": 0.0, "max": 100000.0,

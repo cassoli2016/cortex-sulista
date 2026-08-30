@@ -49,6 +49,26 @@ def competencias(hoje: date) -> list[str]:
     return [atual, ant]
 
 
+def _ja_coletou_hoje(colecao: str, horas: int = 20) -> bool:
+    """A trava da varredura diaria, lida do proprio cache.
+
+    Menos de `horas` desde a ultima coleta = pula. Guardar a decisao no cache
+    (e nao num arquivo de carimbo) faz a trava sobreviver a qualquer coisa que
+    apague estado solto, e mantem UMA fonte da verdade sobre quando a coleta
+    aconteceu -- a mesma que a Saude le.
+    """
+    from datetime import datetime
+    from api.gobrax import armazenamento
+    u = armazenamento.ultima(colecao)
+    if not u or not u.get("quando"):
+        return False
+    try:
+        q = datetime.fromisoformat(str(u["quando"]).replace("T", " ")[:19])
+    except ValueError:
+        return False
+    return (datetime.now() - q).total_seconds() < horas * 3600
+
+
 def main() -> int:
     from api.gobrax import estatisticas, odometro
     from api.gobrax.cliente import (GobraxIndisponivel, GobraxNaoConfigurado,
@@ -59,6 +79,22 @@ def main() -> int:
         return 1
 
     houve_erro = False
+
+    # COMUNICACAO: uma chamada so, 0,5 s, e entra no ciclo de 3 h porque o
+    # alarme e "esta calado AGORA" -- um retrato de ontem responderia outra
+    # pergunta. Fora do laco de competencias porque e um retrato do instante,
+    # nao um acumulado mensal.
+    try:
+        from api.gobrax import comunicacao
+        r = comunicacao.sincronizar()
+        log.info("comunicacao: %s veiculo(s) com posicao", r["gravadas"])
+    except GobraxIndisponivel as exc:
+        log.warning("comunicacao: Gobrax indisponivel (%s)", exc)
+        houve_erro = True
+    except Exception as exc:  # noqa: BLE001
+        log.warning("comunicacao: falhou (%s: %s)", type(exc).__name__, exc)
+        houve_erro = True
+
     for comp in competencias(date.today()):
         for nome, mod in (("estatisticas", estatisticas), ("odometro", odometro)):
             try:
@@ -76,6 +112,31 @@ def main() -> int:
                 log.warning("%s %s: falhou (%s: %s)", nome, comp,
                             type(exc).__name__, exc)
                 houve_erro = True
+
+    # ── indicadores de conducao: UMA VEZ POR DIA ─────────────────────────
+    # Nao entra no laco acima porque tem custo diferente: uma chamada POR
+    # PLACA (108 contra 1). De 3 em 3 h seriam ~860 requisicoes diarias ao
+    # fornecedor para um acumulado mensal que mal se move nesse intervalo.
+    #
+    # A trava e o PROPRIO CACHE, nao um relogio a parte: se a ultima coleta
+    # tem menos de 20 h, pula. Assim a tarefa continua sendo uma so, sem
+    # instalador novo no Agendador, e uma execucao perdida se recupera na
+    # seguinte em vez de esperar 24 h exatas.
+    if not _ja_coletou_hoje("performance"):
+        from api.gobrax import performance
+        for comp in competencias(date.today()):
+            try:
+                r = performance.sincronizar(comp)
+                log.info("performance %s: %s veiculo(s)", comp, r["gravadas"])
+            except GobraxIndisponivel as exc:
+                log.warning("performance %s: Gobrax indisponivel (%s)", comp, exc)
+                houve_erro = True
+            except Exception as exc:  # noqa: BLE001
+                log.warning("performance %s: falhou (%s: %s)", comp,
+                            type(exc).__name__, exc)
+                houve_erro = True
+    else:
+        log.info("performance: coletada ha menos de 20 h — pulando")
 
     log.info("coleta encerrada%s", " com falhas" if houve_erro else " sem falhas")
     return 0

@@ -373,7 +373,7 @@ def _servico_gobrax(d: dict) -> dict:
     ATRASADA das duas: uma fresca ao lado de outra parada é pior que as duas
     velhas, porque o cruzamento passa a mentir sem parecer.
     """
-    from .gobrax.armazenamento import COLECOES
+    from .gobrax.armazenamento import COLECOES, COLECOES_DIARIAS
     nome = "Gobrax (telemetria)"
     # a premiação usa OUTRA credencial (login do portal, não o token): sem ela
     # a nota × km congela sem que a telemetria acuse nada
@@ -401,10 +401,28 @@ def _servico_gobrax(d: dict) -> dict:
     # a tarefa agendada roda de 3 em 3 h; passar de duas janelas é coleta
     # parada — e aí a Torre envelhece calada, que foi como se perdeu 5 dias
     velha = idade is None or idade > 390
+
+    # OS INDICADORES DE CONDUÇÃO TÊM LIMIAR PRÓPRIO porque têm cadência
+    # própria: uma chamada por placa, varrida uma vez ao dia. Cobrá-los pelo
+    # relógio do par de 3 h acenderia o alarme todo dia com tudo funcionando.
+    # 30 h dá folga para a varredura atrasar uma execução sem virar alarme.
+    diario = ""
+    for colecao, rot in COLECOES_DIARIAS:
+        c = (d.get("diarias") or {}).get(colecao)
+        if not c:
+            diario = f" · sem coleta de {rot} ainda"
+            continue
+        i = _idade_min(c["quando"])
+        if i is None or i > 30 * 60:
+            velha = True
+            diario = (f" · {rot} parado há {_ha_quanto(i)}"
+                      if i is not None else f" · {rot} sem data")
+        else:
+            diario = f" · {rot}: {c['registros']} veículos, {_ha_quanto(i)}"
     return {"nome": nome, "status": "alerta" if (velha or falta_prem) else "ok",
             "detalhe": f"competência {_competencia_br(atrasada['competencia'])}"
                        f" · {atrasada['registros']} veículos · atualizado "
-                       f"{_ha_quanto(idade)}{sem}{falta_prem}"}
+                       f"{_ha_quanto(idade)}{sem}{diario}{falta_prem}"}
 
 
 def _servico_monkey(d: dict) -> dict:
@@ -690,8 +708,19 @@ BASES_VIVAS = [
     ("Telemetria (cache Gobrax)", "telemetria.db"),
 ]
 
-# Bases migradas para o PostgreSQL em 27/08/2026. O arquivo continua no disco
-# como DESFAZER da migração. Ver docs/MIGRACAO_POSTGRES.md.
+# Bases migradas para o PostgreSQL em 27/08/2026 e ARQUIVADAS em 30/08/2026,
+# depois que a restauração do backup foi testada de verdade
+# (scripts/testar_restauracao.py) — os arquivos saíram de `data/` para
+# `data/arquivo/sqlite-migrados-2026-08-30/`.
+#
+# A LISTA FICA, e não é resíduo. Ela serve a duas coisas vivas:
+#   1. o ROLLBACK. Devolver um `.db` para `data/` o faz reaparecer no cartão na
+#      hora, porque a varredura é da PASTA e não de uma lista fixa. Sem esta
+#      lista ele voltaria como "banco não declarado" — alarme errado para uma
+#      volta deliberada.
+#   2. distinguir o conhecido do DESCONHECIDO: `.db` que não está aqui é módulo
+#      novo escrevendo em SQLite contra a regra da casa, e isso é alerta.
+# Ver docs/MIGRACAO_POSTGRES.md.
 MIGRADAS = {"antt.db", "push.db", "email.db", "previsao.db", "antecipacoes.db",
             "extrato.db", "orcamento.db", "contrapartida.db", "auth.db"}
 
@@ -773,8 +802,9 @@ def _migradas() -> dict | None:
       lista, justamente para pegar o arquivo que apareceu sem passar por aqui.
       Uma lista fixa só enxerga o que já se sabia.
 
-    Devolve `None` quando não sobrou nenhum: aí a migração terminou de verdade
-    e a linha some da tela em vez de dizer "0 arquivos".
+    Devolve `None` quando não sobrou nenhum — que é o estado desde 30/08/2026,
+    com os arquivos movidos para `data/arquivo/`. A linha some da tela em vez
+    de dizer "0 arquivos", e VOLTA sozinha se algum `.db` retornar à pasta.
     """
     raiz = _dir_dados()
     if not raiz.exists():
@@ -816,10 +846,10 @@ def _migradas() -> dict | None:
                             + " — módulo novo deve escrever no PostgreSQL "
                               "(api/pglocal.py)")}
     return {**base, "status": "info",
-            "detalhe": ("da migração de 27/08/2026, mantidos como desfazer · "
-                        "nenhum escrito desde então · podem ser apagados "
-                        "quando a restauração do backup do PostgreSQL for "
-                        "testada")}
+            "detalhe": ("da migração de 27/08/2026 de volta em data/ · o "
+                        "arquivamento de 30/08/2026 os tirou daqui, então "
+                        "alguém os devolveu — se foi rollback, está certo; se "
+                        "não, é código gravando onde não devia")}
 
 
 def _deploy_saude(tarefas: list[dict]) -> dict:
