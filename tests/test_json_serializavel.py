@@ -122,3 +122,50 @@ def test_o_detector_ACHA_um_Decimal_plantado():
     achados = _nao_serializaveis({"a": [{"peso": Decimal("1.5")}]}, "x")
     assert achados and "Decimal" in achados[0]
     assert not _nao_serializaveis({"a": [{"peso": 1.5}]}, "x")
+
+
+# ── a rede embaixo: o JSONResponse da casa ──────────────────────────────────
+#
+# Converter no limite do módulo continua sendo a forma CERTA — ali o tipo do
+# banco para de importar. Mas são ~200 rotas montando dicionário de linha de
+# banco, e consertar uma a uma deixa a próxima passar. A próxima é justamente
+# a que ninguém vai conseguir diagnosticar, porque o sintoma (500 em
+# text/plain) não aponta para campo, tela nem banco.
+
+def test_a_resposta_da_casa_aceita_os_tipos_do_banco():
+    from datetime import date, datetime, timedelta
+
+    from api.main import JSONResponse
+    corpo = json.loads(JSONResponse({
+        "peso": Decimal("1.5"),           # numeric  -> o defeito de 30/08
+        "dia": date(2026, 8, 30),         # date
+        "quando": datetime(2026, 8, 30, 10, 0),
+        "dur": timedelta(hours=2),
+        "conj": {"b", "a"},
+    }).body)
+    # float e nao str: a tela faz CONTA com esse numero
+    assert corpo["peso"] == 1.5 and isinstance(corpo["peso"], float)
+    assert corpo["dia"] == "2026-08-30"
+    assert corpo["quando"] == "2026-08-30T10:00:00"
+    assert corpo["dur"] == 7200.0
+    assert corpo["conj"] == ["a", "b"]
+
+
+def test_tipo_DESCONHECIDO_continua_recusado():
+    """A rede não pode virar despejo silencioso: um objeto que ninguém pensou
+    em serializar tem de estourar no teste, e não sair como `null` ou `"..."`
+    para a tela — que é como um dado errado chega ao usuário sem ninguém ver.
+    """
+    from api.main import JSONResponse
+    with pytest.raises(TypeError, match="não vai para JSON"):
+        JSONResponse({"x": object()}).body
+
+
+def test_a_mensagem_do_erro_diz_ONDE_consertar():
+    """"object is not JSON serializable" manda procurar no lugar errado: o
+    conserto é no módulo que LEU o dado, não na rota que o devolve."""
+    from api.main import JSONResponse
+    try:
+        JSONResponse({"x": object()}).body
+    except TypeError as exc:
+        assert "converta no módulo que leu o dado" in str(exc)

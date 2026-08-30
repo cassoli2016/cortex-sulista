@@ -4,6 +4,17 @@ Gerado de `docs/versoes.yaml` por `scripts/gerar_changelog.py` — não editar �
 Formato [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/),
 versionamento [SemVer](https://semver.org/lang/pt-BR/).
 
+## [0.151.0] — 30/08/2026  ·  CX-30/08/2026-v0.151.0
+
+### Adicionado
+- O VEICULO PASSA A SER IDENTIFICADO PELAS DUAS COISAS - numero de frota E placa, no formato "582 · JOK3003", com o numero em destaque. Ate agora o CORTEX estava dividido: custos, pneus e manutencao chamavam o veiculo pelo numero de frota; telemetria, premiacao e tudo que vem da Gobrax, pela placa. E varias consultas usavam um ou outro conforme o cadastro estivesse preenchido, o que faz a identidade MUDAR DE NATUREZA sem ninguem perceber olhando a tela. Agora a placa e a chave (e unica e e o que Gobrax, rastreador e ANTT devolvem) e o numero vai junto, porque e assim que a operacao fala.
+- Aplicado na Produtividade de Veiculos, Combustivel, Analise de KM, Hodometro, Programacao, ficha do Cliente e nas duas telas de telemetria. Se a identidade nao carregar, a tela mostra so a placa - exatamente o que mostrava antes - em vez de quebrar.
+- CARTAO DE PENDENCIAS DE CADASTRO na tela de Veiculos, que mostra onde o cadastro impede essa identificacao, com a evidencia ao lado e SEM desempatar nada sozinho: quem encerra cadastro duplicado e quem cuida do cadastro. Dos 10 numeros de frota repetidos, ele separa tres situacoes diferentes - 7 sao o mesmo veiculo cadastrado duas vezes com placa antiga e Mercosul, 2 sao veiculos realmente distintos, e 1 e erro de digitacao (BBY2F64 contra BYY2F64), que e o mais grave porque significa que uma dessas placas nao existe e tudo lancado nela some.
+
+### Corrigido
+- A COBERTURA DO NUMERO DE FROTA NAO ERA 94%, E SIM 46%. O campo esta preenchido em 1.857 dos 1.973 veiculos ativos, mas em 947 deles o valor e A PROPRIA PLACA, copiada no campo - 930 desses em terceiro, quase certamente por importacao. Numero de frota de verdade existe em 99,8% da frota propria, 93,7% dos agregados e 4,2% dos terceiros. A tela agora conta o numero UTIL e nao o campo preenchido, e mostra so a placa quando o campo repete a placa - senao metade da frota pareceria ter numero.
+- Resposta da API deixa de quebrar por causa de tipo do banco. Valores decimais e datas vindos do PostgreSQL nao cabiam direto na resposta e derrubavam a rota inteira, com um erro que chegava ao navegador sem explicacao nenhuma e sem apontar para o campo, a tela ou o banco - foi o que manteve a Premiacao fora do ar por um dia. Agora sao convertidos na saida, e um tipo que ninguem previu continua sendo recusado, dizendo em qual modulo consertar.
+
 ## [0.150.1] — 30/08/2026  ·  CX-30/08/2026-v0.150.1
 
 ### Adicionado

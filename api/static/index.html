@@ -2695,6 +2695,14 @@ body.tvfull #btnReport,body.tvmode #btnReport{display:none}
       <!-- ===================== VEÍCULOS ===================== -->
       <section class="view" id="view-veic">
         <div class="kpis" id="kpis-veic"></div>
+        <div class="card" id="cardVeicId" hidden>
+          <div class="head">
+            <h2>Identidade dos veículos <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="veiculo.numerofrota e veiculo.placa dos ativos. O CÓRTEX identifica veículo pelas DUAS: a placa é a chave (é única e é o que Gobrax, rastreador e ANTT devolvem) e o número de frota vai junto porque é assim que a operação fala. Este cartão mostra onde o cadastro impede isso — e NÃO desempata sozinho: quem encerra cadastro duplicado é quem cuida do cadastro. As hipóteses são leitura do padrão das placas, não veredito.">i</span></h2>
+            <span class="hint" id="veicIdHint"></span>
+          </div>
+          <div class="kpis k4" id="kpis-veicid"></div>
+          <div id="veicIdPend" style="padding:0 16px 16px"></div>
+        </div>
         <div class="card">
           <div class="head"><h2>Por utilização <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="veiculo.utilizacaoveiculo cruzada com utilizacaoveiculo (descrição). FROTA e LOCAÇÃO são os veículos que a Sulista opera com diesel e motorista próprios; AGREGADOS e TERCEIROS são de quem vende frete para ela. Linhas fora dessas quatro (vazio, “Preventiva”) são inconsistência de cadastro. Idade = ano corrente − anofabricacao, só dos ativos com ano válido.">i</span></h2><span class="hint">composição da frota · idade por modalidade</span></div>
           <div class="tablewrap"><table><thead><tr>
@@ -5385,6 +5393,65 @@ const fmtDT = s => { if(!s) return '—';
   const [d,h]=String(s).replace('T',' ').split(' ');
   return fmtD(d)+(h?' '+h.slice(0,8):''); };
 const esc  = s => (s??'').toString().replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+
+/* ===================== IDENTIDADE DE VEICULO =====================
+   O CORTEX estava dividido: custos, pneus e manutencao chaveavam por numero
+   de frota; telemetria, premiacao e tudo que vem da Gobrax, por placa. E
+   varias consultas faziam `coalesce(numerofrota, placa)` -- o pior dos dois,
+   porque a chave MUDA DE NATUREZA conforme o cadastro esteja preenchido, e
+   ninguem percebe olhando a tela.
+
+   A chave e a PLACA; a identidade mostrada sao as duas: `582 · JOK3003`.
+   Placa porque e unica e e o que todo fornecedor externo devolve; numero de
+   frota junto porque e assim que a operacao fala -- ninguem no patio diz "o
+   JOK3003", diz "o 582".
+
+   MEDIDO em 30/08/2026: o campo esta preenchido em 1.857 de 1.973, mas em 947
+   deles o valor E A PROPRIA PLACA. A cobertura util e 46%, nao 94% -- e por
+   isso `veicId` devolve so a placa nesses casos, senao metade da frota
+   PARECERIA ter numero.
+
+   O MAPA E CARREGADO UMA VEZ e memoiza: pedi-lo a cada tela repetiria 150 KB
+   por navegacao para um dado que nao muda entre telas. */
+let VEICID = null, _veicidProm = null;
+
+function carregarVeicId(){
+  if(VEICID) return Promise.resolve(VEICID);
+  if(_veicidProm) return _veicidProm;
+  _veicidProm = fetch('/api/frota/veiculos/identidade', {cache:'no-store'})
+    .then(r => r.ok ? r.json() : null)
+    .then(d => { VEICID = d || {mapa:{}, pendencias:null}; return VEICID; })
+    /* FALHA NAO DERRUBA a tela que so queria mostrar uma placa: sem o mapa,
+       `veicId` degrada para a placa sozinha -- que e exatamente o que a tela
+       mostrava antes desta mudanca. */
+    .catch(() => { VEICID = {mapa:{}, pendencias:null}; return VEICID; });
+  return _veicidProm;
+}
+
+/* `582 · JOK3003`, ou so a placa quando nao ha numero de frota util.
+   NUNCA devolve travessao nem "sem frota": poluir mil linhas de terceiro para
+   dizer o que ja se ve seria ruido. */
+function veicId(placa){
+  const p = (placa || '').trim();
+  if(!p) return '\u2014';
+  const d = (VEICID && VEICID.mapa) ? VEICID.mapa[p] : null;
+  return (d && d.rotulo) ? d.rotulo : p;
+}
+
+/* A mesma identidade em HTML: numero em destaque, placa em mono e menor.
+   Duas grandezas na mesma celula precisam de peso diferente, senao viram uma
+   string so que ninguem varre com o olho. */
+function veicIdHTML(placa){
+  const p = (placa || '').trim();
+  if(!p) return '<span style="color:var(--n500)">\u2014</span>';
+  const d = (VEICID && VEICID.mapa) ? VEICID.mapa[p] : null;
+  const f = d && d.frota;
+  return f
+    ? '<b>' + esc(f) + '</b> <span style="font-family:var(--mono);'
+      + 'font-size:11.5px;color:var(--n500)">' + esc(p) + '</span>'
+    : '<span style="font-family:var(--mono)">' + esc(p) + '</span>';
+}
+
 const unitOf = m => m>=1.5e6 ? {d:1e6,t:'R$ MI'} : (m>=1500 ? {d:1e3,t:'R$ MIL'} : {d:1,t:'R$'});
 
 let DATA = null;
@@ -8852,7 +8919,96 @@ function barrasModalHome(modal){
 }
 
 /* ---------------- Veículos ---------------- */
+/* PENDENCIAS DE IDENTIDADE. Nao conserta nada sozinho -- mostra com a
+   evidencia ao lado, como a Manutencao Preventiva faz com o plano cujo
+   marcador esta furado. Desempatar em silencio esconderia cadastro duplicado
+   que volta a doer noutro lugar. */
+function renderVeicId(d){
+  const card = document.getElementById('cardVeicId');
+  const p = d && d.pendencias;
+  card.hidden = !p;
+  if(!p) return;
+
+  document.getElementById('veicIdHint').textContent =
+    `${p.total} veículo(s) ativo(s) · a placa é a chave, o número de frota é o nome`;
+
+  /* A COBERTURA E DO NUMERO UTIL, nao do campo preenchido. A diferenca entre
+     os dois e 947 veiculos: chamar campo preenchido de cobertura mentiria por
+     um fator de dois. */
+  const cob = p.cobertura;
+  document.getElementById('kpis-veicid').innerHTML = [
+    kpi('Com número de frota', cob != null ? cob.toLocaleString('pt-BR',
+          {minimumFractionDigits:1, maximumFractionDigits:1}) + '%' : '—',
+        `${p.com_frota} de ${p.total} · o campo está preenchido em `
+        + `${p.campo_preenchido}, mas nem todo preenchimento é um número`,
+        cob != null && cob < 60 ? 'warn' : ''),
+    kpi('Campo com a própria placa', String(p.frota_igual_placa_total || 0),
+        'preenchido com a placa em vez de um número de frota',
+        (p.frota_igual_placa_total || 0) > 0 ? 'warn' : ''),
+    kpi('Sem número', String(p.sem_frota_total || 0),
+        _veicIdPorTipo(p.sem_frota_por_tipo),
+        (p.sem_frota_total || 0) > 0 ? 'warn' : ''),
+    kpi('Número repetido', String((p.repetidos || []).length),
+        'duas placas dividindo o mesmo número',
+        (p.repetidos || []).length ? 'neg' : 'pos'),
+  ].join('');
+
+  const blocos = [];
+
+  /* O REPETIDO VEM PRIMEIRO mesmo sendo o menor: e o unico que pode fazer
+     dois veiculos virarem um no relatorio. */
+  if((p.repetidos || []).length){
+    blocos.push(`<div class="busca-sec" style="padding-left:0">Número de frota repetido</div>
+      <div class="tablewrap"><table><thead><tr>
+        <th>Frota</th><th>Placas</th><th>Leitura provável</th>
+      </tr></thead><tbody>${p.repetidos.map(r => `<tr>
+        <td style="font-weight:600">${esc(r.frota)}</td>
+        <td style="font-family:var(--mono)">${r.placas.map(esc).join(' · ')}</td>
+        <td style="color:var(--n600);font-size:12px">${esc(r.provavel)}</td>
+      </tr>`).join('')}</tbody></table></div>
+      <div class="hint" style="margin:6px 0 14px">hipótese lida do padrão das
+        placas, não veredito — quem encerra cadastro é quem o mantém</div>`);
+  }
+
+  if((p.frota_igual_placa_total || 0) > 0){
+    blocos.push(_veicIdTabela(
+      'Campo de frota preenchido com a própria placa',
+      p.frota_igual_placa, p.frota_igual_placa_total,
+      'o veículo aparece sem número na tela, porque repetir a placa não é '
+      + 'identificá-lo — quase todo em terceiro, cujo cadastro vem de fora'));
+  }
+  if((p.sem_frota_total || 0) > 0){
+    blocos.push(_veicIdTabela('Sem número de frota',
+      p.sem_frota, p.sem_frota_total,
+      'a tela mostra só a placa nestes — não é erro, é cadastro que a Sulista '
+      + 'não controla'));
+  }
+  document.getElementById('veicIdPend').innerHTML = blocos.join('') ||
+    '<div style="color:var(--n500)">nenhuma pendência de identidade</div>';
+}
+
+function _veicIdPorTipo(por){
+  const e = Object.entries(por || {}).sort((a,b) => b[1]-a[1]);
+  return e.length ? e.map(([t,n]) => `${n} ${t.toLowerCase()}`).join(' · ') : '';
+}
+
+function _veicIdTabela(titulo, linhas, total, nota){
+  const n = (linhas || []).length;
+  return `<div class="busca-sec" style="padding-left:0">${esc(titulo)}</div>
+    <div class="tablewrap tabroll"><table><thead><tr>
+      <th>Placa</th><th>Tipo</th>
+    </tr></thead><tbody>${(linhas||[]).map(l => `<tr>
+      <td style="font-family:var(--mono)">${esc(l.placa)}</td>
+      <td style="color:var(--n600)">${esc(l.tipo || '—')}</td>
+    </tr>`).join('')}</tbody></table></div>
+    <div class="hint" style="margin:6px 0 14px">${
+      n < total ? `${n} de ${total} · ` : ''}${esc(nota)}</div>`;
+}
+
 async function loadVeic(){
+  // o mapa serve a TELA INTEIRA (a tabela de veiculos usa
+  // `veicIdHTML`), entao e carregado aqui e nao dentro do card
+  carregarVeicId().then(renderVeicId);
   skelKpis('kpis-veic',4);
   const seq = ++veicSeq;
   const btn=document.getElementById('btnRefresh');
@@ -14479,6 +14635,9 @@ async function copSend(){
 
 /* ---------------- Programação Inteligente ---------------- */
 async function loadProg(){
+  // a identidade (numero de frota + placa) vale para a tela toda;
+  // `carregarVeicId` memoiza, entao so a primeira tela paga
+  await carregarVeicId();
   skelKpis('kpis-prog',8);
   const seq = ++progSeq;
   const btn=document.getElementById('btnRefresh');
@@ -14511,7 +14670,7 @@ function renderProg(d){
   document.getElementById('prog-ocioso').innerHTML=(d.ociosos||[]).map(o=>{
     const [l,cl]=utLbl(o.utilizacao);
     return `<tr>
-      <td style="font-family:var(--mono);font-weight:600">${esc(o.placa)}</td>
+      <td>${veicIdHTML(o.placa)}</td>
       <td><span class="badge ${cl}">${esc(l)}</span></td>
       <td class="num">${o.ult_saida?fmtD(o.ult_saida):'—'}</td>
       <td class="num" style="font-weight:700;color:${(o.dias_parado==null||o.dias_parado>14)?'var(--red)':(o.dias_parado>7?'var(--yellow-700)':'inherit')}">${diasTxt(o)}</td></tr>`;
@@ -14557,7 +14716,7 @@ function renderProg(d){
     const [l,cl]=utLbl(c.utilizacao);
     const s=c.cargas[0];
     return `<tr>
-      <td style="font-family:var(--mono);font-weight:600">${esc(c.placa)}</td>
+      <td>${veicIdHTML(c.placa)}</td>
       <td><span class="badge ${cl}">${esc(l)}</span></td>
       <td>${esc(c.cidade)}/${esc(c.uf)}</td>
       <td class="num">${progDT(c.eta)}</td>
@@ -14567,7 +14726,7 @@ function renderProg(d){
   document.getElementById('prog-semret').innerHTML=(d.sem_retorno||[]).map(c=>{
     const [l,cl]=utLbl(c.utilizacao);
     return `<tr>
-      <td style="font-family:var(--mono);font-weight:600">${esc(c.placa)}</td>
+      <td>${veicIdHTML(c.placa)}</td>
       <td><span class="badge ${cl}">${esc(l)}</span></td>
       <td title="vindo de ${esc(c.vindo_de)}">${esc(c.cidade)}/${esc(c.uf)}</td>
       <td class="num">${progDT(c.eta)}</td></tr>`;
@@ -14969,6 +15128,9 @@ async function clifClientes(){
   }catch(e){ /* autocomplete é conveniência: falhar aqui não pode quebrar a busca */ }
 }
 async function loadClif(buscar){
+  // a identidade (numero de frota + placa) vale para a tela toda;
+  // `carregarVeicId` memoiza, entao so a primeira tela paga
+  await carregarVeicId();
   const inp=document.getElementById('fClifNome');
   const nome=(inp?inp.value:'').trim();
   const cont=document.getElementById('clif-conteudo');
@@ -15038,7 +15200,7 @@ function renderClif(d){
       <span class="hint">km por tipo de operação</span></div>
     <div class="modl" id="clif-mix"></div></div>`;
   const tr=(d.top_rotas||[]).map(r=>`<tr><td>${esc(r.rota)}</td><td class="num">${r.viagens}</td><td class="num">${Math.round(r.km).toLocaleString('pt-BR')}</td><td class="num">${BRL.format(r.receita)}</td><td class="num">${r.km>0?(r.receita/r.km).toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2}):'—'}</td></tr>`).join('')||'<tr><td colspan="5" style="color:var(--n500)">sem viagens no período</td></tr>';
-  const tv=(d.top_veiculos||[]).map(v=>`<tr><td>${esc(v.placa)}</td><td>${esc(v.modalidade)}</td><td class="num">${v.viagens}</td><td class="num">${Math.round(v.km).toLocaleString('pt-BR')}</td><td class="num">${BRL.format(v.receita)}</td></tr>`).join('')||'<tr><td colspan="5" style="color:var(--n500)">sem veículos no período</td></tr>';
+  const tv=(d.top_veiculos||[]).map(v=>`<tr><td>${veicIdHTML(v.placa)}</td><td>${esc(v.modalidade)}</td><td class="num">${v.viagens}</td><td class="num">${Math.round(v.km).toLocaleString('pt-BR')}</td><td class="num">${BRL.format(v.receita)}</td></tr>`).join('')||'<tr><td colspan="5" style="color:var(--n500)">sem veículos no período</td></tr>';
   h+=`<div class="grid2">
     <div class="card"><div class="head"><h2>Top rotas <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="Viagens carregadas do grupo econômico no período, agrupadas por origem→destino. Receita = frete bruto da viagem; RKM = receita ÷ km da rota.">i</span></h2><span class="hint">por receita</span></div>
       <div class="tablewrap"><table><thead><tr><th>Rota</th><th class="num">Viagens</th><th class="num">Km</th><th class="num">Receita</th><th class="num">RKM</th></tr></thead><tbody>${tr}</tbody></table></div></div>
@@ -16546,6 +16708,9 @@ window.addEventListener('resize', () => {
 let prodSeq = 0, DATAPROD = null;
 
 async function loadProdveic(){
+  // a identidade (numero de frota + placa) vale para a tela toda;
+  // `carregarVeicId` memoiza, entao so a primeira tela paga
+  await carregarVeicId();
   skelKpis('kpis-prodveic', 4);
   const seq = ++prodSeq;
   const btn = document.getElementById('btnRefresh');
@@ -16615,7 +16780,7 @@ function renderProdveic(d){
   document.getElementById('hintProdVeic').textContent =
     `${vs.length} de ${nf(d.veiculos_total)} veículos · ${prodPct(k.km_carregado?kmMostrado/k.km_carregado:0)} do km — ordenado por km carregado`;
   document.getElementById('prod-veic').innerHTML = vs.map(x=>`<tr>
-    <td style="font-family:var(--mono)">${esc(x.placa)}</td>
+    <td>${veicIdHTML(x.placa)}</td>
     <td style="color:var(--n500)">${esc(x.modalidade)}</td>
     <td class="num">${nf(x.viagens)}</td>
     <td class="num">${nf(x.dias_ativos)}</td>
@@ -16632,7 +16797,7 @@ function renderProdveic(d){
     const dias = x.dias_parado;
     const cor = dias>=180 ? 'var(--red)' : dias>=90 ? 'var(--yellow-700)' : 'inherit';
     return `<tr>
-      <td style="font-family:var(--mono)">${esc(x.placa)}</td>
+      <td>${veicIdHTML(x.placa)}</td>
       <td style="color:var(--n500)">${esc(x.modalidade)}</td>
       <td class="num" style="color:${cor};font-weight:600">${dias==null?'—':nf(dias)+' d'}</td>
       <td>${x.ultima_viagem?fmtD(x.ultima_viagem):'—'}</td>
@@ -16645,7 +16810,7 @@ function renderProdveic(d){
   document.getElementById('hintProdNunca').textContent =
     nunca.length ? `${nunca.length} ${nunca.length===1?'placa':'placas'} — não entram no indicador de parados` : 'nenhuma';
   document.getElementById('prod-nunca').innerHTML = nunca.map(x=>`<tr>
-    <td style="font-family:var(--mono)">${esc(x.placa)}</td>
+    <td>${veicIdHTML(x.placa)}</td>
     <td style="color:var(--n500)">${esc(x.modalidade)}</td>
     <td style="color:var(--n500)">${esc(x.tipo)}</td>
   </tr>`).join('') || '<tr><td colspan="3">Nenhuma.</td></tr>';
@@ -16774,6 +16939,9 @@ function desenhaProdMensal(m, filtros){
 }
 
 async function loadKm(){
+  // a identidade (numero de frota + placa) vale para a tela toda;
+  // `carregarVeicId` memoiza, entao so a primeira tela paga
+  await carregarVeicId();
   skelKpis('kpis-km',4);
   const seq = ++kmSeq;
   const btn=document.getElementById('btnRefresh');
@@ -16836,7 +17004,7 @@ function renderKm(d){
     <td class="num" style="color:var(--red);font-weight:600">${fmtKm2(r.km_vazio)}</td></tr>`).join('')
     || '<tr><td colspan="4" style="color:var(--n500)">sem deslocamentos vazios no período</td></tr>';
   document.getElementById('km-veic').innerHTML=(d.veiculos||[]).map(vc=>`<tr>
-    <td style="font-weight:600">${esc(vc.frota)}</td><td>${esc(vc.placa)}</td>
+    <td style="font-weight:600">${esc(vc.frota)}</td><td>${veicIdHTML(vc.placa)}</td>
     <td class="num">${vc.viagens.toLocaleString('pt-BR')}</td>
     <td class="num">${fmtKm2(vc.km_carregado)}</td>
     <td class="num" style="color:var(--red);font-weight:600">${fmtKm2(vc.km_vazio)}</td>
@@ -17121,6 +17289,9 @@ const fmtKmL = v => v!=null ? v.toLocaleString('pt-BR',{minimumFractionDigits:1,
 
 
 async function loadComb(){
+  // a identidade (numero de frota + placa) vale para a tela toda;
+  // `carregarVeicId` memoiza, entao so a primeira tela paga
+  await carregarVeicId();
   skelKpis('kpis-comb',4);
   const seq = ++combSeq;
   const btn=document.getElementById('btnRefresh');
@@ -17198,7 +17369,7 @@ function renderComb(d){
     <tr class="forn-row" aria-expanded="false" aria-controls="comb-det-${i}" tabindex="0" role="button"
         onclick="combToggle(${i})" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();combToggle(${i});}">
       <td><span class="expander">${ICONS['chevr2']}</span></td>
-      <td style="font-family:var(--mono);font-weight:600">${esc(vv.placa)}</td>
+      <td>${veicIdHTML(vv.placa)}</td>
       <td><span class="badge ${tc}">${esc(tl)}</span></td>
       <td class="num">${vv.abastecimentos.toLocaleString('pt-BR')}</td>
       <td class="num">${fmtL(vv.litros)}</td>
@@ -17594,6 +17765,9 @@ function telconMesAtual(){
 }
 let telconSeq=0;
 async function loadTelcon(){
+  // a identidade (numero de frota + placa) vale para a tela toda;
+  // `carregarVeicId` memoiza, entao so a primeira tela paga
+  await carregarVeicId();
   loadTelconComunicacao();
   skelKpis('kpis-telcon',4);
   const seq=++telconSeq;
@@ -17861,7 +18035,7 @@ function renderTelconComunicacao(d){
     ...atr.map(x=>({placa:x.placa, horas:x.horas, ultima:x.ultima})),
   ];
   document.getElementById('telconcom-tab').innerHTML = linhas.map(x=>`<tr>
-    <td style="font-family:var(--mono);font-weight:600">${esc(x.placa)}</td>
+    <td>${veicIdHTML(x.placa)}</td>
     <td>${x.grave
       ? '<span class="badge b-dang">sem posição</span>'
       : (x.horas>=72?'<span class="badge b-dang">parado</span>'
@@ -17891,6 +18065,9 @@ function renderTelconComunicacao(d){
 }
 
 async function loadTelcond(){
+  // a identidade (numero de frota + placa) vale para a tela toda;
+  // `carregarVeicId` memoiza, entao so a primeira tela paga
+  await carregarVeicId();
   // a frota vem do CACHE (rapida) e o veiculo vem AO VIVO: sao dois custos
   // diferentes, e por isso duas chamadas em vez de uma so
   loadTelcondFrota();
@@ -17939,6 +18116,9 @@ function renderTelcond(d){
 /* ===================== TELEMETRIA: HODÔMETRO E RASTRO ===================== */
 let telhodMap=null;
 async function loadTelhod(){
+  // a identidade (numero de frota + placa) vale para a tela toda;
+  // `carregarVeicId` memoiza, entao so a primeira tela paga
+  await carregarVeicId();
   skelKpis('kpis-telhod',3);
   const btn=document.getElementById('btnRefresh'); btn.disabled=true;
   document.getElementById('content').classList.add('loading');

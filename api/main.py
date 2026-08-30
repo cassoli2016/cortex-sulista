@@ -18,12 +18,77 @@ from pathlib import Path
 import psycopg
 from fastapi import FastAPI, Request, Response
 from fastapi.middleware.gzip import GZipMiddleware
-from fastapi.responses import FileResponse, JSONResponse, PlainTextResponse, StreamingResponse
+from fastapi.responses import FileResponse, PlainTextResponse, StreamingResponse
+from fastapi.responses import JSONResponse as _JSONResponseBase
 from fastapi.staticfiles import StaticFiles
 from starlette.concurrency import run_in_threadpool
 
 from . import (alertas, auth, copiloto, db, documentacao, dre_cliente, push, queries,
                queries_folha, servidor)
+
+
+class JSONResponse(_JSONResponseBase):
+    """O JSONResponse da casa, que não estoura por causa de um tipo do banco.
+
+    POR QUE ISTO EXISTE (30/08/2026, tela de Premiação em 500 por um dia)
+    ====================================================================
+    `prem_ocorrencia_classe.peso` é `numeric`, o psycopg devolve `Decimal` e o
+    `json` padrão não serializa `Decimal`. Até aí seria um erro comum. O que o
+    tornou caro foi ONDE ele estoura:
+
+        try:
+            d = ler()                 # passa
+        except Exception: ...
+        d["x"] = do_banco()           # passa, o Decimal entra aqui
+        return JSONResponse(d)        # ESTOURA no render(), já fora do try
+
+    O `render()` só roda quando o Starlette vai escrever a resposta, DEPOIS do
+    `try/except` da rota. A exceção escapa de todo o tratamento e o navegador
+    recebe `HTTP 500 · text/plain`, sem uma pista apontando para o campo, para
+    a tela ou para o banco — e a tela ainda mostra os números da carga
+    anterior ao lado do aviso, o que faz parecer problema de conexão.
+
+    São ~200 rotas montando dicionário de linha de banco. Consertar uma a uma
+    deixaria a próxima passar, e a próxima é a que ninguém vai conseguir
+    diagnosticar. **Converter aqui mata a família inteira**, e só age em caso
+    que hoje QUEBRA — não muda nada que já funciona.
+
+    Isso NÃO dispensa converter no limite do módulo (`float(...)`,
+    `.isoformat()`), que continua sendo a forma certa: ali o tipo do banco
+    para de importar e o resto do código não precisa saber que ele existiu.
+    Isto aqui é a rede embaixo, para o erro degradar em vez de derrubar.
+    """
+
+    @staticmethod
+    def _converter(o):
+        # imports locais: este módulo só traz `date` no topo, e acrescentar
+        # quatro nomes lá em cima por causa de uma função de borda poluiria o
+        # espaço de nomes de um arquivo de 5 mil linhas
+        import datetime as _dt
+        from decimal import Decimal
+        datetime, date, time, timedelta = (_dt.datetime, _dt.date, _dt.time,
+                                           _dt.timedelta)
+        if isinstance(o, Decimal):
+            # float e não str: a tela faz conta com esse número
+            return float(o)
+        if isinstance(o, (datetime, date, time)):
+            return o.isoformat()
+        if isinstance(o, timedelta):
+            return o.total_seconds()
+        if isinstance(o, (set, frozenset)):
+            return sorted(o)
+        if isinstance(o, (bytes, bytearray)):
+            return o.decode("utf-8", "replace")
+        raise TypeError(
+            f"{type(o).__name__} não vai para JSON — converta no módulo que "
+            "leu o dado, onde dá para saber o que ele significa")
+
+    def render(self, content) -> bytes:
+        # mesmas opções do Starlette; só entra o `default`
+        return json.dumps(content, ensure_ascii=False, allow_nan=False,
+                          indent=None, separators=(",", ":"),
+                          default=self._converter).encode("utf-8")
+
 
 log = logging.getLogger("cortex.financeiro")
 
@@ -2207,6 +2272,29 @@ def veiculos(modalidade: str | None = None, situacao: str = "ativos",
         log.warning("veiculos falhou: %s", exc)
         return JSONResponse(status_code=500, content={
             "erro": "erro_consulta", "mensagem": "Erro ao consultar os veículos."})
+
+
+@app.get("/api/frota/veiculos/identidade")
+def frota_veiculos_identidade() -> JSONResponse:
+    """O De-Para placa -> identidade, e o que o cadastro tem de errado.
+
+    UMA chamada serve TODAS as telas. A alternativa era acrescentar uma coluna
+    `frota` a 132 consultas de `queries.py` — varredura enorme, arriscada, e
+    que ainda deixaria de fora as telas alimentadas pela Gobrax, que só conhece
+    placa. São ~1.900 linhas de dois campos curtos.
+    """
+    from api import frota_identidade as fi
+    try:
+        linhas = fi.linhas()
+        return JSONResponse({
+            "mapa": fi.mapa(linhas),
+            "pendencias": fi.pendencias(linhas),
+        })
+    except Exception as exc:  # noqa: BLE001
+        log.warning("frota_veiculos_identidade falhou: %s", exc)
+        return JSONResponse(status_code=500, content={
+            "erro": "erro_consulta",
+            "mensagem": "Erro ao ler a identidade dos veículos."})
 
 
 @app.get("/api/frota/veiculo")

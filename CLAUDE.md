@@ -1157,6 +1157,60 @@ uma chamada e rodam de 3 em 3 h. Metê-los na mesma lista faria o alarme (duas
 janelas de 3 h) acender **todo dia** com tudo funcionando — daí
 `COLECOES_DIARIAS` e o limiar de 30 h separados.
 
+**IDENTIDADE DE VEÍCULO: a chave é a PLACA, o que se mostra são as duas.**
+- O CÓRTEX estava dividido — custos, pneus e manutenção chaveavam por
+  `numerofrota`; telemetria, premiação e tudo que vem da Gobrax, por `placa`.
+  E várias consultas faziam `coalesce(numerofrota, placa)`, que é **o pior dos
+  dois**: a chave muda de natureza conforme o cadastro esteja preenchido, e
+  ninguém percebe olhando a tela.
+- **Campo preenchido não é campo útil, e a diferença aqui é de 2x.**
+  `numerofrota` está preenchido em 1.857 de 1.973 (94%) — mas em **947 deles o
+  valor É A PRÓPRIA PLACA**, copiada no campo. A cobertura real é **46%**:
+  99,8% da frota própria, 93,7% dos agregados e **4,2% dos terceiros** (45 de
+  1.084). Faz sentido — a Sulista numera o que é dela; cadastro de terceiro vem
+  de fora. **Antes de chamar um campo de "cobertura", conferir o que está
+  dentro dele.**
+- Daí `rotulo()` mostrar só a placa quando `frota == placa`: `AAW7D10 ·
+  AAW7D10` além de absurdo faria metade da frota **parecer** ter número.
+- **Um De-Para (`api/frota_identidade.py`), não `frota` em 132 consultas.** A
+  varredura seria enorme, arriscada, e ainda deixaria de fora as telas
+  alimentadas pela Gobrax, que só conhece placa. O mapa é ~1.900 linhas de dois
+  campos, carregado uma vez por sessão e memoizado. Falha de carga degrada para
+  a placa sozinha — que é o que a tela mostrava antes.
+- **O detector de duplicidade diagnostica, e é ele que dá valor ao cartão.**
+  Placa Mercosul troca o **5º** caractere (índice 4) de dígito por letra:
+  `JOK3003` → `JOK3H03`. Errar o índice devolve a hipótese genérica justamente
+  nos casos que tinham algo a dizer — 7 dos 10 repetidos são desse tipo. E o
+  achado mais valioso é o que NÃO é Mercosul: `BBY2F64` × `BYY2F64` diferem
+  numa letra, ou seja **uma das placas não existe** e tudo lançado nela some.
+- Nada é desempatado em silêncio: o cartão MOSTRA com a evidência ao lado
+  (as duas placas que dividem o número) e diz que a leitura é **hipótese, não
+  veredito** — quem encerra cadastro é quem o mantém. Mesma regra do plano de
+  manutenção com marcador furado.
+
+**SERIALIZAÇÃO ESTOURA DEPOIS DO `try/except` DA ROTA** (custou um dia de
+Premiação fora do ar, 30/08/2026):
+- `prem_ocorrencia_classe.peso` é `numeric`, o psycopg devolve `Decimal` e o
+  `json` não o serializa. O que torna isso traiçoeiro não é o tipo — é ONDE
+  estoura: `JSONResponse` só serializa quando o Starlette chama `render()`,
+  **depois** do `try/except`. A exceção escapa de todo o tratamento e o
+  navegador recebe **500 em `text/plain`**, sem uma pista apontando para o
+  campo, a tela ou o banco.
+- **E a tela ainda mostrava os números da carga anterior ao lado do aviso**, o
+  que fazia o defeito parecer problema de conexão. Ficou assim quase um dia.
+- Duas defesas, e as duas ficam: converter no **limite do módulo**
+  (`float(...)`, `.isoformat()`), que é o certo porque ali o tipo do banco
+  para de importar; e o **`JSONResponse` da casa** em `api/main.py`, que é a
+  rede embaixo — são ~200 rotas montando dicionário de linha de banco, e
+  consertar uma a uma deixa passar a próxima, que é justamente a que ninguém
+  vai conseguir diagnosticar.
+- A rede **não é despejo**: tipo desconhecido continua estourando, com
+  mensagem dizendo que o conserto é no módulo que LEU o dado.
+- **Diagnóstico:** ao ver 500 em `text/plain` com a rota parecendo correta,
+  suspeitar de serialização antes do código da rota. E chamar a função da rota
+  direto num processo novo, lendo `r.body` — é o `render()` que estoura, então
+  é ele que o teste tem de fazer.
+
 **Onde mora o dado do fornecedor não é onde o nome dele aparece (lição da RasterJOR):**
 - Procurei jornada da Raster em `public`, no schema `rastreamento`, na tabela
   `rastreadora_retorno` (3 milhões de XML da Raster, vivos) — e a resposta
