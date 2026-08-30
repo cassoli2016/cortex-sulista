@@ -4,6 +4,11 @@ Gerado de `docs/versoes.yaml` por `scripts/gerar_changelog.py` — não editar �
 Formato [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/),
 versionamento [SemVer](https://semver.org/lang/pt-BR/).
 
+## [0.147.1] — 30/08/2026  ·  CX-30/08/2026-v0.147.1
+
+### Alterado
+- Saiu do painel o sistema de tooltip e navegacao por teclado que servia os graficos desenhados a mao. Ele ficou sem uso quando o ultimo deles virou ECharts, e nao era codigo morto parado: a rotina de esconder tooltip continuava rodando a cada troca de tela, percorrendo doze graficos que nao existem mais. Sao 255 linhas a menos - o codigo, as oito regras de estilo da caixinha e dezessete caixas de tooltip vazias fora do HTML. Nada muda na tela - o tooltip que se ve hoje e o da propria biblioteca, com a vantagem de seguir o cursor nos dois eixos e de existir tambem nos graficos que antes so tinham o texto de acessibilidade.
+
 ## [0.147.0] — 30/08/2026  ·  CX-30/08/2026-v0.147.0
 
 ### Adicionado

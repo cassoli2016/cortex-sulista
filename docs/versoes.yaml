@@ -1,3 +1,17 @@
+- versao: "0.147.1"
+  data: "2026-08-30"
+  alterado:
+    - >-
+      Saiu do painel o sistema de tooltip e navegacao por teclado que servia os
+      graficos desenhados a mao. Ele ficou sem uso quando o ultimo deles virou
+      ECharts, e nao era codigo morto parado: a rotina de esconder tooltip
+      continuava rodando a cada troca de tela, percorrendo doze graficos que nao
+      existem mais. Sao 255 linhas a menos - o codigo, as oito regras de estilo da
+      caixinha e dezessete caixas de tooltip vazias
+      fora do HTML. Nada muda na tela - o tooltip que se ve hoje e o da propria
+      biblioteca, com a vantagem de seguir o cursor nos dois eixos e de existir
+      tambem nos graficos que antes so tinham o texto de acessibilidade.
+
 - versao: "0.147.0"
   data: "2026-08-30"
   adicionado:

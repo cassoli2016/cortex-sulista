@@ -404,14 +404,6 @@ svg:focus-visible{outline:2px solid var(--orange-500);outline-offset:2px;border-
 .legend i.ln{width:18px;height:0;display:inline-block;border-top:2.5px solid var(--navy-700)}
 .legend i.ln.dash{border-top-style:dashed;border-top-color:var(--navy-500)}
 .legend i.band{width:14px;height:10px;background:rgba(56,100,141,.14);border-radius:2px;display:inline-block}
-.tip{position:absolute;z-index:10;min-width:220px;background:var(--n0);border:1px solid var(--n200);border-radius:8px;box-shadow:var(--shadow);padding:10px 12px;font-size:12.5px;pointer-events:none;display:none}
-.tip .tt{font-weight:700;font-size:12px;margin-bottom:6px;color:var(--n700)}
-.tip .row{display:flex;align-items:center;gap:8px;padding:1.5px 0}
-.tip .row .key{width:16px;flex:none;display:inline-flex;align-items:center}
-.tip .row .key i{width:14px;height:0;border-top:3px solid transparent;display:inline-block}
-.tip .row .lbl{color:var(--n500);flex:1}
-.tip .row b{font-family:var(--mono);font-weight:600;color:var(--n900)}
-.tip .sep{border-top:1px solid var(--n100);margin:5px 0}
 /* tabelas */
 .tablewrap{overflow-x:auto}
 /* tabela longa rola DENTRO do card, com cabeçalho fixo. O CRM desenhava 200
@@ -2327,7 +2319,6 @@ body.tvfull #btnReport,body.tvmode #btnReport{display:none}
           <div class="banner-inline" id="cenAviso" style="display:none"></div>
           <div class="chartwrap" id="wrapFluxo">
             <div id="chart" style="width:100%;height:500px" role="img" aria-label="Fluxo de caixa projetado: barras mensais de recebimentos e pagamentos e linhas de saldo projetado."></div>
-            <div class="tip" id="tipFluxo"></div>
           </div>
           <div id="fluxoTable">
             <table>
@@ -2365,7 +2356,6 @@ body.tvfull #btnReport,body.tvmode #btnReport{display:none}
           </div>
           <div class="chartwrap" id="wrapAr">
             <div id="chartAr" style="width:100%;height:250px" role="img" aria-label="Saldo a receber por mês de vencimento, dividido entre vencido e a vencer."></div>
-            <div class="tip" id="tipAr"></div>
           </div>
         </div>
         <div class="card">
@@ -2394,7 +2384,6 @@ body.tvfull #btnReport,body.tvmode #btnReport{display:none}
           </div>
           <div class="chartwrap" id="wrapAp">
             <div id="chartAp" style="width:100%;height:250px" role="img" aria-label="Pendente a pagar por mês de vencimento, dividido entre vencido e a vencer."></div>
-            <div class="tip" id="tipAp"></div>
           </div>
         </div>
         <div class="card">
@@ -2421,7 +2410,6 @@ body.tvfull #btnReport,body.tvmode #btnReport{display:none}
             <span class="k"><i class="sw hatch orange"></i>Mês parcial (corrente ou cortado pelo filtro)</span></div>
           <div class="chartwrap" id="wrapAgr">
             <div id="chartAgr" style="width:100%;height:250px" role="img"></div>
-            <div class="tip" id="tipAgr"></div>
           </div>
         </div>
         <div class="card">
@@ -2445,7 +2433,6 @@ body.tvfull #btnReport,body.tvmode #btnReport{display:none}
           <div class="head"><h2>Aderência ao piso por mês <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="programacaoembarque (não cancelada, semáforo = 1) dos veículos com veiculo.utilizacaoveiculo em AGR/TER, por data de emissão. Pago = valorfretecompra; distância = kmfretecompra. O piso é (km × CCD) + CC da tabela ANTT vigente NA DATA DA VIAGEM (Res. 6.076/2026 até 16/07 e 6.084/2026 a partir de 17/07), pelo número de eixos e tipo de carga do veículo. Deslocamento vazio obrigatório vale 0,92 × CCD × km. Mês sem nenhuma viagem conferida não vira barra.">i</span></h2><span class="hint" id="hintAnpiso">só viagens conferidas</span></div>
           <div class="chartwrap" id="wrapAnpiso">
             <div id="chartAnpiso" style="width:100%;height:250px" role="img"></div>
-            <div class="tip" id="tipAnpiso"></div>
           </div>
         </div>
         <div class="card">
@@ -2551,7 +2538,6 @@ body.tvfull #btnReport,body.tvmode #btnReport{display:none}
           </div>
           <div class="chartwrap" id="wrapComb">
             <div id="chartComb" style="width:100%;height:250px" role="img"></div>
-            <div class="tip" id="tipComb"></div>
           </div>
         </div>
         <div class="grid2">
@@ -2598,7 +2584,6 @@ body.tvfull #btnReport,body.tvmode #btnReport{display:none}
           <div class="legend"><span class="k"><i class="sw" style="background:var(--navy-500)"></i>Custo das OSs</span><span class="k"><i class="sw hatch" style="background-color:var(--navy-500)"></i>Mês parcial (corrente ou cortado pelo filtro)</span></div>
           <div class="chartwrap" id="wrapMan">
             <div id="chartMan" style="width:100%;height:250px" role="img"></div>
-            <div class="tip" id="tipMan"></div>
           </div>
         </div>
         <div class="card">
@@ -2624,7 +2609,6 @@ body.tvfull #btnReport,body.tvmode #btnReport{display:none}
           </div>
           <div class="chartwrap" id="wrapCom">
             <div id="chartCom" style="width:100%;height:250px" role="img"></div>
-            <div class="tip" id="tipCom"></div>
           </div>
         </div>
         <div class="card">
@@ -3035,7 +3019,6 @@ body.tvfull #btnReport,body.tvmode #btnReport{display:none}
             <span class="hint" id="hintFc"></span></div>
           <div class="chartwrap" id="wrapFc">
             <div id="chartFc" style="width:100%;height:250px" role="img" aria-label="Saldo de caixa projetado por período."></div>
-            <div class="tip" id="tipFc"></div>
           </div>
         </div>
         <div class="grid2">
@@ -3134,7 +3117,6 @@ body.tvfull #btnReport,body.tvmode #btnReport{display:none}
           </div>
           <div class="chartwrap" id="wrapAntec">
             <div id="chartAntec" style="width:100%;height:250px" role="img" aria-label="Saldo de caixa projetado dia a dia, sem antecipação."></div>
-            <div class="tip" id="tipAntec"></div>
           </div>
         </div>
         <div class="card">
@@ -3733,7 +3715,6 @@ body.tvfull #btnReport,body.tvmode #btnReport{display:none}
           <div class="head"><h2>Movimento por mês <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="contacorrente do ERP AVA — razão bancário lançamento a lançamento (débito/crédito), não o saldo. Inclui transferência entre contas próprias, que aparece como débito na origem e crédito no destino ao mesmo tempo: não é receita nem despesa, ver categoria própria abaixo.">i</span></h2><span class="hint" id="hintLanc">crédito × débito no período filtrado</span></div>
           <div class="chartwrap" id="wrapLanc">
             <div id="chartLanc" style="width:100%;height:240px" role="img"></div>
-            <div class="tip" id="tipLanc"></div>
           </div>
         </div>
         <div class="grid2">
@@ -4211,7 +4192,6 @@ body.tvfull #btnReport,body.tvmode #btnReport{display:none}
           <div class="head"><h2>Multas por mês <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="Quantidade de multas por mês da data da infração. A barra conta MULTAS e não valor: o campo de valor existe em uma fração pequena dos registros e, quando o gráfico usava valor, meses inteiros com multa apareciam vazios. O valor lançado no mês continua no tooltip.">i</span></h2><span class="hint" id="hintMul">quantidade no período filtrado · valor no tooltip</span></div>
           <div class="chartwrap" id="wrapMul">
             <div id="chartMul" style="width:100%;height:240px" role="img"></div>
-            <div class="tip" id="tipMul"></div>
           </div>
         </div>
         <div class="grid2">
@@ -4333,7 +4313,6 @@ body.tvfull #btnReport,body.tvmode #btnReport{display:none}
           </div>
           <div class="chartwrap" id="wrapKm">
             <div id="chartKm" style="width:100%;height:250px" role="img" aria-label="Km carregado e vazio por mes, com o retorno vazio"></div>
-            <div class="tip" id="tipKm"></div>
           </div>
         </div>
         <div class="card">
@@ -4382,7 +4361,6 @@ body.tvfull #btnReport,body.tvmode #btnReport{display:none}
           </div>
           <div class="chartwrap" id="wrapMvb">
             <div id="chartMvb" style="width:100%;height:300px" role="img" aria-label="CKM proprio contra R$/km de agregado e terceiro, por mes"></div>
-            <div class="tip" id="tipMvb"></div>
           </div>
         </div>
         <div class="grid2">
@@ -4460,7 +4438,6 @@ body.tvfull #btnReport,body.tvmode #btnReport{display:none}
           </div>
           <div class="chartwrap" id="wrapBal">
             <div id="chartBal" style="width:100%;height:240px" role="img"></div>
-            <div class="tip" id="tipBal"></div>
           </div>
         </div>
         <div class="grid2">
@@ -4482,7 +4459,6 @@ body.tvfull #btnReport,body.tvmode #btnReport{display:none}
           <div class="legend"><span class="k"><i class="sw" style="background:var(--navy-500)"></i>Valor emitido</span><span class="k"><i class="sw hatch" style="background-color:var(--navy-500)"></i>Mês corrente (parcial)</span></div>
           <div class="chartwrap" id="wrapOc">
             <div id="chartOc" style="width:100%;height:250px" role="img"></div>
-            <div class="tip" id="tipOc"></div>
           </div>
         </div>
         <div class="card">
@@ -5484,8 +5460,6 @@ let PREM_SERIE = null, premSerieSeq = 0;   // cache da série do comparativo —
 let gesSeq = 0;
 let GES_TAB = 'usuarios';
 let filtrosPromise = null;    // memoização do carregamento de filtros
-const GEOM = {};              // geometria por gráfico (hover/teclado)
-const ACTIVE = {};            // índice ativo por gráfico
 
 /* No menu recolhido a busca e um botao: expande a barra e foca o campo. O
    foco vai num rAF porque o input esta com display:none ate a classe `mini`
@@ -5859,7 +5833,6 @@ function router(){
   if(btnMais) btnMais.classList.toggle('ativo', !['home','fluxo','torre','cop'].includes(v));
   fecharDrawer();
   const fb=document.getElementById('filterbar'); if(fb) fb.classList.remove('aberto');
-  hideTips();
 }
 function fecharDrawer(){ const d=document.getElementById('drawer'); if(d) d.classList.remove('aberto'); }
 // gaveta mobile em accordion: abrir uma seção fecha as demais
@@ -7144,11 +7117,6 @@ function colPath(x,w,yTop,y0,r,fill){
   return `<path fill="${fill}" d="M${x},${y0} L${x},${yTop+r} Q${x},${yTop} ${x+r},${yTop} L${x+w-r},${yTop} Q${x+w},${yTop} ${x+w},${yTop+r} L${x+w},${y0} Z"/>`;
 }
 // segmento intermediário (base e topo retos)
-function colRect(x,w,yTop,yBot,fill){
-  const h=yBot-yTop;
-  if(h<=0.6) return '';
-  return `<rect x="${x}" y="${yTop}" width="${w}" height="${h}" fill="${fill}"/>`;
-}
 
 /* ---------------- Gráfico do fluxo: 2 painéis ---------------- */
 const CHF = { W:960, mL:64, mR:16, t1:34, h1:170, gapP:44, h2:190, mB:44 };
@@ -7469,228 +7437,6 @@ function renderVenc(svgId,tipId,wrapId,rows,dataRef){
   }), 'sem dados no periodo');
 }
 
-function bindHover(svgId){
-  const svg=document.getElementById(svgId);
-  if(svg.dataset.bound) return;
-  svg.dataset.bound='1';
-  svg.addEventListener('pointermove', e=>{
-    const g=GEOM[svgId]; if(!g) return;
-    const r=svg.getBoundingClientRect(), sc=g.W/r.width;
-    const x=(e.clientX-r.left)*sc;
-    const i=Math.max(0,Math.min(g.n-1,Math.floor((x-g.mL)/g.bandW)));
-    setActive(svgId,i,e.clientY,false);
-  });
-  svg.addEventListener('pointerleave', ()=>hideTip(svgId));
-  svg.addEventListener('keydown', e=>{
-    const g=GEOM[svgId]; if(!g) return;
-    if(e.key==='Escape'){ hideTip(svgId); return; }
-    let i=ACTIVE[svgId] ?? -1;
-    if(e.key==='ArrowRight') i=Math.min(g.n-1,(i<0?0:i+1));
-    else if(e.key==='ArrowLeft') i=Math.max(0,(i<0?g.n-1:i-1));
-    else if(e.key==='Home') i=0;
-    else if(e.key==='End') i=g.n-1;
-    else return;
-    e.preventDefault(); setActive(svgId,i,null,true);
-  });
-  svg.addEventListener('blur', ()=>hideTip(svgId));
-}
-function tipRow(tip,lbl,val,key){
-  const r=document.createElement('div'); r.className='row';
-  const k=document.createElement('span'); k.className='key';
-  if(key){ const i2=document.createElement('i'); Object.assign(i2.style,key); k.append(i2); }
-  const l=document.createElement('span'); l.className='lbl'; l.textContent=lbl;
-  const b=document.createElement('b'); b.textContent=val;
-  r.append(k,l,b); tip.append(r);
-}
-function setActive(svgId,i,clientY,announce){
-  const g=GEOM[svgId]; if(!g) return;
-  ACTIVE[svgId]=i;
-  const cx=g.px(i);
-  const set=(id,attrs)=>{ const el=document.getElementById(id); if(el) Object.entries(attrs).forEach(([k,v])=>el.setAttribute(k,v)); };
-  set(svgId+'-xhair',{x1:cx,x2:cx,opacity:1});
-  set(svgId+'-hband',{x:cx-g.bandW/2,width:g.bandW,opacity:.5});
-  const tip=document.getElementById(g.tip); tip.textContent='';
-  const tt=document.createElement('div'); tt.className='tt';
-  let liveTxt='';
-  if(g.kind==='fluxo'){
-    const f=g.rows[i];
-    set('chart-mkP',{cx,cy:g.y2(f.saldo_projetado),opacity:1});
-    set('chart-mkR',{cx,cy:g.y2(f.saldo_realista),opacity:fluxoCenario?1:0});
-    tt.textContent=periodoLabel(f.periodo)+(f.periodo==='atrasado'?' · vencidos até a ref.':'');
-    tip.append(tt);
-    tipRow(tip,'Receber',BRL.format(f.receber),{borderTop:'3px solid #1E7F4F'});
-    tipRow(tip,'Pagar',BRL.format(f.pagar),{borderTop:'3px solid #C03221'});
-    tipRow(tip,'Líquido',BRL.format(f.liquido),null);
-    const sep=document.createElement('div'); sep.className='sep'; tip.append(sep);
-    tipRow(tip,'Saldo projetado',BRL.format(f.saldo_projetado),{borderTop:'3px solid '+CC.navy700});
-    if(fluxoCenario) tipRow(tip,'Saldo realista',BRL.format(f.saldo_realista),{borderTop:'3px dashed '+CC.navy500});
-    // saldo orçado (provisão, M3): entradas/saídas/geração DO MÊS + o
-    // acumulado, na mesma linha do tempo do saldo projetado/realista
-    const prov=g.provAcc && g.provAcc.get(i);
-    if(prov){
-      const sep2=document.createElement('div'); sep2.className='sep'; tip.append(sep2);
-      tipRow(tip,'Saldo orçado (acumulado)',BRL.format(prov.saldoOrcado),{borderTop:'3px dashed '+CC.laranja});
-      tipRow(tip,'Geração orçada do mês',BRL.format(prov.ponto.geracao),null);
-      tipRow(tip,'Entradas orçadas',BRL.format(prov.ponto.entradas),null);
-      tipRow(tip,'Saídas orçadas',BRL.format(prov.ponto.saidas),null);
-    }
-    liveTxt=`${periodoLabel(f.periodo)}: receber ${BRL.format(f.receber)}, pagar ${BRL.format(f.pagar)}, saldo projetado ${BRL.format(f.saldo_projetado)}`;
-  } else if(g.kind==='oc'){
-    const r=g.rows[i];
-    tt.textContent=periodoLabel(r.mes);
-    tip.append(tt);
-    tipRow(tip,'Valor emitido',BRL.format(r.valor),{borderTop:'3px solid '+CC.navy500});
-    tipRow(tip,'Ordens',r.ocs.toLocaleString('pt-BR'),null);
-    liveTxt=`${periodoLabel(r.mes)}: ${r.ocs} ordens, ${BRL.format(r.valor)}`;
-  } else if(g.kind==='mul'){
-    const r=g.rows[i];
-    tt.textContent=periodoLabel(r.mes);
-    tip.append(tt);
-    tipRow(tip,'Valor',BRL.format(r.valor||0),{borderTop:'3px solid #B97709'});
-    tipRow(tip,'Multas',r.multas.toLocaleString('pt-BR'),null);
-    liveTxt=`${periodoLabel(r.mes)}: ${r.multas} multas, ${BRL.format(r.valor||0)}`;
-  } else if(g.kind==='lanc'){
-    const r=g.rows[i];
-    tt.textContent=periodoLabel(r.mes);
-    tip.append(tt);
-    tipRow(tip,'Crédito',BRL.format(r.credito||0),{borderTop:'3px solid #1E7F4F'});
-    tipRow(tip,'Débito',BRL.format(r.debito||0),{borderTop:'3px solid #C03221'});
-    tipRow(tip,'Líquido',BRL.format((r.credito||0)-(r.debito||0)),null);
-    liveTxt=`${periodoLabel(r.mes)}: crédito ${BRL.format(r.credito||0)}, débito ${BRL.format(r.debito||0)}`;
-  } else if(g.kind==='fluxcon'){
-    const r=g.rows[i];
-    tt.textContent=r.rotulo+(r.sem_receber?' · sem recebível lançado':'');
-    tip.append(tt);
-    tipRow(tip,'Saldo inicial',BRL.format(r.saldo_inicial),null);
-    tipRow(tip,'Entradas',BRL.format(r.entradas),{borderTop:'3px solid #1E7F4F'});
-    tipRow(tip,'Saídas',BRL.format(r.saidas),{borderTop:'3px solid #C03221'});
-    const sep=document.createElement('div'); sep.className='sep'; tip.append(sep);
-    tipRow(tip,'Saldo final',BRL.format(r.saldo_final),{borderTop:'3px solid '+CC.navy700});
-    if(r.necessidade>0) tipRow(tip,'Necessidade',BRL.format(r.necessidade),null);
-    liveTxt=`${r.rotulo}: saldo final ${BRL.format(r.saldo_final)}`;
-  } else if(g.kind==='antec'){
-    const r=g.rows[i];
-    tt.textContent=fmtD(r.dia);
-    tip.append(tt);
-    tipRow(tip,'Saldo projetado',BRL.format(r.saldo),{borderTop:'3px solid '+CC.navy700});
-    liveTxt=`${fmtD(r.dia)}: saldo ${BRL.format(r.saldo)}`;
-  } else if(g.kind==='bal'){
-    const r=g.rows[i];
-    tt.textContent=periodoLabel(r.mes);
-    tip.append(tt);
-    tipRow(tip,'Ativo',BRL.format(r.ativo||0),{borderTop:'3px solid '+CC.navy700});
-    tipRow(tip,'Passivo exigível',BRL.format(r.exigivel||0),{borderTop:'3px solid #C03221'});
-    tipRow(tip,'Patrimônio líquido',BRL.format(r.pl||0),{borderTop:'3px solid #1E7F4F'});
-    liveTxt=`${periodoLabel(r.mes)}: ativo ${BRL.format(r.ativo||0)}, PL ${BRL.format(r.pl||0)}`;
-  } else if(g.kind==='kmv'){
-    const r=g.rows[i];
-    tt.textContent=periodoLabel(r.mes);
-    tip.append(tt);
-    tipRow(tip,'Carregado',fmtKm2(r.km_carregado),{borderTop:'3px solid #1E7F4F'});
-    tipRow(tip,'Vazio',fmtKm2(r.km_vazio),{borderTop:'3px solid #C03221'});
-    tipRow(tip,'Retorno vazio',r.retorno_vazio!=null?(100*r.retorno_vazio).toLocaleString('pt-BR',{maximumFractionDigits:1})+'%':'—',null);
-    tipRow(tip,'RKM',fmtRsKm(r.rkm),null);
-    liveTxt=`${periodoLabel(r.mes)}: ${fmtKm2(r.km_carregado)} carregado, ${fmtKm2(r.km_vazio)} vazio`;
-  } else if(g.kind==='clif'){
-    const r=g.rows[i], ant=i>0?g.rows[i-1]:null;
-    tt.textContent=periodoLabel(r.mes)+((g.parc&&g.parc[i])?' · mês incompleto':'');
-    tip.append(tt);
-    tipRow(tip,'Frete das viagens',BRL.format(r.receita),{borderTop:'3px solid '+CC.verde});
-    tipRow(tip,'Viagens',r.viagens.toLocaleString('pt-BR'),null);
-    tipRow(tip,'Km',Math.round(r.km).toLocaleString('pt-BR'),null);
-    tipRow(tip,'R$/km',r.km>0?fmtRsKm(r.receita/r.km):'—',null);
-    if(ant && ant.receita>0){
-      const v=100*(r.receita-ant.receita)/ant.receita;
-      const sep=document.createElement('div'); sep.className='sep'; tip.append(sep);
-      tipRow(tip,'vs '+periodoLabel(ant.mes),(v>0?'+':'−')+Math.abs(v).toLocaleString('pt-BR',{maximumFractionDigits:1})+'%',null);
-    }
-    liveTxt=`${periodoLabel(r.mes)}: ${BRL.format(r.receita)}, ${r.viagens} viagens`;
-  } else if(g.kind==='com'){
-    const r=g.rows[i];
-    tt.textContent=periodoLabel(r.mes)+((g.parc&&g.parc[i])?' · mês incompleto no recorte':'');
-    tip.append(tt);
-    tipRow(tip,'Receita',BRL.format(r.receita),{borderTop:'3px solid #1E7F4F'});
-    tipRow(tip,'CT-es',r.ctes.toLocaleString('pt-BR'),null);
-    const rkm=(r.km>0)?(r.receita_com_km/r.km):null;
-    tipRow(tip,'RKM',fmtRsKm(rkm),null);
-    liveTxt=`${periodoLabel(r.mes)}: ${BRL.format(r.receita)}, ${r.ctes} CT-es, RKM ${fmtRsKm(rkm)}`;
-  } else if(g.kind==='comb'){
-    const r=g.rows[i];
-    tt.textContent=periodoLabel(r.mes);
-    tip.append(tt);
-    tipRow(tip,'Frota própria',BRL.format(r.custo_proprio||0),{borderTop:'3px solid '+CC.navy500});
-    tipRow(tip,'Terceiros (repasse)',BRL.format(r.custo_terceiros||0),{borderTop:'3px solid #E85D10'});
-    tipRow(tip,'Litros',fmtL(r.litros),null);
-    tipRow(tip,'R$/l',r.rs_litro!=null?r.rs_litro.toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2}):'—',null);
-    tipRow(tip,'Km/l',fmtKmL(r.km_l),null);
-    liveTxt=`${periodoLabel(r.mes)}: ${BRL.format((r.custo_proprio||0)+(r.custo_terceiros||0))}, ${fmtL(r.litros)}`;
-  } else if(g.kind==='man'){
-    const r=g.rows[i];
-    tt.textContent=periodoLabel(r.mes);
-    tip.append(tt);
-    tipRow(tip,'Peças',BRL.format(r.pecas||0),{borderTop:'3px solid '+CC.navy500});
-    tipRow(tip,'Mão de obra',BRL.format(r.maoobra||0),{borderTop:'3px solid #E85D10'});
-    tipRow(tip,'Total',BRL.format(r.custo||0),null);
-    tipRow(tip,'OSs',r.ordens.toLocaleString('pt-BR'),null);
-    liveTxt=`${periodoLabel(r.mes)}: ${BRL.format(r.custo||0)}, ${r.ordens} ordens`;
-  } else if(g.kind==='mvb'){
-    const m=g.rows[i];
-    tt.textContent=periodoLabel(m.mes);
-    tip.append(tt);
-    tipRow(tip,'CKM próprio cheio',fmtRsKm(m.ckm_cheio),{borderTop:'3px solid '+CC.navy700});
-    tipRow(tip,'CKM próprio marginal',fmtRsKm(m.ckm_marginal),{borderTop:'3px dashed '+CC.navy500});
-    tipRow(tip,'R$/km agregado',fmtRsKm(m.rs_km_agregado),{borderTop:'3px solid #E85D10'});
-    tipRow(tip,'R$/km terceiro',fmtRsKm(m.rs_km_terceiro),{borderTop:'3px solid #1E7F4F'});
-    const sep=document.createElement('div'); sep.className='sep'; tip.append(sep);
-    tipRow(tip,'Km próprio (est.)',m.km_proprio.toLocaleString('pt-BR',{maximumFractionDigits:0})+' km',null);
-    liveTxt=`${periodoLabel(m.mes)}: CKM cheio ${fmtRsKm(m.ckm_cheio)}, marginal ${fmtRsKm(m.ckm_marginal)}, agregado ${fmtRsKm(m.rs_km_agregado)}`;
-  } else if(g.kind==='agr'){
-    const r=g.rows[i];
-    tt.textContent=periodoLabel(r.mes);
-    tip.append(tt);
-    tipRow(tip,'Frete contratado',BRL.format(r.valor),{borderTop:'3px solid #E85D10'});
-    tipRow(tip,'Viagens',r.viagens.toLocaleString('pt-BR'),null);
-    tipRow(tip,'R$/km',fmtRsKm(r.rs_km),null);
-    liveTxt=`${periodoLabel(r.mes)}: ${r.viagens} viagens, ${BRL.format(r.valor)}, ${fmtRsKm(r.rs_km)} por km`;
-  } else if(g.kind==='dre'){
-    const it=g.rows[i];
-    tt.textContent=it.l;
-    tip.append(tt);
-    const key = it.t==='t' ? {borderTop:'3px solid '+CC.navy700} : {borderTop:'3px solid '+(it.v>=0?'#1E7F4F':'#C03221')};
-    tipRow(tip, it.t==='t'?'Subtotal':'Valor', BRL.format(it.v), key);
-    if(g.rl) tipRow(tip,'% da receita líquida',(100*it.v/g.rl).toLocaleString('pt-BR',{maximumFractionDigits:1})+'%',null);
-    if(it.t==='d') tipRow(tip,'Acumulado até aqui',BRL.format(it.b),null);
-    liveTxt=`${it.l}: ${BRL.format(it.v)}`;
-  } else {
-    const r=g.rows[i];
-    tt.textContent=bucketLabel(r.bucket,g.dataRef);
-    tip.append(tt);
-    tipRow(tip,'Vencido',BRL.format(r.vencido),{borderTop:'3px solid #C03221'});
-    tipRow(tip,'A vencer',BRL.format(r.a_vencer),{borderTop:'3px solid #1E7F4F'});
-    const sep=document.createElement('div'); sep.className='sep'; tip.append(sep);
-    tipRow(tip,'Total',BRL.format(r.vencido+r.a_vencer),null);
-    tipRow(tip,'Títulos',r.titulos.toLocaleString('pt-BR'),null);
-    liveTxt=`${bucketLabel(r.bucket,g.dataRef)}: vencido ${BRL.format(r.vencido)}, a vencer ${BRL.format(r.a_vencer)}`;
-  }
-  tip.style.display='block';
-  const wrap=document.getElementById(g.wrap), svg=document.getElementById(svgId);
-  const wr=wrap.getBoundingClientRect(), sr=svg.getBoundingClientRect(), sc=sr.width/g.W;
-  let left=(sr.left-wr.left)+cx*sc+14;
-  if(left+tip.offsetWidth > wrap.clientWidth-8) left=(sr.left-wr.left)+cx*sc-tip.offsetWidth-14;
-  let top = clientY!=null ? (clientY-wr.top+12) : 30;
-  top=Math.max(8,Math.min(top,wrap.clientHeight-tip.offsetHeight-8));
-  tip.style.left=left+'px'; tip.style.top=top+'px';
-  if(announce) document.getElementById('live').textContent=liveTxt;
-}
-function hideTip(svgId){
-  ACTIVE[svgId]=-1;
-  const g=GEOM[svgId];
-  if(g){ const t=document.getElementById(g.tip); if(t) t.style.display='none'; }
-  [svgId+'-xhair',svgId+'-hband','chart-mkP','chart-mkR'].forEach(id=>{
-    if(svgId!=='chart' && (id==='chart-mkP'||id==='chart-mkR')) return;
-    const el=document.getElementById(id); if(el) el.setAttribute('opacity',0); });
-}
-function hideTips(){ ['chart','chartAr','chartAp','chartDre','chartOc','chartAgr','chartMvb','chartComb','chartMan','chartCom','chartKm','chartMul'].forEach(hideTip); }
 function reloadCurrent(){
   // mapa COMPLETO: qualquer filtro compartilhado (Filial, datas, competência)
   // recarrega a TELA ATUAL — antes caía em load() (Financeiro) para várias telas.
@@ -15206,7 +14952,6 @@ function renderClif(d){
     </div>
     <div class="chartwrap" id="wrapClif">
       <div id="chartClif" style="width:100%;height:250px" role="img"></div>
-      <div class="tip" id="tipClif"></div>
     </div></div>`;
   h+=`<div class="card">
     <div class="head"><h2>Como esse cliente é atendido <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="Km das viagens do cliente por tipo de operação do veículo que rodou, no período: PRÓPRIO reúne frota e locação; AGREGADO e TERCEIRO são frete comprado. É a leitura make-vs-buy do cliente — quanto da operação dele depende de terceiro.">i</span></h2>
