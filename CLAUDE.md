@@ -1849,10 +1849,18 @@ proxy onde não havia nenhum (30/08/2026):**
   Curitiba deu 2h00 de carro e **2h16 de caminhão** nos mesmos 132,6 km. Usar a
   rota de carro como ETA de caminhão erraria 16 minutos numa viagem de duas
   horas — e ignoraria restrição de via, altura e peso.
-- **Nenhum cabeçalho de limite** volta nas respostas. O teto do plano não é
-  observável na chamada; só no painel da TomTom. Então a cadência é decidida
-  por prudência, e não por medida — e isso fica DITO em vez de virar um número
-  inventado no comentário.
+- **O TETO EXISTE E APARECE DE DUAS FORMAS — nenhuma delas em cabeçalho.**
+  Registrei primeiro que "o limite não é observável", olhando só os cabeçalhos.
+  Estava incompleto: (1) **HTTP 429** quando se passa do RITMO, e ele é **por
+  família de endpoint** — medido, o Routing recusa a partir de ~6 req/s e o
+  Traffic aguenta ~14; com os 8 trabalhadores do fluxo, 15 de 47 chamadas de
+  ETA se perderam. (2) **HTTP 403 `InsufficientFunds`** quando o recurso não
+  está coberto pelo plano — o `reverseGeocode` responde isso enquanto geocode,
+  POI e routing passam na mesma rodada. Ou seja há CRÉDITO por recurso, e ele
+  só se descobre chamando.
+- 30 chamadas EM SÉRIE não batem em limite nenhum: não é cota por volume, é
+  ritmo — e por isso a defesa é `min(trabalhadores)` e uma retentativa, não
+  menos dado.
 - Tempo de resposta: **0,54 s** o fluxo, **0,89 s** a rota.
 - **194 incidentes** na caixa Joinville–Curitiba, e **173 (89%) de UMA
   categoria** ("via fechada"), quase todos fechamento de rua com `delay: null`.

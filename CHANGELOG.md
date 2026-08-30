@@ -4,6 +4,11 @@ Gerado de `docs/versoes.yaml` por `scripts/gerar_changelog.py` — não editar �
 Formato [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/),
 versionamento [SemVer](https://semver.org/lang/pt-BR/).
 
+## [0.161.1] — 30/08/2026  ·  CX-30/08/2026-v0.161.1
+
+### Corrigido
+- A anotação sobre o limite de chamadas da TomTom estava incompleta: ele existe, aparece como recusa quando se chama rápido demais, e é diferente para cada tipo de consulta. Consultar rota aceita menos que consultar trânsito, e a coleta foi ajustada para respeitar isso.
+
 ## [0.161.0] — 30/08/2026  ·  CX-30/08/2026-v0.161.0
 
 ### Adicionado
