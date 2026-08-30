@@ -736,6 +736,12 @@ body.painelfull .content{padding:16px 22px}
    sem rolar. Regra local, e não global: as outras telas têm uma tabela
    só e 430px é o certo lá. */
 #aba-jorn-diaria .tabroll{max-height:320px}
+/* A aba da base do Avacorp rola mais cedo, pelo mesmo motivo: ela herdou a
+   tela ANTIGA inteira — banda de KPI, dois gráficos e TRÊS tabelas (leads,
+   projetos e repactuações). Com o teto padrão de 430px ela dava 947px, acima
+   da régua de uma tela. Regra local e não global: as outras abas do CRM têm
+   uma tabela só, e lá 430px é o certo. */
+#aba-crm-ava .tabroll{max-height:280px}
 .subtabs-auto{margin-left:auto;display:flex;align-items:center;gap:6px;padding:0 2px 4px}
 .subtabs-auto label{font-size:10.5px;text-transform:uppercase;letter-spacing:.055em;
   color:var(--n500);font-weight:600}
@@ -4583,6 +4589,7 @@ body.tvfull #btnReport,body.tvmode #btnReport{display:none}
           <button role="tab" id="tabcrm-ctas" data-aba="ctas" aria-controls="aba-crm-ctas" aria-selected="false" onclick="abaTrocar('crm','ctas')">Contas<span class="aban vazio" id="abanCrmCtas"></span></button>
           <button role="tab" id="tabcrm-ativ" data-aba="ativ" aria-controls="aba-crm-ativ" aria-selected="false" onclick="abaTrocar('crm','ativ')">Atividades<span class="aban vazio" id="abanCrmAtiv"></span></button>
           <button role="tab" id="tabcrm-ctr" data-aba="ctr" aria-controls="aba-crm-ctr" aria-selected="false" onclick="abaTrocar('crm','ctr')">Contratos<span class="aban vazio" id="abanCrmCtr"></span></button>
+          <button role="tab" id="tabcrm-desemp" data-aba="desemp" aria-controls="aba-crm-desemp" aria-selected="false" onclick="abaTrocar('crm','desemp')">Desempenho</button>
           <button role="tab" id="tabcrm-ava" data-aba="ava" aria-controls="aba-crm-ava" aria-selected="false" onclick="abaTrocar('crm','ava')">Base Avacorp</button>
         </div>
 
@@ -4675,6 +4682,25 @@ body.tvfull #btnReport,body.tvmode #btnReport{display:none}
               <button class="chip" onclick="crmCtrModal(0)">+ Contrato</button>
             </div>
             <div class="tablewrap tabroll" id="crm-contratos"></div>
+          </div>
+        </div>
+
+        <!-- ══ DESEMPENHO ══ O histórico: o que fechou, por que se perde e onde
+             a carteira está concentrada. Fica em aba própria porque o Painel
+             já cabe numa tela e o excedente vai para sub-aba, nunca empilhado
+             abaixo — painel que rola é painel que ninguém lê inteiro. -->
+        <div class="aba" data-abas="crm" data-aba="desemp" id="aba-crm-desemp" role="tabpanel" aria-labelledby="tabcrm-desemp" hidden>
+          <div class="grid2">
+            <div class="card"><div class="head"><h2>Ganhas × perdidas <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="Oportunidades fechadas por mês nos últimos 12 meses, pela data de fechamento. O mês corrente sai HACHURADO e rotulado como parcial: barra cheia num mês em curso faz o último ponto parecer queda, que é o erro mais fácil de cometer em série mensal. A receita das ganhas é o valor mensal delas na data do fechamento.">i</span></h2><span class="hint" id="crm-fech-hint">12 meses · por data de fechamento</span></div>
+              <div class="chartwrap"><div id="chartCrmFech" style="width:100%;height:210px" role="img" aria-label="Oportunidades ganhas e perdidas por mês"></div></div></div>
+            <div class="card"><div class="head"><h2>Por que perdemos <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="Motivo catalogado das oportunidades perdidas nos últimos 12 meses. A lista é FECHADA de propósito: é o único campo do CRM cujo valor só existe para ser agrupado, e um campo livre com 40 grafias de “preço alto” não responde nada. O valor ao lado é a receita mensal que aquelas oportunidades tinham.">i</span></h2><span class="hint" id="crm-mot-hint">motivo das perdidas · 12 meses</span></div>
+              <div class="chartwrap"><div id="chartCrmMot" style="width:100%;height:210px" role="img" aria-label="Motivos de perda"></div></div></div>
+          </div>
+          <div class="grid2">
+            <div class="card"><div class="head"><h2>Concentração da carteira <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="Os maiores clientes por receita REAL dos últimos 12 meses (ERP), com o percentual acumulado. Responde onde perder um cliente dói — e é o contraponto do funil: pipeline grande com carteira concentrada é risco, não conforto.">i</span></h2><span class="hint" id="crm-conc-hint"></span></div>
+              <div class="tablewrap tabroll" id="crm-concentracao"></div></div>
+            <div class="card"><div class="head"><h2>Corredores em negociação <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="Os pares de UF mais presentes nas LANES das oportunidades abertas. Responde onde a demanda está pedindo capacidade — a pergunta que liga o comercial à operação, e que um CRM sem a lane como unidade não sabe fazer.">i</span></h2><span class="hint" id="crm-corr-hint"></span></div>
+              <div class="tablewrap tabroll" id="crm-corredores"></div></div>
           </div>
         </div>
 
@@ -17479,6 +17505,7 @@ async function crmCarregarNovo() {
   CRMCTR = ctr.dados.contratos || [];
   crmPreencherSelects();
   crmRenderPainel();
+  crmDesempRender();
   crmPipeRender();
   crmContasRender();
   crmAtivRender();
@@ -17571,7 +17598,7 @@ function crmFunilChart() {
       ecBarras('Valor no estágio', f.map(x => x.valor || 0), CC.navy500, {
         rotulo: (i) => f[i].n ? (f[i].n + (f[i].n === 1 ? ' opo' : ' opos')) : '',
       }),
-      ecBarras('Ponderado', f.map(x => x.ponderado || 0), CC.orange500,
+      ecBarras('Ponderado', f.map(x => x.ponderado || 0), CC.laranja,
         { largura: 12, raio: false }),
     ];
     o.tooltip.formatter = ps => {
@@ -17608,7 +17635,7 @@ function crmPrevChart() {
     const o = ecOpcoes(rot, max, { tipo: 'moeda', sombra: true, bottom: 30 });
     o.series = [
       ecBarras('Valor previsto', ms.map(m => m.valor || 0), CC.navy400),
-      ecBarras('Ponderado', ms.map(m => m.ponderado || 0), CC.orange500,
+      ecBarras('Ponderado', ms.map(m => m.ponderado || 0), CC.laranja,
         { largura: 12, raio: false }),
     ];
     o.tooltip.formatter = ps => {
@@ -17892,6 +17919,129 @@ function crmContasRender() {
     <th class="num">Receita 12m</th><th class="num">Sem viagem</th>
     <th class="num">Sem contato</th><th>Responsável</th></tr></thead>
     <tbody>${linhas}</tbody></table>`;
+}
+
+/* ────────────────────────────────────────────────────────── DESEMPENHO ── */
+
+function crmDesempRender() {
+  crmFechChart();
+  crmMotChart();
+  crmConcentracao();
+  crmCorredores();
+}
+
+function crmFechChart() {
+  const fs = (CRMD && CRMD.fechamentos) || [];
+  const hint = document.getElementById('crm-fech-hint');
+  const g = fs.reduce((a, m) => a + m.ganhas, 0);
+  const pd = fs.reduce((a, m) => a + m.perdidas, 0);
+  if (hint) hint.textContent = (g + pd)
+    ? (g + ' ganha' + (g === 1 ? '' : 's') + ' · ' + pd + ' perdida'
+      + (pd === 1 ? '' : 's') + ' em 12 meses')
+    : 'nenhuma oportunidade fechada nos últimos 12 meses';
+  if (!(g + pd)) { ecDesenhar('chartCrmFech', null, 'nenhuma oportunidade fechada em 12 meses'); return; }
+  ecDesenhar('chartCrmFech', () => {
+    const max = Math.max(...fs.map(m => m.ganhas + m.perdidas), 1);
+    const o = ecOpcoes(fs.map(m => periodoLabel(m.mes)), max,
+      { tipo: 'num', sombra: true, bottom: 44, left: 46 });
+    /* O mês corrente é PARCIAL: hachura, e o aviso repetido no tooltip. Barra
+       cheia num mês em curso faz o último ponto parecer queda — a regra mais
+       antiga dos painéis desta casa. */
+    const parcial = fs.map(m => !!m.parcial);
+    o.series = [
+      ecBarras('Ganhas', fs.map(m => m.ganhas), CC.verde,
+        { empilhar: 'f', parcial: parcial, raio: false }),
+      ecBarras('Perdidas', fs.map(m => m.perdidas), CC.vermelho,
+        { empilhar: 'f', parcial: parcial }),
+    ];
+    o.legend = { data: ['Ganhas', 'Perdidas'], bottom: 0, itemWidth: 14,
+      itemHeight: 9, textStyle: { color: CC.n500, fontSize: 11,
+        fontFamily: 'Saira, sans-serif' } };
+    o.tooltip.formatter = ps => {
+      const i = ps[0].dataIndex, m = fs[i];
+      const tot = m.ganhas + m.perdidas;
+      return '<b>' + esc(periodoLabel(m.mes)) + '</b>'
+        + (m.parcial ? ' <span style="color:#B97709">(mês em curso — parcial)</span>' : '')
+        + '<br>' + m.ganhas + ' ganha' + (m.ganhas === 1 ? '' : 's')
+        + '<br>' + m.perdidas + ' perdida' + (m.perdidas === 1 ? '' : 's')
+        + (tot ? '<br>conversão ' + (100 * m.ganhas / tot).toFixed(0) + '%' : '')
+        + (m.receita_ganha ? '<br>receita ganha ' + brlAbbr(m.receita_ganha) + '/mês' : '');
+    };
+    return o;
+  });
+}
+
+function crmMotChart() {
+  const ms = (CRMD && CRMD.motivos_perda) || [];
+  const hint = document.getElementById('crm-mot-hint');
+  const tot = ms.reduce((a, m) => a + m.n, 0);
+  if (hint) hint.textContent = tot
+    ? (tot + ' perdida' + (tot === 1 ? '' : 's') + ' com motivo catalogado')
+    : 'nenhuma perda registrada em 12 meses';
+  if (!tot) { ecDesenhar('chartCrmMot', null, 'nenhuma oportunidade perdida em 12 meses'); return; }
+  ecDesenhar('chartCrmMot', () => {
+    const max = Math.max(...ms.map(m => m.n), 1);
+    const o = ecOpcoes(ms.map(m => m.rotulo), max,
+      { tipo: 'num', sombra: true, bottom: 46, left: 46 });
+    o.xAxis.axisLabel.rotate = ms.length > 4 ? 28 : 0;
+    o.series = [ecBarras('Perdidas', ms.map(m => m.n), CC.vermelho,
+      { rotulo: i => (100 * ms[i].pct).toFixed(0) + '%' })];
+    o.tooltip.formatter = ps => {
+      const m = ms[ps[0].dataIndex];
+      return '<b>' + esc(m.rotulo) + '</b><br>' + m.n + ' oportunidade'
+        + (m.n === 1 ? '' : 's') + ' (' + (100 * m.pct).toFixed(0) + '%)'
+        + (m.valor ? '<br>' + brlAbbr(m.valor) + '/mês que estavam em jogo' : '');
+    };
+    return o;
+  });
+}
+
+function crmConcentracao() {
+  const el = document.getElementById('crm-concentracao'); if (!el) return;
+  const c = (CRMD && CRMD.carteira) || {};
+  const lista = c.concentracao || [];
+  const hint = document.getElementById('crm-conc-hint');
+  if (hint) hint.textContent = lista.length
+    ? (lista.length + ' de ' + ((CRMD.kpis || {}).contas || lista.length)
+      + ' contas · ' + brlAbbr(c.receita_total_12m || 0) + ' em 12 meses')
+    : 'nenhuma conta com receita no ERP';
+  if (!lista.length) {
+    el.innerHTML = '<div style="padding:14px 4px;color:var(--n500);font-size:13px">'
+      + 'Nenhuma conta vinculada ao ERP ainda — a concentração sai da receita real, '
+      + 'e ela só existe para conta com grupo econômico informado.</div>';
+    return;
+  }
+  el.innerHTML = '<table><thead><tr><th>#</th><th>Conta</th>'
+    + '<th class="num">Receita 12m</th><th class="num">% acumulado</th></tr></thead><tbody>'
+    + lista.map(l => '<tr><td>' + l.posicao + '</td><td>' + esc(l.conta) + '</td>'
+      + '<td class="num">' + BRL.format(l.receita_12m || 0) + '</td>'
+      + '<td class="num"' + (l.pct_acumulado > 0.8 ? ' style="font-weight:600"' : '') + '>'
+      + (l.pct_acumulado != null
+        ? (100 * l.pct_acumulado).toFixed(1).replace('.', ',') + '%' : '—')
+      + '</td></tr>').join('')
+    + '</tbody></table>';
+}
+
+function crmCorredores() {
+  const el = document.getElementById('crm-corredores'); if (!el) return;
+  const cs = (CRMD && CRMD.corredores) || [];
+  const hint = document.getElementById('crm-corr-hint');
+  if (hint) hint.textContent = cs.length
+    ? (cs.length + ' par' + (cs.length === 1 ? '' : 'es') + ' de UF nas lanes abertas')
+    : 'nenhuma lane com origem e destino informados';
+  if (!cs.length) {
+    el.innerHTML = '<div style="padding:14px 4px;color:var(--n500);font-size:13px">'
+      + 'Nenhuma lane em negociação com UF de origem e destino preenchidas. É esse '
+      + 'par que diz onde a demanda está pedindo capacidade.</div>';
+    return;
+  }
+  el.innerHTML = '<table><thead><tr><th>Corredor</th><th class="num">Lanes</th>'
+    + '<th class="num">Viagens/mês</th><th class="num">Receita/mês</th></tr></thead><tbody>'
+    + cs.map(c => '<tr><td><b>' + esc(c.corredor) + '</b></td>'
+      + '<td class="num">' + c.lanes + '</td>'
+      + '<td class="num">' + NMI.format(c.viagens_mes) + '</td>'
+      + '<td class="num">' + brlAbbr(c.receita) + '</td></tr>').join('')
+    + '</tbody></table>';
 }
 
 /* ─────────────────────────────────────────────────────────── ATIVIDADES ── */

@@ -79,12 +79,35 @@ ALERTAS = [
                 "ultima_viagem": "2026-04-12"}]},
 ]
 
+FECHAMENTOS = [{"mes": f"2026-{m:02d}", "ganhas": (m % 3),
+                "perdidas": (m % 2), "receita_ganha": 12000.0 * (m % 3)}
+               for m in range(1, 13)]
+FECHAMENTOS[-1]["parcial"] = True
+
+MOTIVOS = [{"motivo": "preco", "rotulo": "Preço", "n": 4, "valor": 48000.0,
+            "pct": 0.5},
+           {"motivo": "capacidade", "rotulo": "Capacidade", "n": 2,
+            "valor": 21000.0, "pct": 0.25},
+           {"motivo": "sem_retorno", "rotulo": "Cliente parou de responder",
+            "n": 2, "valor": 9000.0, "pct": 0.25}]
+
+CONCENTRACAO = [{"posicao": 1, "conta": "TUPY FUNDIÇÕES",
+                 "receita_12m": 7400000.0, "pct_acumulado": 0.755},
+                {"posicao": 2, "conta": "FORVIA", "receita_12m": 2400000.0,
+                 "pct_acumulado": 1.0}]
+
+CORREDORES = [{"origem_uf": "SC", "destino_uf": "MG", "corredor": "SC → MG",
+               "lanes": 2, "receita": 105600.0, "viagens_mes": 22.0},
+              {"origem_uf": "PR", "destino_uf": "SP", "corredor": "PR → SP",
+               "lanes": 1, "receita": 9000.0, "viagens_mes": 10.0}]
+
 PAINEL = {"kpis": _kpis(), "funil": FUNIL, "previsao": PREVISAO,
-          "fechamentos": [], "motivos_perda": [],
+          "fechamentos": FECHAMENTOS, "motivos_perda": MOTIVOS,
           "carteira": {"parados": [], "parados_total": 1, "top": [],
-                       "concentracao": [], "receita_total_12m": 9800000.0,
+                       "concentracao": CONCENTRACAO,
+                       "receita_total_12m": 9800000.0,
                        "sem_historico": 0, "corte_parada_dias": 90},
-          "alertas": ALERTAS, "corredores": [],
+          "alertas": ALERTAS, "corredores": CORREDORES,
           "minhas": {"atividades": [], "atrasadas": 0, "hoje": 0,
                      "oportunidades": [], "contas": 1},
           "atualizado_em": _HOJE + "T20:00:00", "fonte": "CÓRTEX"}
@@ -529,3 +552,86 @@ def test_mover_cartao_manda_o_estagio_e_perda_pede_motivo(pagina):
     assert envios, "o motivo escolhido tem de disparar o envio"
     assert envios[0][1]["estagio"] == "perdida"
     assert envios[0][1]["motivo_perda"] == "preco"
+
+
+# --------------------------------------------------------------- desempenho
+
+def test_aba_desempenho_desenha_os_quatro_blocos(pagina):
+    """Eram quatro agregados que o backend calculava e a tela não mostrava.
+
+    Payload sem consumidor apodrece: ninguém percebe quando ele quebra, e
+    alguém acaba "otimizando" a consulta que o produz.
+    """
+    pg, base_url = pagina
+    _abrir(pg, base_url)
+    pg.click("#tabcrm-desemp")
+    pg.wait_for_selector("#aba-crm-desemp:not([hidden])", timeout=5000)
+    pg.wait_for_selector("#crm-concentracao table tbody tr", timeout=5000)
+
+    conc = pg.inner_text("#crm-concentracao")
+    assert "TUPY" in conc and "75,5%" in conc
+    corr = pg.inner_text("#crm-corredores")
+    assert "SC → MG" in corr
+    # os dois gráficos mediram largura de verdade mesmo nascendo escondidos
+    for cid in ("chartCrmFech", "chartCrmMot"):
+        caixa = pg.query_selector(f"#{cid}").bounding_box()
+        assert caixa["width"] > 300, f"{cid} mediu {caixa['width']}px — o "
+        "ResizeObserver do echartsRegistrar não pegou a aba ao aparecer"
+
+
+def test_motivo_de_perda_mostra_o_percentual(pagina):
+    """"Perdemos por preço" só decide alguma coisa com o quanto ao lado."""
+    pg, base_url = pagina
+    _abrir(pg, base_url)
+    pg.click("#tabcrm-desemp")
+    pg.wait_for_selector("#aba-crm-desemp:not([hidden])", timeout=5000)
+    assert "8 perdidas com motivo catalogado" in pg.inner_text("#crm-mot-hint")
+
+
+# ------------------------------------------------------------ régua de altura
+
+def test_cada_aba_cabe_numa_tela_com_dado_de_verdade(pagina):
+    """A régua da casa: painel de BI cabe em UMA tela, e o que não couber vai
+    para sub-aba — nunca empilhado abaixo.
+
+    Duas diferenças em relação ao `test_uma_tela.py`, que mede as 68 telas:
+
+    1. **Aqui o payload é REALISTA**, não `{}`. Lá a altura é o PISO (piso acima
+       da régua é defeito certo; piso abaixo não prova que cabe com dado), e a
+       régua precisa ser comparável entre telas. O CRM é justamente a tela onde
+       o volume é o problema — foi ela que produziu a página de 16.000px —,
+       então vale medi-la cheia.
+    2. **A aba `ava` está fora da régua, de propósito.** Ela não é um painel
+       que alguém desenhou: é a tela ANTIGA inteira, preservada como arquivo
+       somente leitura a pedido de quem usa. Encolhê-la para caber em 900px
+       significaria cortar conteúdo que existe justamente para ser mantido —
+       trocar a instrução que criou a aba por um número. O que protege contra
+       o crescimento sem fim ali é o `.tabroll` em toda tabela, que o teste
+       seguinte cobra, e o teto local de 280px do CSS.
+    """
+    pg, base_url = pagina
+    _abrir(pg, base_url)
+    pg.set_viewport_size({"width": 1440, "height": 900})
+    alturas = {}
+    for chave in ("pnl", "pipe", "ctas", "ativ", "ctr", "desemp", "ava"):
+        pg.click(f"#tabcrm-{chave}")
+        pg.wait_for_selector(f"#aba-crm-{chave}:not([hidden])", timeout=5000)
+        pg.wait_for_timeout(120)
+        alturas[chave] = pg.query_selector(f"#aba-crm-{chave}").bounding_box()["height"]
+    proprias = {k: round(v) for k, v in alturas.items()
+                if k != "ava" and v > 900}
+    assert not proprias, f"abas acima da régua de 900px: {proprias}"
+    # e o arquivo, ainda que isento, não pode virar página quilométrica
+    assert alturas["ava"] < 1400, round(alturas["ava"])
+
+
+def test_toda_tabela_do_crm_rola_dentro_do_card(pagina):
+    """Lista longa rola DENTRO do card (`.tabroll`), nunca na página — é o que
+    impediu a página de 16.000px de voltar."""
+    pg, base_url = pagina
+    _abrir(pg, base_url)
+    soltas = pg.eval_on_selector_all(
+        "#view-crm table",
+        "ts => ts.filter(t => !t.closest('.tabroll') && !t.closest('.modal'))"
+        "     .map(t => t.parentElement.className || t.parentElement.id)")
+    assert soltas == [], f"tabelas sem .tabroll: {soltas}"
