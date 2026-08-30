@@ -176,8 +176,15 @@ def email(contato_id: int, *, assunto: str, corpo: str,
 
     from ..correio import envio as ce
     from ..correio import painel as layout
-    html = (layout.cabecalho(ass, ct["conta_nome"])
-            + "".join(layout.paragrafo(p) for p in txt.split("\n") if p.strip()))
+    # `documento()` é o ENVELOPE, e passar por ele é obrigatório: `cabecalho` e
+    # `paragrafo` devolvem `<tr><td>…</td></tr>` — linhas de uma tabela que só
+    # existe dentro do envelope. Concatená-los direto produz `<tr>` órfão, que
+    # o Outlook (motor do Word) descarta ou renderiza fora de ordem, e a
+    # mensagem chega desmontada sem ninguém ficar sabendo.
+    html = layout.documento(
+        ass, [layout.cabecalho(ass, ct["conta_nome"])]
+        + [layout.paragrafo(p) for p in txt.split("\n") if p.strip()],
+        origem="CRM")
     r = ce.enviar([ct["email"]], ass, txt, corpo_html=html, usuario=usuario,
                   origem=ORIGEM)
 
