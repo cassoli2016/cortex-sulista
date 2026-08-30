@@ -108,7 +108,8 @@ def _um_ponto(item: tuple[str, dict]) -> dict:
 
 def condicao_da_frota(*, forcar: bool = False, limite: int | None = None,
                       viagens=None, posicoes_atuais=None,
-                      so_cache: bool = False) -> dict:
+                      so_cache: bool = False,
+                      idade_maxima_s: int | None = None) -> dict:
     """A leitura de trânsito das viagens em curso.
 
     `so_cache=True` NUNCA sai para a rede: devolve o que houver em cache, ou
@@ -120,9 +121,18 @@ def condicao_da_frota(*, forcar: bool = False, limite: int | None = None,
     `viagens` e `posicoes_atuais` existem para o teste injetar — sem eles, lê
     da Torre e de `api/posicoes.py`.
     """
+    # QUEM CHAMA DIZ QUANTO TOLERA DE ATRASO, e isso não é preciosismo: o
+    # painel de TV roda sozinho o dia inteiro. Com o TTL de 10 min da Torre,
+    # só ele dispararia 6 varreduras por hora — ~5.000 chamadas num dia de 12 h,
+    # e o teto do plano não é observável. Tolerando 20 min, cai pela metade.
+    #
+    # UM cache só, com tolerância por chamador: dois caches guardariam a mesma
+    # coisa duas vezes e divergiriam, que é o defeito dos dois armazéns de
+    # parâmetro da premiação.
     global _cache
     agora = time.monotonic()
-    if not forcar and _cache and (agora - _cache[0]) < TTL_S:
+    ttl = TTL_S if idade_maxima_s is None else max(TTL_S, int(idade_maxima_s))
+    if not forcar and _cache and (agora - _cache[0]) < ttl:
         return {**_cache[1], "do_cache": True}
     if so_cache:
         return {"configurado": cliente.configurado(), "sem_cache": True,
@@ -130,7 +140,7 @@ def condicao_da_frota(*, forcar: bool = False, limite: int | None = None,
                 "mensagem": "sem leitura recente — abra a Torre de Controle"}
 
     with _lock:
-        if not forcar and _cache and (time.monotonic() - _cache[0]) < TTL_S:
+        if not forcar and _cache and (time.monotonic() - _cache[0]) < ttl:
             return {**_cache[1], "do_cache": True}
 
         if not cliente.configurado():

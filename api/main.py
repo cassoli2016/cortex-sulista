@@ -2321,7 +2321,7 @@ def analise_km(
 
 
 @app.get("/api/operacao/torre/estradas")
-def torre_estradas(forcar: int = 0) -> JSONResponse:
+def torre_estradas(forcar: int = 0, tolerancia: int = 0) -> JSONResponse:
     """Condição da estrada onde cada caminhão EM VIAGEM está agora (TomTom).
 
     ROTA SEPARADA da Torre, de propósito: são ~70 chamadas a uma API de
@@ -2334,7 +2334,11 @@ def torre_estradas(forcar: int = 0) -> JSONResponse:
     """
     from api.tomtom import coleta
     try:
-        return JSONResponse(coleta.condicao_da_frota(forcar=bool(forcar)))
+        # `tolerancia` em segundos: o painel de TV manda 1200 porque roda
+        # sozinho o dia inteiro e não pode ditar o consumo da TomTom.
+        return JSONResponse(coleta.condicao_da_frota(
+            forcar=bool(forcar),
+            idade_maxima_s=int(tolerancia) if tolerancia else None))
     except Exception as exc:  # noqa: BLE001
         log.warning("torre_estradas: %s", type(exc).__name__)
         return JSONResponse(status_code=500, content={

@@ -987,6 +987,10 @@ body.tvfull .tv-head .tv-logo{display:block}
 .tv-dia.fut .m{opacity:.35}
 .tv-dia.fut b{opacity:.45}
 .tv-badge.err{background:#7F1D1D;color:#FECACA}.tv-badge.ok{background:#14532D;color:#BBF7D0}
+/* O AMBAR FALTAVA. Sem ele o badge de transito LENTO sairia sem fundo
+   nenhum -- invisivel numa TV vista de longe, que e o unico jeito de ver
+   essa tela. Mesmo par do err/ok: fundo escuro da familia, texto claro. */
+.tv-badge.warn{background:#78350F;color:#FDE68A}
 @media(max-width:1100px){.tv-grid{grid-template-columns:repeat(2,1fr)}.tv-num{font-size:44px}}
 /* no celular os cards de TV em 2 colunas cortam os números — coluna única */
 @media(max-width:640px){.tv-grid{grid-template-columns:1fr}.tv-num{font-size:40px}}
@@ -9972,6 +9976,29 @@ const TV_BBOXES=[
   [-49.3,-27.0,-48.4,-26.0],   // Joinville / Itajaí / BR-101 SC
 ];
 const TT_TIPO={1:'⛔ Acidente',6:'🚗 Congestionamento',7:'🚧 Faixa interditada',8:'⛔ Via interditada',9:'🚧 Obras',11:'🌊 Alagamento',14:'⚠️ Veículo quebrado'};
+let tvOpeEstradas = null;
+
+/* O BADGE DE CHEGADA, COM O TRÂNSITO DENTRO.
+   ORDEM DE PRECEDÊNCIA, e ela é a decisão: ATRASADA vence tudo (o prazo já
+   passou, e isso é fato, não previsão); depois vem o TRÂNSITO, que é o que
+   ainda dá para agir; "no prazo" é o resto.
+
+   Em TV NÃO existe tooltip: o badge tem de dizer QUANTO se está perdendo,
+   senão "TRÂNSITO" vira um aviso que não decide nada. Minutos, não segundos —
+   segundo é a unidade da API, não a de quem liga para o motorista. */
+function tvBadgeChegada(v, tr){
+  if(v.atrasada) return '<span class="tv-badge err">ATRASADA</span>';
+  if(tr && tr.estado && tr.estado !== 'livre' && tr.estado !== 'nd'){
+    const min = (tr.atraso_s != null && tr.atraso_s > 60)
+      ? ' ' + Math.round(tr.atraso_s / 60) + ' min' : '';
+    const cls = (tr.estado === 'lento') ? 'warn' : 'err';
+    const rot = (tr.estado === 'bloqueado') ? 'VIA FECHADA'
+              : (tr.estado === 'parado') ? 'PARADO' : 'TRÂNSITO';
+    return '<span class="tv-badge ' + cls + '">' + rot + min + '</span>';
+  }
+  return '<span class="tv-badge ok">no prazo</span>';
+}
+
 async function tvEstradas(){
   if(!TV_ESTRADAS || !TV_ESTRADAS.configurado) return [];
   const itens=[];
@@ -10148,11 +10175,32 @@ async function loadTvOpe(){
     const futuras=(t.transito||[]).filter(v=>v.previsao_chegada && !v.atrasada)
       .sort((a,b)=>a.previsao_chegada<b.previsao_chegada?-1:1);
     const linhas=[...atrasadas, ...futuras].slice(0,10);
+    /* CONDIÇÃO DA ESTRADA POR VEÍCULO (servidor, TomTom Traffic Flow).
+       É outra coisa do que o `tvEstradas()` do ticker, que traz incidente numa
+       REGIÃO: aqui é o trecho onde CADA caminhão está agora.
+
+       `tolerancia=1200`: a TV recarrega a cada 60 s e roda sozinha o dia
+       inteiro. Com o TTL de 10 min da Torre, só ela dispararia 6 varreduras
+       por hora — ~5.000 chamadas num dia de 12 h, e o teto do plano não é
+       observável. Tolerando 20 min, cai pela metade.
+
+       E é `catch` silencioso de propósito: a TomTom fora não pode apagar a
+       tabela de chegadas, que é o que a torre olha o dia todo. */
+    let est = {};
+    try{
+      const re_ = await fetch('/api/operacao/torre/estradas?tolerancia=1200',
+                              {cache:'no-store', headers:{'X-Carga-Fundo':'1'}});
+      if(re_.ok){
+        const dd = await re_.json();
+        (dd.trechos||[]).forEach(x => { if(x.placa) est[x.placa] = x; });
+        tvOpeEstradas = dd;
+      }
+    }catch(e){ /* silêncio: painel de TV não tem quem leia mensagem de erro */ }
     document.getElementById('tvope-cheg').innerHTML=linhas.map(v=>`<tr>
       <td style="font-family:var(--mono);font-weight:700;${v.atrasada?'color:#F87171':''}">${esc(v.placa||'—')}</td>
       <td>${esc((v.destino||'—').length>22?v.destino.slice(0,22)+'…':(v.destino||'—'))}</td>
       <td class="num" ${v.atrasada?'style="color:#F87171"':''}>${v.previsao_chegada?v.previsao_chegada.slice(8,10)+'/'+v.previsao_chegada.slice(5,7)+' '+v.previsao_chegada.slice(11,16):'—'}</td>
-      <td>${v.atrasada?'<span class="tv-badge err">ATRASADA</span>':'<span class="tv-badge ok">no prazo</span>'}</td></tr>`).join('')
+      <td>${tvBadgeChegada(v, est[(v.placa||'').toUpperCase()])}</td></tr>`).join('')
       || '<tr><td colspan="4" style="color:#8FA6BC">sem viagens em trânsito</td></tr>';
     const tb=document.getElementById('tvope-cheg');
     const cardCheg=tb.closest('.tv-card');
@@ -10215,6 +10263,19 @@ async function loadTvOpe(){
       const estradas=await tvEstradas();
       estradas.forEach(x=>tick.unshift('🛣️ '+x));
     }catch(e){}
+    /* O RESUMO DA NOSSA FROTA vai na FRENTE do resto: incidente numa rodovia
+       qualquer é contexto; caminhão nosso parado é o assunto. E o denominador
+       vem junto — "2 de 69" decide, "2" sozinho não. */
+    const rEst = tvOpeEstradas && tvOpeEstradas.resumo;
+    if(rEst && rEst.medidos){
+      if(rEst.com_problema > 0){
+        tick.unshift('🚧 ' + rEst.com_problema + ' de ' + rEst.medidos
+          + ' em trânsito ruim' + (rEst.atraso_total_min
+            ? ' · ' + Math.round(rEst.atraso_total_min) + ' min perdidos' : ''));
+      }else{
+        tick.push('🛣️ Estradas livres nos ' + rEst.medidos + ' em viagem');
+      }
+    }
     const tkEl=document.getElementById('tvope-ticker');
     if(tkEl && tick.length){
       const linha=tick.map(x=>'<span>'+esc(x)+'</span>').join('<span style="color:#3D5A77">•</span>');

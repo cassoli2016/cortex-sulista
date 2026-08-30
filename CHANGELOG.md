@@ -4,6 +4,15 @@ Gerado de `docs/versoes.yaml` por `scripts/gerar_changelog.py` — não editar �
 Formato [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/),
 versionamento [SemVer](https://semver.org/lang/pt-BR/).
 
+## [0.162.0] — 30/08/2026  ·  CX-30/08/2026-v0.162.0
+
+### Adicionado
+- O Painel TV — Operação passou a mostrar a situação da estrada de cada veículo em viagem. Na tabela de chegadas, quem está preso no trânsito aparece com o estado e quantos minutos está perdendo, em vez de "no prazo"; e o rodapé traz o resumo da frota com o total ao lado — "2 de 69 em trânsito ruim".
+- É diferente do aviso de rodovia que o rodapé já trazia: aquele é ocorrência numa região, este é o trecho onde o nosso caminhão está.
+
+### Alterado
+- O painel de TV aceita uma leitura de trânsito com até 20 minutos, contra 10 da Torre de Controle. Ele fica ligado o dia inteiro sozinho, e sem isso passaria a ser ele a determinar quantas consultas o sistema faz à TomTom.
+
 ## [0.161.1] — 30/08/2026  ·  CX-30/08/2026-v0.161.1
 
 ### Corrigido
