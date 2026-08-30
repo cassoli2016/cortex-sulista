@@ -371,3 +371,65 @@ def test_sem_chave_a_coleta_RECUSA_sem_chamar_nada(coleta_isolada, monkeypatch):
     r = coleta_isolada.condicao_da_frota(forcar=True, viagens=VIAGENS,
                                          posicoes_atuais=POSICOES)
     assert r["configurado"] is False and r["trechos"] == []
+
+
+# ── geocodificação: o destino que o ERP não tem ─────────────────────────────
+
+
+def test_o_ERP_manda_e_o_geocode_e_a_PONTE(monkeypatch):
+    """`coleta.latitudedestino` é o PONTO DE ENTREGA e continua sendo a fonte
+    boa. O centro da cidade entra só onde ele falta — 13 das 70 viagens."""
+    from api.tomtom import eta
+    chamou = []
+    monkeypatch.setattr("api.tomtom.geo.coordenada",
+                        lambda l, **k: chamou.append(l) or {"lat": 1.0, "lon": 2.0})
+    alvo, aprox = eta._destino({"lat_destino": -26.3, "lon_destino": -48.8,
+                                "destino": "JOINVILLE/SC"})
+    assert alvo == (-26.3, -48.8) and aprox is False
+    assert not chamou, "não podia ter geocodificado: o ERP tinha a coordenada"
+
+
+def test_sem_coordenada_no_ERP_cai_no_centro_da_cidade_e_MARCA(monkeypatch):
+    from api.tomtom import eta
+    monkeypatch.setattr("api.tomtom.geo.coordenada",
+                        lambda l, **k: {"lat": -26.30, "lon": -48.84})
+    alvo, aprox = eta._destino({"lat_destino": None, "lon_destino": None,
+                                "destino": "JOINVILLE/SC"})
+    assert alvo == (-26.30, -48.84)
+    assert aprox is True, (
+        "aproximado tem de viajar junto: num município grande a diferença até "
+        "a doca chega a vinte minutos, e um ETA aproximado apresentado como "
+        "exato é pior que ETA nenhum")
+
+
+def test_destino_que_NAO_resolve_e_cadastro_e_nao_falha(monkeypatch):
+    from api.tomtom import eta
+    monkeypatch.setattr("api.tomtom.geo.coordenada", lambda l, **k: None)
+    alvo, aprox = eta._destino({"lat_destino": None, "lon_destino": None,
+                                "destino": "LUGAR/XX"})
+    assert alvo is None
+
+
+def test_a_consulta_do_geocode_e_NORMALIZADA():
+    """O ERP devolve rótulo com espaço duplo. Sem normalizar, a mesma cidade
+    vira duas linhas de cache — medindo formato de digitação, não lugar."""
+    from api.tomtom import geo
+    assert geo.normalizar("  joinville /  sc ") == "JOINVILLE / SC"
+    assert geo.normalizar("Joinville/SC") == "JOINVILLE/SC"
+
+
+def test_geocode_SEM_barra_nao_e_consultado():
+    """"CIDADE/UF" é o formato; sem a UF a resposta seria a cidade errada de
+    outro estado, e a TomTom responderia com confiança."""
+    from api.tomtom import geo
+    assert geo.coordenada("JOINVILLE") is None
+    assert geo.coordenada("") is None
+
+
+def test_a_rota_de_geocode_pede_o_PAIS():
+    """Sem `countrySet=BR`, "IMIGRANTE/RS" pode voltar como um lugar de nome
+    parecido em outro país — e o ETA sairia calculado para o outro lado do
+    mundo sem nada reclamar."""
+    import inspect
+    fonte = inspect.getsource(cliente.geocodificar)
+    assert "countrySet" in fonte and "BR" in fonte

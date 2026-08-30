@@ -4550,6 +4550,14 @@ body.tvfull #btnReport,body.tvmode #btnReport{display:none}
           </tr></thead><tbody id="torre-estradas"></tbody></table></div>
         </div>
         <div class="card">
+          <div class="head"><h2>Chega na hora? <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="Chegada estimada pela TomTom, com o trânsito de agora, da posição atual do veículo até o destino — em modo CAMINHÃO, que muda o número: Joinville a Curitiba deu 2h00 de carro e 2h16 de caminhão nos mesmos 132,6 km. Comparada com a previsão de chegada do ERP. SÓ as prometidas para as próximas 24 h: o trânsito de agora não diz nada sobre terça-feira. Viagem com o prazo JÁ VENCIDO fica num grupo à parte — seis delas apareceriam como “chega atrasado” com folga de 8.702 minutos, o que não é previsão, é registro a fechar. A conta NÃO inclui parada para descanso, fila na doca nem pernoite: uma viagem que precisa parar 11 h por interjornada aparece chegando adiantado. Recalcula no máximo a cada 30 minutos.">i</span></h2>
+            <span class="hint" id="hintTorreEta"></span></div>
+          <div class="tablewrap tabroll"><table><thead><tr>
+            <th>Veículo</th><th>Destino</th><th class="num">Prometida</th>
+            <th class="num">Estimada</th><th class="num">Folga</th><th>Situação</th>
+          </tr></thead><tbody id="torre-eta"></tbody></table></div>
+        </div>
+        <div class="card">
           <div class="head"><h2>Viagens em trânsito <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="Programações de embarque com saída registrada e sem chegada, cruzadas com a última posição da rastreadora. ATRASADA = previsão de chegada já passou, e o badge diz de quanto. A coluna Posição fica âmbar acima de 6h e vermelha acima de 24h sem transmitir: caminhão em viagem que parou de reportar deixa a torre cega naquela viagem.">i</span></h2><span class="hint">saída registrada e sem chegada · atrasadas primeiro</span></div>
           <div class="tablewrap tabroll" style="max-height:560px"><table><thead><tr>
             <th>Placa</th><th>Modalidade</th><th>Motorista</th><th>Cliente</th><th>Trajeto</th><th class="num">Km</th><th class="num">Saída → previsão</th><th class="num">Posição</th><th>Status</th>
@@ -17299,6 +17307,7 @@ async function loadTorre(fundo){
      (E entre o `catch` e o `finally` não cabe instrução nenhuma: quebra a
      cadeia do `try`, e o `node --check` pegou.) */
   carregarTorreEstradas(fundo);
+  carregarTorreEta(fundo);
 }
 /* CONDIÇÃO DA ESTRADA (TomTom).
    Carrega SEPARADO da Torre: aquela recarrega a cada 2 min e esta tem TTL de
@@ -17320,6 +17329,73 @@ async function carregarTorreEstradas(fundo){
   }catch(e){
     if(seq === torreEstSeq) renderTorreEstradas({erro:'não foi possível falar com a API'});
   }
+}
+
+let TORREETA = null, torreEtaSeq = 0;
+
+async function carregarTorreEta(fundo){
+  const seq = ++torreEtaSeq;
+  try{
+    const opt = {cache:'no-store'};
+    if(fundo) opt.headers = {'X-Carga-Fundo':'1'};
+    const r = await fetch('/api/operacao/torre/chegadas', opt);
+    const d = await r.json();
+    if(seq !== torreEtaSeq) return;
+    if(!r.ok){ renderTorreEta({erro: d.mensagem || 'nao foi possivel estimar'}); return; }
+    TORREETA = d; renderTorreEta(d);
+  }catch(e){
+    if(seq === torreEtaSeq) renderTorreEta({erro:'nao foi possivel falar com a API'});
+  }
+}
+
+const TORREETA_CLS = {atrasado:'b-dang', apertado:'b-warn', vencida:'b-info',
+                      no_prazo:'b-ok', nd:'b-info'};
+
+function renderTorreEta(d){
+  const tb = document.getElementById('torre-eta');
+  const hint = document.getElementById('hintTorreEta');
+  if(!tb || !hint) return;
+  if(!d || d.erro || d.configurado === false){
+    const msg = (d && (d.erro || d.mensagem)) || 'sem dado';
+    hint.textContent = msg;
+    tb.innerHTML = '<tr><td colspan="6" style="color:var(--n500)">' + esc(msg) + '</td></tr>';
+    return;
+  }
+  const r = d.resumo || {};
+  const partes = [];
+  /* O DENOMINADOR SAO AS QUE AINDA DA PARA SALVAR: as ja vencidas e as sem
+     estimativa saem da conta, senao o percentual de risco se dilui com casos
+     em que nao ha decisao a tomar. */
+  partes.push((r.em_risco || 0) + ' de ' + (r.estimadas || 0) + ' em risco de atraso');
+  if(r.vencidas) partes.push(r.vencidas + ' com prazo ja vencido');
+  /* APROXIMADO E DITO. Sem coordenada no ERP a rota vai ate o CENTRO da
+     cidade, e num municipio grande a diferenca ate a doca chega a vinte
+     minutos -- apresentar isso como exato e pior que nao mostrar. */
+  if(r.com_destino_aproximado)
+    partes.push(r.com_destino_aproximado + ' com destino aproximado (centro da cidade)');
+  if((d.sem_posicao || []).length) partes.push(d.sem_posicao.length + ' sem posicao');
+  partes.push('proximas ' + (d.horizonte_h || 24) + 'h · lido '
+              + (d.colhido_em ? fmtDT(d.colhido_em) : '—') + (d.do_cache ? ' (cache)' : ''));
+  hint.textContent = partes.join(' · ');
+
+  tb.innerHTML = (d.viagens || []).map(v => {
+    const cls = TORREETA_CLS[v.situacao] || 'b-info';
+    const folga = v.folga_min == null ? '—'
+      : (v.folga_min < 0 ? '<b style="color:var(--red)">' + NMI.format(-v.folga_min) + ' min</b>'
+                         : NMI.format(v.folga_min) + ' min');
+    const venc = v.vencida_ha_min != null
+      ? ' <span style="color:var(--n500);font-size:11.5px">ha ' + NMI.format(v.vencida_ha_min / 60) + ' h</span>' : '';
+    const aprox = v.destino_aproximado
+      ? ' <span class="badge b-info" title="sem coordenada no ERP: rota ate o centro da cidade">aprox.</span>' : '';
+    return `<tr${v.situacao === 'no_prazo' ? '' : ' style="font-weight:600"'}>
+      <td>${veicIdHTML(v.placa)}</td>
+      <td>${esc(v.destino || '—')}${aprox}</td>
+      <td class="num" style="color:var(--n500)">${v.previsao ? fmtDT(v.previsao) : '—'}</td>
+      <td class="num">${v.chegada_estimada ? fmtDT(v.chegada_estimada) : '—'}</td>
+      <td class="num">${folga}</td>
+      <td><span class="badge ${cls}">${esc(v.rotulo || v.situacao)}</span>${venc}</td>
+    </tr>`;
+  }).join('') || '<tr><td colspan="6" style="color:var(--n500)">nenhuma viagem prometida nas proximas 24h</td></tr>';
 }
 
 const TORREEST_CLS = {bloqueado:'b-dang', parado:'b-dang', congestionado:'b-dang',

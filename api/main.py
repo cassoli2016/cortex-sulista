@@ -2320,6 +2320,25 @@ def analise_km(
             "erro": "erro_consulta", "mensagem": "Erro ao consultar a análise de km."})
 
 
+@app.get("/api/operacao/torre/chegadas")
+def torre_chegadas(forcar: int = 0) -> JSONResponse:
+    """Chegada estimada com trânsito × prometida no ERP.
+
+    Rota SEPARADA da condição da estrada, e com TTL próprio de 30 min: a
+    previsão de uma viagem de horas não melhora sendo recalculada a cada dez
+    minutos, e cada recálculo custa ~50 chamadas de ROTA — que é a família
+    mais apertada da TomTom (429 a partir de ~6 req/s).
+    """
+    from api.tomtom import eta
+    try:
+        return JSONResponse(eta.previsoes(forcar=bool(forcar)))
+    except Exception as exc:  # noqa: BLE001
+        log.warning("torre_chegadas: %s", type(exc).__name__)
+        return JSONResponse(status_code=500, content={
+            "erro": "erro_consulta",
+            "mensagem": "Erro ao estimar as chegadas."})
+
+
 @app.get("/api/operacao/torre/estradas")
 def torre_estradas(forcar: int = 0, tolerancia: int = 0) -> JSONResponse:
     """Condição da estrada onde cada caminhão EM VIAGEM está agora (TomTom).

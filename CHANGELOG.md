@@ -4,6 +4,13 @@ Gerado de `docs/versoes.yaml` por `scripts/gerar_changelog.py` — não editar �
 Formato [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/),
 versionamento [SemVer](https://semver.org/lang/pt-BR/).
 
+## [0.164.0] — 30/08/2026  ·  CX-30/08/2026-v0.164.0
+
+### Adicionado
+- A Torre de Controle passou a responder "chega na hora?": a chegada estimada com o trânsito de agora, em modo caminhão, comparada com a previsão do ERP. Só as prometidas para as próximas 24 h — o trânsito de agora não diz nada sobre terça-feira.
+- Viagem com o prazo já vencido fica num grupo à parte, com há quanto tempo venceu. Seis delas apareceriam como "chega atrasado" com folga de 8.702 minutos, o que não é previsão e sim registro a fechar.
+- Destino sem coordenada no ERP deixou de ficar sem estimativa: são 13 de 70 viagens, em 10 cidades. O sistema descobre a coordenada da cidade uma vez e guarda para sempre — e a linha aparece marcada como aproximada, porque a rota vai até o centro da cidade e não até a doca.
+
 ## [0.163.0] — 30/08/2026  ·  CX-30/08/2026-v0.163.0
 
 ### Alterado

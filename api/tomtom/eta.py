@@ -84,7 +84,6 @@ SELECT p.numero, p.filial,
  WHERE p.dtcancelamento IS NULL AND p.semaforo = 1
    AND p.dtsaida IS NOT NULL AND p.dtchegada IS NULL
    AND p.dtsaida >= current_date - 15
-   AND co.latitudedestino IS NOT NULL AND co.longitudedestino IS NOT NULL
    AND co.dtprevisaochegadaviagem IS NOT NULL
    AND co.dtprevisaochegadaviagem <= current_timestamp + (%(horas)s * interval '1 hour')
  ORDER BY co.dtprevisaochegadaviagem
@@ -120,6 +119,22 @@ def classificar(folga_min: float | None, vencida_ha_min: float = 0) -> dict:
     return {"situacao": "no_prazo", "rotulo": "No prazo"}
 
 
+def _destino(v: dict) -> tuple[tuple[float, float] | None, bool]:
+    """A coordenada de destino e se ela é APROXIMADA.
+
+    O ERP é a fonte boa (`latitudedestino` é o ponto de entrega). Quando ele
+    não tem — 13 das 70 viagens —, cai no centro da cidade geocodificado, que
+    é melhor que ETA nenhum e PIOR que o ponto real: num município grande a
+    diferença até a doca chega a vinte minutos. Daí o segundo valor de retorno,
+    que a tela é obrigada a mostrar.
+    """
+    if v.get("lat_destino") is not None and v.get("lon_destino") is not None:
+        return (v["lat_destino"], v["lon_destino"]), False
+    from api.tomtom import geo
+    c = geo.coordenada(v.get("destino") or "")
+    return ((c["lat"], c["lon"]), True) if c else (None, True)
+
+
 def _uma(item) -> dict:
     v, pos, agora = item
     vencida_ha = round((agora.timestamp() - v["previsao"].timestamp()) / 60.0, 1)
@@ -131,9 +146,16 @@ def _uma(item) -> dict:
         # NÃO GASTA CHAMADA. O ETA não muda o fato de o prazo ter passado, e
         # eram 6 de 47 — 13% da varredura indo para uma pergunta já respondida.
         return {**base, "ok": True, **classificar(None, vencida_ha)}
+    alvo, aproximado = _destino(v)
+    base["destino_aproximado"] = aproximado
+    if alvo is None:
+        # SEM COORDENADA NEM GEOCODIFICADA: é cadastro, e é dito como tal —
+        # "sem estimativa" faria parecer falha da consulta.
+        return {**base, "ok": False,
+                "erro": "destino sem coordenada no ERP e não localizado",
+                **classificar(None)}
     try:
-        r = cliente.rota((pos["lat"], pos["lon"]),
-                         (v["lat_destino"], v["lon_destino"]), caminhao=True)
+        r = cliente.rota((pos["lat"], pos["lon"]), alvo, caminhao=True)
     except cliente.TomTomIndisponivel as exc:
         return {**base, "ok": False, "erro": str(exc), **classificar(None)}
     rotas = r.get("routes") or []
@@ -239,7 +261,12 @@ def _resumo(linhas: list[dict]) -> dict:
     vivas = c["atrasado"] + c["apertado"] + c["no_prazo"]
     atrasos = [l["folga_min"] for l in linhas
                if l.get("folga_min") is not None and l["folga_min"] < 0]
+    aprox = sum(1 for l in linhas if l.get("destino_aproximado")
+                and l.get("ok"))
     return {"contagem": c, "estimadas": vivas,
+            # QUANTAS dependem do centro da cidade em vez do ponto de entrega.
+            # Sem este número, um ETA aproximado seria lido como exato.
+            "com_destino_aproximado": aprox,
             "sem_estimativa": c["nd"],
             "vencidas": c["vencida"],
             "em_risco": c["atrasado"] + c["apertado"],

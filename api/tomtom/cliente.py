@@ -256,6 +256,30 @@ def incidentes(sul: float, oeste: float, norte: float, leste: float,
                  "timeValidityFilter": "present"})
 
 
+def geocodificar(cidade: str, uf: str = "") -> dict | None:
+    """Cidade/UF → coordenada. `None` quando a TomTom não resolve.
+
+    `countrySet=BR` é o que impede a resposta certa para a pergunta errada:
+    sem ele, "IMIGRANTE/RS" pode voltar como um lugar em outro país com nome
+    parecido, e o ETA sairia calculado para o outro lado do mundo sem que nada
+    reclamasse.
+
+    `limit=1` porque quem chama quer UM ponto; ranquear alternativas seria
+    inventar critério que não temos.
+    """
+    consulta = (cidade + (", " + uf if uf else "") + ", Brasil").strip()
+    d = _get("/search/2/geocode/%s.json" % urllib.parse.quote(consulta),
+             {"countrySet": "BR", "limit": 1})
+    res = (d.get("results") or [])
+    if not res:
+        return None
+    pos = res[0].get("position") or {}
+    if pos.get("lat") is None or pos.get("lon") is None:
+        return None
+    return {"lat": float(pos["lat"]), "lon": float(pos["lon"]),
+            "rotulo": (res[0].get("address") or {}).get("freeformAddress")}
+
+
 def rota(origem: tuple[float, float], destino: tuple[float, float],
          *, caminhao: bool = True) -> dict:
     """Tempo até o destino COM o trânsito do momento.
