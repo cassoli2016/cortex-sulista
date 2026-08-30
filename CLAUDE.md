@@ -1162,6 +1162,42 @@ em estrutura de topo: resolver dentro de **função**, na hora de desenhar.
   do commit; se falhar, o usuário continua criado e a tela AVISA — fechar o
   modal em silêncio deixaria alguém criado sem ninguém saber a senha.
 
+**`versoes.yaml` quebrado derruba TELA, não só o changelog:**
+- Uma nota de versão com aspas e barra invertida no meio do texto partiu o
+  escalar YAML e **24 testes caíram de uma vez** — tudo que lê o arquivo, a
+  tela de Documentação inclusive. O sintoma não aponta para o YAML: aponta
+  para as telas.
+- **`gerar_changelog.py` passou sem reclamar.** Ele não é validador; regenerar
+  o CHANGELOG não prova que o YAML está são.
+- Regra: depois de editar `versoes.yaml` à mão, **carregar o arquivo**
+  (`yaml.safe_load`) e conferir a contagem de versões e o topo. São duas
+  linhas e pegam na hora.
+- E o motivo pelo qual isso aconteceu vale guardar: eu estava DOCUMENTANDO um
+  erro de corte, e o texto sobre o marcador (`"
+function "`) era exatamente
+  o que o YAML não aceita. Texto técnico em nota de versão é onde mora esse
+  risco — prefira descrever em palavras a colar o literal.
+
+**CORTE POR MARCADOR: o fim é DERIVADO, e o que saiu é CONFERIDO** (errei 3x
+num dia):
+- Cortar de um marcador de início até um marcador de fim escolhido a olho já
+  apagou, nesta casa: **20 rotas alheias** do `main.py` (entre
+  `/jornada/painel` e `/jornada/raster` havia 450 linhas de outras vinte),
+  o **`loadHc`** e o **`loadMvb`**.
+- O último foi o mais instrutivo: o marcador de fim era `"
+function "` e a
+  função seguinte era `async function loadMvb` — que **não casa**. O corte
+  passou por cima dela e foi parar na próxima. Marcador de fim escrito à mão
+  erra silenciosamente; regex que cobre as duas formas
+  (`^(?:async )?function `) acerta.
+- **Duas defesas, e as duas são baratas:** (1) o fim vem de uma BUSCA a partir
+  do início, nunca de uma string escolhida; (2) depois de todo corte grande,
+  comparar a lista de funções do arquivo contra a de antes —
+  `set(re.findall(r'^(?:async )?function (\w+)', ...))` — e exigir
+  `sumiram: nenhuma`. Foi essa conferência que pegou os três.
+- O `git diff --stat` também denuncia: 479 linhas removidas quando se esperava
+  30 é a pista mais óbvia que existe, e ela aparece antes de qualquer teste.
+
 **`setInterval` + guard de sequência = tela VAZIA quando o servidor fica lento:**
 - A Saúde recarregava a cada 5 s e a resposta passou a levar 4,8 s. O
   `setInterval` dispara **com a requisição anterior em voo**, então quase toda

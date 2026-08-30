@@ -4,6 +4,15 @@ Gerado de `docs/versoes.yaml` por `scripts/gerar_changelog.py` — não editar �
 Formato [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/),
 versionamento [SemVer](https://semver.org/lang/pt-BR/).
 
+## [0.145.0] — 29/08/2026  ·  CX-29/08/2026-v0.145.0
+
+### Alterado
+- Mais quatro graficos em ECharts: custo de manutencao por mes, frete contratado de agregados, ordens de compra e aderencia ao piso da ANTT. Sao 23 dos 39 convertidos. Cada regra veio junto: mes parcial hachurado, rotulo direto, eixo FIXO em 0-100% na aderencia (escala automatica faria 92% e 97% parecerem distantes, quando a distancia que importa e para os 100%) e semaforo DISCRETO por existir viagem abaixo do piso - "quase no piso" nao e um estado.
+- O grafico de ordens de compra marca o ultimo mes como EM CURSO. A serie e sempre dos ultimos 12 meses e nao segue o filtro de periodo da tela; o hint do card ja dizia isso, e agora a barra tambem diz.
+
+### Corrigido
+- Tres funcoes foram apagadas por engano durante as conversoes (loadHc, loadMvb e, antes, 20 rotas do main.py) porque o corte ia de um marcador de inicio ate um marcador de FIM escrito a mao. O loadMvb foi o mais instrutivo: o marcador procurava por quebra de linha seguida de function, e a funcao seguinte era declarada como async function - que nao casa. O corte passou por cima dela em silencio. Todas foram restauradas do backup. O metodo mudou: o fim vem de BUSCA por regex que cobre as duas formas, e depois de todo corte grande a lista de funcoes do arquivo e comparada com a de antes, exigindo que nenhuma tenha sumido. Foi essa conferencia que pegou as tres.
+
 ## [0.144.0] — 29/08/2026  ·  CX-29/08/2026-v0.144.0
 
 ### Alterado

@@ -2423,8 +2423,7 @@ body.tvfull #btnReport,body.tvmode #btnReport{display:none}
           <div class="legend"><span class="k"><i class="sw" style="background:var(--orange-500)"></i>Frete contratado</span>
             <span class="k"><i class="sw hatch orange"></i>Mês parcial (corrente ou cortado pelo filtro)</span></div>
           <div class="chartwrap" id="wrapAgr">
-            <svg id="chartAgr" viewBox="0 0 960 250" preserveAspectRatio="xMidYMid meet"
-                 tabindex="0" role="img" aria-label="Valor de frete contratado de agregados e terceiros por mês, últimos 12 meses. Use as setas do teclado para percorrer os meses."></svg>
+            <div id="chartAgr" style="width:100%;height:250px" role="img"></div>
             <div class="tip" id="tipAgr"></div>
           </div>
         </div>
@@ -2448,8 +2447,7 @@ body.tvfull #btnReport,body.tvmode #btnReport{display:none}
         <div class="card">
           <div class="head"><h2>Aderência ao piso por mês <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="programacaoembarque (não cancelada, semáforo = 1) dos veículos com veiculo.utilizacaoveiculo em AGR/TER, por data de emissão. Pago = valorfretecompra; distância = kmfretecompra. O piso é (km × CCD) + CC da tabela ANTT vigente NA DATA DA VIAGEM (Res. 6.076/2026 até 16/07 e 6.084/2026 a partir de 17/07), pelo número de eixos e tipo de carga do veículo. Deslocamento vazio obrigatório vale 0,92 × CCD × km. Mês sem nenhuma viagem conferida não vira barra.">i</span></h2><span class="hint" id="hintAnpiso">só viagens conferidas</span></div>
           <div class="chartwrap" id="wrapAnpiso">
-            <svg id="chartAnpiso" viewBox="0 0 960 250" preserveAspectRatio="xMidYMid meet"
-                 tabindex="0" role="img" aria-label="Percentual de viagens pagas no piso mínimo da ANTT ou acima, por mês."></svg>
+            <div id="chartAnpiso" style="width:100%;height:250px" role="img"></div>
             <div class="tip" id="tipAnpiso"></div>
           </div>
         </div>
@@ -2605,8 +2603,7 @@ body.tvfull #btnReport,body.tvmode #btnReport{display:none}
           <div class="head"><h2>Custo de manutenção por mês <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="ordemservico agrupada pelo mês da EMISSÃO da OS, somando valortotal. A OS entra no mês em que foi aberta, mesmo que o serviço termine depois — por isso um mês pode carregar serviço executado no mês seguinte.">i</span></h2><span class="hint" id="hintMan">no período filtrado · valor total das OSs</span></div>
           <div class="legend"><span class="k"><i class="sw" style="background:var(--navy-500)"></i>Custo das OSs</span><span class="k"><i class="sw hatch" style="background-color:var(--navy-500)"></i>Mês parcial (corrente ou cortado pelo filtro)</span></div>
           <div class="chartwrap" id="wrapMan">
-            <svg id="chartMan" viewBox="0 0 960 250" preserveAspectRatio="xMidYMid meet"
-                 tabindex="0" role="img" aria-label="Custo de manutenção por mês, dividido entre peças e mão de obra. Use as setas do teclado para percorrer os meses."></svg>
+            <div id="chartMan" style="width:100%;height:250px" role="img"></div>
             <div class="tip" id="tipMan"></div>
           </div>
         </div>
@@ -4449,8 +4446,7 @@ body.tvfull #btnReport,body.tvmode #btnReport{display:none}
           <div class="head"><h2>Ordens emitidas por mês <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="Série fixa dos últimos 12 meses por data de emissão da OC — este gráfico NÃO segue o filtro de período da barra acima, só filial, criador e aprovador. Serve para ver a tendência do volume de compra; para o recorte filtrado, use os cartões e a tabela.">i</span></h2><span class="hint" id="hintOc">no período filtrado</span></div>
           <div class="legend"><span class="k"><i class="sw" style="background:var(--navy-500)"></i>Valor emitido</span><span class="k"><i class="sw hatch" style="background-color:var(--navy-500)"></i>Mês corrente (parcial)</span></div>
           <div class="chartwrap" id="wrapOc">
-            <svg id="chartOc" viewBox="0 0 960 250" preserveAspectRatio="xMidYMid meet"
-                 tabindex="0" role="img" aria-label="Valor de ordens de compra emitidas por mês, últimos 12 meses. Use as setas do teclado para percorrer os meses."></svg>
+            <div id="chartOc" style="width:100%;height:250px" role="img"></div>
             <div class="tip" id="tipOc"></div>
           </div>
         </div>
@@ -17132,58 +17128,27 @@ function manToggle(i){
   const open=det.classList.toggle('open');
   det.previousElementSibling.setAttribute('aria-expanded', String(open));
 }
+/* Custo de manutenção por mês. O mês cortado pelo filtro sai hachurado —
+   barra cheia num mês pela metade lê-se como queda de custo. */
 function chartManRender(mensal, dtDe, dtAte){
-  const svg=document.getElementById('chartMan');
-  GEOM['chartMan']=null; ACTIVE['chartMan']=-1;
-  if(!mensal.length){ svg.innerHTML='<text x="480" y="120" text-anchor="middle" fill="#6E7883" font-size="14">sem dados</text>'; return; }
-  const W=960,H=250,mL=64,mR=16,mT=28,mB=34, iw=W-mL-mR, ih=H-mT-mB;
-  const n=mensal.length, bandW=iw/n;
-  const maxV=Math.max(1,...mensal.map(r=>r.custo||0));
-  const tks=niceTicks(0,maxV,4), top=tks[tks.length-1], u=unitOf(top);
-  const y=v=>mT+ih-(v/top)*ih, y0=y(0);
-  const px=i=>mL+bandW*i+bandW/2;
-  const barW=Math.min(26,bandW*0.5);
-  const parc=mensal.map(r=>_mesParcial(r.mes,dtDe,dtAte));
-  let s=`<defs><pattern id="hatchMan" width="6" height="6" patternTransform="rotate(45)" patternUnits="userSpaceOnUse">`+
-        `<rect width="6" height="6" fill="${CC.navy500}"/><rect width="2.4" height="6" fill="#fff" opacity=".62"/></pattern></defs>`;
-  s+=`<rect id="chartMan-hband" x="0" y="${mT-14}" width="${bandW}" height="${ih+14}" fill="${CC.navy100}" opacity="0"/>`;
-  s+=`<text x="${mL}" y="${mT-12}" font-size="11" fill="#6E7883" font-weight="600" letter-spacing="1.5">${u.t}</text>`;
-  tks.forEach(v=>{ const yy=y(v);
-    s+=`<line x1="${mL}" y1="${yy}" x2="${W-mR}" y2="${yy}" stroke="${v===0?'#C2C8D0':'#ECEEF1'}" stroke-width="1"/>`;
-    s+=`<text x="${mL-8}" y="${yy+4}" text-anchor="end" font-size="11" fill="#6E7883" font-family="IBM Plex Mono,monospace">${NMI.format(v/u.d)}</text>`; });
-  mensal.forEach((r,i)=>{ s+=colPath(px(i)-barW/2,barW,y(r.custo||0),y0,4,parc[i]?'url(#hatchMan)':CC.navy500);
-    s+=`<text x="${px(i)}" y="${y(r.custo||0)-8}" text-anchor="middle" font-size="10.5" font-weight="700" fill="${CC.n700}" `+
-       `stroke="#fff" stroke-width="3" paint-order="stroke" stroke-linejoin="round">${brlAbbr(r.custo||0)}</text>`; });
-  mensal.forEach((r,i)=>{ s+=`<text x="${px(i)}" y="${H-mB+18}" text-anchor="middle" font-size="10.5" fill="#4F5860">${periodoLabel(r.mes)}</text>`; });
-  s+=`<line id="chartMan-xhair" x1="0" x2="0" y1="${mT-14}" y2="${y0}" stroke="${CC.navy400}" stroke-width="1" opacity="0"/>`;
-  s+=`<rect x="${mL}" y="${mT-14}" width="${iw}" height="${ih+14}" fill="transparent"/>`;
-  svg.innerHTML=s;
-  GEOM['chartMan']={kind:'man',rows:mensal,n,bandW,mL,W,px,topY:mT-14,botY:y0,wrap:'wrapMan',tip:'tipMan'};
-  bindHover('chartMan');
+  const parc = mensal.map(r => _mesParcial(r.mes, dtDe, dtAte));
+  ecDesenhar('chartMan', mensal.length && (() => {
+    const o = ecOpcoes(mensal.map(r => periodoLabel(r.mes)),
+                       Math.max(1, ...mensal.map(r => r.custo || 0)), {tipo: 'moeda'});
+    o.tooltip.formatter = p => {
+      const i = p[0].dataIndex, r = mensal[i];
+      return '<b>' + periodoLabel(r.mes) + '</b>'
+        + (parc[i] ? ' <span style="color:#B97709">· mês parcial</span>' : '')
+        + '<br>Custo: <b>' + BRL.format(r.custo || 0) + '</b>'
+        + (r.oss ? '<br>OSs: ' + r.oss : '');
+    };
+    o.series = [ecBarras('Custo', mensal.map(r => r.custo || 0), CC.navy500,
+      {parcial: parc, largura: 26, rotulo: (i, v) => brlAbbr(v)})];
+    return o;
+  }), 'sem dados');
 }
 
-/* ---------------- Make vs Buy ---------------- */
-const MVB_COMP_LBL = {combustivel:'Combustível', manutencao:'Manutenção', pneus:'Pneus',
-  outros_var:'Outros variáveis (pedágio, serviços, materiais)', motoristas:'Motoristas',
-  fixo:'Fixos (locação, seguros, rastreamento, indiretos, pessoal op.)', depreciacao:'Depreciação'};
-async function loadMvb(){
-  skelKpis('kpis-mvb',4);
-  const seq = ++mvbSeq;
-  const btn=document.getElementById('btnRefresh');
-  btn.disabled=true;
-  document.getElementById('content').classList.add('loading');
-  try{
-    const q=qsView('mvb');
-    const r=await fetch('/api/operacao/make-vs-buy?'+q,{cache:'no-store'});
-    const d=await r.json();
-    if(seq!==mvbSeq) return;
-    if(!r.ok){ showBanner(d.mensagem||'Erro ao calcular o make-vs-buy.', d.detalhe); return; }
-    hideBanner(); DATAMVB=d; renderMvb(d); LOADEDQS.mvb=qsView('mvb');
-  }catch(e){ if(seq===mvbSeq) showBanner('Não foi possível falar com a API.', e.message); }
-  finally{
-    if(seq===mvbSeq){ btn.disabled=false; document.getElementById('content').classList.remove('loading'); }
-  }
-}
+
 function renderMvb(d){
   const r=d.resumo;
   document.getElementById('mvb-rotas').innerHTML=(d.rotas||[]).map(rt=>`<tr>
@@ -17255,6 +17220,24 @@ function renderMvb(d){
   document.getElementById('mvb-veredito').innerHTML=V.map(([c,t,m])=>`<div class="toast ${c}"><b>${esc(t)}</b>${esc(m)}</div>`).join('');
   const ts=new Date(d.atualizado_em);
   document.getElementById('meta').innerHTML='<b>Atualizado '+ts.toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'})+'</b><br>'+ts.toLocaleDateString('pt-BR');
+}
+async function loadMvb(){
+  skelKpis('kpis-mvb',4);
+  const seq = ++mvbSeq;
+  const btn=document.getElementById('btnRefresh');
+  btn.disabled=true;
+  document.getElementById('content').classList.add('loading');
+  try{
+    const q=qsView('mvb');
+    const r=await fetch('/api/operacao/make-vs-buy?'+q,{cache:'no-store'});
+    const d=await r.json();
+    if(seq!==mvbSeq) return;
+    if(!r.ok){ showBanner(d.mensagem||'Erro ao calcular o make-vs-buy.', d.detalhe); return; }
+    hideBanner(); DATAMVB=d; renderMvb(d); LOADEDQS.mvb=qsView('mvb');
+  }catch(e){ if(seq===mvbSeq) showBanner('Não foi possível falar com a API.', e.message); }
+  finally{
+    if(seq===mvbSeq){ btn.disabled=false; document.getElementById('content').classList.remove('loading'); }
+  }
 }
 function chartMvbRender(mensal, compAte){
   const svg=document.getElementById('chartMvb');
@@ -17698,34 +17681,37 @@ function renderAnpisoPendencias(ps){
       <td>${ANPISO_SIT[p.motivo]||esc(p.motivo||'')}</td>
     </tr>`).join('') || '<tr><td colspan="4" style="color:var(--n500)">nenhuma pendência — todas as viagens foram conferidas</td></tr>';
 }
+/* Aderência ao piso mínimo da ANTT, por mês.
+   O eixo é FIXO em 0–100%: escala automática num percentual faria 92% e 97%
+   parecerem distantes, e a distância que importa é para os 100%.
+   A cor é SEMÁFORO DISCRETO por existir viagem abaixo do piso — não gradua
+   com o percentual, porque "quase no piso" não é um estado. */
 function chartAnpisoRender(mensal, dtDe, dtAte){
-  const svg=document.getElementById('chartAnpiso');
-  GEOM['chartAnpiso']=null; ACTIVE['chartAnpiso']=-1;
-  if(!mensal.length){ svg.innerHTML='<text x="480" y="120" text-anchor="middle" fill="#6E7883" font-size="14">sem viagem conferida no período</text>'; return; }
-  const W=960,H=250,mL=64,mR=16,mT=28,mB=34, iw=W-mL-mR, ih=H-mT-mB;
-  const n=mensal.length, bandW=iw/n;
-  const top=100;
-  const y=v=>mT+ih-(v/top)*ih, y0=y(0);
-  const px=i=>mL+bandW*i+bandW/2;
-  const barW=Math.min(26,bandW*0.5);
-  const parc=mensal.map(r=>_mesParcial(r.mes,dtDe,dtAte));
-  let s=`<defs><pattern id="hatchAnp" width="6" height="6" patternTransform="rotate(45)" patternUnits="userSpaceOnUse">`+
-        `<rect width="6" height="6" fill="#17344F"/><rect width="2.4" height="6" fill="#fff" opacity=".62"/></pattern></defs>`;
-  s+=`<rect id="chartAnpiso-hband" x="0" y="${mT-14}" width="${bandW}" height="${ih+14}" fill="${CC.navy100}" opacity="0"/>`;
-  s+=`<text x="${mL}" y="${mT-12}" font-size="11" fill="#6E7883" font-weight="600" letter-spacing="1.5">% NO PISO OU ACIMA</text>`;
-  [0,25,50,75,100].forEach(v=>{ const yy=y(v);
-    s+=`<line x1="${mL}" y1="${yy}" x2="${W-mR}" y2="${yy}" stroke="${v===0?'#C2C8D0':'#ECEEF1'}" stroke-width="1"/>`;
-    s+=`<text x="${mL-8}" y="${yy+4}" text-anchor="end" font-size="11" fill="#6E7883" font-family="IBM Plex Mono,monospace">${v}%</text>`; });
-  mensal.forEach((r,i)=>{ const v=100*r.aderencia;
-    const cor = r.abaixo>0 ? '#C0392B' : '#17344F';
-    s+=colPath(px(i)-barW/2,barW,y(v),y0,4,parc[i]?'url(#hatchAnp)':cor);
-    s+=`<text x="${px(i)}" y="${y(v)-8}" text-anchor="middle" font-size="10.5" font-weight="700" fill="${CC.n700}" `+
-       `stroke="#fff" stroke-width="3" paint-order="stroke" stroke-linejoin="round">${r.abaixo>0?(r.abaixo+' abaixo'):'100%'}</text>`; });
-  mensal.forEach((r,i)=>{ s+=`<text x="${px(i)}" y="${H-mB+18}" text-anchor="middle" font-size="10.5" fill="#4F5860">${periodoLabel(r.mes)}</text>`; });
-  s+=`<line id="chartAnpiso-xhair" x1="0" x2="0" y1="${mT-14}" y2="${y0}" stroke="${CC.navy400}" stroke-width="1" opacity="0"/>`;
-  s+=`<rect x="${mL}" y="${mT-14}" width="${iw}" height="${ih+14}" fill="transparent"/>`;
-  svg.innerHTML=s;
+  const parc = mensal.map(r => _mesParcial(r.mes, dtDe, dtAte));
+  ecDesenhar('chartAnpiso', mensal.length && (() => {
+    const o = ecOpcoes(mensal.map(r => periodoLabel(r.mes)), 100,
+      {tipo: 'pct', eixoY: {name: '% NO PISO OU ACIMA', min: 0, max: 100,
+                            axisLabel: {color: CC.n500, fontSize: 10,
+                              fontFamily: 'IBM Plex Mono, monospace',
+                              formatter: v => v + '%'}}});
+    o.tooltip.formatter = p => {
+      const i = p[0].dataIndex, r = mensal[i];
+      return '<b>' + periodoLabel(r.mes) + '</b>'
+        + (parc[i] ? ' <span style="color:#B97709">· mês parcial</span>' : '')
+        + '<br>No piso ou acima: <b>'
+        + (100*r.aderencia).toLocaleString('pt-BR',{maximumFractionDigits:1}) + '%</b>'
+        + (r.abaixo ? '<br><span style="color:#C03221">' + r.abaixo
+                      + ' viagem(ns) abaixo do piso</span>' : '')
+        + (r.conferidas ? '<br>Conferidas: ' + r.conferidas : '');
+    };
+    o.series = [ecBarras('Aderência', mensal.map(r => 100*(r.aderencia||0)),
+      (i) => (mensal[i].abaixo > 0 ? CC.vermelho : CC.navy700),
+      {parcial: parc, largura: 26,
+       rotulo: (i, v) => v.toLocaleString('pt-BR',{maximumFractionDigits:0}) + '%'})];
+    return o;
+  }), 'sem viagem conferida no período');
 }
+
 async function loadAgr(){
   skelKpis('kpis-agr',5);
   const seq = ++agrSeq;
@@ -17855,80 +17841,50 @@ function agrToggle(i){
   const open=det.classList.toggle('open');
   det.previousElementSibling.setAttribute('aria-expanded', String(open));
 }
+/* Frete contratado de agregados e terceiros, por mês de emissão. */
 function chartAgrRender(mensal, dtDe, dtAte){
-  const svg=document.getElementById('chartAgr');
-  GEOM['chartAgr']=null; ACTIVE['chartAgr']=-1;
-  if(!mensal.length){ svg.innerHTML='<text x="480" y="120" text-anchor="middle" fill="#6E7883" font-size="14">sem dados</text>'; return; }
-  const W=960,H=250,mL=64,mR=16,mT=28,mB=34, iw=W-mL-mR, ih=H-mT-mB;
-  const n=mensal.length, bandW=iw/n;
-  const maxV=Math.max(1,...mensal.map(r=>r.valor));
-  const tks=niceTicks(0,maxV,4), top=tks[tks.length-1], u=unitOf(top);
-  const y=v=>mT+ih-(v/top)*ih, y0=y(0);
-  const px=i=>mL+bandW*i+bandW/2;
-  const barW=Math.min(26,bandW*0.5);
-  const parc=mensal.map(r=>_mesParcial(r.mes,dtDe,dtAte));
-  let s=`<defs><pattern id="hatchAgr" width="6" height="6" patternTransform="rotate(45)" patternUnits="userSpaceOnUse">`+
-        `<rect width="6" height="6" fill="#E85D10"/><rect width="2.4" height="6" fill="#fff" opacity=".62"/></pattern></defs>`;
-  s+=`<rect id="chartAgr-hband" x="0" y="${mT-14}" width="${bandW}" height="${ih+14}" fill="${CC.navy100}" opacity="0"/>`;
-  s+=`<text x="${mL}" y="${mT-12}" font-size="11" fill="#6E7883" font-weight="600" letter-spacing="1.5">${u.t}</text>`;
-  tks.forEach(v=>{ const yy=y(v);
-    s+=`<line x1="${mL}" y1="${yy}" x2="${W-mR}" y2="${yy}" stroke="${v===0?'#C2C8D0':'#ECEEF1'}" stroke-width="1"/>`;
-    s+=`<text x="${mL-8}" y="${yy+4}" text-anchor="end" font-size="11" fill="#6E7883" font-family="IBM Plex Mono,monospace">${NMI.format(v/u.d)}</text>`; });
-  mensal.forEach((r,i)=>{ s+=colPath(px(i)-barW/2,barW,y(r.valor),y0,4,parc[i]?'url(#hatchAgr)':'#E85D10');
-    s+=`<text x="${px(i)}" y="${y(r.valor)-8}" text-anchor="middle" font-size="10.5" font-weight="700" fill="${CC.n700}" `+
-       `stroke="#fff" stroke-width="3" paint-order="stroke" stroke-linejoin="round">${brlAbbr(r.valor)}</text>`; });
-  mensal.forEach((r,i)=>{ s+=`<text x="${px(i)}" y="${H-mB+18}" text-anchor="middle" font-size="10.5" fill="#4F5860">${periodoLabel(r.mes)}</text>`; });
-  s+=`<line id="chartAgr-xhair" x1="0" x2="0" y1="${mT-14}" y2="${y0}" stroke="${CC.navy400}" stroke-width="1" opacity="0"/>`;
-  s+=`<rect x="${mL}" y="${mT-14}" width="${iw}" height="${ih+14}" fill="transparent"/>`;
-  svg.innerHTML=s;
-  GEOM['chartAgr']={kind:'agr',rows:mensal,n,bandW,mL,W,px,topY:mT-14,botY:y0,wrap:'wrapAgr',tip:'tipAgr'};
-  bindHover('chartAgr');
+  const parc = mensal.map(r => _mesParcial(r.mes, dtDe, dtAte));
+  ecDesenhar('chartAgr', mensal.length && (() => {
+    const o = ecOpcoes(mensal.map(r => periodoLabel(r.mes)),
+                       Math.max(1, ...mensal.map(r => r.valor || 0)), {tipo: 'moeda'});
+    o.tooltip.formatter = p => {
+      const i = p[0].dataIndex, r = mensal[i];
+      return '<b>' + periodoLabel(r.mes) + '</b>'
+        + (parc[i] ? ' <span style="color:#B97709">· mês parcial</span>' : '')
+        + '<br>Pago ao transportador: <b>' + BRL.format(r.valor || 0) + '</b>'
+        + (r.km ? '<br>Km: ' + Math.round(r.km).toLocaleString('pt-BR') : '')
+        + (r.viagens ? '<br>Viagens: ' + r.viagens : '');
+    };
+    o.series = [ecBarras('Frete contratado', mensal.map(r => r.valor || 0), CC.laranja,
+      {parcial: parc, largura: 26, rotulo: (i, v) => brlAbbr(v)})];
+    return o;
+  }), 'sem dados');
 }
 
+
+/* Ordens de compra por mês. A série é SEMPRE dos últimos 12 meses e não
+   segue o filtro de período da tela — o hint do card diz isso, porque KPI e
+   gráfico discordando sem aviso manda procurar defeito no dado. O último mês
+   está sempre em curso, e por isso sai hachurado. */
 function chartOcRender(mensal){
-  // a série é sempre dos últimos 12 meses e o último está sempre em curso
-  const svg=document.getElementById('chartOc');
-  GEOM['chartOc']=null; ACTIVE['chartOc']=-1;
-  if(!mensal.length){ svg.innerHTML='<text x="480" y="120" text-anchor="middle" fill="#6E7883" font-size="14">sem dados</text>'; return; }
-  const W=960,H=250,mL=64,mR=16,mT=28,mB=34, iw=W-mL-mR, ih=H-mT-mB;
-  const n=mensal.length, bandW=iw/n;
-  const maxV=Math.max(1,...mensal.map(r=>r.valor));
-  const tks=niceTicks(0,maxV,4), top=tks[tks.length-1], u=unitOf(top);
-  const y=v=>mT+ih-(v/top)*ih, y0=y(0);
-  const px=i=>mL+bandW*i+bandW/2;
-  const barW=Math.min(26,bandW*0.5);
-  const _hm=(()=>{const t=new Date();return t.getFullYear()+'-'+String(t.getMonth()+1).padStart(2,'0');})();
-  const parc=mensal.map(r=>r.mes===_hm);
-  let s=`<defs><pattern id="hatchOc" width="6" height="6" patternTransform="rotate(45)" patternUnits="userSpaceOnUse">`+
-        `<rect width="6" height="6" fill="${CC.navy500}"/><rect width="2.4" height="6" fill="#fff" opacity=".62"/></pattern></defs>`;
-  s+=`<rect id="chartOc-hband" x="0" y="${mT-14}" width="${bandW}" height="${ih+14}" fill="${CC.navy100}" opacity="0"/>`;
-  s+=`<text x="${mL}" y="${mT-12}" font-size="11" fill="#6E7883" font-weight="600" letter-spacing="1.5">${u.t}</text>`;
-  tks.forEach(v=>{ const yy=y(v);
-    s+=`<line x1="${mL}" y1="${yy}" x2="${W-mR}" y2="${yy}" stroke="${v===0?'#C2C8D0':'#ECEEF1'}" stroke-width="1"/>`;
-    s+=`<text x="${mL-8}" y="${yy+4}" text-anchor="end" font-size="11" fill="#6E7883" font-family="IBM Plex Mono,monospace">${NMI.format(v/u.d)}</text>`; });
-  mensal.forEach((r,i)=>{ s+=colPath(px(i)-barW/2,barW,y(r.valor),y0,4,parc[i]?'url(#hatchOc)':CC.navy500); });
-  mensal.forEach((r,i)=>{ s+=`<text x="${px(i)}" y="${H-mB+18}" text-anchor="middle" font-size="10.5" fill="#4F5860">${periodoLabel(r.mes)}</text>`; });
-  s+=`<line id="chartOc-xhair" x1="0" x2="0" y1="${mT-14}" y2="${y0}" stroke="${CC.navy400}" stroke-width="1" opacity="0"/>`;
-  s+=`<rect x="${mL}" y="${mT-14}" width="${iw}" height="${ih+14}" fill="transparent"/>`;
-  svg.innerHTML=s;
-  GEOM['chartOc']={kind:'oc',rows:mensal,n,bandW,mL,W,px,topY:mT-14,botY:y0,wrap:'wrapOc',tip:'tipOc'};
-  bindHover('chartOc');
+  const mAtual = _mesAtual();
+  ecDesenhar('chartOc', mensal.length && (() => {
+    const parc = mensal.map(r => r.mes === mAtual);
+    const o = ecOpcoes(mensal.map(r => periodoLabel(r.mes)),
+                       Math.max(1, ...mensal.map(r => r.valor || 0)), {tipo: 'moeda'});
+    o.tooltip.formatter = p => {
+      const i = p[0].dataIndex, r = mensal[i];
+      return '<b>' + periodoLabel(r.mes) + '</b>'
+        + (parc[i] ? ' <span style="color:#B97709">· mês em curso</span>' : '')
+        + '<br>Valor: <b>' + BRL.format(r.valor || 0) + '</b>'
+        + (r.ocs ? '<br>Ordens: ' + r.ocs : '');
+    };
+    o.series = [ecBarras('Ordens de compra', mensal.map(r => r.valor || 0),
+      CC.navy500, {parcial: parc, largura: 26})];
+    return o;
+  }), 'sem dados');
 }
 
-/* ---------------- DRE Gerencial ---------------- */
-const GRUPO_LBL = {
-  receita_bruta:['Receita','b-info'], deducoes:['Deduções','b-warn'],
-  custo_var:['Custo var.','b-dang'], custo_motorista:['Motoristas','b-dang'],
-  fixo:['Fixo','b-warn'], depreciacao:['Deprec.','b-warn'],
-  adm:['Adm','b-warn'], fin:['Financeiro','b-warn'], outras:['Outras','b-info'],
-};
-/* ---------------- DRE por Cliente ---------------- */
-const DRECLI_LINHAS = [
-  ['RECEITA BRUTA',0],['DEDUCOES DA RECEITA',0],['IMPOSTOS FEDERAIS',1],['IMPOSTOS ESTADUAIS',1],
-  ['IMPOSTOS MUNICIPAIS',1],['CONTRIBUICAO PREVIDENCIARIA',1],['ANULACOES',1],['DESCONTOS',1],
-  ['RECEITA LIQUIDA',0],['CUSTO VARIAVEL',0],['CREDITOS TRIBUTARIOS',0],['MARGEM DE CONTRIBUICAO',0],
-  ['CUSTO FIXO',0],['MARGEM DIRETA DO CLIENTE',0]
-];
 async function loadDreCli(){
   const seq = ++dreCliSeq;
   const btn=document.getElementById('btnRefresh'); btn.disabled=true;
