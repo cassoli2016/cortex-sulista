@@ -4,6 +4,15 @@ Gerado de `docs/versoes.yaml` por `scripts/gerar_changelog.py` — não editar �
 Formato [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/),
 versionamento [SemVer](https://semver.org/lang/pt-BR/).
 
+## [0.166.0] — 30/08/2026  ·  CX-30/08/2026-v0.166.0
+
+### Adicionado
+- O Custo de Folha ganhou a aba Estrutura: o custo por natureza (salário, diárias, 13º, hora extra, férias, rescisão…), a evolução com o custo médio por pessoa, e a explicação de por que o custo mudou — separando o que veio de ter menos gente do que veio de cada um custar diferente. Dos R$ 654 mil de queda no ano, R$ 624 mil são equipe menor.
+
+### Corrigido
+- O número que a tela chamava de custo de folha estava 14% acima do real: ele somava o adiantamento quinzenal, que sai como provento e volta como desconto no mesmo mês. São R$ 4,0 milhões em doze meses contados duas vezes. A aba nova mostra o custo efetivo e diz quanto foi retirado.
+- A tela passou a dizer que o INSS patronal NÃO está calculado — a alíquota depende do enquadramento da empresa. O FGTS aparece calculado, porque os 8% são fixados em lei.
+
 ## [0.165.0] — 30/08/2026  ·  CX-30/08/2026-v0.165.0
 
 ### Adicionado

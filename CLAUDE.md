@@ -1957,6 +1957,32 @@ só no ERP ...... 177 placas      união ....... 275
   maiúscula, espaço simples) porque matrícula e documento não conversam —
   120 dos 134 casam.
 
+**Folha: "proventos" NÃO é custo — 14% do total só CIRCULA (30/08/2026):**
+- A tela somava `tipoeven='P'` e chamava de Custo de Folha. Medido em 12 meses:
+  `ADIANTAMENTO DE SALARI` (P) R$ 3.460.109 contra `ADIANTAMENTO QUINZENAL`
+  (D) R$ 3.463.158 — a MESMA quinzena, paga adiantada e descontada depois,
+  batendo **centavo a centavo em 9 de 13 meses**. Somá-la é contar o salário
+  duas vezes. Com `INSUFICIENCIA DE SALDO`, são R$ 4,0 mi, **14,2% do bruto**.
+  O custo efetivo é R$ 24,2 mi, não R$ 28,2 mi.
+- **O ENCARGO NÃO ESTÁ NA FICHA, só as bases.** FGTS é calculável (8% fixados
+  em lei, iguais para todo regime) e entra com a alíquota DITA na tela. **INSS
+  patronal não**: a alíquota depende do enquadramento e há eventos de SIMPLES
+  na ficha (`BASE IRF S/ SAL SIMPL`), onde o patronal está no DAS. Estimar 20%
+  somaria ~R$ 2,8 milhões inventados. A base aparece como base.
+- **`.upper()` engoliu o 13º inteiro.** A classificação por natureza jogou
+  R$ 3,25 mi em "Outros" — 13,4% do custo, terceiro maior balde — porque
+  `_sem_acento` faz `.upper()` e o "o" de "13o" chega como "O", enquanto o
+  padrão estava em minúscula. Depois do conserto, "Outros" caiu para **1,1%**.
+  Categoria genérica grande é sintoma de classificador furado, não de dado
+  variado.
+- **"O custo caiu" não decide nada sem a quebra.** A decomposição separa
+  `Δpessoas × médio_anterior` de `pessoas × Δmédio`: dos R$ 654 mil de queda
+  (ago/25 → ago/26), **R$ 624 mil são gente a menos** (306 → 210) e só R$ 30
+  mil são custo médio. Dimensionamento e composição salarial têm donos
+  diferentes.
+- A comparação prefere o MESMO MÊS do ano anterior: mês contra mês carregaria
+  a sazonalidade do 13º, que é estrutural em novembro e dezembro.
+
 **O AVA é PostgreSQL 9.3.** Sem `FILTER (WHERE …)`, que só chegou no 9.4 — todo
 agregado condicional é `CASE WHEN`. O erro aponta para o meio do agregado
 (`syntax error at or near "("`), não para a versão. O banco local do CÓRTEX é

@@ -4389,7 +4389,39 @@ body.tvfull #btnReport,body.tvmode #btnReport{display:none}
           </div>
         </div>
         <div class="kpis" id="kpis-folha"></div>
-        <div class="card">
+                <div class="subtabs" role="tablist" data-abas="folha" aria-label="Seções do custo de folha">
+          <button role="tab" id="tabFolha-estr" data-aba="estr" aria-controls="aba-folha-estr"
+                  aria-selected="true" onclick="abaTrocar('folha','estr')">Estrutura</button>
+          <button role="tab" id="tabFolha-comp" data-aba="comp" aria-controls="aba-folha-comp"
+                  aria-selected="false" onclick="abaTrocar('folha','comp')">Competência</button>
+        </div>
+        <div class="aba" data-abas="folha" data-aba="estr" id="aba-folha-estr"
+             role="tabpanel" aria-labelledby="tabFolha-estr">
+          <div class="banner-inline" id="fe-aviso" style="display:none;margin:0 0 14px"></div>
+          <div class="kpis k4" id="kpis-fe"></div>
+          <div class="grid2">
+            <div class="card">
+              <div class="head"><h2>Custo por natureza <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="Os 105 eventos de provento da ficha (GLOBUS), agrupados por família. É o CUSTO EFETIVO: os eventos de CIRCULAÇÃO saem fora — o adiantamento quinzenal aparece como provento e volta como desconto no mesmo mês, batendo centavo a centavo em 9 de 13 meses, e somá-lo é contar o salário duas vezes (R$ 4,0 milhões em 12 meses, 14% do bruto). Evento que não se encaixa em família nenhuma vai para “Outros” COM o valor à vista, em vez de ser empurrado para Salário e sumir no maior balde.">i</span></h2>
+                <span class="hint" id="hintFeNat"></span></div>
+              <div id="fe-nat" style="width:100%;height:280px" role="img"
+                   aria-label="Custo de folha por natureza"></div>
+            </div>
+            <div class="card">
+              <div class="head"><h2>Por que mudou <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="A variação do custo separada em duas parcelas: quanto veio de ter MAIS OU MENOS GENTE (variação de pessoas × custo médio anterior) e quanto veio de CADA UM CUSTAR DIFERENTE (pessoas atuais × variação do médio). As duas têm donos diferentes: a primeira é dimensionamento, a segunda é composição salarial e hora extra. Compara com o mesmo mês do ano anterior quando ele existe — mês contra mês carregaria a sazonalidade do 13º.">i</span></h2>
+                <span class="hint" id="hintFeVar"></span></div>
+              <div id="fe-var" style="padding:4px 18px 16px"></div>
+            </div>
+          </div>
+          <div class="card">
+            <div class="head"><h2>Mês a mês <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="Barra = custo efetivo (proventos menos circulação). Linha em eixo próprio = custo médio por pessoa, que é o número que compara entre meses: o total cai quando a equipe encolhe, e isso não é economia por pessoa. A coluna de FGTS aplica os 8% sobre a BASE FGTS da ficha — é a única alíquota que este painel calcula, porque ela é fixada em lei e igual para todo regime. O INSS patronal NÃO é calculado: a alíquota depende do enquadramento, e há eventos de SIMPLES na ficha; a base aparece como base.">i</span></h2>
+              <span class="hint" id="hintFeMes"></span></div>
+            <div id="fe-mensal" style="width:100%;height:230px" role="img"
+                 aria-label="Custo efetivo por mês e custo médio por pessoa"></div>
+          </div>
+        </div>
+        <div class="aba" data-abas="folha" data-aba="comp" id="aba-folha-comp"
+             role="tabpanel" aria-labelledby="tabFolha-comp" hidden>
+<div class="card">
           <div class="head"><h2>Evolução do custo (12 meses)</h2><span class="hint">proventos × descontos por competência</span></div>
           <div class="chartwrap"><div id="chartFolhaSerie" style="width:100%;height:260px" role="img"></div></div>
         </div>
@@ -4404,7 +4436,8 @@ body.tvfull #btnReport,body.tvmode #btnReport{display:none}
           <div class="card"><div class="head"><h2>Top descontos</h2><span class="hint">na competência</span></div>
             <div class="tablewrap tabroll" id="folha-desc"></div></div>
         </div>
-      </section>
+              </div>
+        </section>
       <section class="view" id="view-folhaind">
         <div class="kpis" id="kpis-folhaind"></div>
         <div class="grid2">
@@ -17102,6 +17135,150 @@ function renderHc(d){
   document.getElementById('hc-mov').innerHTML=`<table><thead><tr><th class="num">Mês</th><th class="num">Admissões</th><th class="num">Demissões</th></tr></thead><tbody>${mv}</tbody></table>`;
 }
 // ---------------- Custo de Folha (GLOBUS) ----------------
+/* ESTRUTURA DA FOLHA — por natureza, e por que mudou.
+   Carrega SEPARADO da competência: são consultas diferentes ao Oracle e a
+   estrutura olha 12 meses enquanto a outra aba olha um mês. Falha aqui não
+   pode derrubar a tela. */
+let DATAFE = null, feSeq = 0;
+
+async function carregarFolhaEstrutura(fundo){
+  const seq = ++feSeq;
+  try{
+    const r = await fetch('/api/rh/folha-estrutura?meses=12',
+      {cache:'no-store', headers: fundo?{'X-Carga-Fundo':'1'}:{}});
+    const rr = await respostaJSON(r); if(seq !== feSeq) return;
+    if(!rr.ok){ renderFolhaEstrutura({erro: rr.dados.mensagem || 'não foi possível consultar'}); return; }
+    DATAFE = rr.dados; renderFolhaEstrutura(rr.dados);
+  }catch(e){ if(seq === feSeq) renderFolhaEstrutura({erro:'não foi possível falar com a API'}); }
+}
+
+function renderFolhaEstrutura(d){
+  const av = document.getElementById('fe-aviso');
+  const box = document.getElementById('kpis-fe');
+  if(!box) return;
+  if(!d || d.erro || d.configurado === false){
+    const msg = (d && (d.erro || d.mensagem)) || 'sem dado';
+    box.innerHTML = '';
+    if(av){ av.style.display='flex'; av.innerHTML = '<i>'+ICONS['sevWarn']+'</i><span>'+esc(msg)+'</span>'; }
+    ecDesenhar('fe-nat', null, msg); ecDesenhar('fe-mensal', null, msg);
+    return;
+  }
+  const k = d.kpis || {};
+
+  /* O AVISO EXPLICA O QUE FOI TIRADO E O QUE NÃO DÁ PARA CALCULAR. Quem
+     comparar este número com o da aba Competência vai achar R$ 4 milhões de
+     diferença, e precisa saber por quê antes de desconfiar do painel. */
+  if(av){
+    const partes = [];
+    if(k.circulacao)
+      partes.push(brlAbbr(k.circulacao) + ' de adiantamento quinzenal ficaram FORA do custo ('
+        + NMI.format(k.pct_circulacao) + '% do bruto): ele sai como provento e volta como desconto no mesmo mês');
+    partes.push('o INSS patronal NÃO é calculado — a alíquota depende do enquadramento, '
+      + 'e a base aparece como base');
+    av.style.display = 'flex';
+    av.innerHTML = '<i>'+(ICONS['sevWarn']||'')+'</i><span>' + partes.map(esc).join(' · ') + '</span>';
+  }
+
+  const nat = k.naturezas || {};
+  const maior = Object.keys(nat)[0];
+  box.innerHTML = [
+    kpi('Custo efetivo (12 meses)', BRL.format(k.custo_efetivo||0),
+        'proventos menos a circulação', '',
+        'Soma dos proventos da ficha MENOS os eventos que saem e voltam no mesmo mês. É o que a empresa efetivamente pagou em remuneração — sem encargo patronal, que não está na ficha.'),
+    kpi('Maior natureza', maior ? esc(maior) : '—',
+        maior ? BRL.format(nat[maior]) + ' · ' + NMI.format(100*nat[maior]/(k.custo_efetivo||1)) + '% do total' : '', '',
+        'A família de evento que mais pesa. Salário costuma liderar; quando outra assume o topo, é sinal de mês atípico — 13º em novembro e dezembro, rescisão numa redução.'),
+    kpi('FGTS (8% da base)', BRL.format(k.fgts||0),
+        'única alíquota calculada', '',
+        'FGTS é 8% fixados em lei, iguais para todo regime, então dá para calcular. Base INSS de R$ ' + brlAbbr(k.base_inss||0) + ' aparece como BASE: o patronal depende do enquadramento e não se inventa.'),
+    kpi('Custo médio', k.custo_medio!=null?BRL.format(k.custo_medio):'—',
+        (k.pessoas||0) + ' pessoas em ' + esc(k.ultimo_mes||''), '',
+        'Custo efetivo do último mês dividido pelas pessoas com lançamento nele. É o número que compara entre meses — o total cai quando a equipe encolhe, e isso não é economia por pessoa.'),
+  ].join('');
+
+  /* BARRAS HORIZONTAIS: são 11 famílias com nomes longos, e num eixo vertical
+     os rótulos sairiam inclinados ou truncados. */
+  const nomes = Object.keys(nat), vals = nomes.map(n => nat[n]);
+  const hN = document.getElementById('hintFeNat');
+  if(hN) hN.textContent = nomes.length + ' famílias · ' + (d.meses||[]).length + ' meses';
+  if(!nomes.length) ecDesenhar('fe-nat', null, 'sem lançamento no período');
+  else ecDesenhar('fe-nat', () => {
+    const o = ecOpcoes([], Math.max(1,...vals), {tipo:'moeda', sombra:true, left:120, top:10, bottom:24});
+    o.xAxis = ecEixoValor(Math.max(1,...vals), 'moeda');
+    o.yAxis = {type:'category', data: nomes.slice().reverse(),
+               axisLine:{show:false}, axisTick:{show:false},
+               axisLabel:{color:CC.n600, fontSize:11}};
+    o.series = [ecBarras('Custo', vals.slice().reverse(), CC.navy700,
+                         {raio:false, largura:16})];
+    o.series[0].type = 'bar';
+    o.tooltip.formatter = ps => {
+      const p = ps && ps[0]; if(!p) return '';
+      return '<b>'+esc(p.name)+'</b><br>' + BRL.format(p.value||0) + '<br>'
+        + NMI.format(100*(p.value||0)/(k.custo_efetivo||1)) + '% do custo efetivo';
+    };
+    return o;
+  }, 'sem lançamento no período');
+
+  /* POR QUE MUDOU: as duas parcelas com o SINAL à mostra. Um total que caiu
+     sem a quebra não decide nada — 95% desta queda é gente a menos, não gente
+     mais barata, e são decisões diferentes. */
+  const v = k.variacao, cx = document.getElementById('fe-var');
+  const hV = document.getElementById('hintFeVar');
+  if(cx){
+    if(!v){ cx.innerHTML = '<div style="color:var(--n500)">sem base de comparação</div>';
+            if(hV) hV.textContent = ''; }
+    else{
+      if(hV) hV.textContent = v.de + ' → ' + v.para + ' · contra o ' + v.comparacao;
+      const linha = (rot, val, sub) => {
+        const cor = val < 0 ? 'var(--green)' : (val > 0 ? 'var(--red)' : 'var(--n500)');
+        return '<div style="display:flex;justify-content:space-between;align-items:baseline;'
+          + 'padding:9px 0;border-bottom:1px solid var(--n100)">'
+          + '<div><div style="font-weight:600">' + esc(rot) + '</div>'
+          + '<div style="font-size:11.5px;color:var(--n500)">' + esc(sub) + '</div></div>'
+          + '<div style="font-family:var(--mono);font-weight:700;color:' + cor + '">'
+          + (val > 0 ? '+' : '') + BRL.format(val) + '</div></div>';
+      };
+      cx.innerHTML =
+        linha('Variação total', v.delta, 'custo efetivo do mês')
+        + linha('Por ter menos gente', v.por_pessoas,
+                v.pessoas_de + ' → ' + v.pessoas_para + ' pessoas')
+        + linha('Por custo médio', v.por_custo_medio,
+                BRL.format(v.medio_de) + ' → ' + BRL.format(v.medio_para) + ' por pessoa');
+    }
+  }
+
+  /* MÊS A MÊS: barra = custo, linha = médio por pessoa em eixo próprio. */
+  const meses = d.meses || [];
+  const hM = document.getElementById('hintFeMes');
+  if(hM) hM.textContent = meses.length + ' meses · barra = custo efetivo · linha = custo médio por pessoa';
+  if(!meses.length) ecDesenhar('fe-mensal', null, 'sem lançamento no período');
+  else{
+    const rot = meses.map(m => m.comp.slice(5)+'/'+m.comp.slice(2,4));
+    const val = meses.map(m => m.custo_efetivo);
+    const med = meses.map(m => m.custo_medio);
+    ecDesenhar('fe-mensal', () => {
+      const o = ecOpcoes(rot, Math.max(1,...val), {tipo:'moeda', sombra:true, top:32, bottom:34,
+        legenda:['Custo efetivo','Custo médio']});
+      o.yAxis = [o.yAxis, ecEixoOculto(Math.max(1,...med.filter(x=>x!=null)), 1.4)];
+      o.series = [
+        ecBarras('Custo efetivo', val, CC.navy700, {}),
+        ecLinha('Custo médio', med, CC.laranja, {eixo:1, rotulo:v2=>brlAbbr(v2)}),
+      ];
+      o.tooltip.formatter = ps => {
+        const i = (ps&&ps[0]?ps[0].dataIndex:0), m = meses[i]||{};
+        const l = ['<b>'+esc(rot[i])+'</b>'];
+        l.push('Custo efetivo: <b>'+BRL.format(m.custo_efetivo||0)+'</b>');
+        if(m.circulacao) l.push('<span style="color:#8FA6BC">circulação fora: '+BRL.format(m.circulacao)+'</span>');
+        l.push('Pessoas: <b>'+(m.pessoas||0)+'</b>');
+        if(m.custo_medio!=null) l.push('Custo médio: <b>'+BRL.format(m.custo_medio)+'</b>');
+        if(m.fgts) l.push('FGTS (8%): <b>'+BRL.format(m.fgts)+'</b>');
+        return l.join('<br>');
+      };
+      return o;
+    }, 'sem lançamento no período');
+  }
+}
+
 async function loadFolha(){
   const seq=++folhaSeq, btn=document.getElementById('btnRefresh'); if(btn) btn.disabled=true;
   document.getElementById('content').classList.add('loading'); skelKpis('kpis-folha',4);
@@ -17113,6 +17290,7 @@ async function loadFolha(){
     hideBanner(); DATAFOLHA=d; renderFolha(d); LOADEDQS.folha=qsView('folha');
   }catch(e){ if(seq===folhaSeq) showBanner('Não foi possível falar com a API.', e.message); }
   finally{ if(seq===folhaSeq){ if(btn) btn.disabled=false; document.getElementById('content').classList.remove('loading'); } }
+  carregarFolhaEstrutura();
 }
 // Repopula o <select> de competência só quando a lista muda de fato (nova
 // competência disponível) — antes só populava se o select estivesse vazio,

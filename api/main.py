@@ -2973,6 +2973,31 @@ def rh_folha_indicadores() -> JSONResponse:
         return _folha_erro(exc)
 
 
+@app.get("/api/rh/folha-estrutura")
+def rh_folha_estrutura(meses: int = 12) -> JSONResponse:
+    """Custo de folha por NATUREZA, sem os eventos que só circulam.
+
+    A tela de Custo de Folha soma `tipoeven='P'` e chama de custo. Medido, esse
+    número carrega ~14% de CIRCULAÇÃO — adiantamento que sai como provento e
+    volta como desconto no mesmo mês, batendo centavo a centavo. Esta rota
+    devolve o custo EFETIVO, a quebra por natureza e a decomposição da variação
+    entre "menos gente" e "cada um custa menos".
+    """
+    from api.rh import folha_estrutura as _fe
+    from api import db_folha as _dbf
+    if not _dbf.configured():
+        return JSONResponse({"configurado": False,
+                             "mensagem": "Banco da folha não configurado."})
+    try:
+        meses = max(3, min(int(meses or 12), 36))
+        dados = _fe.levantar(meses)
+        return JSONResponse({"configurado": True, **dados,
+                             "kpis": _fe.resumo(dados),
+                             "fonte": "GLOBUS · VW_FICHAFINANEVENTOS · leitura"})
+    except Exception as exc:  # noqa: BLE001
+        return _folha_erro(exc)
+
+
 @app.get("/api/rh/folha-custo")
 def rh_folha_custo(comp: str | None = None) -> JSONResponse:
     import re
