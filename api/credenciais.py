@@ -23,6 +23,8 @@ import os
 from datetime import datetime
 from pathlib import Path
 
+from api import segredo_arquivo
+
 ROOT = Path(__file__).resolve().parent.parent
 CAMINHO = ROOT / "data" / "credenciais.json"
 
@@ -467,5 +469,9 @@ def gravar(nome: str, valor: str) -> dict:
     CAMINHO.parent.mkdir(parents=True, exist_ok=True)
     CAMINHO.write_text(json.dumps(dados, ensure_ascii=False, indent=2),
                        encoding="utf-8")
-    CAMINHO.chmod(0o600)   # o segredo não é legível por outros usuários da máquina
+    # `chmod` sozinho NÃO protege no Windows (só liga o somente-leitura;
+    # quem decide acesso é a ACL). `proteger` faz o certo em cada
+    # plataforma e, na dúvida sobre quem manter, NÃO mexe — ACL escrita
+    # pela metade tranca o SYSTEM e derruba a API.
+    segredo_arquivo.proteger(CAMINHO)
     return status(nome)

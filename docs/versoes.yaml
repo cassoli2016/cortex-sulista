@@ -1,3 +1,19 @@
+- versao: "0.155.0"
+  data: "2026-08-30"
+  adicionado:
+    - >-
+      A Saúde do Servidor passou a mostrar quem pode LER os arquivos que
+      guardam segredo — o cofre de credenciais, a configuração do correio e do
+      WhatsApp, as senhas dos certificados e os .pfx.
+  corrigido:
+    - >-
+      Os arquivos de segredo eram gravados com uma permissão que no Windows
+      não protege nada: ela só liga o atributo somente-leitura, e quem decide
+      acesso é a lista de acesso do arquivo. Agora a restrição é aplicada de
+      verdade e conferida na tela. Os arquivos deste servidor já estavam
+      restritos, mas por herança da pasta — não porque o sistema tivesse
+      pedido.
+
 - versao: "0.154.0"
   data: "2026-08-30"
   alterado:

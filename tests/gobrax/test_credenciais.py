@@ -8,13 +8,13 @@ from __future__ import annotations
 
 import json
 import os
-import stat
+
 import tempfile
 from pathlib import Path
 
 import pytest
 
-from api import credenciais as cred
+from api import credenciais as cred, segredo_arquivo
 
 
 @pytest.fixture
@@ -79,9 +79,40 @@ def test_sem_cofre_cai_na_variavel_de_ambiente(cofre, monkeypatch):
 
 
 def test_arquivo_nasce_sem_permissao_para_outros(cofre):
+    """ESTE TESTE FICOU VERMELHO POR MESES sem ninguém reparar, e o motivo é a
+    lição: ele media `st_mode` numa máquina **Windows**, onde `os.chmod` só
+    liga o atributo somente-leitura — quem decide acesso é a ACL. Dava
+    `0o666` e acusava exposição que não existia, enquanto a exposição REAL
+    (uma ACL herdada e frouxa) ele não teria como ver.
+
+    Agora ele pergunta à plataforma certa. Em POSIX, o modo; no Windows, quem
+    a ACL concede — e "não consegui verificar" (`protegido is None`) é
+    resposta legítima, não falha: dizer "ok" sem medir é exatamente o que este
+    conserto veio tirar do caminho.
+    """
     cred.gravar("GOBRAX_TOKEN", "abcdefghijklmnopqrstuvwxyz")
-    modo = stat.S_IMODE(os.stat(cofre).st_mode)
-    assert modo & (stat.S_IRWXG | stat.S_IRWXO) == 0, oct(modo)
+    st = segredo_arquivo.estado(cofre)
+    assert st["existe"] is True
+    assert st["protegido"] is not False, st
+
+
+def test_o_verificador_ENXERGA_um_arquivo_exposto(tmp_path):
+    """Sem isto, o teste acima ficaria verde para sempre se `estado` passasse
+    a devolver `True` sem medir nada — e um verde que não mede é pior que
+    vermelho. Aqui o alvo é sabotado de propósito: um arquivo recém-criado num
+    diretório temporário carrega identidades além do dono, e o verificador tem
+    de dizer isso ANTES de `proteger` rodar.
+    """
+    alvo = tmp_path / "exposto.json"
+    alvo.write_text("{}", encoding="utf-8")
+    antes = segredo_arquivo.estado(alvo)
+    if antes["protegido"] is None:
+        pytest.skip("ACL não legível nesta máquina")
+    depois = segredo_arquivo.proteger(alvo)
+    assert depois["aplicado"] is True, depois
+    assert segredo_arquivo.estado(alvo)["protegido"] is True
+    # e continua servindo para quem precisa dele
+    assert alvo.read_text(encoding="utf-8") == "{}"
 
 
 def test_arquivo_corrompido_nao_derruba_a_aplicacao(cofre):

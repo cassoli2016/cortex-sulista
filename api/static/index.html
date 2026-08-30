@@ -5164,6 +5164,13 @@ body.tvfull #btnReport,body.tvmode #btnReport{display:none}
           </tr></thead><tbody id="srv-bases"></tbody></table></div>
           <div id="srv-migradas" hidden></div>
         </div>
+        <div class="card">
+          <div class="head"><h2>Proteção dos segredos em arquivo <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="Quem pode LER os arquivos que guardam segredo: o cofre de credenciais, a configuração do correio e do WhatsApp, as senhas dos certificados e os próprios .pfx. O código gravava esses arquivos com chmod 0600 — que no Windows NÃO protege nada: ali só liga o atributo somente-leitura, e quem decide acesso é a lista de acesso (ACL) do arquivo. Este cartão MEDE a ACL em vez de afirmar a proteção. O que conta como exposição é grupo AMPLO (Usuários, Todos, Usuários autenticados, Usuários do Domínio); conta nomeada, SYSTEM e Administradores são o caso normal numa máquina administrada por uma pessoa. “Não verificado” não é o mesmo que desprotegido: é a ACL que não deu para ler, e dizer ok sem medir seria repetir o erro que este cartão veio consertar.">i</span></h2>
+            <span class="hint" id="hintSrvSeg"></span></div>
+          <div class="tablewrap"><table><thead><tr>
+            <th>Arquivo</th><th>Guarda</th><th>Situação</th><th>Quem tem acesso</th>
+          </tr></thead><tbody id="srv-segredos"></tbody></table></div>
+        </div>
         <div class="grid2">
           <div class="card">
             <div class="head"><h2>Memória</h2><span class="hint" id="srv-mem-hint"></span></div>
@@ -22103,6 +22110,40 @@ function renderSrv(){
       <span class="badge ${cls}">${rot}</span>
       <span><b>${mg.arquivos} arquivo(s) · ${kb(mg.bytes)}</b> ·
         ${esc(mg.detalhe||'')}</span></div>`;
+  }
+  /* PROTEÇÃO DOS SEGREDOS. O cartão existe porque a afirmação anterior era
+     falsa: cinco lugares do código gravavam segredo com `chmod(0o600)` e um
+     comentário dizendo "não legível por outros usuários", e no Windows isso
+     não protege nada. Agora a tela MEDE.
+
+     TRÊS estados, e o do meio é o que costuma sumir: protegido, exposto e
+     NÃO VERIFICADO — este último não é "ok". */
+  const sg = d.segredos;
+  const tbSeg = document.getElementById('srv-segredos');
+  const hSeg = document.getElementById('hintSrvSeg');
+  if(!sg){
+    if(hSeg) hSeg.textContent = 'não foi possível verificar';
+    if(tbSeg) tbSeg.innerHTML = '<tr><td colspan="4" style="color:var(--n500)">—</td></tr>';
+  }else{
+    if(hSeg) hSeg.textContent = sg.expostos
+      ? `${sg.expostos} de ${sg.total} legível(is) por grupo amplo — corrigir`
+      : sg.nao_verificados
+        ? `${sg.total - sg.nao_verificados} de ${sg.total} conferido(s) · ${sg.nao_verificados} sem leitura da ACL`
+        : `${sg.total} arquivo(s) · nenhum legível por grupo amplo`;
+    tbSeg.innerHTML = (sg.itens||[]).map(i=>{
+      const cls = i.protegido === false ? 'b-dang'
+                : i.protegido === null ? 'b-info' : 'b-ok';
+      const rot = i.protegido === false ? 'exposto'
+                : i.protegido === null ? 'não verificado' : 'restrito';
+      /* Só os NOMES dos grupos amplos aparecem, e só quando há problema: SID
+         de conta individual na tela é ruído, e é identificador de pessoa. */
+      const quem = i.protegido === false ? (i.intrusos||[]).join(', ') : '—';
+      return `<tr>
+        <td style="font-weight:600">${esc(i.rotulo)}</td>
+        <td style="font-family:var(--mono);font-size:11.5px;color:var(--n500)">${esc(i.arquivo)}</td>
+        <td><span class="badge ${cls}">${rot}</span></td>
+        <td style="color:var(--n600)">${esc(quem)}</td></tr>`;
+    }).join('') || '<tr><td colspan="4" style="color:var(--n500)">nenhum arquivo de segredo neste servidor</td></tr>';
   }
   document.getElementById('srv-bases').innerHTML=bs.map(b=>`<tr>
     <td style="font-weight:600">${esc(b.nome)}</td>

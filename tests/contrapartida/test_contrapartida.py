@@ -289,7 +289,23 @@ def test_o_cofre_de_senha_e_PROPRIO_e_nao_o_geral():
     with open(cad.__file__.replace(".pyc", ".py"), encoding="utf-8") as f:
         src = f.read()
     assert "from api import credenciais" not in src
-    assert "SENHAS_PATH" in src and "0o600" in src
+    assert "SENHAS_PATH" in src
+
+
+def test_o_arquivo_de_senha_nasce_RESTRITO(tmp_path, monkeypatch):
+    """Este teste afirmava `"0o600" in src` — o LITERAL no texto-fonte. Ele
+    quebrou sem haver defeito no dia em que o `chmod` virou
+    `segredo_arquivo.proteger()`, e o pior é que a afirmação nunca foi
+    verdadeira no servidor: `chmod` no Windows só liga o somente-leitura, e
+    quem decide acesso é a ACL. Procurar a string era procurar a promessa, não
+    a proteção.
+
+    Agora se pergunta ao arquivo."""
+    from api import segredo_arquivo
+    alvo = tmp_path / "s.json"
+    monkeypatch.setattr(cad, "SENHAS_PATH", alvo)
+    cad.gravar_senha("1", "abc")
+    assert segredo_arquivo.estado(alvo)["protegido"] is not False
 
 
 def test_cofre_de_senha_grava_le_e_apaga(tmp_path, monkeypatch):

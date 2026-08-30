@@ -4,6 +4,14 @@ Gerado de `docs/versoes.yaml` por `scripts/gerar_changelog.py` — não editar �
 Formato [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/),
 versionamento [SemVer](https://semver.org/lang/pt-BR/).
 
+## [0.155.0] — 30/08/2026  ·  CX-30/08/2026-v0.155.0
+
+### Adicionado
+- A Saúde do Servidor passou a mostrar quem pode LER os arquivos que guardam segredo — o cofre de credenciais, a configuração do correio e do WhatsApp, as senhas dos certificados e os .pfx.
+
+### Corrigido
+- Os arquivos de segredo eram gravados com uma permissão que no Windows não protege nada: ela só liga o atributo somente-leitura, e quem decide acesso é a lista de acesso do arquivo. Agora a restrição é aplicada de verdade e conferida na tela. Os arquivos deste servidor já estavam restritos, mas por herança da pasta — não porque o sistema tivesse pedido.
+
 ## [0.154.0] — 30/08/2026  ·  CX-30/08/2026-v0.154.0
 
 ### Alterado

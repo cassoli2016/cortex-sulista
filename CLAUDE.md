@@ -93,8 +93,31 @@ armadilhas encontradas: **`docs/MIGRACAO_POSTGRES.md`**.
 
 Continuam FORA do banco, de propósito: cache reconstruível
 (`data/telemetria.db`, `data/pneus/`, `data/premiacao/`, `data/dre_cliente/`) e
-segredo em arquivo com permissão 0600 (`data/credenciais.json`, os `.pfx` e
-`data/certificados/senhas.json`).
+segredo em arquivo (`data/credenciais.json`, `data/email_config.json`,
+`data/whatsapp_config.json`, os `.pfx` e `data/certificados/senhas.json`).
+
+**"Permissão 0600" era FICÇÃO NESTE SERVIDOR, e ficou anos escrita aqui.**
+`os.chmod` no NTFS só liga o atributo somente-leitura; quem decide acesso é a
+**ACL**, e ela continuava sendo a herdada da pasta. Os cinco lugares que
+gravam segredo agora chamam `api/segredo_arquivo.proteger()`, e a Saúde tem um
+cartão que **MEDE** a ACL em vez de afirmar a proteção. Três lições ficaram:
+- **O teste que deveria pegar isso estava VERMELHO e ninguém reparava**, porque
+  media `st_mode` numa plataforma onde `st_mode` não quer dizer nada. Teste que
+  mede a coisa errada é pior que teste ausente: ocupa o lugar do que faria falta.
+- **O achado real era melhor do que o temido e pior do que parecia:** os
+  arquivos ESTÃO restritos — por **herança da pasta do usuário**, não porque o
+  código pediu. Proteção por acidente sobrevive até o projeto mudar de lugar, e
+  ninguém saberia.
+- **Duas versões minhas quase criaram problema maior que o consertado.** A régua
+  "qualquer SID que não seja o dono é intruso" acendeu vermelho em 24
+  certificados cujo "intruso" era a conta que opera o painel (os `.pfx` são
+  gravados pela API, que roda como SISTEMA, então o dono é o SYSTEM) — 24 falsos
+  positivos são um alarme que nasce ignorado. E a `proteger` que reconstruía a
+  ACL teria trancado essa mesma conta, que **não é administradora**, para fora
+  dos certificados no próximo upload. O que vale: exposição é **grupo AMPLO**
+  (Usuários, Todos, Usuários autenticados, Usuários do Domínio por RID), a
+  remoção é **cirúrgica e idempotente**, e sem conseguir LER a ACL não se
+  escreve nada.
 
 ---
 

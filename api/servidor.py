@@ -852,6 +852,41 @@ def _migradas() -> dict | None:
                         "não, é código gravando onde não devia")}
 
 
+_SEGREDOS_TTL = 300.0
+_segredos_cache: tuple[float, dict] | None = None
+
+
+def _segredos(forcar: bool = False) -> dict:
+    """A proteção dos arquivos de segredo — MEDIDA, não afirmada.
+
+    POR QUE ESTE CARTÃO EXISTE
+    ==========================
+    O CÓRTEX dizia, em cinco lugares do código e no próprio CLAUDE.md, que os
+    arquivos de segredo nascem com permissão 0600. **No Windows isso não
+    protege nada**: `chmod` só liga o atributo somente-leitura, e quem decide
+    acesso é a ACL. O servidor é Windows.
+
+    Ao conferir, o achado foi melhor do que o temido e pior do que parecia: os
+    arquivos ESTÃO restritos a SYSTEM e ao dono — mas por HERANÇA da pasta do
+    usuário, não porque alguém pediu. Proteção por acidente sobrevive até o dia
+    em que o projeto mudar de lugar, e ninguém saberia.
+
+    TTL DE 5 MINUTOS porque cada leitura de ACL abre um PowerShell, e a Saúde
+    recarrega a cada 5 s: sem o cache seriam ~5 processos por segundo para
+    desenhar um cartão que muda quando alguém salva uma credencial. Mesmo
+    motivo do cache do agendador e do estado da Z-API.
+    """
+    global _segredos_cache
+    agora = time.monotonic()
+    if (not forcar and _segredos_cache
+            and (agora - _segredos_cache[0]) < _SEGREDOS_TTL):
+        return _segredos_cache[1]
+    from api import segredo_arquivo
+    r = segredo_arquivo.panorama()
+    _segredos_cache = (agora, r)
+    return r
+
+
 def _deploy_saude(tarefas: list[dict]) -> dict:
     """Saúde do AutoDeploy: alerta se a tarefa não roda há muito (deveria a cada
     2 min) ou perdeu o gatilho (sem próxima execução). Evita repetir o deploy
@@ -909,6 +944,11 @@ def coletar() -> dict:
     except Exception as exc:  # noqa: BLE001
         log.warning("saude: bases locais falhou: %s", exc)
         dados["bases"] = []
+    try:
+        dados["segredos"] = _segredos()
+    except Exception as exc:  # noqa: BLE001
+        log.warning("saude: segredos falhou: %s", exc)
+        dados["segredos"] = None
     try:
         dados["migradas"] = _migradas()
     except Exception as exc:  # noqa: BLE001

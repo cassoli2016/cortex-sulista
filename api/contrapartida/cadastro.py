@@ -46,7 +46,7 @@ import logging
 from datetime import date, datetime
 from pathlib import Path
 
-from .. import migracoes, pglocal
+from .. import migracoes, pglocal, segredo_arquivo
 
 log = logging.getLogger("cortex.contrapartida.cadastro")
 
@@ -88,7 +88,7 @@ def gravar_senha(cnpj: str, senha: str) -> None:
     SENHAS_PATH.parent.mkdir(parents=True, exist_ok=True)
     SENHAS_PATH.write_text(json.dumps(d, ensure_ascii=False, indent=1),
                            encoding="utf-8")
-    SENHAS_PATH.chmod(0o600)
+    segredo_arquivo.proteger(SENHAS_PATH)   # ACL de verdade, não só chmod
 
 
 def tem_senha(cnpj: str) -> bool:

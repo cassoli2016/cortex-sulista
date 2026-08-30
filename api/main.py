@@ -15,6 +15,8 @@ import tomllib
 from datetime import date, datetime
 from pathlib import Path
 
+from api import segredo_arquivo
+
 import psycopg
 from fastapi import FastAPI, Request, Response
 from fastapi.middleware.gzip import GZipMiddleware
@@ -2761,7 +2763,7 @@ def fiscal_contrapartida_certificado(payload: dict, req: Request) -> JSONRespons
         cadastro.DIR_CERT.mkdir(parents=True, exist_ok=True)
         alvo = cadastro.DIR_CERT / f"{cnpj}.pfx"
         alvo.write_bytes(bruto)
-        alvo.chmod(0o600)   # nao legivel por outros usuarios da maquina
+        segredo_arquivo.proteger(alvo)   # ACL de verdade, nao so chmod
         cadastro.gravar_certificado(
             cnpj, "A1", quem, arquivo=alvo.name,
             valida_ate=lido["valida_ate"], titular=lido["titular"], senha=senha)

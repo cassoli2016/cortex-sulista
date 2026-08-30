@@ -33,6 +33,8 @@ import re
 from datetime import datetime
 from pathlib import Path
 
+from .. import segredo_arquivo
+
 ROOT = Path(__file__).resolve().parent.parent.parent
 CAMINHO = ROOT / "data" / "whatsapp_config.json"
 
@@ -168,7 +170,7 @@ def gravar(dados: dict) -> dict:
     CAMINHO.write_text(json.dumps(novo, ensure_ascii=False, indent=2),
                        encoding="utf-8")
     try:
-        CAMINHO.chmod(0o600)
+        segredo_arquivo.proteger(CAMINHO)   # ACL de verdade, não só chmod
     except OSError:   # pragma: no cover - Windows pode recusar; não é fatal
         pass
     return status()
