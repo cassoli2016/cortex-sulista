@@ -4,6 +4,13 @@ Gerado de `docs/versoes.yaml` por `scripts/gerar_changelog.py` — não editar �
 Formato [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/),
 versionamento [SemVer](https://semver.org/lang/pt-BR/).
 
+## [0.165.0] — 30/08/2026  ·  CX-30/08/2026-v0.165.0
+
+### Adicionado
+- A Jornada do Motorista ganhou a aba Diárias: quanto se pagou por mês, por motorista, e quantos dias cada um trabalhou. O gráfico traz o total em barras e o valor POR PESSOA em linha — o total caiu 80% de setembro a julho, mas os motoristas caíram de 127 para 79 no mesmo período, então boa parte da queda é frota menor e não economia.
+- A reconciliação dos dois lados: 25 pessoas receberam diária sem nenhum dia de jornada no período (R$ 270 mil) e 83 têm dia trabalhado sem lançamento de diária. São perguntas para quem opera, não erros.
+- A tela avisa, de forma permanente, o que ela NÃO consegue medir: a folha não preenche a quantidade de diárias (o campo vem zerado em todos os lançamentos) e a carga diária por motorista está parada desde 12/02.
+
 ## [0.164.0] — 30/08/2026  ·  CX-30/08/2026-v0.164.0
 
 ### Adicionado

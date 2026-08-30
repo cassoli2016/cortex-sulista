@@ -651,6 +651,11 @@ body.painelfull .content{padding:16px 22px}
 .subtabs button:hover{color:var(--n700);background:var(--n50,#F7F8FA)}
 .subtabs button[aria-selected="true"]{color:var(--n900);border-bottom-color:var(--orange-500)}
 .subtabs button:focus-visible{outline:2px solid var(--orange-500);outline-offset:-2px}
+/* AS TABELAS DESTA ABA ROLAM MAIS CEDO. Ela tem gráfico e DUAS tabelas;
+   com o teto padrão de 430px a aba dava 1.781px, e painel de BI se lê
+   sem rolar. Regra local, e não global: as outras telas têm uma tabela
+   só e 430px é o certo lá. */
+#aba-jorn-diaria .tabroll{max-height:320px}
 .subtabs-auto{margin-left:auto;display:flex;align-items:center;gap:6px;padding:0 2px 4px}
 .subtabs-auto label{font-size:10.5px;text-transform:uppercase;letter-spacing:.055em;
   color:var(--n500);font-weight:600}
@@ -5257,6 +5262,8 @@ body.tvfull #btnReport,body.tvmode #btnReport{display:none}
                   aria-selected="false" onclick="abaTrocar('jorn','custo')">Custo do tempo</button>
           <button role="tab" id="tabJorn-pres" data-aba="pres" aria-controls="aba-jorn-pres"
                   aria-selected="false" onclick="abaTrocar('jorn','pres')">Presença</button>
+          <button role="tab" id="tabJorn-diaria" data-aba="diaria" aria-controls="aba-jorn-diaria"
+                  aria-selected="false" onclick="abaTrocar('jorn','diaria')">Diárias</button>
         </div>
         <div class="aba" data-abas="jorn" data-aba="oper" id="aba-jorn-oper"
              role="tabpanel" aria-labelledby="tabJorn-oper">
@@ -5363,6 +5370,35 @@ body.tvfull #btnReport,body.tvmode #btnReport{display:none}
             </tr></thead><tbody id="jr-ausencias"></tbody></table></div>
           </div>
         </div>
+        </div>
+        <div class="aba" data-abas="jorn" data-aba="diaria" id="aba-jorn-diaria"
+             role="tabpanel" aria-labelledby="tabJorn-diaria" hidden>
+          <div class="banner-inline" id="di-aviso" style="display:none;margin:0 0 14px"></div>
+          <div class="kpis k4" id="kpis-di"></div>
+          <div class="card">
+            <div class="head"><h2>Diária paga por mês <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="Evento DIARIAS PAGAS da folha (sulista.diariaspagas_globus, no AVA), somado por competência. A barra é o valor total; a linha é o valor POR PESSOA, em eixo próprio — e é ela que compara entre meses: o total caiu 80% de setembro a julho, mas os motoristas com jornada caíram de 127 para 79 no mesmo período, então boa parte da queda é frota menor e não economia. O mês corrente sai hachurado: a folha ainda não fechou. Mês sem lançamento aparece marcado, e não emendando os vizinhos.">i</span></h2>
+              <span class="hint" id="hintDiMes"></span></div>
+            <div id="di-mensal" style="width:100%;height:210px" role="img"
+                 aria-label="Diária paga por mês e valor por pessoa"></div>
+          </div>
+          <div class="grid2">
+  <div class="card">
+              <div class="head"><h2>Por motorista <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="Diária paga no período contra os DIAS COM TRABALHO da jornada (RasterJOR) — dia com jornada zerada não conta, e são 15.565 de 34.548 linhas em doze meses. O R$/dia é ORDEM DE GRANDEZA e não precisão: a competência da folha não é a data do trabalho, e a mediana dá R$ 132 contra uma diária inteira de R$ 102,58 (deslocar um ou dois meses não conserta). O que ele serve para fazer é comparar motoristas ENTRE SI na mesma janela, onde a distorção é a mesma para todos. Ordenado por VALOR, que é materialidade; ordenar por R$/dia poria no topo quem trabalhou um dia.">i</span></h2>
+                <span class="hint" id="hintDiMot"></span></div>
+              <div class="tablewrap tabroll"><table><thead><tr>
+                <th>Motorista</th><th>Cargo</th><th class="num">Diária paga</th>
+                <th class="num">Dias trabalhados</th><th class="num">R$ por dia</th>
+                </tr></thead><tbody id="di-mot"></tbody></table></div>
+            </div>
+  <div class="card">
+              <div class="head"><h2>Com jornada e sem diária <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="O outro lado da reconciliação: motorista que tem dia de trabalho registrado na jornada e nenhum lançamento de diária naquela competência. NÃO é veredito — pode ser viagem sem pernoite, motorista de operação urbana, ou diária paga noutra competência. É a lista de perguntas, não de erros.">i</span></h2>
+                <span class="hint" id="hintDiSem"></span></div>
+              <div class="tablewrap tabroll"><table><thead><tr>
+                <th>Motorista</th><th>Competência</th><th class="num">Dias trabalhados</th>
+                <th class="num">Horas</th>
+              </tr></thead><tbody id="di-sem"></tbody></table></div>
+            </div>
+          </div>
         </div>
         <div id="jr-avisos"></div>
       </section>
@@ -21762,6 +21798,127 @@ async function loadJorraster(fundo){
   }catch(e){ if(seq === jrSeq) showBanner('Não foi possível falar com a API.', e.message); }
   finally{ if(seq === jrSeq){ if(btn) btn.disabled = false;
     document.getElementById('content').classList.remove('loading'); } }
+  carregarDiarias(fundo);
+}
+
+/* DIÁRIAS — a aba que cruza o que a FOLHA pagou com o que a JORNADA registrou.
+   Carrega SEPARADO da jornada: são duas consultas pesadas em bancos
+   diferentes (a folha no AVA, a jornada no Postgres local), e pendurá-las no
+   mesmo caminho faria a tela inteira esperar por elas. Falha aqui não pode
+   derrubar a jornada, que é o que a pessoa veio ver. */
+let DATADI = null, diSeq = 0;
+
+async function carregarDiarias(fundo){
+  const seq = ++diSeq;
+  try{
+    const r = await fetch('/api/jornada/diarias',
+      {cache:'no-store', headers: fundo?{'X-Carga-Fundo':'1'}:{}});
+    const rr = await respostaJSON(r); if(seq !== diSeq) return;
+    if(!rr.ok){ renderDiarias({erro: rr.dados.mensagem || 'não foi possível consultar'}); return; }
+    DATADI = rr.dados; renderDiarias(rr.dados);
+  }catch(e){ if(seq === diSeq) renderDiarias({erro:'não foi possível falar com a API'}); }
+}
+
+function renderDiarias(d){
+  const av = document.getElementById('di-aviso');
+  const tbM = document.getElementById('di-mot'), tbS = document.getElementById('di-sem');
+  if(!tbM) return;
+  if(d && d.erro){
+    document.getElementById('kpis-di').innerHTML = '';
+    if(av){ av.style.display='flex'; av.innerHTML = '<i>'+ICONS['sevWarn']+'</i><span>'+esc(d.erro)+'</span>'; }
+    tbM.innerHTML = '<tr><td colspan="6" style="color:var(--n500)">—</td></tr>';
+    return;
+  }
+  const k = d.kpis || {};
+
+  /* O AVISO É PERMANENTE ENQUANTO AS DUAS LACUNAS EXISTIREM, e ele é o que
+     impede a tela de parecer mais precisa do que é: a quantidade de diárias
+     não existe em lugar nenhum (o campo da folha vem zerado em 100% das
+     linhas) e a fonte que a tinha por dia parou. */
+  if(av){
+    const partes = [];
+    if(!k.com_quantidade)
+      partes.push('a folha não preenche a QUANTIDADE de diárias (campo zerado em todos os lançamentos), '
+        + 'então dá para saber quanto se pagou, não quantas foram');
+    if(k.granular_parou_em)
+      partes.push('a carga diária por motorista (RasterJOR) parou em '
+        + fmtD(k.granular_parou_em) + ' — sem ela não há detalhe por dia');
+    av.style.display = partes.length ? 'flex' : 'none';
+    av.innerHTML = '<i>'+ICONS['sevWarn']+'</i><span>' + partes.map(esc).join(' · ') + '</span>';
+  }
+
+  document.getElementById('kpis-di').innerHTML = [
+    kpi('Diária paga no período', BRL.format(k.total||0),
+        (k.pessoas||0)+' pessoas · '+(k.lancamentos||0)+' lançamentos', '',
+        'Evento DIARIAS PAGAS da folha (GLOBUS), no recorte. É o valor que saiu do caixa — não é estimativa.'),
+    kpi('Por dia trabalhado', k.por_dia!=null?BRL.format(k.por_dia):'não informado',
+        'só de quem a jornada conhece', '',
+        'Diária paga dividida pelos dias com trabalho na jornada, apenas de quem aparece nas duas fontes. É ORDEM DE GRANDEZA: a competência da folha não é a data do trabalho, e a mediana dá R$ 132 contra uma diária inteira de R$ 102,58 — deslocar um ou dois meses não conserta. Serve para comparar motoristas entre si na mesma janela.'),
+    kpi('Recebeu sem jornada', (k.sem_jornada||0)+' de '+(k.pessoas||0),
+        BRL.format(k.valor_sem_jornada||0), (k.sem_jornada||0)>0?'warn':'',
+        'Pessoas com diária lançada e NENHUM dia de jornada no período. Todas com cargo de motorista — não é gente de escritório viajando. Pode ser motorista fora da cobertura da RasterJOR; é pergunta, não veredito.'),
+    kpi('Jornada sem diária', (k.com_jornada_sem_diaria||0)+' pessoas',
+        'têm dia trabalhado e nenhum lançamento', '',
+        'O outro lado da reconciliação. Pode ser viagem sem pernoite ou diária paga noutra competência.'),
+  ].join('');
+
+  /* SÉRIE: barra = total (o dinheiro), linha = POR PESSOA em eixo próprio.
+     Na mesma escala a linha seria um risco no zero — R$ 245 mil contra
+     R$ 2.900. E é a linha que compara entre meses. */
+  const meses = (d.mensal||[]).filter(m => !m.sem_dado || m.valor > 0);
+  const hint = document.getElementById('hintDiMes');
+  if(hint) hint.textContent = (d.de?fmtD(d.de):'') + ' a ' + (d.ate?fmtD(d.ate):'')
+    + (k.media_mensal!=null ? ' · média de ' + BRL.format(k.media_mensal) + '/mês nos meses fechados' : '');
+  if(!meses.length){ ecDesenhar('di-mensal', null, 'sem diária lançada no período'); }
+  else{
+    const rot = meses.map(m => m.competencia.slice(5)+'/'+m.competencia.slice(2,4));
+    const val = meses.map(m => m.valor);
+    const pp  = meses.map(m => m.por_pessoa);
+    const parc = meses.map(m => !!m.aberta);
+    ecDesenhar('di-mensal', () => {
+      const o = ecOpcoes(rot, Math.max(1,...val), {tipo:'moeda', sombra:true, top:34, bottom:34,
+        legenda:['Diária paga','Por pessoa']});
+      o.yAxis = [o.yAxis, ecEixoOculto(Math.max(1,...pp.filter(v=>v!=null)), 1.4)];
+      o.series = [
+        ecBarras('Diária paga', val, CC.navy700, {parcial: parc}),
+        ecLinha('Por pessoa', pp, CC.laranja, {eixo:1, rotulo:v=>brlAbbr(v)}),
+      ];
+      o.tooltip.formatter = ps => {
+        const i = (ps&&ps[0]?ps[0].dataIndex:0), m = meses[i]||{};
+        const l = ['<b>'+esc(rot[i])+'</b>' + (m.aberta?' <span style="color:#B97709">· folha em aberto</span>':'')];
+        l.push('Diária paga: <b>'+BRL.format(m.valor||0)+'</b>');
+        l.push('Pessoas: <b>'+(m.pessoas||0)+'</b>'+(m.com_jornada!=null?' ('+m.com_jornada+' com jornada)':''));
+        if(m.por_pessoa!=null) l.push('Por pessoa: <b>'+BRL.format(m.por_pessoa)+'</b>');
+        if(m.dias) l.push('Dias trabalhados: <b>'+m.dias.toLocaleString('pt-BR')+'</b>');
+        return l.join('<br>');
+      };
+      return o;
+    }, 'sem diária lançada no período');
+  }
+
+  const mot = d.motoristas || [];
+  const hM = document.getElementById('hintDiMot');
+  if(hM) hM.textContent = mot.length + ' de ' + (d.motoristas_total||mot.length)
+    + ' · maior valor primeiro · R$/dia compara motoristas entre si, não é valor de diária';
+  tbM.innerHTML = mot.map(m => `<tr${m.tem_jornada?'':' style="opacity:.62"'}>
+    <td>${esc(m.nome||'—')}</td>
+    <td style="color:var(--n500)">${esc(m.cargo||'—')}</td>
+    <td class="num" style="font-weight:600">${BRL.format(m.valor||0)}</td>
+    <td class="num">${m.dias ? m.dias.toLocaleString('pt-BR')
+      : '<span title="nenhum dia de jornada no periodo" style="color:var(--n500)">sem jornada</span>'}</td>
+    <td class="num">${m.por_dia!=null?BRL.format(m.por_dia):'—'}</td>
+  </tr>`).join('') || '<tr><td colspan="5" style="color:var(--n500)">sem diária no período</td></tr>';
+
+  const sem = d.sem_diaria || [];
+  const hS = document.getElementById('hintDiSem');
+  if(hS) hS.textContent = sem.length + ' de ' + (d.sem_diaria_total||sem.length)
+    + ' · mais dias trabalhados primeiro';
+  if(tbS) tbS.innerHTML = sem.map(x => `<tr>
+    <td>${esc(x.nome||'—')}</td>
+    <td style="color:var(--n500)">${esc(x.competencia||'—')}</td>
+    <td class="num">${(x.dias||0).toLocaleString('pt-BR')}</td>
+    <td class="num" style="color:var(--n500)">${NMI.format(x.horas||0)} h</td>
+  </tr>`).join('') || '<tr><td colspan="4" style="color:var(--n500)">ninguém</td></tr>';
 }
 
 function renderJorraster(d){

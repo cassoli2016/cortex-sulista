@@ -1931,6 +1931,32 @@ só no ERP ...... 177 placas      união ....... 275
   seriam ~70 chamadas externas a cada abertura do chat. Mesma trava do `force`
   da premiação.
 
+**Diárias: o campo que parece quantidade e vem ZERADO (30/08/2026):**
+- A folha (`sulista.diariaspagas_globus`, no AVA) tem a coluna `referencia`,
+  que em folha costuma ser a QUANTIDADE. Aqui ela é **0,00 em 4.833 de 4.833
+  lançamentos**. Mesma família do "mão de obra R$ 0 com 747 OSs": campo que
+  existe, parece número e não é. Consequência dita na tela: **dá para saber
+  quanto se pagou, não quantas diárias foram**.
+- A única fonte que tinha a diária POR DIA — `sulista.integracao_diarias_
+  rasterjor`, com tipo (Meia R$ 52,64 / Inteira R$ 102,58) e cidade-base —
+  **parou em 12/02/2026**. Seis meses e meio, o mesmo formato da RasterJOR que
+  ficou 136 dias fora. A tela diz a DATA, não "faz tempo".
+- **A competência da FOLHA não é a data do TRABALHO.** A mediana de R$/dia dá
+  R$ 132 contra uma inteira de R$ 102,58, e deslocar um ou dois meses não
+  conserta (R$ 137 e R$ 123) — não é defasagem limpa que dê para corrigir.
+  Então a razão é **ordem de grandeza**, útil para comparar motoristas ENTRE SI
+  na mesma janela, onde a distorção é a mesma para todos. Isso está no ⓘ.
+- **O total sozinho engana:** caiu 80% (R$ 466 mil → R$ 91 mil) enquanto os
+  motoristas com jornada caíam de 127 para 79. O que compara é por pessoa.
+- **O achado que não depende de razão nenhuma é a reconciliação:** 24 pessoas
+  com diária e ZERO dia de jornada (R$ 238.847), **todas com cargo de
+  motorista** — carreteiro, truck, instrutor, não é escritório viajando. E 83
+  com jornada e sem diária. São perguntas para quem opera, não veredito.
+- **O cruzamento é em PYTHON**: a folha está no AVA e a jornada no Postgres
+  local, então não há `JOIN`. A chave é o NOME normalizado (sem acento,
+  maiúscula, espaço simples) porque matrícula e documento não conversam —
+  120 dos 134 casam.
+
 **O AVA é PostgreSQL 9.3.** Sem `FILTER (WHERE …)`, que só chegou no 9.4 — todo
 agregado condicional é `CASE WHEN`. O erro aponta para o meio do agregado
 (`syntax error at or near "("`), não para a versão. O banco local do CÓRTEX é

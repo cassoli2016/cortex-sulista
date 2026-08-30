@@ -2320,6 +2320,47 @@ def analise_km(
             "erro": "erro_consulta", "mensagem": "Erro ao consultar a análise de km."})
 
 
+@app.get("/api/jornada/diarias")
+def jornada_diarias(de: str | None = None, ate: str | None = None) -> JSONResponse:
+    """Diária paga (folha) × dias trabalhados (jornada).
+
+    As duas fontes vivem em BANCOS diferentes — a folha no AVA, a jornada no
+    Postgres local —, então o cruzamento é em Python e a chave é o nome
+    normalizado. `def` e não `async def`: são duas consultas pesadas, e num
+    `async def` elas travariam o event loop.
+    """
+    from datetime import date, timedelta
+    from api.jornada import diarias as _di
+    hoje = date.today()
+    try:
+        d_de = date.fromisoformat(de) if de else (hoje.replace(day=1)
+                                                 - timedelta(days=365))
+        d_ate = date.fromisoformat(ate) if ate else hoje
+    except ValueError:
+        return JSONResponse(status_code=422, content={
+            "erro": "parametro_invalido", "mensagem": "Data inválida (AAAA-MM-DD)."})
+    try:
+        dados = _di.levantar(d_de.replace(day=1), d_ate)
+        # A competência ABERTA é a do mês corrente: a folha ainda não fechou, e
+        # sem marcar isso ela aparece como despencando.
+        mes = _di.mensal(dados, competencia_aberta=hoje.strftime("%Y-%m"))
+        top, total_mot = _di.por_motorista(dados)
+        return JSONResponse({
+            "kpis": _di.resumo(dados, mes),
+            "mensal": mes, "motoristas": top, "motoristas_total": total_mot,
+            "sem_diaria": sorted(dados["sem_diaria"],
+                                 key=lambda x: -x["dias"])[:30],
+            "sem_diaria_total": len(dados["sem_diaria"]),
+            "de": d_de.isoformat(), "ate": d_ate.isoformat(),
+            "fonte": "folha GLOBUS (AVA) × jornada RasterJOR (CÓRTEX)",
+        })
+    except Exception as exc:  # noqa: BLE001
+        log.warning("jornada_diarias: %s", type(exc).__name__)
+        return JSONResponse(status_code=500, content={
+            "erro": "erro_consulta",
+            "mensagem": "Erro ao cruzar diárias com a jornada."})
+
+
 @app.get("/api/operacao/torre/chegadas")
 def torre_chegadas(forcar: int = 0) -> JSONResponse:
     """Chegada estimada com trânsito × prometida no ERP.
