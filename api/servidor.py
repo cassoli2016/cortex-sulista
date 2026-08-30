@@ -27,7 +27,7 @@ import time
 from datetime import datetime, timezone
 from pathlib import Path
 
-from . import db
+from . import db, pglocal
 
 log = logging.getLogger("cortex.servidor")
 

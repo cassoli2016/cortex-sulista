@@ -12,7 +12,7 @@ import json
 import logging
 import re
 import tomllib
-from datetime import date
+from datetime import date, datetime
 from pathlib import Path
 
 import psycopg
@@ -281,6 +281,8 @@ app.add_middleware(auth.AuthMiddleware)
 app.add_middleware(SecurityHeadersMiddleware)
 app.include_router(auth.router_auth)
 app.include_router(auth.router_gestao)
+# a raiz do repositorio -- usada por rota que grava arquivo temporario
+ROOT = Path(__file__).resolve().parent.parent
 STATIC = Path(__file__).resolve().parent / "static"
 
 
@@ -2357,6 +2359,86 @@ def veiculos(modalidade: str | None = None, situacao: str = "ativos",
         log.warning("veiculos falhou: %s", exc)
         return JSONResponse(status_code=500, content={
             "erro": "erro_consulta", "mensagem": "Erro ao consultar os veículos."})
+
+
+def _telas_do_usuario(req: Request) -> tuple[int, set[str]]:
+    """Quem e a pessoa e o que ela pode ver. Base de tudo aqui.
+
+    A sessao sai de `req.state.sessao`, que o AuthMiddleware ja preencheu --
+    e nao de uma leitura propria do cookie: duas nocoes de "quem esta logado"
+    divergem no dia em que a sessao expira no meio da requisicao.
+
+    ADMIN VE TUDO. `sess["telas"]` do administrador nao lista as telas uma a
+    uma (o middleware o libera por `sess["admin"]`), entao usar aquele
+    conjunto como filtro esconderia todas as telas dele.
+    """
+    from api import auth
+    sess = getattr(req.state, "sessao", None)
+    if not sess or not sess.get("id"):
+        raise PermissionError("sem sessão")
+    return int(sess["id"]), auth.telas_favoritaveis(sess)
+
+
+@app.get("/api/favoritos")
+def favoritos_listar(req: Request) -> JSONResponse:
+    """Os favoritos do usuário logado, já filtrados pelo que ele pode ver."""
+    from api import favoritos
+    try:
+        uid, telas = _telas_do_usuario(req)
+    except PermissionError:
+        return JSONResponse(status_code=401, content={
+            "erro": "nao_autenticado", "mensagem": "Faça login para continuar."})
+    try:
+        return JSONResponse({"favoritos": favoritos.listar(uid, telas),
+                             "limite": favoritos.LIMITE})
+    except Exception as exc:  # noqa: BLE001
+        log.warning("favoritos_listar falhou: %s", exc)
+        return JSONResponse(status_code=500, content={
+            "erro": "erro_consulta",
+            "mensagem": "Erro ao ler seus favoritos."})
+
+
+@app.post("/api/favoritos")
+async def favoritos_alternar(req: Request) -> JSONResponse:
+    """Liga/desliga um favorito. Devolve a lista inteira, já filtrada.
+
+    Devolve a LISTA e não só o estado do item: a tela precisa repintar o menu,
+    e deixá-la remontar a lista por conta própria criaria uma segunda verdade
+    sobre a ordem.
+    """
+    from api import favoritos
+    try:
+        uid, telas = _telas_do_usuario(req)
+    except PermissionError:
+        return JSONResponse(status_code=401, content={
+            "erro": "nao_autenticado", "mensagem": "Faça login para continuar."})
+    try:
+        corpo = await req.json()
+    except Exception:  # noqa: BLE001
+        corpo = {}
+    tela = (corpo or {}).get("tela")
+    ordem = (corpo or {}).get("ordem")
+    try:
+        if isinstance(ordem, list):
+            lista = favoritos.reordenar(uid, [str(x) for x in ordem], telas)
+            return JSONResponse({"favoritos": lista,
+                                 "limite": favoritos.LIMITE})
+        r = favoritos.alternar(uid, tela, telas)
+        return JSONResponse({**r, "favoritos": favoritos.listar(uid, telas),
+                             "limite": favoritos.LIMITE})
+    except PermissionError as exc:
+        # 4xx e nao 5xx: o CORTEX funcionou e esta dizendo NAO, com um motivo
+        # que a pessoa precisa LER. E o Cloudflare troca o corpo dos 5xx.
+        return JSONResponse(status_code=HTTP_RECUSA, content={
+            "erro": "sem_acesso", "mensagem": str(exc)})
+    except ValueError as exc:
+        return JSONResponse(status_code=HTTP_RECUSA, content={
+            "erro": "recusado", "mensagem": str(exc)})
+    except Exception as exc:  # noqa: BLE001
+        log.warning("favoritos_alternar falhou: %s", exc)
+        return JSONResponse(status_code=500, content={
+            "erro": "erro_consulta",
+            "mensagem": "Erro ao gravar seu favorito."})
 
 
 @app.get("/api/frota/veiculos/identidade")

@@ -4,6 +4,15 @@ Gerado de `docs/versoes.yaml` por `scripts/gerar_changelog.py` — não editar �
 Formato [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/),
 versionamento [SemVer](https://semver.org/lang/pt-BR/).
 
+## [0.151.2] — 30/08/2026  ·  CX-30/08/2026-v0.151.2
+
+### Adicionado
+- A suite passou a rodar um verificador de nomes nao definidos em todo o codigo. Ele acha, em segundos, a classe de erro que ficou dois dias invisivel: uso de algo que nao foi importado, num trecho que ninguem exercitou. O verificador ja estava configurado no projeto desde o inicio, mas nunca tinha sido instalado nem executado - ferramenta que depende de alguem lembrar de rodar nao pega nada.
+
+### Corrigido
+- A TELA DE PREMIACAO VOLTOU A ABRIR, de verdade desta vez. A causa era uma chamada a data do sistema num trecho onde ela nao estava disponivel, e isso so acontecia quando a tela era aberta SEM um mes escolhido na URL - que e exatamente o primeiro carregamento. Com o mes escolhido, funcionava; foi por isso que nao aparecia em teste nenhum.
+- Mais dois defeitos da mesma familia, encontrados na varredura e nunca percebidos porque vivem em caminhos pouco usados: o envio de planilha do plano orcamentario falharia ao gravar o arquivo temporario, e a Saude do Servidor quebraria justamente quando as tabelas da premiacao faltassem - ou seja, no caso que aquela verificacao existe para relatar.
+
 ## [0.151.1] — 30/08/2026  ·  CX-30/08/2026-v0.151.1
 
 ### Corrigido
