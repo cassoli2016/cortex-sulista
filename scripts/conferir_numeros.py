@@ -37,12 +37,39 @@ def _fmt(v) -> str:
     return str(v)
 
 
+def _pct_br(v) -> str:
+    """O mesmo formato do provedor do WhatsApp, para comparar TEXTO com TEXTO."""
+    from api.whatsapp.valores import pct
+    return pct(v)
+
+
+def _brl_br(v) -> str:
+    from api.whatsapp.valores import brl
+    return brl(v)
+
+
 def conferir(titulo: str, a_nome: str, a, b_nome: str, b, *,
-             tol: float = TOL, nota: str = "") -> None:
-    """Compara dois numeros que deveriam ser iguais."""
+             tol: float | None = TOL, nota: str = "") -> None:
+    """Compara dois valores que deveriam ser iguais.
+
+    `tol=None` compara EXATO, para texto — e o caso da mensagem do WhatsApp,
+    em que o que importa nao e o numero por tras e sim o que a pessoa le.
+    """
     if a is None or b is None:
         ACHADOS.append(("VAZIO", titulo,
                         f"{a_nome}={_fmt(a)} · {b_nome}={_fmt(b)}"))
+        return
+    if tol is None:
+        # TEXTO: compara o que a pessoa LE, nao o numero por tras. Dois
+        # formatadores diferentes para o mesmo valor produzem a mesma conta e
+        # telas que se contradizem — e e a tela que vai para fora da empresa.
+        if str(a) == str(b):
+            print(f"  OK    {titulo}: {a}")
+            return
+        ACHADOS.append(("DIVERGE", titulo,
+                        f"{a_nome}={a!r} · {b_nome}={b!r}"
+                        + (f" · {nota}" if nota else "")))
+        print(f"  DIFERE {titulo}: {a!r} x {b!r}")
         return
     dif = abs(float(a) - float(b))
     if dif <= tol:
@@ -78,6 +105,11 @@ def main() -> int:
     # ------------------------------------------------------------------
     bloco("SALDO BANCARIO (o defeito ja corrigido — guarda de regressao)")
     ov = q.get_overview()
+    # A VISAO GERAL E OUTRA FUNCAO. `get_overview()` e o painel FINANCEIRO e
+    # nao tem os recortes de receita — pedir `realizado_acumulado` a ele
+    # devolvia None e a conferencia passava por VACUIDADE, verde sem medir
+    # nada. Foi assim que a primeira versao deste bloco "passou".
+    vg = q.get_visao_geral()
     fc = q.get_fluxo_consolidado("semana", 180)
     an = q.get_antecipacao(dias=90, reserva=0, taxa_mes=2.0)
     k = ov["kpis"]
@@ -241,27 +273,102 @@ def main() -> int:
              len(fora_ag), "esperado", 0, nota=str(fora_ag[:3]))
 
     # ------------------------------------------------------------------
-    bloco("RECEITA: os tres recortes que a tela avisa serem diferentes")
+    bloco("RECEITA: os tres recortes, e a regua da meta")
     # CLAUDE.md registra que sao 3 cortes distintos DE PROPOSITO (faturas
     # emitidas x frete das viagens x CT-e+KMM+NFS-e da meta). Aqui nao se exige
     # que batam — exige-se que a DIFERENCA seja conhecida, para ninguem
     # descobrir sozinho na reuniao.
-    fat_mes = k.get("faturamento_mes")
+    fat_mes = vg.get("faturamento_mes")
+    cte_mes = vg.get("receita_mes_cte")
+    real_acum = vg.get("realizado_acumulado")
+    meta_acum = vg.get("meta_acumulada")
+    ating = vg.get("atingimento_mes")
     rb_mes = None
     lrb = L.get("RECEITA BRUTA")
     if lrb and lrb.get("meses"):
         rb_mes = (lrb["meses"] or {}).get(f"{hoje.year}-{hoje.month:02d}")
+
+    # CAMPO AUSENTE E FALHA, NAO SILENCIO. Um conferidor que se cala quando o
+    # dado some e pior que nenhum: da a sensacao de que esta tudo conferido.
+    # Foi exatamente o que aconteceu ao ler do payload errado.
+    for nome, val in (("faturamento_mes", fat_mes), ("receita_mes_cte", cte_mes),
+                      ("realizado_acumulado", real_acum),
+                      ("meta_acumulada", meta_acum), ("atingimento_mes", ating)):
+        if val is None:
+            ACHADOS.append(("VAZIO", "Recorte de receita ausente",
+                            f"`{nome}` nao veio da Visao Geral — sem ele a "
+                            "conferencia desta familia passa por vacuidade"))
+    print(f"  INFO  1) Faturas emitidas no mes    : {_fmt(fat_mes)}")
+    print(f"  INFO  2) Frete das viagens (CT-e)   : {_fmt(cte_mes)}")
+    print(f"  INFO  3) Realizado da regua da META : {_fmt(real_acum)}")
+    print(f"  INFO     Receita bruta da DRE       : {_fmt(rb_mes)}")
+
     if fat_mes is not None and rb_mes is not None:
         dif = abs(fat_mes - rb_mes)
         pct = 100 * dif / max(abs(fat_mes), abs(rb_mes), 1)
-        print(f"  INFO  Faturamento do mes (faturas emitidas): {_fmt(fat_mes)}")
-        print(f"  INFO  Receita bruta da DRE (competencia)   : {_fmt(rb_mes)}")
-        print(f"  INFO  diferenca: {_fmt(dif)} ({pct:.1f}%) — recortes distintos")
+        print(f"  INFO  faturas x DRE: {_fmt(dif)} ({pct:.1f}%) — emissao x competencia")
         if pct > 40:
             ACHADOS.append(("OLHAR", "Faturamento x Receita bruta",
                             f"{_fmt(fat_mes)} x {_fmt(rb_mes)} ({pct:.0f}% de "
                             "diferenca). Sao recortes distintos por definicao, "
                             "mas essa distancia merece conferencia."))
+    if fat_mes is not None and real_acum is not None:
+        dif = abs(fat_mes - real_acum)
+        pct = 100 * dif / max(abs(fat_mes), abs(real_acum), 1)
+        print(f"  INFO  faturas x regua da meta: {_fmt(dif)} ({pct:.1f}%)")
+        # 25% e o dobro da distancia normal entre esses dois recortes (~12%).
+        # Nao e limite de qualidade: e onde a diferenca deixa de ser explicavel
+        # pelo recorte e passa a merecer alguem olhando.
+        if pct > 25:
+            ACHADOS.append(("OLHAR", "Faturamento x regua da meta",
+                            f"{_fmt(fat_mes)} x {_fmt(real_acum)} ({pct:.0f}%). "
+                            "Sao recortes distintos, mas essa distancia merece "
+                            "conferencia."))
+
+    # O PAR QUE FECHA, e o unico erro desta familia que ja quase saiu para a
+    # diretoria: misturar o numerador de uma regua com o denominador de outra
+    # deu 96% de atingimento onde o real era 91,3% — faltava um milhao. O que
+    # fecha e `realizado_acumulado / meta_acumulada`, e e isto que se confere.
+    if ating is not None and real_acum is not None and meta_acum:
+        conferir("Atingimento = realizado / meta", "atingimento_mes", ating,
+                 "realizado_acumulado / meta_acumulada", real_acum / meta_acum,
+                 tol=0.0001,
+                 nota="se divergir, alguem recalculou o atingimento com o "
+                      "numerador de outra regua")
+
+    # A REGUA E A SERIE DO GRAFICO TEM DE SER A MESMA COISA: o acumulado que o
+    # KPI mostra e a soma da serie diaria que o grafico desenha. Divergir aqui
+    # significa que o cartao e o grafico da mesma tela contam historias
+    # diferentes sobre o mesmo mes.
+    diario = vg.get("diario") or []
+    if diario and real_acum is not None:
+        conferir("Realizado = soma da serie diaria", "realizado_acumulado",
+                 real_acum, "soma do diario",
+                 sum(float(d.get("realizado") or 0) for d in diario), tol=0.05)
+    if diario and meta_acum:
+        conferir("Meta acumulada = soma das metas ate hoje", "meta_acumulada",
+                 meta_acum, "soma do diario ate o dia de hoje",
+                 sum(float(d.get("meta") or 0) for d in diario
+                     if int(d.get("dia") or 0) <= hoje.day), tol=0.05)
+
+    # ------------------------------------------------------------------
+    bloco("MENSAGEM DE FATURAMENTO: o WhatsApp x a Visao Geral")
+    # O provedor do WhatsApp manda numero do painel para fora da empresa. Se
+    # ele e a tela discordarem, quem descobre e quem recebeu a mensagem.
+    try:
+        from api.whatsapp.valores import faturamento_diario
+        w = faturamento_diario(vg)
+        conferir("Atingimento do mes na mensagem", "WhatsApp",
+                 w.get("atingimento_mes"), "Visao Geral",
+                 _pct_br(ating), tol=None,
+                 nota="o provedor le o atingimento PRONTO; recalcular abriria a "
+                      "chance de usar o numerador de outra regua")
+        conferir("Acumulado do mes na mensagem", "WhatsApp",
+                 w.get("acumulado_mes"), "Visao Geral", _brl_br(real_acum),
+                 tol=None)
+    except Exception as exc:  # noqa: BLE001
+        ACHADOS.append(("VAZIO", "Mensagem de faturamento",
+                        f"nao deu para conferir ({type(exc).__name__}: {exc})"))
 
     # ------------------------------------------------------------------
     bloco("VENCIDOS: fluxo consolidado x aging da visao geral")

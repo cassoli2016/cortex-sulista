@@ -49,12 +49,22 @@ previsão, contrapartida, RNTRC, correio, push) vive no segundo. Os dez bancos
 SQLite de `data/` foram migrados para lá em 27/08/2026 e os `.db` continuam no
 disco como desfazer.
 
-**O desfazer tem prazo, e ele está declarado:** os 9 arquivos (3,0 MB) podem
-ser apagados quando a **restauração do backup do PostgreSQL for testada de
-verdade** — que já é um dos três critérios do `1.0.0` na seção 5.1. Sem essa
-amarra, "desfazer" vira lixo: daqui a alguns meses ninguém restaura o
-`orcamento.db` de agosto por cima de um Postgres com meses de escrita, porque
-restaurar seria pior que o problema.
+**ARQUIVADOS em 30/08/2026**, e não apagados: os 9 `.db` (3,3 MB com os
+sidecars WAL/SHM) saíram de `data/` para
+`data/arquivo/sqlite-migrados-2026-08-30/`, com um LEIA-ME dizendo o que são e
+como voltar. O gatilho foi a restauração do backup passar (seção 5.1) — o
+caminho de volta virou o dump, provado, e não um SQLite de agosto que ninguém
+restauraria por cima de um Postgres com dias de escrita.
+
+Vale guardar por que o prazo foi amarrado a algo VERIFICÁVEL em vez de a uma
+data: "desfazer" sem gatilho vira lixo, e lixo que ninguém ousa apagar porque
+ninguém sabe se ainda serve.
+
+**A linha some da Saúde sozinha** — a varredura é da pasta, então zero
+arquivos é zero linha. E o código do sensor FICA, porque ele é o que faz o
+rollback funcionar: devolver um `.db` para `data/` o traz de volta ao cartão
+na hora, e como CONHECIDO (`info`), não como banco não declarado — volta
+deliberada não é alarme. Remover o sensor tornaria a volta invisível.
 
 **Na Saúde eles NÃO são nove linhas, são UMA** — e essa é a lição. O cartão
 listava 9 bases e 8 delas só diziam "migrada · arquivo mantido como desfazer":
@@ -104,7 +114,7 @@ Cada módulo é unidade de RBAC (papel × módulo × escopo de linha via RLS).
 | `frota` | Ativos, disponibilidade, manutenção, pneus, depreciação | `fro_veiculos`, `fro_manutencao`, `fro_pneus` |
 | `jornada` | Jornada do motorista (Lei 13.103/2015). UMA tela, lendo a apuração da **RasterJOR** coletada pelo próprio CÓRTEX. A apuração do ERP continua no banco e continua alimentando a FOLHA — o que saiu do painel foi a leitura dela | `jor_jornadas`, `jor_inconformidades`, `jor_motoristas`, `jor_ausencias`, `jor_carga` (banco local) |
 | `suprimentos` | Agregados, fornecedores, contratos, make-vs-buy | `sup_agregados`, `sup_fornecedores`, `sup_contratos` |
-| `telemetria` | Dados da plataforma Gobrax por API com token: premiação por nota × km, consumo × abastecimento, condução e hodômetro/rastro | `api/gobrax/`, `data/premiacao/` |
+| `telemetria` | Dados da plataforma Gobrax por API com token: premiação por nota × km, consumo × abastecimento, os **14 indicadores de condução**, hodômetro/rastro e o **monitor de veículo sem comunicar** | `api/gobrax/`, `data/premiacao/` |
 | `antt` | Piso mínimo de frete da compra e situação do RNTRC dos transportadores contratados | `config/antt_coeficientes.yaml`, `config/antt_eixos.yaml`, `programacaoembarque` (AVA) |
 | `gestao` | Atas de reunião e planos de ação (5W2H) com responsável, prazo e acompanhamento. Metas/OKR ainda não implementados | `ges_reunioes`, `ges_participantes`, `ges_acoes`, `ges_andamentos` (banco local) |
 | `integracoes` | Central de integração com APIs de fornecedores (hub de conectores) | `int_conectores`, `int_sync_state`, `int_raw_events`, `int_dead_letter` |
@@ -1098,6 +1108,55 @@ em estrutura de topo: resolver dentro de **função**, na hora de desenhar.
   e transcrição: em texto corrido, três meses depois, duas pessoas leem a mesma
   ata e discordam sobre o que ficou combinado.
 
+**Ler 3 de 14 campos da MESMA resposta (lição dos indicadores da Gobrax):**
+- `vehicle-performance` sempre devolveu **14 indicadores** e o CÓRTEX lia
+  **3**. Os 11 descartados incluíam justamente os que a premiação precisava —
+  `idle` (motor ligado parado) e `greenRange` (faixa verde). Não faltava
+  integração nem endpoint: faltava **ler a resposta inteira**. Ao integrar
+  fornecedor, despejar o corpo cru uma vez e olhar campo por campo custa
+  minutos e evita reintegrar depois.
+- **A premissa de custo estava errada por 20x, e era ela que travava tudo.** O
+  módulo dizia "~17 s por chamada, varrer a frota seriam mais de 20 minutos", e
+  por isso a coleta em lote nunca foi feita. Medido: **0,79 s por placa, 90 s a
+  frota de 108**. Número de desempenho escrito em comentário **envelhece** —
+  antes de descartar um caminho por ser caro, medir de novo.
+- **Dispersão decide se um indicador serve para PREMIAR.** `idle` vai de 9,2%
+  (p25) a 16,7% (p75) com cauda até 60,4% — separa. `greenRange` tem a metade
+  central entre 93,8% e 98,8%: **cinco pontos**, quase todo mundo no mesmo
+  lugar. Graduar prêmio ali daria a mesma nota para todos; ele entrou como
+  **piso** (penaliza só quem está muito abaixo), não como gradação. É a mesma
+  família da "coluna que repete o mesmo valor em todas as linhas". O cartão
+  ordena os indicadores por amplitude interquartil justamente para essa
+  decisão ser visível.
+- **Nota do fornecedor não é régua até que se prove.** Seis dos 14 indicadores
+  vieram com `score` **0 em 108 de 108 veículos**. Nota que zera a frota
+  inteira não separa ninguém e não se explica a quem perdeu o prêmio. A régua
+  é NOSSA (`api/premiacao/conducao.py`), linear entre alvo e teto, e é
+  parâmetro da versão — a deles fica ao lado, e a tela **avisa** quando está
+  zerada em todos, senão parece desempenho ruim generalizado.
+
+**API que IGNORA a janela pedida (lição do monitor de comunicação):**
+- `/api/v2/positions` devolve as **últimas 20 posições de cada veículo** e
+  ignora `startDate`/`endDate` — janelas de 2 e de 7 dias devolveram
+  exatamente os mesmos 1.960 pontos. Descoberto porque as duas chamadas
+  levaram o mesmo tempo e trouxeram o mesmo total; se eu tivesse pedido só uma
+  janela, teria concluído que a janela funcionava.
+- A consequência é de PRODUTO, não técnica: dá para dizer "está calado há 38 h"
+  de quem aparece, e **não dá** para dizer há quanto tempo sumiu quem não
+  aparece. Esses saem num grupo próprio — "sem posição" — em vez de virar um
+  número grande de horas que a fonte nunca afirmou. **Inventar o número seria
+  afirmar o que a fonte não disse.**
+- E o denominador, de novo: só entra quem **tem equipamento** (aparece no cache
+  de `vehicle-statistics` da competência). Na estreia: 100 com equipamento, 95
+  em dia, 5 a olhar. Com a frota inteira no denominador o mesmo fato viraria
+  um percentual assustador e falso.
+
+**Cadência diferente exige limiar diferente na Saúde:** os indicadores de
+condução são uma chamada POR PLACA e rodam 1×/dia; estatística e odômetro são
+uma chamada e rodam de 3 em 3 h. Metê-los na mesma lista faria o alarme (duas
+janelas de 3 h) acender **todo dia** com tudo funcionando — daí
+`COLECOES_DIARIAS` e o limiar de 30 h separados.
+
 **Onde mora o dado do fornecedor não é onde o nome dele aparece (lição da RasterJOR):**
 - Procurei jornada da Raster em `public`, no schema `rastreamento`, na tabela
   `rastreadora_retorno` (3 milhões de XML da Raster, vivos) — e a resposta
@@ -1255,6 +1314,20 @@ em estrutura de topo: resolver dentro de **função**, na hora de desenhar.
 function "`) era exatamente
   o que o YAML não aceita. Texto técnico em nota de versão é onde mora esse
   risco — prefira descrever em palavras a colar o literal.
+
+**Conferência que passa por VACUIDADE é pior que não ter conferência:**
+- Ao ligar as três receitas ao conferidor (30/08/2026) li os campos de
+  `get_overview()` — que é o painel **financeiro** e não tem nenhum deles.
+  Todos vieram `None`, o atingimento comparou `"0,0%"` com `"0,0%"` e o bloco
+  ficou **verde sem medir nada**. Os recortes vivem em `get_visao_geral()`.
+- É a terceira vez que essa família aparece nesta casa: o dublê otimista do
+  WhatsApp, o teste da Visão Geral que "não baixa a biblioteca", e agora esta.
+  **Antes de confiar num verde, confirmar que ele chegaria a ficar vermelho** —
+  sabotar o alvo e ver o teste falhar leva trinta segundos.
+- A defesa que ficou: campo ausente vira **achado**, não silêncio. Vale para
+  todo verificador — conferidor que se cala dá a sensação de que está tudo
+  conferido, e a primeira versão deste já tinha perdido o bloco da DRE inteiro
+  por ler um campo que não existia.
 
 **CORTE POR MARCADOR: o fim é DERIVADO, e o que saiu é CONFERIDO** (errei 3x
 num dia):
@@ -1550,12 +1623,33 @@ como fonte oficial. Três coisas, e as três são verificáveis:
 1. **Restauração de backup testada de verdade** — não basta o dump existir e
    passar no `pg_restore -l`, que só prova que o arquivo está íntegro. É
    restaurar num banco vazio e conferir que o sistema sobe em cima dele.
+   **FEITO em 30/08/2026**, e é repetível: `uv run --no-sync python
+   scripts/testar_restauracao.py`. O dump de 3,6 MB voltou com as 48 tabelas,
+   150.657 linhas, o migrador não achou migration pendente (a prova de que o
+   schema restaurado é o que o CÓDIGO espera, e não um schema qualquer que
+   carregou sem erro), a API subiu apontada para ele e os seis módulos leram
+   pelos caminhos reais. O papel `cortex` ganhou `CREATEDB` para isso — não
+   dá acesso a banco nenhum, só permite criar os próprios.
 2. **Reconciliação com o ERP documentada** — a divergência de cada número que
    decide dinheiro conhecida, explicada e com dono, em vez de descoberta na
-   reunião.
+   reunião. **FEITO em 30/08/2026**: `docs/RECONCILIACAO.md` +
+   `scripts/conferir_numeros.py`, com **24 conferências** e **nenhuma
+   divergência** hoje. Não há linha esperando veredito nem dono — o documento
+   não é lista de pendência, é o registro do que se confere e de onde já
+   falhou. `tests/reconciliacao/` amarra as duas pontas: a lógica do
+   comparador e a COBERTURA (remover uma checagem quebra o teste, senão o
+   documento passaria a mentir em silêncio).
 3. **As três telas de receita batendo entre si** — faturas emitidas × frete das
    viagens × CT-e+KMM+NFS-e da meta, com o ⓘ de cada uma dizendo por que
-   diferem quando diferem.
+   diferem quando diferem. **FEITO em 30/08/2026**: os três são lidos e
+   comparados no conferidor. Medido — faturas R$ 11,89 mi · CT-e R$ 11,00 mi ·
+   régua da meta R$ 11,34 mi · DRE R$ 11,36 mi, todos dentro de ~8% entre si.
+   E o par que fecha (`realizado_acumulado ÷ meta_acumulada`) é conferido
+   contra o `atingimento_mes`, junto com o que a mensagem de WhatsApp mostra —
+   que é onde o erro de 96% × 91,3% quase saiu para fora da empresa.
+
+**Os três critérios estão cumpridos.** O `1.0.0` deixou de ser dependência
+técnica e virou decisão de quem opera.
 
 Até lá o `0.x` diz a verdade: está no ar e em uso, e ainda muda de forma toda
 semana. Deixar o `1.` chegar por acidente — no dia em que alguém quebrar um

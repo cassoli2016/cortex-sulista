@@ -4,6 +4,19 @@ Gerado de `docs/versoes.yaml` por `scripts/gerar_changelog.py` — não editar �
 Formato [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/),
 versionamento [SemVer](https://semver.org/lang/pt-BR/).
 
+## [0.150.0] — 30/08/2026  ·  CX-30/08/2026-v0.150.0
+
+### Adicionado
+- RECONCILIACAO DOCUMENTADA (docs/RECONCILIACAO.md). O CORTEX confere 24 numeros contra ele mesmo, e agora esta escrito o que ele confere, o que cada conferencia impede e onde ela ja falhou. A pergunta que isso responde nao e "o numero esta certo" - e "o mesmo conceito da o mesmo numero em todas as telas", que e o que quebra confianca no dia a dia. Nasceu de um defeito real: a Visao Geral e o Fluxo Consolidado mostravam R$ 914 mil de diferenca para o mesmo saldo bancario, cada tela com a sua regra, por meses. Estado de hoje: nenhuma divergencia.
+- AS TRES RECEITAS SAO COMPARADAS LADO A LADO, o que nunca havia sido feito. Faturas emitidas R$ 11,89 mi, frete das viagens R$ 11,00 mi e a regua da meta R$ 11,34 mi, com a receita bruta da DRE em R$ 11,36 mi como referencia - todos dentro de 8% entre si. Sao recortes distintos de proposito, e o que se exige nao e que batam: e que a diferenca seja conhecida, para ninguem descobrir sozinho numa reuniao.
+- A conferencia do PAR QUE FECHA. O atingimento da meta e realizado dividido por meta acumulada, e misturar o numerador de uma regua com o denominador de outra ja produziu 96% onde o real era 91,3% - faltando um milhao, numa mensagem que ia para a diretoria. Agora se confere que o atingimento mostrado bate com essa divisao, que o acumulado bate com a soma da serie diaria do grafico, e que a mensagem de WhatsApp mostra o mesmo que a tela.
+
+### Alterado
+- Com isto os tres criterios declarados para a versao 1.0 estao cumpridos: restauracao de backup testada, reconciliacao documentada e as tres receitas conferidas. O 1.0 deixou de ser dependencia tecnica e virou decisao de quem opera.
+
+### Corrigido
+- A primeira versao dessa conferencia PASSOU SEM MEDIR NADA. Os campos de receita foram lidos do painel financeiro, que nao os tem: todos voltaram vazios, o atingimento comparou zero com zero e o bloco ficou verde. Agora campo ausente e falha, e nao silencio - conferidor que se cala e pior que nenhum, porque da a sensacao de que esta tudo conferido.
+
 ## [0.149.0] — 30/08/2026  ·  CX-30/08/2026-v0.149.0
 
 ### Adicionado
