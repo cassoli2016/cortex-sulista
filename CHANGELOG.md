@@ -4,6 +4,20 @@ Gerado de `docs/versoes.yaml` por `scripts/gerar_changelog.py` — não editar �
 Formato [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/),
 versionamento [SemVer](https://semver.org/lang/pt-BR/).
 
+## [0.157.0] — 30/08/2026  ·  CX-30/08/2026-v0.157.0
+
+### Adicionado
+- Modo tela cheia em todos os painéis, pelo botão na barra de topo. Some a barra lateral e o topo, e fica o painel — os filtros continuam.
+- Painel com mais de uma aba ganhou o controle "Girar", que troca de aba sozinho no intervalo escolhido. Serve para mural e TV, onde não há ninguém para clicar. Clicar numa aba reinicia a contagem, e o painel não gira com a janela em segundo plano.
+
+### Alterado
+- Jornada do Motorista passou de 2.615 para 991 pixels de altura: virou quatro abas — Operação, Conformidade, Custo do tempo e Presença — que já eram os quatro grupos de indicadores da tela.
+- Ordens de Compra e Clientes e RKM também viraram abas, e caíram de 1.704 para 1.021 e de 1.593 para 858 pixels.
+- 88 tabelas passaram a rolar dentro do próprio card, em 36 telas. Antes elas empurravam a página para baixo conforme o dado chegava.
+
+### Corrigido
+- A estrela de favoritos, os botões de tema e de tela cheia, a barra de abas e o contador apareciam sem formatação no computador — a formatação deles só valia em telas de celular.
+
 ## [0.156.0] — 30/08/2026  ·  CX-30/08/2026-v0.156.0
 
 ### Adicionado

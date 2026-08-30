@@ -149,13 +149,49 @@ def _abrir(pg, base_url, *, payload=None, coleta_resp=None):
     return erros, baixados
 
 
+# A TELA VIROU QUATRO ABAS (v0.157.0): 2.615px não cabiam numa tela, e a régua
+# da casa é que painel de BI se lê sem rolar. As bandas de KPI já declaravam os
+# quatro temas, então as abas saíram delas — e o que cada teste procura agora
+# pode estar numa aba fechada. `wait_for_selector` espera VISIBILIDADE, então
+# não basta o elemento existir.
+ABA_DE = {"#kpis-jr": "oper", "#jr-mensal": "oper", "#jr-diario": "oper",
+          "#jr-comp": "oper",
+          "#kpis-jr2": "conf", "#jr-unconf": "conf", "#jr-uncmes": "conf",
+          "#jr-motoristas": "conf",
+          "#kpis-jr3": "custo", "#jr-escalas": "custo", "#jr-filiais": "custo",
+          "#kpis-jr4": "pres", "#jr-tipos": "pres", "#jr-ausencias": "pres"}
+
+
+def _aba(pg, alvo):
+    """Abre a aba onde `alvo` mora. Sem isto o teste espera para sempre por um
+    elemento que está no DOM e escondido."""
+    chave = ABA_DE.get(alvo.split()[0].split(":")[0])
+    if chave:
+        pg.click(f"#tabJorn-{chave}")
+
+
 def test_a_tela_abre_sem_erro_e_desenha_os_quatro_graficos(pagina):
     """O teste mais barato e o que mais pega: JS que estoura no render deixa a
-    tela pela metade sem dizer nada."""
+    tela pela metade sem dizer nada.
+
+    Os quatro gráficos vivem em abas diferentes agora, e passar por elas prova
+    o que interessa: cada um desenha ONDE ELE MORA. Um gráfico desenhado sob
+    `hidden` mede zero e sai com os rótulos do eixo suprimidos — sem erro
+    nenhum aparecer —, e é o `ResizeObserver` do `echartsRegistrar` que
+    conserta ao aparecer. Este teste é o que prova que ele conserta."""
     pg, base = pagina
     erros, baixados = _abrir(pg, base)
     for cid in ("#jr-mensal", "#jr-diario", "#jr-comp", "#jr-uncmes"):
+        _aba(pg, cid)
         pg.wait_for_selector(f"{cid} svg", timeout=20000)
+        # o ResizeObserver e ASSINCRONO: dispara no quadro seguinte ao
+        # elemento aparecer. Medir no mesmo instante do clique le a largura
+        # ANTES do conserto.
+        pg.wait_for_timeout(400)
+        largura = pg.evaluate(
+            "(s) => { const e = document.querySelector(s + ' svg');"
+            " return e ? e.getBoundingClientRect().width : 0; }", cid)
+        assert largura > 200, f"{cid} foi medido com largura {largura}"
     assert erros == [], erros
     # UMA carga da biblioteca serve os quatro gráficos
     assert len(baixados) == 1, f"esperava uma carga, veio {len(baixados)}"
@@ -224,6 +260,7 @@ def test_o_kpi_de_conformidade_exclui_a_direcao_noturna(pagina):
     decide ação mostra 500, não 800."""
     pg, base = pagina
     _abrir(pg, base)
+    _aba(pg, "#kpis-jr2 .kpi")
     pg.wait_for_selector("#kpis-jr2 .kpi", timeout=20000)
     t = pg.inner_text("#kpis-jr2")
     assert "500" in t
@@ -235,10 +272,13 @@ def test_motorista_de_baixo_volume_e_atenuado_e_nao_escondido(pagina):
     1 jornada e 3 ocorrências tem taxa 3,00 e não pode liderar nada."""
     pg, base = pagina
     _abrir(pg, base)
+    _aba(pg, "#jr-motoristas tr")
     pg.wait_for_selector("#jr-motoristas tr", timeout=20000)
     linhas = pg.locator("#jr-motoristas tr")
     assert linhas.count() == 2
+    _aba(pg, "#jr-motoristas")
     assert "MOTORISTA DE UMA VIAGEM" in pg.inner_text("#jr-motoristas")
+    _aba(pg, "#jr-motoristas")
     assert "baixo volume" in pg.inner_text("#jr-motoristas").lower()
     # a ordem é a CONTAGEM, não a taxa: quem tem taxa 3,00 fica em segundo
     assert "MUITAS VIAGENS" in linhas.nth(0).inner_text()
@@ -358,6 +398,7 @@ FICHA = {
 def _abrir_ficha(pg, base_url):
     """Abre a tela de jornada e clica no primeiro motorista do ranking."""
     _abrir(pg, base_url)
+    _aba(pg, "#jr-motoristas")   # o ranking mora na aba Conformidade
     pg.wait_for_selector("#jr-motoristas a", timeout=20000)
     pg.locator("#jr-motoristas a").first.click()
     pg.wait_for_selector("#jf-diario svg", timeout=20000)
@@ -369,7 +410,9 @@ def test_a_ficha_abre_pelo_ranking_e_desenha(pagina):
     porque é um recorte da tela de jornada e não uma tela por si."""
     pg, base = pagina
     erros, _ = _abrir(pg, base)
+    _aba(pg, "#jr-motoristas")
     pg.wait_for_selector("#jr-motoristas a", timeout=20000)
+    _aba(pg, "#jr-motoristas")
     pg.locator("#jr-motoristas a").first.click()
     pg.wait_for_selector("#jf-diario svg", timeout=20000)
     pg.wait_for_timeout(400)
@@ -425,7 +468,9 @@ def test_a_ficha_de_quem_saiu_do_cadastro_e_marcada(pagina):
 
     pg.route("**/api/**", rota)
     pg.goto(f"{base}/static/index.html#jorn")
+    _aba(pg, "#jr-motoristas")
     pg.wait_for_selector("#jr-motoristas a", timeout=20000)
+    _aba(pg, "#jr-motoristas")
     pg.locator("#jr-motoristas a").first.click()
     pg.wait_for_selector("#jornf-conteudo .kpi", timeout=20000)
     assert "sem cadastro" in pg.inner_text("#jornf-conteudo").lower()

@@ -100,14 +100,55 @@ def test_os_seis_cards_continuam_na_tela():
     assert esperados <= set(titulos), esperados - set(titulos)
 
 
-def test_a_aba_com_GRAFICO_e_a_que_nasce_aberta():
-    """Regra dura: painel novo que puser o gráfico numa aba escondida terá um
-    gráfico com os rótulos do eixo X suprimidos, sem erro nenhum aparecer."""
-    for grupo, com_grafico in (("prod", "vis"), ("prem", "prem")):
+def _grupos() -> list[str]:
+    return sorted(set(re.findall(r'<div class="subtabs" role="tablist" '
+                                 r'data-abas="(\w+)"', HTML)))
+
+
+def _painel(grupo: str, aba: str) -> str:
+    """O corpo de um painel de aba, do `<div class="aba"...>` até o próximo."""
+    i = HTML.index('data-abas="%s" data-aba="%s"' % (grupo, aba))
+    resto = HTML[i:]
+    prox = re.search(r'<div class="aba" data-abas=', resto[10:])
+    return resto[:prox.start() + 10] if prox else resto[:20000]
+
+
+def test_EXATAMENTE_UMA_aba_por_painel_nasce_aberta():
+    """Zero abertas deixa o painel em branco; duas abertas empilham conteúdo
+    que deveria estar em lugares diferentes. Vale para todo grupo, inclusive
+    os que ainda não existem."""
+    grupos = _grupos()
+    assert grupos, "nenhum painel com abas — o teste perdeu o alvo"
+    for g in grupos:
         aberta = re.findall(
-            r'<div class="aba" data-abas="' + grupo + r'" data-aba="(\w+)"'
+            r'<div class="aba" data-abas="' + g + r'" data-aba="(\w+)"'
             r'(?![^>]*\bhidden\b)[^>]*>', HTML)
-        assert aberta == [com_grafico], (grupo, aberta)
+        assert len(aberta) == 1, (g, aberta)
+
+
+def test_a_aba_com_GRAFICO_e_a_que_nasce_aberta():
+    """Regra dura: painel que puser o gráfico numa aba escondida terá um
+    gráfico com os rótulos do eixo X suprimidos, sem erro nenhum aparecer — o
+    `ResizeObserver` conserta na volta, mas nascer visível dispensa a
+    correção.
+
+    O teste era uma LISTA ESCRITA À MÃO de dois grupos. Lista assim envelhece
+    calada: a Jornada virou quatro abas e não teria sido conferida. Agora ele
+    varre todo `data-abas` que existir.
+    """
+    for g in _grupos():
+        aberta = re.findall(
+            r'<div class="aba" data-abas="' + g + r'" data-aba="(\w+)"'
+            r'(?![^>]*\bhidden\b)[^>]*>', HTML)[0]
+        # o painel tem gráfico se algum contêiner dele é alimentado por ECharts
+        temGrafico = [a for a in re.findall(
+            r'<div class="aba" data-abas="' + g + r'" data-aba="(\w+)"', HTML)
+            if re.search(r'style="width:100%;height:\d+px"', _painel(g, a))]
+        if not temGrafico:
+            continue
+        assert aberta in temGrafico, (
+            "no painel '%s' a aba aberta é '%s' e o gráfico está em %s"
+            % (g, aberta, temGrafico))
 
 
 # -- o comportamento --------------------------------------------------------
@@ -173,3 +214,180 @@ def test_a_premiacao_usa_a_MESMA_funcao(pagina):
     _abrir(pg, base_url)
     assert pg.evaluate("() => typeof window.abaTrocar") == "function"
     assert pg.evaluate("() => typeof window.premAba") == "undefined"
+
+
+# -- rotacao automatica ------------------------------------------------------
+
+
+def test_o_controle_de_giro_aparece_em_TODA_barra_de_abas(pagina):
+    """Pedido do usuário: painel com mais de uma aba precisa de controle do
+    tempo de transição — num mural não há ninguém para clicar. O controle é
+    montado a partir de `[data-abas]`, então painel novo já nasce com ele."""
+    pg, base_url = pagina
+    _abrir(pg, base_url)
+    assert pg.is_visible("#abaAuto-prod")
+    opcoes = pg.eval_on_selector(
+        "#abaAuto-prod", "s => Array.from(s.options).map(o => o.value)")
+    assert opcoes[0] == "0", "a primeira opção tem de ser 'não girar'"
+    assert len(opcoes) >= 4
+
+
+def test_NAO_GIRAR_esta_DENTRO_do_mesmo_controle(pagina):
+    """Um interruptor separado do intervalo cria o estado "ligado com
+    intervalo nenhum", que ninguém consegue prever lendo a tela."""
+    pg, base_url = pagina
+    _abrir(pg, base_url)
+    texto = pg.inner_text("#abaAuto-prod").lower()
+    assert "não girar" in texto or "nao girar" in texto, texto
+
+
+def test_o_giro_avanca_a_aba_sozinho(pagina):
+    pg, base_url = pagina
+    _abrir(pg, base_url)
+    assert pg.get_attribute("#tabProd-vis", "aria-selected") == "true"
+    # o menor intervalo real é longo demais para um teste: dispara a rotação
+    # pela mesma função que o relógio chama.
+    pg.evaluate("() => window.abaProxima('prod')")
+    assert pg.get_attribute("#tabProd-veic", "aria-selected") == "true"
+    pg.evaluate("() => window.abaProxima('prod')")
+    assert pg.get_attribute("#tabProd-ocio", "aria-selected") == "true"
+    pg.evaluate("() => window.abaProxima('prod')")
+    assert pg.get_attribute("#tabProd-vis", "aria-selected") == "true", (
+        "a rotação tem de dar a volta, não parar na última")
+
+
+def test_a_escolha_do_intervalo_FICA_GUARDADA(pagina):
+    """Quem pôs o painel no mural quer que ele continue girando amanhã."""
+    pg, base_url = pagina
+    _abrir(pg, base_url)
+    pg.select_option("#abaAuto-prod", "30")
+    assert pg.evaluate("() => window.abaAutoSegundos('prod')") == 30
+    pg.reload()
+    pg.wait_for_timeout(600)
+    assert pg.input_value("#abaAuto-prod") == "30"
+
+
+def test_o_giro_e_POR_PAINEL(pagina):
+    """Ligar o giro na Jornada não pode fazer a Premiação girar junto."""
+    pg, base_url = pagina
+    _abrir(pg, base_url)
+    pg.select_option("#abaAuto-prod", "60")
+    assert pg.evaluate("() => window.abaAutoSegundos('prod')") == 60
+    assert pg.evaluate("() => window.abaAutoSegundos('prem')") == 0
+
+
+def test_o_clique_manual_REARMA_o_relogio(pagina):
+    """Um clique dado a dois segundos do giro tiraria a pessoa da aba antes de
+    ela ler qualquer coisa — e ela concluiria que o clique não funcionou."""
+    pg, base_url = pagina
+    _abrir(pg, base_url)
+    pg.evaluate("""() => {
+        window.__rearmou = 0;
+        const orig = window.abaAutoRearmar;
+        window.abaAutoRearmar = g => { window.__rearmou++; return orig(g); };
+    }""")
+    pg.click("#tabProd-veic")
+    assert pg.evaluate("() => window.__rearmou") >= 1
+
+
+# -- tela cheia --------------------------------------------------------------
+
+
+def test_o_botao_de_tela_cheia_existe_em_qualquer_painel(pagina):
+    """Pedido do usuário: tela cheia em TODOS os painéis, não só nos dois de
+    TV — que já tinham o modo deles."""
+    pg, base_url = pagina
+    _abrir(pg, base_url)
+    assert pg.is_visible("#btnFull")
+    assert pg.get_attribute("#btnFull", "aria-pressed") == "false"
+
+
+def test_a_SAIDA_e_visivel_quando_o_topo_some(pagina):
+    """O botão que entrou na tela cheia está na barra de topo, que some junto.
+    Sem o flutuante, a única saída seria o Esc — e quem não sabe disso fica
+    preso num painel sem navegação."""
+    pg, base_url = pagina
+    _abrir(pg, base_url)
+    assert not pg.is_visible("#btnFullSair")
+    pg.evaluate("""() => {
+        document.body.classList.add('painelfull');
+        document.getElementById('btnFullSair').hidden = false;
+    }""")
+    assert pg.is_visible("#btnFullSair")
+
+
+def test_as_telas_de_TV_ficam_FORA_deste_modo(pagina):
+    """Elas já têm `tvfull`, que esconde o cursor e reflui em `vw`. Duas
+    classes sobre o mesmo elemento fariam um painel comum herdar o cursor
+    escondido — e ali ainda há alguém clicando."""
+    pg, base_url = pagina
+    _abrir(pg, base_url)
+    for tela in ("tvfat", "tvope"):
+        pg.evaluate("(t) => { location.hash = '#' + t; }", tela)
+        pg.wait_for_timeout(250)
+        pg.evaluate("() => window.telaCheiaSincronizar()")
+        assert not pg.evaluate(
+            "() => document.body.classList.contains('painelfull')"), tela
+
+
+def test_o_estado_vem_do_NAVEGADOR_e_nao_de_variavel_nossa():
+    """Guardar o estado à parte cria a divergência clássica: a pessoa sai com
+    Esc, que o navegador atende sozinho, e a tela continua achando que está
+    cheia — sem barra lateral e sem jeito de voltar."""
+    assert "fullscreenchange" in HTML
+    assert "document.fullscreenElement" in HTML
+
+
+# -- o estilo chega mesmo? ---------------------------------------------------
+#
+# A LIÇÃO MAIS CARA DA RODADA. As regras da estrela, do tema, da tela cheia, da
+# barra de abas, do contador e do giro foram parar DENTRO de
+# `@media(max-width:880px)` — porque a inserção foi ancorada num seletor
+# vizinho sem conferir a profundidade de chaves. No desktop, que é onde o
+# painel é usado, esses controles ficaram sem estilo nenhum da 0.152.0 à
+# 0.156.0.
+#
+# Nada pegou: `node --check` valida JS e não CSS; `verificar_estrutura.py` olha
+# atributos e aspas; o auditor de tema roda a 1500px mas mede COR — e elemento
+# sem estilo tem cor padrão com contraste ótimo.
+#
+# O guarda certo não é ler o texto do CSS: é PERGUNTAR AO NAVEGADOR, na largura
+# de desktop, se a regra chegou.
+
+
+def test_os_controles_do_painel_TEM_ESTILO_no_desktop(pagina):
+    pg, base_url = pagina
+    pg.set_viewport_size({"width": 1500, "height": 1000})
+    _abrir(pg, base_url)
+    estilos = pg.evaluate("""() => {
+        const cs = s => { const e = document.querySelector(s);
+            return e ? getComputedStyle(e) : null; };
+        const bt = cs('#btnFull'), tema = cs('#btnTema'), tabs = cs('.subtabs');
+        return {
+            full: bt && bt.cursor, tema: tema && tema.cursor,
+            tabsDisplay: tabs && tabs.display,
+            tabsBorda: tabs && tabs.borderBottomStyle,
+        };
+    }""")
+    assert estilos["full"] == "pointer", estilos
+    assert estilos["tema"] == "pointer", estilos
+    assert estilos["tabsDisplay"] == "flex", (
+        "a barra de sub-abas está sem estilo no desktop — a regra caiu dentro "
+        "de um @media de celular: " + str(estilos))
+    assert estilos["tabsBorda"] == "solid", estilos
+
+
+def test_a_tela_cheia_TEM_EFEITO_no_desktop(pagina):
+    """A regra de esconder a moldura também estava presa ao @media de celular:
+    entrar em tela cheia no desktop não escondia nada."""
+    pg, base_url = pagina
+    pg.set_viewport_size({"width": 1500, "height": 1000})
+    _abrir(pg, base_url)
+    pg.evaluate("() => document.body.classList.add('painelfull')")
+    d = pg.evaluate("""() => {
+        const q = s => { const e = document.querySelector(s);
+            return e ? getComputedStyle(e).display : 'ausente'; };
+        return {aside: q('aside'), topbar: q('.topbar'), content: q('#content')};
+    }""")
+    assert d["aside"] == "none" and d["topbar"] == "none", d
+    assert d["content"] != "none", d

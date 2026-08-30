@@ -583,6 +583,101 @@ tr.forn-det td{padding:7px 12px}
   .kpis.k4{grid-template-columns:repeat(2,1fr)}
   .mstrip{grid-template-columns:1fr}
 }
+/* ─────────────── CONTROLES GLOBAIS DO PAINEL ───────────────
+   ESTE BLOCO JÁ ESTEVE DENTRO DE `@media(max-width:880px)`, e é a lição mais
+   cara desta rodada: a estrela de favorito, o botão de tema, o de tela cheia,
+   a barra de sub-abas, o contador da aba e o seletor de rotação ficaram SEM
+   ESTILO NENHUM no desktop — que é onde o painel é usado — de 0.152.0 a
+   0.156.0.
+
+   POR QUE NENHUMA CONFERÊNCIA PEGOU: `node --check` valida JavaScript, não
+   CSS; `verificar_estrutura.py` olha atributos e aspas, não aninhamento; e o
+   auditor de tema roda a 1500px mas mede COR — elemento sem estilo continua
+   tendo cor padrão com contraste bom. O defeito era invisível para tudo que
+   existia.
+
+   A causa: eu ancorei as inserções em seletores vizinhos (`.dfreq`, `#btnFav`)
+   sem conferir a PROFUNDIDADE de chaves do ponto de inserção. Ancorar por
+   vizinhança em CSS não diz em que bloco se está. */
+/* FAVORITOS. A estrela fica na barra de topo, ao lado do titulo da tela: e
+   onde a pessoa esta olhando quando decide que vai voltar ali. */
+.favs{padding:4px 0 8px;margin-bottom:4px;border-bottom:1px solid rgba(255,255,255,.10)}
+.favs-h{font-size:10.5px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;
+        color:rgba(255,255,255,.45);padding:2px 12px 5px}
+/* TELA CHEIA DE PAINEL (pedido do usuario, 30/08/2026).
+   Some a MOLDURA -- barra lateral, topo e navegacao de rodape -- e fica o
+   painel. Os FILTROS ficam: eles sao parte do painel, e um painel de mural sem
+   filtro seria uma tela que ninguem consegue recortar.
+
+   E SEPARADA da `tvfull`, que ja existia. Aquela e para as duas telas de TV,
+   esconde o cursor, reflui o layout em `vw` e re-renderiza na altura nova.
+   Reaproveitar a mesma classe misturaria as duas regras e faria um painel
+   comum herdar o cursor escondido -- so que ali AINDA existe alguem clicando.
+
+   A SAIDA PRECISA SER VISIVEL: com o topo escondido, o botao que entrou some
+   junto. Dai o flutuante, que so aparece neste modo. */
+body.painelfull aside,body.painelfull .topbar,body.painelfull .bottomnav,
+body.painelfull #btnReport{display:none !important}
+body.painelfull .content{padding:16px 22px}
+#btnFullSair{position:fixed;top:12px;right:12px;z-index:120;background:var(--n0);
+  border:1px solid var(--n200);border-radius:9px;padding:7px;cursor:pointer;
+  color:var(--n500);display:inline-flex;line-height:0;box-shadow:var(--shadow);opacity:.35}
+#btnFullSair:hover,#btnFullSair:focus-visible{opacity:1;color:var(--n900)}
+#btnFull{background:none;border:0;cursor:pointer;padding:6px;border-radius:8px;
+        color:var(--n400);display:inline-flex;align-items:center;line-height:0}
+#btnFull:hover{background:var(--n100);color:var(--n600)}
+#btnFull:focus-visible{outline:2px solid var(--orange-500);outline-offset:2px}
+#btnTema{background:none;border:0;cursor:pointer;padding:6px;border-radius:8px;
+        color:var(--n400);display:inline-flex;align-items:center;line-height:0}
+#btnTema:hover{background:var(--n100);color:var(--n600)}
+#btnTema:focus-visible{outline:2px solid var(--orange-500);outline-offset:2px}
+#btnFav{background:none;border:0;cursor:pointer;padding:6px;border-radius:8px;
+        color:var(--n400);display:inline-flex;align-items:center;line-height:0}
+#btnFav:hover{background:var(--n100);color:var(--n600)}
+#btnFav.on{color:var(--orange-500)}
+#btnFav.on .ic svg{fill:currentColor}
+#btnFav:focus-visible{outline:2px solid var(--orange-500);outline-offset:2px}
+
+/* SUB-ABAS DENTRO DE UMA TELA. Nascidas na Premiação, que tinha seis cards de
+   assuntos diferentes empilhados: os três de CONFIGURAÇÃO (pesos, carência,
+   classificação de ocorrência) são mexidos uma vez por trimestre e ficavam
+   entre o que se olha todo mês. Sub-aba, e não tela nova, porque o RBAC, o
+   seletor de mês e o botão de coleta são os mesmos -- duas telas dividiriam
+   um estado que é um só. */
+.subtabs{display:flex;gap:4px;margin:0 0 14px;border-bottom:1px solid var(--n200,#E3E7EC)}
+.subtabs button{background:none;border:0;cursor:pointer;font:600 13px/1 var(--font);
+  color:var(--n500);padding:9px 14px 10px;border-bottom:2px solid transparent;
+  margin-bottom:-1px;border-radius:6px 6px 0 0}
+.subtabs button:hover{color:var(--n700);background:var(--n50,#F7F8FA)}
+.subtabs button[aria-selected="true"]{color:var(--n900);border-bottom-color:var(--orange-500)}
+.subtabs button:focus-visible{outline:2px solid var(--orange-500);outline-offset:-2px}
+.subtabs-auto{margin-left:auto;display:flex;align-items:center;gap:6px;padding:0 2px 4px}
+.subtabs-auto label{font-size:10.5px;text-transform:uppercase;letter-spacing:.055em;
+  color:var(--n500);font-weight:600}
+.subtabs-auto select{height:26px;border:1px solid var(--n200);border-radius:6px;
+  padding:0 6px;font:inherit;font-size:12px;background:var(--n0);color:var(--n900)}
+.subtabs-auto .hint{font-size:10.5px;color:var(--orange-500);min-width:44px;text-align:left}
+.aban{display:inline-block;margin-left:6px;padding:1px 6px;border-radius:9px;
+  background:var(--n100,#EEF1F4);color:var(--n600);font-size:10.5px;
+  font-weight:700;font-family:var(--mono)}
+.aban.vazio{display:none}
+.subtabs button[aria-selected="true"] .aban{background:#FDECE0;color:#B44A0C}
+  .dfreq{padding:2px 0 10px;border-bottom:1px solid var(--n100,#EEF1F4)}
+  .dfreq-h{font-size:11.5px;font-weight:700;text-transform:uppercase;letter-spacing:.07em;
+    color:var(--orange-600);padding:9px 4px 7px}
+  .dfreq-b{display:grid;grid-template-columns:1fr 1fr;gap:7px}
+  .dsemres{padding:18px 6px;color:var(--n500);font-size:13px;text-align:center}
+  .dgrp{border-bottom:1px solid var(--n100,#EEF1F4)}
+  .dgrp-h{width:100%;display:flex;align-items:center;justify-content:space-between;
+    background:none;border:0;cursor:pointer;font-family:var(--font);
+    font-size:11.5px;font-weight:700;text-transform:uppercase;letter-spacing:.07em;
+    color:var(--navy-700);padding:11px 4px}
+  .dgrp-h .dchev{font-size:17px;color:var(--n400);transition:transform .2s;line-height:1}
+  .dgrp.aberto .dgrp-h .dchev{transform:rotate(90deg);color:var(--orange-500)}
+  .dgrp-b{display:grid;grid-template-columns:1fr 1fr;gap:7px;padding:0 0 11px}
+  .dgrp:not(.aberto) .dgrp-b{display:none}
+  .dconta{display:grid;grid-template-columns:1fr 1fr;gap:7px;margin-top:11px}
+
 @media(max-width:880px){
   body{font-size:14px}
   /* sem isto o Chrome mobile ALARGA o viewport de layout para caber o
@@ -677,55 +772,6 @@ tr.forn-det td{padding:7px 12px}
      telas e perfis diferentes, metade dos atalhos não serve para quem está
      olhando. Esta faixa se adapta sozinha ao que a pessoa abre. */
 
-/* FAVORITOS. A estrela fica na barra de topo, ao lado do titulo da tela: e
-   onde a pessoa esta olhando quando decide que vai voltar ali. */
-.favs{padding:4px 0 8px;margin-bottom:4px;border-bottom:1px solid rgba(255,255,255,.10)}
-.favs-h{font-size:10.5px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;
-        color:rgba(255,255,255,.45);padding:2px 12px 5px}
-#btnTema{background:none;border:0;cursor:pointer;padding:6px;border-radius:8px;
-        color:var(--n400);display:inline-flex;align-items:center;line-height:0}
-#btnTema:hover{background:var(--n100);color:var(--n600)}
-#btnTema:focus-visible{outline:2px solid var(--orange-500);outline-offset:2px}
-#btnFav{background:none;border:0;cursor:pointer;padding:6px;border-radius:8px;
-        color:var(--n400);display:inline-flex;align-items:center;line-height:0}
-#btnFav:hover{background:var(--n100);color:var(--n600)}
-#btnFav.on{color:var(--orange-500)}
-#btnFav.on .ic svg{fill:currentColor}
-#btnFav:focus-visible{outline:2px solid var(--orange-500);outline-offset:2px}
-
-/* SUB-ABAS DENTRO DE UMA TELA. Nascidas na Premiação, que tinha seis cards de
-   assuntos diferentes empilhados: os três de CONFIGURAÇÃO (pesos, carência,
-   classificação de ocorrência) são mexidos uma vez por trimestre e ficavam
-   entre o que se olha todo mês. Sub-aba, e não tela nova, porque o RBAC, o
-   seletor de mês e o botão de coleta são os mesmos -- duas telas dividiriam
-   um estado que é um só. */
-.subtabs{display:flex;gap:4px;margin:0 0 14px;border-bottom:1px solid var(--n200,#E3E7EC)}
-.subtabs button{background:none;border:0;cursor:pointer;font:600 13px/1 var(--font);
-  color:var(--n500);padding:9px 14px 10px;border-bottom:2px solid transparent;
-  margin-bottom:-1px;border-radius:6px 6px 0 0}
-.subtabs button:hover{color:var(--n700);background:var(--n50,#F7F8FA)}
-.subtabs button[aria-selected="true"]{color:var(--n900);border-bottom-color:var(--orange-500)}
-.subtabs button:focus-visible{outline:2px solid var(--orange-500);outline-offset:-2px}
-.aban{display:inline-block;margin-left:6px;padding:1px 6px;border-radius:9px;
-  background:var(--n100,#EEF1F4);color:var(--n600);font-size:10.5px;
-  font-weight:700;font-family:var(--mono)}
-.aban.vazio{display:none}
-.subtabs button[aria-selected="true"] .aban{background:#FDECE0;color:#B44A0C}
-  .dfreq{padding:2px 0 10px;border-bottom:1px solid var(--n100,#EEF1F4)}
-  .dfreq-h{font-size:11.5px;font-weight:700;text-transform:uppercase;letter-spacing:.07em;
-    color:var(--orange-600);padding:9px 4px 7px}
-  .dfreq-b{display:grid;grid-template-columns:1fr 1fr;gap:7px}
-  .dsemres{padding:18px 6px;color:var(--n500);font-size:13px;text-align:center}
-  .dgrp{border-bottom:1px solid var(--n100,#EEF1F4)}
-  .dgrp-h{width:100%;display:flex;align-items:center;justify-content:space-between;
-    background:none;border:0;cursor:pointer;font-family:var(--font);
-    font-size:11.5px;font-weight:700;text-transform:uppercase;letter-spacing:.07em;
-    color:var(--navy-700);padding:11px 4px}
-  .dgrp-h .dchev{font-size:17px;color:var(--n400);transition:transform .2s;line-height:1}
-  .dgrp.aberto .dgrp-h .dchev{transform:rotate(90deg);color:var(--orange-500)}
-  .dgrp-b{display:grid;grid-template-columns:1fr 1fr;gap:7px;padding:0 0 11px}
-  .dgrp:not(.aberto) .dgrp-b{display:none}
-  .dconta{display:grid;grid-template-columns:1fr 1fr;gap:7px;margin-top:11px}
   /* tiles: navy-suave coeso com a identidade, mais enxutos e leves (sem
      borda pesada); ícone em navy-500, texto navy-700 */
   .drawer a{display:flex;align-items:center;gap:9px;padding:9px 10px;border-radius:10px;
@@ -1825,6 +1871,9 @@ body.tvfull #btnReport,body.tvmode #btnReport{display:none}
 </script>
 </head>
 <body>
+<button id="btnFullSair" onclick="telaCheiaAlternar()" hidden
+        title="Sair da tela cheia (Esc)" aria-label="Sair da tela cheia">
+  <span class="ic" data-ic="encolher"></span></button>
 <div id="loginOverlay">
   <div class="lg-card">
     <div class="lg-head"><img src="/static/sulista-logo-branco.svg" alt="Sulista"><span>CÓRTEX</span></div>
@@ -2007,6 +2056,8 @@ body.tvfull #btnReport,body.tvmode #btnReport{display:none}
         <h1 id="viewTitle">Fluxo de Caixa e Bancos</h1>
         <div class="emp" id="empNome">—</div>
       </div>
+      <button id="btnFull" onclick="telaCheiaAlternar()" title="Tela cheia"
+              aria-pressed="false" aria-label="Entrar em tela cheia"><span class="ic" id="btnFullIc"></span></button>
       <button id="btnTema" onclick="temaAlternar()" title="Alternar tema"
               aria-label="Alternar entre tema claro e escuro"><span class="ic" id="btnTemaIc"></span></button>
       <button id="btnFav" onclick="favAlternar()" hidden
@@ -2466,13 +2517,13 @@ body.tvfull #btnReport,body.tvmode #btnReport{display:none}
         </div>
         <div class="card">
           <div class="head"><h2>Ciclo de caixa — DSO × DPO <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="DSO = prazo médio real de recebimento (faturas liquidadas: dias entre emissão e pagamento). DPO = prazo médio de pagamento (contaapagar, dtemissaotitulo até a liquidação). CICLO = DSO − DPO: negativo significa que você recebe antes de pagar, o que financia a operação; positivo significa que a operação consome caixa e precisa de capital de giro.">i</span><span class="hint" id="cicloHint">dias ponderados por valor · DSO = emissão→recebimento · DPO = emissão→pagamento · ciclo = DSO − DPO</span></div>
-          <div class="tablewrap"><table><thead><tr>
+          <div class="tablewrap tabroll"><table><thead><tr>
             <th>Mês</th><th class="num">DSO (recebe em)</th><th class="num">DPO (paga em)</th><th class="num">Ciclo</th>
           </tr></thead><tbody id="fluxo-ciclo"></tbody></table></div>
         </div>
         <div class="card">
           <div class="head"><h2>Custo financeiro <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="Juros, tarifas e despesas financeiras do razão contábil (estrutural 4.2.4), por mês de lançamento. É custo REALIZADO, não projeção — e não entra no fluxo projetado acima, que só considera títulos a receber e a pagar.">i</span><span class="hint" id="finHint">juros, tarifas e despesas financeiras do razão (4.2.4) por mês</span></div>
-          <div class="tablewrap"><table><thead><tr>
+          <div class="tablewrap tabroll"><table><thead><tr>
             <th>Mês</th><th class="num">Custo financeiro</th>
           </tr></thead><tbody id="fluxo-fin"></tbody></table></div>
         </div>
@@ -2497,7 +2548,7 @@ body.tvfull #btnReport,body.tvmode #btnReport{display:none}
         </div>
         <div class="card">
           <div class="head"><h2>Maiores clientes a receber <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="Top 15 sacados por saldo em aberto no recorte filtrado, com o quanto de cada um já venceu. O documento aparece mascarado — o painel não expõe CNPJ/CPF completo.">i</span></h2><span class="hint" id="top-ar-hint">top 15 por saldo · no período filtrado</span></div>
-          <div class="tablewrap"><table><thead><tr><th>Cliente</th><th class="num">Tít.</th><th class="num">Vencido</th><th class="num">Saldo</th></tr></thead>
+          <div class="tablewrap tabroll"><table><thead><tr><th>Cliente</th><th class="num">Tít.</th><th class="num">Vencido</th><th class="num">Saldo</th></tr></thead>
             <tbody id="top-ar"></tbody></table></div>
         </div>
         <div class="card">
@@ -2526,7 +2577,7 @@ body.tvfull #btnReport,body.tvmode #btnReport{display:none}
         </div>
         <div class="card">
           <div class="head"><h2>Maiores fornecedores a pagar <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="Top 15 credores por valor pendente no recorte filtrado, com o quanto já venceu. O documento aparece mascarado — o painel não expõe CNPJ/CPF completo.">i</span></h2><span class="hint" id="top-ap-hint">top 15 por pendente · no período filtrado</span></div>
-          <div class="tablewrap"><table><thead><tr><th>Fornecedor</th><th class="num">Tít.</th><th class="num">Vencido</th><th class="num">Pendente</th></tr></thead>
+          <div class="tablewrap tabroll"><table><thead><tr><th>Fornecedor</th><th class="num">Tít.</th><th class="num">Vencido</th><th class="num">Pendente</th></tr></thead>
             <tbody id="top-ap"></tbody></table></div>
         </div>
         <div class="card">
@@ -2576,7 +2627,7 @@ body.tvfull #btnReport,body.tvmode #btnReport{display:none}
         </div>
         <div class="card">
           <div class="head"><h2>Pendências de cadastro <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="Veículos cujo tipo, carroceria ou tipo de carga não foi possível traduzir para número de eixos e classe da ANTT (config/antt_eixos.yaml). Estas viagens NÃO entram na conferência — não são irregulares, são desconhecidas.">i</span></h2><span class="hint">estas viagens ficaram fora da conferência</span></div>
-          <div class="tablewrap"><table><thead><tr>
+          <div class="tablewrap tabroll"><table><thead><tr>
             <th>Placa</th><th>Tipo</th><th>Carroceria</th><th>Motivo</th>
           </tr></thead><tbody id="anpiso-pend"></tbody></table></div>
         </div>
@@ -2740,13 +2791,13 @@ body.tvfull #btnReport,body.tvmode #btnReport{display:none}
         <div class="grid2">
           <div class="card">
             <div class="head"><h2>Por combustível <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="Agrupado por combustivel_descricao do CTA Plus. ARLA aparece aqui porque é compra do cartão, mas fica fora do consumo médio e do prêmio do posto externo. A linha (não informado no cartão) é abastecimento sem produto identificado na origem.">i</span></h2><span class="hint">no período filtrado</span></div>
-            <div class="tablewrap"><table><thead><tr>
+            <div class="tablewrap tabroll"><table><thead><tr>
               <th>Combustível</th><th class="num">Abast.</th><th class="num">Litros/m³</th><th class="num">Custo</th><th class="num">R$/un.</th><th class="num">% do custo</th>
             </tr></thead><tbody id="comb-tipo"></tbody></table></div>
           </div>
           <div class="card">
             <div class="head"><h2>Postos do período <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="Top 12 postos por custo. INTERNO é posto próprio da Sulista, COMERCIAL é posto de rua — a diferença de R$/l entre os dois é o prêmio mostrado no cartão do topo. Cada posto aparece uma vez, com o R$/l médio ponderado pelos litros.">i</span></h2><span class="hint" id="hintCombP">top 12 por custo</span></div>
-          <div class="tablewrap"><table><thead><tr>
+          <div class="tablewrap tabroll"><table><thead><tr>
             <th>Posto</th><th>Tipo</th><th class="num">Abast.</th><th class="num">Litros</th><th class="num">Custo</th><th class="num">R$/l</th>
           </tr></thead><tbody id="comb-posto"></tbody></table></div>
           </div>
@@ -2778,7 +2829,17 @@ body.tvfull #btnReport,body.tvmode #btnReport{display:none}
       <!-- ===================== COMERCIAL: CLIENTES E RKM ===================== -->
       <section class="view" id="view-com">
         <div class="kpis" id="kpis-com"></div>
-        <div class="card">
+                <div class="subtabs" role="tablist" data-abas="com" aria-label="Seções da tela">
+          <button role="tab" id="tabCom-geral" data-aba="geral" aria-controls="aba-com-geral"
+                  aria-selected="true" onclick="abaTrocar('com','geral')">Visão geral</button>
+          <button role="tab" id="tabCom-preco" data-aba="preco" aria-controls="aba-com-preco"
+                  aria-selected="false" onclick="abaTrocar('com','preco')">Preço e meta</button>
+          <button role="tab" id="tabCom-carteira" data-aba="carteira" aria-controls="aba-com-carteira"
+                  aria-selected="false" onclick="abaTrocar('com','carteira')">Carteira</button>
+        </div>
+        <div class="aba" data-abas="com" data-aba="geral" id="aba-com-geral"
+             role="tabpanel" aria-labelledby="tabCom-geral">
+<div class="card">
           <div class="head"><h2>Receita de frete por mês <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="FONTE: programacaoembarque.valorfrete das viagens CARREGADAS (não canceladas, semáforo = 1, tipo ≠ 3), por data de emissão, dentro do período filtrado. É o frete das viagens — recorte DIFERENTE do faturamento oficial (CT-e + NFS-e + KMM) que aparece no card de metas mais abaixo, e das faturas emitidas do Contas a Receber. Mês que o filtro pega pela metade sai hachurado e marcado 'parcial'.">i</span></h2><span class="hint" id="hintCom">no período filtrado</span></div>
           <div class="legend">
             <span class="k"><i class="sw" style="background:var(--green)"></i>Mês inteiro no recorte</span>
@@ -2790,30 +2851,36 @@ body.tvfull #btnReport,body.tvmode #btnReport{display:none}
         </div>
         <div class="card">
           <div class="head"><h2>Clientes do período <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="Agrupamento de clientes (grupo econômico) do ERP; quando a viagem não tem coleta vinculada, o pagador é recuperado pelo CT-e do mesmo veículo na janela da viagem (heurística que recupera ~91% do valor). Receita = valorfrete; RKM = receita ÷ km carregado, contando só viagens com km informado. Δ compara com o MESMO período do ano anterior.">i</span></h2><span class="hint">top 30 por receita · clique para ver as rotas · Δ vs mesmo período do ano anterior</span></div>
-          <div class="tablewrap"><table><thead><tr>
+          <div class="tablewrap tabroll"><table><thead><tr>
             <th style="width:34px"></th><th>Cliente</th><th class="num">Viagens</th><th class="num">Receita</th><th class="num">% do total</th><th class="num">Km</th><th class="num">RKM</th><th class="num">Δ ano ant.</th>
           </tr></thead><tbody id="com-cli"></tbody></table></div>
         </div>
-        <div class="card">
+        </div>
+        <div class="aba" data-abas="com" data-aba="preco" id="aba-com-preco"
+             role="tabpanel" aria-labelledby="tabCom-preco" hidden>
+<div class="card">
           <div class="head"><h2>Re-preço por rota — quem paga abaixo dos demais <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="Compara o RKM do cliente com o RKM dos DEMAIS clientes na mesma origem→destino, no período filtrado. Só entram rotas com 3.000 km ou mais no recorte e diferença de 5% ou mais para baixo. Potencial = (RKM dos demais − RKM do cliente) × km do cliente na rota. NÃO considera tipo de carga, sazonalidade nem contrato — é ponto de partida de conversa, não conclusão.">i</span></h2><span class="hint">RKM do cliente vs RKM dos outros clientes na MESMA rota, no período filtrado</span></div>
-          <div class="tablewrap"><table><thead><tr>
+          <div class="tablewrap tabroll"><table><thead><tr>
             <th>Cliente</th><th>Rota</th><th class="num">Viagens</th><th class="num">Km</th>
             <th class="num">RKM do cliente</th><th class="num">RKM dos demais</th><th class="num">Δ</th><th class="num">Potencial no período</th>
           </tr></thead><tbody id="com-repre"></tbody></table></div>
         </div>
         <div class="card">
           <div class="head"><h2>Meta × realizado do mês por cliente <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="Meta = sulista.metafaturamento_agrupamentoclientedia (tipo 1), acumulada até hoje. Realizado = faturamento OFICIAL (CT-e + NFS-e + KMM) dos clientes vinculados ao agrupamento. ATENÇÃO: este card é sempre do MÊS CORRENTE e usa o recorte oficial de faturamento — por isso não acompanha o filtro de período nem bate com a receita de frete dos outros cards da tela.">i</span><span class="badge b-warn" style="margin-left:8px;vertical-align:2px">não segue os filtros</span></h2><span class="hint">sempre o mês corrente · maiores gaps primeiro · realizado = faturamento oficial (CT-e + NFS-e + KMM)</span></div>
-          <div class="tablewrap"><table><thead><tr>
+          <div class="tablewrap tabroll"><table><thead><tr>
             <th>Cliente</th><th class="num">Meta até hoje</th><th class="num">Realizado</th><th class="num">Atingimento</th><th class="num">Gap</th><th class="num">Meta do mês</th>
           </tr></thead><tbody id="com-metas"></tbody></table></div>
         </div>
-        <div class="card">
+        </div>
+        <div class="aba" data-abas="com" data-aba="carteira" id="aba-com-carteira"
+             role="tabpanel" aria-labelledby="tabCom-carteira" hidden>
+<div class="card">
           <div class="head"><h2>Concentração da carteira — curva ABC <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="Participação acumulada na receita do período filtrado, sobre os 30 maiores clientes. Quanto menos clientes formam 80% da receita, maior a dependência: perder um deles vira buraco imediato no mês.">i</span></h2><span class="hint">participação acumulada na receita do período</span></div>
           <div class="kpis" id="com-abc"></div>
         </div>
         <div class="card">
           <div class="head"><h2>Clientes em queda <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="Clientes com receita 30% ou mais abaixo do MESMO período do ano anterior e volume relevante antes. Queda ainda reversível — o cliente que zerou aparece no alerta 'Clientes que sumiram'.">i</span></h2><span class="hint">receita 30%+ abaixo do mesmo período do ano anterior · churn reversível</span></div>
-          <div class="tablewrap"><table><thead><tr>
+          <div class="tablewrap tabroll"><table><thead><tr>
             <th>Cliente</th><th class="num">Período anterior</th><th class="num">Atual</th><th class="num">Queda</th><th class="num">Receita perdida</th>
           </tr></thead><tbody id="com-queda"></tbody></table></div>
         </div>
@@ -2821,7 +2888,8 @@ body.tvfull #btnReport,body.tvmode #btnReport{display:none}
           <div class="head"><h2>Alertas</h2></div>
           <div class="alerts" id="alerts-com"></div>
         </div>
-      </section>
+        </div>
+</section>
 
       <!-- ===================== VEÍCULOS ===================== -->
       <section class="view" id="view-veic">
@@ -2836,27 +2904,27 @@ body.tvfull #btnReport,body.tvmode #btnReport{display:none}
         </div>
         <div class="card">
           <div class="head"><h2>Por utilização <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="veiculo.utilizacaoveiculo cruzada com utilizacaoveiculo (descrição). FROTA e LOCAÇÃO são os veículos que a Sulista opera com diesel e motorista próprios; AGREGADOS e TERCEIROS são de quem vende frete para ela. Linhas fora dessas quatro (vazio, “Preventiva”) são inconsistência de cadastro. Idade = ano corrente − anofabricacao, só dos ativos com ano válido.">i</span></h2><span class="hint">composição da frota · idade por modalidade</span></div>
-          <div class="tablewrap"><table><thead><tr>
+          <div class="tablewrap tabroll"><table><thead><tr>
             <th>Utilização</th><th class="num">Ativos</th><th class="num">Inativos</th><th class="num">Idade média</th>
           </tr></thead><tbody id="veic-util"></tbody></table></div>
         </div>
         <div class="grid2">
           <div class="card">
             <div class="head"><h2>Por tipo de veículo <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="veiculo.tipoveiculo cruzada com tipoveiculo (descrição). Mostra os 20 maiores tipos — o hint diz quantos existem e quantos veículos o recorte cobre. Tipo é cadastro livre no ERP: variações como “CAVALO TRUCADO 6X2” e “CAVALO TRUCADO 6X2 PJ” contam separado.">i</span></h2><span class="hint" id="hintVeicTipo"></span></div>
-            <div class="tablewrap"><table><thead><tr>
+            <div class="tablewrap tabroll"><table><thead><tr>
               <th>Tipo</th><th class="num">Quantidade</th>
             </tr></thead><tbody id="veic-tipo"></tbody></table></div>
           </div>
           <div class="card">
             <div class="head"><h2>Por característica <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="veiculo.caracteristicaveiculo cruzada com caracteristicaveiculo. Mistura carroceria (SIDER, GRADE BAIXA, BAU) com norma de emissão (EURO 3/4/5/6) porque o ERP usa o mesmo campo para as duas coisas — o total por linha não soma a frota.">i</span></h2><span class="hint" id="hintVeicCar">carroceria/aplicação</span></div>
-            <div class="tablewrap"><table><thead><tr>
+            <div class="tablewrap tabroll"><table><thead><tr>
               <th>Característica</th><th class="num">Quantidade</th>
             </tr></thead><tbody id="veic-carac"></tbody></table></div>
           </div>
         </div>
         <div class="card">
           <div class="head"><h2>Marcas e modelos <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="veiculo.marcaveiculo/modeloveiculo. “Ano médio” é a média de anofabricacao dos veículos ativos da marca com ano válido — puxa para baixo quando a marca tem implemento antigo em uso. Clique na linha para ver os modelos e a faixa de anos.">i</span></h2><span class="hint" id="hintVeicMar">clique na marca para ver os modelos</span></div>
-          <div class="tablewrap"><table><thead><tr>
+          <div class="tablewrap tabroll"><table><thead><tr>
             <th style="width:34px"></th><th>Marca</th><th class="num">Quantidade</th><th class="num">Ano médio</th>
           </tr></thead><tbody id="veic-marca"></tbody></table></div>
         </div>
@@ -2905,7 +2973,7 @@ body.tvfull #btnReport,body.tvmode #btnReport{display:none}
         </div>
         <div class="card">
           <div class="head"><h2>Custos por centro de custo <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="Contas 4.x com rateio de centro de custo na competência, via lancamento_filial_unidade_centrocusto (join por sequência + reduzido + data do lançamento). Custo líquido = débito − crédito. Só aparece o que tem centro de custo atribuído no lançamento.">i</span></h2><span class="hint">contas 4.x com rateio de centro de custo no período</span></div>
-          <div class="tablewrap"><table><thead><tr>
+          <div class="tablewrap tabroll"><table><thead><tr>
             <th>Centro de custo</th><th class="num">Débito</th><th class="num">Crédito</th><th class="num">Custo líquido</th>
           </tr></thead><tbody id="cont-cc"></tbody></table></div>
         </div>
@@ -3037,7 +3105,7 @@ body.tvfull #btnReport,body.tvmode #btnReport{display:none}
             </div>
             <div id="prem-cfg-params" class="cardfilters"></div>
             <div style="padding:4px 18px 0"><div style="color:var(--n500);font-size:11px;font-weight:700;letter-spacing:.14em;text-transform:uppercase">Pesos dos eixos</div></div>
-            <div class="tablewrap"><table><thead><tr>
+            <div class="tablewrap tabroll"><table><thead><tr>
               <th>Eixo</th><th>Mede</th><th class="num">Peso</th><th class="num">Ativo</th>
             </tr></thead><tbody id="prem-cfg-eixos"></tbody></table></div>
             <div style="padding:0 18px 14px;font-size:12px" id="prem-cfg-soma"></div>
@@ -3091,7 +3159,7 @@ body.tvfull #btnReport,body.tvmode #btnReport{display:none}
         </div>
         <div class="card">
           <div class="head"><h2>Margem de contribuição por cliente</h2><span class="hint">top 30 por receita · custo comprado real + km próprio × CKM marginal · antes de fixos e administrativo</span></div>
-          <div class="tablewrap"><table><thead><tr>
+          <div class="tablewrap tabroll"><table><thead><tr>
             <th>Cliente</th><th class="num">Viagens</th><th class="num">Km</th><th class="num">Receita</th><th class="num">RKM</th>
             <th class="num">Custo comprado</th><th class="num">Custo próprio (est.)</th><th class="num">Margem</th><th class="num">Margem %</th><th class="num">% frota própria</th>
           </tr></thead><tbody id="rent-cli"></tbody></table></div>
@@ -3108,7 +3176,7 @@ body.tvfull #btnReport,body.tvmode #btnReport{display:none}
         </div>
         <div class="card">
           <div class="head"><h2>Clientes com títulos vencidos <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="Método OFICIAL de inadimplência: fatura_composicao com valor pendente, composição 1 (já faturado), vencimento por dtprevisaopagamento ou dtvencimento e sem data de pagamento. Documento vencido que ainda NÃO virou fatura não entra aqui — aparece no aviso de pendente de faturamento. 'Prazo médio real' é o DSO do cliente nas faturas liquidadas dos últimos 180 dias: quanto ele realmente leva para pagar, não o prazo contratado. Clique no cabeçalho para reordenar.">i</span></h2><span class="hint" id="cob-hint">top 30 por saldo vencido · clique na linha para ver os títulos</span></div>
-          <div class="tablewrap"><table><thead><tr>
+          <div class="tablewrap tabroll"><table><thead><tr>
             <th style="width:34px"></th><th>Cliente</th><th class="num">Títulos</th>
             <th class="num">Até 30d</th><th class="num">31–90d</th><th class="num">91–365d</th><th class="num">+365d</th>
             <th class="num">Total vencido</th><th class="num">Prazo médio real</th><th class="num">Mais antigo</th>
@@ -3228,7 +3296,7 @@ body.tvfull #btnReport,body.tvmode #btnReport{display:none}
         <div class="card">
           <div class="head"><h2>Vencidos — o bloco separado <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="Contas a pagar já vencidas, agrupadas por natureza. Ficam FORA do fluxo acima de propósito, como no rodapé da planilha de tesouraria: somar isso ao dia a dia faria a operação parecer inviável todos os dias. A maior parte é tributo — inclusive parcelamento em curso, que não vence de novo.">i</span></h2>
             <span class="hint" id="hintFcVenc"></span></div>
-          <div class="tablewrap"><table><thead><tr>
+          <div class="tablewrap tabroll"><table><thead><tr>
             <th>Natureza</th><th class="num">Títulos</th><th class="num">Valor</th><th class="num">% do vencido</th>
           </tr></thead><tbody id="fc-venc-nat"></tbody></table></div>
           <div class="tablewrap tabroll" style="margin-top:10px"><table><thead><tr>
@@ -3240,7 +3308,7 @@ body.tvfull #btnReport,body.tvmode #btnReport{display:none}
           <div class="head"><h2>Limites de crédito contratados <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="Cheque empresa/especial contratado em cada banco. NÃO é caixa: é crédito, e o custo aparece ao lado. O sistema consome sempre do mais barato para o mais caro ao calcular a cobertura de um período negativo. Guardado em data/credito.json, fora do ERP.">i</span></h2>
             <span class="hint" id="hintCred"></span>
             <button class="ghost" id="btnCredEdit" onclick="credEditar()">Editar</button></div>
-          <div class="tablewrap"><table><thead><tr>
+          <div class="tablewrap tabroll"><table><thead><tr>
             <th>Banco</th><th>Tipo</th><th class="num">Limite</th>
             <th class="num">Taxa a.m.</th><th>Vence</th><th class="num">Custo/mês se usado</th>
           </tr></thead><tbody id="cred-linhas"></tbody></table></div>
@@ -3335,14 +3403,14 @@ body.tvfull #btnReport,body.tvmode #btnReport{display:none}
           <div class="card">
             <div class="head"><h2>Pirâmide etária <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="Quadro ativo por faixa de idade, com a massa salarial de cada faixa. É onde se lê risco de sucessão: quanto do custo e do conhecimento está concentrado em quem se aposenta nos próximos anos.">i</span></h2>
               <span class="hint" id="hintPplPir"></span></div>
-            <div class="tablewrap"><table><thead><tr>
+            <div class="tablewrap tabroll"><table><thead><tr>
               <th>Faixa</th><th class="num">Pessoas</th><th></th><th class="num">Massa salarial</th>
             </tr></thead><tbody id="ppl-piramide"></tbody></table></div>
           </div>
           <div class="card">
             <div class="head"><h2>Tempo de casa <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="Há quanto tempo cada pessoa do quadro ativo está na empresa. Concentração nos primeiros meses indica crescimento ou reposição alta; concentração acima de dez anos indica quadro maduro e pouca renovação.">i</span></h2>
               <span class="hint" id="hintPplCasa"></span></div>
-            <div class="tablewrap"><table><thead><tr>
+            <div class="tablewrap tabroll"><table><thead><tr>
               <th>Faixa</th><th class="num">Pessoas</th><th></th>
             </tr></thead><tbody id="ppl-casa"></tbody></table></div>
           </div>
@@ -3641,7 +3709,7 @@ body.tvfull #btnReport,body.tvmode #btnReport{display:none}
         <div class="card">
           <div class="head"><h2>Pneus rodando por vida <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="Quantos pneus em serviço estão em cada vida — vida 1 é o pneu novo, vida 2 é depois da primeira recapagem, e assim por diante. O CPK ao lado é o que decide recapar: cada vida a mais dilui o custo do pneu por mais quilômetro rodado. A mediana vem com a contagem de quem tem CPK calculado, porque numa vida com poucos pneus medidos ela é frágil.">i</span></h2>
             <span class="hint" id="hintPnVida"></span></div>
-          <div class="tablewrap"><table><thead><tr>
+          <div class="tablewrap tabroll"><table><thead><tr>
             <th>Vida</th><th class="num">Pneus rodando</th><th></th>
             <th class="num">CPK mediano</th><th class="num">No limite de recapagens</th>
           </tr></thead><tbody id="pn-vidas"></tbody></table></div>
@@ -3657,7 +3725,7 @@ body.tvfull #btnReport,body.tvmode #btnReport{display:none}
           <div class="card">
             <div class="head"><h2>Situação do parque <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="Onde está cada pneu cadastrado. Instalado é o que roda; estoque, análise (na recapadora) e sucateado são o resto do parque.">i</span></h2>
               <span class="hint" id="hintPnParque"></span></div>
-            <div class="tablewrap"><table><thead><tr>
+            <div class="tablewrap tabroll"><table><thead><tr>
               <th>Situação</th><th class="num">Pneus</th><th></th>
             </tr></thead><tbody id="pn-parque"></tbody></table></div>
           </div>
@@ -3709,7 +3777,7 @@ body.tvfull #btnReport,body.tvmode #btnReport{display:none}
         <div class="card" id="card-fer-paradas" hidden>
           <div class="head"><h2>Fichas de férias paradas no cadastro <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="Registros cujo limite legal venceu há MAIS DE UM PERÍODO CONCESSIVO INTEIRO. Ninguém fica anos em dobra sem que a empresa saiba: nestes casos o período aquisitivo atual e a data de gozo estão vazios, ou seja, a ficha nunca foi processada. Ficam fora do indicador de dobra — contá-los anunciaria um passivo trabalhista que não existe.">i</span></h2>
             <span class="hint" id="hintFerParadas"></span></div>
-          <div class="tablewrap"><table><thead><tr>
+          <div class="tablewrap tabroll"><table><thead><tr>
             <th>Funcionário</th><th>Chapa</th><th>Unidade</th><th class="num">Admissão</th>
             <th class="num">Limite na ficha</th><th class="num">Atraso</th><th>O que falta</th>
           </tr></thead><tbody id="fer-paradas"></tbody></table></div>
@@ -3875,7 +3943,7 @@ body.tvfull #btnReport,body.tvmode #btnReport{display:none}
         <div class="card">
           <div class="head"><h2>Clientes com convênio de antecipação <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="Só o recebível destes clientes entra nas Operações de antecipação sugeridas. Quem aparece como pagador numa planilha importada entra sozinho; desligar aqui é decisão manual e a próxima importação NÃO religa. A comparação com o ERP é pela RAIZ do CNPJ (8 dígitos), porque o portal manda o CNPJ da matriz e o ERP fatura por várias filiais do mesmo grupo.">i</span></h2>
             <span class="hint" id="hintAntportSac"></span></div>
-          <div class="tablewrap"><table><thead><tr>
+          <div class="tablewrap tabroll"><table><thead><tr>
             <th>Cliente</th><th>CNPJ</th><th>Planilha</th><th>Origem</th><th class="num">Convênio</th>
           </tr></thead><tbody id="antport-sac"></tbody></table></div>
         </div>
@@ -3901,13 +3969,13 @@ body.tvfull #btnReport,body.tvmode #btnReport{display:none}
         <div class="grid2">
           <div class="card">
             <div class="head"><h2>Por conta bancária <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="banco_conta (contas ativas) somado ao movimento de contacorrente no período. Ordenado por movimento bruto (crédito + débito), não por saldo — uma conta de passagem que recebe e repassa no mesmo dia é tão relevante quanto uma de saldo parado. Inclui contas operacionais (vale-pedágio) que passam pelo mesmo razão.">i</span></h2><span class="hint" id="hintLancConta">top 20 · por movimento bruto</span></div>
-            <div class="tablewrap"><table><thead><tr>
+            <div class="tablewrap tabroll"><table><thead><tr>
               <th>Conta</th><th class="num">Lançtos</th><th class="num">Crédito</th><th class="num">Débito</th>
             </tr></thead><tbody id="lanc-conta"></tbody></table></div>
           </div>
           <div class="card">
             <div class="head"><h2>Por categoria <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="Categoria inferida do texto livre do histórico bancário (historicodescricao) — é heurística, não um campo do ERP. Transferência entre contas próprias soma nos dois lados (débito na origem, crédito no destino) e por isso NÃO entra no saldo líquido do período; está aqui só para mostrar o quanto do movimento bruto é passagem interna, não caixa novo.">i</span></h2><span class="hint" id="hintLancCat">heurística sobre o histórico do lançamento</span></div>
-            <div class="tablewrap"><table><thead><tr>
+            <div class="tablewrap tabroll"><table><thead><tr>
               <th>Categoria</th><th class="num">Lançtos</th><th class="num">Crédito</th><th class="num">Débito</th>
             </tr></thead><tbody id="lanc-cat"></tbody></table></div>
           </div>
@@ -3963,40 +4031,40 @@ body.tvfull #btnReport,body.tvmode #btnReport{display:none}
         <div class="banner-inline" id="progCnhRisco" style="display:none;margin:0"></div>
         <div class="card">
           <div class="head"><h2>Casamentos possíveis agora <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="Veículo que chega numa cidade nas próximas 72h e tem carga programada saindo DA MESMA cidade depois da chegada. É o casamento que evita a viagem vazia — o ERP programa no dia, este radar olha adiante.">i</span></h2><span class="hint">veículo descarrega e há carga saindo da mesma cidade nas próximas horas</span></div>
-          <div class="tablewrap"><table><thead><tr>
+          <div class="tablewrap tabroll"><table><thead><tr>
             <th>Veículo</th><th>Modalidade</th><th>Descarrega em</th><th class="num">Chegada prev.</th><th class="num">Cargas na cidade</th><th>Próxima carga</th>
           </tr></thead><tbody id="prog-casa"></tbody></table></div>
         </div>
         <div class="grid2">
           <div class="card">
             <div class="head"><h2>Descarregam sem retorno casado <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="Veículos que chegam nas próximas 72h e NÃO têm carga programada saindo da cidade de descarga depois da chegada. É a lista de ação: cada linha aqui tende a virar km vazio.">i</span></h2><span class="hint">próximas 72h · prioridade para venda de frete de retorno</span></div>
-            <div class="tablewrap"><table><thead><tr>
+            <div class="tablewrap tabroll"><table><thead><tr>
               <th>Veículo</th><th>Modalidade</th><th>Descarrega em</th><th class="num">Chegada prev.</th>
             </tr></thead><tbody id="prog-semret"></tbody></table></div>
           </div>
           <div class="card">
             <div class="head"><h2>Cargas sem veículo descarregando perto <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="Cargas programadas para as próximas 96h em cidades onde nenhum veículo está previsto para descarregar antes da coleta. Ou puxa veículo de fora (km vazio), ou contrata.">i</span></h2><span class="hint">próximas 96h · alguém vai rodar vazio até lá</span></div>
-            <div class="tablewrap"><table><thead><tr>
+            <div class="tablewrap tabroll"><table><thead><tr>
               <th>Sai de</th><th>Para</th><th class="num">Saída prev.</th><th>Veículo alocado</th>
             </tr></thead><tbody id="prog-semveic"></tbody></table></div>
           </div>
         </div>
         <div class="card">
           <div class="head"><h2>Km vazio evitável por cidade <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="Km rodado VAZIO saindo de uma cidade em dia no qual TAMBÉM saiu carga daquela mesma cidade — ou seja, havia demanda que poderia ter sido casada antes de o veículo partir vazio. Janela de 90 dias. O diesel estimado usa o custo por km da frota própria no período (abastecimentos ÷ km): é conservador, só combustível, sem pneu, manutenção ou pedágio.">i</span></h2><span class="hint">últimos 90 dias · rodou vazio em dia que tinha carga saindo da mesma cidade</span></div>
-          <div class="tablewrap"><table><thead><tr>
+          <div class="tablewrap tabroll"><table><thead><tr>
             <th>Cidade</th><th class="num">Viagens vazias</th><th class="num">Dias com carga disponível</th><th class="num">Km evitável</th><th class="num">Diesel estimado</th>
           </tr></thead><tbody id="prog-evit"></tbody></table></div>
         </div>
         <div class="grid2">
           <div class="card">
             <div class="head"><h2>Cidades deficitárias <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="Cidades onde chegam muito mais veículos do que saem cargas: sobra caminhão e falta frete de volta. Saldo = saídas − chegadas.">i</span></h2><span class="hint">chega muito, sai pouco — veículo tende a voltar vazio · 90d</span></div>
-            <div class="tablewrap"><table><thead><tr>
+            <div class="tablewrap tabroll"><table><thead><tr>
               <th>Cidade</th><th class="num">Chegadas</th><th class="num">Saídas</th><th class="num">Saldo</th><th class="num">Km vazio</th>
             </tr></thead><tbody id="prog-def"></tbody></table></div>
           </div>
           <div class="card">
             <div class="head"><h2>Cidades superavitárias <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="Cidades onde sai mais carga do que chega veículo: falta caminhão posicionado. Junto com as deficitárias, mostra o desequilíbrio da malha.">i</span></h2><span class="hint">sai mais carga do que chega — falta veículo posicionado · 90d</span></div>
-            <div class="tablewrap"><table><thead><tr>
+            <div class="tablewrap tabroll"><table><thead><tr>
               <th>Cidade</th><th class="num">Chegadas</th><th class="num">Saídas</th><th class="num">Saldo</th>
             </tr></thead><tbody id="prog-sup"></tbody></table></div>
           </div>
@@ -4004,20 +4072,20 @@ body.tvfull #btnReport,body.tvmode #btnReport{display:none}
         <div class="grid2">
           <div class="card">
             <div class="head"><h2>Veículos próprios parados <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="Veículos próprios e locados ativos, sem viagem em aberto e sem OS na oficina. “120+” significa que não há viagem registrada nos últimos 120 dias — nesse caso não há como saber a data da última viagem pela janela consultada. Locado parado é aluguel correndo sem receita.">i</span></h2><span class="hint">sem viagem em aberto e sem OS · mais tempo parado primeiro</span></div>
-            <div class="tablewrap"><table><thead><tr>
+            <div class="tablewrap tabroll"><table><thead><tr>
               <th>Placa</th><th>Modalidade</th><th class="num">Última viagem</th><th class="num">Dias parado</th>
             </tr></thead><tbody id="prog-ocioso"></tbody></table></div>
           </div>
           <div class="card">
             <div class="head"><h2>Motoristas parados <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="Motoristas que rodaram nos últimos 30 dias e não estão em viagem no momento, com a data da última saída e o vencimento da CNH.">i</span></h2><span class="hint">rodaram nos últimos 30 dias e estão sem viagem</span></div>
-            <div class="tablewrap"><table><thead><tr>
+            <div class="tablewrap tabroll"><table><thead><tr>
               <th>Motorista</th><th class="num">Última viagem</th><th class="num">Dias</th><th class="num">CNH vence</th>
             </tr></thead><tbody id="prog-motpar"></tbody></table></div>
           </div>
         </div>
         <div class="card">
           <div class="head"><h2>Alertas de CNH vencida <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="Motoristas ativos nos últimos 30 dias com habilitação vencida no cadastro. Quem está EM VIAGEM aparece primeiro e em vermelho: dirigir com CNH vencida é infração gravíssima e pode levar a seguradora a negar cobertura.">i</span></h2><span class="hint">motoristas ativos nos últimos 30 dias com habilitação vencida</span></div>
-          <div class="tablewrap"><table><thead><tr>
+          <div class="tablewrap tabroll"><table><thead><tr>
             <th>Motorista</th><th class="num">Vencimento</th><th>Situação</th><th class="num">Última viagem</th>
           </tr></thead><tbody id="prog-cnh"></tbody></table></div>
         </div>
@@ -4081,9 +4149,9 @@ body.tvfull #btnReport,body.tvmode #btnReport{display:none}
         <div class="kpis" id="kpis-cex"></div>
         <div class="grid2">
           <div class="card"><div class="head"><h2>Por tipo de custo <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="Custo incorrido × valor cobrado por tipo. A coluna % repassado mostra onde o repasse não está fechando: tipo abaixo de 100% está sendo absorvido pela transportadora.">i</span></h2><span class="hint">no período</span></div>
-            <div class="tablewrap" id="cex-tipo"></div></div>
+            <div class="tablewrap tabroll" id="cex-tipo"></div></div>
           <div class="card"><div class="head"><h2>Por status de cobrança <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="Estágio do repasse: Emitido já virou cobrança, Aguardando Cobrança ainda não saiu. O que fica parado em aguardando é receita a recuperar.">i</span></h2><span class="hint">no período</span></div>
-            <div class="tablewrap" id="cex-status"></div></div>
+            <div class="tablewrap tabroll" id="cex-status"></div></div>
         </div>
         <div class="card">
           <div class="head"><h2>Lançamentos <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="Lista completa do período. Linha em vermelho = o valor cobrado do cliente ficou abaixo do custo incorrido.">i</span></h2><span class="hint">mais recentes · até 200</span></div>
@@ -4104,9 +4172,9 @@ body.tvfull #btnReport,body.tvmode #btnReport{display:none}
         <div class="banner-inline" id="sacAviso" style="display:none;margin:0"></div>
         <div class="grid2">
           <div class="card"><div class="head"><h2>Estadia estimada por cliente <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="Potencial de cobrança por cliente no período. Compare com o que foi de fato lançado em Custos Extras: a diferença é receita não cobrada ou sinal de que o freetime padrão não bate com o acordo real daquele cliente.">i</span></h2><span class="hint">excedente ao freetime · potencial a cobrar</span></div>
-            <div class="tablewrap" id="sac-cliente"></div></div>
+            <div class="tablewrap tabroll" id="sac-cliente"></div></div>
           <div class="card"><div class="head"><h2>Freetime contratado <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="Horas de tolerância e valor por hora cadastrados por cliente e filial (versão mais recente de cada cliente). É a régua usada no cálculo — se estiver desatualizada, a estimativa toda desloca.">i</span></h2><span class="hint">por cliente/filial · referência</span></div>
-            <div class="tablewrap" id="sac-freetime"></div></div>
+            <div class="tablewrap tabroll" id="sac-freetime"></div></div>
         </div>
         <div class="card">
           <div class="head"><h2>Coletas com estadia excedente <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="As 100 coletas com maior valor estimado no período, com as horas de carga e descarga e o excedente sobre o freetime.">i</span></h2><span class="hint">maiores valores estimados · até 100</span></div>
@@ -4116,9 +4184,9 @@ body.tvfull #btnReport,body.tvmode #btnReport{display:none}
       <section class="view" id="view-mprev">
         <div class="kpis" id="kpis-mprev"></div>
         <div class="card"><div class="head"><h2>Trações (por km) <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="Veículos com motor, ativos, fora das atividades ENC e ADM, com plano de manutenção preventiva na fnc_manutencaopreventiva_gridview do ERP. Faltam = marcador da próxima troca menos o odômetro atual (último abastecimento CTA Plus, com o marcador do ERP como reserva). Entra quem já passou ou está a menos de 10% do intervalo.">i</span></h2><span class="hint" id="hintMprevT"></span></div>
-          <div class="tablewrap" id="mprev-tracoes"></div></div>
+          <div class="tablewrap tabroll" id="mprev-tracoes"></div></div>
         <div class="card" id="cardMprevPlanos" style="display:none"><div class="head"><h2>Planos a corrigir no cadastro <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="Trações cujo plano não é comparável com o odômetro: o marcador da próxima troca está mais de um intervalo inteiro fora da faixa, ou falta leitura. Não é atraso de oficina, é cadastro — e é grave nos dois sentidos: marcador atrás do odômetro gera alerta falso de vencida, marcador muito à frente faz o veículo nunca alertar e sair do controle de manutenção.">i</span></h2><span class="hint">não entram na conta de vencidas — não dá para saber se estão vencidos</span></div>
-          <div class="tablewrap" id="mprev-planos"></div></div>
+          <div class="tablewrap tabroll" id="mprev-planos"></div></div>
         <div class="card"><div class="head"><h2>Carretas / semi-reboque (por data) <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="Semi-reboques ativos, fora da atividade ENC. O prazo é por DATA, não por km: última troca + 180 dias, ou + 240 quando a carroceria é baú. Carreta sem data de última troca lançada no ERP não aparece aqui — ausência na lista não é garantia de estar em dia.">i</span></h2>
             <select id="fMprevHor" aria-label="Horizonte das carretas" onchange="loadMPrev()" style="margin-left:auto"
                     title="Janela de dias das carretas. Quem monta a agenda da oficina para o mês seguinte não via nada além dos 30 dias.">
@@ -4134,9 +4202,9 @@ body.tvfull #btnReport,body.tvmode #btnReport{display:none}
         <div class="kpis" id="kpis-comrast"></div>
         <div class="grid2">
           <div class="card"><div class="head"><h2>Distribuição da comunicação <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="veiculo_posicao com ultimaposicao = 1, faixa pela diferença entre hoje e a data da última posição, sobre a frota ATIVA inteira. Quem nunca registrou posição não tem recência e sai da distribuição — a contagem aparece abaixo da tabela.">i</span></h2><span class="hint">frota ativa · por recência da última posição</span></div>
-            <div class="tablewrap" id="comrast-faixas"></div></div>
+            <div class="tablewrap tabroll" id="comrast-faixas"></div></div>
           <div class="card"><div class="head"><h2>Rastreador cadastrado sem sinal <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="Quebra dos veículos que têm rastreador cadastrado e nenhuma posição registrada, por tipo de frota e por ter motor. Só as linhas de PRÓPRIO ou AGREGADO com motor são problema de rastreamento: terceiro não integra a posição com a Sulista e implemento não emite.">i</span></h2><span class="hint">onde o número grande realmente está</span></div>
-            <div class="tablewrap" id="comrast-semsinal"></div></div>
+            <div class="tablewrap tabroll" id="comrast-semsinal"></div></div>
         </div>
         <div class="card"><div class="head"><h2>Pararam de comunicar <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="Veículos com rastreador que já tiveram posição e não comunicaram hoje, ordenados por ignição ligada primeiro e depois por dias sem comunicar. Ignição ligada sem comunicar indica rastreador arrancado, bloqueador de sinal ou perda de energia com o veículo em movimento. A posição mostrada é a última conhecida, não a atual.">i</span></h2>
             <div class="chips" id="comrastChips" style="margin-left:auto">
@@ -4158,15 +4226,15 @@ body.tvfull #btnReport,body.tvmode #btnReport{display:none}
         </div>
         <div class="card">
           <div class="head"><h2>Indicadores ESG <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="Meta (tipo 1, dia 1º) × realizado (tipo 2, último dia do mês) de sulista.indicadorescorporativos, casados por ANO-MÊS e não por data exata. A coluna Direção diz se menor ou maior é melhor — o status já considera isso. Indicador sem meta cadastrada aparece como 'sem meta', não como aprovado.">i</span><span class="hint">meta × realizado (mês mais recente) · matriz</span></div>
-          <div class="tablewrap" id="qual-esg"></div>
+          <div class="tablewrap tabroll" id="qual-esg"></div>
         </div>
         <div class="card">
           <div class="head"><h2>Certidões e Licenças <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="sulista.certidoes com o emissor formatado pela função do ERP. Prazo é contra hoje. Documento cuja observação declara não ter validade aparece marcado como 'sem validade' e sem prazo: a data no ERP é controle interno, não vencimento do documento.">i</span></h2><span class="hint" id="qual-cert-hint">semáforo por vencimento · vencidas primeiro</span></div>
-          <div class="tablewrap" id="qual-certidoes"></div>
+          <div class="tablewrap tabroll" id="qual-certidoes"></div>
         </div>
         <div class="card">
           <div class="head"><h2>Auditoria Interna <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="sulista.controle_auditoria: auditorias internas e externas com resultado, número de não conformidades e o plano de ação associado.">i</span><span class="hint">não-conformidades e plano de ação</span></div>
-          <div class="tablewrap" id="qual-auditoria"></div>
+          <div class="tablewrap tabroll" id="qual-auditoria"></div>
         </div>
       </section>
       <section class="view" id="view-port">
@@ -4238,19 +4306,19 @@ body.tvfull #btnReport,body.tvmode #btnReport{display:none}
         <div class="card">
           <div class="head"><h2>Movimentação (12 meses)</h2><span class="hint">admissões × demissões por mês</span></div>
           <div class="chartwrap"><div id="chartHcMov" style="width:100%;height:260px" role="img"></div></div>
-          <div class="tablewrap" id="hc-mov"></div>
+          <div class="tablewrap tabroll" id="hc-mov"></div>
         </div>
         <div class="grid2">
           <div class="card"><div class="head"><h2>Por filial</h2><span class="hint">quadro ativo</span></div>
             <div class="chartwrap"><div id="chartHcFilial" style="width:100%;height:200px" role="img"></div></div>
-            <div class="tablewrap" id="hc-filial"></div></div>
+            <div class="tablewrap tabroll" id="hc-filial"></div></div>
           <div class="card"><div class="head"><h2>Por área</h2><span class="hint">top 14</span></div>
             <div class="chartwrap"><div id="chartHcArea" style="width:100%;height:200px" role="img"></div></div>
-            <div class="tablewrap" id="hc-area"></div></div>
+            <div class="tablewrap tabroll" id="hc-area"></div></div>
         </div>
         <div class="card"><div class="head"><h2>Tempo de casa</h2><span class="hint">faixas do quadro ativo</span></div>
           <div class="chartwrap"><div id="chartHcTempo" style="width:100%;height:180px" role="img"></div></div>
-          <div class="tablewrap" id="hc-tempo"></div></div>
+          <div class="tablewrap tabroll" id="hc-tempo"></div></div>
       </section>
       <section class="view" id="view-folha">
         <div class="card">
@@ -4268,30 +4336,30 @@ body.tvfull #btnReport,body.tvmode #btnReport{display:none}
         <div class="card">
           <div class="head"><h2>Por centro de custo</h2><span class="hint">líquido por área · top 14</span></div>
           <div class="chartwrap"><div id="chartFolhaCC" style="width:100%;height:200px" role="img"></div></div>
-          <div class="tablewrap" id="folha-cc"></div>
+          <div class="tablewrap tabroll" id="folha-cc"></div>
         </div>
         <div class="grid2">
           <div class="card"><div class="head"><h2>Top proventos</h2><span class="hint">na competência</span></div>
-            <div class="tablewrap" id="folha-prov"></div></div>
+            <div class="tablewrap tabroll" id="folha-prov"></div></div>
           <div class="card"><div class="head"><h2>Top descontos</h2><span class="hint">na competência</span></div>
-            <div class="tablewrap" id="folha-desc"></div></div>
+            <div class="tablewrap tabroll" id="folha-desc"></div></div>
         </div>
       </section>
       <section class="view" id="view-folhaind">
         <div class="kpis" id="kpis-folhaind"></div>
         <div class="grid2">
           <div class="card"><div class="head"><h2>Férias</h2><span class="hint">vencimento do quadro ativo · compliance</span></div>
-            <div class="tablewrap" id="fi-ferias"></div></div>
+            <div class="tablewrap tabroll" id="fi-ferias"></div></div>
           <div class="card"><div class="head"><h2>CNH dos motoristas</h2><span class="hint">validade · sem CPF</span></div>
-            <div class="tablewrap" id="fi-cnh"></div></div>
+            <div class="tablewrap tabroll" id="fi-cnh"></div></div>
         </div>
         <div class="grid2">
           <div class="card"><div class="head"><h2>Hora extra</h2><span class="hint">custo mensal · mesma definição da tela Horas Extras</span></div>
             <div class="chartwrap"><div id="chartHe" style="width:100%;height:260px" role="img"></div></div>
-            <div class="tablewrap" id="fi-he"></div></div>
+            <div class="tablewrap tabroll" id="fi-he"></div></div>
           <div class="card"><div class="head"><h2>Banco de horas</h2><span class="hint">saldo por competência</span></div>
             <div class="chartwrap"><div id="chartBh" style="width:100%;height:260px" role="img"></div></div>
-            <div class="tablewrap" id="fi-bh"></div></div>
+            <div class="tablewrap tabroll" id="fi-bh"></div></div>
         </div>
       </section>
       <section class="view" id="view-he">
@@ -4315,7 +4383,7 @@ body.tvfull #btnReport,body.tvmode #btnReport{display:none}
         </div>
         <div class="card">
           <div class="head"><h2>Eventos que compõem a hora extra</h2><span class="hint" id="he-ev-hint">na competência · valor e nº de colaboradores</span></div>
-          <div class="tablewrap" id="he-eventos"></div>
+          <div class="tablewrap tabroll" id="he-eventos"></div>
         </div>
       </section>
       <section class="view" id="view-custos">
@@ -4350,15 +4418,15 @@ body.tvfull #btnReport,body.tvmode #btnReport{display:none}
         </div>
         <div class="grid2">
           <div class="card"><div class="head"><h2>Por agrupador — detalhe <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="Mesma classificação do gráfico acima, em tabela, com a contagem de itens. A linha (sem agrupador) é item cuja conta não está mapeada no plano gerencial — some do rateio por natureza e precisa de classificação.">i</span></h2><span class="hint" id="hintCustAgr">top 20</span></div>
-            <div class="tablewrap" id="custos-agr"></div></div>
+            <div class="tablewrap tabroll" id="custos-agr"></div></div>
           <div class="card"><div class="head"><h2>Por fornecedor <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="Fornecedor das ordens de compra e do abastecimento. Cartão de combustível aparece como um único fornecedor com valor alto porque concentra o repasse de todos os postos — não é compra direta de um posto só.">i</span></h2><span class="hint" id="hintCustForn">top 20</span></div>
-            <div class="tablewrap" id="custos-forn"></div></div>
+            <div class="tablewrap tabroll" id="custos-forn"></div></div>
         </div>
         <div class="grid2">
           <div class="card"><div class="head"><h2>Origem e status fiscal <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="Mistura duas coisas por vir de duas fontes: itens de ORDEM DE COMPRA aparecem como COM NF ou SEM NF conforme a nota já tenha sido recebida, e itens de ABASTECIMENTO aparecem como interno ou externo, porque passam pelo cartão e não pelo fluxo de OC. SEM NF é o que ainda não chegou como documento fiscal.">i</span></h2><span class="hint">de onde vem o item e se já tem nota</span></div>
-            <div class="tablewrap" id="custos-status"></div></div>
+            <div class="tablewrap tabroll" id="custos-status"></div></div>
           <div class="card"><div class="head"><h2>Por filial <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="Filial que lançou a ordem de compra ou o abastecimento. A matriz concentra a maior parte porque nela ficam os contratos e o cartão de combustível de toda a frota — não significa que o custo foi consumido lá.">i</span></h2><span class="hint" id="hintCustFil">no período</span></div>
-            <div class="tablewrap" id="custos-filial"></div></div>
+            <div class="tablewrap tabroll" id="custos-filial"></div></div>
         </div>
         <div class="card">
           <div class="head"><h2>Maiores itens <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="Os 100 itens de maior valor no período, entre abastecimentos e itens de ordem de compra. Status mostra se o item já tem nota fiscal; Aprovação vale só para ordem de compra. Item de abastecimento não passa por aprovação e fica em branco nessa coluna.">i</span></h2><span class="hint">top 100 por valor · role dentro do card</span></div>
@@ -4378,20 +4446,20 @@ body.tvfull #btnReport,body.tvmode #btnReport{display:none}
         <div class="grid2">
           <div class="card">
             <div class="head"><h2>Por infração <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="Tipo vindo do catálogo infracaotransito. A autuação por não indicar condutor é consequência direta das multas sem condutor identificado: sem a indicação no prazo, ela vira infração gravíssima da empresa. Valor e pontos ficam zerados quando o registro não os traz.">i</span></h2><span class="hint" id="hintMulI">top 15</span></div>
-            <div class="tablewrap"><table><thead><tr>
+            <div class="tablewrap tabroll"><table><thead><tr>
               <th>Infração</th><th class="num">Multas</th><th class="num">Pontos</th><th class="num">Valor</th>
             </tr></thead><tbody id="mul-tipo"></tbody></table></div>
           </div>
           <div class="card">
             <div class="head"><h2>Por motorista <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="Motorista do registro da infração. A linha sem motorista reúne as multas em que o condutor não foi identificado — é de longe a maior e o ponto de ação da tela. Nome de motorista é dado interno e não sai em painel de TV.">i</span></h2><span class="hint" id="hintMulM">top 12 por pontos</span></div>
-            <div class="tablewrap"><table><thead><tr>
+            <div class="tablewrap tabroll"><table><thead><tr>
               <th>Motorista</th><th class="num">Multas</th><th class="num">Pontos</th><th class="num">Valor</th>
             </tr></thead><tbody id="mul-mot"></tbody></table></div>
           </div>
         </div>
         <div class="card">
           <div class="head"><h2>Por veículo <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="Top 20 placas por quantidade de multa no recorte. Clique na linha para ver multa a multa, com data, local e condutor. Valor e pontos por veículo herdam a mesma cobertura baixa dos campos de origem.">i</span></h2><span class="hint" id="hintMulV">top 20 · clique para ver as multas</span></div>
-          <div class="tablewrap"><table><thead><tr>
+          <div class="tablewrap tabroll"><table><thead><tr>
             <th style="width:34px"></th><th>Placa</th><th>Modalidade</th><th class="num">Multas</th><th class="num">Pontos</th><th class="num">Valor</th>
           </tr></thead><tbody id="mul-veic"></tbody></table></div>
         </div>
@@ -4455,7 +4523,7 @@ body.tvfull #btnReport,body.tvmode #btnReport{display:none}
           </div>
   <div class="card">
             <div class="head"><h2>Produtividade por modalidade <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="programacaoembarque (não cancelada, semáforo = 1, número &lt; 1.000.000) × veiculo × tipoveiculo, pela data de emissão. Km = kmfretecompra; CARREGADO = tipo ≠ 3, VAZIO = tipo = 3; receita = valorfrete. SÓ VEÍCULOS DE TRAÇÃO: a viagem é lançada na placa do cavalo, e carreta nunca aparece — incluí-las poria 643 implementos ativos na conta como se estivessem parados. Km por veículo = km carregado ÷ veículos DISTINTOS que rodaram naquela modalidade no período — não é a frota cadastrada, é quem de fato rodou. RKM = receita ÷ km carregado. “n/d” no retorno vazio significa que a modalidade não lança o deslocamento vazio no ERP: é o caso do terceiro, com 0 km vazio em 256 viagens. Zero ali seria ausência de registro, não eficiência.">i</span></h2><span class="hint">no período filtrado</span></div>
-            <div class="tablewrap"><table><thead><tr>
+            <div class="tablewrap tabroll"><table><thead><tr>
               <th>Modalidade</th><th class="num">Veículos</th><th class="num">Viagens</th>
               <th class="num">Km carregado</th><th class="num">Km por veículo</th>
               <th class="num">Retorno vazio</th><th class="num">Receita</th><th class="num">RKM</th>
@@ -4515,27 +4583,27 @@ body.tvfull #btnReport,body.tvmode #btnReport{display:none}
         </div>
         <div class="card">
           <div class="head"><h2>Por modalidade <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="programacaoembarque (não cancelada, semáforo = 1, número < 1.000.000) × veiculo.utilizacaoveiculo, filtrada por data de emissão. Km = kmfretecompra; CARREGADO = tipo ≠ 3, VAZIO = tipo = 3. RKM = receita ÷ km carregado. “n/d” no retorno vazio = a modalidade não teve viagem de deslocamento vazio lançada no período (caso do terceiro, que não reporta o vazio dele ao ERP).">i</span></h2><span class="hint">no período filtrado</span></div>
-          <div class="tablewrap"><table><thead><tr>
+          <div class="tablewrap tabroll"><table><thead><tr>
             <th>Modalidade</th><th class="num">Viagens</th><th class="num">Km carregado</th><th class="num">Km vazio</th><th class="num">Retorno vazio</th><th class="num">Receita</th><th class="num">RKM</th>
           </tr></thead><tbody id="km-modal"></tbody></table></div>
         </div>
         <div class="grid2">
           <div class="card">
             <div class="head"><h2>Km por cliente <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="programacaoembarque (não cancelada, semáforo = 1, número < 1.000.000) × veiculo.utilizacaoveiculo, filtrada por data de emissão. Km = kmfretecompra; CARREGADO = tipo ≠ 3, VAZIO = tipo = 3. Cliente = agrupamentocliente do pagador do frete na coleta (cai para nome fantasia/razão social quando não há agrupamento). Só viagens carregadas.">i</span></h2><span class="hint">top 15 · viagens carregadas</span></div>
-            <div class="tablewrap"><table><thead><tr>
+            <div class="tablewrap tabroll"><table><thead><tr>
               <th>Cliente</th><th class="num">Viagens</th><th class="num">Km</th><th class="num">% do km</th><th class="num">RKM</th>
             </tr></thead><tbody id="km-cli"></tbody></table></div>
           </div>
           <div class="card">
             <div class="head"><h2>Rotas com km vazio — oportunidades de venda <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="programacaoembarque (não cancelada, semáforo = 1, número < 1.000.000) × veiculo.utilizacaoveiculo, filtrada por data de emissão. Km = kmfretecompra; CARREGADO = tipo ≠ 3, VAZIO = tipo = 3. Só as viagens tipo 3 (deslocamento vazio), agrupadas por origem → destino. É onde já existe caminhão passando de graça: um frete de retorno nessa perna vira receita sem km novo.">i</span></h2><span class="hint">onde vender frete de retorno</span></div>
-            <div class="tablewrap"><table><thead><tr>
+            <div class="tablewrap tabroll"><table><thead><tr>
               <th>Origem</th><th>Destino</th><th class="num">Viagens vazias</th><th class="num">Km vazio</th>
             </tr></thead><tbody id="km-rotas"></tbody></table></div>
           </div>
         </div>
         <div class="card">
           <div class="head"><h2>Retorno vazio por veículo <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="programacaoembarque (não cancelada, semáforo = 1, número < 1.000.000) × veiculo.utilizacaoveiculo, filtrada por data de emissão. Km = kmfretecompra; CARREGADO = tipo ≠ 3, VAZIO = tipo = 3. Ordenado por km vazio absoluto, não pelo percentual — um veículo com 33% sobre 50 mil km custa mais que um com 60% sobre 3 mil.">i</span></h2><span class="hint">top 15 · maior km rodado vazio — quem realocar primeiro</span></div>
-          <div class="tablewrap"><table><thead><tr>
+          <div class="tablewrap tabroll"><table><thead><tr>
             <th scope="col">Frota</th><th scope="col">Placa</th><th class="num" scope="col">Viagens</th><th class="num" scope="col">Km carregado</th><th class="num" scope="col">Km vazio</th><th class="num" scope="col">Retorno vazio</th>
           </tr></thead><tbody id="km-veic"></tbody></table></div>
         </div>
@@ -4564,7 +4632,7 @@ body.tvfull #btnReport,body.tvmode #btnReport{display:none}
         <div class="grid2">
           <div class="card">
             <div class="head"><h2>Composição do CKM próprio <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="Contas do razão agrupadas pelo plano de contas gerencial, divididas pelo km carregado estimado da frota própria no período. “Total no período” é R$/km × km — reconstituição, não o saldo bruto da conta. Créditos tributários ficam fora do CKM por serem mistos com afretamento.">i</span></h2><span class="hint">custos do razão ÷ km carregado estimado</span></div>
-            <div class="tablewrap"><table><thead><tr>
+            <div class="tablewrap tabroll"><table><thead><tr>
               <th>Componente</th><th class="num">R$/km</th><th class="num">Total no período</th>
             </tr></thead><tbody id="mvb-comp"></tbody></table></div>
           </div>
@@ -4591,20 +4659,20 @@ body.tvfull #btnReport,body.tvmode #btnReport{display:none}
             <label for="fDreCli" style="font-size:13px;color:var(--n600)">Cliente:&nbsp;</label>
             <select id="fDreCli" onchange="renderDreCli(DATADRECLI)" style="min-width:280px;max-width:100%"></select>
           </div>
-          <div class="tablewrap"><table>
+          <div class="tablewrap tabroll"><table>
             <thead id="drecli-head"></thead><tbody id="drecli-body"></tbody>
           </table></div>
         </div>
         <div class="grid2">
           <div class="card">
             <div class="head"><h2>Ranking por margem <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="Clique no cabeçalho para reordenar. O padrão é receita líquida (materialidade): ordenar por MC% joga para o topo cliente com uma viagem só, cuja margem percentual não sustenta decisão — esses ficam marcados como pouco volume. MC/dia-veículo mede a margem por dia de ativo ocupado, útil para comparar clientes que prendem frota.">i</span></h2><span class="hint">clique no cabeçalho para reordenar · top 30</span></div>
-            <div class="tablewrap"><table><thead><tr>
+            <div class="tablewrap tabroll"><table><thead><tr>
               <th>Cliente</th><th class="num">Receita líq.</th><th class="num">MC</th><th class="num">MC%</th><th class="num">Margem direta</th><th class="num">MC/dia-veíc.</th><th class="num">% km vazio</th><th class="num">Viagens</th>
             </tr></thead><tbody id="drecli-rank"></tbody></table></div>
           </div>
           <div class="card">
             <div class="head"><h2>Reconciliação vs DRE oficial <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="Prova de que nada foi inventado nem perdido: descido aos clientes + não alocado + variação de absorção = DRE oficial, linha a linha. A COBERTURA é a fatia que chegou a algum cliente. Cobertura baixa em CUSTO FIXO significa que a Margem Direta por cliente está parcial — o que não desce fica fora da margem de todo mundo.">i</span></h2><span class="hint">Σ clientes + não alocado + variação = DRE oficial</span></div>
-            <div class="tablewrap"><table><thead><tr>
+            <div class="tablewrap tabroll"><table><thead><tr>
               <th>Linha</th><th class="num">Descido</th><th class="num">Não alocado</th><th class="num">Var. absorção</th><th class="num">DRE oficial</th><th class="num">Cobertura</th>
             </tr></thead><tbody id="drecli-recon"></tbody></table></div>
           </div>
@@ -4652,7 +4720,17 @@ body.tvfull #btnReport,body.tvmode #btnReport{display:none}
       <!-- ===================== ORDENS DE COMPRA ===================== -->
       <section class="view" id="view-oc">
         <div class="kpis" id="kpis-oc"></div>
-        <div class="card">
+                <div class="subtabs" role="tablist" data-abas="oc" aria-label="Seções da tela">
+          <button role="tab" id="tabOc-geral" data-aba="geral" aria-controls="aba-oc-geral"
+                  aria-selected="true" onclick="abaTrocar('oc','geral')">Visão geral</button>
+          <button role="tab" id="tabOc-semnota" data-aba="semnota" aria-controls="aba-oc-semnota"
+                  aria-selected="false" onclick="abaTrocar('oc','semnota')">Sem nota</button>
+          <button role="tab" id="tabOc-vencida" data-aba="vencida" aria-controls="aba-oc-vencida"
+                  aria-selected="false" onclick="abaTrocar('oc','vencida')">Entrega vencida</button>
+        </div>
+        <div class="aba" data-abas="oc" data-aba="geral" id="aba-oc-geral"
+             role="tabpanel" aria-labelledby="tabOc-geral">
+<div class="card">
           <div class="head"><h2>Ordens emitidas por mês <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="Série fixa dos últimos 12 meses por data de emissão da OC — este gráfico NÃO segue o filtro de período da barra acima, só filial, criador e aprovador. Serve para ver a tendência do volume de compra; para o recorte filtrado, use os cartões e a tabela.">i</span></h2><span class="hint" id="hintOc">no período filtrado</span></div>
           <div class="legend"><span class="k"><i class="sw" style="background:var(--navy-500)"></i>Valor emitido</span><span class="k"><i class="sw hatch" style="background-color:var(--navy-500)"></i>Mês corrente (parcial)</span></div>
           <div class="chartwrap" id="wrapOc">
@@ -4669,8 +4747,10 @@ body.tvfull #btnReport,body.tvmode #btnReport{display:none}
           <div class="head"><h2>Alertas <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="Regras fixas sobre os números desta tela: OCs com entrega prevista vencida e OCs paradas na fila de aprovação.">i</span></h2></div>
           <div class="alerts" id="alerts-oc"></div>
         </div>
-
-        <div class="card">
+        </div>
+        <div class="aba" data-abas="oc" data-aba="semnota" id="aba-oc-semnota"
+             role="tabpanel" aria-labelledby="tabOc-semnota" hidden>
+<div class="card">
           <div class="head"><h2>OC em aberto sem nota — tempo parado
             <span class="badge b-warn" title="Este bloco olha TODAS as ordens de compra em aberto, não só as do período filtrado acima. OC emitida há dois anos e ainda sem nota é justamente o que se procura — o filtro de emissão a esconderia.">ignora o filtro de período</span>
             <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="OC que NÃO TEM NENHUMA nota fiscal vinculada em notafiscalentrada_item_ordemcomprarecebida. O critério é a EXISTÊNCIA do vínculo, não a soma de valor: o campo de valor vem nulo em parte das linhas, e somá-lo fazia OC já faturada aparecer como nunca recebida — a maior de todas (R$ 259 mil, TICKET LOG) tinha a nota vinculada e aparecia no alarme. EXCLUI as OCs SUSPENSAS no ERP, que são 83% do volume em aberto e estão paradas de propósito. A idade conta da EMISSÃO.">i</span></h2>
@@ -4678,7 +4758,10 @@ body.tvfull #btnReport,body.tvmode #btnReport{display:none}
           <div class="kpis k4" id="kpis-ocpend"></div>
           <div class="modl" id="ocpend-faixas"></div>
         </div>
-        <div class="card">
+        </div>
+        <div class="aba" data-abas="oc" data-aba="vencida" id="aba-oc-vencida"
+             role="tabpanel" aria-labelledby="tabOc-vencida" hidden>
+<div class="card">
           <div class="head"><h2>Previsão de entrega vencida sem nota
             <span class="badge b-warn" title="Este bloco olha TODAS as ordens de compra em aberto, não só as do período filtrado acima.">ignora o filtro de período</span>
             <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="OC sem nenhuma nota vinculada cuja DATA DE PREVISÃO DE ENTREGA já passou. É este o critério de atraso, e não a idade da emissão: OC emitida há 200 dias com entrega prevista para o mês que vem está em dia, e OC de 40 dias com previsão vencida há 30 não está. Previsão no futuro sem nota é o curso normal e não aparece aqui. Exclui as suspensas.">i</span></h2>
@@ -4703,7 +4786,8 @@ body.tvfull #btnReport,body.tvmode #btnReport{display:none}
             </tr></thead><tbody id="ocpend-lista"></tbody></table></div>
           </div>
         </div>
-      </section>
+        </div>
+</section>
       <section class="view" id="view-gestao">
         <div class="card">
           <div class="head"><h2>Gestão de acesso e segurança <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="Usuários, perfis de acesso, trilha de auditoria e políticas de senha, guardados no banco do CÓRTEX (PostgreSQL local, schema cortex) — não no ERP. Excluir usuário pede confirmação e não pode ser desfeito.">i</span></h2><span class="hint">usuários, perfis, auditoria e políticas · banco local do CÓRTEX</span></div>
@@ -4720,7 +4804,7 @@ body.tvfull #btnReport,body.tvmode #btnReport{display:none}
         <div id="gpane-usuarios">
           <div class="card">
             <div class="head"><h2>Usuários</h2><button class="btn" onclick="gesUsuarioModal(null)">+ Novo usuário</button></div>
-            <div class="tablewrap"><table><thead><tr>
+            <div class="tablewrap tabroll"><table><thead><tr>
               <th>Usuário</th><th>Contato</th><th>Perfil</th><th>Status</th><th>Último acesso</th><th></th>
             </tr></thead><tbody id="ges-usr"></tbody></table></div>
           </div>
@@ -4728,7 +4812,7 @@ body.tvfull #btnReport,body.tvmode #btnReport{display:none}
         <div id="gpane-perfis" style="display:none">
           <div class="card">
             <div class="head"><h2>Perfis de acesso</h2><button class="btn" onclick="gesPerfilModal(null)">+ Novo perfil</button></div>
-            <div class="tablewrap"><table><thead><tr>
+            <div class="tablewrap tabroll"><table><thead><tr>
               <th>Perfil</th><th>Descrição</th><th>Telas liberadas</th><th class="num">Usuários</th><th></th>
             </tr></thead><tbody id="ges-per"></tbody></table></div>
           </div>
@@ -4740,7 +4824,7 @@ body.tvfull #btnReport,body.tvmode #btnReport{display:none}
               <input type="text" id="ges-aud-busca" aria-label="Filtrar auditoria por usuário, ação ou alvo" placeholder="filtrar por usuário, ação, alvo…" onkeydown="if(event.key==='Enter')audCarregar()">
               <button class="ghost" onclick="audCarregar()">Buscar</button>
             </div>
-            <div class="tablewrap"><table><thead><tr>
+            <div class="tablewrap tabroll"><table><thead><tr>
               <th>Quando</th><th>Usuário</th><th>Ação</th><th>Alvo</th><th>Detalhe</th><th>IP</th>
             </tr></thead><tbody id="ges-aud"></tbody></table></div>
           </div>
@@ -4836,7 +4920,7 @@ body.tvfull #btnReport,body.tvmode #btnReport{display:none}
           </div>
           <div class="card">
             <div class="head"><h2>Relatórios agendados <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="O CÓRTEX monta o relatório e manda por e-mail no horário marcado. A tarefa do Windows dispara de tempos em tempos e quem decide se já passou a hora é o CÓRTEX, lendo o que está aqui — mudar horário ou destinatário vale na hora, sem reinstalar nada. Se a máquina estava desligada na hora marcada, o relatório sai atrasado UMA vez, dentro de uma janela de 4 horas; passado isso não sai, porque relatório da manhã chegando à noite ensina a ignorar o remetente.">i</span></h2><span class="hint" id="ag-status">—</span></div>
-            <div class="tablewrap"><table class="tab" id="ag-tab"></table></div>
+            <div class="tablewrap tabroll"><table class="tab" id="ag-tab"></table></div>
             <div class="ges-cfg" style="padding-top:14px">
               <div><label for="ag-rel">Relatório</label><select id="ag-rel"></select></div>
               <div><label for="ag-dest">Destinatários</label><input type="text" id="ag-dest" placeholder="separe por vírgula"></div>
@@ -5092,81 +5176,62 @@ body.tvfull #btnReport,body.tvmode #btnReport{display:none}
           <span class="hint" id="jrColetaMsg"></span>
         </div>
 
-        <div class="kband">
+                <div class="subtabs" role="tablist" data-abas="jorn" aria-label="Seções da jornada">
+          <button role="tab" id="tabJorn-oper" data-aba="oper" aria-controls="aba-jorn-oper"
+                  aria-selected="true" onclick="abaTrocar('jorn','oper')">Operação</button>
+          <button role="tab" id="tabJorn-conf" data-aba="conf" aria-controls="aba-jorn-conf"
+                  aria-selected="false" onclick="abaTrocar('jorn','conf')">Conformidade</button>
+          <button role="tab" id="tabJorn-custo" data-aba="custo" aria-controls="aba-jorn-custo"
+                  aria-selected="false" onclick="abaTrocar('jorn','custo')">Custo do tempo</button>
+          <button role="tab" id="tabJorn-pres" data-aba="pres" aria-controls="aba-jorn-pres"
+                  aria-selected="false" onclick="abaTrocar('jorn','pres')">Presença</button>
+        </div>
+        <div class="aba" data-abas="jorn" data-aba="oper" id="aba-jorn-oper"
+             role="tabpanel" aria-labelledby="tabJorn-oper">
+<div class="kband">
           <h3>Operação apurada</h3>
           <div class="kpis k4" id="kpis-jr"></div>
         </div>
-        <div class="kband">
+        <div class="grid2">
+  <div class="card">
+            <div class="head"><h2>Volume e cobertura da coleta <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="jor_jornadas (banco local). A barra é a contagem de jornadas do mês; a linha é a média POR DIA COLETADO, que é o único número comparável entre meses de cobertura diferente. Mês com menos de 90% dos dias sai hachurado, e mês sem UMA jornada aparece como falha no eixo — não como zero, porque zero se lê como “ninguém dirigiu”.">i</span></h2>
+              <span class="hint" id="hintJrMes"></span></div>
+            <div id="jr-mensal" style="width:100%;height:260px"
+                 role="img" aria-label="Jornadas por mês e média por dia coletado"></div>
+          </div>
+  <div class="card">
+            <div class="head"><h2>Dia a dia <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="Uma barra por dia com jornada gravada, e a linha de horas de direção. É a série que justifica a biblioteca de gráficos nesta tela: com centenas de dias, ler sem zoom não é leitura. Arraste a barra de baixo para recortar o período; o buraco no meio é ausência de coleta, não dia sem operação.">i</span></h2>
+              <span class="hint" id="hintJrDia"></span></div>
+            <div id="jr-diario" style="width:100%;height:260px"
+                 role="img" aria-label="Jornadas e horas de direção por dia"></div>
+          </div>
+          </div>
+          <div class="card">
+          <div class="head"><h2>Para onde vai o dia <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="Composição da jornada como a RasterJOR apura, não o ERP: driving_time, stopped_in_journey, meal_time e rest_time. A diferença para o total é o que o fornecedor não classifica em nenhuma das quatro, e aparece declarada em vez de ser diluída nas outras.">i</span></h2>
+            <span class="hint" id="hintJrComp"></span></div>
+          <div id="jr-comp" style="width:100%;height:190px"
+               role="img" aria-label="Composição do dia de trabalho"></div>
+          </div>
+        </div>
+        <div class="aba" data-abas="jorn" data-aba="conf" id="aba-jorn-conf"
+             role="tabpanel" aria-labelledby="tabJorn-conf" hidden>
+<div class="kband">
           <h3>Conformidade — Lei 13.103/2015</h3>
           <div class="kpis k4" id="kpis-jr2"></div>
         </div>
-        <div class="kband">
-          <h3>Custo do tempo</h3>
-          <div class="kpis k4" id="kpis-jr3"></div>
-        </div>
-        <div class="kband">
-          <h3>Presença e ausências</h3>
-          <div class="kpis k4" id="kpis-jr4"></div>
-        </div>
-
         <div class="card">
-          <div class="head"><h2>Volume e cobertura da coleta <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="jor_jornadas (banco local). A barra é a contagem de jornadas do mês; a linha é a média POR DIA COLETADO, que é o único número comparável entre meses de cobertura diferente. Mês com menos de 90% dos dias sai hachurado, e mês sem UMA jornada aparece como falha no eixo — não como zero, porque zero se lê como “ninguém dirigiu”.">i</span></h2>
-            <span class="hint" id="hintJrMes"></span></div>
-          <div id="jr-mensal" style="width:100%;height:300px"
-               role="img" aria-label="Jornadas por mês e média por dia coletado"></div>
-        </div>
-
-        <div class="card">
-          <div class="head"><h2>Dia a dia <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="Uma barra por dia com jornada gravada, e a linha de horas de direção. É a série que justifica a biblioteca de gráficos nesta tela: com centenas de dias, ler sem zoom não é leitura. Arraste a barra de baixo para recortar o período; o buraco no meio é ausência de coleta, não dia sem operação.">i</span></h2>
-            <span class="hint" id="hintJrDia"></span></div>
-          <div id="jr-diario" style="width:100%;height:300px"
-               role="img" aria-label="Jornadas e horas de direção por dia"></div>
-        </div>
-
-        <div class="grid2">
-          <div class="card">
-            <div class="head"><h2>Para onde vai o dia <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="Composição da jornada como a RasterJOR apura, não o ERP: driving_time, stopped_in_journey, meal_time e rest_time. A diferença para o total é o que o fornecedor não classifica em nenhuma das quatro, e aparece declarada em vez de ser diluída nas outras.">i</span></h2>
-              <span class="hint" id="hintJrComp"></span></div>
-            <div id="jr-comp" style="width:100%;height:190px"
-                 role="img" aria-label="Composição do dia de trabalho"></div>
-          </div>
-          <div class="card">
-            <div class="head"><h2>Inconformidades por tipo <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="jor_inconformidades. Os nomes são os que a própria RasterJOR dá, não código traduzido a dedo. A classificação tempo × marcação é NOSSA e está dita na coluna: DIRECAO NOTURNA é trabalho noturno, que é legal e gera adicional — somada ao resto, ela inflava a taxa por jornada em um terço.">i</span></h2>
-              <span class="hint" id="hintJrUnc"></span></div>
-            <div class="tablewrap tabroll"><table><thead><tr>
-              <th>Tipo</th><th></th><th class="num">Ocorrências</th>
-              <th class="num">%</th><th class="num">Por jornada</th><th class="num">Motoristas</th>
-            </tr></thead><tbody id="jr-unconf"></tbody></table></div>
-          </div>
-        </div>
-
-        <div class="card">
+          <div class="head"><h2>Inconformidades por tipo <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="jor_inconformidades. Os nomes são os que a própria RasterJOR dá, não código traduzido a dedo. A classificação tempo × marcação é NOSSA e está dita na coluna: DIRECAO NOTURNA é trabalho noturno, que é legal e gera adicional — somada ao resto, ela inflava a taxa por jornada em um terço.">i</span></h2>
+            <span class="hint" id="hintJrUnc"></span></div>
+          <div class="tablewrap tabroll"><table><thead><tr>
+            <th>Tipo</th><th></th><th class="num">Ocorrências</th>
+            <th class="num">%</th><th class="num">Por jornada</th><th class="num">Motoristas</th>
+          </tr></thead><tbody id="jr-unconf"></tbody></table></div>
+          </div><div class="card">
           <div class="head"><h2>Inconformidades de tempo ao longo dos meses <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="Contagem por tipo e por mês. Sem o corte temporal não dá para dizer se um tipo está piorando ou se só houve mais jornada no mês — por isso o mês sem coleta aparece vazio e rotulado, em vez de sumir do eixo e emendar dois meses distantes numa série contínua.">i</span></h2>
             <span class="hint" id="hintJrUncMes"></span></div>
           <div id="jr-uncmes" style="width:100%;height:290px"
                role="img" aria-label="Inconformidades por tipo e por mês"></div>
         </div>
-
-        <div class="card">
-          <div class="head"><h2>Por escala — quanta hora extra cada turno gera <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="work_schedule_name das jornadas, preenchido em 100% delas. A média por jornada é o número comparável entre escalas — o total só diz qual tem mais gente. A dispersão é o achado: a hora extra média vai de ~90 min numa escala a mais de 450 min noutra, o que é decisão de escala e não característica do motorista. Quem define o turno define quanta hora extra vai pagar.">i</span></h2>
-            <span class="hint" id="hintJrEsc"></span></div>
-          <div class="tablewrap tabroll"><table><thead><tr>
-            <th>Escala</th><th class="num">Jornadas</th><th class="num">Motoristas</th>
-            <th class="num">Jornada média</th><th class="num">Hora extra média</th><th></th>
-            <th class="num">Hora extra total</th>
-          </tr></thead><tbody id="jr-escalas"></tbody></table></div>
-        </div>
-
-        <div class="card">
-          <div class="head"><h2>Por filial <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="branch_name vem preenchido em 100% das jornadas da RasterJOR. É o recorte que separa problema de escala de problema de operação: filial com muito tempo parado e pouca direção não tem motorista de menos, tem carga esperando.">i</span></h2>
-            <span class="hint" id="hintJrFil"></span></div>
-          <div class="tablewrap tabroll"><table><thead><tr>
-            <th>Filial</th><th class="num">Jornadas</th><th class="num">Motoristas</th>
-            <th class="num">Direção</th><th class="num">Parado</th><th></th>
-            <th class="num">% parado</th><th class="num">Hora extra</th>
-          </tr></thead><tbody id="jr-filiais"></tbody></table></div>
-        </div>
-
         <div class="card">
           <div class="head"><h2>Motoristas — inconformidades de tempo <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="NÃO é ranking de culpa. A ordem padrão é a CONTAGEM (materialidade), e a taxa por jornada vai ao lado porque sem o denominador o ranking premia quem rodou mais dias. Quem tem menos de 5 jornadas no período fica atenuado e marcado: baixo volume é atenuado, nunca escondido. Só contam as inconformidades de TEMPO — direção noturna não entra.">i</span></h2>
             <span class="hint" id="hintJrMot"></span></div>
@@ -5176,12 +5241,43 @@ body.tvfull #btnReport,body.tvmode #btnReport{display:none}
             <th class="num">Tipos</th><th class="num">Hora extra</th>
           </tr></thead><tbody id="jr-motoristas"></tbody></table></div>
         </div>
-
+        </div>
+        <div class="aba" data-abas="jorn" data-aba="custo" id="aba-jorn-custo"
+             role="tabpanel" aria-labelledby="tabJorn-custo" hidden>
+<div class="kband">
+          <h3>Custo do tempo</h3>
+          <div class="kpis k4" id="kpis-jr3"></div>
+        </div>
+        <div class="card">
+          <div class="head"><h2>Por escala — quanta hora extra cada turno gera <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="work_schedule_name das jornadas, preenchido em 100% delas. A média por jornada é o número comparável entre escalas — o total só diz qual tem mais gente. A dispersão é o achado: a hora extra média vai de ~90 min numa escala a mais de 450 min noutra, o que é decisão de escala e não característica do motorista. Quem define o turno define quanta hora extra vai pagar.">i</span></h2>
+            <span class="hint" id="hintJrEsc"></span></div>
+          <div class="tablewrap tabroll"><table><thead><tr>
+            <th>Escala</th><th class="num">Jornadas</th><th class="num">Motoristas</th>
+            <th class="num">Jornada média</th><th class="num">Hora extra média</th><th></th>
+            <th class="num">Hora extra total</th>
+          </tr></thead><tbody id="jr-escalas"></tbody></table></div>
+        </div>
+        <div class="card">
+          <div class="head"><h2>Por filial <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="branch_name vem preenchido em 100% das jornadas da RasterJOR. É o recorte que separa problema de escala de problema de operação: filial com muito tempo parado e pouca direção não tem motorista de menos, tem carga esperando.">i</span></h2>
+            <span class="hint" id="hintJrFil"></span></div>
+          <div class="tablewrap tabroll"><table><thead><tr>
+            <th>Filial</th><th class="num">Jornadas</th><th class="num">Motoristas</th>
+            <th class="num">Direção</th><th class="num">Parado</th><th></th>
+            <th class="num">% parado</th><th class="num">Hora extra</th>
+          </tr></thead><tbody id="jr-filiais"></tbody></table></div>
+        </div>
+        </div>
+        <div class="aba" data-abas="jorn" data-aba="pres" id="aba-jorn-pres"
+             role="tabpanel" aria-labelledby="tabJorn-pres" hidden>
+<div class="kband">
+          <h3>Presença e ausências</h3>
+          <div class="kpis k4" id="kpis-jr4"></div>
+        </div>
         <div class="grid2">
           <div class="card">
             <div class="head"><h2>Tipo de jornada <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="journey_type vem como letra e NÃO há tabela de domínio nem rótulo no payload da RasterJOR. Código sem domínio não vira rótulo inventado: a tela mostra a letra e o que se observa em cada uma — direção média, tempo médio e km —, que é o que permite deduzir sem chutar. Mesma regra da coluna “Tipo (cód.)” da Manutenção.">i</span></h2>
               <span class="hint">código do fornecedor, sem domínio publicado</span></div>
-            <div class="tablewrap"><table><thead><tr>
+            <div class="tablewrap tabroll"><table><thead><tr>
               <th>Código</th><th class="num">Jornadas</th><th class="num">Direção média</th>
               <th class="num">Tempo médio</th><th class="num">Km</th>
             </tr></thead><tbody id="jr-tipos"></tbody></table></div>
@@ -5194,6 +5290,7 @@ body.tvfull #btnReport,body.tvmode #btnReport{display:none}
               <th class="num">Motoristas</th><th class="num">Mais recente</th>
             </tr></thead><tbody id="jr-ausencias"></tbody></table></div>
           </div>
+        </div>
         </div>
         <div id="jr-avisos"></div>
       </section>
@@ -5238,13 +5335,13 @@ body.tvfull #btnReport,body.tvmode #btnReport{display:none}
         <div class="grid2">
           <div class="card">
             <div class="head"><h2>Serviços do CÓRTEX <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="Checagem ao vivo do que o painel precisa: a própria API (uvicorn), o banco do ERP pelo túnel, o Oracle da folha (GLOBUS), o Cloudflare Tunnel, o Ollama do Copiloto e as três integrações de fornecedor — Prolog (pneus), Gobrax (telemetria) e Monkey (antecipação da Tupy). São TRÊS bancos: a réplica do ERP (remota, somente leitura), o Oracle da folha e o PostgreSQL local, que é onde o CÓRTEX escreve o que é dele. Se o Oracle cai, RH e Custo de Folha ficam sem dado enquanto o resto do painel segue normal; se o banco local cai, as telas já migradas para ele ficam sem dado. As integrações NÃO são consultadas daqui: Prolog e Gobrax têm cota e coleta lenta, então o que se mede é a idade do instantâneo que as telas mostram. Integração não configurada aparece como Info, não como falha: o recurso simplesmente não existe nesta instalação. Esta tela mede a MÁQUINA ONDE A API RODA — aberta fora do servidor, o túnel e as tarefas agendadas aparecem indisponíveis mesmo estando de pé em produção.">i</span></h2><span class="hint">API · dois bancos · túnel · copiloto · integrações</span></div>
-            <div class="tablewrap"><table><thead><tr>
+            <div class="tablewrap tabroll"><table><thead><tr>
               <th>Serviço</th><th>Situação</th><th>Detalhe</th>
             </tr></thead><tbody id="srv-servicos"></tbody></table></div>
           </div>
           <div class="card">
             <div class="head"><h2>Tarefas agendadas <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="Tarefas do Agendador do Windows no servidor de produção: API, AutoDeploy e Tunnel. Fora do Windows aparecem como indisponíveis — não é falha, é a tela sendo aberta de outra máquina.">i</span></h2><span class="hint">arranque automático no logon</span></div>
-            <div class="tablewrap"><table><thead><tr>
+            <div class="tablewrap tabroll"><table><thead><tr>
               <th>Tarefa</th><th>Estado</th><th class="num">Última execução</th><th class="num">Próxima execução</th>
             </tr></thead><tbody id="srv-tarefas"></tbody></table></div>
           </div>
@@ -5252,7 +5349,7 @@ body.tvfull #btnReport,body.tvmode #btnReport{display:none}
         <div class="card">
           <div class="head"><h2>Cache local (SQLite) <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="O CÓRTEX escreve no PostgreSQL (api/pglocal.py). Em SQLite sobrou só o que é CACHE RECONSTRUÍVEL e fica fora do banco de propósito — hoje, o cache da Gobrax. Cada arquivo é aberto em modo leitura e passa por um quick_check de integridade; cache corrompido é falha silenciosa, o número sai menor sem ninguém acusar. Base ausente NÃO é erro: ela nasce no primeiro uso do recurso. Os arquivos da migração de 27/08/2026 aparecem resumidos abaixo da tabela, não como linhas.">i</span></h2>
             <span class="hint" id="hintSrvBases"></span></div>
-          <div class="tablewrap"><table><thead><tr>
+          <div class="tablewrap tabroll"><table><thead><tr>
             <th>Base</th><th>Arquivo</th><th class="num">Tamanho</th><th>Situação</th><th>Detalhe</th>
           </tr></thead><tbody id="srv-bases"></tbody></table></div>
           <div id="srv-migradas" hidden></div>
@@ -5260,7 +5357,7 @@ body.tvfull #btnReport,body.tvmode #btnReport{display:none}
         <div class="card">
           <div class="head"><h2>Proteção dos segredos em arquivo <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="Quem pode LER os arquivos que guardam segredo: o cofre de credenciais, a configuração do correio e do WhatsApp, as senhas dos certificados e os próprios .pfx. O código gravava esses arquivos com chmod 0600 — que no Windows NÃO protege nada: ali só liga o atributo somente-leitura, e quem decide acesso é a lista de acesso (ACL) do arquivo. Este cartão MEDE a ACL em vez de afirmar a proteção. O que conta como exposição é grupo AMPLO (Usuários, Todos, Usuários autenticados, Usuários do Domínio); conta nomeada, SYSTEM e Administradores são o caso normal numa máquina administrada por uma pessoa. “Não verificado” não é o mesmo que desprotegido: é a ACL que não deu para ler, e dizer ok sem medir seria repetir o erro que este cartão veio consertar.">i</span></h2>
             <span class="hint" id="hintSrvSeg"></span></div>
-          <div class="tablewrap"><table><thead><tr>
+          <div class="tablewrap tabroll"><table><thead><tr>
             <th>Arquivo</th><th>Guarda</th><th>Situação</th><th>Quem tem acesso</th>
           </tr></thead><tbody id="srv-segredos"></tbody></table></div>
         </div>
@@ -5280,13 +5377,13 @@ body.tvfull #btnReport,body.tvmode #btnReport{display:none}
         </div>
         <div class="card">
           <div class="head"><h2>Discos <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="Volumes montados com uso real. O cartão de disco mais cheio no topo considera apenas volumes de 20 GB ou mais: cache do Docker e volumes de sistema com poucos MB enchem sozinhos e sequestravam o alarme.">i</span></h2><span class="hint">uso por volume</span></div>
-          <div class="tablewrap"><table><thead><tr>
+          <div class="tablewrap tabroll"><table><thead><tr>
             <th>Volume</th><th>Sistema</th><th class="num">Total</th><th class="num">Usado</th><th class="num">Livre</th><th>Ocupação</th>
           </tr></thead><tbody id="srv-discos"></tbody></table></div>
         </div>
         <div class="card">
           <div class="head"><h2>Servidor</h2><span class="hint" id="srv-host-hint"></span></div>
-          <div class="tablewrap"><table><tbody id="srv-host"></tbody></table></div>
+          <div class="tablewrap tabroll"><table><tbody id="srv-host"></tbody></table></div>
         </div>
       </section>
     </div>
@@ -5446,6 +5543,8 @@ const ICONS = {
   dre:  IC('<path d="M3 3v18h18"/><path d="M7 9V6h4v6h4v5h4"/>'),
   sup:  IC('<circle cx="9" cy="20" r="1.6"/><circle cx="17" cy="20" r="1.6"/><path d="M3 4h2l2.5 11h10L20 8H7"/>'),
   oc:   IC('<rect x="5" y="3" width="14" height="18" rx="2"/><path d="M9 3v3h6V3M9 11h6M9 15h4"/>'),
+  expandir: IC('<path d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>'),
+  encolher: IC('<path d="M9 4v5H4M15 4v5h5M9 20v-5H4M15 20v-5h5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>'),
   sol: IC('<circle cx="12" cy="12" r="4.2"/><path d="M12 2v2.6M12 19.4V22M2 12h2.6M19.4 12H22M4.9 4.9l1.9 1.9M17.2 17.2l1.9 1.9M19.1 4.9l-1.9 1.9M6.8 17.2l-1.9 1.9" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>'),
   lua: IC('<path d="M20 14.5A8.5 8.5 0 0 1 9.5 4a8.5 8.5 0 1 0 10.5 10.5z"/>'),
   estrela: IC('<path d="M12 2.5l2.9 6 6.6.9-4.8 4.6 1.2 6.5L12 17.4 6.1 20.5l1.2-6.5L2.5 9.4l6.6-.9z"/>'),
@@ -6205,6 +6304,62 @@ function navRegistraUso(v){
     localStorage.setItem('cs.navUso', JSON.stringify(u));
   }catch(e){}
 }
+/* ===================== TELA CHEIA DO PAINEL =====================
+   Pedido do usuario: modo tela cheia em TODOS os paineis, nao so nos dois de
+   TV. Some a moldura -- barra lateral, topo, rodape -- e fica o painel.
+
+   TRES DECISOES:
+
+   1. O ESTADO VEM DO NAVEGADOR, nao de uma variavel nossa. Quem manda e
+      `document.fullscreenElement`, e a classe e ligada no evento
+      `fullscreenchange`. Guardar o estado a parte cria a divergencia classica:
+      a pessoa sai com Esc (que o navegador atende sozinho) e a tela continua
+      achando que esta cheia -- com a barra lateral escondida e nenhum jeito de
+      voltar.
+   2. AS TELAS DE TV FICAM DE FORA. Elas ja tem `tvfull`, que esconde o cursor
+      e reflui em `vw`. Duas classes sobre o mesmo elemento fariam um painel
+      comum herdar o cursor escondido, e ali AINDA ha alguem clicando.
+   3. O GRAFICO PRECISA SER REMEDIDO. Entrar em tela cheia muda a largura sem
+      passar por `resize` em todos os navegadores; `echartsRedimensionarTudo`
+      cobre isso pelo mesmo caminho do resize de janela. */
+function telaCheiaAtiva(){
+  return !!(document.fullscreenElement || document.webkitFullscreenElement);
+}
+
+function telaCheiaAlternar(){
+  if(telaCheiaAtiva()){
+    (document.exitFullscreen || document.webkitExitFullscreen || (()=>{}))
+      .call(document);
+  }else{
+    const el = document.documentElement;
+    (el.requestFullscreen || el.webkitRequestFullscreen || (()=>{}))
+      .call(el, {navigationUI: 'hide'});
+  }
+}
+
+function telaCheiaSincronizar(){
+  const v = (typeof currentView === 'function') ? currentView() : '';
+  const ehTv = v === 'tvfat' || v === 'tvope';
+  const cheia = telaCheiaAtiva() && !ehTv;
+  document.body.classList.toggle('painelfull', cheia);
+  const sair = document.getElementById('btnFullSair');
+  if(sair) sair.hidden = !cheia;
+  const bt = document.getElementById('btnFull');
+  const ic = document.getElementById('btnFullIc');
+  if(ic) ic.innerHTML = ICONS[cheia ? 'encolher' : 'expandir'];
+  if(bt){
+    bt.setAttribute('aria-pressed', String(cheia));
+    const rot = cheia ? 'Sair da tela cheia' : 'Tela cheia';
+    bt.title = rot; bt.setAttribute('aria-label', rot);
+  }
+  /* Sem isto o grafico fica com a largura de antes: a moldura sumiu, o card
+     cresceu, e o ECharts nao remede sozinho. */
+  if(typeof echartsRedimensionarTudo === 'function') echartsRedimensionarTudo();
+}
+
+document.addEventListener('fullscreenchange', telaCheiaSincronizar);
+document.addEventListener('webkitfullscreenchange', telaCheiaSincronizar);
+
 /* ===================== TEMA CLARO / ESCURO =====================
    TRÊS ESTADOS e não dois: 'sistema' (o padrão) NÃO carimba nada e segue o
    `prefers-color-scheme`; 'claro' e 'escuro' carimbam `data-theme` e vencem o
@@ -8349,6 +8504,90 @@ async function premColetar(){
 
    O grupo e um atributo, nao um `if`: painel novo so declara `data-abas` nos
    botoes e nos paineis e ja funciona. */
+/* ROTACAO AUTOMATICA ENTRE ABAS (pedido do usuario, 30/08/2026).
+   O painel de BI cabe em uma tela e o excedente vai para aba -- mas num mural
+   ou numa TV nao ha ninguem para clicar. O controle define de quanto em quanto
+   tempo a tela troca sozinha de aba.
+
+   QUATRO DECISOES, e todas vieram de como isto costuma dar errado:
+
+   1. UM CONTROLE SO, com "nao girar" DENTRO dele. Um interruptor separado do
+      intervalo cria o estado "ligado com intervalo nenhum", que ninguem
+      consegue prever lendo a tela.
+   2. CLIQUE MANUAL REARMA o relogio em vez de ser atropelado por ele. Sem
+      isso, clicar numa aba faltando dois segundos para o giro tira a pessoa
+      dali antes de ela ler qualquer coisa -- e ela conclui que o clique nao
+      funcionou.
+   3. NAO GIRA COM A ABA DO NAVEGADOR ESCONDIDA. Girar sem ninguem olhando so
+      gasta CPU e, pior, faz a pessoa voltar para uma aba aleatoria em vez da
+      que ela deixou aberta.
+   4. FICA GUARDADO POR PAINEL. Quem pos a Jornada no mural quer que ela
+      continue girando amanha, e nao que a Premiacao gire junto.
+
+   O relogio e ENCADEADO (`setTimeout` que se reagenda), nao `setInterval`:
+   intervalo fixo empilha disparo quando a aba demora a aparecer. */
+const ABA_INTERVALOS = [
+  ['0', 'não girar'], ['10', '10 s'], ['15', '15 s'],
+  ['30', '30 s'], ['60', '1 min'], ['120', '2 min'],
+];
+const _abaTimer = {};
+
+function abaAutoSegundos(grupo){
+  try{
+    const v = parseInt(localStorage.getItem('cortex-aba-auto:' + grupo), 10);
+    return ABA_INTERVALOS.some(([s]) => +s === v) ? v : 0;
+  }catch(e){ return 0; }
+}
+
+function abaAutoDefinir(grupo, segundos){
+  try{ localStorage.setItem('cortex-aba-auto:' + grupo, String(segundos)); }catch(e){}
+  abaAutoRearmar(grupo);
+}
+
+function abaAutoRearmar(grupo){
+  clearTimeout(_abaTimer[grupo]);
+  const seg = abaAutoSegundos(grupo);
+  const dica = document.getElementById('abaAutoDica-' + grupo);
+  if(dica) dica.textContent = seg ? 'girando' : '';
+  if(!seg) return;
+  _abaTimer[grupo] = setTimeout(() => {
+    /* Aba do navegador escondida: NAO gira, so reagenda. Assim quem volta
+       encontra a tela onde deixou. */
+    if(!document.hidden) abaProxima(grupo);
+    else abaAutoRearmar(grupo);
+  }, seg * 1000);
+}
+
+function abaProxima(grupo){
+  const bts = Array.from(
+    document.querySelectorAll('.subtabs[data-abas="' + grupo + '"] button[data-aba]'));
+  if(bts.length < 2) return;
+  const i = bts.findIndex(b => b.getAttribute('aria-selected') === 'true');
+  abaTrocar(grupo, bts[(i + 1) % bts.length].dataset.aba);
+}
+
+/* Monta o controle em TODA `.subtabs` que exista -- painel novo so declara
+   `data-abas` e ja ganha o giro, sem tocar em JavaScript. */
+function abaAutoMontar(){
+  document.querySelectorAll('.subtabs[data-abas]').forEach(barra => {
+    const grupo = barra.dataset.abas;
+    if(barra.querySelector('.subtabs-auto')) return;
+    if(barra.querySelectorAll('button[data-aba]').length < 2) return;
+    const seg = abaAutoSegundos(grupo);
+    const cx = document.createElement('span');
+    cx.className = 'subtabs-auto';
+    cx.innerHTML = '<label for="abaAuto-' + grupo + '">Girar</label>'
+      + '<select id="abaAuto-' + grupo + '" onchange="abaAutoDefinir(\'' + grupo
+      + '\', this.value)">'
+      + ABA_INTERVALOS.map(([v, r]) =>
+          '<option value="' + v + '"' + (+v === seg ? ' selected' : '') + '>'
+          + r + '</option>').join('')
+      + '</select><span class="hint" id="abaAutoDica-' + grupo + '"></span>';
+    barra.appendChild(cx);
+    abaAutoRearmar(grupo);
+  });
+}
+
 function abaTrocar(grupo, qual){
   document.querySelectorAll('.aba[data-abas="'+grupo+'"]').forEach(el => {
     el.hidden = (el.dataset.aba !== qual);
@@ -8356,6 +8595,10 @@ function abaTrocar(grupo, qual){
   document.querySelectorAll('.subtabs[data-abas="'+grupo+'"] button').forEach(bt => {
     bt.setAttribute('aria-selected', String(bt.dataset.aba === qual));
   });
+  /* Rearma: quem clicou tem o intervalo INTEIRO para ler. Sem isto, um clique
+     dado a dois segundos do giro tira a pessoa da aba antes de ela ler
+     qualquer coisa, e ela conclui que o clique nao funcionou. */
+  abaAutoRearmar(grupo);
 }
 /* Contador na aba: diz o que tem la dentro SEM precisar entrar. Uma aba
    "Ociosidade" vazia e uma com 24 veiculos parados exigem coisas diferentes de
@@ -17135,9 +17378,13 @@ function echartsRegistrar(id, inst){
     if(el){ el.__ecInst = inst; _echartsOlho.observe(el); }
   }
 }
-window.addEventListener('resize', () => {
+/* Nomeado porque agora TRES coisas precisam dele: o resize da janela, a
+   entrada/saida de tela cheia e a troca de tema. Um listener anonimo so
+   servia a primeira. */
+function echartsRedimensionarTudo(){
   _echartsVivos.forEach(i => { try{ i.resize(); }catch(_){} });
-});
+}
+window.addEventListener('resize', echartsRedimensionarTudo);
 
 /* ============ Produtividade de Veículos (Business Intelligence) ============
    O que a tela responde: quanto cada veículo produz, e quem produz pouco.
@@ -20210,6 +20457,8 @@ async function boot(){
      com a paleta clara logo no primeiro desenho. */
   ccAtualizar();
   temaPintarBotao();
+  abaAutoMontar();
+  telaCheiaSincronizar();
   if('serviceWorker' in navigator){ navigator.serviceWorker.register('/sw.js').catch(()=>{}); }
   let r=null;
   try{ r=await _fetch0('/api/auth/me',{cache:'no-store'}); }

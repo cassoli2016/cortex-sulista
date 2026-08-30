@@ -205,6 +205,40 @@ Painel é visual e se lê **sem rolar**. O que não couber vai para **sub-aba**
 - Já aplicado: Premiação (Premiação × Configuração) e Produtividade de Veículos
   (Visão geral × Por veículo × Ociosidade).
 
+**CSS INSERIDO POR VIZINHANÇA CAI DENTRO DO BLOCO ERRADO (custou 4 versões):**
+As regras da estrela de favorito, do botão de tema, do de tela cheia, da barra
+de sub-abas, do contador e do seletor de giro foram parar **dentro de
+`@media(max-width:880px)`** — porque a inserção foi ancorada num seletor
+vizinho (`.dfreq`, `#btnFav`) sem conferir a PROFUNDIDADE DE CHAVES do ponto.
+No desktop, que é onde o painel é usado, esses controles ficaram **sem estilo
+nenhum** da 0.152.0 à 0.156.0.
+- **Nada existente pegava:** `node --check` valida JavaScript e não CSS;
+  `verificar_estrutura.py` olha atributo e aspa; e o auditor de tema roda a
+  1500px mas mede **cor** — elemento sem estilo tem cor padrão com contraste
+  ótimo. O defeito era invisível para todas as conferências que havia.
+- **Ancorar por vizinhança em CSS não diz em que bloco se está.** Antes de
+  inserir, conte `{` menos `}` desde o `<style>` até o ponto: tem de dar zero.
+- O guarda que ficou **pergunta ao NAVEGADOR**, na largura de desktop, se a
+  regra chegou (`.subtabs` tem `display:flex`? o botão tem `cursor:pointer`?).
+  Ler o texto do CSS não responde isso.
+
+**Rotação e tela cheia (pedido do usuário, 30/08/2026):**
+- Todo painel com mais de uma aba ganha o controle **"Girar"** (`abaAutoMontar`
+  monta em toda `.subtabs[data-abas]`, então painel novo já nasce com ele). Um
+  controle só, com "não girar" DENTRO dele — interruptor separado do intervalo
+  cria o estado "ligado com intervalo nenhum", que ninguém prevê lendo a tela.
+  **Clique manual REARMA o relógio**: um clique dado a dois segundos do giro
+  tiraria a pessoa da aba antes de ela ler qualquer coisa. Não gira com a aba
+  do navegador escondida, e a escolha é **por painel**.
+- **Tela cheia em todo painel** (`body.painelfull`), separada da `tvfull` das
+  duas telas de TV — aquela esconde o cursor e reflui em `vw`, e herdar isso
+  num painel onde ainda há alguém clicando seria erro. O **estado vem do
+  navegador** (`fullscreenElement` + evento `fullscreenchange`), nunca de
+  variável nossa: sair com Esc é atendido pelo navegador sozinho, e uma
+  variável paralela deixaria a tela achando que está cheia, sem moldura e sem
+  jeito de voltar. A saída é um botão FLUTUANTE, porque o que entrou vive na
+  barra de topo, que some junto.
+
 **Gráfico: ECharts, e SÓ ECharts. A conversão acabou em 30/08/2026.**
 Não existe mais gráfico desenhado à mão no painel. Gráfico novo nasce em
 ECharts, sem decisão a tomar. A única exceção é o **gauge de meta do dia dos
