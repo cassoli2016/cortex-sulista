@@ -4705,27 +4705,15 @@ async def premiacao_ocorrencia_sync(req: Request) -> JSONResponse:
     return JSONResponse({**r, "pendentes": classificacao.pendentes()})
 
 
-@app.post("/api/frota/premiacao/params")
-async def premiacao_params(req: Request) -> JSONResponse:
-    from api.premiacao import params as premiacao_params_mod
-    try:
-        body = await req.json()
-    except Exception:
-        body = None
-    if not isinstance(body, dict):
-        return JSONResponse(status_code=422, content={
-            "erro": "parametro_invalido",
-            "mensagem": "Corpo da requisição inválido: envie um objeto JSON."})
-    try:
-        efetivo = premiacao_params_mod.salvar_params(body)
-        return JSONResponse({"ok": True, "params": efetivo})
-    except ValueError as exc:
-        return JSONResponse(status_code=422, content={
-            "erro": "parametro_invalido", "mensagem": str(exc)})
-    except Exception as exc:  # noqa: BLE001
-        log.warning("premiacao_params falhou: %s", exc)
-        return JSONResponse(status_code=500, content={
-            "erro": "erro_consulta", "mensagem": "Erro ao salvar os parâmetros."})
+# A ROTA `POST /api/frota/premiacao/params` SAIU EM 0.153.0.
+# Ela gravava `data/premiacao_params.json`, que era um SEGUNDO armazém de
+# parâmetro ao lado de `prem_versoes` — os dois com as mesmas três chaves e os
+# mesmos padrões, então concordavam por coincidência enquanto ninguém editasse
+# nada. Depois que o cálculo passou a ler a versão VIGENTE NA COMPETÊNCIA
+# (`servico.params_da_competencia`), salvar por aqui não mudaria número nenhum:
+# um formulário que diz "salvo" e não altera o prêmio. Quem configura é a aba
+# Configuração, versionada. `api/premiacao/params.py` continua vivo como
+# FALLBACK de leitura para quando o banco local estiver fora.
 
 
 @app.get("/api/frota/premiacao/serie")

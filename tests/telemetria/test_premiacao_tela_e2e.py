@@ -26,13 +26,41 @@ def _payload(regra="nota_km"):
             "referencias": {"preco_diesel_interno": 5.9}}
 
 
+# A configuração versionada tem shape PRÓPRIO (catálogo + params + eixos), e
+# não o do painel. Servir o payload do painel em `/api/premiacao/config` fazia
+# a aba de Configuração renderizar vazia sem erro nenhum aparecer.
+CONFIG = {
+    "competencia": "2026-04", "padrao": True, "versao": None,
+    "params": {"valor_por_km": 0.10, "nota_minima": 70.0, "km_minimo": 1500.0},
+    "eixos": {"diesel": {"peso": 25.0, "ativo": 1}},
+    "catalogo": {
+        "params": {
+            "valor_por_km": {"rotulo": "Valor por km", "unidade": "R$",
+                             "ajuda": "Base do prêmio."},
+            "nota_minima": {"rotulo": "Nota mínima para receber",
+                            "unidade": "pontos", "ajuda": "Piso de nota."},
+            "km_minimo": {"rotulo": "Km mínimo no mês", "unidade": "km",
+                          "ajuda": "Piso de materialidade."},
+        },
+        "eixos": {"diesel": {"rotulo": "Economia de diesel", "fonte": "CTA",
+                             "medida": "km/l", "porque": "—", "peso": 25}},
+    },
+}
+
+
 def _abrir(pg, base_url, regra="nota_km"):
     dados = _payload(regra)
 
     def rota(route):
         u = route.request.url
-        corpo = USUARIO if "/api/auth/me" in u else (
-            dados if "premiacao" in u else {})
+        if "/api/auth/me" in u:
+            corpo = USUARIO
+        elif "/api/premiacao/config" in u:
+            corpo = CONFIG
+        elif "premiacao" in u:
+            corpo = dados
+        else:
+            corpo = {}
         route.fulfill(status=200, content_type="application/json",
                       body=json.dumps(corpo))
 
@@ -82,12 +110,29 @@ def test_detalhe_explica_a_conta_do_premio(pagina):
     assert "km ×" in det and "nota" in det
 
 
-def test_parametros_da_regra_nova_estao_no_formulario(pagina):
+def test_parametros_da_regra_vivem_na_aba_CONFIGURACAO(pagina):
+    """Eram DOIS formulários para as mesmas três chaves — um deles gravando um
+    arquivo que o cálculo deixou de ler em 0.153.0. Sobrou o versionado."""
     pg, base = pagina
     _abrir(pg, base)
-    assert pg.input_value("#fPremValorKm") != ""
-    assert pg.input_value("#fPremNotaMin") != ""
-    assert pg.is_visible("#fPremKmMin")
+    assert pg.query_selector("#fPremValorKm") is None, (
+        "o formulário solto saiu junto com a rota que ele alimentava")
+    pg.click("#tabPrem-cfg")
+    for k in ("valor_por_km", "nota_minima", "km_minimo"):
+        assert pg.input_value("#fPremP_" + k) != "", k
+
+
+def test_o_aviso_da_configuracao_NAO_diz_mais_que_nada_dali_paga(pagina):
+    """Ele dizia "esta configuração ainda não paga ninguém" — verdade enquanto
+    o cálculo lia o arquivo antigo, mentira desde que passou a ler a versão
+    vigente. Aviso que erra para o lado de "não conta" convida a mexer no
+    valor achando que é ensaio."""
+    pg, base = pagina
+    _abrir(pg, base)
+    pg.click("#tabPrem-cfg")
+    txt = pg.inner_text("#prem-cfg-aviso").upper()
+    assert "JÁ VALEM" in txt, txt
+    assert "PESOS DOS EIXOS AINDA NÃO PAGAM" in txt, txt
 
 
 def test_premiacao_aparece_sob_telemetria_no_menu(pagina):

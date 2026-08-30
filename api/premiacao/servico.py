@@ -47,6 +47,45 @@ WHERE a.data_inicio_abastecimento >= %(de)s::date
 """
 
 
+def params_da_competencia(mes: str) -> dict:
+    """Os parâmetros VIGENTES naquele mês, e não os de hoje.
+
+    POR QUE ISTO EXISTE
+    ===================
+    A premiação tinha DOIS armazéns de parâmetro convivendo, e só um deles
+    chegava ao número da tela:
+
+    - `data/premiacao_params.json` (`params.ler_params`) — o antigo, um valor
+      único, sem histórico. Era o que `obter` e `serie` liam.
+    - `prem_versoes`/`prem_parametros` (`config.ler`) — o versionado por
+      competência, que entrou em 0.146.0 junto com a tela de configuração.
+
+    Os dois guardam as MESMAS três chaves da regra (`valor_por_km`,
+    `nota_minima`, `km_minimo`) com os mesmos padrões, então enquanto ninguém
+    editasse nada eles concordavam por coincidência e o defeito ficava
+    invisível. Bastava mudar o valor por km na tela de configuração para o
+    prêmio exibido continuar exatamente o mesmo — configuração que não
+    configura, que é pior que configuração que falta.
+
+    E no COMPARATIVO o efeito era outro, mais discreto: `serie()` recalculava
+    todo mês passado com o parâmetro de HOJE. Subir o valor por km em setembro
+    reescreveria o prêmio de março, que já foi pago com outro. O snapshot
+    guarda QUEM ganhou; a versão guarda COM QUE REGRA — e é ela que vale para
+    o mês.
+
+    Fallback: sem as tabelas (banco local fora, esquema não migrado) volta ao
+    arquivo, porque a tela ter número é melhor que a tela não abrir — e os
+    padrões dos dois são os mesmos.
+    """
+    try:
+        from api.premiacao import config
+        return dict(config.ler(mes)["params"])
+    except Exception as exc:  # noqa: BLE001
+        log.warning("params da competência %s indisponíveis (%s) — usando o "
+                    "arquivo", mes, type(exc).__name__)
+        return params.ler_params()
+
+
 def _novo_cliente():
     """Fábrica isolada para os testes stubarem (FakeCliente ou função que
     levanta GobraxIndisponivel/GobraxNaoConfigurado).
@@ -176,17 +215,34 @@ def obter(mes: str | None = None, force: bool = False, agora=None,
                     try:
                         novo = coleta.coletar_mes(mes, cliente=cliente, agora=agora)
                     except coleta.ColetaVazia:
-                        novo = {"drivers": []}
-                    if not novo.get("drivers") and snap_relido and snap_relido.get("drivers"):
-                        # Coleta VAZIA nunca sobrescreve snapshot com dados: a
-                        # frota do customer oscila na plataforma durante
+                        novo = {"month": mes, "drivers": []}
+                    if not novo.get("drivers"):
+                        # COLETA VAZIA NUNCA VIRA SNAPSHOT — nem por cima de um
+                        # bom, nem no lugar do que não existe.
+                        #
+                        # A frota do customer oscila na plataforma durante
                         # remanejos (aconteceu de verdade — /vehicles foi de 98
                         # a 10 e de volta em minutos, e julho com 3 motoristas
-                        # virou 0). Snapshot é dado de pagamento: mantém o
-                        # anterior e avisa, em vez de perder o mês.
+                        # virou 0). Snapshot é dado de pagamento.
+                        #
+                        # O ramo SEM snapshot anterior é o que faltava, e ele é
+                        # o do backfill de mês nunca coletado. Antes caía no
+                        # `else` e gravava `{"drivers": []}` — que estourava
+                        # `KeyError('month')` dentro do `gravar_snapshot`, ou
+                        # seja 500 na tela. Foi assim que fevereiro a junho
+                        # ficaram gravados com ZERO motorista e marcados como
+                        # COMPLETOS num backfill de 27/07: cinco meses que a
+                        # Gobrax tinha inteiros apareciam vazios no comparativo,
+                        # e o snapshot vazio ainda bloqueava a recoleta, porque
+                        # `_precisa_recoletar` só olha se o arquivo existe.
                         snap = snap_relido
-                        aviso = (f"a coleta voltou vazia (plataforma em remanejo?) — "
-                                 f"mantido o snapshot de {snap.get('coletado_em') or 'data desconhecida'}")
+                        if snap_relido and snap_relido.get("drivers"):
+                            aviso = (f"a coleta voltou vazia (plataforma em remanejo?) — "
+                                     f"mantido o snapshot de {snap.get('coletado_em') or 'data desconhecida'}")
+                        else:
+                            aviso = ("a coleta não trouxe motorista nenhum para este mês — "
+                                     "nada foi gravado, para o mês não ficar registrado "
+                                     "como zero")
                     else:
                         coleta.gravar_snapshot(novo, SNAP_DIR)
                         snap = novo
@@ -199,7 +255,11 @@ def obter(mes: str | None = None, force: bool = False, agora=None,
             else:
                 snap = snap_relido
 
-    parametros = params.ler_params()
+    # `snap` pode ser None quando o mês nunca foi coletado E a coleta veio
+    # vazia: a tela abre dizendo isso (com o `aviso` acima), em vez de estourar.
+    snap = snap or {"month": mes, "drivers": [],
+                    "parcial": mes == mes_corrente}
+    parametros = params_da_competencia(mes)
     calc = calculo.calcular(snap.get("drivers") or [], parametros)
     return {
         "configurado": True,
@@ -276,21 +336,38 @@ def serie() -> dict:
     só lê snapshots JÁ GRAVADOS em disco (`ler_snapshot`, puro) para cada mês do
     `index` — NUNCA recoleta (não chama `_novo_cliente`/Gobrax) e NUNCA consulta
     o preço do diesel na AVA (`_preco_diesel`), que é o custo que fazia o card
-    demorar ~15s por mês quando o túnel está fora. Os params atuais são lidos
-    UMA vez (não variam por mês: não há histórico de parâmetro por período).
+    demorar ~15s por mês quando o túnel está fora.
     Funciona igual com ou sem credenciais Gobrax configuradas — servem os
-    snapshots que já existirem; mês sem snapshot sai da lista."""
-    parametros = params.ler_params()
+    snapshots que já existirem; mês sem snapshot sai da lista.
+
+    CADA MÊS USA OS PARÂMETROS DA PRÓPRIA COMPETÊNCIA (ver
+    `params_da_competencia`): recalcular março com o valor por km de setembro
+    reescreveria um prêmio que já foi pago.
+
+    E CADA MÊS CARREGA O DENOMINADOR. O comparativo mostrava só o total, e o
+    total desta série cresce porque a FROTA na Gobrax cresceu — 8 motoristas
+    em fevereiro contra 67 em julho. Sem `motoristas`, "2 premiados" em
+    fevereiro parece critério duríssimo quando eram 2 de 8 (25%), contra 43 de
+    67 (64%) em julho. O número comparável entre meses é o POR MOTORISTA — a
+    mesma regra da cobertura mensal da jornada."""
     meses = []
     for item in coleta.ler_index(SNAP_DIR):
         snap = coleta.ler_snapshot(item["month"], SNAP_DIR)
         if snap is None:
             continue
-        calc = calculo.calcular(snap.get("drivers") or [], parametros)
+        calc = calculo.calcular(snap.get("drivers") or [],
+                                params_da_competencia(item["month"]))
+        mot, prem = calc["motoristas"], calc["premiados"]
         meses.append({
             "month": item["month"],
             "label": item["label"],
             "parcial": bool(snap.get("parcial")),
+            "coletado_em": snap.get("coletado_em"),
+            "motoristas": mot,
+            "pct_premiados": round(100.0 * prem / mot, 1) if mot else None,
+            "premio_por_motorista": (round(calc["premio_total"] / mot, 2)
+                                     if mot else None),
+            "km_por_motorista": (round(calc["km_total"] / mot) if mot else None),
             # a regra que gerou o mês viaja junto: mês antigo foi pago por
             # litros economizados e não pode ser comparado com os novos sem aviso
             "regra": snap.get("regra_fonte") or calc["regra"],

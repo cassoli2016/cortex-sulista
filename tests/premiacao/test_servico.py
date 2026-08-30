@@ -31,6 +31,14 @@ def _com_token(monkeypatch, tmp_path):
     params.salvar_params({"valor_por_km": 0.10, "nota_minima": 70.0,
                           "km_minimo": 1500.0}, tmp_path / "params.json")
     monkeypatch.setattr(params, "PARAMS_PATH", tmp_path / "params.json")
+    # ESTE ARQUIVO TESTA O SERVIÇO, NÃO A CONFIGURAÇÃO. `params_da_competencia`
+    # consulta `prem_versoes` no banco local, e sem este monkeypatch o teste
+    # leria a configuração DE PRODUÇÃO — passaria por coincidência (os padrões
+    # dos dois armazéns são iguais) e quebraria no dia em que alguém mudasse o
+    # valor por km na tela. A leitura por competência tem teste próprio, com
+    # esquema de verdade, em `test_params_competencia.py`.
+    monkeypatch.setattr(servico, "params_da_competencia",
+                        lambda mes: params.ler_params())
     return tmp_path
 
 

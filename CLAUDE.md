@@ -1613,6 +1613,55 @@ function "` e a
   total acima de 5h30** — quando dois recortes que deveriam diferir dão o
   mesmo número, um dos dois não filtra nada.
 
+**Dois armazéns do mesmo parâmetro concordam por coincidência (lição da Premiação):**
+- A premiação guardava `valor_por_km`, `nota_minima` e `km_minimo` em DOIS
+  lugares: `data/premiacao_params.json` (o antigo) e `prem_versoes` (o
+  versionado por competência, de 0.146.0). Mesmas chaves, mesmos padrões — e o
+  cálculo lia o arquivo. **A tela de configuração salvava, dizia "salvo", e o
+  prêmio não mudava um centavo.** Enquanto ninguém editasse nada os dois
+  concordavam e o defeito era invisível; o primeiro a mexer descobriria.
+- Formulário que diz "salvo" e não altera nada é pior que formulário que falta:
+  o segundo se percebe, o primeiro não. Ao encontrar dois armazéns da mesma
+  coisa, um deles SAI — junto com a rota que escrevia nele. O antigo ficou só
+  como fallback de LEITURA para quando o banco local estiver fora.
+- **Parâmetro que decide pagamento é lido POR COMPETÊNCIA.** `serie()`
+  recalculava todo mês passado com o valor de hoje: subir o valor por km em
+  setembro reescreveria o prêmio de março, que já foi pago com outro. O
+  snapshot guarda QUEM ganhou; a versão guarda COM QUE REGRA.
+
+**Coleta vazia gravada como completa se esconde atrás da própria trava:**
+- Cinco meses (fev–jun/26) apareciam com ZERO na premiação. A Gobrax tinha os
+  cinco inteiros: em disco havia snapshots com `drivers: []` e `parcial:
+  false`, escritos por um backfill de 27/07. E o snapshot vazio **bloqueava a
+  recoleta**, porque a trava só olha se o arquivo existe — o mês estava
+  "coletado".
+- O guard existia PELA METADE: protegia quem já tinha snapshot bom e deixava
+  passar o mês nunca coletado, que é exatamente o caso do backfill. Regra:
+  coleta vazia nunca vira snapshot, **nem por cima de um bom, nem no lugar do
+  que não existe**; e a tela DIZ que não veio nada, em vez de mostrar zero.
+- Recoletar é remediar. A pergunta que vale é por que um vazio foi gravado
+  como completo — o mesmo formato do marcador de manutenção parado em 77.534
+  km e da RasterJOR 136 dias fora do ar.
+
+**Duas séries de escalas diferentes, agora em barras agrupadas (Premiação):**
+- "Prêmio total (R$)" e "Motoristas premiados" dividiam o eixo: R$ 14.864 e 43
+  fazem a segunda barra ter **0,3% da altura** — um tracinho no zero em todos
+  os meses. Premiados virou LINHA em eixo secundário, com rótulo direto.
+- E o total **não é comparável entre meses**: ele sobe de R$ 402 para R$ 14.864
+  principalmente porque a frota na Gobrax foi de **8 para 67 motoristas**. O
+  card carrega o denominador e o prêmio POR MOTORISTA, e diz por escrito
+  quanto da alta é cobertura. Mesma família da cobertura mensal da jornada.
+
+**Sub-abas dentro de uma tela: quem tem gráfico abre visível.**
+- A Premiação tinha seis cards de assuntos diferentes; os três de CONFIGURAÇÃO
+  são mexidos uma vez por trimestre e ficavam entre o que se olha todo mês.
+  Sub-aba (`.subtabs`), e não tela nova, porque o RBAC, o seletor de mês e o
+  botão de coleta são os mesmos — duas telas dividiriam um estado que é um só.
+- **A aba com GRÁFICO é a que nasce aberta.** O ECharts mede o contêiner uma
+  vez, no `init`, e medida feita sob `hidden` vale zero para sempre. O
+  `ResizeObserver` do `echartsRegistrar` cobre a volta, mas começar visível
+  dispensa a correção. Aba de formulário e tabela pode começar escondida.
+
 **O AVA é PostgreSQL 9.3.** Sem `FILTER (WHERE …)`, que só chegou no 9.4 — todo
 agregado condicional é `CASE WHEN`. O erro aponta para o meio do agregado
 (`syntax error at or near "("`), não para a versão. O banco local do CÓRTEX é

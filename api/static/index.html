@@ -621,6 +621,20 @@ tr.forn-det td{padding:7px 12px}
 #btnFav.on{color:var(--orange-500)}
 #btnFav.on .ic svg{fill:currentColor}
 #btnFav:focus-visible{outline:2px solid var(--orange-500);outline-offset:2px}
+
+/* SUB-ABAS DENTRO DE UMA TELA. Nascidas na Premiação, que tinha seis cards de
+   assuntos diferentes empilhados: os três de CONFIGURAÇÃO (pesos, carência,
+   classificação de ocorrência) são mexidos uma vez por trimestre e ficavam
+   entre o que se olha todo mês. Sub-aba, e não tela nova, porque o RBAC, o
+   seletor de mês e o botão de coleta são os mesmos -- duas telas dividiriam
+   um estado que é um só. */
+.subtabs{display:flex;gap:4px;margin:0 0 14px;border-bottom:1px solid var(--n200,#E3E7EC)}
+.subtabs button{background:none;border:0;cursor:pointer;font:600 13px/1 var(--font);
+  color:var(--n500);padding:9px 14px 10px;border-bottom:2px solid transparent;
+  margin-bottom:-1px;border-radius:6px 6px 0 0}
+.subtabs button:hover{color:var(--n700);background:var(--n50,#F7F8FA)}
+.subtabs button[aria-selected="true"]{color:var(--n900);border-bottom-color:var(--orange-500)}
+.subtabs button:focus-visible{outline:2px solid var(--orange-500);outline-offset:-2px}
   .dfreq{padding:2px 0 10px;border-bottom:1px solid var(--n100,#EEF1F4)}
   .dfreq-h{font-size:11.5px;font-weight:700;text-transform:uppercase;letter-spacing:.07em;
     color:var(--orange-600);padding:9px 4px 7px}
@@ -2876,7 +2890,7 @@ body.tvfull #btnReport,body.tvmode #btnReport{display:none}
       <!-- ===================== PREMIAÇÃO DE MOTORISTAS ===================== -->
       <section class="view" id="view-prem">
         <div class="card">
-          <div class="head"><h2>Premiação de Motoristas</h2><span class="hint">nota da Gobrax × km rodado · valor por km configurável</span></div>
+          <div class="head"><h2>Premiação de Motoristas</h2><span class="hint">nota da Gobrax × km rodado · regra e pesos na aba Configuração</span></div>
           <div class="cardfilters">
             <select id="fPremMes" aria-label="Mês da premiação" onchange="loadPrem()"></select>
             <button class="btn" id="btnPremColeta" onclick="premColetar()">Atualizar dados</button>
@@ -2888,21 +2902,31 @@ body.tvfull #btnReport,body.tvmode #btnReport{display:none}
         <div id="prem-conteudo">
           <div class="banner-inline" id="prem-telemetria" style="display:none;margin:0"></div>
           <div class="kpis k4" id="kpis-prem"></div>
-          <div class="card">
-            <div class="head"><h2>Parâmetros da regra <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" id="prem-params-help" title="">i</span></h2><span class="hint">editáveis · valem para todos os meses a partir de agora</span></div>
-            <div class="cardfilters" id="prem-params-form">
-              <label style="display:flex;flex-direction:column;gap:2px;font-size:11px;color:var(--n500)">Valor por km (R$)
-                <input type="text" inputmode="decimal" id="fPremValorKm" style="width:110px" aria-label="Valor pago por quilômetro rodado"></label>
-              <label style="display:flex;flex-direction:column;gap:2px;font-size:11px;color:var(--n500)">Nota mínima (0 a 100)
-                <input type="text" inputmode="decimal" id="fPremNotaMin" style="width:110px" aria-label="Nota mínima da Gobrax para ser elegível"></label>
-              <label style="display:flex;flex-direction:column;gap:2px;font-size:11px;color:var(--n500)">Km mínimo (elegibilidade)
-                <input type="text" inputmode="decimal" id="fPremKmMin" style="width:110px" aria-label="Km mínimo rodado no mês para ser elegível"></label>
-              <button class="btn" id="btnPremSalvar" onclick="premSalvarParams()">Salvar</button>
-            </div>
-            <div style="padding:0 18px 14px;font-size:12px;color:var(--n500)" id="prem-refs"></div>
+                    <div class="subtabs" role="tablist" aria-label="Seções da premiação">
+            <button role="tab" id="tabPrem-prem" aria-controls="aba-prem" aria-selected="true"
+                    onclick="premAba('prem')">Premiação</button>
+            <button role="tab" id="tabPrem-cfg" aria-controls="aba-cfg" aria-selected="false"
+                    onclick="premAba('cfg')">Configuração</button>
           </div>
-
+          <div class="aba" id="aba-prem" role="tabpanel" aria-labelledby="tabPrem-prem">
           <div class="card">
+            <div class="head"><h2>Ranking de motoristas <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" id="prem-rank-help" title="">i</span></h2><span class="hint" id="prem-rank-hint"></span></div>
+            <div class="tablewrap tabroll"><table><thead><tr>
+              <th>Motorista</th><th class="num">Nota</th><th class="num">Km</th><th class="num">Prêmio</th>
+            </tr></thead><tbody id="prem-rank"></tbody></table></div>
+          </div>
+          <div class="card">
+            <div class="head"><h2>Comparativo mensal <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" id="prem-comp-help" title="">i</span></h2><span class="hint">prêmio total em barras · % de motoristas premiados na linha (eixo próprio) · calculado dos snapshots, sem recoletar · cada mês com os parâmetros vigentes NELE</span></div>
+            <div class="chartwrap">
+              <div id="prem-comp-loading" style="display:none;color:var(--n500);font-size:13px;padding:24px 6px">carregando série…</div>
+              <div id="chartPrem" style="width:100%;height:260px" role="img"></div>
+            </div>
+            <div style="padding:0 18px 14px;font-size:12px;color:var(--n500)" id="prem-comp-premios"></div>
+          </div>
+          </div>
+          <div class="aba" id="aba-cfg" role="tabpanel" aria-labelledby="tabPrem-cfg" hidden>
+            <div class="banner-inline" style="display:flex;margin:0 0 14px"><i></i><span>Estes parâmetros são <b>versionados por competência</b>: o cálculo de um mês usa a última versão vigente até ele, então configurar agosto não mexe em julho.</span></div>
+            <div class="card">
             <div class="head"><h2>Configuração por eixos <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="Parâmetros e pesos da premiação de seis eixos, guardados no banco do CÓRTEX e VERSIONADOS POR COMPETÊNCIA: configurar agosto não mexe em julho, e o cálculo de um mês usa a última versão vigente até ele. Premiação decide dinheiro de gente, e a pergunta “por que recebi isso em março?” aparece meses depois — editar por cima deixaria ela sem resposta.">i</span></h2>
               <span class="hint" id="prem-cfg-hint"></span></div>
             <div class="banner-inline" id="prem-cfg-aviso" style="display:none"></div>
@@ -2948,20 +2972,6 @@ body.tvfull #btnReport,body.tvmode #btnReport{display:none}
               <th>Classe</th><th class="num">Peso</th><th class="num">Bloqueia</th>
             </tr></thead><tbody id="prem-oco"></tbody></table></div>
           </div>
-
-          <div class="card">
-            <div class="head"><h2>Ranking de motoristas <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" id="prem-rank-help" title="">i</span></h2><span class="hint" id="prem-rank-hint"></span></div>
-            <div class="tablewrap tabroll"><table><thead><tr>
-              <th>Motorista</th><th class="num">Nota</th><th class="num">Km</th><th class="num">Prêmio</th>
-            </tr></thead><tbody id="prem-rank"></tbody></table></div>
-          </div>
-          <div class="card">
-            <div class="head"><h2>Comparativo mensal <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" id="prem-comp-help" title="">i</span></h2><span class="hint">média da frota × meta por mês · série calculada dos snapshots — não recoleta · mês parcial aparece com os dados coletados até agora</span></div>
-            <div class="chartwrap">
-              <div id="prem-comp-loading" style="display:none;color:var(--n500);font-size:13px;padding:24px 6px">carregando série…</div>
-              <div id="chartPrem" style="width:100%;height:260px" role="img"></div>
-            </div>
-            <div style="padding:0 18px 14px;font-size:12px;color:var(--n500)" id="prem-comp-premios"></div>
           </div>
         </div>
       </section>
@@ -7694,7 +7704,6 @@ function _premScoreLabel(k){
 // (mudança silenciosa em número que multiplica folha). Só os 4 inputs de
 // parâmetro usam este formatador local, até 4 casas e SEM zero à direita;
 // o fmtNumBR global (tabelas) fica intacto.
-const fmtParam = v => v.toLocaleString('pt-BR',{maximumFractionDigits:4});
 async function loadPrem(forceSerie){
   const seq=++premSeq, btn=document.getElementById('btnRefresh'); if(btn) btn.disabled=true;
   document.getElementById('content').classList.add('loading');
@@ -7801,9 +7810,7 @@ function renderPrem(d){
   ].join('');
 
   const proc = 'API Gobrax v3 · customer 1 · coletado em '+(d.coletado_em?fmtDT(d.coletado_em):'—');
-  ['prem-params-help','prem-comp-help'].forEach(id=>{
-    const el=document.getElementById(id); if(el) el.title=proc;
-  });
+  const cmp=document.getElementById('prem-comp-help'); if(cmp) cmp.title=proc;
   // M6: meta única e global sobre populações de veículo diferentes — sem isto
   // um veículo leve supera a meta com muito mais folga que um pesado e a tela
   // não avisa por quê.
@@ -7812,14 +7819,6 @@ function renderPrem(d){
     + ' · A meta é única e global — compare motoristas de veículos do mesmo porte; '
     + 'um veículo leve naturalmente supera a meta com mais folga.';
 
-  const par=d.params||{};
-  document.getElementById('fPremValorKm').value = par.valor_por_km!=null?fmtParam(par.valor_por_km):'';
-  document.getElementById('fPremNotaMin').value = par.nota_minima!=null?fmtParam(par.nota_minima):'';
-  document.getElementById('fPremKmMin').value = par.km_minimo!=null?fmtParam(par.km_minimo):'';
-  const precoRef = (d.referencias||{}).preco_diesel_interno;
-  document.getElementById('prem-refs').innerHTML = precoRef!=null
-    ? `Referência do mês — diesel interno: <b>${BRL.format(precoRef)}/l</b>`
-    : '';
 
   const linhas=d.linhas||[];
   const naoEleg = linhas.filter(l=>!l.elegivel).length;
@@ -7889,13 +7888,18 @@ function premCfgRender(){
        + (d.versao.criado_por ? ' · por ' + d.versao.criado_por : '')
        + (d.versao.nota ? ' · ' + d.versao.nota : ''));
 
-  /* O aviso é permanente enquanto o motor não calcular. */
+  /* O AVISO MUDOU EM 0.153.0, E A MUDANÇA É O PONTO. Ele dizia que NADA
+     daqui pagava ninguém — verdade enquanto o cálculo lia o arquivo antigo, e
+     mentira desde que passou a ler a versão vigente na competência. Agora
+     separa o que vale (os três da regra nota × km) do que ainda não vale (os
+     pesos dos eixos), porque um aviso que erra para o lado de "não conta"
+     convida a mexer no valor achando que é ensaio. */
   const av = document.getElementById('prem-cfg-aviso');
   if(av){ av.style.display = ''; av.innerHTML =
-    '<b>Esta configuração ainda não paga ninguém.</b> O prêmio de hoje sai da regra '
-    + '“nota × km” do cartão acima. Os eixos e pesos daqui ficam guardados e '
-    + 'versionados para quando o cálculo por eixos entrar — configurar agora não '
-    + 'muda nenhum valor pago.'; }
+    '<b>Valor por km, nota mínima e km mínimo JÁ VALEM</b> — são a regra '
+    + '“nota × km”, que é a que paga hoje, e cada mês usa a versão vigente '
+    + 'nele. <b>Os pesos dos eixos ainda não pagam ninguém</b>: ficam '
+    + 'guardados e versionados para quando o cálculo por eixos entrar.'; }
 
   document.getElementById('prem-cfg-params').innerHTML =
     Object.entries(cat.params).map(([k, m]) =>
@@ -8108,28 +8112,6 @@ async function premOcoSync(){
   finally{ btn.disabled = false; btn.textContent = rot; }
 }
 
-async function premSalvarParams(){
-  const valorKm=numBR(document.getElementById('fPremValorKm').value);
-  const notaMin=numBR(document.getElementById('fPremNotaMin').value);
-  const kmMin=numBR(document.getElementById('fPremKmMin').value);
-  if([valorKm,notaMin,kmMin].some(v=>v==null||Number.isNaN(v))){
-    showBanner('Informe números válidos nos 3 parâmetros (vírgula para decimais).');
-    return;
-  }
-  const btn=document.getElementById('btnPremSalvar');
-  if(btn){ btn.disabled=true; btn.textContent='Salvando…'; }
-  try{
-    const r=await fetch('/api/frota/premiacao/params',{method:'POST',headers:{'Content-Type':'application/json'},
-      body:JSON.stringify({valor_por_km:valorKm,nota_minima:notaMin,km_minimo:kmMin})});
-    const d=await r.json();
-    if(!r.ok){ showBanner(d.mensagem||'Não foi possível salvar os parâmetros.'); return; }
-    hideBanner();
-    // meta/pct mudam o prêmio de TODOS os meses da série — força a série a
-    // recalcular (loadPrem(true) repassa forceSerie para premCarregarSerie).
-    loadPrem(true);
-  }catch(e){ showBanner('Não foi possível falar com a API.', e.message); }
-  finally{ if(btn){ btn.disabled=false; btn.textContent='Salvar'; } }
-}
 async function premColetar(){
   const seq=++premSeq;
   const btn=document.getElementById('btnPremColeta');
@@ -8157,18 +8139,40 @@ async function premColetar(){
 // parâmetros novos (premSalvarParams), ambos chamando com force=true.
 // /serie é leve: só snapshots já gravados (sem recoleta) e sem consultar o
 // preço do diesel na AVA — o gargalo de ~15s/mês que existia antes.
+/* Troca de sub-aba na Premiação.
+   O GRAFICO PRECISA SER AVISADO. O ECharts MEDE O CONTEINER UMA VEZ, no
+   `init`, e uma medida feita com a aba escondida vale zero para sempre --
+   o sintoma nao e erro nem cartao vazio, e um grafico com os eixos certos e
+   quase todos os rotulos do eixo X suprimidos pelo `hideOverlap`. Quem
+   resolve isso e o `ResizeObserver` do `echartsRegistrar` -- que observa o
+   proprio no e reage quando ele sai do `hidden`. Por isso a aba da PREMIACAO
+   (a que tem grafico) nasce ABERTA: o comparativo e desenhado com largura de
+   verdade, e a de configuracao, que so tem formulario e tabela, nao depende
+   de medida nenhuma. */
+function premAba(qual){
+  ['prem','cfg'].forEach(a=>{
+    const painel=document.getElementById('aba-'+a), bt=document.getElementById('tabPrem-'+a);
+    if(painel) painel.hidden = (a!==qual);
+    if(bt) bt.setAttribute('aria-selected', String(a===qual));
+  });
+}
+
 async function premCarregarSerie(force){
-  const svg=document.getElementById('chartPrem'), loading=document.getElementById('prem-comp-loading');
+  const loading=document.getElementById('prem-comp-loading');
+  const rodape=document.getElementById('prem-comp-premios');
   if(!DATAPREM || !DATAPREM.configurado){
     PREM_SERIE=null;
     if(loading) loading.style.display='none';
-    if(svg){ svg.style.display=''; svg.setAttribute('viewBox','0 0 960 60'); svg.innerHTML='<text x="12" y="34" font-size="13" fill="#6B7280">telemetria não configurada</text>'; }
-    const pr=document.getElementById('prem-comp-premios'); if(pr) pr.textContent='';
+    /* O CONTEINER E UM <div>, NAO UM <svg>: desde a conversao para ECharts,
+       o estado vazio que mexia em `viewBox` e injetava `<text>` solto nao
+       desenhava NADA -- a tela ficava com um retangulo em branco onde devia
+       estar a explicacao. Quem passa por aqui e `ecDesenhar(id, null, msg)`. */
+    ecDesenhar('chartPrem', null, 'telemetria não configurada');
+    if(rodape) rodape.textContent='';
     return;
   }
   if(!force && PREM_SERIE){ premRenderSerie(PREM_SERIE); return; }
   const seq=++premSerieSeq;
-  if(svg) svg.style.display='none';
   if(loading){ loading.textContent='carregando série…'; loading.style.display='block'; }
   try{
     const r=await fetch('/api/frota/premiacao/serie',{cache:'no-store'});
@@ -8180,28 +8184,92 @@ async function premCarregarSerie(force){
     if(seq===premSerieSeq && loading) loading.textContent='não foi possível carregar a série mensal.';
   }
 }
+
+/* COMPARATIVO MENSAL — o que este card aprendeu (30/08/2026)
+   =========================================================
+   1. AS DUAS SERIES NAO CABEM NA MESMA ESCALA. Antes eram "Premio total (R$)"
+      e "Motoristas premiados" em barras AGRUPADAS: R$ 14.864 e 43 dividindo o
+      mesmo eixo faziam a segunda barra ter 0,3% da altura da primeira, ou
+      seja um tracinho colado no zero em todos os meses. Premiados virou LINHA
+      em eixo secundario, com rotulo direto -- sem o numero em cima do ponto o
+      leitor nao tem como ler valor nenhum de um eixo escondido.
+   2. O TOTAL NAO E COMPARAVEL ENTRE MESES, e essa e a razao de o card parecer
+      estranho. O premio total sobe de R$ 402 (fev) para R$ 14.864 (jul)
+      principalmente porque a FROTA na Gobrax cresceu: 8 motoristas em
+      fevereiro contra 67 em julho. Quem le a serie sem o denominador conclui
+      que a premiacao explodiu. O que compara e o POR MOTORISTA -- mesma regra
+      da cobertura mensal da jornada.
+   3. MES PARCIAL NAO E BARRA CHEIA. Agosto aparecia com metade do premio de
+      julho e cara de despenque; agora sai hachurado. */
 function premRenderSerie(d){
-  const svg=document.getElementById('chartPrem'), loading=document.getElementById('prem-comp-loading');
+  const loading=document.getElementById('prem-comp-loading');
   if(loading) loading.style.display='none';
-  if(svg) svg.style.display='';
-  const meses=((d||{}).meses||[]).slice().reverse();   // /serie devolve decrescente; gráfico quer cronológico
+  const rodape=document.getElementById('prem-comp-premios');
+  const meses=((d||{}).meses||[]).slice().reverse();   // /serie devolve decrescente; grafico quer cronologico
   if(!meses.length){
-    if(svg){ svg.setAttribute('viewBox','0 0 960 60'); svg.innerHTML='<text x="12" y="34" font-size="13" fill="#6B7280">sem meses coletados</text>'; }
-    const pr=document.getElementById('prem-comp-premios'); if(pr) pr.textContent='';
+    ecDesenhar('chartPrem', null, 'nenhum mês coletado ainda');
+    if(rodape) rodape.textContent='';
     return;
   }
-  /* mês pago pela regra antiga entra marcado: comparar prêmio de litros
-     economizados com prêmio de nota × km sem avisar seria enganoso */
-  const labels=meses.map(m=>m.label+(m.parcial?' (parcial)':'')
-    +(m.regra==='litros_economizados'?' *':''));
-  chartCols('chartPrem', labels, [
-    {nome:'Prêmio total (R$)', cor:CC.navy700, valores:meses.map(m=>m.premio_total||0)},
-    {nome:'Motoristas premiados', cor:CC.laranja, valores:meses.map(m=>m.premiados||0)},
-  ], {fmt:v=>Number(v).toLocaleString('pt-BR',{maximumFractionDigits:2})});
-  const temAntiga=meses.some(m=>m.regra==='litros_economizados');
-  document.getElementById('prem-comp-premios').innerHTML = 'Prêmio total por mês: '
-    + meses.map((m,i)=>esc(labels[i])+': '+(m.premio_total!=null?BRL.format(m.premio_total):'—')).join(' · ')
-    + (temAntiga?'<br><span style="color:var(--n500)">* mês calculado pela regra anterior (litros economizados) — é o valor com que foi pago</span>':'');
+  const rot=meses.map(m=>String(m.label||m.month).replace(' / ','/'));
+  const premio=meses.map(m=>m.premio_total||0);
+  const pct=meses.map(m=>(m.pct_premiados==null?null:m.pct_premiados));
+  const parcial=meses.map(m=>!!m.parcial);
+  const maxP=Math.max(1,...premio);
+  const maxPct=Math.max(1,...pct.filter(v=>v!=null));
+  ecDesenhar('chartPrem', ()=>{
+    const o=ecOpcoes(rot, maxP, {tipo:'moeda', sombra:true, top:34, bottom:34,
+      legenda:['Prêmio total','% dos motoristas premiados']});
+    o.yAxis=[o.yAxis, ecEixoOculto(maxPct, 1.45)];
+    o.series=[
+      ecBarras('Prêmio total', premio, CC.navy700, {parcial}),
+      ecLinha('% dos motoristas premiados', pct, CC.laranja,
+              {eixo:1, rotulo:v=>NMI.format(v)+'%'}),
+    ];
+    /* O TOOLTIP CARREGA O DENOMINADOR. E o unico lugar em que cabe dizer, mes
+       a mes, que o total cresceu junto com a frota -- e por isso ele mostra o
+       por-motorista ao lado do total, nao no lugar dele. */
+    o.tooltip.formatter = ps => {
+      const i=(ps&&ps[0]?ps[0].dataIndex:0), m=meses[i]||{};
+      const l=[`<b>${esc(rot[i])}</b>`
+        +(m.parcial?' <span style="color:#B97709">· parcial</span>':'')
+        +(m.regra==='litros_economizados'?' <span style="color:#6B7580">· regra antiga</span>':'')];
+      l.push(`Prêmio total: <b>${BRL.format(m.premio_total||0)}</b>`);
+      l.push(`Premiados: <b>${m.premiados||0}</b> de ${m.motoristas||0} motoristas`
+        +(m.pct_premiados!=null?` (${NMI.format(m.pct_premiados)}%)`:''));
+      if(m.premio_por_motorista!=null)
+        l.push(`Prêmio por motorista: <b>${BRL.format(m.premio_por_motorista)}</b>`);
+      if(m.km_por_motorista!=null)
+        l.push(`Km por motorista: <b>${Number(m.km_por_motorista).toLocaleString('pt-BR')}</b>`);
+      return l.join('<br>');
+    };
+    return o;
+  }, 'nenhum mês coletado ainda');
+
+  /* O RODAPE ANTES ERA A MESMA COISA DO GRAFICO EM TEXTO ("Premio total por
+     mes: Janeiro: R$ ... · Fevereiro: R$ ..."). Agora diz o que o grafico NAO
+     consegue dizer: se a serie cresceu por desempenho ou por cobertura. */
+  const fechados=meses.filter(m=>!m.parcial);
+  const pri=fechados[0], ult=fechados[fechados.length-1];
+  const partes=[];
+  if(pri && ult && pri!==ult){
+    const dMot=(ult.motoristas||0)-(pri.motoristas||0);
+    const a=pri.premio_por_motorista, b=ult.premio_por_motorista;
+    partes.push(`Entre ${esc(pri.label)} e ${esc(ult.label)} a base foi de <b>`
+      +`${pri.motoristas||0}</b> para <b>${ult.motoristas||0}</b> motoristas`
+      +(dMot>0?' — parte da alta do total é COBERTURA, não desempenho':'')
+      +(a!=null&&b!=null
+        ? `. Por motorista: <b>${BRL.format(a)}</b> → <b>${BRL.format(b)}</b>.`
+        : '.'));
+  }
+  if(meses.some(m=>m.parcial))
+    partes.push('Mês parcial sai hachurado — ainda está sendo coletado.');
+  if(meses.some(m=>m.regra==='litros_economizados'))
+    partes.push('Mês marcado como “regra antiga” foi pago por litros economizados '
+      +'e não se compara direto com os de nota × km.');
+  partes.push('Cada mês é calculado com os parâmetros VIGENTES nele — mudar o '
+    +'valor por km hoje não reescreve o prêmio de março.');
+  if(rodape) rodape.innerHTML=partes.join(' ');
 }
 
 /* ---------------- Ordens de Compra ---------------- */

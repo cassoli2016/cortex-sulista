@@ -4,6 +4,20 @@ Gerado de `docs/versoes.yaml` por `scripts/gerar_changelog.py` — não editar �
 Formato [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/),
 versionamento [SemVer](https://semver.org/lang/pt-BR/).
 
+## [0.153.0] — 30/08/2026  ·  CX-30/08/2026-v0.153.0
+
+### Alterado
+- A premiação foi dividida em duas abas: Premiação (ranking e comparativo) e Configuração (pesos dos eixos, carência e recoleta, classificação das ocorrências) — o que se olha todo mês deixou de dividir a rolagem com o que se mexe uma vez por trimestre.
+- O comparativo passou a mostrar quantos motoristas havia em cada mês e o prêmio por motorista. A base foi de 8 motoristas em fevereiro para 67 em julho, então boa parte da alta do total é cobertura da telemetria, não desempenho — e o card diz isso por escrito.
+- Mês ainda em coleta aparece hachurado no comparativo, em vez de barra cheia parecendo queda.
+- O formulário solto "Parâmetros da regra" saiu da tela: os mesmos três campos vivem na aba Configuração, versionados por competência.
+
+### Corrigido
+- O comparativo mensal da premiação mostrava ZERO em fevereiro, março, abril, maio e junho de 2026. A Gobrax tinha os cinco meses inteiros: o que havia em disco eram snapshots vazios gravados por uma recoleta de 27/07 e marcados como completos, e um snapshot vazio ainda impedia o mês de ser recoletado. Os cinco meses foram recoletados e coleta que volta sem motorista nenhum não vira mais snapshot.
+- Cada mês do comparativo passou a ser calculado com os parâmetros vigentes NELE. Antes a série inteira era recalculada com o valor por km de hoje, ou seja mudar a regra reescrevia o prêmio de meses já pagos.
+- Mudar o valor por km, a nota mínima ou o km mínimo na tela de configuração não mudava o prêmio exibido: havia dois lugares guardando os mesmos três parâmetros e o cálculo lia o outro.
+- O comparativo desenhava "prêmio total" e "motoristas premiados" na mesma escala — R$ 14.864 e 43 num eixo só deixavam a segunda barra invisível. Premiados virou linha com eixo e rótulo próprios.
+
 ## [0.152.0] — 30/08/2026  ·  CX-30/08/2026-v0.152.0
 
 ### Adicionado
