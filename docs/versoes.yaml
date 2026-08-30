@@ -1,3 +1,16 @@
+- versao: "0.158.0"
+  data: "2026-08-30"
+  alterado:
+    - >-
+      Visão Geral em abas: as três faixas de indicadores continuam sempre à
+      vista — são a leitura de "como estamos" — e o detalhe passou a girar
+      entre Meta do mês, Financeiro e Operação e alertas. A tela caiu de 1.418
+      para 1.018 pixels.
+    - >-
+      Combustível virou Consumo, Veículos e Onde abastece (1.363 para 1.144
+      pixels), e o Fluxo de Caixa Consolidado virou Projeção, Posição e
+      Vencidos e limites (1.306 para 661).
+
 - versao: "0.157.0"
   data: "2026-08-30"
   adicionado:

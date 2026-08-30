@@ -2417,7 +2417,17 @@ body.tvfull #btnReport,body.tvmode #btnReport{display:none}
           <h3>Custos e compras do mês</h3>
           <div class="kpis k4" id="kpis-home-op"></div>
         </div>
-        <div class="card">
+                <div class="subtabs" role="tablist" data-abas="home" aria-label="Seções da visão geral">
+          <button role="tab" id="tabHome-dia" data-aba="dia" aria-controls="aba-home-dia"
+                  aria-selected="true" onclick="abaTrocar('home','dia')">Meta do mês</button>
+          <button role="tab" id="tabHome-fin" data-aba="fin" aria-controls="aba-home-fin"
+                  aria-selected="false" onclick="abaTrocar('home','fin')">Financeiro</button>
+          <button role="tab" id="tabHome-ope" data-aba="ope" aria-controls="aba-home-ope"
+                  aria-selected="false" onclick="abaTrocar('home','ope')">Operação e alertas</button>
+        </div>
+        <div class="aba" data-abas="home" data-aba="dia" id="aba-home-dia"
+             role="tabpanel" aria-labelledby="tabHome-dia">
+<div class="card">
           <div class="head">
             <h2>Faturamento diário × meta <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="Realizado = CT-e (conhecimento, situação 3, tipos 1 e 4) + faturamento KMM (sulista.faturamentokmm) + NFS-e autorizadas (notafiscalservico), por data de emissão. Meta = sulista.metafaturamento_agrupamentoclientedia (tipo 1), por dia. É o recorte OFICIAL de faturamento — o mesmo do Painel TV. Diferente de 'Faturamento do mês' (faturas emitidas) e de 'Receita CT-e' (frete das viagens).">i</span></h2>
             <span class="hint" id="hintHomeDia">mês corrente · realizado acumulado vs meta acumulada até hoje</span>
@@ -2437,7 +2447,10 @@ body.tvfull #btnReport,body.tvmode #btnReport{display:none}
           <div id="chartHdia" style="width:100%;height:250px" role="img"
                aria-label="Faturamento realizado versus meta por dia do mês corrente."></div>
         </div>
-        <div class="grid2">
+        </div>
+        <div class="aba" data-abas="home" data-aba="fin" id="aba-home-fin"
+             role="tabpanel" aria-labelledby="tabHome-fin" hidden>
+<div class="grid2">
           <div class="card">
             <div class="head">
               <h2>Receita mensal <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="FONTE: programacaoembarque.valorfrete das viagens CARREGADAS (não canceladas, semáforo = 1, tipo ≠ 3 — exclui a perna vazia), somado por data de emissão, últimos 12 meses. Recorte DIFERENTE de 'Faturamento do mês' (faturas emitidas — contas a receber) e do atingimento da meta (CT-e + KMM + NFS-e): são 3 cortes distintos de receita, não o mesmo número com valores conflitantes. O mês corrente aparece hachurado porque ainda está incompleto.">i</span></h2>
@@ -2464,7 +2477,10 @@ body.tvfull #btnReport,body.tvmode #btnReport{display:none}
                  aria-label="Saldo de caixa projetado para os próximos meses."></div>
           </div>
         </div>
-        <div class="grid2">
+        </div>
+        <div class="aba" data-abas="home" data-aba="ope" id="aba-home-ope"
+             role="tabpanel" aria-labelledby="tabHome-ope" hidden>
+<div class="grid2">
           <div class="card">
             <div class="head">
               <h2>Km rodado por modalidade <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="programacaoembarque dos últimos 30 dias (não canceladas, semáforo = 1) cruzada com veiculo.utilizacaoveiculo. Km = kmfretecompra; CARREGADO = tipo ≠ 3, VAZIO = tipo = 3 (mesma definição canônica da Análise de KM). Retorno vazio acima de 20% é alerta em operação FTL.">i</span></h2>
@@ -2480,7 +2496,8 @@ body.tvfull #btnReport,body.tvmode #btnReport{display:none}
             <div class="alerts" id="alerts-home"></div>
           </div>
         </div>
-      </section>
+        </div>
+</section>
 
       <!-- ===================== FLUXO DE CAIXA E BANCOS ===================== -->
       <section class="view on" id="view-fluxo">
@@ -2757,7 +2774,17 @@ body.tvfull #btnReport,body.tvmode #btnReport{display:none}
       <!-- ===================== COMBUSTÍVEL ===================== -->
       <section class="view" id="view-comb">
         <div class="kpis" id="kpis-comb"></div>
-        <div class="card">
+                <div class="subtabs" role="tablist" data-abas="comb" aria-label="Seções da tela">
+          <button role="tab" id="tabComb-consumo" data-aba="consumo" aria-controls="aba-comb-consumo"
+                  aria-selected="true" onclick="abaTrocar('comb','consumo')">Consumo</button>
+          <button role="tab" id="tabComb-veiculos" data-aba="veiculos" aria-controls="aba-comb-veiculos"
+                  aria-selected="false" onclick="abaTrocar('comb','veiculos')">Veículos</button>
+          <button role="tab" id="tabComb-onde" data-aba="onde" aria-controls="aba-comb-onde"
+                  aria-selected="false" onclick="abaTrocar('comb','onde')">Onde abastece</button>
+        </div>
+        <div class="aba" data-abas="comb" data-aba="consumo" id="aba-comb-consumo"
+             role="tabpanel" aria-labelledby="tabComb-consumo">
+<div class="card">
           <div class="head"><h2>Custo de combustível por mês <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="Custo do CTA Plus agrupado pelo mês do abastecimento, separando a placa pela utilização do veículo: FROTA e LOCAÇÃO são diesel nosso, AGREGADO e TERCEIRO passam pelo cartão e voltam como desconto no acerto do transportador.">i</span></h2><span class="hint" id="hintComb">no período filtrado</span></div>
           <div class="legend">
             <span class="k"><i class="sw" style="background:var(--navy-500)"></i>Frota própria</span>
@@ -2772,23 +2799,29 @@ body.tvfull #btnReport,body.tvmode #btnReport{display:none}
           <div class="card">
             <div class="head"><h2>Consumo por dia <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="Litros abastecidos por dia do abastecimento, todos os produtos do cartão. Serve para ver concentração e dias sem movimento — é volume comprado, não consumo do motor.">i</span></h2><span class="hint">litros abastecidos · no período filtrado</span></div>
             <div class="chartwrap">
-              <div id="chartCombDia" style="width:100%;height:250px" role="img"></div>
+              <div id="chartCombDia" style="width:100%;height:200px" role="img"></div>
             </div>
           </div>
           <div class="card">
             <div class="head"><h2>Consumo por semana <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="Mesmos litros do gráfico ao lado, agrupados por semana ISO. A primeira e a última semana do recorte quase sempre estão incompletas.">i</span></h2><span class="hint">litros abastecidos · semana ISO</span></div>
             <div class="chartwrap">
-              <div id="chartCombSem" style="width:100%;height:250px" role="img"></div>
+              <div id="chartCombSem" style="width:100%;height:200px" role="img"></div>
             </div>
           </div>
         </div>
-        <div class="card">
+        </div>
+        <div class="aba" data-abas="comb" data-aba="veiculos" id="aba-comb-veiculos"
+             role="tabpanel" aria-labelledby="tabComb-veiculos" hidden>
+<div class="card">
           <div class="head"><h2>Veículos do período <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="Top 30 placas por custo no recorte. Km/l = km rodado dividido pelos litros, contando só abastecimentos com distância entre 0 e 3.000 km. Quando o resultado cai fora de 0,8 a 6,0 km/l a leitura de odômetro está furada e a célula mostra n/d — não é consumo ruim, é dado inválido. Clique na linha para ver abastecimento a abastecimento.">i</span></h2><span class="hint" id="hintCombV">top 30 por custo · clique para ver os abastecimentos</span></div>
           <div class="tablewrap tabroll"><table><thead><tr>
             <th style="width:34px"></th><th>Veículo</th><th>Modalidade</th><th class="num">Abast.</th><th class="num">Litros</th><th class="num">Custo</th><th class="num">R$/l</th><th class="num">Km</th><th class="num">Km/l</th>
           </tr></thead><tbody id="comb-veic"></tbody></table></div>
         </div>
-        <div class="grid2">
+        </div>
+        <div class="aba" data-abas="comb" data-aba="onde" id="aba-comb-onde"
+             role="tabpanel" aria-labelledby="tabComb-onde" hidden>
+<div class="grid2">
           <div class="card">
             <div class="head"><h2>Por combustível <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="Agrupado por combustivel_descricao do CTA Plus. ARLA aparece aqui porque é compra do cartão, mas fica fora do consumo médio e do prêmio do posto externo. A linha (não informado no cartão) é abastecimento sem produto identificado na origem.">i</span></h2><span class="hint">no período filtrado</span></div>
             <div class="tablewrap tabroll"><table><thead><tr>
@@ -2802,7 +2835,8 @@ body.tvfull #btnReport,body.tvmode #btnReport{display:none}
           </tr></thead><tbody id="comb-posto"></tbody></table></div>
           </div>
         </div>
-      </section>
+        </div>
+</section>
 
       <!-- ===================== MANUTENÇÃO ===================== -->
       <section class="view" id="view-man">
@@ -3263,14 +3297,27 @@ body.tvfull #btnReport,body.tvmode #btnReport{display:none}
       <!-- ===================== FLUXO DE CAIXA CONSOLIDADO ===================== -->
       <section class="view" id="view-fluxcon">
         <div class="kpis k4" id="kpis-fluxcon"></div>
-        <div class="card">
+                <div class="subtabs" role="tablist" data-abas="fluxcon" aria-label="Seções da tela">
+          <button role="tab" id="tabFluxcon-proj" data-aba="proj" aria-controls="aba-fluxcon-proj"
+                  aria-selected="true" onclick="abaTrocar('fluxcon','proj')">Projeção</button>
+          <button role="tab" id="tabFluxcon-posicao" data-aba="posicao" aria-controls="aba-fluxcon-posicao"
+                  aria-selected="false" onclick="abaTrocar('fluxcon','posicao')">Posição</button>
+          <button role="tab" id="tabFluxcon-venc" data-aba="venc" aria-controls="aba-fluxcon-venc"
+                  aria-selected="false" onclick="abaTrocar('fluxcon','venc')">Vencidos e limites</button>
+        </div>
+        <div class="aba" data-abas="fluxcon" data-aba="proj" id="aba-fluxcon-proj"
+             role="tabpanel" aria-labelledby="tabFluxcon-proj">
+<div class="card">
           <div class="head"><h2>Saldo projetado <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="Saldo encadeado: o final de cada período é o inicial do seguinte, começando no saldo de bancos e caixa de hoje — a mesma cascata da planilha de tesouraria, onde o SALDO ANTERIOR de cada aba vem do dia anterior. Entradas = a receber oficial por vencimento; saídas = contas a pagar por vencimento. Só o que está LANÇADO no ERP.">i</span></h2>
             <span class="hint" id="hintFc"></span></div>
           <div class="chartwrap" id="wrapFc">
             <div id="chartFc" style="width:100%;height:250px" role="img" aria-label="Saldo de caixa projetado por período."></div>
           </div>
         </div>
-        <div class="grid2">
+        </div>
+        <div class="aba" data-abas="fluxcon" data-aba="posicao" id="aba-fluxcon-posicao"
+             role="tabpanel" aria-labelledby="tabFluxcon-posicao" hidden>
+<div class="grid2">
           <div class="card">
             <div class="head"><h2>Saldo por banco <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="Posição de cada conta ATIVA e marcada como “considerar fluxo de caixa” no ERP — as mesmas que somam o saldo de partida. Contas operacionais (vale-pedágio, cartão) ficam fora porque o próprio ERP as marca assim. A data é a da última posição de cada conta: elas não são todas do mesmo dia.">i</span></h2>
               <span class="hint" id="hintFcContas"></span></div>
@@ -3293,7 +3340,10 @@ body.tvfull #btnReport,body.tvmode #btnReport{display:none}
             <th class="num">Saldo final</th><th class="num">Necessidade</th>
           </tr></thead><tbody id="fc-linhas"></tbody></table></div>
         </div>
-        <div class="card">
+        </div>
+        <div class="aba" data-abas="fluxcon" data-aba="venc" id="aba-fluxcon-venc"
+             role="tabpanel" aria-labelledby="tabFluxcon-venc" hidden>
+<div class="card">
           <div class="head"><h2>Vencidos — o bloco separado <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="Contas a pagar já vencidas, agrupadas por natureza. Ficam FORA do fluxo acima de propósito, como no rodapé da planilha de tesouraria: somar isso ao dia a dia faria a operação parecer inviável todos os dias. A maior parte é tributo — inclusive parcelamento em curso, que não vence de novo.">i</span></h2>
             <span class="hint" id="hintFcVenc"></span></div>
           <div class="tablewrap tabroll"><table><thead><tr>
@@ -3323,7 +3373,8 @@ body.tvfull #btnReport,body.tvmode #btnReport{display:none}
           </div>
         </div>
         <div id="fc-avisos"></div>
-      </section>
+        </div>
+</section>
 
       <!-- ===================== LANÇAMENTOS RECORRENTES ===================== -->
       <section class="view" id="view-rec">

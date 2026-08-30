@@ -4,6 +4,12 @@ Gerado de `docs/versoes.yaml` por `scripts/gerar_changelog.py` — não editar �
 Formato [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/),
 versionamento [SemVer](https://semver.org/lang/pt-BR/).
 
+## [0.158.0] — 30/08/2026  ·  CX-30/08/2026-v0.158.0
+
+### Alterado
+- Visão Geral em abas: as três faixas de indicadores continuam sempre à vista — são a leitura de "como estamos" — e o detalhe passou a girar entre Meta do mês, Financeiro e Operação e alertas. A tela caiu de 1.418 para 1.018 pixels.
+- Combustível virou Consumo, Veículos e Onde abastece (1.363 para 1.144 pixels), e o Fluxo de Caixa Consolidado virou Projeção, Posição e Vencidos e limites (1.306 para 661).
+
 ## [0.157.0] — 30/08/2026  ·  CX-30/08/2026-v0.157.0
 
 ### Adicionado

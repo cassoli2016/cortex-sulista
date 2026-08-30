@@ -94,6 +94,17 @@ HOME = {
 }
 
 
+ABA_HOME = {"#chartHdia": "dia", "#chartHrec": "fin", "#chartHsal": "fin",
+            "#alerts-home": "ope"}
+
+
+def _abaHome(pg, alvo):
+    chave = ABA_HOME.get(alvo)
+    if chave:
+        pg.click("#tabHome-" + chave)
+        pg.wait_for_timeout(350)   # o ResizeObserver remede no quadro seguinte
+
+
 def _home(pg, base_url):
     """Abre a Visão Geral e desenha os três gráficos com o payload acima.
 
@@ -126,7 +137,12 @@ def _home(pg, base_url):
                         " catch(e){ return 'ERRO: ' + e.message; } }",
                         [fn, HOME[campo]])
         assert r == "ok", f"{fn}: {r}"
+    # A VISAO GERAL VIROU ABAS (v0.158.0): as bandas de KPI ficaram fora (sao a
+    # linha de status da empresa) e os graficos giram entre "Meta do mes",
+    # "Financeiro" e "Operacao e alertas". `wait_for_selector` espera
+    # VISIBILIDADE, entao nao basta o grafico existir no DOM.
     for cid in ("#chartHdia", "#chartHrec", "#chartHsal"):
+        _abaHome(pg, cid)
         pg.wait_for_selector(f"{cid} svg", timeout=20000)
     pg.wait_for_timeout(300)
     return baixados, erros
@@ -157,8 +173,8 @@ def test_a_visao_geral_mantem_as_REGRAS_da_casa(pagina):
     desenhar melhor, não para dispensar isto."""
     pg, base = pagina
     _home(pg, base)
-    dia = pg.inner_text("#chartHdia")
-    rec = pg.inner_text("#chartHrec")
+    _abaHome(pg, "#chartHdia"); dia = pg.inner_text("#chartHdia")
+    _abaHome(pg, "#chartHrec"); rec = pg.inner_text("#chartHrec")
     sal = pg.inner_text("#chartHsal")
     # dia futuro é marcado, e não desenhado como realizado zero
     assert "a realizar" in dia
