@@ -1,6 +1,6 @@
 [project]
 name = "cortex"
-version = "0.153.0"
+version = "0.154.0"
 description = "CÓRTEX — cérebro de gestão da transportadora (backend + migrations)"
 requires-python = ">=3.12"
 dependencies = [

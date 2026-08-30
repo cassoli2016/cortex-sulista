@@ -635,6 +635,11 @@ tr.forn-det td{padding:7px 12px}
 .subtabs button:hover{color:var(--n700);background:var(--n50,#F7F8FA)}
 .subtabs button[aria-selected="true"]{color:var(--n900);border-bottom-color:var(--orange-500)}
 .subtabs button:focus-visible{outline:2px solid var(--orange-500);outline-offset:-2px}
+.aban{display:inline-block;margin-left:6px;padding:1px 6px;border-radius:9px;
+  background:var(--n100,#EEF1F4);color:var(--n600);font-size:10.5px;
+  font-weight:700;font-family:var(--mono)}
+.aban.vazio{display:none}
+.subtabs button[aria-selected="true"] .aban{background:#FDECE0;color:#B44A0C}
   .dfreq{padding:2px 0 10px;border-bottom:1px solid var(--n100,#EEF1F4)}
   .dfreq-h{font-size:11.5px;font-weight:700;text-transform:uppercase;letter-spacing:.07em;
     color:var(--orange-600);padding:9px 4px 7px}
@@ -2902,13 +2907,13 @@ body.tvfull #btnReport,body.tvmode #btnReport{display:none}
         <div id="prem-conteudo">
           <div class="banner-inline" id="prem-telemetria" style="display:none;margin:0"></div>
           <div class="kpis k4" id="kpis-prem"></div>
-                    <div class="subtabs" role="tablist" aria-label="Seções da premiação">
-            <button role="tab" id="tabPrem-prem" aria-controls="aba-prem" aria-selected="true"
-                    onclick="premAba('prem')">Premiação</button>
-            <button role="tab" id="tabPrem-cfg" aria-controls="aba-cfg" aria-selected="false"
-                    onclick="premAba('cfg')">Configuração</button>
+                    <div class="subtabs" role="tablist" data-abas="prem" aria-label="Seções da premiação">
+            <button role="tab" id="tabPrem-prem" aria-controls="aba-prem" data-aba="prem"
+                    aria-selected="true" onclick="abaTrocar('prem','prem')">Premiação</button>
+            <button role="tab" id="tabPrem-cfg" aria-controls="aba-cfg" data-aba="cfg"
+                    aria-selected="false" onclick="abaTrocar('prem','cfg')">Configuração</button>
           </div>
-          <div class="aba" id="aba-prem" role="tabpanel" aria-labelledby="tabPrem-prem">
+          <div class="aba" data-abas="prem" data-aba="prem" id="aba-prem" role="tabpanel" aria-labelledby="tabPrem-prem">
           <div class="card">
             <div class="head"><h2>Ranking de motoristas <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" id="prem-rank-help" title="">i</span></h2><span class="hint" id="prem-rank-hint"></span></div>
             <div class="tablewrap tabroll"><table><thead><tr>
@@ -2924,7 +2929,7 @@ body.tvfull #btnReport,body.tvmode #btnReport{display:none}
             <div style="padding:0 18px 14px;font-size:12px;color:var(--n500)" id="prem-comp-premios"></div>
           </div>
           </div>
-          <div class="aba" id="aba-cfg" role="tabpanel" aria-labelledby="tabPrem-cfg" hidden>
+          <div class="aba" data-abas="prem" data-aba="cfg" id="aba-cfg" role="tabpanel" aria-labelledby="tabPrem-cfg" hidden>
             <div class="banner-inline" style="display:flex;margin:0 0 14px"><i></i><span>Estes parâmetros são <b>versionados por competência</b>: o cálculo de um mês usa a última versão vigente até ele, então configurar agosto não mexe em julho.</span></div>
             <div class="card">
             <div class="head"><h2>Configuração por eixos <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="Parâmetros e pesos da premiação de seis eixos, guardados no banco do CÓRTEX e VERSIONADOS POR COMPETÊNCIA: configurar agosto não mexe em julho, e o cálculo de um mês usa a última versão vigente até ele. Premiação decide dinheiro de gente, e a pergunta “por que recebi isso em março?” aparece meses depois — editar por cima deixaria ela sem resposta.">i</span></h2>
@@ -4330,57 +4335,74 @@ body.tvfull #btnReport,body.tvmode #btnReport{display:none}
       <!-- ===================== ANÁLISE DE KM ===================== -->
       <section class="view" id="view-prodveic">
         <div class="kpis k4" id="kpis-prodveic"></div>
-        <div class="card">
-          <div class="head"><h2>Km carregado e veículos ativos por mês <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="programacaoembarque (não cancelada, semáforo = 1, número &lt; 1.000.000) × veiculo × tipoveiculo, pela data de emissão. Km = kmfretecompra; CARREGADO = tipo ≠ 3, VAZIO = tipo = 3; receita = valorfrete. SÓ VEÍCULOS DE TRAÇÃO: a viagem é lançada na placa do cavalo, e carreta nunca aparece — incluí-las poria 643 implementos ativos na conta como se estivessem parados. A barra é o km carregado do mês; a linha é quantos veículos DIFERENTES rodaram nele. As duas juntas respondem se o km cresceu porque a frota produziu mais ou porque entrou mais veículo.">i</span></h2><span class="hint" id="hintProdMes">no período filtrado</span></div>
-          <div class="legend">
-            <span class="k"><i class="sw" style="background:var(--green)"></i>Km carregado</span>
-            <span class="k"><i class="sw hatch"></i>Mês parcial (corrente ou cortado pelo filtro)</span>
-            <span class="k"><i class="ln" style="border-top-color:var(--navy-700)"></i>Veículos que rodaram</span>
+                <div class="subtabs" role="tablist" data-abas="prod" aria-label="Seções da produtividade">
+          <button role="tab" id="tabProd-vis" data-aba="vis" aria-controls="aba-prod-vis"
+                  aria-selected="true" onclick="abaTrocar('prod','vis')">Visão geral</button>
+          <button role="tab" id="tabProd-veic" data-aba="veic" aria-controls="aba-prod-veic"
+                  aria-selected="false" onclick="abaTrocar('prod','veic')">Por veículo<span class="aban" id="abanProdVeic"></span></button>
+          <button role="tab" id="tabProd-ocio" data-aba="ocio" aria-controls="aba-prod-ocio"
+                  aria-selected="false" onclick="abaTrocar('prod','ocio')">Ociosidade<span class="aban" id="abanProdOcio"></span></button>
+        </div>
+        <div class="aba" data-abas="prod" data-aba="vis" id="aba-prod-vis"
+             role="tabpanel" aria-labelledby="tabProd-vis">
+  <div class="card">
+            <div class="head"><h2>Km carregado e veículos ativos por mês <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="programacaoembarque (não cancelada, semáforo = 1, número &lt; 1.000.000) × veiculo × tipoveiculo, pela data de emissão. Km = kmfretecompra; CARREGADO = tipo ≠ 3, VAZIO = tipo = 3; receita = valorfrete. SÓ VEÍCULOS DE TRAÇÃO: a viagem é lançada na placa do cavalo, e carreta nunca aparece — incluí-las poria 643 implementos ativos na conta como se estivessem parados. A barra é o km carregado do mês; a linha é quantos veículos DIFERENTES rodaram nele. As duas juntas respondem se o km cresceu porque a frota produziu mais ou porque entrou mais veículo.">i</span></h2><span class="hint" id="hintProdMes">no período filtrado</span></div>
+            <div class="legend">
+              <span class="k"><i class="sw" style="background:var(--green)"></i>Km carregado</span>
+              <span class="k"><i class="sw hatch"></i>Mês parcial (corrente ou cortado pelo filtro)</span>
+              <span class="k"><i class="ln" style="border-top-color:var(--navy-700)"></i>Veículos que rodaram</span>
+            </div>
+            <div class="chartwrap" id="wrapProd">
+              <!-- ECharts precisa de um elemento com ALTURA definida: ele mede o
+                   container no init, e num elemento sem altura o gráfico nasce
+                   com 0px e não desenha nada. -->
+              <div id="chartProd" style="width:100%;height:280px"
+                   role="img" aria-label="Quilômetros carregados por mês e número de veículos que rodaram."></div>
+            </div>
           </div>
-          <div class="chartwrap" id="wrapProd">
-            <!-- ECharts precisa de um elemento com ALTURA definida: ele mede o
-                 container no init, e num elemento sem altura o gráfico nasce
-                 com 0px e não desenha nada. -->
-            <div id="chartProd" style="width:100%;height:280px"
-                 role="img" aria-label="Quilômetros carregados por mês e número de veículos que rodaram."></div>
+  <div class="card">
+            <div class="head"><h2>Produtividade por modalidade <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="programacaoembarque (não cancelada, semáforo = 1, número &lt; 1.000.000) × veiculo × tipoveiculo, pela data de emissão. Km = kmfretecompra; CARREGADO = tipo ≠ 3, VAZIO = tipo = 3; receita = valorfrete. SÓ VEÍCULOS DE TRAÇÃO: a viagem é lançada na placa do cavalo, e carreta nunca aparece — incluí-las poria 643 implementos ativos na conta como se estivessem parados. Km por veículo = km carregado ÷ veículos DISTINTOS que rodaram naquela modalidade no período — não é a frota cadastrada, é quem de fato rodou. RKM = receita ÷ km carregado. “n/d” no retorno vazio significa que a modalidade não lança o deslocamento vazio no ERP: é o caso do terceiro, com 0 km vazio em 256 viagens. Zero ali seria ausência de registro, não eficiência.">i</span></h2><span class="hint">no período filtrado</span></div>
+            <div class="tablewrap"><table><thead><tr>
+              <th>Modalidade</th><th class="num">Veículos</th><th class="num">Viagens</th>
+              <th class="num">Km carregado</th><th class="num">Km por veículo</th>
+              <th class="num">Retorno vazio</th><th class="num">Receita</th><th class="num">RKM</th>
+            </tr></thead><tbody id="prod-modal"></tbody></table></div>
+          </div>
+  <div class="card">
+            <div class="head"><h2>Alertas <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="Regras fixas sobre os números desta tela: veículos próprios/locados parados com histórico de produção, concentração do km em poucos veículos e retorno vazio acima da referência de 20% para FTL.">i</span></h2></div>
+            <div class="alerts" id="prod-alertas"></div>
           </div>
         </div>
-        <div class="card">
-          <div class="head"><h2>Produtividade por modalidade <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="programacaoembarque (não cancelada, semáforo = 1, número &lt; 1.000.000) × veiculo × tipoveiculo, pela data de emissão. Km = kmfretecompra; CARREGADO = tipo ≠ 3, VAZIO = tipo = 3; receita = valorfrete. SÓ VEÍCULOS DE TRAÇÃO: a viagem é lançada na placa do cavalo, e carreta nunca aparece — incluí-las poria 643 implementos ativos na conta como se estivessem parados. Km por veículo = km carregado ÷ veículos DISTINTOS que rodaram naquela modalidade no período — não é a frota cadastrada, é quem de fato rodou. RKM = receita ÷ km carregado. “n/d” no retorno vazio significa que a modalidade não lança o deslocamento vazio no ERP: é o caso do terceiro, com 0 km vazio em 256 viagens. Zero ali seria ausência de registro, não eficiência.">i</span></h2><span class="hint">no período filtrado</span></div>
-          <div class="tablewrap"><table><thead><tr>
-            <th>Modalidade</th><th class="num">Veículos</th><th class="num">Viagens</th>
-            <th class="num">Km carregado</th><th class="num">Km por veículo</th>
-            <th class="num">Retorno vazio</th><th class="num">Receita</th><th class="num">RKM</th>
-          </tr></thead><tbody id="prod-modal"></tbody></table></div>
-        </div>
-        <div class="card">
-          <div class="head"><h2>Produtividade por veículo <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="programacaoembarque (não cancelada, semáforo = 1, número &lt; 1.000.000) × veiculo × tipoveiculo, pela data de emissão. Km = kmfretecompra; CARREGADO = tipo ≠ 3, VAZIO = tipo = 3; receita = valorfrete. SÓ VEÍCULOS DE TRAÇÃO: a viagem é lançada na placa do cavalo, e carreta nunca aparece — incluí-las poria 643 implementos ativos na conta como se estivessem parados. DIAS ATIVOS = dias distintos em que houve viagem daquela placa, e é o denominador da produtividade real: 10 mil km em 90 dias e 10 mil km em 12 dias são veículos diferentes. Km/dia usa esse denominador, não o calendário — um veículo que ficou 60 dias na oficina não é comparado como se tivesse rodado o período inteiro.">i</span></h2><span class="hint" id="hintProdVeic"></span></div>
-          <div class="tablewrap tabroll"><table><thead><tr>
-            <th scope="col">Placa</th><th scope="col">Modalidade</th>
-            <th class="num" scope="col">Viagens</th><th class="num" scope="col">Dias ativos</th>
-            <th class="num" scope="col">Km carregado</th><th class="num" scope="col">Km/dia ativo</th>
-            <th class="num" scope="col">Retorno vazio</th><th class="num" scope="col">Receita</th>
-            <th class="num" scope="col">RKM</th>
-          </tr></thead><tbody id="prod-veic"></tbody></table></div>
-        </div>
-        <div class="grid2">
-          <div class="card">
-            <div class="head"><h2>Parados no período <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="Veículos de TRAÇÃO, ATIVOS no cadastro, de frota própria ou locação, sem nenhuma viagem na janela filtrada — e que JÁ RODARAM alguma vez. O recorte por modalidade é deliberado: agregado e terceiro parados não custam nada à Sulista, e contá-los repetiria o erro de denominador do painel de rastreadores. Quem nunca rodou está no cartão ao lado, porque é cadastro e não ociosidade.">i</span></h2><span class="hint" id="hintProdParados">ordenado por histórico — quem mais produzia primeiro</span></div>
+        <div class="aba" data-abas="prod" data-aba="veic" id="aba-prod-veic"
+             role="tabpanel" aria-labelledby="tabProd-veic" hidden>
+  <div class="card">
+            <div class="head"><h2>Produtividade por veículo <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="programacaoembarque (não cancelada, semáforo = 1, número &lt; 1.000.000) × veiculo × tipoveiculo, pela data de emissão. Km = kmfretecompra; CARREGADO = tipo ≠ 3, VAZIO = tipo = 3; receita = valorfrete. SÓ VEÍCULOS DE TRAÇÃO: a viagem é lançada na placa do cavalo, e carreta nunca aparece — incluí-las poria 643 implementos ativos na conta como se estivessem parados. DIAS ATIVOS = dias distintos em que houve viagem daquela placa, e é o denominador da produtividade real: 10 mil km em 90 dias e 10 mil km em 12 dias são veículos diferentes. Km/dia usa esse denominador, não o calendário — um veículo que ficou 60 dias na oficina não é comparado como se tivesse rodado o período inteiro.">i</span></h2><span class="hint" id="hintProdVeic"></span></div>
             <div class="tablewrap tabroll"><table><thead><tr>
-              <th>Placa</th><th>Modalidade</th><th class="num">Parado há</th>
-              <th>Última viagem</th><th class="num">Viagens na história</th>
-            </tr></thead><tbody id="prod-parados"></tbody></table></div>
-          </div>
-          <div class="card">
-            <div class="head"><h2>Nunca rodaram — cadastro a conferir <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="Veículos de tração ativos, próprios ou locados, com ZERO viagem em toda a história do ERP. Não é ociosidade: é veículo que nunca entrou em operação, placa cadastrada por engano, ou implemento classificado como tração. Fica FORA do indicador de parados de propósito — misturado, ele dobraria o número e a tela viraria alarme falso.">i</span></h2><span class="hint" id="hintProdNunca"></span></div>
-            <div class="tablewrap tabroll"><table><thead><tr>
-              <th>Placa</th><th>Modalidade</th><th>Tipo cadastrado</th>
-            </tr></thead><tbody id="prod-nunca"></tbody></table></div>
+              <th scope="col">Placa</th><th scope="col">Modalidade</th>
+              <th class="num" scope="col">Viagens</th><th class="num" scope="col">Dias ativos</th>
+              <th class="num" scope="col">Km carregado</th><th class="num" scope="col">Km/dia ativo</th>
+              <th class="num" scope="col">Retorno vazio</th><th class="num" scope="col">Receita</th>
+              <th class="num" scope="col">RKM</th>
+            </tr></thead><tbody id="prod-veic"></tbody></table></div>
           </div>
         </div>
-        <div class="card">
-          <div class="head"><h2>Alertas <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="Regras fixas sobre os números desta tela: veículos próprios/locados parados com histórico de produção, concentração do km em poucos veículos e retorno vazio acima da referência de 20% para FTL.">i</span></h2></div>
-          <div class="alerts" id="prod-alertas"></div>
+        <div class="aba" data-abas="prod" data-aba="ocio" id="aba-prod-ocio"
+             role="tabpanel" aria-labelledby="tabProd-ocio" hidden>
+  <div class="grid2">
+            <div class="card">
+              <div class="head"><h2>Parados no período <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="Veículos de TRAÇÃO, ATIVOS no cadastro, de frota própria ou locação, sem nenhuma viagem na janela filtrada — e que JÁ RODARAM alguma vez. O recorte por modalidade é deliberado: agregado e terceiro parados não custam nada à Sulista, e contá-los repetiria o erro de denominador do painel de rastreadores. Quem nunca rodou está no cartão ao lado, porque é cadastro e não ociosidade.">i</span></h2><span class="hint" id="hintProdParados">ordenado por histórico — quem mais produzia primeiro</span></div>
+              <div class="tablewrap tabroll"><table><thead><tr>
+                <th>Placa</th><th>Modalidade</th><th class="num">Parado há</th>
+                <th>Última viagem</th><th class="num">Viagens na história</th>
+              </tr></thead><tbody id="prod-parados"></tbody></table></div>
+            </div>
+            <div class="card">
+              <div class="head"><h2>Nunca rodaram — cadastro a conferir <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="Veículos de tração ativos, próprios ou locados, com ZERO viagem em toda a história do ERP. Não é ociosidade: é veículo que nunca entrou em operação, placa cadastrada por engano, ou implemento classificado como tração. Fica FORA do indicador de parados de propósito — misturado, ele dobraria o número e a tela viraria alarme falso.">i</span></h2><span class="hint" id="hintProdNunca"></span></div>
+              <div class="tablewrap tabroll"><table><thead><tr>
+                <th>Placa</th><th>Modalidade</th><th>Tipo cadastrado</th>
+              </tr></thead><tbody id="prod-nunca"></tbody></table></div>
+            </div>
+          </div>
         </div>
       </section>
       <section class="view" id="view-km">
@@ -8139,22 +8161,37 @@ async function premColetar(){
 // parâmetros novos (premSalvarParams), ambos chamando com force=true.
 // /serie é leve: só snapshots já gravados (sem recoleta) e sem consultar o
 // preço do diesel na AVA — o gargalo de ~15s/mês que existia antes.
-/* Troca de sub-aba na Premiação.
-   O GRAFICO PRECISA SER AVISADO. O ECharts MEDE O CONTEINER UMA VEZ, no
-   `init`, e uma medida feita com a aba escondida vale zero para sempre --
-   o sintoma nao e erro nem cartao vazio, e um grafico com os eixos certos e
-   quase todos os rotulos do eixo X suprimidos pelo `hideOverlap`. Quem
-   resolve isso e o `ResizeObserver` do `echartsRegistrar` -- que observa o
-   proprio no e reage quando ele sai do `hidden`. Por isso a aba da PREMIACAO
-   (a que tem grafico) nasce ABERTA: o comparativo e desenhado com largura de
-   verdade, e a de configuracao, que so tem formulario e tabela, nao depende
-   de medida nenhuma. */
-function premAba(qual){
-  ['prem','cfg'].forEach(a=>{
-    const painel=document.getElementById('aba-'+a), bt=document.getElementById('tabPrem-'+a);
-    if(painel) painel.hidden = (a!==qual);
-    if(bt) bt.setAttribute('aria-selected', String(a===qual));
+/* SUB-ABAS. Painel de BI cabe em UMA TELA -- o que nao couber vai para aba,
+   nunca para o fim da rolagem. Painel que rola e painel que ninguem le
+   inteiro, e o CORTEX ja produziu pagina de 16.000px (CRM) e de 8.602px
+   (Custos). Aba, e nao tela nova, porque o RBAC, os filtros e o estado sao os
+   mesmos: duas telas dividiriam um estado que e um so.
+
+   A ABA QUE TEM GRAFICO NASCE ABERTA. O ECharts MEDE O CONTEINER UMA VEZ, no
+   `init`, e uma medida feita sob `hidden` vale zero para sempre -- o sintoma
+   nao e erro nem cartao vazio, e um grafico com os eixos certos e quase todos
+   os rotulos do eixo X suprimidos pelo `hideOverlap`. O `ResizeObserver` do
+   `echartsRegistrar` cobre a volta; comecar visivel dispensa a correcao.
+
+   O grupo e um atributo, nao um `if`: painel novo so declara `data-abas` nos
+   botoes e nos paineis e ja funciona. */
+function abaTrocar(grupo, qual){
+  document.querySelectorAll('.aba[data-abas="'+grupo+'"]').forEach(el => {
+    el.hidden = (el.dataset.aba !== qual);
   });
+  document.querySelectorAll('.subtabs[data-abas="'+grupo+'"] button').forEach(bt => {
+    bt.setAttribute('aria-selected', String(bt.dataset.aba === qual));
+  });
+}
+/* Contador na aba: diz o que tem la dentro SEM precisar entrar. Uma aba
+   "Ociosidade" vazia e uma com 24 veiculos parados exigem coisas diferentes de
+   quem olha, e obrigar o clique para descobrir isso desfaz metade do ganho de
+   ter tirado a tabela da tela. Zero fica em branco, nao em "0": aba vazia nao
+   precisa chamar atencao. */
+function abaContador(id, n){
+  const el = document.getElementById(id); if(!el) return;
+  el.textContent = n ? String(n) : '';
+  el.className = 'aban' + (n ? '' : ' vazio');
 }
 
 async function premCarregarSerie(force){
@@ -16967,6 +17004,10 @@ function renderProdveic(d){
 
   // ---- por veículo (tabela cortada: o hint diz o quanto o recorte explica)
   const vs = d.veiculos||[], kmMostrado = vs.reduce((a,x)=>a+(x.km_carregado||0),0);
+  /* O contador da aba mostra o TOTAL de veículos, não o tamanho do recorte:
+     quem olha a aba quer saber o tamanho do assunto, e o quanto a tabela
+     explica dele já está dito no hint lá dentro. */
+  abaContador('abanProdVeic', d.veiculos_total || vs.length);
   document.getElementById('hintProdVeic').textContent =
     `${vs.length} de ${nf(d.veiculos_total)} veículos · ${prodPct(k.km_carregado?kmMostrado/k.km_carregado:0)} do km — ordenado por km carregado`;
   document.getElementById('prod-veic').innerHTML = vs.map(x=>`<tr>
@@ -16997,6 +17038,9 @@ function renderProdveic(d){
 
   // ---- nunca rodaram
   const nunca = d.nunca_rodaram||[];
+  /* Parados + nunca rodaram: os dois vivem na mesma aba e o número dela é a
+     soma, porque é essa a fila de trabalho de quem abre. */
+  abaContador('abanProdOcio', par.length + nunca.length);
   document.getElementById('hintProdNunca').textContent =
     nunca.length ? `${nunca.length} ${nunca.length===1?'placa':'placas'} — não entram no indicador de parados` : 'nenhuma';
   document.getElementById('prod-nunca').innerHTML = nunca.map(x=>`<tr>

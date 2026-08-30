@@ -162,6 +162,26 @@ Toda construção de painel segue a skill `dashboard-builder` e este padrão:
 4. **Tabela acionável**: linhas ordenadas por prioridade/risco, com ação sugerida.
 5. **Alertas**: ocorrências que exigem ação agora.
 
+**PAINEL DE BI CABE EM UMA TELA (regra do usuário, 30/08/2026):**
+Painel é visual e se lê **sem rolar**. O que não couber vai para **sub-aba**
+(`.subtabs` + `abaTrocar(grupo, qual)`), nunca para o fim da rolagem.
+- Painel que rola é painel que ninguém lê inteiro. Esta casa já produziu página
+  de **16.000px** (CRM) e de **8.602px** (Custos), e o que ficava embaixo era
+  tão decisório quanto o topo.
+- **Aba, não tela nova**: RBAC, filtros e estado são os mesmos, e duas telas
+  dividiriam um estado que é um só.
+- **A aba que tem GRÁFICO nasce aberta.** O ECharts mede o contêiner uma vez,
+  no `init`, e medida feita sob `hidden` vale zero para sempre — o gráfico sai
+  com os eixos certos e quase todos os rótulos do eixo X suprimidos, sem erro
+  nenhum aparecer. O `ResizeObserver` do `echartsRegistrar` cobre a volta;
+  começar visível dispensa a correção.
+- **A aba leva contador** (`abaContador`): aba vazia e aba com 24 veículos
+  parados pedem coisas diferentes de quem olha, e obrigar o clique para
+  descobrir isso desfaz metade do ganho. **Zero fica em branco**, não em "0".
+- Tabela longa continua rolando **dentro do card** (`.tabroll`), não na página.
+- Já aplicado: Premiação (Premiação × Configuração) e Produtividade de Veículos
+  (Visão geral × Por veículo × Ociosidade).
+
 **Gráfico: ECharts, e SÓ ECharts. A conversão acabou em 30/08/2026.**
 Não existe mais gráfico desenhado à mão no painel. Gráfico novo nasce em
 ECharts, sem decisão a tomar. A única exceção é o **gauge de meta do dia dos

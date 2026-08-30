@@ -4,6 +4,13 @@ Gerado de `docs/versoes.yaml` por `scripts/gerar_changelog.py` — não editar �
 Formato [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/),
 versionamento [SemVer](https://semver.org/lang/pt-BR/).
 
+## [0.154.0] — 30/08/2026  ·  CX-30/08/2026-v0.154.0
+
+### Alterado
+- Produtividade de Veículos passou a caber em uma tela: Visão geral (o gráfico do mês, a tabela por modalidade e os alertas), Por veículo e Ociosidade viraram abas. A página tinha as seis seções empilhadas.
+- Cada aba mostra quantos itens tem dentro — 37 veículos, 2 na ociosidade — para não ser preciso entrar para descobrir se há algo lá.
+- A troca de abas passou a ser um componente só, usado pela Premiação e pela Produtividade, para as duas não divergirem no próximo ajuste.
+
 ## [0.153.0] — 30/08/2026  ·  CX-30/08/2026-v0.153.0
 
 ### Alterado
