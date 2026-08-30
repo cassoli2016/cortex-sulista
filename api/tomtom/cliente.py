@@ -38,6 +38,7 @@ from __future__ import annotations
 
 import json
 import logging
+import time
 import urllib.error
 import urllib.parse
 import urllib.request
@@ -122,8 +123,34 @@ def _mascarar_key_na_url(texto: str) -> str:
             i = j
 
 
-def _get(caminho: str, params: dict) -> dict:
-    """GET com a chave anexada. Levanta `TomTomIndisponivel` já sanitizado."""
+# LIMITE DE TAXA: EXISTE, É POR FAMÍLIA DE ENDPOINT, E SÓ APARECE COMO RECUSA.
+#
+# Eu tinha registrado que "o limite não é observável" porque nenhuma resposta
+# traz cabeçalho de cota. Estava incompleto: ele aparece como **HTTP 429**
+# depois de estourado, e — o que muda o desenho — **cada família tem o seu**.
+# Medido em 30/08/2026, 12 chamadas por rodada:
+#
+#     rota   1 trab. → 1,1 req/s  ok
+#            3 trab. → 3,2 req/s  ok
+#            6 trab. → 6,5 req/s  **2 de 12 com 429**
+#     fluxo  6 trab. → 13,8 req/s ok
+#
+# Ou seja: o Traffic aguenta o dobro do Routing. Uma varredura de ETA com os
+# mesmos 8 trabalhadores do fluxo perdeu 15 de 47 chamadas — 32% de buraco na
+# tela, que apareceria como "sem estimativa" e passaria por falta de cadastro.
+#
+# 30 chamadas EM SÉRIE não batem no limite. Não é cota diária: é ritmo.
+RETENTATIVA_429_S = 1.5
+
+
+def _get(caminho: str, params: dict, _tentativa: int = 0) -> dict:
+    """GET com a chave anexada. Levanta `TomTomIndisponivel` já sanitizado.
+
+    UMA retentativa no 429, e só uma: o limite é de ritmo, então esperar um
+    segundo e meio resolve o caso normal (um pico de concorrência). Insistir
+    além disso transformaria um freio do fornecedor numa fila nossa, e a tela
+    ficaria esperando em vez de dizer o que já sabe.
+    """
     k = chave_servidor()
     if not k:
         raise TomTomNaoConfigurado(
@@ -147,6 +174,13 @@ def _get(caminho: str, params: dict) -> dict:
             extra = (" — a coleta está usando a chave do MAPA; se ela estiver "
                      "restrita por domínio no painel da TomTom, o servidor não "
                      "pode usá-la. Configure a chave da coleta.")
+        if exc.code == 429 and _tentativa == 0:
+            time.sleep(RETENTATIVA_429_S)
+            return _get(caminho, params, _tentativa + 1)
+        if exc.code == 429:
+            extra = (" — é limite de RITMO, não de cota diária: o Routing "
+                     "aguenta menos que o Traffic (medido: 429 a partir de "
+                     "~6 req/s contra ~14). Reduza os trabalhadores.")
         raise TomTomIndisponivel(
             "A TomTom respondeu HTTP %s.%s %s"
             % (exc.code, extra, _sanitizar(corpo))) from None

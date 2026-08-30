@@ -1550,6 +1550,36 @@ function "` e a
 - O `git diff --stat` também denuncia: 479 linhas removidas quando se esperava
   30 é a pista mais óbvia que existe, e ela aparece antes de qualquer teste.
 
+**TRÊS TELAS QUEBRADAS POR MESES POR UMA LINHA PERDIDA (30/08/2026):**
+Um corte da conversão para ECharts (v0.144.0) levou `let leafletPromise=null,
+torreMap=null, torreLayer=null;`. Ficaram sem funcionar o **mapa da Torre de
+Controle**, a tabela da **DRE por Cliente** (`DRECLI_LINHAS`) e a composição do
+**Make vs Buy** (`MVB_COMP_LBL`) — descobertos só quando o usuário reclamou do
+mapa.
+- **O sintoma é mudo.** `ensureLeaflet` LÊ `leafletPromise` na primeira linha;
+  ler nome não declarado é `ReferenceError`, que estoura dentro do `try` de
+  `torreMapa`, e o `catch` escreve a mensagem NO PRÓPRIO QUADRO DO MAPA. O
+  resultado é um retângulo cinza com "leafletPromise is not defined" em letra
+  miúda — que se lê como "hoje não carregou".
+- **A assimetria que dificultou o rastreio:** das TRÊS variáveis perdidas na
+  mesma linha, só uma deu erro. `torreMap` e `torreLayer` são apenas
+  ATRIBUÍDOS, e atribuir a nome não declarado cria **global implícita** —
+  funciona. Só a LEITURA estoura.
+- **O Leaflet vinha de CDN (unpkg), e isso impedia o teste que teria pegado.**
+  Sem ele carregar offline, nenhum teste podia provar que o mapa abre. Foi
+  vendorizado (`/static/vendor/leaflet/`), como o ECharts e pela mesma regra —
+  e o ganho de testabilidade veio junto com o de não depender de host externo.
+- **ANALISADOR DE ESCOPO POR REGEX NÃO FECHA.** Tentei um varredor genérico
+  ("todo identificador lido tem de estar declarado"): **1.939 achados**.
+  Estreitado só para constantes em CAIXA ALTA, ainda **102** — siglas de
+  comentário (API, ERP, CKM), hexadecimais de cor, palavras em português.
+  Templates aninhados, `//` dentro de URL em string e destruturação derrubam
+  qualquer heurística. **Relatório com falso positivo é relatório desligado**,
+  e aí não sobra guarda nenhuma. O que ficou: uma LISTA dos nomes que já se
+  perderam (estreita, não erra), o teste de comportamento do mapa, e a regra
+  de comparar declarações contra o HEAD do git depois de todo corte — que é a
+  que pega o caso geral, e cuja ausência criou este parágrafo.
+
 **`setInterval` + guard de sequência = tela VAZIA quando o servidor fica lento:**
 - A Saúde recarregava a cada 5 s e a resposta passou a levar 4,8 s. O
   `setInterval` dispara **com a requisição anterior em voo**, então quase toda

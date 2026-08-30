@@ -4,6 +4,18 @@ Gerado de `docs/versoes.yaml` por `scripts/gerar_changelog.py` — não editar �
 Formato [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/),
 versionamento [SemVer](https://semver.org/lang/pt-BR/).
 
+## [0.161.0] — 30/08/2026  ·  CX-30/08/2026-v0.161.0
+
+### Adicionado
+- Previsão de chegada com trânsito, comparada com a hora prometida no ERP. As já vencidas ficam num grupo à parte: viagem com prazo vencido há dias não é problema de previsão, é registro a fechar.
+
+### Alterado
+- A biblioteca do mapa passou a vir do próprio servidor, e não mais de um site externo. O painel deixou de depender de um endereço na internet para desenhar mapa — e isso permitiu criar o teste que faltava, que abre a Torre e confere que o mapa aparece com a frota.
+
+### Corrigido
+- O mapa da Torre de Controle voltou a carregar. Ele estava quebrado desde 27/08, e o sintoma era um retângulo cinza com uma mensagem técnica em letra miúda — que se lia como "hoje não carregou".
+- A tabela da DRE por Cliente e a composição de custo do Make vs Buy também voltaram: as três telas perderam suas definições no mesmo ajuste de gráficos.
+
 ## [0.160.0] — 30/08/2026  ·  CX-30/08/2026-v0.160.0
 
 ### Adicionado

@@ -15673,14 +15673,39 @@ function chartLancRender(mensal, dtDe, dtAte){
 }
 
 
+/* AS TRÊS VARIÁVEIS DO MAPA. Elas viviam numa linha só — `let
+   leafletPromise=null, torreMap=null, torreLayer=null;` — e essa linha SUMIU
+   na v0.144.0, na conversão dos gráficos para ECharts. O mapa da Torre ficou
+   quebrado desde então, e ninguém viu, porque o sintoma é mudo:
+
+   `ensureLeaflet` LÊ `leafletPromise` na primeira linha. Ler variável não
+   declarada é `ReferenceError` — mas ele estoura DENTRO do `try` de
+   `torreMapa`, cujo `catch` escreve a mensagem no próprio quadro do mapa. O
+   resultado é um retângulo cinza com "leafletPromise is not defined" em letra
+   miúda, que passa por "o mapa não carregou".
+
+   E note por que `torreMap` e `torreLayer` não davam erro: eles só são
+   ATRIBUÍDOS, e atribuir a nome não declarado cria uma global implícita. Só a
+   LEITURA estoura. Por isso a perda das três produziu um defeito só. */
+let leafletPromise = null, torreMap = null, torreLayer = null;
+
 function ensureLeaflet(){
   if(leafletPromise) return leafletPromise;
+  /* VENDORIZADO, NUNCA CDN — a mesma regra do ECharts, que este trecho vinha
+     furando desde sempre. O painel roda atrás do túnel e não deve depender de
+     host externo em tempo de execução: com o unpkg fora do ar, ou bloqueado na
+     rede de quem abre, o mapa morre e a mensagem não diz por quê.
+
+     E havia um custo escondido: dependendo de CDN, nenhum teste offline
+     conseguia provar que o mapa carrega — foi por isso que a perda da
+     declaração de `leafletPromise` na v0.144.0 passou despercebida até alguém
+     reclamar. Agora dá para testar. */
   leafletPromise=new Promise((res,rej)=>{
     const css=document.createElement('link');
-    css.rel='stylesheet'; css.href='https://unpkg.com/leaflet@1.9.4/dist/leaflet.css';
+    css.rel='stylesheet'; css.href='/static/vendor/leaflet/leaflet.css';
     document.head.appendChild(css);
     const s=document.createElement('script');
-    s.src='https://unpkg.com/leaflet@1.9.4/dist/leaflet.js';
+    s.src='/static/vendor/leaflet/leaflet.js';
     s.onload=res; s.onerror=()=>rej(new Error('não foi possível carregar o mapa (Leaflet)'));
     document.head.appendChild(s);
   });
@@ -18481,6 +18506,15 @@ function renderMvb(d){
   const ts=new Date(d.atualizado_em);
   document.getElementById('meta').innerHTML='<b>Atualizado '+ts.toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'})+'</b><br>'+ts.toLocaleDateString('pt-BR');
 }
+/* PERDIDA NA v0.144.0, no mesmo corte que levou `leafletPromise`. O
+   sintoma e outro e igualmente mudo: o `ReferenceError` acontece dentro
+   do `try/catch` do loader e vira banner generico, com a TABELA VAZIA e
+   os KPIs certos em cima -- exatamente como a tela da ANTT ficou quando
+   os nove `const` da cauda sumiram. */
+const MVB_COMP_LBL = {combustivel:'Combustível', manutencao:'Manutenção', pneus:'Pneus',
+  outros_var:'Outros variáveis (pedágio, serviços, materiais)', motoristas:'Motoristas',
+  fixo:'Fixos (locação, seguros, rastreamento, indiretos, pessoal op.)', depreciacao:'Depreciação'};
+
 async function loadMvb(){
   skelKpis('kpis-mvb',4);
   const seq = ++mvbSeq;
@@ -19418,6 +19452,18 @@ function chartOcRender(mensal){
     return o;
   }), 'sem dados');
 }
+
+/* PERDIDA NA v0.144.0, no mesmo corte que levou `leafletPromise`. O
+   sintoma e outro e igualmente mudo: o `ReferenceError` acontece dentro
+   do `try/catch` do loader e vira banner generico, com a TABELA VAZIA e
+   os KPIs certos em cima -- exatamente como a tela da ANTT ficou quando
+   os nove `const` da cauda sumiram. */
+const DRECLI_LINHAS = [
+  ['RECEITA BRUTA',0],['DEDUCOES DA RECEITA',0],['IMPOSTOS FEDERAIS',1],['IMPOSTOS ESTADUAIS',1],
+  ['IMPOSTOS MUNICIPAIS',1],['CONTRIBUICAO PREVIDENCIARIA',1],['ANULACOES',1],['DESCONTOS',1],
+  ['RECEITA LIQUIDA',0],['CUSTO VARIAVEL',0],['CREDITOS TRIBUTARIOS',0],['MARGEM DE CONTRIBUICAO',0],
+  ['CUSTO FIXO',0],['MARGEM DIRETA DO CLIENTE',0]
+];
 
 async function loadDreCli(){
   const seq = ++dreCliSeq;
