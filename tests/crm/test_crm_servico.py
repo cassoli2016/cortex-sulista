@@ -28,10 +28,18 @@ def esq(esquema_pg, monkeypatch):
     Os dois já degradam sozinhos; quem cobra isso é `test_sem_erp_*`.
     """
     monkeypatch.setattr(comum, "ESQUEMA", esquema_pg)
+    # O dublê traz os QUATRO CKM, como a referência real: o produtivo (por km
+    # CARREGADO) e o bruto (por km TOTAL RODADO). Omitir o bruto — que foi o
+    # que a primeira versão fez — deixa o cálculo de resultado sem o
+    # denominador certo, e o teste passaria por vacuidade.
+    # A relação entre eles é a da frota: bruto = produtivo × (km_carregado /
+    # km_total). Com 30% de retorno vazio, o fator é 0,7.
     monkeypatch.setattr(precificacao, "referencia_ckm",
                         lambda *a, **k: {"disponivel": True,
                                          "ckm_marginal": 3.50,
                                          "ckm_cheio": 5.20,
+                                         "ckm_bruto": 2.45,
+                                         "ckm_bruto_cheio": 3.64,
                                          "competencia_de": "2026-01",
                                          "competencia_ate": "2026-06",
                                          "fonte": "dublê de teste"})
@@ -237,9 +245,59 @@ def test_rkm_do_carregado_e_do_total_sao_diferentes_e_ambos_saem(esq):
     assert calc["rkm"] == 8.0
     assert calc["rkm_total"] == 4.0
     assert calc["retorno_vazio"] == 0.5
-    # margem é sobre o km TOTAL: comparar receita de km carregado contra custo
-    # de km carregado esconde o vazio
-    assert calc["margem_km"] == pytest.approx(4.0 - 3.50)
+
+
+def test_resultado_da_viagem_nao_desconta_o_vazio_duas_vezes(esq):
+    """A regra do glossário: resultado = valor − CKM_bruto × km_TOTAL.
+
+    A primeira versão comparava o R$/km sobre o km TOTAL com o CKM PRODUTIVO
+    (por km carregado) — e o produtivo já é o custo inteiro da frota dividido
+    só pelo km carregado, ou seja, JÁ absorveu o custo de rodar vazio.
+    Descontava-se o retorno vazio duas vezes, e toda lane com volta vazia saía
+    deficitária. O defeito só apareceu com o CKM real do razão (R$ 13,28/km
+    produtivo em ago/2026) — com um dublê de R$ 3,50 ele passava despercebido.
+
+    Aqui: 1.000 km carregados + 1.000 vazios, R$ 8.000 a viagem, CKM bruto de
+    R$ 2,45/km rodado.
+      custo    = 2,45 × 2.000 = 4.900
+      resultado= 8.000 − 4.900 = 3.100  (e NÃO 4,00 − 3,50 = 0,50/km)
+    """
+    c = _conta(esq)
+    o = _opo(esq, c)
+    ln = oportunidades.gravar_lane(
+        {"oportunidade_id": o["id"], "km": "1000", "km_vazio": "1000",
+         "viagens_mes": "10", "valor_viagem": "8.000,00"}, esquema=esq)
+    calc = ln["calc"]
+    assert calc["custo_viagem"] == pytest.approx(4900.0)
+    assert calc["resultado_viagem"] == pytest.approx(3100.0)
+    assert calc["margem_km"] == pytest.approx(3100.0 / 2000)
+    assert calc["margem_pct"] == pytest.approx(3100.0 / 8000)
+    assert calc["margem_mes"] == pytest.approx(31000.0)
+    # o produtivo continua saindo, como REFERÊNCIA na tela — mas não é ele que
+    # multiplica o km
+    assert calc["ckm_marginal"] == 3.50
+    assert calc["ckm_bruto"] == 2.45
+
+
+def test_lane_sem_ckm_nao_inventa_margem(esq, monkeypatch):
+    """Sem o razão do AVA a cotação continua útil: o piso da ANTT não depende
+    dele. O que some é a margem, e some como None — não como zero."""
+    monkeypatch.setattr(precificacao, "referencia_ckm",
+                        lambda *a, **k: {"disponivel": False,
+                                         "ckm_marginal": None,
+                                         "ckm_cheio": None, "ckm_bruto": None,
+                                         "ckm_bruto_cheio": None,
+                                         "fonte": "indisponível"})
+    c = _conta(esq)
+    o = _opo(esq, c)
+    ln = oportunidades.gravar_lane(
+        {"oportunidade_id": o["id"], "km": "1000", "viagens_mes": "10",
+         "valor_viagem": "8.000,00", "tipo_veiculo": "Carreta LS (3 eixos)",
+         "tipo_carga": "carga_geral"}, esquema=esq)
+    calc = ln["calc"]
+    assert calc["resultado_viagem"] is None
+    assert calc["margem_km"] is None
+    assert calc["piso"]["estado"] == "calculado"   # o piso continua
 
 
 def test_eixos_saem_do_veiculo_escolhido(esq):

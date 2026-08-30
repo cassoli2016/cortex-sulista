@@ -14,8 +14,10 @@
     - >-
       Ao cotar uma lane, a tela calcula o PISO MÍNIMO DA ANTT da rota com a
       tabela vigente na data e avisa quando o preço proposto está abaixo dele
-      — antes de a proposta sair. A margem de cada lane é comparada com o CKM
-      da frota, lido da Make vs Buy.
+      — antes de a proposta sair. E mostra o resultado da viagem: o valor
+      cobrado menos o custo de rodar ida e volta pelo CKM da frota, lido da
+      Make vs Buy. A mesma rota com volta carregada e com volta vazia deixa
+      de parecer o mesmo negócio.
     - >-
       A situação do cliente vem do faturamento REAL do ERP, não de um campo:
       prospect, ativa, parada há mais de 90 dias ou sem histórico. A ficha da

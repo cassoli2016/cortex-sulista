@@ -18425,7 +18425,10 @@ function crmLanesHtml(o) {
         ${cel('R$/km total', c.rkm_total != null ? NMI.format(c.rkm_total) : '—', c.rkm_total == null)}
         ${cel('piso ANTT/viagem', p.valor != null ? BRL.format(p.valor)
       : '<span title="' + esc(p.motivo || '') + '">n/d</span>', p.valor == null)}
-        ${cel('margem R$/km', c.margem_km != null ? NMI.format(c.margem_km) : '—', c.margem_km == null)}
+        ${cel('resultado/viagem', c.resultado_viagem != null
+      ? BRL.format(c.resultado_viagem) : '—', c.resultado_viagem == null)}
+        ${cel('margem', c.margem_pct != null
+      ? (100 * c.margem_pct).toFixed(1).replace('.', ',') + '%' : '—', c.margem_pct == null)}
         ${cel('receita/mês', c.receita_mes != null ? brlAbbr(c.receita_mes) : '—', c.receita_mes == null)}
       </div>
     </div>`;
@@ -18442,7 +18445,7 @@ function crmCkmRodape(ref, res) {
     partes.push('<b>' + res.lanes + '</b> lane' + (res.lanes === 1 ? '' : 's'));
     if (res.receita_mes != null) partes.push(brlAbbr(res.receita_mes) + '/mês');
     if (res.rkm_medio != null) partes.push('R$/km médio ' + NMI.format(res.rkm_medio));
-    if (res.margem_mes != null) partes.push('margem ' + brlAbbr(res.margem_mes) + '/mês');
+    if (res.margem_mes != null) partes.push('resultado ' + brlAbbr(res.margem_mes) + '/mês');
   }
   const avisos = [];
   if (res.lanes_sem_preco)
@@ -18454,12 +18457,17 @@ function crmCkmRodape(ref, res) {
   if (res.lanes_sem_piso)
     avisos.push(res.lanes_sem_piso + ' sem piso calculável (falta veículo ou tipo de carga)');
   const ckm = ref.disponivel
-    ? ('CKM marginal da frota <b>' + NMI.format(ref.ckm_marginal) + '</b>/km'
-      + (ref.ckm_cheio ? ' · cheio ' + NMI.format(ref.ckm_cheio) + '/km' : '')
+    ? ('CKM da frota: <b>' + NMI.format(ref.ckm_marginal) + '</b>/km carregado '
+      + '(marginal)' + (ref.ckm_cheio ? ' · ' + NMI.format(ref.ckm_cheio)
+        + '/km cheio' : '')
       + ' — consolidado da frota, <b>não por rota</b> (o razão é consolidado). '
-      + 'A margem de cada lane usa este número contra o R$/km sobre o km TOTAL.')
-    : 'CKM indisponível: o razão do AVA não respondeu. As lanes ficam sem margem — '
-    + 'o piso da ANTT não depende dele e continua sendo calculado.';
+      + 'O resultado de cada lane é o valor da viagem menos '
+      + (ref.ckm_bruto ? '<b>' + NMI.format(ref.ckm_bruto) + '</b>' : 'o CKM')
+      + '/km RODADO × o km de ida e volta — o CKM por km carregado já absorveu '
+      + 'o custo de rodar vazio, e usá-lo contra o km total descontaria o '
+      + 'retorno vazio duas vezes.')
+    : 'CKM indisponível: o razão do AVA não respondeu. As lanes ficam sem '
+    + 'resultado — o piso da ANTT não depende dele e continua sendo calculado.';
   return `<div style="font-size:11.5px;color:var(--n500);margin-top:8px;padding-top:8px;border-top:1px solid var(--n200)">
     ${partes.length ? partes.join(' · ') + '<br>' : ''}
     ${avisos.length ? avisos.join(' · ') + '<br>' : ''}${ckm}</div>`;

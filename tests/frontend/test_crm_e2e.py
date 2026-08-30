@@ -200,8 +200,10 @@ LANE_RUIM = {
                       "gap": -4550.48, "abaixo": True, "motivo": None,
                       "por_km": 7.924},
              "pedagio_mes": None, "ckm_marginal": 3.5, "ckm_cheio": 5.2,
-             "margem_km": -1.466, "margem_km_cheio": -3.166,
-             "margem_mes": -76115.0, "margem_pct": -0.72,
+             "ckm_bruto": 2.45, "ckm_bruto_cheio": 3.64,
+             "custo_viagem": 5782.0, "resultado_viagem": -982.0,
+             "resultado_viagem_cheio": -3790.4,
+             "margem_km": -0.416, "margem_mes": -21604.0, "margem_pct": -0.2046,
              "alerta": {"nivel": "alerta",
                         "texto": "abaixo do piso ANTT em R$ 4.550,48",
                         "detalhe": "O piso mínimo é obrigatório."}},
@@ -470,8 +472,11 @@ def test_ckm_e_dito_como_consolidado_e_nao_vira_coluna(pagina):
     pg.wait_for_selector("#modalBg.aberto .lane", timeout=5000)
     ficha = pg.inner_text("#modalBg .crm-ficha")
     assert "não por rota" in ficha
+    # e o rodapé diz POR QUE o par de CKM é esse — foi errar isso que fez toda
+    # lane com retorno vazio sair deficitária
+    assert "duas vezes" in ficha
     # e a margem, que VARIA por lane, continua na grade da lane
-    assert "MARGEM R$/KM" in pg.inner_text("#modalBg .lane").upper()
+    assert "RESULTADO/VIAGEM" in pg.inner_text("#modalBg .lane").upper()
 
 
 # -------------------------------------------------------------- atividades

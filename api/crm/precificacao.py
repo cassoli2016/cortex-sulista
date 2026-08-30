@@ -55,6 +55,8 @@ def _f(v) -> float | None:
 
 def avaliar_lane(lane: dict, *, ckm_marginal: float | None = None,
                  ckm_cheio: float | None = None,
+                 ckm_bruto: float | None = None,
+                 ckm_bruto_cheio: float | None = None,
                  quando: date | None = None) -> dict:
     """Os derivados de uma lane. Não altera a lane; devolve um dicionário novo.
 
@@ -118,21 +120,46 @@ def avaliar_lane(lane: dict, *, ckm_marginal: float | None = None,
     out["pedagio_mes"] = (pedagio * viagens) if (pedagio and viagens) else None
 
     # ------------------------------------------------------------- margem --
-    # A MARGEM varia por lane porque o R$/km varia; o CKM é o mesmo para todas
-    # e por isso vai no rodapé da tela, não numa coluna. Sobre o km TOTAL, que
-    # é o que consome combustível e motorista — comparar receita de km
-    # carregado contra custo de km carregado esconde o vazio.
-    out["ckm_marginal"] = ckm_marginal
-    out["ckm_cheio"] = ckm_cheio
-    rkm_t = out["rkm_total"]
-    out["margem_km"] = (rkm_t - ckm_marginal) if (
-        rkm_t is not None and ckm_marginal) else None
-    out["margem_km_cheio"] = (rkm_t - ckm_cheio) if (
-        rkm_t is not None and ckm_cheio) else None
-    out["margem_mes"] = (out["margem_km"] * out["km_mes"]) if (
-        out.get("margem_km") is not None and out.get("km_mes")) else None
-    out["margem_pct"] = (out["margem_km"] / rkm_t) if (
-        out.get("margem_km") is not None and rkm_t) else None
+    # A FÓRMULA É A DO GLOSSÁRIO, e a escolha do par importa mais do que parece:
+    #
+    #     Resultado da viagem = (RKM × km_carregado) − (CKM_var × km_total)
+    #
+    # O primeiro termo é o `valor_viagem`. O segundo exige o CKM por km TOTAL
+    # RODADO (`ckm_bruto_marginal`), não o CKM produtivo — e é aqui que a
+    # primeira versão errou, de um jeito que só o dado real do ERP mostrou.
+    #
+    # O CKM produtivo da casa (R$ 13,28/km em ago/2026) já é o custo inteiro da
+    # frota dividido SÓ pelo km carregado: ele JÁ absorveu o custo de rodar
+    # vazio. Compará-lo com o R$/km sobre o km total descontava o retorno vazio
+    # DUAS VEZES — uma no denominador da receita e outra no numerador do custo —
+    # e fazia toda lane com retorno vazio parecer deficitária. Com o par certo,
+    # o vazio entra uma vez só, no multiplicador de km.
+    out["ckm_marginal"] = ckm_marginal          # por km CARREGADO (referência)
+    out["ckm_cheio"] = ckm_cheio                # idem, com fixo e depreciação
+    out["ckm_bruto"] = ckm_bruto                # por km TOTAL — o que multiplica
+    out["ckm_bruto_cheio"] = ckm_bruto_cheio
+
+    km_total_viagem = out["km_total_viagem"]
+    custo = (ckm_bruto * km_total_viagem) if (
+        ckm_bruto and km_total_viagem) else None
+    out["custo_viagem"] = custo
+    out["resultado_viagem"] = (valor - custo) if (
+        valor is not None and custo is not None) else None
+    out["margem_pct"] = (out["resultado_viagem"] / valor) if (
+        out.get("resultado_viagem") is not None and valor) else None
+    out["margem_mes"] = (out["resultado_viagem"] * viagens) if (
+        out.get("resultado_viagem") is not None and viagens) else None
+    # Margem por km RODADO — o número comparável entre lanes de tamanhos
+    # diferentes, e o que se põe na coluna da tabela.
+    out["margem_km"] = (out["resultado_viagem"] / km_total_viagem) if (
+        out.get("resultado_viagem") is not None and km_total_viagem) else None
+    # E contra o CKM cheio, que é a régua de LONGO prazo (comprar veículo):
+    # curto prazo compara com o marginal, longo com o cheio — regra da frota
+    # mista, na seção 4 do CLAUDE.md.
+    custo_cheio = (ckm_bruto_cheio * km_total_viagem) if (
+        ckm_bruto_cheio and km_total_viagem) else None
+    out["resultado_viagem_cheio"] = (valor - custo_cheio) if (
+        valor is not None and custo_cheio is not None) else None
 
     # ------------------------------------------------------------ veredito --
     out["alerta"] = _alerta(out)
@@ -165,13 +192,15 @@ def _alerta(d: dict) -> dict | None:
                 "detalhe": ("O piso mínimo da Lei 13.703/2018 é obrigatório. "
                             "Frete abaixo dele expõe a empresa a autuação e a "
                             "ação do transportador.")}
-    m = d.get("margem_km")
+    m = d.get("resultado_viagem")
     if m is not None and m < 0:
-        return {"nivel": "alerta", "texto": "margem negativa",
-                "detalhe": ("O R$/km sobre o km total está abaixo do custo "
-                            "marginal da frota própria (variável + motorista). "
-                            "Rodar esta lane com veículo próprio dá prejuízo "
-                            "antes de qualquer custo fixo.")}
+        return {"nivel": "alerta", "texto": "resultado negativo",
+                "detalhe": ("O valor da viagem não cobre o custo marginal de "
+                            "rodá-la com frota própria (variável + motorista, "
+                            "sobre o km total, ida e volta). É prejuízo antes "
+                            "de qualquer custo fixo — o que não significa "
+                            "recusar o frete, mas sim que ele é candidato a "
+                            "agregado, não a veículo próprio.")}
     rv = d.get("retorno_vazio")
     if rv is not None and rv > 0.30:
         return {"nivel": "aviso",
@@ -180,8 +209,9 @@ def _alerta(d: dict) -> dict | None:
                             "carga de retorno antes de fechar o preço.")}
     if m is not None and d.get("margem_pct") is not None and d["margem_pct"] < 0.10:
         return {"nivel": "aviso", "texto": "margem apertada",
-                "detalhe": ("Menos de 10% sobre o custo marginal — não cobre o "
-                            "rateio de fixo e depreciação.")}
+                "detalhe": ("Menos de 10% do valor da viagem sobra depois do "
+                            "custo marginal — não cobre o rateio de fixo e "
+                            "depreciação.")}
     return None
 
 
@@ -263,10 +293,26 @@ def referencia_ckm(comp_de: str | None = None,
         from .. import queries
         mvb = queries.get_make_vs_buy(de, ate)
         r = mvb.get("resumo") or {}
+        # O CKM por km TOTAL RODADO — o que multiplica o km da viagem no
+        # cálculo de resultado. A Make vs Buy publica `ckm_bruto_marginal`
+        # pronto, mas NÃO o equivalente cheio; ele sai da razão entre os dois
+        # denominadores, que estão os dois no mesmo resumo:
+        #     cheio_bruto = cheio_produtivo × km_carregado / km_total
+        # Derivar aqui, e não recalcular o custo, é o que garante que este
+        # número continue sendo o MESMO da Make vs Buy — um segundo cálculo
+        # daria um quinto número de custo por km numa casa que já precisa
+        # explicar três de receita.
+        kmc = r.get("km_carregado") or 0
+        kmt = r.get("km_proprio_medido") or 0
+        fator = (kmc / kmt) if (kmc and kmt) else None
+        cheio = r.get("ckm_cheio")
         return {
             "disponivel": r.get("ckm_marginal") is not None,
             "ckm_marginal": r.get("ckm_marginal"),
-            "ckm_cheio": r.get("ckm_cheio"),
+            "ckm_cheio": cheio,
+            "ckm_bruto": r.get("ckm_bruto_marginal"),
+            "ckm_bruto_cheio": (cheio * fator) if (cheio and fator) else None,
+            "retorno_vazio_frota": r.get("retorno_vazio"),
             "rs_km_agregado": r.get("rs_km_agregado"),
             "competencia_de": de, "competencia_ate": ate,
             "fonte": ("razão contábil consolidado × km da programação de "
@@ -274,6 +320,7 @@ def referencia_ckm(comp_de: str | None = None,
         }
     except Exception as exc:  # noqa: BLE001
         return {"disponivel": False, "ckm_marginal": None, "ckm_cheio": None,
+                "ckm_bruto": None, "ckm_bruto_cheio": None,
                 "competencia_de": de, "competencia_ate": ate,
                 "erro": type(exc).__name__,
                 "fonte": "indisponível — o razão do AVA não respondeu"}

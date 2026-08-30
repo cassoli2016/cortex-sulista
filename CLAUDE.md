@@ -1255,7 +1255,30 @@ em estrutura de topo: resolver dentro de **função**, na hora de desenhar.
   razão é consolidado; não existe CKM por rota nesta casa. Uma coluna repetindo
   R$ 12,60 em vinte linhas passa a impressão de cálculo por rota, que foi
   exatamente o que a Make vs Buy teve de desfazer. O que varia por lane, e por
-  isso merece coluna, é a MARGEM.
+  isso merece coluna, é o RESULTADO.
+- **O PAR DE CKM ERRADO DESCONTA O RETORNO VAZIO DUAS VEZES** — e foi o
+  defeito mais caro desta rodada, achado só com o número real do razão. A casa
+  publica dois: `ckm_marginal` é **por km CARREGADO** (o custo inteiro da frota
+  dividido só pelo km produtivo, ou seja, ele JÁ absorveu o custo de rodar
+  vazio) e `ckm_bruto_marginal` é **por km TOTAL RODADO**. A primeira versão
+  comparava o R$/km sobre o km total contra o produtivo: o vazio entrava no
+  denominador da receita E no numerador do custo, e toda lane com volta vazia
+  saía deficitária. A fórmula certa é a do glossário —
+  `resultado = valor_viagem − CKM_bruto × km_total` — e o vazio entra uma vez
+  só, no multiplicador de km. **Medido depois do conserto** (ago/2026, CKM
+  bruto R$ 10,22/km): Joinville→SBC a R$ 12,01/km com volta carregada dá
+  **+R$ 915 por viagem (14,9%)**; a MESMA rota com volta vazia dá
+  **−R$ 4.296**. Com o par errado as duas apareciam negativas.
+- **Com um dublê de teste o defeito passava despercebido.** Com `ckm=3,50` a
+  conta errada dava um número positivo plausível; com o real (R$ 13,28
+  produtivo) ela virava prejuízo em toda lane. Dublê de custo tem de ter a
+  ORDEM DE GRANDEZA do real, e o teste tem de trazer os dois CKM — omitir o
+  bruto faz o teste passar por vacuidade.
+- **O CKM cheio quase sempre dá resultado negativo, e por isso NÃO é manchete.**
+  45% dele é fixo e depreciação rateados só sobre o km da frota própria, embora
+  o mesmo fixo sustente a gestão dos agregados (é a ressalva que a Make vs Buy
+  já carrega). Ele vai no payload para a comparação de LONGO prazo — comprar
+  veículo —, não no cartão que o vendedor lê ao cotar.
 - **"Cliente ativo" é lido do faturamento, não de um campo.** Prospect (sem
   vínculo com o `agrupamentocliente`), ativa, parada há mais de 90 dias e sem
   histórico saem todas de `api/crm/ava.py` a cada leitura. Nenhum status

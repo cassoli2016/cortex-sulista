@@ -219,9 +219,7 @@ def lanes(oportunidade_id: int | None = None, *, contrato_id: int | None = None,
         decimais(d, "km", "km_vazio", "viagens_mes", "valor_viagem", "pedagio")
         d["rotulo"] = _rotulo_lane(d)
         d["carga_rotulo"] = ROTULO_CARGA.get(d["tipo_carga"], d["tipo_carga"] or None)
-        d["calc"] = precificacao.avaliar_lane(
-            d, ckm_marginal=ref.get("ckm_marginal"),
-            ckm_cheio=ref.get("ckm_cheio"))
+        d["calc"] = precificacao.avaliar_lane(d, **_ckm(ref))
         saida.append(d)
     return saida
 
@@ -249,11 +247,24 @@ def lanes_de_varias(ids: list[int], *, referencia: dict | None = None,
         decimais(d, "km", "km_vazio", "viagens_mes", "valor_viagem", "pedagio")
         d["rotulo"] = _rotulo_lane(d)
         d["carga_rotulo"] = ROTULO_CARGA.get(d["tipo_carga"], d["tipo_carga"] or None)
-        d["calc"] = precificacao.avaliar_lane(
-            d, ckm_marginal=ref.get("ckm_marginal"),
-            ckm_cheio=ref.get("ckm_cheio"))
+        d["calc"] = precificacao.avaliar_lane(d, **_ckm(ref))
         saida.setdefault(int(d["oportunidade_id"]), []).append(d)
     return saida
+
+
+def _ckm(ref: dict) -> dict:
+    """Os QUATRO CKM da referência, num dicionário só.
+
+    Viajam juntos de propósito: o produtivo (por km carregado) é o número que
+    se MOSTRA como referência, e o bruto (por km total rodado) é o que
+    MULTIPLICA o km da viagem no cálculo de resultado. Passar só o primeiro,
+    que foi o que a versão inicial fez, descontava o retorno vazio duas vezes
+    — e o defeito só apareceu com o CKM real do razão (R$ 13,28/km).
+    """
+    return {"ckm_marginal": ref.get("ckm_marginal"),
+            "ckm_cheio": ref.get("ckm_cheio"),
+            "ckm_bruto": ref.get("ckm_bruto"),
+            "ckm_bruto_cheio": ref.get("ckm_bruto_cheio")}
 
 
 def _rotulo_lane(d: dict) -> str:
@@ -479,8 +490,7 @@ def gravar_lane(dados: dict, *, lane_id: int | None = None,
     ref = precificacao.referencia_ckm()
     d["rotulo"] = _rotulo_lane(d)
     d["carga_rotulo"] = ROTULO_CARGA.get(d["tipo_carga"], d["tipo_carga"] or None)
-    d["calc"] = precificacao.avaliar_lane(
-        d, ckm_marginal=ref.get("ckm_marginal"), ckm_cheio=ref.get("ckm_cheio"))
+    d["calc"] = precificacao.avaliar_lane(d, **_ckm(ref))
     return d
 
 
