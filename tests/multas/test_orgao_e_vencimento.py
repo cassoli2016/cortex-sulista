@@ -62,6 +62,12 @@ def _abrir(pg, base_url, dados):
     pg.on("pageerror", lambda e: erros.append(str(e)))
     pg.goto(f"{base_url}/static/index.html#mul")
     pg.wait_for_selector("#kpis-mul .kpi", timeout=20000)
+    # A TELA VIROU DUAS ABAS em 30/08/2026 (regra do painel que se lê sem
+    # rolar). As tabelas por motorista e por veículo moram na segunda, e uma
+    # aba escondida não é clicável — que é o comportamento certo. Abrir a aba
+    # aqui é reproduzir o caminho de quem usa, não contornar o teste.
+    pg.evaluate("abaTrocar('mul','resp')")
+    pg.wait_for_selector("#mul-veic tr.forn-row", timeout=20000)
     return erros
 
 

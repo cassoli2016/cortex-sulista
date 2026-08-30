@@ -6442,6 +6442,10 @@ def _consumir_titulos(pilha: list, valor: float) -> list:
             "documento": t["documento"],
             "valor": round(usa, 2), "valor_titulo": round(t["valor"], 2),
             "parcial": usa < t["valor"] - 0.005,
+            # JA ESTA NO PORTAL ou ainda depende da planilha do cliente. Sem
+            # esta marca, afrouxar a exigencia do portal esconderia a diferenca
+            # entre "leve ao banco hoje" e "peca o arquivo ao cliente".
+            "no_portal": bool(t.get("no_portal", True)),
         })
     return usados
 
@@ -6597,12 +6601,18 @@ def _antec_simular(dias_lista, rec_por_dia, pag_por_dia, saldo_inicial,
                 por_cli: dict = {}
                 for d in docs:
                     c = por_cli.setdefault(d["cliente"], {"cliente": d["cliente"],
-                                                          "valor": 0.0, "documentos": 0})
+                                                          "valor": 0.0, "documentos": 0,
+                                                          "fora_do_portal": 0,
+                                                          "valor_fora": 0.0})
                     c["valor"] += d["valor"]
                     c["documentos"] += 1
+                    if not d.get("no_portal", True):
+                        c["fora_do_portal"] += 1
+                        c["valor_fora"] += d["valor"]
                 clientes = sorted(por_cli.values(), key=lambda x: -x["valor"])
                 for c in clientes:
                     c["valor"] = round(c["valor"], 2)
+                    c["valor_fora"] = round(c["valor_fora"], 2)
                 operacoes.append({
                     "dia": dia.isoformat(), "vencimento_origem": venc.isoformat(),
                     "dias_antecipados": dias_adiant,
@@ -6633,7 +6643,25 @@ def _antec_simular(dias_lista, rec_por_dia, pag_por_dia, saldo_inicial,
 
 @cached(ttl=90)
 def get_antecipacao(dias: int = 90, reserva: float = 0.0, taxa_mes: float = 2.0,
-                    incluir_vencidos: bool = False) -> dict:
+                    incluir_vencidos: bool = False,
+                    exigir_portal: bool = False) -> dict:
+    """`exigir_portal=False` é o padrão desde 30/08/2026, a pedido de quem opera.
+
+    A regra estrita — só antecipar título JÁ LANÇADO num portal, provado pela
+    planilha importada — continua correta para a mesa do banco, e continua
+    disponível no seletor. Mas ela deixava a tela responder a pergunta errada:
+    dos R$ 16,6 milhões a receber em 90 dias, só R$ 594 mil estavam em planilha
+    (3,6%), enquanto **R$ 8,2 milhões eram de cliente COM convênio assinado** —
+    TUPY, MWM-Tupy, Iochpe Maxion e Adient. Quem pergunta "quanto dá para
+    antecipar" quer saber dos 8,2, e o caminho dos que faltam é pedir o arquivo
+    ao cliente, não renegociar convênio.
+
+    O que NÃO muda: convênio continua sendo obrigatório (cliente sem convênio
+    fica fora nos dois modos), e cada operação diz se o documento já está no
+    portal ou se ainda depende da planilha. Sumir com essa distinção seria
+    trocar um erro por outro — a tela mandaria levar ao banco um título que ele
+    recusaria na mesa.
+    """
     params = {"dias": dias}
     with db.get_conn() as conn, conn.cursor() as cur:
         cur.execute(ANTEC_SALDO_SQL)
@@ -6711,14 +6739,22 @@ def get_antecipacao(dias: int = 90, reserva: float = 0.0, taxa_mes: float = 2.0,
         # `docs_portal` vazio = nenhuma planilha importada ainda; nesse caso o
         # filtro por documento é desligado para a tela não zerar sozinha antes
         # do primeiro arquivo (o aviso de "sem planilha" é que dá o recado).
-        if docs_portal and (raiz, (t.get("documento") or "")) not in docs_portal:
+        # A CLASSIFICACAO E SEMPRE FEITA; o que o seletor muda e se ela
+        # EXCLUI. Contar "falta planilha" so no modo estrito faria o numero
+        # sumir justamente no modo em que ele vira a proxima acao — pedir o
+        # arquivo ao cliente.
+        no_portal = (not docs_portal
+                     or (raiz, (t.get("documento") or "")) in docs_portal)
+        if not no_portal:
             falta_planilha += t["valor"]
             s = por_sacado.setdefault(raiz, {"raiz": raiz, "cliente": t["cliente"],
                                              "valor": 0.0, "titulos": 0,
                                              "tem_planilha": raiz in com_planilha})
             s["valor"] = round(s["valor"] + t["valor"], 2)
             s["titulos"] += 1
-            continue
+            if exigir_portal:
+                continue
+        t = {**t, "no_portal": no_portal}
         tit_por_dia.setdefault(t["dia"], []).append({**t, "saldo": t["valor"]})
         eleg_por_dia[t["dia"]] = eleg_por_dia.get(t["dia"], 0.0) + t["valor"]
         rec_eleg_total += t["valor"]
@@ -6836,7 +6872,10 @@ def get_antecipacao(dias: int = 90, reserva: float = 0.0, taxa_mes: float = 2.0,
         # numero que manda buscar outra fonte de recurso.
         "elegibilidade": {
             "ativa": bool(raizes),
-            "exige_portal": bool(docs_portal),
+            # `exige_portal` diz o que a simulacao FEZ, nao o que da para
+            # fazer: e ele que a tela le para dizer de onde vem a pilha.
+            "exige_portal": bool(exigir_portal and docs_portal),
+            "portal_disponivel": bool(docs_portal),
             "sacados": sacados_elegiveis,
             "recebivel_elegivel": round(rec_eleg_total, 2),
             "recebivel_total": round(sum(rec_por_dia.values()), 2),

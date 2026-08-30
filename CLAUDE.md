@@ -1957,6 +1957,88 @@ só no ERP ...... 177 placas      união ....... 275
   maiúscula, espaço simples) porque matrícula e documento não conversam —
   120 dos 134 casam.
 
+**Regra que protege de um erro pode esconder o número que decide (Antecipação):**
+- A tela só antecipava título JÁ LANÇADO num portal, provado pela planilha
+  importada. A regra está certa — sem o arquivo o banco recusa na mesa —, mas
+  ela respondia a pergunta errada: dos **R$ 16,6 mi** a receber em 90 dias,
+  entravam **R$ 594 mil (3,6%)**, enquanto **R$ 8,2 mi eram de cliente COM
+  convênio assinado** (TUPY, MWM-Tupy, Iochpe Maxion, Adient). Quem pergunta
+  "quanto dá para antecipar" quer saber dos 8,2; o caminho dos que faltam é
+  **pedir o arquivo**, não negociar convênio.
+- **A classificação continua sendo feita nos dois modos; o que o seletor muda é
+  se ela EXCLUI.** Contar "falta planilha" só no modo estrito faria o número
+  sumir justamente no modo em que ele vira a próxima ação.
+- Cada operação diz, **por cliente**, quantos documentos ainda não estão no
+  portal e **quanto eles somam** — é o par que vira telefonema. Só a contagem
+  não diz se vale a ligação.
+- Convênio continua obrigatório nos DOIS modos: afrouxar as duas travas de uma
+  vez trocaria um erro por outro.
+- **Adicionar o cliente como elegível não bastava, e esse era o sintoma.** Os
+  três já estavam em `ant_sacados` com `origem='manual'` e nada mudava na tela
+  — a segunda trava, invisível no cadastro, era quem barrava.
+
+**A REGRA DE UMA TELA, APLICADA ÀS 68 (30/08/2026) — e o que a medição ensinou:**
+- 23 telas foram divididas em sub-abas de uma vez. As mais altas: Saúde 1.457px,
+  Milk run 1.408, Torre 1.356, Fluxo de caixa 1.308. Hoje **nenhuma** das 68
+  passa da régua, e `scripts/medir_paineis.py` é quem diz.
+- **TER ABA NÃO É CUMPRIR A REGRA, e a primeira versão do medidor deixou
+  passar.** Ele dava "JÁ TEM ABA" como aprovação — mas quem se lê é a aba
+  ABERTA, e dividir 1.400px numa aba de 1.300 e outra de 100 não resolveu nada.
+  O medidor clica em CADA aba e vale a mais alta.
+- **O medidor cobrava 98px de um banner que só existe na bancada.** A API ali é
+  dublada e devolve `{}`, então toda tela abre com o banner de erro; ele entrava
+  na altura das 68 e mandava dividir tela que já cabia (a Torre "1.015" era
+  903). Banner é estado de EXCEÇÃO, não o estado em que a tela é lida.
+- **Painel de TV tem outra régua e NÃO leva aba.** Roda em tela cheia (não há
+  barra de navegador a descontar) e sobretudo **ninguém clica numa TV** —
+  dividir em aba um painel que ninguém opera esconde metade do que ele existe
+  para mostrar. Pela mesma razão a tabela dele não é "solta": quem a limita é o
+  RENDERIZADOR (`slice(0,10)`), e rolagem dentro do card seria inútil ali.
+- **O LEAFLET TAMBÉM MEDE UMA VEZ**, e a aba escondida mede zero — a armadilha
+  do ECharts, com sintoma pior: tiles cinza em volta de um pedacinho desenhado,
+  sem erro nenhum. O `ResizeObserver` do `echartsRegistrar` **não alcança
+  mapa**. Daí `mapasRemedir()` no `abaTrocar`, com rAF DUPLO — `hidden=false` só
+  vira layout no quadro seguinte, e invalidar antes do reflow remede o zero.
+- **O contador de aba é AUTOMÁTICO** (`abaContadoresAuto`, via
+  `MutationObserver`): fiá-lo em cada loader seria escrever a mesma linha vinte
+  vezes e esquecê-la na vigésima primeira. Ele conta as linhas que a tela
+  desenhou e **ignora a linha de estado vazio** (`<td colspan>`) — contá-la
+  faria toda aba vazia mostrar "1", que é pior que não ter contador.
+- **O corte é ESTRUTURAL** (`scripts/dividir_em_abas.py`): os blocos de primeiro
+  nível saem de contagem de `<div>`, nunca de string escolhida a olho. Três
+  conferências rodam sempre — as declarações do arquivo inteiro, os `<h2>` e os
+  `id=` da tela. **A do `id` é a que pega o erro que não dá erro:** card que some
+  leva o id que o loader preenche, e a tela carrega calada, sem metade dos
+  números.
+- **`desfazer()` existe porque REBALANCEAR é o caso normal.** A primeira divisão
+  quase nunca acerta a altura de cada aba; sem achatar antes, a segunda
+  tentativa aninha aba dentro de aba, que é o jeito de perder um card sem
+  ninguém ver.
+- Quando não sobra costura para mais uma aba (5 telas ficaram entre 903 e
+  935px), o que cede é a ALTURA DO GRÁFICO: 30 a 50px num gráfico de 250 não
+  mudam a leitura dele, e obrigar um clique para ver o card vizinho da mesma
+  pergunta mudaria.
+- **O medidor dava CRÉDITO DE ALTURA para tela com mais `tabroll` que tabela.**
+  A conta era `tabelas - tabroll` e ficava NEGATIVA quando um wrapper com
+  `.tabroll` não envolvia tabela nenhuma; multiplicada por 400, virava desconto.
+  Foi assim que `hc` (1.030px) e `orc` (966) passaram como "cabe" — e quem os
+  encontrou foi o teste novo, que mede altura crua. `max(0, …)`.
+- **A BANDA DE KPI VAI PARA DENTRO DA ABA A QUE ELA PERTENCE.** No Custo de
+  Folha as duas bandas ficavam fora e custavam ~200px em TODA aba, inclusive
+  nas que não leem nenhuma delas. E havia um segundo motivo, melhor: a banda da
+  Estrutura ao lado dos números de Competência convidava a comparar dois
+  recortes que diferem, de propósito, em R$ 4 milhões.
+- **Sistema de aba PRÓPRIO numa tela é uma discordância esperando.** O Orçamento
+  tinha o dele (`orcTab` + `ORC_ABA`), anterior ao `.subtabs`: o giro
+  automático, o contador e o `mapasRemedir` não valiam ali, e ninguém repararia
+  porque a tela *parecia* ter abas. Ele saiu. E `ORC_ABA` era uma variável
+  PARALELA ao `hidden` do elemento — duas verdades sobre qual aba está aberta,
+  com a cópia decidindo se `renderOrcMontagem()` rodava; hoje o estado é lido do
+  DOM.
+- **Aba que só renderiza ao abrir declara isso em `data-ao-abrir`**, e não num
+  `if` dentro de cada tela. É o gancho genérico que substituiu o `if(aba===…)`
+  que cada tela escrevia à mão.
+
 **Folha: "proventos" NÃO é custo — 14% do total só CIRCULA (30/08/2026):**
 - A tela somava `tipoeven='P'` e chamava de Custo de Folha. Medido em 12 meses:
   `ADIANTAMENTO DE SALARI` (P) R$ 3.460.109 contra `ADIANTAMENTO QUINZENAL`

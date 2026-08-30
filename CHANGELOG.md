@@ -4,6 +4,31 @@ Gerado de `docs/versoes.yaml` por `scripts/gerar_changelog.py` — não editar �
 Formato [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/),
 versionamento [SemVer](https://semver.org/lang/pt-BR/).
 
+## [0.168.0] — 30/08/2026  ·  CX-30/08/2026-v0.168.0
+
+### Alterado
+- A antecipação de recebíveis passou a considerar todo cliente com convênio assinado — TUPY, MWM-Tupy, Iochpe Maxion e Adient —, e não só o título que já aparece numa planilha de portal importada. São R$ 8,2 milhões de lastro contra os R$ 594 mil de antes, no mesmo horizonte de 90 dias.
+- Cada operação sugerida agora diz, por cliente, quantos documentos ainda NÃO estão lançados no portal e quanto eles somam — é o que separa "leve ao banco hoje" de "peça o arquivo ao cliente antes".
+- O filtro "Lastro" permite voltar à regra estrita (só o que está no portal), que continua sendo o que a mesa de crédito aceita sem o arquivo em mãos.
+
+## [0.167.0] — 30/08/2026  ·  CX-30/08/2026-v0.167.0
+
+### Alterado
+- Vinte e nove telas passaram a caber em uma tela só, sem rolagem: o que não cabia foi para sub-abas, com o mesmo controle de giro automático e tela cheia das demais. As mais altas eram a Saúde do Servidor (1.457px), o Milk run (1.408), a Torre de Controle (1.356) e o Fluxo de Caixa (1.308). Hoje nenhuma das 68 passa da altura de uma tela.
+- A aba passou a mostrar quantas linhas tem dentro, em todas as telas — dá para ver que a aba de veículos parados tem 24 sem precisar entrar nela.
+- O menu ganhou uma linha separando os atalhos do topo dos grupos de área, e outra antes de Administração. Visão Geral e Copiloto deixaram de aparecer apagados: eles são destino direto, do mesmo peso dos grupos ao lado.
+- Os campos de filtro ficaram todos na mesma altura. Caixa de seleção e campo de texto rendiam 42 e 40 pixels com o mesmo recuo, e lado a lado na mesma linha isso é um degrau visível. Também sobraram duas alturas na casa, e não três.
+- O Orçamento passou a usar as abas do resto do painel. As dele eram de um sistema antigo e por isso ficavam sem o giro automático e sem o contador.
+
+### Corrigido
+- No modo escuro, TODO modal, o menu do avatar e a tela de login apareciam brancos com o texto claro por cima — ilegíveis. O mesmo valia para os cartões da Gestão, o mapa ampliado do Milk run e a linha "a decidir" da classificação de ocorrências.
+- O botão de Reportar ficava com o texto invisível no modo escuro, e a logo dele agora tem um círculo branco em vez de parecer um recorte solto.
+- Seis campos apareciam com o desenho cru do navegador, sem nada do padrão do CÓRTEX: o horizonte da Manutenção Preventiva, a busca da Contabilidade, o mês do Fechamento, o cliente da DRE e dois da Telemetria.
+- Os cartões ficavam colados uns nos outros dentro das abas novas, e havia buracos de espaço dobrado onde um aviso vazio ocupava lugar sem aparecer. Agora toda distância entre componentes segue uma escala só.
+- O mapa da Torre de Controle e o do Milk run ficavam com os ladrilhos cinzentos ao abrir a aba onde eles moram — eles se mediam uma vez só, e dentro de uma aba escondida essa medida é zero.
+- Na tela de Ordens de Compra, o rodapé do card de fornecedores mostrava o texto do card de baixo: os dois usavam o mesmo identificador, e o navegador só enxerga o primeiro.
+- No Custo de Folha, os números da aba Estrutura apareciam ao lado dos da aba Competência, convidando a comparar dois recortes que diferem em R$ 4 milhões de propósito. Cada bloco de números foi para a sua aba.
+
 ## [0.166.0] — 30/08/2026  ·  CX-30/08/2026-v0.166.0
 
 ### Adicionado

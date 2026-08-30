@@ -168,3 +168,65 @@ def test_documentos_da_operacao_somam_o_valor_antecipado():
     assert any(d["parcial"] for d in o["documentos"])
     assert o["documentos_total"] == 2
     assert {c["cliente"] for c in o["por_cliente"]} == {"A", "B"}
+
+
+# ── lastro: convênio × planilha do portal (30/08/2026) ──────────────────────
+#
+# A regra estrita — só antecipar título JÁ LANÇADO num portal, provado pela
+# planilha importada — está certa para a mesa do banco e continua disponível.
+# Mas ela deixava a tela responder a pergunta errada: dos R$ 16,6 milhões a
+# receber em 90 dias, só R$ 594 mil estavam em planilha (3,6%), enquanto
+# R$ 8,2 milhões eram de cliente COM convênio assinado — TUPY, MWM-Tupy,
+# Iochpe Maxion e Adient. Quem pergunta "quanto dá para antecipar" quer saber
+# dos 8,2; o caminho dos que faltam é pedir o arquivo, não negociar convênio.
+#
+# O que estes testes amarram é o que NÃO pode mudar junto: convênio continua
+# obrigatório nos dois modos, e cada documento continua dizendo se já está no
+# portal — sem isso a tela mandaria levar à mesa um título que ela recusaria.
+
+
+def _titulos(dia, itens):
+    """[(cliente, documento, valor, no_portal)] no formato da simulação."""
+    return {dia: [{"cliente": c, "tipo": "CTE", "documento": d, "valor": v,
+                   "saldo": v, "no_portal": p} for c, d, v, p in itens]}
+
+
+def test_o_documento_diz_se_ja_esta_no_portal():
+    """Sem esta marca, afrouxar a exigência do portal apagaria a diferença
+    entre "leve ao banco hoje" e "peça o arquivo ao cliente"."""
+    from api.queries import _consumir_titulos
+    pilha = [{"cliente": "TUPY", "tipo": "CTE", "documento": "1",
+              "valor": 100.0, "saldo": 100.0, "no_portal": False},
+             {"cliente": "MAXION", "tipo": "CTE", "documento": "2",
+              "valor": 50.0, "saldo": 50.0, "no_portal": True}]
+    usados = _consumir_titulos(pilha, 150.0)
+    assert [u["no_portal"] for u in usados] == [False, True]
+
+
+def test_documento_sem_a_marca_e_tratado_como_JA_no_portal():
+    """Ausência de marca não pode virar pendência inventada: quem não diz nada
+    é o caminho antigo, em que tudo que entrava já vinha filtrado."""
+    from api.queries import _consumir_titulos
+    pilha = [{"cliente": "X", "tipo": "CTE", "documento": "9",
+              "valor": 10.0, "saldo": 10.0}]
+    assert _consumir_titulos(pilha, 10.0)[0]["no_portal"] is True
+
+
+def test_o_resumo_por_cliente_conta_quantos_faltam_e_quanto():
+    """É esse par que vira a ação: "peça a planilha da TUPY, são R$ 100 em 1
+    documento". Só a contagem não diz se vale o telefonema."""
+    from api.queries import _antec_simular
+    from datetime import date, timedelta
+    hoje = date(2026, 9, 1)
+    dias = [hoje + timedelta(days=i) for i in range(4)]
+    venc = hoje + timedelta(days=2)
+    tit = _titulos(venc, [("TUPY", "1", 100.0, False), ("MAXION", "2", 50.0, True)])
+    _linhas, ops, _d = _antec_simular(
+        dias, {venc: 150.0}, {hoje: 150.0}, 0.0, 0.0, 0.0,
+        tit_por_dia=tit, eleg_por_dia={venc: 150.0})
+    assert ops, "a simulação não gerou operação"
+    porcli = {c["cliente"]: c for c in ops[0]["por_cliente"]}
+    assert porcli["TUPY"]["fora_do_portal"] == 1
+    assert porcli["TUPY"]["valor_fora"] == 100.0
+    assert porcli["MAXION"]["fora_do_portal"] == 0
+    assert porcli["MAXION"]["valor_fora"] == 0.0

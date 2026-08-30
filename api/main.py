@@ -2179,7 +2179,7 @@ def fluxo_consolidado_detalhe(de: str, ate: str) -> JSONResponse:
 
 @app.get("/api/financeiro/antecipacao")
 def antecipacao(dias: int = 90, reserva: float = 0.0, taxa_mes: float = 2.0,
-                incluir_vencidos: int = 0) -> JSONResponse:
+                incluir_vencidos: int = 0, exigir_portal: int = 0) -> JSONResponse:
     if dias not in (30, 60, 90, 120, 180):
         return JSONResponse(status_code=422, content={
             "erro": "parametro_invalido",
@@ -2202,7 +2202,8 @@ def antecipacao(dias: int = 90, reserva: float = 0.0, taxa_mes: float = 2.0,
     try:
         return JSONResponse(queries.get_antecipacao(
             dias=dias, reserva=reserva, taxa_mes=taxa_mes,
-            incluir_vencidos=bool(int(incluir_vencidos or 0))))
+            incluir_vencidos=bool(int(incluir_vencidos or 0)),
+            exigir_portal=bool(int(exigir_portal or 0))))
     except psycopg.OperationalError as exc:
         log.warning("banco inacessivel: %s", exc)
         return JSONResponse(status_code=503, content={

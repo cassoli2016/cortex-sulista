@@ -74,6 +74,30 @@ def checar(html: str) -> list[str]:
             if achou:
                 erros.append(f'aspa curva em {attr}="{valor[:80]}"')
 
+    # 4. LITERAL DE COR onde o tema precisa virar.
+    #
+    # A auditoria de tema (`scripts/auditar_tema.py`) so enxerga o que esta NA
+    # TELA, e la a API e dublada: linha de tabela, chip e badge desenhados por
+    # JavaScript a partir de dado nao existem no momento da varredura. Foi
+    # exatamente ali que passou o `background:#FFF7E6` da linha "a decidir" da
+    # classificacao de ocorrencia — creme quase branco no tema escuro, sob
+    # texto claro, linha inteira ilegivel.
+    #
+    # Entao o literal e proibido por LEITURA DO FONTE, que enxerga o que a
+    # varredura nao alcanca. Duas excecoes, e as duas sao deliberadas:
+    #   - o painel de TV, escuro nos dois temas de proposito;
+    #   - cor com transparencia (`rgba`), que TINGE o fundo em vez de
+    #     substitui-lo e por isso funciona nos dois.
+    fora = [m.start() for m in re.finditer(r"#view-tv|tv-|painel de TV", html)]
+    for m in re.finditer(r'style="([^"]*background:\s*#[0-9A-Fa-f]{3,8}[^"]*)"', html):
+        trecho = html[max(0, m.start() - 260):m.start()]
+        if "class=\"sw" in html[m.start() - 40:m.start()]:
+            erros.append("cor literal no quadradinho de legenda (a serie do "
+                         "grafico vira com o tema e ele nao): %s" % m.group(1)[:70])
+        elif "tv-" not in trecho and "tvw" not in trecho:
+            erros.append("cor literal em style= fora do painel de TV — use o "
+                         "token, senao o tema escuro nao vira: %s" % m.group(1)[:70])
+
     return erros
 
 

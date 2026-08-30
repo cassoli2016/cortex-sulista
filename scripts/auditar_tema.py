@@ -86,6 +86,39 @@ SONDA = r"""
     return p.join(' > ');
   };
 
+  /* COMPONENTE QUE NASCE ESCONDIDO ESCAPA DA AUDITORIA — e foi assim que o
+     botao de "Reportar" passou 68 telas com "0 achados" enquanto tinha, no
+     tema escuro, rotulo #102538 sobre #151E2A: contraste 1,06:1, invisivel.
+     Ele so entra no DOM visivel quando `/api/report/config` diz ativo, e a
+     API aqui e dublada.
+
+     Verde que passa por VACUIDADE e pior que auditoria nenhuma: da a sensacao
+     de conferido. Entao a chrome que se sabe existir e REVELADA antes da
+     varredura, e volta ao estado anterior depois. */
+  const revelados = [];
+  document.querySelectorAll('#btnReport, #btnFullSair, #loadbar').forEach(el => {
+    revelados.push([el, el.hidden]);
+    el.hidden = false;
+    /* NAO BASTA TIRAR O `hidden`. O rotulo do botao de report so aparece no
+       hover (`opacity:0` ate la) e `visivel()` descarta opacidade zero — com o
+       botao revelado e o rotulo transparente a auditoria continuava passando
+       com o defeito na tela. Provado por sabotagem: repus o `--navy-800` e o
+       relatorio seguiu dizendo "0 achados".
+       O que se audita e a COR, e ela existe independentemente do hover. */
+    el.style.setProperty('width', 'auto', 'important');
+    el.querySelectorAll('*').forEach(f => {
+      if(getComputedStyle(f).opacity === '0'){
+        /* `transition:none` JUNTO, e nao so a opacidade. O rotulo tem
+           `transition:opacity .12s`, entao mandar 1 INICIA uma animacao e o
+           `getComputedStyle` da varredura — que roda no mesmo instante — le
+           ainda o valor de partida, zero. O elemento seguia invisivel para a
+           auditoria com a cor errada na tela. */
+        f.style.setProperty('transition', 'none', 'important');
+        f.style.setProperty('opacity', '1', 'important');
+      }
+    });
+  });
+
   const achados = [];
   const vistos = new Set();
   const fundoPagina = fundoDe(document.body);
@@ -152,6 +185,12 @@ SONDA = r"""
                       amostra: (el.textContent || '').trim().slice(0, 40)});
       }
     }
+  });
+  revelados.forEach(([el, antes]) => {
+    el.hidden = antes; el.style.removeProperty('width');
+    el.querySelectorAll('*').forEach(f => {
+      f.style.removeProperty('opacity'); f.style.removeProperty('transition');
+    });
   });
   return achados;
 }

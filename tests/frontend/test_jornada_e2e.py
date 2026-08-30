@@ -154,8 +154,11 @@ def _abrir(pg, base_url, *, payload=None, coleta_resp=None):
 # quatro temas, então as abas saíram delas — e o que cada teste procura agora
 # pode estar numa aba fechada. `wait_for_selector` espera VISIBILIDADE, então
 # não basta o elemento existir.
+# `#jr-comp` MUDOU DE ABA em 30/08/2026: "Para onde vai o dia" saiu de
+# Operação para Custo do tempo — cabia melhor ali em altura E em assunto, que é
+# exatamente como o dia se reparte entre direção, espera e refeição.
 ABA_DE = {"#kpis-jr": "oper", "#jr-mensal": "oper", "#jr-diario": "oper",
-          "#jr-comp": "oper",
+          "#jr-comp": "custo",
           "#kpis-jr2": "conf", "#jr-unconf": "conf", "#jr-uncmes": "conf",
           "#jr-motoristas": "conf",
           "#kpis-jr3": "custo", "#jr-escalas": "custo", "#jr-filiais": "custo",
@@ -167,7 +170,7 @@ def _aba(pg, alvo):
     elemento que está no DOM e escondido."""
     chave = ABA_DE.get(alvo.split()[0].split(":")[0])
     if chave:
-        pg.click(f"#tabJorn-{chave}")
+        pg.click(f"#tabjorn-{chave}")
 
 
 def test_a_tela_abre_sem_erro_e_desenha_os_quatro_graficos(pagina):

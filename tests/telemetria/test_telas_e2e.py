@@ -129,6 +129,10 @@ def test_consumo_mostra_a_idade_da_coleta(pagina):
 def test_conducao_sem_placa_explica_em_vez_de_chamar_a_api(pagina):
     pg, base = pagina
     erros = _abrir(pg, base, "telcond")
+    # A tela virou três abas em 30/08/2026 (painel que se lê sem rolar) e a
+    # condução econômica é a terceira. Aba escondida não é visível — abrir a
+    # aba é o caminho de quem usa.
+    pg.evaluate("abaTrocar('telcond','eco')")
     pg.wait_for_selector("#telcond-conteudo", timeout=20000)
     assert erros == []
     assert "Escolha um veículo" in pg.inner_text("#telcond-conteudo")
