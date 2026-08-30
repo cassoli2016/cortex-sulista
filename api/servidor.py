@@ -647,6 +647,20 @@ def _servicos() -> list[dict]:
         else:
             servicos.append({"nome": "TomTom (trânsito)", "status": "ok",
                              "detalhe": "chave própria de servidor configurada"})
+        # O CONSUMO, porque o LIMITE não é observável: nenhuma resposta da
+        # TomTom traz cabeçalho de cota (medido nas três famílias de
+        # endpoint), e o teto só existe no painel deles. Se não dá para ver o
+        # limite, o mínimo honesto é ver o gasto.
+        try:
+            from .tomtom import coleta as _ttc
+            c = _ttc.consumo(dias=1)
+            if c.get("hoje") is not None:
+                servicos[-1]["detalhe"] += " · %s chamada(s) hoje" % c["hoje"]
+                if c.get("erros_hoje"):
+                    servicos[-1]["detalhe"] += " · %s com erro" % c["erros_hoje"]
+                    servicos[-1]["status"] = "alerta"
+        except Exception:  # noqa: BLE001
+            pass
     except Exception as exc:  # noqa: BLE001
         servicos.append({"nome": "TomTom (trânsito)", "status": "info",
                          "detalhe": "integração indisponível"})

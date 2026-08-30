@@ -239,3 +239,135 @@ def test_o_idioma_e_pt_PT_porque_pt_BR_e_RECUSADO():
     para `pt-BR` e para `pt`. O valor óbvio é o errado, e quem for ajustar vai
     tentar `pt-BR` primeiro."""
     assert cliente.IDIOMA == "pt-PT"
+
+
+# ── o zoom, que era um defeito de MEDIDA ────────────────────────────────────
+
+
+def test_o_zoom_padrao_e_14_e_isso_e_correcao_e_nao_gosto():
+    """MEDIDO no mesmo ponto, em 30/08/2026:
+
+        zoom 10 → trecho de 1.293 s (~21 min de estrada), roadClosure=TRUE
+        zoom 14 → trecho de   112 s (~2 min),             roadClosure=FALSE
+
+    Em zoom 10 a leitura agregava dezenas de quilômetros e HERDAVA um bloqueio
+    distante: quatro dos cinco "problemas" da primeira varredura da frota eram
+    isso — 80% de falso positivo, com os veículos ANDANDO a 28–30 km/h numa via
+    marcada como fechada. O congestionamento REAL (23 km/h onde o livre é 80)
+    aparecia igual em todos os zooms: o zoom alto tira o ruído distante, não o
+    fato local.
+    """
+    assert cliente.ZOOM == 14
+
+
+def test_o_zoom_entra_na_URL_do_recurso(monkeypatch):
+    visto = {}
+    monkeypatch.setattr(cliente, "_get",
+                        lambda c, p: visto.update(caminho=c, params=p) or {})
+    cliente.fluxo(-26.3, -48.8)
+    assert "/absolute/14/" in visto["caminho"]
+
+
+# ── a coleta da frota ───────────────────────────────────────────────────────
+
+
+VIAGENS = [{"placa": "AAA1A11"}, {"placa": "BBB2B22"}, {"placa": "CCC3C33"},
+           {"placa": "AAA1A11"}]      # repetida de propósito
+POSICOES = {"posicoes": {
+    "AAA1A11": {"lat": -26.3, "lon": -48.8, "fonte": "erp", "idade_min": 4.0},
+    "BBB2B22": {"lat": -25.4, "lon": -49.2, "fonte": "gobrax", "idade_min": 2.0},
+}, "por_fonte": {"erp": 1, "gobrax": 1}, "fontes_fora": []}
+
+
+@pytest.fixture
+def coleta_isolada(monkeypatch, cofre):
+    from api.tomtom import coleta
+    credenciais.gravar("TOMTOM_API_KEY", "chave-de-teste-aaaaaaaa")
+    monkeypatch.setattr(coleta, "_cache", None)
+    monkeypatch.setattr(coleta, "registrar", lambda *a, **k: None)
+    return coleta
+
+
+def test_a_frota_consultada_e_a_que_esta_EM_VIAGEM(coleta_isolada, monkeypatch):
+    """275 placas têm posição e 69 estão em viagem. Consultar as 275 seria 4x o
+    custo para responder sobre caminhão parado no pátio, que não tem estrada
+    para estar congestionada."""
+    chamadas = []
+
+    def falso(lat, lon, zoom=cliente.ZOOM):
+        chamadas.append((lat, lon))
+        return {"flowSegmentData": {"currentSpeed": 80, "freeFlowSpeed": 80,
+                                    "confidence": 1, "currentTravelTime": 60,
+                                    "freeFlowTravelTime": 60}}
+    monkeypatch.setattr(cliente, "fluxo", falso)
+    r = coleta_isolada.condicao_da_frota(forcar=True, viagens=VIAGENS,
+                                         posicoes_atuais=POSICOES)
+    assert r["viagens"] == 3, "a placa repetida não pode virar duas chamadas"
+    assert r["consultados"] == 2
+    assert len(chamadas) == 2
+
+
+def test_SEM_POSICAO_sai_do_numerador_E_do_denominador(coleta_isolada, monkeypatch):
+    """Tratar como "livre" diria que está tudo bem por falta de dado — o erro
+    dos 664 rastreadores "sem sinal"."""
+    monkeypatch.setattr(cliente, "fluxo", lambda *a, **k: {
+        "flowSegmentData": {"currentSpeed": 80, "freeFlowSpeed": 80,
+                            "confidence": 1}})
+    r = coleta_isolada.condicao_da_frota(forcar=True, viagens=VIAGENS,
+                                         posicoes_atuais=POSICOES)
+    assert r["sem_posicao"] == ["CCC3C33"]
+    assert r["resumo"]["medidos"] == 2, "o sem posição não entra nos medidos"
+
+
+def test_a_lista_abre_pelo_PIOR(coleta_isolada, monkeypatch):
+    """Numa lista que existe para agir, o que exige ação vai em cima — a lição
+    da ignição ligada sem comunicar, afogada no meio de quinze linhas."""
+    def falso(lat, lon, zoom=cliente.ZOOM):
+        lento = lat < -26          # AAA fica ao sul
+        return {"flowSegmentData": {
+            "currentSpeed": 20 if lento else 80, "freeFlowSpeed": 80,
+            "confidence": 1, "currentTravelTime": 100, "freeFlowTravelTime": 50}}
+    monkeypatch.setattr(cliente, "fluxo", falso)
+    r = coleta_isolada.condicao_da_frota(forcar=True, viagens=VIAGENS,
+                                         posicoes_atuais=POSICOES)
+    assert r["trechos"][0]["estado"] == "congestionado"
+    assert r["trechos"][0]["placa"] == "AAA1A11"
+
+
+def test_falha_de_UM_ponto_nao_derruba_a_varredura(coleta_isolada, monkeypatch):
+    """Uma placa que falha não pode levar as outras 68 junto — e a mensagem
+    dela já vem sanitizada do cliente."""
+    def falso(lat, lon, zoom=cliente.ZOOM):
+        if lat < -26:
+            raise cliente.TomTomIndisponivel("A TomTom respondeu HTTP 500.")
+        return {"flowSegmentData": {"currentSpeed": 80, "freeFlowSpeed": 80,
+                                    "confidence": 1}}
+    monkeypatch.setattr(cliente, "fluxo", falso)
+    r = coleta_isolada.condicao_da_frota(forcar=True, viagens=VIAGENS,
+                                         posicoes_atuais=POSICOES)
+    assert r["erros"] == 1
+    assert len(r["trechos"]) == 2
+    ruim = [t for t in r["trechos"] if not t["ok"]][0]
+    assert ruim["estado"] == "nd" and "500" in ruim["erro"]
+
+
+def test_a_procedencia_da_POSICAO_viaja_junto(coleta_isolada, monkeypatch):
+    """Com a Gobrax fora o total não muda (o ERP cobre 274 das 275), e é só
+    esta linha que denuncia — senão uma integração morre em silêncio."""
+    monkeypatch.setattr(cliente, "fluxo", lambda *a, **k: {
+        "flowSegmentData": {"currentSpeed": 80, "freeFlowSpeed": 80,
+                            "confidence": 1}})
+    r = coleta_isolada.condicao_da_frota(forcar=True, viagens=VIAGENS,
+                                         posicoes_atuais=POSICOES)
+    fontes = {t["placa"]: t["fonte_posicao"] for t in r["trechos"]}
+    assert fontes["AAA1A11"] == "erp" and fontes["BBB2B22"] == "gobrax"
+    assert r["posicao_por_fonte"] == {"erp": 1, "gobrax": 1}
+
+
+def test_sem_chave_a_coleta_RECUSA_sem_chamar_nada(coleta_isolada, monkeypatch):
+    credenciais.gravar("TOMTOM_API_KEY", "")
+    monkeypatch.setattr(cliente, "fluxo", lambda *a, **k: pytest.fail(
+        "não podia ter chamado a API sem chave"))
+    r = coleta_isolada.condicao_da_frota(forcar=True, viagens=VIAGENS,
+                                         posicoes_atuais=POSICOES)
+    assert r["configurado"] is False and r["trechos"] == []

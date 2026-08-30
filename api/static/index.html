@@ -4537,6 +4537,15 @@ body.tvfull #btnReport,body.tvmode #btnReport{display:none}
           </div>
         </div>
         <div class="card">
+          <div class="head"><h2>Condição da estrada <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="TomTom Traffic Flow, consultada no PONTO onde cada caminhão em viagem está agora. A posição vem do rastreamento do ERP e da Gobrax — o que estiver mais recente; medido: 275 placas com posição no total, e as 69 em viagem cobertas. O estado sai da RAZÃO entre a velocidade atual e a de fluxo livre do trecho, e não da velocidade em si: 40 km/h é bom numa serra e péssimo numa reta. A consulta é em zoom 14, e isso é correção e não gosto — em zoom 10 o trecho tinha 21 minutos de estrada e herdava bloqueio distante, o que produziu 4 falsos “via bloqueada” com os caminhões andando a 30 km/h. Trecho sem medida confiável aparece como n/d, nunca como livre. Recarrega no máximo a cada 10 minutos: são ~70 chamadas a uma API de terceiro, e o limite do plano não aparece na resposta.">i</span></h2>
+            <span class="hint" id="hintTorreEstradas"></span></div>
+          <div class="tablewrap tabroll"><table><thead><tr>
+            <th>Veículo</th><th>Estado</th><th class="num">Velocidade</th>
+            <th class="num">Fluxo livre</th><th class="num">Atraso no trecho</th>
+            <th>Posição</th>
+          </tr></thead><tbody id="torre-estradas"></tbody></table></div>
+        </div>
+        <div class="card">
           <div class="head"><h2>Viagens em trânsito <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="Programações de embarque com saída registrada e sem chegada, cruzadas com a última posição da rastreadora. ATRASADA = previsão de chegada já passou, e o badge diz de quanto. A coluna Posição fica âmbar acima de 6h e vermelha acima de 24h sem transmitir: caminhão em viagem que parou de reportar deixa a torre cega naquela viagem.">i</span></h2><span class="hint">saída registrada e sem chegada · atrasadas primeiro</span></div>
           <div class="tablewrap tabroll" style="max-height:560px"><table><thead><tr>
             <th>Placa</th><th>Modalidade</th><th>Motorista</th><th>Cliente</th><th>Trajeto</th><th class="num">Km</th><th class="num">Saída → previsão</th><th class="num">Posição</th><th>Status</th>
@@ -17197,7 +17206,87 @@ async function loadTorre(fundo){
   // (seq velho): a tela ficava em opacity .55 sem cliques e o botão desabilitado,
   // sem se curar, porque todo tique seguinte também é de fundo.
   finally{ if(!fundo){ btn.disabled=false; document.getElementById('content').classList.remove('loading'); } }
+  /* DEPOIS do `finally`, e SEM `await`: a condição da estrada são ~70 chamadas
+     a uma API de terceiro, e pendurá-la no caminho da Torre faria o mapa e as
+     viagens esperarem por ela. Falha lá não pode tirar a Torre do ar — a tela
+     existe justamente para o dia em que algo está errado.
+     (E entre o `catch` e o `finally` não cabe instrução nenhuma: quebra a
+     cadeia do `try`, e o `node --check` pegou.) */
+  carregarTorreEstradas(fundo);
 }
+/* CONDIÇÃO DA ESTRADA (TomTom).
+   Carrega SEPARADO da Torre: aquela recarrega a cada 2 min e esta tem TTL de
+   10 min no servidor. Amarrar as duas faria o consumo da TomTom seguir a
+   recarga do mapa em vez de seguir o uso -- e o limite do plano nao aparece
+   na resposta, entao o que se controla e o proprio gasto. */
+let TORREEST = null, torreEstSeq = 0;
+
+async function carregarTorreEstradas(fundo){
+  const seq = ++torreEstSeq;
+  try{
+    const opt = {cache:'no-store'};
+    if(fundo) opt.headers = {'X-Carga-Fundo':'1'};
+    const r = await fetch('/api/operacao/torre/estradas', opt);
+    const d = await r.json();
+    if(seq !== torreEstSeq) return;
+    if(!r.ok){ renderTorreEstradas({erro: d.mensagem || 'não foi possível consultar'}); return; }
+    TORREEST = d; renderTorreEstradas(d);
+  }catch(e){
+    if(seq === torreEstSeq) renderTorreEstradas({erro:'não foi possível falar com a API'});
+  }
+}
+
+const TORREEST_CLS = {bloqueado:'b-dang', parado:'b-dang', congestionado:'b-dang',
+                      lento:'b-warn', livre:'b-ok', nd:'b-info'};
+
+function renderTorreEstradas(d){
+  const tb = document.getElementById('torre-estradas');
+  const hint = document.getElementById('hintTorreEstradas');
+  if(!tb || !hint) return;
+  if(!d || d.erro){
+    hint.textContent = d && d.erro ? d.erro : '';
+    tb.innerHTML = '<tr><td colspan="6" style="color:var(--n500)">'
+      + esc((d && d.erro) || 'sem dado') + '</td></tr>';
+    return;
+  }
+  if(d.configurado === false){
+    hint.textContent = 'TomTom não configurada';
+    tb.innerHTML = '<tr><td colspan="6" style="color:var(--n500)">'
+      + esc(d.mensagem || 'chave não configurada') + '</td></tr>';
+    return;
+  }
+  const r = d.resumo || {}, c = r.contagem || {};
+  /* O DENOMINADOR SÃO OS MEDIDOS, e o hint diz isso. Sobre o total, um dia de
+     pouca medição faria o problema parecer menor exatamente quando se sabe
+     menos -- o erro dos 664 rastreadores "sem sinal". */
+  const partes = [];
+  partes.push((r.com_problema || 0) + ' de ' + (r.medidos || 0)
+    + ' com trânsito ruim' + (r.pct_problema != null ? ' (' + NMI.format(r.pct_problema) + '%)' : ''));
+  if(r.atraso_total_min) partes.push(NMI.format(r.atraso_total_min) + ' min perdidos no total');
+  if((d.sem_posicao || []).length) partes.push(d.sem_posicao.length + ' sem posição');
+  if(d.erros) partes.push(d.erros + ' não consultado(s)');
+  if(d.colhido_em) partes.push('lido ' + fmtDT(d.colhido_em) + (d.do_cache ? ' (cache)' : ''));
+  hint.textContent = partes.join(' · ');
+
+  const linhas = d.trechos || [];
+  tb.innerHTML = linhas.map(t => {
+    const cls = TORREEST_CLS[t.estado] || 'b-info';
+    /* Atraso em MINUTOS: segundo é a unidade da API, não a de quem decide
+       parar ou desviar. */
+    const atr = t.atraso_s != null && t.atraso_s > 0
+      ? '<b>' + NMI.format(t.atraso_s / 60) + ' min</b>' : '—';
+    return `<tr${t.estado === 'livre' ? '' : ' style="font-weight:600"'}>
+      <td>${veicIdHTML(t.placa)}</td>
+      <td><span class="badge ${cls}">${esc(t.rotulo || t.estado)}</span></td>
+      <td class="num">${t.velocidade != null ? t.velocidade + ' km/h' : '—'}</td>
+      <td class="num" style="color:var(--n500)">${t.velocidade_livre != null ? t.velocidade_livre + ' km/h' : '—'}</td>
+      <td class="num">${atr}</td>
+      <td style="color:var(--n500);font-size:12px">${esc(t.fonte_posicao || '—')}${
+        t.posicao_idade_min != null ? ' · ' + NMI.format(t.posicao_idade_min) + ' min' : ''}</td>
+    </tr>`;
+  }).join('') || '<tr><td colspan="6" style="color:var(--n500)">nenhuma viagem em trânsito</td></tr>';
+}
+
 function renderTorre(d){
   const k=d.kpis;
   // silêncio do rastreador nas viagens EM TRÂNSITO — o KPI de frota fala da

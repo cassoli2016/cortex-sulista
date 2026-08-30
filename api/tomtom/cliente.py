@@ -164,7 +164,28 @@ def _get(caminho: str, params: dict) -> dict:
 # ── trânsito no ponto ────────────────────────────────────────────────────────
 
 
-def fluxo(lat: float, lon: float, zoom: int = 10) -> dict:
+# ZOOM 14, E ISSO É CORREÇÃO DE MEDIDA, NÃO PREFERÊNCIA.
+#
+# O `zoom` define o TAMANHO DO TRECHO que a API agrega. Medido em 30/08/2026,
+# no mesmo ponto:
+#
+#     zoom 10 → trecho de 1.293 s (~21 min de estrada), 766 pontos,
+#               30/38 km/h, roadClosure = TRUE
+#     zoom 14 → trecho de   112 s (~2 min), 45 pontos,
+#               27/27 km/h, roadClosure = FALSE
+#
+# Ou seja: em zoom 10 a leitura era de dezenas de quilômetros de rodovia e
+# HERDAVA um bloqueio que estava longe do caminhão. Quatro dos cinco "problemas"
+# da primeira varredura da frota eram isso — 80% de falso positivo, com os
+# veículos ANDANDO a 28–30 km/h numa via marcada como fechada.
+#
+# E a prova de que não é o zoom "escondendo" problema: o veículo com
+# congestionamento de verdade (23 km/h onde o livre é 80) aparece IGUAL em
+# todos os zooms. O zoom alto tira o ruído distante, não o fato local.
+ZOOM = 14
+
+
+def fluxo(lat: float, lon: float, zoom: int = ZOOM) -> dict:
     """Velocidade atual × de fluxo livre no trecho onde está aquele ponto.
 
     É o que responde "a estrada onde este caminhão está agora está livre?".

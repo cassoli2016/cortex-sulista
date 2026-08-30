@@ -92,6 +92,7 @@ _FONTES_ROTULO = {
     "manutencao_ano": "Manutenção",
     "multas_ano": "Multas",
     "torre_seguranca": "Torre de Segurança",
+    "estradas_transito": "Condição das estradas (TomTom)",
     "programacao_disponibilidade": "Programação Inteligente",
     "frota": "Veículos",
     "antt_piso": "ANTT — Piso Mínimo de Frete",
@@ -307,6 +308,17 @@ def _fontes_do_snapshot() -> dict:
         from api.gestao import painel as _p
         return _p.resumo()
 
+    def _estradas():
+        """Só o que a Torre JÁ leu. `so_cache=True` nunca sai para a rede: a
+        coleta são ~70 chamadas à TomTom, e sem a trava abrir o chat viraria
+        uma varredura externa a cada dez minutos — a mesma armadilha do
+        `force` da premiação. Escalares apenas; placa não sai daqui."""
+        from api.tomtom import coleta as _tt
+        d = _tt.condicao_da_frota(so_cache=True)
+        return {"resumo": d.get("resumo"), "viagens": d.get("viagens"),
+                "sem_leitura_recente": bool(d.get("sem_cache")),
+                "colhido_em": d.get("colhido_em")}
+
     return {
         "visao_geral": lambda: queries.get_visao_geral(),
         "financeiro_caixa": lambda: queries.get_overview(),
@@ -318,6 +330,7 @@ def _fontes_do_snapshot() -> dict:
         "manutencao_ano": lambda: queries.get_manutencao(None, ini_ano, fim),
         "multas_ano": lambda: queries.get_multas(ini_ano, fim),
         "torre_seguranca": lambda: queries.get_seguranca(),
+        "estradas_transito": _estradas,
         "programacao_disponibilidade": lambda: queries.get_programacao(),
         "frota": lambda: queries.get_veiculos(),
         # Produtividade por veiculo: 90 dias, a mesma janela padrao da tela.

@@ -1838,6 +1838,54 @@ proxy onde não havia nenhum (30/08/2026):**
 - A TomTom mede **FLUXO, não pavimento**. Não há aqui estimativa de "condição
   da estrada" derivada de velocidade: seria afirmar o que a fonte não disse.
 
+**A POSIÇÃO DO VEÍCULO: o ERP não era o plano B, era a maior cobertura**
+(medido em 30/08/2026, pedido do usuário para usar o rastreamento do sistema
+como reforço da Gobrax):
+```
+só na Gobrax ....   1 placa      nas duas ....  97
+só no ERP ...... 177 placas      união ....... 275
+```
+- E o **frescor EMPATA**: nas 97 que aparecem nas duas, a idade mediana é 5 min
+  na Gobrax e 4 min no ERP, com a Gobrax mais recente em 44% dos casos. São
+  caminhos diferentes para o mesmo mundo — a Gobrax lê o equipamento dela; o
+  ERP recebe do hub da Raster, que agrega ONIXSAT, SASCAR, POSITRON e OMNILINK.
+- Por isso `api/posicoes.py` faz vencer a **leitura mais recente**, e não uma
+  fonte fixa: precedência por Gobrax descartaria a posição mais nova em 56% das
+  placas comuns **sem ganhar cobertura nenhuma**. `preferir="gobrax"` existe
+  para quem quiser a precedência literal.
+- **Toda posição diz de onde veio e que idade tem.** Com a Gobrax fora, o total
+  quase não muda (o ERP cobre 274 de 275) — e é só a linha de procedência que
+  denuncia. Sem ela, uma integração morre em silêncio.
+- `gobrax/comunicacao.coletar` JOGA LAT/LON FORA de propósito (ele responde "há
+  quanto tempo esta placa não comunica"). Reusá-lo para posição traria placa e
+  hora sem coordenada — não é duplicação ter um leitor próprio.
+
+**TomTom, condição da estrada — o ZOOM era um defeito de MEDIDA:**
+- Primeira varredura da frota: 5 "problemas", sendo **4 falsos "via
+  bloqueada"** — com os caminhões ANDANDO a 28–30 km/h numa via marcada como
+  fechada. O que não fechava era isso: veículo em movimento em estrada fechada.
+- A causa é o `zoom`, que define o TAMANHO DO TRECHO agregado. No mesmo ponto:
+  `zoom 10` → trecho de **1.293 s (~21 min de estrada)**, 766 pontos, 30/38
+  km/h, `roadClosure: true`; `zoom 14` → trecho de **112 s (~2 min)**, 45
+  pontos, 27/27 km/h, `roadClosure: false`. Em zoom baixo a leitura HERDAVA um
+  bloqueio que estava a dezenas de quilômetros.
+- **E o zoom alto não esconde problema:** o congestionamento real (23 km/h onde
+  o livre é 80) aparece IGUAL em todos os zooms. Depois da correção, a frota
+  saiu de 7,2% para 2,9% com trânsito ruim, sem nenhum bloqueado falso.
+- **A pergunta é a RAZÃO, não a velocidade**: 40 km/h é bom numa serra e
+  péssimo numa reta. `confidence` abaixo de 0,5 vira **n/d**, nunca verde nem
+  vermelho — a própria API está dizendo que não sabe.
+- O recorte é **em viagem** (69 de 275): consultar a frota parada seria 4x o
+  custo para perguntar sobre estrada que não existe.
+- **O limite do plano NÃO É OBSERVÁVEL** (nenhum cabeçalho de cota nas três
+  famílias de endpoint). Sem poder ver o teto, conta-se o GASTO: `tt_chamadas`,
+  por dia e recurso, com o número na Saúde. E a cadência é **sob demanda com
+  TTL de 10 min**, não tarefa agendada — agendada, o custo é constante mesmo no
+  domingo em que ninguém abre a tela.
+- **Fonte nova no snapshot do Copiloto não pode disparar coleta** (`so_cache`):
+  seriam ~70 chamadas externas a cada abertura do chat. Mesma trava do `force`
+  da premiação.
+
 **O AVA é PostgreSQL 9.3.** Sem `FILTER (WHERE …)`, que só chegou no 9.4 — todo
 agregado condicional é `CASE WHEN`. O erro aponta para o meio do agregado
 (`syntax error at or near "("`), não para a versão. O banco local do CÓRTEX é

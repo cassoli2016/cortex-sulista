@@ -213,6 +213,9 @@ ROTA_TELAS: list[tuple[str, frozenset[str]]] = [
     ("/api/premiacao/config",         frozenset({"prem"})),
     ("/api/premiacao/ocorrencias",    frozenset({"prem"})),
     ("/api/frota/premiacao",          frozenset({"prem"})),
+    # MAIS ESPECIFICA ANTES DA GENERICA:  casaria o
+    # prefixo de  e o barraria por outra tela.
+    ("/api/operacao/torre/estradas",  frozenset({"torre", "tvope"})),
     ("/api/operacao/torre",           frozenset({"torre", "tvope"})),
     ("/api/operacao/programacao",     frozenset({"prog", "tvope"})),
     ("/api/operacao/seguranca",       frozenset({"tvope"})),

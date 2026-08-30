@@ -1,3 +1,28 @@
+- versao: "0.160.0"
+  data: "2026-08-30"
+  adicionado:
+    - >-
+      A Torre de Controle passou a mostrar a condição da estrada onde cada
+      caminhão em viagem está agora: velocidade atual contra a de fluxo livre
+      do trecho, e quantos minutos o trânsito está custando. Na primeira
+      leitura real, 2 de 69 veículos com trânsito ruim e 58 minutos perdidos
+      no total.
+    - >-
+      A posição do veículo passou a vir do rastreamento do ERP e da Gobrax
+      juntos, valendo a leitura mais recente. Isso levou a cobertura de 98
+      para 275 placas — e as 69 viagens em trânsito passaram a ter posição.
+      Cada linha diz de qual fonte veio e há quantos minutos.
+    - >-
+      A Saúde do Servidor mostra quantas chamadas foram feitas à TomTom no
+      dia. O limite do plano não aparece na resposta da API, então o que dá
+      para acompanhar é o próprio consumo.
+  corrigido:
+    - >-
+      A primeira leitura de trânsito marcava quatro veículos como estando em
+      via bloqueada enquanto eles andavam a 30 km/h: a consulta cobria 21
+      minutos de estrada de uma vez e herdava um bloqueio distante. Passou a
+      consultar o trecho onde o caminhão está.
+
 - versao: "0.159.0"
   data: "2026-08-30"
   adicionado:

@@ -2320,6 +2320,28 @@ def analise_km(
             "erro": "erro_consulta", "mensagem": "Erro ao consultar a análise de km."})
 
 
+@app.get("/api/operacao/torre/estradas")
+def torre_estradas(forcar: int = 0) -> JSONResponse:
+    """Condição da estrada onde cada caminhão EM VIAGEM está agora (TomTom).
+
+    ROTA SEPARADA da Torre, de propósito: são ~70 chamadas a uma API de
+    terceiro, com TTL de 10 min. Pendurá-la no payload da Torre — que recarrega
+    a cada 2 min — faria a tela inteira esperar pelo trânsito, e faria o
+    consumo da TomTom seguir a recarga do mapa em vez de seguir o uso.
+
+    `def` e não `async def`: a varredura faz I/O de rede, e num `async def` ela
+    travaria o event loop, isto e, o CÓRTEX inteiro pelo tempo da coleta.
+    """
+    from api.tomtom import coleta
+    try:
+        return JSONResponse(coleta.condicao_da_frota(forcar=bool(forcar)))
+    except Exception as exc:  # noqa: BLE001
+        log.warning("torre_estradas: %s", type(exc).__name__)
+        return JSONResponse(status_code=500, content={
+            "erro": "erro_consulta",
+            "mensagem": "Erro ao consultar a condição das estradas."})
+
+
 @app.get("/api/operacao/torre")
 def torre(filial: int | None = None) -> JSONResponse:
     try:
