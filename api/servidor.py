@@ -366,6 +366,109 @@ def _servico_gestao() -> dict:
                            else "nenhuma atrasada"))}
 
 
+def _servico_crm() -> dict:
+    """Módulo de CRM — contas, oportunidades, atividades e contratos.
+
+    Como a Gestão, não é integração externa: o que pode dar errado é a
+    migration não ter sido aplicada nesta instalação, e o sintoma seria a tela
+    abrir VAZIA — que se lê como "ainda não usaram" em vez de "está quebrado".
+    A linha existe para separar as duas coisas.
+
+    O que vai como ALERTA é só o que pede ação de alguém e não é estado
+    normal: lane cotada abaixo do piso mínimo da ANTT (que é ilegal, não
+    apenas ruim) e reajuste de contrato com o ciclo vencido (dinheiro na mesa).
+    Atividade atrasada NÃO acende aqui: ela é rotina de time comercial, tem
+    cartão próprio na tela do CRM, e repeti-la na Saúde ensinaria a ignorar o
+    vermelho — o mesmo erro do cartão que ficava vermelho por dois dias com a
+    coleta da RasterJOR funcionando.
+
+    A CONTAGEM DE LANES ABAIXO DO PISO É CALCULADA AQUI, e não lida do painel,
+    porque `painel.tudo()` fala com o AVA (receita da carteira) e a Saúde
+    recarrega a cada 5 s — seria uma consulta ao ERP a cada cinco segundos
+    para desenhar uma linha. Aqui é só o banco local; o piso sai da tabela
+    ANTT vigente, que é um YAML em memória.
+    """
+    nome = "CRM (funil comercial)"
+    try:
+        from . import pglocal
+        if not pglocal.configurado():
+            return {"nome": nome, "status": "info",
+                    "detalhe": "banco local não configurado nesta instalação"}
+        r = pglocal.um(
+            "SELECT (SELECT count(*) FROM crm_contas WHERE arquivada=0)::int AS contas,"
+            "       (SELECT count(*) FROM crm_oportunidades"
+            "         WHERE estagio NOT IN ('ganha','perdida'))::int AS abertas,"
+            "       (SELECT count(*) FROM crm_contratos"
+            "         WHERE cancelado_em IS NULL"
+            "           AND (fim IS NULL OR fim >= current_date))::int AS contratos")
+        lanes = pglocal.query(
+            "SELECT l.km, l.eixos, l.tipo_carga, l.valor_viagem"
+            "  FROM crm_lanes l"
+            "  JOIN crm_oportunidades o ON o.id = l.oportunidade_id"
+            " WHERE o.estagio NOT IN ('ganha','perdida')"
+            "   AND l.km IS NOT NULL AND l.eixos IS NOT NULL"
+            "   AND l.tipo_carga <> '' AND l.valor_viagem IS NOT NULL")
+    except Exception as exc:  # noqa: BLE001
+        if pglocal.sem_tabela(exc):
+            return {"nome": nome, "status": "erro",
+                    "detalhe": "tabelas ausentes — rode "
+                               "scripts/migrar_schema.py (migration 0026)"}
+        log.warning("saude: crm: %s", exc)
+        return {"nome": nome, "status": "info", "detalhe": "módulo indisponível"}
+
+    abaixo = 0
+    try:
+        from datetime import date as _d
+
+        from .antt.piso import avaliar, calcular_piso
+        hoje = _d.today()
+        for l in lanes:
+            p = avaliar(float(l["valor_viagem"]),
+                        calcular_piso(float(l["km"]), l["tipo_carga"],
+                                      l["eixos"], hoje))
+            if p.get("abaixo"):
+                abaixo += 1
+    except Exception as exc:  # noqa: BLE001
+        # Sem a tabela da ANTT o módulo continua funcionando: o que se perde é
+        # a conferência do piso, e dizer isso é melhor que omitir a linha.
+        log.warning("saude: crm piso: %s", exc)
+        abaixo = None
+
+    try:
+        reaj = pglocal.query(
+            "SELECT inicio, mes_reajuste, ultimo_reajuste FROM crm_contratos"
+            " WHERE cancelado_em IS NULL AND mes_reajuste IS NOT NULL")
+    except Exception:  # noqa: BLE001
+        reaj = []
+    pendentes = 0
+    from datetime import date as _dd
+    hj = _dd.today()
+    for c in reaj:
+        mes = int(c["mes_reajuste"])
+        ciclo = _dd(hj.year if hj.month >= mes else hj.year - 1, mes, 1)
+        if c["inicio"] and c["inicio"] >= ciclo:
+            continue
+        if c["ultimo_reajuste"] is None or c["ultimo_reajuste"] < ciclo:
+            pendentes += 1
+
+    if not r["contas"]:
+        return {"nome": nome, "status": "info",
+                "detalhe": "pronto para uso · nenhuma conta cadastrada ainda"}
+    base = (f"{r['contas']} conta(s) · {r['abertas']} oportunidade(s) aberta(s) "
+            f"· {r['contratos']} contrato(s) vigente(s)")
+    problemas = []
+    if abaixo:
+        problemas.append(f"{abaixo} lane(s) cotada(s) abaixo do piso ANTT")
+    if pendentes:
+        problemas.append(f"{pendentes} reajuste(s) de contrato vencido(s)")
+    if abaixo is None:
+        base += " · piso ANTT não conferido (tabela de coeficientes indisponível)"
+    if problemas:
+        return {"nome": nome, "status": "alerta",
+                "detalhe": " · ".join(problemas) + " · " + base}
+    return {"nome": nome, "status": "ok", "detalhe": base}
+
+
 def _servico_gobrax(d: dict) -> dict:
     """Linha da Gobrax na Saúde, a partir do diagnóstico do CACHE.
 
@@ -573,6 +676,9 @@ def _servicos() -> list[dict]:
     # migration faltando é indistinguível de tela vazia por falta de uso — esta
     # linha é o que separa as duas.
     servicos.append(_servico_gestao())
+    # CRM: mesma razão da Gestão — mora no banco local e a tela vazia por
+    # migration faltando é indistinguível de tela vazia por falta de uso.
+    servicos.append(_servico_crm())
     servicos.append(_servico_premiacao())
 
     # Jornada: vem do AVA, não do banco local — mas a pergunta é a mesma

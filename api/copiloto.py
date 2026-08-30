@@ -308,6 +308,38 @@ def _fontes_do_snapshot() -> dict:
         from api.gestao import painel as _p
         return _p.resumo()
 
+    def _crm():
+        """Só os KPIs do funil — NUNCA a lista de contas nem os alertas.
+
+        O painel do CRM carrega nome de cliente em quase tudo o que é útil na
+        tela (carteira parada, contas sem contato, lanes abaixo do piso), e o
+        snapshot vai para modelo EXTERNO. O que sobe é escalar: tamanho do
+        pipeline, conversão, ciclo, quantos contratos vencem e por que se
+        perde — que é o que o gestor pergunta no chat sem que nada
+        identificável saia da empresa.
+
+        `motivos_perda` entra porque é agregado por CATEGORIA (preço,
+        capacidade), não por cliente; e é a resposta mais útil que esta tela
+        tem para "por que estamos perdendo negócio?".
+
+        Leitura barata: tudo do banco local, exceto a receita da carteira, que
+        é uma consulta ao AVA já feita e cacheada.
+        """
+        from api.crm import painel as _crmp
+        d = _crmp.tudo()
+        k = dict(d.get("kpis") or {})
+        return {
+            **k,
+            "funil": [{"estagio": f["estagio"], "oportunidades": f["n"],
+                       "valor_mes": f["valor"], "ponderado": f["ponderado"]}
+                      for f in d.get("funil") or []],
+            "motivos_perda": [{"motivo": m["motivo"], "n": m["n"],
+                               "pct": m["pct"]}
+                              for m in d.get("motivos_perda") or []],
+            "alertas": [{"chave": a["chave"], "n": a["n"]}
+                        for a in d.get("alertas") or []],
+        }
+
     def _estradas():
         """Só o que a Torre JÁ leu. `so_cache=True` nunca sai para a rede: a
         coleta são ~70 chamadas à TomTom, e sem a trava abrir o chat viraria
@@ -354,6 +386,7 @@ def _fontes_do_snapshot() -> dict:
         "cnh_motoristas": _cnh,
         "gestao_acoes": _gestao,
         "jornada_raster": _jornada_raster,
+        "crm_funil": _crm,
     }
 
 

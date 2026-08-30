@@ -747,6 +747,63 @@ body.painelfull .content{padding:16px 22px}
   font-weight:700;font-family:var(--mono)}
 .aban.vazio{display:none}
 .subtabs button[aria-selected="true"] .aban{background:var(--orange-100);color:var(--orange-600)}
+/* ═══ Kanban do CRM ═══════════════════════════════════════════════════════
+   Quatro colunas fixas, uma por estágio aberto do funil. `auto-fit` foi
+   descartado pelo mesmo motivo das bandas de KPI: com ele a última coluna
+   ficava sozinha numa linha em telas médias, e um funil quebrado em duas
+   linhas deixa de ser funil.
+   A ROLAGEM É DA COLUNA, nunca da página — é a regra do `.tabroll` aplicada
+   ao quadro. Uma coluna com 30 cartões faria a tela passar de 3.000px e
+   esconderia justamente as outras três. */
+.kanban{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;padding:0 16px 16px;
+  align-items:start}
+.kcol{background:var(--n50,#F7F8FA);border:1px solid var(--n200);border-radius:var(--radius-md);
+  display:flex;flex-direction:column;min-height:120px}
+.kcol-h{display:flex;align-items:baseline;gap:6px;padding:9px 11px 7px;
+  border-bottom:1px solid var(--n200);font-size:11.5px;font-weight:700;
+  text-transform:uppercase;letter-spacing:.06em;color:var(--n600)}
+.kcol-h .kn{margin-left:auto;font-family:var(--mono);font-size:11px;color:var(--n500);
+  font-weight:700;letter-spacing:0}
+.kcol-h .kv{width:100%;font-family:var(--mono);font-size:12px;color:var(--n900);
+  text-transform:none;letter-spacing:0;font-weight:700}
+.kcol-body{padding:8px;display:flex;flex-direction:column;gap:8px;
+  max-height:430px;overflow-y:auto}
+.kcol.alvo{border-color:var(--orange-500);background:var(--orange-100)}
+.kcard{background:var(--n0);border:1px solid var(--n200);border-radius:var(--radius-md);
+  padding:9px 10px;cursor:grab;font-size:12.5px;line-height:1.35;
+  box-shadow:0 1px 2px rgba(20,24,29,.05)}
+.kcard:hover{border-color:var(--navy-400)}
+.kcard:focus-visible{outline:2px solid var(--orange-500);outline-offset:1px}
+.kcard.arrastando{opacity:.45;cursor:grabbing}
+.kcard b{display:block;font-weight:700;color:var(--n900);margin-bottom:2px}
+.kcard .kc-conta{color:var(--n600);font-size:11.5px}
+.kcard .kc-preco{font-family:var(--mono);font-weight:700;color:var(--n900);margin-top:5px;
+  display:flex;align-items:baseline;gap:6px;flex-wrap:wrap}
+.kcard .kc-preco small{font-family:var(--font);font-weight:600;color:var(--n500);font-size:10.5px}
+.kcard .kc-pe{margin-top:5px;display:flex;gap:5px;flex-wrap:wrap}
+.kvazio{color:var(--n400);font-size:11.5px;text-align:center;padding:14px 4px}
+/* ═══ Lanes na ficha da oportunidade ═════════════════════════════════════ */
+.lane{border:1px solid var(--n200);border-radius:var(--radius-md);padding:10px 12px;
+  margin-bottom:8px;background:var(--n0)}
+.lane.abaixo{border-color:var(--red);background:var(--red-50,#fdf2f0)}
+.lane-h{display:flex;align-items:baseline;gap:8px;flex-wrap:wrap;margin-bottom:6px}
+.lane-h b{font-size:13px;color:var(--n900)}
+.lane-g{display:grid;grid-template-columns:repeat(auto-fit,minmax(96px,1fr));gap:7px 14px}
+.lane-g div{font-size:11px;color:var(--n500);text-transform:uppercase;letter-spacing:.05em;
+  font-weight:600}
+.lane-g div span{display:block;font-family:var(--mono);font-size:13px;color:var(--n900);
+  text-transform:none;letter-spacing:0;font-weight:700}
+.lane-g div span.na{color:var(--n400);font-weight:600}
+/* ═══ Histórico de interações ════════════════════════════════════════════ */
+.crmtl{list-style:none;margin:0;padding:0}
+.crmtl li{display:flex;gap:9px;padding:8px 0;border-bottom:1px solid var(--n100,#EEF1F4);
+  font-size:12.5px}
+.crmtl li:last-child{border-bottom:0}
+.crmtl .tl-c{flex:none;width:74px;font-family:var(--mono);font-size:11px;color:var(--n500)}
+.crmtl .tl-t{flex:1;color:var(--n700);white-space:pre-wrap}
+.crmtl .tl-t b{color:var(--n900)}
+@media(max-width:1100px){.kanban{grid-template-columns:repeat(2,1fr)}}
+@media(max-width:640px){.kanban{grid-template-columns:1fr}}
   .dfreq{padding:2px 0 10px;border-bottom:1px solid var(--n100,#EEF1F4)}
   .dfreq-h{font-size:11.5px;font-weight:700;text-transform:uppercase;letter-spacing:.07em;
     color:var(--orange-600);padding:9px 4px 7px}
@@ -1228,6 +1285,14 @@ button.avatar{border:0;cursor:pointer}
 .modal{background:var(--n0);border-radius:var(--radius,10px);box-shadow:var(--shadow,0 10px 30px rgba(0,0,0,.25));
   width:min(96vw,560px);max-height:86vh;overflow:auto;padding:20px 22px}
 .modal h3{margin:0 0 12px;font-size:17px}
+/* Ficha larga (conta 360, oportunidade com lanes). Os 560px do modal padrão
+   servem a formulário; ficha tem tabela, gráfico e grade de nove indicadores
+   por lane, e a 560px cada lane vira uma coluna de números empilhados. A
+   classe é REMOVIDA por `abrirModal`, senão o próximo modal — um formulário —
+   herdaria a largura do anterior. */
+.modal.larga{width:min(96vw,980px)}
+.modal.larga .grid2{grid-template-columns:1fr 1fr}
+@media(max-width:820px){.modal.larga .grid2{grid-template-columns:1fr}}
 .ges-form{display:flex;flex-direction:column;gap:10px}
 .ges-form label{font-size:12px;font-weight:600;color:var(--n600,#6B7280);display:block;margin-bottom:3px}
 .ges-form input[type=text],.ges-form input[type=email],.ges-form input[type=password],
@@ -2045,7 +2110,7 @@ body.tvfull #btnReport,body.tvmode #btnReport{display:none}
       <div class="subs closed" id="subsCom">
         <a href="#com" class="sub" data-view="com" title="Clientes e RKM"><span class="ic" data-ic="com"></span><span>Clientes e RKM</span></a>
         <a href="#clif" class="sub" data-view="clif" title="Consulta de Cliente por nome"><span class="ic" data-ic="clific"></span><span>Consulta de Cliente</span></a>
-        <a href="#crm" class="sub" data-view="crm" title="CRM — leads, projetos e repactuações"><span class="ic" data-ic="crmic"></span><span>CRM</span></a>
+        <a href="#crm" class="sub" data-view="crm" title="CRM — funil comercial: contas, oportunidades por rota, atividades e contratos (e a base do Avacorp numa aba)"><span class="ic" data-ic="crmic"></span><span>CRM</span></a>
         <a href="#drecli" class="sub" data-view="drecli" title="DRE por Cliente"><span class="ic" data-ic="rent"></span><span>DRE por Cliente</span></a>
       </div>
       <button class="group" id="grpCtr" aria-expanded="false" aria-controls="subsCtr" onclick="toggleGroup('grpCtr','subsCtr','cs.ctrGroup')" title="Controladoria">
@@ -4512,7 +4577,120 @@ body.tvfull #btnReport,body.tvmode #btnReport{display:none}
         </div>
       </section>
       <section class="view" id="view-crm">
-        <div class="kpis k4" id="kpis-crm"></div>
+        <div class="subtabs" role="tablist" data-abas="crm" aria-label="Seções do CRM">
+          <button role="tab" id="tabcrm-pnl" data-aba="pnl" aria-controls="aba-crm-pnl" aria-selected="true" onclick="abaTrocar('crm','pnl')">Painel</button>
+          <button role="tab" id="tabcrm-pipe" data-aba="pipe" aria-controls="aba-crm-pipe" aria-selected="false" onclick="abaTrocar('crm','pipe')">Pipeline<span class="aban vazio" id="abanCrmPipe"></span></button>
+          <button role="tab" id="tabcrm-ctas" data-aba="ctas" aria-controls="aba-crm-ctas" aria-selected="false" onclick="abaTrocar('crm','ctas')">Contas<span class="aban vazio" id="abanCrmCtas"></span></button>
+          <button role="tab" id="tabcrm-ativ" data-aba="ativ" aria-controls="aba-crm-ativ" aria-selected="false" onclick="abaTrocar('crm','ativ')">Atividades<span class="aban vazio" id="abanCrmAtiv"></span></button>
+          <button role="tab" id="tabcrm-ctr" data-aba="ctr" aria-controls="aba-crm-ctr" aria-selected="false" onclick="abaTrocar('crm','ctr')">Contratos<span class="aban vazio" id="abanCrmCtr"></span></button>
+          <button role="tab" id="tabcrm-ava" data-aba="ava" aria-controls="aba-crm-ava" aria-selected="false" onclick="abaTrocar('crm','ava')">Base Avacorp</button>
+        </div>
+
+        <!-- ══ PAINEL ══ Nasce aberta: é a aba com gráfico, e o ECharts mede o
+             contêiner uma vez, no `init`. Medida feita sob `hidden` vale zero
+             para sempre. -->
+        <div class="aba" data-abas="crm" data-aba="pnl" id="aba-crm-pnl" role="tabpanel" aria-labelledby="tabcrm-pnl">
+          <div class="kpis k4" id="kpis-crm"></div>
+          <div class="grid2">
+            <div class="card"><div class="head"><h2>Funil <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="Oportunidades ABERTAS por estágio, com o valor mensal somado das lanes de cada uma. O valor ponderado usa a probabilidade da oportunidade quando o vendedor informou uma, e a do estágio quando não — o cartão do funil diz qual das duas está valendo. Estágio vazio aparece com zero em vez de sumir: “não há nada aqui” é a informação mais acionável do gráfico.">i</span></h2><span class="hint" id="crm-funil-hint">oportunidades abertas · valor mensal</span></div>
+              <div class="chartwrap"><div id="chartCrmFunil" style="width:100%;height:210px" role="img" aria-label="Funil de oportunidades por estágio"></div></div></div>
+            <div class="card"><div class="head"><h2>Previsão de fechamento <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="Os próximos 6 meses pela data prevista de fechamento, com o valor ponderado pela probabilidade. O mês é GERADO, não colhido: mês sem previsão nenhuma entra zerado, porque emendar dois meses distantes numa linha contínua faz “nada previsto” parecer tendência. Oportunidade sem data prevista não pertence a mês nenhum e é contada à parte, no rodapé — é lacuna de cadastro, e lacuna dita é acionável.">i</span></h2><span class="hint" id="crm-prev-hint">6 meses · ponderado pela probabilidade</span></div>
+              <div class="chartwrap"><div id="chartCrmPrev" style="width:100%;height:210px" role="img" aria-label="Previsão de fechamento por mês"></div></div></div>
+          </div>
+          <div class="card">
+            <div class="head"><h2>Exige ação <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="O que precisa de providência agora, do mais grave para o menos. Nenhuma linha acende por estado normal: contrato por prazo indeterminado não vence, prospect não fica “parado” e conta arquivada não aparece. Alarme que acende sem haver problema ensina a ignorar o alarme.">i</span></h2><span class="hint" id="crm-alertas-hint"></span></div>
+            <div id="crm-alertas"></div>
+          </div>
+        </div>
+
+        <!-- ══ PIPELINE ══ -->
+        <div class="aba" data-abas="crm" data-aba="pipe" id="aba-crm-pipe" role="tabpanel" aria-labelledby="tabcrm-pipe" hidden>
+          <div class="card">
+            <div class="head"><h2>Pipeline <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="Oportunidades abertas por estágio. Arraste o cartão para mover — mover para “Perdida” pede o motivo, porque é a única hora em que alguém lembra. O valor de cada cartão é a soma das lanes (valor da viagem × viagens no mês); oportunidade sem lane usa o valor mensal estimado, e o cartão diz qual dos dois está valendo.">i</span></h2>
+              <span class="hint" id="crm-pipe-hint"></span></div>
+            <div class="cardfilters">
+              <select id="crm-pipe-dono" onchange="crmPipeRender()"><option value="">Todos os responsáveis</option></select>
+              <select id="crm-pipe-tipo" onchange="crmPipeRender()"><option value="">Todos os tipos</option></select>
+              <input type="search" id="crm-pipe-busca" placeholder="Buscar conta, título ou código…" oninput="crmPipeRender()">
+              <button class="chip" onclick="crmOpoModal(0)">+ Oportunidade</button>
+            </div>
+            <div class="kanban" id="crm-kanban"></div>
+          </div>
+        </div>
+
+        <!-- ══ CONTAS ══ -->
+        <div class="aba" data-abas="crm" data-aba="ctas" id="aba-crm-ctas" role="tabpanel" aria-labelledby="tabcrm-ctas" hidden>
+          <div class="card">
+            <div class="head"><h2>Contas <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="Cadastro do CRM (banco local do CÓRTEX) cruzado com a receita REAL do ERP pelo grupo econômico (agrupamentocliente). A situação NÃO é um campo: prospect é conta sem vínculo com o ERP; ativo é quem rodou dentro do corte; parado é quem tem vínculo e não roda há mais que o corte; sem histórico é vínculo sem nenhuma viagem em 2 anos, que costuma ser vínculo apontando para o grupo errado.">i</span></h2>
+              <span class="hint" id="crm-contas-hint"></span></div>
+            <div class="cardfilters">
+              <div class="chips" id="crm-sit-chips">
+                <button class="chip active" data-s="" onclick="crmSetSit(this)">Todas</button>
+                <button class="chip" data-s="ativo" onclick="crmSetSit(this)">Ativas</button>
+                <button class="chip" data-s="parado" onclick="crmSetSit(this)">Paradas</button>
+                <button class="chip" data-s="prospect" onclick="crmSetSit(this)">Prospects</button>
+                <button class="chip" data-s="sem_historico" onclick="crmSetSit(this)">Sem histórico</button>
+              </div>
+              <select id="crm-conta-dono" onchange="crmContasRender()"><option value="">Todos os responsáveis</option></select>
+              <select id="crm-conta-seg" onchange="crmContasRender()"><option value="">Todos os segmentos</option></select>
+              <input type="search" id="crm-conta-busca" placeholder="Buscar conta ou CNPJ…" oninput="crmContasRender()">
+              <button class="chip" onclick="crmContaModal(0)">+ Conta</button>
+            </div>
+            <div class="tablewrap tabroll" id="crm-contas"></div>
+          </div>
+        </div>
+
+        <!-- ══ ATIVIDADES ══ -->
+        <div class="aba" data-abas="crm" data-aba="ativ" id="aba-crm-ativ" role="tabpanel" aria-labelledby="tabcrm-ativ" hidden>
+          <div class="card">
+            <div class="head"><h2>Atividades <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="O compromisso de follow-up: o que alguém vai fazer, até quando. NÃO existe status “atrasada” gravado — atraso é prazo anterior a hoje com a atividade ainda aberta, calculado a cada leitura. Concluir uma atividade de CONTATO (ligação, visita, reunião, e-mail, WhatsApp) registra a interação no histórico da conta; concluir “montar proposta” não registra nada, porque não houve contato com ninguém.">i</span></h2>
+              <span class="hint" id="crm-ativ-hint"></span></div>
+            <div class="cardfilters">
+              <div class="chips" id="crm-ativ-chips">
+                <button class="chip active" data-f="abertas" onclick="crmSetAtiv(this)">Abertas</button>
+                <button class="chip" data-f="minhas" onclick="crmSetAtiv(this)">Minhas</button>
+                <button class="chip" data-f="atrasadas" onclick="crmSetAtiv(this)">Atrasadas</button>
+                <button class="chip" data-f="hoje" onclick="crmSetAtiv(this)">Hoje</button>
+                <button class="chip" data-f="" onclick="crmSetAtiv(this)">Todas</button>
+              </div>
+              <button class="chip" onclick="crmAtivModal(0)">+ Atividade</button>
+            </div>
+            <div class="tablewrap tabroll" id="crm-atividades"></div>
+          </div>
+        </div>
+
+        <!-- ══ CONTRATOS ══ -->
+        <div class="aba" data-abas="crm" data-aba="ctr" id="aba-crm-ctr" role="tabpanel" aria-labelledby="tabcrm-ctr" hidden>
+          <div class="card">
+            <div class="head"><h2>Contratos <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="Vigência e regra de reajuste. NÃO há coluna de status: vigente, a vencer e vencido saem das datas de início e fim contra hoje; só a rescisão é fato gravado, porque é evento e não passagem do tempo. “Reajuste pendente” é o mês de reajuste do ciclo corrente já ter passado sem registro de aplicação — e o ciclo compara o ANO, não só o mês, senão um contrato ajustado em janeiro do ano passado pareceria em dia.">i</span></h2>
+              <span class="hint" id="crm-ctr-hint"></span></div>
+            <div class="cardfilters">
+              <div class="chips" id="crm-ctr-chips">
+                <button class="chip active" data-c="" onclick="crmSetCtr(this)">Todos</button>
+                <button class="chip" data-c="vigente" onclick="crmSetCtr(this)">Vigentes</button>
+                <button class="chip" data-c="a_vencer" onclick="crmSetCtr(this)">A vencer</button>
+                <button class="chip" data-c="reajuste" onclick="crmSetCtr(this)">Reajuste pendente</button>
+                <button class="chip" data-c="vencido" onclick="crmSetCtr(this)">Vencidos</button>
+              </div>
+              <button class="chip" onclick="crmCtrModal(0)">+ Contrato</button>
+            </div>
+            <div class="tablewrap tabroll" id="crm-contratos"></div>
+          </div>
+        </div>
+
+        <!-- ══ BASE AVACORP ══ A tela original, intocada. É o registro do que o
+             time comercial preencheu no ERP; nada foi copiado dela para o CRM
+             novo, porque duas verdades sobre o mesmo lead seria o preço de uma
+             importação que ninguém pediu. -->
+        <div class="aba" data-abas="crm" data-aba="ava" id="aba-crm-ava" role="tabpanel" aria-labelledby="tabcrm-ava" hidden>
+          <div class="banner-inline" style="margin:0 0 14px">
+            <b>Somente leitura.</b> Esta é a base que vem do Avacorp
+            (<code>gestaocomercial</code>, <code>pipelineprojetos</code> e as repactuações),
+            preservada como está. O CRM novo — Painel, Pipeline, Contas, Atividades e
+            Contratos — é escrito no banco do CÓRTEX e não copia nada daqui: o que liga os
+            dois é o grupo econômico do ERP, informado na ficha da conta.
+          </div>
+          <div class="kpis k4" id="kpis-crmava"></div>
         <div class="grid2">
           <div class="card"><div class="head"><h2>Funil por temperatura <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="Leads ativos do CRM (sulista.gestaocomercial) por temperatura informada pelo vendedor, com o potencial declarado de cada faixa. Temperatura e potencial são preenchimento manual do time comercial — não saem de nenhum cálculo do ERP.">i</span></h2><span class="hint">leads e potencial por faixa</span></div>
             <div class="modl" id="crm-temp-mix"></div></div>
@@ -4548,6 +4726,7 @@ body.tvfull #btnReport,body.tvmode #btnReport{display:none}
             <div class="tablewrap tabroll" id="crm-projetos"></div></div>
           <div class="card"><div class="head"><h2>Repactuações <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="sulista.pipelineprojetos_repactuacoes: reajustes acordados por cliente, com o percentual total aplicado e o mês de vigência. Os gatilhos típicos são repasse de diesel e renegociação de contrato.">i</span></h2><span class="hint">reajustes por cliente · gatilhos de diesel/negócios</span></div>
             <div class="tablewrap tabroll" id="crm-repac"></div></div>
+        </div>
         </div>
       </section>
       <section class="view" id="view-rh">
@@ -17089,17 +17268,50 @@ function renderPort(d){
   document.getElementById('port-aut').innerHTML=`<table><thead><tr><th>Tipo</th><th>Frota</th><th>Motorista</th><th>Destino</th><th>Porte</th><th class="num">Emissão</th><th>Status</th></tr></thead><tbody>${au}</tbody></table>`;
 }
 // ---------------- CRM ----------------
+/* A tela tem DUAS metades independentes: o CRM novo (banco local do CÓRTEX,
+   nas cinco primeiras abas) e a base do Avacorp (réplica remota do ERP, na
+   última). Carregam em PARALELO e com `allSettled` de propósito:
+
+   - em série, uma consulta lenta ao AVA atrasaria o painel que ABRE a tela;
+   - e uma falha do AVA não pode levar junto o CRM novo, que não depende dele.
+     Derrubar as cinco abas porque a sexta não respondeu seria trocar "uma aba
+     a menos" por "nenhuma tela". */
 async function loadCrm(){
   const seq=++crmSeq, btn=document.getElementById('btnRefresh'); if(btn) btn.disabled=true;
   document.getElementById('content').classList.add('loading');
-  skelKpis('kpis-crm',4);
+  skelKpis('kpis-crm',4); skelKpis('kpis-crmava',4);
   try{
-    const r=await fetch('/api/comercial/crm',{cache:'no-store'});
-    const d=await r.json(); if(seq!==crmSeq) return;
-    if(!r.ok){ showBanner(d.mensagem||'Erro ao consultar o CRM.', d.detalhe); return; }
-    hideBanner(); DATACRM=d; LOADEDQS.crm=''; renderCrm(d);
-  }catch(e){ if(seq===crmSeq) showBanner('Não foi possível falar com a API.', e.message); }
+    const [nova, base] = await Promise.allSettled([
+      crmCarregarNovo(),
+      fetch('/api/comercial/crm',{cache:'no-store'}).then(respostaJSON),
+    ]);
+    if(seq!==crmSeq) return;
+    if(nova.status==='rejected')
+      showBanner('Não foi possível carregar o CRM.',
+                 String((nova.reason&&nova.reason.message)||nova.reason||''));
+    else hideBanner();
+    if(base.status==='fulfilled' && base.value.ok){
+      DATACRM=base.value.dados; LOADEDQS.crm=''; renderCrm(DATACRM);
+    }else{
+      const msg = base.status==='fulfilled'
+        ? (base.value.dados.mensagem||'O ERP recusou a consulta.')
+        : String((base.reason&&base.reason.message)||base.reason||'');
+      crmBaseFalhou(msg);
+    }
+  }
   finally{ if(seq===crmSeq){ if(btn) btn.disabled=false; document.getElementById('content').classList.remove('loading'); } }
+}
+/* A base do Avacorp falhou. A FALHA É DITA dentro da aba dela — cartão vazio
+   faria parecer "não há leads no ERP", que é a leitura errada e a que ninguém
+   investiga. */
+function crmBaseFalhou(msg){
+  const k=document.getElementById('kpis-crmava');
+  if(k) k.innerHTML='';
+  const alvo=document.getElementById('crm-leads');
+  if(alvo) alvo.innerHTML='<div style="padding:14px 4px;color:var(--yellow-700);font-size:13px">'
+    +'<b>A base do Avacorp não respondeu.</b> '+esc(msg)
+    +'<br><span style="color:var(--n500)">As demais abas do CRM não dependem do ERP e '
+    +'continuam funcionando.</span></div>';
 }
 const CRM_TEMP_ORDEM=['Quente','Morno','Frio'];
 const crmCorTemp = t => ({Quente:CC.vermelho, Morno:CC.amarelo, Frio:CC.navy500}[t] || CC.n400);
@@ -17117,7 +17329,7 @@ function renderCrm(d){
   // que o pipeline não vale nada, quando o que falta é preenchimento.
   const robAtivo=k.rob_pipeline||0;
   const robEntregue=projs.filter(p=>p.status==='Entregue').reduce((a,p)=>a+(p.rob||0),0);
-  document.getElementById('kpis-crm').innerHTML=[
+  document.getElementById('kpis-crmava').innerHTML=[
     kpi('Leads ativos', (leads.length||0).toLocaleString('pt-BR'), (qtd['Morno']||0)+' mornos · '+(qtd['Frio']||0)+' frios','', null,
       statChip((k.leads_quentes||0)>0?'good':'flat', (k.leads_quentes||0)+' quentes',
         'Leads marcados como quentes pelo time comercial — é o topo real do funil.', 'sevOk')),
@@ -17210,6 +17422,1547 @@ function crmFiltrarProjetos(){
   const somaRob=f.reduce((a,p)=>a+(p.rob||0),0);
   if(hint) hint.textContent=`${f.length} de ${projs.length} projetos`+(somaRob>0?` · ROB/mês ${brlAbbr(somaRob)}`:' · ROB/mês não informado');
 }
+/* ═══════════════════════════════════════════════════════════════════════════
+   CRM — o funil da casa (banco local do CÓRTEX)
+   ---------------------------------------------------------------------------
+   A base do Avacorp continua acima, na sub-aba dela, intocada. O que segue é o
+   CRM novo: contas com a receita REAL do ERP ao lado, oportunidades cuja
+   unidade é a LANE (origem→destino), piso mínimo da ANTT na cotação,
+   atividades, histórico e contratos.
+
+   TRÊS CUIDADOS QUE ATRAVESSAM ESTE BLOCO INTEIRO:
+
+   1. Nenhum `const` de topo lê `CC`. O objeto de cores só é criado lá pelo fim
+      do arquivo, e a leitura antecipada estoura `ReferenceError` (TDZ) que
+      MATA o script no boot — a tela de login não some. Cor de paleta sempre
+      resolvida DENTRO de função, na hora de desenhar.
+   2. Nada de `JSON.stringify` dentro de atributo HTML: a primeira aspa do
+      valor fecha o atributo e o sintoma não é um link quebrado, é
+      "Unexpected end of input" com a tela em BRANCO. Argumento vai por
+      `data-*` com `esc()` e sai por `this.dataset`.
+   3. Toda resposta passa por `respostaJSON(r)`, que distingue "a sessão
+      expirou", "o proxy respondeu no lugar da API" e "erro interno" — três
+      coisas com consertos diferentes que um `try{r.json()}catch{}` mostraria
+      com a mesma frase.
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+let CRMD = null;        // painel
+let CRMCAT = null;      // catálogo (listas dos formulários)
+let CRMCTAS = [];       // contas
+let CRMOPOS = [];       // oportunidades abertas
+let CRMATIV = [];       // atividades
+let CRMCTR = [];        // contratos
+let crmNSeq = 0;
+let crmSitFiltro = '', crmAtivFiltro = 'abertas', crmCtrFiltro = '';
+
+const CRM_ESTAGIOS = ['qualificacao', 'levantamento', 'proposta', 'negociacao'];
+
+/* Carrega tudo o que as cinco abas novas precisam, em paralelo.
+   Seis chamadas e não uma: o painel é agregado e as listas são filtráveis na
+   tela, e juntar tudo num payload só faria o filtro de conta refazer o funil.
+   `Promise.all` porque em série seriam seis idas somadas — e a mais lenta
+   (contas) fala com o ERP. */
+async function crmCarregarNovo() {
+  const seq = ++crmNSeq;
+  const req = c => fetch('/api/comercial/crm/' + c, { cache: 'no-store' })
+    .then(respostaJSON);
+  const [pnl, cat, ctas, opos, ativ, ctr] = await Promise.all([
+    req('painel'), req('catalogo'), req('contas'),
+    req('oportunidades?fechadas=1'), req('atividades'), req('contratos')]);
+  if (seq !== crmNSeq) return;
+  const ruim = [pnl, cat, ctas, opos, ativ, ctr].find(x => !x.ok);
+  if (ruim) { showBanner(ruim.dados.mensagem || 'Erro ao consultar o CRM.'); return; }
+  CRMD = pnl.dados; CRMCAT = cat.dados;
+  CRMCTAS = ctas.dados.contas || [];
+  CRMOPOS = opos.dados.oportunidades || [];
+  CRMATIV = ativ.dados.atividades || [];
+  CRMCTR = ctr.dados.contratos || [];
+  crmPreencherSelects();
+  crmRenderPainel();
+  crmPipeRender();
+  crmContasRender();
+  crmAtivRender();
+  crmCtrRender();
+}
+
+function crmPreencherSelects() {
+  const donos = (CRMCAT.usuarios || []);
+  const opt = (v, r) => `<option value="${esc(String(v))}">${esc(r)}</option>`;
+  const sd = donos.map(u => opt(u.id, u.nome)).join('');
+  ['crm-pipe-dono', 'crm-conta-dono'].forEach(id => {
+    const el = document.getElementById(id); if (!el) return;
+    const atual = el.value;
+    el.innerHTML = '<option value="">Todos os responsáveis</option>' + sd;
+    el.value = atual;
+  });
+  const st = document.getElementById('crm-pipe-tipo');
+  if (st) {
+    const atual = st.value;
+    st.innerHTML = '<option value="">Todos os tipos</option>'
+      + (CRMCAT.tipos || []).map(t => opt(t.valor, t.rotulo)).join('');
+    st.value = atual;
+  }
+  const sg = document.getElementById('crm-conta-seg');
+  if (sg) {
+    const atual = sg.value;
+    const usados = [...new Set(CRMCTAS.map(c => c.segmento).filter(Boolean))].sort();
+    sg.innerHTML = '<option value="">Todos os segmentos</option>'
+      + usados.map(s => opt(s, s)).join('');
+    sg.value = atual;
+  }
+}
+
+/* ─────────────────────────────────────────────────────────────── PAINEL ── */
+
+function crmRenderPainel() {
+  const k = (CRMD && CRMD.kpis) || {};
+  const el = document.getElementById('kpis-crm'); if (!el) return;
+
+  // Pipeline com a COBERTURA ao lado. Um total que ignora N oportunidades sem
+  // valor não é o valor do pipeline — é a mesma armadilha do "ROB R$ 0 em
+  // verde": parecia pipeline sem valor, era lacuna de cadastro.
+  const semValor = k.pipeline_sem_valor || 0;
+  const subPipe = (k.pipeline_oportunidades || 0) + ' oportunidade'
+    + ((k.pipeline_oportunidades === 1) ? '' : 's') + ' aberta'
+    + ((k.pipeline_oportunidades === 1) ? '' : 's');
+
+  el.innerHTML = [
+    kpi('Pipeline aberto',
+      k.pipeline_mes != null ? brlAbbr(k.pipeline_mes) + '/mês' : 'não informado',
+      subPipe, k.pipeline_mes != null ? 'pos' : '',
+      'Soma do valor MENSAL das oportunidades abertas. O valor de cada uma é a soma das lanes (valor da viagem × viagens no mês); quando ainda não há lane, vale o valor mensal estimado no cadastro. NÃO é previsão: é o total em negociação.',
+      semValor ? statChip('warn', semValor + ' sem valor',
+        'Oportunidades abertas sem lane e sem valor estimado. Não entram no total — o pipeline real é maior que o mostrado.', 'sevWarn') : ''),
+    kpi('Previsão ponderada',
+      k.pipeline_ponderado != null ? brlAbbr(k.pipeline_ponderado) + '/mês' : '—',
+      'valor × probabilidade de cada negócio', '',
+      'Cada oportunidade multiplicada pela probabilidade DELA quando o vendedor informou uma, e pela do estágio quando não. Probabilidade fixa por estágio é previsão do PROCESSO, não do negócio: uma proposta parada há 40 dias e uma entregue ontem estão no mesmo estágio e não valem o mesmo.'),
+    kpi('Conversão (12 meses)',
+      k.conversao != null ? (100 * k.conversao).toFixed(0) + '%' : 'sem base',
+      k.fechadas_janela ? (k.ganhas_janela + ' ganhas de ' + k.fechadas_janela + ' fechadas')
+        : 'nenhuma oportunidade fechada ainda', '',
+      'Ganhas ÷ fechadas (ganhas + perdidas) nos últimos 12 meses. O denominador vai no subtítulo de propósito: taxa sem o número de casos engana — 100% sobre uma oportunidade não é 100%.'),
+    kpi('Ciclo de venda',
+      k.ciclo_mediano != null ? k.ciclo_mediano + ' dias' : 'sem base',
+      k.ciclo_casos ? ('mediana de ' + k.ciclo_casos + ' negócio'
+        + (k.ciclo_casos === 1 ? '' : 's') + ' ganho'
+        + (k.ciclo_casos === 1 ? '' : 's')) : 'nenhum negócio ganho ainda', '',
+      'Dias entre a abertura e o fechamento das oportunidades GANHAS. MEDIANA e não média: uma negociação de 400 dias distorce a média e some na mediana — a mesma escolha do tempo de preenchimento das vagas de RH.'),
+  ].join('');
+
+  crmFunilChart();
+  crmPrevChart();
+  crmAlertas();
+}
+
+function crmFunilChart() {
+  const f = (CRMD && CRMD.funil) || [];
+  const hint = document.getElementById('crm-funil-hint');
+  const total = f.reduce((a, x) => a + x.n, 0);
+  const soma = f.reduce((a, x) => a + (x.valor || 0), 0);
+  if (hint) hint.textContent = total
+    ? (total + ' oportunidade' + (total === 1 ? '' : 's') + ' · ' + brlAbbr(soma) + '/mês')
+    : 'nenhuma oportunidade aberta';
+  if (!total) { ecDesenhar('chartCrmFunil', null, 'nenhuma oportunidade aberta'); return; }
+  ecDesenhar('chartCrmFunil', () => {
+    const max = Math.max(...f.map(x => x.valor || 0), 1);
+    const o = ecOpcoes(f.map(x => x.rotulo), max, { tipo: 'moeda', sombra: true, bottom: 30 });
+    o.series = [
+      ecBarras('Valor no estágio', f.map(x => x.valor || 0), CC.navy500, {
+        rotulo: (i) => f[i].n ? (f[i].n + (f[i].n === 1 ? ' opo' : ' opos')) : '',
+      }),
+      ecBarras('Ponderado', f.map(x => x.ponderado || 0), CC.orange500,
+        { largura: 12, raio: false }),
+    ];
+    o.tooltip.formatter = ps => {
+      const i = ps[0].dataIndex, x = f[i];
+      return '<b>' + esc(x.rotulo) + '</b><br>' + x.n + ' oportunidade'
+        + (x.n === 1 ? '' : 's') + '<br>valor ' + BRL.format(x.valor || 0) + '/mês'
+        + '<br>ponderado ' + BRL.format(x.ponderado || 0) + '/mês'
+        + '<br><span style="color:#9aa3ad">probabilidade padrão do estágio: '
+        + x.probabilidade_padrao + '%</span>'
+        + (x.sem_valor ? '<br><span style="color:#B97709">' + x.sem_valor
+          + ' sem valor informado</span>' : '');
+    };
+    return o;
+  });
+}
+
+function crmPrevChart() {
+  const p = (CRMD && CRMD.previsao) || { meses: [] };
+  const ms = p.meses || [];
+  const hint = document.getElementById('crm-prev-hint');
+  const semPrev = (p.sem_previsao || {}).n || 0;
+  const venc = (p.vencidas || {}).n || 0;
+  if (hint) {
+    const partes = ['6 meses · ponderado'];
+    if (venc) partes.push(venc + ' com previsão vencida');
+    if (semPrev) partes.push(semPrev + ' sem data prevista');
+    hint.textContent = partes.join(' · ');
+  }
+  const tem = ms.some(m => m.valor > 0);
+  if (!tem) { ecDesenhar('chartCrmPrev', null, 'nenhuma oportunidade com previsão nos próximos 6 meses'); return; }
+  ecDesenhar('chartCrmPrev', () => {
+    const max = Math.max(...ms.map(m => m.valor || 0), 1);
+    const rot = ms.map(m => m.mes === 'adiante' ? 'depois' : periodoLabel(m.mes));
+    const o = ecOpcoes(rot, max, { tipo: 'moeda', sombra: true, bottom: 30 });
+    o.series = [
+      ecBarras('Valor previsto', ms.map(m => m.valor || 0), CC.navy400),
+      ecBarras('Ponderado', ms.map(m => m.ponderado || 0), CC.orange500,
+        { largura: 12, raio: false }),
+    ];
+    o.tooltip.formatter = ps => {
+      const i = ps[0].dataIndex, m = ms[i];
+      return '<b>' + esc(rot[i]) + '</b><br>' + m.n + ' oportunidade'
+        + (m.n === 1 ? '' : 's') + '<br>valor ' + BRL.format(m.valor || 0) + '/mês'
+        + '<br>ponderado ' + BRL.format(m.ponderado || 0) + '/mês';
+    };
+    return o;
+  });
+}
+
+function crmAlertas() {
+  const el = document.getElementById('crm-alertas'); if (!el) return;
+  const as = (CRMD && CRMD.alertas) || [];
+  const hint = document.getElementById('crm-alertas-hint');
+  if (hint) hint.textContent = as.length
+    ? (as.length + (as.length === 1 ? ' assunto' : ' assuntos'))
+    : 'nada pendente';
+  if (!as.length) {
+    el.innerHTML = '<div style="padding:4px 18px 16px;color:var(--n500);font-size:13px">'
+      + 'Nada exigindo ação: sem atividade vencida, sem previsão estourada, '
+      + 'sem lane abaixo do piso e sem contrato a vencer.</div>';
+    return;
+  }
+  el.innerHTML = '<div style="padding:0 18px 16px">' + as.map(a => {
+    const cls = a.nivel === 'alerta' ? 'b-dang' : 'b-warn';
+    return `<details class="crm-al" style="border:1px solid var(--n200);border-radius:8px;margin-bottom:8px">
+      <summary style="cursor:pointer;padding:9px 12px;font-size:13px;font-weight:600;color:var(--n900);display:flex;align-items:center;gap:8px">
+        <span class="badge ${cls}">${a.n}</span>${esc(a.titulo)}</summary>
+      <div style="padding:0 12px 11px;font-size:12px;color:var(--n600)">${esc(a.detalhe)}</div>
+      <div style="padding:0 12px 11px">${crmAlertaItens(a)}</div>
+    </details>`;
+  }).join('') + '</div>';
+}
+
+function crmAlertaItens(a) {
+  const linha = (txt, acao) => `<div style="display:flex;gap:8px;align-items:baseline;padding:4px 0;border-top:1px solid var(--n100,#EEF1F4);font-size:12.5px">
+    <span style="flex:1">${txt}</span>${acao || ''}</div>`;
+  const abrirC = id => `<button class="chip" style="padding:2px 9px;font-size:11px" data-id="${id}" onclick="crmContaFicha(this.dataset.id)">abrir</button>`;
+  const abrirO = id => `<button class="chip" style="padding:2px 9px;font-size:11px" data-id="${id}" onclick="crmOpoFicha(this.dataset.id)">abrir</button>`;
+  const its = a.itens || [];
+  if (a.chave === 'atividades_atrasadas')
+    return its.map(i => linha('<b>' + esc(i.assunto) + '</b> · ' + esc(i.conta || '—')
+      + ' · <span style="color:var(--red);font-weight:600">' + Math.abs(i.dias)
+      + (Math.abs(i.dias) === 1 ? ' dia' : ' dias') + ' de atraso</span>'
+      + ' · ' + esc(i.responsavel || '—'))).join('');
+  if (a.chave === 'previsao_vencida')
+    return its.map(i => linha('<b>' + esc(i.codigo) + '</b> ' + esc(i.titulo) + ' · '
+      + esc(i.conta || '—') + ' · previa ' + fmtD(i.previsao)
+      + (i.valor != null ? ' · ' + brlAbbr(i.valor) + '/mês' : ''),
+      abrirO(i.id))).join('');
+  if (a.chave === 'abaixo_piso')
+    return its.map(i => linha('<b>' + esc(i.codigo) + '</b> · ' + esc(i.lane)
+      + ' · cotada ' + BRL.format(i.valor_viagem || 0) + ' contra piso '
+      + BRL.format(i.piso || 0)
+      + ' <span style="color:var(--red);font-weight:600">('
+      + BRL.format(Math.abs(i.gap || 0)) + ' abaixo)</span>',
+      abrirO(i.oportunidade_id))).join('');
+  if (a.chave === 'reajuste_pendente')
+    return its.map(i => linha('<b>' + esc(i.codigo) + '</b> · ' + esc(i.conta || '—')
+      + ' · ' + esc(i.indice) + ' · ciclo de ' + fmtD(i.ciclo)
+      + ' há ' + i.dias + (i.dias === 1 ? ' dia' : ' dias'),
+      `<button class="chip" style="padding:2px 9px;font-size:11px" data-id="${i.id}" onclick="crmReajusteModal(this.dataset.id)">registrar</button>`)).join('');
+  if (a.chave === 'contrato_a_vencer')
+    return its.map(i => linha('<b>' + esc(i.codigo) + '</b> · ' + esc(i.conta || '—')
+      + ' · vence ' + fmtD(i.fim) + ' (' + i.dias + (i.dias === 1 ? ' dia' : ' dias') + ')'
+      + (i.renovacao_automatica ? ' · <span class="badge b-info">renovação automática</span>' : ''))).join('');
+  if (a.chave === 'carteira_parada')
+    return its.map(i => linha('<b>' + esc(i.nome) + '</b> · ' + i.dias_sem_viagem
+      + ' dias sem viagem · ' + brlAbbr(i.receita_12m || 0) + ' nos 12 meses',
+      abrirC(i.id))).join('');
+  if (a.chave === 'sem_contato')
+    return its.map(i => linha('<b>' + esc(i.nome) + '</b> · '
+      + (i.dias == null ? '<span style="color:var(--yellow-700)">nunca contatada</span>'
+        : i.dias + ' dias sem contato')
+      + (i.receita_12m ? ' · ' + brlAbbr(i.receita_12m) + ' nos 12 meses' : ''),
+      abrirC(i.id))).join('');
+  return '';
+}
+
+/* ───────────────────────────────────────────────────────────── PIPELINE ── */
+
+function crmPipeRender() {
+  const el = document.getElementById('crm-kanban'); if (!el) return;
+  const dono = (document.getElementById('crm-pipe-dono') || {}).value || '';
+  const tipo = (document.getElementById('crm-pipe-tipo') || {}).value || '';
+  const q = (((document.getElementById('crm-pipe-busca') || {}).value) || '')
+    .toLowerCase().trim();
+  const abertas = CRMOPOS.filter(o => o.aberta
+    && (!dono || String(o.dono_id) === dono)
+    && (!tipo || o.tipo === tipo)
+    && (!q || (o.titulo + ' ' + (o.conta_nome || '') + ' ' + o.codigo)
+      .toLowerCase().includes(q)));
+
+  const hint = document.getElementById('crm-pipe-hint');
+  const soma = abertas.reduce((a, o) => a + (o.receita_mes || 0), 0);
+  const pond = abertas.reduce((a, o) => a + (o.valor_ponderado || 0), 0);
+  if (hint) hint.textContent = abertas.length
+    ? (abertas.length + ' de ' + CRMOPOS.filter(o => o.aberta).length
+      + ' abertas · ' + brlAbbr(soma) + '/mês · ponderado ' + brlAbbr(pond))
+    : 'nenhuma oportunidade com esse filtro';
+  abaContador('abanCrmPipe', CRMOPOS.filter(o => o.aberta).length);
+
+  el.innerHTML = CRM_ESTAGIOS.map(e => {
+    const rot = ((CRMCAT.estagios || []).find(x => x.valor === e) || {}).rotulo || e;
+    const nas = abertas.filter(o => o.estagio === e);
+    const v = nas.reduce((a, o) => a + (o.receita_mes || 0), 0);
+    return `<div class="kcol" data-est="${esc(e)}"
+        ondragover="crmDragSobre(event,this)" ondragleave="this.classList.remove('alvo')"
+        ondrop="crmSoltar(event,this)">
+      <div class="kcol-h"><span>${esc(rot)}</span><span class="kn">${nas.length}</span>
+        <span class="kv">${v ? brlAbbr(v) + '/mês' : '—'}</span></div>
+      <div class="kcol-body">${nas.map(crmCartao).join('')
+      || '<div class="kvazio">nada aqui</div>'}</div>
+    </div>`;
+  }).join('');
+}
+
+function crmCartao(o) {
+  // Sinais que mudam o que fazer com o cartão, no máximo dois — três chips
+  // numa linha viram ruído e o leitor para de ler o primeiro.
+  const chips = [];
+  if (o.previsao_vencida)
+    chips.push('<span class="badge b-dang">previsão vencida</span>');
+  else if (o.lanes_sem_preco)
+    chips.push('<span class="badge b-warn">' + o.lanes_sem_preco + ' lane sem preço</span>');
+  if (o.origem_receita === 'manual')
+    chips.push('<span class="badge b-info" title="Valor estimado no cadastro: esta oportunidade ainda não tem lane. Assim que a primeira entrar, o valor passa a ser a soma delas.">estimado</span>');
+  const val = o.receita_mes != null ? brlAbbr(o.receita_mes) + '/mês'
+    : '<span style="color:var(--n400);font-weight:600">sem valor</span>';
+  return `<div class="kcard" draggable="true" tabindex="0" data-id="${o.id}"
+      ondragstart="crmArrastar(event,this)" ondragend="this.classList.remove('arrastando')"
+      onclick="crmOpoFicha(this.dataset.id)"
+      onkeydown="if(event.key==='Enter'){crmOpoFicha(this.dataset.id)}"
+      title="${esc(o.codigo + ' · ' + o.titulo)}">
+    <b>${esc(o.titulo)}</b>
+    <div class="kc-conta">${esc(o.conta_nome || '—')}</div>
+    <div class="kc-preco">${val}<small>${o.probabilidade_efetiva}%${o.probabilidade_padrao ? ' (padrão)' : ''}</small></div>
+    ${chips.length ? '<div class="kc-pe">' + chips.join('') + '</div>' : ''}
+  </div>`;
+}
+
+function crmArrastar(ev, el) {
+  ev.dataTransfer.setData('text/plain', el.dataset.id);
+  ev.dataTransfer.effectAllowed = 'move';
+  el.classList.add('arrastando');
+}
+function crmDragSobre(ev, col) {
+  ev.preventDefault();
+  ev.dataTransfer.dropEffect = 'move';
+  col.classList.add('alvo');
+}
+async function crmSoltar(ev, col) {
+  ev.preventDefault();
+  col.classList.remove('alvo');
+  const id = ev.dataTransfer.getData('text/plain');
+  const est = col.dataset.est;
+  const o = CRMOPOS.find(x => String(x.id) === String(id));
+  if (!o || o.estagio === est) return;
+  await crmMover(id, est);
+}
+
+/* Mover para PERDIDA pede o motivo — é a única hora em que alguém lembra por
+   que perdeu, e perda sem motivo catalogado não vira aprendizado nenhum. */
+async function crmMover(id, estagio) {
+  if (estagio === 'perdida') { crmPerdaModal(id); return; }
+  const r = await crmPost('oportunidades/' + id + '/mover', { estagio: estagio });
+  if (r) { await crmCarregarNovo(); }
+}
+
+function crmPerdaModal(id) {
+  const o = CRMOPOS.find(x => String(x.id) === String(id)) || {};
+  abrirModal(`
+    <h3>Marcar como perdida</h3>
+    <div style="font-size:13px;color:var(--n600);margin-bottom:12px">
+      ${esc(o.codigo || '')} — ${esc(o.titulo || '')}<br>
+      <span style="color:var(--n500)">O motivo é obrigatório: é o único dado que
+      diz depois se o problema é preço ou capacidade.</span>
+    </div>
+    <div class="ges-form">
+      <div><label for="cp-motivo">Motivo</label>
+        <select id="cp-motivo">${(CRMCAT.motivos_perda || [])
+      .map(m => `<option value="${esc(m.valor)}">${esc(m.rotulo)}</option>`).join('')}</select></div>
+      <div><label for="cp-conc">Concorrente (se houve)</label>
+        <input type="text" id="cp-conc" maxlength="200"></div>
+      <div><label for="cp-det">O que aconteceu</label>
+        <textarea id="cp-det" rows="3" placeholder="opcional, mas é o que ajuda na próxima"></textarea></div>
+    </div>
+    <div class="m-err" id="m-err"></div>
+    <div class="m-foot">
+      <button class="btn" onclick="fecharModal()">Cancelar</button>
+      <button class="btn primary" data-id="${esc(String(id))}" onclick="crmPerdaSalvar(this.dataset.id)">Marcar perdida</button>
+    </div>`);
+}
+
+async function crmPerdaSalvar(id) {
+  const r = await crmPost('oportunidades/' + id + '/mover', {
+    estagio: 'perdida',
+    motivo_perda: (document.getElementById('cp-motivo') || {}).value || '',
+    perda_detalhe: (document.getElementById('cp-det') || {}).value || '',
+  });
+  if (!r) return;
+  // Editar o concorrente exige o formulário completo; só grava se veio algo.
+  const conc = (document.getElementById('cp-conc') || {}).value || '';
+  if (conc.trim()) {
+    const o = CRMOPOS.find(x => String(x.id) === String(id)) || {};
+    await crmPost('oportunidades', { id: Number(id), conta_id: o.conta_id,
+      titulo: o.titulo, tipo: o.tipo, estagio: 'perdida',
+      motivo_perda: (document.getElementById('cp-motivo') || {}).value || '',
+      perda_detalhe: (document.getElementById('cp-det') || {}).value || '',
+      concorrente: conc, dono_id: o.dono_id, dono_nome: o.dono_nome,
+      abertura: o.abertura, previsao_fechamento: o.previsao_fechamento });
+  }
+  fecharModal();
+  await crmCarregarNovo();
+}
+
+/* ─────────────────────────────────────────────────────────────── CONTAS ── */
+
+const CRM_SIT = {
+  prospect: ['b-info', 'Prospect'],
+  ativo: ['b-ok', 'Ativa'],
+  parado: ['b-dang', 'Parada'],
+  sem_historico: ['b-warn', 'Sem histórico'],
+  indisponivel: ['', 'ERP fora'],
+};
+
+function crmSetSit(btn) {
+  document.querySelectorAll('#crm-sit-chips .chip').forEach(c => c.classList.remove('active'));
+  btn.classList.add('active');
+  crmSitFiltro = btn.dataset.s || '';
+  crmContasRender();
+}
+
+function crmContasRender() {
+  const el = document.getElementById('crm-contas'); if (!el) return;
+  const dono = (document.getElementById('crm-conta-dono') || {}).value || '';
+  const seg = (document.getElementById('crm-conta-seg') || {}).value || '';
+  const q = (((document.getElementById('crm-conta-busca') || {}).value) || '')
+    .toLowerCase().trim();
+  const f = CRMCTAS.filter(c => (!crmSitFiltro || c.situacao === crmSitFiltro)
+    && (!dono || String(c.dono_id) === dono)
+    && (!seg || c.segmento === seg)
+    && (!q || (c.nome + ' ' + (c.nome_fantasia || '') + ' ' + (c.cnpj || '')
+      + ' ' + (c.ava_nome || '')).toLowerCase().includes(q)))
+    .sort((a, b) => (b.receita_12m || 0) - (a.receita_12m || 0));
+
+  abaContador('abanCrmCtas', CRMCTAS.length);
+  const hint = document.getElementById('crm-contas-hint');
+  const receita = f.reduce((a, c) => a + (c.receita_12m || 0), 0);
+  if (hint) hint.textContent = f.length + ' de ' + CRMCTAS.length + ' contas'
+    + (receita ? ' · ' + brlAbbr(receita) + ' faturados em 12 meses' : '');
+
+  const linhas = f.map(c => {
+    const [cls, rot] = CRM_SIT[c.situacao] || ['', c.situacao];
+    // Zero que é AUSÊNCIA de lançamento não é desempenho: prospect não tem
+    // receita porque não é cliente, e mostrar "R$ 0" o poria no fim de um
+    // ranking como se faturasse zero.
+    const rec = c.ava_agrupamento
+      ? (c.receita_12m ? BRL.format(c.receita_12m)
+        : '<span style="color:var(--n400)">sem viagem em 2 anos</span>')
+      : '<span style="color:var(--n400)" title="Conta sem vínculo com o ERP: é prospect, não cliente sem faturamento.">n/d</span>';
+    const dias = c.dias_sem_viagem == null ? '<span style="color:var(--n400)">—</span>'
+      : (c.dias_sem_viagem + (c.dias_sem_viagem === 1 ? ' dia' : ' dias'));
+    const contato = c.dias_sem_contato == null
+      ? '<span style="color:var(--yellow-700);font-weight:600" title="Nenhuma interação registrada com esta conta.">nunca</span>'
+      : (c.dias_sem_contato === 0 ? 'hoje' : c.dias_sem_contato + 'd');
+    return `<tr style="cursor:pointer" data-id="${c.id}" onclick="crmContaFicha(this.dataset.id)">
+      <td><b>${esc(c.nome)}</b>${c.arquivada ? ' <span class="badge">arquivada</span>' : ''}
+        ${c.cnpj_fmt ? '<div style="color:var(--n500);font-size:11px;font-family:var(--mono)">' + esc(c.cnpj_fmt) + '</div>' : ''}</td>
+      <td>${esc(c.segmento || '—')}</td>
+      <td><span class="badge ${cls}">${esc(rot)}</span></td>
+      <td class="num">${rec}</td>
+      <td class="num"${(c.dias_sem_viagem || 0) > 90 ? ' style="color:var(--red);font-weight:600"' : ''}>${dias}</td>
+      <td class="num">${contato}</td>
+      <td>${esc(c.dono_nome || '—')}</td></tr>`;
+  }).join('') || '<tr><td colspan="7" style="color:var(--n500)">nenhuma conta com esse filtro</td></tr>';
+
+  el.innerHTML = `<table><thead><tr><th>Conta</th><th>Segmento</th><th>Situação</th>
+    <th class="num">Receita 12m</th><th class="num">Sem viagem</th>
+    <th class="num">Sem contato</th><th>Responsável</th></tr></thead>
+    <tbody>${linhas}</tbody></table>`;
+}
+
+/* ─────────────────────────────────────────────────────────── ATIVIDADES ── */
+
+function crmSetAtiv(btn) {
+  document.querySelectorAll('#crm-ativ-chips .chip').forEach(c => c.classList.remove('active'));
+  btn.classList.add('active');
+  crmAtivFiltro = btn.dataset.f || '';
+  crmAtivRender();
+}
+
+function crmAtivRender() {
+  const el = document.getElementById('crm-atividades'); if (!el) return;
+  const hoje = _hojeISO();
+  const meu = (USER && USER.id) || 0;
+  let f = CRMATIV;
+  if (crmAtivFiltro === 'abertas') f = f.filter(a => a.status === 'aberta');
+  else if (crmAtivFiltro === 'minhas') f = f.filter(a => a.status === 'aberta' && a.responsavel_id === meu);
+  else if (crmAtivFiltro === 'atrasadas') f = f.filter(a => a.atrasada);
+  else if (crmAtivFiltro === 'hoje') f = f.filter(a => a.status === 'aberta' && a.quando === hoje);
+
+  const abertas = CRMATIV.filter(a => a.status === 'aberta');
+  abaContador('abanCrmAtiv', abertas.length);
+  const hint = document.getElementById('crm-ativ-hint');
+  const atr = CRMATIV.filter(a => a.atrasada).length;
+  if (hint) hint.textContent = f.length + ' de ' + CRMATIV.length + ' atividades'
+    + (atr ? ' · ' + atr + ' com prazo vencido' : '');
+
+  const linhas = f.map(a => {
+    const prazo = a.status !== 'aberta'
+      ? '<span style="color:var(--n400)">' + fmtD(a.quando) + '</span>'
+      : (a.atrasada
+        ? '<span style="color:var(--red);font-weight:600">' + fmtD(a.quando) + ' · '
+        + Math.abs(a.dias) + (Math.abs(a.dias) === 1 ? ' dia' : ' dias') + '</span>'
+        : (a.hoje ? '<b>hoje</b>' : fmtD(a.quando) + ' · em ' + a.dias + 'd'));
+    const st = a.status === 'concluida' ? '<span class="badge b-ok">concluída</span>'
+      : (a.status === 'cancelada' ? '<span class="badge">cancelada</span>'
+        : '<span class="badge b-info">aberta</span>');
+    const acao = a.status === 'aberta'
+      ? `<button class="chip" style="padding:2px 9px;font-size:11px" data-id="${a.id}" onclick="event.stopPropagation();crmConcluirModal(this.dataset.id)">concluir</button>`
+      : '';
+    return `<tr style="cursor:pointer" data-id="${a.id}" onclick="crmAtivModal(this.dataset.id)">
+      <td>${esc(a.tipo_rotulo)}</td>
+      <td><b>${esc(a.assunto)}</b></td>
+      <td>${esc(a.conta_nome || '—')}${a.oportunidade_codigo ? '<div style="color:var(--n500);font-size:11px">' + esc(a.oportunidade_codigo) + '</div>' : ''}</td>
+      <td class="num">${prazo}</td>
+      <td>${esc(a.responsavel_nome || '—')}</td>
+      <td>${st}</td><td class="num">${acao}</td></tr>`;
+  }).join('') || '<tr><td colspan="7" style="color:var(--n500)">nenhuma atividade com esse filtro</td></tr>';
+
+  el.innerHTML = `<table><thead><tr><th>Tipo</th><th>Assunto</th><th>Conta</th>
+    <th class="num">Prazo</th><th>Responsável</th><th>Status</th><th></th></tr></thead>
+    <tbody>${linhas}</tbody></table>`;
+}
+
+/* ──────────────────────────────────────────────────────────── CONTRATOS ── */
+
+const CRM_CTR_SIT = {
+  vigente: ['b-ok', 'Vigente'],
+  a_vencer: ['b-warn', 'A vencer'],
+  vencido: ['b-dang', 'Vencido'],
+  a_iniciar: ['b-info', 'A iniciar'],
+  cancelado: ['', 'Rescindido'],
+};
+
+function crmSetCtr(btn) {
+  document.querySelectorAll('#crm-ctr-chips .chip').forEach(c => c.classList.remove('active'));
+  btn.classList.add('active');
+  crmCtrFiltro = btn.dataset.c || '';
+  crmCtrRender();
+}
+
+function crmCtrRender() {
+  const el = document.getElementById('crm-contratos'); if (!el) return;
+  const f = CRMCTR.filter(c => !crmCtrFiltro
+    || (crmCtrFiltro === 'reajuste' ? c.reajuste_pendente : c.situacao === crmCtrFiltro));
+
+  abaContador('abanCrmCtr', CRMCTR.filter(c => c.situacao !== 'cancelado').length);
+  const hint = document.getElementById('crm-ctr-hint');
+  const pend = CRMCTR.filter(c => c.reajuste_pendente).length;
+  if (hint) hint.textContent = f.length + ' de ' + CRMCTR.length + ' contratos'
+    + (pend ? ' · ' + pend + ' com reajuste do ciclo pendente' : '');
+
+  const linhas = f.map(c => {
+    const [cls, rot] = CRM_CTR_SIT[c.situacao] || ['', c.situacao];
+    // Prazo indeterminado NÃO é dado faltando: é o que foi contratado. Mostrar
+    // "—" em cinza sem explicar faria parecer cadastro pela metade.
+    const fim = c.indeterminado
+      ? '<span style="color:var(--n500)" title="Contrato por prazo indeterminado — não vence sozinho.">indeterminado</span>'
+      : (c.fim ? fmtD(c.fim) + (c.dias_para_fim != null && c.situacao === 'a_vencer'
+        ? ' <span style="color:var(--yellow-700);font-weight:600">(' + c.dias_para_fim + 'd)</span>' : '')
+        : '—');
+    const reaj = c.reajuste_pendente
+      ? `<span class="badge b-warn" title="O mês de reajuste do ciclo corrente já passou sem registro de aplicação.">pendente há ${c.reajuste_dias}d</span>`
+      : (c.ultimo_reajuste
+        ? esc(fmtD(c.ultimo_reajuste)) + (c.percentual_ultimo != null
+          ? ' · ' + NMI.format(c.percentual_ultimo) + '%' : '')
+        : '<span style="color:var(--n400)">—</span>');
+    return `<tr style="cursor:pointer" data-id="${c.id}" onclick="crmCtrModal(this.dataset.id)">
+      <td><b>${esc(c.codigo)}</b><div style="color:var(--n500);font-size:11px">${esc(c.objeto)}</div></td>
+      <td>${esc(c.conta_nome || '—')}</td>
+      <td><span class="badge ${cls}">${esc(rot)}</span></td>
+      <td class="num">${fim}</td>
+      <td>${esc(c.indice_rotulo)}${c.mes_reajuste ? ' · mês ' + c.mes_reajuste : ''}</td>
+      <td class="num">${reaj}</td>
+      <td class="num">${c.receita_lanes ? brlAbbr(c.receita_lanes) + '/mês' : '<span style="color:var(--n400)">—</span>'}</td>
+      <td class="num"><button class="chip" style="padding:2px 9px;font-size:11px" data-id="${c.id}" onclick="event.stopPropagation();crmReajusteModal(this.dataset.id)">reajuste</button></td></tr>`;
+  }).join('') || '<tr><td colspan="8" style="color:var(--n500)">nenhum contrato com esse filtro</td></tr>';
+
+  el.innerHTML = `<table><thead><tr><th>Contrato</th><th>Conta</th><th>Situação</th>
+    <th class="num">Vigência até</th><th>Reajuste</th><th class="num">Último</th>
+    <th class="num">Valor/mês</th><th></th></tr></thead><tbody>${linhas}</tbody></table>`;
+}
+
+/* ═══ CRM — fichas e formulários ═══════════════════════════════════════════
+   Uma regra atravessa tudo o que vem abaixo: NENHUM argumento de `onclick`
+   passa por interpolação direta de texto do usuário. `onclick="f('+
+   JSON.stringify(nome)+')"` fecha o atributo na primeira aspa do valor, e o
+   sintoma não é um link que não funciona — é "Unexpected end of input" com a
+   TELA EM BRANCO. Nome com apóstrofo (D'ÁVILA) quebra a variante com aspas
+   simples pelo mesmo motivo. Aqui tudo vai por `data-*` com `esc()`. */
+
+async function crmPost(caminho, corpo) {
+  mErro('');
+  try {
+    const r = await fetch('/api/comercial/crm/' + caminho, {
+      method: 'POST', headers: { 'content-type': 'application/json' },
+      body: JSON.stringify(corpo || {}),
+    });
+    const { ok, dados } = await respostaJSON(r);
+    if (!ok) { mErro(dados.mensagem || ('HTTP ' + r.status)); return null; }
+    return dados;
+  } catch (e) {
+    // `respostaJSON` já distingue sessão expirada, proxy no lugar da API e
+    // erro interno. Aqui só resta a falha de REDE de verdade.
+    mErro(e.message || 'Não foi possível falar com a API.');
+    return null;
+  }
+}
+
+async function crmGet(caminho) {
+  const r = await fetch('/api/comercial/crm/' + caminho, { cache: 'no-store' });
+  const { ok, dados } = await respostaJSON(r);
+  if (!ok) { showBanner(dados.mensagem || 'Erro ao consultar o CRM.'); return null; }
+  return dados;
+}
+
+function crmLarga() {
+  const b = document.getElementById('modalBox'); if (b) b.classList.add('larga');
+}
+
+const crmOpts = (lista, sel, vazio) =>
+  (vazio ? `<option value="">${esc(vazio)}</option>` : '')
+  + (lista || []).map(o => {
+    const v = o.valor != null ? o.valor : (o.id != null ? o.id : o.nome);
+    const r = o.rotulo || o.nome;
+    return `<option value="${esc(String(v))}"${String(v) === String(sel) ? ' selected' : ''}>${esc(r)}</option>`;
+  }).join('');
+
+/* ───────────────────────────────────────────────────── ficha da conta 360 ── */
+
+async function crmContaFicha(id) {
+  const c = await crmGet('contas/' + id); if (!c) return;
+  const [cls, rot] = CRM_SIT[c.situacao] || ['', c.situacao];
+  const erp = c.ava_agrupamento;
+
+  // Zero que é ausência de vínculo não é desempenho — a mesma regra do "n/d
+  // em cinza" da Análise de KM, aplicada ao prospect.
+  const linhaErp = erp
+    ? `<div class="ro-linha"><b>Receita (12 meses)</b><span>${c.receita_12m ? BRL.format(c.receita_12m) : 'sem viagem em 2 anos'}</span></div>
+       <div class="ro-linha"><b>Viagens (12 meses)</b><span>${(c.viagens_12m || 0).toLocaleString('pt-BR')}</span></div>
+       <div class="ro-linha"><b>Última viagem</b><span>${c.ultima_viagem ? fmtD(c.ultima_viagem) + ' · ' + c.dias_sem_viagem + 'd' : '—'}</span></div>
+       <div class="ro-linha"><b>Grupo no ERP</b><span>${esc(c.ava_nome || String(erp))}</span></div>`
+    : `<div class="ro-linha"><b>Vínculo com o ERP</b><span>não vinculada — é prospect</span></div>
+       <div style="font-size:11.5px;color:var(--n500);margin-top:4px">Sem o vínculo com o
+       grupo econômico, o CÓRTEX não consegue mostrar a receita real desta conta.</div>`;
+
+  abrirModal(`
+    <div class="crm-ficha">
+      <h3 style="display:flex;align-items:center;gap:9px;flex-wrap:wrap">
+        ${esc(c.nome)} <span class="badge ${cls}">${esc(rot)}</span></h3>
+      <div style="font-size:12.5px;color:var(--n500);margin:-6px 0 14px">
+        ${[c.segmento, c.cnpj_fmt, [c.cidade, c.uf].filter(Boolean).join('/'),
+      'resp. ' + (c.dono_nome || '—')].filter(Boolean).map(esc).join(' · ')}</div>
+
+      <div class="grid2" style="gap:14px">
+        <div><h4 style="margin:0 0 6px;font-size:12px;text-transform:uppercase;letter-spacing:.05em;color:var(--n600)">No ERP</h4>
+          ${linhaErp}
+          <div class="ro-linha"><b>Último contato</b><span>${c.dias_sem_contato == null ? 'nunca' : (c.dias_sem_contato === 0 ? 'hoje' : c.dias_sem_contato + ' dias atrás')}</span></div>
+        </div>
+        <div><h4 style="margin:0 0 6px;font-size:12px;text-transform:uppercase;letter-spacing:.05em;color:var(--n600)">Contatos</h4>
+          ${crmContatosHtml(c)}</div>
+      </div>
+
+      ${erp ? `<h4 style="margin:16px 0 4px;font-size:12px;text-transform:uppercase;letter-spacing:.05em;color:var(--n600)">Receita mês a mês (ERP, 24 meses)</h4>
+        <div id="chartCrmConta" style="width:100%;height:170px" role="img" aria-label="Receita mensal da conta"></div>` : ''}
+
+      <h4 style="margin:16px 0 4px;font-size:12px;text-transform:uppercase;letter-spacing:.05em;color:var(--n600)">
+        Oportunidades <button class="chip" style="padding:1px 8px;font-size:11px;margin-left:6px" data-c="${c.id}" onclick="crmOpoModal(0,this.dataset.c)">+ nova</button></h4>
+      ${crmOposHtml(c)}
+
+      ${erp && (c.rotas_erp || []).length ? `<h4 style="margin:16px 0 4px;font-size:12px;text-transform:uppercase;letter-spacing:.05em;color:var(--n600)">Corredores que já roda (12 meses)</h4>
+        ${crmRotasHtml(c)}` : ''}
+
+      <h4 style="margin:16px 0 4px;font-size:12px;text-transform:uppercase;letter-spacing:.05em;color:var(--n600)">
+        Histórico <button class="chip" style="padding:1px 8px;font-size:11px;margin-left:6px" data-c="${c.id}" onclick="crmInteracaoModal(this.dataset.c)">+ registrar</button></h4>
+      ${crmHistoricoHtml(c)}
+
+      <div class="m-err" id="m-err"></div>
+      <div class="m-foot">
+        <button class="btn" data-c="${c.id}" onclick="crmContaArquivar(this.dataset.c,${c.arquivada ? 'false' : 'true'})">${c.arquivada ? 'Reativar' : 'Arquivar'}</button>
+        <button class="btn" data-c="${c.id}" onclick="crmContatoModal(this.dataset.c,0)">+ Contato</button>
+        <button class="btn" data-c="${c.id}" onclick="crmContaModal(this.dataset.c)">Editar</button>
+        <button class="btn primary" onclick="fecharModal()">Fechar</button>
+      </div>
+    </div>`);
+  crmLarga();
+
+  if (erp) {
+    const s = c.serie_mensal || [];
+    if (s.some(m => m.receita > 0)) {
+      ecDesenhar('chartCrmConta', () => {
+        const max = Math.max(...s.map(m => m.receita || 0), 1);
+        const o = ecOpcoes(s.map(m => periodoLabel(m.mes)), max,
+          { tipo: 'moeda', sombra: true, left: 58, top: 22, bottom: 26 });
+        // Mês SEM MOVIMENTO sai em cinza claro, não some e não vira buraco:
+        // o intervalo é gerado no servidor justamente para que a linha não
+        // emende dois meses distantes e faça "parou" parecer "caiu".
+        o.series = [ecBarras('Receita', s.map(m => m.receita || 0),
+          i => s[i].sem_movimento ? CC.n300 : CC.navy500)];
+        return o;
+      });
+    } else {
+      ecDesenhar('chartCrmConta', null, 'sem viagem registrada nos últimos 24 meses');
+    }
+  }
+}
+
+function crmContatosHtml(c) {
+  const cs = c.contatos || [];
+  if (!cs.length) return '<div style="font-size:12.5px;color:var(--n500)">Nenhum contato cadastrado. Sem ao menos um DECISOR mapeado, o follow-up morre na troca de comprador.</div>';
+  const canais = (CRMCAT && CRMCAT.canais) || {};
+  return cs.map(t => {
+    const zap = t.telefone && (canais.whatsapp || {}).disponivel
+      ? `<button class="chip" style="padding:1px 8px;font-size:11px" data-t="${t.id}" data-c="${c.id}" onclick="crmMsgModal(this.dataset.t,'whatsapp')">WhatsApp</button>` : '';
+    const mail = t.email && (canais.email || {}).disponivel
+      ? `<button class="chip" style="padding:1px 8px;font-size:11px" data-t="${t.id}" onclick="crmMsgModal(this.dataset.t,'email')">E-mail</button>` : '';
+    return `<div style="padding:5px 0;border-bottom:1px solid var(--n100,#EEF1F4);font-size:12.5px">
+      <div style="display:flex;gap:6px;align-items:baseline;flex-wrap:wrap">
+        <b style="cursor:pointer" data-c="${c.id}" data-t="${t.id}" onclick="crmContatoModal(this.dataset.c,this.dataset.t)">${esc(t.nome)}</b>
+        <span class="badge b-info">${esc(t.papel_rotulo)}</span>
+        ${t.principal ? '<span class="badge b-ok">principal</span>' : ''}</div>
+      <div style="color:var(--n500);font-size:11.5px">${esc([t.cargo, t.telefone_fmt, t.email].filter(Boolean).join(' · ') || 'sem contato registrado')}</div>
+      ${(zap || mail) ? '<div style="display:flex;gap:5px;margin-top:4px">' + zap + mail + '</div>' : ''}
+    </div>`;
+  }).join('');
+}
+
+function crmOposHtml(c) {
+  const os = c.oportunidades || [];
+  if (!os.length) return '<div style="font-size:12.5px;color:var(--n500)">Nenhuma oportunidade nesta conta.</div>';
+  return `<div class="tablewrap"><table><thead><tr><th>Código</th><th>Título</th>
+    <th>Estágio</th><th class="num">Valor/mês</th><th class="num">Previsão</th></tr></thead><tbody>`
+    + os.map(o => `<tr style="cursor:pointer" data-id="${o.id}" onclick="crmOpoFicha(this.dataset.id)">
+        <td>${esc(o.codigo)}</td><td>${esc(o.titulo)}</td>
+        <td>${esc(o.estagio_rotulo)}${o.motivo_rotulo ? ' · ' + esc(o.motivo_rotulo) : ''}</td>
+        <td class="num">${o.receita_mes != null ? BRL.format(o.receita_mes) : '<span style="color:var(--n400)">—</span>'}</td>
+        <td class="num"${o.previsao_vencida ? ' style="color:var(--red);font-weight:600"' : ''}>${o.previsao_fechamento ? fmtD(o.previsao_fechamento) : '—'}</td></tr>`).join('')
+    + '</tbody></table></div>';
+}
+
+function crmRotasHtml(c) {
+  const rs = (c.rotas_erp || []).slice(0, 8);
+  return `<div class="tablewrap"><table><thead><tr><th>Origem</th><th>Destino</th>
+    <th class="num">Viagens</th><th class="num">Receita</th><th class="num">R$/km</th></tr></thead><tbody>`
+    + rs.map(r => `<tr><td>${esc(r.origem)}</td><td>${esc(r.destino)}</td>
+        <td class="num">${r.viagens}</td><td class="num">${brlAbbr(r.receita)}</td>
+        <td class="num">${r.rkm != null ? NMI.format(r.rkm) : '—'}</td></tr>`).join('')
+    + '</tbody></table></div>'
+    + '<div style="font-size:11px;color:var(--n500);margin-top:3px">Rotas que o cliente já '
+    + 'roda, pela programação de embarque dos últimos 12 meses. Serve para cotar a expansão '
+    + 'sabendo o que a casa já cobra — em vez de partir do zero.</div>';
+}
+
+function crmHistoricoHtml(c) {
+  const hs = (c.interacoes || []).slice(0, 25);
+  if (!hs.length) return '<div style="font-size:12.5px;color:var(--n500)">Nenhuma interação registrada. É daqui que sai o “há quanto tempo ninguém fala com este cliente”.</div>';
+  return '<ul class="crmtl">' + hs.map(h => `<li>
+    <span class="tl-c">${esc(String(h.ts).slice(0, 10).split('-').reverse().join('/'))}</span>
+    <span class="tl-t"><b>${esc((CRMCAT.atividades && (CRMCAT.atividades.canais || [])
+      .find(x => x.valor === h.canal) || {}).rotulo || h.canal)}</b>${h.automatica ? ' <span class="badge">automática</span>' : ''}
+      ${h.contato_nome ? ' · ' + esc(h.contato_nome) : ''}
+      ${h.resumo ? '<br>' + esc(h.resumo) : ''}</span></li>`).join('') + '</ul>';
+}
+
+async function crmContaArquivar(id, arquivar) {
+  const r = await crmPost('contas/' + id + '/arquivar', { arquivada: arquivar });
+  if (!r) return;
+  fecharModal();
+  await crmCarregarNovo();
+}
+
+/* ────────────────────────────────────────────────── formulário de conta ── */
+
+function crmContaModal(id) {
+  const c = id ? (CRMCTAS.find(x => String(x.id) === String(id)) || {}) : {};
+  const erpFora = CRMCAT.erp_indisponivel;
+  abrirModal(`
+    <h3>${id ? 'Editar conta' : 'Nova conta'}</h3>
+    <div class="ges-form">
+      <div><label for="cc-nome">Razão social / nome *</label>
+        <input type="text" id="cc-nome" maxlength="200" value="${esc(c.nome || '')}"></div>
+      <div class="grid2" style="gap:10px">
+        <div><label for="cc-fant">Nome fantasia</label>
+          <input type="text" id="cc-fant" maxlength="200" value="${esc(c.nome_fantasia || '')}"></div>
+        <div><label for="cc-cnpj">CNPJ</label>
+          <input type="text" id="cc-cnpj" inputmode="numeric" value="${esc(c.cnpj_fmt || '')}"></div>
+      </div>
+      <div><label for="cc-erp">Grupo econômico no ERP</label>
+        ${erpFora
+      ? `<div style="font-size:12.5px;color:var(--yellow-700);padding:8px 10px;border:1px solid var(--n300);border-radius:6px">
+             O ERP não respondeu (${esc(erpFora)}). O vínculo pode ser feito depois — sem ele
+             a conta funciona, mas a tela não mostra a receita real.</div>
+           <input type="hidden" id="cc-erp" value="${esc(String(c.ava_agrupamento || ''))}">`
+      : `<select id="cc-erp">${crmOpts((CRMCAT.agrupamentos || [])
+        .map(a => ({ valor: a.codigo, rotulo: a.nome })), c.ava_agrupamento,
+        '— sem vínculo (prospect) —')}</select>
+           <div style="font-size:11px;color:var(--n500);margin-top:3px">É por aqui que entram
+           a receita real, as viagens e os corredores do cliente. Um grupo só pode estar
+           ligado a uma conta.</div>`}</div>
+      <div class="grid2" style="gap:10px">
+        <div><label for="cc-seg">Segmento</label>
+          <select id="cc-seg">${crmOpts((CRMCAT.segmentos || []).map(s => ({ valor: s, rotulo: s })), c.segmento, '—')}</select></div>
+        <div><label for="cc-orig">Origem</label>
+          <select id="cc-orig">${crmOpts((CRMCAT.origens || []).map(s => ({ valor: s, rotulo: s })), c.origem, '—')}</select></div>
+      </div>
+      <div class="grid2" style="gap:10px">
+        <div><label for="cc-cid">Cidade</label>
+          <input type="text" id="cc-cid" maxlength="120" value="${esc(c.cidade || '')}"></div>
+        <div><label for="cc-uf">UF</label>
+          <input type="text" id="cc-uf" maxlength="2" style="text-transform:uppercase" value="${esc(c.uf || '')}"></div>
+      </div>
+      <div><label for="cc-dono">Responsável *</label>
+        <select id="cc-dono">${crmOpts((CRMCAT.usuarios || []).map(u => ({ valor: u.id, rotulo: u.nome })), c.dono_id, '— informar nome —')}</select></div>
+      <div id="cc-dono-nome-box" style="display:${c.dono_id ? 'none' : 'block'}">
+        <label for="cc-dono-nome">Nome do responsável (quem não tem acesso ao CÓRTEX)</label>
+        <input type="text" id="cc-dono-nome" maxlength="120" value="${esc(c.dono_id ? '' : (c.dono_nome || ''))}"></div>
+      <div><label for="cc-obs">Observações</label>
+        <textarea id="cc-obs" rows="2">${esc(c.observacoes || '')}</textarea></div>
+    </div>
+    <div class="m-err" id="m-err"></div>
+    <div class="m-foot">
+      <button class="btn" onclick="fecharModal()">Cancelar</button>
+      <button class="btn primary" data-id="${esc(String(id || ''))}" onclick="crmContaSalvar(this.dataset.id)">Salvar</button>
+    </div>`);
+  const sel = document.getElementById('cc-dono');
+  if (sel) sel.onchange = () => {
+    const box = document.getElementById('cc-dono-nome-box');
+    if (box) box.style.display = sel.value ? 'none' : 'block';
+  };
+}
+
+async function crmContaSalvar(id) {
+  const v = i => (document.getElementById(i) || {}).value || '';
+  const corpo = {
+    nome: v('cc-nome'), nome_fantasia: v('cc-fant'), cnpj: v('cc-cnpj'),
+    ava_agrupamento: v('cc-erp'), segmento: v('cc-seg'), origem: v('cc-orig'),
+    cidade: v('cc-cid'), uf: v('cc-uf'), dono_id: v('cc-dono'),
+    dono_nome: v('cc-dono-nome'), observacoes: v('cc-obs'),
+  };
+  if (id) corpo.id = Number(id);
+  const r = await crmPost('contas', corpo);
+  if (!r) return;
+  fecharModal();
+  await crmCarregarNovo();
+}
+
+/* ──────────────────────────────────────────────── formulário de contato ── */
+
+function crmContatoModal(contaId, id) {
+  const conta = CRMCTAS.find(x => String(x.id) === String(contaId)) || {};
+  const t = {};
+  abrirModal(`
+    <h3>${id && id !== '0' ? 'Editar contato' : 'Novo contato'}</h3>
+    <div style="font-size:12.5px;color:var(--n500);margin:-6px 0 12px">${esc(conta.nome || '')}</div>
+    <div class="ges-form">
+      <div><label for="ct-nome">Nome *</label>
+        <input type="text" id="ct-nome" maxlength="200" value="${esc(t.nome || '')}"></div>
+      <div class="grid2" style="gap:10px">
+        <div><label for="ct-cargo">Cargo</label>
+          <input type="text" id="ct-cargo" maxlength="120"></div>
+        <div><label for="ct-papel">Papel</label>
+          <select id="ct-papel">${crmOpts(CRMCAT.papeis, 'operacional')}</select></div>
+      </div>
+      <div class="grid2" style="gap:10px">
+        <div><label for="ct-tel">Telefone</label>
+          <input type="text" id="ct-tel" inputmode="tel" placeholder="(47) 99999-8888"></div>
+        <div><label for="ct-mail">E-mail</label>
+          <input type="text" id="ct-mail" inputmode="email"></div>
+      </div>
+      <label style="font-weight:500;font-size:13px"><input type="checkbox" id="ct-princ">
+        Contato principal desta conta</label>
+      <div style="font-size:11px;color:var(--n500);margin-top:-4px">O telefone é gravado
+        no mesmo formato que o envio de WhatsApp aceita — se ele for recusado aqui, seria
+        recusado no disparo também.</div>
+    </div>
+    <div class="m-err" id="m-err"></div>
+    <div class="m-foot">
+      ${id && id !== '0' ? `<button class="btn" data-t="${esc(String(id))}" onclick="crmContatoExcluir(this.dataset.t)">Excluir</button>` : ''}
+      <button class="btn" onclick="fecharModal()">Cancelar</button>
+      <button class="btn primary" data-c="${esc(String(contaId))}" data-t="${esc(String(id || ''))}"
+        onclick="crmContatoSalvar(this.dataset.c,this.dataset.t)">Salvar</button>
+    </div>`);
+  if (id && id !== '0') crmContatoPreencher(contaId, id);
+}
+
+async function crmContatoPreencher(contaId, id) {
+  const c = await crmGet('contas/' + contaId); if (!c) return;
+  const t = (c.contatos || []).find(x => String(x.id) === String(id)); if (!t) return;
+  const s = (i, v) => { const e = document.getElementById(i); if (e) e.value = v || ''; };
+  s('ct-nome', t.nome); s('ct-cargo', t.cargo); s('ct-tel', t.telefone_fmt);
+  s('ct-mail', t.email);
+  const p = document.getElementById('ct-papel'); if (p) p.value = t.papel;
+  const pr = document.getElementById('ct-princ'); if (pr) pr.checked = !!t.principal;
+}
+
+async function crmContatoSalvar(contaId, id) {
+  const v = i => (document.getElementById(i) || {}).value || '';
+  const corpo = {
+    conta_id: Number(contaId), nome: v('ct-nome'), cargo: v('ct-cargo'),
+    papel: v('ct-papel'), telefone: v('ct-tel'), email: v('ct-mail'),
+    principal: (document.getElementById('ct-princ') || {}).checked || false,
+  };
+  if (id && id !== '0') corpo.id = Number(id);
+  const r = await crmPost('contatos', corpo);
+  if (!r) return;
+  fecharModal();
+  await crmContaFicha(contaId);
+}
+
+async function crmContatoExcluir(id) {
+  const r = await crmPost('contatos/' + id + '/excluir', {});
+  if (!r) return;
+  fecharModal();
+  await crmCarregarNovo();
+}
+
+/* ────────────────────────────────────── ficha da oportunidade e das lanes ── */
+
+async function crmOpoFicha(id) {
+  const o = await crmGet('oportunidades/' + id); if (!o) return;
+  const ref = o.referencia_ckm || {};
+  const res = o.resumo_lanes || {};
+  abrirModal(`
+    <div class="crm-ficha">
+      <h3 style="display:flex;align-items:center;gap:9px;flex-wrap:wrap">
+        ${esc(o.titulo)} <span class="badge b-info">${esc(o.estagio_rotulo)}</span></h3>
+      <div style="font-size:12.5px;color:var(--n500);margin:-6px 0 14px">
+        ${esc(o.codigo)} · ${esc(o.conta_nome || '—')} · ${esc(o.tipo_rotulo)}
+        · resp. ${esc(o.dono_nome || '—')}</div>
+
+      <div class="kpis k4" style="gap:10px;margin-bottom:14px">
+        ${kpi('Valor mensal',
+    o.receita_mes != null ? brlAbbr(o.receita_mes) : 'não informado',
+    o.origem_receita === 'lanes' ? (res.lanes + ' lane' + (res.lanes === 1 ? '' : 's'))
+      : (o.origem_receita === 'manual' ? 'estimado no cadastro' : 'sem lane e sem estimativa'),
+    '', 'Soma de valor da viagem × viagens no mês de cada lane. Enquanto não houver lane, vale o valor mensal estimado — e o subtítulo diz qual dos dois está valendo.')}
+        ${kpi('Ponderado',
+      o.valor_ponderado != null ? brlAbbr(o.valor_ponderado) : '—',
+      o.probabilidade_efetiva + '%' + (o.probabilidade_padrao ? ' (padrão do estágio)' : ' (informada)'),
+      '', 'Valor mensal × probabilidade. A probabilidade do estágio é o palpite da casa; a informada é a do vendedor que conhece o negócio.')}
+        ${kpi('Contrato',
+        o.valor_total != null ? brlAbbr(o.valor_total) : '—',
+        o.meses_contrato ? (o.meses_contrato + ' meses') : 'prazo não informado', '',
+        'Valor mensal × prazo. Uma oportunidade de R$ 80 mil por 36 meses e uma de R$ 80 mil spot não valem o mesmo, e o pipeline mensal sozinho as mostra idênticas.')}
+        ${kpi('Idade',
+          o.idade_dias != null ? o.idade_dias + ' dias' : '—',
+          o.previsao_fechamento
+            ? (o.previsao_vencida ? 'previsão VENCIDA em ' + fmtD(o.previsao_fechamento)
+              : 'previsão ' + fmtD(o.previsao_fechamento))
+            : 'sem previsão de fechamento',
+          o.previsao_vencida ? 'neg' : '',
+          'Dias desde a abertura. Previsão vencida com a oportunidade aberta é o sinal mais barato de pipeline podre: ou a data era otimista, ou o negócio morreu e ninguém fechou o cartão.')}
+      </div>
+
+      <h4 style="margin:4px 0 6px;font-size:12px;text-transform:uppercase;letter-spacing:.05em;color:var(--n600)">
+        Lanes <button class="chip" style="padding:1px 8px;font-size:11px;margin-left:6px"
+          data-o="${o.id}" onclick="crmLaneModal(this.dataset.o,0)">+ nova</button></h4>
+      ${crmLanesHtml(o)}
+      ${crmCkmRodape(ref, res)}
+
+      <div class="m-err" id="m-err"></div>
+      <div class="m-foot">
+        <select id="of-est" style="margin-right:auto;padding:7px 9px;border:1px solid var(--n300);border-radius:6px;font:inherit;font-size:13px">
+          ${crmOpts((CRMCAT.estagios || []).concat(CRMCAT.estagios_fechados || []), o.estagio)}
+        </select>
+        <button class="btn" data-o="${o.id}" onclick="crmOpoMoverDaFicha(this.dataset.o)">Mover</button>
+        <button class="btn" data-o="${o.id}" data-c="${o.conta_id}" onclick="crmOpoModal(this.dataset.o,this.dataset.c)">Editar</button>
+        <button class="btn primary" onclick="fecharModal()">Fechar</button>
+      </div>
+    </div>`);
+  crmLarga();
+}
+
+function crmLanesHtml(o) {
+  const ls = o.lanes_detalhe || [];
+  if (!ls.length) return `<div style="font-size:12.5px;color:var(--n500);padding:6px 0">
+    Nenhuma lane. Em lotação o negócio é o conjunto de rotas: é na lane que existe km, e
+    portanto R$/km, piso mínimo da ANTT e margem. Sem ela o valor da oportunidade é um
+    número sem conta por trás.</div>`;
+  return ls.map(l => {
+    const c = l.calc || {}, p = c.piso || {};
+    const al = c.alerta;
+    const cel = (rot, val, na) => `<div>${rot}<span class="${na ? 'na' : ''}">${val}</span></div>`;
+    return `<div class="lane${p.abaixo ? ' abaixo' : ''}">
+      <div class="lane-h">
+        <b>${esc(l.rotulo)}</b>
+        ${l.tipo_veiculo ? '<span class="badge b-info">' + esc(l.tipo_veiculo) + '</span>' : ''}
+        ${l.carga_rotulo ? '<span class="badge">' + esc(l.carga_rotulo) + '</span>' : ''}
+        ${al ? '<span class="badge ' + (al.nivel === 'alerta' ? 'b-dang' : 'b-warn')
+        + '" title="' + esc(al.detalhe) + '">' + esc(al.texto) + '</span>' : ''}
+        <button class="chip" style="padding:1px 8px;font-size:11px;margin-left:auto"
+          data-o="${o.id}" data-l="${l.id}" onclick="crmLaneModal(this.dataset.o,this.dataset.l)">editar</button>
+      </div>
+      <div class="lane-g">
+        ${cel('km carregado', l.km != null ? NMI.format(l.km) : '—', l.km == null)}
+        ${cel('retorno vazio', c.retorno_vazio != null ? (100 * c.retorno_vazio).toFixed(0) + '%' : '—', c.retorno_vazio == null)}
+        ${cel('viagens/mês', l.viagens_mes != null ? NMI.format(l.viagens_mes) : '—', l.viagens_mes == null)}
+        ${cel('R$/viagem', l.valor_viagem != null ? BRL.format(l.valor_viagem) : '—', l.valor_viagem == null)}
+        ${cel('R$/km carregado', c.rkm != null ? NMI.format(c.rkm) : '—', c.rkm == null)}
+        ${cel('R$/km total', c.rkm_total != null ? NMI.format(c.rkm_total) : '—', c.rkm_total == null)}
+        ${cel('piso ANTT/viagem', p.valor != null ? BRL.format(p.valor)
+      : '<span title="' + esc(p.motivo || '') + '">n/d</span>', p.valor == null)}
+        ${cel('margem R$/km', c.margem_km != null ? NMI.format(c.margem_km) : '—', c.margem_km == null)}
+        ${cel('receita/mês', c.receita_mes != null ? brlAbbr(c.receita_mes) : '—', c.receita_mes == null)}
+      </div>
+    </div>`;
+  }).join('');
+}
+
+/* O CKM é UM SÓ para todas as lanes, e isso é dito aqui embaixo em vez de
+   virar uma coluna repetindo o mesmo número em vinte linhas — que foi o que a
+   tela de Make vs Buy fez e teve de desfazer. O que varia por lane, e por isso
+   tem coluna, é a MARGEM. */
+function crmCkmRodape(ref, res) {
+  const partes = [];
+  if (res.lanes) {
+    partes.push('<b>' + res.lanes + '</b> lane' + (res.lanes === 1 ? '' : 's'));
+    if (res.receita_mes != null) partes.push(brlAbbr(res.receita_mes) + '/mês');
+    if (res.rkm_medio != null) partes.push('R$/km médio ' + NMI.format(res.rkm_medio));
+    if (res.margem_mes != null) partes.push('margem ' + brlAbbr(res.margem_mes) + '/mês');
+  }
+  const avisos = [];
+  if (res.lanes_sem_preco)
+    avisos.push('<span style="color:var(--yellow-700)">' + res.lanes_sem_preco
+      + ' sem preço — o total acima NÃO é o valor do negócio</span>');
+  if (res.lanes_abaixo_piso)
+    avisos.push('<span style="color:var(--red);font-weight:600">' + res.lanes_abaixo_piso
+      + ' abaixo do piso ANTT</span>');
+  if (res.lanes_sem_piso)
+    avisos.push(res.lanes_sem_piso + ' sem piso calculável (falta veículo ou tipo de carga)');
+  const ckm = ref.disponivel
+    ? ('CKM marginal da frota <b>' + NMI.format(ref.ckm_marginal) + '</b>/km'
+      + (ref.ckm_cheio ? ' · cheio ' + NMI.format(ref.ckm_cheio) + '/km' : '')
+      + ' — consolidado da frota, <b>não por rota</b> (o razão é consolidado). '
+      + 'A margem de cada lane usa este número contra o R$/km sobre o km TOTAL.')
+    : 'CKM indisponível: o razão do AVA não respondeu. As lanes ficam sem margem — '
+    + 'o piso da ANTT não depende dele e continua sendo calculado.';
+  return `<div style="font-size:11.5px;color:var(--n500);margin-top:8px;padding-top:8px;border-top:1px solid var(--n200)">
+    ${partes.length ? partes.join(' · ') + '<br>' : ''}
+    ${avisos.length ? avisos.join(' · ') + '<br>' : ''}${ckm}</div>`;
+}
+
+async function crmOpoMoverDaFicha(id) {
+  const est = (document.getElementById('of-est') || {}).value || '';
+  if (est === 'perdida') { crmPerdaModal(id); return; }
+  const r = await crmPost('oportunidades/' + id + '/mover', { estagio: est });
+  if (!r) return;
+  fecharModal();
+  await crmCarregarNovo();
+}
+
+/* ─────────────────────────────────────── formulário de oportunidade ── */
+
+function crmOpoModal(id, contaId) {
+  const o = (id && id !== '0')
+    ? (CRMOPOS.find(x => String(x.id) === String(id)) || {}) : {};
+  const conta = contaId || o.conta_id || '';
+  abrirModal(`
+    <h3>${id && id !== '0' ? 'Editar oportunidade' : 'Nova oportunidade'}</h3>
+    <div class="ges-form">
+      <div><label for="co-conta">Conta *</label>
+        <select id="co-conta">${crmOpts(CRMCTAS.map(c => ({ valor: c.id, rotulo: c.nome })), conta, '— escolha —')}</select></div>
+      <div><label for="co-tit">Título *</label>
+        <input type="text" id="co-tit" maxlength="200" value="${esc(o.titulo || '')}"
+          placeholder="Contrato 2027 — eixo sul"></div>
+      <div class="grid2" style="gap:10px">
+        <div><label for="co-tipo">Tipo</label>
+          <select id="co-tipo">${crmOpts(CRMCAT.tipos, o.tipo || 'contrato')}</select></div>
+        <div><label for="co-est">Estágio</label>
+          <select id="co-est">${crmOpts(CRMCAT.estagios, o.estagio || 'qualificacao')}</select></div>
+      </div>
+      <div class="grid2" style="gap:10px">
+        <div><label for="co-prev">Previsão de fechamento</label>
+          <input type="date" id="co-prev" value="${esc(o.previsao_fechamento || '')}"
+            style="width:100%;padding:9px 10px;border:1px solid var(--n300);border-radius:6px;font:inherit"></div>
+        <div><label for="co-meses">Prazo do contrato (meses)</label>
+          <input type="text" id="co-meses" inputmode="numeric" value="${esc(o.meses_contrato || '')}"></div>
+      </div>
+      <div class="grid2" style="gap:10px">
+        <div><label for="co-prob">Probabilidade (%)</label>
+          <input type="text" id="co-prob" inputmode="numeric" value="${esc(o.probabilidade != null ? o.probabilidade : '')}"
+            placeholder="vazio = padrão do estágio"></div>
+        <div><label for="co-val">Valor mensal estimado</label>
+          <input type="text" id="co-val" inputmode="decimal"
+            value="${esc(o.receita_mensal_manual != null ? NMI.format(o.receita_mensal_manual) : '')}"
+            placeholder="só enquanto não houver lane"></div>
+      </div>
+      <div><label for="co-dono">Responsável *</label>
+        <select id="co-dono">${crmOpts((CRMCAT.usuarios || []).map(u => ({ valor: u.id, rotulo: u.nome })), o.dono_id, '— informar nome —')}</select></div>
+      <div id="co-dono-nome-box" style="display:${o.dono_id ? 'none' : 'block'}">
+        <label for="co-dono-nome">Nome do responsável</label>
+        <input type="text" id="co-dono-nome" maxlength="120" value="${esc(o.dono_id ? '' : (o.dono_nome || ''))}"></div>
+      <div><label for="co-obs">Observações</label>
+        <textarea id="co-obs" rows="2">${esc(o.observacoes || '')}</textarea></div>
+      <div style="font-size:11px;color:var(--n500)">O valor do negócio sai das LANES. O campo
+        de valor estimado só é lido enquanto a oportunidade não tiver nenhuma — assim que a
+        primeira entrar, ele para de valer e a ficha diz isso.</div>
+    </div>
+    <div class="m-err" id="m-err"></div>
+    <div class="m-foot">
+      <button class="btn" onclick="fecharModal()">Cancelar</button>
+      <button class="btn primary" data-id="${esc(String(id || ''))}" onclick="crmOpoSalvar(this.dataset.id)">Salvar</button>
+    </div>`);
+  const sel = document.getElementById('co-dono');
+  if (sel) sel.onchange = () => {
+    const box = document.getElementById('co-dono-nome-box');
+    if (box) box.style.display = sel.value ? 'none' : 'block';
+  };
+}
+
+async function crmOpoSalvar(id) {
+  const v = i => (document.getElementById(i) || {}).value || '';
+  const corpo = {
+    conta_id: v('co-conta'), titulo: v('co-tit'), tipo: v('co-tipo'),
+    estagio: v('co-est'), previsao_fechamento: v('co-prev'),
+    meses_contrato: v('co-meses'), probabilidade: v('co-prob'),
+    receita_mensal_manual: v('co-val'), dono_id: v('co-dono'),
+    dono_nome: v('co-dono-nome'), observacoes: v('co-obs'),
+  };
+  if (id && id !== '0') corpo.id = Number(id);
+  const r = await crmPost('oportunidades', corpo);
+  if (!r) return;
+  fecharModal();
+  await crmCarregarNovo();
+  crmOpoFicha(r.id);
+}
+
+/* ──────────────────────────────────────────────── formulário de lane ── */
+
+function crmLaneModal(opoId, laneId) {
+  abrirModal(`
+    <h3>${laneId && laneId !== '0' ? 'Editar lane' : 'Nova lane'}</h3>
+    <div class="ges-form">
+      <div class="grid2" style="gap:10px">
+        <div><label for="cl-oc">Cidade de origem</label>
+          <input type="text" id="cl-oc" maxlength="120" placeholder="Joinville"></div>
+        <div><label for="cl-ou">UF origem</label>
+          <input type="text" id="cl-ou" maxlength="2" style="text-transform:uppercase"></div>
+      </div>
+      <div class="grid2" style="gap:10px">
+        <div><label for="cl-dc">Cidade de destino</label>
+          <input type="text" id="cl-dc" maxlength="120" placeholder="Betim"></div>
+        <div><label for="cl-du">UF destino</label>
+          <input type="text" id="cl-du" maxlength="2" style="text-transform:uppercase"></div>
+      </div>
+      <div class="grid2" style="gap:10px">
+        <div><label for="cl-km">Distância carregada (km)</label>
+          <input type="text" id="cl-km" inputmode="decimal" placeholder="1.180"></div>
+        <div><label for="cl-kmv">Retorno vazio (km)</label>
+          <input type="text" id="cl-kmv" inputmode="decimal" placeholder="0 se volta carregado"></div>
+      </div>
+      <div class="grid2" style="gap:10px">
+        <div><label for="cl-veic">Veículo</label>
+          <select id="cl-veic">${crmOpts((CRMCAT.veiculos || [])
+      .map(v => ({ valor: v.nome, rotulo: v.nome + ' · ' + v.eixos + ' eixos' })), '', '—')}</select></div>
+        <div><label for="cl-carga">Tipo de carga (ANTT)</label>
+          <select id="cl-carga">${crmOpts(CRMCAT.cargas, '', '—')}</select></div>
+      </div>
+      <div class="grid2" style="gap:10px">
+        <div><label for="cl-vg">Viagens por mês</label>
+          <input type="text" id="cl-vg" inputmode="decimal" placeholder="22"></div>
+        <div><label for="cl-val">Valor por viagem (R$)</label>
+          <input type="text" id="cl-val" inputmode="decimal" placeholder="9.800,00"></div>
+      </div>
+      <div><label for="cl-ped">Pedágio por viagem (R$)</label>
+        <input type="text" id="cl-ped" inputmode="decimal" placeholder="opcional"></div>
+      <div style="font-size:11px;color:var(--n500)">O veículo define os eixos, e é deles que
+        sai o coeficiente da ANTT — não é preciso saber que uma carreta LS de 3 eixos soma 6
+        na tabela. O <b>pedágio não entra no piso</b>: a Resolução 5.867/2020 remunera
+        deslocamento e carga/descarga, e somá-lo antes de comparar aprovaria frete abaixo do
+        mínimo legal usando dinheiro que é do pedágio.</div>
+    </div>
+    <div class="m-err" id="m-err"></div>
+    <div class="m-foot">
+      ${laneId && laneId !== '0' ? `<button class="btn" data-l="${esc(String(laneId))}" data-o="${esc(String(opoId))}" onclick="crmLaneExcluir(this.dataset.l,this.dataset.o)">Excluir</button>` : ''}
+      <button class="btn" onclick="fecharModal()">Cancelar</button>
+      <button class="btn primary" data-o="${esc(String(opoId))}" data-l="${esc(String(laneId || ''))}"
+        onclick="crmLaneSalvar(this.dataset.o,this.dataset.l)">Salvar</button>
+    </div>`);
+  if (laneId && laneId !== '0') crmLanePreencher(opoId, laneId);
+}
+
+async function crmLanePreencher(opoId, laneId) {
+  const o = await crmGet('oportunidades/' + opoId); if (!o) return;
+  const l = (o.lanes_detalhe || []).find(x => String(x.id) === String(laneId));
+  if (!l) return;
+  const s = (i, v) => { const e = document.getElementById(i); if (e) e.value = (v == null ? '' : v); };
+  s('cl-oc', l.origem_cidade); s('cl-ou', l.origem_uf);
+  s('cl-dc', l.destino_cidade); s('cl-du', l.destino_uf);
+  s('cl-km', l.km != null ? NMI.format(l.km) : '');
+  s('cl-kmv', l.km_vazio != null ? NMI.format(l.km_vazio) : '');
+  s('cl-vg', l.viagens_mes != null ? NMI.format(l.viagens_mes) : '');
+  s('cl-val', l.valor_viagem != null ? NMI.format(l.valor_viagem) : '');
+  s('cl-ped', l.pedagio != null ? NMI.format(l.pedagio) : '');
+  const v = document.getElementById('cl-veic'); if (v) v.value = l.tipo_veiculo || '';
+  const c = document.getElementById('cl-carga'); if (c) c.value = l.tipo_carga || '';
+}
+
+async function crmLaneSalvar(opoId, laneId) {
+  const v = i => (document.getElementById(i) || {}).value || '';
+  const corpo = {
+    oportunidade_id: Number(opoId),
+    origem_cidade: v('cl-oc'), origem_uf: v('cl-ou'),
+    destino_cidade: v('cl-dc'), destino_uf: v('cl-du'),
+    km: v('cl-km'), km_vazio: v('cl-kmv'), tipo_veiculo: v('cl-veic'),
+    tipo_carga: v('cl-carga'), viagens_mes: v('cl-vg'),
+    valor_viagem: v('cl-val'), pedagio: v('cl-ped'),
+  };
+  if (laneId && laneId !== '0') corpo.id = Number(laneId);
+  const r = await crmPost('lanes', corpo);
+  if (!r) return;
+  fecharModal();
+  await crmCarregarNovo();
+  crmOpoFicha(opoId);
+}
+
+async function crmLaneExcluir(laneId, opoId) {
+  const r = await crmPost('lanes/' + laneId + '/excluir', {});
+  if (!r) return;
+  fecharModal();
+  await crmCarregarNovo();
+  crmOpoFicha(opoId);
+}
+
+/* ─────────────────────────────────────────── formulário de atividade ── */
+
+function crmAtivModal(id) {
+  const a = (id && id !== '0')
+    ? (CRMATIV.find(x => String(x.id) === String(id)) || {}) : {};
+  abrirModal(`
+    <h3>${id && id !== '0' ? 'Editar atividade' : 'Nova atividade'}</h3>
+    <div class="ges-form">
+      <div><label for="ca-conta">Conta</label>
+        <select id="ca-conta">${crmOpts(CRMCTAS.map(c => ({ valor: c.id, rotulo: c.nome })), a.conta_efetiva || a.conta_id, '— nenhuma —')}</select></div>
+      <div><label for="ca-opo">Oportunidade</label>
+        <select id="ca-opo">${crmOpts(CRMOPOS.map(o => ({ valor: o.id, rotulo: o.codigo + ' · ' + o.titulo })), a.oportunidade_id, '— nenhuma —')}</select></div>
+      <div class="grid2" style="gap:10px">
+        <div><label for="ca-tipo">Tipo</label>
+          <select id="ca-tipo">${crmOpts((CRMCAT.atividades || {}).tipos, a.tipo || 'ligacao')}</select></div>
+        <div><label for="ca-quando">Quando *</label>
+          <input type="date" id="ca-quando" value="${esc(a.quando || _hojeISO())}"
+            style="width:100%;padding:9px 10px;border:1px solid var(--n300);border-radius:6px;font:inherit"></div>
+      </div>
+      <div><label for="ca-ass">Assunto *</label>
+        <input type="text" id="ca-ass" maxlength="200" value="${esc(a.assunto || '')}"
+          placeholder="Retornar sobre a proposta"></div>
+      <div><label for="ca-resp">Responsável *</label>
+        <select id="ca-resp">${crmOpts((CRMCAT.usuarios || []).map(u => ({ valor: u.id, rotulo: u.nome })), a.responsavel_id || (USER && USER.id), '— informar nome —')}</select></div>
+      <div id="ca-resp-nome-box" style="display:none">
+        <label for="ca-resp-nome">Nome do responsável</label>
+        <input type="text" id="ca-resp-nome" maxlength="120"></div>
+      <div><label for="ca-det">Detalhe</label>
+        <textarea id="ca-det" rows="2">${esc(a.detalhe || '')}</textarea></div>
+      <div style="font-size:11px;color:var(--n500)">Atividade solta não é encontrada depois:
+        ela precisa estar ligada a uma conta ou a uma oportunidade.</div>
+    </div>
+    <div class="m-err" id="m-err"></div>
+    <div class="m-foot">
+      ${id && id !== '0' ? `<button class="btn" data-id="${esc(String(id))}" onclick="crmAtivExcluir(this.dataset.id)">Excluir</button>` : ''}
+      <button class="btn" onclick="fecharModal()">Cancelar</button>
+      <button class="btn primary" data-id="${esc(String(id || ''))}" onclick="crmAtivSalvar(this.dataset.id)">Salvar</button>
+    </div>`);
+  const sel = document.getElementById('ca-resp');
+  if (sel) sel.onchange = () => {
+    const box = document.getElementById('ca-resp-nome-box');
+    if (box) box.style.display = sel.value ? 'none' : 'block';
+  };
+}
+
+async function crmAtivSalvar(id) {
+  const v = i => (document.getElementById(i) || {}).value || '';
+  const corpo = {
+    conta_id: v('ca-conta'), oportunidade_id: v('ca-opo'), tipo: v('ca-tipo'),
+    assunto: v('ca-ass'), quando: v('ca-quando'), detalhe: v('ca-det'),
+    responsavel_id: v('ca-resp'), responsavel_nome: v('ca-resp-nome'),
+  };
+  if (id && id !== '0') corpo.id = Number(id);
+  const r = await crmPost('atividades', corpo);
+  if (!r) return;
+  fecharModal();
+  await crmCarregarNovo();
+}
+
+async function crmAtivExcluir(id) {
+  const r = await crmPost('atividades/' + id + '/excluir', {});
+  if (!r) return;
+  fecharModal();
+  await crmCarregarNovo();
+}
+
+/* Concluir pede o resumo NA HORA: quem acabou de ligar está com ele na cabeça,
+   e é o único momento em que vai escrever. Pedir depois, num formulário
+   separado, é o que faz o histórico ficar vazio. */
+function crmConcluirModal(id) {
+  const a = CRMATIV.find(x => String(x.id) === String(id)) || {};
+  const contato = ['ligacao', 'visita', 'reuniao', 'email', 'whatsapp'].includes(a.tipo);
+  abrirModal(`
+    <h3>Concluir atividade</h3>
+    <div style="font-size:13px;color:var(--n600);margin-bottom:12px">
+      <b>${esc(a.assunto || '')}</b><br>
+      <span style="color:var(--n500)">${esc(a.conta_nome || '')}</span></div>
+    <div class="ges-form">
+      <div><label for="cx-res">O que aconteceu</label>
+        <textarea id="cx-res" rows="3" placeholder="${contato ? 'Vira o registro no histórico da conta' : 'opcional'}"></textarea></div>
+      ${contato ? `<div style="font-size:11.5px;color:var(--n500)">Esta atividade é de CONTATO,
+        então concluí-la registra uma interação no histórico da conta — é de lá que sai o
+        “há quanto tempo ninguém fala com este cliente”.</div>`
+      : `<div style="font-size:11.5px;color:var(--n500)">Esta atividade não é de contato
+        (${esc(a.tipo_rotulo || '')}), então nada entra no histórico: concluir “montar
+        proposta” não é ter falado com ninguém, e registrá-la faria o “dias sem contato”
+        mentir para baixo.</div>`}
+    </div>
+    <div class="m-err" id="m-err"></div>
+    <div class="m-foot">
+      <button class="btn" onclick="fecharModal()">Cancelar</button>
+      <button class="btn primary" data-id="${esc(String(id))}" onclick="crmConcluir(this.dataset.id)">Concluir</button>
+    </div>`);
+}
+
+async function crmConcluir(id) {
+  const r = await crmPost('atividades/' + id + '/concluir', {
+    resumo: (document.getElementById('cx-res') || {}).value || '',
+  });
+  if (!r) return;
+  fecharModal();
+  await crmCarregarNovo();
+}
+
+/* ─────────────────────────────────── registrar interação (histórico) ── */
+
+function crmInteracaoModal(contaId) {
+  const conta = CRMCTAS.find(x => String(x.id) === String(contaId)) || {};
+  abrirModal(`
+    <h3>Registrar contato</h3>
+    <div style="font-size:12.5px;color:var(--n500);margin:-6px 0 12px">${esc(conta.nome || '')}</div>
+    <div class="ges-form">
+      <div class="grid2" style="gap:10px">
+        <div><label for="ci-canal">Canal</label>
+          <select id="ci-canal">${crmOpts((CRMCAT.atividades || {}).canais, 'ligacao')}</select></div>
+        <div><label for="ci-sent">Sentido</label>
+          <select id="ci-sent">${crmOpts((CRMCAT.atividades || {}).sentidos, 'saida')}</select></div>
+      </div>
+      <div><label for="ci-res">O que aconteceu</label>
+        <textarea id="ci-res" rows="3"></textarea></div>
+      <div style="font-size:11px;color:var(--n500)">O histórico é <b>append-only</b>: não há
+        editar nem excluir. Interação editável deixa de ser prova de que o contato houve —
+        quem errou o texto acrescenta outro registro.</div>
+    </div>
+    <div class="m-err" id="m-err"></div>
+    <div class="m-foot">
+      <button class="btn" onclick="fecharModal()">Cancelar</button>
+      <button class="btn primary" data-c="${esc(String(contaId))}" onclick="crmInteracaoSalvar(this.dataset.c)">Registrar</button>
+    </div>`);
+}
+
+async function crmInteracaoSalvar(contaId) {
+  const v = i => (document.getElementById(i) || {}).value || '';
+  const r = await crmPost('interacoes', {
+    conta_id: Number(contaId), canal: v('ci-canal'), sentido: v('ci-sent'),
+    resumo: v('ci-res'),
+  });
+  if (!r) return;
+  fecharModal();
+  await crmCarregarNovo();
+  crmContaFicha(contaId);
+}
+
+/* ──────────────────────────────────────────── contrato e reajuste ── */
+
+function crmCtrModal(id) {
+  const c = (id && id !== '0')
+    ? (CRMCTR.find(x => String(x.id) === String(id)) || {}) : {};
+  const meses = Array.from({ length: 12 }, (_, i) => ({
+    valor: i + 1,
+    rotulo: ['janeiro', 'fevereiro', 'março', 'abril', 'maio', 'junho', 'julho',
+      'agosto', 'setembro', 'outubro', 'novembro', 'dezembro'][i],
+  }));
+  abrirModal(`
+    <h3>${id && id !== '0' ? 'Editar contrato' : 'Novo contrato'}</h3>
+    <div class="ges-form">
+      <div><label for="cn-conta">Conta *</label>
+        <select id="cn-conta">${crmOpts(CRMCTAS.map(x => ({ valor: x.id, rotulo: x.nome })), c.conta_id, '— escolha —')}</select></div>
+      <div><label for="cn-obj">Objeto *</label>
+        <input type="text" id="cn-obj" maxlength="200" value="${esc(c.objeto || '')}"
+          placeholder="Transporte rodoviário FTL — eixo sul"></div>
+      <div><label for="cn-opo">Nasceu da oportunidade</label>
+        <select id="cn-opo">${crmOpts(CRMOPOS.filter(o => o.estagio === 'ganha')
+      .map(o => ({ valor: o.id, rotulo: o.codigo + ' · ' + o.titulo })), c.oportunidade_id, '— nenhuma —')}</select>
+        ${id && id !== '0' ? '' : `<div style="font-size:11px;color:var(--n500);margin-top:3px">
+          A tabela de preço da proposta ganha vem junto, <b>copiada</b>: a proposta é o que foi
+          oferecido e o contrato é o que foi assinado, e corrigir a proposta não pode
+          reescrever um documento com valor jurídico.</div>`}</div>
+      <div class="grid2" style="gap:10px">
+        <div><label for="cn-ini">Início da vigência *</label>
+          <input type="date" id="cn-ini" value="${esc(c.inicio || '')}"
+            style="width:100%;padding:9px 10px;border:1px solid var(--n300);border-radius:6px;font:inherit"></div>
+        <div><label for="cn-fim">Fim da vigência</label>
+          <input type="date" id="cn-fim" value="${esc(c.fim || '')}"
+            style="width:100%;padding:9px 10px;border:1px solid var(--n300);border-radius:6px;font:inherit"></div>
+      </div>
+      <div style="font-size:11px;color:var(--n500);margin-top:-4px">Sem data de fim o contrato
+        é por prazo <b>indeterminado</b> e não vence — é o que foi contratado, não dado
+        faltando.</div>
+      <div class="grid2" style="gap:10px">
+        <div><label for="cn-idx">Índice de reajuste</label>
+          <select id="cn-idx">${crmOpts((CRMCAT.contratos || {}).indices, c.indice_reajuste || 'negociado')}</select></div>
+        <div><label for="cn-mes">Mês do reajuste</label>
+          <select id="cn-mes">${crmOpts(meses, c.mes_reajuste, '— sem ciclo definido —')}</select></div>
+      </div>
+      <div class="grid2" style="gap:10px">
+        <div><label for="cn-prazo">Prazo de pagamento (dias)</label>
+          <input type="text" id="cn-prazo" inputmode="numeric" value="${esc(c.prazo_pagamento_dias != null ? c.prazo_pagamento_dias : '')}"></div>
+        <div><label for="cn-aviso">Aviso prévio (dias)</label>
+          <input type="text" id="cn-aviso" inputmode="numeric" value="${esc(c.aviso_previo_dias != null ? c.aviso_previo_dias : '')}"></div>
+      </div>
+      <label style="font-weight:500;font-size:13px"><input type="checkbox" id="cn-renov"${c.renovacao_automatica ? ' checked' : ''}>
+        Renovação automática</label>
+      <div><label for="cn-dono">Responsável *</label>
+        <select id="cn-dono">${crmOpts((CRMCAT.usuarios || []).map(u => ({ valor: u.id, rotulo: u.nome })), c.dono_id, '— informar nome —')}</select></div>
+      <div id="cn-dono-nome-box" style="display:${c.dono_id ? 'none' : 'block'}">
+        <label for="cn-dono-nome">Nome do responsável</label>
+        <input type="text" id="cn-dono-nome" maxlength="120" value="${esc(c.dono_id ? '' : (c.dono_nome || ''))}"></div>
+    </div>
+    <div class="m-err" id="m-err"></div>
+    <div class="m-foot">
+      <button class="btn" onclick="fecharModal()">Cancelar</button>
+      <button class="btn primary" data-id="${esc(String(id || ''))}" onclick="crmCtrSalvar(this.dataset.id)">Salvar</button>
+    </div>`);
+  const sel = document.getElementById('cn-dono');
+  if (sel) sel.onchange = () => {
+    const box = document.getElementById('cn-dono-nome-box');
+    if (box) box.style.display = sel.value ? 'none' : 'block';
+  };
+}
+
+async function crmCtrSalvar(id) {
+  const v = i => (document.getElementById(i) || {}).value || '';
+  const corpo = {
+    conta_id: v('cn-conta'), objeto: v('cn-obj'), oportunidade_id: v('cn-opo'),
+    inicio: v('cn-ini'), fim: v('cn-fim'), indice_reajuste: v('cn-idx'),
+    mes_reajuste: v('cn-mes'), prazo_pagamento_dias: v('cn-prazo'),
+    aviso_previo_dias: v('cn-aviso'), dono_id: v('cn-dono'),
+    dono_nome: v('cn-dono-nome'),
+    renovacao_automatica: (document.getElementById('cn-renov') || {}).checked || false,
+  };
+  if (id && id !== '0') corpo.id = Number(id);
+  const r = await crmPost('contratos', corpo);
+  if (!r) return;
+  fecharModal();
+  await crmCarregarNovo();
+}
+
+function crmReajusteModal(id) {
+  const c = CRMCTR.find(x => String(x.id) === String(id)) || {};
+  abrirModal(`
+    <h3>Registrar reajuste</h3>
+    <div style="font-size:13px;color:var(--n600);margin-bottom:12px">
+      <b>${esc(c.codigo || '')}</b> · ${esc(c.conta_nome || '')}<br>
+      <span style="color:var(--n500)">${esc(c.indice_rotulo || '')}${c.reajuste_ciclo
+      ? ' · ciclo de ' + fmtD(c.reajuste_ciclo) : ''}</span></div>
+    <div class="ges-form">
+      <div class="grid2" style="gap:10px">
+        <div><label for="cr-pct">Percentual aplicado (%)</label>
+          <input type="text" id="cr-pct" inputmode="decimal" placeholder="7,5"></div>
+        <div><label for="cr-data">Data de vigência</label>
+          <input type="date" id="cr-data" value="${esc(c.reajuste_ciclo || _hojeISO())}"
+            style="width:100%;padding:9px 10px;border:1px solid var(--n300);border-radius:6px;font:inherit"></div>
+      </div>
+      <div style="font-size:11px;color:var(--n500)">A data é a da <b>vigência</b> do reajuste,
+        não a de hoje: gravar o dia em que alguém lembrou de registrar faria o ciclo seguinte
+        ser cobrado no mês errado.</div>
+    </div>
+    <div class="m-err" id="m-err"></div>
+    <div class="m-foot">
+      <button class="btn" onclick="fecharModal()">Cancelar</button>
+      <button class="btn primary" data-id="${esc(String(id))}" onclick="crmReajusteSalvar(this.dataset.id)">Registrar</button>
+    </div>`);
+}
+
+async function crmReajusteSalvar(id) {
+  const r = await crmPost('contratos/' + id + '/reajuste', {
+    percentual: (document.getElementById('cr-pct') || {}).value || '',
+    quando: (document.getElementById('cr-data') || {}).value || '',
+  });
+  if (!r) return;
+  fecharModal();
+  await crmCarregarNovo();
+}
+
+/* ─────────────────────────────────────── falar com o contato ── */
+
+async function crmMsgModal(contatoId, canal) {
+  const zap = canal === 'whatsapp';
+  const est = ((CRMCAT.canais || {})[zap ? 'whatsapp' : 'email']) || {};
+  if (!est.disponivel) {
+    abrirModal(`<h3>${zap ? 'WhatsApp' : 'E-mail'} indisponível</h3>
+      <div style="font-size:13px;color:var(--n600)">${esc(est.motivo || 'Canal não configurado.')}</div>
+      <div class="m-foot"><button class="btn primary" onclick="fecharModal()">Fechar</button></div>`);
+    return;
+  }
+  abrirModal(`
+    <h3>${zap ? 'Enviar WhatsApp' : 'Enviar e-mail'}</h3>
+    <div class="ges-form">
+      ${zap ? '' : `<div><label for="cm-ass">Assunto *</label>
+        <input type="text" id="cm-ass" maxlength="200"></div>`}
+      <div><label for="cm-txt">Mensagem *</label>
+        <textarea id="cm-txt" rows="5"></textarea></div>
+      <div style="font-size:11px;color:var(--n500)">
+        ${zap ? `Passa pelo mesmo caminho de sempre: mesma trilha, mesmo teto diário de
+          destinatários, mesma janela de horário e mesma auditoria. Não existe “modo CRM”
+          mais frouxo — um caminho paralelo viraria o atalho para disparar sem as regras.
+          O contato é registrado sozinho no histórico da conta.`
+      : `O e-mail sai no layout único da casa e é registrado no histórico da conta.`}</div>
+    </div>
+    <div class="m-err" id="m-err"></div>
+    <div class="m-foot">
+      <button class="btn" onclick="fecharModal()">Cancelar</button>
+      <button class="btn primary" id="cm-btn" data-t="${esc(String(contatoId))}"
+        data-k="${esc(canal)}" onclick="crmMsgEnviar(this.dataset.t,this.dataset.k)">Enviar</button>
+    </div>`);
+}
+
+async function crmMsgEnviar(contatoId, canal) {
+  const btn = document.getElementById('cm-btn');
+  if (btn) { btn.disabled = true; btn.textContent = 'Enviando…'; }
+  const zap = canal === 'whatsapp';
+  const corpo = zap
+    ? { mensagem: (document.getElementById('cm-txt') || {}).value || '' }
+    : { assunto: (document.getElementById('cm-ass') || {}).value || '',
+        corpo: (document.getElementById('cm-txt') || {}).value || '' };
+  const r = await crmPost('contatos/' + contatoId + '/' + canal, corpo);
+  if (btn) { btn.disabled = false; btn.textContent = 'Enviar'; }
+  if (!r) return;
+  // A CONFIRMAÇÃO NÃO DEPENDE DO QUE VEM DEPOIS. A mensagem já saiu; se o
+  // repintar falhar, dizer "não foi possível" faria a pessoa reenviar — e o
+  // cliente receber duas vezes.
+  fecharModal();
+  try { await crmCarregarNovo(); } catch (e) { /* já enviado; a lista se recupera no próximo load */ }
+}
+
 // ---------------- RH — Vagas ----------------
 async function loadRh(){
   const seq=++rhSeq, btn=document.getElementById('btnRefresh'); if(btn) btn.disabled=true;
@@ -21492,6 +23245,10 @@ function abrirModal(html, trava){
   const bg=document.getElementById('modalBg');
   if(trava) bg.dataset.trava='1'; else delete bg.dataset.trava;
   const box=document.getElementById('modalBox');
+  /* Larguras não se herdam entre modais: a ficha larga do CRM adiciona
+     `.larga` DEPOIS de abrir, e sem esta linha o formulário seguinte sairia
+     com 980px de largura para quatro campos. */
+  box.classList.remove('larga');
   box.innerHTML=html;
   bg.classList.add('aberto');
   _modalPrevFoco=document.activeElement;            // p/ devolver o foco ao fechar

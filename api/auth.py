@@ -67,7 +67,7 @@ TELAS: dict[str, tuple[str, str]] = {  # chave -> (rótulo, grupo do menu)
     "pagar":   ("Contas a Pagar", "Financeiro"),
     "com":     ("Clientes e RKM", "Comercial"),
     "clif":    ("Consulta de Cliente", "Comercial"),
-    "crm":     ("CRM — Leads e Projetos", "Comercial"),
+    "crm":     ("CRM — Funil Comercial", "Comercial"),
     "drecli":  ("DRE por Cliente", "Comercial"),
     "dre":     ("DRE Gerencial", "Controladoria"),
     "bal":     ("Balanço Patrimonial", "Controladoria"),

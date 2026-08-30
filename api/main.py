@@ -283,6 +283,13 @@ app.add_middleware(auth.AuthMiddleware)
 app.add_middleware(SecurityHeadersMiddleware)
 app.include_router(auth.router_auth)
 app.include_router(auth.router_gestao)
+# CRM comercial. Router próprio pelo mesmo motivo do `router_gestao`: são ~30
+# rotas, e enfiá-las aqui engordaria o arquivo que duas frentes mexem ao mesmo
+# tempo. O acesso é o da tela `crm`, pelo prefixo já presente em `ROTA_TELAS`.
+# A rota `GET /api/comercial/crm` (a base do Avacorp, só leitura) continua
+# abaixo, no lugar dela — o router só serve os caminhos ABAIXO desse prefixo.
+from api.crm.rotas import router as router_crm  # noqa: E402
+app.include_router(router_crm)
 # a raiz do repositorio -- usada por rota que grava arquivo temporario
 ROOT = Path(__file__).resolve().parent.parent
 STATIC = Path(__file__).resolve().parent / "static"

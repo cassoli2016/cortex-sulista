@@ -129,6 +129,7 @@ Cada módulo é unidade de RBAC (papel × módulo × escopo de linha via RLS).
 |---|---|---|
 | `financeiro` | Caixa, recebimentos, pagamentos, adiantamentos, DRE, análises financeiras, projeções | `fin_titulos`, `fin_adiantamentos`, `fin_lancamentos`, `fin_dre`, `vw_fluxo_caixa`, `vw_dre_mensal` |
 | `comercial` | Clientes, fretes, RKM, concentração, churn | `com_clientes`, `com_fretes`, `vw_rkm_cliente` |
+| `crm` | Funil comercial: contas (ligadas ao grupo econômico do AVA), contatos, oportunidades por LANE com piso ANTT, atividades, histórico e contratos. A base do Avacorp (leitura de `gestaocomercial`/`pipelineprojetos`) segue viva numa sub-aba | `crm_contas`, `crm_contatos`, `crm_oportunidades`, `crm_lanes`, `crm_atividades`, `crm_interacoes`, `crm_contratos` (banco local) |
 | `operacional` | Cargas, viagens, rotas, CKM | `op_viagens`, `op_cargas`, `op_rotas`, `vw_ckm_viagem` |
 | `programacao` | Programação de cargas e alocação/gestão de veículos | `prog_cargas`, `prog_alocacao`, `prog_disponibilidade` |
 | `torre_controle` | Monitoramento operacional em tempo real: posição, status, ETA, ocorrências | `tc_posicoes` (hypertable), `tc_ocorrencias`, `vw_viagens_ativas` |
@@ -1224,6 +1225,77 @@ em estrutura de topo: resolver dentro de **função**, na hora de desenhar.
   aviso. Dos preferidos fixos, só 2 de 5 ainda existiam no catálogo. O desempate do
   resto lê o porte do próprio id (`-550b-` → 550B), e um teste de manutenção compara
   os preferidos contra o catálogo real (faz skip sem chave/rede).
+
+**CRM: a unidade é a LANE, e é isso que o distingue de um CRM genérico:**
+- Em FTL ninguém vende "R$ 400 mil por mês": vende Joinville→Betim, carreta de
+  6 eixos, 22 viagens, R$ 4.800 a viagem. **É na lane que existe km**, e
+  portanto R$/km, piso mínimo da ANTT e margem contra o CKM. Oportunidade com
+  valor global não responde "esse frete paga o piso?" — que é a pergunta que
+  pode tornar o negócio ILEGAL, não só ruim.
+- **A receita da oportunidade NÃO é gravada**: é a soma das lanes, calculada
+  na leitura. Total desnormalizado passa a discordar das próprias linhas no dia
+  em que alguém edita uma delas, e discorda em silêncio.
+  `receita_mensal_manual` é a exceção declarada e só vale enquanto não houver
+  lane nenhuma — e a tela DIZ qual dos dois está valendo (`origem_receita`),
+  porque um número que muda de fonte sem avisar é um número em que ninguém
+  confia.
+- **Os dois R$/km saem lado a lado.** A diferença entre o do km carregado e o
+  do km total É o custo do retorno vazio; só o primeiro faz a lane de 1.180 km
+  de ida com 1.180 de volta vazia parecer tão boa quanto a que tem carga nos
+  dois sentidos. A margem usa o TOTAL, que é o que consome diesel e motorista.
+- **O piso da ANTT NUNCA é gravado**: depende da tabela vigente NA DATA, que
+  muda duas vezes por ano. Congelado no dia da proposta, ele reprovaria depois
+  um frete correto — ou, pior, aprovaria calado um que passou a estar abaixo do
+  mínimo legal. E **ausência não é zero**: lane sem eixos ou sem tipo de carga
+  tem piso `n/d` com o motivo, nunca "R$ 0,00".
+- **O pedágio não entra no piso**, e isso é dito na tela: a Res. 5.867/2020
+  remunera deslocamento e carga/descarga. Somá-lo ao valor antes de comparar
+  aprovaria frete abaixo do mínimo legal com dinheiro que é do pedágio.
+- **O CKM é UM SÓ para todas as lanes, e vai no rodapé — não vira coluna.** O
+  razão é consolidado; não existe CKM por rota nesta casa. Uma coluna repetindo
+  R$ 12,60 em vinte linhas passa a impressão de cálculo por rota, que foi
+  exatamente o que a Make vs Buy teve de desfazer. O que varia por lane, e por
+  isso merece coluna, é a MARGEM.
+- **"Cliente ativo" é lido do faturamento, não de um campo.** Prospect (sem
+  vínculo com o `agrupamentocliente`), ativa, parada há mais de 90 dias e sem
+  histórico saem todas de `api/crm/ava.py` a cada leitura. Nenhum status
+  comercial é gravado em lugar nenhum do módulo — a mesma regra do atraso de
+  ação da Gestão e da vigência de contrato.
+- **Prospect mostra `n/d`, jamais `R$ 0`.** Zero que é ausência de VÍNCULO não
+  é desempenho: poria a conta no fim de um ranking de receita como se
+  faturasse zero, e "cliente que não fatura" é leitura de negócio, não de
+  cadastro. Mesma família do "0% de retorno vazio em verde" da Análise de KM.
+- **O vínculo com o ERP é o GRUPO ECONÔMICO, nunca o CNPJ** — é a chave que a
+  DRE por Cliente, a Consulta de Cliente e a meta de faturamento já usam. Casar
+  por outra coisa criaria um quarto recorte de receita numa casa que já precisa
+  explicar três. E o UNIQUE é PARCIAL (`WHERE ava_agrupamento IS NOT NULL`):
+  sem o `WHERE`, `NULL` nunca colide com `NULL` e duas contas apontariam para o
+  mesmo cliente, cada uma com metade das oportunidades.
+- **Tarefa e interação são tabelas diferentes.** `crm_atividades` é o
+  compromisso futuro, mutável; `crm_interacoes` é o que aconteceu, append-only
+  (não há editar nem excluir, nem no módulo nem na rota). Numa tabela só,
+  editar o registro de uma visita para virar "tarefa concluída" apaga a prova
+  de que a visita houve — e é esse histórico que responde "há quanto tempo
+  ninguém fala com este cliente".
+- **Concluir tarefa de CONTATO registra a interação; concluir "montar
+  proposta" não.** Quem acabou de ligar está com o resumo na cabeça e é a única
+  hora em que vai escrever. Mas registrar uma tarefa que não é contato faria o
+  "dias sem contato" mentir para BAIXO — justamente o número que serve para
+  cobrar contato.
+- **Valor de domínio em MINÚSCULA, sem exceção.** `escolha()` normaliza a
+  entrada para minúscula, então `'IPCA'` no CHECK recusava o `'IPCA'` que a
+  própria tela mandava. O rótulo bonito vive no dicionário de rótulos.
+- **Formatar dinheiro em pt-BR troca DOIS separadores.** `f"{v:,.2f}".replace(",", ".")`
+  produz `4.550.48` — dois pontos, nenhuma vírgula, e o número some da leitura.
+  Precisa de marcador intermediário.
+- **A base do Avacorp foi PRESERVADA, não migrada.** Ela virou sub-aba somente
+  leitura e nada foi copiado dela: duas verdades sobre o mesmo lead seria o
+  preço de uma importação que ninguém pediu. As duas metades da tela carregam
+  em paralelo com `allSettled` — falha do AVA não pode derrubar as cinco abas
+  que não dependem dele.
+- **A tela herdou o id `crm`**, e por RBAC: o id já estava concedido ao perfil
+  Comercial por migration, e um id novo faria o CRM sumir do menu de todo mundo
+  que não é administrador. Mesma regra da jornada que herdou `jorn`.
 
 **Estado que envelhece sozinho não se GRAVA, se calcula (lição da Gestão):**
 - **Não existe status "atrasada" em `ges_acoes`.** Atraso é `prazo < hoje AND
