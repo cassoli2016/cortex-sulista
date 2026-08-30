@@ -147,17 +147,37 @@ def test_saldo_ausente_nao_vira_zero(pagina):
 
 def test_dia_de_cobertura_parcial_sai_marcado(pagina):
     """Cobertura parcial NÃO é dia com menos dinheiro — é dia com menos conta
-    medida. Sem a marca, a série mentiria sobre uma queda de caixa."""
+    medida. Sem a marca, a série mentiria sobre uma queda de caixa.
+
+    A asserção mede a REGRA, não a marcação: antes ela procurava o
+    `stroke-dasharray` que a versão desenhada à mão punha na barra, e quebrou
+    na conversão para ECharts sem que a hachura tivesse sumido — só mudou de
+    forma (agora é um `<pattern>` referenciado por `fill`). O que vale é que
+    UMA barra saia hachurada e as outras não.
+    """
     pg, base = pagina
     _abrir(pg, base)
     r = pg.evaluate("""() => {
-        const rs = [...document.querySelectorAll('#banc-serie rect')];
-        return rs.map(x => ({dash: x.getAttribute('stroke-dasharray'),
-                             t: (x.querySelector('title')||{}).textContent || ''}));
+        const barras = [...document.querySelectorAll('#banc-serie path, #banc-serie rect')]
+          .map(x => x.getAttribute('fill') || '')
+          .filter(f => f && f !== 'none' && f !== 'transparent');
+        return {total: barras.length,
+                hachuradas: barras.filter(f => f.startsWith('url(')).length,
+                padroes: document.querySelectorAll('#banc-serie pattern').length};
     }""")
-    parciais = [x for x in r if x["dash"]]
-    assert parciais, "nenhum dia parcial marcado"
-    assert any("cobertura parcial" in x["t"] for x in parciais)
+    # o esperado sai do PROPRIO payload: dia parcial e o que mediu menos
+    # contas que o melhor dia da serie
+    serie = DADOS["serie"]
+    maxc = max(d["contas"] for d in serie)
+    esperado = sum(1 for d in serie if d["contas"] < maxc)
+    assert esperado, "o payload de teste nao tem dia parcial — nada a medir"
+
+    assert r["padroes"] >= 1, "nenhuma hachura definida no gráfico"
+    assert r["hachuradas"] == esperado, (
+        f"esperava {esperado} dia(s) hachurado(s), achei {r['hachuradas']} "
+        f"de {r['total']} elementos pintados")
+    assert r["hachuradas"] < len(serie), (
+        "todos os dias saíram hachurados — a marca deixa de distinguir")
     assert pg.inner_text("#hintBancSerie").count("cobertura parcial") == 1
 
 

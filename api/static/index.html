@@ -252,11 +252,14 @@ tr[role="button"]:focus-visible{outline-offset:-2px}
 /* gráficos */
 .jr-acao{display:flex;align-items:center;gap:10px;margin:0 0 14px;flex-wrap:wrap}
 .jr-acao .hint{margin:0}
-.chartwrap{padding:6px 16px 14px;overflow-x:auto;position:relative}
-.chartwrap svg{display:block;width:100%;height:auto;min-width:680px}
-/* .narrow = gráfico de card de MEIA largura (viewBox 640): o min-width de 680
-   forçava barra de rolagem por ~12px e reduzia a tipografia sem necessidade */
-.chartwrap.narrow svg{min-width:520px}
+/* Sem regra de `svg` aqui, e isso e deliberado. O `width:100%;height:auto;
+   min-width:680px` existia para o SVG escrito a mao, que tinha `viewBox` e
+   precisava de um piso de largura para a tipografia dos eixos nao encolher.
+   O ECharts dimensiona o proprio SVG ao container e se redesenha quando ele
+   muda (ver `echartsRegistrar`): forcar largura por CSS ESTICAVA o elemento
+   sem reposicionar o desenho -- medido, um grafico de 569px dentro de um
+   `svg` de 680px, com 111px de vazio a direita. */
+.chartwrap{padding:6px 16px 14px;position:relative}
 svg:focus-visible{outline:2px solid var(--orange-500);outline-offset:2px;border-radius:6px}
 /* legenda e aviso do saldo diário dentro do período expandido do fluxo */
 /* editor dos limites de credito: grade fixa para os campos nao dancarem
@@ -555,7 +558,6 @@ tr.forn-det td{padding:7px 12px}
   .card .head .hint{font-size:10px;text-align:left;width:100%;order:3}
   th{padding:8px 10px;font-size:10px}
   td{padding:8px 10px;font-size:12.5px}
-  .chartwrap svg{min-width:560px}
   /* (as regras de celular da DRE ficam LOGO DEPOIS do bloco #dre-tab, mais
      abaixo neste arquivo — aqui elas perdiam para as regras de topo, que vêm
      depois e têm a MESMA especificidade: @media não acrescenta peso nenhum.) */
@@ -2951,7 +2953,7 @@ body.tvfull #btnReport,body.tvmode #btnReport{display:none}
         <div class="card">
           <div class="head"><h2>Saldo consolidado por dia <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="Soma do saldo das contas que têm saldo CONHECIDO naquele dia. A cobertura muda de dia para dia e vai no rótulo de cada ponto: Itaú, Safra e C6 mandam saldo diário (19, 18 e 12 âncoras em agosto); Caixa, Santander e Sicredi mandam um só, o saldo final do arquivo, e o resto é derivado por soma; o Bradesco não manda nenhum utilizável. Dia com cobertura parcial NÃO é dia com menos dinheiro — é dia com menos conta medida.">i</span></h2>
             <span class="hint" id="hintBancSerie"></span></div>
-          <div id="banc-serie"></div>
+          <div id="banc-serie" style="width:100%;height:210px" role="img" aria-label="Saldo consolidado por dia"></div>
         </div>
         <div class="card">
           <div class="head"><h2>Por onde entra o dinheiro <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="Soma dos créditos do período por instituição, e o custo que cada uma cobrou por esse volume. Barra ordenada, não rosca: um banco domina o recebimento e parte-do-todo com categoria dominante fica ilegível em rosca.">i</span></h2>
@@ -4847,7 +4849,7 @@ body.tvfull #btnReport,body.tvmode #btnReport{display:none}
             <h2>Criadas × concluídas por mês
               <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="Mais criadas que concluídas, mês após mês, é backlog crescendo — nenhum KPI pontual mostra isso. O mês corrente sai hachurado porque está incompleto.">i</span>
             </h2>
-            <div class="chartwrap narrow" id="ga-evo"></div>
+            <div class="chartwrap narrow"><div id="ga-evo" style="width:100%;height:230px" role="img" aria-label="Acoes criadas e concluidas por mes"></div></div>
           </div>
           <div class="card">
             <h2>Por área
@@ -5052,11 +5054,12 @@ body.tvfull #btnReport,body.tvmode #btnReport{display:none}
           </div>
         </div>
         <div class="card">
-          <div class="head"><h2>Bases locais do CÓRTEX <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="Tudo que o CÓRTEX ESCREVE mora em SQLite ao lado da aplicação, porque o ERP é réplica somente-leitura: usuários e auditoria, orçamento, antecipações, extrato, telemetria, previsão, e-mails e push. Cada base é aberta em modo leitura e passa por um quick_check de integridade. Base ausente NÃO é erro — ela nasce no primeiro uso do recurso.">i</span></h2>
+          <div class="head"><h2>Cache local (SQLite) <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="O CÓRTEX escreve no PostgreSQL (api/pglocal.py). Em SQLite sobrou só o que é CACHE RECONSTRUÍVEL e fica fora do banco de propósito — hoje, o cache da Gobrax. Cada arquivo é aberto em modo leitura e passa por um quick_check de integridade; cache corrompido é falha silenciosa, o número sai menor sem ninguém acusar. Base ausente NÃO é erro: ela nasce no primeiro uso do recurso. Os arquivos da migração de 27/08/2026 aparecem resumidos abaixo da tabela, não como linhas.">i</span></h2>
             <span class="hint" id="hintSrvBases"></span></div>
           <div class="tablewrap"><table><thead><tr>
             <th>Base</th><th>Arquivo</th><th class="num">Tamanho</th><th>Situação</th><th>Detalhe</th>
           </tr></thead><tbody id="srv-bases"></tbody></table></div>
+          <div id="srv-migradas" hidden></div>
         </div>
         <div class="grid2">
           <div class="card">
@@ -7108,13 +7111,6 @@ function niceTicks(min,max,n){
   const lo=Math.floor(min/step)*step, hi=Math.ceil(max/step)*step;
   const out=[]; for(let v=lo; v<=hi+step/2; v+=step) out.push(v);
   return out;
-}
-// coluna com topo arredondado e base reta; nunca desenha abaixo da base
-function colPath(x,w,yTop,y0,r,fill){
-  const h=y0-yTop;
-  if(h<=0.6) return '';
-  if(h<=r+1) return `<rect x="${x}" y="${y0-h}" width="${w}" height="${h}" fill="${fill}"/>`;
-  return `<path fill="${fill}" d="M${x},${y0} L${x},${yTop+r} Q${x},${yTop} ${x+r},${yTop} L${x+w-r},${yTop} Q${x+w},${yTop} ${x+w},${yTop+r} L${x+w},${y0} Z"/>`;
 }
 // segmento intermediário (base e topo retos)
 
@@ -9614,43 +9610,41 @@ function renderBanc(d){
 
 // ---- serie do saldo consolidado, com a COBERTURA de cada dia
 function renderBancSerie(serie){
-  const alvo=document.getElementById('banc-serie');
   const hint=document.getElementById('hintBancSerie');
-  if(!serie.length){ alvo.innerHTML='<div style="padding:16px;color:var(--n500)">Sem saldo conhecido no período.</div>';
+  if(!serie.length){
+    ecDesenhar('banc-serie', null, 'Sem saldo conhecido no per\u00EDodo.');
     hint.textContent=''; return; }
   const maxC=Math.max(...serie.map(p=>p.contas));
   const parciais=serie.filter(p=>p.contas<maxC).length;
   hint.textContent=`${serie.length} dia(s)`
-    + (parciais?` · ${parciais} com cobertura parcial (menos contas medidas, não menos dinheiro)`:'');
-
-  const W=960,H=210,ml=76,mr=14,mt=14,mb=34;
-  const iw=W-ml-mr, ih=H-mt-mb;
-  const vals=serie.map(p=>p.saldo);
-  const lo=Math.min(0,...vals), hi=Math.max(0,...vals), amp=(hi-lo)||1;
-  const x=i=>ml+(serie.length===1?iw/2:i*iw/(serie.length-1));
-  const y=v=>mt+ih-((v-lo)/amp)*ih;
-  const bw=Math.max(3, Math.min(26, iw/serie.length-4));
-
-  const barras=serie.map((p,i)=>{
-    // Dia com cobertura PARCIAL sai hachurado, mesma convencao do "mes parcial"
-    // do resto do painel: o numero e menor porque falta conta medida, nao
-    // porque falta dinheiro.
-    const parcial=p.contas<maxC;
-    const yv=y(p.saldo), y0=y(0);
-    const alt=Math.max(1,Math.abs(yv-y0));
-    const cor=p.saldo<0?'var(--red)':CC.navy500;
-    return `<rect x="${x(i)-bw/2}" y="${Math.min(yv,y0)}" width="${bw}" height="${alt}"
-      fill="${cor}" ${parcial?'fill-opacity=".45" stroke="'+cor+'" stroke-dasharray="2 2"':''}>
-      <title>${fmtD(p.dt)} — ${brl2(p.saldo)} · ${p.contas} de ${maxC} contas medidas${parcial?' (cobertura parcial)':''}</title>
-      </rect>`;
-  }).join('');
-  const rotulos=serie.map((p,i)=> (serie.length<=14 || i%Math.ceil(serie.length/12)===0)
-    ? `<text x="${x(i)}" y="${H-12}" text-anchor="middle" font-size="10" fill="var(--n500)">${p.dt.slice(8,10)}/${p.dt.slice(5,7)}</text>` : '').join('');
-  alvo.innerHTML=`<div class="chartwrap"><svg viewBox="0 0 ${W} ${H}" role="img"
-      aria-label="Saldo consolidado por dia"><line x1="${ml}" x2="${W-mr}" y1="${y(0)}" y2="${y(0)}"
-      stroke="var(--n300)"/><text x="6" y="${mt+10}" font-size="10" fill="var(--n500)">${brl2(hi)}</text>
-      <text x="6" y="${mt+ih}" font-size="10" fill="var(--n500)">${brl2(lo)}</text>
-      ${barras}${rotulos}</svg></div>`;
+    + (parciais?` \u00B7 ${parciais} com cobertura parcial (menos contas medidas, n\u00E3o menos dinheiro)`:'');
+  /* DIA COM COBERTURA PARCIAL SAI HACHURADO -- mesma convencao do "mes
+     parcial" do resto do painel, e pelo mesmo motivo: o numero e menor porque
+     falta CONTA MEDIDA, nao porque falta dinheiro. Sem a marca, um dia em que
+     um banco nao respondeu vira "o caixa caiu". */
+  const parc=serie.map(p=>p.contas<maxC);
+  ecDesenhar('banc-serie', (() => {
+    const vals=serie.map(p=>p.saldo);
+    const lo=Math.min(0,...vals), hi=Math.max(0,...vals);
+    const n=serie.length, passo=Math.max(1,Math.ceil(n/12));
+    const o=ecOpcoes(serie.map(p=>p.dt.slice(8,10)+'/'+p.dt.slice(5,7)),
+                     Math.max(Math.abs(lo),Math.abs(hi)),
+                     {sombra:true, left:76, top:14, bottom:34,
+                      eixoY:{min:lo, max:hi},
+                      intervalo:k=>(n<=14 || k%passo===0)});
+    o.tooltip.formatter=p=>{
+      const k=p[0].dataIndex, r=serie[k];
+      return '<b>'+fmtD(r.dt)+'</b>'
+        + (parc[k]?' <span style="color:#B97709">cobertura parcial</span>':'')
+        + '<br>Saldo: <b style="color:'+(r.saldo<0?'#C03221':'#14181D')+'">'
+        + brl2(r.saldo)+'</b>'
+        + '<br>'+r.contas+' de '+maxC+' contas medidas';
+    };
+    o.series=[ecBarras('Saldo', vals,
+      k=>(serie[k].saldo<0?CC.vermelho:CC.navy500),
+      {largura:26, raio:false, parcial:parc})];
+    return o;
+  }), 'Sem saldo conhecido no per\u00EDodo.');
 }
 
 // ---- por onde entra o dinheiro: barra empilhada ordenada
@@ -10469,61 +10463,99 @@ function fcToggle(i){
    Uma escala só de dinheiro para barras e linha. Pôr o saldo num eixo
    secundário deixaria a linha bonita e sem escala legível (a lição do Fluxo
    de Caixa: série que decide caixa não divide eixo com outra magnitude). */
-function fcSerieSVG(dias, saldoInicial){
+function fcSerieCalc(dias, saldoInicial){
+  const S0 = Number(saldoInicial) || 0;
+  let acc = S0;
+  const pts = dias.map(d => { acc += d.entradas - d.saidas; return {...d, saldo: acc}; });
+  /* O PIOR DIA e o MENOR SALDO, nao o de maior saida: um dia de saida pesada
+     logo depois de um recebimento grande nao fura nada. */
+  let piorI = 0;
+  pts.forEach((p, k) => { if(p.saldo < pts[piorI].saldo) piorI = k; });
+  return {S0, pts, piorI, pior: pts[piorI], fura: pts[piorI] && pts[piorI].saldo < 0};
+}
+/* A CASCA. Vai no `innerHTML` do detalhe; o desenho vem depois, quando o
+   elemento ja existe no DOM. O id carrega o indice da linha porque duas linhas
+   do fluxo podem estar abertas ao mesmo tempo. */
+function fcSerieHTML(idx, dias, saldoInicial){
   if(!dias.length) return '';
-  const S0=Number(saldoInicial)||0;
-  let acc=S0;
-  const pts=dias.map(d=>{ acc+=d.entradas-d.saidas; return {...d, saldo:acc}; });
-  const vals=[0,S0].concat(pts.map(p=>p.saldo), pts.map(p=>p.entradas), pts.map(p=>-p.saidas));
-  const lo=Math.min(...vals), hi=Math.max(...vals);
-  const ticks=niceTicks(lo,hi,4), t0=ticks[0], t1=ticks[ticks.length-1];
-  const W=960,H=254,mL=72,mR=14,mT=24,mB=30;
-  const iw=W-mL-mR, ih=H-mT-mB, n=pts.length;
-  const y=v=>mT+ih-(v-t0)/(t1-t0)*ih;
-  const passo=iw/n, bw=Math.max(2,Math.min(16,passo*0.34));
-  const px=i=>mL+passo*(i+0.5);
-  const y0=y(0);
-  // O pior dia é o MENOR saldo, não o de maior saída: um dia de saída pesada
-  // logo depois de um recebimento grande não fura nada.
-  let piorI=0; pts.forEach((p,i)=>{ if(p.saldo<pts[piorI].saldo) piorI=i; });
-  const pior=pts[piorI], fura=pior.saldo<0;
-  const un=Math.abs(t1)>=1e6||Math.abs(t0)>=1e6 ? {d:1e6,r:'MILHÕES DE R$'} : {d:1e3,r:'MIL R$'};
-
-  let s=`<svg viewBox="0 0 ${W} ${H}" role="img" aria-label="Saldo dia a dia do período">`;
-  // fim de semana atrás de tudo: explica os platôs sem precisar de legenda
-  pts.forEach((p,i)=>{ if(p.dow>=5) s+=`<rect x="${mL+passo*i}" y="${mT}" width="${passo}" height="${ih}" fill="var(--n900)" opacity=".035"/>`; });
-  ticks.forEach(v=>{ s+=`<line x1="${mL}" x2="${W-mR}" y1="${y(v)}" y2="${y(v)}" stroke="var(--n900)" opacity="${v===0?'.28':'.09'}" stroke-width="1"/>`
-    +`<text x="${mL-8}" y="${y(v)+4}" text-anchor="end" font-size="11" fill="#6E7883" font-family="IBM Plex Mono,monospace">${NMI.format(v/un.d)}</text>`; });
-  // ancorado em mL e para a DIREITA: com text-anchor="end" em mL-8 o rotulo
-  // saia pela borda esquerda do viewBox e aparecia cortado ("HOES DE R$")
-  s+=`<text x="${mL}" y="${mT-4}" font-size="10.5" fill="#6E7883" font-weight="600" letter-spacing="1.2">${un.r}</text>`;
-  pts.forEach((p,i)=>{
-    if(p.entradas>0) s+=colPath(px(i)-bw-1,bw,y(p.entradas),y0,2,CC.verde);
-    if(p.saidas>0)   s+=`<path fill="${CC.vermelho}" d="M${px(i)+1},${y0} L${px(i)+1+bw},${y0} L${px(i)+1+bw},${y(-p.saidas)} L${px(i)+1},${y(-p.saidas)} Z"/>`;
-  });
-  s+=`<polyline points="${pts.map((p,i)=>`${px(i)},${y(p.saldo)}`).join(' ')}" fill="none" stroke="${CC.navy700}" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>`;
-  // marcador do pior dia, com o rótulo do lado que couber
-  const dir = piorI > n*0.66 ? -1 : 1, tx=px(piorI)+dir*10;
-  s+=`<circle cx="${px(piorI)}" cy="${y(pior.saldo)}" r="4.5" fill="${fura?CC.vermelho:CC.navy700}" stroke="#fff" stroke-width="2"/>`
-   +`<text x="${tx}" y="${y(pior.saldo)+(pior.saldo<S0?16:-9)}" text-anchor="${dir>0?'start':'end'}" font-size="11" font-weight="700" fill="${fura?CC.vermelho:CC.navy700}" style="paint-order:stroke;stroke:#fff;stroke-width:3.5px">`
-   +`${fmtD(pior.dia).slice(0,5)}: ${BRL.format(pior.saldo)}</text>`;
-  // rótulo de data a cada N dias, para não empastelar num semestre
-  const cada=Math.max(1,Math.ceil(n/16));
-  pts.forEach((p,i)=>{ if(i%cada===0||i===n-1) s+=`<text x="${px(i)}" y="${H-10}" text-anchor="middle" font-size="10.5" fill="${p.dow>=5?'#AEB6BF':'#6E7883'}">${fmtD(p.dia).slice(0,5)}</text>`; });
-  pts.forEach((p,i)=>{ s+=`<rect x="${mL+passo*i}" y="${mT}" width="${passo}" height="${ih}" fill="transparent"><title>${fmtD(p.dia)}
-Entradas: ${BRL.format(p.entradas)} (${p.titulos_ent} tít.)
-Saídas: ${BRL.format(p.saidas)} (${p.titulos_sai} tít.)
-Saldo no dia: ${BRL.format(p.saldo)}</title></rect>`; });
-  s+='</svg>';
-
-  const leg=`<div class="fc-leg">
+  const {S0, pior, fura} = fcSerieCalc(dias, saldoInicial);
+  const leg = `<div class="fc-leg">
     <span><i style="background:${CC.verde}"></i>entradas do dia</span>
     <span><i style="background:${CC.vermelho}"></i>saídas do dia</span>
     <span><i style="background:${CC.navy700}"></i>saldo acumulado (abre em ${BRL.format(S0)})</span></div>`;
+  /* O AVISO E O PRODUTO DESTA TELA. O fechamento do periodo pode ser positivo
+     e ainda assim haver um dia no vermelho no meio do caminho -- e e esse dia
+     que define quanto antecipar e para quando. */
   const aviso = fura
     ? `<div class="fc-fura"><b>O caixa fura em ${fmtD(pior.dia)}</b>, em ${BRL.format(pior.saldo)} — o fechamento do período esconde isso quando um recebimento grande entra depois. Antecipar precisa cobrir a data do furo, não o saldo final.</div>`
     : `<div class="fc-leg" style="color:var(--n500)">menor saldo do período: <b>${BRL.format(pior.saldo)}</b> em ${fmtD(pior.dia)} — não fura.</div>`;
-  return `<div class="chartwrap">${s}</div>${leg}${aviso}`;
+  return `<div id="fc-serie-${idx}" style="width:100%;height:254px" role="img"
+      aria-label="Saldo dia a dia do período"></div>${leg}${aviso}`;
+}
+/* O DESENHO. UMA ESCALA SO para as barras e a linha: por o saldo num eixo
+   secundario deixaria a linha bonita e sem escala legivel -- e a licao do
+   Fluxo de Caixa, serie que decide caixa nao divide eixo com outra magnitude. */
+function fcSerieDesenhar(idx, dias, saldoInicial){
+  if(!dias.length) return;
+  const {S0, pts, piorI, pior, fura} = fcSerieCalc(dias, saldoInicial);
+  const rot = pts.map(p => fmtD(p.dia).slice(0,5));
+  ecDesenhar('fc-serie-'+idx, () => {
+    const vals = [0, S0].concat(pts.map(p => p.saldo), pts.map(p => p.entradas),
+                                pts.map(p => -p.saidas));
+    const tk = niceTicks(Math.min(...vals), Math.max(...vals), 4);
+    const lo = tk[0], hi = tk[tk.length-1];
+    const n = pts.length, cada = Math.max(1, Math.ceil(n/16));
+    const o = ecOpcoes(rot, Math.max(Math.abs(lo), Math.abs(hi)),
+      {left: 72, right: 14, top: 24, bottom: 30, sombra: true,
+       eixoY: {min: lo, max: hi},
+       intervalo: k => (k % cada === 0 || k === n-1)});
+    /* FIM DE SEMANA mais claro no eixo, como a faixa cinza atras das barras:
+       os dois juntos explicam os platos sem precisar de legenda. */
+    o.xAxis.data = pts.map((p, k) => ({
+      value: rot[k],
+      textStyle: {color: p.dow >= 5 ? '#AEB6BF' : '#6E7883'}}));
+    o.tooltip.formatter = p => {
+      const k = p[0].dataIndex, d = pts[k];
+      return '<b>' + fmtD(d.dia) + '</b>'
+        + (d.dow >= 5 ? ' <span style="color:#6B7580">fim de semana</span>' : '')
+        + '<br><span style="color:' + CC.verde + '">&#9632;</span> Entradas: <b>'
+        + BRL.format(d.entradas) + '</b> (' + d.titulos_ent + ' tít.)'
+        + '<br><span style="color:' + CC.vermelho + '">&#9632;</span> Saídas: <b>'
+        + BRL.format(d.saidas) + '</b> (' + d.titulos_sai + ' tít.)'
+        + '<br>Saldo no dia: <b style="color:'
+        + (d.saldo < 0 ? '#C03221' : '#14181D') + '">' + BRL.format(d.saldo) + '</b>'
+        + (k === piorI ? ' <span style="color:' + (fura ? '#C03221' : '#6B7580')
+                         + '">menor do período</span>' : '');
+    };
+    /* SAIDAS COMO VALOR NEGATIVO: elas descem do zero. Empilhar ou por lado a
+       lado acima da linha faria o dia de saida pesada parecer um dia bom. */
+    const ent = ecBarras('Entradas', pts.map(p => p.entradas), CC.verde,
+                         {largura: 16, raio: false});
+    const sai = ecBarras('Saídas', pts.map(p => -p.saidas), CC.vermelho,
+                         {largura: 16, raio: false});
+    const linha = ecLinha('Saldo acumulado', pts.map(p => p.saldo), CC.navy700,
+                          {simbolo: 'circle', tamanho: 9, largura: 2.5});
+    /* Uma bolinha so, no pior dia, com o valor escrito: numa serie de um
+       semestre a bolinha em todo ponto esconderia justamente essa. */
+    linha.symbolSize = (v, q) => (q.dataIndex === piorI ? 9 : 0);
+    linha.itemStyle = {color: fura ? CC.vermelho : CC.navy700,
+                       borderColor: '#fff', borderWidth: 2};
+    linha.data = pts.map((p, k) => (k !== piorI ? p.saldo : {
+      value: p.saldo,
+      label: {show: true, position: (piorI > n*0.66 ? 'left' : 'right'),
+              color: fura ? CC.vermelho : CC.navy700,
+              fontSize: 11, fontWeight: 700,
+              textBorderColor: '#fff', textBorderWidth: 3.5,
+              formatter: rot[piorI] + ': ' + BRL.format(p.saldo)},
+    }));
+    const fds = [];
+    pts.forEach((p, k) => { if(p.dow >= 5)
+      fds.push([{xAxis: rot[k], itemStyle: {color: CC.n900, opacity: 0.035}},
+                {xAxis: rot[k]}]); });
+    if(fds.length) ent.markArea = {silent: true, data: fds};
+    o.series = [ent, sai, linha];
+    return o;
+  }, 'sem dias no período');
 }
 /* Títulos do período: buscados SÓ ao expandir e uma vez por período. Trazer
    junto com o consolidado significaria carregar o detalhe de até 26 semanas
@@ -10542,7 +10574,7 @@ async function fcDetalhe(i){
     const d=await r.json();
     if(!r.ok){ alvo.innerHTML='<div style="color:var(--red);font-size:12px">'+esc(d.mensagem||'Erro ao detalhar.')+'</div>'; alvo.dataset.carregado=''; return; }
     const ent=d.entradas||[], sai=d.saidas||[];
-    const serie = fcSerieSVG(d.dias||[], l.saldo_inicial);
+    const serie = fcSerieHTML(i, d.dias||[], l.saldo_inicial);
     // As saídas vêm primeiro: quando o período fecha negativo, é nelas que
     // está a resposta — e quase sempre em duas ou três linhas.
     alvo.innerHTML=`
@@ -10574,6 +10606,10 @@ async function fcDetalhe(i){
           ${ent.length>=40?'<div class="mais-ocs">40 maiores clientes</div>':''}
         </div>
       </div>`;
+    /* O DESENHO VEM DEPOIS DO innerHTML, e nao dentro dele: o ECharts precisa
+       do elemento ja no DOM para medir. Enquanto isso era SVG com viewBox a
+       string bastava. */
+    fcSerieDesenhar(i, d.dias||[], l.saldo_inicial);
   }catch(e){
     alvo.innerHTML='<div style="color:var(--red);font-size:12px">Não foi possível carregar os títulos.</div>';
     alvo.dataset.carregado='';
@@ -14693,8 +14729,8 @@ function chartMulRender(mensal, dtDe, dtAte){
   }), 'sem dados');
 }
 
-// Crédito × débito por mês// Crédito × débito por mês — mesmo par de barras do painel "Entradas × Saídas"
-// do Fluxo de Caixa (colPath verde/vermelho lado a lado), num único painel
+// Crédito × débito por mês — mesmo par de barras do painel "Entradas × Saídas"
+// do Fluxo de Caixa (verde e vermelho lado a lado), num único painel
 // porque aqui não há saldo acumulado para desenhar embaixo.
 function chartLancRender(mensal, dtDe, dtAte){
   const parc = mensal.map(r => _mesParcial(r.mes, dtDe, dtAte));
@@ -19711,41 +19747,43 @@ function gaPintaArea(){
 
 function gaEvolucao(){
   const dados = GA.dados.evolucao || [];
-  const box = document.getElementById('ga-evo');
-  if(!dados.length){ box.innerHTML = '<div class="gx-vazio">Sem histórico.</div>'; return; }
-  // cor resolvida DENTRO da função: CC só existe no fim do arquivo (TDZ)
-  const cNav = CC.navy500, cVer = CC.verde, cLinha = CC.grid, cTx = CC.n500;
-  const W = 640, H = 210, L = 40, R = 626, T = 16, B = 168;
-  const max = Math.max(4, ...dados.map(d=>Math.max(d.criadas, d.concluidas)));
-  const n = dados.length, step = (R-L)/n, bw = Math.min(step*0.34, 15);
-  const y = v => B - v*(B-T)/max;
+  /* MES CORRENTE HACHURADO: periodo incompleto nunca e barra cheia. Aqui a
+     regra vale duas vezes, porque "concluidas" no mes em curso sempre parece
+     desabar -- o mes ainda nao acabou. */
   const mesAtual = new Date().toISOString().slice(0,7);
-  let s = `<svg viewBox="0 0 ${W} ${H}" role="img" aria-label="Ações criadas e concluídas por mês">`;
-  s += `<defs><pattern id="gaHx" width="5" height="5" patternUnits="userSpaceOnUse" patternTransform="rotate(45)">`
-     + `<rect width="5" height="5" fill="${cNav}" fill-opacity=".2"/>`
-     + `<rect width="2" height="5" fill="${cNav}" fill-opacity=".8"/></pattern></defs>`;
-  [0, Math.ceil(max/2), max].forEach(v=>{
-    s += `<line x1="${L}" y1="${y(v)}" x2="${R}" y2="${y(v)}" stroke="${v?cLinha:cTx}" stroke-width="1"/>`
-       + `<text x="${L-6}" y="${y(v)+4}" text-anchor="end" font-size="10" fill="${cTx}" font-family="var(--mono)">${v}</text>`;
-  });
-  dados.forEach((d,i)=>{
-    const cx = L + step*(i+0.5);
-    // MÊS CORRENTE HACHURADO: período incompleto nunca é barra cheia
-    const parcial = d.mes === mesAtual;
-    s += `<rect x="${cx-bw-1}" y="${y(d.criadas)}" width="${bw}" height="${Math.max(B-y(d.criadas),0)}" `
-       + `fill="${parcial?'url(#gaHx)':cNav}" rx="1"><title>${d.mes}: ${d.criadas} criadas${parcial?' (mês em curso)':''}</title></rect>`;
-    s += `<rect x="${cx+1}" y="${y(d.concluidas)}" width="${bw}" height="${Math.max(B-y(d.concluidas),0)}" `
-       + `fill="${cVer}" fill-opacity="${parcial?.55:1}" rx="1"><title>${d.mes}: ${d.concluidas} concluídas${parcial?' (mês em curso)':''}</title></rect>`;
-    if(i % 2 === 0 || n <= 8)
-      s += `<text x="${cx}" y="${B+14}" text-anchor="middle" font-size="9.5" fill="${cTx}" font-family="var(--mono)">${d.mes.slice(5)}/${d.mes.slice(2,4)}</text>`;
-  });
-  s += `<rect x="${L}" y="${B+26}" width="9" height="9" fill="${cNav}" rx="1"/>`
-     + `<text x="${L+13}" y="${B+34}" font-size="10.5" fill="${cTx}">criadas</text>`
-     + `<rect x="${L+80}" y="${B+26}" width="9" height="9" fill="${cVer}" rx="1"/>`
-     + `<text x="${L+93}" y="${B+34}" font-size="10.5" fill="${cTx}">concluídas</text>`
-     + `<text x="${R}" y="${B+34}" text-anchor="end" font-size="10" fill="${cTx}">mês corrente hachurado · parcial</text>`;
-  s += '</svg>';
-  box.innerHTML = s;
+  const parc = dados.map(d => d.mes === mesAtual);
+  ecDesenhar('ga-evo', dados.length && (() => {
+    const max = Math.max(4, ...dados.map(d => Math.max(d.criadas, d.concluidas)));
+    const n = dados.length;
+    const o = ecOpcoes(dados.map(d => d.mes.slice(5)+'/'+d.mes.slice(2,4)), max,
+      {tipo:'num', legenda:['Criadas','Conclu\u00EDdas'], bottom:44,
+       left:44, top:16, sombra:true,
+       intervalo:k=>(n<=8 || k%2===0)});
+    o.tooltip.formatter = p => {
+      const k=p[0].dataIndex, d=dados[k];
+      return '<b>'+d.mes+'</b>'
+        + (parc[k]?' <span style="color:#B97709">m\u00EAs em curso</span>':'')
+        + '<br><span style="color:'+CC.navy500+'">&#9632;</span> Criadas: <b>'+d.criadas+'</b>'
+        + '<br><span style="color:'+CC.verde+'">&#9632;</span> Conclu\u00EDdas: <b>'+d.concluidas+'</b>'
+        + (d.criadas ? '<br>Saldo do m\u00EAs: '
+            + (d.concluidas-d.criadas>=0?'+':'') + (d.concluidas-d.criadas) : '');
+    };
+    o.series = [
+      ecBarras('Criadas', dados.map(d=>d.criadas), CC.navy500,
+               {largura:15, parcial:parc}),
+      ecBarras('Conclu\u00EDdas', dados.map(d=>d.concluidas), CC.verde,
+               {largura:15, parcial:parc}),
+    ];
+    /* A HACHURA PRECISA DE LEGENDA. Sozinha ela e um enigma: quem olha ve uma
+       barra listrada e nao sabe se aquilo e outra categoria. O SVG dizia isso
+       num rodape e a primeira versao desta conversao esqueceu -- o teste que
+       exigia a palavra na tela foi quem cobrou. */
+    if(parc.some(Boolean)) o.graphic = [{
+      type:'text', right: 8, bottom: 2, silent: true,
+      style:{text:'m\u00EAs corrente hachurado \u00B7 parcial',
+             fill: CC.n500, fontSize: 10, fontFamily:'Saira, sans-serif'}}];
+    return o;
+  }), 'Sem hist\u00F3rico.');
 }
 
 async function gaFiltra(){
@@ -21338,7 +21376,7 @@ function renderSrv(){
     <td>${esc(s.detalhe||'')}</td></tr>`).join('')||'<tr><td colspan="3">—</td></tr>';
   const fmtDT = x => { if(!x) return '—'; const d=new Date(x); return isNaN(d)?'—':d.toLocaleString('pt-BR',{day:'2-digit',month:'2-digit',year:'2-digit',hour:'2-digit',minute:'2-digit'}); };
 
-  /* Bases locais. Tamanho formatado porque "1695744 bytes" não diz nada a quem
+  /* Cache local. Tamanho formatado porque "1695744 bytes" não diz nada a quem
      opera; base ausente sai em cinza como "não usada ainda", não em vermelho —
      recurso que ninguém ligou não é falha. */
   const bs=d.bases||[];
@@ -21348,8 +21386,29 @@ function renderSrv(){
   const usadas = bs.filter(b=>b.status!=='info').length;
   document.getElementById('hintSrvBases').textContent = bs.length
     ? (usadas+' de '+bs.length+' em uso · '+kb(bs.reduce((a,b)=>a+(b.bytes||0),0))
-       + (ruins ? ' · '+ruins+' com problema' : ' · todas íntegras'))
+       + (ruins ? ' · '+ruins+' com problema' : ' · íntegro'))
     : '';
+  /* OS ARQUIVOS DA MIGRAÇÃO EM UMA LINHA, não em oito.
+     Eles não precisam de monitoramento — ninguém os usa — mas precisam de uma
+     DECISÃO, e a linha carrega os três números que a sustentam: quantos são,
+     quanto ocupam e desde quando estão parados. Some sozinha quando o último
+     for apagado, que é o fim natural disto.
+     E ela é um SENSOR: fica âmbar se algum voltar a ser escrito (código novo
+     gravando em SQLite contra a regra) ou se aparecer um `.db` que ninguém
+     declarou. */
+  const mg = d.migradas;
+  const boxMg = document.getElementById('srv-migradas');
+  boxMg.hidden = !mg;
+  if(mg){
+    const cls = mg.status === 'alerta' ? 'b-warn' : 'b-info';
+    const rot = mg.status === 'alerta' ? 'atenção' : 'migrado';
+    boxMg.innerHTML = `<div style="display:flex;gap:9px;align-items:baseline;
+        padding:10px 16px 14px;font-size:12.5px;color:var(--n600);
+        border-top:1px solid var(--n100)">
+      <span class="badge ${cls}">${rot}</span>
+      <span><b>${mg.arquivos} arquivo(s) · ${kb(mg.bytes)}</b> ·
+        ${esc(mg.detalhe||'')}</span></div>`;
+  }
   document.getElementById('srv-bases').innerHTML=bs.map(b=>`<tr>
     <td style="font-weight:600">${esc(b.nome)}</td>
     <td style="font-family:var(--mono);font-size:11.5px;color:var(--n500)">${esc(b.arquivo)}</td>

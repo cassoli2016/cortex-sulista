@@ -222,10 +222,29 @@ def test_paradas_mostra_ha_quantos_dias(pagina):
 
 
 def test_grafico_hachura_o_mes_corrente(pagina):
-    """Período incompleto nunca é barra cheia."""
+    """Período incompleto nunca é barra cheia.
+
+    Mede a REGRA e não a marcação: a asserção anterior procurava `gaHx`, o id
+    do `<pattern>` que a versão desenhada à mão criava, e quebrou na conversão
+    para ECharts sem que a hachura tivesse sumido. O que importa é que exista
+    hachura e que ela caia SÓ no mês corrente — as duas barras dele (criadas e
+    concluídas), nenhuma das outras.
+    """
     pg, base = pagina
     _abrir(pg, base, "gesacao", "#ga-evo svg")
-    assert "gaHx" in pg.inner_html("#ga-evo")
+    r = pg.evaluate("""() => {
+        const barras = [...document.querySelectorAll('#ga-evo path, #ga-evo rect')]
+          .map(x => x.getAttribute('fill') || '')
+          .filter(f => f && f !== 'none' && f !== 'transparent');
+        return {hachuradas: barras.filter(f => f.startsWith('url(')).length,
+                padroes: document.querySelectorAll('#ga-evo pattern').length};
+    }""")
+    assert r["padroes"] >= 1, "nenhuma hachura definida no gráfico"
+    assert r["hachuradas"] == 2, (
+        "o mês corrente tem duas barras (criadas e concluídas) e as duas saem "
+        f"hachuradas; achei {r['hachuradas']}")
+    # a hachura SEM legenda e um enigma -- quem olha nao sabe se e outra
+    # categoria. Esta linha ja cobrou o rotulo de volta uma vez.
     assert "parcial" in pg.inner_text("#ga-evo")
 
 

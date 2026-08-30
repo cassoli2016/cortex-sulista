@@ -46,10 +46,35 @@ São **dois** PostgreSQL, e confundi-los custa caro:
 
 Toda escrita do CÓRTEX (usuários e RBAC, orçamento, extrato, antecipações,
 previsão, contrapartida, RNTRC, correio, push) vive no segundo. Os dez bancos
-SQLite de `data/` foram migrados para lá em 27/08/2026; os arquivos `.db`
-continuam no disco como desfazer e a Saúde do Servidor os marca como migrados.
+SQLite de `data/` foram migrados para lá em 27/08/2026 e os `.db` continuam no
+disco como desfazer.
+
+**O desfazer tem prazo, e ele está declarado:** os 9 arquivos (3,0 MB) podem
+ser apagados quando a **restauração do backup do PostgreSQL for testada de
+verdade** — que já é um dos três critérios do `1.0.0` na seção 5.1. Sem essa
+amarra, "desfazer" vira lixo: daqui a alguns meses ninguém restaura o
+`orcamento.db` de agosto por cima de um Postgres com meses de escrita, porque
+restaurar seria pior que o problema.
+
+**Na Saúde eles NÃO são nove linhas, são UMA** — e essa é a lição. O cartão
+listava 9 bases e 8 delas só diziam "migrada · arquivo mantido como desfazer":
+89% de linhas que nunca mudam ensinam a pular o cartão, e junto com ele a
+única que decide algo (o cache da Gobrax, onde corrupção é falha silenciosa).
+É a mesma família do alarme que acende sem haver problema. Hoje a tabela lista
+só o que está VIVO e os migrados viram uma linha com os três números que
+sustentam a decisão de apagar — quantos, quanto ocupam, desde quando parados —
+que **some sozinha quando o último for apagado**.
+
+**E essa linha é um SENSOR, não um enfeite.** Fica âmbar em dois casos:
+`.db` migrado **escrito de novo** (código voltou a gravar em SQLite e esse
+dado NÃO está no Postgres) e **`.db` que ninguém declarou** — a varredura é do
+DIRETÓRIO, não de uma lista, justamente para pegar o arquivo que apareceu sem
+passar por lá. Uma lista fixa só enxerga o que já se sabia.
 
 **Ao criar módulo novo que escreve:** use `api/pglocal.py`, nunca abra SQLite.
+`tests/test_saude_bases_locais.py` quebra se `sqlite3.connect` aparecer fora
+de `api/gobrax/armazenamento.py` (o cache) e de `api/servidor.py` (que só o
+confere, em modo leitura) — a regra não depende de alguém reparar na tela.
 A tabela leva o **prefixo do módulo** (`fin_*`, `ext_*`, `orc_*`…) e o DDL vira
 uma migration numerada em `sql/cortex/`, aplicada por
 `scripts/migrar_schema.py`. O módulo expõe `ESQUEMA` para o teste redirecionar,
@@ -127,23 +152,23 @@ Toda construção de painel segue a skill `dashboard-builder` e este padrão:
 4. **Tabela acionável**: linhas ordenadas por prioridade/risco, com ação sugerida.
 5. **Alertas**: ocorrências que exigem ação agora.
 
-**Gráfico: ECharts é o padrão. Os 39 do lote acabaram em 30/08/2026.**
-Os **39 gráficos que tinham contêiner `<svg id="chart…">`** foram todos
-convertidos — não resta nenhum desses no arquivo. Gráfico novo nasce em
-ECharts, sem decisão a tomar.
+**Gráfico: ECharts, e SÓ ECharts. A conversão acabou em 30/08/2026.**
+Não existe mais gráfico desenhado à mão no painel. Gráfico novo nasce em
+ECharts, sem decisão a tomar. A única exceção é o **gauge de meta do dia dos
+painéis de TV** — um arco de 2 `path`, numa tela sem hover, onde a biblioteca
+não acrescenta nada. `grep '<svg viewBox='` no `index.html` acha ele e o
+helper de ícones (`IC`), e mais nada.
 
-**Mas "39" não era "todos", e vale saber onde estão os que sobraram.** O lote
-foi definido por um grep de `<svg id="chart…">`, e ele NÃO enxerga gráfico
-montado como STRING e injetado com `innerHTML` — que não tem contêiner no HTML
-estático. Restam três assim, e um gauge:
-- **Saldo consolidado por dia** (Extrato/Bancos)
-- **Saldo dia a dia do período** (detalhe do Fluxo consolidado)
-- **Ações criadas e concluídas por mês** (Gestão)
-- o **gauge de meta do dia** dos painéis de TV, que não é caso de biblioteca:
-  em TV não há hover, e é um arco de 2 `path`.
+**O LEVANTAMENTO ERROU O TAMANHO DO TRABALHO, e vale saber por quê.** O lote
+foi definido por um grep de `<svg id="chart…">` e deu 39. Mas esse grep NÃO
+enxerga gráfico montado como STRING e injetado com `innerHTML`, que não tem
+contêiner no HTML estático — eram mais três (saldo por dia do Extrato, saldo
+dia a dia do Fluxo consolidado, ações por mês da Gestão), descobertos só
+porque `colPath` continuava tendo chamador depois de "terminar". **Contar
+trabalho por marcador no HTML subestima; o que fecha a conta é não sobrar
+chamador dos helpers antigos.**
 
-São os últimos usuários de `colPath`/`colRect` — enquanto existirem, esses
-dois helpers ficam. Procurar por `<svg viewBox=` acha todos.
+`colPath`/`colRect` saíram junto com o último deles.
 
 **A conversão levou quatro dias e foi feita por TELA, nunca em bloco** — e essa
 foi a decisão certa, porque cada gráfico carregava uma regra que só aparece
@@ -157,9 +182,19 @@ de uma vez teria perdido cada uma em silêncio.
   `loadHc` e o `loadMvb`. A defesa que funciona é comparar a lista de funções
   antes e depois de todo corte e exigir `sumiram: nenhuma` — está na seção de
   corte por marcador, e foi ela que pegou os três.
-- **Teste que afirma sobre TEXTO-FONTE quebra sem haver defeito.** Dois testes
-  do eixo do fluxo caíram só porque o espaçamento do laço mudou; viraram teste
-  de comportamento (o último rótulo aparece, o vizinho da esquerda sai).
+- **Teste amarrado à IMPLEMENTAÇÃO quebra sem haver defeito, e isso aconteceu
+  de duas formas.** (1) Afirmando sobre o TEXTO-FONTE: dois testes do eixo do
+  fluxo caíram só porque o espaçamento do laço mudou. (2) Afirmando sobre a
+  MARCAÇÃO do renderizador antigo: os testes de hachura procuravam
+  `stroke-dasharray` (Extrato) e o id `gaHx` (Gestão), e a hachura não tinha
+  sumido — só virou `<pattern>` do ECharts. Todos viraram teste de
+  comportamento: o último rótulo aparece e o vizinho da esquerda sai; **N
+  barras hachuradas, com N vindo do próprio payload** e menor que o total,
+  senão a marca deixaria de distinguir.
+- **E um desses testes cobrou de volta uma regra que eu tinha perdido:** o
+  gráfico da Gestão saiu da conversão sem o rodapé "mês corrente hachurado ·
+  parcial". A hachura sem legenda é um enigma — quem olha não sabe se aquilo é
+  outra categoria. O `assert "parcial" in ...` pegou.
 - **Dublê otimista faz teste passar por vacuidade** — ver a regra 1 abaixo.
 
 **ECharts 5.6.1 (Apache 2.0) entrou em 27/08/2026**, vendorizado em

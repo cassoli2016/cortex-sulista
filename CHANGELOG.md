@@ -4,6 +4,19 @@ Gerado de `docs/versoes.yaml` por `scripts/gerar_changelog.py` — não editar �
 Formato [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/),
 versionamento [SemVer](https://semver.org/lang/pt-BR/).
 
+## [0.148.0] — 30/08/2026  ·  CX-30/08/2026-v0.148.0
+
+### Adicionado
+- OS TRES GRAFICOS QUE SOBRARAM viraram ECharts, e agora nao ha mais nenhum desenhado a mao no painel: saldo consolidado por dia (Extrato), saldo dia a dia do periodo (detalhe do Fluxo consolidado) e acoes criadas e concluidas por mes (Gestao). Eles nao entraram no lote anterior porque eram montados como texto e injetados na tela, sem espaco reservado no HTML - o levantamento procurava pelo espaco reservado e nao os enxergava. Ganham zoom, tooltip que segue o cursor e exportacao como os outros.
+- O saldo dia a dia do fluxo ganhou tooltip de verdade. Antes o unico jeito de ler entradas, saidas e saldo de um dia era parar o mouse sobre a coluna e esperar a caixinha do navegador; agora a informacao aparece junto do cursor e diz tambem quando o dia e o menor do periodo.
+
+### Alterado
+- O cartao de bases locais da Saude do Servidor encolheu. Ele listava nove bancos SQLite e OITO deles so diziam "migrada para o PostgreSQL, arquivo mantido como desfazer" - um cartao em que quase tudo diz "isto nao esta em uso" ensina a pular o cartao, e junto com ele a unica linha que decide alguma coisa: o cache da Gobrax, onde corrupcao e falha silenciosa (o numero sai menor e nada acusa). Agora a tabela mostra so o que esta vivo e os arquivos da migracao viram UMA linha, com os tres numeros que sustentam a decisao de apaga-los: quantos sao, quanto ocupam e desde quando estao parados. A linha some sozinha quando o ultimo for apagado.
+- E essa linha virou um SENSOR em vez de informacao morta: fica ambar se algum arquivo ja migrado for gravado de novo - o que significa que codigo novo voltou a escrever em SQLite e aquele dado NAO esta no PostgreSQL - ou se aparecer no diretorio um banco que ninguem declarou. A varredura e da PASTA e nao de uma lista, justamente para enxergar o arquivo que surgiu sem passar por ali.
+
+### Corrigido
+- Grafico saia mais estreito que o proprio quadro. Sobrara do desenho a mao uma regra de estilo que forcava largura minima no grafico - ela existia para a tipografia dos eixos nao encolher quando o desenho era esticado, e com a biblioteca nova ela apenas alargava a moldura sem mover o desenho: um grafico de 569 pixels dentro de uma moldura de 680, com o vazio a direita. Sai tambem a versao da regra para celular, que era o mesmo problema numa tela onde ele doi mais.
+
 ## [0.147.1] — 30/08/2026  ·  CX-30/08/2026-v0.147.1
 
 ### Alterado

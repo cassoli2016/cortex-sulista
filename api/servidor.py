@@ -679,29 +679,36 @@ def _tarefas_consultar() -> list[dict]:
 
 
 # Nome de exibição -> arquivo. O que a base guarda importa mais que o nome do
-# arquivo: "auth.db" não diz nada para quem opera; "Usuários e auditoria" diz.
-BASES_LOCAIS = [
-    ("Usuários e auditoria", "auth.db"),
-    ("Orçamento", "orcamento.db"),
-    ("Antecipações (portais)", "antecipacoes.db"),
-    ("Extrato bancário", "extrato.db"),
+# arquivo: "telemetria.db" não diz nada para quem opera; "cache da Gobrax" diz.
+#
+# SÓ AS VIVAS ENTRAM AQUI. Depois da migração de 27/08/2026 sobrou uma: o cache
+# da Gobrax, que fica FORA do PostgreSQL de propósito porque é reconstruível.
+# As migradas são resumidas em uma linha (ver `_migradas`), e a razão é a mesma
+# do resto desta tela: um cartão com oito linhas dizendo "isto não está em uso"
+# ensina a pular o cartão inteiro — inclusive a linha que decide alguma coisa.
+BASES_VIVAS = [
     ("Telemetria (cache Gobrax)", "telemetria.db"),
-    ("Previsão de fechamento", "previsao.db"),
-    ("Envios de e-mail", "email.db"),
-    ("Notificações push", "push.db"),
-    ("RNTRC (ANTT)", "antt.db"),
 ]
 
-# Bases JÁ MIGRADAS para o PostgreSQL. O arquivo continua no disco de
-# propósito, como desfazer da migração — mas listá-lo do mesmo jeito que os
-# outros faria a tela dizer que o CÓRTEX escreve ali, e ninguém mais escreve.
-# Some daqui quando o `.db` for apagado. Ver docs/MIGRACAO_POSTGRES.md.
+# Bases migradas para o PostgreSQL em 27/08/2026. O arquivo continua no disco
+# como DESFAZER da migração. Ver docs/MIGRACAO_POSTGRES.md.
 MIGRADAS = {"antt.db", "push.db", "email.db", "previsao.db", "antecipacoes.db",
             "extrato.db", "orcamento.db", "contrapartida.db", "auth.db"}
 
+# Nada pode ser escrito num `.db` migrado a partir daqui. É o sensor que
+# transforma oito linhas mortas numa útil: se um deles voltar a ser gravado,
+# código novo voltou a escrever em SQLite contra a regra da casa, e hoje isso
+# passaria despercebido — o dado iria para o arquivo errado e o PostgreSQL
+# ficaria para trás sem ninguém acusar.
+LIMITE_MIGRACAO = datetime(2026, 8, 28)
+
+
+def _dir_dados() -> Path:
+    return Path(__file__).resolve().parent.parent / "data"
+
 
 def _bases_locais() -> list[dict]:
-    """Bases SQLite onde o CÓRTEX escreve: existência, tamanho, integridade.
+    """Bases SQLite AINDA VIVAS: existência, tamanho, integridade.
 
     `PRAGMA quick_check` em vez de `integrity_check`: o completo varre o
     arquivo inteiro e a tela recarrega a cada 5 s — num banco de 1,7 MB seria
@@ -713,19 +720,12 @@ def _bases_locais() -> list[dict]:
     """
     import sqlite3
 
-    raiz = Path(__file__).resolve().parent.parent / "data"
+    raiz = _dir_dados()
     fora: list[dict] = []
-    for rotulo, arquivo in BASES_LOCAIS:
+    for rotulo, arquivo in BASES_VIVAS:
         caminho = raiz / arquivo
         item = {"nome": rotulo, "arquivo": arquivo}
         if not caminho.exists():
-            # BASE MIGRADA E ARQUIVO JÁ APAGADO: sai da lista. Ela não é mais
-            # uma base local — o dado vive no PostgreSQL, e a linha do banco do
-            # CÓRTEX logo acima já responde por ele. Sem este `continue` a tela
-            # diria "não usada ainda", que é o rótulo de recurso que ninguém
-            # ligou: leitura oposta da verdade para uma base em pleno uso.
-            if arquivo in MIGRADAS:
-                continue
             fora.append({**item, "status": "info", "bytes": 0,
                          "detalhe": "não usada ainda"})
             continue
@@ -745,10 +745,6 @@ def _bases_locais() -> list[dict]:
                 # e a tela que usa ela falharia sozinha, sem ninguém ligar os
                 # pontos
                 st, det = "erro", "sem permissão de escrita"
-            elif arquivo in MIGRADAS:
-                # não é falha nem uso: é o retrato antigo, guardado
-                st, det = "info", ("migrada para o PostgreSQL · arquivo mantido "
-                                   f"como desfazer (último uso {mod})")
             else:
                 st, det = "ok", f"íntegra · escrita em {mod}"
             fora.append({**item, "status": st, "bytes": tam,
@@ -757,6 +753,73 @@ def _bases_locais() -> list[dict]:
             fora.append({**item, "status": "erro", "bytes": 0,
                          "detalhe": f"não pôde ser lida ({type(exc).__name__})"})
     return fora
+
+
+def _migradas() -> dict | None:
+    """Uma linha para os arquivos da migração — e um sensor dentro dela.
+
+    O que ela responde não é "estão saudáveis?" (ninguém os usa), é **"ainda
+    estão aí, ocupando espaço, e continuam intocados?"**. Por isso traz
+    quantidade, tamanho e a data da migração: são os três números de que
+    alguém precisa para decidir apagá-los, e a decisão é a única coisa
+    pendente sobre eles.
+
+    DOIS ALERTAS DE VERDADE moram aqui:
+
+    - **Arquivo migrado ESCRITO de novo** — código novo voltou a gravar em
+      SQLite, contra a regra do CLAUDE.md. O dado foi para o lugar errado e o
+      PostgreSQL ficou para trás.
+    - **`.db` que ninguém declarou** — a varredura é do diretório, não de uma
+      lista, justamente para pegar o arquivo que apareceu sem passar por aqui.
+      Uma lista fixa só enxerga o que já se sabia.
+
+    Devolve `None` quando não sobrou nenhum: aí a migração terminou de verdade
+    e a linha some da tela em vez de dizer "0 arquivos".
+    """
+    raiz = _dir_dados()
+    if not raiz.exists():
+        return None
+    vivas = {a for _, a in BASES_VIVAS}
+    arquivos, bytes_, reescritos, estranhos = 0, 0, [], []
+    for caminho in sorted(raiz.glob("*.db")):
+        nome = caminho.name
+        if nome in vivas:
+            continue
+        try:
+            st = caminho.stat()
+        except OSError:
+            continue
+        if nome not in MIGRADAS:
+            estranhos.append(nome)
+            continue
+        arquivos += 1
+        bytes_ += st.st_size
+        if datetime.fromtimestamp(st.st_mtime) >= LIMITE_MIGRACAO:
+            reescritos.append(nome)
+
+    if not arquivos and not estranhos:
+        return None
+
+    base = {"arquivos": arquivos, "bytes": bytes_,
+            "migrada_em": "27/08/2026",
+            "reescritos": reescritos, "nao_declarados": estranhos}
+    if reescritos:
+        return {**base, "status": "alerta",
+                "detalhe": ("gravado de novo depois da migração: "
+                            + ", ".join(reescritos)
+                            + " — código novo voltou a escrever em SQLite, e "
+                              "esse dado NÃO está no PostgreSQL")}
+    if estranhos:
+        return {**base, "status": "alerta",
+                "detalhe": ("banco SQLite não declarado em data/: "
+                            + ", ".join(estranhos)
+                            + " — módulo novo deve escrever no PostgreSQL "
+                              "(api/pglocal.py)")}
+    return {**base, "status": "info",
+            "detalhe": ("da migração de 27/08/2026, mantidos como desfazer · "
+                        "nenhum escrito desde então · podem ser apagados "
+                        "quando a restauração do backup do PostgreSQL for "
+                        "testada")}
 
 
 def _deploy_saude(tarefas: list[dict]) -> dict:
@@ -816,6 +879,11 @@ def coletar() -> dict:
     except Exception as exc:  # noqa: BLE001
         log.warning("saude: bases locais falhou: %s", exc)
         dados["bases"] = []
+    try:
+        dados["migradas"] = _migradas()
+    except Exception as exc:  # noqa: BLE001
+        log.warning("saude: resumo das migradas falhou: %s", exc)
+        dados["migradas"] = None
     try:
         dados["tarefas"] = _tarefas()
     except Exception as exc:  # noqa: BLE001
