@@ -127,20 +127,53 @@ Toda construção de painel segue a skill `dashboard-builder` e este padrão:
 4. **Tabela acionável**: linhas ordenadas por prioridade/risco, com ação sugerida.
 5. **Alertas**: ocorrências que exigem ação agora.
 
-**Gráfico: ECharts nas telas convertidas, SVG à mão no resto.**
-Restam **39 gráficos SVG escritos à mão** no `index.html`, e eles continuam
-assim porque carregam as regras que esta seção documenta (mês parcial
-hachurado, rótulo direto, semáforo discreto, anti-colisão, teclado) e
-reescrevê-los em bloco seria semanas para perder cada uma. A conversão é feita
-por TELA, quando há motivo, e cada regra é reimplementada e testada na chegada.
+**Gráfico: ECharts é o padrão. Os 39 do lote acabaram em 30/08/2026.**
+Os **39 gráficos que tinham contêiner `<svg id="chart…">`** foram todos
+convertidos — não resta nenhum desses no arquivo. Gráfico novo nasce em
+ECharts, sem decisão a tomar.
 
-**ECharts 5 (Apache 2.0) entrou em 27/08/2026**, vendorizado em
+**Mas "39" não era "todos", e vale saber onde estão os que sobraram.** O lote
+foi definido por um grep de `<svg id="chart…">`, e ele NÃO enxerga gráfico
+montado como STRING e injetado com `innerHTML` — que não tem contêiner no HTML
+estático. Restam três assim, e um gauge:
+- **Saldo consolidado por dia** (Extrato/Bancos)
+- **Saldo dia a dia do período** (detalhe do Fluxo consolidado)
+- **Ações criadas e concluídas por mês** (Gestão)
+- o **gauge de meta do dia** dos painéis de TV, que não é caso de biblioteca:
+  em TV não há hover, e é um arco de 2 `path`.
+
+São os últimos usuários de `colPath`/`colRect` — enquanto existirem, esses
+dois helpers ficam. Procurar por `<svg viewBox=` acha todos.
+
+**A conversão levou quatro dias e foi feita por TELA, nunca em bloco** — e essa
+foi a decisão certa, porque cada gráfico carregava uma regra que só aparece
+lendo o código dele (o rótulo do retorno vazio que sai AO LADO da barra porque
+acima cairia dentro da vermelha; a prioridade do último rótulo no eixo do
+fluxo; o realizado que NÃO desenha barra no mês não fechado). Reescrever tudo
+de uma vez teria perdido cada uma em silêncio.
+
+**O que a conversão custou, e vale saber antes da próxima:**
+- **Recorte por marcador errou 3 vezes num dia** e apagou 20 rotas alheias, o
+  `loadHc` e o `loadMvb`. A defesa que funciona é comparar a lista de funções
+  antes e depois de todo corte e exigir `sumiram: nenhuma` — está na seção de
+  corte por marcador, e foi ela que pegou os três.
+- **Teste que afirma sobre TEXTO-FONTE quebra sem haver defeito.** Dois testes
+  do eixo do fluxo caíram só porque o espaçamento do laço mudou; viraram teste
+  de comportamento (o último rótulo aparece, o vizinho da esquerda sai).
+- **Dublê otimista faz teste passar por vacuidade** — ver a regra 1 abaixo.
+
+**ECharts 5.6.1 (Apache 2.0) entrou em 27/08/2026**, vendorizado em
 `api/static/vendor/echarts.min.js` com a licença ao lado. Nasceu como escolha
-para o que o SVG à mão não faz — **zoom/pan em série longa, drill-down,
-exportação, gantt, mapa** — e hoje também é o padrão das telas já convertidas:
-Produtividade de Veículos, Jornada (4 gráficos) e **Visão Geral (3)**.
+para o que o SVG à mão não fazia — **zoom/pan em série longa, drill-down,
+exportação, gantt, mapa** — e virou o padrão de tudo.
 
-Três regras para usá-lo, todas com teste em `tests/frontend/test_echarts_e2e.py`:
+**Os construtores da casa ficam em `ecOpcoes`/`ecBarras`/`ecLinha`/`ecDesenhar`**
+(+ `ecEixoValor`, `ecUnidade`, `ecDecal`, `ecTooltip`, `ecFalha`). Gráfico novo
+sai deles, não de `option` escrito na mão: é neles que moram a paleta, a
+unidade final do eixo, a hachura do parcial e a mensagem de falha.
+
+Quatro regras para usá-lo, com teste em `tests/frontend/test_echarts_e2e.py` e
+`test_echarts_largura_zero.py`:
 
 1. **Carga SOB DEMANDA** (`carregarECharts()`), e ela memoiza: são 990 KB, uma
    vez por sessão, e **uma carga serve todos os gráficos da tela**. Quem não
@@ -159,6 +192,16 @@ Três regras para usá-lo, todas com teste em `tests/frontend/test_echarts_e2e.p
    hachurado (`decal`), linha em eixo secundário continua com rótulo direto, e
    eixo continua com a unidade FINAL. Falha ao carregar é DITA no cartão —
    cartão vazio faria parecer "sem viagem no período".
+4. **Contêiner de largura ZERO não se conserta sozinho — e o sintoma é mudo.**
+   O SVG tinha `viewBox` e escalava ao aparecer; o ECharts **mede uma vez, no
+   `init`**, e uma medida de zero vale para sempre. Um gráfico desenhado com a
+   view em `display:none` não dá erro nem cartão vazio: ele aparece com os
+   eixos certos e os **rótulos do eixo X quase todos suprimidos** pelo
+   `hideOverlap`, o que faz uma série de cinco pontos parecer ter um (medido:
+   cinco dias de combustível mostrando só `02/08`). O conserto é um
+   `ResizeObserver` no **`echartsRegistrar`** — ali, e não no `ecDesenhar`,
+   para valer também para quem chama `init` na mão. Ele cobre os três casos de
+   uma vez: view que aparece, sidebar que recolhe, janela que muda.
 
 **Não usadas, e por quê:** amCharts 5 — o CÓRTEX é atrás de login, então a
 licença seria a Single App a US$ 650 perpétua/assento, e a versão grátis proíbe
@@ -1192,9 +1235,25 @@ function "` e a
   (`^(?:async )?function `) acerta.
 - **Duas defesas, e as duas são baratas:** (1) o fim vem de uma BUSCA a partir
   do início, nunca de uma string escolhida; (2) depois de todo corte grande,
-  comparar a lista de funções do arquivo contra a de antes —
-  `set(re.findall(r'^(?:async )?function (\w+)', ...))` — e exigir
+  comparar as DECLARAÇÕES do arquivo contra as de antes e exigir
   `sumiram: nenhuma`. Foi essa conferência que pegou os três.
+- **A conferência tem de olhar TODA declaração de topo, não só `function` —
+  e esse foi o quarto erro, o único que a peneira antiga deixou passar.**
+  A regex era `^(?:async )?function (\w+)`, e o que sumiu foram NOVE `const`
+  (`fmtKm`, `fmtRsKm`, `TELCON_SIT`, `UT_LBL`, `utLbl`, `MOD_COR`, `fmtL`,
+  `fmtKmL`, `compLabel`): eles moravam na CAUDA da região cortada, entre o
+  `}` da função e a próxima `function`. Três cortes diferentes os comeram e os
+  três disseram `sumiram: nenhuma`. A regex certa é
+  `^(?:async function|function|const|let|var|class)\s+(\w+)`, e a comparação
+  é contra o **HEAD do git**, não contra o estado de antes de cada corte —
+  assim uma perda escapada num corte anterior ainda aparece.
+- **E o sintoma não aponta para o corte.** A tela da ANTT abria com os cinco
+  KPIs certos e a TABELA VAZIA, sem uma linha no console: o `ReferenceError`
+  de `fmtKm` acontecia dentro do `try/catch` do loader e virava banner. Três
+  suítes distantes (ANTT, multas, telemetria) caíram juntas, e nenhuma delas
+  fala de gráfico. **Suíte inteira depois de mexida ampla, sempre** — foram
+  esses 9 testes que denunciaram, não o `node --check`, que passa (o código
+  continua sintaticamente válido), nem o render dos gráficos, que estava certo.
 - O `git diff --stat` também denuncia: 479 linhas removidas quando se esperava
   30 é a pista mais óbvia que existe, e ela aparece antes de qualquer teste.
 

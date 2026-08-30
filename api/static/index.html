@@ -2326,8 +2326,7 @@ body.tvfull #btnReport,body.tvmode #btnReport{display:none}
           </div>
           <div class="banner-inline" id="cenAviso" style="display:none"></div>
           <div class="chartwrap" id="wrapFluxo">
-            <svg id="chart" viewBox="0 0 960 500" preserveAspectRatio="xMidYMid meet"
-                 tabindex="0" role="img" aria-label="Fluxo de caixa projetado: barras mensais de recebimentos e pagamentos e linhas de saldo projetado. Use as setas do teclado para percorrer os meses."></svg>
+            <div id="chart" style="width:100%;height:500px" role="img" aria-label="Fluxo de caixa projetado: barras mensais de recebimentos e pagamentos e linhas de saldo projetado."></div>
             <div class="tip" id="tipFluxo"></div>
           </div>
           <div id="fluxoTable">
@@ -2365,8 +2364,7 @@ body.tvfull #btnReport,body.tvmode #btnReport{display:none}
             <span class="k"><i class="sw" style="background:var(--green)"></i>A vencer</span>
           </div>
           <div class="chartwrap" id="wrapAr">
-            <svg id="chartAr" viewBox="0 0 960 250" preserveAspectRatio="xMidYMid meet"
-                 tabindex="0" role="img" aria-label="Saldo a receber por mês de vencimento, dividido entre vencido e a vencer. Use as setas do teclado para percorrer os meses."></svg>
+            <div id="chartAr" style="width:100%;height:250px" role="img" aria-label="Saldo a receber por mês de vencimento, dividido entre vencido e a vencer."></div>
             <div class="tip" id="tipAr"></div>
           </div>
         </div>
@@ -2395,8 +2393,7 @@ body.tvfull #btnReport,body.tvmode #btnReport{display:none}
             <span class="k"><i class="sw" style="background:var(--green)"></i>A vencer</span>
           </div>
           <div class="chartwrap" id="wrapAp">
-            <svg id="chartAp" viewBox="0 0 960 250" preserveAspectRatio="xMidYMid meet"
-                 tabindex="0" role="img" aria-label="Pendente a pagar por mês de vencimento, dividido entre vencido e a vencer. Use as setas do teclado para percorrer os meses."></svg>
+            <div id="chartAp" style="width:100%;height:250px" role="img" aria-label="Pendente a pagar por mês de vencimento, dividido entre vencido e a vencer."></div>
             <div class="tip" id="tipAp"></div>
           </div>
         </div>
@@ -2553,8 +2550,7 @@ body.tvfull #btnReport,body.tvmode #btnReport{display:none}
             <span class="k"><i class="sw hatch orange"></i>Mês parcial (corrente ou cortado pelo filtro)</span>
           </div>
           <div class="chartwrap" id="wrapComb">
-            <svg id="chartComb" viewBox="0 0 960 250" preserveAspectRatio="xMidYMid meet"
-                 tabindex="0" role="img" aria-label="Custo de combustível por mês, separado entre frota própria e terceiros. Use as setas do teclado para percorrer os meses."></svg>
+            <div id="chartComb" style="width:100%;height:250px" role="img"></div>
             <div class="tip" id="tipComb"></div>
           </div>
         </div>
@@ -2562,15 +2558,13 @@ body.tvfull #btnReport,body.tvmode #btnReport{display:none}
           <div class="card">
             <div class="head"><h2>Consumo por dia <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="Litros abastecidos por dia do abastecimento, todos os produtos do cartão. Serve para ver concentração e dias sem movimento — é volume comprado, não consumo do motor.">i</span></h2><span class="hint">litros abastecidos · no período filtrado</span></div>
             <div class="chartwrap">
-              <svg id="chartCombDia" viewBox="0 0 960 250" preserveAspectRatio="xMidYMid meet"
-                   role="img" aria-label="Litros consumidos por dia no período filtrado."></svg>
+              <div id="chartCombDia" style="width:100%;height:250px" role="img"></div>
             </div>
           </div>
           <div class="card">
             <div class="head"><h2>Consumo por semana <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="Mesmos litros do gráfico ao lado, agrupados por semana ISO. A primeira e a última semana do recorte quase sempre estão incompletas.">i</span></h2><span class="hint">litros abastecidos · semana ISO</span></div>
             <div class="chartwrap">
-              <svg id="chartCombSem" viewBox="0 0 960 250" preserveAspectRatio="xMidYMid meet"
-                   role="img" aria-label="Litros consumidos por semana no período filtrado."></svg>
+              <div id="chartCombSem" style="width:100%;height:250px" role="img"></div>
             </div>
           </div>
         </div>
@@ -2629,8 +2623,7 @@ body.tvfull #btnReport,body.tvmode #btnReport{display:none}
             <span class="k"><i class="sw hatch"></i>Mês parcial (o filtro corta o mês)</span>
           </div>
           <div class="chartwrap" id="wrapCom">
-            <svg id="chartCom" viewBox="0 0 960 250" preserveAspectRatio="xMidYMid meet"
-                 tabindex="0" role="img" aria-label="Receita de frete por mês, últimos 12 meses. Use as setas do teclado para percorrer os meses."></svg>
+            <div id="chartCom" style="width:100%;height:250px" role="img"></div>
             <div class="tip" id="tipCom"></div>
           </div>
         </div>
@@ -2770,7 +2763,7 @@ body.tvfull #btnReport,body.tvmode #btnReport{display:none}
           <div class="card"><div class="head"><h2>Orçado × realizado por linha</h2><span class="hint" id="hintOrcCasc"></span></div>
             <div class="tablewrap tabroll" id="orc-cascata"></div></div>
           <div class="card"><div class="head"><h2>Evolução mensal</h2><span class="hint">mês não fechado mostra só o orçado · mês dentro da base sai esmaecido (orçado retroativo)</span></div>
-            <div class="chartwrap"><svg id="chartOrc" viewBox="0 0 960 250" preserveAspectRatio="xMidYMid meet" role="img" aria-label="Orçado e realizado por mês."></svg></div></div>
+            <div class="chartwrap"><div id="chartOrc" style="width:100%;height:250px" role="img"></div></div></div>
           <div class="card"><div class="head"><h2>Maiores desvios</h2><span class="hint" id="hintOrcDesv"></span></div>
             <div class="tablewrap tabroll" id="orc-desvios"></div></div>
         </div>
@@ -2922,8 +2915,7 @@ body.tvfull #btnReport,body.tvmode #btnReport{display:none}
         <div class="card">
           <div class="head"><h2>Matriz margem × receita</h2><span class="hint">cada bolha é um cliente · linhas: mediana de receita e margem de 25% · passe o mouse para o nome</span></div>
           <div class="chartwrap">
-            <svg id="chartRent" viewBox="0 0 960 400" preserveAspectRatio="xMidYMid meet" role="img"
-                 aria-label="Dispersão de clientes por receita e margem de contribuição, dividida em quadrantes."></svg>
+            <div id="chartRent" style="width:100%;height:400px" role="img"></div>
           </div>
           <div class="legend">
             <span class="k"><i class="sw" style="background:#1E7F4F"></i>🛡️ Proteger (alta receita, alta margem)</span>
@@ -3042,8 +3034,7 @@ body.tvfull #btnReport,body.tvmode #btnReport{display:none}
           <div class="head"><h2>Saldo projetado <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="Saldo encadeado: o final de cada período é o inicial do seguinte, começando no saldo de bancos e caixa de hoje — a mesma cascata da planilha de tesouraria, onde o SALDO ANTERIOR de cada aba vem do dia anterior. Entradas = a receber oficial por vencimento; saídas = contas a pagar por vencimento. Só o que está LANÇADO no ERP.">i</span></h2>
             <span class="hint" id="hintFc"></span></div>
           <div class="chartwrap" id="wrapFc">
-            <svg id="chartFc" viewBox="0 0 960 250" preserveAspectRatio="xMidYMid meet" tabindex="0" role="img"
-                 aria-label="Saldo de caixa projetado por período."></svg>
+            <div id="chartFc" style="width:100%;height:250px" role="img" aria-label="Saldo de caixa projetado por período."></div>
             <div class="tip" id="tipFc"></div>
           </div>
         </div>
@@ -3142,8 +3133,7 @@ body.tvfull #btnReport,body.tvmode #btnReport{display:none}
             <span class="k"><i class="sw" style="background:#C03221"></i>Reserva mínima</span>
           </div>
           <div class="chartwrap" id="wrapAntec">
-            <svg id="chartAntec" viewBox="0 0 960 250" preserveAspectRatio="xMidYMid meet" tabindex="0" role="img"
-                 aria-label="Saldo de caixa projetado dia a dia, sem antecipação."></svg>
+            <div id="chartAntec" style="width:100%;height:250px" role="img" aria-label="Saldo de caixa projetado dia a dia, sem antecipação."></div>
             <div class="tip" id="tipAntec"></div>
           </div>
         </div>
@@ -4342,8 +4332,7 @@ body.tvfull #btnReport,body.tvmode #btnReport{display:none}
             <span class="k"><i class="ln dash" style="border-top-color:var(--yellow)"></i>Meta 20%</span>
           </div>
           <div class="chartwrap" id="wrapKm">
-            <svg id="chartKm" viewBox="0 0 960 250" preserveAspectRatio="xMidYMid meet"
-                 tabindex="0" role="img" aria-label="Quilômetros carregados e vazios por mês, últimos 12 meses. Use as setas do teclado para percorrer os meses."></svg>
+            <div id="chartKm" style="width:100%;height:250px" role="img" aria-label="Km carregado e vazio por mes, com o retorno vazio"></div>
             <div class="tip" id="tipKm"></div>
           </div>
         </div>
@@ -4392,8 +4381,7 @@ body.tvfull #btnReport,body.tvmode #btnReport{display:none}
             <span class="k"><i class="ln dot"></i>Competência aberta (fixos ainda não lançados)</span>
           </div>
           <div class="chartwrap" id="wrapMvb">
-            <svg id="chartMvb" viewBox="0 0 960 300" preserveAspectRatio="xMidYMid meet"
-                 tabindex="0" role="img" aria-label="Custo por quilômetro mensal: frota própria (cheio e marginal) contra agregados e terceiros. Use as setas do teclado para percorrer os meses."></svg>
+            <div id="chartMvb" style="width:100%;height:300px" role="img" aria-label="CKM proprio contra R$/km de agregado e terceiro, por mes"></div>
             <div class="tip" id="tipMvb"></div>
           </div>
         </div>
@@ -4447,7 +4435,7 @@ body.tvfull #btnReport,body.tvmode #btnReport{display:none}
         </div>
         <div class="card">
           <div class="head"><h2>Matriz margem × receita <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="Cada bolha é um cliente: X = receita líquida no período (escala raiz, para os pequenos não colarem no eixo), Y = margem de contribuição %. As linhas tracejadas são a mediana de receita e o corte de MC 25%. Quadrante direito-baixo (vermelho) = cliente grande com margem fraca: é onde re-preço tem mais efeito.">i</span></h2><span class="hint">bolha = cliente · X: receita líquida (escala raiz) · Y: MC%</span></div>
-          <div class="chartwrap"><svg id="chartDrecliMat" viewBox="0 0 960 400" preserveAspectRatio="xMidYMid meet" role="img" aria-label="Matriz de margem de contribuição por receita, por cliente."></svg></div>
+          <div class="chartwrap"><div id="chartDrecliMat" style="width:100%;height:400px" role="img"></div></div>
         </div>
       </section>
       <section class="view" id="view-dre">
@@ -4471,8 +4459,7 @@ body.tvfull #btnReport,body.tvmode #btnReport{display:none}
             <span class="k"><i class="sw" style="background:#1E7F4F"></i>Patrimônio líquido</span>
           </div>
           <div class="chartwrap" id="wrapBal">
-            <svg id="chartBal" viewBox="0 0 960 240" preserveAspectRatio="xMidYMid meet" tabindex="0" role="img"
-                 aria-label="Ativo, passivo exigível e patrimônio líquido por competência."></svg>
+            <div id="chartBal" style="width:100%;height:240px" role="img"></div>
             <div class="tip" id="tipBal"></div>
           </div>
         </div>
@@ -6667,47 +6654,62 @@ function renderOrc(d){
   // silenciosamente na versão antiga.
   if(ORC_ABA==='mont') renderOrcMontagem();
 }
+/* Orcado x realizado por mes. Duas regras do orcamento moram AQUI, e as duas
+   existem para o grafico nao mentir sobre desempenho:
+
+   - MES NAO FECHADO NAO DESENHA REALIZADO. Barra zerada ao lado do orcado
+     leria como queda brutal, quando e so lancamento que ainda nao entrou.
+     Ausencia de barra e a leitura certa: nao ha o que comparar ainda.
+   - MES CIRCULAR SAI ESMAECIDO. Orcar 2026 em julho poe jan-jun/26 na base da
+     derivacao: o espelho desses meses e o proprio mes, e o desvio mede so o
+     fator (-5% vira -5,26% em toda linha). Comparar ali e circular, e o
+     esmaecido diz isso antes de alguem tirar conclusao.
+
+   O tooltip nomeia os dois estados -- no SVG a opacidade era muda, e opacidade
+   sem legenda e um enigma. */
 function chartOrcRender(mensal){
-  const svg=document.getElementById('chartOrc');
-  if(!mensal.length){ svg.innerHTML='<text x="480" y="120" text-anchor="middle" fill="#6E7883" font-size="14">sem dados</text>'; return; }
-  const W=960,H=250,mL=64,mR=16,mT=28,mB=34, iw=W-mL-mR, ih=H-mT-mB;
-  const n=mensal.length, bandW=iw/n;
-  const vals=mensal.flatMap(r=>[Math.abs(r.orcado||0), Math.abs(r.realizado||0)]);
-  const tks=niceTicks(0,Math.max(1,...vals),4), top=tks[tks.length-1], u=unitOf(top);
-  const y=v=>mT+ih-(Math.abs(v)/top)*ih, y0=y(0);
-  const px=i=>mL+bandW*i+bandW/2;
-  const bw=Math.min(16,bandW*0.3);
-  let s='';
-  s+=`<text x="${mL}" y="${mT-12}" font-size="11" fill="#6E7883" font-weight="600" letter-spacing="1.5">${u.t}</text>`;
-  tks.forEach(v=>{ const yy=y(v);
-    s+=`<line x1="${mL}" y1="${yy}" x2="${W-mR}" y2="${yy}" stroke="${v===0?'#C2C8D0':'#ECEEF1'}" stroke-width="1"/>`;
-    s+=`<text x="${mL-8}" y="${yy+4}" text-anchor="end" font-size="11" fill="#6E7883" font-family="IBM Plex Mono,monospace">${NMI.format(v/u.d)}</text>`; });
-  mensal.forEach((r,i)=>{
-    // mês circular (dentro da base da derivação): o orçado é retroativo e a
-    // comparação mediria só o fator — as barras saem esmaecidas
-    if(r.circular) s+=`<g opacity="0.35">`;
-    s+=colPath(px(i)-bw-1,bw,y(r.orcado||0),y0,3,CC.navy400);
-    // mês não fechado NÃO desenha realizado: barra zerada leria como queda
-    if(r.fechado && r.realizado!=null) s+=colPath(px(i)+1,bw,y(r.realizado),y0,3,CC.navy700);
-    if(r.circular) s+=`</g>`;
-  });
-  mensal.forEach((r,i)=>{ s+=`<text x="${px(i)}" y="${H-mB+18}" text-anchor="middle" font-size="10.5" fill="${r.circular?'#AEB6BF':r.fechado?'#4F5860':'#AEB6BF'}">${r.mes}</text>`; });
-  svg.innerHTML=s;
+  ecDesenhar('chartOrc', mensal.length && (() => {
+    const vals = mensal.flatMap(r => [Math.abs(r.orcado||0), Math.abs(r.realizado||0)]);
+    const o = ecOpcoes(mensal.map(r => r.mes), Math.max(1, ...vals),
+      {legenda: ['Or\u00E7ado', 'Realizado'], bottom: 44, sombra: true});
+    o.tooltip.formatter = p => {
+      const r = mensal[p[0].dataIndex];
+      let h = '<b>' + r.mes + '</b>';
+      if(r.circular) h += ' <span style="color:#B97709">compet\u00EAncia circular</span>';
+      h += '<br><span style="color:' + CC.navy400 + '">&#9632;</span> Or\u00E7ado: <b>'
+         + BRL.format(Math.abs(r.orcado || 0)) + '</b>';
+      h += (r.fechado && r.realizado != null)
+        ? ('<br><span style="color:' + CC.navy700 + '">&#9632;</span> Realizado: <b>'
+           + BRL.format(Math.abs(r.realizado)) + '</b>')
+        : '<br><span style="color:#6B7580">m\u00EAs n\u00E3o fechado \u2014 sem realizado a comparar</span>';
+      if(r.circular) h += '<br><span style="color:#6B7580">m\u00EAs dentro da base da'
+        + ' deriva\u00E7\u00E3o: o desvio mede o fator, n\u00E3o o desempenho</span>';
+      return h;
+    };
+    const orcado = ecBarras('Or\u00E7ado', mensal.map(r => Math.abs(r.orcado||0)),
+                            CC.navy400, {largura: 16});
+    /* `null` e nao zero: o ECharts pula o ponto nulo, que e a ausencia de
+       barra do SVG. Zero desenharia um tracinho na linha de base -- pequeno,
+       mas ainda uma barra, e ainda lido como "realizou nada". */
+    const realizado = ecBarras('Realizado', mensal.map(r =>
+      ((r.fechado && r.realizado != null) ? Math.abs(r.realizado) : null)),
+      CC.navy700, {largura: 16});
+    [orcado, realizado].forEach(b => b.data.forEach((d, k) => {
+      if(mensal[k].circular) d.itemStyle.opacity = 0.35;
+    }));
+    /* O rotulo do mes acompanha o estado da barra: mes circular ou nao
+       fechado sai em cinza claro, senao o eixo diria que os doze meses tem o
+       mesmo peso de evidencia. O `textStyle` por item vence o `axisLabel` da
+       categoria correspondente -- os demais seguem a cor padrao do eixo. */
+    const fraco = new Set(mensal.map((r, k) =>
+      ((r.circular || !r.fechado) ? k : -1)).filter(k => k >= 0));
+    o.xAxis.data = mensal.map((r, k) =>
+      ({value: r.mes, textStyle: {color: fraco.has(k) ? '#AEB6BF' : '#4F5860'}}));
+    o.series = [orcado, realizado];
+    return o;
+  }), 'sem dados');
 }
-// Aceita as formas que um usuário brasileiro digita num campo de decimal:
-// "1.234,56" e "1234,56" e "1.234.567,89" (vírgula decimal, ponto de milhar em
-// grupos de 3), "1.234" (ponto de MILHAR sem vírgula -> 1234, convenção pt-BR)
-// e "1.5"/"1.23"/"1.2345" (ponto DECIMAL quando o grupo depois dele não tem
-// exatamente 3 dígitos) -> number ; "" -> null ; qualquer outra coisa -> NaN.
-// Existe porque <input type="number"> DESCARTA a vírgula em vez de recusar o
-// caractere: digitar "1234,56" nele vira 123456 (100x maior), sem erro nem aviso
-// — por isso a grade e o campo de fator usam type="text" + esta função, nunca
-// o parseFloat cru do valor do input.
-// VALIDAÇÃO ESTRITA POR REGEX é obrigatória aqui: o parseFloat do JS analisa só
-// um PREFIXO válido e ignora o resto ("1.234.56".replace(...) sobra "1.234.56"
-// sem vírgula, e parseFloat para no primeiro ponto extra, devolvendo 1.234 —
-// 1000x menor que o valor digitado, sem erro nenhum). Por isso o formato inteiro
-// é validado ANTES de qualquer parseFloat; sem match nenhuma conversão ocorre.
+
 function numBR(s){
   s = String(s == null ? '' : s).trim();
   if(!s) return null;
@@ -7184,165 +7186,245 @@ function fluxoExtrapola(fluxo){
   }
   return -1;
 }
+/* FLUXO DE CAIXA -- o grafico que decide caixa, e o mais denso da casa.
+
+   DOIS PAINEIS, e a separacao nao e estetica: entradas/saidas sao magnitudes
+   de 10-20 mi e o saldo anda em outra ordem de grandeza, com dominio
+   negativo. Num eixo so, um dos dois some. No ECharts isso e `grid[0]` e
+   `grid[1]` com o `axisPointer.link`, que faz o hover de um painel mover o
+   outro -- sem o link o leitor compara meses diferentes sem perceber.
+
+   AS REGRAS QUE VIERAM DO SVG, todas com motivo registrado:
+
+   - O CENARIO REALISTA NASCE DESLIGADO (`fluxoCenario`). Ligado, ele
+     multiplica a escala por ~11x: o saldo projetado varia ~11 mi e o realista
+     chega a +118 mi, e a linha que decide caixa ficava com 9% da altura,
+     colada no zero. Cenario especulativo nao divide escala com dado firme sem
+     que alguem peca.
+   - EXTRAPOLACAO MARCADA. A partir do mes em que os pagaveis LANCADOS desabam
+     (`fluxoExtrapola`), o cenario vira receita estimada contra custo que
+     ainda nao existe no ERP. A faixa ambar diz onde isso comeca.
+   - FAIXA DO LIMITE ROTATIVO entre o zero e -limite. Sem ela, saldo negativo
+     era uma coisa so -- R$ 380 mil e R$ 2,6 mi pintavam do mesmo vermelho, e
+     a diferenca e "resolve com cheque empresa" contra "nao ha cobertura".
+   - O LIMITE ENTRA NO DOMINIO do eixo mesmo quando o saldo nunca fica
+     negativo: senao a faixa cairia fora do painel e sumiria justamente quando
+     ela e a boa noticia.
+   - SALDO ORCADO EM SEGMENTOS, sem interpolar sobre mes sem provisao. Aqui
+     isso sai de graca: `null` no vetor e `connectNulls:false` abrem a linha.
+   - O BUCKET "atrasado" nao e um mes: leva fundo cinza e rotulo destacado,
+     porque somar vencidos com previsao futura na mesma leitura e o erro que a
+     faixa existe para impedir. */
 function chartFluxo(fluxo){
-  const svg=document.getElementById('chart');
-  GEOM['chart']=null; ACTIVE['chart']=-1;
-  if(!fluxo.length){ svg.innerHTML='<text x="480" y="250" text-anchor="middle" fill="#6E7883" font-size="14">sem dados no período</text>'; return; }
-  const {W,mL,mR,t1,h1,gapP,h2,mB}=CHF;
-  const H=t1+h1+gapP+h2+mB; svg.setAttribute('viewBox',`0 0 ${W} ${H}`);
-  const iw=W-mL-mR, n=fluxo.length, bandW=iw/n;
-  const p2t=t1+h1+gapP;
+  ecDesenhar('chart', fluxo.length && (() => {
+    const n = fluxo.length;
+    const rot = fluxo.map(f => periodoLabel(f.periodo));
 
-  // Provisão orçamentária: a geração mensal orçada (entradas+saídas
-  // deslocadas por DSO/DPO) é pequena (±2 mi) perto das barras de
-  // receber/pagar (10-20 mi) — plotada no painel 1 ficava achatada contra o
-  // zero, ocupando uma fração pequena da altura (M3 da revisão final, premissa
-  // de escala da spec falsificada pelos dados reais). Em vez de "geração"
-  // isolada, plota-se o SALDO ORÇADO ACUMULADO (saldo atual + soma corrida da
-  // geração dos meses da provisão) no painel de SALDO (painel 2) — mesma
-  // ordem de grandeza do saldo projetado/realista, e o painel já lida com
-  // domínio negativo. Casa pelo mês-calendário do período do fluxo
-  // ('YYYY-MM'); o bucket 'atrasado' não tem competência e nunca recebe
-  // ponto. provisao_orc só cobre o ANO de referência (do mês corrente até
-  // dezembro), então um mês do fluxo de outro ano nunca casa — sem isso um
-  // "mês 7" de 2027 colaria no "mês 7" (julho) da provisão de 2026.
-  const provisao=(DATA&&DATA.provisao_orc)||null;
-  const provPorMes = provisao ? new Map(provisao.meses.map(m=>[m.mes,m])) : null;
-  const anoRef = (DATA&&DATA.data_ref)? +String(DATA.data_ref).slice(0,4) : null;
-  const saldoAtual = (DATA&&DATA.kpis&&DATA.kpis.saldo_atual)||0;
-  const provPt = i=>{
-    if(!provPorMes) return null;
-    const per=fluxo[i].periodo;
-    if(!per || per==='atrasado') return null;
-    const ano=+String(per).slice(0,4), mes=+String(per).slice(5,7);
-    if(ano!==anoRef) return null;
-    return provPorMes.get(mes)||null;
-  };
-  // segmentos contíguos de meses casados (path interrompido em vez de
-  // interpolar sobre um mês sem provisão) + saldo acumulado por segmento,
-  // ancorado no saldo atual — cada segmento reinicia a soma no saldo atual
-  // (não haveria como acumular sobre um "buraco" sem dado no meio)
-  const provSegs=[]; let provAtual=[];
-  if(provPorMes) fluxo.forEach((f,i)=>{ const p=provPt(i);
-    if(p) provAtual.push([i,p]); else if(provAtual.length){ provSegs.push(provAtual); provAtual=[]; } });
-  if(provAtual.length) provSegs.push(provAtual);
-  const provAcc=new Map();   // i -> {ponto, saldoOrcado}
-  provSegs.forEach(seg=>{
-    let acc=saldoAtual;
-    seg.forEach(([i,p])=>{ acc+=p.geracao; provAcc.set(i,{ponto:p, saldoOrcado:acc}); });
-  });
+    /* PROVISAO ORCAMENTARIA: plota-se o SALDO ORCADO ACUMULADO no painel de
+       saldo, nao a geracao mensal isolada -- a geracao (+-2 mi) ficava
+       achatada contra o zero ao lado das barras de 10-20 mi. Casa pelo
+       mes-calendario E pelo ANO: sem conferir o ano, um "mes 7" de 2027
+       colaria no julho da provisao de 2026. */
+    const provisao = (DATA && DATA.provisao_orc) || null;
+    const provPorMes = provisao ? new Map(provisao.meses.map(m => [m.mes, m])) : null;
+    const anoRef = (DATA && DATA.data_ref) ? +String(DATA.data_ref).slice(0,4) : null;
+    const saldoAtual = (DATA && DATA.kpis && DATA.kpis.saldo_atual) || 0;
+    const provPt = k => {
+      if(!provPorMes) return null;
+      const per = fluxo[k].periodo;
+      if(!per || per === 'atrasado') return null;
+      if(+String(per).slice(0,4) !== anoRef) return null;
+      return provPorMes.get(+String(per).slice(5,7)) || null;
+    };
+    /* Segmentos contiguos: cada um REINICIA a soma no saldo atual, porque nao
+       haveria como acumular sobre um buraco sem dado no meio. */
+    const provSegs = []; let provAtual = [];
+    if(provPorMes) fluxo.forEach((f, k) => { const p = provPt(k);
+      if(p) provAtual.push([k, p]);
+      else if(provAtual.length){ provSegs.push(provAtual); provAtual = []; } });
+    if(provAtual.length) provSegs.push(provAtual);
+    const provAcc = new Map();
+    provSegs.forEach(seg => { let acc = saldoAtual;
+      seg.forEach(([k, p]) => { acc += p.geracao; provAcc.set(k, {ponto: p, saldoOrcado: acc}); }); });
 
-  // ESCALA do painel 1 (ENTRADAS × SAÍDAS): receber/pagar do fluxo são sempre
-  // magnitudes >=0 — domínio simples a partir do zero. A provisão não entra
-  // mais aqui (M3: foi para o painel de saldo, abaixo).
-  let lo1=0;
-  let hi1=Math.max(1,...fluxo.map(f=>Math.max(f.receber,f.pagar)));
-  const tk1=niceTicks(lo1,hi1,4); lo1=tk1[0]; hi1=tk1[tk1.length-1];
-  const u1=unitOf(Math.max(Math.abs(lo1),Math.abs(hi1)));
-  const y1=v=>t1+h1-((v-lo1)/(hi1-lo1))*h1;
-  // ESCALA do painel de saldo: por padrão só o saldo PROJETADO (títulos
-  // lançados). Com o cenário realista junto, a série que importa ocupava ~9%
-  // da altura — o saldo projetado varia ~11 mi e o realista chega a +118 mi.
-  // O saldo ORÇADO (provisão) entra no mesmo cálculo de domínio (M3): sem
-  // isso, um mês com queda de geração orçada poderia desenhar fora do painel.
-  const provAccVals=[...provAcc.values()].map(v=>v.saldoOrcado);
-  /* O limite entra no domínio: sem isso, num período em que o saldo nunca fica
-     negativo a faixa do rotativo cairia fora do painel e sumiria justamente
-     quando ela é a boa notícia (não precisou dele). */
-  const limCred = (DATA&&DATA.credito&&DATA.credito.limite)||0;
-  let lo2=Math.min(0, limCred?-limCred:0, ...fluxo.map(f=>fluxoCenario?Math.min(f.saldo_projetado,f.saldo_realista):f.saldo_projetado),...provAccVals);
-  let hi2=Math.max(0,...fluxo.map(f=>fluxoCenario?Math.max(f.saldo_projetado,f.saldo_realista):f.saldo_projetado),...provAccVals);
-  const tk2=niceTicks(lo2,hi2,5); lo2=tk2[0]; hi2=tk2[tk2.length-1];
-  const u2=unitOf(Math.max(Math.abs(lo2),Math.abs(hi2)));
-  const y2=v=>p2t+h2-((v-lo2)/(hi2-lo2))*h2;
+    // painel 1: receber/pagar sao sempre >= 0 -- dominio simples a partir do zero
+    const tk1 = niceTicks(0, Math.max(1, ...fluxo.map(f => Math.max(f.receber, f.pagar))), 4);
+    const lo1 = tk1[0], hi1 = tk1[tk1.length-1];
+    const u1 = unitOf(Math.max(Math.abs(lo1), Math.abs(hi1)));
 
-  let s='';
-  if(fluxo[0].periodo==='atrasado'){
-    s+=`<rect x="${mL}" y="${t1-20}" width="${bandW}" height="${p2t+h2-(t1-20)}" fill="#ECEEF1" opacity=".55"/>`;
-    s+=`<line x1="${mL+bandW}" y1="${t1-20}" x2="${mL+bandW}" y2="${p2t+h2}" stroke="#C2C8D0" stroke-width="1"/>`;
-  }
-  s+=`<rect id="chart-hband" x="0" y="${t1-20}" width="${bandW}" height="${p2t+h2-(t1-20)}" fill="${CC.navy100}" opacity="0"/>`;
+    // painel 2: so o PROJETADO por padrao; o realista so entra no dominio
+    // quando o cenario esta ligado
+    const provVals = [...provAcc.values()].map(v => v.saldoOrcado);
+    const limCred = (DATA && DATA.credito && DATA.credito.limite) || 0;
+    const tk2 = niceTicks(
+      Math.min(0, limCred ? -limCred : 0,
+               ...fluxo.map(f => fluxoCenario
+                 ? Math.min(f.saldo_projetado, f.saldo_realista) : f.saldo_projetado),
+               ...provVals),
+      Math.max(0, ...fluxo.map(f => fluxoCenario
+                 ? Math.max(f.saldo_projetado, f.saldo_realista) : f.saldo_projetado),
+               ...provVals), 5);
+    const lo2 = tk2[0], hi2 = tk2[tk2.length-1];
+    const u2 = unitOf(Math.max(Math.abs(lo2), Math.abs(hi2)));
 
-  s+=`<text x="${mL}" y="${t1-16}" font-size="11" fill="#6E7883" font-weight="600" letter-spacing="1.5">ENTRADAS × SAÍDAS POR MÊS · ${u1.t}</text>`;
-  tk1.forEach(v=>{ const yy=y1(v);
-    s+=`<line x1="${mL}" y1="${yy}" x2="${W-mR}" y2="${yy}" stroke="${v===0?'#C2C8D0':'#ECEEF1'}" stroke-width="1"/>`;
-    s+=`<text x="${mL-8}" y="${yy+4}" text-anchor="end" font-size="11" fill="#6E7883" font-family="IBM Plex Mono,monospace">${NMI.format(v/u1.d)}</text>`; });
-  const barW=Math.min(22,bandW*0.26);
-  fluxo.forEach((f,i)=>{ const cx=mL+bandW*i+bandW/2;
-    s+=colPath(cx-barW-1,barW,y1(f.receber),y1(0),4,'#1E7F4F');
-    s+=colPath(cx+1,barW,y1(f.pagar),y1(0),4,'#C03221'); });
+    const atrasado = (fluxo[0].periodo === 'atrasado');
+    let minI = 0;
+    fluxo.forEach((f, k) => { if(f.saldo_projetado < fluxo[minI].saldo_projetado) minI = k; });
+    const iExtra = fluxoCenario ? fluxoExtrapola(fluxo) : -1;
 
-  s+=`<text x="${mL}" y="${p2t-14}" font-size="11" fill="${CC.n500}" font-weight="600" letter-spacing="1.5">SALDO PROJETADO${fluxoCenario?' + CENÁRIO':' (SÓ O LANÇADO)'} · ${u2.t}</text>`;
-  tk2.forEach(v=>{ const yy=y2(v);
-    s+=`<line x1="${mL}" y1="${yy}" x2="${W-mR}" y2="${yy}" stroke="#ECEEF1" stroke-width="1"/>`;
-    s+=`<text x="${mL-8}" y="${yy+4}" text-anchor="end" font-size="11" fill="#6E7883" font-family="IBM Plex Mono,monospace">${NMI.format(v/u2.d)}</text>`; });
-  if(lo2<0){
-    s+=`<rect x="${mL}" y="${y2(0)}" width="${iw}" height="${p2t+h2-y2(0)}" fill="#C03221" opacity=".05"/>`;
-    s+=`<line x1="${mL}" y1="${y2(0)}" x2="${W-mR}" y2="${y2(0)}" stroke="#9AA3AE" stroke-width="1.3"/>`;
-  }
-  /* FAIXA DO LIMITE ROTATIVO: entre o zero e −limite. Dentro dela o mês se
-     resolve com cheque empresa (caro, mas contratado); abaixo dela não há
-     cobertura. Sem esta faixa, saldo negativo era uma coisa só — R$ 380 mil
-     e R$ 2,6 milhões pintavam do mesmo vermelho. */
-  if(limCred>0 && lo2 < 0){
-    const yLim=y2(Math.max(lo2,-limCred)), y0v=y2(0);
-    s+=`<rect x="${mL}" y="${y0v}" width="${iw}" height="${Math.max(0,yLim-y0v)}" fill="${CC.amarelo}" opacity=".10"/>`;
-    s+=`<line x1="${mL}" y1="${yLim}" x2="${W-mR}" y2="${yLim}" stroke="${CC.amarelo}" stroke-width="1.5" stroke-dasharray="5 4"/>`;
-    s+=`<text x="${W-mR-4}" y="${yLim-5}" text-anchor="end" font-size="10.5" font-weight="700" fill="${CC.amarelo}" style="paint-order:stroke;stroke:#fff;stroke-width:3px">limite de crédito ${BRL.format(limCred)}</text>`;
-  }
-  const px=i=>mL+bandW*i+bandW/2;
-  if(fluxoCenario){
-    const band = fluxo.map((f,i)=>`${px(i)},${y2(f.saldo_realista)}`).join(' ')+' '+
-                 [...fluxo].reverse().map((f,i)=>`${px(n-1-i)},${y2(f.saldo_projetado)}`).join(' ');
-    s+=`<polygon points="${band}" fill="${CC.navy500}" opacity=".10"/>`;
-    s+=`<polyline points="${fluxo.map((f,i)=>`${px(i)},${y2(f.saldo_realista)}`).join(' ')}" fill="none" stroke="${CC.navy500}" stroke-width="2" stroke-dasharray="6 4" stroke-linecap="round" stroke-linejoin="round"/>`;
-    // a partir do mês em que os pagáveis LANÇADOS desabam, o cenário vira
-    // receita estimada contra custo que ainda não existe no ERP
-    const iExtra=fluxoExtrapola(fluxo);
-    if(iExtra>=0 && iExtra<n){
-      const xe=mL+bandW*iExtra;
-      s+=`<rect x="${xe}" y="${p2t-8}" width="${W-mR-xe}" height="${h2+8}" fill="${CC.amarelo}" opacity=".07"/>`;
-      s+=`<line x1="${xe}" y1="${p2t-8}" x2="${xe}" y2="${p2t+h2}" stroke="${CC.amarelo}" stroke-width="1.5" stroke-dasharray="4 3"/>`;
-      s+=`<text x="${xe+6}" y="${p2t+4}" font-size="10" font-weight="700" fill="${CC.amarelo}">daqui pra frente o cenário é extrapolação</text>`;
+    /* O eixo X de cima e MUDO: os dois paineis compartilham as mesmas
+       categorias e repetir os rotulos no meio do grafico so tira altura. */
+    const eixoX = gi => ({type:'category', data: rot, gridIndex: gi,
+      axisLine:{lineStyle:{color: CC.n300}}, axisTick:{show:false},
+      axisLabel: gi === 0 ? {show:false} : {
+        color: CC.n600, fontSize: 11, hideOverlap: true,
+        formatter: v => (atrasado && v === rot[0] ? '{a|' + v + '}' : v),
+        rich: {a: {color:'#39414A', fontWeight: 700, fontSize: 11}}}});
+
+    const o = {
+      animation: false,
+      grid: [{left: 64, right: 16, top: 34, height: 170},
+             {left: 64, right: 16, top: 248, height: 190}],
+      /* O LINK e o que faz os dois paineis falarem do MESMO mes. Sem ele o
+         leitor compara o mes de cima com outro de baixo sem perceber. */
+      axisPointer: {link: [{xAxisIndex: 'all'}]},
+      tooltip: Object.assign({trigger:'axis',
+        axisPointer:{type:'line', lineStyle:{color: CC.navy400, width: 1}}}, ecTooltip()),
+      xAxis: [eixoX(0), eixoX(1)],
+      yAxis: [
+        ecEixoValor(Math.max(Math.abs(lo1), Math.abs(hi1)), 'moeda',
+          {gridIndex: 0, min: lo1, max: hi1,
+           name: 'ENTRADAS \u00D7 SA\u00CDDAS POR M\u00CAS \u00B7 ' + u1.t}),
+        ecEixoValor(Math.max(Math.abs(lo2), Math.abs(hi2)), 'moeda',
+          {gridIndex: 1, min: lo2, max: hi2,
+           name: 'SALDO PROJETADO'
+                 + (fluxoCenario ? ' + CEN\u00C1RIO' : ' (S\u00D3 O LAN\u00C7ADO)')
+                 + ' \u00B7 ' + u2.t}),
+      ],
+      series: [],
+    };
+    o.tooltip.formatter = p => {
+      const k = p[0].dataIndex, f = fluxo[k];
+      let h = '<b>' + periodoLabel(f.periodo) + '</b>'
+        + (f.periodo === 'atrasado'
+           ? ' <span style="color:#6B7580">vencidos at\u00E9 a ref.</span>' : '')
+        + '<br><span style="color:#1E7F4F">&#9632;</span> Receber: <b>'
+        + BRL.format(f.receber) + '</b>'
+        + '<br><span style="color:#C03221">&#9632;</span> Pagar: <b>'
+        + BRL.format(f.pagar) + '</b>'
+        + '<br>L\u00EDquido: ' + BRL.format(f.liquido)
+        + '<br>Saldo projetado: <b style="color:'
+        + (f.saldo_projetado < 0 ? '#C03221' : '#14181D') + '">'
+        + BRL.format(f.saldo_projetado) + '</b>';
+      if(fluxoCenario) h += '<br>Saldo realista: ' + BRL.format(f.saldo_realista)
+        + (iExtra >= 0 && k >= iExtra
+           ? ' <span style="color:#B97709">extrapola\u00E7\u00E3o</span>' : '');
+      const prov = provAcc.get(k);
+      if(prov) h += '<br><span style="color:' + CC.laranja + '">&#9632;</span>'
+        + ' Saldo or\u00E7ado (acum.): <b>' + BRL.format(prov.saldoOrcado) + '</b>'
+        + '<br>Gera\u00E7\u00E3o or\u00E7ada do m\u00EAs: ' + BRL.format(prov.ponto.geracao)
+        + '<br>Entradas or\u00E7adas: ' + BRL.format(prov.ponto.entradas)
+        + '<br>Sa\u00EDdas or\u00E7adas: ' + BRL.format(prov.ponto.saidas);
+      return h;
+    };
+
+    // -- painel 1 ---------------------------------------------------------
+    const receber = ecBarras('Receber', fluxo.map(f => f.receber), CC.verde, {largura: 22});
+    const pagar = ecBarras('Pagar', fluxo.map(f => f.pagar), CC.vermelho, {largura: 22});
+    [receber, pagar].forEach(b => { b.xAxisIndex = 0; b.yAxisIndex = 0; });
+    if(atrasado){
+      receber.markArea = {silent:true, itemStyle:{color:'#ECEEF1', opacity:0.55},
+        data:[[{xAxis: rot[0]}, {xAxis: rot[0]}]]};
     }
-  }
-  // linha tracejada laranja do SALDO ORÇADO (provisão, M3): só entre meses com
-  // dado casado (sem interpolar sobre um mês sem provisão), em segmentos —
-  // mesma natureza/escala do saldo projetado/realista, agora no mesmo painel
-  if(provPorMes){
-    const cxProv=i=>mL+bandW*i+bandW/2;
-    provSegs.forEach(seg=>{
-      if(seg.length>1){
-        const pts=seg.map(([i])=>`${cxProv(i)},${y2(provAcc.get(i).saldoOrcado)}`).join(' ');
-        s+=`<polyline points="${pts}" fill="none" stroke="${CC.laranja}" stroke-width="2" stroke-dasharray="5 4" stroke-linecap="round" stroke-linejoin="round"/>`;
-      }
-      seg.forEach(([i])=>{
-        const a=provAcc.get(i);
-        s+=`<circle cx="${cxProv(i)}" cy="${y2(a.saldoOrcado)}" r="3.5" fill="#fff" stroke="${CC.laranja}" stroke-width="2">`
-          +`<title>Saldo orçado: ${BRL.format(a.saldoOrcado)} · entradas ${BRL.format(a.ponto.entradas)} · saídas ${BRL.format(a.ponto.saidas)} · geração do mês ${BRL.format(a.ponto.geracao)}</title></circle>`;
-      });
-    });
-  }
-  s+=`<polyline points="${fluxo.map((f,i)=>`${px(i)},${y2(f.saldo_projetado)}`).join(' ')}" fill="none" stroke="${CC.navy700}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>`;
-  let minI=0; fluxo.forEach((f,i)=>{ if(f.saldo_projetado<fluxo[minI].saldo_projetado) minI=i; });
-  const mf=fluxo[minI];
-  s+=`<circle cx="${px(minI)}" cy="${y2(mf.saldo_projetado)}" r="4" fill="${CC.navy700}" stroke="#fff" stroke-width="2"/>`;
-  s+=`<text x="${px(minI)}" y="${Math.min(y2(mf.saldo_projetado)+18,p2t+h2-4)}" text-anchor="middle" font-size="11" font-weight="600" fill="#39414A">${NMI.format(mf.saldo_projetado/u2.d)} ${u2.t.replace('R$ ','').toLowerCase()}</text>`;
+    o.series.push(receber, pagar);
 
-  fluxo.forEach((f,i)=>{ const at=f.periodo==='atrasado';
-    s+=`<text x="${px(i)}" y="${p2t+h2+18}" text-anchor="middle" font-size="11" fill="${at?'#39414A':'#4F5860'}" font-weight="${at?'700':'400'}">${periodoLabel(f.periodo)}</text>`; });
+    // -- painel 2 ---------------------------------------------------------
+    if(fluxoCenario){
+      /* BANDA entre projetado e realista pela receita padrao do ECharts: uma
+         serie invisivel no piso e a diferenca empilhada em cima. O
+         `stackStrategy:'all'` e obrigatorio porque o piso pode ser NEGATIVO --
+         sem ele o ECharts separa pilha positiva de negativa e a banda
+         desgruda da linha. */
+      const piso = fluxo.map(f => Math.min(f.saldo_projetado, f.saldo_realista));
+      const alt = fluxo.map(f => Math.abs(f.saldo_realista - f.saldo_projetado));
+      o.series.push(
+        {name:'banda_piso', type:'line', xAxisIndex:1, yAxisIndex:1, stack:'banda',
+         stackStrategy:'all', data: piso, symbol:'none', silent:true,
+         lineStyle:{opacity:0}, itemStyle:{opacity:0}, tooltip:{show:false}},
+        {name:'banda_alt', type:'line', xAxisIndex:1, yAxisIndex:1, stack:'banda',
+         stackStrategy:'all', data: alt, symbol:'none', silent:true,
+         lineStyle:{opacity:0}, tooltip:{show:false},
+         areaStyle:{color: CC.navy500, opacity: 0.10}});
+      const real = ecLinha('Saldo realista', fluxo.map(f => f.saldo_realista),
+                           CC.navy500, {eixo: 1, simbolo:'none', tracejada: true});
+      real.xAxisIndex = 1; real.lineStyle.type = [6,4];
+      o.series.push(real);
+    }
+    if(provPorMes && provAcc.size){
+      /* `null` onde nao ha provisao + `connectNulls:false` = os segmentos do
+         SVG, sem codigo de segmentacao nenhum. */
+      const orc = ecLinha('Saldo or\u00E7ado', fluxo.map((f, k) =>
+        (provAcc.has(k) ? provAcc.get(k).saldoOrcado : null)), CC.laranja,
+        {eixo: 1, simbolo:'circle', tamanho: 7});
+      orc.xAxisIndex = 1;
+      orc.lineStyle.type = [5,4];
+      orc.itemStyle = {color:'#fff', borderColor: CC.laranja, borderWidth: 2};
+      o.series.push(orc);
+    }
+    const proj = ecLinha('Saldo projetado', fluxo.map(f => f.saldo_projetado),
+                         CC.navy700, {eixo: 1, simbolo:'circle', tamanho: 8});
+    proj.xAxisIndex = 1;
+    /* Uma bolinha so: o PIOR mes. E o ponto que decide se precisa antecipar,
+       e numa serie inteira de bolinhas ele se perderia. O valor sai escrito
+       embaixo dele, porque e o unico numero que alguem procura de longe. */
+    proj.symbolSize = (v, p) => (p.dataIndex === minI ? 8 : 0);
+    proj.itemStyle = {color: CC.navy700, borderColor:'#fff', borderWidth: 2};
+    proj.data = fluxo.map((f, k) => (k !== minI ? f.saldo_projetado : {
+      value: f.saldo_projetado,
+      label: {show:true, position:'bottom', color:'#39414A',
+              fontSize: 11, fontWeight: 600,
+              textBorderColor:'#fff', textBorderWidth: 3,
+              formatter: () => NMI.format(f.saldo_projetado / u2.d) + ' '
+                               + u2.t.replace('R$ ', '').toLowerCase()},
+    }));
 
-  s+=`<line id="chart-xhair" x1="0" x2="0" y1="${t1-20}" y2="${p2t+h2}" stroke="${CC.navy400}" stroke-width="1" opacity="0"/>`;
-  s+=`<circle id="chart-mkP" r="4.5" fill="${CC.navy700}" stroke="#fff" stroke-width="2" opacity="0"/>`;
-  s+=`<circle id="chart-mkR" r="4.5" fill="${CC.navy500}" stroke="#fff" stroke-width="2" opacity="0"/>`;
-  s+=`<rect x="${mL}" y="${t1-20}" width="${iw}" height="${p2t+h2-(t1-20)}" fill="transparent"/>`;
-  svg.innerHTML=s;
-
-  GEOM['chart']={kind:'fluxo',rows:fluxo,n,bandW,mL,W,px,y2,topY:t1-20,botY:p2t+h2,wrap:'wrapFluxo',tip:'tipFluxo',provAcc};
-  bindHover('chart');
+    /* Todas as faixas do painel de saldo penduradas NESTA serie, que e a
+       unica sempre presente. Cada entrada de `markArea.data` carrega o
+       proprio `itemStyle` -- por isso cabem cores diferentes numa so. */
+    const areas = [], linhas = [];
+    if(atrasado) areas.push([{xAxis: rot[0], itemStyle:{color:'#ECEEF1', opacity:0.55}},
+                             {xAxis: rot[0]}]);
+    if(lo2 < 0){
+      areas.push([{yAxis: lo2, itemStyle:{color:'#C03221', opacity:0.05}}, {yAxis: 0}]);
+      linhas.push({yAxis: 0, lineStyle:{color:'#9AA3AE', width:1.3, type:'solid'},
+                   label:{show:false}});
+    }
+    if(limCred > 0 && lo2 < 0){
+      areas.push([{yAxis: Math.max(lo2, -limCred),
+                   itemStyle:{color: CC.amarelo, opacity: 0.10}}, {yAxis: 0}]);
+      linhas.push({yAxis: Math.max(lo2, -limCred),
+        lineStyle:{color: CC.amarelo, width: 1.5, type:[5,4]},
+        label:{show:true, position:'insideEndTop',
+               formatter: 'limite de cr\u00E9dito ' + BRL.format(limCred),
+               color: CC.amarelo, fontWeight: 700, fontSize: 10.5,
+               textBorderColor:'#fff', textBorderWidth: 3}});
+    }
+    if(iExtra >= 0 && iExtra < n){
+      areas.push([{xAxis: rot[iExtra], itemStyle:{color: CC.amarelo, opacity: 0.07}},
+                  {xAxis: rot[n-1]}]);
+      linhas.push({xAxis: rot[iExtra],
+        lineStyle:{color: CC.amarelo, width: 1.5, type:[4,3]},
+        label:{show:true, position:'insideStartTop',
+               formatter:'daqui pra frente o cen\u00E1rio \u00E9 extrapola\u00E7\u00E3o',
+               color: CC.amarelo, fontWeight: 700, fontSize: 10}});
+    }
+    if(areas.length) proj.markArea = {silent:true, data: areas};
+    if(linhas.length) proj.markLine = {silent:true, symbol:'none', data: linhas};
+    o.series.push(proj);
+    return o;
+  }), 'sem dados no per\u00EDodo');
 }
 
-/* ---------------- Gráfico de vencimentos (Receber/Pagar) ---------------- */
 function bucketLabel(b,ref){
   if(b.startsWith('1:')) return periodoLabel(b.slice(2));
   const d = ref ? new Date(ref+'T12:00:00') : new Date();
@@ -7351,51 +7433,42 @@ function bucketLabel(b,ref){
   if(b==='2:pos') return '≥ '+mk(12);
   return b;
 }
+/* Aging de vencimento -- serve a RECEBER e a PAGAR, que sao a mesma pergunta
+   com o sinal trocado. Duas regras vieram do SVG:
+
+   - VENCIDO EMBAIXO, a vencer em cima. A ordem nao e estetica: o vencido e o
+     que ja e problema, e ele precisa nascer na linha de base para dar para
+     comparar a altura dele entre os meses de relance.
+   - A legenda esta no HTML ao lado do titulo (as bolinhas Vencido/A vencer),
+     entao aqui NAO se desenha outra: duas legendas para a mesma serie e ruido.
+
+   `tipId` e `wrapId` continuam na assinatura porque os dois chamadores os
+   passam; o tooltip agora e do proprio ECharts. */
 function renderVenc(svgId,tipId,wrapId,rows,dataRef){
-  const svg=document.getElementById(svgId);
-  GEOM[svgId]=null; ACTIVE[svgId]=-1;
-  rows=rows||[];
-  if(!rows.length){ svg.setAttribute('viewBox','0 0 960 250');
-    svg.innerHTML='<text x="480" y="120" text-anchor="middle" fill="#6E7883" font-size="14">sem dados no período</text>'; return; }
-  const W=960,H=250,mL=64,mR=16,mT=28,mB=34, iw=W-mL-mR, ih=H-mT-mB;
-  svg.setAttribute('viewBox',`0 0 ${W} ${H}`);
-  const n=rows.length, bandW=iw/n;
-  const maxV=Math.max(1,...rows.map(r=>r.vencido+r.a_vencer));
-  const tks=niceTicks(0,maxV,4), top=tks[tks.length-1], u=unitOf(top);
-  const y=v=>mT+ih-(v/top)*ih;
-  const y0=y(0);
-  let s='';
-  s+=`<rect id="${svgId}-hband" x="0" y="${mT-14}" width="${bandW}" height="${ih+14}" fill="${CC.navy100}" opacity="0"/>`;
-  s+=`<text x="${mL}" y="${mT-12}" font-size="11" fill="#6E7883" font-weight="600" letter-spacing="1.5">${u.t}</text>`;
-  tks.forEach(v=>{ const yy=y(v);
-    s+=`<line x1="${mL}" y1="${yy}" x2="${W-mR}" y2="${yy}" stroke="${v===0?'#C2C8D0':'#ECEEF1'}" stroke-width="1"/>`;
-    s+=`<text x="${mL-8}" y="${yy+4}" text-anchor="end" font-size="11" fill="#6E7883" font-family="IBM Plex Mono,monospace">${NMI.format(v/u.d)}</text>`; });
-  const barW=Math.min(26,bandW*0.5);
-  const px=i=>mL+bandW*i+bandW/2;
-  rows.forEach((r,i)=>{
-    const x=px(i)-barW/2;
-    const yV=y(r.vencido);                    // topo do segmento vencido
-    const yT=y(r.vencido+r.a_vencer);         // topo da pilha
-    if(r.a_vencer>0.5){
-      // vencido embaixo (reto) + gap 2px + a vencer em cima (topo arredondado)
-      s+=colRect(x,barW,yV,y0,'#C03221');
-      s+=colPath(x,barW,yT,Math.max(yV-2,yT+0.1),4,'#1E7F4F');
-    } else {
-      s+=colPath(x,barW,yV,y0,4,'#C03221');
-    }
-  });
-  // rótulos do eixo X (pula alguns se apertado)
-  const step=Math.max(1,Math.ceil(n/16));
-  rows.forEach((r,i)=>{ if(i%step && i!==n-1) return;
-    s+=`<text x="${px(i)}" y="${H-mB+18}" text-anchor="middle" font-size="10.5" fill="#4F5860">${bucketLabel(r.bucket,dataRef)}</text>`; });
-  s+=`<line id="${svgId}-xhair" x1="0" x2="0" y1="${mT-14}" y2="${y0}" stroke="${CC.navy400}" stroke-width="1" opacity="0"/>`;
-  s+=`<rect x="${mL}" y="${mT-14}" width="${iw}" height="${ih+14}" fill="transparent"/>`;
-  svg.innerHTML=s;
-  GEOM[svgId]={kind:'venc',rows,n,bandW,mL,W,px,topY:mT-14,botY:y0,wrap:wrapId,tip:tipId,dataRef};
-  bindHover(svgId);
+  rows = rows || [];
+  ecDesenhar(svgId, rows.length && (() => {
+    const maxV = Math.max(1, ...rows.map(r => r.vencido + r.a_vencer));
+    const o = ecOpcoes(rows.map(r => bucketLabel(r.bucket, dataRef)), maxV, {sombra: true});
+    o.tooltip.formatter = p => {
+      const r = rows[p[0].dataIndex];
+      return '<b>' + bucketLabel(r.bucket, dataRef) + '</b>'
+        + '<br><span style="color:#C03221">&#9632;</span> Vencido: <b>'
+        + BRL.format(r.vencido) + '</b>'
+        + '<br><span style="color:#1E7F4F">&#9632;</span> A vencer: <b>'
+        + BRL.format(r.a_vencer) + '</b>'
+        + '<br>Total: <b>' + BRL.format(r.vencido + r.a_vencer) + '</b>'
+        + '<br>Titulos: ' + r.titulos.toLocaleString('pt-BR');
+    };
+    o.series = [
+      ecBarras('Vencido', rows.map(r => r.vencido), CC.vermelho,
+               {empilhar:'v', largura: 26, raio: false}),
+      ecBarras('A vencer', rows.map(r => r.a_vencer), CC.verde,
+               {empilhar:'v', largura: 26}),
+    ];
+    return o;
+  }), 'sem dados no periodo');
 }
 
-/* ---------------- Hover/teclado/tooltip (compartilhado) ---------------- */
 function bindHover(svgId){
   const svg=document.getElementById(svgId);
   if(svg.dataset.bound) return;
@@ -10760,61 +10833,76 @@ async function fcDetalhe(i){
     alvo.dataset.carregado='';
   }
 }
-function chartFcRender(linhas){
-  const svg=document.getElementById('chartFc');
-  GEOM['chartFc']=null; ACTIVE['chartFc']=-1;
-  if(!linhas.length){ svg.innerHTML='<text x="480" y="120" text-anchor="middle" fill="#6E7883" font-size="14">sem dados</text>'; return; }
-  const W=960,H=250,mL=78,mR=16,mT=22,mB=36, iw=W-mL-mR, ih=H-mT-mB;
-  const n=linhas.length, bandW=iw/n;
-  const vals=linhas.map(l=>l.saldo_final).concat([0]);
-  const tks=niceTicks(Math.min(...vals), Math.max(...vals), 5);
-  const lo=tks[0], hi=tks[tks.length-1], u=unitOf(Math.max(Math.abs(lo),Math.abs(hi)));
-  const y=v=>mT+ih-((v-lo)/((hi-lo)||1))*ih;
-  const px=i=>mL+bandW*i+bandW/2;
-  let s=`<text x="${mL}" y="${mT-8}" font-size="11" fill="#6E7883" font-weight="600" letter-spacing="1.5">${u.t}</text>`;
-  s+=`<rect id="chartFc-hband" x="0" y="${mT-10}" width="${bandW}" height="${ih+10}" fill="${CC.navy100}" opacity="0"/>`;
-  tks.forEach(v=>{ const yy=y(v);
-    s+=`<line x1="${mL}" y1="${yy}" x2="${W-mR}" y2="${yy}" stroke="${v===0?'#C2C8D0':'#ECEEF1'}" stroke-width="1"/>`;
-    s+=`<text x="${mL-8}" y="${yy+4}" text-anchor="end" font-size="10" fill="#6E7883" font-family="IBM Plex Mono,monospace">${NMI.format(v/u.d)}</text>`; });
-  if(lo<0){ s+=`<rect x="${mL}" y="${y(0)}" width="${iw}" height="${Math.max(0,mT+ih-y(0))}" fill="#C03221" opacity=".05"/>`; }
-  const barW=Math.min(34,bandW*0.55);
-  linhas.forEach((l,i)=>{
-    // período sem recebível lançado sai HACHURADO: o saldo despenca por falta
-    // de dado, e barra cheia leria como previsão de caixa
-    const cor = l.saldo_final<0 ? '#C03221' : CC.navy700;
-    const fill = l.sem_receber ? 'url(#hatchFc)' : cor;
-    const y0=y(0), yv=y(l.saldo_final);
-    s+=`<rect x="${px(i)-barW/2}" y="${Math.min(y0,yv)}" width="${barW}" height="${Math.max(1,Math.abs(yv-y0))}" fill="${fill}" rx="3"/>`;
-  });
-  s=`<defs><pattern id="hatchFc" width="6" height="6" patternTransform="rotate(45)" patternUnits="userSpaceOnUse">`
-    +`<rect width="6" height="6" fill="#9AA3AE"/><rect width="2.4" height="6" fill="#fff" opacity=".62"/></pattern></defs>`+s;
-  /* ROTULOS DO EIXO X. Antes: `i%passo===0||i===n-1`, que forcava o ultimo
-     rotulo mesmo quando n-1 nao caia no passo — ele nascia colado no anterior
-     e os dois viravam um borrao. Com granularidade SEMANA isso acontecia
-     quase sempre, porque o numero de semanas raramente e multiplo do passo.
+/* Saldo de caixa projetado por periodo. Tres regras vieram do SVG:
 
-     Agora a colisao e medida de verdade, e a PRIORIDADE E DO ULTIMO: e o fim
-     do horizonte, o rotulo que se procura no grafico. Quem colide com ele
-     sai. */
-  const larg=r=>String(r||'').length*5.7+9;   // ~largura do texto a 10px
-  const passo=Math.max(1,Math.round(n/12));
-  const idx=[];
-  for(let i=0;i<n;i+=passo) idx.push(i);
-  if(idx[idx.length-1]!==n-1) idx.push(n-1);
-  for(let k=idx.length-2;k>=0;k--){
-    const a=idx[k], b=idx[k+1];
-    if(px(b)-larg(linhas[b].rotulo)/2 < px(a)+larg(linhas[a].rotulo)/2) idx.splice(k,1);
-  }
-  idx.forEach(i=>{ const l=linhas[i];
-    s+=`<text x="${px(i)}" y="${H-mB+18}" text-anchor="middle" font-size="10" fill="#4F5860">${esc(l.rotulo)}</text>`; });
-  s+=`<line id="chartFc-xhair" x1="0" x2="0" y1="${mT-10}" y2="${mT+ih}" stroke="${CC.navy400}" stroke-width="1" opacity="0"/>`;
-  s+=`<rect x="${mL}" y="${mT-10}" width="${iw}" height="${ih+10}" fill="transparent"/>`;
-  svg.innerHTML=s;
-  GEOM['chartFc']={kind:'fluxcon',rows:linhas,n,bandW,mL,W,px,topY:mT-10,botY:mT+ih,wrap:'wrapFc',tip:'tipFc'};
-  bindHover('chartFc');
+   - PERIODO SEM RECEBIVEL LANCADO SAI HACHURADO. O saldo despenca ali por
+     FALTA DE DADO, e barra cheia leria como previsao de caixa. E a mesma
+     familia do mes parcial hachurado.
+   - SALDO NEGATIVO E VERMELHO e a faixa abaixo do zero ganha um fundo
+     avermelhado -- o que decide nesta tela e em que periodo o caixa VIRA.
+   - O ULTIMO ROTULO DO EIXO X TEM PRIORIDADE. O `hideOverlap` do ECharts
+     resolve colisao mantendo o rotulo mais A ESQUERDA, e aqui isso e o
+     contrario do que interessa: o fim do horizonte e justamente o rotulo que
+     se procura. Por isso a selecao e calculada aqui, de tras para frente, e
+     entregue ao eixo por `interval` -- com `hideOverlap` DESLIGADO, senao ele
+     desfaria a escolha. */
+function chartFcRender(linhas){
+  ecDesenhar('chartFc', linhas.length && (() => {
+    const n = linhas.length;
+    const vals = linhas.map(l => l.saldo_final).concat([0]);
+    const tks = niceTicks(Math.min(...vals), Math.max(...vals), 5);
+    const lo = tks[0], hi = tks[tks.length-1];
+
+    /* Selecao dos rotulos do eixo X, do ultimo para o primeiro: quem colide
+       com um rotulo ja aceito e descartado. A largura e estimada em pixels a
+       partir do numero de caracteres, como no SVG. */
+    const larg = r => String(r || '').length * 5.7 + 9;
+    const passo = Math.max(1, Math.round(n/12));
+    const idx = [];
+    for(let k = 0; k < n; k += passo) idx.push(k);
+    if(idx[idx.length-1] !== n-1) idx.push(n-1);
+    const banda = 866 / n, px = k => banda*k + banda/2;
+    for(let k = idx.length-2; k >= 0; k--){
+      const a = idx[k], b = idx[k+1];
+      if(px(b) - larg(linhas[b].rotulo)/2 < px(a) + larg(linhas[a].rotulo)/2)
+        idx.splice(k, 1);
+    }
+    const mostrar = new Set(idx);
+
+    const o = ecOpcoes(linhas.map(l => l.rotulo),
+                       Math.max(Math.abs(lo), Math.abs(hi)),
+                       {sombra: true, left: 78,
+                        eixoY: {min: lo, max: hi},
+                        intervalo: k => mostrar.has(k)});
+    o.xAxis.axisLabel.hideOverlap = false;
+    o.tooltip.formatter = p => {
+      const r = linhas[p[0].dataIndex];
+      return '<b>' + esc(r.rotulo) + '</b>'
+        + (r.sem_receber
+           ? ' <span style="color:#B97709">sem recebivel lancado</span>' : '')
+        + '<br>Saldo inicial: ' + BRL.format(r.saldo_inicial)
+        + '<br><span style="color:#1E7F4F">&#9632;</span> Entradas: '
+        + BRL.format(r.entradas)
+        + '<br><span style="color:#C03221">&#9632;</span> Saidas: '
+        + BRL.format(r.saidas)
+        + '<br>Saldo final: <b style="color:'
+        + (r.saldo_final < 0 ? '#C03221' : '#14181D') + '">'
+        + BRL.format(r.saldo_final) + '</b>'
+        + (r.necessidade > 0 ? '<br>Necessidade: ' + BRL.format(r.necessidade) : '');
+    };
+    o.series = [ecBarras('Saldo final', linhas.map(l => l.saldo_final),
+      (k) => (linhas[k].saldo_final < 0 ? CC.vermelho : CC.navy700),
+      {largura: 34, raio: false,
+       parcial: linhas.map(l => !!l.sem_receber)})];
+    if(lo < 0){
+      o.series[0].markArea = {silent:true,
+        itemStyle:{color:'#C03221', opacity:0.05},
+        data:[[{yAxis: lo}, {yAxis: 0}]]};
+    }
+    return o;
+  }), 'sem dados');
 }
 
-/* ---------------- Antecipação de Recebíveis ---------------- */
 async function loadAntec(){
   skelKpis('kpis-antec',4);
   const seq=++antecSeq, btn=document.getElementById('btnRefresh'); if(btn) btn.disabled=true;
@@ -13984,40 +14072,61 @@ function cnpjFmt(d){
   if(d.length===11) return d.slice(0,3)+'.'+d.slice(3,6)+'.'+d.slice(6,9)+'-'+d.slice(9);
   return d;
 }
+/* Saldo de caixa dia a dia SEM antecipacao -- e o grafico que responde se a
+   antecipacao e necessaria. Tres coisas do SVG sobreviveram:
+
+   - A LINHA DA RESERVA, tracejada em vermelho, com a faixa ABAIXO dela
+     tingida: nao e o zero que decide, e a reserva minima. Caixa entrando
+     nessa faixa ja e problema, mesmo positivo.
+   - O PIOR DIA marcado com ponto vermelho. Numa serie diaria de dezenas de
+     pontos, achar o fundo a olho e justamente o que ninguem consegue -- e e
+     a data que decide quando antecipar.
+   - Os demais pontos ficam SEM simbolo: bolinha em toda serie diaria vira um
+     borrao e esconderia o unico ponto que importa. */
 function chartAntecRender(serie, reserva){
-  const svg=document.getElementById('chartAntec');
-  GEOM['chartAntec']=null; ACTIVE['chartAntec']=-1;
-  if(!serie.length){ svg.innerHTML='<text x="480" y="120" text-anchor="middle" fill="#6E7883" font-size="14">sem dados</text>'; return; }
-  const W=960,H=250,mL=76,mR=16,mT=22,mB=34, iw=W-mL-mR, ih=H-mT-mB;
-  const n=serie.length, bandW=iw/n;
-  const vals=serie.map(r=>r.saldo).concat([reserva||0, 0]);
-  const tks=niceTicks(Math.min(...vals), Math.max(...vals), 5);
-  const lo=tks[0], hi=tks[tks.length-1], u=unitOf(Math.max(Math.abs(lo),Math.abs(hi)));
-  const y=v=>mT+ih-((v-lo)/((hi-lo)||1))*ih;
-  const px=i=>mL+bandW*i+bandW/2;
-  let s=`<text x="${mL}" y="${mT-8}" font-size="11" fill="#6E7883" font-weight="600" letter-spacing="1.5">${u.t}</text>`;
-  s+=`<rect id="chartAntec-hband" x="0" y="${mT-10}" width="${bandW}" height="${ih+10}" fill="${CC.navy100}" opacity="0"/>`;
-  tks.forEach(v=>{ const yy=y(v);
-    s+=`<line x1="${mL}" y1="${yy}" x2="${W-mR}" y2="${yy}" stroke="${v===0?'#C2C8D0':'#ECEEF1'}" stroke-width="1"/>`;
-    s+=`<text x="${mL-8}" y="${yy+4}" text-anchor="end" font-size="10" fill="#6E7883" font-family="IBM Plex Mono,monospace">${NMI.format(v/u.d)}</text>`; });
-  // faixa vermelha abaixo da reserva: onde o caixa não pode entrar
-  if(lo < (reserva||0)){
-    s+=`<rect x="${mL}" y="${y(reserva||0)}" width="${iw}" height="${Math.max(0,mT+ih-y(reserva||0))}" fill="#C03221" opacity=".06"/>`;
-    s+=`<line x1="${mL}" y1="${y(reserva||0)}" x2="${W-mR}" y2="${y(reserva||0)}" stroke="#C03221" stroke-width="1.3" stroke-dasharray="5 4"/>`;
-  }
-  s+=`<polyline points="${serie.map((r,i)=>`${px(i)},${y(r.saldo)}`).join(' ')}" fill="none" stroke="${CC.navy700}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>`;
-  let minI=0; serie.forEach((r,i)=>{ if(r.saldo<serie[minI].saldo) minI=i; });
-  s+=`<circle cx="${px(minI)}" cy="${y(serie[minI].saldo)}" r="4" fill="#C03221" stroke="#fff" stroke-width="2"><title>Pior saldo: ${BRL.format(serie[minI].saldo)} em ${fmtD(serie[minI].dia)}</title></circle>`;
-  const passo=Math.max(1,Math.round(n/9));
-  serie.forEach((r,i)=>{ if(i%passo===0||i===n-1) s+=`<text x="${px(i)}" y="${H-mB+18}" text-anchor="middle" font-size="10" fill="#4F5860">${fmtD(r.dia).slice(0,5)}</text>`; });
-  s+=`<line id="chartAntec-xhair" x1="0" x2="0" y1="${mT-10}" y2="${mT+ih}" stroke="${CC.navy400}" stroke-width="1" opacity="0"/>`;
-  s+=`<rect x="${mL}" y="${mT-10}" width="${iw}" height="${ih+10}" fill="transparent"/>`;
-  svg.innerHTML=s;
-  GEOM['chartAntec']={kind:'antec',rows:serie,n,bandW,mL,W,px,topY:mT-10,botY:mT+ih,wrap:'wrapAntec',tip:'tipAntec'};
-  bindHover('chartAntec');
+  ecDesenhar('chartAntec', serie.length && (() => {
+    const res = reserva || 0;
+    const vals = serie.map(r => r.saldo).concat([res, 0]);
+    const tks = niceTicks(Math.min(...vals), Math.max(...vals), 5);
+    const lo = tks[0], hi = tks[tks.length-1];
+    const n = serie.length;
+    let minI = 0;
+    serie.forEach((r, k) => { if(r.saldo < serie[minI].saldo) minI = k; });
+
+    const passo = Math.max(1, Math.round(n/9));
+    const o = ecOpcoes(serie.map(r => fmtD(r.dia).slice(0,5)),
+                       Math.max(Math.abs(lo), Math.abs(hi)),
+                       {left: 76, eixoY: {min: lo, max: hi},
+                        intervalo: k => (k % passo === 0 || k === n-1)});
+    o.tooltip.formatter = p => {
+      const r = serie[p[0].dataIndex];
+      const ruim = r.saldo < res;
+      return '<b>' + fmtD(r.dia) + '</b>'
+        + (p[0].dataIndex === minI ? ' <span style="color:#C03221">pior saldo</span>' : '')
+        + '<br>Saldo projetado: <b style="color:'
+        + (ruim ? '#C03221' : '#14181D') + '">' + BRL.format(r.saldo) + '</b>'
+        + (ruim ? '<br><span style="color:#C03221">abaixo da reserva de '
+                  + BRL.format(res) + '</span>' : '');
+    };
+    const linha = ecLinha('Saldo projetado', serie.map(r => r.saldo), CC.navy700,
+                          {simbolo:'circle', tamanho: 8});
+    linha.symbolSize = (v, p) => (p.dataIndex === minI ? 8 : 0);
+    linha.itemStyle = {color:'#C03221', borderColor:'#fff', borderWidth: 2};
+    if(lo < res){
+      linha.markArea = {silent:true, itemStyle:{color:'#C03221', opacity:0.06},
+                        data:[[{yAxis: lo}, {yAxis: res}]]};
+      linha.markLine = {silent:true, symbol:'none',
+        lineStyle:{color:'#C03221', width:1.3, type:[5,4]},
+        label:{show:true, position:'insideEndTop', formatter:'reserva',
+               color:'#C03221', fontWeight:700, fontSize:10.5,
+               textBorderColor:'#fff', textBorderWidth:3},
+        data:[{yAxis: res}]};
+    }
+    o.series = [linha];
+    return o;
+  }), 'sem dados');
 }
 
-/* ---------------- Lançamentos Bancários ---------------- */
 async function loadLanc(){
   skelKpis('kpis-lanc',4);
   const seq = ++lancSeq;
@@ -14800,42 +14909,13 @@ function renderMul(d){
   document.getElementById('meta').innerHTML='<b>Atualizado '+ts.toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'})+'</b><br>'+ts.toLocaleDateString('pt-BR');
 }
 function chartRentMatriz(cs){
-  const svg=document.getElementById('chartRent');
-  const pts=cs.filter(c=>c.margem_pct!=null && c.receita>0);
-  if(!pts.length){ svg.innerHTML='<text x="480" y="200" text-anchor="middle" fill="#6E7883" font-size="14">sem dados</text>'; return; }
-  const W=960,H=400,mL=70,mR=24,mT=24,mB=44, iw=W-mL-mR, ih=H-mT-mB;
-  const maxR=Math.max(...pts.map(p=>p.receita));
-  const margs=pts.map(p=>Math.max(-10,Math.min(85,p.margem_pct)));
-  const loM=Math.min(0,...margs)-5, hiM=Math.max(50,...margs)+5;
-  const recs=[...pts.map(p=>p.receita)].sort((a,b)=>a-b);
-  const medR=recs[Math.floor(recs.length/2)];
-  const X=v=>mL+Math.sqrt(v/maxR)*iw;                 // escala raiz: espalha os pequenos
-  const Y=v=>mT+ih-((Math.max(-10,Math.min(85,v))-loM)/(hiM-loM))*ih;
-  const yLim=Y(25), xMed=X(medR);
-  let s='';
-  s+=`<rect x="${mL}" y="${mT}" width="${xMed-mL}" height="${yLim-mT}" fill="${CC.navy500}" opacity="0.05"/>`;
-  s+=`<rect x="${xMed}" y="${mT}" width="${W-mR-xMed}" height="${yLim-mT}" fill="#1E7F4F" opacity="0.06"/>`;
-  s+=`<rect x="${mL}" y="${yLim}" width="${xMed-mL}" height="${mT+ih-yLim}" fill="#6E7883" opacity="0.05"/>`;
-  s+=`<rect x="${xMed}" y="${yLim}" width="${W-mR-xMed}" height="${mT+ih-yLim}" fill="#C03221" opacity="0.06"/>`;
-  s+=`<line x1="${mL}" y1="${yLim}" x2="${W-mR}" y2="${yLim}" stroke="#C2C8D0" stroke-dasharray="5 4"/>`;
-  s+=`<line x1="${xMed}" y1="${mT}" x2="${xMed}" y2="${mT+ih}" stroke="#C2C8D0" stroke-dasharray="5 4"/>`;
-  s+=`<text x="${W-mR-4}" y="${yLim-6}" text-anchor="end" font-size="10" fill="#6E7883">margem 25%</text>`;
-  [0,25,50,75].forEach(v=>{ if(v>=loM&&v<=hiM){ const yy=Y(v);
-    s+=`<text x="${mL-8}" y="${yy+4}" text-anchor="end" font-size="10" fill="#6E7883" font-family="IBM Plex Mono,monospace">${v}%</text>`;}});
-  s+=`<text x="${mL}" y="${H-8}" font-size="10" fill="#6E7883">→ receita no período (escala raiz)</text>`;
-  const topNames=new Set(pts.slice().sort((a,b)=>b.receita-a.receita).slice(0,8).map(p=>p.cliente));
-  pts.forEach(p=>{
-    const alta=p.receita>=medR, boa=p.margem_pct>=25;
-    const cor=alta&&boa?'#1E7F4F':(alta&&!boa?'#C03221':(boa?CC.navy500:'#6E7883'));
-    const x=X(p.receita), y=Y(p.margem_pct);
-    const nome=p.cliente.length>22?p.cliente.slice(0,22)+'…':p.cliente;
-    s+=`<circle cx="${x}" cy="${y}" r="8" fill="${cor}" opacity="0.75" stroke="#fff" stroke-width="1.5">`+
-       `<title>${esc(p.cliente)} — receita ${BRL.format(p.receita)} · margem ${p.margem_pct.toFixed(1)}%</title></circle>`;
-    if(topNames.has(p.cliente))
-      s+=`<text x="${Math.min(x+11,W-mR-80)}" y="${y+4}" font-size="10.5" fill="#4F5860" font-weight="600">${esc(nome)}</text>`;
-  });
-  svg.innerHTML=s;
+  const pts = cs.filter(c => c.margem_pct != null && c.receita > 0);
+  matrizMargemReceita('chartRent', pts, {
+    pisoY: -10, tetoY: 85, minTopo: 50, corte: 22,
+    legendaX: 'receita no per\u00EDodo',
+    rotReceita: 'Receita', rotMargem: 'Margem', rotLinha: 'margem 25%'});
 }
+
 function mulToggle(i){
   const det=document.getElementById('mul-det-'+i);
   if(!det) return;
@@ -15125,8 +15205,7 @@ function renderClif(d){
       <span class="k"><i class="sw hatch"></i>Mês corrente (parcial)</span>
     </div>
     <div class="chartwrap" id="wrapClif">
-      <svg id="chartClif" viewBox="0 0 960 250" preserveAspectRatio="xMidYMid meet" tabindex="0" role="img"
-           aria-label="Frete das viagens por mês no período consultado."></svg>
+      <div id="chartClif" style="width:100%;height:250px" role="img"></div>
       <div class="tip" id="tipClif"></div>
     </div></div>`;
   h+=`<div class="card">
@@ -15150,44 +15229,62 @@ function renderClif(d){
 }
 /* Frete por mês da ficha. O mês corrente é o único que pode estar incompleto
    (a competência é por mês inteiro), então é ele que sai hachurado. */
-function chartClifRender(mensal, comp_ate){
-  const svg=document.getElementById('chartClif'); if(!svg) return;
-  GEOM['chartClif']=null; ACTIVE['chartClif']=-1;
-  if(!mensal.length){ svg.innerHTML=`<text x="480" y="120" text-anchor="middle" fill="${CC.n500}" font-size="14">sem viagens no período</text>`; return; }
-  const W=960,H=250,mL=64,mR=16,mT=28,mB=40, iw=W-mL-mR, ih=H-mT-mB;
-  const n=mensal.length, bandW=iw/n;
-  const maxV=Math.max(1,...mensal.map(r=>r.receita));
-  const tks=niceTicks(0,maxV,4), top=tks[tks.length-1]*1.08, u=unitOf(top);
-  const y=v=>mT+ih-(v/top)*ih, y0=y(0);
-  const px=i=>mL+bandW*i+bandW/2;
-  const barW=Math.min(30,bandW*0.5);
-  const hojeMes=(()=>{const t=new Date();return t.getFullYear()+'-'+String(t.getMonth()+1).padStart(2,'0');})();
-  const parc=mensal.map(r=>r.mes===hojeMes);
-  let s=`<defs><pattern id="hatchClif" width="6" height="6" patternTransform="rotate(45)" patternUnits="userSpaceOnUse">`+
-        `<rect width="6" height="6" fill="${CC.verde}"/><rect width="2.4" height="6" fill="#fff" opacity=".62"/></pattern></defs>`;
-  s+=`<rect id="chartClif-hband" x="0" y="${mT-14}" width="${bandW}" height="${ih+14}" fill="${CC.navy100}" opacity="0"/>`;
-  s+=`<text x="${mL}" y="${mT-12}" font-size="11" fill="${CC.n500}" font-weight="600" letter-spacing="1.5">${u.t}</text>`;
-  tks.forEach(v=>{ const yy=y(v);
-    s+=`<line x1="${mL}" y1="${yy}" x2="${W-mR}" y2="${yy}" stroke="${v===0?CC.n300:CC.grid}" stroke-width="1"/>`;
-    s+=`<text x="${mL-8}" y="${yy+4}" text-anchor="end" font-size="11" fill="${CC.n500}" font-family="IBM Plex Mono,monospace">${NMI.format(v/u.d)}</text>`; });
-  mensal.forEach((r,i)=>{ s+=colPath(px(i)-barW/2,barW,y(r.receita),y0,4,parc[i]?'url(#hatchClif)':CC.verde); });
-  const iMax=mensal.reduce((b,r,i)=>(r.receita>mensal[b].receita?i:b),0);
-  if(mensal[iMax].receita>0)
-    s+=`<text x="${px(iMax)}" y="${y(mensal[iMax].receita)-8}" text-anchor="middle" font-size="10.5" font-weight="700" fill="${CC.n700}" stroke="#fff" stroke-width="3" paint-order="stroke" stroke-linejoin="round">${brlAbbr(mensal[iMax].receita)}</text>`;
-  mensal.forEach((r,i)=>{
-    s+=`<text x="${px(i)}" y="${H-mB+18}" text-anchor="middle" font-size="10.5" font-weight="${parc[i]?'700':'400'}" fill="${parc[i]?CC.n900:CC.n600}">${periodoLabel(r.mes)}</text>`;
-    if(parc[i]) s+=`<text x="${px(i)}" y="${H-mB+31}" text-anchor="middle" font-size="9.5" font-weight="600" fill="${CC.n500}">parcial</text>`; });
-  s+=`<line id="chartClif-xhair" x1="0" x2="0" y1="${mT-14}" y2="${y0}" stroke="${CC.navy400}" stroke-width="1" opacity="0"/>`;
-  s+=`<rect x="${mL}" y="${mT-14}" width="${iw}" height="${ih+14}" fill="transparent"/>`;
-  svg.innerHTML=s;
-  GEOM['chartClif']={kind:'clif',rows:mensal,n,bandW,mL,W,px,topY:mT-14,botY:y0,wrap:'wrapClif',tip:'tipClif',parc};
-  bindHover('chartClif');
+/* RECEITA POR MES -- a barra unica que a ficha do Cliente e o painel
+   Comercial desenhavam separados, com o mesmo codigo. Duas regras:
+
+   - MES PARCIAL HACHURADO, com o rotulo do eixo em negrito e a palavra
+     "parcial" embaixo dele. A hachura sozinha e discreta demais quando a
+     barra e verde e cheia; a palavra e o que impede alguem de ler o ultimo
+     mes como queda.
+   - ROTULO DIRETO SO NO MELHOR MES. Numero em cima de toda barra vira ruido e
+     some no meio; um numero so, no pico, e a referencia que faz o resto da
+     serie ter escala.
+
+   Cada tela passa o proprio tooltip, porque o que explica a receita difere:
+   na ficha do cliente sao viagens e R$/km, no comercial sao CT-es e RKM. */
+function barrasReceitaMes(cid, mensal, parc, tooltip, vazio){
+  ecDesenhar(cid, mensal.length && (() => {
+    const maxV = Math.max(1, ...mensal.map(r => r.receita));
+    const iMax = mensal.reduce((b, r, k) => (r.receita > mensal[b].receita ? k : b), 0);
+    const o = ecOpcoes(mensal.map((r, k) => periodoLabel(r.mes) + (parc[k] ? '\nparcial' : '')),
+                       maxV, {sombra: true, bottom: 44});
+    /* O `textStyle` por item vence o `axisLabel` do eixo naquela categoria,
+       entao o mes parcial sai destacado e os demais seguem o padrao. */
+    o.xAxis.data = mensal.map((r, k) => ({
+      value: periodoLabel(r.mes) + (parc[k] ? '\nparcial' : ''),
+      textStyle: parc[k] ? {color: CC.n900, fontWeight: 700} : {color: CC.n600}}));
+    o.tooltip.formatter = p => tooltip(mensal[p[0].dataIndex], p[0].dataIndex, parc);
+    o.series = [ecBarras('Receita', mensal.map(r => r.receita), CC.verde,
+      {largura: 30, parcial: parc,
+       rotulo: (k, v) => (k === iMax && v > 0 ? brlAbbr(v) : '')})];
+    return o;
+  }), vazio || 'sem dados');
 }
-/* Mix próprio × agregado × terceiro (km). Mesma barra empilhada do "Km por
-   modalidade" da Visão Geral — o dado já vinha no payload e não era mostrado. */
-/* função e não const: CC só é definido bem mais abaixo no arquivo, e um objeto
-   de topo lendo CC.navy700 aqui estoura ReferenceError (TDZ) e derruba o script
-   inteiro no boot. Resolver a cor só na hora de desenhar. */
+function chartClifRender(mensal, comp_ate){
+  /* Aqui parcial e o MES CORRENTE, nao o cortado por filtro: a ficha do
+     cliente nao tem recorte de periodo proprio. */
+  const hojeMes = (() => { const t = new Date();
+    return t.getFullYear() + '-' + String(t.getMonth()+1).padStart(2,'0'); })();
+  const parc = mensal.map(r => r.mes === hojeMes);
+  barrasReceitaMes('chartClif', mensal, parc, (r, k) => {
+    const ant = k > 0 ? mensal[k-1] : null;
+    let h = '<b>' + periodoLabel(r.mes) + '</b>'
+      + (parc[k] ? ' <span style="color:#B97709">m\u00EAs incompleto</span>' : '')
+      + '<br><span style="color:' + CC.verde + '">&#9632;</span> Frete das viagens: <b>'
+      + BRL.format(r.receita) + '</b>'
+      + '<br>Viagens: ' + r.viagens.toLocaleString('pt-BR')
+      + '<br>Km: ' + Math.round(r.km).toLocaleString('pt-BR')
+      + '<br>R$/km: ' + (r.km > 0 ? fmtRsKm(r.receita/r.km) : '\u2014');
+    if(ant && ant.receita > 0){
+      const v = 100*(r.receita - ant.receita)/ant.receita;
+      h += '<br>vs ' + periodoLabel(ant.mes) + ': <b style="color:'
+        + (v >= 0 ? '#1E7F4F' : '#C03221') + '">' + (v > 0 ? '+' : '\u2212')
+        + Math.abs(v).toLocaleString('pt-BR',{maximumFractionDigits:1}) + '%</b>';
+    }
+    return h;
+  }, 'sem viagens no per\u00EDodo');
+}
+
 function mixLbl(k){
   return ({proprio:['Próprio (frota + locação)',CC.navy700],
            agregado:['Agregado',CC.laranja],
@@ -16574,10 +16671,34 @@ function carregarECharts(){
    ele mede o container uma vez, no init, e um painel aberto em tela cheia
    depois de aberto na metade ficaria com o desenho do tamanho antigo. */
 const _echartsVivos = new Map();
+/* CONTAINER DE LARGURA ZERO: o `resize` da janela não bastava.
+
+   Um gráfico desenhado enquanto a view dele está `display:none` mede ZERO e
+   fica assim — o `init` só mede uma vez, e voltar a exibir a view não dispara
+   evento nenhum. Com SVG isso não existia: o `viewBox` escalava sozinho para
+   a largura que houvesse na hora de aparecer. Foi a conversão que criou essa
+   armadilha, e ela é silenciosa (nenhum erro, só um gráfico achatado ou com
+   os rótulos do eixo todos suprimidos por colisão).
+
+   O `ResizeObserver` cobre os três casos de uma vez: a view que aparece, a
+   sidebar que recolhe e a janela que muda. Fica no registrador para valer
+   também para os gráficos que chamam o `init` na mão. */
+const _echartsOlho = (typeof ResizeObserver === 'function')
+  ? new ResizeObserver(entradas => entradas.forEach(e => {
+      const inst = e.target.__ecInst;
+      if(inst && !inst.isDisposed() && e.contentRect.width > 0){
+        try{ inst.resize(); }catch(_){}
+      }
+    }))
+  : null;
 function echartsRegistrar(id, inst){
   const antigo = _echartsVivos.get(id);
   if(antigo && antigo !== inst) antigo.dispose();
   _echartsVivos.set(id, inst);
+  if(_echartsOlho){
+    const el = inst.getDom();
+    if(el){ el.__ecInst = inst; _echartsOlho.observe(el); }
+  }
 }
 window.addEventListener('resize', () => {
   _echartsVivos.forEach(i => { try{ i.resize(); }catch(_){} });
@@ -16927,63 +17048,83 @@ function rvCel(m){
   const v=m.retorno_vazio, c=v>0.25?'var(--red)':(v>0.20?'var(--yellow-700)':'var(--green)');
   return `<span style="color:${c};font-weight:600">${(100*v).toLocaleString('pt-BR',{maximumFractionDigits:1})}%</span>`;
 }
+/* Km carregado x vazio por mes, com o retorno vazio em eixo secundario.
+   O grafico mais denso da casa. Cada regra dele sobreviveu a conversao:
+
+   - EMPILHADO, nao lado a lado: carregado e vazio somam o km total, e e a
+     soma que da a escala do mes. So o segmento de CIMA leva canto arredondado.
+   - MES CORTADO PELO FILTRO sai hachurado, e o corte pode ser no PRIMEIRO mes,
+     nao so no corrente: um periodo de 90 dias comeca no meio do mes e a
+     primeira barra parecia despencar.
+   - ROTULO DIRETO no ponto do retorno vazio, e AO LADO da barra, nunca acima:
+     acima ele cai dentro da barra vermelha do vazio. No ULTIMO mes a ancora
+     inverte para a esquerda, senao o texto sai do grafico. O ECharts nao faz
+     essa inversao sozinho -- e por item.
+   - VERMELHO ACIMA DE 20%, que e o alerta de retorno vazio em FTL, junto da
+     linha de meta desenhada no proprio grafico.
+   - PONTO VAZADO no mes parcial, como a hachura da barra.
+   - O eixo do % nao mostra escala (so o titulo "% VAZIO"): e por isso que o
+     rotulo direto e obrigatorio, nao decoracao. */
 function chartKmRender(mensal, dtDe, dtAte){
-  const svg=document.getElementById('chartKm');
-  GEOM['chartKm']=null; ACTIVE['chartKm']=-1;
-  if(!mensal.length){ svg.innerHTML='<text x="480" y="120" text-anchor="middle" fill="#6E7883" font-size="14">sem dados</text>'; return; }
-  const W=960,H=250,mL=64,mR=16,mT=28,mB=34, iw=W-mL-mR, ih=H-mT-mB;
-  const n=mensal.length, bandW=iw/n;
-  const maxV=Math.max(1,...mensal.map(r=>(r.km_carregado||0)+(r.km_vazio||0)));
-  const tks=niceTicks(0,maxV,4), top=tks[tks.length-1];
-  // "MIL KM ×1000" era ambíguo — o eixo mostrava 1,0 valendo 1 MILHÃO de km
-  const uk = top>=1.5e6 ? {d:1e6,t:'MILHÕES DE KM'} : {d:1e3,t:'MIL KM'};
-  const y=v=>mT+ih-(v/top)*ih, y0=y(0);
-  const px=i=>mL+bandW*i+bandW/2;
-  const barW=Math.min(26,bandW*0.5);
-  const parc=mensal.map(r=>_mesParcial(r.mes,dtDe,dtAte));
-  let s=`<defs><pattern id="hatchKmC" width="6" height="6" patternTransform="rotate(45)" patternUnits="userSpaceOnUse">`+
-        `<rect width="6" height="6" fill="#1E7F4F"/><rect width="2.4" height="6" fill="#fff" opacity=".62"/></pattern>`+
-        `<pattern id="hatchKmV" width="6" height="6" patternTransform="rotate(45)" patternUnits="userSpaceOnUse">`+
-        `<rect width="6" height="6" fill="#C03221"/><rect width="2.4" height="6" fill="#fff" opacity=".62"/></pattern></defs>`;
-  s+=`<rect id="chartKm-hband" x="0" y="${mT-14}" width="${bandW}" height="${ih+14}" fill="${CC.navy100}" opacity="0"/>`;
-  s+=`<text x="${mL}" y="${mT-12}" font-size="11" fill="#6E7883" font-weight="600" letter-spacing="1.5">${uk.t}</text>`;
-  tks.forEach(v=>{ const yy=y(v);
-    s+=`<line x1="${mL}" y1="${yy}" x2="${W-mR}" y2="${yy}" stroke="${v===0?'#C2C8D0':'#ECEEF1'}" stroke-width="1"/>`;
-    s+=`<text x="${mL-8}" y="${yy+4}" text-anchor="end" font-size="11" fill="#6E7883" font-family="IBM Plex Mono,monospace">${NMI.format(v/uk.d)}</text>`; });
-  mensal.forEach((r,i)=>{
-    const x=px(i)-barW/2, vc=r.km_carregado||0, vv=r.km_vazio||0;
-    const yC=y(vc), yT=y(vc+vv);
-    const fC=parc[i]?'url(#hatchKmC)':'#1E7F4F', fV=parc[i]?'url(#hatchKmV)':'#C03221';
-    if(vv>0.5){ s+=colRect(x,barW,yC,y0,fC); s+=colPath(x,barW,yT,Math.max(yC-2,yT+0.1),4,fV); }
-    else s+=colPath(x,barW,yC,y0,4,fC);
-  });
-  // eixo secundário: retorno vazio % (linha navy) + meta 20% (tracejada âmbar)
-  const _rv=mensal.map(r=>r.retorno_vazio).filter(v=>v!=null);
-  const topPct=Math.max(0.30,..._rv);
-  const pY=p=>mT+ih-(p/topPct)*ih;
-  s+=`<text x="${W-mR}" y="${mT-12}" text-anchor="end" font-size="11" fill="${CC.navy700}" font-weight="600" letter-spacing="1.5">% VAZIO</text>`;
-  s+=`<line x1="${mL}" y1="${pY(0.20)}" x2="${W-mR}" y2="${pY(0.20)}" stroke="#B97709" stroke-width="1.5" stroke-dasharray="5 4"/>`;
-  s+=`<text x="${W-mR-2}" y="${pY(0.20)-5}" text-anchor="end" font-size="10.5" fill="#B97709" font-weight="600">meta 20%</text>`;
-  const _pts=mensal.map((r,i)=>r.retorno_vazio!=null?`${px(i)},${pY(r.retorno_vazio)}`:null).filter(Boolean).join(' ');
-  if(_pts) s+=`<polyline points="${_pts}" fill="none" stroke="${CC.navy700}" stroke-width="2"/>`;
-  mensal.forEach((r,i)=>{ if(r.retorno_vazio==null) return;
-    const cy=pY(r.retorno_vazio);
-    s+=`<circle cx="${px(i)}" cy="${cy}" r="3.5" fill="${parc[i]?'#fff':CC.navy700}" stroke="${CC.navy700}" stroke-width="${parc[i]?2:0}"/>`;
-    // sem eixo Y à direita o % só é legível escrito no ponto — mas acima do ponto
-    // ele cai em cima da barra vermelha; sai ao lado, e à esquerda no último mês
-    const ult=(i===n-1), lx=px(i)+(ult?-1:1)*(barW/2+7);
-    s+=`<text x="${lx}" y="${cy+4}" text-anchor="${ult?'end':'start'}" font-size="10.5" font-weight="700" `+
-       `fill="${r.retorno_vazio>0.2?'#C03221':CC.navy700}" stroke="#fff" stroke-width="3.5" paint-order="stroke" `+
-       `stroke-linejoin="round">${(100*r.retorno_vazio).toLocaleString('pt-BR',{maximumFractionDigits:1})}%</text>`; });
-  mensal.forEach((r,i)=>{ s+=`<text x="${px(i)}" y="${H-mB+18}" text-anchor="middle" font-size="10.5" fill="#4F5860">${periodoLabel(r.mes)}</text>`; });
-  s+=`<line id="chartKm-xhair" x1="0" x2="0" y1="${mT-14}" y2="${y0}" stroke="${CC.navy400}" stroke-width="1" opacity="0"/>`;
-  s+=`<rect x="${mL}" y="${mT-14}" width="${iw}" height="${ih+14}" fill="transparent"/>`;
-  svg.innerHTML=s;
-  GEOM['chartKm']={kind:'kmv',rows:mensal,n,bandW,mL,W,px,topY:mT-14,botY:y0,wrap:'wrapKm',tip:'tipKm'};
-  bindHover('chartKm');
+  const parc = mensal.map(r => _mesParcial(r.mes, dtDe, dtAte));
+  ecDesenhar('chartKm', mensal.length && (() => {
+    const maxKm = Math.max(1, ...mensal.map(r => (r.km_carregado||0) + (r.km_vazio||0)));
+    const o = ecOpcoes(mensal.map(r => periodoLabel(r.mes)), maxKm,
+      {tipo:'km', legenda:['Carregado','Vazio','Retorno vazio'], bottom: 44, right: 26});
+    o.tooltip.formatter = p => {
+      const r = mensal[p[0].dataIndex], rv = r.retorno_vazio;
+      const acima = (rv != null && rv > 0.2);
+      return '<b>' + periodoLabel(r.mes) + '</b>'
+        + (parc[p[0].dataIndex] ? ' <span style="color:#B97709">mes parcial</span>' : '')
+        + '<br>Carregado: <b>' + fmtKm2(r.km_carregado) + '</b>'
+        + '<br>Vazio: ' + fmtKm2(r.km_vazio)
+        + '<br>Retorno vazio: <b style="color:' + (acima ? '#C03221' : '#14181D') + '">'
+        + (rv == null ? '&mdash;'
+           : (100*rv).toLocaleString('pt-BR',{maximumFractionDigits:1}) + '%')
+        + '</b>' + (acima ? ' <span style="color:#C03221">acima da meta</span>' : '')
+        + '<br>RKM: ' + fmtRsKm(r.rkm);
+    };
+    /* O piso de 30% e o do SVG: sem ele, um periodo todo abaixo de 20% faria
+       a meta encostar no topo e a linha parecer colada nela. */
+    const topPct = Math.max(0.30, ...mensal.map(r => r.retorno_vazio || 0));
+    o.yAxis = [o.yAxis, {
+      type:'value', min:0, max: topPct,
+      /* O eixo NAO mostra valor -- so o titulo. Quem informa o numero e o
+         rotulo direto de cada ponto. */
+      name:'% VAZIO', nameLocation:'end', nameGap:14,
+      nameTextStyle:{color:CC.navy700, fontSize:11, fontWeight:600, align:'right'},
+      axisLabel:{show:false}, axisLine:{show:false}, axisTick:{show:false},
+      splitLine:{show:false},
+    }];
+    const ult = mensal.length - 1;
+    o.series = [
+      ecBarras('Carregado', mensal.map(r => r.km_carregado||0), CC.verde,
+               {empilhar:'km', parcial: parc, largura: 26, raio: false}),
+      ecBarras('Vazio', mensal.map(r => r.km_vazio||0), CC.vermelho,
+               {empilhar:'km', parcial: parc, largura: 26}),
+      ecLinha('Retorno vazio', mensal.map(r => r.retorno_vazio), CC.navy700,
+        {eixo: 1, tamanho: 7, posRotulo: 'right',
+         rotulo: v => (100*v).toLocaleString('pt-BR',{maximumFractionDigits:1}) + '%'}),
+    ];
+    o.series[2].data = mensal.map((r, i) => (r.retorno_vazio == null ? null : {
+      value: r.retorno_vazio,
+      /* A cor do rotulo e a LEITURA (acima da meta), nao a direcao. E a
+         posicao inverte no ultimo mes para o texto nao sair do grafico. */
+      label: {color: r.retorno_vazio > 0.2 ? CC.vermelho : CC.navy700,
+              position: (i === ult ? 'left' : 'right')},
+      itemStyle: parc[i] ? {color:'#fff', borderColor: CC.navy700, borderWidth: 2}
+                         : {color: CC.navy700},
+    }));
+    o.series[2].markLine = {silent:true, symbol:'none',
+      lineStyle:{color:CC.amarelo, width:1.5, type:[5,4]},
+      label:{show:true, position:'insideEndTop', formatter:'meta 20%',
+             color:CC.amarelo, fontWeight:700, fontSize:10.5,
+             textBorderColor:'#fff', textBorderWidth:3},
+      data:[{yAxis: 0.20}]};
+    return o;
+  }), 'sem dados');
 }
 
-/* ---------------- Comercial: Clientes e RKM ---------------- */
 async function loadCom(){
   skelKpis('kpis-com',4); skelKpis('com-abc',4);
   const seq = ++comSeq;
@@ -17117,37 +17258,18 @@ function comParcial(mes, dt_de, dt_ate){
   return dt_de>ini || dt_ate<fim;
 }
 function chartComRender(mensal, dt_de, dt_ate){
-  const svg=document.getElementById('chartCom');
-  GEOM['chartCom']=null; ACTIVE['chartCom']=-1;
-  if(!mensal.length){ svg.innerHTML=`<text x="480" y="120" text-anchor="middle" fill="${CC.n500}" font-size="14">sem dados</text>`; return; }
-  const W=960,H=250,mL=64,mR=16,mT=28,mB=40, iw=W-mL-mR, ih=H-mT-mB;
-  const n=mensal.length, bandW=iw/n;
-  const maxV=Math.max(1,...mensal.map(r=>r.receita));
-  const tks=niceTicks(0,maxV,4), top=tks[tks.length-1]*1.08, u=unitOf(top);
-  const y=v=>mT+ih-(v/top)*ih, y0=y(0);
-  const px=i=>mL+bandW*i+bandW/2;
-  const barW=Math.min(26,bandW*0.5);
-  let s=`<defs><pattern id="hatchCom" width="6" height="6" patternTransform="rotate(45)" patternUnits="userSpaceOnUse">`+
-        `<rect width="6" height="6" fill="${CC.verde}"/><rect width="2.4" height="6" fill="#fff" opacity=".62"/></pattern></defs>`;
-  s+=`<rect id="chartCom-hband" x="0" y="${mT-14}" width="${bandW}" height="${ih+14}" fill="${CC.navy100}" opacity="0"/>`;
-  s+=`<text x="${mL}" y="${mT-12}" font-size="11" fill="${CC.n500}" font-weight="600" letter-spacing="1.5">${u.t}</text>`;
-  tks.forEach(v=>{ const yy=y(v);
-    s+=`<line x1="${mL}" y1="${yy}" x2="${W-mR}" y2="${yy}" stroke="${v===0?CC.n300:CC.grid}" stroke-width="1"/>`;
-    s+=`<text x="${mL-8}" y="${yy+4}" text-anchor="end" font-size="11" fill="${CC.n500}" font-family="IBM Plex Mono,monospace">${NMI.format(v/u.d)}</text>`; });
-  const parc=mensal.map(r=>comParcial(r.mes, dt_de, dt_ate));
-  mensal.forEach((r,i)=>{ s+=colPath(px(i)-barW/2,barW,y(r.receita),y0,4,parc[i]?'url(#hatchCom)':CC.verde); });
-  // rótulo direto só no melhor mês (número em todo mês viraria ruído)
-  const iMax=mensal.reduce((b,r,i)=>(r.receita>mensal[b].receita?i:b),0);
-  if(mensal[iMax].receita>0)
-    s+=`<text x="${px(iMax)}" y="${y(mensal[iMax].receita)-8}" text-anchor="middle" font-size="10.5" font-weight="700" fill="${CC.n700}" stroke="#fff" stroke-width="3" paint-order="stroke" stroke-linejoin="round">${brlAbbr(mensal[iMax].receita)}</text>`;
-  mensal.forEach((r,i)=>{
-    s+=`<text x="${px(i)}" y="${H-mB+18}" text-anchor="middle" font-size="10.5" font-weight="${parc[i]?'700':'400'}" fill="${parc[i]?CC.n900:CC.n600}">${periodoLabel(r.mes)}</text>`;
-    if(parc[i]) s+=`<text x="${px(i)}" y="${H-mB+31}" text-anchor="middle" font-size="9.5" font-weight="600" fill="${CC.n500}">parcial</text>`; });
-  s+=`<line id="chartCom-xhair" x1="0" x2="0" y1="${mT-14}" y2="${y0}" stroke="${CC.navy400}" stroke-width="1" opacity="0"/>`;
-  s+=`<rect x="${mL}" y="${mT-14}" width="${iw}" height="${ih+14}" fill="transparent"/>`;
-  svg.innerHTML=s;
-  GEOM['chartCom']={kind:'com',rows:mensal,n,bandW,mL,W,px,topY:mT-14,botY:y0,wrap:'wrapCom',tip:'tipCom',parc};
-  bindHover('chartCom');
+  /* Aqui parcial e o mes CORTADO PELO FILTRO -- pode ser o primeiro, quando o
+     periodo comeca no meio do mes, e nao so o corrente. */
+  const parc = mensal.map(r => comParcial(r.mes, dt_de, dt_ate));
+  barrasReceitaMes('chartCom', mensal, parc, (r, k) => {
+    const rkm = (r.km > 0) ? (r.receita_com_km / r.km) : null;
+    return '<b>' + periodoLabel(r.mes) + '</b>'
+      + (parc[k] ? ' <span style="color:#B97709">m\u00EAs incompleto no recorte</span>' : '')
+      + '<br><span style="color:' + CC.verde + '">&#9632;</span> Receita: <b>'
+      + BRL.format(r.receita) + '</b>'
+      + '<br>CT-es: ' + r.ctes.toLocaleString('pt-BR')
+      + '<br>RKM: ' + fmtRsKm(rkm);
+  });
 }
 
 /* ---------------- Combustível ---------------- */
@@ -17171,6 +17293,8 @@ const utLbl = u => {
 const MOD_COR = {'FROTA':CC.navy700,'LOCACAO':CC.navy500,'AGREGADOS':'#E85D10','TERCEIROS':'#B97709'};
 const fmtL = v => v!=null ? v.toLocaleString('pt-BR',{maximumFractionDigits:0})+' l' : '—';
 const fmtKmL = v => v!=null ? v.toLocaleString('pt-BR',{minimumFractionDigits:1,maximumFractionDigits:1})+' km/l' : '—';
+
+
 async function loadComb(){
   skelKpis('kpis-comb',4);
   const seq = ++combSeq;
@@ -17279,67 +17403,63 @@ function combToggle(i){
   const open=det.classList.toggle('open');
   det.previousElementSibling.setAttribute('aria-expanded', String(open));
 }
+/* Custo de combustivel por mes: frota PROPRIA embaixo, repasse de TERCEIROS
+   em cima. Empilhado porque a soma e o desembolso do mes, e e ela que da a
+   escala -- mas a divisao importa, porque so a parte de baixo e custo que a
+   Sulista controla; a de cima e repasse contratado. */
 function chartCombRender(mensal, dtDe, dtAte){
-  const svg=document.getElementById('chartComb');
-  GEOM['chartComb']=null; ACTIVE['chartComb']=-1;
-  if(!mensal.length){ svg.innerHTML='<text x="480" y="120" text-anchor="middle" fill="#6E7883" font-size="14">sem dados</text>'; return; }
-  const W=960,H=250,mL=64,mR=16,mT=28,mB=34, iw=W-mL-mR, ih=H-mT-mB;
-  const n=mensal.length, bandW=iw/n;
-  const maxV=Math.max(1,...mensal.map(r=>(r.custo_proprio||0)+(r.custo_terceiros||0)));
-  const tks=niceTicks(0,maxV,4), top=tks[tks.length-1], u=unitOf(top);
-  const y=v=>mT+ih-(v/top)*ih, y0=y(0);
-  const px=i=>mL+bandW*i+bandW/2;
-  const barW=Math.min(26,bandW*0.5);
-  const parc=mensal.map(r=>_mesParcial(r.mes,dtDe,dtAte));
-  let s=`<defs><pattern id="hatchCbP" width="6" height="6" patternTransform="rotate(45)" patternUnits="userSpaceOnUse">`+
-        `<rect width="6" height="6" fill="${CC.navy500}"/><rect width="2.4" height="6" fill="#fff" opacity=".62"/></pattern>`+
-        `<pattern id="hatchCbT" width="6" height="6" patternTransform="rotate(45)" patternUnits="userSpaceOnUse">`+
-        `<rect width="6" height="6" fill="#E85D10"/><rect width="2.4" height="6" fill="#fff" opacity=".62"/></pattern></defs>`;
-  s+=`<rect id="chartComb-hband" x="0" y="${mT-14}" width="${bandW}" height="${ih+14}" fill="${CC.navy100}" opacity="0"/>`;
-  s+=`<text x="${mL}" y="${mT-12}" font-size="11" fill="#6E7883" font-weight="600" letter-spacing="1.5">${u.t}</text>`;
-  tks.forEach(v=>{ const yy=y(v);
-    s+=`<line x1="${mL}" y1="${yy}" x2="${W-mR}" y2="${yy}" stroke="${v===0?'#C2C8D0':'#ECEEF1'}" stroke-width="1"/>`;
-    s+=`<text x="${mL-8}" y="${yy+4}" text-anchor="end" font-size="11" fill="#6E7883" font-family="IBM Plex Mono,monospace">${NMI.format(v/u.d)}</text>`; });
-  mensal.forEach((r,i)=>{
-    const x=px(i)-barW/2, vp=r.custo_proprio||0, vt=r.custo_terceiros||0;
-    const yP=y(vp), yT=y(vp+vt);
-    const fP=parc[i]?'url(#hatchCbP)':CC.navy500, fT=parc[i]?'url(#hatchCbT)':'#E85D10';
-    if(vt>0.5){ s+=colRect(x,barW,yP,y0,fP); s+=colPath(x,barW,yT,Math.max(yP-2,yT+0.1),4,fT); }
-    else s+=colPath(x,barW,yP,y0,4,fP);
-  });
-  mensal.forEach((r,i)=>{ s+=`<text x="${px(i)}" y="${H-mB+18}" text-anchor="middle" font-size="10.5" fill="#4F5860">${periodoLabel(r.mes)}</text>`; });
-  s+=`<line id="chartComb-xhair" x1="0" x2="0" y1="${mT-14}" y2="${y0}" stroke="${CC.navy400}" stroke-width="1" opacity="0"/>`;
-  s+=`<rect x="${mL}" y="${mT-14}" width="${iw}" height="${ih+14}" fill="transparent"/>`;
-  svg.innerHTML=s;
-  GEOM['chartComb']={kind:'comb',rows:mensal,n,bandW,mL,W,px,topY:mT-14,botY:y0,wrap:'wrapComb',tip:'tipComb'};
-  bindHover('chartComb');
-}
-// Barras de litros (consumo por dia/semana). Tooltip nativo <title>, sem GEOM.
-function chartLitrosRender(svgId, rows, labelFn){
-  const svg=document.getElementById(svgId);
-  if(!svg) return;
-  if(!rows||!rows.length){ svg.innerHTML='<text x="480" y="120" text-anchor="middle" fill="#6E7883" font-size="14">sem dados</text>'; return; }
-  const W=960,H=250,mL=64,mR=16,mT=28,mB=34, iw=W-mL-mR, ih=H-mT-mB;
-  const n=rows.length, bandW=iw/n;
-  const maxV=Math.max(1,...rows.map(r=>r.litros||0));
-  const div=maxV>=1.5e6?1e6:(maxV>=1500?1e3:1), utL=div===1e6?'MI L':(div===1e3?'MIL L':'L');
-  const tks=niceTicks(0,maxV,4), top=tks[tks.length-1];
-  const y=v=>mT+ih-(v/top)*ih, y0=y(0);
-  const px=i=>mL+bandW*i+bandW/2;
-  const barW=Math.min(26,bandW*0.6);
-  let s=`<text x="${mL}" y="${mT-12}" font-size="11" fill="#6E7883" font-weight="600" letter-spacing="1.5">${utL}</text>`;
-  tks.forEach(v=>{ const yy=y(v);
-    s+=`<line x1="${mL}" y1="${yy}" x2="${W-mR}" y2="${yy}" stroke="${v===0?'#C2C8D0':'#ECEEF1'}" stroke-width="1"/>`;
-    s+=`<text x="${mL-8}" y="${yy+4}" text-anchor="end" font-size="11" fill="#6E7883" font-family="IBM Plex Mono,monospace">${NMI.format(v/div)}</text>`; });
-  rows.forEach((r,i)=>{ s+=colPath(px(i)-barW/2,barW,y(r.litros||0),y0,4,'#E85D10'); });
-  rows.forEach((r,i)=>{ // banda transparente por ponto para o tooltip nativo
-    s+=`<rect x="${mL+bandW*i}" y="${mT-14}" width="${bandW}" height="${ih+14}" fill="transparent"><title>${esc(labelFn(r))}: ${fmtL(r.litros||0)}</title></rect>`; });
-  const step=Math.max(1,Math.ceil(n/12));
-  rows.forEach((r,i)=>{ if(i%step===0||n<=12) s+=`<text x="${px(i)}" y="${H-mB+18}" text-anchor="middle" font-size="10" fill="#4F5860">${esc(labelFn(r))}</text>`; });
-  svg.innerHTML=s;
+  const parc = mensal.map(r => _mesParcial(r.mes, dtDe, dtAte));
+  ecDesenhar('chartComb', mensal.length && (() => {
+    const maxV = Math.max(1, ...mensal.map(r =>
+      (r.custo_proprio||0) + (r.custo_terceiros||0)));
+    const o = ecOpcoes(mensal.map(r => periodoLabel(r.mes)), maxV,
+      {legenda: ['Frota pr\u00F3pria', 'Terceiros (repasse)'], bottom: 44});
+    o.tooltip.formatter = p => {
+      const k = p[0].dataIndex, r = mensal[k];
+      return '<b>' + periodoLabel(r.mes) + '</b>'
+        + (parc[k] ? ' <span style="color:#B97709">m\u00EAs parcial</span>' : '')
+        + '<br><span style="color:' + CC.navy500 + '">&#9632;</span> Frota pr\u00F3pria: <b>'
+        + BRL.format(r.custo_proprio || 0) + '</b>'
+        + '<br><span style="color:#E85D10">&#9632;</span> Terceiros (repasse): '
+        + BRL.format(r.custo_terceiros || 0)
+        + '<br>Litros: ' + fmtL(r.litros)
+        + '<br>R$/l: ' + (r.rs_litro != null
+            ? r.rs_litro.toLocaleString('pt-BR',
+                {minimumFractionDigits:2, maximumFractionDigits:2}) : '\u2014')
+        + '<br>Km/l: ' + fmtKmL(r.km_l);
+    };
+    o.series = [
+      ecBarras('Frota pr\u00F3pria', mensal.map(r => r.custo_proprio||0), CC.navy500,
+               {empilhar:'c', parcial: parc, largura: 26, raio: false}),
+      ecBarras('Terceiros (repasse)', mensal.map(r => r.custo_terceiros||0), '#E85D10',
+               {empilhar:'c', parcial: parc, largura: 26}),
+    ];
+    return o;
+  }), 'sem dados');
 }
 
-/* ---------------- Manutenção ---------------- */
+/* Litros por dia / por semana. As duas telas chamam esta funcao com um
+   `labelFn` proprio, que e a unica diferenca entre elas. */
+function chartLitrosRender(cid, rows, labelFn){
+  rows = rows || [];
+  ecDesenhar(cid, rows.length && (() => {
+    const n = rows.length;
+    const passo = Math.max(1, Math.ceil(n/12));
+    const o = ecOpcoes(rows.map(labelFn),
+                       Math.max(1, ...rows.map(r => r.litros || 0)),
+                       {tipo:'litros', sombra: true,
+                        intervalo: k => (n <= 12 || k % passo === 0)});
+    o.tooltip.formatter = p => {
+      const r = rows[p[0].dataIndex];
+      return '<b>' + esc(labelFn(r)) + '</b><br>Litros: <b>'
+        + fmtL(r.litros || 0) + '</b>';
+    };
+    o.series = [ecBarras('Litros', rows.map(r => r.litros || 0), '#E85D10',
+                         {largura: 26})];
+    return o;
+  }), 'sem dados');
+}
+
 async function loadMan(){
   skelKpis('kpis-man',4);
   const seq = ++manSeq;
@@ -17541,53 +17661,82 @@ async function loadMvb(){
     if(seq===mvbSeq){ btn.disabled=false; document.getElementById('content').classList.remove('loading'); }
   }
 }
+/* Custo proprio contra o preco de agregado e terceiro, por mes.
+
+   A REGRA QUE MANDA AQUI e a da competencia aberta, e ela e o motivo de o
+   grafico ter o dobro de series: o CKM cheio caia de R$ 26 para R$ 15 no mes
+   corrente porque o rateio de fixos entra INCOMPLETO, e isso lia-se como
+   queda de custo. O trecho que entra na competencia aberta sai PONTILHADO,
+   com o ponto VAZADO e uma faixa cinza atras dizendo o que e.
+
+   No ECharts nao ha estilo por SEGMENTO de linha, entao cada metrica vira
+   duas series com o MESMO nome: a solida ate o ultimo mes fechado e a
+   pontilhada dali em diante. Nome igual faz a legenda tratar as duas como uma
+   -- clicar apaga a metrica inteira, que e o comportamento esperado. */
 function chartMvbRender(mensal, compAte){
-  const svg=document.getElementById('chartMvb');
-  GEOM['chartMvb']=null; ACTIVE['chartMvb']=-1;
-  if(!mensal.length){ svg.innerHTML='<text x="480" y="140" text-anchor="middle" fill="#6E7883" font-size="14">sem dados no período</text>'; return; }
-  const W=960,H=300,mL=64,mR=16,mT=24,mB=36, iw=W-mL-mR, ih=H-mT-mB;
-  const n=mensal.length, bandW=iw/n;
-  const SER=[['ckm_cheio',CC.navy700,false],['ckm_marginal',CC.navy500,true],['rs_km_agregado','#E85D10',false],['rs_km_terceiro','#1E7F4F',false]];
-  const vals=[]; mensal.forEach(m=>SER.forEach(([k])=>{ if(m[k]!=null) vals.push(m[k]); }));
-  if(!vals.length){ svg.innerHTML='<text x="480" y="140" text-anchor="middle" fill="#6E7883" font-size="14">sem dados no período</text>'; return; }
-  const tks=niceTicks(0,Math.max(...vals),5), top=tks[tks.length-1];
-  const y=v=>mT+ih-(v/top)*ih;
-  const px=i=>mL+bandW*i+bandW/2;
-  let s='';
-  s+=`<rect id="chartMvb-hband" x="0" y="${mT-10}" width="${bandW}" height="${ih+10}" fill="${CC.navy100}" opacity="0"/>`;
-  s+=`<text x="${mL}" y="${mT-8}" font-size="11" fill="#6E7883" font-weight="600" letter-spacing="1.5">R$ POR KM</text>`;
-  tks.forEach(v=>{ const yy=y(v);
-    s+=`<line x1="${mL}" y1="${yy}" x2="${W-mR}" y2="${yy}" stroke="${v===0?'#C2C8D0':'#ECEEF1'}" stroke-width="1"/>`;
-    s+=`<text x="${mL-8}" y="${yy+4}" text-anchor="end" font-size="11" fill="#6E7883" font-family="IBM Plex Mono,monospace">${v.toLocaleString('pt-BR',{maximumFractionDigits:1})}</text>`; });
-  // competência do mês corrente ainda não fechou: o rateio de fixos entra incompleto e
-  // o CKM cheio despenca. O último ponto sai pontilhado e com faixa, não como queda real.
-  const hojeMes=(()=>{const t=new Date();return t.getFullYear()+'-'+String(t.getMonth()+1).padStart(2,'0');})();
-  const iAb=mensal.findIndex(m=>m.mes>=hojeMes);
-  const aberto = iAb>=0 ? iAb : -1;
-  if(aberto>0){
-    const xa=px(aberto)-bandW/2;
-    s+=`<rect x="${xa}" y="${mT-10}" width="${W-mR-xa}" height="${ih+10}" fill="${CC.n300}" opacity=".16"/>`;
-    s+=`<text x="${px(aberto)}" y="${mT+4}" text-anchor="middle" font-size="10" font-weight="700" fill="${CC.n500}">competência aberta</text>`;
-  }
-  SER.forEach(([k,cor,dash])=>{
-    const seg=(a,b,tracejado)=>{
-      const pts=mensal.slice(a,b).map((m,j)=>m[k]!=null?`${px(a+j)},${y(m[k])}`:null).filter(Boolean);
-      if(pts.length>1) s+=`<polyline points="${pts.join(' ')}" fill="none" stroke="${cor}" stroke-width="2"`
-        +`${tracejado?' stroke-dasharray="2 4"':(dash?' stroke-dasharray="6 4"':'')} stroke-linecap="round" stroke-linejoin="round"/>`;
-      else if(pts.length===1) s+=`<circle cx="${pts[0].split(',')[0]}" cy="${pts[0].split(',')[1]}" r="3.5" fill="${cor}"/>`;
+  const SER = [
+    ['ckm_cheio',      'CKM proprio cheio',    CC.navy700, false],
+    ['ckm_marginal',   'CKM proprio marginal', CC.navy500, true],
+    ['rs_km_agregado', 'R$/km agregado',       '#E85D10',  false],
+    ['rs_km_terceiro', 'R$/km terceiro',       '#1E7F4F',  false],
+  ];
+  const vals = [];
+  mensal.forEach(m => SER.forEach(([k]) => { if(m[k] != null) vals.push(m[k]); }));
+  ecDesenhar('chartMvb', (mensal.length && vals.length) && (() => {
+    const o = ecOpcoes(mensal.map(m => periodoLabel(m.mes)), Math.max(...vals), {
+      legenda: SER.map(x => x[1]), bottom: 44,
+      eixoY: {name:'R$ POR KM',
+              axisLabel:{color:CC.n500, fontSize:10,
+                         fontFamily:'IBM Plex Mono, monospace',
+                         formatter: v => v.toLocaleString('pt-BR',
+                                          {maximumFractionDigits:1})}},
+    });
+    /* O mes aberto e o PRIMEIRO da serie que ainda nao fechou -- comparado
+       por texto AAAA-MM, que ordena igual a data. */
+    const hojeMes = (() => { const t = new Date();
+      return t.getFullYear() + '-' + String(t.getMonth()+1).padStart(2,'0'); })();
+    const iAb = mensal.findIndex(m => m.mes >= hojeMes);
+    const aberto = iAb >= 0 ? iAb : -1;
+
+    o.tooltip.formatter = p => {
+      const m = mensal[p[0].dataIndex];
+      return '<b>' + periodoLabel(m.mes) + '</b>'
+        + (p[0].dataIndex === aberto
+           ? ' <span style="color:#6B7580">competencia aberta</span>' : '')
+        + SER.map(([k, nome, cor]) =>
+            '<br><span style="color:' + cor + '">&#9632;</span> ' + nome + ': <b>'
+            + fmtRsKm(m[k]) + '</b>').join('')
+        + '<br>Km proprio (est.): '
+        + (m.km_proprio || 0).toLocaleString('pt-BR',{maximumFractionDigits:0}) + ' km';
     };
-    // o sólido para no último mês FECHADO; o trecho até a competência aberta é pontilhado
-    if(aberto>0){ seg(0,aberto,false); seg(aberto-1,mensal.length,true); }
-    else seg(0,mensal.length,false);
-    if(aberto>=0 && mensal[aberto] && mensal[aberto][k]!=null)
-      s+=`<circle cx="${px(aberto)}" cy="${y(mensal[aberto][k])}" r="3.5" fill="#fff" stroke="${cor}" stroke-width="2"/>`;
-  });
-  mensal.forEach((m,i)=>{ s+=`<text x="${px(i)}" y="${H-mB+18}" text-anchor="middle" font-size="10.5" fill="#4F5860">${periodoLabel(m.mes)}</text>`; });
-  s+=`<line id="chartMvb-xhair" x1="0" x2="0" y1="${mT-10}" y2="${mT+ih}" stroke="${CC.navy400}" stroke-width="1" opacity="0"/>`;
-  s+=`<rect x="${mL}" y="${mT-10}" width="${iw}" height="${ih+10}" fill="transparent"/>`;
-  svg.innerHTML=s;
-  GEOM['chartMvb']={kind:'mvb',rows:mensal,n,bandW,mL,W,px,topY:mT-10,botY:mT+ih,wrap:'wrapMvb',tip:'tipMvb'};
-  bindHover('chartMvb');
+    o.series = [];
+    SER.forEach(([k, nome, cor, tracejada]) => {
+      const v = mensal.map(m => (m[k] == null ? null : m[k]));
+      /* Sem simbolo em nenhum ponto: quatro series pontilhadas de bolinha
+         viram um borrao. A UNICA bolinha e a do mes aberto, e ela e vazada
+         justamente para dizer "este nao esta fechado". */
+      const solida = ecLinha(nome, aberto > 0 ? v.map((x,i) => i < aberto ? x : null) : v,
+                             cor, {tracejada, simbolo:'none'});
+      o.series.push(solida);
+      if(aberto > 0){
+        const cauda = ecLinha(nome, v.map((x,i) => i >= aberto - 1 ? x : null), cor,
+                              {simbolo:'circle', tamanho: 7});
+        cauda.lineStyle.type = [2,4];
+        cauda.symbolSize = (val, p) => (p.dataIndex === aberto ? 7 : 0);
+        cauda.itemStyle = {color:'#fff', borderColor: cor, borderWidth: 2};
+        o.series.push(cauda);
+      }
+    });
+    if(aberto > 0){
+      o.series[0].markArea = {silent:true,
+        itemStyle:{color: CC.n300, opacity: 0.16},
+        label:{show:true, position:'insideTop', formatter:'competencia aberta',
+               color: CC.n500, fontSize:10, fontWeight:700},
+        data:[[{xAxis: periodoLabel(mensal[aberto].mes)},
+               {xAxis: periodoLabel(mensal[mensal.length-1].mes)}]]};
+    }
+    return o;
+  }), 'sem dados no periodo');
 }
 
 /* ---------------- Agregados e Terceiros ---------------- */
@@ -17603,6 +17752,8 @@ const TELCON_SIT = {
   ava:         '<span class="badge">km do abastecimento implausível</span>',
   sem_tel:     '<span class="badge">sem telemetria</span>'
 };
+
+
 function telconSituacao(l, limite){
   if(!l.km_l) return TELCON_SIT.sem_tel;
   if(l.suspeito) return TELCON_SIT.suspeito;
@@ -18310,69 +18461,141 @@ function drecliRankRender(){
       `<td class="num">${(i.viagens||0).toLocaleString('pt-BR')}</td></tr>`;
   }).join('') || '<tr><td colspan="8" style="color:var(--n500)">sem dados</td></tr>';
 }
+/* MATRIZ MARGEM x RECEITA -- uma funcao para as DUAS telas que a usavam.
+
+   Eram duas copias quase iguais, e a diferenca entre elas era um DEFEITO: a
+   da DRE por Cliente tinha anti-colisao de rotulo e a de Rentabilidade nao,
+   entao os mesmos nomes (VOLVO/TWE, TUPY/FORVIA) viravam borrao numa tela e
+   nao na outra. Unificar da a correcao para as duas e faz a proxima valer
+   para as duas.
+
+   AS REGRAS:
+
+   - ESCALA RAIZ no eixo da receita. Com escala linear, um cliente de R$ 10 mi
+     empurra os outros trinta para uma faixa de poucos pixels perto do zero, e
+     o grafico vira uma bolha solta com um amontoado no canto. A raiz espalha
+     os pequenos sem mentir sobre a ordem. O ECharts nao tem eixo raiz, entao
+     a raiz e aplicada AO DADO e o eixo fica sem rotulo numerico -- como no
+     SVG, que tambem so trazia a legenda "(escala raiz)". Quem quer o valor
+     tem o tooltip.
+   - QUATRO QUADRANTES, cortados pela MEDIANA da receita e pela margem de 25%.
+     A cor do quadrante e a leitura: alta receita com margem boa e verde,
+     alta receita com margem ruim e VERMELHO (e o que da trabalho e nao paga),
+     baixa receita com margem boa e navy (candidato a crescer), baixa com
+     ruim e cinza (nao move o ponteiro).
+   - MEDIANA, nao media: um cliente grande puxaria a media e jogaria quase
+     todo mundo para o lado "baixa receita", esvaziando a metade direita.
+   - SO OS 8 MAIORES levam nome. Rotular trinta bolhas nao e legibilidade, e
+     ruido; os oito maiores sao os que a conversa cita. A anti-colisao e o
+     `labelLayout` do proprio ECharts, com linha-guia ligando o nome a bolha
+     quando ele precisa sair do lugar. */
+function matrizMargemReceita(cid, pts, cfg){
+  ecDesenhar(cid, pts.length && (() => {
+    const maxR = Math.max(...pts.map(p => p.receita));
+    const clamp = v => Math.max(cfg.pisoY, Math.min(cfg.tetoY, v));
+    const margs = pts.map(p => clamp(p.margem_pct));
+    const loM = Math.min(0, ...margs) - 5;
+    const hiM = Math.max(cfg.minTopo, ...margs) + 5;
+    const recs = pts.map(p => p.receita).sort((a, b) => a - b);
+    const medR = recs[Math.floor(recs.length/2)];
+    /* A raiz vai no DADO, nao no eixo: `X` normaliza para 0..1 e o eixo
+       inteiro vive nessa faixa. */
+    const X = v => Math.sqrt(v / maxR);
+    const xMed = X(medR);
+
+    const grandes = new Set(pts.slice().sort((a, b) => b.receita - a.receita)
+                               .slice(0, 8).map(p => p.cliente));
+    const cor = p => {
+      const alta = p.receita >= medR, boa = p.margem_pct >= 25;
+      return alta && boa ? CC.verde
+           : alta ? CC.vermelho
+           : boa ? CC.navy500 : '#6E7883';
+    };
+    const nome = c => (c.length > cfg.corte ? c.slice(0, cfg.corte) + '\u2026' : c);
+
+    return {
+      animation: false,
+      grid: {left: 70, right: 24, top: 24, bottom: 44},
+      tooltip: Object.assign({trigger:'item',
+        formatter: p => {
+          const d = p.data.reg;
+          return '<b>' + esc(d.cliente) + '</b>'
+            + '<br>' + cfg.rotReceita + ': <b>' + BRL.format(d.receita) + '</b>'
+            + '<br>' + cfg.rotMargem + ': <b style="color:'
+            + (d.margem_pct >= 25 ? '#1E7F4F' : '#C03221') + '">'
+            + d.margem_pct.toFixed(1).replace('.', ',') + '%</b>'
+            + '<br><span style="color:#6B7580">'
+            + (d.receita >= medR ? 'acima' : 'abaixo')
+            + ' da mediana de receita</span>';
+        }}, ecTooltip()),
+      xAxis: {type:'value', min: 0, max: 1,
+        name: '\u2192 ' + cfg.legendaX + ' (escala raiz)',
+        nameLocation:'start', nameGap: 24,
+        nameTextStyle:{color: CC.n500, fontSize: 10, align:'left'},
+        axisLabel:{show:false}, axisTick:{show:false},
+        axisLine:{lineStyle:{color: CC.n300}}, splitLine:{show:false}},
+      yAxis: {type:'value', min: loM, max: hiM,
+        axisLabel:{color: CC.n500, fontSize: 10,
+                   fontFamily:'IBM Plex Mono, monospace',
+                   formatter: v => v + '%'},
+        axisTick:{show:false}, axisLine:{show:false},
+        splitLine:{lineStyle:{color: CC.grid}}},
+      series: [{
+        type:'scatter', symbolSize: 16,
+        data: pts.map(p => ({
+          value: [X(p.receita), clamp(p.margem_pct)], reg: p,
+          itemStyle:{color: cor(p), opacity: 0.75,
+                     borderColor:'#fff', borderWidth: 1.5},
+          label: grandes.has(p.cliente)
+            ? {show:true, position:'right', distance: 6,
+               formatter: nome(p.cliente), color: CC.n600,
+               fontSize: 10.5, fontWeight: 600,
+               textBorderColor:'#fff', textBorderWidth: 2.6}
+            : {show:false},
+        })),
+        /* `shiftY` e a anti-colisao da casa, agora feita pela biblioteca: os
+           nomes que se sobrepoem sao empurrados na vertical e a linha-guia os
+           liga de volta a bolha. */
+        labelLayout: {moveOverlap:'shiftY', hideOverlap: false},
+        labelLine: {show: true, showAbove: false,
+                    lineStyle:{color: CC.n300, width: 1}},
+        markLine: {silent:true, symbol:'none',
+          data:[
+            {yAxis: 25, lineStyle:{color:'#C2C8D0', width:1, type:[5,4]},
+             label:{show:true, position:'insideEndTop', formatter: cfg.rotLinha,
+                    color: CC.n500, fontSize: 10}},
+            {xAxis: xMed, lineStyle:{color:'#C2C8D0', width:1, type:[5,4]},
+             label:{show:true, position:'insideEndTop',
+                    formatter:'mediana', color: CC.n500, fontSize: 10}},
+          ]},
+        markArea: {silent:true, data:[
+          [{coord:[0, 25], itemStyle:{color: CC.navy500, opacity: 0.05}},
+           {coord:[xMed, hiM]}],
+          [{coord:[xMed, 25], itemStyle:{color:'#1E7F4F', opacity: 0.06}},
+           {coord:[1, hiM]}],
+          [{coord:[0, loM], itemStyle:{color:'#6E7883', opacity: 0.05}},
+           {coord:[xMed, 25]}],
+          [{coord:[xMed, loM], itemStyle:{color:'#C03221', opacity: 0.06}},
+           {coord:[1, 25]}],
+        ]},
+      }],
+    };
+  }), 'sem dados');
+}
 // matriz margem x receita por cliente (X=receita liquida raiz, Y=MC%)
 function chartDreCliMatriz(clientes){
-  const svg=document.getElementById('chartDrecliMat'); if(!svg) return;
-  const pts=(clientes||[]).filter(c=>c.cliente!=='(sem cliente)').map(c=>({
-    cliente:c.cliente, receita:(c.linhas||{})['RECEITA LIQUIDA']||0,
-    margem_pct:(c.indicadores&&c.indicadores.mc_pct!=null)?100*c.indicadores.mc_pct:null
-  })).filter(c=>c.margem_pct!=null && c.receita>0);
-  if(!pts.length){ svg.innerHTML='<text x="480" y="200" text-anchor="middle" fill="#6E7883" font-size="14">sem dados</text>'; return; }
-  const W=960,H=400,mL=70,mR=24,mT=24,mB=44, iw=W-mL-mR, ih=H-mT-mB;
-  const maxR=Math.max(...pts.map(p=>p.receita));
-  const margs=pts.map(p=>Math.max(-10,Math.min(95,p.margem_pct)));
-  const loM=Math.min(0,...margs)-5, hiM=Math.max(60,...margs)+5;
-  const recs=[...pts.map(p=>p.receita)].sort((a,b)=>a-b);
-  const medR=recs[Math.floor(recs.length/2)];
-  const X=v=>mL+Math.sqrt(v/maxR)*iw;
-  const Y=v=>mT+ih-((Math.max(-10,Math.min(95,v))-loM)/(hiM-loM))*ih;
-  const yLim=Y(25), xMed=X(medR);
-  let s='';
-  s+=`<rect x="${mL}" y="${mT}" width="${xMed-mL}" height="${yLim-mT}" fill="${CC.navy500}" opacity="0.05"/>`;
-  s+=`<rect x="${xMed}" y="${mT}" width="${W-mR-xMed}" height="${yLim-mT}" fill="#1E7F4F" opacity="0.06"/>`;
-  s+=`<rect x="${mL}" y="${yLim}" width="${xMed-mL}" height="${mT+ih-yLim}" fill="#6E7883" opacity="0.05"/>`;
-  s+=`<rect x="${xMed}" y="${yLim}" width="${W-mR-xMed}" height="${mT+ih-yLim}" fill="#C03221" opacity="0.06"/>`;
-  s+=`<line x1="${mL}" y1="${yLim}" x2="${W-mR}" y2="${yLim}" stroke="#C2C8D0" stroke-dasharray="5 4"/>`;
-  s+=`<line x1="${xMed}" y1="${mT}" x2="${xMed}" y2="${mT+ih}" stroke="#C2C8D0" stroke-dasharray="5 4"/>`;
-  s+=`<text x="${W-mR-4}" y="${yLim-6}" text-anchor="end" font-size="10" fill="#6E7883">MC 25%</text>`;
-  [0,25,50,75].forEach(v=>{ if(v>=loM&&v<=hiM){ const yy=Y(v);
-    s+=`<text x="${mL-8}" y="${yy+4}" text-anchor="end" font-size="10" fill="#6E7883" font-family="IBM Plex Mono,monospace">${v}%</text>`;}});
-  s+=`<text x="${mL}" y="${H-8}" font-size="10" fill="#6E7883">→ receita líquida no período (escala raiz)</text>`;
-  const topNames=new Set(pts.slice().sort((a,b)=>b.receita-a.receita).slice(0,8).map(p=>p.cliente));
-  pts.forEach(p=>{
-    const alta=p.receita>=medR, boa=p.margem_pct>=25;
-    const cor=alta&&boa?CC.verde:(alta&&!boa?CC.vermelho:(boa?CC.navy500:CC.n500));
-    const x=X(p.receita), y=Y(p.margem_pct);
-    s+=`<circle cx="${x}" cy="${y}" r="8" fill="${cor}" opacity="0.75" stroke="#fff" stroke-width="1.5">`+
-       `<title>${esc(p.cliente)} — receita líq. ${BRL.format(p.receita)} · MC ${p.margem_pct.toFixed(1).replace('.',',')}%</title></circle>`;
-  });
-  // Rótulos DEPOIS das bolhas e com desvio anti-colisão: os nomes dos maiores
-  // clientes ficavam escritos uns por cima dos outros (VOLVO/TWE, TUPY/FORVIA).
-  const postos=[];
-  pts.filter(p=>topNames.has(p.cliente))
-     .sort((a,b)=>b.receita-a.receita)
-     .forEach(p=>{
-    const x=X(p.receita), y=Y(p.margem_pct);
-    const nome=p.cliente.length>20?p.cliente.slice(0,20)+'…':p.cliente;
-    const larg=nome.length*5.6+14;
-    // tenta à direita da bolha; se colidir, vai empurrando na vertical
-    let lx=x+12, ly=y+4, anc='start';
-    if(lx+larg > W-mR){ lx=x-12; anc='end'; }
-    for(let tent=0; tent<14; tent++){
-      const x0=anc==='start'?lx:lx-larg, x1=anc==='start'?lx+larg:lx;
-      const bate=postos.some(q=>!(x1<q.x0||x0>q.x1) && Math.abs(ly-q.y)<12);
-      if(!bate) break;
-      ly += (tent%2===0? 13 : -13)*Math.ceil((tent+1)/2);
-    }
-    ly=Math.max(mT+9, Math.min(mT+ih-4, ly));
-    postos.push({x0:anc==='start'?lx:lx-larg, x1:anc==='start'?lx+larg:lx, y:ly});
-    if(Math.abs(ly-(y+4))>6)   // saiu do lugar: liga o rótulo à bolha
-      s+=`<line x1="${x}" y1="${y}" x2="${anc==='start'?lx-3:lx+3}" y2="${ly-3}" stroke="${CC.n300}" stroke-width="1"/>`;
-    s+=`<text x="${lx}" y="${ly}" text-anchor="${anc}" font-size="10.5" fill="${CC.n600}" font-weight="600" `+
-       `stroke="#fff" stroke-width="2.6" paint-order="stroke" stroke-linejoin="round">${esc(nome)}</text>`;
-  });
-  svg.innerHTML=s;
+  const pts = (clientes || []).filter(c => c.cliente !== '(sem cliente)').map(c => ({
+    cliente: c.cliente,
+    receita: (c.linhas || {})['RECEITA LIQUIDA'] || 0,
+    margem_pct: (c.indicadores && c.indicadores.mc_pct != null)
+      ? 100*c.indicadores.mc_pct : null,
+  })).filter(c => c.margem_pct != null && c.receita > 0);
+  matrizMargemReceita('chartDrecliMat', pts, {
+    pisoY: -10, tetoY: 95, minTopo: 60, corte: 20,
+    legendaX: 'receita l\u00EDquida no per\u00EDodo',
+    rotReceita: 'Receita l\u00EDq.', rotMargem: 'MC', rotLinha: 'MC 25%'});
 }
+
 async function loadDre(){
   const seq = ++dreSeq;
   const btn=document.getElementById('btnRefresh');
@@ -18460,34 +18683,44 @@ function renderBal(d){
   document.getElementById('bal-passivo').innerHTML=(d.passivo||[]).map(balLinha).join('')
     || '<tr><td colspan="2" style="color:var(--n500)">sem dados nesta competência</td></tr>';
 }
+/* Ativo x passivo exigivel x patrimonio liquido, mes a mes.
+
+   Tres linhas SEM simbolo: com 36 competencias, uma bolinha por ponto vira
+   um rendilhado que esconde a forma das curvas -- e o que se le aqui e a
+   FORMA (o exigivel abrindo ou fechando contra o PL), nao o valor de um mes
+   especifico, que o tooltip da. */
 function chartBalRender(serie){
-  const svg=document.getElementById('chartBal');
-  GEOM['chartBal']=null; ACTIVE['chartBal']=-1;
-  if(!serie.length){ svg.innerHTML='<text x="480" y="120" text-anchor="middle" fill="#6E7883" font-size="14">sem dados</text>'; return; }
-  const W=960,H=240,mL=64,mR=16,mT=20,mB=30, iw=W-mL-mR, ih=H-mT-mB;
-  const n=serie.length, bandW=iw/n;
-  const maxV=Math.max(1,...serie.map(r=>Math.max(r.ativo,r.exigivel,r.pl)));
-  const tks=niceTicks(0,maxV,4), top=tks[tks.length-1], u=unitOf(top);
-  const y=v=>mT+ih-(v/top)*ih, y0=y(0);
-  const px=i=>mL+bandW*i+bandW/2;
-  let s=`<text x="${mL}" y="${mT-6}" font-size="11" fill="#6E7883" font-weight="600" letter-spacing="1.5">${u.t}</text>`;
-  s+=`<rect id="chartBal-hband" x="0" y="${mT-8}" width="${bandW}" height="${ih+8}" fill="${CC.navy100}" opacity="0"/>`;
-  tks.forEach(v=>{ const yy=y(v);
-    s+=`<line x1="${mL}" y1="${yy}" x2="${W-mR}" y2="${yy}" stroke="${v===0?'#C2C8D0':'#ECEEF1'}" stroke-width="1"/>`;
-    s+=`<text x="${mL-8}" y="${yy+4}" text-anchor="end" font-size="10" fill="#6E7883" font-family="IBM Plex Mono,monospace">${NMI.format(v/u.d)}</text>`; });
-  const linha=(campo,cor)=>`<polyline points="${serie.map((r,i)=>`${px(i)},${y(r[campo])}`).join(' ')}" fill="none" stroke="${cor}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>`;
-  s+=linha('exigivel','#C03221')+linha('pl','#1E7F4F')+linha('ativo',CC.navy700);
-  // rótulo só a cada N meses (36 competências não cabem uma a uma sem colidir)
-  const passo=Math.max(1,Math.round(n/10));
-  serie.forEach((r,i)=>{ if(i%passo===0 || i===n-1) s+=`<text x="${px(i)}" y="${H-mB+16}" text-anchor="middle" font-size="10" fill="#4F5860">${periodoLabel(r.mes)}</text>`; });
-  s+=`<line id="chartBal-xhair" x1="0" x2="0" y1="${mT-8}" y2="${y0}" stroke="${CC.navy400}" stroke-width="1" opacity="0"/>`;
-  s+=`<rect x="${mL}" y="${mT-8}" width="${iw}" height="${ih+8}" fill="transparent"/>`;
-  svg.innerHTML=s;
-  GEOM['chartBal']={kind:'bal',rows:serie,n,bandW,mL,W,px,topY:mT-8,botY:y0,wrap:'wrapBal',tip:'tipBal'};
-  bindHover('chartBal');
+  ecDesenhar('chartBal', serie.length && (() => {
+    const maxV = Math.max(1, ...serie.map(r => Math.max(r.ativo, r.exigivel, r.pl)));
+    const n = serie.length;
+    const passo = Math.max(1, Math.round(n/10));
+    const o = ecOpcoes(serie.map(r => periodoLabel(r.mes)), maxV,
+      {legenda: ['Ativo', 'Passivo exig\u00EDvel', 'Patrim\u00F4nio l\u00EDquido'],
+       bottom: 44, intervalo: k => (k % passo === 0 || k === n-1)});
+    o.tooltip.formatter = p => {
+      const r = serie[p[0].dataIndex];
+      return '<b>' + periodoLabel(r.mes) + '</b>'
+        + '<br><span style="color:' + CC.navy700 + '">&#9632;</span> Ativo: <b>'
+        + BRL.format(r.ativo || 0) + '</b>'
+        + '<br><span style="color:#C03221">&#9632;</span> Passivo exig\u00EDvel: '
+        + BRL.format(r.exigivel || 0)
+        + '<br><span style="color:#1E7F4F">&#9632;</span> Patrim\u00F4nio l\u00EDquido: '
+        + BRL.format(r.pl || 0);
+    };
+    o.series = [
+      ecLinha('Ativo', serie.map(r => r.ativo), CC.navy700, {simbolo:'none'}),
+      ecLinha('Passivo exig\u00EDvel', serie.map(r => r.exigivel), CC.vermelho,
+              {simbolo:'none'}),
+      ecLinha('Patrim\u00F4nio l\u00EDquido', serie.map(r => r.pl), CC.verde,
+              {simbolo:'none'}),
+    ];
+    return o;
+  }), 'sem dados');
 }
 
 const compLabel = c => { const [y,m]=c.split('-'); return MES[+m-1]+'/'+y.slice(2); };
+
+
 function renderDre(d){
   if(!document.getElementById('fCompDe').value) document.getElementById('fCompDe').value=d.comp_de;
   if(!document.getElementById('fCompAte').value) document.getElementById('fCompAte').value=d.comp_ate;

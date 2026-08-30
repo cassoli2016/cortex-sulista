@@ -4,6 +4,18 @@ Gerado de `docs/versoes.yaml` por `scripts/gerar_changelog.py` — não editar �
 Formato [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/),
 versionamento [SemVer](https://semver.org/lang/pt-BR/).
 
+## [0.147.0] — 30/08/2026  ·  CX-30/08/2026-v0.147.0
+
+### Adicionado
+- OS 39 GRAFICOS DO LOTE AGORA SAO ECharts. Este lote fechou os 14 que faltavam: fluxo de caixa, vencimentos a receber e a pagar, fluxo consolidado, antecipacao, balanco, orcado contra realizado, as duas matrizes de margem por receita, combustivel por mes, litros por dia e por semana, receita do comercial e a da ficha do cliente. Todo grafico ganha zoom, tooltip que segue o cursor nos dois eixos e exportacao, sem perder nenhuma das regras da casa - mes parcial hachurado, rotulo direto onde o numero decide, unidade final no eixo e semaforo discreto. Seguem a mao tres graficos montados como texto e injetados na tela - saldo por dia do Extrato, saldo dia a dia do Fluxo consolidado e acoes por mes da Gestao -, que ficaram de fora do lote porque o levantamento procurou pelo espaco reservado no HTML e eles nao tem um.
+- O grafico de rentabilidade por cliente ganhou a anti-colisao de rotulo que so a matriz da DRE tinha. Eram duas copias quase iguais do mesmo desenho, e a diferenca entre elas era um defeito: os mesmos nomes de cliente viravam borrao numa tela e nao na outra. Agora e uma funcao so, entao a proxima melhoria vale para as duas.
+
+### Alterado
+- O teste que protege os rotulos do eixo do fluxo consolidado passou a medir o grafico desenhado em vez do codigo escrito. Ele quebrava quando so o espacamento do codigo mudava, sem que a regra tivesse mudado - e teste que acusa sem haver problema treina quem mantem a ignora-lo.
+
+### Corrigido
+- GRAFICO DESENHADO COM A TELA FECHADA FICAVA ACHATADO. O desenho a mao escalava sozinho ao aparecer; a biblioteca mede o espaco uma vez e uma medida de zero valia para sempre. O sintoma era silencioso - nenhum erro, nenhum cartao vazio, apenas os rotulos do eixo sumindo quase todos, o que faz uma serie de cinco pontos parecer ter um. Agora o grafico se corrige sozinho quando a tela aparece, quando a barra lateral recolhe e quando a janela muda.
+
 ## [0.146.0] — 29/08/2026  ·  CX-29/08/2026-v0.146.0
 
 ### Adicionado
