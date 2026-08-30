@@ -4283,15 +4283,25 @@ def orcamento_exportar(versao_id: int) -> Response:
 
 @app.get("/api/tv/estradas")
 def tv_estradas() -> JSONResponse:
-    """Config do overlay de trânsito (TomTom). A chave fica no .env.
+    """Config do overlay de trânsito (TomTom).
 
     A chave sai em texto claro no payload (necessário: o Leaflet carrega os
     tiles direto do browser, client-side). Mitigação real é no PROVEDOR, não
     no código: restringir a chave por domínio/referrer no painel do TomTom
     para que não seja reutilizável fora do painel, mesmo se copiada daqui.
+
+    LÊ DO COFRE, e não mais direto do ambiente — `credenciais.ler` já faz
+    cofre-primeiro-ambiente-depois. Dois lugares guardando a mesma chave é
+    exatamente o defeito que a Premiação teve por semanas: a tela de
+    configuração salvava, dizia "salvo", e o cálculo lia o outro armazém.
+    Enquanto os dois concordassem, ninguém veria.
+
+    E DEVOLVE SÓ A CHAVE DO MAPA. A do servidor, quando existe, é a que NÃO
+    está restrita por domínio — mandá-la para o navegador entregaria de graça
+    justamente a que funciona em qualquer lugar.
     """
-    import os
-    chave = os.environ.get("TOMTOM_API_KEY", "").strip()
+    from api.tomtom import cliente as tomtom
+    chave = tomtom.chave_mapa() or ""
     return JSONResponse({"configurado": bool(chave), "key": chave})
 
 

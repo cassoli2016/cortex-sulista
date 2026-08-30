@@ -1793,6 +1793,51 @@ function "` e a
   `ResizeObserver` do `echartsRegistrar` cobre a volta, mas começar visível
   dispensa a correção. Aba de formulário e tabela pode começar escondida.
 
+**"Certificado autoassinado" pode ser RAIZ FALTANDO — e mandou procurar
+proxy onde não havia nenhum (30/08/2026):**
+- `api.tomtom.com` recusava com `[SSL: CERTIFICATE_VERIFY_FAILED] self-signed
+  certificate in certificate chain`. O certificado é **legítimo**, da
+  IdenTrust/HydrantID. O que faltava era a RAIZ no armazém — e como toda raiz é
+  autoassinada, o topo da cadeia aparece como "autoassinado não confiável".
+- **`ssl.create_default_context()` neste servidor carrega 45 CAs.** Não são 45
+  escolhidas: é o que o armazém do Windows tinha em CACHE. O Windows preenche
+  esse armazém sob demanda, e um serviço rodando como SISTEMA, sem sessão
+  interativa, pode nunca disparar a atualização. Com `certifi` são **118**.
+- **Não era problema da TomTom.** Gobrax, Z-API, Monkey, Prolog, RasterJOR,
+  ANTT e Ollama saem todos por `urllib`; os que funcionam funcionam porque a
+  raiz deles CALHOU de estar entre as 45. Todos passaram a usar
+  `api/tls.contexto()`, e a Saúde MOSTRA o número de raízes — é a primeira
+  pergunta de qualquer erro de certificado.
+- Levei três diagnósticos até imprimir o EMISSOR do certificado. A mensagem do
+  Python aponta para a hipótese errada; o que resolve é olhar quem assinou.
+
+**TomTom — o que foi MEDIDO, não lido na documentação (30/08/2026):**
+- **`pt-BR` é RECUSADO** (HTTP 400, "Unsupported language parameter value"), e
+  `pt` também. O único português aceito é **`pt-PT`**. O valor óbvio é o
+  errado, então é constante nomeada (`cliente.IDIOMA`).
+- **`travelMode=truck` FUNCIONA** nesta conta, e muda o número: Joinville →
+  Curitiba deu 2h00 de carro e **2h16 de caminhão** nos mesmos 132,6 km. Usar a
+  rota de carro como ETA de caminhão erraria 16 minutos numa viagem de duas
+  horas — e ignoraria restrição de via, altura e peso.
+- **Nenhum cabeçalho de limite** volta nas respostas. O teto do plano não é
+  observável na chamada; só no painel da TomTom. Então a cadência é decidida
+  por prudência, e não por medida — e isso fica DITO em vez de virar um número
+  inventado no comentário.
+- Tempo de resposta: **0,54 s** o fluxo, **0,89 s** a rota.
+- **194 incidentes** na caixa Joinville–Curitiba, e **173 (89%) de UMA
+  categoria** ("via fechada"), quase todos fechamento de rua com `delay: null`.
+  Contar o total seria verdadeiro e inútil; anunciar "173 estradas fechadas"
+  seria alarmante e errado. O recorte que decide é o que está EM RODOVIA.
+- **A chave do mapa vai para o NAVEGADOR** (o Leaflet baixa os tiles direto), e
+  a defesa é restringi-la por domínio — mas **chave restrita por domínio não
+  funciona chamada pelo servidor**: volta 403, que se lê como "chave errada".
+  Daí `TOMTOM_API_KEY_SERVIDOR`, opcional, e a Saúde avisando ANTES do 403.
+- **A chave vai na URL**, como na Z-API: `_sanitizar` varre as duas chaves E
+  mascara qualquer `key=` — inclusive uma que este processo não conheça, que é
+  justamente o vazamento que ninguém previu.
+- A TomTom mede **FLUXO, não pavimento**. Não há aqui estimativa de "condição
+  da estrada" derivada de velocidade: seria afirmar o que a fonte não disse.
+
 **O AVA é PostgreSQL 9.3.** Sem `FILTER (WHERE …)`, que só chegou no 9.4 — todo
 agregado condicional é `CASE WHEN`. O erro aponta para o meio do agregado
 (`syntax error at or near "("`), não para a versão. O banco local do CÓRTEX é

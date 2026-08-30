@@ -21,6 +21,8 @@ import json as _json
 import urllib.error
 import urllib.request
 
+from api import tls as _tls
+
 from . import queries
 
 log = logging.getLogger("cortex.copiloto")
@@ -121,7 +123,7 @@ def _http(url: str, payload: dict | None = None, headers: dict | None = None,
     for k, v in (headers or {}).items():
         req.add_header(k, v)
     try:
-        with urllib.request.urlopen(req, timeout=timeout) as resp:
+        with urllib.request.urlopen(req, timeout=timeout, context=_tls.contexto()) as resp:
             return resp.status, _json.loads(resp.read().decode())
     except urllib.error.HTTPError as exc:
         try:
@@ -511,7 +513,7 @@ def _stream_ollama(msgs: list[dict]):
                          "options": _OLLAMA_OPTS, "keep_alive": _OLLAMA_KEEP}).encode()
     req = urllib.request.Request(f"{ollama_url()}/api/chat", data=corpo, method="POST")
     req.add_header("Content-Type", "application/json")
-    resp = urllib.request.urlopen(req, timeout=300)
+    resp = urllib.request.urlopen(req, timeout=300, context=_tls.contexto())
     for raw in resp:
         try:
             d = _json.loads(raw.decode("utf-8", "ignore"))
@@ -588,7 +590,7 @@ def stream(mensagens: list[dict]):
         for k, v in headers.items():
             req.add_header(k, v)
         try:
-            resp = urllib.request.urlopen(req, timeout=120)
+            resp = urllib.request.urlopen(req, timeout=120, context=_tls.contexto())
         except urllib.error.HTTPError as exc:
             if exc.code == 401:
                 yield {"tipo": "erro", "erro": "chave_invalida"}

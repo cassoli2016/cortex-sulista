@@ -507,6 +507,20 @@ def _servicos() -> list[dict]:
             api["detalhe"] = f"porta 8010 · PID {p.pid} · RAM {rss // (1024 * 1024)} MB"
         except Exception:  # noqa: BLE001
             pass
+    # RAÍZES DE CERTIFICADO, e não é curiosidade: o padrão deste Windows tem
+    # 45 (o que o armazém cacheou), e fornecedor com CA fora dessa lista falha
+    # com "self-signed certificate in certificate chain" — mensagem que manda
+    # procurar proxy onde não há nenhum. Foi assim com a TomTom, cujo
+    # certificado é legítimo. Ter o número na tela responde a primeira
+    # pergunta de qualquer erro de certificado.
+    try:
+        from . import tls as _tls
+        d = _tls.diagnostico()
+        api["detalhe"] += " · %s raízes TLS (%s)" % (d["raizes"], d["fonte"])
+        if d["fonte"] != "certifi":
+            api["status"] = "alerta"
+    except Exception:  # noqa: BLE001
+        pass
     servicos.append(api)
 
     # Banco ERP (latência do SELECT 1)
@@ -610,6 +624,33 @@ def _servicos() -> list[dict]:
             servicos.append({"nome": nome, "status": "info",
                              "detalhe": "integração indisponível"})
             log.warning("saude: %s: %s", modulo, exc)
+
+    # TomTom — NÃO CONSULTA A API. Toda chamada gasta cota, e a Saúde recarrega
+    # a cada 5 s: perguntar à TomTom para desenhar um cartão queimaria o limite
+    # diário sem medir nada de útil. O que se mede é a CONFIGURAÇÃO, que é onde
+    # os problemas desta integração moram — e o principal deles é silencioso:
+    # a chave do mapa restrita por domínio funciona no navegador e devolve 403
+    # no servidor, o que se lê como "chave errada".
+    try:
+        from .tomtom import cliente as tomtom
+        if not tomtom.configurado():
+            servicos.append({
+                "nome": "TomTom (trânsito)", "status": "info",
+                "detalhe": "não configurada — falta a chave de API "
+                           "(Gestão › Integrações)"})
+        elif tomtom.usando_a_chave_do_mapa():
+            servicos.append({
+                "nome": "TomTom (trânsito)", "status": "info",
+                "detalhe": "usando a chave do MAPA na coleta — se ela estiver "
+                           "restrita por domínio no painel da TomTom, o "
+                           "servidor recebe 403; configure a chave da coleta"})
+        else:
+            servicos.append({"nome": "TomTom (trânsito)", "status": "ok",
+                             "detalhe": "chave própria de servidor configurada"})
+    except Exception as exc:  # noqa: BLE001
+        servicos.append({"nome": "TomTom (trânsito)", "status": "info",
+                         "detalhe": "integração indisponível"})
+        log.warning("saude: tomtom: %s", exc)
 
     # Túnel Cloudflare
     n = _processo_cloudflared()

@@ -48,6 +48,29 @@ CAMPOS: dict[str, dict] = {
         "rotulo": "Token de API",
         "descricao": "Token da API Gobrax (telemetria e premiação)"},
 
+    # TomTom — trânsito. SÃO DOIS CAMPOS, e a razão é uma armadilha real:
+    #
+    # A chave do OVERLAY vai para o NAVEGADOR (o Leaflet baixa os tiles direto,
+    # e proxiar tile é caro), então a defesa recomendada pela própria TomTom é
+    # restringi-la por domínio/referrer no painel deles. Só que uma chave
+    # restrita por domínio **não funciona chamada pelo servidor** — a coleta
+    # voltaria 403, e um 403 lê-se como "chave errada", mandando conferir o que
+    # está certo.
+    #
+    # Por isso a chave do SERVIDOR é campo próprio e OPCIONAL: sem ela a coleta
+    # cai na do overlay e a Saúde AVISA que, se aquela estiver restrita por
+    # domínio, a coleta vai falhar — em vez de deixar a pessoa descobrir pelo
+    # 403.
+    "TOMTOM_API_KEY": {
+        "rotulo": "Chave do mapa (navegador)",
+        "descricao": "Usada no overlay de trânsito dos painéis. Vai para o "
+                     "navegador — restrinja por domínio no painel da TomTom"},
+    "TOMTOM_API_KEY_SERVIDOR": {
+        "rotulo": "Chave da coleta (servidor)", "obrigatorio": False,
+        "descricao": "Chave SEM restrição de domínio, para o CÓRTEX consultar "
+                     "trânsito e ETA. Sem ela a coleta usa a do mapa, que "
+                     "falha se estiver restrita"},
+
     "SMTP_SENHA": {
         "rotulo": "Senha do servidor",
         "descricao": "Senha do servidor de e-mail (envio pelo CÓRTEX)"},
@@ -216,6 +239,19 @@ SERVICOS: list[dict] = [
                    "dica": "a mesma URL que você usa no navegador",
                    "campos": ["CORTEX_URL"]}],
         "ajustes": [],
+    },
+    {
+        "chave": "tomtom",
+        "nome": "TomTom",
+        "resumo": "Trânsito em tempo real: velocidade atual contra a de fluxo "
+                  "livre no trecho onde cada caminhão está, incidentes na "
+                  "rota (obra, acidente, bloqueio) e tempo estimado até o "
+                  "destino já com o trânsito do momento.",
+        "alimenta": "Torre de Controle · Painéis de TV",
+        "modos": [{"chave": "chave", "rotulo": "Chave de API",
+                   "dica": "a mesma do painel developer.tomtom.com",
+                   "campos": ["TOMTOM_API_KEY"]}],
+        "ajustes": ["TOMTOM_API_KEY_SERVIDOR"],
     },
     {
         "chave": "gobrax",

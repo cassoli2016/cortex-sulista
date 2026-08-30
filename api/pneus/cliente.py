@@ -29,6 +29,8 @@ from __future__ import annotations
 import base64
 import json
 import ssl
+
+from api import tls as _tls
 import time
 import urllib.error
 import urllib.parse
@@ -42,7 +44,11 @@ AUTH_HEADER_PADRAO = "X-Prolog-Api-Token"
 # teto da propria API — acima disso ela devolve 400, nao uma pagina menor
 PAGINA_MAX = 100
 FOLGA_TOKEN_S = 60
-_CTX = ssl.create_default_context()
+# Contexto TLS DA CASA (api/tls.py): o padrao deste servidor Windows tem
+# 45 raizes -- o que o armazem cacheou -- e fornecedor com CA fora dessa
+# lista falha com "self-signed certificate in certificate chain", que
+# manda procurar proxy onde nao ha nenhum.
+_CTX = _tls.contexto()
 
 # Situacoes que a API reconhece. INSTALLED e o unico que significa "rodando" —
 # distincao que decide quase todo denominador desta tela.

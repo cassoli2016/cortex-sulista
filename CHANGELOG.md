@@ -4,6 +4,16 @@ Gerado de `docs/versoes.yaml` por `scripts/gerar_changelog.py` — não editar �
 Formato [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/),
 versionamento [SemVer](https://semver.org/lang/pt-BR/).
 
+## [0.159.0] — 30/08/2026  ·  CX-30/08/2026-v0.159.0
+
+### Adicionado
+- Integração com a TomTom para trânsito: velocidade atual contra a de fluxo livre no trecho, incidentes na região (obra, acidente, via fechada) e tempo de viagem já com o trânsito do momento — inclusive no modo caminhão, que na medição deu 16 minutos a mais que o de carro numa viagem de duas horas.
+- A TomTom entrou em Gestão › Integrações e na Saúde do Servidor.
+
+### Corrigido
+- O sistema enxergava apenas 45 certificados-raiz, o que fazia fornecedores legítimos serem recusados com uma mensagem que sugeria firewall interceptando a conexão. Passou a usar a lista completa (118) — valia para todas as integrações, não só a nova.
+- A chave do mapa da TomTom era lida direto do arquivo de ambiente, separada do cofre de credenciais. Passou a sair do cofre, como as demais.
+
 ## [0.158.0] — 30/08/2026  ·  CX-30/08/2026-v0.158.0
 
 ### Alterado

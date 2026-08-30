@@ -43,6 +43,8 @@ import time
 import urllib.error
 import urllib.parse
 import urllib.request
+
+from api import tls as _tls
 from datetime import date as _date
 from datetime import timedelta as _timedelta
 
@@ -269,7 +271,7 @@ def _uma_pagina(recurso: str, cfg: dict, de, ate, pagina: int | None):
     t0 = time.monotonic()
     req = urllib.request.Request(url, headers=_cabecalhos(), method="GET")
     try:
-        with urllib.request.urlopen(req, timeout=TIMEOUT) as resp:
+        with urllib.request.urlopen(req, timeout=TIMEOUT, context=_tls.contexto()) as resp:
             corpo = resp.read().decode("utf-8", "replace")
     except urllib.error.HTTPError as exc:
         raise RasterIndisponivel(

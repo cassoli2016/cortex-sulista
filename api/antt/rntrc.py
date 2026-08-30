@@ -15,6 +15,8 @@ import json
 import re
 import urllib.request
 
+from api import tls as _tls
+
 from api.antt.armazenamento import gravar_lote, normalizar_rntrc
 
 URL_PACOTE = "https://dados.antt.gov.br/api/3/action/package_show?id=rntrc"
@@ -46,7 +48,7 @@ def descobrir_recurso(timeout: int = 60) -> tuple[str, str]:
     silenciosamente traria um mês velho no dia em que ela mudar. O rótulo do
     recurso ('Jul26 - RNTRC') não serve como chave — não ordena.
     """
-    with urllib.request.urlopen(URL_PACOTE, timeout=timeout) as r:
+    with urllib.request.urlopen(URL_PACOTE, timeout=timeout, context=_tls.contexto()) as r:
         pacote = json.load(r)
     candidatos = []
     for x in pacote["result"]["resources"]:
@@ -90,7 +92,7 @@ def varrer(fonte, interessantes: set[str]) -> list[dict]:
 def _baixar_padrao():
     url, competencia = descobrir_recurso()
     req = urllib.request.Request(url, headers={"User-Agent": "cortex-sulista"})
-    resposta = urllib.request.urlopen(req, timeout=900)
+    resposta = urllib.request.urlopen(req, timeout=900, context=_tls.contexto())
     return io.TextIOWrapper(resposta, encoding="latin-1", newline=""), competencia
 
 

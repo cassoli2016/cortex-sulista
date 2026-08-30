@@ -11,6 +11,8 @@ import json
 import os
 import urllib.error
 import urllib.request
+
+from api import tls as _tls
 from urllib.parse import urlencode
 
 GATEWAY = "https://gateway-v3-waf.gobrax.com.br"
@@ -37,7 +39,7 @@ def _http_urllib(url: str, method: str, headers: dict, body: dict | None):
         hdrs["Content-Type"] = "application/json"
     req = urllib.request.Request(url, data=data, headers=hdrs, method=method)
     try:
-        with urllib.request.urlopen(req, timeout=30) as resp:
+        with urllib.request.urlopen(req, timeout=30, context=_tls.contexto()) as resp:
             try:
                 return resp.status, json.loads(resp.read().decode("utf-8") or "{}")
             except ValueError as e:

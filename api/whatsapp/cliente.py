@@ -46,6 +46,8 @@ from __future__ import annotations
 
 import json
 import ssl
+
+from api import tls as _tls
 import time
 import urllib.error
 import urllib.parse
@@ -90,7 +92,11 @@ def qual_valida(qual: str | None) -> str:
 # "conectado" não muda decisão nenhuma.
 TTL_STATUS = 60
 
-_CTX = ssl.create_default_context()
+# Contexto TLS DA CASA (api/tls.py): o padrao deste servidor Windows tem
+# 45 raizes -- o que o armazem cacheou -- e fornecedor com CA fora dessa
+# lista falha com "self-signed certificate in certificate chain", que
+# manda procurar proxy onde nao ha nenhum.
+_CTX = _tls.contexto()
 # UM CACHE POR INSTÂNCIA. Com um dicionário só, perguntar o estado do reserva
 # devolveria o do principal (ou o contrário) durante os 60 s do TTL — e a tela
 # mostraria um aparelho conectado no lugar do outro, que é o pior tipo de erro

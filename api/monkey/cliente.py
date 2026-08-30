@@ -24,6 +24,8 @@ from __future__ import annotations
 
 import json
 import ssl
+
+from api import tls as _tls
 import time
 import urllib.error
 import urllib.parse
@@ -41,7 +43,12 @@ AMBIENTE_PADRAO = "hmg"
 # acontece uma vez por dia e ninguém consegue reproduzir
 FOLGA_TOKEN_S = 60
 
-_CTX = ssl.create_default_context()
+# Contexto TLS DA CASA (api/tls.py) e nao o padrao do sistema: neste
+# servidor Windows o padrao tem 45 raizes -- o que o armazem cacheou --
+# e um fornecedor com CA fora dessa lista falha com "self-signed
+# certificate in certificate chain", que manda procurar proxy onde nao
+# ha nenhum. Medido: api.tomtom.com, certificado legitimo, recusado.
+_CTX = _tls.contexto()
 
 
 class MonkeyNaoConfigurado(Exception):
