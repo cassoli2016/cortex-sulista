@@ -388,16 +388,25 @@ achados**, não 205, e todos com endereço. Quatro lições:
   inexistente é a forma mais silenciosa de hard-code.
 
 **Design system (valores reais implementados — tokens em `api/static/index.html`):**
-- **`--brand` (#FFD31C) NÃO É A MARCA — corrigido pelo usuário em 30/08/2026.**
-  Este documento afirmava "amarelo Sulista" e o token propagou isso pelo painel
-  inteiro; **não há amarelo na marca da Sulista**. O valor segue no código
-  porque trocá-lo sem saber a paleta REAL seria substituir um erro por outro:
-  são 6 usos no CSS (todos sobre a barra lateral navy — trilho do menu ativo,
-  foco da busca) mais o `CC.ouro` dos gráficos. Está anotado como pendência,
-  junto com o que se sabe: o logo é silhueta branca pura e os ícones PNG são
-  genéricos, então o repositório não guarda a resposta. O que continua VERDADE
-  sobre esse hex: 1,44:1 no branco, ou seja ele nunca pode ser tinta em
-  superfície clara. **Accent geral da UI clara:** laranja `#E85D10` = `--orange-500` (foco,
+- **A MARCA DA SULISTA É `#942821` (vermelho tijolo) + `#1E172F` (quase-preto
+  arroxeado), sobre branco. NÃO HÁ AMARELO.** Este documento afirmava "amarelo
+  Sulista #FFD31C", o token `--brand` propagou a afirmação pelo painel inteiro,
+  e **o usuário corrigiu em 30/08/2026**: não há amarelo na marca.
+  A paleta real foi **medida nos arquivos de marca do próprio repositório** —
+  favicon.png, icon-192, icon-512 e apple-touch-icon —, e os quatro concordam:
+  62% dos pixels do símbolo são `#942821` e 37% são `#1E172F`.
+  **O repositório guardava a resposta o tempo todo**; a rodada anterior
+  concluiu que não porque olhou só o SVG (silhueta branca pura) e desistiu.
+  Antes de dizer "não dá para saber", ler TODOS os arquivos que a casa versiona.
+- **A marca tem DUAS versões porque as duas superfícies são opostas.**
+  `--brand` (#942821) rende **8,12:1 no branco** e apenas **1,92:1 sobre o navy
+  da barra lateral**, onde sumiria — exatamente o inverso do amarelo que estava
+  no lugar dele (1,44:1 no branco, 10,85:1 no navy). Por isso a sidebar usa
+  `--brand-claro` (#E0705F, 5,4:1 sobre o navy): é a mesma marca, legível.
+  `--brand-ink` (#1E172F) é o segundo tom, tinta de título.
+  **O e-mail é onde a marca aparece no tom ORIGINAL**, porque lá a superfície é
+  branca. Nenhum dos três é accent de UI.
+- **Accent geral da UI clara:** laranja `#E85D10` = `--orange-500` (foco,
   drawer ativo, destaque de gráfico contratado).
 - **Semáforo:** ok verde `#1E7F4F` (`--green`), warn âmbar `#B97709` (`--yellow`), alerta
   vermelho `#C03221` (`--red`). Painéis de TV (fundo escuro) usam o conjunto brilhante
@@ -1956,6 +1965,30 @@ só no ERP ...... 177 placas      união ....... 275
   local, então não há `JOIN`. A chave é o NOME normalizado (sem acento,
   maiúscula, espaço simples) porque matrícula e documento não conversam —
   120 dos 134 casam.
+
+**"Modo caminhão" não é perfil de caminhão (TomTom, 30/08/2026):**
+- O ETA mandava só `travelMode=truck`. Medido nos quatro trechos reais da
+  operação, o perfil COMPLETO (40 t, 6 eixos, 18,6 m, 4,40 m) dá **5 a 28
+  minutos a mais**: Joinville→Curitiba +5, →São Paulo +20, Curitiba→Pouso
+  Alegre +15, Joinville→Betim +28. O modo sozinho ajusta o ritmo; o perfil muda
+  a ROTA — ponte, altura, peso por eixo.
+- O limiar de "chegada apertada" da Torre é **15 minutos**. Um erro sistemático
+  de 5 a 28 cai justamente no lado que faz a torre NÃO avisar.
+- O perfil é FIXO, e isso é escolha declarada: num caminhão menor ele erra para
+  a chegada MAIS TARDE, que é o erro seguro num painel de risco de atraso. A
+  tela diz que usa a carreta padrão.
+- **O contador de consumo media a COLETA, não o consumo.** Contava como chamada
+  a viagem já VENCIDA (que sai sem perguntar nada, de propósito) e a sem
+  coordenada no ERP; e somava "a TomTom recusou" com "o cadastro está
+  incompleto" no mesmo `erros`. Eram 295 chamadas com 33 erros num dia em que
+  boa parte nem tocou na API. Hoje `chamadas`, `erros_api` e `sem_cadastro` são
+  três números, porque são três consertos em lugares diferentes.
+- **O que a chave LIBERA, sondado um a um:** rota com perfil de veículo ✓,
+  `calculateReachableRange` ✓ (isócrona — até onde o caminhão chega em N horas,
+  polígono de 50 vértices), busca de POI por proximidade ✓ (posto a 199 m em
+  Joinville), fluxo e incidentes ✓. **`reverseGeocode` NÃO**: devolve
+  `403 InsufficientFunds` neste plano — o direto funciona, o reverso não.
+  Alcance e POI ficam disponíveis e não construídos; a decisão é de produto.
 
 **Regra que protege de um erro pode esconder o número que decide (Antecipação):**
 - A tela só antecipava título JÁ LANÇADO num portal, provado pela planilha

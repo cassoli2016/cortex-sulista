@@ -1,6 +1,6 @@
 ---
 name: relatorio-pdf
-description: Gera relatórios PDF profissionais no design system da empresa (amarelo #FFD31C, ink #1E1E1E) via pipeline pandas/matplotlib/WeasyPrint. Use quando o usuário pedir um relatório, dossiê ou export PDF de qualquer análise.
+description: Gera relatórios PDF profissionais no design system da empresa (marca #942821, ink #1E172F) via pipeline pandas/matplotlib/WeasyPrint. Use quando o usuário pedir um relatório, dossiê ou export PDF de qualquer análise.
 ---
 
 # Skill: Relatório PDF (design system)
@@ -9,7 +9,7 @@ Pipeline padrão para qualquer relatório do CÓRTEX. Consistência visual é re
 
 ## Tokens do design system
 ```
-amarelo  = "#FFD31C"   # destaque / marca
+marca    = "#942821"   # vermelho do símbolo da Sulista (medido nos ícones)
 ink      = "#1E1E1E"   # texto / títulos
 cinza    = "#6B7280"   # secundário
 verde    = "#16A34A"   # positivo

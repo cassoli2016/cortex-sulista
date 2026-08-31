@@ -115,13 +115,25 @@ def test_o_carimbo_do_tema_vem_ANTES_do_body():
     assert i < HTML.index("<body>"), "o tema é carimbado depois do <body>"
 
 
-def test_o_amarelo_da_MARCA_nao_virou_accent_de_UI():
-    """#FFD31C tem 1,44:1 no branco. No tema escuro ele finalmente tem
-    contraste, e a tentação é promovê-lo a accent — mas ele é MARCA, e o
-    accent da casa é o laranja. Um mesmo elemento mudando de cor de identidade
-    entre temas é o oposto de um design system."""
+def test_a_MARCA_nao_virou_accent_de_UI_nem_muda_com_o_tema():
+    """A marca é `#942821` — medida nos arquivos de marca do repositório em
+    30/08/2026, depois de o usuário corrigir o "amarelo Sulista" que este
+    projeto afirmava. Ela NÃO é o accent da casa (esse é o laranja) e NÃO se
+    redefine por tema: um mesmo elemento mudando de cor de identidade entre
+    temas é o oposto de um design system.
+
+    Quem se adapta à superfície é `--brand-claro`, e por um motivo medido: o
+    vermelho rende 8,12:1 no branco e 1,92:1 sobre o navy da barra lateral —
+    ali ele sumiria."""
     escuro = _tokens(_bloco(r':root\[data-theme="dark"\]'))
     assert "--brand" not in escuro, "o --brand não deve ser redefinido no escuro"
+    assert "--brand:#942821" in HTML.replace(" ", ""), (
+        "o token da marca saiu do valor medido no símbolo")
+    # `#FFD31C` ainda aparece no arquivo, e deve: o comentário do token conta
+    # POR QUE ele saiu, e apagar a história faria a próxima pessoa repetir o
+    # erro. O que não pode voltar é ele como VALOR — depois de dois-pontos.
+    assert ":#FFD31C" not in HTML.upper().replace(" ", ""), (
+        "o amarelo que não é da marca voltou como valor no CSS")
 
 
 # -- o comportamento ---------------------------------------------------------

@@ -145,32 +145,35 @@ def _uma(item) -> dict:
     if vencida_ha > 0:
         # NÃO GASTA CHAMADA. O ETA não muda o fato de o prazo ter passado, e
         # eram 6 de 47 — 13% da varredura indo para uma pergunta já respondida.
-        return {**base, "ok": True, **classificar(None, vencida_ha)}
+        return {**base, "ok": True, "chamou": False,
+                **classificar(None, vencida_ha)}
     alvo, aproximado = _destino(v)
     base["destino_aproximado"] = aproximado
     if alvo is None:
         # SEM COORDENADA NEM GEOCODIFICADA: é cadastro, e é dito como tal —
         # "sem estimativa" faria parecer falha da consulta.
-        return {**base, "ok": False,
+        # CADASTRO, NAO FALHA DA API — e nao gastou chamada nenhuma.
+        return {**base, "ok": False, "chamou": False, "motivo": "cadastro",
                 "erro": "destino sem coordenada no ERP e não localizado",
                 **classificar(None)}
     try:
         r = cliente.rota((pos["lat"], pos["lon"]), alvo, caminhao=True)
     except cliente.TomTomIndisponivel as exc:
-        return {**base, "ok": False, "erro": str(exc), **classificar(None)}
+        return {**base, "ok": False, "chamou": True, "motivo": "api",
+                "erro": str(exc), **classificar(None)}
     rotas = r.get("routes") or []
     if not rotas:
-        return {**base, "ok": False, "erro": "a TomTom não devolveu rota",
-                **classificar(None)}
+        return {**base, "ok": False, "chamou": True, "motivo": "api",
+                "erro": "a TomTom não devolveu rota", **classificar(None)}
     s = rotas[0].get("summary") or {}
     seg = s.get("travelTimeInSeconds")
     if seg is None:
-        return {**base, "ok": False, "erro": "rota sem tempo de viagem",
-                **classificar(None)}
+        return {**base, "ok": False, "chamou": True, "motivo": "api",
+                "erro": "rota sem tempo de viagem", **classificar(None)}
     chegada = agora.timestamp() + int(seg)
     folga = round((v["previsao"].timestamp() - chegada) / 60.0, 1)
     return {
-        **base, "ok": True,
+        **base, "ok": True, "chamou": True,
         "chegada_estimada": datetime.fromtimestamp(chegada).strftime("%Y-%m-%d %H:%M"),
         "minutos_ate_chegar": round(int(seg) / 60.0),
         "folga_min": folga,
@@ -225,8 +228,21 @@ def previsoes(*, forcar: bool = False, agora: datetime | None = None,
         t0 = time.time()
         with ThreadPoolExecutor(max_workers=TRABALHADORES) as pool:
             linhas = list(pool.map(_uma, alvos))
-        erros = sum(1 for l in linhas if not l.get("ok"))
-        coleta.registrar("rota", n=len(linhas), erros=erros)
+        # O CONTADOR MEDIA A COLETA, NAO O CONSUMO — e conflava duas coisas
+        # com donos diferentes. `n=len(linhas)` cobrava como chamada a viagem
+        # ja VENCIDA (que sai sem perguntar nada, de proposito) e a que nao tem
+        # coordenada no ERP; e `erros` somava "a TomTom recusou" com "o cadastro
+        # esta incompleto". Medido em 30/08/2026: 295 "chamadas" com 33 "erros"
+        # num dia em que boa parte nem tocou na API.
+        #
+        # E o alarme errado ensina a ignorar o alarme: erro de CADASTRO num
+        # painel de integracao manda procurar defeito na integracao.
+        chamadas = sum(1 for l in linhas if l.get("chamou"))
+        erros_api = sum(1 for l in linhas
+                        if not l.get("ok") and l.get("motivo") == "api")
+        sem_cadastro = sum(1 for l in linhas if l.get("motivo") == "cadastro")
+        coleta.registrar("rota", n=chamadas, erros=erros_api)
+        erros = erros_api + sem_cadastro
 
         fora = {
             "configurado": True,
@@ -237,6 +253,11 @@ def previsoes(*, forcar: bool = False, agora: datetime | None = None,
             "consultadas": len(alvos),
             "sem_posicao": sem_posicao,
             "erros": erros,
+            # separados na resposta porque os consertos sao em lugares
+            # diferentes: um e a TomTom, o outro e o cadastro do ERP
+            "erros_api": erros_api,
+            "sem_cadastro": sem_cadastro,
+            "chamadas": chamadas,
             "horizonte_h": HORIZONTE_H,
             "segundos": round(time.time() - t0, 1),
             "colhido_em": agora.isoformat(timespec="seconds"),

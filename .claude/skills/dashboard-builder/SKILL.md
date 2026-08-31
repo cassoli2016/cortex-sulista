@@ -32,7 +32,7 @@ Regras universais:
 
 ## 2. Design system (tokens)
 ```
-amarelo #FFD31C (marca/destaque) · ink #1E1E1E (texto) · cinza #6B7280 (secundário)
+marca #942821 (vermelho do símbolo; #E0705F sobre navy) · accent #E85D10 · ink #1E1E1E (texto) · cinza #6B7280 (secundário)
 verde #16A34A (ok) · vermelho #DC2626 (alerta) · âmbar #F59E0B (atenção) · fonte Inter
 ```
 

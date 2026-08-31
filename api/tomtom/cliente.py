@@ -280,16 +280,53 @@ def geocodificar(cidade: str, uf: str = "") -> dict | None:
             "rotulo": (res[0].get("address") or {}).get("freeformAddress")}
 
 
+# PERFIL DA CARRETA PADRAO DA CASA. Bitrem/carreta de 6 eixos: 40 t de PBT,
+# 18,6 m, 4,40 m de altura, 90 km/h de velocidade máxima regulada.
+#
+# POR QUE ISTO NAO E ENFEITE, e a medição está aqui porque comentário de
+# desempenho envelhece (esta casa já descartou um caminho por uma premissa 20x
+# errada num comentário). Medido em 30/08/2026, mesma origem e destino, só
+# `travelMode=truck` contra o perfil completo:
+#
+#   Joinville -> Curitiba      132,6 km / 121 min   ->   133,2 / 126   (+5 min)
+#   Joinville -> São Paulo     520,9 / 448          ->   521,2 / 468   (+20 min)
+#   Curitiba -> Pouso Alegre   616,7 / 586          ->   622,1 / 601   (+15 min)
+#   Joinville -> Betim/MG     1081,2 / 868          ->  1081,8 / 896   (+28 min)
+#
+# São 5 a 28 minutos, num painel cujo limiar de "chegada apertada" é 15. Sem os
+# parâmetros o ETA é sistematicamente OTIMISTA, e o erro cai justamente no lado
+# que faz a torre não avisar.
+#
+# O perfil é FIXO e isso é uma escolha declarada: o ERP tem os dados por
+# veículo, mas ligá-los aqui é outro trabalho. Fixo, ele erra para o lado da
+# chegada MAIS TARDE num caminhão menor — que é o erro seguro num painel de
+# risco de atraso. A tela diz que o cálculo usa a carreta padrão.
+CARRETA_PADRAO = {
+    "vehicleCommercial": "true",
+    "vehicleWeight": 40000,       # PBT em kg
+    "vehicleAxleWeight": 10000,   # kg por eixo
+    "vehicleNumberOfAxles": 6,
+    "vehicleLength": 18.6,
+    "vehicleWidth": 2.6,
+    "vehicleHeight": 4.4,
+    "vehicleMaxSpeed": 90,
+}
+
+
 def rota(origem: tuple[float, float], destino: tuple[float, float],
-         *, caminhao: bool = True) -> dict:
+         *, caminhao: bool = True, perfil: dict | None = None) -> dict:
     """Tempo até o destino COM o trânsito do momento.
 
-    `travelMode=truck` muda a rota de verdade (restrição de via, altura, peso),
-    e não só o tempo. Se o plano não liberar, a API recusa — e é isso que o
-    script de descoberta mede, em vez de este módulo afirmar.
+    `travelMode=truck` sozinho muda pouco; o que muda a ROTA de verdade —
+    restrição de via, ponte, altura, peso por eixo — é o PERFIL do veículo.
+    Ver `CARRETA_PADRAO` para a medição que justifica mandá-lo.
+
+    `perfil={}` volta ao comportamento antigo (só o modo), para quem quiser
+    comparar.
     """
     pontos = "%s,%s:%s,%s" % (origem[0], origem[1], destino[0], destino[1])
     p = {"traffic": "true", "routeType": "fastest", "computeTravelTimeFor": "all"}
     if caminhao:
         p["travelMode"] = "truck"
+        p.update(CARRETA_PADRAO if perfil is None else perfil)
     return _get("/routing/1/calculateRoute/%s/json" % pontos, p)

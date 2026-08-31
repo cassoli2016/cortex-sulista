@@ -59,21 +59,32 @@ LARANJA = "#E85D10"
 #
 # CORREÇÃO DO USUÁRIO, NO MEIO DO TRABALHO: **não há amarelo na marca da
 # Sulista.** Eu tinha posto `#FFD31C` como filete, seguindo o que o CLAUDE.md
-# afirma ("amarelo Sulista = --brand"). A afirmação do projeto está errada, e
-# quem é dono da marca disse. O amarelo saiu daqui na hora; corrigir o token
-# `--brand` no painel inteiro é outra conversa, anotada à parte, porque mexe em
-# 68 telas e precisa da paleta real.
+# afirmava ("amarelo Sulista = --brand"). A afirmação do projeto estava errada,
+# e quem é dono da marca disse.
 #
-#   NAVY     — escura o bastante para ser TINTA de título sobre branco (13:1),
-#              e é a superfície de identidade do painel (a barra lateral). Como
-#              ÁREA continua proibido: uma faixa de navy é o bloco escuro que a
-#              regra da casa veta, e o teste de luminância a barraria.
-#   LARANJA  — segue como accent e como filete do topo, que é o que ele já era.
+# A PALETA REAL foi então MEDIDA nos arquivos de marca do próprio repositório
+# (favicon.png, icon-192, icon-512, apple-touch), e os quatro concordam: o
+# símbolo tem dois tons sobre branco — vermelho tijolo `#942821` (62% dos
+# pixels) e um quase-preto arroxeado `#1E172F` (37%). Nenhum amarelo.
+#
+# E o e-mail é o lugar EXATO da marca: o vermelho rende **8,12:1 sobre branco**
+# — no painel ele daria 1,92:1 sobre o navy da barra lateral, e por isso lá
+# existe uma versão clareada. Aqui a superfície é branca, então entra o tom
+# original, sem adaptação.
+#
+#   MARCA      — filete do topo, olho e accent. É a identidade chegando.
+#   MARCA_INK  — tinta do título (17:1 sobre branco). É o outro tom do símbolo,
+#                e escurece o título sem virar área escura.
+#
+# Como ÁREA os dois continuam proibidos: uma faixa cheia é o bloco escuro que a
+# regra da casa veta, e o teste de luminância a barraria.
 #
 # Não há LOGO, e não é por esquecimento: o único arquivo é
 # `sulista-logo-branco.svg`, branco puro e invisível aqui; imagem em e-mail vem
 # bloqueada por padrão em boa parte dos clientes; e o Outlook não renderiza
-# SVG. A identidade fica no TIPOGRÁFICO, que chega em 100% dos casos.
+# SVG. A identidade fica no TIPOGRÁFICO e na COR, que chegam em 100% dos casos.
+MARCA = "#942821"                # vermelho do símbolo — filete, olho, accent
+MARCA_INK = "#1E172F"            # o segundo tom do símbolo — tinta de título
 NAVY = "#17344F"                 # navy-700: tinta de título, nunca fundo
 VERDE = "#1E7F4F"
 AMBAR = "#B97709"
@@ -130,8 +141,10 @@ def cabecalho(titulo: str, subtitulo: str = "") -> str:
     A estrutura vem de um filete no topo e de uma borda embaixo, não de um
     bloco de cor: e-mail do CÓRTEX não tem área escura.
 
-    O NAVY é a tinta do título — 13:1 sobre branco, e é a cor de identidade da
-    casa; como ÁREA continuaria proibido. O LARANJA é o filete e o accent.
+    Os dois tons vêm do SÍMBOLO da Sulista, medidos nos arquivos de marca:
+    `MARCA` (#942821) no filete, no olho e no botão; `MARCA_INK` (#1E172F) como
+    tinta do título. Como ÁREA os dois continuam proibidos — faixa cheia é o
+    bloco escuro que a regra da casa veta.
     NÃO há amarelo: o usuário corrigiu, em 30/08/2026, que ele não faz parte
     da marca da Sulista, ao contrário do que o CLAUDE.md afirmava.
     """
@@ -140,12 +153,12 @@ def cabecalho(titulo: str, subtitulo: str = "") -> str:
     return f"""
 <tr><td class="faixa" style="background:{BRANCO};padding:0">
   <table role="presentation" width="100%" cellpadding="0" cellspacing="0">
-   <tr><td style="background:{LARANJA};font-size:0;line-height:0;height:4px">
-     &nbsp;</td></tr>
+   <tr><td style="border-top:4px solid {MARCA};font-size:0;line-height:0;
+                  height:0">&nbsp;</td></tr>
    <tr><td style="padding:20px 26px 18px;border-bottom:1px solid {BORDA}">
-    <div style="font:700 11px/1 {FONTE};letter-spacing:.22em;color:{LARANJA};
+    <div style="font:700 11px/1 {FONTE};letter-spacing:.22em;color:{MARCA};
                 text-transform:uppercase">CÓRTEX · SULISTA</div>
-    <div style="font:700 21px/1.25 {FONTE};color:{NAVY};margin-top:9px">
+    <div style="font:700 21px/1.25 {FONTE};color:{MARCA_INK};margin-top:9px">
       {_esc(titulo)}</div>{sub}
    </td></tr>
   </table>
@@ -249,7 +262,7 @@ def chip(texto: str, estado: str = "neutro") -> Html:
 
 
 def paragrafo(texto: str, *, destaque: bool = False) -> str:
-    borda = f"border-left:3px solid {LARANJA};" if destaque else ""
+    borda = f"border-left:3px solid {MARCA};" if destaque else ""
     fundo = f"background:{FUNDO};" if destaque else ""
     return f"""
 <tr><td style="padding:14px 26px 0">

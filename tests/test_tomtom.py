@@ -433,3 +433,94 @@ def test_a_rota_de_geocode_pede_o_PAIS():
     import inspect
     fonte = inspect.getsource(cliente.geocodificar)
     assert "countrySet" in fonte and "BR" in fonte
+
+
+# ── a contabilidade do consumo (30/08/2026) ────────────────────────────────
+#
+# O contador media a COLETA, não o CONSUMO, e conflava duas coisas com donos
+# diferentes. Medido em produção: 295 "chamadas" com 33 "erros" num dia em que
+# boa parte das linhas nem tocou na API — a viagem já VENCIDA sai sem perguntar
+# nada (de propósito: o ETA não muda o fato de o prazo ter passado) e a sem
+# coordenada no ERP também.
+#
+# Alarme com o número errado ensina a ignorar o alarme: erro de CADASTRO num
+# painel de integração manda procurar defeito na integração.
+
+
+def test_viagem_vencida_nao_conta_como_chamada():
+    """Ela retorna sem perguntar nada à TomTom — contá-la inflaria o consumo
+    e faria o painel parecer perto do teto do plano sem estar."""
+    from api.tomtom import eta
+    linhas = [{"ok": True, "chamou": False}, {"ok": True, "chamou": True}]
+    assert sum(1 for l in linhas if l.get("chamou")) == 1
+
+
+def test_falta_de_coordenada_no_ERP_nao_e_erro_da_API():
+    """São consertos em lugares diferentes: um é a TomTom, o outro é o cadastro
+    do ERP. Somados, mandam olhar o lugar errado."""
+    from api.tomtom import eta
+    linhas = [{"ok": False, "motivo": "cadastro"},
+              {"ok": False, "motivo": "api"},
+              {"ok": True, "chamou": True}]
+    erros_api = sum(1 for l in linhas
+                    if not l.get("ok") and l.get("motivo") == "api")
+    sem_cadastro = sum(1 for l in linhas if l.get("motivo") == "cadastro")
+    assert (erros_api, sem_cadastro) == (1, 1)
+
+
+def test_a_resposta_separa_os_dois_para_a_tela():
+    """Sem os campos separados, a tela só poderia mostrar o total — e o total
+    é justamente o número que não diz o que fazer."""
+    import inspect
+    from api.tomtom import eta
+    fonte = inspect.getsource(eta.previsoes)
+    for campo in ('"erros_api"', '"sem_cadastro"', '"chamadas"'):
+        assert campo in fonte, f"{campo} sumiu da resposta do ETA"
+
+
+def test_a_rota_manda_o_PERFIL_do_veiculo_e_nao_so_o_modo():
+    """`travelMode=truck` sozinho muda pouco. O que muda a ROTA — ponte, altura,
+    peso por eixo — é o perfil, e a diferença foi MEDIDA em 30/08/2026: de 5 a
+    28 minutos nos quatro trechos reais da operação, num painel cujo limiar de
+    "chegada apertada" é 15. Sem o perfil o ETA é sistematicamente otimista, e
+    o erro cai no lado que faz a torre não avisar."""
+    from api.tomtom import cliente
+    vistos = {}
+
+    def falso(caminho, params, _t=0):
+        vistos.update(params)
+        return {"routes": [{"summary": {"travelTimeInSeconds": 60,
+                                        "lengthInMeters": 1000}}]}
+
+    orig = cliente._get
+    cliente._get = falso
+    try:
+        cliente.rota((-26.3, -48.8), (-25.4, -49.2))
+    finally:
+        cliente._get = orig
+    assert vistos.get("travelMode") == "truck"
+    for campo in ("vehicleWeight", "vehicleAxleWeight", "vehicleHeight",
+                  "vehicleNumberOfAxles", "vehicleCommercial"):
+        assert campo in vistos, f"{campo} não foi enviado — o ETA volta a ser de carro"
+    assert vistos["vehicleWeight"] == 40000
+    assert vistos["vehicleHeight"] == 4.4
+
+
+def test_perfil_vazio_volta_ao_comportamento_antigo():
+    """Para comparar os dois sem editar código — foi assim que a diferença de
+    5 a 28 minutos foi medida."""
+    from api.tomtom import cliente
+    vistos = {}
+
+    def falso(caminho, params, _t=0):
+        vistos.update(params)
+        return {"routes": []}
+
+    orig = cliente._get
+    cliente._get = falso
+    try:
+        cliente.rota((-26.3, -48.8), (-25.4, -49.2), perfil={})
+    finally:
+        cliente._get = orig
+    assert vistos.get("travelMode") == "truck"
+    assert "vehicleWeight" not in vistos

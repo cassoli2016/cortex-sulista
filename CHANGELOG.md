@@ -4,6 +4,21 @@ Gerado de `docs/versoes.yaml` por `scripts/gerar_changelog.py` — não editar �
 Formato [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/),
 versionamento [SemVer](https://semver.org/lang/pt-BR/).
 
+## [0.168.2] — 30/08/2026  ·  CX-30/08/2026-v0.168.2
+
+### Corrigido
+- A previsão de chegada da Torre estava otimista: ela pedia rota "de caminhão" sem dizer que caminhão. Com o perfil da carreta padrão — 40 toneladas, 6 eixos, 4,40 m de altura — a rota passa a respeitar ponte, altura e peso, e o tempo sobe de 5 a 28 minutos conforme o trecho. O limiar de "chegada apertada" da tela é 15 minutos, então a diferença decidia o aviso.
+- O consumo da TomTom contava como chamada viagens que nunca foram consultadas (as de prazo já vencido e as sem coordenada no ERP) e misturava falha da API com cadastro incompleto no mesmo número. Agora são três contadores, porque são três consertos diferentes.
+
+## [0.168.1] — 30/08/2026  ·  CX-30/08/2026-v0.168.1
+
+### Alterado
+- Os e-mails do CÓRTEX passaram a carregar a marca da Sulista: o vermelho do símbolo no filete do topo e na etiqueta, e o segundo tom no título. As cores foram medidas nos arquivos de marca do próprio sistema — não há amarelo neles.
+- O painel também: o trilho do menu ativo e o foco da busca deixaram de usar um amarelo que não é da Sulista. Na barra lateral escura entra uma versão clareada do mesmo vermelho, porque o tom original sumiria ali.
+
+### Corrigido
+- Um gráfico com tipo de unidade desconhecido rotulava o eixo como "R$" — um gráfico de contagem anunciando reais, sem erro nenhum aparecer. Agora ele sai sem unidade, que é o que não afirma nada de errado.
+
 ## [0.168.0] — 30/08/2026  ·  CX-30/08/2026-v0.168.0
 
 ### Alterado

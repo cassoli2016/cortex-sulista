@@ -214,13 +214,24 @@ def test_o_layout_compartilhado_nao_tem_area_escura():
     assert not escuros, f"fundo escuro no layout: {sorted(escuros)}"
 
 
-def test_o_amarelo_da_marca_NAO_aparece_em_email():
-    """#FFD31C tem 1,44:1 no branco. Ele existia no cabeçalho porque havia
-    fundo escuro embaixo; sem o fundo escuro ele vira um borrão ilegível. Em
-    superfície clara o accent é o laranja."""
+def test_a_MARCA_aparece_no_email_e_o_amarelo_nao():
+    """O e-mail é onde a marca aparece no tom ORIGINAL, e é medido: `#942821`
+    rende **8,12:1 sobre branco**. No painel ele daria 1,92:1 sobre o navy da
+    barra lateral, e por isso lá existe uma versão clareada — aqui a superfície
+    é branca, então não há adaptação a fazer.
+
+    O amarelo `#FFD31C` que este projeto chamava de "marca" continua barrado:
+    1,44:1 no branco, e sobretudo **não é a marca** — o usuário corrigiu, e a
+    paleta real saiu dos arquivos de marca do próprio repositório.
+
+    Asserção nos DOIS sentidos de propósito: só provar a ausência do amarelo
+    passaria com o e-mail sem identidade nenhuma, que é exatamente o estado de
+    onde este trabalho partiu."""
     from api.correio import painel as p
     html = p.documento("T", [p.cabecalho("R")], origem="t")
     assert "#FFD31C" not in html.upper()
+    assert "#942821" in html.upper(), "o e-mail saiu sem a cor da marca"
+    assert "#1E172F" in html.upper(), "o título saiu sem a tinta da marca"
 
 
 @pytest.mark.parametrize("relatorio", ["contrapartida", "acoes_pendentes", "digest"])
