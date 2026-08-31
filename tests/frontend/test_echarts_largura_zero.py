@@ -71,7 +71,17 @@ def test_desenhar_com_a_tela_fechada_e_depois_abrir_mostra_a_serie_inteira(paine
     pg.evaluate(DESENHA, DIAS)
     pg.wait_for_timeout(1500)
 
+    # A TELA ABRIR NÃO BASTA MAIS: desde que o Combustível virou três abas, o
+    # `chartCombDia` mora na de Consumo, que não é a que nasce visível. O
+    # contêiner só ganha largura quando a ABA abre — e é justamente esse o
+    # caminho que o `abaTrocar` + `ResizeObserver` precisam cobrir.
+    #
+    # A troca deixa o teste mais forte, não mais frouxo: antes ele provava o
+    # conserto na revelação de uma TELA; agora prova na revelação de uma ABA,
+    # que é o caso que a casa criou ao dividir 29 painéis.
     pg.evaluate("() => { location.hash = '#comb'; }")
+    pg.wait_for_timeout(900)
+    pg.evaluate("() => abaTrocar('comb', 'cons')")
     pg.wait_for_timeout(1200)
 
     texto = " ".join(pg.inner_text("#chartCombDia").split())

@@ -1966,6 +1966,23 @@ só no ERP ...... 177 placas      união ....... 275
   maiúscula, espaço simples) porque matrícula e documento não conversam —
   120 dos 134 casam.
 
+**Teste que recorta HTML por DESLOCAMENTO FIXO mente nas duas direções:**
+- O helper de `test_abas_bi.py` pegava o corpo de uma aba do `<div class="aba">`
+  até a próxima — e, quando a aba era a ÚLTIMA do grupo, caía num
+  `resto[:20000]`: vinte mil caracteres adiante, **atravessando o `</section>`**
+  e lendo a marcação das telas seguintes.
+- Enquanto havia dois grupos de aba, passava por sorte. Com 31, o mesmo defeito
+  produziu **falso positivo** (acusou o `antport` de pôr gráfico em aba
+  escondida, sendo que ele não tem gráfico nenhum) **e falso negativo** (deixou
+  passar o `drecli`, que tinha o problema de verdade). Uma causa, os dois erros.
+- E o `orc` só apareceu depois: **consertar a MEDIÇÃO revelou duas violações
+  reais**, enquanto calibrar o limiar teria escondido as duas.
+- A regra: o fim de um recorte é DERIVADO de um limite real (aqui, o
+  `</section>`), nunca de um número escolhido para "dar folga". Folga arbitrária
+  não é margem de segurança — é a fronteira do que se mede indo parar em cima
+  do vizinho. É a mesma família do corte por marcador que já comeu 20 rotas
+  alheias neste arquivo.
+
 **Conferência de CSS: leia o CSSOM, não o texto (30/08/2026):**
 - Escrevi três versões de um guard contra "fundo claro sem versão escura", e as
   duas primeiras devolviam **ZERO com o defeito reposto de propósito**. Nenhuma

@@ -4,6 +4,18 @@ Gerado de `docs/versoes.yaml` por `scripts/gerar_changelog.py` — não editar �
 Formato [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/),
 versionamento [SemVer](https://semver.org/lang/pt-BR/).
 
+## [0.170.0] — 30/08/2026  ·  CX-30/08/2026-v0.170.0
+
+### Adicionado
+- O QualP entrou nas Integrações, com usuário e senha. Ele traz as praças de pedágio de uma rota com a tarifa VIGENTE por eixo — inclusive retroativa, para conferir uma viagem antiga contra o preço que valia no dia dela —, as balanças do trajeto e a tabela de piso da ANTT com a resolução em vigor. É o primeiro fornecedor que funciona SEM credencial: sem conta a consulta responde, com teto de três por dia; o cartão diz em qual dos dois regimes a integração está.
+
+## [0.168.4] — 30/08/2026  ·  CX-30/08/2026-v0.168.4
+
+### Corrigido
+- A Produtividade de Veículos e a Jornada tinham perdido o nome interno das abas na divisão da v0.167.0, e com ele o intervalo de giro que cada pessoa já tivesse escolhido para esses painéis. Os nomes voltaram.
+- No Orçamento e na DRE por Cliente, o único gráfico da tela tinha ficado numa aba fechada — ele nasceria com os rótulos do eixo suprimidos. Os dois passaram para a aba que abre.
+- Os dois contadores de aba da Produtividade tinham parado de aparecer. Eles mostram o TOTAL de veículos, que numa tabela de 20 linhas é outro número que o contador automático daria.
+
 ## [0.168.3] — 30/08/2026  ·  CX-30/08/2026-v0.168.3
 
 ### Adicionado

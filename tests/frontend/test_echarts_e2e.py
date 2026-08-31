@@ -101,7 +101,7 @@ ABA_HOME = {"#chartHdia": "dia", "#chartHrec": "fin", "#chartHsal": "fin",
 def _abaHome(pg, alvo):
     chave = ABA_HOME.get(alvo)
     if chave:
-        pg.click("#tabHome-" + chave)
+        pg.click("#tabhome-" + chave)
         pg.wait_for_timeout(350)   # o ResizeObserver remede no quadro seguinte
 
 

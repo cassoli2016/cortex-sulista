@@ -71,6 +71,26 @@ CAMPOS: dict[str, dict] = {
                      "trânsito e ETA. Sem ela a coleta usa a do mapa, que "
                      "falha se estiver restrita"},
 
+    # QualP — praças de pedágio, tarifa vigente e piso ANTT.
+    #
+    # NÃO É CHAVE DE API: a autenticação é usuário e senha, trocados por um par
+    # `login_cod` + `login_token` em `/api/site/login/authenticate`. Lido do
+    # cliente do próprio site, não da documentação — que não descreve o formato.
+    #
+    # E é OPCIONAL de propósito: o endpoint funciona sem conta nenhuma, com
+    # teto de **três consultas por dia, por IP** (a quarta volta HTTP 402, em
+    # português). Marcar como obrigatório faria a Saúde acusar falha numa
+    # integração que está funcionando no regime gratuito — o mesmo erro do
+    # alarme que acende sem haver problema.
+    "QUALP_USUARIO": {
+        "rotulo": "Usuário", "obrigatorio": False, "segredo": False,
+        "descricao": "Usuário da conta QualP. Sem conta, a consulta funciona "
+                     "no modo aberto: três por dia, por IP"},
+    "QUALP_SENHA": {
+        "rotulo": "Senha", "obrigatorio": False,
+        "descricao": "Senha da conta QualP. Com ela o teto de três consultas "
+                     "diárias deixa de valer"},
+
     "SMTP_SENHA": {
         "rotulo": "Senha do servidor",
         "descricao": "Senha do servidor de e-mail (envio pelo CÓRTEX)"},
@@ -252,6 +272,29 @@ SERVICOS: list[dict] = [
                    "dica": "a mesma do painel developer.tomtom.com",
                    "campos": ["TOMTOM_API_KEY"]}],
         "ajustes": ["TOMTOM_API_KEY_SERVIDOR"],
+    },
+    {
+        "chave": "qualp",
+        "nome": "QualP",
+        "resumo": "Praças de pedágio de uma rota com a TARIFA VIGENTE por eixo "
+                  "— inclusive retroativa, para conferir uma viagem antiga "
+                  "contra o preço que valia no dia dela. Traz também as "
+                  "balanças do trajeto e a tabela de piso da ANTT, com a "
+                  "resolução em vigor.",
+        "alimenta": "Validação de Pedágio",
+        # O ÚNICO FORNECEDOR QUE FUNCIONA SEM CREDENCIAL. Sem conta, a consulta
+        # responde no modo aberto — três por dia, por IP. Por isso o modo é
+        # OPCIONAL: marcar a integração como "desligada" quando ela está
+        # respondendo seria mentir sobre o estado, e acender vermelho onde não
+        # há problema ensina a ignorar o vermelho.
+        "modos": [{"chave": "conta", "rotulo": "Usuário e senha",
+                   "dica": "a mesma conta de qualp.com.br. Sem ela a consulta "
+                           "funciona, com teto de três por dia",
+                   "campos": ["QUALP_USUARIO", "QUALP_SENHA"]}],
+        "ajustes": [],
+        "regime": lambda: ("com a conta: sem o teto de três consultas por dia"
+                           if (ler("QUALP_USUARIO") and ler("QUALP_SENHA"))
+                           else "modo aberto: três consultas por dia, por IP"),
     },
     {
         "chave": "gobrax",
@@ -483,6 +526,13 @@ def panorama() -> list[dict]:
             "aba": svc.get("aba"),
             "estado": estado, "modo_ativo": modo_ativo, "falta": falta,
             "modos": modos, "ajustes": ajustes,
+            # O REGIME, para o fornecedor que FUNCIONA SEM CREDENCIAL.
+            #
+            # O QualP responde sem conta nenhuma, com teto de três consultas
+            # por dia. Sem esta linha o cartão diria "ativa" nos dois casos e
+            # esconderia a única diferença que importa — e "desligada" seria
+            # pior ainda, porque ele não está desligado, está limitado.
+            "regime": svc.get("regime", lambda: None)(),
         })
     return fora
 

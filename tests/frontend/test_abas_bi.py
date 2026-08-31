@@ -106,11 +106,26 @@ def _grupos() -> list[str]:
 
 
 def _painel(grupo: str, aba: str) -> str:
-    """O corpo de um painel de aba, do `<div class="aba"...>` até o próximo."""
+    """O corpo de um painel de aba: do `<div class="aba"…>` até o próximo — ou
+    até o FIM DA TELA, o que vier primeiro.
+
+    O `</section>` não estava aqui, e na ÚLTIMA aba de um grupo o helper caía
+    no `resto[:20000]`: vinte mil caracteres ADIANTE, atravessando o fim da
+    tela e lendo a marcação das telas seguintes. Enquanto havia dois grupos de
+    aba isso passava por sorte; com 31, a leitura vazada encontrou o gráfico de
+    outra tela e acusou o painel de Antecipação-Portal de pôr gráfico em aba
+    escondida — sendo que ele não tem gráfico nenhum.
+
+    Medida que atravessa a fronteira do que se quer medir dá o número de outra
+    coisa, e a acusação parece do código."""
     i = HTML.index('data-abas="%s" data-aba="%s"' % (grupo, aba))
     resto = HTML[i:]
-    prox = re.search(r'<div class="aba" data-abas=', resto[10:])
-    return resto[:prox.start() + 10] if prox else resto[:20000]
+    limites = [m.start() + 10 for m in
+               [re.search(r'<div class="aba" data-abas=', resto[10:])] if m]
+    fim = resto.find("</section>")
+    if fim > 0:
+        limites.append(fim)
+    return resto[:min(limites)] if limites else resto
 
 
 def test_EXATAMENTE_UMA_aba_por_painel_nasce_aberta():
@@ -179,11 +194,11 @@ def test_o_grafico_e_medido_com_LARGURA_DE_VERDADE(pagina):
 def test_trocar_de_aba_mostra_uma_e_esconde_as_outras(pagina):
     pg, base_url = pagina
     _abrir(pg, base_url)
-    pg.click("#tabProd-veic")
+    pg.click("#tabprod-veic")
     assert pg.is_visible("#aba-prod-veic") and not pg.is_visible("#aba-prod-vis")
-    assert pg.get_attribute("#tabProd-veic", "aria-selected") == "true"
-    assert pg.get_attribute("#tabProd-vis", "aria-selected") == "false"
-    pg.click("#tabProd-ocio")
+    assert pg.get_attribute("#tabprod-veic", "aria-selected") == "true"
+    assert pg.get_attribute("#tabprod-vis", "aria-selected") == "false"
+    pg.click("#tabprod-ocio")
     assert pg.is_visible("#aba-prod-ocio") and not pg.is_visible("#aba-prod-veic")
 
 
@@ -242,17 +257,30 @@ def test_NAO_GIRAR_esta_DENTRO_do_mesmo_controle(pagina):
 
 
 def test_o_giro_avanca_a_aba_sozinho(pagina):
+    """A ORDEM SAI DO DOM, não de uma lista escrita aqui.
+
+    A versão anterior nomeava `vis → veic → ocio`. Bastou a Produtividade
+    ganhar uma quarta aba para ela falhar — e o que falhou foi a lista do
+    teste, não a rotação. Teste amarrado à composição de um painel quebra
+    quando o painel muda de composição, que é justamente o que se espera que
+    ele faça.
+    """
     pg, base_url = pagina
     _abrir(pg, base_url)
-    assert pg.get_attribute("#tabProd-vis", "aria-selected") == "true"
+    ordem = pg.evaluate(
+        "() => Array.from(document.querySelectorAll("
+        " '.subtabs[data-abas=\"prod\"] button[data-aba]')).map(b => b.dataset.aba)")
+    assert len(ordem) >= 3, "a Produtividade precisa de abas para este teste"
+    assert pg.get_attribute("#tabprod-" + ordem[0], "aria-selected") == "true"
     # o menor intervalo real é longo demais para um teste: dispara a rotação
     # pela mesma função que o relógio chama.
+    for i in range(1, len(ordem)):
+        pg.evaluate("() => window.abaProxima('prod')")
+        assert pg.get_attribute("#tabprod-" + ordem[i], "aria-selected") == "true", (
+            "a rotação pulou ou repetiu: esperava %s na posição %d"
+            % (ordem[i], i))
     pg.evaluate("() => window.abaProxima('prod')")
-    assert pg.get_attribute("#tabProd-veic", "aria-selected") == "true"
-    pg.evaluate("() => window.abaProxima('prod')")
-    assert pg.get_attribute("#tabProd-ocio", "aria-selected") == "true"
-    pg.evaluate("() => window.abaProxima('prod')")
-    assert pg.get_attribute("#tabProd-vis", "aria-selected") == "true", (
+    assert pg.get_attribute("#tabprod-" + ordem[0], "aria-selected") == "true", (
         "a rotação tem de dar a volta, não parar na última")
 
 
@@ -286,7 +314,7 @@ def test_o_clique_manual_REARMA_o_relogio(pagina):
         const orig = window.abaAutoRearmar;
         window.abaAutoRearmar = g => { window.__rearmou++; return orig(g); };
     }""")
-    pg.click("#tabProd-veic")
+    pg.click("#tabprod-veic")
     assert pg.evaluate("() => window.__rearmou") >= 1
 
 

@@ -117,7 +117,7 @@ def test_parametros_da_regra_vivem_na_aba_CONFIGURACAO(pagina):
     _abrir(pg, base)
     assert pg.query_selector("#fPremValorKm") is None, (
         "o formulário solto saiu junto com a rota que ele alimentava")
-    pg.click("#tabPrem-cfg")
+    pg.click("#tabprem-cfg")
     for k in ("valor_por_km", "nota_minima", "km_minimo"):
         assert pg.input_value("#fPremP_" + k) != "", k
 
@@ -129,7 +129,7 @@ def test_o_aviso_da_configuracao_NAO_diz_mais_que_nada_dali_paga(pagina):
     valor achando que é ensaio."""
     pg, base = pagina
     _abrir(pg, base)
-    pg.click("#tabPrem-cfg")
+    pg.click("#tabprem-cfg")
     txt = pg.inner_text("#prem-cfg-aviso").upper()
     assert "JÁ VALEM" in txt, txt
     assert "PESOS DOS EIXOS AINDA NÃO PAGAM" in txt, txt

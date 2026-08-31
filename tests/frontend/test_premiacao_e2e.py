@@ -98,8 +98,8 @@ def test_abre_na_PREMIACAO_e_a_configuracao_comeca_escondida(pagina):
     assert not erros, erros
     assert pg.is_visible("#aba-prem"), "a aba da premiação tem de nascer aberta"
     assert not pg.is_visible("#aba-cfg")
-    assert pg.get_attribute("#tabPrem-prem", "aria-selected") == "true"
-    assert pg.get_attribute("#tabPrem-cfg", "aria-selected") == "false"
+    assert pg.get_attribute("#tabprem-prem", "aria-selected") == "true"
+    assert pg.get_attribute("#tabprem-cfg", "aria-selected") == "false"
 
 
 def test_a_aba_da_premiacao_nasce_aberta_PORQUE_e_ela_que_tem_grafico(pagina):
@@ -116,12 +116,12 @@ def test_a_aba_da_premiacao_nasce_aberta_PORQUE_e_ela_que_tem_grafico(pagina):
 def test_trocar_de_aba_mostra_a_configuracao_e_esconde_o_resto(pagina):
     pg, base_url = pagina
     _abrir(pg, base_url)
-    pg.click("#tabPrem-cfg")
+    pg.click("#tabprem-cfg")
     assert pg.is_visible("#aba-cfg")
     assert not pg.is_visible("#aba-prem")
     assert pg.is_visible("#prem-cfg-params"), "os parâmetros por eixo têm de estar na aba"
-    assert pg.get_attribute("#tabPrem-cfg", "aria-selected") == "true"
-    pg.click("#tabPrem-prem")
+    assert pg.get_attribute("#tabprem-cfg", "aria-selected") == "true"
+    pg.click("#tabprem-prem")
     assert pg.is_visible("#aba-prem")
 
 

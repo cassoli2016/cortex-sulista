@@ -2532,15 +2532,15 @@ body.tvfull #btnReport,body.tvmode #btnReport{display:none}
           <div class="kpis k4" id="kpis-home-op"></div>
         </div>
                 <div class="subtabs" role="tablist" data-abas="home" aria-label="Seções da visão geral">
-          <button role="tab" id="tabHome-dia" data-aba="dia" aria-controls="aba-home-dia"
+          <button role="tab" id="tabhome-dia" data-aba="dia" aria-controls="aba-home-dia"
                   aria-selected="true" onclick="abaTrocar('home','dia')">Meta do mês</button>
-          <button role="tab" id="tabHome-fin" data-aba="fin" aria-controls="aba-home-fin"
+          <button role="tab" id="tabhome-fin" data-aba="fin" aria-controls="aba-home-fin"
                   aria-selected="false" onclick="abaTrocar('home','fin')">Financeiro</button>
-          <button role="tab" id="tabHome-ope" data-aba="oper" aria-controls="aba-home-ope"
+          <button role="tab" id="tabhome-ope" data-aba="oper" aria-controls="aba-home-ope"
                   aria-selected="false" onclick="abaTrocar('home','ope')">Operação e alertas</button>
         </div>
         <div class="aba" data-abas="home" data-aba="dia" id="aba-home-dia"
-             role="tabpanel" aria-labelledby="tabHome-dia">
+             role="tabpanel" aria-labelledby="tabhome-dia">
 <div class="card">
           <div class="head">
             <h2>Faturamento diário × meta <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="Realizado = CT-e (conhecimento, situação 3, tipos 1 e 4) + faturamento KMM (sulista.faturamentokmm) + NFS-e autorizadas (notafiscalservico), por data de emissão. Meta = sulista.metafaturamento_agrupamentoclientedia (tipo 1), por dia. É o recorte OFICIAL de faturamento — o mesmo do Painel TV. Diferente de 'Faturamento do mês' (faturas emitidas) e de 'Receita CT-e' (frete das viagens).">i</span></h2>
@@ -2563,7 +2563,7 @@ body.tvfull #btnReport,body.tvmode #btnReport{display:none}
         </div>
         </div>
         <div class="aba" data-abas="home" data-aba="fin" id="aba-home-fin"
-             role="tabpanel" aria-labelledby="tabHome-fin" hidden>
+             role="tabpanel" aria-labelledby="tabhome-fin" hidden>
 <div class="grid2">
           <div class="card">
             <div class="head">
@@ -2593,7 +2593,7 @@ body.tvfull #btnReport,body.tvmode #btnReport{display:none}
         </div>
         </div>
         <div class="aba" data-abas="home" data-aba="oper" id="aba-home-ope"
-             role="tabpanel" aria-labelledby="tabHome-ope" hidden>
+             role="tabpanel" aria-labelledby="tabhome-ope" hidden>
 <div class="grid2">
           <div class="card">
             <div class="head">
@@ -3031,15 +3031,15 @@ body.tvfull #btnReport,body.tvmode #btnReport{display:none}
       <section class="view" id="view-com">
         <div class="kpis" id="kpis-com"></div>
                 <div class="subtabs" role="tablist" data-abas="com" aria-label="Seções da tela">
-          <button role="tab" id="tabCom-geral" data-aba="geral" aria-controls="aba-com-geral"
+          <button role="tab" id="tabcom-geral" data-aba="geral" aria-controls="aba-com-geral"
                   aria-selected="true" onclick="abaTrocar('com','geral')">Visão geral</button>
-          <button role="tab" id="tabCom-preco" data-aba="preco" aria-controls="aba-com-preco"
+          <button role="tab" id="tabcom-preco" data-aba="preco" aria-controls="aba-com-preco"
                   aria-selected="false" onclick="abaTrocar('com','preco')">Preço e meta</button>
-          <button role="tab" id="tabCom-carteira" data-aba="carteira" aria-controls="aba-com-carteira"
+          <button role="tab" id="tabcom-carteira" data-aba="carteira" aria-controls="aba-com-carteira"
                   aria-selected="false" onclick="abaTrocar('com','carteira')">Carteira</button>
         </div>
         <div class="aba" data-abas="com" data-aba="geral" id="aba-com-geral"
-             role="tabpanel" aria-labelledby="tabCom-geral">
+             role="tabpanel" aria-labelledby="tabcom-geral">
 <div class="card">
           <div class="head"><h2>Receita de frete por mês <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="FONTE: programacaoembarque.valorfrete das viagens CARREGADAS (não canceladas, semáforo = 1, tipo ≠ 3), por data de emissão, dentro do período filtrado. É o frete das viagens — recorte DIFERENTE do faturamento oficial (CT-e + NFS-e + KMM) que aparece no card de metas mais abaixo, e das faturas emitidas do Contas a Receber. Mês que o filtro pega pela metade sai hachurado e marcado 'parcial'.">i</span></h2><span class="hint" id="hintCom">no período filtrado</span></div>
           <div class="legend">
@@ -3058,7 +3058,7 @@ body.tvfull #btnReport,body.tvmode #btnReport{display:none}
         </div>
         </div>
         <div class="aba" data-abas="com" data-aba="preco" id="aba-com-preco"
-             role="tabpanel" aria-labelledby="tabCom-preco" hidden>
+             role="tabpanel" aria-labelledby="tabcom-preco" hidden>
 <div class="card">
           <div class="head"><h2>Re-preço por rota — quem paga abaixo dos demais <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="Compara o RKM do cliente com o RKM dos DEMAIS clientes na mesma origem→destino, no período filtrado. Só entram rotas com 3.000 km ou mais no recorte e diferença de 5% ou mais para baixo. Potencial = (RKM dos demais − RKM do cliente) × km do cliente na rota. NÃO considera tipo de carga, sazonalidade nem contrato — é ponto de partida de conversa, não conclusão.">i</span></h2><span class="hint">RKM do cliente vs RKM dos outros clientes na MESMA rota, no período filtrado</span></div>
           <div class="tablewrap tabroll"><table><thead><tr>
@@ -3074,7 +3074,7 @@ body.tvfull #btnReport,body.tvmode #btnReport{display:none}
         </div>
         </div>
         <div class="aba" data-abas="com" data-aba="carteira" id="aba-com-carteira"
-             role="tabpanel" aria-labelledby="tabCom-carteira" hidden>
+             role="tabpanel" aria-labelledby="tabcom-carteira" hidden>
 <div class="card">
           <div class="head"><h2>Concentração da carteira — curva ABC <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="Participação acumulada na receita do período filtrado, sobre os 30 maiores clientes. Quanto menos clientes formam 80% da receita, maior a dependência: perder um deles vira buraco imediato no mês.">i</span></h2><span class="hint">participação acumulada na receita do período</span></div>
           <div class="kpis" id="com-abc"></div>
@@ -3190,21 +3190,21 @@ body.tvfull #btnReport,body.tvmode #btnReport{display:none}
           </div>
         </div>
 <div id="orc-aviso"></div>
-          <div class="kpis k4" id="kpis-orc"></div>
-                  <div class="subtabs" role="tablist" data-abas="orc" aria-label="Seções desta tela">
+<div class="kpis k4" id="kpis-orc"></div>
+        <div class="subtabs" role="tablist" data-abas="orc" aria-label="Seções desta tela">
           <button role="tab" id="taborc-acomp" data-aba="acomp" aria-controls="aba-orc-acomp" aria-selected="true" onclick="abaTrocar('orc','acomp')">Acompanhamento</button>
-          <button role="tab" id="taborc-evo" data-aba="evo" aria-controls="aba-orc-evo" aria-selected="false" onclick="abaTrocar('orc','evo')">Evolução e desvios</button>
+          <button role="tab" id="taborc-desv" data-aba="desv" aria-controls="aba-orc-desv" aria-selected="false" onclick="abaTrocar('orc','desv')">Cascata e desvios</button>
           <button role="tab" id="taborc-mont" data-aba="mont" aria-controls="aba-orc-mont" aria-selected="false" onclick="abaTrocar('orc','mont')">Montagem</button>
         </div>
         <div class="aba" data-abas="orc" data-aba="acomp" id="aba-orc-acomp" role="tabpanel" aria-labelledby="taborc-acomp">
   <div class="card"><div class="head"><h2>Orçamento do ano por linha</h2><span class="hint" id="hintOrcAno"></span></div>
               <div class="tablewrap tabroll" id="orc-ano"></div></div>
-  <div class="card"><div class="head"><h2>Orçado × realizado por linha</h2><span class="hint" id="hintOrcCasc"></span></div>
-              <div class="tablewrap tabroll" id="orc-cascata"></div></div>
-        </div>
-        <div class="aba" data-abas="orc" data-aba="evo" id="aba-orc-evo" role="tabpanel" aria-labelledby="taborc-evo" hidden>
   <div class="card"><div class="head"><h2>Evolução mensal</h2><span class="hint">mês não fechado mostra só o orçado · mês dentro da base sai esmaecido (orçado retroativo)</span></div>
               <div class="chartwrap"><div id="chartOrc" style="width:100%;height:250px" role="img"></div></div></div>
+        </div>
+        <div class="aba" data-abas="orc" data-aba="desv" id="aba-orc-desv" role="tabpanel" aria-labelledby="taborc-desv" hidden>
+  <div class="card"><div class="head"><h2>Orçado × realizado por linha</h2><span class="hint" id="hintOrcCasc"></span></div>
+              <div class="tablewrap tabroll" id="orc-cascata"></div></div>
   <div class="card"><div class="head"><h2>Maiores desvios</h2><span class="hint" id="hintOrcDesv"></span></div>
               <div class="tablewrap tabroll" id="orc-desvios"></div></div>
         </div>
@@ -3273,12 +3273,12 @@ body.tvfull #btnReport,body.tvmode #btnReport{display:none}
           <div class="banner-inline" id="prem-telemetria" style="display:none;margin:0"></div>
           <div class="kpis k4" id="kpis-prem"></div>
                     <div class="subtabs" role="tablist" data-abas="prem" aria-label="Seções da premiação">
-            <button role="tab" id="tabPrem-prem" aria-controls="aba-prem" data-aba="prem"
+            <button role="tab" id="tabprem-prem" aria-controls="aba-prem" data-aba="prem"
                     aria-selected="true" onclick="abaTrocar('prem','prem')">Premiação</button>
-            <button role="tab" id="tabPrem-cfg" aria-controls="aba-cfg" data-aba="cfg"
+            <button role="tab" id="tabprem-cfg" aria-controls="aba-cfg" data-aba="cfg"
                     aria-selected="false" onclick="abaTrocar('prem','cfg')">Configuração</button>
           </div>
-          <div class="aba" data-abas="prem" data-aba="prem" id="aba-prem" role="tabpanel" aria-labelledby="tabPrem-prem">
+          <div class="aba" data-abas="prem" data-aba="prem" id="aba-prem" role="tabpanel" aria-labelledby="tabprem-prem">
           <div class="card">
             <div class="head"><h2>Ranking de motoristas <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" id="prem-rank-help" title="">i</span></h2><span class="hint" id="prem-rank-hint"></span></div>
             <div class="tablewrap tabroll"><table><thead><tr>
@@ -3294,7 +3294,7 @@ body.tvfull #btnReport,body.tvmode #btnReport{display:none}
             <div style="padding:0 18px 14px;font-size:12px;color:var(--n500)" id="prem-comp-premios"></div>
           </div>
           </div>
-          <div class="aba" data-abas="prem" data-aba="cfg" id="aba-cfg" role="tabpanel" aria-labelledby="tabPrem-cfg" hidden>
+          <div class="aba" data-abas="prem" data-aba="cfg" id="aba-cfg" role="tabpanel" aria-labelledby="tabprem-cfg" hidden>
             <div class="banner-inline" style="display:flex;margin:0 0 14px"><i></i><span>Estes parâmetros são <b>versionados por competência</b>: o cálculo de um mês usa a última versão vigente até ele, então configurar agosto não mexe em julho.</span></div>
             <div class="card">
             <div class="head"><h2>Configuração por eixos <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="Parâmetros e pesos da premiação de seis eixos, guardados no banco do CÓRTEX e VERSIONADOS POR COMPETÊNCIA: configurar agosto não mexe em julho, e o cálculo de um mês usa a última versão vigente até ele. Premiação decide dinheiro de gente, e a pergunta “por que recebi isso em março?” aparece meses depois — editar por cima deixaria ela sem resposta.">i</span></h2>
@@ -3468,15 +3468,15 @@ body.tvfull #btnReport,body.tvmode #btnReport{display:none}
       <section class="view" id="view-fluxcon">
         <div class="kpis k4" id="kpis-fluxcon"></div>
                 <div class="subtabs" role="tablist" data-abas="fluxcon" aria-label="Seções da tela">
-          <button role="tab" id="tabFluxcon-proj" data-aba="proj" aria-controls="aba-fluxcon-proj"
+          <button role="tab" id="tabfluxcon-proj" data-aba="proj" aria-controls="aba-fluxcon-proj"
                   aria-selected="true" onclick="abaTrocar('fluxcon','proj')">Projeção</button>
-          <button role="tab" id="tabFluxcon-posicao" data-aba="posicao" aria-controls="aba-fluxcon-posicao"
+          <button role="tab" id="tabfluxcon-posicao" data-aba="posicao" aria-controls="aba-fluxcon-posicao"
                   aria-selected="false" onclick="abaTrocar('fluxcon','posicao')">Posição</button>
-          <button role="tab" id="tabFluxcon-venc" data-aba="venc" aria-controls="aba-fluxcon-venc"
+          <button role="tab" id="tabfluxcon-venc" data-aba="venc" aria-controls="aba-fluxcon-venc"
                   aria-selected="false" onclick="abaTrocar('fluxcon','venc')">Vencidos e limites</button>
         </div>
         <div class="aba" data-abas="fluxcon" data-aba="proj" id="aba-fluxcon-proj"
-             role="tabpanel" aria-labelledby="tabFluxcon-proj">
+             role="tabpanel" aria-labelledby="tabfluxcon-proj">
 <div class="card">
           <div class="head"><h2>Saldo projetado <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="Saldo encadeado: o final de cada período é o inicial do seguinte, começando no saldo de bancos e caixa de hoje — a mesma cascata da planilha de tesouraria, onde o SALDO ANTERIOR de cada aba vem do dia anterior. Entradas = a receber oficial por vencimento; saídas = contas a pagar por vencimento. Só o que está LANÇADO no ERP.">i</span></h2>
             <span class="hint" id="hintFc"></span></div>
@@ -3486,7 +3486,7 @@ body.tvfull #btnReport,body.tvmode #btnReport{display:none}
         </div>
         </div>
         <div class="aba" data-abas="fluxcon" data-aba="posicao" id="aba-fluxcon-posicao"
-             role="tabpanel" aria-labelledby="tabFluxcon-posicao" hidden>
+             role="tabpanel" aria-labelledby="tabfluxcon-posicao" hidden>
 <div class="grid2">
           <div class="card">
             <div class="head"><h2>Saldo por banco <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="Posição de cada conta ATIVA e marcada como “considerar fluxo de caixa” no ERP — as mesmas que somam o saldo de partida. Contas operacionais (vale-pedágio, cartão) ficam fora porque o próprio ERP as marca assim. A data é a da última posição de cada conta: elas não são todas do mesmo dia.">i</span></h2>
@@ -3512,7 +3512,7 @@ body.tvfull #btnReport,body.tvmode #btnReport{display:none}
         </div>
         </div>
         <div class="aba" data-abas="fluxcon" data-aba="venc" id="aba-fluxcon-venc"
-             role="tabpanel" aria-labelledby="tabFluxcon-venc" hidden>
+             role="tabpanel" aria-labelledby="tabfluxcon-venc" hidden>
 <div class="card">
           <div class="head"><h2>Vencidos — o bloco separado <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="Contas a pagar já vencidas, agrupadas por natureza. Ficam FORA do fluxo acima de propósito, como no rodapé da planilha de tesouraria: somar isso ao dia a dia faria a operação parecer inviável todos os dias. A maior parte é tributo — inclusive parcelamento em curso, que não vence de novo.">i</span></h2>
             <span class="hint" id="hintFcVenc"></span></div>
@@ -4846,13 +4846,13 @@ body.tvfull #btnReport,body.tvmode #btnReport{display:none}
       <!-- ===================== ANÁLISE DE KM ===================== -->
       <section class="view" id="view-prodveic">
         <div class="kpis k4" id="kpis-prodveic"></div>
-        <div class="subtabs" role="tablist" data-abas="prodveic" aria-label="Seções desta tela">
-          <button role="tab" id="tabprodveic-vis" data-aba="vis" aria-controls="aba-prodveic-vis" aria-selected="true" onclick="abaTrocar('prodveic','vis')">Visão geral</button>
-          <button role="tab" id="tabprodveic-mod" data-aba="mod" aria-controls="aba-prodveic-mod" aria-selected="false" onclick="abaTrocar('prodveic','mod')">Modalidade e alertas</button>
-          <button role="tab" id="tabprodveic-veic" data-aba="veic" aria-controls="aba-prodveic-veic" aria-selected="false" onclick="abaTrocar('prodveic','veic')">Por veículo</button>
-          <button role="tab" id="tabprodveic-ocio" data-aba="ocio" aria-controls="aba-prodveic-ocio" aria-selected="false" onclick="abaTrocar('prodveic','ocio')">Ociosidade</button>
+        <div class="subtabs" role="tablist" data-abas="prod" aria-label="Seções desta tela">
+          <button role="tab" id="tabprod-vis" data-aba="vis" aria-controls="aba-prod-vis" aria-selected="true" onclick="abaTrocar('prod','vis')">Visão geral</button>
+          <button role="tab" id="tabprod-mod" data-aba="mod" aria-controls="aba-prod-mod" aria-selected="false" onclick="abaTrocar('prod','mod')">Modalidade e alertas</button>
+          <button role="tab" id="tabprod-veic" data-aba="veic" aria-controls="aba-prod-veic" aria-selected="false" onclick="abaTrocar('prod','veic')">Por veículo<span class="aban" id="abanProdVeic"></span></button>
+          <button role="tab" id="tabprod-ocio" data-aba="ocio" aria-controls="aba-prod-ocio" aria-selected="false" onclick="abaTrocar('prod','ocio')">Ociosidade<span class="aban" id="abanProdOcio"></span></button>
         </div>
-        <div class="aba" data-abas="prodveic" data-aba="vis" id="aba-prodveic-vis" role="tabpanel" aria-labelledby="tabprodveic-vis">
+        <div class="aba" data-abas="prod" data-aba="vis" id="aba-prod-vis" role="tabpanel" aria-labelledby="tabprod-vis">
   <div class="card">
             <div class="head"><h2>Km carregado e veículos ativos por mês <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="programacaoembarque (não cancelada, semáforo = 1, número &lt; 1.000.000) × veiculo × tipoveiculo, pela data de emissão. Km = kmfretecompra; CARREGADO = tipo ≠ 3, VAZIO = tipo = 3; receita = valorfrete. SÓ VEÍCULOS DE TRAÇÃO: a viagem é lançada na placa do cavalo, e carreta nunca aparece — incluí-las poria 643 implementos ativos na conta como se estivessem parados. A barra é o km carregado do mês; a linha é quantos veículos DIFERENTES rodaram nele. As duas juntas respondem se o km cresceu porque a frota produziu mais ou porque entrou mais veículo.">i</span></h2><span class="hint" id="hintProdMes">no período filtrado</span></div>
             <div class="legend">
@@ -4869,7 +4869,7 @@ body.tvfull #btnReport,body.tvmode #btnReport{display:none}
             </div>
           </div>
         </div>
-        <div class="aba" data-abas="prodveic" data-aba="mod" id="aba-prodveic-mod" role="tabpanel" aria-labelledby="tabprodveic-mod" hidden>
+        <div class="aba" data-abas="prod" data-aba="mod" id="aba-prod-mod" role="tabpanel" aria-labelledby="tabprod-mod" hidden>
   <div class="card">
             <div class="head"><h2>Produtividade por modalidade <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="programacaoembarque (não cancelada, semáforo = 1, número &lt; 1.000.000) × veiculo × tipoveiculo, pela data de emissão. Km = kmfretecompra; CARREGADO = tipo ≠ 3, VAZIO = tipo = 3; receita = valorfrete. SÓ VEÍCULOS DE TRAÇÃO: a viagem é lançada na placa do cavalo, e carreta nunca aparece — incluí-las poria 643 implementos ativos na conta como se estivessem parados. Km por veículo = km carregado ÷ veículos DISTINTOS que rodaram naquela modalidade no período — não é a frota cadastrada, é quem de fato rodou. RKM = receita ÷ km carregado. “n/d” no retorno vazio significa que a modalidade não lança o deslocamento vazio no ERP: é o caso do terceiro, com 0 km vazio em 256 viagens. Zero ali seria ausência de registro, não eficiência.">i</span></h2><span class="hint">no período filtrado</span></div>
             <div class="tablewrap tabroll"><table><thead><tr>
@@ -4883,7 +4883,7 @@ body.tvfull #btnReport,body.tvmode #btnReport{display:none}
             <div class="alerts" id="prod-alertas"></div>
           </div>
         </div>
-        <div class="aba" data-abas="prodveic" data-aba="veic" id="aba-prodveic-veic" role="tabpanel" aria-labelledby="tabprodveic-veic" hidden>
+        <div class="aba" data-abas="prod" data-aba="veic" id="aba-prod-veic" role="tabpanel" aria-labelledby="tabprod-veic" hidden>
   <div class="card">
             <div class="head"><h2>Produtividade por veículo <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="programacaoembarque (não cancelada, semáforo = 1, número &lt; 1.000.000) × veiculo × tipoveiculo, pela data de emissão. Km = kmfretecompra; CARREGADO = tipo ≠ 3, VAZIO = tipo = 3; receita = valorfrete. SÓ VEÍCULOS DE TRAÇÃO: a viagem é lançada na placa do cavalo, e carreta nunca aparece — incluí-las poria 643 implementos ativos na conta como se estivessem parados. DIAS ATIVOS = dias distintos em que houve viagem daquela placa, e é o denominador da produtividade real: 10 mil km em 90 dias e 10 mil km em 12 dias são veículos diferentes. Km/dia usa esse denominador, não o calendário — um veículo que ficou 60 dias na oficina não é comparado como se tivesse rodado o período inteiro.">i</span></h2><span class="hint" id="hintProdVeic"></span></div>
             <div class="tablewrap tabroll"><table><thead><tr>
@@ -4895,7 +4895,7 @@ body.tvfull #btnReport,body.tvmode #btnReport{display:none}
             </tr></thead><tbody id="prod-veic"></tbody></table></div>
           </div>
         </div>
-        <div class="aba" data-abas="prodveic" data-aba="ocio" id="aba-prodveic-ocio" role="tabpanel" aria-labelledby="tabprodveic-ocio" hidden>
+        <div class="aba" data-abas="prod" data-aba="ocio" id="aba-prod-ocio" role="tabpanel" aria-labelledby="tabprod-ocio" hidden>
   <div class="grid2">
             <div class="card">
               <div class="head"><h2>Parados no período <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="Veículos de TRAÇÃO, ATIVOS no cadastro, de frota própria ou locação, sem nenhuma viagem na janela filtrada — e que JÁ RODARAM alguma vez. O recorte por modalidade é deliberado: agregado e terceiro parados não custam nada à Sulista, e contá-los repetiria o erro de denominador do painel de rastreadores. Quem nunca rodou está no cartão ao lado, porque é cadastro e não ociosidade.">i</span></h2><span class="hint" id="hintProdParados">ordenado por histórico — quem mais produzia primeiro</span></div>
@@ -5016,9 +5016,9 @@ body.tvfull #btnReport,body.tvmode #btnReport{display:none}
       <!-- ===================== DRE GERENCIAL ===================== -->
       <section class="view" id="view-drecli">
         <div class="kpis" id="kpis-drecli"></div>
-                <div class="subtabs" role="tablist" data-abas="drecli" aria-label="Seções desta tela">
-          <button role="tab" id="tabdrecli-dre" data-aba="dre" aria-controls="aba-drecli-dre" aria-selected="true" onclick="abaTrocar('drecli','dre')">DRE por cliente</button>
-          <button role="tab" id="tabdrecli-marg" data-aba="marg" aria-controls="aba-drecli-marg" aria-selected="false" onclick="abaTrocar('drecli','marg')">Margem</button>
+        <div class="subtabs" role="tablist" data-abas="drecli" aria-label="Seções desta tela">
+          <button role="tab" id="tabdrecli-dre" data-aba="dre" aria-controls="aba-drecli-dre" aria-selected="true" onclick="abaTrocar('drecli','dre')">DRE e matriz</button>
+          <button role="tab" id="tabdrecli-marg" data-aba="marg" aria-controls="aba-drecli-marg" aria-selected="false" onclick="abaTrocar('drecli','marg')">Ranking por margem</button>
         </div>
         <div class="aba" data-abas="drecli" data-aba="dre" id="aba-drecli-dre" role="tabpanel" aria-labelledby="tabdrecli-dre">
   <div class="card">
@@ -5030,6 +5030,10 @@ body.tvfull #btnReport,body.tvmode #btnReport{display:none}
             <div class="tablewrap tabroll"><table>
               <thead id="drecli-head"></thead><tbody id="drecli-body"></tbody>
             </table></div>
+          </div>
+  <div class="card">
+            <div class="head"><h2>Matriz margem × receita <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="Cada bolha é um cliente: X = receita líquida no período (escala raiz, para os pequenos não colarem no eixo), Y = margem de contribuição %. As linhas tracejadas são a mediana de receita e o corte de MC 25%. Quadrante direito-baixo (vermelho) = cliente grande com margem fraca: é onde re-preço tem mais efeito.">i</span></h2><span class="hint">bolha = cliente · X: receita líquida (escala raiz) · Y: MC%</span></div>
+            <div class="chartwrap"><div id="chartDrecliMat" style="width:100%;height:320px" role="img"></div></div>
           </div>
         </div>
         <div class="aba" data-abas="drecli" data-aba="marg" id="aba-drecli-marg" role="tabpanel" aria-labelledby="tabdrecli-marg" hidden>
@@ -5046,10 +5050,6 @@ body.tvfull #btnReport,body.tvmode #btnReport{display:none}
                 <th>Linha</th><th class="num">Descido</th><th class="num">Não alocado</th><th class="num">Var. absorção</th><th class="num">DRE oficial</th><th class="num">Cobertura</th>
               </tr></thead><tbody id="drecli-recon"></tbody></table></div>
             </div>
-          </div>
-  <div class="card">
-            <div class="head"><h2>Matriz margem × receita <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="Cada bolha é um cliente: X = receita líquida no período (escala raiz, para os pequenos não colarem no eixo), Y = margem de contribuição %. As linhas tracejadas são a mediana de receita e o corte de MC 25%. Quadrante direito-baixo (vermelho) = cliente grande com margem fraca: é onde re-preço tem mais efeito.">i</span></h2><span class="hint">bolha = cliente · X: receita líquida (escala raiz) · Y: MC%</span></div>
-            <div class="chartwrap"><div id="chartDrecliMat" style="width:100%;height:320px" role="img"></div></div>
           </div>
         </div>
       </section>
@@ -9058,6 +9058,7 @@ function abaContadoresAuto(){
       '.aba[data-abas="' + grupo + '"][data-aba="' + bt.dataset.aba + '"]');
     if(!painel || !painel.querySelector('tbody')) return;
     let el = bt.querySelector('.aban');
+    if(el && el.dataset.fixo) return;      // a tela já disse o número dela
     if(!el){ el = document.createElement('span'); bt.appendChild(el); }
     const n = abaContarLinhas(painel);
     el.textContent = n ? String(n) : '';
@@ -9081,6 +9082,11 @@ function abaContador(id, n){
   const el = document.getElementById(id); if(!el) return;
   el.textContent = n ? String(n) : '';
   el.className = 'aban' + (n ? '' : ' vazio');
+  /* MARCA O CONTADOR COMO PRÓPRIO. O automático conta as linhas DESENHADAS; o
+     explícito costuma dizer o TOTAL, e numa tabela top-N os dois são números
+     diferentes — "20 de 1.373". Quem chamou aqui sabe qual é a resposta certa
+     para a aba dele, e o automático não pode passar por cima. */
+  el.dataset.fixo = '1';
 }
 
 async function premCarregarSerie(force){
@@ -25514,7 +25520,13 @@ function integCard(s){
   const est=INTEG_EST[s.estado]||['b-info',s.estado];
   return '<div class="card" id="integ-'+esc(s.chave)+'" style="margin-bottom:14px">'
     +'<div class="head"><h2>'+esc(s.nome)+' <span class="badge '+est[0]+'">'+est[1]+'</span></h2>'
-    +'<span class="hint">alimenta '+esc(s.alimenta)+'</span></div>'
+    +'<span class="hint">alimenta '+esc(s.alimenta)
+      /* O REGIME, quando o fornecedor funciona SEM credencial. O QualP
+         responde sem conta, com teto de três consultas por dia — "ativa"
+         seria verdade nos dois casos e esconderia a única diferença que
+         importa, e "desligada" seria falso, porque ele não está desligado:
+         está limitado. */
+      +(s.regime?' · '+esc(s.regime):'')+'</span></div>'
     +(s.aba?integCorpoOutraAba(s):integCorpo(s))+'</div>';
 }
 
