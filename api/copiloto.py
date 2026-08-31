@@ -105,6 +105,7 @@ _FONTES_ROTULO = {
     "pneus": "Pneus",
     "people": "People Analytics",
     "ferias": "Férias — Vencimento",
+    "ferias_custo": "Férias — Custo e passivo",
     "cnh_motoristas": "CNH dos Motoristas",
     "gestao_acoes": "Planos de Ação",
     "jornada_raster": "Jornada do Motorista",
@@ -271,6 +272,20 @@ def _fontes_do_snapshot() -> dict:
         from api.queries_folha import get_ferias
         return get_ferias()
 
+    def _ferias_custo():
+        """Custo de ferias: o realizado na ficha e o passivo provisionado.
+
+        Fonte separada de proposito. "Quem precisa gozar" e "quanto isso custa"
+        sao perguntas diferentes e vem de fontes de qualidade diferente — o
+        realizado e lancamento, o passivo e estimativa sobre salario base. Num
+        dicionario so, o modelo trataria os dois como o mesmo tipo de numero.
+
+        O que sobe daqui e escalar (`_compacto` descarta o resto): valor, e
+        nunca unidade nem pessoa.
+        """
+        from api.rh.ferias_custo import get_ferias_custo
+        return get_ferias_custo()
+
     def _cnh():
         from api.queries_folha import get_cnh
         return get_cnh()
@@ -397,6 +412,7 @@ def _fontes_do_snapshot() -> dict:
         "pneus": _pneus,
         "people": _people,
         "ferias": _ferias,
+        "ferias_custo": _ferias_custo,
         "cnh_motoristas": _cnh,
         "gestao_acoes": _gestao,
         "jornada_raster": _jornada_raster,

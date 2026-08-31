@@ -606,6 +606,29 @@ WHERE vf.situacaofunc = 'A' AND vf.codigoempresa = :emp
 # Oracle não aceita alias de SELECT dentro do próprio WHERE.
 _FER_LIM = "TRUNC(ADD_MONTHS(fe.proxaquifinfer,12))"
 
+# O SEGUNDO PERÍODO, E A COINCIDÊNCIA QUE VALE OURO
+# =================================================
+# Quando o aquisitivo fecha, o empregado ganha 30 dias E COMEÇA a acumular o
+# período seguinte no dia seguinte. Esse segundo período dura 12 meses — que é
+# EXATAMENTE a duração do período concessivo do primeiro. Ou seja:
+#
+#     a data em que o 2º período FECHA é a mesma em que o 1º entra em DOBRA.
+#
+# `_FER_LIM` já é essa data; o que faltava era DIZER isso. A pergunta "quem
+# está indo para o segundo período e precisa gozar o primeiro" e a pergunta
+# "quem vai cair em dobra" são a MESMA pergunta, e a primeira é a acionável:
+# ninguém agenda férias por causa do art. 137, agenda porque a pessoa vai ficar
+# com dois períodos na mão.
+#
+# `meses_2o` é quanto do segundo período já correu (0 a 12). Chegando a 12, são
+# 60 dias devidos à mesma pessoa — e o primeiro deles em dobro.
+_FER_MESES_2O = ("FLOOR(MONTHS_BETWEEN(TRUNC(SYSDATE), fe.proxaquifinfer))")
+
+# Direito vencido e SEM data marcada. O `IS NULL` não é preciosismo: em Oracle
+# `NULL >= data` é NULL, não FALSE, então uma negação ingênua deixaria de fora
+# justamente quem nunca teve férias registradas — que é o caso mais grave.
+_FER_SEM_AGENDA = "(fe.gozofinfer IS NULL OR fe.gozofinfer < TRUNC(SYSDATE))"
+
 
 def get_ferias(dias: int = 90, filial: str = "") -> dict:
     """Vencimento de férias dos funcionários ativos. `dias` é o horizonte do
@@ -633,6 +656,10 @@ def get_ferias(dias: int = 90, filial: str = "") -> dict:
                         AND TRUNC(SYSDATE)+30 THEN 1 ELSE 0 END) dobra_30,
                SUM(CASE WHEN fe.proxaquifinfer <= TRUNC(SYSDATE) AND {sano}
                         THEN 1 ELSE 0 END) com_direito,
+               SUM(CASE WHEN fe.proxaquifinfer <= TRUNC(SYSDATE) AND {sano}
+                        AND {_FER_SEM_AGENDA} THEN 1 ELSE 0 END) sem_agenda,
+               SUM(CASE WHEN fe.proxaquifinfer <= TRUNC(SYSDATE) AND {sano}
+                        AND {_FER_MESES_2O} >= 6 THEN 1 ELSE 0 END) segundo_6,
                SUM(CASE WHEN fe.gozofinfer >= TRUNC(SYSDATE)
                         THEN 1 ELSE 0 END) em_ferias_ou_agendado,
                SUM(CASE WHEN TRUNC(SYSDATE) BETWEEN fe.gozoinifer AND fe.gozofinfer
@@ -668,6 +695,10 @@ def get_ferias(dias: int = 90, filial: str = "") -> dict:
             "admitido": r["adm"], "aquisitivo_fim": r["aq_fim"],
             "limite": r["limite"], "dias": d,
             "gozo_ini": r["gozo_ini"], "gozo_fim": r["gozo_fim"],
+            # quanto do SEGUNDO período já correu, e se há data marcada para
+            # gastar o primeiro antes de ele fechar.
+            "meses_2o": max(0, min(12, int(r["meses_2o"] or 0))),
+            "agendado": bool(r["agendado"]),
             "estado": ("dobra" if d < 0 else "critica" if d <= 30
                        else "atencao" if d <= dias else "ok"),
         }
@@ -682,6 +713,8 @@ def get_ferias(dias: int = 90, filial: str = "") -> dict:
                TO_CHAR(fe.proxaquifinfer,'YYYY-MM-DD') aq_fim,
                TO_CHAR({_FER_LIM},'YYYY-MM-DD') limite,
                {_FER_LIM} - TRUNC(SYSDATE) dias_ate,
+               {_FER_MESES_2O} meses_2o,
+               CASE WHEN fe.gozofinfer >= TRUNC(SYSDATE) THEN 1 ELSE 0 END agendado,
                TO_CHAR(fe.gozoinifer,'YYYY-MM-DD') gozo_ini,
                TO_CHAR(fe.gozofinfer,'YYYY-MM-DD') gozo_fim
         {_FER_BASE} {filtro}
@@ -722,14 +755,64 @@ def get_ferias(dias: int = 90, filial: str = "") -> dict:
         {_FER_BASE} {filtro} AND {_FER_LIM} < TRUNC(SYSDATE) - :absurdo
         ORDER BY fe.proxaquifinfer""", p)]
 
+    # AGENDA DOS PRÓXIMOS 12 MESES — duas populações DIFERENTES, e é a
+    # diferença entre elas que faz a leitura:
+    #   `ganham` — quem FECHA um período aquisitivo naquele mês. Trabalho novo
+    #              chegando à fila do RH.
+    #   `dobram` — quem JÁ tem direito vencido hoje e chega ao limite naquele
+    #              mês. É a fila de agora batendo no prazo.
+    # Elas não se somam nem se comparam em altura: uma é entrada, a outra é
+    # prazo. O gráfico as põe lado a lado porque a decisão — quantas férias
+    # marcar em cada mês — precisa das duas.
+    #
+    # O eixo é GERADO, nunca colhido: mês sem ninguém não volta do `GROUP BY`,
+    # e o gráfico emendaria outubro em janeiro desenhando continuidade sobre um
+    # buraco. Aqui o buraco é legítimo e vale ZERO.
+    mm = {r["m"]: r for r in _qb(f"""
+        SELECT TO_CHAR(fe.proxaquifinfer,'YYYY-MM') m,
+               SUM(CASE WHEN fe.proxaquifinfer > TRUNC(SYSDATE)
+                        THEN 1 ELSE 0 END) ganham
+        {_FER_BASE} {filtro} AND {sano}
+          AND fe.proxaquifinfer BETWEEN TRUNC(SYSDATE,'MM')
+              AND ADD_MONTHS(TRUNC(SYSDATE,'MM'), 13)
+        GROUP BY TO_CHAR(fe.proxaquifinfer,'YYYY-MM')""", p)}
+    dd = {r["m"]: r for r in _qb(f"""
+        SELECT TO_CHAR({_FER_LIM},'YYYY-MM') m, COUNT(*) dobram
+        {_FER_BASE} {filtro} AND {sano}
+          AND fe.proxaquifinfer <= TRUNC(SYSDATE)
+          AND {_FER_LIM} BETWEEN TRUNC(SYSDATE,'MM')
+              AND ADD_MONTHS(TRUNC(SYSDATE,'MM'), 13)
+        GROUP BY TO_CHAR({_FER_LIM},'YYYY-MM')""", p)}
+    eixo = [r["m"] for r in _q(
+        """SELECT TO_CHAR(ADD_MONTHS(TRUNC(SYSDATE,'MM'), LEVEL-1),'YYYY-MM') m
+           FROM dual CONNECT BY LEVEL <= 13""")]
+    agenda_mensal = [{"mes": m,
+                      "ganham": int((mm.get(m) or {}).get("ganham") or 0),
+                      "dobram": int((dd.get(m) or {}).get("dobram") or 0)}
+                     for m in eixo]
+
+    # SENSOR, não enfeite: `vw_ferias` tem 1.696 linhas para 1.693 pessoas —
+    # três fichas duplicadas, hoje todas de DEMITIDOS, portanto fora desta
+    # população. Se uma delas voltar a ficar ativa, o join duplica a pessoa e o
+    # passivo dela SEM que nenhum número pareça errado: os totais continuam
+    # plausíveis e as proporções se mantêm. É a família do join com vigência.
+    # Contar os dois lados custa uma consulta e denuncia na hora.
+    dup = _qb(f"""SELECT COUNT(*) linhas, COUNT(DISTINCT fe.codintfunc) pessoas
+                  {_FER_BASE} {filtro}""", p)[0]
+    duplicadas = int(dup["linhas"] or 0) - int(dup["pessoas"] or 0)
+
     n = tot["ativos"] or 0
     return {
         "dias": dias,
         "filtros": {"filial": filial},
         "filiais": [x["filial"] for x in por_filial],
+        "agenda_mensal": agenda_mensal,
+        "duplicadas": duplicadas,
         "kpis": {
             "ativos": n,
             "com_direito": tot["com_direito"] or 0,
+            "sem_agenda": tot["sem_agenda"] or 0,
+            "segundo_6": tot["segundo_6"] or 0,
             "em_dobra": tot["em_dobra"] or 0,
             "dobra_prazo": tot["dobra_prazo"] or 0,
             "dobra_30": tot["dobra_30"] or 0,

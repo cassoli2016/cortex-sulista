@@ -3020,6 +3020,27 @@ def rh_ferias(dias: int = 90, filial: str = "") -> JSONResponse:
             "mensagem": "Sem conexao com o banco da folha (GLOBUS)."})
 
 
+@app.get("/api/rh/ferias/custo")
+def rh_ferias_custo(meses: int = 12, filial: str = "") -> JSONResponse:
+    """Custo de ferias: o realizado na ficha e o passivo ainda nao gozado.
+
+    Rota MAIS ESPECIFICA que /api/rh/ferias, e o `ROTA_TELAS` casa por
+    PREFIXO — as duas caem na mesma tela `ferias`, que e o que se quer: quem
+    ve o vencimento ve o custo dele. Nao ha entrada nova de RBAC a criar.
+
+    Nao devolve nome, chapa nem salario individual: aqui tudo e agregado por
+    unidade e por natureza de evento.
+    """
+    from api.rh.ferias_custo import get_ferias_custo
+    try:
+        return JSONResponse(get_ferias_custo(meses=meses, filial=filial))
+    except Exception as exc:  # noqa: BLE001
+        log.warning("rh_ferias_custo falhou: %s", exc)
+        return JSONResponse(status_code=503, content={
+            "erro": "globus_indisponivel",
+            "mensagem": "Sem conexao com o banco da folha (GLOBUS)."})
+
+
 @app.get("/api/rh/people")
 def rh_people(escopo: str = "todos") -> JSONResponse:
     """People Analytics: afastados, sucessao, dispersao salarial e custo por

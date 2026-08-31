@@ -4,6 +4,21 @@ Gerado de `docs/versoes.yaml` por `scripts/gerar_changelog.py` — não editar �
 Formato [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/),
 versionamento [SemVer](https://semver.org/lang/pt-BR/).
 
+## [0.181.0] — 31/08/2026  ·  CX-31/08/2026-v0.181.0
+
+### Adicionado
+- A tela de Férias virou três abas e ganhou a que faltava: CUSTO E PASSIVO. Ela mostra o que a folha pagou de férias nos últimos 6, 12 ou 24 meses, separado por natureza — gozadas, proporcionais, indenizadas na rescisão, abono pecuniário e a dobra —, o custo por competência com o mês corrente hachurado, e o passivo ainda não gozado por unidade.
+- O cartão "Pago em DOBRO" mostra o que já saiu por férias concedidas fora do prazo: R$ 12.154 em 23 lançamentos nos últimos 12 meses. Ele pode aparecer ao lado de um indicador de dobra em zero na aba de risco, e os dois estão certos — aquele mede o estado de hoje, este mede o que já foi pago.
+- Um gráfico novo na aba de risco diz o que chega em cada um dos próximos 13 meses: quantas pessoas fecham período aquisitivo (trabalho novo entrando na fila) e quantas chegam ao limite legal (prazo vencendo). São populações diferentes e aparecem lado a lado, nunca somadas.
+- A fila de agendamento passou a mostrar quanto do SEGUNDO período aquisitivo já correu, em barra de 0 a 12 meses, e a marcar quem já tem data de férias registrada. O segundo período começa no dia em que o primeiro fecha e dura 12 meses — a mesma duração do prazo legal —, então a data em que ele fecha é a data em que o primeiro vira pagamento em dobro.
+
+### Alterado
+- O cartão "Com direito adquirido" virou "Já no 2º período" e diz quantos estão SEM data marcada. Medido hoje: 65 pessoas com direito adquirido e nenhuma com férias agendadas — são 1.950 dias de ausência ainda a encaixar na escala. Ter direito adquirido é normal; não ter data marcada é o que vira trabalho, e a tela não dizia isso.
+- O Copiloto passou a enxergar o custo de férias, então perguntas sobre quanto a empresa gasta e quanto deve de férias são respondidas com o número do painel.
+
+### Corrigido
+- A tela avisa quando a mesma pessoa aparece duas vezes na ficha de férias do GLOBUS. O passivo dela sairia dobrado sem que nenhum número parecesse errado — os totais continuam plausíveis e as proporções se mantêm.
+
 ## [0.180.0] — 31/08/2026  ·  CX-31/08/2026-v0.180.0
 
 ### Adicionado
