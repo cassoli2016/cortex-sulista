@@ -41,6 +41,34 @@ CURLY = "“”‘’"
 def checar(html: str) -> list[str]:
     erros: list[str] = []
 
+    # 0. BYTE DE CONTROLE no arquivo. Custou um commit inteiro em 31/08/2026:
+    # um script de edicao deixou um `\x00` onde devia haver um espaco, dentro
+    # de uma string de JavaScript. O estrago tem tres camadas, e nenhuma
+    # aparece como erro:
+    #
+    #   - o `node --check` ACEITA NUL dentro de string, entao passou;
+    #   - com NUL, o git classifica o arquivo como BINARIO (`ls-files --eol`
+    #     diz `i/-text`) e para de normalizar quebra de linha -- foi assim que
+    #     o `index.html` entrou em CRLF com `core.autocrlf=true` ligado, e toda
+    #     branch aberta antes disso conflitou no arquivo INTEIRO;
+    #   - o valor VIAJAVA: aquela string virava `chapa=%00sem-correspondencia`
+    #     na query string do `fetch`. O backend aguentou (medido: mesmo
+    #     resultado com e sem o NUL), mas null byte em URL e padrao classico de
+    #     ataque e WAF costuma barrar -- e ai o proxy responde no lugar da API,
+    #     que e a familia de defeito mais cara de diagnosticar nesta casa.
+    #
+    # Uma linha de guarda contra as tres. `\t`, `\n` e `\r` sao legitimos.
+    for i, ch in enumerate(html):
+        if ch in "\t\n\r" or ord(ch) >= 32:
+            continue
+        erros.append(
+            "byte de controle U+%04X na posicao %d — o git passa a tratar o "
+            "arquivo como BINARIO (sem normalizar quebra de linha) e o valor "
+            "ainda viaja para a URL. Contexto: %r"
+            % (ord(ch), i, html[max(0, i - 40):i + 40]))
+        if len(erros) > 5:      # cinco bastam para achar a origem
+            break
+
     # 1. atributo cujo NOME contem aspa: sinal de que uma aspa DELIMITADORA foi
     # comida por um replace (ex.: `title="..."` vira `title="...` + o resto do
     # texto engolido ate a proxima aspa literal, e o que sobra depois cola sem
@@ -114,7 +142,8 @@ def main() -> int:
         for e in erros[:50]:
             print(" -", e)
         return 1
-    print("OK: nenhum atributo com aspa no nome, nenhum .val fora de .kpi, nenhuma aspa curva em class/style.")
+    print("OK: nenhum byte de controle, nenhum atributo com aspa no nome, "
+          "nenhum .val fora de .kpi, nenhuma aspa curva em class/style.")
     return 0
 
 
