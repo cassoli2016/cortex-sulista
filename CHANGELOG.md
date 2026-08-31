@@ -4,6 +4,14 @@ Gerado de `docs/versoes.yaml` por `scripts/gerar_changelog.py` — não editar �
 Formato [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/),
 versionamento [SemVer](https://semver.org/lang/pt-BR/).
 
+## [0.178.1] — 31/08/2026  ·  CX-31/08/2026-v0.178.1
+
+### Alterado
+- A aba ativa da barra do celular ficou visível de verdade. A versão anterior a marcava com branco a 10% sobre o azul-escuro — três pontos de luminância de diferença, que a um braço de distância não se vê. Agora tem fundo próprio com contorno, ícone na cor da marca e rótulo em branco.
+- Os ícones ficaram maiores (24 pontos) e os rótulos também (11 pontos), com mais área de toque em cada item.
+- O "Mais" passou a usar o ícone de GRADE. Ele abre uma gaveta com a grade de telas, então a grade diz o que vem; o chevron, além de prometer outra coisa, é um traço pequeno num quadro de 24 pontos e ficava flutuando ao lado de ícones que preenchem o espaço.
+- O rótulo do "Mais" ficava um ponto abaixo dos vizinhos, porque ele é botão e os outros são links, e a altura de linha padrão dos dois difere.
+
 ## [0.178.0] — 31/08/2026  ·  CX-31/08/2026-v0.178.0
 
 ### Adicionado
