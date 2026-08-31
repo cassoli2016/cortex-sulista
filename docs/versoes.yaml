@@ -1,3 +1,11 @@
+- versao: "0.176.1"
+  data: "2026-08-31"
+  alterado:
+    - >-
+      Registro no contexto-mestre das três lições desta rodada: a fonte de
+      tarifa que já estava no banco, a árvore de produção que não tem estado
+      intermediário barato, e o teste que depende do calendário e acusa a
+      pessoa errada uma vez por mês.
 - versao: "0.176.0"
   data: "2026-08-31"
   adicionado:

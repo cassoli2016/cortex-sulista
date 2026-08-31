@@ -1611,6 +1611,24 @@ function "`) era exatamente
   o que o YAML não aceita. Texto técnico em nota de versão é onde mora esse
   risco — prefira descrever em palavras a colar o literal.
 
+**TESTE QUE DEPENDE DO RELÓGIO ACUSA A PESSOA ERRADA (31/08/2026):**
+- `test_a_visao_geral_mantem_as_REGRAS_da_casa` exige a faixa "a realizar" no
+  gráfico do faturamento diário. Ela só existe se houver dia FUTURO no mês, e o
+  gráfico lê `new Date().getDate()`. O dublê gerava `range(1, 32)` fixo — então
+  o teste passava **30 dias por mês e falhava no dia 31**.
+- **O modo de falhar é o pior possível: ele não falha quando o defeito entra,
+  falha quando o calendário vira.** A outra sessão bissectou com método,
+  chegou no commit da entrega de pedágio e concluiu, com toda a razão
+  aparente, que era regressão dela. Não era: qualquer commit falharia naquele
+  dia. Bissecção é uma ferramenta que assume determinismo; sem ele, ela aponta
+  com confiança para o inocente.
+- O conserto é o dublê acompanhar o relógio que a PÁGINA vai ler
+  (`max(32, dia_de_hoje + 6)`), não uma data fixa escolhida quando o teste
+  nasceu. E vale a varredura: todo dublê com data literal é um candidato.
+- É primo da vacuidade abaixo — nos dois casos o teste não está medindo o que
+  o nome dele diz. Lá ele fica verde sem medir; aqui ele fica vermelho sem
+  haver defeito, o que custa mais caro porque manda alguém procurar.
+
 **Conferência que passa por VACUIDADE é pior que não ter conferência:**
 - Ao ligar as três receitas ao conferidor (30/08/2026) li os campos de
   `get_overview()` — que é o painel **financeiro** e não tem nenhum deles.
@@ -2035,6 +2053,47 @@ só no ERP ...... 177 placas      união ....... 275
   seriam ~70 chamadas externas a cada abertura do chat. Mesma trava do `force`
   da premiação.
 
+**A FONTE JÁ ESTAVA NO BANCO — antes de comprar dado, varrer o que se tem
+(Pedágio, 31/08/2026):**
+- A pergunta era de onde tirar tarifa de pedágio sem assinar a API do QualP. A
+  resposta eram **duas tabelas do próprio ERP que ninguém lia**:
+  `pracapedagio_valor` (tarifa por praça e por eixo, 934 praças) e
+  `valepedagio_pracapedagioadm` (o que a administradora COBROU, praça a praça,
+  293 mil linhas, vivo até hoje). Esta segunda é o "fechamento da operadora"
+  que eu ia importar por parser — ele já chega pela integração.
+- **A prova de que a fonte gratuita serve foi ela bater com a paga**: Garuva
+  tem `valorpedagioeixo` = R$ 5,70 e `...carga5eixos` = R$ 28,50, exatamente o
+  que o QualP devolveu. Não faltava dado; faltava ler.
+- **O grep por SIGLA não acha a tabela nomeada por extenso.** Procurei `mdfe` e
+  não achei nada útil; a tabela é `manifestoeletronico`, com 126 mil linhas. É
+  a mesma armadilha da RasterJOR, que estava em `sulista.rasterjor_*` e não
+  onde o nome do fornecedor aparecia.
+- **A TARIFA CORRENTE É A MODA DO QUE SE COBROU, nunca a média.** Campina
+  Grande do Sul com 5 eixos: R$ 20,50 em 42 travessias, R$ 21,50 em 85 e
+  R$ 80,28 UMA vez. A média dá R$ 21,63, que não é tarifa de nada, e a faixa
+  20,50–80,28 faz a coluna parecer ruído — 59% das 303 combinações pareciam
+  dispersas por causa dessa cauda. Com a moda, o segundo valor mais frequente
+  vira a tarifa ANTERIOR e a data da troca sai de graça. Moda abaixo de 50%
+  não vira número afirmado: vira `n/d` com o percentual à mostra, porque ali a
+  praça cobra pelo eixo NO CHÃO e o vale declara o total do veículo.
+- **Cadastro parado é a explicação, e ela vai ao lado do número acusado.** 903
+  das 934 praças com vigência acima de treze meses, e **100% da diferença**
+  entre calculado e cobrado (R$ 49.720 em 12 meses) está nelas. Sem a coluna
+  de vigência, o mesmo número se leria como cobrança indevida — que é outro
+  problema, com outro dono.
+- **Campo vazio dos dois lados vira SENSOR, não silêncio.** Os três campos de
+  vale-pedágio do `manifestoeletronico` são zero nas 126.295 linhas desde
+  2023, e `valepedagio.numeromanifesto` idem nas 69.028 — a conferência legal
+  do MDF-e não dá para fazer. A tela DIZ isso, e diz junto que o `numerociot`,
+  no mesmo registro, é preenchido em 56%: sem esse contraste, "os campos estão
+  vazios" lê-se como "o ERP não preenche documento eletrônico".
+- **`client_encoding` LATIN1 derruba a CONSULTA, não a linha.** O AVA é UTF8, e
+  o libpq no Windows deriva o encoding do cliente da codepage do sistema. Um
+  travessão em nome de cadastro fazia o SERVIDOR abortar a consulta inteira com
+  `UntranslatableCharacter` — 4 praças, 20 CT-e e 12 coletas já estavam assim,
+  esperando o dia em que alguém abrisse a tela que as lesse. `api/db.py` pede
+  UTF8 agora. Ao ver esse erro, é encoding de conexão, não dado corrompido.
+
 **Diárias: o campo que parece quantidade e vem ZERADO (30/08/2026):**
 - A folha (`sulista.diariaspagas_globus`, no AVA) tem a coluna `referencia`,
   que em folha costuma ser a QUANTIDADE. Aqui ela é **0,00 em 4.833 de 4.833
@@ -2078,7 +2137,28 @@ só no ERP ...... 177 placas      união ....... 275
   do vizinho. É a mesma família do corte por marcador que já comeu 20 rotas
   alheias neste arquivo.
 
-**A ÁRVORE DE PRODUÇÃO É ESTA, e commit sem push PARA O DEPLOY (30/08/2026):**
+**A ÁRVORE DE PRODUÇÃO NÃO TEM ESTADO INTERMEDIÁRIO BARATO (31/08/2026):**
+Três coisas diferentes deixam a árvore "no meio", e as três param o deploy de
+TODO MUNDO com mensagens que não se parecem:
+
+| o que ficou no meio | o que o AutoDeploy diz |
+|---|---|
+| commit sem push | `DIVERGENCIA: local=… origin=…` |
+| arquivo editado sem commit | `error: Your local changes … would be overwritten by merge` |
+| rebase em andamento | `uv sync saiu 2` (com marcador de conflito no arquivo) |
+
+- **As três apareceram em duas horas, em 30 e 31/08/2026.** A primeira segurou
+  a produção quase uma hora na v0.166.0; a segunda segurou a v0.175.0 de outra
+  sessão enquanto eu editava. É a mesma causa: a API de produção roda desta
+  pasta, e o AutoDeploy puxa contra a ÁRVORE DE TRABALHO a cada 2 minutos.
+- **A parte traiçoeira é que quem descobre NÃO é quem causou.** Na primeira foi
+  o usuário estranhando a versão no rodapé; na segunda foi a outra sessão, cujo
+  trabalho estava pronto e não subia. Quem causou não vê nada — a máquina dele
+  está com o código novo, funcionando.
+- **O remédio é um só: o que vai demorar não fica aqui.** Esperar uma suíte de
+  35 minutos, investigar um banco, escrever um módulo grande — isso é branch ou
+  worktree (ver [[worktree-por-frente]]), não o `main` desta pasta. Commit e
+  push andam juntos e no mesmo minuto.
 - O AutoDeploy compara o `main` LOCAL com o `origin` e **recusa o pull se
   divergirem**. Como a API de produção roda desta mesma pasta, todo commit que
   espera para ser empurrado deixa os dois diferentes — e o deploy morre para

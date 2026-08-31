@@ -4,6 +4,11 @@ Gerado de `docs/versoes.yaml` por `scripts/gerar_changelog.py` — não editar �
 Formato [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/),
 versionamento [SemVer](https://semver.org/lang/pt-BR/).
 
+## [0.176.1] — 31/08/2026  ·  CX-31/08/2026-v0.176.1
+
+### Alterado
+- Registro no contexto-mestre das três lições desta rodada: a fonte de tarifa que já estava no banco, a árvore de produção que não tem estado intermediário barato, e o teste que depende do calendário e acusa a pessoa errada uma vez por mês.
+
 ## [0.176.0] — 31/08/2026  ·  CX-31/08/2026-v0.176.0
 
 ### Adicionado

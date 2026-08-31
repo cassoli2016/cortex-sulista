@@ -444,7 +444,7 @@ wheels = [
 
 [[package]]
 name = "cortex"
-version = "0.175.0"
+version = "0.176.1"
 source = { virtual = "." }
 dependencies = [
     { name = "alembic" },
