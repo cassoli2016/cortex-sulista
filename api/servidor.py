@@ -24,7 +24,7 @@ import socket
 import subprocess
 import sys
 import time
-from datetime import datetime, timezone
+from datetime import date, datetime, timezone
 from pathlib import Path
 
 from . import db, pglocal
@@ -367,6 +367,53 @@ def _servico_pglocal(d: dict) -> dict:
               else "schema ainda sem migration aplicada")
     return {"nome": nome, "status": "ok" if d["versao_schema"] else "alerta",
             "detalhe": f"conectado · {d['onde']} · {d['ms']} ms · {versao}"}
+
+
+def _servico_pedagio_tag() -> dict:
+    """A fatura da administradora de tag está sendo importada?
+
+    ESTA LINHA NÃO É DE COLETA, É DE ROTINA HUMANA — e por isso a régua é
+    outra. Ninguém pode consertar do lado de cá uma fatura que não chegou: ela
+    é baixada do portal do fornecedor e enviada pela tela, uma vez por mês.
+
+    O que a torna digna de um sensor é o mesmo motivo da jornada: o sintoma de
+    uma parada é uma ABA VAZIA, que se lê como "esta tela não tem dado" em vez
+    de "ninguém importa desde abril". E o gasto é grande — R$ 6,05 mi em 12
+    meses, mais do que se cobra de pedágio no CT-e.
+
+    Sem fatura nenhuma é `info`, não erro: é instalação que ainda não começou,
+    e vermelho aí ensina a ignorar vermelho. O erro fica para o atraso REAL,
+    contado a partir do fechamento da última fatura importada.
+    """
+    nome = "Pedágio — fatura do tag"
+    try:
+        from .pedagio import fatura_tag as _ft
+        faturas = _ft.faturas()
+    except Exception as exc:  # noqa: BLE001
+        # Tabela ausente é migration pendente, não avaria: dizer "camada
+        # indisponível" mandaria procurar defeito onde falta um `migrar_schema`.
+        from . import pglocal as _pg
+        if _pg.sem_tabela(exc):
+            return {"nome": nome, "status": "info",
+                    "detalhe": "migration 0030 ainda não aplicada neste banco"}
+        log.warning("saude: pedagio tag: %s", exc)
+        return {"nome": nome, "status": "info", "detalhe": "camada indisponível"}
+    if not faturas:
+        return {"nome": nome, "status": "info",
+                "detalhe": "nenhuma fatura importada — o gasto do tag existe no "
+                           "ERP como um título por mês, sem detalhe por placa"}
+    ult = faturas[0]
+    fech = ult.get("dt_fechamento")
+    dias = (date.today() - fech).days if isinstance(fech, date) else None
+    quantas = f"{len(faturas)} fatura(s) · última {ult.get('competencia') or '—'}"
+    # A fatura fecha uma vez por mês; 45 dias dá duas semanas de folga sobre o
+    # ciclo antes de acusar. Abaixo disso o alarme acenderia todo mês, no
+    # intervalo normal entre o fechamento e alguém sentar para importar.
+    if dias is not None and dias > 45:
+        return {"nome": nome, "status": "erro",
+                "detalhe": f"sem fatura nova há {dias} dias · {quantas}"}
+    return {"nome": nome, "status": "ok",
+            "detalhe": f"{quantas} · {ult.get('travessias_tag') or 0} travessias"}
 
 
 def _servico_jornada() -> dict:
@@ -919,6 +966,11 @@ def _servicos() -> list[dict]:
     # Smartec: infrações e licenças. O cartão vigia DUAS coisas — a coleta
     # e o vencimento do acesso ao SNE, que desliga a integração em silêncio.
     servicos.append(_servico_smartec())
+
+    # Pedágio do tag: a fatura é BAIXADA e ENVIADA por gente, uma vez por mês.
+    # O sensor existe porque a parada se disfarça de aba vazia — e o gasto é
+    # maior que o pedágio cobrado do cliente no CT-e.
+    servicos.append(_servico_pedagio_tag())
 
     # PROLOG (pneus). Integração externa com COTA: a coleta é agendada e
     # retomável, então o que interessa aqui não é "responde?" — é se o

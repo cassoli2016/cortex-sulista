@@ -111,6 +111,7 @@ _FONTES_ROTULO = {
     "gestao_acoes": "Planos de Ação",
     "jornada_raster": "Jornada do Motorista",
     "crm_funil": "CRM — Funil Comercial",
+    "pedagio_tag": "Validação de Pedágio — fatura do tag",
 }
 
 
@@ -413,6 +414,26 @@ def _fontes_do_snapshot() -> dict:
                 "sem_leitura_recente": bool(d.get("sem_cache")),
                 "colhido_em": d.get("colhido_em")}
 
+    def _pedagio_tag():
+        """Quanto o TAG custou, e nada mais.
+
+        LEITURA SÓ DO BANCO LOCAL, de propósito: o resumo por modalidade e o
+        confronto de tarifa precisariam do AVA (cadastro de veículo e de
+        praça), e o snapshot não pode pagar duas consultas ao ERP para
+        responder "quanto se gasta de pedágio". Escalares, sem placa nem
+        praça — o filtro de PII descartaria de qualquer forma.
+        """
+        from api.pedagio import fatura_tag as _ft
+        fats = _ft.faturas()
+        if not fats:
+            return {"faturas": 0,
+                    "nota": "nenhuma fatura de tag importada; o gasto existe "
+                            "no ERP como um título por mês, sem detalhe"}
+        u = fats[0]
+        return {"faturas": len(fats), "competencia": u["competencia"],
+                "total_fatura": u["total_fatura"],
+                "passagens": u["total_passagens"],
+                "travessias": u["travessias_tag"], "placas": u["placas"]}
     return {
         "visao_geral": lambda: queries.get_visao_geral(),
         "financeiro_caixa": lambda: queries.get_overview(),
@@ -454,6 +475,7 @@ def _fontes_do_snapshot() -> dict:
         "gestao_acoes": _gestao,
         "jornada_raster": _jornada_raster,
         "crm_funil": _crm,
+        "pedagio_tag": _pedagio_tag,
     }
 
 

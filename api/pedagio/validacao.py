@@ -236,7 +236,22 @@ def por_eixo(de: str, ate: str) -> list[dict]:
 
 
 def por_modalidade(de: str, ate: str) -> list[dict]:
-    return [dict(r) for r in db.query(POR_MODALIDADE_SQL, {"de": de, "ate": ate})]
+    """A quebra por modalidade, com o nome POR EXTENSO.
+
+    `utilizacaoveiculo` vem como "AGR"/"TER"/"LOC"/"TRA" e vazava cru para a
+    tela. Quem opera sabe de cor; quem lê o painel uma vez por mês, não — e
+    num card que decide dinheiro a sigla obriga a perguntar em vez de ler.
+    O código fica ao lado em `modalidade_cod`, porque é ele que aparece no
+    ERP e é por ele que alguém vai procurar lá.
+    """
+    from api import frota_identidade
+    linhas = []
+    for r in db.query(POR_MODALIDADE_SQL, {"de": de, "ate": ate}):
+        d = dict(r)
+        d["modalidade_cod"] = d["modalidade"]
+        d["modalidade"] = frota_identidade.modalidade(d["modalidade"])
+        linhas.append(d)
+    return linhas
 
 
 def cobertura(de: str, ate: str) -> dict:

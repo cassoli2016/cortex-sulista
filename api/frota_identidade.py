@@ -235,3 +235,38 @@ def _provavel(frota: str, placas: list[str]) -> str:
     return (f"as duas placas diferem só no {i+1}º caractere "
             f"({a[i]} × {b[i]}) e não é a troca do Mercosul — provável erro de "
             "digitação em uma delas")
+
+
+# ── modalidade do veículo, por extenso ──────────────────────────────────────
+#
+# `veiculo.utilizacaoveiculo` é o código do ERP, e ele vazava CRU para a tela em
+# várias partes do painel: "AGR", "TER", "LOC", "TRA". Quem opera sabe de cor;
+# quem lê o painel uma vez por mês, não — e num card que decide dinheiro a
+# sigla obriga a perguntar em vez de ler.
+#
+# Medido em 31/08/2026 sobre os 1.975 veículos com `semaforo = 1`:
+#     TER 1.086 · TRA 373 · AGR 295 · LOC 215 · PREV 3 · nulo 3
+#
+# `PREV` NÃO GANHA RÓTULO INVENTADO. São três veículos, não há tabela de
+# domínio na réplica e traduzir por palpite é pior que mostrar o código — é a
+# mesma regra da coluna "Tipo (cód.)" da Manutenção. Código desconhecido volta
+# como veio, e é assim que ele aparece no dia em que virar trinta.
+MODALIDADE = {
+    "TRA": "Frota própria",
+    "AGR": "Agregado",
+    "TER": "Terceiro",
+    "LOC": "Locação",
+}
+
+
+def modalidade(codigo: str | None) -> str:
+    """O nome por extenso da modalidade; o próprio código quando não se conhece.
+
+    Vazio vira "sem cadastro" e não travessão: a diferença entre "este veículo
+    não tem modalidade cadastrada" e "não se aplica" é justamente a que faz
+    alguém ir arrumar o cadastro.
+    """
+    c = (codigo or "").strip().upper()
+    if not c:
+        return "sem cadastro"
+    return MODALIDADE.get(c, c)

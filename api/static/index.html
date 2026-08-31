@@ -4826,6 +4826,8 @@ body.tvfull #btnReport,body.tvmode #btnReport{display:none}
                   aria-selected="false" onclick="abaTrocar('ped','prc')">Praça e tarifa<span class="aban" id="abanPedPrc"></span></button>
           <button role="tab" id="tabped-cob" data-aba="cob" aria-controls="aba-ped-cob"
                   aria-selected="false" onclick="abaTrocar('ped','cob')">O que dá para conferir</button>
+          <button role="tab" id="tabped-tag" data-aba="tag" aria-controls="aba-ped-tag"
+                  aria-selected="false" onclick="abaTrocar('ped','tag')">Tag (fatura)<span class="aban" id="abanPedTag"></span></button>
         </div>
         <div class="aba" data-abas="ped" data-aba="vis" id="aba-ped-vis"
              role="tabpanel" aria-labelledby="tabped-vis">
@@ -4934,6 +4936,52 @@ body.tvfull #btnReport,body.tvmode #btnReport{display:none}
               </tr></thead><tbody id="ped-adm"></tbody></table></div>
               <div id="ped-tarifa-estado" style="padding:2px 18px 14px"
                    title="pracapedagio_valor, a tabela de tarifa do PRÓPRIO ERP: preço por praça e por eixo (2 a 15), com data de vigência. Ela CONFERE com a fonte paga — Garuva tem R$ 5,70 por eixo e R$ 28,50 para 5 eixos, exatamente o que o QualP devolveu. O problema não é a fonte, é a idade: a vigência mais recente de toda a tabela é 01/08/2025, e pedágio reajusta uma vez por ano. Praça com tarifa anterior a treze meses é marcada PARADA — treze e não doze para dar um mês de folga ao reajuste que ainda não passou pelo cadastro."></div>
+            </div>
+          </div>
+        </div>
+        <div class="aba" data-abas="ped" data-aba="tag" id="aba-ped-tag"
+             role="tabpanel" aria-labelledby="tabped-tag" data-ao-abrir="loadPedTag" hidden>
+          <div class="kpis k4" id="kpis-pedtag"></div>
+          <div class="card" style="padding:10px 18px;display:flex;align-items:center;gap:10px;flex-wrap:wrap">
+            <input type="file" id="pedtag-arq" accept="application/pdf,.pdf" multiple
+                   aria-label="Faturas da administradora de tag, em PDF">
+            <button class="btn" id="pedtag-envia" onclick="pedTagImportar()">Importar fatura</button>
+            <span class="hint" id="pedtag-msg"></span>
+          </div>
+          <div class="grid2">
+            <div class="card">
+              <div class="head"><h2>Tarifa cobrada × cadastrada <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="A tarifa que a administradora do TAG cobrou, por eixo, contra a de pracapedagio_valor no ERP. A tarifa observada é a MODA do que se pagou, nunca a média: a média entre a tarifa velha e a nova é um valor que nunca foi cobrado de ninguém, e uma travessia atípica a desloca sem nada denunciar. Praça com menos de 5 travessias, ou cuja moda não chega à metade delas, sai como n/d com o percentual à mostra. O casamento com o cadastro é por RODOVIA + KM e não por nome — a fatura escreve “S.B. DO CAMPO” onde o cadastro diz “Piratininga”. Linha marcada com ~ casou com até 1 km de diferença: é hipótese, não fato, e por isso o total só considera as exatas. A categoria 61 são 7 eixos (62 são 8, 63 são 9), confirmado porque só assim a tarifa por eixo fica constante em 191 das 207 praças com mais de uma categoria.">i</span></h2>
+                <span class="hint" id="hintPedTagTar"></span></div>
+              <div class="tablewrap tabroll" style="max-height:250px"><table><thead><tr>
+                <th>Praça</th><th class="num">Cobrado/eixo</th><th class="num">Cadastro</th>
+                <th class="num">Desvio</th><th>Vigência</th><th class="num">Travessias</th>
+              </tr></thead><tbody id="pedtag-tarifa"></tbody></table></div>
+            </div>
+            <div class="card">
+              <div class="head"><h2>Desvio por concessionária <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="O mesmo desvio agrupado por concessionária, e este é o recorte que SEPARA dois problemas diferentes. Cadastro velho aparece como praças espalhadas com razões variadas. Desconto contratual aparece como razão CONSTANTE dentro de uma concessionária — foi o que apareceu na CCR Viaoeste, com o real em 0,79 da tabela em cinco praças, enquanto todas as outras concessionárias cobram ACIMA do cadastrado. Razão maior que 1 é o cadastro atrasado; menor que 1 é a tabela pedindo mais do que se pagou, e aí a pergunta é contratual, não de cadastro. O painel mostra a evidência; o veredito é de quem administra o contrato.">i</span></h2>
+                <span class="hint" id="hintPedTagConc"></span></div>
+              <div class="tablewrap tabroll" style="max-height:250px"><table><thead><tr>
+                <th>Concessionária</th><th class="num">Praças</th><th class="num">Pago</th>
+                <th class="num">Pela tabela</th><th class="num">Razão</th>
+              </tr></thead><tbody id="pedtag-conc"></tbody></table></div>
+            </div>
+          </div>
+          <div class="grid2">
+            <div class="card">
+              <div class="head"><h2>Quem gastou <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="O pedágio do tag por veículo, com a modalidade de veiculo.tipofrota ao lado. A quebra por modalidade é o número que muda a leitura desta tela: a casa registrava que “a frota própria passa por tag”, e é verdade, mas 78,5% do que o tag paga é de veículo AGREGADO. Sem essa coluna o gasto inteiro se lê como custo de frota própria e vai para a conta errada. Se ele é recobrado do agregado no acerto, esta tela não sabe dizer — acertoviagemagregado_desconto está vazia e a despesa do acerto não separa pedágio de combustível. Ordenado pelo valor; “por travessia” ao lado porque o total sozinho ordena pelo VOLUME de viagens.">i</span></h2>
+                <span class="hint" id="hintPedTagVeic"></span></div>
+              <div class="tablewrap tabroll" style="max-height:250px"><table><thead><tr>
+                <th>Veículo</th><th>Modalidade</th><th class="num">Pedágio</th>
+                <th class="num">Travessias</th><th class="num">Por travessia</th>
+              </tr></thead><tbody id="pedtag-veic"></tbody></table></div>
+            </div>
+            <div class="card">
+              <div class="head"><h2>Faturas importadas <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="A fatura confere a si mesma antes de entrar: o “Resumo da sua Fatura” por tag contra o detalhe por placa. Divergência é RECUSA, não aviso — meio milhão importado pela metade produz número plausível e errado. Reimportar a MESMA fatura substitui e não duplica: a unidade de idempotência é a fatura (administradora + número), porque a travessia não tem chave natural — o vale imprime pares débito/crédito com todos os campos iguais menos o D/C. O gasto do tag já estava no ERP como UM título mensal em contaapagar; o que esta importação acrescenta é a decomposição por placa, praça e travessia.">i</span></h2>
+                <span class="hint" id="hintPedTagFat"></span></div>
+              <div class="tablewrap tabroll" style="max-height:250px"><table><thead><tr>
+                <th>Competência</th><th>Fatura</th><th class="num">Total</th>
+                <th class="num">Travessias</th><th>Importada em</th>
+              </tr></thead><tbody id="pedtag-fat"></tbody></table></div>
             </div>
           </div>
         </div>
@@ -21395,6 +21443,198 @@ async function loadPedagio(){
   }catch(e){
     if(seq === pedSeq) renderPedagio({erro:'não foi possível falar com a API'});
   }finally{ if(seq === pedSeq) c.classList.remove('loading'); }
+}
+
+let pedTagSeq = 0, DATAPEDTAG = null;
+
+/* O PEDÁGIO DO TAG. Aba SOB DEMANDA (`data-ao-abrir`): o confronto de tarifa
+   varre as travessias da competência e ainda vai ao AVA buscar o cadastro de
+   praças, e quem abre a Validação de Pedágio para ver os três números do ERP
+   não deve pagar por isso. */
+async function loadPedTag(){
+  const seq = ++pedTagSeq;
+  try{
+    const r = await fetch('/api/operacao/pedagio/tag', {cache:'no-store'});
+    const rr = await respostaJSON(r);
+    if(seq !== pedTagSeq) return;
+    if(!rr.ok){ renderPedTag({erro: rr.dados.mensagem || 'não foi possível consultar'}); return; }
+    DATAPEDTAG = rr.dados; renderPedTag(rr.dados);
+  }catch(e){
+    if(seq === pedTagSeq) renderPedTag({erro:'não foi possível falar com a API'});
+  }
+}
+
+function renderPedTag(d){
+  const tb = id => document.getElementById(id);
+  const vazioMsg = txt => '<tr><td colspan="6" class="vazio">' + esc(txt) + '</td></tr>';
+  if(d.erro){
+    document.getElementById('kpis-pedtag').innerHTML =
+      '<div class="banner-inline bad">' + esc(d.erro) + '</div>';
+    return;
+  }
+  /* SEM FATURA NÃO É ERRO, é uma tela que diz o que fazer. Banner vermelho aqui
+     ensinaria a ignorar banner vermelho — o estado real é "ninguém importou
+     ainda", e o conserto é um clique abaixo. */
+  if(d.vazio){
+    document.getElementById('kpis-pedtag').innerHTML =
+      '<div class="banner-inline">Nenhuma fatura de tag importada ainda. ' +
+      'Envie o PDF em “Faturas importadas”, abaixo — o gasto com o tag já existe ' +
+      'no ERP como um título por mês, e é esta importação que o abre por placa, ' +
+      'praça e travessia.</div>';
+    ['pedtag-tarifa','pedtag-conc','pedtag-veic','pedtag-fat'].forEach(function(i){
+      const el = tb(i); if(el) el.innerHTML = vazioMsg('—');
+    });
+    abaContador('abanPedTag', 0);
+    return;
+  }
+  const R = d.resumo || {}, C = d.confronto || {};
+  const agr = (R.modalidades || []).find(m => m.modalidade === 'Agregado');
+
+  document.getElementById('kpis-pedtag').innerHTML = [
+    kpi('Pedágio do tag', BRL.format(R.total_tag || 0),
+        (R.travessias_tag||0).toLocaleString('pt-BR') + ' travessias · ' + (R.placas||0) + ' placas',
+        '', 'O que a administradora cobrou de passagem no mês, sem plano, ' +
+            'estacionamento nem crédito. Confere ao centavo com o total impresso na fatura.'),
+    kpi('Do agregado', agr ? BRL.format(agr.tag) : '—',
+        agr ? agr.pct + '% do total · ' + agr.placas + ' placas' : 'sem cadastro de veículo',
+        agr && agr.pct >= 50 ? 'warn' : '',
+        'A casa registrava que “a frota própria passa por tag”. É verdade e é ' +
+        'incompleto: a maior parte do que o tag paga é de veículo AGREGADO. Se ' +
+        'isso é recobrado no acerto, esta tela não sabe dizer.'),
+    /* O desvio é só sobre as praças de casamento EXATO: misturar as
+       aproximadas engordaria o número com hipótese. */
+    kpi('Tabela do ERP erra',
+        C.erro_pct == null ? '—' : (C.erro_pct > 0 ? '+' : '') + C.erro_pct.toFixed(1) + '%',
+        C.pracas_exatas ? BRL.format(Math.abs(C.diferenca||0)) + ' em ' + C.pracas_exatas + ' praças'
+                        : 'sem par no cadastro',
+        Math.abs(C.erro_pct || 0) >= 3 ? 'bad' : 'good',
+        'O mês recalculado com a tarifa de pracapedagio_valor contra o que se ' +
+        'pagou de verdade, só nas praças que casaram por rodovia + km ao METRO. ' +
+        'Negativo = a tabela cobra menos que a realidade, ou seja está atrasada.'),
+    kpi('Tarifa que confere',
+        C.pracas_exatas ? C.confere + ' de ' + C.pracas_exatas : '—',
+        'praças com o cadastro igual ao cobrado',
+        (C.confere || 0) * 2 >= (C.pracas_exatas || 1) ? 'good' : 'warn',
+        'Pedágio reajusta uma vez por ano; a vigência mais recente de TODA a ' +
+        'tabela do ERP é de 01/08/2025. Cada linha da tabela ao lado mostra a ' +
+        'vigência que sustenta o número.')
+  ].join('');
+
+  const linhas = (C.linhas || []).filter(x => x.erp_tarifa_eixo != null);
+  tb('pedtag-tarifa').innerHTML = linhas.length ? linhas.slice(0, 60).map(function(x){
+    const dif = x.diferenca;
+    const cls = dif == null ? '' : (Math.abs(dif) < 0.005 ? 'good' : (dif > 0 ? 'bad' : 'warn'));
+    const aprox = x.exato ? '' :
+      ' <span class="chip warn" title="casou com o cadastro a ' +
+      (x.dkm * 1000).toFixed(0) + ' metros de distância: é hipótese, não fato, e ' +
+      'por isso esta linha fica de fora do total do cabeçalho">~</span>';
+    return '<tr><td>' + esc(x.praca || '—') + aprox + '</td>' +
+      '<td class="num">' + fmtRsKm(x.tarifa_eixo) + '</td>' +
+      '<td class="num">' + fmtRsKm(x.erp_tarifa_eixo) + '</td>' +
+      '<td class="num ' + cls + '">' +
+      (dif == null ? '—' : (dif > 0 ? '+' : '') + dif.toFixed(2)) + '</td>' +
+      '<td>' + fmtD(x.vigencia) + '</td><td class="num">' + x.n + '</td></tr>';
+  }).join('') : vazioMsg('nenhuma praça da fatura casou com o cadastro do ERP');
+  document.getElementById('hintPedTagTar').textContent =
+    linhas.length + ' praças · ' + (C.pracas_exatas || 0) + ' ao metro · ' +
+    (C.pracas_sem_par || 0) + ' sem par';
+
+  tb('pedtag-conc').innerHTML = (C.grupos || []).length ? (C.grupos || []).map(function(g){
+    /* Razão abaixo de 1 é a tabela pedindo MAIS do que se pagou — não é
+       cadastro velho, é outra conversa, e por isso tem cor própria. */
+    const cls = g.razao_mediana == null ? '' : (g.razao_mediana < 0.98 ? 'warn' : '');
+    return '<tr><td>' + esc(g.concessionaria) + '</td><td class="num">' + g.pracas + '</td>' +
+      '<td class="num">' + BRL.format(g.valor) + '</td>' +
+      '<td class="num">' + BRL.format(g.valor_pela_tabela) + '</td>' +
+      '<td class="num ' + cls + '">' +
+      (g.razao_mediana == null ? '—' : g.razao_mediana.toFixed(3)) + '</td></tr>';
+  }).join('') : vazioMsg('sem praça casada para agrupar');
+  document.getElementById('hintPedTagConc').textContent =
+    'razão = pago ÷ tabela';
+
+  tb('pedtag-veic').innerHTML = (R.veiculos || []).map(function(v){
+    return '<tr><td>' + esc(v.rotulo) + '</td><td>' + esc(v.modalidade) + '</td>' +
+      '<td class="num">' + BRL.format(v.tag) + '</td><td class="num">' + v.n_tag + '</td>' +
+      '<td class="num">' + (v.por_travessia == null ? '—' : fmtRsKm(v.por_travessia)) +
+      '</td></tr>';
+  }).join('') || vazioMsg('sem veículo na competência');
+  document.getElementById('hintPedTagVeic').textContent =
+    (R.veiculos || []).length + ' de ' + (R.placas || 0) + ' placas' +
+    (R.sem_cadastro ? ' · ' + R.sem_cadastro + ' sem cadastro no ERP' : '');
+
+  tb('pedtag-fat').innerHTML = (d.faturas || []).map(function(f){
+    return '<tr><td>' + esc(f.competencia || '—') + '</td><td>' + esc(f.numero_fatura) + '</td>' +
+      '<td class="num">' + BRL.format(f.total_fatura || 0) + '</td>' +
+      '<td class="num">' +
+      ((f.travessias_tag||0)+(f.travessias_vale||0)).toLocaleString('pt-BR') + '</td>' +
+      '<td>' + fmtDT(f.importado_em) + '</td></tr>';
+  }).join('') || vazioMsg('nenhuma fatura importada');
+  document.getElementById('hintPedTagFat').textContent =
+    (d.faturas || []).length + ' fatura(s) · exibindo ' + (d.competencia || '—');
+  abaContador('abanPedTag',
+    linhas.filter(x => x.diferenca && Math.abs(x.diferenca) >= 0.005).length);
+}
+
+/* IMPORTA UMA FATURA. Devolve a frase que vai para a tela, nunca levanta —
+   quem chama precisa continuar para a próxima mesmo quando esta falha. */
+async function pedTagEnviarUma(arq){
+  try{
+    const r = await fetch('/api/operacao/pedagio/tag/importar?nome=' +
+                          encodeURIComponent(arq.name),
+                          {method:'POST', body: arq,
+                           headers:{'Content-Type':'application/pdf'}});
+    const rr = await respostaJSON(r);
+    if(rr.ok){
+      return {ok:true, texto: 'fatura ' + rr.dados.numero_fatura + ' (' +
+              rr.dados.competencia + '), ' +
+              (rr.dados.travessias||0).toLocaleString('pt-BR') + ' travessias'};
+    }
+    return {ok:false, texto: rr.dados.mensagem || 'não foi possível importar'};
+  }catch(e){
+    return {ok:false, texto:'não foi possível falar com a API'};
+  }
+}
+
+/* Mensalmente é UM arquivo; o histórico é uma tacada de doze. Aceitar vários
+   não muda nada no uso normal e evita doze idas ao formulário na estreia.
+
+   UMA DE CADA VEZ, e não em paralelo: cada fatura são ~30 s de leitura de PDF
+   no servidor, e disparar doze juntas encheria o threadpool do FastAPI — as
+   outras telas parariam de ser atendidas enquanto isso. */
+async function pedTagImportar(){
+  const inp = document.getElementById('pedtag-arq');
+  const msg = document.getElementById('pedtag-msg');
+  const bt  = document.getElementById('pedtag-envia');
+  const arqs = Array.from((inp && inp.files) || []);
+  if(!arqs.length){
+    msg.className = 'hint bad';
+    msg.textContent = 'Escolha o PDF da fatura.'; return;
+  }
+  const rot = bt.textContent;
+  bt.disabled = true;
+  msg.className = 'hint';
+  const feitos = [], falhas = [];
+  for(let i = 0; i < arqs.length; i++){
+    bt.textContent = arqs.length > 1
+      ? 'Lendo ' + (i + 1) + ' de ' + arqs.length + '…' : 'Lendo a fatura…';
+    msg.textContent = 'Enviando e conferindo ' + esc(arqs[i].name) +
+      ' — são centenas de páginas, leva cerca de meio minuto por fatura.' +
+      (feitos.length ? ' Já entraram ' + feitos.length + '.' : '');
+    const r = await pedTagEnviarUma(arqs[i]);
+    (r.ok ? feitos : falhas).push(arqs[i].name + ': ' + r.texto);
+  }
+  bt.disabled = false; bt.textContent = rot;
+  /* AS FALHAS APARECEM UMA A UMA, com o nome do arquivo. "3 de 7 falharam"
+     sem dizer quais obrigaria a reenviar as sete para descobrir. */
+  msg.className = 'hint ' + (falhas.length ? (feitos.length ? 'warn' : 'bad') : 'good');
+  msg.textContent =
+    (feitos.length ? 'Importada(s): ' + feitos.join(' · ') : '') +
+    (feitos.length && falhas.length ? ' — ' : '') +
+    (falhas.length ? 'Recusada(s): ' + falhas.join(' · ') : '');
+  /* A RECARGA FICA FORA DO `try` DA AÇÃO. Se ela falhasse lá dentro, o
+     "importada" seria sobrescrito por "não foi possível" com a fatura JÁ
+     gravada — e quem lê isso importa de novo. */
+  if(feitos.length){ try{ inp.value = ''; await loadPedTag(); }catch(e){} }
 }
 
 /* O que cada campo do vale PERMITE conferir. Sem esta coluna a tabela seria

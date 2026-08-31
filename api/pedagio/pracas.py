@@ -100,7 +100,7 @@ from __future__ import annotations
 import datetime as dt
 import logging
 
-from api import db
+from api import db, frota_identidade
 
 log = logging.getLogger(__name__)
 
@@ -674,6 +674,11 @@ def confronto_modalidade(de: str, ate: str) -> list[dict]:
     """
     linhas = [_com_diferenca(dict(x))
               for x in db.query(CONFRONTO_MODALIDADE_SQL, {"de": de, "ate": ate})]
+    # A modalidade sai por EXTENSO; o codigo do ERP fica ao lado, porque e por
+    # ele que alguem vai procurar no AVA.
+    for l in linhas:
+        l["modalidade_cod"] = l["modalidade"]
+        l["modalidade"] = frota_identidade.modalidade(l["modalidade"])
     total = sum(abs(l["diferenca"]) for l in linhas) or 1.0
     for l in linhas:
         # Participação em MÓDULO: uma modalidade que cobra a menos e outra que
@@ -696,6 +701,8 @@ def confronto_veiculo(de: str, ate: str, limite: int = 60) -> dict:
              for x in db.query(CONFRONTO_VEICULO_SQL, {"de": de, "ate": ate})]
     for l in todas:
         l["rotulo"] = frota_identidade.rotulo(l.get("frota"), l.get("placa"))
+        l["modalidade_cod"] = l.get("modalidade")
+        l["modalidade"] = frota_identidade.modalidade(l.get("modalidade"))
     # O TOTAL sai de TODAS as linhas, não das que aparecem: o hint diz "60 de
     # 259" e o número acima dele tem de ser o de 259, senão a tabela cortada
     # vira total falso — a lição do `LIMIT 20` que fez a tela de Veículos dizer

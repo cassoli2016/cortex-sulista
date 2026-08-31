@@ -3156,6 +3156,117 @@ def operacao_pedagio(dias: int = 365) -> JSONResponse:
             "mensagem": "Erro ao levantar a validação de pedágio."})
 
 
+# A fatura do tag NAO precisa de entrada propria em ROTA_TELAS: o casamento e
+# por PREFIXO e "/api/operacao/pedagio" ja cobre estas duas, com a mesma tela.
+_PED_FATURA_MAX_BYTES = 48 * 1024 * 1024   # a de ago/2026 tem 28 MB em 382 paginas
+
+
+@app.get("/api/operacao/pedagio/tag")
+def operacao_pedagio_tag(competencia: str = "") -> JSONResponse:
+    """O pedagio do TAG: quanto, de quem, e a que tarifa.
+
+    Sem fatura importada a resposta NAO e um erro — e uma tela que diz o que
+    fazer. Erro aqui se leria como defeito do sistema, e o estado real e
+    "ninguem importou ainda".
+    """
+    from api import pglocal
+    from api.pedagio import fatura_tag as _ft
+    try:
+        faturas = _ft.faturas()
+        if not faturas:
+            return JSONResponse({"vazio": True, "faturas": [],
+                                 "mensagem": "Nenhuma fatura de tag importada ainda."})
+        comp = competencia or faturas[0]["competencia"]
+        return JSONResponse({
+            "vazio": False, "competencia": comp, "faturas": faturas,
+            "resumo": _ft.resumo(comp),
+            "tarifa": _ft.tarifa_observada(comp)[:200],
+            "confronto": _ft.confronto_erp(comp),
+            "fonte": "CÓRTEX · ped_travessias (fatura da administradora) × AVA "
+                     "pracapedagio_valor · leitura",
+        })
+    except pglocal.NaoConfigurado as exc:
+        return JSONResponse(status_code=503, content={
+            "erro": "sem_banco_local", "mensagem": str(exc)})
+    except Exception as exc:  # noqa: BLE001
+        # Tabela ausente e' migration pendente, nao avaria: o `auth.init_db()`
+        # do startup aplica as pendentes, entao isto so aparece entre o deploy
+        # e o restart. Dizer "erro ao levantar" ali mandaria procurar defeito
+        # onde falta um reinicio.
+        if pglocal.sem_tabela(exc):
+            return JSONResponse(status_code=503, content={
+                "erro": "migration_pendente",
+                "mensagem": "As tabelas da fatura de pedágio ainda não foram "
+                            "criadas neste banco (migration 0030). Elas entram "
+                            "no próximo reinício da API."})
+        log.warning("pedagio_tag falhou: %s", exc)
+        return JSONResponse(status_code=500, content={
+            "erro": "erro_consulta",
+            "mensagem": "Erro ao levantar o pedágio do tag."})
+
+
+@app.post("/api/operacao/pedagio/tag/importar")
+async def operacao_pedagio_tag_importar(req: Request, nome: str = "") -> JSONResponse:
+    """Recebe a fatura em PDF como CORPO BRUTO — mesmo padrao do extrato.
+
+    Sem multipart de proposito: `UploadFile` exige python-multipart, que nao e
+    dependencia do projeto, e o `uv sync` do AutoDeploy e nao-fatal — a API
+    poderia subir sem a dep e derrubar so este endpoint.
+
+    A LEITURA VAI POR `sem_travar` PORQUE ELA DEMORA 14 SEGUNDOS. Sao 382
+    paginas de PDF, e isto e uma rota `async def` (precisa do corpo): rodar o
+    parser no event loop deixaria o CORTEX INTEIRO parado esses 14 s — nem a
+    Torre, nem a Saude, nem o /api/health. Foi medido nesta casa com a Z-API a
+    3 s derrubando o health para 5,7 s.
+    """
+    from api import pglocal
+    from api.pedagio import fatura_tag as _ft
+    from api.pedagio import semparar as _sp
+
+    if _tamanho_excede(req.headers.get("content-length"), _PED_FATURA_MAX_BYTES):
+        return JSONResponse(status_code=413, content={
+            "erro": "arquivo_grande",
+            "mensagem": f"Arquivo acima do limite de "
+                        f"{_PED_FATURA_MAX_BYTES // (1024 * 1024)} MB."})
+    bruto = await req.body()
+    if not bruto:
+        return JSONResponse(status_code=422, content={
+            "erro": "arquivo_vazio", "mensagem": "Nenhum conteúdo recebido."})
+    if len(bruto) > _PED_FATURA_MAX_BYTES:
+        # Segunda linha: Content-Length pode faltar ou mentir.
+        return JSONResponse(status_code=413, content={
+            "erro": "arquivo_grande", "mensagem": "Arquivo acima do limite."})
+
+    sess = getattr(req.state, "sessao", None) or {}
+    autor = sess.get("email", "?")
+    try:
+        out = await sem_travar(_ft.importar, nome or "fatura.pdf", bruto, autor)
+    except _sp.FaturaInvalida as exc:
+        # O CORTEX funcionou e esta dizendo NAO, com um motivo que a pessoa
+        # precisa LER. Isso e 4xx: em 5xx o Cloudflare TROCA o corpo pela
+        # pagina de erro dele e a mensagem nunca chega a tela.
+        return JSONResponse(status_code=422, content={
+            "erro": "fatura_invalida", "mensagem": str(exc)})
+    except _ft.ImportacaoRecusada as exc:
+        return JSONResponse(status_code=HTTP_RECUSA, content={
+            "erro": "fatura_nao_fecha", "mensagem": str(exc),
+            "conferencia": exc.conferencia})
+    except pglocal.NaoConfigurado as exc:
+        return JSONResponse(status_code=503, content={
+            "erro": "sem_banco_local", "mensagem": str(exc)})
+    except Exception as exc:  # noqa: BLE001
+        log.warning("pedagio_tag_importar falhou: %s", type(exc).__name__)
+        return JSONResponse(status_code=500, content={
+            "erro": "erro_gravacao",
+            "mensagem": f"Não foi possível gravar a fatura ({type(exc).__name__})."})
+
+    auth.audit(autor, "pedagio_fatura_importar",
+               alvo=str(out.get("numero_fatura")),
+               detalhe=f"competencia={out.get('competencia')} "
+                       f"travessias={out.get('travessias')} placas={out.get('placas')}")
+    return JSONResponse(out)
+
+
 @app.get("/api/rh/folha-estrutura")
 def rh_folha_estrutura(meses: int = 12) -> JSONResponse:
     """Custo de folha por NATUREZA, sem os eventos que só circulam.

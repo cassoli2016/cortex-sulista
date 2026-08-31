@@ -1,3 +1,72 @@
+- versao: "0.186.0"
+  data: "2026-08-31"
+  adicionado:
+    - >-
+      A fatura da administradora de TAG (Sem Parar) agora entra no CÓRTEX: nova
+      aba "Tag (fatura)" na Validação de Pedágio, com envio do PDF pela própria
+      tela. Ela abre por placa, praça e travessia um gasto que o ERP registrava
+      como UM título por mês — R$ 6,05 milhões em 12 meses, mais do que a
+      empresa cobra de pedágio no CT-e (R$ 5,03 mi). É o quarto número de
+      pedágio da casa, e o maior deles.
+    - >-
+      A tarifa de cada praça passa a ser MEDIDA no que se paga todo mês, e
+      confrontada com a tabela do ERP. Lidas sete faturas (fevereiro a agosto
+      de 2026, R$ 3,34 milhões), a tabela do ERP calcula entre 3,8% e 4,5% a
+      menos que o custo real de fevereiro a julho — e 6,0% em agosto, com as
+      praças que conferiam caindo de 7 para 2. O salto não é ruído: é o
+      reajuste de 1º de julho chegando à fatura sem chegar ao cadastro. As
+      piores estão com vigência de 2021: a Imigrantes saiu de R$ 3,90 para
+      R$ 5,70 por eixo (+46%) e Indaiatuba de R$ 9,05 para R$ 20,30 (+124%).
+    - >-
+      O reajuste das praças passa a ser DATADO pelo próprio movimento, sem
+      depender de fonte externa: 92 praças trocaram de tarifa nos sete meses,
+      52 delas exatamente em 1º de julho de 2026, com mediana de +5,26%. É a
+      demonstração de que dá para acompanhar tarifa lendo o que já se paga.
+    - >-
+      A quebra por modalidade, que muda a leitura da tela: 78,5% do que o tag
+      paga é de veículo AGREGADO, não da frota própria. A tela mostra o número
+      e diz, no ⓘ, que não sabe responder se isso é recobrado no acerto do
+      agregado — o campo do ERP que registraria esse desconto está vazio.
+    - >-
+      Um card de desvio por CONCESSIONÁRIA, que separa dois problemas
+      diferentes: cadastro velho aparece espalhado, com razões variadas;
+      desconto de contrato aparece como razão constante. Foi assim que a CCR
+      Viaoeste apareceu cobrando 0,79 do que a tabela pede em cinco praças,
+      enquanto todas as outras cobram acima do cadastrado.
+    - >-
+      Linha nova na Saúde do Servidor: há quanto tempo não entra fatura de tag.
+      O sintoma de uma parada é uma aba vazia, que se lê como "esta tela não
+      tem dado" em vez de "ninguém importa desde abril".
+    - >-
+      O envio aceita VÁRIAS faturas de uma vez, uma de cada vez no servidor.
+      No uso mensal é um arquivo só; na estreia, o histórico inteiro numa
+      tacada. Cada arquivo tem o resultado dito com o nome ao lado — dizer só
+      "3 de 7 falharam" obrigaria a reenviar as sete para descobrir quais.
+  alterado:
+    - >-
+      A modalidade do veículo aparece POR EXTENSO em toda a Validação de
+      Pedágio — Frota própria, Agregado, Terceiro, Locação — no lugar das
+      siglas TRA, AGR, TER e LOC. Quem opera sabe de cor; quem abre o painel
+      uma vez por mês, não, e num card que decide dinheiro a sigla obriga a
+      perguntar em vez de ler.
+    - >-
+      E a troca corrigiu um número: a quebra da frota saía de um campo com só
+      três valores, que dobra a LOCAÇÃO dentro de "frota própria". A tela dizia
+      R$ 101.929 de frota própria em agosto, quando são R$ 30.836 de própria e
+      R$ 71.093 de alugado — o custo do próprio aparecia 3,3 vezes maior, e
+      caminhão de terceiro contava como nosso.
+    - >-
+      A importação RECUSA a fatura que não fecha com o resumo impresso nela
+      mesma, dizendo o que não bateu, em vez de gravar pela metade e mostrar um
+      total plausível e errado. Reenviar a mesma fatura substitui a anterior e
+      não duplica nada. A conferência inclui a soma das seções contra o total
+      da fatura, que continua valendo mesmo quando o fornecedor acrescenta uma
+      seção nova — e avisa quando acrescenta.
+    - >-
+      As sete faturas conferem com o contas a pagar do ERP, uma a uma. Em
+      julho o título saiu R$ 11.764,15 menor que a fatura: são encargos de
+      atraso, que o ERP registra como juro no pagamento, e os dois lados
+      passam a bater exatamente.
 - versao: "0.185.0"
   data: "2026-08-31"
   adicionado:

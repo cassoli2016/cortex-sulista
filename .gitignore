@@ -92,3 +92,10 @@ scripts/validacao_extrato/*.ofx
 # o OFX sintetico de teste; esta cobre a pasta de trabalho com os arquivos que
 # vem do banco de verdade.
 /extratos/
+
+# FATURA DE PEDAGIO REAL. Mesma razao do /extratos/ acima: o repositorio e
+# PUBLICO e a fatura da administradora de tag traz placa, praca, horario e
+# valor de cada travessia de 192 veiculos da operacao — sao 28 MB de dado
+# operacional. Os testes usam paginas SINTETICAS montadas em tests/pedagio/,
+# nunca o arquivo de verdade.
+/pedagio/
