@@ -575,3 +575,44 @@ def test_preencher_meses_nao_emenda_mes_ausente():
     assert len(serie) == 6
     assert serie[-1]["mes"] == atual and serie[-1]["receita"] == 10.0
     assert all(m.get("sem_movimento") for m in serie[:-1])
+
+
+# ============================================================ conta duplicada
+
+def test_cnpj_duplicado_e_recusado_dizendo_qual_conta_ja_tem(esq):
+    """Conta duplicada é o problema de qualidade de dado número um de um CRM.
+
+    O estrago é específico: oportunidades, histórico e atividades do mesmo
+    cliente ficam divididos em dois registros, e a tela passa a dizer "sem
+    contato há 90 dias" sobre uma conta cujo gêmeo foi visitado ontem.
+    """
+    _conta(esq, cnpj="84.683.374/0001-49")
+    with pytest.raises(DadoInvalido) as e:
+        contas.gravar({"nome": "TUPY (outro cadastro)", "dono_nome": "Ana",
+                       "cnpj": "84683374000149"}, usuario="teste@x",
+                      esquema=esq)
+    assert "já está na conta" in str(e.value)
+    assert "TUPY" in str(e.value)
+
+
+def test_conta_sem_cnpj_nao_colide_com_outra_sem_cnpj(esq):
+    """Vazio é "ainda não sei", não um valor.
+
+    Prospect legítimo nasce sem documento, e um UNIQUE no banco impediria o
+    segundo — que é por que a checagem mora no serviço e não numa constraint.
+    """
+    _conta(esq, nome="PROSPECT A")
+    b = contas.gravar({"nome": "PROSPECT B", "dono_nome": "Ana"},
+                      usuario="teste@x", esquema=esq)
+    assert b["id"]
+    assert len(contas.listar(esquema=esq)) == 2
+
+
+def test_editar_a_propria_conta_nao_acusa_duplicata_dela_mesma(esq):
+    """O `id <> %s` do filtro: sem ele, salvar a conta sem mexer no CNPJ
+    acusaria conflito com ela própria — e o formulário nunca mais gravaria."""
+    c = _conta(esq, cnpj="84.683.374/0001-49")
+    d = contas.gravar({"nome": "TUPY FUNDIÇÕES S.A.", "dono_nome": "Ana",
+                       "cnpj": "84.683.374/0001-49"}, usuario="teste@x",
+                      conta_id=c["id"], esquema=esq)
+    assert d["nome"] == "TUPY FUNDIÇÕES S.A."

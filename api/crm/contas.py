@@ -189,6 +189,7 @@ def gravar(dados: dict, *, usuario: str = "", conta_id: int | None = None,
     nome = texto(dados.get("nome"), "o nome da conta", maximo=TITULO_MAX,
                  obrigatorio=True)
     doc = cnpj(dados.get("cnpj"))
+    _sem_duplicata(doc, conta_id, esq)
     dono_id, dono_nome = pessoa(dados.get("dono_id"), dados.get("dono_nome"),
                                 "Responsável", esquema=esq)
     vinculo, vinculo_nome = _resolver_vinculo(dados, conta_id, esq)
@@ -226,6 +227,36 @@ def gravar(dados: dict, *, usuario: str = "", conta_id: int | None = None,
             campos, esquema=esq)
         novo_id = int(r["id"])
     return obter(novo_id, com_erp=False, esquema=esq)
+
+
+def _sem_duplicata(doc: str, conta_id: int | None, esq: str | None) -> None:
+    """Recusa uma segunda conta com o MESMO CNPJ, dizendo qual é a primeira.
+
+    Conta duplicada é o problema de qualidade de dado número um de qualquer
+    CRM, e o estrago é específico: as oportunidades, o histórico e as
+    atividades do mesmo cliente ficam divididos em dois registros, e a tela
+    passa a dizer "sem contato há 90 dias" sobre uma conta cujo gêmeo foi
+    visitado ontem.
+
+    A checagem é AQUI e não um UNIQUE no banco de propósito. O CNPJ é OPCIONAL
+    — prospect legítimo nasce sem ele, e um índice único sobre coluna com
+    muitos vazios ou não restringe nada (se for parcial pelo NULL) ou impede o
+    segundo prospect sem documento (se a coluna guarda ''). Vazio aqui
+    simplesmente não é conferido, que é a resposta certa para "ainda não sei".
+    """
+    if not doc:
+        return
+    outra = pglocal.um(
+        "SELECT id, nome, arquivada FROM crm_contas WHERE cnpj=%s AND id <> %s",
+        (doc, int(conta_id or 0)), esquema=esq)
+    if not outra:
+        return
+    onde = " (arquivada)" if outra["arquivada"] else ""
+    raise DadoInvalido(
+        f"O CNPJ {cnpj_fmt(doc)} já está na conta {outra['nome']!r}{onde}. "
+        f"Duas contas do mesmo cliente dividem o histórico e as oportunidades "
+        f"em dois registros — e a tela passa a dizer que faz meses que ninguém "
+        f"fala com quem foi visitado ontem.")
 
 
 def _resolver_vinculo(dados: dict, conta_id: int | None,
