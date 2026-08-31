@@ -68,11 +68,30 @@ def _falso(sql: str, params=None):
                 for f, p, cv, bv, ba, m in _PROVISAO]
     if "BETWEEN TRUNC(SYSDATE) - 365" in sql:
         return [{"n": 12, "base": 39832.0}]
-    if "no_periodo" in sql:
-        return [{"n": 20, "dias": 341, "base": 39316.17, "no_periodo": 7}]
+    if "com_abono" in sql and "GROUP BY" not in sql:
+        return [{"n": 20, "dias": 341, "dias_abono": 35, "base": 39316.17,
+                 "base_abono": 5371.15, "com_abono": 5}]
     if "GROUP BY TO_CHAR(fe.gozoinifer" in sql:
-        return [{"m": "2026-08", "n": 7, "dias": 110, "base": 13665.94},
-                {"m": "2026-09", "n": 13, "dias": 231, "base": 25650.23}]
+        return [{"m": "2026-08", "n": 7, "dias": 110, "dias_abono": 15,
+                 "base": 13665.94, "base_abono": 2301.50},
+                {"m": "2026-09", "n": 13, "dias": 231, "dias_abono": 20,
+                 "base": 25650.23, "base_abono": 3069.65}]
+    if "vf.descfuncaocompleta cargo" in sql:
+        # O DETALHE COPIA O CADASTRO REAL, inclusive o espaco a direita do
+        # cargo e o espaco a esquerda da chapa, que sao como o GLOBUS grava.
+        return [
+            {"nome": "ANA CAROLINE LEMES RIBEIRO", "chapa": " 001912",
+             "cargo": "COORDENADOR DE FATURAMENTO ", "area": "FINANCEIRO",
+             "filial": "MATRIZ - FINANCEIRO", "ini": "2026-08-18",
+             "fim": "2026-09-06", "dias": 20, "dias_abono": 10,
+             "ab_ini": "2026-09-07", "ab_fim": "2026-09-16", "agora": 1,
+             "base": 5333.33, "base_abono": 2666.67},
+            {"nome": "GILMAR PEREIRA SILVA", "chapa": "003836",
+             "cargo": "MOTORISTA TRUCK", "area": "MOT SBC",
+             "filial": "FILIAL SBC", "ini": "2026-08-17", "fim": "2026-09-01",
+             "dias": 16, "dias_abono": 0, "ab_ini": None, "ab_fim": None,
+             "agora": 0, "base": 1316.90, "base_abono": 0.0},
+        ]
     if "FROM flp_ferias fr" in sql:
         # 5.447 dias gozados; a base por dia foi montada para o fator dar 1,08,
         # que e o valor medido na base real.
@@ -307,11 +326,26 @@ def test_o_custo_agendado_conta_o_dia_de_INICIO():
     assert 'ag_dias = "(fe.gozofinfer - fe.gozoinifer + 1)"' in fonte
 
 
-def test_o_agendado_soma_terco_e_FGTS(custo):
+def test_o_agendado_soma_GOZO_E_ABONO_com_terco_e_FGTS(custo):
+    """O ABONO PECUNIARIO TAMBEM ESTA AGENDADO E TAMBEM SE PAGA. Contar so o
+    gozo subestimava o custo em 13,7% -- R$ 7.734 sobre R$ 56.615, em 5 das 20
+    pessoas. Erro do pior tipo: some dentro de um total plausivel e so aparece
+    quando alguem pergunta de quem e o dinheiro.
+
+    Os dois voltam SEPARADOS porque significam coisas diferentes para quem le:
+    o gozo e ausencia (a pessoa nao esta no posto) e o abono e so desembolso
+    (ela trabalha e recebe a mais). Por isso a coluna de DIAS da escala
+    continua sendo so a do gozo."""
     ag = custo["agendadas"]
-    assert ag["dias"] == 341 and ag["n"] == 20
-    assert ag["custo"] == pytest.approx(
+    assert ag["dias"] == 341 and ag["dias_abono"] == 35 and ag["n"] == 20
+    assert ag["com_abono"] == 5
+    assert ag["custo_gozo"] == pytest.approx(
         39316.17 * fc.UM_TERCO * (1 + fc.FGTS), abs=0.05)
+    assert ag["custo_abono"] == pytest.approx(
+        5371.15 * fc.UM_TERCO * (1 + fc.FGTS), abs=0.05)
+    assert ag["custo"] == pytest.approx(
+        ag["custo_gozo"] + ag["custo_abono"], abs=0.05)
+    assert ag["custo"] > ag["custo_gozo"], "o abono tem de somar, nao substituir"
 
 
 def test_o_agendado_volta_QUEBRADO_POR_MES(custo):
@@ -324,12 +358,113 @@ def test_o_agendado_volta_QUEBRADO_POR_MES(custo):
     assert sum(x["n"] for x in meses.values()) == custo["agendadas"]["n"]
 
 
-def test_o_agendado_NAO_e_recortado_pelo_periodo(custo):
-    """Ele e sempre de hoje em diante, e isso e dito no cartao. Recortado por um
-    filtro de 12 meses PASSADOS ele daria zero -- e "nenhuma ferias agendada" e
-    a leitura oposta da verdade quando ha vinte marcadas. O que o payload traz
-    e quantas caem DENTRO do recorte, para a tela poder dizer a diferenca."""
-    ag = custo["agendadas"]
-    assert ag["n"] == 20, "o total ignora o periodo"
-    assert ag["no_periodo"] == 7, "e o recorte volta separado, para ser dito"
-    assert ag["no_periodo"] <= ag["n"]
+def test_o_agendado_SEGUE_o_periodo_projetado_para_a_frente():
+    """MUDOU DE PROPOSITO (pedido do usuario: "os filtros devem ter acao em
+    todas as telas"). Antes as agendadas ignoravam o periodo e diziam isso num
+    selo -- honesto, mas metade da tela nao reagia ao filtro, que e justamente
+    o "filtro que a query ignora" que a regra da casa manda tirar.
+
+    Agora o MESMO filtro recorta os dois sentidos do tempo: o realizado para
+    tras (competencia) e as agendadas para a frente (data de inicio do gozo).
+    Quando o periodo escolhido e todo passado -- que e o caso dos presets
+    "ultimos N meses", inclusive o padrao --, a janela futura tem a MESMA
+    LARGURA projetada para frente, para o filtro nunca esvaziar a metade
+    futura da tela."""
+    from api.queries_folha import _janela_futura
+    import datetime as dt
+    hoje = dt.date.today()
+
+    # periodo que alcanca o futuro: e literalmente o que a pessoa pediu
+    de, ate = _janela_futura("2026-08-01", "2099-02-28")
+    assert ate == "2099-02-28"
+
+    # periodo todo passado: mesma largura, para frente
+    de3, ate3 = _janela_futura(
+        (hoje.replace(day=1) - dt.timedelta(days=60)).isoformat(), hoje.isoformat())
+    assert de3 == hoje.isoformat()
+    assert dt.date.fromisoformat(ate3) > hoje, "a janela futura nao pode nascer vazia"
+
+
+# ── o detalhe: quem, e nao so quanto ────────────────────────────────────────
+def test_o_detalhe_traz_cargo_centro_de_custo_e_unidade(custo):
+    """Uma escala de ferias se aprova POR PESSOA: "R$ 64 mil em setembro" nao
+    deixa ninguem decidir nada, "o coordenador de faturamento sai dia 18" deixa.
+    Cargo, area e unidade estao preenchidos em 20 de 20 -- conferido no banco
+    ANTES de a coluna existir, porque coluna sempre vazia e coluna a preencher
+    ou remover."""
+    d = custo["agendadas"]["detalhe"]
+    assert len(d) == 2
+    a = d[0]
+    assert a["cargo"] == "COORDENADOR DE FATURAMENTO"
+    assert a["area"] == "FINANCEIRO" and a["filial"] == "MATRIZ - FINANCEIRO"
+
+
+def test_a_chapa_do_detalhe_vem_SEM_o_espaco_do_ERP(custo):
+    """`chapafunc` vem com espaco a esquerda nesta base. Cru, ele quebra a
+    comparacao de texto da busca e aparece desalinhado na coluna monoespacada."""
+    assert custo["agendadas"]["detalhe"][0]["chapa"] == "001912"
+
+
+def test_o_cargo_do_detalhe_vem_SEM_o_espaco_a_direita(custo):
+    """`COORDENADOR DE FATURAMENTO ` tem espaco no fim no cadastro. Ele nao
+    aparece na tela, mas entra na busca por texto e num futuro agrupamento por
+    cargo criaria dois cargos onde ha um."""
+    assert not custo["agendadas"]["detalhe"][0]["cargo"].endswith(" ")
+
+
+def test_cada_linha_do_detalhe_usa_a_MESMA_conta_do_total(custo):
+    """Tres caminhos chegam ao mesmo numero na tela: total, por mes e por
+    pessoa. O duble aqui e AMOSTRA (2 linhas de 20), entao o que se confere e a
+    INVARIANTE por linha -- (gozo + abono) x 4/3 x 1,08 --, a mesma formula do
+    agregado. Somar duas contas diferentes e como as tres se separariam.
+
+    A soma completa foi conferida contra o banco real: detalhe R$ 64.349,73
+    contra total R$ 64.349,74, um centavo de arredondamento."""
+    for x in custo["agendadas"]["detalhe"]:
+        bruto = x["custo"] / (fc.UM_TERCO * (1 + fc.FGTS))
+        # o bruto reconstruido tem de ser (dias + dias_abono) de salario/30
+        assert bruto > 0
+        if x["dias_abono"]:
+            assert x["custo"] > bruto * fc.UM_TERCO, "o terco tem de estar dentro"
+    # e as duas linhas do duble batem com as bases que ele devolveu
+    total = sum(x["custo"] for x in custo["agendadas"]["detalhe"])
+    esperado = (5333.33 + 2666.67 + 1316.90) * fc.UM_TERCO * (1 + fc.FGTS)
+    assert total == pytest.approx(esperado, abs=0.05)
+
+
+def test_quem_ja_esta_de_ferias_HOJE_vem_marcado(custo):
+    """A ausencia dessa pessoa nao e futura, e agora. Quem monta escala precisa
+    ver isso antes de contar com ela."""
+    d = {x["nome"]: x for x in custo["agendadas"]["detalhe"]}
+    assert d["ANA CAROLINE LEMES RIBEIRO"]["agora"] is True
+    assert d["GILMAR PEREIRA SILVA"]["agora"] is False
+
+
+def test_o_detalhe_diz_o_PERIODO_do_abono_e_nao_so_a_quantidade(custo):
+    """"Vende 10 dias" sem as datas nao entra em escala nenhuma: o abono cai
+    DEPOIS do gozo e prolonga o desembolso, sem prolongar a ausencia."""
+    a = custo["agendadas"]["detalhe"][0]
+    assert a["dias_abono"] == 10
+    assert a["ab_ini"] == "2026-09-07" and a["ab_fim"] == "2026-09-16"
+
+
+def test_o_custo_por_pessoa_e_a_UNICA_saida_individual_do_modulo():
+    """Ele permite deduzir o salario base (custo / dias * 30 / 1,4333), e isso
+    esta DITO na tela. Entra porque escala se aprova por pessoa e porque a tela
+    `ferias` ja e restrita por RBAC a quem cuida de folha. O que continua fora,
+    aqui tambem: CPF, dado bancario e o salario como coluna."""
+    from pathlib import Path as _P
+    fonte = _P(fc.__file__).read_text(encoding="utf-8")
+    # COLUNAS, nao palavras: a palavra "CPF" aparece de proposito no comentario
+    # que explica por que ela NAO sai daqui, e um teste que a proibisse estaria
+    # proibindo a propria documentacao da regra.
+    import re as _re
+    colunas = set(_re.findall(r"vf\.(\w+)", fonte))
+    for proibida in ("cpffunc", "numeroctps", "codbanco", "contacorrente",
+                     "numeropis", "salbase_individual"):
+        assert proibida not in colunas, proibida
+    # `salbase` entra so DENTRO de agregacao ou de conta -- nunca como coluna
+    # crua na saida, que seria o salario individual virando campo do payload.
+    assert '"salario"' not in fonte and "'salario'" not in fonte
+    # e a ressalva esta escrita onde quem mexer no modulo vai ler
+    assert "permite deduzir o" in fonte

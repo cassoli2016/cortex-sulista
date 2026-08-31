@@ -4,6 +4,21 @@ Gerado de `docs/versoes.yaml` por `scripts/gerar_changelog.py` — não editar �
 Formato [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/),
 versionamento [SemVer](https://semver.org/lang/pt-BR/).
 
+## [0.184.0] — 31/08/2026  ·  CX-31/08/2026-v0.184.0
+
+### Adicionado
+- As férias agendadas passaram a ser uma aba própria e mostram QUEM: nome, chapa, cargo, centro de custo, unidade, o período de gozo, os dias, os dias vendidos como abono e o custo previsto de cada um. Uma escala de férias se aprova por pessoa — "R$ 64 mil em setembro" não deixa ninguém decidir nada, "o coordenador de faturamento sai dia 18" deixa. Quem já está de férias hoje aparece com a linha destacada, e há busca dentro da tabela.
+- A tela ganhou uma quarta aba (Unidades e cadastro), porque com o detalhe das agendadas a aba única passava de 1.000 pixels e deixava de caber numa tela.
+
+### Alterado
+- O FILTRO DE PERÍODO AGORA VALE PARA A TELA INTEIRA. Metade dela olha para trás (o custo já pago) e metade para frente (as férias marcadas, o vencimento, o fechamento de período), e antes só a primeira reagia. Agora o mesmo intervalo recorta os dois sentidos: quando o período escolhido alcança o futuro, ele é usado como está; quando é todo passado — o caso dos presets "últimos N meses" —, a janela do futuro ganha a mesma largura projetada para frente, para que mexer no filtro sempre mude o que se vê.
+- A fila de agendamento e o passivo por unidade levam selo dizendo que são o estado de HOJE e não seguem as datas. Eles obedecem à unidade e ao colaborador; recortar "quem tem direito adquirido" por um intervalo devolveria um número que não significa nada.
+
+### Corrigido
+- O custo das férias agendadas estava 13,7% abaixo do real: contava só os dias de gozo e deixava de fora o ABONO PECUNIÁRIO já marcado — os dias que a pessoa vende em vez de tirar. São R$ 7.734 em 5 das 20 pessoas, e o total passou de R$ 56.615 para R$ 64.350. O abono não tira ninguém do posto, mas se paga; agora os dois aparecem somados no cartão e separados no rodapé.
+- A aba de férias agendadas abria VAZIA para quem clicava nela sem passar antes pela aba de custo, e trocar o filtro estando nela não recarregava nada — o dado velho ficava na tela sob o rótulo novo.
+- O selo "de férias hoje" e o "2º período avançado" quebravam para uma segunda linha e engordavam as tabelas para repetir o que a coluna ao lado já dizia. Viraram destaque de linha.
+
 ## [0.183.1] — 31/08/2026  ·  CX-31/08/2026-v0.183.1
 
 ### Corrigido

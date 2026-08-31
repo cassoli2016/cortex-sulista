@@ -593,6 +593,9 @@ tr.cp-recusada td{background:var(--red-50,#fdf2f0)}
    coluna já carrega a cor, e a linha inteira forte cansaria numa lista de 65. */
 tr.meio2 td{background:var(--yellow-100)}
 tr.fim2 td{background:var(--red-100)}
+/* Já está de férias HOJE: verde leve. A ausência não é futura, é agora — quem
+   monta escala precisa ver isso antes de contar com a pessoa. */
+tr.ferja td{background:var(--green-100)}
 /* linhas expansíveis (fornecedores → OCs) */
 tr.forn-row{cursor:pointer}
 tr.forn-row:hover td{background:var(--navy-50)}
@@ -4238,7 +4241,8 @@ body.tvfull #btnReport,body.tvmode #btnReport{display:none}
         <div class="subtabs" role="tablist" data-abas="ferias" aria-label="Seções desta tela">
           <button role="tab" id="tabferias-risco" data-aba="risco" aria-controls="aba-ferias-risco" aria-selected="true" onclick="abaTrocar('ferias','risco')">Risco e fila</button>
           <button role="tab" id="tabferias-custo" data-aba="custo" aria-controls="aba-ferias-custo" aria-selected="false" onclick="abaTrocar('ferias','custo')">Custo e passivo</button>
-          <button role="tab" id="tabferias-agenda" data-aba="agenda" aria-controls="aba-ferias-agenda" aria-selected="false" onclick="abaTrocar('ferias','agenda')">Agenda e unidades</button>
+          <button role="tab" id="tabferias-agenda" data-aba="agenda" aria-controls="aba-ferias-agenda" aria-selected="false" onclick="abaTrocar('ferias','agenda')">Agendadas</button>
+          <button role="tab" id="tabferias-unid" data-aba="unid" aria-controls="aba-ferias-unid" aria-selected="false" onclick="abaTrocar('ferias','unid')">Unidades e cadastro</button>
         </div>
 
         <div class="aba" data-abas="ferias" data-aba="risco" id="aba-ferias-risco" role="tabpanel" aria-labelledby="tabferias-risco">
@@ -4246,15 +4250,15 @@ body.tvfull #btnReport,body.tvmode #btnReport{display:none}
           <div class="card">
             <div class="head"><h2>O que chega em cada mês <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="Duas populações DIFERENTES, e é a diferença entre elas que faz a leitura. GANHAM DIREITO é quem fecha um período aquisitivo naquele mês — trabalho novo chegando à fila. VÃO PARA DOBRA é quem JÁ tem direito vencido hoje e chega ao limite legal naquele mês; como o segundo período aquisitivo dura os mesmos 12 meses do período concessivo, essa é a data exata em que a pessoa passa a ter DOIS períodos na mão, o primeiro deles em dobro. As duas séries não se somam: uma é entrada de trabalho, a outra é prazo vencendo.">i</span></h2>
               <span class="hint" id="hintFerMes"></span></div>
-            <div id="chartFerAgenda" style="width:100%;height:210px"></div>
+            <div id="chartFerAgenda" style="width:100%;height:160px"></div>
           </div>
           <div class="card">
-            <div class="head"><h2>Fila de agendamento <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="Quem JÁ completou um período aquisitivo e ainda não gozou, ordenado pelo limite legal — fim do aquisitivo mais 12 meses. Como o segundo período aquisitivo começa no dia seguinte ao fim do primeiro e dura 12 meses, esse limite é também a data em que o SEGUNDO fecha: quem não gozar o primeiro até lá fica com dois períodos, e paga o primeiro em DOBRO (art. 137 da CLT). Quem ainda está no aquisitivo não entra: não há o que agendar, e misturá-los faria a fila começar por quem não é problema de ninguém.">i</span></h2>
+            <div class="head"><h2>Fila de agendamento <span class="badge b-info" title="Quem tem direito adquirido tem HOJE. Recortar isso por um intervalo devolveria um número que não significa nada — por isso a fila obedece à unidade e ao colaborador, mas não às datas. O que segue o período é o gráfico acima.">estado de hoje</span> <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="Quem JÁ completou um período aquisitivo e ainda não gozou, ordenado pelo limite legal — fim do aquisitivo mais 12 meses. Como o segundo período aquisitivo começa no dia seguinte ao fim do primeiro e dura 12 meses, esse limite é também a data em que o SEGUNDO fecha: quem não gozar o primeiro até lá fica com dois períodos, e paga o primeiro em DOBRO (art. 137 da CLT). Quem ainda está no aquisitivo não entra: não há o que agendar, e misturá-los faria a fila começar por quem não é problema de ninguém.">i</span></h2>
               <input type="search" id="fFerBusca" placeholder="achar na fila…" autocomplete="off"
                      aria-label="Buscar na fila" oninput="ferFilaFiltrar()"
                      style="margin-left:auto;max-width:190px;padding:5px 9px;border:1px solid var(--n300);border-radius:8px;font-size:12.5px">
               <span class="hint" id="hintFerFila"></span></div>
-            <div class="tablewrap tabroll"><table><thead><tr>
+            <div class="tablewrap tabroll" style="max-height:320px"><table><thead><tr>
               <th>Funcionário</th><th>Chapa</th><th>Unidade</th><th>Função</th>
               <th class="num">Fim do aquisitivo</th><th class="num">2º período</th>
               <th class="num">Fecha o 2º / dobra</th><th class="num">Prazo</th>
@@ -4280,33 +4284,36 @@ body.tvfull #btnReport,body.tvmode #btnReport{display:none}
               <div class="hint" id="fer-cinza" style="margin:8px 18px 16px"></div>
             </div>
             <div class="card">
-              <div class="head"><h2>Férias agendadas — o que ainda vai sair <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="O custo do que JÁ TEM DATA marcada e ainda não entrou na folha: dias de gozo (fim menos início, mais um) sobre o salário base, com o terço constitucional e FGTS. É a única fatia do passivo que dá para pôr num fluxo de caixa, porque é a que tem mês. Inclui quem já está de férias hoje — o dinheiro dessas ainda não saiu inteiro. Não confundir com o passivo ao lado: aquele é tudo que se deve, inclusive de quem não tem data nenhuma.">i</span></h2>
-                <span class="hint" id="hintFerAgend"></span></div>
-              <div class="tablewrap tabroll"><table><thead><tr>
-                <th>Mês de início</th><th class="num">Pessoas</th><th class="num">Dias</th><th class="num">Custo previsto</th>
-              </tr></thead><tbody id="fer-agendadas"></tbody></table></div>
-              <div class="hint" id="fer-agend-nota" style="margin:8px 18px 16px"></div>
-            </div>
-          </div>
-          <div class="card">
               <div class="head"><h2>Passivo por unidade <span class="badge b-info" id="fer-prov-selo" title="O passivo é o que se deve HOJE. Recortá-lo por um intervalo passado devolveria um número que não significa nada — o que se devia em março já foi pago ou virou o de hoje. Ele obedece a unidade e ao colaborador, mas não ao período.">foto de hoje · ignora o período</span> <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="ESTIMATIVA, não lançamento contábil. Para cada ativo: 30 dias pelo período aquisitivo já fechado e não gozado, mais 2,5 dias por mês completo do período em curso (art. 130), tudo sobre o SALÁRIO BASE, acrescido do terço constitucional e de 8% de FGTS. O INSS patronal NÃO entra: a alíquota depende do enquadramento e há eventos de SIMPLES nesta folha, então estimá-lo somaria milhões inventados. A base é o salário base, e a folha real ainda paga médias de hora extra e adicional noturno por cima — o quanto isso subestima está medido no cartão “Passivo provisionado”.">i</span></h2>
                 <span class="hint" id="hintFerProv"></span></div>
               <div class="tablewrap tabroll"><table><thead><tr>
                 <th>Unidade</th><th class="num">Pessoas</th><th class="num">Com vencido</th>
                 <th class="num">Vencido</th><th class="num">Avos</th><th class="num">Total c/ FGTS</th>
               </tr></thead><tbody id="fer-provisao"></tbody></table></div>
+            </div>
+          </div>
+          
+        </div>
+
+        <div class="aba" data-abas="ferias" data-aba="agenda" id="aba-ferias-agenda" role="tabpanel" aria-labelledby="tabferias-agenda" data-ao-abrir="loadFeriasCusto" hidden>
+          
+            <div class="card">
+              <div class="head"><h2>Férias agendadas — quem, quando e quanto <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="Quem JÁ TEM DATA marcada, de hoje em diante, com o custo que ainda não entrou na folha. DIAS é o gozo (fim menos início, mais um) — é o tempo em que a pessoa não está no posto, e é por ele que se monta a escala. ABONO são os dias VENDIDOS (art. 143, até um terço do período convertido em dinheiro): eles não tiram ninguém do posto, mas se pagam, e contar só o gozo subestimava o custo em 13,7%. O valor traz gozo e abono sobre o salário base, com terço constitucional e FGTS; como é estimativa sobre salário base, a folha real paga um pouco mais (o fator medido está no cartão do passivo). Cargo, centro de custo e unidade vêm do cadastro e estão preenchidos em todos. Este card é sempre de HOJE em diante e não segue o filtro de período.">i</span></h2>
+              <input type="search" id="fFerAgBusca" placeholder="achar aqui…" autocomplete="off"
+                     aria-label="Buscar nas férias agendadas" oninput="ferAgFiltrar()"
+                     style="margin-left:auto;max-width:180px;padding:5px 9px;border:1px solid var(--n300);border-radius:8px;font-size:12.5px">
+              <span class="hint" id="hintFerAgend"></span></div>
+            <div class="tablewrap tabroll"><table><thead><tr>
+              <th>Funcionário</th><th>Chapa</th><th>Cargo</th><th>Centro de custo</th>
+              <th>Unidade</th><th class="num">De</th><th class="num">Até</th>
+              <th class="num">Dias</th><th class="num">Abono</th><th class="num">Custo previsto</th>
+            </tr></thead><tbody id="fer-agendadas"></tbody></table></div>
+            <div class="hint" id="fer-agend-nota" style="margin:8px 18px 16px"></div>
           </div>
         </div>
 
-        <div class="aba" data-abas="ferias" data-aba="agenda" id="aba-ferias-agenda" role="tabpanel" aria-labelledby="tabferias-agenda" hidden>
+        <div class="aba" data-abas="ferias" data-aba="unid" id="aba-ferias-unid" role="tabpanel" aria-labelledby="tabferias-unid" hidden>
           <div class="grid2">
-            <div class="card">
-              <div class="head"><h2>Em férias agora e agendadas <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="Quem está de férias hoje e quem já tem data marcada, pela data de gozo registrada na ficha. É a leitura operacional: quem não está no posto nas próximas semanas.">i</span></h2>
-                <span class="hint" id="hintFerAgenda"></span></div>
-              <div class="tablewrap tabroll"><table><thead><tr>
-                <th>Funcionário</th><th>Unidade</th><th class="num">De</th><th class="num">Até</th>
-              </tr></thead><tbody id="fer-agenda"></tbody></table></div>
-            </div>
             <div class="card">
               <div class="head"><h2>Por unidade <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="Onde está o passivo de férias a agendar. “Com direito” é quem já completou o aquisitivo; “Vencendo” é quem chega ao limite legal dentro do horizonte escolhido.">i</span></h2>
                 <span class="hint" id="hintFerFil"></span></div>
@@ -4325,7 +4332,7 @@ body.tvfull #btnReport,body.tvmode #btnReport{display:none}
             </tr></thead><tbody id="fer-paradas"></tbody></table></div>
           </div>
         </div>
-      </section>
+</section>
 
       <section class="view" id="view-cnh">
         <div class="card">
@@ -15201,6 +15208,13 @@ async function loadFerias(fundo){
     p.set('dias', V('fFerDias')||'90');
     if(V('fFerFilial')) p.set('filial', V('fFerFilial'));
     const _ch=ferChapaDoCampo(); if(_ch) p.set('chapa', _ch);
+    /* AS DATAS VÃO PARA AS DUAS ROTAS. O período recorta o que TEM DATA em
+       cada uma: aqui, o gráfico do que chega em cada mês; na de custo, o
+       realizado (para trás) e as agendadas (para a frente). Sem isto, metade
+       da tela ignorava o filtro — e filtro que a query ignora é o que a regra
+       da casa manda tirar da tela, não deixar sem efeito. */
+    if(V('fFerDe')) p.set('dt_de', V('fFerDe'));
+    if(V('fFerAte')) p.set('dt_ate', V('fFerAte'));
     const r=await fetch('/api/rh/ferias?'+p.toString(),
       {cache:'no-store', headers: fundo?{'X-Carga-Fundo':'1'}:{}});
     const d=await r.json(); if(seq!==ferSeq) return;
@@ -15211,9 +15225,15 @@ async function loadFerias(fundo){
        novo — e ela só é vista depois do clique, então ninguém veria a troca
        acontecer. Recarrega na hora se a aba já estiver aberta; se não, ela
        recarrega sozinha quando alguém abrir. */
-    const abaCusto=document.getElementById('aba-ferias-custo');
+    /* DUAS abas comem deste payload: "Custo e passivo" e "Agendadas". Checar
+       só a primeira deixava quem estivesse na segunda trocar o filtro e não
+       ver nada mudar — o dado velho continuava na tela sob o rótulo novo, que
+       é pior do que não filtrar. A lista sai do próprio DOM (`data-ao-abrir`),
+       então uma aba nova que consuma o mesmo loader entra sozinha. */
     ferCustoInvalidar();
-    if(abaCusto && !abaCusto.hidden) loadFeriasCusto(1);
+    const comeDoCusto = Array.from(document.querySelectorAll(
+      '.aba[data-abas="ferias"][data-ao-abrir="loadFeriasCusto"]'));
+    if(comeDoCusto.some(el => !el.hidden)) loadFeriasCusto(1);
   }catch(e){ if(seq===ferSeq) showBanner('Não foi possível falar com a API.', e.message); }
   finally{ if(seq===ferSeq){ if(btn) btn.disabled=false;
     document.getElementById('content').classList.remove('loading'); } }
@@ -15338,17 +15358,11 @@ function renderFerias(d){
 
   chartFerAgenda(d.agenda_mensal||[]);
 
-  // -------- agenda
-  const A=d.agenda||[];
-  document.getElementById('hintFerAgenda').textContent =
-    A.length ? ((k.em_ferias_agora||0)+' de férias hoje · '+A.length+' no total')
-             : 'ninguém de férias nem com data marcada';
-  document.getElementById('fer-agenda').innerHTML = A.map(x=>`<tr>
-      <td>${esc(x.nome)}${x.agora?'<span class="fer-agora">de férias hoje</span>':''}</td>
-      <td>${esc(x.filial||'—')}</td>
-      <td class="num" style="font-family:var(--mono);font-size:12px">${fmtD(x.ini)}</td>
-      <td class="num" style="font-family:var(--mono);font-size:12px">${fmtD(x.fim)}</td>
-    </tr>`).join('') || '<tr><td colspan="4" style="color:var(--n500)">ninguém de férias no momento</td></tr>';
+  /* A tabela "Em férias agora e agendadas" SAIU: ela mostrava nome, unidade e
+     as duas datas — um subconjunto estrito do detalhe das agendadas, que traz
+     as mesmas pessoas com cargo, centro de custo, dias, abono e custo. Duas
+     listas das mesmas linhas, uma dizendo menos, é a que ninguém abre. O
+     `agenda` continua no payload porque o KPI "de férias hoje" o usa. */
 
   // -------- por unidade
   const P=d.por_filial||[];
@@ -15393,7 +15407,7 @@ function renderFerias(d){
   if((k.dobra_prazo||0) > 0){
     A2.push(['t-warn', k.dobra_prazo+(k.dobra_prazo===1?' funcionário chega':' chegam')
       +' ao limite legal em até '+dias+' dias',
-      'Agendar antes do limite evita o pagamento em dobro. O aviso prévio de férias é de 30 dias, então quem vence dentro desse prazo já está apertado.']);
+      'O aviso prévio de férias é de 30 dias — quem vence dentro desse prazo já está apertado.']);
   }
   if((k.ficha_parada||0) > 0){
     A2.push(['t-info', k.ficha_parada+(k.ficha_parada===1?' ficha de férias parada':' fichas de férias paradas')+' no cadastro',
@@ -15409,10 +15423,9 @@ function renderFerias(d){
     A2.push([(k.sem_agenda||0)>=10?'t-warn':'t-info',
       k.sem_agenda+(k.sem_agenda===1?' pessoa já no 2º período sem data marcada'
                                     :' pessoas já no 2º período sem data marcada'),
-      (todos?'Nenhuma das que têm direito adquirido tem gozo registrado no futuro. ':'')
+      (todos?'Nenhuma tem gozo registrado no futuro. ':'')
       +'São '+((k.sem_agenda||0)*30).toLocaleString('pt-BR')+' dias de ausência a encaixar '
-      +'na escala, e o gráfico acima mostra em que mês o prazo de cada uma fecha. '
-      +'O aviso prévio de férias é de 30 dias, então a decisão precede o limite em pelo menos um mês.']);
+      +'na escala; o gráfico acima mostra em que mês o prazo de cada uma fecha.']);
   }
   if((d.duplicadas||0) > 0){
     A2.push(['t-warn', d.duplicadas+' ficha(s) de férias DUPLICADA(S) no cadastro',
@@ -15465,9 +15478,18 @@ function renderFerias(d){
    viagem ao Oracle para esconder linha seria lentidão sem ganho. O contador
    diz quantas sobraram, senão uma busca sem resultado se lê como fila vazia. */
 function ferFilaFiltrar(){
-  const e=document.getElementById('fFerBusca');
+  _ferBuscarNaTabela('fFerBusca', 'fer-fila', 'hintFerFila', 'na fila',
+    ' — ela pode estar sem direito adquirido ainda, ou em outra unidade');
+}
+
+/* Busca na tabela de agendadas — mesma mecânica da fila, mesmo motivo: a lista
+   é por pessoa e a pergunta costuma ser por pessoa. Genérica de propósito
+   (`corpoId`, `hintId`), porque é a segunda vez que isto aparece nesta tela e
+   a terceira apareceria em outra. */
+function _ferBuscarNaTabela(campoId, corpoId, hintId, oQue, dicaVazio){
+  const e=document.getElementById(campoId);
   const q=((e&&e.value)||'').trim().toLowerCase();
-  const corpo=document.getElementById('fer-fila'); if(!corpo) return;
+  const corpo=document.getElementById(corpoId); if(!corpo) return;
   let vis=0, tot=0;
   Array.from(corpo.rows).forEach(tr => {
     if(tr.querySelector('td[colspan]')) return;    // linha de estado vazio
@@ -15476,11 +15498,15 @@ function ferFilaFiltrar(){
     tr.hidden = !casa;
     if(casa) vis++;
   });
-  const h=document.getElementById('hintFerFila');
-  if(h && q) h.textContent = vis
-    ? (vis+' de '+tot+' na fila casam "'+q+'"')
-    : ('nenhum dos '+tot+' na fila casa "'+q+'" — ela pode estar sem direito adquirido ainda, ou em outra unidade');
-  else if(h) h.textContent = h.dataset.original || '';
+  const h=document.getElementById(hintId); if(!h) return;
+  if(q) h.textContent = vis
+    ? (vis+' de '+tot+' '+oQue+' casam "'+q+'"')
+    : ('nenhum dos '+tot+' '+oQue+' casa "'+q+'"' + (dicaVazio||''));
+  else h.textContent = h.dataset.original || '';
+}
+function ferAgFiltrar(){
+  _ferBuscarNaTabela('fFerAgBusca', 'fer-agendadas', 'hintFerAgend',
+                     'com data marcada');
 }
 
 /* AGENDA DOS PRÓXIMOS 12 MESES.
@@ -15499,7 +15525,9 @@ function chartFerAgenda(mensal){
   }
   const gan=mensal.reduce((a,x)=>a+(x.ganham||0),0);
   const dob=mensal.reduce((a,x)=>a+(x.dobram||0),0);
-  if(h) h.textContent = gan+' fecham período · '+dob+' chegam ao limite · 13 meses a partir do corrente';
+  const jf=(DATAFER&&DATAFER.janela_futura)||{};
+  if(h) h.textContent = gan+' fecham período · '+dob+' chegam ao limite · '
+    + (jf.de ? (fmtD(jf.de)+' a '+fmtD(jf.ate)) : (mensal.length+' meses'));
   ecDesenhar('chartFerAgenda', () => {
     const rot=mensal.map(x=>x.mes.slice(5)+'/'+x.mes.slice(2,4));
     const max=Math.max(1, ...mensal.map(x=>Math.max(x.ganham||0, x.dobram||0)));
@@ -15585,9 +15613,10 @@ function renderFeriasCusto(d){
         (k.dobra_paga||0)>0?'neg':'pos',
         'Art. 137 da CLT: férias concedidas depois do período concessivo são pagas em dobro. Este é o único balde inteiramente EVITÁVEL da tela — e ele existe, o que desmente a leitura de que a dobra é hipótese. O indicador de dobra da aba de risco pode ler zero ao mesmo tempo, e os dois estão certos: aquele mede o estado de hoje, este mede o que já foi pago e quitado. "Em jogo" é a EXPOSIÇÃO: quem já tem direito vencido e chega ao limite dentro de 180 dias, contado como UMA vez o período — a dobra paga duas, mas a outra teria de ser paga de qualquer jeito, então o evitável é a diferença. Não é previsão de que vá acontecer: é quanto está em risco se nada for agendado.'),
     kpi('Férias agendadas', BRL.format(k.agendado||0),
-        (k.agendado_n||0)+' pessoa(s) · '+(k.agendado_dias||0)+' dias marcados',
+        (k.agendado_n||0)+' pessoa(s) · '+(k.agendado_dias||0)+' dias de ausência'
+        +((d.agendadas||{}).dias_abono ? ' + '+d.agendadas.dias_abono+' vendidos' : ''),
         (k.agendado_n||0)>0?'':'warn',
-        'O custo do que JÁ TEM DATA e ainda não entrou na folha — a única fatia do passivo que dá para pôr num fluxo de caixa, porque é a que tem mês. Dias de gozo (fim menos início, mais um) sobre o salário base, com terço e FGTS. Inclui quem está de férias hoje: o dinheiro dessas ainda não saiu inteiro. Este cartão é sempre de HOJE em diante e não segue o filtro de período — a tabela ao lado mostra em que mês cada parcela cai.'),
+        'O custo do que JÁ TEM DATA e ainda não entrou na folha — a única fatia do passivo que dá para pôr num fluxo de caixa, porque é a que tem mês. Soma os dias de GOZO (fim menos início, mais um) e os dias de ABONO PECUNIÁRIO já marcados: o abono não tira ninguém do posto, mas se paga, e contá-lo de fora subestimava este número em 13,7%. Tudo sobre o salário base, com terço e FGTS. Inclui quem está de férias hoje: o dinheiro dessas ainda não saiu inteiro. Este cartão é sempre de HOJE em diante e não segue o filtro de período — a tabela no fim da aba diz quem, quando e quanto.'),
     kpi('Passivo provisionado', BRL.format(k.provisao||0),
         BRL.format(k.prov_vencido||0)+' vencido + '+BRL.format(k.prov_avos||0)+' em avos',
         (k.prov_vencido||0)>0?'warn':'',
@@ -15669,27 +15698,69 @@ function renderFeriasCusto(d){
       : '';
   }
 
-  // -------- férias agendadas
-  const AG=d.agendadas||{}, AM=AG.por_mes||[];
-  document.getElementById('hintFerAgend').textContent =
-    (AG.n||0) ? ((AG.n||0)+' com data marcada · '+(AG.dias||0)+' dias · de hoje em diante')
-              : 'ninguém com data de férias marcada';
-  document.getElementById('fer-agendadas').innerHTML = AM.map(x=>`<tr>
-      <td style="font-family:var(--mono);font-size:12px">${esc(x.mes.slice(5)+'/'+x.mes.slice(2,4))}</td>
-      <td class="num">${x.n}</td>
-      <td class="num" style="color:var(--n500)">${x.dias}</td>
+  // -------- férias agendadas: quem, quando e quanto
+  const AG=d.agendadas||{}, AD=AG.detalhe||[], AM=AG.por_mes||[];
+  const jfc=(DATAFER&&DATAFER.janela_futura)||{};
+  const hAg=document.getElementById('hintFerAgend');
+  /* O resumo por MÊS vira o hint. Ele cabe numa linha ("ago/26: 7 · set/26:
+     13") e liberou a tabela para o detalhe, que é o que se leva para uma
+     reunião de escala — um total mensal não diz de quem é a ausência. */
+  hAg.dataset.original = (AG.n||0)
+    ? (AM.map(x=>x.mes.slice(5)+'/'+x.mes.slice(2,4)+': '+x.n).join(' · ')
+       + ' · ' + (AG.dias||0) + ' dias de ausência'
+       + ((AG.com_abono||0) ? ' · '+(AG.com_abono)+' com abono' : '')
+       + (jfc.de ? ' · '+fmtD(jfc.de)+' a '+fmtD(jfc.ate) : ' · de hoje em diante'))
+    : 'ninguém com data de férias marcada';
+  hAg.textContent = hAg.dataset.original;
+
+  document.getElementById('fer-agendadas').innerHTML = AD.map(x=>{
+    /* Quem já está de férias HOJE é o caso que muda a leitura da escala: a
+       ausência não é futura, é agora. */
+    const per = x.dias_abono
+      ? ('vende '+x.dias_abono+(x.dias_abono===1?' dia':' dias')
+         +' · '+fmtD(x.ab_ini)+' a '+fmtD(x.ab_fim))
+      : '';
+    /* QUEM JÁ ESTÁ FORA marca a LINHA, não o nome. O selo abaixo do nome
+       quebrava para uma segunda linha em seis das sete primeiras — a tabela
+       vem ordenada por data de início, então elas são exatamente as do topo —
+       e engordava a tabela para repetir o que a coluna "De" já mostra com uma
+       data passada. Mesma correção que a fila precisou. */
+    return `<tr class="${x.agora?'ferja':''}">
+      <td>${esc(x.nome)}</td>
+      <td style="font-family:var(--mono);font-size:12px">${esc(x.chapa)}</td>
+      <td style="font-size:12.5px">${esc(x.cargo||'—')}</td>
+      <td style="font-size:12.5px;color:var(--n500)">${esc(x.area||'—')}</td>
+      <td style="font-size:12.5px">${esc(x.filial||'—')}</td>
+      <td class="num" style="font-family:var(--mono);font-size:12px"
+          ${x.agora?'title="já está de férias — começou nesta data"':''}>${fmtD(x.ini)}</td>
+      <td class="num" style="font-family:var(--mono);font-size:12px">${fmtD(x.fim)}</td>
+      <td class="num" style="font-weight:600">${x.dias}</td>
+      <td class="num" style="color:${x.dias_abono?'var(--n700)':'var(--n500)'}"
+          ${per?`title="${esc(per)}"`:''}>${x.dias_abono||'—'}</td>
       <td class="num" style="font-weight:600">${BRL.format(x.custo)}</td>
-    </tr>`).join('') || '<tr><td colspan="4" style="color:var(--n500)">ninguém com data marcada</td></tr>';
+    </tr>`;
+  }).join('') || '<tr><td colspan="10" style="color:var(--n500)">ninguém com data marcada</td></tr>';
+  ferAgFiltrar();
+
   /* O CONTRASTE QUE FAZ ESTE CARD DECIDIR ALGO: agendado contra passivo. Um
-     passivo de R$ 745 mil com R$ 57 mil marcados diz que 92% do que se deve
+     passivo de R$ 745 mil com R$ 64 mil marcados diz que 90% do que se deve
      não tem data — e é isso, não o valor agendado sozinho, que manda agir. */
   const en=document.getElementById('fer-agend-nota');
   if(en){
     const pv=(k.provisao||0), ag=(AG.custo||0);
-    en.textContent = pv>0
-      ? ('cobre '+(ag/pv*100).toLocaleString('pt-BR',{maximumFractionDigits:1})
-         +'% do passivo provisionado — o resto ainda não tem data')
-      : '';
+    const partes=[];
+    if((AG.custo_abono||0)>0){
+      partes.push('<b>'+BRL.format(ag)+'</b> = '+BRL.format(AG.custo_gozo||0)
+        +' de gozo + '+BRL.format(AG.custo_abono)+' de abono pecuniário ('
+        +(AG.dias_abono||0)+' dias vendidos por '+(AG.com_abono||0)
+        +' pessoa'+((AG.com_abono||0)===1?'':'s')
+        +'). O abono não tira ninguém do posto, mas se paga');
+    }
+    if(pv>0){
+      partes.push('cobre '+(ag/pv*100).toLocaleString('pt-BR',{maximumFractionDigits:1})
+        +'% do passivo provisionado — o resto ainda não tem data');
+    }
+    en.innerHTML = partes.join(' · ');
   }
 
   // -------- passivo por unidade

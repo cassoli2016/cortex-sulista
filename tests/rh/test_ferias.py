@@ -396,3 +396,70 @@ def test_o_hint_ORIGINAL_volta_quando_a_busca_e_limpa(html):
     assert "hF.dataset.original" in html
     i = html.index("function ferFilaFiltrar()")
     assert "dataset.original" in html[i:i + 1200]
+
+
+# ── o filtro age em TODA aba (pedido do usuario, 31/08/2026) ────────────────
+#
+# "Os filtros devem ter acao em todas as telas que foram criadas." Metade desta
+# tela olha para tras (custo realizado) e metade para frente (agendadas,
+# vencimento, fechamento de periodo). Um filtro que so recortasse o passado
+# deixaria a outra metade sem reagir -- e "filtro que a query ignora sai" e a
+# regra permanente desta casa.
+def test_a_janela_futura_respeita_o_que_a_pessoa_PEDIU():
+    """Periodo que alcanca o futuro e usado literalmente."""
+    de, ate = _qf._janela_futura("2026-08-01", "2099-02-28")
+    assert ate == "2099-02-28"
+
+
+def test_a_janela_futura_NAO_nasce_vazia_com_periodo_passado():
+    """Os presets "ultimos N meses" -- inclusive o PADRAO -- sao todos passado.
+    Zerar a metade futura neles faria a tela abrir com dois cards vazios
+    explicando por que estao vazios, que e pior do que nao ter filtro. A janela
+    ganha a MESMA LARGURA, projetada para frente."""
+    import datetime as dt
+    hoje = dt.date.today()
+    de, ate = _qf._janela_futura("", "")
+    assert de == hoje.isoformat()
+    assert dt.date.fromisoformat(ate) > hoje
+    # tres meses pedidos -> tres meses a frente, nao doze
+    d3, a3 = _qf._janela_futura(
+        (hoje.replace(day=1) - dt.timedelta(days=62)).isoformat(), hoje.isoformat())
+    d12, a12 = _qf._janela_futura("", "")
+    assert dt.date.fromisoformat(a3) < dt.date.fromisoformat(a12), (
+        "janela menor tem de produzir horizonte menor, senao o filtro nao age")
+
+
+def test_a_janela_futura_tem_TETO():
+    """Sem teto, "ultimos 24 meses" pediria 24 barras no grafico e o eixo
+    viraria uma serra de rotulos ilegiveis -- o `hideOverlap` do ECharts
+    esconderia quase todos, e uma serie de 24 pontos pareceria ter tres."""
+    import datetime as dt
+    hoje = dt.date.today()
+    _, ate = _qf._janela_futura("2000-01-01", hoje.isoformat())
+    meses = ((dt.date.fromisoformat(ate).year - hoje.year) * 12
+             + dt.date.fromisoformat(ate).month - hoje.month + 1)
+    assert meses <= 24, meses
+
+
+def test_data_invalida_na_janela_futura_nao_estoura():
+    """A tela manda o que o `<input type=date>` tiver; vazio e parcial chegam."""
+    for de, ate in (("", ""), ("xx", "yy"), ("2026-13-45", ""), ("2026-08-01", "")):
+        d, a = _qf._janela_futura(de, ate)
+        assert d and a and d <= a
+
+
+def test_o_grafico_mensal_OBEDECE_a_janela(ferias):
+    """E o payload DIZ qual janela obedeceu, para o hint da tela nao afirmar um
+    recorte que nao e o dele."""
+    assert "janela_futura" in ferias
+    jf = ferias["janela_futura"]
+    assert jf["de"] and jf["ate"] and jf["de"] <= jf["ate"]
+
+
+def test_a_fila_NAO_segue_o_periodo_e_a_tela_DIZ_isso(html):
+    """Quem tem direito adquirido tem HOJE. Recortar por intervalo devolveria um
+    numero sem significado -- mas a regra da casa e que card que nao segue o
+    filtro leva selo VISIVEL, senao o numero passa como se estivesse filtrado."""
+    i = html.index("<h2>Fila de agendamento")
+    assert 'class="badge b-info"' in html[i:i + 300]
+    assert "estado de hoje" in html[i:i + 500]

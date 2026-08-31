@@ -630,11 +630,70 @@ _FER_MESES_2O = ("FLOOR(MONTHS_BETWEEN(TRUNC(SYSDATE), fe.proxaquifinfer))")
 _FER_SEM_AGENDA = "(fe.gozofinfer IS NULL OR fe.gozofinfer < TRUNC(SYSDATE))"
 
 
-def get_ferias(dias: int = 90, filial: str = "", chapa: str = "") -> dict:
+def _janela_futura(dt_de: str, dt_ate: str) -> tuple[str, str]:
+    """O MESMO filtro de período, projetado para a frente.
+
+    Esta tela olha para os dois lados do tempo: o custo REALIZADO é passado e
+    as férias AGENDADAS, o vencimento e o fechamento de período são futuro. Um
+    filtro que recortasse só o passado deixaria metade da tela sem reagir —
+    "filtro que a query ignora" é justamente o que a regra da casa manda tirar.
+
+    A regra, e ela é previsível de propósito:
+
+      - o período ALCANÇA o futuro (`ate` > hoje)  → a janela futura é
+        hoje..`ate`, literalmente o que a pessoa pediu;
+      - o período é todo passado (os presets "últimos N meses")  → a janela
+        futura tem a MESMA LARGURA, projetada para frente: hoje..hoje+N.
+
+    O segundo caso existe para o filtro nunca esvaziar a metade futura da tela.
+    Com "últimos 12 meses" — que é o padrão — o gráfico e as agendadas mostram
+    os próximos 12; escolher "próximos 6 meses" aperta os dois para 6. Em
+    ambos, mexer no filtro MUDA o que se vê, que é o que se espera dele.
+
+    A alternativa seria zerar a metade futura sempre que o recorte fosse
+    passado, e aí o padrão da tela abriria com dois cards vazios explicando por
+    quê — pior que não ter filtro.
+    """
+    import datetime as _dt
+
+    def _ok(x: str):
+        try:
+            return _dt.date.fromisoformat((x or "").strip())
+        except ValueError:
+            return None
+
+    hoje = _dt.date.today()
+    de, ate = _ok(dt_de), _ok(dt_ate)
+    if ate and ate > hoje:
+        return (max(de, hoje) if de else hoje).isoformat(), ate.isoformat()
+    # largura da janela pedida, em meses (mínimo 1, teto de 24 — acima disso o
+    # eixo do gráfico vira uma serra de rótulos ilegíveis).
+    if de and ate:
+        meses = (ate.year - de.year) * 12 + (ate.month - de.month) + 1
+    else:
+        meses = 12
+    meses = max(1, min(24, meses))
+    ano, mes = hoje.year, hoje.month + meses - 1
+    ano, mes = ano + (mes - 1) // 12, (mes - 1) % 12 + 1
+    ultimo = _dt.date(ano + (1 if mes == 12 else 0),
+                      1 if mes == 12 else mes + 1, 1) - _dt.timedelta(days=1)
+    return hoje.isoformat(), ultimo.isoformat()
+
+
+def get_ferias(dias: int = 90, filial: str = "", chapa: str = "",
+               dt_de: str = "", dt_ate: str = "") -> dict:
     """Vencimento de férias dos funcionários ativos. `dias` é o horizonte do
-    alerta de dobra; `chapa` recorta um colaborador."""
+    alerta de dobra; `chapa` recorta um colaborador; `dt_de`/`dt_ate` recortam
+    o que TEM DATA — aqui, o gráfico do que chega em cada mês.
+
+    A FILA E OS KPIs NÃO SEGUEM O PERÍODO, e não é omissão: eles são o estado
+    de HOJE. Quem tem direito adquirido tem hoje, e recortar isso por um
+    intervalo devolveria um número que não significa nada. A tela diz isso.
+    """
     dias = max(7, min(365, int(dias or 90)))
-    p = {"emp": EMPRESA, "dias": dias, "absurdo": _FER_LIMITE_ABSURDO_DIAS}
+    fut_de, fut_ate = _janela_futura(dt_de, dt_ate)
+    p = {"emp": EMPRESA, "dias": dias, "absurdo": _FER_LIMITE_ABSURDO_DIAS,
+         "fde": fut_de, "fate": fut_ate}
 
     filtro = ""
     if filial:
@@ -781,19 +840,23 @@ def get_ferias(dias: int = 90, filial: str = "", chapa: str = "") -> dict:
                SUM(CASE WHEN fe.proxaquifinfer > TRUNC(SYSDATE)
                         THEN 1 ELSE 0 END) ganham
         {_FER_BASE} {filtro} AND {sano}
-          AND fe.proxaquifinfer BETWEEN TRUNC(SYSDATE,'MM')
-              AND ADD_MONTHS(TRUNC(SYSDATE,'MM'), 13)
+          AND fe.proxaquifinfer BETWEEN TRUNC(TO_DATE(:fde,'YYYY-MM-DD'),'MM')
+              AND TO_DATE(:fate,'YYYY-MM-DD')
         GROUP BY TO_CHAR(fe.proxaquifinfer,'YYYY-MM')""", p)}
     dd = {r["m"]: r for r in _qb(f"""
         SELECT TO_CHAR({_FER_LIM},'YYYY-MM') m, COUNT(*) dobram
         {_FER_BASE} {filtro} AND {sano}
           AND fe.proxaquifinfer <= TRUNC(SYSDATE)
-          AND {_FER_LIM} BETWEEN TRUNC(SYSDATE,'MM')
-              AND ADD_MONTHS(TRUNC(SYSDATE,'MM'), 13)
+          AND {_FER_LIM} BETWEEN TRUNC(TO_DATE(:fde,'YYYY-MM-DD'),'MM')
+              AND TO_DATE(:fate,'YYYY-MM-DD')
         GROUP BY TO_CHAR({_FER_LIM},'YYYY-MM')""", p)}
     eixo = [r["m"] for r in _q(
-        """SELECT TO_CHAR(ADD_MONTHS(TRUNC(SYSDATE,'MM'), LEVEL-1),'YYYY-MM') m
-           FROM dual CONNECT BY LEVEL <= 13""")]
+        """SELECT TO_CHAR(ADD_MONTHS(TRUNC(TO_DATE(:fde,'YYYY-MM-DD'),'MM'),
+                                     LEVEL-1),'YYYY-MM') m
+           FROM dual CONNECT BY LEVEL <=
+             MONTHS_BETWEEN(TRUNC(TO_DATE(:fate,'YYYY-MM-DD'),'MM'),
+                            TRUNC(TO_DATE(:fde,'YYYY-MM-DD'),'MM')) + 1""",
+        {"fde": fut_de, "fate": fut_ate})]
     agenda_mensal = [{"mes": m,
                       "ganham": int((mm.get(m) or {}).get("ganham") or 0),
                       "dobram": int((dd.get(m) or {}).get("dobram") or 0)}
@@ -829,6 +892,7 @@ def get_ferias(dias: int = 90, filial: str = "", chapa: str = "") -> dict:
         "filtros": {"filial": filial, "chapa": chapa},
         "filiais": [x["filial"] for x in por_filial],
         "agenda_mensal": agenda_mensal,
+        "janela_futura": {"de": fut_de, "ate": fut_ate},
         "duplicadas": duplicadas,
         "kpis": {
             "ativos": n,

@@ -3004,7 +3004,8 @@ def operacional_poligonos(de: str = "", ate: str = "",
 
 
 @app.get("/api/rh/ferias")
-def rh_ferias(dias: int = 90, filial: str = "", chapa: str = "") -> JSONResponse:
+def rh_ferias(dias: int = 90, filial: str = "", chapa: str = "",
+              dt_de: str = "", dt_ate: str = "") -> JSONResponse:
     """Vencimento de ferias pela regra da CLT (aquisitivo + 12 meses = dobra).
 
     Devolve NOME e CHAPA pela mesma razao da tela de CNH: ninguem agenda as
@@ -3015,7 +3016,8 @@ def rh_ferias(dias: int = 90, filial: str = "", chapa: str = "") -> JSONResponse
     """
     from api.queries_folha import get_ferias
     try:
-        return JSONResponse(get_ferias(dias=dias, filial=filial, chapa=chapa))
+        return JSONResponse(get_ferias(dias=dias, filial=filial, chapa=chapa,
+                                       dt_de=dt_de, dt_ate=dt_ate))
     except Exception as exc:  # noqa: BLE001
         log.warning("rh_ferias falhou: %s", exc)
         return JSONResponse(status_code=503, content={

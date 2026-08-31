@@ -51,6 +51,7 @@ O filtro é `dtexclferias IS NULL`.
 from __future__ import annotations
 
 from api import db_folha as db
+from api.queries_folha import _janela_futura
 
 EMPRESA = 1
 
@@ -212,7 +213,10 @@ def get_ferias_custo(dt_de: str = "", dt_ate: str = "", filial: str = "",
     tela diz isso num selo, porque enterrar a ressalva no texto do ⓘ faz o
     número parecer filtrado quando não é."""
     de, ate = _periodo(dt_de, dt_ate)
-    p = {"emp": EMPRESA, "de": de, "ate": ate}
+    # As AGENDADAS são futuro e o realizado é passado: o mesmo filtro recorta
+    # os dois, cada um no seu sentido. Ver `_janela_futura`.
+    fde, fate = _janela_futura(dt_de, dt_ate)
+    p = {"emp": EMPRESA, "de": de, "ate": ate, "fde": fde, "fate": fate}
     filtro_ev = ""
     if filial:
         # A ficha financeira não carrega a unidade; ela vem do cadastro. Um
@@ -230,7 +234,7 @@ def get_ferias_custo(dt_de: str = "", dt_ate: str = "", filial: str = "",
     filtro_fil = " AND vf.descsecao = :filial" if filial else ""
     if chapa:
         filtro_fil += " AND TRIM(vf.chapafunc) = TRIM(:chapa)"
-    pf = {"emp": EMPRESA, "de": de, "ate": ate,
+    pf = {"emp": EMPRESA, "de": de, "ate": ate, "fde": fde, "fate": fate,
           **({"filial": filial} if filial else {}),
           **({"chapa": chapa.strip()} if chapa else {})}
 
@@ -414,23 +418,81 @@ def get_ferias_custo(dt_de: str = "", dt_ate: str = "", filial: str = "",
         FROM vw_ferias fe
         JOIN vw_funcionarios vf ON vf.codintfunc = fe.codintfunc
         WHERE vf.situacaofunc = 'A' AND vf.codigoempresa = :emp {filtro_fil}
-          AND fe.gozofinfer >= TRUNC(SYSDATE) AND fe.gozoinifer IS NOT NULL""")
+          AND fe.gozofinfer >= TRUNC(SYSDATE) AND fe.gozoinifer IS NOT NULL
+          AND fe.gozoinifer <= TO_DATE(:fate,'YYYY-MM-DD')""")
     ag_dias = "(fe.gozofinfer - fe.gozoinifer + 1)"
-    ag_tot = _q(f"""SELECT COUNT(*) n, SUM({ag_dias}) dias,
+    # O ABONO PECUNIÁRIO TAMBÉM ESTÁ AGENDADO, E TAMBÉM SE PAGA.
+    #
+    # `abpecinifer`/`abpecfinfer` são os dias VENDIDOS (art. 143: até um terço
+    # do período convertido em dinheiro). Contar só o gozo subestimava o custo
+    # em 13,7% — R$ 7.734 sobre R$ 56.615, em 5 das 20 pessoas. O erro é do pior
+    # tipo: some dentro de um total plausível, e só aparece quando alguém
+    # pergunta "de quem é esse dinheiro?".
+    #
+    # A distinção importa para quem lê: o gozo é ausência (a pessoa não está no
+    # posto) e o abono é só desembolso (ela trabalha e recebe a mais). Por isso
+    # os dois voltam separados, e a coluna de DIAS da escala continua sendo só
+    # a do gozo.
+    ag_abono = ("(CASE WHEN fe.abpecinifer IS NOT NULL"
+                " THEN fe.abpecfinfer - fe.abpecinifer + 1 ELSE 0 END)")
+    ag_tot = _q(f"""SELECT COUNT(*) n, SUM({ag_dias}) dias, SUM({ag_abono}) dias_abono,
                     SUM(vf.salbase / :dm * {ag_dias}) base,
-                    SUM(CASE WHEN fe.gozoinifer BETWEEN TO_DATE(:de,'YYYY-MM-DD')
-                                  AND TO_DATE(:ate,'YYYY-MM-DD')
-                             THEN 1 ELSE 0 END) no_periodo
+                    SUM(vf.salbase / :dm * {ag_abono}) base_abono,
+                    SUM(CASE WHEN fe.abpecinifer IS NOT NULL THEN 1 ELSE 0 END) com_abono
                     {ag_where}""", {**pf, "dm": DIAS_MES})[0]
     ag_mes = [{"mes": r["m"], "n": int(r["n"] or 0), "dias": int(r["dias"] or 0),
-               "custo": _f(float(r["base"] or 0) * UM_TERCO * (1 + FGTS))}
+               "dias_abono": int(r["dias_abono"] or 0),
+               "custo": _f((float(r["base"] or 0) + float(r["base_abono"] or 0))
+                           * UM_TERCO * (1 + FGTS))}
               for r in _q(f"""
         SELECT TO_CHAR(fe.gozoinifer,'YYYY-MM') m, COUNT(*) n,
-               SUM({ag_dias}) dias, SUM(vf.salbase / :dm * {ag_dias}) base
+               SUM({ag_dias}) dias, SUM({ag_abono}) dias_abono,
+               SUM(vf.salbase / :dm * {ag_dias}) base,
+               SUM(vf.salbase / :dm * {ag_abono}) base_abono
         {ag_where}
         GROUP BY TO_CHAR(fe.gozoinifer,'YYYY-MM')
         ORDER BY 1""", {**pf, "dm": DIAS_MES})]
-    ag_custo = float(ag_tot["base"] or 0) * UM_TERCO * (1 + FGTS)
+
+    # ── QUEM, e não só quanto ──────────────────────────────────────────────
+    #
+    # ATENÇÃO, E ESTÁ DITO NA TELA: o custo POR PESSOA permite deduzir o
+    # salário base (custo ÷ dias × 30 ÷ 1,4333). É a primeira vez que este
+    # módulo entrega algo assim — todo o resto é agregado por unidade ou por
+    # natureza. Entra porque uma escala de férias se aprova por pessoa, e uma
+    # linha sem valor não deixa ninguém decidir nada; e porque a tela `ferias`
+    # já é restrita pelo RBAC a quem cuida de folha. O que continua fora, aqui
+    # também: CPF, dado bancário e o salário em si como coluna.
+    #
+    # Cargo, área e unidade estão preenchidos em 20 de 20 — não há o cuidado
+    # de "campo vazio" a tomar, e isso foi conferido antes de a coluna existir.
+    ag_det = [{
+        "nome": r["nome"], "chapa": (r["chapa"] or "").strip(),
+        "cargo": (r["cargo"] or "").strip() or None,
+        "area": (r["area"] or "").strip() or None,
+        "filial": r["filial"], "ini": r["ini"], "fim": r["fim"],
+        "dias": int(r["dias"] or 0), "dias_abono": int(r["dias_abono"] or 0),
+        "ab_ini": r["ab_ini"], "ab_fim": r["ab_fim"],
+        "agora": bool(r["agora"]),
+        "custo": _f((float(r["base"] or 0) + float(r["base_abono"] or 0))
+                    * UM_TERCO * (1 + FGTS)),
+    } for r in _q(f"""
+        SELECT vf.nomefunc nome, vf.chapafunc chapa,
+               vf.descfuncaocompleta cargo, vf.descarea area, vf.descsecao filial,
+               TO_CHAR(fe.gozoinifer,'YYYY-MM-DD') ini,
+               TO_CHAR(fe.gozofinfer,'YYYY-MM-DD') fim,
+               {ag_dias} dias, {ag_abono} dias_abono,
+               TO_CHAR(fe.abpecinifer,'YYYY-MM-DD') ab_ini,
+               TO_CHAR(fe.abpecfinfer,'YYYY-MM-DD') ab_fim,
+               CASE WHEN TRUNC(SYSDATE) BETWEEN fe.gozoinifer AND fe.gozofinfer
+                    THEN 1 ELSE 0 END agora,
+               vf.salbase / :dm * {ag_dias} base,
+               vf.salbase / :dm * {ag_abono} base_abono
+        {ag_where}
+        ORDER BY fe.gozoinifer, vf.nomefunc""", {**pf, "dm": DIAS_MES})]
+
+    ag_base_gozo = float(ag_tot["base"] or 0)
+    ag_base_abono = float(ag_tot["base_abono"] or 0)
+    ag_custo = (ag_base_gozo + ag_base_abono) * UM_TERCO * (1 + FGTS)
 
     return {
         "periodo": {"de": de, "ate": ate},
@@ -440,9 +502,13 @@ def get_ferias_custo(dt_de: str = "", dt_ate: str = "", filial: str = "",
         "agendadas": {
             "n": int(ag_tot["n"] or 0),
             "dias": int(ag_tot["dias"] or 0),
+            "dias_abono": int(ag_tot["dias_abono"] or 0),
+            "com_abono": int(ag_tot["com_abono"] or 0),
             "custo": _f(ag_custo),
-            "no_periodo": int(ag_tot["no_periodo"] or 0),
+            "custo_gozo": _f(ag_base_gozo * UM_TERCO * (1 + FGTS)),
+            "custo_abono": _f(ag_base_abono * UM_TERCO * (1 + FGTS)),
             "por_mes": ag_mes,
+            "detalhe": ag_det,
         },
         "kpis": {
             "realizado": _f(total),
