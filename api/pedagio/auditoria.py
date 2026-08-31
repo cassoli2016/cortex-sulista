@@ -114,10 +114,27 @@ def _esq(esquema: str | None) -> str | None:
     return esquema if esquema is not None else ESQUEMA
 
 
-def _filtro(competencia: str | None):
-    if competencia:
-        return "AND f.competencia = %(comp)s", {"comp": competencia}
-    return "", {}
+def _filtro(de: str | None, ate: str | None, alias: str = "a"):
+    """Recorta pela DATA DA TRAVESSIA, não pela competência da fatura.
+
+    A fatura de agosto cobre passagens de 03/07 a 02/08: filtrar por
+    competência devolveria julho quando se pediu agosto. Quem olha a tela está
+    recortando o instante em que o veículo passou na praça.
+
+    `ate` é INCLUSIVO — quem digita 31/08 espera o dia 31 inteiro.
+    """
+    # O ALIAS MUDA ENTRE AS CONSULTAS: `a` nas que comparam pares de travessia,
+    # `t` na que varre uma por uma. Fixar um deles faria a outra falhar com
+    # `UndefinedTable` — ou, pior, filtrar a tabela errada num futuro em que as
+    # duas existissem no mesmo FROM.
+    cond, params = [], {}
+    if de:
+        cond.append("AND %s.ts >= %%(de)s::date" % alias)
+        params["de"] = de
+    if ate:
+        cond.append("AND %s.ts < (%%(ate)s::date + 1)" % alias)
+        params["ate"] = ate
+    return " ".join(cond), params
 
 
 # ── o que se contesta com o fornecedor ──────────────────────────────────────
@@ -140,7 +157,8 @@ SELECT a.id, a.placa, a.praca, a.ts AS ts_2, b.ts AS ts_1,
 """
 
 
-def duplicadas(competencia: str | None = None, janela: int = JANELA_CONTESTAR,
+def duplicadas(de: str | None = None, ate: str | None = None,
+               janela: int = JANELA_CONTESTAR,
                esquema: str | None = None) -> list[dict]:
     """Cobranças repetidas: mesma placa, mesma praça, dentro da janela.
 
@@ -154,7 +172,7 @@ def duplicadas(competencia: str | None = None, janela: int = JANELA_CONTESTAR,
         equipamento leu o mesmo caminhão de duas formas e faturou as duas.
         É o caso dominante (273 de 279) e o mais forte dos dois.
     """
-    filtro, params = _filtro(competencia)
+    filtro, params = _filtro(de, ate)
     params["jan"] = janela
     linhas = []
     for r in pglocal.query(_DUPLICADAS_SQL.replace("{FILTRO}", filtro), params,
@@ -171,7 +189,7 @@ def duplicadas(competencia: str | None = None, janela: int = JANELA_CONTESTAR,
     return linhas
 
 
-def concentracao_duplicadas(competencia: str | None = None,
+def concentracao_duplicadas(de: str | None = None, ate: str | None = None,
                             esquema: str | None = None) -> list[dict]:
     """Quantos pares em cada janela — é isto que prova (ou desmente) a tese.
 
@@ -180,7 +198,7 @@ def concentracao_duplicadas(competencia: str | None = None,
     """
     out = []
     for jan in JANELAS_DUPLICADA:
-        linhas = duplicadas(competencia, jan, esquema)
+        linhas = duplicadas(de, ate, jan, esquema)
         out.append({"janela_min": jan, "travessias": len(linhas),
                     "valor": round(sum(x["valor"] for x in linhas), 2)})
     return out
@@ -201,14 +219,14 @@ SELECT a.placa, a.ts, a.praca AS praca_a, b.praca AS praca_b,
 """
 
 
-def impossiveis(competencia: str | None = None,
+def impossiveis(de: str | None = None, ate: str | None = None,
                 esquema: str | None = None) -> list[dict]:
     """A mesma placa lida no MESMO SEGUNDO em duas praças diferentes.
 
     Não há interpretação alternativa: uma das duas leituras é de outro veículo
     ou é erro do equipamento. É o achado mais limpo que esta fatura produz.
     """
-    filtro, params = _filtro(competencia)
+    filtro, params = _filtro(de, ate)
     return [dict(r) for r in pglocal.query(
         _IMPOSSIVEIS_SQL.replace("{FILTRO}", filtro), params or None,
         esquema=_esq(esquema))]
@@ -237,7 +255,7 @@ SELECT m.veiculo AS placa, m.numero, m.dtsaida, m.dtchegada, m.motorista,
 """
 
 
-def eixo_nao_levantado(competencia: str | None = None,
+def eixo_nao_levantado(de: str | None = None, ate: str | None = None,
                        esquema: str | None = None) -> dict:
     """Travessias cobradas acima do menor eixo do PRÓPRIO manifesto.
 
@@ -248,7 +266,7 @@ def eixo_nao_levantado(competencia: str | None = None,
     """
     from api import db
 
-    filtro, params = _filtro(competencia)
+    filtro, params = _filtro(de, ate, "t")
     trav = pglocal.query(_TRAVESSIAS_SQL.replace("{FILTRO}", filtro),
                          params or None, esquema=_esq(esquema))
     if not trav:
@@ -345,11 +363,12 @@ def eixo_nao_levantado(competencia: str | None = None,
     }
 
 
-def resumo(competencia: str | None = None, esquema: str | None = None) -> dict:
+def resumo(de: str | None = None, ate: str | None = None,
+           esquema: str | None = None) -> dict:
     """Os dois blocos e o total acionável do mês."""
-    dup = duplicadas(competencia, JANELA_CONTESTAR, esquema)
-    imp = impossiveis(competencia, esquema)
-    eixo = eixo_nao_levantado(competencia, esquema)
+    dup = duplicadas(de, ate, JANELA_CONTESTAR, esquema)
+    imp = impossiveis(de, ate, esquema)
+    eixo = eixo_nao_levantado(de, ate, esquema)
     v_dup = round(sum(x["valor"] for x in dup), 2)
     v_imp = round(sum(min(x["valor_a"], x["valor_b"]) for x in imp), 2)
 
@@ -377,13 +396,13 @@ def resumo(competencia: str | None = None, esquema: str | None = None) -> dict:
     ranking = sorted(pracas.values(), key=lambda x: -x["valor"])
 
     return {
-        "competencia": competencia,
+        "de": de, "ate": ate,
         "contestar": {
             "duplicadas": dup[:200], "duplicadas_n": len(dup), "duplicadas_valor": v_dup,
             "por_tipo": sorted(tipos.values(), key=lambda x: -x["valor"]),
             "por_praca": ranking[:20], "pracas_n": len(ranking),
             "impossiveis": imp[:50], "impossiveis_n": len(imp), "impossiveis_valor": v_imp,
-            "concentracao": concentracao_duplicadas(competencia, esquema),
+            "concentracao": concentracao_duplicadas(de, ate, esquema),
             "valor": round(v_dup + v_imp, 2)},
         "operacao": eixo,
         # O total acionável NÃO soma o que não é acionável: as travessias fora

@@ -107,6 +107,27 @@ def _esq(esquema: str | None) -> str | None:
     return esquema if esquema is not None else ESQUEMA
 
 
+def _janela(de: str | None, ate: str | None):
+    """O recorte é pela DATA DA TRAVESSIA, não pela competência da fatura.
+
+    A diferença importa: a fatura de agosto cobre passagens de 03/07 a 02/08,
+    então filtrar por competência devolve travessias de julho quando se pediu
+    agosto. Quem olha a tela está recortando o instante em que o veículo passou
+    na praça, e é isso que o filtro tem de recortar.
+
+    O `ate` é INCLUSIVO — quem digita 31/08 espera o dia 31 inteiro, e um
+    `<=` contra um timestamp corta às 00:00:00 e perde o dia.
+    """
+    cond, params = [], {}
+    if de:
+        cond.append("AND t.ts >= %(de)s::date")
+        params["de"] = de
+    if ate:
+        cond.append("AND t.ts < (%(ate)s::date + 1)")
+        params["ate"] = ate
+    return " ".join(cond), params
+
+
 # ── gravação ────────────────────────────────────────────────────────────────
 
 _INSERT_TRAV = """
@@ -248,7 +269,7 @@ SELECT t.rodovia, t.km::float8 AS km, t.sentido, t.cidade,
 """
 
 
-def tarifa_observada(competencia: str | None = None,
+def tarifa_observada(de: str | None = None, ate: str | None = None,
                      esquema: str | None = None) -> list[dict]:
     """A tarifa por eixo de cada praça, pela MODA do que foi cobrado.
 
@@ -257,9 +278,7 @@ def tarifa_observada(competencia: str | None = None,
     leitura de "61 são 7 eixos" prova —, então juntar as categorias dá mais
     observações para a moda em vez de espalhá-las em baldes pequenos.
     """
-    filtro, params = "", {}
-    if competencia:
-        filtro, params = "AND f.competencia = %(comp)s", {"comp": competencia}
+    filtro, params = _janela(de, ate)
     linhas = pglocal.query(_TARIFA_SQL.replace("{FILTRO}", filtro), params or None,
                            esquema=_esq(esquema))
 
@@ -332,7 +351,7 @@ def _rodovia_erp(txt: str | None) -> str | None:
     return m.group(1) if m else None
 
 
-def confronto_erp(competencia: str | None = None,
+def confronto_erp(de: str | None = None, ate: str | None = None,
                   esquema: str | None = None) -> dict:
     """A tarifa observada contra a cadastrada em `pracapedagio_valor`.
 
@@ -343,7 +362,7 @@ def confronto_erp(competencia: str | None = None,
     """
     from api import db
 
-    obs = [x for x in tarifa_observada(competencia, esquema) if x["firme"]]
+    obs = [x for x in tarifa_observada(de, ate, esquema) if x["firme"]]
     try:
         cadastro = db.query(_ERP_PRACAS_SQL)
     except Exception as exc:  # noqa: BLE001
@@ -461,7 +480,8 @@ SELECT t.placa,
 # armazéns do parâmetro da premiação: enquanto ninguém edita, eles concordam.
 
 
-def resumo(competencia: str | None = None, esquema: str | None = None) -> dict:
+def resumo(de: str | None = None, ate: str | None = None,
+           esquema: str | None = None) -> dict:
     """KPIs da fatura mais recente (ou da competência pedida).
 
     A QUEBRA POR MODALIDADE É O NÚMERO QUE MUDA A LEITURA. A casa registrava
@@ -476,13 +496,11 @@ def resumo(competencia: str | None = None, esquema: str | None = None) -> dict:
     from api import db
     from api import frota_identidade
 
-    filtro, params = "", {}
-    if competencia:
-        filtro, params = "AND f.competencia = %(comp)s", {"comp": competencia}
+    filtro, params = _janela(de, ate)
     linhas = pglocal.query(_POR_PLACA_SQL.replace("{FILTRO}", filtro),
                            params or None, esquema=_esq(esquema))
     if not linhas:
-        return {"vazio": True, "competencia": competencia}
+        return {"vazio": True, "de": de, "ate": ate}
 
     placas = [r["placa"] for r in linhas]
     cadastro: dict[str, dict] = {}
@@ -527,7 +545,7 @@ def resumo(competencia: str | None = None, esquema: str | None = None) -> dict:
     vd = round(sum(r["vale_debito"] for r in linhas), 2)
     vc = round(sum(r["vale_credito"] for r in linhas), 2)
     return {
-        "vazio": False, "competencia": competencia,
+        "vazio": False, "de": de, "ate": ate,
         "placas": len(linhas), "sem_cadastro": sum(1 for r in linhas
                                                    if r["placa"] not in cadastro),
         "total_tag": total_tag,

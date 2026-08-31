@@ -385,7 +385,7 @@ tr[role="button"]:focus-visible{outline-offset:-2px}
 .trend.bad{color:var(--red);background:var(--red-100)}
 .trend.warn{color:var(--yellow-700);background:var(--yellow-100)}
 .trend.flat{color:var(--n600);background:var(--n100)}
-.grid2{display:grid;grid-template-columns:1fr 1fr;gap:18px;align-items:start}
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:18px}
 .view{display:none;flex-direction:column;gap:18px}
 .view.on{display:flex}
 /* gráficos */
@@ -4952,12 +4952,6 @@ body.tvfull #btnReport,body.tvmode #btnReport{display:none}
         <div class="aba" data-abas="ped" data-aba="tag" id="aba-ped-tag"
              role="tabpanel" aria-labelledby="tabped-tag" data-ao-abrir="loadPedTag" hidden>
           <div class="kpis k4" id="kpis-pedtag"></div>
-          <div class="card" style="padding:10px 18px;display:flex;align-items:center;gap:10px;flex-wrap:wrap">
-            <input type="file" id="pedtag-arq" accept="application/pdf,.pdf" multiple
-                   aria-label="Faturas da administradora de tag, em PDF">
-            <button class="btn" id="pedtag-envia" onclick="pedTagImportar()">Importar fatura</button>
-            <span class="hint" id="pedtag-msg"></span>
-          </div>
           <div class="grid2">
             <div class="card">
               <div class="head"><h2>Tarifa cobrada × cadastrada <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="A tarifa que a administradora do TAG cobrou, por eixo, contra a de pracapedagio_valor no ERP. A tarifa observada é a MODA do que se pagou, nunca a média: a média entre a tarifa velha e a nova é um valor que nunca foi cobrado de ninguém, e uma travessia atípica a desloca sem nada denunciar. Praça com menos de 5 travessias, ou cuja moda não chega à metade delas, sai como n/d com o percentual à mostra. O casamento com o cadastro é por RODOVIA + KM e não por nome — a fatura escreve “S.B. DO CAMPO” onde o cadastro diz “Piratininga”. Linha marcada com ~ casou com até 1 km de diferença: é hipótese, não fato, e por isso o total só considera as exatas. A categoria 61 são 7 eixos (62 são 8, 63 são 9), confirmado porque só assim a tarifa por eixo fica constante em 191 das 207 praças com mais de uma categoria.">i</span></h2>
@@ -4987,7 +4981,16 @@ body.tvfull #btnReport,body.tvmode #btnReport{display:none}
             </div>
             <div class="card">
               <div class="head"><h2>Faturas importadas <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="A fatura confere a si mesma antes de entrar: o “Resumo da sua Fatura” por tag contra o detalhe por placa. Divergência é RECUSA, não aviso — meio milhão importado pela metade produz número plausível e errado. Reimportar a MESMA fatura substitui e não duplica: a unidade de idempotência é a fatura (administradora + número), porque a travessia não tem chave natural — o vale imprime pares débito/crédito com todos os campos iguais menos o D/C. O gasto do tag já estava no ERP como UM título mensal em contaapagar; o que esta importação acrescenta é a decomposição por placa, praça e travessia.">i</span></h2>
-                <span class="hint" id="hintPedTagFat"></span></div>
+                <span class="hint" id="hintPedTagFat"></span>
+                <span style="margin-left:auto;display:flex;align-items:center;gap:8px">
+                  <input type="file" id="pedtag-arq" accept="application/pdf,.pdf" multiple
+                         style="display:none" onchange="pedTagEscolheu()"
+                         aria-label="Faturas da administradora de tag, em PDF">
+                  <label class="btn" for="pedtag-arq" id="pedtag-rot"
+                         style="cursor:pointer">Escolher PDF</label>
+                  <button class="btn" id="pedtag-envia" onclick="pedTagImportar()">Importar</button>
+                </span></div>
+              <div class="hint" id="pedtag-msg" style="padding:0 18px 6px"></div>
               <div class="tablewrap tabroll" style="max-height:250px"><table><thead><tr>
                 <th>Competência</th><th>Fatura</th><th class="num">Total</th>
                 <th class="num">Travessias</th><th>Importada em</th>
@@ -7151,6 +7154,19 @@ function qsView(k){
     if(V('fEmiDe'))p.set('dt_de',V('fEmiDe'));
     if(V('fEmiAte'))p.set('dt_ate',V('fEmiAte'));
     if(V('fKmTipo'))p.set('modalidade',V('fKmTipo'));
+  } else if(k==='pedagio'){
+    /* AS DATAS SAO AS MESMAS das outras telas do grupo de emissao, de
+       proposito: trocar de tela nao pode mudar o recorte por baixo. Aqui
+       elas recortam a TRAVESSIA (o instante em que o veiculo passou na
+       praca), e nao a emissao de documento — dai o rotulo proprio. */
+    if(V('fEmiDe'))p.set('dt_de',V('fEmiDe'));
+    if(V('fEmiAte'))p.set('dt_ate',V('fEmiAte'));
+  } else if(k==='anrntrc'){
+    /* MESMAS datas do Piso Mínimo, que é a tela irmã: as duas recortam a
+       viagem contratada, e vocabulário diferente faria o usuário achar que
+       o recorte mudou ao trocar de tela. */
+    if(V('fEmiDe'))p.set('dt_de',V('fEmiDe'));
+    if(V('fEmiAte'))p.set('dt_ate',V('fEmiAte'));
   } else if(k==='anpiso'){
     if(V('fFilial'))p.set('filial',V('fFilial'));
     if(V('fEmiDe'))p.set('dt_de',V('fEmiDe'));
@@ -7272,7 +7288,7 @@ function semFilterbar(v){
   // filtros", que não tinha o que aplicar.
   return v==='cop'||v==='gestao'||v==='gesacao'||v==='gesata'||v==='srv'||v==='home'||v==='veicf'||v==='clif'||v==='jorn'||v==='jornf'||v==='prog'||
          v==='cex'||v==='sac'||v==='mprev'||v==='comrast'||v==='qual'||v==='port'||v==='crm'||v==='rh'||
-         v==='hc'||v==='folha'||v==='folhaind'||v==='he'||v==='custos'||v==='orc'||v==='prem'||v==='banc'||v==='extb'||v==='fech'||v==='doc'||v==='anrntrc'||v==='telcon'||v==='telcond'||v==='telhod'||v==='milkrun'||v==='cnh'||v==='ferias'||v==='pneus'||v==='people'||v==='poli'||v==='ctecp';
+         v==='hc'||v==='folha'||v==='folhaind'||v==='he'||v==='custos'||v==='orc'||v==='prem'||v==='banc'||v==='extb'||v==='fech'||v==='doc'||v==='telcon'||v==='telcond'||v==='telhod'||v==='milkrun'||v==='cnh'||v==='ferias'||v==='pneus'||v==='people'||v==='poli'||v==='ctecp';
 }
 function currentView(){
   const h = (location.hash||'').replace('#','');
@@ -7320,6 +7336,8 @@ function router(){
   navRegistraUso(v);
   syncGroups(v);
   const anpiso = (v==='anpiso');
+  const pedagio = (v==='pedagio');
+  const anrntrc = (v==='anrntrc');
   const dre = (v==='dre'), oc = (v==='oc'), agr = (v==='agr'), mvb = (v==='mvb'), comb = (v==='comb'), man = (v==='man'), com = (v==='com'), home = (v==='home'), kmv = (v==='km'||v==='prodveic'), torre = (v==='torre'), veic = (v==='veic'), mul = (v==='mul'), prog = (v==='prog'), cop = (v==='cop'), cob = (v==='cob'), rent = (v==='rent'), contab = (v==='cont'), dreCli = (v==='drecli'), orc = (v==='orc'), lanc = (v==='lanc'), bal = (v==='bal'), antec = (v==='antec'), fluxcon = (v==='fluxcon'), recorr = (v==='rec');
   // torre: só filial; auto-refresh de 120s enquanto ativa
   if(torreTimer){ clearInterval(torreTimer); torreTimer=null; }
@@ -7346,14 +7364,14 @@ function router(){
   }
   // filtros com o vocabulário de cada tela
   document.getElementById('lblEmiDe').textContent =
-    comb ? 'Abastecimento de' : mul ? 'Infração de' : man ? 'Emissão da OS de' : lanc ? 'Movimento de' : (agr||kmv||com||rent||anpiso) ? 'Emissão da viagem de' : 'Emissão da OC de';
+    comb ? 'Abastecimento de' : mul ? 'Infração de' : man ? 'Emissão da OS de' : lanc ? 'Movimento de' : pedagio ? 'Travessia de' : (agr||kmv||com||rent||anpiso||anrntrc) ? 'Emissão da viagem de' : 'Emissão da OC de';
   document.getElementById('grpHor').style.display = (v==='fluxo') ? 'flex' : 'none';
   document.getElementById('grpComp').style.display = (dre||mvb||contab||dreCli) ? 'flex' : 'none';
   if(dre||mvb||contab||dreCli) compPresetSync();   // competências são compartilhadas entre essas telas
-  document.getElementById('grpEmi').style.display = (oc||agr||comb||man||com||kmv||mul||rent||anpiso||lanc) ? 'flex' : 'none';
+  document.getElementById('grpEmi').style.display = (oc||agr||comb||man||com||kmv||mul||rent||anpiso||lanc||pedagio||anrntrc) ? 'flex' : 'none';
   // as datas de emissão são COMPARTILHADAS por essas telas: ao trocar de vista o
   // select tem que voltar a descrever o recorte que está nos campos
-  if(oc||agr||comb||man||com||kmv||mul||rent||anpiso||lanc) emiPresetSync();
+  if(oc||agr||comb||man||com||kmv||mul||rent||anpiso||lanc||pedagio||anrntrc) emiPresetSync();
   document.getElementById('grpMul').style.display = mul ? 'flex' : 'none';
   document.getElementById('grpCob').style.display = cob ? 'flex' : 'none';
   document.getElementById('grpRent').style.display = rent ? 'flex' : 'none';
@@ -7386,7 +7404,7 @@ function router(){
   // carga da vista: dispara se não há dados OU se os filtros visíveis
   // divergem dos usados na última carga (nunca mostrar dado velho com filtro novo)
   const key=viewKey(v);
-  const DATAMAP={fin:DATA,oc:DATAOC,agr:DATAAGR,anpiso:DATAANPISO,anrntrc:DATAANRNTRC,telcon:DATATELCON,telcond:DATATELCOND,telhod:DATATELHOD,mvb:DATAMVB,comb:DATACOMB,man:DATAMAN,com:DATACOM,clif:DATACLIF,dre:DATADRE,bal:DATABAL,drecli:DATADRECLI,home:DATAHOME,km:DATAKM,torre:DATATORRE,veic:DATAVEIC,veicf:DATAVEICF,mul:DATASMT,prog:DATAPROG,jorn:DATAJR,jornf:DATAJORNF,cex:DATACEX,sac:DATASAC,mprev:DATAMPREV,comrast:DATACOMRAST,qual:DATAQUAL,port:DATAPORT,crm:DATACRM,rh:DATARH,hc:DATAHC,folha:DATAFOLHA,folhaind:DATAFOLHAIND,he:DATAHE,custos:DATACUSTOS,cob:DATACOB,banc:DATABANC,extb:DATAEXTB,lanc:DATALANC,antec:DATAANTEC,antport:DATAANTPORT,milkrun:DATAMILK,fluxcon:DATAFLUXCON,rec:DATAREC,rent:DATARENT,cont:DATACONT,orc:DATAORC,fech:DATAFECH,prem:DATAPREM,gestao:DATAGES,srv:DATASRV,doc:DATADOC,tvfat:null,tvope:null,cop:(COP_MSGS.length?{}:null)};
+  const DATAMAP={fin:DATA,oc:DATAOC,agr:DATAAGR,anpiso:DATAANPISO,anrntrc:DATAANRNTRC,pedagio:DATAPED,telcon:DATATELCON,telcond:DATATELCOND,telhod:DATATELHOD,mvb:DATAMVB,comb:DATACOMB,man:DATAMAN,com:DATACOM,clif:DATACLIF,dre:DATADRE,bal:DATABAL,drecli:DATADRECLI,home:DATAHOME,km:DATAKM,torre:DATATORRE,veic:DATAVEIC,veicf:DATAVEICF,mul:DATASMT,prog:DATAPROG,jorn:DATAJR,jornf:DATAJORNF,cex:DATACEX,sac:DATASAC,mprev:DATAMPREV,comrast:DATACOMRAST,qual:DATAQUAL,port:DATAPORT,crm:DATACRM,rh:DATARH,hc:DATAHC,folha:DATAFOLHA,folhaind:DATAFOLHAIND,he:DATAHE,custos:DATACUSTOS,cob:DATACOB,banc:DATABANC,extb:DATAEXTB,lanc:DATALANC,antec:DATAANTEC,antport:DATAANTPORT,milkrun:DATAMILK,fluxcon:DATAFLUXCON,rec:DATAREC,rent:DATARENT,cont:DATACONT,orc:DATAORC,fech:DATAFECH,prem:DATAPREM,gestao:DATAGES,srv:DATASRV,doc:DATADOC,tvfat:null,tvope:null,cop:(COP_MSGS.length?{}:null)};
   const LOADMAP={fin:load,oc:loadOc,agr:loadAgr,anpiso:loadAnpiso,anrntrc:loadAnrntrc,telcon:loadTelcon,telcond:loadTelcond,telhod:loadTelhod,mvb:loadMvb,pedagio:loadPedagio,comb:loadComb,man:loadMan,com:loadCom,clif:loadClif,dre:loadDre,bal:loadBal,drecli:loadDreCli,home:loadHome,km:loadKm,prodveic:loadProdveic,torre:loadTorre,veic:loadVeic,veicf:loadVeicf,mul:loadSmt,prog:loadProg,jorn:loadJorraster,jornf:loadJornf,cex:loadCex,sac:loadSac,mprev:loadMPrev,comrast:loadComRast,qual:loadQual,port:loadPort,crm:loadCrm,rh:loadRh,hc:loadHc,folha:loadFolha,folhaind:loadFolhaInd,he:loadHe,custos:loadCustos,cob:loadCob,banc:loadBanc,extb:loadExtb,lanc:loadLanc,antec:loadAntec,antport:loadAntport,milkrun:loadMilkrun,cnh:loadCnh,ferias:loadFerias,people:loadPeople,pneus:loadPneus,poli:loadPoli,ctecp:loadCtecp,fluxcon:loadFluxcon,rec:loadRec,rent:loadRent,cont:loadCont,orc:loadOrc,fech:loadFech,prem:loadPrem,gesacao:loadGesacao,gesata:loadGesata,gestao:loadGestao,srv:loadSrv,doc:loadDoc,cop:loadCop,tvfat:loadTvFat,tvope:loadTvOpe};
   if(!DATAMAP[key] || (key!=='home' && LOADEDQS[key]!==qsView(key))) LOADMAP[key]();
   // mobile: estado da navegação inferior + fecha gaveta/painel de filtros
@@ -21624,14 +21642,24 @@ async function loadPedagio(){
   const c = document.getElementById('content'); c.classList.add('loading');
   skelKpis('kpis-ped', 4);
   try{
-    const r = await fetch('/api/operacao/pedagio?dias=365', {cache:'no-store'});
+    const r = await fetch('/api/operacao/pedagio?' + qsView('pedagio'), {cache:'no-store'});
     const rr = await respostaJSON(r);
     if(seq !== pedSeq) return;
     if(!rr.ok){ renderPedagio({erro: rr.dados.mensagem || 'não foi possível consultar'}); return; }
-    DATAPED = rr.dados; renderPedagio(rr.dados);
+    DATAPED = rr.dados; renderPedagio(rr.dados); LOADEDQS.pedagio = qsView('pedagio');
   }catch(e){
     if(seq === pedSeq) renderPedagio({erro:'não foi possível falar com a API'});
   }finally{ if(seq === pedSeq) c.classList.remove('loading'); }
+  /* AS ABAS SOB DEMANDA TAMBÉM OBEDECEM AO FILTRO. `data-ao-abrir` só dispara
+     ao ABRIR a aba; sem esta linha, trocar o período com a aba do tag aberta
+     recarregaria os três números do ERP e deixaria a tabela ao lado com o
+     recorte ANTERIOR — duas leituras contraditórias na mesma tela, e nenhuma
+     delas errada por si. Só a aba VISÍVEL recarrega: as outras já recarregam
+     quando forem abertas. */
+  const aberta = document.querySelector('.aba[data-abas="ped"]:not([hidden])');
+  const qual = aberta && aberta.dataset.aba;
+  if(qual === 'tag') loadPedTag();
+  else if(qual === 'aud') loadPedAud();
 }
 
 let pedAudSeq = 0, DATAPEDAUD = null;
@@ -21642,7 +21670,7 @@ let pedAudSeq = 0, DATAPEDAUD = null;
 async function loadPedAud(){
   const seq = ++pedAudSeq;
   try{
-    const r = await fetch('/api/operacao/pedagio/auditoria', {cache:'no-store'});
+    const r = await fetch('/api/operacao/pedagio/auditoria?' + qsView('pedagio'), {cache:'no-store'});
     const rr = await respostaJSON(r);
     if(seq !== pedAudSeq) return;
     if(!rr.ok){ renderPedAud({erro: rr.dados.mensagem || 'não foi possível consultar'}); return; }
@@ -21779,7 +21807,7 @@ let pedTagSeq = 0, DATAPEDTAG = null;
 async function loadPedTag(){
   const seq = ++pedTagSeq;
   try{
-    const r = await fetch('/api/operacao/pedagio/tag', {cache:'no-store'});
+    const r = await fetch('/api/operacao/pedagio/tag?' + qsView('pedagio'), {cache:'no-store'});
     const rr = await respostaJSON(r);
     if(seq !== pedTagSeq) return;
     if(!rr.ok){ renderPedTag({erro: rr.dados.mensagem || 'não foi possível consultar'}); return; }
@@ -21894,8 +21922,11 @@ function renderPedTag(d){
       ((f.travessias_tag||0)+(f.travessias_vale||0)).toLocaleString('pt-BR') + '</td>' +
       '<td>' + fmtDT(f.importado_em) + '</td></tr>';
   }).join('') || vazioMsg('nenhuma fatura importada');
-  document.getElementById('hintPedTagFat').textContent =
-    (d.faturas || []).length + ' fatura(s) · exibindo ' + (d.competencia || '—');
+  document.getElementById('hintPedTagFat').innerHTML =
+    (d.faturas || []).length + ' faturas ' +
+    statChip('warn', 'lista completa', 'A lista mostra TODAS as faturas ' +
+      'importadas, não só as do período filtrado — esconder as de fora faria ' +
+      'parecer que sumiram. Os números acima seguem o filtro.');
   abaContador('abanPedTag',
     linhas.filter(x => x.diferenca && Math.abs(x.diferenca) >= 0.005).length);
 }
@@ -21926,6 +21957,17 @@ async function pedTagEnviarUma(arq){
    UMA DE CADA VEZ, e não em paralelo: cada fatura são ~30 s de leitura de PDF
    no servidor, e disparar doze juntas encheria o threadpool do FastAPI — as
    outras telas parariam de ser atendidas enquanto isso. */
+/* O rótulo do seletor mostra QUANTOS arquivos foram escolhidos. O controle
+   nativo só sabe dizer o nome de um; com vários ele diz "N arquivos" em inglês
+   e sem contexto, e aqui a diferença entre um e sete é meia hora de espera. */
+function pedTagEscolheu(){
+  const inp = document.getElementById('pedtag-arq');
+  const rot = document.getElementById('pedtag-rot');
+  const n = (inp && inp.files) ? inp.files.length : 0;
+  rot.textContent = !n ? 'Escolher PDF'
+    : n === 1 ? inp.files[0].name.slice(0, 22) : n + ' faturas';
+}
+
 async function pedTagImportar(){
   const inp = document.getElementById('pedtag-arq');
   const msg = document.getElementById('pedtag-msg');
@@ -24541,11 +24583,11 @@ async function loadAnrntrc(){
   btn.disabled=true;
   document.getElementById('content').classList.add('loading');
   try{
-    const r=await fetch('/api/operacao/antt/rntrc',{cache:'no-store'});
+    const r=await fetch('/api/operacao/antt/rntrc?' + qsView('anrntrc'),{cache:'no-store'});
     const d=await r.json();
     if(seq!==anrntrcSeq) return;
     if(!r.ok){ showBanner(d.mensagem||'Erro ao conferir o RNTRC.', d.detalhe); return; }
-    hideBanner(); DATAANRNTRC=d; renderAnrntrc(d); LOADEDQS.anrntrc='';
+    hideBanner(); DATAANRNTRC=d; renderAnrntrc(d); LOADEDQS.anrntrc=qsView('anrntrc');
   }catch(e){ if(seq===anrntrcSeq) showBanner('Não foi possível falar com a API.', e.message); }
   finally{
     if(seq===anrntrcSeq){ btn.disabled=false; document.getElementById('content').classList.remove('loading'); }

@@ -4,6 +4,16 @@ Gerado de `docs/versoes.yaml` por `scripts/gerar_changelog.py` — não editar �
 Formato [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/),
 versionamento [SemVer](https://semver.org/lang/pt-BR/).
 
+## [0.189.0] — 31/08/2026  ·  CX-31/08/2026-v0.189.0
+
+### Adicionado
+- As duas telas passam a recortar por PERÍODO, com os mesmos campos e os mesmos presets das demais: trocar de tela não muda o recorte por baixo. Na de pedágio o filtro recorta a data da TRAVESSIA, e não a competência da fatura — a de agosto cobre passagens de 03/07 a 02/08, então competência devolveria julho para quem pediu agosto.
+- As sub-abas do pedágio obedecem ao filtro. Elas carregam sob demanda, e sem isso trocar o período com a aba do tag aberta deixaria a tabela no recorte anterior — duas leituras contraditórias na mesma tela.
+
+### Corrigido
+- Cartões lado a lado terminavam em alturas diferentes, deixando um rasgo branco no meio do painel. Medido nas 69 telas e em todas as sub-abas: 17 das 57 linhas de cartão estavam irregulares, a pior com 250 pixels de diferença. Agora são zero, e um teste impede a volta.
+- A Validação de Pedágio e o RNTRC dos Transportadores mostravam a barra de filtros VAZIA — só o botão "Aplicar filtros", sem nenhum campo para aplicar.
+
 ## [0.188.2] — 31/08/2026  ·  CX-31/08/2026-v0.188.2
 
 ### Corrigido

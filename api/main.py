@@ -3162,7 +3162,7 @@ _PED_FATURA_MAX_BYTES = 48 * 1024 * 1024   # a de ago/2026 tem 28 MB em 382 pagi
 
 
 @app.get("/api/operacao/pedagio/tag")
-def operacao_pedagio_tag(competencia: str = "") -> JSONResponse:
+def operacao_pedagio_tag(dt_de: str = "", dt_ate: str = "") -> JSONResponse:
     """O pedagio do TAG: quanto, de quem, e a que tarifa.
 
     Sem fatura importada a resposta NAO e um erro — e uma tela que diz o que
@@ -3176,12 +3176,12 @@ def operacao_pedagio_tag(competencia: str = "") -> JSONResponse:
         if not faturas:
             return JSONResponse({"vazio": True, "faturas": [],
                                  "mensagem": "Nenhuma fatura de tag importada ainda."})
-        comp = competencia or faturas[0]["competencia"]
+        de, ate = dt_de or None, dt_ate or None
         return JSONResponse({
-            "vazio": False, "competencia": comp, "faturas": faturas,
-            "resumo": _ft.resumo(comp),
-            "tarifa": _ft.tarifa_observada(comp)[:200],
-            "confronto": _ft.confronto_erp(comp),
+            "vazio": False, "de": de, "ate": ate, "faturas": faturas,
+            "resumo": _ft.resumo(de, ate),
+            "tarifa": _ft.tarifa_observada(de, ate)[:200],
+            "confronto": _ft.confronto_erp(de, ate),
             "fonte": "CÓRTEX · ped_travessias (fatura da administradora) × AVA "
                      "pracapedagio_valor · leitura",
         })
@@ -3206,7 +3206,7 @@ def operacao_pedagio_tag(competencia: str = "") -> JSONResponse:
 
 
 @app.get("/api/operacao/pedagio/auditoria")
-def operacao_pedagio_auditoria(competencia: str = "") -> JSONResponse:
+def operacao_pedagio_auditoria(dt_de: str = "", dt_ate: str = "") -> JSONResponse:
     """A auditoria das travessias: o que contestar e o que cobrar de volta.
 
     ROTA SEPARADA, e nao um bloco a mais em `/tag`: a auditoria de eixo cruza
@@ -3217,7 +3217,7 @@ def operacao_pedagio_auditoria(competencia: str = "") -> JSONResponse:
     from api import pglocal
     from api.pedagio import auditoria as _au
     try:
-        return JSONResponse(_au.resumo(competencia or None))
+        return JSONResponse(_au.resumo(dt_de or None, dt_ate or None))
     except pglocal.NaoConfigurado as exc:
         return JSONResponse(status_code=503, content={
             "erro": "sem_banco_local", "mensagem": str(exc)})

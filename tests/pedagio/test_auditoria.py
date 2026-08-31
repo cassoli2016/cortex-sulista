@@ -138,3 +138,60 @@ def test_a_locacao_nao_pode_cair_dentro_de_frota_propria():
     assert "utilizacaoveiculo" in fonte
     assert "tipofrota" not in inspect.getsource(ft.resumo), (
         "resumo() voltou a quebrar por tipofrota, que esconde a locação")
+
+
+# ── o filtro de período ─────────────────────────────────────────────────────
+
+def test_o_filtro_MUDA_o_numero(base, esquema_pg):
+    """Filtro que a query ignora é pior que filtro nenhum.
+
+    A tela promete um recorte que não acontece, e quem lê não tem como saber —
+    é a mesma família do "custo do vazio" da Análise de KM, que ignorava filial
+    e modalidade e fazia o cabeçalho dizer 143.326 km enquanto a tabela logo
+    abaixo dizia 95.632.
+
+    Aqui o teste exige as três leituras: sem filtro pega tudo, com filtro pega
+    a parte, e fora da janela pega nada. Só a primeira e a segunda deixariam
+    passar um filtro que corta sempre no mesmo lugar.
+    """
+    base([("AAA1B23", dt.datetime(2026, 3, 10, 8, 0), PRACA, 5, 17.50),
+          ("AAA1B23", dt.datetime(2026, 3, 10, 8, 0), PRACA, 4, 14.00),
+          ("BBB4C56", dt.datetime(2026, 8, 20, 8, 0), PRACA, 5, 17.50),
+          ("BBB4C56", dt.datetime(2026, 8, 20, 8, 0), PRACA, 4, 14.00)])
+
+    assert len(au.duplicadas(esquema=esquema_pg)) == 2, "sem filtro tem de pegar os dois"
+    so_marco = au.duplicadas("2026-03-01", "2026-03-31", esquema=esquema_pg)
+    assert len(so_marco) == 1 and so_marco[0]["placa"] == "AAA1B23"
+    so_agosto = au.duplicadas("2026-08-01", "2026-08-31", esquema=esquema_pg)
+    assert len(so_agosto) == 1 and so_agosto[0]["placa"] == "BBB4C56"
+    assert au.duplicadas("2020-01-01", "2020-12-31", esquema=esquema_pg) == []
+
+
+def test_o_ultimo_dia_da_janela_entra_inteiro(base, esquema_pg):
+    """Quem digita 31/08 espera o dia 31 inteiro.
+
+    Um `<=` contra timestamp corta às 00:00:00 e perde o dia — a travessia das
+    23h some do recorte sem nada avisar, e o total fica menor por um motivo que
+    ninguém consegue adivinhar olhando a tela.
+    """
+    base([("AAA1B23", dt.datetime(2026, 8, 31, 23, 40), PRACA, 5, 17.50),
+          ("AAA1B23", dt.datetime(2026, 8, 31, 23, 40), PRACA, 4, 14.00)])
+    assert len(au.duplicadas("2026-08-01", "2026-08-31", esquema=esquema_pg)) == 1
+
+
+def test_o_resumo_inteiro_obedece_ao_filtro(base, esquema_pg):
+    """TODO KPI da tela obedece a TODOS os filtros da tela.
+
+    Não adianta o cartão de contestação seguir o período e o de eixo não: dois
+    números na mesma tela falando de recortes diferentes é o defeito que a
+    Análise de KM já pagou.
+    """
+    base([("AAA1B23", dt.datetime(2026, 3, 10, 8, 0), PRACA, 5, 17.50),
+          ("AAA1B23", dt.datetime(2026, 3, 10, 8, 0), PRACA, 4, 14.00)])
+    dentro = au.resumo("2026-03-01", "2026-03-31", esquema=esquema_pg)
+    fora = au.resumo("2026-05-01", "2026-05-31", esquema=esquema_pg)
+    assert dentro["contestar"]["duplicadas_n"] == 1
+    assert fora["contestar"]["duplicadas_n"] == 0
+    assert fora["total"] == 0
+    # a concentração por janela também: ela alimenta um KPI
+    assert all(x["travessias"] == 0 for x in fora["contestar"]["concentracao"])
