@@ -349,6 +349,17 @@ def test_o_destaque_usa_TOKEN_e_nao_fallback_de_variavel_inexistente(html):
 # uma colaboradora e nao a encontrou na tela. Ela ESTAVA la -- posicao 40 de
 # 65, visivel, com o prazo certo (239 dias, 2o periodo fechando em 27/04/2027).
 # A tela mostrava a resposta e nao tinha como levar ate ela.
+def test_a_busca_e_UMA_funcao_para_as_DUAS_tabelas(html):
+    """A fila e as agendadas fazem a mesma coisa pelo mesmo motivo. Duas copias
+    divergiriam na primeira correcao -- e a segunda tabela nasceu justamente
+    porque a primeira ja tinha a busca."""
+    assert html.count("function _ferBuscarNaTabela(") == 1
+    assert "function ferFilaFiltrar()" in html and "function ferAgFiltrar()" in html
+    for fn in ("ferFilaFiltrar", "ferAgFiltrar"):
+        i = html.index("function %s()" % fn)
+        assert "_ferBuscarNaTabela(" in html[i:i + 260], fn
+
+
 def test_a_fila_tem_busca_propria(html):
     """O filtro de colaborador da barra de cima recorta a tela INTEIRA para uma
     pessoa; este acha a linha SEM perder a fila de vista. Sao perguntas
@@ -361,19 +372,29 @@ def test_a_fila_tem_busca_propria(html):
 def test_a_busca_filtra_no_DOM_e_nao_no_servidor(html):
     """Os dados ja estao na tela. Uma viagem ao Oracle para esconder linha
     seria lentidao sem ganho nenhum."""
-    i = html.index("function ferFilaFiltrar()")
+    i = html.index("function _ferBuscarNaTabela(")
     corpo = html[i:i + 1200]
     assert "fetch(" not in corpo
     assert "tr.hidden" in corpo
 
 
 def test_a_busca_sem_resultado_DIZ_que_nao_achou(html):
-    """Linhas escondidas sem explicacao se leem como fila vazia -- e "fila
-    vazia" sobre uma pessoa real e a conclusao errada. A frase ainda diz onde
-    mais procurar."""
+    """Linhas escondidas sem explicacao se leem como tabela vazia -- e "vazia"
+    sobre uma pessoa real e a conclusao errada."""
+    i = html.index("function _ferBuscarNaTabela(")
+    assert "nenhum dos " in html[i:i + 1200]
+
+
+def test_a_dica_de_ONDE_MAIS_PROCURAR_e_de_quem_conhece_a_tabela(html):
+    """A busca e generica, mas a explicacao de por que nao achou nao pode ser:
+    quem nao aparece na FILA pode estar sem direito adquirido ainda ou em outra
+    unidade -- uma frase que so faz sentido ali. Por isso ela e PARAMETRO do
+    chamador, e nao texto embutido na funcao compartilhada."""
     i = html.index("function ferFilaFiltrar()")
-    corpo = html[i:i + 1200]
-    assert "nenhum dos " in corpo and "sem direito adquirido" in corpo
+    assert "sem direito adquirido" in html[i:i + 300]
+    # e a generica sabe usar a dica quando ela vem
+    j = html.index("function _ferBuscarNaTabela(")
+    assert "dicaVazio" in html[j:j + 1200]
 
 
 def test_a_busca_SOBREVIVE_a_recarga_da_fila(html):
@@ -386,7 +407,7 @@ def test_a_busca_SOBREVIVE_a_recarga_da_fila(html):
 def test_a_busca_NAO_conta_a_linha_de_estado_vazio(html):
     """`<td colspan>` e a linha de "ninguem na fila". Conta-la faria a busca
     dizer "1 de 1" numa fila vazia."""
-    i = html.index("function ferFilaFiltrar()")
+    i = html.index("function _ferBuscarNaTabela(")
     assert "td[colspan]" in html[i:i + 1200]
 
 
@@ -394,7 +415,7 @@ def test_o_hint_ORIGINAL_volta_quando_a_busca_e_limpa(html):
     """Sem guardar o texto, apagar a busca deixaria o hint mostrando para
     sempre a contagem de uma busca que nao existe mais."""
     assert "hF.dataset.original" in html
-    i = html.index("function ferFilaFiltrar()")
+    i = html.index("function _ferBuscarNaTabela(")
     assert "dataset.original" in html[i:i + 1200]
 
 

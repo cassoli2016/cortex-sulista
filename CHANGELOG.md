@@ -4,6 +4,16 @@ Gerado de `docs/versoes.yaml` por `scripts/gerar_changelog.py` — não editar �
 Formato [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/),
 versionamento [SemVer](https://semver.org/lang/pt-BR/).
 
+## [0.187.0] — 31/08/2026  ·  CX-31/08/2026-v0.187.0
+
+### Adicionado
+- A aba de férias agendadas ganhou quatro cartões: custo previsto (com a quebra entre gozo e abono), pessoas agendadas (dizendo quantas já estão de férias hoje), dias de ausência (com a média por pessoa, que revela férias fracionadas) e o MÊS DE MAIOR SAÍDA — o mês em que mais gente sai ao mesmo tempo, que é o que se olha antes de aprovar mais um pedido para a mesma janela. Ele fica âmbar quando concentra metade ou mais das saídas.
+- Gráfico "Onde a operação fica desfalcada": dias de ausência por unidade, ordenado por dias e não por custo — a pergunta ali é operacional (quem fica sem gente), e a unidade mais cara pode ser uma pessoa só de salário alto. O custo aparece no tooltip.
+- Botão "Exportar CSV" na lista de férias agendadas. Baixa o que está na tela — o que a busca e os filtros deixaram visível —, com nome, chapa, cargo, centro de custo, unidade, datas de gozo e de abono, dias e custo previsto. O arquivo abre direto no Excel em português, com os acentos certos e o valor somável.
+
+### Alterado
+- A busca das duas tabelas da tela (fila e agendadas) passou a ser uma função só. A explicação de por que não achou continua específica de cada uma — quem não aparece na fila pode estar sem direito adquirido ainda, o que não faz sentido dizer na outra.
+
 ## [0.186.0] — 31/08/2026  ·  CX-31/08/2026-v0.186.0
 
 ### Adicionado

@@ -494,6 +494,33 @@ def get_ferias_custo(dt_de: str = "", dt_ate: str = "", filial: str = "",
     ag_base_abono = float(ag_tot["base_abono"] or 0)
     ag_custo = (ag_base_gozo + ag_base_abono) * UM_TERCO * (1 + FGTS)
 
+    # ── os recortes que os cartões e o gráfico leem ────────────────────────
+    #
+    # AGREGADOS EM PYTHON, sobre o detalhe que já está em memória: são 20
+    # linhas, e uma consulta a mais ao Oracle para somá-las seria custo sem
+    # ganho. O mais importante é que cartão, gráfico e tabela passam a sair da
+    # MESMA lista — três caminhos para o mesmo número, e nenhum deles pode
+    # divergir dos outros porque não há outra fonte de onde divergir.
+    #
+    # POR UNIDADE responde a pergunta que o total não responde: o custo é
+    # financeiro, mas a AUSÊNCIA é operacional, e ela não se distribui igual.
+    # Uma filial com quatro motoristas fora no mesmo mês é um problema de
+    # escala que R$ 64 mil no agregado não mostra.
+    por_un: dict[str, dict] = {}
+    for x in ag_det:
+        u = por_un.setdefault(x["filial"] or "(sem unidade)",
+                              {"filial": x["filial"] or "(sem unidade)",
+                               "pessoas": 0, "dias": 0, "custo": 0.0})
+        u["pessoas"] += 1
+        u["dias"] += x["dias"]
+        u["custo"] += x["custo"]
+    ag_un = sorted(({**u, "custo": _f(u["custo"])} for u in por_un.values()),
+                   key=lambda x: -x["custo"])
+
+    # O MÊS DE PICO — aquele em que mais gente sai ao mesmo tempo. É o que se
+    # olha antes de aprovar mais um pedido para o mesmo mês.
+    pico = max(ag_mes, key=lambda m: m["n"], default=None)
+
     return {
         "periodo": {"de": de, "ate": ate},
         "meses": n_meses,
@@ -509,6 +536,15 @@ def get_ferias_custo(dt_de: str = "", dt_ate: str = "", filial: str = "",
             "custo_abono": _f(ag_base_abono * UM_TERCO * (1 + FGTS)),
             "por_mes": ag_mes,
             "detalhe": ag_det,
+            "por_unidade": ag_un,
+            "unidades": len(ag_un),
+            "pico": pico,
+            # média de dias por pessoa: 341 dias em 20 pessoas não é "17 dias
+            # para todo mundo", e é o número que diz se a escala está sendo
+            # fracionada (art. 134 permite até três períodos).
+            "dias_medios": round(int(ag_tot["dias"] or 0)
+                                 / max(1, int(ag_tot["n"] or 1)), 1),
+            "agora": sum(1 for x in ag_det if x["agora"]),
         },
         "kpis": {
             "realizado": _f(total),

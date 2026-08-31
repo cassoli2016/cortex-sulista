@@ -468,3 +468,46 @@ def test_o_custo_por_pessoa_e_a_UNICA_saida_individual_do_modulo():
     assert '"salario"' not in fonte and "'salario'" not in fonte
     # e a ressalva esta escrita onde quem mexer no modulo vai ler
     assert "permite deduzir o" in fonte
+
+
+# ── os cartoes e o grafico da aba de agendadas ──────────────────────────────
+def test_os_agregados_saem_da_MESMA_lista_do_detalhe(custo):
+    """Cartao, grafico e tabela sao TRES leituras do mesmo dado, agregadas em
+    Python sobre o detalhe que ja esta em memoria. Uma consulta a mais ao
+    Oracle para somar 20 linhas seria custo sem ganho -- e, pior, criaria uma
+    quarta fonte de onde os numeros poderiam divergir."""
+    ag = custo["agendadas"]
+    assert sum(u["pessoas"] for u in ag["por_unidade"]) == len(ag["detalhe"])
+    assert sum(u["dias"] for u in ag["por_unidade"]) == sum(
+        x["dias"] for x in ag["detalhe"])
+    assert sum(u["custo"] for u in ag["por_unidade"]) == pytest.approx(
+        sum(x["custo"] for x in ag["detalhe"]), abs=0.05)
+
+
+def test_por_unidade_vem_ORDENADO_por_custo(custo):
+    v = [u["custo"] for u in custo["agendadas"]["por_unidade"]]
+    assert v == sorted(v, reverse=True)
+
+
+def test_o_PICO_e_o_mes_de_mais_GENTE_e_nao_de_mais_dinheiro(custo):
+    """A pergunta do cartao e operacional: em que mes mais gente sai ao mesmo
+    tempo. O mes mais CARO pode ser um salario alto sozinho, e aprovar ou negar
+    um pedido de ferias nao se decide por isso."""
+    ag = custo["agendadas"]
+    assert ag["pico"]["n"] == max(m["n"] for m in ag["por_mes"])
+
+
+def test_a_media_de_dias_usa_o_GOZO_e_nao_o_abono(custo):
+    """A media diz se a escala esta sendo fracionada (art. 134 permite ate tres
+    periodos). Somar o abono a inflaria com dias em que a pessoa ESTA no posto,
+    e ai ela nao mediria mais fracionamento nenhum."""
+    ag = custo["agendadas"]
+    assert ag["dias_medios"] == pytest.approx(ag["dias"] / ag["n"], abs=0.06)
+    assert ag["dias_medios"] < (ag["dias"] + ag["dias_abono"]) / ag["n"]
+
+
+def test_quantos_estao_de_ferias_AGORA(custo):
+    """Numero proprio porque muda a leitura da escala: a ausencia dessas nao e
+    futura, e agora."""
+    ag = custo["agendadas"]
+    assert ag["agora"] == sum(1 for x in ag["detalhe"] if x["agora"])

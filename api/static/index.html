@@ -4296,13 +4296,21 @@ body.tvfull #btnReport,body.tvmode #btnReport{display:none}
 
         <div class="aba" data-abas="ferias" data-aba="agenda" id="aba-ferias-agenda" role="tabpanel" aria-labelledby="tabferias-agenda" data-ao-abrir="loadFeriasCusto" hidden>
           
+          <div class="kpis k4" id="kpis-feragend"></div>
+          <div class="card">
+            <div class="head"><h2>Onde a operação fica desfalcada <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="O custo é financeiro, mas a AUSÊNCIA é operacional — e ela não se distribui igual. Uma filial com vários motoristas fora no mesmo mês é um problema de escala que o total agregado não mostra. As barras somam exatamente a mesma lista da tabela abaixo: são a mesma conta lida por outro recorte, e por isso não podem divergir dela.">i</span></h2>
+              <span class="hint" id="hintFerUn"></span></div>
+            <div id="chartFerUn" style="width:100%;height:150px"></div>
+          </div>
             <div class="card">
               <div class="head"><h2>Férias agendadas — quem, quando e quanto <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="Quem JÁ TEM DATA marcada, de hoje em diante, com o custo que ainda não entrou na folha. DIAS é o gozo (fim menos início, mais um) — é o tempo em que a pessoa não está no posto, e é por ele que se monta a escala. ABONO são os dias VENDIDOS (art. 143, até um terço do período convertido em dinheiro): eles não tiram ninguém do posto, mas se pagam, e contar só o gozo subestimava o custo em 13,7%. O valor traz gozo e abono sobre o salário base, com terço constitucional e FGTS; como é estimativa sobre salário base, a folha real paga um pouco mais (o fator medido está no cartão do passivo). Cargo, centro de custo e unidade vêm do cadastro e estão preenchidos em todos. Este card é sempre de HOJE em diante e não segue o filtro de período.">i</span></h2>
+              <button class="ghost" id="btnFerAgCsv" onclick="ferAgExportar()" style="margin-left:auto"
+                      title="Baixa a lista COMO ESTÁ NA TELA — o que a busca e os filtros deixaram visível. O arquivo leva nome, cargo, centro de custo e o custo por pessoa, e a partir dele dá para deduzir o salário base: depois de baixado ele não obedece mais ao controle de acesso do painel.">Exportar CSV</button>
               <input type="search" id="fFerAgBusca" placeholder="achar aqui…" autocomplete="off"
                      aria-label="Buscar nas férias agendadas" oninput="ferAgFiltrar()"
-                     style="margin-left:auto;max-width:180px;padding:5px 9px;border:1px solid var(--n300);border-radius:8px;font-size:12.5px">
+                     style="max-width:180px;padding:5px 9px;border:1px solid var(--n300);border-radius:8px;font-size:12.5px">
               <span class="hint" id="hintFerAgend"></span></div>
-            <div class="tablewrap tabroll"><table><thead><tr>
+            <div class="tablewrap tabroll" style="max-height:360px"><table><thead><tr>
               <th>Funcionário</th><th>Chapa</th><th>Cargo</th><th>Centro de custo</th>
               <th>Unidade</th><th class="num">De</th><th class="num">Até</th>
               <th class="num">Dias</th><th class="num">Abono</th><th class="num">Custo previsto</th>
@@ -15530,6 +15538,82 @@ function ferFilaFiltrar(){
     ' — ela pode estar sem direito adquirido ainda, ou em outra unidade');
 }
 
+/* ---------------------------------------------------------- EXPORTAR CSV ---
+   Primeira exportação de tabela desta casa, então nasce genérica.
+
+   NO CLIENTE, sem rota: os dados já estão na tela, e uma viagem ao Oracle para
+   devolver o que o navegador tem em memória seria custo sem ganho — e uma
+   segunda consulta poderia trazer OUTRO recorte, se alguém mexesse no filtro
+   no meio.
+
+   TRÊS DECISÕES QUE PARECEM DETALHE E NÃO SÃO:
+
+   - **BOM UTF-8 no começo.** Sem ele o Excel em português abre o arquivo em
+     ANSI e todo acento vira caractere quebrado — "JOSÉ" sai "JOSÃ‰". O
+     arquivo está certo e a planilha mostra lixo, que é o pior dos dois mundos
+     porque a culpa parece do sistema.
+   - **Separador `;` e não `,`.** No Excel pt-BR a vírgula é decimal, então com
+     `,` a planilha joga a linha inteira numa coluna só. E é por isso que o
+     valor vai com vírgula decimal: ele precisa ser NÚMERO na planilha, senão
+     não soma.
+   - **Aspas dobradas e campo entre aspas.** Nome com `;` ou com aspa
+     deslocaria todas as colunas dali para a frente — e a planilha abriria sem
+     erro nenhum, com os dados na coluna errada. */
+function baixarCSV(nomeArquivo, colunas, linhas){
+  const cel = v => {
+    if(v === null || v === undefined) return '';
+    const t = String(v);
+    return /[";\r\n]/.test(t) ? '"' + t.split('"').join('""') + '"' : t;
+  };
+  const txt = [colunas.map(c => cel(c.rotulo)).join(';')]
+    .concat(linhas.map(l => colunas.map(c => cel(c.valor(l))).join(';')))
+    .join('\r\n');
+  const blob = new Blob(['﻿' + txt], {type:'text/csv;charset=utf-8'});
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url; a.download = nomeArquivo;
+  document.body.appendChild(a); a.click(); a.remove();
+  /* Revoga DEPOIS do clique, num tick seguinte: revogar na mesma volta do
+     laço de eventos cancela o download no Firefox. */
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
+}
+
+/* Número para a planilha: vírgula decimal e SEM separador de milhar. Com o
+   ponto de milhar o Excel pt-BR lê "1.234,56" como texto em algumas
+   configurações e a coluna deixa de somar — e uma coluna de dinheiro que não
+   soma é a primeira coisa que alguém tenta fazer com o arquivo. */
+const csvNum = v => (v == null ? '' : Number(v).toFixed(2).replace('.', ','));
+
+function ferAgExportar(){
+  const AG=(FERCUSTO||{}).agendadas||{};
+  /* EXPORTA O QUE ESTÁ VISÍVEL. Quem filtrou por unidade, buscou um nome ou
+     recortou o período espera levar aquilo, não a base inteira — e o nome do
+     arquivo carrega a data para o destinatário saber de quando é. */
+  const vis=new Set();
+  const corpo=document.getElementById('fer-agendadas');
+  if(corpo) Array.from(corpo.rows).forEach(tr => {
+    if(tr.hidden || tr.querySelector('td[colspan]')) return;
+    const c=tr.cells[1]; if(c) vis.add(c.textContent.trim());
+  });
+  const linhas=(AG.detalhe||[]).filter(x => vis.has(x.chapa));
+  if(!linhas.length){ showBanner('Não há linha visível para exportar.'); return; }
+  baixarCSV('ferias-agendadas-'+_ferISO(new Date())+'.csv', [
+    {rotulo:'Funcionário',     valor:x=>x.nome},
+    {rotulo:'Chapa',           valor:x=>x.chapa},
+    {rotulo:'Cargo',           valor:x=>x.cargo||''},
+    {rotulo:'Centro de custo', valor:x=>x.area||''},
+    {rotulo:'Unidade',         valor:x=>x.filial||''},
+    {rotulo:'Início do gozo',  valor:x=>fmtD(x.ini)},
+    {rotulo:'Fim do gozo',     valor:x=>fmtD(x.fim)},
+    {rotulo:'Dias de gozo',    valor:x=>x.dias},
+    {rotulo:'Dias de abono',   valor:x=>x.dias_abono||0},
+    {rotulo:'Início do abono', valor:x=>x.ab_ini?fmtD(x.ab_ini):''},
+    {rotulo:'Fim do abono',    valor:x=>x.ab_fim?fmtD(x.ab_fim):''},
+    {rotulo:'De férias hoje',  valor:x=>x.agora?'sim':'não'},
+    {rotulo:'Custo previsto',  valor:x=>csvNum(x.custo)},
+  ], linhas);
+}
+
 /* Busca na tabela de agendadas — mesma mecânica da fila, mesmo motivo: a lista
    é por pessoa e a pergunta costuma ser por pessoa. Genérica de propósito
    (`corpoId`, `hintId`), porque é a segunda vez que isto aparece nesta tela e
@@ -15749,6 +15833,70 @@ function renderFeriasCusto(d){
   // -------- férias agendadas: quem, quando e quanto
   const AG=d.agendadas||{}, AD=AG.detalhe||[], AM=AG.por_mes||[];
   const jfc=(DATAFER&&DATAFER.janela_futura)||{};
+
+  /* OS CARTÕES DESTA ABA saem da MESMA lista que a tabela e o gráfico — três
+     leituras do mesmo dado, sem uma quarta fonte de onde divergir. Quatro,
+     porque a banda é de quatro: cinco deixaria o último sozinho numa linha. */
+  const pico=AG.pico||null;
+  document.getElementById('kpis-feragend').innerHTML=[
+    kpi('Custo previsto', BRL.format(AG.custo||0),
+        (AG.custo_abono||0)>0
+          ? (BRL.format(AG.custo_gozo||0)+' de gozo + '+BRL.format(AG.custo_abono)+' de abono')
+          : 'gozo, terço e FGTS',
+        '',
+        'O que já tem data e ainda não entrou na folha. Soma os dias de GOZO e os de ABONO PECUNIÁRIO já marcados, sobre o salário base, com terço constitucional e FGTS. É a única fatia do passivo que entra num fluxo de caixa, porque é a que tem mês.'),
+    kpi('Pessoas agendadas', (AG.n||0).toLocaleString('pt-BR'),
+        (AG.agora||0)>0 ? ((AG.agora)+' já estão de férias hoje')
+                        : 'nenhuma de férias hoje',
+        '',
+        'Quantas têm data marcada dentro do período filtrado. Inclui quem já saiu: o dinheiro dessas ainda não saiu inteiro, e a ausência delas já está acontecendo — quem monta escala precisa contar as duas coisas.'),
+    kpi('Dias de ausência', (AG.dias||0).toLocaleString('pt-BR'),
+        'média de '+(AG.dias_medios||0).toLocaleString('pt-BR',{minimumFractionDigits:1,maximumFractionDigits:1})+' dias por pessoa'
+        +((AG.dias_abono||0)>0 ? ' · +'+AG.dias_abono+' vendidos' : ''),
+        '',
+        'Só os dias de GOZO — é o tempo em que a pessoa não está no posto, e é por ele que se monta a escala. Os dias de abono aparecem à parte porque não tiram ninguém do posto: a pessoa trabalha e recebe a mais. Média bem abaixo de 30 indica férias fracionadas, que o art. 134 permite em até três períodos.'),
+    pico
+      ? kpi('Mês de maior saída', pico.mes.slice(5)+'/'+pico.mes.slice(2,4),
+            pico.n+' pessoa'+(pico.n===1?'':'s')+' · '+BRL.format(pico.custo),
+            (AG.n||0)>0 && pico.n/(AG.n||1) >= 0.5 ? 'warn' : '',
+            'O mês em que mais gente sai ao mesmo tempo — é o que se olha antes de aprovar mais um pedido para a mesma janela. Fica âmbar quando ele concentra metade ou mais de todas as saídas do período: aí a escala está empilhando, e o problema não é o custo, é quem cobre.')
+      : kpi('Mês de maior saída', '—', 'nada agendado no período', '',
+            'Sem férias marcadas no recorte atual.'),
+  ].join('');
+
+  // -------- onde a operação fica desfalcada
+  const AU=AG.por_unidade||[];
+  const hU=document.getElementById('hintFerUn');
+  if(hU) hU.textContent = AU.length
+    ? (AU.length+' unidade(s) · maior: '+AU[0].filial+' com '+AU[0].pessoas
+       +' pessoa'+(AU[0].pessoas===1?'':'s')+' e '+AU[0].dias+' dias fora')
+    : '';
+  if(!AU.length) ecDesenhar('chartFerUn', null, 'ninguém com data marcada no período');
+  else ecDesenhar('chartFerUn', () => {
+    /* Ordenado por DIAS, não por custo: aqui a pergunta é operacional — quem
+       fica sem gente —, e a unidade mais cara pode ser uma pessoa só de
+       salário alto. O custo vai no tooltip, que é onde ele responde a outra
+       pergunta sem disputar a leitura desta. */
+    const ord=AU.slice().sort((a,b)=>b.dias-a.dias);
+    /* RÓTULO CURTO NO EIXO, nome inteiro no tooltip. "FILIAL " é prefixo de
+       quase todas e não distingue nenhuma — rotacionados, os nomes cheios
+       saíam cortados pela esquerda ("ATRIZ - FINANCEIRO"), que é pior do que
+       abreviar de propósito. */
+    const curto=x=>x.filial.replace(/^FILIAL\s+/,'').replace(/^MATRIZ - /,'MTZ ');
+    const rot=ord.map(curto), val=ord.map(x=>x.dias);
+    const max=Math.max(1, ...val);
+    const o=ecOpcoes(rot, max*1.22, {tipo:'dias', sombra:true, left:44, bottom:24,
+                                     top:24, intervalo:0});
+    o.tooltip.formatter = ps => {
+      const r=ord[ps[0].dataIndex];
+      return '<b>'+esc(r.filial)+'</b>'
+        +'<br>'+r.pessoas+' pessoa'+(r.pessoas===1?'':'s')+' · <b>'+r.dias+' dias</b> fora'
+        +'<br><span style="color:'+CC.n500+'">custo previsto: '+BRL.format(r.custo)+'</span>';
+    };
+    o.series=[ecBarras('Dias de ausência', val, CC.navy400, {largura:34,
+      rotulo:(i,v)=>String(v)})];
+    return o;
+  });
   const hAg=document.getElementById('hintFerAgend');
   /* O resumo por MÊS vira o hint. Ele cabe numa linha ("ago/26: 7 · set/26:
      13") e liberou a tabela para o detalhe, que é o que se leva para uma
