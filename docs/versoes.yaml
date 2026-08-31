@@ -1,3 +1,12 @@
+- versao: "0.172.1"
+  data: "2026-08-30"
+  corrigido:
+    - >-
+      Nada muda na tela: esta versão só registra, no manual do projeto, por que
+      o painel ficou quase uma hora sem receber atualização hoje. O AutoDeploy
+      recusa atualizar quando há trabalho commitado e não enviado na máquina do
+      servidor, e foi isso que aconteceu.
+
 - versao: "0.172.0"
   data: "2026-08-30"
   adicionado:

@@ -4,6 +4,11 @@ Gerado de `docs/versoes.yaml` por `scripts/gerar_changelog.py` — não editar �
 Formato [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/),
 versionamento [SemVer](https://semver.org/lang/pt-BR/).
 
+## [0.172.1] — 30/08/2026  ·  CX-30/08/2026-v0.172.1
+
+### Corrigido
+- Nada muda na tela: esta versão só registra, no manual do projeto, por que o painel ficou quase uma hora sem receber atualização hoje. O AutoDeploy recusa atualizar quando há trabalho commitado e não enviado na máquina do servidor, e foi isso que aconteceu.
+
 ## [0.172.0] — 30/08/2026  ·  CX-30/08/2026-v0.172.0
 
 ### Adicionado

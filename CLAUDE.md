@@ -2078,6 +2078,45 @@ só no ERP ...... 177 placas      união ....... 275
   do vizinho. É a mesma família do corte por marcador que já comeu 20 rotas
   alheias neste arquivo.
 
+**A ÁRVORE DE PRODUÇÃO É ESTA, e commit sem push PARA O DEPLOY (30/08/2026):**
+- O AutoDeploy compara o `main` LOCAL com o `origin` e **recusa o pull se
+  divergirem**. Como a API de produção roda desta mesma pasta, todo commit que
+  espera para ser empurrado deixa os dois diferentes — e o deploy morre para
+  TODO MUNDO, inclusive para quem já empurrou certo.
+- Medido: a produção ficou **quase uma hora na v0.166.0** enquanto eu segurava
+  commits esperando a suíte fechar. O log tem 13 ciclos com
+  `DIVERGENCIA: local=183d7e1 origin=330f4e9` — nesse intervalo o bloqueio era
+  só meu, e nem os quatro commits que eu JÁ tinha empurrado chegaram, porque o
+  pull nunca aplicava.
+- **Nesta árvore, commit sem push não é "trabalho em andamento": é deploy
+  parado.** Se for demorar para empurrar — esperar uma suíte de 35 minutos, por
+  exemplo —, o lugar é uma branch, não o `main`.
+- **`fetch` ANTES de rebasear, sempre.** Rebaseei contra um `origin/main` local
+  desatualizado e criei a divergência: os dois commits saíam do mesmo pai. A
+  mensagem de um colega dizendo "subiu" não move o `origin/main` de ninguém;
+  só o `fetch` move.
+- **NUNCA `push --force` para resolver isso.** Um force do local por cima
+  apagaria os commits de quem entrou no meio — aqui seriam os oito do CRM. O
+  `versoes.yaml` acusaria depois, com a versão sumida do meio da sequência, mas
+  aí já teria ido.
+- **E o rebase acontece com o AutoDeploy olhando.** Ele roda a cada 2 minutos
+  contra a ÁRVORE DE TRABALHO: no meio do meu, ele pegou o `pyproject.toml`
+  com marcador de conflito dentro e registrou
+  `uv sync saiu 2 nas 2 tentativas (seguindo assim mesmo)`. Desta vez foi
+  inofensivo; se o conflito estivesse num arquivo que a API importa, ela teria
+  reiniciado quebrada.
+
+**Resolver conflito tomando "o meu lado" reverte o trabalho alheio em silêncio:**
+- O conflito do `VIEWS` tinha o rótulo NOVO do CRM de um lado e a minha tela do
+  outro. `--ours` teria desfeito a renomeação dele sem uma linha de aviso.
+  Conflito em arquivo que duas frentes tocam se resolve LENDO os dois lados e
+  juntando — e conferindo depois o que deveria ter sobrado (aqui: `view-crm`,
+  as sete abas, as 70 funções `crm*` e o rótulo novo).
+- E ao remontar o `versoes.yaml` eu colei o bloco do colega no fim de uma linha
+  **sem quebra**: o YAML o engoliu como texto e a versão sumiu da sequência sem
+  erro nenhum. Só apareceu ao carregar o arquivo e ler o topo — que é
+  exatamente o que a regra da seção 5.1 manda fazer, e por isso ela existe.
+
 **TELA NOVA TEM SEIS REGISTROS, NÃO UM — e cada guard nasceu de um esquecido:**
 - Criar `view-x` no HTML é o começo. A tela só existe de verdade quando está em
   `VIEWS`, em `auth.TELAS`, em `ROTA_TELAS`, no `VIEW_GROUP` (senão o acordeão
