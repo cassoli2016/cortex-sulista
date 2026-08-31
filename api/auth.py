@@ -347,7 +347,8 @@ _PERFIS_MODELO = [
      "Acompanhamento da operação de milk run em tempo real. Perfil de CLIENTE: "
      "uma única tela, sem acesso a nenhum outro dado da Sulista.",
      ["milkrun"]),
-    ("Comercial",   "Clientes/RKM, consulta por cliente, CRM (leads/projetos) e DRE por cliente.",
+    ("Comercial",   "Clientes/RKM, consulta por cliente, CRM (funil, contas, "
+                    "oportunidades, atividades e contratos) e DRE por cliente.",
      ["com", "clif", "crm", "drecli"]),
     ("Financeiro",  "Caixa, recebíveis, pagáveis, cobrança, extrato, lançamentos bancários e antecipação.",
      ["fluxo", "fluxcon", "receber", "pagar", "cob", "banc", "extb", "lanc", "antec", "rec", "antport"]),
