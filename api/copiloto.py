@@ -108,6 +108,7 @@ _FONTES_ROTULO = {
     "cnh_motoristas": "CNH dos Motoristas",
     "gestao_acoes": "Planos de Ação",
     "jornada_raster": "Jornada do Motorista",
+    "crm_funil": "CRM — Funil Comercial",
 }
 
 
