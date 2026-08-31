@@ -4,6 +4,13 @@ Gerado de `docs/versoes.yaml` por `scripts/gerar_changelog.py` — não editar �
 Formato [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/),
 versionamento [SemVer](https://semver.org/lang/pt-BR/).
 
+## [0.180.0] — 31/08/2026  ·  CX-31/08/2026-v0.180.0
+
+### Adicionado
+- A Saúde do Servidor passou a mostrar o túnel ngrok, a porta secundária de acesso pela internet que roda ao lado do túnel Cloudflare. O cartão diz a URL publicada e some da tela quando não há ngrok nesta instalação.
+- O cartão do ngrok acende âmbar quando o túnel está no ar SEM portão de autenticação, porque nessa porta o Cloudflare Access não se aplica e quem tiver a URL chega ao login do CÓRTEX sem MFA. Acende também quando o inspetor local do ngrok está ligado, que grava o conteúdo de cada requisição e resposta numa tela sem senha.
+- A tarefa agendada do ngrok entrou na lista que a Saúde vigia, junto com as outras sete.
+
 ## [0.179.0] — 31/08/2026  ·  CX-31/08/2026-v0.179.0
 
 ### Adicionado

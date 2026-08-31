@@ -46,7 +46,7 @@ except ImportError:  # pragma: no cover
 _TAREFAS = ["Cortex Sulista - API", "Cortex Sulista - AutoDeploy",
             "Cortex Sulista - Tunnel", "Cortex Sulista - Telemetria",
             "Cortex Sulista - Pneus", "Cortex Sulista - Backup",
-            "Cortex Sulista - Jornada"]
+            "Cortex Sulista - Jornada", "Cortex Sulista - Ngrok"]
 
 
 def _iso(ts: float) -> str:
@@ -213,6 +213,137 @@ def _processo_cloudflared() -> int:
         except (psutil.NoSuchProcess, psutil.AccessDenied):
             continue
     return n
+
+
+def _processo_ngrok() -> int:
+    if not psutil:
+        return 0
+    n = 0
+    for pr in psutil.process_iter(["name"]):
+        try:
+            if (pr.info["name"] or "").lower().startswith("ngrok"):
+                n += 1
+        except (psutil.NoSuchProcess, psutil.AccessDenied):
+            continue
+    return n
+
+
+# O ngrok é a porta SECUNDÁRIA para a internet, ao lado do túnel Cloudflare.
+# O que este cartão vigia NÃO é "está no ar" — é se ela está no ar COM PORTÃO.
+#
+# A diferença é o motivo de a linha existir: nesta porta o Cloudflare Access
+# NÃO se aplica, então túnel ligado sem `basic_auth`/`oauth` no ngrok.yml
+# significa o CÓRTEX alcançável da internet com apenas o login do app na
+# frente. É a única leitura desta linha que pede ação hoje, e é ela que
+# justifica o cartão — mesma regra da linha dos `.db` migrados, que é sensor e
+# não enfeite.
+#
+# Desligado é `info`, nunca falha: a porta é opcional e ficar fechada é o
+# estado NORMAL dela, como o WhatsApp reserva pareado e parado. Pintar isso de
+# vermelho ensinaria a ignorar o vermelho.
+#
+# 30 s de TTL: a API do agente é local e barata, mas a Saúde repinta de 5 em
+# 5 s — abrir socket e ler YAML doze vezes por minuto para desenhar um cartão
+# é custo sem retorno. Mesma razão do cache das tarefas agendadas.
+_NGROK_TTL = 30.0
+_ngrok_cache: tuple[float, dict] | None = None
+
+
+def _ngrok_portao(tunel: str = "cortex") -> str | None:
+    """Qual portão o ngrok.yml declara para o túnel.
+
+    Lido do ARQUIVO porque a API local do agente não devolve isso: em
+    /api/tunnels o bloco `config` traz só `addr` e `inspect` (medido). Ou seja
+    não há como provar o portão sem sair para a internet, e sair daqui é
+    justamente o que o cabeçalho deste módulo proíbe. Então o cartão diz
+    "declarado", não "provado" — afirmar o que não se mediu seria pior.
+
+    Devolve o nome do portão, "" se o túnel existe sem nenhum, ou None se nem
+    o arquivo/túnel existe.
+    """
+    base = os.environ.get("LOCALAPPDATA")
+    if not base:
+        return None
+    caminho = Path(base) / "ngrok" / "ngrok.yml"
+    if not caminho.is_file():
+        return None
+    try:
+        import yaml  # local: o módulo não pode falhar ao importar por causa disto
+        cfg = yaml.safe_load(caminho.read_text(encoding="utf-8")) or {}
+    except Exception:  # noqa: BLE001
+        return None
+    t = ((cfg.get("tunnels") or {}).get(tunel) or {})
+    if not t:
+        return None
+    if t.get("oauth"):
+        return "OAuth"
+    if t.get("basic_auth"):
+        return "usuário e senha"
+    return ""
+
+
+def _ngrok_consultar() -> dict:
+    """Estado do agente ngrok: processo, túnel publicado e portão."""
+    d: dict = {"processos": _processo_ngrok(), "portao": _ngrok_portao(),
+               "url": None, "inspetor": None}
+    try:
+        import urllib.request
+        with urllib.request.urlopen(
+                "http://127.0.0.1:4040/api/tunnels", timeout=2) as r:
+            corpo = json.loads(r.read().decode("utf-8"))
+        for t in (corpo.get("tunnels") or []):
+            if t.get("name") == "cortex" or not d["url"]:
+                d["url"] = t.get("public_url")
+                d["inspetor"] = (t.get("config") or {}).get("inspect")
+                if t.get("name") == "cortex":
+                    break
+    except Exception:  # noqa: BLE001
+        pass  # agente fora do ar é estado, não erro a propagar
+    return d
+
+
+def _ngrok(forcar: bool = False) -> dict:
+    global _ngrok_cache
+    agora = time.monotonic()
+    if not forcar and _ngrok_cache and (agora - _ngrok_cache[0]) < _NGROK_TTL:
+        return _ngrok_cache[1]
+    r = _ngrok_consultar()
+    _ngrok_cache = (agora, r)
+    return r
+
+
+def _servico_ngrok() -> dict | None:
+    """Cartão do túnel ngrok. `None` quando não há ngrok nesta instalação.
+
+    Devolver None em vez de uma linha "não instalado" é deliberado: cartão que
+    nunca muda ensina a pular o cartão, e junto com ele os que decidem algo.
+    """
+    d = _ngrok()
+    if not d["processos"] and d["portao"] is None:
+        return None
+
+    nome = "Túnel ngrok (porta secundária)"
+    if not d["processos"]:
+        return {"nome": nome, "status": "info",
+                "detalhe": "configurado e desligado — o acesso externo está "
+                           "só pelo túnel Cloudflare"}
+
+    url = d["url"] or "URL ainda não publicada"
+    if d["portao"] is None or d["portao"] == "":
+        return {"nome": nome, "status": "alerta",
+                "detalhe": f"NO AR SEM PORTÃO · {url} · aqui o Cloudflare "
+                           "Access não vale: quem tiver a URL chega no login "
+                           "do CÓRTEX sem MFA"}
+
+    det = f"no ar · {url} · portão declarado: {d['portao']}"
+    # `inspect` vem da API, então isto é medido, não declarado. Ligado, o
+    # inspetor em 127.0.0.1:4040 grava corpo de requisição e resposta —
+    # faturamento, PII de motorista e o cookie de sessão — numa tela sem senha.
+    if d["inspetor"]:
+        return {"nome": nome, "status": "alerta",
+                "detalhe": det + " · INSPETOR LIGADO: 127.0.0.1:4040 está "
+                                 "gravando corpo de requisição e resposta"}
+    return {"nome": nome, "status": "ok", "detalhe": det}
 
 
 def _servico_pglocal(d: dict) -> dict:
@@ -789,6 +920,14 @@ def _servicos() -> list[dict]:
     servicos.append({
         "nome": "Túnel Cloudflare", "status": "ok" if n else "alerta",
         "detalhe": f"{n} conector(es) ativo(s)" if n else "cloudflared não está rodando"})
+
+    # Túnel ngrok — porta secundária, some do cartão quando não existe aqui
+    try:
+        ng = _servico_ngrok()
+        if ng:
+            servicos.append(ng)
+    except Exception as exc:  # noqa: BLE001
+        log.warning("saude: ngrok falhou: %s", exc)
 
     # Copiloto (Ollama local) — best-effort
     try:
