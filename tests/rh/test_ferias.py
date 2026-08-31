@@ -194,6 +194,11 @@ def _linhas_falsas(sql, params=None):
         return [{"m": m} for m in base]
     if "COUNT(DISTINCT fe.codintfunc) pessoas" in sql:
         return [{"linhas": 192, "pessoas": 191}]
+    if "ORDER BY vf.nomefunc" in sql:
+        return [{"nome": "JULIANA KARINE VERONEZI", "chapa": " 003725",
+                 "filial": "FILIAL CURITIBA"},
+                {"nome": "MONICA DE FREITAS", "chapa": "005678",
+                 "filial": "FILIAL SBC"}]
     if "TRUNC(ADD_MONTHS" in sql and "aq_atual" in sql:
         return []
     return [{"agora": "2026-08-31 09:00"}]
@@ -260,3 +265,134 @@ def test_ficha_DUPLICADA_vira_sensor_e_nao_silencio(ferias):
 
 def test_o_payload_atravessa_o_JSON(ferias):
     _json.dumps(ferias)
+
+
+# ── filtro por colaborador ──────────────────────────────────────────────────
+def test_a_lista_de_colaboradores_volta_no_payload(ferias):
+    """Sem ela a tela precisaria de uma rota so para preencher o seletor -- e
+    sao 191 nomes, que cabem na resposta que ja esta indo."""
+    assert len(ferias["colaboradores"]) == 2
+    assert ferias["colaboradores"][0]["nome"] == "JULIANA KARINE VERONEZI"
+
+
+def test_a_chapa_volta_SEM_o_espaco_do_ERP(ferias):
+    """`chapafunc` vem com espaco a esquerda nesta base. Devolvido cru, o
+    seletor manda de volta " 003725", o `TRIM` do SQL salva a consulta mas a
+    comparacao em JavaScript (que casa o texto escolhido) falha -- e o filtro
+    nao pega, sem erro nenhum."""
+    assert ferias["colaboradores"][0]["chapa"] == "003725"
+
+
+def test_o_filtro_por_chapa_usa_TRIM_dos_dois_lados(fonte):
+    """Comparar sem `TRIM` devolve zero linha e a tela fica vazia sem erro --
+    que e a aparencia exata de "esta pessoa nao tem ferias". Sobre uma pessoa
+    real, essa e a conclusao errada."""
+    i = fonte.index("def get_ferias(")
+    corpo = fonte[i:i + 2000]
+    assert "TRIM(vf.chapafunc) = TRIM(:chapa)" in corpo
+
+
+def test_a_lista_do_seletor_IGNORA_a_propria_chapa(fonte):
+    """Filtrada por ela, a lista ficaria com um nome so e trocar de pessoa
+    exigiria limpar o campo antes -- o seletor se fecharia sobre a propria
+    escolha."""
+    i = fonte.index("filtro_lista = filtro.replace(")
+    assert 'TRIM(vf.chapafunc) = TRIM(:chapa)' in fonte[i:i + 200]
+    assert 'p_lista = {k: v for k, v in p.items() if k != "chapa"}' in fonte
+
+
+# ── o destaque na tela ──────────────────────────────────────────────────────
+def test_o_destaque_de_LINHA_e_so_a_reta_final(html):
+    """A fila ja vem ORDENADA por prazo, entao os mais avancados sao os
+    primeiros -- e um destaque a partir de 6 meses pintava as doze linhas do
+    topo, ou seja a tela inteira que se ve sem rolar. Cor que aparece em tudo
+    que se olha nao separa ninguem de ninguem; e a mesma familia do alarme que
+    acende sem haver problema.
+
+    Fica o vermelho, que hoje e UMA pessoa. A gradacao dos demais vive na
+    barra colorida da coluna do 2o periodo, que ja diz 8/12 em ambar."""
+    assert "tr.fim2 td{background:var(--red-100)}" in html
+    i = html.index("const est = (!x.agendado && m>=9)")
+    assert html[i:i + 60].startswith("const est = (!x.agendado && m>=9) ? 'fim2' : ''")
+
+
+def test_quem_JA_AGENDOU_nao_recebe_destaque(html):
+    """O problema dele resolveu. Destacar mesmo assim faria a cor deixar de
+    significar "precisa de acao"."""
+    i = html.index("const est = (!x.agendado && m>=9)")
+    assert "!x.agendado" in html[i:i + 60]
+
+
+def test_so_a_EXCECAO_leva_selo_no_nome(html):
+    """O selo "2o periodo avancado" era verdadeiro e inutil: a barra da coluna
+    ao lado ja diz 8/12 em ambar, e o selo repetia isso QUEBRANDO PARA UMA
+    SEGUNDA LINHA em cinco das sete primeiras -- engordando a tabela sem
+    acrescentar nada. Ficam os dois que sao excecao de verdade."""
+    assert "2º avançado</span>" not in html
+    assert "2º período avançado</span>" not in html
+    assert "fecha o 2º</span>" in html
+    assert "já agendado</span>" in html
+
+
+def test_o_destaque_usa_TOKEN_e_nao_fallback_de_variavel_inexistente(html):
+    """`var(--red-50, #fdf2f0)` parece token e e literal disfarcado: se
+    `--red-50` nao existe, as regras caem no fallback -- cor certa por acidente
+    no claro e errada no escuro. E a forma mais silenciosa de hard-code."""
+    for token in ("--yellow-100", "--red-100"):
+        # definido nos TRES blocos: :root, prefers-color-scheme e [data-theme]
+        assert html.count(token + ":") == 3, token
+
+
+# ── busca dentro da fila ────────────────────────────────────────────────────
+#
+# O DEFEITO QUE ISTO CONSERTA E DE USO, nao de dado: um usuario perguntou por
+# uma colaboradora e nao a encontrou na tela. Ela ESTAVA la -- posicao 40 de
+# 65, visivel, com o prazo certo (239 dias, 2o periodo fechando em 27/04/2027).
+# A tela mostrava a resposta e nao tinha como levar ate ela.
+def test_a_fila_tem_busca_propria(html):
+    """O filtro de colaborador da barra de cima recorta a tela INTEIRA para uma
+    pessoa; este acha a linha SEM perder a fila de vista. Sao perguntas
+    diferentes -- a segunda e a de quem esta numa reuniao e ouve "e a fulana?"."""
+    assert 'id="fFerBusca"' in html
+    assert 'oninput="ferFilaFiltrar()"' in html
+    assert "function ferFilaFiltrar()" in html
+
+
+def test_a_busca_filtra_no_DOM_e_nao_no_servidor(html):
+    """Os dados ja estao na tela. Uma viagem ao Oracle para esconder linha
+    seria lentidao sem ganho nenhum."""
+    i = html.index("function ferFilaFiltrar()")
+    corpo = html[i:i + 1200]
+    assert "fetch(" not in corpo
+    assert "tr.hidden" in corpo
+
+
+def test_a_busca_sem_resultado_DIZ_que_nao_achou(html):
+    """Linhas escondidas sem explicacao se leem como fila vazia -- e "fila
+    vazia" sobre uma pessoa real e a conclusao errada. A frase ainda diz onde
+    mais procurar."""
+    i = html.index("function ferFilaFiltrar()")
+    corpo = html[i:i + 1200]
+    assert "nenhum dos " in corpo and "sem direito adquirido" in corpo
+
+
+def test_a_busca_SOBREVIVE_a_recarga_da_fila(html):
+    """A fila e redesenhada a cada carga. Sem reaplicar, o recorte some sozinho
+    e quem estava olhando uma pessoa volta para as 65 sem ter pedido."""
+    i = html.index("ninguém na fila neste recorte")
+    assert "ferFilaFiltrar();" in html[i:i + 400]
+
+
+def test_a_busca_NAO_conta_a_linha_de_estado_vazio(html):
+    """`<td colspan>` e a linha de "ninguem na fila". Conta-la faria a busca
+    dizer "1 de 1" numa fila vazia."""
+    i = html.index("function ferFilaFiltrar()")
+    assert "td[colspan]" in html[i:i + 1200]
+
+
+def test_o_hint_ORIGINAL_volta_quando_a_busca_e_limpa(html):
+    """Sem guardar o texto, apagar a busca deixaria o hint mostrando para
+    sempre a contagem de uma busca que nao existe mais."""
+    assert "hF.dataset.original" in html
+    i = html.index("function ferFilaFiltrar()")
+    assert "dataset.original" in html[i:i + 1200]

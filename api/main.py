@@ -3004,15 +3004,18 @@ def operacional_poligonos(de: str = "", ate: str = "",
 
 
 @app.get("/api/rh/ferias")
-def rh_ferias(dias: int = 90, filial: str = "") -> JSONResponse:
+def rh_ferias(dias: int = 90, filial: str = "", chapa: str = "") -> JSONResponse:
     """Vencimento de ferias pela regra da CLT (aquisitivo + 12 meses = dobra).
 
     Devolve NOME e CHAPA pela mesma razao da tela de CNH: ninguem agenda as
     ferias de "um funcionario". Salario, CPF e dado bancario ficam fora.
+
+    `chapa` recorta um colaborador. E a chapa, e nao o nome: nome se repete,
+    muda com casamento e chega com o espacamento que o ERP gravou.
     """
     from api.queries_folha import get_ferias
     try:
-        return JSONResponse(get_ferias(dias=dias, filial=filial))
+        return JSONResponse(get_ferias(dias=dias, filial=filial, chapa=chapa))
     except Exception as exc:  # noqa: BLE001
         log.warning("rh_ferias falhou: %s", exc)
         return JSONResponse(status_code=503, content={
@@ -3021,7 +3024,8 @@ def rh_ferias(dias: int = 90, filial: str = "") -> JSONResponse:
 
 
 @app.get("/api/rh/ferias/custo")
-def rh_ferias_custo(meses: int = 12, filial: str = "") -> JSONResponse:
+def rh_ferias_custo(dt_de: str = "", dt_ate: str = "", filial: str = "",
+                    chapa: str = "") -> JSONResponse:
     """Custo de ferias: o realizado na ficha e o passivo ainda nao gozado.
 
     Rota MAIS ESPECIFICA que /api/rh/ferias, e o `ROTA_TELAS` casa por
@@ -3033,7 +3037,8 @@ def rh_ferias_custo(meses: int = 12, filial: str = "") -> JSONResponse:
     """
     from api.rh.ferias_custo import get_ferias_custo
     try:
-        return JSONResponse(get_ferias_custo(meses=meses, filial=filial))
+        return JSONResponse(get_ferias_custo(
+            dt_de=dt_de, dt_ate=dt_ate, filial=filial, chapa=chapa))
     except Exception as exc:  # noqa: BLE001
         log.warning("rh_ferias_custo falhou: %s", exc)
         return JSONResponse(status_code=503, content={

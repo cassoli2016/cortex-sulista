@@ -630,9 +630,9 @@ _FER_MESES_2O = ("FLOOR(MONTHS_BETWEEN(TRUNC(SYSDATE), fe.proxaquifinfer))")
 _FER_SEM_AGENDA = "(fe.gozofinfer IS NULL OR fe.gozofinfer < TRUNC(SYSDATE))"
 
 
-def get_ferias(dias: int = 90, filial: str = "") -> dict:
+def get_ferias(dias: int = 90, filial: str = "", chapa: str = "") -> dict:
     """Vencimento de férias dos funcionários ativos. `dias` é o horizonte do
-    alerta de dobra."""
+    alerta de dobra; `chapa` recorta um colaborador."""
     dias = max(7, min(365, int(dias or 90)))
     p = {"emp": EMPRESA, "dias": dias, "absurdo": _FER_LIMITE_ABSURDO_DIAS}
 
@@ -640,6 +640,14 @@ def get_ferias(dias: int = 90, filial: str = "") -> dict:
     if filial:
         filtro = " AND vf.descsecao = :filial"
         p["filial"] = filial
+    # A CHAPA, e não o nome. Nome se repete, muda com casamento e chega da tela
+    # com o espaçamento que o ERP gravou; a chapa é a identidade que a folha
+    # usa. `TRIM` dos dois lados porque `chapafunc` vem com espaço à esquerda
+    # nesta base — comparar sem ele devolve zero linha e a tela fica vazia sem
+    # nenhum erro, que é a aparência exata de "esta pessoa não tem férias".
+    if chapa:
+        filtro += " AND TRIM(vf.chapafunc) = TRIM(:chapa)"
+        p["chapa"] = chapa.strip()
 
     # `absurdo` marca a ficha parada; ela sai de TODOS os contadores de risco.
     sano = f"{_FER_LIM} >= TRUNC(SYSDATE) - :absurdo"
@@ -801,10 +809,24 @@ def get_ferias(dias: int = 90, filial: str = "") -> dict:
                   {_FER_BASE} {filtro}""", p)[0]
     duplicadas = int(dup["linhas"] or 0) - int(dup["pessoas"] or 0)
 
+    # LISTA DO SELETOR DE COLABORADOR. Respeita a UNIDADE e ignora a CHAPA de
+    # propósito: filtrada por ela, a lista ficaria com um nome só e trocar de
+    # pessoa exigiria limpar o campo primeiro — o seletor se fecharia sobre a
+    # própria escolha.
+    p_lista = {k: v for k, v in p.items() if k != "chapa"}
+    filtro_lista = filtro.replace(
+        " AND TRIM(vf.chapafunc) = TRIM(:chapa)", "")
+    colaboradores = [{"nome": r["nome"], "chapa": (r["chapa"] or "").strip(),
+                      "filial": r["filial"]}
+                     for r in _qb(f"""
+        SELECT vf.nomefunc nome, vf.chapafunc chapa, vf.descsecao filial
+        {_FER_BASE} {filtro_lista} ORDER BY vf.nomefunc""", p_lista)]
+
     n = tot["ativos"] or 0
     return {
         "dias": dias,
-        "filtros": {"filial": filial},
+        "colaboradores": colaboradores,
+        "filtros": {"filial": filial, "chapa": chapa},
         "filiais": [x["filial"] for x in por_filial],
         "agenda_mensal": agenda_mensal,
         "duplicadas": duplicadas,

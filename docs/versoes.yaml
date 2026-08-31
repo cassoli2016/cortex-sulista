@@ -1,3 +1,64 @@
+- versao: "0.182.0"
+  data: "2026-08-31"
+  adicionado:
+    - >-
+      Filtro por COLABORADOR na tela de Férias: digite o nome (a lista sugere os
+      191 ativos, com a chapa ao lado para separar homônimos) e a tela inteira
+      passa a falar de uma pessoa só — fila, agenda, custo e passivo. Nome que
+      não existe no cadastro devolve uma frase dizendo isso, e não uma tela
+      vazia que se leria como "esta pessoa não tem férias".
+    - >-
+      Filtro de PERÍODO por datas, com presets (3, 6, 12 e 24 meses, ano
+      corrente e próximos 6 meses) e campos De/Até para qualquer recorte.
+      Digitar data muda o rótulo para "Personalizado", porque um rótulo que
+      continuasse dizendo "últimos 12 meses" mentiria sobre o recorte.
+    - >-
+      Cartão e tabela de FÉRIAS AGENDADAS: o custo do que já tem data marcada e
+      ainda não entrou na folha, quebrado por mês de início. São R$ 56.615 em 20
+      pessoas e 341 dias — e a nota abaixo diz que isso cobre 7,6% do passivo
+      provisionado, ou seja, 92% do que se deve ainda não tem data. É a única
+      fatia do passivo que dá para pôr num fluxo de caixa, porque é a que tem mês.
+    - >-
+      A fila de agendamento mostra quanto do SEGUNDO período já correu, em barra
+      colorida de 0 a 12 meses, e destaca em vermelho quem está na reta final
+      (9 meses ou mais) sem data marcada — hoje, uma pessoa. Quem já agendou
+      aparece com o selo "já agendado".
+    - >-
+      Busca dentro da fila de agendamento. São 65 linhas rolando no card, e
+      quem procurava uma pessoa específica não a encontrava mesmo com ela na
+      tela. A busca filtra as linhas na hora, diz quantas casaram e, quando não
+      acha ninguém, explica onde mais procurar em vez de deixar a fila
+      aparentemente vazia.
+  alterado:
+    - >-
+      O cartão "Exposição à dobra" virou o subtítulo do "Pago em DOBRO", que é o
+      par natural: R$ 12.154 já pagos e R$ 70.905 em jogo em 12 pessoas. Quem
+      lia só os R$ 12 mil concluía que o assunto era pequeno, sem ver que há
+      seis vezes isso em risco nos próximos seis meses.
+    - >-
+      O passivo por unidade ganhou um selo dizendo "foto de hoje · ignora o
+      período". Ele obedece à unidade e ao colaborador, mas não às datas —
+      recortá-lo por um intervalo passado devolveria um número que não significa
+      nada.
+  corrigido:
+    - >-
+      Os campos da barra de filtros estavam desalinhados: as caixas de texto e
+      de data mediam 42 pixels e as de seleção 34, e como a barra alinha pelo
+      rodapé a diferença subia para o topo, deixando metade dos rótulos oito
+      pixels acima da outra metade. Valia para Férias, Milk run e Polígonos.
+      Já havia uma regra escrita para igualar isso, e ela funcionava só nos
+      campos de seleção — agora há um teste que mede a altura no navegador em
+      vez de procurar a regra no arquivo.
+    - >-
+      A média dos meses fechados aparecia no gráfico de custo com treze casas
+      decimais. O ECharts imprime o número cru quando o gráfico não diz como
+      formatá-lo; agora os dois gráficos da tela formatam o próprio conteúdo, e
+      a média é arredondada antes de entrar no desenho.
+    - >-
+      O gráfico de custo mostrava 12 meses enquanto o total somava 13 — R$
+      95.607 ficavam fora do desenho sem que nada indicasse. O eixo passou a ser
+      gerado a partir das datas do filtro, e a soma das barras fecha com o
+      cartão.
 - versao: "0.181.0"
   data: "2026-08-31"
   adicionado:

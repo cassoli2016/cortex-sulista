@@ -495,8 +495,25 @@ svg:focus-visible{outline:2px solid var(--orange-500);outline-offset:2px;border-
   border-radius:8px;font:inherit;font-size:13px;min-width:0}
 /* MESMA CAIXA PARA TODO TIPO. Cada `type` de input tem box-model proprio no
    Chrome: date media 33px de altura e search 37px, lado a lado na mesma linha.
-   Como a barra alinha pelo FUNDO, os fundos batiam e os topos nao. */
-.milk-filtros input, .milk-filtros select{box-sizing:border-box;height:34px;min-height:0}
+   Como a barra alinha pelo FUNDO, os fundos batiam e os topos nao.
+
+   OS TRES `:not()` NAO SAO ENFEITE: SAO ESPECIFICIDADE, e sem eles esta regra
+   PERDIA metade da propria briga. A regra global de formulario
+   (`.view input:not([type=checkbox]):not([type=radio]):not([type=file])`, la
+   em cima) impoe `min-height:42px` e pontua (0,4,1). O seletor curto
+   `.milk-filtros input` pontua (0,1,1) e perde — entao o `height:34px` era
+   aplicado e o `min-height:42px` o sobrepunha, deixando o input em 42.
+   No SELECT a global pontua (0,1,1), empata, e a ordem no arquivo decide a
+   favor desta — por isso os selects mediam 34 e os inputs 42, lado a lado.
+
+   O sintoma era o rotulo de metade dos campos oito pixels acima do da outra
+   metade: a barra alinha pelo FUNDO, entao a diferenca de altura sobe para o
+   topo. Vale hoje para tres telas — Ferias, Milk run e Poligonos.
+
+   E a licao ja escrita nesta casa: ler o texto do CSS nao diz se a regra
+   chegou. So o navegador responde isso, e ha teste que pergunta a ele. */
+.milk-filtros input:not([type=checkbox]):not([type=radio]):not([type=file]),
+.milk-filtros select{box-sizing:border-box;height:34px;min-height:34px}
 .milk-filtros input[type=search]{-webkit-appearance:none;appearance:none}
 .milk-filtros input:focus{outline:2px solid var(--orange-500);outline-offset:-1px}
 .milk-filtros button{align-self:flex-end}
@@ -568,6 +585,14 @@ tr:last-child td{border-bottom:0}
    vermelho. Pintar a linha inteira forte competiria com ela e cansaria numa
    lista longa. */
 tr.cp-recusada td{background:var(--red-50,#fdf2f0)}
+/* SEGUNDO PERÍODO DE FÉRIAS, por ESTÁGIO. Todos na fila estão no segundo — é o
+   que ter direito adquirido significa —, então pintar todos não separaria
+   ninguém. O que separa é o quanto dele já correu: passada a metade a janela
+   para encaixar 30 dias de ausência começa a apertar; na reta final, o
+   próximo passo é a dobra. Fundo leve pela mesma razão da linha recusada: a
+   coluna já carrega a cor, e a linha inteira forte cansaria numa lista de 65. */
+tr.meio2 td{background:var(--yellow-100)}
+tr.fim2 td{background:var(--red-100)}
 /* linhas expansíveis (fornecedores → OCs) */
 tr.forn-row{cursor:pointer}
 tr.forn-row:hover td{background:var(--navy-50)}
@@ -4187,7 +4212,20 @@ body.tvfull #btnReport,body.tvmode #btnReport{display:none}
           <div class="head"><h2>Filtros <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="Funcionários ATIVOS do GLOBUS (situação A em vw_funcionarios, a mesma base do Headcount). Diferente da tela de CNH, aqui o dado é completo: há ficha de férias para todos os ativos. Tudo nesta tela obedece a estes filtros, inclusive o custo.">i</span></h2>
             <span class="hint" id="hintFer"></span></div>
           <div class="milk-filtros">
-            <label>Unidade<select id="fFerFilial" onchange="loadFerias()" aria-label="Unidade"><option value="">Todas</option></select></label>
+            <label>Unidade<select id="fFerFilial" onchange="ferFilialTrocou()" aria-label="Unidade"><option value="">Todas</option></select></label>
+            <label>Colaborador<input id="fFerPessoa" list="ferPessoas" placeholder="todos" autocomplete="off"
+                   onchange="loadFerias()" aria-label="Colaborador"><datalist id="ferPessoas"></datalist></label>
+            <label>Período<select id="fFerPreset" onchange="ferPresetAplicar()" aria-label="Período">
+              <option value="3">Últimos 3 meses</option>
+              <option value="6">Últimos 6 meses</option>
+              <option value="12" selected>Últimos 12 meses</option>
+              <option value="24">Últimos 24 meses</option>
+              <option value="ano">Ano corrente</option>
+              <option value="f6">Próximos 6 meses</option>
+              <option value="">Personalizado</option>
+            </select></label>
+            <label>De<input type="date" id="fFerDe" onchange="ferDataDigitada()" aria-label="Data inicial"></label>
+            <label>Até<input type="date" id="fFerAte" onchange="ferDataDigitada()" aria-label="Data final"></label>
             <label>Horizonte do alerta<select id="fFerDias" onchange="loadFerias()" aria-label="Horizonte">
               <option value="30">30 dias</option>
               <option value="60">60 dias</option>
@@ -4207,10 +4245,13 @@ body.tvfull #btnReport,body.tvmode #btnReport{display:none}
           <div class="card">
             <div class="head"><h2>O que chega em cada mês <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="Duas populações DIFERENTES, e é a diferença entre elas que faz a leitura. GANHAM DIREITO é quem fecha um período aquisitivo naquele mês — trabalho novo chegando à fila. VÃO PARA DOBRA é quem JÁ tem direito vencido hoje e chega ao limite legal naquele mês; como o segundo período aquisitivo dura os mesmos 12 meses do período concessivo, essa é a data exata em que a pessoa passa a ter DOIS períodos na mão, o primeiro deles em dobro. As duas séries não se somam: uma é entrada de trabalho, a outra é prazo vencendo.">i</span></h2>
               <span class="hint" id="hintFerMes"></span></div>
-            <div id="chartFerAgenda" style="width:100%;height:230px"></div>
+            <div id="chartFerAgenda" style="width:100%;height:210px"></div>
           </div>
           <div class="card">
             <div class="head"><h2>Fila de agendamento <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="Quem JÁ completou um período aquisitivo e ainda não gozou, ordenado pelo limite legal — fim do aquisitivo mais 12 meses. Como o segundo período aquisitivo começa no dia seguinte ao fim do primeiro e dura 12 meses, esse limite é também a data em que o SEGUNDO fecha: quem não gozar o primeiro até lá fica com dois períodos, e paga o primeiro em DOBRO (art. 137 da CLT). Quem ainda está no aquisitivo não entra: não há o que agendar, e misturá-los faria a fila começar por quem não é problema de ninguém.">i</span></h2>
+              <input type="search" id="fFerBusca" placeholder="achar na fila…" autocomplete="off"
+                     aria-label="Buscar na fila" oninput="ferFilaFiltrar()"
+                     style="margin-left:auto;max-width:190px;padding:5px 9px;border:1px solid var(--n300);border-radius:8px;font-size:12.5px">
               <span class="hint" id="hintFerFila"></span></div>
             <div class="tablewrap tabroll"><table><thead><tr>
               <th>Funcionário</th><th>Chapa</th><th>Unidade</th><th>Função</th>
@@ -4225,14 +4266,8 @@ body.tvfull #btnReport,body.tvmode #btnReport{display:none}
           <div class="kpis k4" id="kpis-fercusto"></div>
           <div class="card">
             <div class="head"><h2>Custo de férias por competência <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="O que a folha PAGOU, somando os eventos de provento que nomeiam férias na ficha financeira (flp_fichaeventos): férias normais, proporcionais, indenizadas na rescisão, abono pecuniário, o terço constitucional de cada uma e a dobra. Não é estimativa. Ficam de fora os eventos de BASE (base de IRRF, de INSS), que somariam a mesma férias três vezes, e os DESCONTOS, que saem do líquido do empregado e não do custo do empregador. O mês corrente sai hachurado: a competência ainda está aberta.">i</span></h2>
-              <select id="fFerMeses" aria-label="Janela do custo" onchange="loadFeriasCusto(1)" style="margin-left:auto"
-                      title="Janela do custo REALIZADO. Não afeta o passivo provisionado, que é sempre a foto de hoje.">
-                <option value="6">Últimos 6 meses</option>
-                <option value="12" selected>Últimos 12 meses</option>
-                <option value="24">Últimos 24 meses</option>
-              </select>
-              <span class="hint" id="hintFerCustoSerie"></span></div>
-            <div id="chartFerCusto" style="width:100%;height:210px"></div>
+              <span class="hint" id="hintFerCustoSerie" style="margin-left:auto"></span></div>
+            <div id="chartFerCusto" style="width:100%;height:160px"></div>
           </div>
           <div class="grid2">
             <div class="card">
@@ -4241,16 +4276,24 @@ body.tvfull #btnReport,body.tvmode #btnReport{display:none}
               <div class="tablewrap tabroll"><table><thead><tr>
                 <th>Natureza</th><th class="num">Lançamentos</th><th class="num">Valor</th><th class="num">%</th>
               </tr></thead><tbody id="fer-naturezas"></tbody></table></div>
-              <div class="hint" id="fer-cinza" style="margin-top:8px"></div>
+              <div class="hint" id="fer-cinza" style="margin:8px 18px 16px"></div>
             </div>
             <div class="card">
-              <div class="head"><h2>Passivo por unidade <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="ESTIMATIVA, não lançamento contábil. Para cada ativo: 30 dias pelo período aquisitivo já fechado e não gozado, mais 2,5 dias por mês completo do período em curso (art. 130), tudo sobre o SALÁRIO BASE, acrescido do terço constitucional e de 8% de FGTS. O INSS patronal NÃO entra: a alíquota depende do enquadramento e há eventos de SIMPLES nesta folha, então estimá-lo somaria milhões inventados. A base é o salário base, e a folha real ainda paga médias de hora extra e adicional noturno por cima — o quanto isso subestima está medido no cartão “Passivo provisionado”.">i</span></h2>
+              <div class="head"><h2>Férias agendadas — o que ainda vai sair <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="O custo do que JÁ TEM DATA marcada e ainda não entrou na folha: dias de gozo (fim menos início, mais um) sobre o salário base, com o terço constitucional e FGTS. É a única fatia do passivo que dá para pôr num fluxo de caixa, porque é a que tem mês. Inclui quem já está de férias hoje — o dinheiro dessas ainda não saiu inteiro. Não confundir com o passivo ao lado: aquele é tudo que se deve, inclusive de quem não tem data nenhuma.">i</span></h2>
+                <span class="hint" id="hintFerAgend"></span></div>
+              <div class="tablewrap tabroll"><table><thead><tr>
+                <th>Mês de início</th><th class="num">Pessoas</th><th class="num">Dias</th><th class="num">Custo previsto</th>
+              </tr></thead><tbody id="fer-agendadas"></tbody></table></div>
+              <div class="hint" id="fer-agend-nota" style="margin:8px 18px 16px"></div>
+            </div>
+          </div>
+          <div class="card">
+              <div class="head"><h2>Passivo por unidade <span class="badge b-info" id="fer-prov-selo" title="O passivo é o que se deve HOJE. Recortá-lo por um intervalo passado devolveria um número que não significa nada — o que se devia em março já foi pago ou virou o de hoje. Ele obedece a unidade e ao colaborador, mas não ao período.">foto de hoje · ignora o período</span> <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="ESTIMATIVA, não lançamento contábil. Para cada ativo: 30 dias pelo período aquisitivo já fechado e não gozado, mais 2,5 dias por mês completo do período em curso (art. 130), tudo sobre o SALÁRIO BASE, acrescido do terço constitucional e de 8% de FGTS. O INSS patronal NÃO entra: a alíquota depende do enquadramento e há eventos de SIMPLES nesta folha, então estimá-lo somaria milhões inventados. A base é o salário base, e a folha real ainda paga médias de hora extra e adicional noturno por cima — o quanto isso subestima está medido no cartão “Passivo provisionado”.">i</span></h2>
                 <span class="hint" id="hintFerProv"></span></div>
               <div class="tablewrap tabroll"><table><thead><tr>
                 <th>Unidade</th><th class="num">Pessoas</th><th class="num">Com vencido</th>
                 <th class="num">Vencido</th><th class="num">Avos</th><th class="num">Total c/ FGTS</th>
               </tr></thead><tbody id="fer-provisao"></tbody></table></div>
-            </div>
           </div>
         </div>
 
@@ -15006,6 +15049,61 @@ function renderPeople(d){
   }
 }
 
+/* PERÍODO DA TELA DE FÉRIAS.
+   O preset PREENCHE as datas; digitar data volta o rótulo para "Personalizado"
+   — é o mesmo contrato do `fEmiPreset` do grupo de emissão, e existe pela mesma
+   razão: um rótulo que continuasse dizendo "Últimos 12 meses" sobre um
+   intervalo digitado à mão mentiria sobre o recorte.
+
+   Há um preset que olha para FRENTE ("Próximos 6 meses") porque esta tela tem
+   uma série futura: as férias já agendadas. Sem ele, o único jeito de ver o
+   custo do que está marcado seria digitar as duas datas na mão. */
+function _ferISO(d){ /* horário LOCAL: `toISOString()` em UTC−3 volta um dia */
+  return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')
+        +'-'+String(d.getDate()).padStart(2,'0');
+}
+function ferPresetAplicar(){
+  const v=(document.getElementById('fFerPreset')||{}).value;
+  if(v===''){ loadFerias(); return; }          // "Personalizado": mantém as datas
+  const hoje=new Date();
+  let de, ate=hoje;
+  if(v==='ano') de=new Date(hoje.getFullYear(),0,1);
+  else if(v==='f6'){ de=new Date(hoje.getFullYear(),hoje.getMonth(),1);
+                     ate=new Date(hoje.getFullYear(),hoje.getMonth()+6,0); }
+  else { de=new Date(hoje.getFullYear(),hoje.getMonth()-(+v-1),1); }
+  const eDe=document.getElementById('fFerDe'), eAte=document.getElementById('fFerAte');
+  if(eDe) eDe.value=_ferISO(de);
+  if(eAte) eAte.value=_ferISO(ate);
+  loadFerias();
+}
+/* Digitar data é escolher "Personalizado". Sem isto o select continuaria
+   afirmando um recorte que não é mais o da tela. */
+function ferDataDigitada(){
+  const s=document.getElementById('fFerPreset'); if(s) s.value='';
+  loadFerias();
+}
+/* Trocar de UNIDADE limpa o colaborador: a lista de nomes é recarregada pela
+   unidade nova, e um nome de outra filial deixaria a tela vazia sem dizer por
+   quê — o filtro invisível seria o que sobrou do clique anterior. */
+function ferFilialTrocou(){
+  const p=document.getElementById('fFerPessoa'); if(p) p.value='';
+  loadFerias();
+}
+/* Da caixa de texto para a CHAPA. O `<datalist>` entrega o texto escolhido, e
+   o servidor filtra por chapa — nome se repete e muda com casamento. Texto que
+   não casa nenhum nome vira busca vazia DECLARADA (`chapa` inexistente), nunca
+   filtro ignorado em silêncio: ignorá-lo mostraria a tela inteira com o nome
+   de uma pessoa escrito no campo. */
+function ferChapaDoCampo(){
+  const e=document.getElementById('fFerPessoa'); if(!e) return '';
+  const t=(e.value||'').trim(); if(!t) return '';
+  const m=(FER_PESSOAS||[]).find(x => x.rotulo===t)
+       || (FER_PESSOAS||[]).find(x => x.nome===t)
+       || (FER_PESSOAS||[]).find(x => x.chapa===t);
+  return m ? m.chapa : ' sem-correspondencia';
+}
+let FER_PESSOAS=[];
+
 async function loadFerias(fundo){
   skelKpis('kpis-ferias',4);
   const seq=++ferSeq, btn=document.getElementById('btnRefresh'); if(btn) btn.disabled=true;
@@ -15015,6 +15113,7 @@ async function loadFerias(fundo){
     const p=new URLSearchParams();
     p.set('dias', V('fFerDias')||'90');
     if(V('fFerFilial')) p.set('filial', V('fFerFilial'));
+    const _ch=ferChapaDoCampo(); if(_ch) p.set('chapa', _ch);
     const r=await fetch('/api/rh/ferias?'+p.toString(),
       {cache:'no-store', headers: fundo?{'X-Carga-Fundo':'1'}:{}});
     const d=await r.json(); if(seq!==ferSeq) return;
@@ -15041,6 +15140,35 @@ function renderFerias(d){
     fs.innerHTML='<option value="">Todas</option>'+
       (d.filiais||[]).map(f=>`<option value="${esc(f)}">${esc(f)}</option>`).join('');
     if((d.filtros||{}).filial) fs.value=d.filtros.filial;
+  }
+
+  /* O rótulo do datalist leva a CHAPA junto: há homônimos numa base de 191, e
+     duas linhas com o mesmo texto no `<datalist>` são indistinguíveis para
+     quem escolhe — e depois para o código, que casaria sempre a primeira. */
+  FER_PESSOAS=(d.colaboradores||[]).map(x =>
+    ({...x, rotulo: x.nome + (x.chapa ? ' · ' + x.chapa : '')}));
+  const dl=document.getElementById('ferPessoas');
+  if(dl) dl.innerHTML=FER_PESSOAS.map(x =>
+    `<option value="${esc(x.rotulo)}"></option>`).join('');
+
+  /* As datas do período nascem preenchidas pelo preset padrão. Sem isto, os
+     campos abrem vazios e o card de custo diz "últimos 12 meses" sem que a
+     tela mostre quais são — o rótulo afirmaria um recorte invisível. */
+  const eDe=document.getElementById('fFerDe');
+  if(eDe && !eDe.value){
+    const s=document.getElementById('fFerPreset');
+    const hoje=new Date();
+    const v=(s && s.value) || '12';
+    if(v!=='' ){
+      let de, ate=hoje;
+      if(v==='ano') de=new Date(hoje.getFullYear(),0,1);
+      else if(v==='f6'){ de=new Date(hoje.getFullYear(),hoje.getMonth(),1);
+                         ate=new Date(hoje.getFullYear(),hoje.getMonth()+6,0); }
+      else de=new Date(hoje.getFullYear(),hoje.getMonth()-(+v-1),1);
+      eDe.value=_ferISO(de);
+      const eAte=document.getElementById('fFerAte');
+      if(eAte && !eAte.value) eAte.value=_ferISO(ate);
+    }
   }
 
   document.getElementById('kpis-ferias').innerHTML=[
@@ -15071,9 +15199,14 @@ function renderFerias(d){
   // -------- fila de agendamento
   const F=d.fila||[];
   const semAg=F.filter(x=>!x.agendado).length;
-  document.getElementById('hintFerFila').textContent =
-    F.length ? (F.length+' já no 2º período · '+semAg+' sem data marcada · ordenados pelo prazo')
-             : 'ninguém com período aquisitivo completo neste recorte';
+  const hF=document.getElementById('hintFerFila');
+  /* GUARDA O TEXTO ORIGINAL. A busca sobrescreve o hint com a contagem do
+     recorte; sem esta cópia, apagar a busca deixaria o hint mostrando para
+     sempre o resultado de uma busca que não existe mais. */
+  hF.dataset.original = F.length
+    ? (F.length+' já no 2º período · '+semAg+' sem data marcada · ordenados pelo prazo')
+    : 'ninguém com período aquisitivo completo neste recorte';
+  hF.textContent = hF.dataset.original;
   document.getElementById('fer-fila').innerHTML = F.map(x=>{
     const cor = x.estado==='dobra'||x.estado==='critica' ? 'var(--red)'
               : x.estado==='atencao' ? 'var(--yellow-700)' : 'var(--n700)';
@@ -15083,8 +15216,22 @@ function renderFerias(d){
        nada sem o 12 ao lado, e é o quanto FALTA que decide o agendamento. */
     const m=x.meses_2o||0, pc=Math.round(m/12*100);
     const cm = m>=9 ? 'var(--red)' : m>=6 ? 'var(--yellow-700)' : 'var(--n500)';
-    return `<tr>
-      <td>${esc(x.nome)}${x.agendado?'<span class="fer-agora">já agendado</span>':''}</td>
+    /* DESTAQUE DE LINHA para quem está FECHANDO o segundo período. Todos nesta
+       fila estão no segundo — é o que ter direito adquirido significa —, então
+       pintar todos não separaria ninguém de ninguém. O que separa é o ESTÁGIO:
+       passou da metade (âmbar) e entrou na reta final (vermelho), que é quando
+       encaixar 30 dias de ausência deixa de caber com folga na escala.
+       Quem já tem data marcada não recebe destaque: o problema dele resolveu. */
+    const est = (!x.agendado && m>=9) ? 'fim2' : '';
+    return `<tr class="${est}">
+      ${/* SÓ A EXCEÇÃO LEVA SELO. O "2º avançado" era verdadeiro e inútil: a
+            barra colorida da coluna ao lado já diz 8/12 em âmbar, e o selo
+            repetia isso quebrando para uma segunda linha em cinco das sete
+            primeiras — engordando a tabela para não acrescentar nada. Fica o
+            que é exceção de verdade: a reta final e quem já resolveu. */''}
+      <td>${esc(x.nome)}${x.agendado
+        ?'<span class="fer-agora">já agendado</span>'
+        : m>=9 ? '<span class="badge b-dang" style="margin-left:6px">fecha o 2º</span>' : ''}</td>
       <td style="font-family:var(--mono);font-size:12px">${esc(x.chapa)}</td>
       <td>${esc(x.filial||'—')}</td>
       <td style="color:var(--n500);font-size:12.5px">${esc(x.funcao||'—')}</td>
@@ -15097,6 +15244,10 @@ function renderFerias(d){
       <td class="num" style="font-weight:700;color:${cor}">${prazo}</td>
     </tr>`;
   }).join('') || '<tr><td colspan="8" style="color:var(--n500)">ninguém na fila neste recorte</td></tr>';
+  /* A fila foi redesenhada: reaplica a busca que já estava digitada, senão o
+     recorte some sozinho a cada recarga e quem estava olhando uma pessoa volta
+     para as 65 sem ter pedido. */
+  ferFilaFiltrar();
 
   chartFerAgenda(d.agenda_mensal||[]);
 
@@ -15195,10 +15346,54 @@ function renderFerias(d){
   }
 
   const rec=[];
-  if((d.filtros||{}).filial) rec.push(d.filtros.filial);
+  const ft=d.filtros||{};
+  if(ft.filial) rec.push(ft.filial);
+  if(ft.chapa){
+    const m=(FER_PESSOAS||[]).find(x=>x.chapa===ft.chapa);
+    rec.push(m ? m.nome : ('chapa '+ft.chapa));
+  }
   rec.push('alerta em '+dias+' dias');
-  document.getElementById('hintFer').textContent =
-    rec.join(' · ')+' — '+(k.ativos||0)+' funcionário(s) ativo(s)';
+  /* CHAPA PEDIDA E NENHUM ATIVO É COISA DIFERENTE DE "TODOS OS FILTROS
+     VAZIOS". Sem esta frase, digitar um nome que não existe no cadastro
+     devolve a tela zerada e ela se lê como "esta pessoa não tem férias" — que
+     é a conclusão errada sobre uma pessoa real. */
+  const semNinguem = (k.ativos||0)===0 && ft.chapa;
+  document.getElementById('hintFer').textContent = semNinguem
+    ? (rec.join(' · ')+' — ninguém ativo com essa identificação. Escolha um nome da lista.')
+    : (rec.join(' · ')+' — '+(k.ativos||0)+' funcionário(s) ativo(s)');
+}
+
+/* BUSCA DENTRO DA FILA.
+   Sessenta e cinco linhas rolando dentro do card, e quem procura uma pessoa
+   pela qual acabou de ser perguntado não a encontra — foi exatamente o que
+   aconteceu: a pessoa estava na posição 40, visível, e a tela não tinha como
+   levar até ela.
+
+   Isto NÃO substitui o filtro de colaborador da barra de cima, e a diferença é
+   de pergunta: aquele recorta a tela INTEIRA para uma pessoa (custo, passivo,
+   agenda); este acha a linha SEM perder a fila de vista, que é o que se quer
+   quando alguém pergunta "e a fulana, como está?" no meio de uma reunião.
+
+   O filtro é no DOM e não no servidor: os dados já estão na tela, e uma
+   viagem ao Oracle para esconder linha seria lentidão sem ganho. O contador
+   diz quantas sobraram, senão uma busca sem resultado se lê como fila vazia. */
+function ferFilaFiltrar(){
+  const e=document.getElementById('fFerBusca');
+  const q=((e&&e.value)||'').trim().toLowerCase();
+  const corpo=document.getElementById('fer-fila'); if(!corpo) return;
+  let vis=0, tot=0;
+  Array.from(corpo.rows).forEach(tr => {
+    if(tr.querySelector('td[colspan]')) return;    // linha de estado vazio
+    tot++;
+    const casa = !q || tr.textContent.toLowerCase().includes(q);
+    tr.hidden = !casa;
+    if(casa) vis++;
+  });
+  const h=document.getElementById('hintFerFila');
+  if(h && q) h.textContent = vis
+    ? (vis+' de '+tot+' na fila casam "'+q+'"')
+    : ('nenhum dos '+tot+' na fila casa "'+q+'" — ela pode estar sem direito adquirido ainda, ou em outra unidade');
+  else if(h) h.textContent = h.dataset.original || '';
 }
 
 /* AGENDA DOS PRÓXIMOS 12 MESES.
@@ -15223,6 +15418,21 @@ function chartFerAgenda(mensal){
     const max=Math.max(1, ...mensal.map(x=>Math.max(x.ganham||0, x.dobram||0)));
     const o=ecOpcoes(rot, max*1.15, {tipo:'contagem', sombra:true, left:44, bottom:44,
       legenda:['Ganham direito','Chegam ao limite (dobra)']});
+    /* SEM FORMATTER, O ECHARTS IMPRIME O NÚMERO CRU no tooltip. Numa contagem
+       isso passa despercebido; num valor em reais sai
+       "152284.51833333333", que foi exatamente o que apareceu no gráfico de
+       custo ao lado. O formatter fica nos dois pela mesma razão de sempre:
+       regra aplicada a um só volta no próximo. */
+    o.tooltip.formatter = ps => {
+      const r=mensal[ps[0].dataIndex];
+      return '<b>'+esc(rot[ps[0].dataIndex])+'</b>'
+        +'<br><span style="color:'+CC.navy400+'">&#9632;</span> Fecham período: <b>'
+        +(r.ganham||0)+'</b>'
+        +'<br><span style="color:'+CC.red+'">&#9632;</span> Chegam ao limite: <b>'
+        +(r.dobram||0)+'</b>'
+        +(r.dobram ? '<br><span style="color:'+CC.n500+';font-size:11.5px">'
+                     +'é a data em que o 2º período fecha</span>' : '');
+    };
     o.series=[
       ecBarras('Ganham direito', mensal.map(x=>x.ganham||0), CC.navy400, {largura:16}),
       ecBarras('Chegam ao limite (dobra)', mensal.map(x=>x.dobram||0), CC.red, {largura:16}),
@@ -15242,14 +15452,17 @@ function ferCustoInvalidar(){ FERCUSTO=null; ferCustoChave=''; }
 
 async function loadFeriasCusto(force){
   const V=id=>{const e=document.getElementById(id);return e?e.value.trim():'';};
-  const meses=V('fFerMeses')||'12', fil=V('fFerFilial');
-  const chave=meses+'|'+fil;
+  const de=V('fFerDe'), ate=V('fFerAte'), fil=V('fFerFilial'), ch=ferChapaDoCampo();
+  const chave=de+'|'+ate+'|'+fil+'|'+ch;
   if(!force && FERCUSTO && ferCustoChave===chave){ renderFeriasCusto(FERCUSTO); return; }
   skelKpis('kpis-fercusto',4);
   const seq=++ferCustoSeq;
   try{
-    const p=new URLSearchParams(); p.set('meses', meses);
+    const p=new URLSearchParams();
+    if(de) p.set('dt_de', de);
+    if(ate) p.set('dt_ate', ate);
     if(fil) p.set('filial', fil);
+    if(ch) p.set('chapa', ch);
     const r=await fetch('/api/rh/ferias/custo?'+p.toString(), {cache:'no-store'});
     /* `respostaJSON` devolve {ok, dados} — NÃO o payload. Tratar o retorno
        como o corpo faz `d.kpis` virar undefined: os quatro cartões saem com
@@ -15273,26 +15486,37 @@ function renderFeriasCusto(d){
         'em '+meses+' meses · '+BRL.format(k.medio_mes||0)+'/mês',
         '',
         'O que a folha PAGOU de férias na ficha financeira, somando férias normais, proporcionais, indenizadas na rescisão, abono pecuniário, o terço constitucional de cada uma e a dobra. Não é estimativa nem provisão: é lançamento. Ficam de fora os eventos de BASE de cálculo, que somariam a mesma férias três vezes, e os descontos, que saem do líquido do empregado.'),
+    /* O PASSADO E O FUTURO DO MESMO ASSUNTO NO MESMO CARTÃO. Separados, a
+       exposição virava um quinto KPI numa banda de quatro — e, pior, quem
+       lesse "R$ 12 mil pagos em dobro" concluiria que o assunto é pequeno,
+       sem ver que há seis vezes isso em jogo nos próximos seis meses. */
     kpi('Pago em DOBRO', BRL.format(k.dobra_paga||0),
-        (k.dobra_lanc||0)+' lançamento(s) no período',
+        (k.dobra_lanc||0)+' lançamento(s) no período'
+        +((k.exposicao||0)>0
+          ? ' · '+BRL.format(k.exposicao)+' em jogo ('+(k.exposicao_n||0)+' pessoas)'
+          : ''),
         (k.dobra_paga||0)>0?'neg':'pos',
-        'Art. 137 da CLT: férias concedidas depois do período concessivo são pagas em dobro. Este é o único balde inteiramente EVITÁVEL da tela — e ele existe, o que desmente a leitura de que a dobra é hipótese. O indicador de dobra da aba de risco pode ler zero ao mesmo tempo, e os dois estão certos: aquele mede o estado de hoje, este mede o que já foi pago e quitado.'),
+        'Art. 137 da CLT: férias concedidas depois do período concessivo são pagas em dobro. Este é o único balde inteiramente EVITÁVEL da tela — e ele existe, o que desmente a leitura de que a dobra é hipótese. O indicador de dobra da aba de risco pode ler zero ao mesmo tempo, e os dois estão certos: aquele mede o estado de hoje, este mede o que já foi pago e quitado. "Em jogo" é a EXPOSIÇÃO: quem já tem direito vencido e chega ao limite dentro de 180 dias, contado como UMA vez o período — a dobra paga duas, mas a outra teria de ser paga de qualquer jeito, então o evitável é a diferença. Não é previsão de que vá acontecer: é quanto está em risco se nada for agendado.'),
+    kpi('Férias agendadas', BRL.format(k.agendado||0),
+        (k.agendado_n||0)+' pessoa(s) · '+(k.agendado_dias||0)+' dias marcados',
+        (k.agendado_n||0)>0?'':'warn',
+        'O custo do que JÁ TEM DATA e ainda não entrou na folha — a única fatia do passivo que dá para pôr num fluxo de caixa, porque é a que tem mês. Dias de gozo (fim menos início, mais um) sobre o salário base, com terço e FGTS. Inclui quem está de férias hoje: o dinheiro dessas ainda não saiu inteiro. Este cartão é sempre de HOJE em diante e não segue o filtro de período — a tabela ao lado mostra em que mês cada parcela cai.'),
     kpi('Passivo provisionado', BRL.format(k.provisao||0),
         BRL.format(k.prov_vencido||0)+' vencido + '+BRL.format(k.prov_avos||0)+' em avos',
         (k.prov_vencido||0)>0?'warn':'',
         'ESTIMATIVA. Para cada ativo: 30 dias pelo período aquisitivo já fechado e não gozado, mais 2,5 dias por mês completo do período em curso (art. 130), sobre o SALÁRIO BASE, com o terço constitucional e '+(k.fgts_pct||8)+'% de FGTS. O INSS patronal não entra — a alíquota depende do enquadramento e há eventos de SIMPLES nesta folha, então estimá-lo somaria milhões inventados.'
         +(fat?(' Medido no realizado, a folha paga '+fat.toLocaleString('pt-BR',{minimumFractionDigits:2})+'x o que o salário base sozinho daria, porque ela ainda inclui as médias de hora extra e adicional noturno: o passivo real é MAIOR que este número, e sempre para o mesmo lado.'):'')),
-    kpi('Exposição à dobra', BRL.format(k.exposicao||0),
-        (k.exposicao_n||0)+' pessoa(s) com prazo em até 180 dias',
-        (k.exposicao||0)>0?'warn':'pos',
-        'O custo EVITÁVEL: a dobra paga o período duas vezes, então o que se perde por não agendar é UMA vez o período — a outra teria de ser paga de qualquer jeito. Conta quem já tem direito vencido e chega ao limite dentro de 180 dias, sobre o salário base com terço e FGTS. Não é previsão de que vá acontecer: é quanto está em jogo se nada for agendado.'),
   ].join('');
 
   // -------- série mensal
   const S=d.serie||[];
   const hs=document.getElementById('hintFerCustoSerie');
-  const mesAtual=new Date().toISOString().slice(0,7);
-  if(hs) hs.textContent = S.length ? ('competência · média '+BRL.format(k.medio_mes||0)+'/mês') : '';
+  const mesAtual=_ferISO(new Date()).slice(0,7);
+  const per=d.periodo||{};
+  if(hs) hs.textContent = S.length
+    ? (fmtD(per.de)+' a '+fmtD(per.ate)+' · '+meses+' competência(s) · média '
+       +BRL.format(k.medio_mes||0)+'/mês')
+    : '';
   if(!S.length){ ecDesenhar('chartFerCusto', null, 'sem lançamento de férias no período'); }
   else ecDesenhar('chartFerCusto', () => {
     const rot=S.map(x=>x.comp.slice(5)+'/'+x.comp.slice(2,4)), val=S.map(x=>x.valor||0);
@@ -15301,9 +15525,25 @@ function renderFeriasCusto(d){
        regra mais antiga dos painéis desta casa. */
     const parcial=S.map(x=>x.comp===mesAtual);
     const fechados=val.filter((_,i)=>!parcial[i]);
-    const med=fechados.length?fechados.reduce((a,b)=>a+b,0)/fechados.length:0;
+    /* ARREDONDA A MÉDIA. Sem isto ela entra na `option` como
+       140570.33461538462 e o tooltip do ECharts — que imprime o número cru
+       quando não há formatter — a mostra inteira, com treze casas decimais
+       num valor em reais. Arredondar aqui E formatar o tooltip abaixo: o
+       primeiro conserta o dado, o segundo conserta todo valor que passe por
+       ali depois. */
+    const med=fechados.length
+      ? Math.round(fechados.reduce((a,b)=>a+b,0)/fechados.length) : 0;
     const max=Math.max(1, ...val);
     const o=ecOpcoes(rot, max*1.12, {tipo:'moeda', sombra:true, bottom:26});
+    o.tooltip.formatter = ps => {
+      const i=ps[0].dataIndex;
+      return '<b>'+esc(rot[i])+'</b>'
+        +(parcial[i] ? ' <span style="color:var(--yellow-700)">competência aberta</span>' : '')
+        +'<br><span style="color:'+CC.navy500+'">&#9632;</span> Custo: <b>'
+        +BRL.format(val[i])+'</b>'
+        +'<br><span style="color:'+CC.n500+'">&#9632;</span> Média dos fechados: '
+        +BRL.format(med);
+    };
     o.series=[
       ecBarras('Custo de férias', val, CC.navy500, {parcial:parcial, largura:26}),
       ecLinha('Média dos meses fechados', val.map(()=>med), CC.n500,
@@ -15339,6 +15579,29 @@ function renderFeriasCusto(d){
          + (C.com_ferias||0) + ' deles (' + (C.pct||0).toLocaleString('pt-BR',{minimumFractionDigits:1,maximumFractionDigits:1})
          + '%) caem numa competência em que a mesma pessoa recebeu férias, o que é indício e não prova. '
          + 'Somá-lo afirmaria o que a fonte não diz.')
+      : '';
+  }
+
+  // -------- férias agendadas
+  const AG=d.agendadas||{}, AM=AG.por_mes||[];
+  document.getElementById('hintFerAgend').textContent =
+    (AG.n||0) ? ((AG.n||0)+' com data marcada · '+(AG.dias||0)+' dias · de hoje em diante')
+              : 'ninguém com data de férias marcada';
+  document.getElementById('fer-agendadas').innerHTML = AM.map(x=>`<tr>
+      <td style="font-family:var(--mono);font-size:12px">${esc(x.mes.slice(5)+'/'+x.mes.slice(2,4))}</td>
+      <td class="num">${x.n}</td>
+      <td class="num" style="color:var(--n500)">${x.dias}</td>
+      <td class="num" style="font-weight:600">${BRL.format(x.custo)}</td>
+    </tr>`).join('') || '<tr><td colspan="4" style="color:var(--n500)">ninguém com data marcada</td></tr>';
+  /* O CONTRASTE QUE FAZ ESTE CARD DECIDIR ALGO: agendado contra passivo. Um
+     passivo de R$ 745 mil com R$ 57 mil marcados diz que 92% do que se deve
+     não tem data — e é isso, não o valor agendado sozinho, que manda agir. */
+  const en=document.getElementById('fer-agend-nota');
+  if(en){
+    const pv=(k.provisao||0), ag=(AG.custo||0);
+    en.textContent = pv>0
+      ? ('cobre '+(ag/pv*100).toLocaleString('pt-BR',{maximumFractionDigits:1})
+         +'% do passivo provisionado — o resto ainda não tem data')
       : '';
   }
 

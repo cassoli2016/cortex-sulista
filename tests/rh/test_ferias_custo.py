@@ -2,7 +2,7 @@
 """Custo de ferias: o que a folha PAGOU e o passivo que ainda nao gozaram.
 
 MEDIDO EM 31/08/2026 (12 meses, empresa 1):
-    realizado ......... R$ 1.827.414  (media R$ 152.285/mes)
+    realizado ......... R$ 1.731.807  (12 competencias, media R$ 144.317/mes)
     pago em DOBRO ..... R$    12.154  em 23 lancamentos
     passivo estimado .. R$   744.943  (322.743 vencido + 367.019 avos + FGTS)
     exposicao ......... R$    70.905  em 12 pessoas
@@ -68,6 +68,11 @@ def _falso(sql: str, params=None):
                 for f, p, cv, bv, ba, m in _PROVISAO]
     if "BETWEEN TRUNC(SYSDATE) - 365" in sql:
         return [{"n": 12, "base": 39832.0}]
+    if "no_periodo" in sql:
+        return [{"n": 20, "dias": 341, "base": 39316.17, "no_periodo": 7}]
+    if "GROUP BY TO_CHAR(fe.gozoinifer" in sql:
+        return [{"m": "2026-08", "n": 7, "dias": 110, "base": 13665.94},
+                {"m": "2026-09", "n": 13, "dias": 231, "base": 25650.23}]
     if "FROM flp_ferias fr" in sql:
         # 5.447 dias gozados; a base por dia foi montada para o fator dar 1,08,
         # que e o valor medido na base real.
@@ -78,7 +83,7 @@ def _falso(sql: str, params=None):
 @pytest.fixture()
 def custo(monkeypatch):
     monkeypatch.setattr(fc.db, "query", _falso)
-    return fc.get_ferias_custo(meses=3)
+    return fc.get_ferias_custo(dt_de="2026-06-01", dt_ate="2026-08-31")
 
 
 # ── a dobra: o balde que nao pode se esconder ───────────────────────────────
@@ -253,3 +258,78 @@ def test_o_curinga_nao_casa_nome_mais_CURTO_que_o_padrao():
     engano — "FERIAS" casaria "FERIAS NORMAIS"."""
     assert not fc._casa("FERIAS", "FERIAS NORMAIS")
     assert fc._casa("FERIAS NORMAIS 30D", "FERIAS NORMAIS")
+
+
+# ── o periodo por datas ─────────────────────────────────────────────────────
+def test_o_default_sao_DOZE_competencias_e_nao_treze():
+    """O preset "Ultimos 12 meses" da tela produz 12 competencias contando a
+    corrente. Recuar 12 meses cheios no servidor daria TREZE, e o cartao diria
+    "em 13 meses" sobre um filtro rotulado 12 -- dois recortes com o mesmo nome
+    sao o comeco de uma discussao sobre qual esta certo."""
+    import datetime as dt
+    de, ate = fc._periodo("", "")
+    hoje = dt.date.today()
+    assert ate == hoje.isoformat()
+    d = dt.date.fromisoformat(de)
+    assert d.day == 1
+    meses = (hoje.year - d.year) * 12 + (hoje.month - d.month) + 1
+    assert meses == 12, (de, ate, meses)
+
+
+def test_data_INVALIDA_e_descartada_e_nao_corrigida():
+    """`03/04` e marco ou abril? Adivinhar produz um recorte plausivel e
+    errado, que e a pior das saidas -- ninguem confere um intervalo que parece
+    certo. Entrada nao-ISO cai no default."""
+    de, ate = fc._periodo("03/04/2026", "31/12/2026")
+    padrao = fc._periodo("", "")
+    assert (de, ate) == padrao
+
+
+def test_intervalo_INVERTIDO_e_endireitado():
+    """Quem digita a data final no campo inicial nao recebe uma tela vazia: o
+    intervalo se corrige sozinho. Vazio ali se leria como "nao houve ferias"."""
+    assert fc._periodo("2026-08-31", "2026-06-01") == ("2026-06-01", "2026-08-31")
+
+
+# ── ferias agendadas: o custo que ainda vai sair ────────────────────────────
+def test_o_custo_agendado_conta_o_dia_de_INICIO():
+    """DIAS = fim menos inicio MAIS UM. Sem o `+1`, ferias de 30 dias viram 29:
+    erro de 3,3% em TODA linha -- pequeno o bastante para nunca chamar atencao
+    e grande o bastante para o numero nunca fechar com a folha.
+
+    ESTE E TESTE DE FONTE, e de proposito: a subtracao acontece DENTRO do SQL,
+    entao o duble -- que devolve o resultado pronto -- passaria com o `+1`
+    removido. Sabotar o modulo e ver os testes seguirem verdes foi o que
+    revelou a brecha. Onde a conta mora no banco, e o texto da conta que se
+    confere."""
+    from pathlib import Path as _P
+    fonte = _P(fc.__file__).read_text(encoding="utf-8")
+    assert 'ag_dias = "(fe.gozofinfer - fe.gozoinifer + 1)"' in fonte
+
+
+def test_o_agendado_soma_terco_e_FGTS(custo):
+    ag = custo["agendadas"]
+    assert ag["dias"] == 341 and ag["n"] == 20
+    assert ag["custo"] == pytest.approx(
+        39316.17 * fc.UM_TERCO * (1 + fc.FGTS), abs=0.05)
+
+
+def test_o_agendado_volta_QUEBRADO_POR_MES(custo):
+    """Um total de R$ 56 mil nao entra em fluxo de caixa nenhum: o que entra e
+    quanto cai em agosto e quanto cai em setembro."""
+    meses = {x["mes"]: x for x in custo["agendadas"]["por_mes"]}
+    assert set(meses) == {"2026-08", "2026-09"}
+    assert sum(x["custo"] for x in meses.values()) == pytest.approx(
+        custo["agendadas"]["custo"], abs=0.05)
+    assert sum(x["n"] for x in meses.values()) == custo["agendadas"]["n"]
+
+
+def test_o_agendado_NAO_e_recortado_pelo_periodo(custo):
+    """Ele e sempre de hoje em diante, e isso e dito no cartao. Recortado por um
+    filtro de 12 meses PASSADOS ele daria zero -- e "nenhuma ferias agendada" e
+    a leitura oposta da verdade quando ha vinte marcadas. O que o payload traz
+    e quantas caem DENTRO do recorte, para a tela poder dizer a diferenca."""
+    ag = custo["agendadas"]
+    assert ag["n"] == 20, "o total ignora o periodo"
+    assert ag["no_periodo"] == 7, "e o recorte volta separado, para ser dito"
+    assert ag["no_periodo"] <= ag["n"]

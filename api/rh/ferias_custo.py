@@ -64,7 +64,18 @@ AVO = DIAS_PERIODO / 12.0    # 2,5 dias por mês trabalhado
 
 
 def _q(sql: str, params: dict | None = None) -> list[dict]:
-    return db.query(sql, params or {})
+    """Roda passando SÓ os binds que aparecem no SQL.
+
+    O Oracle recusa bind SOBRANDO com `ORA-01036: illegal variable name/number`
+    — e as consultas deste módulo compartilham um dicionário só (empresa,
+    datas, unidade, chapa) do qual cada uma usa um subconjunto diferente. É o
+    mesmo `_qb` de `queries_folha`, pela mesma razão: sem ele, acrescentar um
+    filtro quebra as consultas que não o usam, e o erro aponta para a consulta
+    inocente que veio depois."""
+    import re as _re
+    p = params or {}
+    usados = set(_re.findall(r":(\w+)", sql))
+    return db.query(sql, {k: v for k, v in p.items() if k in usados})
 
 
 def _f(v) -> float:
@@ -157,10 +168,51 @@ def natureza(desc: str) -> str:
     return "Outras rubricas de férias"
 
 
-def get_ferias_custo(meses: int = 12, filial: str = "") -> dict:
-    """Custo de férias: realizado na ficha + provisão do que não foi gozado."""
-    meses = max(3, min(24, int(meses or 12)))
-    p = {"emp": EMPRESA, "meses": meses}
+def _periodo(dt_de: str, dt_ate: str) -> tuple[str, str]:
+    """Normaliza o intervalo. Sem datas, os últimos 12 meses fechados mais o
+    corrente — o recorte que a tela abria antes de o filtro existir.
+
+    As datas chegam em ISO (YYYY-MM-DD) e voltam assim. Qualquer coisa que não
+    seja ISO é DESCARTADA em vez de corrigida: adivinhar se `03/04` é março ou
+    abril produz um recorte plausível e errado, que é a pior das saídas."""
+    import datetime as _dt
+
+    def _ok(s: str) -> str:
+        try:
+            return _dt.date.fromisoformat((s or "").strip()).isoformat()
+        except ValueError:
+            return ""
+
+    de, ate = _ok(dt_de), _ok(dt_ate)
+    if not de or not ate:
+        hoje = _dt.date.today()
+        ate = ate or hoje.isoformat()
+        # DOZE COMPETÊNCIAS, contando a corrente — o mesmo que o preset
+        # "Últimos 12 meses" da tela produz. Recuar 12 meses cheios daria
+        # TREZE, e o KPI diria "em 13 meses" sobre um filtro rotulado 12.
+        # Dois recortes com o mesmo nome é o começo de uma discussão sobre
+        # qual está certo.
+        ano, mes = hoje.year, hoje.month - 11
+        while mes <= 0:
+            ano, mes = ano - 1, mes + 12
+        de = de or _dt.date(ano, mes, 1).isoformat()
+    if de > ate:
+        de, ate = ate, de
+    return de, ate
+
+
+def get_ferias_custo(dt_de: str = "", dt_ate: str = "", filial: str = "",
+                     chapa: str = "") -> dict:
+    """Custo de férias: realizado na ficha + provisão + o que está agendado.
+
+    O intervalo recorta o que TEM data: o realizado pela competência da ficha e
+    as agendadas pela data de início do gozo. O passivo provisionado NÃO segue
+    o filtro, e não é omissão — ele é a foto do que se deve HOJE, e recortá-lo
+    por um intervalo passado devolveria um número que não significa nada. A
+    tela diz isso num selo, porque enterrar a ressalva no texto do ⓘ faz o
+    número parecer filtrado quando não é."""
+    de, ate = _periodo(dt_de, dt_ate)
+    p = {"emp": EMPRESA, "de": de, "ate": ate}
     filtro_ev = ""
     if filial:
         # A ficha financeira não carrega a unidade; ela vem do cadastro. Um
@@ -170,15 +222,29 @@ def get_ferias_custo(meses: int = 12, filial: str = "") -> dict:
                      " WHERE v2.codintfunc = ff.codintfunc"
                      " AND v2.descsecao = :filial)")
         p["filial"] = filial
+    if chapa:
+        filtro_ev += (" AND EXISTS (SELECT 1 FROM vw_funcionarios v3"
+                      " WHERE v3.codintfunc = ff.codintfunc"
+                      " AND TRIM(v3.chapafunc) = TRIM(:chapa))")
+        p["chapa"] = chapa.strip()
     filtro_fil = " AND vf.descsecao = :filial" if filial else ""
-    pf = {"emp": EMPRESA, **({"filial": filial} if filial else {})}
+    if chapa:
+        filtro_fil += " AND TRIM(vf.chapafunc) = TRIM(:chapa)"
+    pf = {"emp": EMPRESA, "de": de, "ate": ate,
+          **({"filial": filial} if filial else {}),
+          **({"chapa": chapa.strip()} if chapa else {})}
+
+    # `TRUNC(...,'MM')` no limite inferior: competência é MÊS, e um intervalo
+    # que comece dia 15 cortaria a competência inteira daquele mês fora, o que
+    # se leria como mês sem férias.
+    janela = ("ff.competficha >= TRUNC(TO_DATE(:de,'YYYY-MM-DD'),'MM')"
+              " AND ff.competficha <= TO_DATE(:ate,'YYYY-MM-DD')")
 
     linhas = _q(f"""
         SELECT fe.desceven ev, TO_CHAR(ff.competficha,'YYYY-MM') comp,
                COUNT(*) n, SUM(ff.valorficha) tot
         {_JOIN}
-        WHERE {_PROV} AND ({_FILTRO_NOMES})
-          AND ff.competficha >= ADD_MONTHS(TRUNC(SYSDATE,'MM'), -:meses)
+        WHERE {_PROV} AND ({_FILTRO_NOMES}) AND {janela}
           {filtro_ev}
         GROUP BY fe.desceven, TO_CHAR(ff.competficha,'YYYY-MM')""", p)
 
@@ -216,14 +282,19 @@ def get_ferias_custo(meses: int = 12, filial: str = "") -> dict:
     # desenhando continuidade sobre um buraco — a mesma armadilha que fez a
     # série da jornada ligar abril em agosto. Aqui a ausência é legítima e
     # vale ZERO, então ela precisa aparecer como zero.
-    comps = _q("""SELECT TO_CHAR(ADD_MONTHS(TRUNC(SYSDATE,'MM'), -LEVEL+1),
-                         'YYYY-MM') c FROM dual CONNECT BY LEVEL <= :meses""",
-               {"meses": meses})
+    comps = _q("""SELECT TO_CHAR(ADD_MONTHS(TRUNC(TO_DATE(:de,'YYYY-MM-DD'),'MM'),
+                                            LEVEL-1),'YYYY-MM') c
+                  FROM dual CONNECT BY LEVEL <=
+                    MONTHS_BETWEEN(TRUNC(TO_DATE(:ate,'YYYY-MM-DD'),'MM'),
+                                   TRUNC(TO_DATE(:de,'YYYY-MM-DD'),'MM')) + 1""",
+               {"de": de, "ate": ate})
     serie = [{"comp": c, "valor": _f(por_comp.get(c, 0.0))}
              for c in sorted(x["c"] for x in comps)]
+    n_meses = max(1, len(serie))
 
     # ── a zona cinzenta: evento cujo nome o ERP cortou ─────────────────────
-    cinza = _q("""
+    _cods = ",".join(str(c) for c in CINZA_CODS)
+    cinza = _q(f"""
         SELECT COUNT(*) n, SUM(ff.valorficha) tot,
                SUM(CASE WHEN EXISTS (
                      SELECT 1 FROM flp_fichaeventos f2
@@ -236,9 +307,7 @@ def get_ferias_custo(meses: int = 12, filial: str = "") -> dict:
         FROM flp_fichaeventos ff
         JOIN flp_funcionarios fu ON fu.codintfunc = ff.codintfunc
              AND fu.codigoempresa = :emp
-        WHERE ff.codevento IN ({}) {}
-          AND ff.competficha >= ADD_MONTHS(TRUNC(SYSDATE,'MM'), -:meses)"""
-        .format(",".join(str(c) for c in CINZA_CODS), filtro_ev), p)[0]
+        WHERE ff.codevento IN ({_cods}) {filtro_ev} AND {janela}""", p)[0]
     c_n, c_ok = int(cinza["n"] or 0), int(cinza["com_ferias"] or 0)
 
     # ── provisão: o passivo de quem ainda não gozou ────────────────────────
@@ -314,9 +383,9 @@ def get_ferias_custo(meses: int = 12, filial: str = "") -> dict:
         FROM flp_ferias fr
         JOIN vw_funcionarios vf ON vf.codintfunc = fr.codintfunc
         WHERE vf.codigoempresa = :emp AND fr.dtexclferias IS NULL
-          AND fr.gozoinifer >= ADD_MONTHS(TRUNC(SYSDATE,'MM'), -:meses)
+          AND fr.gozoinifer >= TRUNC(TO_DATE(:de,'YYYY-MM-DD'),'MM')
           AND fr.gozoinifer < TRUNC(SYSDATE,'MM')""",
-             {"emp": EMPRESA, "meses": meses})[0]
+             {"emp": EMPRESA, "de": de})[0]
     dias_gozo = float(fat["dias"] or 0)
     # O realizado comparável é SÓ o das férias efetivamente gozadas: rescisão,
     # proporcional e abono não têm dia de gozo e inflariam o numerador contra
@@ -325,14 +394,64 @@ def get_ferias_custo(meses: int = 12, filial: str = "") -> dict:
     est_gozo = float(fat["base_dia"] or 0) / DIAS_MES * UM_TERCO
     fator = round(real_gozo / est_gozo, 2) if est_gozo else None
 
+    # ── FÉRIAS AGENDADAS: o custo que ainda não entrou na folha ────────────
+    #
+    # A pergunta que nem o realizado nem a provisão respondem: quanto vai sair
+    # de caixa nos próximos meses por causa do que JÁ está marcado. O realizado
+    # é passado e a provisão é o passivo inteiro (inclusive de quem não tem
+    # data nenhuma); esta é a fatia com data, que é a única que dá para pôr num
+    # fluxo de caixa.
+    #
+    # DIAS = fim − início + 1. O `+ 1` não é detalhe: sem ele, férias de 30 dias
+    # viram 29, e o erro é de 3,3% em TODA linha — pequeno o bastante para
+    # nunca chamar atenção e grande o bastante para o número nunca fechar com
+    # a folha.
+    #
+    # `gozofinfer >= SYSDATE` inclui quem JÁ ESTÁ de férias hoje: o dinheiro
+    # dessas ainda não saiu inteiro, e excluí-las por já terem começado deixaria
+    # sete pessoas fora da conta do mês corrente.
+    ag_where = (f"""
+        FROM vw_ferias fe
+        JOIN vw_funcionarios vf ON vf.codintfunc = fe.codintfunc
+        WHERE vf.situacaofunc = 'A' AND vf.codigoempresa = :emp {filtro_fil}
+          AND fe.gozofinfer >= TRUNC(SYSDATE) AND fe.gozoinifer IS NOT NULL""")
+    ag_dias = "(fe.gozofinfer - fe.gozoinifer + 1)"
+    ag_tot = _q(f"""SELECT COUNT(*) n, SUM({ag_dias}) dias,
+                    SUM(vf.salbase / :dm * {ag_dias}) base,
+                    SUM(CASE WHEN fe.gozoinifer BETWEEN TO_DATE(:de,'YYYY-MM-DD')
+                                  AND TO_DATE(:ate,'YYYY-MM-DD')
+                             THEN 1 ELSE 0 END) no_periodo
+                    {ag_where}""", {**pf, "dm": DIAS_MES})[0]
+    ag_mes = [{"mes": r["m"], "n": int(r["n"] or 0), "dias": int(r["dias"] or 0),
+               "custo": _f(float(r["base"] or 0) * UM_TERCO * (1 + FGTS))}
+              for r in _q(f"""
+        SELECT TO_CHAR(fe.gozoinifer,'YYYY-MM') m, COUNT(*) n,
+               SUM({ag_dias}) dias, SUM(vf.salbase / :dm * {ag_dias}) base
+        {ag_where}
+        GROUP BY TO_CHAR(fe.gozoinifer,'YYYY-MM')
+        ORDER BY 1""", {**pf, "dm": DIAS_MES})]
+    ag_custo = float(ag_tot["base"] or 0) * UM_TERCO * (1 + FGTS)
+
     return {
-        "meses": meses,
-        "filtros": {"filial": filial},
+        "periodo": {"de": de, "ate": ate},
+        "meses": n_meses,
+        "filtros": {"filial": filial, "chapa": chapa,
+                    "dt_de": de, "dt_ate": ate},
+        "agendadas": {
+            "n": int(ag_tot["n"] or 0),
+            "dias": int(ag_tot["dias"] or 0),
+            "custo": _f(ag_custo),
+            "no_periodo": int(ag_tot["no_periodo"] or 0),
+            "por_mes": ag_mes,
+        },
         "kpis": {
             "realizado": _f(total),
             "dobra_paga": _f(dobra_d.get("valor", 0.0)),
             "dobra_lanc": int(dobra_d.get("n", 0)),
-            "medio_mes": _f(total / meses) if meses else 0.0,
+            "medio_mes": _f(total / n_meses),
+            "agendado": _f(ag_custo),
+            "agendado_n": int(ag_tot["n"] or 0),
+            "agendado_dias": int(ag_tot["dias"] or 0),
             "provisao": _f(pr_venc + pr_avos + pr_fgts),
             "prov_vencido": _f(pr_venc),
             "prov_avos": _f(pr_avos),
