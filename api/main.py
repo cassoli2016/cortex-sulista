@@ -2475,6 +2475,58 @@ def _telas_do_usuario(req: Request) -> tuple[int, set[str]]:
     return int(sess["id"]), auth.telas_favoritaveis(sess)
 
 
+@app.get("/api/notificacoes")
+def notificacoes_listar(req: Request) -> JSONResponse:
+    """As notificações do usuário logado — o que alimenta o sino.
+
+    Vale para TODO usuário autenticado, e por isso está em
+    `auth._ROTAS_SEM_TELA`: sem essa entrada o `AuthMiddleware` devolveria 403
+    para quem não é administrador, e o sino apareceria para todos funcionando
+    só para um — o defeito que o botão de report já teve.
+    """
+    from api import notificacoes
+    sess = getattr(req.state, "sessao", None)
+    if not sess:
+        return JSONResponse(status_code=401, content={
+            "erro": "nao_autenticado", "mensagem": "Faça login para continuar."})
+    try:
+        return JSONResponse(notificacoes.listar(sess))
+    except Exception as exc:  # noqa: BLE001
+        log.warning("notificacoes_listar: %s: %s", type(exc).__name__, exc)
+        # Sino é acessório: ele não pode derrubar a barra de topo, que segura o
+        # menu inteiro. Devolve vazio com a marca de falha e a tela se cala.
+        return JSONResponse({"itens": [], "nao_lidas": 0, "erro": True})
+
+
+@app.post("/api/notificacoes/lida")
+async def notificacoes_lida(req: Request) -> JSONResponse:
+    """Dispensa uma notificação. Idempotente.
+
+    Chave desconhecida é RECUSA (4xx), não erro do servidor: o CÓRTEX
+    funcionou e está dizendo não. E 5xx aqui seria pior que impreciso — o
+    Cloudflare troca o corpo das respostas 5xx da origem pela página de erro
+    dele, e a mensagem nunca chegaria à tela.
+    """
+    from api import notificacoes
+    sess = getattr(req.state, "sessao", None)
+    if not sess:
+        return JSONResponse(status_code=401, content={
+            "erro": "nao_autenticado", "mensagem": "Faça login para continuar."})
+    try:
+        corpo = await req.json()
+    except Exception:  # noqa: BLE001
+        corpo = {}
+    chave = str((corpo or {}).get("chave") or "").strip()
+    if not chave or not notificacoes.marcar_lida(sess["id"], chave):
+        return JSONResponse(status_code=HTTP_RECUSA, content={
+            "erro": "chave_desconhecida",
+            "mensagem": "Notificação desconhecida: %s." % (chave or "(vazia)")})
+    # Devolve a lista JÁ ATUALIZADA: sem isso a tela teria de fazer uma segunda
+    # chamada para saber o novo número do sino, e entre as duas ela mostraria
+    # um contador que não corresponde ao que está na tela.
+    return JSONResponse(notificacoes.listar(sess))
+
+
 @app.get("/api/favoritos")
 def favoritos_listar(req: Request) -> JSONResponse:
     """Os favoritos do usuário logado, já filtrados pelo que ele pode ver."""

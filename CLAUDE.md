@@ -535,6 +535,34 @@ a query ignora sai; dimensão que a query aceita e é a pergunta natural da tela
   começa no meio do mês: a primeira barra parecia despencar. A hachura marca os dois
   casos (`_corta(mes)` compara o mês com `dt_de`/`dt_ate`).
 
+**JOIN EM TABELA COM HISTÓRICO MULTIPLICA A LINHA — e o total inflado é
+PLAUSÍVEL (31/08/2026):**
+- `pracapedagio_valor` guarda uma linha POR VIGÊNCIA: 1.260 linhas para 934
+  praças, 298 com duas e 14 com três. Um `LEFT JOIN` direto nela multiplicou
+  cada travessia de pedágio pelo número de vigências da praça — **1,75x**,
+  medido. A tela publicou 23.284 travessias onde são 13.283 e R$ 49.720 de
+  diferença onde são R$ 30.581.
+- **O que torna esta família pior que a do join que não casa nada:** lá a
+  coluna vem ZERADA e alguém estranha. Aqui todos os números continuam
+  plausíveis, as proporções entre eles se mantêm (calculado e cobrado inflam
+  juntos) e o veredito da tela não muda. Só um segundo caminho para o mesmo
+  número denuncia — no caso, medir o confronto COM e SEM o join do veículo e
+  ver 13.283 contra 23.284.
+- **Tabela com `dtvigencia`, `dtinicio`, `versao` ou `_hist` no nome é
+  candidata.** Ela entra por subconsulta que devolve UMA linha por chave
+  (`DISTINCT ON (chave) … ORDER BY chave, data DESC NULLS LAST`), nunca por
+  join direto. O `NULLS LAST` não é enfeite: em `DESC` o Postgres põe `NULL`
+  primeiro, e a praça com uma linha sem data ganharia a tarifa sem vigência.
+- **E `max(a)` com `max(b)` são máximos INDEPENDENTES.** Pegar
+  `max(dtvigencia)` e `max(valorpedagioeixo)` no mesmo `GROUP BY` devolvia, em
+  28 praças, a data de uma linha com o preço de outra. Quando se quer "a linha
+  mais recente", é `DISTINCT ON`, não dois máximos.
+- O agravante: **o módulo já carregava a regra escrita**, aplicada ao join com
+  a administradora ("quando o total muda de ordem de grandeza ao ligar duas
+  tabelas, é o join"). Eu a apliquei num join e não no outro, no mesmo
+  arquivo. Regra escrita não se aplica sozinha — a conferência é contar as
+  linhas dos dois lados de CADA join novo.
+
 **Coluna zerada com KPI cheio = join quebrado (lição de Agregados e Terceiros):**
 - A coluna "Acertos" mostrava `0` e `R$ 0` nos 30 transportadores enquanto o KPI
   somava **794 acertos / R$ 22,9 mi**. Causa: `acertoviagemagregado.cnpjcpfcodigo` é

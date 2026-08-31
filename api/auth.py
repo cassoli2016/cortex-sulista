@@ -259,7 +259,7 @@ _ROTAS_AUTOSERVICO = ("/api/auth/me", "/api/auth/logout", "/api/auth/trocar-senh
 # PRÓPRIA foto: a lista de usuários e a auditoria mostram a foto de outras
 # pessoas, então o caminho carrega um id e precisa casar por prefixo.
 _ROTAS_SEM_TELA = ("/api/push/", "/api/report", "/api/auth/foto/",
-                   "/api/favoritos")
+                   "/api/favoritos", "/api/notificacoes")
 
 # Telas que EXISTEM no menu mas nao tem entrada em `TELAS`, porque o acesso a
 # elas e decidido de outro jeito:

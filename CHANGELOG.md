@@ -4,6 +4,21 @@ Gerado de `docs/versoes.yaml` por `scripts/gerar_changelog.py` — não editar �
 Formato [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/),
 versionamento [SemVer](https://semver.org/lang/pt-BR/).
 
+## [0.178.0] — 31/08/2026  ·  CX-31/08/2026-v0.178.0
+
+### Adicionado
+- Um sino de notificações ao lado da foto do perfil, com o número do que ainda não foi lido. Quem entra pela primeira vez encontra um boas-vindas: o que o painel é, onde ficam os grupos de tela, como fixar as favoritas e — a dica que economiza a primeira dúvida de todo mundo — que o ⓘ de cada cartão diz de onde o número sai.
+- O "já vi isso" fica no servidor, e não no navegador: a mensagem não volta a aparecer no celular, no outro computador nem depois de limpar o cache. E ela não é uma fila — é calculada a cada abertura, então usuário novo nunca depende de uma rotina ter rodado para receber.
+
+### Alterado
+- A barra de navegação do celular foi reestilizada: a aba em que você está agora tem fundo próprio, e não só uma cor de ícone diferente. O texto ficou um pouco maior, os toques ganharam área e um leve retorno visual, e a barra passou a ter sombra para se separar do conteúdo que rola atrás dela.
+- O "Mais" apontava para BAIXO e abre uma gaveta que sobe. Agora aponta para cima.
+- A barra de baixo tinha o texto claro no tema escuro e mais apagado no claro, embora ela seja escura nos dois. Agora é a mesma nos dois temas.
+
+### Corrigido
+- A barra de topo transbordava no celular: em uma tela de 390 pontos o conteúdo ocupava 450. O botão "Atualizar" saía cortado e o avatar ficava inteiro fora da tela. Agora cabe — o "Atualizar" fica só com o ícone, a tela cheia (que não serve num celular) sai, e a fonte com a hora do dado encolhe em vez de empurrar.
+- Os ícones de tema, favorito e tela cheia da barra de topo estavam com contraste de 2,5 para 1 sobre o fundo branco, abaixo do mínimo de 3 para 1 exigido de um controle. Foram escurecidos.
+
 ## [0.177.0] — 31/08/2026  ·  CX-31/08/2026-v0.177.0
 
 ### Adicionado

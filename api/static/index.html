@@ -680,15 +680,15 @@ body.painelfull .content{padding:16px 22px}
   color:var(--n500);display:inline-flex;line-height:0;box-shadow:var(--shadow);opacity:.35}
 #btnFullSair:hover,#btnFullSair:focus-visible{opacity:1;color:var(--n900)}
 #btnFull{background:none;border:0;cursor:pointer;padding:6px;border-radius:8px;
-        color:var(--n400);display:inline-flex;align-items:center;line-height:0}
+        color:var(--n500);display:inline-flex;align-items:center;line-height:0}
 #btnFull:hover{background:var(--n100);color:var(--n600)}
 #btnFull:focus-visible{outline:2px solid var(--orange-500);outline-offset:2px}
 #btnTema{background:none;border:0;cursor:pointer;padding:6px;border-radius:8px;
-        color:var(--n400);display:inline-flex;align-items:center;line-height:0}
+        color:var(--n500);display:inline-flex;align-items:center;line-height:0}
 #btnTema:hover{background:var(--n100);color:var(--n600)}
 #btnTema:focus-visible{outline:2px solid var(--orange-500);outline-offset:2px}
 #btnFav{background:none;border:0;cursor:pointer;padding:6px;border-radius:8px;
-        color:var(--n400);display:inline-flex;align-items:center;line-height:0}
+        color:var(--n500);display:inline-flex;align-items:center;line-height:0}
 #btnFav:hover{background:var(--n100);color:var(--n600)}
 #btnFav.on{color:var(--orange-500)}
 #btnFav.on .ic svg{fill:currentColor}
@@ -850,6 +850,26 @@ body.painelfull .content{padding:16px 22px}
   .topbar h1{font-size:17px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
   .topbar .emp{display:none}
   .topbar .avatar{display:none}
+  /* MEDIDO EM 390px: o conteudo da barra tinha 450px. `Atualizar` saia
+     cortado e o sino ficava inteiro fora da tela -- ou seja, a notificacao
+     era inalcancavel justamente no aparelho em que ela mais serve.
+     Tres ajustes, por ordem de quanto cada um devolve: */
+  /* 1. tela cheia nao serve num celular, que ja nao tem moldura de navegador
+        para esconder -- e a barra de baixo e a gaveta ja usam a tela toda */
+  .topbar #btnFull{display:none}
+  /* 2. o botao de atualizar fica so com o icone: o rotulo custava 58px e a
+        seta sozinha ja e entendida (e o `title` continua la) */
+  .topbar #btnRefresh{padding:7px 10px;gap:0}
+  .topbar #btnRefresh .rot{display:none}
+  /* 3. a fonte + hora ENCOLHE em vez de empurrar. Ela nao some: "todo painel
+        tem fonte do dado e timestamp" e regra da casa, e some-la para caber
+        seria trocar uma regra por outra. */
+  .meta{flex:0 1 auto;min-width:56px;overflow:hidden;
+    text-overflow:ellipsis;white-space:nowrap}
+  /* o sino FICA, e e o unico jeito de a pessoa saber que ha algo a ler */
+  .topbar .sinobtn{width:36px;height:36px}
+  .topbar .sinopanel{width:min(340px,calc(100vw - 20px));
+    right:-6px;top:calc(100% + 8px)}
   .meta{font-size:10px}
   button.btn{padding:8px 12px;font-size:12px}
   .content{padding:12px;gap:12px}
@@ -911,8 +931,34 @@ body.painelfull .content{padding:16px 22px}
     background:none;border:0;color:var(--navy-400);text-decoration:none;font-family:var(--font);
     font-size:10px;padding:6px 2px;border-radius:8px;min-height:48px;justify-content:center;cursor:pointer}
   .bottomnav .ic{width:22px;height:22px}
-  .bottomnav a.ativo,.bottomnav button.ativo{color:#fff}
+  /* A BARRA E ESCURA NOS DOIS TEMAS, como a lateral -- entao a cor do texto
+     dela NAO pode seguir um token que inverte. `--navy-400` dava 4,70:1 no
+     tema claro e 8,51:1 no escuro sobre o mesmo fundo: margem fina de um lado
+     e brilho diferente sem motivo. Branco com alfa e fixo, e o alfa mantem a
+     hierarquia sem depender de token nenhum. */
+  .bottomnav{background:var(--navy-900);
+    padding:5px 6px calc(5px + env(safe-area-inset-bottom));
+    border-top:1px solid rgba(255,255,255,.08);
+    box-shadow:0 -6px 20px rgba(0,0,0,.28)}
+  .bottomnav a,.bottomnav button{gap:4px;font-size:10.5px;font-weight:600;
+    letter-spacing:.01em;color:rgba(255,255,255,.62);padding:7px 2px 6px;
+    border-radius:12px;min-height:52px;position:relative;
+    -webkit-tap-highlight-color:transparent;transition:color .14s}
+  .bottomnav .ic{width:21px;height:21px;transition:transform .14s}
+  .bottomnav a:active,.bottomnav button:active{transform:scale(.94)}
+  /* O ATIVO PRECISA DE FORMA, nao so de cor: num relance a cor sozinha nao
+     diz em que aba se esta, e no escuro os dois tons ja sao claros. A pilula
+     e o que se le sem procurar. */
+  .bottomnav a.ativo,.bottomnav button.ativo{color:#fff;
+    background:rgba(255,255,255,.10)}
   .bottomnav a.ativo .ic,.bottomnav button.ativo .ic{color:var(--brand-claro)}
+  /* Quem pediu menos movimento nao ganha o `scale` nem a transicao. A regra
+     global do arquivo zera `animation-iteration-count`, que nao alcanca
+     `transition` nem `transform`. */
+  @media (prefers-reduced-motion:reduce){
+    .bottomnav a,.bottomnav button,.bottomnav .ic{transition:none}
+    .bottomnav a:active,.bottomnav button:active{transform:none}
+  }
   /* gaveta "mais" */
   .drawer.aberto{display:block;position:fixed;inset:0;z-index:70;background:rgba(11,25,38,.55)}
   .drawer .painel{position:absolute;bottom:0;left:0;right:0;background:var(--n0);
@@ -1265,6 +1311,56 @@ button.avatar{border:0;cursor:pointer}
 .avmenu>button{display:block;width:100%;text-align:left;border:0;background:none;cursor:pointer;
   padding:11px 15px;font:inherit;font-size:14px}
 .avmenu>button:hover{background:var(--n100,#f1f4f7)}
+/* SINO DE NOTIFICAÇÕES — ao lado da foto do perfil.
+   Tudo em token: regra de componente escrita dentro de `@media` ou de
+   `[data-theme]` não vale no estado "seguir o sistema", que é o padrão de
+   quem nunca escolheu tema, e o sintoma é texto de um tema sobre o fundo do
+   outro. */
+/* `--n0` E O TOKEN DA SUPERFICIE, nao da tinta -- e a barra de topo tem
+   `background:var(--n0)`. Pintar o icone com ele deu branco sobre branco no
+   tema claro: o sino existia, media 36px, respondia ao clique e era INVISIVEL.
+   Nenhuma medida de cor pegaria isso sozinha; o que pegou foi olhar o render.
+   A cor certa e a dos botoes vizinhos da mesma barra. */
+.sinobtn{position:relative;width:34px;height:34px;border:0;border-radius:8px;
+  background:transparent;cursor:pointer;display:flex;align-items:center;
+  justify-content:center;color:var(--n500);transition:color .12s,background .12s}
+.sinobtn:hover{color:var(--n700);background:var(--n100)}
+.sinobtn:focus-visible{outline:2px solid var(--orange-500);outline-offset:2px}
+.sinobtn .ic{width:19px;height:19px}
+/* O PONTO SÓ APARECE QUANDO HÁ ALGO. Zero fica em BRANCO, não em "0" — a
+   mesma regra do contador de sub-aba. Um "0" permanente ensina a ignorar o
+   sino, que é o oposto do que ele existe para fazer. */
+.sinobtn .pino{position:absolute;top:4px;right:4px;min-width:15px;height:15px;
+  padding:0 4px;border-radius:8px;background:var(--red);color:#fff;font-size:10px;
+  font-weight:700;line-height:15px;text-align:center;
+  box-shadow:0 0 0 2px var(--n0)}
+.sinobtn .pino:empty{display:none}
+.sinopanel{position:absolute;right:0;top:calc(100% + 10px);background:var(--n0);
+  border-radius:10px;box-shadow:0 12px 32px rgba(11,25,38,.25);display:none;
+  width:340px;max-width:calc(100vw - 24px);z-index:160;overflow:hidden;
+  border:1px solid var(--n200)}
+.sinopanel.aberto{display:block}
+.sinopanel .cab{display:flex;align-items:center;justify-content:space-between;
+  padding:11px 15px;border-bottom:1px solid var(--n200)}
+.sinopanel .cab b{font-size:13px;color:var(--n900)}
+.sinopanel .lista{max-height:340px;overflow-y:auto}
+.sinoitem{padding:13px 15px;border-bottom:1px solid var(--n100)}
+.sinoitem:last-child{border-bottom:0}
+.sinoitem h4{margin:0 0 5px;font-size:13.5px;color:var(--n900);font-weight:700}
+.sinoitem p{margin:0;font-size:12.5px;line-height:1.5;color:var(--n600)}
+.sinoitem .dica{margin-top:8px;padding:8px 10px;border-radius:6px;
+  background:var(--n50);border-left:3px solid var(--orange-500);
+  font-size:12px;line-height:1.45;color:var(--n700)}
+.sinoitem .acoes{display:flex;gap:9px;margin-top:11px}
+.sinoitem .acoes button{border:1px solid var(--n300);background:var(--n0);
+  color:var(--n700);border-radius:6px;padding:5px 11px;font-size:12px;
+  font-family:var(--font);cursor:pointer}
+.sinoitem .acoes button:hover{background:var(--n100)}
+.sinoitem .acoes button.pri{background:var(--orange-500);border-color:var(--orange-500);
+  color:#fff;font-weight:600}
+.sinoitem .acoes button.pri:hover{filter:brightness(1.06)}
+.sinovazio{padding:26px 18px;text-align:center;color:var(--n500);font-size:12.5px;
+  line-height:1.5}
 
 /* ---- foto de perfil ----
    O MESMO elemento serve com foto e sem: sem foto ficam as iniciais, que é o
@@ -2251,7 +2347,19 @@ body.tvfull #btnReport,body.tvmode #btnReport{display:none}
       <div class="spacer"></div>
       <div class="meta" id="meta"><span class="skeleton">carregando…</span></div>
       <button class="btn-filtros" id="btnFiltros" onclick="document.getElementById('filterbar').classList.toggle('aberto')">☰ Filtros</button>
-          <button class="btn" id="btnRefresh" onclick="reloadCurrent()"><span>↻</span> Atualizar</button>
+          <button class="btn" id="btnRefresh" onclick="reloadCurrent()" title="Atualizar"><span>↻</span><span class="rot">Atualizar</span></button>
+      <div class="avwrap" id="sinoWrap">
+        <button class="sinobtn" id="sinoBtn" onclick="sinoToggle(event)"
+                aria-haspopup="true" aria-expanded="false"
+                title="Notificações" aria-label="Notificações">
+          <span class="ic" data-ic="sino"></span><span class="pino" id="sinoPino"></span>
+        </button>
+        <div class="sinopanel" id="sinoPanel" role="dialog" aria-label="Notificações">
+          <div class="cab"><b>Notificações</b>
+            <span class="hint" id="sinoHint" style="font-size:11.5px"></span></div>
+          <div class="lista" id="sinoLista"></div>
+        </div>
+      </div>
       <div class="avwrap">
         <button class="avatar" id="avBtn" onclick="avMenuToggle(event)" title="Minha conta">–</button>
         <div class="avmenu" id="avMenu">
@@ -6276,6 +6384,9 @@ const ICONS = {
   sevCrit: IC('<path d="M12 3.5 2.5 20h19L12 3.5z"/><path d="M12 10v4"/><path d="M12 17.2v.1"/>'),
   sevWarn: IC('<circle cx="12" cy="12" r="9"/><path d="M12 8v4.5"/><path d="M12 16.2v.1"/>'),
   sevOk:  IC('<circle cx="12" cy="12" r="9"/><path d="M8.2 12.4l2.6 2.6 5-5.4"/>'),
+  /* O "Mais" abre uma gaveta que SOBE: um chevron para baixo prometia o
+     contrario, e afordance invertida e pior que afordance nenhuma. */
+  chevUp: IC('<path d="M6 15l6-6 6 6"/>'),
   sino: IC('<path d="M18 8a6 6 0 0 0-12 0c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.5 21a2 2 0 0 1-3 0"/>'),
   jornic: IC('<circle cx="12" cy="12" r="9"/><path d="M12 7.5V12l3 2"/>'),
   sinal: IC('<path d="M12 20v-5"/><circle cx="12" cy="12.5" r="1.8"/><path d="M8 16a5.5 5.5 0 0 1 0-7M16 16a5.5 5.5 0 0 0 0-7M5.5 18.5a9 9 0 0 1 0-12M18.5 18.5a9 9 0 0 0 0-12"/>'),
@@ -24164,7 +24275,7 @@ function entrar(){
     compDe.value=`${hj.getFullYear()}-01`;
     if(compAte && !compAte.value) compAte.value=`${hj.getFullYear()}-${String(hj.getMonth()+1).padStart(2,'0')}`;
   }
-  aplicarPermissoes(); avatarRender();
+  aplicarPermissoes(); avatarRender(); void sinoCarregar();
   if(!podeVer(currentView())) location.hash = '#'+primeiraTela();
   router();
   if(USER.deve_trocar_senha) abrirTrocarSenha(true);
@@ -24394,6 +24505,131 @@ document.addEventListener('click', e=>{
   if(m && m.classList.contains('aberto') && !m.contains(e.target) && e.target.id!=='avBtn') m.classList.remove('aberto');
 });
 async function sair(){ try{ await fetch('/api/auth/logout',{method:'POST'}); }catch(e){} location.reload(); }
+
+/* ---------------- Sino de notificações ----------------
+   O QUE VEM DO SERVIDOR é a lista já resolvida: a notificação é DERIVADA a
+   cada leitura e o que se grava é só o que a pessoa dispensou. Por isso não há
+   estado de "lidas" aqui — reimplementá-lo no cliente criaria duas verdades
+   sobre o que a pessoa já viu, com a descoberta acontecendo no dia em que ela
+   abrisse noutro navegador.
+
+   NÃO CONFUNDIR com `abrirNotificacoes()`, que é o push no CELULAR: aquilo
+   pede permissão ao navegador e assina um endpoint; isto é o que o CÓRTEX tem
+   a dizer dentro da própria tela. */
+let SINO = {itens: [], nao_lidas: 0};
+
+async function sinoCarregar(){
+  try{
+    const r = await fetch('/api/notificacoes', {cache:'no-store'});
+    /* `respostaJSON` é o padrão da casa: lê como TEXTO antes e distingue
+       "sessão expirou", "o proxy respondeu no lugar da API" e "erro interno",
+       que têm consertos diferentes. Um `try{await r.json()}catch{}` daria a
+       mesma frase para os três. */
+    const rr = await respostaJSON(r);
+    if(!rr.ok) return;
+    SINO = rr.dados || {itens: [], nao_lidas: 0};
+  }catch(e){
+    /* Sino é acessório e não pode derrubar a barra de topo, que segura o menu
+       inteiro. Falhar calado aqui é a degradação certa. */
+    return;
+  }
+  sinoPintar();
+}
+
+function sinoPintar(){
+  const pino = document.getElementById('sinoPino');
+  const n = SINO.nao_lidas || 0;
+  /* ZERO FICA EM BRANCO, não em "0" — a regra do contador de sub-aba. Um "0"
+     permanente no sino ensina a ignorá-lo, que é o oposto do que ele existe
+     para fazer. O CSS esconde `.pino:empty`. */
+  if(pino){
+    pino.textContent = n > 0 ? (n > 9 ? '9+' : String(n)) : '';
+    const btn = document.getElementById('sinoBtn');
+    if(btn) btn.setAttribute('aria-label',
+      n > 0 ? ('Notificações — ' + n + (n===1?' não lida':' não lidas')) : 'Notificações');
+  }
+  const hint = document.getElementById('sinoHint');
+  if(hint) hint.textContent = n > 0 ? (n + (n===1?' nova':' novas')) : '';
+
+  const lista = document.getElementById('sinoLista');
+  if(!lista) return;
+  const itens = SINO.itens || [];
+  lista.innerHTML = itens.length ? itens.map(x => {
+    /* `data-chave` com `esc()` em vez de interpolar a chave dentro do
+       `onclick`: `JSON.stringify` dentro de atributo fecha o atributo na
+       primeira aspa do valor, e o sintoma não é um link que não funciona — é
+       a página em branco. */
+    const acao = x.acao && x.acao.view
+      ? '<button class="pri" data-view="' + esc(x.acao.view) + '" data-chave="'
+        + esc(x.chave) + '" onclick="sinoIr(this.dataset.view, this.dataset.chave)">'
+        + esc(x.acao.rotulo || 'Abrir') + '</button>' : '';
+    return '<div class="sinoitem">'
+      + '<h4>' + esc(x.titulo || '') + '</h4>'
+      + '<p>' + esc(x.texto || '') + '</p>'
+      + (x.dica ? '<div class="dica">' + esc(x.dica) + '</div>' : '')
+      + '<div class="acoes">' + acao
+      + '<button data-chave="' + esc(x.chave) + '" '
+      + 'onclick="sinoDispensar(this.dataset.chave)">Dispensar</button>'
+      + '</div></div>';
+  }).join('')
+    /* O VAZIO DIZ O QUE ESPERAR, e não só "nada aqui": quem abre um sino
+       vazio precisa saber se ele está quebrado ou se de fato não há nada. */
+    : '<div class="sinovazio">Nenhuma notificação por enquanto.<br>'
+      + 'O que precisar da sua atenção aparece aqui.</div>';
+}
+
+function sinoToggle(ev){
+  ev.stopPropagation();
+  const p = document.getElementById('sinoPanel');
+  const b = document.getElementById('sinoBtn');
+  if(!p) return;
+  const abriu = !p.classList.contains('aberto');
+  p.classList.toggle('aberto', abriu);
+  if(b) b.setAttribute('aria-expanded', abriu ? 'true' : 'false');
+  /* O menu do avatar fecha junto: dois painéis abertos sobre o mesmo canto se
+     sobrepõem, e o de baixo fica inalcançável. */
+  const av = document.getElementById('avMenu');
+  if(abriu && av) av.classList.remove('aberto');
+}
+
+function sinoFechar(){
+  const p = document.getElementById('sinoPanel');
+  if(p) p.classList.remove('aberto');
+  const b = document.getElementById('sinoBtn');
+  if(b) b.setAttribute('aria-expanded', 'false');
+}
+
+async function sinoDispensar(chave){
+  if(!chave) return;
+  try{
+    const r = await fetch('/api/notificacoes/lida', {
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({chave: chave})});
+    const rr = await respostaJSON(r);
+    /* O SERVIDOR devolve a lista JÁ ATUALIZADA, então não há segunda chamada
+       nem contagem recalculada aqui — duas contas para o mesmo número são
+       duas contas que podem discordar. */
+    if(rr.ok && rr.dados) SINO = rr.dados;
+  }catch(e){ return; }
+  sinoPintar();
+  if(!(SINO.itens || []).length) sinoFechar();
+}
+
+function sinoIr(view, chave){
+  /* Ir para a tela é ATO DE LEITURA: quem clicou já viu. Mas a navegação NÃO
+     espera o POST — se ela ficasse dentro do `try` da dispensa, uma falha de
+     rede prenderia a pessoa no painel depois de ela pedir para sair dele. */
+  sinoDispensar(chave);
+  sinoFechar();
+  if(view) location.hash = '#' + view;
+}
+
+document.addEventListener('click', e=>{
+  const p = document.getElementById('sinoPanel');
+  if(p && p.classList.contains('aberto') && !p.contains(e.target)
+     && !e.target.closest('#sinoBtn')) sinoFechar();
+});
+document.addEventListener('keydown', e=>{ if(e.key === 'Escape') sinoFechar(); });
 
 /* ---------------- Modal genérico + troca de senha ---------------- */
 let _modalPrevFoco=null, _modalKeydown=null;
@@ -28969,7 +29205,7 @@ boot();
   <a href="#fluxo" data-bview="fluxo"><span class="ic" data-ic="flx"></span>Caixa</a>
   <a href="#torre" data-bview="torre"><span class="ic" data-ic="tor"></span>Torre</a>
   <a href="#cop" data-bview="cop"><span class="ic" data-ic="cop"></span>Copiloto</a>
-  <button id="btnMais" onclick="abrirDrawer()"><span class="ic" data-ic="chev"></span>Mais</button>
+  <button id="btnMais" onclick="abrirDrawer()"><span class="ic" data-ic="chevUp"></span>Mais</button>
 </nav>
 <div class="drawer" id="drawer" onclick="if(event.target===this)this.classList.remove('aberto')">
   <div class="painel">
