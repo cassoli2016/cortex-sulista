@@ -165,6 +165,11 @@ CAMPOS: dict[str, dict] = {
     # RasterJOR — jornada do motorista. A URL NÃO TEM PADRÃO de propósito:
     # adivinhar host de fornecedor no melhor caso dá 404 e no pior acerta o
     # endpoint de outra empresa. Sem ela a coleta recusa dizendo o que falta.
+    "SMARTEC_TOKEN": {
+        "rotulo": "Token de API",
+        "descricao": "Vai no CORPO de cada requisição, não em cabeçalho. "
+                     "Use um token próprio do CÓRTEX — reusar o do ERP "
+                     "amarra as duas coisas: revogar um derruba o outro"},
     "RASTERJOR_API_BASE_URL": {
         "rotulo": "URL base da API", "segredo": False,
         "descricao": "Endereço da API da RasterJOR, sem barra no fim",
@@ -312,6 +317,19 @@ SERVICOS: list[dict] = [
         "modos": [{"chave": "token", "rotulo": "Token de API",
                    "dica": "o mesmo token usado no portal da Gobrax",
                    "campos": ["GOBRAX_TOKEN"]}],
+        "ajustes": [],
+    },
+    {
+        "chave": "smartec",
+        "nome": "Smartec",
+        "resumo": "Infrações de trânsito (multas e notificações com valor, "
+                  "boleto e pontuação), autuações da ANTT, vencimento de "
+                  "licenças e do acesso ao SNE. O ERP já importa a infração "
+                  "por outro caminho, mas sem valor, sem boleto e sem baixa.",
+        "alimenta": "Smartec · Multas",
+        "modos": [{"chave": "token", "rotulo": "Token de API",
+                   "dica": "gerado no painel da Smartec, em /api/Token",
+                   "campos": ["SMARTEC_TOKEN"]}],
         "ajustes": [],
     },
     {

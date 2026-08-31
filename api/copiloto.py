@@ -91,6 +91,7 @@ _FONTES_ROTULO = {
     "combustivel_ano": "Combustível",
     "manutencao_ano": "Manutenção",
     "multas_ano": "Multas",
+    "smartec": "Smartec — Infrações e Licenças",
     "torre_seguranca": "Torre de Segurança",
     "estradas_transito": "Condição das estradas (TomTom)",
     "programacao_disponibilidade": "Programação Inteligente",
@@ -201,6 +202,38 @@ def _e_falha_de_banco(exc: Exception) -> bool:
     texto = f"{type(exc).__name__}: {exc}".lower()
     return any(m in texto for m in ("connection", "conexao", "conexão", "timeout",
                                     "could not connect", "pool", "refused"))
+
+
+def _smartec_snapshot() -> dict:
+    """Resumo da Smartec para o snapshot — escalares, sem PII.
+
+    Vão só contagens e totais. Placa, AIT e nome de condutor NÃO entram: o
+    snapshot pode ir para modelo externo, e a regra da casa é que dado
+    sensível (PII de motorista, identificação de veículo) só circula local.
+    """
+    from api.smartec import leitura as _sl
+    k = _sl.kpis()
+    m, n = k.get("multas") or {}, k.get("notificacoes") or {}
+    pz, lic = k.get("prazo") or {}, k.get("licencas") or {}
+    acessos = [a for a in (k.get("acessos") or [])
+               if a.get("servico") == "sne" and a.get("dias") is not None]
+    return {
+        "multas_em_aberto": m.get("n"),
+        "multas_valor": m.get("valor"),
+        "multas_vencidas": m.get("vencidas"),
+        "multas_pontos": m.get("pontos"),
+        "economia_por_desconto": (k.get("economia") or {}).get("economia"),
+        "notificacoes_em_aberto": n.get("n"),
+        "notificacoes_no_prazo_de_indicar": pz.get("no_prazo"),
+        "notificacoes_vencem_em_7_dias": pz.get("ate_7d"),
+        "cronotacografo_vencido": lic.get("crono_vencido"),
+        "cronotacografo_vence_90d": lic.get("crono_90d"),
+        "autuacoes_antt": (k.get("antt") or {}).get("n"),
+        "antt_impeditivas": (k.get("antt") or {}).get("impeditivas"),
+        "veiculos_na_smartec": (k.get("frota") or {}).get("cadastrados"),
+        "acesso_sne_dias_para_vencer": (min(a["dias"] for a in acessos)
+                                        if acessos else None),
+    }
 
 
 def _fontes_do_snapshot() -> dict:
@@ -390,6 +423,10 @@ def _fontes_do_snapshot() -> dict:
         "combustivel_ano": lambda: queries.get_combustivel(ini_ano, fim),
         "manutencao_ano": lambda: queries.get_manutencao(None, ini_ano, fim),
         "multas_ano": lambda: queries.get_multas(ini_ano, fim),
+        # SÓ LEITURA DO BANCO LOCAL. Uma fonte nova no snapshot não pode
+        # disparar coleta: seriam ~260 chamadas à Smartec a cada abertura do
+        # chat. Mesma trava do `force` da premiação e do `so_cache` da TomTom.
+        "smartec": _smartec_snapshot,
         "torre_seguranca": lambda: queries.get_seguranca(),
         "estradas_transito": _estradas,
         "programacao_disponibilidade": lambda: queries.get_programacao(),

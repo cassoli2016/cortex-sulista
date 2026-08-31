@@ -3361,6 +3361,73 @@ def jornada_raster(de: str | None = None, ate: str | None = None) -> JSONRespons
             "mensagem": "Erro ao consultar a jornada da RasterJOR."})
 
 
+@app.get("/api/smartec/painel")
+def smartec_painel() -> JSONResponse:
+    """Tudo que a tela da Smartec precisa, numa chamada.
+
+    Lê o BANCO LOCAL, nunca a API do fornecedor: a tela abre em milissegundos
+    e não depende de a Smartec estar de pé. Quem fala com o fornecedor é a
+    coleta, e ela tem trilha própria em `smt_carga`.
+    """
+    from api.smartec import leitura
+    try:
+        return JSONResponse({
+            "kpis": leitura.kpis(),
+            "multas": leitura.infracoes("multa", 400),
+            "notificacoes": leitura.infracoes("notificacao", 600),
+            "por_veiculo": leitura.por_veiculo("multa", 40),
+            "por_infracao": leitura.por_infracao("multa", 15),
+            "por_orgao": leitura.por_orgao("multa", 12),
+            "mensal": leitura.mensal(),
+            "licencas": leitura.licencas(),
+            "antt": leitura.antt(200),
+            "antt_situacao": leitura.antt_por_situacao(),
+            "cobertura": leitura.cobertura(),
+            "historico": leitura.historico(100),
+            "cargas": leitura.cargas(20),
+        })
+    except Exception as exc:  # noqa: BLE001
+        log.warning("smartec_painel falhou: %s: %s", type(exc).__name__, exc)
+        return JSONResponse(status_code=500, content={
+            "erro": "erro_consulta",
+            "mensagem": "Erro ao consultar os dados da Smartec."})
+
+
+@app.post("/api/smartec/coletar")
+async def smartec_coletar(req: Request) -> JSONResponse:
+    """Dispara a coleta agora. MESMO caminho da tarefa agendada.
+
+    `sem_travar` porque a coleta faz ~260 chamadas de rede e leva ~23 s: numa
+    rota `async def` isso travaria o event loop e o CÓRTEX inteiro pelo tempo
+    todo — nem a Torre, nem o /api/health. Foi assim que o envio de WhatsApp
+    derrubou o painel por minutos.
+    """
+    from api.smartec import cliente as scli
+    from api.smartec import coleta as scol
+    sess = getattr(req.state, "sessao", None) or {}
+    autor = sess.get("email", "")
+    if not scli.configurado():
+        # RECUSA NÃO É 5xx: o CÓRTEX funcionou e está dizendo NÃO com um
+        # motivo que a pessoa precisa ler — e o Cloudflare troca o corpo dos
+        # 5xx da origem pela página de erro dele, então a mensagem nunca
+        # chegaria à tela.
+        return JSONResponse(status_code=HTTP_RECUSA, content={
+            "erro": "nao_configurado",
+            "mensagem": "Token da Smartec não configurado. "
+                        "Gestão › Credenciais › SMARTEC_TOKEN."})
+    try:
+        r = await sem_travar(scol.coletar_tudo)
+    except Exception as exc:  # noqa: BLE001
+        log.warning("smartec_coletar falhou: %s", type(exc).__name__)
+        return JSONResponse(status_code=500, content={
+            "erro": "erro_coleta",
+            "mensagem": "Não foi possível rodar a coleta da Smartec."})
+    auth.audit(autor or "?", "smartec_coletar",
+               detalhe=" · ".join(f"{k}:{v.get('itens', 0)}"
+                                  for k, v in r.get("recursos", {}).items()))
+    return JSONResponse(r)
+
+
 @app.get("/api/alertas")
 def alertas_lista() -> JSONResponse:
     try:

@@ -4,6 +4,24 @@ Gerado de `docs/versoes.yaml` por `scripts/gerar_changelog.py` — não editar �
 Formato [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/),
 versionamento [SemVer](https://semver.org/lang/pt-BR/).
 
+## [0.183.0] — 31/08/2026  ·  CX-31/08/2026-v0.183.0
+
+### Adicionado
+- Tela nova, Frota › Smartec, com as infrações e as licenças que a Smartec acompanha. O ERP já importava a multa por outro caminho e parava aí: das 212 multas em aberto hoje, 64 estavam lá sem valor nenhum e 28 a Smartec dá como PAGAS com o campo de baixa vazio no ERP em todas as 28. O "pagas em 0" da tela de Multas nunca foi a operação não pagar — era a baixa não voltar.
+- A aba de Notificações é a que muda o dia a dia: são 51 autuações ainda DENTRO do prazo de indicar condutor, 13 delas vencendo em até 7 dias. Passado o prazo, o órgão aplica por cima a multa por não identificar o condutor — que já é a segunda infração mais frequente desta frota, com 61 casos e R$ 18.558 em aberto. É o único número da tela que expira sozinho, e por isso a lista abre pelo prazo mais curto.
+- Multas em aberto com o valor que a Smartec informa, o valor com desconto (R$ 5.913 disponíveis hoje em 116 boletos), a linha digitável, a situação da cobrança e os PDFs do auto e do boleto. Cada linha traz o órgão autuador e a gravidade da infração, vinda do catálogo do CTB.
+- Aba de Licenças com o vencimento de cronotacógrafo, EMTU, CSV, CIV e CIPP/CTPP por veículo, ordenada pelo primeiro documento a vencer. Hoje são 8 cronotacógrafos VENCIDOS e 11 vencendo em 90 dias — veículo com cronotacógrafo vencido circula irregular.
+- Aba da ANTT com as 194 autuações da transportadora (vale-pedágio, RNTRC, excesso), 12 delas marcadas como impeditivas. Elas ficam separadas das multas de trânsito de propósito: são contra a empresa, não contra o condutor, não geram pontos em CNH e têm processo administrativo em vez de boleto.
+- Aba de Cobertura dizendo quais veículos da frota própria NÃO estão na Smartec — multa deles não aparece em tela nenhuma. O cruzamento é por renavam e bate em 301 de 301 sem uma divergência.
+- A Saúde do Servidor ganhou um cartão da Smartec que vigia duas coisas: se a coleta está chegando e QUANDO VENCE O ACESSO AO SNE. Esse acesso é um certificado com validade, e expirado ele desliga a integração em silêncio — param de chegar notificações, não sai boleto pelo SNE e não se indica condutor. O sintoma é "parou de chegar multa", que se lê como boa notícia. O alarme acende com 30 dias de antecedência, e um dos dois CNPJs vence em 28/09/2026.
+- O Copiloto passou a enxergar a Smartec — multas em aberto, valor, prazo de indicação, cronotacógrafo vencido e vencimento do acesso ao SNE.
+
+### Alterado
+- O conector é SOMENTE LEITURA por decisão, não por limitação. A API da Smartec também indica condutor e exclui indicação, e essas operações atingem o órgão autuador e o prontuário de uma pessoa — ficam listadas no catálogo e bloqueadas no cliente, para o próximo saber que existem.
+
+### Corrigido
+- Estava escrito que o valor da multa "não dá para medir", a partir de uma janela de 90 dias em que ele aparecia em 3 de 96 registros. Medindo a série inteira, o valor CHEGA — com atraso: a cobertura vai de 15% no mês da inclusão a 91% a partir do sétimo mês. Era maturação, não ausência, e 90 dias é a pior janela possível para olhar multa. Em 2025 fechado são 650 de 733 com valor, R$ 163.878.
+
 ## [0.182.0] — 31/08/2026  ·  CX-31/08/2026-v0.182.0
 
 ### Adicionado

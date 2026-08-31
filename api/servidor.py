@@ -423,6 +423,94 @@ def _servico_jornada() -> dict:
                        + resto}
 
 
+def _servico_smartec() -> dict:
+    """A Smartec está chegando — e o acesso ao SNE ainda vale?
+
+    DUAS PERGUNTAS NUMA LINHA SÓ, e a segunda é a que justifica o cartão. O
+    acesso ao SENATRAN é um e-CNPJ com validade: expirado, a Smartec para de
+    trazer notificação, não se pede boleto pelo SNE e não se indica condutor.
+    O sintoma é "parou de chegar multa", que se lê como boa notícia — e por
+    isso ele precisa de alarme com ANTECEDÊNCIA, não no dia.
+
+    O limiar é 30 dias porque renovar e-CNPJ não é imediato (há emissão,
+    validação e primeiro acesso ao portal). Avisar no dia do vencimento
+    avisaria tarde demais para servir de alguma coisa.
+
+    Vermelho é "não está chegando", como nos outros: dado parado ou a ÚLTIMA
+    passagem de algum recurso tendo falhado. Recusa isolada no histórico vai
+    para o detalhe.
+    """
+    nome = "Smartec (infrações e licenças)"
+    try:
+        from .smartec import cliente as scli
+        from .smartec import leitura as slei
+    except Exception as exc:  # noqa: BLE001
+        log.warning("saude: smartec: %s", exc)
+        return {"nome": nome, "status": "info", "detalhe": "camada indisponível"}
+
+    # SEM TOKEN NÃO É FALHA, é instalação incompleta. Marcar vermelho aqui
+    # ensinaria a ignorar o vermelho.
+    if not scli.configurado():
+        return {"nome": nome, "status": "info",
+                "detalhe": "token não configurado (Gestão › Credenciais › "
+                           "SMARTEC_TOKEN) — a coleta fica desligada"}
+    try:
+        e = slei.estado()
+    except Exception as exc:  # noqa: BLE001
+        log.warning("saude: smartec estado: %s", exc)
+        return {"nome": nome, "status": "info", "detalhe": "banco local indisponível"}
+
+    if not e.get("recursos"):
+        return {"nome": nome, "status": "info",
+                "detalhe": "token configurado, nenhuma coleta registrada ainda"}
+
+    # O acesso ao SNE vem ANTES da checagem de coleta: ele pode estar válido
+    # hoje e vencer amanhã, com a coleta perfeitamente em dia — é justamente
+    # esse o caso que só este cartão pega.
+    piores = [a for a in (e.get("acessos") or [])
+              if a.get("servico") == "sne" and a.get("dias") is not None]
+    pior = min(piores, key=lambda a: a["dias"]) if piores else None
+
+    falhando = e.get("falhando") or []
+    if falhando:
+        quais = ", ".join(f["recurso"] for f in falhando)
+        return {"nome": nome, "status": "erro",
+                "detalhe": f"última coleta de {quais} falhou"}
+
+    if pior and pior["dias"] < 0:
+        return {"nome": nome, "status": "erro",
+                "detalhe": f"acesso ao SNE EXPIRADO há {abs(pior['dias'])} dias "
+                           f"(CNPJ …{str(pior.get('cnpj') or '')[-6:]}) — "
+                           f"notificações param de chegar"}
+
+    ultimo = e.get("ultima_coleta")
+    idade = ""
+    if ultimo is not None:
+        try:
+            from datetime import datetime, timezone
+            agora = datetime.now(timezone.utc)
+            horas = (agora - ultimo).total_seconds() / 3600.0
+            idade = f" · última coleta há {horas:.0f} h"
+            # Duas janelas de coleta perdidas (a rotina roda de 6 em 6 h).
+            if horas > 26:
+                return {"nome": nome, "status": "erro",
+                        "detalhe": f"sem coleta há {horas / 24:.0f} dias"}
+        except Exception:  # noqa: BLE001
+            idade = ""
+
+    if pior and pior["dias"] <= 30:
+        return {"nome": nome, "status": "alerta",
+                "detalhe": f"acesso ao SNE vence em {pior['dias']} dias "
+                           f"(CNPJ …{str(pior.get('cnpj') or '')[-6:]}) — "
+                           f"renovar o e-CNPJ{idade}"}
+
+    n = sum(int(r.get("itens") or 0) for r in e["recursos"])
+    extra = (f" · SNE ok por {pior['dias']} dias" if pior else
+             " · sem cadastro no SNE")
+    return {"nome": nome, "status": "ok",
+            "detalhe": f"{len(e['recursos'])} recursos coletados{idade}{extra}"}
+
+
 def _servico_premiacao() -> dict:
     """A configuração da premiação está completa?
 
@@ -827,6 +915,10 @@ def _servicos() -> list[dict]:
     # Jornada: vem do AVA, não do banco local — mas a pergunta é a mesma
     # (o dado está chegando?), então fica ao lado.
     servicos.append(_servico_jornada())
+
+    # Smartec: infrações e licenças. O cartão vigia DUAS coisas — a coleta
+    # e o vencimento do acesso ao SNE, que desliga a integração em silêncio.
+    servicos.append(_servico_smartec())
 
     # PROLOG (pneus). Integração externa com COTA: a coleta é agendada e
     # retomável, então o que interessa aqui não é "responde?" — é se o

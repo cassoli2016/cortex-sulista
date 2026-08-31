@@ -2307,6 +2307,7 @@ body.tvfull #btnReport,body.tvmode #btnReport{display:none}
         <a href="#mprev" class="sub" data-view="mprev" title="Manutenção Preventiva (revisões próximas/vencidas)"><span class="ic" data-ic="mprevic"></span><span>Manutenção Preventiva</span></a>
         <a href="#mul" class="sub" data-view="mul" title="Multas"><span class="ic" data-ic="mul"></span><span>Multas</span></a>
         <a href="#pneus" class="sub" data-view="pneus" title="Pneus — sulco, pressão, vida e CPK (Prolog)"><span class="ic" data-ic="pneuic"></span><span>Pneus</span></a>
+        <a href="#smt" class="sub" data-view="smt" title="Smartec — Infrações e Licenças"><span class="ic" data-ic="smt"></span><span>Smartec</span></a>
         <a href="#veic" class="sub" data-view="veic" title="Veículos"><span class="ic" data-ic="veic"></span><span>Veículos</span></a>
       </div>
       <button class="group" id="grpGes" aria-expanded="false" aria-controls="subsGes" onclick="toggleGroup('grpGes','subsGes','cs.gesGroup')" title="Gestão">
@@ -5380,6 +5381,90 @@ body.tvfull #btnReport,body.tvmode #btnReport{display:none}
       </section>
 
       <!-- ===================== TORRE DE CONTROLE ===================== -->
+      <section class="view" id="view-smt">
+        <div class="card">
+          <div class="head"><h2>Smartec — Infrações e Licenças</h2><span class="hint">SNE + DETRAN · o que ainda dá para tratar, não só o que foi autuado</span></div>
+          <div class="cardfilters">
+            <button class="btn" id="btnSmtColeta" onclick="smtColetar()">Atualizar da Smartec</button>
+            <span class="hint" id="smtColetadoEm" style="text-align:left"></span>
+          </div>
+        </div>
+        <div id="smt-aviso"></div>
+        <div id="smt-conteudo">
+          <div class="subtabs" role="tablist" data-abas="smt" aria-label="Seções da Smartec">
+            <button role="tab" id="tabsmt-mul" aria-controls="aba-smtmul" data-aba="mul"
+                    aria-selected="true" onclick="abaTrocar('smt','mul')">Multas em aberto<span class="aban vazio" id="cnt-smt-mul"></span></button>
+            <button role="tab" id="tabsmt-not" aria-controls="aba-smtnot" data-aba="not"
+                    aria-selected="false" onclick="abaTrocar('smt','not')">Notificações<span class="aban vazio" id="cnt-smt-not"></span></button>
+            <button role="tab" id="tabsmt-lic" aria-controls="aba-smtlic" data-aba="lic"
+                    aria-selected="false" onclick="abaTrocar('smt','lic')">Licenças<span class="aban vazio" id="cnt-smt-lic"></span></button>
+            <button role="tab" id="tabsmt-antt" aria-controls="aba-smtantt" data-aba="antt"
+                    aria-selected="false" onclick="abaTrocar('smt','antt')">ANTT<span class="aban vazio" id="cnt-smt-antt"></span></button>
+            <button role="tab" id="tabsmt-cob" aria-controls="aba-smtcob" data-aba="cob"
+                    aria-selected="false" onclick="abaTrocar('smt','cob')">Cobertura e coleta<span class="aban vazio" id="cnt-smt-cob"></span></button>
+          </div>
+
+          <div class="aba" data-abas="smt" data-aba="mul" id="aba-smtmul" role="tabpanel" aria-labelledby="tabsmt-mul">
+            <div class="kpis k4" id="kpis-smtmul"></div>
+            <div class="grid2">
+              <div class="card">
+                <div class="head"><h2>Multas e notificações por mês <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="smt_infracoes · mês da INFRAÇÃO, não o da coleta. Só o que está em aberto na Smartec hoje — o que foi pago ou baixado deixa de vir da API e sai desta série.">i</span></h2><span class="hint">em aberto · mês da infração</span></div>
+                <div class="chartwrap narrow"><div id="chart-smtmes" style="height:212px"></div></div>
+              </div>
+              <div class="card">
+                <div class="head"><h2>Por tipo de infração <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="smt_infracoes cruzado com o catálogo do CTB da Smartec (smt_infracoes_ctb), que é quem traz a gravidade. Só multas em aberto.">i</span></h2><span class="hint" id="smt-inf-hint"></span></div>
+                <div class="tabroll" style="max-height:212px"><table id="tb-smtinf"><thead><tr><th>Infração</th><th>Gravidade</th><th class="num">Multas</th><th class="num">Valor</th><th class="num">Pontos</th></tr></thead><tbody></tbody></table></div>
+              </div>
+            </div>
+            <div class="card">
+              <div class="head"><h2>Multas em aberto <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="MULTAS SNE DETRAN da Smartec, gravadas em smt_infracoes. Em aberto significa que ainda vem da API: a resolvida para de vir e sai daqui. O valor é o que a Smartec informa, não o do cadastro do ERP — que vem vazio em boa parte das multas recentes.">i</span></h2><span class="hint" id="smt-mul-hint"></span></div>
+              <div class="tabroll"><table id="tb-smtmul"><thead><tr><th>Placa</th><th>AIT</th><th>Data</th><th>Infração</th><th>Órgão</th><th class="num">Pontos</th><th class="num">Valor</th><th class="num">Com desconto</th><th>Vencimento</th><th>Boleto</th><th>Docs</th></tr></thead><tbody></tbody></table></div>
+            </div>
+          </div>
+
+          <div class="aba" data-abas="smt" data-aba="not" id="aba-smtnot" role="tabpanel" aria-labelledby="tabsmt-not" hidden>
+            <div class="kpis k4" id="kpis-smtnot"></div>
+            <div class="card">
+              <div class="head"><h2>Notificações — prazo de indicar condutor <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="NOTIFICACOES SNE DETRAN da Smartec. A notificação é o estágio ANTERIOR à multa: enquanto o prazo de indicação corre, dá para indicar o condutor e evitar a autuação por não indicar (art. 257 par. 8). NÃO somar com as multas — são o mesmo auto em estágios diferentes, e somar conta a infração duas vezes.">i</span></h2><span class="hint" id="smt-not-hint"></span></div>
+              <div class="tabroll"><table id="tb-smtnot"><thead><tr><th>Prazo</th><th>Placa</th><th>AIT</th><th>Data</th><th>Infração</th><th>Órgão</th><th class="num">Pontos</th><th class="num">Valor</th><th>Estado</th><th>Docs</th></tr></thead><tbody></tbody></table></div>
+            </div>
+          </div>
+
+          <div class="aba" data-abas="smt" data-aba="lic" id="aba-smtlic" role="tabpanel" aria-labelledby="tabsmt-lic" hidden>
+            <div class="kpis k4" id="kpis-smtlic"></div>
+            <div class="card">
+              <div class="head"><h2>Vencimento de licenças <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="RESUMO de Licenças da Smartec (smt_licencas): cronotacógrafo, EMTU, CSV, CIV e CIPP/CTPP. Ordenado pelo PRIMEIRO documento a vencer de cada veículo. CIV, CIPP e EMTU não têm dado nesta conta — a Smartec responde nenhum dado encontrado nos endpoints dedicados, e a coluna fica para dizer isso.">i</span></h2><span class="hint" id="smt-lic-hint"></span></div>
+              <div class="tabroll"><table id="tb-smtlic"><thead><tr><th>Placa</th><th>Frota</th><th>Tipo</th><th>Cronotacógrafo</th><th>EMTU</th><th>CSV</th><th>CIV</th><th>CIPP/CTPP</th><th class="num">Dias</th></tr></thead><tbody></tbody></table></div>
+            </div>
+          </div>
+
+          <div class="aba" data-abas="smt" data-aba="antt" id="aba-smtantt" role="tabpanel" aria-labelledby="tabsmt-antt" hidden>
+            <div class="kpis k4" id="kpis-smtantt"></div>
+            <div class="card">
+              <div class="head"><h2>Autuações da ANTT <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="smt_antt — autuações da ANTT contra a TRANSPORTADORA (vale-pedágio, RNTRC, excesso), não contra o condutor. Não geram pontos em CNH; têm processo administrativo e situação de defesa. Por isso não se somam às multas de trânsito.">i</span></h2><span class="hint" id="smt-antt-hint"></span></div>
+              <div class="tabroll"><table id="tb-smtantt"><thead><tr><th>AIT</th><th>Processo</th><th>Data</th><th>Tipo</th><th>Placa</th><th>Situação</th><th>Local</th></tr></thead><tbody></tbody></table></div>
+            </div>
+          </div>
+
+          <div class="aba" data-abas="smt" data-aba="cob" id="aba-smtcob" role="tabpanel" aria-labelledby="tabsmt-cob" hidden>
+            <div class="kpis k4" id="kpis-smtcob"></div>
+            <div class="grid2">
+              <div class="card">
+                <div class="head"><h2>Frota própria fora da Smartec <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="Cruzamento por RENAVAM entre smt_veiculos e o cadastro de veículos do AVA (frota própria, ativos). O renavam bate em 301 de 301 sem uma divergência. Veículo fora da Smartec não é monitorado: multa dele não aparece nesta tela.">i</span></h2><span class="hint" id="smt-cob-hint"></span></div>
+                <div class="tabroll" style="max-height:260px"><table id="tb-smtcob"><thead><tr><th>Placa</th><th>Frota</th><th>Renavam</th></tr></thead><tbody></tbody></table></div>
+              </div>
+              <div class="card">
+                <div class="head"><h2>Coletas <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="smt_carga — toda passagem da coleta, inclusive a que falhou e a que não trouxe nada. O status vazio é separado de ok de propósito: coleta sem resultado pode ser a verdade ou a integração morrendo, e é a sequência que denuncia.">i</span></h2><span class="hint">últimas passagens</span></div>
+                <div class="tabroll" style="max-height:260px"><table id="tb-smtcarga"><thead><tr><th>Recurso</th><th>Quando</th><th>Status</th><th class="num">Itens</th><th class="num">Chamadas</th><th class="num">Seg</th></tr></thead><tbody></tbody></table></div>
+              </div>
+            </div>
+            <div class="card">
+              <div class="head"><h2>Resolvidas <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="Infrações que DEIXARAM de vir da Smartec. A API não diz o motivo — pode ser pagamento, defesa provida ou baixa do órgão —, então resolvida aqui significa deixou de constar, nunca paga.">i</span></h2><span class="hint" id="smt-hist-hint"></span></div>
+              <div class="tabroll" style="max-height:230px"><table id="tb-smthist"><thead><tr><th>Placa</th><th>AIT</th><th>Espécie</th><th>Infração</th><th class="num">Valor</th><th>Saiu em</th><th class="num">Dias em aberto</th></tr></thead><tbody></tbody></table></div>
+            </div>
+          </div>
+        </div>
+      </section>
       <section class="view" id="view-torre">
         <div class="kpis k4" id="kpis-torre"></div>
         <div class="subtabs" role="tablist" data-abas="torre" aria-label="Seções desta tela">
@@ -6564,6 +6649,7 @@ const ICONS = {
   prog: IC('<circle cx="6" cy="18" r="2.2"/><circle cx="18" cy="6" r="2.2"/><path d="M8 18h6a4 4 0 0 0 0-8H10a4 4 0 0 1 0-8" fill="none"/>'),
   seg:  IC('<path d="M12 2 4 5.5v5c0 5 3.4 9 8 11 4.6-2 8-6 8-11v-5z"/><path d="M9.5 12l2 2 3.5-4"/>'),
   mul:  IC('<rect x="4" y="3" width="16" height="18" rx="2"/><path d="M8 7h8M8 11h8M8 15h5"/><circle cx="17" cy="17" r="4" fill="none"/><path d="M15.5 17h3"/>'),
+  smt:  IC('<path d="M12 3l7 3v6c0 4.2-2.9 7.6-7 9-4.1-1.4-7-4.8-7-9V6z"/><path d="M9 12l2 2 4-4"/>'),
   veic: IC('<rect x="2" y="8" width="13" height="8" rx="1.5"/><path d="M15 11h4l3 3v2h-3"/><circle cx="7" cy="18" r="1.8"/><circle cx="17" cy="18" r="1.8"/><path d="M9 18h6"/>'),
   man:  IC('<path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/>'),
   prem: IC('<path d="M8 3h8v5a4 4 0 0 1-8 0V3zM5 5H4a1 1 0 0 0-1 1v1a4 4 0 0 0 4 4h.6M19 5h1a1 1 0 0 1 1 1v1a4 4 0 0 1-4 4h-.6"/><path d="M12 12v4M8 20h8M9.6 20c.3-1.6 1.1-2.1 2.4-4 1.3 1.9 2.1 2.4 2.4 4"/>'),
@@ -6620,7 +6706,7 @@ const FAIXAS = {
   '4_vencido_91_365':['Vencido 91–365d','b-dang'],
   '5_vencido_mais_365':['Vencido > 365d','b-dang'],
 };
-const VIEWS = { home:'Visão Geral', fluxo:'Fluxo de Caixa e Bancos', receber:'Contas a Receber', pagar:'Contas a Pagar', oc:'Ordens de Compra', custos:'Painel de Custos', agr:'Agregados e Terceiros', mvb:'Make vs Buy', pedagio:'Validação de Pedágio', comb:'Combustível', man:'Manutenção', com:'Clientes e RKM', clif:'Consulta de Cliente', crm:'CRM — Funil Comercial', km:'Análise de KM', prodveic:'Produtividade de Veículos', torre:'Torre de Controle', poli:'Permanência na Planta', ctecp:'CT-e de Contrapartida', veic:'Veículos', veicf:'Consulta de Veículo', mprev:'Manutenção Preventiva', comrast:'Comunicação Rastreadora', mul:'Multas', prog:'Programação Inteligente', jorn:'Jornada do Motorista', jornf:'Ficha de Jornada', cex:'Custos Extras', sac:'SAC / Freetime', port:'Portaria', cop:'Copiloto Cortex', cob:'Régua de Cobrança', banc:'Bancos', extb:'Extrato Bancário', lanc:'Lançamentos Bancários', antec:'Antecipação de Recebíveis', antport:'Portais de Antecipação', milkrun:'Operação MWM', rec:'Lançamentos Recorrentes', fluxcon:'Fluxo de Caixa Consolidado', cont:'Contabilidade', qual:'Qualidade e Certidões', orc:'Orçamento', fech:'Fechamento do Mês', prem:'Premiação de Motoristas', dre:'DRE Gerencial', bal:'Balanço Patrimonial', drecli:'DRE por Cliente', tvfat:'Painel TV — Faturamento', tvope:'Painel TV — Operação', rh:'RH — Vagas', hc:'Headcount', folha:'Custo de Folha', folhaind:'Indicadores de Folha', he:'Horas Extras', cnh:'CNH dos Motoristas', ferias:'Férias — Vencimento', people:'People Analytics', pneus:'Pneus', gestao:'Gestão', gesacao:'Planos de Ação', gesata:'Atas de Reunião', srv:'Saúde do Servidor', doc:'Documentação', anpiso:'Piso Mínimo de Frete', anrntrc:'RNTRC dos Transportadores', telcon:'Consumo e Estatísticas', telcond:'Condução Econômica', telhod:'Hodômetro e Rastro' };
+const VIEWS = { home:'Visão Geral', fluxo:'Fluxo de Caixa e Bancos', receber:'Contas a Receber', pagar:'Contas a Pagar', oc:'Ordens de Compra', custos:'Painel de Custos', agr:'Agregados e Terceiros', mvb:'Make vs Buy', pedagio:'Validação de Pedágio', comb:'Combustível', man:'Manutenção', com:'Clientes e RKM', clif:'Consulta de Cliente', crm:'CRM — Funil Comercial', km:'Análise de KM', prodveic:'Produtividade de Veículos', torre:'Torre de Controle', poli:'Permanência na Planta', ctecp:'CT-e de Contrapartida', veic:'Veículos', veicf:'Consulta de Veículo', mprev:'Manutenção Preventiva', comrast:'Comunicação Rastreadora', mul:'Multas', smt:'Smartec — Infrações e Licenças', prog:'Programação Inteligente', jorn:'Jornada do Motorista', jornf:'Ficha de Jornada', cex:'Custos Extras', sac:'SAC / Freetime', port:'Portaria', cop:'Copiloto Cortex', cob:'Régua de Cobrança', banc:'Bancos', extb:'Extrato Bancário', lanc:'Lançamentos Bancários', antec:'Antecipação de Recebíveis', antport:'Portais de Antecipação', milkrun:'Operação MWM', rec:'Lançamentos Recorrentes', fluxcon:'Fluxo de Caixa Consolidado', cont:'Contabilidade', qual:'Qualidade e Certidões', orc:'Orçamento', fech:'Fechamento do Mês', prem:'Premiação de Motoristas', dre:'DRE Gerencial', bal:'Balanço Patrimonial', drecli:'DRE por Cliente', tvfat:'Painel TV — Faturamento', tvope:'Painel TV — Operação', rh:'RH — Vagas', hc:'Headcount', folha:'Custo de Folha', folhaind:'Indicadores de Folha', he:'Horas Extras', cnh:'CNH dos Motoristas', ferias:'Férias — Vencimento', people:'People Analytics', pneus:'Pneus', gestao:'Gestão', gesacao:'Planos de Ação', gesata:'Atas de Reunião', srv:'Saúde do Servidor', doc:'Documentação', anpiso:'Piso Mínimo de Frete', anrntrc:'RNTRC dos Transportadores', telcon:'Consumo e Estatísticas', telcond:'Condução Econômica', telhod:'Hodômetro e Rastro' };
 const periodoLabel = p => { if(p==='atrasado') return 'Atrasado'; const [y,m]=p.split('-'); return MES[+m-1]+'/'+y.slice(2); };
 const fmtD = s => { if(!s) return ''; const [y,m,dd]=s.split('-'); return dd+'/'+m+'/'+y; };
 /* Idade da posicao bancaria. Cada conta e lancada num dia diferente: mostrar
@@ -6888,7 +6974,7 @@ const VIEW_GROUP = {home:'',cop:'',
   fluxo:'Fin',receber:'Fin',pagar:'Fin',cob:'Fin',banc:'Fin',extb:'Fin',lanc:'Fin',antec:'Fin',antport:'Fin',fluxcon:'Fin',rec:'Fin',
   dre:'Ctr',bal:'Ctr',cont:'Ctr',qual:'Ctr',orc:'Ctr',fech:'Ctr',ctecp:'Ctr',
   torre:'Ope',milkrun:'Ope',poli:'Ope',prog:'Ope',jorn:'Ope',jornf:'Ope',cex:'Ope',sac:'Ope',port:'Ope',km:'Ope',agr:'Ope',mvb:'Ope',pedagio:'Ope',
-  veic:'Fro',veicf:'Fro',mprev:'Fro',comrast:'Fro',comb:'Fro',man:'Fro',mul:'Fro',pneus:'Fro',
+  veic:'Fro',veicf:'Fro',mprev:'Fro',comrast:'Fro',comb:'Fro',man:'Fro',mul:'Fro',smt:'Fro',pneus:'Fro',
   oc:'Sup',custos:'Sup',
   prodveic:'Bi',tvfat:'Bi',tvope:'Bi',
   rh:'Rh',hc:'Rh',folha:'Rh',folhaind:'Rh',he:'Rh',cnh:'Rh',ferias:'Rh',people:'Rh',gestao:'Adm',srv:'Adm',doc:'Adm',gesacao:'Ges',gesata:'Ges',
@@ -7196,8 +7282,8 @@ function router(){
   // carga da vista: dispara se não há dados OU se os filtros visíveis
   // divergem dos usados na última carga (nunca mostrar dado velho com filtro novo)
   const key=viewKey(v);
-  const DATAMAP={fin:DATA,oc:DATAOC,agr:DATAAGR,anpiso:DATAANPISO,anrntrc:DATAANRNTRC,telcon:DATATELCON,telcond:DATATELCOND,telhod:DATATELHOD,mvb:DATAMVB,comb:DATACOMB,man:DATAMAN,com:DATACOM,clif:DATACLIF,dre:DATADRE,bal:DATABAL,drecli:DATADRECLI,home:DATAHOME,km:DATAKM,torre:DATATORRE,veic:DATAVEIC,veicf:DATAVEICF,mul:DATAMUL,prog:DATAPROG,jorn:DATAJR,jornf:DATAJORNF,cex:DATACEX,sac:DATASAC,mprev:DATAMPREV,comrast:DATACOMRAST,qual:DATAQUAL,port:DATAPORT,crm:DATACRM,rh:DATARH,hc:DATAHC,folha:DATAFOLHA,folhaind:DATAFOLHAIND,he:DATAHE,custos:DATACUSTOS,cob:DATACOB,banc:DATABANC,extb:DATAEXTB,lanc:DATALANC,antec:DATAANTEC,antport:DATAANTPORT,milkrun:DATAMILK,fluxcon:DATAFLUXCON,rec:DATAREC,rent:DATARENT,cont:DATACONT,orc:DATAORC,fech:DATAFECH,prem:DATAPREM,gestao:DATAGES,srv:DATASRV,doc:DATADOC,tvfat:null,tvope:null,cop:(COP_MSGS.length?{}:null)};
-  const LOADMAP={fin:load,oc:loadOc,agr:loadAgr,anpiso:loadAnpiso,anrntrc:loadAnrntrc,telcon:loadTelcon,telcond:loadTelcond,telhod:loadTelhod,mvb:loadMvb,pedagio:loadPedagio,comb:loadComb,man:loadMan,com:loadCom,clif:loadClif,dre:loadDre,bal:loadBal,drecli:loadDreCli,home:loadHome,km:loadKm,prodveic:loadProdveic,torre:loadTorre,veic:loadVeic,veicf:loadVeicf,mul:loadMul,prog:loadProg,jorn:loadJorraster,jornf:loadJornf,cex:loadCex,sac:loadSac,mprev:loadMPrev,comrast:loadComRast,qual:loadQual,port:loadPort,crm:loadCrm,rh:loadRh,hc:loadHc,folha:loadFolha,folhaind:loadFolhaInd,he:loadHe,custos:loadCustos,cob:loadCob,banc:loadBanc,extb:loadExtb,lanc:loadLanc,antec:loadAntec,antport:loadAntport,milkrun:loadMilkrun,cnh:loadCnh,ferias:loadFerias,people:loadPeople,pneus:loadPneus,poli:loadPoli,ctecp:loadCtecp,fluxcon:loadFluxcon,rec:loadRec,rent:loadRent,cont:loadCont,orc:loadOrc,fech:loadFech,prem:loadPrem,gesacao:loadGesacao,gesata:loadGesata,gestao:loadGestao,srv:loadSrv,doc:loadDoc,cop:loadCop,tvfat:loadTvFat,tvope:loadTvOpe};
+  const DATAMAP={fin:DATA,oc:DATAOC,agr:DATAAGR,anpiso:DATAANPISO,anrntrc:DATAANRNTRC,telcon:DATATELCON,telcond:DATATELCOND,telhod:DATATELHOD,mvb:DATAMVB,comb:DATACOMB,man:DATAMAN,com:DATACOM,clif:DATACLIF,dre:DATADRE,bal:DATABAL,drecli:DATADRECLI,home:DATAHOME,km:DATAKM,torre:DATATORRE,veic:DATAVEIC,veicf:DATAVEICF,mul:DATAMUL,smt:DATASMT,prog:DATAPROG,jorn:DATAJR,jornf:DATAJORNF,cex:DATACEX,sac:DATASAC,mprev:DATAMPREV,comrast:DATACOMRAST,qual:DATAQUAL,port:DATAPORT,crm:DATACRM,rh:DATARH,hc:DATAHC,folha:DATAFOLHA,folhaind:DATAFOLHAIND,he:DATAHE,custos:DATACUSTOS,cob:DATACOB,banc:DATABANC,extb:DATAEXTB,lanc:DATALANC,antec:DATAANTEC,antport:DATAANTPORT,milkrun:DATAMILK,fluxcon:DATAFLUXCON,rec:DATAREC,rent:DATARENT,cont:DATACONT,orc:DATAORC,fech:DATAFECH,prem:DATAPREM,gestao:DATAGES,srv:DATASRV,doc:DATADOC,tvfat:null,tvope:null,cop:(COP_MSGS.length?{}:null)};
+  const LOADMAP={smt:loadSmt,fin:load,oc:loadOc,agr:loadAgr,anpiso:loadAnpiso,anrntrc:loadAnrntrc,telcon:loadTelcon,telcond:loadTelcond,telhod:loadTelhod,mvb:loadMvb,pedagio:loadPedagio,comb:loadComb,man:loadMan,com:loadCom,clif:loadClif,dre:loadDre,bal:loadBal,drecli:loadDreCli,home:loadHome,km:loadKm,prodveic:loadProdveic,torre:loadTorre,veic:loadVeic,veicf:loadVeicf,mul:loadMul,prog:loadProg,jorn:loadJorraster,jornf:loadJornf,cex:loadCex,sac:loadSac,mprev:loadMPrev,comrast:loadComRast,qual:loadQual,port:loadPort,crm:loadCrm,rh:loadRh,hc:loadHc,folha:loadFolha,folhaind:loadFolhaInd,he:loadHe,custos:loadCustos,cob:loadCob,banc:loadBanc,extb:loadExtb,lanc:loadLanc,antec:loadAntec,antport:loadAntport,milkrun:loadMilkrun,cnh:loadCnh,ferias:loadFerias,people:loadPeople,pneus:loadPneus,poli:loadPoli,ctecp:loadCtecp,fluxcon:loadFluxcon,rec:loadRec,rent:loadRent,cont:loadCont,orc:loadOrc,fech:loadFech,prem:loadPrem,gesacao:loadGesacao,gesata:loadGesata,gestao:loadGestao,srv:loadSrv,doc:loadDoc,cop:loadCop,tvfat:loadTvFat,tvope:loadTvOpe};
   if(!DATAMAP[key] || (key!=='home' && LOADEDQS[key]!==qsView(key))) LOADMAP[key]();
   // mobile: estado da navegação inferior + fecha gaveta/painel de filtros
   document.querySelectorAll('.bottomnav [data-bview]').forEach(a=>a.classList.toggle('ativo', a.dataset.bview===v));
@@ -7255,6 +7341,7 @@ const NAV_KW={
   veicf:'ficha veiculo consulta placa', mprev:'preventiva troca oleo revisao manutencao',
   comrast:'rastreador comunicacao sinal offline', comb:'diesel abastecimento posto consumo km/l arla',
   man:'oficina os ordem servico corretiva peca', mul:'multa infracao transito pontos cnh',
+  smt:'smartec infracao multa notificacao boleto sne detran indicacao condutor licenca cronotacografo antt licenciamento ipva restricao renavam',
   oc:'compra ordem fornecedor entrada nota', custos:'custo painel despesa',
   hc:'headcount quadro pessoas colaboradores', folha:'salario folha pagamento custo pessoal',
   folhaind:'indicador folha rh', he:'hora extra sobreaviso adicional',
@@ -9033,7 +9120,7 @@ function renderVenc(svgId,tipId,wrapId,rows,dataRef){
 function reloadCurrent(){
   // mapa COMPLETO: qualquer filtro compartilhado (Filial, datas, competência)
   // recarrega a TELA ATUAL — antes caía em load() (Financeiro) para várias telas.
-  const M={home:loadHome,fluxo:load,receber:load,pagar:load,dre:loadDre,drecli:loadDreCli,oc:loadOc,
+  const M={smt:loadSmt,home:loadHome,fluxo:load,receber:load,pagar:load,dre:loadDre,drecli:loadDreCli,oc:loadOc,
     agr:loadAgr,mvb:loadMvb,pedagio:loadPedagio,comb:loadComb,man:loadMan,com:loadCom,clif:loadClif,km:loadKm,prodveic:loadProdveic,
     torre:loadTorre,veic:loadVeic,veicf:loadVeicf,mul:loadMul,prog:loadProg,jorn:loadJorraster,jornf:loadJornf,cex:loadCex,sac:loadSac,mprev:loadMPrev,comrast:loadComRast,qual:loadQual,port:loadPort,crm:loadCrm,rh:loadRh,hc:loadHc,folha:loadFolha,folhaind:loadFolhaInd,he:loadHe,custos:loadCustos,cob:loadCob,banc:loadBanc,extb:loadExtb,rent:loadRent,
     cont:loadCont,orc:loadOrc,fech:loadFech,prem:loadPrem,gesacao:loadGesacao,gesata:loadGesata,gestao:loadGestao,srv:loadSrv,doc:loadDoc,cop:loadCop,tvfat:loadTvFat,tvope:loadTvOpe};
@@ -17059,6 +17146,339 @@ function renderProg(d){
 }
 
 /* ---------------- Multas ---------------- */
+/* ═══════════════════════════ Smartec — infrações e licenças ═══════════════
+   Lê o banco LOCAL (as tabelas smt_*), nunca a API do fornecedor: a tela abre
+   em milissegundos e não cai junto se a Smartec estiver fora. Quem fala com o
+   fornecedor é a coleta, disparada pelo botão ou pela tarefa agendada.
+
+   A REGRA QUE ORGANIZA ESTA TELA: multa e notificação NÃO SE SOMAM. São o
+   mesmo auto em estágios diferentes — a notificação vira multa se ninguém
+   indicar condutor nem recorrer. Somar as duas contaria a mesma infração duas
+   vezes (R$ 126 mil onde o exigível hoje é R$ 41,8 mil), e a ação de cada uma
+   é outra. Daí abas separadas, com o rótulo dizendo o que cada uma é.        */
+let DATASMT=null, smtSeq=0;
+
+/* Semáforo de prazo. GRADUADO, porque chip igual para 2 e para 29 dias não
+   prioriza — foi a lição da Manutenção Preventiva, e aqui pesa mais: o prazo
+   de indicação, uma vez vencido, não volta. */
+function smtPrazoCls(dias){
+  if(dias==null) return '';
+  if(dias < 0)  return 'bad';
+  if(dias <= 7) return 'bad';
+  if(dias <= 15) return 'warn';
+  return 'good';
+}
+function smtPrazoTxt(dias){
+  if(dias==null) return '—';
+  if(dias < 0)  return Math.abs(dias)+(Math.abs(dias)===1?' dia atrás':' dias atrás');
+  if(dias === 0) return 'hoje';
+  return 'em '+dias+(dias===1?' dia':' dias');
+}
+
+async function loadSmt(){
+  skelKpis('kpis-smtmul',4);
+  const seq = ++smtSeq;
+  document.getElementById('content').classList.add('loading');
+  try{
+    const r = await fetch('/api/smartec/painel',{cache:'no-store'});
+    /* `respostaJSON` devolve o ENVELOPE {ok, dados}, nao o corpo. Tratar o
+       envelope como corpo faz a tela renderizar com tudo vazio: os KPIs saem
+       zerados, sem erro nenhum, e parece que nao ha dado. */
+    const {ok, dados} = await respostaJSON(r);
+    if(seq!==smtSeq) return;
+    if(!ok){ showBanner((dados&&dados.mensagem)||'Erro ao consultar a Smartec.',
+                        dados&&dados.detalhe); return; }
+    hideBanner(); DATASMT=dados; renderSmt(dados);
+  }catch(e){ if(seq===smtSeq) showBanner('Não foi possível falar com a API.', e.message); }
+  finally{ if(seq===smtSeq) document.getElementById('content').classList.remove('loading'); }
+}
+
+function renderSmt(d){
+  const k=d.kpis||{}, m=k.multas||{}, n=k.notificacoes||{}, pz=k.prazo||{},
+        ec=k.economia||{}, fr=k.frota||{}, lic=k.licencas||{}, an=k.antt||{};
+  const rs = v => (v==null? '—' : brl2(v));
+  const ni = v => (v==null? '—' : Math.round(v).toLocaleString('pt-BR'));
+
+  /* ── KPIs: MULTAS ──────────────────────────────────────────────────────
+     "Economia disponível" é o único número desta banda que EXPIRA, então ele
+     é KPI e não nota de rodapé: some no vencimento de cada boleto.          */
+  document.getElementById('kpis-smtmul').innerHTML =
+      kpi('Multas em aberto', ni(m.n||0),
+          (m.veiculos||0)+' veículos de '+(fr.cadastrados||0)+' na Smartec',
+          (m.n?'bad':'good'), 'MULTAS SNE DETRAN em aberto na Smartec agora. Não inclui as notificações — são o estágio anterior e estão na aba ao lado.')
+    + kpi('Valor a pagar', rs(m.valor),
+          (m.vencidas||0)+' já vencidas',
+          (m.vencidas?'bad':'warn'), 'Soma de VALOR_A_PAGAR das multas em aberto. É o valor cheio; o com desconto está no cartão ao lado.')
+    + kpi('Economia disponível', rs(ec.economia),
+          'em '+(ec.n||0)+' boletos com desconto', (ec.economia? 'good':''),
+          'Diferença entre o valor cheio e o valor com desconto, somada só onde a Smartec informou os DOIS valores. É dinheiro que evapora no vencimento de cada boleto — não é meta, é prazo.')
+    + kpi('Pontos em aberto', ni(m.pontos||0),
+          'somados nas multas em aberto', (m.pontos>200?'warn':''),
+          'Soma da pontuação das multas em aberto. A pontuação recai sobre o CONDUTOR indicado; enquanto não há indicação, a multa por não indicar recai sobre a empresa.');
+
+  /* ── KPIs: NOTIFICAÇÕES ────────────────────────────────────────────────
+     O primeiro cartão é o número mais acionável da tela inteira, e é o único
+     que some sozinho: passado o prazo, a autuação por não indicar condutor
+     entra por cima — ela já é a 2ª infração mais frequente desta frota.     */
+  document.getElementById('kpis-smtnot').innerHTML =
+      kpi('Ainda no prazo de indicar', ni(pz.no_prazo||0),
+          (pz.ate_7d||0)+' vencem em até 7 dias',
+          (pz.ate_7d?'bad':(pz.no_prazo?'warn':'good')),
+          'Notificações cujo PRAZO_INDICACAO ainda não passou. É a única janela em que dá para indicar o condutor e evitar a autuação por não indicar (art. 257 §8º) — passado o prazo não volta.')
+    + kpi('Valor sob esse prazo', rs(pz.valor_no_prazo),
+          'nas notificações ainda tratáveis', '',
+          'Soma do valor das notificações ainda dentro do prazo de indicação. Não é economia garantida: indicar o condutor transfere a multa e os pontos, não os anula.')
+    + kpi('Notificações em aberto', ni(n.n||0),
+          (n.veiculos||0)+' veículos · '+(pz.sem_prazo||0)+' sem prazo informado',
+          '', 'NOTIFICACOES SNE DETRAN em aberto. NÃO somar com as multas: é o mesmo auto num estágio anterior, e somar conta a infração duas vezes.')
+    + kpi('Pontos potenciais', ni(n.pontos||0),
+          'se todas virarem multa', '',
+          'Pontuação somada das notificações em aberto. É um teto, não uma previsão: parte será indicada, paga ou anulada em defesa.');
+
+  /* ── KPIs: LICENÇAS ────────────────────────────────────────────────────*/
+  const totLic = lic.total||0;
+  document.getElementById('kpis-smtlic').innerHTML =
+      kpi('Cronotacógrafo vencido', ni(lic.crono_vencido||0),
+          'de '+totLic+' veículos com licença cadastrada',
+          (lic.crono_vencido?'bad':'good'),
+          'Certificado do cronotacógrafo (INMETRO) com data anterior a hoje. Veículo com cronotacógrafo vencido circula irregular e é infração autuável.')
+    + kpi('Vence em até 90 dias', ni(lic.crono_90d||0), 'cronotacógrafos a renovar',
+          (lic.crono_90d?'warn':'good'),
+          'Cronotacógrafos que vencem nos próximos 90 dias — a janela de agendamento da aferição.')
+    + kpi('Veículos com licença', ni(totLic),
+          'de '+(fr.cadastrados||0)+' cadastrados na Smartec', '',
+          'Quantos veículos têm alguma licença acompanhada. CIV, CIPP/CTPP e EMTU não têm dado nesta conta — a Smartec responde "nenhum dado encontrado" nos endpoints dedicados.')
+    + kpi('Acesso ao SNE', smtAcessoTxt(k.acessos),
+          smtAcessoSub(k.acessos), smtAcessoCls(k.acessos),
+          'Vencimento do e-CNPJ que dá acesso ao SENATRAN. Expirado, a Smartec para de trazer notificação, não se pede boleto pelo SNE e não se indica condutor — e o sintoma é "parou de chegar multa", que se lê como boa notícia.');
+
+  /* ── KPIs: ANTT ────────────────────────────────────────────────────────*/
+  document.getElementById('kpis-smtantt').innerHTML =
+      kpi('Autuações da ANTT', ni(an.n||0), (an.veiculos||0)+' placas', (an.n?'warn':'good'),
+          'Autuações da ANTT contra a TRANSPORTADORA (vale-pedágio, RNTRC, excesso de peso). Não geram pontos em CNH e não se somam às multas de trânsito.')
+    + kpi('Impeditivas', ni(an.impeditivas||0), 'bloqueiam regularização', (an.impeditivas?'bad':'good'),
+          'Autuações marcadas como impeditivas pela ANTT — travam a regularização do RNTRC enquanto não resolvidas.')
+    + kpi('Em defesa', ni((d.antt_situacao||[]).filter(x=>/defesa|congelad/i.test(x.situacao||'')).reduce((a,x)=>a+(x.n||0),0)),
+          'congeladas por defesa tempestiva', '',
+          'Autuações com defesa protocolada no prazo — o processo fica congelado até o julgamento.')
+    + kpi('Situações distintas', ni((d.antt_situacao||[]).length), 'estágios de processo', '',
+          'Quantos estágios diferentes de processo administrativo aparecem. A ANTT não usa "aberta/paga": usa o andamento do processo.');
+
+  /* ── KPIs: COBERTURA ───────────────────────────────────────────────────*/
+  const cb=d.cobertura||{};
+  document.getElementById('kpis-smtcob').innerHTML =
+      kpi('Frota própria coberta', cb.disponivel? (ni(cb.cobertos)+' de '+ni(cb.proprios)) : '—',
+          cb.disponivel? pct(cb.cobertos, cb.proprios)+' da frota própria ativa' : 'AVA indisponível',
+          cb.disponivel? ((cb.fora_total>0)?'warn':'good') : '',
+          'Cruzamento por RENAVAM entre os veículos cadastrados na Smartec e a frota própria ATIVA do AVA. O renavam bate em 301 de 301 sem divergência, então a diferença é cobertura de verdade, não erro de chave.')
+    + kpi('Fora da Smartec', cb.disponivel? ni(cb.fora_total) : '—',
+          'veículos próprios não monitorados', (cb.fora_total>0?'warn':'good'),
+          'Veículo próprio ativo que não está cadastrado na Smartec: multa dele não aparece nesta tela e não gera alerta de prazo.')
+    + kpi('Cadastrados na Smartec', ni(fr.cadastrados||0),
+          (fr.com_motor||0)+' com motor', '',
+          'Total de veículos na Smartec, incluindo semirreboques. O denominador de "96 veículos com multa".')
+    + kpi('Resolvidas registradas', ni((d.historico||[]).length),
+          'saíram da lista da Smartec', '',
+          'Infrações que deixaram de vir da API. O motivo não é informado pela Smartec — pode ser pagamento, defesa provida ou baixa do órgão.');
+
+  /* ── Gráfico mensal ────────────────────────────────────────────────────
+     Eixo GERADO no servidor com generate_series: mês sem infração em aberto
+     não voltaria do GROUP BY e o gráfico emendaria março em julho, desenhando
+     uma queda que não houve.                                                */
+  const ser=d.mensal||[];
+  ecDesenhar('chart-smtmes', ser.length? (ec2=>{
+    const rot=ser.map(x=>{const [y,mm]=x.mes.split('-'); return mm+'/'+y.slice(2);});
+    const mult=ser.map(x=>x.multas), nots=ser.map(x=>x.notificacoes);
+    const o=ecOpcoes(rot, Math.max(1,...mult,...nots), {sombra:true, tipo:'int',
+                     legenda:['Multas','Notificações']});
+    o.series=[ecBarras('Multas', mult, CC.navy700),
+              ecBarras('Notificações', nots, CC.navy400)];
+    return o;
+  }) : null, 'sem infração em aberto no período');
+
+  /* ── Tabelas ───────────────────────────────────────────────────────────*/
+  const inf=d.por_infracao||[];
+  document.getElementById('tb-smtinf').querySelector('tbody').innerHTML =
+    inf.length? inf.map(x=>`<tr><td>${esc(x.descricao||'—')}</td><td>${esc(x.gravidade||'—')}</td>`
+      +`<td class="num">${ni(x.n)}</td><td class="num">${rs(x.valor)}</td>`
+      +`<td class="num">${ni(x.pontos)}</td></tr>`).join('')
+      : '<tr><td colspan="5" class="vazio">sem multas em aberto</td></tr>';
+  document.getElementById('smt-inf-hint').textContent =
+    inf.length? (inf.length+' tipos · gravidade do catálogo do CTB') : '';
+
+  const mul=d.multas||[];
+  document.getElementById('tb-smtmul').querySelector('tbody').innerHTML =
+    mul.length? mul.map(x=>{
+      const cls=smtPrazoCls(x.dias);
+      const bol=x.situacao_boleto||'';
+      return `<tr><td><b>${esc(x.placa||'—')}</b>${x.frota&&x.frota!==x.placa?' <span class="hint">'+esc(x.frota)+'</span>':''}</td>`
+       +`<td class="mono">${esc(x.ait||'—')}</td><td>${fmtD(x.data_infracao)}</td>`
+       +`<td>${esc(x.descricao||'—')}</td><td>${esc(x.orgao||'—')}</td>`
+       +`<td class="num">${x.pontuacao!=null?x.pontuacao:'—'}</td>`
+       +`<td class="num">${rs(x.valor_a_pagar)}</td>`
+       +`<td class="num">${x.valor_com_desconto!=null&&x.valor_com_desconto<x.valor_a_pagar?rs(x.valor_com_desconto):'—'}</td>`
+       +`<td><span class="chip ${cls}">${fmtD(x.vencimento)||'—'}</span></td>`
+       +`<td>${bol?`<span class="chip ${/pago/i.test(bol)?'good':(/erro|negad/i.test(bol)?'bad':'')}">${esc(bol)}</span>`:'—'}</td>`
+       +`<td>${smtDocs(x)}</td></tr>`;
+    }).join('') : '<tr><td colspan="11" class="vazio">sem multas em aberto</td></tr>';
+  document.getElementById('smt-mul-hint').textContent =
+    mul.length? (mul.length+' multas · vencidas primeiro') : '';
+
+  const nots=d.notificacoes||[];
+  document.getElementById('tb-smtnot').querySelector('tbody').innerHTML =
+    nots.length? nots.map(x=>{
+      const cls=smtPrazoCls(x.dias);
+      /* MOTORISTA_NOME não é sempre uma pessoa: "AGREGADO", "MOTORISTA",
+         "NIC" e "RECURSO" são estados do processo de indicação. Mostrar como
+         "condutor" faria a tela afirmar identificação que não houve.        */
+      return `<tr><td><span class="chip ${cls}">${esc(smtPrazoTxt(x.dias))}</span>`
+       +`${x.prazo_indicacao?' <span class="hint">'+fmtD(x.prazo_indicacao)+'</span>':''}</td>`
+       +`<td><b>${esc(x.placa||'—')}</b></td><td class="mono">${esc(x.ait||'—')}</td>`
+       +`<td>${fmtD(x.data_infracao)}</td><td>${esc(x.descricao||'—')}</td>`
+       +`<td>${esc(x.orgao||'—')}</td>`
+       +`<td class="num">${x.pontuacao!=null?x.pontuacao:'—'}</td>`
+       +`<td class="num">${rs(x.valor_a_pagar)}</td>`
+       +`<td>${esc(x.motorista_nome||'—')}</td><td>${smtDocs(x)}</td></tr>`;
+    }).join('') : '<tr><td colspan="10" class="vazio">sem notificações em aberto</td></tr>';
+  document.getElementById('smt-not-hint').textContent =
+    nots.length? (nots.length+' notificações · as ainda no prazo primeiro') : '';
+
+  const lics=d.licencas||[];
+  document.getElementById('tb-smtlic').querySelector('tbody').innerHTML =
+    lics.length? lics.map(x=>{
+      const cls=smtPrazoCls(x.dias);
+      const dd = (x.dias!=null && x.dias<9000) ? x.dias : null;
+      return `<tr><td><b>${esc(x.placa||'—')}</b></td><td>${esc(x.frota||'—')}</td>`
+       +`<td>${esc(x.tipo_veiculo||'—')}</td>`
+       +`<td>${x.cronotacografo?`<span class="chip ${smtPrazoCls(Math.round((new Date(x.cronotacografo)-new Date())/86400000))}">${fmtD(x.cronotacografo)}</span>`:'—'}</td>`
+       +`<td>${fmtD(x.emtu)||'—'}</td><td>${fmtD(x.csv)||'—'}</td>`
+       +`<td>${fmtD(x.pp_civ)||'—'}</td><td>${fmtD(x.pp_cipp_ctpp)||'—'}</td>`
+       +`<td class="num">${dd!=null?dd:'—'}</td></tr>`;
+    }).join('') : '<tr><td colspan="9" class="vazio">sem licença cadastrada</td></tr>';
+  document.getElementById('smt-lic-hint').textContent =
+    lics.length? (lics.length+' veículos · ordenado pelo primeiro documento a vencer') : '';
+
+  const antt=d.antt||[];
+  document.getElementById('tb-smtantt').querySelector('tbody').innerHTML =
+    antt.length? antt.map(x=>`<tr${x.impeditiva?' class="risco"':''}>`
+      +`<td class="mono">${esc(x.ait||'—')}</td><td class="mono">${esc(x.processo||'—')}</td>`
+      +`<td>${fmtD(x.data_infracao)}</td><td>${esc(x.tipo||'—')}</td>`
+      +`<td><b>${esc(x.placa||'—')}</b></td>`
+      +`<td>${x.impeditiva?'<span class="chip bad">impeditiva</span> ':''}${esc(x.situacao||'—')}</td>`
+      +`<td>${esc((x.local_infracao||'—').slice(0,60))}</td></tr>`).join('')
+      : '<tr><td colspan="7" class="vazio">sem autuação da ANTT</td></tr>';
+  document.getElementById('smt-antt-hint').textContent =
+    antt.length? (antt.length+' autuações · impeditivas primeiro') : '';
+
+  const fora=(cb.fora||[]);
+  document.getElementById('tb-smtcob').querySelector('tbody').innerHTML =
+    fora.length? fora.map(x=>`<tr><td><b>${esc(x.placa||'—')}</b></td>`
+      +`<td>${esc(x.frota||'—')}</td><td class="mono">${esc(x.renavam||'—')}</td></tr>`).join('')
+      : `<tr><td colspan="3" class="vazio">${cb.disponivel?'toda a frota própria ativa está na Smartec':'AVA indisponível — cobertura não conferida'}</td></tr>`;
+  document.getElementById('smt-cob-hint').textContent =
+    cb.disponivel? (fora.length+' de '+(cb.fora_total||0)+' fora'
+      + (cb.sem_renavam? ' · '+cb.sem_renavam+' sem renavam no cadastro':'')) : '';
+
+  const cg=d.cargas||[];
+  document.getElementById('tb-smtcarga').querySelector('tbody').innerHTML =
+    cg.length? cg.map(x=>`<tr><td>${esc(x.recurso)}</td><td>${fmtDT(x.fim||x.inicio)}</td>`
+      +`<td><span class="chip ${x.status==='ok'?'good':(x.status==='erro'?'bad':'warn')}">${esc(x.status)}</span></td>`
+      +`<td class="num">${ni(x.itens)}</td><td class="num">${ni(x.chamadas)}</td>`
+      +`<td class="num">${x.segundos!=null?x.segundos:'—'}</td></tr>`).join('')
+      : '<tr><td colspan="6" class="vazio">nenhuma coleta registrada</td></tr>';
+
+  const hist=d.historico||[];
+  document.getElementById('tb-smthist').querySelector('tbody').innerHTML =
+    hist.length? hist.map(x=>`<tr><td><b>${esc(x.placa||'—')}</b></td>`
+      +`<td class="mono">${esc(x.ait||'—')}</td><td>${esc(x.especie)}</td>`
+      +`<td>${esc(x.descricao||'—')}</td><td class="num">${rs(x.valor_a_pagar)}</td>`
+      +`<td>${fmtDT(x.sumiu_em)}</td><td class="num">${x.dias!=null?x.dias:'—'}</td></tr>`).join('')
+      : '<tr><td colspan="7" class="vazio">nada saiu da lista ainda</td></tr>';
+  document.getElementById('smt-hist-hint').textContent =
+    hist.length? (hist.length+' registros · "resolvida" = deixou de constar, não necessariamente paga') : '';
+
+  /* Contadores das abas. Explícitos porque dizem o TOTAL, e as tabelas são
+     recortadas — o automático contaria as linhas desenhadas. */
+  /* O id e o do SPAN dentro do botao, nunca o do botao: `abaContador`
+     sobrescreve o textContent do elemento que recebe, e passar o botao APAGA
+     o rotulo da aba. Descoberto renderizando a tela com dado real - nenhum
+     teste de unidade pegaria, porque o defeito e no DOM. */
+  abaContador('cnt-smt-mul', m.n||0);
+  abaContador('cnt-smt-not', pz.no_prazo||0);
+  abaContador('cnt-smt-lic', (lic.crono_vencido||0)+(lic.crono_90d||0));
+  abaContador('cnt-smt-antt', an.n||0);
+  abaContador('cnt-smt-cob', cb.fora_total||0);
+
+  const ult=(cg.find(x=>x.fim)||{}).fim;
+  document.getElementById('smtColetadoEm').textContent =
+    ult? ('última coleta '+fmtDT(ult)) : 'nunca coletado';
+}
+
+/* Links dos PDFs que a Smartec hospeda. Abrem em aba nova com rel=noopener —
+   são URLs de blob storage do fornecedor, fora do nosso domínio. */
+function smtDocs(x){
+  const l=[];
+  if(x.url_penalidade) l.push(`<a href="${esc(x.url_penalidade)}" target="_blank" rel="noopener">auto</a>`);
+  if(x.url_boleto)     l.push(`<a href="${esc(x.url_boleto)}" target="_blank" rel="noopener">boleto</a>`);
+  return l.length? l.join(' · ') : '—';
+}
+
+/* O acesso ao SNE é a dependência silenciosa de toda a integração. O cartão
+   mostra sempre o PIOR dos CNPJs — é ele que decide se o dado continua
+   chegando; a média de dois vencimentos não significaria nada. */
+function smtAcessoPior(acessos){
+  const sne=(acessos||[]).filter(a=>a.servico==='sne'&&a.dias!=null);
+  if(!sne.length) return null;
+  return sne.reduce((a,b)=> (a.dias<=b.dias? a:b));
+}
+function smtAcessoTxt(acessos){
+  const p=smtAcessoPior(acessos); if(!p) return '—';
+  return p.dias<0? 'expirado' : p.dias+(p.dias===1?' dia':' dias');
+}
+function smtAcessoSub(acessos){
+  const p=smtAcessoPior(acessos);
+  if(!p) return 'sem cadastro no SNE';
+  return 'CNPJ …'+String(p.cnpj||'').slice(-6)+' · '+fmtD(p.data_expiracao);
+}
+function smtAcessoCls(acessos){
+  const p=smtAcessoPior(acessos); if(!p) return '';
+  if(p.dias<0) return 'bad';
+  if(p.dias<=30) return 'bad';
+  if(p.dias<=60) return 'warn';
+  return 'good';
+}
+
+/* Coleta manual. MESMO caminho da tarefa agendada — não existe "modo teste"
+   mais frouxo, senão ele vira o atalho para rodar sem trilha.
+
+   A RECARGA FICA FORA DO try DA AÇÃO: uma falha ao repintar a tela não pode
+   sobrescrever "coleta concluída" por "erro", com a coleta JÁ FEITA. Quem lê
+   isso clica de novo, e são mais 260 chamadas ao fornecedor. */
+async function smtColetar(){
+  const btn=document.getElementById('btnSmtColeta');
+  const antes=btn.textContent;
+  btn.disabled=true; btn.textContent='Coletando…';
+  let ok=false, msg='';
+  try{
+    const r=await fetch('/api/smartec/coletar',{method:'POST',
+      headers:{'Content-Type':'application/json'}, body:'{}'});
+    const resp=await respostaJSON(r);
+    const d=resp.dados||{};
+    if(!resp.ok){ msg=d.mensagem||'Não foi possível coletar da Smartec.'; }
+    else{
+      ok=true;
+      const n=Object.values(d.recursos||{}).reduce((a,x)=>a+(x.itens||0),0);
+      const err=Object.keys(d.erros||{});
+      msg = err.length
+        ? ('coleta parcial — '+n+' itens; falharam: '+err.join(', '))
+        : ('coleta concluída — '+n+' itens');
+    }
+  }catch(e){ msg='Não foi possível falar com a API.'; }
+  finally{ btn.disabled=false; btn.textContent=antes; }
+  document.getElementById('smtColetadoEm').textContent=msg;
+  if(ok){ try{ await loadSmt(); }catch(e){} }
+}
+
 async function loadMul(){
   skelKpis('kpis-mul',4);
   const seq = ++mulSeq;
@@ -29898,6 +30318,7 @@ boot();
         <a href="#mprev" onclick="fecharDrawer()"><span class="ic" data-ic="mprevic"></span>Manutenção Preventiva</a>
         <a href="#mul" onclick="fecharDrawer()"><span class="ic" data-ic="mul"></span>Multas</a>
         <a href="#pneus" onclick="fecharDrawer()"><span class="ic" data-ic="pneuic"></span>Pneus</a>
+        <a href="#smt" onclick="fecharDrawer()"><span class="ic" data-ic="smt"></span>Smartec</a>
         <a href="#veic" onclick="fecharDrawer()"><span class="ic" data-ic="veic"></span>Veículos</a>
       </div>
     </div>

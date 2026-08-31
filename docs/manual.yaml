@@ -236,6 +236,21 @@ glossario:
     recusada no envio, venha de onde vier - o que sairia seria "Prezado {{cliente}}" para um cliente
     de verdade. Modelo desligado não dispara e continua guardado; excluir faz qualquer rotina que use
     a chave recusar o envio. Fica em Gestão › WhatsApp, só para administradores.
+- termo: Notificação x multa (Smartec)
+  definicao: São o MESMO auto de infração em estágios diferentes, e a tela nunca os soma. A NOTIFICAÇÃO
+    é a autuação - enquanto o prazo de indicação corre, dá para indicar quem dirigia e transferir a
+    multa e os pontos para o condutor. Passado o prazo sem indicar, o órgão aplica por cima a autuação
+    por não identificar o condutor (art. 257 par. 8 do CTB), que recai sobre a empresa, e ela é a
+    segunda infração mais frequente desta frota. A MULTA é o estágio seguinte, já com boleto e
+    vencimento. Somar as duas contaria a mesma infração duas vezes, e a ação de cada uma é outra - na
+    notificação se indica, na multa se paga ou se recorre.
+- termo: Acesso ao SNE
+  definicao: Certificado e-CNPJ que dá à empresa acesso ao Sistema Nacional de Notificações do SENATRAN.
+    É a dependência silenciosa de toda a integração da Smartec - expirado, param de chegar notificações,
+    não se pede boleto pelo SNE e não se indica condutor eletronicamente. O sintoma é "parou de chegar
+    multa", que se lê como boa notícia, e por isso o vencimento é KPI na tela e não nota de rodapé.
+    Só órgão ADESO ao SNE aceita boleto e indicação eletrônica; quando o boleto não sai de um órgão
+    não adeso, não é falha do sistema.
 - termo: Minha conta (avatar da barra)
   definicao: Menu do avatar, no canto superior direito. Cada pessoa troca ali a própria foto de perfil,
     o próprio telefone e o próprio ramal. Nome, e-mail, cargo e setor aparecem só para leitura e são
@@ -390,7 +405,7 @@ grupos:
   - port
 - nome: Frota
   resumo: Ativos e sua idade, consulta por placa, manutenção corretiva e preventiva, combustível e consumo,
-    multas e comunicação dos rastreadores.
+    multas, as infrações e licenças da Smartec, e comunicação dos rastreadores.
   telas:
   - veic
   - veicf
@@ -398,6 +413,7 @@ grupos:
   - man
   - comb
   - mul
+  - smt
   - comrast
   - pneus
 - nome: Suprimentos

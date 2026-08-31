@@ -697,13 +697,87 @@ PLAUSÍVEL (31/08/2026):**
   dizer a cobertura ("informado em 3 de 96 multas — NÃO é o custo do período").
 - **Não inventar estimativa para tapar buraco:** o catálogo `infracaotransito` também
   tem valor zerado justamente nas duas infrações mais frequentes, então **não** foi
-  criada estimativa de custo. Dizer que não dá para medir é a resposta certa.
+  criada estimativa de custo.
+- **MAS "não dá para medir" ESTAVA ERRADO, e a correção é instrutiva (31/08/2026).**
+  Esta seção afirmava que dizer "não dá para medir" era a resposta certa. O valor
+  CHEGA — com atraso. Cobertura por idade da inclusão, medida sobre a série inteira:
+  **15% no mês 0, 39% no mês 3, 84% no mês 6 e ~91% a partir do mês 7.** O gradiente
+  é monotônico, ou seja é MATURAÇÃO, não ausência: o órgão emite a notificação e o
+  valor vem depois, com o boleto. Em 2025 fechado são 650 de 733 com valor,
+  R$ 163.878.
+  - **A janela de 90 dias da tela é a PIOR possível para olhar multa** — pega
+    exatamente a faixa em que quase nada foi valorado. Os "3 de 96" eram um artefato
+    do recorte, não uma propriedade do dado.
+  - A regra que sobrevive: antes de concluir "este campo é vazio nesta base", medir a
+    cobertura CONTRA A IDADE do registro. Campo que se preenche com atraso parece
+    campo vazio em toda janela curta, e a conclusão errada é indistinguível da certa.
+  - É primo do "zero que é ausência de lançamento não é desempenho" da Análise de KM,
+    com uma diferença: lá o dado nunca chega; aqui ele chega e a janela é que estava
+    errada.
+  - **Quem tem o valor desde o dia 1 é a Smartec** (ver a seção dela): 212 de 212
+    multas em aberto com valor informado.
 - **Gráfico deve plotar o campo CONFIÁVEL.** "Multas por mês" usava o valor: abr e jul
   apareciam vazios como se não houvesse multa. Passou a plotar a contagem (com o valor
   no tooltip) — e o eixo deixou de ser `unitOf()` de dinheiro, virando contagem inteira.
 - **Ligar causa e consequência no alerta:** 86 de 96 multas sem condutor identificado e
   22 autuações por "não indicar condutor" (a 2ª infração mais comum) são o mesmo
   problema; o alerta cita as duas juntas.
+
+
+**A INTEGRAÇÃO JÁ EXISTIA NO ERP E NINGUÉM SABIA (Smartec, 31/08/2026):**
+- `integracao.cadastrointegracao` id=3 → `tipointegracao` **32 = SmarTec**, ativa desde
+  13/04/2023, com token no banco. **O nome do fornecedor não é tabela nenhuma** — ele é
+  DADO no catálogo genérico de integrações do ERP (schema `integracao`, 78 tabelas).
+  Mesma armadilha da RasterJOR, que estava em `sulista.rasterjor_*`. Antes de dizer que
+  uma integração não existe, ler o CATÁLOGO de integrações, não procurar tabela pelo nome.
+- **O ERP habilita 1 de 28 processos: o 8, "Importar Infração".** Os outros onze recursos
+  da API (CNH + toxicológico, licenciamento, IPVA, restrições, CIV/CIPP/CSV/EMTU,
+  cronotacógrafo, ANTT, RNTRC) ele não lê. Uma linha de
+  `integracao.processotipointegracao` responde isso.
+- **O que ele deixa na mesa, medido:** das 212 multas em aberto, 206 estavam no ERP —
+  mas **64 sem valor** (a Smartec informa o de todas) e **28 que a Smartec dá como PAGAS
+  com `dtliquidacao` vazia no ERP em todas as 28**. O "pagas em 0" da tela de Multas
+  nunca foi a operação não pagar: é a baixa não voltar.
+- **O `Tipo` de cada operação NÃO está no schema do Swagger — só na `description`.**
+  O schema diz `Tipo: string, "Tipo de requisição que será feita"`, e os valores válidos
+  estão em markdown no campo `description` do path. Gastei quatro rodadas adivinhando
+  ("Listar", "Consultar", "1".."10") com o arquivo já baixado no disco. **Ao ler spec de
+  fornecedor, ler `description` de path e de operação ANTES de inferir**: o schema é o
+  que a ferramenta gerou, a descrição é o que a pessoa escreveu.
+- **HTTP 403 sem `User-Agent`.** O `curl` passa e o `urllib` não. O sintoma é a mesma
+  requisição funcionar no terminal e falhar no código — que manda procurar defeito no
+  código, onde não há nenhum.
+- **`IdErro 2000 "NENHUM DADO ENCONTRADO"` chega como HTTP 400 e significa VAZIO.**
+  É como CIV, EMTU e RNTRC respondem nesta conta, que não usa esses produtos. Tratar
+  como falha faria o painel acusar integração quebrada em três recursos perfeitos —
+  a família do `error` descritivo da Z-API. A regra que sobrevive: ler o CORPO.
+- **A NOTIFICAÇÃO usa nomes de campo diferentes da MULTA**, e isso gravou 483 linhas com
+  o órgão em branco sem erro nenhum: `ORGAO_AUTUADOR` (não `ORGAO`), `LOCAL` (não
+  `LOCAL_INFRACAO`), **`PRAZO_INDICACAO`** (não `VENCIMENTO_INFRACAO`) e `DESDOBRAMENTO`
+  vazio onde a multa manda `"0"`. O prazo é justamente o campo que torna a notificação
+  acionável. Mesma classe do "425 lidos, 0 gravados" da RasterJOR.
+- **MULTA e NOTIFICAÇÃO nunca se somam**: são o mesmo auto em estágios diferentes.
+  Somar daria R$ 126 mil onde o exigível é R$ 41,8 mil, e a ação de cada uma é outra —
+  na notificação se indica condutor, na multa se paga ou se recorre.
+- **A API só devolve o que está EM ABERTO.** O que foi pago ou baixado simplesmente para
+  de vir, sem marca nenhuma. Daí `visto_em`/`sumiu_em`: sem isso a tabela vira um
+  acumulado que só cresce e o painel diz "212 em aberto" para sempre. E o fechamento das
+  ausentes **exige coleta completa** — com a varredura interrompida, os veículos não
+  visitados também "não vieram", e um timeout de rede viraria "zeramos as multas".
+- **A fronteira do fechamento é o INÍCIO da coleta, não uma janela fixa.** A primeira
+  versão usava `visto_em < now() - 1 minuto`; a varredura de notificações faz 160
+  chamadas, e no dia em que passasse de um minuto ela fecharia as infrações gravadas no
+  próprio começo dela. **E o teste que deveria pegar isso passava por vacuidade** — ele
+  gravava e fechava no mesmo instante, então a janela de 1 minuto já segurava sozinha, e
+  sabotar o guard não o derrubava. Só a sabotagem revelou as duas coisas.
+- **`abaContador` recebe o id do SPAN, não o do botão da aba.** Passar o botão APAGA o
+  rótulo da aba, porque o helper sobrescreve o `textContent` do elemento que recebe.
+  Não dá erro; a aba fica sem nome. Quem pegou foi o render com dado real.
+- **A chave é o RENAVAM**, e ela é sólida: `veiculo.codigorenavam` está preenchido em
+  99,7% dos ativos e bate com a Smartec em **301 de 301**, sem uma divergência.
+- **Só leitura, por decisão.** `INDICAR` e `EXCLUIR INDICACAO` atingem o órgão autuador e
+  o prontuário de uma pessoa. Ficam no catálogo e **bloqueados no cliente** — apagá-los
+  faria o próximo achar que não existem.
 
 **Dois gráficos do mesmo dado e página quilométrica (lições do Painel de Custos):**
 - **Rosca de participação + barras por agrupador mostravam exatamente a mesma coisa**,
