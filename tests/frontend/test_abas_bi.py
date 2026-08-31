@@ -460,3 +460,42 @@ def test_todo_BOTAO_de_aba_tem_PAINEL_e_vice_versa():
                 f"{g}: painel {sorted(p - b)} existe e nenhum botão o chama "
                 f"(conteúdo inalcançável)")
     assert not problemas, "aba que não abre -> " + " | ".join(problemas)
+
+
+def test_toda_TELA_e_filha_do_CONTAINER_de_conteudo(pagina):
+    """Um `</div>` a mais numa tela FECHA o container e joga as SEGUINTES
+    para fora do layout.
+
+    ISTO ACONTECEU (v0.185.0). Ao fundir as duas telas de multa eu deixei dois
+    `</div>` sobrando; o `#content` fechou cedo e as 14 telas seguintes —
+    Torre, Análise de KM, Make vs Buy, Jornada, Documentação e Saúde do
+    Servidor — viraram filhas do `<body>`. Elas continuavam existindo, com o
+    conteúdo todo renderizado e o texto certo: só que posicionadas fora da
+    área visível (a Saúde ficou em `top: 889px`). Quem abria via TELA BRANCA.
+
+    NENHUM GUARD PEGAVA, e vale saber por quê: o JS compila, o
+    `verificar_estrutura` não olha aninhamento, o medidor de altura acha a
+    view pelo id e a mede feliz, e o navegador NÃO reclama de `</div>` extra —
+    ele fecha o que dá e segue. O sintoma é ausência, não erro.
+
+    A pergunta só tem resposta no DOM montado, então quem responde é o
+    navegador: contar tag no texto não diz de quem é filho.
+    """
+    import json
+    pg, base_url = pagina        # a fixture desta suite devolve (page, url)
+    pg.route("**/api/**", lambda r: r.fulfill(
+        status=200, content_type="application/json",
+        body=json.dumps({"nome": "T", "email": "t@s.local", "perfil": "admin",
+                         "admin": True, "telas": []}
+                        if "/api/auth/me" in r.request.url else {})))
+    pg.goto(f"{base_url}/static/index.html#home")
+    pg.wait_for_selector("#view-home.on", timeout=15000)
+
+    fora = pg.evaluate("""() => [...document.querySelectorAll('section.view')]
+        .filter(v => !v.parentElement || v.parentElement.id !== 'content')
+        .map(v => v.id + ' (pai: ' + (v.parentElement
+             ? v.parentElement.tagName.toLowerCase() + (v.parentElement.id ? '#'+v.parentElement.id : '')
+             : 'nenhum') + ')')""")
+    assert not fora, (
+        "tela fora do #content -> " + ", ".join(fora)
+        + " — quase sempre um </div> a mais numa tela ANTERIOR a estas")

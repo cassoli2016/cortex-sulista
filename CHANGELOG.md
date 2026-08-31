@@ -4,6 +4,12 @@ Gerado de `docs/versoes.yaml` por `scripts/gerar_changelog.py` — não editar �
 Formato [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/),
 versionamento [SemVer](https://semver.org/lang/pt-BR/).
 
+## [0.188.2] — 31/08/2026  ·  CX-31/08/2026-v0.188.2
+
+### Corrigido
+- Catorze telas abriam EM BRANCO — Saúde do Servidor, Gestão, Torre de Controle, Análise de KM, Make vs Buy, Jornada e Documentação entre elas. A causa foi um erro meu na v0.185.0, quando as duas telas de multa viraram uma: dois "fecha-divisão" a mais encerraram o container de conteúdo antes da hora, e todas as telas seguintes ficaram penduradas fora da área visível. Elas continuavam carregando e com os números certos: só estavam posicionadas onde ninguém vê.
+- Um teste novo abre o painel no navegador e exige que TODA tela seja filha do container de conteúdo. Nenhuma conferência anterior pegava isto: o JavaScript compila, a verificação de estrutura não olha aninhamento, o medidor de altura encontra a tela pelo id e a mede normalmente, e o navegador não reclama de um fecha-divisão sobrando — ele fecha o que dá e segue em frente.
+
 ## [0.188.1] — 31/08/2026  ·  CX-31/08/2026-v0.188.1
 
 ### Corrigido
