@@ -5,10 +5,14 @@ O CONTEXTO
 Medido em 30/08/2026, 12 meses, no que a administradora devolveu praça a praça:
 
     praças confrontadas ....   189
-    travessias .............23.284
-    calculado ..........R$ 593.697
-    cobrado ............R$ 643.417   (+R$ 49.720)
-    iguais ao centavo ......  11,2%
+    travessias .............13.283
+    calculado ..........R$ 327.542
+    cobrado ............R$ 358.123   (+R$ 30.581)
+    iguais ao centavo ......  10,2%
+
+E a divergência tem dono: AGR responde por 55,1% dela e TER por 44,7% —
+99,8% juntas, porque é onde o vale-pedágio se aplica (Lei 10.209/2001) e não
+porque cobrem mais. 30 dos 259 veículos fazem metade, e 87 fazem 80%.
 
 E 100% dessa diferença está em praça cuja tarifa cadastrada está PARADA —
 903 das 934 praças com tarifa (96,7%), e 219 das 221 efetivamente
@@ -284,3 +288,127 @@ def test_o_ciot_entra_na_conta_de_proposito(monkeypatch):
         {"mdfe": 100, "com_comprovante": 0, "com_fornecedor": 0,
          "com_ciot": 56}])
     assert P.mdfe_vale("2025-08-31", "2026-08-30")["pct_ciot"] == 56.0
+
+
+def test_a_tabela_de_tarifa_entra_DEDUPLICADA_ou_multiplica_a_travessia():
+    """`pracapedagio_valor` tem 1.260 linhas para 934 praças — 298 com DUAS
+    vigências e 14 com três. Um `LEFT JOIN` direto nela multiplica cada
+    travessia pelo número de vigências da praça, e a primeira versão deste
+    módulo publicou assim: **1,75x**, 23.284 travessias onde são 13.283 e
+    R$ 49.720 de diferença onde são R$ 30.581.
+
+    O agravante é que o próprio módulo já carregava a regra escrita, aplicada
+    ao join com a administradora: quando o total muda de ordem de grandeza ao
+    ligar duas tabelas, é o join. Eu a apliquei num join e não no outro.
+
+    O `DISTINCT ON` também conserta o segundo defeito: `max(dtvigencia)` e
+    `max(valorpedagioeixo)` eram máximos INDEPENDENTES, e em 28 praças a tela
+    mostrava a data de uma linha com a tarifa de outra.
+    """
+    for nome in ("CONFRONTO_PRACA_SQL", "OBSERVADA_SQL", "TARIFA_EM_USO_SQL",
+                 "CONFRONTO_MODALIDADE_SQL", "CONFRONTO_VEICULO_SQL"):
+        sql = " ".join(getattr(P, nome).split())
+        if "pracapedagio_valor" not in sql:
+            continue
+        assert "DISTINCT ON (idpracapedagio)" in sql, (
+            "%s liga em pracapedagio_valor sem deduplicar e vai multiplicar "
+            "cada travessia pelo número de vigências da praça" % nome)
+        assert "LEFT JOIN pracapedagio_valor v ON" not in sql, (
+            "%s voltou ao join direto" % nome)
+
+
+def test_o_NULLS_LAST_da_vigencia_nao_e_detalhe():
+    """16 linhas de `pracapedagio_valor` não têm vigência. Em `ORDER BY
+    dtvigencia DESC` o Postgres põe NULL PRIMEIRO, então a praça que tem uma
+    linha sem data ganharia a tarifa sem vigência no lugar da que tem — e
+    apareceria na tela como "sem tarifa cadastrada" tendo cadastro."""
+    sql = " ".join(P.TARIFA_VIGENTE.split())
+    assert "dtvigencia DESC NULLS LAST" in sql
+
+
+# ── modalidade e veículo: quem gera a divergência ───────────────────────────
+
+
+def _conf(modalidade, travessias, calc, cobr, **extra):
+    return {"modalidade": modalidade, "travessias": travessias,
+            "veiculos": extra.get("veiculos", 1),
+            "pracas": extra.get("pracas", 1),
+            "calculado": calc, "cobrado": cobr,
+            "iguais": extra.get("iguais", 0),
+            "placa": extra.get("placa", "AAA0A00"),
+            "frota": extra.get("frota", "")}
+
+
+def test_por_travessia_separa_volume_de_erro(monkeypatch):
+    """O total sozinho ordena pelo VOLUME. Medido: EGK0H82 lidera a lista com
+    702 travessias e R$ 3,79 de diferença por vale, enquanto NWP5C88 tem 99
+    travessias e **R$ 9,76 por vale** — este é o que está com a tarifa errada,
+    aquele é o que roda muito. As duas colunas juntas separam os dois casos;
+    só a primeira faria a lista virar um ranking de quilometragem.
+    """
+    monkeypatch.setattr(P.db, "query", lambda *a, **k: [
+        _conf("TER", 700, 20000.0, 22660.0),
+        _conf("AGR", 100, 2600.0, 3576.0)])
+    r = P.confronto_modalidade("2026-01-01", "2026-12-31")
+    assert r[0]["por_travessia"] == 3.8
+    assert r[1]["por_travessia"] == 9.76
+
+
+def test_a_participacao_da_modalidade_e_em_MODULO(monkeypatch):
+    """Uma modalidade que cobra a MENOS e outra que cobra a MAIS não se
+    cancelam: são dois problemas, não meio problema. Somando com sinal, um
+    +R$ 10 mil e um −R$ 10 mil dariam denominador zero e as duas linhas
+    apareceriam com participação indefinida ou absurda."""
+    monkeypatch.setattr(P.db, "query", lambda *a, **k: [
+        _conf("AGR", 100, 1000.0, 2000.0),    # +1000
+        _conf("TER", 100, 2000.0, 1000.0)])   # -1000
+    r = P.confronto_modalidade("2026-01-01", "2026-12-31")
+    assert [x["pct_diferenca"] for x in r] == [50.0, 50.0]
+
+
+def test_o_total_do_veiculo_sai_de_TODAS_as_linhas_e_nao_das_mostradas(monkeypatch):
+    """Top-N sem contador vira total falso — foi o `LIMIT 20` que fez a tela de
+    Veículos dizer 1.373 onde eram 1.414. O hint diz "60 de 259" e o número
+    acima dele tem de ser o de 259."""
+    linhas = [_conf("AGR", 10, 100.0, 110.0, placa="AAA%04d" % i)
+              for i in range(10)]
+    monkeypatch.setattr(P.db, "query", lambda *a, **k: linhas)
+    r = P.confronto_veiculo("2026-01-01", "2026-12-31", limite=3)
+    assert len(r["linhas"]) == 3
+    assert r["veiculos"] == 10
+    assert r["mostrados"] == 3
+    assert r["diferenca"] == 100.0, "o total é dos 10, não dos 3 mostrados"
+
+
+def test_o_rotulo_do_veiculo_nao_repete_a_placa(monkeypatch):
+    """`numerofrota` está preenchido em 94% da frota, mas em metade dos casos
+    ele É a própria placa copiada no campo. "AAW7D10 · AAW7D10" além de
+    absurdo faria metade da frota PARECER ter número."""
+    monkeypatch.setattr(P.db, "query", lambda *a, **k: [
+        _conf("TER", 5, 10.0, 12.0, placa="AAW7D10", frota="AAW7D10"),
+        _conf("AGR", 5, 10.0, 11.0, placa="AML7680", frota="C9916")])
+    r = P.confronto_veiculo("2026-01-01", "2026-12-31")["linhas"]
+    rot = {x["placa"]: x["rotulo"] for x in r}
+    assert rot["AAW7D10"] == "AAW7D10"
+    assert rot["AML7680"] == "C9916 · AML7680"
+
+
+def test_a_concentracao_diz_se_o_conserto_e_conversa_ou_varredura(monkeypatch):
+    """"+R$ 30 mil em 259 veículos" não diz se o problema é pontual ou
+    sistêmico, e são encaminhamentos diferentes. Medido: 30 veículos fazem
+    metade da diferença e 87 fazem 80%."""
+    linhas = ([_conf("AGR", 10, 100.0, 200.0, placa="A%03d" % i) for i in range(2)]
+              + [_conf("AGR", 10, 100.0, 105.0, placa="B%03d" % i) for i in range(20)])
+    monkeypatch.setattr(P.db, "query", lambda *a, **k: linhas)
+    c = P.confronto_veiculo("2026-01-01", "2026-12-31")["concentracao"]
+    assert c["total"] == 22
+    assert c["metade"] == 2, "dois veículos com R$ 100 cada contra vinte com R$ 5"
+
+
+def test_concentracao_sem_diferenca_nenhuma_e_None(monkeypatch):
+    """Divisão por zero com cara de estatística. Sem diferença não há
+    concentração a reportar — e "0 veículos fazem metade" seria uma frase que
+    não quer dizer nada."""
+    monkeypatch.setattr(P.db, "query", lambda *a, **k: [
+        _conf("AGR", 10, 100.0, 100.0)])
+    assert P.confronto_veiculo("2026-01-01", "2026-12-31")["concentracao"] is None

@@ -3017,6 +3017,12 @@ def operacao_pedagio(dias: int = 365) -> JSONResponse:
             "confronto_praca": _p.confronto_praca(d, a),
             "por_administradora": _p.por_administradora(d, a),
             "observada": _p.observada(d, a)[:60],
+            # QUEM gera a divergência, não só onde ela acontece: a quebra por
+            # modalidade e a estratificação por placa/frota. O confronto por
+            # praça diz "em que praça o cadastro está velho"; estes dizem "de
+            # quem é o vale que sai diferente", e são donos diferentes.
+            "por_modalidade_conf": _p.confronto_modalidade(d, a),
+            "por_veiculo": _p.confronto_veiculo(d, a),
             # O MDF-e é SENSOR, não texto: os três campos de vale-pedágio do
             # manifesto estão vazios nas 126.295 linhas do histórico, então a
             # conferência legal não dá para fazer — e a tela DIZ isso em vez

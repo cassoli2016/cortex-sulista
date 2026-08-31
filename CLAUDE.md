@@ -2078,7 +2078,7 @@ só no ERP ...... 177 placas      união ....... 275
   praça cobra pelo eixo NO CHÃO e o vale declara o total do veículo.
 - **Cadastro parado é a explicação, e ela vai ao lado do número acusado.** 903
   das 934 praças com vigência acima de treze meses, e **100% da diferença**
-  entre calculado e cobrado (R$ 49.720 em 12 meses) está nelas. Sem a coluna
+  entre calculado e cobrado (R$ 30.581 em 12 meses) está nelas. Sem a coluna
   de vigência, o mesmo número se leria como cobrança indevida — que é outro
   problema, com outro dono.
 - **Campo vazio dos dois lados vira SENSOR, não silêncio.** Os três campos de

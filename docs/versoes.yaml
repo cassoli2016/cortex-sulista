@@ -1,3 +1,40 @@
+- versao: "0.177.0"
+  data: "2026-08-31"
+  adicionado:
+    - >-
+      A Validação de Pedágio passou a dizer DE QUEM é a divergência, e não só
+      em que praça ela acontece: a diferença entre o calculado e o cobrado
+      agora sai quebrada por modalidade e por veículo, na aba "Eixo,
+      modalidade e veículo".
+    - >-
+      Agregado responde por 55,1% da diferença e terceiro por 44,7% — 99,8%
+      juntos. Isso é onde o vale-pedágio se aplica por lei, não uma acusação a
+      eles, e por isso a contagem de travessias e de veículos anda sempre ao
+      lado do valor.
+    - >-
+      A lista por veículo traz placa e número de frota, e mostra a diferença
+      POR TRAVESSIA ao lado do total: um veículo de 702 viagens lidera
+      qualquer ranking de valor sem que cada vale dele esteja mais errado que
+      os outros. É a coluna que separa "roda muito" de "está com a tarifa
+      errada" — e o segundo caso chega a R$ 9,76 por vale.
+    - >-
+      Uma linha diz quantos veículos explicam metade da diferença e quantos
+      explicam 80%: são 30 e 87, de 259. É o que decide se o conserto é uma
+      conversa ou uma varredura.
+  corrigido:
+    - >-
+      Os números do confronto por praça estavam INFLADOS em 1,75 vez. A
+      consulta ligava na tabela de preços sem tratar as praças que têm mais de
+      uma vigência cadastrada (312 delas), e cada travessia era contada uma vez
+      por vigência. O correto no período são 13.283 travessias e R$ 30.581 de
+      diferença, e não 23.284 e R$ 49.720. A leitura de fundo não muda — a
+      diferença continua inteira em praça de tarifa vencida —, mas os valores
+      da tela estavam maiores do que a realidade.
+    - >-
+      A data de vigência e o preço mostrados ao lado de cada praça podiam vir
+      de linhas DIFERENTES do cadastro, em 28 praças: eram o maior de cada
+      coluna, buscados em separado. Agora saem os dois da mesma linha, a mais
+      recente.
 - versao: "0.176.1"
   data: "2026-08-31"
   alterado:

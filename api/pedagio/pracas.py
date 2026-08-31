@@ -37,10 +37,14 @@ que existe, parece atual e decide errado.
 
 E A CONSEQUÊNCIA É MENSURÁVEL, o que é raro
 ===========================================
-Nas 13.333 travessias de 12 meses em que a administradora devolveu a praça,
-ela cobrou MAIS em 77,9% e igual em só 10,1%. Garuva: o sistema calculou
-R$ 28,31 em média (a tarifa de nov/2024) e foi cobrado R$ 32,40. Régis
-Bittencourt trecho oeste: calculado R$ 4.104, cobrado R$ 17.039.
+Nas 13.283 travessias de 12 meses em que a administradora devolveu a praça,
+ela cobrou R$ 358.123 contra R$ 327.542 calculados — **R$ 30.581 a mais**, com
+só 10,2% batendo ao centavo. Régis Bittencourt trecho oeste: 215 travessias,
+calculado R$ 1.368, cobrado R$ 5.680.
+
+(Os números desta seção estiveram inflados em 1,75x na primeira versão, por um
+`LEFT JOIN` que multiplicava a travessia pelas vigências da praça. O bloco
+`TARIFA_VIGENTE`, abaixo, conta o caso.)
 
 A diferença NÃO é acusação de cobrança indevida — é a tarifa do ERP
 desatualizada encontrando a tarifa real. Por isso a tela mostra a vigência ao
@@ -154,6 +158,33 @@ SELECT count(*)::int AS paradas
  WHERE x.ult < %(corte)s
 """
 
+# A TARIFA VIGENTE DE CADA PRAÇA, EM UMA LINHA SÓ — e este bloco existe por
+# causa de dois defeitos que a primeira versão publicou (31/08/2026):
+#
+# 1. `pracapedagio_valor` tem 1.260 linhas para 934 praças: 298 têm DUAS
+#    vigências e 14 têm três. Um `LEFT JOIN` direto nela MULTIPLICA cada
+#    travessia pelo número de vigências da praça — medido, **1,75x**. Os
+#    números saíram inflados: 23.284 travessias onde são 13.283, e uma
+#    diferença de R$ 49.720 onde são R$ 30.581. É exatamente o que o
+#    comentário do join com a administradora avisa duas telas acima ("quando o
+#    total muda de ordem de grandeza ao ligar duas tabelas, é o join") — e eu
+#    apliquei a regra num join e não no outro.
+#
+# 2. `max(dtvigencia)` e `max(valorpedagioeixo)` são máximos INDEPENDENTES: em
+#    28 praças o maior valor não está na linha da última vigência, então a tela
+#    mostrava a data de uma e a tarifa de outra. O que se quer é a LINHA mais
+#    recente inteira, e é isso que o `DISTINCT ON` devolve.
+#
+# `NULLS LAST` porque 16 linhas não têm vigência: em `DESC` o Postgres põe NULL
+# primeiro, e a praça com uma linha sem data ganharia uma tarifa sem vigência
+# no lugar da que tem.
+TARIFA_VIGENTE = """
+  LEFT JOIN (SELECT DISTINCT ON (idpracapedagio)
+                    idpracapedagio, dtvigencia, valorpedagioeixo
+               FROM pracapedagio_valor
+              ORDER BY idpracapedagio, dtvigencia DESC NULLS LAST) v
+    ON v.idpracapedagio = c.idpracapedagio"""
+
 # As praças USADAS na janela, com a idade da tarifa de cada uma. É a lista que
 # decide trabalho: praça que ninguém atravessa com tarifa de 2017 não custa
 # nada; praça de 856 travessias com tarifa de 2021 custa toda vez.
@@ -167,7 +198,7 @@ SELECT c.idpracapedagio                                AS id,
        max(v.valorpedagioeixo)::float8                  AS tarifa_eixo
   FROM valepedagio_pracapedagio c
   LEFT JOIN pracapedagio p       ON p.id = c.idpracapedagio
-  LEFT JOIN pracapedagio_valor v ON v.idpracapedagio = c.idpracapedagio
+""" + TARIFA_VIGENTE + """
  WHERE c.dtinc >= %(de)s AND c.dtinc < %(ate)s::date + 1
  GROUP BY c.idpracapedagio, p.descricao, p.uf
  ORDER BY count(*) DESC
@@ -197,7 +228,7 @@ SELECT c.idpracapedagio                                AS id,
    AND a.sequencia = c.sequencia
    AND a.sequenciapracapedagio = c.sequenciapracapedagio
   LEFT JOIN pracapedagio p       ON p.id = c.idpracapedagio
-  LEFT JOIN pracapedagio_valor v ON v.idpracapedagio = c.idpracapedagio
+""" + TARIFA_VIGENTE + """
  WHERE c.dtinc >= %(de)s AND c.dtinc < %(ate)s::date + 1
    AND a.valor > 0
  GROUP BY c.idpracapedagio, p.descricao, p.uf
@@ -261,7 +292,7 @@ SELECT c.idpracapedagio                                AS id,
    AND a.sequencia = c.sequencia
    AND a.sequenciapracapedagio = c.sequenciapracapedagio
   LEFT JOIN pracapedagio p       ON p.id = c.idpracapedagio
-  LEFT JOIN pracapedagio_valor v ON v.idpracapedagio = c.idpracapedagio
+""" + TARIFA_VIGENTE + """
  WHERE c.dtinc >= %(de)s AND c.dtinc < %(ate)s::date + 1
    AND a.valor > 0 AND c.quantidadeeixos > 0
  GROUP BY c.idpracapedagio, p.descricao, p.uf, c.quantidadeeixos, a.valor
@@ -302,6 +333,76 @@ SELECT count(*)::int                                                   AS mdfe,
        sum(CASE WHEN m.numerociot IS NOT NULL THEN 1 ELSE 0 END)::int   AS com_ciot
   FROM manifestoeletronico m
  WHERE m.dtemissao >= %(de)s AND m.dtemissao < %(ate)s::date + 1
+"""
+
+
+# ── modalidade e veículo ────────────────────────────────────────────────────
+#
+# QUEM GERA A DIVERGÊNCIA, e não só onde ela acontece. O confronto por praça
+# responde "em que praça o cadastro está velho"; este responde "de quem é o
+# vale que sai diferente" — e são perguntas com donos diferentes.
+#
+# O JOIN COM `valepedagio` NÃO PERDE NADA, e isso foi conferido antes de
+# construir: 13.283 travessias dos dois lados, zero órfãs, e `veiculo` nulo em
+# zero delas. Se perdesse, a estratificação diria respeito a um subconjunto
+# enquanto o cartão acima falaria do todo — que é o jeito de duas partes da
+# mesma tela se desmentirem sem ninguém ver.
+CONFRONTO_JOIN = """
+  FROM valepedagio_pracapedagio c
+  JOIN valepedagio_pracapedagioadm a
+    ON a.grupo = c.grupo AND a.empresa = c.empresa AND a.filial = c.filial
+   AND a.unidade = c.unidade
+   AND a.diferenciadorsequencia = c.diferenciadorsequencia
+   AND a.sequencia = c.sequencia
+   AND a.sequenciapracapedagio = c.sequenciapracapedagio
+  JOIN valepedagio vp
+    ON vp.grupo = c.grupo AND vp.empresa = c.empresa AND vp.filial = c.filial
+   AND vp.unidade = c.unidade
+   AND vp.diferenciadorsequencia = c.diferenciadorsequencia
+   AND vp.sequencia = c.sequencia
+  LEFT JOIN veiculo ve ON ve.placa = vp.veiculo
+ WHERE c.dtinc >= %(de)s AND c.dtinc < %(ate)s::date + 1
+   AND a.valor > 0
+"""
+
+# `utilizacaoveiculo` é a modalidade do ERP: TRA (frota própria), AGR
+# (agregado), TER (terceiro), LOC (locação). Medido em 12 meses, AGR e TER são
+# **99,8% da diferença** — e isso NÃO é um achado sobre eles: o vale-pedágio é
+# obrigação do embarcador para com o transportador AUTÔNOMO e de terceiro (Lei
+# 10.209/2001), então a frota própria mal aparece porque passa por tag. O
+# denominador de cada modalidade vai junto justamente para a leitura não virar
+# "os agregados cobram mais".
+CONFRONTO_MODALIDADE_SQL = """
+SELECT coalesce(ve.utilizacaoveiculo, '(sem cadastro)') AS modalidade,
+       count(*)::int                                    AS travessias,
+       count(DISTINCT vp.veiculo)::int                  AS veiculos,
+       count(DISTINCT c.idpracapedagio)::int            AS pracas,
+       sum(c.valorpedagio)::float8                      AS calculado,
+       sum(a.valor)::float8                             AS cobrado,
+       sum(CASE WHEN abs(c.valorpedagio - a.valor) <= 0.01
+                THEN 1 ELSE 0 END)::int                 AS iguais
+""" + CONFRONTO_JOIN + """
+ GROUP BY 1
+ ORDER BY sum(a.valor) DESC
+"""
+
+# Por VEÍCULO. A chave é a PLACA e o que se mostra são as duas — `numerofrota`
+# está preenchido em 94% mas em metade dos casos ele É a própria placa
+# copiada, então quem monta o rótulo é `frota_identidade.rotulo()`, e não uma
+# concatenação aqui.
+CONFRONTO_VEICULO_SQL = """
+SELECT vp.veiculo                                       AS placa,
+       coalesce(ve.numerofrota, '')                     AS frota,
+       coalesce(ve.utilizacaoveiculo, '(sem cadastro)') AS modalidade,
+       count(*)::int                                    AS travessias,
+       count(DISTINCT c.idpracapedagio)::int            AS pracas,
+       sum(c.valorpedagio)::float8                      AS calculado,
+       sum(a.valor)::float8                             AS cobrado,
+       sum(CASE WHEN abs(c.valorpedagio - a.valor) <= 0.01
+                THEN 1 ELSE 0 END)::int                 AS iguais
+""" + CONFRONTO_JOIN + """
+ GROUP BY vp.veiculo, ve.numerofrota, ve.utilizacaoveiculo
+ ORDER BY abs(sum(a.valor) - sum(c.valorpedagio)) DESC
 """
 
 
@@ -535,3 +636,103 @@ def mdfe_vale(de: str, ate: str) -> dict:
     # e explicar por que ela não existe.
     r["conferivel"] = r["com_comprovante"] > 0
     return r
+
+
+# ── modalidade e veículo: quem gera a divergência ───────────────────────────
+
+
+def _com_diferenca(d: dict) -> dict:
+    """Os derivados que toda linha do confronto carrega.
+
+    `por_travessia` existe porque o total sozinho ordena pelo VOLUME: um
+    veículo com 702 travessias lidera qualquer ranking de diferença sem que
+    cada vale dele esteja mais errado que os outros. As duas colunas juntas
+    separam "roda muito" de "está com a tarifa errada".
+    """
+    calc = d.get("calculado") or 0.0
+    cobr = d.get("cobrado") or 0.0
+    trav = d.get("travessias") or 0
+    d["diferenca"] = round(cobr - calc, 2)
+    d["por_travessia"] = round((cobr - calc) / trav, 2) if trav else None
+    # A razão sai dos TOTAIS, nunca de valores já arredondados: o limiar de
+    # leitura é 1,00 e arredondar antes de dividir muda o lado da fronteira.
+    d["razao"] = round(cobr / calc, 3) if calc > 0 else None
+    d["pct_iguais"] = (round(100.0 * (d.get("iguais") or 0) / trav, 1)
+                       if trav else None)
+    return d
+
+
+def confronto_modalidade(de: str, ate: str) -> list[dict]:
+    """A diferença calculado × cobrado por modalidade do veículo.
+
+    Medido em 12 meses: AGR +R$ 16.841 em 6.569 travessias e TER +R$ 13.674 em
+    6.672 — juntas, 99,8% da diferença. Isso não é um achado sobre agregados e
+    terceiros: é onde o vale-pedágio se aplica, porque ele é obrigação para com
+    o transportador AUTÔNOMO e de terceiro (Lei 10.209/2001) e a frota própria
+    passa por tag. Daí a coluna de travessias andar SEMPRE ao lado do valor —
+    sem o denominador, a leitura vira "o agregado cobra mais".
+    """
+    linhas = [_com_diferenca(dict(x))
+              for x in db.query(CONFRONTO_MODALIDADE_SQL, {"de": de, "ate": ate})]
+    total = sum(abs(l["diferenca"]) for l in linhas) or 1.0
+    for l in linhas:
+        # Participação em MÓDULO: uma modalidade que cobra a menos e outra que
+        # cobra a mais não se cancelam — são dois problemas, não meio problema.
+        l["pct_diferenca"] = round(100.0 * abs(l["diferenca"]) / total, 1)
+    return linhas
+
+
+def confronto_veiculo(de: str, ate: str, limite: int = 60) -> dict:
+    """A diferença por VEÍCULO, com placa e número de frota.
+
+    O rótulo sai de `frota_identidade.rotulo()`: a chave é a placa e o que se
+    mostra são as duas, mas só quando o número de frota é um número de frota —
+    em metade dos cadastros preenchidos ele É a própria placa copiada, e
+    "AAW7D10 · AAW7D10" faria metade da frota parecer ter número.
+    """
+    from api import frota_identidade
+
+    todas = [_com_diferenca(dict(x))
+             for x in db.query(CONFRONTO_VEICULO_SQL, {"de": de, "ate": ate})]
+    for l in todas:
+        l["rotulo"] = frota_identidade.rotulo(l.get("frota"), l.get("placa"))
+    # O TOTAL sai de TODAS as linhas, não das que aparecem: o hint diz "60 de
+    # 259" e o número acima dele tem de ser o de 259, senão a tabela cortada
+    # vira total falso — a lição do `LIMIT 20` que fez a tela de Veículos dizer
+    # 1.373 onde eram 1.414.
+    return {
+        "linhas": todas[:limite],
+        "veiculos": len(todas),
+        "mostrados": min(limite, len(todas)),
+        "travessias": sum(l["travessias"] for l in todas),
+        "calculado": round(sum(l["calculado"] or 0 for l in todas), 2),
+        "cobrado": round(sum(l["cobrado"] or 0 for l in todas), 2),
+        "diferenca": round(sum(l["diferenca"] for l in todas), 2),
+        # Quantos veículos respondem por metade da diferença em módulo. É o
+        # número que decide se o conserto é uma conversa ou uma varredura.
+        "concentracao": _concentracao(todas),
+    }
+
+
+def _concentracao(linhas: list[dict]) -> dict | None:
+    """Quantos veículos explicam metade da diferença, e quantos explicam 80%.
+
+    Sem isso, "+R$ 30.581 em 259 veículos" não diz se é um problema pontual ou
+    sistêmico — e são encaminhamentos diferentes. Mesma pergunta que a
+    Concentração do custo responde no Painel de Custos.
+    """
+    if not linhas:
+        return None
+    vals = sorted((abs(l["diferenca"]) for l in linhas), reverse=True)
+    total = sum(vals)
+    if total <= 0:
+        return None
+    acc, meta50, meta80 = 0.0, None, None
+    for i, v in enumerate(vals, 1):
+        acc += v
+        if meta50 is None and acc >= 0.5 * total:
+            meta50 = i
+        if meta80 is None and acc >= 0.8 * total:
+            meta80 = i
+            break
+    return {"metade": meta50, "oitenta": meta80, "total": len(vals)}

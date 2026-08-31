@@ -745,6 +745,9 @@ body.painelfull .content{padding:16px 22px}
 /* A aba de praca e tarifa tem uma tabela larga em cima e duas embaixo; com os
    430px padrao ela media 1.072px e passava da regra de uma tela. */
 #aba-ped-prc .tabroll{max-height:270px}
+/* A aba de eixo ganhou a quebra por modalidade e a lista de veiculos: com os
+   430px padrao ela media 931px e passava da regra de uma tela. */
+#aba-ped-eixo .tabroll{max-height:235px}
 .subtabs-auto{margin-left:auto;display:flex;align-items:center;gap:6px;padding:0 2px 4px}
 .subtabs-auto label{font-size:10.5px;text-transform:uppercase;letter-spacing:.055em;
   color:var(--n500);font-weight:600}
@@ -4585,7 +4588,7 @@ body.tvfull #btnReport,body.tvmode #btnReport{display:none}
           <button role="tab" id="tabped-conf" data-aba="conf" aria-controls="aba-ped-conf"
                   aria-selected="false" onclick="abaTrocar('ped','conf')">Vale × coleta<span class="aban" id="abanPedConf"></span></button>
           <button role="tab" id="tabped-eixo" data-aba="eixo" aria-controls="aba-ped-eixo"
-                  aria-selected="false" onclick="abaTrocar('ped','eixo')">Eixo e modalidade</button>
+                  aria-selected="false" onclick="abaTrocar('ped','eixo')">Eixo, modalidade e veículo</button>
           <button role="tab" id="tabped-prc" data-aba="prc" aria-controls="aba-ped-prc"
                   aria-selected="false" onclick="abaTrocar('ped','prc')">Praça e tarifa<span class="aban" id="abanPedPrc"></span></button>
           <button role="tab" id="tabped-cob" data-aba="cob" aria-controls="aba-ped-cob"
@@ -4646,6 +4649,25 @@ body.tvfull #btnReport,body.tvmode #btnReport{display:none}
               <div class="tablewrap tabroll"><table><thead><tr>
                 <th>Modalidade</th><th class="num">Vales</th><th class="num">Valor</th><th class="num">Veículos</th>
               </tr></thead><tbody id="ped-modal"></tbody></table></div>
+            </div>
+          </div>
+          <div class="grid2">
+            <div class="card">
+              <div class="head"><h2>Diferença por modalidade <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="A diferença entre o que o sistema calculou e o que a administradora cobrou, quebrada pela modalidade do veículo (veiculo.utilizacaoveiculo). AGR e TER somam 99,8% da diferença — e isso NÃO é um achado sobre eles: é onde o vale-pedágio se aplica, porque ele é obrigação do embarcador para com o transportador autônomo e de terceiro (Lei 10.209/2001), enquanto a frota própria passa por tag. Por isso a coluna de travessias anda sempre ao lado do valor: sem o denominador, a leitura vira “o agregado cobra mais”. A participação é em MÓDULO — uma modalidade que cobra a menos e outra que cobra a mais são dois problemas, não meio problema.">i</span></h2>
+                <span class="hint" id="hintPedModConf"></span></div>
+              <div class="tablewrap tabroll"><table><thead><tr>
+                <th>Modalidade</th><th class="num">Travessias</th><th class="num">Veículos</th>
+                <th class="num">Cobrado</th><th class="num">Diferença</th><th class="num">Por travessia</th>
+              </tr></thead><tbody id="ped-modconf"></tbody></table></div>
+            </div>
+            <div class="card">
+              <div class="head"><h2>Veículos com maior diferença <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="A mesma diferença por VEÍCULO. A chave é a placa e o número de frota aparece ao lado quando existe de verdade — em metade dos cadastros preenchidos ele É a própria placa copiada, e mostrá-lo faria metade da frota parecer numerada. Ordenado pela diferença em reais, com “por travessia” ao lado porque o total sozinho ordena pelo VOLUME: um veículo de 702 travessias lidera qualquer ranking sem que cada vale dele esteja mais errado que os outros. O join com o vale não perde nada — 13.283 travessias dos dois lados, zero órfãs e zero sem placa, conferido antes de construir.">i</span></h2>
+                <span class="hint" id="hintPedVeic"></span></div>
+              <div class="tablewrap tabroll"><table><thead><tr>
+                <th>Veículo</th><th>Modal.</th><th class="num">Trav.</th>
+                <th class="num">Diferença</th><th class="num">Por trav.</th>
+              </tr></thead><tbody id="ped-veic"></tbody></table></div>
+              <div id="ped-veic-conc" style="padding:2px 18px 14px"></div>
             </div>
           </div>
         </div>
@@ -20336,6 +20358,67 @@ function renderPedagio(d){
   ).join('') || '<tr><td colspan="4" style="color:var(--n500)">sem vale no período</td></tr>';
 
   renderPedagioPracas(d);
+  renderPedagioEstrat(d);
+}
+
+/* MODALIDADE E VEÍCULO — quem gera a divergência, não só onde ela acontece.
+   AGR e TER somam 99,8% da diferença, e isso é onde o vale-pedágio se aplica
+   (Lei 10.209/2001), não uma acusação a eles: por isso travessias e veículos
+   andam SEMPRE ao lado do valor. */
+function renderPedagioEstrat(d){
+  const mods = d.por_modalidade_conf || [];
+  const hM = document.getElementById('hintPedModConf');
+  const totTrav = mods.reduce((a,x)=>a+(x.travessias||0), 0);
+  if(hM) hM.textContent = mods.length
+    ? mods.length + ' modalidades · ' + totTrav.toLocaleString('pt-BR') + ' travessias conferidas'
+    : 'sem travessia conferida no período';
+  document.getElementById('ped-modconf').innerHTML = mods.map(x => {
+    const dif = x.diferenca || 0;
+    const cor = dif > 0 ? 'var(--yellow-700)' : (dif < 0 ? 'var(--red)' : 'var(--n500)');
+    return '<tr><td style="font-weight:600">'+esc(x.modalidade||'—')+'</td>'
+      + '<td class="num">'+(x.travessias||0).toLocaleString('pt-BR')+'</td>'
+      + '<td class="num">'+(x.veiculos||0).toLocaleString('pt-BR')+'</td>'
+      + '<td class="num">'+BRL.format(x.cobrado||0)+'</td>'
+      + '<td class="num" style="font-weight:700;color:'+cor+'">'
+        + (dif>0?'+':'')+BRL.format(dif)
+        + ' <span style="color:var(--n500);font-weight:400">'
+        + NMI.format(x.pct_diferenca||0)+'%</span></td>'
+      /* POR TRAVESSIA separa "roda muito" de "está com a tarifa errada" —
+         sem ela a coluna de total ordena pelo volume e mais nada. */
+      + '<td class="num">'+brl2(x.por_travessia)+'</td></tr>';
+  }).join('') || '<tr><td colspan="6" style="color:var(--n500)">sem travessia conferida</td></tr>';
+
+  const pv = d.por_veiculo || {}, veics = pv.linhas || [];
+  const hV = document.getElementById('hintPedVeic');
+  if(hV) hV.textContent = veics.length
+    ? (pv.mostrados||veics.length) + ' de ' + (pv.veiculos||0)
+      + ' veículos · ordenado pela diferença em reais'
+    : 'sem veículo no período';
+  document.getElementById('ped-veic').innerHTML = veics.map(x => {
+    const dif = x.diferenca || 0;
+    const cor = dif > 0 ? 'var(--yellow-700)' : (dif < 0 ? 'var(--red)' : 'var(--n500)');
+    return '<tr><td style="font-family:var(--mono)" title="'+esc(x.rotulo||'')+'">'
+      + esc(x.rotulo||'—')+'</td>'
+      + '<td>'+esc(x.modalidade||'—')+'</td>'
+      + '<td class="num">'+(x.travessias||0).toLocaleString('pt-BR')+'</td>'
+      + '<td class="num" style="font-weight:700;color:'+cor+'">'
+        + (dif>0?'+':'')+BRL.format(dif)+'</td>'
+      + '<td class="num" style="color:var(--n500)">'+brl2(x.por_travessia)+'</td></tr>';
+  }).join('') || '<tr><td colspan="5" style="color:var(--n500)">sem veículo no período</td></tr>';
+
+  /* CONCENTRAÇÃO: "+R$ 30 mil em 259 veículos" não diz se o conserto é uma
+     conversa ou uma varredura. Mesma pergunta que a Concentração do custo
+     responde no Painel de Custos. */
+  const cc = document.getElementById('ped-veic-conc');
+  if(cc){
+    const c = pv.concentracao;
+    cc.innerHTML = (c && c.metade) ? ('<div style="border-top:1px solid var(--n100);'
+      + 'padding-top:9px;font-size:12px;color:var(--n500)">'
+      + '<b>' + c.metade + ' veículos</b> respondem por metade da diferença e <b>'
+      + c.oitenta + '</b> por 80%, de ' + c.total.toLocaleString('pt-BR')
+      + '. Diferença total no período: <b>'
+      + ((pv.diferenca||0) > 0 ? '+' : '') + BRL.format(pv.diferenca||0) + '</b>.</div>') : '';
+  }
 }
 
 /* PRAÇA E TARIFA — o confronto contra o que a administradora COBROU.
