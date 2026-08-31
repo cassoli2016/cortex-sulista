@@ -4836,6 +4836,8 @@ body.tvfull #btnReport,body.tvmode #btnReport{display:none}
                   aria-selected="false" onclick="abaTrocar('ped','cob')">O que dá para conferir</button>
           <button role="tab" id="tabped-tag" data-aba="tag" aria-controls="aba-ped-tag"
                   aria-selected="false" onclick="abaTrocar('ped','tag')">Tag (fatura)<span class="aban" id="abanPedTag"></span></button>
+          <button role="tab" id="tabped-aud" data-aba="aud" aria-controls="aba-ped-aud"
+                  aria-selected="false" onclick="abaTrocar('ped','aud')">Auditoria<span class="aban" id="abanPedAud"></span></button>
         </div>
         <div class="aba" data-abas="ped" data-aba="vis" id="aba-ped-vis"
              role="tabpanel" aria-labelledby="tabped-vis">
@@ -4992,6 +4994,47 @@ body.tvfull #btnReport,body.tvmode #btnReport{display:none}
               </tr></thead><tbody id="pedtag-fat"></tbody></table></div>
             </div>
           </div>
+        </div>
+        <div class="aba" data-abas="ped" data-aba="aud" id="aba-ped-aud"
+             role="tabpanel" aria-labelledby="tabped-aud" data-ao-abrir="loadPedAud" hidden>
+          <div class="kpis k4" id="kpis-pedaud"></div>
+          <div class="grid2">
+            <div class="card">
+              <div class="head"><h2>Contestar com o fornecedor <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="Duas cobrancas da MESMA placa na MESMA praca (o texto da praca ja carrega o sentido, entao ida e volta nao colidem). Medido nas sete faturas: 279 dos 283 pares sao no MESMO SEGUNDO, e em 273 deles as duas linhas cobram CATEGORIAS DIFERENTES - (5,4), (6,5), (7,6). Isso nao e linha repetida: e o equipamento lendo o mesmo caminhao de duas formas e faturando as duas, entao o veiculo passou uma vez e pagou por nove eixos. Por isso os tipos aparecem separados: o argumento da contestacao e diferente em cada um, e o divergente e o mais forte. 86% caem na SP-021, que e free flow - portico, sem cancela, com a categoria inferida por sensor, que e onde esse modo de falhar existe.">i</span></h2>
+                <span class="hint" id="hintPedAudCon"></span></div>
+              <div class="tablewrap tabroll" style="max-height:230px"><table><thead><tr>
+                <th>Placa</th><th>Praça</th><th>Quando</th>
+                <th class="num">Cobrado</th><th>Tipo</th>
+              </tr></thead><tbody id="pedaud-con"></tbody></table></div>
+            </div>
+            <div class="card">
+              <div class="head"><h2>Onde duplica <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="Quantos pares em cada janela de tempo. E ISTO que sustenta a leitura de duplicidade, e nao a contagem: 283 pares em 5 minutos, 287 em 15 e 344 em 60. O numero quase nao cresce ao abrir a janela, e travessia legitima de ida e volta pela mesma praca leva horas. Se um dia essa curva achatar - muitos casos em 5 min E muitos em 60 -, a interpretacao muda e este cartao passa a estar errado. Por isso as tres janelas ficam a vista.">i</span></h2>
+                <span class="hint" id="hintPedAudPrc"></span></div>
+              <div class="tablewrap tabroll" style="max-height:230px"><table><thead><tr>
+                <th>Praça</th><th class="num">Pares</th><th class="num">Valor</th>
+              </tr></thead><tbody id="pedaud-prc"></tbody></table></div>
+            </div>
+          </div>
+          <div class="grid2">
+            <div class="card">
+              <div class="head"><h2>Eixo não levantado <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="Travessias cobradas ACIMA do menor eixo do PROPRIO manifesto, e so em viagem sem carga declarada. A comparacao e dentro do manifesto porque ali a carreta e a mesma do comeco ao fim: comparar entre viagens NAO funciona, ja que a tag fica no cavalo e ele troca de implemento - as mesmas placas aparecem de 1 a 9 eixos, e caminhao nenhum levanta seis. Dos 4.939 manifestos com eixos variando, 3.418 (69%) variam em exatamente UM eixo, que e a assinatura do eixo que sobe e desce; amplitude acima de 2 e engate de carreta no meio da viagem e fica de fora. O valor evitavel e (eixos cobrados - menor do manifesto) / eixos cobrados x valor. O apontamento so existe quando o proprio veiculo, na MESMA viagem, ja cruzou uma praca com menos eixo.">i</span></h2>
+                <span class="hint" id="hintPedAudEixo"></span></div>
+              <div class="tablewrap tabroll" style="max-height:230px"><table><thead><tr>
+                <th>Placa</th><th>Praça</th><th>Quando</th>
+                <th class="num">Eixos</th><th class="num">Evitável</th>
+              </tr></thead><tbody id="pedaud-eixo"></tbody></table></div>
+            </div>
+            <div class="card">
+              <div class="head"><h2>Por condutor <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="O mesmo valor evitavel agrupado pelo condutor do manifesto. O CORTEX aponta e mostra a evidencia - a travessia irma, do proprio veiculo e da propria viagem, com menos eixo; quem decide desconto e a operacao. Tres coisas o ERP NAO sabe, e elas limitam a leitura: eixolevantadovalepedagio e ZERO nos 57.290 manifestos de 12 meses, o acoplamento cavalo-carreta no momento nao e registrado, e o peso esta preenchido em 70% dos manifestos - peso zero as vezes e falta de preenchimento, nao viagem vazia.">i</span></h2>
+                <span class="hint" id="hintPedAudMot"></span></div>
+              <div class="tablewrap tabroll" style="max-height:230px"><table><thead><tr>
+                <th>Condutor</th><th class="num">Travessias</th>
+                <th class="num">Placas</th><th class="num">Evitável</th>
+              </tr></thead><tbody id="pedaud-mot"></tbody></table></div>
+            </div>
+          </div>
+          <div class="hint" id="pedaud-cobertura" style="padding:0 2px 4px"
+               title="Um terco das travessias nao cai em manifesto nenhum, e nelas nao da para dizer se o veiculo estava vazio. Elas ficam FORA da conta em vez de virar palpite, entao o valor evitavel desta tela erra para BAIXO por construcao. O numero de manifestos descartados por amplitude entra aqui pelo mesmo motivo: sao os que trocaram de composicao no meio da viagem, onde a regra nao se aplica."></div>
         </div>
       </section>
 
@@ -21591,6 +21634,142 @@ async function loadPedagio(){
   }catch(e){
     if(seq === pedSeq) renderPedagio({erro:'não foi possível falar com a API'});
   }finally{ if(seq === pedSeq) c.classList.remove('loading'); }
+}
+
+let pedAudSeq = 0, DATAPEDAUD = null;
+
+/* AUDITORIA DAS TRAVESSIAS. Aba SOB DEMANDA: ela cruza as travessias com o
+   MANIFESTO, que vem do AVA, e quem abre a Validação de Pedágio para ver os
+   três números do ERP não deve pagar por essa consulta. */
+async function loadPedAud(){
+  const seq = ++pedAudSeq;
+  try{
+    const r = await fetch('/api/operacao/pedagio/auditoria', {cache:'no-store'});
+    const rr = await respostaJSON(r);
+    if(seq !== pedAudSeq) return;
+    if(!rr.ok){ renderPedAud({erro: rr.dados.mensagem || 'não foi possível consultar'}); return; }
+    DATAPEDAUD = rr.dados; renderPedAud(rr.dados);
+  }catch(e){
+    if(seq === pedAudSeq) renderPedAud({erro:'não foi possível falar com a API'});
+  }
+}
+
+/* O tipo do par decide o ARGUMENTO da contestação, então ele é rótulo, não
+   cor: "divergente" e "idêntica" pedem pedidos diferentes ao fornecedor. */
+const PEDAUD_TIPO = {
+  divergente: ['bad',  'categorias divergem'],
+  identica:   ['warn', 'idêntica'],
+  repetida:   ['warn', 'repetida']
+};
+
+function renderPedAud(d){
+  const tb = id => document.getElementById(id);
+  const vaz = (n, t) => '<tr><td colspan="' + n + '" class="vazio">' + esc(t) + '</td></tr>';
+  if(d.erro){
+    document.getElementById('kpis-pedaud').innerHTML =
+      '<div class="banner-inline bad">' + esc(d.erro) + '</div>';
+    return;
+  }
+  const C = d.contestar || {}, O = d.operacao || {};
+  const cob = O.cobertura || {};
+
+  /* SEM FATURA A AUDITORIA NÃO TEM O QUE DIZER, e isso não é erro: é a mesma
+     tela do tag ainda vazia. Banner vermelho aqui ensinaria a ignorar
+     vermelho. */
+  if(!C.duplicadas_n && !(O.travessias || 0) && !cob.travessias){
+    document.getElementById('kpis-pedaud').innerHTML =
+      '<div class="banner-inline">Sem travessia importada ainda. Envie a fatura ' +
+      'na aba “Tag (fatura)” — a auditoria lê as mesmas travessias.</div>';
+    ['pedaud-con','pedaud-prc','pedaud-eixo','pedaud-mot'].forEach(i => {
+      const el = tb(i); if(el) el.innerHTML = vaz(5, '—');
+    });
+    document.getElementById('pedaud-cobertura').textContent = '';
+    abaContador('abanPedAud', 0);
+    return;
+  }
+
+  const jan = (C.concentracao || []).map(x => x.janela_min + 'min: ' + x.travessias).join(' · ');
+  document.getElementById('kpis-pedaud').innerHTML = [
+    kpi('Total acionável', BRL.format(d.total || 0),
+        'contestação + eixo, no período importado', '',
+        'A soma do que tem endereço: uma praça, uma placa, um condutor. NÃO ' +
+        'entram as travessias fora de manifesto nem os manifestos que não ' +
+        'provaram nada — este número erra para baixo por construção.'),
+    kpi('Contestar', BRL.format(C.valor || 0),
+        (C.duplicadas_n || 0) + ' pares em ' + (C.pracas_n || 0) + ' praças',
+        (C.valor || 0) > 0 ? 'bad' : 'good',
+        'Cobranças da mesma placa na mesma praça em menos de 5 minutos, mais ' +
+        'as leituras no mesmo segundo em praças diferentes. Sai só da fatura e ' +
+        'não depende de nada do ERP.'),
+    kpi('Eixo não levantado', BRL.format(O.evitavel || 0),
+        (O.travessias || 0) + ' travessias em viagem sem carga',
+        (O.evitavel || 0) > 0 ? 'warn' : 'good',
+        'Cobradas acima do menor eixo do próprio manifesto. O apontamento só ' +
+        'existe quando o mesmo veículo, na mesma viagem, já cruzou uma praça ' +
+        'com menos eixo.'),
+    kpi('Concentração', jan || '—',
+        'pares por janela de tempo',
+        '', 'É a concentração que sustenta a leitura de duplicidade, não a ' +
+        'contagem: travessia legítima de ida e volta leva horas. Se estes três ' +
+        'números ficarem parecidos entre si, a interpretação cai.')
+  ].join('');
+
+  tb('pedaud-con').innerHTML = (C.duplicadas || []).slice(0, 80).map(function(x){
+    const t = PEDAUD_TIPO[x.tipo] || ['', x.tipo];
+    const par = x.tipo === 'divergente'
+      ? ' <span class="chip bad" title="a outra linha do par cobrou ' + x.eixos_par +
+        ' eixos e ' + fmtRsKm(x.valor_par) + ' no mesmo instante">' +
+        x.eixos + 'e × ' + x.eixos_par + 'e</span>' : '';
+    return '<tr><td>' + esc(x.placa) + '</td><td>' + esc((x.praca || '').slice(0, 34)) + '</td>' +
+      '<td>' + fmtDT(x.ts_1) + '</td>' +
+      '<td class="num">' + BRL.format(x.valor) + '</td>' +
+      '<td><span class="chip ' + t[0] + '">' + t[1] + '</span>' + par + '</td></tr>';
+  }).join('') || vaz(5, 'nenhuma cobrança repetida no período');
+  document.getElementById('hintPedAudCon').textContent =
+    Math.min(80, C.duplicadas_n || 0) + ' de ' + (C.duplicadas_n || 0) + ' pares' +
+    ((C.impossiveis_n || 0) ? ' · ' + C.impossiveis_n + ' em praças distintas' : '');
+
+  tb('pedaud-prc').innerHTML = (C.por_praca || []).map(function(p){
+    return '<tr><td>' + esc((p.praca || '').slice(0, 40)) + '</td>' +
+      '<td class="num">' + p.n + '</td>' +
+      '<td class="num">' + BRL.format(p.valor) + '</td></tr>';
+  }).join('') || vaz(3, 'nenhuma praça com repetição');
+  document.getElementById('hintPedAudPrc').textContent =
+    (C.pracas_n || 0) + ' praças';
+
+  tb('pedaud-eixo').innerHTML = (O.linhas || []).slice(0, 80).map(function(x){
+    return '<tr><td>' + esc(x.placa) + '</td>' +
+      '<td>' + esc((x.praca || '').slice(0, 30)) + '</td>' +
+      '<td>' + fmtDT(x.ts) + '</td>' +
+      '<td class="num" title="cobrado com ' + x.eixos_cobrados + ' eixos; nesta mesma ' +
+      'viagem o veículo cruzou com ' + x.eixos_minimos + '">' +
+      x.eixos_cobrados + ' → ' + x.eixos_minimos + '</td>' +
+      '<td class="num warn">' + BRL.format(x.evitavel) + '</td></tr>';
+  }).join('') || vaz(5, 'nenhuma travessia apontada');
+  document.getElementById('hintPedAudEixo').textContent =
+    Math.min(80, O.travessias || 0) + ' de ' + (O.travessias || 0) + ' travessias';
+
+  tb('pedaud-mot').innerHTML = (O.motoristas || []).slice(0, 40).map(function(m){
+    return '<tr><td>' + esc(m.motorista) + '</td>' +
+      '<td class="num">' + m.travessias + '</td>' +
+      '<td class="num">' + m.placas + '</td>' +
+      '<td class="num">' + BRL.format(m.evitavel) + '</td></tr>';
+  }).join('') || vaz(4, 'nenhum condutor apontado');
+  document.getElementById('hintPedAudMot').textContent =
+    (O.motoristas || []).length + ' condutores';
+
+  /* A COBERTURA FICA VISÍVEL, e não escondida no ⓘ: sem ela o valor do eixo se
+     lê como se fosse a frota inteira, quando um terço das travessias não cai
+     em manifesto nenhum e ficou de fora. */
+  document.getElementById('pedaud-cobertura').textContent = cob.travessias
+    ? ('Eixo medido sobre ' + (cob.pct_em_manifesto || 0) + '% das travessias — ' +
+       (cob.fora_de_manifesto || 0).toLocaleString('pt-BR') + ' de ' +
+       (cob.travessias || 0).toLocaleString('pt-BR') +
+       ' não caem em manifesto nenhum e ficam fora da conta' +
+       ((cob.descartados_amplitude || 0) ? ', mais ' + cob.descartados_amplitude +
+        ' manifestos que trocaram de composição no meio da viagem' : '') + '.')
+    : '';
+  abaContador('abanPedAud', (C.duplicadas_n || 0) + (O.travessias || 0));
 }
 
 let pedTagSeq = 0, DATAPEDTAG = null;

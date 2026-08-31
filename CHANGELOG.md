@@ -4,6 +4,15 @@ Gerado de `docs/versoes.yaml` por `scripts/gerar_changelog.py` — não editar �
 Formato [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/),
 versionamento [SemVer](https://semver.org/lang/pt-BR/).
 
+## [0.188.0] — 31/08/2026  ·  CX-31/08/2026-v0.188.0
+
+### Adicionado
+- Aba nova "Auditoria" na Validação de Pedágio, separando o que se discute com o FORNECEDOR do que se discute com a OPERAÇÃO. Medido nas sete faturas de fevereiro a agosto: R$ 6.479 em 279 pares cobrados no MESMO SEGUNDO na mesma praça — e em 273 deles as duas linhas cobram categorias que se contradizem, ou seja o equipamento leu o mesmo caminhão de duas formas e faturou as duas. 86% na SP-021, que é free flow.
+- E R$ 3.190 em 412 travessias com eixo não levantado, com o condutor identificado. A régua compara os eixos DENTRO do mesmo manifesto, onde a carreta é a mesma: o apontamento só existe quando o próprio veículo, na mesma viagem, já cruzou uma praça com menos eixo. Um terço das travessias não cai em manifesto nenhum e fica de fora da conta, então o valor erra para baixo de propósito — e a tela diz isso.
+
+### Corrigido
+- A importação da fatura de pedágio recusava TODOS os arquivos com "não foi possível gravar a fatura", e o motivo era uma tabela criada com o formato antigo de data. Corrigido; a importação volta a funcionar sem que ninguém precise refazer nada.
+
 ## [0.187.0] — 31/08/2026  ·  CX-31/08/2026-v0.187.0
 
 ### Adicionado

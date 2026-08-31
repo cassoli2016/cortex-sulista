@@ -3205,6 +3205,34 @@ def operacao_pedagio_tag(competencia: str = "") -> JSONResponse:
             "mensagem": "Erro ao levantar o pedágio do tag."})
 
 
+@app.get("/api/operacao/pedagio/auditoria")
+def operacao_pedagio_auditoria(competencia: str = "") -> JSONResponse:
+    """A auditoria das travessias: o que contestar e o que cobrar de volta.
+
+    ROTA SEPARADA, e nao um bloco a mais em `/tag`: a auditoria de eixo cruza
+    as travessias com o MANIFESTO, que vem do AVA, e quem abre a aba do tag
+    para ver o gasto do mes nao deve pagar por essa consulta. A aba so a chama
+    ao abrir (`data-ao-abrir`).
+    """
+    from api import pglocal
+    from api.pedagio import auditoria as _au
+    try:
+        return JSONResponse(_au.resumo(competencia or None))
+    except pglocal.NaoConfigurado as exc:
+        return JSONResponse(status_code=503, content={
+            "erro": "sem_banco_local", "mensagem": str(exc)})
+    except Exception as exc:  # noqa: BLE001
+        if pglocal.sem_tabela(exc):
+            return JSONResponse(status_code=503, content={
+                "erro": "migration_pendente",
+                "mensagem": "As tabelas da fatura de pedágio ainda não foram "
+                            "criadas neste banco (migration 0030)."})
+        log.warning("pedagio_auditoria falhou: %s", exc)
+        return JSONResponse(status_code=500, content={
+            "erro": "erro_consulta",
+            "mensagem": "Erro ao levantar a auditoria de pedágio."})
+
+
 @app.post("/api/operacao/pedagio/tag/importar")
 async def operacao_pedagio_tag_importar(req: Request, nome: str = "") -> JSONResponse:
     """Recebe a fatura em PDF como CORPO BRUTO — mesmo padrao do extrato.
