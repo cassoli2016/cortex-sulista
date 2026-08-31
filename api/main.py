@@ -2981,6 +2981,50 @@ def rh_folha_indicadores() -> JSONResponse:
         return _folha_erro(exc)
 
 
+@app.get("/api/operacao/pedagio")
+def operacao_pedagio(dias: int = 365) -> JSONResponse:
+    """Validação de pedágio: vale-pedágio × CT-e × coleta, por eixo e modalidade.
+
+    Os três números existem e NÃO batem, e a tela nomeia a diferença em vez de
+    escolher um: o CT-e cobra a taxa do cliente, a coleta lança o pedágio da
+    operação e o vale é o que se adianta ao transportador. Medido em 12 meses,
+    R$ 4,86 mi × R$ 5,69 mi × R$ 1,76 mi.
+    """
+    import datetime as _dt
+    try:
+        dias = max(30, min(int(dias or 365), 730))
+    except (TypeError, ValueError):
+        return JSONResponse(status_code=422, content={
+            "erro": "parametro_invalido",
+            "mensagem": "Período inválido: informe os dias em número."})
+    ate = _dt.date.today()
+    de = ate - _dt.timedelta(days=dias)
+    try:
+        from api.pedagio import validacao as _v, qualp as _q
+        return JSONResponse({
+            "de": de.isoformat(), "ate": ate.isoformat(), "dias": dias,
+            "mensal": _v.mensal(de.isoformat(), ate.isoformat()),
+            "por_eixo": _v.por_eixo(de.isoformat(), ate.isoformat()),
+            "por_modalidade": _v.por_modalidade(de.isoformat(), ate.isoformat()),
+            "confronto": _v.confronto(de.isoformat(), ate.isoformat()),
+            "cobertura": _v.cobertura(de.isoformat(), ate.isoformat()),
+            # O REGIME do QualP vai junto: a tela precisa dizer se a conferência
+            # de TARIFA está disponível ou se estamos nas três consultas diárias.
+            "qualp": {"regime": _q.regime()},
+            "fonte": "AVA · valepedagio + conhecimento + coleta · leitura",
+        })
+    except psycopg.OperationalError as exc:
+        log.warning("banco inacessivel: %s", exc)
+        return JSONResponse(status_code=503, content={
+            "erro": "banco_inacessivel",
+            "mensagem": "Sem conexão com o banco. O túnel SSH está aberto?"})
+    except Exception as exc:  # noqa: BLE001
+        log.warning("pedagio falhou: %s", exc)
+        return JSONResponse(status_code=500, content={
+            "erro": "erro_consulta",
+            "mensagem": "Erro ao levantar a validação de pedágio."})
+
+
 @app.get("/api/rh/folha-estrutura")
 def rh_folha_estrutura(meses: int = 12) -> JSONResponse:
     """Custo de folha por NATUREZA, sem os eventos que só circulam.

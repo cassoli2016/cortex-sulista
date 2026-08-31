@@ -4,6 +4,14 @@ Gerado de `docs/versoes.yaml` por `scripts/gerar_changelog.py` — não editar �
 Formato [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/),
 versionamento [SemVer](https://semver.org/lang/pt-BR/).
 
+## [0.172.0] — 30/08/2026  ·  CX-30/08/2026-v0.172.0
+
+### Adicionado
+- Tela nova em Operação — Validação de Pedágio. Ela põe lado a lado os três números que existem e não batem: o que se cobra do cliente no CT-e (R$ 4,86 mi em 12 meses), o pedágio lançado na coleta (R$ 5,57 mi) e o vale-pedágio efetivamente emitido (R$ 1,76 mi). O vale cobre só parte porque é obrigação para com o transportador de terceiro, e a tela mostra a quebra por modalidade que explica isso.
+- O achado que a tela nomeia: em 88% dos vales ligados a uma coleta, o vale é MAIOR que o pedágio lançado, e a razão típica é 1,9 — quase o dobro. Não é exceção, é regra. A tela mostra a distribuição e as maiores diferenças, sem concluir: a explicação provável (o vale cobre ida e volta enquanto a coleta lança o trecho carregado) é de quem opera.
+- Uma aba diz o que DÁ e o que NÃO DÁ para conferir: o número do comprovante que vai no MDF-e está em 98,9% dos vales, mas a categoria do veículo na administradora está em 8,5%, a tag em 10,3% e o id da viagem em 15,7% — e sem eles não há como conciliar contra o extrato da operadora.
+- Também por eixo (5 e 6 eixos são 73% dos vales) e por modalidade.
+
 ## [0.171.0] — 30/08/2026  ·  CX-30/08/2026-v0.171.0
 
 ### Adicionado

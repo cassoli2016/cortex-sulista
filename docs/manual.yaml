@@ -318,6 +318,7 @@ grupos:
     dentro da planta do cliente (polígonos mapeados na Tupy Joinville).
   telas:
   - torre
+  - pedagio
   - milkrun
   - poli
   - prog

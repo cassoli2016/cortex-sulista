@@ -2078,6 +2078,101 @@ só no ERP ...... 177 placas      união ....... 275
   do vizinho. É a mesma família do corte por marcador que já comeu 20 rotas
   alheias neste arquivo.
 
+**TELA NOVA TEM SEIS REGISTROS, NÃO UM — e cada guard nasceu de um esquecido:**
+- Criar `view-x` no HTML é o começo. A tela só existe de verdade quando está em
+  `VIEWS`, em `auth.TELAS`, em `ROTA_TELAS`, no `VIEW_GROUP` (senão o acordeão
+  não abre o grupo dela), no **drawer do celular**, no catálogo de `ICONS`, no
+  índice de busca por palavra e no `docs/manual.yaml`.
+- **Sete testes caíram de uma vez** ao acrescentar a Validação de Pedágio, e
+  três apontavam registros que eu nem sabia existir. O melhor deles diz o
+  sintoma inteiro na mensagem: *"data-ic sem chave em ICONS (o ícone some do
+  menu, sem erro)"*.
+- O do drawer nasceu de um caso REAL: Portais de Antecipação e Milk Run
+  existiam no menu lateral e não no drawer, e quem abriu no telefone não achou
+  nenhuma das duas.
+- **Rodar só os testes do assunto novo não alcança nenhum deles**, porque eles
+  moram em arquivos que não falam do assunto — `test_registro_de_tela.py`,
+  `test_view_group.py`, `test_versao.py`, `test_favoritos.py`. Para tela nova, a
+  suíte COMPLETA é o único caminho; os 64 testes-alvo que rodei antes passaram
+  todos e não viram uma sequer.
+- **SUB-ABA NÃO É TELA e não se registra em lugar nenhum.** O CRM ganhou sete
+  abas sem tocar em nenhum dos registros, e está certo: elas herdam o RBAC, o
+  ícone e a entrada de menu da tela que as contém. Confundir os dois casos leva
+  a um de dois erros — registrar aba (criando entrada de menu para o que não é
+  destino) ou esquecer de registrar tela. **A pergunta que separa: o roteador
+  abre isso por hash?** Se sim, é tela e tem os registros todos; se é
+  `data-abas`, é aba e não tem nenhum.
+- E a razão de esses guards existirem: **esta classe de defeito não tem
+  sintoma, só ausência.** Ícone que some, grupo que não abre, tela que não
+  aparece no celular — nenhum dá erro, todos dão uma tela plausível e errada.
+  É a mesma família do mês que o `GROUP BY` não devolve e do `<tr>` órfão que o
+  Outlook descarta.
+
+**Número de versão é monotônico com a ORDEM DOS COMMITS, não com a reserva**
+(regra do agente que fez o CRM, 30/08/2026):
+- Com duas sessões trabalhando na mesma árvore, combinar "a 0.169.0 é sua" por
+  mensagem não funciona: a reserva não sabe onde o commit vai parar no `main`.
+  Quem rebaseia depois entra depois, e um número menor no topo faz o rótulo do
+  rodapé REGREDIR num deploy que só acrescenta.
+- A regra que vale: **quem empurra primeiro fica com o número menor.** Buraco na
+  sequência (a 0.169.0 ficou sem uso) é mais barato que topo mentindo.
+- E há um jeito de não atrapalhar quem está no meio de um rebase: empurrar
+  apenas até o commit que ELE já tem na base (`git push origin <sha>:main`), em
+  vez de tudo. O push dele vira fast-forward puro, sem rebase novo nem
+  renumeração.
+
+**Pedágio: três números que não batem, e o join que quase mentiu (30/08/2026):**
+- **Os três existem e medem coisas diferentes**, e a tela põe os três em vez de
+  eleger um: `conhecimento.valortaxapedagio` **R$ 4,86 mi** (cobrado do
+  cliente), `coleta.valorpedagio` **R$ 5,57 mi** (a operação) e
+  `valepedagio.valorcartao` **R$ 1,76 mi** (adiantado ao transportador). O vale
+  cobre 36% do cobrado, e a quebra explica: **AGR 71%**, frota própria R$ 56
+  mil — o vale-pedágio é obrigação para com o transportador AUTÔNOMO e de
+  terceiro (Lei 10.209/2001); a frota própria passa por tag.
+- **`coleta.numero` NÃO é único** — a chave é `grupo, empresa, filial, unidade,
+  numero`. Ligando só pelo número, 8.868 vales viravam **24.803 linhas**. É o
+  espelho do "coluna zerada com KPI cheio": lá o join não casava nada, aqui
+  casa demais. **Quando o total muda de ORDEM DE GRANDEZA ao ligar duas
+  tabelas, é o join, não o negócio.**
+- **88% dos vales são MAIORES que o pedágio lançado, com razão mediana 1,9.**
+  Não é cauda, é regra — e a explicação provável (o vale cobre ida e volta, a
+  coleta lança o trecho carregado) é hipótese de quem opera. A tela mostra a
+  razão e a distribuição; o veredito não é dela.
+- **Três campos de pedágio do ERP são ZERO em 100% das linhas**
+  (`valorpedagiodestacado`, `valorpedagiocompra`,
+  `valorpedagiocontratadocalculado`). Somá-los produziria zero com cara de
+  dado. A tela DIZ que não são usados.
+- **A tabela de preço de praça está congelada**: 921 praças ativas, 849 com
+  algum valor, **64 (7%) com tarifa de 2025 em diante** — a mais recente é de
+  01/08/2025. Validar preço contra ela hoje compararia cobrança de 2026 com
+  tarifa de 2019–2024. É isso, medido, que justifica o QualP — não conveniência.
+
+**QualP: o formato saiu do CLIENTE deles, e o teto decide o desenho:**
+- Dez formas de parâmetro plano deram `HTTP 500`. O endpoint recebe **UM**
+  parâmetro, `json`, com o objeto inteiro dentro — lido no bundle do site
+  (`searchRouter` → `makeRequestParams`). **Quando a dúvida é de FORMATO, o
+  cliente que sabe chamar está publicado**, e ler leva menos que a terceira
+  tentativa.
+- **A autenticação não é chave**: é usuário e senha trocados por
+  `login_cod` + `login_token` em `/api/site/login/authenticate`, que voltam
+  DENTRO do `json`. A diferença muda o desenho — chave seria segredo imutável;
+  sessão precisa ser memoizada, e num teto baixo fazer login a cada consulta
+  gasta duas chamadas onde uma basta.
+- **Teto medido: três consultas por dia, por IP** (`HTTP 402` na quarta, com a
+  mensagem em português). Por isso `QualpSemCota` é classe PRÓPRIA — o conserto
+  é outro — e por isso o módulo alimenta um CACHE de praça em vez de ser
+  chamado por viagem: uma tela que consultasse a rota de cada vale morreria no
+  quarto registro do dia.
+- **É o primeiro fornecedor que FUNCIONA SEM CREDENCIAL**, e por isso o cartão
+  de integração ganhou a linha de **regime**: "ativa" seria verdade com e sem
+  conta e esconderia a única diferença que importa; "desligada" seria falso,
+  porque ele não está desligado, está limitado. Um degrau adiante do "sem
+  credencial não é falha, é instalação incompleta" da RasterJOR.
+- A resposta traz de brinde `codigo_antt` por praça (a MESMA chave da
+  `pracapedagio` do ERP), as balanças do trajeto e o **piso ANTT por eixo × tipo
+  de carga** com a resolução vigente — que o CÓRTEX hoje calcula de YAML
+  versionado à mão. Comparar os dois é trabalho de outra rodada.
+
 **Conferência de CSS: leia o CSSOM, não o texto (30/08/2026):**
 - Escrevi três versões de um guard contra "fundo claro sem versão escura", e as
   duas primeiras devolviam **ZERO com o defeito reposto de propósito**. Nenhuma

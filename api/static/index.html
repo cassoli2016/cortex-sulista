@@ -2178,6 +2178,7 @@ body.tvfull #btnReport,body.tvmode #btnReport{display:none}
         <a href="#mvb" class="sub" data-view="mvb" title="Make vs Buy"><span class="ic" data-ic="mvb"></span><span>Make vs Buy</span></a>
         <a href="#milkrun" class="sub" data-view="milkrun" title="Operação MWM: chegada e saída detectadas pelo rastreamento"><span class="ic" data-ic="milkic"></span><span>Operação MWM</span></a>
         <a href="#poli" class="sub" data-view="poli" title="Permanência na Planta — quanto tempo o veículo passa dentro da planta da Tupy e em quais polígonos"><span class="ic" data-ic="poliic"></span><span>Permanência na Planta</span></a>
+        <a href="#pedagio" class="sub" data-view="pedagio" title="Validação de Pedágio — o vale-pedágio contra o que se cobra no CT-e e o que a coleta lança, por eixo e modalidade"><span class="ic" data-ic="pedic"></span><span>Validação de Pedágio</span></a>
         <a href="#port" class="sub" data-view="port" title="Portaria — controle de pátio e autorização de saída"><span class="ic" data-ic="porta"></span><span>Portaria</span></a>
         <a href="#prog" class="sub" data-view="prog" title="Programação Inteligente"><span class="ic" data-ic="prog"></span><span>Programação Intel.</span></a>
         <a href="#sac" class="sub" data-view="sac" title="SAC / Freetime e Estadia"><span class="ic" data-ic="sacic"></span><span>SAC / Freetime</span></a>
@@ -4571,6 +4572,79 @@ body.tvfull #btnReport,body.tvmode #btnReport{display:none}
           <div class="tablewrap tabroll" id="qual-auditoria"></div>
         </div>
       </section>
+      <!-- ===================== VALIDAÇÃO DE PEDÁGIO ===================== -->
+      <section class="view" id="view-pedagio">
+        <div class="kpis k4" id="kpis-ped"></div>
+        <div class="banner-inline" id="ped-aviso" style="display:none"></div>
+        <div class="subtabs" role="tablist" data-abas="ped" aria-label="Seções da validação de pedágio">
+          <button role="tab" id="tabped-vis" data-aba="vis" aria-controls="aba-ped-vis"
+                  aria-selected="true" onclick="abaTrocar('ped','vis')">Visão geral</button>
+          <button role="tab" id="tabped-conf" data-aba="conf" aria-controls="aba-ped-conf"
+                  aria-selected="false" onclick="abaTrocar('ped','conf')">Vale × coleta<span class="aban" id="abanPedConf"></span></button>
+          <button role="tab" id="tabped-eixo" data-aba="eixo" aria-controls="aba-ped-eixo"
+                  aria-selected="false" onclick="abaTrocar('ped','eixo')">Eixo e modalidade</button>
+          <button role="tab" id="tabped-cob" data-aba="cob" aria-controls="aba-ped-cob"
+                  aria-selected="false" onclick="abaTrocar('ped','cob')">O que dá para conferir</button>
+        </div>
+        <div class="aba" data-abas="ped" data-aba="vis" id="aba-ped-vis"
+             role="tabpanel" aria-labelledby="tabped-vis">
+          <div class="card">
+            <div class="head"><h2>Os três números, mês a mês <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="Três recortes que NÃO são o mesmo número e não deveriam bater: “cobrado no CT-e” é conhecimento.valortaxapedagio, a taxa que vai para o cliente; “pedágio da coleta” é coleta.valorpedagio, o da operação; “vale emitido” é valepedagio.valorcartao, o que se adianta ao transportador. Em 12 meses: R$ 4,86 mi × R$ 5,69 mi × R$ 1,76 mi. O vale cobre só uma parte porque é obrigação para com o transportador AUTÔNOMO e de terceiro (Lei 10.209/2001) — a frota própria passa por tag. Mês sem lançamento sai em cinza e com a linha ABERTA: barra zerada diria que não houve pedágio, que é outra coisa. Os campos valorpedagiodestacado, valorpedagiocompra e valorpedagiocontratadocalculado existem no ERP e são ZERO em 100% das linhas — não entram em conta nenhuma.">i</span></h2>
+              <span class="hint" id="hintPedMes"></span></div>
+            <div class="legend"><span class="k"><i class="sw" style="background:var(--navy-700)"></i>Cobrado no CT-e</span>
+              <span class="k"><i class="sw" style="background:var(--navy-400)"></i>Pedágio da coleta</span>
+              <span class="k"><i class="sw" style="background:var(--orange-500)"></i>Vale emitido</span></div>
+            <div id="ped-mensal" style="width:100%;height:210px" role="img"
+                 aria-label="Pedágio cobrado, lançado e adiantado por mês"></div>
+          </div>
+        </div>
+        <div class="aba" data-abas="ped" data-aba="conf" id="aba-ped-conf"
+             role="tabpanel" aria-labelledby="tabped-conf" hidden>
+          <div class="card">
+            <div class="head"><h2>Vale contra o pedágio lançado na coleta <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="Cada vale-pedágio de COLETA (tipo de documento 27) contra o valorpedagio da coleta que o originou, ligados pela chave COMPOSTA (grupo, empresa, filial, unidade, número) — pelo número sozinho as 8.868 linhas viravam 24.803, quase o triplo. Medido: 88,3% dos vales são MAIORES que o lançado e a razão mediana é 1,9, quase o dobro. Isso é sistemático, não cauda, e a explicação provável — o vale cobre ida e volta enquanto a coleta lança o trecho carregado — é hipótese de quem opera, não veredito do painel. Pedágio ZERO na coleta é categoria à parte: é ausência de lançamento, não diferença de valor.">i</span></h2>
+              <span class="hint" id="hintPedConf"></span></div>
+            <div id="ped-quadro" style="padding:4px 18px 14px"></div>
+          </div>
+          <div class="card">
+            <div class="head"><h2>Maiores diferenças <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="Ordenado pela DIFERENÇA em reais, não pela razão: ordenar por percentual sem piso de materialidade poria no topo um vale de R$ 20 contra uma coleta de R$ 2. A razão aparece na coluna ao lado, para a leitura não depender só do valor absoluto.">i</span></h2>
+              <span class="hint" id="hintPedTop"></span></div>
+            <div class="tablewrap tabroll"><table><thead><tr>
+              <th>Veículo</th><th>Modalidade</th><th class="num">Eixos</th><th>Trecho</th>
+              <th class="num">Vale</th><th class="num">Coleta</th><th class="num">Diferença</th><th class="num">Razão</th>
+            </tr></thead><tbody id="ped-top"></tbody></table></div>
+          </div>
+        </div>
+        <div class="aba" data-abas="ped" data-aba="cob" id="aba-ped-cob"
+             role="tabpanel" aria-labelledby="tabped-cob" hidden>
+          <div class="card">
+            <div class="head"><h2>Preenchimento dos campos que provam <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="O número do COMPROVANTE é o que vai no MDF-e (grupo infANTT/valePed) e é a prova, numa fiscalização, de que o vale foi emitido. Os outros três são baixos de verdade e por isso NÃO viram indicador: eles explicam por que certas conferências não dão para fazer. Sem a categoria do veículo na administradora, sem o número da tag e sem o id da viagem não há como conciliar o vale contra o extrato da operadora por veículo ou por viagem.">i</span></h2>
+              <span class="hint">o que dá e o que não dá para conferir</span></div>
+            <div class="tablewrap tabroll"><table><thead><tr>
+              <th>Campo</th><th class="num">Preenchido</th><th class="num">Cobertura</th><th>O que ele permite</th>
+            </tr></thead><tbody id="ped-cobertura"></tbody></table></div>
+          </div>
+        </div>
+        <div class="aba" data-abas="ped" data-aba="eixo" id="aba-ped-eixo"
+             role="tabpanel" aria-labelledby="tabped-eixo" hidden>
+          <div class="grid2">
+            <div class="card">
+              <div class="head"><h2>Por eixo <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="quantidadetotaleixos declarado no vale. Cinco e seis eixos são 73% dos vales — coerente com carreta. O valor MÉDIO por eixo é o que dá para conferir contra a tarifa da praça: um vale de 6 eixos custando o de 4 é erro de declaração, e é ele que a operadora cobra depois.">i</span></h2>
+                <span class="hint" id="hintPedEixo"></span></div>
+              <div class="tablewrap tabroll"><table><thead><tr>
+                <th class="num">Eixos</th><th class="num">Vales</th><th class="num">Valor</th><th class="num">Médio</th>
+              </tr></thead><tbody id="ped-eixo"></tbody></table></div>
+            </div>
+            <div class="card">
+              <div class="head"><h2>Por modalidade <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="veiculo.utilizacaoveiculo da placa do vale. AGR concentra 71% do valor, o que é o esperado: o vale-pedágio é obrigação do embarcador para com o transportador autônomo e de terceiro (Lei 10.209/2001), e a frota própria passa por tag. Repare na razão veículos × vales: TER tem 150 veículos para 606 vales, AGR tem 144 para 6.825.">i</span></h2>
+                <span class="hint" id="hintPedModal"></span></div>
+              <div class="tablewrap tabroll"><table><thead><tr>
+                <th>Modalidade</th><th class="num">Vales</th><th class="num">Valor</th><th class="num">Veículos</th>
+              </tr></thead><tbody id="ped-modal"></tbody></table></div>
+            </div>
+          </div>
+        </div>
+      </section>
+
       <section class="view" id="view-port">
         <div class="kpis" id="kpis-port"></div>
         <div class="card">
@@ -6158,6 +6232,7 @@ const ICONS = {
   estrela: IC('<path d="M12 2.5l2.9 6 6.6.9-4.8 4.6 1.2 6.5L12 17.4 6.1 20.5l1.2-6.5L2.5 9.4l6.6-.9z"/>'),
   kmv:  IC('<path d="M12 2a10 10 0 1 0 10 10"/><path d="M12 6v6l4 2"/><path d="M16 3.5 22 2l-1.5 6"/>'),
   mvb:  IC('<path d="M12 3v18M8 21h8M2 7h20"/><path d="M5 7l-3 6a3.5 3.5 0 0 0 6 0zM19 7l-3 6a3.5 3.5 0 0 0 6 0z"/>'),
+  pedic: IC('<path d="M3 20V9l4-3 4 3v11"/><path d="M13 20V9l4-3 4 3v11"/><path d="M2 20h20"/><path d="M7 12h0M17 12h0"/>'),
   comb: IC('<path d="M4 21V5a2 2 0 0 1 2-2h6a2 2 0 0 1 2 2v16M3 21h12M7 8h6"/><path d="M14 12h1a2 2 0 0 1 2 2v3.5a1.5 1.5 0 0 0 3 0V10l-2.5-2.5"/>'),
   tv:   IC('<rect x="3" y="5" width="18" height="12" rx="2" fill="none"/><path d="M9 21h6M12 17v4"/>'),
   /* Business Intelligence: três barras crescendo + a lupa da análise. Não é o
@@ -6226,7 +6301,7 @@ const FAIXAS = {
   '4_vencido_91_365':['Vencido 91–365d','b-dang'],
   '5_vencido_mais_365':['Vencido > 365d','b-dang'],
 };
-const VIEWS = { home:'Visão Geral', fluxo:'Fluxo de Caixa e Bancos', receber:'Contas a Receber', pagar:'Contas a Pagar', oc:'Ordens de Compra', custos:'Painel de Custos', agr:'Agregados e Terceiros', mvb:'Make vs Buy', comb:'Combustível', man:'Manutenção', com:'Clientes e RKM', clif:'Consulta de Cliente', crm:'CRM — Funil Comercial', km:'Análise de KM', prodveic:'Produtividade de Veículos', torre:'Torre de Controle', poli:'Permanência na Planta', ctecp:'CT-e de Contrapartida', veic:'Veículos', veicf:'Consulta de Veículo', mprev:'Manutenção Preventiva', comrast:'Comunicação Rastreadora', mul:'Multas', prog:'Programação Inteligente', jorn:'Jornada do Motorista', jornf:'Ficha de Jornada', cex:'Custos Extras', sac:'SAC / Freetime', port:'Portaria', cop:'Copiloto Cortex', cob:'Régua de Cobrança', banc:'Bancos', extb:'Extrato Bancário', lanc:'Lançamentos Bancários', antec:'Antecipação de Recebíveis', antport:'Portais de Antecipação', milkrun:'Operação MWM', rec:'Lançamentos Recorrentes', fluxcon:'Fluxo de Caixa Consolidado', cont:'Contabilidade', qual:'Qualidade e Certidões', orc:'Orçamento', fech:'Fechamento do Mês', prem:'Premiação de Motoristas', dre:'DRE Gerencial', bal:'Balanço Patrimonial', drecli:'DRE por Cliente', tvfat:'Painel TV — Faturamento', tvope:'Painel TV — Operação', rh:'RH — Vagas', hc:'Headcount', folha:'Custo de Folha', folhaind:'Indicadores de Folha', he:'Horas Extras', cnh:'CNH dos Motoristas', ferias:'Férias — Vencimento', people:'People Analytics', pneus:'Pneus', gestao:'Gestão', gesacao:'Planos de Ação', gesata:'Atas de Reunião', srv:'Saúde do Servidor', doc:'Documentação', anpiso:'Piso Mínimo de Frete', anrntrc:'RNTRC dos Transportadores', telcon:'Consumo e Estatísticas', telcond:'Condução Econômica', telhod:'Hodômetro e Rastro' };
+const VIEWS = { home:'Visão Geral', fluxo:'Fluxo de Caixa e Bancos', receber:'Contas a Receber', pagar:'Contas a Pagar', oc:'Ordens de Compra', custos:'Painel de Custos', agr:'Agregados e Terceiros', mvb:'Make vs Buy', pedagio:'Validação de Pedágio', comb:'Combustível', man:'Manutenção', com:'Clientes e RKM', clif:'Consulta de Cliente', crm:'CRM — Funil Comercial', km:'Análise de KM', prodveic:'Produtividade de Veículos', torre:'Torre de Controle', poli:'Permanência na Planta', ctecp:'CT-e de Contrapartida', veic:'Veículos', veicf:'Consulta de Veículo', mprev:'Manutenção Preventiva', comrast:'Comunicação Rastreadora', mul:'Multas', prog:'Programação Inteligente', jorn:'Jornada do Motorista', jornf:'Ficha de Jornada', cex:'Custos Extras', sac:'SAC / Freetime', port:'Portaria', cop:'Copiloto Cortex', cob:'Régua de Cobrança', banc:'Bancos', extb:'Extrato Bancário', lanc:'Lançamentos Bancários', antec:'Antecipação de Recebíveis', antport:'Portais de Antecipação', milkrun:'Operação MWM', rec:'Lançamentos Recorrentes', fluxcon:'Fluxo de Caixa Consolidado', cont:'Contabilidade', qual:'Qualidade e Certidões', orc:'Orçamento', fech:'Fechamento do Mês', prem:'Premiação de Motoristas', dre:'DRE Gerencial', bal:'Balanço Patrimonial', drecli:'DRE por Cliente', tvfat:'Painel TV — Faturamento', tvope:'Painel TV — Operação', rh:'RH — Vagas', hc:'Headcount', folha:'Custo de Folha', folhaind:'Indicadores de Folha', he:'Horas Extras', cnh:'CNH dos Motoristas', ferias:'Férias — Vencimento', people:'People Analytics', pneus:'Pneus', gestao:'Gestão', gesacao:'Planos de Ação', gesata:'Atas de Reunião', srv:'Saúde do Servidor', doc:'Documentação', anpiso:'Piso Mínimo de Frete', anrntrc:'RNTRC dos Transportadores', telcon:'Consumo e Estatísticas', telcond:'Condução Econômica', telhod:'Hodômetro e Rastro' };
 const periodoLabel = p => { if(p==='atrasado') return 'Atrasado'; const [y,m]=p.split('-'); return MES[+m-1]+'/'+y.slice(2); };
 const fmtD = s => { if(!s) return ''; const [y,m,dd]=s.split('-'); return dd+'/'+m+'/'+y; };
 /* Idade da posicao bancaria. Cada conta e lancada num dia diferente: mostrar
@@ -6493,7 +6568,7 @@ const VIEW_GROUP = {home:'',cop:'',
   com:'Com',clif:'Com',crm:'Com',rent:'Com',drecli:'Com',
   fluxo:'Fin',receber:'Fin',pagar:'Fin',cob:'Fin',banc:'Fin',extb:'Fin',lanc:'Fin',antec:'Fin',antport:'Fin',fluxcon:'Fin',rec:'Fin',
   dre:'Ctr',bal:'Ctr',cont:'Ctr',qual:'Ctr',orc:'Ctr',fech:'Ctr',ctecp:'Ctr',
-  torre:'Ope',milkrun:'Ope',poli:'Ope',prog:'Ope',jorn:'Ope',jornf:'Ope',cex:'Ope',sac:'Ope',port:'Ope',km:'Ope',agr:'Ope',mvb:'Ope',
+  torre:'Ope',milkrun:'Ope',poli:'Ope',prog:'Ope',jorn:'Ope',jornf:'Ope',cex:'Ope',sac:'Ope',port:'Ope',km:'Ope',agr:'Ope',mvb:'Ope',pedagio:'Ope',
   veic:'Fro',veicf:'Fro',mprev:'Fro',comrast:'Fro',comb:'Fro',man:'Fro',mul:'Fro',pneus:'Fro',
   oc:'Sup',custos:'Sup',
   prodveic:'Bi',tvfat:'Bi',tvope:'Bi',
@@ -6802,7 +6877,7 @@ function router(){
   // divergem dos usados na última carga (nunca mostrar dado velho com filtro novo)
   const key=viewKey(v);
   const DATAMAP={fin:DATA,oc:DATAOC,agr:DATAAGR,anpiso:DATAANPISO,anrntrc:DATAANRNTRC,telcon:DATATELCON,telcond:DATATELCOND,telhod:DATATELHOD,mvb:DATAMVB,comb:DATACOMB,man:DATAMAN,com:DATACOM,clif:DATACLIF,dre:DATADRE,bal:DATABAL,drecli:DATADRECLI,home:DATAHOME,km:DATAKM,torre:DATATORRE,veic:DATAVEIC,veicf:DATAVEICF,mul:DATAMUL,prog:DATAPROG,jorn:DATAJR,jornf:DATAJORNF,cex:DATACEX,sac:DATASAC,mprev:DATAMPREV,comrast:DATACOMRAST,qual:DATAQUAL,port:DATAPORT,crm:DATACRM,rh:DATARH,hc:DATAHC,folha:DATAFOLHA,folhaind:DATAFOLHAIND,he:DATAHE,custos:DATACUSTOS,cob:DATACOB,banc:DATABANC,extb:DATAEXTB,lanc:DATALANC,antec:DATAANTEC,antport:DATAANTPORT,milkrun:DATAMILK,fluxcon:DATAFLUXCON,rec:DATAREC,rent:DATARENT,cont:DATACONT,orc:DATAORC,fech:DATAFECH,prem:DATAPREM,gestao:DATAGES,srv:DATASRV,doc:DATADOC,tvfat:null,tvope:null,cop:(COP_MSGS.length?{}:null)};
-  const LOADMAP={fin:load,oc:loadOc,agr:loadAgr,anpiso:loadAnpiso,anrntrc:loadAnrntrc,telcon:loadTelcon,telcond:loadTelcond,telhod:loadTelhod,mvb:loadMvb,comb:loadComb,man:loadMan,com:loadCom,clif:loadClif,dre:loadDre,bal:loadBal,drecli:loadDreCli,home:loadHome,km:loadKm,prodveic:loadProdveic,torre:loadTorre,veic:loadVeic,veicf:loadVeicf,mul:loadMul,prog:loadProg,jorn:loadJorraster,jornf:loadJornf,cex:loadCex,sac:loadSac,mprev:loadMPrev,comrast:loadComRast,qual:loadQual,port:loadPort,crm:loadCrm,rh:loadRh,hc:loadHc,folha:loadFolha,folhaind:loadFolhaInd,he:loadHe,custos:loadCustos,cob:loadCob,banc:loadBanc,extb:loadExtb,lanc:loadLanc,antec:loadAntec,antport:loadAntport,milkrun:loadMilkrun,cnh:loadCnh,ferias:loadFerias,people:loadPeople,pneus:loadPneus,poli:loadPoli,ctecp:loadCtecp,fluxcon:loadFluxcon,rec:loadRec,rent:loadRent,cont:loadCont,orc:loadOrc,fech:loadFech,prem:loadPrem,gesacao:loadGesacao,gesata:loadGesata,gestao:loadGestao,srv:loadSrv,doc:loadDoc,cop:loadCop,tvfat:loadTvFat,tvope:loadTvOpe};
+  const LOADMAP={fin:load,oc:loadOc,agr:loadAgr,anpiso:loadAnpiso,anrntrc:loadAnrntrc,telcon:loadTelcon,telcond:loadTelcond,telhod:loadTelhod,mvb:loadMvb,pedagio:loadPedagio,comb:loadComb,man:loadMan,com:loadCom,clif:loadClif,dre:loadDre,bal:loadBal,drecli:loadDreCli,home:loadHome,km:loadKm,prodveic:loadProdveic,torre:loadTorre,veic:loadVeic,veicf:loadVeicf,mul:loadMul,prog:loadProg,jorn:loadJorraster,jornf:loadJornf,cex:loadCex,sac:loadSac,mprev:loadMPrev,comrast:loadComRast,qual:loadQual,port:loadPort,crm:loadCrm,rh:loadRh,hc:loadHc,folha:loadFolha,folhaind:loadFolhaInd,he:loadHe,custos:loadCustos,cob:loadCob,banc:loadBanc,extb:loadExtb,lanc:loadLanc,antec:loadAntec,antport:loadAntport,milkrun:loadMilkrun,cnh:loadCnh,ferias:loadFerias,people:loadPeople,pneus:loadPneus,poli:loadPoli,ctecp:loadCtecp,fluxcon:loadFluxcon,rec:loadRec,rent:loadRent,cont:loadCont,orc:loadOrc,fech:loadFech,prem:loadPrem,gesacao:loadGesacao,gesata:loadGesata,gestao:loadGestao,srv:loadSrv,doc:loadDoc,cop:loadCop,tvfat:loadTvFat,tvope:loadTvOpe};
   if(!DATAMAP[key] || (key!=='home' && LOADEDQS[key]!==qsView(key))) LOADMAP[key]();
   // mobile: estado da navegação inferior + fecha gaveta/painel de filtros
   document.querySelectorAll('.bottomnav [data-bview]').forEach(a=>a.classList.toggle('ativo', a.dataset.bview===v));
@@ -6856,7 +6931,7 @@ const NAV_KW={
   jorn:'motorista jornada 13103 descanso direcao inconformidade raster rasterjor hora extra repouso', cex:'custo extra estadia devolucao reentrega',
   sac:'freetime estadia detention ocorrencia atendimento', port:'portaria patio visitante entrada saida',
   km:'quilometragem vazio carregado retorno rkm', agr:'agregado terceiro frete comprado transportador',
-  mvb:'make buy proprio agregado ckm decisao', veic:'frota veiculo cavalo carreta ativo placa',
+  mvb:'make buy proprio agregado ckm decisao', pedagio:'pedagio vale praca eixo tag semparar concessionaria tarifa', veic:'frota veiculo cavalo carreta ativo placa',
   veicf:'ficha veiculo consulta placa', mprev:'preventiva troca oleo revisao manutencao',
   comrast:'rastreador comunicacao sinal offline', comb:'diesel abastecimento posto consumo km/l arla',
   man:'oficina os ordem servico corretiva peca', mul:'multa infracao transito pontos cnh',
@@ -8639,7 +8714,7 @@ function reloadCurrent(){
   // mapa COMPLETO: qualquer filtro compartilhado (Filial, datas, competência)
   // recarrega a TELA ATUAL — antes caía em load() (Financeiro) para várias telas.
   const M={home:loadHome,fluxo:load,receber:load,pagar:load,dre:loadDre,drecli:loadDreCli,oc:loadOc,
-    agr:loadAgr,mvb:loadMvb,comb:loadComb,man:loadMan,com:loadCom,clif:loadClif,km:loadKm,prodveic:loadProdveic,
+    agr:loadAgr,mvb:loadMvb,pedagio:loadPedagio,comb:loadComb,man:loadMan,com:loadCom,clif:loadClif,km:loadKm,prodveic:loadProdveic,
     torre:loadTorre,veic:loadVeic,veicf:loadVeicf,mul:loadMul,prog:loadProg,jorn:loadJorraster,jornf:loadJornf,cex:loadCex,sac:loadSac,mprev:loadMPrev,comrast:loadComRast,qual:loadQual,port:loadPort,crm:loadCrm,rh:loadRh,hc:loadHc,folha:loadFolha,folhaind:loadFolhaInd,he:loadHe,custos:loadCustos,cob:loadCob,banc:loadBanc,extb:loadExtb,rent:loadRent,
     cont:loadCont,orc:loadOrc,fech:loadFech,prem:loadPrem,gesacao:loadGesacao,gesata:loadGesata,gestao:loadGestao,srv:loadSrv,doc:loadDoc,cop:loadCop,tvfat:loadTvFat,tvope:loadTvOpe};
   (M[currentView()]||load)();
@@ -19556,6 +19631,215 @@ function renderFolhaEstrutura(d){
   }
 }
 
+/* VALIDAÇÃO DE PEDÁGIO.
+   Três números que existem e não batem, e a tela nomeia a diferença em vez de
+   escolher um. A conferência de TARIFA por praça depende do QualP e por isso
+   aparece como o que é: disponível ou no regime de três consultas por dia. */
+let DATAPED = null, pedSeq = 0;
+
+async function loadPedagio(){
+  const seq = ++pedSeq;
+  const c = document.getElementById('content'); c.classList.add('loading');
+  skelKpis('kpis-ped', 4);
+  try{
+    const r = await fetch('/api/operacao/pedagio?dias=365', {cache:'no-store'});
+    const rr = await respostaJSON(r);
+    if(seq !== pedSeq) return;
+    if(!rr.ok){ renderPedagio({erro: rr.dados.mensagem || 'não foi possível consultar'}); return; }
+    DATAPED = rr.dados; renderPedagio(rr.dados);
+  }catch(e){
+    if(seq === pedSeq) renderPedagio({erro:'não foi possível falar com a API'});
+  }finally{ if(seq === pedSeq) c.classList.remove('loading'); }
+}
+
+/* O que cada campo do vale PERMITE conferir. Sem esta coluna a tabela seria
+   quatro percentuais soltos; com ela, cada linha baixa vira a explicação de
+   uma conferência que não dá para fazer. */
+const PED_CAMPOS = [
+  ['comprovante', 'Número do comprovante',
+   'a prova de emissão no MDF-e (infANTT/valePed)'],
+  ['categoria', 'Categoria na administradora',
+   'conferir a classe cobrada contra a declarada'],
+  ['tag', 'Número da tag',
+   'conciliar contra o extrato da operadora por equipamento'],
+  ['idviagem', 'Id da viagem na administradora',
+   'casar o vale com a viagem no sistema da operadora'],
+];
+
+function renderPedagio(d){
+  const av = document.getElementById('ped-aviso');
+  const box = document.getElementById('kpis-ped');
+  if(!box) return;
+  if(!d || d.erro){
+    box.innerHTML = '';
+    if(av){ av.style.display='flex';
+      av.innerHTML = '<i>'+ICONS['sevWarn']+'</i><span>'
+        + esc((d && d.erro) || 'sem dado') + '</span>'; }
+    ecDesenhar('ped-mensal', null, (d && d.erro) || 'sem dado');
+    return;
+  }
+  const m = d.mensal || [], cf = d.confronto || {}, cb = d.cobertura || {};
+  const cte = m.reduce((a,x)=>a+(x.cte_taxa||0), 0);
+  const col = m.reduce((a,x)=>a+(x.coleta_pedagio||0), 0);
+  const vale = m.reduce((a,x)=>a+(x.vale||0), 0);
+  const canc = m.reduce((a,x)=>a+(x.vale_cancelados||0), 0);
+
+  /* O REGIME DO QUALP VAI NO AVISO, não escondido num tooltip: é ele que diz
+     se a conferência de TARIFA por praça está disponível. E a tabela de preço
+     do ERP está parada em 01/08/2025 — dizer isso é o que impede alguém de
+     comparar cobrança de 2026 com tarifa de 2024 e chamar de divergência. */
+  if(av){
+    const aberto = (d.qualp||{}).regime !== 'assinante';
+    av.style.display = 'flex';
+    /* `sevInfo` NAO EXISTE no catalogo de icones (so sevOk, sevWarn e
+   sevCrit) e sairia como a palavra "undefined" dentro do aviso — o
+   mesmo erro ja cometido na tela de folha. O aviso aqui e informativo,
+   entao `sevOk`. */
+    av.innerHTML = '<i>'+ICONS['sevOk']+'</i><span>'
+      + esc('A conferência de TARIFA por praça ainda não está ligada: a tabela '
+            + 'de preço do ERP tem 921 praças ativas e só 64 com valor de 2025 '
+            + 'em diante. '
+            + (aberto
+               ? 'O QualP está no modo aberto (três consultas por dia) — com a '
+                 + 'conta em Gestão › Integrações o teto deixa de valer.'
+               : 'O QualP está com conta configurada.'))
+      + '</span>';
+  }
+
+  box.innerHTML = [
+    kpi('Cobrado no CT-e', BRL.format(cte), 'taxa de pedágio ao cliente', '',
+        'conhecimento.valortaxapedagio, CT-e não cancelado. É o que a Sulista cobra do cliente a título de pedágio — não é o que ela paga.'),
+    kpi('Pedágio da coleta', BRL.format(col), 'lançado na operação', '',
+        'coleta.valorpedagio. Preenchido em 86,6% das coletas. É o pedágio da operação, e não bate com o do CT-e nem com o vale — os três medem coisas diferentes.'),
+    kpi('Vale-pedágio emitido', BRL.format(vale),
+        (cte>0 ? NMI.format(100*vale/cte)+'% do cobrado' : 'sem base'), '',
+        'valepedagio.valorcartao, não cancelado. Cobre só uma parte do cobrado porque é obrigação para com o transportador AUTÔNOMO e de terceiro (Lei 10.209/2001): a frota própria passa por tag.'),
+    kpi('Vale maior que a coleta',
+        (cf.total ? NMI.format(100*(cf.quadro||{}).vale_maior/cf.total)+'%' : '—'),
+        (cf.razao_mediana!=null ? 'razão mediana '+NMI.format(cf.razao_mediana) : ''), '',
+        'Dos vales ligados a uma coleta, quantos superam o pedágio lançado nela. É sistemático, não cauda — e a razão perto de 2 aponta ida e volta contra trecho carregado. A tela mostra o número; quem conclui é quem opera.'),
+  ].join('');
+
+  /* SÉRIE MENSAL: três barras por mês. Mês sem lançamento sai CINZA e a linha
+     do vale ABRE (null), porque zero diria "não houve pedágio". */
+  const rot = m.map(x => x.competencia.slice(5)+'/'+x.competencia.slice(2,4));
+  const vCte = m.map(x => x.sem_dado ? null : x.cte_taxa);
+  const vCol = m.map(x => x.sem_dado ? null : x.coleta_pedagio);
+  const vVal = m.map(x => x.sem_dado ? null : x.vale);
+  const semDado = m.filter(x => x.sem_dado).length;
+  const hM = document.getElementById('hintPedMes');
+  if(hM) hM.textContent = m.length + ' meses'
+    + (semDado ? ' · '+semDado+' sem lançamento' : '')
+    + ' · o vale cobre o transportador de terceiro, não a frota própria';
+  const maxv = Math.max(1, ...vCte.concat(vCol, vVal).filter(x => x!=null));
+  ecDesenhar('ped-mensal', () => {
+    const o = ecOpcoes(rot, maxv, {tipo:'moeda', sombra:true, top:30, bottom:34,
+      legenda:['Cobrado no CT-e','Pedágio da coleta','Vale emitido']});
+    o.series = [
+      ecBarras('Cobrado no CT-e', vCte, CC.navy700, {}),
+      ecBarras('Pedágio da coleta', vCol, CC.navy400, {}),
+      ecBarras('Vale emitido', vVal, CC.laranja, {}),
+    ];
+    o.tooltip.formatter = ps => {
+      const i = (ps && ps[0] ? ps[0].dataIndex : 0), x = m[i] || {};
+      if(x.sem_dado) return '<b>'+esc(rot[i])+'</b><br>sem lançamento no mês';
+      const l = ['<b>'+esc(rot[i])+'</b>'];
+      l.push('Cobrado no CT-e: <b>'+BRL.format(x.cte_taxa||0)+'</b> ('+(x.cte_n||0)+' CT-e)');
+      l.push('Pedágio da coleta: <b>'+BRL.format(x.coleta_pedagio||0)+'</b> ('+(x.coleta_n||0)+')');
+      l.push('Vale emitido: <b>'+BRL.format(x.vale||0)+'</b> ('+(x.vale_n||0)+')');
+      if(x.cobertura_vale!=null) l.push('O vale cobre <b>'+NMI.format(x.cobertura_vale)+'%</b> do cobrado');
+      if(x.vale_cancelados) l.push('<span style="color:#8FA6BC">'+x.vale_cancelados+' cancelado(s)</span>');
+      return l.join('<br>');
+    };
+    return o;
+  }, 'sem lançamento no período');
+
+  /* COBERTURA: percentual COM a consequência ao lado. Quatro números soltos
+     não dizem o que deixa de ser possível. */
+  const total = cb.vales || 0;
+  document.getElementById('ped-cobertura').innerHTML = PED_CAMPOS.map(([k, rot2, uso]) => {
+    const n = cb['com_'+k] || 0, pct = cb['pct_'+k];
+    const cor = pct>=90 ? 'var(--green)' : (pct>=50 ? 'var(--yellow-700)' : 'var(--red)');
+    return '<tr><td>'+esc(rot2)+'</td>'
+      + '<td class="num">'+n.toLocaleString('pt-BR')+' de '+total.toLocaleString('pt-BR')+'</td>'
+      + '<td class="num" style="font-weight:700;color:'+cor+'">'+(pct!=null?NMI.format(pct)+'%':'—')+'</td>'
+      + '<td style="color:var(--n500)">'+esc(uso)+'</td></tr>';
+  }).join('') || '<tr><td colspan="4" style="color:var(--n500)">sem vale no período</td></tr>';
+
+  /* O QUADRO da comparação, com a leitura de cada linha escrita. */
+  const q = cf.quadro || {}, nt = cf.total || 0;
+  const linha = (rot2, n, txt, cor) => {
+    const p = nt ? 100*n/nt : 0;
+    return '<div style="display:flex;justify-content:space-between;align-items:baseline;'
+      + 'padding:9px 0;border-bottom:1px solid var(--n100)">'
+      + '<div><div style="font-weight:600;color:'+cor+'">'+esc(rot2)+'</div>'
+      + '<div style="font-size:11.5px;color:var(--n500)">'+esc(txt)+'</div></div>'
+      + '<div style="font-family:var(--mono);font-weight:700">'+n.toLocaleString('pt-BR')
+      + ' <span style="color:var(--n500);font-weight:400">('+NMI.format(p)+'%)</span></div></div>';
+  };
+  document.getElementById('ped-quadro').innerHTML = nt ? [
+    linha('Vale maior que a coleta', q.vale_maior||0,
+          'o adiantado supera o pedágio lançado — provável ida e volta contra trecho carregado',
+          'var(--yellow-700)'),
+    linha('Vale menor que a coleta', q.vale_menor||0,
+          'o adiantado não cobre o lançado; parte do pedágio ficou com o transportador',
+          'var(--red)'),
+    linha('Iguais ao centavo', q.igual||0, 'o vale bate exatamente com o lançado',
+          'var(--green)'),
+    linha('Coleta sem pedágio lançado', q.coleta_zero||0,
+          'é ausência de lançamento, não diferença de valor — cadastro, não conferência',
+          'var(--n500)'),
+  ].join('') : '<div style="color:var(--n500)">sem vale ligado a coleta no período</div>';
+  const hC = document.getElementById('hintPedConf');
+  if(hC) hC.textContent = NMI.format(nt) + ' vales de coleta · vale '
+    + BRL.format(cf.vale_total||0) + ' × coleta ' + BRL.format(cf.coleta_total||0);
+  abaContador('abanPedConf', nt);
+
+  /* MAIORES DIFERENÇAS: ordenado pelo valor, não pela razão. */
+  const tops = (cf.linhas||[]).slice()
+    .filter(x => x.classe === 'vale_maior' || x.classe === 'vale_menor')
+    .sort((a,b) => Math.abs(b.diferenca) - Math.abs(a.diferenca)).slice(0, 40);
+  const hT = document.getElementById('hintPedTop');
+  if(hT) hT.textContent = tops.length + ' de ' + nt.toLocaleString('pt-BR')
+    + ' · ordenado pela diferença em reais';
+  document.getElementById('ped-top').innerHTML = tops.map(x => {
+    const trecho = [x.cidadeorigem, x.cidadedestino].filter(Boolean)
+      .join(' → ') || [x.uforigem, x.ufdestino].filter(Boolean).join(' → ') || '—';
+    const neg = (x.diferenca||0) < 0;
+    return '<tr><td style="font-family:var(--mono)">'+esc(x.veiculo||'—')+'</td>'
+      + '<td>'+esc(x.modalidade||'—')+'</td>'
+      + '<td class="num">'+(x.eixos!=null?x.eixos:'—')+'</td>'
+      + '<td title="'+esc(trecho)+'">'+esc(trecho.length>28?trecho.slice(0,28)+'…':trecho)+'</td>'
+      + '<td class="num">'+BRL.format(x.vale||0)+'</td>'
+      + '<td class="num">'+BRL.format(x.coleta||0)+'</td>'
+      + '<td class="num" style="font-weight:700;color:'+(neg?'var(--red)':'var(--yellow-700)')+'">'
+        + (neg?'':'+')+BRL.format(x.diferenca||0)+'</td>'
+      + '<td class="num" style="color:var(--n500)">'+(x.razao!=null?NMI.format(x.razao):'—')+'</td></tr>';
+  }).join('') || '<tr><td colspan="8" style="color:var(--n500)">nenhuma diferença no período</td></tr>';
+
+  const eixos = d.por_eixo || [];
+  const hE = document.getElementById('hintPedEixo');
+  if(hE) hE.textContent = eixos.length + ' faixas de eixo';
+  document.getElementById('ped-eixo').innerHTML = eixos.map(x =>
+    '<tr><td class="num" style="font-weight:600">'+(x.eixos!=null?x.eixos:'—')+'</td>'
+    + '<td class="num">'+(x.vales||0).toLocaleString('pt-BR')+'</td>'
+    + '<td class="num">'+BRL.format(x.valor||0)+'</td>'
+    + '<td class="num" style="font-weight:600">'+BRL.format(x.medio||0)+'</td></tr>'
+  ).join('') || '<tr><td colspan="4" style="color:var(--n500)">sem vale no período</td></tr>';
+
+  const mods = d.por_modalidade || [];
+  const somaMod = mods.reduce((a,x)=>a+(x.valor||0), 0) || 1;
+  const hMo = document.getElementById('hintPedModal');
+  if(hMo) hMo.textContent = mods.length + ' modalidades';
+  document.getElementById('ped-modal').innerHTML = mods.map(x =>
+    '<tr><td style="font-weight:600">'+esc(x.modalidade||'—')+'</td>'
+    + '<td class="num">'+(x.vales||0).toLocaleString('pt-BR')+'</td>'
+    + '<td class="num">'+BRL.format(x.valor||0)
+      + ' <span style="color:var(--n500)">'+NMI.format(100*(x.valor||0)/somaMod)+'%</span></td>'
+    + '<td class="num">'+(x.veiculos||0).toLocaleString('pt-BR')+'</td></tr>'
+  ).join('') || '<tr><td colspan="4" style="color:var(--n500)">sem vale no período</td></tr>';
+}
+
 async function loadFolha(){
   const seq=++folhaSeq, btn=document.getElementById('btnRefresh'); if(btn) btn.disabled=true;
   document.getElementById('content').classList.add('loading'); skelKpis('kpis-folha',4);
@@ -22872,6 +23156,7 @@ const BUSCA_SINONIMOS = {
   port:['patio','portaria','saida','autorizacao'],
   agr:['agregado','terceiro','transportador','acerto'],
   mvb:['make vs buy','proprio ou agregado','ckm','spread'],
+  pedagio:['validacao de pedagio','vale-pedagio','praca','eixo'],
   veic:['frota','ativo','idade','cavalo','carreta','implemento'],
   veicf:['consultar veiculo','ficha do veiculo','placa'],
   comb:['diesel','abastecimento','km/l','consumo','posto','arla'],
@@ -28073,6 +28358,7 @@ boot();
         <a href="#mvb" onclick="fecharDrawer()"><span class="ic" data-ic="mvb"></span>Make vs Buy</a>
         <a href="#milkrun" onclick="fecharDrawer()"><span class="ic" data-ic="milkic"></span>Operação MWM</a>
         <a href="#poli" onclick="fecharDrawer()"><span class="ic" data-ic="poliic"></span>Permanência na Planta</a>
+        <a href="#pedagio" onclick="fecharDrawer()"><span class="ic" data-ic="pedic"></span>Validação de Pedágio</a>
         <a href="#port" onclick="fecharDrawer()"><span class="ic" data-ic="porta"></span>Portaria</a>
         <a href="#prog" onclick="fecharDrawer()"><span class="ic" data-ic="prog"></span>Programação Intel.</a>
         <a href="#sac" onclick="fecharDrawer()"><span class="ic" data-ic="sacic"></span>SAC / Freetime</a>
