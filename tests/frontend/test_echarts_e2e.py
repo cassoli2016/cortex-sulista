@@ -21,6 +21,7 @@ O que se protege agora:
 """
 from __future__ import annotations
 
+import datetime as _dt
 import json
 
 import pytest
@@ -82,9 +83,20 @@ def _abrir(pg, base_url, hash_tela, *, quebrar_vendor=False):
 # dublê VAZIO faria os gráficos saírem antes do carregador e o teste passaria
 # sem medir nada — foi exatamente assim que a versão anterior deste arquivo
 # continuou verde depois de a tela mudar de ferramenta.
+#
+# O DIA VAI ALÉM DE HOJE, e isso não é detalhe: a faixa "a realizar" só existe
+# quando há dia FUTURO no mês, porque o gráfico lê o relógio do navegador
+# (`new Date().getDate()`). Com o `range(1, 32)` fixo que estava aqui, o
+# `assert "a realizar" in dia` passava 30 dias por mês e falhava **no dia 31** —
+# e falhava sem haver defeito, apontando para quem tivesse mexido na tela por
+# último (custou uma bissecção alheia em 31/08/2026, que concluiu, errado, ser
+# regressão da entrega de pedágio). Teste que depende do calendário é teste que
+# acusa a pessoa errada uma vez por mês.
+_DIA_HOJE = _dt.date.today().day
 HOME = {
     "diario": [{"dia": d, "realizado": (0 if d > 20 else 40000 + d*900),
-                "meta": (0 if d % 7 == 0 else 45000)} for d in range(1, 32)],
+                "meta": (0 if d % 7 == 0 else 45000)}
+               for d in range(1, max(32, _DIA_HOJE + 6))],
     "receita_12m": [{"mes": f"2026-{m:02d}", "receita": 9_000_000 + m*90_000}
                     for m in range(1, 9)],
     "fluxo_serie": [{"periodo": "atrasado", "saldo_projetado": 2_500_000},

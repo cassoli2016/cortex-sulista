@@ -3000,14 +3000,28 @@ def operacao_pedagio(dias: int = 365) -> JSONResponse:
     ate = _dt.date.today()
     de = ate - _dt.timedelta(days=dias)
     try:
-        from api.pedagio import validacao as _v, qualp as _q
+        from api.pedagio import validacao as _v, pracas as _p, qualp as _q
+        d, a = de.isoformat(), ate.isoformat()
         return JSONResponse({
-            "de": de.isoformat(), "ate": ate.isoformat(), "dias": dias,
-            "mensal": _v.mensal(de.isoformat(), ate.isoformat()),
-            "por_eixo": _v.por_eixo(de.isoformat(), ate.isoformat()),
-            "por_modalidade": _v.por_modalidade(de.isoformat(), ate.isoformat()),
-            "confronto": _v.confronto(de.isoformat(), ate.isoformat()),
-            "cobertura": _v.cobertura(de.isoformat(), ate.isoformat()),
+            "de": d, "ate": a, "dias": dias,
+            "mensal": _v.mensal(d, a),
+            "por_eixo": _v.por_eixo(d, a),
+            "por_modalidade": _v.por_modalidade(d, a),
+            "confronto": _v.confronto(d, a),
+            "cobertura": _v.cobertura(d, a),
+            # Praça e tarifa: o confronto contra o que a ADMINISTRADORA cobrou,
+            # que é a fonte de tarifa que já chega e não depende de assinar
+            # API de ninguém. `observada` é limitada às 60 combinações de maior
+            # volume — a tabela rola dentro do card e o resto é cauda.
+            "tarifa": _p.estado_tarifa(),
+            "confronto_praca": _p.confronto_praca(d, a),
+            "por_administradora": _p.por_administradora(d, a),
+            "observada": _p.observada(d, a)[:60],
+            # O MDF-e é SENSOR, não texto: os três campos de vale-pedágio do
+            # manifesto estão vazios nas 126.295 linhas do histórico, então a
+            # conferência legal não dá para fazer — e a tela DIZ isso em vez
+            # de calar. No dia em que o ERP passar a preencher, muda sozinha.
+            "mdfe": _p.mdfe_vale(d, a),
             # O REGIME do QualP vai junto: a tela precisa dizer se a conferência
             # de TARIFA está disponível ou se estamos nas três consultas diárias.
             "qualp": {"regime": _q.regime()},

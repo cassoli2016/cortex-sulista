@@ -4,6 +4,23 @@ Gerado de `docs/versoes.yaml` por `scripts/gerar_changelog.py` — não editar �
 Formato [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/),
 versionamento [SemVer](https://semver.org/lang/pt-BR/).
 
+## [0.176.0] — 31/08/2026  ·  CX-31/08/2026-v0.176.0
+
+### Adicionado
+- A Validação de Pedágio ganhou a aba "Praça e tarifa", e com ela a conferência praça a praça que faltava: o que o sistema calculou contra o que a administradora efetivamente cobrou. Em 12 meses são 189 praças e 23.284 travessias, R$ 593.697 calculados contra R$ 643.417 cobrados — R$ 49.720 de diferença, com apenas 11,2% batendo ao centavo.
+- A tarifa que está sendo cobrada aparece por praça e por eixo, tirada do próprio extrato da administradora. É o valor que SE REPETE, não a média: numa praça o mesmo caminhão foi cobrado R$ 20,50 quarenta e duas vezes, R$ 21,50 oitenta e cinco vezes e R$ 80,28 uma vez — a média não seria tarifa de nada. Quando o valor mais frequente não chega à metade das travessias, a tela mostra "n/d" com o percentual em vez de afirmar um número.
+- Cada linha diz de quando é a tarifa cadastrada e há quantos meses ela está parada, e o card mostra o valor anterior com a data em que mudou — é assim que se vê o reajuste que o cadastro não acompanhou.
+- A tabela "Quem manda a praça" nomeia cada administradora e o quanto ela devolve do detalhe. Das três, uma não manda a praça em nenhuma das 27.855 travessias — o que é um pedido a fazer ao fornecedor, e não um problema do sistema.
+
+### Alterado
+- A resposta à pergunta de onde tirar preço de pedágio sem contratar API: as duas melhores fontes já estavam dentro do ERP e ninguém as lia. A tabela de preço por praça e eixo confere exatamente com a fonte paga (Garuva: R$ 5,70 por eixo nas duas), e o retorno da administradora, que é o fechamento da operadora, já chega pela integração todo dia.
+- O que falta não é fonte, é atualização: 903 das 934 praças com preço cadastrado estão com vigência anterior a treze meses, e a mais recente de toda a tabela é de 01/08/2025. Pedágio reajusta uma vez por ano, e 100% da diferença entre o calculado e o cobrado está justamente nessas praças.
+
+### Corrigido
+- A Validação de Pedágio estava fora de ordem no menu de Operação, entre Permanência na Planta e Portaria, e na gaveta do celular junto.
+- Consultas ao ERP deixam de quebrar quando um cadastro tem travessão ou aspa tipográfica no nome. A conexão pedia os dados em Latin-1 e o servidor derrubava a consulta INTEIRA ao encontrar um caractere fora dessa tabela — quatro praças de pedágio, vinte CT-e e doze coletas já estavam nessa situação, e a tela que os lesse simplesmente não abria.
+- O card de Auditoria Interna, na tela de Qualidade, mostrava o subtítulo em tamanho de título: faltava fechar a marcação do cabeçalho.
+
 ## [0.175.0] — 31/08/2026  ·  CX-31/08/2026-v0.175.0
 
 ### Adicionado

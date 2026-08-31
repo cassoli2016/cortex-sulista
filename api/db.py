@@ -43,6 +43,15 @@ def _conninfo() -> str:
         user=os.environ.get("POSTGRES_USER", "consulta_sulista"),
         password=os.environ.get("POSTGRES_PASSWORD", ""),
         connect_timeout=8,
+        # O servidor é UTF8, mas o libpq no Windows deriva o client_encoding da
+        # codepage do sistema e escolhe LATIN1. Aí o SERVIDOR passa a converter
+        # UTF8 -> LATIN1 na saída, e um caractere fora do Latin-1 derruba a
+        # CONSULTA INTEIRA com UntranslatableCharacter -- não a linha, a
+        # consulta. São poucas linhas (4 praças de pedágio, 20 CT-e, 12 coletas
+        # com o travessão "–"), e é justamente isso que torna a armadilha ruim:
+        # a tela funciona por meses e quebra no dia em que alguém cadastra um
+        # nome com travessão. Pedindo UTF8 não há conversão nenhuma.
+        client_encoding="UTF8",
         # read-only + timeout de segurança (o banco é de produção de terceiros)
         options="-c statement_timeout=60000 -c default_transaction_read_only=on",
     )
