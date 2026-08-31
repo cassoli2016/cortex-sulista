@@ -111,7 +111,81 @@ def faturamento_diario(visao: dict | None = None) -> dict:
     }
 
 
-PROVEDORES = {"faturamento_diario": faturamento_diario}
+def smartec_prazo_indicacao(dados: dict | None = None) -> dict:
+    """As variáveis do contexto `smartec_prazo`.
+
+    DUAS COISAS QUE ESTA FUNÇÃO FAZ E QUE NÃO SÃO ÓBVIAS:
+
+    1. **`_silencio` quando não há nada vencendo.** Não é erro, é a resposta
+       certa: mandar "0 notificações vencem hoje" toda manhã transforma o aviso
+       em ruído, e o dia em que houver três ninguém vai ler. Quem trata isso é
+       `agenda.montar_texto`, que distingue os três estados — mandou, não
+       mandou por falha, não havia o que mandar.
+
+    2. **NENHUMA VARIÁVEL SAI VAZIA.** `montar_texto` recusa o envio se
+       qualquer variável do modelo vier em branco — guarda certa, que existe
+       para "Faturamento de hoje: R$ 0,00" não chegar à diretoria. Aqui isso
+       morde num caso específico: quando só há notificações vencendo HOJE e
+       nenhuma nos próximos dias, `proximos` ficaria vazio e o aviso inteiro
+       seria engolido — justamente no dia mais urgente. Por isso `proximos` tem
+       texto também quando não há próximos.
+
+    `dados` é injetável para o teste não depender do banco.
+    """
+    if dados is None:                       # pragma: no cover - produção
+        from api.smartec import leitura
+        dados = leitura.prazo_indicacao_alerta(dias=2)
+
+    if dados.get("erro"):
+        # Não dá para SABER. Sobe como exceção para `montar_texto` registrar o
+        # motivo e não enviar — silenciar aqui seria afirmar que não há prazo
+        # correndo quando a verdade é que ninguém está olhando.
+        raise ValueError(dados["erro"])
+    if dados.get("silencio"):
+        return {"_silencio": dados["silencio"]}
+
+    hoje = dados.get("hoje") or []
+    depois = dados.get("depois") or []
+
+    linhas = []
+    for x in hoje:
+        pts = x.get("pontuacao")
+        linhas.append("\U0001f69b *%s*" % (x.get("placa") or "?"))
+        linhas.append("     %s" % (x.get("descricao") or "infração não descrita"))
+        linhas.append("     \U0001f4c4 AIT %s · %s"
+                      % (x.get("ait") or "?",
+                         x.get("orgao") or "órgão não informado"))
+        linhas.append("     \U0001f4b0 %s  ·  ⚠️ %s pontos"
+                      % (brl(x.get("valor_a_pagar")),
+                         pts if pts is not None else "?"))
+        linhas.append("")
+    lista = "\n".join(linhas).rstrip()
+
+    if depois:
+        por_dia: dict[int, list[str]] = {}
+        for x in depois:
+            por_dia.setdefault(int(x["dias"]), []).append(x.get("placa") or "?")
+        partes = []
+        for d in sorted(por_dia):
+            quando = "Amanhã" if d == 1 else "Em %d dias" % d
+            partes.append("%s vencem mais *%d*: %s"
+                          % (quando, len(por_dia[d]), ", ".join(por_dia[d])))
+        proximos = "\U0001f4c5 " + " · ".join(partes)
+    else:
+        # NUNCA vazio — ver a nota 2 no cabeçalho.
+        proximos = "✅ Nenhuma outra vence nos próximos dias."
+
+    return {
+        "data": date.today().strftime("%d/%m/%Y"),
+        "quantidade": str(len(hoje)),
+        "lista": lista,
+        "total": brl(dados.get("total_hoje")),
+        "proximos": proximos,
+    }
+
+
+PROVEDORES = {"faturamento_diario": faturamento_diario,
+              "smartec_prazo_indicacao": smartec_prazo_indicacao}
 
 
 def obter(nome: str) -> dict:

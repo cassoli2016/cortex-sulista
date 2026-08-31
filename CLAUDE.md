@@ -779,6 +779,59 @@ PLAUSÍVEL (31/08/2026):**
   o prontuário de uma pessoa. Ficam no catálogo e **bloqueados no cliente** — apagá-los
   faria o próximo achar que não existem.
 
+
+**AVISO AUTOMÁTICO TEM TRÊS RESPOSTAS, NÃO DUAS (Smartec, 31/08/2026):**
+- Um disparo agendado que só sabe "mandou" e "falhou" erra no terceiro caso, e
+  é o mais perigoso: **manda quando há**, **CALA quando não há** — e isso é
+  SUCESSO —, e **RECUSA DIZENDO O MOTIVO quando não dá para saber**.
+- **Trocar a terceira pela segunda é o erro caro.** Com a coleta parada, a
+  consulta devolve zero notificação no prazo — resposta idêntica a "está tudo
+  indicado". O aviso silenciaria justamente quando parou de enxergar, e
+  ninguém saberia por dias. É a família do "integração parada se disfarça de
+  tela vazia" que custou 136 dias na RasterJOR, agora escondida dentro de uma
+  automação que parece estar funcionando porque não reclama.
+- A defesa é conferir o FRESCOR ANTES do conteúdo (`HORAS_FRESCOR` em
+  `api/smartec/leitura.py`): sem coleta recente a função recusa, em vez de
+  afirmar que não há prazo correndo.
+- **Silêncio registrado como FALHA também é defeito.** Antes, provedor sem nada
+  a dizer caía na checagem de dado incompleto e o histórico registrava "faltou
+  lista" — acusação de dado furado num dia em que está tudo certo. Vermelho
+  todo dia é vermelho que para de querer dizer alguma coisa. `agenda.executar`
+  distingue os três, e o `_silencio` do provedor é o que os separa.
+- **A mensagem do provedor vence a genérica.** "Não foi possível ler os
+  números" é verdadeiro e inútil quando o motivo real é "a coleta está parada
+  há 40 h" — e é esse texto que a pessoa lê na tela.
+- **Variável vazia ENGOLE o aviso inteiro**, porque `montar_texto` trata vazio
+  como dado incompleto e recusa. Isso morde num caso específico: quando só há
+  notificação vencendo HOJE e nenhuma nos próximos dias, o campo dos próximos
+  ficaria vazio e o aviso sumiria — justamente no dia mais urgente. Provedor
+  não devolve string vazia; devolve a frase que descreve a ausência.
+- **O aviso lê o BANCO, não o fornecedor.** A tela abre em milissegundos e não
+  cai junto se a Smartec estiver fora — mas isso cria a dependência de a coleta
+  rodar, e é por isso que ela virou tarefa agendada no mesmo commit.
+- **Número de telefone NÃO entra em migration.** O repositório é público. O
+  seed versiona o MODELO (texto); a rotina que o usa é criada no banco, com o
+  destinatário informado por quem opera, e nasce DESLIGADA.
+
+**AS DUAS TELAS DE MULTA VIRARAM UMA, e o id foi HERDADO (31/08/2026):**
+- A tela da Smartec assumiu o id `mul`, da tela antiga do ERP. O motivo é o
+  mesmo da jornada que herdou `jorn`: **`mul` já estava concedido a Diretoria e
+  Frota**, e `smt` a ninguém. Um id novo faria multas sumirem do menu de todo
+  mundo que não é administrador até alguém escrever uma migration só para
+  devolver o acesso que as pessoas já tinham.
+- **O histórico do ERP NÃO foi jogado fora.** As duas fontes respondem
+  perguntas diferentes — a Smartec devolve só o que está EM ABERTO (212 autos),
+  o ERP tem o histórico inteiro (3.510 desde 2010). O conteúdo do ERP virou
+  duas abas dentro da tela nova, com `data-ao-abrir`, que de quebra faz o
+  gráfico ser desenhado com o contêiner já visível.
+- **`abaContador` recebe o id do `<span class="aban">`, nunca o do botão.**
+  Passar o botão APAGA o rótulo da aba — o helper sobrescreve o `textContent`
+  do elemento que recebe. Não dá erro; a aba fica sem nome, e só o render com
+  dado real pega.
+- **O guard de "aba com gráfico nasce aberta" procura `width:100%;height:Npx`.**
+  Contêiner de ECharts sem o `width` é invisível para ele, e o painel passa sem
+  ser conferido. Seguir a convenção não é estética: é o que mantém o guard vivo.
+
 **Dois gráficos do mesmo dado e página quilométrica (lições do Painel de Custos):**
 - **Rosca de participação + barras por agrupador mostravam exatamente a mesma coisa**,
   lado a lado. A rosca virou **Concentração do custo** — top 3 / 5 / 10 em % acumulado

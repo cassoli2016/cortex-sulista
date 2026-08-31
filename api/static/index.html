@@ -2308,9 +2308,8 @@ body.tvfull #btnReport,body.tvmode #btnReport{display:none}
         <a href="#veicf" class="sub" data-view="veicf" title="Consulta de Veículo por placa"><span class="ic" data-ic="busca"></span><span>Consulta de Veículo</span></a>
         <a href="#man" class="sub" data-view="man" title="Manutenção"><span class="ic" data-ic="man"></span><span>Manutenção</span></a>
         <a href="#mprev" class="sub" data-view="mprev" title="Manutenção Preventiva (revisões próximas/vencidas)"><span class="ic" data-ic="mprevic"></span><span>Manutenção Preventiva</span></a>
-        <a href="#mul" class="sub" data-view="mul" title="Multas"><span class="ic" data-ic="mul"></span><span>Multas</span></a>
+        <a href="#mul" class="sub" data-view="mul" title="Multas — Smartec"><span class="ic" data-ic="mul"></span><span>Multas — Smartec</span></a>
         <a href="#pneus" class="sub" data-view="pneus" title="Pneus — sulco, pressão, vida e CPK (Prolog)"><span class="ic" data-ic="pneuic"></span><span>Pneus</span></a>
-        <a href="#smt" class="sub" data-view="smt" title="Smartec — Infrações e Licenças"><span class="ic" data-ic="smt"></span><span>Smartec</span></a>
         <a href="#veic" class="sub" data-view="veic" title="Veículos"><span class="ic" data-ic="veic"></span><span>Veículos</span></a>
       </div>
       <button class="group" id="grpGes" aria-expanded="false" aria-controls="subsGes" onclick="toggleGroup('grpGes','subsGes','cs.gesGroup')" title="Gestão">
@@ -2614,11 +2613,11 @@ body.tvfull #btnReport,body.tvmode #btnReport{display:none}
         <div class="rangegrp" id="grpMul" style="display:none">
           <div class="field">
             <label for="fMulPlaca">Placa</label>
-            <input type="search" id="fMulPlaca" placeholder="buscar placa…" onchange="loadMul()">
+            <input type="search" id="fMulPlaca" placeholder="buscar placa…" onchange="loadMulErp()">
           </div>
           <div class="field">
             <label for="fMulOrgao">Órgão autuador</label>
-            <select id="fMulOrgao" onchange="loadMul()"><option value="">Todos</option></select>
+            <select id="fMulOrgao" onchange="loadMulErp()"><option value="">Todos</option></select>
           </div>
         </div>
         <div class="rangegrp" id="grpLanc" style="display:none">
@@ -5348,47 +5347,6 @@ body.tvfull #btnReport,body.tvmode #btnReport{display:none}
         </div>
       </section>
       <section class="view" id="view-mul">
-        <div class="kpis k4" id="kpis-mul"></div>
-                <div class="subtabs" role="tablist" data-abas="mul" aria-label="Seções desta tela">
-          <button role="tab" id="tabmul-vis" data-aba="vis" aria-controls="aba-mul-vis" aria-selected="true" onclick="abaTrocar('mul','vis')">Visão geral</button>
-          <button role="tab" id="tabmul-resp" data-aba="resp" aria-controls="aba-mul-resp" aria-selected="false" onclick="abaTrocar('mul','resp')">Responsáveis</button>
-        </div>
-        <div class="aba" data-abas="mul" data-aba="vis" id="aba-mul-vis" role="tabpanel" aria-labelledby="tabmul-vis">
-  <div class="card"><div class="head"><h2>Alertas <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="Regras fixas sobre os números desta tela: multas sem condutor identificado (e a autuação por não indicar condutor que vem delas), cobertura do valor lançado e ausência de baixa de pagamento.">i</span></h2><span class="hint">qualidade do cadastro e risco</span></div>
-            <div class="alerts" id="alerts-mul"></div></div>
-  <div class="card">
-            <div class="head"><h2>Multas por mês <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="Quantidade de multas por mês da data da infração. A barra conta MULTAS e não valor: o campo de valor existe em uma fração pequena dos registros e, quando o gráfico usava valor, meses inteiros com multa apareciam vazios. O valor lançado no mês continua no tooltip.">i</span></h2><span class="hint" id="hintMul">quantidade no período filtrado · valor no tooltip</span></div>
-            <div class="chartwrap" id="wrapMul">
-              <div id="chartMul" style="width:100%;height:240px" role="img"></div>
-            </div>
-          </div>
-        </div>
-        <div class="aba" data-abas="mul" data-aba="resp" id="aba-mul-resp" role="tabpanel" aria-labelledby="tabmul-resp" hidden>
-  <div class="grid2">
-            <div class="card">
-              <div class="head"><h2>Por infração <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="Tipo vindo do catálogo infracaotransito. A autuação por não indicar condutor é consequência direta das multas sem condutor identificado: sem a indicação no prazo, ela vira infração gravíssima da empresa. Valor e pontos ficam zerados quando o registro não os traz.">i</span></h2><span class="hint" id="hintMulI">top 15</span></div>
-              <div class="tablewrap tabroll"><table><thead><tr>
-                <th>Infração</th><th class="num">Multas</th><th class="num">Pontos</th><th class="num">Valor</th>
-              </tr></thead><tbody id="mul-tipo"></tbody></table></div>
-            </div>
-            <div class="card">
-              <div class="head"><h2>Por motorista <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="Motorista do registro da infração. A linha sem motorista reúne as multas em que o condutor não foi identificado — é de longe a maior e o ponto de ação da tela. Nome de motorista é dado interno e não sai em painel de TV.">i</span></h2><span class="hint" id="hintMulM">top 12 por pontos</span></div>
-              <div class="tablewrap tabroll"><table><thead><tr>
-                <th>Motorista</th><th class="num">Multas</th><th class="num">Pontos</th><th class="num">Valor</th>
-              </tr></thead><tbody id="mul-mot"></tbody></table></div>
-            </div>
-          </div>
-  <div class="card">
-            <div class="head"><h2>Por veículo <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="Top 20 placas por quantidade de multa no recorte. Clique na linha para ver multa a multa, com data, local e condutor. Valor e pontos por veículo herdam a mesma cobertura baixa dos campos de origem.">i</span></h2><span class="hint" id="hintMulV">top 20 · clique para ver as multas</span></div>
-            <div class="tablewrap tabroll"><table><thead><tr>
-              <th style="width:34px"></th><th>Placa</th><th>Modalidade</th><th class="num">Multas</th><th class="num">Pontos</th><th class="num">Valor</th>
-            </tr></thead><tbody id="mul-veic"></tbody></table></div>
-          </div>
-        </div>
-      </section>
-
-      <!-- ===================== TORRE DE CONTROLE ===================== -->
-      <section class="view" id="view-smt">
         <div class="card">
           <div class="head"><h2>Smartec — Infrações e Licenças</h2><span class="hint">SNE + DETRAN · o que ainda dá para tratar, não só o que foi autuado</span></div>
           <div class="cardfilters">
@@ -5407,6 +5365,10 @@ body.tvfull #btnReport,body.tvmode #btnReport{display:none}
                     aria-selected="false" onclick="abaTrocar('smt','lic')">Licenças<span class="aban vazio" id="cnt-smt-lic"></span></button>
             <button role="tab" id="tabsmt-antt" aria-controls="aba-smtantt" data-aba="antt"
                     aria-selected="false" onclick="abaTrocar('smt','antt')">ANTT<span class="aban vazio" id="cnt-smt-antt"></span></button>
+            <button role="tab" id="tabsmt-hist" aria-controls="aba-smthist" data-aba="hist"
+                    aria-selected="false" onclick="abaTrocar('smt','hist')">Histórico (ERP)<span class="aban vazio" id="cnt-smt-hist"></span></button>
+            <button role="tab" id="tabsmt-resp" aria-controls="aba-smtresp" data-aba="resp"
+                    aria-selected="false" onclick="abaTrocar('smt','resp')">Responsáveis (ERP)<span class="aban vazio" id="cnt-smt-resp"></span></button>
             <button role="tab" id="tabsmt-cob" aria-controls="aba-smtcob" data-aba="cob"
                     aria-selected="false" onclick="abaTrocar('smt','cob')">Cobertura e coleta<span class="aban vazio" id="cnt-smt-cob"></span></button>
           </div>
@@ -5416,16 +5378,16 @@ body.tvfull #btnReport,body.tvmode #btnReport{display:none}
             <div class="grid2">
               <div class="card">
                 <div class="head"><h2>Multas e notificações por mês <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="smt_infracoes · mês da INFRAÇÃO, não o da coleta. Só o que está em aberto na Smartec hoje — o que foi pago ou baixado deixa de vir da API e sai desta série.">i</span></h2><span class="hint">em aberto · mês da infração</span></div>
-                <div class="chartwrap narrow"><div id="chart-smtmes" style="height:212px"></div></div>
+                <div class="chartwrap narrow"><div id="chart-smtmes" style="width:100%;height:148px"></div></div>
               </div>
               <div class="card">
                 <div class="head"><h2>Por tipo de infração <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="smt_infracoes cruzado com o catálogo do CTB da Smartec (smt_infracoes_ctb), que é quem traz a gravidade. Só multas em aberto.">i</span></h2><span class="hint" id="smt-inf-hint"></span></div>
-                <div class="tabroll" style="max-height:212px"><table id="tb-smtinf"><thead><tr><th>Infração</th><th>Gravidade</th><th class="num">Multas</th><th class="num">Valor</th><th class="num">Pontos</th></tr></thead><tbody></tbody></table></div>
+                <div class="tabroll" style="max-height:148px"><table id="tb-smtinf"><thead><tr><th>Infração</th><th>Gravidade</th><th class="num">Multas</th><th class="num">Valor</th><th class="num">Pontos</th></tr></thead><tbody></tbody></table></div>
               </div>
             </div>
             <div class="card">
               <div class="head"><h2>Multas em aberto <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="MULTAS SNE DETRAN da Smartec, gravadas em smt_infracoes. Em aberto significa que ainda vem da API: a resolvida para de vir e sai daqui. O valor é o que a Smartec informa, não o do cadastro do ERP — que vem vazio em boa parte das multas recentes.">i</span></h2><span class="hint" id="smt-mul-hint"></span></div>
-              <div class="tabroll"><table id="tb-smtmul"><thead><tr><th>Placa</th><th>AIT</th><th>Data</th><th>Infração</th><th>Órgão</th><th class="num">Pontos</th><th class="num">Valor</th><th class="num">Com desconto</th><th>Vencimento</th><th>Boleto</th><th>Docs</th></tr></thead><tbody></tbody></table></div>
+              <div class="tabroll" style="max-height:290px"><table id="tb-smtmul"><thead><tr><th>Placa</th><th>AIT</th><th>Data</th><th>Infração</th><th>Órgão</th><th class="num">Pontos</th><th class="num">Valor</th><th class="num">Com desconto</th><th>Vencimento</th><th>Boleto</th><th>Docs</th></tr></thead><tbody></tbody></table></div>
             </div>
           </div>
 
@@ -5453,12 +5415,51 @@ body.tvfull #btnReport,body.tvmode #btnReport{display:none}
             </div>
           </div>
 
+          <div class="aba" data-abas="smt" data-aba="hist" id="aba-smthist" role="tabpanel" aria-labelledby="tabsmt-hist" data-ao-abrir="loadMulErp" hidden>
+            <div class="kpis k4" id="kpis-mul"></div>
+
+  <div class="card"><div class="head"><h2>Alertas <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="Regras fixas sobre os números desta tela: multas sem condutor identificado (e a autuação por não indicar condutor que vem delas), cobertura do valor lançado e ausência de baixa de pagamento.">i</span></h2><span class="hint">qualidade do cadastro e risco</span></div>
+            <div class="alerts" id="alerts-mul"></div></div>
+  <div class="card">
+            <div class="head"><h2>Multas por mês <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="Quantidade de multas por mês da data da infração. A barra conta MULTAS e não valor: o campo de valor existe em uma fração pequena dos registros e, quando o gráfico usava valor, meses inteiros com multa apareciam vazios. O valor lançado no mês continua no tooltip.">i</span></h2><span class="hint" id="hintMul">quantidade no período filtrado · valor no tooltip</span></div>
+            <div class="chartwrap" id="wrapMul">
+              <div id="chartMul" style="width:100%;height:196px" role="img"></div>
+            </div>
+          </div>
+        </div>
+
+  <div class="grid2">
+          </div>
+
+          <div class="aba" data-abas="smt" data-aba="resp" id="aba-smtresp" role="tabpanel" aria-labelledby="tabsmt-resp" data-ao-abrir="loadMulErp" hidden>
+            <div class="card">
+              <div class="head"><h2>Por infração <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="Tipo vindo do catálogo infracaotransito. A autuação por não indicar condutor é consequência direta das multas sem condutor identificado: sem a indicação no prazo, ela vira infração gravíssima da empresa. Valor e pontos ficam zerados quando o registro não os traz.">i</span></h2><span class="hint" id="hintMulI">top 15</span></div>
+              <div class="tablewrap tabroll" style="max-height:210px"><table><thead><tr>
+                <th>Infração</th><th class="num">Multas</th><th class="num">Pontos</th><th class="num">Valor</th>
+              </tr></thead><tbody id="mul-tipo"></tbody></table></div>
+            </div>
+            <div class="card">
+              <div class="head"><h2>Por motorista <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="Motorista do registro da infração. A linha sem motorista reúne as multas em que o condutor não foi identificado — é de longe a maior e o ponto de ação da tela. Nome de motorista é dado interno e não sai em painel de TV.">i</span></h2><span class="hint" id="hintMulM">top 12 por pontos</span></div>
+              <div class="tablewrap tabroll" style="max-height:210px"><table><thead><tr>
+                <th>Motorista</th><th class="num">Multas</th><th class="num">Pontos</th><th class="num">Valor</th>
+              </tr></thead><tbody id="mul-mot"></tbody></table></div>
+            </div>
+          </div>
+  <div class="card">
+            <div class="head"><h2>Por veículo <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="Top 20 placas por quantidade de multa no recorte. Clique na linha para ver multa a multa, com data, local e condutor. Valor e pontos por veículo herdam a mesma cobertura baixa dos campos de origem.">i</span></h2><span class="hint" id="hintMulV">top 20 · clique para ver as multas</span></div>
+            <div class="tablewrap tabroll" style="max-height:210px"><table><thead><tr>
+              <th style="width:34px"></th><th>Placa</th><th>Modalidade</th><th class="num">Multas</th><th class="num">Pontos</th><th class="num">Valor</th>
+            </tr></thead><tbody id="mul-veic"></tbody></table></div>
+          </div>
+        </div>
+          </div>
+
           <div class="aba" data-abas="smt" data-aba="cob" id="aba-smtcob" role="tabpanel" aria-labelledby="tabsmt-cob" hidden>
             <div class="kpis k4" id="kpis-smtcob"></div>
             <div class="grid2">
               <div class="card">
                 <div class="head"><h2>Frota própria fora da Smartec <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="Cruzamento por RENAVAM entre smt_veiculos e o cadastro de veículos do AVA (frota própria, ativos). O renavam bate em 301 de 301 sem uma divergência. Veículo fora da Smartec não é monitorado: multa dele não aparece nesta tela.">i</span></h2><span class="hint" id="smt-cob-hint"></span></div>
-                <div class="tabroll" style="max-height:260px"><table id="tb-smtcob"><thead><tr><th>Placa</th><th>Frota</th><th>Renavam</th></tr></thead><tbody></tbody></table></div>
+                <div class="tabroll" style="max-height:260px"><table id="tb-smtcob"><thead><tr><th>Placa</th><th>Frota</th><th>Uso</th><th>Renavam</th></tr></thead><tbody></tbody></table></div>
               </div>
               <div class="card">
                 <div class="head"><h2>Coletas <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="smt_carga — toda passagem da coleta, inclusive a que falhou e a que não trouxe nada. O status vazio é separado de ok de propósito: coleta sem resultado pode ser a verdade ou a integração morrendo, e é a sequência que denuncia.">i</span></h2><span class="hint">últimas passagens</span></div>
@@ -6655,8 +6656,7 @@ const ICONS = {
   cop:  IC('<path d="M12 3l1.7 4.3L18 9l-4.3 1.7L12 15l-1.7-4.3L6 9l4.3-1.7z"/><path d="M18.5 14.5l.9 2.1 2.1.9-2.1.9-.9 2.1-.9-2.1-2.1-.9 2.1-.9z"/>'),
   prog: IC('<circle cx="6" cy="18" r="2.2"/><circle cx="18" cy="6" r="2.2"/><path d="M8 18h6a4 4 0 0 0 0-8H10a4 4 0 0 1 0-8" fill="none"/>'),
   seg:  IC('<path d="M12 2 4 5.5v5c0 5 3.4 9 8 11 4.6-2 8-6 8-11v-5z"/><path d="M9.5 12l2 2 3.5-4"/>'),
-  mul:  IC('<rect x="4" y="3" width="16" height="18" rx="2"/><path d="M8 7h8M8 11h8M8 15h5"/><circle cx="17" cy="17" r="4" fill="none"/><path d="M15.5 17h3"/>'),
-  smt:  IC('<path d="M12 3l7 3v6c0 4.2-2.9 7.6-7 9-4.1-1.4-7-4.8-7-9V6z"/><path d="M9 12l2 2 4-4"/>'),
+  mul:  IC('<path d="M12 3l7 3v6c0 4.2-2.9 7.6-7 9-4.1-1.4-7-4.8-7-9V6z"/><path d="M9 12l2 2 4-4"/>'),
   veic: IC('<rect x="2" y="8" width="13" height="8" rx="1.5"/><path d="M15 11h4l3 3v2h-3"/><circle cx="7" cy="18" r="1.8"/><circle cx="17" cy="18" r="1.8"/><path d="M9 18h6"/>'),
   man:  IC('<path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/>'),
   prem: IC('<path d="M8 3h8v5a4 4 0 0 1-8 0V3zM5 5H4a1 1 0 0 0-1 1v1a4 4 0 0 0 4 4h.6M19 5h1a1 1 0 0 1 1 1v1a4 4 0 0 1-4 4h-.6"/><path d="M12 12v4M8 20h8M9.6 20c.3-1.6 1.1-2.1 2.4-4 1.3 1.9 2.1 2.4 2.4 4"/>'),
@@ -6713,7 +6713,7 @@ const FAIXAS = {
   '4_vencido_91_365':['Vencido 91–365d','b-dang'],
   '5_vencido_mais_365':['Vencido > 365d','b-dang'],
 };
-const VIEWS = { home:'Visão Geral', fluxo:'Fluxo de Caixa e Bancos', receber:'Contas a Receber', pagar:'Contas a Pagar', oc:'Ordens de Compra', custos:'Painel de Custos', agr:'Agregados e Terceiros', mvb:'Make vs Buy', pedagio:'Validação de Pedágio', comb:'Combustível', man:'Manutenção', com:'Clientes e RKM', clif:'Consulta de Cliente', crm:'CRM — Funil Comercial', km:'Análise de KM', prodveic:'Produtividade de Veículos', torre:'Torre de Controle', poli:'Permanência na Planta', ctecp:'CT-e de Contrapartida', veic:'Veículos', veicf:'Consulta de Veículo', mprev:'Manutenção Preventiva', comrast:'Comunicação Rastreadora', mul:'Multas', smt:'Smartec — Infrações e Licenças', prog:'Programação Inteligente', jorn:'Jornada do Motorista', jornf:'Ficha de Jornada', cex:'Custos Extras', sac:'SAC / Freetime', port:'Portaria', cop:'Copiloto Cortex', cob:'Régua de Cobrança', banc:'Bancos', extb:'Extrato Bancário', lanc:'Lançamentos Bancários', antec:'Antecipação de Recebíveis', antport:'Portais de Antecipação', milkrun:'Operação MWM', rec:'Lançamentos Recorrentes', fluxcon:'Fluxo de Caixa Consolidado', cont:'Contabilidade', qual:'Qualidade e Certidões', orc:'Orçamento', fech:'Fechamento do Mês', prem:'Premiação de Motoristas', dre:'DRE Gerencial', bal:'Balanço Patrimonial', drecli:'DRE por Cliente', tvfat:'Painel TV — Faturamento', tvope:'Painel TV — Operação', rh:'RH — Vagas', hc:'Headcount', folha:'Custo de Folha', folhaind:'Indicadores de Folha', he:'Horas Extras', cnh:'CNH dos Motoristas', ferias:'Férias — Vencimento', people:'People Analytics', pneus:'Pneus', gestao:'Gestão', gesacao:'Planos de Ação', gesata:'Atas de Reunião', srv:'Saúde do Servidor', doc:'Documentação', anpiso:'Piso Mínimo de Frete', anrntrc:'RNTRC dos Transportadores', telcon:'Consumo e Estatísticas', telcond:'Condução Econômica', telhod:'Hodômetro e Rastro' };
+const VIEWS = { home:'Visão Geral', fluxo:'Fluxo de Caixa e Bancos', receber:'Contas a Receber', pagar:'Contas a Pagar', oc:'Ordens de Compra', custos:'Painel de Custos', agr:'Agregados e Terceiros', mvb:'Make vs Buy', pedagio:'Validação de Pedágio', comb:'Combustível', man:'Manutenção', com:'Clientes e RKM', clif:'Consulta de Cliente', crm:'CRM — Funil Comercial', km:'Análise de KM', prodveic:'Produtividade de Veículos', torre:'Torre de Controle', poli:'Permanência na Planta', ctecp:'CT-e de Contrapartida', veic:'Veículos', veicf:'Consulta de Veículo', mprev:'Manutenção Preventiva', comrast:'Comunicação Rastreadora', mul:'Multas — Smartec', prog:'Programação Inteligente', jorn:'Jornada do Motorista', jornf:'Ficha de Jornada', cex:'Custos Extras', sac:'SAC / Freetime', port:'Portaria', cop:'Copiloto Cortex', cob:'Régua de Cobrança', banc:'Bancos', extb:'Extrato Bancário', lanc:'Lançamentos Bancários', antec:'Antecipação de Recebíveis', antport:'Portais de Antecipação', milkrun:'Operação MWM', rec:'Lançamentos Recorrentes', fluxcon:'Fluxo de Caixa Consolidado', cont:'Contabilidade', qual:'Qualidade e Certidões', orc:'Orçamento', fech:'Fechamento do Mês', prem:'Premiação de Motoristas', dre:'DRE Gerencial', bal:'Balanço Patrimonial', drecli:'DRE por Cliente', tvfat:'Painel TV — Faturamento', tvope:'Painel TV — Operação', rh:'RH — Vagas', hc:'Headcount', folha:'Custo de Folha', folhaind:'Indicadores de Folha', he:'Horas Extras', cnh:'CNH dos Motoristas', ferias:'Férias — Vencimento', people:'People Analytics', pneus:'Pneus', gestao:'Gestão', gesacao:'Planos de Ação', gesata:'Atas de Reunião', srv:'Saúde do Servidor', doc:'Documentação', anpiso:'Piso Mínimo de Frete', anrntrc:'RNTRC dos Transportadores', telcon:'Consumo e Estatísticas', telcond:'Condução Econômica', telhod:'Hodômetro e Rastro' };
 const periodoLabel = p => { if(p==='atrasado') return 'Atrasado'; const [y,m]=p.split('-'); return MES[+m-1]+'/'+y.slice(2); };
 const fmtD = s => { if(!s) return ''; const [y,m,dd]=s.split('-'); return dd+'/'+m+'/'+y; };
 /* Idade da posicao bancaria. Cada conta e lancada num dia diferente: mostrar
@@ -6821,7 +6821,7 @@ let DATAKM = null;
 let DATATORRE = null;
 let DATAVEIC = null;
 let DATAPROG = null;
-let DATAMUL = null;
+let DATAMULERP = null;
 let loadSeq = 0;              // token: só a última requisição renderiza
 let dreSeq = 0;
 let dreCliSeq = 0;
@@ -6911,7 +6911,7 @@ function copClear(){
   const inp=document.getElementById('cop-in'); if(inp){ inp.value=''; inp.focus(); }
 }
 let copBusy = false;
-let mulSeq = 0;
+let mulErpSeq = 0;
 let USER = null;            // sessão corrente (payload de /api/auth/me)
 let DATAGES = null;
 let DATASRV = null, srvTimer = null, srvSeq = 0;
@@ -6981,7 +6981,7 @@ const VIEW_GROUP = {home:'',cop:'',
   fluxo:'Fin',receber:'Fin',pagar:'Fin',cob:'Fin',banc:'Fin',extb:'Fin',lanc:'Fin',antec:'Fin',antport:'Fin',fluxcon:'Fin',rec:'Fin',
   dre:'Ctr',bal:'Ctr',cont:'Ctr',qual:'Ctr',orc:'Ctr',fech:'Ctr',ctecp:'Ctr',
   torre:'Ope',milkrun:'Ope',poli:'Ope',prog:'Ope',jorn:'Ope',jornf:'Ope',cex:'Ope',sac:'Ope',port:'Ope',km:'Ope',agr:'Ope',mvb:'Ope',pedagio:'Ope',
-  veic:'Fro',veicf:'Fro',mprev:'Fro',comrast:'Fro',comb:'Fro',man:'Fro',mul:'Fro',smt:'Fro',pneus:'Fro',
+  veic:'Fro',veicf:'Fro',mprev:'Fro',comrast:'Fro',comb:'Fro',man:'Fro',mul:'Fro',pneus:'Fro',
   oc:'Sup',custos:'Sup',
   prodveic:'Bi',tvfat:'Bi',tvope:'Bi',
   rh:'Rh',hc:'Rh',folha:'Rh',folhaind:'Rh',he:'Rh',cnh:'Rh',ferias:'Rh',people:'Rh',gestao:'Adm',srv:'Adm',doc:'Adm',gesacao:'Ges',gesata:'Ges',
@@ -7289,8 +7289,8 @@ function router(){
   // carga da vista: dispara se não há dados OU se os filtros visíveis
   // divergem dos usados na última carga (nunca mostrar dado velho com filtro novo)
   const key=viewKey(v);
-  const DATAMAP={fin:DATA,oc:DATAOC,agr:DATAAGR,anpiso:DATAANPISO,anrntrc:DATAANRNTRC,telcon:DATATELCON,telcond:DATATELCOND,telhod:DATATELHOD,mvb:DATAMVB,comb:DATACOMB,man:DATAMAN,com:DATACOM,clif:DATACLIF,dre:DATADRE,bal:DATABAL,drecli:DATADRECLI,home:DATAHOME,km:DATAKM,torre:DATATORRE,veic:DATAVEIC,veicf:DATAVEICF,mul:DATAMUL,smt:DATASMT,prog:DATAPROG,jorn:DATAJR,jornf:DATAJORNF,cex:DATACEX,sac:DATASAC,mprev:DATAMPREV,comrast:DATACOMRAST,qual:DATAQUAL,port:DATAPORT,crm:DATACRM,rh:DATARH,hc:DATAHC,folha:DATAFOLHA,folhaind:DATAFOLHAIND,he:DATAHE,custos:DATACUSTOS,cob:DATACOB,banc:DATABANC,extb:DATAEXTB,lanc:DATALANC,antec:DATAANTEC,antport:DATAANTPORT,milkrun:DATAMILK,fluxcon:DATAFLUXCON,rec:DATAREC,rent:DATARENT,cont:DATACONT,orc:DATAORC,fech:DATAFECH,prem:DATAPREM,gestao:DATAGES,srv:DATASRV,doc:DATADOC,tvfat:null,tvope:null,cop:(COP_MSGS.length?{}:null)};
-  const LOADMAP={smt:loadSmt,fin:load,oc:loadOc,agr:loadAgr,anpiso:loadAnpiso,anrntrc:loadAnrntrc,telcon:loadTelcon,telcond:loadTelcond,telhod:loadTelhod,mvb:loadMvb,pedagio:loadPedagio,comb:loadComb,man:loadMan,com:loadCom,clif:loadClif,dre:loadDre,bal:loadBal,drecli:loadDreCli,home:loadHome,km:loadKm,prodveic:loadProdveic,torre:loadTorre,veic:loadVeic,veicf:loadVeicf,mul:loadMul,prog:loadProg,jorn:loadJorraster,jornf:loadJornf,cex:loadCex,sac:loadSac,mprev:loadMPrev,comrast:loadComRast,qual:loadQual,port:loadPort,crm:loadCrm,rh:loadRh,hc:loadHc,folha:loadFolha,folhaind:loadFolhaInd,he:loadHe,custos:loadCustos,cob:loadCob,banc:loadBanc,extb:loadExtb,lanc:loadLanc,antec:loadAntec,antport:loadAntport,milkrun:loadMilkrun,cnh:loadCnh,ferias:loadFerias,people:loadPeople,pneus:loadPneus,poli:loadPoli,ctecp:loadCtecp,fluxcon:loadFluxcon,rec:loadRec,rent:loadRent,cont:loadCont,orc:loadOrc,fech:loadFech,prem:loadPrem,gesacao:loadGesacao,gesata:loadGesata,gestao:loadGestao,srv:loadSrv,doc:loadDoc,cop:loadCop,tvfat:loadTvFat,tvope:loadTvOpe};
+  const DATAMAP={fin:DATA,oc:DATAOC,agr:DATAAGR,anpiso:DATAANPISO,anrntrc:DATAANRNTRC,telcon:DATATELCON,telcond:DATATELCOND,telhod:DATATELHOD,mvb:DATAMVB,comb:DATACOMB,man:DATAMAN,com:DATACOM,clif:DATACLIF,dre:DATADRE,bal:DATABAL,drecli:DATADRECLI,home:DATAHOME,km:DATAKM,torre:DATATORRE,veic:DATAVEIC,veicf:DATAVEICF,mul:DATASMT,prog:DATAPROG,jorn:DATAJR,jornf:DATAJORNF,cex:DATACEX,sac:DATASAC,mprev:DATAMPREV,comrast:DATACOMRAST,qual:DATAQUAL,port:DATAPORT,crm:DATACRM,rh:DATARH,hc:DATAHC,folha:DATAFOLHA,folhaind:DATAFOLHAIND,he:DATAHE,custos:DATACUSTOS,cob:DATACOB,banc:DATABANC,extb:DATAEXTB,lanc:DATALANC,antec:DATAANTEC,antport:DATAANTPORT,milkrun:DATAMILK,fluxcon:DATAFLUXCON,rec:DATAREC,rent:DATARENT,cont:DATACONT,orc:DATAORC,fech:DATAFECH,prem:DATAPREM,gestao:DATAGES,srv:DATASRV,doc:DATADOC,tvfat:null,tvope:null,cop:(COP_MSGS.length?{}:null)};
+  const LOADMAP={fin:load,oc:loadOc,agr:loadAgr,anpiso:loadAnpiso,anrntrc:loadAnrntrc,telcon:loadTelcon,telcond:loadTelcond,telhod:loadTelhod,mvb:loadMvb,pedagio:loadPedagio,comb:loadComb,man:loadMan,com:loadCom,clif:loadClif,dre:loadDre,bal:loadBal,drecli:loadDreCli,home:loadHome,km:loadKm,prodveic:loadProdveic,torre:loadTorre,veic:loadVeic,veicf:loadVeicf,mul:loadSmt,prog:loadProg,jorn:loadJorraster,jornf:loadJornf,cex:loadCex,sac:loadSac,mprev:loadMPrev,comrast:loadComRast,qual:loadQual,port:loadPort,crm:loadCrm,rh:loadRh,hc:loadHc,folha:loadFolha,folhaind:loadFolhaInd,he:loadHe,custos:loadCustos,cob:loadCob,banc:loadBanc,extb:loadExtb,lanc:loadLanc,antec:loadAntec,antport:loadAntport,milkrun:loadMilkrun,cnh:loadCnh,ferias:loadFerias,people:loadPeople,pneus:loadPneus,poli:loadPoli,ctecp:loadCtecp,fluxcon:loadFluxcon,rec:loadRec,rent:loadRent,cont:loadCont,orc:loadOrc,fech:loadFech,prem:loadPrem,gesacao:loadGesacao,gesata:loadGesata,gestao:loadGestao,srv:loadSrv,doc:loadDoc,cop:loadCop,tvfat:loadTvFat,tvope:loadTvOpe};
   if(!DATAMAP[key] || (key!=='home' && LOADEDQS[key]!==qsView(key))) LOADMAP[key]();
   // mobile: estado da navegação inferior + fecha gaveta/painel de filtros
   document.querySelectorAll('.bottomnav [data-bview]').forEach(a=>a.classList.toggle('ativo', a.dataset.bview===v));
@@ -7347,8 +7347,8 @@ const NAV_KW={
   mvb:'make buy proprio agregado ckm decisao', pedagio:'pedagio vale praca eixo tag semparar concessionaria tarifa', veic:'frota veiculo cavalo carreta ativo placa',
   veicf:'ficha veiculo consulta placa', mprev:'preventiva troca oleo revisao manutencao',
   comrast:'rastreador comunicacao sinal offline', comb:'diesel abastecimento posto consumo km/l arla',
-  man:'oficina os ordem servico corretiva peca', mul:'multa infracao transito pontos cnh',
-  smt:'smartec infracao multa notificacao boleto sne detran indicacao condutor licenca cronotacografo antt licenciamento ipva restricao renavam',
+  man:'oficina os ordem servico corretiva peca',
+  mul:'multa infracao transito pontos cnh smartec notificacao boleto sne detran indicacao condutor licenca cronotacografo antt licenciamento ipva restricao renavam',
   oc:'compra ordem fornecedor entrada nota', custos:'custo painel despesa',
   hc:'headcount quadro pessoas colaboradores', folha:'salario folha pagamento custo pessoal',
   folhaind:'indicador folha rh', he:'hora extra sobreaviso adicional',
@@ -9127,9 +9127,9 @@ function renderVenc(svgId,tipId,wrapId,rows,dataRef){
 function reloadCurrent(){
   // mapa COMPLETO: qualquer filtro compartilhado (Filial, datas, competência)
   // recarrega a TELA ATUAL — antes caía em load() (Financeiro) para várias telas.
-  const M={smt:loadSmt,home:loadHome,fluxo:load,receber:load,pagar:load,dre:loadDre,drecli:loadDreCli,oc:loadOc,
+  const M={home:loadHome,fluxo:load,receber:load,pagar:load,dre:loadDre,drecli:loadDreCli,oc:loadOc,
     agr:loadAgr,mvb:loadMvb,pedagio:loadPedagio,comb:loadComb,man:loadMan,com:loadCom,clif:loadClif,km:loadKm,prodveic:loadProdveic,
-    torre:loadTorre,veic:loadVeic,veicf:loadVeicf,mul:loadMul,prog:loadProg,jorn:loadJorraster,jornf:loadJornf,cex:loadCex,sac:loadSac,mprev:loadMPrev,comrast:loadComRast,qual:loadQual,port:loadPort,crm:loadCrm,rh:loadRh,hc:loadHc,folha:loadFolha,folhaind:loadFolhaInd,he:loadHe,custos:loadCustos,cob:loadCob,banc:loadBanc,extb:loadExtb,rent:loadRent,
+    torre:loadTorre,veic:loadVeic,veicf:loadVeicf,mul:loadSmt,prog:loadProg,jorn:loadJorraster,jornf:loadJornf,cex:loadCex,sac:loadSac,mprev:loadMPrev,comrast:loadComRast,qual:loadQual,port:loadPort,crm:loadCrm,rh:loadRh,hc:loadHc,folha:loadFolha,folhaind:loadFolhaInd,he:loadHe,custos:loadCustos,cob:loadCob,banc:loadBanc,extb:loadExtb,rent:loadRent,
     cont:loadCont,orc:loadOrc,fech:loadFech,prem:loadPrem,gesacao:loadGesacao,gesata:loadGesata,gestao:loadGestao,srv:loadSrv,doc:loadDoc,cop:loadCop,tvfat:loadTvFat,tvope:loadTvOpe};
   (M[currentView()]||load)();
 }
@@ -17260,6 +17260,14 @@ async function loadSmt(){
     if(!ok){ showBanner((dados&&dados.mensagem)||'Erro ao consultar a Smartec.',
                         dados&&dados.detalhe); return; }
     hideBanner(); DATASMT=dados; renderSmt(dados);
+    /* ABA QUE CONSOME OUTRO LOADER PRECISA SER RECARREGADA JUNTO.
+       O histórico do ERP carrega por `data-ao-abrir`, o que resolve quem
+       ENTRA nele. Mas trocar o filtro de período estando NELE chamaria só
+       este loader, e a aba ficaria mostrando o recorte anterior sob o rótulo
+       do novo — sem erro, e com dois números da mesma tela discordando.
+       A varredura sai do DOM, não de uma lista de ids escrita à mão: aba
+       nova que consuma o mesmo loader entra sozinha. */
+    smtRecarregarAbasAbertas();
   }catch(e){ if(seq===smtSeq) showBanner('Não foi possível falar com a API.', e.message); }
   finally{ if(seq===smtSeq) document.getElementById('content').classList.remove('loading'); }
 }
@@ -17338,12 +17346,12 @@ function renderSmt(d){
   /* ── KPIs: COBERTURA ───────────────────────────────────────────────────*/
   const cb=d.cobertura||{};
   document.getElementById('kpis-smtcob').innerHTML =
-      kpi('Frota própria coberta', cb.disponivel? (ni(cb.cobertos)+' de '+ni(cb.proprios)) : '—',
-          cb.disponivel? pct(cb.cobertos, cb.proprios)+' da frota própria ativa' : 'AVA indisponível',
+      kpi('Frota operada coberta', cb.disponivel? (ni(cb.cobertos)+' de '+ni(cb.proprios)) : '—',
+          cb.disponivel? (pct(cb.cobertos, cb.proprios)+' de '+smtComposicao(cb)) : 'AVA indisponível',
           cb.disponivel? ((cb.fora_total>0)?'warn':'good') : '',
-          'Cruzamento por RENAVAM entre os veículos cadastrados na Smartec e a frota própria ATIVA do AVA. O renavam bate em 301 de 301 sem divergência, então a diferença é cobertura de verdade, não erro de chave.')
+          'Cruzamento por RENAVAM entre os veículos da Smartec e o que a empresa OPERA no AVA — utilização FROTA ou LOCACAO, que é por cuja multa ela responde. Agregado e terceiro ficam fora: têm dono, e a infração deles não é nossa. NÃO usa `tipofrota`, que junta frota e locação num código só e inflaria o denominador em 28%.')
     + kpi('Fora da Smartec', cb.disponivel? ni(cb.fora_total) : '—',
-          'veículos próprios não monitorados', (cb.fora_total>0?'warn':'good'),
+          'veículos operados não monitorados', (cb.fora_total>0?'warn':'good'),
           'Veículo próprio ativo que não está cadastrado na Smartec: multa dele não aparece nesta tela e não gera alerta de prazo.')
     + kpi('Cadastrados na Smartec', ni(fr.cadastrados||0),
           (fr.com_motor||0)+' com motor', '',
@@ -17444,8 +17452,9 @@ function renderSmt(d){
   const fora=(cb.fora||[]);
   document.getElementById('tb-smtcob').querySelector('tbody').innerHTML =
     fora.length? fora.map(x=>`<tr><td><b>${esc(x.placa||'—')}</b></td>`
-      +`<td>${esc(x.frota||'—')}</td><td class="mono">${esc(x.renavam||'—')}</td></tr>`).join('')
-      : `<tr><td colspan="3" class="vazio">${cb.disponivel?'toda a frota própria ativa está na Smartec':'AVA indisponível — cobertura não conferida'}</td></tr>`;
+      +`<td>${esc(x.frota||'—')}</td><td>${esc(x.uso||'—')}</td>`
+      +`<td class="mono">${esc(x.renavam||'—')}${smtRenavamSuspeito(x.renavam)?' <span class="chip warn" title="Renavam sequencial ou repetido — costuma ser equipamento cadastrado como veículo, não uma placa de rua">cadastro</span>':''}</td></tr>`).join('')
+      : `<tr><td colspan="4" class="vazio">${cb.disponivel?'tudo que a empresa opera está na Smartec':'AVA indisponível — cobertura não conferida'}</td></tr>`;
   document.getElementById('smt-cob-hint').textContent =
     cb.disponivel? (fora.length+' de '+(cb.fora_total||0)+' fora'
       + (cb.sem_renavam? ' · '+cb.sem_renavam+' sem renavam no cadastro':'')) : '';
@@ -17483,6 +17492,45 @@ function renderSmt(d){
   const ult=(cg.find(x=>x.fim)||{}).fim;
   document.getElementById('smtColetadoEm').textContent =
     ult? ('última coleta '+fmtDT(ult)) : 'nunca coletado';
+}
+
+/* Recarrega os loaders das abas SOB DEMANDA que estejam abertas agora.
+   Sem isto, o conteúdo carregado por `data-ao-abrir` fica preso ao filtro que
+   valia quando a aba foi aberta. */
+function smtRecarregarAbasAbertas(){
+  document.querySelectorAll('#view-mul .aba[data-ao-abrir]').forEach(el => {
+    if(el.hidden) return;
+    const fn = el.dataset.aoAbrir;
+    if(fn && typeof window[fn] === 'function'){ try{ window[fn](); }catch(e){} }
+  });
+}
+
+/* A COMPOSIÇÃO do denominador, por extenso. "307 da frota própria" esconde
+   que 67 são alugados — e aí alguém compara com a Análise de KM e acha que um
+   dos dois está errado. Os dois estariam certos; o rótulo é que mentia. */
+function smtComposicao(cb){
+  const c = cb.composicao || {};
+  const partes = Object.keys(c).sort((a,b)=>c[b]-c[a])
+    .map(k => c[k] + ' ' + (k==='FROTA' ? 'próprios' : k.toLowerCase()));
+  return partes.length ? partes.join(' + ') : 'da frota operada';
+}
+
+/* Renavam sequencial (0000000001, 27527527527) é cadastro de EQUIPAMENTO, não
+   placa de rua. Não é erro nosso nem da Smartec — é o que explica por que os
+   veículos "fora" são justamente esses, e sem a marca alguém vai tentar
+   cadastrá-los lá. */
+function smtRenavamSuspeito(r){
+  const d = String(r||'').replace(/\D/g,'');
+  if(d.length < 9) return true;              // renavam tem 9 a 11 digitos
+  /* POUCOS DIGITOS DISTINTOS e o sinal, e ele e MEDIDO em vez de casado
+     por padrao. A primeira versao usava uma backreference para pegar
+     "27527527527" -- e o escape se perdeu ao gerar este arquivo por
+     script, virando um BYTE DE CONTROLE (U+0001) dentro da regex. Ela
+     continuava valida, casava outra coisa e marcava quase todo renavam
+     como suspeito, sem erro nenhum. Quem pegou foi o guard de byte de
+     controle do verificar_estrutura. Contar caracteres distintos faz a
+     mesma pergunta sem depender de escape nenhum. */
+  return new Set(d).size <= 3;               // 00000000001, 27527527527
 }
 
 /* Links dos PDFs que a Smartec hospeda. Abrem em aba nova com rel=noopener —
@@ -17550,9 +17598,9 @@ async function smtColetar(){
   if(ok){ try{ await loadSmt(); }catch(e){} }
 }
 
-async function loadMul(){
+async function loadMulErp(){
   skelKpis('kpis-mul',4);
-  const seq = ++mulSeq;
+  const seq = ++mulErpSeq;
   const btn=document.getElementById('btnRefresh');
   btn.disabled=true;
   document.getElementById('content').classList.add('loading');
@@ -17560,11 +17608,11 @@ async function loadMul(){
     const q=qsView('mul');
     const r=await fetch('/api/frota/multas?'+q,{cache:'no-store'});
     const d=await r.json();
-    if(seq!==mulSeq) return;
+    if(seq!==mulErpSeq) return;
     if(!r.ok){ showBanner(d.mensagem||'Erro ao consultar as multas.', d.detalhe); return; }
-    hideBanner(); DATAMUL=d; renderMul(d); LOADEDQS.mul=qsView('mul');
-  }catch(e){ if(seq===mulSeq) showBanner('Não foi possível falar com a API.', e.message); }
-  finally{ if(seq===mulSeq){ btn.disabled=false; document.getElementById('content').classList.remove('loading'); } }
+    hideBanner(); DATAMULERP=d; renderMulErp(d); LOADEDQS.mul=qsView('mul');
+  }catch(e){ if(seq===mulErpSeq) showBanner('Não foi possível falar com a API.', e.message); }
+  finally{ if(seq===mulErpSeq){ btn.disabled=false; document.getElementById('content').classList.remove('loading'); } }
 }
 /* Semáforo de vencimento do auto. Só colore o que está EM ABERTO no cadastro —
    e "em aberto" aqui é o que o ERP registra, não o que o caixa deve: a baixa
@@ -17580,7 +17628,7 @@ function mulVenc(m){
   if(dias<=7) return `<span style="color:var(--yellow-700,#B97709);font-weight:600" title="vence em ${dias} dia(s)">${txt}</span>`;
   return txt;
 }
-function renderMul(d){
+function renderMulErp(d){
   const k=d.kpis;
   if(!document.getElementById('fEmiDe').value) document.getElementById('fEmiDe').value=d.dt_de;
   if(!document.getElementById('fEmiAte').value) document.getElementById('fEmiAte').value=d.dt_ate;
@@ -30387,9 +30435,8 @@ boot();
         <a href="#veicf" onclick="fecharDrawer()"><span class="ic" data-ic="busca"></span>Consulta de Veículo</a>
         <a href="#man" onclick="fecharDrawer()"><span class="ic" data-ic="man"></span>Manutenção</a>
         <a href="#mprev" onclick="fecharDrawer()"><span class="ic" data-ic="mprevic"></span>Manutenção Preventiva</a>
-        <a href="#mul" onclick="fecharDrawer()"><span class="ic" data-ic="mul"></span>Multas</a>
+        <a href="#mul" onclick="fecharDrawer()"><span class="ic" data-ic="mul"></span>Multas — Smartec</a>
         <a href="#pneus" onclick="fecharDrawer()"><span class="ic" data-ic="pneuic"></span>Pneus</a>
-        <a href="#smt" onclick="fecharDrawer()"><span class="ic" data-ic="smt"></span>Smartec</a>
         <a href="#veic" onclick="fecharDrawer()"><span class="ic" data-ic="veic"></span>Veículos</a>
       </div>
     </div>

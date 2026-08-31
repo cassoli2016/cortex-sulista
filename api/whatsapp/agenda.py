@@ -195,7 +195,20 @@ def montar_texto(chave: str, esquema: str | None = None) -> tuple[dict, str]:
     try:
         vals = valores.obter(provedor)
     except Exception as exc:   # noqa: BLE001 - rotina não pode levantar
-        return {}, f"não foi possível ler os números ({type(exc).__name__})"
+        # A mensagem do provedor entra quando ele SABE dizer o motivo. "não foi
+        # possível ler os números" é verdadeiro e inútil quando o motivo real é
+        # "a coleta está parada há 40 h" — e é esse texto que vai para a tela.
+        motivo = str(exc).strip()
+        return {}, (motivo if isinstance(exc, ValueError) and motivo
+                    else f"não foi possível ler os números ({type(exc).__name__})")
+
+    # SILÊNCIO NÃO É FALHA. Um provedor pode legitimamente não ter o que dizer
+    # hoje — nenhuma notificação vencendo, nenhum título a cobrar. Antes desta
+    # linha isso caía na checagem de `faltando` abaixo e virava "faltou lista",
+    # que é uma acusação de dado incompleto para um dia em que está tudo certo.
+    # Quem separa os dois é `executar`.
+    if vals.get("_silencio"):
+        return vals, ""
 
     faltando = [v for v in precisa if not str(vals.get(v) or "").strip()]
     if faltando:
@@ -215,6 +228,16 @@ def executar(ag: dict, *, ensaio: bool = False, forcado: bool = False,
         if not ensaio:
             registrar_execucao(ident, f"não enviado: {erro}", esquema)
         return f" --   #{ident} {chave}: {erro}"
+
+    # NÃO HAVIA O QUE MANDAR — e isso é um terceiro estado, nem envio nem
+    # falha. Registrar como falha faria a tela mostrar vermelho todo dia em que
+    # a operação está em dia, e aí o vermelho para de querer dizer alguma
+    # coisa. O motivo fica no histórico, que é onde serve.
+    silencio = str(vals.get("_silencio") or "").strip()
+    if silencio:
+        if not ensaio:
+            registrar_execucao(ident, f"nada a enviar: {silencio}", esquema)
+        return f" ..   #{ident} {chave}: nada a enviar ({silencio})"
 
     if ensaio:
         return (f" .    #{ident} {chave}: enviaria para "

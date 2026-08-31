@@ -174,12 +174,25 @@ def test_renomear_nao_muda_a_chave_quando_ela_e_informada(esq):
 
 
 def test_listar_filtra_por_contexto_e_por_ligado(esq):
+    """Conta o DELTA, não o total.
+
+    O schema nasce com modelos SEMEADOS por migration (hoje o do prazo de
+    indicação da Smartec), e um teste que espera número absoluto quebra a cada
+    seed novo — sem que a listagem tenha nada de errado. O que ele precisa
+    provar é o filtro, e filtro se prova pela diferença.
+    """
+    antes = len(md.listar())
+    antes_ativos = len(md.listar(so_ativos=True))
+    antes_livre = len(md.listar(contexto="livre"))
+
     md.gravar(_novo(), usuario="a")
     md.gravar(_novo(nome="Boas-vindas", contexto="livre",
                     corpo="Olá! Somos a Sulista.", ativo=0), usuario="a")
-    assert len(md.listar()) == 2
-    assert len(md.listar(so_ativos=True)) == 1
-    assert len(md.listar(contexto="livre")) == 1
+
+    assert len(md.listar()) - antes == 2
+    # o segundo nasceu desligado, então só um entra no filtro de ativos
+    assert len(md.listar(so_ativos=True)) - antes_ativos == 1
+    assert len(md.listar(contexto="livre")) - antes_livre == 1
 
 
 def test_excluir_devolve_o_que_sumiu_para_a_auditoria(esq):

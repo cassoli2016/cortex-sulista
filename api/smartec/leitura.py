@@ -333,13 +333,26 @@ def cobertura(esquema: str | None = None) -> dict:
     try:
         from ..db import get_conn
         with get_conn() as cx:
+            # A UTILIZAÇÃO, e não `tipofrota`. Medido em 31/08/2026:
+            # `tipofrota = 1` junta FROTA (240), LOCAÇÃO (67) e PREVENTIVA (1),
+            # então chamar isso de "frota própria" infla o denominador em 28% e
+            # põe caminhão alugado na conta do que é nosso. `utilizacaoveiculo`
+            # tem o domínio inteiro — FROTA, LOCACAO, AGREGADOS, TERCEIROS —, e
+            # é ele que permite NOMEAR cada grupo pelo que ele é.
+            #
+            # O denominador continua sendo frota + locação, porque é quem a
+            # Smartec cobre e quem gera multa que a empresa responde. O que
+            # muda é o rótulo dizer isso — a mesma lição da Análise de KM, em
+            # que "frota própria" somava TRA+LOC e não batia com linha nenhuma.
             linhas = cx.execute("""
-                SELECT upper(trim(placa)) AS placa,
-                       coalesce(nullif(trim(codigorenavam), ''), '') AS renavam,
-                       tipofrota, numerofrota
-                  FROM veiculo
-                 WHERE ativoinativo = 1 AND placa IS NOT NULL
-                   AND trim(placa) <> ''
+                SELECT upper(trim(v.placa)) AS placa,
+                       coalesce(nullif(trim(v.codigorenavam), ''), '') AS renavam,
+                       v.tipofrota, v.numerofrota,
+                       upper(coalesce(u.descricao, '')) AS utilizacao
+                  FROM veiculo v
+                  LEFT JOIN utilizacaoveiculo u ON u.codigo = v.utilizacaoveiculo
+                 WHERE v.ativoinativo = 1 AND v.placa IS NOT NULL
+                   AND trim(v.placa) <> ''
             """).fetchall()
     except Exception:  # noqa: BLE001
         # Sem o AVA a tela não fica sem a lista de multas — só sem a
@@ -348,19 +361,30 @@ def cobertura(esquema: str | None = None) -> dict:
 
     ativos = [dict(r) for r in linhas]
     rnv_smt = {r.lstrip("0") for r in smt if r}
-    # tipofrota 1 = frota própria. É quem a Smartec cobre.
-    proprios = [v for v in ativos if v["tipofrota"] == 1]
+    # QUEM DEVE ESTAR NA SMARTEC: o que a empresa opera e por cuja multa ela
+    # responde — frota própria e locação. Agregado e terceiro têm dono, e a
+    # infração deles não é nossa.
+    NOSSOS = ("FROTA", "LOCACAO")
+    proprios = [v for v in ativos if v["utilizacao"] in NOSSOS]
     fora = [v for v in proprios
             if (v["renavam"] or "").lstrip("0") not in rnv_smt]
     sem_renavam = [v for v in proprios if not v["renavam"]]
+    por_uso: dict[str, int] = {}
+    for v in proprios:
+        por_uso[v["utilizacao"]] = por_uso.get(v["utilizacao"], 0) + 1
     return {
         "disponivel": True,
         "smartec": len(smt),
         "ativos_ava": len(ativos),
         "proprios": len(proprios),
         "cobertos": len(proprios) - len(fora),
+        # A COMPOSIÇÃO vai junto do total: "308 da frota própria" esconde que
+        # 67 são alugados, e alguém vai comparar esse número com o da Análise
+        # de KM e achar que um dos dois está errado.
+        "composicao": por_uso,
         "fora": [{"placa": v["placa"], "frota": v["numerofrota"],
-                  "renavam": v["renavam"]} for v in fora[:40]],
+                  "renavam": v["renavam"], "uso": v["utilizacao"]}
+                 for v in fora[:40]],
         "fora_total": len(fora),
         "sem_renavam": len(sem_renavam),
     }
@@ -421,4 +445,77 @@ def estado(esquema: str | None = None) -> dict:
         "recursos": [dict(r) for r in ultimas],
         "falhando": falhando,
         "acessos": [dict(a) for a in acessos],
+    }
+
+
+# ═══════════════════════════════════════════════════ alerta de prazo
+#
+# O QUE ESTA FUNÇÃO PRECISA ACERTAR, e é uma coisa só: quando NÃO falar.
+#
+# Ela alimenta um disparo automático de WhatsApp. Três respostas diferentes
+# saem daqui e as três precisam ser distinguíveis, porque a ação de cada uma
+# é outra:
+#
+#   há notificação vencendo   -> manda
+#   não há                    -> CALA, e isso é sucesso
+#   não dá para saber         -> CALA e DIZ o motivo, e isso é falha
+#
+# O terceiro caso é o perigoso. Se a coleta da Smartec parar, a consulta
+# devolve zero notificação no prazo — indistinguível de "está tudo indicado".
+# O alerta silenciaria justamente quando parou de enxergar, que é a família do
+# "integração parada se disfarça de tela vazia" que já custou 136 dias na
+# RasterJOR. Por isso o frescor é conferido ANTES do conteúdo: sem coleta
+# recente esta função recusa, em vez de afirmar que não há prazo correndo.
+HORAS_FRESCOR = 18
+
+
+def prazo_indicacao_alerta(dias: int = 2, esquema: str | None = None) -> dict:
+    """Notificações cujo prazo de indicar condutor vence em até `dias`.
+
+    Devolve sempre um dict com `erro` (não dá para saber), `silencio` (não há
+    o que avisar) ou os itens. Nunca levanta por ausência de dado.
+    """
+    esq = _esq(esquema)
+
+    # 1) O DADO ESTÁ FRESCO? Antes de qualquer número.
+    ult = pglocal.um("""
+        SELECT max(fim) AS fim
+          FROM smt_carga
+         WHERE recurso = 'notificacao' AND status IN ('ok', 'vazio')
+           AND fim IS NOT NULL
+    """, esquema=esq) or {}
+    fim = ult.get("fim")
+    if fim is None:
+        return {"erro": "a coleta de notificações da Smartec nunca rodou"}
+    from datetime import datetime, timezone
+    horas = (datetime.now(timezone.utc) - fim).total_seconds() / 3600.0
+    if horas > HORAS_FRESCOR:
+        return {"erro": (f"a última coleta de notificações foi há {horas:.0f} h "
+                         f"— com dado velho não dá para afirmar prazo")}
+
+    linhas = [dict(r) for r in pglocal.query(f"""
+        SELECT placa, ait, orgao, descricao, pontuacao, valor_a_pagar,
+               prazo_indicacao,
+               (prazo_indicacao - current_date)::int AS dias
+          FROM smt_infracoes
+         WHERE {ABERTO} AND especie = 'notificacao'
+           AND prazo_indicacao IS NOT NULL
+           AND prazo_indicacao >= current_date
+           AND prazo_indicacao <= current_date + %(dias)s
+         ORDER BY prazo_indicacao, placa
+    """, {"dias": int(dias)}, esquema=esq)]
+
+    if not linhas:
+        # SUCESSO. Silêncio aqui é a resposta certa — alarme que acende sem
+        # haver problema ensina a ignorar o alarme.
+        return {"silencio": "nenhuma notificação com prazo a vencer"}
+
+    hoje = [x for x in linhas if x["dias"] == 0]
+    return {
+        "itens": linhas,
+        "hoje": hoje,
+        "depois": [x for x in linhas if x["dias"] > 0],
+        "total_hoje": sum(float(x["valor_a_pagar"] or 0) for x in hoje),
+        "total": sum(float(x["valor_a_pagar"] or 0) for x in linhas),
+        "coletado_ha_h": round(horas, 1),
     }

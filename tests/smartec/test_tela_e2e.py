@@ -1,5 +1,9 @@
 """A tela da Smartec renderizada — com o PAYLOAD REAL do banco.
 
+A tela vive no id `mul`, HERDADO da antiga tela de Multas do ERP quando as
+duas viraram uma. O id não é detalhe: `mul` já estava concedido aos perfis
+Diretoria e Frota, e um id novo faria multas sumirem do menu deles.
+
 Fixture é escrita por quem já sabe o que espera. O dado real traz o campo nulo
 em dois terços das linhas, o nome com acento e o LIMIT batendo — foi assim que
 três defeitos da ficha do motorista apareceram, e nenhum falhava teste nenhum.
@@ -89,8 +93,8 @@ def _rotear(pagina, payload):
 def tela(pagina, base_url, payload):
     """Abre a tela #smt com o payload real interceptado."""
     _rotear(pagina, payload)
-    pagina.goto(f"{base_url}/static/index.html#smt")
-    pagina.wait_for_selector("#view-smt.on", timeout=15000)
+    pagina.goto(f"{base_url}/static/index.html#mul")
+    pagina.wait_for_selector("#view-mul.on", timeout=15000)
     pagina.wait_for_function(
         "document.querySelectorAll('#kpis-smtmul .kpi').length > 0", timeout=15000)
     return pagina
@@ -161,7 +165,7 @@ def test_nenhum_erro_de_javascript_na_tela(pagina, base_url, payload):
     erros = []
     pagina.on("pageerror", lambda e: erros.append(str(e)))
     _rotear(pagina, payload)
-    pagina.goto(f"{base_url}/static/index.html#smt")
-    pagina.wait_for_selector("#view-smt.on", timeout=15000)
+    pagina.goto(f"{base_url}/static/index.html#mul")
+    pagina.wait_for_selector("#view-mul.on", timeout=15000)
     pagina.wait_for_timeout(700)
     assert not erros, f"erro de JS na tela: {erros}"

@@ -61,12 +61,18 @@ def _abrir(pg, base_url, dados):
     erros = []
     pg.on("pageerror", lambda e: erros.append(str(e)))
     pg.goto(f"{base_url}/static/index.html#mul")
+    pg.wait_for_selector("#view-mul.on", timeout=20000)
+    # A TELA DO ERP VIROU DUAS ABAS DENTRO DA SMARTEC em 31/08/2026: as duas
+    # telas de multa fundiram-se numa só, e a nova HERDOU o id `mul` — que já
+    # estava concedido a Diretoria e Frota, e um id novo faria multas sumirem
+    # do menu deles.
+    #
+    # O conteúdo do ERP agora carrega SOB DEMANDA (`data-ao-abrir`), então
+    # abrir a aba não é contornar o teste: é o caminho de quem usa, e é
+    # também o que faz o gráfico ser desenhado com o contêiner já visível.
+    pg.evaluate("abaTrocar('smt','hist')")
     pg.wait_for_selector("#kpis-mul .kpi", timeout=20000)
-    # A TELA VIROU DUAS ABAS em 30/08/2026 (regra do painel que se lê sem
-    # rolar). As tabelas por motorista e por veículo moram na segunda, e uma
-    # aba escondida não é clicável — que é o comportamento certo. Abrir a aba
-    # aqui é reproduzir o caminho de quem usa, não contornar o teste.
-    pg.evaluate("abaTrocar('mul','resp')")
+    pg.evaluate("abaTrocar('smt','resp')")
     pg.wait_for_selector("#mul-veic tr.forn-row", timeout=20000)
     return erros
 

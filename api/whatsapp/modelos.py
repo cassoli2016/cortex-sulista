@@ -164,6 +164,25 @@ CONTEXTOS: dict[str, dict] = {
             _v("mes_anterior", "Mesmo período do mês anterior", "R$ 10.390.732,37"),
         ],
     },
+    "smartec_prazo": {
+        "rotulo": "Smartec — prazo de indicar condutor",
+        "ajuda": "Notificações cujo prazo de indicação está para vencer. É o "
+                 "único aviso da casa em que o número EXPIRA sozinho: passado "
+                 "o prazo, o órgão aplica por cima a multa por não identificar "
+                 "o condutor, que recai sobre a empresa. Destinatário é "
+                 "interno — quem trata infração.",
+        "consumidores": ["Agenda de WhatsApp (disparo automático)"],
+        "provedor": "smartec_prazo_indicacao",
+        "variaveis": [
+            _v("data", "Data do aviso", "31/08/2026"),
+            _v("quantidade", "Quantas vencem hoje", "3"),
+            _v("lista", "Bloco com placa, AIT, órgão, valor e pontos",
+               "🚛 *AUJ5G32* · AIT 1L3201222 · R$ 195,23"),
+            _v("total", "Valor somado das que vencem hoje", "R$ 455,55"),
+            _v("proximos", "Linha sobre os próximos dias",
+               "📅 Amanhã vencem mais *2*: BDF9A52, AQJ9G41"),
+        ],
+    },
     "frota": {
         "rotulo": "Frota / Manutenção",
         "ajuda": "Aviso de manutenção preventiva ou documento vencendo. "

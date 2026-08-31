@@ -4,6 +4,22 @@ Gerado de `docs/versoes.yaml` por `scripts/gerar_changelog.py` — não editar �
 Formato [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/),
 versionamento [SemVer](https://semver.org/lang/pt-BR/).
 
+## [0.185.0] — 31/08/2026  ·  CX-31/08/2026-v0.185.0
+
+### Adicionado
+- Aviso automático de WhatsApp para as notificações cujo PRAZO DE INDICAR CONDUTOR está vencendo. Ele nasce DESLIGADO, em Gestão › WhatsApp › Agenda, com horário e destinatário editáveis na tela. É o único aviso da casa cujo número expira sozinho: passado o prazo, o órgão aplica por cima a multa por não identificar o condutor, que recai sobre a empresa e já é a segunda infração mais frequente desta frota.
+- O aviso tem TRÊS respostas, e as três aparecem no histórico da rotina. Manda quando há prazo vencendo; CALA quando não há, e isso é sucesso; e RECUSA dizendo o motivo quando a coleta da Smartec está parada. A terceira é a que justifica o resto: sem ela, coleta parada devolveria zero notificação no prazo — indistinguível de "está tudo indicado" —, e o aviso silenciaria justamente quando parou de enxergar.
+- Modelo de mensagem próprio, com contexto e variáveis validadas, em Gestão › WhatsApp › Modelos. O texto explica por que o prazo importa em vez de só listar placas, e o preenchimento é automático — ninguém digita valor nem AIT à mão.
+- Tarefa agendada da coleta da Smartec (06:20 e 14:20), instalável por scripts/instalar_tarefa_smartec.ps1. Ela é o que mantém o dado fresco: o aviso lê o banco, não o fornecedor, e sem coleta o banco envelhece.
+
+### Alterado
+- As duas telas de multa viraram UMA. O menu Frota › Multas agora é "Multas — Smartec" e reúne as infrações em aberto da Smartec (com valor, boleto e pontos), as notificações com prazo, as licenças, as autuações da ANTT, a cobertura da frota — e o histórico do ERP, que continua inteiro em duas abas próprias. Nada foi perdido: as duas fontes respondem perguntas diferentes e agora estão lado a lado.
+- A tela nova HERDOU o id da antiga. Não é detalhe de implementação: o id "mul" já estava concedido aos perfis Diretoria e Frota, e um id novo faria multas sumirem do menu de todo mundo que não é administrador, até alguém escrever uma migration só para devolver o acesso que as pessoas já tinham. Favoritos e links antigos também continuam abrindo.
+
+### Corrigido
+- A agenda de WhatsApp passou a distinguir "não havia o que mandar" de "falhou". Antes, um provedor sem nada a dizer caía na checagem de dado incompleto e o histórico registrava "faltou lista" — uma acusação de dado furado num dia em que estava tudo certo. Vermelho todo dia é vermelho que para de querer dizer alguma coisa.
+- Quando o provedor sabe explicar por que não dá para enviar, é o texto dele que aparece na tela. "Não foi possível ler os números" é verdadeiro e inútil quando o motivo real é "a coleta está parada há 40 horas".
+
 ## [0.184.0] — 31/08/2026  ·  CX-31/08/2026-v0.184.0
 
 ### Adicionado
