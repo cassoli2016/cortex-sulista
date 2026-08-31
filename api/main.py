@@ -2186,7 +2186,8 @@ def fluxo_consolidado_detalhe(de: str, ate: str) -> JSONResponse:
 
 @app.get("/api/financeiro/antecipacao")
 def antecipacao(dias: int = 90, reserva: float = 0.0, taxa_mes: float = 2.0,
-                incluir_vencidos: int = 0, exigir_portal: int = 0) -> JSONResponse:
+                incluir_vencidos: int = 0, exigir_portal: int = 0,
+                sacados: str = "") -> JSONResponse:
     if dias not in (30, 60, 90, 120, 180):
         return JSONResponse(status_code=422, content={
             "erro": "parametro_invalido",
@@ -2206,11 +2207,41 @@ def antecipacao(dias: int = 90, reserva: float = 0.0, taxa_mes: float = 2.0,
         return JSONResponse(status_code=422, content={
             "erro": "parametro_invalido",
             "mensagem": "Taxa fora do razoável: informe o percentual ao mês (ex.: 2 para 2%)."})
+    # `sacados` restringe DE QUEM antecipar, por RAIZ de CNPJ (8 digitos). Nao
+    # aceita nome: o ERP fatura por filial ("IOCHPE MAXION - CRUZEIRO/SP" e
+    # "- RESENDE/RJ") e o convenio e da matriz, entao casar por nome deixaria
+    # metade do recebivel do mesmo cliente de fora.
+    escolhidos: tuple[str, ...] = ()
+    if (sacados or "").strip():
+        cruas = [x.strip() for x in sacados.split(",") if x.strip()]
+        if any(not x.isdigit() or len(x) < 8 for x in cruas):
+            return JSONResponse(status_code=422, content={
+                "erro": "parametro_invalido",
+                "mensagem": ("Informe o cliente pela raiz do CNPJ (8 dígitos), "
+                             "separando com vírgula.")})
+        escolhidos = tuple(dict.fromkeys(x[:8] for x in cruas))
+        # RAIZ QUE NAO TEM CONVENIO E RECUSA, nao filtro vazio: aceitar em
+        # silencio devolveria a tela zerada, que se le como "nao ha o que
+        # antecipar" em vez de "voce escolheu quem nao pode".
+        try:
+            from api.antecipacoes import registro as antec_reg
+            elegiveis = antec_reg.raizes_elegiveis()
+        except Exception:  # noqa: BLE001 - base local fora nao barra a tela
+            elegiveis = set()
+        desconhecidas = [x for x in escolhidos if elegiveis and x not in elegiveis]
+        if desconhecidas:
+            return JSONResponse(status_code=422, content={
+                "erro": "parametro_invalido",
+                "mensagem": ("Sem convênio de antecipação: "
+                             + ", ".join(desconhecidas)
+                             + ". Só entra na simulação quem tem convênio "
+                               "assinado.")})
     try:
         return JSONResponse(queries.get_antecipacao(
             dias=dias, reserva=reserva, taxa_mes=taxa_mes,
             incluir_vencidos=bool(int(incluir_vencidos or 0)),
-            exigir_portal=bool(int(exigir_portal or 0))))
+            exigir_portal=bool(int(exigir_portal or 0)),
+            sacados=escolhidos))
     except psycopg.OperationalError as exc:
         log.warning("banco inacessivel: %s", exc)
         return JSONResponse(status_code=503, content={

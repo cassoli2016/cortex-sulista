@@ -1,0 +1,861 @@
+{
+ "kpis": {
+  "saldo_inicial": -1204043.94,
+  "bancos": -1213454.05,
+  "caixa": 9410.11,
+  "saldo_contas": 7,
+  "saldo_mais_antigo": "2026-08-17",
+  "saldo_mais_recente": "2026-08-29",
+  "primeiro_gap": "2026-08-31",
+  "pior_saldo": -2884128.25,
+  "pior_dia": "2026-09-30",
+  "total_antecipar": 5380516.81,
+  "custo_total": 57165.06,
+  "custo_pct": 1.06,
+  "operacoes": 36,
+  "receber_horizonte": 16585889.12,
+  "pagar_horizonte": 11734881.35,
+  "receber_titulos": 8812
+ },
+ "fora_da_conta": {
+  "pagar_vencido": 15345001.85,
+  "pagar_vencido_qtd": 3038,
+  "receber_vencido": 798164.6,
+  "pagar_alem": 44874596.79,
+  "incluidos": false
+ },
+ "cobertura_pagaveis": {
+  "mes_frouxo": null,
+  "por_mes": [
+   {
+    "mes": "2026-08",
+    "valor": 718351.97
+   },
+   {
+    "mes": "2026-09",
+    "valor": 6627077.91
+   },
+   {
+    "mes": "2026-10",
+    "valor": 3091814.4
+   }
+  ]
+ },
+ "semanas": [
+  {
+   "inicio": "2026-08-31",
+   "entrada": 2280037.72,
+   "saida": 1244479.01,
+   "antecipado": 2009962.81,
+   "saldo_min": -2009962.81,
+   "saldo_fim": -168485.23,
+   "dia_pior": "2026-09-01"
+  },
+  {
+   "inicio": "2026-09-07",
+   "entrada": 1383332.96,
+   "saida": 1152816.15,
+   "antecipado": 0.0,
+   "saldo_min": -134173.86,
+   "saldo_fim": 62031.58,
+   "dia_pior": "2026-09-07"
+  },
+  {
+   "inicio": "2026-09-14",
+   "entrada": 860391.12,
+   "saida": 2076626.07,
+   "antecipado": 621894.61,
+   "saldo_min": -1154203.37,
+   "saldo_fim": -1154203.37,
+   "dia_pior": "2026-09-20"
+  }
+ ],
+ "serie": [
+  {
+   "dia": "2026-08-31",
+   "saldo": -1906712.21
+  },
+  {
+   "dia": "2026-09-01",
+   "saldo": -2009962.81
+  },
+  {
+   "dia": "2026-09-02",
+   "saldo": -465618.62
+  },
+  {
+   "dia": "2026-09-03",
+   "saldo": 13716.1
+  },
+  {
+   "dia": "2026-09-04",
+   "saldo": 26529.59
+  },
+  {
+   "dia": "2026-09-05",
+   "saldo": -112485.26
+  },
+  {
+   "dia": "2026-09-06",
+   "saldo": -168485.23
+  },
+  {
+   "dia": "2026-09-07",
+   "saldo": -134173.86
+  }
+ ],
+ "operacoes": [
+  {
+   "dia": "2026-08-31",
+   "vencimento_origem": "2026-09-02",
+   "dias_antecipados": 2,
+   "valor": 102148.46,
+   "custo": 136.2,
+   "documentos": [
+    {
+     "cliente": "ADIENT - POUSO ALEGRE/MG",
+     "tipo": "CONHECIMENTO",
+     "documento": "19682",
+     "valor": 12505.33,
+     "valor_titulo": 12505.33,
+     "parcial": false,
+     "no_portal": false
+    },
+    {
+     "cliente": "ADIENT - POUSO ALEGRE/MG",
+     "tipo": "CONHECIMENTO",
+     "documento": "19677",
+     "valor": 10289.28,
+     "valor_titulo": 10289.28,
+     "parcial": false,
+     "no_portal": false
+    },
+    {
+     "cliente": "ADIENT - POUSO ALEGRE/MG",
+     "tipo": "CONHECIMENTO",
+     "documento": "19679",
+     "valor": 10289.18,
+     "valor_titulo": 10289.18,
+     "parcial": false,
+     "no_portal": false
+    },
+    {
+     "cliente": "ADIENT - POUSO ALEGRE/MG",
+     "tipo": "CONHECIMENTO",
+     "documento": "19689",
+     "valor": 6284.32,
+     "valor_titulo": 6284.32,
+     "parcial": false,
+     "no_portal": false
+    },
+    {
+     "cliente": "ADIENT - POUSO ALEGRE/MG",
+     "tipo": "CONHECIMENTO",
+     "documento": "19691",
+     "valor": 6283.9,
+     "valor_titulo": 6283.9,
+     "parcial": false,
+     "no_portal": false
+    },
+    {
+     "cliente": "ADIENT - POUSO ALEGRE/MG",
+     "tipo": "CONHECIMENTO",
+     "documento": "19673",
+     "valor": 6281.93,
+     "valor_titulo": 6281.93,
+     "parcial": false,
+     "no_portal": false
+    },
+    {
+     "cliente": "ADIENT - POUSO ALEGRE/MG",
+     "tipo": "CONHECIMENTO",
+     "documento": "19696",
+     "valor": 6280.99,
+     "valor_titulo": 6280.99,
+     "parcial": false,
+     "no_portal": false
+    },
+    {
+     "cliente": "ADIENT - POUSO ALEGRE/MG",
+     "tipo": "CONHECIMENTO",
+     "documento": "19674",
+     "valor": 6280.33,
+     "valor_titulo": 6280.33,
+     "parcial": false,
+     "no_portal": false
+    },
+    {
+     "cliente": "ADIENT - POUSO ALEGRE/MG",
+     "tipo": "CONHECIMENTO",
+     "documento": "19697",
+     "valor": 6279.49,
+     "valor_titulo": 6279.49,
+     "parcial": false,
+     "no_portal": false
+    },
+    {
+     "cliente": "ADIENT - POUSO ALEGRE/MG",
+     "tipo": "CONHECIMENTO",
+     "documento": "19639",
+     "valor": 6271.53,
+     "valor_titulo": 6271.53,
+     "parcial": false,
+     "no_portal": false
+    },
+    {
+     "cliente": "ADIENT - POUSO ALEGRE/MG",
+     "tipo": "CONHECIMENTO",
+     "documento": "19640",
+     "valor": 6269.53,
+     "valor_titulo": 6269.53,
+     "parcial": false,
+     "no_portal": false
+    },
+    {
+     "cliente": "IOCHPE MAXION - CRUZEIRO/SP",
+     "tipo": "CONHECIMENTO",
+     "documento": "50302",
+     "valor": 6252.44,
+     "valor_titulo": 6252.44,
+     "parcial": false,
+     "no_portal": false
+    },
+    {
+     "cliente": "IOCHPE MAXION - CRUZEIRO/SP",
+     "tipo": "CONHECIMENTO",
+     "documento": "100202",
+     "valor": 2501.2,
+     "valor_titulo": 2501.2,
+     "parcial": false,
+     "no_portal": false
+    },
+    {
+     "cliente": "IOCHPE MAXION - CRUZEIRO/SP",
+     "tipo": "CONHECIMENTO",
+     "documento": "100131",
+     "valor": 2193.91,
+     "valor_titulo": 2193.91,
+     "parcial": false,
+     "no_portal": false
+    },
+    {
+     "cliente": "IOCHPE MAXION - CRUZEIRO/SP",
+     "tipo": "CONHECIMENTO",
+     "documento": "8240",
+     "valor": 2089.65,
+     "valor_titulo": 2089.65,
+     "parcial": false,
+     "no_portal": false
+    },
+    {
+     "cliente": "IOCHPE MAXION - CRUZEIRO/SP",
+     "tipo": "CONHECIMENTO",
+     "documento": "100086",
+     "valor": 2066.85,
+     "valor_titulo": 2066.85,
+     "parcial": false,
+     "no_portal": false
+    },
+    {
+     "cliente": "IOCHPE MAXION - CRUZEIRO/SP",
+     "tipo": "CONHECIMENTO",
+     "documento": "100142",
+     "valor": 2056.69,
+     "valor_titulo": 2056.69,
+     "parcial": false,
+     "no_portal": false
+    },
+    {
+     "cliente": "IOCHPE MAXION - CRUZEIRO/SP",
+     "tipo": "CONHECIMENTO",
+     "documento": "100176",
+     "valor": 1515.36,
+     "valor_titulo": 1515.36,
+     "parcial": false,
+     "no_portal": false
+    },
+    {
+     "cliente": "IOCHPE MAXION - RESENDE/RJ",
+     "tipo": "CONHECIMENTO",
+     "documento": "100148",
+     "valor": 156.55,
+     "valor_titulo": 156.55,
+     "parcial": false,
+     "no_portal": false
+    }
+   ],
+   "documentos_total": 19,
+   "por_cliente": [
+    {
+     "cliente": "ADIENT - POUSO ALEGRE/MG",
+     "valor": 83315.81,
+     "documentos": 11,
+     "fora_do_portal": 11,
+     "valor_fora": 83315.81
+    },
+    {
+     "cliente": "IOCHPE MAXION - CRUZEIRO/SP",
+     "valor": 18676.1,
+     "documentos": 7,
+     "fora_do_portal": 7,
+     "valor_fora": 18676.1
+    },
+    {
+     "cliente": "IOCHPE MAXION - RESENDE/RJ",
+     "valor": 156.55,
+     "documentos": 1,
+     "fora_do_portal": 1,
+     "valor_fora": 156.55
+    }
+   ]
+  },
+  {
+   "dia": "2026-08-31",
+   "vencimento_origem": "2026-09-03",
+   "dias_antecipados": 3,
+   "valor": 465648.38,
+   "custo": 931.3,
+   "documentos": [
+    {
+     "cliente": "MWM - SAO PAULO/SP",
+     "tipo": "CONHECIMENTO",
+     "documento": "19680",
+     "valor": 9534.03,
+     "valor_titulo": 9534.03,
+     "parcial": false,
+     "no_portal": false
+    },
+    {
+     "cliente": "MWM - SAO PAULO/SP",
+     "tipo": "CONHECIMENTO",
+     "documento": "19693",
+     "valor": 6917.73,
+     "valor_titulo": 6917.73,
+     "parcial": false,
+     "no_portal": false
+    },
+    {
+     "cliente": "TUPY - JOINVILE/SC",
+     "tipo": "CONHECIMENTO",
+     "documento": "19638",
+     "valor": 6687.32,
+     "valor_titulo": 6687.32,
+     "parcial": false,
+     "no_portal": false
+    },
+    {
+     "cliente": "TUPY - JOINVILE/SC",
+     "tipo": "CONHECIMENTO",
+     "documento": "92301",
+     "valor": 6589.16,
+     "valor_titulo": 6589.16,
+     "parcial": false,
+     "no_portal": false
+    },
+    {
+     "cliente": "MWM - SAO PAULO/SP",
+     "tipo": "CONHECIMENTO",
+     "documento": "19686",
+     "valor": 6130.8,
+     "valor_titulo": 6130.8,
+     "parcial": false,
+     "no_portal": false
+    },
+    {
+     "cliente": "TUPY - JOINVILE/SC",
+     "tipo": "CONHECIMENTO",
+     "documento": "92284",
+     "valor": 6068.69,
+     "valor_titulo": 6068.69,
+     "parcial": false,
+     "no_portal": false
+    },
+    {
+     "cliente": "MWM - SAO PAULO/SP",
+     "tipo": "CONHECIMENTO",
+     "documento": "351087",
+     "valor": 5574.7,
+     "valor_titulo": 5574.7,
+     "parcial": false,
+     "no_portal": false
+    },
+    {
+     "cliente": "TUPY - JOINVILE/SC",
+     "tipo": "CONHECIMENTO",
+     "documento": "92282",
+     "valor": 5477.08,
+     "valor_titulo": 5477.08,
+     "parcial": false,
+     "no_portal": false
+    },
+    {
+     "cliente": "TUPY - JOINVILE/SC",
+     "tipo": "CONHECIMENTO",
+     "documento": "92285",
+     "valor": 5456.77,
+     "valor_titulo": 5456.77,
+     "parcial": false,
+     "no_portal": false
+    },
+    {
+     "cliente": "TUPY - JOINVILE/SC",
+     "tipo": "CONHECIMENTO",
+     "documento": "92394",
+     "valor": 5433.32,
+     "valor_titulo": 5433.32,
+     "parcial": false,
+     "no_portal": false
+    },
+    {
+     "cliente": "TUPY - JOINVILE/SC",
+     "tipo": "CONHECIMENTO",
+     "documento": "92292",
+     "valor": 5420.0,
+     "valor_titulo": 5420.0,
+     "parcial": false,
+     "no_portal": false
+    },
+    {
+     "cliente": "TUPY - JOINVILE/SC",
+     "tipo": "CONHECIMENTO",
+     "documento": "92283",
+     "valor": 5409.22,
+     "valor_titulo": 5409.22,
+     "parcial": false,
+     "no_portal": false
+    },
+    {
+     "cliente": "TUPY - JOINVILE/SC",
+     "tipo": "CONHECIMENTO",
+     "documento": "92295",
+     "valor": 5259.06,
+     "valor_titulo": 5259.06,
+     "parcial": false,
+     "no_portal": false
+    },
+    {
+     "cliente": "MWM - SAO PAULO/SP",
+     "tipo": "CONHECIMENTO",
+     "documento": "92838",
+     "valor": 5128.77,
+     "valor_titulo": 5128.77,
+     "parcial": false,
+     "no_portal": false
+    },
+    {
+     "cliente": "MWM - SAO PAULO/SP",
+     "tipo": "CONHECIMENTO",
+     "documento": "92971",
+     "valor": 5121.1,
+     "valor_titulo": 5121.1,
+     "parcial": false,
+     "no_portal": false
+    },
+    {
+     "cliente": "MWM - SAO PAULO/SP",
+     "tipo": "CONHECIMENTO",
+     "documento": "92899",
+     "valor": 5120.31,
+     "valor_titulo": 5120.31,
+     "parcial": false,
+     "no_portal": false
+    },
+    {
+     "cliente": "MWM - SAO PAULO/SP",
+     "tipo": "CONHECIMENTO",
+     "documento": "92880",
+     "valor": 5102.0,
+     "valor_titulo": 5102.0,
+     "parcial": false,
+     "no_portal": false
+    },
+    {
+     "cliente": "MWM - SAO PAULO/SP",
+     "tipo": "CONHECIMENTO",
+     "documento": "92863",
+     "valor": 5098.33,
+     "valor_titulo": 5098.33,
+     "parcial": false,
+     "no_portal": false
+    },
+    {
+     "cliente": "MWM - SAO PAULO/SP",
+     "tipo": "CONHECIMENTO",
+     "documento": "92908",
+     "valor": 5095.59,
+     "valor_titulo": 5095.59,
+     "parcial": false,
+     "no_portal": false
+    },
+    {
+     "cliente": "MWM - SAO PAULO/SP",
+     "tipo": "CONHECIMENTO",
+     "documento": "92817",
+     "valor": 5084.69,
+     "valor_titulo": 5084.69,
+     "parcial": false,
+     "no_portal": false
+    },
+    {
+     "cliente": "MWM - SAO PAULO/SP",
+     "tipo": "CONHECIMENTO",
+     "documento": "92919",
+     "valor": 5077.58,
+     "valor_titulo": 5077.58,
+     "parcial": false,
+     "no_portal": false
+    },
+    {
+     "cliente": "TUPY - JOINVILE/SC",
+     "tipo": "CONHECIMENTO",
+     "documento": "92393",
+     "valor": 5077.16,
+     "valor_titulo": 5077.16,
+     "parcial": false,
+     "no_portal": false
+    },
+    {
+     "cliente": "MWM - SAO PAULO/SP",
+     "tipo": "CONHECIMENTO",
+     "documento": "352305",
+     "valor": 5076.13,
+     "valor_titulo": 5076.13,
+     "parcial": false,
+     "no_portal": false
+    },
+    {
+     "cliente": "MWM - SAO PAULO/SP",
+     "tipo": "CONHECIMENTO",
+     "documento": "352995",
+     "valor": 5017.35,
+     "valor_titulo": 5017.35,
+     "parcial": false,
+     "no_portal": false
+    },
+    {
+     "cliente": "MWM - SAO PAULO/SP",
+     "tipo": "CONHECIMENTO",
+     "documento": "352705",
+     "valor": 5007.17,
+     "valor_titulo": 5007.17,
+     "parcial": false,
+     "no_portal": false
+    },
+    {
+     "cliente": "MWM - SAO PAULO/SP",
+     "tipo": "CONHECIMENTO",
+     "documento": "352292",
+     "valor": 4944.64,
+     "valor_titulo": 4944.64,
+     "parcial": false,
+     "no_portal": false
+    },
+    {
+     "cliente": "TUPY - BETIM/MG",
+     "tipo": "CONHECIMENTO",
+     "documento": "50314",
+     "valor": 4553.86,
+     "valor_titulo": 4553.86,
+     "parcial": false,
+     "no_portal": false
+    },
+    {
+     "cliente": "TUPY - JOINVILE/SC",
+     "tipo": "CONHECIMENTO",
+     "documento": "92399",
+     "valor": 4252.11,
+     "valor_titulo": 4252.11,
+     "parcial": false,
+     "no_portal": false
+    },
+    {
+     "cliente": "MWM - SAO PAULO/SP",
+     "tipo": "CONHECIMENTO",
+     "documento": "50564",
+     "valor": 4161.75,
+     "valor_titulo": 4161.75,
+     "parcial": false,
+     "no_portal": false
+    },
+    {
+     "cliente": "MWM - SAO PAULO/SP",
+     "tipo": "CONHECIMENTO",
+     "documento": "352725",
+     "valor": 4073.44,
+     "valor_titulo": 4073.44,
+     "parcial": false,
+     "no_portal": false
+    },
+    {
+     "cliente": "TUPY - JOINVILE/SC",
+     "tipo": "CONHECIMENTO",
+     "documento": "92290",
+     "valor": 3926.25,
+     "valor_titulo": 3926.25,
+     "parcial": false,
+     "no_portal": false
+    },
+    {
+     "cliente": "MWM - SAO PAULO/SP",
+     "tipo": "CONHECIMENTO",
+     "documento": "353066",
+     "valor": 3885.13,
+     "valor_titulo": 3885.13,
+     "parcial": false,
+     "no_portal": false
+    },
+    {
+     "cliente": "MWM - SAO PAULO/SP",
+     "tipo": "CONHECIMENTO",
+     "documento": "352356",
+     "valor": 3883.59,
+     "valor_titulo": 3883.59,
+     "parcial": false,
+     "no_portal": false
+    },
+    {
+     "cliente": "MWM - SAO PAULO/SP",
+     "tipo": "CONHECIMENTO",
+     "documento": "352772",
+     "valor": 3882.11,
+     "valor_titulo": 3882.11,
+     "parcial": false,
+     "no_portal": false
+    },
+    {
+     "cliente": "MWM - SAO PAULO/SP",
+     "tipo": "CONHECIMENTO",
+     "documento": "352511",
+     "valor": 3877.97,
+     "valor_titulo": 3877.97,
+     "parcial": false,
+     "no_portal": false
+    },
+    {
+     "cliente": "MWM - SAO PAULO/SP",
+     "tipo": "CONHECIMENTO",
+     "documento": "352914",
+     "valor": 3874.07,
+     "valor_titulo": 3874.07,
+     "parcial": false,
+     "no_portal": false
+    },
+    {
+     "cliente": "MWM - SAO PAULO/SP",
+     "tipo": "CONHECIMENTO",
+     "documento": "352626",
+     "valor": 3872.2,
+     "valor_titulo": 3872.2,
+     "parcial": false,
+     "no_portal": false
+    },
+    {
+     "cliente": "MWM - SAO PAULO/SP",
+     "tipo": "CONHECIMENTO",
+     "documento": "352836",
+     "valor": 3869.1,
+     "valor_titulo": 3869.1,
+     "parcial": false,
+     "no_portal": false
+    },
+    {
+     "cliente": "MWM - SAO PAULO/SP",
+     "tipo": "CONHECIMENTO",
+     "documento": "353010",
+     "valor": 3793.94,
+     "valor_titulo": 3793.94,
+     "parcial": false,
+     "no_portal": false
+    },
+    {
+     "cliente": "MWM - SAO PAULO/SP",
+     "tipo": "CONHECIMENTO",
+     "documento": "92881",
+     "valor": 3771.06,
+     "valor_titulo": 3771.06,
+     "parcial": false,
+     "no_portal": false
+    }
+   ],
+   "documentos_total": 548,
+   "por_cliente": [
+    {
+     "cliente": "MWM - SAO PAULO/SP",
+     "valor": 375822.16,
+     "documentos": 504,
+     "fora_do_portal": 504,
+     "valor_fora": 375822.16
+    },
+    {
+     "cliente": "TUPY - JOINVILE/SC",
+     "valor": 85272.36,
+     "documentos": 43,
+     "fora_do_portal": 43,
+     "valor_fora": 85272.36
+    },
+    {
+     "cliente": "TUPY - BETIM/MG",
+     "valor": 4553.86,
+     "documentos": 1,
+     "fora_do_portal": 1,
+     "valor_fora": 4553.86
+    }
+   ]
+  }
+ ],
+ "operacoes_total": 36,
+ "elegibilidade": {
+  "ativa": true,
+  "exige_portal": false,
+  "portal_disponivel": true,
+  "sacados": [
+   {
+    "cnpj": "00514820000100",
+    "nome": "Adient do Brasil Bancos Automotivos",
+    "portal": ""
+   },
+   {
+    "cnpj": "61156113000175",
+    "nome": "Iochpe Maxion S A",
+    "portal": "maxion"
+   },
+   {
+    "cnpj": "02162259000164",
+    "nome": "MWM - Tupy do Brasil Ltda",
+    "portal": ""
+   },
+   {
+    "cnpj": "36448137000150",
+    "nome": "Tupy Minas Gerais Ltda",
+    "portal": ""
+   },
+   {
+    "cnpj": "84683374000300",
+    "nome": "Tupy S/A",
+    "portal": ""
+   }
+  ],
+  "recebivel_elegivel": 8775628.05,
+  "recebivel_total": 16585889.12,
+  "falta_planilha": 8181361.16,
+  "sem_convenio": 7810261.07,
+  "universo_por_sacado": [
+   {
+    "raiz": "02162259",
+    "cliente": "MWM - SAO PAULO/SP",
+    "valor": 3118235.69,
+    "titulos": 4124
+   },
+   {
+    "raiz": "61156113",
+    "cliente": "IOCHPE MAXION - CRUZEIRO/SP",
+    "valor": 2119623.52,
+    "titulos": 723
+   },
+   {
+    "raiz": "84683374",
+    "cliente": "TUPY - JOINVILE/SC",
+    "valor": 1643906.69,
+    "titulos": 917
+   },
+   {
+    "raiz": "00514820",
+    "cliente": "ADIENT - POUSO ALEGRE/MG",
+    "valor": 1523302.99,
+    "titulos": 430
+   },
+   {
+    "raiz": "36448137",
+    "cliente": "TUPY - BETIM/MG",
+    "valor": 370559.16,
+    "titulos": 223
+   }
+  ],
+  "sacados_filtrados": [],
+  "fora_do_filtro": 0.0,
+  "pendente_por_sacado": [
+   {
+    "raiz": "02162259",
+    "cliente": "MWM - SAO PAULO/SP",
+    "valor": 3118235.69,
+    "titulos": 4124,
+    "tem_planilha": false
+   },
+   {
+    "raiz": "84683374",
+    "cliente": "TUPY - JOINVILE/SC",
+    "valor": 1643906.69,
+    "titulos": 917,
+    "tem_planilha": false
+   }
+  ],
+  "descoberto_dias": 0,
+  "descoberto_maximo": 0.0,
+  "primeiro_descoberto": null
+ },
+ "credito": {
+  "necessario": 0.0,
+  "coberto": 0.0,
+  "descoberto": 0.0,
+  "custo_mes": 0.0,
+  "usos": [],
+  "resumo": {
+   "linhas": [
+    {
+     "banco": "Sicredi",
+     "tipo": "Cheque especial",
+     "limite": 30000.0,
+     "taxa_mes": 12.9,
+     "vencimento": null,
+     "atualizado_em": "2026-08-24",
+     "ativo": true
+    },
+    {
+     "banco": "Itaú",
+     "tipo": "Cheque empresa",
+     "limite": 310000.0,
+     "taxa_mes": 15.69,
+     "vencimento": null,
+     "atualizado_em": "2026-08-20",
+     "ativo": true
+    },
+    {
+     "banco": "Santander",
+     "tipo": "Limite Cheque Empresa",
+     "limite": 145000.0,
+     "taxa_mes": 16.2,
+     "vencimento": "2026-10-25",
+     "atualizado_em": "2026-08-24",
+     "ativo": true
+    }
+   ],
+   "total": 485000.0,
+   "custo_mes_total": 75999.0,
+   "taxa_efetiva": 15.67,
+   "taxa_min": 12.9,
+   "taxa_max": 16.2,
+   "vencendo": [
+    {
+     "banco": "Santander",
+     "tipo": "Limite Cheque Empresa",
+     "limite": 145000.0,
+     "taxa_mes": 16.2,
+     "vencimento": "2026-10-25",
+     "atualizado_em": "2026-08-24",
+     "ativo": true,
+     "dias_para_vencer": 55
+    }
+   ]
+  }
+ },
+ "parametros": {
+  "dias": 90,
+  "reserva": 0.0,
+  "taxa_mes": 2.0,
+  "incluir_vencidos": false,
+  "sacados": []
+ },
+ "hoje": "2026-08-31",
+ "atualizado_em": "2026-08-31T07:35:35.875194-03:00",
+ "fonte": "ERP AVA · a receber oficial (fatura_composicao) + contaapagar por vencimento, contra saldo de bancos e caixa · só o LANÇADO · leitura"
+}

@@ -6644,7 +6644,8 @@ def _antec_simular(dias_lista, rec_por_dia, pag_por_dia, saldo_inicial,
 @cached(ttl=90)
 def get_antecipacao(dias: int = 90, reserva: float = 0.0, taxa_mes: float = 2.0,
                     incluir_vencidos: bool = False,
-                    exigir_portal: bool = False) -> dict:
+                    exigir_portal: bool = False,
+                    sacados: tuple[str, ...] = ()) -> dict:
     """`exigir_portal=False` é o padrão desde 30/08/2026, a pedido de quem opera.
 
     A regra estrita — só antecipar título JÁ LANÇADO num portal, provado pela
@@ -6661,6 +6662,21 @@ def get_antecipacao(dias: int = 90, reserva: float = 0.0, taxa_mes: float = 2.0,
     portal ou se ainda depende da planilha. Sumir com essa distinção seria
     trocar um erro por outro — a tela mandaria levar ao banco um título que ele
     recusaria na mesa.
+
+    `sacados` RESTRINGE A PILHA, NÃO A EMPRESA. Ele é a lista de raízes de CNPJ
+    de quem se quer usar nesta simulação ("e se eu antecipar só da TUPY e da
+    MWM?"), e afeta unicamente o recebível disponível para antecipar. A
+    projeção de caixa — saldo, a pagar, reserva, o buraco — fica intacta de
+    propósito: a necessidade da empresa não diminui porque alguém escolheu
+    menos clientes, e filtrá-la junto desenharia uma empresa que só tem esses
+    clientes. O efeito da escolha aparece onde deve, no `descoberto`: com uma
+    pilha menor, sobra mais necessidade sem cobertura.
+
+    A CHAVE É A RAIZ DO CNPJ, nunca o nome do ERP. O ERP fatura por filial
+    ("IOCHPE MAXION - CRUZEIRO/SP" e "- RESENDE/RJ" são duas linhas) e o
+    convênio é da matriz; filtrar por nome deixaria metade do recebível do
+    mesmo cliente de fora, que é a armadilha que `raizes_elegiveis` já existe
+    para evitar.
     """
     params = {"dias": dias}
     with db.get_conn() as conn, conn.cursor() as cur:
@@ -6730,11 +6746,30 @@ def get_antecipacao(dias: int = 90, reserva: float = 0.0, taxa_mes: float = 2.0,
     falta_planilha = 0.0
     sem_convenio = 0.0
     por_sacado: dict = {}
+    # O UNIVERSO elegível, por sacado, montado ANTES de aplicar a escolha do
+    # usuário. É ele que alimenta o seletor da tela — construir a lista a
+    # partir do resultado FILTRADO faria os clientes não escolhidos sumirem do
+    # próprio seletor, e ninguém conseguiria voltar a marcá-los.
+    universo_por_sacado: dict = {}
+    fora_do_filtro = 0.0
+    escolhidos = {str(x)[:8] for x in (sacados or ()) if str(x).strip()}
     for t in tit_rows:
         cnpj = (t.get("cnpj_cliente") or "").strip()
         raiz = cnpj[:8]
         if raizes and raiz not in raizes:
             sem_convenio += t["valor"]
+            continue
+        u = universo_por_sacado.setdefault(
+            raiz, {"raiz": raiz, "cliente": t["cliente"], "valor": 0.0,
+                   "titulos": 0})
+        u["valor"] = round(u["valor"] + t["valor"], 2)
+        u["titulos"] += 1
+        # ESCOLHIDO PELO USUÁRIO é bucket próprio, nunca "sem convênio": o
+        # cliente tem convênio sim, só não foi selecionado para esta
+        # simulação. Somar os dois faria a tela mandar negociar um convênio
+        # que já existe.
+        if escolhidos and raiz not in escolhidos:
+            fora_do_filtro += t["valor"]
             continue
         # `docs_portal` vazio = nenhuma planilha importada ainda; nesse caso o
         # filtro por documento é desligado para a tela não zerar sozinha antes
@@ -6882,6 +6917,12 @@ def get_antecipacao(dias: int = 90, reserva: float = 0.0, taxa_mes: float = 2.0,
             # o que destravaria pedindo a planilha ao cliente, e de quem
             "falta_planilha": round(falta_planilha, 2),
             "sem_convenio": round(sem_convenio, 2),
+            # O seletor da tela sai daqui: o universo elegível INTEIRO, com o
+            # valor de cada sacado, independente do que está selecionado.
+            "universo_por_sacado": sorted(universo_por_sacado.values(),
+                                          key=lambda x: -x["valor"]),
+            "sacados_filtrados": sorted(escolhidos),
+            "fora_do_filtro": round(fora_do_filtro, 2),
             "pendente_por_sacado": sorted(por_sacado.values(),
                                           key=lambda x: -x["valor"])[:20],
             "descoberto_dias": len(nao_coberto),
@@ -6895,7 +6936,8 @@ def get_antecipacao(dias: int = 90, reserva: float = 0.0, taxa_mes: float = 2.0,
         # e o PRIMEIRO recurso, nao o ultimo antes do limite.
         "credito": credito_cobertura,
         "parametros": {"dias": dias, "reserva": reserva, "taxa_mes": taxa_mes,
-                       "incluir_vencidos": bool(incluir_vencidos)},
+                       "incluir_vencidos": bool(incluir_vencidos),
+                       "sacados": sorted(escolhidos)},
         "hoje": hoje.isoformat(),
         "atualizado_em": meta["ts"].isoformat(),
         "fonte": ("ERP AVA · a receber oficial (fatura_composicao) + contaapagar por "

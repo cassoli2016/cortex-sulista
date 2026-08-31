@@ -266,6 +266,15 @@ button.ghost[aria-pressed="true"]{background:var(--navy-700);color:var(--on-acce
 .filterbar{display:flex;align-items:flex-end;gap:14px;flex-wrap:wrap;background:var(--n0);border:1px solid var(--n200);border-radius:var(--radius);box-shadow:var(--shadow);padding:14px 18px}
 .field{display:flex;flex-direction:column;gap:4px}
 .field label{font-size:11px;text-transform:uppercase;letter-spacing:.06em;color:var(--n500);font-weight:600}
+/* Campo de SELECAO MULTIPLA na barra de filtros: linha inteira, chips
+   fluindo na horizontal. Dentro de uma coluna normal (130px) cinco
+   chips com razao social viram uma pilha de 400px e jogam os demais
+   filtros para baixo — medido. `flex-basis:100%` faz o campo quebrar
+   para a propria linha sem precisar de um contêiner novo. */
+.field.multi{flex-basis:100%}
+.field.multi .chips{gap:6px}
+.field.multi .chip{padding:5px 11px;font-size:12.5px}
+.field.multi .chip .cv{opacity:.72;font-family:var(--mono);font-size:11.5px;margin-left:5px}
 /* TODO CONTROLE NASCE COM O ESTILO DA CASA.
    O estilo de campo era OPT-IN: valia para quem estivesse dentro de `.field`
    ou `.cardfilters`. Um `<select>` posto direto num card nao recebia regra
@@ -298,6 +307,14 @@ button.ghost[aria-pressed="true"]{background:var(--navy-700);color:var(--on-acce
 tr[role="button"]:focus-visible{outline-offset:-2px}
 .field input:disabled{background:var(--n100);color:var(--n500)}
 .rangegrp{display:flex;align-items:flex-end;gap:8px}
+/* Grupo de filtro que contem campo de LINHA INTEIRA (`.field.multi`)
+   precisa poder quebrar. Sem `flex-wrap`, um `flex-basis:100%` no filho
+   nao quebra linha nenhuma: ele apenas encolhe (flex-shrink e 1 por
+   padrao) e o campo sai como uma coluna estreita com os chips
+   empilhados — medido, 400px de altura empurrando os demais filtros.
+   Modificador e nao regra por id: o proximo filtro multi de outra tela
+   usa o mesmo. */
+.rangegrp.wrap{flex-wrap:wrap}
 .cardfilters{display:flex;flex-wrap:wrap;align-items:center;gap:10px;padding:2px 16px 14px}
 .cardfilters select,.cardfilters input{font-family:var(--font);font-size:14px;color:var(--n900);background:var(--n0);border:1px solid var(--n300);border-radius:var(--radius-md);padding:8px 11px;min-width:150px;box-sizing:border-box;min-height:42px}
 .cardfilters input[type=search]{min-width:200px}
@@ -2605,7 +2622,7 @@ body.tvfull #btnReport,body.tvmode #btnReport{display:none}
             </select>
           </div>
         </div>
-        <div class="rangegrp" id="grpAntec" style="display:none">
+        <div class="rangegrp wrap" id="grpAntec" style="display:none">
           <div class="field">
             <label for="fAntDias">Horizonte</label>
             <select id="fAntDias" onchange="loadAntec()">
@@ -2635,6 +2652,10 @@ body.tvfull #btnReport,body.tvmode #btnReport{display:none}
               <option value="">Fora da conta (padrão)</option>
               <option value="1">Incluir no dia de hoje</option>
             </select>
+          </div>
+          <div class="field multi" id="fldAntSac" style="display:none">
+            <label title="Escolha DE QUEM antecipar. O filtro restringe a pilha de recebíveis disponível para a simulação — e só ela: o saldo projetado, o a pagar e o buraco de caixa não mudam, porque a necessidade da empresa não diminui por você escolher menos clientes. O efeito da escolha aparece no DESCOBERTO. A chave é a raiz do CNPJ, não o nome: o ERP fatura por filial (Iochpe Maxion aparece como Cruzeiro/SP e Resende/RJ) e o convênio é da matriz.">Clientes</label>
+            <div class="chips" id="fAntSacados"></div>
           </div>
         </div>
         <div class="rangegrp" id="grpBal" style="display:none">
@@ -6882,6 +6903,7 @@ function qsView(k){
     if(V('fAntTaxa'))p.set('taxa_mes',String(numBR(V('fAntTaxa'))||0));
     if(V('fAntVenc'))p.set('incluir_vencidos','1');
     if(V('fAntPortal'))p.set('exigir_portal','1');
+    if(ANTSAC.size) p.set('sacados', [...ANTSAC].join(','));
   } else if(k==='man'){
     if(V('fFilial'))p.set('filial',V('fFilial'));
     if(V('fEmiDe'))p.set('dt_de',V('fEmiDe'));
@@ -12575,6 +12597,63 @@ function chartFcRender(linhas){
   }), 'sem dados');
 }
 
+/* Clientes escolhidos para a simulacao de antecipacao, por RAIZ de CNPJ.
+   Vazio = todos, que e diferente de nenhum: filtro ausente e universo inteiro.
+   `Set` e nao array porque a operacao natural aqui e alternar um item. */
+const ANTSAC = new Set();
+
+/* Os chips saem do UNIVERSO elegivel, que o backend devolve inteiro mesmo com
+   filtro ativo. Monta-los a partir do resultado FILTRADO faria o cliente nao
+   escolhido sumir do proprio seletor, e ninguem conseguiria marca-lo de volta. */
+function antecSacadosChips(d){
+  const campo = document.getElementById('fldAntSac');
+  const box = document.getElementById('fAntSacados');
+  if(!campo || !box) return;
+  const uni = ((d||{}).elegibilidade||{}).universo_por_sacado || [];
+  if(!uni.length){ campo.style.display='none'; return; }
+  campo.style.display = '';
+  const nomes = {};
+  (((d||{}).elegibilidade||{}).sacados || []).forEach(x=>{
+    if(x && x.cnpj) nomes[String(x.cnpj).slice(0,8)] = x.nome;
+  });
+  const todos = ANTSAC.size === 0;
+  box.innerHTML =
+    `<button class="chip${todos?' active':''}" onclick="antecSacTodos()"
+       title="Usa todos os clientes com convênio na simulação.">Todos</button>`
+    + uni.map(u=>{
+        // O nome do CONVENIO, nao o do ERP: o ERP nomeia a filial que faturou
+        // ("TUPY - JOINVILE/SC") e o convenio e da matriz. Mostrar a filial
+        // faria parecer que a escolha e por unidade, quando ela pega todas.
+        const nome = nomes[u.raiz] || u.cliente;
+        const on = ANTSAC.has(u.raiz);
+        return `<button class="chip${on?' active':''}" data-r="${esc(u.raiz)}"
+          onclick="antecSacToggle(this.dataset.r)"
+          title="${esc(nome)} · ${BRL.format(u.valor)} em ${u.titulos} título(s) elegível(is), somando todas as filiais.">
+          ${esc(antecNomeCurto(nome))}<span class="cv">${brlAbbr(u.valor)}</span></button>`;
+      }).join('');
+}
+
+/* Razao social inteira nao cabe num chip ("Adient do Brasil Bancos
+   Automotivos"). Corta o sufixo juridico e limita o resto — o nome COMPLETO
+   fica no `title`, entao nada se perde, e o corte e por REGRA e nao por
+   apelido escrito a mao, que envelheceria quando entrar convenio novo. */
+function antecNomeCurto(nome){
+  let n = String(nome || '').trim()
+    // `S A` com espaco no meio existe no cadastro real ("Iochpe Maxion S A"),
+    // e uma alternancia so com `S/A`/`S.A.` deixaria passar exatamente esse.
+    .replace(/\s*[-–]\s*(S\s*\/?\s*A\.?|LTDA|EIRELI|ME|EPP)\.?$/i, '')
+    .replace(/\s+(S\s*\/?\s*A\.?|LTDA|EIRELI|ME|EPP)\.?$/i, '')
+    .trim();
+  return n.length > 24 ? n.slice(0, 23).trimEnd() + '…' : n;
+}
+
+function antecSacTodos(){ ANTSAC.clear(); loadAntec(); }
+
+function antecSacToggle(raiz){
+  if(ANTSAC.has(raiz)) ANTSAC.delete(raiz); else ANTSAC.add(raiz);
+  loadAntec();
+}
+
 async function loadAntec(){
   skelKpis('kpis-antec',4);
   const seq=++antecSeq, btn=document.getElementById('btnRefresh'); if(btn) btn.disabled=true;
@@ -12589,13 +12668,24 @@ async function loadAntec(){
 }
 function renderAntec(d){
   const k=d.kpis||{}, f=d.fora_da_conta||{}, pr=d.parametros||{};
+  antecSacadosChips(d);
+  /* COM FILTRO O PRIMEIRO KPI MUDA DE SENTIDO, e o rotulo tem de mudar junto.
+     `total_antecipar` e a soma das operacoes: sem filtro ele e a necessidade
+     (a simulacao cobre tudo o que da); com a pilha restrita ele passa a ser o
+     que se CONSEGUE antecipar daqueles clientes, e a necessidade continua a
+     mesma. Manter "Precisa antecipar" ali diria que o buraco encolheu porque
+     alguem desmarcou um cliente. */
+  const filtrado = (pr.sacados || []).length > 0;
   if(!document.getElementById('fAntDias').value) document.getElementById('fAntDias').value=pr.dias;
   // KPI 1 é o diagnóstico (tem buraco?), não o saldo — o saldo é premissa
   const temGap = !!k.primeiro_gap;
   document.getElementById('kpis-antec').innerHTML=[
-    kpi('Precisa antecipar', k.total_antecipar>0?BRL.format(k.total_antecipar):'nada',
-        k.total_antecipar>0 ? (k.operacoes+' operação(ões) no horizonte de '+pr.dias+' dias')
-                            : 'o caixa se sustenta sozinho no horizonte',
+    kpi(filtrado?'Antecipável nos selecionados':'Precisa antecipar',
+        k.total_antecipar>0?BRL.format(k.total_antecipar):'nada',
+        k.total_antecipar>0 ? (k.operacoes+' operação(ões) no horizonte de '+pr.dias+' dias'
+                               +(filtrado?' · '+(pr.sacados||[]).length+' cliente(s) escolhido(s)':''))
+                            : (filtrado?'os clientes escolhidos não têm recebível no horizonte'
+                                       :'o caixa se sustenta sozinho no horizonte'),
         k.total_antecipar>0?'neg':'pos',
         'Soma do que o modelo precisou puxar de recebível futuro para o saldo nunca cair abaixo da reserva. Zero significa que as entradas já lançadas cobrem as saídas já lançadas.'),
     kpi('Custo da antecipação', k.total_antecipar>0?BRL.format(k.custo_total):'—',

@@ -230,3 +230,66 @@ def test_o_resumo_por_cliente_conta_quantos_faltam_e_quanto():
     assert porcli["TUPY"]["valor_fora"] == 100.0
     assert porcli["MAXION"]["fora_do_portal"] == 0
     assert porcli["MAXION"]["valor_fora"] == 0.0
+
+
+# ==================================== filtro por cliente (raiz de CNPJ) ==
+
+"""O contrato da ROTA. O filtro escolhe DE QUEM antecipar, e a chave é a raiz
+do CNPJ — nunca o nome: o ERP fatura por filial ("IOCHPE MAXION - CRUZEIRO/SP"
+e "- RESENDE/RJ" são duas linhas) e o convênio é da matriz, então casar por
+nome deixaria metade do recebível do mesmo cliente de fora."""
+import json
+
+import pytest
+
+from api import main
+
+
+def _chamar(**kw):
+    r = main.antecipacao(**kw)
+    return r.status_code, json.loads(bytes(r.body).decode("utf-8"))
+
+
+def test_raiz_que_nao_e_numero_e_recusada_dizendo_o_formato():
+    st, d = _chamar(sacados="tupy")
+    assert st == 422
+    assert "raiz do CNPJ (8 dígitos)" in d["mensagem"]
+
+
+def test_raiz_sem_convenio_e_RECUSA_e_nao_filtro_vazio(monkeypatch):
+    """Aceitar em silêncio devolveria a tela zerada, que se lê como "não há o
+    que antecipar" em vez de "você escolheu quem não pode"."""
+    from api.antecipacoes import registro
+    monkeypatch.setattr(registro, "raizes_elegiveis", lambda: {"84683374"})
+    st, d = _chamar(sacados="99999999")
+    assert st == 422
+    assert "Sem convênio" in d["mensagem"] and "99999999" in d["mensagem"]
+
+
+def test_cnpj_completo_vira_RAIZ_e_repetido_nao_duplica(monkeypatch):
+    """A tela manda a raiz, mas um link colado à mão traz os 14 dígitos — e as
+    filiais do mesmo cliente colapsam na mesma raiz."""
+    from api.antecipacoes import registro
+    from api import queries
+    monkeypatch.setattr(registro, "raizes_elegiveis",
+                        lambda: {"84683374", "02162259"})
+    visto = {}
+
+    def falso(**kw):
+        visto.update(kw)
+        return {"ok": True}
+
+    monkeypatch.setattr(queries, "get_antecipacao", falso)
+    st, _ = _chamar(sacados="84683374000300,84683374000100,02162259000164")
+    assert st == 200
+    assert visto["sacados"] == ("84683374", "02162259")
+
+
+def test_sem_o_parametro_o_comportamento_e_o_de_antes(monkeypatch):
+    """Filtro ausente é universo inteiro, não pilha vazia."""
+    from api import queries
+    visto = {}
+    monkeypatch.setattr(queries, "get_antecipacao",
+                        lambda **kw: visto.update(kw) or {"ok": True})
+    st, _ = _chamar()
+    assert st == 200 and visto["sacados"] == ()

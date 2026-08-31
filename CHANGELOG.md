@@ -4,6 +4,16 @@ Gerado de `docs/versoes.yaml` por `scripts/gerar_changelog.py` — não editar �
 Formato [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/),
 versionamento [SemVer](https://semver.org/lang/pt-BR/).
 
+## [0.179.0] — 31/08/2026  ·  CX-31/08/2026-v0.179.0
+
+### Adicionado
+- A Antecipação de Recebíveis ganhou filtro por cliente, com seleção de mais de um: os chips mostram quanto cada cliente com convênio tem de recebível elegível, e clicar restringe a simulação a eles. "Todos" volta ao universo inteiro.
+
+### Alterado
+- O filtro restringe DE QUEM antecipar, e só isso: o saldo projetado, o a pagar e o buraco de caixa não mudam, porque a necessidade da empresa não diminui por alguém escolher menos clientes. O efeito da escolha aparece no descoberto — com a TUPY sozinha, por exemplo, sobram 12 dias sem cobertura.
+- Com filtro ativo, o primeiro indicador deixa de se chamar "Precisa antecipar" e passa a "Antecipável nos selecionados". O número muda de sentido quando a pilha é restrita, e manter o rótulo antigo diria que o buraco encolheu porque alguém desmarcou um cliente.
+- Cliente escolhido é contado à parte de "sem convênio". São coisas diferentes: um tem convênio e não foi selecionado, o outro precisa de negociação — somá-los mandaria negociar um convênio que já existe.
+
 ## [0.178.1] — 31/08/2026  ·  CX-31/08/2026-v0.178.1
 
 ### Alterado
