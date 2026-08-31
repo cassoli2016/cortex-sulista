@@ -1,0 +1,74 @@
+# QUEM DECIDE A QUEBRA DE LINHA É O REPOSITÓRIO, NÃO A MÁQUINA.
+#
+# O QUE ACONTECEU (31/08/2026, v0.182.0 → v0.183.0)
+# =================================================
+# O `api/static/index.html` foi commitado em CRLF e a base era LF. O git passou
+# a ver ~30.000 linhas trocadas onde o trabalho real eram algumas centenas, e
+# TODA branch aberta antes disso conflitou no arquivo inteiro. Duas sessões
+# foram pegas no meio de um rebase, e o pior momento é o primeiro olhar: não dá
+# para saber se aquilo é trabalho alheio prestes a ser apagado.
+#
+# A CADEIA DE CAUSAS, medida e não suposta:
+#
+#   1. `pathlib.Path.write_text(s, encoding="utf-8")` no Windows abre em modo
+#      texto com `newline=None`, que traduz TODO `\n` para `\r\n`. Um script de
+#      edição que lê e regrava o arquivo converte o arquivo inteiro sem dizer
+#      nada. É a origem.
+#
+#   2. `core.autocrlf=true` DEVERIA ter normalizado no commit — e normaliza,
+#      para arquivo que ele considere texto. Não normalizou porque o mesmo
+#      script deixou UM byte NUL no meio do HTML (um `\x00` onde devia haver um
+#      espaço, dentro de uma string de JavaScript). Com NUL, o git classifica o
+#      arquivo como BINÁRIO (`git ls-files --eol` dizia `i/-text`) e não
+#      converte nada.
+#
+#   3. Sem conversão, o CRLF entrou no blob e ficou.
+#
+# Ou seja: um defeito escondeu o outro. O NUL era invisível (a string ainda
+# funcionava) e foi ele que desligou a única defesa que havia.
+#
+# POR QUE ESTE ARQUIVO EXISTE
+# ===========================
+# `core.autocrlf` é configuração de MÁQUINA: vale para quem a ligou, na versão
+# que ligou. `.gitattributes` é do repositório e vale para todo mundo, inclusive
+# para o próximo clone e para quem nunca ouviu falar disso. `eol=lf` fixa os
+# dois lados — o blob e o arquivo em disco —, o que elimina o vaivém em vez de
+# só escondê-lo.
+#
+# O QUE NÃO ENTRA AQUI, DE PROPÓSITO
+# ==================================
+# Os 65 `.sql` de `Querys Sulista/` estão em CRLF desde sempre. São material de
+# referência exportado do Windows, ninguém os edita, e renormalizá-los junto
+# somaria 15 mil linhas a um commit que precisa ser conferível. Ficam como
+# estão até que alguém tenha motivo próprio para mexer neles.
+#
+# COMO NÃO REPETIR
+# ================
+# Script que reescreve arquivo versionado usa `newline="\n"` explicitamente:
+#     p.write_text(s, encoding="utf-8", newline="\n")   # Python 3.10+
+# e confere `b.count(b"\x00") == 0` antes de gravar HTML, CSS ou JS.
+
+*.html   text eol=lf
+*.css    text eol=lf
+*.js     text eol=lf
+*.py     text eol=lf
+*.yaml   text eol=lf
+*.yml    text eol=lf
+*.json   text eol=lf
+*.md     text eol=lf
+*.toml   text eol=lf
+*.sh     text eol=lf
+
+# Binários: nunca converter. Sem isto, um `text=auto` distraído corromperia
+# imagem e a corrupção só apareceria na tela de quem abrir o painel.
+*.png    binary
+*.jpg    binary
+*.jpeg   binary
+*.gif    binary
+*.ico    binary
+*.pdf    binary
+*.pfx    binary
+*.woff   binary
+*.woff2  binary
+*.db     binary
+*.xlsx   binary
