@@ -4,6 +4,11 @@ Gerado de `docs/versoes.yaml` por `scripts/gerar_changelog.py` — não editar �
 Formato [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/),
 versionamento [SemVer](https://semver.org/lang/pt-BR/).
 
+## [0.188.1] — 31/08/2026  ·  CX-31/08/2026-v0.188.1
+
+### Corrigido
+- A aba "Operação e alertas" da Visão Geral não abria. O botão chamava um nome e o painel respondia por outro — "ope" contra "oper" —, e como ambos tinham o mesmo id e o mesmo aria-controls, a marcação parecia certa em qualquer leitura. Entrou na v0.158.0, quando a tela virou abas, e ficou dois meses assim: clicar não mostrava nada, sem erro nenhum no console. Um teste novo confere todo botão contra o painel que ele chama, nos 33 grupos de abas do sistema.
+
 ## [0.188.0] — 31/08/2026  ·  CX-31/08/2026-v0.188.0
 
 ### Adicionado

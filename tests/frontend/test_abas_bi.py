@@ -419,3 +419,44 @@ def test_a_tela_cheia_TEM_EFEITO_no_desktop(pagina):
     }""")
     assert d["aside"] == "none" and d["topbar"] == "none", d
     assert d["content"] != "none", d
+
+
+def test_todo_BOTAO_de_aba_tem_PAINEL_e_vice_versa():
+    """O botão diz `abaTrocar(grupo, qual)` e o painel responde por `data-aba`.
+    Quando os dois discordam, a aba simplesmente NÃO ABRE.
+
+    ISTO ACONTECEU E FICOU DOIS MESES NO AR. Na Visão Geral, o botão
+    "Operação e alertas" chamava `abaTrocar('home','ope')` e o painel era
+    `data-aba="oper"` — os dois com o mesmo `id` e o mesmo `aria-controls`,
+    o que faz a marcação PARECER certa em qualquer leitura por cima. Entrou na
+    v0.158.0, quando a tela virou abas, e só apareceu quando alguém foi clicar.
+
+    O modo de falha é o pior que existe nesta casa: **não dá erro, dá
+    ausência.** Nada no console, nenhum banner, a aba fica lá e o conteúdo não
+    aparece — igual ao ícone que some do menu e ao mês que o `GROUP BY` não
+    devolve. Nenhum guard existente pegava: o JS compila, a estrutura é válida,
+    o painel EXISTE (só com outro nome) e o medidor de altura o encontra pelo
+    seletor de `.aba`, não pelo que o botão chama.
+    """
+    botoes: dict[str, set] = {}
+    for m in re.finditer(r"abaTrocar\('([\w-]+)','([\w-]+)'\)", HTML):
+        botoes.setdefault(m.group(1), set()).add(m.group(2))
+    paineis: dict[str, set] = {}
+    for m in re.finditer(
+            r'<div class="aba"[^>]*data-abas="([\w-]+)"[^>]*data-aba="([\w-]+)"',
+            HTML):
+        paineis.setdefault(m.group(1), set()).add(m.group(2))
+
+    assert botoes, "nenhum botão de aba — o teste perdeu o alvo"
+    problemas = []
+    for g in sorted(set(botoes) | set(paineis)):
+        b, p = botoes.get(g, set()), paineis.get(g, set())
+        if b - p:
+            problemas.append(
+                f"{g}: botão chama {sorted(b - p)} e não há painel com esse "
+                f"data-aba (a aba não abre)")
+        if p - b:
+            problemas.append(
+                f"{g}: painel {sorted(p - b)} existe e nenhum botão o chama "
+                f"(conteúdo inalcançável)")
+    assert not problemas, "aba que não abre -> " + " | ".join(problemas)
