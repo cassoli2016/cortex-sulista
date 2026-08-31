@@ -32,7 +32,7 @@ _COLUNAS = """
 """
 
 _COLUNAS_LANE = """
-    id, oportunidade_id, contrato_id, origem_cidade, origem_uf,
+    id, oportunidade_id, contrato_id, projeto_id, origem_cidade, origem_uf,
     destino_cidade, destino_uf, km, km_vazio, tipo_veiculo, eixos, tipo_carga,
     viagens_mes, valor_viagem, pedagio, observacoes, ordem
 """
@@ -197,18 +197,24 @@ def obter(oportunidade_id: int, *, esquema: str | None = None) -> dict | None:
 
 
 def lanes(oportunidade_id: int | None = None, *, contrato_id: int | None = None,
-          referencia: dict | None = None,
+          projeto_id: int | None = None, referencia: dict | None = None,
           esquema: str | None = None) -> list[dict]:
-    """As lanes de uma oportunidade OU de um contrato, já avaliadas.
+    """As lanes de uma oportunidade, de um contrato OU de um projeto.
 
-    A mesma função serve aos dois porque a lane é o mesmo conceito nos dois
-    momentos (ver `crm_lanes` em 0026_crm.sql) — e é assim que o R$/km e o piso
-    da ANTT ficam garantidamente iguais entre a proposta e o contrato assinado.
+    UMA função para os três porque a lane é o mesmo conceito em três momentos —
+    o preço PROPOSTO, o preço ASSINADO e o escopo PROMETIDO (ver `crm_lanes` em
+    0026_crm.sql e 0027_crm_projetos.sql). Três implementações do R$/km e do
+    piso da ANTT divergiriam justamente entre o que foi vendido, o que foi
+    contratado e o que está sendo entregue, que é onde a divergência dói.
     """
-    if (oportunidade_id is None) == (contrato_id is None):
-        raise DadoInvalido("Informe a oportunidade OU o contrato.")
-    col = "oportunidade_id" if oportunidade_id is not None else "contrato_id"
-    ident = int(oportunidade_id if oportunidade_id is not None else contrato_id)
+    donos = {"oportunidade_id": oportunidade_id, "contrato_id": contrato_id,
+             "projeto_id": projeto_id}
+    dados = {k: v for k, v in donos.items() if v is not None}
+    if len(dados) != 1:
+        raise DadoInvalido("Informe a oportunidade, o contrato OU o projeto — "
+                           "exatamente um.")
+    col, ident = next(iter(dados.items()))
+    ident = int(ident)
     linhas = pglocal.query(
         f"SELECT {_COLUNAS_LANE} FROM crm_lanes WHERE {col}=%s ORDER BY ordem, id",
         (ident,), esquema=_esq(esquema))
@@ -430,7 +436,7 @@ def excluir(oportunidade_id: int, *, esquema: str | None = None) -> None:
 
 def gravar_lane(dados: dict, *, lane_id: int | None = None,
                 esquema: str | None = None) -> dict:
-    """Cria ou edita uma lane, de oportunidade OU de contrato.
+    """Cria ou edita uma lane, de oportunidade, contrato OU projeto.
 
     `eixos` pode vir do nome do veículo (`VEICULOS`) quando a tela mandou a
     composição em vez do número — é o caminho normal, porque quem cota escolhe
@@ -438,18 +444,20 @@ def gravar_lane(dados: dict, *, lane_id: int | None = None,
     """
     esq = _esq(esquema)
     init_db(esq)
-    opo = dados.get("oportunidade_id")
-    ctr = dados.get("contrato_id")
-    if (opo in (None, "", 0)) == (ctr in (None, "", 0)):
-        raise DadoInvalido("A lane pertence a uma oportunidade OU a um "
-                           "contrato — informe exatamente um.")
+    donos = {k: dados.get(k) for k in
+             ("oportunidade_id", "contrato_id", "projeto_id")}
+    donos = {k: int(v) for k, v in donos.items() if v not in (None, "", 0, "0")}
+    if len(donos) != 1:
+        raise DadoInvalido("A lane pertence a uma oportunidade, a um contrato "
+                           "OU a um projeto — informe exatamente um.")
     veiculo = texto(dados.get("tipo_veiculo"), "o veículo", maximo=120)
     eixos = dados.get("eixos")
     if eixos in (None, "") and veiculo in VEICULOS:
         eixos = VEICULOS[veiculo]
     campos = {
-        "oportunidade_id": int(opo) if opo not in (None, "", 0) else None,
-        "contrato_id": int(ctr) if ctr not in (None, "", 0) else None,
+        "oportunidade_id": donos.get("oportunidade_id"),
+        "contrato_id": donos.get("contrato_id"),
+        "projeto_id": donos.get("projeto_id"),
         "origem_cidade": texto(dados.get("origem_cidade"), "a cidade de origem",
                                maximo=120),
         "origem_uf": uf(dados.get("origem_uf"), "a UF de origem"),

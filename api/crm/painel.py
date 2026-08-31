@@ -46,18 +46,22 @@ def tudo(*, esquema: str | None = None) -> dict:
     — o mesmo motivo do `/api/gestao/painel`.
     """
     esq = _esq(esquema)
+    from . import projetos as _prj
     abertas = oportunidades.listar(esquema=esq)
     fechadas = _fechadas(esq)
     contas = _contas(esq)
     ctrs = contratos.listar(esquema=esq)
+    projs = _prj.listar(esquema=esq)
     return {
-        "kpis": _kpis(abertas, fechadas, contas, ctrs),
+        "kpis": {**_kpis(abertas, fechadas, contas, ctrs),
+                 **_kpis_projetos(projs)},
+        "projetos": projs,
         "funil": _funil(abertas),
         "previsao": _previsao(abertas),
         "fechamentos": _fechamentos_mensais(fechadas),
         "motivos_perda": _motivos(fechadas),
         "carteira": _carteira(contas),
-        "alertas": _alertas(abertas, contas, ctrs, esq),
+        "alertas": _alertas(abertas, contas, ctrs, esq, projs),
         "corredores": _corredores(esq),
         "atualizado_em": _agora_iso(),
         "fonte": ("CÓRTEX · crm_* (banco local) × ERP AVA "
@@ -314,8 +318,32 @@ def _resumo_conta(c: dict) -> dict:
 
 # ------------------------------------------------------------------ alertas --
 
+def _prj_parado_dias() -> int:
+    from . import projetos as _p
+    return _p.PARADO_DIAS
+
+
+def _kpis_projetos(projs: list[dict]) -> dict:
+    """Os números do que está sendo ENTREGUE, não do que está sendo vendido.
+
+    `rob_em_entrega` é a soma do ROB prometido dos projetos abertos — a receita
+    que já foi vendida e ainda não virou regime. Fica ao lado do pipeline no
+    painel porque são coisas diferentes: pipeline é o que pode entrar, isto é o
+    que JÁ entrou e depende da operação para acontecer.
+    """
+    com_valor = [p for p in projs if p["rob_mensal"] is not None]
+    return {
+        "projetos_abertos": len(projs),
+        "projetos_atrasados": sum(1 for p in projs if p["atrasado"]),
+        "projetos_parados": sum(1 for p in projs if p["parado"]),
+        "projetos_sem_valor": len(projs) - len(com_valor),
+        "rob_em_entrega": (sum(p["rob_mensal"] for p in com_valor)
+                           if com_valor else None),
+    }
+
+
 def _alertas(abertas: list[dict], contas: list[dict], ctrs: list[dict],
-             esq: str | None) -> list[dict]:
+             esq: str | None, projs: list[dict] | None = None) -> list[dict]:
     """O que exige ação AGORA, do mais grave para o menos.
 
     Alerta que acende sem haver problema ensina a ignorar o alerta — a lição do
@@ -365,6 +393,40 @@ def _alertas(abertas: list[dict], contas: list[dict], ctrs: list[dict],
                         "transportador — e a hora de corrigir é antes de a "
                         "proposta sair."),
             "itens": piso[:10]})
+
+    atrasados = [p for p in (projs or []) if p["atrasado"]]
+    if atrasados:
+        atrasados.sort(key=lambda p: p["dias_para_deadline"] or 0)
+        saida.append({
+            "nivel": "alerta", "chave": "projeto_atrasado", "n": len(atrasados),
+            "titulo": f"{len(atrasados)} projeto(s) com o prazo estourado",
+            "detalhe": ("O prazo combinado passou e o projeto segue aberto. É "
+                        "o cliente esperando uma implantação que já deveria "
+                        "estar no ar — e quem cobra é ele, não a tela."),
+            "itens": [{"id": p["id"], "codigo": p["codigo"], "nome": p["nome"],
+                       "conta": p.get("conta_nome"), "deadline": p["deadline"],
+                       "dias": p["dias_para_deadline"],
+                       "status": p["status_rotulo"],
+                       "responsavel": p.get("responsavel_nome")}
+                      for p in atrasados[:10]]})
+
+    parados = [p for p in (projs or []) if p["parado"] and not p["atrasado"]]
+    if parados:
+        parados.sort(key=lambda p: -(p["parado_dias"] or 0))
+        saida.append({
+            "nivel": "aviso", "chave": "projeto_parado", "n": len(parados),
+            "titulo": f"{len(parados)} projeto(s) sem andamento há mais de "
+                      f"{_prj_parado_dias()} dias",
+            "detalhe": ("O status diz que está andando e o histórico diz que "
+                        "ninguém escreve nada há semanas. Quem desmente o "
+                        "status é o último andamento — projeto em implantação "
+                        "tem cadência semanal."),
+            "itens": [{"id": p["id"], "codigo": p["codigo"], "nome": p["nome"],
+                       "conta": p.get("conta_nome"),
+                       "dias": p["parado_dias"], "status": p["status_rotulo"],
+                       "percentual": p["percentual"],
+                       "responsavel": p.get("responsavel_nome")}
+                      for p in parados[:10]]})
 
     reaj = [c for c in ctrs if c["reajuste_pendente"]]
     if reaj:

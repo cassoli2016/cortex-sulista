@@ -3,6 +3,42 @@ sistema: 'O CÓRTEX é o painel de gestão da Transportadora Sulista S/A. Ele l�
   — financeiro, comercial, operação, frota, pessoas e controladoria. Nenhum número é digitado aqui: tudo
   vem do ERP, e cada card diz no ⓘ de qual tabela e de qual regra ele saiu.'
 glossario:
+- termo: Projeto (o que vem depois da venda)
+  definicao: >-
+    A oportunidade termina em ganha ou perdida e responde "vamos fechar?". O
+    projeto comeca ai e responde outra coisa: esta entrando no ar no prazo, com
+    o escopo combinado, rendendo o que foi prometido? Ele nasce da oportunidade
+    GANHA e HERDA as lanes dela como escopo prometido, COPIADAS e nao
+    referenciadas - corrigir a proposta depois nao pode reescrever o que se
+    combinou entregar, porque e contra esse escopo que o realizado sera medido.
+    Uma venda gera UM projeto: dois dividiriam o ROB prometido em dois. O
+    modelo veio do pipeline de projetos do Avacorp, sem os campos que la estao
+    vazios - `aging_dias`, por exemplo, esta preenchido em ZERO de 194
+    projetos, e a tela antiga que o lia mostrava travessao em todas as linhas.
+- termo: Combinado x acontecido (datas do projeto)
+  definicao: >-
+    O projeto guarda as datas em duas metades que nao se confundem: o que foi
+    COMBINADO (inicio previsto, deadline) e o que ACONTECEU (inicio real,
+    entrega, aceite). Guardar so a segunda faz projeto entregue com tres meses
+    de atraso parecer entregue no prazo. E dessa diferenca que saem o
+    cumprimento de prazo e a duracao real; nenhum dos dois e coluna do banco,
+    os dois sao calculados na leitura contra a data de hoje. Projeto ENTREGUE
+    nao "esta atrasado" - ele atrasou ou nao, que e outra pergunta; e projeto
+    sem prazo combinado nao tem afirmacao possivel sobre pontualidade, entao a
+    tela diz "sem prazo" em vez de inventar zero.
+- termo: Variacao no cliente (projeto)
+  definicao: >-
+    O quanto o faturamento MENSAL do cliente mudou do periodo anterior ao
+    inicio do projeto para o posterior. NAO e a receita do projeto: o ERP nao
+    atribui frete a projeto, nao ha campo para isso na programacao de embarque.
+    A primeira versao desta tela dividia a receita do cliente pelo ROB
+    prometido e chamava o resultado de "atingimento" - com dado real deu 480%,
+    porque o numerador era o faturamento inteiro da TUPY e o denominador, um
+    projeto. Numero aritmeticamente certo e mentira completa. A variacao se
+    compara ao ROB porque as duas pontas sao INCREMENTOS - e continua nao sendo
+    prova: ela absorve sazonalidade, reajuste e qualquer outro negocio do mesmo
+    periodo, e com mais de um projeto aberto na conta deixa de ser atribuivel a
+    um deles. A tela diz as duas coisas.
 - termo: Lane (a unidade do CRM)
   definicao: >-
     Um par origem-destino com veiculo, volume e preco: Joinville/SC para

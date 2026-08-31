@@ -4,6 +4,17 @@ Gerado de `docs/versoes.yaml` por `scripts/gerar_changelog.py` — não editar �
 Formato [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/),
 versionamento [SemVer](https://semver.org/lang/pt-BR/).
 
+## [0.175.0] — 31/08/2026  ·  CX-31/08/2026-v0.175.0
+
+### Adicionado
+- Controle de projetos no CRM: o que acontece depois da venda. O projeto nasce da oportunidade ganha, herda as lanes dela como escopo prometido e controla escopo, prazo, avanço e andamento até a entrega.
+- As datas ficam em duas metades que não se confundem — o que foi COMBINADO (início previsto, prazo) e o que ACONTECEU (início real, entrega, aceite). É dessa diferença que sai o cumprimento de prazo: guardar só a entrega faz projeto atrasado três meses parecer entregue no prazo.
+- A ficha compara o ROB prometido com a VARIAÇÃO real do faturamento do cliente depois do início do projeto. E diz a limitação em voz alta: a receita do ERP é do cliente, não do projeto, e com mais de um projeto aberto na conta ela deixa de ser atribuível a um deles.
+- O painel ganhou dois avisos: projeto com o prazo estourado e projeto sem andamento há mais de 21 dias — porque "em implantação" há três semanas sem ninguém escrever nada não está em implantação.
+
+### Alterado
+- A Saúde do Servidor e o Copiloto passaram a enxergar os projetos. Na Saúde a linha fica âmbar por prazo estourado; no Copiloto entram só contagens, nenhum nome de projeto ou de cliente.
+
 ## [0.174.0] — 30/08/2026  ·  CX-30/08/2026-v0.174.0
 
 ### Adicionado

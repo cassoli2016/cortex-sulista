@@ -400,7 +400,14 @@ def _servico_crm() -> dict:
             "         WHERE estagio NOT IN ('ganha','perdida'))::int AS abertas,"
             "       (SELECT count(*) FROM crm_contratos"
             "         WHERE cancelado_em IS NULL"
-            "           AND (fim IS NULL OR fim >= current_date))::int AS contratos")
+            "           AND (fim IS NULL OR fim >= current_date))::int AS contratos,"
+            "       (SELECT count(*) FROM crm_projetos"
+            "         WHERE status IN ('nao_iniciado','implantacao','em_execucao')"
+            "        )::int AS projetos,"
+            "       (SELECT count(*) FROM crm_projetos"
+            "         WHERE status IN ('nao_iniciado','implantacao','em_execucao')"
+            "           AND deadline IS NOT NULL"
+            "           AND deadline < current_date)::int AS proj_atrasados")
         lanes = pglocal.query(
             "SELECT l.km, l.eixos, l.tipo_carga, l.valor_viagem"
             "  FROM crm_lanes l"
@@ -455,8 +462,13 @@ def _servico_crm() -> dict:
         return {"nome": nome, "status": "info",
                 "detalhe": "pronto para uso · nenhuma conta cadastrada ainda"}
     base = (f"{r['contas']} conta(s) · {r['abertas']} oportunidade(s) aberta(s) "
-            f"· {r['contratos']} contrato(s) vigente(s)")
+            f"· {r['contratos']} contrato(s) vigente(s) "
+            f"· {r['projetos']} projeto(s) em andamento")
     problemas = []
+    # Projeto com o prazo estourado é o cliente esperando uma implantação que
+    # já deveria estar no ar — vermelho de verdade, não estado normal.
+    if r["proj_atrasados"]:
+        problemas.append(f"{r['proj_atrasados']} projeto(s) com prazo estourado")
     if abaixo:
         problemas.append(f"{abaixo} lane(s) cotada(s) abaixo do piso ANTT")
     if pendentes:

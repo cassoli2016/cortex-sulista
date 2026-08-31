@@ -339,6 +339,19 @@ def _fontes_do_snapshot() -> dict:
                               for m in d.get("motivos_perda") or []],
             "alertas": [{"chave": a["chave"], "n": a["n"]}
                         for a in d.get("alertas") or []],
+            # Projetos: contagens e prazo, nunca a lista — o nome do projeto
+            # carrega o do cliente, e o snapshot vai para modelo EXTERNO.
+            "projetos": {
+                "abertos": len(d.get("projetos") or []),
+                "atrasados": sum(1 for p in d.get("projetos") or []
+                                 if p.get("atrasado")),
+                "parados": sum(1 for p in d.get("projetos") or []
+                               if p.get("parado")),
+                "por_status": {s: sum(1 for p in d.get("projetos") or []
+                                      if p.get("status") == s)
+                               for s in ("nao_iniciado", "implantacao",
+                                         "em_execucao")},
+            },
         }
 
     def _estradas():

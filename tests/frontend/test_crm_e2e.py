@@ -39,7 +39,9 @@ def _kpis():
             "contas": 3, "contas_ativas": 1, "contas_paradas": 1,
             "prospects": 1, "receita_carteira_12m": 9800000.0,
             "contratos_vigentes": 1, "contratos_a_vencer": 1,
-            "reajustes_pendentes": 1}
+            "reajustes_pendentes": 1, "projetos_abertos": 3,
+            "projetos_atrasados": 1, "projetos_parados": 1,
+            "projetos_sem_valor": 0, "rob_em_entrega": 1286250.0}
 
 
 FUNIL = [
@@ -136,6 +138,16 @@ CATALOGO = {
                                 {"valor": "entrada", "rotulo": "O cliente procurou"}]},
     "contratos": {"indices": [{"valor": "ipca", "rotulo": "IPCA"}],
                   "aviso_dias": 90},
+    "projetos": {"status": [{"valor": "nao_iniciado", "rotulo": "Não iniciado"},
+                            {"valor": "implantacao", "rotulo": "Em implantação"},
+                            {"valor": "em_execucao", "rotulo": "Em execução"},
+                            {"valor": "entregue", "rotulo": "Entregue"},
+                            {"valor": "declinado", "rotulo": "Declinado"},
+                            {"valor": "cancelado", "rotulo": "Cancelado"}],
+                 "status_abertos": ["nao_iniciado", "implantacao", "em_execucao"],
+                 "motivos": [{"valor": "prazo", "rotulo": "Prazo inexequível"}],
+                 "escopos": ["Transporte FTL", "Milk run"],
+                 "parado_dias": 21},
     "usuarios": [{"id": 7, "nome": "Ana Souza", "email": "ana@x",
                   "cargo": "", "setor": ""}],
     "agrupamentos": [{"codigo": 7, "nome": "TUPY"}],
@@ -271,6 +283,75 @@ CTRS = [{"id": 1, "conta_id": 1, "conta_nome": "TUPY FUNDIÇÕES",
          "criado_por": "", "criado_em": "", "alterado_por": "",
          "alterado_em": ""}]
 
+def _proj(i, nome, status, **kw):
+    d = {"id": i, "conta_id": 1, "conta_nome": "TUPY FUNDIÇÕES",
+         "conta_ava": 7, "oportunidade_id": 1,
+         "oportunidade_codigo": "OPO-2026-001", "contrato_id": None,
+         "contrato_codigo": None, "ano": 2026, "sequencia": i,
+         "codigo": f"PRJ-2026-{i:03d}", "nome": nome, "escopo": "Transporte FTL",
+         "detalhe": "", "versao": 1, "status": status,
+         "status_rotulo": {"nao_iniciado": "Não iniciado",
+                           "implantacao": "Em implantação",
+                           "em_execucao": "Em execução",
+                           "entregue": "Entregue"}.get(status, status),
+         "motivo_encerramento": "", "motivo_rotulo": None,
+         "aberto": status not in ("entregue", "declinado", "cancelado"),
+         "recebimento": "2026-05-01", "inicio_previsto": "2026-06-01",
+         "deadline": "2026-09-30", "inicio_real": "2026-06-05",
+         "entrega": None, "aceite": None, "prazo_cliente_dias": None,
+         "solicitante": "Compras", "responsavel_id": 7,
+         "responsavel_nome": "Ana Souza", "rob_mensal_manual": None,
+         "rob_mensal": 428750.0, "origem_rob": "lanes", "percentual": 40,
+         "lanes": 1, "lanes_sem_preco": 0, "observacoes": "",
+         "dias_para_deadline": 30, "atrasado": False, "dias_de_atraso": None,
+         "no_prazo": None, "duracao_dias": None, "idade_dias": 120,
+         "ultimo_andamento": "2026-08-29T10:00:00", "andamentos": 3,
+         "parado_dias": 2, "parado": False, "criado_por": "", "criado_em": "",
+         "alterado_por": "", "alterado_em": ""}
+    d.update(kw)
+    return d
+
+
+PROJS = [
+    _proj(1, "Implantação eixo sul", "implantacao"),
+    _proj(2, "Milk run MWM", "em_execucao", deadline="2026-08-01",
+          dias_para_deadline=-30, atrasado=True, percentual=70),
+    _proj(3, "Dedicado FORVIA", "implantacao", parado=True, parado_dias=45,
+          ultimo_andamento="2026-07-16T10:00:00", percentual=10),
+    _proj(4, "Transferência WEG", "entregue", entrega="2026-08-20",
+          deadline="2026-08-31", dias_para_deadline=None, atrasado=False,
+          dias_de_atraso=-11, no_prazo=True, duracao_dias=76, percentual=100),
+]
+
+PROJ_FICHA = {**PROJS[0], "oportunidade_titulo": "Contrato 2027",
+              "lanes_detalhe": [LANE_RUIM],
+              "resumo_lanes": {"lanes": 1, "receita_mes": 428750.0,
+                               "km_mes": 35700.0, "margem_mes": 64020.0,
+                               "margem_pct": 0.149, "rkm_medio": 12.0,
+                               "lanes_sem_preco": 0, "lanes_abaixo_piso": 0,
+                               "lanes_sem_piso": 0},
+              "referencia_ckm": {"disponivel": True, "ckm_marginal": 13.28,
+                                 "ckm_cheio": 24.93, "ckm_bruto": 10.22,
+                                 "fonte": "Make vs Buy"},
+              "historico": [
+                  {"id": 3, "ts": "2026-08-29T10:00:00", "usuario": "ana",
+                   "texto": "Doca confirmada pelo cliente.",
+                   "status_de": None, "status_para": None, "percentual": 40,
+                   "versao": None},
+                  {"id": 1, "ts": "2026-05-01T09:00:00", "usuario": "ana",
+                   "texto": "Projeto criado.", "status_de": None,
+                   "status_para": "nao_iniciado", "percentual": 0,
+                   "versao": 1}],
+              "realizado": {"disponivel": True, "motivo": "",
+                            "prometido": 428750.0, "atribuivel": True,
+                            "projetos_na_conta": 1, "meses": [],
+                            "media_antes": 1832952.31,
+                            "media_depois": 2105887.37,
+                            "variacao": 272935.06, "atingimento": 0.6365,
+                            "desde": "2026-06", "meses_antes": 22,
+                            "meses_depois": 2}}
+
+
 # A base do Avacorp — a tela ANTIGA, que continua na sub-aba dela.
 BASE_AVA = {
     "kpis": {"leads": 2, "potencial_total": 3600000.0, "leads_quentes": 1,
@@ -316,6 +397,12 @@ def _rota(posts=None):
                      "serie_mensal": [], "rotas_erp": []}
         elif "/crm/contas" in u:
             corpo = {"contas": CONTAS, "total": len(CONTAS)}
+        elif "/crm/projetos/" in u:
+            corpo = PROJ_FICHA
+        elif "/crm/projetos" in u:
+            corpo = {"projetos": PROJS, "total": len(PROJS)}
+        elif "/crm/oportunidades/" in u and u.endswith("/projeto"):
+            corpo = {**PROJ_FICHA, "lanes_copiadas": 1}
         elif "/crm/oportunidades/" in u:
             corpo = OPO_FICHA
         elif "/crm/oportunidades" in u:
@@ -635,3 +722,71 @@ def test_toda_tabela_do_crm_rola_dentro_do_card(pagina):
         "ts => ts.filter(t => !t.closest('.tabroll') && !t.closest('.modal'))"
         "     .map(t => t.parentElement.className || t.parentElement.id)")
     assert soltas == [], f"tabelas sem .tabroll: {soltas}"
+
+
+# ------------------------------------------------------------------ projetos
+
+def test_aba_projetos_separa_o_combinado_do_acontecido(pagina):
+    """Projeto entregue mostra SE cumpriu; projeto aberto mostra quanto falta.
+
+    Guardar só a entrega faz projeto atrasado três meses parecer entregue em
+    dia — a coluna de prazo é o lugar onde essa diferença aparece.
+    """
+    pg, base_url = pagina
+    _abrir(pg, base_url)
+    pg.click("#tabcrm-proj")
+    pg.wait_for_selector("#crm-projetos2 table tbody tr", timeout=5000)
+    # o chip padrão é "Abertos"; o projeto ENTREGUE só aparece em "Todos"
+    pg.click('#crm-proj-chips2 .chip[data-f=""]')
+    pg.wait_for_timeout(200)
+
+    def linha(nome):
+        for tr in pg.query_selector_all("#crm-projetos2 table tbody tr"):
+            t = tr.inner_text()
+            if nome in t:
+                return t
+        raise AssertionError(f"linha de {nome!r} não encontrada")
+
+    assert "30d estourado" in linha("Milk run MWM")
+    assert "no prazo" in linha("Transferência WEG")
+    assert "em 30d" in linha("Implantação eixo sul")
+
+
+def test_projeto_parado_e_marcado_mesmo_com_status_andando(pagina):
+    """"Em implantação" há 45 dias sem ninguém escrever nada não está em
+    implantação — quem desmente o status é o último andamento."""
+    pg, base_url = pagina
+    _abrir(pg, base_url)
+    pg.click("#tabcrm-proj")
+    pg.wait_for_selector("#crm-projetos2 table tbody tr", timeout=5000)
+    linhas = pg.query_selector_all("#crm-projetos2 table tbody tr")
+    alvo = [l for l in linhas if "Dedicado FORVIA" in l.inner_text()][0]
+    assert "parado 45d" in alvo.inner_text()
+
+
+def test_ficha_do_projeto_mostra_VARIACAO_e_nao_receita_do_cliente(pagina):
+    """A conta que dividia a receita do cliente pelo prometido dava 480% com
+    dado real. O que se mostra é a variação, e o rótulo diz isso."""
+    pg, base_url = pagina
+    _abrir(pg, base_url)
+    pg.click("#tabcrm-proj")
+    pg.wait_for_selector("#crm-projetos2 table tbody tr", timeout=5000)
+    pg.click("#crm-projetos2 table tbody tr")
+    pg.wait_for_selector("#modalBg.aberto .crm-ficha", timeout=5000)
+    txt = pg.inner_text("#modalBg .crm-ficha")
+    assert "Variação no cliente" in txt
+    assert "64% do prometido" in txt
+    # e as duas metades das datas aparecem lado a lado
+    assert "Início previsto" in txt and "Início real" in txt
+
+
+def test_oportunidade_ganha_oferece_abrir_projeto(pagina):
+    """O caminho normal de criação — e ele só existe na venda GANHA."""
+    pg, base_url = pagina
+    _abrir(pg, base_url)
+    pg.click("#tabcrm-pipe")
+    pg.wait_for_selector("#crm-kanban .kcard", timeout=5000)
+    pg.click('#crm-kanban .kcol[data-est="proposta"] .kcard')
+    pg.wait_for_selector("#modalBg.aberto", timeout=5000)
+    # a oportunidade do dublê está em PROPOSTA: o botão não pode aparecer
+    assert "Abrir projeto" not in pg.inner_text("#modalBg .m-foot")

@@ -103,7 +103,7 @@ def crm_catalogo() -> JSONResponse:
     o catálogo em cada um seria quatro idas para desenhar `<select>`.
     """
     try:
-        from . import atividades, contas, contratos, oportunidades
+        from . import atividades, contas, contratos, oportunidades, projetos
         from .comum import usuarios_ativos
         from . import ava, mensagens
         try:
@@ -118,6 +118,7 @@ def crm_catalogo() -> JSONResponse:
             **contas.catalogo(), **oportunidades.catalogo(),
             "atividades": atividades.catalogo(),
             "contratos": contratos.catalogo(),
+            "projetos": projetos.catalogo(),
             "usuarios": usuarios_ativos(),
             "agrupamentos": grupos,
             "erp_indisponivel": erp,
@@ -647,3 +648,118 @@ async def crm_email(contato_id: int, req: Request) -> JSONResponse:
             "mensagem": envio.get("erro") or "O envio não foi aceito.",
             "envio": envio})
     return JSONResponse(r)
+
+
+# ==================================================================== projetos
+
+@router.get("/projetos")
+def crm_projetos(conta_id: int = 0, status: str = "", responsavel_id: int = 0,
+                 busca: str = "", fechados: int = 0) -> JSONResponse:
+    try:
+        from . import projetos
+        lista = projetos.listar(conta_id=conta_id or None, status=status,
+                                responsavel_id=responsavel_id or None,
+                                busca=busca, incluir_fechados=bool(fechados))
+        return JSONResponse({"projetos": lista, "total": len(lista)})
+    except Exception as exc:  # noqa: BLE001
+        return _erro("crm_projetos", exc, "Erro ao listar os projetos.")
+
+
+@router.get("/projetos/{projeto_id}")
+def crm_projeto(projeto_id: int) -> JSONResponse:
+    try:
+        from . import projetos
+        p = projetos.obter(projeto_id)
+        if not p:
+            return JSONResponse(status_code=404, content={
+                "erro": "nao_encontrado",
+                "mensagem": "Este projeto não existe mais."})
+        return JSONResponse(p)
+    except Exception as exc:  # noqa: BLE001
+        return _erro("crm_projeto", exc, "Erro ao ler o projeto.")
+
+
+@router.post("/projetos")
+async def crm_projeto_salvar(req: Request) -> JSONResponse:
+    try:
+        body = await _corpo(req)
+        autor, _ = _quem(req)
+        ident = body.get("id")
+        ident = int(ident) if isinstance(ident, int) else None
+        from . import projetos
+        d = await _fazer(projetos.gravar, body, usuario=autor,
+                         projeto_id=ident)
+    except Exception as exc:  # noqa: BLE001
+        return _erro("crm_projeto_salvar", exc,
+                     "Não foi possível gravar o projeto.")
+    auth.audit(autor or "?", "crm_projeto", alvo=d["codigo"],
+               detalhe=(f"{'editado' if ident else 'criado'} · "
+                        f"{d['status']} · {d['nome']}"))
+    return JSONResponse(d)
+
+
+@router.post("/oportunidades/{oportunidade_id}/projeto")
+async def crm_projeto_da_oportunidade(oportunidade_id: int,
+                                      req: Request) -> JSONResponse:
+    """Abre o projeto a partir da venda ganha, copiando as lanes.
+
+    É o caminho normal de criação: o projeto herda conta, título, responsável e
+    o escopo prometido. Criar solto continua possível pelo `POST /projetos`,
+    para o projeto que não nasceu de oportunidade nenhuma.
+    """
+    try:
+        body = await _corpo(req)
+        autor, _ = _quem(req)
+        from . import projetos
+        d = await _fazer(projetos.de_oportunidade, oportunidade_id, body,
+                         usuario=autor)
+    except Exception as exc:  # noqa: BLE001
+        return _erro("crm_projeto_da_oportunidade", exc,
+                     "Não foi possível abrir o projeto.")
+    auth.audit(autor or "?", "crm_projeto", alvo=d["codigo"],
+               detalhe=(f"aberto da oportunidade #{oportunidade_id} · "
+                        f"{d.get('lanes_copiadas', 0)} lane(s) copiada(s)"))
+    return JSONResponse(d)
+
+
+@router.post("/projetos/{projeto_id}/andamento")
+async def crm_projeto_andamento(projeto_id: int, req: Request) -> JSONResponse:
+    """O caminho curto do acompanhamento — escrever o que andou.
+
+    Rota própria pela mesma razão do andamento de ação na Gestão: é a operação
+    FREQUENTE, e obrigar o formulário completo para dizer "o cliente confirmou
+    a doca" é o que faz o histórico ficar vazio.
+    """
+    try:
+        body = await _corpo(req)
+        autor, _ = _quem(req)
+        from . import projetos
+        d = await _fazer(projetos.registrar_andamento, projeto_id,
+                         texto_=body.get("texto", ""),
+                         status=body.get("status", ""),
+                         percentual=body.get("percentual"), usuario=autor)
+    except Exception as exc:  # noqa: BLE001
+        return _erro("crm_projeto_andamento", exc,
+                     "Não foi possível registrar o andamento.")
+    auth.audit(autor or "?", "crm_projeto_andamento", alvo=d["codigo"],
+               detalhe=f"{d['status']} · {d['percentual']}%")
+    return JSONResponse(d)
+
+
+@router.post("/projetos/{projeto_id}/excluir")
+async def crm_projeto_excluir(projeto_id: int, req: Request) -> JSONResponse:
+    try:
+        autor, _ = _quem(req)
+        from . import projetos
+        p = await _fazer(projetos.obter, projeto_id, com_erp=False)
+        if not p:
+            return JSONResponse(status_code=404, content={
+                "erro": "nao_encontrado",
+                "mensagem": "Este projeto não existe mais."})
+        await _fazer(projetos.excluir, projeto_id)
+    except Exception as exc:  # noqa: BLE001
+        return _erro("crm_projeto_excluir", exc,
+                     "Não foi possível excluir o projeto.")
+    auth.audit(autor or "?", "crm_projeto_excluir", alvo=p["codigo"],
+               detalhe=p["nome"])
+    return JSONResponse({"ok": True})
