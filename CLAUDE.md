@@ -1966,6 +1966,26 @@ só no ERP ...... 177 placas      união ....... 275
   maiúscula, espaço simples) porque matrícula e documento não conversam —
   120 dos 134 casam.
 
+**Conferência de CSS: leia o CSSOM, não o texto (30/08/2026):**
+- Escrevi três versões de um guard contra "fundo claro sem versão escura", e as
+  duas primeiras devolviam **ZERO com o defeito reposto de propósito**. Nenhuma
+  dava erro. Só a sabotagem separou a que funciona.
+- O que derrubou cada uma: (1) parser por regex sobre o `<style>` — falhava até
+  num CSS sintético de cinco linhas, foi descartado em vez de dar falso verde;
+  (2) `CSSRuleList` **não é iterável com `for...of`** no Chrome, e o `try/catch`
+  de fora engolia — hoje é `Array.from` e um contador `lidas` faz a sonda gritar
+  "não li regra nenhuma" em vez de reportar zero; (3) **`CSSStyleRule` também
+  tem `cssRules`** desde o CSS aninhado — vazio, mas TRUTHY, então
+  `if(r.cssRules) continue` pulava as 1.003 regras do arquivo.
+- E o CSSOM **normaliza**: `background:#fff` volta como `rgb(255, 255, 255)`.
+  Procurar hexadecimal na saída do navegador não acha nada.
+- O efeito colateral é conveniente: regra com `var(--…)` deixa o longhand
+  `backgroundColor` VAZIO, então quem usa token some da varredura sozinho —
+  que é exatamente o certo.
+- Vale para qualquer conferência de estilo: quem já separou `@media`, resolveu
+  `@import` e sabe o que é seletor é o motor que renderiza. Reimplementar isso
+  com regex é reimplementar um parser de CSS por engano.
+
 **"Modo caminhão" não é perfil de caminhão (TomTom, 30/08/2026):**
 - O ETA mandava só `travelMode=truck`. Medido nos quatro trechos reais da
   operação, o perfil COMPLETO (40 t, 6 eixos, 18,6 m, 4,40 m) dá **5 a 28

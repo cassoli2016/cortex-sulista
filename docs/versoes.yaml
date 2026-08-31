@@ -1,3 +1,11 @@
+- versao: "0.168.3"
+  data: "2026-08-30"
+  adicionado:
+    - >-
+      Uma conferência automática impede que volte o defeito de superfície branca
+      no modo escuro: ela lê as regras de estilo pelo próprio motor do navegador
+      e acusa qualquer fundo claro escrito à mão que não tenha versão escura.
+
 - versao: "0.168.2"
   data: "2026-08-30"
   corrigido:

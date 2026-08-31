@@ -4,6 +4,11 @@ Gerado de `docs/versoes.yaml` por `scripts/gerar_changelog.py` — não editar �
 Formato [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/),
 versionamento [SemVer](https://semver.org/lang/pt-BR/).
 
+## [0.168.3] — 30/08/2026  ·  CX-30/08/2026-v0.168.3
+
+### Adicionado
+- Uma conferência automática impede que volte o defeito de superfície branca no modo escuro: ela lê as regras de estilo pelo próprio motor do navegador e acusa qualquer fundo claro escrito à mão que não tenha versão escura.
+
 ## [0.168.2] — 30/08/2026  ·  CX-30/08/2026-v0.168.2
 
 ### Corrigido
