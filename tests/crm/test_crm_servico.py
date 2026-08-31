@@ -616,3 +616,35 @@ def test_editar_a_propria_conta_nao_acusa_duplicata_dela_mesma(esq):
                        "cnpj": "84.683.374/0001-49"}, usuario="teste@x",
                       conta_id=c["id"], esquema=esq)
     assert d["nome"] == "TUPY FUNDIÇÕES S.A."
+
+
+# ================================================= alerta de conta sem contato
+
+def test_conta_recem_criada_NAO_entra_em_sem_contato(esq):
+    """Ela não existe há 45 dias — a ausência mede a idade do CADASTRO.
+
+    Sem esta guarda, a semeadura inicial acendeu o alerta para 29 de 29 contas
+    no primeiro dia. Alarme que dispara para 100% da base ensina a ignorar o
+    alarme, e aí ele deixa de funcionar para a conta que de fato esfriou.
+    """
+    from api.crm import painel
+    _conta(esq, nome="RECÉM-CADASTRADA")
+    achadas = painel._contas_sem_contato(contas.listar(esquema=esq), esq)
+    assert achadas == []
+
+
+def test_conta_ANTIGA_sem_contato_continua_acendendo(esq):
+    """A guarda não pode desligar o alerta — só adiá-lo até a conta ter idade.
+
+    Sem este par, "não acende no primeiro dia" seria indistinguível de "nunca
+    acende", que é o jeito de a regra ser desfeita sem ninguém notar.
+    """
+    from api import pglocal
+    from api.crm import painel
+    c = _conta(esq, nome="ESQUECIDA")
+    antiga = (date.today() - timedelta(days=200)).isoformat() + "T09:00:00"
+    pglocal.executar("UPDATE crm_contas SET criado_em=%s WHERE id=%s",
+                     (antiga, c["id"]), esquema=esq)
+    achadas = painel._contas_sem_contato(contas.listar(esquema=esq), esq)
+    assert [a["nome"] for a in achadas] == ["ESQUECIDA"]
+    assert achadas[0]["dias"] is None      # nunca contatada, não "há N dias"

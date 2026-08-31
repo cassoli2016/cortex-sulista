@@ -4,6 +4,15 @@ Gerado de `docs/versoes.yaml` por `scripts/gerar_changelog.py` — não editar �
 Formato [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/),
 versionamento [SemVer](https://semver.org/lang/pt-BR/).
 
+## [0.174.0] — 30/08/2026  ·  CX-30/08/2026-v0.174.0
+
+### Adicionado
+- O CRM abre com a carteira real dentro: 29 contas, uma por grupo econômico do ERP, com R$ 123,7 milhões faturados em 12 meses. A concentração aparece de imediato — os cinco maiores clientes são 64,6% da receita — e a carteira parada abre com a VOLVO, 123 dias sem viagem carregando R$ 10,3 milhões no período.
+- Segmento e responsável entraram em branco de propósito: o ERP não os tem por grupo econômico, e preencher só os poucos que dava faria a coluna parecer preenchida. "A definir" no responsável vira fila de trabalho visível no filtro da tela.
+
+### Corrigido
+- O aviso de "cliente sem contato há mais de 45 dias" acendia para TODAS as contas no primeiro dia, porque nenhuma delas existia há 45 dias — media a idade do cadastro, não a do relacionamento. Conta recém-criada sem nenhuma interação não entra mais no aviso; a que já tem idade continua entrando.
+
 ## [0.173.0] — 30/08/2026  ·  CX-30/08/2026-v0.173.0
 
 ### Corrigido

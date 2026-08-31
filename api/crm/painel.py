@@ -474,6 +474,15 @@ def _contas_sem_contato(contas: list[dict], esq: str | None) -> list[dict]:
         u = ultima.get(c["id"])
         if u and u[:10] > limite:
             continue
+        # CONTA MAIS NOVA QUE O CORTE NÃO ESTÁ "SEM CONTATO HÁ 45 DIAS" — ela
+        # não existe há 45 dias. A ausência aí mede a idade do CADASTRO, não a
+        # do relacionamento, e sem esta guarda a semeadura inicial acendeu o
+        # alerta para 29 de 29 contas no primeiro dia. Alarme que dispara para
+        # 100% da base ensina a ignorar o alarme — é a mesma família do cartão
+        # vermelho da Saúde por recusa normal do fornecedor, e do reajuste
+        # cobrado de um contrato de dois meses.
+        if not u and (c.get("criado_em") or "")[:10] > limite:
+            continue
         saida.append({"id": c["id"], "nome": c["nome"],
                       "situacao": c["situacao"],
                       "dono_nome": c.get("dono_nome"),
