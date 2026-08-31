@@ -19689,20 +19689,22 @@ function renderPedagio(d){
      do ERP está parada em 01/08/2025 — dizer isso é o que impede alguém de
      comparar cobrança de 2026 com tarifa de 2024 e chamar de divergência. */
   if(av){
-    const aberto = (d.qualp||{}).regime !== 'assinante';
+    /* O TETO E DO ENDPOINT, NAO DA CONTA — medido em 30/08/2026: com usuario
+       e senha configurados o login funciona e a QUARTA consulta do dia
+       continua recusada. Dizer "configure a conta e o teto some" mandaria
+       alguem procurar solucao onde nao ha. */
+    const logado = (d.qualp||{}).regime === 'logado';
     av.style.display = 'flex';
     /* `sevInfo` NAO EXISTE no catalogo de icones (so sevOk, sevWarn e
-   sevCrit) e sairia como a palavra "undefined" dentro do aviso — o
-   mesmo erro ja cometido na tela de folha. O aviso aqui e informativo,
-   entao `sevOk`. */
+       sevCrit) e sairia como a palavra "undefined" dentro do aviso — o mesmo
+       erro ja cometido na tela de folha. O aviso aqui e informativo. */
     av.innerHTML = '<i>'+ICONS['sevOk']+'</i><span>'
       + esc('A conferência de TARIFA por praça ainda não está ligada: a tabela '
             + 'de preço do ERP tem 921 praças ativas e só 64 com valor de 2025 '
-            + 'em diante. '
-            + (aberto
-               ? 'O QualP está no modo aberto (três consultas por dia) — com a '
-                 + 'conta em Gestão › Integrações o teto deixa de valer.'
-               : 'O QualP está com conta configurada.'))
+            + 'em diante, e o QualP responde três consultas por dia'
+            + (logado ? ' mesmo com a conta configurada — o teto é do endpoint '
+                        + 'do site, e quem o levanta é chave da API comercial.'
+                      : ', por IP.'))
       + '</span>';
   }
 

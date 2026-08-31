@@ -1,3 +1,14 @@
+- versao: "0.173.0"
+  data: "2026-08-30"
+  corrigido:
+    - >-
+      O painel dizia que configurar a conta do QualP levantaria o limite de três
+      consultas por dia. Testado com a conta real: o login funciona e a quarta
+      consulta continua sendo recusada — o limite é do endpoint do site, não da
+      conta. Quem o levanta é uma chave da API comercial do QualP, que é um
+      produto separado. O cartão de integração e o aviso da tela de pedágio
+      passaram a dizer isso, em vez de mandar procurar solução onde não há.
+
 - versao: "0.172.1"
   data: "2026-08-30"
   corrigido:

@@ -292,9 +292,16 @@ SERVICOS: list[dict] = [
                            "funciona, com teto de três por dia",
                    "campos": ["QUALP_USUARIO", "QUALP_SENHA"]}],
         "ajustes": [],
-        "regime": lambda: ("com a conta: sem o teto de três consultas por dia"
+        # MEDIDO: a conta do site NÃO levanta o teto. O login funciona e a
+        # quarta consulta do dia continua recusada — quem levanta é chave da
+        # API comercial (api.qualp.com.br), produto separado. Dizer o
+        # contrário no cartão convidaria a planejar em cima de um limite que
+        # não existe.
+        "regime": lambda: ("conta configurada — mas o teto de três consultas "
+                           "por dia CONTINUA: ele é do endpoint do site, não "
+                           "da conta"
                            if (ler("QUALP_USUARIO") and ler("QUALP_SENHA"))
-                           else "modo aberto: três consultas por dia, por IP"),
+                           else "sem conta: três consultas por dia, por IP"),
     },
     {
         "chave": "gobrax",

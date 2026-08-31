@@ -22,17 +22,29 @@ Isso foi lido no bundle do próprio site (`searchRouter` → `makeRequestParams`
 não adivinhado. Quando a dúvida for de FORMATO, o cliente que sabe chamar está
 publicado — e ler leva menos tempo que a terceira tentativa.
 
-O TETO, QUE DECIDE O DESENHO
-============================
-O endpoint aberto responde **três consultas por dia, por IP** — a quarta volta
-`HTTP 402` com a mensagem em português. Por isso este módulo NÃO é chamado por
-viagem: ele alimenta um CACHE de praça, e quem valida trabalha sobre o cache.
-Uma tela que consultasse a rota de cada vale morreria no quarto registro do dia.
+O TETO, QUE DECIDE O DESENHO — E A CONTA DO SITE NÃO O LEVANTA
+==============================================================
+O endpoint responde **três consultas por dia, por IP** — a quarta volta
+`HTTP 402` com a mensagem em português.
 
-Com conta de assinante o teto muda, e é só a autenticação que muda: o formato
-da consulta é o mesmo. Por isso a credencial é OPCIONAL e o resto do módulo não
-sabe se ela existe — sem ela o `login_cod` vai vazio e a chamada anônima
-continua respondendo, dentro do teto.
+**Eu supus que a conta resolveria, e medi o contrário.** Com usuário e senha
+configurados, `POST /api/site/login/authenticate` devolve `login_cod` e
+`login_token` normalmente — o login FUNCIONA —, e a quarta consulta continua
+sendo recusada com o mesmo 402. Duas coisas explicam:
+
+- `makeRequestParams`, no cliente deles, manda **`login_cod:""` FIXO**: nem o
+  site logado põe a sessão no corpo do router. Ela viaja pela instância de
+  HTTP deles (cabeçalho ou cookie), não pelo `json`.
+- E a mensagem diz "consultas **gratuitas**", o que aponta para plano pago. O
+  QualP tem uma **API comercial separada** (`api.qualp.com.br`, com chave),
+  que é outro produto da conta do site.
+
+Então o teto é do endpoint do SITE e a conta não muda isso. O módulo mantém o
+login porque ele é barato, memoizado e pode passar a valer; mas **quem projeta
+em cima disto precisa contar com três consultas por dia** até haver chave da
+API comercial. Por isso este módulo NÃO é chamado por viagem: ele alimenta um
+CACHE de praça, e quem valida trabalha sobre o cache. Uma tela que consultasse
+a rota de cada vale morreria no quarto registro do dia.
 
 O QUE A RESPOSTA TRAZ, ALÉM DO PEDÁGIO
 ======================================
@@ -146,14 +158,18 @@ def autenticar(forcar: bool = False) -> dict:
 
 
 def regime() -> str:
-    """`assinante` ou `aberto` — o que a Saúde mostra.
+    """`logado` ou `anonimo` — e nenhum dos dois muda o TETO.
 
-    O endpoint aberto funciona sem credencial, então "configurado" não
-    distingue nada. O que decide o que dá para fazer é o TETO, e é ele que se
-    diz: sem conta são três consultas por dia, por IP.
+    Chamava-se `assinante` e devolvia a promessa errada: medido em 30/08/2026,
+    a conta do site autentica e a quarta consulta do dia continua recusada. O
+    que levantaria o teto é chave da API comercial (`api.qualp.com.br`), que é
+    outro produto.
+
+    O nome importa porque ele vai para o cartão de integração: "assinante"
+    convidava a planejar em cima de um limite que não existe.
     """
     u, s = credencial()
-    return "assinante" if (u and s) else "aberto"
+    return "logado" if (u and s) else "anonimo"
 
 
 def _get(caminho: str, params: dict) -> dict:
@@ -172,8 +188,10 @@ def _get(caminho: str, params: dict) -> dict:
         if exc.code == 402:
             raise QualpSemCota(
                 "O QualP recusou: as tres consultas gratuitas do dia acabaram. "
-                "Com a conta de assinante o limite muda - configure usuario e "
-                "senha em Gestao > Integracoes.") from None
+                "MEDIDO em 30/08/2026: a conta do site NAO levanta este teto - "
+                "o login funciona e a quarta consulta continua sendo recusada. "
+                "O que levanta e uma chave da API comercial (api.qualp.com.br), "
+                "que e produto separado da conta do site.") from None
         raise QualpIndisponivel(
             "O QualP respondeu HTTP %s. %s" % (exc.code, _resumo(corpo))) from None
     except Exception as exc:  # noqa: BLE001

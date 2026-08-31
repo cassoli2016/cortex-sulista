@@ -4,6 +4,11 @@ Gerado de `docs/versoes.yaml` por `scripts/gerar_changelog.py` — não editar �
 Formato [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/),
 versionamento [SemVer](https://semver.org/lang/pt-BR/).
 
+## [0.173.0] — 30/08/2026  ·  CX-30/08/2026-v0.173.0
+
+### Corrigido
+- O painel dizia que configurar a conta do QualP levantaria o limite de três consultas por dia. Testado com a conta real: o login funciona e a quarta consulta continua sendo recusada — o limite é do endpoint do site, não da conta. Quem o levanta é uma chave da API comercial do QualP, que é um produto separado. O cartão de integração e o aviso da tela de pedágio passaram a dizer isso, em vez de mandar procurar solução onde não há.
+
 ## [0.172.1] — 30/08/2026  ·  CX-30/08/2026-v0.172.1
 
 ### Corrigido
