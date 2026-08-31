@@ -168,8 +168,8 @@ CAMPOS: dict[str, dict] = {
     "SMARTEC_TOKEN": {
         "rotulo": "Token de API",
         "descricao": "Vai no CORPO de cada requisição, não em cabeçalho. "
-                     "Use um token próprio do CÓRTEX — reusar o do ERP "
-                     "amarra as duas coisas: revogar um derruba o outro"},
+                     "Pode ser o mesmo token que o ERP usa para importar "
+                     "infração — se for, revogá-lo derruba as duas coisas"},
     "RASTERJOR_API_BASE_URL": {
         "rotulo": "URL base da API", "segredo": False,
         "descricao": "Endereço da API da RasterJOR, sem barra no fim",

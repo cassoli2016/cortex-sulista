@@ -210,12 +210,19 @@ CATALOGO: dict[str, dict] = {
 
 
 def _token() -> str:
-    """O token do CÓRTEX. Sem valor padrão e sem cair no token do ERP.
+    """O token da Smartec, lido do cofre. Sem valor padrão.
 
-    Reusar a credencial do ERP funcionaria — ela é válida —, mas amarraria as
-    duas coisas: expirar o token para revogar o acesso do CÓRTEX derrubaria a
-    importação de infrações do AVA, que é a fonte da tela de Multas. São dois
-    consumidores, são dois tokens.
+    HOJE ELE É O MESMO DO ERP, e isso é decisão declarada do usuário
+    (31/08/2026), não descuido. Vale saber a consequência, que é operacional e
+    não técnica: **a credencial é um ponto único**. Se este token for revogado
+    ou expirar, cai junto a importação de infrações do AVA
+    (`integracao.cadastrointegracao` id=3), que é a fonte da tela de Multas —
+    e o sintoma lá vai ser "parou de chegar multa", não "token inválido".
+
+    Trocar por um token próprio depois é só colar outro valor no cofre; não há
+    nada em código amarrado a isso. O módulo nunca LÊ o token do ERP: quem o
+    fornece é `data/credenciais.json`, e o fato de os dois valores coincidirem
+    hoje é configuração, não acoplamento.
     """
     tok = (credenciais.ler("SMARTEC_TOKEN") or "").strip()
     if not tok:

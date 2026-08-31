@@ -4,6 +4,11 @@ Gerado de `docs/versoes.yaml` por `scripts/gerar_changelog.py` — não editar �
 Formato [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/),
 versionamento [SemVer](https://semver.org/lang/pt-BR/).
 
+## [0.183.1] — 31/08/2026  ·  CX-31/08/2026-v0.183.1
+
+### Corrigido
+- A tela de Credenciais mandava usar um token próprio da Smartec, separado do que o ERP já usa. A operação decidiu manter um token só, e o texto passou a dizer o que de fato vale: pode ser o mesmo do ERP, e se for, revogá-lo derruba as duas coisas — inclusive a importação de infrações que alimenta a tela de Multas, onde o sintoma seria "parou de chegar multa" e não "token inválido".
+
 ## [0.183.0] — 31/08/2026  ·  CX-31/08/2026-v0.183.0
 
 ### Adicionado

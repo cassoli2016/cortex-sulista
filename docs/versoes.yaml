@@ -1,3 +1,13 @@
+- versao: "0.183.1"
+  data: "2026-08-31"
+  corrigido:
+    - >-
+      A tela de Credenciais mandava usar um token próprio da Smartec, separado
+      do que o ERP já usa. A operação decidiu manter um token só, e o texto
+      passou a dizer o que de fato vale: pode ser o mesmo do ERP, e se for,
+      revogá-lo derruba as duas coisas — inclusive a importação de infrações
+      que alimenta a tela de Multas, onde o sintoma seria "parou de chegar
+      multa" e não "token inválido".
 - versao: "0.183.0"
   data: "2026-08-31"
   adicionado:
