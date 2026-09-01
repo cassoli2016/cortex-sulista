@@ -58,7 +58,7 @@ ESPERADOS = {0, 9, 16, 18, 25}
 # distancia, em tela cheia, sem ponteiro. Os degraus dele (24, 26, 29, 40)
 # saem do `tv-grid`, e compara-los com a escala de uma tela de trabalho a
 # 60 cm nao diz nada sobre nenhuma das duas.
-E_TV = ("tvope", "tvfat")
+E_TV = ("tvope", "tvfat", "tvdir")
 
 JS_VAOS = """(vid) => {
   const v = document.getElementById(vid); if(!v) return [];

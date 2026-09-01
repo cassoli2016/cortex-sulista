@@ -1228,6 +1228,20 @@ body.tvfull .tv-head .tv-logo{display:block}
 .tv-dia .cols i{flex:1;border-radius:6px 6px 0 0;min-height:2px}
 .tv-dia .cols .r{background:#4ADE80}.tv-dia .cols .r.abaixo{background:#F87171}.tv-dia .cols .m{background:#3D5A77}
 .tv-dia b{font-size:16px;color:#8FA6BC;font-weight:600}
+/* PAINEL DA DIRETORIA (tvdir): série mensal em colunas únicas. Reusa a
+   anatomia do .tv-dias; a coluna única dispensa o par meta×realizado, e o
+   VALOR vai em cima de cada coluna — TV não tem tooltip, o número tem de
+   estar no pixel. O mês parcial usa a mesma convenção do dia futuro: nunca
+   barra cheia. Negativo (fluxo projetado) desce do eixo e fica vermelho. */
+.tvd-serie{display:flex;gap:14px;align-items:flex-end;height:260px;padding-top:8px}
+.tvd-col{flex:1;display:flex;flex-direction:column;align-items:center;gap:6px;height:100%;justify-content:flex-end}
+.tvd-col i{display:block;width:100%;border-radius:6px 6px 0 0;min-height:2px;background:#3D5A77}
+.tvd-col.pos i{background:#4ADE80}
+.tvd-col.neg i{background:#F87171;border-radius:0 0 6px 6px}
+.tvd-col.parcial i{background:repeating-linear-gradient(135deg,#3D5A77 0 6px,#132A40 6px 10px)}
+.tvd-col b{font-size:15px;color:#8FA6BC;font-weight:600;white-space:nowrap}
+.tvd-col .v{font-size:14px;color:#E5EDF4;font-weight:700;font-variant-numeric:tabular-nums;white-space:nowrap}
+.tvd-col.neg .v{color:#F87171}
 .tv-tab{width:100%;border-collapse:collapse;font-size:21px;color:#E5EDF4}
 .tv-tab th{font-size:15px;text-transform:uppercase;color:#8FA6BC;text-align:left;padding:8px 12px;letter-spacing:.06em}
 .tv-tab td{padding:11px 12px;border-top:1px solid #1E3A54}
@@ -1615,7 +1629,7 @@ button.avatar{border:0;cursor:pointer}
   display:flex;flex-direction:column;gap:18px}
 /* a banda de indicadores separa dois assuntos: precisa de mais ar que a
    distancia padrao entre cartoes */
-#view-ctecp .kband{margin-top:4px;gap:11px}
+#view-ctecp .kband{gap:9px}
 /* e o grid2 dentro do painel nao pode herdar o gap da coluna como se fosse
    distancia entre cartoes lado a lado */
 #view-ctecp .grid2{gap:20px}
@@ -2244,6 +2258,7 @@ body.tvfull #btnReport,body.tvmode #btnReport{display:none}
           <span class="ic" data-ic="tv"></span><span>Painéis TV</span><span class="ic chev" data-ic="chev"></span>
         </button>
         <div class="subs2 closed" id="subsTv">
+          <a href="#tvdir" class="sub sub2" data-view="tvdir" title="Painel da Diretoria para TV"><span class="ic" data-ic="tvdiric"></span><span>Diretoria</span></a>
           <a href="#tvfat" class="sub sub2" data-view="tvfat" title="Painel de Faturamento para TV"><span class="ic" data-ic="tvfatic"></span><span>Faturamento</span></a>
           <a href="#tvope" class="sub sub2" data-view="tvope" title="Painel de Operação para TV"><span class="ic" data-ic="tv"></span><span>Operação</span></a>
         </div>
@@ -3386,6 +3401,25 @@ body.tvfull #btnReport,body.tvmode #btnReport{display:none}
           </div>
         </div>
         <div class="tv-ticker"><div class="tv-ticker-inner" id="tvope-ticker"></div></div>
+      </section>
+      <!-- PAINEL DA DIRETORIA. Mural: sem tooltip, sem clique, sem aba — cada
+           número se explica no rótulo. Lê a MESMA /api/visao-geral da home e
+           da TV de faturamento: os números da parede são exatamente os do
+           painel, sem um terceiro recorte para explicar em reunião. -->
+      <section class="view" id="view-tvdir">
+        <div class="tv-head"><div class="tv-left"><img class="tv-logo" src="/static/sulista-logo-branco.svg" alt="Sulista"><span class="tv-upd tv-next"></span></div><div class="tv-title"><h2>PAINEL DA DIRETORIA</h2><span class="tv-farol" id="tvdir-farol" style="display:none"></span></div><div class="tv-right"><span class="tv-clock"></span><a href="javascript:tvFull()" title="tela cheia" aria-label="Tela cheia">⛶</a><a href="#home" title="sair do modo TV" aria-label="Sair do modo TV">✕</a></div></div>
+        <div class="tv-grid" id="tvdir-k1"></div>
+        <div class="tv-grid" id="tvdir-k2" style="margin-top:22px"></div>
+        <div class="tv-grid" style="margin-top:22px">
+          <div class="tv-card tv-wide" style="grid-column:span 2">
+            <div class="tv-label">Receita — 12 meses <span id="tvdir-rec-sub" style="text-transform:none;letter-spacing:0;color:#8FA6BC"></span></div>
+            <div class="tvd-serie" id="tvdir-receita"></div>
+          </div>
+          <div class="tv-card tv-wide" style="grid-column:span 2">
+            <div class="tv-label">Caixa projetado por mês <span id="tvdir-flx-sub" style="text-transform:none;letter-spacing:0;color:#8FA6BC"></span></div>
+            <div class="tvd-serie" id="tvdir-fluxo"></div>
+          </div>
+        </div>
       </section>
 
       <!-- ===================== CONTABILIDADE (AJUSTES) ===================== -->
@@ -6854,6 +6888,7 @@ const ICONS = {
              + '<circle cx="19" cy="7" r="2.2"/>'
              + '<path d="M6.6 7.6 10.6 15.2M13.8 15.6 17.6 8.8" stroke-dasharray="2 2"/>'),
   antportic: IC('<path d="M4 20h16"/><rect x="3.5" y="9" width="17" height="8" rx="1.5"/><path d="M12 7V1.5M9 4l3-3 3 3"/><path d="M7.5 13h.01M11 13h3"/>'),
+  tvdiric: IC('<rect x="3" y="5" width="18" height="12" rx="2"/><path d="M9 21h6M12 17v4"/><path d="M7 14v-3M11 14V8M15 14v-4M19 14v-6"/>'),
   tvfatic: IC('<rect x="3" y="5" width="18" height="12" rx="2"/><path d="M9 21h6M12 17v4"/><path d="M6.5 13.5 10 10l2.5 2.5L17.5 8"/>'),
 };
 function injectIcons(){ document.querySelectorAll('[data-ic]').forEach(el=>{ if(!el.firstChild) el.innerHTML = ICONS[el.dataset.ic]||''; }); }
@@ -6871,7 +6906,7 @@ const FAIXAS = {
   '4_vencido_91_365':['Vencido 91–365d','b-dang'],
   '5_vencido_mais_365':['Vencido > 365d','b-dang'],
 };
-const VIEWS = { home:'Visão Geral', fluxo:'Fluxo de Caixa e Bancos', receber:'Contas a Receber', pagar:'Contas a Pagar', oc:'Ordens de Compra', custos:'Painel de Custos', agr:'Agregados e Terceiros', mvb:'Make vs Buy', pedagio:'Validação de Pedágio', comb:'Combustível', man:'Manutenção', com:'Clientes e RKM', clif:'Consulta de Cliente', crm:'CRM — Funil Comercial', km:'Análise de KM', prodveic:'Produtividade de Veículos', torre:'Torre de Controle', poli:'Permanência na Planta', ctecp:'CT-e de Contrapartida', veic:'Veículos', veicf:'Consulta de Veículo', mprev:'Manutenção Preventiva', comrast:'Comunicação Rastreadora', mul:'Multas — Smartec', prog:'Programação Inteligente', jorn:'Jornada do Motorista', jornf:'Ficha de Jornada', cex:'Custos Extras', sac:'SAC / Freetime', port:'Portaria', cop:'Copiloto Cortex', cob:'Régua de Cobrança', banc:'Bancos', extb:'Extrato Bancário', lanc:'Lançamentos Bancários', antec:'Antecipação de Recebíveis', antport:'Portais de Antecipação', milkrun:'Operação MWM', rec:'Lançamentos Recorrentes', fluxcon:'Fluxo de Caixa Consolidado', cont:'Contabilidade', qual:'Qualidade e Certidões', orc:'Orçamento', fech:'Fechamento do Mês', prem:'Premiação de Motoristas', dre:'DRE Gerencial', bal:'Balanço Patrimonial', drecli:'DRE por Cliente', tvfat:'Painel TV — Faturamento', tvope:'Painel TV — Operação', rh:'RH — Vagas', hc:'Headcount', folha:'Custo de Folha', folhaind:'Indicadores de Folha', he:'Horas Extras', cnh:'CNH dos Motoristas', ferias:'Férias — Vencimento', people:'People Analytics', pneus:'Pneus', gestao:'Gestão', gesacao:'Planos de Ação', gesata:'Atas de Reunião', srv:'Saúde do Servidor', doc:'Documentação', anpiso:'Piso Mínimo de Frete', anrntrc:'RNTRC dos Transportadores', telcon:'Consumo e Estatísticas', telcond:'Condução Econômica', telhod:'Hodômetro e Rastro' };
+const VIEWS = { home:'Visão Geral', fluxo:'Fluxo de Caixa e Bancos', receber:'Contas a Receber', pagar:'Contas a Pagar', oc:'Ordens de Compra', custos:'Painel de Custos', agr:'Agregados e Terceiros', mvb:'Make vs Buy', pedagio:'Validação de Pedágio', comb:'Combustível', man:'Manutenção', com:'Clientes e RKM', clif:'Consulta de Cliente', crm:'CRM — Funil Comercial', km:'Análise de KM', prodveic:'Produtividade de Veículos', torre:'Torre de Controle', poli:'Permanência na Planta', ctecp:'CT-e de Contrapartida', veic:'Veículos', veicf:'Consulta de Veículo', mprev:'Manutenção Preventiva', comrast:'Comunicação Rastreadora', mul:'Multas — Smartec', prog:'Programação Inteligente', jorn:'Jornada do Motorista', jornf:'Ficha de Jornada', cex:'Custos Extras', sac:'SAC / Freetime', port:'Portaria', cop:'Copiloto Cortex', cob:'Régua de Cobrança', banc:'Bancos', extb:'Extrato Bancário', lanc:'Lançamentos Bancários', antec:'Antecipação de Recebíveis', antport:'Portais de Antecipação', milkrun:'Operação MWM', rec:'Lançamentos Recorrentes', fluxcon:'Fluxo de Caixa Consolidado', cont:'Contabilidade', qual:'Qualidade e Certidões', orc:'Orçamento', fech:'Fechamento do Mês', prem:'Premiação de Motoristas', dre:'DRE Gerencial', bal:'Balanço Patrimonial', drecli:'DRE por Cliente', tvfat:'Painel TV — Faturamento', tvope:'Painel TV — Operação', tvdir:'Painel TV — Diretoria', rh:'RH — Vagas', hc:'Headcount', folha:'Custo de Folha', folhaind:'Indicadores de Folha', he:'Horas Extras', cnh:'CNH dos Motoristas', ferias:'Férias — Vencimento', people:'People Analytics', pneus:'Pneus', gestao:'Gestão', gesacao:'Planos de Ação', gesata:'Atas de Reunião', srv:'Saúde do Servidor', doc:'Documentação', anpiso:'Piso Mínimo de Frete', anrntrc:'RNTRC dos Transportadores', telcon:'Consumo e Estatísticas', telcond:'Condução Econômica', telhod:'Hodômetro e Rastro' };
 const periodoLabel = p => { if(p==='atrasado') return 'Atrasado'; const [y,m]=p.split('-'); return MES[+m-1]+'/'+y.slice(2); };
 const fmtD = s => { if(!s) return ''; const [y,m,dd]=s.split('-'); return dd+'/'+m+'/'+y; };
 /* Idade da posicao bancaria. Cada conta e lancada num dia diferente: mostrar
@@ -7141,7 +7176,7 @@ const VIEW_GROUP = {home:'',cop:'',
   torre:'Ope',milkrun:'Ope',poli:'Ope',prog:'Ope',jorn:'Ope',jornf:'Ope',cex:'Ope',sac:'Ope',port:'Ope',km:'Ope',agr:'Ope',mvb:'Ope',pedagio:'Ope',
   veic:'Fro',veicf:'Fro',mprev:'Fro',comrast:'Fro',comb:'Fro',man:'Fro',mul:'Fro',pneus:'Fro',
   oc:'Sup',custos:'Sup',
-  prodveic:'Bi',tvfat:'Bi',tvope:'Bi',
+  prodveic:'Bi',tvfat:'Bi',tvope:'Bi',tvdir:'Bi',
   rh:'Rh',hc:'Rh',folha:'Rh',folhaind:'Rh',he:'Rh',cnh:'Rh',ferias:'Rh',people:'Rh',gestao:'Adm',srv:'Adm',doc:'Adm',gesacao:'Ges',gesata:'Ges',
   // Telemetria e ANTT tinham grupo na barra lateral mas ficaram de fora deste
   // mapa: o acordeao nao abria sozinho ao navegar para elas (agora a busca
@@ -7284,7 +7319,7 @@ function qsView(k){
     if(V('fEmiDe'))p.set('dt_de',V('fEmiDe'));
     if(V('fEmiAte'))p.set('dt_ate',V('fEmiAte'));
     if(T('fMulPlaca'))p.set('placa',T('fMulPlaca'));
-  } else if(k==='tvfat' || k==='tvope'){
+  } else if(k==='tvfat' || k==='tvope' || k==='tvdir'){
   } else if(k==='cont'){
     if(V('fCompDe'))p.set('comp_de',V('fCompDe'));
     if(V('fCompAte'))p.set('comp_ate',V('fCompAte'));
@@ -7361,7 +7396,7 @@ function router(){
   document.querySelectorAll('.view').forEach(s=>s.classList.toggle('on', s.id==='view-'+v));
   window.scrollTo(0,0);
   const cont=document.getElementById('content'); if(cont) cont.scrollTop=0;
-  const ehTv = v==='tvfat' || v==='tvope';
+  const ehTv = v==='tvfat' || v==='tvope' || v==='tvdir';
   document.body.classList.toggle('tvmode', ehTv);
   document.body.classList.toggle('tvwall', v==='tvope');
   setTimeout(tvChecaFull, 50);
@@ -7372,7 +7407,7 @@ function router(){
     if(v==='tvope') tvTour=setInterval(tvTourPasso, 20000);
     TV_NEXT=Date.now()+60000;
     tvTimer=setInterval(()=>{ TV_NEXT=Date.now()+60000;
-      const cv=currentView(); if(cv==='tvfat') loadTvFat(); else if(cv==='tvope') loadTvOpe(); }, 60000);
+      const cv=currentView(); if(cv==='tvfat') loadTvFat(); else if(cv==='tvope') loadTvOpe(); else if(cv==='tvdir') loadTvDir(); }, 60000);
     tvClock=setInterval(()=>{
       document.querySelectorAll('.tv-clock').forEach(e=>{
         e.textContent=new Date().toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit',second:'2-digit'}); });
@@ -7462,8 +7497,8 @@ function router(){
   // carga da vista: dispara se não há dados OU se os filtros visíveis
   // divergem dos usados na última carga (nunca mostrar dado velho com filtro novo)
   const key=viewKey(v);
-  const DATAMAP={fin:DATA,oc:DATAOC,agr:DATAAGR,anpiso:DATAANPISO,anrntrc:DATAANRNTRC,pedagio:DATAPED,telcon:DATATELCON,telcond:DATATELCOND,telhod:DATATELHOD,mvb:DATAMVB,comb:DATACOMB,man:DATAMAN,com:DATACOM,clif:DATACLIF,dre:DATADRE,bal:DATABAL,drecli:DATADRECLI,home:DATAHOME,km:DATAKM,torre:DATATORRE,veic:DATAVEIC,veicf:DATAVEICF,mul:DATASMT,prog:DATAPROG,jorn:DATAJR,jornf:DATAJORNF,cex:DATACEX,sac:DATASAC,mprev:DATAMPREV,comrast:DATACOMRAST,qual:DATAQUAL,port:DATAPORT,crm:DATACRM,rh:DATARH,hc:DATAHC,folha:DATAFOLHA,folhaind:DATAFOLHAIND,he:DATAHE,custos:DATACUSTOS,cob:DATACOB,banc:DATABANC,extb:DATAEXTB,lanc:DATALANC,antec:DATAANTEC,antport:DATAANTPORT,milkrun:DATAMILK,fluxcon:DATAFLUXCON,rec:DATAREC,rent:DATARENT,cont:DATACONT,orc:DATAORC,fech:DATAFECH,prem:DATAPREM,gestao:DATAGES,srv:DATASRV,doc:DATADOC,tvfat:null,tvope:null,cop:(COP_MSGS.length?{}:null)};
-  const LOADMAP={fin:load,oc:loadOc,agr:loadAgr,anpiso:loadAnpiso,anrntrc:loadAnrntrc,telcon:loadTelcon,telcond:loadTelcond,telhod:loadTelhod,mvb:loadMvb,pedagio:loadPedagio,comb:loadComb,man:loadMan,com:loadCom,clif:loadClif,dre:loadDre,bal:loadBal,drecli:loadDreCli,home:loadHome,km:loadKm,prodveic:loadProdveic,torre:loadTorre,veic:loadVeic,veicf:loadVeicf,mul:loadSmt,prog:loadProg,jorn:loadJorraster,jornf:loadJornf,cex:loadCex,sac:loadSac,mprev:loadMPrev,comrast:loadComRast,qual:loadQual,port:loadPort,crm:loadCrm,rh:loadRh,hc:loadHc,folha:loadFolha,folhaind:loadFolhaInd,he:loadHe,custos:loadCustos,cob:loadCob,banc:loadBanc,extb:loadExtb,lanc:loadLanc,antec:loadAntec,antport:loadAntport,milkrun:loadMilkrun,cnh:loadCnh,ferias:loadFerias,people:loadPeople,pneus:loadPneus,poli:loadPoli,ctecp:loadCtecp,fluxcon:loadFluxcon,rec:loadRec,rent:loadRent,cont:loadCont,orc:loadOrc,fech:loadFech,prem:loadPrem,gesacao:loadGesacao,gesata:loadGesata,gestao:loadGestao,srv:loadSrv,doc:loadDoc,cop:loadCop,tvfat:loadTvFat,tvope:loadTvOpe};
+  const DATAMAP={fin:DATA,oc:DATAOC,agr:DATAAGR,anpiso:DATAANPISO,anrntrc:DATAANRNTRC,pedagio:DATAPED,telcon:DATATELCON,telcond:DATATELCOND,telhod:DATATELHOD,mvb:DATAMVB,comb:DATACOMB,man:DATAMAN,com:DATACOM,clif:DATACLIF,dre:DATADRE,bal:DATABAL,drecli:DATADRECLI,home:DATAHOME,km:DATAKM,torre:DATATORRE,veic:DATAVEIC,veicf:DATAVEICF,mul:DATASMT,prog:DATAPROG,jorn:DATAJR,jornf:DATAJORNF,cex:DATACEX,sac:DATASAC,mprev:DATAMPREV,comrast:DATACOMRAST,qual:DATAQUAL,port:DATAPORT,crm:DATACRM,rh:DATARH,hc:DATAHC,folha:DATAFOLHA,folhaind:DATAFOLHAIND,he:DATAHE,custos:DATACUSTOS,cob:DATACOB,banc:DATABANC,extb:DATAEXTB,lanc:DATALANC,antec:DATAANTEC,antport:DATAANTPORT,milkrun:DATAMILK,fluxcon:DATAFLUXCON,rec:DATAREC,rent:DATARENT,cont:DATACONT,orc:DATAORC,fech:DATAFECH,prem:DATAPREM,gestao:DATAGES,srv:DATASRV,doc:DATADOC,tvfat:null,tvope:null,tvdir:null,cop:(COP_MSGS.length?{}:null)};
+  const LOADMAP={fin:load,oc:loadOc,agr:loadAgr,anpiso:loadAnpiso,anrntrc:loadAnrntrc,telcon:loadTelcon,telcond:loadTelcond,telhod:loadTelhod,mvb:loadMvb,pedagio:loadPedagio,comb:loadComb,man:loadMan,com:loadCom,clif:loadClif,dre:loadDre,bal:loadBal,drecli:loadDreCli,home:loadHome,km:loadKm,prodveic:loadProdveic,torre:loadTorre,veic:loadVeic,veicf:loadVeicf,mul:loadSmt,prog:loadProg,jorn:loadJorraster,jornf:loadJornf,cex:loadCex,sac:loadSac,mprev:loadMPrev,comrast:loadComRast,qual:loadQual,port:loadPort,crm:loadCrm,rh:loadRh,hc:loadHc,folha:loadFolha,folhaind:loadFolhaInd,he:loadHe,custos:loadCustos,cob:loadCob,banc:loadBanc,extb:loadExtb,lanc:loadLanc,antec:loadAntec,antport:loadAntport,milkrun:loadMilkrun,cnh:loadCnh,ferias:loadFerias,people:loadPeople,pneus:loadPneus,poli:loadPoli,ctecp:loadCtecp,fluxcon:loadFluxcon,rec:loadRec,rent:loadRent,cont:loadCont,orc:loadOrc,fech:loadFech,prem:loadPrem,gesacao:loadGesacao,gesata:loadGesata,gestao:loadGestao,srv:loadSrv,doc:loadDoc,cop:loadCop,tvfat:loadTvFat,tvope:loadTvOpe,tvdir:loadTvDir};
   if(!DATAMAP[key] || (key!=='home' && LOADEDQS[key]!==qsView(key))) LOADMAP[key]();
   // mobile: estado da navegação inferior + fecha gaveta/painel de filtros
   document.querySelectorAll('.bottomnav [data-bview]').forEach(a=>a.classList.toggle('ativo', a.dataset.bview===v));
@@ -7610,7 +7645,7 @@ function telaCheiaAlternar(){
 
 function telaCheiaSincronizar(){
   const v = (typeof currentView === 'function') ? currentView() : '';
-  const ehTv = v === 'tvfat' || v === 'tvope';
+  const ehTv = v === 'tvfat' || v === 'tvope' || v === 'tvdir';
   const cheia = telaCheiaAtiva() && !ehTv;
   document.body.classList.toggle('painelfull', cheia);
   const sair = document.getElementById('btnFullSair');
@@ -9303,7 +9338,7 @@ function reloadCurrent(){
   const M={home:loadHome,fluxo:load,receber:load,pagar:load,dre:loadDre,drecli:loadDreCli,oc:loadOc,
     agr:loadAgr,mvb:loadMvb,pedagio:loadPedagio,comb:loadComb,man:loadMan,com:loadCom,clif:loadClif,km:loadKm,prodveic:loadProdveic,
     torre:loadTorre,veic:loadVeic,veicf:loadVeicf,mul:loadSmt,prog:loadProg,jorn:loadJorraster,jornf:loadJornf,cex:loadCex,sac:loadSac,mprev:loadMPrev,comrast:loadComRast,qual:loadQual,port:loadPort,crm:loadCrm,rh:loadRh,hc:loadHc,folha:loadFolha,folhaind:loadFolhaInd,he:loadHe,custos:loadCustos,cob:loadCob,banc:loadBanc,extb:loadExtb,rent:loadRent,
-    cont:loadCont,orc:loadOrc,fech:loadFech,prem:loadPrem,gesacao:loadGesacao,gesata:loadGesata,gestao:loadGestao,srv:loadSrv,doc:loadDoc,cop:loadCop,tvfat:loadTvFat,tvope:loadTvOpe};
+    cont:loadCont,orc:loadOrc,fech:loadFech,prem:loadPrem,gesacao:loadGesacao,gesata:loadGesata,gestao:loadGestao,srv:loadSrv,doc:loadDoc,cop:loadCop,tvfat:loadTvFat,tvope:loadTvOpe,tvdir:loadTvDir};
   (M[currentView()]||load)();
 }
 
@@ -11152,7 +11187,7 @@ function veicToggle(i){
 let tvReflow=null;
 function tvChecaFull(){
   const v=currentView();
-  const ehTv = v==='tvfat' || v==='tvope';
+  const ehTv = v==='tvfat' || v==='tvope' || v==='tvdir';
   const fs = !!document.fullscreenElement ||
              (window.innerHeight>=screen.height-2 && window.innerWidth>=screen.width-2);
   const antes=document.body.classList.contains('tvfull');
@@ -11160,7 +11195,7 @@ function tvChecaFull(){
   if(tvMap) setTimeout(()=>tvMap.invalidateSize(), 300);
   if(ehTv && antes!==(ehTv&&fs)){          // mudou o modo: re-renderiza na altura nova
     clearTimeout(tvReflow);
-    tvReflow=setTimeout(()=>{ if(v==='tvope') loadTvOpe(); else loadTvFat(); }, 350);
+    tvReflow=setTimeout(()=>{ if(v==='tvope') loadTvOpe(); else if(v==='tvdir') loadTvDir(); else loadTvFat(); }, 350);
   }
 }
 document.addEventListener('fullscreenchange', tvChecaFull);
@@ -11258,6 +11293,92 @@ async function loadTvFat(){
     tvFatOk=true;
   }catch(e){ tvErro('tvfat-kpis', tvFatOk); }
 }
+/* PAINEL DA DIRETORIA. Mesma /api/visao-geral da home e da TV de faturamento:
+   os números da parede são os do painel. Sem tooltip — o valor vai em cima de
+   cada coluna; mês parcial hachurado, nunca barra cheia; dia em curso DITO no
+   subtítulo do atingimento (a lição do resumo de WhatsApp: 20% às 11h é certo
+   e desastroso ao mesmo tempo, e a marca vai onde a pessoa está olhando). */
+let tvDirSeq=0, tvDirOk=false;
+async function loadTvDir(){
+  const seq=++tvDirSeq;
+  try{
+    const r=await fetch('/api/visao-geral',{cache:'no-store'});
+    const d=await r.json();
+    if(seq!==tvDirSeq) return;
+    if(!r.ok){ tvErro('tvdir-k1', tvDirOk); return; }
+    const at=(d.atingimento_mes!=null?d.atingimento_mes:0)*100;
+    const atCls=at>=95?'ok':(at>=80?'warn':'ruim');
+    const farol=document.getElementById('tvdir-farol');
+    if(farol){ farol.style.display='inline-flex';
+      // o farol usa o vocabulário próprio dele (norm/aten/crit), não o dos números
+      farol.className='tv-farol '+(at>=95?'norm':(at>=80?'aten':'crit'));
+      farol.textContent='META '+at.toFixed(0)+'%'; }
+    const gap=(d.meta_acumulada||0)-(d.realizado_acumulado||0);
+    const r12=(d.receita_12m||[]);
+    // o último item é o mês CORRENTE (parcial); o fechado é o penúltimo
+    const fech=r12.length>1?r12[r12.length-2]:null;
+    const ant =r12.length>2?r12[r12.length-3]:null;
+    const dRec=(fech&&ant&&ant.receita)?(100*(fech.receita-ant.receita)/ant.receita):null;
+    const mesL=m=>{const [y,mm]=String(m||'').split('-');
+      return ['','jan','fev','mar','abr','mai','jun','jul','ago','set','out','nov','dez'][Number(mm)||0]+'/'+String(y||'').slice(2);};
+    document.getElementById('tvdir-k1').innerHTML=[
+      tvCard('Atingimento do mês', at.toFixed(0)+'%', atCls,
+        'meta acumulada até hoje · dia '+(d.dias_mtd||1)+' em curso'),
+      tvCard('Realizado no mês', tvBRLc(d.realizado_acumulado||0), '',
+        'meta até hoje: '+tvBRLc(d.meta_acumulada||0)),
+      tvCard('Gap para a meta', tvBRLc(gap), gap>0?'ruim':'ok', 'diferença acumulada no mês'),
+      tvCard('Receita de '+(fech?mesL(fech.mes):'—'), fech?tvBRLc(fech.receita):'—',
+        dRec==null?'':(dRec>=0?'ok':'ruim'),
+        dRec==null?'último mês fechado':('vs '+mesL(ant.mes)+': '+(dRec>=0?'+':'')+dRec.toFixed(1).replace('.',',')+'%')),
+    ].join('');
+    // pior mês do caixa projetado — 'atrasado' fica fora (é estoque, não mês)
+    const flx=(d.fluxo_serie||[]).filter(x=>x.periodo!=='atrasado');
+    const pior=flx.length?flx.reduce((a,x)=>x.saldo_projetado<a.saldo_projetado?x:a):null;
+    document.getElementById('tvdir-k2').innerHTML=[
+      tvCard('Saldo em caixa', tvBRLc(d.saldo_atual||0), (d.saldo_atual||0)<0?'ruim':'ok',
+        (d.saldo_contas||0)+' contas · posição de '+(d.saldo_data?fmtD(d.saldo_data):'—')),
+      tvCard('A receber vencido', tvBRLc(d.receber_vencido||0), (d.receber_vencido||0)>0?'warn':'ok',
+        'aberto total: '+tvBRLc(d.receber_aberto||0)),
+      tvCard('A pagar vencido', tvBRLc(d.pagar_vencido||0), (d.pagar_vencido||0)>0?'warn':'ok',
+        'aberto total: '+tvBRLc(d.pagar_aberto||0)),
+      tvCard('Pior caixa projetado', pior?tvBRLc(pior.saldo_projetado):'—',
+        pior?(pior.saldo_projetado<0?'ruim':'ok'):'',
+        pior?('no mês '+mesL(pior.periodo)+' · títulos lançados no ERP'):'sem projeção'),
+    ].join('');
+    // ---- séries em colunas (sem tooltip: o valor mora em cima da coluna)
+    const rEl=document.getElementById('tvdir-receita');
+    if(rEl && r12.length){
+      const maxR=Math.max(1,...r12.map(x=>x.receita||0));
+      rEl.innerHTML=r12.map((x,i)=>{
+        const parcial=i===r12.length-1;
+        return `<div class="tvd-col${parcial?' parcial':''}">
+          <span class="v">${tvBRLc(x.receita||0).replace('R$ ','')}</span>
+          <i style="height:${Math.max(2,100*(x.receita||0)/maxR).toFixed(1)}%"></i>
+          <b>${mesL(x.mes)}${parcial?' ·p':''}</b></div>`;
+      }).join('');
+      document.getElementById('tvdir-rec-sub').textContent=' · valores em R$ · p = parcial';
+    }
+    const fEl=document.getElementById('tvdir-fluxo');
+    if(fEl && flx.length){
+      const maxF=Math.max(1,...flx.map(x=>Math.abs(x.saldo_projetado||0)));
+      fEl.innerHTML=flx.slice(0,12).map(x=>{
+        const v=x.saldo_projetado||0;
+        return `<div class="tvd-col ${v<0?'neg':'pos'}">
+          <span class="v">${tvBRLc(v).replace('R$ ','')}</span>
+          <i style="height:${Math.max(2,100*Math.abs(v)/maxF).toFixed(1)}%"></i>
+          <b>${mesL(x.periodo)}</b></div>`;
+      }).join('');
+      const atras=(d.fluxo_serie||[]).find(x=>x.periodo==='atrasado');
+      document.getElementById('tvdir-flx-sub').textContent=
+        ' · saldo projetado com os títulos lançados'+(atras?(' · atrasado hoje: '+tvBRLc(atras.saldo_projetado)):'');
+    }
+    tvAnimarNums('tvdir-k1'); tvAnimarNums('tvdir-k2');
+    const cab=document.querySelector('#view-tvdir .tv-head');
+    if(cab){ cab.classList.add('sync'); setTimeout(()=>cab.classList.remove('sync'), 1200); }
+    tvDirOk=true;
+  }catch(e){ tvErro('tvdir-k1', tvDirOk); }
+}
+
 let tvMap=null, tvLayer=null, tvLinhas=null, TV_LASTPOS=null;
 let TV_ESTRADAS=null, tvTrafego=null;
 const TV_VISTAS=[
@@ -31237,6 +31358,7 @@ boot();
     <div class="dgrp" data-grp="Bi">
       <button class="dgrp-h" onclick="toggleDGrp(this)"><span>Business Intelligence</span><span class="dchev">›</span></button>
       <div class="dgrp-b">
+        <a href="#tvdir" onclick="fecharDrawer()"><span class="ic" data-ic="tvdiric"></span>Painéis TV — Diretoria</a>
         <a href="#tvfat" onclick="fecharDrawer()"><span class="ic" data-ic="tvfatic"></span>Painéis TV — Faturamento</a>
         <a href="#tvope" onclick="fecharDrawer()"><span class="ic" data-ic="tv"></span>Painéis TV — Operação</a>
         <a href="#prodveic" onclick="fecharDrawer()"><span class="ic" data-ic="kmv"></span>Produtividade de Veículos</a>

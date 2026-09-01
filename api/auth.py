@@ -114,6 +114,7 @@ TELAS: dict[str, tuple[str, str]] = {  # chave -> (rótulo, grupo do menu)
     "prodveic": ("Produtividade de Veículos", "Business Intelligence"),
     "tvfat":   ("Painel TV — Faturamento", "Business Intelligence"),
     "tvope":   ("Painel TV — Operação", "Business Intelligence"),
+    "tvdir":   ("Painel TV — Diretoria", "Business Intelligence"),
     "gesacao": ("Planos de Ação", "Gestão"),
     "gesata":  ("Atas de Reunião", "Gestão"),
     "doc":     ("Documentação", "Administração"),
@@ -198,7 +199,7 @@ ROTA_TELAS: list[tuple[str, frozenset[str]]] = [
     ("/api/financeiro/dre",           frozenset({"dre"})),
     ("/api/financeiro/balanco",       frozenset({"bal"})),
     ("/api/financeiro/cobranca",      frozenset({"cob"})),
-    ("/api/visao-geral",              frozenset({"home", "tvfat", "tvope"})),
+    ("/api/visao-geral",              frozenset({"home", "tvfat", "tvope", "tvdir"})),
     ("/api/alertas",                  frozenset({"home"})),
     ("/api/suprimentos/custos",       frozenset({"custos"})),
     ("/api/suprimentos/oc-pendentes", frozenset({"oc"})),
@@ -743,6 +744,16 @@ def _seed_perfis_modelo(c: psycopg.Connection) -> None:
     if not c.execute("SELECT 1 FROM config WHERE chave='perfis_modelo_v34'").fetchone():
         c.execute("DELETE FROM perfil_telas WHERE tela='ctetx'")
         c.execute("INSERT INTO config(chave, valor) VALUES('perfis_modelo_v34', '1') ON CONFLICT(chave) DO NOTHING")
+
+    # v35 (2026-09-01): painel de TV da diretoria ('tvdir') ao perfil
+    # Diretoria — é o mural dela. Sem a concessão, tela nova só aparece para
+    # administrador, e ninguém da sala em que a TV fica conseguiria abri-la.
+    if not c.execute("SELECT 1 FROM config WHERE chave='perfis_modelo_v35'").fetchone():
+        row = c.execute("SELECT id FROM perfis WHERE nome='Diretoria'").fetchone()
+        if row:
+            c.execute("INSERT INTO perfil_telas(perfil_id, tela) VALUES(%s,%s) ON CONFLICT DO NOTHING",
+                      (row["id"], "tvdir"))
+        c.execute("INSERT INTO config(chave, valor) VALUES('perfis_modelo_v35', '1') ON CONFLICT(chave) DO NOTHING")
 
 
 def _agora() -> str:

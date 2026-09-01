@@ -4,6 +4,14 @@ Gerado de `docs/versoes.yaml` por `scripts/gerar_changelog.py` — não editar �
 Formato [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/),
 versionamento [SemVer](https://semver.org/lang/pt-BR/).
 
+## [0.193.0] — 01/09/2026  ·  CX-01/09/2026-v0.193.0
+
+### Adicionado
+- Painel TV — Diretoria (Business Intelligence): o mural estratégico da sala da diretoria. Oito números grandes com semáforo — atingimento da meta (também no farol do topo), realizado × meta, gap, receita do último mês fechado com a variação, saldo em caixa, vencidos a receber e a pagar, e o pior mês do caixa projetado — mais a receita de 12 meses e o caixa projetado mês a mês em colunas. Lê a MESMA visão geral da home: os números da parede são os do painel, sem um terceiro recorte para explicar em reunião. Mês parcial sai hachurado, dia em curso é dito no subtítulo, e a tela recarrega sozinha a cada minuto. Concedida ao perfil Diretoria.
+
+### Corrigido
+- A varredura de filtros das 69 telas (o que cada tela MANDA × o que cada rota ACEITA) terminou sem nenhum parâmetro ignorado — o caso do pedágio da v0.191.0 era o único. E a régua de espaçamento pegou dois desvios no CT-e de Contrapartida: a banda de indicadores somava margem própria ao vão do painel (22px onde a escala pede 18) e usava degrau de 11px.
+
 ## [0.192.0] — 01/09/2026  ·  CX-01/09/2026-v0.192.0
 
 ### Alterado

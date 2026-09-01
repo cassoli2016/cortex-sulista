@@ -96,7 +96,7 @@ a ACL em vez de afirmar a proteção.
 ## 3. Telas e módulos
 
 **O registro canônico das telas é `api/auth.py`** (`TELAS`, `ROTA_TELAS`,
-`VIEW_GROUP` no `index.html`). Hoje: 66 telas em RBAC + 3 fora
+`VIEW_GROUP` no `index.html`). Hoje: 67 telas em RBAC + 3 fora
 (`srv`, `gestao`, `jornf`), organizadas assim:
 
 | Grupo | Telas | Fonte principal |
@@ -111,7 +111,7 @@ a ACL em vez de afirmar a proteção.
 | Telemetria | prem, telcon, telcond, telhod | Gobrax (`api/gobrax/`) + `prem_*` |
 | Recursos Humanos | rh, hc, folha, folhaind, cnh, ferias, people, he | AVA (folha/Globus) |
 | ANTT | anpiso, anrntrc | `config/antt_coeficientes.yaml`, `config/antt_cargas.yaml`, `rntrc_*` |
-| Business Intelligence | prodveic, tvfat, tvope | AVA |
+| Business Intelligence | prodveic, tvfat, tvope, tvdir | AVA (tvdir lê a mesma /api/visao-geral da home) |
 | Gestão | gesacao, gesata | `ges_*` (banco local) |
 | Administração | doc | extraída do próprio `index.html` |
 
