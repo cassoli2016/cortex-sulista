@@ -97,6 +97,49 @@ def _casar(planta: list[dict], pontos: list[dict]) -> dict[int, list[dict]]:
     return dentro
 
 
+def _coords(geometria: str) -> list[list[float]]:
+    """Texto do `polygon` do Postgres -> [[lat, lon], ...].
+
+    Os vértices de cadastro_poligono estão gravados como (LATITUDE, LONGITUDE)
+    — a ordem que o Leaflet consome direto, e a MESMA armadilha documentada no
+    sql.py: não inverter para o (x=lon, y=lat) habitual de GIS."""
+    import re as _re
+    return [[float(a), float(b)]
+            for a, b in _re.findall(r"\(([-\d.]+),([-\d.]+)\)", geometria or "")]
+
+
+def _mapa(inventario: list[dict], ranking: list[dict]) -> dict:
+    """As geometrias para o mapa de calor da planta (pedido de 01/09/2026).
+
+    Cada polígono interno vai com os números do PRÓPRIO recorte filtrado
+    (mediana, visitas, total de horas) — é o total de horas que pinta a
+    intensidade no mapa. Ponto cadastrado SEM visita no período vai junto,
+    zerado: sumir do mapa esconderia justamente o ponto morto, que é
+    informação (a tela já lista os "sem movimento")."""
+    por_id = {r["poligono_id"]: r for r in ranking}
+    perimetro = next((_coords(r["geometria"]) for r in inventario
+                      if r["tipo"] == 1 and r.get("geometria")), None)
+    pontos = []
+    for r in inventario:
+        if r["tipo"] != 4:
+            continue
+        c = _coords(r.get("geometria") or "")
+        if len(c) < 3:
+            continue
+        stats = por_id.get(r["id"], {})
+        pontos.append({
+            "id": r["id"],
+            "nome": (r["nome"] or f"poligono {r['id']}").strip(),
+            "coords": c,
+            "mediana_min": stats.get("mediana_min"),
+            "p90_min": stats.get("p90_min"),
+            "visitas": stats.get("visitas", 0),
+            "total_h": stats.get("total_h", 0.0),
+            "placas": stats.get("placas", 0),
+        })
+    return {"perimetro": perimetro, "pontos": pontos}
+
+
 def get_poligonos(de: str | None = None, ate: str | None = None,
                   uso: str | None = None) -> dict:
     d_de, d_ate = _janela(de, ate)
@@ -191,6 +234,7 @@ def get_poligonos(de: str | None = None, ate: str | None = None,
             "tem_perimetro": bool(perimetro),
         },
         "ranking": ranking,
+        "mapa": _mapa(inventario, ranking),
         "mensal": mensal,
         "tabela": tabela,
         "sem_movimento": sem_mov,

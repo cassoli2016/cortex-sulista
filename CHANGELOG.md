@@ -4,6 +4,11 @@ Gerado de `docs/versoes.yaml` por `scripts/gerar_changelog.py` — não editar �
 Formato [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/),
 versionamento [SemVer](https://semver.org/lang/pt-BR/).
 
+## [0.195.0] — 01/09/2026  ·  CX-01/09/2026-v0.195.0
+
+### Adicionado
+- A Permanência na Planta ganhou o mapa da Tupy Joinville: o perímetro tracejado e os 17 pontos internos pintados como CALOR — a cor é a soma de horas paradas em cada ponto no período filtrado, do amarelo ao vinho, com os três mais carregados rotulados no próprio mapa (REF sozinho concentra 366 h no mês). Ponto cadastrado sem visita aparece cinza tracejado em vez de sumir: ponto morto é informação. O tooltip de cada polígono traz mediana por visita, visitas e placas, e a tela se organizou em três abas — Mapa, Pontos e fila, Permanências.
+
 ## [0.194.0] — 01/09/2026  ·  CX-01/09/2026-v0.194.0
 
 ### Alterado

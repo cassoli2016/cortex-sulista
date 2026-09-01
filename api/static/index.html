@@ -1242,6 +1242,18 @@ body.tvfull .tv-head .tv-logo{display:block}
 .tvd-col b{font-size:15px;color:#8FA6BC;font-weight:600;white-space:nowrap}
 .tvd-col .v{font-size:14px;color:#E5EDF4;font-weight:700;font-variant-numeric:tabular-nums;white-space:nowrap}
 .tvd-col.neg .v{color:#F87171}
+/* rótulo permanente dos 3 pontos mais carregados do mapa da planta: texto com
+   halo, sem caixa — a caixinha padrão do Leaflet cobriria o polígono vizinho */
+.poli-rotulo{background:transparent;border:none;box-shadow:none;color:#14181D;
+  font:700 12px/1.2 Saira,sans-serif;text-shadow:0 0 3px #fff,0 0 3px #fff,0 0 3px #fff}
+.poli-rotulo::before{display:none}
+/* amostras da legenda do calor: classes, e não style= inline — o verificador
+   de estrutura barra cor literal em style=, e aqui a cor é deliberadamente
+   FIXA nos dois temas (escala de intensidade sobre tiles claros do OSM) */
+.poli-sw{display:inline-block;width:13px;height:13px;border-radius:3px;vertical-align:-2px}
+.poli-sw.s0{background:#FDE68A}.poli-sw.s1{background:#FBBF24}.poli-sw.s2{background:#F08A4B}
+.poli-sw.s3{background:#E85D10}.poli-sw.s4{background:#B91C1C}
+.poli-sw.off{background:#9AA3AE;opacity:.4}
 .tv-tab{width:100%;border-collapse:collapse;font-size:21px;color:#E5EDF4}
 .tv-tab th{font-size:15px;text-transform:uppercase;color:#8FA6BC;text-align:left;padding:8px 12px;letter-spacing:.06em}
 .tv-tab td{padding:11px 12px;border-top:1px solid #1E3A54}
@@ -4176,28 +4188,50 @@ body.tvfull #btnReport,body.tvmode #btnReport{display:none}
         <div class="kband"><h3>Tempo dentro da planta &mdash; por visita com atendimento</h3>
           <div class="kpis k4" id="kpis-poli"></div></div>
 
-        <div class="grid2">
+        <div class="subtabs" role="tablist" data-abas="poli" aria-label="Seções da permanência na planta">
+          <button role="tab" id="tabpoli-mapa" data-aba="mapa" aria-controls="aba-poli-mapa"
+                  aria-selected="true" onclick="abaTrocar('poli','mapa')">Mapa da planta<span class="aban vazio" id="cnt-poli-mapa"></span></button>
+          <button role="tab" id="tabpoli-pontos" data-aba="pontos" aria-controls="aba-poli-pontos"
+                  aria-selected="false" onclick="abaTrocar('poli','pontos')">Pontos e fila<span class="aban vazio" id="cnt-poli-pontos"></span></button>
+          <button role="tab" id="tabpoli-visitas" data-aba="visitas" aria-controls="aba-poli-visitas"
+                  aria-selected="false" onclick="abaTrocar('poli','visitas')">Permanências<span class="aban vazio" id="cnt-poli-visitas"></span></button>
+        </div>
+
+        <div class="aba" data-abas="poli" data-aba="mapa" id="aba-poli-mapa" role="tabpanel" aria-labelledby="tabpoli-mapa">
           <div class="card">
-            <div class="head"><h2>Onde o tempo é gasto <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="Mediana da permanência por visita a cada polígono, não média: a cauda é longa (p99 de 151 min contra mediana de 9) e a média descreveria um veículo que não existe. O número de visitas vai ao lado justamente para dizer sobre quanto a mediana foi tirada.">i</span></h2>
-              <span class="hint" id="hintPoliRank"></span></div>
-            <div id="poliRank" class="cpbloco"></div>
-          </div>
-          <div class="card">
-            <div class="head"><h2>Atendimento × fila <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="O tempo dentro do perímetro que NÃO cai em nenhum polígono mapeado. Parte é fila e manobra; parte pode ser área de serviço ainda não mapeada — por isso o rótulo é “fora de ponto mapeado” e não “espera”.">i</span></h2>
-              <span class="hint" id="hintPoliDec"></span></div>
-            <div id="poliDec" class="cpbloco"></div>
+            <div class="head"><h2>Tupy Joinville — calor por tempo parado <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="O perímetro e os polígonos internos de cadastro_poligono, cada ponto pintado pela SOMA de horas paradas nele no período filtrado — escala sequencial do amarelo ao vinho, por fração do ponto mais carregado. Cinza tracejado é ponto cadastrado SEM visita no período: sumir do mapa esconderia justamente o ponto morto. O tooltip de cada polígono traz a mediana por visita, as visitas e as placas — a mediana é a régua de atendimento; o TOTAL é a régua de onde a planta consome as horas da frota.">i</span></h2>
+              <span class="hint" id="hintPoliMapa"></span></div>
+            <div id="poliMapa" style="height:430px;border-radius:0 0 14px 14px"></div>
+            <div class="hint" id="poliMapaLegenda" style="padding:8px 18px 12px"></div>
           </div>
         </div>
 
-        <div class="card">
-          <div class="head"><h2>Permanências mais longas <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="Entrada e saída estimadas: o rastreador lê a cada 3 a 5 minutos, então o veículo entrou antes da primeira leitura e saiu depois da última. A estimativa estende até metade do caminho para a leitura de fora, com teto de 3 minutos por lado. Visitas com uma única leitura vêm marcadas.">i</span></h2>
-            <span class="hint" id="hintPoliTab"></span></div>
-          <div class="tabroll"><table class="tab" id="poliTab"></table></div>
+        <div class="aba" data-abas="poli" data-aba="pontos" id="aba-poli-pontos" role="tabpanel" aria-labelledby="tabpoli-pontos" hidden>
+          <div class="grid2">
+            <div class="card">
+              <div class="head"><h2>Onde o tempo é gasto <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="Mediana da permanência por visita a cada polígono, não média: a cauda é longa (p99 de 151 min contra mediana de 9) e a média descreveria um veículo que não existe. O número de visitas vai ao lado justamente para dizer sobre quanto a mediana foi tirada.">i</span></h2>
+                <span class="hint" id="hintPoliRank"></span></div>
+              <div id="poliRank" class="cpbloco"></div>
+            </div>
+            <div class="card">
+              <div class="head"><h2>Atendimento × fila <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="O tempo dentro do perímetro que NÃO cai em nenhum polígono mapeado. Parte é fila e manobra; parte pode ser área de serviço ainda não mapeada — por isso o rótulo é “fora de ponto mapeado” e não “espera”.">i</span></h2>
+                <span class="hint" id="hintPoliDec"></span></div>
+              <div id="poliDec" class="cpbloco"></div>
+            </div>
+          </div>
         </div>
 
-        <div class="card" id="poliAvisosCard" hidden>
-          <div class="head"><h2>Ler com atenção</h2></div>
-          <div id="poliAvisos" class="cpbloco"></div>
+        <div class="aba" data-abas="poli" data-aba="visitas" id="aba-poli-visitas" role="tabpanel" aria-labelledby="tabpoli-visitas" hidden>
+          <div class="card">
+            <div class="head"><h2>Permanências mais longas <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="Entrada e saída estimadas: o rastreador lê a cada 3 a 5 minutos, então o veículo entrou antes da primeira leitura e saiu depois da última. A estimativa estende até metade do caminho para a leitura de fora, com teto de 3 minutos por lado. Visitas com uma única leitura vêm marcadas.">i</span></h2>
+              <span class="hint" id="hintPoliTab"></span></div>
+            <div class="tabroll"><table class="tab" id="poliTab"></table></div>
+          </div>
+
+          <div class="card" id="poliAvisosCard" hidden>
+            <div class="head"><h2>Ler com atenção</h2></div>
+            <div id="poliAvisos" class="cpbloco"></div>
+          </div>
         </div>
       </section>
 
@@ -9950,6 +9984,7 @@ function mapasRemedir(){
   requestAnimationFrame(() => requestAnimationFrame(() => {
     [typeof milkMap !== 'undefined' && milkMap,
      typeof torreMap !== 'undefined' && torreMap,
+     typeof poliMap !== 'undefined' && poliMap,
      typeof tvMap !== 'undefined' && tvMap].forEach(m => {
       try{ if(m && m.getContainer && m.getContainer().offsetParent !== null)
              m.invalidateSize(); }catch(e){}
@@ -14939,6 +14974,74 @@ async function loadPoli(fundo){
   finally{ if(seq===poliSeq){ if(btn) btn.disabled=false;
     document.getElementById('content').classList.remove('loading'); } }
 }
+/* MAPA DE CALOR DA PLANTA (pedido de 01/09/2026): o perímetro da Tupy e os
+   polígonos internos, cada um pintado pela SOMA de horas paradas nele no
+   recorte filtrado. Escala SEQUENCIAL (amarelo → vinho), não semáforo: aqui a
+   cor é INTENSIDADE de grandeza, não estado — vermelho não significa errado,
+   significa "é aqui que as horas da frota estão". Ponto sem visita fica cinza
+   tracejado: sumir do mapa esconderia o ponto morto. */
+let poliMap=null, poliCamada=null;
+const POLI_HEAT=['#FDE68A','#FBBF24','#F08A4B','#E85D10','#B91C1C'];
+async function poliMapaDesenhar(m){
+  const el=document.getElementById('poliMapa');
+  if(!el || !m) return;
+  try{ await ensureLeaflet(); }catch(e){
+    el.innerHTML='<div class="cpbloco" style="padding:18px">o mapa não carregou — '+esc(e&&e.message||'Leaflet indisponível')+'</div>';
+    return;
+  }
+  if(!poliMap){
+    poliMap=L.map('poliMapa',{scrollWheelZoom:false});
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:19}).addTo(poliMap);
+    poliCamada=L.layerGroup().addTo(poliMap);
+  }
+  poliCamada.clearLayers();
+  const pontos=m.pontos||[];
+  const maxH=Math.max(0.1, ...pontos.map(p=>p.total_h||0));
+  if(m.perimetro && m.perimetro.length>2){
+    L.polygon(m.perimetro,{color:'#17344F',weight:2,dashArray:'6 4',fill:false})
+      .addTo(poliCamada).bindTooltip('Perímetro da planta',{sticky:true});
+  }
+  /* o ZOOM ancora nos PONTOS, não no perímetro: enquadrar a planta inteira
+     (que inclui a lagoa) deixava os polígonos de doca com meia dúzia de
+     pixels — o calor ficava invisível. O perímetro segue no mapa como
+     contexto, parcialmente visível. */
+  if(pontos.length){
+    let b=L.polygon(pontos[0].coords).getBounds();
+    pontos.forEach(p=>{ b=b.extend(L.polygon(p.coords).getBounds()); });
+    poliMap.fitBounds(b.pad(0.35));
+  }else if(m.perimetro && m.perimetro.length>2){
+    poliMap.fitBounds(L.polygon(m.perimetro).getBounds().pad(0.06));
+  }
+  const top3=new Set(pontos.slice().sort((a,b)=>(b.total_h||0)-(a.total_h||0))
+    .slice(0,3).filter(p=>(p.total_h||0)>0).map(p=>p.id));
+  pontos.forEach(p=>{
+    const t=(p.total_h||0)/maxH;
+    const semVisita=!(p.visitas>0);
+    const cor=semVisita?'#9AA3AE':POLI_HEAT[Math.min(4,Math.floor(t*5))];
+    const pol=L.polygon(p.coords,{
+      color:semVisita?'#6B7580':'#17344F', weight:1.4,
+      dashArray:semVisita?'4 4':null,
+      fillColor:cor, fillOpacity:semVisita?0.18:0.55}).addTo(poliCamada);
+    const tt=`<b>${esc(p.nome)}</b><br>`+(semVisita?'sem visita no período'
+      :`mediana ${p.mediana_min!=null?String(p.mediana_min).replace('.',','):'—'} min · ${p.visitas} visitas`
+       +`<br>total ${String(p.total_h).replace('.',',')} h · ${p.placas} placas`);
+    pol.bindTooltip(tt,{sticky:true});
+    if(top3.has(p.id))
+      pol.bindTooltip(`${esc(p.nome)} · ${String(p.total_h).replace('.',',')} h`,
+        {permanent:true, direction:'center', className:'poli-rotulo'});
+  });
+  const leg=document.getElementById('poliMapaLegenda');
+  if(leg){
+    const faixas=POLI_HEAT.map((c,i)=>`<i class="poli-sw s${i}"></i> ${i===0?'até':''} ${Math.round(maxH*(i+1)/5)} h`).join(' &nbsp; ');
+    leg.innerHTML='horas paradas no período (soma por ponto): '+faixas
+      +' &nbsp; <i class="poli-sw off"></i> sem visita';
+  }
+  const h=document.getElementById('hintPoliMapa');
+  if(h) h.textContent=(m.perimetro?'perímetro + ':'')+pontos.length+' pontos cadastrados'
+    +' · cor = horas somadas no recorte filtrado';
+  setTimeout(()=>{ try{ poliMap.invalidateSize(); }catch(_){} }, 60);
+}
+
 function renderPoli(d){
   const k=d.kpis||{}, per=d.periodo||{}, f=d.fonte||{};
   const de=document.getElementById('fPoliDe'), ate=document.getElementById('fPoliAte');
@@ -15028,6 +15131,14 @@ function renderPoli(d){
   document.getElementById('poliAvisosCard').hidden = !av.length;
   document.getElementById('poliAvisos').innerHTML =
     av.map(function(a){ return '<div class="hint" style="margin:0 0 8px">'+esc(a)+'</div>'; }).join('');
+
+  // contadores das abas + o mapa de calor (a aba do mapa nasce aberta, então
+  // o Leaflet mede o contêiner já visível; a volta é coberta pelo
+  // mapasRemedir, que conhece o poliMap)
+  abaContador('cnt-poli-mapa', ((d.mapa||{}).pontos||[]).filter(p=>p.visitas>0).length);
+  abaContador('cnt-poli-pontos', rk.length);
+  abaContador('cnt-poli-visitas', tb.length);
+  poliMapaDesenhar(d.mapa);
 }
 
 async function loadPneus(fundo){
