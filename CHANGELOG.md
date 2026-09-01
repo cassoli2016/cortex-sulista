@@ -4,6 +4,11 @@ Gerado de `docs/versoes.yaml` por `scripts/gerar_changelog.py` — não editar �
 Formato [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/),
 versionamento [SemVer](https://semver.org/lang/pt-BR/).
 
+## [0.209.2] — 01/09/2026  ·  CX-01/09/2026-v0.209.2
+
+### Corrigido
+- O ⓘ do card "Risco acumulado por placa" ainda mandava olhar "a tabela ao lado" — que desde a 0.209.1 vive na aba Risco por viagem. O texto agora aponta para a aba certa; é dele que a tela de documentação extrai a explicação do card.
+
 ## [0.209.1] — 01/09/2026  ·  CX-01/09/2026-v0.209.1
 
 ### Corrigido
