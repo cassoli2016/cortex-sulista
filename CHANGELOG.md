@@ -4,6 +4,19 @@ Gerado de `docs/versoes.yaml` por `scripts/gerar_changelog.py` — não editar �
 Formato [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/),
 versionamento [SemVer](https://semver.org/lang/pt-BR/).
 
+## [0.198.0] — 01/09/2026  ·  CX-01/09/2026-v0.198.0
+
+### Adicionado
+- Fechamento do Mês virou norte de decisão, em três abas: "Norte do mês" (quanto falta para o breakeven em R$ e em viagens; o que já está comprometido contra o que ainda está ao alcance; três cenários de fechamento — ritmo atual, meta e mês típico — rodando o mesmo motor; e as alavancas do mês ranqueadas pelo que valem no resultado, cada uma com link para a tela dona do assunto), "Cascata DRE" (a tabela de sempre, com os ajustes manuais contados na aba) e "Evolução & desvios". O alerta de resultado negativo agora diz também a maior alavanca e o gap do breakeven — quem recebe o push sabe o que fazer, não só quanto vai doer.
+
+### Alterado
+- A meta diária da previsão passa pela mesma distribuição sazonal da Visão Geral — o atingimento das duas telas agora concorda. A banda de confiança foi recalibrada (backtest re-rodado) para o método novo.
+
+### Corrigido
+- A previsão de receita parou de despencar toda manhã: o dia em curso (meta cheia, realizado de minutos) ficava dentro do ritmo e derrubava a projeção — na manhã do dia 1º a receita prevista saía R$ 8,0 milhões onde o método correto dá R$ 11,6 milhões. O dia parcial agora fica fora do ritmo e entra só como piso.
+- A virada do mês parou de dar salto: o modo "fechando" abandonava as viagens e dividia o razão pela curva de escrituração, inflando o custo variável de agosto em ~R$ 3 milhões (o resultado saltou de −R$ 1,1 para −R$ 4,0 milhões de um dia para o outro só por troca de método). Agora o frete de compra sai das viagens do próprio mês, o combustível segue nas duas pernas e o resto tem teto no maior mês já registrado.
+- O resultado financeiro (parcelas contratadas) sai da mediana dos meses fechados, não mais de sazonalidade — em julho isso teria errado R$ 70 mil em vez de R$ 344 mil.
+
 ## [0.197.0] — 01/09/2026  ·  CX-01/09/2026-v0.197.0
 
 ### Adicionado

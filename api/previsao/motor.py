@@ -46,19 +46,31 @@ def mediana(vals: list[float]) -> float:
 
 
 def prever_receita(real_acum: float, meta_acum: float, meta_mes: float,
-                   ating_hist: float | None, dias_meta_decorridos: int) -> dict:
+                   ating_hist: float | None, dias_meta_decorridos: int,
+                   real_hoje: float = 0.0) -> dict:
+    """O DIA EM CURSO FICA FORA DO RITMO (regra da casa: dia parcial nao e'
+    dia abaixo da meta). `real_acum`/`meta_acum` chegam so' com dias FECHADOS;
+    o parcial de hoje entra em `real_hoje` e vira PISO da projecao restante —
+    dinheiro emitido e' fato, mas nao rebaixa o ritmo. Medido em 01/09/2026:
+    com o dia 1 parcial dentro do ritmo a receita prevista saia R$ 8,03 mi;
+    sem ele, R$ 11,61 mi — um buraco fantasma de R$ 3,57 mi as 4h da manha."""
     base_hist = ating_hist if ating_hist is not None else 1.0
     ritmo_obs = (real_acum / meta_acum) if meta_acum else None
     w = min(1.0, max(0, dias_meta_decorridos) / PESO_DIAS_PLENO)
     ritmo = (w * ritmo_obs + (1 - w) * base_hist) if ritmo_obs is not None else base_hist
     meta_rest = max(0.0, meta_mes - meta_acum)
-    previsto = real_acum + meta_rest * ritmo
-    return _res(previsto, "driver_fiscal", [
-        f"realizado fiscal MTD {_brl(real_acum)} sobre meta acumulada {_brl(meta_acum)}",
+    previsto = real_acum + max(meta_rest * ritmo, real_hoje)
+    prem = [
+        f"realizado fiscal em dias FECHADOS {_brl(real_acum)} sobre meta "
+        f"acumulada ate ontem {_brl(meta_acum)} (dia em curso fora do ritmo)",
         f"ritmo aplicado ao restante da meta: {_pct(ritmo, 1)} "
         f"(observado peso {_pct(w, 0)}, historico 3m {_pct(base_hist, 1)})",
         f"meta restante do mes: {_brl(meta_rest)}",
-    ])
+    ]
+    if real_hoje > meta_rest * ritmo:
+        prem.append(f"piso do dia em curso: {_brl(real_hoje)} ja emitidos hoje "
+                    "superam a projecao do restante")
+    return _res(previsto, "driver_fiscal", prem)
 
 
 def prever_pct_receita(receita_prev: float, pct: float, nome_pct: str) -> dict:
@@ -222,7 +234,11 @@ _ESTRATEGIA_PREFIXOS = [
     ("CV - ", "razao_completude"),
     ("CF - ", "razao_completude"),
     ("OVERHEAD - ", "razao_completude"),
-    ("FINANC - ", "sazonal"),
+    # FINANC por NIVEL, nao sazonal: parcelas contratadas sao o caso canonico
+    # de nivel. Medido em julho/26: o sazonal previu -R$ 554 mil e o mes
+    # fechou -R$ 898 mil (erro R$ 344 mil); a mediana 3m (abr-jun: -828/-693/
+    # -858) erraria R$ 70 mil.
+    ("FINANC - ", "nivel"),
     ("INDENIZA", "sazonal"),
     ("OUTRAS ", "sazonal"),
     ("(1, ", "sazonal"),
@@ -334,8 +350,18 @@ def aplicar_ajuste(previsto: float, ajuste: dict | None) -> tuple[float, float]:
     return ajuste["valor"], ajuste["valor"] - previsto
 
 
+# Teto anti-inflacao do modo fechando: razao ÷ completude que supere em mais
+# de 25% o MAIOR mes ja registrado da linha e' artefato da curva, nao custo.
+# Medido em agosto/26: frete agregados -4,78 mi ÷ 57% = -8,33 mi contra um
+# maximo historico de -6,09 mi (as viagens do proprio mes afirmavam -5,84 mi);
+# CV-PEDAGIO -176 mil ÷ 35% = -498 mil = 3,4x a mediana 6m (o pedagio entra em
+# LOTE mensal - fatura unica do TAG).
+TETO_INFLACAO_M1 = 1.25
+
+
 def estimar_m1(razao_ag: dict[str, float], curva: dict, dia_rel: int,
-               fallback_por_ag: dict[str, dict]) -> dict[str, dict]:
+               fallback_por_ag: dict[str, dict],
+               max_hist_por_ag: dict[str, float] | None = None) -> dict[str, dict]:
     """`curva` já carrega a dispersão (montar_curva) — não precisa de outro
     parâmetro para chegar até aqui, só ler com dispersao_em(curva, ag, rot, ..).
 
@@ -372,6 +398,50 @@ def estimar_m1(razao_ag: dict[str, float], curva: dict, dia_rel: int,
             out[ag] = _res(fb["previsto"], fb["estrategia"], fb["premissas"] + [
                 f"completude esperada {_pct(frac, 0)} abaixo do piso - fallback"])
         else:
-            out[ag] = _res(valor / frac, "razao_completude", [
-                f"razao parcial {_brl(valor)} / completude esperada {_pct(frac, 0)}"])
+            estimado = valor / frac
+            teto = (max_hist_por_ag or {}).get(ag)
+            if teto and abs(estimado) > TETO_INFLACAO_M1 * teto:
+                fb = fallback_por_ag.get(ag) or _res(valor, "razao_parcial",
+                                                     ["sem fallback disponivel"])
+                piso = valor if abs(valor) >= abs(fb["previsto"]) else fb["previsto"]
+                out[ag] = _res(piso, "lote", [
+                    f"razao ÷ completude daria {_brl(estimado)}, acima de "
+                    f"qualquer mes ja registrado (max {_brl(teto)}) - usando o "
+                    f"maior entre razao ({_brl(valor)}) e nivel "
+                    f"({_brl(fb['previsto'])})"])
+            else:
+                out[ag] = _res(estimado, "razao_completude", [
+                    f"razao parcial {_brl(valor)} / completude esperada {_pct(frac, 0)}"])
     return out
+
+
+# ---------------------------------------------------------------------------
+# O NORTE: classificacao declarada das linhas da DRE para a decisao do mes.
+# Declarada, nao inferida — a medicao que sustenta (cv = desvio/media, 6 meses
+# fev-jul/26): CF-PESSOAL OP 0,03 · CF-DESP ADM 0,06 · DEPRECIACAO 0,07 ·
+# OVERHEAD-FOLHA 0,08 · FOLHA MOT 0,12 · FINANC-CG 0,13 (comprometido);
+# COMBUSTIVEL 0,39 · TERCEIROS 0,30 · MANUT 0,25 · PNEUS 0,23 (proporcional/
+# variavel); VENDA IMOBILIZADO cv 0,84 (nao recorrente — FORA do norte:
+# mediana +314 mil segura o resultado e some no mes em que nao ha venda).
+# ---------------------------------------------------------------------------
+_CLASSE_LINHA = {
+    "CUSTO FIXO": "comprometido",
+    "OVERHEAD": "comprometido",
+    "RESULTADO FINANCEIRO": "comprometido",
+    "INDENIZACOES": "comprometido",
+    "IMPOSTOS FEDERAIS": "proporcional",
+    "IMPOSTOS ESTADUAIS": "proporcional",
+    "IMPOSTOS MUNICIPAIS": "proporcional",
+    "CONTRIBUICAO PREVIDENCIARIA": "proporcional",
+    "ANULACOES": "proporcional",
+    "DESCONTOS": "proporcional",
+    "CUSTO VARIAVEL": "proporcional",
+    "CREDITOS TRIBUTARIOS": "proporcional",
+    "OUTRAS DESPESAS/RECEITAS OPERACIONAIS": "proporcional",
+    "RESULTADO NAO OPERACIONAL": "fora",
+}
+
+
+def classe_da_linha(rotulo: str) -> str | None:
+    """comprometido | proporcional | fora — None para receita e formulas."""
+    return _CLASSE_LINHA.get(norm(rotulo))

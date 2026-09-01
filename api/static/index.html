@@ -3517,16 +3517,43 @@ body.tvfull #btnReport,body.tvmode #btnReport{display:none}
           <div class="cop-ctx" id="fech-fontes" style="margin-top:0"></div>
         </div>
         <div id="fech-avisos"></div>
-        <div class="kpis" id="kpis-fech"></div>
-        <div class="grid2">
-          <div class="card"><div class="head"><h2>Evolução da previsão <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="Snapshot diário gravado a cada consulta (tabela prev_snapshot do banco do CÓRTEX): como o resultado previsto do mês evoluiu conforme o dado chegou. A linha do orçado é a referência fixa da versão vigente.">i</span><span class="hint">resultado previsto por dia · linha = orçado</span></div>
-            <div class="chartwrap narrow"><div id="chartFechEvol" style="width:100%;height:200px" role="img"></div></div></div>
-          <div class="card"><div class="head"><h2>Maiores desvios vs orçado <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="Linhas diretas da DRE com maior |previsto - orçado| do mês. Cor pelo EFEITO no resultado (custo acima do orçado = ruim), não pelo sinal.">i</span><span class="hint">explicar o delta, não só mostrá-lo</span></div>
-            <div id="fech-desvios"></div></div>
+        <div class="subtabs" role="tablist" data-abas="fech" aria-label="Seções do fechamento">
+          <button role="tab" id="tabfech-fnorte" aria-controls="aba-fnorte" data-aba="fnorte"
+                  aria-selected="true" onclick="abaTrocar('fech','fnorte')">Norte do mês <span class="aban" id="fechNAlav"></span></button>
+          <button role="tab" id="tabfech-fcasc" aria-controls="aba-fcasc" data-aba="fcasc"
+                  aria-selected="false" onclick="abaTrocar('fech','fcasc')">Cascata DRE <span class="aban" id="fechNAjuste"></span></button>
+          <button role="tab" id="tabfech-fevol" aria-controls="aba-fevol" data-aba="fevol"
+                  aria-selected="false" onclick="abaTrocar('fech','fevol')">Evolução &amp; desvios</button>
         </div>
-        <div class="card">
-          <div class="head"><h2>Cascata prevista <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="Razão do AVA (lancamento, historico<>18, ajustes locais aplicados) + drivers operacionais (CT-e/NFS-e x meta diária, viagens, abastecimentos). Cada linha diz a estratégia no badge; previsto = calculado + ajuste manual. Banda = erro histórico do método no dia (backtest via dtinc).">i</span><span class="hint" id="fech-casc-hint"></span></div>
-          <div class="tablewrap tabroll" id="fech-casc" style="max-height:640px"></div>
+        <div class="aba" data-abas="fech" data-aba="fnorte" id="aba-fnorte" role="tabpanel" aria-labelledby="tabfech-fnorte">
+          <div class="kpis k4" id="kpis-fech"></div>
+          <div class="grid2">
+            <div class="card"><div class="head"><h2>Composição do resultado <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="A previsão do mês decomposta pelo que dá para mexer: receita prevista, custos que escalam com ela (proporcional: impostos, custo variável, anulações), o que já está travado (comprometido: custo fixo, overhead, financeiro) e o resultado. Venda de imobilizado e afins ficam FORA — não recorrente não sustenta decisão.">i</span><span class="hint" id="fech-comp-hint"></span></div>
+              <div class="chartwrap narrow"><div id="chartFechComp" style="width:100%;height:200px" role="img"></div></div></div>
+            <div class="card"><div class="head"><h2>Cenários de fechamento <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="Os três cenários rodam o MESMO motor da previsão: só as linhas que escalam com a receita se movem (impostos por % da receita, frete de compra projetado pela razão custo/receita 6m); o comprometido fica. Ritmo = a previsão atual; Meta = fechar 100% da meta restante; Típico = o atingimento médio dos 3 últimos meses.">i</span><span class="hint">o que muda se a receita mudar</span></div>
+              <div id="fech-cenarios"></div></div>
+          </div>
+          <div class="card">
+            <div class="head"><h2>Alavancas do mês <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="O que ainda está ao alcance, em R$ de resultado, calculado das próprias linhas da previsão: fechar na meta, frete de compra vs mediana 6m, combustível vs mediana, linhas piores que o orçado. Só entra alavanca com R$ 50 mil ou mais em jogo (piso de materialidade). O link abre a tela dona do assunto.">i</span><span class="hint">ordenadas pelo que valem no resultado</span></div>
+            <div class="tablewrap"><table><thead><tr>
+              <th>Alavanca</th><th class="num">Vale no resultado</th><th>Como</th><th></th>
+            </tr></thead><tbody id="fech-alavancas"></tbody></table></div>
+          </div>
+        </div>
+        <div class="aba" data-abas="fech" data-aba="fcasc" id="aba-fcasc" role="tabpanel" aria-labelledby="tabfech-fcasc" hidden>
+          <div class="kpis k4" id="kpis-fech2"></div>
+          <div class="card">
+            <div class="head"><h2>Cascata prevista <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="Razão do AVA (lancamento, historico<>18, ajustes locais aplicados) + drivers operacionais (CT-e/NFS-e x meta diária, viagens, abastecimentos). Cada linha diz a estratégia no badge; previsto = calculado + ajuste manual. Banda = erro histórico do método no dia (backtest via dtinc).">i</span><span class="hint" id="fech-casc-hint"></span></div>
+            <div class="tablewrap tabroll" id="fech-casc" style="max-height:640px"></div>
+          </div>
+        </div>
+        <div class="aba" data-abas="fech" data-aba="fevol" id="aba-fevol" role="tabpanel" aria-labelledby="tabfech-fevol" data-ao-abrir="fechEvolDesenhar" hidden>
+          <div class="grid2">
+            <div class="card"><div class="head"><h2>Evolução da previsão <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="Snapshot diário gravado a cada consulta (tabela prev_snapshot do banco do CÓRTEX): como o resultado previsto do mês evoluiu conforme o dado chegou. A linha do orçado é a referência fixa da versão vigente. Um degrau na data de uma mudança de método (ex.: 01/09/2026, v0.198.0) é o MÉTODO mudando, não o mês piorando.">i</span><span class="hint">resultado previsto por dia · linha = orçado</span></div>
+              <div class="chartwrap narrow"><div id="chartFechEvol" style="width:100%;height:200px" role="img"></div></div></div>
+            <div class="card"><div class="head"><h2>Maiores desvios vs orçado <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="Linhas diretas da DRE com maior |previsto - orçado| do mês. Cor pelo EFEITO no resultado (custo acima do orçado = ruim), não pelo sinal.">i</span><span class="hint">explicar o delta, não só mostrá-lo</span></div>
+              <div id="fech-desvios"></div></div>
+          </div>
         </div>
       </section>
 
@@ -19278,9 +19305,23 @@ function renderFech(d){
     statChip(k.resultado_previsto>=k.resultado_orcado?'good':'bad',
       `${k.resultado_previsto>=k.resultado_orcado?'+':''}${brlAbbr(k.resultado_previsto-k.resultado_orcado)} vs orçado`,
       'Diferença do resultado previsto para o orçado do mês (versão vigente do Orçamento).'):'';
+  // ---- aba Norte: resultado, breakeven, comprometido x ao alcance, escrituração
+  const n=d.norte||null, be=(n&&n.breakeven)||{};
+  const gapTxt = be.gap_receita!=null
+    ? (be.gap_receita<=0 ? 'meta de breakeven coberta'
+       : brlAbbr(be.gap_receita)+(be.viagens_equivalentes?` ≈ ${Math.round(be.viagens_equivalentes)} viagens`:''))
+    : '—';
+  const alcance=(n&&n.alavancas||[]).reduce((s2,x)=>s2+x.delta_resultado,0);
   document.getElementById('kpis-fech').innerHTML=[
     kpi('Resultado previsto do mês', brlAbbr(k.resultado_previsto||0), banda||'sem banda calibrada',
       (k.resultado_previsto||0)>=0?'pos':'neg', 'Cascata completa da DRE prevista: conhecido + projetado por linha, com ajustes manuais. NÃO é número fechado.', vsOrc),
+    kpi('Falta para o breakeven', gapTxt,
+      be.mc_pct!=null?`operacional (LOP 1 zero) · MC ${Math.round(be.mc_pct)}%`:'sem base 12m',
+      be.gap_receita==null?'':(be.gap_receita<=0?'pos':'neg'),
+      'Receita que falta, no ritmo previsto, para o resultado OPERACIONAL zerar (média 12m de custo fixo ÷ margem de contribuição). NÃO cobre o resultado financeiro nem conta venda de ativo. As viagens equivalentes usam a receita média por viagem do próprio mês.'),
+    kpi('Comprometido × ao alcance', n?brlAbbr((n.comprometido||{}).total||0):'—',
+      n?`${brlAbbr(alcance)} ao alcance nas alavancas`:'norte disponível só no mês corrente',
+      '', 'Custo já travado no mês (custo fixo, overhead, resultado financeiro — variação de até 13% nos 6 meses fechados: não muda com ação de curto prazo) contra o que as alavancas ainda alcançam. A lista completa está na tabela de alavancas.'),
     /* ESCRITURACAO. O cartao mais importante desta tela depois do resultado,
        e o que faltava: o intervalo do resultado nao encolhe ao longo do mes
        porque o CUSTO entra no razao com semanas de atraso, nao porque o
@@ -19294,32 +19335,31 @@ function renderFech(d){
 
        Vem com a MEDIANA historica ao lado porque sozinho ele nao decide nada:
        "-1,4 mi" so vira informacao quando se sabe que o mes tipico e -295 mil. */
+    kpi('Mês escriturado', fechPct(k.consolidacao_pct),
+      fechBlocos(k.consolidacao_blocos),
+      fechClasse(k.consolidacao_blocos),
+      'Quanto do mês já está lançado no razão contábil, comparado ao total previsto. A RECEITA acompanha o calendário; o CUSTO entra com semanas de atraso, e é isso que faz o resultado previsto oscilar. Julho é a prova: no dia 4 de agosto o mês aparecia com +R$ 1,7 milhão e fechou em −R$ 945 mil, porque ainda faltavam R$ 2,2 milhões de custo a lançar. Quando o custo está muito atrás da receita, espere o resultado PIORAR.'),
+  ].join('');
+  document.getElementById('kpis-fech2').innerHTML=[
     kpi('Resultado operacional (LOP 1)', brlAbbr((k.lop1||{}).previsto||0),
       fechLop1Sub(k.lop1),
       fechLop1Classe(k.lop1),
       'Resultado da operação: receita menos impostos, custo do serviço e despesas. NÃO inclui resultado financeiro (juros da dívida) nem não-operacional (venda de ativo, indenização) — é de propósito, porque esses dois escondem se a operação em si se paga. A mediana ao lado é dos últimos meses fechados, e é mediana e não média: um único mês forte puxa a média e faz a operação parecer equilibrada.',
       fechLop1VsOrc(k.lop1)),
-    kpi('Mês escriturado', fechPct(k.consolidacao_pct),
-      fechBlocos(k.consolidacao_blocos),
-      fechClasse(k.consolidacao_blocos),
-      'Quanto do mês já está lançado no razão contábil, comparado ao total previsto. A RECEITA acompanha o calendário; o CUSTO entra com semanas de atraso, e é isso que faz o resultado previsto oscilar. Julho é a prova: no dia 4 de agosto o mês aparecia com +R$ 1,7 milhão e fechou em −R$ 945 mil, porque ainda faltavam R$ 2,2 milhões de custo a lançar. Quando o custo está muito atrás da receita, espere o resultado PIORAR.'),
     kpi('Orçado do mês', k.resultado_orcado!=null?brlAbbr(k.resultado_orcado):'—',
       k.resultado_orcado!=null?'versão vigente do Orçamento':'sem versão do ano', ''),
     kpi('Receita prevista', brlAbbr(k.receita_prevista||0),
       k.meta_mes?`meta ${brlAbbr(k.meta_mes)}`:'sem meta carregada',
       k.meta_mes&&k.receita_prevista>=k.meta_mes?'pos':''),
-    kpi('Atingimento até hoje', k.atingimento_mtd!=null?Math.round(k.atingimento_mtd*100)+'%':'—',
-      k.atingimento_mtd!=null?'realizado fiscal ÷ meta acumulada':'sem meta diária carregada',
+    kpi('Atingimento até ontem', k.atingimento_mtd!=null?Math.round(k.atingimento_mtd*100)+'%':'—',
+      k.atingimento_mtd!=null?'realizado fiscal ÷ meta até ontem (dia em curso fora do ritmo)':'sem meta diária carregada',
       k.atingimento_mtd==null?'':(k.atingimento_mtd<0.9?'neg':'pos')),
   ].join('');
-  // evolução: 1 ponto por snapshot diário do RESULTADO DO EXERCICIO
-  const snaps=(d.serie_snapshots||[]).filter(s=>s.linha==='RESULTADO DO EXERCICIO');
-  if(snaps.length){
-    const cats=snaps.map(s=>s.data.slice(8)+'/'+s.data.slice(5,7));
-    const series=[{nome:'previsto',cor:CC.navy500||'#38648D',valores:snaps.map(s=>s.previsto_base)}];
-    if(k.resultado_orcado!=null) series.push({nome:'orçado',cor:CC.amarelo||'#B97709',valores:snaps.map(()=>k.resultado_orcado)});
-    chartArea('chartFechEvol',cats,series,{fmt:brlAbbr});
-  }
+  renderFechNorte(n, k);
+  // evolução: desenhada SÓ com a aba visível (ECharts mede o contêiner uma
+  // vez; sob hidden a medida vale zero) — abaTrocar chama fechEvolDesenhar
+  const abaEvol=document.getElementById('aba-fevol');
+  if(abaEvol && !abaEvol.hidden) fechEvolDesenhar();
   // maiores desvios (linhas diretas com orçado; ignora linha sem cobertura no
   // orcamento e sem realizado ainda — orcado:0 nesse caso é ausência de dado,
   // não desvio real, ledger conhecido do Task 6/7)
@@ -19360,6 +19400,70 @@ function renderFech(d){
     `<table><thead><tr><th>Linha</th><th class="num">Realizado até hoje</th><th class="num">Projetado</th><th class="num">Previsto</th><th class="num">Banda</th><th class="num">Orçado</th><th class="num">Desvio</th><th class="num">% RL</th><th>Estratégia</th></tr></thead><tbody>${rows}</tbody></table>`;
   document.getElementById('fech-casc-hint').textContent=
     `${modo==='corrente'?'mês corrente (aberto)':'mês em fechamento'} · previsto = conhecido + projetado · hover mostra as premissas`;
+  abaContador('fechNAjuste',(d.linhas||[]).filter(l=>l.ajuste).length);
+}
+/* O NORTE: composição, cenários e alavancas — o bloco que transforma a
+   previsão em decisão. Fora do mês corrente o payload traz norte=null e a
+   aba diz isso em vez de fingir número. */
+function renderFechNorte(n, k){
+  const comp=document.getElementById('fech-comp-hint');
+  if(!n){
+    document.getElementById('fech-cenarios').innerHTML=
+      '<div class="hint">Cenários e alavancas existem só para o mês CORRENTE — mês em fechamento ou fechado já não tem alavanca a puxar.</div>';
+    document.getElementById('fech-alavancas').innerHTML=
+      '<tr><td colspan="4" class="hint">sem alavancas: mês não está em curso</td></tr>';
+    if(comp) comp.textContent='disponível só no mês corrente';
+    ecDesenhar('chartFechComp', null, 'norte disponível só no mês corrente');
+    abaContador('fechNAlav',0);
+    return;
+  }
+  const rec=k.receita_prevista||0, res=k.resultado_previsto||0;
+  chartHBars('chartFechComp',[
+    {rotulo:'Receita prevista', valor:rec},
+    {rotulo:'Escala com a receita', valor:(n.proporcional||{}).total||0},
+    {rotulo:'Já comprometido', valor:(n.comprometido||{}).total||0},
+    {rotulo:'Resultado previsto', valor:res},
+  ],{fmt:brlAbbr,cor:r=>r.rotulo==='Receita prevista'?(CC.green||'#1E7F4F')
+      :(r.rotulo==='Resultado previsto'?(res>=0?(CC.green||'#1E7F4F'):(CC.red||'#C03221'))
+      :(CC.orange500||'#E85D10'))});
+  if(comp) comp.textContent=n.fora&&n.fora.previsto?
+    `não recorrente fora do norte: ${n.fora.linha.toLowerCase()} ${brlAbbr(n.fora.previsto)}`:'';
+  const c=n.cenarios||{};
+  const linha=(rot,cen,sub)=>{
+    if(!cen) return '';
+    const cls=cen.resultado>=0?'good':(cen.resultado>=res?'warn':'bad');
+    return `<div style="display:flex;justify-content:space-between;gap:10px;padding:9px 4px;border-bottom:1px solid var(--n100);font-size:13px">
+      <span><b>${rot}</b>${sub?` <span class="hint">${sub}</span>`:''}</span>
+      <span style="white-space:nowrap">${statChip(cls,brlAbbr(cen.resultado),'Resultado do mês neste cenário — mesmo motor, só a receita muda.')}
+      <span class="hint" style="font-family:var(--mono)">${brlAbbr(cen.receita)} rec.</span></span></div>`;
+  };
+  const mut=n.mutavel||{};
+  document.getElementById('fech-cenarios').innerHTML=
+    linha('No ritmo atual', c.ritmo, '')+
+    linha('Fechando na meta', c.meta,
+      `exige ${brlAbbr(mut.receita_restante_meta||0)} em ${mut.dias_meta_restantes||0} dias com meta`)+
+    linha('Mês típico', c.tipico,
+      c.ating_hist!=null?`${Math.round(c.ating_hist*100)}% da meta (média 3m)`:'');
+  const alav=n.alavancas||[];
+  document.getElementById('fech-alavancas').innerHTML=alav.map(a2=>{
+    const podeIr=!VIEWS[a2.view]||typeof podeVer!=='function'||podeVer(a2.view);
+    return `<tr><td>${esc(a2.titulo)}</td>
+      <td class="num" style="color:var(--green);font-family:var(--mono)">+${brlAbbr(a2.delta_resultado)}</td>
+      <td style="font-size:12px;color:var(--n500)">${esc(a2.como||'')}</td>
+      <td>${podeIr?`<a href="#${esc(a2.view)}">abrir</a>`:''}</td></tr>`;
+  }).join('')||'<tr><td colspan="4" class="hint">nenhuma alavanca com R$ 50 mil ou mais em jogo — mês dentro do orçado e da meta</td></tr>';
+  abaContador('fechNAlav',alav.length);
+}
+/* Evolução da previsão — desenha do DATAFECH quando a aba abre (data-ao-abrir). */
+function fechEvolDesenhar(){
+  const d=DATAFECH; if(!d) return;
+  const k=d.kpis||{};
+  const snaps=(d.serie_snapshots||[]).filter(s=>s.linha==='RESULTADO DO EXERCICIO');
+  if(!snaps.length){ ecDesenhar('chartFechEvol', null, 'sem snapshot gravado no mês'); return; }
+  const cats=snaps.map(s=>s.data.slice(8)+'/'+s.data.slice(5,7));
+  const series=[{nome:'previsto',cor:CC.navy500||'#38648D',valores:snaps.map(s=>s.previsto_base)}];
+  if(k.resultado_orcado!=null) series.push({nome:'orçado',cor:CC.amarelo||'#B97709',valores:snaps.map(()=>k.resultado_orcado)});
+  chartArea('chartFechEvol',cats,series,{fmt:brlAbbr});
 }
 async function fechAjuste(mes, linha, atual){
   const raw=prompt(

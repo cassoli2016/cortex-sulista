@@ -29,8 +29,9 @@ from api.previsao.sql import (ATING_HIST_SQL, CAP_MES_SQL, COMPLETUDE_SQL,
                               VFC_MTD_SQL, meses_fechados_prev)
 from api.previsao.motor import _brl
 from api.queries import (BREAKEVEN_SQL, DRE_AG_SQL, DRE_AJUSTADAS_SQL,
-                         DRE_MODELO, VG_DIARIO_SQL, _comp_bounds,
-                         _ponto_equilibrio, ler_ajustes)
+                         DRE_MODELO, VG_DIARIO_SQL, VG_SAZONAL_SQL,
+                         _comp_bounds, _meta_diaria_sazonal, _ponto_equilibrio,
+                         ler_ajustes)
 
 log = logging.getLogger("cortex.previsao")
 ROOT = Path(__file__).resolve().parent.parent.parent
@@ -214,6 +215,8 @@ def montar_resposta(ctx: dict) -> dict:
             nao_alocado_real += v
 
     previsto_direta: dict[str, dict] = {}
+    # coeficientes que o NORTE reusa (mesmo motor, sem segunda formula)
+    norte_ctx: dict = {}
     curva_ok = _curva_utilizavel(ctx.get("curva"))
     if not curva_ok and modo in ("corrente", "fechando"):
         avisos.append(AVISO_SEM_CURVA)
@@ -286,11 +289,60 @@ def montar_resposta(ctx: dict) -> dict:
                                     "premissas": ["mes fechado - razao"]}
         avisos.append("Mes fechado: previsto = razao. Consulte a DRE Gerencial.")
     elif modo == "fechando":
-        # sem curva nao ha' como decidir consolidado/lote/razao_completude: o
-        # M-1 inteiro cai no nivel historico (mesma regra do corrente).
-        est = (motor.estimar_m1(razao_ag, ctx["curva"], ctx["dia_rel"],
-                                {ag: _fallback_nivel(ag) for ag in razao_ag})
-               if curva_ok else {ag: _nivel_sem_curva(ag) for ag in razao_ag})
+        # C2: o fechando HERDA as reguas do corrente onde elas sao melhores
+        # que a curva. Medido na virada de agosto/26: dividir o razao pela
+        # completude inflou o CV em ~R$ 3 mi (frete agregados -4,78 mi ÷ 57%
+        # = -8,33 mi contra -5,84 mi que as viagens do proprio mes afirmam;
+        # pedagio ÷ 35% = 3,4x a mediana - fatura unica do TAG) e o resultado
+        # saltou -R$ 2,89 mi de um dia para o outro so' por troca de metodo.
+        #
+        # (a) FRETE DE COMPRA sai das viagens do M-1 (ops_out ja e' do M-1:
+        # de_mes/ate_mes seguem o mes-alvo) com receita restante ZERO;
+        ags_frete_m1 = [ag for ag in razao_ag
+                        if motor.estrategia_do_agrupador(ag) == "frete_compra"]
+        if ags_frete_m1:
+            razao_frete = sum(razao_ag.get(ag, 0.0) for ag in ags_frete_m1)
+            vfc_fc = float(ctx["vfc"].get("frete_compra") or 0.0)
+            rec_v = float(ctx["vfc"].get("receita_viagens") or 0.0)
+            comb_m1 = motor.prever_frete_compra(
+                razao_frete, vfc_fc, rec_v, rec_v, 0.0,
+                "viagens do mes (fechando: mes acabou, sem projecao)")
+            tot_h = {ag: abs(sum(_ultimos(hist_ag.get(ag, {}), meses, 6)))
+                     for ag in ags_frete_m1}
+            soma_h = sum(tot_h.values()) or 1.0
+            for ag in ags_frete_m1:
+                rot = motor.linha_do_agrupador(ag) or "CUSTO VARIAVEL"
+                atual = previsto_direta.setdefault(
+                    rot, {"previsto": 0.0, "estrategia": "frete_compra",
+                          "premissas": comb_m1["premissas"]})
+                atual["previsto"] += comb_m1["previsto"] * (tot_h[ag] / soma_h)
+        # (b) COMBUSTIVEL continua nas 2 pernas (o liquido dividido pela
+        # curva ja projetou 30% acima do pior mes registrado);
+        diesel_m1 = _diesel_agregado_ctx(ctx, meses)
+        ags_comb_m1 = []
+        if diesel_m1:
+            for ag in razao_ag:
+                if motor.norm(ag).startswith("CV - COMBUSTIVEL"):
+                    ags_comb_m1.append(ag)
+                    r = _prever_combustivel(ag, diesel_m1, razao_ag[ag])
+                    rot = motor.linha_do_agrupador(ag) or "CUSTO VARIAVEL"
+                    atual = previsto_direta.setdefault(
+                        rot, {"previsto": 0.0, "estrategia": r["estrategia"],
+                              "premissas": []})
+                    atual["previsto"] += r["previsto"]
+                    atual["premissas"] = (atual["premissas"] + r["premissas"])[:6]
+                    atual["estrategia"] = r["estrategia"]
+        # (c) o resto segue a curva, com TETO anti-inflacao: razao ÷ frac que
+        # supere 1,25x o maior mes ja registrado cai para max(razao, nivel).
+        tratados = set(ags_frete_m1) | set(ags_comb_m1)
+        restante = {ag: v for ag, v in razao_ag.items() if ag not in tratados}
+        max_hist = {ag: max((abs(x) for x in _ultimos(hist_ag.get(ag, {}),
+                                                      meses, 6)), default=0.0)
+                    for ag in restante}
+        est = (motor.estimar_m1(restante, ctx["curva"], ctx["dia_rel"],
+                                {ag: _fallback_nivel(ag) for ag in restante},
+                                max_hist)
+               if curva_ok else {ag: _nivel_sem_curva(ag) for ag in restante})
         for ag, r in est.items():
             rot = motor.linha_do_agrupador(ag)
             if not rot:
@@ -306,7 +358,8 @@ def montar_resposta(ctx: dict) -> dict:
         if d:
             rec = motor.prever_receita(d["real_acum"], d["meta_acum"], d["meta_mes"],
                                        ctx.get("ating_hist"),
-                                       ctx["dias_meta_decorridos"])
+                                       ctx["dias_meta_decorridos"],
+                                       d.get("real_hoje", 0.0))
         else:
             # driver fiscal fora (spec 11). Zerar o diario faria prever_receita
             # devolver 0,00 de RECEITA BRUTA e a cascata inteira (impostos,
@@ -334,6 +387,7 @@ def montar_resposta(ctx: dict) -> dict:
             pct = (sum(serie6) / len(serie6)) / media_rb6 if media_rb6 else 0.0
             previsto_direta[rot] = motor.prever_pct_receita(
                 rec["previsto"], pct, f"media 6m ({rot.lower()})")
+            norte_ctx["pct_impostos"] = norte_ctx.get("pct_impostos", 0.0) + pct
         for rot in ("ANULACOES", "DESCONTOS"):
             idx = indices_por_linha.get(rot) or {m: 1.0 for m in range(1, 13)}
             vals6 = _ultimos(hist_linha.get(rot, {}), meses, 6)
@@ -376,6 +430,11 @@ def montar_resposta(ctx: dict) -> dict:
             comb = motor.prever_frete_compra(
                 razao_mtd_frete, vfc_frete_compra, rec["previsto"],
                 receita_ja_coberta, razao_cr, fonte_rec)
+            norte_ctx["razao_cr"] = razao_cr
+            if receita_viagens > 0.0:
+                norte_ctx["pct_obs_frete"] = (
+                    abs(vfc_frete_compra) * motor.CONV_FRETE_CONTABIL
+                    / receita_viagens)
             total_h = {ag: abs(sum(_ultimos(hist_ag.get(ag, {}), meses, 6)))
                        for ag in ags_frete}
             soma_h = sum(total_h.values()) or 1.0
@@ -412,6 +471,10 @@ def montar_resposta(ctx: dict) -> dict:
                 disp = dispersao_em(ctx["curva"], ag, rot, ctx["dia_rel"])
                 if diesel_agr and motor.norm(ag).startswith("CV - COMBUSTIVEL"):
                     r = _prever_combustivel(ag, diesel_agr, v_mtd)
+                    norte_ctx["combustivel"] = {
+                        "previsto": r["previsto"],
+                        "mediana6": motor.mediana(
+                            _ultimos(hist_ag.get(ag, {}), meses, 6))}
                 else:
                     r = motor.prever_razao_completude(
                         v_mtd, frac, _fallback_nivel(ag), disp)
@@ -623,7 +686,16 @@ def montar_resposta(ctx: dict) -> dict:
         "consolidacao_blocos": consolidacao_blocos,
         "dados_ate": ctx["hoje"],
     }
+    norte = None
+    if modo == "corrente" and diario:
+        try:
+            norte = _montar_norte(casc_base, base_direta, linhas, ctx, diario,
+                                  ctx.get("ating_hist"), norte_ctx)
+        except Exception as exc:  # noqa: BLE001 - o norte nunca derruba a previsao
+            log.warning("previsao: norte indisponivel: %s", exc)
+
     return {"mes": ctx["mes"], "modo": modo, "kpis": kpis, "linhas": linhas,
+            "norte": norte,
             "avisos": avisos, "linhas_flat": (ctx.get("indices") or ({}, []))[1],
             "serie_snapshots": ctx.get("snapshots") or [],
             "fontes": fontes,
@@ -631,7 +703,131 @@ def montar_resposta(ctx: dict) -> dict:
                       "+ orcamento local · previsao, nao numero fechado")}
 
 
-def _diesel_agr_bruto(ops_out: list | None, hoje: date) -> dict:
+# Alavanca so' entra no norte com pelo menos R$ 50 mil em jogo (regra do
+# piso de materialidade da casa: ranking sem piso mente).
+PISO_ALAVANCA = 50_000.0
+
+
+def _montar_norte(casc_base: dict, base_direta: dict, linhas: list[dict],
+                  ctx: dict, diario: dict, ating_hist: float | None,
+                  nctx: dict) -> dict:
+    """O bloco que transforma a previsao em DECISAO: o que ja esta travado,
+    o que escala com a receita, o que ainda esta ao alcance — e quanto vale
+    cada alavanca, em R$, no MESMO motor (cenarios sao a sensibilidade
+    marginal das linhas que de fato escalam com a receita: impostos por
+    pct_receita e o frete de compra projetado por razao_cr; nivel, sazonal e
+    as 2 pernas do combustivel nao se movem com a receita, por construcao)."""
+    receita_prev = casc_base.get("RECEITA BRUTA", 0.0)
+    resultado = casc_base.get("RESULTADO DO EXERCICIO", 0.0)
+
+    comprometido, proporcional, fora = [], [], None
+    for rot, _n, tipo, _s in DRE_MODELO:
+        if tipo == "formula":
+            continue
+        v = base_direta.get(rot, 0.0)
+        cls = motor.classe_da_linha(rot)
+        if cls == "comprometido" and v:
+            comprometido.append({"linha": rot, "valor": v})
+        elif cls == "proporcional" and v:
+            proporcional.append({"linha": rot, "valor": v})
+        elif cls == "fora" and (v or fora is None):
+            fora = {"linha": rot, "previsto": v,
+                    "obs": ("nao recorrente (venda de imobilizado e afins) - "
+                            "NAO conta no norte nem nos cenarios")}
+
+    meta_rest = max(0.0, diario["meta_mes"] - diario["meta_acum"])
+    sens = max(0.0, 1.0 - abs(nctx.get("pct_impostos") or 0.0)
+               - abs(nctx.get("razao_cr") or 0.0))
+    rec_meta = diario["real_acum"] + meta_rest
+    rec_tip = diario["real_acum"] + meta_rest * (
+        ating_hist if ating_hist is not None else 1.0)
+
+    def _cen(rc: float) -> dict:
+        return {"receita": rc,
+                "resultado": resultado + (rc - receita_prev) * sens}
+
+    cenarios = {"ritmo": {"receita": receita_prev, "resultado": resultado},
+                "meta": _cen(rec_meta), "tipico": _cen(rec_tip),
+                "sensibilidade": sens,
+                "ating_hist": ating_hist}
+
+    be = ctx.get("breakeven") or {}
+    vfc = ctx.get("vfc") or {}
+    rv = (float(vfc.get("receita_viagens") or 0.0) / vfc["viagens"])         if vfc.get("viagens") else None
+    be_min = float(be.get("faturamento_minimo_mes") or 0.0)
+    gap = max(0.0, be_min - receita_prev) if be_min else None
+    breakeven = {"receita_minima_mes": be_min or None,
+                 "mc_pct": be.get("mc_pct"),
+                 "gap_receita": gap,
+                 "receita_viagem_media": rv,
+                 "viagens_equivalentes": (gap / rv) if (gap and rv) else None}
+
+    alavancas: list[dict] = []
+    d_meta = _cen(rec_meta)["resultado"] - resultado
+    if d_meta >= PISO_ALAVANCA:
+        alavancas.append({
+            "titulo": "Fechar na meta em vez do ritmo atual",
+            "delta_resultado": d_meta,
+            "como": (f"exige {_brl(meta_rest)} nos "
+                     f"{diario.get('dias_meta_restantes') or 0} dias com meta "
+                     "restantes"),
+            "view": "home"})
+    pct_obs = nctx.get("pct_obs_frete")
+    ref = abs(nctx.get("razao_cr") or 0.0)
+    if pct_obs and ref and pct_obs > ref:
+        d_frete = (pct_obs - ref) * receita_prev
+        if d_frete >= PISO_ALAVANCA:
+            alavancas.append({
+                "titulo": (f"Frete de compra a {pct_obs:.1%} da receita "
+                           f"(mediana 6m: {ref:.1%})"),
+                "delta_resultado": d_frete,
+                "como": "voltar a mediana historica do custo de agregado",
+                "view": "mvb"})
+    cb = nctx.get("combustivel")
+    if cb and cb.get("mediana6"):
+        d_cb = abs(cb["previsto"]) - abs(cb["mediana6"])
+        if d_cb >= PISO_ALAVANCA:
+            alavancas.append({
+                "titulo": "Combustivel acima da mediana 6m",
+                "delta_resultado": d_cb,
+                "como": (f"previsto {_brl(cb['previsto'])} contra mediana "
+                         f"{_brl(cb['mediana6'])}"),
+                "view": "comb"})
+    for ln in linhas:
+        if ln.get("formula") or ln.get("desvio") is None:
+            continue
+        if motor.classe_da_linha(ln["linha"]) not in ("comprometido",
+                                                      "proporcional"):
+            continue
+        # convencao razao: custo negativo. desvio = previsto - orcado, entao
+        # desvio NEGATIVO e' sempre DESFAVORAVEL (custo alem do orcado ou
+        # receita aquem) - e voltar ao orcado vale |desvio| no resultado.
+        if ln["desvio"] < 0 and abs(ln["desvio"]) >= PISO_ALAVANCA:
+            alavancas.append({
+                "titulo": f"{ln['linha']}: {_brl(abs(ln['desvio']))} pior que o orcado",
+                "delta_resultado": abs(ln["desvio"]),
+                "como": "trazer a linha de volta ao orcado do mes",
+                "view": "orc"})
+    alavancas.sort(key=lambda x: -x["delta_resultado"])
+
+    return {
+        "comprometido": {"total": sum(x["valor"] for x in comprometido),
+                         "linhas": comprometido},
+        "proporcional": {"total": sum(x["valor"] for x in proporcional),
+                         "pct_impostos": nctx.get("pct_impostos"),
+                         "razao_frete_receita": nctx.get("razao_cr"),
+                         "linhas": proporcional},
+        "mutavel": {"receita_restante_meta": meta_rest,
+                    "dias_meta_restantes": diario.get("dias_meta_restantes") or 0},
+        "fora": fora,
+        "breakeven": breakeven,
+        "cenarios": cenarios,
+        "alavancas": alavancas[:6],
+    }
+
+
+def _diesel_agr_bruto(ops_out: list | None, hoje: date,
+                      mes_completo: bool = False) -> dict:
     """Le do grupo operacional as tres consultas do diesel do agregado.
 
     Fica vazio quando o grupo caiu — e o mesmo tratamento que vfc/ctaplus/cap
@@ -650,7 +846,9 @@ def _diesel_agr_bruto(ops_out: list | None, hoje: date) -> dict:
             # fracao do mes JA decorrida, em dias corridos: o km de agregado nao
             # tem sazonalidade intramensal forte o bastante para justificar curva
             # propria, e a media movel de 6 meses do R$/km ja absorve o resto.
-            "frac_mes": min(1.0, hoje.day / dias)}
+            # no modo fechando o "MTD" e' o M-1 INTEIRO: frac 1.0, senao o
+            # km previsto do agregado dobraria o mes ja encerrado
+            "frac_mes": 1.0 if mes_completo else min(1.0, hoje.day / dias)}
 
 
 def _diesel_agregado_ctx(ctx: dict, meses: list[str]) -> dict | None:
@@ -787,6 +985,9 @@ def get_previsao(mes: str | None = None, hoje: date | None = None) -> dict:
             # /%(ate)s via _DRE_BASE), so os VALORES (janela de 12m) mudam aqui.
             (BREAKEVEN_SQL, {"de": f"{meses_fechados_prev(hoje, 12)[0]}-01",
                              "ate": f"{hoje.year}-{hoje.month:02d}-01"}),
+            # C4: a meta diaria da previsao passa pela MESMA distribuicao
+            # sazonal da Visao Geral - as duas telas concordam no atingimento
+            (VG_SAZONAL_SQL, None),
         ])
         f_ops = ex.submit(_fetch_grupo, [
             (VFC_MTD_SQL, {"de": de_mes, "ate": ate_mes}),
@@ -890,14 +1091,26 @@ def get_previsao(mes: str | None = None, hoje: date | None = None) -> dict:
     ating_hist = None
     breakeven = None
     if diario_out is not None and modo == "corrente":
-        rows_d = diario_out[0]
+        rows_d = [dict(r) for r in diario_out[0]]
+        # C4: meta diaria sazonal (total do mes intocado) - mesma regua da home
+        try:
+            rows_d, _mf = _meta_diaria_sazonal(
+                rows_d, [dict(r) for r in (diario_out[3] or [])]
+                if len(diario_out) > 3 else [], hoje.year, hoje.month)
+        except Exception:  # noqa: BLE001 - sazonal e' refinamento, nunca derruba
+            pass
+        # C1: o dia EM CURSO fica fora do ritmo (meta cheia contra realizado
+        # de minutos derrubava a previsao toda manha - R$ 3,57 mi no dia 1)
         meta_mes = sum(r["meta"] for r in rows_d)
-        meta_acum = sum(r["meta"] for r in rows_d if r["dia"] <= hoje.day)
-        real_acum = sum(r["realizado"] for r in rows_d)
+        meta_acum = sum(r["meta"] for r in rows_d if r["dia"] < hoje.day)
+        real_acum = sum(r["realizado"] for r in rows_d if r["dia"] < hoje.day)
+        real_hoje = sum(r["realizado"] for r in rows_d if r["dia"] == hoje.day)
         dias_meta_decorridos = sum(1 for r in rows_d
-                                   if r["meta"] and r["dia"] <= hoje.day)
+                                   if r["meta"] and r["dia"] < hoje.day)
         diario = {"real_acum": real_acum, "meta_acum": meta_acum,
-                  "meta_mes": meta_mes}
+                  "meta_mes": meta_mes, "real_hoje": real_hoje,
+                  "dias_meta_restantes": sum(
+                      1 for r in rows_d if r["meta"] and r["dia"] >= hoje.day)}
     if diario_out is not None:
         ath = [r for r in diario_out[1] if r["meta"]]
         ating_hist = (sum(r["realizado"] / r["meta"] for r in ath) / len(ath)) \
@@ -964,7 +1177,7 @@ def get_previsao(mes: str | None = None, hoje: date | None = None) -> dict:
                   else {"frete_compra": 0.0, "receita_viagens": 0.0, "viagens": 0},
            "ctaplus": dict(ops_out[1][0]) if (ops_out and ops_out[1]) else None,
            "cap": dict(ops_out[2][0]) if (ops_out and ops_out[2]) else None,
-           "diesel_agr": _diesel_agr_bruto(ops_out, hoje),
+           "diesel_agr": _diesel_agr_bruto(ops_out, hoje, modo != "corrente"),
            "breakeven": breakeven, "orcado_linha": orcado_linha,
            "avisos_previos": avisos_previos,
            "meses_circulares": circulares, "calibracao": calib,

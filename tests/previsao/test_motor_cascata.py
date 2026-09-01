@@ -24,7 +24,10 @@ def test_estrategia_por_prefixo():
     assert estrategia_do_agrupador("CF - FOLHA MOT") == "nivel"
     assert estrategia_do_agrupador("OVERHEAD - FOLHA ADM") == "nivel"
     assert estrategia_do_agrupador("CF - DESPESAS ADM") == "razao_completude"
-    assert estrategia_do_agrupador("FINANC - BANCOS") == "sazonal"
+    # v0.198.0: FINANC saiu de sazonal para NIVEL (parcelas contratadas sao
+    # o caso canonico de nivel; em julho o sazonal errou R$ 344 mil onde a
+    # mediana 3m erraria R$ 70 mil)
+    assert estrategia_do_agrupador("FINANC - BANCOS") == "nivel"
     assert estrategia_do_agrupador("CLASSIFICAR") == "runrate"
     # acento nao muda a decisao (normalizacao NFKD como no get_dre)
     assert estrategia_do_agrupador("CV - COMBUSTÍVEL") == "razao_completude"

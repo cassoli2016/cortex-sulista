@@ -175,12 +175,27 @@ def _alertas_previsao(payload: dict) -> list[tuple[str, str, str]]:
                       "fonte: Controladoria > Fechamento do Mês."))
     prev = k.get("resultado_previsto")
     orc = k.get("resultado_orcado")
+    # o alerta negativo carrega a ALAVANCA nº 1 e o gap do breakeven: quem
+    # recebe o push tem de saber O QUE FAZER, não só quanto vai doer — os
+    # dados já estão no payload (bloco `norte`), zero consulta nova
+    acao = ""
+    n = payload.get("norte") or {}
+    alav = (n.get("alavancas") or [None])[0]
+    be = n.get("breakeven") or {}
+    if be.get("gap_receita"):
+        veq = be.get("viagens_equivalentes")
+        acao += (f" Faltam {_fmt_brl(be['gap_receita'])} de receita para o "
+                 f"breakeven operacional"
+                 + (f" (~{veq:.0f} viagens)." if veq else "."))
+    if alav:
+        acao += (f" Maior alavanca: {alav['titulo']} — vale "
+                 f"{_fmt_brl(alav['delta_resultado'])}.")
     if prev is not None and prev < 0:
         itens.append(("atencao" if fora else "critico",
                       "Resultado do mês previsto NEGATIVO",
                       f"A previsão de fechamento de {payload.get('mes')} aponta "
-                      f"{_fmt_brl(prev)}. Detalhe: Controladoria > Fechamento do "
-                      f"Mês.{nota}"))
+                      f"{_fmt_brl(prev)}.{acao} Detalhe: Controladoria > "
+                      f"Fechamento do Mês.{nota}"))
     elif prev is not None and orc is not None and prev < orc:
         itens.append(("atencao", "Resultado do mês abaixo do orçado",
                       f"Previsto {_fmt_brl(prev)} contra orçado {_fmt_brl(orc)} "
