@@ -2346,6 +2346,111 @@ SELECT dia, sum(realizado)::float8 AS realizado, sum(meta)::float8 AS meta FROM 
 ) t GROUP BY 1 ORDER BY 1
 """
 
+# Sazonalidade do faturamento para a META DIÁRIA (pedido de 01/09/2026):
+# média de faturamento POR DIA em cada célula (dia-da-semana × década do mês),
+# sobre os últimos 6 meses FECHADOS, com as mesmas três fontes oficiais do
+# realizado. É daqui que sai a forma da semana — medido em mar–ago/26: quarta
+# fatura R$ 502 mil/dia e sábado R$ 152 mil, enquanto a meta do ERP dava
+# R$ 571 mil flat de segunda a sexta e 225 mil no sábado (48% acima do real).
+# Meses FECHADOS de propósito: o corrente entraria pela metade e diluiria
+# justamente os dias que ainda não aconteceram.
+VG_SAZONAL_SQL = """
+SELECT dow, dec, sum(v)::float8 AS total, count(*)::int AS dias FROM (
+  SELECT d, extract(dow from d)::int AS dow,
+         least((extract(day from d)::int - 1) / 10, 2)::int AS dec,
+         sum(v) AS v
+  FROM (
+    SELECT dtemissao::date AS d, coalesce(valortotalprestacao,0) AS v
+    FROM conhecimento
+    WHERE dtemissao >= date_trunc('month', current_date) - interval '6 months'
+      AND dtemissao < date_trunc('month', current_date)
+      AND grupo = 1 AND empresa = 1 AND unidade = 1 AND numero < 1000000
+      AND dtcancelamento IS NULL AND situacaocte = 3 AND tipo IN (1,4)
+    UNION ALL
+    SELECT dtemissao::date, coalesce(valor_cte,0)
+    FROM sulista.faturamentokmm
+    WHERE dtemissao >= date_trunc('month', current_date) - interval '6 months'
+      AND dtemissao < date_trunc('month', current_date)
+    UNION ALL
+    SELECT dtemissao::date, coalesce(valortotalbruto,0)
+    FROM notafiscalservico
+    WHERE dtemissao >= date_trunc('month', current_date) - interval '6 months'
+      AND dtemissao < date_trunc('month', current_date)
+      AND grupo = 1 AND empresa = 1 AND numero < 1000000
+      AND dtcancelamento IS NULL
+      AND (emissaoeletronica = 2 OR (emissaoeletronica = 1 AND situacaonfse = 3))
+  ) x GROUP BY 1, 2, 3
+) t GROUP BY 1, 2
+"""
+
+
+def _meta_diaria_sazonal(diario, celulas, ano, mes):
+    """Redistribui a meta DIÁRIA pela sazonalidade do realizado — o TOTAL do
+    mês é intocável (pedido de 01/09/2026: "nunca mude o valor total").
+
+    Três regras que não se negociam:
+    - O total redistribuído é EXATAMENTE a soma da meta do ERP no mês; o
+      resíduo de arredondamento vai para o dia de maior peso (determinístico).
+    - Só os dias A QUE O ERP DEU META recebem meta: o ERP zera domingos E
+      feriados (7 de setembro não tem linha), e essa escolha é informação —
+      redistribuir para um feriado cobraria meta de quem não trabalha, e o
+      painel já vive a lição "verde só quando havia meta a bater".
+    - Célula (dia-da-semana × década) com menos de 4 dias de amostra cai na
+      média do dia-da-semana; sem histórico nenhum, a meta do ERP fica como
+      está e `meta_fonte` diz "erp" — degradação dita, nunca silenciosa.
+
+    Devolve (diario, fonte): a MESMA lista com `meta` reescrita, e a fonte
+    ("sazonal" ou "erp") para a tela dizer a procedência no ⓘ.
+    """
+    total = sum((r.get("meta") or 0) for r in diario)
+    com_meta = [r for r in diario if (r.get("meta") or 0) > 0]
+    if total <= 0 or len(com_meta) < 2:
+        return diario, "erp"
+
+    media_cel: dict[tuple[int, int], float] = {}
+    dias_cel: dict[tuple[int, int], int] = {}
+    soma_dow: dict[int, float] = {}
+    dias_dow: dict[int, int] = {}
+    for c in celulas or []:
+        chave = (int(c["dow"]), int(c["dec"]))
+        if not c["dias"]:
+            continue
+        media_cel[chave] = c["total"] / c["dias"]
+        dias_cel[chave] = int(c["dias"])
+        # A MÉDIA MARGINAL do dow (o fallback da célula rala) só soma células
+        # CONFIÁVEIS: senão os 2 dias malucos que tornaram a célula rala
+        # contaminariam justamente a média que existe para protegê-la deles.
+        if int(c["dias"]) >= 4:
+            soma_dow[chave[0]] = soma_dow.get(chave[0], 0.0) + c["total"]
+            dias_dow[chave[0]] = dias_dow.get(chave[0], 0) + int(c["dias"])
+    media_dow = {d: soma_dow[d] / dias_dow[d] for d in dias_dow if dias_dow[d]}
+    if not media_dow:
+        return diario, "erp"
+
+    def _peso(dia: int) -> float:
+        # dow do Postgres: 0 = domingo; weekday() do Python: 0 = segunda
+        dow = (date(ano, mes, dia).weekday() + 1) % 7
+        dec = min((dia - 1) // 10, 2)
+        if dias_cel.get((dow, dec), 0) >= 4:
+            return media_cel[(dow, dec)]
+        return media_dow.get(dow, 0.0)
+
+    pesos = {r["dia"]: max(0.0, _peso(int(r["dia"]))) for r in com_meta}
+    soma_pesos = sum(pesos.values())
+    if soma_pesos <= 0:
+        return diario, "erp"
+
+    novas = {dia: round(total * w / soma_pesos, 2) for dia, w in pesos.items()}
+    residuo = round(total - sum(novas.values()), 2)
+    if residuo:
+        alvo = max(pesos, key=lambda d: (pesos[d], d))
+        novas[alvo] = round(novas[alvo] + residuo, 2)
+    for r in diario:
+        if r["dia"] in novas:
+            r["meta"] = novas[r["dia"]]
+    return diario, "sazonal"
+
+
 # Km por modalidade nos últimos 30 dias, com o split carregado × vazio da
 # definição canônica da Análise de KM (tipo = 3 é a perna vazia) — o total
 # sozinho esconde o retorno vazio, que é o número acionável.
@@ -2453,7 +2558,8 @@ def get_visao_geral() -> dict:
         [(KPI_SQL, fin_params, True), (SALDO_SQL, fin_params, True),
          (RUNRATE_SQL, fin_params, True)],
         [(FLUXO_SQL, fin_params, False), (BREAKEVEN_SQL, {"de": de_be, "ate": ate_be}, False)],
-        [(VG_MES_SQL, None, True), (VG_DIARIO_SQL, None, False)],
+        [(VG_MES_SQL, None, True), (VG_DIARIO_SQL, None, False),
+         (VG_SAZONAL_SQL, None, False)],
         # o SET LOCAL evita o merge join degenerado do 9.3 no join OC×recebimentos
         [("SET LOCAL enable_mergejoin = off", None, None),
          (VG_MODAL_KM_SQL, None, False), (VG_REC12_SQL, None, False),
@@ -2466,8 +2572,12 @@ def get_visao_geral() -> dict:
     runrate = (rr or {}).get("runrate") or 0.0
     fluxo = g_fluxo[0][:13]
     be_rows = {r["grupo"]: r["valor"] for r in g_fluxo[1]}
-    mes, diario = g_mes
+    mes, diario, sazonal = g_mes
     modal_km, receita_12m, oc, meta = g_series
+    # A meta DIÁRIA segue a sazonalidade do realizado; o TOTAL do mês é o do
+    # ERP, intocado. `meta_fonte` deixa a tela dizer a procedência.
+    diario, meta_fonte = _meta_diaria_sazonal(
+        diario, sazonal, date.today().year, date.today().month)
 
     bancos = (saldo.get("bancos") or 0.0) + (saldo.get("caixa") or 0.0)
     acc = bancos
@@ -2517,6 +2627,7 @@ def get_visao_geral() -> dict:
         "oc_atraso_valor": oc["oc_atraso_valor"],
         "oc_aprovacao": oc["oc_aprovacao"],
         "diario": diario,
+        "meta_fonte": meta_fonte,
         "atingimento_mes": atingimento,
         "ponto_equilibrio": _ponto_equilibrio(be_rows),
         "meta_acumulada": meta_acum,

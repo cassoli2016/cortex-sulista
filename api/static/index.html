@@ -2785,7 +2785,7 @@ body.tvfull #btnReport,body.tvmode #btnReport{display:none}
              role="tabpanel" aria-labelledby="tabhome-dia">
 <div class="card">
           <div class="head">
-            <h2>Faturamento diário × meta <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="Realizado = CT-e (conhecimento, situação 3, tipos 1 e 4) + faturamento KMM (sulista.faturamentokmm) + NFS-e autorizadas (notafiscalservico), por data de emissão. Meta = sulista.metafaturamento_agrupamentoclientedia (tipo 1), por dia. É o recorte OFICIAL de faturamento — o mesmo do Painel TV. Diferente de 'Faturamento do mês' (faturas emitidas) e de 'Receita CT-e' (frete das viagens).">i</span></h2>
+            <h2>Faturamento diário × meta <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="Realizado = CT-e (conhecimento, situação 3, tipos 1 e 4) + faturamento KMM (sulista.faturamentokmm) + NFS-e autorizadas (notafiscalservico), por data de emissão. Meta: o TOTAL do mês é o do ERP (sulista.metafaturamento_agrupamentoclientedia, tipo 1) e não muda um centavo; a DISTRIBUIÇÃO por dia é sazonal desde 01/09/2026 — peso por dia da semana × década do mês, aprendido dos últimos 6 meses fechados do próprio faturamento (quarta fatura R$ 502 mil/dia e sábado R$ 152 mil; a meta flat cobrava sábado como terça). Dia sem meta no ERP (domingo, feriado) continua sem meta. Sem histórico, a distribuição volta a ser a do ERP e este ⓘ estaria mentindo — por isso o hint diz a fonte. É o recorte OFICIAL de faturamento — o mesmo do Painel TV. Diferente de 'Faturamento do mês' (faturas emitidas) e de 'Receita CT-e' (frete das viagens).">i</span></h2>
             <span class="hint" id="hintHomeDia">mês corrente · realizado acumulado vs meta acumulada até hoje</span>
           </div>
           <div class="mstrip">
@@ -10399,6 +10399,16 @@ async function loadHome(){
    O atingimento da meta saiu daqui e virou a faixa do card do faturamento
    diário — é a leitura do mesmo dado, não um número solto. */
 function renderHome(d){
+  /* O ⓘ do faturamento diário promete que o hint diz a FONTE da distribuição
+     da meta — sazonal (padrão) ou a do ERP, quando o histórico faltar. Uma
+     promessa no ⓘ sem o hint cumprindo seria o ⓘ mentindo. */
+  {
+    const h=document.getElementById('hintHomeDia');
+    if(h) h.textContent='mês corrente · realizado acumulado vs meta acumulada até hoje · '
+      +(d.meta_fonte==='sazonal'
+        ? 'meta diária sazonal (dia da semana × década; total do mês é o do ERP)'
+        : 'meta diária do ERP (sem histórico para a distribuição sazonal)');
+  }
   const cmp = {ref:'Mesmo período do mês anterior', fmt:BRL.format};
   const gapTxt = d.gap_mes==null ? 'sem gap no horizonte projetado'
     : (d.gap_mes==='agora' ? 'saldo já negativo hoje'

@@ -4,6 +4,11 @@ Gerado de `docs/versoes.yaml` por `scripts/gerar_changelog.py` — não editar �
 Formato [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/),
 versionamento [SemVer](https://semver.org/lang/pt-BR/).
 
+## [0.194.0] — 01/09/2026  ·  CX-01/09/2026-v0.194.0
+
+### Alterado
+- A meta DIÁRIA de faturamento deixou de ser flat e passou a seguir a sazonalidade real da operação: peso por dia da semana × década do mês, aprendido dos últimos 6 meses fechados do próprio faturamento oficial. Medido, a meta antiga cobrava R$ 571 mil de um sábado que fatura R$ 152 mil e tratava quarta (R$ 502 mil/dia, o pico) igual a sexta (R$ 425 mil). O TOTAL do mês continua sendo exatamente o do ERP, ao centavo — só a distribuição entre os dias muda —, e dia sem meta no ERP (domingo, feriado como 7 de setembro) continua sem meta: verde só quando havia meta a bater. Sem histórico, a distribuição volta a ser a do ERP e o hint do gráfico diz qual das duas está valendo. Vale para a Visão Geral, o Painel TV de Faturamento, o da Diretoria e o resumo de WhatsApp — todos leem a mesma régua, e as 28 conferências da reconciliação passam com a meta nova.
+
 ## [0.193.0] — 01/09/2026  ·  CX-01/09/2026-v0.193.0
 
 ### Adicionado
