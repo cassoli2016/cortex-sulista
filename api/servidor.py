@@ -46,7 +46,13 @@ except ImportError:  # pragma: no cover
 _TAREFAS = ["Cortex Sulista - API", "Cortex Sulista - AutoDeploy",
             "Cortex Sulista - Tunnel", "Cortex Sulista - Telemetria",
             "Cortex Sulista - Pneus", "Cortex Sulista - Backup",
-            "Cortex Sulista - Jornada", "Cortex Sulista - Ngrok"]
+            "Cortex Sulista - Jornada", "Cortex Sulista - Ngrok",
+            "Cortex Sulista - Smartec", "Cortex Sulista - WhatsApp agendado",
+            "Cortex Sulista - Gerenciamento de Risco"]
+# Fora da lista DE PROPÓSITO (instalador existe, registro não comprovado
+# nesta máquina): 'CTe Contrapartida' (aguarda a decisão fiscal) e
+# 'Relatorios por e-mail'. Entrar aqui sem estar registrada viraria um
+# vermelho permanente — e alarme que grita à toa ensina a ignorar alarme.
 
 
 def _iso(ts: float) -> str:

@@ -4,6 +4,11 @@ Gerado de `docs/versoes.yaml` por `scripts/gerar_changelog.py` — não editar �
 Formato [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/),
 versionamento [SemVer](https://semver.org/lang/pt-BR/).
 
+## [0.206.1] — 01/09/2026  ·  CX-01/09/2026-v0.206.1
+
+### Corrigido
+- A Saúde do Servidor agora vigia também as tarefas agendadas da Smartec, do WhatsApp e do Gerenciamento de Risco — a lista de tarefas da tela só conhecia as oito primeiras, e tarefa fora da lista é tarefa que pode morrer em silêncio (foi assim que a coleta da Gobrax ficou cinco dias parada sem ninguém notar). CTe Contrapartida e Relatórios por e-mail ficam de fora de propósito até o registro delas ser confirmado nesta máquina.
+
 ## [0.206.0] — 01/09/2026  ·  CX-01/09/2026-v0.206.0
 
 ### Alterado
