@@ -4,6 +4,11 @@ Gerado de `docs/versoes.yaml` por `scripts/gerar_changelog.py` — não editar �
 Formato [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/),
 versionamento [SemVer](https://semver.org/lang/pt-BR/).
 
+## [0.209.3] — 01/09/2026  ·  CX-01/09/2026-v0.209.3
+
+### Corrigido
+- Portais de Antecipação exibia a barra de filtros (filial, data de referência, vencimento) sem que nenhum número da tela a obedecesse — nem o Portal Tupy, nem a planilha. Filtro que a consulta ignora sai: a barra deixou de aparecer nessa tela.
+
 ## [0.209.2] — 01/09/2026  ·  CX-01/09/2026-v0.209.2
 
 ### Corrigido

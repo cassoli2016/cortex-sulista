@@ -1,3 +1,11 @@
+- versao: "0.209.3"
+  data: "2026-09-01"
+  corrigido:
+    - >-
+      Portais de Antecipação exibia a barra de filtros (filial, data de
+      referência, vencimento) sem que nenhum número da tela a obedecesse —
+      nem o Portal Tupy, nem a planilha. Filtro que a consulta ignora sai:
+      a barra deixou de aparecer nessa tela.
 - versao: "0.209.2"
   data: "2026-09-01"
   corrigido:
