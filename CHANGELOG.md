@@ -4,6 +4,14 @@ Gerado de `docs/versoes.yaml` por `scripts/gerar_changelog.py` — não editar �
 Formato [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/),
 versionamento [SemVer](https://semver.org/lang/pt-BR/).
 
+## [0.200.1] — 01/09/2026  ·  CX-01/09/2026-v0.200.1
+
+### Alterado
+- Faturamento Detalhado mudou do grupo Business Intelligence para a CONTROLADORIA (menu, gaveta do celular e documentação) — a pedido da direção. O perfil Controladoria passa a ver a tela; os acessos de Diretoria, Comercial e Financeiro continuam.
+
+### Corrigido
+- "Frota Própria × Agregado" estava fora da ordem alfabética no menu de Operação (ficou na posição do antigo "Make vs Buy" quando foi renomeada) — no menu e na gaveta do celular.
+
 ## [0.200.0] — 01/09/2026  ·  CX-01/09/2026-v0.200.0
 
 ### Adicionado

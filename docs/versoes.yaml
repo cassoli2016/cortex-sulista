@@ -1,3 +1,16 @@
+- versao: "0.200.1"
+  data: "2026-09-01"
+  alterado:
+    - >-
+      Faturamento Detalhado mudou do grupo Business Intelligence para a
+      CONTROLADORIA (menu, gaveta do celular e documentação) — a pedido da
+      direção. O perfil Controladoria passa a ver a tela; os acessos de
+      Diretoria, Comercial e Financeiro continuam.
+  corrigido:
+    - >-
+      "Frota Própria × Agregado" estava fora da ordem alfabética no menu de
+      Operação (ficou na posição do antigo "Make vs Buy" quando foi
+      renomeada) — no menu e na gaveta do celular.
 - versao: "0.200.0"
   data: "2026-09-01"
   adicionado:

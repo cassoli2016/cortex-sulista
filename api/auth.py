@@ -112,7 +112,7 @@ TELAS: dict[str, tuple[str, str]] = {  # chave -> (rótulo, grupo do menu)
     "telcond": ("Condução Econômica", "Telemetria"),
     "telhod":  ("Hodômetro e Rastro", "Telemetria"),
     "prodveic": ("Produtividade de Veículos", "Business Intelligence"),
-    "fat":     ("Faturamento Detalhado", "Business Intelligence"),
+    "fat":     ("Faturamento Detalhado", "Controladoria"),
     "tvfat":   ("Painel TV — Faturamento", "Business Intelligence"),
     "tvope":   ("Painel TV — Operação", "Business Intelligence"),
     "tvdir":   ("Painel TV — Diretoria", "Business Intelligence"),
@@ -767,6 +767,17 @@ def _seed_perfis_modelo(c: psycopg.Connection) -> None:
                 c.execute("INSERT INTO perfil_telas(perfil_id, tela) VALUES(%s,%s) ON CONFLICT DO NOTHING",
                           (row["id"], "fat"))
         c.execute("INSERT INTO config(chave, valor) VALUES('perfis_modelo_v36', '1') ON CONFLICT(chave) DO NOTHING")
+
+    # v37 (2026-09-01): a tela 'fat' mudou do grupo BI para Controladoria a
+    # pedido do dono — o perfil Controladoria passa a ve-la (os grants da v36
+    # continuam valendo; grupo do menu nao e RBAC, mas tela no grupo que o
+    # perfil habita sem o perfil poder abri-la seria um menu que mente).
+    if not c.execute("SELECT 1 FROM config WHERE chave='perfis_modelo_v37'").fetchone():
+        row = c.execute("SELECT id FROM perfis WHERE nome='Controladoria'").fetchone()
+        if row:
+            c.execute("INSERT INTO perfil_telas(perfil_id, tela) VALUES(%s,%s) ON CONFLICT DO NOTHING",
+                      (row["id"], "fat"))
+        c.execute("INSERT INTO config(chave, valor) VALUES('perfis_modelo_v37', '1') ON CONFLICT(chave) DO NOTHING")
 
 
 def _agora() -> str:

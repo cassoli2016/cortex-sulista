@@ -380,6 +380,7 @@ grupos:
   - orc
   - fech
   - qual
+  - fat
 - nome: Comercial
   resumo: Clientes, receita por quilômetro, concentração de carteira, pipeline de leads e a consulta 360
     de um cliente.
@@ -453,7 +454,6 @@ grupos:
     telas de mural, sem interação e sem tooltip, em que cada número precisa se
     explicar sozinho, de longe, para quem passa pelo corredor.
   telas:
-  - fat
   - prodveic
   - tvfat
   - tvdir

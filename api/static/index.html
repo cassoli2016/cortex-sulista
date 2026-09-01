@@ -83,6 +83,7 @@
      verde #1E7F4F sobre fundo escuro some. Não são cores novas: são as que o
      design system já tinha para fundo escuro. */
 @media (prefers-color-scheme: dark){
+
   :root:not([data-theme="light"]){
     --n0:#151E2A;--n50:#0E1620;--n100:#1E2833;--n200:#2B3745;--n300:#3B4A5A;
     --n400:#7A8796;--n500:#95A2B0;--n600:#B5C0CC;--n700:#D0D9E2;--n900:#E9EEF4;
@@ -1254,6 +1255,10 @@ body.tvfull .tv-head .tv-logo{display:block}
 .poli-sw.s0{background:#FDE68A}.poli-sw.s1{background:#FBBF24}.poli-sw.s2{background:#F08A4B}
 .poli-sw.s3{background:#E85D10}.poli-sw.s4{background:#B91C1C}
 .poli-sw.off{background:#9AA3AE;opacity:.4}
+/* o HEAT não muda com o tema: é intensidade, não superfície — a regra com
+   seletor de tema existe para o auditor de superfícies saber que é
+   deliberado (mesma cor nos dois temas, como o semáforo brilhante da TV) */
+:root[data-theme="dark"] .poli-sw.s0,:root:not([data-theme="light"]) .poli-sw.s0{background:#FDE68A}
 .tv-tab{width:100%;border-collapse:collapse;font-size:21px;color:#E5EDF4}
 .tv-tab th{font-size:15px;text-transform:uppercase;color:#8FA6BC;text-align:left;padding:8px 12px;letter-spacing:.06em}
 .tv-tab td{padding:11px 12px;border-top:1px solid #1E3A54}
@@ -2266,7 +2271,6 @@ body.tvfull #btnReport,body.tvmode #btnReport{display:none}
         <span class="ic" data-ic="bi"></span><span>Business Intelligence</span><span class="ic chev" data-ic="chev"></span>
       </button>
       <div class="subs closed" id="subsBi">
-        <a href="#fat" class="sub" data-view="fat" title="Faturamento Detalhado — emissões do dia a dia contra a meta, por modalidade e cliente"><span class="ic" data-ic="fatic"></span><span>Faturamento Detalhado</span></a>
         <button class="subgrupo" id="sgTv" aria-expanded="false" aria-controls="subsTv" onclick="toggleSubgrupo('sgTv','subsTv')" title="Painéis TV — telão e quiosque">
           <span class="ic" data-ic="tv"></span><span>Painéis TV</span><span class="ic chev" data-ic="chev"></span>
         </button>
@@ -2294,6 +2298,7 @@ body.tvfull #btnReport,body.tvmode #btnReport{display:none}
         <a href="#cont" class="sub" data-view="cont" title="Contabilidade — ajuste de agrupadores"><span class="ic" data-ic="ctb"></span><span>Contabilidade</span></a>
         <a href="#ctecp" class="sub" data-view="ctecp" title="CT-e de Contrapartida — conciliação dos CT-e de agregado que aguardam documento do transportador"><span class="ic" data-ic="ctb"></span><span>CT-e de Contrapartida</span></a>
         <a href="#dre" class="sub" data-view="dre" title="DRE Gerencial"><span class="ic" data-ic="dre"></span><span>DRE Gerencial</span></a>
+        <a href="#fat" class="sub" data-view="fat" title="Faturamento Detalhado — emissões do dia a dia contra a meta, por modalidade e cliente"><span class="ic" data-ic="fatic"></span><span>Faturamento Detalhado</span></a>
         <a href="#fech" class="sub" data-view="fech" title="Fechamento do Mês — previsão do resultado antes de fechar"><span class="ic" data-ic="fechic"></span><span>Fechamento do Mês</span></a>
         <a href="#orc" class="sub" data-view="orc" title="Orçamento — orçado × realizado"><span class="ic" data-ic="orcic"></span><span>Orçamento</span></a>
         <a href="#qual" class="sub" data-view="qual" title="Qualidade — certidões e licenças com vencimento"><span class="ic" data-ic="qualic"></span><span>Qualidade e Certidões</span></a>
@@ -2341,8 +2346,8 @@ body.tvfull #btnReport,body.tvmode #btnReport{display:none}
         <a href="#agr" class="sub" data-view="agr" title="Agregados e Terceiros"><span class="ic" data-ic="agr"></span><span>Agregados e Terceiros</span></a>
         <a href="#km" class="sub" data-view="km" title="Análise de KM"><span class="ic" data-ic="kmv"></span><span>Análise de KM</span></a>
         <a href="#cex" class="sub" data-view="cex" title="Custos Extras por CT-e"><span class="ic" data-ic="cexic"></span><span>Custos Extras</span></a>
-        <a href="#jorn" class="sub" data-view="jorn" title="Jornada do Motorista (Lei 13.103) — apuração da RasterJOR, com as inconformidades nomeadas pelo fornecedor"><span class="ic" data-ic="jornic"></span><span>Jornada do Motorista</span></a>
         <a href="#mvb" class="sub" data-view="mvb" title="Frota própria ou agregado, rota a rota"><span class="ic" data-ic="mvb"></span><span>Frota Própria × Agregado</span></a>
+        <a href="#jorn" class="sub" data-view="jorn" title="Jornada do Motorista (Lei 13.103) — apuração da RasterJOR, com as inconformidades nomeadas pelo fornecedor"><span class="ic" data-ic="jornic"></span><span>Jornada do Motorista</span></a>
         <a href="#milkrun" class="sub" data-view="milkrun" title="Operação MWM: chegada e saída detectadas pelo rastreamento"><span class="ic" data-ic="milkic"></span><span>Operação MWM</span></a>
         <a href="#poli" class="sub" data-view="poli" title="Permanência na Planta — quanto tempo o veículo passa dentro da planta da Tupy e em quais polígonos"><span class="ic" data-ic="poliic"></span><span>Permanência na Planta</span></a>
         <a href="#port" class="sub" data-view="port" title="Portaria — controle de pátio e autorização de saída"><span class="ic" data-ic="porta"></span><span>Portaria</span></a>
@@ -7341,7 +7346,7 @@ const VIEW_GROUP = {home:'',cop:'',
   torre:'Ope',milkrun:'Ope',poli:'Ope',prog:'Ope',jorn:'Ope',jornf:'Ope',cex:'Ope',sac:'Ope',port:'Ope',km:'Ope',agr:'Ope',mvb:'Ope',pedagio:'Ope',
   veic:'Fro',veicf:'Fro',mprev:'Fro',comrast:'Fro',comb:'Fro',man:'Fro',mul:'Fro',pneus:'Fro',
   oc:'Sup',custos:'Sup',
-  prodveic:'Bi',fat:'Bi',tvfat:'Bi',tvope:'Bi',tvdir:'Bi',
+  prodveic:'Bi',fat:'Ctr',tvfat:'Bi',tvope:'Bi',tvdir:'Bi',
   rh:'Rh',hc:'Rh',folha:'Rh',folhaind:'Rh',he:'Rh',cnh:'Rh',ferias:'Rh',people:'Rh',gestao:'Adm',srv:'Adm',doc:'Adm',gesacao:'Ges',gesata:'Ges',
   // Telemetria e ANTT tinham grupo na barra lateral mas ficaram de fora deste
   // mapa: o acordeao nao abria sozinho ao navegar para elas (agora a busca
@@ -31997,7 +32002,6 @@ boot();
     <div class="dgrp" data-grp="Bi">
       <button class="dgrp-h" onclick="toggleDGrp(this)"><span>Business Intelligence</span><span class="dchev">›</span></button>
       <div class="dgrp-b">
-        <a href="#fat" onclick="fecharDrawer()"><span class="ic" data-ic="fatic"></span>Faturamento Detalhado</a>
         <a href="#tvdir" onclick="fecharDrawer()"><span class="ic" data-ic="tvdiric"></span>Painéis TV — Diretoria</a>
         <a href="#tvfat" onclick="fecharDrawer()"><span class="ic" data-ic="tvfatic"></span>Painéis TV — Faturamento</a>
         <a href="#tvope" onclick="fecharDrawer()"><span class="ic" data-ic="tv"></span>Painéis TV — Operação</a>
@@ -32020,6 +32024,7 @@ boot();
         <a href="#cont" onclick="fecharDrawer()"><span class="ic" data-ic="ctb"></span>Contabilidade</a>
         <a href="#ctecp" onclick="fecharDrawer()"><span class="ic" data-ic="ctb"></span>CT-e de Contrapartida</a>
         <a href="#dre" onclick="fecharDrawer()"><span class="ic" data-ic="dre"></span>DRE Gerencial</a>
+        <a href="#fat" onclick="fecharDrawer()"><span class="ic" data-ic="fatic"></span>Faturamento Detalhado</a>
         <a href="#fech" onclick="fecharDrawer()"><span class="ic" data-ic="dre"></span>Fechamento do Mês</a>
         <a href="#orc" onclick="fecharDrawer()"><span class="ic" data-ic="dre"></span>Orçamento</a>
         <a href="#qual" onclick="fecharDrawer()"><span class="ic" data-ic="qualic"></span>Qualidade e Certidões</a>
@@ -32067,8 +32072,8 @@ boot();
         <a href="#agr" onclick="fecharDrawer()"><span class="ic" data-ic="agr"></span>Agregados e Terceiros</a>
         <a href="#km" onclick="fecharDrawer()"><span class="ic" data-ic="kmv"></span>Análise de KM</a>
         <a href="#cex" onclick="fecharDrawer()"><span class="ic" data-ic="cexic"></span>Custos Extras</a>
-        <a href="#jorn" onclick="fecharDrawer()"><span class="ic" data-ic="jornic"></span>Jornada do Motorista</a>
         <a href="#mvb" onclick="fecharDrawer()"><span class="ic" data-ic="mvb"></span>Frota Própria × Agregado</a>
+        <a href="#jorn" onclick="fecharDrawer()"><span class="ic" data-ic="jornic"></span>Jornada do Motorista</a>
         <a href="#milkrun" onclick="fecharDrawer()"><span class="ic" data-ic="milkic"></span>Operação MWM</a>
         <a href="#poli" onclick="fecharDrawer()"><span class="ic" data-ic="poliic"></span>Permanência na Planta</a>
         <a href="#port" onclick="fecharDrawer()"><span class="ic" data-ic="porta"></span>Portaria</a>
