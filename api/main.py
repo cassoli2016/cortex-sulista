@@ -3093,13 +3093,20 @@ def rh_folha_indicadores() -> JSONResponse:
 
 
 @app.get("/api/operacao/pedagio")
-def operacao_pedagio(dias: int = 365) -> JSONResponse:
+def operacao_pedagio(dt_de: str = "", dt_ate: str = "", dias: int = 365) -> JSONResponse:
     """Validação de pedágio: vale-pedágio × CT-e × coleta, por eixo e modalidade.
 
     Os três números existem e NÃO batem, e a tela nomeia a diferença em vez de
     escolher um: o CT-e cobra a taxa do cliente, a coleta lança o pedágio da
     operação e o vale é o que se adianta ao transportador. Medido em 12 meses,
     R$ 4,86 mi × R$ 5,69 mi × R$ 1,76 mi.
+
+    `dt_de`/`dt_ate` são os MESMOS parâmetros que o tag e a auditoria já
+    aceitam. A rota nasceu só com `dias` e a tela mandava as datas do filtro
+    para as TRÊS rotas — o FastAPI descartava as duas daqui em silêncio, e as
+    abas do ERP ficavam em 365 dias enquanto o filtro dizia 90: duas leituras
+    contraditórias na mesma tela, achado da revisão de 31/08/2026. `dias`
+    continua como padrão para quando o filtro vier vazio.
     """
     import datetime as _dt
     try:
@@ -3108,8 +3115,20 @@ def operacao_pedagio(dias: int = 365) -> JSONResponse:
         return JSONResponse(status_code=422, content={
             "erro": "parametro_invalido",
             "mensagem": "Período inválido: informe os dias em número."})
-    ate = _dt.date.today()
-    de = ate - _dt.timedelta(days=dias)
+    for nome, valor in (("dt_de", dt_de), ("dt_ate", dt_ate)):
+        if valor and _bad_date(valor):
+            return JSONResponse(status_code=422, content={
+                "erro": "parametro_invalido",
+                "mensagem": f"Parâmetro {nome} inválido: use o formato AAAA-MM-DD."})
+    if dt_de and dt_ate:
+        if dt_de > dt_ate:
+            dt_de, dt_ate = dt_ate, dt_de
+        de = _dt.date.fromisoformat(dt_de)
+        ate = _dt.date.fromisoformat(dt_ate)
+        dias = max(1, (ate - de).days)
+    else:
+        ate = _dt.date.today()
+        de = ate - _dt.timedelta(days=dias)
     try:
         from api.pedagio import validacao as _v, pracas as _p, qualp as _q
         d, a = de.isoformat(), ate.isoformat()

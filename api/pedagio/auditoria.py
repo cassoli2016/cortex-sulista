@@ -247,8 +247,11 @@ SELECT t.id, t.placa, t.ts, t.praca, t.eixos, t.categoria, t.valor::float8 AS va
 # reconciliação de diárias já usa.
 _MANIFESTOS_SQL = """
 SELECT m.veiculo AS placa, m.numero, m.dtsaida, m.dtchegada, m.motorista,
+       coalesce(nullif(trim(c.nomefantasia), ''),
+                nullif(trim(c.razaosocial), ''))     AS motorista_nome,
        coalesce(m.pesototalbrutomercadoria, 0)::float8 AS peso
   FROM manifesto m
+  LEFT JOIN cadastro c ON c.codigo = m.motorista
  WHERE m.veiculo = ANY(%(placas)s) AND m.semaforo = 1
    AND m.dtsaida IS NOT NULL AND m.dtchegada IS NOT NULL
    AND m.dtchegada >= %(de)s AND m.dtsaida <= %(ate)s
@@ -331,14 +334,20 @@ def eixo_nao_levantado(de: str | None = None, ate: str | None = None,
                 "eixos_cobrados": x["eixos"], "eixos_minimos": menor,
                 "categoria": x["categoria"], "valor": x["valor"],
                 "evitavel": evitavel, "manifesto": m["numero"],
+                # A CHAVE interna é o documento (dois homônimos não se
+                # misturam), mas o que sai no payload é o NOME do cadastro —
+                # CPF cru estava indo para a tela, e CPF não aparece inteiro
+                # em painel (regra da ficha do motorista). O join resolve o
+                # nome em 592 de 592 condutores; sem cadastro sai "—".
                 "motorista": m["motorista"],
+                "motorista_nome": m.get("motorista_nome"),
                 "dtsaida": m["dtsaida"], "dtchegada": m["dtchegada"]})
 
     linhas.sort(key=lambda x: -x["evitavel"])
     por_mot: dict[str, dict] = {}
     for x in linhas:
         a = por_mot.setdefault(x["motorista"] or "—",
-                               {"motorista": x["motorista"] or "—",
+                               {"motorista": x.get("motorista_nome") or "—",
                                 "travessias": 0, "evitavel": 0.0,
                                 "placas": set()})
         a["travessias"] += 1
@@ -349,6 +358,8 @@ def eixo_nao_levantado(de: str | None = None, ate: str | None = None,
           "evitavel": round(a["evitavel"], 2), "placas": len(a["placas"])}
          for a in por_mot.values()),
         key=lambda x: -x["evitavel"])
+    for x in linhas:          # o documento não sai no payload — só o nome
+        x["motorista"] = x.pop("motorista_nome", None) or "—"
 
     return {
         "vazio": not linhas, "linhas": linhas, "motoristas": motoristas,

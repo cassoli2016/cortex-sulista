@@ -4994,7 +4994,12 @@ body.tvfull #btnReport,body.tvmode #btnReport{display:none}
                   <button class="btn" id="pedtag-envia" onclick="pedTagImportar()">Importar</button>
                 </span></div>
               <div class="hint" id="pedtag-msg" style="padding:0 18px 6px"></div>
-              <div class="tablewrap tabroll" style="max-height:250px"><table><thead><tr>
+              <!-- nasce hidden: sem fatura importada o gráfico não existe, e
+                   uma faixa vazia de 110px estourava a régua de altura no
+                   piso da bancada; o render tira o hidden quando há dado -->
+              <div id="pedtag-fatmes" hidden style="width:100%;height:110px" role="img"
+                   aria-label="Gasto do tag por competência das faturas importadas"></div>
+              <div class="tablewrap tabroll" style="max-height:150px"><table><thead><tr>
                 <th>Competência</th><th>Fatura</th><th class="num">Total</th>
                 <th class="num">Travessias</th><th>Importada em</th>
               </tr></thead><tbody id="pedtag-fat"></tbody></table></div>
@@ -21880,7 +21885,12 @@ function renderPedAud(d){
     return;
   }
 
-  const jan = (C.concentracao || []).map(x => x.janela_min + 'min: ' + x.travessias).join(' · ');
+  /* O VALOR do KPI é só a janela de 5 min — as três juntas estouravam a
+     largura do card e o número quebrava em duas linhas espremidas. As outras
+     duas janelas vão no SUBTÍTULO, que é onde comparação mora num KPI. */
+  const jan5 = (C.concentracao || []).find(x => x.janela_min === 5);
+  const janResto = (C.concentracao || []).filter(x => x.janela_min !== 5)
+    .map(x => x.travessias + ' em ' + x.janela_min + ' min').join(' · ');
   document.getElementById('kpis-pedaud').innerHTML = [
     kpi('Total acionável', BRL.format(d.total || 0),
         'contestação + eixo, no período importado', '',
@@ -21899,23 +21909,32 @@ function renderPedAud(d){
         'Cobradas acima do menor eixo do próprio manifesto. O apontamento só ' +
         'existe quando o mesmo veículo, na mesma viagem, já cruzou uma praça ' +
         'com menos eixo.'),
-    kpi('Concentração', jan || '—',
-        'pares por janela de tempo',
+    kpi('Pares em 5 minutos', jan5 ? String(jan5.travessias) : '—',
+        janResto || 'pares por janela de tempo',
         '', 'É a concentração que sustenta a leitura de duplicidade, não a ' +
-        'contagem: travessia legítima de ida e volta leva horas. Se estes três ' +
-        'números ficarem parecidos entre si, a interpretação cai.')
+        'contagem: travessia legítima de ida e volta leva horas. O número ' +
+        'quase não cresce ao abrir a janela para 15 e 60 minutos — se um dia ' +
+        'esses três números ficarem parecidos entre si, a interpretação cai.')
   ].join('');
 
   tb('pedaud-con').innerHTML = (C.duplicadas || []).slice(0, 80).map(function(x){
     const t = PEDAUD_TIPO[x.tipo] || ['', x.tipo];
-    const par = x.tipo === 'divergente'
-      ? ' <span class="chip bad" title="a outra linha do par cobrou ' + x.eixos_par +
-        ' eixos e ' + fmtRsKm(x.valor_par) + ' no mesmo instante">' +
-        x.eixos + 'e × ' + x.eixos_par + 'e</span>' : '';
+    /* UM chip por linha: o rótulo do tipo e o par de eixos iam em DOIS chips
+       na mesma célula estreita, que quebravam a linha e saíam um por cima do
+       outro (a mesma família das tags sobrepostas da tela de multas). */
+    const rotulo = x.tipo === 'divergente'
+      ? x.eixos + 'e × ' + x.eixos_par + 'e divergem' : t[1];
+    const dica = x.tipo === 'divergente'
+      ? 'as duas linhas do par são do mesmo instante: uma cobrou ' + x.eixos +
+        ' eixos e a outra ' + x.eixos_par + ' (' + fmtRsKm(x.valor_par) + ')' : '';
     return '<tr><td>' + esc(x.placa) + '</td><td>' + esc((x.praca || '').slice(0, 34)) + '</td>' +
       '<td>' + fmtDT(x.ts_1) + '</td>' +
       '<td class="num">' + BRL.format(x.valor) + '</td>' +
-      '<td><span class="chip ' + t[0] + '">' + t[1] + '</span>' + par + '</td></tr>';
+      /* nowrap: numa célula estreita o chip quebrava em duas linhas e a
+         borda arredondada cortava o texto ao meio */
+      '<td style="white-space:nowrap"><span class="chip ' + t[0] + '"'
+      + (dica ? ' title="' + esc(dica) + '"' : '') + '>'
+      + esc(rotulo) + '</span></td></tr>';
   }).join('') || vaz(5, 'nenhuma cobrança repetida no período');
   document.getElementById('hintPedAudCon').textContent =
     Math.min(80, C.duplicadas_n || 0) + ' de ' + (C.duplicadas_n || 0) + ' pares' +
@@ -22023,7 +22042,7 @@ function renderPedTag(d){
     /* O desvio é só sobre as praças de casamento EXATO: misturar as
        aproximadas engordaria o número com hipótese. */
     kpi('Tabela do ERP erra',
-        C.erro_pct == null ? '—' : (C.erro_pct > 0 ? '+' : '') + C.erro_pct.toFixed(1) + '%',
+        C.erro_pct == null ? '—' : (C.erro_pct > 0 ? '+' : '') + NMI.format(C.erro_pct) + '%',
         C.pracas_exatas ? BRL.format(Math.abs(C.diferenca||0)) + ' em ' + C.pracas_exatas + ' praças'
                         : 'sem par no cadastro',
         Math.abs(C.erro_pct || 0) >= 3 ? 'bad' : 'good',
@@ -22051,7 +22070,7 @@ function renderPedTag(d){
       '<td class="num">' + fmtRsKm(x.tarifa_eixo) + '</td>' +
       '<td class="num">' + fmtRsKm(x.erp_tarifa_eixo) + '</td>' +
       '<td class="num ' + cls + '">' +
-      (dif == null ? '—' : (dif > 0 ? '+' : '') + dif.toFixed(2)) + '</td>' +
+      (dif == null ? '—' : (dif > 0 ? '+' : '') + fmtRsKm(dif)) + '</td>' +
       '<td>' + fmtD(x.vigencia) + '</td><td class="num">' + x.n + '</td></tr>';
   }).join('') : vazioMsg('nenhuma praça da fatura casou com o cadastro do ERP');
   document.getElementById('hintPedTagTar').textContent =
@@ -22066,7 +22085,9 @@ function renderPedTag(d){
       '<td class="num">' + BRL.format(g.valor) + '</td>' +
       '<td class="num">' + BRL.format(g.valor_pela_tabela) + '</td>' +
       '<td class="num ' + cls + '">' +
-      (g.razao_mediana == null ? '—' : g.razao_mediana.toFixed(3)) + '</td></tr>';
+      (g.razao_mediana == null ? '—'
+        : g.razao_mediana.toLocaleString('pt-BR', {minimumFractionDigits: 2,
+                                                   maximumFractionDigits: 2})) + '</td></tr>';
   }).join('') : vazioMsg('sem praça casada para agrupar');
   document.getElementById('hintPedTagConc').textContent =
     'razão = pago ÷ tabela';
@@ -22088,6 +22109,27 @@ function renderPedTag(d){
       ((f.travessias_tag||0)+(f.travessias_vale||0)).toLocaleString('pt-BR') + '</td>' +
       '<td>' + fmtDT(f.importado_em) + '</td></tr>';
   }).join('') || vazioMsg('nenhuma fatura importada');
+  /* O GASTO POR COMPETÊNCIA em barras, acima da lista: a tabela responde
+     "o que foi importado"; o gráfico responde "o gasto está subindo?" sem
+     ler oito linhas. Soma por competência porque pode haver mais de uma
+     fatura no mês (duas administradoras) — barra por FATURA duplicaria o
+     mês no eixo. TODAS as competências importadas, como a lista. */
+  {
+    const porComp = {};
+    (d.faturas || []).forEach(function(f){
+      if(f.competencia) porComp[f.competencia] = (porComp[f.competencia]||0) + (f.total_fatura||0);
+    });
+    const comps = Object.keys(porComp).sort();
+    const elFm = document.getElementById('pedtag-fatmes');
+    if(elFm) elFm.hidden = !comps.length;   // sem fatura, sem faixa morta
+    if(comps.length) ecDesenhar('pedtag-fatmes', function(){
+      const o = ecOpcoes(comps.map(c => c.slice(5)+'/'+c.slice(2,4)),
+                         Math.max(1, ...comps.map(c => porComp[c])),
+                         {tipo:'moeda', sombra:true, top:26, bottom:22, left:58});
+      o.series = [ecBarras('Fatura do tag', comps.map(c => porComp[c]), CC.laranja)];
+      return o;
+    });
+  }
   document.getElementById('hintPedTagFat').innerHTML =
     (d.faturas || []).length + ' faturas ' +
     statChip('warn', 'lista completa', 'A lista mostra TODAS as faturas ' +
@@ -22202,29 +22244,15 @@ function renderPedagio(d){
   const vale = m.reduce((a,x)=>a+(x.vale||0), 0);
   const canc = m.reduce((a,x)=>a+(x.vale_cancelados||0), 0);
 
-  /* O REGIME DO QUALP VAI NO AVISO, não escondido num tooltip: é ele que diz
-     se a conferência de TARIFA por praça está disponível. E a tabela de preço
-     do ERP está parada em 01/08/2025 — dizer isso é o que impede alguém de
-     comparar cobrança de 2026 com tarifa de 2024 e chamar de divergência. */
-  if(av){
-    /* O TETO E DO ENDPOINT, NAO DA CONTA — medido em 30/08/2026: com usuario
-       e senha configurados o login funciona e a QUARTA consulta do dia
-       continua recusada. Dizer "configure a conta e o teto some" mandaria
-       alguem procurar solucao onde nao ha. */
-    const logado = (d.qualp||{}).regime === 'logado';
-    av.style.display = 'flex';
-    /* `sevInfo` NAO EXISTE no catalogo de icones (so sevOk, sevWarn e
-       sevCrit) e sairia como a palavra "undefined" dentro do aviso — o mesmo
-       erro ja cometido na tela de folha. O aviso aqui e informativo. */
-    av.innerHTML = '<i>'+ICONS['sevOk']+'</i><span>'
-      + esc('A conferência de TARIFA por praça ainda não está ligada: a tabela '
-            + 'de preço do ERP tem 921 praças ativas e só 64 com valor de 2025 '
-            + 'em diante, e o QualP responde três consultas por dia'
-            + (logado ? ' mesmo com a conta configurada — o teto é do endpoint '
-                        + 'do site, e quem o levanta é chave da API comercial.'
-                      : ', por IP.'))
-      + '</span>';
-  }
+  /* O AVISO AMARELO PERMANENTE SAIU (31/08/2026): ele dizia que "a
+     conferência de tarifa ainda não está ligada" — e ela ESTÁ, desde as
+     v0.176/0.186: a aba Praça e tarifa confronta contra o extrato da
+     administradora e a do Tag contra a fatura importada, sem depender do
+     QualP. Banner que contradiz a própria tela ensina a ignorar banner.
+     O regime do QualP e a idade da tabela do ERP continuam DITOS — na linha
+     de estado da tarifa da aba Praça (ped-tarifa-estado), que é onde quem
+     olha tarifa está. O aviso volta a ser só o que ele é: erro de carga. */
+  if(av) av.style.display = 'none';
 
   box.innerHTML = [
     kpi('Cobrado no CT-e', BRL.format(cte), 'taxa de pedágio ao cliente', '',
@@ -22253,8 +22281,10 @@ function renderPedagio(d){
     + ' · o vale cobre o transportador de terceiro, não a frota própria';
   const maxv = Math.max(1, ...vCte.concat(vCol, vVal).filter(x => x!=null));
   ecDesenhar('ped-mensal', () => {
-    const o = ecOpcoes(rot, maxv, {tipo:'moeda', sombra:true, top:30, bottom:34,
-      legenda:['Cobrado no CT-e','Pedágio da coleta','Vale emitido']});
+    /* SEM legenda do ECharts: a legenda HTML no topo do card já nomeia as
+       três séries — a dupla saía uma em cima da outra e a de baixo colidia
+       com os rótulos do eixo (visto na revisão de 31/08/2026). */
+    const o = ecOpcoes(rot, maxv, {tipo:'moeda', sombra:true, top:30, bottom:34});
     o.series = [
       ecBarras('Cobrado no CT-e', vCte, CC.navy700, {}),
       ecBarras('Pedágio da coleta', vCol, CC.navy400, {}),
@@ -22341,7 +22371,8 @@ function renderPedagio(d){
           'var(--n500)'),
   ].join('') : '<div style="color:var(--n500)">sem vale ligado a coleta no período</div>';
   const hC = document.getElementById('hintPedConf');
-  if(hC) hC.textContent = NMI.format(nt) + ' vales de coleta · vale '
+  /* contagem é INTEIRO: NMI tem uma casa decimal e imprimia "8.913,0 vales" */
+  if(hC) hC.textContent = Math.round(nt).toLocaleString('pt-BR') + ' vales de coleta · vale '
     + BRL.format(cf.vale_total||0) + ' × coleta ' + BRL.format(cf.coleta_total||0);
   abaContador('abanPedConf', nt);
 
@@ -22583,7 +22614,12 @@ function renderPedagioPracas(d){
       + (tar.pct_desatualizadas!=null ? NMI.format(tar.pct_desatualizadas)+'%' : '—')
       + ') com vigência anterior a treze meses. A mais recente de toda a tabela é '
       + esc(tar.vigencia_max ? fmtD(tar.vigencia_max) : '—')
-      + '. Pedágio reajusta uma vez por ano.</div>') : '';
+      + '. Pedágio reajusta uma vez por ano. A tarifa VIVA vem do extrato da '
+      + 'administradora (acima) e da fatura do tag — o QualP segue limitado a '
+      + 'três consultas por dia'
+      + (((DATAPED||{}).qualp||{}).regime === 'logado'
+          ? ' mesmo logado: o teto é do endpoint do site.' : ', por IP.')
+      + '</div>') : '';
   }
 }
 

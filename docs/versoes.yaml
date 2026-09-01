@@ -1,3 +1,38 @@
+- versao: "0.191.0"
+  data: "2026-08-31"
+  corrigido:
+    - >-
+      Na Validação de Pedágio, o filtro de período era OBEDECIDO só pelas
+      abas do Tag e da Auditoria: a rota principal não declarava as datas e o
+      FastAPI as descartava em silêncio — Visão geral, Vale × coleta, Eixo e
+      Praça mostravam sempre 365 dias enquanto o filtro dizia 90. Duas
+      leituras contraditórias na mesma tela; agora as três rotas aceitam o
+      mesmo recorte.
+    - >-
+      A tabela "Por condutor" da Auditoria mostrava o CPF cru dos motoristas
+      — CPF não aparece em painel. Sai o documento, entra o NOME do cadastro
+      (resolve 592 de 592). E o chip do tipo de contestação quebrava em duas
+      linhas com a borda cortando o texto; virou um chip só, inteiro.
+    - >-
+      O aviso amarelo permanente dizia que "a conferência de tarifa ainda não
+      está ligada" — e ela está, desde as v0.176/0.186: a própria tela
+      confronta contra o extrato da administradora e a fatura do tag. Banner
+      que contradiz a própria tela ensina a ignorar banner; o estado do QualP
+      e a idade da tabela do ERP continuam ditos na linha de estado da aba
+      Praça e tarifa.
+    - >-
+      Números em formato americano na aba do Tag (desvio "+2.85", razão
+      "0.789", KPI "-4.2%") viraram pt-BR; o hint do Vale × coleta dizia
+      "8.913,0 vales" (contagem com casa decimal); e o gráfico mensal tinha
+      DUAS legendas — a da casa em cima e a do ECharts embaixo, esta por cima
+      dos rótulos do eixo. Ficou uma.
+  adicionado:
+    - >-
+      O gasto do tag por competência em barras, dentro do card de Faturas
+      importadas: a tabela diz o que foi importado; o gráfico diz se o gasto
+      está subindo sem precisar ler oito linhas. Sem fatura importada ele não
+      ocupa espaço. E o KPI de concentração da Auditoria ficou legível:
+      "Pares em 5 minutos" com as outras janelas no subtítulo.
 - versao: "0.190.0"
   data: "2026-08-31"
   adicionado:
