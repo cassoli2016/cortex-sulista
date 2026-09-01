@@ -182,6 +182,15 @@ try {
     # uv escreve progresso no stderr e as vezes sai != 0 por causas benignas;
     # com ErrorActionPreference=Stop isso ABORTAVA o deploy antes de reiniciar
     # a API. uv sync e best-effort: loga e segue para o restart.
+    #
+    # LINK_MODE=copy, e nao e' preferencia: este script roda como SISTEMA e o
+    # modo padrao (hardlink) liga o arquivo instalado ao CACHE do systemprofile,
+    # que carrega a ACL de la' - o pacote fica ILEGIVEL para o usuario da
+    # bancada (Get-Acl nem abre). Em 31/08/2026 o deploy da v0.189.2 deixou
+    # aiohttp, cryptography, pywebpush e pypdf assim: a API (SYSTEM) funcionava
+    # e toda suite local quebrava com PermissionError. Com copy, o arquivo
+    # nasce na pasta do projeto e herda a ACL dela, legivel para os dois.
+    $env:UV_LINK_MODE = 'copy'
     $eapPrev = $ErrorActionPreference
     $ErrorActionPreference = 'Continue'
     try {
