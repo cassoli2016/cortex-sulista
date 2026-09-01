@@ -103,6 +103,7 @@ _FONTES_ROTULO = {
     "telemetria_evolucao": "Telemetria — Evolução mensal do consumo",
     "telemetria_motoristas": "Telemetria — Motoristas (nota e km)",
     "programacao_ciclos": "Programação Inteligente — Ciclos",
+    "gerenciamento_risco": "Gerenciamento de Risco",
     "telemetria_conducao": "Telemetria — Indicadores de Condução",
     "telemetria_comunicacao": "Telemetria — Veículo sem comunicar",
     "premiacao": "Premiação de Motoristas",
@@ -470,6 +471,11 @@ def _fontes_do_snapshot() -> dict:
         "torre_seguranca": lambda: queries.get_seguranca(),
         "estradas_transito": _estradas,
         "programacao_disponibilidade": lambda: queries.get_programacao(),
+        "gerenciamento_risco": lambda: (lambda d2: {
+            "eventos_24h": d2["eventos_24h"], "eventos_7d": d2["eventos_7d"],
+            "cobertura": d2["cobertura"], "fluxo_alarme": d2["fluxo"]["alarme"]})(
+            __import__("api.rasterintegra.servico",
+                       fromlist=["get_gr"]).get_gr()),
         # ciclos: só os KPIs (o cache de 1h torna a leitura barata; a regra
         # do so_cache — fonte de snapshot jamais dispara coleta — vale aqui
         # porque o get_ciclos consulta o AVA uma vez por hora, não APIs)

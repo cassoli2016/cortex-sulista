@@ -4,6 +4,11 @@ Gerado de `docs/versoes.yaml` por `scripts/gerar_changelog.py` — não editar �
 Formato [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/),
 versionamento [SemVer](https://semver.org/lang/pt-BR/).
 
+## [0.204.0] — 01/09/2026  ·  CX-01/09/2026-v0.204.0
+
+### Adicionado
+- Tela nova "Gerenciamento de Risco" (Operação) — a Fase 1 do módulo RasterIntegra, construída sobre o que o ERP já recebe do hub de rastreamento: eventos por macro das últimas 24h/7 dias (com o texto do próprio hub — 917 eventos/24h na estreia), a COBERTURA de gerenciadora de risco nas viagens de 30 dias por modalidade (99,2%) com a lista NOMINAL das viagens que saíram sem GR (24 na estreia — é a exceção que a mesa de risco confere), e o frescor por fonte (Raster, OnixSat, Tecnologia 3S) com alarme de "não está chegando agora". O manual completo do webservice (190 páginas) foi mapeado: a Fase 2 traz o consolidado de risco por viagem (pânico, desvio de rota, violação de painel/antena), o km visto pela GR e a emissão de SM pelo CÓRTEX — dependem de credencial nova junto à Raster.
+
 ## [0.203.2] — 01/09/2026  ·  CX-01/09/2026-v0.203.2
 
 ### Alterado

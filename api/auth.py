@@ -80,6 +80,7 @@ TELAS: dict[str, tuple[str, str]] = {  # chave -> (rótulo, grupo do menu)
     "km":      ("Análise de KM", "Operação"),
     "prog":    ("Programação Inteligente", "Operação"),
     "torre":   ("Torre de Controle", "Operação"),
+    "gr":      ("Gerenciamento de Risco", "Operação"),
     "jorn":    ("Jornada do Motorista", "Operação"),
     "cex":     ("Custos Extras", "Operação"),
     "sac":     ("SAC / Freetime", "Operação"),
@@ -172,6 +173,7 @@ ROTA_TELAS: list[tuple[str, frozenset[str]]] = [
     ("/api/jornada/coletar",          frozenset({"jorn"})),
     ("/api/rh/folha-estrutura",       frozenset({"folha"})),
     ("/api/operacao/pedagio",         frozenset({"pedagio"})),
+    ("/api/operacao/gr",              frozenset({"gr"})),
     ("/api/rh/folha-custo",           frozenset({"folha"})),
     ("/api/rh/horas-extras",          frozenset({"he"})),
     ("/api/rh/vagas",                 frozenset({"rh"})),
@@ -780,6 +782,17 @@ def _seed_perfis_modelo(c: psycopg.Connection) -> None:
             c.execute("INSERT INTO perfil_telas(perfil_id, tela) VALUES(%s,%s) ON CONFLICT DO NOTHING",
                       (row["id"], "fat"))
         c.execute("INSERT INTO config(chave, valor) VALUES('perfis_modelo_v37', '1') ON CONFLICT(chave) DO NOTHING")
+
+    # v38 (2026-09-01): Gerenciamento de Risco ('gr') para Operação e
+    # Diretoria — a tela nasce da Fase 1 do módulo RasterIntegra (eventos do
+    # hub, cobertura de GR nas viagens e frescor por fonte, lidos do ERP).
+    if not c.execute("SELECT 1 FROM config WHERE chave='perfis_modelo_v38'").fetchone():
+        for perfil in ("Operação", "Diretoria"):
+            row = c.execute("SELECT id FROM perfis WHERE nome=%s", (perfil,)).fetchone()
+            if row:
+                c.execute("INSERT INTO perfil_telas(perfil_id, tela) VALUES(%s,%s) ON CONFLICT DO NOTHING",
+                          (row["id"], "gr"))
+        c.execute("INSERT INTO config(chave, valor) VALUES('perfis_modelo_v38', '1') ON CONFLICT(chave) DO NOTHING")
 
 
 def _agora() -> str:

@@ -4331,6 +4331,24 @@ def faturamento_detalhado(mes: str | None = None) -> JSONResponse:
             "mensagem": "Erro ao montar o faturamento detalhado."})
 
 
+@app.get("/api/operacao/gr")
+def operacao_gr() -> JSONResponse:
+    """Gerenciamento de Risco (Fase 1): o que o ERP já recebe do hub."""
+    from api.rasterintegra import servico as grsvc
+    try:
+        return JSONResponse(grsvc.get_gr())
+    except psycopg.OperationalError as exc:
+        log.warning("banco inacessivel: %s", exc)
+        return JSONResponse(status_code=503, content={
+            "erro": "banco_inacessivel",
+            "mensagem": "Sem conexão com o banco. O túnel SSH está aberto?"})
+    except Exception as exc:  # noqa: BLE001
+        log.warning("gerenciamento de risco falhou: %s", exc)
+        return JSONResponse(status_code=500, content={
+            "erro": "erro_consulta",
+            "mensagem": "Erro ao montar o Gerenciamento de Risco."})
+
+
 @app.get("/api/operacao/programacao/ciclos")
 def programacao_ciclos() -> JSONResponse:
     """Histórico de ciclos (6m) — endpoint SEPARADO do radar de 120s: a

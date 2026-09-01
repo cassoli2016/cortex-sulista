@@ -2348,6 +2348,7 @@ body.tvfull #btnReport,body.tvmode #btnReport{display:none}
         <a href="#km" class="sub" data-view="km" title="Análise de KM"><span class="ic" data-ic="kmv"></span><span>Análise de KM</span></a>
         <a href="#cex" class="sub" data-view="cex" title="Custos Extras por CT-e"><span class="ic" data-ic="cexic"></span><span>Custos Extras</span></a>
         <a href="#mvb" class="sub" data-view="mvb" title="Frota própria ou agregado, rota a rota"><span class="ic" data-ic="mvb"></span><span>Frota Própria × Agregado</span></a>
+        <a href="#gr" class="sub" data-view="gr" title="Gerenciamento de Risco — eventos do rastreamento, cobertura de GR nas viagens e a saúde do fluxo"><span class="ic" data-ic="gric"></span><span>Gerenciamento de Risco</span></a>
         <a href="#jorn" class="sub" data-view="jorn" title="Jornada do Motorista (Lei 13.103) — apuração da RasterJOR, com as inconformidades nomeadas pelo fornecedor"><span class="ic" data-ic="jornic"></span><span>Jornada do Motorista</span></a>
         <a href="#milkrun" class="sub" data-view="milkrun" title="Operação MWM: chegada e saída detectadas pelo rastreamento"><span class="ic" data-ic="milkic"></span><span>Operação MWM</span></a>
         <a href="#poli" class="sub" data-view="poli" title="Permanência na Planta — quanto tempo o veículo passa dentro da planta da Tupy e em quais polígonos"><span class="ic" data-ic="poliic"></span><span>Permanência na Planta</span></a>
@@ -3646,6 +3647,60 @@ body.tvfull #btnReport,body.tvmode #btnReport{display:none}
               <div class="chartwrap narrow"><div id="chartFechEvol" style="width:100%;height:200px" role="img"></div></div></div>
             <div class="card"><div class="head"><h2>Maiores desvios vs orçado <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="Linhas diretas da DRE com maior |previsto - orçado| do mês. Cor pelo EFEITO no resultado (custo acima do orçado = ruim), não pelo sinal.">i</span><span class="hint">explicar o delta, não só mostrá-lo</span></div>
               <div id="fech-desvios"></div></div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ===================== GERENCIAMENTO DE RISCO ===================== -->
+      <section class="view" id="view-gr">
+        <div class="kpis k4" id="kpis-gr"></div>
+        <div class="subtabs" role="tablist" data-abas="gr" aria-label="Seções do gerenciamento de risco">
+          <button role="tab" id="tabgr-ev" data-aba="ev" aria-controls="aba-gr-ev" aria-selected="true" onclick="abaTrocar('gr','ev')">Eventos <span class="aban" id="grNEv"></span></button>
+          <button role="tab" id="tabgr-cob" data-aba="cob" aria-controls="aba-gr-cob" aria-selected="false" onclick="abaTrocar('gr','cob')">Cobertura de GR <span class="aban" id="grNCob"></span></button>
+          <button role="tab" id="tabgr-flx" data-aba="flx" aria-controls="aba-gr-flx" aria-selected="false" onclick="abaTrocar('gr','flx')">Fluxo de rastreamento</button>
+        </div>
+        <div class="aba" data-abas="gr" data-aba="ev" id="aba-gr-ev" role="tabpanel" aria-labelledby="tabgr-ev">
+          <div class="grid2">
+            <div class="card">
+              <div class="head"><h2>Eventos por macro <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="Eventos que o hub de rastreamento (Raster, agregando OnixSat/3S e outras tecnologias) entrega ao ERP, pelas macros dos últimos 7 dias. O rótulo é o TEXTO que o próprio hub manda — código sem tabela de domínio não vira rótulo inventado. Macro de pânico/jammer NÃO flui por este parse hoje: o consolidado de risco por viagem virá da coleta própria do RasterIntegra (fase 2).">i</span></h2><span class="hint" id="gr-macros-hint"></span></div>
+              <div class="tablewrap tabroll" style="max-height:430px"><table><thead><tr>
+                <th>Macro</th><th class="num">24h</th><th class="num">7 dias</th>
+              </tr></thead><tbody id="gr-macros"></tbody></table></div>
+            </div>
+            <div class="card">
+              <div class="head"><h2>Últimos eventos <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="Os eventos mais recentes recebidos (24h), com a posição no momento. Para o mapa ao vivo da frota, use a Torre de Controle — esta tela olha o RISCO, não a operação.">i</span></h2><span class="hint">últimas 24h · posição no evento · o mapa vive na Torre</span></div>
+              <div class="tablewrap tabroll" style="max-height:430px"><table><thead><tr>
+                <th>Quando</th><th>Placa</th><th>Macro</th><th>Onde</th>
+              </tr></thead><tbody id="gr-ultimos"></tbody></table></div>
+            </div>
+          </div>
+        </div>
+        <div class="aba" data-abas="gr" data-aba="cob" id="aba-gr-cob" role="tabpanel" aria-labelledby="tabgr-cob" hidden>
+          <div class="grid2">
+            <div class="card">
+              <div class="head"><h2>Cobertura por modalidade <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="Viagens dos últimos 30 dias com vínculo de gerenciadora de risco no ERP (programacaoembarque_gerenciadorarisco, conferido por EXISTS — o vínculo pode ter mais de uma linha e um join inflaria). O denominador são as viagens não canceladas com semáforo verde.">i</span></h2><span class="hint" id="gr-cob-hint"></span></div>
+              <div class="tablewrap tabroll" style="max-height:300px"><table><thead><tr>
+                <th>Modalidade</th><th class="num">Viagens 30d</th><th class="num">Com GR</th><th class="num">Cobertura</th>
+              </tr></thead><tbody id="gr-cob"></tbody></table></div>
+            </div>
+            <div class="card">
+              <div class="head"><h2>Viagens SEM gerenciadora <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="A exceção nominal: cada viagem dos últimos 30 dias que saiu sem vínculo de GR no ERP, com placa, rota e frete. 99% de cobertura não protege a viagem que ficou no 1% — é esta lista que a mesa de risco confere.">i</span></h2><span class="hint" id="gr-semgr-hint"></span></div>
+              <div class="tablewrap tabroll" style="max-height:430px"><table><thead><tr>
+                <th>Saída</th><th>Placa</th><th>Rota</th><th>Modalidade</th><th class="num">Frete</th>
+              </tr></thead><tbody id="gr-semgr"></tbody></table></div>
+            </div>
+          </div>
+        </div>
+        <div class="aba" data-abas="gr" data-aba="flx" id="aba-gr-flx" role="tabpanel" aria-labelledby="tabgr-flx" hidden>
+          <div class="card">
+            <div class="head"><h2>Frescor por fonte <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="Retornos do webservice de rastreamento por fonte nas últimas 6 horas (rastreadora_retorno do ERP). O alarme é NÃO ESTÁ CHEGANDO AGORA: fonte que entrega a cada minuto e some por mais de 60 é problema no fluxo — nunca contagem de tropeços históricos.">i</span></h2><span class="hint" id="gr-flx-hint"></span></div>
+            <div class="tablewrap tabroll" style="max-height:260px"><table><thead><tr>
+              <th>Fonte</th><th class="num">Última hora</th><th class="num">Últimas 6h</th><th class="num">Último retorno</th><th>Situação</th>
+            </tr></thead><tbody id="gr-fontes"></tbody></table></div>
+          </div>
+          <div class="card">
+            <div class="head"><h2>O que vem na Fase 2 <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="Mapa completo do webservice RasterIntegra (manual 13.1, 190 páginas, mapeado em 01/09/2026): o consolidado de risco por viagem (getEventoFimViagem — pânico, desvio de rota, violação de painel/antena, parada em área de risco), o km com e sem viagem visto pela GR, e a emissão de SM pelo CÓRTEX. Depende de credencial NOVA e exclusiva junto à Raster — a que o ERP usa foi encontrada exposta e deve ser rotacionada.">i</span></h2></div>
+            <div style="font-size:13px;color:var(--n600);padding:4px 16px 14px;line-height:1.6" id="gr-fase2"></div>
           </div>
         </div>
       </section>
@@ -7191,6 +7246,7 @@ const ICONS = {
              + '<circle cx="19" cy="7" r="2.2"/>'
              + '<path d="M6.6 7.6 10.6 15.2M13.8 15.6 17.6 8.8" stroke-dasharray="2 2"/>'),
   antportic: IC('<path d="M4 20h16"/><rect x="3.5" y="9" width="17" height="8" rx="1.5"/><path d="M12 7V1.5M9 4l3-3 3 3"/><path d="M7.5 13h.01M11 13h3"/>'),
+  gric: IC('<path d="M12 3l8 4v5c0 5-3.5 8-8 9-4.5-1-8-4-8-9V7z"/><path d="M12 8v4M12 15.5v.5"/>'),
   fatic: IC('<path d="M14 3H6a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z"/><path d="M14 3v6h6"/><path d="M8 13h6M8 17h4"/>'),
   tvdiric: IC('<rect x="3" y="5" width="18" height="12" rx="2"/><path d="M9 21h6M12 17v4"/><path d="M7 14v-3M11 14V8M15 14v-4M19 14v-6"/>'),
   tvfatic: IC('<rect x="3" y="5" width="18" height="12" rx="2"/><path d="M9 21h6M12 17v4"/><path d="M6.5 13.5 10 10l2.5 2.5L17.5 8"/>'),
@@ -7210,7 +7266,7 @@ const FAIXAS = {
   '4_vencido_91_365':['Vencido 91–365d','b-dang'],
   '5_vencido_mais_365':['Vencido > 365d','b-dang'],
 };
-const VIEWS = { home:'Visão Geral', fluxo:'Fluxo de Caixa e Bancos', receber:'Contas a Receber', pagar:'Contas a Pagar', oc:'Ordens de Compra', custos:'Painel de Custos', agr:'Agregados e Terceiros', mvb:'Frota Própria × Agregado', pedagio:'Validação de Pedágio', comb:'Combustível', man:'Manutenção', com:'Clientes e RKM', clif:'Consulta de Cliente', crm:'CRM — Funil Comercial', km:'Análise de KM', prodveic:'Produtividade de Veículos', fat:'Faturamento Detalhado', torre:'Torre de Controle', poli:'Permanência na Planta', ctecp:'CT-e de Contrapartida', veic:'Veículos', veicf:'Consulta de Veículo', mprev:'Manutenção Preventiva', comrast:'Comunicação Rastreadora', mul:'Multas — Smartec', prog:'Programação Inteligente', jorn:'Jornada do Motorista', jornf:'Ficha de Jornada', cex:'Custos Extras', sac:'SAC / Freetime', port:'Portaria', cop:'Copiloto Cortex', cob:'Régua de Cobrança', banc:'Bancos', extb:'Extrato Bancário', lanc:'Lançamentos Bancários', antec:'Antecipação de Recebíveis', antport:'Portais de Antecipação', milkrun:'Operação MWM', rec:'Lançamentos Recorrentes', fluxcon:'Fluxo de Caixa Consolidado', cont:'Contabilidade', qual:'Qualidade e Certidões', orc:'Orçamento', fech:'Fechamento do Mês', prem:'Premiação de Motoristas', dre:'DRE Gerencial', bal:'Balanço Patrimonial', drecli:'DRE por Cliente', tvfat:'Painel TV — Faturamento', tvope:'Painel TV — Operação', tvdir:'Painel TV — Diretoria', rh:'RH — Vagas', hc:'Headcount', folha:'Custo de Folha', folhaind:'Indicadores de Folha', he:'Horas Extras', cnh:'CNH dos Motoristas', ferias:'Férias — Vencimento', people:'People Analytics', pneus:'Pneus', gestao:'Gestão', gesacao:'Planos de Ação', gesata:'Atas de Reunião', srv:'Saúde do Servidor', doc:'Documentação', anpiso:'Piso Mínimo de Frete', anrntrc:'RNTRC dos Transportadores', telcon:'Consumo e Estatísticas', telcond:'Condução Econômica', telhod:'Hodômetro e Rastro' };
+const VIEWS = { home:'Visão Geral', fluxo:'Fluxo de Caixa e Bancos', receber:'Contas a Receber', pagar:'Contas a Pagar', oc:'Ordens de Compra', custos:'Painel de Custos', agr:'Agregados e Terceiros', mvb:'Frota Própria × Agregado', pedagio:'Validação de Pedágio', comb:'Combustível', man:'Manutenção', com:'Clientes e RKM', clif:'Consulta de Cliente', crm:'CRM — Funil Comercial', km:'Análise de KM', prodveic:'Produtividade de Veículos', fat:'Faturamento Detalhado', gr:'Gerenciamento de Risco', torre:'Torre de Controle', poli:'Permanência na Planta', ctecp:'CT-e de Contrapartida', veic:'Veículos', veicf:'Consulta de Veículo', mprev:'Manutenção Preventiva', comrast:'Comunicação Rastreadora', mul:'Multas — Smartec', prog:'Programação Inteligente', jorn:'Jornada do Motorista', jornf:'Ficha de Jornada', cex:'Custos Extras', sac:'SAC / Freetime', port:'Portaria', cop:'Copiloto Cortex', cob:'Régua de Cobrança', banc:'Bancos', extb:'Extrato Bancário', lanc:'Lançamentos Bancários', antec:'Antecipação de Recebíveis', antport:'Portais de Antecipação', milkrun:'Operação MWM', rec:'Lançamentos Recorrentes', fluxcon:'Fluxo de Caixa Consolidado', cont:'Contabilidade', qual:'Qualidade e Certidões', orc:'Orçamento', fech:'Fechamento do Mês', prem:'Premiação de Motoristas', dre:'DRE Gerencial', bal:'Balanço Patrimonial', drecli:'DRE por Cliente', tvfat:'Painel TV — Faturamento', tvope:'Painel TV — Operação', tvdir:'Painel TV — Diretoria', rh:'RH — Vagas', hc:'Headcount', folha:'Custo de Folha', folhaind:'Indicadores de Folha', he:'Horas Extras', cnh:'CNH dos Motoristas', ferias:'Férias — Vencimento', people:'People Analytics', pneus:'Pneus', gestao:'Gestão', gesacao:'Planos de Ação', gesata:'Atas de Reunião', srv:'Saúde do Servidor', doc:'Documentação', anpiso:'Piso Mínimo de Frete', anrntrc:'RNTRC dos Transportadores', telcon:'Consumo e Estatísticas', telcond:'Condução Econômica', telhod:'Hodômetro e Rastro' };
 const periodoLabel = p => { if(p==='atrasado') return 'Atrasado'; const [y,m]=p.split('-'); return MES[+m-1]+'/'+y.slice(2); };
 const fmtD = s => { if(!s) return ''; const [y,m,dd]=s.split('-'); return dd+'/'+m+'/'+y; };
 /* Idade da posicao bancaria. Cada conta e lancada num dia diferente: mostrar
@@ -7340,6 +7396,7 @@ let fechSeq = 0;
 let fatSeq = 0;
 let DATAFECH = null;
 let DATAFAT = null;
+let DATAGR = null, grSeq = 0;
 let portSeq = 0;
 let DATAPORT = null;
 let crmSeq = 0;
@@ -7482,7 +7539,7 @@ const VIEW_GROUP = {home:'',cop:'',
   torre:'Ope',milkrun:'Ope',poli:'Ope',prog:'Ope',jorn:'Ope',jornf:'Ope',cex:'Ope',sac:'Ope',port:'Ope',km:'Ope',agr:'Ope',mvb:'Ope',pedagio:'Ope',
   veic:'Fro',veicf:'Fro',mprev:'Fro',comrast:'Fro',comb:'Fro',man:'Fro',mul:'Fro',pneus:'Fro',
   oc:'Sup',custos:'Sup',
-  prodveic:'Bi',fat:'Ctr',tvfat:'Bi',tvope:'Bi',tvdir:'Bi',
+  prodveic:'Bi',fat:'Ctr',gr:'Ope',tvfat:'Bi',tvope:'Bi',tvdir:'Bi',
   rh:'Rh',hc:'Rh',folha:'Rh',folhaind:'Rh',he:'Rh',cnh:'Rh',ferias:'Rh',people:'Rh',gestao:'Adm',srv:'Adm',doc:'Adm',gesacao:'Ges',gesata:'Ges',
   // Telemetria e ANTT tinham grupo na barra lateral mas ficaram de fora deste
   // mapa: o acordeao nao abria sozinho ao navegar para elas (agora a busca
@@ -7671,7 +7728,7 @@ function qsView(k){
     if(V('fFechMes'))p.set('mes',V('fFechMes'));
   } else if(k==='fat'){
     if(V('fFatMes'))p.set('mes',V('fFatMes'));
-  } else if(k==='mprev'||k==='comrast'||k==='qual'||k==='port'||k==='crm'||k==='rh'||k==='hc'||k==='folhaind'||k==='cnh'||k==='ferias'||k==='pneus'||k==='people'||k==='poli'||k==='ctecp'){
+  } else if(k==='gr'||k==='mprev'||k==='comrast'||k==='qual'||k==='port'||k==='crm'||k==='rh'||k==='hc'||k==='folhaind'||k==='cnh'||k==='ferias'||k==='pneus'||k==='people'||k==='poli'||k==='ctecp'){
     // vistas-snapshot sem filtro local: qsView() sempre devolve '' — o
     // loader grava LOADEDQS[k]='' (não '1') para o cache de staleness
     // funcionar (senão nunca bate e cada navegação refaz a consulta).
@@ -7689,7 +7746,7 @@ function semFilterbar(v){
   // filtros", que não tinha o que aplicar.
   return v==='cop'||v==='gestao'||v==='gesacao'||v==='gesata'||v==='srv'||v==='home'||v==='veicf'||v==='clif'||v==='jorn'||v==='jornf'||v==='prog'||
          v==='cex'||v==='sac'||v==='mprev'||v==='comrast'||v==='qual'||v==='port'||v==='crm'||v==='rh'||
-         v==='hc'||v==='folha'||v==='folhaind'||v==='he'||v==='custos'||v==='orc'||v==='prem'||v==='banc'||v==='extb'||v==='fech'||v==='fat'||v==='doc'||v==='telcon'||v==='telcond'||v==='telhod'||v==='milkrun'||v==='cnh'||v==='ferias'||v==='pneus'||v==='people'||v==='poli'||v==='ctecp';
+         v==='hc'||v==='folha'||v==='folhaind'||v==='he'||v==='custos'||v==='orc'||v==='prem'||v==='banc'||v==='extb'||v==='fech'||v==='fat'||v==='gr'||v==='doc'||v==='telcon'||v==='telcond'||v==='telhod'||v==='milkrun'||v==='cnh'||v==='ferias'||v==='pneus'||v==='people'||v==='poli'||v==='ctecp';
 }
 function currentView(){
   const h = (location.hash||'').replace('#','');
@@ -7805,8 +7862,8 @@ function router(){
   // carga da vista: dispara se não há dados OU se os filtros visíveis
   // divergem dos usados na última carga (nunca mostrar dado velho com filtro novo)
   const key=viewKey(v);
-  const DATAMAP={fin:DATA,oc:DATAOC,agr:DATAAGR,anpiso:DATAANPISO,anrntrc:DATAANRNTRC,pedagio:DATAPED,telcon:DATATELCON,telcond:DATATELCOND,telhod:DATATELHOD,mvb:DATAMVB,comb:DATACOMB,man:DATAMAN,com:DATACOM,clif:DATACLIF,dre:DATADRE,bal:DATABAL,drecli:DATADRECLI,home:DATAHOME,km:DATAKM,torre:DATATORRE,veic:DATAVEIC,veicf:DATAVEICF,mul:DATASMT,prog:DATAPROG,jorn:DATAJR,jornf:DATAJORNF,cex:DATACEX,sac:DATASAC,mprev:DATAMPREV,comrast:DATACOMRAST,qual:DATAQUAL,port:DATAPORT,crm:DATACRM,rh:DATARH,hc:DATAHC,folha:DATAFOLHA,folhaind:DATAFOLHAIND,he:DATAHE,custos:DATACUSTOS,cob:DATACOB,banc:DATABANC,extb:DATAEXTB,lanc:DATALANC,antec:DATAANTEC,antport:DATAANTPORT,milkrun:DATAMILK,fluxcon:DATAFLUXCON,rec:DATAREC,rent:DATARENT,cont:DATACONT,orc:DATAORC,fech:DATAFECH,fat:DATAFAT,prem:DATAPREM,gestao:DATAGES,srv:DATASRV,doc:DATADOC,tvfat:null,tvope:null,tvdir:null,cop:(COP_MSGS.length?{}:null)};
-  const LOADMAP={fin:load,oc:loadOc,agr:loadAgr,anpiso:loadAnpiso,anrntrc:loadAnrntrc,telcon:loadTelcon,telcond:loadTelcond,telhod:loadTelhod,mvb:loadMvb,pedagio:loadPedagio,comb:loadComb,man:loadMan,com:loadCom,clif:loadClif,dre:loadDre,bal:loadBal,drecli:loadDreCli,home:loadHome,km:loadKm,prodveic:loadProdveic,torre:loadTorre,veic:loadVeic,veicf:loadVeicf,mul:loadSmt,prog:loadProg,jorn:loadJorraster,jornf:loadJornf,cex:loadCex,sac:loadSac,mprev:loadMPrev,comrast:loadComRast,qual:loadQual,port:loadPort,crm:loadCrm,rh:loadRh,hc:loadHc,folha:loadFolha,folhaind:loadFolhaInd,he:loadHe,custos:loadCustos,cob:loadCob,banc:loadBanc,extb:loadExtb,lanc:loadLanc,antec:loadAntec,antport:loadAntport,milkrun:loadMilkrun,cnh:loadCnh,ferias:loadFerias,people:loadPeople,pneus:loadPneus,poli:loadPoli,ctecp:loadCtecp,fluxcon:loadFluxcon,rec:loadRec,rent:loadRent,cont:loadCont,orc:loadOrc,fech:loadFech,fat:loadFat,prem:loadPrem,gesacao:loadGesacao,gesata:loadGesata,gestao:loadGestao,srv:loadSrv,doc:loadDoc,cop:loadCop,tvfat:loadTvFat,tvope:loadTvOpe,tvdir:loadTvDir};
+  const DATAMAP={fin:DATA,oc:DATAOC,agr:DATAAGR,anpiso:DATAANPISO,anrntrc:DATAANRNTRC,pedagio:DATAPED,telcon:DATATELCON,telcond:DATATELCOND,telhod:DATATELHOD,mvb:DATAMVB,comb:DATACOMB,man:DATAMAN,com:DATACOM,clif:DATACLIF,dre:DATADRE,bal:DATABAL,drecli:DATADRECLI,home:DATAHOME,km:DATAKM,torre:DATATORRE,veic:DATAVEIC,veicf:DATAVEICF,mul:DATASMT,prog:DATAPROG,jorn:DATAJR,jornf:DATAJORNF,cex:DATACEX,sac:DATASAC,mprev:DATAMPREV,comrast:DATACOMRAST,qual:DATAQUAL,port:DATAPORT,crm:DATACRM,rh:DATARH,hc:DATAHC,folha:DATAFOLHA,folhaind:DATAFOLHAIND,he:DATAHE,custos:DATACUSTOS,cob:DATACOB,banc:DATABANC,extb:DATAEXTB,lanc:DATALANC,antec:DATAANTEC,antport:DATAANTPORT,milkrun:DATAMILK,fluxcon:DATAFLUXCON,rec:DATAREC,rent:DATARENT,cont:DATACONT,orc:DATAORC,fech:DATAFECH,fat:DATAFAT,gr:DATAGR,prem:DATAPREM,gestao:DATAGES,srv:DATASRV,doc:DATADOC,tvfat:null,tvope:null,tvdir:null,cop:(COP_MSGS.length?{}:null)};
+  const LOADMAP={fin:load,oc:loadOc,agr:loadAgr,anpiso:loadAnpiso,anrntrc:loadAnrntrc,telcon:loadTelcon,telcond:loadTelcond,telhod:loadTelhod,mvb:loadMvb,pedagio:loadPedagio,comb:loadComb,man:loadMan,com:loadCom,clif:loadClif,dre:loadDre,bal:loadBal,drecli:loadDreCli,home:loadHome,km:loadKm,prodveic:loadProdveic,torre:loadTorre,veic:loadVeic,veicf:loadVeicf,mul:loadSmt,prog:loadProg,jorn:loadJorraster,jornf:loadJornf,cex:loadCex,sac:loadSac,mprev:loadMPrev,comrast:loadComRast,qual:loadQual,port:loadPort,crm:loadCrm,rh:loadRh,hc:loadHc,folha:loadFolha,folhaind:loadFolhaInd,he:loadHe,custos:loadCustos,cob:loadCob,banc:loadBanc,extb:loadExtb,lanc:loadLanc,antec:loadAntec,antport:loadAntport,milkrun:loadMilkrun,cnh:loadCnh,ferias:loadFerias,people:loadPeople,pneus:loadPneus,poli:loadPoli,ctecp:loadCtecp,fluxcon:loadFluxcon,rec:loadRec,rent:loadRent,cont:loadCont,orc:loadOrc,fech:loadFech,fat:loadFat,gr:loadGr,prem:loadPrem,gesacao:loadGesacao,gesata:loadGesata,gestao:loadGestao,srv:loadSrv,doc:loadDoc,cop:loadCop,tvfat:loadTvFat,tvope:loadTvOpe,tvdir:loadTvDir};
   if(!DATAMAP[key] || (key!=='home' && LOADEDQS[key]!==qsView(key))) LOADMAP[key]();
   // mobile: estado da navegação inferior + fecha gaveta/painel de filtros
   document.querySelectorAll('.bottomnav [data-bview]').forEach(a=>a.classList.toggle('ativo', a.dataset.bview===v));
@@ -9646,7 +9703,7 @@ function reloadCurrent(){
   const M={home:loadHome,fluxo:load,receber:load,pagar:load,dre:loadDre,drecli:loadDreCli,oc:loadOc,
     agr:loadAgr,mvb:loadMvb,pedagio:loadPedagio,comb:loadComb,man:loadMan,com:loadCom,clif:loadClif,km:loadKm,prodveic:loadProdveic,
     torre:loadTorre,veic:loadVeic,veicf:loadVeicf,mul:loadSmt,prog:loadProg,jorn:loadJorraster,jornf:loadJornf,cex:loadCex,sac:loadSac,mprev:loadMPrev,comrast:loadComRast,qual:loadQual,port:loadPort,crm:loadCrm,rh:loadRh,hc:loadHc,folha:loadFolha,folhaind:loadFolhaInd,he:loadHe,custos:loadCustos,cob:loadCob,banc:loadBanc,extb:loadExtb,rent:loadRent,
-    cont:loadCont,orc:loadOrc,fech:loadFech,fat:loadFat,prem:loadPrem,gesacao:loadGesacao,gesata:loadGesata,gestao:loadGestao,srv:loadSrv,doc:loadDoc,cop:loadCop,tvfat:loadTvFat,tvope:loadTvOpe,tvdir:loadTvDir};
+    cont:loadCont,orc:loadOrc,fech:loadFech,fat:loadFat,gr:loadGr,prem:loadPrem,gesacao:loadGesacao,gesata:loadGesata,gestao:loadGestao,srv:loadSrv,doc:loadDoc,cop:loadCop,tvfat:loadTvFat,tvope:loadTvOpe,tvdir:loadTvDir};
   (M[currentView()]||load)();
 }
 
@@ -19846,6 +19903,86 @@ async function fechAjuste(mes, linha, atual){
   }catch(e){ showBanner('Não foi possível salvar: '+e.message); }
 }
 
+
+// ---------------- Gerenciamento de Risco ----------------
+async function loadGr(){
+  const seq=++grSeq, btn=document.getElementById('btnRefresh'); if(btn) btn.disabled=true;
+  document.getElementById('content').classList.add('loading');
+  skelKpis('kpis-gr',4);
+  try{
+    const r=await fetch('/api/operacao/gr',{cache:'no-store'});
+    const {ok, dados:d}=await respostaJSON(r); if(seq!==grSeq) return;
+    if(!ok){ showBanner(d.mensagem||'Erro ao consultar o gerenciamento de risco.', d.detalhe); return; }
+    hideBanner(); DATAGR=d; LOADEDQS.gr=''; renderGr(d);
+  }catch(e){ if(seq===grSeq) showBanner('Não foi possível falar com a API.', e.message); }
+  finally{ if(seq===grSeq){ if(btn) btn.disabled=false; document.getElementById('content').classList.remove('loading'); } }
+}
+function renderGr(d){
+  const cob=d.cobertura||{}, flx=d.fluxo||{};
+  const pct=cob.viagens?Math.round(100*cob.com_gr/cob.viagens):null;
+  const mudas=(flx.fontes||[]).filter(f=>f.mudo);
+  document.getElementById('kpis-gr').innerHTML=[
+    kpi('Eventos nas 24h', (d.eventos_24h||0).toLocaleString('pt-BR'),
+      (d.eventos_7d||0).toLocaleString('pt-BR')+' nos últimos 7 dias', '',
+      'Eventos de rastreamento que o hub entregou ao ERP (macros operacionais: chegada, início/fim de viagem, paradas). Pânico e jammer não fluem por aqui hoje — virão do consolidado por viagem na fase 2.'),
+    kpi('Cobertura de GR', pct!=null?pct+'%':'—',
+      cob.com_gr+' de '+cob.viagens+' viagens em 30 dias', pct!=null&&pct<98?'warn':'pos',
+      'Viagens com vínculo de gerenciadora de risco no ERP. A lista nominal do que saiu SEM está na aba Cobertura.'),
+    kpi('Sem gerenciadora', String(cob.sem_gr_n||0),
+      'viagens dos últimos 30 dias — lista nominal na aba', (cob.sem_gr_n||0)>0?'warn':'pos',
+      '99% de cobertura não protege a viagem do 1%: é a exceção que a mesa de risco confere, uma a uma.'),
+    kpi('Fontes de rastreamento', String((flx.fontes||[]).length),
+      mudas.length?('⚠ '+mudas.map(f=>f.fonte).join(', ')+' sem retorno há +60 min'):'todas entregando agora',
+      mudas.length?'neg':'pos',
+      'Raster, OnixSat e Tecnologia 3S entregam retornos ao ERP a cada minuto. O alarme é "não está chegando AGORA".'),
+  ].join('');
+  document.getElementById('gr-macros').innerHTML=(d.macros||[]).map(m=>`<tr>
+    <td>${esc(m.macro)}</td>
+    <td class="num" style="font-weight:600">${m.n_24h.toLocaleString('pt-BR')}</td>
+    <td class="num">${m.n_7d.toLocaleString('pt-BR')}</td></tr>`).join('')
+    ||'<tr><td colspan="3" class="hint">sem evento nos últimos 7 dias</td></tr>';
+  document.getElementById('gr-macros-hint').textContent=(d.macros||[]).length+' macros distintas · 7 dias';
+  abaContador('grNEv', d.eventos_24h||0);
+  document.getElementById('gr-ultimos').innerHTML=(d.ultimos||[]).map(e=>`<tr>
+    <td class="num" style="font-size:12px">${esc((e.quando||'').slice(11))}</td>
+    <td style="font-family:var(--mono);font-weight:600">${esc(e.placa||'—')}</td>
+    <td style="font-size:12px" title="${esc(e.obs||'')}">${esc(e.macro)}</td>
+    <td style="font-size:12px;color:var(--n500)">${esc(e.cidade)}${e.uf?'/'+esc(e.uf):''}</td></tr>`).join('')
+    ||'<tr><td colspan="4" class="hint">sem evento nas últimas 24h</td></tr>';
+  document.getElementById('gr-cob').innerHTML=(cob.modalidades||[]).map(c=>{
+    const p2=c.viagens?Math.round(100*c.com_gr/c.viagens):0;
+    return `<tr><td>${esc(c.modalidade)}</td><td class="num">${c.viagens}</td>
+      <td class="num">${c.com_gr}</td>
+      <td class="num" style="font-weight:700;color:${p2>=98?'var(--green)':(p2>=90?'var(--yellow)':'var(--red)')}">${p2}%</td></tr>`;
+  }).join('')||'<tr><td colspan="4" class="hint">sem viagem em 30 dias</td></tr>';
+  document.getElementById('gr-cob-hint').textContent=cob.janela||'';
+  document.getElementById('gr-semgr').innerHTML=(d.sem_gr||[]).map(v=>`<tr>
+    <td class="num" style="font-size:12px">${esc((v.saida||'').slice(5,16))}</td>
+    <td style="font-family:var(--mono);font-weight:600">${esc(v.placa||'—')}</td>
+    <td style="font-size:12px">${esc(v.origem)} → ${esc(v.destino)}</td>
+    <td style="font-size:12px;color:var(--n500)">${esc(v.modalidade)}</td>
+    <td class="num">${brlAbbr(v.frete||0)}</td></tr>`).join('')
+    ||'<tr><td colspan="5" class="hint">todas as viagens dos últimos 30 dias saíram com GR ✓</td></tr>';
+  abaContador('grNCob', (d.sem_gr||[]).length);
+  document.getElementById('gr-semgr-hint').textContent=(cob.sem_gr_n||0)+' viagens sem vínculo · '+(cob.janela||'');
+  document.getElementById('gr-fontes').innerHTML=(flx.fontes||[]).map(f=>`<tr>
+    <td>${esc(f.fonte)}</td>
+    <td class="num">${f.n_1h.toLocaleString('pt-BR')}</td>
+    <td class="num">${f.n_6h.toLocaleString('pt-BR')}</td>
+    <td class="num" style="font-size:12px">${esc(f.ultima||'—')}</td>
+    <td>${f.mudo?'<span class="badge b-dang">sem retorno há '+Math.round(f.minutos_atras)+' min</span>'
+                :'<span class="badge b-ok">entregando ('+Math.round(f.minutos_atras)+' min atrás)</span>'}</td></tr>`).join('')
+    ||'<tr><td colspan="5" class="hint">nenhum retorno nas últimas 6 horas — o fluxo inteiro está parado</td></tr>';
+  document.getElementById('gr-flx-hint').textContent=flx.janela||'';
+  document.getElementById('gr-fase2').innerHTML=
+    '<b>Consolidado de risco por viagem</b> — pânico, desvio de rota, violação de painel e antena, parada em área de risco, viagem sem posição (getEventoFimViagem).<br>'+
+    '<b>Km com × sem viagem visto pela GR</b> (getKMRodado) — segunda régua do retorno vazio.<br>'+
+    '<b>Emissão de SM pelo CÓRTEX</b> a partir da programação, com checklist e pesquisa cadastral.<br>'+
+    '<span style="color:var(--n500)">Pré-requisito: credencial nova e exclusiva junto à Raster (a atual do ERP foi encontrada exposta no banco e será rotacionada) e o de-para de macros (MACROS.xls).</span>';
+  const ts=new Date(d.atualizado_em);
+  document.getElementById('meta').innerHTML='<b>Atualizado '+ts.toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'})+'</b><br>'+ts.toLocaleDateString('pt-BR');
+}
+
 // ---------------- Faturamento Detalhado ----------------
 function fatMesOpts(){
   const sel=document.getElementById('fFatMes'); if(!sel||sel.options.length) return;
@@ -27265,6 +27402,7 @@ const BUSCA_SINONIMOS = {
   he:['hora extra','banco de horas','sobreaviso'],
   gestao:['usuario','permissao','perfil','acesso','auditoria','senha','email','smtp','integracao','token'],
   srv:['servidor','saude','cpu','disco','memoria'],
+  gr:['risco','gerenciamento de risco','rastreamento','panico','evento','macro','monitoramento','sm','escolta'],
   fat:['faturamento','meta','emissao','emissoes','cte','nfse','atingimento','modalidade','cancelado','bi'],
   prodveic:['produtividade','veiculo','veiculos','km por veiculo','ocioso','ociosidade','parado','frota parada','bi'],
   doc:['documentacao','manual','ajuda','glossario','versao'],
@@ -32573,6 +32711,7 @@ boot();
         <a href="#km" onclick="fecharDrawer()"><span class="ic" data-ic="kmv"></span>Análise de KM</a>
         <a href="#cex" onclick="fecharDrawer()"><span class="ic" data-ic="cexic"></span>Custos Extras</a>
         <a href="#mvb" onclick="fecharDrawer()"><span class="ic" data-ic="mvb"></span>Frota Própria × Agregado</a>
+        <a href="#gr" onclick="fecharDrawer()"><span class="ic" data-ic="gric"></span>Gerenciamento de Risco</a>
         <a href="#jorn" onclick="fecharDrawer()"><span class="ic" data-ic="jornic"></span>Jornada do Motorista</a>
         <a href="#milkrun" onclick="fecharDrawer()"><span class="ic" data-ic="milkic"></span>Operação MWM</a>
         <a href="#poli" onclick="fecharDrawer()"><span class="ic" data-ic="poliic"></span>Permanência na Planta</a>

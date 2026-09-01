@@ -404,6 +404,7 @@ grupos:
   - cex
   - sac
   - port
+  - gr
 - nome: Frota
   resumo: Ativos e sua idade, consulta por placa, manutenção corretiva e preventiva, combustível e consumo,
     multas, as infrações e licenças da Smartec, e comunicação dos rastreadores.
