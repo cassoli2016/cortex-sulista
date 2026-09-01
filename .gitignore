@@ -99,3 +99,19 @@ scripts/validacao_extrato/*.ofx
 # operacional. Os testes usam paginas SINTETICAS montadas em tests/pedagio/,
 # nunca o arquivo de verdade.
 /pedagio/
+
+# CERTIFICADO E BANCO LOCAL EM QUALQUER PASTA. Ate 31/08/2026 a protecao de
+# .pfx e .db dependia de os arquivos ficarem em data/ (coberta por data/*):
+# um certificado ou um SQLite criado na raiz entraria num "git add ." sem
+# aviso — e o arquivo '%s' (saida de debug com as contas bancarias, removido
+# em 3501f89) provou que acidente de nome na raiz acontece. O repositorio e
+# PUBLICO; a regra global fecha o caminho do proximo acidente.
+*.pfx
+*.db
+*.db-wal
+*.db-shm
+
+# .env com sufixo (.env.production, .env.local...) — a regra '.env' e exata e
+# nao os cobria. O .env.example continua versionado.
+.env.*
+!.env.example

@@ -4,6 +4,15 @@ Gerado de `docs/versoes.yaml` por `scripts/gerar_changelog.py` — não editar �
 Formato [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/),
 versionamento [SemVer](https://semver.org/lang/pt-BR/).
 
+## [0.189.1] — 31/08/2026  ·  CX-31/08/2026-v0.189.1
+
+### Alterado
+- O CLAUDE.md foi reescrito de 2.803 para ~430 linhas: sai a arquitetura planejada que nunca foi implementada (Next.js, TimescaleDB, Redis, LangGraph, hub de conectores), entra o estado real medido — a tabela de módulos agora reflete as 69 telas e as fontes verdadeiras de cada grupo. As crônicas de lição foram preservadas na íntegra no novo docs/LICOES.md, e cada regra durável do CLAUDE.md aponta para a história completa lá.
+
+### Corrigido
+- O log da API acusava as 8 telas do grupo Frota como "inexistentes" a cada carga da Documentação por quem não tem o grupo — a conferência de tela fantasma media contra as telas DA SESSÃO em vez de contra todas as telas do painel. Alarme que acende sem haver problema ensina a ignorar o alarme.
+- Um arquivo de depuração commitado por engano em 27/08 listava as contas bancárias da empresa no repositório público; foi removido, e o .gitignore ganhou regras globais (*.pfx, *.db, .env.*) para o certificado ou banco local criado fora de data/ não entrar num "git add ." sem aviso.
+
 ## [0.189.0] — 31/08/2026  ·  CX-31/08/2026-v0.189.0
 
 ### Adicionado

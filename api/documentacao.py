@@ -180,7 +180,8 @@ def montar(permitidas: set[str] | None = None) -> dict:
     que cita (CLAUDE.md §5, lista curada filtrada por podeVer).
     """
     manual = yaml.safe_load(MANUAL_YAML.read_text(encoding="utf-8")) or {}
-    telas = extrair_telas()
+    todas = extrair_telas()
+    telas = todas
     if permitidas is not None:
         telas = {v: x for v, x in telas.items() if v in permitidas}
     vs = versoes()
@@ -188,7 +189,11 @@ def montar(permitidas: set[str] | None = None) -> dict:
     grupos = []
     for g in manual.get("grupos", []):
         listadas = list(g.get("telas") or [])
-        fantasmas = [v for v in listadas if v not in telas]
+        # fantasma se mede contra TODAS as telas do HTML, nunca contra as da
+        # sessão: medir contra a sessão fazia o log acusar as 8 telas do grupo
+        # Frota como "inexistentes" a cada carga de quem não tem o grupo —
+        # alarme que acende sem haver problema ensina a ignorar o alarme.
+        fantasmas = [v for v in listadas if v not in todas]
         if fantasmas:
             # some calado seria pior: um "folhaindd" digitado errado tiraria a
             # tela da documentação sem ninguém perceber
