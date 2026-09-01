@@ -1978,9 +1978,12 @@ body.tvmode #loadbar,body.tvmode #loadtempo{display:none}
 /* painel de TV é mural: ninguém reporta de lá, e o botão apareceria sobre o mapa */
 body.tvfull #btnReport,body.tvmode #btnReport{display:none}
 @media(max-width:880px){
-  /* a .bottomnav é fixa e ocupa este mesmo canto: 48px de min-height + 6px de
-     padding em cima e embaixo, mais a safe-area do aparelho */
-  #btnReport{right:14px;bottom:calc(72px + env(safe-area-inset-bottom));
+  /* a .bottomnav é fixa e ocupa este mesmo canto. Desde a pílula do item
+     ativo o item tem 58px de min-height (+6px de padding da barra em cima e
+     embaixo + borda): ~80px medidos. Os 72px antigos eram o orçamento da
+     barra de 48px e deixavam o botão INVADINDO a nav — pego pelo teste de
+     geometria. 88px = barra real + ~8px de folga, mais a safe-area. */
+  #btnReport{right:14px;bottom:calc(88px + env(safe-area-inset-bottom));
     width:48px;height:48px;border-radius:24px}
   #btnReport img{width:27px;height:27px;margin:0 9px}
   #btnReport:hover,#btnReport:focus-visible{width:48px}

@@ -45,6 +45,14 @@ SID_USUARIOS = "S-1-5-32-545"   # o grupo local "Usuários"
 def arquivo(tmp_path):
     f = tmp_path / "segredo.json"
     f.write_text('{"token": "abc"}', encoding="utf-8")
+    if not sa.WINDOWS:
+        # No Windows da bancada o tmp herda a ACL restrita do perfil do
+        # usuário — o "arquivo normal" já nasce protegido. No POSIX do CI o
+        # umask 022 entrega 644, que o módulo acusa (corretamente) como
+        # exposto: o equivalente do arquivo normal da bancada é 600. Sem
+        # isto, seis testes quebravam no Ubuntu do CI — e ficaram dois dias
+        # vermelhos sem ninguém abrir o log.
+        f.chmod(0o600)
     return f
 
 
@@ -87,8 +95,14 @@ def test_arquivo_normal_do_projeto_nao_acusa_nada(arquivo):
 def test_ENXERGA_o_arquivo_exposto(arquivo):
     """Sem este, todo o resto passaria por vacuidade: um verificador que
     sempre diz "ok" dá a sensação de que está tudo conferido. Aqui o alvo é
-    sabotado de propósito."""
+    sabotado de propósito — em cada plataforma pela via dela."""
     _pula_sem_acl(sa.estado(arquivo))
+    if not sa.WINDOWS:
+        arquivo.chmod(0o644)          # a sabotagem POSIX: grupo+outros leem
+        est = sa.estado(arquivo)
+        assert est["protegido"] is False
+        assert "644" in est["motivo"]
+        return
     r = subprocess.run(["icacls", str(arquivo), "/grant", "*%s:(R)" % SID_USUARIOS],
                        capture_output=True)
     if r.returncode != 0:
@@ -121,10 +135,13 @@ def test_arquivo_que_nao_existe_nao_e_alarme(tmp_path):
 
 def test_proteger_REMOVE_o_grupo_amplo_e_preserva_o_conteudo(arquivo):
     _pula_sem_acl(sa.estado(arquivo))
-    r = subprocess.run(["icacls", str(arquivo), "/grant", "*%s:(R)" % SID_USUARIOS],
-                       capture_output=True)
-    if r.returncode != 0:
-        pytest.skip("icacls indisponível")
+    if not sa.WINDOWS:
+        arquivo.chmod(0o644)
+    else:
+        r = subprocess.run(["icacls", str(arquivo), "/grant", "*%s:(R)" % SID_USUARIOS],
+                           capture_output=True)
+        if r.returncode != 0:
+            pytest.skip("icacls indisponível")
     assert sa.estado(arquivo)["protegido"] is False
     assert sa.proteger(arquivo)["aplicado"] is True
     assert sa.estado(arquivo)["protegido"] is True
@@ -135,6 +152,8 @@ def test_proteger_NAO_TIRA_o_SYSTEM_nem_a_conta_que_usa(arquivo):
     """O ponto que a primeira versão errava: a API roda como SISTEMA e a conta
     do painel não é administradora. Tirar qualquer um dos dois derruba o
     sistema ou tranca a pessoa fora dos próprios segredos."""
+    if not sa.WINDOWS:
+        pytest.skip("SID e ACL nomeada são conceitos do Windows")
     _pula_sem_acl(sa.estado(arquivo))
     antes = set(sa.estado(arquivo)["quem"])
     sa.proteger(arquivo)
@@ -145,10 +164,13 @@ def test_proteger_NAO_TIRA_o_SYSTEM_nem_a_conta_que_usa(arquivo):
 
 def test_proteger_e_IDEMPOTENTE(arquivo):
     """Gravar credencial é ação frequente. Reescrever ACL a cada gravação é
-    risco sem contrapartida — sem grupo amplo, não roda `icacls` nenhum."""
+    risco sem contrapartida — sem grupo amplo, não roda `icacls` nenhum.
+    No POSIX o chmod É a proteção inteira e repetir é inofensivo por
+    natureza — lá o motivo estável é "modo 0600"."""
     _pula_sem_acl(sa.estado(arquivo))
     assert sa.proteger(arquivo) == sa.proteger(arquivo)
-    assert "nada a remover" in sa.proteger(arquivo)["motivo"]
+    esperado = "nada a remover" if sa.WINDOWS else "modo 0600"
+    assert esperado in sa.proteger(arquivo)["motivo"]
 
 
 def test_ACL_ilegivel_NAO_MEXE_em_nada(arquivo, monkeypatch):
@@ -170,7 +192,11 @@ def test_ACL_ilegivel_NAO_MEXE_em_nada(arquivo, monkeypatch):
 
 def test_panorama_lista_os_segredos_do_projeto():
     p = sa.panorama()
-    assert p["total"] >= 1, "nenhum arquivo de segredo encontrado"
+    if p["total"] == 0:
+        # num clone limpo (o CI) não existe credenciais.json nem .pfx — zero
+        # aqui é o estado correto de quem não tem segredo, não um defeito.
+        # Na bancada de produção os arquivos existem e o assert roda inteiro.
+        pytest.skip("clone limpo: nenhum arquivo de segredo no disco")
     rotulos = {i["rotulo"] for i in p["itens"]}
     assert "Cofre de credenciais" in rotulos
 

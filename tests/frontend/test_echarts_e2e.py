@@ -93,12 +93,29 @@ def _abrir(pg, base_url, hash_tela, *, quebrar_vendor=False):
 # regressão da entrega de pedágio). Teste que depende do calendário é teste que
 # acusa a pessoa errada uma vez por mês.
 _DIA_HOJE = _dt.date.today().day
+
+# O MÊS TAMBÉM ACOMPANHA O RELÓGIO, pela mesma razão do dia: a hachura de
+# "parcial" é desenhada no mês CORRENTE do navegador, e uma série literal
+# "2026-01..08" deixa de conter o mês corrente na primeira virada — o CI (que
+# vive em UTC) falhou o `assert "pattern"` às 00:53 de 1º/09 enquanto a
+# bancada, em UTC-3, ainda via 31/08 e passava. Série ancorada em hoje tem
+# sempre o corrente (parcial, hachurado) e sete meses fechados (a média).
+_HOJE = _dt.date.today()
+
+
+def _mes(n_atras: int) -> str:
+    y, m = _HOJE.year, _HOJE.month - n_atras
+    while m <= 0:
+        y, m = y - 1, m + 12
+    return f"{y:04d}-{m:02d}"
+
+
 HOME = {
     "diario": [{"dia": d, "realizado": (0 if d > 20 else 40000 + d*900),
                 "meta": (0 if d % 7 == 0 else 45000)}
                for d in range(1, max(32, _DIA_HOJE + 6))],
-    "receita_12m": [{"mes": f"2026-{m:02d}", "receita": 9_000_000 + m*90_000}
-                    for m in range(1, 9)],
+    "receita_12m": [{"mes": _mes(n), "receita": 9_000_000 + (8 - n) * 90_000}
+                    for n in range(7, -1, -1)],
     "fluxo_serie": [{"periodo": "atrasado", "saldo_projetado": 2_500_000},
                     {"periodo": "2026-09", "saldo_projetado": 1_200_000},
                     {"periodo": "2026-10", "saldo_projetado": -800_000},

@@ -393,7 +393,13 @@ def main() -> int:
 
 if __name__ == "__main__":
     try:
-        sys.exit(main())
+        codigo = main()
     except Exception:
         traceback.print_exc()
-        sys.exit(1)
+        codigo = 1
+    finally:
+        # sem isto o worker do pool do AVA sobrevive ao main() e o psycopg
+        # imprime "couldn't stop thread 'ava-worker-0'" depois do veredito
+        from api import db
+        db.fechar_pool()
+    sys.exit(codigo)

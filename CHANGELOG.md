@@ -4,6 +4,16 @@ Gerado de `docs/versoes.yaml` por `scripts/gerar_changelog.py` — não editar �
 Formato [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/),
 versionamento [SemVer](https://semver.org/lang/pt-BR/).
 
+## [0.189.2] — 31/08/2026  ·  CX-31/08/2026-v0.189.2
+
+### Alterado
+- Dependências com CVE conhecidas subiram de versão — cryptography 49→50 (quem assina o CT-e; as 288 provas da contrapartida passaram com a nova) e pywebpush 2.3→2.5 (leva o aiohttp a 3.14.3). Nenhum dos avisos tocava código que roda, mas ficar um major atrás de quem assina documento fiscal é dívida que só cresce.
+- A tarefa agendada do WhatsApp foi registrada no Windows — existia o instalador e a rotina cadastrada na tela, mas a tarefa nunca tinha sido criada, então nenhum aviso automático dispararia. As quatro branches antigas do GitHub que ainda serviam a planilha de DRE expurgada em 25/08 foram apagadas; e o conferidor de números fecha o pool do AVA ao terminar, calando o aviso de thread que saía depois do veredito.
+
+### Corrigido
+- No celular, o botão de reportar invadia a barra de navegação por 8 pixels — a pílula do item ativo tinha crescido a barra de 72 para 80 pixels e o botão continuava orçando a altura antiga. O teste de geometria pegou; o botão subiu para 88px de folga.
+- O CI estava VERMELHO havia dois dias e ninguém tinha aberto o log — 8 falhas, nenhuma de código do painel: seis testes de ACL assumiam o Windows (no Ubuntu não existe icacls e um clone limpo não tem segredo nenhum) e agora dizem o que esperam em cada plataforma; e o teste da hachura de mês parcial fixava os meses de 2026 no dublê enquanto a página lê o relógio do navegador — na virada do mês (o CI vive em UTC, onde já era 1º de setembro) nenhum mês da série era o corrente e a hachura sumia. A série agora acompanha o relógio, como o dia já fazia.
+
 ## [0.189.1] — 31/08/2026  ·  CX-31/08/2026-v0.189.1
 
 ### Alterado

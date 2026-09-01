@@ -264,6 +264,15 @@ def main() -> int:
                 else:
                     print(f"[{tela:9}] CONTRASTE {a['razao']:>5}  (min {a['minimo']})"
                           f"  {a['onde']}  \"{a['amostra']}\"")
+            # Tela que morre no boot renderiza pouco ou nada e sairia como
+            # "0 achados" — elemento que não montou tem contraste ótimo.
+            # Erro de página é ACHADO, senão o verde dos 4 modos depende de
+            # as 69 telas terem montado sem exceção, e ninguém confere isso.
+            if erros:
+                for e in erros:
+                    total += 1
+                    print(f"[{tela:9}] ERRO DE PAGINA  {e.splitlines()[0][:120]}")
+                erros.clear()
         nav.close()
     srv.shutdown()
     # Com `--fixo`, `esquema` e a preferencia do NAVEGADOR e o tema que

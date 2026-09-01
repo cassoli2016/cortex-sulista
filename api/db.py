@@ -73,6 +73,20 @@ def _get_pool() -> "ConnectionPool":
     return _pool
 
 
+def fechar_pool() -> None:
+    """Encerra o pool de propósito — para SCRIPT, não para a API.
+
+    A API vive com o pool aberto até o processo morrer. Já um script de linha
+    de comando (conferir_numeros) que termina sem fechar deixa o worker do
+    pool vivo e o psycopg imprime "couldn't stop thread 'ava-worker-0'" no
+    stderr depois do veredito — aviso que se lê como problema onde não há.
+    """
+    global _pool
+    if _pool is not None:
+        _pool.close()
+        _pool = None
+
+
 @contextmanager
 def get_conn():
     if ConnectionPool is None:
