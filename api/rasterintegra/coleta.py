@@ -94,6 +94,29 @@ def _chamar_com_paciencia(metodo: str, corpo: dict) -> dict:
         return cliente.chamar(metodo, corpo)
 
 
+# O servidor da Raster SOME no meio da varredura ("503 No server is
+# available", medido em 01/09/2026 na primeira carga completa — matou a
+# coleta na metade). Instabilidade transitória do fornecedor não pode
+# custar a noite inteira: cada placa tem direito a 3 tentativas com pausa
+# crescente, e a placa que ainda assim falhar é PULADA e contada — a
+# janela de 8 dias da noite seguinte a cobre.
+TENTATIVAS_POR_PLACA = 3
+
+
+def _com_retentativa(metodo: str, corpo: dict) -> dict:
+    for i in range(TENTATIVAS_POR_PLACA):
+        try:
+            return _chamar_com_paciencia(metodo, corpo)
+        except cliente.RasterIntegraIndisponivel:
+            if i == TENTATIVAS_POR_PLACA - 1:
+                raise
+            espera = 30 * (i + 1)
+            log.warning("rasterintegra instavel em %s; esperando %ss "
+                        "(tentativa %s)", metodo, espera, i + 2)
+            time.sleep(espera)
+    raise AssertionError("inalcançável")
+
+
 def coletar_viagens(placas: list[str] | None = None,
                     janela_dias: int = JANELA_VIAGENS_DIAS,
                     pausa: float = PAUSA_ENTRE_CHAMADAS,
@@ -109,22 +132,39 @@ def coletar_viagens(placas: list[str] | None = None,
     }
     janela = f"{corpo_base['DataInicial']}..{corpo_base['DataFinal']}"
     consultas = gravadas = 0
+    puladas: list[str] = []
     try:
         for i, placa in enumerate(placas):
             if i and pausa:
                 time.sleep(pausa)
-            d = _chamar_com_paciencia(
-                "getEventoFimViagem", {"Placa": placa, **corpo_base})
+            try:
+                d = _com_retentativa(
+                    "getEventoFimViagem", {"Placa": placa, **corpo_base})
+            except cliente.RasterIntegraIndisponivel:
+                puladas.append(placa)
+                # mais de 1/5 pulado não é instabilidade, é o serviço FORA:
+                # parar e dizer vale mais que varrer o vazio até o fim
+                if len(puladas) > max(2, len(placas) // 5):
+                    raise
+                continue
             consultas += 1
             gravadas += arm.upsert_viagens(d.get("Viagens") or [], esquema)
+        if placas and not consultas:
+            # tudo pulado dentro do limiar (1-2 placas) ainda é varredura
+            # MORTA: carga com zero consultas jamais vira frescor na Saúde
+            raise cliente.RasterIntegraIndisponivel(
+                f"nenhuma das {len(placas)} placas respondeu")
     except Exception as exc:  # noqa: BLE001 — a trilha guarda o tipo, sem URL
         arm.registrar_carga("viagens", inicio, janela, consultas, gravadas,
                             f"{type(exc).__name__}: {str(exc)[:300]}", esquema)
         raise
-    arm.registrar_carga("viagens", inicio, janela, consultas, gravadas,
+    nota = f" · {len(puladas)} puladas" if puladas else ""
+    arm.registrar_carga("viagens", inicio, janela + nota, consultas, gravadas,
                         None, esquema)
-    log.info("gr viagens: %s placas, %s finalizadas gravadas", consultas, gravadas)
-    return {"placas": consultas, "gravadas": gravadas, "janela": janela}
+    log.info("gr viagens: %s placas, %s finalizadas gravadas%s",
+             consultas, gravadas, nota)
+    return {"placas": consultas, "gravadas": gravadas, "janela": janela,
+            "puladas": len(puladas)}
 
 
 def coletar_km(dias: tuple[int, ...] = (1, 2), pausa: float = PAUSA_ENTRE_CHAMADAS,
@@ -161,19 +201,31 @@ def backfill_viagens(meses: int = 12, pausa: float = PAUSA_ENTRE_CHAMADAS,
     inicio = _agora()
     placas = placas_backfill(meses)
     consultas = gravadas = 0
+    puladas: list[str] = []
     try:
         for i, placa in enumerate(placas):
             if i and pausa:
                 time.sleep(pausa)
-            d = _chamar_com_paciencia("getEventoFimViagem", {"Placa": placa})
+            try:
+                d = _com_retentativa("getEventoFimViagem", {"Placa": placa})
+            except cliente.RasterIntegraIndisponivel:
+                puladas.append(placa)
+                if len(puladas) > max(2, len(placas) // 5):
+                    raise
+                continue
             consultas += 1
             gravadas += arm.upsert_viagens(d.get("Viagens") or [], esquema)
+        if placas and not consultas:
+            raise cliente.RasterIntegraIndisponivel(
+                f"nenhuma das {len(placas)} placas respondeu")
     except Exception as exc:  # noqa: BLE001
         arm.registrar_carga("viagens", inicio, f"backfill {meses}m",
                             consultas, gravadas,
                             f"{type(exc).__name__}: {str(exc)[:300]}", esquema)
         raise
-    arm.registrar_carga("viagens", inicio, f"backfill {meses}m",
+    nota = f" · {len(puladas)} puladas" if puladas else ""
+    arm.registrar_carga("viagens", inicio, f"backfill {meses}m" + nota,
                         consultas, gravadas, None, esquema)
-    log.info("gr backfill: %s placas, %s finalizadas", consultas, gravadas)
-    return {"placas": consultas, "gravadas": gravadas}
+    log.info("gr backfill: %s placas, %s finalizadas%s",
+             consultas, gravadas, nota)
+    return {"placas": consultas, "gravadas": gravadas, "puladas": len(puladas)}

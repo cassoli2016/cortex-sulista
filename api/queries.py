@@ -7095,7 +7095,9 @@ def get_antecipacao(dias: int = 90, reserva: float = 0.0, taxa_mes: float = 2.0,
     disponível no seletor. Mas ela deixava a tela responder a pergunta errada:
     dos R$ 16,6 milhões a receber em 90 dias, só R$ 594 mil estavam em planilha
     (3,6%), enquanto **R$ 8,2 milhões eram de cliente COM convênio assinado** —
-    TUPY, MWM-Tupy, Iochpe Maxion e Adient. Quem pergunta "quanto dá para
+    TUPY, MWM-Tupy, Iochpe Maxion e Adient (a MWM foi DESLIGADA em 01/09/2026
+    a pedido da direção — sem portal nem antecipação; a lista viva é sempre
+    `raizes_elegiveis`, nunca este parágrafo). Quem pergunta "quanto dá para
     antecipar" quer saber dos 8,2, e o caminho dos que faltam é pedir o arquivo
     ao cliente, não renegociar convênio.
 
@@ -7107,7 +7109,7 @@ def get_antecipacao(dias: int = 90, reserva: float = 0.0, taxa_mes: float = 2.0,
 
     `sacados` RESTRINGE A PILHA, NÃO A EMPRESA. Ele é a lista de raízes de CNPJ
     de quem se quer usar nesta simulação ("e se eu antecipar só da TUPY e da
-    MWM?"), e afeta unicamente o recebível disponível para antecipar. A
+    Maxion?"), e afeta unicamente o recebível disponível para antecipar. A
     projeção de caixa — saldo, a pagar, reserva, o buraco — fica intacta de
     propósito: a necessidade da empresa não diminui porque alguém escolheu
     menos clientes, e filtrá-la junto desenharia uma empresa que só tem esses

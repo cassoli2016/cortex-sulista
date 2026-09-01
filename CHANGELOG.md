@@ -4,6 +4,13 @@ Gerado de `docs/versoes.yaml` por `scripts/gerar_changelog.py` — não editar �
 Formato [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/),
 versionamento [SemVer](https://semver.org/lang/pt-BR/).
 
+## [0.207.0] — 01/09/2026  ·  CX-01/09/2026-v0.207.0
+
+### Alterado
+- Risco por viagem (Gerenciamento de Risco) afinada: a rota fica numa linha só (o nome inteiro no tooltip), pânico zerado aparece como 0 esmaecido em vez de célula vazia — zero ali é zero medido, não ausência — e o ⓘ explica que o "no prazo" é contra a previsão da própria SM (a régua da GR, mais dura que a do cliente).
+- A coleta do RasterIntegra ficou resistente à instabilidade do fornecedor: o 503 no meio da varredura matou a primeira carga completa; agora cada placa tem três tentativas com pausa crescente, a placa que persistir falhando é pulada e contada na trilha, e mais de um quinto pulado (ou varredura sem nenhuma resposta) interrompe com o erro escrito — nunca meia coleta em silêncio.
+- MWM desligada das antecipações a pedido da direção: sem portal e sem antecipação com esse cliente. A decisão é manual e sobrevive às próximas importações de planilha; os textos da tela deixaram de citá-la como convênio.
+
 ## [0.206.2] — 01/09/2026  ·  CX-01/09/2026-v0.206.2
 
 ### Adicionado

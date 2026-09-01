@@ -2690,7 +2690,7 @@ body.tvfull #btnReport,body.tvmode #btnReport{display:none}
             <input type="text" id="fAntTaxa" inputmode="decimal" placeholder="2,00" onchange="loadAntec()">
           </div>
           <div class="field">
-            <label for="fAntPortal" title="Convênio de antecipação é sempre exigido — cliente sem convênio fica fora nos dois modos. O que muda é a PLANILHA: no modo estrito só entra o título já lançado no portal, provado pelo arquivo importado, que é o que a mesa de crédito aceita hoje. No padrão entra todo recebível de cliente com convênio (TUPY, MWM-Tupy, Iochpe Maxion, Adient) e cada operação diz quais documentos ainda dependem do arquivo — R$ 8,2 milhões contra R$ 594 mil, e o caminho dos que faltam é pedir a planilha ao cliente, não negociar convênio.">Lastro</label>
+            <label for="fAntPortal" title="Convênio de antecipação é sempre exigido — cliente sem convênio fica fora nos dois modos. O que muda é a PLANILHA: no modo estrito só entra o título já lançado no portal, provado pelo arquivo importado, que é o que a mesa de crédito aceita hoje. No padrão entra todo recebível de cliente com convênio (TUPY, Iochpe Maxion, Adient) e cada operação diz quais documentos ainda dependem do arquivo — R$ 8,2 milhões contra R$ 594 mil, e o caminho dos que faltam é pedir a planilha ao cliente, não negociar convênio.">Lastro</label>
             <select id="fAntPortal" onchange="loadAntec()">
               <option value="">Convênio assinado (padrão)</option>
               <option value="1">Só o que já está no portal</option>
@@ -20001,7 +20001,7 @@ function renderGr(d){
     document.getElementById('kpis-gr-risco').innerHTML=[
       kpi('Viagens consolidadas', String(k.viagens||0),
         (pctPrazo!=null?pctPrazo+'% no prazo · ':'')+'até '+esc((k.ultimo_fim||'').slice(0,10)), '',
-        'Viagens finalizadas cujo consolidado a Raster calculou (getEventoFimViagem), coletadas por placa e gravadas em gr_viagem_fim. A janela de 30 dias é ancorada no último dado coletado, nunca no relógio — coleta parada não esvazia a tela, envelhece o carimbo.'),
+        'Viagens finalizadas cujo consolidado a Raster calculou (getEventoFimViagem), coletadas por placa e gravadas em gr_viagem_fim. O NO PRAZO é contra a previsão da própria SM (DataHoraPrevFim) — a régua da GR, mais dura que a do cliente. A janela de 30 dias é ancorada no último dado coletado, nunca no relógio — coleta parada não esvazia a tela, envelhece o carimbo.'),
       kpi('Pânico', String(k.panico||0), 'acionamentos do botão em 30 dias', (k.panico||0)>0?'neg':'pos',
         'Acionamentos do botão de pânico somados nas viagens consolidadas. Contador que o fornecedor omite vale zero (medido: viagem com 3 paradas em área de risco veio sem o campo de pânico).'),
       kpi('Violações', String(k.violacoes||0), 'painel · antena · desengate', (k.violacoes||0)>0?'warn':'pos',
@@ -20012,8 +20012,8 @@ function renderGr(d){
     document.getElementById('gr-ris-piores').innerHTML=(ris.piores||[]).map(v=>`<tr>
       <td class="num" style="font-size:12px">${esc((v.fim||'').slice(5,16))}</td>
       <td style="font-family:var(--mono);font-weight:600">${esc(v.placa||'—')}${v.vinc_veiculo==='A'?' <span class="hint">agr</span>':''}</td>
-      <td style="font-size:12px" title="${esc(v.rota||'')}">${esc((v.rota||'—').slice(0,42))}</td>
-      <td class="num" style="font-weight:700;color:${v.panico>0?'var(--red)':'inherit'}">${v.panico||''}</td>
+      <td style="font-size:12px;max-width:250px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis" title="${esc(v.rota||'')}">${esc(v.rota||'—')}</td>
+      <td class="num" style="font-weight:700;color:${v.panico>0?'var(--red)':'inherit'}">${v.panico||"<span style='opacity:.3;font-weight:400'>0</span>"}</td>
       <td class="num" style="font-weight:${v.violacoes>0?'700':'400'}">${v.violacoes||''}</td>
       <td class="num" title="${Math.round((v.parado_risco_min||0)/60)} h parada em área de risco">${v.paradas_risco||''}</td>
       <td class="num">${v.desvios||''}</td>
@@ -20025,7 +20025,7 @@ function renderGr(d){
       const pp=p.viagens?Math.round(100*(p.no_prazo||0)/p.viagens):0;
       return `<tr><td style="font-family:var(--mono);font-weight:600">${esc(p.placa)}${p.vinc==='A'?' <span class="hint">agr</span>':''}</td>
         <td class="num">${p.viagens}</td><td class="num">${pp}%</td>
-        <td class="num" style="font-weight:700;color:${p.panico>0?'var(--red)':'inherit'}">${p.panico||''}</td>
+        <td class="num" style="font-weight:700;color:${p.panico>0?'var(--red)':'inherit'}">${p.panico||"<span style='opacity:.3;font-weight:400'>0</span>"}</td>
         <td class="num">${p.violacoes||''}</td><td class="num">${p.paradas_risco||''}</td>
         <td class="num">${p.desvios||''}</td><td class="num">${p.velocidade||''}</td></tr>`;
     }).join('')||'<tr><td colspan="8" class="hint">nenhuma placa com evento na janela ✓</td></tr>';

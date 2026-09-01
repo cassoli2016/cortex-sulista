@@ -151,6 +151,51 @@ class TestColeta:
         assert carga["gravadas"] == 0
         assert "RasterIntegraIndisponivel" in carga["erro"]
 
+    def test_placa_instavel_e_pulada_e_a_varredura_continua(
+            self, esquema_pg, monkeypatch):
+        """O 503 da Raster no meio da varredura matou a primeira carga
+        completa (01/09/2026). Instabilidade transitória custa UMA placa,
+        nunca a noite: pula, conta e segue — a janela de 8 dias da noite
+        seguinte cobre o buraco."""
+        from api import pglocal
+        from api.rasterintegra import cliente as cli
+
+        def instavel(metodo, corpo):
+            if corpo["Placa"] == "RUIM0001":
+                raise cli.RasterIntegraIndisponivel("HTTP 503 em getEventoFimViagem")
+            return {"Viagens": [VIAGEM_F]}
+
+        monkeypatch.setattr(coleta.cliente, "chamar", instavel)
+        monkeypatch.setattr(coleta.time, "sleep", lambda s: None)
+        r = coleta.coletar_viagens(
+            placas=["ABC1234", "RUIM0001", "DEF5678"], pausa=0,
+            esquema=esquema_pg)
+        assert r["placas"] == 2 and r["puladas"] == 1
+        with pglocal.get_conn(esquema_pg) as conn, conn.cursor() as cur:
+            cur.execute("SELECT janela, erro FROM gr_carga")
+            carga = dict(cur.fetchone())
+        assert carga["erro"] is None, "varredura que TERMINOU é carga limpa"
+        assert "1 puladas" in carga["janela"]
+
+    def test_servico_fora_do_ar_interrompe_e_fica_dito(
+            self, esquema_pg, monkeypatch):
+        """Mais de um quinto pulado não é instabilidade, é o serviço FORA —
+        parar e escrever o erro vale mais que varrer o vazio até o fim."""
+        from api import pglocal
+        from api.rasterintegra import cliente as cli
+
+        def morto(metodo, corpo):
+            raise cli.RasterIntegraIndisponivel("HTTP 503 em getEventoFimViagem")
+
+        monkeypatch.setattr(coleta.cliente, "chamar", morto)
+        monkeypatch.setattr(coleta.time, "sleep", lambda s: None)
+        with pytest.raises(cli.RasterIntegraIndisponivel):
+            coleta.coletar_viagens(placas=[f"P{i:07d}" for i in range(9)],
+                                   pausa=0, esquema=esquema_pg)
+        with pglocal.get_conn(esquema_pg) as conn, conn.cursor() as cur:
+            cur.execute("SELECT erro FROM gr_carga")
+            assert "RasterIntegraIndisponivel" in cur.fetchone()["erro"]
+
     def test_rate_limit_espera_e_repete_uma_vez(self, monkeypatch):
         from api.rasterintegra import cliente as cli
         tentativas = []
