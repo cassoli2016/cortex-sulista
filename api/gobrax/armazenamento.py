@@ -94,6 +94,18 @@ def ler(colecao: str, competencia: str, path: Path | None = None) -> list[dict]:
             (colecao, competencia))]
 
 
+def competencias(colecao: str, path: Path | None = None) -> list[str]:
+    """Todas as competências coletadas, em ordem cronológica ('AAAA-MM'
+    ordena alfabético = cronológico)."""
+    p = path or DB_PATH
+    if not Path(p).exists():
+        return []
+    with _conn(p) as c:
+        return [r["competencia"] for r in c.execute(
+            "SELECT DISTINCT competencia FROM coleta WHERE colecao=?"
+            " ORDER BY competencia", (colecao,))]
+
+
 def competencia_atual(colecao: str, path: Path | None = None) -> dict | None:
     """Coleta da MAIOR competência, não a última gravada.
 

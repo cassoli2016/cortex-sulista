@@ -114,6 +114,70 @@ def resumir(linhas: list[dict], limite_pct: float = LIMITE_DIVERGENCIA_PCT) -> d
     }
 
 
+def get_evolucao() -> dict:
+    """A série mensal do consumo: km/l da frota (telemetria) × km/l do
+    abastecimento (AVA), mês a mês, com comparáveis e divergentes.
+
+    O EIXO É GERADO da primeira competência coletada até o mês corrente —
+    mês sem coleta aparece rotulado, nunca some (a lição da série mensal).
+    Cada mês roda o MESMO `cruzar()`/`resumir()` da tela: uma segunda
+    fórmula aqui divergiria da tabela na primeira mudança de regra.
+    """
+    import calendar
+    from datetime import date, timedelta
+
+    from api import db
+    from api.gobrax.sql import ABASTECIMENTO_MES_SQL
+
+    comps = armazenamento.competencias(estatisticas.COLECAO)
+    if not comps:
+        return {"meses": [], "sync": None,
+                "fonte": "Gobrax vehicle-statistics (cache local) × AVA"}
+
+    hoje = date.today()
+    ano, mes = (int(x) for x in comps[0].split("-"))
+    eixo: list[str] = []
+    while (ano, mes) <= (hoje.year, hoje.month):
+        eixo.append(f"{ano}-{mes:02d}")
+        mes += 1
+        if mes > 12:
+            ano, mes = ano + 1, 1
+
+    tem = set(comps)
+    meses = []
+    with db.get_conn() as conn, conn.cursor() as cur:
+        for comp in eixo:
+            if comp not in tem:
+                meses.append({"competencia": comp, "coletado": False})
+                continue
+            tel = armazenamento.ler(estatisticas.COLECAO, comp)
+            a2, m2 = (int(x) for x in comp.split("-"))
+            ult = calendar.monthrange(a2, m2)[1]
+            cur.execute(ABASTECIMENTO_MES_SQL,
+                        {"de": date(a2, m2, 1).isoformat(),
+                         "ate": (date(a2, m2, ult) + timedelta(days=1)).isoformat()})
+            ava = [dict(r) for r in cur.fetchall()]
+            linhas = cruzar(tel, ava)
+            k = resumir(linhas)
+            l_ava = sum(float(x.get("litros_ava") or 0) for x in ava)
+            km_ava = sum(float(x.get("km_ava") or 0) for x in ava)
+            meses.append({
+                "competencia": comp, "coletado": True,
+                "parcial": comp == f"{hoje.year}-{hoje.month:02d}",
+                "km": k["km_total"], "litros": k["litros_total"],
+                "km_l_frota": k["km_l_frota"],
+                "km_l_ava": (km_ava / l_ava) if l_ava > 0 else None,
+                "comparaveis": k["comparaveis"],
+                "divergentes": k["divergentes"],
+                "veiculos": k["veiculos"],
+            })
+    return {"meses": meses,
+            "sync": armazenamento.ultima(estatisticas.COLECAO),
+            "fonte": ("Gobrax vehicle-statistics (cache local, mês a mês) × "
+                      "sulista.ctaplus_abastecimentos do AVA — mesmo cruzar() "
+                      "da tabela; mês sem coleta aparece rotulado")}
+
+
 def get_consumo(competencia: str) -> dict:
     import calendar
     from datetime import date, timedelta

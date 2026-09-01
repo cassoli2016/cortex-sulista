@@ -100,6 +100,9 @@ _FONTES_ROTULO = {
     "antt_piso": "ANTT — Piso Mínimo de Frete",
     "antt_rntrc": "ANTT — RNTRC dos Transportadores",
     "telemetria_consumo": "Telemetria — Consumo e Estatísticas",
+    "telemetria_evolucao": "Telemetria — Evolução mensal do consumo",
+    "telemetria_motoristas": "Telemetria — Motoristas (nota e km)",
+    "programacao_ciclos": "Programação Inteligente — Ciclos",
     "telemetria_conducao": "Telemetria — Indicadores de Condução",
     "telemetria_comunicacao": "Telemetria — Veículo sem comunicar",
     "premiacao": "Premiação de Motoristas",
@@ -484,6 +487,20 @@ def _fontes_do_snapshot() -> dict:
         "antt_piso": _antt_piso,
         "antt_rntrc": _antt_rntrc,
         "telemetria_consumo": _telemetria,
+        # evolução mensal + motoristas: SÓ escalares do cache (a regra
+        # so_cache vale — nenhuma fonte de snapshot dispara coleta)
+        "telemetria_evolucao": lambda: {
+            "meses": [{k2: m.get(k2) for k2 in
+                       ("competencia", "km_l_frota", "km_l_ava",
+                        "comparaveis", "divergentes")}
+                      for m in __import__("api.gobrax.consumo",
+                                          fromlist=["get_evolucao"])
+                      .get_evolucao()["meses"] if m.get("coletado")]},
+        "telemetria_motoristas": lambda: (lambda d2: {
+            "serie": d2["serie"], "no_ranking": len(d2["ranking"]),
+            "abaixo_piso": d2["abaixo_piso"]})(
+            __import__("api.gobrax.motoristas",
+                       fromlist=["get_motoristas"]).get_motoristas()),
         "telemetria_conducao": _conducao,
         "telemetria_comunicacao": _comunicacao,
         "premiacao": _premiacao,

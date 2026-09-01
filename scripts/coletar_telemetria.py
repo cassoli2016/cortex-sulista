@@ -78,6 +78,31 @@ def main() -> int:
         log.error("token da Gobrax nao configurado — nada a coletar")
         return 1
 
+    # --backfill AAAA-MM: coleta UM mes antigo (estatisticas + odometro +
+    # performance) para alongar o historico da evolucao mensal. Mes a mes de
+    # proposito — janela de 12 meses estoura o timeout da API (medido, ver
+    # api/gobrax/cliente.py). Rodar uma vez por mes desejado e pronto:
+    # a gravacao e idempotente (substitui a competencia inteira).
+    import sys as _sys
+    if "--backfill" in _sys.argv:
+        comp = _sys.argv[_sys.argv.index("--backfill") + 1]
+        import re as _re
+        if not _re.fullmatch(r"\d{4}-(0[1-9]|1[0-2])", comp):
+            log.error("--backfill exige AAAA-MM (veio %r)", comp)
+            return 1
+        from api.gobrax import performance as _perf
+        ok = True
+        for nome, mod in (("estatisticas", estatisticas),
+                          ("odometro", odometro), ("performance", _perf)):
+            try:
+                r = mod.sincronizar(comp)
+                log.info("backfill %s %s: %s registro(s)", nome, comp, r["gravadas"])
+            except Exception as exc:  # noqa: BLE001
+                log.warning("backfill %s %s falhou (%s: %s)", nome, comp,
+                            type(exc).__name__, exc)
+                ok = False
+        return 0 if ok else 1
+
     houve_erro = False
 
     # COMUNICACAO: uma chamada so, 0,5 s, e entra no ciclo de 3 h porque o

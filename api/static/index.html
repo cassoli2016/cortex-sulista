@@ -3067,6 +3067,12 @@ body.tvfull #btnReport,body.tvmode #btnReport{display:none}
       <!-- ===================== CONSUMO E ESTATÍSTICAS ===================== -->
       <section class="view" id="view-telcon">
         <div class="kpis" id="kpis-telcon"></div>
+        <div class="subtabs" role="tablist" data-abas="telcon" aria-label="Seções do consumo">
+          <button role="tab" id="tabtelcon-cmp" data-aba="cmp" aria-controls="aba-telcon-cmp" aria-selected="true" onclick="abaTrocar('telcon','cmp')">Consumo × abastecimento <span class="aban" id="telconNCmp"></span></button>
+          <button role="tab" id="tabtelcon-evo" data-aba="evo" aria-controls="aba-telcon-evo" aria-selected="false" onclick="abaTrocar('telcon','evo')">Evolução mensal</button>
+          <button role="tab" id="tabtelcon-com" data-aba="com" aria-controls="aba-telcon-com" aria-selected="false" onclick="abaTrocar('telcon','com')">Comunicação <span class="aban" id="telconNCom"></span></button>
+        </div>
+        <div class="aba" data-abas="telcon" data-aba="cmp" id="aba-telcon-cmp" role="tabpanel" aria-labelledby="tabtelcon-cmp">
         <div class="card">
           <div class="head">
             <h2>Telemetria × abastecimento <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="Duas medidas independentes do mesmo consumo: a telemetria da Gobrax (vehicle-statistics, cache local) mede o que o motor gastou; sulista.ctaplus_abastecimentos do AVA mede o que saiu da bomba, sem ARLA. Casados por placa. A comparação SÓ vale onde a telemetria cobriu pelo menos 70% do km do período e onde os dois km/l são fisicamente plausíveis (0,5 a 15) — fora disso a linha aparece marcada e não conta como divergência.">i</span></h2>
@@ -3079,9 +3085,26 @@ body.tvfull #btnReport,body.tvmode #btnReport{display:none}
             <span class="hint">a coleta lê a frota inteira e leva mais de dois minutos</span>
           </div>
           <div class="tablewrap tabroll"><table><thead><tr>
-            <th>Placa</th><th class="num">Km telemetria</th><th class="num">Km/l telemetria</th><th class="num">Km/l abastecimento</th><th class="num">Diferença</th><th class="num">Cobertura</th><th class="num">Freadas</th><th>Situação</th>
+            <th>Placa</th><th class="num">Km telemetria</th><th class="num">Km/l telemetria</th><th class="num">Km/l abastecimento</th><th class="num">Diferença</th><th class="num">Cobertura</th><th class="num" title="velocidade média em movimento, da telemetria">Vel. média</th><th class="num" title="freadas em alta velocidade no mês — o total de freadas fica no tooltip">Freadas em alta</th><th>Situação</th>
           </tr></thead><tbody id="telcon-lista"></tbody></table></div>
         </div>
+        </div>
+        <div class="aba" data-abas="telcon" data-aba="evo" id="aba-telcon-evo" role="tabpanel" aria-labelledby="tabtelcon-evo" data-ao-abrir="telconEvolucao" hidden>
+          <div class="card">
+            <div class="head">
+              <h2>Km/l da frota, mês a mês <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="A série mensal das duas medidas independentes: km/l da telemetria (só leituras plausíveis, 0,8 a 6,0) e km/l do abastecimento (CTA Plus, sem ARLA). O eixo de meses é GERADO desde a primeira coleta — mês sem coleta aparece rotulado, nunca some. Mês corrente hachurado: parcial. O histórico começa em jul/26; use o backfill do coletor para alongar.">i</span></h2>
+              <span class="hint" id="telcon-evo-hint"></span>
+            </div>
+            <div class="chartwrap"><div id="chartTelconEvo" style="width:100%;height:280px" role="img"></div></div>
+          </div>
+          <div class="card">
+            <div class="head"><h2>Divergência por mês <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="Quantos veículos tinham as duas medidas comparáveis e quantos divergiram mais de 15% em cada mês. Divergência sistemática crescendo é sensor descalibrando ou abastecimento saindo do cartão.">i</span></h2></div>
+            <div class="tablewrap tabroll" style="max-height:220px"><table><thead><tr>
+              <th>Mês</th><th class="num">Km (telemetria)</th><th class="num">Km/l telemetria</th><th class="num">Km/l abastecimento</th><th class="num">Comparáveis</th><th class="num">Divergentes</th>
+            </tr></thead><tbody id="telcon-evo-tab"></tbody></table></div>
+          </div>
+        </div>
+        <div class="aba" data-abas="telcon" data-aba="com" id="aba-telcon-com" role="tabpanel" aria-labelledby="tabtelcon-com" hidden>
         <div class="card">
           <div class="head">
             <h2>Veículo sem comunicar <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="Última posição de cada veículo em Gobrax /api/v2/positions, comparada com o limite de horas. O DENOMINADOR contém só quem a Gobrax conhece na competência, isto é, quem tem equipamento — veículo que não pode cumprir a regra não entra na conta. ATENÇÃO a um limite da fonte: a API devolve as últimas 20 posições de cada veículo e ignora a janela pedida, então de quem não aparece só se sabe que está calado há mais tempo do que essas 20 posições cobrem; esse caso sai à parte, e não como um número grande de horas que a fonte não afirmou.">i</span></h2>
@@ -3103,6 +3126,7 @@ body.tvfull #btnReport,body.tvmode #btnReport{display:none}
           </tr></thead><tbody id="telconcom-tab"></tbody></table></div>
           <div id="telconComAviso" style="padding:0 16px 14px"></div>
         </div>
+        </div>
       </section>
 
       <!-- ===================== CONDUÇÃO ECONÔMICA ===================== -->
@@ -3112,6 +3136,8 @@ body.tvfull #btnReport,body.tvmode #btnReport{display:none}
           <button role="tab" id="tabtelcond-disp" data-aba="disp" aria-controls="aba-telcond-disp" aria-selected="true" onclick="abaTrocar('telcond','disp')">O que separa</button>
           <button role="tab" id="tabtelcond-ind" data-aba="ind" aria-controls="aba-telcond-ind" aria-selected="false" onclick="abaTrocar('telcond','ind')">Indicadores</button>
           <button role="tab" id="tabtelcond-eco" data-aba="eco" aria-controls="aba-telcond-eco" aria-selected="false" onclick="abaTrocar('telcond','eco')">Condução econômica</button>
+          <button role="tab" id="tabtelcond-cruz" data-aba="cruz" aria-controls="aba-telcond-cruz" aria-selected="false" onclick="abaTrocar('telcond','cruz')">Consumo × condução <span class="aban" id="telcondNCruz"></span></button>
+          <button role="tab" id="tabtelcond-mot" data-aba="mot" aria-controls="aba-telcond-mot" aria-selected="false" onclick="abaTrocar('telcond','mot')">Por motorista <span class="aban" id="telcondNMot"></span></button>
         </div>
         <div class="aba" data-abas="telcond" data-aba="disp" id="aba-telcond-disp" role="tabpanel" aria-labelledby="tabtelcond-disp">
   <div class="card">
@@ -3154,9 +3180,36 @@ body.tvfull #btnReport,body.tvmode #btnReport{display:none}
             <div id="telcond-conteudo" style="padding:0 18px 18px"></div>
           </div>
         </div>
+        <div class="aba" data-abas="telcond" data-aba="cruz" id="aba-telcond-cruz" role="tabpanel" aria-labelledby="tabtelcond-cruz" data-ao-abrir="telcondCruzDesenhar" hidden>
+  <div class="card">
+            <div class="head">
+              <h2>Consumo × condução por veículo <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="Cada bolha é um veículo: km/l da telemetria (horizontal) contra o percentual de motor ligado parado (vertical). Só entram veículos com 500+ km no mês, km/l plausível (0,8–6,0) e indicadores coletados — a legenda diz quantos ficaram fora. TRIAGEM DE QUADRANTE, não correlação (medida: a correlação no nível veículo é fraca): consumo ruim + condução ruim = conversa com o motorista; consumo ruim + condução boa + divergência alta do abastecimento = sensor ou abastecimento fora do cartão — investigar, não cobrar.">i</span></h2>
+              <span class="hint" id="telcond-cruz-hint"></span>
+            </div>
+            <div class="chartwrap"><div id="chartTelcondCruz" style="width:100%;height:400px" role="img"></div></div>
+          </div>
+        </div>
+        <div class="aba" data-abas="telcond" data-aba="mot" id="aba-telcond-mot" role="tabpanel" aria-labelledby="tabtelcond-mot" data-ao-abrir="loadTelcondMotoristas" hidden>
+  <div class="grid2">
+            <div class="card">
+              <div class="head"><h2>Nota mediana da frota, mês a mês <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="Mediana das notas dos motoristas com 500+ km em cada mês, dos snapshots que a premiação coleta desde fev/26. Mediana e não média: um motorista de nota 0 num mês raso puxaria a média sem dizer nada da frota.">i</span></h2><span class="hint" id="telcond-mot-serie-hint"></span></div>
+              <div class="chartwrap narrow"><div id="chartTelcondMot" style="width:100%;height:240px" role="img"></div></div>
+            </div>
+            <div class="card">
+              <div class="head"><h2>Como ler <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="A nota é a da regra da casa (premiação); km/l por motorista NÃO existe na fonte — a estatística de consumo é por veículo. O caminho para ligar consumo a motorista é o vínculo veículo×motorista da aba Condução econômica.">i</span></h2></div>
+              <div style="font-size:13px;color:var(--n600);padding:4px 2px;line-height:1.55" id="telcond-mot-leia"></div>
+            </div>
+          </div>
+          <div class="card">
+            <div class="head"><h2>Ranking da competência <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="Motoristas com 500+ km no mês, por nota. Quem rodou menos aparece contado, nunca escondido — nota de quem quase não rodou não compara ninguém. A média histórica ao lado diz se o mês é exceção ou padrão.">i</span></h2><span class="hint" id="telcond-mot-hint"></span></div>
+            <div class="tablewrap tabroll" style="max-height:380px"><table><thead><tr>
+              <th>Motorista</th><th class="num">Km no mês</th><th class="num">Nota</th><th class="num">Média histórica</th><th class="num">Meses no histórico</th>
+            </tr></thead><tbody id="telcond-mot-tab"></tbody></table></div>
+          </div>
+        </div>
       </section>
 
-      <!-- ===================== HODÔMETRO E RASTRO ===================== -->
+      <!-- ===================== HODÔMETRO E RASTRO (abas novas da condução acima) ===================== -->
       <section class="view" id="view-telhod">
         <div class="kpis" id="kpis-telhod"></div>
         <div class="card">
@@ -3165,7 +3218,7 @@ body.tvfull #btnReport,body.tvmode #btnReport{display:none}
             <span class="hint" id="telhod-sync">sem coleta</span>
           </div>
           <div class="tablewrap tabroll"><table><thead><tr>
-            <th>Placa</th><th class="num">Hodômetro</th><th class="num">Última leitura</th><th>Situação</th><th>Rastro</th>
+            <th>Placa</th><th class="num">Hodômetro</th><th class="num" title="km rodado no mês, das estatísticas da telemetria (mesma competência)">Km no mês</th><th class="num" title="diferença do hodômetro contra a competência anterior — a validação cruzada do sensor">Δ odômetro</th><th class="num">Última leitura</th><th>Situação</th><th>Rastro</th>
           </tr></thead><tbody id="telhod-lista"></tbody></table></div>
         </div>
         <div class="card" id="telhod-mapa-card" style="display:none">
@@ -25422,9 +25475,59 @@ function renderTelcon(d){
       <td class="num">${l.km_l_ava!=null?l.km_l_ava.toLocaleString('pt-BR',{maximumFractionDigits:2}):'—'}</td>
       <td class="num" style="font-weight:600;color:${l.delta_pct==null?'inherit':(Math.abs(l.delta_pct)>limite?'var(--red)':'inherit')}">${l.delta_pct!=null?(l.delta_pct>0?'+':'')+Math.round(l.delta_pct)+'%':'—'}</td>
       <td class="num">${l.cobertura_tel!=null?Math.round(100*l.cobertura_tel)+'%':'—'}</td>
-      <td class="num">${(l.freadas||0).toLocaleString('pt-BR')}</td>
+      <td class="num">${l.vel_media!=null?Math.round(l.vel_media)+' km/h':'—'}</td>
+      <td class="num" title="${(l.freadas||0).toLocaleString('pt-BR')} freadas no total"${(l.freadas_alta||0)>0?' style="color:var(--red);font-weight:600"':''}>${(l.freadas_alta||0).toLocaleString('pt-BR')}</td>
       <td>${telconSituacao(l, limite)}</td>
-    </tr>`).join('') || '<tr><td colspan="8" style="color:var(--n500)">sem coleta para esta competência</td></tr>';
+    </tr>`).join('') || '<tr><td colspan="9" style="color:var(--n500)">sem coleta para esta competência</td></tr>';
+  abaContador('telconNCmp', (d.linhas||[]).length);
+}
+/* Evolução mensal do km/l — desenha só com a aba visível (data-ao-abrir). */
+let DATATELEVO=null, telEvoSeq=0;
+async function telconEvolucao(){
+  if(DATATELEVO){ telconEvoDesenhar(DATATELEVO); return; }
+  const seq=++telEvoSeq;
+  document.getElementById('telcon-evo-hint').textContent='montando a série…';
+  try{
+    const r=await fetch('/api/telemetria/consumo/evolucao',{cache:'no-store'});
+    const {ok, dados:d}=await respostaJSON(r); if(seq!==telEvoSeq) return;
+    if(!ok){ showBanner(d.mensagem||'Erro na evolução.', d.detalhe); return; }
+    DATATELEVO=d; telconEvoDesenhar(d);
+  }catch(e){ if(seq===telEvoSeq) showBanner('Não foi possível falar com a API.', e.message); }
+}
+function telconEvoDesenhar(d){
+  const ms=d.meses||[];
+  const coletados=ms.filter(m=>m.coletado);
+  document.getElementById('telcon-evo-hint').textContent=
+    coletados.length+' mês(es) coletado(s)'+(ms.length>coletados.length?(' · '+(ms.length-coletados.length)+' sem coleta (rotulados)'):'');
+  ecDesenhar('chartTelconEvo', ms.length && (()=>{
+    const rot=ms.map(m=>m.competencia.slice(5,7)+'/'+m.competencia.slice(2,4));
+    const o=ecOpcoes(rot, 6, {tipo:'num', sombra:true,
+      legenda:['Km/l telemetria','Km/l abastecimento'], eixoY:'KM/L'});
+    o.tooltip.formatter=p2=>{
+      const m=ms[p2[0].dataIndex];
+      if(!m.coletado) return `<b>${m.competencia}</b><br><span style="color:#6B7580">sem coleta neste mês</span>`;
+      return `<b>${m.competencia}</b>${m.parcial?' <span style="color:#B97709">parcial</span>':''}<br>`+
+        `Km/l telemetria: <b>${m.km_l_frota!=null?m.km_l_frota.toLocaleString('pt-BR',{maximumFractionDigits:2}):'—'}</b><br>`+
+        `Km/l abastecimento: <b>${m.km_l_ava!=null?m.km_l_ava.toLocaleString('pt-BR',{maximumFractionDigits:2}):'—'}</b><br>`+
+        `Km: ${Math.round(m.km||0).toLocaleString('pt-BR')} · comparáveis ${m.comparaveis} · divergentes ${m.divergentes}`;
+    };
+    // connectNulls FALSO por construção dos construtores: mês sem coleta abre a linha
+    o.series=[
+      ecLinha('Km/l telemetria', ms.map(m=>m.coletado?m.km_l_frota:null), CC.navy500,
+        {largura:2.4, rotulo:(v)=>v!=null?v.toLocaleString('pt-BR',{maximumFractionDigits:2}):''}),
+      ecLinha('Km/l abastecimento', ms.map(m=>m.coletado?m.km_l_ava:null), CC.orange500||'#E85D10',
+        {largura:2, tracejada:true}),
+    ];
+    return o;
+  }), 'sem coleta ainda');
+  document.getElementById('telcon-evo-tab').innerHTML=ms.map(m=>m.coletado?`<tr>
+    <td>${esc(m.competencia)}${m.parcial?' <span class="badge b-warn">parcial</span>':''}</td>
+    <td class="num">${Math.round(m.km||0).toLocaleString('pt-BR')}</td>
+    <td class="num" style="font-weight:600">${m.km_l_frota!=null?m.km_l_frota.toLocaleString('pt-BR',{maximumFractionDigits:2}):'—'}</td>
+    <td class="num">${m.km_l_ava!=null?m.km_l_ava.toLocaleString('pt-BR',{maximumFractionDigits:2}):'—'}</td>
+    <td class="num">${m.comparaveis}</td>
+    <td class="num"${m.divergentes>0?' style="color:var(--red);font-weight:600"':''}>${m.divergentes}</td></tr>`
+    :`<tr style="color:var(--n500)"><td>${esc(m.competencia)}</td><td class="num" colspan="5">sem coleta neste mês</td></tr>`).join('');
 }
 async function telconAtualizar(){
   const b=document.getElementById('btnTelconSync');
@@ -25623,6 +25726,7 @@ async function loadTelconComunicacao(){
 }
 
 function renderTelconComunicacao(d){
+  abaContador('telconNCom', ((d||{}).linhas||[]).length);
   const atr=d.atrasados||[], sem=d.sem_posicao||[];
   const cob = d.universo ? (100*d.em_dia/d.universo) : null;
   document.getElementById('telconComHint').textContent =
@@ -25694,6 +25798,10 @@ async function loadTelcond(){
     alvo.innerHTML='<div style="color:var(--n500)">Escolha um veículo acima. A Gobrax consulta a condução de um veículo por vez — se a lista estiver vazia, abra antes a tela de Consumo e faça a coleta.</div>';
     return;
   }
+  // CACHE PRIMEIRO: a varredura diária já tem os 14 desta placa — a ficha
+  // abre na hora e o fornecedor só é consultado quando o cache não tem
+  const doCache=telcondDoCache(placa);
+  if(doCache){ DATATELCOND=doCache; renderTelcond(doCache); return; }
   const seq=++telcondSeq;
   alvo.innerHTML='<div style="color:var(--n500)">consultando a Gobrax…</div>';
   try{
@@ -25703,6 +25811,19 @@ async function loadTelcond(){
     if(!r.ok){ alvo.innerHTML='<div style="color:var(--red)">'+esc(d.mensagem||'Erro ao consultar.')+'</div>'; return; }
     DATATELCOND=d; renderTelcond(d);
   }catch(e){ if(seq===telcondSeq) alvo.innerHTML='<div style="color:var(--red)">Não foi possível falar com a API.</div>'; }
+}
+/* A ficha da placa a partir do CACHE da frota (os 14 já estão lá). */
+function telcondDoCache(placa){
+  const d=DATATELFROTA; if(!d||!d.veiculos||!d.catalogo) return null;
+  const alvo=(placa||'').toUpperCase().replace(/[^A-Z0-9]/g,'');
+  const v=(d.veiculos||[]).find(x=>String(x.placa||'').toUpperCase().replace(/[^A-Z0-9]/g,'')===alvo);
+  if(!v) return null;
+  const inds=(d.catalogo||[]).map(c=>{
+    const i=v[c.chave]||{};
+    return {rotulo:c.rotulo, percentual:i.pct!=null?i.pct:null,
+            duracao_h:i.h!=null?i.h:null, nota_fornecedor:i.nota!=null?i.nota:null};
+  }).filter(i=>i.percentual!=null||i.nota_fornecedor!=null);
+  return {indicadores:inds, motoristas:v.motoristas||[], _cache:true};
 }
 function renderTelcond(d){
   /* `nota_fornecedor` e nao `nota`: a regra que PAGA e a da casa, e o nome do
@@ -25719,12 +25840,112 @@ function renderTelcond(d){
       <td class="num" style="font-weight:600">${i.percentual!=null?i.percentual.toLocaleString('pt-BR',{maximumFractionDigits:2})+'%':'—'}</td>
       <td class="num">${i.duracao_h!=null?i.duracao_h.toLocaleString('pt-BR',{maximumFractionDigits:1}):'—'}</td>
       <td class="num">${i.nota_fornecedor!=null?_premNotaChip(i.nota_fornecedor):'—'}</td>
-    </tr>`).join('')}</tbody></table></div>`
+    </tr>`).join('')}</tbody></table></div>
+    <div class="hint" style="margin-top:6px">${d._cache?'do cache da varredura diária — instantâneo':'consultado ao vivo na Gobrax'}</div>`
     : '<div style="color:var(--n500)">a Gobrax não devolveu indicadores para este veículo no período</div>')
     + (mot.length? `<div style="margin-top:14px">
         <div style="font-weight:600;margin-bottom:6px">Motoristas no veículo neste período</div>
         ${mot.map(m=>`<div style="font-size:12px">${esc(m.nome||'—')} — ${esc(m.de||'?')} → ${esc(m.ate||'em aberto')}</div>`).join('')}
       </div>` : '');
+}
+
+/* Consumo × condução: TRIAGEM DE QUADRANTE (a correlação no nível veículo
+   é fraca — medido; prometer "condução explica consumo" mentiria). */
+function telcondCruzDesenhar(){
+  const tel=DATATELCON, fr=DATATELFROTA;
+  const hint=document.getElementById('telcond-cruz-hint');
+  if(!tel||!fr||!fr.veiculos){ if(hint) hint.textContent='abra antes a tela de Consumo (o cruzamento usa as duas coletas)'; ecDesenhar('chartTelcondCruz', null, 'sem as duas coletas'); return; }
+  const norm=p2=>String(p2||'').toUpperCase().replace(/[^A-Z0-9]/g,'');
+  const porPlaca={};
+  (fr.veiculos||[]).forEach(v=>{ porPlaca[norm(v.placa)]=v; });
+  const pontos=[]; let fora=0;
+  (tel.linhas||[]).forEach(l=>{
+    const v=porPlaca[norm(l.placa)];
+    const idle=v&&v.idle&&v.idle.pct!=null?v.idle.pct:null;
+    const ok=l.km_l!=null&&l.km_l>=0.8&&l.km_l<=6&&(l.km||0)>=500&&idle!=null;
+    if(!ok){ fora++; return; }
+    pontos.push({placa:l.placa, km_l:l.km_l, idle:idle, delta:l.delta_pct,
+                 mot:((v.motoristas||[])[0]||{}).nome||''});
+  });
+  abaContador('telcondNCruz', pontos.length);
+  if(hint) hint.textContent=`${pontos.length} de ${(tel.linhas||[]).length} veículos entram na comparação (500+ km, km/l plausível, indicadores coletados)`;
+  ecDesenhar('chartTelcondCruz', pontos.length && (()=>{
+    const medX=pontos.map(p2=>p2.km_l).sort((a,b)=>a-b)[Math.floor(pontos.length/2)];
+    const medY=pontos.map(p2=>p2.idle).sort((a,b)=>a-b)[Math.floor(pontos.length/2)];
+    return {
+      animation:false,
+      grid:{left:70,right:24,top:36,bottom:44},
+      tooltip:Object.assign({trigger:'item'}, ecTooltip(), {formatter:p2=>{
+        const q=p2.data.q;
+        return `<b>${esc(q.placa)}</b>${q.mot?' · '+esc(q.mot):''}<br>`+
+          `Km/l: <b>${q.km_l.toLocaleString('pt-BR',{maximumFractionDigits:2})}</b><br>`+
+          `Motor ligado parado: <b>${q.idle.toLocaleString('pt-BR',{maximumFractionDigits:1})}%</b>`+
+          (q.delta!=null?`<br>Diferença vs abastecimento: ${q.delta>0?'+':''}${Math.round(q.delta)}%`:'')+
+          `<br><span style="color:#6B7580">${q.km_l<medX&&q.idle>medY?'consumo e condução ruins — conversa com o motorista':(q.km_l<medX?'consumo ruim com condução boa — investigar sensor/abastecimento':'dentro do padrão')}</span>`;
+      }}),
+      xAxis:{type:'value',name:'KM/L',nameTextStyle:{color:CC.n500,fontSize:10},
+        axisLabel:{color:CC.n600,fontSize:10.5},axisLine:{lineStyle:{color:CC.n300}},
+        splitLine:{lineStyle:{color:CC.grid||'#EEF1F4'}},min:0.8,max:6},
+      yAxis:{type:'value',name:'MOTOR PARADO %',nameGap:14,nameTextStyle:{color:CC.n500,fontSize:10,align:'left'},
+        axisLabel:{color:CC.n600,fontSize:10.5},axisLine:{lineStyle:{color:CC.n300}},
+        splitLine:{lineStyle:{color:CC.grid||'#EEF1F4'}}},
+      series:[{type:'scatter',symbolSize:11,
+        data:pontos.map(p2=>({value:[p2.km_l,p2.idle],q:p2,
+          itemStyle:{color:(p2.km_l<medX&&p2.idle>medY)?(CC.vermelho||'#C03221')
+            :((p2.km_l<medX&&p2.delta!=null&&Math.abs(p2.delta)>15)?(CC.amarelo||'#B97709')
+            :(CC.navy500||'#38648D')),opacity:.82}})),
+        markLine:{silent:true,symbol:'none',
+          lineStyle:{color:CC.n400,type:[4,4]},
+          label:{show:false},
+          data:[{xAxis:medX},{yAxis:medY}]},
+      }],
+    };
+  }), 'sem veículo comparável');
+}
+/* Por motorista: nota e km dos snapshots da premiação (cache; nunca ao vivo). */
+let DATATELMOT=null, telMotSeq=0;
+async function loadTelcondMotoristas(){
+  if(DATATELMOT){ renderTelcondMotoristas(DATATELMOT); return; }
+  const seq=++telMotSeq;
+  try{
+    const r=await fetch('/api/telemetria/motoristas',{cache:'no-store'});
+    const {ok, dados:d}=await respostaJSON(r); if(seq!==telMotSeq) return;
+    if(!ok){ showBanner(d.mensagem||'Erro nos motoristas.', d.detalhe); return; }
+    DATATELMOT=d; renderTelcondMotoristas(d);
+  }catch(e){ if(seq===telMotSeq) showBanner('Não foi possível falar com a API.', e.message); }
+}
+function renderTelcondMotoristas(d){
+  const serie=d.serie||[], rk=d.ranking||[];
+  abaContador('telcondNMot', rk.length);
+  document.getElementById('telcond-mot-serie-hint').textContent=
+    serie.length+' mês(es) · desde '+((d.competencias||[])[0]||'—');
+  ecDesenhar('chartTelcondMot', serie.length && (()=>{
+    const o=ecOpcoes(serie.map(x=>x.competencia.slice(5,7)+'/'+x.competencia.slice(2,4)), 100,
+      {tipo:'num', eixoY:'NOTA', bottom:34});
+    o.tooltip.formatter=p2=>{
+      const x=serie[p2[0].dataIndex];
+      return `<b>${x.competencia}</b>${x.parcial?' <span style="color:#B97709">parcial</span>':''}<br>`+
+        `Nota mediana: <b>${x.nota_mediana!=null?x.nota_mediana:'—'}</b><br>`+
+        `${x.no_piso} motoristas com 500+ km (${x.motoristas} no total)`;
+    };
+    o.series=[ecLinha('Nota mediana', serie.map(x=>x.nota_mediana), CC.navy500,
+      {largura:2.4, rotulo:v=>v!=null?String(Math.round(v)):''})];
+    return o;
+  }), 'sem snapshot da premiação');
+  document.getElementById('telcond-mot-leia').innerHTML=
+    '<b>Nota</b>: a da regra da casa (a mesma da premiação), mediana só de quem rodou 500+ km.<br>'+
+    '<b>Km/l por motorista não existe na fonte</b> — o consumo é por veículo; para ligar os dois, use a aba Consumo × condução e o vínculo veículo-motorista.<br>'+
+    '<b>Média histórica</b>: a régua que diz se o mês do motorista é exceção ou padrão.';
+  document.getElementById('telcond-mot-hint').textContent=
+    `${rk.length} no ranking (500+ km) · ${d.abaixo_piso||0} abaixo do piso · competência ${d.ultima||'—'}${d.ultima_parcial?' (parcial)':''}`;
+  document.getElementById('telcond-mot-tab').innerHTML=rk.map(m=>{
+    const cls=m.nota==null?'':(m.nota>=85?'var(--green)':(m.nota>=70?'var(--yellow)':'var(--red)'));
+    return `<tr><td>${esc(m.nome)}</td>
+      <td class="num">${Math.round(m.km).toLocaleString('pt-BR')}</td>
+      <td class="num" style="font-weight:700;color:${cls}">${m.nota!=null?Math.round(m.nota):'—'}</td>
+      <td class="num">${m.nota_media_hist!=null?Math.round(m.nota_media_hist):'—'}</td>
+      <td class="num">${m.meses}</td></tr>`;
+  }).join('')||'<tr><td colspan="5" class="hint">sem motorista no piso</td></tr>';
 }
 
 /* ===================== TELEMETRIA: HODÔMETRO E RASTRO ===================== */
@@ -25750,6 +25971,9 @@ function renderTelhod(d){
   const k=d.kpis||{};
   document.getElementById('kpis-telhod').innerHTML=[
     kpi('Veículos', (k.veiculos||0).toLocaleString('pt-BR'), 'na coleta da competência',''),
+    kpi('Km da frota no mês', k.km_frota_mes?Math.round(k.km_frota_mes).toLocaleString('pt-BR')+' km':'—',
+        (k.ociosos||0)+' veículo(s) com menos de 500 km', '',
+        'Soma do km do mês das estatísticas da telemetria, por placa. O veículo com menos de 500 km é o ocioso do mês — cruzar com a Produtividade de Veículos.'),
     kpi('Com leitura', (k.com_leitura||0).toLocaleString('pt-BR'),
         k.veiculos?Math.round(100*(k.com_leitura||0)/k.veiculos)+'% da frota coletada':'—',''),
     kpi('Sem leitura', (k.sem_leitura||0).toLocaleString('pt-BR'),
@@ -25760,13 +25984,23 @@ function renderTelhod(d){
   document.getElementById('telhod-sync').textContent = s
     ? ('coletado em '+s.quando+' · competência '+s.competencia)
     : 'sem coleta — use o botão na tela de Consumo';
-  document.getElementById('telhod-lista').innerHTML=(d.linhas||[]).map(l=>`<tr>
+  document.getElementById('telhod-lista').innerHTML=(d.linhas||[]).map(l=>{
+    // |km do mês − Δ odômetro| acima de 30% do maior: um dos sensores mente
+    const inconsist=l.km_mes!=null&&l.delta_odometro!=null&&l.delta_odometro>=0
+      &&Math.abs(l.km_mes-l.delta_odometro)>0.30*Math.max(l.km_mes,l.delta_odometro,1);
+    const ocioso=l.km_mes!=null&&l.km_mes<500;
+    let sit=l.odometro!=null?'<span class="badge b-ok">com leitura</span>':'<span class="badge b-warn">sem leitura no período</span>';
+    if(inconsist) sit+=' <span class="badge b-dang" title="o km do mês (estatísticas) e a variação do hodômetro entre competências divergem mais de 30% — um dos sensores está mentindo; conferir antes de usar qualquer um dos dois">leitura inconsistente</span>';
+    if(ocioso) sit+=' <span class="badge b-warn" title="menos de 500 km no mês">ocioso</span>';
+    return `<tr>
       <td class="num" style="font-family:var(--mono)">${esc(l.placa||'—')}</td>
       <td class="num" style="font-weight:600">${l.odometro!=null?Math.round(l.odometro).toLocaleString('pt-BR')+' km':'—'}</td>
+      <td class="num">${l.km_mes!=null?Math.round(l.km_mes).toLocaleString('pt-BR'):'—'}</td>
+      <td class="num">${l.delta_odometro!=null?Math.round(l.delta_odometro).toLocaleString('pt-BR'):'<span title="sem leitura na competência anterior para comparar">—</span>'}</td>
       <td class="num">${l.lido_em?esc(String(l.lido_em).slice(0,16)):'—'}</td>
-      <td>${l.odometro!=null?'<span class="badge b-ok">com leitura</span>':'<span class="badge b-warn">sem leitura no período</span>'}</td>
+      <td>${sit}</td>
       <td>${l.placa?`<button class="ghost" onclick="telhodAbrirRastro('${esc(l.placa)}')">ver trajeto</button>`:''}</td>
-    </tr>`).join('') || '<tr><td colspan="5" style="color:var(--n500)">sem coleta para esta competência</td></tr>';
+    </tr>`;}).join('') || '<tr><td colspan="7" style="color:var(--n500)">sem coleta para esta competência</td></tr>';
 }
 function telhodAbrirRastro(placa){
   document.getElementById('telhod-mapa-card').style.display='';

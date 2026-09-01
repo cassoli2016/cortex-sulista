@@ -4,6 +4,14 @@ Gerado de `docs/versoes.yaml` por `scripts/gerar_changelog.py` — não editar �
 Formato [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/),
 versionamento [SemVer](https://semver.org/lang/pt-BR/).
 
+## [0.203.0] — 01/09/2026  ·  CX-01/09/2026-v0.203.0
+
+### Adicionado
+- Telemetria encorpada nas três telas. Consumo e Estatísticas ganhou a aba "Evolução mensal" (km/l da telemetria × km/l do abastecimento, mês a mês, com comparáveis e divergentes — mês sem coleta aparece rotulado, nunca some) e as colunas de velocidade média e freadas em alta por veículo, que a coleta já guardava e ninguém mostrava. Condução Econômica ganhou "Consumo × condução" (cada bolha um veículo: km/l contra motor ligado parado, com piso de 500 km — triagem de quadrante: consumo e condução ruins é conversa com o motorista; consumo ruim com condução boa e divergência do abastecimento é sensor ou abastecimento fora do cartão) e "Por motorista" (nota e km mês a mês desde fev/26, ranking com piso e média histórica ao lado). Hodômetro e Rastro mostra o km do mês, o delta do hodômetro entre competências e o selo "leitura inconsistente" quando os dois sensores divergem mais de 30% — a validação cruzada que faltava.
+
+### Alterado
+- A ficha de Condução Econômica abre NA HORA a partir do cache da varredura diária (os 14 indicadores da placa já estavam lá) — a consulta ao vivo na Gobrax virou o refresh, não o caminho. O coletor de telemetria ganhou o `--backfill AAAA-MM` para alongar o histórico da evolução mês a mês.
+
 ## [0.202.1] — 01/09/2026  ·  CX-01/09/2026-v0.202.1
 
 ### Alterado

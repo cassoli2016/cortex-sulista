@@ -609,6 +609,37 @@ def telemetria_consumo(competencia: str | None = None) -> JSONResponse:
             "erro": "erro_consulta", "mensagem": "Erro ao montar o consumo."})
 
 
+@app.get("/api/telemetria/consumo/evolucao")
+def telemetria_consumo_evolucao() -> JSONResponse:
+    """A série mensal do km/l (telemetria × AVA), do cache local."""
+    from api.gobrax.consumo import get_evolucao
+    try:
+        return JSONResponse(get_evolucao())
+    except psycopg.OperationalError as exc:
+        log.warning("banco inacessivel: %s", exc)
+        return JSONResponse(status_code=503, content={
+            "erro": "banco_inacessivel",
+            "mensagem": "Sem conexão com o banco. O túnel SSH está aberto?"})
+    except Exception as exc:  # noqa: BLE001
+        log.warning("evolucao do consumo falhou: %s", exc)
+        return JSONResponse(status_code=500, content={
+            "erro": "erro_consulta",
+            "mensagem": "Erro ao montar a evolução do consumo."})
+
+
+@app.get("/api/telemetria/motoristas")
+def telemetria_motoristas() -> JSONResponse:
+    """Nota e km por motorista, mês a mês — dos snapshots da premiação."""
+    from api.gobrax.motoristas import get_motoristas
+    try:
+        return JSONResponse(get_motoristas())
+    except Exception as exc:  # noqa: BLE001
+        log.warning("motoristas da telemetria falharam: %s", exc)
+        return JSONResponse(status_code=500, content={
+            "erro": "erro_consulta",
+            "mensagem": "Erro ao montar a evolução dos motoristas."})
+
+
 @app.post("/api/telemetria/consumo/atualizar")
 async def telemetria_consumo_atualizar(req: Request) -> JSONResponse:
     """Coleta estatísticas e odômetro na Gobrax. Leva mais de dois minutos."""
@@ -766,10 +797,41 @@ def telemetria_hodometro(competencia: str | None = None) -> JSONResponse:
             "erro": "parametro_invalido", "mensagem": str(exc)})
     linhas = armazenamento.ler(odometro.COLECAO, comp)
     sem_leitura = sum(1 for l in linhas if not l.get("odometro"))
+    # km do mês (estatísticas da MESMA competência, somado por placa — a
+    # coleção pode trazer a placa repetida) e o delta contra a competência
+    # ANTERIOR: |km − Δ| grande é sensor mentindo, e só o cruzamento vê
+    from api.gobrax import estatisticas as _est
+    km_mes: dict[str, float] = {}
+    for r in armazenamento.ler(_est.COLECAO, comp):
+        p0 = (r.get("placa") or "").upper()
+        if p0:
+            km_mes[p0] = km_mes.get(p0, 0.0) + float(r.get("km") or 0)
+    comps = armazenamento.competencias(odometro.COLECAO)
+    ant = comps[comps.index(comp) - 1] if comp in comps and comps.index(comp) > 0 else None
+    odo_ant: dict[str, float] = {}
+    if ant:
+        for r in armazenamento.ler(odometro.COLECAO, ant):
+            p0 = (r.get("placa") or "").upper()
+            if p0 and r.get("odometro") is not None:
+                odo_ant[p0] = float(r["odometro"])
+    km_frota = 0.0
+    ociosos = 0
+    for l in linhas:
+        p0 = (l.get("placa") or "").upper()
+        l["km_mes"] = km_mes.get(p0)
+        if l["km_mes"] is not None:
+            km_frota += l["km_mes"]
+            if l["km_mes"] < 500:
+                ociosos += 1
+        oa = odo_ant.get(p0)
+        l["delta_odometro"] = (float(l["odometro"]) - oa) \
+            if (l.get("odometro") is not None and oa is not None) else None
     return JSONResponse({
         "competencia": comp,
+        "competencia_anterior": ant,
         "kpis": {"veiculos": len(linhas), "sem_leitura": sem_leitura,
-                 "com_leitura": len(linhas) - sem_leitura},
+                 "com_leitura": len(linhas) - sem_leitura,
+                 "km_frota_mes": km_frota, "ociosos": ociosos},
         "linhas": sorted(linhas, key=lambda l: (l.get("odometro") is not None,
                                                 l.get("odometro") or 0)),
         "sync": armazenamento.ultima(odometro.COLECAO),
