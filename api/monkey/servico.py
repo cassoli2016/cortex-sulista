@@ -23,7 +23,12 @@ from datetime import date, datetime
 
 from ..antecipacoes import registro
 from . import cliente as cli
+from . import espelho
 from . import normaliza as nz
+
+import logging
+
+log = logging.getLogger(__name__)
 
 PORTAL = "tupy"
 PORTAL_ROTULO = "Tupy (Monkey Exchange)"
@@ -99,6 +104,7 @@ def coletar(usuario: str = "coleta automática", http=None) -> dict:
     c = cli.Cliente(http=http)
     empresas = {e["companyId"]: e for e in c.empresas()}
     brutos: list[dict] = []
+    pares: list[tuple[str, dict]] = []   # (seller_id, bruto) para o espelho
     sellers = cli.seller_ids()
     for sid in sellers:
         c.seller = sid
@@ -107,6 +113,7 @@ def coletar(usuario: str = "coleta automática", http=None) -> dict:
             r["_seller_cnpj"] = emp.get("cnpj", "")
             r["_seller_nome"] = emp.get("nome", "")
             brutos.append(r)
+            pares.append((sid, r))
     d = nz.lote(brutos)
     linhas, resumo = d["titulos"], d["resumo"]
     # a POSIÇÃO é o recorte em aberto — valores, sacados e a IMPRESSÃO da
@@ -131,12 +138,28 @@ def coletar(usuario: str = "coleta automática", http=None) -> dict:
         lido, res, usuario=usuario, dados=_impressao(posicao))
     registro.marcar_origem(envio_id, ORIGEM)
 
+    # o ESPELHO (mky_recebiveis) guarda a varredura INTEIRA — é dele que a
+    # tela de validação do portal responde sem re-paginar a API. Falha aqui
+    # não derruba a posição (o produto primário), mas fica ESCRITA.
+    esp_gravados = 0
+    try:
+        esp_gravados, esp_sem_chave = espelho.upsert(pares)
+        espelho.registrar_carga(agora, len(pares), esp_gravados, esp_sem_chave)
+    except Exception as exc:  # noqa: BLE001
+        log.warning("espelho monkey falhou: %s", type(exc).__name__)
+        try:
+            espelho.registrar_carga(agora, len(pares), 0, 0,
+                                    f"{type(exc).__name__}: {str(exc)[:200]}")
+        except Exception:  # noqa: BLE001 — trilha indisponível junto do banco
+            pass
+
     return {
         "envio_id": envio_id,
         "sem_mudanca": ja_existia,
         "ambiente": cli.ambiente(),
         "sellers": len(sellers),
         "recebidos": len(brutos),
+        "espelho": esp_gravados,
         "fora_da_posicao": len(linhas) - len(posicao),
         "gravados": len(lido["titulos"]),
         "rejeitados_sem_vencimento": len(lido["rejeitadas"]),
@@ -155,7 +178,16 @@ def diagnostico() -> dict:
     GRAVADA — que é o que a tela de Antecipações mostra.
     """
     ultimo = registro.ultimo_envio(PORTAL) or {}
+    esp = None
+    try:
+        from api import pglocal
+        esp = pglocal.um("SELECT to_char(terminado_em, 'YYYY-MM-DD HH24:MI')"
+                         " AS quando, gravados, erro FROM mky_carga"
+                         " ORDER BY id DESC LIMIT 1")
+    except Exception:  # noqa: BLE001 — espelho ausente não derruba a Saúde
+        pass
     return {
+        "espelho": dict(esp) if esp else None,
         "configurado": cli.configurado(),
         "modo_auth": cli.modo_auth() or "nenhuma",
         "seller_id": bool(cli.seller_id()),

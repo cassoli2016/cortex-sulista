@@ -832,9 +832,15 @@ def _servico_monkey(d: dict) -> dict:
     hmg = d["ambiente"] != "prod"
     velha = idade is None or idade > 1440
     valor = f"{d['valor_saldo']:,.2f}".replace(",", "@").replace(".", ",").replace("@", ".")
+    esp = d.get("espelho") or {}
+    esp_txt = ""
+    if esp.get("quando"):
+        esp_txt = (f" · espelho {esp.get('gravados', 0):,} recebíveis"
+                   .replace(",", ".")
+                   + (" (última varredura FALHOU)" if esp.get("erro") else ""))
     return {"nome": nome, "status": "alerta" if (hmg or velha) else "ok",
-            "detalhe": f"{d['titulos']} títulos · R$ {valor} · coletado "
-                       f"{_ha_quanto(idade)}"
+            "detalhe": f"{d['titulos']} títulos em aberto · R$ {valor} · "
+                       f"coletado {_ha_quanto(idade)}" + esp_txt
                        + (" · ambiente de HOMOLOGAÇÃO, os títulos são de teste"
                           if hmg else "")}
 

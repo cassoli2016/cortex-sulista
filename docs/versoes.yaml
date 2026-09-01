@@ -1,3 +1,24 @@
+- versao: "0.208.0"
+  data: "2026-09-01"
+  adicionado:
+    - >-
+      Tela nova, Portal Tupy (Financeiro): a validação de tudo que a API
+      da Monkey entrega. O CÓRTEX agora guarda um espelho local completo
+      do convênio (48,6 mil recebíveis desde 2023) e a tela mostra o
+      antecipado por mês de vencimento com a taxa média em linha, o
+      custo total da antecipação (deságio de 2,48% no histórico), as
+      cinco filiais da Sulista lado a lado, os bancos investidores que
+      compraram os títulos (Itaú, Sofisa, ABC, BB…), a busca por
+      documento e uma aba de Validação que confere o espelho contra o
+      painel de Antecipações e lista os achados de qualidade do dado —
+      emissão zerada, campo que o portal nunca preencheu, pontualidade
+      real da liquidação da Tupy.
+    - >-
+      Uma descoberta que muda a leitura: 100% dos títulos do convênio
+      têm investidor, taxa e deságio — tudo que entra no portal é
+      antecipado no leilão. Por isso o "antecipado histórico" é o total
+      (R$ 121,8 milhões), e o status só diz em que fase do ciclo cada
+      título está: vendido aguardando vencimento, ou já liquidado.
 - versao: "0.207.0"
   data: "2026-09-01"
   alterado:

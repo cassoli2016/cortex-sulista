@@ -83,6 +83,7 @@ _SNAP_TTL = 600      # 10 min: o snapshot custa ~12 consultas no ERP
 _FONTES_ROTULO = {
     "produtividade_veiculos": "Produtividade de Veículos",
     "faturamento_detalhado": "Faturamento Detalhado",
+    "portal_tupy": "Portal Tupy (Monkey)",
     "visao_geral": "Visão Geral",
     "financeiro_caixa": "Fluxo de Caixa e Bancos",
     "analise_km_ano": "Análise de KM",
@@ -471,6 +472,16 @@ def _fontes_do_snapshot() -> dict:
         "torre_seguranca": lambda: queries.get_seguranca(),
         "estradas_transito": _estradas,
         "programacao_disponibilidade": lambda: queries.get_programacao(),
+        # Portal Tupy: só os KPIs escalares do espelho (sem documento, sem
+        # CNPJ de terceiro) — a leitura é do banco local, nunca da API
+        "portal_tupy": lambda: (lambda d2: (
+            {k: d2["kpis"].get(k) for k in (
+                "titulos", "valor_total", "vendidos", "valor_vendido",
+                "desagio_vendido", "desagio_pct", "liquidados",
+                "valor_liquidado", "abertos", "valor_aberto")}
+            if d2.get("disponivel") else {"espelho": "vazio"}))(
+            __import__("api.monkey.portal",
+                       fromlist=["get_portal_tupy"]).get_portal_tupy()),
         "gerenciamento_risco": lambda: (lambda d2: {
             "eventos_24h": d2["eventos_24h"], "eventos_7d": d2["eventos_7d"],
             "cobertura": d2["cobertura"], "fluxo_alarme": d2["fluxo"]["alarme"],

@@ -114,6 +114,7 @@ TELAS: dict[str, tuple[str, str]] = {  # chave -> (rótulo, grupo do menu)
     "telhod":  ("Hodômetro e Rastro", "Telemetria"),
     "prodveic": ("Produtividade de Veículos", "Business Intelligence"),
     "fat":     ("Faturamento Detalhado", "Controladoria"),
+    "tupy":    ("Portal Tupy", "Financeiro"),
     "tvfat":   ("Painel TV — Faturamento", "Business Intelligence"),
     "tvope":   ("Painel TV — Operação", "Business Intelligence"),
     "tvdir":   ("Painel TV — Diretoria", "Business Intelligence"),
@@ -174,6 +175,7 @@ ROTA_TELAS: list[tuple[str, frozenset[str]]] = [
     ("/api/rh/folha-estrutura",       frozenset({"folha"})),
     ("/api/operacao/pedagio",         frozenset({"pedagio"})),
     ("/api/operacao/gr",              frozenset({"gr"})),
+    ("/api/financeiro/tupy",          frozenset({"tupy"})),
     ("/api/rh/folha-custo",           frozenset({"folha"})),
     ("/api/rh/horas-extras",          frozenset({"he"})),
     ("/api/rh/vagas",                 frozenset({"rh"})),
@@ -793,6 +795,18 @@ def _seed_perfis_modelo(c: psycopg.Connection) -> None:
                 c.execute("INSERT INTO perfil_telas(perfil_id, tela) VALUES(%s,%s) ON CONFLICT DO NOTHING",
                           (row["id"], "gr"))
         c.execute("INSERT INTO config(chave, valor) VALUES('perfis_modelo_v38', '1') ON CONFLICT(chave) DO NOTHING")
+
+    # v39 (2026-09-01): Portal Tupy ('tupy') para Financeiro e Diretoria —
+    # a validação do que a API da Monkey entrega (espelho mky_recebiveis):
+    # antecipado por mês, taxa, deságio, investidores e a conferência com a
+    # posição do painel de Antecipações.
+    if not c.execute("SELECT 1 FROM config WHERE chave='perfis_modelo_v39'").fetchone():
+        for perfil in ("Financeiro", "Diretoria"):
+            row = c.execute("SELECT id FROM perfis WHERE nome=%s", (perfil,)).fetchone()
+            if row:
+                c.execute("INSERT INTO perfil_telas(perfil_id, tela) VALUES(%s,%s) ON CONFLICT DO NOTHING",
+                          (row["id"], "tupy"))
+        c.execute("INSERT INTO config(chave, valor) VALUES('perfis_modelo_v39', '1') ON CONFLICT(chave) DO NOTHING")
 
 
 def _agora() -> str:

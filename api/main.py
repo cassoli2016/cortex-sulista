@@ -4331,6 +4331,24 @@ def faturamento_detalhado(mes: str | None = None) -> JSONResponse:
             "mensagem": "Erro ao montar o faturamento detalhado."})
 
 
+@app.get("/api/financeiro/tupy")
+def financeiro_tupy(q: str = "") -> JSONResponse:
+    """Portal Tupy (Monkey): a validação do espelho local de recebíveis."""
+    from api.monkey import portal as mkyportal
+    try:
+        return JSONResponse(mkyportal.get_portal_tupy(q))
+    except psycopg.OperationalError as exc:
+        log.warning("banco inacessivel: %s", exc)
+        return JSONResponse(status_code=503, content={
+            "erro": "banco_inacessivel",
+            "mensagem": "Sem conexão com o banco local do CÓRTEX."})
+    except Exception as exc:  # noqa: BLE001
+        log.exception("portal tupy: %s", exc)
+        return JSONResponse(status_code=500, content={
+            "erro": "erro_consulta",
+            "mensagem": "Erro ao consultar o portal Tupy."})
+
+
 @app.get("/api/operacao/gr")
 def operacao_gr() -> JSONResponse:
     """Gerenciamento de Risco (Fase 1): o que o ERP já recebe do hub."""
