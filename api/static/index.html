@@ -5457,6 +5457,8 @@ body.tvfull #btnReport,body.tvmode #btnReport{display:none}
           <div class="cardfilters">
             <button class="btn" id="btnSmtColeta" onclick="smtColetar()">Atualizar da Smartec</button>
             <span class="hint" id="smtColetadoEm" style="text-align:left"></span>
+            <span class="hint" id="smtDesde" style="text-align:left"
+                  title="A infração EM ABERTO mais antiga. A API da Smartec só devolve o que está em aberto: o que foi pago ou baixado antes disso deixou de vir — isto é o alcance do que ainda dá para tratar, não o início do histórico."></span>
           </div>
         </div>
         <div id="smt-aviso"></div>
@@ -5470,6 +5472,8 @@ body.tvfull #btnReport,body.tvmode #btnReport{display:none}
                     aria-selected="false" onclick="abaTrocar('smt','lic')">Licenças<span class="aban vazio" id="cnt-smt-lic"></span></button>
             <button role="tab" id="tabsmt-antt" aria-controls="aba-smtantt" data-aba="antt"
                     aria-selected="false" onclick="abaTrocar('smt','antt')">ANTT<span class="aban vazio" id="cnt-smt-antt"></span></button>
+            <button role="tab" id="tabsmt-mot" aria-controls="aba-smtmot" data-aba="mot"
+                    aria-selected="false" onclick="abaTrocar('smt','mot')">Motoristas<span class="aban vazio" id="cnt-smt-mot"></span></button>
             <button role="tab" id="tabsmt-hist" aria-controls="aba-smthist" data-aba="hist"
                     aria-selected="false" onclick="abaTrocar('smt','hist')">Histórico (ERP)<span class="aban vazio" id="cnt-smt-hist"></span></button>
             <button role="tab" id="tabsmt-resp" aria-controls="aba-smtresp" data-aba="resp"
@@ -5492,15 +5496,25 @@ body.tvfull #btnReport,body.tvmode #btnReport{display:none}
             </div>
             <div class="card">
               <div class="head"><h2>Multas em aberto <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="MULTAS SNE DETRAN da Smartec, gravadas em smt_infracoes. Em aberto significa que ainda vem da API: a resolvida para de vir e sai daqui. O valor é o que a Smartec informa, não o do cadastro do ERP — que vem vazio em boa parte das multas recentes.">i</span></h2><span class="hint" id="smt-mul-hint"></span></div>
-              <div class="tabroll" style="max-height:290px"><table id="tb-smtmul"><thead><tr><th>Placa</th><th>AIT</th><th>Data</th><th>Infração</th><th>Órgão</th><th class="num">Pontos</th><th class="num">Valor</th><th class="num">Com desconto</th><th>Vencimento</th><th>Boleto</th><th>Docs</th></tr></thead><tbody></tbody></table></div>
+              <div class="tabroll" style="max-height:290px"><table id="tb-smtmul"><thead><tr><th>Placa</th><th>AIT</th><th>Data</th><th>Infração</th><th>Órgão</th><th>Condutor</th><th>Cliente na viagem</th><th class="num">Pontos</th><th class="num">Valor</th><th class="num">Com desconto</th><th>Vencimento</th><th>Docs</th></tr></thead><tbody></tbody></table></div>
             </div>
           </div>
 
           <div class="aba" data-abas="smt" data-aba="not" id="aba-smtnot" role="tabpanel" aria-labelledby="tabsmt-not" hidden>
             <div class="kpis k4" id="kpis-smtnot"></div>
+            <div class="grid2">
+              <div class="card">
+                <div class="head"><h2>Prazo de indicação em faixas <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="As notificações em aberto agrupadas pelo prazo de indicar condutor: o que vence HOJE e nos próximos dias é o que ainda evita a autuação por não indicar. Vencido não tem mais conserto — está aqui para dimensionar o hábito, não para agir.">i</span></h2><span class="hint">o que ainda dá para indicar</span></div>
+                <div class="chartwrap narrow"><div id="chart-smtprazo" style="width:100%;height:150px"></div></div>
+              </div>
+              <div class="card">
+                <div class="head"><h2>Órgão autuador — em aberto <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="Multas e notificações em aberto somadas por órgão autuador. É onde se vê de quem a frota mais apanha — e onde uma mudança de rota ou de conduta tem mais efeito.">i</span></h2><span class="hint" id="smt-orgao-hint"></span></div>
+                <div class="tabroll" style="max-height:150px"><div id="chart-smtorgao"></div></div>
+              </div>
+            </div>
             <div class="card">
               <div class="head"><h2>Notificações — prazo de indicar condutor <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="NOTIFICACOES SNE DETRAN da Smartec. A notificação é o estágio ANTERIOR à multa: enquanto o prazo de indicação corre, dá para indicar o condutor e evitar a autuação por não indicar (art. 257 par. 8). NÃO somar com as multas — são o mesmo auto em estágios diferentes, e somar conta a infração duas vezes.">i</span></h2><span class="hint" id="smt-not-hint"></span></div>
-              <div class="tabroll"><table id="tb-smtnot"><thead><tr><th>Prazo</th><th>Placa</th><th>AIT</th><th>Data</th><th>Infração</th><th>Órgão</th><th class="num">Pontos</th><th class="num">Valor</th><th>Estado</th><th>Docs</th></tr></thead><tbody></tbody></table></div>
+              <div class="tabroll" style="max-height:420px"><table id="tb-smtnot"><thead><tr><th>Prazo</th><th>Placa</th><th>AIT</th><th>Data</th><th>Infração</th><th>Órgão</th><th>Condutor/estado</th><th>Cliente na viagem</th><th class="num">Pontos</th><th class="num">Valor</th><th>Docs</th></tr></thead><tbody></tbody></table></div>
             </div>
           </div>
 
@@ -5514,9 +5528,32 @@ body.tvfull #btnReport,body.tvmode #btnReport{display:none}
 
           <div class="aba" data-abas="smt" data-aba="antt" id="aba-smtantt" role="tabpanel" aria-labelledby="tabsmt-antt" hidden>
             <div class="kpis k4" id="kpis-smtantt"></div>
+            <div class="grid2">
+              <div class="card">
+                <div class="head"><h2>Autuações por mês <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="smt_antt por mês da INFRAÇÃO, com o eixo GERADO — mês sem autuação aparece zerado de propósito: a pergunta deste gráfico é em que mês PAROU de chegar autuação, e emendar os meses esconderia a parada.">i</span></h2><span class="hint" id="smt-anttmes-hint">últimos 36 meses</span></div>
+                <div class="chartwrap narrow"><div id="chart-smtanttmes" style="width:100%;height:150px"></div></div>
+              </div>
+              <div class="card">
+                <div class="head"><h2>Por situação do processo <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="A ANTT não usa aberta/paga: usa o andamento do processo administrativo. Defesa tempestiva congela; impeditiva trava a regularização do RNTRC.">i</span></h2><span class="hint"></span></div>
+                <div class="tabroll" style="max-height:150px"><div id="chart-smtanttsit"></div></div>
+              </div>
+            </div>
             <div class="card">
-              <div class="head"><h2>Autuações da ANTT <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="smt_antt — autuações da ANTT contra a TRANSPORTADORA (vale-pedágio, RNTRC, excesso), não contra o condutor. Não geram pontos em CNH; têm processo administrativo e situação de defesa. Por isso não se somam às multas de trânsito.">i</span></h2><span class="hint" id="smt-antt-hint"></span></div>
-              <div class="tabroll"><table id="tb-smtantt"><thead><tr><th>AIT</th><th>Processo</th><th>Data</th><th>Tipo</th><th>Placa</th><th>Situação</th><th>Local</th></tr></thead><tbody></tbody></table></div>
+              <div class="head"><h2>Autuações da ANTT <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="smt_antt — autuações da ANTT contra a TRANSPORTADORA (vale-pedágio, RNTRC, excesso), não contra o condutor. Não geram pontos em CNH; têm processo administrativo e situação de defesa. Por isso não se somam às multas de trânsito. Ordenada da mais RECENTE para a mais antiga — a primeira linha diz quando chegou a última.">i</span></h2><span class="hint" id="smt-antt-hint"></span></div>
+              <div class="tabroll" style="max-height:420px"><table id="tb-smtantt"><thead><tr><th>AIT</th><th>Processo</th><th>Data</th><th>Tipo</th><th>Placa</th><th>Situação</th><th>Local</th></tr></thead><tbody></tbody></table></div>
+            </div>
+          </div>
+
+          <div class="aba" data-abas="smt" data-aba="mot" id="aba-smtmot" role="tabpanel" aria-labelledby="tabsmt-mot" hidden>
+            <div class="grid2">
+              <div class="card">
+                <div class="head"><h2>Condutores por pontos em aberto <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="smt_infracoes.motorista_nome — o condutor que a Smartec informa, presente em ~95% das multas e ~93% das notificações. Só PESSOAS entram no ranking: MOTORISTA, AGREGADO, NIC, RECURSO, DESLIGADO e EMPRESA são estados do processo de indicação, e viram a linha (sem condutor identificado) da tabela ao lado.">i</span></h2><span class="hint">multas + notificações em aberto</span></div>
+                <div class="tabroll" style="max-height:330px"><div id="chart-smtmot"></div></div>
+              </div>
+              <div class="card">
+                <div class="head"><h2>Por condutor <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="Mesma fonte do gráfico. A linha (sem condutor identificado) reúne os estados do processo e os registros sem nome — é de longe a maior e o ponto de ação: sem indicar no prazo, a pontuação fica com a empresa.">i</span></h2><span class="hint" id="smt-mot-hint"></span></div>
+                <div class="tabroll" style="max-height:330px"><table id="tb-smtmot"><thead><tr><th>Condutor</th><th class="num">Multas</th><th class="num">Notificações</th><th class="num">Pontos</th><th class="num">Valor</th><th class="num">Placas</th></tr></thead><tbody></tbody></table></div>
+              </div>
             </div>
           </div>
 
@@ -5533,10 +5570,8 @@ body.tvfull #btnReport,body.tvmode #btnReport{display:none}
           </div>
         </div>
 
-  <div class="grid2">
-          </div>
-
           <div class="aba" data-abas="smt" data-aba="resp" id="aba-smtresp" role="tabpanel" aria-labelledby="tabsmt-resp" data-ao-abrir="loadMulErp" hidden>
+            <div class="grid2">
             <div class="card">
               <div class="head"><h2>Por infração <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="Tipo vindo do catálogo infracaotransito. A autuação por não indicar condutor é consequência direta das multas sem condutor identificado: sem a indicação no prazo, ela vira infração gravíssima da empresa. Valor e pontos ficam zerados quando o registro não os traz.">i</span></h2><span class="hint" id="hintMulI">top 15</span></div>
               <div class="tablewrap tabroll" style="max-height:210px"><table><thead><tr>
@@ -5575,6 +5610,7 @@ body.tvfull #btnReport,body.tvmode #btnReport{display:none}
               <div class="tabroll" style="max-height:230px"><table id="tb-smthist"><thead><tr><th>Placa</th><th>AIT</th><th>Espécie</th><th>Infração</th><th class="num">Valor</th><th>Saiu em</th><th class="num">Dias em aberto</th></tr></thead><tbody></tbody></table></div>
             </div>
           </div>
+        </div>
       </section>
       <section class="view" id="view-torre">
         <div class="kpis k4" id="kpis-torre"></div>
@@ -6679,6 +6715,12 @@ function _repErro(txt){
   }catch(_){}
 }
 window.addEventListener('error', e=>{
+  /* "ResizeObserver loop completed/limit exceeded" NÃO é erro: é o navegador
+     avisando que o observer reagendou para o quadro seguinte — exatamente o
+     que o echartsRegistrar faz ao remedir gráfico em aba que acabou de abrir.
+     Mostrar banner vermelho para isso é alarme sem problema, e ensina a
+     ignorar o banner no dia em que ele disser algo de verdade. */
+  if(/^ResizeObserver loop/.test(e.message||'')) return;
   _repErro(e.message+' ('+(e.filename||'').split('/').pop()+':'+(e.lineno||'')+')');
   try{ const b=document.getElementById('banner'); b.classList.add('show');
     b.textContent='⚠️ Erro de interface: '+e.message+' ('+(e.filename||'').split('/').pop()+':'+(e.lineno||'')+')';
@@ -10516,8 +10558,13 @@ function ecOpcoes(rotulos, max, cfg){
   cfg = cfg || {};
   const o = {
     animation: false,
+    /* Com legenda o bottom padrão sobe: ela é desenhada em bottom:0, na MESMA
+       faixa dos rótulos do eixo X — com os 36 de sempre os dois se sobrepõem
+       (visto na tela da Smartec, e era o caso de 6 gráficos que não passavam
+       bottom próprio). Quem passa cfg.bottom continua mandando. */
     grid: {left: cfg.left != null ? cfg.left : 66, right: cfg.right != null ? cfg.right : 20,
-           top: cfg.top != null ? cfg.top : 30, bottom: cfg.bottom != null ? cfg.bottom : 36},
+           top: cfg.top != null ? cfg.top : 30,
+           bottom: cfg.bottom != null ? cfg.bottom : (cfg.legenda ? 52 : 36)},
     tooltip: Object.assign({trigger:'axis',
         axisPointer:{type: cfg.sombra ? 'shadow' : 'line',
                      lineStyle:{color:CC.navy400, width:1}}}, ecTooltip()),
@@ -10543,6 +10590,12 @@ function ecBarras(nome, valores, cor, opt){
   const corDe = (typeof cor === 'function') ? cor : () => cor;
   return {
     name: nome, type:'bar',
+    /* A cor também vai no NÍVEL DA SÉRIE quando é fixa: o quadradinho da
+       legenda lê daqui, não do itemStyle de cada barra — sem isto a legenda
+       saía azul/verde da paleta padrão do ECharts ao lado de barras navy
+       (visto na tela da Smartec). Cor-função (semáforo) não tem cor única
+       para anunciar, e gráfico de semáforo não usa legenda de série. */
+    color: (typeof cor === 'function') ? undefined : cor,
     stack: opt.empilhar || undefined,
     barMaxWidth: opt.largura || 30,
     yAxisIndex: opt.eixo || 0,
@@ -17598,8 +17651,17 @@ function renderSmt(d){
     + kpi('Em defesa', ni((d.antt_situacao||[]).filter(x=>/defesa|congelad/i.test(x.situacao||'')).reduce((a,x)=>a+(x.n||0),0)),
           'congeladas por defesa tempestiva', '',
           'Autuações com defesa protocolada no prazo — o processo fica congelado até o julgamento.')
-    + kpi('Situações distintas', ni((d.antt_situacao||[]).length), 'estágios de processo', '',
-          'Quantos estágios diferentes de processo administrativo aparecem. A ANTT não usa "aberta/paga": usa o andamento do processo.');
+    + (function(){
+        /* Última autuação: é O número de "parou de chegar?". Mais de 60 dias
+           sem autuação nova tanto pode ser a operação melhorando quanto a
+           importação parada — o gráfico mensal ao lado desempata. */
+        const ult=an.ultima||null;
+        const dias=ult? Math.round((new Date()-new Date(ult+'T00:00:00'))/86400000) : null;
+        return kpi('Última autuação', ult? fmtD(ult) : '—',
+          dias!=null? ('há '+ni(dias)+' dia'+(dias===1?'':'s')) : 'sem autuação registrada',
+          dias!=null&&dias>60?'warn':'',
+          'max(data_infracao) de smt_antt. Muito tempo sem autuação nova pode ser bom sinal OU importação parada — confira o gráfico mensal e a linha antt em Cobertura e coleta antes de comemorar.');
+      })();
 
   /* ── KPIs: COBERTURA ───────────────────────────────────────────────────*/
   const cb=d.cobertura||{};
@@ -17647,38 +17709,72 @@ function renderSmt(d){
   document.getElementById('tb-smtmul').querySelector('tbody').innerHTML =
     mul.length? mul.map(x=>{
       const cls=smtPrazoCls(x.dias);
-      const bol=x.situacao_boleto||'';
       return `<tr><td><b>${esc(x.placa||'—')}</b>${x.frota&&x.frota!==x.placa?' <span class="hint">'+esc(x.frota)+'</span>':''}</td>`
        +`<td class="mono">${esc(x.ait||'—')}</td><td>${fmtD(x.data_infracao)}</td>`
        +`<td>${esc(x.descricao||'—')}</td><td>${esc(x.orgao||'—')}</td>`
+       +`<td>${smtCondutor(x)}</td><td>${smtClienteViagem(x)}</td>`
        +`<td class="num">${x.pontuacao!=null?x.pontuacao:'—'}</td>`
        +`<td class="num">${rs(x.valor_a_pagar)}</td>`
        +`<td class="num">${x.valor_com_desconto!=null&&x.valor_com_desconto<x.valor_a_pagar?rs(x.valor_com_desconto):'—'}</td>`
        +`<td><span class="chip ${cls}">${fmtD(x.vencimento)||'—'}</span></td>`
-       +`<td>${bol?`<span class="chip ${/pago/i.test(bol)?'good':(/erro|negad/i.test(bol)?'bad':'')}">${esc(bol)}</span>`:'—'}</td>`
        +`<td>${smtDocs(x)}</td></tr>`;
-    }).join('') : '<tr><td colspan="11" class="vazio">sem multas em aberto</td></tr>';
+    }).join('') : '<tr><td colspan="12" class="vazio">sem multas em aberto</td></tr>';
   document.getElementById('smt-mul-hint').textContent =
-    mul.length? (mul.length+' multas · vencidas primeiro') : '';
+    mul.length? (mul.length+' multas · vencidas primeiro'
+      +' · viagem casada em '+mul.filter(x=>x.cliente_viagem).length+' de '+mul.length) : '';
 
   const nots=d.notificacoes||[];
   document.getElementById('tb-smtnot').querySelector('tbody').innerHTML =
     nots.length? nots.map(x=>{
       const cls=smtPrazoCls(x.dias);
-      /* MOTORISTA_NOME não é sempre uma pessoa: "AGREGADO", "MOTORISTA",
-         "NIC" e "RECURSO" são estados do processo de indicação. Mostrar como
-         "condutor" faria a tela afirmar identificação que não houve.        */
       return `<tr><td><span class="chip ${cls}">${esc(smtPrazoTxt(x.dias))}</span>`
        +`${x.prazo_indicacao?' <span class="hint">'+fmtD(x.prazo_indicacao)+'</span>':''}</td>`
        +`<td><b>${esc(x.placa||'—')}</b></td><td class="mono">${esc(x.ait||'—')}</td>`
        +`<td>${fmtD(x.data_infracao)}</td><td>${esc(x.descricao||'—')}</td>`
        +`<td>${esc(x.orgao||'—')}</td>`
+       +`<td>${smtCondutor(x)}</td><td>${smtClienteViagem(x)}</td>`
        +`<td class="num">${x.pontuacao!=null?x.pontuacao:'—'}</td>`
        +`<td class="num">${rs(x.valor_a_pagar)}</td>`
-       +`<td>${esc(x.motorista_nome||'—')}</td><td>${smtDocs(x)}</td></tr>`;
-    }).join('') : '<tr><td colspan="10" class="vazio">sem notificações em aberto</td></tr>';
+       +`<td>${smtDocs(x)}</td></tr>`;
+    }).join('') : '<tr><td colspan="11" class="vazio">sem notificações em aberto</td></tr>';
   document.getElementById('smt-not-hint').textContent =
-    nots.length? (nots.length+' notificações · as ainda no prazo primeiro') : '';
+    nots.length? (nots.length+' notificações · as ainda no prazo primeiro'
+      +' · viagem casada em '+nots.filter(x=>x.cliente_viagem).length+' de '+nots.length) : '';
+
+  /* ── Gráficos da aba Notificações ──────────────────────────────────────
+     Prazo em FAIXAS: o que vence hoje/nos próximos dias é o que ainda evita
+     a autuação por não indicar. Semáforo DISCRETO por urgência.            */
+  {
+    const fx=[['vencido',x=>x.dias!=null&&x.dias<0, CC.vermelho],
+              ['hoje',   x=>x.dias===0,             CC.vermelho],
+              ['1–3 dias',x=>x.dias>=1&&x.dias<=3,  CC.amarelo],
+              ['4–7 dias',x=>x.dias>=4&&x.dias<=7,  CC.amarelo],
+              ['8–15',   x=>x.dias>=8&&x.dias<=15,  CC.navy400],
+              ['>15',    x=>x.dias>15,              CC.navy400],
+              ['sem prazo',x=>x.dias==null,         CC.n300]];
+    const vals=fx.map(([,f])=>nots.filter(f).length);
+    ecDesenhar('chart-smtprazo', nots.length? (()=>{
+      // intervalo:0 — são sete faixas fixas; deixar o hideOverlap suprimir
+      // "hoje" e "4–7" tiraria justamente os rótulos das faixas de agir
+      const o=ecOpcoes(fx.map(f=>f[0]), Math.max(1,...vals),
+                       {tipo:'int', sombra:true, intervalo:0});
+      o.series=[ecBarras('Notificações', vals, i=>fx[i][2],
+                         {rotulo:(i,v)=>v? String(v):''})];
+      return o;
+    }) : null, 'sem notificação em aberto');
+
+    // órgão autuador: multas + notificações SOMADAS — aqui a pergunta é "de
+    // quem a frota apanha", e as duas espécies são o mesmo auto em estágios
+    // diferentes (por isso este é o ÚNICO lugar em que elas se somam).
+    const org={};
+    mul.concat(nots).forEach(x=>{const k=(x.orgao||'(sem órgão)').trim()||'(sem órgão)';
+      org[k]=(org[k]||0)+1;});
+    const topo=Object.entries(org).sort((a,b)=>b[1]-a[1]).slice(0,5);
+    chartHBars('chart-smtorgao', topo.map(([rotulo,valor])=>({rotulo,valor})),
+               {cor:CC.navy700});
+    document.getElementById('smt-orgao-hint').textContent =
+      topo.length? ('top '+topo.length+' de '+Object.keys(org).length+' órgãos · multas + notificações') : '';
+  }
 
   const lics=d.licencas||[];
   document.getElementById('tb-smtlic').querySelector('tbody').innerHTML =
@@ -17705,7 +17801,45 @@ function renderSmt(d){
       +`<td>${esc((x.local_infracao||'—').slice(0,60))}</td></tr>`).join('')
       : '<tr><td colspan="7" class="vazio">sem autuação da ANTT</td></tr>';
   document.getElementById('smt-antt-hint').textContent =
-    antt.length? (antt.length+' autuações · impeditivas primeiro') : '';
+    antt.length? (antt.length+' autuações · mais recentes primeiro') : '';
+
+  /* ── Gráficos da aba ANTT ──────────────────────────────────────────────*/
+  {
+    const am=d.antt_mensal||[];
+    ecDesenhar('chart-smtanttmes', am.length? (()=>{
+      const rot=am.map(x=>{const [y,mm]=x.mes.split('-'); return mm+'/'+y.slice(2);});
+      const o=ecOpcoes(rot, Math.max(1,...am.map(x=>x.n)), {tipo:'int', sombra:true});
+      o.series=[ecBarras('Autuações', am.map(x=>x.n), CC.navy700)];
+      return o;
+    }) : null, 'sem autuação no período');
+    const sit=(d.antt_situacao||[]).slice(0,6);
+    chartHBars('chart-smtanttsit',
+      sit.map(x=>({rotulo:x.situacao, valor:x.n})),
+      {cor:r=>{const s=sit.find(x=>x.situacao===r.rotulo);
+               return (s&&s.impeditivas>0)? CC.vermelho : CC.navy500;}});
+  }
+
+  /* ── Aba Motoristas ────────────────────────────────────────────────────*/
+  {
+    const mot=d.por_motorista||[];
+    const pessoas=mot.filter(x=>x.motorista!=='(sem condutor identificado)');
+    chartHBars('chart-smtmot',
+      pessoas.slice(0,10).filter(x=>x.pontos>0)
+             .map(x=>({rotulo:shortName? shortName(x.motorista):x.motorista, valor:x.pontos})),
+      {cor:CC.navy700});
+    document.getElementById('tb-smtmot').querySelector('tbody').innerHTML =
+      mot.length? mot.map(x=>{
+        const sem=x.motorista==='(sem condutor identificado)';
+        return `<tr${sem?' class="risco"':''}><td>${sem?'<b>(sem condutor identificado)</b>'
+            :esc(x.motorista)}</td>`
+         +`<td class="num">${ni(x.multas)}</td><td class="num">${ni(x.notificacoes)}</td>`
+         +`<td class="num" style="font-weight:700${x.pontos>=20?';color:var(--red)':''}">${ni(x.pontos)}</td>`
+         +`<td class="num">${rs(x.valor)}</td><td class="num">${ni(x.placas)}</td></tr>`;
+      }).join('') : '<tr><td colspan="6" class="vazio">sem infração em aberto</td></tr>';
+    document.getElementById('smt-mot-hint').textContent =
+      mot.length? (pessoas.length+' condutores identificados · o vínculo vem da própria Smartec') : '';
+    abaContador('cnt-smt-mot', pessoas.length);
+  }
 
   const fora=(cb.fora||[]);
   document.getElementById('tb-smtcob').querySelector('tbody').innerHTML =
@@ -17750,6 +17884,10 @@ function renderSmt(d){
   const ult=(cg.find(x=>x.fim)||{}).fim;
   document.getElementById('smtColetadoEm').textContent =
     ult? ('última coleta '+fmtDT(ult)) : 'nunca coletado';
+  // alcance retroativo: a infração EM ABERTO mais antiga (o ⓘ do span explica
+  // que a API só devolve o aberto — isto não é o início do histórico)
+  document.getElementById('smtDesde').textContent =
+    k.desde? (' · em aberto desde '+fmtD(k.desde)) : '';
 }
 
 /* Recarrega os loaders das abas SOB DEMANDA que estejam abertas agora.
@@ -17798,6 +17936,30 @@ function smtDocs(x){
   if(x.url_penalidade) l.push(`<a href="${esc(x.url_penalidade)}" target="_blank" rel="noopener">auto</a>`);
   if(x.url_boleto)     l.push(`<a href="${esc(x.url_boleto)}" target="_blank" rel="noopener">boleto</a>`);
   return l.length? l.join(' · ') : '—';
+}
+
+/* motorista_nome NEM SEMPRE é pessoa: MOTORISTA/AGREGADO/NIC/RECURSO/
+   DESLIGADO/EMPRESA são estados do processo de indicação (medido: 593 de 660
+   preenchidos são token). Pessoa sai em negrito; token sai como hint, porque
+   afirmar condutor que não houve é o erro que a indicação existe para evitar. */
+const SMT_TOKENS_ESTADO=['MOTORISTA','AGREGADO','NIC','RECURSO','DESLIGADO','EMPRESA','TERCEIRO','VEÍCULO INTERNO','VEICULO INTERNO'];
+function smtCondutor(x){
+  const m=(x.motorista_nome||'').trim();
+  if(!m) return '—';
+  if(SMT_TOKENS_ESTADO.includes(m.toUpperCase()))
+    return `<span class="hint" title="estado do processo de indicação, não uma pessoa">${esc(m.toLowerCase())}</span>`;
+  return `<b>${esc(shortName? shortName(m) : m)}</b>`;
+}
+
+/* Cliente da VIAGEM que a placa fazia no instante da infração — casado
+   contra o AVA na coleta (smt_infracao_viagem). candidatas>1 = janelas de
+   viagem sobrepostas no ERP: a de menor duração venceu, e o til diz que é
+   hipótese, não veredito. */
+function smtClienteViagem(x){
+  if(!x.cliente_viagem) return '<span class="hint">—</span>';
+  const hip=(x.viagem_candidatas||1)>1;
+  return `<span title="${esc((x.viagem_rota||'')+(hip?' · '+x.viagem_candidatas+' viagens continham o instante — hipótese pela janela mais curta':''))}">`
+    +`${hip?'~ ':''}${esc(x.cliente_viagem)}</span>`;
 }
 
 /* O acesso ao SNE é a dependência silenciosa de toda a integração. O cartão
@@ -17911,14 +18073,11 @@ function renderMulErp(d){
         (k.com_pontos||0)>0 ? ('informado em '+(k.com_pontos||0)+' de '+nM+' multas') : 'nenhuma multa do período tem pontuação lançada',
         (k.com_pontos||0)<nM?'warn':'',
         'infracaotransito_registro.pontuacao. Mesma limitação do valor: a pontuação quase nunca é lançada, então a soma não representa os pontos que a frota realmente acumulou.'),
-    kpi('Vencidos em aberto', (k.vencidos||0).toLocaleString('pt-BR'),
-        (k.com_vencimento||0)>0
-          ? ((k.vencidos||0)>0 ? BRL.format(k.vencidos_valor||0)+' · '+(k.vencendo||0)+' vencem em 7 dias · pelo CADASTRO, não pelo caixa'
-             : 'nenhum auto vencido em aberto · '+(k.vencendo||0)+' vencem em 7 dias')
-          : 'nenhum auto do período tem data de vencimento',
-        (k.vencidos||0)>0?'warn':'',
-        'infracaotransito_registro.dtvencimento, contando só os autos sem data de liquidação ou baixa. ATENÇÃO: a baixa quase nunca é registrada nesta tabela (19 de 1.305 autos em 24 meses) porque a defesa é conduzida por escritório externo — este número diz o que o CADASTRO mostra, e não que a multa esteja sem pagar. Use para achar auto esquecido, nunca como saldo devedor.'),
   ].join('');
+  /* "Vencidos em aberto" era o 5º KPI numa grade k4 — ficava órfão sozinho na
+     segunda linha (a banda é múltiplo de 4). Virou ALERTA, que é onde a
+     anatomia da casa põe o que exige ação; o texto vai montado em
+     renderMulErp junto dos outros. */
   {
     const sel=document.getElementById('fMulOrgao');
     if(sel && (d.orgaos||[]).length){
@@ -17941,6 +18100,10 @@ function renderMulErp(d){
       `Só ${k.com_valor||0} de ${nM} multas têm valor no ERP, e o catálogo de infrações também não traz valor para as duas mais frequentes do período. Não dá para medir o custo das multas por esta base.`]);
     if((k.pagas||0)===0 && nM>0) A.push(['t-warn','Nenhuma multa marcada como paga',
       `As ${nM} multas do período estão sem data de liquidação ou baixa. Ou o pagamento não é lançado neste módulo, ou são ${nM} multas em aberto.`]);
+    if((k.vencidos||0)>0) A.push(['t-warn','Autos vencidos em aberto no cadastro',
+      `${(k.vencidos||0).toLocaleString('pt-BR')} autos com vencimento passado e sem baixa lançada (${BRL.format(k.vencidos_valor||0)})`
+      +((k.vencendo||0)>0?` · ${k.vencendo} vencem em 7 dias`:'')
+      +` — pelo CADASTRO, não pelo caixa: a baixa quase nunca volta para esta tabela (defesa em escritório externo). Use para achar auto esquecido, nunca como saldo devedor.`]);
     const el=document.getElementById('alerts-mul');
     if(el) el.innerHTML=(A.length?A:[['t-ok','Sem alertas críticos','Cadastro de multas consistente no período.']])
       .map(([c,t,m])=>`<div class="toast ${c}"><b>${esc(t)}</b>${esc(m)}</div>`).join('');

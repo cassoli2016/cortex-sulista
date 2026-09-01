@@ -3523,6 +3523,8 @@ def smartec_painel() -> JSONResponse:
             "licencas": leitura.licencas(),
             "antt": leitura.antt(200),
             "antt_situacao": leitura.antt_por_situacao(),
+            "antt_mensal": leitura.antt_mensal(36),
+            "por_motorista": leitura.por_motorista(30),
             "cobertura": leitura.cobertura(),
             "historico": leitura.historico(100),
             "cargas": leitura.cargas(20),

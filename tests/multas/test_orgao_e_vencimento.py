@@ -113,12 +113,18 @@ def test_select_de_orgao_e_preenchido_pela_consulta(pagina):
     assert any("PRF" in o for o in opcoes)
 
 
-def test_kpi_de_vencidos_aparece_com_a_ressalva(pagina):
+def test_vencidos_viraram_ALERTA_com_a_ressalva(pagina):
+    """Era o 5º KPI numa grade de 4 — órfão sozinho na segunda linha. Virou
+    ALERTA em 31/08/2026 (a anatomia da casa põe ali o que exige ação), e a
+    ressalva do cadastro×caixa foi JUNTO: sem ela, 330 autos vencidos se
+    leriam como 330 multas sem pagar."""
     pg, base = pagina
     _abrir(pg, base, _dados())
-    texto = pg.inner_text("#kpis-mul")
-    assert "Vencidos em aberto" in texto
-    assert "pelo CADASTRO" in texto
+    kpis = pg.inner_text("#kpis-mul")
+    assert "Vencidos em aberto" not in kpis, "o 5º KPI órfão voltou para a grade k4"
+    alertas = pg.inner_text("#alerts-mul")
+    assert "vencidos em aberto no cadastro" in alertas.lower()
+    assert "pelo CADASTRO" in alertas
 
 
 def test_auto_vencido_em_aberto_fica_marcado(pagina):

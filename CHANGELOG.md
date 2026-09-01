@@ -4,6 +4,20 @@ Gerado de `docs/versoes.yaml` por `scripts/gerar_changelog.py` — não editar �
 Formato [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/),
 versionamento [SemVer](https://semver.org/lang/pt-BR/).
 
+## [0.190.0] — 31/08/2026  ·  CX-31/08/2026-v0.190.0
+
+### Adicionado
+- A tela de Multas Smartec ganhou o vínculo que faltava: cada multa e notificação mostra o CONDUTOR que a Smartec informa (95% das multas o têm; MOTORISTA/AGREGADO/NIC são estados do processo e aparecem como tal, nunca como pessoa) e o CLIENTE de cuja viagem o veículo estava carregado no instante da infração — casado contra a programação do ERP na coleta, com janelas sobrepostas marcadas como hipótese (~). A aba nova Motoristas rankeia condutores por pontos em aberto.
+- Mais leitura visual: prazo de indicação em FAIXAS (o que vence hoje e nos próximos dias, em semáforo), órgão autuador em ranking, e na ANTT o gráfico de autuações por mês com o eixo GERADO — mês sem autuação aparece zerado, e é ele que mostra que a última autuação chegou em 02/05/2026. O KPI "Última autuação · há N dias" fica âmbar acima de 60.
+- O cabeçalho diz o alcance retroativo: "em aberto desde 23/03/2023" — a infração em aberto mais antiga. A API só devolve o que está em aberto, então isso é o alcance do tratável, não o início do histórico (o ⓘ explica).
+
+### Alterado
+- A tabela da ANTT passou a ordenar da autuação mais RECENTE para a mais antiga — a pergunta dela é "parou de chegar?", e a resposta agora está na primeira linha. Impeditiva deixou de furar a fila e virou destaque vermelho na própria linha.
+
+### Corrigido
+- A tela de Multas tinha a estrutura rasgada desde a fusão das duas telas: o card "Por veículo" vazava para TODAS as abas (na Cobertura aparecia vazio, no topo), a aba Cobertura vivia fora do contêiner e os cards de Por infração/Por motorista perderam o lado a lado. O histórico (ERP) tinha 5 KPIs numa grade de 4 — o quinto, órfão, virou o alerta "Autos vencidos em aberto no cadastro", com a ressalva junto.
+- A legenda dos gráficos de barras saía nas cores da paleta padrão do ECharts (azul/verde) em vez das cores reais das barras, e em seis gráficos ela era desenhada POR CIMA dos rótulos do eixo X. Consertado no construtor da casa, para todos de uma vez. E o aviso benigno de ResizeObserver do navegador não vira mais banner vermelho de "erro de interface".
+
 ## [0.189.2] — 31/08/2026  ·  CX-31/08/2026-v0.189.2
 
 ### Alterado

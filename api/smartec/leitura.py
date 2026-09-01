@@ -120,8 +120,16 @@ def kpis(esquema: str | None = None) -> dict:
     antt = pglocal.um("""
         SELECT count(*)::int AS n,
                coalesce(sum(impeditiva), 0)::int AS impeditivas,
-               count(DISTINCT placa)::int AS veiculos
+               count(DISTINCT placa)::int AS veiculos,
+               max(data_infracao)::text AS ultima
           FROM smt_antt
+    """, esquema=esq) or {}
+
+    # O alcance retroativo é a infração mais antiga AINDA EM ABERTO — a API
+    # só devolve o que está em aberto, então isto NÃO é "desde quando há
+    # dado": o que foi pago/baixado antes disso simplesmente não vem.
+    alcance = pglocal.um(f"""
+        SELECT min(data_infracao)::text AS desde FROM smt_infracoes WHERE {ABERTO}
     """, esquema=esq) or {}
 
     return {
@@ -133,6 +141,7 @@ def kpis(esquema: str | None = None) -> dict:
         "acessos": [dict(a) for a in acessos],
         "licencas": dict(lic),
         "antt": dict(antt),
+        "desde": alcance.get("desde"),
     }
 
 
@@ -154,6 +163,8 @@ def infracoes(especie: str = "multa", limite: int = 300,
                i.prazo_indicacao, i.situacao_boleto, i.linha_digitavel,
                i.boleto_vencimento, i.url_boleto, i.url_penalidade,
                i.motorista_nome, i.visto_em,
+               vg.cliente AS cliente_viagem, vg.rota AS viagem_rota,
+               vg.candidatas AS viagem_candidatas,
                v.frota, v.prefixo, v.tipo AS tipo_veiculo,
                -- Dias até o prazo que importa em cada espécie. Negativo já
                -- passou.
@@ -162,6 +173,7 @@ def infracoes(especie: str = "multa", limite: int = 300,
                     ELSE (i.vencimento - current_date) END::int AS dias
           FROM smt_infracoes i
           LEFT JOIN smt_veiculos v ON v.renavam = i.renavam
+          LEFT JOIN smt_infracao_viagem vg ON vg.identificador = i.identificador
          WHERE i.{ABERTO} AND i.especie = %(especie)s
          ORDER BY
            -- 1º as que ainda dá para tratar, da mais urgente para a menos
@@ -296,6 +308,10 @@ def licencas(esquema: str | None = None) -> list[dict]:
 
 
 def antt(limite: int = 200, esquema: str | None = None) -> list[dict]:
+    """Mais RECENTE primeiro, sem exceção — pedido de quem opera (31/08/2026):
+    a pergunta da tabela é "parou de chegar autuação?", e ela só se responde
+    com a data no topo. Impeditiva deixou de furar a fila e virou destaque
+    visual na linha; a ordenação antiga escondia a resposta."""
     esq = _esq(esquema)
     return [dict(r) for r in pglocal.query("""
         SELECT a.ait, a.processo, a.data_infracao, a.tipo, a.descricao,
@@ -303,9 +319,71 @@ def antt(limite: int = 200, esquema: str | None = None) -> list[dict]:
                a.local_infracao, a.valor, a.vencimento, v.frota
           FROM smt_antt a
           LEFT JOIN smt_veiculos v ON v.placa = a.placa
-         ORDER BY a.impeditiva DESC NULLS LAST, a.data_infracao DESC
+         ORDER BY a.data_infracao DESC NULLS LAST
          LIMIT %(limite)s
     """, {"limite": limite}, esquema=esq)]
+
+
+def antt_mensal(meses: int = 36, esquema: str | None = None) -> list[dict]:
+    """Autuações da ANTT por mês, com o eixo GERADO — a regra do GROUP BY que
+    não devolve o mês vazio vale dobrado aqui: a pergunta é exatamente "em
+    que mês PAROU de chegar", e emendar maio em setembro esconderia a parada
+    que se quer ver."""
+    esq = _esq(esquema)
+    return [dict(r) for r in pglocal.query("""
+        WITH m AS (
+            SELECT to_char(d, 'YYYY-MM') AS mes
+              FROM generate_series(
+                     date_trunc('month', current_date) - (%(meses)s - 1) * interval '1 month',
+                     date_trunc('month', current_date), interval '1 month') d)
+        SELECT m.mes,
+               count(a.ait)::int AS n,
+               coalesce(sum(a.impeditiva), 0)::int AS impeditivas
+          FROM m
+          LEFT JOIN smt_antt a ON to_char(a.data_infracao, 'YYYY-MM') = m.mes
+         GROUP BY m.mes ORDER BY m.mes
+    """, {"meses": meses}, esquema=esq)]
+
+
+# Valores de motorista_nome que são ESTADO do processo de indicação, não
+# pessoa. Agrupar "MOTORISTA" como se fosse alguém poria o maior "motorista"
+# da tabela como um token do fornecedor — a família do rótulo inventado.
+# Vocabulário MEDIDO em 31/08/2026 sobre as 695 em aberto: MOTORISTA 235,
+# AGREGADO 224, NIC 134, DESLIGADO 5, EMPRESA 4, RECURSO 4 — 593 de 660
+# preenchidos são token, e só ~67 apontam uma pessoa de verdade.
+_NAO_E_PESSOA = ("MOTORISTA", "AGREGADO", "NIC", "RECURSO", "TERCEIRO",
+                 "DESLIGADO", "EMPRESA", "VEÍCULO INTERNO", "VEICULO INTERNO")
+
+
+def por_motorista(limite: int = 30, esquema: str | None = None) -> list[dict]:
+    """Multas e notificações em aberto por CONDUTOR (o que a Smartec traz).
+
+    O nome vem do fornecedor em 95% das multas e 93% das notificações — é o
+    vínculo pedido em 31/08/2026. Tokens de estado (MOTORISTA, AGREGADO, NIC,
+    RECURSO) ficam de fora do ranking e viram a linha "(sem condutor
+    identificado)", que é a maior e o ponto de ação."""
+    esq = _esq(esquema)
+    return [dict(r) for r in pglocal.query(f"""
+        SELECT CASE WHEN nullif(trim(i.motorista_nome), '') IS NULL
+                      OR upper(trim(i.motorista_nome)) = ANY(%(tokens)s)
+                    THEN '(sem condutor identificado)'
+                    ELSE trim(i.motorista_nome) END AS motorista,
+               count(*) FILTER (WHERE i.especie = 'multa')::int        AS multas,
+               count(*) FILTER (WHERE i.especie = 'notificacao')::int  AS notificacoes,
+               coalesce(sum(i.pontuacao), 0)::int                      AS pontos,
+               coalesce(sum(i.valor_a_pagar), 0)::float8               AS valor,
+               count(DISTINCT i.placa)::int                            AS placas
+          FROM smt_infracoes i
+         WHERE i.{ABERTO}
+         GROUP BY 1
+         ORDER BY (CASE WHEN CASE WHEN nullif(trim(i.motorista_nome), '') IS NULL
+                                    OR upper(trim(i.motorista_nome)) = ANY(%(tokens)s)
+                                  THEN '(sem condutor identificado)'
+                                  ELSE trim(i.motorista_nome) END
+                          = '(sem condutor identificado)' THEN 1 ELSE 0 END),
+                  pontos DESC, multas DESC
+         LIMIT %(limite)s
+    """, {"limite": limite, "tokens": list(_NAO_E_PESSOA)}, esquema=esq)]
 
 
 def antt_por_situacao(esquema: str | None = None) -> list[dict]:

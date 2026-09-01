@@ -173,6 +173,26 @@ def coletar_catalogos(esquema: str | None = None) -> dict:
         raise
 
 
+def casar_viagens(esquema: str | None = None) -> dict:
+    """Cliente da viagem na hora da infração (api/smartec/viagem.py).
+
+    Único passo que fala com o AVA em vez da Smartec. Tem trilha própria em
+    smt_carga como os demais: quando o AVA estiver fora, a linha "viagens ·
+    erro" diz isso — sem ela, vínculo desatualizado seria indistinguível de
+    vínculo em dia."""
+    from api.smartec import viagem
+    carga = arm.carga_abrir("viagens", esquema)
+    try:
+        r = viagem.casar(esquema)
+        arm.carga_fechar(carga, "ok" if r["itens"] else "vazio",
+                         r["itens"], r["chamadas"], "", esquema)
+        return r
+    except Exception as exc:  # noqa: BLE001
+        arm.carga_fechar(carga, "erro", 0, 1, f"{type(exc).__name__}: {exc}",
+                         esquema)
+        raise
+
+
 # ───────────────────────────────────────────── infrações (por veículo)
 def _varrer(chave_lista: str, chave_item: str, especie: str,
             campos_lista: dict, campos_item: dict,
@@ -343,6 +363,11 @@ def coletar_tudo(esquema: str | None = None) -> dict:
         ("licenciamento", coletar_licenciamento),
         ("antt", coletar_antt),
         ("catalogos", coletar_catalogos),
+        # DEPOIS das multas/notificações, e de propósito: casa cada infração
+        # em aberto com a viagem do AVA (cliente da carga na hora da multa).
+        # Fala com o AVA, não com a Smartec — e AVA fora do ar não pode
+        # derrubar a coleta das multas: o harness abaixo já isola cada passo.
+        ("viagens", casar_viagens),
     )
     resultado: dict = {"ok": True, "recursos": {}, "erros": {}}
     for nome, fn in passos:
