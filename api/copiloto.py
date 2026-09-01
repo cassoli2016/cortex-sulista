@@ -82,6 +82,7 @@ _SNAP_TTL = 600      # 10 min: o snapshot custa ~12 consultas no ERP
 # resposta precisa saber o que a IA viu (e o que ela NÃO viu).
 _FONTES_ROTULO = {
     "produtividade_veiculos": "Produtividade de Veículos",
+    "faturamento_detalhado": "Faturamento Detalhado",
     "visao_geral": "Visão Geral",
     "financeiro_caixa": "Fluxo de Caixa e Bancos",
     "analise_km_ano": "Análise de KM",
@@ -434,8 +435,23 @@ def _fontes_do_snapshot() -> dict:
                 "total_fatura": u["total_fatura"],
                 "passagens": u["total_passagens"],
                 "travessias": u["travessias_tag"], "placas": u["placas"]}
+    def _faturamento_detalhado():
+        """So KPIs escalares (o filtro de PII descarta nomes de cliente):
+        realizado x meta, atingimento, docs, cancelados e as 3 fontes."""
+        from api import faturamento as fatmod
+        d = fatmod.get_detalhado(None)      # cache ttl=90 - leitura barata
+        k = d.get("kpis") or {}
+        return {"mes": d.get("mes"), "realizado": k.get("realizado"),
+                "meta_mes": k.get("meta_mes"), "meta_mtd": k.get("meta_mtd"),
+                "atingimento": k.get("atingimento"), "docs": k.get("docs"),
+                "cancelados_n": (k.get("cancelados") or {}).get("n"),
+                "cancelados_valor": (k.get("cancelados") or {}).get("valor"),
+                "fontes": {f["fonte"]: f["valor"] for f in d.get("fontes") or []},
+                "meta_fonte": d.get("meta_fonte")}
+
     return {
         "visao_geral": lambda: queries.get_visao_geral(),
+        "faturamento_detalhado": _faturamento_detalhado,
         "financeiro_caixa": lambda: queries.get_overview(),
         "analise_km_ano": lambda: queries.get_analise_km(None, ini_ano, fim),
         "agregados_terceiros_ano": lambda: queries.get_agregados(None, ini_ano, fim),
@@ -451,6 +467,11 @@ def _fontes_do_snapshot() -> dict:
         "torre_seguranca": lambda: queries.get_seguranca(),
         "estradas_transito": _estradas,
         "programacao_disponibilidade": lambda: queries.get_programacao(),
+        # ciclos: só os KPIs (o cache de 1h torna a leitura barata; a regra
+        # do so_cache — fonte de snapshot jamais dispara coleta — vale aqui
+        # porque o get_ciclos consulta o AVA uma vez por hora, não APIs)
+        "programacao_ciclos": lambda: __import__(
+            "api.programacao_ciclos", fromlist=["get_ciclos"]).get_ciclos()["kpis"],
         "frota": lambda: queries.get_veiculos(),
         # Produtividade por veiculo: 90 dias, a mesma janela padrao da tela.
         # So KPIs escalares vao para o prompt (o filtro de PII do snapshot

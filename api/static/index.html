@@ -2266,6 +2266,7 @@ body.tvfull #btnReport,body.tvmode #btnReport{display:none}
         <span class="ic" data-ic="bi"></span><span>Business Intelligence</span><span class="ic chev" data-ic="chev"></span>
       </button>
       <div class="subs closed" id="subsBi">
+        <a href="#fat" class="sub" data-view="fat" title="Faturamento Detalhado — emissões do dia a dia contra a meta, por modalidade e cliente"><span class="ic" data-ic="fatic"></span><span>Faturamento Detalhado</span></a>
         <button class="subgrupo" id="sgTv" aria-expanded="false" aria-controls="subsTv" onclick="toggleSubgrupo('sgTv','subsTv')" title="Painéis TV — telão e quiosque">
           <span class="ic" data-ic="tv"></span><span>Painéis TV</span><span class="ic chev" data-ic="chev"></span>
         </button>
@@ -3557,6 +3558,79 @@ body.tvfull #btnReport,body.tvmode #btnReport{display:none}
         </div>
       </section>
 
+      <!-- ===================== FATURAMENTO DETALHADO ===================== -->
+      <section class="view" id="view-fat">
+        <div class="card" style="padding:14px 18px;display:flex;gap:12px;align-items:center;flex-wrap:wrap">
+          <label style="font-size:13px;color:var(--n500)">Mês
+            <select id="fFatMes" onchange="loadFat()" style="margin-left:8px"></select>
+          </label>
+          <span class="hint" id="fat-carimbo"></span>
+        </div>
+        <div class="subtabs" role="tablist" data-abas="fat" aria-label="Seções do faturamento">
+          <button role="tab" id="tabfat-fdia" aria-controls="aba-fdia" data-aba="fdia"
+                  aria-selected="true" onclick="abaTrocar('fat','fdia')">Mês ao dia</button>
+          <button role="tab" id="tabfat-fmodal" aria-controls="aba-fmodal" data-aba="fmodal"
+                  aria-selected="false" onclick="abaTrocar('fat','fmodal')">Modalidade <span class="aban" id="fatNModal"></span></button>
+          <button role="tab" id="tabfat-fcli" aria-controls="aba-fcli" data-aba="fcli"
+                  aria-selected="false" onclick="abaTrocar('fat','fcli')">Clientes <span class="aban" id="fatNCli"></span></button>
+          <button role="tab" id="tabfat-fcomp" aria-controls="aba-fcomp" data-aba="fcomp"
+                  aria-selected="false" onclick="abaTrocar('fat','fcomp')">Comparativos</button>
+        </div>
+        <div class="aba" data-abas="fat" data-aba="fdia" id="aba-fdia" role="tabpanel" aria-labelledby="tabfat-fdia">
+          <div class="kpis k4" id="kpis-fat"></div>
+          <div class="card">
+            <div class="head"><h2>Realizado × meta por dia <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="Emissões das três fontes oficiais (CT-e + NFS-e + KMM, por data de emissão) contra a meta diária. No mês corrente a meta diária segue a sazonalidade do realizado (dia da semana × década do mês) — o TOTAL do mês é o do ERP, intocado; mês fechado mostra a meta do ERP como gravada. Dia futuro só tem meta; a barra ausente não é queda.">i</span><span class="hint" id="fat-dia-hint"></span></div>
+            <div class="chartwrap"><div id="chartFatDia" style="width:100%;height:250px" role="img"></div></div>
+          </div>
+          <div class="card">
+            <div class="head"><h2>Emissões por dia <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="Documentos emitidos por dia nos últimos 14 dias corridos (independente do mês selecionado — badge no título). Sábado e domingo com pouco volume é o normal da operação, não queda. Cancelados = CT-e com dtcancelamento preenchido, pelo dia da EMISSÃO original.">i</span><span class="hint">últimos 14 dias · <b>não segue o seletor de mês</b></span></div>
+            <div class="tablewrap tabroll" style="max-height:330px"><table><thead><tr>
+              <th>Dia</th><th class="num">CT-e</th><th class="num">NFS-e</th><th class="num">Valor</th><th class="num">Filiais</th><th class="num">Emissores</th><th class="num">Cancelados</th>
+            </tr></thead><tbody id="fat-dias"></tbody></table></div>
+          </div>
+        </div>
+        <div class="aba" data-abas="fat" data-aba="fmodal" id="aba-fmodal" role="tabpanel" aria-labelledby="tabfat-fmodal" data-ao-abrir="fatModalDesenhar" hidden>
+          <div class="grid2">
+            <div class="card"><div class="head"><h2>Participação por modalidade <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="Modalidade do CT-e pelo veículo do documento (conhecimento.veiculo → veiculo.utilizacaoveiculo) — cobre 99,97% do valor, join conferido sem multiplicação. NFS-e não tem veículo: é a categoria própria de serviço. Modalidade abaixo de 0,1% vira a linha outros, com a contagem dita.">i</span><span class="hint" id="fat-modal-hint"></span></div>
+              <div class="chartwrap narrow"><div id="chartFatModalPart" style="width:100%;height:220px" role="img"></div></div></div>
+            <div class="card"><div class="head"><h2>Modalidade mês a mês <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="Faturamento CT-e por modalidade nos últimos 13 meses (empilhado). O eixo de meses é gerado — mês sem emissão aparece vazio, não some. Mês corrente hachurado: parcial.">i</span><span class="hint">13 meses · empilhado</span></div>
+              <div class="chartwrap narrow"><div id="chartFatModalMes" style="width:100%;height:220px" role="img"></div></div></div>
+          </div>
+          <div class="card">
+            <div class="head"><h2>Modalidades no mês <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="Valor, participação e a variação contra o mês anterior (janela equivalente) e o mesmo mês do ano anterior. Custo de comparação honesto: os dois lados cortados no mesmo dia.">i</span><span class="hint" id="fat-modal-tab-hint"></span></div>
+            <div class="tablewrap tabroll" style="max-height:300px"><table><thead><tr>
+              <th>Modalidade</th><th class="num">Docs</th><th class="num">Valor</th><th class="num">Particip.</th><th class="num">vs mês ant.</th><th class="num">vs ano ant.</th>
+            </tr></thead><tbody id="fat-modal"></tbody></table></div>
+          </div>
+        </div>
+        <div class="aba" data-abas="fat" data-aba="fcli" id="aba-fcli" role="tabpanel" aria-labelledby="tabfat-fcli" hidden>
+          <div class="card">
+            <div class="head"><h2>Orçado × realizado por cliente <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="Meta diária por agrupamento de cliente (metafaturamento_agrupamentoclientedia, tipo 1) contra o realizado das três fontes com vínculo de pagador (acc.vinculo=1). Atingido = realizado ÷ meta acumulada até o dia de corte; cliente sem meta mostra n/d, nunca 0%. A linha (sem vínculo) é o resíduo que não achou agrupamento — a soma da tabela fecha com o total do mês.">i</span><span class="hint" id="fat-cli-hint"></span></div>
+            <div class="tablewrap tabroll" style="max-height:520px"><table><thead><tr>
+              <th>Cliente</th><th class="num">Meta do mês</th><th class="num">Realizado</th><th class="num">Atingido</th><th class="num">Particip.</th><th class="num">vs ano ant.</th>
+            </tr></thead><tbody id="fat-cli"></tbody></table></div>
+          </div>
+        </div>
+        <div class="aba" data-abas="fat" data-aba="fcomp" id="aba-fcomp" role="tabpanel" aria-labelledby="tabfat-fcomp" data-ao-abrir="fatCompDesenhar" hidden>
+          <div class="grid2">
+            <div class="card"><div class="head"><h2>vs mês anterior <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="Janela EQUIVALENTE: os dois meses cortados no mesmo dia (comparar agosto inteiro com setembro até dia 5 é a mentira clássica do mês contra mês). Mês fechado compara mês cheio × mês cheio.">i</span><span class="hint" id="fat-m1-hint"></span></div>
+              <div id="fat-comp-m1"></div></div>
+            <div class="card"><div class="head"><h2>vs mesmo mês do ano anterior <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="Mesma janela equivalente contra o mesmo mês do ano passado — captura sazonalidade anual que o mês anterior não mostra.">i</span><span class="hint" id="fat-a1-hint"></span></div>
+              <div id="fat-comp-a1"></div></div>
+          </div>
+          <div class="card">
+            <div class="head"><h2>Realizado × meta — 13 meses <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="Faturamento das três fontes contra a meta mensal, 13 meses. A meta existe para todos os meses (cadastro 2024–2026). Mês corrente hachurado: parcial.">i</span><span class="hint">mês corrente hachurado = parcial</span></div>
+            <div class="chartwrap"><div id="chartFatMensal" style="width:100%;height:240px" role="img"></div></div>
+          </div>
+          <div class="card">
+            <div class="head"><h2>Por fonte <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="As três fontes oficiais do faturamento. O KMM está encerrado desde 31/05/2023 (medido: nenhuma emissão depois) — quando a janela não o alcança, ele nem aparece; quando alcança, aparece com a nota, nunca como zero mudo.">i</span><span class="hint" id="fat-fontes-hint"></span></div>
+            <div class="tablewrap tabroll" style="max-height:220px"><table><thead><tr>
+              <th>Fonte</th><th class="num">Docs</th><th class="num">Valor</th><th class="num">vs mês ant.</th><th class="num">vs ano ant.</th>
+            </tr></thead><tbody id="fat-fontes"></tbody></table></div>
+          </div>
+        </div>
+      </section>
+
       <!-- ===================== PREMIAÇÃO DE MOTORISTAS ===================== -->
       <section class="view" id="view-prem">
         <div class="card">
@@ -4707,6 +4781,7 @@ body.tvfull #btnReport,body.tvmode #btnReport{display:none}
           <button role="tab" id="tabprog-casa" data-aba="casa" aria-controls="aba-prog-casa" aria-selected="true" onclick="abaTrocar('prog','casa')">Casamentos</button>
           <button role="tab" id="tabprog-cid" data-aba="cid" aria-controls="aba-prog-cid" aria-selected="false" onclick="abaTrocar('prog','cid')">Cidades</button>
           <button role="tab" id="tabprog-rec" data-aba="rec" aria-controls="aba-prog-rec" aria-selected="false" onclick="abaTrocar('prog','rec')">Recursos</button>
+          <button role="tab" id="tabprog-cic" data-aba="cic" aria-controls="aba-prog-cic" aria-selected="false" onclick="abaTrocar('prog','cic')">Ciclos <span class="aban" id="progNCic"></span></button>
         </div>
         <div class="aba" data-abas="prog" data-aba="casa" id="aba-prog-casa" role="tabpanel" aria-labelledby="tabprog-casa">
   <div class="card">
@@ -4774,7 +4849,28 @@ body.tvfull #btnReport,body.tvmode #btnReport{display:none}
             </tr></thead><tbody id="prog-cnh"></tbody></table></div>
           </div>
         </div>
-      </section>
+              <div class="aba" data-abas="prog" data-aba="cic" id="aba-prog-cic" role="tabpanel" aria-labelledby="tabprog-cic" data-ao-abrir="loadProgCiclos" hidden>
+          <div class="kpis k4" id="kpis-prog-cic"></div>
+          <div class="card">
+            <div class="head"><h2>Ciclo por rota — saindo agora <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="Quanto tempo cada etapa REALMENTE leva, medido nos últimos 6 meses: carregamento (evento SAC 394→395, por cidade de origem), deslocamento porta a porta (dtsaida→dtchegada da programação — INCLUI fila e pernoite, que é o tempo que o veículo fica preso de verdade) e descarga no destino (SAC 396→397). Mediana, nunca média; rota com menos de 10 viagens não aparece. O p90 diz o pior decil — é ele que decide se dá para prometer o veículo para outra carga.">i</span><span class="hint" id="prog-cic-hint"></span></div>
+            <div class="tablewrap tabroll" style="max-height:320px"><table><thead><tr>
+              <th>Rota</th><th class="num">Viagens 6m</th><th class="num">Carreg. (med)</th><th class="num">Desloc. (med · p90)</th><th class="num">Descarga (med)</th><th class="num">Ciclo (med)</th><th class="num">Sai agora → libera</th>
+            </tr></thead><tbody id="prog-cic-rotas"></tbody></table></div>
+          </div>
+          <div class="grid2">
+            <div class="card">
+              <div class="head"><h2>Descargas historicamente lentas <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="Destinatários cuja descarga mediana passa de 2× a mediana da rede, ou cujo p90 passa de 12h. Descarga lenta é fila + atendimento no cliente; a estadia COBRÁVEL está na tela SAC/Freetime — mediana acima do freetime contratado é estadia sistemática.">i</span><span class="hint">mediana da rede × cada cliente · 6 meses</span></div>
+              <div class="tablewrap tabroll" style="max-height:250px"><table><thead><tr>
+                <th>Destinatário</th><th class="num">n</th><th class="num">Descarga med</th><th class="num">p90</th><th class="num">Freetime</th>
+              </tr></thead><tbody id="prog-cic-lentos"></tbody></table></div>
+            </div>
+            <div class="card">
+              <div class="head"><h2>Como ler estes números <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="Três fontes de tempo convivem no CÓRTEX e nunca se fundem: o ETA do ERP (o que o programador digitou — metade erra mais de 2h, medido), o ETA da TomTom (trânsito de agora, só viagem ativa, na Torre) e o histórico próprio (mediana de 6 meses, esta aba). Cada número desta aba diz de onde veio.">i</span></h2></div>
+              <div id="prog-cic-leia" style="font-size:13px;color:var(--n600);padding:4px 2px;line-height:1.55"></div>
+            </div>
+          </div>
+        </div>
+</section>
 
       <!-- ===================== MULTAS ===================== -->
       <section class="view" id="view-clif">
@@ -6954,6 +7050,7 @@ const ICONS = {
              + '<circle cx="19" cy="7" r="2.2"/>'
              + '<path d="M6.6 7.6 10.6 15.2M13.8 15.6 17.6 8.8" stroke-dasharray="2 2"/>'),
   antportic: IC('<path d="M4 20h16"/><rect x="3.5" y="9" width="17" height="8" rx="1.5"/><path d="M12 7V1.5M9 4l3-3 3 3"/><path d="M7.5 13h.01M11 13h3"/>'),
+  fatic: IC('<path d="M14 3H6a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z"/><path d="M14 3v6h6"/><path d="M8 13h6M8 17h4"/>'),
   tvdiric: IC('<rect x="3" y="5" width="18" height="12" rx="2"/><path d="M9 21h6M12 17v4"/><path d="M7 14v-3M11 14V8M15 14v-4M19 14v-6"/>'),
   tvfatic: IC('<rect x="3" y="5" width="18" height="12" rx="2"/><path d="M9 21h6M12 17v4"/><path d="M6.5 13.5 10 10l2.5 2.5L17.5 8"/>'),
 };
@@ -6972,7 +7069,7 @@ const FAIXAS = {
   '4_vencido_91_365':['Vencido 91–365d','b-dang'],
   '5_vencido_mais_365':['Vencido > 365d','b-dang'],
 };
-const VIEWS = { home:'Visão Geral', fluxo:'Fluxo de Caixa e Bancos', receber:'Contas a Receber', pagar:'Contas a Pagar', oc:'Ordens de Compra', custos:'Painel de Custos', agr:'Agregados e Terceiros', mvb:'Frota Própria × Agregado', pedagio:'Validação de Pedágio', comb:'Combustível', man:'Manutenção', com:'Clientes e RKM', clif:'Consulta de Cliente', crm:'CRM — Funil Comercial', km:'Análise de KM', prodveic:'Produtividade de Veículos', torre:'Torre de Controle', poli:'Permanência na Planta', ctecp:'CT-e de Contrapartida', veic:'Veículos', veicf:'Consulta de Veículo', mprev:'Manutenção Preventiva', comrast:'Comunicação Rastreadora', mul:'Multas — Smartec', prog:'Programação Inteligente', jorn:'Jornada do Motorista', jornf:'Ficha de Jornada', cex:'Custos Extras', sac:'SAC / Freetime', port:'Portaria', cop:'Copiloto Cortex', cob:'Régua de Cobrança', banc:'Bancos', extb:'Extrato Bancário', lanc:'Lançamentos Bancários', antec:'Antecipação de Recebíveis', antport:'Portais de Antecipação', milkrun:'Operação MWM', rec:'Lançamentos Recorrentes', fluxcon:'Fluxo de Caixa Consolidado', cont:'Contabilidade', qual:'Qualidade e Certidões', orc:'Orçamento', fech:'Fechamento do Mês', prem:'Premiação de Motoristas', dre:'DRE Gerencial', bal:'Balanço Patrimonial', drecli:'DRE por Cliente', tvfat:'Painel TV — Faturamento', tvope:'Painel TV — Operação', tvdir:'Painel TV — Diretoria', rh:'RH — Vagas', hc:'Headcount', folha:'Custo de Folha', folhaind:'Indicadores de Folha', he:'Horas Extras', cnh:'CNH dos Motoristas', ferias:'Férias — Vencimento', people:'People Analytics', pneus:'Pneus', gestao:'Gestão', gesacao:'Planos de Ação', gesata:'Atas de Reunião', srv:'Saúde do Servidor', doc:'Documentação', anpiso:'Piso Mínimo de Frete', anrntrc:'RNTRC dos Transportadores', telcon:'Consumo e Estatísticas', telcond:'Condução Econômica', telhod:'Hodômetro e Rastro' };
+const VIEWS = { home:'Visão Geral', fluxo:'Fluxo de Caixa e Bancos', receber:'Contas a Receber', pagar:'Contas a Pagar', oc:'Ordens de Compra', custos:'Painel de Custos', agr:'Agregados e Terceiros', mvb:'Frota Própria × Agregado', pedagio:'Validação de Pedágio', comb:'Combustível', man:'Manutenção', com:'Clientes e RKM', clif:'Consulta de Cliente', crm:'CRM — Funil Comercial', km:'Análise de KM', prodveic:'Produtividade de Veículos', fat:'Faturamento Detalhado', torre:'Torre de Controle', poli:'Permanência na Planta', ctecp:'CT-e de Contrapartida', veic:'Veículos', veicf:'Consulta de Veículo', mprev:'Manutenção Preventiva', comrast:'Comunicação Rastreadora', mul:'Multas — Smartec', prog:'Programação Inteligente', jorn:'Jornada do Motorista', jornf:'Ficha de Jornada', cex:'Custos Extras', sac:'SAC / Freetime', port:'Portaria', cop:'Copiloto Cortex', cob:'Régua de Cobrança', banc:'Bancos', extb:'Extrato Bancário', lanc:'Lançamentos Bancários', antec:'Antecipação de Recebíveis', antport:'Portais de Antecipação', milkrun:'Operação MWM', rec:'Lançamentos Recorrentes', fluxcon:'Fluxo de Caixa Consolidado', cont:'Contabilidade', qual:'Qualidade e Certidões', orc:'Orçamento', fech:'Fechamento do Mês', prem:'Premiação de Motoristas', dre:'DRE Gerencial', bal:'Balanço Patrimonial', drecli:'DRE por Cliente', tvfat:'Painel TV — Faturamento', tvope:'Painel TV — Operação', tvdir:'Painel TV — Diretoria', rh:'RH — Vagas', hc:'Headcount', folha:'Custo de Folha', folhaind:'Indicadores de Folha', he:'Horas Extras', cnh:'CNH dos Motoristas', ferias:'Férias — Vencimento', people:'People Analytics', pneus:'Pneus', gestao:'Gestão', gesacao:'Planos de Ação', gesata:'Atas de Reunião', srv:'Saúde do Servidor', doc:'Documentação', anpiso:'Piso Mínimo de Frete', anrntrc:'RNTRC dos Transportadores', telcon:'Consumo e Estatísticas', telcond:'Condução Econômica', telhod:'Hodômetro e Rastro' };
 const periodoLabel = p => { if(p==='atrasado') return 'Atrasado'; const [y,m]=p.split('-'); return MES[+m-1]+'/'+y.slice(2); };
 const fmtD = s => { if(!s) return ''; const [y,m,dd]=s.split('-'); return dd+'/'+m+'/'+y; };
 /* Idade da posicao bancaria. Cada conta e lancada num dia diferente: mostrar
@@ -7099,7 +7196,9 @@ let DATACOMRAST = null;
 let qualSeq = 0;
 let DATAQUAL = null;
 let fechSeq = 0;
+let fatSeq = 0;
 let DATAFECH = null;
+let DATAFAT = null;
 let portSeq = 0;
 let DATAPORT = null;
 let crmSeq = 0;
@@ -7242,7 +7341,7 @@ const VIEW_GROUP = {home:'',cop:'',
   torre:'Ope',milkrun:'Ope',poli:'Ope',prog:'Ope',jorn:'Ope',jornf:'Ope',cex:'Ope',sac:'Ope',port:'Ope',km:'Ope',agr:'Ope',mvb:'Ope',pedagio:'Ope',
   veic:'Fro',veicf:'Fro',mprev:'Fro',comrast:'Fro',comb:'Fro',man:'Fro',mul:'Fro',pneus:'Fro',
   oc:'Sup',custos:'Sup',
-  prodveic:'Bi',tvfat:'Bi',tvope:'Bi',tvdir:'Bi',
+  prodveic:'Bi',fat:'Bi',tvfat:'Bi',tvope:'Bi',tvdir:'Bi',
   rh:'Rh',hc:'Rh',folha:'Rh',folhaind:'Rh',he:'Rh',cnh:'Rh',ferias:'Rh',people:'Rh',gestao:'Adm',srv:'Adm',doc:'Adm',gesacao:'Ges',gesata:'Ges',
   // Telemetria e ANTT tinham grupo na barra lateral mas ficaram de fora deste
   // mapa: o acordeao nao abria sozinho ao navegar para elas (agora a busca
@@ -7429,6 +7528,8 @@ function qsView(k){
     if(V('fHeComp'))p.set('comp',V('fHeComp'));
   } else if(k==='fech'){
     if(V('fFechMes'))p.set('mes',V('fFechMes'));
+  } else if(k==='fat'){
+    if(V('fFatMes'))p.set('mes',V('fFatMes'));
   } else if(k==='mprev'||k==='comrast'||k==='qual'||k==='port'||k==='crm'||k==='rh'||k==='hc'||k==='folhaind'||k==='cnh'||k==='ferias'||k==='pneus'||k==='people'||k==='poli'||k==='ctecp'){
     // vistas-snapshot sem filtro local: qsView() sempre devolve '' — o
     // loader grava LOADEDQS[k]='' (não '1') para o cache de staleness
@@ -7447,7 +7548,7 @@ function semFilterbar(v){
   // filtros", que não tinha o que aplicar.
   return v==='cop'||v==='gestao'||v==='gesacao'||v==='gesata'||v==='srv'||v==='home'||v==='veicf'||v==='clif'||v==='jorn'||v==='jornf'||v==='prog'||
          v==='cex'||v==='sac'||v==='mprev'||v==='comrast'||v==='qual'||v==='port'||v==='crm'||v==='rh'||
-         v==='hc'||v==='folha'||v==='folhaind'||v==='he'||v==='custos'||v==='orc'||v==='prem'||v==='banc'||v==='extb'||v==='fech'||v==='doc'||v==='telcon'||v==='telcond'||v==='telhod'||v==='milkrun'||v==='cnh'||v==='ferias'||v==='pneus'||v==='people'||v==='poli'||v==='ctecp';
+         v==='hc'||v==='folha'||v==='folhaind'||v==='he'||v==='custos'||v==='orc'||v==='prem'||v==='banc'||v==='extb'||v==='fech'||v==='fat'||v==='doc'||v==='telcon'||v==='telcond'||v==='telhod'||v==='milkrun'||v==='cnh'||v==='ferias'||v==='pneus'||v==='people'||v==='poli'||v==='ctecp';
 }
 function currentView(){
   const h = (location.hash||'').replace('#','');
@@ -7563,8 +7664,8 @@ function router(){
   // carga da vista: dispara se não há dados OU se os filtros visíveis
   // divergem dos usados na última carga (nunca mostrar dado velho com filtro novo)
   const key=viewKey(v);
-  const DATAMAP={fin:DATA,oc:DATAOC,agr:DATAAGR,anpiso:DATAANPISO,anrntrc:DATAANRNTRC,pedagio:DATAPED,telcon:DATATELCON,telcond:DATATELCOND,telhod:DATATELHOD,mvb:DATAMVB,comb:DATACOMB,man:DATAMAN,com:DATACOM,clif:DATACLIF,dre:DATADRE,bal:DATABAL,drecli:DATADRECLI,home:DATAHOME,km:DATAKM,torre:DATATORRE,veic:DATAVEIC,veicf:DATAVEICF,mul:DATASMT,prog:DATAPROG,jorn:DATAJR,jornf:DATAJORNF,cex:DATACEX,sac:DATASAC,mprev:DATAMPREV,comrast:DATACOMRAST,qual:DATAQUAL,port:DATAPORT,crm:DATACRM,rh:DATARH,hc:DATAHC,folha:DATAFOLHA,folhaind:DATAFOLHAIND,he:DATAHE,custos:DATACUSTOS,cob:DATACOB,banc:DATABANC,extb:DATAEXTB,lanc:DATALANC,antec:DATAANTEC,antport:DATAANTPORT,milkrun:DATAMILK,fluxcon:DATAFLUXCON,rec:DATAREC,rent:DATARENT,cont:DATACONT,orc:DATAORC,fech:DATAFECH,prem:DATAPREM,gestao:DATAGES,srv:DATASRV,doc:DATADOC,tvfat:null,tvope:null,tvdir:null,cop:(COP_MSGS.length?{}:null)};
-  const LOADMAP={fin:load,oc:loadOc,agr:loadAgr,anpiso:loadAnpiso,anrntrc:loadAnrntrc,telcon:loadTelcon,telcond:loadTelcond,telhod:loadTelhod,mvb:loadMvb,pedagio:loadPedagio,comb:loadComb,man:loadMan,com:loadCom,clif:loadClif,dre:loadDre,bal:loadBal,drecli:loadDreCli,home:loadHome,km:loadKm,prodveic:loadProdveic,torre:loadTorre,veic:loadVeic,veicf:loadVeicf,mul:loadSmt,prog:loadProg,jorn:loadJorraster,jornf:loadJornf,cex:loadCex,sac:loadSac,mprev:loadMPrev,comrast:loadComRast,qual:loadQual,port:loadPort,crm:loadCrm,rh:loadRh,hc:loadHc,folha:loadFolha,folhaind:loadFolhaInd,he:loadHe,custos:loadCustos,cob:loadCob,banc:loadBanc,extb:loadExtb,lanc:loadLanc,antec:loadAntec,antport:loadAntport,milkrun:loadMilkrun,cnh:loadCnh,ferias:loadFerias,people:loadPeople,pneus:loadPneus,poli:loadPoli,ctecp:loadCtecp,fluxcon:loadFluxcon,rec:loadRec,rent:loadRent,cont:loadCont,orc:loadOrc,fech:loadFech,prem:loadPrem,gesacao:loadGesacao,gesata:loadGesata,gestao:loadGestao,srv:loadSrv,doc:loadDoc,cop:loadCop,tvfat:loadTvFat,tvope:loadTvOpe,tvdir:loadTvDir};
+  const DATAMAP={fin:DATA,oc:DATAOC,agr:DATAAGR,anpiso:DATAANPISO,anrntrc:DATAANRNTRC,pedagio:DATAPED,telcon:DATATELCON,telcond:DATATELCOND,telhod:DATATELHOD,mvb:DATAMVB,comb:DATACOMB,man:DATAMAN,com:DATACOM,clif:DATACLIF,dre:DATADRE,bal:DATABAL,drecli:DATADRECLI,home:DATAHOME,km:DATAKM,torre:DATATORRE,veic:DATAVEIC,veicf:DATAVEICF,mul:DATASMT,prog:DATAPROG,jorn:DATAJR,jornf:DATAJORNF,cex:DATACEX,sac:DATASAC,mprev:DATAMPREV,comrast:DATACOMRAST,qual:DATAQUAL,port:DATAPORT,crm:DATACRM,rh:DATARH,hc:DATAHC,folha:DATAFOLHA,folhaind:DATAFOLHAIND,he:DATAHE,custos:DATACUSTOS,cob:DATACOB,banc:DATABANC,extb:DATAEXTB,lanc:DATALANC,antec:DATAANTEC,antport:DATAANTPORT,milkrun:DATAMILK,fluxcon:DATAFLUXCON,rec:DATAREC,rent:DATARENT,cont:DATACONT,orc:DATAORC,fech:DATAFECH,fat:DATAFAT,prem:DATAPREM,gestao:DATAGES,srv:DATASRV,doc:DATADOC,tvfat:null,tvope:null,tvdir:null,cop:(COP_MSGS.length?{}:null)};
+  const LOADMAP={fin:load,oc:loadOc,agr:loadAgr,anpiso:loadAnpiso,anrntrc:loadAnrntrc,telcon:loadTelcon,telcond:loadTelcond,telhod:loadTelhod,mvb:loadMvb,pedagio:loadPedagio,comb:loadComb,man:loadMan,com:loadCom,clif:loadClif,dre:loadDre,bal:loadBal,drecli:loadDreCli,home:loadHome,km:loadKm,prodveic:loadProdveic,torre:loadTorre,veic:loadVeic,veicf:loadVeicf,mul:loadSmt,prog:loadProg,jorn:loadJorraster,jornf:loadJornf,cex:loadCex,sac:loadSac,mprev:loadMPrev,comrast:loadComRast,qual:loadQual,port:loadPort,crm:loadCrm,rh:loadRh,hc:loadHc,folha:loadFolha,folhaind:loadFolhaInd,he:loadHe,custos:loadCustos,cob:loadCob,banc:loadBanc,extb:loadExtb,lanc:loadLanc,antec:loadAntec,antport:loadAntport,milkrun:loadMilkrun,cnh:loadCnh,ferias:loadFerias,people:loadPeople,pneus:loadPneus,poli:loadPoli,ctecp:loadCtecp,fluxcon:loadFluxcon,rec:loadRec,rent:loadRent,cont:loadCont,orc:loadOrc,fech:loadFech,fat:loadFat,prem:loadPrem,gesacao:loadGesacao,gesata:loadGesata,gestao:loadGestao,srv:loadSrv,doc:loadDoc,cop:loadCop,tvfat:loadTvFat,tvope:loadTvOpe,tvdir:loadTvDir};
   if(!DATAMAP[key] || (key!=='home' && LOADEDQS[key]!==qsView(key))) LOADMAP[key]();
   // mobile: estado da navegação inferior + fecha gaveta/painel de filtros
   document.querySelectorAll('.bottomnav [data-bview]').forEach(a=>a.classList.toggle('ativo', a.dataset.bview===v));
@@ -9404,7 +9505,7 @@ function reloadCurrent(){
   const M={home:loadHome,fluxo:load,receber:load,pagar:load,dre:loadDre,drecli:loadDreCli,oc:loadOc,
     agr:loadAgr,mvb:loadMvb,pedagio:loadPedagio,comb:loadComb,man:loadMan,com:loadCom,clif:loadClif,km:loadKm,prodveic:loadProdveic,
     torre:loadTorre,veic:loadVeic,veicf:loadVeicf,mul:loadSmt,prog:loadProg,jorn:loadJorraster,jornf:loadJornf,cex:loadCex,sac:loadSac,mprev:loadMPrev,comrast:loadComRast,qual:loadQual,port:loadPort,crm:loadCrm,rh:loadRh,hc:loadHc,folha:loadFolha,folhaind:loadFolhaInd,he:loadHe,custos:loadCustos,cob:loadCob,banc:loadBanc,extb:loadExtb,rent:loadRent,
-    cont:loadCont,orc:loadOrc,fech:loadFech,prem:loadPrem,gesacao:loadGesacao,gesata:loadGesata,gestao:loadGestao,srv:loadSrv,doc:loadDoc,cop:loadCop,tvfat:loadTvFat,tvope:loadTvOpe,tvdir:loadTvDir};
+    cont:loadCont,orc:loadOrc,fech:loadFech,fat:loadFat,prem:loadPrem,gesacao:loadGesacao,gesata:loadGesata,gestao:loadGestao,srv:loadSrv,doc:loadDoc,cop:loadCop,tvfat:loadTvFat,tvope:loadTvOpe,tvdir:loadTvDir};
   (M[currentView()]||load)();
 }
 
@@ -19491,6 +19592,297 @@ async function fechAjuste(mes, linha, atual){
     loadFech();
   }catch(e){ showBanner('Não foi possível salvar: '+e.message); }
 }
+
+// ---------------- Faturamento Detalhado ----------------
+function fatMesOpts(){
+  const sel=document.getElementById('fFatMes'); if(!sel||sel.options.length) return;
+  const hoje=new Date(); let html='';
+  for(let i=0;i<13;i++){
+    const d=new Date(hoje.getFullYear(), hoje.getMonth()-i, 1);
+    const m=`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`;
+    html+=`<option value="${m}">${m}${i===0?' (corrente)':''}</option>`;
+  }
+  sel.innerHTML=html;
+}
+async function loadFat(){
+  fatMesOpts();
+  const seq=++fatSeq, btn=document.getElementById('btnRefresh'); if(btn) btn.disabled=true;
+  document.getElementById('content').classList.add('loading');
+  skelKpis('kpis-fat',4);
+  try{
+    const qs=qsView('fat');
+    const r=await fetch('/api/faturamento/detalhado'+(qs?'?'+qs:''),{cache:'no-store'});
+    const {ok, dados:d}=await respostaJSON(r); if(seq!==fatSeq) return;
+    if(!ok){ showBanner(d.mensagem||'Erro ao consultar o faturamento.', d.detalhe); return; }
+    hideBanner(); DATAFAT=d; LOADEDQS.fat=qs; renderFat(d);
+  }catch(e){ if(seq===fatSeq) showBanner('Não foi possível falar com a API.', e.message); }
+  finally{ if(seq===fatSeq){ if(btn) btn.disabled=false; document.getElementById('content').classList.remove('loading'); } }
+}
+function renderFat(d){
+  const k=d.kpis||{};
+  document.getElementById('fat-carimbo').textContent=
+    `${d.mes_fechado?'mês fechado':'mês corrente até o dia '+d.dia_corte} · atualizado ${(d.atualizado_em||'').replace('T',' ')}`;
+  // semáforo do atingimento na régua da casa (>=95 / 70-94 / <70)
+  // o chip julga só DIAS FECHADOS: o dia em curso tem meta cheia e realizado
+  // parcial, e julgá-lo pintaria o card de vermelho toda manhã
+  const at=k.atingimento_fechado;
+  const atChip=at==null?'':statChip(at>=0.95?'good':(at>=0.70?'warn':'bad'),
+    Math.round(at*100)+'% da meta','Realizado ÷ meta dos dias já FECHADOS (o dia em curso fica fora — meta cheia contra realizado de horas mentiria).');
+  const cancV=(k.cancelados||{}).valor||0, cancN=(k.cancelados||{}).n||0;
+  const realizado=k.realizado||0;
+  document.getElementById('kpis-fat').innerHTML=[
+    kpi('Realizado no mês', brlAbbr(realizado),
+      d.mes_fechado?'mês cheio':'até o dia '+d.dia_corte, '',
+      'Emissões das três fontes oficiais (CT-e + NFS-e + KMM) por data de emissão — a régua da meta, a mesma da Visão Geral. Não é fatura emitida nem receita de viagem.',
+      trendChip(realizado, k.realizado_m1, {fmt:brlAbbr, ref:'Mesma janela do mês anterior'})),
+    kpi('Meta até aqui', brlAbbr(k.meta_mtd||0),
+      d.mes_fechado?'meta do mês inteiro':'meta acumulada até o dia '+d.dia_corte,
+      at==null?'':(at>=0.95?'pos':(at>=0.70?'':'neg')),
+      'Meta diária acumulada até o dia de corte. No mês corrente a distribuição diária é sazonalizada; o TOTAL do mês é o do ERP, intocado.', atChip),
+    kpi('Meta do mês', brlAbbr(k.meta_mes||0),
+      k.meta_mes?('falta '+brlAbbr(Math.max(0,(k.meta_mes||0)-realizado))):'sem meta cadastrada','',
+      'Meta total do mês (metafaturamento, tipo 1). A falta compara com o realizado até agora.'),
+    kpi('Documentos', (k.docs||0).toLocaleString('pt-BR'),
+      cancN?`${cancN} cancelados · ${brlAbbr(cancV)}`:'nenhum cancelado no mês',
+      '', 'CT-e + NFS-e emitidos no mês (cancelados fora da contagem principal). O subtítulo conta os CT-e cancelados pelo dia da emissão original.',
+      cancV>0.05*(realizado||1)?statChip('warn','cancelamento alto','Valor cancelado acima de 5% do realizado do mês.'):''),
+  ].join('');
+  fatChartDia(d);
+  document.getElementById('fat-dia-hint').textContent=
+    (d.meta_fonte==='sazonal'?'meta diária sazonalizada · total do mês = ERP':'meta diária do ERP');
+  document.getElementById('fat-dias').innerHTML=(d.dias||[]).map(r=>{
+    const dt=r.dia.slice(8,10)+'/'+r.dia.slice(5,7);
+    return `<tr><td>${dt}</td><td class="num">${r.cte}</td><td class="num">${r.nfse}</td>
+      <td class="num">${brlAbbr(r.valor)}</td><td class="num">${r.filiais||'—'}</td>
+      <td class="num">${r.emissores||'—'}</td>
+      <td class="num">${r.cancelados?`<span style="color:var(--red)">${r.cancelados} · ${brlAbbr(r.cancelados_valor)}</span>`:'—'}</td></tr>`;
+  }).join('')||'<tr><td colspan="7" class="hint">sem emissão nos últimos 14 dias</td></tr>';
+  // abas: contadores + tabelas que não dependem de medida (desenham já)
+  fatRenderModalTabela(d);
+  fatRenderClientes(d);
+  fatRenderComp(d);
+  // gráficos de abas fechadas só desenham ao abrir (data-ao-abrir); se a aba
+  // já estiver aberta (recarga na mesma aba), desenha agora
+  const am=document.getElementById('aba-fmodal'); if(am&&!am.hidden) fatModalDesenhar();
+  const ac=document.getElementById('aba-fcomp'); if(ac&&!ac.hidden) fatCompDesenhar();
+}
+/* Realizado × meta por dia — o mesmo desenho da home (barras semáforo +
+   linha de meta), no mês que o seletor pedir. */
+function fatChartDia(d){
+  const diario=d.diario||[];
+  ecDesenhar('chartFatDia', diario.length && (()=>{
+    const hoje=new Date(), ehCorrente=!d.mes_fechado;
+    const diaHoje=ehCorrente?hoje.getDate():99;
+    const maxV=Math.max(1,...diario.map(r=>Math.max(r.realizado||0,r.meta||0)));
+    const o=ecOpcoes(diario.map(r=>String(r.dia)), maxV*1.08,
+      {tipo:'moeda', sombra:true, bottom:34, intervalo: diario.length>16?1:0});
+    o.tooltip.formatter=p=>{
+      const r=diario[p[0].dataIndex];
+      const fut=r.dia>diaHoje;
+      let h=`<b>Dia ${r.dia}</b>`+(r.dia===diaHoje?' <span style="color:#6B7580">(hoje · parcial)</span>':(fut?' <span style="color:#6B7580">· ainda não aconteceu</span>':''))+'<br>';
+      if(!fut) h+='Realizado: <b>'+BRL.format(r.realizado||0)+'</b><br>';
+      h+='Meta do dia: '+(r.meta>0?BRL.format(r.meta):'<span style="color:#6B7580">sem meta (fim de semana ou feriado)</span>');
+      if(r.meta>0&&!fut) h+='<br>% da meta: <b>'+Math.round(100*(r.realizado||0)/r.meta)+'%</b>';
+      return h;
+    };
+    const barras=ecBarras('Realizado', diario.map(r=>r.dia>diaHoje?null:(r.realizado||0)),
+      (i,v)=>corAtingimento(diario[i].meta>0?(v||0)/diario[i].meta:null),
+      {largura:17, parcial: diario.map(r=>r.dia===diaHoje)});
+    const meta=ecLinha('Meta', diario.map(r=>r.meta||0), CC.amarelo||'#B97709',
+      {simbolo:'none', largura:1.8, tracejada:true});
+    o.series=[barras, meta];
+    return o;
+  }), 'sem emissão no mês');
+}
+function fatRenderModalTabela(d){
+  const rows=d.modalidades||[];
+  const dnum=(v,v0)=>trendChip(v0,v,{fmt:brlAbbr});
+  document.getElementById('fat-modal').innerHTML=rows.map(m=>{
+    const nome=m.modalidade==='outros'?`outros (${m.n_agrupadas} modalidades)`:m.modalidade;
+    return `<tr><td>${esc(nome)}</td><td class="num">${(m.docs||0).toLocaleString('pt-BR')}</td>
+      <td class="num">${brlAbbr(m.valor)}</td>
+      <td class="num">${(100*(m.share||0)).toLocaleString('pt-BR',{maximumFractionDigits:1})}%</td>
+      <td class="num">${trendChip(m.valor, m.valor_m1, {fmt:brlAbbr, ref:'Mesma janela do mês anterior'})||'—'}</td>
+      <td class="num">${trendChip(m.valor, m.valor_a1, {fmt:brlAbbr, ref:'Mesma janela do ano anterior'})||'—'}</td></tr>`;
+  }).join('')||'<tr><td colspan="6" class="hint">sem emissão no mês</td></tr>';
+  abaContador('fatNModal', rows.length);
+  document.getElementById('fat-modal-tab-hint').textContent=
+    `janela: 01–${String(d.dia_corte).padStart(2,'0')} nos três períodos`;
+}
+function fatRenderClientes(d){
+  const rows=d.clientes||[], cob=d.clientes_cobertura||{};
+  const semv=cob.sem_vinculo||0;
+  let html=rows.map(c=>{
+    const at=c.ating;
+    const atTxt=at==null?'<span class="hint" title="cliente sem meta cadastrada no mês — atingimento não existe, não é 0%">n/d</span>'
+      :`<span style="color:${at>=0.95?'var(--green)':(at>=0.70?'var(--yellow)':'var(--red)')};font-weight:700">${Math.round(at*100)}%</span>`;
+    return `<tr><td>${esc(c.cliente)}</td><td class="num">${c.meta_mes?brlAbbr(c.meta_mes):'—'}</td>
+      <td class="num"><b>${brlAbbr(c.realizado)}</b></td><td class="num">${atTxt}</td>
+      <td class="num">${(100*(c.share||0)).toLocaleString('pt-BR',{maximumFractionDigits:1})}%</td>
+      <td class="num">${trendChip(c.realizado, c.realizado_a1, {fmt:brlAbbr, ref:'Mesma janela do ano anterior'})||'—'}</td></tr>`;
+  }).join('');
+  if(Math.abs(semv)>1)
+    html+=`<tr style="background:var(--n50,#fafafa)"><td>(sem vínculo de agrupamento)</td><td class="num">—</td>
+      <td class="num">${brlAbbr(semv)}</td><td class="num">—</td>
+      <td class="num">${(100*semv/((d.kpis||{}).realizado||1)).toLocaleString('pt-BR',{maximumFractionDigits:1})}%</td><td class="num">—</td></tr>`;
+  document.getElementById('fat-cli').innerHTML=html||'<tr><td colspan="6" class="hint">sem emissão no mês</td></tr>';
+  abaContador('fatNCli', rows.length);
+  document.getElementById('fat-cli-hint').textContent=
+    `${cob.nas_duas||0} de ${cob.grupos_meta||0} grupos com meta e realizado · `+
+    `${cob.pct_valor_com_meta!=null?Math.round(cob.pct_valor_com_meta*100)+'% do realizado coberto por meta':''}`+
+    ` · soma da tabela = total do mês (${brlAbbr((d.kpis||{}).realizado||0)})`;
+}
+function fatRenderComp(d){
+  const k=d.kpis||{};
+  const bloco=(rot, vAtual, vRef, janela)=>{
+    const difP=vRef?100*(vAtual-vRef)/Math.abs(vRef):null;
+    return `<div style="display:flex;flex-direction:column;gap:9px;padding:9px 4px;font-size:13px">
+      <div style="display:flex;justify-content:space-between"><span>${rot}</span><b style="font-family:var(--mono)">${brlAbbr(vRef)}</b></div>
+      <div style="display:flex;justify-content:space-between"><span>Este mês (mesma janela)</span><b style="font-family:var(--mono)">${brlAbbr(vAtual)}</b></div>
+      <div style="display:flex;justify-content:space-between"><span>Variação</span>
+        ${difP==null?'—':`<b style="color:${difP>=0?'var(--green)':'var(--red)'};font-family:var(--mono)">${difP>=0?'+':''}${difP.toLocaleString('pt-BR',{maximumFractionDigits:1})}%</b>`}</div>
+      <div class="hint">${janela}</div></div>`;
+  };
+  const j1=d.janela_m1||{}, ja=d.janela_a1||{};
+  document.getElementById('fat-comp-m1').innerHTML=
+    bloco('Mês anterior', k.realizado||0, k.realizado_m1||0,
+      `janela equivalente: ${(j1.de||'').slice(8)}/${(j1.de||'').slice(5,7)} a ${(j1.ate||'').slice(8)}/${(j1.ate||'').slice(5,7)}`);
+  document.getElementById('fat-comp-a1').innerHTML=
+    bloco('Mesmo mês do ano anterior', k.realizado||0, k.realizado_a1||0,
+      `janela equivalente: ${(ja.de||'').slice(8)}/${(ja.de||'').slice(5,7)} a ${(ja.ate||'').slice(8)}/${(ja.ate||'').slice(5,7)}`);
+  const kmmVivo=(d.fontes||[]).some(f=>f.fonte==='KMM');
+  document.getElementById('fat-fontes').innerHTML=(d.fontes||[]).map(f=>{
+    const nota=f.fonte==='KMM'?` <span class="badge b-warn" title="Nenhuma emissão KMM depois de ${d.kmm_encerrado} — fonte encerrada, não queda.">encerrada em ${(d.kmm_encerrado||'').slice(8)}/${(d.kmm_encerrado||'').slice(5,7)}/${(d.kmm_encerrado||'').slice(0,4)}</span>`:'';
+    return `<tr><td>${esc(f.fonte)}${nota}</td><td class="num">${(f.docs||0).toLocaleString('pt-BR')}</td>
+      <td class="num">${brlAbbr(f.valor)}</td>
+      <td class="num">${trendChip(f.valor, f.valor_m1, {fmt:brlAbbr, ref:'Mesma janela do mês anterior'})||'—'}</td>
+      <td class="num">${trendChip(f.valor, f.valor_a1, {fmt:brlAbbr, ref:'Mesma janela do ano anterior'})||'—'}</td></tr>`;
+  }).join('');
+  document.getElementById('fat-fontes-hint').textContent=kmmVivo?'':'KMM fora da janela (encerrado em 31/05/2023)';
+}
+/* Aba Modalidade: gráficos só desenham com a aba visível (data-ao-abrir). */
+function fatModalDesenhar(){
+  const d=DATAFAT; if(!d) return;
+  const rows=(d.modalidades||[]).filter(m=>m.modalidade!=='outros');
+  chartHBars('chartFatModalPart', rows.map(m=>({rotulo:m.modalidade, valor:m.valor})),
+    {fmt:brlAbbr, cor:()=>CC.navy500||'#38648D'});
+  document.getElementById('fat-modal-hint').textContent=
+    rows.length?`${rows[0].modalidade} domina com ${Math.round(100*rows[0].share)}%`:'';
+  // empilhado 13 meses — as 4 maiores modalidades + NFS-e; o resto agrupado
+  const mm=d.modal_mensal||[];
+  ecDesenhar('chartFatModalMes', mm.length && (()=>{
+    const chaves={};
+    mm.forEach(r=>Object.keys(r).forEach(c=>{ if(c!=='mes') chaves[c]=(chaves[c]||0)+(r[c]||0); }));
+    const top=Object.entries(chaves).sort((x,y)=>y[1]-x[1]).slice(0,5).map(x=>x[0]);
+    const maxT=Math.max(1,...mm.map(r=>Object.keys(r).reduce((s2,c)=>s2+(c!=='mes'?(r[c]||0):0),0)));
+    const o=ecOpcoes(mm.map(r=>r.mes.slice(5,7)+'/'+r.mes.slice(2,4)), maxT*1.05,
+      {tipo:'moeda', sombra:true, legenda: top});
+    const cores=[CC.navy700||'#1F3A56',CC.navy500||'#38648D',CC.orange500||'#E85D10',CC.navy300||'#7FA4C4',CC.amarelo||'#B97709',CC.n400||'#9AA3AC'];
+    const parc=mm.map(r=>r.mes===d.mes&&!d.mes_fechado);
+    o.series=top.map((c2,i2)=>ecBarras(c2, mm.map(r=>r[c2]||0), cores[i2%cores.length],
+      {empilhar:'m', largura:20, raio:false, parcial:parc}));
+    return o;
+  }), 'sem emissão nos 13 meses');
+}
+/* Aba Comparativos: o 13 meses realizado × meta. */
+function fatCompDesenhar(){
+  const d=DATAFAT; if(!d) return;
+  const mensal=d.mensal||[];
+  ecDesenhar('chartFatMensal', mensal.length && (()=>{
+    const maxV=Math.max(1,...mensal.map(r=>Math.max(r.realizado||0,r.meta||0)));
+    const o=ecOpcoes(mensal.map(r=>r.mes.slice(5,7)+'/'+r.mes.slice(2,4)), maxV*1.08,
+      {tipo:'moeda', sombra:true, legenda:['Realizado','Meta']});
+    o.tooltip.formatter=p=>{
+      const r=mensal[p[0].dataIndex];
+      const parcial=r.mes===d.mes&&!d.mes_fechado;
+      return `<b>${r.mes}</b>${parcial?' <span style="color:#B97709">parcial</span>':''}<br>`+
+        `Realizado: <b>${BRL.format(r.realizado||0)}</b><br>Meta: ${BRL.format(r.meta||0)}<br>`+
+        `Docs: ${(r.docs||0).toLocaleString('pt-BR')}`+
+        (r.meta>0?`<br>% da meta: <b>${Math.round(100*(r.realizado||0)/r.meta)}%</b>`:'');
+    };
+    o.series=[
+      ecBarras('Realizado', mensal.map(r=>r.realizado||0), CC.navy500||'#38648D',
+        {largura:20, parcial: mensal.map(r=>r.mes===d.mes&&!d.mes_fechado)}),
+      ecLinha('Meta', mensal.map(r=>r.meta||0), CC.amarelo||'#B97709',
+        {simbolo:'none', largura:1.8, tracejada:true}),
+    ];
+    return o;
+  }), 'sem histórico');
+}
+
+
+/* Ciclos da programação: fetch PRÓPRIO (endpoint cacheado 1h, consulta cara
+   de coleta_ocorrencia — o radar de 120s não espera por ela). */
+let PROGCIC = null, progCicSeq = 0;
+async function loadProgCiclos(){
+  if(PROGCIC){ renderProgCiclos(PROGCIC); return; }
+  const seq = ++progCicSeq;
+  document.getElementById('prog-cic-rotas').innerHTML =
+    '<tr><td colspan="7" class="hint">medindo o histórico de 6 meses…</td></tr>';
+  try{
+    const r = await fetch('/api/operacao/programacao/ciclos', {cache:'no-store'});
+    const {ok, dados:d} = await respostaJSON(r); if(seq !== progCicSeq) return;
+    if(!ok){ showBanner(d.mensagem || 'Erro ao medir os ciclos.', d.detalhe); return; }
+    PROGCIC = d; renderProgCiclos(d);
+  }catch(e){ if(seq === progCicSeq) showBanner('Não foi possível falar com a API.', e.message); }
+}
+function progH(h){
+  if(h == null) return '—';
+  return h >= 48 ? (h/24).toLocaleString('pt-BR',{maximumFractionDigits:1})+' d'
+       : h.toLocaleString('pt-BR',{maximumFractionDigits:1})+' h';
+}
+function renderProgCiclos(d){
+  const k = d.kpis || {};
+  document.getElementById('kpis-prog-cic').innerHTML = [
+    kpi('Rotas com histórico', String(k.rotas_com_historico || 0),
+      k.cobertura_viagens_pct != null ? Math.round(k.cobertura_viagens_pct)+'% das viagens de 6m' : '—', '',
+      'Rotas origem→destino com 10 ou mais viagens nos últimos 6 meses. As demais não viram número — histórico raso não é régua.'),
+    kpi('Descarga mediana da rede', progH(k.descarga_mediana_h),
+      k.viagens_com_descarga_pct != null ? 'medida em '+Math.round(k.viagens_com_descarga_pct)+'% das viagens' : '—', '',
+      'Evento SAC 396 (chegada para descarga) → 397 (fim da descarga), mediana geral. Nem toda viagem registra o par — a cobertura está no subtítulo, não escondida.'),
+    kpi('Deslocamento porta a porta', 'inclui fila',
+      'dtsaida → dtchegada da programação', '',
+      'O deslocamento medido inclui fila, pernoite e parada — é o tempo que o veículo fica PRESO, que é o que decide alocação. Não comparar com o ETA da TomTom (trânsito de agora, na Torre).'),
+    kpi('Fora da régua física', String(k.fora_da_regua || 0),
+      'viagens com chegada antes da saída ou trânsito >96h', '',
+      'Dado furado sai da mediana e é contado aqui — some em silêncio é que ele não pode.'),
+  ].join('');
+  const agora = new Date();
+  const fmt = dt => ['dom','seg','ter','qua','qui','sex','sáb'][dt.getDay()]+' '+
+    String(dt.getHours()).padStart(2,'0')+':'+String(dt.getMinutes()).padStart(2,'0');
+  document.getElementById('prog-cic-rotas').innerHTML = (d.rotas || []).map(r => {
+    const carreg = r.carreg_med_h, cheg = r.desloc_med_h, desc = r.descarga_med_h;
+    let libera = '—';
+    if(cheg != null){
+      const t = new Date(agora.getTime() + ((carreg||0) + cheg + (desc||0)) * 3600e3);
+      const tc = new Date(agora.getTime() + ((carreg||0) + cheg) * 3600e3);
+      libera = `<span title="saindo para carregar AGORA: chega ${fmt(tc)}, libera após a descarga${r.desloc_p90_h!=null?' · no pior decil o deslocamento leva '+progH(r.desloc_p90_h):''}">${fmt(tc)} → <b>${fmt(t)}</b></span>`;
+    }
+    const fonteAten = r.descarga_fonte !== 'destinatario' && r.descarga_fonte !== 'cidade';
+    return `<tr><td>${esc(r.ori)} → ${esc(r.dst)}</td><td class="num">${r.n}</td>
+      <td class="num">${r.carreg_n >= 10 ? progH(carreg) : '<span class="hint" title="menos de 10 carregamentos medidos na origem">n/d</span>'}</td>
+      <td class="num">${progH(cheg)} <span style="color:var(--n500)">· ${progH(r.desloc_p90_h)}</span></td>
+      <td class="num"${fonteAten ? ' style="color:var(--n500)" title="mediana GLOBAL da rede (destino sem 10 amostras)"' : ''}>${progH(desc)}</td>
+      <td class="num"><b>${progH(r.ciclo_med_h)}</b></td>
+      <td class="num" style="font-size:12px">${libera}</td></tr>`;
+  }).join('') || '<tr><td colspan="7" class="hint">sem histórico suficiente</td></tr>';
+  abaContador('progNCic', (d.rotas || []).length);
+  document.getElementById('prog-cic-hint').textContent =
+    (d.janela || '') + ' · mediana; p90 = pior decil';
+  document.getElementById('prog-cic-lentos').innerHTML = (d.destinos_lentos || []).map(l => {
+    const estadia = l.freetime_h != null && l.descarga_med_h > l.freetime_h;
+    return `<tr><td>${esc(l.destinatario)}</td><td class="num">${l.n}</td>
+      <td class="num"><b>${progH(l.descarga_med_h)}</b></td>
+      <td class="num">${progH(l.descarga_p90_h)}</td>
+      <td class="num">${l.freetime_h != null ? progH(l.freetime_h) + (estadia ? ' ' + statChip('bad','estadia','Descarga mediana ACIMA do freetime contratado: estadia sistemática — conferir a cobrança na tela SAC/Freetime.') : '') : '—'}</td></tr>`;
+  }).join('') || '<tr><td colspan="5" class="hint">nenhum destino acima do corte (2× a mediana da rede ou p90 > 12h)</td></tr>';
+  document.getElementById('prog-cic-leia').innerHTML =
+    '<b>Carregamento</b>: da chegada para carregar (SAC 394) à saída carregado (395), mediana da cidade de origem.<br>'+
+    '<b>Deslocamento</b>: da saída à chegada física no destino (porta a porta — inclui fila e pernoite; 1 em cada 10 viagens leva o p90 ou mais).<br>'+
+    '<b>Descarga</b>: da chegada para descarga (396) ao fim (397), pelo destino.<br>'+
+    '<b>Libera</b>: sai agora → carrega, roda e descarrega nos tempos MEDIANOS. Não é promessa: metade das viagens passa disso.';
+}
+
 // ---------------- Portaria ----------------
 async function loadPort(){
   const seq=++portSeq, btn=document.getElementById('btnRefresh'); if(btn) btn.disabled=true;
@@ -26368,6 +26760,7 @@ const BUSCA_SINONIMOS = {
   he:['hora extra','banco de horas','sobreaviso'],
   gestao:['usuario','permissao','perfil','acesso','auditoria','senha','email','smtp','integracao','token'],
   srv:['servidor','saude','cpu','disco','memoria'],
+  fat:['faturamento','meta','emissao','emissoes','cte','nfse','atingimento','modalidade','cancelado','bi'],
   prodveic:['produtividade','veiculo','veiculos','km por veiculo','ocioso','ociosidade','parado','frota parada','bi'],
   doc:['documentacao','manual','ajuda','glossario','versao'],
   cop:['copiloto','ia','perguntar','chat'],
@@ -31604,6 +31997,7 @@ boot();
     <div class="dgrp" data-grp="Bi">
       <button class="dgrp-h" onclick="toggleDGrp(this)"><span>Business Intelligence</span><span class="dchev">›</span></button>
       <div class="dgrp-b">
+        <a href="#fat" onclick="fecharDrawer()"><span class="ic" data-ic="fatic"></span>Faturamento Detalhado</a>
         <a href="#tvdir" onclick="fecharDrawer()"><span class="ic" data-ic="tvdiric"></span>Painéis TV — Diretoria</a>
         <a href="#tvfat" onclick="fecharDrawer()"><span class="ic" data-ic="tvfatic"></span>Painéis TV — Faturamento</a>
         <a href="#tvope" onclick="fecharDrawer()"><span class="ic" data-ic="tv"></span>Painéis TV — Operação</a>

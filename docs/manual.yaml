@@ -453,6 +453,7 @@ grupos:
     telas de mural, sem interação e sem tooltip, em que cada número precisa se
     explicar sozinho, de longe, para quem passa pelo corredor.
   telas:
+  - fat
   - prodveic
   - tvfat
   - tvdir

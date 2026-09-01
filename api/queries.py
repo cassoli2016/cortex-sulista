@@ -9,7 +9,7 @@ Tudo compatível com PostgreSQL 9.3 (sem FILTER/RLS).
 """
 from __future__ import annotations
 
-from datetime import date, timedelta
+from datetime import date, datetime, timedelta
 
 from . import db
 
@@ -4137,6 +4137,22 @@ GROUP BY p.motorista, c.razaosocial
 """
 
 
+def _descarga_med_h(cidade: str | None, uf: str | None) -> float:
+    """Descarga mediana do destino, do histórico de ciclos (cache 1h). A
+    falha ou a falta de amostra cai na mediana global da rede — e se nem o
+    módulo responder, 3,6h (a mediana medida em ago/26, não um chute)."""
+    try:
+        from api import programacao_ciclos as pc
+        d = pc.get_ciclos()
+        med = (d.get("descarga_por_cidade") or {}).get(
+            f"{(cidade or '').upper().strip()}/{uf or '?'}")
+        if med:
+            return float(med)
+        return float(d.get("kpis", {}).get("descarga_mediana_h") or 3.6)
+    except Exception:  # noqa: BLE001 - o radar de 120s nunca espera o histórico
+        return 3.6
+
+
 @cached(ttl=120)
 def get_programacao() -> dict:
     with db.get_conn() as conn, conn.cursor() as cur:
@@ -4174,8 +4190,17 @@ def get_programacao() -> dict:
     for c in chegadas:
         k = key(c["cidade"], c["uf"])
         cid_com_chegada.add(k)
-        # carga compatível: sai depois da chegada prevista (com 12h de folga p/ descarga)
-        compat = [s for s in saidas_por_cid.get(k, []) if s["saida"] >= c["eta"]]
+        # carga compatível: sai depois da chegada prevista MAIS a descarga
+        # mediana do destino (histórico próprio; global 3,6h na falta). O
+        # comentário antigo prometia "12h de folga" que o código nunca teve —
+        # aceitava carga saindo 1 minuto depois do ETA.
+        # eta/saida são strings 'YYYY-MM-DD HH24:MI' (comparação lexicográfica
+        # funciona porque o formato ordena) — a folga soma em datetime e volta
+        eta_livre = (datetime.strptime(c["eta"], "%Y-%m-%d %H:%M")
+                     + timedelta(hours=_descarga_med_h(c["cidade"], c["uf"]))
+                     ).strftime("%Y-%m-%d %H:%M")
+        compat = [s for s in saidas_por_cid.get(k, [])
+                  if s["saida"] >= eta_livre]
         if compat:
             casamentos.append({**c, "cargas": compat[:3], "n_cargas": len(compat)})
         else:

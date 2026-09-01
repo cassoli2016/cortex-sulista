@@ -4,6 +4,19 @@ Gerado de `docs/versoes.yaml` por `scripts/gerar_changelog.py` — não editar �
 Formato [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/),
 versionamento [SemVer](https://semver.org/lang/pt-BR/).
 
+## [0.200.0] — 01/09/2026  ·  CX-01/09/2026-v0.200.0
+
+### Adicionado
+- Programação Inteligente ganhou a aba "Ciclos": quanto tempo cada etapa REALMENTE leva, medido nos últimos 6 meses — carregamento por cidade de origem (evento SAC 394→395), deslocamento porta a porta (saída→chegada da programação, que inclui fila e pernoite) e descarga por destino (SAC 396→397). Cada rota mostra mediana e p90 ("1 em cada 10 leva tanto") e a projeção "sai agora → chega → libera". Card de descargas historicamente lentas com o freetime contratado ao lado (mediana acima do freetime = estadia sistemática) — Supermercados BH descarrega em 16,5h medianas. Rota com menos de 10 viagens mostra n/d, nunca número.
+
+### Alterado
+- O casamento de retorno da aba Casamentos ficou mais exigente e mais honesto: a carga só casa se sair DEPOIS da chegada MAIS a descarga mediana do destino (o código antigo prometia "12h de folga" num comentário e aceitava carga saindo 1 minuto depois da chegada). O número de casamentos cai — os que somem eram promessas impossíveis.
+
+## [0.199.0] — 01/09/2026  ·  CX-01/09/2026-v0.199.0
+
+### Adicionado
+- Tela nova "Faturamento Detalhado" (Business Intelligence): as emissões do dia a dia que viram faturamento, em quatro abas. "Mês ao dia" — realizado × meta diária (sazonalizada no mês corrente), atingimento por dias fechados e as emissões dos últimos 14 dias com filiais, emissores e cancelamentos; "Modalidade" — Agregados × Locação × Frota × Terceiros × NFS-e pela participação, 13 meses empilhados e a variação contra mês e ano anteriores; "Clientes" — orçado × realizado por agrupamento com atingimento (cliente sem meta mostra n/d, nunca 0%), participação e a linha "(sem vínculo)" que fecha a conta com o total; "Comparativos" — mês anterior e ano anterior em JANELA EQUIVALENTE (os dois lados cortados no mesmo dia), 13 meses realizado × meta e as fontes (o KMM aparece como "encerrado em 31/05/2023", nunca zero mudo). Acesso para Diretoria, Comercial e Financeiro; mês selecionável desde 2024; entra no snapshot do Copiloto.
+
 ## [0.198.0] — 01/09/2026  ·  CX-01/09/2026-v0.198.0
 
 ### Adicionado

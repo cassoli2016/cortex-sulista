@@ -4237,6 +4237,51 @@ def previsao_fechamento(mes: str | None = None) -> JSONResponse:
             "erro": "erro_consulta", "mensagem": "Erro ao montar a previsão."})
 
 
+@app.get("/api/faturamento/detalhado")
+def faturamento_detalhado(mes: str | None = None) -> JSONResponse:
+    """Tela `fat`: emissões × meta por dia, modalidade, cliente e filial."""
+    from api import faturamento as fatmod
+    if mes is not None and not re.match(r"^\d{4}-(0[1-9]|1[0-2])$", mes):
+        return JSONResponse(status_code=422, content={
+            "erro": "parametro_invalido",
+            "mensagem": "Parâmetro mes inválido: use o formato AAAA-MM."})
+    if mes is not None and mes > date.today().strftime("%Y-%m"):
+        return JSONResponse(status_code=422, content={
+            "erro": "parametro_invalido",
+            "mensagem": "Parâmetro mes inválido: mês futuro."})
+    try:
+        return JSONResponse(fatmod.get_detalhado(mes))
+    except psycopg.OperationalError as exc:
+        log.warning("banco inacessivel: %s", exc)
+        return JSONResponse(status_code=503, content={
+            "erro": "banco_inacessivel",
+            "mensagem": "Sem conexão com o banco. O túnel SSH está aberto?"})
+    except Exception as exc:  # noqa: BLE001
+        log.warning("faturamento detalhado falhou: %s", exc)
+        return JSONResponse(status_code=500, content={
+            "erro": "erro_consulta",
+            "mensagem": "Erro ao montar o faturamento detalhado."})
+
+
+@app.get("/api/operacao/programacao/ciclos")
+def programacao_ciclos() -> JSONResponse:
+    """Histórico de ciclos (6m) — endpoint SEPARADO do radar de 120s: a
+    agregação de coleta_ocorrencia é cara e vive sob cache de 1h."""
+    from api import programacao_ciclos as pc
+    try:
+        return JSONResponse(pc.get_ciclos())
+    except psycopg.OperationalError as exc:
+        log.warning("banco inacessivel: %s", exc)
+        return JSONResponse(status_code=503, content={
+            "erro": "banco_inacessivel",
+            "mensagem": "Sem conexão com o banco. O túnel SSH está aberto?"})
+    except Exception as exc:  # noqa: BLE001
+        log.warning("ciclos da programacao falharam: %s", exc)
+        return JSONResponse(status_code=500, content={
+            "erro": "erro_consulta",
+            "mensagem": "Erro ao medir os ciclos da programação."})
+
+
 @app.post("/api/controladoria/previsao/ajuste")
 async def previsao_ajuste(req: Request) -> JSONResponse:
     from api.previsao import armazenamento as parm

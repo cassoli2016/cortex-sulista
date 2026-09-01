@@ -112,6 +112,7 @@ TELAS: dict[str, tuple[str, str]] = {  # chave -> (rótulo, grupo do menu)
     "telcond": ("Condução Econômica", "Telemetria"),
     "telhod":  ("Hodômetro e Rastro", "Telemetria"),
     "prodveic": ("Produtividade de Veículos", "Business Intelligence"),
+    "fat":     ("Faturamento Detalhado", "Business Intelligence"),
     "tvfat":   ("Painel TV — Faturamento", "Business Intelligence"),
     "tvope":   ("Painel TV — Operação", "Business Intelligence"),
     "tvdir":   ("Painel TV — Diretoria", "Business Intelligence"),
@@ -200,6 +201,7 @@ ROTA_TELAS: list[tuple[str, frozenset[str]]] = [
     ("/api/financeiro/balanco",       frozenset({"bal"})),
     ("/api/financeiro/cobranca",      frozenset({"cob"})),
     ("/api/visao-geral",              frozenset({"home", "tvfat", "tvope", "tvdir"})),
+    ("/api/faturamento/detalhado",    frozenset({"fat"})),
     ("/api/alertas",                  frozenset({"home"})),
     ("/api/suprimentos/custos",       frozenset({"custos"})),
     ("/api/suprimentos/oc-pendentes", frozenset({"oc"})),
@@ -754,6 +756,17 @@ def _seed_perfis_modelo(c: psycopg.Connection) -> None:
             c.execute("INSERT INTO perfil_telas(perfil_id, tela) VALUES(%s,%s) ON CONFLICT DO NOTHING",
                       (row["id"], "tvdir"))
         c.execute("INSERT INTO config(chave, valor) VALUES('perfis_modelo_v35', '1') ON CONFLICT(chave) DO NOTHING")
+
+    # v36 (2026-09-01): Faturamento Detalhado ('fat') para Diretoria,
+    # Comercial e Financeiro — a tela é leitura executiva das emissões
+    # contra a meta; sem a concessão, id novo só aparece para administrador.
+    if not c.execute("SELECT 1 FROM config WHERE chave='perfis_modelo_v36'").fetchone():
+        for perfil in ("Diretoria", "Comercial", "Financeiro"):
+            row = c.execute("SELECT id FROM perfis WHERE nome=%s", (perfil,)).fetchone()
+            if row:
+                c.execute("INSERT INTO perfil_telas(perfil_id, tela) VALUES(%s,%s) ON CONFLICT DO NOTHING",
+                          (row["id"], "fat"))
+        c.execute("INSERT INTO config(chave, valor) VALUES('perfis_modelo_v36', '1') ON CONFLICT(chave) DO NOTHING")
 
 
 def _agora() -> str:
