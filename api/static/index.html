@@ -3262,26 +3262,59 @@ body.tvfull #btnReport,body.tvmode #btnReport{display:none}
         <div class="kpis" id="kpis-man"></div>
                 <div class="subtabs" role="tablist" data-abas="man" aria-label="Seções desta tela">
           <button role="tab" id="tabman-vis" data-aba="vis" aria-controls="aba-man-vis" aria-selected="true" onclick="abaTrocar('man','vis')">Visão geral</button>
-          <button role="tab" id="tabman-veic" data-aba="veic" aria-controls="aba-man-veic" aria-selected="false" onclick="abaTrocar('man','veic')">Veículos</button>
+          <button role="tab" id="tabman-veic" data-aba="veic" aria-controls="aba-man-veic" aria-selected="false" onclick="abaTrocar('man','veic')">Veículos <span class="aban" id="manVeicN"></span></button>
+          <button role="tab" id="tabman-ofi" data-aba="ofi" aria-controls="aba-man-ofi" aria-selected="false" onclick="abaTrocar('man','ofi')">Oficinas <span class="aban" id="manOfiN"></span></button>
+          <button role="tab" id="tabman-def" data-aba="def" aria-controls="aba-man-def" aria-selected="false" onclick="abaTrocar('man','def')">Defeitos <span class="aban" id="manDefN"></span></button>
         </div>
         <div class="aba" data-abas="man" data-aba="vis" id="aba-man-vis" role="tabpanel" aria-labelledby="tabman-vis">
   <div class="card">
-            <div class="head"><h2>Custo de manutenção por mês <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="ordemservico agrupada pelo mês da EMISSÃO da OS, somando valortotal. A OS entra no mês em que foi aberta, mesmo que o serviço termine depois — por isso um mês pode carregar serviço executado no mês seguinte.">i</span></h2><span class="hint" id="hintMan">no período filtrado · valor total das OSs</span></div>
-            <div class="legend"><span class="k"><i class="sw" style="background:var(--navy-500)"></i>Custo das OSs</span><span class="k"><i class="sw hatch" style="background-color:var(--navy-500)"></i>Mês parcial (corrente ou cortado pelo filtro)</span></div>
+            <div class="head"><h2>Custo de manutenção por mês <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="ordemservico agrupada pelo mês da EMISSÃO da OS, somando valortotal, EMPILHADA por objetivo: preventiva (código 14), corretiva (15 + 16, quebra em rota), sinistro (19 — não é manutenção, está separado de propósito) e outros. O domínio objetivoordemservico está 99,9% preenchido. Mês cortado pelo filtro sai hachurado.">i</span></h2><span class="hint" id="hintMan">no período filtrado · empilhado por objetivo</span></div>
             <div class="chartwrap" id="wrapMan">
               <div id="chartMan" style="width:100%;height:250px" role="img"></div>
             </div>
           </div>
-  <div class="card">
-            <div class="head"><h2>Alertas <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="Regras fixas sobre os números desta tela: ordens de serviço ainda em aberto e concentração do custo em poucos veículos.">i</span></h2></div>
+  <div class="grid2">
+          <div class="card">
+            <div class="head"><h2>Custo × idade da frota <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="Entre os 30 veículos MAIS CAROS do período: custo de OS por faixa de idade (ano de fabricação do cadastro) e R$/km quando há km no recorte — tração pela régua do combustível (CTA Plus), carreta pelo km das viagens em que foi engatada (82% das viagens têm a carreta na programação). Não é a frota inteira: é onde o dinheiro está indo.">i</span></h2><span class="hint">top 30 do período · o argumento de renovação</span></div>
+            <div class="tablewrap tabroll" style="max-height:240px"><table><thead><tr>
+              <th>Faixa</th><th class="num">Veículos</th><th class="num">Custo</th><th class="num">R$/km</th><th class="num">R$/veículo</th>
+            </tr></thead><tbody id="man-idade"></tbody></table></div>
+          </div>
+          <div class="card">
+            <div class="head"><h2>Alertas <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="Regras fixas sobre os números desta tela: OSs em aberto (separando as paradas há mais de 90 dias, que costumam ser baixa não lançada, não oficina), retornos em menos de 30 dias e tempos medianos por objetivo.">i</span></h2></div>
             <div class="alerts" id="alerts-man"></div>
+          </div>
+        </div>
+        </div>
+        <div class="aba" data-abas="man" data-aba="ofi" id="aba-man-ofi" role="tabpanel" aria-labelledby="tabman-ofi" hidden>
+  <div class="card">
+            <div class="head"><h2>Oficinas do período <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="Top 20 por valor. Interna × externa decodificada por evidência (tipo=1 é oficina interna — correlação de 100% com o fornecedor vazio em 3.540 OSs). Taxa de retorno = OSs de RETORNO em menos de 30 dias (mesmo veículo + mesmo defeito, atribuídas à oficina da PRIMEIRA OS) ÷ OSs da oficina; oficina com menos de 100 OSs no recorte mostra travessão — taxa sem piso de amostra mente. Semáforo: 15%+ vermelho · 8 a 15% âmbar · abaixo de 8% verde.">i</span></h2><span class="hint" id="hintManOfi"></span></div>
+            <div class="tablewrap tabroll" style="max-height:520px"><table><thead><tr>
+              <th>Oficina</th><th class="num">OSs</th><th class="num">Veículos</th><th class="num">Valor</th><th class="num">% preventiva</th><th class="num">Retornos &lt;30d</th><th class="num">Taxa de retorno</th>
+            </tr></thead><tbody id="man-ofi"></tbody></table></div>
+          </div>
+        </div>
+        <div class="aba" data-abas="man" data-aba="def" id="aba-man-def" role="tabpanel" aria-labelledby="tabman-def" hidden>
+  <div class="grid2">
+            <div class="card">
+              <div class="head"><h2>Pareto de defeitos <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="Linhas de ordemservico_defeito no recorte (80% das OSs têm a linha; domínio de 108 defeitos catalogados). Retorno = o mesmo veículo voltou com o MESMO defeito em menos de 30 dias. O filtro de status não se aplica aos retornos: retorno ainda aberto também é retorno.">i</span></h2><span class="hint" id="hintManDef"></span></div>
+              <div class="tablewrap tabroll" style="max-height:460px"><table><thead><tr>
+                <th>Defeito</th><th class="num">OSs</th><th class="num">Veículos</th><th class="num">Retornos &lt;30d</th>
+              </tr></thead><tbody id="man-def"></tbody></table></div>
+            </div>
+            <div class="card">
+              <div class="head"><h2>Maiores reincidências <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="O mesmo veículo, o mesmo defeito, menos de 30 dias entre as duas OSs — ordenado pelo VALOR da OS de retorno (materialidade primeiro). É a lista do dinheiro pago duas vezes.">i</span></h2><span class="hint" id="hintManReinc"></span></div>
+              <div class="tablewrap tabroll" style="max-height:460px"><table><thead><tr>
+                <th>Veículo</th><th>Defeito</th><th class="num">Dias</th><th class="num">OS retorno</th><th class="num">Valor</th>
+              </tr></thead><tbody id="man-reinc"></tbody></table></div>
+            </div>
           </div>
         </div>
         <div class="aba" data-abas="man" data-aba="veic" id="aba-man-veic" role="tabpanel" aria-labelledby="tabman-veic" hidden>
   <div class="card">
             <div class="head"><h2>Veículos do período <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="Top 30 placas por custo total de OS no recorte. As colunas Peças e M. obra mostram travessão quando nenhuma OS do veículo trouxe a composição — o custo existe e está no Total, o que falta é a separação. Clique na linha para ver OS a OS.">i</span></h2><span class="hint" id="hintManV">top 30 por custo · clique para ver as ordens de serviço</span></div>
             <div class="tablewrap tabroll"><table><thead><tr>
-              <th style="width:34px"></th><th>Veículo</th><th>Modalidade</th><th class="num">OSs</th><th class="num">Abertas</th><th class="num">Peças</th><th class="num">M. obra</th><th class="num">Total</th>
+              <th style="width:34px"></th><th>Veículo</th><th>Modalidade</th><th class="num">Idade</th><th class="num">OSs</th><th class="num">Abertas</th><th class="num" title="Km rodado no recorte: tração pela régua do combustível (CTA Plus); carreta pelo km das viagens em que foi engatada — km de viagem programada, não odômetro.">Km no recorte</th><th class="num" title="Custo total de OS ÷ km no recorte. Menos de 1.000 km no período vira travessão — denominador raso explode a razão.">R$/km</th><th class="num">Total</th>
             </tr></thead><tbody id="man-veic"></tbody></table></div>
           </div>
         </div>
@@ -4973,6 +5006,11 @@ body.tvfull #btnReport,body.tvmode #btnReport{display:none}
           <div class="tablewrap tabroll" id="mprev-tracoes"></div></div>
         <div class="card" id="cardMprevPlanos" style="display:none"><div class="head"><h2>Planos a corrigir no cadastro <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="Trações cujo plano não é comparável com o odômetro: o marcador da próxima troca está mais de um intervalo inteiro fora da faixa, ou falta leitura. Não é atraso de oficina, é cadastro — e é grave nos dois sentidos: marcador atrás do odômetro gera alerta falso de vencida, marcador muito à frente faz o veículo nunca alertar e sair do controle de manutenção.">i</span></h2><span class="hint">não entram na conta de vencidas — não dá para saber se estão vencidos</span></div>
           <div class="tablewrap tabroll" id="mprev-planos"></div></div>
+        <div class="card"><div class="head"><h2>Aderência ao plano (12 meses) <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="manutencaopreventiva_historico: quanto do intervalo planejado cada troca realmente rodou (real ÷ plano). Razão acima de 3 é marcador furado (cadastro) e fica fora. Trocar a 58% do intervalo é óleo e filtro pagos cedo demais; estourar +20% é risco. Mediana e p25, nunca média.">i</span></h2><span class="hint" id="hintMprevAder"></span></div>
+          <div class="tablewrap tabroll" style="max-height:280px"><table><thead><tr>
+            <th>Veículo</th><th class="num">Última troca</th><th class="num">% do intervalo rodado</th><th class="num">Km deixado na mesa</th>
+          </tr></thead><tbody id="mprev-ader"></tbody></table></div>
+        </div>
         <div class="card"><div class="head"><h2>Carretas / semi-reboque (por data) <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="Semi-reboques ativos, fora da atividade ENC. O prazo é por DATA, não por km: última troca + 180 dias, ou + 240 quando a carroceria é baú. Carreta sem data de última troca lançada no ERP não aparece aqui — ausência na lista não é garantia de estar em dia.">i</span></h2>
             <select id="fMprevHor" aria-label="Horizonte das carretas" onchange="loadMPrev()" style="margin-left:auto"
                     title="Janela de dias das carretas. Quem monta a agenda da oficina para o mês seguinte não via nada além dos 30 dias.">
@@ -14117,10 +14155,10 @@ function cpAbrir(cnpj){
    +'<div class="hint" style="margin:3px 0 6px">O arquivo &eacute; aberto aqui com a senha: titular e validade saem do pr&oacute;prio certificado, e senha errada aparece agora e n&atilde;o na transmiss&atilde;o.</div>'
    +'<div class="milk-filtros" style="margin:0 0 6px"><label>Tipo'
    +'<select id="cpCertTipo" onchange="cpTipoMudou()">'
-   +'<option value="A1">A1 &mdash; arquivo (.pfx)</option>'
+   +'<option value="A1">A1 &mdash; arquivo (.pfx ou .p12)</option>'
    +'<option value="A3">A3 &mdash; token f&iacute;sico</option></select></label></div>'
    +'<div id="cpCertA1">'
-   +'<label style="display:block;font-size:11px;color:var(--n500)">Arquivo .pfx'
+   +'<label style="display:block;font-size:11px;color:var(--n500)">Arquivo .pfx ou .p12 (mesmo formato, só muda a extensão)'
    +'<input type="file" id="cpCertArq" accept=".pfx,.p12" style="width:100%"></label>'
    +'<label style="display:block;font-size:11px;color:var(--n500);margin-top:5px">Senha do certificado'
    +'<input type="password" id="cpCertSenha" autocomplete="new-password" style="width:100%;box-sizing:border-box"></label>'
@@ -14163,7 +14201,7 @@ async function cpSalvarCert(){
   if(tipo==='A1'){
     const f=document.getElementById('cpCertArq').files[0];
     const senha=document.getElementById('cpCertSenha').value;
-    if(!f||!senha){ cpErro('Escolha o arquivo .pfx e informe a senha.'); return; }
+    if(!f||!senha){ cpErro('Escolha o arquivo .pfx/.p12 e informe a senha.'); return; }
     const buf=await f.arrayBuffer();
     let bin=''; const b=new Uint8Array(buf);
     for(let i=0;i<b.length;i++) bin+=String.fromCharCode(b[i]);
@@ -19130,6 +19168,20 @@ async function loadMPrev(){
 }
 function renderMPrev(d){
   const k=d.kpis||{};
+  {
+    const ad=d.aderencia||{};
+    const h=document.getElementById('hintMprevAder');
+    if(h) h.textContent=ad.n
+      ? `${ad.n} trocas · mediana ${Math.round((ad.mediana||0)*100)}% do intervalo · ${Math.round(ad.pct_antecipadas||0)}% antecipadas (<60%) · ${Math.round(ad.pct_estouradas||0)}% estouradas (>120%)`
+      : 'sem troca com real e plano nos últimos 12 meses';
+    const tb=document.getElementById('mprev-ader');
+    if(tb) tb.innerHTML=(ad.top_antecipadas||[]).map(t=>`<tr>
+      <td style="font-family:var(--mono);font-weight:600">${esc(t.veiculo||'—')}</td>
+      <td class="num">${fmtD(t.dt)}</td>
+      <td class="num" style="color:var(--yellow);font-weight:700">${Math.round(t.razao*100)}%</td>
+      <td class="num">${Math.round(t.km_deixado).toLocaleString('pt-BR')} km</td></tr>`).join('')
+      ||'<tr><td colspan="4" class="hint">nenhuma troca antecipada abaixo de 60% do intervalo — plano sendo seguido</td></tr>';
+  }
   const urg=(d.carretas||[]).filter(c=>c.dias<=7).length;
   document.getElementById('kpis-mprev').innerHTML=[
     kpi('Vencidas', (k.vencidas||0).toLocaleString('pt-BR'), 'trações + carretas com revisão vencida', (k.vencidas||0)>0?'neg':'pos',
@@ -24832,21 +24884,18 @@ function renderMan(d){
   document.getElementById('kpis-man').innerHTML=[
     kpi('Manutenção no período', BRL.format(k.custo), k.ordens.toLocaleString('pt-BR')+' OSs · '+k.veiculos+' veículos', '',
         'ordemservico do ERP por data de emissão, no recorte dos filtros. Valor = valortotal da OS, que é o número confiável — a quebra entre peças e mão de obra depende de campos que a oficina quase não preenche.'),
-    kpi('Peças', (k.oss_com_pecas||0)>0 ? BRL.format(k.pecas) : 'não informado',
-        (k.oss_com_pecas||0)>0
-          ? ('informado em '+(k.oss_com_pecas||0)+' de '+k.ordens+' OSs ('+cobP+'%) · '
-             +(k.custo? (100*k.pecas/k.custo).toLocaleString('pt-BR',{maximumFractionDigits:1}) : '0')+'% do valor total')
-          : 'nenhuma OS do período tem o campo preenchido',
-        (k.oss_com_pecas||0)>0 && cobP<50 ? 'warn' : '',
-        'ordemservico.valortotalpecas. A cobertura baixa não significa OS sem peça: significa que a oficina lança o valor cheio no total e não separa a composição. Use o valor total da OS para decidir, não esta quebra.'),
-    kpi('Mão de obra', (k.oss_com_maoobra||0)>0 ? BRL.format(k.maoobra) : 'não informado',
-        (k.oss_com_maoobra||0)>0
-          ? ('informado em '+(k.oss_com_maoobra||0)+' de '+k.ordens+' OSs ('+cobM+'%)')
-          : 'nenhuma das '+k.ordens+' OSs do período tem o campo preenchido',
-        (k.oss_com_maoobra||0)>0 && cobM<50 ? 'warn' : '',
-        'ordemservico.valortotalmaoobra. Quando nenhuma OS traz o campo, o KPI mostra "não informado" em vez de R$ 0 — zero aqui seria ler como mão de obra sem custo, o que não é o caso.'),
-    kpi('OSs abertas', k.abertas.toLocaleString('pt-BR'), BRL.format(k.abertas_valor)+' em aberto', k.abertas>0?'neg':'pos',
-        'OS sem data de fechamento (dtfechamento nula) emitida no recorte. É serviço iniciado e não encerrado no ERP — pode ser veículo ainda na oficina ou baixa não lançada.'),
+    kpi('% corretiva', k.pct_corretiva!=null?Math.round(k.pct_corretiva)+'%':'—',
+        BRL.format(k.valor_corr||0)+' corretiva · '+BRL.format(k.valor_prev||0)+' preventiva',
+        k.pct_corretiva==null?'':(k.pct_corretiva>=65?'neg':(k.pct_corretiva>=50?'warn':'pos')),
+        'Custo corretivo (objetivo 15 + 16, quebra em rota) ÷ custo de manutenção sem sinistro. É a pergunta da área: a manutenção planeja ou apaga incêndio? Sinistro fica fora dos dois lados — não é manutenção. Peças e mão de obra continuam nas colunas da aba Veículos (cobertura de 4,5% e 0%: coluna, nunca KPI).'),
+    kpi('Retornos <30d', (k.reinc_pares||0).toLocaleString('pt-BR'),
+        BRL.format(k.reinc_valor||0)+' nas OSs de retorno',
+        (k.reinc_pares||0)>0?'warn':'pos',
+        'O mesmo veículo voltou com o MESMO defeito em menos de 30 dias. O valor é o das OSs de retorno — dinheiro pago duas vezes. A lista está na aba Defeitos; a taxa por oficina, na aba Oficinas. Cerca de 17% das OSs não têm valor lançado: o total real é maior.'),
+    kpi('OSs abertas', k.abertas.toLocaleString('pt-BR'),
+        BRL.format(k.abertas_valor)+' em aberto'+((k.abertas_antigas||0)>0?' · '+k.abertas_antigas+' há +90 dias':''),
+        (k.abertas_antigas||0)>0?'warn':(k.abertas>0?'neg':'pos'),
+        'OS sem data de fechamento emitida no recorte. As paradas há mais de 90 dias costumam ser baixa NÃO LANÇADA no ERP, não veículo na oficina — separá-las evita que o alerta nasça ignorado.'),
   ].join('');
   chartManRender(d.mensal||[], d.dt_de, d.dt_ate);
   const hv=document.getElementById('hintManV');
@@ -24855,11 +24904,12 @@ function renderMan(d){
     const [tl,tc]=utLbl(vv.utilizacao);
     const det=`
       <div class="tablewrap"><table>
-        <thead><tr><th class="num">OS</th><th class="num">Fil.</th><th class="num" title="Código de tipo da ordem de serviço no ERP. Não há tabela de domínio na réplica para traduzir 1 e 2 em preventiva/corretiva — o significado precisa ser confirmado com a oficina.">Tipo (cód.)</th><th class="num">Emissão</th><th class="num">Fechamento</th><th class="num">Peças</th><th class="num">M. obra</th><th class="num">Total</th><th>Status</th></tr></thead>
+        <thead><tr><th class="num">OS</th><th class="num">Fil.</th><th title="Objetivo da OS pelo domínio objetivoordemservico do ERP (99,9% preenchido): preventiva, corretiva, quebra em rota, sinistro.">Objetivo</th><th title="Oficina interna (tipo=1, sem fornecedor — correlação de 100% medida) ou o nome do fornecedor externo.">Oficina</th><th class="num">Emissão</th><th class="num">Fechamento</th><th class="num">Peças</th><th class="num">M. obra</th><th class="num">Total</th><th>Status</th></tr></thead>
         <tbody>${(vv.ordens_lista||[]).map(o=>`<tr>
           <td class="num">${o.numero}</td>
           <td class="num">${o.filial}</td>
-          <td class="num">${o.tipo}</td>
+          <td>${esc(o.objetivo||'—')}</td>
+          <td style="font-size:11px">${esc((o.oficina||'—').slice(0,28))}</td>
           <td class="num">${fmtD(o.emissao)}</td>
           <td class="num">${o.fechamento?fmtD(o.fechamento):'—'}</td>
           <td class="num">${BRL.format(o.pecas)}</td>
@@ -24874,16 +24924,30 @@ function renderMan(d){
       <td><span class="expander">${ICONS['chevr2']}</span></td>
       <td style="font-family:var(--mono);font-weight:600">${esc(vv.placa||'—')}</td>
       <td><span class="badge ${tc}">${esc(tl)}</span></td>
+      <td class="num">${vv.idade!=null?vv.idade+' a':'—'}</td>
       <td class="num">${vv.ordens.toLocaleString('pt-BR')}</td>
       <td class="num">${vv.abertas>0?`<span class="badge b-warn">${vv.abertas}</span>`:'—'}</td>
-      <td class="num">${vv.pecas>0?BRL.format(vv.pecas):'<span style="color:var(--n500)" title="Nenhuma OS deste veículo trouxe o valor de peças separado — o custo está todo no total da OS.">—</span>'}</td>
-      <td class="num">${vv.maoobra>0?BRL.format(vv.maoobra):'<span style="color:var(--n500)" title="Nenhuma OS deste veículo trouxe o valor de mão de obra separado — o custo está todo no total da OS.">—</span>'}</td>
+      <td class="num">${vv.km_recorte?Math.round(vv.km_recorte).toLocaleString('pt-BR'):'<span style="color:var(--n500)">—</span>'}</td>
+      <td class="num" style="font-weight:600">${vv.rs_km!=null?'R$ '+vv.rs_km.toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2}):'<span style="color:var(--n500)" title="menos de 1.000 km no recorte — razão sem denominador">—</span>'}</td>
       <td class="num" style="font-weight:600">${BRL.format(vv.custo)}</td>
     </tr>
     <tr class="forn-det" id="man-det-${i}"><td colspan="8">${det}</td></tr>`;
-  }).join('') || '<tr><td colspan="8" style="color:var(--n500)">sem OSs no período</td></tr>';
+  }).join('') || '<tr><td colspan="9" style="color:var(--n500)">sem OSs no período</td></tr>';
+  // contador EXPLÍCITO: o automático contaria as linhas de detalhe
+  // expandíveis junto (30 veículos viravam "529")
+  abaContador('manVeicN', (d.veiculos||[]).length);
+  renderManOficinas(d);
+  renderManDefeitos(d);
+  document.getElementById('man-idade').innerHTML=(d.custo_idade||[]).map(c=>`<tr>
+    <td>${esc(c.faixa)}</td><td class="num">${c.veiculos}</td>
+    <td class="num">${BRL.format(c.custo||0)}</td>
+    <td class="num" style="font-weight:600">${c.rs_km!=null?'R$ '+c.rs_km.toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2}):'—'}</td>
+    <td class="num">${c.rs_veiculo!=null?brlAbbr(c.rs_veiculo):'—'}</td></tr>`).join('')
+    || '<tr><td colspan="5" class="hint">sem veículo com idade no top 30</td></tr>';
   const A=[];
+  if((k.abertas_antigas||0)>0) A.push(['t-warn','Provável baixa não lançada',`${k.abertas_antigas} OSs abertas há mais de 90 dias — costuma ser baixa não registrada no ERP, não veículo parado na oficina.`]);
   if(k.abertas>0) A.push(['t-warn','OSs em aberto',`${k.abertas} ordens de serviço abertas somando ${BRL.format(k.abertas_valor)}.`]);
+  if(k.tempo_mediano_corr!=null) A.push(['t-ok','Tempo mediano de OS',`Corretiva fecha em ${k.tempo_mediano_corr} dia(s); preventiva em ${k.tempo_mediano_prev!=null?k.tempo_mediano_prev:'—'} dia(s) — mediana, não média (um sinistro de 49 dias distorceria a média).`]);
   document.getElementById('alerts-man').innerHTML=(A.length?A:[['t-ok','Sem alertas críticos','Nenhuma OS aberta no período.']])
     .map(([c,t,m])=>`<div class="toast ${c}"><b>${esc(t)}</b>${esc(m)}</div>`).join('');
   const ts=new Date(d.atualizado_em);
@@ -24895,22 +24959,72 @@ function manToggle(i){
   const open=det.classList.toggle('open');
   det.previousElementSibling.setAttribute('aria-expanded', String(open));
 }
-/* Custo de manutenção por mês. O mês cortado pelo filtro sai hachurado —
-   barra cheia num mês pela metade lê-se como queda de custo. */
+function renderManOficinas(d){
+  const rows=d.oficinas||[];
+  document.getElementById('man-ofi').innerHTML=rows.map(o=>{
+    const pp=o.valor?Math.round(100*(o.valor_prev||0)/o.valor):0;
+    const tx=o.taxa_retorno;
+    const txCell=tx==null
+      ?'<span class="hint" title="menos de 100 OSs no recorte — taxa sem piso de amostra mente">—</span>'
+      :`<span style="font-weight:700;color:${tx>=15?'var(--red)':(tx>=8?'var(--yellow)':'var(--green)')}">${tx.toLocaleString('pt-BR',{maximumFractionDigits:1})}%</span>`;
+    return `<tr><td>${esc(o.oficina)}</td><td class="num">${o.oss.toLocaleString('pt-BR')}</td>
+      <td class="num">${o.veiculos}</td><td class="num" style="font-weight:600">${BRL.format(o.valor)}</td>
+      <td class="num">${pp}%</td><td class="num">${o.retornos||0}</td><td class="num">${txCell}</td></tr>`;
+  }).join('')||'<tr><td colspan="7" class="hint">sem OSs no período</td></tr>';
+  abaContador('manOfiN', rows.length);
+  const tot=rows.reduce((a2,o)=>a2+o.valor,0);
+  const hint=document.getElementById('hintManOfi');
+  if(hint) hint.textContent=`${rows.length} oficinas · ${brlAbbr(tot)} no recorte · ordenado por valor`;
+}
+function renderManDefeitos(d){
+  const rows=d.defeitos||[];
+  document.getElementById('man-def').innerHTML=rows.map(x=>`<tr>
+    <td>${esc(x.descricao)}</td><td class="num">${x.n.toLocaleString('pt-BR')}</td>
+    <td class="num">${x.veiculos}</td>
+    <td class="num">${x.retornos?`<span style="color:var(--red);font-weight:700">${x.retornos}</span>`:'—'}</td></tr>`).join('')
+    ||'<tr><td colspan="4" class="hint">sem linha de defeito no período (80% das OSs têm)</td></tr>';
+  abaContador('manDefN', rows.length);
+  const h1=document.getElementById('hintManDef');
+  if(h1) h1.textContent='top '+rows.length+' por volume · 80% das OSs têm linha de defeito';
+  document.getElementById('man-reinc').innerHTML=(d.reincidencias||[]).map(r=>`<tr>
+    <td style="font-family:var(--mono);font-weight:600">${esc(r.placa)}</td>
+    <td>${esc(r.defeito)}</td><td class="num">${r.dias}</td>
+    <td class="num">${r.os_retorno}</td>
+    <td class="num" style="font-weight:600">${BRL.format(r.valor||0)}</td></tr>`).join('')
+    ||'<tr><td colspan="5" class="hint">nenhum retorno em menos de 30 dias no período</td></tr>';
+  const h2=document.getElementById('hintManReinc');
+  if(h2) h2.textContent=`${(d.kpis||{}).reinc_pares||0} retornos no período · top 20 por valor`;
+}
+/* Custo por mês EMPILHADO por objetivo: preventiva × corretiva × sinistro ×
+   outros. O sinistro tem cor própria (não é manutenção); mês cortado pelo
+   filtro sai hachurado. */
 function chartManRender(mensal, dtDe, dtAte){
   const parc = mensal.map(r => _mesParcial(r.mes, dtDe, dtAte));
   ecDesenhar('chartMan', mensal.length && (() => {
     const o = ecOpcoes(mensal.map(r => periodoLabel(r.mes)),
-                       Math.max(1, ...mensal.map(r => r.custo || 0)), {tipo: 'moeda'});
+                       Math.max(1, ...mensal.map(r => r.custo || 0)),
+                       {tipo: 'moeda', legenda: ['Preventiva','Corretiva','Sinistro','Outros'], sombra: true});
     o.tooltip.formatter = p => {
       const i = p[0].dataIndex, r = mensal[i];
+      const linhas = [['Preventiva', r.prev], ['Corretiva', r.corr],
+                      ['Sinistro', r.sinistro],
+                      ['Outros', (r.custo||0)-(r.prev||0)-(r.corr||0)-(r.sinistro||0)]];
       return '<b>' + periodoLabel(r.mes) + '</b>'
         + (parc[i] ? ' <span style="color:#B97709">· mês parcial</span>' : '')
-        + '<br>Custo: <b>' + BRL.format(r.custo || 0) + '</b>'
-        + (r.oss ? '<br>OSs: ' + r.oss : '');
+        + linhas.map(([n2,v2]) => '<br>'+n2+': <b>'+BRL.format(v2||0)+'</b>').join('')
+        + '<br>Total: <b>' + BRL.format(r.custo || 0) + '</b>'
+        + (r.ordens ? '<br>OSs: ' + r.ordens : '');
     };
-    o.series = [ecBarras('Custo', mensal.map(r => r.custo || 0), CC.navy500,
-      {parcial: parc, largura: 26, rotulo: (i, v) => brlAbbr(v)})];
+    o.series = [
+      ecBarras('Preventiva', mensal.map(r => r.prev || 0), CC.verde || '#1E7F4F',
+        {empilhar:'m', largura: 26, raio:false, parcial: parc}),
+      ecBarras('Corretiva', mensal.map(r => r.corr || 0), CC.navy500,
+        {empilhar:'m', largura: 26, raio:false, parcial: parc}),
+      ecBarras('Sinistro', mensal.map(r => r.sinistro || 0), CC.vermelho || '#C03221',
+        {empilhar:'m', largura: 26, raio:false, parcial: parc}),
+      ecBarras('Outros', mensal.map(r => Math.max(0,(r.custo||0)-(r.prev||0)-(r.corr||0)-(r.sinistro||0))), CC.n400 || '#9AA3AC',
+        {empilhar:'m', largura: 26, raio:false, parcial: parc}),
+    ];
     return o;
   }), 'sem dados');
 }

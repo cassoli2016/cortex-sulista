@@ -4,6 +4,15 @@ Gerado de `docs/versoes.yaml` por `scripts/gerar_changelog.py` — não editar �
 Formato [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/),
 versionamento [SemVer](https://semver.org/lang/pt-BR/).
 
+## [0.201.0] — 01/09/2026  ·  CX-01/09/2026-v0.201.0
+
+### Adicionado
+- Manutenção ganhou o que a tela dizia que não dava para saber — e dava: o custo mensal agora é EMPILHADO por objetivo (preventiva × corretiva × sinistro, domínio do próprio ERP com 99,9% de preenchimento), com o KPI "% corretiva" respondendo se a manutenção planeja ou apaga incêndio (63% no último ano). Duas abas novas: "Oficinas" (top 20 por valor, interna × externa decodificada, e a TAXA DE RETORNO em menos de 30 dias por oficina — de 5% na melhor a 25% na pior) e "Defeitos" (Pareto dos 108 defeitos catalogados + as maiores reincidências: o mesmo veículo, o mesmo defeito, menos de 30 dias — o dinheiro pago duas vezes, R$ 376 mil em 12 meses). A aba Veículos mostra idade, km no recorte e R$/km (carreta pelo km das viagens em que foi engatada); o card "Custo × idade" entrega o argumento de renovação (16+ anos: R$ 30/km contra R$ 0,84 dos de 6-10). O drill de OSs trocou o "Tipo (cód.)" cru por Objetivo e Oficina por extenso.
+- Manutenção Preventiva ganhou o card "Aderência ao plano": quanto do intervalo planejado cada troca realmente rodou — 29% das trocas de 12 meses foram antecipadas (menos de 60% do intervalo: óleo e filtro pagos cedo demais), com o top 10 do km deixado na mesa.
+
+### Alterado
+- As OSs abertas há mais de 90 dias aparecem separadas ("provável baixa não lançada") — sem isso o alerta de abertas nascia ignorado. Cadastro de certificado dos agregados agora diz que aceita .p12 além de .pfx (é o mesmo formato; só os rótulos assustavam).
+
 ## [0.200.1] — 01/09/2026  ·  CX-01/09/2026-v0.200.1
 
 ### Alterado

@@ -2923,8 +2923,19 @@ def get_combustivel(dt_de: str, dt_ate: str, modalidade: str | None = None,
 
 
 # ============================================================================
-# Manutenção — ordemservico (OSs de manutenção, com peças + mão de obra).
-# `tipo` (1/2) exibido bruto (significado não confirmado pelo negócio).
+# Manutenção — ordemservico (OSs de manutenção).
+#
+# DOMÍNIOS DECODIFICADOS POR EVIDÊNCIA (01/09/2026, 3.540 OSs de 12 meses):
+# - `objetivoordemservico` é o domínio PREVENTIVA×CORRETIVA que a tela dizia
+#   não existir — 99,9% preenchido. Códigos (grupo=1/empresa=1):
+#   14 PREVENTIVA · 15 CORRETIVA · 16 QUEBRA EM ROTA/SOCORRO · 19 SINISTRO ·
+#   20 INVESTIMENTO. Corretiva de verdade = 15+16; SINISTRO não é manutenção
+#   (R$ 156 mil/12m que poluía o custo).
+# - `tipo` 1/2 = oficina INTERNA×EXTERNA: correlação de 100% com
+#   `fornecedor` (tipo=1 ⇔ fornecedor vazio, 278 OSs; tipo=2 ⇔ preenchido,
+#   3.262 OSs). Código sem domínio não vira rótulo inventado — este tem
+#   evidência, e ela está escrita aqui.
+# - Peças/mão de obra seguem com cobertura de 4,5%/0% — coluna, nunca KPI.
 # ============================================================================
 _OS_BASE = """
 FROM ordemservico o
@@ -2947,7 +2958,15 @@ SELECT count(*)::int AS ordens,
        coalesce(sum(o.valortotalmaoobra),0)::float8 AS maoobra,
        sum(CASE WHEN o.dtfechamento IS NULL THEN 1 ELSE 0 END)::int AS abertas,
        coalesce(sum(CASE WHEN o.dtfechamento IS NULL THEN o.valortotal ELSE 0 END),0)::float8 AS abertas_valor,
-       count(DISTINCT o.veiculo)::int AS veiculos
+       sum(CASE WHEN o.dtfechamento IS NULL
+                 AND o.dtemissao < current_date - 90 THEN 1 ELSE 0 END)::int AS abertas_antigas,
+       count(DISTINCT o.veiculo)::int AS veiculos,
+       sum(CASE WHEN o.objetivoordemservico = 14 THEN coalesce(o.valortotal,0) ELSE 0 END)::float8 AS valor_prev,
+       sum(CASE WHEN o.objetivoordemservico IN (15,16) THEN coalesce(o.valortotal,0) ELSE 0 END)::float8 AS valor_corr,
+       sum(CASE WHEN o.objetivoordemservico = 19 THEN coalesce(o.valortotal,0) ELSE 0 END)::float8 AS valor_sinistro,
+       sum(CASE WHEN o.objetivoordemservico NOT IN (14,15,16,19)
+                 OR o.objetivoordemservico IS NULL
+                THEN coalesce(o.valortotal,0) ELSE 0 END)::float8 AS valor_outros
 {_OS_BASE}
 """
 
@@ -2955,7 +2974,10 @@ MAN_MENSAL_SQL = """
 SELECT to_char(o.dtemissao,'YYYY-MM') AS mes, count(*)::int AS ordens,
        sum(coalesce(o.valortotal,0))::float8 AS custo,
        sum(coalesce(o.valortotalpecas,0))::float8 AS pecas,
-       sum(coalesce(o.valortotalmaoobra,0))::float8 AS maoobra
+       sum(coalesce(o.valortotalmaoobra,0))::float8 AS maoobra,
+       sum(CASE WHEN o.objetivoordemservico = 14 THEN coalesce(o.valortotal,0) ELSE 0 END)::float8 AS prev,
+       sum(CASE WHEN o.objetivoordemservico IN (15,16) THEN coalesce(o.valortotal,0) ELSE 0 END)::float8 AS corr,
+       sum(CASE WHEN o.objetivoordemservico = 19 THEN coalesce(o.valortotal,0) ELSE 0 END)::float8 AS sinistro
 FROM ordemservico o
 WHERE o.dtemissao >= %(dt_de)s::date AND o.dtemissao < %(dt_ate)s::date + 1
   AND (o.filial = %(filial)s OR %(filial)s::int IS NULL)
@@ -2969,20 +2991,114 @@ SELECT o.veiculo AS placa, min(coalesce(u.descricao,'(sem)')) AS utilizacao,
        sum(coalesce(o.valortotal,0))::float8 AS custo,
        sum(coalesce(o.valortotalpecas,0))::float8 AS pecas,
        sum(coalesce(o.valortotalmaoobra,0))::float8 AS maoobra,
-       sum(CASE WHEN o.dtfechamento IS NULL THEN 1 ELSE 0 END)::int AS abertas
+       sum(CASE WHEN o.dtfechamento IS NULL THEN 1 ELSE 0 END)::int AS abertas,
+       sum(CASE WHEN o.objetivoordemservico IN (15,16) THEN coalesce(o.valortotal,0) ELSE 0 END)::float8 AS corr_valor,
+       min(coalesce(v.possuimotor,0))::int AS motor,
+       min(v.anofabricacao)::int AS ano
 {_OS_BASE}
 GROUP BY o.veiculo ORDER BY sum(coalesce(o.valortotal,0)) DESC LIMIT 30
 """
 
+# _OS_OFICINA: interna×externa por evidência (tipo=1 ⇔ fornecedor vazio,
+# correlação 100%% em 3.540 OSs) + o nome do fornecedor quando externa.
+_OS_OFICINA = """CASE WHEN o.tipo = 1 THEN '(oficina interna)'
+            ELSE coalesce(nullif(trim(cf.nomefantasia),''),
+                          nullif(trim(cf.razaosocial),''),
+                          'fornecedor '||o.fornecedor) END"""
+
 MAN_DET_SQL = f"""
-SELECT o.veiculo AS placa_t, o.numero, o.filial, o.tipo,
+SELECT o.veiculo AS placa_t, o.numero, o.filial,
+       coalesce(nullif(trim(ob.descricao),''),
+                CASE WHEN o.objetivoordemservico IS NULL THEN '(sem objetivo)'
+                     ELSE 'objetivo '||o.objetivoordemservico END) AS objetivo,
+       {_OS_OFICINA} AS oficina,
        to_char(o.dtemissao,'YYYY-MM-DD') AS emissao,
        to_char(o.dtfechamento,'YYYY-MM-DD') AS fechamento,
        coalesce(o.valortotalpecas,0)::float8 AS pecas,
        coalesce(o.valortotalmaoobra,0)::float8 AS maoobra,
        coalesce(o.valortotal,0)::float8 AS custo
-{_OS_BASE} AND o.veiculo = ANY(%(placas)s)
+{{_OS_BASE}} AND o.veiculo = ANY(%(placas)s)
 ORDER BY o.veiculo, o.dtemissao DESC
+"""
+MAN_DET_SQL = MAN_DET_SQL.replace("{_OS_BASE}", _OS_BASE).replace(
+    "FROM ordemservico o",
+    """FROM ordemservico o
+LEFT JOIN cadastro cf ON cf.codigo = o.fornecedor
+LEFT JOIN objetivoordemservico ob ON ob.codigo = o.objetivoordemservico
+   AND ob.grupo = o.grupo AND ob.empresa = o.empresa""")
+
+# E3 — oficinas: valor, mix e (em Python) taxa de retorno <30d
+MAN_OFICINA_SQL = f"""
+SELECT {_OS_OFICINA} AS oficina,
+       count(*)::int AS oss, count(DISTINCT o.veiculo)::int AS veiculos,
+       sum(coalesce(o.valortotal,0))::float8 AS valor,
+       sum(CASE WHEN o.objetivoordemservico = 14 THEN coalesce(o.valortotal,0) ELSE 0 END)::float8 AS valor_prev,
+       sum(CASE WHEN o.objetivoordemservico IN (15,16) THEN coalesce(o.valortotal,0) ELSE 0 END)::float8 AS valor_corr
+{{_OS_BASE}}
+GROUP BY 1 ORDER BY 4 DESC LIMIT 20
+"""
+MAN_OFICINA_SQL = MAN_OFICINA_SQL.replace("{_OS_BASE}", _OS_BASE).replace(
+    "FROM ordemservico o",
+    "FROM ordemservico o\nLEFT JOIN cadastro cf ON cf.codigo = o.fornecedor")
+
+# E4 — defeitos: pares consecutivos do MESMO veículo+defeito, com a oficina
+# da OS ANTERIOR (é ela que responde pelo retorno). Janela alarga 30d para
+# trás por causa do lag; o par só conta se a 2ª OS cai no recorte. O filtro
+# de STATUS não se aplica: retorno ainda aberto também é retorno.
+MAN_DEFEITO_SQL = f"""
+SELECT coalesce(nullif(trim(df.descricao),''),'(defeito '||x.defeito||')') AS descricao,
+       x.veiculo, x.numero, x.dt, x.dt_ant, x.num_ant, x.valor, x.oficina_ant
+FROM (
+  SELECT d.defeito, o.veiculo, o.numero, o.dtemissao::date AS dt,
+         coalesce(o.valortotal,0)::float8 AS valor,
+         lag(o.dtemissao::date) OVER (PARTITION BY o.veiculo, d.defeito
+                                      ORDER BY o.dtemissao, o.numero) AS dt_ant,
+         lag(o.numero) OVER (PARTITION BY o.veiculo, d.defeito
+                             ORDER BY o.dtemissao, o.numero) AS num_ant,
+         lag({_OS_OFICINA}) OVER (PARTITION BY o.veiculo, d.defeito
+                                  ORDER BY o.dtemissao, o.numero) AS oficina_ant
+  FROM ordemservico_defeito d
+  JOIN ordemservico o ON o.grupo=d.grupo AND o.empresa=d.empresa AND o.filial=d.filial
+    AND o.unidade=d.unidade AND o.diferenciadornumero=d.diferenciadornumero AND o.numero=d.numero
+  LEFT JOIN cadastro cf ON cf.codigo = o.fornecedor
+  WHERE o.dtemissao >= %(dt_de)s::date - 30 AND o.dtemissao < %(dt_ate)s::date + 1
+    AND (o.filial = %(filial)s OR %(filial)s::int IS NULL)
+    AND (%(placa)s::text IS NULL OR o.veiculo ILIKE '%%'||%(placa)s||'%%')
+) x LEFT JOIN defeito df ON df.codigo = x.defeito
+"""
+
+# E5 — tempos por objetivo (mediana em Python; o AVA 9.3 não tem percentile)
+MAN_TEMPO_SQL = f"""
+SELECT o.objetivoordemservico AS objetivo,
+       (o.dtfechamento::date - o.dtemissao::date)::int AS dias
+{{_OS_BASE}} AND o.dtfechamento IS NOT NULL
+"""
+MAN_TEMPO_SQL = MAN_TEMPO_SQL.replace("{_OS_BASE}", _OS_BASE)
+
+# E2 — km no recorte, para o R$/km do top 30 (tração pela régua do
+# combustível; carreta pelas viagens em que a placa foi engatada — km de
+# viagem programada, não odômetro, e o ⓘ da tela diz isso)
+MAN_KM_TRACAO_SQL = """
+SELECT a.veiculo_placa AS placa,
+       sum(CASE WHEN a.distancia > 0 AND a.distancia < 3000 THEN a.distancia ELSE 0 END)::float8 AS km
+FROM sulista.ctaplus_abastecimentos a
+WHERE a.data_inicio_abastecimento >= %(dt_de)s::date
+  AND a.data_inicio_abastecimento <= %(dt_ate)s::date
+  AND a.veiculo_placa = ANY(%(placas)s)
+GROUP BY 1
+"""
+MAN_KM_CARRETA_SQL = """
+SELECT x.placa, sum(x.km)::float8 AS km FROM (
+  SELECT p.carreta1 AS placa, coalesce(p.kmfretecompra,0) AS km FROM programacaoembarque p
+  WHERE p.dtcancelamento IS NULL AND p.semaforo=1 AND p.numero < 1000000
+    AND p.dtemissao >= %(dt_de)s::date AND p.dtemissao < %(dt_ate)s::date + 1
+    AND p.carreta1 = ANY(%(placas)s)
+  UNION ALL
+  SELECT p.carreta2, coalesce(p.kmfretecompra,0) FROM programacaoembarque p
+  WHERE p.dtcancelamento IS NULL AND p.semaforo=1 AND p.numero < 1000000
+    AND p.dtemissao >= %(dt_de)s::date AND p.dtemissao < %(dt_ate)s::date + 1
+    AND p.carreta2 = ANY(%(placas)s)
+) x GROUP BY 1
 """
 
 
@@ -3000,25 +3116,123 @@ def get_manutencao(filial: int | None, dt_de: str, dt_ate: str,
         veiculos = cur.fetchall()
         det: dict[str, list] = {}
         placas = [r["placa"] for r in veiculos if r["placa"]]
+        km_por_placa: dict[str, float] = {}
         if placas:
             cur.execute(MAN_DET_SQL, {**params, "placas": placas})
             for r in cur.fetchall():
                 det.setdefault(r.pop("placa_t"), []).append(r)
+            tracoes = [v["placa"] for v in veiculos if v.get("motor")]
+            carretas = [v["placa"] for v in veiculos if not v.get("motor")]
+            if tracoes:
+                cur.execute(MAN_KM_TRACAO_SQL, {**params, "placas": tracoes})
+                km_por_placa.update({r["placa"]: float(r["km"] or 0)
+                                     for r in cur.fetchall()})
+            if carretas:
+                cur.execute(MAN_KM_CARRETA_SQL, {**params, "placas": carretas})
+                km_por_placa.update({r["placa"]: float(r["km"] or 0)
+                                     for r in cur.fetchall()})
         cur.execute(MAN_MENSAL_SQL, params)
         mensal = cur.fetchall()
+        cur.execute(MAN_OFICINA_SQL, params)
+        oficinas = [dict(r) for r in cur.fetchall()]
+        cur.execute(MAN_DEFEITO_SQL, params)
+        defeito_rows = [dict(r) for r in cur.fetchall()]
+        cur.execute(MAN_TEMPO_SQL, params)
+        tempo_rows = cur.fetchall()
         cur.execute("SELECT current_timestamp AS ts")
         meta = cur.fetchone()
 
+    import statistics as _st
     for vv in veiculos:
         ds = det.get(vv["placa"], [])
         vv["ocultas"] = max(0, len(ds) - MAX_DET)
         vv["ordens_lista"] = ds[:MAX_DET]
+        km = km_por_placa.get(vv["placa"])
+        vv["km_recorte"] = km
+        # km < 1.000 no recorte: R$/km explodiria por denominador raso — n/d
+        vv["rs_km"] = (vv["custo"] / km) if km and km >= 1000 else None
+        ano = vv.get("ano")
+        vv["idade"] = (date.today().year - int(ano)) if ano and int(ano) > 1900 else None
+
+    # % corretiva do período (a pergunta: planeja ou apaga incêndio?)
+    tot_obj = (kpis["valor_prev"] + kpis["valor_corr"] + kpis["valor_outros"])
+    kpis["pct_corretiva"] = (100.0 * kpis["valor_corr"] / tot_obj) if tot_obj else None
+
+    # E4: Pareto + reincidência <30d (par mesmo veículo+defeito) + taxa por
+    # oficina da OS ANTERIOR. Valor deduplicado por OS: uma OS com 3 linhas
+    # de defeito entraria 3x no total — o join multiplica, dito na spec.
+    pareto: dict[str, dict] = {}
+    reincidencias = []
+    ret_por_oficina: dict[str, int] = {}
+    _os_retorno_vistas: set = set()
+    for r in defeito_rows:
+        if str(r["dt"]) < dt_de:
+            continue                        # linha da janela alargada (só lag)
+        p0 = pareto.setdefault(r["descricao"], {"descricao": r["descricao"],
+                                                "n": 0, "veiculos": set(),
+                                                "retornos": 0})
+        p0["n"] += 1
+        p0["veiculos"].add(r["veiculo"])
+        retorno = (r["dt_ant"] is not None and r["num_ant"] != r["numero"]
+                   and 0 < (r["dt"] - r["dt_ant"]).days < 30)
+        if retorno:
+            p0["retornos"] += 1
+            of = r.get("oficina_ant") or "(sem oficina)"
+            ret_por_oficina[of] = ret_por_oficina.get(of, 0) + 1
+            chave_os = (r["veiculo"], r["numero"])
+            if chave_os not in _os_retorno_vistas:
+                _os_retorno_vistas.add(chave_os)
+                reincidencias.append({"placa": r["veiculo"],
+                                      "defeito": r["descricao"],
+                                      "dias": (r["dt"] - r["dt_ant"]).days,
+                                      "os_retorno": r["numero"],
+                                      "valor": r["valor"]})
+    defeitos = sorted(({**p1, "veiculos": len(p1["veiculos"])}
+                       for p1 in pareto.values()), key=lambda x: -x["n"])[:20]
+    reincidencias.sort(key=lambda x: -x["valor"])
+    kpis["reinc_pares"] = len(_os_retorno_vistas)
+    kpis["reinc_valor"] = sum(x["valor"] for x in reincidencias)
+    reincidencias = reincidencias[:20]
+
+    # taxa de retorno por oficina: retornos atribuídos à oficina da 1ª OS ÷
+    # OSs da oficina no recorte (piso de 100 OSs — taxa sem piso mente)
+    for o2 in oficinas:
+        ret = ret_por_oficina.get(o2["oficina"], 0)
+        o2["retornos"] = ret
+        # base: linhas de defeito ~ oss (80% das OSs têm linha); piso 100 OSs
+        o2["taxa_retorno"] = (100.0 * ret / o2["oss"]) if o2["oss"] >= 100 else None
+
+    # E5: tempos medianos por objetivo (emissão→fechamento, em dias)
+    _t_corr = [r["dias"] for r in tempo_rows
+               if r["objetivo"] in (15, 16) and r["dias"] is not None and r["dias"] >= 0]
+    _t_prev = [r["dias"] for r in tempo_rows
+               if r["objetivo"] == 14 and r["dias"] is not None and r["dias"] >= 0]
+    kpis["tempo_mediano_corr"] = float(_st.median(_t_corr)) if _t_corr else None
+    kpis["tempo_mediano_prev"] = float(_st.median(_t_prev)) if _t_prev else None
+
+    # custo × idade (frota própria do top 30 com km e ano — 4 faixas)
+    faixas = [(0, 5), (6, 10), (11, 15), (16, 99)]
+    custo_idade = []
+    for lo, hi in faixas:
+        vs = [v for v in veiculos
+              if v.get("idade") is not None and lo <= v["idade"] <= hi]
+        km_t = sum(v["km_recorte"] or 0 for v in vs)
+        cu_t = sum(v["custo"] for v in vs)
+        custo_idade.append({
+            "faixa": f"{lo}-{hi} anos" if hi < 99 else f"{lo}+ anos",
+            "veiculos": len(vs), "custo": cu_t,
+            "rs_km": (cu_t / km_t) if km_t >= 1000 else None,
+            "rs_veiculo": (cu_t / len(vs)) if vs else None})
 
     return {
         "kpis": kpis, "veiculos": veiculos, "mensal": mensal,
+        "oficinas": oficinas, "defeitos": defeitos,
+        "reincidencias": reincidencias, "custo_idade": custo_idade,
         "dt_de": dt_de, "dt_ate": dt_ate, "filial": filial, "placa": placa, "status": status,
         "atualizado_em": meta["ts"].isoformat(),
-        "fonte": "ERP AVA · ordemservico · leitura",
+        "fonte": ("ERP AVA · ordemservico + ordemservico_defeito + "
+                  "objetivoordemservico · km CTA Plus (tração) e viagens "
+                  "(carreta) · leitura"),
     }
 
 
@@ -4987,6 +5201,21 @@ def get_sac_freetime(dt_de: str, dt_ate: str) -> dict:
 # ============================================================================
 _MPREV_FN = "avacorpi.fnc_manutencaopreventiva_gridview(2,1,1,1,NULL,NULL,NULL,NULL,NULL,NULL,NULL,3,NULL,1,1)"
 
+# Aderência real × plano das trocas preventivas (12 meses). Medido em
+# 01/09/2026: 1.213 trocas com real e plano — razão mediana 0,94, mas o p25
+# é 0,58: UMA EM QUATRO trocas roda 58% do intervalo ou menos antes de
+# trocar (óleo e filtro pagos cedo demais); 4% estouram +20%. O campo
+# `vencidaantesatualizacao` é constante (=2 em 100%) — não usar.
+MPREV_ADER_SQL = """
+SELECT h.veiculo, h.dtultimatroca::date AS dt,
+       h.diferencamarcadorentretrocas::float8 AS real,
+       h.marcadortroca::float8 AS plano
+FROM manutencaopreventiva_historico h
+WHERE h.dtultimatroca >= current_date - interval '12 months'
+  AND coalesce(h.diferencamarcadorentretrocas,0) > 0
+  AND coalesce(h.marcadortroca,0) > 0
+"""
+
 MPREV_TRACAO_SQL = f"""
 SELECT retorno.frota, retorno.veiculo,
   NULLIF(REGEXP_REPLACE(retorno.marcadorproximatroca::text,'\\D','','g'),'')::int AS prox,
@@ -5026,6 +5255,8 @@ def get_manutencao_preventiva(horizonte: int = 30) -> dict:
         tra = cur.fetchall()
         cur.execute(MPREV_CARRETA_SQL)
         car = cur.fetchall()
+        cur.execute(MPREV_ADER_SQL)
+        ader_rows = cur.fetchall()
         cur.execute("SELECT current_timestamp AS ts")
         meta = cur.fetchone()
 
@@ -5097,12 +5328,41 @@ def get_manutencao_preventiva(horizonte: int = 30) -> dict:
     kpis["planos_ruins"] = len(planos_ruins)
     kpis["tracoes_avaliadas"] = len(tra)
 
+    # Aderência ao plano: razão real/plano por troca. Razão > 3 é marcador
+    # furado (mesma família do desvio > 1 ciclo), não operação — fica fora.
+    import statistics as _st2
+    razoes = []
+    antecipadas = []
+    for r in ader_rows:
+        rz = (r["real"] / r["plano"]) if r["plano"] else None
+        if rz is None or rz > 3:
+            continue
+        razoes.append(rz)
+        if rz < 0.60:
+            antecipadas.append({"veiculo": r["veiculo"],
+                                "dt": r["dt"].isoformat(),
+                                "razao": rz,
+                                "km_deixado": r["plano"] - r["real"]})
+    antecipadas.sort(key=lambda x: -x["km_deixado"])
+    razoes_ord = sorted(razoes)
+    aderencia = {
+        "n": len(razoes),
+        "mediana": _st2.median(razoes) if razoes else None,
+        "p25": razoes_ord[len(razoes_ord) // 4] if razoes_ord else None,
+        "pct_antecipadas": (100.0 * sum(1 for x in razoes if x < 0.60)
+                            / len(razoes)) if razoes else None,
+        "pct_estouradas": (100.0 * sum(1 for x in razoes if x > 1.20)
+                           / len(razoes)) if razoes else None,
+        "top_antecipadas": antecipadas[:10],
+    }
+
     return {
         "kpis": kpis,
         "horizonte": horizonte,
         "tracoes": tracoes,
         "planos_ruins": planos_ruins,
         "carretas": carretas,
+        "aderencia": aderencia,
         "atualizado_em": meta["ts"].isoformat(),
         "fonte": ("ERP AVA · fnc_manutencaopreventiva_gridview + ctaplus (odômetro) · "
                   "trações por km, carretas por data · leitura"),
