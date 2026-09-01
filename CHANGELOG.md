@@ -4,6 +4,14 @@ Gerado de `docs/versoes.yaml` por `scripts/gerar_changelog.py` — não editar �
 Formato [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/),
 versionamento [SemVer](https://semver.org/lang/pt-BR/).
 
+## [0.197.0] — 01/09/2026  ·  CX-01/09/2026-v0.197.0
+
+### Adicionado
+- Resumo diário de faturamento por WhatsApp, todos os dias às 07:00: o fechamento do dia anterior (faturado × meta, semáforo), o mês até ontem (acumulado, atingimento e quanto falta), a previsão de fechamento no ritmo atual, o ritmo diário necessário para bater a meta, os pontos de atenção (sequência de dias abaixo da meta, projeção furando o mês) e o link do painel — tudo em uma mensagem curta com semáforos em emoji, sem "leia mais". No dia 1º a mensagem vira o FECHAMENTO do mês que acabou: total × meta total, resultado final e o veredito (batida, quase, ou quanto faltou).
+
+### Alterado
+- Toda conta do mês no resumo usa só DIAS FECHADOS: a régua "mês até hoje" do painel inclui o dia corrente com a meta cheia e o realizado de minutos, e às 07:00 isso derrubava atingimento e previsão sem ninguém ter errado nada (medido na manhã do dia 1º, a previsão saía 85,8% abaixo da meta num mês que mal começara). Sem emissão no mês, a rotina silencia em vez de anunciar R$ 0,00.
+
 ## [0.196.0] — 01/09/2026  ·  CX-01/09/2026-v0.196.0
 
 ### Alterado

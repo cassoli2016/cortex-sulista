@@ -14,10 +14,12 @@ os três lado a lado —
     receita_mes_cte        CT-e                      (outro corte ainda)
 
 Misturar `faturamento_mes` com `meta_acumulada` produziria um atingimento de
-96% onde o real é 91,3%: numerador de uma régua, denominador de outra. O par
-que fecha é `realizado_acumulado / meta_acumulada` — é o mesmo que a Visão
-Geral usa para o `atingimento_mes`, e é por isso que este módulo confere essa
-conta em vez de recalcular por conta própria.
+96% onde o real é 91,3%: numerador de uma régua, denominador de outra. Aqui
+numerador E denominador saem do MESMO `diario` (a régua da meta, já com a
+distribuição sazonal), recortados nos DIAS FECHADOS — o resumo sai às 07:00,
+e o dia corrente entra na régua MTD do painel com a meta cheia e o realizado
+de minutos, derrubando atingimento e previsão todo início de manhã (medido
+em 01/09: "-85,8% vs meta" às 04h de um mês que mal começara).
 
 O DIA É O ÚLTIMO COM MOVIMENTO, não `hoje`: pela manhã o dia corrente tem
 faturamento parcial e a série ainda traz zeros nos dias que não aconteceram.
@@ -31,7 +33,7 @@ escrito no lugar em que a pessoa está olhando: o próprio atingimento.
 """
 from __future__ import annotations
 
-from datetime import date
+from datetime import date, timedelta
 
 
 def brl(valor) -> str:
@@ -53,6 +55,34 @@ def pct(valor) -> str:
         return "0,0%"
 
 
+# A URL pública do painel (túnel Cloudflare). Vai no fim do resumo diário —
+# o clique cai no login de sempre, com MFA; o link em si não abre nada.
+URL_PAINEL = "https://cortex.cassolitech.com.br"
+
+_MES_PT = {1: "JANEIRO", 2: "FEVEREIRO", 3: "MARÇO", 4: "ABRIL",
+           5: "MAIO", 6: "JUNHO", 7: "JULHO", 8: "AGOSTO",
+           9: "SETEMBRO", 10: "OUTUBRO", 11: "NOVEMBRO",
+           12: "DEZEMBRO"}
+
+
+def _semaforo(razao: float) -> str:
+    """O semáforo da casa (>=95 / 70-94 / <70), em emoji — WhatsApp não tem
+    a cor do painel, então a bolinha É o semáforo."""
+    if razao >= 0.95:
+        return "🟢"
+    return "🟡" if razao >= 0.70 else "🔴"
+
+
+def _farol_dia(faturado: float, meta: float, em_curso: bool) -> str:
+    """⏳ quando o dia ainda está acontecendo (julgar às 07:00 acusaria quem
+    ainda tem o dia inteiro pela frente) e ⚪ quando não havia meta a bater."""
+    if not meta:
+        return "⚪"
+    if em_curso:
+        return "⏳"
+    return _semaforo(faturado / meta)
+
+
 def _atingimento_dia(faturado: float, meta: float, em_curso: bool) -> str:
     """O atingimento do dia, dizendo quando o dia ainda não acabou.
 
@@ -66,49 +96,174 @@ def _atingimento_dia(faturado: float, meta: float, em_curso: bool) -> str:
     return f"{texto} — dia ainda em curso" if em_curso else texto
 
 
-def faturamento_diario(visao: dict | None = None) -> dict:
-    """As variáveis do contexto `faturamento`, com os números do dia.
+def faturamento_diario(visao: dict | None = None,
+                       diario_ant: list | None = None) -> dict:
+    """As variáveis do contexto `faturamento` — o resumo da manhã.
 
-    `visao` é injetável para o teste não depender do ERP.
+    A REGRA DO DIA 1º (pedido do dono, 01/09/2026): a mensagem mostra SEMPRE
+    o fechamento do dia ANTERIOR — e no dia 1º, quando ontem pertence ao mês
+    que acabou, ela vira o FECHAMENTO DO MÊS: total × meta total, resultado
+    final e o veredito, lidos do diário do mês anterior.
+
+    `visao` e `diario_ant` são injetáveis para o teste não depender do ERP.
     """
+    hoje = date.today()
+    ontem = hoje - timedelta(days=1)
+    fechamento = hoje.day == 1
+
     if visao is None:                       # pragma: no cover - caminho de produção
         from api import queries
         visao = queries.get_visao_geral()
+    if fechamento and diario_ant is None:   # pragma: no cover - caminho de produção
+        from api import queries
+        diario_ant = queries.get_diario_mes_anterior()
 
-    dias = visao.get("diario") or []
-    # o último dia COM MOVIMENTO: os posteriores ainda não aconteceram, e um
-    # deles é o dia corrente pela manhã, que sairia como "faturamos R$ 0"
-    com_movimento = [d for d in dias if (d.get("realizado") or 0) > 0]
-    dia = com_movimento[-1] if com_movimento else {}
+    # o "mês" da mensagem: o corrente ATÉ ONTEM, ou o anterior INTEIRO no dia 1º
+    dias = (diario_ant if fechamento else visao.get("diario")) or []
+    if fechamento:
+        dias_fechados = list(dias)
+    else:
+        dias_fechados = [d for d in dias if int(d.get("dia") or 0) < hoje.day]
 
-    realizado = float(visao.get("realizado_acumulado") or 0)
-    meta = float(visao.get("meta_acumulada") or 0)
+    # ---- o DIA da mensagem é sempre ONTEM, já fechado ----
+    # "Último dia com movimento" mostrava o parcial de hoje cedo com a marca
+    # "em curso"; o pedido é o fechamento de ontem — e ontem sem movimento
+    # num dia com meta é notícia (🔴 0,0%), não algo a esconder.
+    dia = next((d for d in dias if int(d.get("dia") or 0) == ontem.day), {})
     fat_dia = float(dia.get("realizado") or 0)
     meta_dia = float(dia.get("meta") or 0)
+    data = ontem.strftime("%d/%m/%Y")
 
-    hoje = date.today()
-    numero_dia = int(dia.get("dia") or hoje.day)
-    try:
-        data = date(hoje.year, hoje.month, numero_dia).strftime("%d/%m/%Y")
-    except ValueError:                      # pragma: no cover - dia fora do mês
-        data = hoje.strftime("%d/%m/%Y")
-    em_curso = numero_dia == hoje.day
+    # ---- atingimento do mês sobre DIAS FECHADOS, nunca a régua MTD ----
+    # A régua MTD do painel inclui o dia em curso com a meta CHEIA e o
+    # realizado de minutos: às 07:00 isso derruba atingimento e previsão sem
+    # ninguém ter errado nada — medido em 01/09: "-85,8% vs meta" às 04h de
+    # um mês que mal começara. Numerador e denominador saem do MESMO `diario`
+    # (a régua da meta, já sazonal) — não há mistura de réguas.
+    meta_total = sum(float(d.get("meta") or 0) for d in dias)
+    realizado_fech = sum(float(d.get("realizado") or 0) for d in dias_fechados)
+    meta_fech = sum(float(d.get("meta") or 0) for d in dias_fechados)
 
-    return {
+    ritmo = (realizado_fech / meta_fech) if meta_fech > 0 else 1.0
+    previsao = realizado_fech + ritmo * max(0.0, meta_total - meta_fech)
+
+    if meta_total > 0:
+        dif = previsao / meta_total - 1
+        sinal = "+" if dif >= 0 else "-"
+        previsao_vs_meta = f"{sinal}{pct(abs(dif))} vs meta do mês"
+        farol_previsao = "📈" if previsao >= meta_total else "📉"
+    else:
+        previsao_vs_meta = "sem meta no mês"
+        farol_previsao = "➖"
+
+    fechados = [d for d in dias_fechados if float(d.get("meta") or 0) > 0]
+    media_fechados = (sum(float(d.get("realizado") or 0) for d in fechados)
+                      / len(fechados)) if fechados else 0.0
+    falta_total = max(0.0, meta_total - realizado_fech)
+
+    if fechamento:
+        titulo_mes = f"FECHAMENTO DE {_MES_PT[ontem.month]}"
+        titulo_previsao = "RESULTADO FINAL"
+        # não há ritmo a cobrar de um mês encerrado — a linha vira a média
+        # realizada, que é o número que o próximo mês tem de sustentar
+        linha_ritmo = (f"Média realizada: {brl(media_fechados)}/dia "
+                       f"({len(fechados)} dias com meta)" if fechados
+                       else "mês sem meta cadastrada")
+        # o veredito segue a MESMA régua do semáforo (≥95 = quase, âmbar):
+        # 95,4% com farol verde e veredito vermelho na linha seguinte seria a
+        # mensagem se desmentindo — visto na primeira prévia real
+        pontos: list[str] = []
+        if meta_total > 0:
+            razao = realizado_fech / meta_total
+            if razao >= 1:
+                pontos.append(f"✅ Meta do mês batida: +{pct(razao - 1)}")
+            elif razao >= 0.95:
+                pontos.append(f"🟡 Quase: fechou {brl(falta_total)} abaixo "
+                              f"da meta ({pct(falta_total / meta_total)})")
+            else:
+                pontos.append(f"🔴 Fechou {brl(falta_total)} abaixo da meta "
+                              f"({pct(falta_total / meta_total)})")
+        abaixo = sum(1 for d in fechados
+                     if float(d.get("realizado") or 0) < float(d.get("meta") or 0))
+        if fechados and abaixo > len(fechados) / 2:
+            pontos.append(f"📉 {abaixo} de {len(fechados)} dias com meta "
+                          "ficaram abaixo dela")
+        pontos_atencao = ("\n".join(pontos[:3]) if pontos
+                          else "✅ Mês encerrado sem pontos de atenção")
+    else:
+        titulo_mes = "MÊS ATÉ ONTEM"
+        titulo_previsao = "PREVISÃO DE FECHAMENTO"
+        restantes = [d for d in dias
+                     if float(d.get("meta") or 0) > 0
+                     and int(d.get("dia") or 0) >= hoje.day]
+        if falta_total == 0:
+            necessario_v = 0.0
+            linha_ritmo = "Meta do mês já batida 🎉"
+        elif restantes:
+            necessario_v = falta_total / len(restantes)
+            linha_ritmo = (f"Ritmo p/ meta: {brl(necessario_v)}/dia "
+                           f"({len(restantes)} dias com meta)")
+        else:
+            necessario_v = 0.0
+            linha_ritmo = (f"Faltam {brl(falta_total)} — sem dias com meta "
+                           "restantes")
+        pontos = []
+        if meta_total > 0 and previsao < meta_total:
+            gap = 1 - previsao / meta_total
+            if gap > 0.02:
+                pontos.append(f"🔴 No ritmo atual o mês fecha {pct(gap)} "
+                              "abaixo da meta")
+            else:
+                pontos.append(f"🟡 Projeção no limite: {pct(gap)} abaixo da meta")
+        seguidos = 0
+        for d in reversed(fechados):
+            if float(d.get("realizado") or 0) < float(d.get("meta") or 0):
+                seguidos += 1
+            else:
+                break
+        if seguidos >= 2:
+            pontos.append(f"📉 {seguidos} dias seguidos abaixo da meta diária")
+        if media_fechados > 0 and necessario_v > media_fechados * 1.10:
+            alta = int(round((necessario_v / media_fechados - 1) * 100))
+            pontos.append(f"⚡ O ritmo diário precisa subir {alta}% "
+                          "para fechar o mês")
+        pontos_atencao = ("\n".join(pontos[:3]) if pontos
+                          else "✅ Ritmo dentro da meta — sem pontos de atenção")
+
+    out = {
         "data": data,
         "faturado_dia": brl(fat_dia),
         "meta_dia": brl(meta_dia),
         # dia sem meta (domingo, feriado) não é 0% de atingimento: é dia sem
         # meta a bater, e mostrar "0,0%" em vermelho seria acusar quem cumpriu
-        "atingimento_dia": _atingimento_dia(fat_dia, meta_dia, em_curso),
-        "acumulado_mes": brl(realizado),
-        "meta_mes": brl(meta),
-        # o atingimento vem PRONTO da Visão Geral: recalcular aqui abriria a
-        # chance de usar o numerador de uma régua com o denominador de outra
-        "atingimento_mes": pct(visao.get("atingimento_mes")),
-        "falta_mes": brl(max(0.0, meta - realizado)),
+        "atingimento_dia": _atingimento_dia(fat_dia, meta_dia, False),
+        "farol_dia": _farol_dia(fat_dia, meta_dia, False),
+        "titulo_mes": titulo_mes,
+        "acumulado_mes": brl(realizado_fech),
+        "meta_mes": brl(meta_fech),
+        "atingimento_mes": (pct(realizado_fech / meta_fech) if meta_fech > 0
+                            else "sem meta até aqui"),
+        "farol_mes": (_semaforo(realizado_fech / meta_fech) if meta_fech > 0
+                      else "⚪"),
+        "falta_mes": brl(falta_total),
         "mes_anterior": brl(visao.get("faturamento_mes_ant")),
+        "titulo_previsao": titulo_previsao,
+        "previsao_mes": brl(previsao),
+        "previsao_vs_meta": previsao_vs_meta,
+        "farol_previsao": farol_previsao,
+        "linha_ritmo": linha_ritmo,
+        "pontos_atencao": pontos_atencao,
+        # atrás do Cloudflare Access: quem clica passa pelo login de sempre
+        "link_painel": URL_PAINEL,
     }
+    if not any((d.get("realizado") or 0) > 0 for d in dias) and not (
+            fechamento and meta_total > 0):
+        # nem emissão nem (no dia 1º) meta: não há resumo a fazer — é o
+        # terceiro estado da agenda (nada a enviar), não uma falha
+        out["_silencio"] = ("o mês anterior não tem movimento nem meta"
+                            if fechamento
+                            else "o mês ainda não tem emissão registrada")
+    return out
 
 
 def smartec_prazo_indicacao(dados: dict | None = None) -> dict:

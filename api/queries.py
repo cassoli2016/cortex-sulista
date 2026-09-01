@@ -2356,6 +2356,42 @@ SELECT dia, sum(realizado)::float8 AS realizado, sum(meta)::float8 AS meta FROM 
 ) t GROUP BY 1 ORDER BY 1
 """
 
+# O diário do MÊS ANTERIOR — a mesma régua, deslocada um mês. Derivada por
+# substituição da VG_DIARIO_SQL de propósito: escrita à parte, as duas
+# divergiriam de fonte no primeiro ajuste que alguém fizesse numa só. As
+# fontes de realizado só têm limite inferior (no mês corrente não existe
+# emissão futura); deslocadas um mês, SEM o limite superior elas trariam o
+# mês corrente junto — daí o AND acrescentado no mesmo replace.
+VG_DIARIO_ANT_SQL = (
+    VG_DIARIO_SQL
+    .replace("dtemissao >= date_trunc('month', current_date)",
+             "dtemissao >= date_trunc('month', current_date) - interval '1 month'\n"
+             "    AND dtemissao < date_trunc('month', current_date)")
+    .replace("dt >= date_trunc('month', current_date)",
+             "dt >= date_trunc('month', current_date) - interval '1 month'")
+    .replace("dt < date_trunc('month', current_date) + interval '1 month'",
+             "dt < date_trunc('month', current_date)")
+)
+
+
+def get_diario_mes_anterior() -> list[dict]:
+    """O diário (realizado × meta) do mês que FECHOU ontem.
+
+    Existe para a manhã do dia 1º: o resumo de WhatsApp mostra o fechamento
+    do mês anterior, e a Visão Geral só carrega o corrente. A meta diária
+    passa pela mesma distribuição sazonal — o TOTAL do mês é invariante.
+    """
+    hoje = date.today()
+    ant = hoje.replace(day=1) - __import__("datetime").timedelta(days=1)
+    with db.get_conn() as conn, conn.cursor() as cur:
+        cur.execute(VG_DIARIO_ANT_SQL)
+        diario = cur.fetchall()
+        cur.execute(VG_SAZONAL_SQL)
+        sazonal = cur.fetchall()
+    diario, _ = _meta_diaria_sazonal(diario, sazonal, ant.year, ant.month)
+    return diario
+
+
 # Sazonalidade do faturamento para a META DIÁRIA (pedido de 01/09/2026):
 # média de faturamento POR DIA em cada célula (dia-da-semana × década do mês),
 # sobre os últimos 6 meses FECHADOS, com as mesmas três fontes oficiais do

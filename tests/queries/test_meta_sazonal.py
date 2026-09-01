@@ -89,3 +89,16 @@ def test_residuo_de_arredondamento_vai_para_o_dia_de_maior_peso():
     cel = _celulas({2: 333.0, 3: 333.0, 4: 334.0})
     out, _ = _meta_diaria_sazonal(_diario(metas), cel, ANO, MES)
     assert round(sum(r["meta"] for r in out), 2) == 300.00
+
+
+def test_a_sql_do_mes_anterior_tem_limite_superior_em_toda_fonte():
+    """VG_DIARIO_ANT_SQL é derivada da VG_DIARIO_SQL por substituição. As
+    fontes de realizado só tinham limite inferior (no mês corrente não há
+    emissão futura); deslocadas um mês SEM o teto, trariam o mês corrente
+    junto — e o fechamento de agosto somaria setembro em silêncio."""
+    from api.queries import VG_DIARIO_ANT_SQL as ant, VG_DIARIO_SQL as cur
+    assert ant != cur
+    assert ant.count("- interval '1 month'") == 4        # 3 realizado + 1 meta
+    assert ant.count("dtemissao < date_trunc('month', current_date)") == 3
+    assert "dt < date_trunc('month', current_date)" in ant
+    assert "dt < date_trunc('month', current_date) + interval" not in ant
