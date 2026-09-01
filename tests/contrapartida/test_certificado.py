@@ -86,5 +86,28 @@ def test_sem_cnpj_no_titular_AVISA_em_vez_de_bloquear():
 
 def test_a_leitura_nao_devolve_chave_privada_nem_senha():
     d = ler(_pfx("X:12345678000199"), "segredo")
-    assert set(d) == {"titular", "cnpj", "valida_de", "valida_ate",
-                      "vencido", "dias"}
+    # aviso_senha é TEXTO de diagnóstico (qual variante abriu), nunca a senha
+    assert set(d) == {"aviso_senha", "titular", "cnpj", "valida_de",
+                      "valida_ate", "vencido", "dias"}
+    assert "segredo" not in str(d)
+
+
+def test_senha_com_espaco_colado_abre_e_avisa():
+    """Copiar a senha do e-mail/WhatsApp cola espaço ou quebra invisível —
+    a variante limpa abre, o aviso ensina, e o COFRE recebe a que abriu."""
+    from api.contrapartida.certificado import senha_que_abre
+    pfx = _pfx("X:12345678000199")
+    d = ler(pfx, "segredo \n")
+    assert d["aviso_senha"] and "espa" in d["aviso_senha"]
+    assert senha_que_abre(pfx, "segredo \n") == "segredo"
+    assert ler(pfx, "segredo")["aviso_senha"] is None
+    assert senha_que_abre(pfx, "segredo") == "segredo"
+
+
+def test_arquivo_que_nem_e_der_tem_mensagem_propria():
+    """O .cer/.pem público que a AC manda junto não pode virar 'senha
+    incorreta' — a pessoa redigitaria a senha dez vezes."""
+    import pytest as _pt
+    with _pt.raises(CertificadoInvalido) as exc:
+        ler(b"-----BEGIN CERTIFICATE-----", "x")
+    assert ".cer" in str(exc.value)

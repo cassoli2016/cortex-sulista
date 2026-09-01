@@ -151,6 +151,141 @@ def _urgencia(p: dict) -> tuple:
             p["pressao_desvio"] if p["pressao_desvio"] is not None else 99)
 
 
+# Piso de amostra do ranking de marcas: abaixo de 10 descartes a linha nem
+# entra; entre 10 e 29 entra ATENUADA com badge "base pequena" (regra da DRE
+# por Cliente). Morte prematura = carcaça descartada com menos de 40 mil km.
+MARCA_N_MIN = 10
+MARCA_N_SOLIDO = 30
+KM_PREMATURO = 40_000.0
+
+
+def _mediana(vals):
+    vs = sorted(vals)
+    n = len(vs)
+    if not n:
+        return None
+    return vs[n // 2] if n % 2 else (vs[n // 2 - 1] + vs[n // 2]) / 2.0
+
+
+def marcas(todos: list[dict]) -> dict:
+    """O que decide a MARCA da próxima compra: km de carcaça ao descarte.
+
+    A ARMADILHA MEDIDA PRIMEIRO (01/09/2026): 2.354 dos 5.012 descartes são
+    "VENDA DE PNEU COM O VEICULO" — não é fim de vida. Com eles no
+    denominador a STRADA "rendia" 39.853 km; sem eles, 99.261. A exclusão
+    MUDA O VEREDITO e por isso é a primeira linha daqui, com teste.
+
+    VIÉS DE SOBREVIVÊNCIA, dito no ⓘ da tela: o km de carcaça sai só de quem
+    MORREU — é rendimento observado nos descartes, não previsão do lote
+    atual (o mix de descarte é de compras antigas).
+    """
+    base, excluidas_venda = [], 0
+    for p0 in todos:
+        if p0.get("status") != "DISPOSAL":
+            continue
+        if "VENDA" in (p0.get("sucata_motivo") or "").upper():
+            excluidas_venda += 1
+            continue
+        km = sum((v.get("km") or 0) for v in (p0.get("cpk_por_vida") or []))
+        if km <= 0:
+            continue
+        base.append((p0, float(km)))
+
+    cpk_inst: dict[str, list[float]] = {}
+    for p0 in todos:
+        if p0.get("status") == "INSTALLED" and p0.get("cpk"):
+            cpk_inst.setdefault(p0.get("marca") or "(sem marca)", []).append(p0["cpk"])
+
+    grupos: dict[str, dict] = {}
+    for p0, km in base:
+        g = grupos.setdefault(p0.get("marca") or "(sem marca)",
+                              {"kms": [], "rskm": [], "vidas": [], "prem": 0})
+        g["kms"].append(km)
+        if p0.get("custo_compra"):
+            g["rskm"].append(p0["custo_compra"] / km)
+        if p0.get("vida") is not None:
+            g["vidas"].append(p0["vida"])
+        if km < KM_PREMATURO:
+            g["prem"] += 1
+
+    itens = []
+    for marca, g in grupos.items():
+        n = len(g["kms"])
+        if n < MARCA_N_MIN:
+            continue
+        cs = cpk_inst.get(marca) or []
+        itens.append({
+            "marca": marca, "n": n,
+            "km_mediano": _mediana(g["kms"]),
+            "rskm": _mediana(g["rskm"]),
+            "vidas_mediana": _mediana(g["vidas"]),
+            "prematuro_pct": 100.0 * g["prem"] / n,
+            "cpk_mediano": _mediana(cs), "cpk_n": len(cs),
+            "base_pequena": n < MARCA_N_SOLIDO,
+        })
+    itens.sort(key=lambda x: -(x["km_mediano"] or 0))
+    return {"itens": itens, "excluidas_venda": excluidas_venda,
+            "descartes_uteis": len(base)}
+
+
+def funil(todos: list[dict]) -> dict:
+    """A fila de reposição: quem vira RECAPAGEM e quem vira COMPRA NOVA.
+
+    Sulco baixo com carcaça DENTRO do limite de recapagens = recapagem;
+    sulco baixo no limite = compra. Fim de vida (recapagens >= máximo do
+    próprio modelo) vira compra independente do sulco.
+    """
+    rodando = [p0 for p0 in todos if p0.get("status") == "INSTALLED"]
+
+    def _no_limite(p0):
+        return (p0.get("recapagens") is not None and p0.get("recapagens_max")
+                and p0["recapagens"] >= p0["recapagens_max"])
+
+    ilegal = f16_3 = f3_5 = f3_5_lim = menos5_lim = 0
+    for p0 in rodando:
+        s0 = p0.get("sulco_menor")
+        if s0 is None:
+            continue
+        lim = _no_limite(p0)
+        if s0 < SULCO_MINIMO_LEGAL_MM:
+            ilegal += 1
+        elif s0 < 3.0:
+            f16_3 += 1
+        elif s0 < 5.0:
+            f3_5 += 1
+            if lim:
+                f3_5_lim += 1
+        if s0 < 5.0 and lim:
+            menos5_lim += 1
+    fim = sum(1 for p0 in rodando if _no_limite(p0))
+    gastos = ilegal + f16_3 + f3_5
+    return {
+        "ilegal": ilegal, "f16_3": f16_3, "f3_5": f3_5,
+        "f3_5_no_limite": f3_5_lim,
+        # quem precisa de troca em breve (sulco < 5): recapagem × compra
+        "recap_candidatos": gastos - menos5_lim,
+        "compra_nova": menos5_lim,
+        "fim_de_vida": fim,
+        "estoque": sum(1 for p0 in todos if p0.get("status") == "INVENTORY"),
+        "analise": sum(1 for p0 in todos if p0.get("status") == "ANALYSIS"),
+    }
+
+
+def sucata_motivos(todos: list[dict]) -> list[dict]:
+    """Por que os pneus morrem — a venda com veículo fica FORA (não é morte)
+    e aparece como linha própria na tela, nunca misturada."""
+    cont: dict[str, int] = {}
+    for p0 in todos:
+        if p0.get("status") != "DISPOSAL":
+            continue
+        m = (p0.get("sucata_motivo") or "(sem motivo)").strip() or "(sem motivo)"
+        if "VENDA" in m.upper():
+            continue
+        cont[m] = cont.get(m, 0) + 1
+    return sorted(({"motivo": m, "n": n} for m, n in cont.items()),
+                  key=lambda x: -x["n"])[:12]
+
+
 def analisar(brutos: list[dict]) -> dict:
     """Indicadores a partir do BRUTO da Prolog."""
     return analisar_normalizados([pneu(r) for r in brutos])

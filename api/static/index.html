@@ -4389,6 +4389,42 @@ body.tvfull #btnReport,body.tvmode #btnReport{display:none}
             <label>Filial<select id="fPnFilial" onchange="loadPneus()" aria-label="Filial"><option value="">Todas</option></select></label>
           </div>
         </div>
+        <div class="subtabs" role="tablist" data-abas="pneus" aria-label="Seções dos pneus">
+          <button role="tab" id="tabpn-compra" data-aba="compra" aria-controls="aba-pn-compra" aria-selected="true" onclick="abaTrocar('pneus','compra')">Compra e reposição <span class="aban" id="pnCompraN"></span></button>
+          <button role="tab" id="tabpn-marcas" data-aba="marcas" aria-controls="aba-pn-marcas" aria-selected="false" onclick="abaTrocar('pneus','marcas')">Marcas e rendimento <span class="aban" id="pnMarcasN"></span></button>
+          <button role="tab" id="tabpn-risco" data-aba="risco" aria-controls="aba-pn-risco" aria-selected="false" onclick="abaTrocar('pneus','risco')">Risco agora <span class="aban" id="pnRiscoN"></span></button>
+          <button role="tab" id="tabpn-parque" data-aba="parque" aria-controls="aba-pn-parque" aria-selected="false" onclick="abaTrocar('pneus','parque')">Parque e vida</button>
+        </div>
+        <div class="aba" data-abas="pneus" data-aba="compra" id="aba-pn-compra" role="tabpanel" aria-labelledby="tabpn-compra">
+          <div class="kpis k4" id="kpis-pn-compra"></div>
+          <div class="card">
+            <div class="head"><h2>Compras de pneu — 24 meses <span class="badge b-info" title="A série vem das notas de entrada do ERP (notafiscalentrada_item × produto), não da Prolog — e não obedece aos filtros de situação/filial desta tela.">fonte: ERP · ignora os filtros</span> <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="Notas fiscais de ENTRADA classificadas pela descrição do produto: pneu novo (descrição começando com PNEU), recapagem, usado. Serviço de montagem e conserto ficam fora — na primeira medição eles inflavam o ritmo em 4×. Os novos compram-se em LOTE (out/25: 184 · nov/25 a jan/26: zero — a frota viveu do lote); a recapagem é fluxo estável. Mês sem compra aparece vazio de propósito.">i</span></h2><span class="hint" id="pn-compras-hint"></span></div>
+            <div class="chartwrap"><div id="chartPnCompras" style="width:100%;height:240px" role="img"></div></div>
+          </div>
+          <div class="card">
+            <div class="head"><h2>Preço vigente por item <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="Preço unitário médio dos últimos 90 dias por item comprado (mínimo 2 unidades) — a referência de negociação. Recapagem a ~R$ 600 contra pneu novo a ~R$ 1.600 é a economia da carcaça em número.">i</span><span class="hint">últimos 90 dias · referência de negociação</span></div>
+            <div class="tablewrap tabroll" style="max-height:260px"><table><thead><tr>
+              <th>Item</th><th class="num">Unidades</th><th class="num">R$/unidade</th>
+            </tr></thead><tbody id="pn-precos"></tbody></table></div>
+          </div>
+        </div>
+        <div class="aba" data-abas="pneus" data-aba="marcas" id="aba-pn-marcas" role="tabpanel" aria-labelledby="tabpn-marcas" data-ao-abrir="pnMarcasDesenhar" hidden>
+          <div class="grid2">
+            <div class="card"><div class="head"><h2>Km de carcaça por marca <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="Km total da carcaça (soma das vidas) ao DESCARTE, mediana por marca. Exclui a venda de pneu com o veículo (2.354 de 5.012 baixas — não é fim de vida, e com elas no denominador o ranking INVERTE). É rendimento observado nos descartes, não previsão do lote atual: comparação de parque, não experimento — marcas rodam em posições e veículos diferentes.">i</span></h2><span class="hint" id="pn-marcas-hint"></span></div>
+              <div class="chartwrap narrow"><div id="chartPnMarcas" style="width:100%;height:260px" role="img"></div></div></div>
+            <div class="card"><div class="head"><h2>Motivos de sucata <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="Por que os pneus morrem (a venda com veículo fica fora — não é morte). BAIXA PRESSÃO como motivo de sucata é o elo com o KPI de pressão da aba Risco: pneu mal calibrado morre antes.">i</span></h2><span class="hint" id="pn-sucata-hint"></span></div>
+              <div class="tablewrap tabroll" style="max-height:250px"><table><thead><tr>
+                <th>Motivo</th><th class="num">Pneus</th>
+              </tr></thead><tbody id="pn-sucata"></tbody></table></div></div>
+          </div>
+          <div class="card">
+            <div class="head"><h2>Rendimento por marca <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="Sobre os descartes por fim de vida com km (1.317 carcaças): km mediano, R$ de aquisição por km de carcaça, vidas medianas e % de morte prematura (menos de 40 mil km). Marca com menos de 30 descartes sai atenuada com o aviso de base pequena; menos de 10 nem entra. O CPK é o da Prolog, nos pneus INSTALADOS da marca.">i</span></h2><span class="hint" id="pn-marcas-tab-hint"></span></div>
+            <div class="tablewrap tabroll" style="max-height:300px"><table><thead><tr>
+              <th>Marca</th><th class="num">Descartes</th><th class="num">Km de carcaça (med)</th><th class="num">R$ aquisição/km</th><th class="num">Vidas (med)</th><th class="num">Morte &lt;40 mil km</th><th class="num">CPK instalados</th>
+            </tr></thead><tbody id="pn-marcas"></tbody></table></div>
+          </div>
+        </div>
+        <div class="aba" data-abas="pneus" data-aba="risco" id="aba-pn-risco" role="tabpanel" aria-labelledby="tabpn-risco" hidden>
         <div class="kpis k4" id="kpis-pneus"></div>
         <div class="card">
           <div class="head"><h2>Ação imediata <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="Pneu rodando com sulco abaixo do mínimo legal (1,6 mm, CONTRAN) ou pressão 20% abaixo da recomendada. O eixo DIRECIONAL vem primeiro: careca na direção é parada imediata, não agendamento de troca.">i</span></h2>
@@ -4398,10 +4434,12 @@ body.tvfull #btnReport,body.tvmode #btnReport{display:none}
             <th class="num">Sulco</th><th class="num">Pressão</th><th class="num">Vida</th>
           </tr></thead><tbody id="pn-criticos"></tbody></table></div>
         </div>
+        </div>
+        <div class="aba" data-abas="pneus" data-aba="parque" id="aba-pn-parque" role="tabpanel" aria-labelledby="tabpn-parque" hidden>
         <div class="card">
           <div class="head"><h2>Pneus rodando por vida <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="Quantos pneus em serviço estão em cada vida — vida 1 é o pneu novo, vida 2 é depois da primeira recapagem, e assim por diante. O CPK ao lado é o que decide recapar: cada vida a mais dilui o custo do pneu por mais quilômetro rodado. A mediana vem com a contagem de quem tem CPK calculado, porque numa vida com poucos pneus medidos ela é frágil.">i</span></h2>
             <span class="hint" id="hintPnVida"></span></div>
-          <div class="tablewrap tabroll"><table><thead><tr>
+          <div class="tablewrap tabroll" style="max-height:300px"><table><thead><tr>
             <th>Vida</th><th class="num">Pneus rodando</th><th></th>
             <th class="num">CPK mediano</th><th class="num">No limite de recapagens</th>
           </tr></thead><tbody id="pn-vidas"></tbody></table></div>
@@ -4410,19 +4448,20 @@ body.tvfull #btnReport,body.tvmode #btnReport{display:none}
           <div class="card">
             <div class="head"><h2>Fim de vida útil <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="Pneus que já atingiram o número de recapagens previsto para o próprio modelo. O limite vem do cadastro de cada pneu — um número fixo condenaria pneu bom e liberaria pneu no fim.">i</span></h2>
               <span class="hint" id="hintPnFim"></span></div>
-            <div class="tablewrap tabroll"><table><thead><tr>
+            <div class="tablewrap tabroll" style="max-height:300px"><table><thead><tr>
               <th>Veículo</th><th>Série</th><th class="num">Recapagens</th><th class="num">CPK</th>
             </tr></thead><tbody id="pn-fimvida"></tbody></table></div>
           </div>
           <div class="card">
             <div class="head"><h2>Situação do parque <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="Onde está cada pneu cadastrado. Instalado é o que roda; estoque, análise (na recapadora) e sucateado são o resto do parque.">i</span></h2>
               <span class="hint" id="hintPnParque"></span></div>
-            <div class="tablewrap tabroll"><table><thead><tr>
+            <div class="tablewrap tabroll" style="max-height:300px"><table><thead><tr>
               <th>Situação</th><th class="num">Pneus</th><th></th>
             </tr></thead><tbody id="pn-parque"></tbody></table></div>
           </div>
         </div>
         <div id="pn-avisos"></div>
+        </div>
       </section>
 
       <section class="view" id="view-ferias">
@@ -15350,8 +15389,94 @@ function pnPressao(p){
   return `<b style="color:${c}">${sinal}${p.pressao_desvio.toLocaleString('pt-BR',{maximumFractionDigits:1})}%</b>`;
 }
 
+/* Aba "Compra e reposição": o funil da Prolog + o ritmo de compra do ERP. */
+function renderPnCompra(d){
+  const f=d.funil||{}, c=d.compras||{}, r=c.ritmo_12m||null;
+  const ritmoMes=r?(r.novos_mes+r.recap_mes+r.usados_mes):null;
+  const cobSem=(ritmoMes&&f.estoque!=null)?Math.round(f.estoque/(ritmoMes/4.33)):null;
+  const precos=c.precos||[];
+  const pNovo=(precos.find(x=>/NOVO/i.test(x.item))||{}).unit;
+  const pRecap=(precos.find(x=>/RECAPAGEM/i.test(x.item))||{}).unit;
+  document.getElementById('kpis-pn-compra').innerHTML=[
+    kpi('Compra iminente', String((f.compra_nova||0)+(f.ilegal||0)+(f.f16_3||0)),
+      `${f.compra_nova||0} no limite de recapagem · ${(f.ilegal||0)+(f.f16_3||0)} com sulco ≤3mm`,
+      ((f.ilegal||0)>0?'neg':((f.compra_nova||0)>0?'warn':'pos')),
+      'Pneus rodando que vão sair de cena em breve e NÃO podem voltar como recapagem: sulco abaixo de 3mm ou carcaça que já bateu o teto de recapagens do próprio modelo. Os de 3 a 5mm fora do limite viram recapagem, não compra — a quebra está no gráfico e no hint.'),
+    kpi('Estoque × ritmo', (f.estoque||0)+' pneus',
+      cobSem!=null?('≈ '+cobSem+' semana(s) do ritmo de reposição'):'sem ritmo do ERP para comparar',
+      cobSem!=null&&cobSem<3?'warn':'',
+      'Pneus em estoque na Prolog contra o ritmo mensal de reposição (novos + recapagens + usados, média de 12 meses das notas de entrada do ERP). Menos de 3 semanas de cobertura é sinal de compra a caminho — e há '+(f.analise||0)+' pneus na recapadora como fila de retorno.'),
+    kpi('Ritmo de compra 12m', r?(Math.round(r.novos_mes)+' novos + '+Math.round(r.recap_mes)+' recap./mês'):'—',
+      r?('R$ '+brlAbbr(r.total_12m_vl).replace('R$ ','')+' em 12 meses'):'ERP indisponível',
+      '',
+      'Média mensal dos últimos 12 meses nas notas de entrada. Os novos compram-se em LOTE (out/25: 184; nov/25 a jan/26: zero); a recapagem é fluxo estável — a régua de reposição da frota.'),
+    kpi('Preço vigente', pNovo?('R$ '+Math.round(pNovo).toLocaleString('pt-BR')+' novo'):'—',
+      pRecap?('recapagem R$ '+Math.round(pRecap).toLocaleString('pt-BR')+' — '+(pNovo?Math.round(100*pRecap/pNovo)+'% do novo':'')):'',
+      '',
+      'Preço unitário médio dos últimos 90 dias (notas de entrada). A recapagem custa ~37% do pneu novo: cada carcaça que aguenta mais uma vida economiza a diferença.'),
+  ].join('');
+  const serie=(c.serie||[]);
+  const err=c.erro;
+  ecDesenhar('chartPnCompras', (!err&&serie.length) && (()=>{
+    const maxQ=Math.max(1,...serie.map(x=>Math.max(x.novos_qt||0,x.recap_qt||0)));
+    const o=ecOpcoes(serie.map(x=>x.mes.slice(5,7)+'/'+x.mes.slice(2,4)), maxQ*1.15,
+      {tipo:'contagem', sombra:true, legenda:['Novos','Recapagens'], intervalo:1});
+    o.tooltip.formatter=p2=>{
+      const x=serie[p2[0].dataIndex];
+      return `<b>${x.mes}</b><br>Novos: <b>${Math.round(x.novos_qt)}</b> (${BRL.format(x.novos_vl||0)})<br>`+
+        `Recapagens: <b>${Math.round(x.recap_qt)}</b> (${BRL.format(x.recap_vl||0)})<br>`+
+        `Usados: ${Math.round(x.usados_qt)}`;
+    };
+    o.series=[
+      ecBarras('Novos', serie.map(x=>x.novos_qt||0), CC.navy500, {largura:11}),
+      ecBarras('Recapagens', serie.map(x=>x.recap_qt||0), CC.orange500||'#E85D10', {largura:11}),
+    ];
+    return o;
+  }), err||'sem compra registrada nos 24 meses');
+  abaContador('pnCompraN', (f.compra_nova||0)+(f.ilegal||0)+(f.f16_3||0));
+  document.getElementById('pn-compras-hint').textContent=err?'':
+    `fila de troca: ${f.recap_candidatos||0} viram recapagem · ${(f.compra_nova||0)+(f.ilegal||0)+(f.f16_3||0)} viram compra nova`;
+  document.getElementById('pn-precos').innerHTML=precos.map(x=>`<tr>
+    <td>${esc(x.item)}</td><td class="num">${Math.round(x.qt)}</td>
+    <td class="num" style="font-weight:600">R$ ${Math.round(x.unit).toLocaleString('pt-BR')}</td></tr>`).join('')
+    ||`<tr><td colspan="3" class="hint">${esc(err||'sem compra nos últimos 90 dias')}</td></tr>`;
+}
+/* Aba "Marcas e rendimento" — a tabela desenha no render; o gráfico só com a
+   aba visível (data-ao-abrir). */
+function renderPnMarcasTabela(d){
+  const m=d.marcas||{}, itens=m.itens||[];
+  document.getElementById('pn-marcas').innerHTML=itens.map(x=>{
+    const dim=x.base_pequena?' style="color:var(--n500)"':'';
+    return `<tr${dim}><td>${esc(x.marca)}${x.base_pequena?' <span class="badge b-warn" title="menos de 30 descartes — mediana frágil">base pequena</span>':''}</td>
+      <td class="num">${x.n}</td>
+      <td class="num" style="font-weight:600">${Math.round(x.km_mediano).toLocaleString('pt-BR')}</td>
+      <td class="num">${x.rskm!=null?'R$ '+x.rskm.toLocaleString('pt-BR',{minimumFractionDigits:4,maximumFractionDigits:4}):'—'}</td>
+      <td class="num">${x.vidas_mediana!=null?x.vidas_mediana:'—'}</td>
+      <td class="num">${Math.round(x.prematuro_pct)}%</td>
+      <td class="num">${x.cpk_mediano!=null?('R$ '+x.cpk_mediano.toLocaleString('pt-BR',{minimumFractionDigits:3,maximumFractionDigits:3})+' <span class="hint">(n='+x.cpk_n+')</span>'):'—'}</td></tr>`;
+  }).join('')||'<tr><td colspan="7" class="hint">sem descarte com km para medir</td></tr>';
+  abaContador('pnMarcasN', itens.length);
+  document.getElementById('pn-marcas-tab-hint').textContent=
+    `${m.descartes_uteis||0} descartes por fim de vida com km · ${m.excluidas_venda||0} vendas com veículo EXCLUÍDAS (não é fim de vida)`;
+  document.getElementById('pn-sucata').innerHTML=(d.sucata_motivos||[]).map(x=>`<tr>
+    <td>${/PRESS/i.test(x.motivo)?`<b>${esc(x.motivo)}</b> <span class="badge b-warn" title="pneu mal calibrado morre antes — o elo com o KPI de pressão da aba Risco">calibragem</span>`:esc(x.motivo)}</td>
+    <td class="num">${x.n}</td></tr>`).join('')||'<tr><td colspan="2" class="hint">sem sucata registrada</td></tr>';
+  document.getElementById('pn-sucata-hint').textContent='sem as vendas com veículo';
+}
+function pnMarcasDesenhar(){
+  const d=DATAPN; if(!d) return;
+  const itens=((d.marcas||{}).itens||[]).filter(x=>!x.base_pequena);
+  chartHBars('chartPnMarcas', itens.map(x=>({rotulo:x.marca, valor:x.km_mediano})),
+    {fmt:v=>Math.round(v).toLocaleString('pt-BR')+' km', cor:()=>CC.navy500||'#38648D'});
+  document.getElementById('pn-marcas-hint').textContent=itens.length
+    ? `mediana de km ao descarte · só marcas com 30+ descartes`
+    : 'sem marca com 30+ descartes';
+}
 function renderPneus(d){
   const k=d.kpis||{};
+  renderPnCompra(d);
+  renderPnMarcasTabela(d);
+  const am=document.getElementById('aba-pn-marcas'); if(am&&!am.hidden) pnMarcasDesenhar();
 
   const fs=document.getElementById('fPnFilial');
   if(fs && fs.options.length<=1){
@@ -15394,6 +15519,7 @@ function renderPneus(d){
 
   // -------- acao imediata
   const C=d.criticos||[];
+  abaContador('pnRiscoN', C.length);
   document.getElementById('hintPnCrit').textContent =
     C.length ? (C.length+' pneu(s) · eixo direcional primeiro')
              : 'nenhum pneu rodando fora do limite legal ou com pressão crítica';

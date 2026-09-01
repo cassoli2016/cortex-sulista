@@ -44,6 +44,16 @@ def obter(status: str = "", filial: str = "") -> dict:
 
     d = an.analisar_normalizados(pneus)
 
+    # marcas, funil, motivos e compras usam o snapshot COMPLETO por
+    # definição (o rendimento de marca vive nos DESCARTES e as compras no
+    # ERP) — a tela põe o badge "não segue o filtro de situação"
+    todos = snap.get("pneus") or []
+    d["marcas"] = an.marcas(todos)
+    d["funil"] = an.funil(todos)
+    d["sucata_motivos"] = an.sucata_motivos(todos)
+    from api.pneus import compras_erp
+    d["compras"] = compras_erp.compras()
+
     total_api = snap.get("total_na_api")
     lidos = len(snap.get("pneus") or [])
     d["filtros"] = {"status": status, "filial": filial}

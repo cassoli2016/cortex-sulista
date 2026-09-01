@@ -1,3 +1,29 @@
+- versao: "0.202.0"
+  data: "2026-09-01"
+  adicionado:
+    - >-
+      Pneus em quatro abas, com a decisão de compra no centro. "Compra e
+      reposição": a fila de troca separada em recapagem × compra nova (61
+      pneus viram compra: sulco no fim OU carcaça no limite de recapagens),
+      o estoque contra o ritmo real de reposição (66 pneus ≈ 2 semanas), o
+      ritmo de compra de 12 meses das notas do ERP (38 novos + 87
+      recapagens/mês — os novos vêm em LOTE, a recapagem é fluxo) e o preço
+      vigente por item (recapagem a R$ 599 = 37% do pneu novo). "Marcas e
+      rendimento": km de carcaça ao descarte por marca (OTANI 121 mil km ×
+      West Lake 76 mil), R$ de aquisição por km, vidas e morte prematura —
+      EXCLUINDO as 2.354 vendas de pneu com o veículo, que não são fim de
+      vida e invertiam o ranking; motivos de sucata com o elo baixa
+      pressão → calibragem. "Risco agora" e "Parque e vida" reorganizam o
+      que a tela já tinha.
+  corrigido:
+    - >-
+      Certificado A1 (.pfx/.p12) dos agregados: a mensagem "senha incorreta
+      ou arquivo inválido" agora diagnostica de verdade — senha com espaço
+      ou quebra colada (o clássico do copiar do e-mail/WhatsApp) abre
+      sozinha e AVISA, senha acentuada em codificação antiga também, e o
+      arquivo .cer/.pem público que a AC manda junto é reconhecido e dito
+      ("este não é o arquivo que exige senha"). A senha gravada no cofre é
+      a variante que ABRIU, nunca a digitada com o espaço.
 - versao: "0.201.0"
   data: "2026-09-01"
   adicionado:

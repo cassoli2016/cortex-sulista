@@ -2887,7 +2887,8 @@ def fiscal_contrapartida_certificado(payload: dict, req: Request) -> JSONRespons
     import base64
     from api.contrapartida import cadastro
     from api.contrapartida.certificado import (MAX_BYTES, CertificadoInvalido,
-                                               conferir_titularidade, ler)
+                                               conferir_titularidade, ler,
+                                               senha_que_abre)
     # a sessao e quem responde pela autorizacao: trilha com "?" nao serve
     # para nada meses depois, que e exatamente quando ela e consultada
     _s = getattr(req.state, "sessao", None) or {}
@@ -2930,6 +2931,8 @@ def fiscal_contrapartida_certificado(payload: dict, req: Request) -> JSONRespons
         return JSONResponse(status_code=422, content={
             "erro": "certificado_invalido", "mensagem": str(exc)})
     avisos = []
+    if lido.get("aviso_senha"):
+        avisos.append(lido["aviso_senha"])
     conf = conferir_titularidade(lido, cnpj)
     if conf:
         avisos.append(conf)
@@ -2943,7 +2946,10 @@ def fiscal_contrapartida_certificado(payload: dict, req: Request) -> JSONRespons
         segredo_arquivo.proteger(alvo)   # ACL de verdade, nao so chmod
         cadastro.gravar_certificado(
             cnpj, "A1", quem, arquivo=alvo.name,
-            valida_ate=lido["valida_ate"], titular=lido["titular"], senha=senha)
+            valida_ate=lido["valida_ate"], titular=lido["titular"],
+            # a senha que ABRIU (pode ser a variante sem o espaço colado do
+            # copiar-e-colar) — gravar a digitada quebraria a transmissão
+            senha=senha_que_abre(bruto, senha) or senha)
     except Exception as exc:  # noqa: BLE001
         log.warning("gravar certificado falhou: %s", exc)
         return JSONResponse(status_code=500, content={

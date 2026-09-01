@@ -36,6 +36,53 @@ def _so_digitos(t: str) -> str:
     return re.sub(r"[^0-9]", "", t or "")
 
 
+def _variantes_de_senha(senha: str) -> list:
+    """(bytes a tentar, aviso quando NÃO for a original, senha em texto).
+
+    A senha certa pode falhar por detalhe invisível: espaço/quebra colada ao
+    copiar do e-mail ou WhatsApp, ou acento em codificação antiga (latin-1).
+    Tentar as variantes custa nada, e AVISAR qual funcionou ensina o que
+    aconteceu — em vez do "senha incorreta" que faz digitar dez vezes.
+    """
+    orig = senha or ""
+    out = [(orig.encode("utf-8"), None, orig)]
+    if orig != orig.strip():
+        out.append((orig.strip().encode("utf-8"),
+                    "A senha veio com espaço ou quebra de linha colada "
+                    "(acontece ao copiar do e-mail/WhatsApp) — abriu depois "
+                    "de removê-los.", orig.strip()))
+    try:
+        latin = orig.encode("latin-1")
+        if latin != orig.encode("utf-8"):
+            out.append((latin, "A senha tem caractere acentuado e o "
+                        "certificado foi gerado com codificação antiga — "
+                        "abriu na codificação latin-1.", orig))
+    except UnicodeEncodeError:
+        pass
+    if orig:
+        out.append((b"", "O arquivo não tem senha — abriu com a senha em "
+                    "branco.", ""))
+    return out
+
+
+def senha_que_abre(bruto: bytes, senha: str) -> str | None:
+    """A senha (em texto) que de fato ABRE o arquivo, para o COFRE.
+
+    Existe separada de `ler()` de propósito: os metadados que a tela mostra
+    não podem carregar segredo (há guard cobrando isso). Quem grava a senha
+    chama aqui — gravar a DIGITADA quando quem abriu foi a variante sem o
+    espaço colado faria a transmissão falhar meses depois, longe da causa.
+    """
+    from cryptography.hazmat.primitives.serialization import pkcs12
+    for tent, _aviso, texto in _variantes_de_senha(senha):
+        try:
+            pkcs12.load_key_and_certificates(bruto, tent)
+            return texto
+        except Exception:  # noqa: BLE001
+            continue
+    return None
+
+
 def ler(bruto: bytes, senha: str) -> dict:
     """Abre o .pfx e devolve titular, CNPJ e validade. NUNCA devolve a senha
     nem a chave privada — só os metadados que a tela precisa mostrar."""
@@ -43,16 +90,39 @@ def ler(bruto: bytes, senha: str) -> dict:
 
     if not bruto:
         raise CertificadoInvalido("Arquivo vazio.")
-    try:
-        _chave, cert, _extras = pkcs12.load_key_and_certificates(
-            bruto, (senha or "").encode("utf-8"))
-    except Exception as exc:  # noqa: BLE001
-        # a mensagem da biblioteca nao distingue senha errada de arquivo
-        # corrompido; dizer as duas hipoteses e mais util que repassar o erro
-        log.warning("pfx nao abriu: %s", type(exc).__name__)
+    if bruto[:1] != b"\x30":
+        # PKCS#12 e DER e DER comeca com SEQUENCE (0x30). Um arquivo que nem
+        # comeca assim nao e p12 nenhum — e provavelmente o .cer/.pem publico
+        # que a AC manda JUNTO do certificado, ou um zip. Dizer ISSO poupa a
+        # pessoa de re-digitar a senha dez vezes.
         raise CertificadoInvalido(
-            "Não foi possível abrir o certificado: senha incorreta ou arquivo "
-            "que não é um .pfx/.p12 válido.") from None
+            "Este arquivo não é um .pfx/.p12: o formato não confere. "
+            "Confira se não é o arquivo .cer/.pem público (que a AC manda "
+            "junto) ou um .zip por abrir — o certificado A1 é o arquivo "
+            "que EXIGE senha.")
+
+    tentativas = _variantes_de_senha(senha)
+
+    cert = None
+    aviso_senha: str | None = None
+    ultimo: Exception | None = None
+    for tent, aviso, _txt in tentativas:
+        try:
+            _chave, cert, _extras = pkcs12.load_key_and_certificates(bruto, tent)
+            aviso_senha = aviso
+            break
+        except Exception as exc:  # noqa: BLE001
+            ultimo = exc
+    if cert is None and ultimo is not None:
+        # a mensagem da biblioteca nao distingue senha errada de arquivo
+        # corrompido; dizer as hipoteses REAIS e mais util que repassar o erro
+        log.warning("pfx nao abriu: %s", type(ultimo).__name__)
+        raise CertificadoInvalido(
+            "Não foi possível abrir o certificado: a senha não confere "
+            "(tentei também sem espaços nas pontas e em codificação antiga). "
+            "Confira se a senha é a do ARQUIVO A1 — a AC costuma emitir uma "
+            "senha de instalação e outra de revogação, e não são a mesma.") \
+            from None
     if cert is None:
         raise CertificadoInvalido("O arquivo não contém certificado.")
 
@@ -76,6 +146,7 @@ def ler(bruto: bytes, senha: str) -> dict:
     agora = datetime.now(timezone.utc)
 
     return {
+        "aviso_senha": aviso_senha,
         "titular": titular.split(":")[0].strip() or titular,
         "cnpj": doc,
         "valida_de": ini.date().isoformat(),
