@@ -2341,7 +2341,7 @@ body.tvfull #btnReport,body.tvmode #btnReport{display:none}
         <a href="#km" class="sub" data-view="km" title="Análise de KM"><span class="ic" data-ic="kmv"></span><span>Análise de KM</span></a>
         <a href="#cex" class="sub" data-view="cex" title="Custos Extras por CT-e"><span class="ic" data-ic="cexic"></span><span>Custos Extras</span></a>
         <a href="#jorn" class="sub" data-view="jorn" title="Jornada do Motorista (Lei 13.103) — apuração da RasterJOR, com as inconformidades nomeadas pelo fornecedor"><span class="ic" data-ic="jornic"></span><span>Jornada do Motorista</span></a>
-        <a href="#mvb" class="sub" data-view="mvb" title="Make vs Buy"><span class="ic" data-ic="mvb"></span><span>Make vs Buy</span></a>
+        <a href="#mvb" class="sub" data-view="mvb" title="Frota própria ou agregado, rota a rota"><span class="ic" data-ic="mvb"></span><span>Frota Própria × Agregado</span></a>
         <a href="#milkrun" class="sub" data-view="milkrun" title="Operação MWM: chegada e saída detectadas pelo rastreamento"><span class="ic" data-ic="milkic"></span><span>Operação MWM</span></a>
         <a href="#poli" class="sub" data-view="poli" title="Permanência na Planta — quanto tempo o veículo passa dentro da planta da Tupy e em quais polígonos"><span class="ic" data-ic="poliic"></span><span>Permanência na Planta</span></a>
         <a href="#port" class="sub" data-view="port" title="Portaria — controle de pátio e autorização de saída"><span class="ic" data-ic="porta"></span><span>Portaria</span></a>
@@ -3168,7 +3168,7 @@ body.tvfull #btnReport,body.tvmode #btnReport{display:none}
             <label style="font-size:11px;color:var(--n500);display:flex;flex-direction:column;gap:2px">Dia
               <input type="date" id="fTelhodDia" onchange="telhodRastro()" style="width:160px"></label>
           </div>
-          <div id="telhod-mapa" style="height:420px;margin:0 14px 14px;border-radius:8px"></div>
+          <div id="telhod-mapa" style="height:420px;margin:0 14px 14px;border-radius:8px;overflow:hidden;position:relative;z-index:1"></div>
         </div>
       </section>
 
@@ -4201,7 +4201,7 @@ body.tvfull #btnReport,body.tvmode #btnReport{display:none}
           <div class="card">
             <div class="head"><h2>Tupy Joinville — calor por tempo parado <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="O perímetro e os polígonos internos de cadastro_poligono, cada ponto pintado pela SOMA de horas paradas nele no período filtrado — escala sequencial do amarelo ao vinho, por fração do ponto mais carregado. Cinza tracejado é ponto cadastrado SEM visita no período: sumir do mapa esconderia justamente o ponto morto. O tooltip de cada polígono traz a mediana por visita, as visitas e as placas — a mediana é a régua de atendimento; o TOTAL é a régua de onde a planta consome as horas da frota.">i</span></h2>
               <span class="hint" id="hintPoliMapa"></span></div>
-            <div id="poliMapa" style="height:430px;border-radius:0 0 14px 14px"></div>
+            <div id="poliMapa" style="height:430px;border-radius:0 0 14px 14px;overflow:hidden;position:relative;z-index:1"></div>
             <div class="hint" id="poliMapaLegenda" style="padding:8px 18px 12px"></div>
           </div>
         </div>
@@ -4509,7 +4509,7 @@ body.tvfull #btnReport,body.tvmode #btnReport{display:none}
               <span class="hint" id="hintMilkMapa">pontos de coleta e veículos</span>
               <button class="ghost" id="btnMilkExp" onclick="milkExpandir()"
                       aria-expanded="false" title="Expandir o mapa para a tela inteira">Expandir</button></div>
-            <div id="mapaMilk" style="height:300px;border-radius:0 0 10px 10px;background:var(--navy-50)"></div>
+            <div id="mapaMilk" style="height:300px;border-radius:0 0 10px 10px;background:var(--navy-50);overflow:hidden;position:relative;z-index:1"></div>
           </div>
         </div>
         <div class="aba" data-abas="milkrun" data-aba="perg" id="aba-milkrun-perg" role="tabpanel" aria-labelledby="tabmilkrun-perg" hidden>
@@ -6940,7 +6940,7 @@ const FAIXAS = {
   '4_vencido_91_365':['Vencido 91–365d','b-dang'],
   '5_vencido_mais_365':['Vencido > 365d','b-dang'],
 };
-const VIEWS = { home:'Visão Geral', fluxo:'Fluxo de Caixa e Bancos', receber:'Contas a Receber', pagar:'Contas a Pagar', oc:'Ordens de Compra', custos:'Painel de Custos', agr:'Agregados e Terceiros', mvb:'Make vs Buy', pedagio:'Validação de Pedágio', comb:'Combustível', man:'Manutenção', com:'Clientes e RKM', clif:'Consulta de Cliente', crm:'CRM — Funil Comercial', km:'Análise de KM', prodveic:'Produtividade de Veículos', torre:'Torre de Controle', poli:'Permanência na Planta', ctecp:'CT-e de Contrapartida', veic:'Veículos', veicf:'Consulta de Veículo', mprev:'Manutenção Preventiva', comrast:'Comunicação Rastreadora', mul:'Multas — Smartec', prog:'Programação Inteligente', jorn:'Jornada do Motorista', jornf:'Ficha de Jornada', cex:'Custos Extras', sac:'SAC / Freetime', port:'Portaria', cop:'Copiloto Cortex', cob:'Régua de Cobrança', banc:'Bancos', extb:'Extrato Bancário', lanc:'Lançamentos Bancários', antec:'Antecipação de Recebíveis', antport:'Portais de Antecipação', milkrun:'Operação MWM', rec:'Lançamentos Recorrentes', fluxcon:'Fluxo de Caixa Consolidado', cont:'Contabilidade', qual:'Qualidade e Certidões', orc:'Orçamento', fech:'Fechamento do Mês', prem:'Premiação de Motoristas', dre:'DRE Gerencial', bal:'Balanço Patrimonial', drecli:'DRE por Cliente', tvfat:'Painel TV — Faturamento', tvope:'Painel TV — Operação', tvdir:'Painel TV — Diretoria', rh:'RH — Vagas', hc:'Headcount', folha:'Custo de Folha', folhaind:'Indicadores de Folha', he:'Horas Extras', cnh:'CNH dos Motoristas', ferias:'Férias — Vencimento', people:'People Analytics', pneus:'Pneus', gestao:'Gestão', gesacao:'Planos de Ação', gesata:'Atas de Reunião', srv:'Saúde do Servidor', doc:'Documentação', anpiso:'Piso Mínimo de Frete', anrntrc:'RNTRC dos Transportadores', telcon:'Consumo e Estatísticas', telcond:'Condução Econômica', telhod:'Hodômetro e Rastro' };
+const VIEWS = { home:'Visão Geral', fluxo:'Fluxo de Caixa e Bancos', receber:'Contas a Receber', pagar:'Contas a Pagar', oc:'Ordens de Compra', custos:'Painel de Custos', agr:'Agregados e Terceiros', mvb:'Frota Própria × Agregado', pedagio:'Validação de Pedágio', comb:'Combustível', man:'Manutenção', com:'Clientes e RKM', clif:'Consulta de Cliente', crm:'CRM — Funil Comercial', km:'Análise de KM', prodveic:'Produtividade de Veículos', torre:'Torre de Controle', poli:'Permanência na Planta', ctecp:'CT-e de Contrapartida', veic:'Veículos', veicf:'Consulta de Veículo', mprev:'Manutenção Preventiva', comrast:'Comunicação Rastreadora', mul:'Multas — Smartec', prog:'Programação Inteligente', jorn:'Jornada do Motorista', jornf:'Ficha de Jornada', cex:'Custos Extras', sac:'SAC / Freetime', port:'Portaria', cop:'Copiloto Cortex', cob:'Régua de Cobrança', banc:'Bancos', extb:'Extrato Bancário', lanc:'Lançamentos Bancários', antec:'Antecipação de Recebíveis', antport:'Portais de Antecipação', milkrun:'Operação MWM', rec:'Lançamentos Recorrentes', fluxcon:'Fluxo de Caixa Consolidado', cont:'Contabilidade', qual:'Qualidade e Certidões', orc:'Orçamento', fech:'Fechamento do Mês', prem:'Premiação de Motoristas', dre:'DRE Gerencial', bal:'Balanço Patrimonial', drecli:'DRE por Cliente', tvfat:'Painel TV — Faturamento', tvope:'Painel TV — Operação', tvdir:'Painel TV — Diretoria', rh:'RH — Vagas', hc:'Headcount', folha:'Custo de Folha', folhaind:'Indicadores de Folha', he:'Horas Extras', cnh:'CNH dos Motoristas', ferias:'Férias — Vencimento', people:'People Analytics', pneus:'Pneus', gestao:'Gestão', gesacao:'Planos de Ação', gesata:'Atas de Reunião', srv:'Saúde do Servidor', doc:'Documentação', anpiso:'Piso Mínimo de Frete', anrntrc:'RNTRC dos Transportadores', telcon:'Consumo e Estatísticas', telcond:'Condução Econômica', telhod:'Hodômetro e Rastro' };
 const periodoLabel = p => { if(p==='atrasado') return 'Atrasado'; const [y,m]=p.split('-'); return MES[+m-1]+'/'+y.slice(2); };
 const fmtD = s => { if(!s) return ''; const [y,m,dd]=s.split('-'); return dd+'/'+m+'/'+y; };
 /* Idade da posicao bancaria. Cada conta e lancada num dia diferente: mostrar
@@ -11162,7 +11162,7 @@ function renderVeic(d){
         (k.ativos? Math.round(100*k.proprios_ativos/k.ativos)+'% são próprios (frota + locação)' : 'no recorte da modalidade'), '',
         'veiculo.ativoinativo = 1 no recorte da modalidade selecionada. A maior parte do cadastro é veículo de TERCEIRO — caminhão de quem presta frete para a Sulista, não ativo dela.'),
     kpi('Próprios ativos', k.proprios_ativos.toLocaleString('pt-BR'), 'frota + locação · o ativo da empresa', '',
-        'Utilização FROTA (própria) + LOCAÇÃO (alugada, mas operada pela Sulista com diesel e motorista dela). É a base do CKM próprio na tela Make vs Buy e do custo do vazio na Análise de KM.'),
+        'Utilização FROTA (própria) + LOCAÇÃO (alugada, mas operada pela Sulista com diesel e motorista dela). É a base do CKM próprio na tela Frota Própria × Agregado e do custo do vazio na Análise de KM.'),
     // a média geral (11,2 anos) era dominada pelos 987 veículos de terceiro
     kpi('Idade média própria', k.idade_propria!=null?k.idade_propria.toLocaleString('pt-BR',{maximumFractionDigits:1})+' anos':'—',
         'frota + locação · '+(VEIC_GRP_LBL[d.grupo||'']||'')
@@ -18864,7 +18864,7 @@ function barrasMixClif(mix){
         <span style="width:${(100*v/maxKm).toFixed(2)}%;background:${cor}"></span></span>
     </div>`;
   }).join('')+`<div class="modtot"><span>total <b>${F(total)}</b> km no período</span>`+
-    `<a href="#mvb" style="margin-left:auto;color:var(--navy-700);font-weight:600;text-decoration:none">Make vs Buy →</a></div>`;
+    `<a href="#mvb" style="margin-left:auto;color:var(--navy-700);font-weight:600;text-decoration:none">Frota Própria × Agregado →</a></div>`;
 }
 // ---------------- Jornada do Motorista (Lei 13.103) ----------------
 function cexDefaults(){
@@ -31549,7 +31549,7 @@ boot();
         <a href="#km" onclick="fecharDrawer()"><span class="ic" data-ic="kmv"></span>Análise de KM</a>
         <a href="#cex" onclick="fecharDrawer()"><span class="ic" data-ic="cexic"></span>Custos Extras</a>
         <a href="#jorn" onclick="fecharDrawer()"><span class="ic" data-ic="jornic"></span>Jornada do Motorista</a>
-        <a href="#mvb" onclick="fecharDrawer()"><span class="ic" data-ic="mvb"></span>Make vs Buy</a>
+        <a href="#mvb" onclick="fecharDrawer()"><span class="ic" data-ic="mvb"></span>Frota Própria × Agregado</a>
         <a href="#milkrun" onclick="fecharDrawer()"><span class="ic" data-ic="milkic"></span>Operação MWM</a>
         <a href="#poli" onclick="fecharDrawer()"><span class="ic" data-ic="poliic"></span>Permanência na Planta</a>
         <a href="#port" onclick="fecharDrawer()"><span class="ic" data-ic="porta"></span>Portaria</a>

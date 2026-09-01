@@ -4,6 +4,11 @@ Gerado de `docs/versoes.yaml` por `scripts/gerar_changelog.py` — não editar �
 Formato [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/),
 versionamento [SemVer](https://semver.org/lang/pt-BR/).
 
+## [0.195.1] — 01/09/2026  ·  CX-01/09/2026-v0.195.1
+
+### Corrigido
+- No celular, o mapa da Permanência na Planta passava POR CIMA dos outros componentes ao rolar — os painéis internos do Leaflet têm z-index próprio alto e, sem um contexto de empilhamento no contêiner, vazavam sobre a barra de navegação e o topo. A receita que a Torre de Controle já usava (position:relative + z-index:1 + overflow:hidden) foi aplicada ao mapa da planta e também aos dois com o mesmo defeito latente: o do Hodômetro e Rastro e o da Operação MWM.
+
 ## [0.195.0] — 01/09/2026  ·  CX-01/09/2026-v0.195.0
 
 ### Adicionado
