@@ -426,15 +426,18 @@ SERVICOS: list[dict] = [
         "resumo": "Antecipação de recebíveis da Tupy. Cada CNPJ da Sulista é um "
                   "sellerId diferente no portal.",
         "alimenta": "Antecipações",
+        # A ORDEM é a prioridade de `api.monkey.cliente.modo_auth()`: token
+        # estático na frente, como na Prolog — se divergir, a tela diz que
+        # autentica de um jeito e o cliente usa outro (há teste amarrando).
         "modos": [
+            {"chave": "token", "rotulo": "Token estático",
+             "campos": ["MONKEY_TOKEN"]},
             {"chave": "oauth", "rotulo": "OAuth2 (password + refresh)",
              "dica": "o primeiro token usa o usuário/senha da plataforma; "
                      "a renovação segue por refresh_token",
              "campos": ["MONKEY_CLIENT_ID", "MONKEY_CLIENT_SECRET",
                         "MONKEY_USERNAME", "MONKEY_PASSWORD",
                         "MONKEY_TOKEN_URL"]},
-            {"chave": "token", "rotulo": "Token estático",
-             "campos": ["MONKEY_TOKEN"]},
         ],
         "ajustes": ["MONKEY_SELLER_ID", "MONKEY_AMBIENTE"],
     },

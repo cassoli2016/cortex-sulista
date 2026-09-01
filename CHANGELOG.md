@@ -4,6 +4,15 @@ Gerado de `docs/versoes.yaml` por `scripts/gerar_changelog.py` — não editar �
 Formato [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/),
 versionamento [SemVer](https://semver.org/lang/pt-BR/).
 
+## [0.209.0] — 01/09/2026  ·  CX-01/09/2026-v0.209.0
+
+### Alterado
+- O Portal Tupy deixou de ser um menu próprio: virou a primeira aba de Portais de Antecipação (Financeiro), com as suas quatro seções — Portal Tupy, Filiais e investidores, Títulos da Tupy e Validação do espelho — seguidas da Conciliação e da Importação da planilha dos outros portais. Quem tinha acesso à tela antiga passa a ver Portais de Antecipação; os KPIs da planilha foram para dentro da aba de conciliação, a que eles pertencem.
+- A MWM saiu da lista de clientes com convênio em Portais de Antecipação: cliente desligado a pedido da direção não aparece mais como portal. A decisão continua gravada (a próxima importação de planilha não a desfaz) e um "mostrar" no rodapé da lista traz os desligados de volta para quem precisar religar.
+
+### Corrigido
+- A esteira de testes estava vermelha desde a v0.206.1: o catálogo de credenciais da Monkey passou a exigir usuário e senha para o OAuth (é grant password) e dois testes ainda ligavam a integração só com client_id e secret. A ordem dos modos no catálogo agora é a mesma prioridade do cliente — token estático na frente, como na Prolog — para a tela de credenciais nunca dizer que autentica de um jeito enquanto o código usa outro.
+
 ## [0.208.0] — 01/09/2026  ·  CX-01/09/2026-v0.208.0
 
 ### Adicionado

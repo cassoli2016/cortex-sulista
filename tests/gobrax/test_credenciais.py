@@ -179,6 +179,8 @@ def test_campo_opcional_nao_conta_como_falta(cofre_limpo):
     que falta o que não falta."""
     cred.gravar("MONKEY_CLIENT_ID", "id-do-cliente-monkey")
     cred.gravar("MONKEY_CLIENT_SECRET", "segredo-do-cliente-monkey")
+    cred.gravar("MONKEY_USERNAME", "usuario@exemplo.com")
+    cred.gravar("MONKEY_PASSWORD", "senha-da-plataforma-monkey")
     cred.gravar("MONKEY_SELLER_ID", "42")
     s = _svc("monkey")
     assert s["modo_ativo"] == "oauth"
@@ -199,8 +201,13 @@ def test_modo_ativo_bate_com_o_que_o_cliente_usa(cofre_limpo):
     cred.gravar("PROLOG_TOKEN", "token-da-prolog-1234")
     assert _svc("prolog")["modo_ativo"] == pl.modo_auth() == "token"
 
+    # oauth da Monkey é grant password: client_id + secret NÃO bastam —
+    # sem usuário/senha o catálogo e o cliente dizem "nenhum", os dois
     cred.gravar("MONKEY_CLIENT_ID", "id-do-cliente-monkey")
     cred.gravar("MONKEY_CLIENT_SECRET", "segredo-do-cliente-monkey")
+    assert _svc("monkey")["modo_ativo"] is None and mk.modo_auth() == ""
+    cred.gravar("MONKEY_USERNAME", "usuario@exemplo.com")
+    cred.gravar("MONKEY_PASSWORD", "senha-da-plataforma-monkey")
     assert _svc("monkey")["modo_ativo"] == mk.modo_auth() == "oauth"
     cred.gravar("MONKEY_TOKEN", "token-estatico-da-monkey")
     assert _svc("monkey")["modo_ativo"] == mk.modo_auth() == "token"

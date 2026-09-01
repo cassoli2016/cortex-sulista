@@ -285,6 +285,13 @@ glossario:
     em Portais de Antecipação entra sozinho; ligar e desligar à mão é possível, e a decisão manual sobrevive
     à próxima importação. A comparação com o ERP é pela RAIZ do CNPJ (8 dígitos), porque o portal informa
     o CNPJ da matriz e o ERP fatura por várias filiais do grupo.
+- termo: Portal Tupy (espelho da Monkey)
+  definicao: A primeira aba de Portais de Antecipação. O CÓRTEX guarda um espelho local completo do
+    convênio da Tupy na Monkey (todos os recebíveis desde 2023, varridos duas vezes por dia) e mostra o
+    antecipado por mês de vencimento com a taxa média, o custo total da antecipação (deságio), as filiais
+    da Sulista lado a lado, os bancos investidores que compraram os títulos, a busca por documento e a
+    validação do espelho contra a posição do painel de Antecipações. Não é menu próprio — sub-aba herda
+    o acesso da tela que a contém.
 - termo: Sacado × cedente
   definicao: 'Na planilha do portal, o SACADO é quem paga (o cliente) e o CEDENTE é quem recebe (a Sulista).
     O cedente identifica a filial: um mesmo arquivo pode trazer títulos de CNPJs diferentes nossos.'
@@ -372,7 +379,6 @@ grupos:
   - lanc
   - antec
   - antport
-  - tupy
   - rec
   - oc
   - custos

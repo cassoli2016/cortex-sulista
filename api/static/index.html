@@ -2318,7 +2318,6 @@ body.tvfull #btnReport,body.tvmode #btnReport{display:none}
         <a href="#fluxo" class="sub" data-view="fluxo" title="Fluxo de Caixa e Bancos"><span class="ic" data-ic="flx"></span><span>Fluxo de Caixa e Bancos</span></a>
         <a href="#lanc" class="sub" data-view="lanc" title="Lançamentos Bancários — o razão do banco, lançamento a lançamento"><span class="ic" data-ic="lancic"></span><span>Lançamentos Bancários</span></a>
         <a href="#antport" class="sub" data-view="antport" title="Portais de Antecipação — importar a planilha do cliente e conciliar com o ERP"><span class="ic" data-ic="antportic"></span><span>Portais de Antecipação</span></a>
-        <a href="#tupy" class="sub" data-view="tupy" title="Portal Tupy — validação do que a API da Monkey entrega: antecipado, taxa, deságio, investidores"><span class="ic" data-ic="tupyic"></span><span>Portal Tupy</span></a>
         <a href="#rec" class="sub" data-view="rec" title="Lançamentos Recorrentes — a conta que entra todo mês e não pode passar batido"><span class="ic" data-ic="recorric"></span><span>Recorrentes</span></a>
       </div>
       <button class="group" id="grpFro" aria-expanded="false" aria-controls="subsFro" onclick="toggleGroup('grpFro','subsFro','cs.froGroup')" title="Frota">
@@ -3728,77 +3727,6 @@ body.tvfull #btnReport,body.tvmode #btnReport{display:none}
       </section>
 
       <!-- ===================== PORTAL TUPY (MONKEY) ===================== -->
-      <section class="view" id="view-tupy">
-        <div class="subtabs" role="tablist" data-abas="tupy" aria-label="Seções do portal Tupy">
-          <button role="tab" id="tabtupy-ger" data-aba="ger" aria-controls="aba-tupy-ger" aria-selected="true" onclick="abaTrocar('tupy','ger')">Visão geral</button>
-          <button role="tab" id="tabtupy-fil" data-aba="fil" aria-controls="aba-tupy-fil" aria-selected="false" onclick="abaTrocar('tupy','fil')">Filiais e investidores <span class="aban" id="tupyNFil"></span></button>
-          <button role="tab" id="tabtupy-tit" data-aba="tit" aria-controls="aba-tupy-tit" aria-selected="false" onclick="abaTrocar('tupy','tit')">Títulos <span class="aban" id="tupyNTit"></span></button>
-          <button role="tab" id="tabtupy-val" data-aba="val" aria-controls="aba-tupy-val" aria-selected="false" onclick="abaTrocar('tupy','val')">Validação <span class="aban" id="tupyNVal"></span></button>
-        </div>
-        <div class="aba" data-abas="tupy" data-aba="ger" id="aba-tupy-ger" role="tabpanel" aria-labelledby="tabtupy-ger">
-          <div class="kband">
-            <h3>Convênio Tupy na Monkey · histórico completo do espelho local</h3>
-            <div class="kpis k4" id="kpis-tupy"></div>
-          </div>
-          <div class="card">
-            <div class="head"><h2>Antecipado por mês de vencimento <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="Todos os recebíveis do espelho (mky_recebiveis, varredura completa da API da Monkey 2×/dia), somados pelo MÊS DE VENCIMENTO — e 100% deles são antecipados. A barra laranja é o vendido AGUARDANDO o vencimento; a azul-marinho, o que a Tupy já liquidou ao investidor. A linha é a taxa média de compra (purchased_tax) COMO O PORTAL PUBLICA — a Monkey ainda não confirmou se é a.m. ou a.a. Mês hachurado = vencimento futuro: título já vendido, liquidação por vir. Janela ancorada no último vencimento do espelho.">i</span></h2><span class="hint" id="tupy-mensal-hint"></span></div>
-            <div id="chartTupyMensal" style="width:100%;height:300px"></div>
-          </div>
-        </div>
-        <div class="aba" data-abas="tupy" data-aba="fil" id="aba-tupy-fil" role="tabpanel" aria-labelledby="tabtupy-fil" hidden>
-          <div class="grid2">
-            <div class="card">
-              <div class="head"><h2>Por filial da Sulista <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="Cada CNPJ da Sulista é um seller separado no portal — as cinco filiais têm a MESMA razão social lá, então o agrupamento é pelo sellerId, nunca pelo nome. O cedente de cada título é a filial que emitiu a NF contra a Tupy.">i</span></h2><span class="hint" id="tupy-fil-hint"></span></div>
-              <div class="tablewrap tabroll" style="max-height:300px"><table><thead><tr>
-                <th>CNPJ (filial)</th><th class="num">Títulos</th><th class="num">Valor</th><th class="num">Vendidos</th><th class="num">Antecipado</th><th class="num">Taxa média</th>
-              </tr></thead><tbody id="tupy-fil"></tbody></table></div>
-            </div>
-            <div class="card">
-              <div class="head"><h2>Investidores que compraram <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="O buyer de cada recebível é o INVESTIDOR que o comprou no leilão do portal (Itaú, Sofisa, ABC, BB…) — não confundir com o sacado, que é sempre a Tupy (o sponsor). A taxa média é a purchased_tax dos títulos que cada um levou, como o portal publica.">i</span></h2><span class="hint" id="tupy-inv-hint"></span></div>
-              <div class="tablewrap tabroll" style="max-height:300px"><table><thead><tr>
-                <th>Investidor</th><th class="num">Títulos</th><th class="num">Valor</th><th class="num">Taxa média</th>
-              </tr></thead><tbody id="tupy-inv"></tbody></table></div>
-            </div>
-          </div>
-        </div>
-        <div class="aba" data-abas="tupy" data-aba="tit" id="aba-tupy-tit" role="tabpanel" aria-labelledby="tabtupy-tit" hidden>
-          <div class="card">
-            <div class="head"><h2>Títulos <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="Os títulos do espelho, do vencimento mais recente para trás — a busca acha por número do documento ou pelo id externo (o número que a Tupy usa). Pago em = effective_payment_date do portal; o campo real_payment_date existe no layout mas nunca veio preenchido (medido na varredura completa).">i</span></h2>
-              <span style="display:flex;gap:9px;align-items:center">
-                <input type="text" id="tupyBusca" placeholder="documento ou id externo…" style="width:200px" onkeydown="if(event.key==='Enter'){loadTupy();}">
-                <button class="btn-sec" onclick="loadTupy()">Buscar</button>
-              </span>
-              <span class="hint" id="tupy-tit-hint"></span></div>
-            <div class="tablewrap tabroll" style="max-height:460px"><table><thead><tr>
-              <th>Documento</th><th>Parc.</th><th>Emissão</th><th>Vencimento</th><th>Pago em</th><th class="num">Valor</th><th class="num">Recebido</th><th class="num">Taxa</th><th>Status</th><th>Investidor</th>
-            </tr></thead><tbody id="tupy-tit"></tbody></table></div>
-          </div>
-        </div>
-        <div class="aba" data-abas="tupy" data-aba="val" id="aba-tupy-val" role="tabpanel" aria-labelledby="tabtupy-val" hidden>
-          <div class="grid2">
-            <div class="card">
-              <div class="head"><h2>Contagem por status <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="Os status CRUS que a API devolve, com contagem e faixa de vencimento — a lista oficial de status a Monkey ainda não mandou, então status novo aparece aqui do jeito que vier, nunca com rótulo inventado.">i</span></h2><span class="hint" id="tupy-status-hint"></span></div>
-              <div class="tablewrap tabroll" style="max-height:260px"><table><thead><tr>
-                <th>Status</th><th class="num">Títulos</th><th class="num">Valor</th><th>Vencimentos</th>
-              </tr></thead><tbody id="tupy-status"></tbody></table></div>
-            </div>
-            <div class="card">
-              <div class="head"><h2>Qualidade do dado <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="As conferências que dizem se o espelho merece confiança: campo que o portal nunca preencheu, data zerada (época), título parcelado, valor recebido maior que o nominal. Achado aqui é conversa com a Monkey/Tupy, não defeito do CÓRTEX.">i</span></h2><span class="hint" id="tupy-qual-hint"></span></div>
-              <div style="font-size:13px;line-height:1.9;padding:4px 16px 14px" id="tupy-qual"></div>
-            </div>
-          </div>
-          <div class="grid2">
-            <div class="card">
-              <div class="head"><h2>Conferência com o painel de Antecipações <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="Dois caminhos para o mesmo número: os títulos EM ABERTO no espelho × a posição da Tupy gravada no painel de Antecipações (ant_envios). Divergência aqui é a coleta de um dos lados atrasada — e só um segundo caminho denuncia total inflado.">i</span></h2></div>
-              <div style="font-size:13px;line-height:1.9;padding:4px 16px 14px" id="tupy-conf"></div>
-            </div>
-            <div class="card">
-              <div class="head"><h2>Coleta do espelho <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="A última varredura completa da API (mky_carga): quando rodou, quantos recebíveis vieram e quantos foram gravados. A tarefa agendada roda às 09:40 e às 14:40 — dado velho aqui é a tarefa parada, e a Saúde do Servidor a vigia pelo nome.">i</span></h2></div>
-              <div style="font-size:13px;line-height:1.9;padding:4px 16px 14px" id="tupy-carga"></div>
-            </div>
-          </div>
-        </div>
-      </section>
 
       <!-- ===================== FATURAMENTO DETALHADO ===================== -->
       <section class="view" id="view-fat">
@@ -4929,12 +4857,79 @@ body.tvfull #btnReport,body.tvmode #btnReport{display:none}
       <!-- ===================== PORTAIS DE ANTECIPAÇÃO ===================== -->
       <section class="view" id="view-antport">
         <div id="antport-avisos"></div>
-        <div class="kpis k4" id="kpis-antport"></div>
-                <div class="subtabs" role="tablist" data-abas="antport" aria-label="Seções desta tela">
-          <button role="tab" id="tabantport-conc" data-aba="conc" aria-controls="aba-antport-conc" aria-selected="true" onclick="abaTrocar('antport','conc')">Conciliação</button>
-          <button role="tab" id="tabantport-imp" data-aba="imp" aria-controls="aba-antport-imp" aria-selected="false" onclick="abaTrocar('antport','imp')">Importação</button>
+        <div class="subtabs" role="tablist" data-abas="antport" aria-label="Seções desta tela">
+          <button role="tab" id="tabantport-tupy" data-aba="tupy" aria-controls="aba-antport-tupy" aria-selected="true" onclick="abaTrocar('antport','tupy')">Portal Tupy</button>
+          <button role="tab" id="tabantport-tupyfil" data-aba="tupyfil" aria-controls="aba-antport-tupyfil" aria-selected="false" onclick="abaTrocar('antport','tupyfil')">Filiais e investidores <span class="aban" id="tupyNFil"></span></button>
+          <button role="tab" id="tabantport-tupytit" data-aba="tupytit" aria-controls="aba-antport-tupytit" aria-selected="false" onclick="abaTrocar('antport','tupytit')">Títulos da Tupy <span class="aban" id="tupyNTit"></span></button>
+          <button role="tab" id="tabantport-tupyval" data-aba="tupyval" aria-controls="aba-antport-tupyval" aria-selected="false" onclick="abaTrocar('antport','tupyval')">Validação do espelho <span class="aban" id="tupyNVal"></span></button>
+          <button role="tab" id="tabantport-conc" data-aba="conc" aria-controls="aba-antport-conc" aria-selected="false" onclick="abaTrocar('antport','conc')">Conciliação da planilha</button>
+          <button role="tab" id="tabantport-imp" data-aba="imp" aria-controls="aba-antport-imp" aria-selected="false" onclick="abaTrocar('antport','imp')">Importar planilha</button>
         </div>
-        <div class="aba" data-abas="antport" data-aba="conc" id="aba-antport-conc" role="tabpanel" aria-labelledby="tabantport-conc">
+        <div class="aba" data-abas="antport" data-aba="tupy" id="aba-antport-tupy" role="tabpanel" aria-labelledby="tabantport-tupy">
+          <div class="kband">
+            <h3>Convênio Tupy na Monkey · histórico completo do espelho local</h3>
+            <div class="kpis k4" id="kpis-tupy"></div>
+          </div>
+          <div class="card">
+            <div class="head"><h2>Antecipado por mês de vencimento <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="Todos os recebíveis do espelho (mky_recebiveis, varredura completa da API da Monkey 2×/dia), somados pelo MÊS DE VENCIMENTO — e 100% deles são antecipados. A barra laranja é o vendido AGUARDANDO o vencimento; a azul-marinho, o que a Tupy já liquidou ao investidor. A linha é a taxa média de compra (purchased_tax) COMO O PORTAL PUBLICA — a Monkey ainda não confirmou se é a.m. ou a.a. Mês hachurado = vencimento futuro: título já vendido, liquidação por vir. Janela ancorada no último vencimento do espelho.">i</span></h2><span class="hint" id="tupy-mensal-hint"></span></div>
+            <div id="chartTupyMensal" style="width:100%;height:300px"></div>
+          </div>
+        </div>
+        <div class="aba" data-abas="antport" data-aba="tupyfil" id="aba-antport-tupyfil" role="tabpanel" aria-labelledby="tabantport-tupyfil" hidden>
+          <div class="grid2">
+            <div class="card">
+              <div class="head"><h2>Por filial da Sulista <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="Cada CNPJ da Sulista é um seller separado no portal — as cinco filiais têm a MESMA razão social lá, então o agrupamento é pelo sellerId, nunca pelo nome. O cedente de cada título é a filial que emitiu a NF contra a Tupy.">i</span></h2><span class="hint" id="tupy-fil-hint"></span></div>
+              <div class="tablewrap tabroll" style="max-height:300px"><table><thead><tr>
+                <th>CNPJ (filial)</th><th class="num">Títulos</th><th class="num">Valor</th><th class="num">Vendidos</th><th class="num">Antecipado</th><th class="num">Taxa média</th>
+              </tr></thead><tbody id="tupy-fil"></tbody></table></div>
+            </div>
+            <div class="card">
+              <div class="head"><h2>Investidores que compraram <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="O buyer de cada recebível é o INVESTIDOR que o comprou no leilão do portal (Itaú, Sofisa, ABC, BB…) — não confundir com o sacado, que é sempre a Tupy (o sponsor). A taxa média é a purchased_tax dos títulos que cada um levou, como o portal publica.">i</span></h2><span class="hint" id="tupy-inv-hint"></span></div>
+              <div class="tablewrap tabroll" style="max-height:300px"><table><thead><tr>
+                <th>Investidor</th><th class="num">Títulos</th><th class="num">Valor</th><th class="num">Taxa média</th>
+              </tr></thead><tbody id="tupy-inv"></tbody></table></div>
+            </div>
+          </div>
+        </div>
+        <div class="aba" data-abas="antport" data-aba="tupytit" id="aba-antport-tupytit" role="tabpanel" aria-labelledby="tabantport-tupytit" hidden>
+          <div class="card">
+            <div class="head"><h2>Títulos <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="Os títulos do espelho, do vencimento mais recente para trás — a busca acha por número do documento ou pelo id externo (o número que a Tupy usa). Pago em = effective_payment_date do portal; o campo real_payment_date existe no layout mas nunca veio preenchido (medido na varredura completa).">i</span></h2>
+              <span style="display:flex;gap:9px;align-items:center">
+                <input type="text" id="tupyBusca" placeholder="documento ou id externo…" style="width:200px" onkeydown="if(event.key==='Enter'){loadTupy();}">
+                <button class="btn-sec" onclick="loadTupy()">Buscar</button>
+              </span>
+              <span class="hint" id="tupy-tit-hint"></span></div>
+            <div class="tablewrap tabroll" style="max-height:460px"><table><thead><tr>
+              <th>Documento</th><th>Parc.</th><th>Emissão</th><th>Vencimento</th><th>Pago em</th><th class="num">Valor</th><th class="num">Recebido</th><th class="num">Taxa</th><th>Status</th><th>Investidor</th>
+            </tr></thead><tbody id="tupy-tit"></tbody></table></div>
+          </div>
+        </div>
+        <div class="aba" data-abas="antport" data-aba="tupyval" id="aba-antport-tupyval" role="tabpanel" aria-labelledby="tabantport-tupyval" hidden>
+          <div class="grid2">
+            <div class="card">
+              <div class="head"><h2>Contagem por status <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="Os status CRUS que a API devolve, com contagem e faixa de vencimento — a lista oficial de status a Monkey ainda não mandou, então status novo aparece aqui do jeito que vier, nunca com rótulo inventado.">i</span></h2><span class="hint" id="tupy-status-hint"></span></div>
+              <div class="tablewrap tabroll" style="max-height:260px"><table><thead><tr>
+                <th>Status</th><th class="num">Títulos</th><th class="num">Valor</th><th>Vencimentos</th>
+              </tr></thead><tbody id="tupy-status"></tbody></table></div>
+            </div>
+            <div class="card">
+              <div class="head"><h2>Qualidade do dado <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="As conferências que dizem se o espelho merece confiança: campo que o portal nunca preencheu, data zerada (época), título parcelado, valor recebido maior que o nominal. Achado aqui é conversa com a Monkey/Tupy, não defeito do CÓRTEX.">i</span></h2><span class="hint" id="tupy-qual-hint"></span></div>
+              <div style="font-size:13px;line-height:1.9;padding:4px 16px 14px" id="tupy-qual"></div>
+            </div>
+          </div>
+          <div class="grid2">
+            <div class="card">
+              <div class="head"><h2>Conferência com o painel de Antecipações <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="Dois caminhos para o mesmo número: os títulos EM ABERTO no espelho × a posição da Tupy gravada no painel de Antecipações (ant_envios). Divergência aqui é a coleta de um dos lados atrasada — e só um segundo caminho denuncia total inflado.">i</span></h2></div>
+              <div style="font-size:13px;line-height:1.9;padding:4px 16px 14px" id="tupy-conf"></div>
+            </div>
+            <div class="card">
+              <div class="head"><h2>Coleta do espelho <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="A última varredura completa da API (mky_carga): quando rodou, quantos recebíveis vieram e quantos foram gravados. A tarefa agendada roda às 09:40 e às 14:40 — dado velho aqui é a tarefa parada, e a Saúde do Servidor a vigia pelo nome.">i</span></h2></div>
+              <div style="font-size:13px;line-height:1.9;padding:4px 16px 14px" id="tupy-carga"></div>
+            </div>
+          </div>
+        </div>
+        <div class="aba" data-abas="antport" data-aba="conc" id="aba-antport-conc" role="tabpanel" aria-labelledby="tabantport-conc" hidden>
+          <div class="kpis k4" id="kpis-antport"></div>
   <div class="grid2">
             <div class="card">
               <div class="head"><h2>Conciliação com o ERP <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="Casamento pelo NÚMERO DO DOCUMENTO (nota fiscal), que é o que os dois sistemas compartilham — o número do título do portal é interno dele. Quando o mesmo documento tem mais de uma parcela em aberto, casa com a de vencimento mais próximo do informado pelo portal.">i</span></h2>
@@ -7341,7 +7336,6 @@ const ICONS = {
              + '<circle cx="19" cy="7" r="2.2"/>'
              + '<path d="M6.6 7.6 10.6 15.2M13.8 15.6 17.6 8.8" stroke-dasharray="2 2"/>'),
   antportic: IC('<path d="M4 20h16"/><rect x="3.5" y="9" width="17" height="8" rx="1.5"/><path d="M12 7V1.5M9 4l3-3 3 3"/><path d="M7.5 13h.01M11 13h3"/>'),
-  tupyic: IC('<circle cx="12" cy="12" r="8.5"/><path d="M12 7.2v9.6M14.6 9.3c-.5-.9-1.4-1.4-2.6-1.4-1.5 0-2.6.8-2.6 1.9 0 2.6 5.2 1.7 5.2 4.3 0 1.1-1.1 1.9-2.6 1.9-1.2 0-2.1-.5-2.6-1.4"/>'),
   gric: IC('<path d="M12 3l8 4v5c0 5-3.5 8-8 9-4.5-1-8-4-8-9V7z"/><path d="M12 8v4M12 15.5v.5"/>'),
   fatic: IC('<path d="M14 3H6a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z"/><path d="M14 3v6h6"/><path d="M8 13h6M8 17h4"/>'),
   tvdiric: IC('<rect x="3" y="5" width="18" height="12" rx="2"/><path d="M9 21h6M12 17v4"/><path d="M7 14v-3M11 14V8M15 14v-4M19 14v-6"/>'),
@@ -7362,7 +7356,7 @@ const FAIXAS = {
   '4_vencido_91_365':['Vencido 91–365d','b-dang'],
   '5_vencido_mais_365':['Vencido > 365d','b-dang'],
 };
-const VIEWS = { home:'Visão Geral', fluxo:'Fluxo de Caixa e Bancos', receber:'Contas a Receber', pagar:'Contas a Pagar', oc:'Ordens de Compra', custos:'Painel de Custos', agr:'Agregados e Terceiros', mvb:'Frota Própria × Agregado', pedagio:'Validação de Pedágio', comb:'Combustível', man:'Manutenção', com:'Clientes e RKM', clif:'Consulta de Cliente', crm:'CRM — Funil Comercial', km:'Análise de KM', prodveic:'Produtividade de Veículos', fat:'Faturamento Detalhado', gr:'Gerenciamento de Risco', torre:'Torre de Controle', poli:'Permanência na Planta', ctecp:'CT-e de Contrapartida', veic:'Veículos', veicf:'Consulta de Veículo', mprev:'Manutenção Preventiva', comrast:'Comunicação Rastreadora', mul:'Multas — Smartec', prog:'Programação Inteligente', jorn:'Jornada do Motorista', jornf:'Ficha de Jornada', cex:'Custos Extras', sac:'SAC / Freetime', port:'Portaria', cop:'Copiloto Cortex', cob:'Régua de Cobrança', banc:'Bancos', extb:'Extrato Bancário', lanc:'Lançamentos Bancários', antec:'Antecipação de Recebíveis', antport:'Portais de Antecipação', tupy:'Portal Tupy', milkrun:'Operação MWM', rec:'Lançamentos Recorrentes', fluxcon:'Fluxo de Caixa Consolidado', cont:'Contabilidade', qual:'Qualidade e Certidões', orc:'Orçamento', fech:'Fechamento do Mês', prem:'Premiação de Motoristas', dre:'DRE Gerencial', bal:'Balanço Patrimonial', drecli:'DRE por Cliente', tvfat:'Painel TV — Faturamento', tvope:'Painel TV — Operação', tvdir:'Painel TV — Diretoria', rh:'RH — Vagas', hc:'Headcount', folha:'Custo de Folha', folhaind:'Indicadores de Folha', he:'Horas Extras', cnh:'CNH dos Motoristas', ferias:'Férias — Vencimento', people:'People Analytics', pneus:'Pneus', gestao:'Gestão', gesacao:'Planos de Ação', gesata:'Atas de Reunião', srv:'Saúde do Servidor', doc:'Documentação', anpiso:'Piso Mínimo de Frete', anrntrc:'RNTRC dos Transportadores', telcon:'Consumo e Estatísticas', telcond:'Condução Econômica', telhod:'Hodômetro e Rastro' };
+const VIEWS = { home:'Visão Geral', fluxo:'Fluxo de Caixa e Bancos', receber:'Contas a Receber', pagar:'Contas a Pagar', oc:'Ordens de Compra', custos:'Painel de Custos', agr:'Agregados e Terceiros', mvb:'Frota Própria × Agregado', pedagio:'Validação de Pedágio', comb:'Combustível', man:'Manutenção', com:'Clientes e RKM', clif:'Consulta de Cliente', crm:'CRM — Funil Comercial', km:'Análise de KM', prodveic:'Produtividade de Veículos', fat:'Faturamento Detalhado', gr:'Gerenciamento de Risco', torre:'Torre de Controle', poli:'Permanência na Planta', ctecp:'CT-e de Contrapartida', veic:'Veículos', veicf:'Consulta de Veículo', mprev:'Manutenção Preventiva', comrast:'Comunicação Rastreadora', mul:'Multas — Smartec', prog:'Programação Inteligente', jorn:'Jornada do Motorista', jornf:'Ficha de Jornada', cex:'Custos Extras', sac:'SAC / Freetime', port:'Portaria', cop:'Copiloto Cortex', cob:'Régua de Cobrança', banc:'Bancos', extb:'Extrato Bancário', lanc:'Lançamentos Bancários', antec:'Antecipação de Recebíveis', antport:'Portais de Antecipação', milkrun:'Operação MWM', rec:'Lançamentos Recorrentes', fluxcon:'Fluxo de Caixa Consolidado', cont:'Contabilidade', qual:'Qualidade e Certidões', orc:'Orçamento', fech:'Fechamento do Mês', prem:'Premiação de Motoristas', dre:'DRE Gerencial', bal:'Balanço Patrimonial', drecli:'DRE por Cliente', tvfat:'Painel TV — Faturamento', tvope:'Painel TV — Operação', tvdir:'Painel TV — Diretoria', rh:'RH — Vagas', hc:'Headcount', folha:'Custo de Folha', folhaind:'Indicadores de Folha', he:'Horas Extras', cnh:'CNH dos Motoristas', ferias:'Férias — Vencimento', people:'People Analytics', pneus:'Pneus', gestao:'Gestão', gesacao:'Planos de Ação', gesata:'Atas de Reunião', srv:'Saúde do Servidor', doc:'Documentação', anpiso:'Piso Mínimo de Frete', anrntrc:'RNTRC dos Transportadores', telcon:'Consumo e Estatísticas', telcond:'Condução Econômica', telhod:'Hodômetro e Rastro' };
 const periodoLabel = p => { if(p==='atrasado') return 'Atrasado'; const [y,m]=p.split('-'); return MES[+m-1]+'/'+y.slice(2); };
 const fmtD = s => { if(!s) return ''; const [y,m,dd]=s.split('-'); return dd+'/'+m+'/'+y; };
 /* Idade da posicao bancaria. Cada conta e lancada num dia diferente: mostrar
@@ -7533,7 +7527,7 @@ let DATAEXTB = null, extbSeq = 0;
 let DATALANC = null, lancSeq = 0;
 let DATAANTEC = null, antecSeq = 0;
 let DATAFLUXCON = null, fluxconSeq = 0;
-let DATAANTPORT = null, antportSeq = 0;
+let DATAANTPORT = null, antportSeq = 0, ANTPORT_DESLIGADOS = false;
 let DATAREC = null, recSeq = 0;
 let DATABAL = null, balSeq = 0;
 let DATARENT = null;
@@ -7630,7 +7624,7 @@ function toggleGroup(gid,sid,key){
 
 const VIEW_GROUP = {home:'',cop:'',
   com:'Com',clif:'Com',crm:'Com',rent:'Com',drecli:'Com',
-  fluxo:'Fin',receber:'Fin',pagar:'Fin',cob:'Fin',banc:'Fin',extb:'Fin',lanc:'Fin',antec:'Fin',antport:'Fin',tupy:'Fin',fluxcon:'Fin',rec:'Fin',
+  fluxo:'Fin',receber:'Fin',pagar:'Fin',cob:'Fin',banc:'Fin',extb:'Fin',lanc:'Fin',antec:'Fin',antport:'Fin',fluxcon:'Fin',rec:'Fin',
   dre:'Ctr',bal:'Ctr',cont:'Ctr',qual:'Ctr',orc:'Ctr',fech:'Ctr',ctecp:'Ctr',
   torre:'Ope',milkrun:'Ope',poli:'Ope',prog:'Ope',jorn:'Ope',jornf:'Ope',cex:'Ope',sac:'Ope',port:'Ope',km:'Ope',agr:'Ope',mvb:'Ope',pedagio:'Ope',
   veic:'Fro',veicf:'Fro',mprev:'Fro',comrast:'Fro',comb:'Fro',man:'Fro',mul:'Fro',pneus:'Fro',
@@ -7842,7 +7836,7 @@ function semFilterbar(v){
   // filtros", que não tinha o que aplicar.
   return v==='cop'||v==='gestao'||v==='gesacao'||v==='gesata'||v==='srv'||v==='home'||v==='veicf'||v==='clif'||v==='jorn'||v==='jornf'||v==='prog'||
          v==='cex'||v==='sac'||v==='mprev'||v==='comrast'||v==='qual'||v==='port'||v==='crm'||v==='rh'||
-         v==='hc'||v==='folha'||v==='folhaind'||v==='he'||v==='custos'||v==='orc'||v==='prem'||v==='banc'||v==='extb'||v==='fech'||v==='fat'||v==='gr'||v==='tupy'||v==='doc'||v==='telcon'||v==='telcond'||v==='telhod'||v==='milkrun'||v==='cnh'||v==='ferias'||v==='pneus'||v==='people'||v==='poli'||v==='ctecp';
+         v==='hc'||v==='folha'||v==='folhaind'||v==='he'||v==='custos'||v==='orc'||v==='prem'||v==='banc'||v==='extb'||v==='fech'||v==='fat'||v==='gr'||v==='doc'||v==='telcon'||v==='telcond'||v==='telhod'||v==='milkrun'||v==='cnh'||v==='ferias'||v==='pneus'||v==='people'||v==='poli'||v==='ctecp';
 }
 function currentView(){
   const h = (location.hash||'').replace('#','');
@@ -7959,7 +7953,7 @@ function router(){
   // divergem dos usados na última carga (nunca mostrar dado velho com filtro novo)
   const key=viewKey(v);
   const DATAMAP={fin:DATA,oc:DATAOC,agr:DATAAGR,anpiso:DATAANPISO,anrntrc:DATAANRNTRC,pedagio:DATAPED,telcon:DATATELCON,telcond:DATATELCOND,telhod:DATATELHOD,mvb:DATAMVB,comb:DATACOMB,man:DATAMAN,com:DATACOM,clif:DATACLIF,dre:DATADRE,bal:DATABAL,drecli:DATADRECLI,home:DATAHOME,km:DATAKM,torre:DATATORRE,veic:DATAVEIC,veicf:DATAVEICF,mul:DATASMT,prog:DATAPROG,jorn:DATAJR,jornf:DATAJORNF,cex:DATACEX,sac:DATASAC,mprev:DATAMPREV,comrast:DATACOMRAST,qual:DATAQUAL,port:DATAPORT,crm:DATACRM,rh:DATARH,hc:DATAHC,folha:DATAFOLHA,folhaind:DATAFOLHAIND,he:DATAHE,custos:DATACUSTOS,cob:DATACOB,banc:DATABANC,extb:DATAEXTB,lanc:DATALANC,antec:DATAANTEC,antport:DATAANTPORT,milkrun:DATAMILK,fluxcon:DATAFLUXCON,rec:DATAREC,rent:DATARENT,cont:DATACONT,orc:DATAORC,fech:DATAFECH,fat:DATAFAT,gr:DATAGR,prem:DATAPREM,gestao:DATAGES,srv:DATASRV,doc:DATADOC,tvfat:null,tvope:null,tvdir:null,cop:(COP_MSGS.length?{}:null)};
-  const LOADMAP={fin:load,oc:loadOc,agr:loadAgr,anpiso:loadAnpiso,anrntrc:loadAnrntrc,telcon:loadTelcon,telcond:loadTelcond,telhod:loadTelhod,mvb:loadMvb,pedagio:loadPedagio,comb:loadComb,man:loadMan,com:loadCom,clif:loadClif,dre:loadDre,bal:loadBal,drecli:loadDreCli,home:loadHome,km:loadKm,prodveic:loadProdveic,torre:loadTorre,veic:loadVeic,veicf:loadVeicf,mul:loadSmt,prog:loadProg,jorn:loadJorraster,jornf:loadJornf,cex:loadCex,sac:loadSac,mprev:loadMPrev,comrast:loadComRast,qual:loadQual,port:loadPort,crm:loadCrm,rh:loadRh,hc:loadHc,folha:loadFolha,folhaind:loadFolhaInd,he:loadHe,custos:loadCustos,cob:loadCob,banc:loadBanc,extb:loadExtb,lanc:loadLanc,antec:loadAntec,antport:loadAntport,milkrun:loadMilkrun,cnh:loadCnh,ferias:loadFerias,people:loadPeople,pneus:loadPneus,poli:loadPoli,ctecp:loadCtecp,fluxcon:loadFluxcon,rec:loadRec,rent:loadRent,cont:loadCont,orc:loadOrc,fech:loadFech,fat:loadFat,gr:loadGr,tupy:loadTupy,prem:loadPrem,gesacao:loadGesacao,gesata:loadGesata,gestao:loadGestao,srv:loadSrv,doc:loadDoc,cop:loadCop,tvfat:loadTvFat,tvope:loadTvOpe,tvdir:loadTvDir};
+  const LOADMAP={fin:load,oc:loadOc,agr:loadAgr,anpiso:loadAnpiso,anrntrc:loadAnrntrc,telcon:loadTelcon,telcond:loadTelcond,telhod:loadTelhod,mvb:loadMvb,pedagio:loadPedagio,comb:loadComb,man:loadMan,com:loadCom,clif:loadClif,dre:loadDre,bal:loadBal,drecli:loadDreCli,home:loadHome,km:loadKm,prodveic:loadProdveic,torre:loadTorre,veic:loadVeic,veicf:loadVeicf,mul:loadSmt,prog:loadProg,jorn:loadJorraster,jornf:loadJornf,cex:loadCex,sac:loadSac,mprev:loadMPrev,comrast:loadComRast,qual:loadQual,port:loadPort,crm:loadCrm,rh:loadRh,hc:loadHc,folha:loadFolha,folhaind:loadFolhaInd,he:loadHe,custos:loadCustos,cob:loadCob,banc:loadBanc,extb:loadExtb,lanc:loadLanc,antec:loadAntec,antport:loadAntport,milkrun:loadMilkrun,cnh:loadCnh,ferias:loadFerias,people:loadPeople,pneus:loadPneus,poli:loadPoli,ctecp:loadCtecp,fluxcon:loadFluxcon,rec:loadRec,rent:loadRent,cont:loadCont,orc:loadOrc,fech:loadFech,fat:loadFat,gr:loadGr,prem:loadPrem,gesacao:loadGesacao,gesata:loadGesata,gestao:loadGestao,srv:loadSrv,doc:loadDoc,cop:loadCop,tvfat:loadTvFat,tvope:loadTvOpe,tvdir:loadTvDir};
   if(!DATAMAP[key] || (key!=='home' && LOADEDQS[key]!==qsView(key))) LOADMAP[key]();
   // mobile: estado da navegação inferior + fecha gaveta/painel de filtros
   document.querySelectorAll('.bottomnav [data-bview]').forEach(a=>a.classList.toggle('ativo', a.dataset.bview===v));
@@ -9799,7 +9793,7 @@ function reloadCurrent(){
   const M={home:loadHome,fluxo:load,receber:load,pagar:load,dre:loadDre,drecli:loadDreCli,oc:loadOc,
     agr:loadAgr,mvb:loadMvb,pedagio:loadPedagio,comb:loadComb,man:loadMan,com:loadCom,clif:loadClif,km:loadKm,prodveic:loadProdveic,
     torre:loadTorre,veic:loadVeic,veicf:loadVeicf,mul:loadSmt,prog:loadProg,jorn:loadJorraster,jornf:loadJornf,cex:loadCex,sac:loadSac,mprev:loadMPrev,comrast:loadComRast,qual:loadQual,port:loadPort,crm:loadCrm,rh:loadRh,hc:loadHc,folha:loadFolha,folhaind:loadFolhaInd,he:loadHe,custos:loadCustos,cob:loadCob,banc:loadBanc,extb:loadExtb,rent:loadRent,
-    cont:loadCont,orc:loadOrc,fech:loadFech,fat:loadFat,gr:loadGr,tupy:loadTupy,prem:loadPrem,gesacao:loadGesacao,gesata:loadGesata,gestao:loadGestao,srv:loadSrv,doc:loadDoc,cop:loadCop,tvfat:loadTvFat,tvope:loadTvOpe,tvdir:loadTvDir};
+    cont:loadCont,orc:loadOrc,fech:loadFech,fat:loadFat,gr:loadGr,prem:loadPrem,gesacao:loadGesacao,gesata:loadGesata,gestao:loadGestao,srv:loadSrv,doc:loadDoc,cop:loadCop,tvfat:loadTvFat,tvope:loadTvOpe,tvdir:loadTvDir};
   (M[currentView()]||load)();
 }
 
@@ -17433,6 +17427,9 @@ async function milkMapa(pts){
 /* ============ PORTAIS DE ANTECIPAÇÃO ============ */
 async function loadAntport(){
   skelKpis('kpis-antport',4);
+  /* O Portal Tupy é a aba que nasce aberta desta tela (v0.209.0 — deixou de
+     ser menu próprio): carrega junto, com o seu próprio guard de sequência. */
+  loadTupy();
   const seq=++antportSeq, btn=document.getElementById('btnRefresh'); if(btn) btn.disabled=true;
   document.getElementById('content').classList.add('loading');
   try{
@@ -17475,6 +17472,11 @@ async function antportEnviarArquivo(f){
     document.getElementById('hintAntportUp').textContent='';
     document.getElementById('antportFile').value='';
   }
+}
+function antportDesligados(ev){
+  if(ev) ev.preventDefault();
+  ANTPORT_DESLIGADOS=!ANTPORT_DESLIGADOS;
+  if(DATAANTPORT) renderAntport(DATAANTPORT);
 }
 async function antportSacado(cnpj, elegivel, nome){
   try{
@@ -17590,12 +17592,19 @@ function renderAntport(d){
       +'<td class="num" style="font-weight:600">'+BRL.format(x.valor)+'</td></tr>';
   }).join('') || '<tr><td colspan="4" style="color:var(--n500)">todos os títulos casaram com o ERP</td></tr>';
 
+  /* Cliente DESLIGADO a pedido da direção (a MWM, 01/09/2026) não é portal de
+     antecipação: sai da lista. A decisão continua gravada — a próxima
+     importação não a desfaz — e "mostrar" a traz de volta para quem precisar
+     religar. */
   const sac=d.sacados||[], nEleg=sac.filter(function(x){return x.elegivel;}).length;
+  const desligados=sac.length-nEleg;
   const semArq=sac.filter(function(x){return x.elegivel && !x.planilha_em;}).length;
-  document.getElementById('hintAntportSac').textContent =
-    nEleg+' com convênio de '+sac.length+' cadastrado(s) · só estes entram nas operações sugeridas'
-    + (semArq ? ' · '+semArq+' ainda sem planilha importada' : '');
-  document.getElementById('antport-sac').innerHTML=sac.map(function(x){
+  document.getElementById('hintAntportSac').innerHTML =
+    nEleg+' com convênio — só estes entram nas operações sugeridas'
+    + (semArq ? ' · '+semArq+' ainda sem planilha importada' : '')
+    + (desligados ? ' · '+desligados+' desligado(s) a pedido da direção <a href="#antport" onclick="antportDesligados(event)">'
+        +(ANTPORT_DESLIGADOS?'ocultar':'mostrar')+'</a>' : '');
+  document.getElementById('antport-sac').innerHTML=sac.filter(function(x){return x.elegivel || ANTPORT_DESLIGADOS;}).map(function(x){
     const alvo=x.elegivel?'false':'true';
     const dica=x.elegivel
       ? 'Desligar: o recebível deste cliente deixa de entrar nas operações sugeridas'
@@ -27650,13 +27659,13 @@ function podeVer(v){ if(v==='jornf') v='jorn'; return !!USER && ((v==='gestao'||
    tecla sem rede. Os atalhos de conteúdo só PREPARAM a consulta (preenchem
    o campo e disparam), quem busca de verdade é a tela de destino. */
 const BUSCA_SINONIMOS = {
-  tupy: ['monkey', 'recebiveis', 'antecipacao', 'desagio', 'portal'],
   cob:['inadimplencia','inadimplente','devedor','cobranca','vencido','atraso cliente','regua'],
   receber:['recebivel','duplicata','titulo a receber','cliente deve','aging'],
   pagar:['fornecedor','conta a pagar','titulo a pagar','divida','aging'],
   fluxo:['caixa','saldo','banco','projecao','tesouraria'],
   fluxcon:['caixa consolidado','tesouraria','diario','semanal','trimestral','semestral','necessidade'],
   antec:['antecipar','desconto de duplicata','factoring','deságio','necessidade de caixa'],
+  antport:['portal tupy','tupy','monkey','recebiveis','desagio','planilha do portal','maxion','convenio','sacado'],
   lanc:['extrato','razao bancario','movimento bancario','credito','debito','conciliar'],
   extb:['ofx','conciliacao','extrato importado','saldo banco'],
   rec:['recorrente','mensal','todo mes','assinatura','contrato mensal','nao lancado'],
@@ -32981,7 +32990,6 @@ boot();
         <a href="#fluxo" onclick="fecharDrawer()"><span class="ic" data-ic="flx"></span>Fluxo de Caixa e Bancos</a>
         <a href="#lanc" onclick="fecharDrawer()"><span class="ic" data-ic="ctb"></span>Lançamentos Bancários</a>
         <a href="#antport" onclick="fecharDrawer()"><span class="ic" data-ic="antportic"></span>Portais de Antecipação</a>
-        <a href="#tupy" onclick="fecharDrawer()"><span class="ic" data-ic="tupyic"></span>Portal Tupy</a>
         <a href="#rec" onclick="fecharDrawer()"><span class="ic" data-ic="pag"></span>Recorrentes</a>
       </div>
     </div>

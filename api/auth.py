@@ -114,7 +114,6 @@ TELAS: dict[str, tuple[str, str]] = {  # chave -> (rótulo, grupo do menu)
     "telhod":  ("Hodômetro e Rastro", "Telemetria"),
     "prodveic": ("Produtividade de Veículos", "Business Intelligence"),
     "fat":     ("Faturamento Detalhado", "Controladoria"),
-    "tupy":    ("Portal Tupy", "Financeiro"),
     "tvfat":   ("Painel TV — Faturamento", "Business Intelligence"),
     "tvope":   ("Painel TV — Operação", "Business Intelligence"),
     "tvdir":   ("Painel TV — Diretoria", "Business Intelligence"),
@@ -175,7 +174,9 @@ ROTA_TELAS: list[tuple[str, frozenset[str]]] = [
     ("/api/rh/folha-estrutura",       frozenset({"folha"})),
     ("/api/operacao/pedagio",         frozenset({"pedagio"})),
     ("/api/operacao/gr",              frozenset({"gr"})),
-    ("/api/financeiro/tupy",          frozenset({"tupy"})),
+    # o Portal Tupy é ABA de Portais de Antecipação desde a v0.209.0 — a rota
+    # herda a tela que a contém (sub-aba não é tela, não tem RBAC próprio)
+    ("/api/financeiro/tupy",          frozenset({"antport"})),
     ("/api/rh/folha-custo",           frozenset({"folha"})),
     ("/api/rh/horas-extras",          frozenset({"he"})),
     ("/api/rh/vagas",                 frozenset({"rh"})),
@@ -807,6 +808,17 @@ def _seed_perfis_modelo(c: psycopg.Connection) -> None:
                 c.execute("INSERT INTO perfil_telas(perfil_id, tela) VALUES(%s,%s) ON CONFLICT DO NOTHING",
                           (row["id"], "tupy"))
         c.execute("INSERT INTO config(chave, valor) VALUES('perfis_modelo_v39', '1') ON CONFLICT(chave) DO NOTHING")
+
+    # v40 (2026-09-01): o Portal Tupy deixou de ser tela — é a primeira aba de
+    # Portais de Antecipação ('antport'), a pedido do dono (um menu a menos).
+    # Quem via 'tupy' passa a ver 'antport' (a substituta HERDA o acesso; sem
+    # isto a Diretoria perderia o portal) e o grant órfão sai.
+    if not c.execute("SELECT 1 FROM config WHERE chave='perfis_modelo_v40'").fetchone():
+        c.execute("INSERT INTO perfil_telas(perfil_id, tela)"
+                  " SELECT perfil_id, 'antport' FROM perfil_telas WHERE tela='tupy'"
+                  " ON CONFLICT DO NOTHING")
+        c.execute("DELETE FROM perfil_telas WHERE tela='tupy'")
+        c.execute("INSERT INTO config(chave, valor) VALUES('perfis_modelo_v40', '1') ON CONFLICT(chave) DO NOTHING")
 
 
 def _agora() -> str:
