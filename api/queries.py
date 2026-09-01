@@ -1853,8 +1853,18 @@ def get_make_vs_buy(comp_de: str, comp_ate: str) -> dict:
             # spread negativo = contratar sai MAIS CARO que o custo marginal
             # próprio -> candidata a rodar frota própria
             "recomendacao": None if spread is None else ("propria" if spread < 0 else "contratar"),
+            # A OPORTUNIDADE EM DINHEIRO (pedido de 01/09/2026: "algo que dê
+            # ação estratégica"): spread × km do período. Negativa = quanto se
+            # pagou ACIMA do custo marginal próprio nesta rota — é o número
+            # que ordena a conversa, porque R$/km sem volume ordena errado
+            # (a régua da materialidade da DRE por Cliente).
+            "oportunidade": (spread * r["km"]) if spread is not None else None,
         })
-    rotas.sort(key=lambda x: (x["spread"] if x["spread"] is not None else 999))
+    # materialidade primeiro: a rota que move dinheiro abre a lista
+    rotas.sort(key=lambda x: (-(abs(x["oportunidade"]) if x["oportunidade"] is not None else -1)))
+    acima = [x for x in rotas if (x["oportunidade"] or 0) < 0]
+    resumo["compra_acima_total"] = round(-sum(x["oportunidade"] for x in acima), 2)
+    resumo["compra_acima_rotas"] = len(acima)
 
     return {
         "comp_de": comp_de, "comp_ate": comp_ate,

@@ -332,7 +332,7 @@ glossario:
   definicao: Quando o pagamento do deslocamento sem carga é devido (contêiner e frota dedicada por razão
     sanitária ou certificação), vale 0,92 × CCD × distância, sem o coeficiente de carga e descarga. Fora
     dessas hipóteses a viagem vazia aparece como isenta, nunca como abaixo do piso.
-- termo: Spread make-vs-buy
+- termo: Spread próprio × agregado (make-vs-buy)
   definicao: CKM próprio menos o RKM pago ao agregado. Decide fazer (frota própria) ou comprar (agregado).
     No curto prazo compara com o CKM marginal; para comprar veículo, com o CKM cheio.
 - termo: Competência aberta

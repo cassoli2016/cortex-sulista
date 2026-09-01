@@ -4,6 +4,11 @@ Gerado de `docs/versoes.yaml` por `scripts/gerar_changelog.py` — não editar �
 Formato [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/),
 versionamento [SemVer](https://semver.org/lang/pt-BR/).
 
+## [0.196.0] — 01/09/2026  ·  CX-01/09/2026-v0.196.0
+
+### Alterado
+- Make vs Buy virou "Frota Própria × Agregado" — no menu, na gaveta do celular e no catálogo de telas; o id continua o mesmo (RBAC, favoritos e links antigos seguem valendo). E a aba Por rota passou a falar em DINHEIRO: a coluna nova "No período" (spread × km) ordena a lista pela materialidade, e o gráfico "Onde o dinheiro está" abre a aba com as dez rotas que mais movem reais — vermelho onde se paga acima do custo marginal próprio, navy onde a contratação tem folga. Medido no ano: R$ 11,6 mil comprados acima do custo próprio em uma rota, contra R$ 1,1 mi de folga só em Pouso Alegre → São José dos Pinhais.
+
 ## [0.195.1] — 01/09/2026  ·  CX-01/09/2026-v0.195.1
 
 ### Corrigido

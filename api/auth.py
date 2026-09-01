@@ -76,7 +76,7 @@ TELAS: dict[str, tuple[str, str]] = {  # chave -> (rótulo, grupo do menu)
     "orc":     ("Orçamento", "Controladoria"),
     "fech":    ("Fechamento do Mês", "Controladoria"),
     "agr":     ("Agregados e Terceiros", "Operação"),
-    "mvb":     ("Make vs Buy", "Operação"),
+    "mvb":     ("Frota Própria × Agregado", "Operação"),
     "km":      ("Análise de KM", "Operação"),
     "prog":    ("Programação Inteligente", "Operação"),
     "torre":   ("Torre de Controle", "Operação"),

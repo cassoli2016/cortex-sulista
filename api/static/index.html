@@ -5906,10 +5906,15 @@ body.tvfull #btnReport,body.tvmode #btnReport{display:none}
         </div>
         <div class="aba" data-abas="mvb" data-aba="rota" id="aba-mvb-rota" role="tabpanel" aria-labelledby="tabmvb-rota" hidden>
   <div class="card">
-            <div class="head"><h2>Comparativo por rota <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="Rotas com viagem de agregado/terceiro no período (programacaoembarque, AGR/TER), origem → destino. R$/km da rota = valorfretecompra ÷ kmfretecompra. Spread = R$/km da rota − CKM marginal próprio (o mesmo para todas as rotas: o razão é consolidado, não há CKM por rota). Spread negativo = a rota está sendo comprada mais caro do que custaria rodar com frota própria no curto prazo.">i</span></h2><span class="hint" id="hintMvbR"></span></div>
-            <div class="tablewrap tabroll"><table><thead><tr>
+            <div class="head"><h2>Onde o dinheiro está <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="A oportunidade em REAIS no período: spread × km da rota. Barra vermelha = rota comprada ACIMA do custo marginal próprio — é o dinheiro que muda de lugar se ela rodar com frota própria; navy = a contratação está mais barata que rodar próprio, com a folga em R$. Ordenado por dinheiro e não por R$/km, porque percentual sem volume ordena errado (a régua de materialidade da casa).">i</span></h2>
+              <span class="hint" id="hintMvbOp"></span></div>
+            <div class="tabroll" style="max-height:330px"><div id="chartMvbOp"></div></div>
+          </div>
+  <div class="card">
+            <div class="head"><h2>Comparativo por rota <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="Rotas com viagem de agregado/terceiro no período (programacaoembarque, AGR/TER), origem → destino. R$/km da rota = valorfretecompra ÷ kmfretecompra. Spread = R$/km da rota − CKM marginal próprio (o mesmo para todas as rotas: o razão é consolidado, não há CKM por rota). Spread negativo = a rota está sendo comprada mais caro do que custaria rodar com frota própria no curto prazo. “No período” é o spread × km — a coluna que ORDENA a lista, porque é a que vira dinheiro numa decisão.">i</span></h2><span class="hint" id="hintMvbR"></span></div>
+            <div class="tablewrap tabroll" style="max-height:420px"><table><thead><tr>
               <th>Origem</th><th>Destino</th><th class="num">Viagens</th><th class="num">Km</th>
-              <th class="num">R$/km contratado</th><th class="num">Spread</th><th>Indicação</th>
+              <th class="num">R$/km contratado</th><th class="num">Spread</th><th class="num">No período</th><th>Indicação</th>
             </tr></thead><tbody id="mvb-rotas"></tbody></table></div>
           </div>
         </div>
@@ -24419,10 +24424,26 @@ function renderMvb(d){
     <td class="num">${fmtKm(rt.km)}</td>
     <td class="num" style="font-weight:600">${rt.rs_km!=null?fmtRsKm(rt.rs_km):'—'}</td>
     <td class="num" style="font-weight:700;color:${rt.spread==null?'inherit':(rt.spread<0?'var(--red)':'var(--green,#1E7F4F)')}">${rt.spread!=null?(rt.spread>0?'+':'')+rt.spread.toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2}):'—'}</td>
+    <td class="num" style="font-weight:700;color:${rt.oportunidade==null?'inherit':(rt.oportunidade<0?'var(--red)':'inherit')}">${rt.oportunidade!=null?BRL.format(rt.oportunidade):'—'}</td>
     <td>${rt.recomendacao==null?'—':(rt.recomendacao==='propria'
       ?'<span class="badge b-dang">avaliar frota própria</span>'
       :'<span class="badge b-ok">contratar compensa</span>')}</td></tr>`).join('')
-    || '<tr><td colspan="7" style="color:var(--n500)">sem rotas contratadas relevantes no período</td></tr>';
+    || '<tr><td colspan="8" style="color:var(--n500)">sem rotas contratadas relevantes no período</td></tr>';
+  {
+    // ONDE O DINHEIRO ESTÁ: top 10 por |R$ no período|. Vermelho = comprado
+    // acima do custo marginal próprio; navy = a contratação tem folga.
+    const rts=(d.rotas||[]).filter(x=>x.oportunidade!=null).slice(0,10);
+    chartHBars('chartMvbOp', rts.map(x=>({rotulo:(x.origem||'?')+' → '+(x.destino||'?'),
+        valor:x.oportunidade})),
+      {cor:r2=>{const o=rts.find(x=>((x.origem||'?')+' → '+(x.destino||'?'))===r2.rotulo);
+                return (o&&o.oportunidade<0)?CC.vermelho:CC.navy500;},
+       fmt:v=>BRL.format(v)});
+    const ac=r.compra_acima_total||0, an=r.compra_acima_rotas||0;
+    const hOp=document.getElementById('hintMvbOp');
+    if(hOp) hOp.textContent = an
+      ? ('comprado acima do custo marginal próprio: '+BRL.format(ac)+' em '+an+' rota'+(an===1?'':'s')+' no período')
+      : 'nenhuma rota comprada acima do custo marginal próprio no período';
+  }
   if(!document.getElementById('fCompDe').value) document.getElementById('fCompDe').value=d.comp_de;
   if(!document.getElementById('fCompAte').value) document.getElementById('fCompAte').value=d.comp_ate;
   const buyMin = Math.min(...[r.rs_km_agregado,r.rs_km_terceiro].filter(v=>v!=null));
