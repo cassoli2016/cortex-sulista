@@ -4,6 +4,12 @@ Gerado de `docs/versoes.yaml` por `scripts/gerar_changelog.py` — não editar �
 Formato [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/),
 versionamento [SemVer](https://semver.org/lang/pt-BR/).
 
+## [0.203.1] — 01/09/2026  ·  CX-01/09/2026-v0.203.1
+
+### Alterado
+- CT-e de Contrapartida reorganizado com dado real na régua: os certificados ganharam ABA própria (vencimentos + faixas, 8 por página ordenados por urgência — a Implantação media 1.970px misturando quatro assuntos e caiu para ~680px, ficando com o validador de cadastro, a prontidão da fila e o volume por mês) e a fila do Despacho pagina de 10 em 10 (media 1.359px). O filtro de período some na aba de certificados — certificado vence no calendário, e filtro visível ali mentiria.
+- Consumo e Estatísticas (telemetria) abre na EVOLUÇÃO MENSAL — a visão executiva primeiro; o detalhe por veículo é a segunda aba (e a regra da casa de a aba com gráfico nascer aberta volta a valer à risca).
+
 ## [0.203.0] — 01/09/2026  ·  CX-01/09/2026-v0.203.0
 
 ### Adicionado

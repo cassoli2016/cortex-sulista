@@ -1,3 +1,19 @@
+- versao: "0.203.1"
+  data: "2026-09-01"
+  alterado:
+    - >-
+      CT-e de Contrapartida reorganizado com dado real na régua: os
+      certificados ganharam ABA própria (vencimentos + faixas, 8 por página
+      ordenados por urgência — a Implantação media 1.970px misturando
+      quatro assuntos e caiu para ~680px, ficando com o validador de
+      cadastro, a prontidão da fila e o volume por mês) e a fila do
+      Despacho pagina de 10 em 10 (media 1.359px). O filtro de período some
+      na aba de certificados — certificado vence no calendário, e filtro
+      visível ali mentiria.
+    - >-
+      Consumo e Estatísticas (telemetria) abre na EVOLUÇÃO MENSAL — a visão
+      executiva primeiro; o detalhe por veículo é a segunda aba (e a regra
+      da casa de a aba com gráfico nascer aberta volta a valer à risca).
 - versao: "0.203.0"
   data: "2026-09-01"
   adicionado:

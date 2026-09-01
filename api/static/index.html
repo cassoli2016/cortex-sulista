@@ -3068,11 +3068,11 @@ body.tvfull #btnReport,body.tvmode #btnReport{display:none}
       <section class="view" id="view-telcon">
         <div class="kpis" id="kpis-telcon"></div>
         <div class="subtabs" role="tablist" data-abas="telcon" aria-label="Seções do consumo">
-          <button role="tab" id="tabtelcon-cmp" data-aba="cmp" aria-controls="aba-telcon-cmp" aria-selected="true" onclick="abaTrocar('telcon','cmp')">Consumo × abastecimento <span class="aban" id="telconNCmp"></span></button>
-          <button role="tab" id="tabtelcon-evo" data-aba="evo" aria-controls="aba-telcon-evo" aria-selected="false" onclick="abaTrocar('telcon','evo')">Evolução mensal</button>
+          <button role="tab" id="tabtelcon-evo" data-aba="evo" aria-controls="aba-telcon-evo" aria-selected="true" onclick="abaTrocar('telcon','evo')">Evolução mensal</button>
+          <button role="tab" id="tabtelcon-cmp" data-aba="cmp" aria-controls="aba-telcon-cmp" aria-selected="false" onclick="abaTrocar('telcon','cmp')">Consumo × abastecimento <span class="aban" id="telconNCmp"></span></button>
           <button role="tab" id="tabtelcon-com" data-aba="com" aria-controls="aba-telcon-com" aria-selected="false" onclick="abaTrocar('telcon','com')">Comunicação <span class="aban" id="telconNCom"></span></button>
         </div>
-        <div class="aba" data-abas="telcon" data-aba="cmp" id="aba-telcon-cmp" role="tabpanel" aria-labelledby="tabtelcon-cmp">
+        <div class="aba" data-abas="telcon" data-aba="cmp" id="aba-telcon-cmp" role="tabpanel" aria-labelledby="tabtelcon-cmp" hidden>
         <div class="card">
           <div class="head">
             <h2>Telemetria × abastecimento <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="Duas medidas independentes do mesmo consumo: a telemetria da Gobrax (vehicle-statistics, cache local) mede o que o motor gastou; sulista.ctaplus_abastecimentos do AVA mede o que saiu da bomba, sem ARLA. Casados por placa. A comparação SÓ vale onde a telemetria cobriu pelo menos 70% do km do período e onde os dois km/l são fisicamente plausíveis (0,5 a 15) — fora disso a linha aparece marcada e não conta como divergência.">i</span></h2>
@@ -3089,7 +3089,7 @@ body.tvfull #btnReport,body.tvmode #btnReport{display:none}
           </tr></thead><tbody id="telcon-lista"></tbody></table></div>
         </div>
         </div>
-        <div class="aba" data-abas="telcon" data-aba="evo" id="aba-telcon-evo" role="tabpanel" aria-labelledby="tabtelcon-evo" data-ao-abrir="telconEvolucao" hidden>
+        <div class="aba" data-abas="telcon" data-aba="evo" id="aba-telcon-evo" role="tabpanel" aria-labelledby="tabtelcon-evo" data-ao-abrir="telconEvolucao">
           <div class="card">
             <div class="head">
               <h2>Km/l da frota, mês a mês <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="A série mensal das duas medidas independentes: km/l da telemetria (só leituras plausíveis, 0,8 a 6,0) e km/l do abastecimento (CTA Plus, sem ARLA). O eixo de meses é GERADO desde a primeira coleta — mês sem coleta aparece rotulado, nunca some. Mês corrente hachurado: parcial. O histórico começa em jul/26; use o backfill do coletor para alongar.">i</span></h2>
@@ -4175,6 +4175,8 @@ body.tvfull #btnReport,body.tvmode #btnReport{display:none}
                   aria-selected="true" onclick="abaTrocar('cp','despacho')">Despacho do dia<span class="aban vazio" id="cnt-cp-desp"></span></button>
           <button role="tab" id="tabcp-implantacao" data-aba="implantacao" aria-controls="cpAbaImplantacao"
                   aria-selected="false" onclick="abaTrocar('cp','implantacao')">Implantação<span class="aban vazio" id="cnt-cp-impl"></span></button>
+          <button role="tab" id="tabcp-certificados" data-aba="certificados" aria-controls="cpAbaCertificados"
+                  aria-selected="false" onclick="abaTrocar('cp','certificados')">Certificados<span class="aban vazio" id="cnt-cp-cert"></span></button>
           <button role="tab" id="tabcp-transmitidos" data-aba="transmitidos" aria-controls="cpAbaTransmitidos"
                   aria-selected="false" onclick="abaTrocar('cp','transmitidos')">Transmitidos<span class="aban vazio" id="cnt-cp-tx"></span></button>
           <button role="tab" id="tabcp-documentos" data-aba="documentos" aria-controls="cpAbaDocumentos"
@@ -4252,13 +4254,6 @@ body.tvfull #btnReport,body.tvmode #btnReport{display:none}
           <div class="cp-pager" id="cpValidTabPag" hidden></div>
         </div>
 
-        <div class="card" id="cpCertCard" hidden>
-          <div class="head"><h2>Vencimento dos certificados <span class="badge b-info" title="Certificado vence no calendário, não na janela que a tela está mostrando. Se este card seguisse o período, um agregado que não rodou no recorte sumiria do controle — foi o que aconteceu: o certificado que vence primeiro desapareceu num dia sem movimento.">ignora o período</span> <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="Certificado A1 vale UM ANO. Vencido em silêncio, a emissão para sozinha e a empresa descobre pelo agregado. A ordem é por urgência e, dentro dela, por VOLUME: um certificado que vence em 40 dias e sustenta metade da fila urge mais que um vencendo em 10 que nunca emitiu nada. Validade não informada NÃO conta como “ok” — conta como desconhecida.">i</span></h2>
-            <span class="hint" id="hintCpCert"></span></div>
-          <div class="tabroll"><table class="tab" id="cpCertTab"></table></div>
-          <div class="cp-pager" id="cpCertTabPag" hidden></div>
-        </div>
-
         <div class="grid2">
           <div class="card">
             <div class="head"><h2>Volume por mês <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="PJ e TAC separados de propósito: somar os dois produz um passivo falso, porque o TAC não emite CT-e.">i</span></h2></div>
@@ -4270,11 +4265,21 @@ body.tvfull #btnReport,body.tvmode #btnReport{display:none}
           </div>
         </div>
 
+        </div>
+
+        <div class="aba" data-abas="cp" data-aba="certificados" id="cpAbaCertificados"
+             role="tabpanel" aria-labelledby="tabcp-certificados" data-ao-abrir="cpAbriuCertificados" hidden>
+        <div class="card" id="cpCertCard" hidden>
+          <div class="head"><h2>Vencimento dos certificados <span class="badge b-info" title="Certificado vence no calendário, não na janela que a tela está mostrando. Se este card seguisse o período, um agregado que não rodou no recorte sumiria do controle — foi o que aconteceu: o certificado que vence primeiro desapareceu num dia sem movimento.">ignora o período</span> <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="Certificado A1 vale UM ANO. Vencido em silêncio, a emissão para sozinha e a empresa descobre pelo agregado. A ordem é por urgência e, dentro dela, por VOLUME: um certificado que vence em 40 dias e sustenta metade da fila urge mais que um vencendo em 10 que nunca emitiu nada. Validade não informada NÃO conta como “ok” — conta como desconhecida.">i</span></h2>
+            <span class="hint" id="hintCpCert"></span></div>
+          <div class="tabroll"><table class="tab" id="cpCertTab"></table></div>
+          <div class="cp-pager" id="cpCertTabPag" hidden></div>
+        </div>
+
         <div class="card">
             <div class="head"><h2>Faixas de vencimento <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="Certificados cadastrados por prazo até vencer. As duas últimas linhas NÃO são faixa de prazo e por isso aparecem separadas: “sem validade informada” não tem data, e A3 não se resolve esperando — mora em token físico e não automatiza.">i</span></h2></div>
             <div id="cpCertFaixas" class="cpbloco"></div>
         </div>
-
         </div>
 
         <div class="aba" data-abas="cp" data-aba="transmitidos" id="cpAbaTransmitidos"
@@ -14486,7 +14491,7 @@ function renderCtecp(d){
   if(cItens.length){
     const a30=(ce.ate_30||{}), a60=(ce.ate_60||{});
     // o contador da aba é o que vira agendamento: certificados a vencer em 60d
-    abaContador('cnt-cp-impl', (a30.certificados||0)+(a60.certificados||0));
+    abaContador('cnt-cp-cert', (a30.certificados||0)+(a60.certificados||0));
     document.getElementById('hintCpCert').textContent =
       ce.total+' '+(ce.total===1?'certificado':'certificados')
       +' · '+(a30.certificados||0)+' vence'+((a30.certificados||0)===1?'':'m')
@@ -14495,7 +14500,9 @@ function renderCtecp(d){
     const CLS={vencido:'b-dang',critico:'b-dang',alerta:'b-warn',
                atencao:'b-warn',desconhecido:'b-dang',impedido:'b-info',ok:'b-ok'};
     pagRecorte('cpCertTab', String(cItens.length));
-    const pagCert = pagFatia('cpCertTab', cItens);
+    // 8 por página: ordenado por urgência, a página 1 é o que decide;
+    // com 15 a aba media 1.259px com os 31 certificados reais
+    const pagCert = pagFatia('cpCertTab', cItens, 8);
     /* AS ACOES FICAM NUMA COLUNA SO, no fim. Antes "trocar" morava dentro da
        celula da VALIDADE (o botao caia embaixo da data, e a celula ficava com
        duas coisas de naturezas diferentes) e "desativar envio" era uma coluna
@@ -14616,7 +14623,8 @@ function cpAba(nome){
    e filtro que a query ignora sai da vista em vez de convidar a mexer. */
 function _cpAbriu(nome){
   const fcp = document.getElementById('cpFiltrosCard');
-  if(fcp) fcp.hidden = (nome === 'transmitidos');
+  // certificados ignoram o período por definição — filtro visível ali mentiria
+  if(fcp) fcp.hidden = (nome === 'transmitidos' || nome === 'certificados');
   try{ localStorage.setItem('cp_aba', nome); }catch(e){}
 }
 function cpAbriuDespacho(){ _cpAbriu('despacho'); }
@@ -14631,6 +14639,11 @@ function cpAbriuImplantacao(){
     if(document.getElementById('content').classList.contains('loading')) CP_VALPEND=true;
     else cpValidarTudo();
   }
+}
+function cpAbriuCertificados(){
+  /* o payload dos certificados vem no DATACP (carregado no load geral) —
+     nada a buscar; só persistir a aba, como as irmãs */
+  _cpAbriu('certificados');
 }
 function cpAbriuTransmitidos(){
   _cpAbriu('transmitidos');
@@ -14647,6 +14660,8 @@ function cpAbriuDocumentos(){
 }
 
 function cpValidCat(c){ CP_VALCAT=c; cpValidRender(); }
+/* o contador da Implantação são os ACHADOS do validador — é o que a aba
+   tem de acionável depois que os certificados ganharam aba própria */
 
 async function cpValidarTudo(){
   /* Recorte PROPRIO, e nao o da tela: com o filtro do dia via-se 18
@@ -15123,7 +15138,8 @@ function cpTabRender(){
      trabalho, e o rodape deixa de dizer onde a pessoa esta. A pagina volta ao
      inicio sempre que o RECORTE muda — manter a pagina 7 depois de filtrar
      mostraria uma tabela vazia com dados existindo. */
-  const pagina = pagFatia('cpTab', ag);
+  // 10 por página: com 15, o Despacho media 1.359px com dado real
+  const pagina = pagFatia('cpTab', ag, 10);
 
   const cab = CP_COLS.map(function(c){
     const ativa = CP_ORD.col===c[0];
@@ -25446,6 +25462,8 @@ async function loadTelcon(){
     if(seq!==telconSeq) return;
     if(!r.ok){ showBanner(d.mensagem||'Erro ao montar o consumo.', d.detalhe); return; }
     hideBanner(); DATATELCON=d; renderTelcon(d); LOADEDQS.telcon='';
+    const ae=document.getElementById('aba-telcon-evo');
+    if(ae&&!ae.hidden) telconEvolucao();
   }catch(e){ if(seq===telconSeq) showBanner('Não foi possível falar com a API.', e.message); }
   finally{ if(seq===telconSeq){ btn.disabled=false; document.getElementById('content').classList.remove('loading'); } }
 }
