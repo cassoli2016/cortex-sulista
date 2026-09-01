@@ -570,6 +570,7 @@ svg:focus-visible{outline:2px solid var(--orange-500);outline-offset:2px;border-
 /* tabela longa rola DENTRO do card, com cabeçalho fixo. O CRM desenhava 200
    leads + 150 projetos de uma vez e a página passava de 16.000px de altura. */
 .tabroll{max-height:430px;overflow-y:auto}
+.dre-delta-f{border-right:2px solid var(--n300)}
 .tabroll thead th{position:sticky;top:0;z-index:2;background:var(--n0);box-shadow:inset 0 -1px 0 var(--n200)}
 table{width:100%;border-collapse:collapse;font-size:14px}
 th{text-align:left;padding:9px 18px;font-size:11px;text-transform:uppercase;letter-spacing:.08em;color:var(--n500);border-bottom:1px solid var(--n200);white-space:nowrap}
@@ -26870,14 +26871,18 @@ function renderDre(d){
   const ultM=d.meses[idxU], antM=d.meses[idxU-1];
   const rlAbs = rl&&rl.total?Math.abs(rl.total):0;
   const rbAbs = rb&&rb.total?Math.abs(rb.total):0;
+  /* % RL e Δ m/m na FRENTE, antes dos meses: são a leitura executiva — no
+     desenho antigo ficavam DEPOIS de N meses de colunas, fora da tela, e o
+     dono pediu "análise vertical com setas" para algo que já existia e
+     ninguém via. O % RB (antes das deduções) fica no fim, para conferência. */
   document.getElementById('dre-head').innerHTML='<tr><th>Linha</th>'+
+    '<th class="num" title="participação do total da linha sobre a receita líquida do período — a análise vertical">% RL</th>'+
+    (temDelta?`<th class="num" style="border-right:2px solid var(--n300)" title="variação de ${periodoLabel(ultM)} sobre ${periodoLabel(antM)}${parcialFim?' — os dois últimos meses FECHADOS, porque o mês corrente ainda está incompleto':''}. A seta segue o tamanho da linha (custo caindo aparece como ▼) e a cor segue o efeito no resultado: verde melhorou, vermelho piorou.">Δ m/m${parcialFim?' *':''}</th>`:'')+
     d.meses.map(mm=>`<th class="num">${periodoLabel(mm)}${mm===_mesAtualDre?'<br><span style="font-size:9.5px;font-weight:600;color:var(--n500)">parcial</span>':''}</th>`).join('')+
     '<th class="num" style="border-left:2px solid var(--n300)">Total</th>'+
-    (temDelta?`<th class="num" title="variação de ${periodoLabel(ultM)} sobre ${periodoLabel(antM)}${parcialFim?' — os dois últimos meses FECHADOS, porque o mês corrente ainda está incompleto':''}. A seta segue o tamanho da linha (custo caindo aparece como ▼) e a cor segue o efeito no resultado.">Δ m/m${parcialFim?' *':''}</th>`:'')+
     `<th class="num" title="mesmo período do ano anterior (${d.comp_de_aa} a ${d.comp_ate_aa})">Ano ant.</th>`+
     '<th class="num" title="variação sobre o mesmo período do ano anterior — verde melhora o resultado, vermelho piora">Δ a/a</th>'+
-    '<th class="num" title="participação do total da linha sobre a RECEITA BRUTA do período — análise vertical antes das deduções (impostos, anulações e descontos)">% RB</th>'+
-    '<th class="num" title="participação do total da linha sobre a receita líquida do período">% RL</th></tr>';
+    '<th class="num" title="participação do total da linha sobre a RECEITA BRUTA do período — análise vertical antes das deduções (impostos, anulações e descontos)">% RB</th></tr>';
   /* Célula de variação. Duas regras que a versão anterior não separava:
      1) SETA = direção do TAMANHO da linha. Numa linha de custo (valor negativo)
         o custo caindo aparecia como ▲ porque o número assinado subia — ao lado
@@ -26903,9 +26908,12 @@ function renderDre(d){
   };
   const SEM_AA_CONTA='O comparativo com o ano anterior é lido no nível do agrupador. No detalhe por conta ele não é calculado — traria uma segunda varredura pesada do razão sem mudar a leitura da linha.';
   const deltaAA=(u,a)=>_cel(u,a);
-  const delta=(vs)=>{
+  const delta=(vs,frente)=>{
     if(!temDelta) return '';
-    return _cel(vs[ultM]||0, vs[antM]||0);
+    const cel=_cel(vs[ultM]||0, vs[antM]||0);
+    // na frente da tabela a coluna fecha com a régua que separa a leitura
+    // executiva dos meses (classe, não style: a célula já carrega style próprio)
+    return frente?cel.replace('class="num"','class="num dre-delta-f"'):cel;
   };
   let html='';
   d.linhas.forEach((l,i)=>{
@@ -26921,26 +26929,26 @@ function renderDre(d){
     ].filter(Boolean).join(' ');
     html+=`<tr class="${cls}" data-aberto="0" ${temDet?`onclick="dreToggle(${i})" style="cursor:pointer" title="clique para abrir a composição por agrupador — e cada agrupador abre as contas"`:''} id="dre-l-${i}">
       <td title="${esc(l.rotulo)}">${temDet?'<span class="exp">▸</span>':'<span class="exp"></span>'}${esc(l.rotulo)}</td>
+      <td class="num" style="font-weight:600">${av}</td>
+      ${delta(l.meses, true)}
       ${d.meses.map(mm=>`<td class="num">${fm(l.meses[mm]||0)}</td>`).join('')}
       <td class="num" style="font-weight:700;border-left:2px solid var(--n300)">${fm(l.total)}</td>
-      ${delta(l.meses)}
       <td class="num" style="color:var(--n500)">${fm(l.total_aa||0)}</td>
       ${deltaAA(l.total, l.total_aa||0)}
-      <td class="num">${avRB}</td>
-      <td class="num">${av}</td></tr>`;
+      <td class="num">${avRB}</td></tr>`;
     if(temDet){
       l.detalhe.forEach((dd,j)=>{
         const cts=dd.contas||[];
         const temC=cts.length>0;
         html+=`<tr class="dre-item dre-g-${i}" id="dre-a-${i}-${j}" data-aberto="0" ${temC?`onclick="dreToggleConta(${i},${j})" style="cursor:pointer" title="clique para abrir as contas do plano de contas deste agrupador"`:''}>
         <td title="${esc(dd.agrupador)}">${temC?'<span class="exp">▸</span>':'<span class="exp"></span>'}${esc(dd.agrupador)}</td>
+        <td class="num">${(rl&&rl.total)?`<span class="av">${(100*dd.total/Math.abs(rl.total)).toFixed(1)}%</span>`:''}</td>
+        ${delta(dd.meses, true)}
         ${d.meses.map(mm=>`<td class="num">${fm(dd.meses[mm]||0)}</td>`).join('')}
         <td class="num" style="border-left:2px solid var(--n300)">${fm(dd.total)}</td>
-        ${delta(dd.meses)}
         <td class="num" style="color:var(--n500)">${fm(dd.total_aa||0)}</td>
         ${deltaAA(dd.total, dd.total_aa||0)}
-        <td class="num">${rbAbs?`<span class="av">${(100*dd.total/rbAbs).toFixed(1)}%</span>`:''}</td>
-        <td class="num">${(rl&&rl.total)?`<span class="av">${(100*dd.total/Math.abs(rl.total)).toFixed(1)}%</span>`:''}</td></tr>`;
+        <td class="num">${rbAbs?`<span class="av">${(100*dd.total/rbAbs).toFixed(1)}%</span>`:''}</td></tr>`;
         /* 3o nivel — contas do plano de contas. O payload NAO traz o ano
            anterior por conta (seria uma segunda varredura pesada do razao):
            essas duas colunas saem como "n/d", com o title explicando onde o
@@ -26954,13 +26962,13 @@ function renderDre(d){
            ~445px num viewport de 390 e cobria TODAS as colunas de valor). */
         html+=cts.map(c=>`<tr class="dre-item dre-conta dre-c-${i}-${j}">
         <td title="${esc((c.estrutural||'')+' · '+(c.conta||''))}"><span class="ccod">${esc(c.estrutural||'')}</span> · ${esc(c.conta||'')}</td>
+        <td class="num">${(rl&&rl.total)?`<span class="av">${(100*c.total/Math.abs(rl.total)).toFixed(1)}%</span>`:''}</td>
+        ${delta(c.meses, true)}
         ${d.meses.map(mm=>`<td class="num">${fm(c.meses[mm]||0)}</td>`).join('')}
         <td class="num" style="border-left:2px solid var(--n300)">${fm(c.total)}</td>
-        ${delta(c.meses)}
         <td class="num" title="${esc(SEM_AA_CONTA)}"><span class="zero">n/d</span></td>
         <td class="num" title="${esc(SEM_AA_CONTA)}"><span class="zero">n/d</span></td>
-        <td class="num">${rbAbs?`<span class="av">${(100*c.total/rbAbs).toFixed(1)}%</span>`:''}</td>
-        <td class="num">${(rl&&rl.total)?`<span class="av">${(100*c.total/Math.abs(rl.total)).toFixed(1)}%</span>`:''}</td></tr>`).join('');
+        <td class="num">${rbAbs?`<span class="av">${(100*c.total/rbAbs).toFixed(1)}%</span>`:''}</td></tr>`).join('');
       });
     }
   });

@@ -4,6 +4,11 @@ Gerado de `docs/versoes.yaml` por `scripts/gerar_changelog.py` — não editar �
 Formato [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/),
 versionamento [SemVer](https://semver.org/lang/pt-BR/).
 
+## [0.203.2] — 01/09/2026  ·  CX-01/09/2026-v0.203.2
+
+### Alterado
+- DRE Gerencial: a análise vertical (% da receita líquida) e a variação contra o mês anterior (setas verdes e vermelhas — custo caindo aparece como seta para baixo VERDE, porque a cor segue o efeito no resultado) passaram para a FRENTE da tabela, logo depois do nome da linha, em todos os três níveis (linha, agrupador e conta). Existiam desde sempre, mas atrás dos meses, fora da tela — análise que ninguém vê não analisa nada. O % sobre a receita bruta continua no fim, para conferência.
+
 ## [0.203.1] — 01/09/2026  ·  CX-01/09/2026-v0.203.1
 
 ### Alterado
