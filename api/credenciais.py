@@ -152,8 +152,9 @@ CAMPOS: dict[str, dict] = {
                      "renovação segue por refresh_token"},
     "MONKEY_TOKEN_URL": {
         "rotulo": "URL do token", "segredo": False, "obrigatorio": False,
-        "descricao": "Só se não for o padrão <base>/oauth/token",
-        "placeholder": "https://…/oauth/token"},
+        "descricao": "Só se não for o padrão <base>/uaa/oauth/token "
+                     "(descoberto por sonda em 01/09/2026)",
+        "placeholder": "https://…/uaa/oauth/token"},
     "MONKEY_SELLER_ID": {
         "rotulo": "sellerIds da Sulista", "segredo": False,
         "descricao": "O {id} de /v2/sellers/{id}/receivables — um por CNPJ, "

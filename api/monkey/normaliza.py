@@ -5,10 +5,14 @@ porque hoje ele é alimentado por planilha. Esta camada faz a API entrar pelo
 MESMO formato, para que a tela, a conciliação e a simulação de antecipação não
 saibam a diferença entre um portal que veio de arquivo e um que veio de API.
 
-QUEM É QUEM. O caminho é `/v2/sellers/{id}/receivables`: a Sulista é o SELLER
-(cedente), e o `buyer` é quem deve — a Tupy. Trocar os dois inverteria o
-sacado e quebraria a elegibilidade por convênio, que casa pela raiz do CNPJ do
-sacado.
+QUEM É QUEM — MEDIDO NOS DADOS REAIS (01/09/2026, produção), porque o palpite
+original estava INVERTIDO: `sponsor` é a ÂNCORA (TUPY S/A — quem deve o
+título, o SACADO) e `buyer` é o INVESTIDOR que comprou o recebível (nos dados:
+BANCO SOFISA). O cedente é a própria Sulista (o seller da URL), e o payload
+NÃO traz o CNPJ dela — a coleta anota `_seller_cnpj`/`_seller_nome` em cada
+recebível a partir de /uaa/me (companies). Se o sacado apontasse para o buyer,
+a elegibilidade por convênio — que casa pela raiz do CNPJ do SACADO — casaria
+com o banco investidor e nunca com a Tupy.
 
 O STATUS É GANHO NOVO. A planilha só dizia que o título está no portal; aqui
 vem se ele já foi VENDIDO, se foi RECUSADO ou se está em custódia. Só
@@ -21,6 +25,15 @@ from __future__ import annotations
 # não é oferta disponível: SOLD já foi vendido, PAID já liquidou, REFUSED e
 # CANCELLED saíram, WAITING_* estão presos em processo, DELAYED está atrasado.
 ANTECIPAVEIS = {"ACTIVE", "OFFERED"}
+
+# Situações que SAÍRAM da posição do portal — o dinheiro já veio (SOLD), o
+# ciclo fechou (PAID) ou o título caiu fora (REFUSED/CANCELLED). A primeira
+# coleta real (01/09/2026) trouxe 48.666 títulos, TODOS vendidos/liquidados
+# desde o início do convênio: gravar isso como "posição" encheria a tela de
+# Antecipações com 48 mil linhas mortas. Posição é o que está EM ABERTO;
+# status desconhecido fica DENTRO (fail-open: título novo não pode sumir em
+# silêncio por causa de um rótulo que ainda não conhecemos).
+FORA_DA_POSICAO = {"SOLD", "PAID", "REFUSED", "CANCELLED"}
 
 # Rótulo em português para a tela; código desconhecido aparece cru em vez de
 # virar rótulo inventado (mesma regra do "Tipo (cód.)" da Manutenção).
@@ -91,10 +104,13 @@ def titulo(r: dict) -> dict:
         "antecipavel": 1 if status in ANTECIPAVEIS else 0,
         "situacao": ROTULOS.get(status, status or "(sem status)"),
         "situacao_api": status,
-        "cnpj_cedente": _digitos(r.get("sponsorGovernmentId")),
-        "nome_cedente": _txt(r.get("sponsorName")),
-        "cnpj_sacado": _digitos(r.get("buyerGovernmentId")),
-        "nome_sacado": _txt(r.get("buyerName")),
+        # sponsor = âncora (sacado); o cedente é o próprio seller, anotado
+        # pela coleta — ver o QUEM É QUEM no topo. O buyer (investidor que
+        # comprou o título) não tem coluna na tabela e fica de fora.
+        "cnpj_cedente": _digitos(r.get("_seller_cnpj")),
+        "nome_cedente": _txt(r.get("_seller_nome")),
+        "cnpj_sacado": _digitos(r.get("sponsorGovernmentId")),
+        "nome_sacado": _txt(r.get("sponsorName")),
         "chave": _txt(r.get("invoiceKey")),
         "id_portal": _txt(r.get("externalId")),
         # extras que a planilha nunca teve

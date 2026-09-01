@@ -4,6 +4,16 @@ Gerado de `docs/versoes.yaml` por `scripts/gerar_changelog.py` — não editar �
 Formato [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/),
 versionamento [SemVer](https://semver.org/lang/pt-BR/).
 
+## [0.206.2] — 01/09/2026  ·  CX-01/09/2026-v0.206.2
+
+### Adicionado
+- Coleta agendada da Monkey (09:40 e 14:40, scripts/coletar_monkey.py + instalar_tarefa_monkey.ps1), com a tarefa vigiada pela Saúde do Servidor.
+
+### Corrigido
+- A Monkey CONECTOU — e quase tudo que faltava só aparecia com a credencial na mão: o endereço do token é /uaa/oauth/token (o /oauth/token do palpite devolve 404), o Cloudflare deles bloqueia o User-Agent do Python (todo pedido agora leva UA próprio), e TODA rota /v2 exige o header program com o token do programa da âncora — sem ele o servidor responde HTTP 500 seco. O token do programa é descoberto sozinho em /uaa/me, como o portal faz depois do "Acessar empresa".
+- O sacado estava prestes a nascer TROCADO: nos dados reais o sponsor é a âncora (TUPY — quem deve o título) e o buyer é o banco investidor que o comprou. O mapeamento foi corrigido antes da primeira gravação de produção; o cedente agora é o próprio CNPJ da Sulista, anotado a partir das empresas do usuário.
+- Posição não é histórico: a primeira varredura real trouxe 48,6 mil títulos, todos já vendidos ou liquidados. O painel de Antecipações passa a receber só o que está EM ABERTO no portal, e histórico que muda de "vendido" para "liquidado" não cria envio novo.
+
 ## [0.206.1] — 01/09/2026  ·  CX-01/09/2026-v0.206.1
 
 ### Corrigido

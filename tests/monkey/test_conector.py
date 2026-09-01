@@ -23,6 +23,21 @@ def _pagina(itens, pagina, total_paginas):
                      "totalElements": len(itens) * total_paginas}}
 
 
+# O /uaa/me e a PRIMEIRA chamada de qualquer fluxo /v2: e dele que sai o
+# token do PROGRAMA (header `program`), sem o qual o /v2 inteiro responde
+# HTTP 500 seco — medido ao vivo em 01/09/2026.
+ME = {"principal": {
+    "programs": [{"token": "PRG-TUPY", "name": "TUPY"}],
+    "companies": [
+        {"companyId": "4242", "governmentId": "11222333000144",
+         "name": "SULISTA MATRIZ", "type": "SELLER", "active": True},
+        {"companyId": "111", "governmentId": "11222333000225",
+         "name": "SULISTA FILIAL 1", "type": "SELLER", "active": True},
+        {"companyId": "222", "governmentId": "11222333000306",
+         "name": "SULISTA FILIAL 2", "type": "SELLER", "active": True},
+    ]}}
+
+
 class HttpFalso:
     def __init__(self, respostas):
         self.respostas = list(respostas)
@@ -43,25 +58,31 @@ def com_token(monkeypatch):
 # ---------------------------------------------------------------- paginacao
 def test_percorre_todas_as_paginas(com_token):
     http = HttpFalso([
+        _resp(ME),
         _resp(_pagina([{"invoiceNumber": "1"}, {"invoiceNumber": "2"}], 0, 3)),
         _resp(_pagina([{"invoiceNumber": "3"}], 1, 3)),
         _resp(_pagina([{"invoiceNumber": "4"}], 2, 3)),
     ])
     linhas = cli.Cliente(http=http).recebiveis(tamanho=2)
     assert [x["invoiceNumber"] for x in linhas] == ["1", "2", "3", "4"]
-    assert len(http.chamadas) == 3
-    assert "page=0" in http.chamadas[0]["url"] and "size=2" in http.chamadas[0]["url"]
+    assert len(http.chamadas) == 4          # /uaa/me + 3 paginas
+    assert "/uaa/me" in http.chamadas[0]["url"]
+    assert "page=0" in http.chamadas[1]["url"] and "size=2" in http.chamadas[1]["url"]
+    # o header do programa vai em TODA chamada /v2 — e nao no /uaa/me
+    assert http.chamadas[1]["headers"]["program"] == "PRG-TUPY"
+    assert "program" not in http.chamadas[0]["headers"]
 
 
 def test_pagina_vazia_encerra_mesmo_com_totalPages_mentiroso(com_token):
     """API paginada que mente no totalPages ja apareceu antes; sem esta saida o
     laco rodaria ate o teto e faria centenas de chamadas a toa."""
     http = HttpFalso([
+        _resp(ME),
         _resp(_pagina([{"invoiceNumber": "1"}], 0, 999)),
         _resp(_pagina([], 1, 999)),
     ])
     assert len(cli.Cliente(http=http).recebiveis()) == 1
-    assert len(http.chamadas) == 2
+    assert len(http.chamadas) == 3
 
 
 def test_existe_freio_de_paginas():
@@ -74,18 +95,18 @@ def test_busca_nao_leva_page_nem_size(com_token):
     """A Monkey confirmou (01/09/2026): search com page/size na MESMA
     requisicao devolve 200 com lista vazia — os parametros se invalidam sem
     erro nenhum. A busca tem de ir sozinha."""
-    http = HttpFalso([_resp(_pagina([{"invoiceNumber": "1"}], 0, 1))])
+    http = HttpFalso([_resp(ME), _resp(_pagina([{"invoiceNumber": "1"}], 0, 1))])
     linhas = cli.Cliente(http=http).recebiveis(busca="externalId:3082912")
-    assert len(linhas) == 1 and len(http.chamadas) == 1
-    url = http.chamadas[0]["url"]
+    assert len(linhas) == 1 and len(http.chamadas) == 2
+    url = http.chamadas[-1]["url"]
     assert "search=externalId%3A3082912" in url
     assert "page=" not in url and "size=" not in url
 
 
 def test_listagem_completa_nao_leva_search(com_token):
-    http = HttpFalso([_resp(_pagina([{"invoiceNumber": "1"}], 0, 1))])
+    http = HttpFalso([_resp(ME), _resp(_pagina([{"invoiceNumber": "1"}], 0, 1))])
     cli.Cliente(http=http).recebiveis()
-    assert "search=" not in http.chamadas[0]["url"]
+    assert "search=" not in http.chamadas[-1]["url"]
 
 
 def test_o_campo_de_sellers_aceita_virgulas(monkeypatch):
@@ -140,6 +161,7 @@ def test_o_primeiro_token_e_grant_password(monkeypatch):
     http = HttpFalso([
         _resp({"access_token": "ac-1", "refresh_token": "rf-1",
                "expires_in": 3600}),
+        _resp(ME),
         _resp(_pagina([{"invoiceNumber": "1"}], 0, 1)),
         _resp(_pagina([{"invoiceNumber": "2"}], 0, 1)),
     ])
@@ -159,6 +181,7 @@ def test_a_renovacao_usa_o_refresh_token(monkeypatch):
     http = HttpFalso([
         _resp({"access_token": "ac-1", "refresh_token": "rf-1",
                "expires_in": 3600}),
+        _resp(ME),
         _resp(_pagina([{"invoiceNumber": "1"}], 0, 1)),
         _resp({"access_token": "ac-2", "refresh_token": "rf-2",
                "expires_in": 3600}),
@@ -182,6 +205,7 @@ def test_refresh_recusado_cai_de_volta_no_password(monkeypatch):
     http = HttpFalso([
         _resp({"access_token": "ac-1", "refresh_token": "rf-velho",
                "expires_in": 3600}),
+        _resp(ME),
         _resp(_pagina([{"invoiceNumber": "1"}], 0, 1)),
         _resp({"error": "invalid_grant"}, 400),          # refresh recusado
         _resp({"access_token": "ac-3", "expires_in": 3600}),
@@ -234,6 +258,9 @@ def test_o_token_nunca_aparece_na_mensagem_de_erro(com_token):
 
 
 # -------------------------------------------------------------- normalizacao
+# Formato REAL medido em producao (01/09/2026): sponsor e a ANCORA (Tupy,
+# o sacado); buyer e o INVESTIDOR que comprou o titulo (um banco). O palpite
+# original tinha os dois trocados — e o dado real e o que impede regredir.
 RECEB = {
     "invoiceNumber": "123456", "invoiceKey": "3526" + "0" * 40,
     "invoiceDate": "2026-08-01T00:00:00.000-03:00",
@@ -241,8 +268,9 @@ RECEB = {
     "paymentValue": 10000.0, "receiptValue": 9750.5,
     "status": "ACTIVE", "purchasedTax": 1.85,
     "installment": 1, "totalInstallment": 3,
-    "buyerName": "TUPY S.A.", "buyerGovernmentId": "73178600/0001-18",
-    "sponsorName": "TUPY", "sponsorGovernmentId": "73178600000118",
+    "assetType": "DUPLICATA_MERCANTIL",
+    "sponsorName": "TUPY S/A", "sponsorGovernmentId": "84.683.374/0001-49",
+    "buyerName": "BANCO SOFISA S.A.", "buyerGovernmentId": "60889128000180",
     "externalId": "MK-999",
 }
 
@@ -252,7 +280,7 @@ def test_mapeia_os_campos_para_o_formato_que_a_tela_ja_usa():
     assert t["documento"] == "123456"
     assert t["emissao"] == "2026-08-01" and t["vencimento"] == "2026-10-15"
     assert t["valor_nominal"] == 10000.0 and t["valor_saldo"] == 9750.5
-    assert t["cnpj_sacado"] == "73178600000118", "CNPJ tem de vir so com digitos"
+    assert t["cnpj_sacado"] == "84683374000149", "sacado = SPONSOR, so digitos"
     assert t["parcela"] == "1/3" and t["taxa"] == 1.85
 
 
@@ -298,11 +326,26 @@ def test_o_lote_resume_por_status_e_so_soma_o_disponivel():
     assert r["por_status"] == {"disponível": 1, "vendido": 1, "ofertado": 1}
 
 
-def test_cedente_e_sacado_nao_estao_trocados():
-    """A Sulista e o SELLER; o buyer e quem deve. Invertido, a elegibilidade
-    por convenio (que casa pela raiz do CNPJ do sacado) quebraria."""
+def test_o_sacado_e_o_SPONSOR_e_nunca_o_banco_investidor():
+    """Medido em producao: sponsor=TUPY (a ancora, quem deve), buyer=banco
+    que comprou o titulo. Se o sacado apontasse para o buyer, a elegibilidade
+    por convenio (raiz do CNPJ do sacado) casaria com o banco — nunca com a
+    Tupy — e nenhum titulo seria elegivel."""
     t = nz.titulo(RECEB)
-    assert t["nome_sacado"] == "TUPY S.A."
+    assert t["nome_sacado"] == "TUPY S/A"
+    assert "SOFISA" not in t["nome_sacado"]
+    assert t["cnpj_sacado"] == "84683374000149"
+
+
+def test_o_cedente_vem_da_anotacao_da_coleta():
+    """O payload nao traz o CNPJ do proprio seller: a coleta anota
+    _seller_cnpj/_seller_nome a partir de /uaa/me."""
+    t = nz.titulo({**RECEB, "_seller_cnpj": "11222333000144",
+                   "_seller_nome": "SULISTA MATRIZ"})
+    assert t["cnpj_cedente"] == "11222333000144"
+    assert t["nome_cedente"] == "SULISTA MATRIZ"
+    # sem anotacao, cedente fica vazio — nunca herda o sponsor
+    assert nz.titulo(RECEB)["cnpj_cedente"] == ""
 
 
 # ------------------------------------------------------- gravacao (servico)
@@ -318,13 +361,15 @@ def test_cinco_sellers_viram_UMA_posicao(esquema_pg, monkeypatch):
         "MONKEY_AMBIENTE": "hmg"}.get(n, ""))
     monkeypatch.setattr(registro, "ESQUEMA", esquema_pg)
     http = HttpFalso([
+        _resp(ME),
         _resp(_pagina([RECEB], 0, 1)),
         _resp(_pagina([{**RECEB, "invoiceNumber": "777"}], 0, 1)),
     ])
     r = servico.coletar(http=http)
     assert r["sellers"] == 2 and r["recebidos"] == 2 and r["gravados"] == 2
-    assert "/sellers/111/" in http.chamadas[0]["url"]
-    assert "/sellers/222/" in http.chamadas[1]["url"]
+    assert "/uaa/me" in http.chamadas[0]["url"], "o programa se descobre UMA vez"
+    assert "/sellers/111/" in http.chamadas[1]["url"]
+    assert "/sellers/222/" in http.chamadas[2]["url"]
     pos = registro.posicao_atual()
     assert len(pos) == 1, "UMA posicao do portal, nao uma por seller"
     assert len(registro.titulos_vigentes()) == 2
@@ -338,7 +383,7 @@ def test_coleta_grava_pelo_mesmo_caminho_da_planilha(esquema_pg, monkeypatch, co
     from api.monkey import servico
 
     monkeypatch.setattr(registro, "ESQUEMA", esquema_pg)
-    http = HttpFalso([_resp(_pagina([RECEB], 0, 1))])
+    http = HttpFalso([_resp(ME), _resp(_pagina([RECEB], 0, 1))])
     r = servico.coletar(http=http)
 
     assert r["gravados"] == 1 and r["antecipaveis"] == 1
@@ -361,8 +406,8 @@ def test_coleta_identica_nao_cria_envio_novo(esquema_pg, monkeypatch, com_token)
     from api.monkey import servico
 
     monkeypatch.setattr(registro, "ESQUEMA", esquema_pg)
-    r1 = servico.coletar(http=HttpFalso([_resp(_pagina([RECEB], 0, 1))]))
-    r2 = servico.coletar(http=HttpFalso([_resp(_pagina([RECEB], 0, 1))]))
+    r1 = servico.coletar(http=HttpFalso([_resp(ME), _resp(_pagina([RECEB], 0, 1))]))
+    r2 = servico.coletar(http=HttpFalso([_resp(ME), _resp(_pagina([RECEB], 0, 1))]))
     assert r1["sem_mudanca"] is False
     assert r2["sem_mudanca"] is True
     assert r1["envio_id"] == r2["envio_id"]
@@ -376,8 +421,8 @@ def test_a_ordem_das_linhas_nao_muda_a_impressao(esquema_pg, monkeypatch, com_to
 
     monkeypatch.setattr(registro, "ESQUEMA", esquema_pg)
     b = {**RECEB, "invoiceNumber": "999"}
-    servico.coletar(http=HttpFalso([_resp(_pagina([RECEB, b], 0, 1))]))
-    r2 = servico.coletar(http=HttpFalso([_resp(_pagina([b, RECEB], 0, 1))]))
+    servico.coletar(http=HttpFalso([_resp(ME), _resp(_pagina([RECEB, b], 0, 1))]))
+    r2 = servico.coletar(http=HttpFalso([_resp(ME), _resp(_pagina([b, RECEB], 0, 1))]))
     assert r2["sem_mudanca"] is True
 
 
@@ -387,10 +432,39 @@ def test_mudanca_de_status_conta_como_posicao_nova(esquema_pg, monkeypatch, com_
     from api.monkey import servico
 
     monkeypatch.setattr(registro, "ESQUEMA", esquema_pg)
-    servico.coletar(http=HttpFalso([_resp(_pagina([RECEB], 0, 1))]))
+    servico.coletar(http=HttpFalso([_resp(ME), _resp(_pagina([RECEB], 0, 1))]))
     r2 = servico.coletar(http=HttpFalso([
-        _resp(_pagina([{**RECEB, "status": "SOLD"}], 0, 1))]))
+        _resp(ME), _resp(_pagina([{**RECEB, "status": "SOLD"}], 0, 1))]))
     assert r2["sem_mudanca"] is False and r2["antecipaveis"] == 0
+
+
+def test_vendido_e_liquidado_NAO_entram_na_posicao(esquema_pg, monkeypatch, com_token):
+    """A primeira coleta real (01/09/2026) trouxe 48.666 titulos — TODOS
+    vendidos/liquidados desde o inicio do convenio. Posicao e o que esta EM
+    ABERTO; gravar o historico encheria a tela com 48 mil linhas mortas. E o
+    hash e sobre a posicao: SOLD virando PAID no historico nao e mudanca."""
+    from api.antecipacoes import registro
+    from api.monkey import servico
+
+    monkeypatch.setattr(registro, "ESQUEMA", esquema_pg)
+    r = servico.coletar(http=HttpFalso([_resp(ME), _resp(_pagina([
+        RECEB,
+        {**RECEB, "invoiceNumber": "2", "status": "SOLD"},
+        {**RECEB, "invoiceNumber": "3", "status": "PAID"},
+        {**RECEB, "invoiceNumber": "4", "status": "CANCELLED"},
+    ], 0, 1))]))
+    assert r["recebidos"] == 4 and r["gravados"] == 1
+    assert r["fora_da_posicao"] == 3
+    tits = registro.titulos_vigentes()
+    assert len(tits) == 1 and tits[0]["documento"] == "123456"
+    # segunda coleta: o historico mudou (SOLD->PAID), a posicao NAO
+    r2 = servico.coletar(http=HttpFalso([_resp(ME), _resp(_pagina([
+        RECEB,
+        {**RECEB, "invoiceNumber": "2", "status": "PAID"},
+        {**RECEB, "invoiceNumber": "3", "status": "PAID"},
+        {**RECEB, "invoiceNumber": "4", "status": "CANCELLED"},
+    ], 0, 1))]))
+    assert r2["sem_mudanca"] is True, "posicao igual = mesmo envio"
 
 
 def test_titulo_sem_vencimento_e_rejeitado(esquema_pg, monkeypatch, com_token):
@@ -400,7 +474,7 @@ def test_titulo_sem_vencimento_e_rejeitado(esquema_pg, monkeypatch, com_token):
     from api.monkey import servico
 
     monkeypatch.setattr(registro, "ESQUEMA", esquema_pg)
-    r = servico.coletar(http=HttpFalso([_resp(_pagina(
+    r = servico.coletar(http=HttpFalso([_resp(ME), _resp(_pagina(
         [RECEB, {**RECEB, "invoiceNumber": "7", "paymentDate": None}], 0, 1))]))
     assert r["recebidos"] == 2 and r["gravados"] == 1
     assert r["rejeitados_sem_vencimento"] == 1
@@ -412,7 +486,7 @@ def test_a_posicao_fica_marcada_como_API(esquema_pg, monkeypatch, com_token):
     from api.monkey import servico
 
     monkeypatch.setattr(registro, "ESQUEMA", esquema_pg)
-    r = servico.coletar(http=HttpFalso([_resp(_pagina([RECEB], 0, 1))]))
+    r = servico.coletar(http=HttpFalso([_resp(ME), _resp(_pagina([RECEB], 0, 1))]))
     from api import pglocal
     linha = pglocal.um("SELECT origem, portal FROM ant_envios WHERE id=%s",
                        (r["envio_id"],), esquema=esquema_pg)
@@ -426,7 +500,7 @@ def test_nao_inventa_total_declarado(esquema_pg, monkeypatch, com_token):
     from api.monkey import servico
 
     monkeypatch.setattr(registro, "ESQUEMA", esquema_pg)
-    r = servico.coletar(http=HttpFalso([_resp(_pagina([RECEB], 0, 1))]))
+    r = servico.coletar(http=HttpFalso([_resp(ME), _resp(_pagina([RECEB], 0, 1))]))
     from api import pglocal
     linha = pglocal.um("SELECT total_declarado, divergencia FROM ant_envios"
                        " WHERE id=%s", (r["envio_id"],), esquema=esquema_pg)

@@ -13,9 +13,19 @@ O QUE O FORNECEDOR RESPONDEU (01/09/2026) — e que este cliente segue:
      preso num refresh morto. `MONKEY_TOKEN` estático continua aceito.
   2. HOSTS: hmg-zuul.monkeyecx.com (homologação) e zuul.monkey.exchange
      (produção). `sandbox.monkeyecx.com` é o PORTAL WEB, não a API.
+     O endereço do token NÃO veio na resposta — foi descoberto na sonda de
+     01/09/2026: é `/uaa/oauth/token` (UAA atrás do Zuul); `/oauth/token`
+     devolve 404. E o Cloudflare deles BLOQUEIA o User-Agent do
+     Python-urllib (Error 1010) — todo pedido leva UA próprio.
   3. `search`, `page` e `size` SE INVALIDAM em conjunto: a API devolve 200
      com lista vazia, sem erro. Busca é uma chamada SEM paginação; listagem
      completa pagina SEM search — os dois caminhos nunca se misturam.
+  4. TODA ROTA /v2/* EXIGE O HEADER `program` com o token do programa da
+     âncora — sem ele o serviço responde HTTP 500 seco (nem 400, nem 403;
+     meia hora de sonda em 01/09/2026 até achar). O token do programa NÃO
+     se configura: vem de GET /uaa/me (principal.programs[].token), que é
+     também onde vivem as empresas do usuário. O portal faz exatamente
+     isso depois do "Acessar empresa".
 
 AMBIENTE: `MONKEY_AMBIENTE` = 'hmg' (padrão) ou 'prod'. O padrão é homologação
 DE PROPÓSITO — apontar para produção tem de ser um ato deliberado, e a primeira
@@ -102,8 +112,14 @@ def configurado() -> bool:
     return bool(modo_auth() and seller_id())
 
 
+# O Cloudflare da Monkey bloqueia a assinatura do Python-urllib (Error 1010,
+# medido em 01/09/2026) — sem UA próprio NENHUM pedido chega na API.
+_UA = "CORTEX-Sulista/1.0"
+
+
 def _http(url: str, headers: dict, timeout: int, dados: bytes | None = None):
-    req = urllib.request.Request(url, headers=headers, data=dados,
+    req = urllib.request.Request(url, headers={"User-Agent": _UA, **headers},
+                                 data=dados,
                                  method="POST" if dados is not None else "GET")
     try:
         with urllib.request.urlopen(req, timeout=timeout, context=_CTX) as r:
@@ -130,12 +146,17 @@ class Cliente:
         self._tok: str = ""
         self._tok_expira: float = 0.0
         self._refresh: str = ""
+        self._programas: list[dict] | None = None
+        self._me: dict | None = None
 
     # ------------------------------------------------------------------ auth
     def _pedir_token(self, corpo: dict) -> dict | None:
         """Uma ida ao endpoint de token. Devolve o JSON, ou None se a Monkey
         recusou (quem decide o que fazer com a recusa é o chamador)."""
-        url = _cred("MONKEY_TOKEN_URL") or f"{base_url()}/oauth/token"
+        # /uaa/oauth/token descoberto por sonda (01/09/2026): /oauth/token é
+        # 404 nos dois hosts, e o 401 do /uaa veio com mensagem de negócio da
+        # Monkey ("API Client não encontrada") — o caminho certo responde.
+        url = _cred("MONKEY_TOKEN_URL") or f"{base_url()}/uaa/oauth/token"
         dados = urllib.parse.urlencode(corpo).encode()
         try:
             status, resp = self._http(
@@ -184,6 +205,41 @@ class Cliente:
                             - FOLGA_TOKEN_S)
         return self._tok
 
+    # ------------------------------------------------------------ programa
+    def programas(self) -> list[dict]:
+        """Programas da âncora a que o usuário pertence (hoje: TUPY).
+
+        Vêm de /uaa/me e ficam em cache na instância: é UMA chamada por
+        coleta, e o token do programa é o header que destrava todo /v2/*.
+        """
+        if self._programas is None:
+            ps = ((self._me_get().get("principal") or {}).get("programs")) or []
+            self._programas = [
+                {"token": str(p.get("token") or ""),
+                 "nome": str(p.get("name") or "")}
+                for p in ps if p.get("token")]
+        return self._programas
+
+    def _me_get(self) -> dict:
+        """GET /uaa/me UMA vez por instância — programas() e empresas()
+        leem do mesmo cache, senão cada um faria a própria ida."""
+        if self._me is None:
+            self._me = self.get("/uaa/me")
+        return self._me
+
+    def empresas(self) -> list[dict]:
+        """As empresas (sellers) que o usuário enxerga na plataforma.
+
+        Duas serventias: o diagnóstico compara com o cofre (sellerId
+        configurado a mais/a menos), e a coleta pega daqui o CNPJ e o nome
+        do CEDENTE — o payload do recebível não traz o próprio seller."""
+        cs = ((self._me_get().get("principal") or {}).get("companies")) or []
+        return [{"companyId": str(c.get("companyId") or ""),
+                 "cnpj": str(c.get("governmentId") or ""),
+                 "nome": str(c.get("name") or ""),
+                 "tipo": str(c.get("type") or ""),
+                 "ativo": bool(c.get("active"))} for c in cs]
+
     # ------------------------------------------------------------------ http
     def get(self, caminho: str, params: dict | None = None,
             timeout: int = 120) -> dict:
@@ -193,6 +249,13 @@ class Cliente:
             url += "?" + urllib.parse.urlencode(limpos, doseq=True)
         cab = {"Authorization": f"Bearer {self._token()}",
                "Accept": "application/json"}
+        if caminho.startswith("/v2/"):
+            progs = self.programas()
+            if not progs:
+                raise MonkeyIndisponivel(
+                    "a conta não tem programa vinculado em /uaa/me — sem o "
+                    "header 'program' toda rota /v2 responde HTTP 500")
+            cab["program"] = progs[0]["token"]
         try:
             status, corpo = self._http(url, cab, timeout)
         except Exception as exc:  # noqa: BLE001

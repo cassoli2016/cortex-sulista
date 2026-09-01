@@ -48,7 +48,8 @@ _TAREFAS = ["Cortex Sulista - API", "Cortex Sulista - AutoDeploy",
             "Cortex Sulista - Pneus", "Cortex Sulista - Backup",
             "Cortex Sulista - Jornada", "Cortex Sulista - Ngrok",
             "Cortex Sulista - Smartec", "Cortex Sulista - WhatsApp agendado",
-            "Cortex Sulista - Gerenciamento de Risco"]
+            "Cortex Sulista - Gerenciamento de Risco",
+            "Cortex Sulista - Monkey"]
 # Fora da lista DE PROPÓSITO (instalador existe, registro não comprovado
 # nesta máquina): 'CTe Contrapartida' (aguarda a decisão fiscal) e
 # 'Relatorios por e-mail'. Entrar aqui sem estar registrada viraria um

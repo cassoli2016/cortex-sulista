@@ -38,9 +38,16 @@ def _data(s: str) -> date | None:
 
 
 def _para_gravar(linhas: list[dict], resumo: dict, quando: datetime) -> dict:
-    """Formato que `gravar_envio` espera — o mesmo do leitor de planilha."""
+    """Formato que `gravar_envio` espera — o mesmo do leitor de planilha.
+
+    Só entra a POSIÇÃO: título vendido/liquidado/cancelado já saiu do
+    portal, e a API devolve o histórico INTEIRO do convênio (48,6 mil na
+    primeira coleta real — nenhum em aberto). O resumo continua contando
+    tudo; a posição gravada é o recorte em aberto."""
     titulos = []
     for t in linhas:
+        if t["situacao_api"] in nz.FORA_DA_POSICAO:
+            continue
         venc = _data(t["vencimento"])
         if venc is None:
             # sem vencimento não há antecipação possível nem posição no fluxo;
@@ -48,7 +55,9 @@ def _para_gravar(linhas: list[dict], resumo: dict, quando: datetime) -> dict:
             continue
         titulos.append({**t, "emissao": _data(t["emissao"]), "vencimento": venc})
 
-    rejeitadas = [t for t in linhas if _data(t["vencimento"]) is None]
+    rejeitadas = [t for t in linhas
+                  if t["situacao_api"] not in nz.FORA_DA_POSICAO
+                  and _data(t["vencimento"]) is None]
     return {
         "arquivo": f"API Monkey · coleta de {quando:%d/%m/%Y %H:%M}",
         "portal": PORTAL,
@@ -83,29 +92,43 @@ def coletar(usuario: str = "coleta automática", http=None) -> dict:
     # gravados numa posição SÓ: gravar_envio SUBSTITUI a posição do portal,
     # então gravar por CNPJ deixaria só o último e os outros sumiriam sem
     # erro nenhum. O mesmo Cliente atende todos — o token é um só.
+    #
+    # O CEDENTE de cada título é o próprio seller, e o payload não o traz:
+    # o CNPJ/nome vêm de /uaa/me (companies) e são anotados no bruto antes
+    # da normalização (`_seller_cnpj`/`_seller_nome`).
     c = cli.Cliente(http=http)
+    empresas = {e["companyId"]: e for e in c.empresas()}
     brutos: list[dict] = []
     sellers = cli.seller_ids()
     for sid in sellers:
         c.seller = sid
-        brutos.extend(c.recebiveis())
+        emp = empresas.get(sid, {})
+        for r in c.recebiveis():
+            r["_seller_cnpj"] = emp.get("cnpj", "")
+            r["_seller_nome"] = emp.get("nome", "")
+            brutos.append(r)
     d = nz.lote(brutos)
     linhas, resumo = d["titulos"], d["resumo"]
+    # a POSIÇÃO é o recorte em aberto — valores, sacados e a IMPRESSÃO da
+    # coleta saem dela: um histórico que só muda de SOLD para PAID não pode
+    # criar envio novo, porque a posição não mudou
+    posicao = [t for t in linhas if t["situacao_api"] not in nz.FORA_DA_POSICAO]
     agora = datetime.now()
 
     lido = _para_gravar(linhas, resumo, agora)
     res = {
         "titulos": len(lido["titulos"]),
-        "valor_nominal": resumo["valor_nominal"],
-        "valor_saldo": resumo["valor_saldo"],
+        "valor_nominal": round(sum(t["valor_nominal"] for t in posicao), 2),
+        "valor_saldo": round(sum(t["valor_saldo"] for t in posicao), 2),
         # o sacado vem do próprio título; a API não traz lista à parte
-        "sacados": [{"cnpj": c, "nome": next(
-            (t["nome_sacado"] for t in linhas if t["cnpj_sacado"] == c), "")}
-            for c in resumo["sacados"]],
+        "sacados": [{"cnpj": cj, "nome": next(
+            (t["nome_sacado"] for t in posicao if t["cnpj_sacado"] == cj), "")}
+            for cj in sorted({t["cnpj_sacado"] for t in posicao
+                              if t["cnpj_sacado"]})],
     }
 
     envio_id, ja_existia = registro.gravar_envio(
-        lido, res, usuario=usuario, dados=_impressao(linhas))
+        lido, res, usuario=usuario, dados=_impressao(posicao))
     registro.marcar_origem(envio_id, ORIGEM)
 
     return {
@@ -114,6 +137,7 @@ def coletar(usuario: str = "coleta automática", http=None) -> dict:
         "ambiente": cli.ambiente(),
         "sellers": len(sellers),
         "recebidos": len(brutos),
+        "fora_da_posicao": len(linhas) - len(posicao),
         "gravados": len(lido["titulos"]),
         "rejeitados_sem_vencimento": len(lido["rejeitadas"]),
         "antecipaveis": resumo["antecipaveis"],
