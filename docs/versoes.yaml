@@ -1,3 +1,14 @@
+- versao: "0.202.1"
+  data: "2026-09-01"
+  alterado:
+    - >-
+      O diagnóstico do certificado A1 ficou mais esperto no que dá para
+      saber SEM a senha: anexo cortado na transferência é dito com os bytes
+      que faltam ("chegou incompleto — baixe de novo do e-mail"), .p12 em
+      criptografia RC2 de 1998 é reconhecido ("esta máquina não abre nem
+      com a senha certa — reexportar em formato moderno"), e quando o
+      arquivo é moderno e íntegro a mensagem afasta a dúvida: o problema é
+      mesmo a senha.
 - versao: "0.202.0"
   data: "2026-09-01"
   adicionado:

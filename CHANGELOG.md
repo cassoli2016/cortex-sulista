@@ -4,6 +4,11 @@ Gerado de `docs/versoes.yaml` por `scripts/gerar_changelog.py` — não editar �
 Formato [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/),
 versionamento [SemVer](https://semver.org/lang/pt-BR/).
 
+## [0.202.1] — 01/09/2026  ·  CX-01/09/2026-v0.202.1
+
+### Alterado
+- O diagnóstico do certificado A1 ficou mais esperto no que dá para saber SEM a senha: anexo cortado na transferência é dito com os bytes que faltam ("chegou incompleto — baixe de novo do e-mail"), .p12 em criptografia RC2 de 1998 é reconhecido ("esta máquina não abre nem com a senha certa — reexportar em formato moderno"), e quando o arquivo é moderno e íntegro a mensagem afasta a dúvida: o problema é mesmo a senha.
+
 ## [0.202.0] — 01/09/2026  ·  CX-01/09/2026-v0.202.0
 
 ### Adicionado

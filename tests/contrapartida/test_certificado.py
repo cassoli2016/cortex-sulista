@@ -111,3 +111,20 @@ def test_arquivo_que_nem_e_der_tem_mensagem_propria():
     with _pt.raises(CertificadoInvalido) as exc:
         ler(b"-----BEGIN CERTIFICATE-----", "x")
     assert ".cer" in str(exc.value)
+
+
+def test_arquivo_truncado_e_dito_sem_culpar_a_senha():
+    """Anexo cortado na transferência não é 'senha incorreta'."""
+    import pytest as _pt
+    inteiro = _pfx("X:12345678000199")
+    with _pt.raises(CertificadoInvalido) as exc:
+        ler(inteiro[: len(inteiro) // 2], "segredo")
+    assert "INCOMPLETO" in str(exc.value)
+
+
+def test_senha_errada_em_p12_moderno_diz_que_o_arquivo_esta_integro():
+    """PBES2 visível sem senha: o diagnóstico afasta a dúvida do arquivo."""
+    import pytest as _pt
+    with _pt.raises(CertificadoInvalido) as exc:
+        ler(_pfx("X:12345678000199"), "senha-que-nao-e")
+    assert "moderno e íntegro" in str(exc.value)

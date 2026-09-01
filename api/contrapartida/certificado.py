@@ -83,6 +83,32 @@ def senha_que_abre(bruto: bytes, senha: str) -> str | None:
     return None
 
 
+# Os OIDs de cifra ficam VISÍVEIS no DER sem senha nenhuma — dá para dizer
+# se o arquivo é moderno (PBES2/AES: a senha informada não é a dele) ou
+# relíquia RC2 de 1998 (que a pilha moderna não abre nem com a senha certa).
+# Detecção por substring dos OIDs codificados: falso positivo é improvável
+# num PKCS#12 real.
+_OID_RC2_40 = bytes.fromhex("060a2a864886f70d010c0106")   # pbeWithSHAAnd40BitRC2-CBC
+_OID_RC2_128 = bytes.fromhex("060a2a864886f70d010c0105")  # pbeWithSHAAnd128BitRC2-CBC
+_OID_PBES2 = bytes.fromhex("06092a864886f70d01050d")      # PBES2 (moderno)
+
+
+def _diagnostico_sem_senha(bruto: bytes) -> str:
+    if _OID_RC2_40 in bruto or _OID_RC2_128 in bruto:
+        return ("Este .p12 usa criptografia RC2, um formato de 1998 que "
+                "esta máquina não abre nem com a senha certa. Peça a quem "
+                "gerou para exportar de novo em formato moderno (AES) — no "
+                "Windows, reexportar o certificado pelo certmgr já resolve.")
+    base = ("Não foi possível abrir o certificado: a senha não confere "
+            "(tentei também sem espaços nas pontas e em codificação antiga). ")
+    if _OID_PBES2 in bruto:
+        base += ("O arquivo é um .p12 moderno e íntegro — o problema é "
+                 "mesmo a senha informada. ")
+    return base + ("Confira se a senha é a do ARQUIVO A1 — a AC costuma "
+                   "emitir uma senha de instalação e outra de revogação, e "
+                   "não são a mesma.")
+
+
 def ler(bruto: bytes, senha: str) -> dict:
     """Abre o .pfx e devolve titular, CNPJ e validade. NUNCA devolve a senha
     nem a chave privada — só os metadados que a tela precisa mostrar."""
@@ -101,6 +127,19 @@ def ler(bruto: bytes, senha: str) -> dict:
             "junto) ou um .zip por abrir — o certificado A1 é o arquivo "
             "que EXIGE senha.")
 
+    # TRUNCAMENTO é detectável SEM a senha: o DER declara o tamanho total no
+    # cabeçalho (30 82 hi lo = 4 + tamanho). Arquivo cortado na transferência
+    # não é "senha incorreta" — e mandar a pessoa redigitar a senha para um
+    # arquivo pela metade é crueldade.
+    if len(bruto) >= 4 and bruto[1] == 0x82:
+        declarado = 4 + (bruto[2] << 8) + bruto[3]
+        if len(bruto) < declarado:
+            raise CertificadoInvalido(
+                f"O arquivo chegou INCOMPLETO ({len(bruto)} de {declarado} "
+                "bytes) — cortou na transferência. Baixe de novo do e-mail "
+                "original; encaminhar por aplicativo de mensagem às vezes "
+                "corta o anexo.")
+
     tentativas = _variantes_de_senha(senha)
 
     cert = None
@@ -117,12 +156,7 @@ def ler(bruto: bytes, senha: str) -> dict:
         # a mensagem da biblioteca nao distingue senha errada de arquivo
         # corrompido; dizer as hipoteses REAIS e mais util que repassar o erro
         log.warning("pfx nao abriu: %s", type(ultimo).__name__)
-        raise CertificadoInvalido(
-            "Não foi possível abrir o certificado: a senha não confere "
-            "(tentei também sem espaços nas pontas e em codificação antiga). "
-            "Confira se a senha é a do ARQUIVO A1 — a AC costuma emitir uma "
-            "senha de instalação e outra de revogação, e não são a mesma.") \
-            from None
+        raise CertificadoInvalido(_diagnostico_sem_senha(bruto)) from None
     if cert is None:
         raise CertificadoInvalido("O arquivo não contém certificado.")
 
