@@ -1525,21 +1525,6 @@ button.avatar{border:0;cursor:pointer}
    seguidos, com tres cartoes falando de certificado em lugares distantes.
    Separadas, o dia a dia abre limpo e a implantacao nao precisa ser
    desmontada depois: some do uso sozinha. */
-/* AS ABAS FICAM FIXAS no topo enquanto a tela rola. Sao a navegacao da tela e
-   as listas passam de mil pixels: rolar ate o fim da fila e ter de voltar ao
-   topo so para trocar de aba e a viagem que a barra evita.
-
-   `--n50` e o fundo da pagina: sem ele o conteudo passa POR BAIXO e aparece
-   atras dos chips. A sombra so existe quando ela descola do topo — e o que
-   diferencia "fixa" de "no lugar". */
-.cpabas{display:flex;gap:8px;align-items:center;flex-wrap:wrap;
-  position:sticky;top:0;z-index:6;background:var(--n50);
-  margin:-20px -24px 0;padding:16px 24px 10px}
-/* O `top:0` mede o VIEWPORT. Como a topbar rola junto, a barra encosta no alto
-   da janela — que e onde ela deve ficar. */
-@supports (animation-timeline: view()){
-  .cpabas{box-shadow:0 6px 12px -10px rgba(20,24,29,.35)}
-}
 /* O cronometro ocupava uma faixa larga com o numero encostado a esquerda e
    todo o resto vazio, e a explicacao vinha como um paragrafo corrido - o
    leitor tinha de garimpar a hora da ultima passagem no meio da frase. Virou
@@ -1709,7 +1694,6 @@ button.avatar{border:0;cursor:pointer}
    rotulos em alturas diferentes e o que faz uma linha parecer torta */
 .cp-crongrid{align-items:flex-end}
 .cp-crongrid .bloco{padding-bottom:2px}
-.cpabas .hint{margin-left:4px}
 .cp-cron{display:flex;align-items:baseline;gap:12px;flex-wrap:wrap}
 .cp-cron .rel{font:600 30px/1 var(--mono);font-variant-numeric:tabular-nums;
   letter-spacing:.5px;color:var(--n900)}
@@ -3545,7 +3529,7 @@ body.tvfull #btnReport,body.tvmode #btnReport{display:none}
             <div class="banner-inline" id="prem-cfg-aviso" style="display:none"></div>
             <div class="cardfilters">
               <label style="display:flex;flex-direction:column;gap:2px;font-size:11px;color:var(--n500)">Vigente a partir de
-                <input type="month" id="fPremCfgComp" style="width:150px" onchange="premCfgCarregar()"></label>
+                <input type="month" id="fPremCfgComp" style="width:172px" onchange="premCfgCarregar()"></label>
               <label style="display:flex;flex-direction:column;gap:2px;font-size:11px;color:var(--n500);flex:1;min-width:220px">Por que mudou (fica no histórico)
                 <input type="text" id="fPremCfgNota" placeholder="ex.: peso de diesel subiu após reunião de 29/08"></label>
               <button class="btn" id="btnPremCfgSalvar" onclick="premCfgSalvar()">Salvar versão</button>
@@ -3564,9 +3548,9 @@ body.tvfull #btnReport,body.tvmode #btnReport{display:none}
             <div id="prem-apu-estado" style="padding:0 18px"></div>
             <div class="cardfilters">
               <label style="display:flex;flex-direction:column;gap:2px;font-size:11px;color:var(--n500)">Recoletar de
-                <input type="month" id="fPremRecDe" style="width:150px"></label>
+                <input type="month" id="fPremRecDe" style="width:172px"></label>
               <label style="display:flex;flex-direction:column;gap:2px;font-size:11px;color:var(--n500)">até
-                <input type="month" id="fPremRecAte" style="width:150px"></label>
+                <input type="month" id="fPremRecAte" style="width:172px"></label>
               <button class="ghost" id="btnPremRec" onclick="premRecoletar()">Recoletar período</button>
               <span class="hint" id="prem-rec-msg"></span>
             </div>
@@ -3578,7 +3562,7 @@ body.tvfull #btnReport,body.tvmode #btnReport{display:none}
               <span class="hint" id="prem-oco-hint"></span></div>
             <div class="cardfilters">
               <button class="ghost" onclick="premOcoSync()" id="btnPremOcoSync">Buscar tipos novos no ERP</button>
-              <label style="font-size:12px;color:var(--n600)"><input type="checkbox" id="fPremOcoPend" onchange="premOcoRender()"> só os que faltam decidir</label>
+              <label style="font-size:12px;color:var(--n600);display:flex;align-items:center;gap:6px"><input type="checkbox" id="fPremOcoPend" onchange="premOcoRender()" style="width:16px;height:16px;margin:0"> só os que faltam decidir</label>
             </div>
             <div class="tablewrap tabroll"><table><thead><tr>
               <th>Ocorrência</th><th class="num">Vezes</th><th class="num">Motoristas</th>
@@ -3942,11 +3926,21 @@ body.tvfull #btnReport,body.tvmode #btnReport{display:none}
       </section>
 
       <section class="view" id="view-ctecp">
-        <div class="cpabas">
-          <button class="chip active" data-aba="despacho" onclick="cpAba(this.dataset.aba)">Despacho do dia</button>
-          <button class="chip" data-aba="implantacao" onclick="cpAba(this.dataset.aba)">Implantação</button>
-          <button class="chip" data-aba="transmitidos" onclick="cpAba(this.dataset.aba)">Transmitidos</button>
-          <span class="hint" id="cpAbaHint"></span>
+        <!-- SUBTABS DA CASA, e não mais o sistema próprio (.cpabas/cpAba):
+             aba própria era a discordância que a lição do Orçamento aposentou
+             — ficava fora do giro automático, do contador, da régua de altura
+             (o medidor só clica .subtabs) e do guard de gráfico em aba
+             escondida, e a aba Transmitidos tem TRÊS ECharts. cpAba() virou
+             casca de compatibilidade sobre abaTrocar('cp', …). -->
+        <div class="subtabs" role="tablist" data-abas="cp" aria-label="Seções da contrapartida">
+          <button role="tab" id="tabcp-despacho" data-aba="despacho" aria-controls="cpAbaDespacho"
+                  aria-selected="true" onclick="abaTrocar('cp','despacho')">Despacho do dia<span class="aban vazio" id="cnt-cp-desp"></span></button>
+          <button role="tab" id="tabcp-implantacao" data-aba="implantacao" aria-controls="cpAbaImplantacao"
+                  aria-selected="false" onclick="abaTrocar('cp','implantacao')">Implantação<span class="aban vazio" id="cnt-cp-impl"></span></button>
+          <button role="tab" id="tabcp-transmitidos" data-aba="transmitidos" aria-controls="cpAbaTransmitidos"
+                  aria-selected="false" onclick="abaTrocar('cp','transmitidos')">Transmitidos<span class="aban vazio" id="cnt-cp-tx"></span></button>
+          <button role="tab" id="tabcp-documentos" data-aba="documentos" aria-controls="cpAbaDocumentos"
+                  aria-selected="false" onclick="abaTrocar('cp','documentos')">Documentos<span class="aban vazio" id="cnt-cp-doc"></span></button>
         </div>
 
         <div class="card" id="cpFiltrosCard">
@@ -3961,7 +3955,8 @@ body.tvfull #btnReport,body.tvmode #btnReport{display:none}
         </div>
 
 
-        <div id="cpAbaDespacho">
+        <div class="aba" data-abas="cp" data-aba="despacho" id="cpAbaDespacho"
+             role="tabpanel" aria-labelledby="tabcp-despacho" data-ao-abrir="cpAbriuDespacho">
         <div class="card" id="cpAutoCard" hidden>
           <div class="head"><h2>Emissão automática <span class="badge b-info" title="Não segue o filtro de período: a rotina roda sobre o dia de HOJE, seja qual for o recorte que a tela está mostrando.">roda sobre hoje</span> <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="São DOIS relógios. A tarefa do Windows dispara de 5 em 5 minutos e o CÓRTEX é quem decide se já passou o intervalo configurado em Gestão › Integrações — por isso a emissão pode sair até 5 minutos depois de o cronômetro zerar, e “liberado” significa liberado, não disparado. O cronômetro conta a partir da última passagem REGISTRADA da rotina, gravada mesmo quando não havia nada a emitir. Emissão manual não depende deste interruptor.">i</span></h2>
             <span class="hint" id="hintCpAuto"></span></div>
@@ -4000,7 +3995,8 @@ body.tvfull #btnReport,body.tvmode #btnReport{display:none}
 
               </div>
 
-        <div id="cpAbaImplantacao" hidden>
+        <div class="aba" data-abas="cp" data-aba="implantacao" id="cpAbaImplantacao"
+             role="tabpanel" aria-labelledby="tabcp-implantacao" data-ao-abrir="cpAbriuImplantacao" hidden>
         <div class="card" id="cpValidCard" hidden>
           <div class="head"><h2>Validador do cadastro <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="Roda, agregado por agregado, as mesmas conferências que a emissão vai fazer — antes dela. Sem isto o defeito só aparece na transmissão, um documento por vez: foi assim que a rejeição 229 (IE do emitente não informada) apareceu, com o disjuntor derrubando o lote. O código da SEFAZ só é citado onde foi MEDIDO; para os outros campos o efeito é descrito sem inventar número de rejeição.">i</span></h2>
             <span class="hint" id="hintCpValid"></span></div>
@@ -4043,7 +4039,8 @@ body.tvfull #btnReport,body.tvmode #btnReport{display:none}
 
         </div>
 
-        <div id="cpAbaTransmitidos" hidden>
+        <div class="aba" data-abas="cp" data-aba="transmitidos" id="cpAbaTransmitidos"
+             role="tabpanel" aria-labelledby="tabcp-transmitidos" data-ao-abrir="cpAbriuTransmitidos" hidden>
           <div class="kband"><h3>Em produção</h3>
             <div class="kpis k4" id="kpis-ctetx-a"></div></div>
           <div class="kband"><h3>Precisa de ação</h3>
@@ -4057,19 +4054,27 @@ body.tvfull #btnReport,body.tvmode #btnReport{display:none}
           <div class="card">
             <div class="head"><h2>Transmissões por dia <span class="badge b-info">30 dias</span> <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="Pela data da transmissão. Quatro séries e não duas: homologação não soma com produção (uma não tem valor fiscal) e autorizado não soma com recusado (recusado não emitiu nada).">i</span></h2>
               <span class="hint" id="hintCtetxDia"></span></div>
-            <div id="chartCtetxDia" style="height:280px;margin:0 12px 12px"></div>
+            <div id="chartCtetxDia" style="height:220px;margin:0 12px 12px"></div>
           </div>
+        </div>
 
+        <!-- A aba Documentos nasceu da régua: Transmitidos tinha 1.301px de
+             PISO (kbands + série + decomposição + duas listas). O estado fica
+             lá; a decomposição por emitente e as listas vivem aqui. As duas
+             abas leem o MESMO payload (CTETX), carregado por quem abrir
+             primeiro. -->
+        <div class="aba" data-abas="cp" data-aba="documentos" id="cpAbaDocumentos"
+             role="tabpanel" aria-labelledby="tabcp-documentos" data-ao-abrir="cpAbriuDocumentos" hidden>
           <div class="grid2">
             <div class="card">
               <div class="head"><h2>Valor por emitente <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="Prestação dos documentos de produção que estão valendo, por agregado. Cancelado não entra. O valor vem do XML guardado de cada documento.">i</span></h2>
                 <span class="hint" id="hintCtetxEmi"></span></div>
-              <div id="chartCtetxEmi" style="height:260px;margin:0 12px 12px"></div>
+              <div id="chartCtetxEmi" style="height:220px;margin:0 12px 12px"></div>
             </div>
             <div class="card">
               <div class="head"><h2>Retorno da SEFAZ <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="Cada código de retorno sobre o registro inteiro. A 748 aparece em âmbar: ela só existe em homologação, porque o CT-e de origem foi autorizado em produção e nunca vai constar na base de teste.">i</span></h2>
                 <span class="hint" id="hintCtetxCstat"></span></div>
-              <div id="chartCtetxCstat" style="height:260px;margin:0 12px 12px"></div>
+              <div id="chartCtetxCstat" style="height:220px;margin:0 12px 12px"></div>
             </div>
           </div>
 
@@ -6649,8 +6654,11 @@ const PAG_RENDER = {};     // id da tabela -> funcao que redesenha
 const PAG_ASSIN = {};      // id -> assinatura do recorte, para voltar a pag. 1
 
 /* Quantas linhas por pagina. Sem rolagem interna, cada linha cresce a pagina:
-   25 e o que cabe numa tela de trabalho sem obrigar a rolar muito. */
-const PAG_TAM = 25;
+   com o padding folgado das celulas (13px, posto quando a rolagem interna
+   saiu), 25 linhas davam ~1.500px de tabela — pagina que obriga a rolar a
+   TELA, que e o que a paginacao existe para evitar. 15 linhas ficam em ~900px
+   e o rodape diz sempre onde a pessoa esta. */
+const PAG_TAM = 15;
 
 function pagRegistrar(id, render){ PAG_RENDER[id] = render; }
 
@@ -9317,6 +9325,7 @@ function _premScoreLabel(k){
 // (mudança silenciosa em número que multiplica folha). Só os 4 inputs de
 // parâmetro usam este formatador local, até 4 casas e SEM zero à direita;
 // o fmtNumBR global (tabelas) fica intacto.
+let PREM_ANCOROU=false;   // a âncora no último mês com dado roda UMA vez por sessão
 async function loadPrem(forceSerie){
   const seq=++premSeq, btn=document.getElementById('btnRefresh'); if(btn) btn.disabled=true;
   document.getElementById('content').classList.add('loading');
@@ -9330,6 +9339,24 @@ async function loadPrem(forceSerie){
     if(!r.ok){ showBanner(d.mensagem||'Erro ao consultar a premiação.', d.detalhe); return; }
     hideBanner(); DATAPREM=d; LOADEDQS.prem='';
     _premSyncMeses(d, selM);
+    /* DIA 1º DO MÊS: o corrente ainda não tem coleta nenhuma e a tela abria
+       VAZIA — seletor em branco, R$ 0, ranking "sem motoristas" — com agosto
+       inteiro logo abaixo no comparativo. Janela ancorada no ÚLTIMO DADO,
+       nunca em current_date: sem mês escolhido e sem linha no corrente, a
+       tela abre no último mês COM snapshot (o rótulo "(parcial)" do próprio
+       seletor já diz o estado dele). Só na primeira carga — quem escolher
+       setembro no seletor vê setembro. */
+    if(!PREM_ANCOROU && !(selM && selM.dataset.pronto === '2')){
+      PREM_ANCOROU = true;
+      const idx = d.index || [];
+      // o MAIOR mês, não o último item: o index chega em ordem decrescente,
+      // e confiar na posição ancorou a tela em fevereiro uma vez
+      const ult = idx.length ? idx.map(x=>x.month).sort().pop() : null;
+      if(ult && ult !== d.month && !(d.linhas || []).length && selM){
+        selM.value = ult; selM.dataset.pronto = '1';
+        loadPrem(forceSerie); return;
+      }
+    }
     renderPrem(d);
     /* A configuração por eixos carrega DEPOIS e por conta própria: ela lê o
        ERP para o catálogo de ocorrências, e uma falha lá não pode impedir a
@@ -10012,7 +10039,7 @@ function premRenderSerie(d){
   const maxP=Math.max(1,...premio);
   const maxPct=Math.max(1,...pct.filter(v=>v!=null));
   ecDesenhar('chartPrem', ()=>{
-    const o=ecOpcoes(rot, maxP, {tipo:'moeda', sombra:true, top:34, bottom:34,
+    const o=ecOpcoes(rot, maxP, {tipo:'moeda', sombra:true, top:34,
       legenda:['Prêmio total','% dos motoristas premiados']});
     o.yAxis=[o.yAxis, ecEixoOculto(maxPct, 1.45)];
     o.series=[
@@ -14024,6 +14051,8 @@ function renderCtecp(d){
   document.getElementById('cpCertCard').hidden = !cItens.length;
   if(cItens.length){
     const a30=(ce.ate_30||{}), a60=(ce.ate_60||{});
+    // o contador da aba é o que vira agendamento: certificados a vencer em 60d
+    abaContador('cnt-cp-impl', (a30.certificados||0)+(a60.certificados||0));
     document.getElementById('hintCpCert').textContent =
       ce.total+' '+(ce.total===1?'certificado':'certificados')
       +' · '+(a30.certificados||0)+' vence'+((a30.certificados||0)===1?'':'m')
@@ -14136,42 +14165,51 @@ const CP_ABAS = {
   despacho:     'o que precisa sair hoje',
   implantacao:  'cadastro e certificado — o que ainda impede a fila de andar',
   transmitidos: 'o que já saiu, o que está valendo e o que chegou à contabilidade',
+  documentos:   'emitente a emitente e documento a documento',
 };
 
+/* Compatibilidade: o boot restaura a aba gravada chamando cpAba(). O sistema
+   de abas PRÓPRIO que vivia aqui foi aposentado em 31/08/2026 — era a
+   discordância da lição do Orçamento: fora do giro, do contador, da régua de
+   altura e do guard de gráfico em aba escondida. */
 function cpAba(nome){
   if(!CP_ABAS[nome]) nome = 'despacho';
-  document.getElementById('cpAbaDespacho').hidden = nome !== 'despacho';
-  document.getElementById('cpAbaImplantacao').hidden = nome !== 'implantacao';
-  document.getElementById('cpAbaTransmitidos').hidden = nome !== 'transmitidos';
-  document.querySelectorAll('.cpabas .chip').forEach(function(b){
-    b.classList.toggle('active', b.dataset.aba === nome);
-  });
-  document.getElementById('cpAbaHint').textContent = CP_ABAS[nome];
-  /* O card de filtros recorta a FILA (período e agregado). Em "Transmitidos"
-     nenhuma consulta o consome — e filtro que a query ignora sai da vista, em
-     vez de convidar a mexer. Esta aba tem a própria janela, na lista. */
+  abaTrocar('cp', nome);
+}
+
+/* O comum dos três ganchos de data-ao-abrir: o card de filtros recorta a
+   FILA (período e agregado) — em "Transmitidos" nenhuma consulta o consome,
+   e filtro que a query ignora sai da vista em vez de convidar a mexer. */
+function _cpAbriu(nome){
   const fcp = document.getElementById('cpFiltrosCard');
   if(fcp) fcp.hidden = (nome === 'transmitidos');
   try{ localStorage.setItem('cp_aba', nome); }catch(e){}
-  /* O ECharts mede o container no init: um gráfico desenhado com a aba
-     escondida nasce com largura zero e fica assim. Por isso a aba só carrega
-     ao ser aberta, e um `resize` corre depois de ela aparecer. */
-  if(nome === 'transmitidos'){
-    if(!CTETX) loadCtetx();
-    else setTimeout(function(){
-      _echartsVivos.forEach(function(i){ try{ i.resize(); }catch(_){} });
-    }, 30);
-  }
+}
+function cpAbriuDespacho(){ _cpAbriu('despacho'); }
+function cpAbriuImplantacao(){
+  _cpAbriu('implantacao');
   /* A varredura completa e uma consulta pesada ao ERP: so dispara quando a
      aba que a mostra e aberta, e so na primeira vez. E NUNCA por cima de uma
      carga em andamento - o AVA e uma replica compartilhada, e duas consultas
-     grandes ao mesmo tempo se atrapalham: abrir a aba durante o carregamento
-     da tela dobrava a espera das duas. Havendo carga, ela fica marcada e
+     grandes ao mesmo tempo se atrapalham. Havendo carga, ela fica marcada e
      `loadCtecp` a dispara ao terminar. */
-  if(nome === 'implantacao' && !(CP_VAL && CP_VAL.escopo)){
+  if(!(CP_VAL && CP_VAL.escopo)){
     if(document.getElementById('content').classList.contains('loading')) CP_VALPEND=true;
     else cpValidarTudo();
   }
+}
+function cpAbriuTransmitidos(){
+  _cpAbriu('transmitidos');
+  /* O ECharts mede o container no init: a aba so carrega ao ser aberta, e a
+     REABERTURA e coberta pelo ResizeObserver do echartsRegistrar. */
+  if(!CTETX) loadCtetx();
+}
+function cpAbriuDocumentos(){
+  /* mesma familia do transmitidos: o filtro da fila nao recorta nada aqui,
+     e o payload e o MESMO — quem abrir primeiro paga a consulta */
+  _cpAbriu('transmitidos');
+  try{ localStorage.setItem('cp_aba', 'documentos'); }catch(e){}
+  if(!CTETX) loadCtetx();
 }
 
 function cpValidCat(c){ CP_VALCAT=c; cpValidRender(); }
@@ -14708,6 +14746,7 @@ function cpTabRender(){
   /* "X de Y" e nao so "X": tabela cortada por filtro que mostra apenas o
      numero filtrado passa o recorte como se fosse o universo. */
   const corte = ag.length !== CP_AG.length;
+  abaContador('cnt-cp-desp', CP_AG.length);
   document.getElementById('hintCpTab').textContent =
     CP_AG.length
       ? (corte ? ag.length+' de '+CP_AG.length+' agregados'
@@ -21780,7 +21819,7 @@ function renderFolhaEstrutura(d){
     const val = meses.map(m => m.custo_efetivo);
     const med = meses.map(m => m.custo_medio);
     ecDesenhar('fe-mensal', () => {
-      const o = ecOpcoes(rot, Math.max(1,...val), {tipo:'moeda', sombra:true, top:32, bottom:34,
+      const o = ecOpcoes(rot, Math.max(1,...val), {tipo:'moeda', sombra:true, top:32,
         legenda:['Custo efetivo','Custo médio']});
       o.yAxis = [o.yAxis, ecEixoOculto(Math.max(1,...med.filter(x=>x!=null)), 1.4)];
       o.series = [
@@ -27529,7 +27568,7 @@ function renderDiarias(d){
     const pp  = meses.map(m => m.por_pessoa);
     const parc = meses.map(m => !!m.aberta);
     ecDesenhar('di-mensal', () => {
-      const o = ecOpcoes(rot, Math.max(1,...val), {tipo:'moeda', sombra:true, top:34, bottom:34,
+      const o = ecOpcoes(rot, Math.max(1,...val), {tipo:'moeda', sombra:true, top:34,
         legenda:['Diária paga','Por pessoa']});
       o.yAxis = [o.yAxis, ecEixoOculto(Math.max(1,...pp.filter(v=>v!=null)), 1.4)];
       o.series = [
@@ -30052,6 +30091,10 @@ function ctetxRender(){
   /* BANDA 2 — o que exige alguem. Cada cartao aqui vira zero quando o
      trabalho acaba; e essa a diferenca dele para os de cima. */
   const tp = k.taxa_prod;
+  // o contador da aba conta o que PRECISA DE AÇÃO — é o que separa "vem ver"
+  // de "está tudo transmitido"
+  abaContador('cnt-cp-tx', (k.sem_retorno||0)+(k.sem_arquivo||0));
+  abaContador('cnt-cp-doc', (CTETX.documentos||[]).length);
   document.getElementById('kpis-ctetx-b').innerHTML =
       kpi('Sem retorno da SEFAZ', nfInt(k.sem_retorno),
           k.sem_retorno ? 'confira a chave no portal' : 'nenhum',

@@ -4,6 +4,15 @@ Gerado de `docs/versoes.yaml` por `scripts/gerar_changelog.py` — não editar �
 Formato [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/),
 versionamento [SemVer](https://semver.org/lang/pt-BR/).
 
+## [0.192.0] — 01/09/2026  ·  CX-01/09/2026-v0.192.0
+
+### Alterado
+- O CT-e de Contrapartida trocou o sistema PRÓPRIO de abas pelo da casa — era a discordância que a lição do Orçamento aposentou: ficava fora do contador, do giro automático e, sobretudo, da régua de altura (o medidor só clica .subtabs). Medida pela primeira vez, a aba Transmitidos tinha 1.301px de piso: o estado ficou nela e a decomposição por emitente e as listas ganharam a aba nova Documentos. As abas levam contador (agregados na fila, certificados a vencer, o que precisa de ação, documentos na janela) e a paginação caiu de 25 para 15 linhas por página — com o padding folgado, 25 linhas obrigavam a rolar a tela, que é o que a paginação existe para evitar.
+
+### Corrigido
+- No dia 1º do mês a Premiação abria VAZIA — seletor em branco, R$ 0, "sem motoristas" — porque o mês corrente ainda não tem coleta. A tela agora ancora no último mês COM snapshot (agosto, rotulado parcial), como a regra da casa manda: janela ancorada no último dado, nunca no calendário.
+- A legenda de três gráficos (comparativo da Premiação, custo efetivo × médio e diárias) era desenhada POR CIMA dos rótulos do eixo X — os três passavam um bottom explícito de 34px que driblava o conserto do construtor. E na Configuração da Premiação, o checkbox "só os que faltam decidir" saía do tamanho de um botão, e os campos de mês cortavam o ano.
+
 ## [0.191.0] — 31/08/2026  ·  CX-31/08/2026-v0.191.0
 
 ### Adicionado
