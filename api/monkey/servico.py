@@ -79,7 +79,16 @@ def coletar(usuario: str = "coleta automática", http=None) -> dict:
             "integração da Monkey não configurada — rode "
             "scripts/verificar_monkey.py para ver o que falta")
 
-    brutos = cli.Cliente(http=http).recebiveis()
+    # A Sulista tem UM sellerId por CNPJ (5 hoje). Os sellers são somados e
+    # gravados numa posição SÓ: gravar_envio SUBSTITUI a posição do portal,
+    # então gravar por CNPJ deixaria só o último e os outros sumiriam sem
+    # erro nenhum. O mesmo Cliente atende todos — o token é um só.
+    c = cli.Cliente(http=http)
+    brutos: list[dict] = []
+    sellers = cli.seller_ids()
+    for sid in sellers:
+        c.seller = sid
+        brutos.extend(c.recebiveis())
     d = nz.lote(brutos)
     linhas, resumo = d["titulos"], d["resumo"]
     agora = datetime.now()
@@ -103,6 +112,7 @@ def coletar(usuario: str = "coleta automática", http=None) -> dict:
         "envio_id": envio_id,
         "sem_mudanca": ja_existia,
         "ambiente": cli.ambiente(),
+        "sellers": len(sellers),
         "recebidos": len(brutos),
         "gravados": len(lido["titulos"]),
         "rejeitados_sem_vencimento": len(lido["rejeitadas"]),
@@ -125,6 +135,7 @@ def diagnostico() -> dict:
         "configurado": cli.configurado(),
         "modo_auth": cli.modo_auth() or "nenhuma",
         "seller_id": bool(cli.seller_id()),
+        "sellers": len(cli.seller_ids()),
         "ambiente": cli.ambiente(),
         "coletado_em": ultimo.get("ts") if ultimo.get("origem") == ORIGEM else None,
         "titulos": ultimo.get("titulos") or 0,

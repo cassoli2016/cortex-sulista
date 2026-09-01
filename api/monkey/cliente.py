@@ -3,17 +3,19 @@
 Doc: https://developers.monkey.exchange/reference/receivableweblistreceivablecontractjson
 Endpoint: GET /v2/sellers/{sellerId}/receivables
 
-POR QUE A AUTENTICAÇÃO É PLUGÁVEL. A documentação pública da Monkey NÃO cobre
-autenticação máquina-a-máquina: o único material de auth é OIDC, e é login de
-usuário no portal. O endpoint devolve 401/403, então exige credencial — só não
-está escrito qual. Em vez de apostar num formato e reescrever quando a resposta
-chegar, este cliente aceita os dois que cobrem quase todo o mercado:
+O QUE O FORNECEDOR RESPONDEU (01/09/2026) — e que este cliente segue:
 
-  1. TOKEN ESTÁTICO   → `MONKEY_TOKEN` vai direto no `Authorization`.
-  2. OAUTH2 CLIENT_CREDENTIALS → `MONKEY_CLIENT_ID` + `MONKEY_CLIENT_SECRET`
-     trocados por access_token em `MONKEY_TOKEN_URL`, com cache até expirar.
-
-Qual dos dois vale é decidido pelo que estiver configurado, sem mexer em código.
+  1. AUTENTICAÇÃO: o PRIMEIRO token sai com `grant_type=password`
+     (client_id + client_secret + username + password do usuário da
+     plataforma); a RENOVAÇÃO usa `grant_type=refresh_token` (client_id +
+     client_secret + refresh_token da geração anterior). Se a renovação
+     falhar (refresh vencido/rotacionado), volta ao password — nunca fica
+     preso num refresh morto. `MONKEY_TOKEN` estático continua aceito.
+  2. HOSTS: hmg-zuul.monkeyecx.com (homologação) e zuul.monkey.exchange
+     (produção). `sandbox.monkeyecx.com` é o PORTAL WEB, não a API.
+  3. `search`, `page` e `size` SE INVALIDAM em conjunto: a API devolve 200
+     com lista vazia, sem erro. Busca é uma chamada SEM paginação; listagem
+     completa pagina SEM search — os dois caminhos nunca se misturam.
 
 AMBIENTE: `MONKEY_AMBIENTE` = 'hmg' (padrão) ou 'prod'. O padrão é homologação
 DE PROPÓSITO — apontar para produção tem de ser um ato deliberado, e a primeira
@@ -76,11 +78,21 @@ def seller_id() -> str:
     return _cred("MONKEY_SELLER_ID")
 
 
+def seller_ids() -> list[str]:
+    """A Sulista tem UM sellerId por CNPJ (5 hoje) — o campo aceita todos,
+    separados por vírgula. A coleta soma os sellers numa posição só."""
+    return [s.strip() for s in seller_id().split(",") if s.strip()]
+
+
 def modo_auth() -> str:
-    """Qual credencial está configurada: 'token', 'oauth' ou '' (nenhuma)."""
+    """Qual credencial está configurada: 'token', 'oauth' ou '' (nenhuma).
+
+    O modo oauth exige os QUATRO campos — o primeiro token é
+    `grant_type=password` e sem username/password a Monkey recusa."""
     if _cred("MONKEY_TOKEN"):
         return "token"
-    if _cred("MONKEY_CLIENT_ID") and _cred("MONKEY_CLIENT_SECRET"):
+    if (_cred("MONKEY_CLIENT_ID") and _cred("MONKEY_CLIENT_SECRET")
+            and _cred("MONKEY_USERNAME") and _cred("MONKEY_PASSWORD")):
         return "oauth"
     return ""
 
@@ -117,9 +129,34 @@ class Cliente:
                 "/v2/sellers/{id}/receivables e não há como descobri-lo daqui")
         self._tok: str = ""
         self._tok_expira: float = 0.0
+        self._refresh: str = ""
 
     # ------------------------------------------------------------------ auth
+    def _pedir_token(self, corpo: dict) -> dict | None:
+        """Uma ida ao endpoint de token. Devolve o JSON, ou None se a Monkey
+        recusou (quem decide o que fazer com a recusa é o chamador)."""
+        url = _cred("MONKEY_TOKEN_URL") or f"{base_url()}/oauth/token"
+        dados = urllib.parse.urlencode(corpo).encode()
+        try:
+            status, resp = self._http(
+                url, {"Content-Type": "application/x-www-form-urlencoded",
+                      "Accept": "application/json"}, 60, dados)
+        except Exception as exc:  # noqa: BLE001
+            raise MonkeyIndisponivel(
+                f"falha de rede ao pedir token: {type(exc).__name__}") from None
+        if status != 200:
+            # NUNCA ecoa o corpo aqui: numa troca de credencial o retorno pode
+            # devolver o que foi enviado, e isso iria para o log.
+            return None
+        try:
+            return json.loads(resp)
+        except json.JSONDecodeError:
+            return None
+
     def _token(self) -> str:
+        """password no primeiro token, refresh_token na renovação — resposta
+        oficial da Monkey (01/09/2026). O refresh que falhar (vencido,
+        rotacionado) cai de volta no password em vez de travar a coleta."""
         if self.modo == "token":
             return _cred("MONKEY_TOKEN")
 
@@ -127,34 +164,25 @@ class Cliente:
         if self._tok and agora < self._tok_expira:
             return self._tok
 
-        url = _cred("MONKEY_TOKEN_URL") or f"{base_url()}/oauth/token"
-        corpo = urllib.parse.urlencode({
-            "grant_type": "client_credentials",
-            "client_id": _cred("MONKEY_CLIENT_ID"),
-            "client_secret": _cred("MONKEY_CLIENT_SECRET"),
-        }).encode()
-        try:
-            status, resp = self._http(
-                url, {"Content-Type": "application/x-www-form-urlencoded",
-                      "Accept": "application/json"}, 60, corpo)
-        except Exception as exc:  # noqa: BLE001
+        base = {"client_id": _cred("MONKEY_CLIENT_ID"),
+                "client_secret": _cred("MONKEY_CLIENT_SECRET")}
+        d = None
+        if self._refresh:
+            d = self._pedir_token({**base, "grant_type": "refresh_token",
+                                   "refresh_token": self._refresh})
+        if not d or not d.get("access_token"):
+            d = self._pedir_token({**base, "grant_type": "password",
+                                   "username": _cred("MONKEY_USERNAME"),
+                                   "password": _cred("MONKEY_PASSWORD")})
+        if not d or not d.get("access_token"):
             raise MonkeyIndisponivel(
-                f"falha de rede ao pedir token: {type(exc).__name__}") from None
-        if status != 200:
-            # NUNCA ecoa o corpo aqui: numa troca de credencial o retorno pode
-            # devolver o que foi enviado, e isso iria para o log.
-            raise MonkeyIndisponivel(
-                f"pedido de token respondeu HTTP {status}")
-        try:
-            d = json.loads(resp)
-        except json.JSONDecodeError:
-            raise MonkeyIndisponivel("pedido de token não devolveu JSON") from None
-        tok = d.get("access_token") or ""
-        if not tok:
-            raise MonkeyIndisponivel("resposta de token sem 'access_token'")
-        self._tok = tok
-        self._tok_expira = agora + max(30, int(d.get("expires_in") or 3600)) - FOLGA_TOKEN_S
-        return tok
+                "a Monkey recusou o pedido de token (password) — conferir "
+                "client_id/client_secret e o usuário/senha da plataforma")
+        self._tok = d["access_token"]
+        self._refresh = d.get("refresh_token") or self._refresh
+        self._tok_expira = (agora + max(30, int(d.get("expires_in") or 3600))
+                            - FOLGA_TOKEN_S)
+        return self._tok
 
     # ------------------------------------------------------------------ http
     def get(self, caminho: str, params: dict | None = None,
@@ -185,24 +213,26 @@ class Cliente:
 
     # ------------------------------------------------------------- recebíveis
     def recebiveis(self, *, tamanho: int = 200, maximo_paginas: int = 200,
-                   busca: dict | None = None) -> list[dict]:
+                   busca: str | None = None) -> list[dict]:
         """Todos os recebíveis do seller, seguindo a paginação.
 
-        `busca` é o parâmetro `search` da API — um `operationSpecificationInvoice`
-        cuja estrutura a documentação pública NÃO detalha. Fica aberto de
-        propósito: quando a Monkey mandar um exemplo, ele entra aqui sem tocar
-        no resto.
+        `busca` é o `search` da API no formato `campo:valor` (por exemplo
+        `externalId:3082912`), e é EXCLUSIVO: a Monkey confirmou que search
+        com page/size na mesma requisição devolve 200 com lista VAZIA — os
+        parâmetros se invalidam sem erro nenhum. Por isso a busca é UMA
+        chamada sem paginação, e a listagem completa pagina sem search.
 
         `maximo_paginas` é um freio contra laço infinito se a API devolver
         `totalPages` inconsistente — o que já vimos acontecer em API paginada.
         """
+        caminho = f"/v2/sellers/{self.seller}/receivables"
+        if busca:
+            d = self.get(caminho, {"search": busca})
+            return ((d.get("_embedded") or {}).get("receivables") or [])
         fora: list[dict] = []
         pagina = 0
         while pagina < maximo_paginas:
-            params = {"page": pagina, "size": tamanho}
-            if busca:
-                params.update(busca)
-            d = self.get(f"/v2/sellers/{self.seller}/receivables", params)
+            d = self.get(caminho, {"page": pagina, "size": tamanho})
             lote = ((d.get("_embedded") or {}).get("receivables") or [])
             fora.extend(lote)
             meta = d.get("page") or {}

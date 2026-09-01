@@ -70,6 +70,30 @@ def test_existe_freio_de_paginas():
     assert "maximo_paginas" in fonte
 
 
+def test_busca_nao_leva_page_nem_size(com_token):
+    """A Monkey confirmou (01/09/2026): search com page/size na MESMA
+    requisicao devolve 200 com lista vazia — os parametros se invalidam sem
+    erro nenhum. A busca tem de ir sozinha."""
+    http = HttpFalso([_resp(_pagina([{"invoiceNumber": "1"}], 0, 1))])
+    linhas = cli.Cliente(http=http).recebiveis(busca="externalId:3082912")
+    assert len(linhas) == 1 and len(http.chamadas) == 1
+    url = http.chamadas[0]["url"]
+    assert "search=externalId%3A3082912" in url
+    assert "page=" not in url and "size=" not in url
+
+
+def test_listagem_completa_nao_leva_search(com_token):
+    http = HttpFalso([_resp(_pagina([{"invoiceNumber": "1"}], 0, 1))])
+    cli.Cliente(http=http).recebiveis()
+    assert "search=" not in http.chamadas[0]["url"]
+
+
+def test_o_campo_de_sellers_aceita_virgulas(monkeypatch):
+    monkeypatch.setattr(cli, "_cred", lambda n: {
+        "MONKEY_SELLER_ID": " 111, 222 ,333 "}.get(n, ""))
+    assert cli.seller_ids() == ["111", "222", "333"]
+
+
 # ----------------------------------------------------------- configuracao
 def test_sem_credencial_a_integracao_fica_desligada(monkeypatch):
     monkeypatch.setattr(cli, "_cred", lambda n: "")
@@ -102,13 +126,20 @@ def test_ambiente_invalido_cai_em_homologacao(monkeypatch):
 
 
 # ------------------------------------------------------------------- oauth
-def test_oauth_troca_credencial_por_token_e_reaproveita(monkeypatch):
-    monkeypatch.setattr(cli, "_cred", lambda n: {
-        "MONKEY_CLIENT_ID": "id", "MONKEY_CLIENT_SECRET": "seg",
-        "MONKEY_SELLER_ID": "1", "MONKEY_TOKEN_URL": "https://x/oauth/token",
-    }.get(n, ""))
+OAUTH_CREDS = {
+    "MONKEY_CLIENT_ID": "id", "MONKEY_CLIENT_SECRET": "seg",
+    "MONKEY_USERNAME": "robo@sulista.com.br", "MONKEY_PASSWORD": "s3nh4",
+    "MONKEY_SELLER_ID": "1", "MONKEY_TOKEN_URL": "https://x/oauth/token",
+}
+
+
+def test_o_primeiro_token_e_grant_password(monkeypatch):
+    """Resposta oficial da Monkey (01/09/2026): a primeira obtencao usa
+    grant_type=password com o usuario/senha da plataforma."""
+    monkeypatch.setattr(cli, "_cred", lambda n: OAUTH_CREDS.get(n, ""))
     http = HttpFalso([
-        _resp({"access_token": "ac-1", "expires_in": 3600}),
+        _resp({"access_token": "ac-1", "refresh_token": "rf-1",
+               "expires_in": 3600}),
         _resp(_pagina([{"invoiceNumber": "1"}], 0, 1)),
         _resp(_pagina([{"invoiceNumber": "2"}], 0, 1)),
     ])
@@ -118,16 +149,70 @@ def test_oauth_troca_credencial_por_token_e_reaproveita(monkeypatch):
     # uma chamada de token para DUAS coletas: o token fica em cache
     tokens = [x for x in http.chamadas if x["dados"] is not None]
     assert len(tokens) == 1
-    assert b"grant_type=client_credentials" in tokens[0]["dados"]
+    assert b"grant_type=password" in tokens[0]["dados"]
+    assert b"username=robo" in tokens[0]["dados"]
     assert http.chamadas[-1]["headers"]["Authorization"] == "Bearer ac-1"
+
+
+def test_a_renovacao_usa_o_refresh_token(monkeypatch):
+    monkeypatch.setattr(cli, "_cred", lambda n: OAUTH_CREDS.get(n, ""))
+    http = HttpFalso([
+        _resp({"access_token": "ac-1", "refresh_token": "rf-1",
+               "expires_in": 3600}),
+        _resp(_pagina([{"invoiceNumber": "1"}], 0, 1)),
+        _resp({"access_token": "ac-2", "refresh_token": "rf-2",
+               "expires_in": 3600}),
+        _resp(_pagina([{"invoiceNumber": "2"}], 0, 1)),
+    ])
+    c = cli.Cliente(http=http)
+    c.recebiveis()
+    c._tok_expira = 0.0          # o relógio andou: o access venceu
+    c.recebiveis()
+    tokens = [x for x in http.chamadas if x["dados"] is not None]
+    assert len(tokens) == 2
+    assert b"grant_type=refresh_token" in tokens[1]["dados"]
+    assert b"refresh_token=rf-1" in tokens[1]["dados"]
+    assert http.chamadas[-1]["headers"]["Authorization"] == "Bearer ac-2"
+
+
+def test_refresh_recusado_cai_de_volta_no_password(monkeypatch):
+    """Refresh vencido ou rotacionado nao pode travar a coleta ate alguem
+    reiniciar o processo: a recusa cai de volta no grant password."""
+    monkeypatch.setattr(cli, "_cred", lambda n: OAUTH_CREDS.get(n, ""))
+    http = HttpFalso([
+        _resp({"access_token": "ac-1", "refresh_token": "rf-velho",
+               "expires_in": 3600}),
+        _resp(_pagina([{"invoiceNumber": "1"}], 0, 1)),
+        _resp({"error": "invalid_grant"}, 400),          # refresh recusado
+        _resp({"access_token": "ac-3", "expires_in": 3600}),
+        _resp(_pagina([{"invoiceNumber": "2"}], 0, 1)),
+    ])
+    c = cli.Cliente(http=http)
+    c.recebiveis()
+    c._tok_expira = 0.0
+    c.recebiveis()
+    tokens = [x for x in http.chamadas if x["dados"] is not None]
+    assert len(tokens) == 3
+    assert b"grant_type=refresh_token" in tokens[1]["dados"]
+    assert b"grant_type=password" in tokens[2]["dados"]
+    assert http.chamadas[-1]["headers"]["Authorization"] == "Bearer ac-3"
+
+
+def test_oauth_sem_usuario_e_senha_nao_esta_configurado(monkeypatch):
+    """So o par client_id/client_secret nao basta: o primeiro token e
+    grant_type=password e a Monkey recusaria — melhor dizer o que falta."""
+    monkeypatch.setattr(cli, "_cred", lambda n: {
+        "MONKEY_CLIENT_ID": "id", "MONKEY_CLIENT_SECRET": "seg",
+        "MONKEY_SELLER_ID": "1"}.get(n, ""))
+    assert cli.modo_auth() == ""
+    assert cli.configurado() is False
 
 
 def test_falha_ao_pedir_token_nao_ecoa_o_corpo(monkeypatch):
     """Numa troca de credencial o retorno pode devolver o que foi enviado, e
     isso iria para o log."""
     monkeypatch.setattr(cli, "_cred", lambda n: {
-        "MONKEY_CLIENT_ID": "id", "MONKEY_CLIENT_SECRET": "SENHA-SECRETA",
-        "MONKEY_SELLER_ID": "1"}.get(n, ""))
+        **OAUTH_CREDS, "MONKEY_CLIENT_SECRET": "SENHA-SECRETA"}.get(n, ""))
     http = HttpFalso([_resp({"erro": "client_secret SENHA-SECRETA invalido"}, 400)])
     with pytest.raises(cli.MonkeyIndisponivel) as e:
         cli.Cliente(http=http).recebiveis()
@@ -221,6 +306,30 @@ def test_cedente_e_sacado_nao_estao_trocados():
 
 
 # ------------------------------------------------------- gravacao (servico)
+def test_cinco_sellers_viram_UMA_posicao(esquema_pg, monkeypatch):
+    """A Sulista tem um sellerId por CNPJ. gravar_envio SUBSTITUI a posicao
+    do portal: gravar por CNPJ deixaria so o ultimo e os outros sumiriam sem
+    erro nenhum — por isso a coleta soma os sellers e grava UMA vez."""
+    from api.antecipacoes import registro
+    from api.monkey import servico
+
+    monkeypatch.setattr(cli, "_cred", lambda n: {
+        "MONKEY_TOKEN": "tok", "MONKEY_SELLER_ID": "111,222",
+        "MONKEY_AMBIENTE": "hmg"}.get(n, ""))
+    monkeypatch.setattr(registro, "ESQUEMA", esquema_pg)
+    http = HttpFalso([
+        _resp(_pagina([RECEB], 0, 1)),
+        _resp(_pagina([{**RECEB, "invoiceNumber": "777"}], 0, 1)),
+    ])
+    r = servico.coletar(http=http)
+    assert r["sellers"] == 2 and r["recebidos"] == 2 and r["gravados"] == 2
+    assert "/sellers/111/" in http.chamadas[0]["url"]
+    assert "/sellers/222/" in http.chamadas[1]["url"]
+    pos = registro.posicao_atual()
+    assert len(pos) == 1, "UMA posicao do portal, nao uma por seller"
+    assert len(registro.titulos_vigentes()) == 2
+
+
 def test_coleta_grava_pelo_mesmo_caminho_da_planilha(esquema_pg, monkeypatch, com_token):
     """Reusar `gravar_envio` de proposito: ele ja resolve "qual e a posicao
     atual do portal". Um caminho paralelo criaria duas regras que um dia

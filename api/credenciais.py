@@ -129,25 +129,36 @@ CAMPOS: dict[str, dict] = {
         "descricao": "Só se a validação por token estiver ativada na conta da "
                      "segunda instância"},
 
-    # Monkey Exchange — portal de antecipação da Tupy. A autenticação é
-    # PLUGÁVEL porque a documentação pública não diz qual é: vale token
-    # estático OU o par client_id/client_secret (OAuth2 client_credentials).
+    # Monkey Exchange — portal de antecipação da Tupy. Resposta oficial do
+    # fornecedor (01/09/2026): o primeiro token é grant_type=password
+    # (client_id + client_secret + usuário/senha da plataforma); a renovação
+    # usa refresh_token. Token estático continua aceito como alternativa.
     "MONKEY_TOKEN": {
         "rotulo": "Token estático",
         "descricao": "Token pronto, sem troca por access_token"},
     "MONKEY_CLIENT_ID": {
         "rotulo": "client_id", "segredo": False,
-        "descricao": "Identificador do cliente OAuth2 (não é segredo)"},
+        "descricao": "Gerado na criação do Client de API (não é segredo)"},
     "MONKEY_CLIENT_SECRET": {
         "rotulo": "client_secret",
-        "descricao": "Segredo do par OAuth2"},
+        "descricao": "Segredo do Client de API"},
+    "MONKEY_USERNAME": {
+        "rotulo": "Usuário (e-mail)", "segredo": False,
+        "descricao": "E-mail do usuário cadastrado na plataforma — o "
+                     "primeiro token sai com grant_type=password"},
+    "MONKEY_PASSWORD": {
+        "rotulo": "Senha do usuário",
+        "descricao": "Senha do usuário da plataforma (grant password); a "
+                     "renovação segue por refresh_token"},
     "MONKEY_TOKEN_URL": {
         "rotulo": "URL do token", "segredo": False, "obrigatorio": False,
         "descricao": "Só se não for o padrão <base>/oauth/token",
         "placeholder": "https://…/oauth/token"},
     "MONKEY_SELLER_ID": {
-        "rotulo": "sellerId da Sulista", "segredo": False,
-        "descricao": "O {id} de /v2/sellers/{id}/receivables — um por CNPJ"},
+        "rotulo": "sellerIds da Sulista", "segredo": False,
+        "descricao": "O {id} de /v2/sellers/{id}/receivables — um por CNPJ, "
+                     "separados por vírgula; a coleta soma todos numa "
+                     "posição só"},
     "MONKEY_AMBIENTE": {
         "rotulo": "Ambiente", "segredo": False, "obrigatorio": False,
         "descricao": "hmg (homologação, padrão) ou prod", "placeholder": "hmg"},
@@ -415,12 +426,14 @@ SERVICOS: list[dict] = [
                   "sellerId diferente no portal.",
         "alimenta": "Antecipações",
         "modos": [
+            {"chave": "oauth", "rotulo": "OAuth2 (password + refresh)",
+             "dica": "o primeiro token usa o usuário/senha da plataforma; "
+                     "a renovação segue por refresh_token",
+             "campos": ["MONKEY_CLIENT_ID", "MONKEY_CLIENT_SECRET",
+                        "MONKEY_USERNAME", "MONKEY_PASSWORD",
+                        "MONKEY_TOKEN_URL"]},
             {"chave": "token", "rotulo": "Token estático",
              "campos": ["MONKEY_TOKEN"]},
-            {"chave": "oauth", "rotulo": "OAuth2",
-             "dica": "client_credentials — o par é trocado por access_token",
-             "campos": ["MONKEY_CLIENT_ID", "MONKEY_CLIENT_SECRET",
-                        "MONKEY_TOKEN_URL"]},
         ],
         "ajustes": ["MONKEY_SELLER_ID", "MONKEY_AMBIENTE"],
     },

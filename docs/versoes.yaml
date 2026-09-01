@@ -1,3 +1,21 @@
+- versao: "0.206.0"
+  data: "2026-09-01"
+  alterado:
+    - >-
+      Monkey (antecipação Tupy) ajustada às respostas oficiais do
+      fornecedor: o primeiro token usa o usuário e a senha da plataforma
+      (grant password) e a renovação segue por refresh_token — com volta
+      automática ao password se o refresh vencer; os campos Usuário e
+      Senha entraram em Gestão › Integrações. Os hosts foram confirmados
+      (sandbox.monkeyecx.com é o portal web, não a API — o código já
+      apontava para os certos).
+    - >-
+      A busca (search) agora viaja SOZINHA: a Monkey confirmou que search
+      com page/size na mesma requisição devolve 200 com lista vazia, sem
+      erro — os parâmetros se invalidam em silêncio. E o campo de
+      sellerId aceita os cinco CNPJs separados por vírgula: a coleta soma
+      todos os sellers e grava UMA posição do portal (gravar por CNPJ
+      deixaria só o último).
 - versao: "0.205.0"
   data: "2026-09-01"
   adicionado:

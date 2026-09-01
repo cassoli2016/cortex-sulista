@@ -4,6 +4,12 @@ Gerado de `docs/versoes.yaml` por `scripts/gerar_changelog.py` — não editar �
 Formato [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/),
 versionamento [SemVer](https://semver.org/lang/pt-BR/).
 
+## [0.206.0] — 01/09/2026  ·  CX-01/09/2026-v0.206.0
+
+### Alterado
+- Monkey (antecipação Tupy) ajustada às respostas oficiais do fornecedor: o primeiro token usa o usuário e a senha da plataforma (grant password) e a renovação segue por refresh_token — com volta automática ao password se o refresh vencer; os campos Usuário e Senha entraram em Gestão › Integrações. Os hosts foram confirmados (sandbox.monkeyecx.com é o portal web, não a API — o código já apontava para os certos).
+- A busca (search) agora viaja SOZINHA: a Monkey confirmou que search com page/size na mesma requisição devolve 200 com lista vazia, sem erro — os parâmetros se invalidam em silêncio. E o campo de sellerId aceita os cinco CNPJs separados por vírgula: a coleta soma todos os sellers e grava UMA posição do portal (gravar por CNPJ deixaria só o último).
+
 ## [0.205.0] — 01/09/2026  ·  CX-01/09/2026-v0.205.0
 
 ### Adicionado
