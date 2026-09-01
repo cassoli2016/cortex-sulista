@@ -113,6 +113,8 @@ def test_consumo_marca_telemetria_incompleta_em_vez_de_divergencia(pagina):
     não divergência de consumo."""
     pg, base = pagina
     _abrir(pg, base, "telcon")
+    # a tela abre na Evolução mensal; a tabela do cruzamento vive na 2ª aba
+    pg.evaluate("abaTrocar('telcon','cmp')")
     pg.wait_for_selector("#telcon-lista tr", timeout=20000)
     lista = pg.inner_text("#telcon-lista")
     assert "CCC3C33" in lista
@@ -122,6 +124,8 @@ def test_consumo_marca_telemetria_incompleta_em_vez_de_divergencia(pagina):
 def test_consumo_mostra_a_idade_da_coleta(pagina):
     pg, base = pagina
     _abrir(pg, base, "telcon")
+    # a tela abre na Evolução mensal; a tabela do cruzamento vive na 2ª aba
+    pg.evaluate("abaTrocar('telcon','cmp')")
     pg.wait_for_selector("#telcon-lista tr", timeout=20000)
     assert "coletado em" in pg.inner_text("#telcon-sync")
 
