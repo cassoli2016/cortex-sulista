@@ -96,7 +96,7 @@ a ACL em vez de afirmar a proteção.
 ## 3. Telas e módulos
 
 **O registro canônico das telas é `api/auth.py`** (`TELAS`, `ROTA_TELAS`,
-`VIEW_GROUP` no `index.html`). Hoje: 67 telas em RBAC + 3 fora
+`VIEW_GROUP` no `index.html`). Hoje: 69 telas em RBAC + 3 fora
 (`srv`, `gestao`, `jornf`), organizadas assim:
 
 | Grupo | Telas | Fonte principal |
@@ -196,6 +196,12 @@ direto; todo número-chave traz comparação.
   ninguém clica numa TV). O que não couber vai para sub-aba (`.subtabs` +
   `abaTrocar`), nunca para o fim da rolagem. `scripts/medir_paineis.py` é o
   juiz: mede CADA aba e vale a mais alta.
+- **Nem para o LADO**: a régua também mede largura (`scrollWidth − clientWidth`
+  por aba, zero sempre). Grade de cards é `minmax(0,1fr)` — `1fr` cru é
+  `minmax(auto,1fr)` e a trilha não encolhe abaixo do min-content de uma
+  tabela `nowrap`; o card da direita nasce FORA da tela sem erro nenhum (GR e
+  Margem por cliente, 01/09/2026). Duas tabelas largas lado a lado não cabem
+  em tela nenhuma: cada uma vira sub-aba (memória `grid-1fr-empurra-a-pagina`).
 - **A aba com GRÁFICO nasce aberta** (ECharts e Leaflet medem o contêiner UMA
   vez; medida sob `hidden` vale zero para sempre — o sintoma é mudo: eixos
   certos, rótulos suprimidos). O `ResizeObserver` do `echartsRegistrar` cobre a
