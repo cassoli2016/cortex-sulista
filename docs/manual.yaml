@@ -275,7 +275,8 @@ glossario:
   definicao: O boletim que a gerenciadora de risco (Raster) calcula ao FINALIZAR cada viagem monitorada;
     pânico, violações de painel e antena, desengates, paradas em área de risco, desvios de rota, eventos
     de velocidade e tempo sem posição. O CÓRTEX coleta esse consolidado toda madrugada, por placa, com
-    credencial própria, e mostra na aba Risco por viagem do Gerenciamento de Risco. Contador que o
+    credencial própria, e mostra nas abas Risco por viagem (piores viagens) e Risco por placa (o
+    acumulado dos 30 dias) do Gerenciamento de Risco. Contador que o
     fornecedor omite vale zero; viagem que a central nunca finaliza não ganha consolidado — por isso a
     régua é sobre as viagens FINALIZADAS, e a tela diz quantas são.
 - termo: Convênio de antecipação (cliente elegível)

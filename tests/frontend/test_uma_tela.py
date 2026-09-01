@@ -44,7 +44,7 @@ def medidas():
 
 def test_nenhuma_aba_passa_da_altura_de_uma_tela(medidas):
     """A régua é a altura útil de uma 1080p com a barra do navegador."""
-    altas = [(t, h) for t, h, _, _ in medidas
+    altas = [(t, h) for t, h, _, _, _ in medidas
              if h > (medir_paineis.ALTURA_TV if t in medir_paineis.E_TV
                      else medir_paineis.ALTURA_UTIL)]
     assert not altas, (
@@ -60,8 +60,26 @@ def test_tabela_longa_rola_dentro_do_card(medidas):
     (`slice(0,10)`), e rolagem dentro do card seria inútil numa tela que
     ninguém toca.
     """
-    soltas = [(t, n) for t, _, n, _ in medidas
+    soltas = [(t, n) for t, _, n, _, _ in medidas
               if n > 0 and t not in medir_paineis.E_TV]
     assert not soltas, (
         "tabela(s) sem .tabroll — crescem sem limite quando o dado chega: %s"
         % soltas)
+
+
+def test_nenhuma_aba_rola_na_horizontal(medidas):
+    """Barra de rolagem INFERIOR é o irmão mudo da tela alta: a página fica
+    mais larga que a janela e o card da direita nasce FORA da tela, sem erro
+    nenhum. Aconteceu na aba Risco por viagem do GR (v0.207.0): duas tabelas
+    de 9 e 8 colunas `nowrap` lado a lado numa `.grid2` cujo `1fr` não
+    encolhe abaixo do min-content — 1.596px numa grade de 1.224. A régua de
+    altura passava; ninguém medía largura.
+
+    O painel de TV fica fora: é desenhado para 1920 e aqui a janela é 1500.
+    """
+    largas = [(t, w) for t, _, _, _, w in medidas
+              if w > 0 and t not in medir_paineis.E_TV]
+    assert not largas, (
+        "tela(s) com rolagem horizontal (px além da janela): %s — o que não "
+        "cabe lado a lado vai para sub-aba, e a trilha do grid tem de ser "
+        "minmax(0,1fr)" % largas)

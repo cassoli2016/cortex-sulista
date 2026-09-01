@@ -4,6 +4,13 @@ Gerado de `docs/versoes.yaml` por `scripts/gerar_changelog.py` — não editar �
 Formato [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/),
 versionamento [SemVer](https://semver.org/lang/pt-BR/).
 
+## [0.209.1] — 01/09/2026  ·  CX-01/09/2026-v0.209.1
+
+### Corrigido
+- Gerenciamento de Risco: a aba Risco por viagem tinha barra de rolagem inferior e o card "Risco acumulado por placa" nascia fora da tela — duas tabelas de 9 e 8 colunas lado a lado pediam 1.600 px numa grade de 1.224. O acumulado por placa virou a aba "Risco por placa", com contador, e as piores viagens ficaram sozinhas em largura cheia; a rota continua numa linha só, com o nome inteiro no tooltip.
+- A trilha das grades de dois cards (`minmax(0,1fr)`) não empurra mais a página para o lado em nenhuma tela: quando uma tabela é mais larga que a metade, ela rola dentro do próprio card. Margem por cliente também rolava na horizontal e parou.
+- A régua dos painéis passou a medir largura, não só altura: tela que rola na horizontal em qualquer aba fica vermelha na esteira (antes desta correção, duas ficavam).
+
 ## [0.209.0] — 01/09/2026  ·  CX-01/09/2026-v0.209.0
 
 ### Alterado

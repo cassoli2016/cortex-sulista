@@ -81,12 +81,20 @@ def _tabelas_soltas() -> dict[str, int]:
     return fora
 
 
-def medir() -> list[tuple[str, int, int, bool]]:
-    """(tela, altura da aba mais alta, tabelas soltas, tem aba) para as 68.
+def medir() -> list[tuple[str, int, int, bool, int]]:
+    """(tela, altura da aba mais alta, tabelas soltas, tem aba, estouro
+    horizontal em px) para as 68.
 
     Separado do `main` para o teste poder cobrar a regra sem repetir o arranjo
     — regra sem teste volta, e esta ja voltou uma vez em forma de tela de
     16.000px.
+
+    O ESTOURO HORIZONTAL entrou em 01/09/2026 (v0.209.1): a aba "Risco por
+    viagem" do GR pos duas tabelas de 9 e 8 colunas lado a lado numa `.grid2`
+    e a pagina ganhou barra de rolagem inferior, com o segundo card fora da
+    tela — e nenhum guard media largura, so altura. Mede-se o quanto o
+    documento passa da viewport (scrollWidth - clientWidth) na aba aberta;
+    o certo e zero, sempre.
     """
     from playwright.sync_api import sync_playwright
 
@@ -119,6 +127,13 @@ def medir() -> list[tuple[str, int, int, bool]]:
                    "   ? Math.round(b.getBoundingClientRect().height) + 14 : 0;"
                    " return Math.round(c.scrollHeight) - fora; }")
             h = pg.evaluate(alt)
+            # Barra de rolagem INFERIOR: o documento ficou mais largo que a
+            # janela. Quem estoura e uma trilha de grid que nao encolhe abaixo
+            # do min-content de uma tabela `nowrap` — e o card da direita nasce
+            # fora da tela, sem erro nenhum.
+            larg = ("() => Math.max(0, document.documentElement.scrollWidth"
+                    " - document.documentElement.clientWidth)")
+            w = pg.evaluate(larg)
             # TER ABA NAO E CUMPRIR A REGRA. A regra e "se le sem rolar", e
             # quem se le e a aba ABERTA — dividir uma tela de 1.400px em uma
             # aba de 1.300 e outra de 100 nao resolveu nada. Entao mede-se
@@ -131,7 +146,8 @@ def medir() -> list[tuple[str, int, int, bool]]:
                 pg.evaluate("([g,q]) => abaTrocar(g,q)", [grupo, qual])
                 pg.wait_for_timeout(120)
                 h = max(h, pg.evaluate(alt))
-            medidas.append((tela, h, soltas.get(tela, 0), bool(chaves)))
+                w = max(w, pg.evaluate(larg))
+            medidas.append((tela, h, soltas.get(tela, 0), bool(chaves), w))
         nav.close()
     srv.shutdown()
     return medidas
@@ -147,10 +163,10 @@ def main() -> int:
         limite = int(sys.argv[sys.argv.index("--altura") + 1])
     medidas = medir()
     medidas.sort(key=lambda m: -(m[1] + m[2] * 400))
-    print(f"{'tela':10}{'altura':>8}{'soltas':>8}  aba   veredito")
-    print("-" * 64)
+    print(f"{'tela':10}{'altura':>8}{'soltas':>8}{'larg+':>7}  aba   veredito")
+    print("-" * 70)
     acima = 0
-    for tela, h, sol, aba in medidas:
+    for tela, h, sol, aba, w in medidas:
         # Uma tabela solta vale ~400px de crescimento provável — é a ordem de
         # grandeza de 20 linhas, e 20 linhas é pouco para as tabelas da casa.
         # A TABELA DO PAINEL DE TV NAO E "SOLTA": quem limita ali e o
@@ -159,11 +175,13 @@ def main() -> int:
         estimado = h + (0 if tela in E_TV else sol * 400)
         regua = ALTURA_TV if tela in E_TV else limite
         ruim = estimado > regua
-        acima += 1 if ruim else 0
+        larga = w > 0 and tela not in E_TV
+        acima += 1 if (ruim or larga) else 0
         veredito = ("cabe na TV" if tela in E_TV and not ruim else
+                    "ROLA NA HORIZONTAL" if larga else
                     "cabe" if not ruim else
                     "ABA ALTA DEMAIS" if aba else "PASSA DA TELA")
-        print(f"{tela:10}{h:8}{sol:8}  {'sim' if aba else '   '}   {veredito}")
+        print(f"{tela:10}{h:8}{sol:8}{w:7}  {'sim' if aba else '   '}   {veredito}")
     print(f"\n{acima} tela(s) acima de {limite}px sem aba — "
           f"régua: painel de BI se lê sem rolar")
     return 0
