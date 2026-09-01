@@ -4,6 +4,12 @@ Gerado de `docs/versoes.yaml` por `scripts/gerar_changelog.py` — não editar �
 Formato [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/),
 versionamento [SemVer](https://semver.org/lang/pt-BR/).
 
+## [0.209.4] — 01/09/2026  ·  CX-01/09/2026-v0.209.4
+
+### Corrigido
+- O "3 em aberto — DIVERGE do painel" do Portal Tupy não era atraso de coleta: eram três recebíveis de dublê (sellers de teste) que a suíte de testes gravava no espelho de PRODUÇÃO a cada rodada — os testes da coleta redirecionavam a posição para o schema de teste e esqueciam o espelho, e a coleta grava os dois. Os dados de teste foram removidos de produção (com registro no audit_log) e os testes passaram a redirecionar também o espelho.
+- A suíte ganhou um guard: depois de cada teste, uma foto das tabelas que a coleta escreve em produção; se mudou, o teste que acabou de rodar falha com o nome na tela. Ficou vermelho no teste que vazava e verde depois da correção.
+
 ## [0.209.3] — 01/09/2026  ·  CX-01/09/2026-v0.209.3
 
 ### Corrigido

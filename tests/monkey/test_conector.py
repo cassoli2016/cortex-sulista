@@ -8,6 +8,7 @@ import json
 import pytest
 
 from api.monkey import cliente as cli
+from api.monkey import espelho
 from api.monkey import normaliza as nz
 
 
@@ -360,6 +361,7 @@ def test_cinco_sellers_viram_UMA_posicao(esquema_pg, monkeypatch):
         "MONKEY_TOKEN": "tok", "MONKEY_SELLER_ID": "111,222",
         "MONKEY_AMBIENTE": "hmg"}.get(n, ""))
     monkeypatch.setattr(registro, "ESQUEMA", esquema_pg)
+    monkeypatch.setattr(espelho, "ESQUEMA", esquema_pg)
     http = HttpFalso([
         _resp(ME),
         _resp(_pagina([RECEB], 0, 1)),
@@ -367,6 +369,12 @@ def test_cinco_sellers_viram_UMA_posicao(esquema_pg, monkeypatch):
     ])
     r = servico.coletar(http=http)
     assert r["sellers"] == 2 and r["recebidos"] == 2 and r["gravados"] == 2
+    # o espelho tambem foi gravado — no schema DESTE teste (o guard
+    # `producao_intocada` do conftest acusa se cair em producao)
+    from api import pglocal
+    assert r["espelho"] == 2
+    carga = pglocal.um("SELECT recebidos, gravados FROM mky_carga ORDER BY id DESC LIMIT 1", esquema=esquema_pg)
+    assert (carga["recebidos"], carga["gravados"]) == (2, 2)
     assert "/uaa/me" in http.chamadas[0]["url"], "o programa se descobre UMA vez"
     assert "/sellers/111/" in http.chamadas[1]["url"]
     assert "/sellers/222/" in http.chamadas[2]["url"]
@@ -383,6 +391,7 @@ def test_coleta_grava_pelo_mesmo_caminho_da_planilha(esquema_pg, monkeypatch, co
     from api.monkey import servico
 
     monkeypatch.setattr(registro, "ESQUEMA", esquema_pg)
+    monkeypatch.setattr(espelho, "ESQUEMA", esquema_pg)
     http = HttpFalso([_resp(ME), _resp(_pagina([RECEB], 0, 1))])
     r = servico.coletar(http=http)
 
@@ -406,6 +415,7 @@ def test_coleta_identica_nao_cria_envio_novo(esquema_pg, monkeypatch, com_token)
     from api.monkey import servico
 
     monkeypatch.setattr(registro, "ESQUEMA", esquema_pg)
+    monkeypatch.setattr(espelho, "ESQUEMA", esquema_pg)
     r1 = servico.coletar(http=HttpFalso([_resp(ME), _resp(_pagina([RECEB], 0, 1))]))
     r2 = servico.coletar(http=HttpFalso([_resp(ME), _resp(_pagina([RECEB], 0, 1))]))
     assert r1["sem_mudanca"] is False
@@ -420,6 +430,7 @@ def test_a_ordem_das_linhas_nao_muda_a_impressao(esquema_pg, monkeypatch, com_to
     from api.monkey import servico
 
     monkeypatch.setattr(registro, "ESQUEMA", esquema_pg)
+    monkeypatch.setattr(espelho, "ESQUEMA", esquema_pg)
     b = {**RECEB, "invoiceNumber": "999"}
     servico.coletar(http=HttpFalso([_resp(ME), _resp(_pagina([RECEB, b], 0, 1))]))
     r2 = servico.coletar(http=HttpFalso([_resp(ME), _resp(_pagina([b, RECEB], 0, 1))]))
@@ -432,6 +443,7 @@ def test_mudanca_de_status_conta_como_posicao_nova(esquema_pg, monkeypatch, com_
     from api.monkey import servico
 
     monkeypatch.setattr(registro, "ESQUEMA", esquema_pg)
+    monkeypatch.setattr(espelho, "ESQUEMA", esquema_pg)
     servico.coletar(http=HttpFalso([_resp(ME), _resp(_pagina([RECEB], 0, 1))]))
     r2 = servico.coletar(http=HttpFalso([
         _resp(ME), _resp(_pagina([{**RECEB, "status": "SOLD"}], 0, 1))]))
@@ -447,6 +459,7 @@ def test_vendido_e_liquidado_NAO_entram_na_posicao(esquema_pg, monkeypatch, com_
     from api.monkey import servico
 
     monkeypatch.setattr(registro, "ESQUEMA", esquema_pg)
+    monkeypatch.setattr(espelho, "ESQUEMA", esquema_pg)
     r = servico.coletar(http=HttpFalso([_resp(ME), _resp(_pagina([
         RECEB,
         {**RECEB, "invoiceNumber": "2", "status": "SOLD"},
@@ -474,6 +487,7 @@ def test_titulo_sem_vencimento_e_rejeitado(esquema_pg, monkeypatch, com_token):
     from api.monkey import servico
 
     monkeypatch.setattr(registro, "ESQUEMA", esquema_pg)
+    monkeypatch.setattr(espelho, "ESQUEMA", esquema_pg)
     r = servico.coletar(http=HttpFalso([_resp(ME), _resp(_pagina(
         [RECEB, {**RECEB, "invoiceNumber": "7", "paymentDate": None}], 0, 1))]))
     assert r["recebidos"] == 2 and r["gravados"] == 1
@@ -486,6 +500,7 @@ def test_a_posicao_fica_marcada_como_API(esquema_pg, monkeypatch, com_token):
     from api.monkey import servico
 
     monkeypatch.setattr(registro, "ESQUEMA", esquema_pg)
+    monkeypatch.setattr(espelho, "ESQUEMA", esquema_pg)
     r = servico.coletar(http=HttpFalso([_resp(ME), _resp(_pagina([RECEB], 0, 1))]))
     from api import pglocal
     linha = pglocal.um("SELECT origem, portal FROM ant_envios WHERE id=%s",
@@ -500,6 +515,7 @@ def test_nao_inventa_total_declarado(esquema_pg, monkeypatch, com_token):
     from api.monkey import servico
 
     monkeypatch.setattr(registro, "ESQUEMA", esquema_pg)
+    monkeypatch.setattr(espelho, "ESQUEMA", esquema_pg)
     r = servico.coletar(http=HttpFalso([_resp(ME), _resp(_pagina([RECEB], 0, 1))]))
     from api import pglocal
     linha = pglocal.um("SELECT total_declarado, divergencia FROM ant_envios"

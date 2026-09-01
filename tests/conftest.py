@@ -47,3 +47,63 @@ def esquema_pg(pg_disponivel):
         yield nome
     finally:
         pglocal.apagar_esquema(nome)
+
+
+# ---------------------------------------------------------------------------
+# NENHUM TESTE ESCREVE NO SCHEMA DE PRODUÇÃO.
+#
+# Aconteceu em 01/09/2026: os testes da coleta da Monkey redirecionavam o
+# `registro.ESQUEMA` (a posição) para o schema de teste e esqueciam o
+# `espelho.ESQUEMA` — e `servico.coletar()` grava os dois. Cinco rodadas da
+# suíte no mesmo dia puseram 3 recebíveis dos sellers de dublê (111/222/4242)
+# e 65 "cargas" de um a quatro títulos dentro de `cortex.mky_recebiveis` e
+# `cortex.mky_carga`, em produção. A tela do Portal Tupy passou a dizer
+# "3 em aberto — DIVERGE do painel", e a divergência era o teste.
+#
+# O sintoma é mudo (nenhum teste falha — eles PASSAM gravando no lugar
+# errado), então a regra precisa de um guard que fique vermelho: depois de
+# cada teste, uma foto barata das tabelas que a coleta escreve. Se mudou, o
+# teste que acabou de rodar escreveu em produção e é ELE que erra, com o
+# nome na tela. Uma consulta por teste, numa conexão curta.
+#
+# Falso positivo possível: a coleta REAL (tarefa agendada, ou alguém na tela)
+# gravando enquanto a suíte roda. Raro, e a mensagem diz como distinguir —
+# a carga real tem dezenas de milhares de recebíveis, a de dublê tem um.
+# ---------------------------------------------------------------------------
+_FOTO_PRODUCAO: dict = {"ultima": None}
+
+
+def _foto_producao():
+    from api import pglocal
+    return pglocal.um(
+        "SELECT (SELECT coalesce(max(id), 0) FROM mky_carga) AS cargas,"
+        " (SELECT count(*) FROM mky_recebiveis) AS recebiveis,"
+        " (SELECT coalesce(max(id), 0) FROM ant_envios) AS envios")
+
+
+@pytest.fixture(autouse=True)
+def producao_intocada(request, pg_disponivel):
+    """Falha o teste que ESCREVEU em `cortex.mky_*`/`ant_envios` (produção)."""
+    ok, _ = pg_disponivel
+    if not ok:
+        yield
+        return
+    if _FOTO_PRODUCAO["ultima"] is None:
+        try:
+            _FOTO_PRODUCAO["ultima"] = _foto_producao()
+        except Exception:  # noqa: BLE001 — tabela ainda não migrada: nada a vigiar
+            yield
+            return
+    yield
+    try:
+        agora = _foto_producao()
+    except Exception:  # noqa: BLE001
+        return
+    antes, _FOTO_PRODUCAO["ultima"] = _FOTO_PRODUCAO["ultima"], agora
+    if agora != antes:
+        pytest.fail(
+            f"{request.node.nodeid} ESCREVEU no schema de PRODUÇÃO (cortex): "
+            f"{antes} -> {agora}. Todo módulo que grava expõe `ESQUEMA`; o teste "
+            "tem de redirecioná-lo para o `esquema_pg` (a coleta da Monkey grava "
+            "registro E espelho — os dois). Se foi a coleta real rodando junto, "
+            "a carga tem dezenas de milhares de recebíveis, não um.")
