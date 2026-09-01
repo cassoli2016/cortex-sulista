@@ -1004,6 +1004,31 @@ def _servicos() -> list[dict]:
                          "detalhe": "integração indisponível"})
         log.warning("saude: prolog: %s", exc)
 
+    # RasterIntegra (Gerenciamento de Risco): sem credencial e instalacao
+    # incompleta (info); com credencial, prova de vida com cache de 10 min
+    try:
+        from api.rasterintegra import diagnostico as _gr_diag
+        _d = _gr_diag.diagnostico()
+        if not _d.get("configurado"):
+            servicos.append({"nome": "RasterIntegra (ger. de risco)",
+                             "status": "info",
+                             "detalhe": "sem credencial — cadastrar em "
+                                        "Gestão › Integrações (exclusiva do "
+                                        "CÓRTEX, nunca a do ERP)"})
+        elif _d.get("ok"):
+            servicos.append({"nome": "RasterIntegra (ger. de risco)",
+                             "status": "ok",
+                             "detalhe": "webservice respondendo — Fase 2 "
+                                        "liberada"})
+        else:
+            servicos.append({"nome": "RasterIntegra (ger. de risco)",
+                             "status": "alerta",
+                             "detalhe": _d.get("erro") or "sem resposta"})
+    except Exception as exc:  # noqa: BLE001
+        servicos.append({"nome": "RasterIntegra (ger. de risco)",
+                         "status": "info", "detalhe": "diagnóstico indisponível"})
+        log.warning("saude: rasterintegra: %s", exc)
+
     for nome, modulo, monta in (
             ("Gobrax (telemetria)", "gobrax.armazenamento", _servico_gobrax),
             ("Monkey (antecipação Tupy)", "monkey.servico", _servico_monkey),

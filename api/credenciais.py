@@ -208,6 +208,29 @@ CAMPOS: dict[str, dict] = {
         "obrigatorio": False, "descricao": "Padrão /external-api/absences/",
         "placeholder": "/external-api/absences/"},
 
+    # RasterIntegra — o webservice de GERENCIAMENTO DE RISCO da Raster/Logae
+    # (NÃO confundir com a RasterJOR acima: mesmo fornecedor, outro serviço,
+    # outra autenticação). Login+senha vão no CORPO de cada requisição
+    # DataSnap. Credencial EXCLUSIVA do CÓRTEX: a que o ERP usa foi
+    # encontrada exposta no próprio banco e o mesmo login em dois
+    # consumidores dobra o consumo do rate-limit (30s/15s) que o ERP já fura.
+    "RASTERINTEGRA_URL": {
+        "rotulo": "URL base do webservice", "segredo": False,
+        "obrigatorio": False,
+        "descricao": "Padrão https://integra.logaegr.com.br:8443 (TLS); o "
+                     "ERP usa o alias integra.rastergr.com.br:8888 — mesmo "
+                     "serviço. Sem barra no fim",
+        "placeholder": "https://integra.logaegr.com.br:8443"},
+    "RASTERINTEGRA_LOGIN": {
+        "rotulo": "Login", "segredo": False,
+        "descricao": "Vai no CORPO de cada requisição (padrão DataSnap da "
+                     "Raster). Peça credencial exclusiva do CÓRTEX — nunca "
+                     "reusar a do ERP"},
+    "RASTERINTEGRA_SENHA": {
+        "rotulo": "Senha",
+        "descricao": "Vai no CORPO junto do login. Guardada no cofre, "
+                     "protegida por ACL, nunca em log"},
+
     # Prolog — gestão de pneus. O OpenAPI da Prolog não declara
     # securityScheme nenhum, então aceita token, Basic ou OAuth2.
     "PROLOG_TOKEN": {
@@ -350,6 +373,21 @@ SERVICOS: list[dict] = [
         "ajustes": ["RASTERJOR_AUTH_HEADER", "RASTERJOR_AUTH_PREFIXO",
                     "RASTERJOR_PATH_JORNADAS", "RASTERJOR_PATH_INCONFORMIDADES",
                     "RASTERJOR_PATH_MOTORISTAS", "RASTERJOR_PATH_AUSENCIAS"],
+    },
+    {
+        "chave": "rasterintegra",
+        "nome": "RasterIntegra (Gerenciamento de Risco)",
+        "resumo": "O webservice de GR da Raster/Logae — consolidado de risco "
+                  "por viagem (pânico, desvio de rota, violação de painel e "
+                  "antena), km visto pela GR e, no futuro, emissão de SM. "
+                  "Outro serviço da mesma Raster da jornada: a credencial "
+                  "NÃO é a mesma, e deve ser exclusiva do CÓRTEX.",
+        "alimenta": "Gerenciamento de Risco",
+        "modos": [
+            {"chave": "senha", "rotulo": "Login e senha",
+             "campos": ["RASTERINTEGRA_LOGIN", "RASTERINTEGRA_SENHA"]},
+        ],
+        "ajustes": ["RASTERINTEGRA_URL"],
     },
     {
         "chave": "prolog",

@@ -4,6 +4,11 @@ Gerado de `docs/versoes.yaml` por `scripts/gerar_changelog.py` — não editar �
 Formato [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/),
 versionamento [SemVer](https://semver.org/lang/pt-BR/).
 
+## [0.204.1] — 01/09/2026  ·  CX-01/09/2026-v0.204.1
+
+### Adicionado
+- RasterIntegra entrou na Central de Integrações (Gestão › Integrações): login, senha e URL do webservice de Gerenciamento de Risco, guardados no cofre com ACL — credencial EXCLUSIVA do CÓRTEX, nunca a do ERP. O cliente DataSnap já fala o dialeto do fornecedor (método entre aspas na URL, credencial no corpo, CodErro no HTTP 200: "sem registros novos" é resposta, rate-limit e "método não liberado" são ditos com o motivo). A Saúde do Servidor ganhou o cartão: sem credencial mostra instalação incompleta; com ela, faz a prova de vida (cache de 10 minutos para não gastar o rate-limit). Cadastrada a credencial, a Fase 2 (consolidado de risco por viagem) é liberada.
+
 ## [0.204.0] — 01/09/2026  ·  CX-01/09/2026-v0.204.0
 
 ### Adicionado
