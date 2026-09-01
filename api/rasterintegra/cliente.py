@@ -35,7 +35,10 @@ from api.credenciais import ler as _cred_ler
 log = logging.getLogger("cortex.rasterintegra")
 
 TIMEOUT = 60
-URL_PADRAO = "https://integra.logaegr.com.br:8443"
+# O manual anuncia integra.logaegr.com.br, mas esse host NAO RESOLVE desta
+# rede (gaierror medido em 01/09/2026); o alias que o ERP usa resolve
+# (186.225.0.58) com 8888 (http) e 8443 (TLS) abertas — TLS por padrão.
+URL_PADRAO = "https://integra.rastergr.com.br:8443"
 
 # CodErro que são RESPOSTA, não falha (o corpo diz "não há nada novo")
 COD_SEM_REGISTROS = 99
@@ -92,6 +95,12 @@ def chamar(metodo: str, corpo: dict | None = None) -> dict:
     # o DataSnap exige o método ENTRE ASPAS na URL (manual, todos os exemplos)
     url = f'{base_url()}/datasnap/rest/TWebService/%22{metodo}%22'
     payload = dict(corpo or {})
+    # O AMBIENTE decide o BANCO que o servidor abre: sem ele o DataSnap
+    # quebra com "Neither DSN nor SERVER keyword supplied" ANTES de validar
+    # a credencial (medido em 01/09/2026 — meia hora de depuração que este
+    # comentário poupa). TipoRetorno JSON idem: o padrão deles é XML.
+    payload.setdefault("Ambiente", "Producao")
+    payload.setdefault("TipoRetorno", "JSON")
     payload.setdefault("Login", _cred("RASTERINTEGRA_LOGIN"))
     payload.setdefault("Senha", _cred("RASTERINTEGRA_SENHA"))
     dados = _json.dumps(payload).encode("utf-8")
@@ -148,7 +157,7 @@ def testar() -> dict:
     `getTabela` é o método de domínio — se ele responde, a credencial vale
     e o transporte está certo. Devolve um resumo escalar, nunca o dump.
     """
-    d = chamar("getTabela", {"Tabela": "ERROS_WEBSERVICE"})
+    d = chamar("getTabela", {"NomeTabela": "ERROS_WEBSERVICE"})
     itens = d.get("Registros") or d.get("Tabela") or d.get("Itens") or []
     return {"ok": True, "itens": len(itens) if isinstance(itens, list) else 0,
             "cod_erro": d.get("_cod_erro", 0)}

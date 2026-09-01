@@ -271,6 +271,13 @@ glossario:
   definicao: Botão com o símbolo da Sulista no canto inferior direito de qualquer tela. Abre um formulário
     para relatar um bug ou pedir uma melhoria, com print da tela e anexos. O relato vira uma issue num
     repositório privado, levando junto a tela, os filtros ativos, a versão e o navegador.
+- termo: Consolidado de risco por viagem
+  definicao: O boletim que a gerenciadora de risco (Raster) calcula ao FINALIZAR cada viagem monitorada;
+    pânico, violações de painel e antena, desengates, paradas em área de risco, desvios de rota, eventos
+    de velocidade e tempo sem posição. O CÓRTEX coleta esse consolidado toda madrugada, por placa, com
+    credencial própria, e mostra na aba Risco por viagem do Gerenciamento de Risco. Contador que o
+    fornecedor omite vale zero; viagem que a central nunca finaliza não ganha consolidado — por isso a
+    régua é sobre as viagens FINALIZADAS, e a tela diz quantas são.
 - termo: Convênio de antecipação (cliente elegível)
   definicao: Cliente que mantém portal de risco sacado, onde a Sulista pode antecipar os títulos dele.
     Só o recebível desses clientes entra nas Operações de antecipação sugeridas — supor que qualquer recebível

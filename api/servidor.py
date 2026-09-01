@@ -1016,10 +1016,24 @@ def _servicos() -> list[dict]:
                                         "Gestão › Integrações (exclusiva do "
                                         "CÓRTEX, nunca a do ERP)"})
         elif _d.get("ok"):
+            _c = _d.get("coleta")
+            if _c is None:
+                # banco local sem veredito: a prova de vida do webservice
+                # continua valendo sozinha
+                _txt, _st = "webservice respondendo", "ok"
+            elif not _c.get("rodou"):
+                _txt = ("webservice respondendo — aguardando a primeira "
+                        "coleta (tarefa das 04:40)")
+                _st = "info"
+            elif _c.get("atrasada"):
+                _txt = (f"webservice responde, mas a última coleta foi "
+                        f"{_c.get('ultima')} — a tarefa das 04:40 não rodou")
+                _st = "alerta"
+            else:
+                _txt = f"coletando — última carga {_c.get('ultima')}"
+                _st = "ok"
             servicos.append({"nome": "RasterIntegra (ger. de risco)",
-                             "status": "ok",
-                             "detalhe": "webservice respondendo — Fase 2 "
-                                        "liberada"})
+                             "status": _st, "detalhe": _txt})
         else:
             servicos.append({"nome": "RasterIntegra (ger. de risco)",
                              "status": "alerta",

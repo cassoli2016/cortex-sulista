@@ -473,7 +473,11 @@ def _fontes_do_snapshot() -> dict:
         "programacao_disponibilidade": lambda: queries.get_programacao(),
         "gerenciamento_risco": lambda: (lambda d2: {
             "eventos_24h": d2["eventos_24h"], "eventos_7d": d2["eventos_7d"],
-            "cobertura": d2["cobertura"], "fluxo_alarme": d2["fluxo"]["alarme"]})(
+            "cobertura": d2["cobertura"], "fluxo_alarme": d2["fluxo"]["alarme"],
+            # Fase 2: o consolidado coletado do RasterIntegra — só os KPIs
+            # escalares (sem placa, sem CPF), quando a coleta já rodou
+            **({"risco_30d": d2["risco"]["kpis"]}
+               if d2.get("risco", {}).get("disponivel") else {})})(
             __import__("api.rasterintegra.servico",
                        fromlist=["get_gr"]).get_gr()),
         # ciclos: só os KPIs (o cache de 1h torna a leitura barata; a regra

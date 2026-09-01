@@ -3656,6 +3656,7 @@ body.tvfull #btnReport,body.tvmode #btnReport{display:none}
         <div class="kpis k4" id="kpis-gr"></div>
         <div class="subtabs" role="tablist" data-abas="gr" aria-label="Seções do gerenciamento de risco">
           <button role="tab" id="tabgr-ev" data-aba="ev" aria-controls="aba-gr-ev" aria-selected="true" onclick="abaTrocar('gr','ev')">Eventos <span class="aban" id="grNEv"></span></button>
+          <button role="tab" id="tabgr-ris" data-aba="ris" aria-controls="aba-gr-ris" aria-selected="false" onclick="abaTrocar('gr','ris')">Risco por viagem <span class="aban" id="grNRis"></span></button>
           <button role="tab" id="tabgr-cob" data-aba="cob" aria-controls="aba-gr-cob" aria-selected="false" onclick="abaTrocar('gr','cob')">Cobertura de GR <span class="aban" id="grNCob"></span></button>
           <button role="tab" id="tabgr-flx" data-aba="flx" aria-controls="aba-gr-flx" aria-selected="false" onclick="abaTrocar('gr','flx')">Fluxo de rastreamento</button>
         </div>
@@ -3672,6 +3673,26 @@ body.tvfull #btnReport,body.tvmode #btnReport{display:none}
               <div class="tablewrap tabroll" style="max-height:430px"><table><thead><tr>
                 <th>Quando</th><th>Placa</th><th>Macro</th><th>Onde</th>
               </tr></thead><tbody id="gr-ultimos"></tbody></table></div>
+            </div>
+          </div>
+        </div>
+        <div class="aba" data-abas="gr" data-aba="ris" id="aba-gr-ris" role="tabpanel" aria-labelledby="tabgr-ris" hidden>
+          <div class="kband">
+            <h3>Consolidado da Raster · viagens finalizadas · janela ancorada no último dado</h3>
+            <div class="kpis k4" id="kpis-gr-risco"></div>
+          </div>
+          <div class="grid2">
+            <div class="card">
+              <div class="head"><h2>Piores viagens por risco <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="O consolidado que a Raster calcula ao FINALIZAR cada viagem (getEventoFimViagem), coletado por placa com a credencial exclusiva do CÓRTEX e gravado em gr_viagem_fim. Ordenado por gravidade: pânico pesa mais que violação, que pesa mais que parada em área de risco, desvio e velocidade. Contador que o fornecedor OMITE vale zero — medido ao vivo em 01/09/2026.">i</span></h2><span class="hint" id="gr-ris-hint"></span></div>
+              <div class="tablewrap tabroll" style="max-height:430px"><table><thead><tr>
+                <th>Fim</th><th>Placa</th><th>Rota</th><th class="num">Pânico</th><th class="num">Violações</th><th class="num">Área risco</th><th class="num">Desvios</th><th class="num">Veloc.</th><th>Prazo</th>
+              </tr></thead><tbody id="gr-ris-piores"></tbody></table></div>
+            </div>
+            <div class="card">
+              <div class="head"><h2>Risco acumulado por placa <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="As mesmas viagens consolidadas, somadas por placa nos últimos 30 dias — só placas com ao menos um evento. Padrão de reincidência é conversa com a GR e com o motorista; uma viagem ruim isolada é a tabela ao lado.">i</span></h2><span class="hint" id="gr-ris-placas-hint"></span></div>
+              <div class="tablewrap tabroll" style="max-height:430px"><table><thead><tr>
+                <th>Placa</th><th class="num">Viagens</th><th class="num">No prazo</th><th class="num">Pânico</th><th class="num">Violações</th><th class="num">Área risco</th><th class="num">Desvios</th><th class="num">Veloc.</th>
+              </tr></thead><tbody id="gr-ris-placas"></tbody></table></div>
             </div>
           </div>
         </div>
@@ -3699,7 +3720,7 @@ body.tvfull #btnReport,body.tvmode #btnReport{display:none}
             </tr></thead><tbody id="gr-fontes"></tbody></table></div>
           </div>
           <div class="card">
-            <div class="head"><h2>O que vem na Fase 2 <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="Mapa completo do webservice RasterIntegra (manual 13.1, 190 páginas, mapeado em 01/09/2026): o consolidado de risco por viagem (getEventoFimViagem — pânico, desvio de rota, violação de painel/antena, parada em área de risco), o km com e sem viagem visto pela GR, e a emissão de SM pelo CÓRTEX. Depende de credencial NOVA e exclusiva junto à Raster — a que o ERP usa foi encontrada exposta e deve ser rotacionada.">i</span></h2></div>
+            <div class="head"><h2>Coleta do RasterIntegra <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="A coleta própria do CÓRTEX no webservice RasterIntegra (credencial exclusiva, cadastrada em Gestão › Integrações): consolidado de risco por viagem finalizada e km com/sem viagem por veículo. Roda de madrugada (tarefa agendada, 04:40) e a trilha fica em gr_carga — é daqui e da Saúde do Servidor que se confere o frescor.">i</span></h2></div>
             <div style="font-size:13px;color:var(--n600);padding:4px 16px 14px;line-height:1.6" id="gr-fase2"></div>
           </div>
         </div>
@@ -19924,7 +19945,7 @@ function renderGr(d){
   document.getElementById('kpis-gr').innerHTML=[
     kpi('Eventos nas 24h', (d.eventos_24h||0).toLocaleString('pt-BR'),
       (d.eventos_7d||0).toLocaleString('pt-BR')+' nos últimos 7 dias', '',
-      'Eventos de rastreamento que o hub entregou ao ERP (macros operacionais: chegada, início/fim de viagem, paradas). Pânico e jammer não fluem por aqui hoje — virão do consolidado por viagem na fase 2.'),
+      'Eventos de rastreamento que o hub entregou ao ERP (macros operacionais: chegada, início/fim de viagem, paradas). Pânico e jammer não fluem por aqui — o consolidado por viagem está na aba Risco por viagem.'),
     kpi('Cobertura de GR', pct!=null?pct+'%':'—',
       cob.com_gr+' de '+cob.viagens+' viagens em 30 dias', pct!=null&&pct<98?'warn':'pos',
       'Viagens com vínculo de gerenciadora de risco no ERP. A lista nominal do que saiu SEM está na aba Cobertura.'),
@@ -19974,11 +19995,54 @@ function renderGr(d){
                 :'<span class="badge b-ok">entregando ('+Math.round(f.minutos_atras)+' min atrás)</span>'}</td></tr>`).join('')
     ||'<tr><td colspan="5" class="hint">nenhum retorno nas últimas 6 horas — o fluxo inteiro está parado</td></tr>';
   document.getElementById('gr-flx-hint').textContent=flx.janela||'';
+  const ris=d.risco||{}, cg=ris.cargas||{};
+  if(ris.disponivel){
+    const k=ris.kpis||{}, pctPrazo=k.viagens?Math.round(100*(k.no_prazo||0)/k.viagens):null;
+    document.getElementById('kpis-gr-risco').innerHTML=[
+      kpi('Viagens consolidadas', String(k.viagens||0),
+        (pctPrazo!=null?pctPrazo+'% no prazo · ':'')+'até '+esc((k.ultimo_fim||'').slice(0,10)), '',
+        'Viagens finalizadas cujo consolidado a Raster calculou (getEventoFimViagem), coletadas por placa e gravadas em gr_viagem_fim. A janela de 30 dias é ancorada no último dado coletado, nunca no relógio — coleta parada não esvazia a tela, envelhece o carimbo.'),
+      kpi('Pânico', String(k.panico||0), 'acionamentos do botão em 30 dias', (k.panico||0)>0?'neg':'pos',
+        'Acionamentos do botão de pânico somados nas viagens consolidadas. Contador que o fornecedor omite vale zero (medido: viagem com 3 paradas em área de risco veio sem o campo de pânico).'),
+      kpi('Violações', String(k.violacoes||0), 'painel · antena · desengate', (k.violacoes||0)>0?'warn':'pos',
+        'Violações de painel e de antena e desengates não autorizados — os eventos que indicam mexida no equipamento, somados nas viagens consolidadas dos últimos 30 dias.'),
+      kpi('Área de risco', (k.paradas_risco||0)+' paradas', Math.round((k.parado_risco_min||0)/60).toLocaleString('pt-BR')+' h paradas em área de risco', (k.paradas_risco||0)>0?'warn':'pos',
+        'Paradas dentro de área que a apólice classifica como de risco, e o tempo total parado nelas. É o número que a mesa de risco discute com a GR quando sobe.'),
+    ].join('');
+    document.getElementById('gr-ris-piores').innerHTML=(ris.piores||[]).map(v=>`<tr>
+      <td class="num" style="font-size:12px">${esc((v.fim||'').slice(5,16))}</td>
+      <td style="font-family:var(--mono);font-weight:600">${esc(v.placa||'—')}${v.vinc_veiculo==='A'?' <span class="hint">agr</span>':''}</td>
+      <td style="font-size:12px" title="${esc(v.rota||'')}">${esc((v.rota||'—').slice(0,42))}</td>
+      <td class="num" style="font-weight:700;color:${v.panico>0?'var(--red)':'inherit'}">${v.panico||''}</td>
+      <td class="num" style="font-weight:${v.violacoes>0?'700':'400'}">${v.violacoes||''}</td>
+      <td class="num" title="${Math.round((v.parado_risco_min||0)/60)} h parada em área de risco">${v.paradas_risco||''}</td>
+      <td class="num">${v.desvios||''}</td>
+      <td class="num">${v.velocidade||''}</td>
+      <td>${v.dentro_prazo===true?'<span class="badge b-ok">no prazo</span>':(v.dentro_prazo===false?'<span class="badge b-warn">atrasou</span>':'—')}</td></tr>`).join('')
+      ||'<tr><td colspan="9" class="hint">nenhuma viagem consolidada com evento de risco na janela ✓</td></tr>';
+    document.getElementById('gr-ris-hint').textContent='as '+(ris.piores||[]).length+' piores por gravidade · '+(ris.janela||'');
+    document.getElementById('gr-ris-placas').innerHTML=(ris.placas||[]).map(p=>{
+      const pp=p.viagens?Math.round(100*(p.no_prazo||0)/p.viagens):0;
+      return `<tr><td style="font-family:var(--mono);font-weight:600">${esc(p.placa)}${p.vinc==='A'?' <span class="hint">agr</span>':''}</td>
+        <td class="num">${p.viagens}</td><td class="num">${pp}%</td>
+        <td class="num" style="font-weight:700;color:${p.panico>0?'var(--red)':'inherit'}">${p.panico||''}</td>
+        <td class="num">${p.violacoes||''}</td><td class="num">${p.paradas_risco||''}</td>
+        <td class="num">${p.desvios||''}</td><td class="num">${p.velocidade||''}</td></tr>`;
+    }).join('')||'<tr><td colspan="8" class="hint">nenhuma placa com evento na janela ✓</td></tr>';
+    document.getElementById('gr-ris-placas-hint').textContent=(ris.placas||[]).length+' placas com evento · '+(ris.janela||'');
+    abaContador('grNRis', (ris.kpis||{}).viagens||0);
+  }else{
+    document.getElementById('kpis-gr-risco').innerHTML='';
+    document.getElementById('gr-ris-piores').innerHTML='<tr><td colspan="9" class="hint">'+esc(ris.motivo||'coleta ainda não rodou')+' — a coleta roda às 04:40 (instalar_tarefa_gr.ps1) e o histórico entra com scripts/coletar_gr.py --backfill</td></tr>';
+    document.getElementById('gr-ris-placas').innerHTML='<tr><td colspan="8" class="hint">—</td></tr>';
+    document.getElementById('gr-ris-hint').textContent='';
+    document.getElementById('gr-ris-placas-hint').textContent='';
+    abaContador('grNRis', 0);
+  }
   document.getElementById('gr-fase2').innerHTML=
-    '<b>Consolidado de risco por viagem</b> — pânico, desvio de rota, violação de painel e antena, parada em área de risco, viagem sem posição (getEventoFimViagem).<br>'+
-    '<b>Km com × sem viagem visto pela GR</b> (getKMRodado) — segunda régua do retorno vazio.<br>'+
-    '<b>Emissão de SM pelo CÓRTEX</b> a partir da programação, com checklist e pesquisa cadastral.<br>'+
-    '<span style="color:var(--n500)">Pré-requisito: credencial nova e exclusiva junto à Raster (a atual do ERP foi encontrada exposta no banco e será rotacionada) e o de-para de macros (MACROS.xls).</span>';
+    '<b>Consolidado por viagem</b> (getEventoFimViagem) — '+(cg.viagens?('última coleta '+esc(cg.viagens.ultima||'?')+' · '+(cg.viagens.gravadas||0)+' viagens gravadas'+(cg.viagens.ultimo_erro?' · <span class="badge b-dang">última tentativa falhou</span>':'')):'coleta ainda não rodou')+'.<br>'+
+    '<b>Km com × sem viagem</b> (getKMRodado) — '+(cg.km?('última coleta '+esc(cg.km.ultima||'?')+' · '+(cg.km.gravadas||0)+' veículos'+(cg.km.ultimo_erro?' · <span class="badge b-dang">última tentativa falhou</span>':'')):'coleta ainda não rodou')+'.<br>'+
+    '<span style="color:var(--n500)">O que resta (Fase 3): emissão de SM pelo CÓRTEX a partir da programação, checklist e pesquisa cadastral — e o de-para de macros (MACROS.xls, pedido à Raster) para nomear os eventos do hub.</span>';
   const ts=new Date(d.atualizado_em);
   document.getElementById('meta').innerHTML='<b>Atualizado '+ts.toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'})+'</b><br>'+ts.toLocaleDateString('pt-BR');
 }

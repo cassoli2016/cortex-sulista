@@ -4,6 +4,16 @@ Gerado de `docs/versoes.yaml` por `scripts/gerar_changelog.py` — não editar �
 Formato [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/),
 versionamento [SemVer](https://semver.org/lang/pt-BR/).
 
+## [0.205.0] — 01/09/2026  ·  CX-01/09/2026-v0.205.0
+
+### Adicionado
+- Gerenciamento de Risco, Fase 2 — a aba "Risco por viagem": o CÓRTEX agora coleta do webservice RasterIntegra, com credencial própria, o consolidado que a Raster calcula ao finalizar cada viagem monitorada (botão de pânico, violações de painel/antena, desengates, paradas e tempo em área de risco, desvios de rota, eventos de velocidade, períodos sem posição). A aba mostra os KPIs dos últimos 30 dias (ancorados no último dado coletado), as piores viagens por gravidade e o risco acumulado por placa — e diz quando a coleta rodou.
+- Coleta agendada (04:40) por placa com viagem encerrada no ERP, com pausa entre chamadas para respeitar o limite do fornecedor (scripts/coletar_gr.py + instalar_tarefa_gr.ps1); o km com/sem viagem por veículo (getKMRodado) entra na mesma rotina. Histórico de até 12 meses com --backfill. Trilha de cada passagem em gr_carga.
+- A Saúde do Servidor agora mede o FRESCOR da coleta do RasterIntegra (última carga limpa, alarme depois de 30h) em vez de só a prova de vida do webservice; o Copiloto ganhou os KPIs de risco no snapshot.
+
+### Corrigido
+- A conexão com o RasterIntegra saiu do papel: o host do manual não resolve (trocado pelo alias vivo do fornecedor), o corpo de toda requisição agora leva Ambiente e TipoRetorno — sem o Ambiente o servidor deles quebra com erro de banco antes de validar a credencial — e o getTabela usa NomeTabela, como nos exemplos do manual (não no layout).
+
 ## [0.204.1] — 01/09/2026  ·  CX-01/09/2026-v0.204.1
 
 ### Adicionado
