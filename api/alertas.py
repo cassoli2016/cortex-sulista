@@ -254,10 +254,17 @@ def build_alertas() -> list[dict]:
         if venc:
             add("atencao", "Recebíveis vencidos",
                 f"{_fmt_brl(venc)} vencidos em aberto. Régua: Financeiro > Cobrança.")
+        # atrasada = aprovada sem nota há mais de 30 dias, ou com prazo INFORMADO
+        # pelo comprador já vencido (a previsão igual à emissão não é prazo).
         if vg.get("oc_atrasadas"):
-            add("info", "Ordens de compra atrasadas",
-                f"{vg['oc_atrasadas']} OCs com recebimento atrasado "
-                f"({_fmt_brl(vg.get('oc_atraso_valor') or 0)}).")
+            add("atencao", "Ordens de compra atrasadas",
+                f"{vg['oc_atrasadas']} OC(s) aprovada(s) sem nota há mais de 30 dias ou "
+                f"com prazo vencido ({_fmt_brl(vg.get('oc_atraso_valor') or 0)} pendente). "
+                "Detalhe: Suprimentos > Ordens de Compra, aba Sem nota.")
+        if vg.get("oc_aprovacao"):
+            add("info", "OCs na fila do aprovador",
+                f"{vg['oc_aprovacao']} OC(s) encaminhada(s) e sem decisão. "
+                "Detalhe: Suprimentos > Ordens de Compra, aba Aprovações.")
     except Exception as exc:  # noqa: BLE001
         log.warning("alertas visao geral: %s", exc)
 

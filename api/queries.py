@@ -1028,230 +1028,21 @@ def get_dre(comp_de: str, comp_ate: str) -> dict:
     }
 
 
-# Uma ÚNICA execução da cadeia pesada (o join de recebimento não tem índice
-# no 9.3 e custa ~12s): busca as linhas do período+filial e deriva KPIs,
-# fornecedores, listas aninhadas e opções facetadas de filtros em Python.
-OC_ROWS_SQL = """
-WITH oc AS (
-  SELECT o.grupo, o.empresa, o.filial, o.diferenciadornumero, o.numero,
-         o.dtemissao, o.dtprevisaoentrega, o.dtaprovador,
-         o.cnpjcpffornecedor, o.codigousuario, o.usuarioaprovador,
-         coalesce(o.valortotal,0) AS valortotal,
-         coalesce(nullif(trim(c.nomefantasia),''), nullif(trim(c.razaosocial),''), '(sem cadastro)') AS fornecedor
-  FROM ordemcompra o
-  LEFT JOIN cadastro c ON c.codigo = o.cnpjcpffornecedor
-  WHERE o.dtemissao >= %(dt_de)s::date AND o.dtemissao < %(dt_ate)s::date + 1
-    AND (o.filial = %(filial)s OR %(filial)s::int IS NULL)
-),
-rec AS (
-  SELECT r.grupo, r.empresa, r.filialordemcompra AS filial,
-         r.diferenciadornumeroordemcompra AS diferenciadornumero,
-         r.numeroordemcompra AS numero,
-         sum(coalesce(r.valortotal,0)) AS valor_recebido
-  FROM notafiscalentrada_item_ordemcomprarecebida r
-  JOIN oc ON oc.grupo=r.grupo AND oc.empresa=r.empresa AND oc.filial=r.filialordemcompra
-         AND oc.diferenciadornumero=r.diferenciadornumeroordemcompra AND oc.numero=r.numeroordemcompra
-  GROUP BY 1,2,3,4,5
-)
-SELECT oc.numero, oc.filial,
-       to_char(oc.dtemissao,'YYYY-MM-DD') AS emissao,
-       to_char(oc.dtprevisaoentrega,'YYYY-MM-DD') AS previsao_entrega,
-       oc.dtprevisaoentrega < current_date AS previsao_vencida,
-       oc.fornecedor, oc.cnpjcpffornecedor AS codigo_forn,
-       oc.codigousuario AS criador_cod, oc.usuarioaprovador AS aprovador_cod,
-       (oc.dtaprovador IS NULL) AS sem_aprovacao,
-       oc.valortotal::float8 AS valor,
-       greatest(oc.valortotal - coalesce(rec.valor_recebido,0), 0)::float8 AS valor_pendente
-FROM oc LEFT JOIN rec ON rec.grupo=oc.grupo AND rec.empresa=oc.empresa AND rec.filial=oc.filial
-     AND rec.diferenciadornumero=oc.diferenciadornumero AND rec.numero=oc.numero
-"""
+# ============================================================================
+# Ordens de Compra — a regra vive em api/suprimentos_oc.py (uma definição para
+# tela, Visão Geral e Copiloto). Aqui ficam só os invólucros com cache.
+# ============================================================================
+from . import suprimentos_oc as _oc  # noqa: E402
 
-# ----------------------------------------------------------------------------
-# OC ABERTA SEM NOTA — o que foi pedido e nunca virou nota fiscal.
-#
-# CRITÉRIO: EXISTÊNCIA de vínculo em notafiscalentrada_item_ordemcomprarecebida,
-# NÃO a soma de valor. Foi assim que a primeira versão errou feio: somava
-# `valortotal` das linhas de vínculo e, quando a soma dava zero, dizia "nunca
-# recebeu". Só que `valortotal` vem NULO em parte das linhas (126 de 90.038 no
-# geral, mas concentradas justamente nas OCs antigas). A OC 1397 — TICKET LOG,
-# R$ 259 mil, a maior de todas — tem a NF 44955564 vinculada, com quantidade
-# recebida preenchida, e mesmo assim aparecia como "nunca recebeu". Conferido
-# na tela do próprio ERP (aba "4 - Notas Fiscais" da OC).
-#
-# O estrago do critério antigo: das 125 OCs >180d ditas "sem recebimento",
-# 92 (R$ 746 mil, 84% do valor) tinham nota vinculada. Existência é binária e
-# confiável; valor não é.
-#
-# NÃO segue o filtro de período da tela: OC emitida há dois anos e ainda sem
-# nota é justamente o que se procura. A tela leva badge dizendo isso.
-#
-# `dtsuspensao IS NULL` continua valendo: 83% do volume em aberto está suspenso
-# de propósito no ERP e entra num bloco à parte, nunca no alarme.
-#
-# Descartados como critério, com evidência: `situacao` aparece 1 e 2 tanto em
-# OC recebida quanto em aberta; `dtcancelamento` está vazio nas 38 mil OCs.
-_OC_PEND_BASE = """
-WITH oc AS (
-  SELECT o.grupo, o.empresa, o.filial, o.diferenciadornumero, o.numero,
-         o.dtemissao, o.dtprevisaoentrega, o.dtaprovador, o.dtsuspensao,
-         o.cnpjcpffornecedor, o.observacao, coalesce(o.valortotal,0) AS vt
-  FROM ordemcompra o
-  WHERE coalesce(o.valortotal,0) > 0 AND o.semaforo = 1
-),
-vinc AS (
-  SELECT DISTINCT r.grupo, r.empresa, r.filialordemcompra AS f,
-         r.diferenciadornumeroordemcompra AS d, r.numeroordemcompra AS n
-  FROM notafiscalentrada_item_ordemcomprarecebida r
-),
-aberta AS (
-  SELECT oc.*, (current_date - oc.dtemissao::date) AS dias
-  FROM oc LEFT JOIN vinc ON vinc.grupo=oc.grupo AND vinc.empresa=oc.empresa
-       AND vinc.f=oc.filial AND vinc.d=oc.diferenciadornumero AND vinc.n=oc.numero
-  WHERE vinc.n IS NULL          -- nenhuma nota vinculada: o critério confiável
-)
-"""
-
-OC_PEND_FAIXA_SQL = _OC_PEND_BASE + """
-SELECT CASE WHEN dias <= 30 THEN '1_ate_30'
-            WHEN dias <= 60 THEN '2_31_60'
-            WHEN dias <= 90 THEN '3_61_90'
-            WHEN dias <= 180 THEN '4_91_180'
-            ELSE '5_mais_180' END AS faixa,
-       count(*)::int AS ocs, sum(vt)::float8 AS valor,
-       sum(CASE WHEN dtaprovador IS NULL THEN 1 ELSE 0 END)::int AS sem_aprovacao
-FROM aberta WHERE dtsuspensao IS NULL
-GROUP BY 1 ORDER BY 1
-"""
-
-OC_PEND_KPI_SQL = _OC_PEND_BASE + """
-SELECT
-  sum(CASE WHEN dtsuspensao IS NULL THEN 1 ELSE 0 END)::int AS ocs,
-  coalesce(sum(CASE WHEN dtsuspensao IS NULL THEN vt ELSE 0 END),0)::float8 AS valor,
-  sum(CASE WHEN dtsuspensao IS NULL AND dias > 180 THEN 1 ELSE 0 END)::int AS velhas,
-  coalesce(sum(CASE WHEN dtsuspensao IS NULL AND dias > 180 THEN vt ELSE 0 END),0)::float8 AS velhas_valor,
-  sum(CASE WHEN dtsuspensao IS NULL AND dtaprovador IS NULL THEN 1 ELSE 0 END)::int AS sem_aprovacao,
-  coalesce(sum(CASE WHEN dtsuspensao IS NULL AND dtaprovador IS NULL THEN vt ELSE 0 END),0)::float8 AS sem_aprovacao_valor,
-  sum(CASE WHEN dtsuspensao IS NOT NULL THEN 1 ELSE 0 END)::int AS suspensas,
-  coalesce(sum(CASE WHEN dtsuspensao IS NOT NULL THEN vt ELSE 0 END),0)::float8 AS suspensas_valor,
-  -- PREVISAO DE ENTREGA: e ela, e nao a idade da emissao, que diz se a OC
-  -- esta atrasada. OC emitida ha 200 dias com entrega prevista para o mes que
-  -- vem esta em dia; OC de 40 dias com previsao vencida ha 30 nao esta. O
-  -- alarme antigo (dias desde a emissao > 180) misturava as duas.
-  sum(CASE WHEN dtsuspensao IS NULL AND dtprevisaoentrega >= current_date
-           THEN 1 ELSE 0 END)::int AS prev_futura,
-  coalesce(sum(CASE WHEN dtsuspensao IS NULL AND dtprevisaoentrega >= current_date
-           THEN vt ELSE 0 END),0)::float8 AS prev_futura_valor,
-  sum(CASE WHEN dtsuspensao IS NULL AND dtprevisaoentrega < current_date
-           THEN 1 ELSE 0 END)::int AS prev_vencida,
-  coalesce(sum(CASE WHEN dtsuspensao IS NULL AND dtprevisaoentrega < current_date
-           THEN vt ELSE 0 END),0)::float8 AS prev_vencida_valor,
-  sum(CASE WHEN dtsuspensao IS NULL AND dtprevisaoentrega < current_date - 30
-           THEN 1 ELSE 0 END)::int AS prev_venc30,
-  coalesce(sum(CASE WHEN dtsuspensao IS NULL AND dtprevisaoentrega < current_date - 30
-           THEN vt ELSE 0 END),0)::float8 AS prev_venc30_valor,
-  sum(CASE WHEN dtsuspensao IS NULL AND dtprevisaoentrega < current_date - 90
-           THEN 1 ELSE 0 END)::int AS prev_venc90,
-  coalesce(sum(CASE WHEN dtsuspensao IS NULL AND dtprevisaoentrega < current_date - 90
-           THEN vt ELSE 0 END),0)::float8 AS prev_venc90_valor,
-  -- previsao em branco nao e "no prazo": e OC que nenhuma regra de prazo
-  -- alcanca. Hoje sao zero, mas cadastro muda e o numero precisa aparecer.
-  sum(CASE WHEN dtsuspensao IS NULL AND dtprevisaoentrega IS NULL
-           THEN 1 ELSE 0 END)::int AS prev_ausente,
-  coalesce(sum(CASE WHEN dtsuspensao IS NULL AND dtprevisaoentrega IS NULL
-           THEN vt ELSE 0 END),0)::float8 AS prev_ausente_valor,
-  min(CASE WHEN dtsuspensao IS NULL THEN dtemissao END)::text AS mais_antiga,
-  -- OC cuja observação já cita a nota: forte indício de que a mercadoria veio e
-  -- o que falta é o VÍNCULO no ERP, não a entrega. Era 78% do valor na medição.
-  sum(CASE WHEN dtsuspensao IS NULL AND dias > 180
-            AND observacao ILIKE '%%NF%%' THEN 1 ELSE 0 END)::int AS cita_nf,
-  coalesce(sum(CASE WHEN dtsuspensao IS NULL AND dias > 180
-            AND observacao ILIKE '%%NF%%' THEN vt ELSE 0 END),0)::float8 AS cita_nf_valor
-FROM aberta
-"""
-
-OC_PEND_LISTA_SQL = _OC_PEND_BASE + """
-SELECT a.numero, a.filial, a.dias,
-       to_char(a.dtemissao,'YYYY-MM-DD') AS emissao,
-       to_char(a.dtprevisaoentrega,'YYYY-MM-DD') AS previsao,
-       (a.dtaprovador IS NULL) AS sem_aprovacao,
-       (a.observacao ILIKE '%%NF%%') AS cita_nf,
-       a.vt::float8 AS valor,
-       left(coalesce(a.observacao,''), 70) AS observacao,
-       coalesce(nullif(trim(c.nomefantasia),''), nullif(trim(c.razaosocial),''),
-                '(sem cadastro)') AS fornecedor
-FROM aberta a
-LEFT JOIN cadastro c ON c.codigo = a.cnpjcpffornecedor
-WHERE a.dtsuspensao IS NULL AND a.dias > %(dias_min)s
-ORDER BY a.dias DESC, a.vt DESC
-LIMIT 200
-"""
-
-# Radar da previsao vencida. Ordena por ATRASO, nao por valor: o que decide
-# suspender e ha quanto tempo a entrega deveria ter acontecido.
-OC_PREV_LISTA_SQL = _OC_PEND_BASE + """
-SELECT a.numero, a.filial, a.dias,
-       to_char(a.dtemissao,'YYYY-MM-DD') AS emissao,
-       to_char(a.dtprevisaoentrega,'YYYY-MM-DD') AS previsao,
-       (current_date - a.dtprevisaoentrega)::int AS atraso,
-       (a.dtaprovador IS NULL) AS sem_aprovacao,
-       (a.observacao ILIKE '%%NF%%') AS cita_nf,
-       a.vt::float8 AS valor,
-       left(coalesce(a.observacao,''), 70) AS observacao,
-       coalesce(nullif(trim(c.nomefantasia),''), nullif(trim(c.razaosocial),''),
-                '(sem cadastro)') AS fornecedor
-FROM aberta a
-LEFT JOIN cadastro c ON c.codigo = a.cnpjcpffornecedor
-WHERE a.dtsuspensao IS NULL AND a.dtprevisaoentrega < current_date
-ORDER BY a.dtprevisaoentrega ASC, a.vt DESC
-LIMIT 200
-"""
-
-OC_PEND_FORN_SQL = _OC_PEND_BASE + """
-SELECT coalesce(nullif(trim(c.nomefantasia),''), nullif(trim(c.razaosocial),''),
-                '(sem cadastro)') AS fornecedor,
-       count(*)::int AS ocs, sum(a.vt)::float8 AS pendente,
-       max(a.dias)::int AS dias_max
-FROM aberta a
-LEFT JOIN cadastro c ON c.codigo = a.cnpjcpffornecedor
-WHERE a.dtsuspensao IS NULL AND a.dias > %(dias_min)s
-GROUP BY 1 ORDER BY 3 DESC LIMIT 20
-"""
+VG_OC_SQL = _oc.VG_OC_SQL
+_oc_status = _oc.oc_status
 
 
 @cached(ttl=120)
-def get_oc_pendentes(dias_min: int = 180) -> dict:
-    params = {"dias_min": dias_min}
-    with db.get_conn() as conn, conn.cursor() as cur:
-        cur.execute(OC_PEND_KPI_SQL)
-        kpis = cur.fetchone()
-        cur.execute(OC_PEND_FAIXA_SQL)
-        faixas = cur.fetchall()
-        cur.execute(OC_PEND_LISTA_SQL, params)
-        lista = cur.fetchall()
-        cur.execute(OC_PEND_FORN_SQL, params)
-        fornecedores = cur.fetchall()
-        cur.execute(OC_PREV_LISTA_SQL)
-        radar = cur.fetchall()
-        cur.execute("SELECT current_timestamp AS ts")
-        meta = cur.fetchone()
-
-    # Ação sugerida pela graduação do atraso. Chip igual para 2 e para 200 dias
-    # não prioriza nada — mesma lição da Manutenção Preventiva.
-    for r in radar:
-        a = r["atraso"] or 0
-        r["acao"] = ("suspender" if a > 90 else
-                     "validar" if a > 30 else "cobrar")
-    return {
-        "kpis": kpis, "faixas": faixas, "lista": lista,
-        "radar_previsao": radar,
-        "radar_total": kpis.get("prev_vencida") or 0,
-        "fornecedores": fornecedores, "dias_min": dias_min,
-        "lista_total": kpis["velhas"] if dias_min == 180 else None,
-        "atualizado_em": meta["ts"].isoformat(),
-        "fonte": ("ERP AVA · ordemcompra SEM vínculo em "
-                  "notafiscalentrada_item_ordemcomprarecebida · não segue o filtro "
-                  "de período da tela · leitura"),
-    }
+def get_oc_pendentes(dias_min: int = _oc.DIAS_PARADA) -> dict:
+    """Em aberto, todo o histórico: fila de aprovação de agora e aprovadas sem
+    nota. Não segue o filtro de período da tela — OC velha é justamente o alvo."""
+    return _oc.get_oc_pendentes(dias_min=dias_min)
 
 
 # ============================================================================
@@ -1371,149 +1162,12 @@ def get_recorrentes(meses: int = 6, min_meses: int = 5) -> dict:
     }
 
 
-OC_USUARIOS_SQL = "SELECT codigo, coalesce(nullif(trim(nomecompleto),''), 'usuário '||codigo) AS nome FROM usuario"
-
-# Série mensal de emissões (últimos 12 meses): leve, sem o join de recebimento.
-OC_MENSAL_SQL = """
-SELECT to_char(o.dtemissao,'YYYY-MM') AS mes, count(*)::int AS ocs,
-       sum(coalesce(o.valortotal,0))::float8 AS valor
-FROM ordemcompra o
-LEFT JOIN cadastro c ON c.codigo = o.cnpjcpffornecedor
-WHERE o.dtemissao >= date_trunc('month', current_date) - interval '11 months'
-  AND (o.filial = %(filial)s OR %(filial)s::int IS NULL)
-  AND (o.codigousuario = %(criador)s OR %(criador)s::int IS NULL)
-  AND (o.usuarioaprovador = %(aprovador)s OR %(aprovador)s::int IS NULL)
-  AND (%(fornecedor)s::text IS NULL OR c.nomefantasia ILIKE '%%'||%(fornecedor)s||'%%'
-       OR c.razaosocial ILIKE '%%'||%(fornecedor)s||'%%')
-GROUP BY 1 ORDER BY 1
-"""
-
-
-def _oc_status(r: dict) -> str:
-    if r["sem_aprovacao"]:
-        return "aprovacao"
-    if r["valor_pendente"] > 1 and r["previsao_vencida"]:
-        return "atrasada"
-    if r["valor_pendente"] > 1:
-        return "aguardando"
-    return "recebida"
-
-
-_USUARIOS_CACHE: dict = {"ts": 0.0, "nomes": {}}
-
-
-def _usuarios_cache(cur) -> dict:
-    """Nomes de usuários com cache de 1h (tabela pequena e estável; o túnel
-    tem throughput baixo, então evitar re-transferir a cada load)."""
-    import time
-    if time.time() - _USUARIOS_CACHE["ts"] > 3600 or not _USUARIOS_CACHE["nomes"]:
-        cur.execute(OC_USUARIOS_SQL)
-        _USUARIOS_CACHE["nomes"] = {u["codigo"]: u["nome"] for u in cur.fetchall()}
-        _USUARIOS_CACHE["ts"] = time.time()
-    return _USUARIOS_CACHE["nomes"]
-
-
 @cached(ttl=90)
 def get_ordens_compra(filial: int | None, dt_de: str, dt_ate: str,
                       status: str | None = None, fornecedor: str | None = None,
                       criador: int | None = None, aprovador: int | None = None) -> dict:
-    params = {"filial": filial, "dt_de": dt_de, "dt_ate": dt_ate,
-              "status": status, "fornecedor": fornecedor,
-              "criador": criador, "aprovador": aprovador}
-    MAX_OCS_POR_FORN = 50
-    with db.get_conn() as conn, conn.cursor() as cur:
-        # o planner do 9.3 escolhe merge join por (grupo,empresa) — quase
-        # constantes — e o join OC×recebimentos vira O(n×m) (~50s); com hash
-        # join a mesma consulta sai em <1s
-        cur.execute("SET LOCAL enable_mergejoin = off")
-        cur.execute(OC_ROWS_SQL, params)
-        rows = cur.fetchall()
-        nomes = _usuarios_cache(cur)
-        cur.execute(OC_MENSAL_SQL, params)
-        mensal = cur.fetchall()
-        cur.execute("SELECT current_timestamp AS ts")
-        meta = cur.fetchone()
-
-    forn_lower = fornecedor.lower() if fornecedor else None
-    for r in rows:
-        r["status"] = _oc_status(r)
-
-    def match(r: dict, skip: str = "") -> bool:
-        if skip != "status" and status and r["status"] != status:
-            return False
-        if skip != "fornecedor" and forn_lower and forn_lower not in r["fornecedor"].lower():
-            return False
-        if skip != "criador" and criador is not None and r["criador_cod"] != criador:
-            return False
-        if skip != "aprovador" and aprovador is not None and r["aprovador_cod"] != aprovador:
-            return False
-        return True
-
-    sel = [r for r in rows if match(r)]
-
-    kpis = {
-        "ocs": len(sel),
-        "valor": sum(r["valor"] for r in sel),
-        "aprovacao_qtd": sum(1 for r in sel if r["status"] == "aprovacao"),
-        "aprovacao_valor": sum(r["valor"] for r in sel if r["status"] == "aprovacao"),
-        "pend_qtd": sum(1 for r in sel if r["valor_pendente"] > 1),
-        "pend_valor": sum(r["valor_pendente"] for r in sel if r["valor_pendente"] > 1),
-        "atraso_qtd": sum(1 for r in sel if r["status"] == "atrasada"),
-        "atraso_valor": sum(r["valor_pendente"] for r in sel if r["status"] == "atrasada"),
-    }
-
-    # fornecedores agregados (top 30 por valor) com ordens aninhadas
-    grupos: dict[str, dict] = {}
-    for r in sel:
-        g = grupos.setdefault(r["codigo_forn"], {
-            "fornecedor": r["fornecedor"], "ocs": 0, "valor": 0.0,
-            "valor_pendente": 0.0, "atrasadas": 0, "em_aprovacao": 0, "_rows": []})
-        g["ocs"] += 1
-        g["valor"] += r["valor"]
-        g["valor_pendente"] += r["valor_pendente"] if r["valor_pendente"] > 1 else 0
-        g["atrasadas"] += 1 if r["status"] == "atrasada" else 0
-        g["em_aprovacao"] += 1 if r["status"] == "aprovacao" else 0
-        g["_rows"].append(r)
-    fornecedores = []
-    for codigo, g in sorted(grupos.items(), key=lambda kv: -kv[1]["valor"])[:30]:
-        ordens = sorted(g.pop("_rows"), key=lambda r: (-r["valor_pendente"], r["emissao"]), reverse=False)
-        ordens.sort(key=lambda r: -r["valor_pendente"])
-        g["doc"] = _mask_doc(codigo)
-        g["ocultas"] = max(0, len(ordens) - MAX_OCS_POR_FORN)
-        g["ordens"] = [{
-            "numero": r["numero"], "filial": r["filial"], "emissao": r["emissao"],
-            "previsao_entrega": r["previsao_entrega"],
-            "criador": nomes.get(r["criador_cod"], f"usuário {r['criador_cod']}"),
-            "aprovador": (nomes.get(r["aprovador_cod"], f"usuário {r['aprovador_cod']}")
-                          if r["aprovador_cod"] is not None else None),
-            "valor": r["valor"],
-            "valor_pendente": r["valor_pendente"] if r["valor_pendente"] > 1 else 0,
-            "status": r["status"],
-        } for r in ordens[:MAX_OCS_POR_FORN]]
-        fornecedores.append(g)
-
-    # opções facetadas (todos os filtros exceto o próprio)
-    def facet(campo: str, skip: str) -> list:
-        cont: dict = {}
-        for r in rows:
-            if r[campo] is None or not match(r, skip=skip):
-                continue
-            cont[r[campo]] = cont.get(r[campo], 0) + 1
-        return [{"codigo": c, "nome": nomes.get(c, f"usuário {c}"), "ocs": n}
-                for c, n in sorted(cont.items(), key=lambda kv: -kv[1])]
-
-    return {
-        "kpis": kpis,
-        "fornecedores": fornecedores,
-        "mensal": mensal,
-        "criadores": facet("criador_cod", "criador"),
-        "aprovadores": facet("aprovador_cod", "aprovador"),
-        "dt_de": dt_de, "dt_ate": dt_ate,
-        "filial": filial, "status": status, "fornecedor": fornecedor,
-        "criador": criador, "aprovador": aprovador,
-        "atualizado_em": meta["ts"].isoformat(),
-        "fonte": "ERP AVA · ordemcompra × NF de entrada · leitura",
-    }
+    return _oc.get_ordens_compra(filial, dt_de, dt_ate, status=status, fornecedor=fornecedor,
+                                 criador=criador, aprovador=aprovador)
 
 
 # ============================================================================
@@ -2524,43 +2178,6 @@ WHERE p.dtcancelamento IS NULL AND p.semaforo = 1 AND p.tipo <> 3 AND p.numero <
 GROUP BY 1 ORDER BY 1
 """
 
-# Contadores de OC agregados no banco (mesma regra de _oc_status): a Visão
-# Geral só precisa de 3 números — trazer as linhas de 12 meses pelo túnel
-# era o item mais caro da tela.
-VG_OC_SQL = """
-WITH oc AS (
-  SELECT o.grupo, o.empresa, o.filial, o.diferenciadornumero, o.numero,
-         o.dtprevisaoentrega, o.dtaprovador, coalesce(o.valortotal,0) AS valortotal
-  FROM ordemcompra o
-  WHERE o.dtemissao >= current_date - 365 AND o.dtemissao < current_date + 1
-),
-rec AS (
-  SELECT r.grupo, r.empresa, r.filialordemcompra AS filial,
-         r.diferenciadornumeroordemcompra AS diferenciadornumero,
-         r.numeroordemcompra AS numero,
-         sum(coalesce(r.valortotal,0)) AS valor_recebido
-  FROM notafiscalentrada_item_ordemcomprarecebida r
-  JOIN oc ON oc.grupo=r.grupo AND oc.empresa=r.empresa AND oc.filial=r.filialordemcompra
-         AND oc.diferenciadornumero=r.diferenciadornumeroordemcompra AND oc.numero=r.numeroordemcompra
-  GROUP BY 1,2,3,4,5
-),
-base AS (
-  SELECT (oc.dtaprovador IS NULL) AS sem_aprovacao,
-         coalesce(oc.dtprevisaoentrega < current_date, false) AS previsao_vencida,
-         greatest(oc.valortotal - coalesce(rec.valor_recebido,0), 0) AS valor_pendente
-  FROM oc LEFT JOIN rec ON rec.grupo=oc.grupo AND rec.empresa=oc.empresa AND rec.filial=oc.filial
-       AND rec.diferenciadornumero=oc.diferenciadornumero AND rec.numero=oc.numero
-)
-SELECT
-  coalesce(sum(CASE WHEN NOT sem_aprovacao AND valor_pendente > 1 AND previsao_vencida
-                    THEN 1 ELSE 0 END),0)::int                                        AS oc_atrasadas,
-  coalesce(sum(CASE WHEN NOT sem_aprovacao AND valor_pendente > 1 AND previsao_vencida
-                    THEN valor_pendente ELSE 0 END),0)::float8                        AS oc_atraso_valor,
-  coalesce(sum(CASE WHEN sem_aprovacao THEN 1 ELSE 0 END),0)::int                    AS oc_aprovacao
-FROM base
-"""
-
-
 def _ponto_equilibrio(g: dict) -> dict | None:
     """Faturamento bruto mensal mínimo para resultado zero (média 12m)."""
     rb = g.get("receita_bruta", 0.0)
@@ -2672,6 +2289,7 @@ def get_visao_geral() -> dict:
         "oc_atrasadas": oc["oc_atrasadas"],
         "oc_atraso_valor": oc["oc_atraso_valor"],
         "oc_aprovacao": oc["oc_aprovacao"],
+        "oc_rascunhos": oc["oc_rascunhos"],
         "diario": diario,
         "meta_fonte": meta_fonte,
         "atingimento_mes": atingimento,
@@ -6051,6 +5669,9 @@ def get_custos(dt_de: str, dt_ate: str, origem: str | None = None,
         "filtro": {"origem": origem, "filial": filial},
         "por_fornecedor": _top(por_forn, 20),
         "por_filial": _top(por_filial, 20),
+        # tamanho do universo de cada top-N: "20 de 57 fornecedores", nunca "20"
+        "totais": {"agrupadores": len(por_agr), "fornecedores": len(por_forn),
+                   "filiais": len(por_filial), "status": len(por_status)},
         "serie": [{"mes": k, "valor": round(serie[k], 2)} for k in sorted(serie)],
         "itens_lista": lista,
         "de": dt_de, "ate": dt_ate,

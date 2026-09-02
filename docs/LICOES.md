@@ -2515,3 +2515,75 @@ Regra: todo painel tem **fonte do dado + timestamp**; nenhum gráfico sem rótul
 todo número-chave traz **comparação** (vs meta, vs período anterior).
 
 
+
+## Ordens de Compra — o que o ERP grava e o que a tela dizia (2026-09-01, v0.210.0)
+
+A "geral" no módulo de Suprimentos começou por medir as 38.424 OCs do AVA antes
+de tocar em código, e o que se mediu derrubou quatro critérios que a tela
+publicava havia seis semanas:
+
+- **"Pendentes de aprovação" era `dtaprovador IS NULL`.** O campo de estado é
+  `aprovado` (1 aprovada · 2 pendente · 3 reprovada). Com a data nula entravam
+  965 OCs de 2023/24 com `aprovado=1`, `itens=0` e nota vinculada (cadastro, R$
+  4,2 mi), 41 rascunhos que ninguém encaminhou (`dtencaminhadoparaaprovador`
+  nulo, o mais velho de 2023) e a fila real — 60 OCs, todas de dois dias.
+  E 649 suspensas tinham `dtaprovador` PREENCHIDO sem `usuarioaprovador`: a
+  suspensão grava a data. Regra: **estado vem do campo de estado, nunca da
+  ausência de data**.
+- **"Com entrega atrasada" era `dtprevisaoentrega < hoje`.** A previsão é o
+  próprio dia da emissão em 80% das OCs e anterior à emissão em 10% — é o
+  default do cadastro, não promessa do fornecedor. O KPI acusava 186 OCs no
+  dia seguinte à emissão; o alerta da Visão Geral nunca apagava. Agora só é
+  prazo a previsão POSTERIOR à emissão, e "atrasada" é sem nota há mais de 30
+  dias da aprovação (dez vezes o p90 medido: aprovação→nota tem mediana de 1
+  dia em material e 3 em serviço) ou prazo informado vencido. Sobraram 6 no
+  histórico inteiro.
+- **O valor recebido somava `valortotal` do vínculo da nota.** Três linhas de
+  uma OC de R$ 163 mil traziam 13,9 bi, 11,7 bi e 654 mi; `greatest(…,0)`
+  escondia o estrago virando "recebida". A soma correta é `quantidaderecebida
+  × valorprecoordemcompraitemprogramacaoentrega` (99,7% do valor das OCs) e,
+  com quantidade zero, `least(valortotal, valor da OC)`. O status continua
+  por EXISTÊNCIA do vínculo, como a crônica anterior já mandava.
+- **Idade da OC sem nota contava da emissão.** Conta da aprovação: é a partir
+  dela que o fornecedor pode entregar, e a fila de aprovação tem bloco próprio.
+
+**Três caminhos para o mesmo número discordavam** (tela, `VG_OC_SQL` da home,
+bloco "sem nota"). Agora há UMA expressão SQL de estado (`OC_CAMPOS_ESTADO`)
+e UMA função (`oc_status`) em `api/suprimentos_oc.py`; um teste exige que as
+três consultas a contenham e que os quatro registros de status (rota, JS,
+`<option>` e a função) sejam o mesmo conjunto.
+
+**O que a auditoria de tela achou de regra da casa** (três lentes de agentes,
+verificadas contra o código): badge "ignora o filtro de período" que omitia
+filial/criador/aprovador/fornecedor (e duas tabelas sem badge nenhuma); falha
+do bloco em aberto muda (aba em branco parecia "não há OC parada"); `r.json()`
+sem `respostaJSON`; contadores automáticos somando três tabelas e as linhas
+recolhidas do detalhe; top-30 sem "de quantos"; hint estático "no período
+filtrado" que a crônica anterior condenou e só era corrigido em runtime;
+`emiPresetSync` fora do render (preset "Personalizado" com as datas de 90
+dias); `filLbl` dependendo do select que só o Financeiro populava ("Filial 1"
+em deep link); números medidos em data antiga e nome de fornecedor gravados
+no HTML de um repo público; manual.yaml com oc/custos em Financeiro e agr/mvb
+em Suprimentos, contra `auth.TELAS` e o menu. Tudo isso entrou na v0.210.0.
+
+**Painel de Custos: os selects de Origem e Filial ficaram cinco semanas sem
+chegar à API.** `qsView('custos')` montava os quatro parâmetros e `loadCustos`
+montava a query à mão só com as datas — trocar "Só OC sem NF" recarregava os
+mesmos números e o router acreditava ter carregado filtrado. O guard novo
+(`tests/suprimentos/test_oc_filtros.py`) compara o que o `qsView` envia com a
+assinatura da rota E exige que o loader use o `qsView`; comparar só os dois
+primeiros passaria.
+
+**Régua com dado real.** A suíte mede a altura das abas com API dublada em
+`{}` (é o PISO). A aba "Sem nota" passou na suíte e deu 1.051px com o payload
+real: as faixas de idade em `.mrow` (rótulo, barra e valor empilhados) custavam
+80px por linha. Em `.modrow` (uma linha) coube. Renderizar com dado real antes
+de entregar — o script ficou no scratchpad da sessão, e o padrão vale repetir.
+
+**O que ficou de fora, com evidência:** requisições de compra
+(`solicitacaocompra`: 443 em 12 meses sem OC vinculada, `semaforo` 0/1 sem
+tabela de domínio); a CTE de custos (`api/custos_sql.py`) tem 3.468 linhas
+para 2.033 itens-NF no mês por causa do rateio por centro de custo — se infla
+o valor não foi medido, e mexer numa consulta herdada do ERP sem reconciliar
+é pior que deixar; o Copiloto não leva os KPIs do Painel de Custos porque a
+consulta custa ~12 s a frio e a regra é snapshot barato.

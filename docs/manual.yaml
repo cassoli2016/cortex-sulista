@@ -357,6 +357,49 @@ glossario:
   definicao: 'Recortes diferentes que NÃO se somam: faturas emitidas (contas a receber), frete das viagens
     carregadas (programação de embarque) e CT-e + KMM + NFS-e (o recorte oficial da meta). O ⓘ de cada
     card diz qual está em uso.'
+- termo: Fluxo de aprovação da OC (rascunho → fila → aprovada ou reprovada)
+  definicao: >-
+    O estado vem do campo aprovado do ERP, não da ausência de data. Aprovado = 2
+    é PENDENTE, e se divide em dois: RASCUNHO (nunca encaminhada a aprovador —
+    quem age é o criador) e NA FILA (encaminhada e sem decisão — a trava de
+    fluxo). Aprovado = 1 é aprovada; 3 é reprovada, e o ERP também a suspende.
+    A suspensão grava a data de aprovação sem usuário: uma OC suspensa com data
+    de aprovação não foi aprovada. E há OCs de 2023/24 aprovadas sem data de
+    aprovação: cadastro, não fila — o painel as conta à parte.
+- termo: Alçada de aprovação (OC)
+  definicao: >-
+    Valor máximo cadastrado para cada aprovador na tabela de aprovadores do ERP.
+    O ERP não documenta o campo; o que se mede é que toda OC acima dele levou
+    segundo aprovador. O painel confere que continua assim: "acima da alçada"
+    conta as OCs aprovadas acima desse valor SEM segundo aprovador. Aprovador
+    sem alçada cadastrada mostra n/d, nunca zero.
+- termo: OC suspensa
+  definicao: >-
+    Ordem de compra com data de suspensão no ERP — parada de propósito. Fica
+    fora dos cartões de fila, aguardando nota e atrasada, e aparece à parte
+    para o volume não sumir sem explicação. Filtrar Status = Suspensa mostra
+    cada uma dentro do fornecedor.
+- termo: OC sem nota (aguardando nota)
+  definicao: >-
+    OC aprovada que não tem NENHUMA nota fiscal vinculada no ERP. O critério é a
+    existência do vínculo, não a soma de valor (a coluna de valor do vínculo
+    vem nula ou com lixo em parte das linhas). A idade conta da APROVAÇÃO — é
+    a partir dela que o fornecedor pode entregar. "Cita NF" marca a OC cuja
+    observação já traz o número da nota: a mercadoria veio e falta amarrar a
+    nota à ordem, problema de processo e não de entrega.
+- termo: Prazo informado × previsão de entrega (OC)
+  definicao: >-
+    No ERP a previsão de entrega é, por padrão, o próprio dia da emissão (é
+    assim em oito de cada dez OCs). Isso não é promessa de ninguém: o painel só
+    trata a previsão como PRAZO quando o comprador informou uma data posterior
+    à emissão. Sem prazo informado, a coluna mostra um traço.
+- termo: OC atrasada (parada)
+  definicao: >-
+    OC aprovada sem nota há mais de 30 dias desde a aprovação, ou com prazo
+    informado já vencido. Trinta dias é dez vezes o tempo típico entre a
+    aprovação e a nota (mediana de 1 dia em material e 3 em serviço). A ação
+    sugerida gradua: até 30 dias, cobrar; acima de 30 ou prazo vencido, validar
+    com o fornecedor; acima de 90, candidata a suspensão.
 grupos:
 - nome: Visão geral
   resumo: 'A leitura do dia — caixa, faturamento contra a meta e o que exige ação agora. O Copiloto responde
@@ -368,7 +411,7 @@ grupos:
 - nome: Financeiro
   resumo: Caixa e sua projeção, títulos a receber e a pagar, régua de cobrança, conciliação do extrato,
     lançamentos bancários (razão do banco lançamento a lançamento), fluxo consolidado por período, antecipação
-    de recebíveis (com importação das planilhas dos portais dos clientes) e ordens de compra.
+    de recebíveis (com importação das planilhas dos portais dos clientes).
   telas:
   - fluxo
   - fluxcon
@@ -381,31 +424,29 @@ grupos:
   - antec
   - antport
   - rec
-  - oc
-  - custos
 - nome: Controladoria
-  resumo: Resultado por competência em cascata, balanço patrimonial, margem por cliente, classificação
+  resumo: Resultado por competência em cascata, balanço patrimonial, classificação
     contábil, orçamento contra realizado, previsão de fechamento do mês e o controle de certidões e licenças.
   telas:
   - dre
   - ctecp
   - bal
-  - drecli
   - cont
   - orc
   - fech
   - qual
   - fat
 - nome: Comercial
-  resumo: Clientes, receita por quilômetro, concentração de carteira, pipeline de leads e a consulta 360
+  resumo: Clientes, receita por quilômetro, concentração de carteira, margem por cliente, pipeline de leads e a consulta 360
     de um cliente.
   telas:
   - com
   - clif
   - crm
+  - drecli
 - nome: Operação
   resumo: Torre de controle ao vivo, programação de cargas contra veículos, análise de quilometragem e
-    retorno vazio, jornada do motorista (Lei 13.103), custos extras, freetime, portaria e a permanência
+    retorno vazio, jornada do motorista (Lei 13.103), custos extras, freetime, portaria, agregados e terceiros, a decisão de fazer com frota própria ou comprar, e a permanência
     dentro da planta do cliente (polígonos mapeados na Tupy Joinville).
   telas:
   - torre
@@ -420,6 +461,8 @@ grupos:
   - sac
   - port
   - gr
+  - agr
+  - mvb
 - nome: Frota
   resumo: Ativos e sua idade, consulta por placa, manutenção corretiva e preventiva, combustível e consumo,
     multas, as infrações e licenças da Smartec, e comunicação dos rastreadores.
@@ -433,10 +476,15 @@ grupos:
   - comrast
   - pneus
 - nome: Suprimentos
-  resumo: Agregados e terceiros, e a decisão de fazer com frota própria ou comprar.
+  resumo: >-
+    Compras da empresa: as ordens de compra com o fluxo inteiro que o ERP grava
+    (rascunho, fila do aprovador, aprovada, recebida, suspensa, reprovada), a
+    fila de aprovação de agora, o tempo de aprovação e a alçada por aprovador,
+    as aprovadas sem nota por tempo desde a aprovação, e o painel de custos por
+    agrupador gerencial (abastecimento e itens de OC, com e sem nota).
   telas:
-  - agr
-  - mvb
+  - oc
+  - custos
 - nome: Pessoas
   resumo: Vagas e tempo de preenchimento, headcount, custo de folha, indicadores de RH, horas extras,
     vencimento de CNH dos motoristas, controle de férias pela CLT e a premiação de motoristas por economia.

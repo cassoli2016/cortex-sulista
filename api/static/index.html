@@ -361,7 +361,7 @@ tr[role="button"]:focus-visible{outline-offset:-2px}
 .kpi .label{font-size:12px;color:var(--n500)}
 .kpi .val{font-size:24px;font-weight:800;line-height:1.15;margin-top:2px;overflow-wrap:anywhere}
 .kpi .sub{font-size:11px;color:var(--n500);margin-top:3px;overflow-wrap:anywhere}
-.kpi.pos .val{color:var(--green)} .kpi.neg .val{color:var(--red)}
+.kpi.pos .val{color:var(--green)} .kpi.neg .val{color:var(--red)} .kpi.warn .val{color:var(--yellow-700)}
 /* BANDAS DE KPI (Visão Geral): rótulo do tema + grade com nº de colunas FIXO.
    O auto-fit do .kpis deixava o último card sozinho numa linha quando a banda
    tinha 5 ou 7 cards; 4 colunas caem para 2 e 1 sem nunca sobrar órfão. */
@@ -570,6 +570,7 @@ svg:focus-visible{outline:2px solid var(--orange-500);outline-offset:2px;border-
 /* tabela longa rola DENTRO do card, com cabeçalho fixo. O CRM desenhava 200
    leads + 150 projetos de uma vez e a página passava de 16.000px de altura. */
 .tabroll{max-height:430px;overflow-y:auto}
+.tabroll.curta{max-height:260px}
 .dre-delta-f{border-right:2px solid var(--n300)}
 .tabroll thead th{position:sticky;top:0;z-index:2;background:var(--n0);box-shadow:inset 0 -1px 0 var(--n200)}
 table{width:100%;border-collapse:collapse;font-size:14px}
@@ -789,6 +790,8 @@ body.painelfull .content{padding:16px 22px}
    da régua de uma tela. Regra local e não global: as outras abas do CRM têm
    uma tabela só, e lá 430px é o certo. */
 #aba-crm-ava .tabroll{max-height:280px}
+/* Sem nota (OC): banda + faixas + radar; com o dado real a aba media 929px na régua de 900 */
+#aba-oc-semnota .tabroll{max-height:215px}
 /* A aba de praca e tarifa tem uma tabela larga em cima e duas embaixo; com os
    430px padrao ela media 1.072px e passava da regra de uma tela. */
 #aba-ped-prc .tabroll{max-height:270px}
@@ -2513,10 +2516,13 @@ body.tvfull #btnReport,body.tvmode #btnReport{display:none}
             <label for="fOcStatus">Status</label>
             <select id="fOcStatus" onchange="loadOc()">
               <option value="">Todos</option>
-              <option value="aprovacao">Em aprovação</option>
-              <option value="aguardando">Aguardando entrega</option>
-              <option value="atrasada">Entrega atrasada</option>
+              <option value="aprovacao">Em aprovação (fila)</option>
+              <option value="rascunho">Rascunho</option>
+              <option value="aguardando">Aguardando nota</option>
+              <option value="atrasada">Atrasada</option>
               <option value="recebida">Recebida</option>
+              <option value="suspensa">Suspensa</option>
+              <option value="reprovada">Reprovada</option>
             </select>
           </div>
           <div class="field">
@@ -5894,7 +5900,7 @@ body.tvfull #btnReport,body.tvmode #btnReport{display:none}
       </section>
       <section class="view" id="view-custos">
         <div class="card">
-          <div class="head"><h2>Painel de Custos</h2><span class="hint">combustível + ordens de compra · por agrupador gerencial · com/sem NF</span></div>
+          <div class="head"><h2>Painel de Custos <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="Compras da empresa no período: abastecimentos (notas simplificadas do ERP, frota própria) e itens de ordem de compra, com e sem nota fiscal, classificados pelo agrupador gerencial do plano de contas. Os filtros de origem e filial valem para todos os cartões e tabelas desta tela. Fonte e hora da consulta no rodapé deste card.">i</span></h2><span class="hint">combustível + ordens de compra · por agrupador gerencial · com/sem NF</span></div>
           <div class="cardfilters">
             <input type="date" id="fCustDe">
             <span style="color:var(--n500)">até</span>
@@ -5912,31 +5918,45 @@ body.tvfull #btnReport,body.tvmode #btnReport{display:none}
               <option value="">Todas as filiais</option>
             </select>
             <button class="btn" onclick="loadCustos()">Atualizar</button>
-            <span class="hint" style="color:var(--n500)">a consulta é pesada — pode levar alguns segundos</span>
+            <span class="hint" id="custosFonte" style="color:var(--n500)">a consulta é pesada — pode levar alguns segundos</span>
           </div>
         </div>
-        <div class="kpis" id="kpis-custos"></div>
+        <div class="kpis k4" id="kpis-custos"></div>
+        <div class="subtabs" role="tablist" data-abas="custos" aria-label="Seções desta tela">
+          <button role="tab" id="tabcustos-geral" data-aba="geral" aria-controls="aba-custos-geral" aria-selected="true" onclick="abaTrocar('custos','geral')">Visão geral</button>
+          <button role="tab" id="tabcustos-dim" data-aba="dim" aria-controls="aba-custos-dim" aria-selected="false" onclick="abaTrocar('custos','dim')">Agrupador e fornecedor <span class="aban" id="custNDim"></span></button>
+          <button role="tab" id="tabcustos-ori" data-aba="ori" aria-controls="aba-custos-ori" aria-selected="false" onclick="abaTrocar('custos','ori')">Origem e filial <span class="aban" id="custNOri"></span></button>
+          <button role="tab" id="tabcustos-itens" data-aba="itens" aria-controls="aba-custos-itens" aria-selected="false" onclick="abaTrocar('custos','itens')">Maiores itens <span class="aban" id="custNItens"></span></button>
+        </div>
+        <div class="aba" data-abas="custos" data-aba="geral" id="aba-custos-geral" role="tabpanel" aria-labelledby="tabcustos-geral">
         <div class="grid2">
           <div class="card"><div class="head"><h2>Concentração do custo <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="Quanto do custo do período está nos maiores agrupadores. Substituiu a rosca de participação, que mostrava exatamente o mesmo dado do gráfico ao lado. Aqui a pergunta é outra: se poucos agrupadores explicam quase tudo, é neles que a negociação tem efeito.">i</span></h2><span class="hint">quanto está nos maiores agrupadores</span></div>
             <div class="modl" id="custos-conc"></div></div>
-          <div class="card"><div class="head"><h2>Por agrupador (grupo DRE) <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="Itens de abastecimento (CTA Plus) e de ordens de compra, classificados pelo agrupador gerencial do plano de contas — o mesmo usado na DRE Gerencial. CV é custo variável, CF é custo fixo e OVERHEAD é estrutura.">i</span></h2><span class="hint">top 14 por valor</span></div>
+          <div class="card"><div class="head"><h2>Por agrupador (grupo DRE) <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="Itens de abastecimento (CTA Plus) e de ordens de compra, classificados pelo agrupador gerencial do plano de contas — o mesmo usado na DRE Gerencial. CV é custo variável, CF é custo fixo e OVERHEAD é estrutura.">i</span></h2><span class="hint">top 12 por valor</span></div>
             <div class="chartwrap"><div id="chartCustosAgr" style="width:100%;height:200px" role="img"></div></div></div>
         </div>
+        </div>
+        <div class="aba" data-abas="custos" data-aba="dim" id="aba-custos-dim" role="tabpanel" aria-labelledby="tabcustos-dim" hidden>
         <div class="grid2">
           <div class="card"><div class="head"><h2>Por agrupador — detalhe <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="Mesma classificação do gráfico acima, em tabela, com a contagem de itens. A linha (sem agrupador) é item cuja conta não está mapeada no plano gerencial — some do rateio por natureza e precisa de classificação.">i</span></h2><span class="hint" id="hintCustAgr">top 20</span></div>
             <div class="tablewrap tabroll" id="custos-agr"></div></div>
           <div class="card"><div class="head"><h2>Por fornecedor <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="Fornecedor das ordens de compra e do abastecimento. Cartão de combustível aparece como um único fornecedor com valor alto porque concentra o repasse de todos os postos — não é compra direta de um posto só.">i</span></h2><span class="hint" id="hintCustForn">top 20</span></div>
             <div class="tablewrap tabroll" id="custos-forn"></div></div>
         </div>
+        </div>
+        <div class="aba" data-abas="custos" data-aba="ori" id="aba-custos-ori" role="tabpanel" aria-labelledby="tabcustos-ori" hidden>
         <div class="grid2">
-          <div class="card"><div class="head"><h2>Origem e status fiscal <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="Mistura duas coisas por vir de duas fontes: itens de ORDEM DE COMPRA aparecem como COM NF ou SEM NF conforme a nota já tenha sido recebida, e itens de ABASTECIMENTO aparecem como interno ou externo, porque passam pelo cartão e não pelo fluxo de OC. SEM NF é o que ainda não chegou como documento fiscal.">i</span></h2><span class="hint">de onde vem o item e se já tem nota</span></div>
+          <div class="card"><div class="head"><h2>Origem e status fiscal <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="Mistura duas coisas por vir de duas fontes: itens de ORDEM DE COMPRA aparecem como COM NF ou SEM NF conforme a nota já tenha sido recebida, e itens de ABASTECIMENTO aparecem como interno ou externo, porque passam pelo cartão e não pelo fluxo de OC. SEM NF é o que ainda não chegou como documento fiscal.">i</span></h2><span class="hint" id="hintCustStatus">de onde vem o item e se já tem nota</span></div>
             <div class="tablewrap tabroll" id="custos-status"></div></div>
           <div class="card"><div class="head"><h2>Por filial <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="Filial que lançou a ordem de compra ou o abastecimento. A matriz concentra a maior parte porque nela ficam os contratos e o cartão de combustível de toda a frota — não significa que o custo foi consumido lá.">i</span></h2><span class="hint" id="hintCustFil">no período</span></div>
             <div class="tablewrap tabroll" id="custos-filial"></div></div>
         </div>
+        </div>
+        <div class="aba" data-abas="custos" data-aba="itens" id="aba-custos-itens" role="tabpanel" aria-labelledby="tabcustos-itens" hidden>
         <div class="card">
-          <div class="head"><h2>Maiores itens <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="Os 100 itens de maior valor no período, entre abastecimentos e itens de ordem de compra. Status mostra se o item já tem nota fiscal; Aprovação vale só para ordem de compra. Item de abastecimento não passa por aprovação e fica em branco nessa coluna.">i</span></h2><span class="hint">top 100 por valor · role dentro do card</span></div>
+          <div class="head"><h2>Maiores itens <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="Os 100 itens de maior valor no período, entre abastecimentos e itens de ordem de compra. Status mostra se o item já tem nota fiscal; Aprovação vale só para ordem de compra. Item de abastecimento não passa por aprovação e fica em branco nessa coluna.">i</span></h2><span class="hint" id="hintCustLista">top 100 por valor · role dentro do card</span></div>
           <div class="tablewrap tabroll" id="custos-lista"></div>
+        </div>
         </div>
       </section>
       <section class="view" id="view-mul">
@@ -6410,65 +6430,81 @@ body.tvfull #btnReport,body.tvmode #btnReport{display:none}
         <div class="kpis" id="kpis-oc"></div>
         <div class="subtabs" role="tablist" data-abas="oc" aria-label="Seções desta tela">
           <button role="tab" id="taboc-geral" data-aba="geral" aria-controls="aba-oc-geral" aria-selected="true" onclick="abaTrocar('oc','geral')">Visão geral</button>
-          <button role="tab" id="taboc-forn" data-aba="forn" aria-controls="aba-oc-forn" aria-selected="false" onclick="abaTrocar('oc','forn')">Fornecedores</button>
-          <button role="tab" id="taboc-semnota" data-aba="semnota" aria-controls="aba-oc-semnota" aria-selected="false" onclick="abaTrocar('oc','semnota')">Sem nota</button>
-          <button role="tab" id="taboc-venc" data-aba="venc" aria-controls="aba-oc-venc" aria-selected="false" onclick="abaTrocar('oc','venc')">Entrega vencida</button>
+          <button role="tab" id="taboc-aprov" data-aba="aprov" aria-controls="aba-oc-aprov" aria-selected="false" onclick="abaTrocar('oc','aprov')">Aprovações <span class="aban" id="ocNAprov"></span></button>
+          <button role="tab" id="taboc-aprovadores" data-aba="aprovadores" aria-controls="aba-oc-aprovadores" aria-selected="false" onclick="abaTrocar('oc','aprovadores')">Aprovadores <span class="aban" id="ocNAprovadores"></span></button>
+          <button role="tab" id="taboc-forn" data-aba="forn" aria-controls="aba-oc-forn" aria-selected="false" onclick="abaTrocar('oc','forn')">Fornecedores <span class="aban" id="ocNForn"></span></button>
+          <button role="tab" id="taboc-semnota" data-aba="semnota" aria-controls="aba-oc-semnota" aria-selected="false" onclick="abaTrocar('oc','semnota')">Sem nota <span class="aban" id="ocNSemnota"></span></button>
         </div>
         <div class="aba" data-abas="oc" data-aba="geral" id="aba-oc-geral" role="tabpanel" aria-labelledby="taboc-geral">
   <div class="card">
-          <div class="head"><h2>Ordens emitidas por mês <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="Série fixa dos últimos 12 meses por data de emissão da OC — este gráfico NÃO segue o filtro de período da barra acima, só filial, criador e aprovador. Serve para ver a tendência do volume de compra; para o recorte filtrado, use os cartões e a tabela.">i</span></h2><span class="hint" id="hintOc">no período filtrado</span></div>
+          <div class="head"><h2>Ordens emitidas por mês <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="Série fixa dos últimos 12 meses por data de emissão da OC (ordemcompra.dtemissao, valor = valortotal). Este gráfico NÃO segue o filtro de período da barra acima — só filial, criador, aprovador e fornecedor. Serve para ver a tendência do volume de compra; para o recorte filtrado, use os cartões do topo e a aba Fornecedores. Mês corrente hachurado: parcial.">i</span></h2><span class="hint" id="hintOc">últimos 12 meses · não segue o filtro de período (segue filial, criador, aprovador e fornecedor)</span></div>
           <div class="legend"><span class="k"><i class="sw" style="background:var(--navy-500)"></i>Valor emitido</span><span class="k"><i class="sw hatch" style="background-color:var(--navy-500)"></i>Mês corrente (parcial)</span></div>
           <div class="chartwrap" id="wrapOc">
-            <div id="chartOc" style="width:100%;height:205px" role="img"></div>
+            <div id="chartOc" style="width:100%;height:205px" role="img" aria-label="Valor de ordens de compra emitidas por mês, últimos 12 meses"></div>
           </div>
         </div>
   <div class="card">
-          <div class="head"><h2>Alertas <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="Regras fixas sobre os números desta tela: OCs com entrega prevista vencida e OCs paradas na fila de aprovação.">i</span></h2></div>
-          <div class="alerts" id="alerts-oc"></div>
+          <div class="head"><h2>Alertas <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="Regras fixas sobre os números desta tela. Do recorte filtrado: OCs atrasadas (aprovadas, sem nota há mais de 30 dias ou com prazo informado vencido), rascunhos nunca encaminhados e OC aprovada acima da alçada do primeiro aprovador sem segundo aprovador. Do bloco em aberto (todo o histórico): OC na fila do aprovador há mais de um dia, OC direcionada a usuário inativo no ERP e aprovadas sem nota paradas.">i</span></h2><span class="hint" id="hintOcAlertas"></span></div>
+          <div class="alerts tabroll curta" id="alerts-oc"></div>
+        </div>
+        </div>
+        <div class="aba" data-abas="oc" data-aba="aprov" id="aba-oc-aprov" role="tabpanel" aria-labelledby="taboc-aprov" hidden>
+          <div class="kband">
+            <div class="kpis k4" id="kpis-ocfila"></div>
+          </div>
+  <div class="card">
+          <div class="head"><h2>Fila de aprovação — quem espera decisão
+            <span class="badge b-warn" title="Este bloco olha TODAS as ordens de compra do ERP que estão sem decisão, não só as do período, filial, criador, aprovador ou fornecedor filtrados acima. A fila é de AGORA: uma OC encaminhada há cinco meses e ainda sem resposta é justamente o que se procura.">não segue os filtros da barra</span>
+            <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="OCs com aprovado = 2 (pendente) no ERP, não suspensas. NA FILA: já encaminhada ao aprovador (dtencaminhadoparaaprovador preenchido) e sem decisão — é a trava de fluxo: a compra não anda enquanto o aprovador não age. RASCUNHO: nunca encaminhada; quem tem de agir é o criador, não o aprovador. Espera conta do encaminhamento (ou da emissão, no rascunho). Aprovador direcionado é o usuário que o ERP apontou; em branco, qualquer aprovador da alçada pode decidir; 'inativo' marca usuário desligado no ERP — a OC nunca será aprovada por ele. Da mais antiga para a mais nova.">i</span></h2>
+            <span class="hint" id="hintOcFila"></span>
+            <button class="ghost" id="btnOcFilaCsv" onclick="ocExportarFila()" style="margin-left:auto" title="Baixa a fila como está na tela (OC, filial, situação, emissão, espera, criador, aprovador direcionado, fornecedor e valor).">Exportar CSV</button></div>
+          <div class="tablewrap tabroll"><table><thead><tr>
+            <th class="num">OC</th><th>Filial</th><th>Situação</th><th class="num">Emitida</th><th class="num">Espera</th><th>Criador</th><th>Aprovador direcionado</th><th>Fornecedor</th><th class="num">Valor</th>
+          </tr></thead><tbody id="oc-fila"></tbody></table></div>
+        </div>
+        </div>
+        <div class="aba" data-abas="oc" data-aba="aprovadores" id="aba-oc-aprovadores" role="tabpanel" aria-labelledby="taboc-aprovadores" hidden>
+  <div class="card">
+          <div class="head"><h2>Aprovadores do período <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="Quem aprovou as OCs do recorte filtrado (ordemcompra.usuarioaprovador), quantas e quanto. Tempo = horas entre o encaminhamento e a decisão, em MEDIANA e p90 (a média esconderia: uma OC de doze dias puxaria todo mundo). 2º aprovador = OCs que passaram por um segundo aprovador (usuarioaprovador2). Alçada = valor máximo cadastrado para o aprovador na tabela `aprovador` do ERP; o ERP não documenta o campo, e o que se mede é que toda OC acima dele levou segundo aprovador — 'acima da alçada' conta as que passaram desse valor SEM segundo aprovador. Aprovador sem alçada cadastrada mostra n/d, nunca zero. Suspensas e reprovadas ficam fora do tempo.">i</span></h2><span class="hint" id="hintOcAprovadores"></span></div>
+          <div class="tablewrap tabroll"><table><thead><tr>
+            <th>Aprovador</th><th class="num">OCs</th><th class="num">Valor</th><th class="num">Mediana</th><th class="num">p90</th><th class="num">Máximo</th><th class="num">2º aprov.</th><th class="num">Alçada</th><th class="num">Acima da alçada</th>
+          </tr></thead><tbody id="oc-aprovadores"></tbody></table></div>
         </div>
         </div>
         <div class="aba" data-abas="oc" data-aba="forn" id="aba-oc-forn" role="tabpanel" aria-labelledby="taboc-forn" hidden>
   <div class="card">
-          <div class="head"><h2>Fornecedores do período <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="Top 30 fornecedores por valor de OC no recorte filtrado. Pendente é o valor ainda não recebido; Atrasadas conta as OCs com entrega prevista vencida; Em aprov. as que ainda não passaram pelo aprovador. CNPJ mascarado. Clique na linha para ver as ordens do fornecedor.">i</span></h2><span class="hint" id="hintOcLista">top 30 por valor · clique no fornecedor para ver as ordens</span></div>
-          <div class="tablewrap tabroll"><table><thead><tr>
-            <th style="width:34px"></th><th>Fornecedor</th><th class="num">OCs</th><th class="num">Valor</th><th class="num">Pendente</th><th class="num">Atrasadas</th><th class="num">Em aprov.</th>
+          <div class="head"><h2>Fornecedores do período <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="Top 30 fornecedores por valor de OC no recorte filtrado (o hint diz de quantos e quanto do valor os 30 explicam). Pendente é o valor das OCs aguardando nota, descontado o que já foi recebido; Atrasadas conta as OCs aprovadas sem nota há mais de 30 dias ou com prazo informado vencido; Em aprov. as que estão na fila do aprovador ou em rascunho; Susp. as suspensas e reprovadas. CNPJ mascarado. Clique na linha para ver as ordens do fornecedor com o status de cada uma.">i</span></h2><span class="hint" id="hintOcLista"></span></div>
+          <div class="tablewrap tabroll curta"><table><thead><tr>
+            <th style="width:34px"></th><th>Fornecedor</th><th class="num">OCs</th><th class="num">Valor</th><th class="num">Pendente</th><th class="num">Atrasadas</th><th class="num">Em aprov.</th><th class="num">Susp.</th>
           </tr></thead><tbody id="oc-forn"></tbody></table></div>
         </div>
-  <div class="grid2">
-          <div class="card">
-            <div class="head"><h2>Fornecedores com OC parada <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="Quem tem mais valor pedido e não entregue além do prazo escolhido. É o interlocutor da cobrança: ou entrega, ou emite a nota, ou a OC é cancelada.">i</span></h2><span class="hint" id="hintOcForn">top 20 por valor pendente</span></div>
-            <div class="tablewrap tabroll"><table><thead><tr>
-              <th>Fornecedor</th><th class="num">OCs</th><th class="num">Pendente</th><th class="num">Mais antiga</th>
-            </tr></thead><tbody id="ocpend-forn"></tbody></table></div>
-          </div>
-          <div class="card">
-            <div class="head"><h2>OCs mais antigas <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="Da mais antiga para a mais nova — a ordem em que se cobra, igual à régua de cobrança. 'Parcial' marca a OC que já recebeu parte: o saldo pendente é só o que falta, não o valor cheio do pedido.">i</span></h2><span class="hint" id="hintOcAntigas"></span></div>
-            <div class="tablewrap tabroll"><table><thead><tr>
-              <th class="num">OC</th><th>Filial</th><th class="num">Dias</th><th>Fornecedor</th><th class="num">Valor</th>
-            </tr></thead><tbody id="ocpend-lista"></tbody></table></div>
-          </div>
+  <div class="card">
+          <div class="head"><h2>Fornecedores com OC parada
+            <span class="badge b-warn" title="Este bloco olha TODAS as ordens de compra aprovadas e sem nota do ERP, não só as do período, filial, criador, aprovador ou fornecedor filtrados acima.">não segue os filtros da barra</span>
+            <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="Quem tem mais valor aprovado e sem nota há mais de 30 dias desde a aprovação, no histórico inteiro. É o interlocutor da cobrança: ou entrega, ou emite a nota, ou a OC é suspensa. Exclui as suspensas.">i</span></h2><span class="hint" id="hintOcForn"></span></div>
+          <div class="tablewrap tabroll curta"><table><thead><tr>
+            <th>Fornecedor</th><th class="num">OCs</th><th class="num">Pendente</th><th class="num">Mais antiga</th>
+          </tr></thead><tbody id="ocpend-forn"></tbody></table></div>
         </div>
         </div>
         <div class="aba" data-abas="oc" data-aba="semnota" id="aba-oc-semnota" role="tabpanel" aria-labelledby="taboc-semnota" hidden>
+          <div class="kband">
+            <div class="kpis k4" id="kpis-ocpend"></div>
+          </div>
   <div class="card">
-          <div class="head"><h2>OC em aberto sem nota — tempo parado
-            <span class="badge b-warn" title="Este bloco olha TODAS as ordens de compra em aberto, não só as do período filtrado acima. OC emitida há dois anos e ainda sem nota é justamente o que se procura — o filtro de emissão a esconderia.">ignora o filtro de período</span>
-            <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="OC que NÃO TEM NENHUMA nota fiscal vinculada em notafiscalentrada_item_ordemcomprarecebida. O critério é a EXISTÊNCIA do vínculo, não a soma de valor: o campo de valor vem nulo em parte das linhas, e somá-lo fazia OC já faturada aparecer como nunca recebida — a maior de todas (R$ 259 mil, TICKET LOG) tinha a nota vinculada e aparecia no alarme. EXCLUI as OCs SUSPENSAS no ERP, que são 83% do volume em aberto e estão paradas de propósito. A idade conta da EMISSÃO.">i</span></h2>
+          <div class="head"><h2>Aprovada sem nota — tempo desde a aprovação
+            <span class="badge b-warn" title="Este bloco olha TODAS as ordens de compra aprovadas e sem nota do ERP, não só as do período, filial, criador, aprovador ou fornecedor filtrados acima. OC aprovada há dois anos e ainda sem nota é justamente o que se procura — o filtro de emissão a esconderia.">não segue os filtros da barra</span>
+            <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="OC aprovada (aprovado = 1 no ERP) que NÃO TEM NENHUMA nota fiscal vinculada em notafiscalentrada_item_ordemcomprarecebida. O critério é a EXISTÊNCIA do vínculo, não a soma de valor: a coluna de valor do vínculo vem nula ou com lixo em parte das linhas, e somá-la já fez OC faturada aparecer como nunca recebida. A idade conta da APROVAÇÃO, não da emissão — é a partir dela que o fornecedor pode entregar. Exclui as suspensas (cartão à parte) e as que ainda estão na fila de aprovação (aba Aprovações).">i</span></h2>
             <span class="hint" id="hintOcPend"></span></div>
-          <div class="kpis k4" id="kpis-ocpend"></div>
           <div class="modl" id="ocpend-faixas"></div>
         </div>
-        </div>
-        <div class="aba" data-abas="oc" data-aba="venc" id="aba-oc-venc" role="tabpanel" aria-labelledby="taboc-venc" hidden>
   <div class="card">
-          <div class="head"><h2>Previsão de entrega vencida sem nota
-            <span class="badge b-warn" title="Este bloco olha TODAS as ordens de compra em aberto, não só as do período filtrado acima.">ignora o filtro de período</span>
-            <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="OC sem nenhuma nota vinculada cuja DATA DE PREVISÃO DE ENTREGA já passou. É este o critério de atraso, e não a idade da emissão: OC emitida há 200 dias com entrega prevista para o mês que vem está em dia, e OC de 40 dias com previsão vencida há 30 não está. Previsão no futuro sem nota é o curso normal e não aparece aqui. Exclui as suspensas.">i</span></h2>
-            <span class="hint" id="hintOcRadar"></span></div>
-          <div class="kpis k4" id="kpis-ocprev"></div>
-          <div class="tablewrap tabroll"><table><thead><tr>
-            <th class="num">OC</th><th>Filial</th><th class="num">Previsão</th>
-            <th class="num">Atraso</th><th>Fornecedor</th><th class="num">Valor</th><th>Ação</th>
+          <div class="head"><h2>Radar — da mais antiga para a mais nova
+            <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="Toda OC aprovada sem nota, na ordem em que se cobra. DIAS conta da aprovação. PRAZO é a previsão de entrega SÓ quando o comprador informou uma data posterior à emissão: no ERP a previsão padrão é o próprio dia da emissão, e essa não é promessa de ninguém — aparece como traço. AÇÃO gradua a cobrança: até 30 dias, cobrar; acima de 30 (ou prazo informado vencido), validar com o fornecedor; acima de 90, candidata a suspensão. 'cita NF' marca a OC cuja observação já traz o número da nota: a mercadoria veio e falta amarrar a nota à ordem no ERP — problema de processo, não de entrega.">i</span></h2>
+            <span class="hint" id="hintOcRadar"></span>
+            <button class="ghost" id="btnOcRadarCsv" onclick="ocExportarRadar()" style="margin-left:auto" title="Baixa o radar como está na tela (OC, filial, aprovação, dias, prazo, fornecedor, valor e ação).">Exportar CSV</button></div>
+          <div class="tablewrap tabroll curta"><table><thead><tr>
+            <th class="num">OC</th><th>Filial</th><th class="num">Aprovada em</th><th class="num">Dias</th><th class="num">Prazo</th><th>Fornecedor</th><th class="num">Valor</th><th>Ação</th>
           </tr></thead><tbody id="ocpend-radar"></tbody></table></div>
         </div>
         </div>
@@ -8544,7 +8580,7 @@ const KPI_HELP = {
   'Receita CT-e no mês':'Valor de frete das viagens carregadas emitidas no mês corrente.',
   'Atingimento da meta':'Realizado acumulado no mês (soma oficial: CT-e + NFS-e + KMM, por emissão) ÷ meta acumulada até hoje. Número diferente de "Faturamento do mês" (faturas emitidas, contas a receber) e de "Receita CT-e no mês" (frete das viagens carregadas) — são 3 recortes distintos de receita, não a mesma coisa com valores conflitantes.',
   'Frete contratado no mês':'Compra de frete de agregados/terceiros no mês corrente.',
-  'OCs atrasadas (12m)':'OCs dos últimos 12 meses com entrega pendente e previsão vencida.',
+  'OCs atrasadas (12m)':'OCs dos últimos 12 meses aprovadas e sem nota fiscal vinculada há mais de 30 dias, ou com prazo informado pelo comprador já vencido (a previsão igual à emissão não conta como prazo).',
   'Combustível próprio no mês':'Diesel/combustível da frota própria no mês corrente (CTA Plus).',
   'Manutenção no mês':'Valor das OSs emitidas no mês corrente.',
   'Receita líquida':'Receita bruta menos deduções (impostos sobre frete).',
@@ -10587,42 +10623,93 @@ function premRenderSerie(d){
 
 /* ---------------- Ordens de Compra ---------------- */
 const OC_STATUS = {
+  rascunho:['Rascunho','b-info'],
   aprovacao:['Em aprovação','b-warn'],
-  atrasada:['Entrega atrasada','b-dang'],
-  aguardando:['Aguardando entrega','b-info'],
+  aguardando:['Aguardando nota','b-info'],
+  atrasada:['Atrasada','b-dang'],
   recebida:['Recebida','b-ok'],
+  suspensa:['Suspensa','b-info'],
+  reprovada:['Reprovada','b-dang']
 };
+/* Os estados saem de api/suprimentos_oc.py (uma definição para tela, Visão
+   Geral e Copiloto). O que o ERP grava e o que cada um significa:
+   aprovado=2 sem encaminhamento = RASCUNHO (quem age é o criador);
+   aprovado=2 encaminhada = EM APROVAÇÃO (a fila do aprovador);
+   aprovado=1 sem vínculo de nota = AGUARDANDO NOTA, ou ATRASADA quando passou
+   de 30 dias da aprovação ou o prazo INFORMADO venceu — a previsão igual à
+   emissão (80% das OCs) não é prazo de ninguém; aprovado=3 = REPROVADA;
+   dtsuspensao = SUSPENSA (a suspensão grava dtaprovador sem usuário: não é
+   aprovação). "Sem data de aprovação" com aprovado=1 é cadastro de 2023/24. */
+const OCP_FAIXA={'1_ate_7':'até 7 dias','2_8_30':'8 a 30','3_31_90':'31 a 90',
+                 '4_91_180':'91 a 180','5_mais_180':'mais de 180 dias'};
+let ocPendSeq = 0, DATAOCPEND = null, OCPEND_ERRO = null;
+const ocN = n => (n||0).toLocaleString('pt-BR');
+const ocHoras = h => { if(h==null || !isFinite(h)) return '—';
+  return h < 48 ? Math.round(h)+' h' : (h/24).toLocaleString('pt-BR',{maximumFractionDigits:1})+' d'; };
+const ocHoraDe = ts => { const t=new Date(ts); return isNaN(t)?'':t.toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'}); };
+const ocCsvNum = v => (Math.round((Number(v)||0)*100)/100).toFixed(2).replace('.', ',');
+const ocPl = (n, um, muitos) => n===1 ? um : muitos;
+function ocVazio(id, cols, msg){
+  const el=document.getElementById(id);
+  if(el) el.innerHTML='<tr><td colspan="'+cols+'" style="color:var(--n500)">'+esc(msg)+'</td></tr>';
+}
 async function loadOc(){
   skelKpis('kpis-oc',4);
   const seq = ++ocSeq;
   const btn=document.getElementById('btnRefresh');
   btn.disabled=true;
   document.getElementById('content').classList.add('loading');
+  /* O nome da filial sai do select que o Financeiro popula: sem esperar por
+     ele, um deep link em #oc mostrava "Filial 1" em toda linha. */
+  filtrosPromise = filtrosPromise || initFiltros();
   try{
+    await filtrosPromise;
     const q=qsView('oc');
     const r=await fetch('/api/suprimentos/ordens-compra?'+q,{cache:'no-store'});
-    const d=await r.json();
+    const rr=await respostaJSON(r);
     if(seq!==ocSeq) return;
-    if(!r.ok){ showBanner(d.mensagem||'Erro ao consultar ordens de compra.', d.detalhe); return; }
-    hideBanner(); DATAOC=d; renderOc(d); LOADEDQS.oc=qsView('oc');
+    if(!rr.ok){ showBanner((rr.dados||{}).mensagem||'Erro ao consultar ordens de compra.', (rr.dados||{}).detalhe); return; }
+    hideBanner(); DATAOC=rr.dados; renderOc(rr.dados); LOADEDQS.oc=qsView('oc');
   }catch(e){ if(seq===ocSeq) showBanner('Não foi possível falar com a API.', e.message); }
   finally{
     if(seq===ocSeq){ btn.disabled=false; document.getElementById('content').classList.remove('loading'); }
   }
-  // Bloco de OC parada em consulta SEPARADA e sem await na anterior: ele não
-  // segue o filtro de período, então nada nele muda quando o filtro muda —
-  // pendurá-lo na mesma query só o faria recarregar à toa.
+  /* O bloco EM ABERTO (fila de agora + aprovadas sem nota) não segue os
+     filtros: vai em consulta separada, sem esperar a anterior. O servidor
+     guarda a resposta por 120 s, então recarregar a cada filtro é barato. */
   carregarOcPendentes();
 }
-/* OC aberta sem nota. O filtro `dtsuspensao IS NULL` é o que separa 648 OCs
-   reais (R$ 2,0 mi) de 3.740 (R$ 17,3 mi): 83% estão suspensas de propósito
-   no ERP e entram como bloco cinza, nunca como alarme. */
 async function carregarOcPendentes(){
+  const seq = ++ocPendSeq;
+  OCPEND_ERRO = null;
+  skelKpis('kpis-ocpend',4);
   try{
-    const r=await fetch('/api/suprimentos/oc-pendentes?dias_min=180',{cache:'no-store'});
-    if(!r.ok) return;
-    renderOcPendentes(await r.json());
-  }catch(e){ /* bloco acessório: falha aqui não pode derrubar a tela de OC */ }
+    const r=await fetch('/api/suprimentos/oc-pendentes',{cache:'no-store'});
+    const rr=await respostaJSON(r);
+    if(seq!==ocPendSeq) return;
+    if(!rr.ok){ ocFalhaPendentes((rr.dados||{}).mensagem||('HTTP '+r.status)); return; }
+    DATAOCPEND=rr.dados; renderOcPendentes(rr.dados);
+  }catch(e){ if(seq===ocPendSeq) ocFalhaPendentes(e.message); }
+}
+/* Falha DITA nos cartões. Antes o bloco voltava calado e quem abria a aba via
+   card em branco (ou o número da carga anterior) e concluía "não há OC
+   parada". */
+function ocFalhaPendentes(msg){
+  DATAOCPEND = null; OCPEND_ERRO = msg || 'falha na consulta';
+  const nd = (l, ajuda) => kpi(l, 'n/d', 'não foi possível consultar as OCs em aberto', '', ajuda+' Falha na consulta: '+OCPEND_ERRO);
+  document.getElementById('kpis-ocpend').innerHTML=[
+    nd('Aprovadas sem nota','OCs aprovadas sem nota fiscal vinculada, todo o histórico.'),
+    nd('Paradas há mais de 30 dias','Aprovadas sem nota há mais de 30 dias.'),
+    nd('Citam a nota na observação','OCs cuja observação traz o número da nota.'),
+    nd('Suspensas sem nota (fora da conta)','OCs suspensas no ERP sem nota vinculada.')].join('');
+  ['hintOcFila','hintOcPend','hintOcRadar','hintOcForn'].forEach(id=>{ const el=document.getElementById(id); if(el) el.textContent='falha na consulta'; });
+  ocVazio('oc-fila',9,'não foi possível consultar a fila ('+OCPEND_ERRO+')');
+  ocVazio('ocpend-radar',8,'não foi possível consultar as OCs sem nota ('+OCPEND_ERRO+')');
+  ocVazio('ocpend-forn',4,'não foi possível consultar ('+OCPEND_ERRO+')');
+  const fx=document.getElementById('ocpend-faixas');
+  if(fx) fx.innerHTML='<div style="color:var(--n500)">não foi possível consultar ('+esc(OCPEND_ERRO)+')</div>';
+  abaContador('ocNSemnota', 0); abaContador('ocNAprov', 0);
+  ocKbandAprov(); ocAlertas();
 }
 /* O NUMERO DA OC SE REPETE POR FILIAL (existe OC 6 na filial 1 e na filial 2),
    entao numero sozinho e ambiguo: toda linha mostra a filial. O nome sai do
@@ -10633,92 +10720,6 @@ function filLbl(cod){
   const sel=document.getElementById('fFilial');
   if(sel) for(const o of sel.options) if(String(o.value)===String(cod)) return o.textContent;
   return 'Filial '+cod;
-}
-const OCP_FAIXA={'1_ate_30':'até 30 dias','2_31_60':'31 a 60','3_61_90':'61 a 90',
-                 '4_91_180':'91 a 180','5_mais_180':'mais de 180 dias'};
-function renderOcPendentes(d){
-  const k=d.kpis||{};
-  document.getElementById('hintOcPend').textContent =
-    k.mais_antiga ? ('a mais antiga foi emitida em '+fmtD(String(k.mais_antiga).slice(0,10))) : '';
-  document.getElementById('kpis-ocpend').innerHTML=[
-    kpi('Sem nota vinculada', (k.ocs||0).toLocaleString('pt-BR')+' OCs', BRL.format(k.valor||0), '',
-        'Ordens de compra sem NENHUMA nota fiscal vinculada, excluindo as suspensas. A maioria é fila normal (emitidas nos últimos 30 dias); o que importa é a faixa de mais de 180 dias.'),
-    kpi('Paradas há mais de 180 dias', (k.velhas||0).toLocaleString('pt-BR')+' OCs',
-        BRL.format(k.velhas_valor||0), (k.velhas||0)>0?'neg':'pos',
-        'O alvo do monitoramento: pedido feito há mais de seis meses e nenhuma nota vinculada. Ou a entrega não aconteceu, ou a nota chegou e não foi amarrada à OC, ou a OC deveria ter sido cancelada.'),
-    kpi('Já citam a nota na observação', (k.cita_nf||0).toLocaleString('pt-BR')+' de '+(k.velhas||0),
-        BRL.format(k.cita_nf_valor||0)+' · provável falta de vínculo', (k.cita_nf||0)>0?'warn':'',
-        'Dessas paradas há mais de 180 dias, quantas têm o número da nota escrito na observação da própria OC. Quando isso acontece, a mercadoria veio e foi faturada — o que falta é amarrar a nota à ordem no ERP. É problema de processo, não de entrega. Conferido no ERP: a nota citada existe mesmo, do mesmo fornecedor e com data compatível.'),
-    kpi('Suspensas (fora da conta)', (k.suspensas||0).toLocaleString('pt-BR')+' OCs',
-        BRL.format(k.suspensas_valor||0)+' · paradas de propósito', '',
-        'OCs com data de suspensão preenchida no ERP. NÃO entram nos números acima: são 83% do total em aberto e contá-las como esquecidas transformaria cadastro em crise. Estão aqui para o volume não sumir sem explicação.'),
-  ].join('');
-  const fx=d.faixas||[], maxV=Math.max(1,...fx.map(f=>f.valor));
-  document.getElementById('ocpend-faixas').innerHTML=fx.map(f=>{
-    const velha=f.faixa==='5_mais_180';
-    return `<div class="mrow"><div class="mlbl">${esc(OCP_FAIXA[f.faixa]||f.faixa)}</div>
-      <div class="mbar"><i style="width:${Math.max(2,100*f.valor/maxV)}%;background:${velha?'var(--red)':'var(--navy-500)'}"></i></div>
-      <div class="mval">${BRL.format(f.valor)} <span style="color:var(--n500);font-weight:400">· ${f.ocs} OC${f.ocs===1?'':'s'}${f.sem_aprovacao>0?' · '+f.sem_aprovacao+' sem aprovação':''}</span></div></div>`;
-  }).join('') || '<div style="color:var(--n500)">nenhuma OC em aberto</div>';
-  /* RADAR DA PREVISÃO DE ENTREGA. A idade da emissão não diz se a OC está
-     atrasada — a previsão diz. Das 186 OCs em aberto sem nota, 93 têm
-     previsão FUTURA (curso normal, não entram aqui) e 93 já venceram.
-     A ação sai graduada porque chip igual para 2 e para 440 dias de atraso
-     não prioriza nada: até 30 dias cobra-se, acima de 30 valida-se, acima de
-     90 o caso é suspender. */
-  const rad=d.radar_previsao||[], nRad=d.radar_total||0;
-  document.getElementById('kpis-ocprev').innerHTML=[
-    kpi('Previsão vencida sem nota', (k.prev_vencida||0).toLocaleString('pt-BR')+' OCs',
-        BRL.format(k.prev_vencida_valor||0), (k.prev_vencida||0)>0?'warn':'pos',
-        'Entrega prevista para uma data que já passou e nenhuma nota vinculada. Precisa ser validada com o fornecedor: ou a entrega vem, ou a nota já veio e falta o vínculo, ou a OC deve ser suspensa.'),
-    kpi('Atraso acima de 30 dias', (k.prev_venc30||0).toLocaleString('pt-BR')+' OCs',
-        BRL.format(k.prev_venc30_valor||0)+' · validar com o fornecedor',
-        (k.prev_venc30||0)>0?'neg':'pos',
-        'Passou de um mês da data prometida. Aqui já não é fila: alguma coisa não aconteceu e ninguém tratou.'),
-    kpi('Atraso acima de 90 dias', (k.prev_venc90||0).toLocaleString('pt-BR')+' OCs',
-        BRL.format(k.prev_venc90_valor||0)+' · candidatas a suspensão',
-        (k.prev_venc90||0)>0?'neg':'pos',
-        'Três meses depois do prometido. Se a compra ainda faz sentido, a previsão precisa ser refeita; se não faz, a OC deveria ser suspensa para sair do compromisso em aberto.'),
-    kpi('Previsão no futuro (em dia)', (k.prev_futura||0).toLocaleString('pt-BR')+' OCs',
-        BRL.format(k.prev_futura_valor||0)+' · nada a fazer', 'pos',
-        'Pedido feito, entrega marcada para frente e ainda sem nota — é o curso normal de uma compra. Está aqui para o total fechar e para não parecer que toda OC sem nota é problema.'),
-  ].join('');
-  document.getElementById('hintOcRadar').textContent = nRad>rad.length
-    ? `${rad.length} de ${nRad} · da previsão mais antiga para a mais recente`
-    : `${rad.length} OC${rad.length===1?'':'s'} · da previsão mais antiga para a mais recente`;
-  const ACAO={suspender:['b-alert','suspender'],validar:['b-warn','validar'],cobrar:['b-info','cobrar']};
-  document.getElementById('ocpend-radar').innerHTML=rad.map(function(x){
-    const a=ACAO[x.acao]||ACAO.cobrar;
-    const cor = x.atraso>90?'var(--red)' : x.atraso>30?'var(--yellow-700)' : 'var(--n600)';
-    return `<tr>
-      <td class="num">${x.numero}</td>
-      <td title="${esc(filLbl(x.filial))}">${esc(filLbl(x.filial))}</td>
-      <td class="num">${fmtD(x.previsao)}</td>
-      <td class="num" style="font-weight:700;color:${cor}">${x.atraso} d</td>
-      <td title="${esc(x.observacao||x.fornecedor)}">${esc(x.fornecedor.length>24?x.fornecedor.slice(0,24)+'…':x.fornecedor)}${x.cita_nf?' <span class="badge b-info" title="a observação da OC cita o número da nota — provável falta de vínculo, não falta de entrega">cita NF</span>':''}</td>
-      <td class="num" style="font-weight:600">${BRL.format(x.valor)}</td>
-      <td><span class="badge ${a[0]}">${a[1]}</span></td></tr>`;
-  }).join('') || '<tr><td colspan="7" style="color:var(--n500)">nenhuma OC com previsão vencida</td></tr>';
-
-  const fo=d.fornecedores||[];
-  document.getElementById('hintOcForn').textContent = fo.length
-    ? `top ${fo.length} por valor pendente · abertas há mais de ${d.dias_min} dias` : 'nenhuma';
-  document.getElementById('ocpend-forn').innerHTML=fo.map(f=>`<tr>
-    <td>${esc(f.fornecedor)}</td><td class="num">${f.ocs}</td>
-    <td class="num" style="font-weight:600">${BRL.format(f.pendente)}</td>
-    <td class="num">${f.dias_max} d</td></tr>`).join('')
-    || '<tr><td colspan="4" style="color:var(--n500)">nenhuma OC parada</td></tr>';
-  const li=d.lista||[];
-  document.getElementById('hintOcAntigas').textContent = (d.lista_total && d.lista_total>li.length)
-    ? `${li.length} de ${d.lista_total} · da mais antiga para a mais nova`
-    : `${li.length} OC${li.length===1?'':'s'} · da mais antiga para a mais nova`;
-  document.getElementById('ocpend-lista').innerHTML=li.map(x=>`<tr>
-    <td class="num">${x.numero}</td>
-    <td title="${esc(filLbl(x.filial))}">${esc(filLbl(x.filial))}</td>
-    <td class="num" style="font-weight:700;color:${x.dias>365?'var(--red)':'var(--yellow-700)'}">${x.dias}</td>
-    <td title="${esc(x.observacao||x.fornecedor)}">${esc(x.fornecedor.length>24?x.fornecedor.slice(0,24)+'…':x.fornecedor)}${x.sem_aprovacao?' <span class="badge b-warn">sem aprov.</span>':''}${x.cita_nf?' <span class="badge b-info" title="a observação da OC cita o número da nota — provável falta de vínculo, não falta de entrega">cita NF</span>':''}</td>
-    <td class="num" style="font-weight:600">${BRL.format(x.valor)}</td></tr>`).join('')
-    || '<tr><td colspan="5" style="color:var(--n500)">nenhuma OC parada</td></tr>';
 }
 const shortName = n => { if(!n) return '—'; const w=n.trim().split(/\s+/); return w.length>2 ? w[0]+' '+w[w.length-1] : n; };
 function fillUserSelect(id, rows){
@@ -10738,62 +10739,240 @@ function fillUserSelect(id, rows){
     }
   }
 }
+/* A banda da aba Aprovações mistura dois recortes de propósito: fila e
+   rascunhos são de AGORA (todo o ERP); tempo e alçada são do período
+   filtrado. Cada cartão diz de qual é. Renderiza com o que já chegou. */
+function ocKbandAprov(){
+  const el=document.getElementById('kpis-ocfila'); if(!el) return;
+  const p=DATAOCPEND, f=(p&&p.fila)?p.fila.kpis:null, d=DATAOC, k=d?d.kpis:null, t=d?d.tempo_aprovacao:null;
+  const aguarda = OCPEND_ERRO ? 'não foi possível consultar ('+OCPEND_ERRO+')' : 'carregando…';
+  const cards=[];
+  if(f){
+    cards.push(kpi('Na fila do aprovador', ocN(f.fila)+' OCs',
+      BRL.format(f.fila_valor||0)+(f.fila?' · mais antiga há '+ocHoras(f.fila_horas_max):' · fila vazia')+' · agora, todo o ERP',
+      f.fila_horas_max>24?'neg':(f.fila?'warn':'pos'),
+      'OCs encaminhadas ao aprovador e ainda sem decisão, em todo o ERP, neste momento. É a trava de fluxo interno: a compra não anda enquanto o aprovador não age. A mediana histórica é de poucas horas; acima de um dia o cartão fica vermelho. Não segue os filtros da barra.'));
+    cards.push(kpi('Rascunhos não encaminhados', ocN(f.rascunhos)+' OCs',
+      BRL.format(f.rascunhos_valor||0)+(f.rascunho_mais_antigo?' · mais antigo de '+fmtD(f.rascunho_mais_antigo):'')+' · agora, todo o ERP',
+      f.rascunhos>0?'warn':'pos',
+      'OCs criadas (aprovado = 2) que nunca foram encaminhadas a aprovador nenhum. Não estão na fila de ninguém: quem tem de agir é quem criou — encaminhar ou suspender. Não segue os filtros da barra.'));
+  }else{
+    cards.push(kpi('Na fila do aprovador','n/d',aguarda,'', 'OCs encaminhadas ao aprovador e sem decisão, em todo o ERP, agora.'));
+    cards.push(kpi('Rascunhos não encaminhados','n/d',aguarda,'', 'OCs criadas e nunca encaminhadas a aprovador.'));
+  }
+  if(t && t.n){
+    cards.push(kpi('Tempo de aprovação', ocHoras(t.mediana_h),
+      'mediana · p90 '+ocHoras(t.p90_h)+' · máx '+ocHoras(t.max_h)+' · '+ocN(t.n)+' '+ocPl(t.n,'decisão','decisões')+' no período',
+      t.mediana_h>24?'warn':'',
+      'Horas entre o encaminhamento ao aprovador e a decisão, nas OCs do recorte filtrado. MEDIANA, não média: uma OC de doze dias puxaria todo mundo. p90 = 9 em cada 10 OCs foram decididas em até esse tempo. Suspensas e reprovadas ficam fora.'));
+  }else{
+    cards.push(kpi('Tempo de aprovação','n/d', k?'nenhuma decisão no período filtrado':'carregando…','',
+      'Horas entre o encaminhamento ao aprovador e a decisão, nas OCs do recorte filtrado (mediana e p90).'));
+  }
+  const comAlcada=(d&&d.por_aprovador||[]).some(a=>a.alcada!=null);
+  if(k && comAlcada){
+    cards.push(kpi('Acima da alçada', ocN(k.acima_alcada)+' OCs',
+      BRL.format(k.acima_alcada_valor||0)+' sem 2º aprovador · '+ocN(k.com_segundo_aprovador)+' com 2º aprovador · no período',
+      k.acima_alcada>0?'neg':'pos',
+      'OCs do recorte aprovadas com valor acima da alçada cadastrada para o primeiro aprovador (tabela `aprovador` do ERP) e SEM segundo aprovador. O ERP não documenta o campo; o que se mede é que toda OC acima dele levou segundo aprovador — este cartão é a conferência de que continua assim.'));
+  }else{
+    cards.push(kpi('Acima da alçada','n/d', k?'nenhum aprovador do recorte tem alçada cadastrada':'carregando…','',
+      'OCs aprovadas acima da alçada do primeiro aprovador e sem segundo aprovador, no recorte filtrado.'));
+  }
+  el.innerHTML=cards.join('');
+}
+function ocAlertas(){
+  const el=document.getElementById('alerts-oc'); if(!el) return;
+  const A=[]; const d=DATAOC, k=d?d.kpis:null, p=DATAOCPEND;
+  const fk=(p&&p.fila)?p.fila.kpis:null, sk=(p&&p.sem_nota)?p.sem_nota.kpis:null;
+  if(k){
+    if(k.atrasadas>0) A.push(['t-dang','Atrasadas no período',
+      ocN(k.atrasadas)+' '+ocPl(k.atrasadas,'OC aprovada','OCs aprovadas')+' sem nota há mais de '+(d.dias_parada||30)+' dias ou com prazo informado vencido — '+BRL.format(k.atrasadas_valor)+' pendente. Validar com o fornecedor: ou a entrega vem, ou a nota já veio e falta o vínculo, ou a OC deve ser suspensa.']);
+    if(k.acima_alcada>0) A.push(['t-dang','Aprovada acima da alçada sem 2º aprovador',
+      ocN(k.acima_alcada)+' '+ocPl(k.acima_alcada,'OC','OCs')+' ('+BRL.format(k.acima_alcada_valor)+') acima do valor máximo do primeiro aprovador e sem segundo aprovador — conferir no ERP.']);
+    if(k.rascunhos>0) A.push(['t-warn','Rascunhos não encaminhados',
+      ocN(k.rascunhos)+' '+ocPl(k.rascunhos,'OC criada e nunca encaminhada','OCs criadas e nunca encaminhadas')+' ao aprovador no período ('+BRL.format(k.rascunhos_valor)+').']);
+  }
+  if(fk){
+    if(fk.fila_horas_max>24) A.push(['t-warn','Fila do aprovador parada',
+      'A OC mais antiga na fila espera decisão há '+ocHoras(fk.fila_horas_max)+' ('+ocN(fk.fila)+' na fila, '+BRL.format(fk.fila_valor)+'). Aba Aprovações.']);
+    if(fk.fila_direcionado_inativo>0) A.push(['t-dang','OC direcionada a usuário inativo',
+      ocN(fk.fila_direcionado_inativo)+' '+ocPl(fk.fila_direcionado_inativo,'OC na fila aponta','OCs na fila apontam')+' para aprovador desligado no ERP — não serão aprovadas por ele.']);
+  }
+  if(sk && sk.paradas>0) A.push(['t-dang','Aprovadas sem nota paradas',
+    ocN(sk.paradas)+' '+ocPl(sk.paradas,'OC','OCs')+' sem nota há mais de '+(p.dias_min||30)+' dias ('+BRL.format(sk.paradas_valor)+'), todo o histórico. Aba Sem nota.']);
+  const hint=document.getElementById('hintOcAlertas');
+  if(hint) hint.textContent = (k&&fk) ? 'período filtrado + bloco em aberto (todo o ERP)'
+    : (k ? 'só o período filtrado — bloco em aberto '+(OCPEND_ERRO?'indisponível':'carregando') : '');
+  el.innerHTML=(A.length?A:[['t-ok','Sem alertas','Nenhuma pendência nas regras desta tela.']])
+    .map(([c,t,m])=>`<div class="toast ${c}"><b>${esc(t)}</b>${esc(m)}</div>`).join('');
+}
+function renderOcPendentes(d){
+  OCPEND_ERRO=null;
+  const sn=d.sem_nota||{}, k=sn.kpis||{}, fi=d.fila||{}, fk=fi.kpis||{}, quando=ocHoraDe(d.atualizado_em);
+  document.getElementById('hintOcPend').textContent =
+    (k.mais_antiga ? 'a mais antiga foi aprovada em '+fmtD(String(k.mais_antiga).slice(0,10)) : 'nenhuma OC aprovada sem nota')+(quando?' · atualizado '+quando:'');
+  const totalAberto=(k.ocs||0)+(k.suspensas||0);
+  document.getElementById('kpis-ocpend').innerHTML=[
+    kpi('Aprovadas sem nota', ocN(k.ocs)+' OCs', BRL.format(k.valor||0)+(k.prazo_informado?' · '+ocN(k.prazo_informado)+' com prazo informado':''), '',
+        'Ordens de compra aprovadas e sem NENHUMA nota fiscal vinculada, em todo o histórico, excluindo as suspensas e as que ainda estão na fila de aprovação. A maioria é fila normal (aprovadas nos últimos dias); o que importa é o cartão ao lado.'),
+    kpi('Paradas há mais de '+(d.dias_min||30)+' dias', ocN(k.paradas)+' OCs',
+        BRL.format(k.paradas_valor||0)+(k.prazo_vencido?' · '+ocN(k.prazo_vencido)+' com prazo informado vencido':''), (k.paradas||0)>0?'neg':'pos',
+        'O alvo do monitoramento: aprovada há mais de um mês e nenhuma nota vinculada — dez vezes o tempo típico entre aprovação e nota. Ou a entrega não aconteceu, ou a nota chegou e não foi amarrada à OC, ou a OC deveria ter sido suspensa.'),
+    kpi('Citam a nota na observação', ocN(k.cita_nf)+' de '+ocN(k.ocs), BRL.format(k.cita_nf_valor||0)+' · provável falta de vínculo', (k.cita_nf||0)>0?'warn':'',
+        'Das aprovadas sem nota, quantas têm o número da nota escrito na observação da própria OC. Quando isso acontece, a mercadoria veio e foi faturada — o que falta é amarrar a nota à ordem no ERP. É problema de processo, não de entrega.'),
+    kpi('Suspensas sem nota (fora da conta)', ocN(k.suspensas)+' OCs',
+        BRL.format(k.suspensas_valor||0)+(totalAberto?' · '+Math.round(100*(k.suspensas||0)/totalAberto)+'% do em aberto':''), '',
+        'OCs com data de suspensão no ERP e sem nota vinculada, em qualquer estado de aprovação. NÃO entram nos cartões ao lado: contá-las como esquecidas transformaria cadastro em crise. Estão aqui para o volume não sumir sem explicação.'),
+  ].join('');
+  const fx=sn.faixas||[], maxV=Math.max(1,...fx.map(f=>f.valor));
+  /* uma linha por faixa (nome · valor · trilha), não três: com o dado real a
+     aba passava de 1.000px e a régua da casa é 900 */
+  document.getElementById('ocpend-faixas').innerHTML=fx.map(f=>{
+    const velha=f.faixa==='4_91_180'||f.faixa==='5_mais_180';
+    return `<div class="modrow"><div class="mname">${esc(OCP_FAIXA[f.faixa]||f.faixa)}</div>`
+      +`<div class="mval">${BRL.format(f.valor)} · ${f.ocs} OC${f.ocs===1?'':'s'}${f.prazo_vencido>0?' · '+f.prazo_vencido+' c/ prazo vencido':''}</div>`
+      +`<div class="mtrack"><span style="width:${Math.max(1,100*f.valor/maxV).toFixed(1)}%;background:${velha?'var(--red)':'var(--navy-500)'}"></span><span style="flex:1;background:var(--n200)"></span></div></div>`;
+  }).join('') || '<div style="color:var(--n500)">nenhuma OC aprovada sem nota</div>';
+  /* RADAR: da mais antiga para a mais nova, com a ação graduada — chip igual
+     para 2 e para 440 dias não prioriza nada. */
+  const rad=sn.lista||[], nRad=sn.lista_total||rad.length;
+  document.getElementById('hintOcRadar').textContent = (nRad>rad.length ? rad.length+' de '+ocN(nRad) : ocN(rad.length)+' OC'+(rad.length===1?'':'s'))
+    +' · da aprovação mais antiga para a mais recente'+(quando?' · atualizado '+quando:'');
+  const ACAO={suspender:['b-dang','suspender'],validar:['b-warn','validar'],cobrar:['b-info','cobrar']};
+  document.getElementById('ocpend-radar').innerHTML=rad.map(function(x){
+    const a=ACAO[x.acao]||ACAO.cobrar;
+    const cor = x.dias>90?'var(--red)' : x.dias>30?'var(--yellow-700)' : 'var(--n600)';
+    return `<tr>
+      <td class="num">${x.numero}</td>
+      <td title="${esc(filLbl(x.filial))}">${esc(filLbl(x.filial))}</td>
+      <td class="num">${fmtD(x.aprovada_em)}</td>
+      <td class="num" style="font-weight:700;color:${cor}">${x.dias}</td>
+      <td class="num" title="${x.prazo?(x.prazo_vencido?'prazo informado pelo comprador, já vencido':'prazo informado pelo comprador'):'previsão igual à emissão: prazo não informado'}">${x.prazo?fmtD(x.prazo)+(x.prazo_vencido?' <span class="badge b-dang">vencido</span>':''):'<span style="color:var(--n500)">—</span>'}</td>
+      <td title="${esc(x.observacao||x.fornecedor)}">${esc(x.fornecedor.length>24?x.fornecedor.slice(0,24)+'…':x.fornecedor)}${x.cita_nf?' <span class="badge b-info" title="a observação da OC cita o número da nota — provável falta de vínculo, não falta de entrega">cita NF</span>':''}</td>
+      <td class="num" style="font-weight:600">${BRL.format(x.valor)}</td>
+      <td><span class="badge ${a[0]}">${a[1]}</span></td></tr>`;
+  }).join('') || '<tr><td colspan="8" style="color:var(--n500)">nenhuma OC aprovada sem nota</td></tr>';
+  const fo=sn.fornecedores||[], nFo=sn.fornecedores_total||fo.length;
+  document.getElementById('hintOcForn').textContent = fo.length
+    ? (nFo>fo.length ? fo.length+' de '+nFo : fo.length)+' fornecedor'+(nFo===1?'':'es')+' com OC sem nota há mais de '+(d.dias_min||30)+' dias · por valor pendente'
+    : 'nenhum fornecedor com OC parada';
+  document.getElementById('ocpend-forn').innerHTML=fo.map(f=>`<tr>
+    <td>${esc(f.fornecedor)}</td><td class="num">${f.ocs}</td>
+    <td class="num" style="font-weight:600">${BRL.format(f.pendente)}</td>
+    <td class="num">${f.dias_max} d</td></tr>`).join('')
+    || '<tr><td colspan="4" style="color:var(--n500)">nenhuma OC parada</td></tr>';
+  // fila de aprovação de agora + rascunhos
+  const itens=fi.itens||[], total=(fk.fila||0)+(fk.rascunhos||0);
+  document.getElementById('hintOcFila').textContent = total
+    ? (itens.length<total ? itens.length+' de '+ocN(total)+' · ' : '')+ocN(fk.fila)+' na fila · '+ocN(fk.rascunhos)+' rascunho'+(fk.rascunhos===1?'':'s')+' · da espera mais longa para a mais curta'+(quando?' · atualizado '+quando:'')
+    : 'ninguém esperando decisão'+(quando?' · atualizado '+quando:'');
+  document.getElementById('oc-fila').innerHTML=itens.map(x=>`<tr>
+    <td class="num">${x.numero}</td>
+    <td title="${esc(filLbl(x.filial))}">${esc(filLbl(x.filial))}</td>
+    <td>${x.situacao==='fila'?'<span class="badge b-warn">na fila</span>':'<span class="badge b-info">rascunho</span>'}</td>
+    <td class="num">${fmtD(x.emissao)}</td>
+    <td class="num" style="font-weight:700;color:${x.horas>72?'var(--red)':x.horas>24?'var(--yellow-700)':'var(--n600)'}" title="${x.encaminhada_em?'encaminhada em '+esc(x.encaminhada_em):'nunca encaminhada: conta da emissão'}">${ocHoras(x.horas)}</td>
+    <td title="${esc(x.criador||'')}">${esc(shortName(x.criador))}</td>
+    <td title="${esc(x.direcionado||'')}">${x.direcionado?esc(shortName(x.direcionado))+(x.direcionado_ativo===false?' <span class="badge b-dang" title="usuário inativo no ERP: esta OC não será aprovada por ele">inativo</span>':''):'<span style="color:var(--n500)">qualquer aprovador</span>'}</td>
+    <td title="${esc(x.fornecedor)}">${esc(x.fornecedor.length>24?x.fornecedor.slice(0,24)+'…':x.fornecedor)}</td>
+    <td class="num" style="font-weight:600">${BRL.format(x.valor)}</td></tr>`).join('')
+    || '<tr><td colspan="9" style="color:var(--n500)">ninguém esperando decisão</td></tr>';
+  abaContador('ocNSemnota', k.ocs||0);
+  abaContador('ocNAprov', total);
+  ocKbandAprov(); ocAlertas();
+}
 function renderOc(d){
   const k=d.kpis;
   if(!document.getElementById('fEmiDe').value) document.getElementById('fEmiDe').value=d.dt_de;
   if(!document.getElementById('fEmiAte').value) document.getElementById('fEmiAte').value=d.dt_ate;
   fillUserSelect('fOcCriador', d.criadores);
   fillUserSelect('fOcAprovador', d.aprovadores);
-  const pctAtr = k.pend_qtd ? Math.round(100*k.atraso_qtd/k.pend_qtd) : 0;
+  const semDado = !k.ocs;                       // zero por ausência não é desempenho
+  const pctRec = k.ocs ? Math.round(100*k.recebidas/k.ocs) : 0;
+  const pctAtr = k.aguardando ? Math.round(100*k.atrasadas/k.aguardando) : 0;
+  const periodo = fmtD(d.dt_de)+' a '+fmtD(d.dt_ate);
   document.getElementById('kpis-oc').innerHTML=[
-    kpi('Emitidas no período', k.ocs.toLocaleString('pt-BR'), BRL.format(k.valor)+' · '+fmtD(d.dt_de)+' a '+fmtD(d.dt_ate), '',
-        'ordemcompra por data de emissão, no recorte dos filtros. Valor = valortotal da OC. O gráfico abaixo NÃO segue este período: mostra sempre os últimos 12 meses.'),
-    kpi('Pendentes de aprovação', k.aprovacao_qtd.toLocaleString('pt-BR'), BRL.format(k.aprovacao_valor), k.aprovacao_qtd>0?'warn':'pos',
-        'OCs com aprovação ainda pendente no ERP. É trava de fluxo interno: a compra não anda enquanto o aprovador não age.'),
-    kpi('Aguardando entrega', k.pend_qtd.toLocaleString('pt-BR'), BRL.format(k.pend_valor)+' pendente', '',
-        'OCs cuja mercadoria ou serviço ainda não foi recebido no ERP. Inclui as que estão dentro do prazo e as atrasadas.'),
-    kpi('Com entrega atrasada', k.atraso_qtd.toLocaleString('pt-BR'),
-        BRL.format(k.atraso_valor)+' pendente'+(k.pend_qtd?' · '+pctAtr+'% da fila de entrega':''),
-        k.atraso_qtd>0?'neg':'pos',
-        'Subconjunto do card anterior: OCs com data prevista de entrega já vencida e sem recebimento lançado. Pode ser atraso real do fornecedor ou entrega feita e não baixada no ERP — as duas hipóteses valem conferência.'),
+    kpi('Emitidas no período', ocN(k.ocs),
+        semDado ? 'nenhuma OC no recorte · '+periodo : BRL.format(k.valor)+' · '+ocN(k.recebidas)+' recebida'+(k.recebidas===1?'':'s')+' ('+pctRec+'%)', '',
+        'ordemcompra por data de emissão, no recorte dos filtros ('+periodo+'). Valor = valortotal da OC. Recebida = tem nota fiscal vinculada. O gráfico da aba Visão geral NÃO segue este período: mostra sempre os últimos 12 meses.'),
+    kpi('Em aprovação', ocN(k.fila),
+        semDado ? '—' : BRL.format(k.fila_valor)+' · '+ocN(k.rascunhos)+' rascunho'+(k.rascunhos===1?'':'s')+' não encaminhado'+(k.rascunhos===1?'':'s'),
+        semDado ? '' : (k.fila>0?'warn':'pos'),
+        'OCs do recorte já encaminhadas ao aprovador e ainda sem decisão (aprovado = 2 e dtencaminhadoparaaprovador preenchido). É trava de fluxo interno: a compra não anda enquanto o aprovador não age. Rascunho é OC criada e nunca encaminhada — não está na fila de ninguém. A fila de AGORA, sem filtros, está na aba Aprovações.'),
+    kpi('Aguardando nota', ocN(k.aguardando),
+        semDado ? '—' : BRL.format(k.aguardando_valor)+' pendente · '+ocN(k.atrasadas)+' atrasada'+(k.atrasadas===1?'':'s')+(k.aguardando?' ('+pctAtr+'%)':''),
+        semDado ? '' : (k.atrasadas>0?'neg':''),
+        'OCs aprovadas cuja nota fiscal ainda não foi vinculada no ERP. Pendente = valor da OC menos o já recebido. Atrasada = sem nota há mais de '+(d.dias_parada||30)+' dias desde a aprovação, ou com prazo INFORMADO pelo comprador já vencido — a previsão igual à emissão (o padrão do ERP) não é prazo de ninguém e não conta.'),
+    kpi('Suspensas e reprovadas', ocN(k.suspensas+k.reprovadas),
+        semDado ? '—' : BRL.format(k.suspensas_valor+k.reprovadas_valor)+' · '+ocN(k.reprovadas)+' reprovada'+(k.reprovadas===1?'':'s'), '',
+        'OCs do recorte com data de suspensão no ERP (paradas de propósito) e as reprovadas pelo aprovador (aprovado = 3, que o ERP também suspende). Ficam fora dos três cartões anteriores. Para vê-las, filtre Status = Suspensa ou Reprovada e abra o fornecedor.'),
   ].join('');
   chartOcRender(d.mensal||[]);
-  {
-    // o gráfico é fixo em 12 meses (OC_MENSAL_SQL) e o hint dizia "no período filtrado"
-    const h=document.getElementById('hintOc');
-    if(h) h.textContent='últimos 12 meses · não segue o filtro de período (segue filial, criador e aprovador)';
-  }
   ocFornTable(d.fornecedores||[]);
-  const A=[];
-  if(k.atraso_qtd>0) A.push(['t-dang','Entregas atrasadas',`${k.atraso_qtd} OCs com entrega prevista vencida e ${BRL.format(k.atraso_valor)} ainda não recebidos — cobrar fornecedores.`]);
-  if(k.aprovacao_qtd>0) A.push(['t-warn','Pendentes de aprovação',`${k.aprovacao_qtd} OCs (${BRL.format(k.aprovacao_valor)}) aguardando aprovador.`]);
-  document.getElementById('alerts-oc').innerHTML=(A.length?A:[['t-ok','Sem alertas críticos','Nenhuma pendência relevante no período.']])
-    .map(([c,t,m])=>`<div class="toast ${c}"><b>${esc(t)}</b>${esc(m)}</div>`).join('');
+  const nF=d.fornecedores_total||0, top=(d.fornecedores||[]).length;
+  document.getElementById('hintOcLista').textContent = nF
+    ? (nF>top ? top+' de '+ocN(nF)+' fornecedores · '+BRL.format(d.fornecedores_top_valor||0)+' de '+BRL.format(k.valor)+(k.valor?' ('+Math.round(100*(d.fornecedores_top_valor||0)/k.valor)+'%)':'')
+              : ocN(nF)+' fornecedor'+(nF===1?'':'es'))+' · clique no fornecedor para ver as ordens'
+    : 'sem ordens no período';
+  ocAprovadoresTable(d.por_aprovador||[], d);
+  abaContador('ocNForn', nF);
+  abaContador('ocNAprovadores', (d.por_aprovador||[]).length);
+  ocKbandAprov(); ocAlertas();
   const ts=new Date(d.atualizado_em);
   document.getElementById('meta').innerHTML='<b>Atualizado '+ts.toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'})+'</b><br>'+ts.toLocaleDateString('pt-BR');
+  emiPresetSync();      // o preset descreve o recorte que está nos campos
+}
+function ocAprovadoresTable(rows, d){
+  const k=(d&&d.kpis)||{};
+  document.getElementById('hintOcAprovadores').textContent = rows.length
+    ? ocN(rows.length)+' aprovador'+(rows.length===1?'':'es')+' no recorte · mediana e p90 em horas entre o encaminhamento e a decisão'
+      + (k.cadastro_sem_data ? ' · '+ocN(k.cadastro_sem_data)+' OC'+(k.cadastro_sem_data===1?'':'s')+' aprovada'+(k.cadastro_sem_data===1?'':'s')+' sem data de aprovação (cadastro do ERP, fora do tempo)' : '')
+    : 'nenhuma OC aprovada no recorte';
+  document.getElementById('oc-aprovadores').innerHTML = rows.map(a=>`<tr>
+    <td title="${esc(a.nome||'')}">${esc(shortName(a.nome))}${a.ativo===false?' <span class="badge b-warn" title="usuário inativo no ERP">inativo</span>':''}</td>
+    <td class="num">${ocN(a.ocs)}</td>
+    <td class="num" style="font-weight:600">${BRL.format(a.valor)}</td>
+    <td class="num">${ocHoras(a.mediana_h)}</td>
+    <td class="num">${ocHoras(a.p90_h)}</td>
+    <td class="num">${ocHoras(a.max_h)}</td>
+    <td class="num">${a.com_segundo?ocN(a.com_segundo):'<span style="color:var(--n500)">—</span>'}</td>
+    <td class="num">${a.alcada!=null?BRL.format(a.alcada):'<span style="color:var(--n500)" title="sem alçada cadastrada na tabela aprovador do ERP">n/d</span>'}</td>
+    <td class="num">${a.alcada==null?'<span style="color:var(--n500)">n/d</span>':(a.acima_alcada?`<span class="badge b-dang">${a.acima_alcada}</span>`:'<span style="color:var(--n500)">—</span>')}</td></tr>`).join('')
+    || '<tr><td colspan="9" style="color:var(--n500)">nenhuma OC aprovada no recorte</td></tr>';
 }
 function ocRow(o){
   const [lbl,cls]=OC_STATUS[o.status]||[o.status,'b-info'];
   const pend=o.valor_pendente>0?`<span style="color:var(--red)">${BRL.format(o.valor_pendente)}</span>`:'<span style="color:var(--n500)">—</span>';
+  const parado = o.status==='suspensa'||o.status==='reprovada';
+  const aprovadaEm = parado ? (o.suspensa_em?'<span style="color:var(--n500)" title="data da suspensão no ERP">susp. '+fmtD(o.suspensa_em)+'</span>':'<span style="color:var(--n500)">—</span>')
+                   : (o.status==='aprovacao'||o.status==='rascunho') ? '<span style="color:var(--n500)">—</span>'
+                   : (o.aprovada_em ? fmtD(o.aprovada_em) : '<span style="color:var(--n500)" title="aprovada sem data de aprovação: cadastro do ERP">sem data</span>');
+  const apr = o.aprovador ? esc(shortName(o.aprovador))+(o.aprovador2?' <span class="badge b-info" title="segundo aprovador: '+esc(o.aprovador2)+'">+2º</span>':'')
+            : (o.status==='aprovacao' ? '<span style="color:var(--yellow-700)">na fila</span>'
+               : o.status==='rascunho' ? '<span style="color:var(--n500)">não encaminhada</span>'
+               : '<span style="color:var(--n500)">—</span>');
   return `<tr>
     <td class="num">${o.numero}</td>
     <td title="${esc(filLbl(o.filial))}">${esc(filLbl(o.filial))}</td>
     <td class="num">${fmtD(o.emissao)}</td>
-    <td class="num">${o.previsao_entrega?fmtD(o.previsao_entrega):'—'}</td>
-    <td title="${esc(o.criador)}">${esc(shortName(o.criador))}</td>
-    <td title="${esc(o.aprovador||'')}" style="${o.aprovador?'':'color:var(--yellow-700)'}">${o.aprovador?esc(shortName(o.aprovador)):'pendente'}</td>
+    <td class="num">${aprovadaEm}</td>
+    <td class="num" title="${o.prazo?'prazo informado pelo comprador':'previsão igual à emissão: prazo não informado'}">${o.prazo?fmtD(o.prazo):'<span style="color:var(--n500)">—</span>'}</td>
+    <td title="${esc(o.criador||'')}">${esc(shortName(o.criador))}</td>
+    <td title="${esc(o.aprovador||'')}">${apr}</td>
     <td class="num">${BRL.format(o.valor)}</td>
-    <td class="num">${pend}</td>
-    <td><span class="badge ${cls}">${esc(lbl)}</span></td></tr>`;
+    <td class="num">${pend}${o.parcial?' <span class="badge b-info" title="tem nota vinculada, mas falta parte do valor">parcial</span>':''}</td>
+    <td><span class="badge ${cls}">${esc(lbl)}</span>${o.acima_alcada?' <span class="badge b-dang" title="valor acima da alçada do primeiro aprovador e sem segundo aprovador">alçada</span>':''}</td></tr>`;
 }
 function ocFornTable(fornecedores){
   document.getElementById('oc-forn').innerHTML = fornecedores.map((f,i)=>{
     const pend=f.valor_pendente>0?`<span style="color:var(--red)">${BRL.format(f.valor_pendente)}</span>`:'<span style="color:var(--n500)">—</span>';
     const atr=f.atrasadas>0?`<span class="badge b-dang">${f.atrasadas}</span>`:'<span style="color:var(--n500)">—</span>';
     const apr=f.em_aprovacao>0?`<span class="badge b-warn">${f.em_aprovacao}</span>`:'<span style="color:var(--n500)">—</span>';
+    const sus=f.suspensas>0?`<span class="badge b-info">${f.suspensas}</span>`:'<span style="color:var(--n500)">—</span>';
     const det = `
       <div class="tablewrap"><table>
-        <thead><tr><th class="num">OC</th><th>Filial</th><th class="num">Emissão</th><th class="num">Prev. entrega</th><th>Criador</th><th>Aprovador</th><th class="num">Valor</th><th class="num">Pendente</th><th>Status</th></tr></thead>
+        <thead><tr><th class="num">OC</th><th>Filial</th><th class="num">Emissão</th><th class="num">Aprovada</th><th class="num">Prazo</th><th>Criador</th><th>Aprovador</th><th class="num">Valor</th><th class="num">Pendente</th><th>Status</th></tr></thead>
         <tbody>${(f.ordens||[]).map(ocRow).join('')}</tbody>
       </table></div>
       ${f.ocultas>0?`<div class="mais-ocs">+ ${f.ocultas} ordens não exibidas (refine o período ou os filtros)</div>`:''}`;
@@ -10807,9 +10986,10 @@ function ocFornTable(fornecedores){
       <td class="num">${pend}</td>
       <td class="num">${atr}</td>
       <td class="num">${apr}</td>
+      <td class="num">${sus}</td>
     </tr>
-    <tr class="forn-det" id="forn-det-${i}"><td colspan="7">${det}</td></tr>`;
-  }).join('') || '<tr><td colspan="7" style="color:var(--n500)">sem ordens no período</td></tr>';
+    <tr class="forn-det" id="forn-det-${i}"><td colspan="8">${det}</td></tr>`;
+  }).join('') || '<tr><td colspan="8" style="color:var(--n500)">sem ordens no período</td></tr>';
 }
 function ocToggle(i){
   const det=document.getElementById('forn-det-'+i);
@@ -10817,6 +10997,28 @@ function ocToggle(i){
   const row=det.previousElementSibling;
   const open=det.classList.toggle('open');
   row.setAttribute('aria-expanded', String(open));
+}
+function ocExportarFila(){
+  const p=DATAOCPEND, itens=(p&&p.fila&&p.fila.itens)||[];
+  if(!itens.length){ showBanner('Não há linha para exportar.'); return; }
+  baixarCSV('oc-fila-aprovacao-'+_iso(new Date())+'.csv', [
+    {rotulo:'OC', valor:x=>x.numero}, {rotulo:'Filial', valor:x=>filLbl(x.filial)},
+    {rotulo:'Situação', valor:x=>x.situacao==='fila'?'na fila':'rascunho'},
+    {rotulo:'Emitida', valor:x=>fmtD(x.emissao)}, {rotulo:'Encaminhada em', valor:x=>x.encaminhada_em||''},
+    {rotulo:'Espera (h)', valor:x=>x.horas}, {rotulo:'Criador', valor:x=>x.criador||''},
+    {rotulo:'Aprovador direcionado', valor:x=>x.direcionado||''}, {rotulo:'Fornecedor', valor:x=>x.fornecedor},
+    {rotulo:'Valor', valor:x=>ocCsvNum(x.valor)}], itens);
+}
+function ocExportarRadar(){
+  const p=DATAOCPEND, itens=(p&&p.sem_nota&&p.sem_nota.lista)||[];
+  if(!itens.length){ showBanner('Não há linha para exportar.'); return; }
+  baixarCSV('oc-sem-nota-'+_iso(new Date())+'.csv', [
+    {rotulo:'OC', valor:x=>x.numero}, {rotulo:'Filial', valor:x=>filLbl(x.filial)},
+    {rotulo:'Emitida', valor:x=>fmtD(x.emissao)}, {rotulo:'Aprovada em', valor:x=>fmtD(x.aprovada_em)},
+    {rotulo:'Dias', valor:x=>x.dias}, {rotulo:'Prazo informado', valor:x=>x.prazo?fmtD(x.prazo):''},
+    {rotulo:'Prazo vencido', valor:x=>x.prazo_vencido?'sim':''}, {rotulo:'Cita NF', valor:x=>x.cita_nf?'sim':''},
+    {rotulo:'Fornecedor', valor:x=>x.fornecedor}, {rotulo:'Valor', valor:x=>ocCsvNum(x.valor)},
+    {rotulo:'Ação', valor:x=>x.acao}], itens);
 }
 
 
@@ -10920,9 +11122,9 @@ function renderHome(d){
     kpiLink('Manutenção no mês', BRL.format(d.manutencao_mes), d.os_abertas+' OSs abertas na oficina',
       '', '#man', trendChip(d.manutencao_mes, d.manutencao_mes_ant, Object.assign({invert:true},cmp))),
     kpiLink('OCs atrasadas (12m)', d.oc_atrasadas.toLocaleString('pt-BR'),
-      BRL.format(d.oc_atraso_valor)+' pendente · '+d.oc_aprovacao+' sem aprovação',
+      BRL.format(d.oc_atraso_valor)+' pendente · '+d.oc_aprovacao+' na fila do aprovador',
       d.oc_atrasadas>0?'neg':'pos', '#oc',
-      statChip(d.oc_atrasadas>0?'bad':'good', d.oc_atrasadas>0?'entrega vencida':'em dia',
+      statChip(d.oc_atrasadas>0?'bad':'good', d.oc_atrasadas>0?'sem nota há 30+ dias':'em dia',
         'Ordens de compra dos últimos 12 meses com entrega pendente e previsão já vencida.',
         d.oc_atrasadas>0?'sevCrit':'sevOk')),
   ].join('');
@@ -10934,8 +11136,8 @@ function renderHome(d){
     d.gap_mes==='atrasado' ? 'Os títulos já vencidos levam o saldo projetado a negativo. Ver Fluxo de Caixa.'
                            : 'Saldo projetado fica negativo em '+periodoLabel(d.gap_mes)+'.','#fluxo']);
   if(d.receber_vencido>0) A.push(['t-warn','sevWarn','Recebíveis vencidos',BRL.format(d.receber_vencido)+' a cobrar — ver Contas a Receber.','#receber']);
-  if(d.oc_atrasadas>0) A.push(['t-warn','sevWarn','Entregas de compras atrasadas',
-    d.oc_atrasadas+' OCs com '+BRL.format(d.oc_atraso_valor)+' pendente · '+d.oc_aprovacao+' sem aprovação — ver Ordens de Compra.','#oc']);
+  if(d.oc_atrasadas>0) A.push(['t-warn','sevWarn','Compras aprovadas sem nota',
+    d.oc_atrasadas+' OC(s) sem nota há mais de 30 dias ou com prazo vencido · '+BRL.format(d.oc_atraso_valor)+' pendente · '+d.oc_aprovacao+' na fila do aprovador — ver Ordens de Compra.','#oc']);
   if(d.os_abertas>0) A.push(['t-warn','sevWarn','Manutenções em aberto',d.os_abertas+' OSs abertas — ver Manutenção.','#man']);
 
   chartHomeDiario(d.diario||[]);
@@ -24238,45 +24440,48 @@ function renderHe(d){
 // ---------------- Painel de Custos (Suprimentos) ----------------
 function custosDefaults(){
   const hoje=new Date(), de=document.getElementById('fCustDe'), ate=document.getElementById('fCustAte');
-  if(ate && !ate.value) ate.value=hoje.toISOString().slice(0,10);
-  if(de && !de.value) de.value=hoje.getFullYear()+'-'+String(hoje.getMonth()+1).padStart(2,'0')+'-01';
+  // horário LOCAL: toISOString() em UTC−3 mandava a tela consultar até amanhã depois das 21h
+  if(ate && !ate.value) ate.value=_iso(hoje);
+  if(de && !de.value) de.value=_iso(new Date(hoje.getFullYear(), hoje.getMonth(), 1));
 }
 async function loadCustos(){
   custosDefaults();
   const seq=++custosSeq, btn=document.getElementById('btnRefresh'); if(btn) btn.disabled=true;
   document.getElementById('content').classList.add('loading'); skelKpis('kpis-custos',4);
   try{
-    const de=document.getElementById('fCustDe').value, ate=document.getElementById('fCustAte').value;
-    const q='dt_de='+de+'&dt_ate='+ate;
+    /* qsView é a ÚNICA montagem da query. Os selects de origem e filial
+       existiam, disparavam recarga e nunca chegavam à API (a string era
+       montada à mão só com as datas): trocar "Só OC sem NF" mostrava o mesmo
+       dado, com o router acreditando que tinha carregado filtrado. */
+    const q=qsView('custos');
     const r=await fetch('/api/suprimentos/custos?'+q,{cache:'no-store'});
-    const d=await r.json(); if(seq!==custosSeq) return;
-    if(!r.ok){ showBanner(d.mensagem||'Erro ao consultar os custos.', d.detalhe); return; }
-    hideBanner(); DATACUSTOS=d; LOADEDQS.custos=qsView('custos'); renderCustos(d);
+    const rr=await respostaJSON(r); if(seq!==custosSeq) return;
+    if(!rr.ok){ showBanner((rr.dados||{}).mensagem||'Erro ao consultar os custos.', (rr.dados||{}).detalhe); return; }
+    hideBanner(); DATACUSTOS=rr.dados; LOADEDQS.custos=q; renderCustos(rr.dados);
   }catch(e){ if(seq===custosSeq) showBanner('Não foi possível falar com a API.', e.message); }
   finally{ if(seq===custosSeq){ if(btn) btn.disabled=false; document.getElementById('content').classList.remove('loading'); } }
 }
 function renderCustos(d){
-  const k=d.kpis||{};
+  const k=d.kpis||{}, tot=k.total||1, semDado=!k.itens, T=d.totais||{};
+  const pct=v=>k.total>0?(Math.round(100*v/k.total)+'% do total'):'';
   document.getElementById('kpis-custos').innerHTML=[
     kpi('Custo total', BRL.format(k.total||0), (k.itens||0).toLocaleString('pt-BR')+' itens no período','',
-        'Soma dos abastecimentos do CTA Plus com os itens de ordem de compra no período, classificados pelo agrupador gerencial. NÃO é a DRE: aqui entra compra, e a DRE reconhece por competência — os dois números não têm de bater.'),
-    kpi('Combustível', BRL.format(k.combustivel||0),
-        k.total>0?(Math.round(100*k.combustivel/k.total)+'% do total'):'','',
-        'Itens do agrupador CV - COMBUSTÍVEL. Inclui o que é repassado a agregado e terceiro pelo cartão, que volta como desconto no acerto do transportador — não é custo líquido da Sulista.'),
-    kpi('Pendente de aprovação', BRL.format(k.pendente_aprovacao||0), 'ordens de compra aguardando', (k.pendente_aprovacao||0)>0?'warn':'pos',
-        'Ordens de compra com aprovação ainda pendente no ERP. Só vale para OC — abastecimento não passa por aprovação.'),
-    kpi('Sem nota fiscal', BRL.format(k.sem_nf||0),
-        k.total>0?('OCs ainda não recebidas · '+Math.round(100*k.sem_nf/k.total)+'% do custo do período'):'OCs ainda não recebidas',
-        (k.sem_nf||0)>0?'warn':'pos',
-        'Itens de ordem de compra cuja nota fiscal ainda não foi recebida no ERP. É compra já feita e ainda não documentada: o custo existe, o documento fiscal não chegou.'),
+        'Soma dos abastecimentos com os itens de ordem de compra no período, classificados pelo agrupador gerencial. NÃO é a DRE: aqui entra compra, e a DRE reconhece por competência — os dois números não têm de bater.'),
+    kpi('Combustível', BRL.format(k.combustivel||0), pct(k.combustivel||0),'',
+        'Itens do agrupador CV - COMBUSTÍVEL: notas simplificadas de abastecimento do ERP (interno e externo), só frota própria.'),
+    kpi('Pendente de aprovação', semDado?'n/d':BRL.format(k.pendente_aprovacao||0), semDado?'nenhum item no recorte':'ordens de compra sem aprovação', semDado?'':((k.pendente_aprovacao||0)>0?'warn':'pos'),
+        'Itens de ordem de compra cuja OC ainda não tem data de aprovação no ERP. Só vale para OC — abastecimento não passa por aprovação. A fila de aprovação, OC a OC, está em Suprimentos > Ordens de Compra.'),
+    kpi('Sem nota fiscal', semDado?'n/d':BRL.format(k.sem_nf||0),
+        semDado?'nenhum item no recorte':('OCs ainda não recebidas · '+Math.round(100*(k.sem_nf||0)/tot)+'% do custo do período'),
+        semDado?'':((k.sem_nf||0)>0?'warn':'pos'),
+        'Itens de ordem de compra emitida no período cuja nota fiscal ainda não foi vinculada no ERP. É compra já feita e ainda não documentada: o custo existe, o documento fiscal não chegou.'),
   ].join('');
-  const tot=k.total||1;
-  // donut de composição (top 6 agrupadores + outros)
-  const PAL=[CC.laranja,CC.azul,CC.verde,CC.roxo,CC.amarelo,CC.vermelho,CC.n400];
+  const fonte=document.getElementById('custosFonte');
+  if(fonte){ const ts=new Date(d.atualizado_em||'');
+    fonte.textContent=(d.fonte?d.fonte+' · ':'')+(isNaN(ts)?'':'atualizado '+ts.toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'})); }
   const agr=(d.por_agrupador||[]).slice().sort((a,b)=>b.valor-a.valor);
-  chartHBars('chartCustosAgr', agr.map(r=>({rotulo:r.rotulo, valor:r.valor})), {cor:CC.azul, fmt:brlAbbr});
-  // concentração: o donut repetia o gráfico ao lado; agora responde outra pergunta —
-  // quanto do custo está nos poucos primeiros agrupadores
+  chartHBars('chartCustosAgr', agr.slice(0,12).map(r=>({rotulo:r.rotulo, valor:r.valor})), {cor:CC.azul, fmt:brlAbbr});
+  // concentração: quanto do custo está nos poucos primeiros agrupadores
   {
     const acum=[]; let a=0;
     agr.forEach(r=>{ a+=r.valor; acum.push(a/tot); });
@@ -24287,36 +24492,41 @@ function renderCustos(d){
       +`<div class="mval">${(100*v).toLocaleString('pt-BR',{maximumFractionDigits:1})}%</div>`
       +`<div class="mtrack"><span style="width:${(100*v).toFixed(1)}%;background:var(--navy-500)"></span>`
       +`<span style="flex:1;background:var(--n200)"></span></div></div>`).join('')
-      + `<div class="modrow"><div class="mmeta">${agr.length} agrupadores no período · maior isolado: `
+      + `<div class="modrow"><div class="mmeta">${T.agrupadores||agr.length} agrupadores no período · maior isolado: `
       + `<b>${esc(agr[0]?agr[0].rotulo:'—')}</b> com ${agr[0]?(100*agr[0].valor/tot).toLocaleString('pt-BR',{maximumFractionDigits:1}):'0'}% do custo</div></div>`;
   }
-  const hintN=(id,rows,tot2,rotulo)=>{ const el=document.getElementById(id); if(!el) return;
-    const soma=(rows||[]).reduce((a,r)=>a+r.valor,0);
-    el.textContent=(rows||[]).length+' '+rotulo+' · '+(tot2?Math.round(100*soma/tot2):0)+'% do custo do período'; };
-  const bars=(rows)=>rows.map(r=>`<tr><td>${esc(r.rotulo)}</td><td class="num">${r.n}</td><td class="num" style="font-weight:600">${BRL.format(r.valor)}</td><td class="num">${(100*r.valor/tot).toFixed(1)}%</td></tr>`).join('')||'<tr><td colspan="4" style="color:var(--n500)">sem dados</td></tr>';
+  const hintN=(id,rows,total,rotulo)=>{ const el=document.getElementById(id); if(!el) return;
+    const soma=(rows||[]).reduce((a,r)=>a+r.valor,0), n=(rows||[]).length;
+    el.textContent=(total>n?n+' de '+total:n)+' '+rotulo+' · '+(k.total?Math.round(100*soma/k.total):0)+'% do custo do período'; };
+  const bars=(rows)=>rows.map(r=>`<tr><td>${esc(r.rotulo)}</td><td class="num">${r.n}</td><td class="num" style="font-weight:600">${BRL.format(r.valor)}</td><td class="num">${(100*r.valor/tot).toFixed(1)}%</td></tr>`).join('')||'<tr><td colspan="4" style="color:var(--n500)">sem dados no período</td></tr>';
   document.getElementById('custos-agr').innerHTML=`<table><thead><tr><th>Agrupador</th><th class="num">Itens</th><th class="num">Valor</th><th class="num">%</th></tr></thead><tbody>${bars(d.por_agrupador||[])}</tbody></table>`;
   document.getElementById('custos-forn').innerHTML=`<table><thead><tr><th>Fornecedor</th><th class="num">Itens</th><th class="num">Valor</th><th class="num">%</th></tr></thead><tbody>${bars(d.por_fornecedor||[])}</tbody></table>`;
   document.getElementById('custos-status').innerHTML=`<table><thead><tr><th>Status NF</th><th class="num">Itens</th><th class="num">Valor</th><th class="num">%</th></tr></thead><tbody>${bars(d.por_status||[])}</tbody></table>`;
   document.getElementById('custos-filial').innerHTML=`<table><thead><tr><th>Filial</th><th class="num">Itens</th><th class="num">Valor</th><th class="num">%</th></tr></thead><tbody>${bars(d.por_filial||[])}</tbody></table>`;
   {
+    // a lista de filiais acompanha o período: repopula sempre que não há
+    // filtro ativo (antes travava na primeira carga e não via filial nova)
     const sel=document.getElementById('fCustFilial'), atual=sel?sel.value:'';
-    if(sel && !sel.dataset.pronto){
-      // só popula quando não há filtro ativo, senão a lista encolhe a cada seleção
-      if(!atual){
-        sel.length=1;
-        (d.por_filial||[]).forEach(f=>{ const o=document.createElement('option');
-          o.value=f.rotulo; o.textContent=f.rotulo; sel.appendChild(o); });
-        if((d.por_filial||[]).length) sel.dataset.pronto='1';
-      }
+    if(sel && !atual){
+      sel.length=1;
+      (d.por_filial||[]).forEach(f=>{ const o=document.createElement('option');
+        o.value=f.rotulo; o.textContent=f.rotulo; sel.appendChild(o); });
     }
-    if(atual) sel.value=atual;
+    if(sel && atual) sel.value=atual;
   }
-  hintN('hintCustAgr', d.por_agrupador, tot, 'agrupadores');
-  hintN('hintCustForn', d.por_fornecedor, tot, 'fornecedores');
-  hintN('hintCustFil', d.por_filial, tot, 'filiais');
+  hintN('hintCustAgr', d.por_agrupador, T.agrupadores||0, 'agrupadores');
+  hintN('hintCustForn', d.por_fornecedor, T.fornecedores||0, 'fornecedores');
+  hintN('hintCustStatus', d.por_status, T.status||0, 'origens');
+  hintN('hintCustFil', d.por_filial, T.filiais||0, 'filiais');
   const ap=a=>a&&a.startsWith('PENDENTE')?'<span class="badge b-warn">pendente</span>':(a==='APROVADA'?'<span class="badge b-ok">aprovada</span>':'');
-  const ll=(d.itens_lista||[]).map(i=>`<tr><td class="num">${esc(fmtDT(String(i.data||'').replace('T',' ')))}</td><td>${i.agrupador?esc(i.agrupador):'<span style="color:var(--n500)">(sem agrupador)</span>'}</td><td>${esc(i.fornecedor)}</td><td>${esc(i.produto||i.conta||'')}</td><td class="num">${i.frota||i.placa||''}</td><td>${esc(i.status)}</td><td>${ap(i.aprovacao)}</td><td class="num" style="font-weight:600">${BRL.format(i.valor)}</td></tr>`).join('')||'<tr><td colspan="8" style="color:var(--n500)">sem itens no período</td></tr>';
-  document.getElementById('custos-lista').innerHTML=`<table><thead><tr><th>Data</th><th>Agrupador</th><th>Fornecedor</th><th>Produto/Conta</th><th class="num">Frota</th><th>Status</th><th>Aprovação</th><th class="num">Valor</th></tr></thead><tbody>${ll}</tbody></table>`;
+  const lista=d.itens_lista||[];
+  const hl=document.getElementById('hintCustLista');
+  if(hl) hl.textContent=(k.itens>lista.length?lista.length+' de '+k.itens.toLocaleString('pt-BR'):lista.length)+' itens · por valor';
+  const ll=lista.map(i=>`<tr><td class="num">${esc(fmtDT(String(i.data||'').replace('T',' ')))}</td><td>${i.agrupador?esc(i.agrupador):'<span style="color:var(--n500)">(sem agrupador)</span>'}</td><td>${esc(i.fornecedor)}</td><td>${esc(i.produto||i.conta||'')}</td><td>${veicIdHTML(i.placa)}</td><td>${esc(i.status)}</td><td>${ap(i.aprovacao)}</td><td class="num" style="font-weight:600">${BRL.format(i.valor)}</td></tr>`).join('')||'<tr><td colspan="8" style="color:var(--n500)">sem itens no período</td></tr>';
+  document.getElementById('custos-lista').innerHTML=`<table><thead><tr><th>Data</th><th>Agrupador</th><th>Fornecedor</th><th>Produto/Conta</th><th>Veículo</th><th>Status</th><th>Aprovação</th><th class="num">Valor</th></tr></thead><tbody>${ll}</tbody></table>`;
+  abaContador('custNDim', T.agrupadores||0);
+  abaContador('custNOri', T.filiais||0);
+  abaContador('custNItens', k.itens||0);
 }
 async function loadTorre(fundo){
   if(!fundo) skelKpis('kpis-torre',4);

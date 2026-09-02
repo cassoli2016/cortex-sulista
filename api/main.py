@@ -15,7 +15,7 @@ import tomllib
 from datetime import date, datetime
 from pathlib import Path
 
-from api import segredo_arquivo
+from api import segredo_arquivo, suprimentos_oc
 
 import psycopg
 from fastapi import FastAPI, Request, Response
@@ -455,12 +455,13 @@ def dre_por_cliente(comp_de: str | None = None, comp_ate: str | None = None,
         })
 
 
-_OC_STATUS_VALIDOS = {"aprovacao", "aguardando", "atrasada", "recebida"}
+_OC_STATUS_VALIDOS = frozenset(suprimentos_oc.STATUS_TODOS)
 
 
 @app.get("/api/suprimentos/oc-pendentes")
-def oc_pendentes(dias_min: int = 180) -> JSONResponse:
-    """OCs abertas sem nota, por tempo em aberto. Não segue o filtro de
+def oc_pendentes(dias_min: int = suprimentos_oc.DIAS_PARADA) -> JSONResponse:
+    """Em aberto, todo o histórico: a fila de aprovação de agora e as OCs
+    aprovadas sem nota (por tempo desde a aprovação). Não segue o filtro de
     período da tela — OC velha é justamente o alvo."""
     if not (0 <= dias_min <= 3000):
         return JSONResponse(status_code=422, content={
@@ -3486,6 +3487,13 @@ def suprimentos_custos(dt_de: str | None = None, dt_ate: str | None = None,
     hoje = date.today()
     dt_de = dt_de or f"{hoje.year}-{hoje.month:02d}-01"
     dt_ate = dt_ate or hoje.isoformat()
+    for nome, valor in (("dt_de", dt_de), ("dt_ate", dt_ate)):
+        if _bad_date(valor):
+            return JSONResponse(status_code=422, content={
+                "erro": "parametro_invalido",
+                "mensagem": f"Parâmetro {nome} inválido: use o formato AAAA-MM-DD."})
+    if dt_de > dt_ate:
+        dt_de, dt_ate = dt_ate, dt_de
     origem = (origem or "").strip() or None
     filial = (filial or "").strip() or None
     if origem and origem.upper() not in ("COM NF", "SEM NF",

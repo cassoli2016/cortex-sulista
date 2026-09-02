@@ -106,7 +106,7 @@ a ACL em vez de afirmar a proteção.
 | Operação | milkrun, agr, mvb, km, prog, torre, jorn, cex, sac, port, pedagio, poli | AVA + `jor_*`, `ped_*`, `tt_*`, posições Gobrax+ERP |
 | Comercial | com, clif, crm, drecli | AVA + `crm_*` (banco local) |
 | Controladoria | dre, bal, cont, qual, orc, fech, ctecp | AVA + `orc_*`, `prev_*`, contrapartida |
-| Suprimentos | oc, custos | AVA |
+| Suprimentos | oc, custos | AVA (`ordemcompra` × vínculo de NF × `aprovador`; regra única de estado em `api/suprimentos_oc.py`) |
 | Frota | comb, man, veic, mprev, comrast, veicf, mul, pneus | AVA + `smt_*` (Smartec) + `data/pneus/` |
 | Telemetria | prem, telcon, telcond, telhod | Gobrax (`api/gobrax/`) + `prem_*` |
 | Recursos Humanos | rh, hc, folha, folhaind, cnh, ferias, people, he | AVA (folha/Globus) |
@@ -324,6 +324,14 @@ barra empilhada, não donut.
   dois lados de CADA join novo (o total mudou de ordem de grandeza? é o join).
 - **Coluna zerada com KPI cheio = join quebrado** (conferir se a coluna do `ON`
   tem dado).
+- **Estado de fluxo vem do CAMPO de estado, nunca da ausência de data**
+  (`aprovado`, não `dtaprovador IS NULL`): a suspensão grava a data de
+  aprovação sem usuário, e cadastro antigo tem aprovado sem data. Uma
+  expressão só para tela, Visão Geral e Copiloto (`api/suprimentos_oc.py`).
+- **Data que o ERP preenche por default não é prazo** (previsão de entrega =
+  dia da emissão em 80% das OCs): só conta quando difere da emissão; "vencida"
+  crua era verdadeira no dia seguinte. Medir a distribuição do campo contra a
+  data de origem antes de derivar atraso dele.
 - **Duas séries de escalas muito diferentes não dividem eixo** — a menor vira
   linha em eixo secundário com rótulo direto; cenário especulativo entra por
   toggle desligado.

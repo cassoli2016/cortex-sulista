@@ -85,6 +85,7 @@ _FONTES_ROTULO = {
     "faturamento_detalhado": "Faturamento Detalhado",
     "portal_tupy": "Portal Tupy (Monkey)",
     "visao_geral": "Visão Geral",
+    "ordens_compra": "Ordens de Compra",
     "financeiro_caixa": "Fluxo de Caixa e Bancos",
     "analise_km_ano": "Análise de KM",
     "agregados_terceiros_ano": "Agregados e Terceiros",
@@ -456,6 +457,10 @@ def _fontes_do_snapshot() -> dict:
 
     return {
         "visao_geral": lambda: queries.get_visao_geral(),
+        # Ordens de compra: só escalares (fila, sem nota, tempo de aprovação,
+        # alçada) — leitura dos caches do AVA, nunca coleta externa
+        "ordens_compra": lambda: __import__(
+            "api.suprimentos_oc", fromlist=["snapshot_copiloto"]).snapshot_copiloto(),
         "faturamento_detalhado": _faturamento_detalhado,
         "financeiro_caixa": lambda: queries.get_overview(),
         "analise_km_ano": lambda: queries.get_analise_km(None, ini_ano, fim),

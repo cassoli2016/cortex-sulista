@@ -4,6 +4,25 @@ Gerado de `docs/versoes.yaml` por `scripts/gerar_changelog.py` — não editar �
 Formato [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/),
 versionamento [SemVer](https://semver.org/lang/pt-BR/).
 
+## [0.210.0] — 02/09/2026  ·  CX-02/09/2026-v0.210.0
+
+### Adicionado
+- Ordens de Compra ganhou a aba Aprovações: a fila do aprovador de AGORA (encaminhadas e sem decisão, com a espera em horas, o criador, o aprovador direcionado e o aviso de aprovador desligado no ERP), os rascunhos nunca encaminhados, o tempo de aprovação do período (mediana e p90 entre o encaminhamento e a decisão) e a conferência de alçada (OC aprovada acima do valor máximo do primeiro aprovador sem segundo aprovador). Exportação em CSV da fila e do radar.
+- Aba Aprovadores: quem aprovou no período, quantas, quanto, mediana, p90 e máximo de horas, segundo aprovador e alçada cadastrada — aprovador sem alçada mostra n/d, nunca zero.
+- O status de cada OC passou a ter sete estados, os que o ERP grava: rascunho, em aprovação, aguardando nota, atrasada, recebida, suspensa e reprovada — no filtro, nas badges e na Visão Geral, com a mesma regra.
+- O Copiloto passou a enxergar Ordens de Compra (fila, sem nota, tempo de aprovação, alçada — só números, sem fornecedor nem OC).
+- Painel de Custos dividido em quatro abas (Visão geral, Agrupador e fornecedor, Origem e filial, Maiores itens), com fonte e hora da consulta, "20 de 57 fornecedores" nos top-N e veículo identificado pela placa.
+
+### Alterado
+- Os blocos que não seguem os filtros da barra (fila de agora, sem nota, fornecedores com OC parada) dizem isso no próprio card, e a falha da consulta aparece nos cartões em vez de deixar a aba em branco. Os contadores das abas dizem o tamanho do assunto (fila + rascunhos, total de fornecedores, OCs sem nota).
+
+### Corrigido
+- "Pendentes de aprovação" contava 965 OCs de 2023/24 sem data de aprovação (cadastro, todas com nota), rascunhos que ninguém encaminhou e 649 suspensas com data de aprovação gravada pela própria suspensão. O estado agora vem do campo de aprovação do ERP: a fila real são 60 OCs, não centenas.
+- "Com entrega atrasada" acusava 186 OCs porque a previsão de entrega é o próprio dia da emissão em 80% das OCs — era verdadeira no dia seguinte. Atrasada passou a ser: sem nota há mais de 30 dias da aprovação, ou com prazo INFORMADO pelo comprador já vencido. São 6 no histórico inteiro, e o alerta da Visão Geral deixou de ficar aceso para sempre.
+- As OCs sem nota contam da APROVAÇÃO, não da emissão, e excluem as que ainda estão na fila; o valor recebido deixou de usar a coluna de valor do vínculo da nota, que trazia lixo de bilhões numa OC de cento e poucos mil reais.
+- Painel de Custos: os filtros de Origem (com NF, sem NF, abastecimento) e Filial existiam, recarregavam a tela e nunca chegavam à consulta — trocar "Só OC sem NF" mostrava os mesmos números. E a data "até" nascia em UTC: depois das 21h a tela consultava até amanhã.
+- A documentação (tela #doc) listava Ordens de Compra e Painel de Custos em Financeiro, Agregados e Make-vs-Buy em Suprimentos e DRE por Cliente em Controladoria — o inverso do menu. Glossário ganhou os termos do fluxo de OC (aprovação, alçada, suspensa, sem nota, prazo informado, atrasada).
+
 ## [0.209.4] — 01/09/2026  ·  CX-01/09/2026-v0.209.4
 
 ### Corrigido

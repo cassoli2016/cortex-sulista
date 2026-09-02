@@ -55,11 +55,13 @@ def test_mask_doc_curto_e_vazio():
 
 
 # ---------------- _oc_status ----------------
+# A regra completa mora em tests/suprimentos/test_oc_status.py; aqui só o
+# invólucro: queries._oc_status é a mesma função do módulo de suprimentos.
 def test_oc_status():
-    assert q._oc_status({"sem_aprovacao": True, "valor_pendente": 0, "previsao_vencida": False}) == "aprovacao"
-    assert q._oc_status({"sem_aprovacao": False, "valor_pendente": 100, "previsao_vencida": True}) == "atrasada"
-    assert q._oc_status({"sem_aprovacao": False, "valor_pendente": 100, "previsao_vencida": False}) == "aguardando"
-    assert q._oc_status({"sem_aprovacao": False, "valor_pendente": 0, "previsao_vencida": True}) == "recebida"
+    from api import suprimentos_oc
+    assert q._oc_status is suprimentos_oc.oc_status
+    assert q._oc_status({"aprovado": 2, "encaminhada": True}) == "aprovacao"
+    assert q._oc_status({"aprovado": 1, "tem_nf": True}) == "recebida"
 
 
 # ---------------- _ponto_equilibrio ----------------
