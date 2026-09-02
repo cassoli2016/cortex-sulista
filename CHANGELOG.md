@@ -4,6 +4,11 @@ Gerado de `docs/versoes.yaml` por `scripts/gerar_changelog.py` — não editar �
 Formato [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/),
 versionamento [SemVer](https://semver.org/lang/pt-BR/).
 
+## [0.215.1] — 02/09/2026  ·  CX-02/09/2026-v0.215.1
+
+### Alterado
+- A marca da tela de entrada ficou igual à do menu: o nome CÓRTEX passou a ficar DENTRO do anel, e não numa terceira linha abaixo do logo da Sulista. No celular o anel deixou de encolher — ele encolhia quando era só enfeite, e agora precisa do espaço interno para o nome caber.
+
 ## [0.215.0] — 02/09/2026  ·  CX-02/09/2026-v0.215.0
 
 ### Adicionado

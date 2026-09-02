@@ -1391,6 +1391,16 @@ body.tvfull.tvmode, body.tvfull.tvmode *{cursor:none !important}
 .lg-head img{height:40px}
 /* O anel da marca: canvas desenhado por /static/anel.js (sem CDN). Escondido dorme;
    com prefers-reduced-motion desenha um quadro só. */
+/* A MARCA DO LOGIN, igual à do menu: o nome CÓRTEX centrado no vazio do
+   anel. Antes ele ficava embaixo do logo da Sulista e as três coisas liam-se
+   soltas. O texto fica em HTML POR CIMA do canvas, nunca desenhado nele:
+   continua selecionável, legível por leitor de tela e nítido em qualquer
+   densidade — canvas rasteriza, texto não. */
+.lg-marca{position:relative;display:grid;place-items:center;line-height:0}
+.lg-marca span{position:absolute;inset:0;display:grid;place-items:center;line-height:1;
+  pointer-events:none;text-indent:.10em}   /* o text-indent compensa o rastreio
+                                              da ÚLTIMA letra, que sem ele
+                                              descentraliza a palavra */
 .lg-anel{width:150px;height:150px;display:block;margin:-6px 0 -2px}
 /* A MARCA: o anel girando com o nome CÓRTEX centrado no vazio dele. O nome
    ficava ACIMA e as duas coisas liam-se como dois elementos soltos; dentro,
@@ -1410,7 +1420,7 @@ body.tvfull.tvmode, body.tvfull.tvmode *{cursor:none !important}
 body.mini .menuanel{width:40px;height:40px}
 body.mini .brandwrap .mk{display:none}
 body.tvmode .menuanel,body.tvfull .menuanel{display:none}
-.lg-head span{color:#fff;font-weight:700;letter-spacing:.35em;font-size:13px}
+.lg-head span{color:#fff;font-weight:700;letter-spacing:.12em;font-size:15px}
 .lg-body{padding:24px 30px 28px}
 .lg-body h2{margin:0 0 4px;font-size:18px}
 .lg-sub{margin:0 0 14px;font-size:13px;color:var(--n600,#6B7280)}
@@ -1924,7 +1934,7 @@ button.avatar{border:0;cursor:pointer}
   box-shadow:var(--shadow);padding:4px 10px;font-size:12px;color:var(--n600);
   white-space:nowrap}
 #loadtempo[hidden]{display:none}
-@media(max-width:880px){#loadtempo{left:14px} .lg-anel{width:110px;height:110px} .menuanel{width:62px;height:62px}}
+@media(max-width:880px){#loadtempo{left:14px} .menuanel{width:62px;height:62px}}
 /* painel de TV recarrega sozinho a cada 60s e ninguém está esperando resposta */
 body.tvmode #loadbar,body.tvmode #loadtempo{display:none}
 @media (prefers-reduced-motion: reduce){
@@ -2259,7 +2269,7 @@ body.tvfull #btnReport,body.tvmode #btnReport{display:none}
   <span class="ic" data-ic="encolher"></span></button>
 <div id="loginOverlay">
   <div class="lg-card">
-    <div class="lg-head"><canvas id="lg-anel" class="lg-anel" aria-hidden="true"></canvas><img src="/static/sulista-logo-branco.svg" alt="Sulista"><span>CÓRTEX</span></div>
+    <div class="lg-head"><div class="lg-marca"><canvas id="lg-anel" class="lg-anel" aria-hidden="true"></canvas><span>CÓRTEX</span></div><img src="/static/sulista-logo-branco.svg" alt="Sulista"></div>
     <div class="lg-body" id="lg-box"><span class="skeleton">verificando sessão…</span></div>
   </div>
 </div>

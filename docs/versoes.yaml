@@ -1,3 +1,12 @@
+- versao: "0.215.1"
+  data: "2026-09-02"
+  alterado:
+    - >-
+      A marca da tela de entrada ficou igual à do menu: o nome CÓRTEX passou a
+      ficar DENTRO do anel, e não numa terceira linha abaixo do logo da Sulista.
+      No celular o anel deixou de encolher — ele encolhia quando era só enfeite,
+      e agora precisa do espaço interno para o nome caber.
+
 - versao: "0.215.0"
   data: "2026-09-02"
   adicionado:
@@ -19,6 +28,7 @@
       conferência é do banco vivo, com cinco minutos de cache para não repetir
       a varredura a cada repintura do cartão, e o detalhe ao centavo continua
       em scripts/conferir_agrupador.py.
+
 - versao: "0.214.0"
   data: "2026-09-02"
   corrigido:

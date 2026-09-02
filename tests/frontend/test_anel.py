@@ -30,6 +30,19 @@ def test_o_script_do_anel_esta_vendorizado_e_incluido():
     assert "cdn" not in ANEL.lower()
 
 
+def test_o_nome_cortex_vive_dentro_do_anel_no_login():
+    """Mesma marca do menu: o nome centrado no vazio do anel, e nao numa
+    terceira linha abaixo do logo da Sulista."""
+    i = HTML.index('<div class="lg-marca">')
+    bloco = HTML[i:HTML.index('</div>', HTML.index('</span>', i))]
+    assert 'id="lg-anel"' in bloco and '<span>CÓRTEX</span>' in bloco
+    assert '.lg-marca span{position:absolute' in HTML
+    # o anel do login NAO encolhe no celular: encolhia quando era so enfeite
+    # acima do logo; carregando o nome, ele precisa do vazio
+    i = HTML.index('@media(max-width:880px){#loadtempo')
+    assert '.lg-anel' not in HTML[i:i + 200]
+
+
 def test_o_anel_esta_no_login_e_no_menu_e_nao_na_topbar():
     assert HTML.count('<canvas id="lg-anel"') == 1
     assert HTML.count('<canvas id="menuanel"') == 1
