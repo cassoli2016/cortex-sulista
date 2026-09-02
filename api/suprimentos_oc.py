@@ -42,14 +42,14 @@ from . import db
 # aprovação" chegou a contar 965 OCs de 2023.
 # ----------------------------------------------------------------------------
 OC_APROVADO = "coalesce(o.aprovado, CASE WHEN o.dtaprovador IS NULL THEN 2 ELSE 1 END)"
-OC_CAMPOS_ESTADO = f"""
+OC_CAMPOS_ESTADO_MOLDE = """
          {OC_APROVADO} AS aprovado,
          (o.dtsuspensao IS NOT NULL) AS suspensa,
          (o.dtencaminhadoparaaprovador IS NOT NULL) AS encaminhada,
          (o.dtaprovador IS NULL) AS sem_data_aprovacao,
          (o.dtprevisaoentrega IS NOT NULL AND o.dtprevisaoentrega > o.dtemissao::date) AS prazo_informado,
          (o.dtprevisaoentrega IS NOT NULL AND o.dtprevisaoentrega > o.dtemissao::date
-          AND o.dtprevisaoentrega < current_date) AS prazo_vencido,
+          AND o.dtprevisaoentrega < current_date - {PRAZO_TOLERANCIA_DIAS}) AS prazo_vencido,
          (current_date - coalesce(o.dtaprovador, o.dtemissao)::date)::int AS dias_aberta,
          CASE WHEN o.usuarioaprovador IS NOT NULL AND o.dtencaminhadoparaaprovador IS NOT NULL
                    AND o.dtaprovador IS NOT NULL
@@ -57,6 +57,14 @@ OC_CAMPOS_ESTADO = f"""
               END AS horas_aprovacao"""
 
 DIAS_PARADA = 30            # sem nota há mais de N dias desde a aprovação = parada
+# Prazo INFORMADO vencido só conta depois de uma semana. Medido em 02/09/2026
+# (793 OCs com prazo informado e nota, 180 dias): 63% chegam até o prazo, 23%
+# de 1 a 3 dias depois, 9% de 4 a 7 e só 5% passam de uma semana. Contar no dia
+# seguinte acendeu 64 "atrasadas" na Visão Geral de uma manhã para outra.
+PRAZO_TOLERANCIA_DIAS = 7
+
+OC_CAMPOS_ESTADO = OC_CAMPOS_ESTADO_MOLDE.replace("{OC_APROVADO}", OC_APROVADO).replace(
+    "{PRAZO_TOLERANCIA_DIAS}", str(PRAZO_TOLERANCIA_DIAS))
 
 STATUS_TODOS = ("rascunho", "aprovacao", "aguardando", "atrasada",
                 "recebida", "suspensa", "reprovada")
@@ -253,7 +261,8 @@ def oc_status(r: dict) -> str:
     """Estado de uma OC a partir dos campos de `OC_CAMPOS_ESTADO` + `tem_nf`.
 
     reprovada  > suspensa > rascunho > aprovacao (fila) > recebida (tem nota)
-    > atrasada (prazo informado e vencido, ou parada há mais de DIAS_PARADA)
+    > atrasada (prazo informado vencido há mais de PRAZO_TOLERANCIA_DIAS dias,
+      ou parada há mais de DIAS_PARADA)
     > aguardando.
     """
     if r.get("aprovado") == 3:

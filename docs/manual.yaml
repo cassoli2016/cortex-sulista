@@ -396,7 +396,8 @@ glossario:
 - termo: OC atrasada (parada)
   definicao: >-
     OC aprovada sem nota há mais de 30 dias desde a aprovação, ou com prazo
-    informado já vencido. Trinta dias é dez vezes o tempo típico entre a
+    informado vencido há mais de 7 dias (23% das notas chegam de 1 a 3 dias
+    depois do prazo; só 5% passam de uma semana). Trinta dias é dez vezes o tempo típico entre a
     aprovação e a nota (mediana de 1 dia em material e 3 em serviço). A ação
     sugerida gradua: até 30 dias, cobrar; acima de 30 ou prazo vencido, validar
     com o fornecedor; acima de 90, candidata a suspensão.

@@ -1,3 +1,12 @@
+- versao: "0.211.1"
+  data: "2026-09-02"
+  corrigido:
+    - >-
+      Ordens de Compra: a Visão Geral acordou com 64 "OCs atrasadas" que ontem
+      eram 6. O prazo informado pelo comprador vencia no dia seguinte à data
+      prometida, e a nota chega de 1 a 3 dias depois do prazo em 23% dos casos
+      (medido em 793 OCs; só 5% passam de uma semana). Prazo vencido passou a
+      contar a partir de 7 dias — na tela, no radar, no alerta e no glossário.
 - versao: "0.211.0"
   data: "2026-09-02"
   adicionado:

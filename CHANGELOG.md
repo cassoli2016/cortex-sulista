@@ -4,6 +4,11 @@ Gerado de `docs/versoes.yaml` por `scripts/gerar_changelog.py` — não editar �
 Formato [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/),
 versionamento [SemVer](https://semver.org/lang/pt-BR/).
 
+## [0.211.1] — 02/09/2026  ·  CX-02/09/2026-v0.211.1
+
+### Corrigido
+- Ordens de Compra: a Visão Geral acordou com 64 "OCs atrasadas" que ontem eram 6. O prazo informado pelo comprador vencia no dia seguinte à data prometida, e a nota chega de 1 a 3 dias depois do prazo em 23% dos casos (medido em 793 OCs; só 5% passam de uma semana). Prazo vencido passou a contar a partir de 7 dias — na tela, no radar, no alerta e no glossário.
+
 ## [0.211.0] — 02/09/2026  ·  CX-02/09/2026-v0.211.0
 
 ### Adicionado

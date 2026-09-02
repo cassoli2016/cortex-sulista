@@ -6480,7 +6480,7 @@ body.tvfull #btnReport,body.tvmode #btnReport{display:none}
         </div>
         <div class="aba" data-abas="oc" data-aba="forn" id="aba-oc-forn" role="tabpanel" aria-labelledby="taboc-forn" hidden>
   <div class="card">
-          <div class="head"><h2>Fornecedores do período <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="Top 30 fornecedores por valor de OC no recorte filtrado (o hint diz de quantos e quanto do valor os 30 explicam). Pendente é o valor das OCs aguardando nota, descontado o que já foi recebido; Atrasadas conta as OCs aprovadas sem nota há mais de 30 dias ou com prazo informado vencido; Em aprov. as que estão na fila do aprovador ou em rascunho; Susp. as suspensas e reprovadas. CNPJ mascarado. Clique na linha para ver as ordens do fornecedor com o status de cada uma.">i</span></h2><span class="hint" id="hintOcLista"></span></div>
+          <div class="head"><h2>Fornecedores do período <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="Top 30 fornecedores por valor de OC no recorte filtrado (o hint diz de quantos e quanto do valor os 30 explicam). Pendente é o valor das OCs aguardando nota, descontado o que já foi recebido; Atrasadas conta as OCs aprovadas sem nota há mais de 30 dias ou com prazo informado vencido há mais de 7 dias; Em aprov. as que estão na fila do aprovador ou em rascunho; Susp. as suspensas e reprovadas. CNPJ mascarado. Clique na linha para ver as ordens do fornecedor com o status de cada uma.">i</span></h2><span class="hint" id="hintOcLista"></span></div>
           <div class="tablewrap tabroll curta"><table><thead><tr>
             <th style="width:34px"></th><th>Fornecedor</th><th class="num">OCs</th><th class="num">Valor</th><th class="num">Pendente</th><th class="num">Atrasadas</th><th class="num">Em aprov.</th><th class="num">Susp.</th>
           </tr></thead><tbody id="oc-forn"></tbody></table></div>
@@ -6507,7 +6507,7 @@ body.tvfull #btnReport,body.tvmode #btnReport{display:none}
         </div>
   <div class="card">
           <div class="head"><h2>Radar — da mais antiga para a mais nova
-            <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="Toda OC aprovada sem nota, na ordem em que se cobra. DIAS conta da aprovação. PRAZO é a previsão de entrega SÓ quando o comprador informou uma data posterior à emissão: no ERP a previsão padrão é o próprio dia da emissão, e essa não é promessa de ninguém — aparece como traço. AÇÃO gradua a cobrança: até 30 dias, cobrar; acima de 30 (ou prazo informado vencido), validar com o fornecedor; acima de 90, candidata a suspensão. 'cita NF' marca a OC cuja observação já traz o número da nota: a mercadoria veio e falta amarrar a nota à ordem no ERP — problema de processo, não de entrega.">i</span></h2>
+            <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="Toda OC aprovada sem nota, na ordem em que se cobra. DIAS conta da aprovação. PRAZO é a previsão de entrega SÓ quando o comprador informou uma data posterior à emissão: no ERP a previsão padrão é o próprio dia da emissão, e essa não é promessa de ninguém — aparece como traço. AÇÃO gradua a cobrança: até 30 dias, cobrar; acima de 30 (ou prazo informado vencido há mais de 7 dias), validar com o fornecedor; acima de 90, candidata a suspensão. 'cita NF' marca a OC cuja observação já traz o número da nota: a mercadoria veio e falta amarrar a nota à ordem no ERP — problema de processo, não de entrega.">i</span></h2>
             <span class="hint" id="hintOcRadar"></span>
             <button class="ghost" id="btnOcRadarCsv" onclick="ocExportarRadar()" style="margin-left:auto" title="Baixa o radar como está na tela (OC, filial, aprovação, dias, prazo, fornecedor, valor e ação).">Exportar CSV</button></div>
           <div class="tablewrap tabroll curta"><table><thead><tr>
@@ -8588,7 +8588,7 @@ const KPI_HELP = {
   'Receita CT-e no mês':'Valor de frete das viagens carregadas emitidas no mês corrente.',
   'Atingimento da meta':'Realizado acumulado no mês (soma oficial: CT-e + NFS-e + KMM, por emissão) ÷ meta acumulada até hoje. Número diferente de "Faturamento do mês" (faturas emitidas, contas a receber) e de "Receita CT-e no mês" (frete das viagens carregadas) — são 3 recortes distintos de receita, não a mesma coisa com valores conflitantes.',
   'Frete contratado no mês':'Compra de frete de agregados/terceiros no mês corrente.',
-  'OCs atrasadas (12m)':'OCs dos últimos 12 meses aprovadas e sem nota fiscal vinculada há mais de 30 dias, ou com prazo informado pelo comprador já vencido (a previsão igual à emissão não conta como prazo).',
+  'OCs atrasadas (12m)':'OCs dos últimos 12 meses aprovadas e sem nota fiscal vinculada há mais de 30 dias, ou com prazo informado pelo comprador vencido há mais de 7 dias (a previsão igual à emissão não conta como prazo).',
   'Combustível próprio no mês':'Diesel/combustível da frota própria no mês corrente (CTA Plus).',
   'Manutenção no mês':'Valor das OSs emitidas no mês corrente.',
   'Receita líquida':'Receita bruta menos deduções (impostos sobre frete).',
@@ -10795,7 +10795,7 @@ function ocAlertas(){
   const fk=(p&&p.fila)?p.fila.kpis:null, sk=(p&&p.sem_nota)?p.sem_nota.kpis:null;
   if(k){
     if(k.atrasadas>0) A.push(['t-dang','Atrasadas no período',
-      ocN(k.atrasadas)+' '+ocPl(k.atrasadas,'OC aprovada','OCs aprovadas')+' sem nota há mais de '+(d.dias_parada||30)+' dias ou com prazo informado vencido — '+BRL.format(k.atrasadas_valor)+' pendente. Validar com o fornecedor: ou a entrega vem, ou a nota já veio e falta o vínculo, ou a OC deve ser suspensa.']);
+      ocN(k.atrasadas)+' '+ocPl(k.atrasadas,'OC aprovada','OCs aprovadas')+' sem nota há mais de '+(d.dias_parada||30)+' dias ou com prazo informado vencido há mais de 7 dias — '+BRL.format(k.atrasadas_valor)+' pendente. Validar com o fornecedor: ou a entrega vem, ou a nota já veio e falta o vínculo, ou a OC deve ser suspensa.']);
     if(k.acima_alcada>0) A.push(['t-dang','Aprovada acima da alçada sem 2º aprovador',
       ocN(k.acima_alcada)+' '+ocPl(k.acima_alcada,'OC','OCs')+' ('+BRL.format(k.acima_alcada_valor)+') acima do valor máximo do primeiro aprovador e sem segundo aprovador — conferir no ERP.']);
     if(k.rascunhos>0) A.push(['t-warn','Rascunhos não encaminhados',
@@ -10825,7 +10825,7 @@ function renderOcPendentes(d){
     kpi('Aprovadas sem nota', ocN(k.ocs)+' OCs', BRL.format(k.valor||0)+(k.prazo_informado?' · '+ocN(k.prazo_informado)+' com prazo informado':''), '',
         'Ordens de compra aprovadas e sem NENHUMA nota fiscal vinculada, em todo o histórico, excluindo as suspensas e as que ainda estão na fila de aprovação. A maioria é fila normal (aprovadas nos últimos dias); o que importa é o cartão ao lado.'),
     kpi('Paradas há mais de '+(d.dias_min||30)+' dias', ocN(k.paradas)+' OCs',
-        BRL.format(k.paradas_valor||0)+(k.prazo_vencido?' · '+ocN(k.prazo_vencido)+' com prazo informado vencido':''), (k.paradas||0)>0?'neg':'pos',
+        BRL.format(k.paradas_valor||0)+(k.prazo_vencido?' · '+ocN(k.prazo_vencido)+' com prazo informado vencido há mais de 7 dias':''), (k.paradas||0)>0?'neg':'pos',
         'O alvo do monitoramento: aprovada há mais de um mês e nenhuma nota vinculada — dez vezes o tempo típico entre aprovação e nota. Ou a entrega não aconteceu, ou a nota chegou e não foi amarrada à OC, ou a OC deveria ter sido suspensa.'),
     kpi('Citam a nota na observação', ocN(k.cita_nf)+' de '+ocN(k.ocs), BRL.format(k.cita_nf_valor||0)+' · provável falta de vínculo', (k.cita_nf||0)>0?'warn':'',
         'Das aprovadas sem nota, quantas têm o número da nota escrito na observação da própria OC. Quando isso acontece, a mercadoria veio e foi faturada — o que falta é amarrar a nota à ordem no ERP. É problema de processo, não de entrega.'),
@@ -10856,7 +10856,7 @@ function renderOcPendentes(d){
       <td title="${esc(filLbl(x.filial))}">${esc(filLbl(x.filial))}</td>
       <td class="num">${fmtD(x.aprovada_em)}</td>
       <td class="num" style="font-weight:700;color:${cor}">${x.dias}</td>
-      <td class="num" title="${x.prazo?(x.prazo_vencido?'prazo informado pelo comprador, já vencido':'prazo informado pelo comprador'):'previsão igual à emissão: prazo não informado'}">${x.prazo?fmtD(x.prazo)+(x.prazo_vencido?' <span class="badge b-dang">vencido</span>':''):'<span style="color:var(--n500)">—</span>'}</td>
+      <td class="num" title="${x.prazo?(x.prazo_vencido?'prazo informado pelo comprador, vencido há mais de 7 dias':'prazo informado pelo comprador'):'previsão igual à emissão: prazo não informado'}">${x.prazo?fmtD(x.prazo)+(x.prazo_vencido?' <span class="badge b-dang">vencido</span>':''):'<span style="color:var(--n500)">—</span>'}</td>
       <td title="${esc(x.observacao||x.fornecedor)}">${esc(x.fornecedor.length>24?x.fornecedor.slice(0,24)+'…':x.fornecedor)}${x.cita_nf?' <span class="badge b-info" title="a observação da OC cita o número da nota — provável falta de vínculo, não falta de entrega">cita NF</span>':''}</td>
       <td class="num" style="font-weight:600">${BRL.format(x.valor)}</td>
       <td><span class="badge ${a[0]}">${a[1]}</span></td></tr>`;
@@ -10911,7 +10911,7 @@ function renderOc(d){
     kpi('Aguardando nota', ocN(k.aguardando),
         semDado ? '—' : BRL.format(k.aguardando_valor)+' pendente · '+ocN(k.atrasadas)+' atrasada'+(k.atrasadas===1?'':'s')+(k.aguardando?' ('+pctAtr+'%)':''),
         semDado ? '' : (k.atrasadas>0?'neg':''),
-        'OCs aprovadas cuja nota fiscal ainda não foi vinculada no ERP. Pendente = valor da OC menos o já recebido. Atrasada = sem nota há mais de '+(d.dias_parada||30)+' dias desde a aprovação, ou com prazo INFORMADO pelo comprador já vencido — a previsão igual à emissão (o padrão do ERP) não é prazo de ninguém e não conta.'),
+        'OCs aprovadas cuja nota fiscal ainda não foi vinculada no ERP. Pendente = valor da OC menos o já recebido. Atrasada = sem nota há mais de '+(d.dias_parada||30)+' dias desde a aprovação, ou com prazo INFORMADO pelo comprador vencido há mais de 7 dias — a previsão igual à emissão (o padrão do ERP) não é prazo de ninguém e não conta, e uma semana é a tolerância medida: 23% das notas chegam de 1 a 3 dias depois do prazo.'),
     kpi('Suspensas e reprovadas', ocN(k.suspensas+k.reprovadas),
         semDado ? '—' : BRL.format(k.suspensas_valor+k.reprovadas_valor)+' · '+ocN(k.reprovadas)+' reprovada'+(k.reprovadas===1?'':'s'), '',
         'OCs do recorte com data de suspensão no ERP (paradas de propósito) e as reprovadas pelo aprovador (aprovado = 3, que o ERP também suspende). Ficam fora dos três cartões anteriores. Para vê-las, filtre Status = Suspensa ou Reprovada e abra o fornecedor.'),
@@ -11167,7 +11167,7 @@ function renderHome(d){
                            : 'Saldo projetado fica negativo em '+periodoLabel(d.gap_mes)+'.','#fluxo']);
   if(d.receber_vencido>0) A.push(['t-warn','sevWarn','Recebíveis vencidos',BRL.format(d.receber_vencido)+' a cobrar — ver Contas a Receber.','#receber']);
   if(d.oc_atrasadas>0) A.push(['t-warn','sevWarn','Compras aprovadas sem nota',
-    d.oc_atrasadas+' OC(s) sem nota há mais de 30 dias ou com prazo vencido · '+BRL.format(d.oc_atraso_valor)+' pendente · '+d.oc_aprovacao+' na fila do aprovador — ver Ordens de Compra.','#oc']);
+    d.oc_atrasadas+' OC(s) sem nota há mais de 30 dias ou com prazo vencido há mais de 7 dias · '+BRL.format(d.oc_atraso_valor)+' pendente · '+d.oc_aprovacao+' na fila do aprovador — ver Ordens de Compra.','#oc']);
   if(d.os_abertas>0) A.push(['t-warn','sevWarn','Manutenções em aberto',d.os_abertas+' OSs abertas — ver Manutenção.','#man']);
 
   chartHomeDiario(d.diario||[]);

@@ -259,7 +259,7 @@ def build_alertas() -> list[dict]:
         if vg.get("oc_atrasadas"):
             add("atencao", "Ordens de compra atrasadas",
                 f"{vg['oc_atrasadas']} OC(s) aprovada(s) sem nota há mais de 30 dias ou "
-                f"com prazo vencido ({_fmt_brl(vg.get('oc_atraso_valor') or 0)} pendente). "
+                f"com prazo vencido há mais de 7 dias ({_fmt_brl(vg.get('oc_atraso_valor') or 0)} pendente). "
                 "Detalhe: Suprimentos > Ordens de Compra, aba Sem nota.")
         if vg.get("oc_aprovacao"):
             add("info", "OCs na fila do aprovador",
