@@ -36,6 +36,8 @@ meses (o conferidor mede e nomeia).
 """
 from __future__ import annotations
 
+from datetime import date
+
 # Uma linha por (grupo, reduzido), com `grupo` já em inteiro.
 #
 # O CASE é o para-choque do tipo: `grupo::text` funciona tanto com a coluna
@@ -129,3 +131,72 @@ SELECT coalesce(a.mes, e.mes) AS mes,
 FROM por_agrupador a FULL OUTER JOIN por_estrutural e ON e.mes = a.mes
 ORDER BY 1
 """ % left_join("ag", "l")
+
+
+# ============================================================================
+# Diagnóstico — o que a Saúde do Servidor mostra e o conferidor detalha.
+# ----------------------------------------------------------------------------
+# Custa ~3 s contra o AVA (medido em 02/09/2026: cadastro 0,06 s, contas de
+# balanço com valor 0,7 s, os dois caminhos 2,4 s). Quem chama põe TTL — na
+# Saúde é `_AGRUPADOR_TTL`, que repinta de 5 em 5 s.
+# ============================================================================
+def janela_12m(hoje: date | None = None, meses: int = 12) -> tuple[str, str]:
+    """[de, ate) dos ultimos `meses` FECHADOS — o mes corrente fica fora.
+
+    Uma definicao para o conferidor e para a Saude: regua que muda de janela
+    entre as duas telas nao e regua. O mes em curso e parcial por construcao e
+    entraria como queda em toda conferencia rodada dia 2.
+    """
+    hoje = hoje or date.today()
+    fim = date(hoje.year, hoje.month, 1)
+    ano, mes = fim.year, fim.month - meses
+    while mes <= 0:
+        mes += 12
+        ano -= 1
+    return date(ano, mes, 1).isoformat(), fim.isoformat()
+
+
+def diagnostico(meses: int = 12) -> dict:
+    """Estado do mapa contabil contra o banco VIVO. Nunca levanta excecao.
+
+    `legivel=False` e o caso de 02/09/2026: a tabela recriada com `grupo` em
+    varchar tornou o mapa impossivel de ler, e com ele foram DRE Gerencial,
+    Contabilidade, Orcamento, Previsao e Custos. E `erro`, nao `alerta`: nao e
+    numero torto, e cinco telas sem dado.
+    """
+    from . import db
+
+    de, ate = janela_12m(meses=meses)
+    d: dict = {"legivel": False, "erro": None, "de": de, "ate": ate,
+               "meses": meses, "linhas": 0, "contas": 0, "duplicadas": [],
+               "grupo_invalido": [], "orfaos": [], "balanco": [],
+               "balanco_valor": 0.0, "divergencia": 0.0, "meses_divergentes": 0}
+    try:
+        with db.get_conn() as conn, conn.cursor() as cur:
+            cur.execute("SELECT count(*)::int AS linhas, "
+                        "count(DISTINCT (grupo, reduzido))::int AS contas "
+                        "FROM sulista.agrupadorgerencial")
+            r = cur.fetchone()
+            d["linhas"], d["contas"] = r["linhas"], r["contas"]
+
+            cur.execute(GRUPO_INVALIDO_SQL)
+            d["grupo_invalido"] = [dict(x) for x in cur.fetchall()]
+            cur.execute(DUPLICATAS_SQL)
+            d["duplicadas"] = [dict(x) for x in cur.fetchall()]
+            cur.execute(ORFAO_SQL)
+            d["orfaos"] = [dict(x) for x in cur.fetchall()]
+
+            cur.execute(BALANCO_CLASSIFICADO_SQL, {"de": de, "ate": ate})
+            d["balanco"] = [dict(x) for x in cur.fetchall()]
+            d["balanco_valor"] = sum(x["valor"] for x in d["balanco"])
+
+            cur.execute(DOIS_CAMINHOS_SQL, {"de": de, "ate": ate})
+            difs = [x["diferenca"] for x in cur.fetchall()]
+            d["divergencia"] = sum(difs)
+            d["meses_divergentes"] = sum(1 for x in difs if abs(x) > 0.01)
+            d["legivel"] = True
+    except Exception as exc:  # noqa: BLE001
+        # O TIPO da excecao, nunca o texto cru: a conninfo do AVA passa por
+        # aqui em algumas falhas de conexao (mesma regra das integracoes).
+        d["erro"] = type(exc).__name__
+    return d

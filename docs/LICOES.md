@@ -2686,6 +2686,29 @@ duplicata — e é essa reconciliação que virou o conferidor.
 - `tests/test_agrupador_gerencial.py` — o guard que ninguém volta a juntar a
   tabela crua, no texto-fonte **e** no SQL montado (f-string e `.replace()`
   escondem o join do grep). Sabotado antes de entrar: os dois acusam.
+- **A Saúde do Servidor** ganhou o cartão "Mapa contábil (agrupador gerencial)"
+  (v0.214.0). Foi a pergunta que ficou faltando: o conferidor é um script que
+  alguém precisa lembrar de rodar, e o defeito de hoje é justamente do tipo que
+  ninguém procura — ele se anuncia como tela que não abre, e a suspeita vai
+  para a API, para o túnel, para qualquer coisa menos para uma tabela de
+  cadastro. O cartão fica **vermelho** quando o mapa não pode ser lido (é o
+  caso de hoje: não é número torto, são cinco telas sem dado) e **amarelo** em
+  qualquer achado de cadastro ou divergência entre os dois caminhos.
+
+  Três decisões dele valem registro. O diagnóstico custa ~3 s de AVA (cinco
+  consultas, uma varrendo 12 meses do razão) e a Saúde repinta de 5 em 5 s —
+  então TTL de 300 s, o mesmo da ACL dos segredos e pela mesma razão. A janela
+  de 12 meses FECHADOS tem uma definição só (`janela_12m()`), usada pelo script
+  e pelo cartão: régua que muda de janela entre duas telas não é régua. E a
+  contagem de conta de balanço diz **as duas populações** — quantas estão
+  classificadas e quantas têm movimento —, porque a sem movimento está
+  igualmente mal classificada e dispara sozinha no dia em que o ERP lançar
+  nela; mostrar só a que já custa dinheiro esconderia o gatilho armado.
+
+  A formatação é função PURA sobre o diagnóstico (padrão de
+  `tests/test_saude_integracoes.py`), então os oito casos são testáveis sem
+  banco. Sabotado antes de entrar — zerar os achados do cartão derruba seis
+  dos testes.
 
 Ficou pendente na Contabilidade, e o conferidor cobra toda vez: apagar a linha
 duplicada de `1|425406`; decidir as 6 contas de balanço; classificar IRPJ,

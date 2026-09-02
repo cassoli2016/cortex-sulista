@@ -4,6 +4,12 @@ Gerado de `docs/versoes.yaml` por `scripts/gerar_changelog.py` — não editar �
 Formato [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/),
 versionamento [SemVer](https://semver.org/lang/pt-BR/).
 
+## [0.215.0] — 02/09/2026  ·  CX-02/09/2026-v0.215.0
+
+### Adicionado
+- A Saúde do Servidor passou a vigiar o MAPA CONTÁBIL do ERP — a tabela que diz em que linha da DRE cada conta entra. Ela é editada à mão pela Contabilidade, não tem chave nem contrato de tipo, e cinco telas dependem dela: quando quebrou, no dia 2, a DRE Gerencial, a Contabilidade, o Orçamento, a Previsão e os Custos caíram juntas e nada acusou. Agora há uma linha que fica vermelha quando o mapa não pode ser lido e amarela quando o cadastro tem conta com duas classificações, empresa não numérica, classificação apontando para conta inexistente, ou conta de balanço classificada como custo.
+- A mesma linha soma o resultado por dois caminhos independentes — pela classificação gerencial e pela estrutura do plano de contas — e mostra a diferença quando eles não fecham. Hoje ela acusa R$ 1,47 milhão em doze meses, que são quatro contas de balanço entrando na DRE como custo. A conferência é do banco vivo, com cinco minutos de cache para não repetir a varredura a cada repintura do cartão, e o detalhe ao centavo continua em scripts/conferir_agrupador.py.
+
 ## [0.214.0] — 02/09/2026  ·  CX-02/09/2026-v0.214.0
 
 ### Adicionado

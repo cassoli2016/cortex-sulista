@@ -87,3 +87,100 @@ def test_conferidor_usa_a_mesma_alocacao_da_dre():
     # o agrupador que o ERP criou sem prefixo continua sem linha — e por isso
     # que o conferidor o acusa em vez de o esconder
     assert mod._linha_da_dre("CUSTOS OPERACIONAIS") is None
+
+
+# ============================================================================
+# O cartao da Saude do Servidor. Funcao PURA sobre o diagnostico — nada de
+# banco aqui, mesmo padrao de tests/test_saude_integracoes.py.
+# ============================================================================
+
+def diag(**kw) -> dict:
+    """Mapa SAO: e a partir dele que cada teste estraga uma coisa so."""
+    d = {"legivel": True, "erro": None, "de": "2025-09-01", "ate": "2026-09-01",
+         "meses": 12, "linhas": 584, "contas": 584, "duplicadas": [],
+         "grupo_invalido": [], "orfaos": [], "balanco": [],
+         "balanco_valor": 0.0, "divergencia": 0.0, "meses_divergentes": 0}
+    d.update(kw)
+    return d
+
+
+def cartao(**kw) -> dict:
+    from api import servidor as sv
+    return sv._servico_agrupador(diag(**kw))
+
+
+def test_mapa_sao_e_verde_e_diz_que_os_dois_caminhos_fecham():
+    c = cartao()
+    assert c["status"] == "ok"
+    assert "584 classificações em 584 contas" in c["detalhe"]
+    assert "fecham" in c["detalhe"]
+
+
+def test_mapa_ilegivel_e_VERMELHO_e_nomeia_as_telas_que_caem():
+    """O caso de 02/09/2026: `grupo` em varchar tornou o mapa impossivel de
+    ler. Nao e numero torto, e cinco telas sem dado."""
+    c = cartao(legivel=False, erro="UndefinedFunction")
+    assert c["status"] == "erro"
+    assert "UndefinedFunction" in c["detalhe"]
+    for tela in ("DRE Gerencial", "Contabilidade", "Orçamento", "Previsão", "Custos"):
+        assert tela in c["detalhe"]
+
+
+def test_conta_com_duas_classificacoes_acusa_a_CHAVE():
+    """Sem a chave na tela, o operador nao tem por onde comecar."""
+    c = cartao(duplicadas=[{"grupo": "1", "reduzido": 425406, "linhas": 2,
+                            "descricoes": "A || B"}])
+    assert c["status"] == "alerta"
+    assert "1|425406" in c["detalhe"]
+    assert "apagar a antiga no ERP" in c["detalhe"]
+
+
+def test_conta_de_balanco_conta_as_DUAS_populacoes():
+    """A sem movimento esta igualmente mal classificada — dispara sozinha no
+    dia em que o ERP lancar nela, e por isso aparece na contagem."""
+    c = cartao(balanco=[{"valor": 1_071_887.58}, {"valor": 399_245.06},
+                        {"valor": 0.0}],
+               balanco_valor=1_471_132.64)
+    assert c["status"] == "alerta"
+    assert "3 conta(s) de BALANÇO" in c["detalhe"]
+    assert "2 com movimento" in c["detalhe"]
+    assert "R$ 1,47 mi" in c["detalhe"]
+
+
+def test_empresa_nao_numerica_e_achado_e_nao_silencio():
+    """A conta perde o agrupador em vez de derrubar a consulta — o preco de
+    nao cair e justamente este: some sem avisar. O cartao avisa."""
+    c = cartao(grupo_invalido=[{"grupo": "EMP1", "linhas": 3}])
+    assert c["status"] == "alerta"
+    assert "3 classificação(ões) com empresa não numérica" in c["detalhe"]
+
+
+def test_classificacao_sem_conta_no_plano():
+    c = cartao(orfaos=[{"grupo": "1", "reduzido": 999999, "agrupador": "X"}])
+    assert c["status"] == "alerta"
+    assert "conta que não existe no plano" in c["detalhe"]
+
+
+def test_os_dois_caminhos_divergindo_e_achado_por_si_so():
+    """A reconciliacao pega o que as conferencias de cadastro nao preveem."""
+    c = cartao(divergencia=-250_000.0, meses_divergentes=3)
+    assert c["status"] == "alerta"
+    assert "divergem" in c["detalhe"] and "3 de 12 meses" in c["detalhe"]
+
+
+def test_todo_achado_manda_para_o_conferidor():
+    c = cartao(duplicadas=[{"grupo": "1", "reduzido": 1, "linhas": 2, "descricoes": "A || B"}])
+    assert "scripts/conferir_agrupador.py" in c["detalhe"]
+
+
+@pytest.mark.parametrize("valor,esperado", [
+    (1_471_132.64, "R$ 1,47 mi"),
+    (-1_471_132.64, "-R$ 1,47 mi"),
+    (12_345_678.0, "R$ 12,35 mi"),
+    (85_034.70, "R$ 85,03 mil"),
+    (-6_754.66, "-R$ 6,75 mil"),
+    (12.5, "R$ 12,50"),
+])
+def test_valor_curto_sai_em_pt_br(valor, esperado):
+    from api import servidor as sv
+    assert sv._brl_mi(valor) == esperado

@@ -79,7 +79,8 @@ existem no banco vivo.
   conta ganhou DUAS classificações e o `LEFT JOIN` dobrou o lançamento. Toda
   leitura passa por `api/agrupador_gerencial.left_join()` (cast na entrada +
   agregação por `(grupo, reduzido)`); `scripts/conferir_agrupador.py` mede o
-  cadastro e os DOIS caminhos do resultado (mapa × estrutural do plano), e
+  cadastro e os DOIS caminhos do resultado (mapa × estrutural do plano), a
+  **Saúde do Servidor** traz a mesma medição num cartão (TTL 300 s), e
   `tests/test_agrupador_gerencial.py` proíbe o join cru. **Dublê tem o tipo que
   nós escrevemos, não o que o ERP grava** — schema de terceiro só se confere no
   banco vivo.

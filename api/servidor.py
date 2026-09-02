@@ -376,6 +376,103 @@ def _servico_pglocal(d: dict) -> dict:
             "detalhe": f"conectado · {d['onde']} · {d['ms']} ms · {versao}"}
 
 
+def _brl_mi(v: float) -> str:
+    """R$ curto, para caber num cartao: milhoes acima de 1 mi, milhares acima
+    de mil. Cartao de monitoramento nao e demonstrativo — o centavo exato sai
+    no conferidor."""
+    a = abs(v)
+    sinal = "-" if v < 0 else ""
+    if a >= 1_000_000:
+        n, u = a / 1_000_000, " mi"
+    elif a >= 1_000:
+        n, u = a / 1_000, " mil"
+    else:
+        n, u = a, ""
+    # pt-BR: milhar com ponto, decimal com virgula
+    return (f"{sinal}R$ " + f"{n:,.2f}".replace(",", "@").replace(".", ",")
+            .replace("@", ".") + u)
+
+
+# 300 s, o mesmo TTL da ACL dos segredos e pela mesma razao: o diagnostico
+# custa ~3 s de AVA (cinco consultas, uma delas varre o razao de 12 meses) e a
+# Saude repinta de 5 em 5 s. O mapa contabil e editado a mao pela Contabilidade,
+# algumas vezes por mes — cinco minutos de atraso num cartao de monitoramento
+# nao muda decisao nenhuma, e refazer a varredura a cada pintura muda.
+_AGRUPADOR_TTL = 300.0
+_agrupador_cache: tuple[float, dict] | None = None
+
+
+def _agrupador(forcar: bool = False) -> dict:
+    global _agrupador_cache
+    agora = time.monotonic()
+    if (not forcar and _agrupador_cache
+            and (agora - _agrupador_cache[0]) < _AGRUPADOR_TTL):
+        return _agrupador_cache[1]
+    from . import agrupador_gerencial as ag
+    d = ag.diagnostico()
+    _agrupador_cache = (agora, d)
+    return d
+
+
+def _servico_agrupador(d: dict) -> dict:
+    """O mapa conta -> linha da DRE (`sulista.agrupadorgerencial`) esta sao?
+
+    E uma tabela do ERP, sem chave primaria e sem contrato de tipo, editada a
+    mao pela Contabilidade direto no primario — e cinco telas dependem dela
+    (DRE Gerencial, Contabilidade, Orcamento, Previsao, Custos). Em 02/09/2026
+    ela foi recriada com `grupo` em varchar e com uma conta duplicada: as cinco
+    telas morreram e o resultado ficou R$ 1,5 mi diferente do razao, as duas
+    coisas em silencio. Este cartao e o fim do silencio.
+
+    Funcao PURA sobre o diagnostico — o I/O e do `_agrupador()`.
+    """
+    nome = "Mapa contábil (agrupador gerencial)"
+    if not d.get("legivel"):
+        # Nao e "numero torto": e cinco telas sem dado. Vermelho.
+        return {"nome": nome, "status": "erro",
+                "detalhe": "o mapa não pode ser lido (%s) — DRE Gerencial, "
+                           "Contabilidade, Orçamento, Previsão e Custos ficam "
+                           "sem dado" % (d.get("erro") or "erro desconhecido")}
+
+    partes = [f"{d['linhas']} classificações em {d['contas']} contas"]
+    achados: list[str] = []
+
+    if d.get("grupo_invalido"):
+        n = sum(x["linhas"] for x in d["grupo_invalido"])
+        achados.append(f"{n} classificação(ões) com empresa não numérica "
+                       "(a conta perde o agrupador em silêncio)")
+    if d.get("duplicadas"):
+        quais = ", ".join(f"{x['grupo']}|{x['reduzido']}" for x in d["duplicadas"][:3])
+        achados.append(f"{len(d['duplicadas'])} conta(s) com mais de uma "
+                       f"classificação ({quais}) — apagar a antiga no ERP")
+    if d.get("orfaos"):
+        achados.append(f"{len(d['orfaos'])} classificação(ões) apontando para "
+                       "conta que não existe no plano")
+    # Conta de balanco classificada entra na DRE como custo pela elegibilidade
+    # ("tem agrupador OU e conta de resultado"). A SEM movimento nao aparece em
+    # R$ nenhum hoje, mas esta igualmente mal classificada e dispara sozinha no
+    # dia em que o ERP lancar nela — por isso as DUAS contagens, e nao so a que
+    # ja custa dinheiro.
+    balanco = d.get("balanco") or []
+    if balanco:
+        com_valor = [x for x in balanco if abs(x["valor"]) > 0.005]
+        achados.append(f"{len(balanco)} conta(s) de BALANÇO classificada(s) "
+                       f"como custo, {len(com_valor)} com movimento "
+                       f"({_brl_mi(d['balanco_valor'])} em {d['meses']} m) "
+                       "— decisão da Contabilidade")
+    if abs(d.get("divergencia", 0.0)) > 0.01:
+        achados.append(f"o resultado por mapa e por estrutural divergem "
+                       f"{_brl_mi(d['divergencia'])} em {d['meses_divergentes']} "
+                       f"de {d['meses']} meses")
+
+    if not achados:
+        partes.append(f"os dois caminhos do resultado fecham em {d['meses']} meses")
+        return {"nome": nome, "status": "ok", "detalhe": " · ".join(partes)}
+    partes.extend(achados)
+    partes.append("detalhe em scripts/conferir_agrupador.py")
+    return {"nome": nome, "status": "alerta", "detalhe": " · ".join(partes)}
+
+
 def _servico_pedagio_tag() -> dict:
     """A fatura da administradora de tag está sendo importada?
 
@@ -962,6 +1059,17 @@ def _servicos() -> list[dict]:
         servicos.append({"nome": "Banco do CÓRTEX (PostgreSQL local)",
                          "status": "info", "detalhe": "camada indisponível"})
         log.warning("saude: pglocal: %s", exc)
+
+    # MAPA CONTÁBIL do ERP. Vem logo depois dos bancos porque é a mesma
+    # pergunta um nível acima: o banco responde, mas o que ele responde ainda
+    # serve? A tabela é de terceiro, sem chave nem contrato de tipo, e derrubou
+    # cinco telas em 02/09/2026 sem que nada acusasse.
+    try:
+        servicos.append(_servico_agrupador(_agrupador()))
+    except Exception as exc:  # noqa: BLE001
+        servicos.append({"nome": "Mapa contábil (agrupador gerencial)",
+                         "status": "info", "detalhe": "conferência indisponível"})
+        log.warning("saude: agrupador gerencial: %s", exc)
 
     # Gestão: mora no banco local, então vem logo depois dele. A tela vazia por
     # migration faltando é indistinguível de tela vazia por falta de uso — esta

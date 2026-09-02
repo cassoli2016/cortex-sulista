@@ -83,12 +83,10 @@ def main() -> int:
     if "--meses" in sys.argv:
         meses = int(sys.argv[sys.argv.index("--meses") + 1])
     hoje = date.today()
-    fim = date(hoje.year, hoje.month, 1)          # exclui o mês corrente (aberto)
-    ini_ano, ini_mes = fim.year, fim.month - meses
-    while ini_mes <= 0:
-        ini_mes += 12
-        ini_ano -= 1
-    P = {"de": date(ini_ano, ini_mes, 1).isoformat(), "ate": fim.isoformat()}
+    # A janela e a MESMA da Saude do Servidor (agrupador_gerencial.janela_12m):
+    # regua que muda de janela entre as duas telas nao e regua.
+    de, ate = ag.janela_12m(hoje, meses)
+    P = {"de": de, "ate": ate}
     print(f"Conferidor do agrupador gerencial - {hoje.isoformat()}")
     print(f"Janela de movimento: {P['de']} ate {P['ate']} ({meses} meses fechados)")
 
