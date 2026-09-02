@@ -1377,6 +1377,12 @@ body.tvfull.tvmode, body.tvfull.tvmode *{cursor:none !important}
 .lg-card{background:var(--n0);border-radius:var(--radius,10px);box-shadow:var(--shadow,0 10px 30px rgba(0,0,0,.25));width:min(92vw,400px);overflow:hidden}
 .lg-head{background:var(--navy-900,#0B1926);padding:26px 30px 20px;display:flex;flex-direction:column;gap:8px;align-items:center}
 .lg-head img{height:40px}
+/* O anel da marca: canvas desenhado por /static/anel.js (sem CDN). Escondido dorme;
+   com prefers-reduced-motion desenha um quadro só. */
+.lg-anel{width:150px;height:150px;display:block;margin:-6px 0 -2px}
+.loadanel{width:34px;height:34px;flex:none;margin-right:-4px}
+.loadanel[hidden]{display:none}
+body.tvmode .loadanel{display:none}
 .lg-head span{color:#fff;font-weight:700;letter-spacing:.35em;font-size:13px}
 .lg-body{padding:24px 30px 28px}
 .lg-body h2{margin:0 0 4px;font-size:18px}
@@ -1891,7 +1897,7 @@ button.avatar{border:0;cursor:pointer}
   box-shadow:var(--shadow);padding:4px 10px;font-size:12px;color:var(--n600);
   white-space:nowrap}
 #loadtempo[hidden]{display:none}
-@media(max-width:880px){#loadtempo{left:14px}}
+@media(max-width:880px){#loadtempo{left:14px} .lg-anel{width:110px;height:110px} .loadanel{width:28px;height:28px}}
 /* painel de TV recarrega sozinho a cada 60s e ninguém está esperando resposta */
 body.tvmode #loadbar,body.tvmode #loadtempo{display:none}
 @media (prefers-reduced-motion: reduce){
@@ -2226,7 +2232,7 @@ body.tvfull #btnReport,body.tvmode #btnReport{display:none}
   <span class="ic" data-ic="encolher"></span></button>
 <div id="loginOverlay">
   <div class="lg-card">
-    <div class="lg-head"><img src="/static/sulista-logo-branco.svg" alt="Sulista"><span>CÓRTEX</span></div>
+    <div class="lg-head"><canvas id="lg-anel" class="lg-anel" aria-hidden="true"></canvas><img src="/static/sulista-logo-branco.svg" alt="Sulista"><span>CÓRTEX</span></div>
     <div class="lg-body" id="lg-box"><span class="skeleton">verificando sessão…</span></div>
   </div>
 </div>
@@ -2408,6 +2414,7 @@ body.tvfull #btnReport,body.tvmode #btnReport{display:none}
     <div class="topbar">
       <div id="loadbar" hidden><i></i></div>
       <div id="loadtempo" role="status" aria-live="polite" hidden><span id="loadtempo-txt"></span><span id="loadtempo-seg" aria-hidden="true"></span></div>
+      <canvas id="loadanel" class="loadanel" hidden aria-hidden="true" title="consultando…"></canvas>
       <div>
         <h1 id="viewTitle">Fluxo de Caixa e Bancos</h1>
         <div class="emp" id="empNome">—</div>
@@ -7144,6 +7151,7 @@ body.tvfull #btnReport,body.tvmode #btnReport{display:none}
 </div>
 
 <script src="/static/carga.js"></script>
+<script src="/static/anel.js"></script>
 <script>
 /* Este bloco fica NO TOPO de proposito. Ele e chamado por `pagRegistrar(...)`
    em varias telas mais abaixo, e chamada de topo executa na ORDEM DO ARQUIVO:
@@ -11024,6 +11032,28 @@ function ocExportarRadar(){
 
 
 
+
+/* ANEL DA MARCA. Um no login (grande, com brilho sobre o navy) e um no topo
+   (pequeno; brilho só no tema escuro — sobre branco o aditivo some). Os dois
+   dormem quando escondidos; a carga mostra/esconde o do topo pelo mesmo
+   gancho da barra. Falha aqui não pode derrubar o app: tudo em try. */
+function anelTemaEscuro(){
+  const t=document.documentElement.getAttribute('data-theme');
+  if(t) return t==='dark';
+  return !!(window.matchMedia && matchMedia('(prefers-color-scheme: dark)').matches);
+}
+function anelLigar(){
+  try{
+    if(typeof cortexAnel==='undefined') return;
+    const lg=document.getElementById('lg-anel');
+    if(lg && !lg.dataset.anel){ lg.dataset.anel='1'; cortexAnel.ligar(lg); }
+    const tp=document.getElementById('loadanel');
+    if(tp && !tp.dataset.anel){ tp.dataset.anel='1';
+      cortexAnel.ligar(tp, {brilho: anelTemaEscuro, alfa: .8, largura: 1.15}); }
+  }catch(e){}
+}
+if(document.readyState==='loading') document.addEventListener('DOMContentLoaded', anelLigar, {once:true});
+else anelLigar();
 
 /* ---------------- Visão Geral ---------------- */
 function kpiLink(label,val,sub,cls,hash,trend){
@@ -27815,7 +27845,8 @@ const CARGA = (typeof criarCarga === 'function' ? criarCarga : ()=>({
   desarma: (i) => clearTimeout(i),
   repete:  (fn,ms) => setInterval(fn,ms),
   cessa:   (i) => clearInterval(i),
-  mostraBarra: (v) => { const e=document.getElementById('loadbar'); if(e) e.hidden = !v; },
+  mostraBarra: (v) => { const e=document.getElementById('loadbar'); if(e) e.hidden = !v;
+                        const a=document.getElementById('loadanel'); if(a) a.hidden = !v; },
   mostraTempo: (v,s) => {
     const e=document.getElementById('loadtempo'); if(!e) return;
     // o rótulo é anunciado UMA vez pelo aria-live; os segundos ficam

@@ -269,6 +269,11 @@ brilhante). Guard: `scripts/auditar_tema.py` (rodar também com `--fixo`) e
 - Neutros: ink `#14181D` (`--n900`), secundário `--n500` (hoje `#636C76` —
   calibrado com margem sobre os fundos reais, não sobre branco puro).
 - Fontes: **Saira** (`--font`) + **IBM Plex Mono** (`--mono`) nos dados.
+- **Marca animada: o anel** (`api/static/anel.js`, canvas, sem CDN) — grande no
+  login, pequeno no topo enquanto há consulta em voo (mesmo gancho da barra de
+  carga). Paleta fixa da marca (tijolo → laranja no alto, azul na base; o teste
+  de Node recusa amarelo); `prefers-reduced-motion` desenha um quadro só;
+  escondido, dorme. Não é indicador de estado: semáforo continua sendo o CSS.
 - **Escala de espaçamento: 9/18/25px** e nada mais (`scripts/auditar_espacos.py`
   vigia; memória `escala-de-espacamento`).
 - E-mail: **sem área escura** (moldura clara, accent laranja), tabela de largura

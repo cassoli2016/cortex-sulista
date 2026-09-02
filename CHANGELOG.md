@@ -4,6 +4,11 @@ Gerado de `docs/versoes.yaml` por `scripts/gerar_changelog.py` — não editar �
 Formato [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/),
 versionamento [SemVer](https://semver.org/lang/pt-BR/).
 
+## [0.211.0] — 02/09/2026  ·  CX-02/09/2026-v0.211.0
+
+### Adicionado
+- O anel do CÓRTEX, a marca animada: dezenas de linhas finas em volta de um círculo, ondulando como luz, quentes no alto (tijolo e laranja da Sulista) e frias na base. Aparece grande na tela de login, acima do logo, e pequeno ao lado do título da tela enquanto uma consulta está em voo — some quando a resposta chega, junto com a barra laranja. Não há amarelo (a marca não tem), não há biblioteca externa, e quem pede "reduzir movimento" no sistema vê o anel parado.
+
 ## [0.210.0] — 02/09/2026  ·  CX-02/09/2026-v0.210.0
 
 ### Adicionado
