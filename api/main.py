@@ -15,7 +15,7 @@ import tomllib
 from datetime import date, datetime
 from pathlib import Path
 
-from api import segredo_arquivo, suprimentos_oc
+from api import segredo_arquivo, suprimentos_oc, suprimentos_pecas
 
 import psycopg
 from fastapi import FastAPI, Request, Response
@@ -3478,6 +3478,41 @@ def manutencao_preventiva(horizonte: int = 30) -> JSONResponse:
         log.warning("manutencao_preventiva falhou: %s", exc)
         return JSONResponse(status_code=500, content={
             "erro": "erro_consulta", "mensagem": "Erro ao consultar as revisões preventivas."})
+
+
+@app.get("/api/suprimentos/precos-pecas")
+def suprimentos_precos_pecas(filial: int | None = None,
+                             dt_de: str | None = None,
+                             dt_ate: str | None = None) -> JSONResponse:
+    """Preço de peças da manutenção: item fora do padrão do próprio produto e
+    dispersão de preço entre fornecedores.
+
+    O período padrão é de DOZE meses (a mediana por produto precisa de volume;
+    com 90 dias metade dos produtos cai abaixo do mínimo de compras) e vem do
+    próprio módulo, não daqui, para a tela e a API não divergirem."""
+    padrao_de, padrao_ate = suprimentos_pecas.periodo_padrao()
+    dt_de = dt_de or padrao_de
+    dt_ate = dt_ate or padrao_ate
+    for nome, valor in (("dt_de", dt_de), ("dt_ate", dt_ate)):
+        if _bad_date(valor):
+            return JSONResponse(status_code=422, content={
+                "erro": "parametro_invalido",
+                "mensagem": f"Parâmetro {nome} inválido: use o formato AAAA-MM-DD.",
+            })
+    if dt_de > dt_ate:
+        dt_de, dt_ate = dt_ate, dt_de
+    try:
+        return JSONResponse(suprimentos_pecas.get_precos_pecas(filial, dt_de, dt_ate))
+    except psycopg.OperationalError as exc:
+        log.warning("banco inacessivel: %s", exc)
+        return JSONResponse(status_code=503, content={
+            "erro": "banco_inacessivel",
+            "mensagem": "Sem conexão com o banco. O túnel SSH está aberto?"})
+    except Exception as exc:  # noqa: BLE001
+        log.warning("suprimentos_precos_pecas falhou: %s", type(exc).__name__)
+        return JSONResponse(status_code=500, content={
+            "erro": "erro_consulta",
+            "mensagem": "Erro ao consultar os preços de peças."})
 
 
 @app.get("/api/suprimentos/custos")

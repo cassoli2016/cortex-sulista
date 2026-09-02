@@ -96,7 +96,7 @@ a ACL em vez de afirmar a proteção.
 ## 3. Telas e módulos
 
 **O registro canônico das telas é `api/auth.py`** (`TELAS`, `ROTA_TELAS`,
-`VIEW_GROUP` no `index.html`). Hoje: 69 telas em RBAC + 3 fora
+`VIEW_GROUP` no `index.html`). Hoje: 70 telas em RBAC + 3 fora
 (`srv`, `gestao`, `jornf`), organizadas assim:
 
 | Grupo | Telas | Fonte principal |
@@ -106,7 +106,7 @@ a ACL em vez de afirmar a proteção.
 | Operação | milkrun, agr, mvb, km, prog, torre, jorn, cex, sac, port, pedagio, poli | AVA + `jor_*`, `ped_*`, `tt_*`, posições Gobrax+ERP |
 | Comercial | com, clif, crm, drecli | AVA + `crm_*` (banco local) |
 | Controladoria | dre, bal, cont, qual, orc, fech, ctecp | AVA + `orc_*`, `prev_*`, contrapartida |
-| Suprimentos | oc, custos | AVA (`ordemcompra` × vínculo de NF × `aprovador`; regra única de estado em `api/suprimentos_oc.py`) |
+| Suprimentos | oc, custos, pecas | AVA (`ordemcompra` × vínculo de NF × `aprovador`, estado em `api/suprimentos_oc.py`; preço de peça pela mediana do produto em `api/suprimentos_pecas.py`) |
 | Frota | comb, man, veic, mprev, comrast, veicf, mul, pneus | AVA + `smt_*` (Smartec) + `data/pneus/` |
 | Telemetria | prem, telcon, telcond, telhod | Gobrax (`api/gobrax/`) + `prem_*` |
 | Recursos Humanos | rh, hc, folha, folhaind, cnh, ferias, people, he | AVA (folha/Globus) |
@@ -270,10 +270,14 @@ brilhante). Guard: `scripts/auditar_tema.py` (rodar também com `--fixo`) e
   calibrado com margem sobre os fundos reais, não sobre branco puro).
 - Fontes: **Saira** (`--font`) + **IBM Plex Mono** (`--mono`) nos dados.
 - **Marca animada: o anel** (`api/static/anel.js`, canvas, sem CDN) — grande no
-  login, pequeno no topo enquanto há consulta em voo (mesmo gancho da barra de
-  carga). Paleta fixa da marca (tijolo → laranja no alto, azul na base; o teste
-  de Node recusa amarelo); `prefers-reduced-motion` desenha um quadro só;
-  escondido, dorme. Não é indicador de estado: semáforo continua sendo o CSS.
+  login e pequeno na SIDEBAR, abaixo do nome CÓRTEX, girando SEMPRE. Saiu da
+  topbar em 02/09/2026: lá ele acendia e apagava a cada consulta e virava um
+  pisca, e marca que pisca vira indicador. Quem sinaliza consulta em voo é a
+  barra do topo (`#loadbar`), sozinha. Paleta fixa da marca (tijolo → laranja
+  no alto, azul na base; o teste de Node recusa amarelo);
+  `prefers-reduced-motion` desenha um quadro só; escondido (menu recolhido no
+  celular, painel de TV), o laço dorme. Não é indicador de estado: semáforo
+  continua sendo o CSS.
 - **Escala de espaçamento: 9/18/25px** e nada mais (`scripts/auditar_espacos.py`
   vigia; memória `escala-de-espacamento`).
 - E-mail: **sem área escura** (moldura clara, accent laranja), tabela de largura
@@ -312,6 +316,13 @@ barra empilhada, não donut.
   km > 1.500/dia): fora dela é `n/d` com o bruto no tooltip, e conta num aviso.
 - **Rótulo de eixo nomeia a unidade FINAL** (`MILHÕES DE KM`, nunca
   `MIL KM ×1000`).
+- **Régua de desvio é MEDIANA, e só existe com base** — média deixa o próprio
+  outlier caber na faixa (um item a 70× move a média o bastante para se
+  inocentar). Produto com menos de N compras na janela não é avaliado, e a tela
+  DIZ a cobertura da régua em vez de chamar de "normal" o que não mediu.
+  Desvio de preço num catálogo sem marca não é sobrepreço: é item A CONFERIR, e
+  a economia sai em faixa (conservadora × teto), com a conservadora excluindo o
+  código de spread alto, que é o que mistura peças diferentes.
 - **Coluna constante sai da tabela** (vira referência no hint); coluna sempre
   vazia se preenche ou se remove.
 - **Código sem tabela de domínio não vira rótulo inventado** — decodificar por

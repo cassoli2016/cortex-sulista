@@ -42,8 +42,12 @@ def test_grupo_do_manual_e_o_grupo_do_rbac():
 def test_suprimentos_no_manual_e_o_modulo_de_compras():
     dados = yaml.safe_load(MANUAL.read_text(encoding="utf-8"))
     sup = next(g for g in dados["grupos"] if g["nome"] == "Suprimentos")
-    assert set(sup["telas"]) == {"oc", "custos"}
+    # A lista é FECHADA de propósito: tela nova em Suprimentos tem de passar
+    # por aqui, senão entra no menu e some da documentação sem ninguém notar.
+    assert set(sup["telas"]) == {"oc", "custos", "pecas"}
     termos = {t["termo"] for t in dados["glossario"]}
     assert any("aprovação" in t.lower() and "oc" in t.lower() for t in termos), "glossário sem o fluxo de aprovação da OC"
     assert any("alçada" in t.lower() for t in termos)
     assert any("sem nota" in t.lower() for t in termos)
+    assert any("mediana" in t.lower() for t in termos), \
+        "glossário sem a mediana do produto, que é a régua da tela de Preço de Peças"

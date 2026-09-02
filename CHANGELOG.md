@@ -4,6 +4,18 @@ Gerado de `docs/versoes.yaml` por `scripts/gerar_changelog.py` — não editar �
 Formato [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/),
 versionamento [SemVer](https://semver.org/lang/pt-BR/).
 
+## [0.212.0] — 02/09/2026  ·  CX-02/09/2026-v0.212.0
+
+### Adicionado
+- Tela nova em Suprimentos: PREÇO DE PEÇAS. Ela compara cada compra de peça da manutenção com a mediana das compras do MESMO código de produto na janela, e mostra o que destoa. Nos últimos doze meses são R$ 2,37 milhões comprados em 10.496 itens, com 670 compras acima de três vezes a mediana do próprio produto — R$ 282 mil acima dela. A aba Preço entre fornecedores mostra os 214 produtos que vêm de mais de um fornecedor e quanto renderia comprar sempre do mais barato: R$ 224 mil no cálculo conservador, R$ 682 mil no teto. Rolamento de cubo, por exemplo, vem de treze fornecedores com preço de R$ 126 a R$ 308.
+- A tela não chama nada de sobrepreço, e isso é deliberado: o catálogo do ERP tem a marca em branco em quase todos os códigos, então o mesmo código cobre peça original e paralela, unidade e conjunto. Múltiplo muito alto costuma ser erro de digitação (há um amortecedor lançado a R$ 40.541 a unidade contra mediana de R$ 536) e múltiplo muito baixo costuma ser unidade trocada. O que a tela entrega é uma fila de conferência para a compra, com a evidência ao lado de cada linha, e um cartão dizendo sobre quantos itens ela conseguiu opinar.
+
+### Alterado
+- O anel da marca saiu do alto da tela e foi para o MENU, logo abaixo do nome CÓRTEX, girando o tempo todo. No topo ele acendia e apagava a cada consulta, o que fazia a marca piscar e parecer um aviso; agora quem sinaliza consulta em andamento é só a barra fina do topo. Quem usa o sistema com menos movimento continua vendo o anel parado.
+
+### Corrigido
+- A razão social da empresa sumia do cabeçalho na maioria das telas. Ela só era carregada por Fluxo de Caixa e por Ordens de Compra, então abrir qualquer outra tela direto deixava um traço no lugar do nome. Agora ela é carregada uma vez, na entrada, e vale para as setenta telas.
+
 ## [0.211.1] — 02/09/2026  ·  CX-02/09/2026-v0.211.1
 
 ### Corrigido

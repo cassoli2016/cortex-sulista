@@ -1,10 +1,12 @@
 # -*- coding: utf-8 -*-
-"""O anel do CÓRTEX na tela de login e no carregamento das telas.
+"""O anel do CÓRTEX na tela de login e no menu lateral.
 
-O que só se prova no navegador: o canvas do login ACENDE (pixels não
-transparentes depois de um quadro — um canvas de largura zero ou um script
-que não carregou ficam mudos, sem erro), e o anel do topo aparece enquanto
-uma consulta está em voo e some quando ela termina.
+O que só se prova no navegador: o canvas ACENDE (pixels não transparentes
+depois de um quadro — um canvas de largura zero ou um script que não
+carregou ficam mudos, sem erro). O anel do MENU gira SEMPRE, sem depender
+de consulta em voo: ele saiu da topbar em 02/09/2026, onde acendia e apagava
+a cada carga e virava um pisca. Quem indica consulta em voo é a barra do
+topo (#loadbar), e há teste garantindo que o anel não voltou para lá.
 """
 from __future__ import annotations
 
@@ -25,14 +27,25 @@ def test_o_script_do_anel_esta_vendorizado_e_incluido():
     assert "cdn" not in ANEL.lower()
 
 
-def test_login_e_topo_tem_o_canvas_e_o_hidden_e_respeitado():
+def test_o_anel_esta_no_login_e_no_menu_e_nao_na_topbar():
     assert HTML.count('<canvas id="lg-anel"') == 1
-    assert HTML.count('<canvas id="loadanel"') == 1
-    assert re.search(r"\.loadanel\[hidden\]\{display:none\}", HTML)
-    assert "body.tvmode .loadanel" in HTML, "painel de TV não tem indicador de carga"
-    # o mesmo gancho que mostra a barra mostra o anel
+    assert HTML.count('<canvas id="menuanel"') == 1
+    assert "loadanel" not in HTML, "o anel voltou a ser indicador de carga na topbar"
+    # o anel do menu nasce logo ABAIXO do nome CÓRTEX da barra lateral
+    i = HTML.index('<span class="mk">CÓRTEX</span>')
+    assert 'id="menuanel"' in HTML[i:i + 160]
+    # e NAO tem o atributo hidden: gira sempre. O espaco antes e de proposito —
+    # sem ele o aria-hidden do proprio canvas casaria e o teste passaria a mentir.
+    tag = re.search(r'<canvas id="menuanel"[^>]*>', HTML).group(0)
+    assert " hidden" not in tag, tag
+    assert "body.tvmode .menuanel" in HTML, "painel de TV não esconde o anel"
+
+
+def test_o_gancho_de_carga_nao_mexe_mais_em_anel():
+    """A barra do topo continua sendo o indicador de consulta em voo; o anel
+    saiu desse gancho para não piscar a cada carga."""
     i = HTML.index("mostraBarra: (v) =>")
-    assert "loadanel" in HTML[i:i + 300]
+    assert "anel" not in HTML[i:i + 300]
 
 
 def _pixels_acesos(pg, sel):
@@ -54,29 +67,23 @@ def test_o_anel_do_login_acende(pagina):
     assert pg.evaluate("() => document.getElementById('lg-anel').clientWidth") >= 100
 
 
-def test_o_anel_do_topo_aparece_durante_a_consulta_e_some_depois(pagina):
+def test_o_anel_do_menu_gira_sem_consulta_em_voo(pagina):
+    """O anel do menu é a marca viva, não um indicador: acende com a tela
+    parada, sem nenhuma requisição pendente, e continua aceso depois."""
     pg, base_url = pagina
-
-    # A consulta lenta é SEGURADA e liberada depois: dormir dentro do handler
-    # de rota bloqueia o laço do Playwright síncrono inteiro, e a espera pela
-    # visibilidade só rodaria depois de a resposta já ter chegado.
-    presas = []
-
-    def rota(route):
-        u = route.request.url
-        if "/api/auth/me" in u:
-            route.fulfill(status=200, content_type="application/json", body=json.dumps(ADMIN))
-            return
-        if "ordens-compra" in u:
-            presas.append(route)
-            return
-        route.fulfill(status=200, content_type="application/json", body="{}")
-    pg.route("**/api/**", rota)
+    pg.route("**/api/**", lambda r: r.fulfill(
+        status=200, content_type="application/json",
+        body=json.dumps(ADMIN) if "/api/auth/me" in r.request.url else "{}"))
+    erros = []
+    pg.on("pageerror", lambda e: erros.append(str(e)))
     pg.goto(base_url + "/static/index.html#oc")
     pg.wait_for_selector("#view-oc.on", timeout=15000)
-    pg.wait_for_selector("#loadanel:not([hidden])", timeout=5000)
-    pg.wait_for_timeout(400)             # escondido o laço dorme 120 ms; dá tempo de um quadro
-    assert _pixels_acesos(pg, "#loadanel") > 100
-    for r in presas:
-        r.fulfill(status=200, content_type="application/json", body="{}")
-    pg.wait_for_selector("#loadanel[hidden]", state="attached", timeout=10000)
+    # a barra de carga já apagou: não há nada em voo
+    pg.wait_for_selector("#loadbar[hidden]", state="attached", timeout=10000)
+    pg.wait_for_timeout(500)
+    assert erros == [], erros
+    assert pg.evaluate("() => !document.getElementById('menuanel').hidden")
+    assert _pixels_acesos(pg, "#menuanel") > 100
+    # e segue girando: um segundo depois continua aceso
+    pg.wait_for_timeout(1000)
+    assert _pixels_acesos(pg, "#menuanel") > 100

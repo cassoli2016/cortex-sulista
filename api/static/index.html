@@ -1380,9 +1380,15 @@ body.tvfull.tvmode, body.tvfull.tvmode *{cursor:none !important}
 /* O anel da marca: canvas desenhado por /static/anel.js (sem CDN). Escondido dorme;
    com prefers-reduced-motion desenha um quadro só. */
 .lg-anel{width:150px;height:150px;display:block;margin:-6px 0 -2px}
-.loadanel{width:34px;height:34px;flex:none;margin-right:-4px}
-.loadanel[hidden]{display:none}
-body.tvmode .loadanel{display:none}
+/* O anel do MENU: a marca viva, girando sempre, logo abaixo do nome CÓRTEX.
+   NAO e indicador de carga — saiu da topbar de proposito, onde acendia e
+   apagava a cada consulta e virava um pisca. Aqui ele bate o tempo todo, e
+   quem indica consulta em voo continua sendo a barra do topo (#loadbar).
+   Escondido (menu recolhido no celular, painel de TV) o laco do anel dorme
+   sozinho — ver o visivel() do anel.js. */
+.menuanel{width:66px;height:66px;display:block;margin:1px 0 0}
+body.mini .menuanel{width:34px;height:34px}
+body.tvmode .menuanel,body.tvfull .menuanel{display:none}
 .lg-head span{color:#fff;font-weight:700;letter-spacing:.35em;font-size:13px}
 .lg-body{padding:24px 30px 28px}
 .lg-body h2{margin:0 0 4px;font-size:18px}
@@ -1897,7 +1903,7 @@ button.avatar{border:0;cursor:pointer}
   box-shadow:var(--shadow);padding:4px 10px;font-size:12px;color:var(--n600);
   white-space:nowrap}
 #loadtempo[hidden]{display:none}
-@media(max-width:880px){#loadtempo{left:14px} .lg-anel{width:110px;height:110px} .loadanel{width:28px;height:28px}}
+@media(max-width:880px){#loadtempo{left:14px} .lg-anel{width:110px;height:110px} .menuanel{width:54px;height:54px}}
 /* painel de TV recarrega sozinho a cada 60s e ninguém está esperando resposta */
 body.tvmode #loadbar,body.tvmode #loadtempo{display:none}
 @media (prefers-reduced-motion: reduce){
@@ -2245,6 +2251,7 @@ body.tvfull #btnReport,body.tvmode #btnReport{display:none}
       <img class="logo-full" src="/static/sulista-logo-branco.svg" alt="Sulista">
       <img class="logo-mini" src="/static/icon-192.png" alt="Sulista">
       <span class="mk">CÓRTEX</span>
+      <canvas id="menuanel" class="menuanel" aria-hidden="true"></canvas>
     </div>
     <div class="minibar">
       <button class="minibtn" id="btnMini" onclick="toggleMini()" title="Recolher/expandir menu" aria-label="Recolher ou expandir o menu">
@@ -2386,6 +2393,7 @@ body.tvfull #btnReport,body.tvmode #btnReport{display:none}
       <div class="subs closed" id="subsSup">
         <a href="#oc" class="sub" data-view="oc" title="Ordens de Compra"><span class="ic" data-ic="oc"></span><span>Ordens de Compra</span></a>
         <a href="#custos" class="sub" data-view="custos" title="Painel de Custos consolidado"><span class="ic" data-ic="custosic"></span><span>Painel de Custos</span></a>
+        <a href="#pecas" class="sub" data-view="pecas" title="Preço de peças da manutenção: item fora do padrão e dispersão entre fornecedores"><span class="ic" data-ic="pecasic"></span><span>Preço de Peças</span></a>
       </div>
       <button class="group" id="grpTel" aria-expanded="false" aria-controls="subsTel" onclick="toggleGroup('grpTel','subsTel','cs.telGroup')" title="Telemetria">
         <span class="ic" data-ic="sinal"></span><span>Telemetria</span><span class="ic chev" data-ic="chev"></span>
@@ -2414,7 +2422,6 @@ body.tvfull #btnReport,body.tvmode #btnReport{display:none}
     <div class="topbar">
       <div id="loadbar" hidden><i></i></div>
       <div id="loadtempo" role="status" aria-live="polite" hidden><span id="loadtempo-txt"></span><span id="loadtempo-seg" aria-hidden="true"></span></div>
-      <canvas id="loadanel" class="loadanel" hidden aria-hidden="true" title="consultando…"></canvas>
       <div>
         <h1 id="viewTitle">Fluxo de Caixa e Bancos</h1>
         <div class="emp" id="empNome">—</div>
@@ -5966,6 +5973,57 @@ body.tvfull #btnReport,body.tvmode #btnReport{display:none}
         </div>
         </div>
       </section>
+      <section class="view" id="view-pecas">
+        <div class="card">
+          <div class="head"><h2>Preço de Peças <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="Itens de PEÇA comprados pela manutenção (solicitação de compra, tipo de operação 103), com o preço unitário de cada compra comparado à MEDIANA do próprio código de produto na janela. Serviço, pneu, sinistro e reforma ficam de fora: misturados, envenenam a mediana. A janela padrão é de doze meses porque a mediana precisa de volume — com noventa dias, metade dos produtos fica sem régua.">i</span></h2><span class="hint">o que a oficina paga pela mesma peça, e onde isso destoa</span></div>
+          <div class="cardfilters">
+            <input type="date" id="fPecDe" aria-label="Compras a partir de">
+            <span style="color:var(--n500)">até</span>
+            <input type="date" id="fPecAte" aria-label="Compras até">
+            <select id="fPecFilial" aria-label="Filial" onchange="loadPecas()"
+                    title="Filial que emitiu a solicitação de compra.">
+              <option value="">Todas as filiais</option>
+            </select>
+            <button class="btn" onclick="loadPecas()">Atualizar</button>
+            <span class="hint" id="pecasFonte" style="color:var(--n500)"></span>
+          </div>
+        </div>
+        <div class="kpis k4" id="kpis-pecas"></div>
+        <div class="subtabs" role="tablist" data-abas="pecas" aria-label="Seções desta tela">
+          <button role="tab" id="tabpecas-vis" data-aba="vis" aria-controls="aba-pecas-vis" aria-selected="true" onclick="abaTrocar('pecas','vis')">Visão geral</button>
+          <button role="tab" id="tabpecas-conf" data-aba="conf" aria-controls="aba-pecas-conf" aria-selected="false" onclick="abaTrocar('pecas','conf')">Itens a conferir <span class="aban" id="pecNConf"></span></button>
+          <button role="tab" id="tabpecas-forn" data-aba="forn" aria-controls="aba-pecas-forn" aria-selected="false" onclick="abaTrocar('pecas','forn')">Preço entre fornecedores <span class="aban" id="pecNForn"></span></button>
+        </div>
+        <div class="aba" data-abas="pecas" data-aba="vis" id="aba-pecas-vis" role="tabpanel" aria-labelledby="tabpecas-vis">
+          <div class="card">
+            <div class="head"><h2>Gasto com peças por mês <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="Valor dos itens de peça por mês de emissão da solicitação, no recorte dos filtros desta tela. O mês corrente sai hachurado e rotulado como parcial — ele ainda não terminou, e barra cheia num mês cortado mente sobre a queda.">i</span></h2><span class="hint" id="pecHintSerie">no período filtrado</span></div>
+            <div id="chartPecasMes" style="width:100%;height:230px" role="img"></div>
+          </div>
+          <div class="card">
+            <div class="head"><h2>Alertas <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="Regras fixas sobre os números desta tela: quanto se pagou acima da mediana do próprio produto, quanto a consolidação de fornecedor renderia, e quantos itens ficaram sem régua por o produto ter poucas compras na janela.">i</span></h2><span class="hint">o que pedir para a compra conferir</span></div>
+            <div class="alerts" id="alerts-pecas"></div>
+          </div>
+        </div>
+        <div class="aba" data-abas="pecas" data-aba="conf" id="aba-pecas-conf" role="tabpanel" aria-labelledby="tabpecas-conf" hidden>
+          <div class="card">
+            <div class="head"><h2>Itens a conferir <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="Compra cujo preço unitário destoa da mediana do próprio código de produto. NÃO é acusação de sobrepreço: o catálogo do ERP é genérico (a marca é nula em 99,96% dos códigos) e o mesmo código cobre peça original e paralela, unidade e conjunto. Múltiplo muito alto costuma ser erro de digitação; muito baixo costuma ser unidade ou quantidade trocada. A coluna Compras diz sobre quantas compras a mediana foi calculada.">i</span></h2><span class="hint" id="pecHintConf"></span></div>
+            <div class="tablewrap tabroll"><table><thead><tr>
+              <th>Data</th><th class="num">Filial</th><th>Produto</th><th>Fornecedor</th>
+              <th class="num">Qtd</th><th class="num">Preço pago</th><th class="num">Mediana</th>
+              <th class="num">Múltiplo</th><th class="num">Compras</th><th class="num">Diferença</th><th>Leitura</th>
+            </tr></thead><tbody id="pecas-conf"></tbody></table></div>
+          </div>
+        </div>
+        <div class="aba" data-abas="pecas" data-aba="forn" id="aba-pecas-forn" role="tabpanel" aria-labelledby="tabpecas-forn" hidden>
+          <div class="card">
+            <div class="head"><h2>Preço entre fornecedores <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="Produto comprado de dois ou mais fornecedores na janela, cada um com pelo menos duas compras do mesmo código. O preço de cada fornecedor é a MEDIANA dele — média deixaria uma compra atípica definir o melhor preço. A economia é TETO TEÓRICO: disponibilidade, prazo e frete não entram. Linha marcada como código misto tem diferença acima de três vezes entre o melhor e o pior, sinal de que o mesmo código cobre peças diferentes; ela fica fora da economia conservadora.">i</span></h2><span class="hint" id="pecHintForn"></span></div>
+            <div class="tablewrap tabroll"><table><thead><tr>
+              <th>Produto</th><th class="num">Fornec.</th><th>Melhor preço</th><th>Pior preço</th>
+              <th class="num">Diferença</th><th class="num">Comprado</th><th class="num">Economia possível</th>
+            </tr></thead><tbody id="pecas-forn"></tbody></table></div>
+          </div>
+        </div>
+      </section>
       <section class="view" id="view-mul">
         <div class="card">
           <div class="head"><h2>Smartec — Infrações e Licenças</h2><span class="hint">SNE + DETRAN · o que ainda dá para tratar, não só o que foi autuado</span></div>
@@ -7299,6 +7357,7 @@ const ICONS = {
   sacic: IC('<path d="M5 13v-1a7 7 0 0 1 14 0v1"/><rect x="3" y="13" width="3.5" height="6" rx="1.5"/><rect x="17.5" y="13" width="3.5" height="6" rx="1.5"/><path d="M19 19v.5a3 3 0 0 1-3 3h-2"/>'),
   folhaic: IC('<rect x="3" y="5" width="18" height="14" rx="2"/><path d="M7 9.5h4M7 13h6"/><circle cx="16.5" cy="11.5" r="2.3"/><path d="M16.5 10v3"/>'),
   qualic: IC('<rect x="4" y="3" width="16" height="13" rx="2"/><path d="M8 7.5h8M8 11h5"/><circle cx="12" cy="17" r="3"/><path d="m10.5 19.5-1 3 2.5-1.3 2.5 1.3-1-3"/>'),
+  pecasic: IC('<path d="M20.6 13.4 13.4 20.6a2 2 0 0 1-2.8 0l-7.2-7.2A2 2 0 0 1 3 12V4a1 1 0 0 1 1-1h8a2 2 0 0 1 1.4.6l7.2 7.2a2 2 0 0 1 0 2.6Z"/><circle cx="7.5" cy="7.5" r="1.5"/>'),
   custosic: IC('<ellipse cx="12" cy="6" rx="7" ry="3"/><path d="M5 6v5c0 1.6 3.1 3 7 3s7-1.4 7-3V6M5 11v5c0 1.6 3.1 3 7 3s7-1.4 7-3v-5"/>'),
   cexic: IC('<path d="M6 3h12v18l-2.5-1.5L13 21l-2.5-1.5L8 21l-2-1.5z"/><path d="M9 8h6M9 11.5h4"/><path d="M15 15.5h3.5M16.75 13.75v3.5"/>'),
   clific: IC('<circle cx="10" cy="9" r="6.5"/><path d="M14.8 13.8 21 20"/><circle cx="10" cy="7.5" r="2"/><path d="M6.8 12.5a4 4 0 0 1 6.4 0"/>'),
@@ -7401,7 +7460,7 @@ const FAIXAS = {
   '4_vencido_91_365':['Vencido 91–365d','b-dang'],
   '5_vencido_mais_365':['Vencido > 365d','b-dang'],
 };
-const VIEWS = { home:'Visão Geral', fluxo:'Fluxo de Caixa e Bancos', receber:'Contas a Receber', pagar:'Contas a Pagar', oc:'Ordens de Compra', custos:'Painel de Custos', agr:'Agregados e Terceiros', mvb:'Frota Própria × Agregado', pedagio:'Validação de Pedágio', comb:'Combustível', man:'Manutenção', com:'Clientes e RKM', clif:'Consulta de Cliente', crm:'CRM — Funil Comercial', km:'Análise de KM', prodveic:'Produtividade de Veículos', fat:'Faturamento Detalhado', gr:'Gerenciamento de Risco', torre:'Torre de Controle', poli:'Permanência na Planta', ctecp:'CT-e de Contrapartida', veic:'Veículos', veicf:'Consulta de Veículo', mprev:'Manutenção Preventiva', comrast:'Comunicação Rastreadora', mul:'Multas — Smartec', prog:'Programação Inteligente', jorn:'Jornada do Motorista', jornf:'Ficha de Jornada', cex:'Custos Extras', sac:'SAC / Freetime', port:'Portaria', cop:'Copiloto Cortex', cob:'Régua de Cobrança', banc:'Bancos', extb:'Extrato Bancário', lanc:'Lançamentos Bancários', antec:'Antecipação de Recebíveis', antport:'Portais de Antecipação', milkrun:'Operação MWM', rec:'Lançamentos Recorrentes', fluxcon:'Fluxo de Caixa Consolidado', cont:'Contabilidade', qual:'Qualidade e Certidões', orc:'Orçamento', fech:'Fechamento do Mês', prem:'Premiação de Motoristas', dre:'DRE Gerencial', bal:'Balanço Patrimonial', drecli:'DRE por Cliente', tvfat:'Painel TV — Faturamento', tvope:'Painel TV — Operação', tvdir:'Painel TV — Diretoria', rh:'RH — Vagas', hc:'Headcount', folha:'Custo de Folha', folhaind:'Indicadores de Folha', he:'Horas Extras', cnh:'CNH dos Motoristas', ferias:'Férias — Vencimento', people:'People Analytics', pneus:'Pneus', gestao:'Gestão', gesacao:'Planos de Ação', gesata:'Atas de Reunião', srv:'Saúde do Servidor', doc:'Documentação', anpiso:'Piso Mínimo de Frete', anrntrc:'RNTRC dos Transportadores', telcon:'Consumo e Estatísticas', telcond:'Condução Econômica', telhod:'Hodômetro e Rastro' };
+const VIEWS = { home:'Visão Geral', fluxo:'Fluxo de Caixa e Bancos', receber:'Contas a Receber', pagar:'Contas a Pagar', oc:'Ordens de Compra', custos:'Painel de Custos', pecas:'Preço de Peças', agr:'Agregados e Terceiros', mvb:'Frota Própria × Agregado', pedagio:'Validação de Pedágio', comb:'Combustível', man:'Manutenção', com:'Clientes e RKM', clif:'Consulta de Cliente', crm:'CRM — Funil Comercial', km:'Análise de KM', prodveic:'Produtividade de Veículos', fat:'Faturamento Detalhado', gr:'Gerenciamento de Risco', torre:'Torre de Controle', poli:'Permanência na Planta', ctecp:'CT-e de Contrapartida', veic:'Veículos', veicf:'Consulta de Veículo', mprev:'Manutenção Preventiva', comrast:'Comunicação Rastreadora', mul:'Multas — Smartec', prog:'Programação Inteligente', jorn:'Jornada do Motorista', jornf:'Ficha de Jornada', cex:'Custos Extras', sac:'SAC / Freetime', port:'Portaria', cop:'Copiloto Cortex', cob:'Régua de Cobrança', banc:'Bancos', extb:'Extrato Bancário', lanc:'Lançamentos Bancários', antec:'Antecipação de Recebíveis', antport:'Portais de Antecipação', milkrun:'Operação MWM', rec:'Lançamentos Recorrentes', fluxcon:'Fluxo de Caixa Consolidado', cont:'Contabilidade', qual:'Qualidade e Certidões', orc:'Orçamento', fech:'Fechamento do Mês', prem:'Premiação de Motoristas', dre:'DRE Gerencial', bal:'Balanço Patrimonial', drecli:'DRE por Cliente', tvfat:'Painel TV — Faturamento', tvope:'Painel TV — Operação', tvdir:'Painel TV — Diretoria', rh:'RH — Vagas', hc:'Headcount', folha:'Custo de Folha', folhaind:'Indicadores de Folha', he:'Horas Extras', cnh:'CNH dos Motoristas', ferias:'Férias — Vencimento', people:'People Analytics', pneus:'Pneus', gestao:'Gestão', gesacao:'Planos de Ação', gesata:'Atas de Reunião', srv:'Saúde do Servidor', doc:'Documentação', anpiso:'Piso Mínimo de Frete', anrntrc:'RNTRC dos Transportadores', telcon:'Consumo e Estatísticas', telcond:'Condução Econômica', telhod:'Hodômetro e Rastro' };
 const periodoLabel = p => { if(p==='atrasado') return 'Atrasado'; const [y,m]=p.split('-'); return MES[+m-1]+'/'+y.slice(2); };
 const fmtD = s => { if(!s) return ''; const [y,m,dd]=s.split('-'); return dd+'/'+m+'/'+y; };
 /* Idade da posicao bancaria. Cada conta e lancada num dia diferente: mostrar
@@ -7548,6 +7607,8 @@ let heSeq = 0;
 let DATAHE = null;
 let custosSeq = 0;
 let DATACUSTOS = null;
+let pecasSeq = 0;
+let DATAPECAS = null;
 let ocSeq = 0;
 let agrSeq = 0;
 let mvbSeq = 0;
@@ -7673,7 +7734,7 @@ const VIEW_GROUP = {home:'',cop:'',
   dre:'Ctr',bal:'Ctr',cont:'Ctr',qual:'Ctr',orc:'Ctr',fech:'Ctr',ctecp:'Ctr',
   torre:'Ope',milkrun:'Ope',poli:'Ope',prog:'Ope',jorn:'Ope',jornf:'Ope',cex:'Ope',sac:'Ope',port:'Ope',km:'Ope',agr:'Ope',mvb:'Ope',pedagio:'Ope',
   veic:'Fro',veicf:'Fro',mprev:'Fro',comrast:'Fro',comb:'Fro',man:'Fro',mul:'Fro',pneus:'Fro',
-  oc:'Sup',custos:'Sup',
+  oc:'Sup',custos:'Sup',pecas:'Sup',
   prodveic:'Bi',fat:'Ctr',gr:'Ope',tvfat:'Bi',tvope:'Bi',tvdir:'Bi',
   rh:'Rh',hc:'Rh',folha:'Rh',folhaind:'Rh',he:'Rh',cnh:'Rh',ferias:'Rh',people:'Rh',gestao:'Adm',srv:'Adm',doc:'Adm',gesacao:'Ges',gesata:'Ges',
   // Telemetria e ANTT tinham grupo na barra lateral mas ficaram de fora deste
@@ -7850,6 +7911,10 @@ function qsView(k){
     if(T('fClifNome'))p.set('cliente',T('fClifNome'));
     if(V('fClifDe'))p.set('comp_de',V('fClifDe'));
     if(V('fClifAte'))p.set('comp_ate',V('fClifAte'));
+  } else if(k==='pecas'){
+    if(V('fPecDe'))p.set('dt_de',V('fPecDe'));
+    if(V('fPecAte'))p.set('dt_ate',V('fPecAte'));
+    if(V('fPecFilial'))p.set('filial',V('fPecFilial'));
   } else if(k==='custos'){
     if(V('fCustDe'))p.set('dt_de',V('fCustDe'));
     if(V('fCustAte'))p.set('dt_ate',V('fCustAte'));
@@ -7881,7 +7946,7 @@ function semFilterbar(v){
   // filtros", que não tinha o que aplicar.
   return v==='cop'||v==='gestao'||v==='gesacao'||v==='gesata'||v==='srv'||v==='home'||v==='veicf'||v==='clif'||v==='jorn'||v==='jornf'||v==='prog'||
          v==='cex'||v==='sac'||v==='mprev'||v==='comrast'||v==='qual'||v==='port'||v==='crm'||v==='rh'||
-         v==='hc'||v==='folha'||v==='folhaind'||v==='he'||v==='custos'||v==='orc'||v==='prem'||v==='banc'||v==='extb'||v==='fech'||v==='fat'||v==='gr'||v==='antport'||v==='doc'||v==='telcon'||v==='telcond'||v==='telhod'||v==='milkrun'||v==='cnh'||v==='ferias'||v==='pneus'||v==='people'||v==='poli'||v==='ctecp';
+         v==='hc'||v==='folha'||v==='folhaind'||v==='he'||v==='custos'||v==='pecas'||v==='orc'||v==='prem'||v==='banc'||v==='extb'||v==='fech'||v==='fat'||v==='gr'||v==='antport'||v==='doc'||v==='telcon'||v==='telcond'||v==='telhod'||v==='milkrun'||v==='cnh'||v==='ferias'||v==='pneus'||v==='people'||v==='poli'||v==='ctecp';
 }
 function currentView(){
   const h = (location.hash||'').replace('#','');
@@ -7974,7 +8039,7 @@ function router(){
   document.getElementById('grpFluxcon').style.display = fluxcon ? 'flex' : 'none';
   const ges = (v==='gestao');
   const fbar=document.getElementById('filterbar'); if(fbar) fbar.style.display = semFilterbar(v) ? 'none' : '';
-  const metaEl=document.getElementById('meta'); if(metaEl) metaEl.style.display = (cop||ges||v==='gesacao'||v==='gesata'||v==='srv'||v==='veicf'||v==='clif'||v==='jorn'||v==='jornf'||v==='cex'||v==='sac'||v==='mprev'||v==='comrast'||v==='qual'||v==='port'||v==='crm'||v==='rh'||v==='hc'||v==='folha'||v==='folhaind'||v==='he'||v==='custos'||v==='prem'||v==='doc'||v==='poli'||v==='ctecp') ? 'none' : '';
+  const metaEl=document.getElementById('meta'); if(metaEl) metaEl.style.display = (cop||ges||v==='gesacao'||v==='gesata'||v==='srv'||v==='veicf'||v==='clif'||v==='jorn'||v==='jornf'||v==='cex'||v==='sac'||v==='mprev'||v==='comrast'||v==='qual'||v==='port'||v==='crm'||v==='rh'||v==='hc'||v==='folha'||v==='folhaind'||v==='he'||v==='custos'||v==='pecas'||v==='prem'||v==='doc'||v==='poli'||v==='ctecp') ? 'none' : '';
   // classe em vez de style: o CSS mobile usa !important no display
   const bfil=document.getElementById('btnFiltros'); if(bfil){ bfil.classList.toggle('oculto', semFilterbar(v)); bfil.style.display=''; }
   document.getElementById('grpKm').style.display = kmv ? 'flex' : 'none';
@@ -7997,8 +8062,8 @@ function router(){
   // carga da vista: dispara se não há dados OU se os filtros visíveis
   // divergem dos usados na última carga (nunca mostrar dado velho com filtro novo)
   const key=viewKey(v);
-  const DATAMAP={fin:DATA,oc:DATAOC,agr:DATAAGR,anpiso:DATAANPISO,anrntrc:DATAANRNTRC,pedagio:DATAPED,telcon:DATATELCON,telcond:DATATELCOND,telhod:DATATELHOD,mvb:DATAMVB,comb:DATACOMB,man:DATAMAN,com:DATACOM,clif:DATACLIF,dre:DATADRE,bal:DATABAL,drecli:DATADRECLI,home:DATAHOME,km:DATAKM,torre:DATATORRE,veic:DATAVEIC,veicf:DATAVEICF,mul:DATASMT,prog:DATAPROG,jorn:DATAJR,jornf:DATAJORNF,cex:DATACEX,sac:DATASAC,mprev:DATAMPREV,comrast:DATACOMRAST,qual:DATAQUAL,port:DATAPORT,crm:DATACRM,rh:DATARH,hc:DATAHC,folha:DATAFOLHA,folhaind:DATAFOLHAIND,he:DATAHE,custos:DATACUSTOS,cob:DATACOB,banc:DATABANC,extb:DATAEXTB,lanc:DATALANC,antec:DATAANTEC,antport:DATAANTPORT,milkrun:DATAMILK,fluxcon:DATAFLUXCON,rec:DATAREC,rent:DATARENT,cont:DATACONT,orc:DATAORC,fech:DATAFECH,fat:DATAFAT,gr:DATAGR,prem:DATAPREM,gestao:DATAGES,srv:DATASRV,doc:DATADOC,tvfat:null,tvope:null,tvdir:null,cop:(COP_MSGS.length?{}:null)};
-  const LOADMAP={fin:load,oc:loadOc,agr:loadAgr,anpiso:loadAnpiso,anrntrc:loadAnrntrc,telcon:loadTelcon,telcond:loadTelcond,telhod:loadTelhod,mvb:loadMvb,pedagio:loadPedagio,comb:loadComb,man:loadMan,com:loadCom,clif:loadClif,dre:loadDre,bal:loadBal,drecli:loadDreCli,home:loadHome,km:loadKm,prodveic:loadProdveic,torre:loadTorre,veic:loadVeic,veicf:loadVeicf,mul:loadSmt,prog:loadProg,jorn:loadJorraster,jornf:loadJornf,cex:loadCex,sac:loadSac,mprev:loadMPrev,comrast:loadComRast,qual:loadQual,port:loadPort,crm:loadCrm,rh:loadRh,hc:loadHc,folha:loadFolha,folhaind:loadFolhaInd,he:loadHe,custos:loadCustos,cob:loadCob,banc:loadBanc,extb:loadExtb,lanc:loadLanc,antec:loadAntec,antport:loadAntport,milkrun:loadMilkrun,cnh:loadCnh,ferias:loadFerias,people:loadPeople,pneus:loadPneus,poli:loadPoli,ctecp:loadCtecp,fluxcon:loadFluxcon,rec:loadRec,rent:loadRent,cont:loadCont,orc:loadOrc,fech:loadFech,fat:loadFat,gr:loadGr,prem:loadPrem,gesacao:loadGesacao,gesata:loadGesata,gestao:loadGestao,srv:loadSrv,doc:loadDoc,cop:loadCop,tvfat:loadTvFat,tvope:loadTvOpe,tvdir:loadTvDir};
+  const DATAMAP={fin:DATA,oc:DATAOC,agr:DATAAGR,anpiso:DATAANPISO,anrntrc:DATAANRNTRC,pedagio:DATAPED,telcon:DATATELCON,telcond:DATATELCOND,telhod:DATATELHOD,mvb:DATAMVB,comb:DATACOMB,man:DATAMAN,com:DATACOM,clif:DATACLIF,dre:DATADRE,bal:DATABAL,drecli:DATADRECLI,home:DATAHOME,km:DATAKM,torre:DATATORRE,veic:DATAVEIC,veicf:DATAVEICF,mul:DATASMT,prog:DATAPROG,jorn:DATAJR,jornf:DATAJORNF,cex:DATACEX,sac:DATASAC,mprev:DATAMPREV,comrast:DATACOMRAST,qual:DATAQUAL,port:DATAPORT,crm:DATACRM,rh:DATARH,hc:DATAHC,folha:DATAFOLHA,folhaind:DATAFOLHAIND,he:DATAHE,custos:DATACUSTOS,pecas:DATAPECAS,cob:DATACOB,banc:DATABANC,extb:DATAEXTB,lanc:DATALANC,antec:DATAANTEC,antport:DATAANTPORT,milkrun:DATAMILK,fluxcon:DATAFLUXCON,rec:DATAREC,rent:DATARENT,cont:DATACONT,orc:DATAORC,fech:DATAFECH,fat:DATAFAT,gr:DATAGR,prem:DATAPREM,gestao:DATAGES,srv:DATASRV,doc:DATADOC,tvfat:null,tvope:null,tvdir:null,cop:(COP_MSGS.length?{}:null)};
+  const LOADMAP={fin:load,oc:loadOc,agr:loadAgr,anpiso:loadAnpiso,anrntrc:loadAnrntrc,telcon:loadTelcon,telcond:loadTelcond,telhod:loadTelhod,mvb:loadMvb,pedagio:loadPedagio,comb:loadComb,man:loadMan,com:loadCom,clif:loadClif,dre:loadDre,bal:loadBal,drecli:loadDreCli,home:loadHome,km:loadKm,prodveic:loadProdveic,torre:loadTorre,veic:loadVeic,veicf:loadVeicf,mul:loadSmt,prog:loadProg,jorn:loadJorraster,jornf:loadJornf,cex:loadCex,sac:loadSac,mprev:loadMPrev,comrast:loadComRast,qual:loadQual,port:loadPort,crm:loadCrm,rh:loadRh,hc:loadHc,folha:loadFolha,folhaind:loadFolhaInd,he:loadHe,custos:loadCustos,pecas:loadPecas,cob:loadCob,banc:loadBanc,extb:loadExtb,lanc:loadLanc,antec:loadAntec,antport:loadAntport,milkrun:loadMilkrun,cnh:loadCnh,ferias:loadFerias,people:loadPeople,pneus:loadPneus,poli:loadPoli,ctecp:loadCtecp,fluxcon:loadFluxcon,rec:loadRec,rent:loadRent,cont:loadCont,orc:loadOrc,fech:loadFech,fat:loadFat,gr:loadGr,prem:loadPrem,gesacao:loadGesacao,gesata:loadGesata,gestao:loadGestao,srv:loadSrv,doc:loadDoc,cop:loadCop,tvfat:loadTvFat,tvope:loadTvOpe,tvdir:loadTvDir};
   if(!DATAMAP[key] || (key!=='home' && LOADEDQS[key]!==qsView(key))) LOADMAP[key]();
   // mobile: estado da navegação inferior + fecha gaveta/painel de filtros
   document.querySelectorAll('.bottomnav [data-bview]').forEach(a=>a.classList.toggle('ativo', a.dataset.bview===v));
@@ -8057,7 +8122,7 @@ const NAV_KW={
   comrast:'rastreador comunicacao sinal offline', comb:'diesel abastecimento posto consumo km/l arla',
   man:'oficina os ordem servico corretiva peca',
   mul:'multa infracao transito pontos cnh smartec notificacao boleto sne detran indicacao condutor licenca cronotacografo antt licenciamento ipva restricao renavam',
-  oc:'compra ordem fornecedor entrada nota', custos:'custo painel despesa',
+  oc:'compra ordem fornecedor entrada nota', custos:'custo painel despesa', pecas:'peça preço mediana sobrepreço fornecedor cotação oficina manutenção',
   hc:'headcount quadro pessoas colaboradores', folha:'salario folha pagamento custo pessoal',
   folhaind:'indicador folha rh', he:'hora extra sobreaviso adicional',
   rh:'vaga recrutamento contratacao selecao', home:'inicio visao geral resumo dashboard',
@@ -9837,7 +9902,7 @@ function reloadCurrent(){
   // recarrega a TELA ATUAL — antes caía em load() (Financeiro) para várias telas.
   const M={home:loadHome,fluxo:load,receber:load,pagar:load,dre:loadDre,drecli:loadDreCli,oc:loadOc,
     agr:loadAgr,mvb:loadMvb,pedagio:loadPedagio,comb:loadComb,man:loadMan,com:loadCom,clif:loadClif,km:loadKm,prodveic:loadProdveic,
-    torre:loadTorre,veic:loadVeic,veicf:loadVeicf,mul:loadSmt,prog:loadProg,jorn:loadJorraster,jornf:loadJornf,cex:loadCex,sac:loadSac,mprev:loadMPrev,comrast:loadComRast,qual:loadQual,port:loadPort,crm:loadCrm,rh:loadRh,hc:loadHc,folha:loadFolha,folhaind:loadFolhaInd,he:loadHe,custos:loadCustos,cob:loadCob,banc:loadBanc,extb:loadExtb,rent:loadRent,
+    torre:loadTorre,veic:loadVeic,veicf:loadVeicf,mul:loadSmt,prog:loadProg,jorn:loadJorraster,jornf:loadJornf,cex:loadCex,sac:loadSac,mprev:loadMPrev,comrast:loadComRast,qual:loadQual,port:loadPort,crm:loadCrm,rh:loadRh,hc:loadHc,folha:loadFolha,folhaind:loadFolhaInd,he:loadHe,custos:loadCustos,pecas:loadPecas,cob:loadCob,banc:loadBanc,extb:loadExtb,rent:loadRent,
     cont:loadCont,orc:loadOrc,fech:loadFech,fat:loadFat,gr:loadGr,prem:loadPrem,gesacao:loadGesacao,gesata:loadGesata,gestao:loadGestao,srv:loadSrv,doc:loadDoc,cop:loadCop,tvfat:loadTvFat,tvope:loadTvOpe,tvdir:loadTvDir};
   (M[currentView()]||load)();
 }
@@ -11047,9 +11112,9 @@ function anelLigar(){
     if(typeof cortexAnel==='undefined') return;
     const lg=document.getElementById('lg-anel');
     if(lg && !lg.dataset.anel){ lg.dataset.anel='1'; cortexAnel.ligar(lg); }
-    const tp=document.getElementById('loadanel');
-    if(tp && !tp.dataset.anel){ tp.dataset.anel='1';
-      cortexAnel.ligar(tp, {brilho: anelTemaEscuro, alfa: .8, largura: 1.15}); }
+    const mn=document.getElementById('menuanel');
+    if(mn && !mn.dataset.anel){ mn.dataset.anel='1';
+      cortexAnel.ligar(mn, {brilho: anelTemaEscuro, alfa: .85, largura: 1.1}); }
   }catch(e){}
 }
 if(document.readyState==='loading') document.addEventListener('DOMContentLoaded', anelLigar, {once:true});
@@ -24467,6 +24532,151 @@ function renderHe(d){
   document.getElementById('he-eventos').innerHTML=`<table><thead><tr><th>Evento</th><th>Família</th><th class="num">Colab.</th><th class="num">Valor</th><th class="num">% do total</th></tr></thead><tbody>${ev}</tbody></table>`;
   const hint=document.getElementById('he-ev-hint'); if(hint) hint.textContent=(d.eventos||[]).length+' eventos na competência '+d.competencia+' · '+BRL.format(k.total_mes||0);
 }
+// ---------------- Preço de Peças (Suprimentos) ----------------
+/* A tela responde PREÇO, não fila: a solicitação de compra do AVA não é
+   requisição interna (prazo até virar OC tem mediana ZERO, não há aprovação
+   nem cancelamento). O eixo é a MEDIANA do próprio código de produto, e a
+   régua vem pronta do backend — aqui só se desenha. Ver api/suprimentos_pecas.py. */
+const PEC_CLASSE = {
+  grave:   ['Muito acima', 'b-dang'],
+  atencao: ['Acima',       'b-warn'],
+  barato:  ['Muito abaixo','b-info'],
+};
+function pecasDefaults(){
+  const de=document.getElementById('fPecDe'), ate=document.getElementById('fPecAte');
+  /* Doze meses em MESES FECHADOS mais o corrente — o mesmo que
+     suprimentos_pecas.periodo_padrao() faz no backend. Com noventa dias
+     (o default compartilhado das outras telas) metade dos produtos cai
+     abaixo do mínimo de compras e a mediana deixa de significar algo. */
+  const hoje=new Date();
+  if(ate && !ate.value) ate.value=_iso(hoje);
+  if(de && !de.value) de.value=_iso(new Date(hoje.getFullYear(), hoje.getMonth()-11, 1));
+}
+function pecasFiliais(){
+  /* A lista sai do select global que o initFiltros() preenche: derivar do
+     próprio dado encolheria a lista a cada seleção. */
+  const org=document.getElementById('fFilial'), sel=document.getElementById('fPecFilial');
+  if(!org || !sel || sel.dataset.pronto || org.options.length<2) return;
+  const atual=sel.value; sel.length=1;
+  for(let i=1;i<org.options.length;i++){
+    const o=document.createElement('option');
+    o.value=org.options[i].value; o.textContent=org.options[i].textContent; sel.appendChild(o);
+  }
+  sel.dataset.pronto='1'; if(atual) sel.value=atual;
+}
+async function loadPecas(){
+  pecasDefaults();
+  const seq=++pecasSeq, btn=document.getElementById('btnRefresh'); if(btn) btn.disabled=true;
+  document.getElementById('content').classList.add('loading'); skelKpis('kpis-pecas',4);
+  filtrosPromise = filtrosPromise || initFiltros();
+  try{
+    await filtrosPromise; pecasFiliais();
+    const q=qsView('pecas');
+    const r=await fetch('/api/suprimentos/precos-pecas?'+q,{cache:'no-store'});
+    const rr=await respostaJSON(r); if(seq!==pecasSeq) return;
+    if(!rr.ok){ showBanner((rr.dados||{}).mensagem||'Erro ao consultar os preços de peças.', (rr.dados||{}).detalhe); return; }
+    hideBanner(); DATAPECAS=rr.dados; LOADEDQS.pecas=q; renderPecas(rr.dados);
+  }catch(e){ if(seq===pecasSeq) showBanner('Não foi possível falar com a API.', e.message); }
+  finally{ if(seq===pecasSeq){ if(btn) btn.disabled=false; document.getElementById('content').classList.remove('loading'); } }
+}
+function renderPecas(d){
+  const k=d.kpis||{}, vazio=!k.itens;
+  const nfmt=v=>(v||0).toLocaleString('pt-BR');
+  const cob = k.itens ? Math.round(100*(k.itens_com_regua||0)/k.itens) : 0;
+
+  document.getElementById('kpis-pecas').innerHTML=[
+    kpi('Comprado em peças', BRL.format(k.valor||0),
+        nfmt(k.itens)+' itens · '+nfmt(k.produtos)+' produtos · '+nfmt(k.fornecedores)+' fornecedores','',
+        'Itens de peça da manutenção no recorte dos filtros. Serviço, pneu, sinistro e reforma não entram: misturados ao mesmo código, envenenam a mediana que é o eixo desta tela.'),
+    kpi('Itens a conferir', vazio?'n/d':nfmt(k.graves),
+        vazio?'nenhum item no recorte':(BRL.format(k.graves_impacto||0)+' acima da mediana'),
+        vazio?'':((k.graves||0)>0?'neg':'pos'),
+        'Compras a mais de três vezes a mediana do próprio produto. NÃO é sobrepreço confirmado: múltiplo muito alto costuma ser erro de digitação, e o catálogo é genérico. É a fila de conferência da compra, não uma acusação.'),
+    kpi('Economia por consolidação', vazio?'n/d':BRL.format(k.economia_conservadora||0),
+        vazio?'nenhum produto multi-fornecedor':('teto de '+BRL.format(k.economia_bruta||0)+' · '+nfmt(k.produtos_multi)+' produtos'),
+        '',
+        'Quanto se pagaria a menos comprando cada produto sempre do fornecedor de menor preço mediano. O número em destaque EXCLUI produto cujo maior preço passa de três vezes o menor, marca de código que mistura peças diferentes; o teto ao lado inclui tudo. Teto teórico: disponibilidade, prazo e frete não entram.'),
+    kpi('Cobertura da régua', vazio?'n/d':(cob+'%'),
+        vazio?'sem itens no recorte':(nfmt(k.itens_com_regua)+' de '+nfmt(k.itens)+' itens · mínimo de '+(d.min_compras||5)+' compras por produto'),
+        vazio?'':(cob>=80?'pos':(cob>=60?'warn':'neg')),
+        'Fração dos itens cujo produto tem compras suficientes na janela para a mediana significar algo. O resto não é avaliado nem entra nos alertas — dizer “sem desvio” sobre produto comprado duas vezes seria inventar régua.'),
+  ].join('');
+
+  /* série mensal: o mês corrente é parcial e sai hachurado */
+  const serie=d.serie||[], rot=serie.map(s=>{const [y,m]=s.mes.split('-'); return m+'/'+y.slice(2);});
+  const hojeMes=(new Date()).toISOString().slice(0,7);
+  const parcial=serie.map(s=>s.mes>=hojeMes);
+  const maxV=Math.max(1,...serie.map(s=>s.valor));
+  ecDesenhar('chartPecasMes', serie.length && (()=>{
+    const o=ecOpcoes(rot, maxV, {tipo:'moeda', sombra:true});
+    o.series=[ecBarras('Comprado em peças', serie.map(s=>s.valor), CC.navy700, {parcial})];
+    o.tooltip.formatter = ps => {
+      const i=(ps&&ps[0]?ps[0].dataIndex:0), s=serie[i]||{};
+      return `<b>${esc(rot[i])}</b>${parcial[i]?' <span style="color:#B97709">· parcial</span>':''}<br>`
+        + `Comprado: <b>${BRL.format(s.valor||0)}</b><br>${nfmt(s.itens)} itens`;
+    };
+    return o;
+  }), 'sem compra de peça no período');
+  const hs=document.getElementById('pecHintSerie');
+  if(hs) hs.textContent=serie.length+' meses · o mês corrente é parcial';
+
+  /* itens a conferir */
+  const conf=(d.alertas||[]);
+  document.getElementById('pecas-conf').innerHTML = conf.map(a=>{
+    const [lbl,cls]=PEC_CLASSE[a.classe]||[a.classe,'b-info'];
+    const dif=a.impacto>=0
+      ? `<span style="color:var(--red)">${BRL.format(a.impacto)}</span>`
+      : `<span style="color:var(--n500)">−${BRL.format(Math.abs(a.impacto))}</span>`;
+    return `<tr>
+      <td class="num">${fmtD(a.data)}</td>
+      <td class="num">${a.filial}</td>
+      <td title="${esc('Código ' + a.produto)}">${esc(a.descricao)}</td>
+      <td title="${esc(a.fornecedor_doc||'')}">${esc(a.fornecedor)}</td>
+      <td class="num">${NMI.format(a.quantidade)}</td>
+      <td class="num">${BRL.format(a.preco)}</td>
+      <td class="num">${BRL.format(a.mediana)}</td>
+      <td class="num">${a.multiplo!=null?NMI.format(a.multiplo)+'×':'—'}</td>
+      <td class="num">${a.compras_do_produto}</td>
+      <td class="num">${dif}</td>
+      <td><span class="badge ${cls}">${esc(lbl)}</span></td></tr>`;
+  }).join('') || '<tr><td colspan="11" style="color:var(--n500)">nenhum item fora do padrão no período</td></tr>';
+  const hc=document.getElementById('pecHintConf');
+  if(hc) hc.textContent = conf.length+' de '+(d.alertas_total||0)+' itens fora do padrão · ordenados pelo que se pagou a mais';
+  abaContador('pecNConf', d.alertas_total||0);
+
+  /* preço entre fornecedores */
+  const disp=(d.dispersao||[]);
+  document.getElementById('pecas-forn').innerHTML = disp.map(x=>`<tr>
+      <td title="${esc('Código ' + x.produto)}">${esc(x.descricao)}${x.suspeito?' <span class="badge b-warn">código misto</span>':''}</td>
+      <td class="num">${x.fornecedores}</td>
+      <td>${BRL.format(x.melhor_preco)} <span style="color:var(--n500)">· ${esc(x.melhor_fornecedor)}</span></td>
+      <td>${BRL.format(x.pior_preco)} <span style="color:var(--n500)">· ${esc(x.pior_fornecedor)}</span></td>
+      <td class="num">${NMI.format(x.spread)}×</td>
+      <td class="num">${BRL.format(x.gasto)}</td>
+      <td class="num" style="font-weight:600">${BRL.format(x.economia)}</td></tr>`
+  ).join('') || '<tr><td colspan="7" style="color:var(--n500)">nenhum produto comprado de mais de um fornecedor no período</td></tr>';
+  const hf=document.getElementById('pecHintForn');
+  if(hf) hf.textContent = disp.length+' de '+(d.dispersao_total||0)+' produtos · '+BRL.format(k.gasto_multi||0)+' comprados';
+  abaContador('pecNForn', d.dispersao_total||0);
+
+  /* alertas */
+  const A=[];
+  if((k.graves||0)>0) A.push(['t-dang','Itens muito acima da mediana',
+    `${nfmt(k.graves)} compras a mais de 3× a mediana do próprio produto, ${BRL.format(k.graves_impacto||0)} acima dela. Conferir digitação e unidade antes de tratar como preço.`]);
+  if((k.atencao||0)>0) A.push(['t-warn','Itens acima do padrão',
+    `${nfmt(k.atencao)} compras entre 1,5× e 3× a mediana, ${BRL.format(k.atencao_impacto||0)} acima dela.`]);
+  if((k.economia_conservadora||0)>0) A.push(['t-warn','Mesma peça, preços diferentes',
+    `${nfmt(k.produtos_multi)} produtos vêm de mais de um fornecedor. Comprar sempre do menor preço mediano renderia ${BRL.format(k.economia_conservadora)} (teto de ${BRL.format(k.economia_bruta||0)} incluindo códigos mistos).`]);
+  if((k.baratos||0)>0) A.push(['t-info','Preço baixo demais para o produto',
+    `${nfmt(k.baratos)} compras abaixo de um terço da mediana — em geral unidade de medida ou quantidade trocada no lançamento, não economia.`]);
+  if(cob && cob<80) A.push(['t-info','Parte dos itens fica sem régua',
+    `${100-cob}% dos itens são de produto com menos de ${d.min_compras||5} compras na janela: sobre eles a tela não afirma nada. Ampliar o período aumenta a cobertura.`]);
+  document.getElementById('alerts-pecas').innerHTML=(A.length?A:[['t-ok','Sem desvio relevante','Nenhuma compra fora do padrão do próprio produto no período.']])
+    .map(([c,t,m])=>`<div class="toast ${c}"><b>${esc(t)}</b>${esc(m)}</div>`).join('');
+
+  const f=document.getElementById('pecasFonte');
+  if(f) f.textContent = 'fonte: '+d.fonte+' · consultado '+fmtDT(d.atualizado_em);
+}
 // ---------------- Painel de Custos (Suprimentos) ----------------
 function custosDefaults(){
   const hoje=new Date(), de=document.getElementById('fCustDe'), ate=document.getElementById('fCustAte');
@@ -27845,8 +28055,7 @@ const CARGA = (typeof criarCarga === 'function' ? criarCarga : ()=>({
   desarma: (i) => clearTimeout(i),
   repete:  (fn,ms) => setInterval(fn,ms),
   cessa:   (i) => clearInterval(i),
-  mostraBarra: (v) => { const e=document.getElementById('loadbar'); if(e) e.hidden = !v;
-                        const a=document.getElementById('loadanel'); if(a) a.hidden = !v; },
+  mostraBarra: (v) => { const e=document.getElementById('loadbar'); if(e) e.hidden = !v; },
   mostraTempo: (v,s) => {
     const e=document.getElementById('loadtempo'); if(!e) return;
     // o rótulo é anunciado UMA vez pelo aria-live; os segundos ficam
@@ -28228,6 +28437,12 @@ function entrar(){
     if(compAte && !compAte.value) compAte.value=`${hj.getFullYear()}-${String(hj.getMonth()+1).padStart(2,'0')}`;
   }
   aplicarPermissoes(); avatarRender(); void sinoCarregar();
+  /* A razao social sob o titulo (#empNome) so era preenchida pelo initFiltros(),
+     chamado APENAS por load() (Financeiro) e loadOc(): abrir qualquer uma das
+     outras telas deixava o campo com o travessao do HTML. O endpoint e leve,
+     memoizado em filtrosPromise e liberado a qualquer usuario logado com
+     qualquer tela, entao carrega uma vez no arranque, para o painel inteiro. */
+  filtrosPromise = filtrosPromise || initFiltros();
   if(!podeVer(currentView())) location.hash = '#'+primeiraTela();
   router();
   if(USER.deve_trocar_senha) abrirTrocarSenha(true);
@@ -33293,6 +33508,7 @@ boot();
       <div class="dgrp-b">
         <a href="#oc" onclick="fecharDrawer()"><span class="ic" data-ic="oc"></span>Ordens de Compra</a>
         <a href="#custos" onclick="fecharDrawer()"><span class="ic" data-ic="custosic"></span>Painel de Custos</a>
+        <a href="#pecas" onclick="fecharDrawer()"><span class="ic" data-ic="pecasic"></span>Preço de Peças</a>
       </div>
     </div>
     <div class="dgrp" data-grp="Tel">
