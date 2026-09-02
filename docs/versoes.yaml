@@ -1,3 +1,30 @@
+- versao: "0.213.1"
+  data: "2026-09-02"
+  corrigido:
+    - >-
+      A DRE Gerencial, a Contabilidade, o Orçamento, a Previsão e o Painel de
+      Custos voltaram a abrir. A Contabilidade recriou no ERP a tabela que diz
+      em que linha da DRE cada conta entra, e a coluna que identifica a empresa
+      mudou de número para texto: as cinco telas passaram a devolver erro na
+      primeira consulta, sem número errado, só tela morta. O CÓRTEX agora
+      normaliza esse campo na entrada e sobrevive aos dois formatos.
+    - >-
+      Uma conta que ganha classificação nova sem perder a antiga não é mais
+      contada duas vezes. A conta de Multas Fiscais tinha ficado com duas
+      classificações no ERP e entrava duas vezes na DRE, em duas linhas
+      diferentes, com o total continuando plausível. Agora entra uma vez só, e
+      enquanto a duplicidade existir o valor aparece na linha NÃO ALOCADO /
+      CLASSIFICAR, que é onde se conserta.
+  adicionado:
+    - >-
+      Um conferidor do mapa contábil (scripts/conferir_agrupador.py) que roda
+      contra o banco vivo e compara o resultado por dois caminhos: pela
+      classificação gerencial e pela estrutura do plano de contas. Foi ele que
+      mostrou que quatro contas de balanço estão classificadas como custo e
+      deixavam a DRE Gerencial R$ 1,47 milhão melhor que o razão em doze meses
+      — entre elas o Ticket Car, um passivo, entrando como combustível. O mapa
+      é da Contabilidade e a correção é lá; o CÓRTEX mede e nomeia.
+
 - versao: "0.213.0"
   data: "2026-09-02"
   adicionado:

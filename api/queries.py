@@ -11,6 +11,7 @@ from __future__ import annotations
 
 from datetime import date, datetime, timedelta
 
+from . import agrupador_gerencial as _ag
 from . import db
 
 # ============================================================================
@@ -697,15 +698,14 @@ def export_sql_ajustes() -> str:
     return "\n".join(linhas) + "\n"
 
 
-DRE_AG_SQL = """
+DRE_AG_SQL = f"""
 SELECT to_char(l.dtlancamento,'YYYY-MM') AS mes,
        coalesce(ag.descricao, 'CLASSIFICAR') AS agrupador,
        sum(coalesce(l.valorcredito,0)-coalesce(l.valordebito,0))::float8 AS valor
 FROM lancamento l
 JOIN planoconta p ON p.reduzido = l.reduzido AND p.grupo = l.grupo
   AND p.ativoinativo = 1
-LEFT JOIN sulista.agrupadorgerencial ag ON ag.reduzido = l.reduzido
-  AND ag.grupo = l.grupo
+{_ag.left_join('ag', 'l')}
 WHERE l.dtlancamento >= %(de)s::date AND l.dtlancamento < %(ate)s::date
   AND coalesce(l.historico, 0) <> 18
   AND (ag.descricao IS NOT NULL OR p.estrutural ~ '^[34]')
@@ -749,15 +749,23 @@ GROUP BY 1, 2
 # conta ativa cai fora), LEFT JOIN do agrupador com 'CLASSIFICAR' no lugar do
 # nulo, historico <> 18 e a elegibilidade (tem agrupador OU estrutural de
 # resultado ~ '^[34]').
-DRE_AG_CONTA_SQL = """
+#
+# O agrupador entra por `agrupador_gerencial.left_join()` e nao pela tabela
+# crua: la mora o cast de `grupo` (o ERP recriou a coluna em varchar em
+# 02/09/2026 e derrubou esta consulta) e a agregacao por (grupo, reduzido) (o
+# cadastro nao tem chave primaria, e uma conta com duas classificacoes fazia o
+# LEFT JOIN dobrar o lancamento). A subconsulta agregada NAO mexeu no plano:
+# 24 meses medidos de novo em 02/09/2026 deram 16,1 s contra os 15,4 s da
+# tabela crua, e a soma bateu com a do DRE_AG_SQL ao centavo — que e o
+# invariante que este par de consultas existe para manter.
+DRE_AG_CONTA_SQL = f"""
 WITH mov AS (
   SELECT to_char(l.dtlancamento,'YYYY-MM') AS mes, l.grupo, l.reduzido,
          sum(coalesce(l.valorcredito,0)-coalesce(l.valordebito,0))::float8 AS valor
   FROM lancamento l
   JOIN planoconta p ON p.reduzido = l.reduzido AND p.grupo = l.grupo
     AND p.ativoinativo = 1
-  LEFT JOIN sulista.agrupadorgerencial ag ON ag.reduzido = l.reduzido
-    AND ag.grupo = l.grupo
+  {_ag.left_join('ag', 'l', '    ')}
   WHERE l.dtlancamento >= %(de)s::date AND l.dtlancamento < %(ate)s::date
     AND coalesce(l.historico, 0) <> 18
     AND (ag.descricao IS NOT NULL OR p.estrutural ~ '^[34]')
@@ -768,8 +776,7 @@ contas AS (
          upper(regexp_replace(p.descricao, '[^\u0001-\u00ff]', '-', 'g')) AS conta,
          coalesce(ag.descricao, 'CLASSIFICAR') AS agrupador
   FROM planoconta p
-  LEFT JOIN sulista.agrupadorgerencial ag ON ag.reduzido = p.reduzido
-    AND ag.grupo = p.grupo
+  {_ag.left_join('ag', 'p', '    ')}
   WHERE p.ativoinativo = 1
 )
 SELECT m.mes, c.agrupador, m.grupo, m.reduzido, c.estrutural, c.conta, m.valor
@@ -787,7 +794,7 @@ JOIN contas c ON c.grupo = m.grupo AND c.reduzido = m.reduzido
 # CRÉDITO FANTASMA no agrupador de destino. Hoje é inerte (não há ajuste local
 # em data/ajustes_contabeis.json), mas o JSON é persistente: bastaria a
 # Contabilidade inativar uma conta já ajustada para armar sozinho.
-DRE_AJUSTADAS_SQL = """
+DRE_AJUSTADAS_SQL = f"""
 SELECT to_char(l.dtlancamento,'YYYY-MM') AS mes,
        l.grupo::text || '|' || l.reduzido::text AS chave,
        coalesce(ag.descricao, 'CLASSIFICAR') AS agrupador_orig,
@@ -795,8 +802,7 @@ SELECT to_char(l.dtlancamento,'YYYY-MM') AS mes,
 FROM lancamento l
 JOIN planoconta p ON p.reduzido = l.reduzido AND p.grupo = l.grupo
   AND p.ativoinativo = 1
-LEFT JOIN sulista.agrupadorgerencial ag ON ag.reduzido = l.reduzido
-  AND ag.grupo = l.grupo
+{_ag.left_join('ag', 'l')}
 WHERE l.dtlancamento >= %(de)s::date AND l.dtlancamento < %(ate)s::date
   AND coalesce(l.historico, 0) <> 18
   AND (ag.descricao IS NOT NULL OR p.estrutural ~ '^[34]')
@@ -4281,7 +4287,7 @@ def get_rentabilidade(filial: int | None, dt_de: str, dt_ate: str,
 # Esta tela é justamente a que CLASSIFICA a conta 1|113927 ("IRPJ CSLL – Taxa
 # Selic", EN DASH) — sem a mitigação ela quebraria ao buscar a própria conta
 # que o usuário precisa acertar.
-CONTAB_CONTAS_SQL = """
+CONTAB_CONTAS_SQL = f"""
 SELECT l.grupo, l.reduzido, min(p.estrutural) AS estrutural,
        min(upper(regexp_replace(p.descricao, '[^\\u0001-\\u00ff]', '-', 'g'))) AS conta,
        coalesce(min(ag.descricao), 'CLASSIFICAR') AS agrupador,
@@ -4292,8 +4298,7 @@ SELECT l.grupo, l.reduzido, min(p.estrutural) AS estrutural,
 FROM lancamento l
 JOIN planoconta p ON p.reduzido = l.reduzido AND p.grupo = l.grupo
   AND p.ativoinativo = 1
-LEFT JOIN sulista.agrupadorgerencial ag ON ag.reduzido = l.reduzido
-  AND ag.grupo = l.grupo
+{_ag.left_join('ag', 'l')}
 WHERE l.dtlancamento >= %(de)s::date AND l.dtlancamento < %(ate)s::date
   AND coalesce(l.historico, 0) <> 18
   AND (ag.descricao IS NOT NULL OR p.estrutural ~ '^[34]')

@@ -3,6 +3,8 @@ Custos Avacorp.sql; datas parametrizadas (%(de)s/%(ate)s). É a CTE `custos`
 (4 blocos: abastecimento ext/int + OC com/sem NF). Use como prefixo + SELECT.
 """
 
+from api import agrupador_gerencial as _ag
+
 CUSTOS_CTE = r"""
 WITH custos AS(
 SELECT 
@@ -259,9 +261,7 @@ LEFT JOIN cadastro
 LEFT JOIN planoconta 
 ON planoconta.reduzido = ordemcompra_item.reduzidodebito
 
-LEFT JOIN sulista.agrupadorgerencial agrupador
-ON agrupador.grupo = planoconta.grupo
-AND agrupador.reduzido = planoconta.reduzido
+{{JOIN_AGRUPADOR}}
 
 LEFT JOIN ordemservico
 ON ordemcompra.grupo = ordemservico.grupo
@@ -400,9 +400,7 @@ ON ordemcompra.usuarioaprovador = user_aprova.codigo
 JOIN planoconta 
 ON planoconta.reduzido = ordemcompra_item.reduzidodebito
 
-LEFT JOIN sulista.agrupadorgerencial agrupador
-ON agrupador.grupo = planoconta.grupo
-AND agrupador.reduzido = planoconta.reduzido
+{{JOIN_AGRUPADOR}}
 
 LEFT JOIN ordemservico
 ON ordemcompra.grupo = ordemservico.grupo
@@ -432,4 +430,4 @@ WHERE
 notafiscalentrada_item_ordemcomprarecebida.grupo = 1
 AND notafiscalentrada_item_ordemcomprarecebida.empresa = 1
 AND notafiscalentrada.dtentrada::date BETWEEN %(de)s::date AND %(ate)s::date)
-"""
+""".replace("{{JOIN_AGRUPADOR}}", _ag.left_join("agrupador", "planoconta", ""))

@@ -71,6 +71,18 @@ existem no banco vivo.
   O erro aponta para o meio do agregado, não para a versão.
 - `api/db.py` pede `client_encoding` UTF8 (o padrão do libpq no Windows derruba
   a consulta inteira num travessão — `UntranslatableCharacter`).
+- **Tabela do ERP não tem contrato de tipo nem chave.** `sulista.agrupadorgerencial`
+  (o mapa conta → linha da DRE, mantido à mão pela Contabilidade) foi recriada
+  em 02/09/2026 com `grupo` em `varchar` — era `integer` — e as CINCO telas que
+  dependem dela (`dre`, `cont`, `orc`, previsão, `custos`) morreram no
+  `operator does not exist: character varying = integer`; na mesma leva uma
+  conta ganhou DUAS classificações e o `LEFT JOIN` dobrou o lançamento. Toda
+  leitura passa por `api/agrupador_gerencial.left_join()` (cast na entrada +
+  agregação por `(grupo, reduzido)`); `scripts/conferir_agrupador.py` mede o
+  cadastro e os DOIS caminhos do resultado (mapa × estrutural do plano), e
+  `tests/test_agrupador_gerencial.py` proíbe o join cru. **Dublê tem o tipo que
+  nós escrevemos, não o que o ERP grava** — schema de terceiro só se confere no
+  banco vivo.
 
 ### Módulo novo que escreve
 

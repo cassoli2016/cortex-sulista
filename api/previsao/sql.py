@@ -7,11 +7,12 @@ perguntas que a base ainda não fazia.
 """
 from __future__ import annotations
 
+from api import agrupador_gerencial as _ag
 from api.orcamento.sql import meses_fechados as meses_fechados_prev  # noqa: F401
 
 # Curva de completude: |movimento| por (mes de competencia, agrupador,
 # dias desde o 1o dia do mes em que o lancamento foi INCLUIDO - dtinc).
-COMPLETUDE_SQL = """
+COMPLETUDE_SQL = f"""
 SELECT to_char(l.dtlancamento,'YYYY-MM') AS mes,
        coalesce(ag.descricao, 'CLASSIFICAR') AS agrupador,
        greatest(0, least(45,
@@ -20,8 +21,7 @@ SELECT to_char(l.dtlancamento,'YYYY-MM') AS mes,
 FROM lancamento l
 JOIN planoconta p ON p.reduzido = l.reduzido AND p.grupo = l.grupo
   AND p.ativoinativo = 1
-LEFT JOIN sulista.agrupadorgerencial ag ON ag.reduzido = l.reduzido
-  AND ag.grupo = l.grupo
+{_ag.left_join('ag', 'l')}
 WHERE l.dtlancamento >= %(de)s::date AND l.dtlancamento < %(ate)s::date
   AND coalesce(l.historico, 0) <> 18
   AND (ag.descricao IS NOT NULL OR p.estrutural ~ '^[34]')
@@ -29,15 +29,14 @@ GROUP BY 1, 2, 3
 """
 
 # Razao por agrupador COMO ERA VISIVEL em uma data passada (backtest as-of).
-RAZAO_ASOF_SQL = """
+RAZAO_ASOF_SQL = f"""
 SELECT to_char(l.dtlancamento,'YYYY-MM') AS mes,
        coalesce(ag.descricao, 'CLASSIFICAR') AS agrupador,
        sum(coalesce(l.valorcredito,0)-coalesce(l.valordebito,0))::float8 AS valor
 FROM lancamento l
 JOIN planoconta p ON p.reduzido = l.reduzido AND p.grupo = l.grupo
   AND p.ativoinativo = 1
-LEFT JOIN sulista.agrupadorgerencial ag ON ag.reduzido = l.reduzido
-  AND ag.grupo = l.grupo
+{_ag.left_join('ag', 'l')}
 WHERE l.dtlancamento >= %(de)s::date AND l.dtlancamento < %(ate)s::date
   AND l.dtinc <= %(asof)s::date
   AND coalesce(l.historico, 0) <> 18

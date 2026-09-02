@@ -11,13 +11,14 @@ from __future__ import annotations
 
 from datetime import date
 
+from api import agrupador_gerencial as _ag
+
 # Base compartilhada: mesmos filtros de DRE_AG_SQL (ver api/queries.py).
-_BASE = """
+_BASE = f"""
 FROM lancamento l
 JOIN planoconta p ON p.reduzido = l.reduzido AND p.grupo = l.grupo
   AND p.ativoinativo = 1
-LEFT JOIN sulista.agrupadorgerencial ag ON ag.reduzido = l.reduzido
-  AND ag.grupo = l.grupo
+{_ag.left_join('ag', 'l')}
 WHERE l.dtlancamento >= %(de)s::date AND l.dtlancamento < %(ate)s::date
   AND coalesce(l.historico, 0) <> 18
   AND (ag.descricao IS NOT NULL OR position('3' in p.estrutural) = 1
@@ -37,11 +38,11 @@ HIST_CONTA_SQL = _SELECT + _BASE + " GROUP BY 1, 2"
 REAL_CONTA_SQL = HIST_CONTA_SQL
 
 # Conta -> agrupador gerencial, para o rollup até a linha da DRE.
-AGRUP_CONTA_SQL = """
+AGRUP_CONTA_SQL = f"""
 SELECT ag.grupo::text || '|' || ag.reduzido::text AS conta,
        ag.descricao AS agrupador
-FROM sulista.agrupadorgerencial ag
-WHERE ag.descricao IS NOT NULL
+FROM {_ag.FONTE} ag
+WHERE ag.descricao IS NOT NULL AND ag.grupo IS NOT NULL
 """
 
 # Conta -> nome do plano de contas (planoconta.descricao, como na Contabilidade).

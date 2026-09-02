@@ -2587,3 +2587,111 @@ para 2.033 itens-NF no mês por causa do rateio por centro de custo — se infla
 o valor não foi medido, e mexer numa consulta herdada do ERP sem reconciliar
 é pior que deixar; o Copiloto não leva os KPIs do Painel de Custos porque a
 consulta custa ~12 s a frio e a regra é snapshot barato.
+
+## A Contabilidade recriou a tabela do agrupador e cinco telas caíram (2026-09-02, v0.213.1)
+
+`sulista.agrupadorgerencial` é a tabela do ERP que diz em que linha da DRE
+Gerencial cada conta do plano de contas entra. São 585 linhas mantidas À MÃO
+pela Contabilidade, direto no banco primário. Ela não tem chave primária, não
+tem índice, não tem coluna de vigência e ninguém nos avisa quando muda. Cinco
+telas dependem dela: **DRE Gerencial** (`dre`), **Contabilidade** (`cont`),
+**Orçamento** (`orc`), **Previsão** e **Custos** (`custos`).
+
+Em 02/09/2026 ela foi **recriada**: 574 das 585 linhas com o mesmo `xmin`, ou
+seja gravadas numa única transação, mais dois lotes pequenos logo depois (10
+linhas e 1 linha) — as classificações novas. Três coisas quebraram de uma vez,
+e as três em silêncio.
+
+### 1. O tipo de uma coluna de terceiro não é contrato
+
+`grupo` voltou como `character varying`. Era `integer`. Todos os dez pontos de
+join da casa comparavam `ag.grupo = l.grupo` contra o `int4` do razão, e o
+PostgreSQL **não tem operador `varchar = integer`**:
+
+```
+psycopg.errors.UndefinedFunction: operator does not exist: character varying = integer
+LINE 9:     AND ag.grupo = l.grupo
+```
+
+As cinco telas passaram a devolver erro na primeira consulta. Não houve
+degradação, não houve número errado: houve tela morta. E nenhum dos ~2.800
+testes acusou, porque **todos usam dublê** — o dublê tem o tipo que nós
+escrevemos, não o que o ERP grava. Teste com fixture não conhece o schema do
+fornecedor; só o banco vivo conhece.
+
+A defesa é normalizar na ENTRADA, não confiar: a fonte da casa
+(`api/agrupador_gerencial.py`) devolve `grupo` já em inteiro, e o que não for
+numérico vira `NULL` — a conta perde o agrupador e aparece em CLASSIFICAR, em
+vez de abortar a consulta inteira. Vale para os dois tipos: se o ERP restaurar
+`integer`, o mesmo cast continua valendo.
+
+### 2. Sem chave primária, classificar de novo é INSERT, e o join dobra
+
+A conta `1|425406` ("Multas Fiscais") ficou com **duas** linhas: a antiga
+`DESPESAS TRIBUTARIAS` e a nova `OUTRAS DESPESAS - DESPESAS TRIBUTARIAS`. A
+classificação nova entrou por INSERT sem apagar a velha, e o banco aceitou —
+não há chave primária que recuse.
+
+O estrago é o da família do join com tabela de vigência: o `LEFT JOIN`
+**duplica todo lançamento da conta**, o valor entra duas vezes na DRE, em duas
+linhas diferentes, e o total continua plausível. Medido: R$ 6.754,66 em 12
+meses contados a mais no `DRE_AG_SQL` — e três vezes no `DRE_AG_CONTA_SQL`,
+que junta o agrupador nos dois níveis (o razão e o plano de contas), de modo
+que a duplicata se multiplica por ela mesma.
+
+A fonte agora entra **agregada** por `(grupo, reduzido)`, com `min(descricao)`
+de desempate. `min()` não é palpite de qual classificação é a certa: é
+determinismo. Aqui ele escolhe justamente a órfã, e os R$ 85 mil (24 meses) da
+conta aparecem na linha **NÃO ALOCADO / CLASSIFICAR** da DRE — que é onde
+alguém conserta, em vez de sumirem dentro de uma linha que fecha.
+
+**Custou nada em desempenho**, e isso precisou ser medido, porque o comentário
+do `DRE_AG_CONTA_SQL` documenta uma degeneração de plano do 9.3 com CTE sem
+estatística (107,5 s contra o `statement_timeout` de 60 s). A subconsulta
+agregada é outra coisa: 24 meses deram **16,1 s** contra os 15,4 s da tabela
+crua. A primeira medição deu 53,5 s e era **cache frio** — repetir antes de
+concluir evitou reescrever a query por um número que não existia.
+
+### 3. O que a tabela decide não é só o rótulo — é quem ENTRA na DRE
+
+A elegibilidade das consultas é *"tem agrupador OU estrutural de resultado
+`~ '^[34]'`"*. Ou seja: **classificar uma conta de BALANÇO a puxa para dentro
+da DRE como custo**. São 6 hoje, e 4 com movimento:
+
+| conta | classificada como | 12 meses |
+|---|---|---|
+| `2.1.3.01.0005` Ticket Car (passivo) | CV - COMBUSTÍVEL | +R$ 1.071.887,58 |
+| `1.3.2.13.0004` Transitória de Ativo Imobilizado | CV - MANUTENÇÃO | +R$ 473.560,01 |
+| `1.1.5.01.0001` Estoque de Manutenção | CV - MANUTENÇÃO | −R$ 84.486,62 |
+| `1.1.5.01.0002` Estoque Material de Consumo | CF - DESPESAS ADM | +R$ 10.171,67 |
+
+Com sinal positivo elas **reduzem** o custo: a DRE Gerencial mostrava o
+resultado **R$ 1.471.132,64 melhor** que o razão de resultado, em 12 meses.
+Isso não é defeito de código — é decisão da Contabilidade sobre o mapa, e por
+isso o CÓRTEX **mede e nomeia** em vez de filtrar por conta própria.
+
+Como apareceu: **os dois caminhos do resultado**. O mesmo período somado pelo
+MAPA (agrupador) e pelo ESTRUTURAL do plano de contas, que não depende da
+tabela. A diferença fechou ao centavo com a soma das contas de balanço mais a
+duplicata — e é essa reconciliação que virou o conferidor.
+
+### O que ficou
+
+- `api/agrupador_gerencial.py` — **uma** definição da fonte, com o cast e a
+  agregação. Os dez pontos de join passaram a usá-la.
+- `scripts/conferir_agrupador.py` — a régua contra o banco VIVO: `grupo` não
+  numérico, conta duplicada, classificação que não alcança conta nenhuma,
+  conta de balanço classificada, agrupador que não cai em linha nenhuma do
+  `DRE_MODELO`, e os dois caminhos do resultado. Sai com código 1 quando acha.
+- `tests/test_agrupador_gerencial.py` — o guard que ninguém volta a juntar a
+  tabela crua, no texto-fonte **e** no SQL montado (f-string e `.replace()`
+  escondem o join do grep). Sabotado antes de entrar: os dois acusam.
+
+Ficou pendente na Contabilidade, e o conferidor cobra toda vez: apagar a linha
+duplicada de `1|425406`; decidir as 6 contas de balanço; classificar IRPJ,
+CSLL e PRÓ-LABORE (R$ 2,2 mi em 24 meses parados em CLASSIFICAR); e escolher
+entre `CF - SEGURO DE VEICULOS` e `CF - SEGUROS DE VEICULOS`, que são dois
+agrupadores para a mesma coisa. Os 12 agrupadores que não caem em linha nenhuma
+da DRE são quase todos de conta SINTÉTICA, sem lançamento — inertes hoje, mas é
+o mesmo gatilho armado: no dia em que o ERP lançar numa delas, o valor cai em
+CLASSIFICAR sem avisar.
