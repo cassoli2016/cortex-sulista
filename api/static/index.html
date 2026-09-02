@@ -1386,8 +1386,8 @@ body.tvfull.tvmode, body.tvfull.tvmode *{cursor:none !important}
    quem indica consulta em voo continua sendo a barra do topo (#loadbar).
    Escondido (menu recolhido no celular, painel de TV) o laco do anel dorme
    sozinho — ver o visivel() do anel.js. */
-.menuanel{width:66px;height:66px;display:block;margin:1px 0 0}
-body.mini .menuanel{width:34px;height:34px}
+.menuanel{width:78px;height:78px;display:block;margin:1px 0 0}
+body.mini .menuanel{width:40px;height:40px}
 body.tvmode .menuanel,body.tvfull .menuanel{display:none}
 .lg-head span{color:#fff;font-weight:700;letter-spacing:.35em;font-size:13px}
 .lg-body{padding:24px 30px 28px}
@@ -1903,7 +1903,7 @@ button.avatar{border:0;cursor:pointer}
   box-shadow:var(--shadow);padding:4px 10px;font-size:12px;color:var(--n600);
   white-space:nowrap}
 #loadtempo[hidden]{display:none}
-@media(max-width:880px){#loadtempo{left:14px} .lg-anel{width:110px;height:110px} .menuanel{width:54px;height:54px}}
+@media(max-width:880px){#loadtempo{left:14px} .lg-anel{width:110px;height:110px} .menuanel{width:62px;height:62px}}
 /* painel de TV recarrega sozinho a cada 60s e ninguém está esperando resposta */
 body.tvmode #loadbar,body.tvmode #loadtempo{display:none}
 @media (prefers-reduced-motion: reduce){
@@ -3340,6 +3340,8 @@ body.tvfull #btnReport,body.tvmode #btnReport{display:none}
           <button role="tab" id="tabman-veic" data-aba="veic" aria-controls="aba-man-veic" aria-selected="false" onclick="abaTrocar('man','veic')">Veículos <span class="aban" id="manVeicN"></span></button>
           <button role="tab" id="tabman-ofi" data-aba="ofi" aria-controls="aba-man-ofi" aria-selected="false" onclick="abaTrocar('man','ofi')">Oficinas <span class="aban" id="manOfiN"></span></button>
           <button role="tab" id="tabman-def" data-aba="def" aria-controls="aba-man-def" aria-selected="false" onclick="abaTrocar('man','def')">Defeitos <span class="aban" id="manDefN"></span></button>
+          <button role="tab" id="tabman-comp" data-aba="comp" aria-controls="aba-man-comp" aria-selected="false" onclick="abaTrocar('man','comp')">Compras da OS</button>
+          <button role="tab" id="tabman-rec" data-aba="rec" aria-controls="aba-man-rec" aria-selected="false" onclick="abaTrocar('man','rec')">Recompra de peça <span class="aban" id="manCompN"></span></button>
         </div>
         <div class="aba" data-abas="man" data-aba="vis" id="aba-man-vis" role="tabpanel" aria-labelledby="tabman-vis">
   <div class="card">
@@ -3393,7 +3395,41 @@ body.tvfull #btnReport,body.tvmode #btnReport{display:none}
             </tr></thead><tbody id="man-veic"></tbody></table></div>
           </div>
         </div>
-      </section>
+              <div class="aba" data-abas="man" data-aba="comp" id="aba-man-comp" role="tabpanel" aria-labelledby="tabman-comp" data-ao-abrir="loadComprasOs" hidden>
+          <div class="kpis k4" id="kpis-mancomp"></div>
+          <div class="grid2">
+            <div class="card">
+              <div class="head"><h2>O que a oficina compra, por mês <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="Itens de solicitação de compra ligados a uma ordem de serviço, separados pela classe do tipo de operação do ERP: peça, serviço, pneu, sinistro e reforma. Complementa o Painel de Custos, que agrupa por conta gerencial e não tem o vínculo com a OS nem com o veículo. O mês corrente é parcial.">i</span></h2><span class="hint" id="mancompHintMix">por classe de operação</span></div>
+              <div id="chartManCompMix" style="width:100%;height:186px" role="img"></div>
+            </div>
+            <div class="card">
+              <div class="head"><h2>Dias entre abrir a OS e comprar <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="Mediana e 90º percentil dos dias entre a emissão da ordem de serviço e a PRIMEIRA solicitação de compra dela. NÃO é veículo parado esperando peça: a OS se fecha ANTES da compra em 58% dos casos, então o que se mede aqui é o prazo administrativo até formalizar a compra. Uma OS pode gerar várias compras; conta só a primeira, senão complemento legítimo puxaria a mediana.">i</span></h2><span class="hint" id="mancompHintTempo">mediana e p90 por mês</span></div>
+              <div id="chartManCompTempo" style="width:100%;height:186px" role="img"></div>
+            </div>
+          </div>
+          <div class="grid2">
+            <div class="card">
+              <div class="head"><h2>Prazo por tipo de manutenção e filial <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="O mesmo prazo da OS até a compra, quebrado pelo tipo de manutenção que o ERP grava na ordem de serviço e pela filial que emitiu a solicitação.">i</span></h2><span class="hint" id="mancompHintDim"></span></div>
+              <div class="tablewrap tabroll"><table><thead><tr>
+                <th>Recorte</th><th class="num">OSs</th><th class="num">Mediana</th><th class="num">p90</th><th class="num">Acima do corte</th>
+              </tr></thead><tbody id="mancomp-dim"></tbody></table></div>
+            </div>
+            <div class="card">
+              <div class="head"><h2>Alertas <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="Regras fixas sobre os números desta aba: OSs que demoraram a virar compra, peça recomprada cedo demais no mesmo veículo e a cobertura do vínculo com a ordem de serviço.">i</span></h2><span class="hint">o que conferir com a oficina</span></div>
+              <div class="alerts" id="alerts-mancomp"></div>
+            </div>
+          </div>
+        </div>
+        <div class="aba" data-abas="man" data-aba="rec" id="aba-man-rec" role="tabpanel" aria-labelledby="tabman-rec" data-ao-abrir="loadComprasOs" hidden>
+          <div class="card">
+            <div class="head"><h2>Peça recomprada para o mesmo veículo <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="Mesma peça comprada de novo para o mesmo veículo dentro de 60 dias, em ORDENS DE SERVIÇO DIFERENTES. Par da mesma OS não entra: são 64 pares que o ERP registra assim, quase todos com um dia de intervalo, e é o mesmo reparo lançado em duas solicitações. Consumível (parafuso, graxa, faixa) fica marcado, porque se recompra por natureza — a lista é heurística e precisa da validação da oficina. Carreta tem várias rodas e eixos, e o ERP não grava a posição: recompra pode ser legítima.">i</span></h2><span class="hint" id="mancompHintRec"></span></div>
+            <div class="tablewrap tabroll"><table><thead><tr>
+              <th>Data</th><th class="num">Dias</th><th>Veículo</th><th>Peça</th>
+              <th class="num">OS anterior</th><th class="num">OS atual</th><th class="num">Valor</th><th>Natureza</th>
+            </tr></thead><tbody id="mancomp-rec"></tbody></table></div>
+          </div>
+        </div>
+</section>
 
       <!-- ===================== COMERCIAL: CLIENTES E RKM ===================== -->
       <section class="view" id="view-com">
@@ -11114,7 +11150,14 @@ function anelLigar(){
     if(lg && !lg.dataset.anel){ lg.dataset.anel='1'; cortexAnel.ligar(lg); }
     const mn=document.getElementById('menuanel');
     if(mn && !mn.dataset.anel){ mn.dataset.anel='1';
-      cortexAnel.ligar(mn, {brilho: anelTemaEscuro, alfa: .85, largura: 1.1}); }
+      /* O perfil `pequeno` do anel.js (16 linhas, amplitude .06) foi calibrado
+         para o indicador de 34px que vivia na topbar, onde sutileza era o
+         certo: ele piscava a cada consulta. Como MARCA permanente do menu o
+         anel precisa de vida legivel a 78px — mais linhas, onda mais funda e
+         um pouco mais rapido — senao parece um desenho parado. */
+      cortexAnel.ligar(mn, {brilho: anelTemaEscuro, alfa: .5, largura: 1.15,
+                            linhas: 30, pontos: 132, amplitude: .115,
+                            espessura: .13, velocidade: 1.5}); }
   }catch(e){}
 }
 if(document.readyState==='loading') document.addEventListener('DOMContentLoaded', anelLigar, {once:true});
@@ -24531,6 +24574,128 @@ function renderHe(d){
   const ev=(d.eventos||[]).map(e=>`<tr><td>${esc(e.ev)}</td><td><span class="badge ${famB[codDe(e.familia)]||''}">${esc(e.familia)}</span></td><td class="num">${e.funcs}</td><td class="num" style="font-weight:600">${BRL.format(e.tot)}</td><td class="num">${(e.pct||0).toFixed(1)}%</td></tr>`).join('')||'<tr><td colspan="5" style="color:var(--n500)">sem horas extras na competência</td></tr>';
   document.getElementById('he-eventos').innerHTML=`<table><thead><tr><th>Evento</th><th>Família</th><th class="num">Colab.</th><th class="num">Valor</th><th class="num">% do total</th></tr></thead><tbody>${ev}</tbody></table>`;
   const hint=document.getElementById('he-ev-hint'); if(hint) hint.textContent=(d.eventos||[]).length+' eventos na competência '+d.competencia+' · '+BRL.format(k.total_mes||0);
+}
+// ---------------- Compras da OS (sub-aba de Manutenção) ----------------
+/* Sub-aba, NÃO tela: herda RBAC, ícone e menu de #man. Carrega só quando a aba
+   abre (data-ao-abrir), porque a consulta é própria e ninguém deve pagar por
+   ela ao abrir Manutenção para ver outra coisa. */
+let mancompSeq = 0;
+let DATAMANCOMP = null;
+async function loadComprasOs(){
+  const seq=++mancompSeq;
+  document.getElementById('content').classList.add('loading'); skelKpis('kpis-mancomp',4);
+  try{
+    const q=qsView('man');   // mesma barra de filtros da tela de Manutenção
+    const r=await fetch('/api/frota/compras-os?'+q,{cache:'no-store'});
+    const rr=await respostaJSON(r); if(seq!==mancompSeq) return;
+    if(!rr.ok){ showBanner((rr.dados||{}).mensagem||'Erro ao consultar as compras da OS.', (rr.dados||{}).detalhe); return; }
+    hideBanner(); DATAMANCOMP=rr.dados; renderComprasOs(rr.dados);
+  }catch(e){ if(seq===mancompSeq) showBanner('Não foi possível falar com a API.', e.message); }
+  finally{ if(seq===mancompSeq) document.getElementById('content').classList.remove('loading'); }
+}
+function renderComprasOs(d){
+  const k=d.kpis||{}, nfmt=v=>(v||0).toLocaleString('pt-BR');
+  const semDado=!k.itens;
+  const cob = k.itens ? Math.round(100*(k.cobertura_os||0)/k.itens) : 0;
+  const pctDem = k.os ? Math.round(100*(k.demoradas||0)/k.os) : 0;
+
+  document.getElementById('kpis-mancomp').innerHTML=[
+    kpi('Comprado via OS', BRL.format(k.valor||0),
+        nfmt(k.itens)+' itens · '+nfmt(k.solicitacoes)+' solicitações','',
+        'Itens de solicitação de compra da manutenção no recorte da tela. Complementa o Painel de Custos, que agrupa por conta gerencial e não liga a compra à ordem de serviço nem ao veículo.'),
+    kpi('Da OS até a compra', semDado?'n/d':(NMI.format(k.mediana_dias)+' dias'),
+        semDado?'sem OS no recorte':('p90 de '+NMI.format(k.p90_dias)+' dias · '+nfmt(k.os)+' OSs'),'',
+        'Mediana dos dias entre emitir a ordem de serviço e a PRIMEIRA compra dela. NÃO é veículo parado esperando peça: a OS se fecha antes da compra em 58% dos casos. É o prazo administrativo até formalizar a compra.'),
+    kpi('OSs que demoraram', semDado?'n/d':nfmt(k.demoradas),
+        semDado?'sem OS no recorte':('acima de '+(k.dias_demora||15)+' dias'+(k.os?(' · '+pctDem+'% das OSs'):'')),
+        semDado?'':((k.demoradas||0)>0?'warn':'pos'),
+        'Ordens de serviço cuja primeira compra saiu mais de quinze dias depois da abertura. O corte é dez vezes o p90 medido da decisão de aprovação da ordem de compra.'),
+    kpi('Peça recomprada cedo', semDado?'n/d':nfmt(k.recompras),
+        semDado?'sem compra no recorte':(BRL.format(k.recompras_valor||0)+' · '+nfmt(k.recompras_veiculos)+' veículos'),
+        semDado?'':((k.recompras||0)>0?'warn':'pos'),
+        'Mesma peça comprada de novo para o mesmo veículo dentro de sessenta dias, em ordens de serviço DIFERENTES. Par da mesma OS não entra: é o mesmo reparo em duas solicitações. Consumível fica marcado na tabela e fora deste número.'),
+  ].join('');
+
+  /* mix mensal empilhado por classe */
+  const mix=d.mix||[], classes=(d.classes||[]).filter(c=>mix.some(m=>(m[c.chave]||0)>0));
+  const rot=mix.map(m=>{const [y,mm]=m.mes.split('-'); return mm+'/'+y.slice(2);});
+  const hojeMes=(new Date()).toISOString().slice(0,7);
+  const parcial=mix.map(m=>m.mes>=hojeMes);
+  const maxV=Math.max(1,...mix.map(m=>m.valor));
+  const CORES=[CC.navy700, CC.navy500, CC.laranja, CC.vermelho, CC.navy400, CC.n400];
+  ecDesenhar('chartManCompMix', mix.length && (()=>{
+    const o=ecOpcoes(rot, maxV, {tipo:'moeda', sombra:true,
+      legenda: classes.map(c=>c.rotulo)});
+    o.series=classes.map((c,idx)=>ecBarras(c.rotulo, mix.map(m=>m[c.chave]||0),
+      CORES[idx%CORES.length], {empilhar:'mix', parcial}));
+    return o;
+  }), 'sem compra ligada a OS no período');
+  const hm=document.getElementById('mancompHintMix');
+  if(hm) hm.textContent=mix.length+' meses · '+classes.map(c=>c.rotulo).join(' · ');
+
+  /* prazo por mês: mediana em barra, p90 em linha com rótulo direto */
+  const tm=d.tempo_mensal||[];
+  const rotT=tm.map(x=>{const [y,mm]=x.mes.split('-'); return mm+'/'+y.slice(2);});
+  const maxT=Math.max(1,...tm.map(x=>x.p90));
+  /* AS DUAS COMO LINHA, com rotulo direto. Barra para a mediana ficava com
+     tres pixels de altura: o eixo vai ate o p90 (32 dias) e a mediana vive em
+     3-4. Mesma unidade, entao dividir o eixo e correto — o que faltava era a
+     mediana nao ser a serie esmagada. */
+  ecDesenhar('chartManCompTempo', tm.length && (()=>{
+    const o=ecOpcoes(rotT, maxT, {tipo:'dias', sombra:true, top:30,
+      legenda:['Mediana','p90']});
+    o.series=[
+      ecLinha('Mediana', tm.map(x=>x.mediana), CC.navy700,
+              {rotulo:v=>NMI.format(v), posRotulo:'bottom', area:true}),
+      ecLinha('p90', tm.map(x=>x.p90), CC.laranja, {rotulo:v=>NMI.format(v)}),
+    ];
+    o.tooltip.formatter = ps => {
+      const i=(ps&&ps[0]?ps[0].dataIndex:0), x=tm[i]||{};
+      return `<b>${esc(rotT[i])}</b><br>Mediana: <b>${NMI.format(x.mediana||0)} dias</b><br>`
+        + `p90: <b>${NMI.format(x.p90||0)} dias</b><br>${x.os||0} OSs · ${x.demoradas||0} acima de ${k.dias_demora||15} dias`;
+    };
+    return o;
+  }), 'sem OS com compra no período');
+
+  /* prazo por tipo de manutenção e por filial, na mesma tabela */
+  const linhas=[];
+  (d.tempo_tipo||[]).forEach(x=>linhas.push(['Tipo · '+x.rotulo, x]));
+  (d.tempo_filial||[]).forEach(x=>linhas.push(['Filial '+(x.chave==null?'—':x.chave), x]));
+  document.getElementById('mancomp-dim').innerHTML = linhas.map(([rotulo,x])=>`<tr>
+      <td>${esc(rotulo)}</td><td class="num">${nfmt(x.os)}</td>
+      <td class="num">${NMI.format(x.mediana)} d</td>
+      <td class="num">${NMI.format(x.p90)} d</td>
+      <td class="num">${x.demoradas>0?`<span style="color:var(--yellow)">${nfmt(x.demoradas)}</span>`:'—'}</td>
+    </tr>`).join('') || '<tr><td colspan="5" style="color:var(--n500)">sem OS com compra no período</td></tr>';
+  const hd=document.getElementById('mancompHintDim');
+  if(hd) hd.textContent='acima do corte de '+(k.dias_demora||15)+' dias';
+
+  /* recompra */
+  const rec=d.recompras||[];
+  document.getElementById('mancomp-rec').innerHTML = rec.map(x=>`<tr>
+      <td class="num">${fmtD(x.data)}</td>
+      <td class="num">${x.dias}</td>
+      <td class="mono">${esc(x.veiculo)}</td>
+      <td title="${esc('Código ' + x.produto)}">${esc(x.descricao)}</td>
+      <td class="num">${x.os_anterior==null?'—':x.os_anterior}</td>
+      <td class="num">${x.os==null?'—':x.os}</td>
+      <td class="num">${BRL.format(x.valor)}</td>
+      <td>${x.consumivel?'<span class="badge b-info">consumível</span>':'<span class="badge b-warn">conferir</span>'}</td>
+    </tr>`).join('') || '<tr><td colspan="8" style="color:var(--n500)">nenhuma peça recomprada no período</td></tr>';
+  const hr=document.getElementById('mancompHintRec');
+  if(hr) hr.textContent = rec.length+' de '+(d.recompras_total||0)+' pares · '
+    + nfmt(k.recompras)+' fora consumível · consumível é heurística, confira com a oficina';
+
+  const A=[];
+  if((k.demoradas||0)>0) A.push(['t-warn','OSs que demoraram a virar compra',
+    `${nfmt(k.demoradas)} de ${nfmt(k.os)} ordens de serviço (${pctDem}%) levaram mais de ${k.dias_demora||15} dias entre abrir e formalizar a compra.`]);
+  if((k.recompras||0)>0) A.push(['t-warn','Peça recomprada para o mesmo veículo',
+    `${nfmt(k.recompras)} casos em ${nfmt(k.recompras_veiculos)} veículos, ${BRL.format(k.recompras_valor||0)}, em OSs diferentes e dentro de sessenta dias. Pode ser falha prematura, retrabalho ou garantia não acionada — vale conferir com a oficina.`]);
+  if(cob && cob<100) A.push(['t-info','Compra sem vínculo de OS',
+    `${100-cob}% dos itens do período não têm ordem de serviço vinculada e ficam fora do prazo medido, embora contem no total comprado.`]);
+  document.getElementById('alerts-mancomp').innerHTML=(A.length?A:[['t-ok','Sem alerta na compra da oficina','Nenhuma OS demorada nem peça recomprada cedo no período.']])
+    .map(([c,t,m])=>`<div class="toast ${c}"><b>${esc(t)}</b>${esc(m)}</div>`).join('');
+  abaContador('manCompN', d.recompras_total||0);
 }
 // ---------------- Preço de Peças (Suprimentos) ----------------
 /* A tela responde PREÇO, não fila: a solicitação de compra do AVA não é

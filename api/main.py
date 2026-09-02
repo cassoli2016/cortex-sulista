@@ -15,7 +15,8 @@ import tomllib
 from datetime import date, datetime
 from pathlib import Path
 
-from api import segredo_arquivo, suprimentos_oc, suprimentos_pecas
+from api import (manutencao_compras, segredo_arquivo, suprimentos_oc,
+                 suprimentos_pecas)
 
 import psycopg
 from fastapi import FastAPI, Request, Response
@@ -3478,6 +3479,40 @@ def manutencao_preventiva(horizonte: int = 30) -> JSONResponse:
         log.warning("manutencao_preventiva falhou: %s", exc)
         return JSONResponse(status_code=500, content={
             "erro": "erro_consulta", "mensagem": "Erro ao consultar as revisões preventivas."})
+
+
+@app.get("/api/frota/compras-os")
+def frota_compras_os(filial: int | None = None,
+                     dt_de: str | None = None,
+                     dt_ate: str | None = None) -> JSONResponse:
+    """Compras da ordem de serviço: prazo entre abrir a OS e formalizar a
+    compra, mix por classe e peça recomprada cedo demais no mesmo veículo.
+
+    Sub-aba da tela de Manutenção — herda o RBAC dela (`man`)."""
+    from datetime import timedelta
+    hoje = date.today()
+    dt_ate = dt_ate or hoje.isoformat()
+    dt_de = dt_de or (hoje - timedelta(days=365)).isoformat()
+    for nome, valor in (("dt_de", dt_de), ("dt_ate", dt_ate)):
+        if _bad_date(valor):
+            return JSONResponse(status_code=422, content={
+                "erro": "parametro_invalido",
+                "mensagem": f"Parâmetro {nome} inválido: use o formato AAAA-MM-DD.",
+            })
+    if dt_de > dt_ate:
+        dt_de, dt_ate = dt_ate, dt_de
+    try:
+        return JSONResponse(manutencao_compras.get_compras_os(filial, dt_de, dt_ate))
+    except psycopg.OperationalError as exc:
+        log.warning("banco inacessivel: %s", exc)
+        return JSONResponse(status_code=503, content={
+            "erro": "banco_inacessivel",
+            "mensagem": "Sem conexão com o banco. O túnel SSH está aberto?"})
+    except Exception as exc:  # noqa: BLE001
+        log.warning("frota_compras_os falhou: %s", type(exc).__name__)
+        return JSONResponse(status_code=500, content={
+            "erro": "erro_consulta",
+            "mensagem": "Erro ao consultar as compras da ordem de serviço."})
 
 
 @app.get("/api/suprimentos/precos-pecas")

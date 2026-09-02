@@ -3,6 +3,24 @@ sistema: 'O CÓRTEX é o painel de gestão da Transportadora Sulista S/A. Ele l�
   — financeiro, comercial, operação, frota, pessoas e controladoria. Nenhum número é digitado aqui: tudo
   vem do ERP, e cada card diz no ⓘ de qual tabela e de qual regra ele saiu.'
 glossario:
+- termo: Prazo da OS até a compra
+  definicao: >-
+    Dias entre emitir a ordem de serviço e a PRIMEIRA solicitação de compra dela.
+    NÃO é veículo parado esperando peça: no ERP a ordem de serviço se fecha ANTES
+    da compra em 58% dos casos, e no mesmo dia em outros 27%. O que se mede é o
+    prazo administrativo até formalizar a compra. Conta só a primeira compra da
+    ordem, porque complemento legítimo lançado semanas depois puxaria a mediana
+    para cima e faria o processo parecer pior do que é.
+- termo: Recompra precoce de peça
+  definicao: >-
+    Mesma peça comprada de novo para o mesmo veículo dentro de sessenta dias, em
+    ordens de serviço DIFERENTES. Pode ser falha prematura, retrabalho ou
+    garantia não acionada. Duas exclusões, as duas medidas: par da mesma ordem de
+    serviço é o mesmo reparo lançado em duas solicitações, quase sempre com um
+    dia de intervalo; e consumível como parafuso, graxa e faixa refletiva se
+    recompra por natureza. A lista de consumíveis é uma heurística escrita a
+    partir da descrição do catálogo, não um campo do ERP, e precisa da validação
+    da oficina antes de virar fila de trabalho.
 - termo: Mediana do produto (régua do Preço de Peças)
   definicao: >-
     A tela de Preço de Peças compara cada compra com a MEDIANA das compras do
@@ -484,8 +502,13 @@ grupos:
   - agr
   - mvb
 - nome: Frota
-  resumo: Ativos e sua idade, consulta por placa, manutenção corretiva e preventiva, combustível e consumo,
-    multas, as infrações e licenças da Smartec, e comunicação dos rastreadores.
+  resumo: >-
+    Ativos e sua idade, consulta por placa, manutenção corretiva e preventiva,
+    combustível e consumo, multas, as infrações e licenças da Smartec, e
+    comunicação dos rastreadores. E, dentro de Manutenção, o que a oficina
+    compra por ordem de serviço — o prazo entre abrir a OS e formalizar a
+    compra, o mix entre peça e serviço, e a peça recomprada cedo demais para o
+    mesmo veículo.
   telas:
   - veic
   - veicf

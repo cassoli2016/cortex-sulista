@@ -1,3 +1,31 @@
+- versao: "0.213.0"
+  data: "2026-09-02"
+  adicionado:
+    - >-
+      Manutenção ganhou duas abas novas: COMPRAS DA OS e RECOMPRA DE PEÇA. A
+      primeira mostra o que a oficina compra por ordem de serviço, separado
+      entre peça, serviço, pneu, sinistro e reforma, e quanto tempo passa entre
+      abrir a ordem e formalizar a compra. Em doze meses são R$ 4,73 milhões em
+      15.336 itens, com mediana de 3 dias e p90 de 17 até a compra sair. E há
+      uma boa notícia que ninguém via: 301 de 2.777 ordens passam de quinze
+      dias hoje, contra 38,7% delas em 2024.
+    - >-
+      A aba Recompra de peça lista a mesma peça comprada de novo para o mesmo
+      veículo dentro de sessenta dias, em ordens de serviço diferentes: 291
+      casos, R$ 59,2 mil, 97 veículos. Pode ser falha prematura, retrabalho ou
+      garantia não acionada. Duas coisas ficam de fora e a tela diz as duas: par
+      da mesma ordem de serviço, que é o mesmo reparo lançado em duas
+      solicitações, e consumível como parafuso e graxa, que se recompra por
+      natureza. A lista de consumíveis é um palpite escrito a partir do
+      catálogo, não um campo do sistema, e precisa da conferência da oficina
+      antes de virar fila de trabalho.
+  alterado:
+    - >-
+      O anel da marca no menu ficou maior e com movimento visível. Ele já
+      girava, mas usava o desenho fino que existia para o indicador de carga da
+      barra do topo, e nesse tamanho a ondulação não se lia: parecia um desenho
+      parado.
+
 - versao: "0.212.0"
   data: "2026-09-02"
   adicionado:

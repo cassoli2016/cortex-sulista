@@ -87,6 +87,7 @@ _FONTES_ROTULO = {
     "visao_geral": "Visão Geral",
     "ordens_compra": "Ordens de Compra",
     "precos_pecas": "Preço de Peças",
+    "compras_da_os": "Manutenção — Compras da OS",
     "financeiro_caixa": "Fluxo de Caixa e Bancos",
     "analise_km_ano": "Análise de KM",
     "agregados_terceiros_ano": "Agregados e Terceiros",
@@ -466,6 +467,10 @@ def _fontes_do_snapshot() -> dict:
         # de consolidação) — sem produto nem fornecedor
         "precos_pecas": lambda: __import__(
             "api.suprimentos_pecas", fromlist=["snapshot_copiloto"]).snapshot_copiloto(),
+        # Compras da OS: prazo da ordem de serviço até a compra, mix por classe
+        # e recompra precoce — escalares, sem placa nem número de OS
+        "compras_da_os": lambda: __import__(
+            "api.manutencao_compras", fromlist=["snapshot_copiloto"]).snapshot_copiloto(),
         "faturamento_detalhado": _faturamento_detalhado,
         "financeiro_caixa": lambda: queries.get_overview(),
         "analise_km_ano": lambda: queries.get_analise_km(None, ini_ano, fim),

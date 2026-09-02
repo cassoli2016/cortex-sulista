@@ -107,7 +107,7 @@ a ACL em vez de afirmar a proteção.
 | Comercial | com, clif, crm, drecli | AVA + `crm_*` (banco local) |
 | Controladoria | dre, bal, cont, qual, orc, fech, ctecp | AVA + `orc_*`, `prev_*`, contrapartida |
 | Suprimentos | oc, custos, pecas | AVA (`ordemcompra` × vínculo de NF × `aprovador`, estado em `api/suprimentos_oc.py`; preço de peça pela mediana do produto em `api/suprimentos_pecas.py`) |
-| Frota | comb, man, veic, mprev, comrast, veicf, mul, pneus | AVA + `smt_*` (Smartec) + `data/pneus/` |
+| Frota | comb, man (+ sub-abas Compras da OS e Recompra de peça), veic, mprev, comrast, veicf, mul, pneus | AVA + `smt_*` (Smartec) + `data/pneus/` + `api/manutencao_compras.py` |
 | Telemetria | prem, telcon, telcond, telhod | Gobrax (`api/gobrax/`) + `prem_*` |
 | Recursos Humanos | rh, hc, folha, folhaind, cnh, ferias, people, he | AVA (folha/Globus) |
 | ANTT | anpiso, anrntrc | `config/antt_coeficientes.yaml`, `config/antt_cargas.yaml`, `rntrc_*` |
@@ -316,6 +316,15 @@ barra empilhada, não donut.
   km > 1.500/dia): fora dela é `n/d` com o bruto no tooltip, e conta num aviso.
 - **Rótulo de eixo nomeia a unidade FINAL** (`MILHÕES DE KM`, nunca
   `MIL KM ×1000`).
+- **Repetição dentro do MESMO documento não é recorrência** — a mesma peça
+  comprada duas vezes para o mesmo veículo na MESMA ordem de serviço é um
+  reparo lançado em duas solicitações, não falha prematura (64 de 355 pares,
+  quase todos com um dia). Piso de dias não separava isso: a distribuição por
+  dias é lisa, sem degrau. Separar pelo DOCUMENTO, não pelo tempo.
+- **Filtro heurístico se declara e se mostra dos dois lados** — a lista de
+  consumíveis que tira parafuso e graxa da recompra é regex sobre a descrição,
+  não campo do ERP. A tela mostra o número com e sem o filtro e pede validação
+  de quem opera; heurística escondida vira verdade do sistema.
 - **Régua de desvio é MEDIANA, e só existe com base** — média deixa o próprio
   outlier caber na faixa (um item a 70× move a média o bastante para se
   inocentar). Produto com menos de N compras na janela não é avaliado, e a tela
