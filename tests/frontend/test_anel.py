@@ -1,6 +1,9 @@
 # -*- coding: utf-8 -*-
 """O anel do CÓRTEX na tela de login e no menu lateral.
 
+Desde 02/09/2026 o nome CÓRTEX vive DENTRO do anel do menu (bloco `.marca`),
+não acima dele: soltos, liam-se como dois elementos; juntos, viram uma marca.
+
 O que só se prova no navegador: o canvas ACENDE (pixels não transparentes
 depois de um quadro — um canvas de largura zero ou um script que não
 carregou ficam mudos, sem erro). O anel do MENU gira SEMPRE, sem depender
@@ -31,9 +34,13 @@ def test_o_anel_esta_no_login_e_no_menu_e_nao_na_topbar():
     assert HTML.count('<canvas id="lg-anel"') == 1
     assert HTML.count('<canvas id="menuanel"') == 1
     assert "loadanel" not in HTML, "o anel voltou a ser indicador de carga na topbar"
-    # o anel do menu nasce logo ABAIXO do nome CÓRTEX da barra lateral
-    i = HTML.index('<span class="mk">CÓRTEX</span>')
-    assert 'id="menuanel"' in HTML[i:i + 160]
+    # o anel e o nome vivem no MESMO bloco .marca, com o nome DENTRO do anel
+    i = HTML.index('<div class="marca">')
+    bloco = HTML[i:HTML.index('</div>', HTML.index('</span>', i))]
+    assert 'id="menuanel"' in bloco and '<span class="mk">CÓRTEX</span>' in bloco
+    # o nome fica em HTML por cima, nunca desenhado no canvas: precisa continuar
+    # selecionável, legível por leitor de tela e nítido em qualquer densidade
+    assert '.brandwrap .marca .mk{position:absolute' in HTML
     # e NAO tem o atributo hidden: gira sempre. O espaco antes e de proposito —
     # sem ele o aria-hidden do proprio canvas casaria e o teste passaria a mentir.
     tag = re.search(r'<canvas id="menuanel"[^>]*>', HTML).group(0)

@@ -4,6 +4,19 @@ Gerado de `docs/versoes.yaml` por `scripts/gerar_changelog.py` — não editar �
 Formato [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/),
 versionamento [SemVer](https://semver.org/lang/pt-BR/).
 
+## [0.214.0] — 02/09/2026  ·  CX-02/09/2026-v0.214.0
+
+### Adicionado
+- O painel de TV da operação passou de oito para doze indicadores. Entraram quantas viagens saíram hoje contra as chegadas previstas, quantos veículos estão em viagem sem transmitir posição há mais de seis horas, a ocupação da tração, quantas leituras de telemetria foram descartadas e quantas cargas das próximas 96 horas ainda estão sem veículo.
+
+### Alterado
+- Os números do painel de TV ficaram menores e as bordas dos cartões mais discretas. Com o número ocupando menos espaço cabem seis indicadores por bloco em vez de quatro, e quem lê de longe continua enxergando: numa TV o que guia o olho é a forma do painel, não o tamanho da fonte.
+- O menu lateral ficou mais compacto, cerca de 15% mais curto, sem diminuir a letra nem a área de clique. São setenta telas em treze grupos e a barra chegava a rolar. O que encolheu foi o espaço vertical entre os itens.
+- O nome CÓRTEX passou a ficar DENTRO do anel da marca, no menu. Fora dele, o nome e o anel liam-se como dois elementos soltos; juntos, viram uma marca só.
+
+### Corrigido
+- O painel de TV da operação mostrava CONSUMO DA FROTA DE 0,7 KM/L, em vermelho, um número que caminhão nenhum faz. A conta somava os litros de todos os veículos, e catorze dos cento e cinco traziam leitura impossível da telemetria — um deles com 66 mil litros num mês, quando o tanque de um caminhão tem entre 400 e 600. Contando só quem tem leitura válida, o consumo real da frota é 3,4 km/l. O mesmo saneamento vale para a velocidade média, que uma leitura de 5.210 km/h levava de 44 para 102, e para a taxa de freada brusca. Quando não sobra leitura confiável o cartão passa a dizer "n/d" em vez de pintar um número impossível de vermelho, e um cartão novo mostra quantas leituras foram descartadas.
+
 ## [0.213.1] — 02/09/2026  ·  CX-02/09/2026-v0.213.1
 
 ### Adicionado

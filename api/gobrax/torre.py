@@ -21,6 +21,10 @@ from api.gobrax.consumo import plausivel
 # não o consumo (mesma régua da tela de Combustível, ver CLAUDE.md).
 ALVO_KM_L = 2.5
 
+# Velocidade média de caminhão não passa disso. A coleta trouxe uma linha com
+# 5.210 km/h; sem o teto ela sozinha subia a média da frota para 101,8 km/h.
+VEL_MAX_PLAUSIVEL = 130.0
+
 
 def _num(v):
     try:
@@ -45,8 +49,10 @@ def resumo() -> dict:
         return {"disponivel": False, "motivo": "nenhuma coleta de telemetria gravada"}
 
     km_tot = lit_tot = 0.0
-    freadas = freadas_alta = 0
+    km_ok = lit_ok = 0.0
+    freadas = freadas_alta = freadas_alta_ok = 0
     vels, consumos, abaixo, suspeitos = [], [], 0, 0
+    vel_fora = 0
 
     for r in linhas:
         km, lit = _num(r.get("km")) or 0.0, _num(r.get("litros")) or 0.0
@@ -55,18 +61,37 @@ def resumo() -> dict:
         lit_tot += lit
         freadas += int(_num(r.get("freadas")) or 0)
         freadas_alta += int(_num(r.get("freadas_alta")) or 0)
+        if plausivel(km_l):
+            freadas_alta_ok += int(_num(r.get("freadas_alta")) or 0)
         if vel and vel > 0:
-            vels.append(vel)
+            if vel <= VEL_MAX_PLAUSIVEL:
+                vels.append(vel)
+            else:
+                vel_fora += 1
         if plausivel(km_l):
             consumos.append(km_l)
+            km_ok += km
+            lit_ok += lit
             if km_l < ALVO_KM_L:
                 abaixo += 1
         elif km_l is not None:
             suspeitos += 1
 
-    # km/l da FROTA é km total ÷ litros totais, não a média das médias: veículo
-    # que rodou 200 km pesaria igual a um que rodou 20.000.
-    km_l_frota = (km_tot / lit_tot) if lit_tot > 0 else None
+    # km/l da FROTA é km ÷ litros, não a média das médias: veículo que rodou
+    # 200 km pesaria igual a um que rodou 20.000.
+    #
+    # SÓ SOBRE QUEM PASSA NA RÉGUA. Somar todas as linhas deixava 14 leituras
+    # furadas de 105 envenenarem a frota inteira: uma delas trazia 66.762
+    # LITROS num mês (tanque de caminhão tem 400 a 600) e outra 50.796 km em
+    # dois dias. O painel de TV mostrava "0,7 km/l" em vermelho enquanto o
+    # cartão ao lado dizia que 91 veículos tinham leitura válida e só 26
+    # estavam abaixo do alvo — o número principal contradizia o próprio
+    # subtítulo. Sobre os 91 plausíveis o resultado é 2,81 km/l.
+    km_l_frota = (km_ok / lit_ok) if lit_ok > 0 else None
+    # Cinto e suspensório: se ainda assim o agregado cair fora da faixa física,
+    # é `n/d`. Número impossível some da tela, não é pintado de vermelho.
+    if km_l_frota is not None and not plausivel(km_l_frota):
+        km_l_frota = None
     quando = (log or {}).get("quando")
     dias = None
     if quando:
@@ -78,8 +103,11 @@ def resumo() -> dict:
     return {
         "disponivel": True,
         "veiculos": len(linhas),
-        "km_total": round(km_tot, 1),
-        "litros_total": round(lit_tot, 1),
+        "km_total": round(km_ok, 1),
+        "litros_total": round(lit_ok, 1),
+        "km_total_bruto": round(km_tot, 1),
+        "litros_total_bruto": round(lit_tot, 1),
+        "vel_fora_da_faixa": vel_fora,
         "km_l_frota": round(km_l_frota, 2) if km_l_frota else None,
         "alvo_km_l": ALVO_KM_L,
         "abaixo_do_alvo": abaixo,
@@ -90,8 +118,13 @@ def resumo() -> dict:
         "freadas_alta": freadas_alta,
         # freada brusca por 1.000 km normaliza frotas de tamanhos diferentes —
         # o total absoluto só diz quem rodou mais
-        "freadas_alta_por_mil_km": (round(1000 * freadas_alta / km_tot, 2)
-                                    if km_tot > 0 else None),
+        # RAZÃO SÓ SOBRE A INTERSEÇÃO: numerador e denominador do MESMO
+        # conjunto de veículos. Um com 50 mil km espúrios diluía a taxa da
+        # frota; contar as freadas dele sobre o km dos outros inflava. O total
+        # absoluto de freadas continua acima, para o subtítulo do cartão.
+        "freadas_alta_por_mil_km": (round(1000 * freadas_alta_ok / km_ok, 2)
+                                    if km_ok > 0 else None),
+        "freadas_alta_com_regua": freadas_alta_ok,
         "competencia": (log or {}).get("competencia"),
         "coletado_em": quando,
         "dias_atras": dias,

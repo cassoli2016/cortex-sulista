@@ -123,15 +123,17 @@ aside{position:sticky;top:0;height:100vh;overflow-y:auto;overflow-x:hidden;width
 .brandwrap{display:flex;flex-direction:column;align-items:center;gap:5px;padding:2px 8px 8px}
 .brandwrap .logo-full{width:116px;max-width:100%;height:auto;display:block}
 .brandwrap .logo-mini{display:none;width:30px;height:30px;border-radius:6px}
-.brandwrap .mk{font-weight:700;font-size:10px;letter-spacing:.32em;color:var(--navy-400)}
-.minibar{display:flex;justify-content:flex-end;border-bottom:1px solid var(--navy-800);padding:0 2px 5px;margin-bottom:5px}
+.brandwrap .mk{font-weight:700;font-size:9px;letter-spacing:.16em;color:#E6EDF5;
+  text-indent:.16em}   /* text-indent compensa o rastreio da ULTIMA letra, que
+                          descentraliza a palavra dentro do anel */
+.minibar{display:flex;justify-content:flex-end;border-bottom:1px solid var(--navy-800);padding:0 2px 3px;margin-bottom:3px}
 .minibtn{background:none;border:0;color:var(--navy-400);cursor:pointer;padding:4px;border-radius:6px;display:inline-flex}
 .minibtn:hover{color:#fff;background:var(--navy-800)}
 .ic{display:inline-flex;flex:none;width:18px;height:18px}
 .ic svg{width:100%;height:100%}
 /* Busca global — fica ACIMA do menu, na superfície navy da barra lateral,
    então tudo aqui é claro sobre escuro (o resto do painel é o inverso). */
-.buscabox{position:relative;margin:0 10px 10px}
+.buscabox{position:relative;margin:0 10px 7px}
 .buscabox input{width:100%;padding:8px 46px 8px 11px;border-radius:8px;font:inherit;font-size:13px;
   color:#fff;background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.16)}
 .buscabox input::placeholder{color:rgba(255,255,255,.5)}
@@ -171,13 +173,13 @@ aside{position:sticky;top:0;height:100vh;overflow-y:auto;overflow-x:hidden;width
 .subsec{font:600 9.5px/1 var(--font);letter-spacing:1.2px;text-transform:uppercase;
   color:rgba(255,255,255,.38);padding:10px 12px 4px 34px;user-select:none}
 .subs .subsec:first-child{padding-top:4px}
-nav{display:flex;flex-direction:column;gap:2px}
+nav{display:flex;flex-direction:column;gap:1px}
 nav .group{width:100%;background:none;border:0;cursor:pointer;color:#fff;font-family:var(--font);
-  font-size:13.5px;font-weight:600;display:flex;align-items:center;gap:10px;padding:7px 12px;border-radius:var(--radius-md);text-align:left}
+  font-size:13.5px;font-weight:600;display:flex;align-items:center;gap:10px;padding:5px 12px;border-radius:var(--radius-md);text-align:left}
 nav .group:hover{background:var(--navy-800)}
 nav .group .chev{margin-left:auto;transition:transform .15s;width:14px;height:14px}
 nav .group[aria-expanded="false"] .chev{transform:rotate(-90deg)}
-.subs{display:flex;flex-direction:column;gap:2px}
+.subs{display:flex;flex-direction:column;gap:1px}
 .subs.closed{display:none}
 /* TERCEIRO NÍVEL do menu (Business Intelligence > Painéis TV > painel).
    Existe só onde há uma FAMÍLIA de telas dentro de uma área — não para
@@ -194,10 +196,14 @@ nav .subgrupo[aria-expanded="false"] .chev{transform:rotate(-90deg)}
 /* submenu com tela ATIVA dentro fica marcado mesmo recolhido: sem isso, quem
    está num painel de TV não vê onde está quando o submenu fecha */
 nav .subgrupo.tem-ativa{color:#fff;font-weight:600}
-.subs2{display:flex;flex-direction:column;gap:2px}
+.subs2{display:flex;flex-direction:column;gap:1px}
 .subs2.closed{display:none}
 nav a.sub2{padding-left:46px}
-nav a{display:flex;align-items:center;gap:9px;padding:6px 12px;border-radius:var(--radius-md);text-decoration:none;
+/* COMPACTO POR ALTURA, NAO POR TEXTO. Sao 70 telas em 13 grupos: com o menu
+   todo aberto a barra rolava. O que encolheu foi o respiro vertical (6px -> 4px
+   por item, 2px -> 1px de gap) e o separador; o tamanho da fonte e a area de
+   clique horizontal ficam onde estavam, senao compactar vira ilegivel. */
+nav a{display:flex;align-items:center;gap:9px;padding:4px 12px;border-radius:var(--radius-md);text-decoration:none;
   font-size:13px;color:var(--n400);border-left:3px solid transparent}
 nav a.sub{padding-left:22px}
 nav a.active{color:#fff;background:var(--navy-700);border-left-color:var(--brand-claro);font-weight:600}
@@ -209,15 +215,15 @@ nav a.mod{opacity:.7}
    ordem — configuração, não operação. Uma linha de 1px em cada emenda custa
    2px de altura e poupa a leitura de dezoito itens seguidos procurando onde
    uma coisa acaba e a outra começa. */
-nav .navsep{height:1px;background:rgba(255,255,255,.14);margin:8px 12px;flex:none}
+nav .navsep{height:1px;background:rgba(255,255,255,.14);margin:5px 12px;flex:none}
 /* OS DOIS ATALHOS DE TOPO SÃO PARES DOS GRUPOS, não itens dentro de um.
    Herdavam o cinza de `nav a` (--n400) enquanto todo cabeçalho de grupo ao
    lado é branco, e por isso liam-se como "apagados" — desligados, quase. Aqui
    eles ganham o mesmo peso visual dos grupos, que é o que eles são. */
-nav a.topo{color:#fff;font-weight:600;padding:8px 12px}
+nav a.topo{color:#fff;font-weight:600;padding:5px 12px}
 nav a.topo .ic{opacity:.92}
-.side-foot{margin-top:auto;padding:12px 10px;font-size:11px;color:var(--navy-400)}
-.side-doc{display:flex;align-items:center;gap:10px;padding:7px 8px;margin:0 0 10px -2px;
+.side-foot{margin-top:auto;padding:8px 10px;font-size:11px;color:var(--navy-400)}
+.side-doc{display:flex;align-items:center;gap:10px;padding:5px 8px;margin:0 0 7px -2px;
   border-radius:var(--radius-md);color:var(--navy-200);text-decoration:none;font-size:13px}
 .side-doc:hover{background:rgba(255,255,255,.06);color:#fff}
 .side-doc .ic{width:18px;height:18px;min-width:18px}
@@ -1285,19 +1291,25 @@ body.tvfull.tvwall #view-tvope.on{display:flex;flex-direction:column;flex:1 1 au
 body.tvfull.tvwall #view-tvope .tv-head{flex-shrink:0}
 body.tvfull.tvwall #view-tvope .tvw{flex:1 1 auto;min-height:0;height:auto}
 body.tvfull.tvwall #view-tvope .tv-ticker{flex-shrink:0;margin-top:0.55vw}
-.tvw{display:grid;grid-template-columns:1fr 1fr 1fr;grid-template-rows:1fr 1fr;gap:0.7vw;height:calc(100vh - 6.6vw)}
-.tvw .tv-card{border-radius:0.9vw;padding:1.1vw 1.3vw;display:flex;flex-direction:column;min-height:0;overflow:hidden}
-.tvw-kpis{display:grid;grid-template-columns:1fr 1fr;grid-auto-rows:1fr;gap:0.7vw;min-height:0}
+.tvw{display:grid;grid-template-columns:1fr 1fr 1fr;grid-template-rows:1fr 1fr;gap:0.45vw;height:calc(100vh - 6.6vw)}
+/* Borda e respiro enxutos: 0.9vw de raio davam 17px numa TV de 1080p e o
+   cartao ficava com cara de botao; o padding de 1.1vw comia a altura util que
+   os numeros novos precisam. */
+.tvw .tv-card{border-radius:0.42vw;padding:0.62vw 0.8vw;display:flex;flex-direction:column;min-height:0;overflow:hidden}
+/* TRES linhas de dois cartoes, nao duas: com o numero menor cabem seis
+   indicadores por bloco em vez de quatro, e a TV da operacao passa a mostrar
+   saidas, chegadas e silencio de rastreador, que antes nao apareciam. */
+.tvw-kpis{display:grid;grid-template-columns:1fr 1fr;grid-auto-rows:1fr;gap:0.45vw;min-height:0}
 .tvw-kpis .tv-card{justify-content:center}
-.tvw .tv-label{font-size:clamp(10px,0.8vw,15px);letter-spacing:.08em}
+.tvw .tv-label{font-size:clamp(9px,0.66vw,13px);letter-spacing:.07em}
 /* numero de cartao NAO quebra linha: "2,1 km/l" virava duas linhas e comia
    a altura util da celula. Se nao couber, o navegador aperta o tracking em vez
    de empilhar. */
-.tvw .tv-num{font-size:clamp(22px,2.7vw,64px);line-height:1.1;
+.tvw .tv-num{font-size:clamp(17px,1.72vw,40px);line-height:1.08;
   white-space:nowrap;overflow:hidden;text-overflow:clip}
-.tvw .tv-sub{font-size:clamp(10px,0.8vw,15px);margin-top:0.15vw}
+.tvw .tv-sub{font-size:clamp(9px,0.66vw,13px);margin-top:0.1vw}
 .tvw-mapa{grid-row:1/3;grid-column:2;position:relative}
-#tvMapa{position:absolute;inset:0;border-radius:0.9vw;z-index:1}
+#tvMapa{position:absolute;inset:0;border-radius:0.42vw;z-index:1}
 .tv-regiao{position:absolute;top:0.7vw;left:0.7vw;z-index:500;background:rgba(11,25,38,.85);color:#E5EDF4;
   padding:0.35vw 0.9vw;border-radius:999px;font-size:clamp(10px,0.8vw,15px);font-weight:700;letter-spacing:.05em}
 .tv-vmk{color:#fff;font-weight:800;font-family:var(--mono);font-size:clamp(9px,0.6vw,12px);line-height:1;
@@ -1336,8 +1348,8 @@ body.tvfull.tvmode, body.tvfull.tvmode *{cursor:none !important}
 .tvw-km>*{flex-shrink:1;min-height:0}
 .tvw-km .duo{display:flex;gap:1vw}
 .tvw-km .duo>div{flex:1}
-.tvw-km .knum{font-size:clamp(16px,1.8vw,38px);font-weight:800;line-height:1.1;font-variant-numeric:tabular-nums}
-.tvw-km .klab{font-size:clamp(9px,0.75vw,14px);color:#8FA6BC;text-transform:uppercase;letter-spacing:.06em}
+.tvw-km .knum{font-size:clamp(14px,1.3vw,28px);font-weight:800;line-height:1.1;font-variant-numeric:tabular-nums}
+.tvw-km .klab{font-size:clamp(8px,0.62vw,12px);color:#8FA6BC;text-transform:uppercase;letter-spacing:.06em}
 .tvw-km .mod{display:flex;align-items:center;gap:0.55vw;font-size:clamp(10px,0.9vw,17px)}
 .tvw-km .mod b{width:clamp(56px,7.6vw,150px);flex-shrink:0;font-weight:600;color:#C7D4E0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .tvw-km .mod .trk{flex:1;height:clamp(4px,0.95vw,18px);background:#1E3A54;border-radius:0.5vw;overflow:hidden}
@@ -1380,7 +1392,15 @@ body.tvfull.tvmode, body.tvfull.tvmode *{cursor:none !important}
 /* O anel da marca: canvas desenhado por /static/anel.js (sem CDN). Escondido dorme;
    com prefers-reduced-motion desenha um quadro só. */
 .lg-anel{width:150px;height:150px;display:block;margin:-6px 0 -2px}
-/* O anel do MENU: a marca viva, girando sempre, logo abaixo do nome CÓRTEX.
+/* A MARCA: o anel girando com o nome CÓRTEX centrado no vazio dele. O nome
+   ficava ACIMA e as duas coisas liam-se como dois elementos soltos; dentro,
+   viram uma marca só. O texto NAO entra no canvas — fica em HTML por cima,
+   para continuar selecionável, legível por leitor de tela e nítido em
+   qualquer densidade de pixel (canvas rasteriza, texto não). */
+.brandwrap .marca{position:relative;display:grid;place-items:center;line-height:0}
+.brandwrap .marca .mk{position:absolute;inset:0;display:grid;place-items:center;
+  line-height:1;pointer-events:none}
+/* O anel do MENU: a marca viva, girando sempre.
    NAO e indicador de carga — saiu da topbar de proposito, onde acendia e
    apagava a cada consulta e virava um pisca. Aqui ele bate o tempo todo, e
    quem indica consulta em voo continua sendo a barra do topo (#loadbar).
@@ -1388,6 +1408,7 @@ body.tvfull.tvmode, body.tvfull.tvmode *{cursor:none !important}
    sozinho — ver o visivel() do anel.js. */
 .menuanel{width:78px;height:78px;display:block;margin:1px 0 0}
 body.mini .menuanel{width:40px;height:40px}
+body.mini .brandwrap .mk{display:none}
 body.tvmode .menuanel,body.tvfull .menuanel{display:none}
 .lg-head span{color:#fff;font-weight:700;letter-spacing:.35em;font-size:13px}
 .lg-body{padding:24px 30px 28px}
@@ -2250,8 +2271,10 @@ body.tvfull #btnReport,body.tvmode #btnReport{display:none}
     <div class="brandwrap">
       <img class="logo-full" src="/static/sulista-logo-branco.svg" alt="Sulista">
       <img class="logo-mini" src="/static/icon-192.png" alt="Sulista">
-      <span class="mk">CÓRTEX</span>
-      <canvas id="menuanel" class="menuanel" aria-hidden="true"></canvas>
+      <div class="marca">
+        <canvas id="menuanel" class="menuanel" aria-hidden="true"></canvas>
+        <span class="mk">CÓRTEX</span>
+      </div>
     </div>
     <div class="minibar">
       <button class="minibtn" id="btnMini" onclick="toggleMini()" title="Recolher/expandir menu" aria-label="Recolher ou expandir o menu">
@@ -12355,6 +12378,13 @@ async function loadTvOpe(){
     if(seq!==tvOpeSeq) return;
     if(!rt.ok||!rp.ok||!rs.ok){ tvErro('tvope-k1', tvOpeOk); return; }
     const tk=t.kpis, pk=p.kpis, sk=s.kpis;
+    /* SILÊNCIO DE RASTREADOR EM VIAGEM: caminhão rodando que parou de
+       reportar há mais de 6h. É outra coisa do que a cobertura da frota (que
+       inclui carreta e terceiro): aqui é quem está EM VIAGEM agora e sumiu. */
+    const _hAgo = s => { if(!s) return null; const [dt,hm]=s.split(' ');
+      return (Date.now()-new Date(dt+'T'+hm+':00').getTime())/3600000; };
+    const mudos=(t.transito||[]).filter(v=>{ const hh=_hAgo(v.posicao_em); return hh==null||hh>6; }).length;
+    const ocup = pk.tracao_total ? Math.round(100*(pk.tracao_viagem||0)/pk.tracao_total) : null;
     document.getElementById('tvope-k1').innerHTML=[
       tvCard('Em trânsito', tk.em_transito, '', tk.atrasadas+' atrasadas'),
       // o card mostrava 289 somando 227 carretas paradas com os cavalos: quem aloca
@@ -12362,8 +12392,12 @@ async function loadTvOpe(){
       tvCard('Tração disponível', pk.tracao_disp!=null?pk.tracao_disp:pk.frota_disp,
         (pk.tracao_total && (pk.tracao_disp/pk.tracao_total)<0.15) ? 'warn' : 'ok',
         (pk.tracao_viagem||0)+' em viagem · '+(pk.tracao_os||0)+' oficina · de '+(pk.tracao_total||0)+' com motor'),
+      tvCard('Saíram hoje', tk.saidas_hoje, '',
+        (tk.chegadas_previstas_hoje||0)+' chegadas previstas hoje'),
       tvCard('Chegando 72h', pk.chegando_72h, pk.sem_retorno>0?'warn':'ok', pk.sem_retorno+' sem retorno'),
       tvCard('Motoristas em viagem', pk.mot_viagem, '', pk.mot_parados+' disponíveis'),
+      tvCard('Sem posição há +6h', mudos, mudos>0?'warn':'ok',
+        'em viagem · ocupação da tração '+(ocup==null?'—':ocup+'%')),
     ].join('');
     const ck=(rc.ok && cb.kpis) ? cb.kpis : null;
     /* BLOCO SUPERIOR DIREITO = TELEMETRIA (Gobrax). Vem no proprio payload da
@@ -12380,6 +12414,11 @@ async function loadTvOpe(){
         tvCard('Combustível no mês', ck?tvBRLc(ck.custo):'—', '',
                ck&&ck.rs_litro!=null?('R$ '+ck.rs_litro.toFixed(2)+'/l'):''),
         tvCard('Km do mês', (rk.ok&&km.kpis)?((km.kpis.km_total/1000).toFixed(0)+' mil'):'—', '', 'carregado + vazio'),
+        tvCard('Retorno vazio', (rk.ok&&km.kpis&&km.kpis.km_total>0)
+               ? (100*km.kpis.km_vazio/km.kpis.km_total).toFixed(0)+'%' : '—',
+               (rk.ok&&km.kpis&&km.kpis.km_total>0&&(100*km.kpis.km_vazio/km.kpis.km_total)>20)?'ruim':'ok',
+               'no mês · limite 20%'),
+        tvCard('Cargas sem veículo', pk.cargas_sem_chegada, pk.cargas_sem_chegada>0?'warn':'ok', 'nas próximas 96h'),
         tvCard('CNH vencida rodando', pk.cnh_vencida_rodando, pk.cnh_vencida_rodando>0?'ruim':'ok', pk.cnh_vencida+' no total'),
       ].join('');
     } else {
@@ -12388,16 +12427,37 @@ async function loadTvOpe(){
            : 'coleta de '+tel.dias_atras+'d atrás');
       const kml=tel.km_l_frota, alvo=tel.alvo_km_l||2.5;
       const fr=tel.freadas_alta_por_mil_km;
+      /* A LEITURA DESCARTADA VAI PARA A TELA. O km/l da frota é calculado só
+         sobre quem passa na faixa física (ver api/gobrax/torre.py): sem isso
+         a soma bruta trazia 0,7 km/l com 66 mil litros num único veículo. Em
+         TV não há tooltip, então o quanto se descartou tem de caber no
+         subtítulo — senão o número parece medir a frota inteira. */
+      const desc=(tel.leitura_suspeita||0);
       document.getElementById('tvope-k2').innerHTML=[
-        tvCard('Consumo da frota', kml!=null?kml.toFixed(1).replace('.',','):'—',
-               kml==null?'':(kml>=alvo?'ok':'ruim'),
-               'km/l · alvo '+alvo.toFixed(1).replace('.',',')+' · '+idade),
+        tvCard('Consumo da frota', kml!=null?kml.toFixed(1).replace('.',','):'n/d',
+               kml==null?'warn':(kml>=alvo?'ok':'ruim'),
+               kml==null ? ('leitura fora da faixa física · '+idade)
+                 : ('km/l · alvo '+alvo.toFixed(1).replace('.',',')+' · '+idade)),
         tvCard('Abaixo do alvo', tel.abaixo_do_alvo||0, (tel.abaixo_do_alvo||0)>0?'warn':'ok',
                'veículos · de '+(tel.com_consumo_valido||0)+' com leitura válida'),
+        tvCard('Leitura descartada', desc, desc>0?'warn':'ok',
+               'de '+(tel.veiculos||0)+' telemetrados · fora da faixa física'),
+        /* A razão sai da INTERSEÇÃO (freadas e km do mesmo conjunto), e o
+           subtítulo diz sobre quantos veículos ela foi feita — o total
+           absoluto de freadas do mês inclui quem ficou fora da régua. */
         tvCard('Freada brusca', fr!=null?fr.toFixed(1).replace('.',','):'—',
-               (fr||0)>15?'ruim':'ok', 'por 1.000 km · '+(tel.freadas_alta||0).toLocaleString('pt-BR')+' no mês'),
+               (fr||0)>15?'ruim':'ok',
+               'por 1.000 km · sobre '+(tel.com_consumo_valido||0)+' veículos · '
+                 +(tel.freadas_alta||0).toLocaleString('pt-BR')+' no mês'),
         tvCard('Velocidade média', tel.vel_media!=null?tel.vel_media.toFixed(0):'—', '',
-               'km/h · '+(tel.veiculos||0)+' veículos telemetrados'),
+               'km/h · '+(tel.veiculos||0)+' telemetrados'
+                 +((tel.vel_fora_da_faixa||0)>0?(' · '+tel.vel_fora_da_faixa+' fora da faixa'):'')),
+        /* NAO repetir o km do mes: o cartao ao lado ja o mostra quebrado em
+           carregado e vazio, e 850 + 215 e o mesmo 1.065. Aqui entra a lacuna
+           que a torre resolve HOJE e nao aparecia em lugar nenhum: carga
+           programada para as proximas 96h ainda sem veiculo alocado. */
+        tvCard('Carga sem veículo', pk.cargas_sem_chegada,
+               (pk.cargas_sem_chegada||0)>0?'warn':'ok', 'programada nas próximas 96h'),
       ].join('');
     }
     if(rk.ok && km.kpis){
