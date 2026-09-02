@@ -25,6 +25,16 @@ reinicia a API. Consequências, todas já vividas (crônicas em `docs/LICOES.md`
   Editar durante a sessão derruba rota no ar.
 - **Rebase no meio** deixa marcador de conflito que o `uv sync` do AutoDeploy
   pode importar. `git fetch` ANTES de rebasear, sempre. NUNCA `push --force`.
+  **NÃO resolva conflito com `uv run python`**: se o conflito estiver no
+  `pyproject.toml` (e ele SEMPRE está, porque toda entrega bumpa a versão), o
+  `uv` se recusa a rodar — "TOML parse error… `<<<<<<< HEAD`" — o script de
+  resolução não executa, e o `git add` + `--continue` seguintes commitam o
+  marcador sem reclamar. Use o `python3` do sistema para resolver, e depois
+  `git grep -n '^<<<<<<< HEAD' HEAD` para provar que o COMMIT (não a árvore)
+  está limpo. Visto em 02/09/2026, pego antes do push.
+- **Topo de versão não regride.** Se a outra sessão publicar uma versão MAIOR
+  enquanto você trabalha, renumere a sua para um patch acima da dela
+  (0.214.1 → 0.215.1), nunca deixe o topo do `versoes.yaml` cair.
 - **O que vai demorar não fica aqui** (suíte de 35 min, módulo grande):
   worktree própria — ver memória `worktree-por-frente`. A suíte completa nesta
   árvore colide com o AutoDeploy por construção (ele desinstala o playwright
