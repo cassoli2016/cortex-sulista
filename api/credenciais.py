@@ -243,6 +243,36 @@ CAMPOS: dict[str, dict] = {
         "descricao": "Vai no CORPO junto do login. Guardada no cofre, "
                      "protegida por ACL, nunca em log"},
 
+    # 3S — rastreamento das CARRETAS. Ela já entrega posição ao ERP por um cano
+    # próprio (idrastreadora 15), que cobre 81 das 223 carretas; as outras 142
+    # nunca reportaram nada em 3,8 milhões de posições. A integração direta
+    # existe para responder QUAL das duas coisas explica isso: conta que a
+    # integração do ERP não lê, ou equipamento que não reporta.
+    #
+    # Os campos são propositalmente GENÉRICOS: até ver a resposta deles não dá
+    # para saber se a autenticação é token, usuário/senha ou as duas. Inventar
+    # um formato agora seria escolher pelo fornecedor — e depois brigar com a
+    # escolha. Preenche-se o que a 3S mandar; o cliente se molda ao que chegar.
+    "TRESS_API_BASE_URL": {
+        "rotulo": "URL base do webservice", "segredo": False,
+        "descricao": "O endereço que a 3S informar, sem barra no fim. Se eles "
+                     "derem só um link de portal, é esse mesmo — eu descubro "
+                     "o caminho da API a partir dele",
+        "placeholder": "https://api.3sistemas.com.br"},
+    "TRESS_LOGIN": {
+        "rotulo": "Login / usuário", "segredo": False,
+        "obrigatorio": False,
+        "descricao": "Peça credencial EXCLUSIVA do CÓRTEX. Reusar a do ERP "
+                     "dobra o consumo do limite de chamadas e derruba os "
+                     "dois — foi o que já aconteceu com a Raster"},
+    "TRESS_SENHA": {
+        "rotulo": "Senha", "obrigatorio": False,
+        "descricao": "Guardada no cofre, protegida por ACL, nunca em log"},
+    "TRESS_TOKEN": {
+        "rotulo": "Token de API", "obrigatorio": False,
+        "descricao": "Se a 3S autenticar por token em vez de usuário e senha, "
+                     "preencha só este"},
+
     # Prolog — gestão de pneus. O OpenAPI da Prolog não declara
     # securityScheme nenhum, então aceita token, Basic ou OAuth2.
     "PROLOG_TOKEN": {
@@ -400,6 +430,24 @@ SERVICOS: list[dict] = [
              "campos": ["RASTERINTEGRA_LOGIN", "RASTERINTEGRA_SENHA"]},
         ],
         "ajustes": ["RASTERINTEGRA_URL"],
+    },
+    {
+        "chave": "tress",
+        "nome": "3S (rastreamento das carretas)",
+        "resumo": "A rastreadora dos IMPLEMENTOS. Ela já manda posição ao ERP "
+                  "por um cano próprio, que hoje cobre 81 das 223 carretas — "
+                  "as outras 142 nunca reportaram nada. A integração direta "
+                  "existe para saber se é conta que o ERP não lê ou "
+                  "equipamento que não reporta. Credencial exclusiva do "
+                  "CÓRTEX, nunca a do ERP.",
+        "alimenta": "Painel TV — Comunicação · aviso diário da 3S",
+        "modos": [
+            {"chave": "senha", "rotulo": "Login e senha",
+             "campos": ["TRESS_LOGIN", "TRESS_SENHA"]},
+            {"chave": "token", "rotulo": "Token de API",
+             "campos": ["TRESS_TOKEN"]},
+        ],
+        "ajustes": ["TRESS_API_BASE_URL"],
     },
     {
         "chave": "prolog",

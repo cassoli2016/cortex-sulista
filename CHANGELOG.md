@@ -4,6 +4,11 @@ Gerado de `docs/versoes.yaml` por `scripts/gerar_changelog.py` — não editar �
 Formato [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/),
 versionamento [SemVer](https://semver.org/lang/pt-BR/).
 
+## [0.219.1] — 03/09/2026  ·  CX-03/09/2026-v0.219.1
+
+### Corrigido
+- A 3S passou a aparecer em Gestão › Integrações, com os campos para cadastrar a credencial. Ela tinha sido esquecida ali: o aviso diário da 3S subiu ontem apontando para essa tela, e a tela não tinha a 3S. Os campos são de propósito abertos — URL, login e senha, e um token para o caso de a autenticação ser por token —, porque até ver a resposta deles não dá para saber o formato, e inventar um agora seria escolher pelo fornecedor. Preencha o que a 3S mandar; o resto se ajusta ao que chegar. A credencial tem de ser EXCLUSIVA do CÓRTEX: reusar a do ERP dobra o consumo do limite de chamadas e derruba os dois, que foi o que já aconteceu com a Raster.
+
 ## [0.219.0] — 03/09/2026  ·  CX-03/09/2026-v0.219.0
 
 ### Adicionado
