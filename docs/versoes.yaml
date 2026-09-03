@@ -1,3 +1,39 @@
+- versao: "0.221.0"
+  data: "2026-09-03"
+  adicionado:
+    - >-
+      A DRE Gerencial ganhou a aba "Excluídos", para tirar do resultado
+      lançamentos que o razão precisa ter e o resultado gerencial não deve
+      carregar — reclassificação que entra e sai, provisão revertida, honorário
+      atrelado a ganho não recorrente. Procura-se o lançamento por conta, texto
+      do histórico ou valor, escreve-se o motivo, e a DRE passa a ignorá-lo.
+    - >-
+      Quatro coisas que a aba NÃO deixa fazer, porque ela cria um jeito de
+      mudar o resultado publicado: excluir sem motivo escrito; excluir em
+      silêncio (a aba Resultado abre com uma tarja dizendo quantos lançamentos
+      estão fora e qual o efeito); excluir sem deixar rastro (quem, quando e
+      por quê ficam na trilha); e excluir para todo mundo (Contabilidade,
+      Orçamento e Fechamento continuam enxergando o lançamento — cada tela
+      responde uma pergunta diferente).
+    - >-
+      Marcar e desfazer exigem a permissão "DRE — Excluir Lançamentos",
+      separada de quem só lê a tela. Quem tem a DRE vê a lista e os motivos,
+      mas não os botões: a DRE é aberta por várias pessoas e nem todas devem
+      poder mexer no resultado publicado.
+    - >-
+      Isso é o que reconcilia o CÓRTEX com o fechamento do sistema de
+      orçamento. Medido em agosto/26: com os dois honorários excluídos, a linha
+      de despesas fecha em R$ 623.700,26 — exatamente o que o outro sistema
+      mostra; sem eles, R$ 703.030,09.
+  corrigido:
+    - >-
+      A trava que impede a suíte de testes de escrever no banco de produção
+      estava acusando testes inocentes. Ela vigiava o contador de sessões de
+      auditoria, que cresce toda vez que uma PESSOA abre o painel — e a
+      aplicação fica no ar enquanto os testes rodam. Três testes de orçamento
+      foram culpados por um login real. Agora ela conta só as linhas com
+      e-mail de teste.
+
 - versao: "0.220.0"
   data: "2026-09-03"
   corrigido:

@@ -3,6 +3,28 @@ sistema: 'O CÓRTEX é o painel de gestão da Transportadora Sulista S/A. Ele l�
   — financeiro, comercial, operação, frota, pessoas e controladoria. Nenhum número é digitado aqui: tudo
   vem do ERP, e cada card diz no ⓘ de qual tabela e de qual regra ele saiu.'
 glossario:
+- termo: Lançamento excluído do resultado
+  definicao: >-
+    Lançamento que a DRE Gerencial ignora, marcado à mão na aba "Excluídos".
+    A DRE gerencial não é a contábil: há lançamento que o razão precisa ter e
+    o resultado gerencial não deve carregar — reclassificação que entra e sai,
+    provisão revertida, rateio já contado noutra linha. A exclusão vale SÓ
+    para a DRE: Contabilidade, Orçamento e Fechamento continuam enxergando o
+    lançamento, porque cada tela responde uma pergunta diferente. Motivo é
+    obrigatório, quem excluiu e quando ficam gravados, e a própria DRE mostra
+    no topo quantos lançamentos estão fora e qual o efeito — número que pode
+    ser mexido sem aparecer não é número, é opinião. Marcar e desfazer exigem
+    a permissão "DRE — Excluir Lançamentos", separada de quem só lê a tela.
+- termo: Conta de resultado (o que entra na DRE)
+  definicao: >-
+    Só conta cujo estrutural começa em 3 (receita) ou 4 (custo/despesa) entra
+    nas linhas da DRE Gerencial, mesmo que o agrupador gerencial diga o
+    contrário. A natureza da conta vem do PLANO, que o ERP mantém, e não do
+    mapa, que é digitado à mão pela Contabilidade e erra: até 03/09/2026
+    quatro contas de BALANÇO entravam como custo e embelezavam o resultado em
+    R$ 1,47 milhão em 12 meses — a Ticket Car (passivo) sozinha fazia a linha
+    de combustível de julho/26 mostrar R$ 299.951,18 onde o relatório de
+    Lançamentos CTB do próprio ERP mostra R$ 485.176,86.
 - termo: Prazo da OS até a compra
   definicao: >-
     Dias entre emitir a ordem de serviço e a PRIMEIRA solicitação de compra dela.

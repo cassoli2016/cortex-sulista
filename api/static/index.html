@@ -6673,10 +6673,38 @@ body.tvfull #btnReport,body.tvmode #btnReport{display:none}
         </div>
       </section>
       <section class="view" id="view-dre">
+        <div class="subtabs" role="tablist" data-abas="dre" aria-label="Seções desta tela">
+          <button role="tab" id="tabdre-res" data-aba="res" aria-controls="aba-dre-res" aria-selected="true" onclick="abaTrocar('dre','res')">Resultado</button>
+          <button role="tab" id="tabdre-exc" data-aba="exc" aria-controls="aba-dre-exc" aria-selected="false" onclick="abaTrocar('dre','exc')">Excluídos <span class="aban" id="dre-exc-n"></span></button>
+        </div>
+        <div class="aba" data-abas="dre" data-aba="res" id="aba-dre-res" role="tabpanel" aria-labelledby="tabdre-res">
+        <!-- O SELO. Um número que pode ser mexido sem aparecer não é um
+             número, é uma opinião: quando há lançamento excluído, a DRE diz
+             quantos e quanto, com o caminho para ver quais. -->
+        <div id="dre-selo"></div>
         <div class="kpis" id="kpis-dre"></div>
         <div class="card">
           <div class="head"><h2>DRE Gerencial <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="Modelo de DRE da própria empresa: lançamento × plano de contas × sulista.agrupadorgerencial, por competência. Valores em R$ MIL. A linha NÃO ALOCADO / CLASSIFICAR (em amarelo) é transparência: conta de resultado que ainda não tem agrupador — não é sobra nem erro de cálculo. Δ m/m: a seta segue o TAMANHO da linha (custo caindo é ▼) e a cor segue o efeito no resultado; quando o mês corrente está incompleto, a comparação usa os dois últimos meses FECHADOS. Cada MÊS também traz sua própria seta, contra o mês anterior, com o percentual exato no tooltip — variação abaixo de 1,5% sai como tracinho cinza (estável), e o primeiro mês da série e o mês corrente (parcial) não têm seta, porque não há com o que comparar sem mentir.">i</span></h2><span class="hint" id="dreHint">valores em R$ · agrupador gerencial da empresa · clique nas linhas com ▸ para abrir a composição</span></div>
           <div class="tablewrap tabroll" style="max-height:640px"><table id="dre-tab"><thead id="dre-head"></thead><tbody id="dre-corpo"></tbody></table></div>
+        </div>
+        </div>
+        <div class="aba" data-abas="dre" data-aba="exc" id="aba-dre-exc" role="tabpanel" aria-labelledby="tabdre-exc" data-ao-abrir="loadDreExc" hidden>
+          <div class="card">
+            <div class="head"><h2>Lançamentos fora do resultado <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="Lançamentos que a DRE Gerencial ignora, marcados à mão. A DRE gerencial não é a contábil: há lançamento que o razão precisa ter e o resultado gerencial não deve carregar — reclassificação que entra e sai, provisão revertida, rateio já contado noutra linha. A exclusão vale SÓ para esta tela: Contabilidade, Orçamento e Fechamento continuam enxergando o lançamento, porque cada tela responde uma pergunta diferente. Motivo é obrigatório e tudo fica na trilha de auditoria (quem, quando, qual lançamento, qual motivo).">ⓘ</span></h2></div>
+            <div id="dre-exc-aviso" style="padding:0 18px"></div>
+            <div class="tablewrap tabroll" style="max-height:340px"><table id="dre-exc-tab"><thead><tr><th>Data</th><th>Conta</th><th>Histórico</th><th class="num">Valor</th><th>Motivo</th><th>Quem</th><th></th></tr></thead><tbody id="dre-exc-corpo"></tbody></table></div>
+          </div>
+          <div class="card" id="dre-exc-busca-card">
+            <div class="head"><h2>Procurar lançamento para excluir</h2></div>
+            <div style="padding:0 18px 9px;display:flex;gap:9px;flex-wrap:wrap;align-items:flex-end">
+              <label style="font-size:13px;color:var(--n600)">Conta (reduzido)<br><input id="fDreExcConta" type="text" inputmode="numeric" placeholder="411101" style="width:120px"></label>
+              <label style="font-size:13px;color:var(--n600)">Histórico contém<br><input id="fDreExcTexto" type="text" placeholder="parte do texto" style="width:220px"></label>
+              <label style="font-size:13px;color:var(--n600)">Valor mínimo<br><input id="fDreExcValor" type="text" inputmode="decimal" placeholder="1.000,00" style="width:120px"></label>
+              <button class="btn" onclick="dreExcBuscar()">Procurar</button>
+            </div>
+            <div id="dre-exc-busca-aviso" style="padding:0 18px"></div>
+            <div class="tablewrap tabroll" style="max-height:380px"><table id="dre-exc-res"><thead><tr><th>Data</th><th>Conta</th><th>Agrupador</th><th>Histórico</th><th class="num">Débito</th><th class="num">Crédito</th><th></th></tr></thead><tbody id="dre-exc-res-corpo"></tbody></table></div>
+          </div>
         </div>
       </section>
 
@@ -28279,6 +28307,163 @@ function chartDreCliMatriz(clientes){
     rotReceita: 'Receita l\u00EDq.', rotMargem: 'MC', rotLinha: 'MC 25%'});
 }
 
+/* ===================== DRE — Excluídos =====================
+   A funcionalidade mais delicada da tela: ela muda o resultado publicado.
+   Três coisas aqui existem só para que isso nunca seja silencioso.
+
+   1. O SELO na aba Resultado. Quem abre a DRE vê que há lançamento fora dela
+      ANTES de ler qualquer número, e com um clique chega em quais e por quê.
+
+   2. O MOTIVO é obrigatório e aparece na lista, junto de quem excluiu. Daqui
+      a seis meses a pergunta não vai ser "o que saiu", vai ser "por quê".
+
+   3. QUEM SÓ LÊ, LÊ. `dreexc` é permissão separada de `dre`: sem ela a lista
+      e os motivos aparecem, os botões não. Esconder a lista de quem lê seria
+      pior do que não ter a funcionalidade — o número dela depende disto. */
+let DREEXC = {linhas: [], total: {n: 0, efeito: 0}, busca: null};
+
+/* O fim do período é EXCLUSIVO nas consultas (`< primeiro dia do mês
+   seguinte`), como no resto da casa. Calculado com Date em vez de somar 1 ao
+   mês na mão, que erra em dezembro — e erraria calado, deixando janeiro de
+   fora uma vez por ano. */
+function mesSeguinte(comp){
+  if(!comp) return '';
+  const [y, m] = comp.split('-').map(Number);
+  const d = new Date(y, m, 1);   // mês é 0-based: `m` já é o seguinte
+  return _iso(d);
+}
+
+/* `V` e `T` do resto do arquivo são LOCAIS de outras funções, não
+   globais — usá-los aqui dava ReferenceError no clique, não no boot,
+   que é o jeito mais caro de descobrir. Estes são os desta seção. */
+const _dxV = id => { const e = document.getElementById(id); return e ? e.value : ''; };
+const _dxT = id => _dxV(id).trim();
+/* `fmtDt` do arquivo é LOCAL de outra função (o `BRL` e o `fmtD` são
+   globais; este não). Um formatador de três linhas custa menos que
+   depender de escopo alheio. */
+const _dxQuando = s => s ? String(s).slice(8,10) + '/' + String(s).slice(5,7)
+  + ' ' + String(s).slice(11,16) : '';
+
+function dreExcPodeMexer(){ return podeVer('dreexc'); }
+
+function dreSelo(d){
+  const el = document.getElementById('dre-selo');
+  if(!el) return;
+  const t = (d && d.excluidos) || {n: 0};
+  const n = t.n || 0;
+  abaContador('dre-exc-n', n);
+  if(!n){ el.innerHTML = ''; return; }
+  /* Âmbar, não vermelho: não é erro — é uma decisão de quem opera, tomada de
+     propósito. Vermelho aqui ensinaria a ignorar o vermelho. */
+  el.innerHTML = `<div class="avisofaixa">✎ <b>${n}</b> lançamento${n>1?'s':''} `
+    + `fora do resultado neste período (efeito ${BRL.format(t.efeito||0)}). `
+    + `<a href="javascript:abaTrocar('dre','exc')">Ver quais e por quê</a>.</div>`;
+}
+
+async function loadDreExc(){
+  const p = new URLSearchParams();
+  const de = _dxV('fCompDe'), ate = _dxV('fCompAte');
+  if(de) p.set('de', de + '-01');
+  if(ate) p.set('ate', mesSeguinte(ate));
+  try{
+    const r = await fetch('/api/dre/exclusoes?' + p.toString(), {cache:'no-store'});
+    /* `respostaJSON` devolve {ok, dados} — o payload vem DENTRO de `dados`.
+       Ler `d.linhas` direto não dá erro: dá lista vazia, que é pior. */
+    const d = await respostaJSON(r);
+    if(!d.ok) throw new Error((d.dados||{}).mensagem || 'não foi possível ler as exclusões');
+    DREEXC.linhas = d.dados.linhas || [];
+    DREEXC.total = d.dados.total || {n:0, efeito:0};
+  }catch(e){
+    document.getElementById('dre-exc-corpo').innerHTML =
+      `<tr><td colspan="7">${esc(e.message||'não foi possível ler as exclusões')}</td></tr>`;
+    return;
+  }
+  abaContador('dre-exc-n', DREEXC.total.n || 0);
+  const podeMexer = dreExcPodeMexer();
+  document.getElementById('dre-exc-busca-card').hidden = !podeMexer;
+  document.getElementById('dre-exc-aviso').innerHTML = podeMexer ? '' :
+    '<p class="hint">Você vê o que foi excluído e por quê. Marcar ou desfazer '
+    + 'exige a permissão “DRE — Excluir Lançamentos”.</p>';
+  const linhas = DREEXC.linhas;
+  document.getElementById('dre-exc-corpo').innerHTML = linhas.length ? linhas.map((x, i) =>
+    `<tr><td>${esc(fmtD(String(x.dtlancamento).slice(0,10)))}</td><td>${esc(x.conta||x.reduzido)}</td>`
+    + `<td>${esc((x.historico||'').slice(0,60))}</td>`
+    + `<td class="num">${BRL.format((+x.valor_credito||0)-(+x.valor_debito||0))}</td>`
+    + `<td>${esc(x.motivo||'')}</td>`
+    + `<td>${esc((x.quem||'').split('@')[0])}<br><span class="hint">${esc(_dxQuando(x.quando))}</span></td>`
+    + `<td>${podeMexer ? `<button class="btn btn-sec" data-i="${i}" onclick="dreExcRemover(this)">Reincluir</button>` : ''}</td></tr>`
+  ).join('') : '<tr><td colspan="7">Nenhum lançamento excluído neste período.</td></tr>';
+}
+
+async function dreExcBuscar(){
+  const de = _dxV('fCompDe'), ate = _dxV('fCompAte');
+  const p = new URLSearchParams({de: (de||'') + '-01', ate: mesSeguinte(ate||'')});
+  if(_dxT('fDreExcConta')) p.set('conta', _dxT('fDreExcConta'));
+  if(_dxT('fDreExcTexto')) p.set('busca', _dxT('fDreExcTexto'));
+  if(_dxT('fDreExcValor')) p.set('valor_min', numBR(_dxT('fDreExcValor')));
+  const corpo = document.getElementById('dre-exc-res-corpo');
+  corpo.innerHTML = '<tr><td colspan="7">procurando…</td></tr>';
+  let d;
+  try{
+    const rr = await respostaJSON(await fetch('/api/dre/lancamentos?' + p.toString(), {cache:'no-store'}));
+    if(!rr.ok) throw new Error((rr.dados||{}).mensagem || 'não foi possível procurar');
+    d = rr.dados;
+  }catch(e){
+    corpo.innerHTML = `<tr><td colspan="7">${esc(e.message||'falhou')}</td></tr>`; return;
+  }
+  DREEXC.busca = d.linhas || [];
+  /* TETO ATINGIDO SE DECLARA: lista cortada em silêncio faz quem procura
+     concluir que o lançamento não existe. */
+  document.getElementById('dre-exc-busca-aviso').innerHTML = d.truncou
+    ? `<p class="hint">Mostrando os ${d.limite} maiores — refine a busca para achar o que procura.</p>` : '';
+  corpo.innerHTML = DREEXC.busca.length ? DREEXC.busca.map((x, i) =>
+    `<tr><td>${esc(fmtD(String(x.dtlancamento).slice(0,10)))}</td><td>${esc(x.conta||'')}</td>`
+    + `<td>${esc(x.agrupador||'—')}</td>`
+    + `<td>${esc((x.historicodescricao||'').slice(0,54))}</td>`
+    + `<td class="num">${x.valordebito?BRL.format(+x.valordebito):''}</td>`
+    + `<td class="num">${x.valorcredito?BRL.format(+x.valorcredito):''}</td>`
+    + `<td>${x.excluido ? '<span class="hint">já excluído</span>'
+        : `<button class="btn btn-sec" data-i="${i}" onclick="dreExcMarcar(this)">Excluir</button>`}</td></tr>`
+  ).join('') : '<tr><td colspan="7">Nenhum lançamento com esses filtros.</td></tr>';
+}
+
+async function dreExcMarcar(bt){
+  const x = DREEXC.busca[+bt.dataset.i];
+  if(!x) return;
+  const motivo = prompt('Por que este lançamento sai do resultado?\n\n'
+    + (x.historicodescricao||'').slice(0,70) + '\n\nO motivo fica na trilha e '
+    + 'aparece para quem ler a DRE.');
+  if(motivo === null) return;
+  bt.disabled = true;
+  try{
+    const rr = await respostaJSON(await fetch('/api/dre/exclusoes/marcar', {
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({grupo:x.grupo, empresa:x.empresa, reduzido:x.reduzido,
+        sequencia:x.sequencia, dtlancamento:x.dtlancamento,
+        valor_debito:x.valordebito, valor_credito:x.valorcredito,
+        conta:x.conta, agrupador:x.agrupador, historico:x.historicodescricao,
+        motivo: motivo})}));
+    if(!rr.ok) throw new Error((rr.dados||{}).mensagem || 'não foi possível excluir');
+  }catch(e){ bt.disabled = false; alerta(e.message || 'não foi possível excluir'); return; }
+  /* A RECARGA VEM DEPOIS e fora do try da ação: recarregar é o que mostra o
+     efeito, e uma falha aqui não pode parecer falha da exclusão. */
+  await loadDreExc(); await dreExcBuscar(); await loadDre();
+}
+
+async function dreExcRemover(bt){
+  const x = DREEXC.linhas[+bt.dataset.i];
+  if(!x) return;
+  bt.disabled = true;
+  try{
+    const rr = await respostaJSON(await fetch('/api/dre/exclusoes/remover', {
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({grupo:x.grupo, empresa:x.empresa, reduzido:x.reduzido,
+        sequencia:x.sequencia, dtlancamento:x.dtlancamento})}));
+    if(!rr.ok) throw new Error((rr.dados||{}).mensagem || 'não foi possível desfazer');
+  }catch(e){ bt.disabled = false; alerta(e.message || 'não foi possível desfazer'); return; }
+  await loadDreExc(); await loadDre();
+}
+
 async function loadDre(){
   const seq = ++dreSeq;
   const btn=document.getElementById('btnRefresh');
@@ -28290,7 +28475,8 @@ async function loadDre(){
     const d=await r.json();
     if(seq!==dreSeq) return;
     if(!r.ok){ showBanner(d.mensagem||'Erro ao consultar a DRE.', d.detalhe); return; }
-    hideBanner(); DATADRE=d; renderDre(d); LOADEDQS.dre=qsView('dre');
+    hideBanner(); DATADRE=d; renderDre(d); dreSelo(d);
+    LOADEDQS.dre=qsView('dre');
   }catch(e){ if(seq===dreSeq) showBanner('Não foi possível falar com a API.', e.message); }
   finally{
     if(seq===dreSeq){ btn.disabled=false; document.getElementById('content').classList.remove('loading'); }

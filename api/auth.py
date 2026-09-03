@@ -70,6 +70,12 @@ TELAS: dict[str, tuple[str, str]] = {  # chave -> (rótulo, grupo do menu)
     "crm":     ("CRM — Funil Comercial", "Comercial"),
     "drecli":  ("DRE por Cliente", "Comercial"),
     "dre":     ("DRE Gerencial", "Controladoria"),
+    # PERMISSAO, nao tela: `dreexc` nao tem menu, rota de hash nem
+    # secao propria — ela existe para ser CONCEDIDA. Quem tem `dre`
+    # ve a aba de excluidos e os motivos; marcar e desmarcar exige
+    # esta. Foi decisao de quem opera: a DRE e aberta por varias
+    # pessoas e nem todas devem poder mexer no resultado publicado.
+    "dreexc":  ("DRE — Excluir Lançamentos", "Controladoria"),
     "bal":     ("Balanço Patrimonial", "Controladoria"),
     "cont":    ("Contabilidade", "Controladoria"),
     "qual":    ("Qualidade e Certidões", "Controladoria"),
@@ -211,6 +217,16 @@ ROTA_TELAS: list[tuple[str, frozenset[str]]] = [
     ("/api/financeiro/antecipacao",   frozenset({"antec"})),
     ("/api/financeiro/fluxo-consolidado/detalhe", frozenset({"fluxcon"})),
     ("/api/financeiro/fluxo-consolidado", frozenset({"fluxcon"})),
+    # A MAIS ESPECIFICA ANTES: /api/dre/exclusoes/... e escrita e exige
+    # `dreexc`; /api/dre/... e leitura e basta ter a DRE. Invertida a
+    # ordem, o prefixo generico engoliria o especifico e qualquer um
+    # que abre a DRE poderia excluir.
+    ("/api/dre/centros",              frozenset({"dre", "dreexc"})),
+    ("/api/dre/conta-lancamentos",    frozenset({"dre", "dreexc"})),
+    ("/api/dre/exclusoes/marcar",     frozenset({"dreexc"})),
+    ("/api/dre/exclusoes/remover",    frozenset({"dreexc"})),
+    ("/api/dre/exclusoes",            frozenset({"dre", "dreexc"})),
+    ("/api/dre/lancamentos",          frozenset({"dre", "dreexc"})),
     ("/api/financeiro/dre",           frozenset({"dre"})),
     ("/api/financeiro/balanco",       frozenset({"bal"})),
     ("/api/financeiro/cobranca",      frozenset({"cob"})),
@@ -302,6 +318,14 @@ _ROTAS_SEM_TELA = ("/api/push/", "/api/report", "/api/auth/foto/",
 # Tela de TODO usuário logado: quem abriu um chamado acompanha o próprio
 # chamado sem depender de perfil (o botão Reportar sempre existiu para todos).
 # `podeVer()` no index.html libera pelo mesmo conjunto.
+#: PERMISSAO que nao e tela. `dreexc` nao tem view, menu nem rota de hash:
+#: ela existe para ser CONCEDIDA num perfil e libera os botoes de excluir
+#: lancamento DENTRO da DRE. A casa nao tinha esse conceito — o guard de
+#: favoritos exige que toda entrada de TELAS tenha tela no menu, e com razao:
+#: entrada de RBAC sem tela costuma ser tela esquecida, nao permissao. Quem
+#: acrescentar uma aqui esta dizendo "isto e permissao, de proposito".
+TELAS_SEM_MENU = frozenset({"dreexc"})
+
 TELAS_TODO_LOGADO = frozenset({"sup"})
 
 TELAS_FORA_DO_RBAC = {

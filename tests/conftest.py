@@ -87,14 +87,28 @@ def _foto_producao():
         # guard existia e não pegou porque a lista era fixa e o módulo era
         # novo — a mesma classe de defeito que já custou caro nesta casa.
         # Lista fixa envelhece: módulo que GRAVA entra aqui no mesmo commit.
-        " (SELECT coalesce(max(id), 0) FROM aud_sessoes) AS aud_sess,"
+        # SÓ O QUE UM TESTE ESCREVERIA. A primeira versão vigiava
+        # `max(id) FROM aud_sessoes` e deu FALSO POSITIVO: a auditoria de uso
+        # cresce quando uma PESSOA abre o painel, e a API de produção está no
+        # ar durante a suíte — o guard acusou três testes de orçamento por um
+        # login real que aconteceu no meio deles. As outras tabelas daqui só
+        # mudam por coleta ou deploy; esta muda o tempo todo, por gente.
+        #
+        # O recorte é o e-mail de FIXTURE (`@…​.local` e o `chefe@` das cenas
+        # de login). Teste que escrever aqui escreve com esses e-mails; quem
+        # trabalha, não.
+        " (SELECT count(*) FROM aud_sessoes WHERE email LIKE '%.local'"
+        "    OR email = 'chefe@sulista.com.br') AS aud_sess_teste,"
         # `aud_telas` NÃO tem `id` — a chave dela é (sessao_id, tela). O
         # `max(id)` que eu escrevi aqui primeiro levantava UndefinedColumn, e
         # como o `producao_intocada` engole exceção para tolerar tabela ainda
         # não migrada, o efeito não era um guard incompleto: era o guard
         # INTEIRO desligado em silêncio, inclusive para as tabelas antigas.
         # Pego sabotando a lixeira e vendo que ninguém reclamou.
-        " (SELECT count(*) FROM aud_telas) AS aud_telas")
+        " (SELECT count(*) FROM aud_telas t WHERE EXISTS ("
+        "    SELECT 1 FROM aud_sessoes s WHERE s.id = t.sessao_id"
+        "     AND (s.email LIKE '%.local'"
+        "          OR s.email = 'chefe@sulista.com.br'))) AS aud_telas_teste")
 
 
 @pytest.fixture(scope="session")

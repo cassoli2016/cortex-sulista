@@ -938,6 +938,31 @@ def _dre_aloca(agrupador: str) -> str | None:
     return None
 
 
+# ----------------------------------------------------------------------------
+# LANCAMENTOS TIRADOS DO RESULTADO A MAO (aba "Excluidos" da DRE Gerencial).
+#
+# O filtro entra AQUI, no momento da consulta, e nao numa constante: a lista de
+# exclusoes muda quando alguem marca, e SQL de modulo e montado uma vez so, na
+# importacao. Uma exclusao feita hoje so valeria depois de reiniciar a API —
+# defeito silencioso, do tipo que se descobre semanas depois.
+#
+# A ancora e a linha `AND p.estrutural ~ '^[34]'`, que existe nas TRES
+# consultas da DRE. Se ela mudar, este helper LEVANTA em vez de devolver a
+# consulta sem filtro: exclusao que nao vale e pior que exclusao que falha,
+# porque a DRE mostraria o numero velho com cara de certo.
+def _com_exclusoes(sql: str, chs: list) -> str:
+    """Enxerta o filtro de exclusao numa consulta da DRE."""
+    if not chs:
+        return sql
+    from api import dre_exclusoes
+    marca = "AND p.estrutural ~ '^[34]'"
+    n = sql.count(marca)
+    if n != 1:
+        raise RuntimeError(
+            "consulta da DRE sem a ancora do filtro de exclusao (achei %d)" % n)
+    return sql.replace(marca, marca + dre_exclusoes.filtro_sql("l", len(chs)))
+
+
 @cached(ttl=300)
 def get_dre(comp_de: str, comp_ate: str) -> dict:
     de, ate = _comp_bounds(comp_de, comp_ate)
@@ -946,17 +971,27 @@ def get_dre(comp_de: str, comp_ate: str) -> dict:
     comp_ate_aa = f"{int(comp_ate[:4]) - 1}{comp_ate[4:]}"
     de_aa, ate_aa = _comp_bounds(comp_de_aa, comp_ate_aa)
     ajustes = ler_ajustes()
+    # As exclusoes da JANELA INTEIRA (corrente + ano anterior): o
+    # comparativo a/a precisa do mesmo tratamento, senao o ano passado
+    # apareceria com o lancamento que o ano corrente nao tem e a
+    # variacao seria inventada.
+    from api import dre_exclusoes
+    _chs = dre_exclusoes.chaves(de_aa, ate)
+    _pex = dre_exclusoes.filtro_params(_chs)
     with db.get_conn() as conn, conn.cursor() as cur:
         # período corrente vem no nível de CONTA; o total por agrupador é a
         # soma das contas (idêntico ao DRE_AG_SQL, ver comentário da query)
-        cur.execute(DRE_AG_CONTA_SQL, {"de": de, "ate": ate})
+        cur.execute(_com_exclusoes(DRE_AG_CONTA_SQL, _chs),
+                    {"de": de, "ate": ate, **_pex})
         rows_ct = cur.fetchall()
-        cur.execute(DRE_AG_SQL, {"de": de_aa, "ate": ate_aa})
+        cur.execute(_com_exclusoes(DRE_AG_SQL, _chs),
+                    {"de": de_aa, "ate": ate_aa, **_pex})
         rows_aa = cur.fetchall()
         mudancas_aa = []
         if ajustes:
-            cur.execute(DRE_AJUSTADAS_SQL,
-                        {"de": de_aa, "ate": ate_aa, "chaves": list(ajustes.keys())})
+            cur.execute(_com_exclusoes(DRE_AJUSTADAS_SQL, _chs),
+                        {"de": de_aa, "ate": ate_aa,
+                         "chaves": list(ajustes.keys()), **_pex})
             mudancas_aa = cur.fetchall()
         cur.execute("SELECT current_timestamp AS ts")
         meta = cur.fetchone()
@@ -973,6 +1008,8 @@ def get_dre(comp_de: str, comp_ate: str) -> dict:
     # origem é o mesmo que foi somado nele em val_aa (nada de crédito fantasma
     # no destino). O que continua diferente é só a GRANULARIDADE: o ano anterior
     # é lido por agrupador, sem quebra por conta.
+    excluidos = dre_exclusoes.total(de, ate)
+
     conta_ix: dict = {}   # (agrupador, grupo, reduzido) -> dados da conta
     val: dict = {}
     for r in rows_ct:
@@ -1116,6 +1153,11 @@ def get_dre(comp_de: str, comp_ate: str) -> dict:
         "comp_de": comp_de, "comp_ate": comp_ate,
         "comp_de_aa": comp_de_aa, "comp_ate_aa": comp_ate_aa,
         "ajustes_locais": len(ajustes),
+        # O SELO. Um numero que pode ser mexido sem aparecer nao e um numero, e
+        # uma opiniao — por isso a DRE CARREGA quanto foi tirado dela e a tela
+        # mostra. `efeito` ja vem na convencao da DRE (credito - debito), para
+        # o selo dizer "o resultado seria X a mais" sem inverter de cabeca.
+        "excluidos": excluidos,
         "atualizado_em": meta["ts"].isoformat(),
         "fonte": "ERP AVA · razão × agrupador gerencial (sulista.agrupadorgerencial) · leitura",
     }

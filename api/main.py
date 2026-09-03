@@ -357,6 +357,144 @@ def health() -> JSONResponse:
         return JSONResponse(status_code=503, content={"status": "erro", "db": "sem_conexao"})
 
 
+@app.get("/api/dre/centros")
+def dre_centros(grupo: int, reduzido: int, de: str, ate: str) -> JSONResponse:
+    """Os centros de custo de UMA conta — o nivel abaixo da conta na DRE."""
+    from api import dre_drill
+    try:
+        return JSONResponse(dre_drill.centros(grupo, reduzido, de, ate))
+    except Exception as exc:  # noqa: BLE001
+        log.warning("dre centros falhou: %s", type(exc).__name__)
+        return JSONResponse(status_code=500, content={
+            "erro": "erro_consulta",
+            "mensagem": "Nao foi possivel abrir os centros de custo."})
+
+
+@app.get("/api/dre/conta-lancamentos")
+def dre_conta_lancamentos(grupo: int, reduzido: int, de: str, ate: str,
+                          centro: int | None = None,
+                          sem_centro: bool = False) -> JSONResponse:
+    """Os lancamentos de uma conta, opcionalmente de UM centro de custo."""
+    from api import dre_drill
+    try:
+        return JSONResponse(dre_drill.lancamentos(
+            grupo, reduzido, de, ate, centro=centro, sem_centro=sem_centro))
+    except Exception as exc:  # noqa: BLE001
+        log.warning("dre lancamentos da conta falhou: %s", type(exc).__name__)
+        return JSONResponse(status_code=500, content={
+            "erro": "erro_consulta",
+            "mensagem": "Nao foi possivel abrir os lancamentos."})
+
+
+@app.get("/api/dre/exclusoes")
+def dre_exclusoes_listar(de: str | None = None, ate: str | None = None) -> JSONResponse:
+    """Os lancamentos tirados do resultado, com motivo e autor.
+
+    LEITURA e de quem abre a DRE, nao so de quem pode excluir: o numero da
+    tela depende disto, e esconder o porque de quem le seria pior do que nao
+    ter a funcionalidade.
+    """
+    from api import dre_exclusoes
+    try:
+        return JSONResponse({"linhas": dre_exclusoes.listar(de, ate),
+                             "total": dre_exclusoes.total(de, ate)})
+    except Exception as exc:  # noqa: BLE001
+        log.warning("dre exclusoes falhou: %s", type(exc).__name__)
+        return JSONResponse(status_code=500, content={
+            "erro": "erro_consulta",
+            "mensagem": "Nao foi possivel ler as exclusoes."})
+
+
+@app.get("/api/dre/lancamentos")
+def dre_lancamentos(de: str, ate: str, conta: str | None = None,
+                    busca: str | None = None,
+                    valor_min: float | None = None) -> JSONResponse:
+    """Lancamentos do periodo, para escolher o que excluir."""
+    from api import dre_exclusoes
+    try:
+        return JSONResponse(dre_exclusoes.buscar(de, ate, conta, busca, valor_min))
+    except Exception as exc:  # noqa: BLE001
+        log.warning("dre lancamentos falhou: %s", type(exc).__name__)
+        return JSONResponse(status_code=500, content={
+            "erro": "erro_consulta",
+            "mensagem": "Nao foi possivel ler os lancamentos."})
+
+
+@app.post("/api/dre/exclusoes/marcar")
+async def dre_exclusoes_marcar(req: Request) -> JSONResponse:
+    """Tira UM lancamento do resultado gerencial.
+
+    A AUDITORIA VEM ANTES da resposta e leva o MOTIVO: esta e a operacao mais
+    sensivel da tela — ela muda o resultado publicado — e a pergunta que
+    alguem vai fazer daqui a seis meses e "quem tirou isso, e por que".
+    """
+    from api import dre_exclusoes
+    quem = (getattr(req.state, "sessao", None) or {}).get("email") or ""
+    if not quem:
+        return JSONResponse(status_code=401, content={
+            "erro": "sem_sessao",
+            "mensagem": "Sessao sem e-mail: nao da para registrar o autor."})
+    try:
+        body = await req.json()
+    except Exception:  # noqa: BLE001
+        body = None
+    if not isinstance(body, dict):
+        return JSONResponse(status_code=422, content={
+            "erro": "parametro_invalido", "mensagem": "Corpo invalido."})
+    try:
+        r = dre_exclusoes.marcar(body, body.get("motivo") or "", quem)
+    except dre_exclusoes.MotivoObrigatorio as exc:
+        return JSONResponse(status_code=HTTP_RECUSA, content={
+            "erro": "motivo_obrigatorio", "mensagem": str(exc)})
+    except ValueError as exc:
+        return JSONResponse(status_code=422, content={
+            "erro": "parametro_invalido", "mensagem": str(exc)})
+    except Exception as exc:  # noqa: BLE001
+        log.warning("dre excluir falhou: %s", type(exc).__name__)
+        return JSONResponse(status_code=500, content={
+            "erro": "erro_gravacao",
+            "mensagem": "Nao foi possivel excluir o lancamento."})
+    auth.audit(quem, "dre_excluir",
+               alvo="%s/%s/%s/%s/%s" % (r["grupo"], r["empresa"], r["reduzido"],
+                                        r["sequencia"], r["dtlancamento"]),
+               detalhe=str(r.get("motivo") or "")[:180])
+    return JSONResponse({"ok": True, "linha": r})
+
+
+@app.post("/api/dre/exclusoes/remover")
+async def dre_exclusoes_remover(req: Request) -> JSONResponse:
+    """Devolve o lancamento ao resultado. Tambem auditado."""
+    from api import dre_exclusoes
+    quem = (getattr(req.state, "sessao", None) or {}).get("email") or ""
+    if not quem:
+        return JSONResponse(status_code=401, content={
+            "erro": "sem_sessao",
+            "mensagem": "Sessao sem e-mail: nao da para registrar o autor."})
+    try:
+        body = await req.json()
+    except Exception:  # noqa: BLE001
+        body = None
+    if not isinstance(body, dict):
+        return JSONResponse(status_code=422, content={
+            "erro": "parametro_invalido", "mensagem": "Corpo invalido."})
+    try:
+        achou = dre_exclusoes.desmarcar(body)
+    except ValueError as exc:
+        return JSONResponse(status_code=422, content={
+            "erro": "parametro_invalido", "mensagem": str(exc)})
+    except Exception as exc:  # noqa: BLE001
+        log.warning("dre desexcluir falhou: %s", type(exc).__name__)
+        return JSONResponse(status_code=500, content={
+            "erro": "erro_gravacao",
+            "mensagem": "Nao foi possivel desfazer a exclusao."})
+    auth.audit(quem, "dre_reincluir",
+               alvo="%s/%s/%s/%s/%s" % (body.get("grupo"), body.get("empresa"),
+                                        body.get("reduzido"),
+                                        body.get("sequencia"),
+                                        body.get("dtlancamento")))
+    return JSONResponse({"ok": True, "removido": achou})
+
+
 @app.get("/api/frota/comunicacao-tv")
 def comunicacao_tv() -> JSONResponse:
     """Painel de TV da comunicacao com as rastreadoras."""

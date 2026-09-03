@@ -173,6 +173,12 @@ def test_as_telas_do_MENU_estao_todas_cobertas():
     bloco = re.search(r"const VIEWS = \{(.*?)\};", html, re.S).group(1)
     views = set(re.findall(r"(\w+):", bloco))
     cobertas = set(auth.TELAS) | set(auth.TELAS_FORA_DO_RBAC)
+    # PERMISSAO NAO E TELA. `TELAS_SEM_MENU` e a lista curta e explicita de
+    # entradas do RBAC que existem so para ser concedidas (hoje: `dreexc`,
+    # que libera excluir lancamento dentro da DRE). Sem esta linha o teste
+    # cobraria uma tela que nao deve existir; com ela frouxa demais, tela
+    # esquecida passaria — por isso e um conjunto NOMEADO, e nao um filtro.
+    cobertas -= set(auth.TELAS_SEM_MENU)
     assert not (views - cobertas), (
         "tela no menu sem entrada em TELAS nem em TELAS_FORA_DO_RBAC: "
         + ", ".join(sorted(views - cobertas)))
@@ -199,3 +205,21 @@ def test_o_nao_admin_so_ve_as_dele():
 def test_sem_sessao_nao_favorita_nada():
     from api import auth
     assert auth.telas_favoritaveis(None) == set()
+
+
+def test_a_lista_de_PERMISSOES_SEM_TELA_nao_cresce_sozinha():
+    """`TELAS_SEM_MENU` é a porta de saída do guard acima — e porta de saída
+    que ninguém vigia vira o lugar onde tela esquecida se esconde.
+
+    Sabotei o guard acrescentando uma tela fantasma nas DUAS listas e ele
+    passou: a lista é opt-in explícito, por desenho. Este teste é o que torna
+    o opt-in visível — crescer a lista passa a exigir mudar o teste também, e
+    isso aparece no diff de quem revisa.
+    """
+    from api import auth
+
+    assert set(auth.TELAS_SEM_MENU) == {"dreexc"}, (
+        "permissão sem tela é exceção, não padrão: se você acrescentou uma, "
+        "atualize este teste dizendo qual e por quê")
+    # e ela É uma entrada de RBAC de verdade, não um nome solto
+    assert set(auth.TELAS_SEM_MENU) <= set(auth.TELAS)
