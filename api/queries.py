@@ -15,6 +15,7 @@ import logging
 
 from . import agrupador_gerencial as _ag
 from . import db
+from . import frota_identidade
 
 log = logging.getLogger("cortex.queries")
 
@@ -1071,6 +1072,163 @@ def get_dre(comp_de: str, comp_ate: str) -> dict:
         "ajustes_locais": len(ajustes),
         "atualizado_em": meta["ts"].isoformat(),
         "fonte": "ERP AVA · razão × agrupador gerencial (sulista.agrupadorgerencial) · leitura",
+    }
+
+
+# ============================================================================
+# PAINEL DE TV — Comunicação Veículos x Rastreadora
+# ----------------------------------------------------------------------------
+# Espelha o relatório do ERP (Relatórios › Manutenção › Comunicação Veículos x
+# Rastreadora), com duas diferenças pedidas por quem opera:
+#
+# 1. TERCEIRO SÓ ENTRA SE ESTIVER EM VIAGEM. São 1.016 terceiros ativos e
+#    parados no cadastro — 70% do relatório do ERP — e eles não são frota que
+#    alguém acompanha: são cadastro de quem já rodou alguma vez. Com eles a
+#    falta de rastreadora aparecia como 41%; sem eles, 5,3%. O filtro vale SÓ
+#    para terceiro: próprio e agregado entram sempre, viajando ou não.
+#
+# 2. COM MOTOR × SEM MOTOR é divisão de primeira classe, e não detalhe. São
+#    duas populações com comportamento diferente — 227 carretas próprias
+#    (implemento) contra 204 tratores — e média de população heterogênea não
+#    decide nada (regra da casa). A carreta tem rastreador e precisa aparecer:
+#    foi por isso que ela não podia sair junto com o terceiro parado.
+#
+# O QUE ESTE PAINEL NÃO DIZ, de propósito: que o equipamento está com defeito.
+# "Sem posição registrada" é ausência de leitura no ERP, e a mesma rastreadora
+# que não trouxe 142 carretas trouxe 52 no mesmo dia — pode ser equipamento
+# mudo, pode ser integração parcial. O painel MEDE e NOMEIA; a acusação é de
+# quem apura.
+TVCOM_SQL = """
+WITH viagem AS (
+  SELECT veiculo, sum(CASE WHEN dtchegada IS NULL THEN 1 ELSE 0 END)::int AS em_viagem
+  FROM programacaoembarque
+  WHERE dtcancelamento IS NULL AND semaforo = 1 AND dtsaida >= current_date - 120
+  GROUP BY 1
+)
+SELECT v.placa, v.numerofrota, v.tipofrota,
+       (v.possuimotor = 1) AS com_motor,
+       coalesce(nullif(trim(c.razaosocial), ''), '') AS rastreadora,
+       vp.dt AS ultima, vp.situacao AS ignicao, vp.descricaoposicao AS posicao
+FROM veiculo v
+LEFT JOIN viagem vg ON vg.veiculo = v.placa
+LEFT JOIN cadastro c ON c.codigo = v.cnpjcpfcodigorastreador
+LEFT JOIN veiculo_posicao vp ON vp.veiculo = v.placa AND vp.ultimaposicao = 1
+WHERE v.ativoinativo = 1
+  AND NOT (v.tipofrota = 2 AND coalesce(vg.em_viagem, 0) = 0)
+"""
+
+# As faixas do painel são MAIS GROSSAS que as da tela `comrast`: numa TV,
+# ninguém lê sete faixas de longe. Três estados e a ausência — que é o que
+# separa "atrasou" de "nunca chegou".
+TVCOM_FAIXAS = (("hoje", "comunicando hoje"), ("ate2", "até 2 dias"),
+                ("ate15", "3 a 15 dias"), ("mais15", "mais de 15 dias"),
+                ("sem_posicao", "sem posição registrada"))
+
+SEM_RASTREADORA = "sem rastreadora cadastrada"
+
+
+def _rastreadora_curta(nome: str) -> str:
+    """O nome da rastreadora como se fala dela, não como ela assina contrato.
+
+    "3S DISTRIBUICAO E COMERCIALIZACAO DE PRODUTOS LTDA" quebra em três linhas
+    numa TV e some truncado em "3S DISTRIBUICAO E COME" na tabela ao lado — o
+    mesmo fornecedor com dois nomes na mesma tela. A primeira palavra basta
+    para as quatro que existem (3S, ONIXSAT, RASTER, SASCAR) e é o que quem
+    opera diz em voz alta. A razão social INTEIRA continua no payload, para
+    quem precisar casar com o cadastro.
+    """
+    if nome == SEM_RASTREADORA:
+        return nome
+    primeira = (nome or "").strip().split()
+    return primeira[0] if primeira else nome
+
+
+def _tvcom_faixa(dias) -> str:
+    if dias is None:
+        return "sem_posicao"
+    if dias <= 0:
+        return "hoje"
+    if dias <= 2:
+        return "ate2"
+    if dias <= 15:
+        return "ate15"
+    return "mais15"
+
+
+@cached(ttl=120, velha_ate=2 * 3600)
+def get_tv_comunicacao() -> dict:
+    """Comunicação da frota com as rastreadoras, para o painel de TV."""
+    hoje = date.today()
+    with db.get_conn() as conn, conn.cursor() as cur:
+        cur.execute(TVCOM_SQL)
+        linhas = cur.fetchall()
+        cur.execute("SELECT current_timestamp AS ts")
+        meta = cur.fetchone()
+
+    def vazio():
+        return {k: 0 for k, _ in TVCOM_FAIXAS}
+
+    por_rastr: dict = {}
+    por_motor = {True: vazio(), False: vazio()}
+    tot_motor = {True: 0, False: 0}
+    mudos: list = []
+    total = 0
+    for r in linhas:
+        total += 1
+        dias = (hoje - r["ultima"].date()).days if r["ultima"] else None
+        faixa = _tvcom_faixa(dias)
+        nome = r["rastreadora"] or SEM_RASTREADORA
+        alvo = por_rastr.setdefault(nome, {
+            "rastreadora": nome, "curta": _rastreadora_curta(nome), "total": 0,
+            "com_motor": 0, "sem_motor": 0, **vazio()})
+        alvo["total"] += 1
+        alvo["com_motor" if r["com_motor"] else "sem_motor"] += 1
+        alvo[faixa] += 1
+        por_motor[bool(r["com_motor"])][faixa] += 1
+        tot_motor[bool(r["com_motor"])] += 1
+        # A lista dos piores é a única parte NOMINAL do painel: numa TV, o
+        # número sozinho não faz ninguém levantar da cadeira — a placa faz.
+        if faixa in ("mais15", "sem_posicao"):
+            mudos.append({
+                "placa": r["placa"],
+                "frota": frota_identidade.rotulo(r["numerofrota"], r["placa"]),
+                "com_motor": bool(r["com_motor"]),
+                "rastreadora": _rastreadora_curta(nome),
+                "dias": dias,
+                "ultima": r["ultima"].strftime("%d/%m") if r["ultima"] else None,
+            })
+
+    # sem posição primeiro (é o pior estado), depois os mais mudos
+    mudos.sort(key=lambda x: (x["dias"] is not None, -(x["dias"] or 0)))
+    faixas_tot = vazio()
+    for lado in por_motor.values():
+        for k in faixas_tot:
+            faixas_tot[k] += lado[k]
+
+    return {
+        "atualizado_em": meta["ts"].isoformat(),
+        "total": total,
+        "kpis": {
+            "total": total,
+            "hoje": faixas_tot["hoje"],
+            "hoje_pct": (100.0 * faixas_tot["hoje"] / total) if total else None,
+            "mais15": faixas_tot["mais15"],
+            "sem_posicao": faixas_tot["sem_posicao"],
+            "sem_rastreadora": por_rastr.get(SEM_RASTREADORA, {}).get("total", 0),
+        },
+        "faixas": [{"chave": k, "rotulo": rot, "veiculos": faixas_tot[k]}
+                   for k, rot in TVCOM_FAIXAS],
+        "rastreadoras": sorted(por_rastr.values(), key=lambda x: -x["total"]),
+        "motor": [
+            {"grupo": "Com motor", "chave": "com_motor",
+             "total": tot_motor[True], **por_motor[True]},
+            {"grupo": "Sem motor (implementos)", "chave": "sem_motor",
+             "total": tot_motor[False], **por_motor[False]},
+        ],
+        "mudos": mudos[:14],
+        "mudos_total": len(mudos),
+        "fonte": "ERP AVA · veiculo × veiculo_posicao × cadastro (rastreadora); "
+                 "terceiro só em viagem",
     }
 
 

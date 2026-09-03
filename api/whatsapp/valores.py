@@ -339,8 +339,84 @@ def smartec_prazo_indicacao(dados: dict | None = None) -> dict:
     }
 
 
+def _barra(parte: int, todo: int, casas: int = 10) -> str:
+    """A barra de progresso em emoji. No WhatsApp não há gráfico, e um
+    percentual solto (“24%”) não dá a noção de quanto FALTA — a barra dá, e é
+    a única coisa da mensagem que se lê sem ler."""
+    if not todo:
+        return "⬜" * casas
+    cheios = int(round(casas * parte / todo))
+    return "🟩" * cheios + "⬜" * (casas - cheios)
+
+
+def comunicacao_3s(dados: dict | None = None) -> dict:
+    """As variáveis do contexto `comunicacao_3s` — o alerta diário das carretas.
+
+    O QUE ESTE AVISO FAZ DE DIFERENTE dos outros do canal:
+
+    1. **Ele NÃO se cala quando não há novidade.** Os outros avisos silenciam
+       para não virar ruído; este é uma RÉGUA de acompanhamento, e a régua que
+       só aparece em dia ruim não mede nada. O dia em que os 142 continuarem
+       142 é informação — é justamente o dia em que alguém precisa cobrar.
+
+    2. **A recusa tem texto próprio e acusa o lado certo.** Se a integração de
+       posições parar, a leitura crua diria “0 comunicaram”: alarme verdadeiro
+       no número e falso na conclusão, que culparia a 3S por um cano nosso.
+       `status_alerta` confere o frescor do cano ANTES do conteúdo e devolve o
+       motivo; aqui ele sobe como ValueError para `montar_texto` registrar e
+       não enviar.
+
+    3. **O dia é FECHADO** (até 23:59 de ontem). Às 09:00, “hoje” contaria como
+       muda toda carreta que ainda não reportou desde a meia-noite.
+    """
+    if dados is None:                       # pragma: no cover - produção
+        from api import comunicacao_3s as _c3
+        dados = _c3.status_alerta()
+
+    if dados.get("erro"):
+        raise ValueError(dados["erro"])
+
+    dia, t = dados["dia"], dados["hoje"]
+    frota, comunicou = t["frota"], t["comunicou"]
+    ant, motor = dados.get("anterior"), dados.get("com_motor") or {}
+
+    if ant:
+        d_com = comunicou - ant["comunicou"]
+        d_nunca = t["nunca"] - ant["nunca"]
+        sinal = lambda n: ("+%d" % n) if n > 0 else str(n)
+        if d_com == 0 and d_nunca == 0:
+            evolucao = "➡️ Igual a %s — nada mudou." % ant["dia"].strftime("%d/%m")
+        else:
+            # A SETA SEGUE O QUE MELHORA, não o que cresce: “nunca” caindo é
+            # bom e leva ▲ verde na leitura de quem cobra.
+            evolucao = "%s Contra %s: %s comunicando · %s nunca" % (
+                "📈" if (d_com > 0 or d_nunca < 0) else "📉",
+                ant["dia"].strftime("%d/%m"), sinal(d_com), sinal(d_nunca))
+    else:
+        evolucao = "🆕 Primeira medição — a partir de amanhã este aviso mostra a variação."
+
+    return {
+        "data": dia.strftime("%d/%m/%Y"),
+        "barra": "%s  %d%%" % (_barra(comunicou, frota),
+                               round(100 * comunicou / frota) if frota else 0),
+        "total": str(frota),
+        "comunicou": str(comunicou),
+        "nunca": str(t["nunca"]),
+        "mudo15": str(t["mudo_15d"]),
+        "parou": str(max(0, t["parou"])),
+        "evolucao": evolucao,
+        # A régua de que o problema não é nosso: se os tratores comunicam
+        # normalmente, o cano está vivo e o silêncio das carretas é da 3S.
+        "cano": "🔧 Frota com motor no mesmo dia: %d de %d (%d%%)" % (
+            motor.get("comunicou", 0), motor.get("frota", 0),
+            round(100 * motor.get("comunicou", 0) / motor["frota"])
+            if motor.get("frota") else 0),
+    }
+
+
 PROVEDORES = {"faturamento_diario": faturamento_diario,
-              "smartec_prazo_indicacao": smartec_prazo_indicacao}
+              "smartec_prazo_indicacao": smartec_prazo_indicacao,
+              "comunicacao_3s": comunicacao_3s}
 
 
 def obter(nome: str) -> dict:

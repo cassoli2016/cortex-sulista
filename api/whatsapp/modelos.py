@@ -100,6 +100,30 @@ CONTEXTOS: dict[str, dict] = {
         "consumidores": ["Gestão › WhatsApp"],
         "variaveis": [],
     },
+    "comunicacao_3s": {
+        "rotulo": "Comunicação 3S — carretas",
+        "ajuda": "Régua diária das carretas com rastreador 3S: quantas "
+                 "comunicaram no dia FECHADO, quantas nunca comunicaram e "
+                 "como isso variou contra o dia anterior. Ao contrário dos "
+                 "outros avisos, este NÃO se cala em dia sem novidade — o dia "
+                 "em que o número não anda é justamente o que precisa ser "
+                 "visto.",
+        "consumidores": ["Rotina agendada (WhatsApp)"],
+        "provedor": "comunicacao_3s",
+        "variaveis": [
+            _v("data", "Dia medido (fechado às 23:59)", "02/09/2026"),
+            _v("barra", "Barra de progresso em emoji", "🟩🟩⬜⬜⬜⬜⬜⬜⬜⬜  24%"),
+            _v("total", "Carretas com rastreador 3S", "223"),
+            _v("comunicou", "Comunicaram no dia", "53"),
+            _v("nunca", "Nunca comunicaram", "142"),
+            _v("mudo15", "Mudas há mais de 15 dias", "25"),
+            _v("parou", "Pararam nos últimos 15 dias", "3"),
+            _v("evolucao", "Variação contra o dia anterior",
+               "📈 Contra 01/09: +3 comunicando · -3 nunca"),
+            _v("cano", "Régua de que a integração está viva",
+               "🔧 Frota com motor no mesmo dia: 169 de 204 (83%)"),
+        ],
+    },
     "cobranca": {
         "rotulo": "Cobrança",
         "ajuda": "Aviso de título a vencer ou vencido. Assunto financeiro é o "

@@ -99,6 +99,7 @@ _FONTES_ROTULO = {
     "manutencao_ano": "Manutenção",
     "multas_ano": "Multas",
     "smartec": "Smartec — Infrações e Licenças",
+    "comunicacao_rastreadoras": "Comunicação com as Rastreadoras",
     "torre_seguranca": "Torre de Segurança",
     "estradas_transito": "Condição das estradas (TomTom)",
     "programacao_disponibilidade": "Programação Inteligente",
@@ -492,6 +493,18 @@ def _fontes_do_snapshot() -> dict:
         # disparar coleta: seriam ~260 chamadas à Smartec a cada abertura do
         # chat. Mesma trava do `force` da premiação e do `so_cache` da TomTom.
         "smartec": _smartec_snapshot,
+        # Comunicação com as rastreadoras: só os escalares do painel de TV
+        # (cobertura por faixa, e o corte com motor × sem motor, que é o que
+        # separa 82% de 23%). A lista de veículos mudos NÃO vai — ela é
+        # nominal por construção, e placa não entra no prompt.
+        "comunicacao_rastreadoras": lambda: (lambda d2: {
+            **d2["kpis"],
+            "por_motor": {m["chave"]: {"total": m["total"], "hoje": m["hoje"],
+                                       "sem_posicao": m["sem_posicao"]}
+                          for m in d2["motor"]},
+            "por_rastreadora": {r["rastreadora"]: r["total"]
+                                for r in d2["rastreadoras"]},
+        })(queries.get_tv_comunicacao()),
         "torre_seguranca": lambda: queries.get_seguranca(),
         "estradas_transito": _estradas,
         "programacao_disponibilidade": lambda: queries.get_programacao(),

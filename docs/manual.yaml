@@ -608,6 +608,7 @@ grupos:
   - tvfat
   - tvdir
   - tvope
+  - tvcom
 - nome: Gestão
   resumo: >-
     O ciclo de gestão: o que foi decidido em reunião e o que se comprometeu a

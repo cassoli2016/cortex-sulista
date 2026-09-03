@@ -357,6 +357,23 @@ def health() -> JSONResponse:
         return JSONResponse(status_code=503, content={"status": "erro", "db": "sem_conexao"})
 
 
+@app.get("/api/frota/comunicacao-tv")
+def comunicacao_tv() -> JSONResponse:
+    """Painel de TV da comunicacao com as rastreadoras."""
+    try:
+        return JSONResponse(queries.get_tv_comunicacao())
+    except psycopg.OperationalError as exc:
+        log.warning("banco inacessivel: %s", exc)
+        return JSONResponse(status_code=503, content={
+            "erro": "banco_inacessivel",
+            "mensagem": "Sem conexao com o banco do ERP."})
+    except Exception as exc:  # noqa: BLE001
+        log.warning("comunicacao tv falhou: %s", type(exc).__name__)
+        return JSONResponse(status_code=500, content={
+            "erro": "erro_consulta",
+            "mensagem": "Nao foi possivel ler a comunicacao da frota."})
+
+
 @app.get("/api/auditoria")
 def auditoria_uso(dias: int = 30) -> JSONResponse:
     """Indicadores de USO — acessos, tempo de sessao, telas e trilha de acoes.

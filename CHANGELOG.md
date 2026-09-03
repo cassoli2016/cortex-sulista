@@ -4,6 +4,16 @@ Gerado de `docs/versoes.yaml` por `scripts/gerar_changelog.py` — não editar �
 Formato [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/),
 versionamento [SemVer](https://semver.org/lang/pt-BR/).
 
+## [0.218.0] — 03/09/2026  ·  CX-03/09/2026-v0.218.0
+
+### Adicionado
+- Painel de TV novo: Comunicação — Veículos × Rastreadora (Business Intelligence › Painéis TV › Comunicação). É o relatório de comunicação do ERP virado mural, com duas diferenças. A primeira: o terceiro só entra se estiver EM VIAGEM. São 1.016 terceiros ativos e parados no cadastro, que não são frota que alguém acompanha — com eles, a falta de rastreadora aparecia como 41% da frota; sem eles, 5,3%. Próprio e agregado entram sempre, viajando ou não, porque a carreta parada no pátio tem rastreador e precisa aparecer.
+- A segunda diferença é a divisão entre equipamento COM MOTOR e SEM MOTOR, que no painel é um cartão de cada, não um detalhe de rodapé. Os dois grupos não se parecem: os 205 cavalos comunicam em 82% e os 228 implementos em 23%. O número da frota inteira — 51% — não descreve nem um nem outro, e é exatamente o tipo de média que não decide nada.
+- O painel separa "sem posição registrada" de "mudo há mais de 15 dias", e a diferença é de propósito: a primeira é ausência de leitura, a segunda é leitura velha. O painel diz onde está o buraco e não emite laudo de equipamento — a mesma rastreadora que não trouxe 142 carretas trouxe 52 no mesmo dia.
+- O Copiloto passou a responder sobre cobertura de rastreamento: entram no snapshot as contagens por faixa, o corte com motor × sem motor e o total por rastreadora. A lista de veículos mudos não entra — ela é nominal por construção, e placa não vai para o prompt.
+- Começou a régua de acompanhamento da 3S: uma vez por dia o CÓRTEX grava uma foto de quantas carretas comunicaram, quantas nunca comunicaram e quantas pararam. O ERP guarda posição, mas não guarda quantas estavam mudas anteontem — a carreta que voltar a comunicar amanhã apaga o rastro de que estava muda hoje. Sem essa foto não existe curva, e a pergunta "está melhorando?" não teria como ser respondida.
+- Junto veio o texto do aviso diário de WhatsApp da 3S, com barra de progresso e a variação contra o dia anterior. Ele ainda NÃO está ligado: nenhuma rotina o dispara, e ligar é uma decisão de quem opera. A medição é sempre do dia FECHADO (até 23:59 do dia anterior) — às 09:00, medir "o dia de hoje" contaria como muda toda carreta que ainda não reportou desde a meia-noite. E se a integração de posições parar, o aviso recusa o envio dizendo o motivo em vez de mandar "0 comunicaram", que seria um alarme verdadeiro no número e falso na conclusão.
+
 ## [0.217.2] — 03/09/2026  ·  CX-03/09/2026-v0.217.2
 
 ### Adicionado
