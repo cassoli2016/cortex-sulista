@@ -357,6 +357,19 @@ def health() -> JSONResponse:
         return JSONResponse(status_code=503, content={"status": "erro", "db": "sem_conexao"})
 
 
+@app.get("/api/dre/alavancas")
+def dre_alavancas_rota(comp_de: str, comp_ate: str) -> JSONResponse:
+    """Onde atacar para virar o resultado — alavancas medidas do periodo."""
+    from api import dre_alavancas
+    try:
+        return JSONResponse(dre_alavancas.calcular(comp_de, comp_ate))
+    except Exception as exc:  # noqa: BLE001
+        log.warning("dre alavancas falhou: %s", type(exc).__name__)
+        return JSONResponse(status_code=500, content={
+            "erro": "erro_consulta",
+            "mensagem": "Nao foi possivel calcular as alavancas."})
+
+
 @app.get("/api/dre/centros")
 def dre_centros(grupo: int, reduzido: int, de: str, ate: str) -> JSONResponse:
     """Os centros de custo de UMA conta — o nivel abaixo da conta na DRE."""

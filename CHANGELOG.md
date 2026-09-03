@@ -4,6 +4,15 @@ Gerado de `docs/versoes.yaml` por `scripts/gerar_changelog.py` — não editar �
 Formato [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/),
 versionamento [SemVer](https://semver.org/lang/pt-BR/).
 
+## [0.222.0] — 03/09/2026  ·  CX-03/09/2026-v0.222.0
+
+### Adicionado
+- A DRE Gerencial abre até o fim. Cada conta agora tem um triângulo que mostra os CENTROS DE CUSTO daquela conta, e cada centro abre os LANÇAMENTOS — data, histórico, débito e crédito. A soma dos centros fecha exatamente com o total da conta: conferido na conta de diesel em agosto, seis centros somando R$ 2.368.824,53, idêntico à linha da DRE.
+- Há uma linha "(sem centro de custo)" na quebra, e ela não é sobra: 14% dos lançamentos não têm rateio de centro — 68 mil em doze meses, valendo R$ 15,76 milhões. Sem essa linha a soma dos centros não fecharia com a conta, e o buraco pareceria "esse centro custa menos do que eu pensava". São em geral lançamentos automáticos de crédito de PIS, COFINS e ICMS.
+- Aba nova "Onde atacar": quanto falta por mês para o resultado virar, e as poucas alavancas de onde esse dinheiro pode sair, em ordem do que cada decisão mexe. Hoje a maior não é custo, é ociosidade — 81 cavalos próprios rodando 2.825 km por mês cada, contra os 8 a 10 mil de referência, carregando R$ 2,65 milhões por mês de custo fixo.
+- A aba diz três coisas em voz alta, de propósito. "Em jogo" NÃO é "economia garantida" — é o tamanho da conta que a decisão mexe, e somar os cartões seria vender o que não existe. O que depende de uma pergunta ainda sem resposta aparece marcado em âmbar com a pergunta. E há um bloco final de "onde NÃO está o problema", porque lista que inclui não-problemas dilui a atenção de quem lê.
+- Custo que cresce junto com a receita não entra na lista. O frete de agregados subiu 33% enquanto a receita subiu 14% — só o excesso vira alavanca. Sem isso a tela mandaria atacar o efeito de estar vendendo mais. Impostos, pelo mesmo motivo, ficam fora.
+
 ## [0.221.0] — 03/09/2026  ·  CX-03/09/2026-v0.221.0
 
 ### Adicionado

@@ -1181,6 +1181,27 @@ tr.dre-item>td{font-size:12.5px;color:var(--n600)}
 #dre-tab tr.dre-conta>td:first-child{padding-left:82px;font-size:11.5px;color:var(--n500)}
 tr.dre-conta>td{font-size:11.5px;color:var(--n500)}
 #dre-tab tr.dre-conta .ccod{font-family:var(--mono);font-size:10.5px;color:var(--n400)}
+/* O botão de abrir a conta. Largura fixa para a coluna não dançar quando o
+   triângulo vira — a primeira coluna é sticky no celular e qualquer variação
+   de largura empurra a tabela inteira. */
+/* A tarja de "já é positivo". Nasce com par escuro: a primeira versão usava
+   cor literal no `style=` e o verificador de estrutura pegou — no tema escuro
+   ela seria uma placa verde-clara no meio do painel. */
+.avisofaixa.bom{background:#E7F5EC;border-color:var(--green);color:#14532d}
+:root[data-theme="dark"] .avisofaixa.bom,
+:root:not([data-theme="light"]) .avisofaixa.bom{
+  background:#12321F;border-color:#4ADE80;color:#4ADE80}
+#dre-tab .drebt{background:none;border:0;cursor:pointer;padding:0;width:14px;
+  color:var(--n500);font-size:10px;line-height:1}
+#dre-tab .drebt[aria-expanded="true"]{color:var(--orange-500)}
+#dre-tab tr.dre-drill>td{background:var(--n50);padding:9px 18px 9px 82px}
+#dre-tab .drill-t{width:100%;border-collapse:collapse;font-size:11.5px}
+#dre-tab .drill-t td,#dre-tab .drill-t th{padding:4px 9px;text-align:left;
+  border-bottom:1px solid var(--n200);white-space:nowrap}
+#dre-tab .drill-t th{font-size:10px;text-transform:uppercase;color:var(--n500);
+  letter-spacing:.05em}
+#dre-tab .drill-t td.num,#dre-tab .drill-t th.num{text-align:right;
+  font-family:var(--mono)}
 tr.dre-sobra td{background:var(--yellow-100) !important}
 #dre-tab .exp{display:inline-block;width:14px;transition:transform .15s;color:var(--n400);margin-right:4px}
 tr[data-aberto="1"] .exp{transform:rotate(90deg)}
@@ -6675,6 +6696,7 @@ body.tvfull #btnReport,body.tvmode #btnReport{display:none}
       <section class="view" id="view-dre">
         <div class="subtabs" role="tablist" data-abas="dre" aria-label="Seções desta tela">
           <button role="tab" id="tabdre-res" data-aba="res" aria-controls="aba-dre-res" aria-selected="true" onclick="abaTrocar('dre','res')">Resultado</button>
+          <button role="tab" id="tabdre-atk" data-aba="atk" aria-controls="aba-dre-atk" aria-selected="false" onclick="abaTrocar('dre','atk')">Onde atacar</button>
           <button role="tab" id="tabdre-exc" data-aba="exc" aria-controls="aba-dre-exc" aria-selected="false" onclick="abaTrocar('dre','exc')">Excluídos <span class="aban" id="dre-exc-n"></span></button>
         </div>
         <div class="aba" data-abas="dre" data-aba="res" id="aba-dre-res" role="tabpanel" aria-labelledby="tabdre-res">
@@ -6687,6 +6709,22 @@ body.tvfull #btnReport,body.tvmode #btnReport{display:none}
           <div class="head"><h2>DRE Gerencial <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="Modelo de DRE da própria empresa: lançamento × plano de contas × sulista.agrupadorgerencial, por competência. Valores em R$ MIL. A linha NÃO ALOCADO / CLASSIFICAR (em amarelo) é transparência: conta de resultado que ainda não tem agrupador — não é sobra nem erro de cálculo. Δ m/m: a seta segue o TAMANHO da linha (custo caindo é ▼) e a cor segue o efeito no resultado; quando o mês corrente está incompleto, a comparação usa os dois últimos meses FECHADOS. Cada MÊS também traz sua própria seta, contra o mês anterior, com o percentual exato no tooltip — variação abaixo de 1,5% sai como tracinho cinza (estável), e o primeiro mês da série e o mês corrente (parcial) não têm seta, porque não há com o que comparar sem mentir.">i</span></h2><span class="hint" id="dreHint">valores em R$ · agrupador gerencial da empresa · clique nas linhas com ▸ para abrir a composição</span></div>
           <div class="tablewrap tabroll" style="max-height:640px"><table id="dre-tab"><thead id="dre-head"></thead><tbody id="dre-corpo"></tbody></table></div>
         </div>
+        </div>
+        <div class="aba" data-abas="dre" data-aba="atk" id="aba-dre-atk" role="tabpanel" aria-labelledby="tabdre-atk" data-ao-abrir="loadDreAtk" hidden>
+          <div class="card">
+            <div class="head"><h2>Onde atacar <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="Alavancas MEDIDAS no período escolhido, ordenadas pelo dinheiro que cada decisão mexe por mês. Nada aqui é meta, projeção ou benchmark de fora: tudo sai do razão e da operação, e cada cartão diz de onde. &#10;&#10;'Em jogo' NÃO é 'economia garantida' — é o tamanho da conta que aquela decisão move. Somar as alavancas e prometer o total seria vender o que não existe. &#10;&#10;O que precisa de confirmação aparece marcado: recomendação sobre número incerto é pior que recomendação nenhuma.">ⓘ</span></h2></div>
+            <div id="dre-atk-topo" style="padding:0 18px 9px"></div>
+          </div>
+          <!-- A LISTA ROLA DENTRO DE SI, não na página. Com o dado real
+               são 6 cartões e 1.559px — a régua da casa é 900. E ela não
+               pegaria isto sozinha: a aba só renderiza ao abrir
+               (`data-ao-abrir`), então o medidor a vê VAZIA e passa. Falso
+               verde encontrado medindo no navegador, não confiando no teste. -->
+          <div id="dre-atk-lista" class="tabroll" style="max-height:560px"></div>
+          <div class="card" id="dre-atk-naoe-card" hidden>
+            <div class="head"><h2>Onde NÃO está o problema</h2></div>
+            <div id="dre-atk-naoe" style="padding:0 18px 18px"></div>
+          </div>
         </div>
         <div class="aba" data-abas="dre" data-aba="exc" id="aba-dre-exc" role="tabpanel" aria-labelledby="tabdre-exc" data-ao-abrir="loadDreExc" hidden>
           <div class="card">
@@ -28360,6 +28398,172 @@ function dreSelo(d){
     + `<a href="javascript:abaTrocar('dre','exc')">Ver quais e por quê</a>.</div>`;
 }
 
+/* ===================== DRE — Onde atacar =====================
+   Esta aba responde UMA pergunta: quanto falta por mês para o resultado virar,
+   e quais são os poucos lugares de onde esse dinheiro pode sair.
+
+   TRÊS DECISÕES DE LEITURA, e nenhuma é estética:
+
+   1. A ORDEM É POR R$/MÊS, sempre. Alavanca sem tamanho não é alavanca — e
+      lista ordenada por opinião vira lista que cada um lê como quiser.
+
+   2. "EM JOGO" NÃO É "ECONOMIA". É o tamanho da conta que a decisão mexe. A
+      tela diz isso em cima, antes dos números, porque somar os cartões e
+      prometer o total seria vender o que não existe.
+
+   3. O QUE PRECISA DE CONFIRMAÇÃO VEM MARCADO, em âmbar, com a pergunta que
+      falta responder. Número incerto apresentado como certo é o jeito mais
+      rápido de queimar a confiança na tela inteira. */
+let DREATK = null;
+
+/* ===================== DRE — drill-down =====================
+   Conta → centro de custo → lançamento. Três coisas que decidem o desenho:
+
+   1. SOB DEMANDA. A DRE de 12 meses tem centenas de contas; trazer o centro
+      de custo de todas seria pagar caro por uma pergunta que se faz sobre uma.
+
+   2. "SEM CENTRO DE CUSTO" É UMA LINHA, não um resto. 14% dos lançamentos não
+      têm rateio (68 mil em 12 meses, R$ 15,76 milhões). Sem essa linha a soma
+      dos centros não fecharia com o total da conta — e o buraco teria cara de
+      "esse centro custa menos do que eu pensava".
+
+   3. O TETO SE DECLARA. A lista de lançamentos para em 500; sem dizer isso, a
+      soma da tela não bate com o total de cima e quem confere culpa o número
+      certo. */
+function _drillPeriodo(){
+  const de = _dxV('fCompDe'), ate = _dxV('fCompAte');
+  return {de: (de||'') + '-01', ate: mesSeguinte(ate||'')};
+}
+
+async function dreDrill(bt){
+  const tr = bt.closest('tr');
+  const aberto = bt.getAttribute('aria-expanded') === 'true';
+  const prox = tr.nextElementSibling;
+  if(aberto){
+    bt.setAttribute('aria-expanded','false'); bt.textContent='▸';
+    if(prox && prox.classList.contains('dre-drill')) prox.remove();
+    return;
+  }
+  bt.setAttribute('aria-expanded','true'); bt.textContent='▾';
+  const faixa = document.createElement('tr');
+  faixa.className = 'dre-drill';
+  faixa.innerHTML = '<td colspan="15">carregando os centros de custo…</td>';
+  tr.after(faixa);
+  const p = _drillPeriodo();
+  const q = new URLSearchParams({grupo: tr.dataset.g, reduzido: tr.dataset.r,
+                                de: p.de, ate: p.ate});
+  let d;
+  try{
+    const r = await respostaJSON(await fetch('/api/dre/centros?' + q, {cache:'no-store'}));
+    if(!r.ok) throw new Error((r.dados||{}).mensagem || 'não foi possível abrir');
+    d = r.dados;
+  }catch(e){
+    faixa.innerHTML = `<td colspan="15">${esc(e.message||'falhou')}</td>`; return;
+  }
+  const linhas = d.linhas || [];
+  faixa.innerHTML = '<td colspan="15">' + (linhas.length
+    ? `<table class="drill-t"><thead><tr><th>Centro de custo</th>`
+      + `<th class="num">Lançamentos</th><th class="num">Valor</th><th></th></tr></thead><tbody>`
+      + linhas.map(x => `<tr data-g="${tr.dataset.g}" data-r="${tr.dataset.r}"`
+          + ` data-c="${x.centro === null ? '' : x.centro}"`
+          + ` data-sem="${x.centro === null ? '1' : ''}">`
+          + `<td><button class="drebt" onclick="dreDrillLanc(this)" aria-expanded="false" title="ver lançamentos">▸</button> `
+          + `${esc(x.descricao || '?')}${x.centro !== null ? ` <span class="ccod">${x.centro}</span>` : ''}</td>`
+          + `<td class="num">${x.lancamentos}</td>`
+          + `<td class="num">${BRL.format(x.valor||0)}</td><td></td></tr>`).join('')
+      + `</tbody></table>`
+    : 'Nenhum lançamento nesta conta no período.') + '</td>';
+}
+
+async function dreDrillLanc(bt){
+  const tr = bt.closest('tr');
+  const aberto = bt.getAttribute('aria-expanded') === 'true';
+  const prox = tr.nextElementSibling;
+  if(aberto){
+    bt.setAttribute('aria-expanded','false'); bt.textContent='▸';
+    if(prox && prox.classList.contains('drill-lanc')) prox.remove();
+    return;
+  }
+  bt.setAttribute('aria-expanded','true'); bt.textContent='▾';
+  const linha = document.createElement('tr');
+  linha.className = 'drill-lanc';
+  linha.innerHTML = '<td colspan="4">carregando os lançamentos…</td>';
+  tr.after(linha);
+  const p = _drillPeriodo();
+  const q = new URLSearchParams({grupo: tr.dataset.g, reduzido: tr.dataset.r,
+                                de: p.de, ate: p.ate});
+  if(tr.dataset.sem) q.set('sem_centro','true'); else q.set('centro', tr.dataset.c);
+  let d;
+  try{
+    const r = await respostaJSON(await fetch('/api/dre/conta-lancamentos?' + q, {cache:'no-store'}));
+    if(!r.ok) throw new Error((r.dados||{}).mensagem || 'não foi possível abrir');
+    d = r.dados;
+  }catch(e){
+    linha.innerHTML = `<td colspan="4">${esc(e.message||'falhou')}</td>`; return;
+  }
+  const ls = d.linhas || [];
+  linha.innerHTML = '<td colspan="4">'
+    + (d.truncou ? `<p class="hint" style="margin:0 0 6px">Mostrando os primeiros ${d.limite} — a soma abaixo não fecha com o total da conta.</p>` : '')
+    + (ls.length
+      ? `<table class="drill-t"><thead><tr><th>Data</th><th>Histórico</th>`
+        + `<th class="num">Débito</th><th class="num">Crédito</th></tr></thead><tbody>`
+        + ls.map(x => `<tr><td>${esc(fmtD(String(x.dtlancamento).slice(0,10)))}</td>`
+            + `<td>${esc((x.historicodescricao||'').slice(0,70))}</td>`
+            + `<td class="num">${x.valordebito?BRL.format(+x.valordebito):''}</td>`
+            + `<td class="num">${x.valorcredito?BRL.format(+x.valorcredito):''}</td></tr>`).join('')
+        + `</tbody></table>`
+      : 'Nenhum lançamento.') + '</td>';
+}
+
+async function loadDreAtk(){
+  const de = _dxV('fCompDe'), ate = _dxV('fCompAte');
+  const topo = document.getElementById('dre-atk-topo');
+  const lista = document.getElementById('dre-atk-lista');
+  topo.innerHTML = '<p class="hint">medindo…</p>';
+  lista.innerHTML = '';
+  let d;
+  try{
+    const r = await respostaJSON(await fetch(
+      '/api/dre/alavancas?comp_de=' + encodeURIComponent(de) +
+      '&comp_ate=' + encodeURIComponent(ate), {cache:'no-store'}));
+    if(!r.ok) throw new Error((r.dados||{}).mensagem || 'não foi possível medir');
+    d = DREATK = r.dados;
+  }catch(e){
+    topo.innerHTML = `<p class="hint">${esc(e.message||'falhou')}</p>`; return;
+  }
+
+  const falta = d.falta_por_mes || 0;
+  topo.innerHTML = falta
+    ? `<div class="avisofaixa">Para o resultado virar, faltam <b>${BRL.format(falta)}</b> por mês `
+      + `— média dos ${d.meses} meses do período.</div>`
+      + `<p class="hint">Os cartões abaixo estão em ordem do dinheiro que cada decisão MEXE por mês. `
+      + `“Em jogo” não é “economia garantida”: é o tamanho da conta, não a promessa.</p>`
+    : `<div class="avisofaixa bom">`
+      + `O resultado do período já é positivo (${BRL.format(-(d.resultado_mes||0))} por mês). `
+      + `Os cartões abaixo mostram onde ainda há dinheiro na mesa.</div>`;
+
+  lista.innerHTML = (d.alavancas||[]).map((a, i) => {
+    const dubio = a.certeza === 'confirmar';
+    return `<div class="card" style="margin-top:14px">
+      <div class="head"><h2>${i+1}. ${esc(a.titulo)}
+        <span style="float:right;font:700 18px/1 var(--mono);color:${dubio?'var(--amber)':'var(--n900)'}">${BRL.format(a.valor_mes||0)}<span style="font:400 11px/1 var(--font);color:var(--n500)">/mês em jogo</span></span></h2></div>
+      <div style="padding:0 18px 14px">
+        ${dubio ? '<p style="margin:0 0 9px"><span class="chip warn">confirmar antes de decidir</span></p>' : ''}
+        <p style="margin:0 0 9px">${esc(a.o_que_e)}</p>
+        <p style="margin:0 0 9px;color:var(--n700)"><b>O que fazer:</b> ${esc(a.o_que_fazer)}</p>
+        <p class="hint" style="margin:0">${esc(a.fonte)}</p>
+      </div></div>`;
+  }).join('') || '<div class="card"><div style="padding:18px">Nenhuma alavanca medida neste período.</div></div>';
+
+  /* ONDE NÃO ESTÁ O PROBLEMA é parte da análise, não enfeite: lista que
+     inclui não-problemas dilui a atenção de quem lê, e quem não vê o
+     "não é aqui" gasta energia no lugar errado. */
+  const naoe = d.nao_e || [];
+  document.getElementById('dre-atk-naoe-card').hidden = !naoe.length;
+  document.getElementById('dre-atk-naoe').innerHTML = naoe.map(x =>
+    `<p style="margin:0 0 9px"><b>${esc(x.titulo)}.</b> ${esc(x.texto)}</p>`).join('');
+}
+
 async function loadDreExc(){
   const p = new URLSearchParams();
   const de = _dxV('fCompDe'), ate = _dxV('fCompAte');
@@ -28748,8 +28952,14 @@ function renderDre(d){
            O title com o texto inteiro nao e' enfeite: no celular a 1a coluna
            e' sticky e trunca com reticencias (a descricao mais longa media
            ~445px num viewport de 390 e cobria TODAS as colunas de valor). */
-        html+=cts.map(c=>`<tr class="dre-item dre-conta dre-c-${i}-${j}">
-        <td title="${esc((c.estrutural||'')+' · '+(c.conta||''))}"><span class="ccod">${esc(c.estrutural||'')}</span> · ${esc(c.conta||'')}</td>
+        /* A CONTA ABRE. O drill-down entra como uma FAIXA `colspan` logo
+           abaixo da linha, e não como mais colunas: a tabela já tem 15 e
+           qualquer célula a mais desalinha o cabeçalho inteiro. A faixa
+           carrega sob demanda — a DRE de 12 meses tem centenas de contas, e
+           trazer centro de custo de todas seria pagar caro por uma pergunta
+           que se faz sobre uma. */
+        html+=cts.map(c=>`<tr class="dre-item dre-conta dre-c-${i}-${j}" data-g="${c.grupo}" data-r="${c.reduzido}">
+        <td title="${esc((c.estrutural||'')+' · '+(c.conta||''))}"><button class="drebt" onclick="dreDrill(this)" aria-expanded="false" title="abrir por centro de custo">▸</button> <span class="ccod">${esc(c.estrutural||'')}</span> · ${esc(c.conta||'')}</td>
         <td class="num">${(rl&&rl.total)?`<span class="av">${(100*c.total/Math.abs(rl.total)).toFixed(1)}%</span>`:''}</td>
         ${delta(c.meses, true)}
         ${d.meses.map((mm,k)=>_mes(c.meses,mm,k)).join('')}

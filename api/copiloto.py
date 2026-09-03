@@ -101,6 +101,7 @@ _FONTES_ROTULO = {
     "smartec": "Smartec — Infrações e Licenças",
     "comunicacao_rastreadoras": "Comunicação com as Rastreadoras",
     "dre_excluidos": "DRE — lançamentos fora do resultado",
+    "onde_atacar": "DRE — onde atacar (alavancas do resultado)",
     "rastreamento_3s": "3S — rastreamento das carretas",
     "torre_seguranca": "Torre de Segurança",
     "estradas_transito": "Condição das estradas (TomTom)",
@@ -517,6 +518,17 @@ def _fontes_do_snapshot() -> dict:
         # escrito por pessoa, e nao vao para o prompt.
         "dre_excluidos": lambda: __import__(
             "api.dre_exclusoes", fromlist=["total"]).total(),
+        # Onde atacar: só o TAMANHO de cada alavanca e a distância até o zero.
+        # O Copiloto precisa saber onde está o dinheiro para responder "por que
+        # o resultado não melhora" — e isso é escalar, sem placa nem conta.
+        "onde_atacar": lambda: (lambda d: {
+            "falta_por_mes": d["falta_por_mes"],
+            "alavancas": [{"titulo": a["titulo"], "valor_mes": a["valor_mes"],
+                           "certeza": a["certeza"]} for a in d["alavancas"]],
+            "nao_e_aqui": [x["titulo"] for x in d["nao_e"]]})(
+            __import__("api.dre_alavancas", fromlist=["calcular"]).calcular(
+                (date.today().replace(month=1)).strftime("%Y-%m"),
+                date.today().strftime("%Y-%m"))),
         "torre_seguranca": lambda: queries.get_seguranca(),
         "estradas_transito": _estradas,
         "programacao_disponibilidade": lambda: queries.get_programacao(),

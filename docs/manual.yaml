@@ -3,6 +3,21 @@ sistema: 'O CÓRTEX é o painel de gestão da Transportadora Sulista S/A. Ele l�
   — financeiro, comercial, operação, frota, pessoas e controladoria. Nenhum número é digitado aqui: tudo
   vem do ERP, e cada card diz no ⓘ de qual tabela e de qual regra ele saiu.'
 glossario:
+- termo: Em jogo (aba "Onde atacar")
+  definicao: >-
+    O tamanho da conta que uma decisão MEXE por mês — não a economia que ela
+    garante. A aba lista as alavancas em ordem desse valor, e diz isso antes
+    dos números de propósito: somar os cartões e prometer o total seria vender
+    o que não existe. Uma alavanca marcada como "confirmar antes de decidir"
+    depende de uma pergunta ainda sem resposta, e o cartão diz qual — número
+    incerto apresentado como certo queima a confiança na tela inteira.
+- termo: Onde NÃO está o problema
+  definicao: >-
+    Bloco final da aba "Onde atacar", com o que foi medido e está bom. Não é
+    enfeite: lista de problemas que inclui não-problemas dilui a atenção, e
+    quem não vê o "não é aqui" gasta energia no lugar errado. Hoje entram o
+    retorno vazio (17,9%, abaixo do limite de 20% da casa) e a receita
+    (cresceu 17,3% no período).
 - termo: Lançamento excluído do resultado
   definicao: >-
     Lançamento que a DRE Gerencial ignora, marcado à mão na aba "Excluídos".
