@@ -31,7 +31,7 @@ from __future__ import annotations
 import logging
 from datetime import date, timedelta
 
-from . import db, pglocal
+from . import db, frota_identidade, pglocal
 
 log = logging.getLogger("cortex.comunicacao3s")
 
@@ -54,7 +54,7 @@ WITH viagem AS (
   WHERE dtcancelamento IS NULL AND semaforo = 1 AND dtsaida >= current_date - 120
   GROUP BY 1
 ), frota AS (
-  SELECT v.placa, (v.possuimotor = 1) AS com_motor,
+  SELECT v.placa, v.numerofrota, (v.possuimotor = 1) AS com_motor,
          coalesce(nullif(trim(c.razaosocial), ''), '') AS rastreadora
   FROM veiculo v
   LEFT JOIN viagem vg ON vg.veiculo = v.placa
@@ -70,7 +70,7 @@ WITH viagem AS (
            WHERE vp.veiculo = f.placa AND vp.dt < %s) AS ultima
   FROM frota f
 )
-SELECT f.rastreadora, f.com_motor, p.ultima
+SELECT f.placa, f.numerofrota, f.rastreadora, f.com_motor, p.ultima
 FROM frota f JOIN pos p ON p.placa = f.placa
 """
 
@@ -88,6 +88,7 @@ def medir(dia: date | None = None) -> dict:
         linhas = cur.fetchall()
 
     grupos: dict[tuple, dict] = {}
+    placas: list[dict] = []
     for r in linhas:
         nome = (r["rastreadora"] or "").strip() or "(sem rastreadora)"
         curta = nome.split()[0] if nome != "(sem rastreadora)" else nome
@@ -100,12 +101,25 @@ def medir(dia: date | None = None) -> dict:
         u = r["ultima"]
         if u is None:
             g["nunca"] += 1
+            situacao = "nunca"
         elif u.date() == dia:
             g["comunicou"] += 1
+            situacao = "comunicou"
         elif (dia - u.date()).days > 15:
             g["mudo_15d"] += 1
-    return {"dia": dia, "grupos": sorted(grupos.values(),
-                                         key=lambda g: (-g["frota"], g["rastreadora"]))}
+            situacao = "mudo15"
+        else:
+            situacao = "parou"
+        placas.append({
+            "placa": r["placa"],
+            "frota": frota_identidade.rotulo(r["numerofrota"], r["placa"]),
+            "rastreadora": curta, "com_motor": bool(r["com_motor"]),
+            "situacao": situacao, "ultima": u.date() if u else None,
+        })
+    return {"dia": dia,
+            "grupos": sorted(grupos.values(),
+                             key=lambda g: (-g["frota"], g["rastreadora"])),
+            "placas": placas}
 
 
 def gravar(medicao: dict, esquema: str | None = None) -> int:
@@ -123,6 +137,17 @@ def gravar(medicao: dict, esquema: str | None = None) -> int:
                      medido_em = now()""",
                 (dia, g["rastreadora"], g["com_motor"], g["frota"],
                  g["comunicou"], g["mudo_15d"], g["nunca"]))
+        # As placas do MESMO dia são reescritas por inteiro antes de entrar:
+        # se uma placa sair da frota, a linha velha dela não pode sobreviver
+        # ao ON CONFLICT e continuar contando para sempre.
+        cur.execute("DELETE FROM com_placa_diaria WHERE dia = %s", (dia,))
+        for p in medicao.get("placas") or []:
+            cur.execute(
+                """INSERT INTO com_placa_diaria
+                     (dia, placa, rastreadora, com_motor, situacao, ultima)
+                   VALUES (%s, %s, %s, %s, %s, %s)""",
+                (dia, p["placa"], p["rastreadora"], p["com_motor"],
+                 p["situacao"], p["ultima"]))
         conn.commit()
     return len(medicao["grupos"])
 
@@ -145,6 +170,47 @@ def historico(dias: int = 30, alvo: str = ALVO,
                  FROM com_status_diario WHERE rastreadora = %s
                 GROUP BY dia ORDER BY dia DESC LIMIT %s""", (alvo, dias))
         return [dict(r) for r in cur.fetchall()]
+
+
+#: As situações que a lista de cobrança contém. "comunicou" fica de fora: o
+#: anexo existe para cobrar quem NÃO comunica, e uma lista que traz todo mundo
+#: não é lista, é o cadastro.
+SITUACOES_COBRANCA = ("nunca", "mudo15", "parou")
+
+
+def placas_do_dia(dia: date, alvo: str = ALVO,
+                  esquema: str | None = None) -> list[dict]:
+    """As placas do alvo naquele dia, já na ordem em que o anexo as mostra."""
+    with pglocal.get_conn(_esq(esquema)) as conn, conn.cursor() as cur:
+        cur.execute(
+            """SELECT placa, situacao, ultima FROM com_placa_diaria
+                WHERE dia = %s AND rastreadora = %s
+                ORDER BY CASE situacao WHEN 'nunca' THEN 0 WHEN 'mudo15' THEN 1
+                                       WHEN 'parou' THEN 2 ELSE 3 END,
+                         ultima NULLS FIRST, placa""", (dia, alvo))
+        return [dict(r) for r in cur.fetchall()]
+
+
+def diferenca(dia: date, anterior: date | None, alvo: str = ALVO,
+              esquema: str | None = None) -> dict:
+    """O que ENTROU e SAIU da lista de cobrança entre dois dias.
+
+    Por que isto não se responde com a contagem: 142 ontem e 142 hoje pode ser
+    a mesma lista parada ou três carretas que voltaram e três que caíram. A
+    segunda é notícia, e some inteira num número que não mudou.
+    """
+    def conj(d):
+        if d is None:
+            return None
+        return {p["placa"] for p in placas_do_dia(d, alvo, esquema)
+                if p["situacao"] in SITUACOES_COBRANCA}
+
+    hoje, ontem = conj(dia), conj(anterior)
+    if ontem is None:
+        return {"primeira": True, "entraram": [], "sairam": [], "mudou": True}
+    entraram, sairam = sorted(hoje - ontem), sorted(ontem - hoje)
+    return {"primeira": False, "entraram": entraram, "sairam": sairam,
+            "mudou": bool(entraram or sairam)}
 
 
 def status_alerta(dia: date | None = None, alvo: str = ALVO,
@@ -184,5 +250,7 @@ def status_alerta(dia: date | None = None, alvo: str = ALVO,
     gravar(med, esquema=esquema)
     serie = historico(30, alvo, esquema=esquema)
     anterior = next((x for x in serie if x["dia"] < dia), None)
+    dif = diferenca(dia, anterior["dia"] if anterior else None, alvo, esquema)
     return {"dia": dia, "alvo": alvo, "hoje": hoje_t, "anterior": anterior,
-            "com_motor": motor}
+            "com_motor": motor, "diferenca": dif,
+            "placas": placas_do_dia(dia, alvo, esquema)}

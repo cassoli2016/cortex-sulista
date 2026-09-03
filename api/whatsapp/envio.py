@@ -99,12 +99,20 @@ def montar_texto(mensagem: str, assinatura: str | None = None) -> str:
 def enviar(telefone: str, mensagem: str, *, usuario: str = "",
            origem: str = "manual", registrar: bool = True, modelo: str = "",
            instancia: str | None = None, regras: dict | None = None,
+           anexo: tuple | None = None,
            http=None, esquema: str | None = None) -> dict:
     """Envia UMA mensagem por UMA instância. Nunca levanta.
 
     `regras` são as regras EFETIVAS (geral + ajustes do modelo), montadas por
     `modelos.regras_efetivas`. Sem elas, vale a configuração geral — que é o
     caso da mensagem avulsa.
+
+    `anexo` é `(bytes, nome_do_arquivo, extensao)`. Com ele a mensagem vai como
+    DOCUMENTO com legenda, e não como texto — uma mensagem só, não duas. Passar
+    pelo MESMO caminho é o ponto: o anexo obedece ao interruptor geral, à
+    janela, ao limite do número, ao sub-limite do modelo e à checagem de
+    conexão, igual ao texto. Um `enviar_anexo` paralelo seria o atalho por onde
+    o freio deixaria de valer justamente para a mensagem mais pesada.
     """
     bruto = str(telefone or "").strip()
     c = regras or {**cfg.ler(), "limite_numero": cfg.ler()["limite_dia"],
@@ -215,10 +223,20 @@ def enviar(telefone: str, mensagem: str, *, usuario: str = "",
             **recusa)
 
     try:
-        r = cliente.Cliente(http=http, qual=inst).enviar_texto(
-            numero, texto, intervalo_seg=c["intervalo_seg"])
+        cli = cliente.Cliente(http=http, qual=inst)
+        if anexo:
+            dados, nome_arq, ext = anexo
+            r = cli.enviar_documento(numero, dados, nome_arq, extensao=ext,
+                                     legenda=texto,
+                                     intervalo_seg=c["intervalo_seg"])
+        else:
+            r = cli.enviar_texto(numero, texto,
+                                 intervalo_seg=c["intervalo_seg"])
         message_id = str(r.get("messageId") or r.get("id") or "")
         if registrar:
+            # A trilha guarda o TEXTO, nunca o arquivo: o anexo tem megabytes e
+            # a trilha existe para dizer o que foi dito a quem, não para virar
+            # um segundo lugar onde o dado da frota mora.
             registro.gravar(numero, texto, usuario=usuario, origem=origem,
                             ok=True, message_id=message_id, modelo=modelo,
                             instancia=inst, esquema=esquema)
@@ -240,6 +258,7 @@ def enviar(telefone: str, mensagem: str, *, usuario: str = "",
 def enviar_varios(telefones, mensagem: str, *, usuario: str = "",
                   origem: str = "manual", modelo: str = "",
                   instancia: str | None = None, regras: dict | None = None,
+                  anexo: tuple | None = None,
                   http=None, esquema: str | None = None) -> dict:
     """Manda para vários e devolve o resultado de CADA um.
 
@@ -254,7 +273,7 @@ def enviar_varios(telefones, mensagem: str, *, usuario: str = "",
 
     resultados = [enviar(t, mensagem, usuario=usuario, origem=origem,
                          modelo=modelo, instancia=instancia, regras=regras,
-                         http=http, esquema=esquema)
+                         anexo=anexo, http=http, esquema=esquema)
                   for t in alvos]
     enviados = sum(1 for r in resultados if r["ok"])
     return {"ok": enviados > 0, "erro": "" if enviados else resultados[0]["erro"],
@@ -264,8 +283,8 @@ def enviar_varios(telefones, mensagem: str, *, usuario: str = "",
 
 def enviar_modelo(telefones, chave: str, valores: dict | None = None, *,
                   usuario: str = "", origem: str = "",
-                  instancia: str | None = None, http=None,
-                  esquema: str | None = None) -> dict:
+                  instancia: str | None = None, anexo: tuple | None = None,
+                  http=None, esquema: str | None = None) -> dict:
     """ESTA é a porta que as outras áreas do sistema usam.
 
     Chama-se pela CHAVE do modelo, nunca pelo id nem pelo nome: o id muda se um
@@ -308,4 +327,4 @@ def enviar_modelo(telefones, chave: str, valores: dict | None = None, *,
     return enviar_varios(telefones, texto, usuario=usuario,
                          origem=origem or f"modelo:{modelo['chave']}",
                          modelo=modelo["chave"], instancia=alvo, regras=regras,
-                         http=http, esquema=esquema)
+                         anexo=anexo, http=http, esquema=esquema)

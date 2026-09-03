@@ -62,12 +62,17 @@ def validar(dados: dict) -> dict:
     brutos = numeros.separar(dados.get("destinatarios") or "")
     if not brutos:
         raise ValueError("Informe ao menos um destinatário.")
-    ruins = [b for b in brutos if not numeros.valido(b)]
+    # GRUPO TAMBÉM É DESTINATÁRIO. A agenda nasceu só com telefone e usava
+    # `valido`/`normalizar`, que recusam id de grupo — enquanto o ENVIO já
+    # aceitava grupo desde sempre, por `destino`. O efeito era uma rotina que
+    # não dava para cadastrar para um grupo, com a mensagem de erro errada
+    # ("Telefone inválido") apontando para o lugar errado.
+    ruins = [b for b in brutos if not numeros.destino_valido(b)]
     if ruins:
-        raise ValueError("Telefone inválido: " + ", ".join(ruins[:3]))
+        raise ValueError("Destinatário inválido: " + ", ".join(ruins[:3]))
     # guardado NORMALIZADO, como a trilha: o mesmo número digitado de dois
     # jeitos viraria dois destinatários e gastaria duas fatias do limite
-    dest = ", ".join(numeros.normalizar(b) for b in brutos)
+    dest = ", ".join(numeros.destino(b)[1] for b in brutos)
 
     freq = str(dados.get("frequencia") or "diario").strip().lower()
     if freq not in FREQUENCIAS:
@@ -240,12 +245,21 @@ def executar(ag: dict, *, ensaio: bool = False, forcado: bool = False,
         return f" ..   #{ident} {chave}: nada a enviar ({silencio})"
 
     if ensaio:
+        anexo = vals.get("_anexo")
+        extra = (" com anexo %s (%d KB)" % (anexo[1], len(anexo[0]) // 1024)
+                 if anexo else "")
         return (f" .    #{ident} {chave}: enviaria para "
-                f"{ag.get('destinatarios')}")
+                f"{ag.get('destinatarios')}{extra}")
 
+    # O ANEXO VEM DO PROVEDOR, com underscore como o `_silencio`: ele não é
+    # variável do texto (não aparece em lugar nenhum do corpo) e por isso sai
+    # de `vals` antes de ir para o `renderizar`, que só sabe substituir texto.
+    # Quem decide se há anexo é quem tem o dado — o provedor —, nunca a agenda.
+    anexo = vals.pop("_anexo", None)
     r = enviar_modelo(ag.get("destinatarios"), chave, vals,
                       usuario="agenda", origem="agenda" + (":forcado" if forcado else ""),
-                      instancia=ag.get("instancia"), http=http, esquema=esquema)
+                      instancia=ag.get("instancia"), anexo=anexo,
+                      http=http, esquema=esquema)
     registrar_execucao(
         ident,
         f"{r['enviados']} enviada(s), {r['falhas']} falha(s)"

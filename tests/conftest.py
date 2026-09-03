@@ -80,7 +80,56 @@ def _foto_producao():
         " (SELECT count(*) FROM mky_recebiveis) AS recebiveis,"
         " (SELECT coalesce(max(id), 0) FROM ant_envios) AS envios,"
         " (SELECT coalesce(max(id), 0) FROM sup_chamados) AS chamados,"
-        " (SELECT coalesce(max(id), 0) FROM sup_avisos) AS avisos_sup")
+        " (SELECT coalesce(max(id), 0) FROM sup_avisos) AS avisos_sup,"
+        # A auditoria de USO entrou aqui depois de vazar: 238 sessões de teste
+        # (`ana@sulista.local` e companhia) apareceram na tela de Auditoria de
+        # PRODUÇÃO em 03/09/2026, gravadas ao longo de uma suíte inteira. O
+        # guard existia e não pegou porque a lista era fixa e o módulo era
+        # novo — a mesma classe de defeito que já custou caro nesta casa.
+        # Lista fixa envelhece: módulo que GRAVA entra aqui no mesmo commit.
+        " (SELECT coalesce(max(id), 0) FROM aud_sessoes) AS aud_sess,"
+        # `aud_telas` NÃO tem `id` — a chave dela é (sessao_id, tela). O
+        # `max(id)` que eu escrevi aqui primeiro levantava UndefinedColumn, e
+        # como o `producao_intocada` engole exceção para tolerar tabela ainda
+        # não migrada, o efeito não era um guard incompleto: era o guard
+        # INTEIRO desligado em silêncio, inclusive para as tabelas antigas.
+        # Pego sabotando a lixeira e vendo que ninguém reclamou.
+        " (SELECT count(*) FROM aud_telas) AS aud_telas")
+
+
+@pytest.fixture(scope="session")
+def _lixeira_auditoria(request):
+    """Um schema descartável para onde vai a auditoria de uso INCIDENTAL.
+
+    Quase todo teste que faz login pela API grava uma sessão de uso sem que o
+    uso seja o assunto dele — e, com `ESQUEMA` em branco, "sem assunto" queria
+    dizer "produção". Em vez de pedir a duzentos testes que redirecionem, o
+    padrão passa a ser seguro: um schema por SESSÃO de teste (barato, criado
+    uma vez), apagado no fim. Quem testa a auditoria de propósito continua
+    redirecionando para o seu `esquema_pg` e sobrescreve isto.
+    """
+    from api import migracoes, pglocal
+    nome = f"teste_aud_{uuid.uuid4().hex[:10]}"
+    try:
+        migracoes.aplicar(nome)
+    except Exception:  # noqa: BLE001 — sem Postgres não há o que proteger
+        yield None
+        return
+    try:
+        yield nome
+    finally:
+        try:
+            pglocal.apagar_esquema(nome)
+        except Exception:  # noqa: BLE001
+            pass
+
+
+@pytest.fixture(autouse=True)
+def auditoria_fora_de_producao(_lixeira_auditoria, monkeypatch):
+    """A auditoria de uso nunca escreve em produção durante a suíte."""
+    if _lixeira_auditoria:
+        from api import auditoria
+        monkeypatch.setattr(auditoria, "ESQUEMA", _lixeira_auditoria)
 
 
 @pytest.fixture(autouse=True)

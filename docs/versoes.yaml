@@ -1,3 +1,48 @@
+- versao: "0.219.0"
+  data: "2026-09-03"
+  adicionado:
+    - >-
+      O aviso diário da 3S no WhatsApp está no ar: todo dia às 09:00 o grupo
+      recebe quantas carretas comunicaram, quantas nunca comunicaram e quantas
+      pararam, com barra de progresso e a variação contra o dia anterior. A
+      medição é sempre do dia FECHADO (até 23:59 da véspera) — às 09:00, medir
+      "hoje" contaria como muda toda carreta que ainda não reportou desde a
+      meia-noite, e o número da manhã não teria relação com o da tarde.
+    - >-
+      Junto vai um PDF com as placas, uma a uma, separado em três listas
+      porque são três cobranças diferentes: quem nunca comunicou (instalação,
+      ativação ou contrato), quem parou há mais de 15 dias (equipamento) e
+      quem parou nos últimos 15 dias (pode ser só carreta em pátio). Cada
+      placa diz desde quando.
+    - >-
+      O anexo só vai quando a lista MUDA, e "mudou" é por placa, não por
+      contagem: 142 ontem e 142 hoje pode ser a mesma lista parada ou três que
+      voltaram e três que caíram — a segunda é notícia e sumiria num número
+      igual. Em dia sem mudança o aviso diz "a lista é a mesma de ontem" e não
+      manda arquivo; um PDF de cinco páginas todo dia vira o anexo que ninguém
+      abre, inclusive no dia em que ele importa.
+  corrigido:
+    - >-
+      A agenda de WhatsApp passou a aceitar GRUPO como destinatário. Ela tinha
+      nascido só para telefone e recusava id de grupo com a mensagem errada
+      ("Telefone inválido"), enquanto o envio já aceitava grupo desde sempre —
+      não dava para cadastrar rotina para um grupo, e o erro apontava para o
+      lugar errado.
+    - >-
+      A tarja de "leitura velha" da Visão Geral ganhou a versão do tema
+      escuro. Ela subiu na 0.217.2 só com a paleta clara e, para quem usa o
+      sistema no escuro, aparecia como uma placa creme no meio do painel.
+    - >-
+      A tela de Auditoria e Uso mostrava usuários que não existem —
+      ana@sulista.local, beto@sulista.local e outros. Não era erro de tela: a
+      suíte de testes estava gravando as sessões dela no banco de PRODUÇÃO,
+      porque o módulo de auditoria não tinha para onde apontar e o padrão
+      acabava sendo o banco real. Foram 238 sessões falsas ao longo de um dia.
+      As linhas foram removidas, a auditoria dos testes passou a cair num
+      espaço descartável, e a trava que deveria ter impedido isso desde o
+      começo agora enxerga essas tabelas: teste que escrever ali falha na hora,
+      acusando qual foi.
+
 - versao: "0.218.0"
   data: "2026-09-03"
   adicionado:

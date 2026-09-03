@@ -258,6 +258,37 @@ class Cliente:
             corpo["delayMessage"] = int(intervalo_seg)
         return self._chamar("/send-text", corpo)
 
+    def enviar_documento(self, telefone: str, dados: bytes, nome_arquivo: str,
+                         extensao: str = "pdf", legenda: str = "",
+                         intervalo_seg: int | None = None) -> dict:
+        """Manda um arquivo. `dados` são os BYTES; a Z-API quer base64.
+
+        DUAS COISAS QUE ESTE ENDPOINT FAZ DIFERENTE do `/send-text`:
+
+        1. **A extensão vai no CAMINHO**, não no corpo: `/send-document/pdf`.
+           Mandar para `/send-document` sem ela devolve 404, e o 404 da Z-API
+           não diz qual das duas coisas faltou.
+        2. **O campo `document` é um data-URI**, não a URL de um arquivo
+           hospedado. Isso é de propósito aqui: a alternativa seria publicar a
+           lista de placas da frota num endereço aberto para a Z-API buscar —
+           dado de negócio num link sem autenticação, que é exatamente o que
+           não se faz.
+
+        O `caption` é o texto que aparece junto do anexo na conversa.
+        """
+        import base64
+        b64 = base64.b64encode(dados).decode("ascii")
+        corpo: dict = {
+            "phone": telefone,
+            "document": "data:application/%s;base64,%s" % (extensao, b64),
+            "fileName": nome_arquivo,
+        }
+        if legenda:
+            corpo["caption"] = legenda
+        if intervalo_seg:
+            corpo["delayMessage"] = int(intervalo_seg)
+        return self._chamar("/send-document/" + extensao, corpo)
+
     def explorar(self, metodo: str, caminho: str):
         """Chamada CRUA de um endpoint do catálogo do playground.
 

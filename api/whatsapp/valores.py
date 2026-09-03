@@ -378,7 +378,24 @@ def comunicacao_3s(dados: dict | None = None) -> dict:
 
     dia, t = dados["dia"], dados["hoje"]
     frota, comunicou = t["frota"], t["comunicou"]
-    ant, motor = dados.get("anterior"), dados.get("com_motor") or {}
+    ant = dados.get("anterior")
+    # O aviso é SÓ da 3S: a régua da frota com motor saiu do texto a pedido de
+    # quem opera, e estava certo — ela respondia uma pergunta que não é a deste
+    # aviso. O que ela protegia continua de pé em `status_alerta`, que recusa o
+    # envio quando a integração de posições para, em vez de mandar "0
+    # comunicaram" e culpar a 3S por um cano nosso. Some a linha, fica a trava.
+    dif = dados.get("diferenca") or {}
+    if dif.get("primeira"):
+        lista = "📎 A partir de amanhã, o anexo com as placas vem quando a lista mudar."
+    elif dif.get("mudou"):
+        partes = []
+        if dif.get("entraram"):
+            partes.append("entraram %d" % len(dif["entraram"]))
+        if dif.get("sairam"):
+            partes.append("saíram %d" % len(dif["sairam"]))
+        lista = "📎 A lista mudou (%s) — segue em anexo." % " · ".join(partes)
+    else:
+        lista = "📎 A lista é a mesma de ontem — sem anexo hoje."
 
     if ant:
         d_com = comunicou - ant["comunicou"]
@@ -395,7 +412,22 @@ def comunicacao_3s(dados: dict | None = None) -> dict:
     else:
         evolucao = "🆕 Primeira medição — a partir de amanhã este aviso mostra a variação."
 
+    # O ANEXO SÓ QUANDO A LISTA MUDA, e "mudou" é por PLACA, não por contagem.
+    # A lista de 142 não muda de um dia para o outro, e um PDF de cinco páginas
+    # todo santo dia vira o anexo que ninguém abre — inclusive no dia em que
+    # ele importa. `_anexo` sai de `vals` na agenda, antes de renderizar.
+    fora = {}
+    if dif.get("mudou") and dados.get("placas"):
+        from api import comunicacao_pdf as _pdf
+        cobranca = [p for p in dados["placas"]
+                    if p["situacao"] in ("nunca", "mudo15", "parou")]
+        if cobranca:
+            fora["_anexo"] = (_pdf.gerar(dia, cobranca, dados.get("alvo", "3S")),
+                              _pdf.nome_arquivo(dia, dados.get("alvo", "3S")),
+                              "pdf")
+
     return {
+        **fora,
         "data": dia.strftime("%d/%m/%Y"),
         "barra": "%s  %d%%" % (_barra(comunicou, frota),
                                round(100 * comunicou / frota) if frota else 0),
@@ -405,12 +437,7 @@ def comunicacao_3s(dados: dict | None = None) -> dict:
         "mudo15": str(t["mudo_15d"]),
         "parou": str(max(0, t["parou"])),
         "evolucao": evolucao,
-        # A régua de que o problema não é nosso: se os tratores comunicam
-        # normalmente, o cano está vivo e o silêncio das carretas é da 3S.
-        "cano": "🔧 Frota com motor no mesmo dia: %d de %d (%d%%)" % (
-            motor.get("comunicou", 0), motor.get("frota", 0),
-            round(100 * motor.get("comunicou", 0) / motor["frota"])
-            if motor.get("frota") else 0),
+        "lista": lista,
     }
 
 

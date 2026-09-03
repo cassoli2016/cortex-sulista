@@ -120,8 +120,8 @@ CONTEXTOS: dict[str, dict] = {
             _v("parou", "Pararam nos últimos 15 dias", "3"),
             _v("evolucao", "Variação contra o dia anterior",
                "📈 Contra 01/09: +3 comunicando · -3 nunca"),
-            _v("cano", "Régua de que a integração está viva",
-               "🔧 Frota com motor no mesmo dia: 169 de 204 (83%)"),
+            _v("lista", "O que dizer sobre o anexo de placas",
+               "📎 A lista mudou (entraram 3 · saíram 1) — segue em anexo."),
         ],
     },
     "cobranca": {

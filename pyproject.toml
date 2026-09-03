@@ -1,6 +1,6 @@
 [project]
 name = "cortex"
-version = "0.218.0"
+version = "0.219.0"
 description = "CÓRTEX — cérebro de gestão da transportadora (backend + migrations)"
 requires-python = ">=3.12"
 dependencies = [
@@ -39,6 +39,7 @@ dependencies = [
   "erpbrasil.assinatura",  # assinatura XMLDSig com certificado A1
   "nfelib",                # classes geradas dos XSD dos layouts
   "truststore>=0.10.4",    # raizes ICP-Brasil pelo cofre do sistema
+  "reportlab>=5.0.1",
 ]
 
 # Ferramentas de teste. Grupo "test" e NAO "dev" de proposito: o uv instala o
