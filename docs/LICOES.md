@@ -2964,3 +2964,73 @@ desde o início. Peguei porque conferi a ordem dos grupos logo depois, restaurei
 do backup e refiz **imprimindo os limites antes de escrever**. É a mesma
 lição que o `CLAUDE.md` já registra para este arquivo (corte por marcador
 DERIVADO, nunca por posição escolhida a olho) e eu tropecei nela mesmo assim.
+
+## O e-mail ganhou a marca, e uma regra da casa caiu com o risco na mesa (2026-09-03, v0.217.1)
+
+*"Precisa melhorar o layout dos e-mails, colocar a nova logo do CÓRTEX, um
+cabeçalho mais organizado; as cores parecem muito apagadas, trabalhe com as
+cores da Sulista."*
+
+### A regra que existia, e por que ela existia
+
+`CLAUDE.md`: **e-mail sem área escura**. Não era capricho — Gmail e Outlook
+INVERTEM a paleta da mensagem quando o aparelho está em tema escuro, e o
+Outlook renderiza com o motor do Word. Uma faixa cheia pode sair remendada. Já
+tinha havido uma versão navy que virou branca por isso, e havia teste varrendo
+fundo escuro em e-mail.
+
+O resultado da regra, porém, era o que o dono da marca viu: a identidade
+aparecia num filete de 4 px sobre branco, e a mensagem não parecia de ninguém.
+
+### Como se decide isso sem chutar
+
+Não dá para o agente resolver sozinho: um lado é uma regra documentada com
+teste, o outro é o dono da marca. Então as **duas versões foram montadas e
+renderizadas em imagem** — faixa tijolo × marca forte sobre fundo claro — com o
+risco escrito ao lado. Ele escolheu a faixa vendo, não imaginando.
+
+O que ficou registrado no código é a decisão E o risco: o docstring de
+`painel.cabecalho()` diz que a regra anterior não era capricho, o que ela
+evitava, o que sobrou de mitigação (as metas `color-scheme: light only` e a
+reposição da cor da faixa para o marcador `[data-ogsc]` do Outlook.com) e que
+**é mitigação, não garantia**. O teste que guardava a regra antiga foi
+reescrito para guardar a nova, carregando o histórico das três faixas (navy →
+branca → tijolo) — para quem chegar depois não achar que foi descuido.
+
+### A logo sai do próprio anel, não de um desenho novo
+
+`api/static/cortex-selo.png` é um QUADRO do `api/static/anel.js` — o mesmo
+código que anima a marca no login —, capturado uma vez e guardado. Marca
+redesenhada à mão envelhece separado da marca do produto: no dia em que o anel
+mudar, um desenho paralelo continuaria igual e ninguém lembraria dele.
+
+Ela vai no **fundo escuro da marca**, e não sobre branco, porque o anel é um
+desenho de LUZ (composição aditiva): sobre branco ele some. O ícone da Sulista
+(`icon-192.png`) é o oposto — sólido sobre branco. São duas marcas com
+requisitos opostos de fundo, e trocá-los apaga uma das duas.
+
+### `cid:`, e só quando alguém referencia
+
+A imagem viaja EMBUTIDA (`multipart/related` dentro do `multipart/alternative`,
+`Content-ID: <cortex-selo>`), nunca por URL. Imagem remota em e-mail é
+bloqueada por padrão na maior parte dos clientes **e** entregaria ao servidor
+um sinal de quem abriu e quando — o que a mensagem não precisa saber. PNG e não
+SVG porque o Outlook não renderiza SVG.
+
+E `envio.py` só embute a imagem que o HTML **de fato** referencia: anexo que
+ninguém exibe é peso à toa em toda mensagem. Tem teste dos dois lados.
+
+### O que não pode depender da imagem
+
+O nome "CÓRTEX · SULISTA" está em TEXTO ao lado da logo, e o `alt` repete a
+marca. Com a imagem bloqueada — o padrão em boa parte dos clientes — o
+cabeçalho continua dizendo de quem é a mensagem. E se o arquivo sumir do disco,
+`logo_bytes()` devolve vazio e o e-mail **sai assim mesmo**: imagem faltando é
+uma mensagem menos bonita; mensagem que não sai é um problema.
+
+### A tinta sobre a faixa não é branco puro
+
+O olho e o subtítulo usam dois claros derivados do próprio tijolo
+(`#F3C9C4` e `#EFD3CF`): branco cheio ao lado do branco cheio do título achata
+a hierarquia. Os três passam de 4,5:1 sobre `#942821`, e há teste que MEDE a
+razão de contraste em vez de confiar no olho.

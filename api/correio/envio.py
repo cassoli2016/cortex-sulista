@@ -95,6 +95,16 @@ def _mensagem(destinatarios: list[str], assunto: str, corpo: str,
     msg.set_content(corpo or "")
     if corpo_html:
         msg.add_alternative(corpo_html, subtype="html")
+        # IMAGEM EMBUTIDA (`cid:`), nunca por URL. Imagem remota e bloqueada
+        # por padrao na maior parte dos clientes e ainda entregaria ao servidor
+        # quem abriu e quando. So entra a que o HTML REALMENTE referencia — um
+        # anexo que ninguem exibe e peso a toa em toda mensagem.
+        from api.correio import painel as _layout
+        parte_html = msg.get_payload()[-1]
+        for cid, dados in _layout.imagens_embutidas().items():
+            if ("cid:" + cid) in corpo_html:
+                parte_html.add_related(dados, maintype="image", subtype="png",
+                                       cid="<%s>" % cid)
     for a in anexos or []:
         # `add_attachment` converte a mensagem para multipart/mixed sozinho,
         # inclusive quando já existe a alternativa HTML — por isso os anexos

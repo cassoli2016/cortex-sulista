@@ -308,9 +308,19 @@ brilhante). Guard: `scripts/auditar_tema.py` (rodar também com `--fixo`) e
   continua sendo o CSS.
 - **Escala de espaçamento: 9/18/25px** e nada mais (`scripts/auditar_espacos.py`
   vigia; memória `escala-de-espacamento`).
-- E-mail: **sem área escura** (moldura clara, accent laranja), tabela de largura
-  fixa e estilo em linha (Outlook renderiza com o motor do Word), corpo em
-  texto puro junto. Há teste varrendo fundo escuro em e-mail.
+- E-mail: **o CABEÇALHO é a faixa da marca** (`#942821`) com a logo do CÓRTEX
+  e o título em branco; o CORPO segue claro. A regra antiga era "nenhuma área
+  escura" e caiu em 03/09/2026 a pedido de quem é dono da marca — com o risco
+  na mesa, não por descuido: Gmail e Outlook INVERTEM a paleta no tema escuro
+  do aparelho e a faixa pode sair remendada. A mitigação é declarar o tema
+  (`color-scheme: light only`) e repor a cor da faixa no `[data-ogsc]`. Tabela
+  de largura fixa e estilo EM LINHA (Outlook usa o motor do Word), corpo em
+  texto puro junto. **Imagem só EMBUTIDA** (`cid:`, e só a que o HTML
+  referencia): remota é bloqueada por padrão e entrega quem abriu e quando —
+  e o cabeçalho não depende dela (o nome vai em texto). A logo é um QUADRO do
+  `anel.js`, nunca um desenho paralelo. Tinta sobre a faixa mede 4,5:1, com
+  teste.
+
 
 ### Padrões de componente (reusar, não reinventar)
 

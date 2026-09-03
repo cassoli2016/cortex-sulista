@@ -4,6 +4,16 @@ Gerado de `docs/versoes.yaml` por `scripts/gerar_changelog.py` — não editar �
 Formato [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/),
 versionamento [SemVer](https://semver.org/lang/pt-BR/).
 
+## [0.217.1] — 03/09/2026  ·  CX-03/09/2026-v0.217.1
+
+### Alterado
+- Os e-mails do CÓRTEX ganharam identidade. O cabeçalho passou a ser uma faixa no vermelho da Sulista, com a logo do CÓRTEX à esquerda e o título em branco. Antes a marca aparecia só num filete fino no topo, e a mensagem não parecia de ninguém.
+- A logo é a mesma do painel: ela é gerada a partir do próprio código que anima o anel na tela de login, e não redesenhada à parte — assim as duas não envelhecem separadas. Ela viaja DENTRO da mensagem, nunca por link: imagem buscada de um site é bloqueada por padrão na maioria dos clientes de e-mail e ainda contaria ao servidor quem abriu e quando. E o nome CÓRTEX · SULISTA vai em texto ao lado dela, então mesmo com a imagem bloqueada a mensagem continua assinada.
+- No corpo, os títulos de seção passaram a ser vermelhos com um filete próprio — antes eram cinza com uma linha de um pixel, e num e-mail de três seções nada separava uma da outra.
+
+### Corrigido
+- Um aviso honesto sobre o cabeçalho colorido: Gmail e Outlook invertem as cores da mensagem quando o celular está no modo escuro, e o Outlook monta o e-mail com o motor do Word. A faixa pode sair remendada nesses casos. O sistema declara que a mensagem só tem tema claro e repõe a cor da faixa para o Outlook, que é o que dá para fazer — mas é redução de risco, não garantia. Se aparecer torto em algum aparelho, avise que dá para voltar ao cabeçalho claro.
+
 ## [0.217.0] — 03/09/2026  ·  CX-03/09/2026-v0.217.0
 
 ### Adicionado

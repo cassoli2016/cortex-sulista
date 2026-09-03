@@ -30,6 +30,7 @@ entrada e o que sobra quando o cliente recusa HTML.
 from __future__ import annotations
 
 from datetime import datetime
+from pathlib import Path
 
 # Tokens do design system, em hexadecimal — ver o cabeçalho do módulo.
 #
@@ -95,6 +96,40 @@ BORDA = "#E3E8EE"
 FUNDO = "#F4F6F8"
 BRANCO = "#FFFFFF"
 
+# ── A LOGO DO CÓRTEX NO E-MAIL ────────────────────────────────────────────
+# É um QUADRO do próprio `api/static/anel.js` (o mesmo código que anima a marca
+# no login), gerado uma vez e guardado como PNG. Não é um desenho novo: marca
+# redesenhada à mão envelhece separado da marca do produto.
+#
+# VAI EMBUTIDA (anexo `cid:`), nunca por URL. Imagem remota em e-mail é
+# bloqueada por padrão na maior parte dos clientes, e ainda entregaria ao
+# servidor um sinal de quem abriu e quando — o que a mensagem não precisa
+# saber. PNG e não SVG porque o Outlook usa o motor do Word e não renderiza
+# SVG.
+#
+# E o cabeçalho NÃO DEPENDE DELA: o nome "CÓRTEX · SULISTA" está em texto ao
+# lado, e o `alt` repete a marca. Com a imagem bloqueada a mensagem continua
+# assinada — a identidade que chega em 100% dos casos continua sendo a tinta e
+# o tipo.
+LOGO_CID = "cortex-selo"
+LOGO_ARQUIVO = Path(__file__).resolve().parent.parent / "static" / "cortex-selo.png"
+
+
+def logo_bytes() -> bytes:
+    """O PNG do selo. Devolve vazio se o arquivo sumir — e-mail sem logo é uma
+    mensagem menos bonita; e-mail que não sai é um problema."""
+    try:
+        return LOGO_ARQUIVO.read_bytes()
+    except OSError:
+        return b""
+
+
+# Imagens que o layout pode referenciar por `cid:`. `api/correio/envio.py` lê
+# este mapa e embute só as que o HTML realmente usa.
+def imagens_embutidas() -> dict:
+    dados = logo_bytes()
+    return {LOGO_CID: dados} if dados else {}
+
 # Pilha com fallback: nenhum cliente de e-mail baixa fonte da web, então a
 # Saira do painel não chega aqui. O que se pode garantir é a família.
 FONTE = ("-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,"
@@ -135,43 +170,62 @@ def inteiro(v) -> str:
         return "—"
 
 
+# Tinta sobre a faixa da marca. Não é branco puro no olho e no subtítulo: o
+# branco cheio ao lado do branco cheio do título achata a hierarquia. São dois
+# claros derivados do próprio tijolo, e os dois passam de 4,5:1 sobre #942821.
+FAIXA_OLHO = "#F3C9C4"
+FAIXA_SUB = "#EFD3CF"
+
+
 def cabecalho(titulo: str, subtitulo: str = "") -> str:
-    """Cabeçalho CLARO com o nome do relatório.
+    """Cabeçalho com a FAIXA da marca, a logo do CÓRTEX e o título.
 
-    A estrutura vem de um filete no topo e de uma borda embaixo, não de um
-    bloco de cor: e-mail do CÓRTEX não tem área escura.
+    MUDOU EM 03/09/2026, a pedido de quem é dono da marca: "as cores parecem
+    muito apagadas". A versão anterior punha a identidade só num filete de 4 px
+    sobre branco — correto pela regra antiga ("e-mail do CÓRTEX não tem área
+    escura") e, na prática, uma mensagem que não parecia de ninguém.
 
-    Os dois tons vêm do SÍMBOLO da Sulista, medidos nos arquivos de marca:
-    `MARCA` (#942821) no filete, no olho e no botão; `MARCA_INK` (#1E172F) como
-    tinta do título. Como ÁREA os dois continuam proibidos — faixa cheia é o
-    bloco escuro que a regra da casa veta.
-    NÃO há amarelo: o usuário corrigiu, em 30/08/2026, que ele não faz parte
-    da marca da Sulista, ao contrário do que o CLAUDE.md afirmava.
+    A REGRA ANTIGA NÃO ERA CAPRICHO, e o risco que ela evitava continua de pé:
+    Gmail e Outlook INVERTEM a paleta da mensagem quando o aparelho está em
+    tema escuro, e o Outlook renderiza com o motor do Word. Uma faixa cheia
+    pode sair remendada. O que dá para fazer está feito — as metas
+    `color-scheme: light only` declaram o tema, e o bloco `[data-ogsc]` repõe a
+    cor da faixa para o Outlook.com, que marca a mensagem quando reescreve as
+    cores. É mitigação, não garantia, e a decisão de correr o risco foi tomada
+    com ele na mesa.
+
+    A LOGO É DECORAÇÃO, NÃO CONTEÚDO: o nome vai em texto ao lado dela. Com a
+    imagem bloqueada — o padrão em boa parte dos clientes — o cabeçalho
+    continua dizendo de quem é a mensagem.
     """
-    sub = (f'<div style="font:400 13px/1.45 {FONTE};color:{CINZA};'
-           f'margin-top:5px">{_esc(subtitulo)}</div>') if subtitulo else ""
+    sub = (f'<div style="font:400 12.5px/1.4 {FONTE};color:{FAIXA_SUB};'
+           f'margin-top:4px">{_esc(subtitulo)}</div>') if subtitulo else ""
     return f"""
-<tr><td class="faixa" style="background:{BRANCO};padding:0">
-  <table role="presentation" width="100%" cellpadding="0" cellspacing="0">
-   <tr><td style="border-top:4px solid {MARCA};font-size:0;line-height:0;
-                  height:0">&nbsp;</td></tr>
-   <tr><td style="padding:20px 26px 18px;border-bottom:1px solid {BORDA}">
-    <div style="font:700 11px/1 {FONTE};letter-spacing:.22em;color:{MARCA};
-                text-transform:uppercase">CÓRTEX · SULISTA</div>
-    <div style="font:700 21px/1.25 {FONTE};color:{MARCA_INK};margin-top:9px">
-      {_esc(titulo)}</div>{sub}
-   </td></tr>
-  </table>
-</td></tr>"""
+<tr><td class="faixa" style="background:{MARCA};padding:0">
+  <table role="presentation" width="100%" cellpadding="0" cellspacing="0"><tr>
+   <td width="76" style="padding:18px 0 18px 22px;vertical-align:middle">
+     <img src="cid:{LOGO_CID}" width="54" height="54" alt="CÓRTEX"
+          style="display:block;border-radius:11px;border:0"></td>
+   <td style="padding:18px 22px 18px 14px;vertical-align:middle">
+     <div style="font:700 10.5px/1 {FONTE};letter-spacing:.24em;
+                 color:{FAIXA_OLHO};text-transform:uppercase">CÓRTEX · SULISTA</div>
+     <div style="font:700 21px/1.25 {FONTE};color:{BRANCO};margin-top:6px">
+       {_esc(titulo)}</div>{sub}
+   </td>
+  </tr></table>
+</td></tr>
+<tr><td style="border-top:3px solid {MARCA_INK};font-size:0;line-height:0">&nbsp;</td></tr>"""
 
 
 def secao(titulo: str, hint: str = "") -> str:
     h = (f'<span style="font:400 12px/1 {FONTE};color:{CINZA};'
          f'font-weight:400"> · {_esc(hint)}</span>') if hint else ""
+    # O titulo de secao passou a ser TIJOLO com filete proprio: era cinza com
+    # borda de 1 px, e num e-mail de tres secoes nada separava uma da outra.
     return f"""
 <tr><td style="padding:26px 26px 0">
-  <div style="font:700 11px/1 {FONTE};letter-spacing:.12em;color:{CINZA};
-              text-transform:uppercase;border-bottom:1px solid {BORDA};
+  <div style="font:700 11.5px/1 {FONTE};letter-spacing:.12em;color:{MARCA};
+              text-transform:uppercase;border-bottom:2px solid {MARCA};
               padding-bottom:8px">{_esc(titulo)}{h}</div>
 </td></tr>"""
 
@@ -425,7 +479,7 @@ def documento(titulo: str, blocos: list[str], *, subtitulo: str = "",
      cores: para ele repomos o fundo claro, um por um, sem tocar no resto. */
   [data-ogsc] .corpo, [data-ogsb] .corpo {{background:{BRANCO} !important}}
   [data-ogsc] .fundo, [data-ogsb] .fundo {{background:{FUNDO} !important}}
-  [data-ogsc] .faixa, [data-ogsb] .faixa {{background:{BRANCO} !important}}
+  [data-ogsc] .faixa, [data-ogsb] .faixa {{background:{MARCA} !important}}
 </style></head>
 <body style="margin:0;padding:0;background:{FUNDO};">
 <table role="presentation" class="fundo" width="100%" cellpadding="0"

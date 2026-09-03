@@ -57,12 +57,66 @@ def test_o_estilo_e_INLINE():
     assert "<style" not in corpo, "estilo no corpo nao sobrevive ao Gmail"
 
 
-def test_nao_ha_imagem_externa():
-    """Cliente de e-mail bloqueia imagem remota por padrao: o que precisa ser
-    visto vem como texto e numero."""
+def test_nao_ha_imagem_EXTERNA():
+    """Imagem REMOTA continua proibida: e bloqueada por padrao na maior parte
+    dos clientes e ainda entregaria ao servidor quem abriu e quando.
+
+    A logo do CORTEX (desde 03/09/2026) e a excecao que confirma a regra: ela
+    vai EMBUTIDA na mensagem (`cid:`), nao por URL."""
     html = painel.documento("t", [painel.kpis([{"rotulo": "a", "valor": "1"}])])
-    assert "<img" not in html
     assert not re.search(r'(src|background)\s*=\s*"https?://', html)
+    for m in re.finditer(r'<img[^>]*src="([^"]+)"', html):
+        assert m.group(1).startswith("cid:"), m.group(1)
+
+
+def test_a_logo_vai_embutida_e_o_nome_vai_em_TEXTO():
+    """A logo e decoracao, nao conteudo. Com a imagem bloqueada — o padrao em
+    boa parte dos clientes — o cabecalho continua dizendo de quem e a
+    mensagem."""
+    html = painel.documento("Relatorio", [])
+    assert f'src="cid:{painel.LOGO_CID}"' in html
+    assert 'alt="CÓRTEX"' in html
+    assert "CÓRTEX · SULISTA" in html, "o nome sumiu do cabecalho"
+
+
+def test_a_faixa_do_cabecalho_usa_a_COR_DA_MARCA():
+    """03/09/2026: o dono da marca disse que o e-mail parecia apagado. A
+    identidade saiu de um filete de 4 px para a faixa inteira. A regra antiga
+    (nenhuma area escura) foi trocada com o risco na mesa, nao por descuido —
+    ver o docstring de `painel.cabecalho`."""
+    html = painel.documento("Relatorio", [])
+    assert f"background:{painel.MARCA}" in html
+    # e a defesa contra o tema escuro do cliente repoe a FAIXA, nao o branco
+    assert f"[data-ogsc] .faixa, [data-ogsb] .faixa {{background:{painel.MARCA}" in html
+
+
+def test_a_tinta_sobre_a_faixa_tem_contraste():
+    """Texto sobre a faixa nao pode virar decoracao ilegivel. 4,5:1 e o piso."""
+    def lum(hexa):
+        c = [int(hexa[i:i + 2], 16) / 255 for i in (1, 3, 5)]
+        c = [x / 12.92 if x <= 0.03928 else ((x + 0.055) / 1.055) ** 2.4 for x in c]
+        return 0.2126 * c[0] + 0.7152 * c[1] + 0.0722 * c[2]
+
+    def razao(a, b):
+        la, lb = sorted((lum(a), lum(b)), reverse=True)
+        return (la + 0.05) / (lb + 0.05)
+
+    for tinta in (painel.BRANCO, painel.FAIXA_OLHO, painel.FAIXA_SUB):
+        r = razao(tinta, painel.MARCA)
+        assert r >= 4.5, f"{tinta} sobre {painel.MARCA} da {r:.2f}:1"
+
+
+def test_e_mail_sem_a_logo_no_disco_continua_saindo():
+    """Arquivo de imagem que sumiu e uma mensagem menos bonita; mensagem que
+    nao sai e um problema."""
+    original = painel.LOGO_ARQUIVO
+    try:
+        painel.LOGO_ARQUIVO = original.parent / "nao-existe-xyz.png"
+        assert painel.logo_bytes() == b""
+        assert painel.imagens_embutidas() == {}
+        assert "CÓRTEX · SULISTA" in painel.documento("t", [])
+    finally:
+        painel.LOGO_ARQUIVO = original
 
 
 def test_variavel_css_nao_entra_no_email():
@@ -172,19 +226,18 @@ def test_defesa_de_tema_escuro_NAO_reescreve_a_paleta():
     Defender-se do tema escuro e DECLARAR o tema, nunca reescrever por cima da
     paleta que ja esta correta.
 
-    A FAIXA DEIXOU DE SER NAVY em 29/08/2026: e-mail do CORTEX nao tem area
-    escura, e o cabecalho passou a ser branco com filete laranja. A defesa
-    continua valendo - o que ela repoe agora e o BRANCO, e o teste segue o
-    token em vez da cor literal, para nao precisar mudar de novo."""
+    A FAIXA JA FOI NAVY (ate 29/08/2026), depois branca com filete, e desde
+    03/09/2026 e a cor da marca — o dono dela disse que o e-mail parecia
+    apagado. O que este teste guarda atravessou as tres versoes e nao muda: a
+    defesa DECLARA o tema e repoe a cor da faixa, nunca reescreve a paleta com
+    `!important` generico. Por isso ele segue o TOKEN, nao a cor literal."""
     html = painel.documento("t", [])
     assert "color-scheme" in html and "light only" in html
     assert "background-color:inherit" not in html
     assert "!important" not in html.split("</style>")[0].replace(
         "[data-ogsc]", "").replace("[data-ogsb]", "") or "data-ogsc" in html
-    # a faixa continua com a cor do token no estilo inline, que e quem manda
+    # o corpo da mensagem continua CLARO: o que virou colorido foi o cabecalho
     assert f"background:{painel.BRANCO}" in html
-    # e o navy nao volta por nenhuma porta
-    assert "#14181D" not in html.replace(f"color:{painel.TINTA}", "")
 
 
 def test_o_bloco_de_estilo_nao_carrega_layout():
