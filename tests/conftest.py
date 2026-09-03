@@ -78,7 +78,9 @@ def _foto_producao():
     return pglocal.um(
         "SELECT (SELECT coalesce(max(id), 0) FROM mky_carga) AS cargas,"
         " (SELECT count(*) FROM mky_recebiveis) AS recebiveis,"
-        " (SELECT coalesce(max(id), 0) FROM ant_envios) AS envios")
+        " (SELECT coalesce(max(id), 0) FROM ant_envios) AS envios,"
+        " (SELECT coalesce(max(id), 0) FROM sup_chamados) AS chamados,"
+        " (SELECT coalesce(max(id), 0) FROM sup_avisos) AS avisos_sup")
 
 
 @pytest.fixture(autouse=True)

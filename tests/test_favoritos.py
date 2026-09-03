@@ -191,8 +191,9 @@ def test_o_nao_admin_so_ve_as_dele():
     from api import auth
     perm = auth.telas_favoritaveis(
         {"id": 1, "admin": False, "telas": ["prem", "veic"]})
-    assert perm == {"prem", "veic"}
-    assert "srv" not in perm
+    # 'sup' (Suporte) é de todo usuário logado: entra sem estar no perfil
+    assert perm == {"prem", "veic", "sup"}
+    assert "srv" not in perm and "supfila" not in perm
 
 
 def test_sem_sessao_nao_favorita_nada():

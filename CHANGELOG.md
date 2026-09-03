@@ -4,6 +4,17 @@ Gerado de `docs/versoes.yaml` por `scripts/gerar_changelog.py` — não editar �
 Formato [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/),
 versionamento [SemVer](https://semver.org/lang/pt-BR/).
 
+## [0.216.2] — 02/09/2026  ·  CX-02/09/2026-v0.216.2
+
+### Adicionado
+- Módulo de Suporte. O botão Reportar (agora para todo usuário logado, com o tipo Dúvida além de Bug e Melhoria) abre um CHAMADO no CÓRTEX com número SUP-AAAA-NNNN e pergunta como a pessoa quer ser avisada das respostas — e-mail e/ou WhatsApp — mostrando o destino mascarado, ou o motivo de o canal não estar disponível. Ao final, "Acompanhar" leva à conversa.
+- Tela Suporte (menu Administração, visível para todos): seus chamados em aberto e encerrados, com quem está a bola, respostas novas, e a conversa com quem atende — responder com anexos, confirmar a solução com avaliação de 1 a 5 estrelas, reabrir, desistir, e ligar ou desligar os avisos de cada chamado. O sino do painel mostra cada novidade (resposta, pergunta, resolvido) e leva direto à conversa; e-mail e WhatsApp seguem a escolha de quem abriu, sempre com o link do chamado, e nunca repetem o aviso enquanto a pessoa não abriu o anterior.
+- Tela Suporte — Atendimento (perfil com acesso): fila por prioridade calculada na hora (com o suporte primeiro, depois SLA estourado, gravidade e tempo sem resposta), painel de abertos × resolvidos por semana, "exige ação" (sem atendente, fora do SLA, usuário sem responder há 7 dias, resolvido sem confirmação, espelho com erro), todos os chamados com CSV, a trilha de cada aviso (enviado, calado por falta de canal, recusado com o motivo, ou adiado para a janela do WhatsApp) e a configuração: e-mail do time, SLA por gravidade, modelo do WhatsApp e o espelho no GitHub. Nota interna que quem abriu não vê; atribuir a um colega; perguntar, resolver, encerrar com motivo, reabrir.
+- Espelho no GitHub: cada chamado vira uma issue no repositório privado (com os anexos), cada resposta um comentário, e o que alguém escreve ou fecha lá volta para a conversa do CÓRTEX ao abrir a bancada (a cada 5 minutos, no máximo). Sem token nada quebra — o chamado vive no banco da casa. Copiloto e Saúde do Servidor passaram a conhecer o suporte (chamados abertos, fora do SLA, avisos recusados).
+
+### Alterado
+- O report antigo (issue direta no GitHub, sem resposta para quem abriu) deixou de existir; quem usava o botão não precisa aprender nada — só ganhou resposta, número de chamado e o acompanhamento na tela Suporte.
+
 ## [0.216.1] — 02/09/2026  ·  CX-02/09/2026-v0.216.1
 
 ### Corrigido

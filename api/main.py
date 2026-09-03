@@ -19,7 +19,7 @@ from api import (manutencao_compras, segredo_arquivo, suprimentos_oc,
                  suprimentos_pecas)
 
 import psycopg
-from fastapi import FastAPI, Request, Response
+from fastapi import BackgroundTasks, FastAPI, Request, Response
 from fastapi.middleware.gzip import GZipMiddleware
 from fastapi.responses import FileResponse, PlainTextResponse, StreamingResponse
 from fastapi.responses import JSONResponse as _JSONResponseBase
@@ -291,6 +291,8 @@ app.include_router(auth.router_gestao)
 # abaixo, no lugar dela — o router só serve os caminhos ABAIXO desse prefixo.
 from api.crm.rotas import router as router_crm  # noqa: E402
 app.include_router(router_crm)
+from api.suporte.rotas import router as router_suporte  # noqa: E402
+app.include_router(router_suporte)
 # a raiz do repositorio -- usada por rota que grava arquivo temporario
 ROOT = Path(__file__).resolve().parent.parent
 STATIC = Path(__file__).resolve().parent / "static"
@@ -5529,76 +5531,17 @@ _REP_MAX_BYTES = 15 * 1024 * 1024
 
 @app.get("/api/report/config")
 def report_config() -> JSONResponse:
-    """Diz ao painel se o botão de report deve existir.
-
-    Sem GITHUB_TOKEN/REPORT_REPO o recurso nasce desligado, sem erro, e o botão
-    nem chega a ser inserido no DOM — mesmo padrão de GOBRAX e VAPID.
-    """
+    """Compatibilidade com o index.html antigo em cache do navegador: o botão
+    existe SEMPRE (o chamado é local-first, não depende do GitHub); o modal novo
+    lê /api/suporte/meus/config. Some numa versão futura."""
     from api.reports import github as gh
 
-    return JSONResponse({"ativo": gh.configurado(), "repo": gh.repo_configurado()})
-
-
-def _report_responder(bruto: bytes, usuario: dict, cliente) -> JSONResponse:
-    """Miolo síncrono do POST: corpo já lido, usuário da SESSÃO e cliente GitHub.
-
-    Separado do endpoint porque o projeto não tem harness de sessão: assim o
-    mapeamento erro → status é testável sem subir a app com cookie válido.
-    """
-    from api.reports import servico as srv
-    from api.reports.github import ErroGitHub
-
-    if cliente is None:
-        return JSONResponse(status_code=503, content={
-            "erro": "nao_configurado",
-            "mensagem": "O envio de report não está configurado neste servidor."})
-    try:
-        payload = json.loads(bruto or b"")
-    except (json.JSONDecodeError, ValueError, UnicodeDecodeError):
-        payload = None
-    if not isinstance(payload, dict):
-        return JSONResponse(status_code=422, content={
-            "erro": "corpo_invalido", "mensagem": "Corpo inválido."})
-    try:
-        dado = srv.registrar(payload, usuario, cliente)
-    except ValueError as exc:
-        return JSONResponse(status_code=422, content={
-            "erro": "report_invalido", "mensagem": str(exc)})
-    except ErroGitHub as exc:
-        # mensagem do próprio GitHub ("Bad credentials", "Not Found") — já é
-        # sanitizada e é o que a pessoa precisa ver para saber que não é culpa
-        # dela; o token nunca passa por aqui
-        return JSONResponse(status_code=HTTP_RECUSA, content={
-            "erro": "github_falhou", "mensagem": str(exc)})
-    except Exception as exc:  # noqa: BLE001
-        # detalhe interno fica no log do servidor, nunca na resposta: uma
-        # exceção de biblioteca pode carregar cabeçalho/credencial no texto
-        log.warning("report falhou: %s", exc)
-        return JSONResponse(status_code=500, content={
-            "erro": "erro_report", "mensagem": "Erro ao registrar o report."})
-
-    auth.audit(usuario.get("email") or "", "report_criado",
-               f"issue #{dado['numero']}", str(payload.get("titulo") or ""))
-    return JSONResponse(dado)
+    return JSONResponse({"ativo": True, "repo": gh.repo_configurado()})
 
 
 @app.post("/api/report")
-async def report_criar(req: Request) -> JSONResponse:
-    """Registra o report como issue. Um POST só, anexos em base64 no JSON.
+async def report_criar(req: Request, bg: BackgroundTasks) -> JSONResponse:
+    """Alias de POST /api/suporte/meus/chamados (página antiga em cache)."""
+    from api.suporte import rotas as sup_rotas
 
-    Mesmas duas linhas de defesa de tamanho do `extrato_importar`: o header
-    antes de materializar o corpo, e o tamanho real depois — Content-Length
-    pode faltar ou mentir.
-    """
-    from api.reports import github as gh
-
-    grande = {"erro": "report_grande",
-              "mensagem": f"O report passa de {_REP_MAX_BYTES // (1024 * 1024)} MB. "
-                          "Remova um anexo e tente de novo."}
-    if _tamanho_excede(req.headers.get("content-length"), _REP_MAX_BYTES):
-        return JSONResponse(status_code=413, content=grande)
-    bruto = await req.body()
-    if len(bruto) > _REP_MAX_BYTES:
-        return JSONResponse(status_code=413, content=grande)
-    sessao = getattr(req.state, "sessao", None) or {}
-    return _report_responder(bruto, sessao, gh.do_ambiente())
+    return await sup_rotas.abrir(req, bg)

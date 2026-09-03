@@ -87,6 +87,35 @@ class GitHub:
                            {"title": titulo, "body": corpo, "labels": rotulos})
         return int(dado.get("number") or 0), str(dado.get("html_url") or "")
 
+    # ---- o que o módulo de Suporte usa para espelhar a conversa (mão dupla)
+    def comentar(self, numero: int, corpo: str) -> int:
+        dado = self._pedir("POST", f"/repos/{self.repo}/issues/{int(numero)}/comments", {"body": corpo})
+        return int(dado.get("id") or 0)
+
+    def alterar_issue(self, numero: int, *, state: str | None = None, labels: list[str] | None = None,
+                      state_reason: str | None = None) -> dict:
+        corpo: dict = {}
+        if state:
+            corpo["state"] = state
+        if labels is not None:
+            corpo["labels"] = labels
+        if state_reason and state == "closed":
+            corpo["state_reason"] = state_reason
+        return self._pedir("PATCH", f"/repos/{self.repo}/issues/{int(numero)}", corpo)
+
+    def comentarios(self, numero: int, since=None) -> list[dict]:
+        """Comentários da issue (até 100), opcionalmente desde um instante."""
+        q = "?per_page=100"
+        if since is not None:
+            s = since.isoformat() if hasattr(since, "isoformat") else str(since)
+            q += "&since=" + s.replace("+00:00", "Z")
+        dado = self._pedir("GET", f"/repos/{self.repo}/issues/{int(numero)}/comments{q}", None)
+        return list(dado) if isinstance(dado, list) else []
+
+    def issue(self, numero: int) -> dict:
+        dado = self._pedir("GET", f"/repos/{self.repo}/issues/{int(numero)}", None)
+        return dado if isinstance(dado, dict) else {}
+
 
 # ------------------------------------------------------------------ ambiente
 

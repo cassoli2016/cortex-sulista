@@ -1,13 +1,22 @@
-"""Botão de report e o modal, contra o index.html real.
+"""Botão Reportar e o modal, contra o index.html real.
 
 Toda /api/** é interceptada: o teste cobre revelar o botão, validar o
-formulário, o payload que sobe e o que acontece quando o GitHub recusa.
+formulário, o payload que sobe (agora um CHAMADO do Suporte, com os canais de
+aviso) e o que acontece quando o servidor recusa.
 """
 from __future__ import annotations
 
 import json
 
 from tests.frontend.conftest import USUARIO
+
+CONFIG = {
+    "ativo": True,
+    "canais": {"email": {"disponivel": True, "destino": "a***@sulista.local", "motivo": ""},
+               "whatsapp": {"disponivel": False, "destino": "", "motivo": "cadastre seu telefone em Minha conta"}},
+    "ultima_escolha": {"email": True, "whatsapp": True},
+    "sou_suporte": False,
+}
 
 
 def _mockar(pg, ativo=True, resposta_report=None, status_report=200):
@@ -18,14 +27,15 @@ def _mockar(pg, ativo=True, resposta_report=None, status_report=200):
         u = route.request.url
         if "/api/auth/me" in u:
             corpo, status = USUARIO, 200
-        elif "/api/report/config" in u:
-            corpo, status = {"ativo": ativo, "repo": "o/r"}, 200
-        elif u.endswith("/api/report"):
+        elif "/api/suporte/meus/config" in u:
+            corpo, status = ({**CONFIG, "ativo": ativo} if ativo else {"ativo": False}), 200
+        elif u.endswith("/api/suporte/meus/chamados"):
             try:
                 enviados.append(json.loads(route.request.post_data or "{}"))
             except ValueError:
                 enviados.append({})
-            corpo = resposta_report or {"numero": 42, "url": "https://github.com/o/r/issues/42"}
+            corpo = resposta_report or {"id": 42, "codigo": "SUP-2026-0042", "numero": "SUP-2026-0042",
+                                        "url": "#sup?chamado=42", "status": "aberto"}
             status = status_report
         elif "/api/versao" in u:
             corpo, status = {"versao": "0.3.0", "rotulo": "CX-10/08/2026-v0.3.0",
@@ -56,15 +66,16 @@ def _preencher(pg, titulo="Saldo não bate", desc="O total do card veio menor.")
 
 # --------------------------------------------------------------- o botão
 
-def test_botao_nao_existe_quando_o_servidor_nao_esta_configurado(pagina):
-    """Sem GITHUB_TOKEN o recurso nasce desligado — nada de botão morto."""
+def test_botao_nao_existe_quando_o_servico_nao_responde(pagina):
+    """Sem o serviço de suporte o botão não aparece — nada de botão morto."""
     pg, base = pagina
     _abrir(pg, base, ativo=False)
     pg.wait_for_timeout(300)
     assert pg.is_hidden("#btnReport")
 
 
-def test_botao_aparece_com_a_configuracao_ligada(pagina):
+def test_botao_aparece_para_todo_usuario_logado(pagina):
+    """Não depende mais de GitHub: o chamado nasce no banco da casa."""
     pg, base = pagina
     _abrir(pg, base)
     pg.wait_for_selector("#btnReport:not([hidden])", timeout=5000)
@@ -102,7 +113,7 @@ def test_modal_abre_com_bug_pre_selecionado(pagina):
     assert "Trava meu trabalho" in pg.inner_text("#rep-grav")
 
 
-def test_gravidade_muda_de_rotulo_quando_e_melhoria(pagina):
+def test_gravidade_muda_de_rotulo_quando_e_melhoria_ou_duvida(pagina):
     """'Trava meu trabalho' não faz sentido num pedido de melhoria."""
     pg, base = pagina
     _abrir(pg, base)
@@ -112,6 +123,22 @@ def test_gravidade_muda_de_rotulo_quando_e_melhoria(pagina):
     pg.click("#rep-t-mel")
     texto = pg.inner_text("#rep-grav")
     assert "Muito importante" in texto and "Trava meu trabalho" not in texto
+    pg.click("#rep-t-duv")
+    assert "Estou travado" in pg.inner_text("#rep-grav")
+
+
+def test_canais_mostram_o_destino_e_o_motivo_do_indisponivel(pagina):
+    """O canal que não dá para usar aparece desligado COM o motivo — nunca
+    some em silêncio (senão a pessoa espera um WhatsApp que não vem)."""
+    pg, base = pagina
+    _abrir(pg, base)
+    pg.wait_for_selector("#btnReport:not([hidden])", timeout=5000)
+    pg.click("#btnReport")
+    pg.wait_for_selector("#rep-canais")
+    assert pg.eval_on_selector("#rep-canais [data-canal=email]", "e=>e.checked") is True
+    assert pg.eval_on_selector("#rep-canais [data-canal=whatsapp]", "e=>e.disabled") is True
+    texto = pg.inner_text("#rep-canais")
+    assert "a***@sulista.local" in texto and "cadastre seu telefone" in texto
 
 
 def test_esc_nao_fecha_o_modal_com_texto_digitado(pagina):
@@ -140,7 +167,7 @@ def test_recusa_envio_sem_titulo(pagina):
 
 # ---------------------------------------------------------------- o envio
 
-def test_envio_manda_tela_filtros_versao_e_ambiente(pagina):
+def test_envio_manda_tela_filtros_versao_ambiente_e_canais(pagina):
     pg, base = pagina
     enviados = _abrir(pg, base)
     pg.wait_for_selector("#btnReport:not([hidden])", timeout=5000)
@@ -152,27 +179,31 @@ def test_envio_manda_tela_filtros_versao_e_ambiente(pagina):
     p = enviados[0]
     assert p["tipo"] == "bug" and p["gravidade"] == "media"
     assert p["titulo"] == "Saldo não bate"
+    assert p["canais"] == {"email": True, "whatsapp": False}   # WhatsApp indisponível não sobe marcado
     assert p["contexto"]["tela"] == "home"
     assert p["contexto"]["versao"] == "CX-10/08/2026-v0.3.0"
     assert p["contexto"]["navegador"]
     assert "x" in p["contexto"]["tela_px"]
 
 
-def test_envio_bem_sucedido_mostra_o_numero_da_issue(pagina):
+def test_envio_bem_sucedido_mostra_o_numero_do_chamado_e_acompanhar(pagina):
     pg, base = pagina
     _abrir(pg, base)
     pg.wait_for_selector("#btnReport:not([hidden])", timeout=5000)
     _preencher(pg)
     pg.click("#rep-enviar")
     pg.wait_for_selector(".rep-ok", timeout=5000)
-    assert "#42" in pg.inner_text(".rep-ok")
+    assert "SUP-2026-0042" in pg.inner_text(".rep-ok")
+    assert "e-mail" in pg.inner_text(".rep-ok")          # diz por onde a resposta chega
+    pg.click("#rep-acompanhar")
+    pg.wait_for_function("() => location.hash.startsWith('#sup')", timeout=5000)
 
 
 def test_falha_do_servidor_preserva_o_que_foi_digitado(pagina):
     """Reescrever texto e refazer o print é o custo de perder o formulário."""
     pg, base = pagina
-    _abrir(pg, base, status_report=502,
-           resposta_report={"erro": "github_falhou", "mensagem": "GitHub respondeu 401"})
+    _abrir(pg, base, status_report=422,
+           resposta_report={"erro": "parametro_invalido", "mensagem": "Escolha um tipo válido (401)."})
     pg.wait_for_selector("#btnReport:not([hidden])", timeout=5000)
     _preencher(pg)
     pg.click("#rep-enviar")
@@ -185,7 +216,7 @@ def test_falha_do_servidor_preserva_o_que_foi_digitado(pagina):
 
 # -------------------------------------------------------- buffer de erros
 
-def test_erro_de_javascript_viaja_junto_do_report(pagina):
+def test_erro_de_javascript_viaja_junto_do_chamado(pagina):
     """É o que mais economiza tempo em bug de tela em branco."""
     pg, base = pagina
     enviados = _abrir(pg, base)

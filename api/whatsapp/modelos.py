@@ -145,6 +145,19 @@ CONTEXTOS: dict[str, dict] = {
             _v("prazo", "Prazo / fim do freetime", "29/08/2026 18:00"),
         ],
     },
+    "suporte": {
+        "rotulo": "Suporte — aviso de chamado",
+        "ajuda": "Aviso automático a quem abriu um chamado no painel quando o "
+                 "suporte responde ou muda o status. Não leva o texto da resposta "
+                 "(sai por fornecedor externo): só o número, o que mudou e o link.",
+        "consumidores": ["Suporte (avisos automáticos)"],
+        "variaveis": [
+            _v("nome", "Primeiro nome de quem abriu", "Marcos"),
+            _v("numero", "Número do chamado", "SUP-2026-0007"),
+            _v("evento", "O que mudou", "nova resposta do suporte"),
+            _v("link", "Link do chamado no painel", "https://cortex.exemplo/#sup?chamado=7"),
+        ],
+    },
     "faturamento": {
         "rotulo": "Faturamento do dia",
         "ajuda": "Resumo diário para a diretoria e a equipe comercial. Os "

@@ -2816,3 +2816,50 @@ aplicado um `0037_suporte.sql` no banco sem empurrar para o repositório**. O
 guard `NumeroJaUsado` fez exatamente o que existe para fazer — aplicar como
 estava deixaria uma das duas migrations de fora, calada. A nossa virou 0038;
 buraco na sequência é mais barato que migration engolida.
+## Suporte — o report virou chamado, e o que a tela não pode gravar (2026-09-02, v0.216.2)
+
+O botão Reportar abria uma issue direta no GitHub e acabava ali: quem
+reportou nunca sabia se alguém leu. O módulo de Suporte (`api/suporte/`,
+migration 0037, tabelas `sup_*`) inverte a ordem — o chamado nasce no banco da
+casa, o GitHub é espelho opcional — e as decisões de desenho que valem para
+qualquer módulo de "fila com gente dos dois lados":
+
+- **Status é decisão; o resto é conta.** Só o status (recebido, em
+  atendimento, aguardando usuário, resolvido, encerrado) fica gravado, porque
+  alguém decidiu. Com quem está a bola, horas sem resposta, SLA estourado,
+  primeira resposta e "mensagens novas" saem de `derivados()` a cada leitura,
+  com relógio injetável (`hoje=`) para o teste não depender do dia. Um campo
+  `atrasado` gravado precisaria de rotina para virar — e no dia em que ela não
+  roda, a fila mente (regra do CLAUDE.md §6, agora com mais um exemplo).
+- **"Novas" é comparação de timestamps, não contador.** `lido_usuario_em` e
+  `lido_suporte_em` por chamado; abrir a conversa É ler (POST `/lido`). A
+  mensagem de abertura não conta como novidade para quem abriu — a primeira
+  versão contava, e todo chamado nascia com "1 nova" para o próprio autor.
+- **Aviso com três respostas, mais uma.** Cada tentativa deixa `enviado`,
+  `sem_canal` (canal desmarcado, sem telefone, SMTP fora, já leu, já avisado e
+  não abriu) ou `recusado` (o canal disse não, com a frase dele: freio diário,
+  modelo desligado, erro). WhatsApp fora da janela vira `adiado`, UMA linha
+  por chamado, despachada pela passagem de `enviar_zap_agendados.py` e ao
+  abrir a bancada. Frescor antes do conteúdo: o aviso relê o chamado na hora
+  de sair e cala se a pessoa já abriu. Destinatário mascarado na trilha.
+- **Espelho sem tabela de fila.** A idempotência mora no dado: `github_numero`
+  no chamado, `espelhada_em` na mensagem, `github_comment_id` UNIQUE parcial;
+  cada comentário e cada issue levam o marcador `<!-- cortex-sup … -->`, e é
+  ele que separa eco de comentário humano na sincronização. Reintento manual
+  (`/espelhar`) repete tudo sem duplicar nada.
+- **404 para chamado alheio, nunca 403** — 403 confirmaria que o número
+  existe. 409 (`TransicaoInvalida`) para transição fora da matriz, 422 para
+  dado inválido, 413 para anexo grande. Tudo entra no `audit_log` sem o
+  título (que pode ter dado de negócio).
+- **Tela de todo usuário logado é uma quarta espécie** (`TELAS_TODO_LOGADO`):
+  fora do perfil, dentro dos favoritos, da busca e do menu, com a rota em
+  `_ROTAS_SEM_TELA`. O teste de favoritos que fixava `{"prem","veic"}` foi
+  o primeiro a acusar.
+
+Duas armadilhas de teste, para a próxima bancada: (1) o dublê do GitHub tinha
+um atributo `comentarios` (dict) e um método `comentarios()` — o dict venceu e
+a sincronização "importava zero" com `TypeError` engolido na lista de falhas;
+o teste passou a imprimir `res` na asserção. (2) A subconsulta do sino
+misturava `AND`/`OR` sem parênteses e devolvia vazio; o sino da fila só existe
+enquanto há chamado COM o suporte (aberto/em atendimento) — mandar o chamado
+para "aguardando usuário" o tira da fila, e o teste tinha de conferir antes.

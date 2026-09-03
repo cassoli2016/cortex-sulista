@@ -2038,7 +2038,7 @@ body.tvmode #loadbar,body.tvmode #loadtempo{display:none}
    z-index 150: abaixo do modal (180) e do login (200), acima de tudo mais.
    O ícone é o SÍMBOLO da marca (icon-192.png) e não a logo horizontal
    (478×106) — dentro de um círculo de 52px a logo cheia vira borrão.
-   O botão só é inserido no DOM quando GET /api/report/config diz ativo. */
+   O botão só é inserido no DOM quando GET /api/suporte/meus/config responde. */
 #btnReport{position:fixed;right:20px;bottom:20px;z-index:150;display:flex;align-items:center;
   gap:0;height:52px;width:52px;padding:0;overflow:hidden;cursor:pointer;
   background:var(--n0);border:1px solid var(--n200);border-radius:26px;
@@ -2052,6 +2052,66 @@ body.tvmode #loadbar,body.tvmode #loadtempo{display:none}
   font-family:var(--font);font-size:14px;font-weight:600;white-space:nowrap;
   transition:width .18s cubic-bezier(.4,0,.2,1)}
 #btnReport[hidden]{display:none}
+
+/* ---- Suporte (sup/supfila): chips, conversa e bancada. Escala 9/18. ---- */
+.sup-chip{display:inline-block;padding:0 9px;border-radius:999px;font-size:11px;font-weight:700;white-space:nowrap;background:var(--n100);color:var(--n700);line-height:18px}
+.sup-chip.st-aberto,.sup-chip.g-media,.sup-chip.r-adiado{background:color-mix(in srgb,var(--yellow) 16%,transparent);color:var(--yellow)}
+.sup-chip.st-em_atendimento{background:color-mix(in srgb,var(--navy-500) 14%,transparent);color:var(--navy-500)}
+.sup-chip.st-aguardando_usuario,.sup-chip.g-alta,.sup-chip.r-recusado{background:color-mix(in srgb,var(--red) 14%,transparent);color:var(--red)}
+.sup-chip.st-resolvido,.sup-chip.r-enviado{background:color-mix(in srgb,var(--green) 16%,transparent);color:var(--green)}
+.sup-chip.st-fechado,.sup-chip.g-baixa,.sup-chip.r-sem_canal{background:var(--n100);color:var(--n500)}
+.sup-row{cursor:pointer}.sup-row:hover td,.sup-row:focus-visible td{background:var(--n50)}
+.sup-badge{display:inline-block;min-width:18px;padding:0 9px;border-radius:999px;background:var(--orange-500);color:#fff;font-size:11px;font-weight:700;text-align:center;line-height:18px}
+td.sup-vazio{color:var(--n500);text-align:center;padding:18px}
+.sup-vazio{color:var(--n500)}
+.sup-nd{color:var(--n400)}.sup-estourado{color:var(--red);font-weight:700}.sup-erro{color:var(--red);font-size:11px;font-weight:700}
+.sup-cab{display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:9px 18px;margin:9px 0 18px}
+.sup-cab small{display:block;color:var(--n500);font-size:10.5px;text-transform:uppercase;letter-spacing:.04em}
+.sup-cab span{font-weight:600}
+.sup-relato{border:1px solid var(--n200);border-radius:9px;padding:9px 18px;margin-bottom:9px}
+.sup-relato summary{cursor:pointer;font-weight:700}
+.sup-relato .txt{white-space:pre-wrap;margin:9px 0}
+.sup-anexos{display:flex;flex-wrap:wrap;gap:9px;margin-top:9px}
+.sup-anexos a{font-size:12px;border:1px solid var(--n200);border-radius:9px;padding:0 9px;text-decoration:none;line-height:25px}
+.sup-anexos a small{color:var(--n500)}
+.sup-thread{max-height:min(38vh,360px);overflow:auto;display:flex;flex-direction:column;gap:9px;padding:9px;background:var(--n50);border-radius:9px;margin-bottom:9px}
+.sup-msg{max-width:78%;padding:9px 18px;border-radius:18px;background:var(--n0);border:1px solid var(--n200);font-size:13px}
+.sup-msg.eu{align-self:flex-end;background:color-mix(in srgb,var(--navy-500) 8%,var(--n0));border-color:color-mix(in srgb,var(--navy-500) 25%,transparent)}
+.sup-msg.ele{align-self:flex-start}
+.sup-msg.int{border-style:dashed;background:color-mix(in srgb,var(--yellow) 10%,var(--n0))}
+.sup-msg.sis{align-self:center;background:transparent;border:0;color:var(--n500);font-size:11.5px;text-align:center;padding:0;max-width:100%}
+.sup-msg .quem{font-size:11px;color:var(--n500)}
+.sup-msg .txt{white-space:pre-wrap}
+.sup-msg time{display:block;font-size:10.5px;color:var(--n400)}
+.sup-msg.sis time{display:inline;margin-left:9px}
+.sup-comp label{display:block;font-weight:700}
+.sup-comp textarea{width:100%;box-sizing:border-box;min-height:63px}
+.sup-comp .rep-cap{align-items:center;margin-top:9px}
+.sup-interna{display:inline-flex;align-items:center;gap:9px;font-size:12px;font-weight:400}
+.sup-botoes{flex-wrap:wrap;align-items:center;margin-top:9px}
+.sup-botoes select{max-width:200px}
+.sup-sep{flex:1}
+.sup-canais{display:flex;flex-wrap:wrap;gap:9px 18px;align-items:center;margin-top:9px;font-size:12px;color:var(--n600)}
+.sup-canais label{display:inline-flex;align-items:center;gap:9px}
+.sup-resolvido{border:1px solid color-mix(in srgb,var(--green) 40%,transparent);background:color-mix(in srgb,var(--green) 8%,transparent);border-radius:9px;padding:9px 18px;margin-bottom:9px}
+.sup-resolvido .rep-cap{margin-top:9px}
+.sup-aval{display:flex;align-items:center;margin-top:9px}
+.sup-aval button{background:none;border:0;font-size:22px;line-height:1;color:var(--n300);cursor:pointer;padding:0}
+.sup-aval button.on{color:var(--yellow)}
+.sup-aval small{margin-left:9px;color:var(--n500)}
+.sup-github{display:flex;gap:9px;align-items:center;font-size:12px;margin:9px 0}
+.ghost.mini{padding:0 9px;font-size:11.5px;line-height:25px}
+.sup-estado{display:flex;flex-wrap:wrap;gap:9px 18px;font-size:12px;color:var(--n600);margin-bottom:9px}
+.sup-grade3{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:9px 18px}
+/* a configuração em duas colunas: nove campos empilhados passavam de 900px na régua */
+#sup-config-form{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:9px 18px;align-items:start}
+#sup-config-form .sup-estado,#sup-config-form .sup-grade3,#sup-config-form .m-foot{grid-column:1/-1}
+.rep-canais{display:flex;flex-wrap:wrap;gap:9px 18px;font-size:12.5px;align-items:center}
+.rep-canais label{display:inline-flex;align-items:center;gap:9px}
+.rep-canais label.off{color:var(--n400)}
+.rep-canais label small{color:var(--n500)}
+.rep-tipos{grid-template-columns:repeat(3,minmax(0,1fr))}
+#aba-supfila-geral .tabroll.curta{max-height:215px}
 /* A LOGO GANHA CHAPA PROPRIA. O `icon-192.png` e opaco e claro (media RGB
    231,220,221 — medido): no tema escuro ele aparecia como um retangulo claro
    solto dentro da pilula escura. Circulo branco explicito transforma o que
@@ -2476,6 +2536,8 @@ body.tvfull #btnReport,body.tvmode #btnReport{display:none}
       <div class="subs closed" id="subsAdm">
         <a href="#gestao" class="sub" data-view="gestao" title="Gestão — usuários, perfis e segurança"><span class="ic" data-ic="ges"></span><span>Gestão</span></a>
         <a href="#srv" class="sub" data-view="srv" title="Saúde do Servidor — CPU, memória, disco e serviços"><span class="ic" data-ic="srv"></span><span>Saúde do Servidor</span></a>
+        <a href="#sup" class="sub" data-view="sup" title="Suporte — seus chamados: acompanhe, responda e avalie"><span class="ic" data-ic="supic"></span><span>Suporte</span></a>
+        <a href="#supfila" class="sub" data-view="supfila" title="Suporte — Atendimento: fila, respostas, avisos e configuração"><span class="ic" data-ic="supfila"></span><span>Suporte — Atendimento</span></a>
       </div>
     </nav>
     <div class="side-foot">
@@ -7238,6 +7300,102 @@ body.tvfull #btnReport,body.tvmode #btnReport{display:none}
           </div>
         </div>
       </section>
+      <!-- ===================== SUPORTE — MEUS CHAMADOS ===================== -->
+      <section class="view" id="view-sup">
+        <div class="kband">
+          <div class="kpis k4" id="kpis-sup"></div>
+        </div>
+        <div class="subtabs" role="tablist" data-abas="sup" aria-label="Seções desta tela">
+          <button role="tab" id="tabsup-meus" data-aba="meus" aria-controls="aba-sup-meus" aria-selected="true" onclick="abaTrocar('sup','meus')">Meus chamados <span class="aban" id="supNMeus"></span></button>
+          <button role="tab" id="tabsup-enc" data-aba="enc" aria-controls="aba-sup-enc" aria-selected="false" onclick="abaTrocar('sup','enc')">Encerrados <span class="aban" id="supNEnc"></span></button>
+        </div>
+        <div class="aba" data-abas="sup" data-aba="meus" id="aba-sup-meus" role="tabpanel" aria-labelledby="tabsup-meus">
+  <div class="card">
+          <div class="head"><h2>Meus chamados <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="Os chamados que VOCÊ abriu pelo botão Reportar (sup_chamados do seu usuário, banco local do CÓRTEX). Status é decisão do suporte ou sua; 'com quem' está a bola, o tempo sem resposta e as respostas novas são calculados na hora, nunca gravados. Clique na linha para abrir a conversa e responder.">i</span></h2>
+            <span class="hint" id="hintSupMeus"></span>
+            <button class="btn" onclick="abrirReport()" style="margin-left:auto">+ Abrir chamado</button></div>
+          <div class="tablewrap tabroll"><table><thead><tr>
+            <th>Nº</th><th>Assunto</th><th>Tela</th><th>Status</th><th>Com quem</th><th class="num">Atualizado</th><th class="num">Novas</th>
+          </tr></thead><tbody id="sup-meus"></tbody></table></div>
+        </div>
+        </div>
+        <div class="aba" data-abas="sup" data-aba="enc" id="aba-sup-enc" role="tabpanel" aria-labelledby="tabsup-enc" hidden>
+  <div class="card">
+          <div class="head"><h2>Encerrados <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="Chamados seus já encerrados (status 'fechado'), com a avaliação que você deu. Dá para reabrir pela conversa se o problema voltou.">i</span></h2><span class="hint" id="hintSupEnc"></span></div>
+          <div class="tablewrap tabroll"><table><thead><tr>
+            <th>Nº</th><th>Assunto</th><th>Tela</th><th class="num">Encerrado em</th><th>Avaliação</th>
+          </tr></thead><tbody id="sup-enc"></tbody></table></div>
+        </div>
+        </div>
+      </section>
+      <!-- ===================== SUPORTE — ATENDIMENTO ===================== -->
+      <section class="view" id="view-supfila">
+        <div class="kband">
+          <div class="kpis k4" id="kpis-supfila"></div>
+        </div>
+        <div class="subtabs" role="tablist" data-abas="supfila" aria-label="Seções desta tela">
+          <button role="tab" id="tabsupfila-geral" data-aba="geral" aria-controls="aba-supfila-geral" aria-selected="true" onclick="abaTrocar('supfila','geral')">Painel</button>
+          <button role="tab" id="tabsupfila-fila" data-aba="fila" aria-controls="aba-supfila-fila" aria-selected="false" onclick="abaTrocar('supfila','fila')">Fila <span class="aban" id="supfilaNFila"></span></button>
+          <button role="tab" id="tabsupfila-todos" data-aba="todos" aria-controls="aba-supfila-todos" aria-selected="false" onclick="abaTrocar('supfila','todos')">Todos <span class="aban" id="supfilaNTodos"></span></button>
+          <button role="tab" id="tabsupfila-avisos" data-aba="avisos" aria-controls="aba-supfila-avisos" aria-selected="false" onclick="abaTrocar('supfila','avisos')">Avisos <span class="aban" id="supfilaNAvisos"></span></button>
+          <button role="tab" id="tabsupfila-config" data-aba="config" aria-controls="aba-supfila-config" aria-selected="false" onclick="abaTrocar('supfila','config')">Configuração</button>
+        </div>
+        <div class="aba" data-abas="supfila" data-aba="geral" id="aba-supfila-geral" role="tabpanel" aria-labelledby="tabsupfila-geral">
+  <div class="grid2">
+          <div class="card">
+            <div class="head"><h2>Abertos e resolvidos por semana <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="sup_chamados por semana de abertura e por semana em que passou a resolvido/fechado, últimas 12 semanas. As semanas são GERADAS: semana sem chamado aparece com zero. A semana corrente é parcial (hachurada).">i</span></h2><span class="hint" id="hintSupSemanas">12 semanas · corrente parcial</span></div>
+            <div class="legend"><span class="k"><i class="sw" style="background:var(--navy-500)"></i>Abertos</span><span class="k"><i class="sw" style="background:var(--green)"></i>Resolvidos</span></div>
+            <div class="chartwrap"><div id="chartSupSemanas" style="width:100%;height:210px" role="img" aria-label="Chamados abertos e resolvidos por semana"></div></div>
+          </div>
+          <div class="card">
+            <div class="head"><h2>Exige ação <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="O que pede alguém AGORA, calculado na leitura: chamado com o suporte sem atendente, tempo sem resposta acima do SLA da gravidade (Configuração), aguardando o usuário há mais de 7 dias, resolvido sem confirmação há mais de 7 dias, e espelho do GitHub com erro. Clique na linha para abrir.">i</span></h2><span class="hint" id="hintSupAcao"></span></div>
+            <div class="tablewrap tabroll curta"><table><thead><tr>
+              <th>Motivo</th><th>Nº</th><th>Assunto</th><th>Quem</th><th class="num">Há</th>
+            </tr></thead><tbody id="supfila-acao"></tbody></table></div>
+          </div>
+        </div>
+        </div>
+        <div class="aba" data-abas="supfila" data-aba="fila" id="aba-supfila-fila" role="tabpanel" aria-labelledby="tabsupfila-fila" hidden>
+  <div class="card">
+          <div class="head"><h2>Fila de atendimento <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="Todos os chamados não encerrados, ordenados por prioridade CALCULADA a cada carga (nunca gravada): primeiro os que estão com o suporte, depois SLA estourado, gravidade e tempo sem resposta. 'Com quem' diz de quem é a próxima ação. Sincronizar lê comentários e estado das issues no GitHub (só aqui, nunca da tela do usuário).">i</span></h2>
+            <span class="hint" id="hintSupFila"></span>
+            <button class="ghost" id="btnSupSync" onclick="supSincronizar()" style="margin-left:auto" title="Lê os comentários e o estado das issues espelhadas no GitHub e despacha os avisos de WhatsApp adiados">Sincronizar</button></div>
+          <div class="cardfilters">
+            <select id="fSupStatus" aria-label="Status" onchange="supFilaRender()"><option value="">Todos os abertos</option></select>
+            <select id="fSupGrav" aria-label="Gravidade" onchange="supFilaRender()"><option value="">Toda gravidade</option><option value="alta">Alta</option><option value="media">Média</option><option value="baixa">Baixa</option></select>
+            <select id="fSupAtende" aria-label="Atendente" onchange="supFilaRender()"><option value="">Qualquer atendente</option><option value="-">Sem atendente</option></select>
+            <input type="search" id="fSupBusca" placeholder="nº, assunto ou pessoa…" oninput="supFilaRender()">
+          </div>
+          <div class="tablewrap tabroll"><table><thead><tr>
+            <th>Nº</th><th>Grav.</th><th>Assunto</th><th>Quem</th><th>Tela</th><th>Status</th><th>Com quem</th><th class="num">Sem resposta</th><th>Atende</th><th>GitHub</th><th class="num">Novas</th>
+          </tr></thead><tbody id="supfila-fila"></tbody></table></div>
+        </div>
+        </div>
+        <div class="aba" data-abas="supfila" data-aba="todos" id="aba-supfila-todos" role="tabpanel" aria-labelledby="tabsupfila-todos" hidden data-ao-abrir="supTodosCarregar">
+  <div class="card">
+          <div class="head"><h2>Todos os chamados <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="Inclusive os encerrados, do mais recente para o mais antigo. Exportação em CSV do que está na tela.">i</span></h2>
+            <span class="hint" id="hintSupTodos"></span>
+            <button class="ghost" onclick="supExportar()" style="margin-left:auto" title="Baixa a lista como está na tela (nº, tipo, gravidade, assunto, quem, tela, status, atendente, aberto em, avaliação).">Exportar CSV</button></div>
+          <div class="tablewrap tabroll"><table><thead><tr>
+            <th>Nº</th><th>Tipo</th><th>Grav.</th><th>Assunto</th><th>Quem</th><th>Tela</th><th>Status</th><th>Atende</th><th class="num">Aberto em</th><th>Aval.</th>
+          </tr></thead><tbody id="supfila-todos"></tbody></table></div>
+        </div>
+        </div>
+        <div class="aba" data-abas="supfila" data-aba="avisos" id="aba-supfila-avisos" role="tabpanel" aria-labelledby="tabsupfila-avisos" hidden data-ao-abrir="supAvisosCarregar">
+  <div class="card">
+          <div class="head"><h2>Avisos enviados e recusados <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="sup_avisos: cada tentativa de aviso (e-mail, WhatsApp, push, espelho no GitHub) com UMA de três respostas — enviado, calado porque não havia canal (sem telefone, canal desmarcado, já lido), ou recusado pelo canal com o motivo (freio, janela, modelo desligado, erro). Destinatário sempre mascarado. É aqui que se responde 'por que não chegou?'.">i</span></h2><span class="hint" id="hintSupAvisos"></span></div>
+          <div class="tablewrap tabroll"><table><thead><tr>
+            <th class="num">Quando</th><th>Nº</th><th>Canal</th><th>Para</th><th>Evento</th><th>Destino</th><th>Resultado</th><th>Motivo</th>
+          </tr></thead><tbody id="supfila-avisos"></tbody></table></div>
+        </div>
+        </div>
+        <div class="aba" data-abas="supfila" data-aba="config" id="aba-supfila-config" role="tabpanel" aria-labelledby="tabsupfila-config" hidden data-ao-abrir="supConfigCarregar">
+  <div class="card">
+          <div class="head"><h2>Configuração do suporte <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="Regras editáveis (sup_config): e-mail do time que recebe chamado novo e respostas, SLA em horas até a primeira resposta por gravidade (o 'fora do SLA' é calculado contra isto a cada leitura), modelo e instância do WhatsApp do aviso, e o espelho no GitHub. Chave em branco volta ao padrão. Só administrador grava.">i</span></h2><span class="hint" id="hintSupConfig"></span></div>
+          <div class="ges-form" id="sup-config-form" style="padding:18px"></div>
+        </div>
+        </div>
+      </section>
       <section class="view" id="view-srv">
         <div class="kpis" id="kpis-srv"></div>
         <div class="subtabs" role="tablist" data-abas="srv" aria-label="Seções desta tela">
@@ -7514,6 +7672,8 @@ const ICONS = {
   conta:IC('<circle cx="12" cy="8" r="4"/><path d="M4.5 20a7.5 7.5 0 0 1 15 0"/>'),
   sair: IC('<path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><path d="M16 17l5-5-5-5M21 12H9"/>'),
   srv:  IC('<rect x="3" y="4" width="18" height="7" rx="1.5"/><rect x="3" y="13" width="18" height="7" rx="1.5"/><path d="M7 7.5h.01M7 16.5h.01M11 7.5h5M11 16.5h5"/>'),
+  supic: IC('<path d="M4 13a8 8 0 0 1 16 0"/><rect x="3" y="12" width="4" height="6" rx="1.5"/><rect x="17" y="12" width="4" height="6" rx="1.5"/><path d="M19 18v1a2 2 0 0 1-2 2h-4"/>'),
+  supfila: IC('<path d="M4 6h16M4 12h9M4 18h6"/><circle cx="18" cy="17" r="3.5"/><path d="M18 15v2l1.5 1"/>'),
   doc:  IC('<path d="M6 3h8l5 5v13a1 1 0 0 1-1 1H6a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1z"/><path d="M14 3v5h5"/><path d="M8.5 12.5h7M8.5 16h5"/>'),
   /* Ícones criados para desempatar telas que compartilhavam o mesmo desenho.
      Ícone repetido no menu não identifica coisa nenhuma: o olho aprende a
@@ -7561,7 +7721,7 @@ const FAIXAS = {
   '4_vencido_91_365':['Vencido 91–365d','b-dang'],
   '5_vencido_mais_365':['Vencido > 365d','b-dang'],
 };
-const VIEWS = { home:'Visão Geral', fluxo:'Fluxo de Caixa e Bancos', receber:'Contas a Receber', pagar:'Contas a Pagar', oc:'Ordens de Compra', custos:'Painel de Custos', pecas:'Preço de Peças', agr:'Agregados e Terceiros', mvb:'Frota Própria × Agregado', pedagio:'Validação de Pedágio', comb:'Combustível', man:'Manutenção', com:'Clientes e RKM', clif:'Consulta de Cliente', crm:'CRM — Funil Comercial', km:'Análise de KM', prodveic:'Produtividade de Veículos', fat:'Faturamento Detalhado', gr:'Gerenciamento de Risco', torre:'Torre de Controle', poli:'Permanência na Planta', ctecp:'CT-e de Contrapartida', veic:'Veículos', veicf:'Consulta de Veículo', mprev:'Manutenção Preventiva', comrast:'Comunicação Rastreadora', mul:'Multas — Smartec', prog:'Programação Inteligente', jorn:'Jornada do Motorista', jornf:'Ficha de Jornada', cex:'Custos Extras', sac:'SAC / Freetime', port:'Portaria', cop:'Copiloto Cortex', cob:'Régua de Cobrança', banc:'Bancos', extb:'Extrato Bancário', lanc:'Lançamentos Bancários', antec:'Antecipação de Recebíveis', antport:'Portais de Antecipação', milkrun:'Operação MWM', rec:'Lançamentos Recorrentes', fluxcon:'Fluxo de Caixa Consolidado', cont:'Contabilidade', qual:'Qualidade e Certidões', orc:'Orçamento', fech:'Fechamento do Mês', prem:'Premiação de Motoristas', dre:'DRE Gerencial', bal:'Balanço Patrimonial', drecli:'DRE por Cliente', tvfat:'Painel TV — Faturamento', tvope:'Painel TV — Operação', tvdir:'Painel TV — Diretoria', rh:'RH — Vagas', hc:'Headcount', folha:'Custo de Folha', folhaind:'Indicadores de Folha', he:'Horas Extras', cnh:'CNH dos Motoristas', ferias:'Férias — Vencimento', people:'People Analytics', pneus:'Pneus', gestao:'Gestão', gesacao:'Planos de Ação', gesata:'Atas de Reunião', srv:'Saúde do Servidor', doc:'Documentação', anpiso:'Piso Mínimo de Frete', anrntrc:'RNTRC dos Transportadores', telcon:'Consumo e Estatísticas', telcond:'Condução Econômica', telhod:'Hodômetro e Rastro' };
+const VIEWS = { home:'Visão Geral', fluxo:'Fluxo de Caixa e Bancos', receber:'Contas a Receber', pagar:'Contas a Pagar', oc:'Ordens de Compra', custos:'Painel de Custos', pecas:'Preço de Peças', agr:'Agregados e Terceiros', mvb:'Frota Própria × Agregado', pedagio:'Validação de Pedágio', comb:'Combustível', man:'Manutenção', com:'Clientes e RKM', clif:'Consulta de Cliente', crm:'CRM — Funil Comercial', km:'Análise de KM', prodveic:'Produtividade de Veículos', fat:'Faturamento Detalhado', gr:'Gerenciamento de Risco', torre:'Torre de Controle', poli:'Permanência na Planta', ctecp:'CT-e de Contrapartida', veic:'Veículos', veicf:'Consulta de Veículo', mprev:'Manutenção Preventiva', comrast:'Comunicação Rastreadora', mul:'Multas — Smartec', prog:'Programação Inteligente', jorn:'Jornada do Motorista', jornf:'Ficha de Jornada', cex:'Custos Extras', sac:'SAC / Freetime', port:'Portaria', cop:'Copiloto Cortex', cob:'Régua de Cobrança', banc:'Bancos', extb:'Extrato Bancário', lanc:'Lançamentos Bancários', antec:'Antecipação de Recebíveis', antport:'Portais de Antecipação', milkrun:'Operação MWM', rec:'Lançamentos Recorrentes', fluxcon:'Fluxo de Caixa Consolidado', cont:'Contabilidade', qual:'Qualidade e Certidões', orc:'Orçamento', fech:'Fechamento do Mês', prem:'Premiação de Motoristas', dre:'DRE Gerencial', bal:'Balanço Patrimonial', drecli:'DRE por Cliente', tvfat:'Painel TV — Faturamento', tvope:'Painel TV — Operação', tvdir:'Painel TV — Diretoria', rh:'RH — Vagas', hc:'Headcount', folha:'Custo de Folha', folhaind:'Indicadores de Folha', he:'Horas Extras', cnh:'CNH dos Motoristas', ferias:'Férias — Vencimento', people:'People Analytics', pneus:'Pneus', gestao:'Gestão', gesacao:'Planos de Ação', gesata:'Atas de Reunião', srv:'Saúde do Servidor',sup:'Suporte', supfila:'Suporte — Atendimento', doc:'Documentação', anpiso:'Piso Mínimo de Frete', anrntrc:'RNTRC dos Transportadores', telcon:'Consumo e Estatísticas', telcond:'Condução Econômica', telhod:'Hodômetro e Rastro' };
 const periodoLabel = p => { if(p==='atrasado') return 'Atrasado'; const [y,m]=p.split('-'); return MES[+m-1]+'/'+y.slice(2); };
 const fmtD = s => { if(!s) return ''; const [y,m,dd]=s.split('-'); return dd+'/'+m+'/'+y; };
 /* Idade da posicao bancaria. Cada conta e lancada num dia diferente: mostrar
@@ -7837,7 +7997,7 @@ const VIEW_GROUP = {home:'',cop:'',
   veic:'Fro',veicf:'Fro',mprev:'Fro',comrast:'Fro',comb:'Fro',man:'Fro',mul:'Fro',pneus:'Fro',
   oc:'Sup',custos:'Sup',pecas:'Sup',
   prodveic:'Bi',fat:'Ctr',gr:'Ope',tvfat:'Bi',tvope:'Bi',tvdir:'Bi',
-  rh:'Rh',hc:'Rh',folha:'Rh',folhaind:'Rh',he:'Rh',cnh:'Rh',ferias:'Rh',people:'Rh',gestao:'Adm',srv:'Adm',doc:'Adm',gesacao:'Ges',gesata:'Ges',
+  rh:'Rh',hc:'Rh',folha:'Rh',folhaind:'Rh',he:'Rh',cnh:'Rh',ferias:'Rh',people:'Rh',gestao:'Adm',srv:'Adm',sup:'Adm',supfila:'Adm',doc:'Adm',gesacao:'Ges',gesata:'Ges',
   // Telemetria e ANTT tinham grupo na barra lateral mas ficaram de fora deste
   // mapa: o acordeao nao abria sozinho ao navegar para elas (agora a busca
   // global navega, entao isso passou a incomodar de verdade).
@@ -8047,10 +8207,10 @@ function semFilterbar(v){
   // filtros", que não tinha o que aplicar.
   return v==='cop'||v==='gestao'||v==='gesacao'||v==='gesata'||v==='srv'||v==='home'||v==='veicf'||v==='clif'||v==='jorn'||v==='jornf'||v==='prog'||
          v==='cex'||v==='sac'||v==='mprev'||v==='comrast'||v==='qual'||v==='port'||v==='crm'||v==='rh'||
-         v==='hc'||v==='folha'||v==='folhaind'||v==='he'||v==='custos'||v==='pecas'||v==='orc'||v==='prem'||v==='banc'||v==='extb'||v==='fech'||v==='fat'||v==='gr'||v==='antport'||v==='doc'||v==='telcon'||v==='telcond'||v==='telhod'||v==='milkrun'||v==='cnh'||v==='ferias'||v==='pneus'||v==='people'||v==='poli'||v==='ctecp';
+         v==='hc'||v==='folha'||v==='folhaind'||v==='he'||v==='custos'||v==='pecas'||v==='orc'||v==='prem'||v==='banc'||v==='extb'||v==='fech'||v==='fat'||v==='gr'||v==='antport'||v==='doc'||v==='telcon'||v==='telcond'||v==='telhod'||v==='milkrun'||v==='cnh'||v==='ferias'||v==='pneus'||v==='people'||v==='poli'||v==='ctecp'||v==='sup'||v==='supfila';
 }
 function currentView(){
-  const h = (location.hash||'').replace('#','');
+  const h = (location.hash||'').replace('#','').split('?')[0];   // `#sup?chamado=12` é a tela sup
   let v = VIEWS[h] ? h : 'home';
   if(USER && !podeVer(v)) v = primeiraTela();   // bloqueia acesso por URL direta
   return v;
@@ -8140,7 +8300,7 @@ function router(){
   document.getElementById('grpFluxcon').style.display = fluxcon ? 'flex' : 'none';
   const ges = (v==='gestao');
   const fbar=document.getElementById('filterbar'); if(fbar) fbar.style.display = semFilterbar(v) ? 'none' : '';
-  const metaEl=document.getElementById('meta'); if(metaEl) metaEl.style.display = (cop||ges||v==='gesacao'||v==='gesata'||v==='srv'||v==='veicf'||v==='clif'||v==='jorn'||v==='jornf'||v==='cex'||v==='sac'||v==='mprev'||v==='comrast'||v==='qual'||v==='port'||v==='crm'||v==='rh'||v==='hc'||v==='folha'||v==='folhaind'||v==='he'||v==='custos'||v==='pecas'||v==='prem'||v==='doc'||v==='poli'||v==='ctecp') ? 'none' : '';
+  const metaEl=document.getElementById('meta'); if(metaEl) metaEl.style.display = (cop||ges||v==='gesacao'||v==='gesata'||v==='srv'||v==='veicf'||v==='clif'||v==='jorn'||v==='jornf'||v==='cex'||v==='sac'||v==='mprev'||v==='comrast'||v==='qual'||v==='port'||v==='crm'||v==='rh'||v==='hc'||v==='folha'||v==='folhaind'||v==='he'||v==='custos'||v==='pecas'||v==='prem'||v==='doc'||v==='poli'||v==='ctecp'||v==='sup'||v==='supfila') ? 'none' : '';
   // classe em vez de style: o CSS mobile usa !important no display
   const bfil=document.getElementById('btnFiltros'); if(bfil){ bfil.classList.toggle('oculto', semFilterbar(v)); bfil.style.display=''; }
   document.getElementById('grpKm').style.display = kmv ? 'flex' : 'none';
@@ -8164,7 +8324,7 @@ function router(){
   // divergem dos usados na última carga (nunca mostrar dado velho com filtro novo)
   const key=viewKey(v);
   const DATAMAP={fin:DATA,oc:DATAOC,agr:DATAAGR,anpiso:DATAANPISO,anrntrc:DATAANRNTRC,pedagio:DATAPED,telcon:DATATELCON,telcond:DATATELCOND,telhod:DATATELHOD,mvb:DATAMVB,comb:DATACOMB,man:DATAMAN,com:DATACOM,clif:DATACLIF,dre:DATADRE,bal:DATABAL,drecli:DATADRECLI,home:DATAHOME,km:DATAKM,torre:DATATORRE,veic:DATAVEIC,veicf:DATAVEICF,mul:DATASMT,prog:DATAPROG,jorn:DATAJR,jornf:DATAJORNF,cex:DATACEX,sac:DATASAC,mprev:DATAMPREV,comrast:DATACOMRAST,qual:DATAQUAL,port:DATAPORT,crm:DATACRM,rh:DATARH,hc:DATAHC,folha:DATAFOLHA,folhaind:DATAFOLHAIND,he:DATAHE,custos:DATACUSTOS,pecas:DATAPECAS,cob:DATACOB,banc:DATABANC,extb:DATAEXTB,lanc:DATALANC,antec:DATAANTEC,antport:DATAANTPORT,milkrun:DATAMILK,fluxcon:DATAFLUXCON,rec:DATAREC,rent:DATARENT,cont:DATACONT,orc:DATAORC,fech:DATAFECH,fat:DATAFAT,gr:DATAGR,prem:DATAPREM,gestao:DATAGES,srv:DATASRV,doc:DATADOC,tvfat:null,tvope:null,tvdir:null,cop:(COP_MSGS.length?{}:null)};
-  const LOADMAP={fin:load,oc:loadOc,agr:loadAgr,anpiso:loadAnpiso,anrntrc:loadAnrntrc,telcon:loadTelcon,telcond:loadTelcond,telhod:loadTelhod,mvb:loadMvb,pedagio:loadPedagio,comb:loadComb,man:loadMan,com:loadCom,clif:loadClif,dre:loadDre,bal:loadBal,drecli:loadDreCli,home:loadHome,km:loadKm,prodveic:loadProdveic,torre:loadTorre,veic:loadVeic,veicf:loadVeicf,mul:loadSmt,prog:loadProg,jorn:loadJorraster,jornf:loadJornf,cex:loadCex,sac:loadSac,mprev:loadMPrev,comrast:loadComRast,qual:loadQual,port:loadPort,crm:loadCrm,rh:loadRh,hc:loadHc,folha:loadFolha,folhaind:loadFolhaInd,he:loadHe,custos:loadCustos,pecas:loadPecas,cob:loadCob,banc:loadBanc,extb:loadExtb,lanc:loadLanc,antec:loadAntec,antport:loadAntport,milkrun:loadMilkrun,cnh:loadCnh,ferias:loadFerias,people:loadPeople,pneus:loadPneus,poli:loadPoli,ctecp:loadCtecp,fluxcon:loadFluxcon,rec:loadRec,rent:loadRent,cont:loadCont,orc:loadOrc,fech:loadFech,fat:loadFat,gr:loadGr,prem:loadPrem,gesacao:loadGesacao,gesata:loadGesata,gestao:loadGestao,srv:loadSrv,doc:loadDoc,cop:loadCop,tvfat:loadTvFat,tvope:loadTvOpe,tvdir:loadTvDir};
+  const LOADMAP={fin:load,oc:loadOc,agr:loadAgr,anpiso:loadAnpiso,anrntrc:loadAnrntrc,telcon:loadTelcon,telcond:loadTelcond,telhod:loadTelhod,mvb:loadMvb,pedagio:loadPedagio,comb:loadComb,man:loadMan,com:loadCom,clif:loadClif,dre:loadDre,bal:loadBal,drecli:loadDreCli,home:loadHome,km:loadKm,prodveic:loadProdveic,torre:loadTorre,veic:loadVeic,veicf:loadVeicf,mul:loadSmt,prog:loadProg,jorn:loadJorraster,jornf:loadJornf,cex:loadCex,sac:loadSac,mprev:loadMPrev,comrast:loadComRast,qual:loadQual,port:loadPort,crm:loadCrm,rh:loadRh,hc:loadHc,folha:loadFolha,folhaind:loadFolhaInd,he:loadHe,custos:loadCustos,pecas:loadPecas,cob:loadCob,banc:loadBanc,extb:loadExtb,lanc:loadLanc,antec:loadAntec,antport:loadAntport,milkrun:loadMilkrun,cnh:loadCnh,ferias:loadFerias,people:loadPeople,pneus:loadPneus,poli:loadPoli,ctecp:loadCtecp,fluxcon:loadFluxcon,rec:loadRec,rent:loadRent,cont:loadCont,orc:loadOrc,fech:loadFech,fat:loadFat,gr:loadGr,prem:loadPrem,gesacao:loadGesacao,gesata:loadGesata,gestao:loadGestao,srv:loadSrv,sup:loadSup,supfila:loadSupfila,doc:loadDoc,cop:loadCop,tvfat:loadTvFat,tvope:loadTvOpe,tvdir:loadTvDir};
   if(!DATAMAP[key] || (key!=='home' && LOADEDQS[key]!==qsView(key))) LOADMAP[key]();
   // mobile: estado da navegação inferior + fecha gaveta/painel de filtros
   document.querySelectorAll('.bottomnav [data-bview]').forEach(a=>a.classList.toggle('ativo', a.dataset.bview===v));
@@ -8229,6 +8389,8 @@ const NAV_KW={
   rh:'vaga recrutamento contratacao selecao', home:'inicio visao geral resumo dashboard',
   cop:'copiloto ia chat pergunta assistente', gestao:'usuario perfil acesso permissao auditoria seguranca',
   srv:'servidor saude infra api banco tunel',
+  sup:'suporte chamado ticket reportar bug melhoria duvida ajuda problema resposta',
+  supfila:'fila suporte atendimento chamados sla avisos whatsapp email github',
   doc:'documentacao manual ajuda versao changelog historico novidades glossario mudancas',
 };
 function _kwDe(a){
@@ -10004,7 +10166,7 @@ function reloadCurrent(){
   const M={home:loadHome,fluxo:load,receber:load,pagar:load,dre:loadDre,drecli:loadDreCli,oc:loadOc,
     agr:loadAgr,mvb:loadMvb,pedagio:loadPedagio,comb:loadComb,man:loadMan,com:loadCom,clif:loadClif,km:loadKm,prodveic:loadProdveic,
     torre:loadTorre,veic:loadVeic,veicf:loadVeicf,mul:loadSmt,prog:loadProg,jorn:loadJorraster,jornf:loadJornf,cex:loadCex,sac:loadSac,mprev:loadMPrev,comrast:loadComRast,qual:loadQual,port:loadPort,crm:loadCrm,rh:loadRh,hc:loadHc,folha:loadFolha,folhaind:loadFolhaInd,he:loadHe,custos:loadCustos,pecas:loadPecas,cob:loadCob,banc:loadBanc,extb:loadExtb,rent:loadRent,
-    cont:loadCont,orc:loadOrc,fech:loadFech,fat:loadFat,gr:loadGr,prem:loadPrem,gesacao:loadGesacao,gesata:loadGesata,gestao:loadGestao,srv:loadSrv,doc:loadDoc,cop:loadCop,tvfat:loadTvFat,tvope:loadTvOpe,tvdir:loadTvDir};
+    cont:loadCont,orc:loadOrc,fech:loadFech,fat:loadFat,gr:loadGr,prem:loadPrem,gesacao:loadGesacao,gesata:loadGesata,gestao:loadGestao,srv:loadSrv,sup:loadSup,supfila:loadSupfila,doc:loadDoc,cop:loadCop,tvfat:loadTvFat,tvope:loadTvOpe,tvdir:loadTvDir};
   (M[currentView()]||load)();
 }
 
@@ -28363,7 +28525,8 @@ function pararTimers(){   // sessão caiu: silencia auto-refresh de torre/TV (se
   try{ if(tvClock){ clearInterval(tvClock); tvClock=null; } }catch(e){}
   try{ if(tvTour){ clearInterval(tvTour); tvTour=null; } }catch(e){}
 }
-function podeVer(v){ if(v==='jornf') v='jorn'; return !!USER && ((v==='gestao'||v==='srv') ? USER.admin : (USER.admin || (USER.telas||[]).includes(v))); }
+function podeVer(v){ if(v==='jornf') v='jorn'; if(v==='sup') return !!USER;   // Suporte é de todo usuário logado
+  return !!USER && ((v==='gestao'||v==='srv') ? USER.admin : (USER.admin || (USER.telas||[]).includes(v))); }
 
 /* ===================== Busca global =====================
    Três coisas na mesma caixa, em ordem de utilidade:
@@ -28431,6 +28594,8 @@ const BUSCA_SINONIMOS = {
   he:['hora extra','banco de horas','sobreaviso'],
   gestao:['usuario','permissao','perfil','acesso','auditoria','senha','email','smtp','integracao','token'],
   srv:['servidor','saude','cpu','disco','memoria'],
+  sup:['suporte','chamado','ticket','ajuda','reportar'],
+  supfila:['suporte','atendimento','fila','chamados','sla'],
   gr:['risco','gerenciamento de risco','rastreamento','panico','evento','macro','monitoramento','sm','escolta'],
   fat:['faturamento','meta','emissao','emissoes','cte','nfse','atingimento','modalidade','cancelado','bi'],
   prodveic:['produtividade','veiculo','veiculos','km por veiculo','ocioso','ociosidade','parado','frota parada','bi'],
@@ -33485,26 +33650,29 @@ async function gesConfigSalvar(){
   }catch(e){ err.textContent='Não foi possível falar com a API.'; }
 }
 
-/* ================= Report de bug/melhoria =================
-   O botão só existe se o servidor tiver GITHUB_TOKEN/REPORT_REPO. O envio é
-   um POST único (anexos em base64), e o modal abre TRAVADO: clique fora
-   apagaria texto digitado e um print que custou dois cliques para obter. */
-const REP = {tipo:'bug', grav:'media', anexos:[], enviando:false, ctx:null};
+/* ================= Reportar: abre um chamado no Suporte =================
+   O botão existe para todo usuário logado — o chamado nasce no banco da casa
+   (sup_chamados) e o GitHub é espelho opcional. O envio é um POST único
+   (anexos em base64), e o modal abre TRAVADO: clique fora apagaria texto
+   digitado e um print que custou dois cliques para obter. No fim,
+   "Acompanhar" leva à conversa em `#sup?chamado=ID`. */
+const REP = {tipo:'bug', grav:'media', anexos:[], enviando:false, ctx:null, cfg:null, canais:{email:true, whatsapp:false}};
 const REP_MAX_TOTAL = 15*1024*1024, REP_MAX_ARQ = 8*1024*1024, REP_MAX_N = 5;
 const REP_EXT = 'png,jpg,jpeg,gif,webp,pdf,csv,txt,log,xlsx,docx'.split(',');
 const REP_GRAV = {
   bug:      [['alta','Trava meu trabalho'],['media','Atrapalha'],['baixa','Pode esperar']],
-  melhoria: [['alta','Muito importante'],['media','Seria bom'],['baixa','Ideia solta']]
+  melhoria: [['alta','Muito importante'],['media','Seria bom'],['baixa','Ideia solta']],
+  duvida:   [['alta','Estou travado'],['media','Preciso saber'],['baixa','Curiosidade']]
 };
 
 async function repIniciar(){
-  // silencioso de propósito: recurso desligado no servidor não vira aviso na
-  // tela de quem usa o painel
+  // silencioso de propósito: sem sessão ou sem serviço, o botão simplesmente
+  // não aparece — nunca vira aviso na tela de quem usa o painel
   try{
-    const r = await fetch('/api/report/config',{cache:'no-store'});
+    const r = await fetch('/api/suporte/meus/config',{cache:'no-store'});
     if(!r.ok) return;
     const d = await r.json();
-    if(d && d.ativo) document.getElementById('btnReport').hidden = false;
+    if(d && d.ativo){ REP.cfg = d; document.getElementById('btnReport').hidden = false; }
   }catch(e){}
 }
 
@@ -33539,11 +33707,13 @@ function repTipo(t){
   REP.tipo=t;
   document.getElementById('rep-t-bug').classList.toggle('on', t==='bug');
   document.getElementById('rep-t-mel').classList.toggle('on', t==='melhoria');
+  document.getElementById('rep-t-duv').classList.toggle('on', t==='duvida');
   document.getElementById('rep-grav').innerHTML = repGravHtml();
   const d=document.getElementById('rep-desc');
   d.placeholder = t==='bug'
     ? 'O que você fez, o que aconteceu e o que você esperava que acontecesse.'
-    : 'O que você gostaria de fazer nesta tela e por que isso ajuda.';
+    : t==='melhoria' ? 'O que você gostaria de fazer nesta tela e por que isso ajuda.'
+    : 'O que você quer saber, ou o que não conseguiu encontrar.';
 }
 function repGrav(g){
   REP.grav=g;
@@ -33658,7 +33828,7 @@ function repSoltar(ev){ ev.preventDefault(); repArquivos((ev.dataTransfer||{}).f
 function repCtxHtml(){
   const c=REP.ctx, u=USER||{};
   const linha=(r,v)=>`<tr><td>${r}</td><td>${v}</td></tr>`;
-  return `<details class="rep-ctx"><summary>O que vai junto com o report</summary>
+  return `<details class="rep-ctx"><summary>O que vai junto com o chamado</summary>
     <table>
       ${linha('Tela', esc(c.tela_nome)+' <code>#'+esc(c.tela)+'</code>')}
       ${linha('Filtros', c.filtros ? '<code>'+esc(c.filtros)+'</code>' : '—')}
@@ -33668,12 +33838,33 @@ function repCtxHtml(){
       ${linha('Tela (px)', esc(c.tela_px))}
       ${linha('Erros recentes', c.erros.length ? c.erros.length+' erro(s) de JavaScript' : 'nenhum')}
     </table>
-    <div class="rep-aviso">Vai para o repositório privado de reports da Sulista.</div>
+    <div class="rep-aviso">Fica registrado no CÓRTEX: o time de suporte vê e responde pelo painel, e você acompanha na tela Suporte.</div>
   </details>`;
 }
 
+/* Canais de aviso: o servidor diz o que está disponível para ESTA pessoa
+   (e-mail cadastrado + SMTP configurado; telefone cadastrado + Z-API pronta)
+   e lembra a última escolha dela. O indisponível aparece desligado COM o
+   motivo — nunca some em silêncio. O sino do painel avisa sempre. */
+function repCanaisIniciais(){
+  const c = ((REP.cfg||{}).canais)||{}, u = ((REP.cfg||{}).ultima_escolha)||{};
+  return {email: !!(c.email && c.email.disponivel) && u.email !== false,
+          whatsapp: !!(c.whatsapp && c.whatsapp.disponivel) && u.whatsapp !== false};
+}
+function repCanaisHtml(){
+  const c = ((REP.cfg||{}).canais)||{};
+  const item = (k, rot) => {
+    const x = c[k]||{}, ok = !!x.disponivel;
+    return `<label class="${ok?'':'off'}" title="${esc(ok ? (x.destino||'') : (x.motivo||'indisponível'))}">
+      <input type="checkbox" data-canal="${k}"${ok?'':' disabled'}${ok && REP.canais[k] ? ' checked' : ''} onchange="repCanal(this.dataset.canal, this.checked)"> ${rot}
+      <small>${esc(ok ? (x.destino||'') : (x.motivo||'indisponível'))}</small></label>`;
+  };
+  return item('email','E-mail') + item('whatsapp','WhatsApp') + '<small class="rep-aviso">O sino do painel avisa sempre.</small>';
+}
+function repCanal(k, on){ REP.canais[k] = !!on; }
+
 function abrirReport(){
-  REP.anexos=[]; REP.enviando=false; REP.tipo='bug'; REP.grav='media';
+  REP.anexos=[]; REP.enviando=false; REP.tipo='bug'; REP.grav='media'; REP.canais=repCanaisIniciais();
   REP.ctx=repContexto();
   const aceita = REP_EXT.map(e=>'.'+e).join(',');
   abrirModal(`<h3>Reportar</h3>
@@ -33683,8 +33874,11 @@ function abrirReport(){
           <b>🐞</b>Bug<small>algo está errado</small></button>
         <button type="button" class="rep-tipo" id="rep-t-mel" onclick="repTipo('melhoria')">
           <b>💡</b>Melhoria<small>poderia ser melhor</small></button>
+        <button type="button" class="rep-tipo" id="rep-t-duv" onclick="repTipo('duvida')">
+          <b>❓</b>Dúvida<small>como faço isso?</small></button>
       </div>
       <div><label>Gravidade</label><div class="rep-grav" id="rep-grav">${repGravHtml()}</div></div>
+      <div><label>Como quer ser avisado das respostas?</label><div class="rep-canais" id="rep-canais">${repCanaisHtml()}</div></div>
       <div><label for="rep-titulo">Título</label>
         <input type="text" id="rep-titulo" maxlength="120" placeholder="Resuma em uma linha"></div>
       <div><label for="rep-desc">Descrição</label>
@@ -33705,7 +33899,7 @@ function abrirReport(){
       <div class="m-foot">
         <div class="m-err" id="m-err"></div>
         <button class="ghost" onclick="fecharModal()">Cancelar</button>
-        <button class="btn" id="rep-enviar" onclick="repEnviar()">Enviar report</button>
+        <button class="btn" id="rep-enviar" onclick="repEnviar()">Abrir chamado</button>
       </div>
     </div>`, true);
   const box=document.getElementById('modalBox');
@@ -33724,26 +33918,484 @@ async function repEnviar(){
   if(!desc){ mErro('Escreva a descrição.'); document.getElementById('rep-desc').focus(); return; }
   mErro(''); REP.enviando=true; btn.disabled=true; btn.textContent='Enviando…';
   try{
-    const r=await fetch('/api/report',{method:'POST',headers:{'Content-Type':'application/json'},
-      body:JSON.stringify({tipo:REP.tipo, gravidade:REP.grav, titulo:titulo, descricao:desc,
+    const r=await fetch('/api/suporte/meus/chamados',{method:'POST',headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({tipo:REP.tipo, gravidade:REP.grav, titulo:titulo, descricao:desc, canais:REP.canais,
         contexto:REP.ctx, anexos:REP.anexos.map(a=>({nome:a.nome, b64:a.b64}))})});
     const d=await r.json().catch(()=>({}));
     if(!r.ok){
       // o formulário INTEIRO continua no lugar: reescrever o print custa caro
-      mErro(d.mensagem||'Não foi possível registrar o report.');
+      mErro(d.mensagem||'Não foi possível abrir o chamado.');
       return;
     }
+    const avisos=[REP.canais.email?'e-mail':'', REP.canais.whatsapp?'WhatsApp':''].filter(Boolean);
     document.getElementById('rep-form').innerHTML =
-      `<div class="rep-ok"><b>Report registrado — #${d.numero}</b>
-         <div class="rep-aviso">Obrigado. O time recebe com a tela, os filtros e o print que você mandou.</div>
-         <div class="m-foot"><button class="btn" onclick="fecharModal()">Fechar</button></div>
+      `<div class="rep-ok"><b>Chamado ${esc(d.codigo)} aberto</b>
+         <div class="rep-aviso">O suporte recebe com a tela, os filtros e o print que você mandou.
+           ${avisos.length ? 'As respostas chegam por '+avisos.join(' e ')+', ' : 'Você acompanha '}pelo sino e na tela Suporte.</div>
+         <div class="m-foot"><button class="ghost" onclick="fecharModal()">Fechar</button>
+           <button class="btn" id="rep-acompanhar" data-id="${d.id}" onclick="fecharModal();location.hash='#sup?chamado='+this.dataset.id">Acompanhar</button></div>
        </div>`;
   }catch(e){
     mErro('Não foi possível falar com a API. Sem rede?');
   }finally{
     REP.enviando=false;
-    if(btn && btn.isConnected){ btn.disabled=false; btn.textContent='Enviar report'; }
+    if(btn && btn.isConnected){ btn.disabled=false; btn.textContent='Abrir chamado'; }
   }
+}
+
+/* ================= Suporte: meus chamados, atendimento e a conversa =================
+   Duas telas sobre o mesmo serviço (/api/suporte): `sup` é de todo usuário
+   logado e só mostra os chamados da própria pessoa; `supfila` (Administração)
+   é a bancada de quem atende. O status é GRAVADO (foi decisão de alguém); com
+   quem está a bola, horas sem resposta, SLA estourado e mensagens novas chegam
+   CALCULADOS pelo servidor a cada carga — nada disso envelhece em cache. O
+   modal da conversa é o mesmo para os dois lados; o modo decide as ações. */
+const SUP = {meus:null, enc:null, painel:null, ind:null, todos:null, atual:null, modo:'meu', anexos:[], enviando:false, nota:0};
+const SUP_STATUS = {aberto:'Recebido', em_atendimento:'Em atendimento', aguardando_usuario:'Aguardando usuário', resolvido:'Resolvido', fechado:'Encerrado'};
+const SUP_STATUS_MEU = Object.assign({}, SUP_STATUS, {aguardando_usuario:'Aguardando você'});
+const SUP_TIPO = {bug:'Bug', melhoria:'Melhoria', duvida:'Dúvida'};
+const SUP_GRAV = {alta:'Alta', media:'Média', baixa:'Baixa'};
+const SUP_CANAL = {email:'E-mail', whatsapp:'WhatsApp', push:'Push', github:'GitHub'};
+const SUP_RESULTADO = {enviado:'enviado', sem_canal:'sem canal', recusado:'recusado', adiado:'adiado'};
+const SUP_MOTIVO = {duplicado:'duplicado de outro chamado', nao_e_defeito:'não é defeito', sem_retorno:'sem retorno do usuário',
+                    resolvido_fora:'resolvido fora do painel', desistiu:'quem abriu não precisa mais'};
+
+function supDH(s){
+  if(!s) return '—';
+  const d = new Date(s); if(isNaN(d)) return '—';
+  return d.toLocaleDateString('pt-BR',{day:'2-digit',month:'2-digit'})+' '+d.toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'});
+}
+function supHoras(h){
+  if(h===null || h===undefined) return '—';
+  if(h < 1) return Math.max(1, Math.round(h*60))+' min';
+  if(h < 48) return Math.round(h)+' h';
+  return Math.round(h/24)+' d';
+}
+function supChip(status, meu){
+  const rot = (meu ? SUP_STATUS_MEU : SUP_STATUS)[status] || status;
+  return `<span class="sup-chip st-${esc(status)}">${esc(rot)}</span>`;
+}
+function supGravChip(g){ return `<span class="sup-chip g-${esc(g)}">${esc(SUP_GRAV[g]||g)}</span>`; }
+function supResultado(r){ return `<span class="sup-chip r-${esc(r)}">${esc(SUP_RESULTADO[r]||r)}</span>`; }
+function supBola(c, meu){
+  if(c.esperando==='usuario') return meu ? '<b>você</b>' : 'usuário';
+  if(c.esperando==='suporte') return meu ? 'suporte' : '<b>suporte</b>';
+  return '—';
+}
+function supTela(c){ return esc(VIEWS[c.tela] || c.tela || '—'); }
+function supFalha(idKpis, msg){
+  const el = document.getElementById(idKpis);
+  if(el) el.innerHTML = `<div class="card kpi" style="grid-column:1/-1"><div class="label">Suporte</div><div class="sub">${esc(msg||'Não foi possível carregar.')}</div></div>`;
+}
+/* `#sup?chamado=12` (vem do sino, do e-mail e do WhatsApp) abre a conversa e
+   LIMPA o hash: um F5 depois não reabre o modal, e o roteador só conhece
+   `#sup`. */
+function supAlvoDaUrl(base){
+  const q = (location.hash||'').split('?')[1] || '';
+  const id = Number(new URLSearchParams(q).get('chamado') || 0);
+  if(id) history.replaceState(null, '', '#'+base);
+  return id;
+}
+function supLinhaAttrs(id, modo){
+  return `class="sup-row" tabindex="0" onclick="supAbrir(${id},'${modo}')" onkeydown="if(event.key==='Enter')supAbrir(${id},'${modo}')"`;
+}
+
+/* ---------- tela `sup`: meus chamados ---------- */
+async function loadSup(){
+  const alvo = supAlvoDaUrl('sup');
+  const ok = await supMeusCarregar(false);
+  if(ok && alvo) supAbrir(alvo, 'meu');
+}
+async function supMeusCarregar(silencioso){
+  try{
+    const [r1, r2] = await Promise.all([
+      fetch('/api/suporte/meus?situacao=ativos',{cache:'no-store'}),
+      fetch('/api/suporte/meus?situacao=encerrados',{cache:'no-store'})]);
+    const a = await respostaJSON(r1), e = await respostaJSON(r2);
+    if(!a.ok){ if(!silencioso) supFalha('kpis-sup', (a.dados||{}).mensagem); return false; }
+    SUP.meus = a.dados; SUP.enc = e.ok ? e.dados : {chamados:[]};
+    if(document.getElementById('kpis-sup')) supMeusRender();
+    return true;
+  }catch(err){ if(!silencioso) supFalha('kpis-sup', err.message || 'Não foi possível falar com a API.'); return false; }
+}
+function supMeusRender(){
+  const d = SUP.meus || {}, k = d.kpis || {}, med = d.primeira_resposta_mediana_h || {}, sla = d.sla || {};
+  const combinado = sla.alta ? `combinado ${sla.alta} h alta · ${sla.media} h média · ${sla.baixa} h baixa` : '';
+  document.getElementById('kpis-sup').innerHTML =
+    kpi('Em aberto', String(k.abertos||0), k.abertos ? 'com o suporte ou com você' : 'nenhum chamado em aberto', '',
+        'Seus chamados que ainda não foram encerrados: recebido, em atendimento ou aguardando você.') +
+    kpi('Aguardando você', String(k.aguardando_voce||0), k.aguardando_voce ? 'responda ou confirme a solução' : 'nada pendente do seu lado', k.aguardando_voce ? 'warn' : '',
+        'Chamados em que a próxima ação é sua: o suporte perguntou algo, ou marcou como resolvido e espera você confirmar.') +
+    kpi('Respostas novas', String(k.novas||0), k.novas ? 'desde a última vez que você abriu' : 'nada que você não tenha visto', k.novas ? 'warn' : '',
+        'Mensagens do suporte que você ainda não abriu. Zera quando você abre a conversa.') +
+    kpi('1ª resposta do suporte', med.mediana_h != null ? supHoras(med.mediana_h) : 'n/d',
+        med.n ? `mediana de ${med.n} chamados em 30 d · ${combinado}` : (combinado || 'sem chamado respondido em 30 d'), '',
+        'Mediana do tempo até a primeira resposta do suporte, sobre os chamados de todos os usuários abertos nos últimos 30 dias. O combinado é o prazo por gravidade (SLA).');
+  const rows = d.chamados || [], enc = (SUP.enc||{}).chamados || [];
+  document.getElementById('sup-meus').innerHTML = rows.length ? rows.map(c => `<tr ${supLinhaAttrs(c.id,'meu')}>
+      <td class="mono">${esc(c.codigo)}</td><td>${c.novas_usuario ? '<b>' : ''}${esc(c.titulo)}${c.novas_usuario ? '</b>' : ''}</td><td>${supTela(c)}</td><td>${supChip(c.status,true)}</td>
+      <td>${supBola(c,true)}</td><td class="num">${supDH(c.atualizado_em)}</td>
+      <td class="num">${c.novas_usuario ? `<span class="sup-badge">${c.novas_usuario}</span>` : ''}</td></tr>`).join('')
+    : '<tr><td colspan="7" class="sup-vazio">Nenhum chamado em aberto. Achou algo errado ou tem uma ideia? Use o botão Reportar ou “+ Abrir chamado”.</td></tr>';
+  document.getElementById('sup-enc').innerHTML = enc.length ? enc.map(c => `<tr ${supLinhaAttrs(c.id,'meu')}>
+      <td class="mono">${esc(c.codigo)}</td><td>${esc(c.titulo)}</td><td>${supTela(c)}</td><td class="num">${supDH(c.status_em)}</td>
+      <td>${c.avaliacao ? '★'.repeat(c.avaliacao)+'☆'.repeat(5-c.avaliacao) : '<span class="sup-nd">sem avaliação</span>'}</td></tr>`).join('')
+    : '<tr><td colspan="5" class="sup-vazio">Nenhum chamado encerrado ainda.</td></tr>';
+  document.getElementById('hintSupMeus').textContent = rows.length ? `${rows.length} em aberto · clique para abrir a conversa` : '';
+  document.getElementById('hintSupEnc').textContent = enc.length ? `${enc.length} encerrado(s)` : '';
+  abaContador('supNMeus', rows.length); abaContador('supNEnc', enc.length);
+}
+
+/* ---------- a conversa (o mesmo modal para os dois lados) ---------- */
+function supBase(){ return SUP.modo==='meu' ? '/api/suporte/meus/chamados/' : '/api/suporte/atendimento/chamados/'; }
+async function supAbrir(id, modo){
+  SUP.modo = modo || SUP.modo; SUP.anexos = []; REP.anexos = SUP.anexos; SUP.enviando = false; SUP.nota = 0;
+  abrirModal('<h3>Chamado</h3><div class="rep-aviso">Carregando…</div>');
+  document.getElementById('modalBox').classList.add('larga');
+  const ok = await supRecarregarAtual(id);
+  if(!ok) return;
+  // abrir É ler: o servidor zera as "novas" deste lado e o sino acompanha
+  fetch(supBase()+id+'/lido',{method:'POST'}).then(()=>{
+    if(SUP.modo==='meu') supMeusCarregar(true); else supPainelCarregar(true);
+    if(typeof sinoCarregar==='function') sinoCarregar();
+  }).catch(()=>{});
+}
+function supModalErro(msg){
+  document.getElementById('modalBox').innerHTML = `<h3>Chamado</h3><div class="m-err">${esc(msg||'Não foi possível abrir o chamado.')}</div>
+    <div class="m-foot"><button class="ghost" onclick="fecharModal()">Fechar</button></div>`;
+}
+async function supRecarregarAtual(id){
+  id = id || (SUP.atual||{}).id;
+  try{
+    const r = await fetch(supBase()+id,{cache:'no-store'});
+    const d = await respostaJSON(r);
+    if(!d.ok){ supModalErro((d.dados||{}).mensagem); return false; }
+    SUP.atual = d.dados; supModalRender(); return true;
+  }catch(e){ supModalErro(e.message || 'Não foi possível falar com a API.'); return false; }
+}
+function supModalRender(){
+  const c = SUP.atual, meu = SUP.modo==='meu', box = document.getElementById('modalBox');
+  const ctx = c.contexto || {};
+  const anexoUrl = a => supBase()+c.id+'/anexos/'+a.id;
+  const anexosHtml = lista => lista.length ? `<div class="sup-anexos">${lista.map(a =>
+      `<a href="${anexoUrl(a)}" target="_blank" rel="noopener" title="${esc(a.mime||'')}">${esc(a.nome)} <small>${repBytes(a.tamanho||0)}</small></a>`).join('')}</div>` : '';
+  const doRelato = (c.anexos||[]).filter(a => !a.mensagem_id);
+  const msgs = c.mensagens_lista || [];
+  const bolhas = msgs.map(m => {
+    if(m.papel==='sistema') return `<div class="sup-msg sis"><span>${esc(m.texto)}</span><time>${supDH(m.criado_em)}</time></div>`;
+    const eu = meu ? m.papel==='usuario' : m.papel==='suporte';
+    const quem = m.autor_nome || (m.papel==='suporte' ? 'Suporte' : (c.usuario_nome || 'Usuário'));
+    const anx = (c.anexos||[]).filter(a => a.mensagem_id===m.id);
+    return `<div class="sup-msg ${eu?'eu':'ele'}${m.interna?' int':''}">
+      <div class="quem">${esc(quem)}${m.papel==='suporte' && meu ? ' · suporte' : ''}${m.interna ? ' · <b>nota interna</b>' : ''}${m.origem==='github' ? ' · via GitHub' : ''}</div>
+      <div class="txt">${esc(m.texto)}</div>${anexosHtml(anx)}<time>${supDH(m.criado_em)}</time></div>`;
+  }).join('');
+  const bola = c.esperando==='usuario' ? (meu ? 'você' : 'usuário') : c.esperando==='suporte' ? 'suporte' : 'encerrado';
+  const cab = [['Tipo', SUP_TIPO[c.tipo]||c.tipo], ['Gravidade', SUP_GRAV[c.gravidade]||c.gravidade],
+               ['Tela', VIEWS[c.tela]||c.tela||'—'], ['Aberto em', supDH(c.criado_em)],
+               ['Com quem', bola], ['Atende', c.atribuido_nome || 'ninguém ainda']];
+  if(!meu) cab.splice(3, 0, ['Quem abriu', c.usuario_nome||'—']);
+  if(c.horas_sem_resposta != null) cab.push(['Sem resposta há', supHoras(c.horas_sem_resposta)+(c.sla_estourado ? ' · fora do SLA de '+c.sla_horas+' h' : ' · SLA '+c.sla_horas+' h')]);
+  if(c.motivo_fechamento) cab.push(['Motivo', SUP_MOTIVO[c.motivo_fechamento]||c.motivo_fechamento]);
+  if(c.avaliacao) cab.push(['Avaliação', '★'.repeat(c.avaliacao)+'☆'.repeat(5-c.avaliacao)]);
+  const relato = `<details class="sup-relato"${msgs.length <= 2 ? ' open' : ''}><summary>Relato original${doRelato.length ? ` · ${doRelato.length} anexo(s)` : ''}</summary>
+      <div class="txt">${esc(c.descricao||'')}</div>${anexosHtml(doRelato)}
+      <div class="rep-aviso">Tela ${esc(ctx.tela_nome||c.tela||'—')}${ctx.filtros ? ' · filtros <code>'+esc(ctx.filtros)+'</code>' : ''}${ctx.versao ? ' · versão '+esc(ctx.versao) : ''}${(ctx.erros||[]).length ? ' · '+(ctx.erros||[]).length+' erro(s) de JavaScript' : ''}</div>
+    </details>`;
+  const github = meu ? '' : `<div class="sup-github">${c.github_url
+      ? `<a href="${esc(c.github_url)}" target="_blank" rel="noopener">GitHub #${c.github_numero}</a>`
+      : '<span class="sup-nd">sem espelho no GitHub</span>'}${c.github_erro ? ` <span class="sup-erro" title="${esc(c.github_erro)}">espelho com erro</span>` : ''}
+      <button type="button" class="ghost mini" onclick="supAcao('espelhar')">${c.github_url ? 'Reenviar pendências' : 'Espelhar no GitHub'}</button></div>`;
+  box.innerHTML = `<h3><span class="mono">${esc(c.codigo)}</span> ${esc(c.titulo)} ${supChip(c.status, meu)}</h3>
+    <div class="sup-cab">${cab.map(([k,v]) => `<div><small>${esc(k)}</small><span>${esc(v)}</span></div>`).join('')}</div>
+    ${relato}
+    <div class="sup-thread" id="sup-thread">${bolhas || '<div class="sup-vazio">Sem mensagens ainda.</div>'}</div>
+    ${supAcoesHtml(c, meu)}
+    ${github}
+    ${meu ? '' : supAvisosHtml(c)}
+    <div class="m-foot"><div class="m-err" id="m-err"></div><button class="ghost" onclick="fecharModal()">Fechar</button></div>`;
+  box.addEventListener('paste', repColar);
+  box.addEventListener('dragover', supDragover);
+  box.addEventListener('drop', repSoltar);
+  const th = document.getElementById('sup-thread'); if(th) th.scrollTop = th.scrollHeight;
+  repPintarLista();
+}
+function supDragover(e){ e.preventDefault(); }
+function supCompositor(meu, rotulo, placeholder){
+  return `<div class="sup-comp">
+      <label for="sup-texto">${esc(rotulo)}</label>
+      <textarea id="sup-texto" rows="3" placeholder="${esc(placeholder)}"></textarea>
+      <div class="rep-cap"><button type="button" class="ghost mini" onclick="document.getElementById('sup-file').click()">Anexar</button>
+        <input type="file" id="sup-file" multiple accept="${REP_EXT.map(e=>'.'+e).join(',')}" style="display:none" onchange="repArquivos(this.files);this.value=''">
+        ${meu ? '' : '<label class="sup-interna"><input type="checkbox" id="sup-interna"> nota interna (quem abriu não vê)</label>'}
+        <span class="rep-aviso">Ctrl+V cola um print.</span></div>
+      <div class="rep-arq" id="rep-arq"></div></div>`;
+}
+function supAcoesHtml(c, meu){
+  const st = c.status;
+  if(meu){
+    const canais = `<div class="sup-canais"><span>Avisar por</span>
+      <label><input type="checkbox" ${c.avisar_email ? 'checked' : ''} onchange="supAcao('canais',{email:this.checked})"> e-mail</label>
+      <label><input type="checkbox" ${c.avisar_whatsapp ? 'checked' : ''} onchange="supAcao('canais',{whatsapp:this.checked})"> WhatsApp</label>
+      <span class="rep-aviso">o sino avisa sempre</span></div>`;
+    if(st==='resolvido'){
+      return `<div class="sup-resolvido"><b>O suporte marcou como resolvido.</b> Resolveu para você?
+          <div class="sup-aval" id="sup-aval">${[1,2,3,4,5].map(n => `<button type="button" data-n="${n}" onclick="supNota(${n})" aria-label="${n} de 5">★</button>`).join('')}<small id="sup-aval-txt">avalie o atendimento (opcional)</small></div>
+          <div class="rep-cap"><button type="button" class="btn" onclick="supAcao('status',{status:'fechado', avaliacao:SUP.nota})">Sim, resolveu — encerrar</button>
+          <button type="button" class="ghost" onclick="supAcao('status',{status:'aberto', precisaTexto:'Conte o que ainda acontece para reabrir.'})">Não resolveu — reabrir</button></div></div>`
+        + supCompositor(true, 'Ainda acontece? Conte aqui', 'O que ainda acontece, ou o que faltou.') + canais;
+    }
+    if(st==='fechado'){
+      return supCompositor(true, 'Voltou a acontecer? Conte aqui e reabra', 'O que voltou a acontecer.')
+        + `<div class="rep-cap"><button type="button" class="btn" onclick="supAcao('status',{status:'aberto', precisaTexto:'Conte o que voltou a acontecer para reabrir.'})">Reabrir chamado</button></div>`;
+    }
+    return supCompositor(true, st==='aguardando_usuario' ? 'O suporte precisa de uma resposta sua' : 'Responder', 'Escreva a resposta ou mais detalhes.')
+      + `<div class="rep-cap"><button type="button" class="btn" id="sup-enviar" onclick="supAcao('responder')">Enviar</button>
+         <button type="button" class="ghost" onclick="supAcao('status',{status:'fechado'})" title="Encerra o chamado sem solução: você não precisa mais dele">Não preciso mais</button></div>` + canais;
+  }
+  // bancada
+  const atend = (SUP.painel||{}).atendentes || [];
+  const sel = `<select id="sup-atrib" aria-label="Atribuir a"><option value="">eu mesmo</option>${atend.map(a => `<option value="${a.id}"${a.id===c.atribuido_id ? ' selected' : ''}>${esc(a.nome)}</option>`).join('')}</select>`;
+  const motivos = `<select id="sup-motivo" aria-label="Motivo do encerramento"><option value="">motivo do encerramento…</option>${Object.entries(SUP_MOTIVO).map(([k,v]) => `<option value="${k}">${esc(v)}</option>`).join('')}</select>`;
+  if(st==='fechado'){
+    return supCompositor(false, 'Reabrir', 'Por que está reabrindo.')
+      + `<div class="rep-cap"><button type="button" class="btn" onclick="supAcao('status',{status:'aberto', precisaTexto:'Diga por que está reabrindo.'})">Reabrir</button></div>`;
+  }
+  return supCompositor(false, 'Responder ao usuário', 'A resposta vai para quem abriu (e-mail/WhatsApp conforme ele escolheu). Marque nota interna para anotar sem avisar.')
+    + `<div class="rep-cap sup-botoes">
+        <button type="button" class="btn" id="sup-enviar" onclick="supAcao('responder')">Responder</button>
+        ${st!=='resolvido' ? `<button type="button" class="ghost" onclick="supAcao('status',{status:'aguardando_usuario', precisaTexto:'Escreva a pergunta para o usuário.'})" title="Manda a pergunta e passa a bola para quem abriu">Perguntar ao usuário</button>
+        <button type="button" class="ghost" onclick="supAcao('status',{status:'resolvido', precisaTexto:'Diga o que foi feito — o usuário vai confirmar.'})" title="Marca como resolvido; o usuário confirma ou reabre">Resolver</button>` : ''}
+        <button type="button" class="ghost" onclick="supAcao('status',{status:'fechado', motivo:(document.getElementById('sup-motivo')||{}).value})" title="Encerra sem passar pela confirmação do usuário">Encerrar</button>${motivos}
+        <span class="sup-sep"></span>${sel}<button type="button" class="ghost" onclick="supAcao('assumir',{usuario_id:(document.getElementById('sup-atrib')||{}).value})">Atribuir</button>
+      </div>`;
+}
+function supAvisosHtml(c){
+  const av = c.avisos || [];
+  if(!av.length) return '<details class="sup-relato"><summary>Avisos</summary><div class="sup-vazio">Nenhum aviso tentado ainda.</div></details>';
+  return `<details class="sup-relato"><summary>Avisos · ${av.length}</summary><div class="tablewrap"><table><thead><tr>
+      <th class="num">Quando</th><th>Canal</th><th>Para</th><th>Evento</th><th>Destino</th><th>Resultado</th><th>Motivo</th></tr></thead><tbody>
+    ${av.map(a => `<tr><td class="num">${supDH(a.criado_em)}</td><td>${esc(SUP_CANAL[a.canal]||a.canal)}</td><td>${esc(a.lado)}</td><td>${esc(a.evento)}</td>
+      <td class="mono">${esc(a.destinatario||'—')}</td><td>${supResultado(a.resultado)}</td><td>${esc(a.detalhe||'')}</td></tr>`).join('')}
+    </tbody></table></div></details>`;
+}
+function supNota(n){
+  SUP.nota = n;
+  document.querySelectorAll('#sup-aval button').forEach(b => b.classList.toggle('on', Number(b.dataset.n) <= n));
+  const t = document.getElementById('sup-aval-txt'); if(t) t.textContent = ['', 'péssimo', 'ruim', 'ok', 'bom', 'excelente'][n] || '';
+}
+async function supAcao(acao, extra){
+  if(SUP.enviando) return;
+  extra = extra || {};
+  const c = SUP.atual, meu = SUP.modo==='meu', base = supBase()+c.id;
+  const ta = document.getElementById('sup-texto'); const texto = ta ? (ta.value||'').trim() : '';
+  let url, body = {};
+  if(acao==='responder'){
+    if(!texto){ mErro('Escreva a mensagem.'); if(ta) ta.focus(); return; }
+    url = base+'/mensagens'; body = {texto:texto, anexos:SUP.anexos.map(a => ({nome:a.nome, b64:a.b64}))};
+    if(!meu) body.interna = !!((document.getElementById('sup-interna')||{}).checked);
+  } else if(acao==='status'){
+    if(extra.precisaTexto && !texto){ mErro(extra.precisaTexto); if(ta) ta.focus(); return; }
+    url = base+'/status'; body = {status:extra.status, texto:texto};
+    if(extra.avaliacao) body.avaliacao = extra.avaliacao;
+    if(extra.motivo) body.motivo = extra.motivo;
+  } else if(acao==='assumir'){
+    url = base+'/assumir'; body = {}; if(Number(extra.usuario_id)) body.usuario_id = Number(extra.usuario_id);
+  } else if(acao==='espelhar'){ url = base+'/espelhar'; body = {}; }
+  else if(acao==='canais'){ url = base+'/canais'; body = extra; }
+  else return;
+  mErro(''); SUP.enviando = true;
+  const btn = document.getElementById('sup-enviar'); if(btn) btn.disabled = true;
+  try{
+    const r = await fetch(url,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});
+    const d = await respostaJSON(r);
+    if(!d.ok){
+      const msg = (d.dados||{}).mensagem || 'Não foi possível concluir.';
+      if(acao==='canais') supModalRender();      // devolve a caixinha ao estado gravado
+      mErro(msg); return;
+    }
+    if(acao==='responder' && ta) ta.value = '';
+    SUP.anexos.length = 0;
+    await supRecarregarAtual();
+    if(meu) supMeusCarregar(true); else supPainelCarregar(true);
+  }catch(e){ mErro(e.message || 'Não foi possível falar com a API.'); }
+  finally{ SUP.enviando = false; const b = document.getElementById('sup-enviar'); if(b) b.disabled = false; }
+}
+
+/* ---------- tela `supfila`: a bancada ---------- */
+async function loadSupfila(){
+  const alvo = supAlvoDaUrl('supfila');
+  const ok = await supPainelCarregar(false);
+  if(ok && alvo) supAbrir(alvo, 'atend');
+}
+async function supPainelCarregar(silencioso){
+  try{
+    const [r1, r2] = await Promise.all([
+      fetch('/api/suporte/atendimento/painel',{cache:'no-store'}),
+      fetch('/api/suporte/atendimento/indicadores?dias=84',{cache:'no-store'})]);
+    const p = await respostaJSON(r1), i = await respostaJSON(r2);
+    if(!p.ok){ if(!silencioso) supFalha('kpis-supfila', (p.dados||{}).mensagem); return false; }
+    SUP.painel = p.dados; SUP.ind = i.ok ? i.dados : null;
+    if(!document.getElementById('kpis-supfila')) return true;
+    supFilaKpis(); supFilaFiltros(); supFilaRender(); supAcaoRender(); supSemanas();
+    const abaTodos = document.getElementById('aba-supfila-todos'); if(abaTodos && !abaTodos.hidden) supTodosCarregar();
+    const abaAv = document.getElementById('aba-supfila-avisos'); if(abaAv && !abaAv.hidden) supAvisosCarregar();
+    return true;
+  }catch(e){ if(!silencioso) supFalha('kpis-supfila', e.message || 'Não foi possível falar com a API.'); return false; }
+}
+function supFilaKpis(){
+  const k = (SUP.painel||{}).kpis || {}, med = k.primeira_resposta || {};
+  const aval = k.avaliacao_media != null ? `avaliação ${Number(k.avaliacao_media).toLocaleString('pt-BR',{maximumFractionDigits:1})} ★ em ${k.avaliacoes} (30 d)` : 'sem avaliação em 30 d';
+  document.getElementById('kpis-supfila').innerHTML =
+    kpi('Em aberto', String(k.abertos||0), `${k.com_suporte||0} com o suporte · ${k.aguardando_usuario||0} com o usuário · ${k.resolvidos_a_confirmar||0} a confirmar`, '',
+        'Chamados não encerrados, separados por quem tem a próxima ação. Calculado agora, do estado gravado.') +
+    kpi('Fora do SLA', String(k.sla_estourados||0), k.sla_estourados ? 'sem resposta além do combinado' : 'todos dentro do prazo', k.sla_estourados ? 'warn' : '',
+        'Chamados com o suporte cujo tempo sem resposta passou do SLA da gravidade (aba Configuração). Zera assim que alguém responde.') +
+    kpi('Sem atendente', String(k.sem_atendente||0), k.sem_atendente ? 'ninguém assumiu ainda' : 'todos têm dono', k.sem_atendente ? 'warn' : '',
+        'Chamados com o suporte que ninguém assumiu. Responder assume automaticamente.') +
+    kpi('1ª resposta', med.mediana_h != null ? supHoras(med.mediana_h) : 'n/d', med.n ? `mediana de ${med.n} em 30 d · p90 ${supHoras(med.p90_h)} · ${aval}` : aval, '',
+        'Mediana (e p90) do tempo até a primeira resposta do suporte nos chamados abertos nos últimos 30 dias, e a avaliação média dada por quem abriu.');
+}
+function supFilaFiltros(){
+  const p = SUP.painel || {};
+  const st = document.getElementById('fSupStatus'), at = document.getElementById('fSupAtende');
+  if(st && st.options.length <= 1) st.innerHTML = '<option value="">Todos os abertos</option>'
+    + (p.status||[]).filter(s => s.valor!=='fechado').map(s => `<option value="${esc(s.valor)}">${esc(s.rotulo)}</option>`).join('');
+  if(at && at.options.length <= 2) at.innerHTML = '<option value="">Qualquer atendente</option><option value="-">Sem atendente</option>'
+    + (p.atendentes||[]).map(a => `<option value="${a.id}">${esc(a.nome)}</option>`).join('');
+}
+function supFilaRender(){
+  const p = SUP.painel || {}, tudo = ((p.fila||{}).chamados) || [];
+  const V = id => (document.getElementById(id)||{}).value || '';
+  const fs = V('fSupStatus'), fg = V('fSupGrav'), fa = V('fSupAtende'), fb = V('fSupBusca').trim().toLowerCase();
+  const rows = tudo.filter(c => (!fs || c.status===fs) && (!fg || c.gravidade===fg)
+      && (!fa || (fa==='-' ? !c.atribuido_id : String(c.atribuido_id)===fa))
+      && (!fb || [c.codigo, c.titulo, c.usuario_nome].join(' ').toLowerCase().includes(fb)));
+  document.getElementById('supfila-fila').innerHTML = rows.length ? rows.map(c => `<tr ${supLinhaAttrs(c.id,'atend')}>
+      <td class="mono">${esc(c.codigo)}</td><td>${supGravChip(c.gravidade)}</td><td>${c.novas_suporte ? '<b>' : ''}${esc(c.titulo)}${c.novas_suporte ? '</b>' : ''}</td>
+      <td>${esc(c.usuario_nome||'—')}</td><td>${supTela(c)}</td><td>${supChip(c.status,false)}</td><td>${supBola(c,false)}</td>
+      <td class="num${c.sla_estourado ? ' sup-estourado' : ''}">${c.horas_sem_resposta != null ? supHoras(c.horas_sem_resposta) : '—'}</td>
+      <td>${esc(c.atribuido_nome||'—')}</td>
+      <td>${c.github_url ? `<a href="${esc(c.github_url)}" target="_blank" rel="noopener" onclick="event.stopPropagation()">#${c.github_numero}</a>` : ''}${c.github_erro ? ` <span class="sup-erro" title="${esc(c.github_erro)}">erro</span>` : (c.github_url ? '' : '<span class="sup-nd">—</span>')}</td>
+      <td class="num">${c.novas_suporte ? `<span class="sup-badge">${c.novas_suporte}</span>` : ''}</td></tr>`).join('')
+    : `<tr><td colspan="11" class="sup-vazio">${tudo.length ? 'Nenhum chamado com esses filtros.' : 'Fila vazia — nenhum chamado em aberto.'}</td></tr>`;
+  document.getElementById('hintSupFila').textContent = `${rows.length} de ${tudo.length} em aberto · ${(p.fila||{}).total||0} no total`;
+  abaContador('supfilaNFila', tudo.length);
+}
+function supAcaoRender(){
+  const p = SUP.painel || {}, rows = ((p.fila||{}).chamados) || [], out = [];
+  rows.forEach(c => {
+    if(c.github_erro) out.push({m:'espelho do GitHub com erro', c:c, h:c.status_ha_h});
+    if(c.esperando==='suporte' && !c.atribuido_id) out.push({m:'sem atendente', c:c, h:c.horas_sem_resposta});
+    if(c.sla_estourado) out.push({m:`fora do SLA (${supHoras(c.horas_sem_resposta)} > ${c.sla_horas} h)`, c:c, h:c.horas_sem_resposta});
+    if(c.status==='aguardando_usuario' && c.status_ha_h > 7*24) out.push({m:'usuário sem responder há mais de 7 dias', c:c, h:c.status_ha_h});
+    if(c.status==='resolvido' && c.status_ha_h > 7*24) out.push({m:'resolvido sem confirmação há mais de 7 dias', c:c, h:c.status_ha_h});
+  });
+  out.sort((a,b) => (b.h||0)-(a.h||0));
+  document.getElementById('supfila-acao').innerHTML = out.length ? out.map(x => `<tr ${supLinhaAttrs(x.c.id,'atend')}>
+      <td>${esc(x.m)}</td><td class="mono">${esc(x.c.codigo)}</td><td>${esc(x.c.titulo)}</td><td>${esc(x.c.usuario_nome||'—')}</td><td class="num">${supHoras(x.h)}</td></tr>`).join('')
+    : '<tr><td colspan="5" class="sup-vazio">Nada exige ação agora.</td></tr>';
+  document.getElementById('hintSupAcao').textContent = out.length ? `${out.length} pendência(s)` : '';
+}
+function supSemanas(){
+  const ind = SUP.ind, sem = (ind||{}).semanas || [];
+  if(!sem.length){ ecDesenhar('chartSupSemanas', null, 'nenhum chamado no período'); return; }
+  const rot = sem.map(s => { const p = s.semana.split('-'); return p[2]+'/'+p[1]; });
+  const max = Math.max(1, ...sem.map(s => Math.max(s.abertos, s.resolvidos)));
+  const parcial = sem.map(s => !!s.parcial);
+  ecDesenhar('chartSupSemanas', () => {
+    const o = ecOpcoes(rot, max, {left:40, bottom:36, sombra:true});
+    o.series.push(ecBarras('Abertos', sem.map(s => s.abertos), CC.navy500, {largura:18, parcial:parcial}),
+                  ecBarras('Resolvidos', sem.map(s => s.resolvidos), CC.verde, {largura:18, parcial:parcial}));
+    return o;
+  });
+  document.getElementById('hintSupSemanas').textContent = `${sem.length} semanas · corrente parcial · ${ind.total} chamado(s) em ${ind.dias} d`;
+}
+async function supTodosCarregar(){
+  const hint = document.getElementById('hintSupTodos');
+  try{
+    const r = await fetch('/api/suporte/atendimento/chamados?fechados=1',{cache:'no-store'}); const d = await respostaJSON(r);
+    if(!d.ok){ hint.textContent = (d.dados||{}).mensagem || 'falha'; return; }
+    SUP.todos = (d.dados.chamados || []).slice().sort((a,b) => String(b.criado_em).localeCompare(String(a.criado_em)));
+    document.getElementById('supfila-todos').innerHTML = SUP.todos.length ? SUP.todos.map(c => `<tr ${supLinhaAttrs(c.id,'atend')}>
+        <td class="mono">${esc(c.codigo)}</td><td>${esc(SUP_TIPO[c.tipo]||c.tipo)}</td><td>${supGravChip(c.gravidade)}</td><td>${esc(c.titulo)}</td><td>${esc(c.usuario_nome||'—')}</td><td>${supTela(c)}</td>
+        <td>${supChip(c.status,false)}</td><td>${esc(c.atribuido_nome||'—')}</td><td class="num">${supDH(c.criado_em)}</td><td>${c.avaliacao ? c.avaliacao+' ★' : '<span class="sup-nd">—</span>'}</td></tr>`).join('')
+      : '<tr><td colspan="10" class="sup-vazio">Nenhum chamado registrado.</td></tr>';
+    hint.textContent = `${SUP.todos.length} de ${d.dados.total || SUP.todos.length}`;
+    abaContador('supfilaNTodos', d.dados.total || SUP.todos.length);
+  }catch(e){ hint.textContent = e.message; }
+}
+function supExportar(){
+  const rows = SUP.todos || [];
+  if(!rows.length) return;
+  baixarCSV('suporte-chamados', ['Nº','Tipo','Gravidade','Assunto','Quem','Tela','Status','Atendente','Aberto em','Avaliação'],
+    rows.map(c => [c.codigo, SUP_TIPO[c.tipo]||c.tipo, SUP_GRAV[c.gravidade]||c.gravidade, c.titulo, c.usuario_nome||'',
+                   VIEWS[c.tela]||c.tela||'', SUP_STATUS[c.status]||c.status, c.atribuido_nome||'', supDH(c.criado_em), c.avaliacao||'']));
+}
+async function supAvisosCarregar(){
+  const hint = document.getElementById('hintSupAvisos');
+  try{
+    const r = await fetch('/api/suporte/atendimento/avisos',{cache:'no-store'}); const d = await respostaJSON(r);
+    if(!d.ok){ hint.textContent = (d.dados||{}).mensagem || 'falha'; return; }
+    const rows = d.dados || [];
+    document.getElementById('supfila-avisos').innerHTML = rows.length ? rows.map(a => `<tr ${supLinhaAttrs(a.chamado_id,'atend')}>
+        <td class="num">${supDH(a.criado_em)}</td><td class="mono">${esc(a.codigo)}</td><td>${esc(SUP_CANAL[a.canal]||a.canal)}</td><td>${esc(a.lado)}</td><td>${esc(a.evento)}</td>
+        <td class="mono">${esc(a.destinatario||'—')}</td><td>${supResultado(a.resultado)}</td>
+        <td>${esc(a.detalhe||'')}${a.resultado==='adiado' && a.tentar_apos ? ' · sai '+supDH(a.tentar_apos) : ''}</td></tr>`).join('')
+      : '<tr><td colspan="8" class="sup-vazio">Nenhum aviso tentado ainda.</td></tr>';
+    const n = rows.filter(a => a.resultado==='recusado').length;
+    hint.textContent = `${rows.length} último(s) · ${n} recusado(s)`;
+    abaContador('supfilaNAvisos', n);
+  }catch(e){ hint.textContent = e.message; }
+}
+async function supSincronizar(){
+  const b = document.getElementById('btnSupSync'); if(!b || b.disabled) return;
+  b.disabled = true; const t = b.textContent; b.textContent = 'Sincronizando…';
+  try{
+    const r = await fetch('/api/suporte/atendimento/github/sincronizar',{method:'POST'}); const d = await respostaJSON(r);
+    const s = d.dados || {};
+    b.textContent = d.ok ? (s.pulou ? 'GitHub desligado' : `✓ ${s.importados||0} comentário(s) · ${s.estados||0} estado(s) · ${s.adiados||0} aviso(s)`) : (s.mensagem || 'falhou');
+    if(d.ok) await supPainelCarregar(true);
+  }catch(e){ b.textContent = 'falhou'; }
+  setTimeout(() => { b.textContent = t; b.disabled = false; }, 4000);
+}
+async function supConfigCarregar(){
+  const f = document.getElementById('sup-config-form'); if(!f) return;
+  try{
+    const r = await fetch('/api/suporte/atendimento/config',{cache:'no-store'}); const d = await respostaJSON(r);
+    if(!d.ok){ f.innerHTML = `<div class="m-err">${esc((d.dados||{}).mensagem||'Não foi possível ler a configuração.')}</div>`; return; }
+    const x = d.dados, c = x.config || {}, p = x.padrao || {}, ro = x.admin ? '' : ' disabled';
+    const campo = (k, rot, ajuda, tipo) => `<div><label for="supc-${k}">${esc(rot)}</label><input type="${tipo||'text'}" id="supc-${k}" data-chave="${k}" value="${esc(c[k]||'')}" placeholder="padrão: ${esc(p[k]||'—')}"${ro}>${ajuda ? `<small class="rep-aviso">${esc(ajuda)}</small>` : ''}</div>`;
+    const check = (k, rot, ajuda) => `<div><label class="sup-interna"><input type="checkbox" id="supc-${k}" data-chave="${k}"${String(c[k])==='1' ? ' checked' : ''}${ro}> ${esc(rot)}</label><small class="rep-aviso">${esc(ajuda)}</small></div>`;
+    const gh = x.github || {}, zap = x.whatsapp || {};
+    f.innerHTML = `<div class="sup-estado">
+        <span>${gh.configurado ? 'GitHub: '+esc(gh.repo||'configurado') : 'GitHub: sem token/repositório — o espelho fica desligado'}</span>
+        <span>${x.email_configurado ? 'E-mail: configurado' : 'E-mail: não configurado (Gestão › E-mail)'}</span>
+        <span>${zap.pronto ? 'WhatsApp: pronto' : 'WhatsApp: '+esc(zap.motivo||'não configurado')}</span></div>`
+      + campo('email_equipe', 'E-mail do time de suporte', 'Recebe chamado novo, resposta do usuário e avaliação baixa. Vários endereços separados por vírgula. Vazio = ninguém.')
+      + check('avisar_equipe_email', 'Avisar o time por e-mail', 'Desligado, só o sino e o push avisam quem atende.')
+      + `<div class="sup-grade3">${campo('sla_horas_alta','SLA alta (h)','Horas até a primeira resposta.','number')}${campo('sla_horas_media','SLA média (h)','','number')}${campo('sla_horas_baixa','SLA baixa (h)','','number')}</div>`
+      + campo('modelo_zap', 'Modelo de WhatsApp', 'Chave do modelo em Gestão › WhatsApp (contexto suporte).')
+      + campo('instancia_zap', 'Instância do WhatsApp', 'Vazio = a instância padrão.')
+      + check('github_espelho', 'Espelhar no GitHub', 'Cria a issue no repositório privado e importa os comentários de lá.')
+      + campo('github_ttl_min', 'Sincronizar o GitHub a cada (min)', 'Ao abrir a fila, lê o GitHub se passou esse tempo desde a última leitura.', 'number')
+      + `<div class="m-foot"><div class="m-err" id="sup-config-err"></div>${x.admin ? '<button type="button" class="btn" id="sup-config-salvar" onclick="supConfigSalvar()">Salvar</button>' : '<span class="rep-aviso">Só administrador altera.</span>'}</div>`;
+    document.getElementById('hintSupConfig').textContent = x.admin ? 'vazio volta ao padrão' : 'somente leitura';
+  }catch(e){ f.innerHTML = `<div class="m-err">${esc(e.message)}</div>`; }
+}
+async function supConfigSalvar(){
+  const f = document.getElementById('sup-config-form'), err = document.getElementById('sup-config-err'), btn = document.getElementById('sup-config-salvar');
+  const body = {};
+  f.querySelectorAll('[data-chave]').forEach(el => { body[el.dataset.chave] = el.type==='checkbox' ? (el.checked ? '1' : '0') : (el.value||'').trim(); });
+  btn.disabled = true; err.textContent = '';
+  try{
+    const r = await fetch('/api/suporte/atendimento/config',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});
+    const d = await respostaJSON(r);
+    if(!d.ok){ err.textContent = (d.dados||{}).mensagem || 'Não foi possível salvar.'; return; }
+    const t = btn.textContent; btn.textContent = '✓ Salvo'; setTimeout(() => { btn.textContent = t; }, 2000);
+    supPainelCarregar(true);
+  }catch(e){ err.textContent = e.message; }
+  finally{ btn.disabled = false; }
 }
 
 boot();
@@ -33901,6 +34553,8 @@ boot();
       <button class="dgrp-h" onclick="toggleDGrp(this)"><span>Administração</span><span class="dchev">›</span></button>
       <div class="dgrp-b">
         <a href="#srv" onclick="fecharDrawer()"><span class="ic" data-ic="srv"></span>Saúde do Servidor</a>
+        <a href="#sup" onclick="fecharDrawer()"><span class="ic" data-ic="supic"></span>Suporte</a>
+        <a href="#supfila" onclick="fecharDrawer()"><span class="ic" data-ic="supfila"></span>Suporte — Atendimento</a>
         <a href="#gestao" onclick="fecharDrawer()"><span class="ic" data-ic="ges"></span>Usuários e acesso</a>
       </div>
     </div>
@@ -33919,7 +34573,7 @@ boot();
   </div>
 </div>
 <!-- Botão de report. Nasce escondido: `repIniciar()` só o revela quando
-     /api/report/config responde ativo E existe sessão. -->
+     /api/suporte/meus/config responde E existe sessão. -->
 <button id="btnReport" onclick="abrirReport()" hidden
         title="Reportar um problema ou sugerir uma melhoria"
         aria-label="Reportar um problema ou sugerir uma melhoria">

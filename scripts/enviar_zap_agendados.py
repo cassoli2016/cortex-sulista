@@ -73,5 +73,19 @@ def main() -> int:
     return 2 if falhas else 0
 
 
+def _avisos_de_suporte() -> None:
+    """Segunda ação da mesma passagem: WhatsApp de suporte que ficou fora da
+    janela sai agora. Falha aqui não derruba a agenda — é registrada."""
+    try:
+        from api.suporte import avisos
+        n = len(avisos.despachar_adiados())
+        if n:
+            print(f"suporte: {n} aviso(s) adiado(s) despachado(s)")
+    except Exception as exc:  # noqa: BLE001
+        print(f"suporte: passagem de avisos falhou ({type(exc).__name__})")
+
+
 if __name__ == "__main__":
+    if "--ensaio" not in sys.argv:
+        _avisos_de_suporte()
     raise SystemExit(main())

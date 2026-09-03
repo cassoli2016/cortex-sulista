@@ -88,6 +88,7 @@ _FONTES_ROTULO = {
     "ordens_compra": "Ordens de Compra",
     "precos_pecas": "Preço de Peças",
     "compras_da_os": "Manutenção — Compras da OS",
+    "suporte": "Suporte — chamados",
     "financeiro_caixa": "Fluxo de Caixa e Bancos",
     "analise_km_ano": "Análise de KM",
     "agregados_terceiros_ano": "Agregados e Terceiros",
@@ -471,6 +472,8 @@ def _fontes_do_snapshot() -> dict:
         # e recompra precoce — escalares, sem placa nem número de OS
         "compras_da_os": lambda: __import__(
             "api.manutencao_compras", fromlist=["snapshot_copiloto"]).snapshot_copiloto(),
+        # Suporte: só escalares do banco local (nada de título, nome, e-mail)
+        "suporte": lambda: __import__("api.suporte.chamados", fromlist=["resumo"]).resumo(),
         "faturamento_detalhado": _faturamento_detalhado,
         "financeiro_caixa": lambda: queries.get_overview(),
         "analise_km_ano": lambda: queries.get_analise_km(None, ini_ano, fim),

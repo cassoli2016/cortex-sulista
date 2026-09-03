@@ -438,6 +438,45 @@ glossario:
     aprovação e a nota (mediana de 1 dia em material e 3 em serviço). A ação
     sugerida gradua: até 30 dias, cobrar; acima de 30 ou prazo vencido, validar
     com o fornecedor; acima de 90, candidata a suspensão.
+- termo: Chamado (Suporte)
+  definicao: >-
+    O que o botão Reportar abre: um registro no banco do CÓRTEX (sup_chamados)
+    com número SUP-AAAA-NNNN, tipo (bug, melhoria, dúvida), gravidade, a tela
+    e os filtros de onde foi aberto, anexos e uma conversa. O status é uma
+    DECISÃO gravada (recebido, em atendimento, aguardando você, resolvido,
+    encerrado); com quem está a bola, o tempo sem resposta e as mensagens
+    novas são calculados na hora da leitura, nunca gravados — por isso não
+    envelhecem quando ninguém mexe.
+- termo: Com quem está a bola (Suporte)
+  definicao: >-
+    De quem é a próxima ação no chamado. Recebido e em atendimento estão com
+    o suporte; aguardando você e resolvido estão com quem abriu (responder a
+    pergunta, ou confirmar que resolveu). Uma resposta de quem abriu devolve
+    a bola ao suporte sozinha; uma resposta do suporte em chamado recebido
+    assume o chamado.
+- termo: SLA de primeira resposta (Suporte)
+  definicao: >-
+    Prazo, em horas, até a primeira resposta do suporte, por gravidade —
+    padrão 8 h (alta), 48 h (média) e 120 h (baixa), editável em Suporte —
+    Atendimento › Configuração. "Fora do SLA" é calculado a cada leitura sobre
+    a última fala de quem abriu sem resposta depois; zera assim que alguém
+    responde. A mediana e o p90 dos últimos 30 dias aparecem nos KPIs.
+- termo: Aviso com três respostas (Suporte)
+  definicao: >-
+    Cada tentativa de avisar alguém (e-mail, WhatsApp, push, espelho no
+    GitHub) deixa UMA de três respostas na trilha: enviado; calado porque não
+    havia canal (canal desmarcado, sem telefone, e-mail não configurado, a
+    pessoa já leu); ou recusado pelo canal com o motivo (freio diário do
+    WhatsApp, modelo desligado, erro). Fora da janela do WhatsApp fica
+    "adiado" e sai na próxima passagem. Destinatário sempre mascarado.
+- termo: Espelho no GitHub (Suporte)
+  definicao: >-
+    Opcional: cada chamado vira uma issue no repositório PRIVADO de reports
+    (com os anexos), cada resposta um comentário marcado, e o que alguém
+    escreve ou fecha lá volta para a conversa ao abrir a bancada (a cada 5
+    minutos, no máximo). Sem token nada quebra — o chamado vive no banco da
+    casa; o espelho é só um segundo lugar de trabalho para quem desenvolve.
+
 grupos:
 - nome: Visão geral
   resumo: 'A leitura do dia — caixa, faturamento contra a meta e o que exige ação agora. O Copiloto responde
@@ -582,8 +621,13 @@ grupos:
   - gesacao
   - gesata
 - nome: Administração
-  resumo: Usuários, perfis e permissões por tela, saúde da máquina onde a API roda, e esta documentação.
+  resumo: Usuários, perfis e permissões por tela, saúde da máquina onde a API roda, o Suporte (os
+    chamados abertos pelo botão Reportar — a conversa com quem atende, avisos por e-mail e WhatsApp — e a
+    bancada de atendimento com fila, SLA e espelho no GitHub) e esta documentação. A tela Suporte é de todo
+    usuário logado; a bancada, de quem tem a tela no perfil.
   telas:
   - gestao
   - srv
+  - sup
+  - supfila
   - doc

@@ -28,6 +28,7 @@ forma para as próximas.
 from __future__ import annotations
 
 import logging
+import re
 
 from api import pglocal
 
@@ -105,6 +106,14 @@ def listar(sessao: dict, esquema: str | None = None) -> dict:
         return {"itens": [], "nao_lidas": 0, "erro": True}
 
     itens = []
+    # Suporte: itens DERIVADOS do estado do chamado (somem ao abrir a conversa).
+    # Falha lá não pode derrubar o sino, que segura a barra de topo inteira.
+    try:
+        from .suporte import avisos as _sup
+        itens += [i for i in _sup.notificacoes(sessao, _esq(esquema))
+                  if not i["chave"].startswith("sup_fila:") or i["chave"] not in lidas]
+    except Exception as exc:  # noqa: BLE001
+        log.warning("notificacoes suporte: %s", type(exc).__name__)
     if "boas_vindas" not in lidas:
         itens.append(_boas_vindas(sessao))
     return {"itens": itens, "nao_lidas": len(itens)}
@@ -117,7 +126,13 @@ def marcar_lida(usuario_id: int, chave: str,
     `ON CONFLICT DO NOTHING` sobre o UNIQUE (usuario_id, chave): dois cliques
     no botão não criam duas linhas, e a rota não precisa saber disso.
     """
-    if chave not in CHAVES:
+    # `sup:<id>` é a marca de leitura do chamado (não grava em not_lidas: duas
+    # verdades sobre "lido"); `sup_fila:<n>` é dispensável como as demais.
+    m = re.match(r"^sup:(\d+)$", chave)
+    if m:
+        from .suporte import chamados as _ch
+        return _ch.marcar_lido(int(m.group(1)), "usuario", usuario_id, _esq(esquema))
+    if chave not in CHAVES and not re.match(r"^sup_fila:\d+$", chave):
         return False
     pglocal.executar(
         "INSERT INTO not_lidas (usuario_id, chave) VALUES (%s, %s) "

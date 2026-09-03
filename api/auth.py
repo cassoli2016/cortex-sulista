@@ -121,6 +121,7 @@ TELAS: dict[str, tuple[str, str]] = {  # chave -> (rótulo, grupo do menu)
     "gesacao": ("Planos de Ação", "Gestão"),
     "gesata":  ("Atas de Reunião", "Gestão"),
     "doc":     ("Documentação", "Administração"),
+    "supfila": ("Suporte — Atendimento", "Administração"),
 }
 
 # Rota (prefixo) -> telas que a consomem. Prefixos mais específicos primeiro.
@@ -211,6 +212,7 @@ ROTA_TELAS: list[tuple[str, frozenset[str]]] = [
     ("/api/visao-geral",              frozenset({"home", "tvfat", "tvope", "tvdir"})),
     ("/api/faturamento/detalhado",    frozenset({"fat"})),
     ("/api/alertas",                  frozenset({"home"})),
+    ("/api/suporte/atendimento",     frozenset({"supfila"})),
     ("/api/frota/compras-os",        frozenset({"man"})),
     ("/api/suprimentos/precos-pecas", frozenset({"pecas"})),
     ("/api/suprimentos/custos",       frozenset({"custos"})),
@@ -278,7 +280,7 @@ _ROTAS_AUTOSERVICO = ("/api/auth/me", "/api/auth/logout", "/api/auth/trocar-senh
 # PRÓPRIA foto: a lista de usuários e a auditoria mostram a foto de outras
 # pessoas, então o caminho carrega um id e precisa casar por prefixo.
 _ROTAS_SEM_TELA = ("/api/push/", "/api/report", "/api/auth/foto/",
-                   "/api/favoritos", "/api/notificacoes")
+                   "/api/favoritos", "/api/notificacoes", "/api/suporte/meus")
 
 # Telas que EXISTEM no menu mas nao tem entrada em `TELAS`, porque o acesso a
 # elas e decidido de outro jeito:
@@ -291,7 +293,13 @@ _ROTAS_SEM_TELA = ("/api/push/", "/api/report", "/api/auth/foto/",
 # como "sem acesso", que e o oposto da verdade. Ha teste comparando isto com o
 # `VIEWS` do `index.html`, entao tela nova fora dos dois quebra a suite em vez
 # de aparecer como favorito impossivel.
+# Tela de TODO usuário logado: quem abriu um chamado acompanha o próprio
+# chamado sem depender de perfil (o botão Reportar sempre existiu para todos).
+# `podeVer()` no index.html libera pelo mesmo conjunto.
+TELAS_TODO_LOGADO = frozenset({"sup"})
+
 TELAS_FORA_DO_RBAC = {
+    "sup":    ("Suporte", "Administração"),
     "srv":    ("Saúde do Servidor", "Sistema"),
     "gestao": ("Gestão", "Sistema"),
     "jornf":  ("Ficha de Jornada", "Operação"),
@@ -309,7 +317,7 @@ def telas_favoritaveis(sess: dict | None) -> set[str]:
         return set()
     if sess.get("admin"):
         return set(TELAS) | set(TELAS_FORA_DO_RBAC)
-    return set(sess.get("telas") or ())
+    return set(sess.get("telas") or ()) | set(TELAS_TODO_LOGADO)
 
 
 def rota_sem_tela(path: str) -> bool:

@@ -851,6 +851,57 @@ def _servico_crm() -> dict:
     return {"nome": nome, "status": "ok", "detalhe": base}
 
 
+def _servico_suporte_de(d: dict) -> dict:
+    """Função pura sobre o diagnóstico do módulo — testável sem banco.
+
+    ALERTA só para o que pede ação AGORA: SLA estourado, chamado com o suporte
+    sem atendente, WhatsApp adiado vencido há mais de 4 h (a passagem roda a
+    cada 15 min) ou a ÚLTIMA chamada ao GitHub recusada. Sem credencial do
+    GitHub é `info` (instalação incompleta), nunca vermelho.
+    """
+    nome = "Suporte (chamados)"
+    if not d.get("ok"):
+        if d.get("sem_tabela"):
+            return {"nome": nome, "status": "erro",
+                    "detalhe": "tabelas ausentes — rode scripts/migrar_schema.py (migration 0037)"}
+        return {"nome": nome, "status": "info", "detalhe": "módulo indisponível"}
+    k = d.get("kpis") or {}
+    gh = d.get("github_ultimo") or {}
+    partes = [f"{k.get('abertos', 0)} aberto(s)", f"{k.get('com_suporte', 0)} com o suporte",
+              f"{k.get('aguardando_usuario', 0)} aguardando usuário"]
+    if d.get("ultimo_aviso_em"):
+        partes.append("último aviso " + str(d["ultimo_aviso_em"])[:16].replace("T", " "))
+    problemas = []
+    if k.get("sla_estourados"):
+        problemas.append(f"{k['sla_estourados']} fora do SLA")
+    if k.get("sem_atendente"):
+        problemas.append(f"{k['sem_atendente']} sem atendente")
+    if d.get("adiados_vencidos"):
+        problemas.append(f"{d['adiados_vencidos']} aviso(s) de WhatsApp parado(s) há mais de 4 h")
+    if gh.get("resultado") == "recusado":
+        problemas.append("espelho GitHub: a última chamada falhou — " + str(gh.get("detalhe") or "")[:80])
+    elif gh.get("resultado") == "sem_canal":
+        partes.append("espelho GitHub desligado")
+    if problemas:
+        return {"nome": nome, "status": "alerta", "detalhe": " · ".join(problemas + partes)}
+    if not k.get("abertos"):
+        return {"nome": nome, "status": "ok", "detalhe": "pronto para uso · nenhum chamado aberto"}
+    return {"nome": nome, "status": "ok", "detalhe": " · ".join(partes)}
+
+
+def _servico_suporte() -> dict:
+    try:
+        from . import pglocal
+        if not pglocal.configurado():
+            return {"nome": "Suporte (chamados)", "status": "info",
+                    "detalhe": "banco local não configurado nesta instalação"}
+        from .suporte import chamados
+        return _servico_suporte_de(chamados.diagnostico())
+    except Exception as exc:  # noqa: BLE001
+        log.warning("saude: suporte: %s", type(exc).__name__)
+        return {"nome": "Suporte (chamados)", "status": "info", "detalhe": "módulo indisponível"}
+
+
 def _servico_gobrax(d: dict) -> dict:
     """Linha da Gobrax na Saúde, a partir do diagnóstico do CACHE.
 
@@ -1078,6 +1129,7 @@ def _servicos() -> list[dict]:
     # CRM: mesma razão da Gestão — mora no banco local e a tela vazia por
     # migration faltando é indistinguível de tela vazia por falta de uso.
     servicos.append(_servico_crm())
+    servicos.append(_servico_suporte())
     servicos.append(_servico_premiacao())
 
     # Jornada: vem do AVA, não do banco local — mas a pergunta é a mesma

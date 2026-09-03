@@ -119,8 +119,9 @@ a ACL em vez de afirmar a proteção.
 ## 3. Telas e módulos
 
 **O registro canônico das telas é `api/auth.py`** (`TELAS`, `ROTA_TELAS`,
-`VIEW_GROUP` no `index.html`). Hoje: 70 telas em RBAC + 3 fora
-(`srv`, `gestao`, `jornf`), organizadas assim:
+`VIEW_GROUP` no `index.html`). Hoje: 71 telas em RBAC + 4 fora
+(`srv`, `gestao`, `jornf`, e `sup`, que é de TODO usuário logado —
+`TELAS_TODO_LOGADO`), organizadas assim:
 
 | Grupo | Telas | Fonte principal |
 |---|---|---|
@@ -136,13 +137,13 @@ a ACL em vez de afirmar a proteção.
 | ANTT | anpiso, anrntrc | `config/antt_coeficientes.yaml`, `config/antt_cargas.yaml`, `rntrc_*` |
 | Business Intelligence | prodveic, tvfat, tvope, tvdir | AVA (tvdir lê a mesma /api/visao-geral da home) |
 | Gestão | gesacao, gesata | `ges_*` (banco local) |
-| Administração | doc | extraída do próprio `index.html` |
+| Administração | doc, sup, supfila | `index.html` (doc); `sup_*` no banco local + espelho opcional no GitHub (suporte) |
 
-As tabelas locais vivem em `sql/cortex/` (32 migrations): auth/usuários/fotos,
+As tabelas locais vivem em `sql/cortex/` (38 migrations): auth/usuários/fotos,
 push, correio, previsão, antecipações, extrato, orçamento, contrapartida,
 WhatsApp (`zap_*`), gestão (`ges_*`), jornada RasterJOR (`jor_*`), premiação,
 favoritos, TomTom (`tt_*`), CRM (`crm_*`), notificações, Smartec (`smt_*`),
-pedágio (`ped_*`).
+pedágio (`ped_*`), suporte (`sup_*`).
 
 **A unidade de RBAC é a TELA** (perfil × tela via `perfis`/`perfil_telas`,
 `sql/cortex/0011_auth.sql`). Não há RLS.
@@ -152,6 +153,9 @@ pedágio (`ped_*`).
 índice de busca + `docs/manual.yaml`. Essa classe de defeito não tem sintoma,
 só ausência (ícone que some, tela fora do celular) — **rodar a suíte COMPLETA
 para tela nova**; os guards moram em arquivos que não falam do assunto.
+- **Tela de todo usuário logado** (`sup`) entra em `TELAS_TODO_LOGADO`
+  (`auth.py`): fora do perfil, dentro dos favoritos, da busca e do menu;
+  `podeVer` a libera pela sessão. A rota dela vai em `_ROTAS_SEM_TELA`.
 - **SUB-ABA não é tela** e não se registra em lugar nenhum (herda RBAC, ícone e
   menu da tela que a contém). A pergunta que separa: o roteador abre por hash?
 - **Ao aposentar uma tela, a substituta HERDA o id** (`jorn`, `crm`, `mul`) —
