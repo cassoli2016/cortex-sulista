@@ -4,6 +4,13 @@ Gerado de `docs/versoes.yaml` por `scripts/gerar_changelog.py` — não editar �
 Formato [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/),
 versionamento [SemVer](https://semver.org/lang/pt-BR/).
 
+## [0.219.2] — 03/09/2026  ·  CX-03/09/2026-v0.219.2
+
+### Corrigido
+- Gravar a senha da 3S passou a funcionar. O CÓRTEX exigia no mínimo 8 caracteres para QUALQUER credencial — uma regra nossa, para pegar campo vazio ou colado pela metade — e a senha que o fornecedor forneceu é mais curta. O tamanho da senha quem decide é o fornecedor, então a 3S entrou na lista de exceções que o SMTP já usava.
+- A recusa ao gravar uma credencial deixou de ser muda. Era o único ponto da rota que devolvia erro sem registrar nada, e do lado de quem digita isso aparecia como "salvei e não salvou", sem motivo na tela nem no log. Custou três tentativas de cadastrar a mesma senha até alguém desconfiar. Agora a recusa entra no log e na trilha, com o nome do campo e o motivo — nunca com o valor.
+- Trocar credencial passou a entrar na trilha de auditoria. Toda escrita no sistema é auditada desde sempre, e esta escapava: não havia como responder "essa senha foi trocada quando, e por quem" — a única pista era o carimbo dentro do próprio arquivo de segredos. Vai o nome do campo e quem trocou; o valor não entra na trilha em hipótese nenhuma.
+
 ## [0.219.1] — 03/09/2026  ·  CX-03/09/2026-v0.219.1
 
 ### Corrigido

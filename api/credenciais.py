@@ -529,7 +529,12 @@ CONHECIDAS = {nome: c["descricao"] for nome, c in CAMPOS.items()}
 # senha de SMTP costuma ser curta (e "senha de aplicativo" do Google tem 16
 # caracteres); o mínimo de 8 do token continua valendo para as demais
 TAMANHO_MINIMO = 8
+# O mínimo de 8 é nosso, e serve para pegar campo vazio ou colado pela
+# metade. Mas o TAMANHO da senha quem decide é o FORNECEDOR: a da 3S
+# entrou aqui depois de a tela recusar a senha certa por ser curta —
+# do lado de quem digita isso aparece como "salvei e não salvou".
 MINIMO_POR_CREDENCIAL = {"SMTP_SENHA": 4, "MONKEY_SELLER_ID": 1,
+                         "TRESS_SENHA": 4, "TRESS_LOGIN": 3,
                          "MONKEY_AMBIENTE": 3, "PROLOG_FILIAIS": 1,
                          "PROLOG_USUARIO": 3, "PROLOG_AUTH_PREFIXO": 3,
                          "PROLOG_AUTH_HEADER": 3}

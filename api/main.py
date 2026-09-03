@@ -942,10 +942,19 @@ async def gestao_credenciais_salvar(req: Request) -> JSONResponse:
     if not isinstance(body, dict) or not body.get("nome"):
         return JSONResponse(status_code=422, content={
             "erro": "parametro_invalido", "mensagem": "Informe nome e valor."})
+    autor = (getattr(req.state, "sessao", None) or {}).get("email") or "?"
     try:
         # o valor sai daqui direto para o cofre: nada de log, nada de eco
         st = credenciais.gravar(str(body["nome"]), str(body.get("valor") or ""))
     except ValueError as exc:
+        # A RECUSA TAMBEM SE REGISTRA. Este era o unico ramo mudo da rota, e o
+        # silencio custou tres tentativas de cadastrar a senha da 3S: a tela
+        # recusava por tamanho minimo, o servidor nao escrevia nada, e do lado
+        # de quem digita aparecia como "salvei e nao salvou". So o NOME e o
+        # motivo entram — o valor nunca.
+        log.warning("credencial %s recusada: %s", body.get("nome"), exc)
+        auth.audit(autor, "credencial_recusada", alvo=str(body["nome"]),
+                   detalhe=str(exc)[:120])
         return JSONResponse(status_code=422, content={
             "erro": "parametro_invalido", "mensagem": str(exc)})
     except Exception as exc:  # noqa: BLE001
@@ -954,6 +963,12 @@ async def gestao_credenciais_salvar(req: Request) -> JSONResponse:
         return JSONResponse(status_code=500, content={
             "erro": "erro_gravacao",
             "mensagem": "Não foi possível gravar a credencial."})
+    # TROCA DE CREDENCIAL E ESCRITA, e toda escrita entra na trilha. Faltava:
+    # nao havia como responder "essa senha foi trocada quando, e por quem" —
+    # a unica pista era o carimbo dentro do proprio arquivo de segredo. Vai o
+    # NOME e quem trocou; o valor nao entra na trilha em hipotese nenhuma.
+    auth.audit(autor, "credencial_gravada", alvo=str(body["nome"]),
+               detalhe="apagada" if not str(body.get("valor") or "") else "definida")
     return JSONResponse(st)
 
 
