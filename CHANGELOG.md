@@ -4,6 +4,14 @@ Gerado de `docs/versoes.yaml` por `scripts/gerar_changelog.py` — não editar �
 Formato [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/),
 versionamento [SemVer](https://semver.org/lang/pt-BR/).
 
+## [0.216.3] — 03/09/2026  ·  CX-03/09/2026-v0.216.3
+
+### Alterado
+- O Suporte saiu de dentro de Administração e virou um menu próprio, com "Meus chamados" e "Atendimento". Administração é o grupo de quem administra o sistema e fica escondido para a maioria das pessoas — era por isso que ninguém achava o Suporte, sendo que abrir e acompanhar chamado é de TODO usuário logado.
+
+### Corrigido
+- A Visão Geral voltou a carregar. Uma única consulta — a das ordens de compra do cartão "OCs atrasadas" — passou a estourar o tempo limite do ERP e derrubava a tela INTEIRA junto: caixa, faturamento, meta e alertas, cerca de doze consultas que já estavam prontas. Agora esse bloco tem tempo próprio e curto, e se ele não responder o cartão diz "n/d — não foi possível consultar as OCs agora" enquanto o resto da tela aparece normalmente. O cartão mostra n/d e não zero de propósito: zero diria "nenhuma OC atrasada, tudo em dia" justamente quando o sistema não conseguiu olhar.
+
 ## [0.216.2] — 02/09/2026  ·  CX-02/09/2026-v0.216.2
 
 ### Adicionado

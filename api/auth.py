@@ -121,7 +121,7 @@ TELAS: dict[str, tuple[str, str]] = {  # chave -> (rótulo, grupo do menu)
     "gesacao": ("Planos de Ação", "Gestão"),
     "gesata":  ("Atas de Reunião", "Gestão"),
     "doc":     ("Documentação", "Administração"),
-    "supfila": ("Suporte — Atendimento", "Administração"),
+    "supfila": ("Suporte — Atendimento", "Suporte"),
 }
 
 # Rota (prefixo) -> telas que a consomem. Prefixos mais específicos primeiro.
@@ -299,7 +299,7 @@ _ROTAS_SEM_TELA = ("/api/push/", "/api/report", "/api/auth/foto/",
 TELAS_TODO_LOGADO = frozenset({"sup"})
 
 TELAS_FORA_DO_RBAC = {
-    "sup":    ("Suporte", "Administração"),
+    "sup":    ("Suporte", "Suporte"),
     "srv":    ("Saúde do Servidor", "Sistema"),
     "gestao": ("Gestão", "Sistema"),
     "jornf":  ("Ficha de Jornada", "Operação"),

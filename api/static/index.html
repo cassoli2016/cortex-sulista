@@ -2529,6 +2529,16 @@ body.tvfull #btnReport,body.tvmode #btnReport{display:none}
         <a href="#telhod" class="sub" data-view="telhod" title="Hodômetro e Rastro — leitura direta do veículo e trajeto no mapa"><span class="ic" data-ic="rastroic"></span><span>Hodômetro e Rastro</span></a>
         <a href="#prem" class="sub" data-view="prem" title="Premiação de Motoristas — nota da Gobrax e km rodado"><span class="ic" data-ic="prem"></span><span>Premiação de Motoristas</span></a>
       </div>
+      <!-- SUPORTE e grupo PROPRIO, nao item de Administracao: e de TODO
+           usuario logado, e dentro de um grupo de administrador nao se acha. -->
+      <button class="group" id="grpSpt" aria-expanded="false" aria-controls="subsSpt" onclick="toggleGroup('grpSpt','subsSpt','cs.spt')">
+        <span class="ic" data-ic="supic"></span><span>Suporte</span><span class="ic chev" data-ic="chev"></span>
+      </button>
+      <div class="subs closed" id="subsSpt">
+        <a href="#sup" class="sub" data-view="sup" title="Suporte — seus chamados: acompanhe, responda e avalie"><span class="ic" data-ic="supic"></span><span>Meus chamados</span></a>
+        <a href="#supfila" class="sub" data-view="supfila" title="Suporte — Atendimento: fila, respostas, avisos e configuração"><span class="ic" data-ic="supfila"></span><span>Atendimento</span></a>
+      </div>
+      <div class="navsep" role="separator"></div>
       <div class="navsep" role="separator"></div>
       <button class="group" id="grpAdm" aria-expanded="false" aria-controls="subsAdm" onclick="toggleGroup('grpAdm','subsAdm','cs.admGroup')" title="Administração">
         <span class="ic" data-ic="cog"></span><span>Administração</span><span class="ic chev" data-ic="chev"></span>
@@ -2536,8 +2546,6 @@ body.tvfull #btnReport,body.tvmode #btnReport{display:none}
       <div class="subs closed" id="subsAdm">
         <a href="#gestao" class="sub" data-view="gestao" title="Gestão — usuários, perfis e segurança"><span class="ic" data-ic="ges"></span><span>Gestão</span></a>
         <a href="#srv" class="sub" data-view="srv" title="Saúde do Servidor — CPU, memória, disco e serviços"><span class="ic" data-ic="srv"></span><span>Saúde do Servidor</span></a>
-        <a href="#sup" class="sub" data-view="sup" title="Suporte — seus chamados: acompanhe, responda e avalie"><span class="ic" data-ic="supic"></span><span>Suporte</span></a>
-        <a href="#supfila" class="sub" data-view="supfila" title="Suporte — Atendimento: fila, respostas, avisos e configuração"><span class="ic" data-ic="supfila"></span><span>Suporte — Atendimento</span></a>
       </div>
     </nav>
     <div class="side-foot">
@@ -7953,7 +7961,7 @@ function toggleMini(){
 // grupos do menu (botão, submenu). Ordem = ordem visual da sidebar.
 const GRUPOS = [['grpBi','subsBi'],['grpCom','subsCom'],['grpFin','subsFin'],
   ['grpCtr','subsCtr'],['grpOpe','subsOpe'],['grpFro','subsFro'],['grpSup','subsSup'],
-  ['grpRh','subsRh'],['grpAdm','subsAdm']];
+  ['grpRh','subsRh'],['grpSpt','subsSpt'],['grpAdm','subsAdm']];
 
 /* SUBMENUS de terceiro nível: [botão, submenu, grupo a que pertencem].
    Hoje só os Painéis TV, dentro de Business Intelligence. */
@@ -7997,7 +8005,7 @@ const VIEW_GROUP = {home:'',cop:'',
   veic:'Fro',veicf:'Fro',mprev:'Fro',comrast:'Fro',comb:'Fro',man:'Fro',mul:'Fro',pneus:'Fro',
   oc:'Sup',custos:'Sup',pecas:'Sup',
   prodveic:'Bi',fat:'Ctr',gr:'Ope',tvfat:'Bi',tvope:'Bi',tvdir:'Bi',
-  rh:'Rh',hc:'Rh',folha:'Rh',folhaind:'Rh',he:'Rh',cnh:'Rh',ferias:'Rh',people:'Rh',gestao:'Adm',srv:'Adm',sup:'Adm',supfila:'Adm',doc:'Adm',gesacao:'Ges',gesata:'Ges',
+  rh:'Rh',hc:'Rh',folha:'Rh',folhaind:'Rh',he:'Rh',cnh:'Rh',ferias:'Rh',people:'Rh',gestao:'Adm',srv:'Adm',sup:'Spt',supfila:'Spt',doc:'Adm',gesacao:'Ges',gesata:'Ges',
   // Telemetria e ANTT tinham grupo na barra lateral mas ficaram de fora deste
   // mapa: o acordeao nao abria sozinho ao navegar para elas (agora a busca
   // global navega, entao isso passou a incomodar de verdade).
@@ -8010,7 +8018,9 @@ function syncGroups(v){
      e o Copiloto sao os unicos que legitimamente nao tem grupo, e para eles o
      mapa traz '' de proposito. */
   if(ativo===undefined) return;
-  ['Bi','Com','Fin','Ctr','Ope','Fro','Sup','Rh','Ges','Adm','Tel','Antt'].forEach(k=>{
+  // 'Spt' e o SUPORTE; 'Sup' ja era SUPRIMENTOS. Sigla nova tem de entrar
+  // AQUI tambem, senao o acordeao nao abre no grupo da tela ativa.
+  ['Bi','Com','Fin','Ctr','Ope','Fro','Sup','Rh','Ges','Spt','Adm','Tel','Antt'].forEach(k=>{
     const btn=document.getElementById('grp'+k), subs=document.getElementById('subs'+k);
     if(!btn||!subs) return;
     const open = (k===ativo);
@@ -11486,7 +11496,16 @@ function renderHome(d){
       '', '#comb', trendChip(d.combustivel_proprio_mes, d.combustivel_proprio_mes_ant, Object.assign({invert:true},cmp))),
     kpiLink('Manutenção no mês', BRL.format(d.manutencao_mes), d.os_abertas+' OSs abertas na oficina',
       '', '#man', trendChip(d.manutencao_mes, d.manutencao_mes_ant, Object.assign({invert:true},cmp))),
-    kpiLink('OCs atrasadas (12m)', d.oc_atrasadas.toLocaleString('pt-BR'),
+    /* A OC pode NAO TER VOLTADO (consulta pesada, timeout do ERP). Nesse caso
+       o cartao diz `n/d` — zero seria a mentira tranquilizadora "tudo em dia"
+       exatamente quando ninguem olhou. */
+    d.oc_indisponivel
+      ? kpiLink('OCs atrasadas (12m)', 'n/d', 'não foi possível consultar as OCs agora',
+          '', '#oc',
+          statChip('warn', 'sem leitura',
+            'A consulta de ordens de compra não respondeu no tempo limite do ERP. '
+            + 'Os demais números desta tela não dependem dela.', 'sevWarn'))
+      : kpiLink('OCs atrasadas (12m)', d.oc_atrasadas.toLocaleString('pt-BR'),
       BRL.format(d.oc_atraso_valor)+' pendente · '+d.oc_aprovacao+' na fila do aprovador',
       d.oc_atrasadas>0?'neg':'pos', '#oc',
       statChip(d.oc_atrasadas>0?'bad':'good', d.oc_atrasadas>0?'sem nota há 30+ dias':'em dia',
@@ -28604,7 +28623,7 @@ const BUSCA_SINONIMOS = {
   home:['visao geral','resumo','inicio','dashboard'],
 };
 const BUSCA_GRUPO_LBL = {Com:'Comercial',Fin:'Financeiro',Ctr:'Controladoria',Ope:'Operação',
-  Fro:'Frota',Sup:'Suprimentos',Rh:'Recursos Humanos',Bi:'Business Intelligence',Adm:'Administração',
+  Fro:'Frota',Sup:'Suprimentos',Rh:'Recursos Humanos',Bi:'Business Intelligence',Adm:'Administração',Spt:'Suporte',
   Tel:'Telemetria',Antt:'ANTT'};
 // ABC1234 (antiga) e ABC1D23 (Mercosul) — a busca não valida placa, só
 // reconhece o formato para OFERECER o atalho; quem valida é a tela de destino
@@ -28735,7 +28754,7 @@ function aplicarPermissoes(){
   // foi para o rodapé da sidebar, fora do <nav> — sem isto ele apareceria para
   // quem não tem a tela
   document.querySelectorAll('nav a[data-view], .side-foot a[data-view]').forEach(a=>{ a.style.display = podeVer(a.dataset.view) ? '' : 'none'; });
-  [['grpBi','subsBi'],['grpCom','subsCom'],['grpFin','subsFin'],['grpCtr','subsCtr'],['grpOpe','subsOpe'],['grpFro','subsFro'],['grpSup','subsSup'],['grpRh','subsRh'],['grpAdm','subsAdm']].forEach(([g,s])=>{
+  [['grpBi','subsBi'],['grpCom','subsCom'],['grpFin','subsFin'],['grpCtr','subsCtr'],['grpOpe','subsOpe'],['grpFro','subsFro'],['grpSup','subsSup'],['grpRh','subsRh'],['grpSpt','subsSpt'],['grpAdm','subsAdm']].forEach(([g,s])=>{
     const subs=document.getElementById(s); if(!subs) return;
     const tem=[...subs.querySelectorAll('a[data-view]')].some(a=>a.style.display!=='none');
     const btn=document.getElementById(g); if(btn) btn.style.display = tem ? '' : 'none';
@@ -34549,12 +34568,17 @@ boot();
         <a href="#prem" onclick="fecharDrawer()"><span class="ic" data-ic="prem"></span>Premiação de Motoristas</a>
       </div>
     </div>
+    <div class="dgrp" data-grp="Spt">
+      <button class="dgrp-h" onclick="toggleDGrp(this)"><span>Suporte</span><span class="dchev">›</span></button>
+      <div class="dgrp-b">
+        <a href="#sup" onclick="fecharDrawer()"><span class="ic" data-ic="supic"></span>Meus chamados</a>
+        <a href="#supfila" onclick="fecharDrawer()"><span class="ic" data-ic="supfila"></span>Atendimento</a>
+      </div>
+    </div>
     <div class="dgrp" data-grp="Adm">
       <button class="dgrp-h" onclick="toggleDGrp(this)"><span>Administração</span><span class="dchev">›</span></button>
       <div class="dgrp-b">
         <a href="#srv" onclick="fecharDrawer()"><span class="ic" data-ic="srv"></span>Saúde do Servidor</a>
-        <a href="#sup" onclick="fecharDrawer()"><span class="ic" data-ic="supic"></span>Suporte</a>
-        <a href="#supfila" onclick="fecharDrawer()"><span class="ic" data-ic="supfila"></span>Suporte — Atendimento</a>
         <a href="#gestao" onclick="fecharDrawer()"><span class="ic" data-ic="ges"></span>Usuários e acesso</a>
       </div>
     </div>

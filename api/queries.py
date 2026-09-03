@@ -11,8 +11,12 @@ from __future__ import annotations
 
 from datetime import date, datetime, timedelta
 
+import logging
+
 from . import agrupador_gerencial as _ag
 from . import db
+
+log = logging.getLogger("cortex.queries")
 
 # ============================================================================
 # Cache de respostas (TTL) — o banco é remoto com link lento; consultas
@@ -2214,13 +2218,27 @@ def get_visao_geral() -> dict:
     # A tela consolida ~12 consultas num banco atrás de túnel SSH: rodar em
     # série soma todas as latências. Grupos independentes em conexões
     # próprias (o pool do db.py reusa) derrubam o tempo para o pior grupo.
-    def _roda(lote):
+    def _roda(lote, tolerante=False):
+        """`tolerante=True` devolve None em vez de derrubar a tela inteira.
+
+        Existe por causa de 03/09/2026: a consulta de OC estourou o
+        statement_timeout e levou junto caixa, faturamento, meta e alertas —
+        ~12 consultas que estavam prontas. Bloco que pode faltar sem tornar a
+        tela inutil nao pode ter poder de veto sobre ela.
+        """
         out = []
-        with db.get_conn() as conn, conn.cursor() as cur:
-            for sql, params, um in lote:
-                cur.execute(sql, params)
-                if um is not None:
-                    out.append(cur.fetchone() if um else cur.fetchall())
+        try:
+            with db.get_conn() as conn, conn.cursor() as cur:
+                for sql, params, um in lote:
+                    cur.execute(sql, params)
+                    if um is not None:
+                        out.append(cur.fetchone() if um else cur.fetchall())
+        except Exception as exc:  # noqa: BLE001
+            if not tolerante:
+                raise
+            log.warning("visao geral: bloco opcional falhou (%s: %s)",
+                        type(exc).__name__, str(exc)[:120])
+            return None
         return out
 
     grupos = [
@@ -2232,17 +2250,29 @@ def get_visao_geral() -> dict:
         # o SET LOCAL evita o merge join degenerado do 9.3 no join OC×recebimentos
         [("SET LOCAL enable_mergejoin = off", None, None),
          (VG_MODAL_KM_SQL, None, False), (VG_REC12_SQL, None, False),
-         (VG_OC_SQL, None, True), ("SELECT current_timestamp AS ts", None, True)],
+         ("SELECT current_timestamp AS ts", None, True)],
     ]
-    with ThreadPoolExecutor(max_workers=len(grupos)) as ex:
+    # A OC VAI SOZINHA E TOLERANTE. Sozinha porque uma consulta lenta na mesma
+    # conexao segura as vizinhas; tolerante porque o cartao dela nao vale a
+    # tela inteira (ver o docstring de `_roda`).
+    # E TAMBEM UM TETO DE TEMPO PROPRIO, bem menor que os 60 s da conexao: sem
+    # ele a tela ficaria 60 s parada esperando o cartao secundario desistir —
+    # sobreviver ao erro nao adianta se a espera pelo erro e o problema.
+    grupo_oc = [("SET LOCAL enable_mergejoin = off", None, None),
+                ("SET LOCAL statement_timeout = 12000", None, None),
+                (VG_OC_SQL, None, True)]
+    with ThreadPoolExecutor(max_workers=len(grupos) + 1) as ex:
+        futuro_oc = ex.submit(_roda, grupo_oc, True)
         g_fin, g_fluxo, g_mes, g_series = list(ex.map(_roda, grupos))
+        g_oc = futuro_oc.result()
 
     fin, saldo, rr = g_fin
     runrate = (rr or {}).get("runrate") or 0.0
     fluxo = g_fluxo[0][:13]
     be_rows = {r["grupo"]: r["valor"] for r in g_fluxo[1]}
     mes, diario, sazonal = g_mes
-    modal_km, receita_12m, oc, meta = g_series
+    modal_km, receita_12m, meta = g_series
+    oc = g_oc[0] if g_oc else None      # None = a consulta nao voltou
     # A meta DIÁRIA segue a sazonalidade do realizado; o TOTAL do mês é o do
     # ERP, intocado. `meta_fonte` deixa a tela dizer a procedência.
     diario, meta_fonte = _meta_diaria_sazonal(
@@ -2292,10 +2322,13 @@ def get_visao_geral() -> dict:
         "combustivel_proprio_mes_ant": mes["combustivel_proprio_mes_ant"],
         "manutencao_mes_ant": mes["manutencao_mes_ant"],
         "dias_mtd": date.today().day,
-        "oc_atrasadas": oc["oc_atrasadas"],
-        "oc_atraso_valor": oc["oc_atraso_valor"],
-        "oc_aprovacao": oc["oc_aprovacao"],
-        "oc_rascunhos": oc["oc_rascunhos"],
+        # `None`, nunca 0: zero aqui diria "nenhuma OC atrasada, tudo em dia"
+        # justamente quando o sistema nao conseguiu olhar.
+        "oc_atrasadas": oc["oc_atrasadas"] if oc else None,
+        "oc_atraso_valor": oc["oc_atraso_valor"] if oc else None,
+        "oc_aprovacao": oc["oc_aprovacao"] if oc else None,
+        "oc_rascunhos": oc["oc_rascunhos"] if oc else None,
+        "oc_indisponivel": oc is None,
         "diario": diario,
         "meta_fonte": meta_fonte,
         "atingimento_mes": atingimento,

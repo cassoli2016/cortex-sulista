@@ -620,14 +620,18 @@ grupos:
   telas:
   - gesacao
   - gesata
+- nome: Suporte
+  resumo: >-
+    Os chamados abertos pelo botão Reportar — a conversa com quem atende e os avisos por e-mail e
+    WhatsApp — e a bancada de atendimento com fila, SLA e espelho no GitHub. É grupo próprio, e não um
+    item de Administração, porque Meus chamados é de TODO usuário logado — é onde a pessoa abre e
+    acompanha o que ela mesma pediu. A bancada de Atendimento é de quem tem a tela no perfil.
+  telas:
+  - sup
+  - supfila
 - nome: Administração
-  resumo: Usuários, perfis e permissões por tela, saúde da máquina onde a API roda, o Suporte (os
-    chamados abertos pelo botão Reportar — a conversa com quem atende, avisos por e-mail e WhatsApp — e a
-    bancada de atendimento com fila, SLA e espelho no GitHub) e esta documentação. A tela Suporte é de todo
-    usuário logado; a bancada, de quem tem a tela no perfil.
+  resumo: Usuários, perfis e permissões por tela, saúde da máquina onde a API roda, e esta documentação.
   telas:
   - gestao
   - srv
-  - sup
-  - supfila
   - doc
