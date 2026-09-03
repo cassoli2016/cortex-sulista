@@ -4,6 +4,18 @@ Gerado de `docs/versoes.yaml` por `scripts/gerar_changelog.py` — não editar �
 Formato [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/),
 versionamento [SemVer](https://semver.org/lang/pt-BR/).
 
+## [0.217.2] — 03/09/2026  ·  CX-03/09/2026-v0.217.2
+
+### Adicionado
+- A DRE Gerencial passou a mostrar uma seta em CADA mês, comparando com o mês anterior, além da coluna Δ m/m que já existia. A seta segue o tamanho da linha (custo que cai é ▼) e a cor segue o efeito no resultado; o percentual exato aparece ao passar o mouse. Variação abaixo de 1,5% sai como tracinho cinza, e o primeiro mês da série e o mês corrente, que ainda está incompleto, não recebem seta — não há com o que comparar sem mentir. Vale nos três níveis: linha, agrupador e conta.
+
+### Alterado
+- O anel do CÓRTEX na tela de login ficou mais encorpado, como o do menu. Ele usava um desenho mais fino e, ao lado do menu, parecia outra marca. O ajuste não é o mesmo do menu ao pé da letra: como o brilho do anel se soma onde as linhas se cruzam, copiar o desenho do menu num anel do dobro do tamanho estouraria o topo em branco e apagaria o vermelho da marca.
+
+### Corrigido
+- A Visão Geral não fica mais em branco quando o ERP tem um momento ruim. Se a consulta não responder, a tela abre com os números da última leitura que deu certo e uma tarja no topo dizendo a hora e há quanto tempo — por exemplo, "Leitura de 07:42 (há 23 min). O ERP não respondeu agora". Vale por até duas horas; passado isso a tela volta a dizer que não conseguiu ler, porque número de meio período atrás não serve nem avisado.
+- Uma correção do que dissemos antes: a consulta de ordens de compra da Visão Geral NÃO era lenta. Medida dez vezes com o ERP respondendo normal, ela leva 0,13 segundo. A lentidão daquela manhã era do ERP inteiro — no mesmo intervalo, outra consulta caiu de 8,5 para 1,8 segundo sozinha. A de ordens de compra foi só a primeira a cair, por ser a mais pesada.
+
 ## [0.217.1] — 03/09/2026  ·  CX-03/09/2026-v0.217.1
 
 ### Alterado

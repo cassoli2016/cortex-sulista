@@ -3034,3 +3034,135 @@ O olho e o subtítulo usam dois claros derivados do próprio tijolo
 (`#F3C9C4` e `#EFD3CF`): branco cheio ao lado do branco cheio do título achata
 a hierarquia. Os três passam de 4,5:1 sobre `#942821`, e há teste que MEDE a
 razão de contraste em vez de confiar no olho.
+
+## A consulta que eu acusei sem provas, e o que era de verdade (2026-09-03, v0.217.2)
+
+Duas vezes eu disse, por escrito, que a consulta de ordens de compra da Visão
+Geral "continua lenta demais e precisa de conserto próprio, com medição". Foi
+a partir disso que o usuário pediu: *"vamos resolver a lentidão da consulta de
+OC"*.
+
+**Não havia lentidão.** Medida dez vezes seguidas com o ERP são:
+
+```
+latência SELECT 1 : min 0,010  mediana 0,018  max 0,046
+VG_OC_SQL         : min 0,12   mediana 0,13   max 0,15   (10/10 ok)
+```
+
+O plano é limpo — dois *seq scans* pequenos (11.256 OCs na janela de 12 meses,
+90.831 linhas de recebimento) com *hash joins*, custo total 17,5 mil — e a
+tabela de recebimento **tem** índice na chave da OC
+(`fk_nfeio_g_e_fo_dno_no_sio_speo`). Não há o que otimizar.
+
+### O erro de método
+
+Eu medi **dentro** da janela ruim (200 s, depois 60 s, as duas canceladas) e
+**não repeti depois**. Uma medição em sistema degradado não mede a consulta:
+mede o dia do servidor. No mesmo intervalo, `VG_MES_SQL` levou 8,5 s às 05:20 e
+**1,8 s** às 05:30 — o ERP inteiro estava ruim, e a de OC só foi a primeira a
+cair por ser a mais pesada das doze.
+
+É a mesma armadilha que me deu dois falsos vermelhos no mesmo dia (a suíte
+comparando `VERSAO` com um `pyproject.toml` que eu editei no meio da rodada) e
+que já custou uma reescrita evitada de query na v0.213.1 — lá eu *repeti* a
+medição antes de concluir, e os 53,5 s viraram 7,8 s. Aqui eu não repeti.
+
+**A regra:** medição de desempenho contra dependência externa vale UMA vez e
+só se repetida. Número isolado durante incidente é sintoma do incidente.
+
+### O que era o problema de verdade, e o conserto
+
+O ERP é réplica de produção de TERCEIRO e tem dia ruim; isso não se conserta
+daqui. O que se conserta é a tela morrer junto.
+
+`cached()` ganhou `velha_ate`: se a consulta falhar e houver leitura boa mais
+nova que isso, ela volta **carimbada** com a idade, e a Visão Geral pinta uma
+tarja âmbar no topo — *"Leitura de 07:42 (há 23 min). O ERP não respondeu agora
+— os números abaixo são dessa hora."* Janela de 2 h para a Visão Geral; passou
+disso é erro, porque número de meio período atrás não serve nem carimbado.
+
+Três coisas que a implementação **não** pode fazer, cada uma com teste:
+
+- **servir calado** — número velho sem carimbo é pior que tela vazia, porque
+  ninguém desconfia dele;
+- **valer por tabela** — `velha_ate` é opt-in; consulta que não pediu continua
+  quebrando como antes;
+- **devolver o objeto do cache** — quem recebe (uma rota que acrescenta chave,
+  uma tela que ordena lista) corromperia o que está guardado.
+
+### Um teste meu que nasceu verde-para-sempre
+
+A primeira versão do teste da cópia afirmava *"o carimbo não gruda na próxima
+leitura boa"* — e **passava mesmo com a cópia removida**. O motivo: a leitura
+boa seguinte SUBSTITUI a entrada do cache, então o objeto carimbado é
+descartado de qualquer jeito. O caminho que o teste descrevia não existe.
+
+Só apareceu porque sabotei os dois lados antes de entrar: a sabotagem "sem
+carimbo" derrubou 3 testes e a sabotagem "sem cópia" **não derrubou nenhum**.
+O teste foi reescrito para afirmar o que se pode provar — o objeto devolvido
+não é o do cache — e o erro ficou no docstring dele.
+
+### E um alarme falso que quase virou aviso
+
+Vendo a tela com a tarja, apareceu um banner vermelho de erro e eu conclui que
+era meu. Rodei os dois casos **com a mesma sonda** e o banner aparece com e sem
+o carimbo: era artefato do dublê (as outras rotas devolvendo `{}`). Comparação
+entre dois estados só vale se os dois forem medidos igual — foi exatamente o
+que faltou na acusação à consulta de OC, três horas antes, no mesmo dia.
+
+## O guard que eu não rodei, e a versão que subiu vermelha (2026-09-03, v0.217.2)
+
+A faixa da marca no e-mail (v0.217.1) foi empurrada com **oito testes
+quebrados**. Eu atualizei o guard que conhecia — `tests/correio/test_relatorios.py`
+— rodei `pytest tests/correio` (91 verdes) e tratei isso como suficiente.
+
+O outro guard da MESMA regra mora em **`tests/test_boas_vindas.py`**, na raiz de
+`tests/`, fora de `tests/correio/`. Ele varre luminância de todo `background:`
+do HTML e tem um comentário que agora soa como aviso: *"esta regra já foi
+quebrada duas vezes… ela volta porque é fácil de esquecer e porque nada a
+cobrava. Agora cobra."* Cobrou — só que depois do push.
+
+**A lição não é "rode a suíte inteira sempre"** (ela leva 50 minutos e a casa
+já reserva isso para tela nova). É outra, mais barata e mais certeira:
+
+> Ao mudar uma REGRA, ache todos os testes que a guardam pelo ASSUNTO, não pela
+> pasta. `grep -rl "area escura" tests/` levaria dois segundos e teria achado os
+> dois arquivos. Eu procurei em `tests/correio/` porque o código mudado estava
+> em `api/correio/` — e guard de regra não mora necessariamente ao lado do
+> código que ele guarda.
+
+O conserto do guard não foi afrouxá-lo. A regra passou a ser **"o CORPO do
+e-mail não tem área escura"**: `#942821` entrou nas exceções como A faixa do
+cabeçalho, num lugar só, com o histórico da decisão e o risco (Gmail/Outlook
+invertendo a paleta no tema escuro) escrito no próprio arquivo. Painel escuro,
+tabela escura e moldura escura continuam proibidos — que é o que o teste existia
+para impedir.
+
+### As setas de todo mês na DRE
+
+Pedido: seta em cada mês, além do Δ m/m. Duas decisões:
+
+- **Só a seta, nunca o percentual.** A tabela tem 14 colunas; "▲ 12%" em cada
+  mês somaria ~45 px por coluna. A seta custa ~11 px e o número exato vai no
+  `title`. Medido depois: a página não passou a rolar para o lado, e o card já
+  rolava antes (verificado rodando a mesma sonda no arquivo anterior — sem isso
+  eu teria assumido a culpa por uma rolagem que não criei).
+- **Três casos sem seta**, e os três são a mesma regra: não se compara o que não
+  dá para comparar. Primeiro mês da série (não há anterior), mês corrente
+  (parcial — foi o que criou a regra do Δ m/m, o "custo fixo ▲84%" que era nota
+  que não chegou) e valor irrisório dos dois lados.
+
+Abaixo de 1,5% é **estável**, em tracinho cinza — a mesma régua do `trendChip`.
+Pintar ruído de verde ou vermelho treina a pessoa a ignorar a cor.
+
+### O anel do login: copiar o do menu teria piorado
+
+O pedido foi "deixe a logo do login robusta igual à do menu". A cópia literal
+do perfil do menu **satura**: o brilho do anel é ADITIVO, e 30 linhas com
+`alfa .5` a 150 px estouram 1.416 pixels em branco (7,8%) — e o branco cai no
+alto do anel, apagando justamente o tijolo da marca. O perfil escolhido acende
+MAIS (19.462 contra 18.199) com 2,9% de saturação.
+
+O perfil do menu não estava errado: ele foi calibrado para 78 px. **Parâmetro
+de desenho não se copia entre tamanhos sem medir** — e o que se mede aqui não é
+"ficou bonito", é quantos pixels estouraram.

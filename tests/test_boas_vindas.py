@@ -148,10 +148,23 @@ def test_perfil_sem_tela_nenhuma_avisa_em_vez_de_sair_vazio():
     assert "ainda não tem telas liberadas" in html
 
 
-# ── E-MAIL DO CÓRTEX NÃO TEM ÁREA ESCURA ─────────────────────────────────────
-# Esta regra já foi quebrada duas vezes — a segunda foi este próprio e-mail,
-# que nasceu com faixa navy no topo. Ela volta porque é fácil de esquecer e
-# porque nada a cobrava. Agora cobra.
+# ── O CORPO DO E-MAIL NÃO TEM ÁREA ESCURA ─────────────────────────────────
+# A regra nasceu porque isto já foi quebrado duas vezes, a segunda pelo próprio
+# e-mail de boas-vindas, que veio com faixa navy no topo.
+#
+# EM 03/09/2026 ELA FOI RESTRINGIDA AO CORPO, a pedido de quem é dono da marca:
+# "as cores parecem muito apagadas". O CABEÇALHO passou a ser a faixa no
+# vermelho da Sulista (#942821) com a logo do CÓRTEX — decisão tomada com o
+# risco na mesa, não por descuido. O risco é real e continua: Gmail e Outlook
+# INVERTEM a paleta no tema escuro do aparelho, e o Outlook renderiza com o
+# motor do Word. A mitigação está no `painel.documento` (metas
+# `color-scheme: light only` e a reposição da faixa no `[data-ogsc]`) — e é
+# mitigação, não garantia.
+#
+# O QUE ESTE TESTE AINDA GUARDA, e é o que importa: o CORPO da mensagem
+# continua claro. A faixa da marca é UMA área, no topo, com a tinta por cima
+# medida em 4,5:1 (tests/correio/test_relatorios.py). Painel escuro, tabela
+# escura ou moldura escura continuam proibidos.
 
 def _luminancia(hexa: str) -> float:
     r, g, b = int(hexa[1:3], 16), int(hexa[3:5], 16), int(hexa[5:7], 16)
@@ -178,7 +191,11 @@ LIMIAR_ESCURO = 110
 #
 # O que a regra proíbe é o resto: faixa, cabeçalho, painel e bloco de
 # moldura em tom escuro.
-EXCECOES = {"#1E7F4F", "#B97709", "#C03221", "#E85D10"}
+#
+# `#942821` entra em 03/09/2026: é a faixa do CABEÇALHO, a marca da Sulista
+# medida nos arquivos de marca do repositório. Não é "mais uma cor escura
+# liberada" — é A cor da casa, num lugar só.
+EXCECOES = {"#1E7F4F", "#B97709", "#C03221", "#E85D10", "#942821"}
 
 
 @pytest.mark.parametrize("caso", ["normal", "admin", "sem_telas", "teste"])

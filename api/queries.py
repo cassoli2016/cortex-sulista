@@ -27,15 +27,51 @@ import time as _time
 _RESP_CACHE: dict = {}
 
 
-def cached(ttl: int = 90):
+def cached(ttl: int = 90, velha_ate: int = 0):
+    """Cache com TTL e, opcionalmente, ULTIMA LEITURA BOA para quando falhar.
+
+    `velha_ate` (segundos) liga o segundo comportamento: se a consulta falhar e
+    houver uma leitura boa mais nova que isso, ela é devolvida CARIMBADA com a
+    idade em vez de a tela morrer.
+
+    POR QUE ISSO EXISTE. Em 03/09/2026 o ERP — que é réplica de produção de
+    TERCEIRO, e portanto fora do nosso controle — degradou entre 05h e 05h40:
+    `SELECT 1` respondia na hora e as consultas pesadas estouravam o
+    `statement_timeout`. A Visão Geral morria inteira e a manhã começou sem
+    painel. Medido depois, com o ERP são: a mesma consulta que não voltava em
+    120 s roda em 0,13 s. Não havia nada para otimizar — havia uma dependência
+    externa com dia ruim.
+
+    Um número de 20 minutos atrás, DITO na tela, é honesto e serve para
+    trabalhar. Tela em branco não é nenhum dos dois. O que não se faz é servir
+    o número velho calado: quem carimba é o `leitura_velha`, e a tela é
+    obrigada a mostrar.
+    """
     def deco(fn):
         def wrapper(*args, **kwargs):
             key = (fn.__name__, repr(args), repr(sorted(kwargs.items())))
             hit = _RESP_CACHE.get(key)
-            if hit and _time.time() - hit[0] < ttl:
+            agora = _time.time()
+            if hit and agora - hit[0] < ttl:
                 return hit[1]
-            result = fn(*args, **kwargs)
-            _RESP_CACHE[key] = (_time.time(), result)
+            try:
+                result = fn(*args, **kwargs)
+            except Exception as exc:  # noqa: BLE001
+                idade = agora - hit[0] if hit else None
+                if not (velha_ate and hit and isinstance(hit[1], dict)
+                        and idade <= velha_ate):
+                    raise
+                log.warning("%s falhou (%s); servindo leitura de %d s atras",
+                            fn.__name__, type(exc).__name__, int(idade))
+                # COPIA: carimbar o dicionario guardado deixaria o carimbo lá
+                # para sempre, e a próxima leitura boa sairia marcada de velha.
+                velho = dict(hit[1])
+                velho["leitura_velha"] = True
+                velho["leitura_idade_seg"] = int(idade)
+                velho["leitura_em"] = datetime.fromtimestamp(hit[0]).strftime(
+                    "%Y-%m-%d %H:%M:%S")
+                return velho
+            _RESP_CACHE[key] = (agora, result)
             if len(_RESP_CACHE) > 200:
                 _RESP_CACHE.clear()
             return result
@@ -2207,7 +2243,7 @@ def _ponto_equilibrio(g: dict) -> dict | None:
     }
 
 
-@cached(ttl=60)
+@cached(ttl=60, velha_ate=2 * 3600)
 def get_visao_geral() -> dict:
     from concurrent.futures import ThreadPoolExecutor
 

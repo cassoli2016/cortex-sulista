@@ -1159,6 +1159,11 @@ body.painelfull .content{padding:16px 22px}
 #dre-tab thead th{position:sticky;top:0;background:var(--n0);z-index:3;border-bottom:2px solid var(--navy-700)}
 #dre-tab thead th:first-child{z-index:4}
 #dre-tab td,#dre-tab th{padding:7px 12px;white-space:nowrap}
+/* A seta de variacao do mes: pequena e colada no numero. Ela ACOMPANHA
+   o valor, nao concorre com ele — por isso 9.5px e nao herda o peso da
+   linha de total, que e 700. */
+#dre-tab .dre-seta{font:700 9.5px/1 var(--font);margin-left:5px;
+  vertical-align:1px;cursor:help}
 tr.dre-tot td{font-weight:700}
 tr.dre-tot td:first-child{color:var(--navy-700)}
 tr.dre-res td{background:var(--navy-50,#EEF4FA) !important;font-weight:800;border-top:2px solid var(--navy-200,#C9DAEB);border-bottom:2px solid var(--navy-200,#C9DAEB)}
@@ -1572,6 +1577,12 @@ button.avatar{border:0;cursor:pointer}
    Botao de verdade, nao `<a href="#">` — href que nao leva a lugar nenhum
    mexe no hash e o roteador da pagina reage a isso. */
 .lg-alt{margin-top:14px;text-align:center}
+/* Aviso de leitura VELHA no topo do painel. Âmbar do semáforo (não é erro:
+   os números estão certos, só não são de agora) e largura inteira, porque
+   ele qualifica TUDO o que está abaixo dele. */
+.avisofaixa{background:#FDF3E2;border:1px solid var(--amber,#B97709);
+  color:#7A4F06;border-radius:8px;padding:9px 14px;margin-bottom:18px;
+  font-size:13px;line-height:1.4;font-weight:600}
 .lg-body button.lg-link{background:none;border:0;padding:4px 6px;cursor:pointer;
   font:600 13px/1.3 var(--font);color:var(--orange-500);border-radius:6px}
 .lg-body button.lg-link:hover{text-decoration:underline}
@@ -6629,7 +6640,7 @@ body.tvfull #btnReport,body.tvmode #btnReport{display:none}
       <section class="view" id="view-dre">
         <div class="kpis" id="kpis-dre"></div>
         <div class="card">
-          <div class="head"><h2>DRE Gerencial <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="Modelo de DRE da própria empresa: lançamento × plano de contas × sulista.agrupadorgerencial, por competência. Valores em R$ MIL. A linha NÃO ALOCADO / CLASSIFICAR (em amarelo) é transparência: conta de resultado que ainda não tem agrupador — não é sobra nem erro de cálculo. Δ m/m: a seta segue o TAMANHO da linha (custo caindo é ▼) e a cor segue o efeito no resultado; quando o mês corrente está incompleto, a comparação usa os dois últimos meses FECHADOS.">i</span></h2><span class="hint" id="dreHint">valores em R$ · agrupador gerencial da empresa · clique nas linhas com ▸ para abrir a composição</span></div>
+          <div class="head"><h2>DRE Gerencial <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="Modelo de DRE da própria empresa: lançamento × plano de contas × sulista.agrupadorgerencial, por competência. Valores em R$ MIL. A linha NÃO ALOCADO / CLASSIFICAR (em amarelo) é transparência: conta de resultado que ainda não tem agrupador — não é sobra nem erro de cálculo. Δ m/m: a seta segue o TAMANHO da linha (custo caindo é ▼) e a cor segue o efeito no resultado; quando o mês corrente está incompleto, a comparação usa os dois últimos meses FECHADOS. Cada MÊS também traz sua própria seta, contra o mês anterior, com o percentual exato no tooltip — variação abaixo de 1,5% sai como tracinho cinza (estável), e o primeiro mês da série e o mês corrente (parcial) não têm seta, porque não há com o que comparar sem mentir.">i</span></h2><span class="hint" id="dreHint">valores em R$ · agrupador gerencial da empresa · clique nas linhas com ▸ para abrir a composição</span></div>
           <div class="tablewrap tabroll" style="max-height:640px"><table id="dre-tab"><thead id="dre-head"></thead><tbody id="dre-corpo"></tbody></table></div>
         </div>
       </section>
@@ -11459,7 +11470,20 @@ function anelLigar(){
   try{
     if(typeof cortexAnel==='undefined') return;
     const lg=document.getElementById('lg-anel');
-    if(lg && !lg.dataset.anel){ lg.dataset.anel='1'; cortexAnel.ligar(lg); }
+    if(lg && !lg.dataset.anel){ lg.dataset.anel='1';
+      /* O LOGIN USAVA O PADRAO GRANDE do anel.js (alfa .16, amplitude .045) e
+         a 150 px isso le como um fio — o menu ja tinha ganhado corpo e as duas
+         marcas nao se pareciam mais.
+
+         NAO DA PARA COPIAR O PERFIL DO MENU AO PE DA LETRA, e a razao e o
+         desenho: o brilho e ADITIVO, entao alfa alto sobre muitas linhas
+         SATURA. Medido a 150 px, sobre o navy real do login: o perfil do menu
+         (30 linhas, alfa .5) acende 18.199 pixels mas estoura 1.416 em branco
+         (7,8%) — e o branco cai justamente no alto do anel, apagando o tijolo
+         da marca. Este perfil acende MAIS (19.462) com 2,9% de saturacao: e o
+         mesmo carater do menu, recalibrado para o tamanho. */
+      cortexAnel.ligar(lg, {alfa: .26, largura: 1.25, linhas: 44, pontos: 180,
+                            amplitude: .10, espessura: .14, velocidade: 1.35}); }
     const mn=document.getElementById('menuanel');
     if(mn && !mn.dataset.anel){ mn.dataset.anel='1';
       /* O perfil `pequeno` do anel.js (16 linhas, amplitude .06) foi calibrado
@@ -11488,6 +11512,20 @@ function skelKpis(id, n){
       `<div class="val"><span class="skel" style="width:75%;height:26px;margin:4px 0"></span></div>`+
       `<div class="sub"><span class="skel" style="width:85%;height:10px"></span></div></div>`).join('');
 }
+function homeTarjaVelha(d){
+  const alvo = document.getElementById('view-home');
+  let t = document.getElementById('home-velha');
+  if(!d || !d.leitura_velha){ if(t) t.remove(); return; }
+  if(!t){
+    t = document.createElement('div');
+    t.id = 'home-velha'; t.className = 'avisofaixa';
+    alvo.insertBefore(t, alvo.firstChild);
+  }
+  const min = Math.round((d.leitura_idade_seg||0)/60);
+  const hora = (d.leitura_em||'').slice(11,16);
+  t.textContent = 'Leitura de ' + hora + (min ? ' (há ' + min + ' min)' : '')
+    + '. O ERP não respondeu agora — os números abaixo são dessa hora.';
+}
 async function loadHome(){
   const seq = ++homeSeq;
   skelKpis('kpis-home-caixa',4); skelKpis('kpis-home-fin',4); skelKpis('kpis-home-op',4);
@@ -11498,6 +11536,10 @@ async function loadHome(){
     const r=await fetch('/api/visao-geral',{cache:'no-store'});
     const d=await r.json();
     if(seq!==homeSeq) return;
+    /* LEITURA VELHA: o ERP nao respondeu e o servidor devolveu a ultima boa.
+       A tarja e obrigatoria — numero velho servido calado e pior que tela
+       vazia, porque ninguem desconfia dele. */
+    homeTarjaVelha(d);
     if(!r.ok){ showBanner(d.mensagem||'Erro ao montar a visão geral.', d.detalhe); return; }
     hideBanner(); DATAHOME=d; renderHome(d);
   }catch(e){ if(seq===homeSeq) showBanner('Não foi possível falar com a API.', e.message); }
@@ -28329,6 +28371,43 @@ function renderDre(d){
   };
   const SEM_AA_CONTA='O comparativo com o ano anterior é lido no nível do agrupador. No detalhe por conta ele não é calculado — traria uma segunda varredura pesada do razão sem mudar a leitura da linha.';
   const deltaAA=(u,a)=>_cel(u,a);
+  /* SETA EM TODO MES. A coluna "Δ m/m" continua onde estava (a leitura
+     executiva, os dois ultimos meses FECHADOS); o que faltava era ver o
+     movimento AO LONGO da serie sem ter de subtrair de cabeca.
+
+     So a SETA, nunca o percentual: a tabela ja tem 15 colunas e um "▲ 12%" em
+     cada mes somaria ~45 px por coluna e empurraria a leitura para fora da
+     tela. A seta custa ~11 px e o numero exato vai no title.
+
+     Tres casos em que ela NAO aparece, e os tres sao decisao:
+       - PRIMEIRO mes da serie: nao ha anterior. Seta ali seria invencao.
+       - Mes CORRENTE (parcial): comparar lancamento que ainda esta entrando
+         com mes fechado foi o defeito que criou a regra do Δ m/m — "custo
+         fixo ▲84%" que era so nota que nao chegou.
+       - Valor irrisorio dos dois lados (< R$ 500): a celula ja mostra "–", e
+         seta sobre travessao nao quer dizer nada.
+
+     As duas regras do `_cel` valem igual aqui: a SETA segue o TAMANHO da linha
+     (custo caindo e ▼) e a COR segue o efeito no RESULTADO (verde melhora).
+     Abaixo de 1,5% e ESTAVEL (mesma regua do trendChip da casa) e sai em
+     tracinho cinza — pintar ruido de verde ou vermelho treina a ignorar. */
+  const _seta=(vs,mm,idx)=>{
+    if(idx===0 || mm===_mesAtualDre) return '';
+    const u=vs[mm]||0, a=vs[d.meses[idx-1]]||0;
+    if(Math.abs(u)<500 && Math.abs(a)<500) return '';
+    const anoMes=periodoLabel(d.meses[idx-1]);
+    const mil=x=>(x/1000).toLocaleString('pt-BR',{maximumFractionDigits:0});
+    if(Math.abs(a)<500)
+      return `<span class="dre-seta" style="color:var(--n500)" title="nao havia valor em ${anoMes} (R$ mil: ${mil(a)} para ${mil(u)})">+</span>`;
+    const p=100*(u-a)/Math.abs(a);
+    if(Math.abs(p)<1.5)
+      return `<span class="dre-seta" style="color:var(--n400)" title="estavel sobre ${anoMes}: ${p.toFixed(1).replace('.',',')}% (R$ mil: ${mil(a)} para ${mil(u)})">–</span>`;
+    const melhora=u>a, mesmoSinal=(u>=0)===(a>=0);
+    const seta = mesmoSinal ? (Math.abs(u)>Math.abs(a)?'▲':'▼') : (melhora?'▲':'▼');
+    const txt=(Math.abs(p)>=1000?'999+':Math.abs(p).toFixed(0))+'%';
+    return `<span class="dre-seta" style="color:${melhora?'var(--green)':'var(--red)'}" title="${seta} ${txt} sobre ${anoMes} (R$ mil: ${mil(a)} para ${mil(u)})">${seta}</span>`;
+  };
+  const _mes=(vs,mm,idx)=>`<td class="num">${fm(vs[mm]||0)}${_seta(vs,mm,idx)}</td>`;
   const delta=(vs,frente)=>{
     if(!temDelta) return '';
     const cel=_cel(vs[ultM]||0, vs[antM]||0);
@@ -28352,7 +28431,7 @@ function renderDre(d){
       <td title="${esc(l.rotulo)}">${temDet?'<span class="exp">▸</span>':'<span class="exp"></span>'}${esc(l.rotulo)}</td>
       <td class="num" style="font-weight:600">${av}</td>
       ${delta(l.meses, true)}
-      ${d.meses.map(mm=>`<td class="num">${fm(l.meses[mm]||0)}</td>`).join('')}
+      ${d.meses.map((mm,k)=>_mes(l.meses,mm,k)).join('')}
       <td class="num" style="font-weight:700;border-left:2px solid var(--n300)">${fm(l.total)}</td>
       <td class="num" style="color:var(--n500)">${fm(l.total_aa||0)}</td>
       ${deltaAA(l.total, l.total_aa||0)}
@@ -28365,7 +28444,7 @@ function renderDre(d){
         <td title="${esc(dd.agrupador)}">${temC?'<span class="exp">▸</span>':'<span class="exp"></span>'}${esc(dd.agrupador)}</td>
         <td class="num">${(rl&&rl.total)?`<span class="av">${(100*dd.total/Math.abs(rl.total)).toFixed(1)}%</span>`:''}</td>
         ${delta(dd.meses, true)}
-        ${d.meses.map(mm=>`<td class="num">${fm(dd.meses[mm]||0)}</td>`).join('')}
+        ${d.meses.map((mm,k)=>_mes(dd.meses,mm,k)).join('')}
         <td class="num" style="border-left:2px solid var(--n300)">${fm(dd.total)}</td>
         <td class="num" style="color:var(--n500)">${fm(dd.total_aa||0)}</td>
         ${deltaAA(dd.total, dd.total_aa||0)}
@@ -28385,7 +28464,7 @@ function renderDre(d){
         <td title="${esc((c.estrutural||'')+' · '+(c.conta||''))}"><span class="ccod">${esc(c.estrutural||'')}</span> · ${esc(c.conta||'')}</td>
         <td class="num">${(rl&&rl.total)?`<span class="av">${(100*c.total/Math.abs(rl.total)).toFixed(1)}%</span>`:''}</td>
         ${delta(c.meses, true)}
-        ${d.meses.map(mm=>`<td class="num">${fm(c.meses[mm]||0)}</td>`).join('')}
+        ${d.meses.map((mm,k)=>_mes(c.meses,mm,k)).join('')}
         <td class="num" style="border-left:2px solid var(--n300)">${fm(c.total)}</td>
         <td class="num" title="${esc(SEM_AA_CONTA)}"><span class="zero">n/d</span></td>
         <td class="num" title="${esc(SEM_AA_CONTA)}"><span class="zero">n/d</span></td>

@@ -339,6 +339,13 @@ barra empilhada, não donut.
   ignora sai; card que não segue os filtros leva badge visível; datas sempre em
   horário local (`_iso()` — `toISOString()` em UTC−3 volta um dia); presets de
   período compartilhados exigem `emiPresetSync()`.
+- **Tela de painel não morre por dependência externa com dia ruim.** O ERP é
+  réplica de produção de TERCEIRO: `cached(ttl, velha_ate=)` devolve a ÚLTIMA
+  LEITURA BOA carimbada (`leitura_velha`, `leitura_em`, idade) quando a
+  consulta falha, e a tela é OBRIGADA a mostrar a tarja — número velho servido
+  calado é pior que tela vazia, porque ninguém desconfia dele. É opt-in
+  (`get_visao_geral`: 2 h), devolve CÓPIA (quem recebe não corrompe o cache) e
+  passado o prazo vira erro.
 - **Zero que é ausência de lançamento não é desempenho** — é `n/d` em cinza,
   jamais verde. KPI que só pode dar zero por falta de preenchimento mostra
   "não informado" com a cobertura ("informado em X de Y").
@@ -494,6 +501,17 @@ barra empilhada, não donut.
   o **HEAD do git** e exigir `sumiram: nenhuma`. O `git diff --stat` denuncia
   antes de qualquer teste. Editar o `index.html` por fatia: memória
   `editar-index-html-por-fatia`.
+- **Medição contra dependência externa vale UMA vez e só se REPETIDA.** Número
+  isolado durante incidente é sintoma do incidente, não da consulta: a de OC da
+  Visão Geral foi acusada de lenta com base em 200 s medidos dentro de uma
+  janela ruim do ERP, e roda em **0,13 s** (mediana de 10) com o servidor são —
+  no mesmo intervalo o `VG_MES_SQL` caiu de 8,5 s para 1,8 s sozinho. E
+  comparação entre dois estados só vale se os dois forem medidos IGUAL.
+- **Ao mudar uma REGRA, ache os guards dela pelo ASSUNTO, não pela pasta.**
+  A faixa da marca no e-mail subiu com 8 testes quebrados: o guard atualizado
+  estava em `tests/correio/`, e o outro da MESMA regra em
+  `tests/test_boas_vindas.py`, na raiz. `grep -rl "<a regra>" tests/` custa dois
+  segundos; guard não mora necessariamente ao lado do código que ele guarda.
 - **Verde que nunca ficaria vermelho não conferiu nada** — sabotar o alvo e ver
   o teste falhar leva trinta segundos; campo ausente em conferidor vira ACHADO,
   não silêncio.
