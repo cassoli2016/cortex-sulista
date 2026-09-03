@@ -184,7 +184,8 @@ def email(contato_id: int, *, assunto: str, corpo: str,
     html = layout.documento(
         ass, [layout.cabecalho(ass, ct["conta_nome"])]
         + [layout.paragrafo(p) for p in txt.split("\n") if p.strip()],
-        origem="CRM")
+        # Vai para CONTATO DE CLIENTE, que nao tem painel para entrar.
+        origem="CRM", agendado=False)
     r = ce.enviar([ct["email"]], ass, txt, corpo_html=html, usuario=usuario,
                   origem=ORIGEM)
 

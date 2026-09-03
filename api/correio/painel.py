@@ -371,20 +371,31 @@ def campos(itens: list[tuple[str, str]], *, titulo: str = "",
 </td></tr>"""
 
 
-def rodape(origem: str) -> str:
+def rodape(origem: str, *, agendado: bool = True) -> str:
+    """Rodapé comum. `agendado=False` para mensagem DISPARADA POR UMA AÇÃO.
+
+    O convite a "Gestão › Integrações" só é verdade no e-mail AGENDADO, que é
+    o que tem horário, lista de destinatários e um botão de desligar naquela
+    tela. Numa mensagem disparada por ação — boas-vindas, redefinição de
+    senha, mensagem do CRM — não há horário nem lista: o destinatário é quem
+    pediu ou quem foi cadastrado, e não existe nada para mudar lá. Pior no
+    CRM, que sai para CONTATO DE CLIENTE: mandar alguém de fora "entrar no
+    painel" é instrução impossível e ainda conta como navegamos por dentro.
+    """
     quando = datetime.now().strftime("%d/%m/%Y às %H:%M")
+    gerencia = ("Para mudar horário, destinatários ou parar o envio, entre no "
+                "painel em <b>Gestão › Integrações</b>." if agendado else "")
     return f"""
 <tr><td style="padding:26px 26px 24px">
   <div style="border-top:1px solid {BORDA};padding-top:14px;
               font:400 11.5px/1.6 {FONTE};color:{CINZA}">
     Gerado pelo CÓRTEX em {quando} · fonte: {_esc(origem)}<br>
-    Mensagem automática. Para mudar horário, destinatários ou parar o envio,
-    entre no painel em <b>Gestão › Integrações</b>.
+    Mensagem automática. {gerencia}
   </div></td></tr>"""
 
 
 def documento(titulo: str, blocos: list[str], *, subtitulo: str = "",
-              origem: str = "") -> str:
+              origem: str = "", agendado: bool = True) -> str:
     """Envelope. `role="presentation"` em toda tabela de layout: sem isso o
     leitor de tela anuncia "tabela de 3 colunas" a cada moldura."""
     corpo = "".join(blocos)
@@ -426,7 +437,7 @@ def documento(titulo: str, blocos: list[str], *, subtitulo: str = "",
                 border:1px solid {BORDA};border-radius:10px;overflow:hidden">
    {cabecalho(titulo, subtitulo)}
    {corpo}
-   {rodape(origem or 'painel CÓRTEX')}
+   {rodape(origem or 'painel CÓRTEX', agendado=agendado)}
   </table>
  </td></tr>
 </table></body></html>"""

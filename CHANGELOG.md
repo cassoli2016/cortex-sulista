@@ -4,6 +4,11 @@ Gerado de `docs/versoes.yaml` por `scripts/gerar_changelog.py` — não editar �
 Formato [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/),
 versionamento [SemVer](https://semver.org/lang/pt-BR/).
 
+## [0.216.1] — 02/09/2026  ·  CX-02/09/2026-v0.216.1
+
+### Corrigido
+- O rodapé dos e-mails só convida a Gestão › Integrações quando isso é verdade. A frase "para mudar horário, destinatários ou parar o envio" nasceu no relatório agendado, onde é a instrução certa, mas o layout é compartilhado e ela saía também nas mensagens disparadas por uma ação: o e-mail de boas-vindas, o de redefinição de senha e a mensagem do CRM. Aí não há horário nem lista de destinatários para mudar em lugar nenhum. No CRM era pior, porque a mensagem vai para o contato do CLIENTE, que não tem painel para entrar. O relatório agendado continua dizendo onde desligar.
+
 ## [0.216.0] — 02/09/2026  ·  CX-02/09/2026-v0.216.0
 
 ### Adicionado

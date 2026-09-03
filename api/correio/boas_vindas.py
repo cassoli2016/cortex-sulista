@@ -176,7 +176,9 @@ def montar(nome: str, email: str, senha: str, url: str,
     blocos.append(p.paragrafo(
         "Se não foi você quem pediu este acesso, avise a área de TI e não use "
         "a senha deste e-mail."))
-    html = p.documento(assunto, blocos, origem="cadastro de usuário")
+    html = p.documento(assunto, blocos, origem="cadastro de usuário",
+                       # disparado pelo cadastro, nao por agendamento
+                       agendado=False)
     return assunto, texto, html
 
 

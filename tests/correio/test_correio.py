@@ -375,3 +375,60 @@ def test_a_trilha_registra_QUANTOS_e_QUAIS_arquivos_sairam(monkeypatch):
         corpo = c.execute("SELECT corpo FROM correio_envios ORDER BY id DESC"
                           " LIMIT 1").fetchone()["corpo"]
     assert "[anexos: 2]" in corpo and "um.xml" in corpo and "dois.xml" in corpo
+
+
+# ---------------------------------------------------------------------------
+# O rodapé só convida a Gestão › Integrações onde isso é VERDADE.
+#
+# A linha "Para mudar horário, destinatários ou parar o envio, entre no painel
+# em Gestão › Integrações" nasceu no relatório agendado, onde é a instrução
+# certa: lá existe horário, existe lista e existe o botão de desligar. Como o
+# layout é compartilhado, ela passou a sair também em mensagem DISPARADA POR
+# UMA AÇÃO — boas-vindas, redefinição de senha, mensagem do CRM — onde não há
+# horário nem lista para mudar. No CRM era pior: a mensagem sai para CONTATO
+# DE CLIENTE, que não tem painel para entrar.
+# ---------------------------------------------------------------------------
+GESTAO = "Gestão › Integrações"
+
+
+def _rodape(html: str) -> str:
+    import re
+    m = re.search(r"Gerado pelo CÓRTEX.*?</div>", html, re.S)
+    assert m, "o rodapé sumiu do e-mail"
+    return re.sub(r"\s+", " ", m.group(0))
+
+
+def test_relatorio_agendado_DIZ_onde_desligar():
+    """Aqui a instrução é verdadeira e útil — não pode sumir junto."""
+    from api.correio import painel as p
+    html = p.documento("Relatório", [p.paragrafo("x")], origem="alertas do painel")
+    assert GESTAO in _rodape(html)
+
+
+def test_redefinicao_de_senha_NAO_manda_ninguem_a_gestao():
+    from api.correio import redefinir_senha as rs
+    _a, _t, html = rs.montar("Fulano", "https://x/#redefinir=tok", 60)
+    assert GESTAO not in _rodape(html)
+    assert "Mensagem automática." in _rodape(html)
+
+
+def test_boas_vindas_NAO_manda_ninguem_a_gestao():
+    from api.correio import boas_vindas as bv
+    _a, _t, html = bv.montar("Fulano", "f@x.com", "Senha123", "https://x")
+    assert GESTAO not in _rodape(html)
+
+
+def test_mensagem_ao_cliente_nao_cita_tela_interna():
+    """O CRM sai para fora da empresa: instrução impossível para quem recebe,
+    e ainda conta como o painel se organiza por dentro."""
+    from api.correio import painel as p
+    html = p.documento("Assunto", [p.paragrafo("oi")], origem="CRM", agendado=False)
+    assert GESTAO not in _rodape(html)
+
+
+def test_o_padrao_continua_sendo_o_agendado():
+    """Quem esquecer o parâmetro cai no comportamento antigo, não no novo: o
+    e-mail agendado é a maioria, e perder a instrução lá seria a regressão."""
+    from api.correio import painel as p
+    assert GESTAO in p.rodape("qualquer")
+    assert GESTAO not in p.rodape("qualquer", agendado=False)

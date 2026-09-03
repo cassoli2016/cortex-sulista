@@ -1,3 +1,17 @@
+- versao: "0.216.1"
+  data: "2026-09-02"
+  corrigido:
+    - >-
+      O rodapé dos e-mails só convida a Gestão › Integrações quando isso é
+      verdade. A frase "para mudar horário, destinatários ou parar o envio"
+      nasceu no relatório agendado, onde é a instrução certa, mas o layout é
+      compartilhado e ela saía também nas mensagens disparadas por uma ação: o
+      e-mail de boas-vindas, o de redefinição de senha e a mensagem do CRM. Aí
+      não há horário nem lista de destinatários para mudar em lugar nenhum. No
+      CRM era pior, porque a mensagem vai para o contato do CLIENTE, que não
+      tem painel para entrar. O relatório agendado continua dizendo onde
+      desligar.
+
 - versao: "0.216.0"
   data: "2026-09-02"
   adicionado:
