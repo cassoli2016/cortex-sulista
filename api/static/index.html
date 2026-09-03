@@ -1426,7 +1426,18 @@ body.tvmode .menuanel,body.tvfull .menuanel{display:none}
 .lg-sub{margin:0 0 14px;font-size:13px;color:var(--n600,#6B7280)}
 .lg-body label{display:block;font-size:12px;font-weight:600;color:var(--n600,#6B7280);margin:10px 0 4px}
 .lg-body input{width:100%;padding:10px 11px;border:1px solid var(--n300,#d3dae2);border-radius:6px;font:inherit;font-size:14px}
-.lg-btn{width:100%;margin-top:14px;padding:11px}
+/* O BOTAO E A CAIXA DE "LEMBRAR" PERDIAM A BRIGA DE ESPECIFICIDADE, e
+   por isso a tela nao era a que o CSS descrevia (memoria
+   `css-regra-que-perde-a-briga`: a regra existe, esta certa e nao vale).
+   `.lg-btn` (0,1,0) perdia para `button.btn` (0,2,1) — inclusive para o
+   `button.btn{padding:8px 12px}` do @media do celular — entao o padding
+   daqui nunca valeu, e o `justify-content` que faltava lá deixava o rotulo
+   ENCOSTADO NA ESQUERDA de um bloco escuro de largura inteira: era isso que
+   fazia o botao parecer grande demais, nao a altura (ele tem a mesma altura
+   dos campos). Com o alias qualificado a regra vence, e o rotulo centrado
+   devolve a proporcao. */
+.lg-body button.lg-btn{width:100%;margin-top:16px;padding:10px 16px;
+  font-size:13.5px;justify-content:center;line-height:1.35}
 .avwrap{position:relative}
 button.avatar{border:0;cursor:pointer}
 .avmenu{position:absolute;right:0;top:calc(100% + 10px);background:var(--n0);border-radius:8px;
@@ -1541,10 +1552,31 @@ button.avatar{border:0;cursor:pointer}
   text-transform:uppercase;letter-spacing:.05em}
 .ges-telas label{display:flex;gap:7px;align-items:center;font-size:13px;font-weight:500;margin:0;color:inherit}
 .m-foot{display:flex;justify-content:flex-end;align-items:center;gap:8px;margin-top:16px}
-.lg-lembrar{display:flex!important;flex-direction:row!important;align-items:center;
-  gap:8px;margin:10px 0 2px;font-size:13px;color:var(--n500);cursor:pointer;
-  font-weight:400}
-.lg-lembrar input{width:auto;margin:0;accent-color:var(--orange-500)}
+/* A CAIXA DE "LEMBRAR": o mesmo defeito de especificidade, e no celular
+   ele aparecia inteiro. `.lg-lembrar` (0,1,0) perdia para `.lg-body label`
+   (0,1,1), entao a linha herdava o estilo de ROTULO DE CAMPO — 12px, peso
+   600, cor de titulo — em vez do texto discreto que ela deveria ser. E o
+   `.lg-body input` (0,2,0) continuava valendo para a caixinha, que e um
+   `input` como qualquer outro: ela ganhava `padding:10px 11px` e borda de
+   campo de texto e virava um quadrado laranja do tamanho de um dedo. O
+   `!important` que estava aqui era o remendo de quem viu o sintoma sem ver a
+   causa: nao resolvia (nao alcancava font-weight nem o padding da caixinha) e
+   escondia o problema. Some com ele; o que resolve e o seletor mais
+   especifico. */
+.lg-body label.lg-lembrar{display:flex;flex-direction:row;align-items:center;
+  gap:9px;margin:14px 0 0;font-size:13px;font-weight:400;color:var(--n500);
+  cursor:pointer;line-height:1.35}
+.lg-body label.lg-lembrar input[type=checkbox]{width:17px;height:17px;flex:none;
+  margin:0;padding:0;border:0;border-radius:0;accent-color:var(--orange-500)}
+/* Linha de "outra coisa que da para fazer aqui": esqueci a senha, voltar.
+   Botao de verdade, nao `<a href="#">` — href que nao leva a lugar nenhum
+   mexe no hash e o roteador da pagina reage a isso. */
+.lg-alt{margin-top:14px;text-align:center}
+.lg-body button.lg-link{background:none;border:0;padding:4px 6px;cursor:pointer;
+  font:600 13px/1.3 var(--font);color:var(--orange-500);border-radius:6px}
+.lg-body button.lg-link:hover{text-decoration:underline}
+/* Aviso de "deu certo": verde do semaforo da casa, nunca um verde novo. */
+.lg-ok{color:var(--green,#1E7F4F);font-size:13px;line-height:1.45;margin-top:10px}
 .m-err{color:var(--red,#C03221);font-size:13px;min-height:16px;margin-top:8px;flex:1}
 .ges-tabs{display:flex;gap:8px;flex-wrap:wrap;padding:0 2px 4px}
 .ges-audbar{display:flex;gap:8px;margin:0 0 10px}
@@ -28555,6 +28587,8 @@ function aplicarPermissoes(){
   });
 }
 function lgHTML(modo){
+  if(modo==='esqueci') return lgHTMLEsqueci();
+  if(modo==='redefinir') return lgHTMLRedefinir();
   if(modo==='setup') return `
     <h2>Primeiro acesso</h2>
     <p class="lg-sub">Nenhum usuário cadastrado. Crie o administrador inicial do CÓRTEX.</p>
@@ -28579,10 +28613,52 @@ function lgHTML(modo){
       <label for="lg-senha">Senha</label>
       <input type="password" id="lg-senha" name="password" autocomplete="current-password">
       <label class="lg-lembrar"><input type="checkbox" id="lg-lembrar"
-             ${lembrado ? 'checked' : ''}> Lembrar meu e-mail neste computador</label>
+             ${lembrado ? 'checked' : ''}> Lembrar meu e-mail neste aparelho</label>
       <div class="m-err" id="lg-err"></div>
+      <div class="lg-ok" id="lg-ok"></div>
       <button class="btn lg-btn" id="lg-go" type="submit">Entrar</button>
-    </form>`;
+    </form>
+    <div class="lg-alt"><button type="button" class="lg-link"
+         onclick="lgModo('esqueci')">Esqueci minha senha</button></div>`;
+}
+/* "Esqueci minha senha", em dois passos: pedir o link (aqui) e escolher a
+   senha nova (`redefinir`, aberto pelo link do e-mail).
+
+   A TELA NAO DIZ SE O E-MAIL EXISTE. A resposta da API e a mesma nos dois
+   casos, de proposito (ver api/auth.py), e a tela precisa contar a MESMA
+   historia: um formulario publico que responde "e-mail nao cadastrado" e um
+   verificador de quem trabalha na empresa, aberto na internet. */
+function lgHTMLEsqueci(){
+  return `
+    <h2>Esqueci minha senha</h2>
+    <p class="lg-sub">Informe o seu e-mail. Se ele estiver cadastrado, você
+       recebe um link para escolher uma senha nova.</p>
+    <form id="lg-form" onsubmit="event.preventDefault();esqueciSubmit();return false">
+      <label for="lg-email">E-mail</label>
+      <input type="email" id="lg-email" name="username" autocomplete="username"
+             value="${esc(lgEmailLembrado())}">
+      <div class="m-err" id="lg-err"></div>
+      <div class="lg-ok" id="lg-ok"></div>
+      <button class="btn lg-btn" id="lg-go" type="submit">Enviar o link</button>
+    </form>
+    <div class="lg-alt"><button type="button" class="lg-link"
+         onclick="lgModo('login')">Voltar para o login</button></div>`;
+}
+function lgHTMLRedefinir(){
+  return `
+    <h2>Escolher uma senha nova</h2>
+    <p class="lg-sub">O link vale uma vez só. Escolha a senha e entre com ela.</p>
+    <form id="lg-form" onsubmit="event.preventDefault();redefinirSubmit();return false">
+      <label for="lg-senha">Nova senha</label>
+      <input type="password" id="lg-senha" name="password" autocomplete="new-password">
+      <label for="lg-conf">Confirmar a nova senha</label>
+      <input type="password" id="lg-conf" name="password" autocomplete="new-password">
+      <div class="m-err" id="lg-err"></div>
+      <div class="lg-ok" id="lg-ok"></div>
+      <button class="btn lg-btn" id="lg-go" type="submit">Salvar a senha</button>
+    </form>
+    <div class="lg-alt"><button type="button" class="lg-link"
+         onclick="lgModo('login')">Voltar para o login</button></div>`;
 }
 function mostrarLogin(modo){
   const ov=document.getElementById('loginOverlay');
@@ -28598,6 +28674,66 @@ function mostrarLogin(modo){
   if(foco) setTimeout(()=>foco.focus(), 60);
 }
 function lgErro(m){ const e=document.getElementById('lg-err'); if(e) e.textContent=m||''; }
+function lgOk(m){ const e=document.getElementById('lg-ok'); if(e) e.textContent=m||''; }
+/* Troca o conteudo do cartao de login. NAO e o `mostrarLogin`: aquele tem o
+   guarda de "ja montado, nao recria" — que existe para o 401 no meio da
+   navegacao nao apagar o que a pessoa acabou de digitar — e aqui a troca de
+   modo e justamente o que se quer. */
+function lgModo(m){
+  document.getElementById('lg-box').innerHTML = lgHTML(m);
+  document.getElementById('loginOverlay').classList.remove('oculto');
+  const alvo = m==='redefinir' ? 'lg-senha' : 'lg-email';
+  const f=document.getElementById(alvo); if(f) setTimeout(()=>f.focus(), 60);
+}
+/* O token de redefinicao chega no FRAGMENTO (`#redefinir=...`), nunca em
+   `?query`: o que vem depois do `#` nao e enviado ao servidor, entao nao
+   entra no log do uvicorn nem no do Cloudflare, que fica entre nos e a
+   internet. Lido uma vez, ele SAI da barra de endereco na hora — link de uso
+   unico nao fica em historico nem em favorito. */
+const LG_RESET_RE = /^#redefinir=([A-Za-z0-9_-]{20,200})$/;
+let LG_RESET_TOKEN = '';
+function lgTokenDaUrl(){
+  const m = (location.hash||'').match(LG_RESET_RE);
+  if(!m) return '';
+  try{ history.replaceState(null, '', location.pathname + location.search); }catch(e){}
+  return m[1];
+}
+async function esqueciSubmit(){
+  const email=(document.getElementById('lg-email').value||'').trim();
+  if(!email){ lgErro('Informe o seu e-mail.'); return; }
+  const btn=document.getElementById('lg-go'); btn.disabled=true; lgErro(''); lgOk('');
+  try{
+    const r=await _fetch0('/api/auth/esqueci',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({email})});
+    const d=await r.json();
+    if(!r.ok){ lgErro(d.mensagem||'Não foi possível pedir o link.'); return; }
+    lgOk(d.mensagem||'Se esse e-mail estiver cadastrado, enviamos o link.');
+    /* O campo sai do caminho depois do pedido: reenviar por reflexo so gasta
+       o freio de tres por hora e enche a caixa de outra pessoa. */
+    document.getElementById('lg-email').disabled = true;
+    btn.style.display='none'; return;
+  }catch(e){ lgErro('Não foi possível falar com a API.'); }
+  finally{ if(btn) btn.disabled=false; }
+}
+async function redefinirSubmit(){
+  const senha=document.getElementById('lg-senha').value||'';
+  const conf=document.getElementById('lg-conf').value||'';
+  if(senha!==conf){ lgErro('A confirmação de senha não confere.'); return; }
+  const btn=document.getElementById('lg-go'); btn.disabled=true; lgErro(''); lgOk('');
+  try{
+    const r=await _fetch0('/api/auth/redefinir',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({token:LG_RESET_TOKEN,senha_nova:senha})});
+    const d=await r.json();
+    if(!r.ok){ lgErro(d.mensagem||'Não foi possível trocar a senha.'); return; }
+    /* NAO entra sozinho: quem abriu o link pode estar num aparelho
+       emprestado, e digitar a senha que acabou de escolher e o que confirma
+       que ela foi guardada. */
+    LG_RESET_TOKEN='';
+    lgModo('login');
+    /* SLOT PROPRIO, e nao o de erro pintado de verde: `lgErro` troca so o
+       TEXTO, entao a cor ficaria e o proximo erro de verdade sairia em verde. */
+    lgOk(d.mensagem||'Senha alterada. Entre com a senha nova.');
+  }catch(e){ lgErro('Não foi possível falar com a API.'); }
+  finally{ if(btn) btn.disabled=false; }
+}
 
 /* E-MAIL lembrado. So o e-mail: senha em localStorage e texto puro ao alcance
    de qualquer script da pagina, e a comodidade nao paga esse preco. Quem
@@ -28788,6 +28924,12 @@ async function boot(){
   abaContadoresArmar();
   telaCheiaSincronizar();
   if('serviceWorker' in navigator){ navigator.serviceWorker.register('/sw.js').catch(()=>{}); }
+  /* O LINK DE REDEFINICAO VEM ANTES DE TUDO, inclusive de `/api/auth/me`:
+     quem abre o link pode estar com sessao aberta no proprio aparelho, e
+     mandar essa pessoa para o painel engoliria o link em silencio — ela
+     clicou justamente porque quer trocar a senha. */
+  LG_RESET_TOKEN = lgTokenDaUrl();
+  if(LG_RESET_TOKEN){ lgModo('redefinir'); return; }
   let r=null;
   try{ r=await _fetch0('/api/auth/me',{cache:'no-store'}); }
   catch(e){ mostrarLogin('login'); lgErro('API fora do ar — verifique o serviço e recarregue.'); return; }

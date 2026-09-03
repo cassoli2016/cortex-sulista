@@ -2718,3 +2718,101 @@ agrupadores para a mesma coisa. Os 12 agrupadores que não caem em linha nenhuma
 da DRE são quase todos de conta SINTÉTICA, sem lançamento — inertes hoje, mas é
 o mesmo gatilho armado: no dia em que o ERP lançar numa delas, o valor cai em
 CLASSIFICAR sem avisar.
+
+## A tela de login: duas regras de CSS que nunca valeram, e o "esqueci minha senha" (2026-09-02, v0.216.0)
+
+Chegou por uma foto do login no iPhone: *"o botão Entrar está muito grande,
+implemente um esqueci minha senha, e a frase 'Lembrar meu e-mail neste
+computador' fica ruim no celular"*.
+
+### O botão não era grande — o rótulo é que estava encostado na esquerda
+
+Medido na foto: o botão tem **42,6 px** e o campo de senha tem **43,5 px**. Ele
+é MENOR que o campo. O que fazia a tela parecer desequilibrada era outra coisa:
+`button.btn` traz `display:inline-flex` **sem `justify-content`**, e com
+`width:100%` o rótulo fica grudado na borda esquerda de um bloco navy de
+largura inteira. Isso não se lê como botão, se lê como barra vazia com uma
+palavra no canto.
+
+A lição que se repete: **"grande demais" quase nunca é altura**. Antes de mexer
+em `padding`, medir o elemento e o vizinho — foi a medição que impediu de
+encolher um botão que já estava do tamanho certo, o que teria estragado o alvo
+de toque no celular sem resolver a queixa.
+
+### As duas regras estavam escritas, estavam certas, e não valiam
+
+É a família da memória `css-regra-que-perde-a-briga`, agora com dois casos no
+mesmo cartão:
+
+| regra | especificidade | quem vencia | efeito |
+|---|---|---|---|
+| `.lg-btn{padding:11px}` | (0,1,0) | `button.btn` (0,2,1) | o padding do login **nunca** valeu; no celular valia o `button.btn{padding:8px 12px}` do `@media` |
+| `.lg-lembrar{font-size:13px;font-weight:400;color:--n500}` | (0,1,0) | `.lg-body label` (0,1,1) | a linha herdava estilo de **rótulo de campo**: 12px, peso 600, cor de título |
+| `.lg-lembrar input{width:auto}` | (0,2,0) | — (venceu) | mas `.lg-body input{padding:10px 11px;border:1px}` continuou valendo: a caixinha ganhou padding e borda de campo de texto e virou o **quadrado laranja do tamanho de um dedo** da foto |
+
+O `display:flex!important;flex-direction:row!important` que estava ali era o
+remendo de quem viu o sintoma sem ver a causa: não alcançava `font-weight` nem
+o padding da caixinha, e **escondia** o problema em vez de resolver. Saiu. O
+que resolve é o seletor mais específico (`.lg-body label.lg-lembrar`,
+`.lg-body label.lg-lembrar input[type=checkbox]`).
+
+**A prova tem de sair do navegador.** `tests/frontend/test_login_e2e.py` lê
+`getComputedStyle`, não o texto do CSS — ler o arquivo mostraria as três regras
+lá, escritas e corretas, exatamente como estavam quando a tela estava errada.
+Sabotado antes de entrar (devolvendo os seletores fracos): os dois testes de
+especificidade caem.
+
+E "neste computador" num telefone estava errado no CONTEÚDO, não só no desenho.
+Virou **"neste aparelho"**, que vale nos dois.
+
+### "Esqueci minha senha": o pedido não pode tocar na conta
+
+A máquina de senha provisória já existia (usuário novo, reset do
+administrador). Reusá-la aqui era o caminho curto: pediu → gera senha → manda
+por e-mail. **É uma negação de serviço com formulário.** Quem soubesse um
+e-mail da empresa derrubaria o acesso de quem quisesse, quantas vezes quisesse:
+a senha da vítima pararia de valer sem que ela pedisse nada.
+
+O que entrou é um **token de uso único com prazo** (`sql/cortex/0038_senha_reset.sql`):
+
+- o pedido só cria uma *permissão temporária de trocar*; até alguém abrir o
+  link e escolher a senha, a antiga continua valendo e **nada mudou**;
+- **grava-se o SHA-256 do token**, como se guarda senha — quem lê a tabela
+  (backup, dump) não entra na conta de ninguém. Não é Argon2 de propósito: o
+  token é 256 bits aleatórios gerados por nós, não há dicionário para atacar, e
+  o custo do Argon2 numa rota pública seria porta de negação de serviço;
+- **o token vai no FRAGMENTO** (`#redefinir=…`), nunca em `?query`: o que vem
+  depois do `#` não é enviado ao servidor, então não entra no log do uvicorn
+  nem no do Cloudflare, que fica entre nós e a internet. O front lê, **apaga da
+  barra de endereço na hora** (`history.replaceState`) e manda no corpo do POST;
+- a senha nova faz `token_ver+1` (derruba as sessões abertas — conta perdida
+  tem de expulsar quem está dentro) e limpa `falhas`/`bloqueado_ate`: quem
+  acabou de provar que lê o e-mail da conta não continua trancado do lado de
+  fora;
+- **usar um link mata os outros em aberto**: dois e-mails na caixa não podem
+  virar duas chaves vivas depois que uma foi usada;
+- a senha curta é recusada **antes** de gastar o token — errar o mínimo não
+  pode obrigar a pessoa a pedir outro e-mail.
+
+**A resposta é idêntica para e-mail que existe e para e-mail que não existe** —
+mesmo texto, mesmo código HTTP, inclusive quando o ENVIO falha. Um formulário
+público que responde "e-mail não cadastrado" é um verificador de quem trabalha
+na empresa, aberto na internet; o erro de envio vai para o log e para a trilha
+do correio, que é onde ele tem de aparecer. Usuário **inativo** também cai no
+mesmo silêncio: reativar conta é do administrador, e um link de senha não pode
+ser a porta de volta de quem foi tirado.
+
+Freio de **3 pedidos por hora por usuário**, para o formulário não virar
+máquina de encher a caixa de entrada de outra pessoa — e o freio também não se
+anuncia. O e-mail sai pelo layout compartilhado (`correio.painel`), sem área
+escura, com texto puro junto, e **não carrega senha nenhuma**: o de
+boas-vindas leva provisória porque quem cadastrou decidiu criar o usuário;
+aqui o pedido veio da rua.
+
+### Um detalhe de bancada
+
+`scripts/migrar_schema.py` recusou o número 0037: **outra sessão já tinha
+aplicado um `0037_suporte.sql` no banco sem empurrar para o repositório**. O
+guard `NumeroJaUsado` fez exatamente o que existe para fazer — aplicar como
+estava deixaria uma das duas migrations de fora, calada. A nossa virou 0038;
+buraco na sequência é mais barato que migration engolida.

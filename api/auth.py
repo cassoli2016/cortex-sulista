@@ -256,7 +256,12 @@ ROTA_TELAS: list[tuple[str, frozenset[str]]] = [
 
 # Rotas liberadas sem sessão (a página raiz mostra o overlay de login;
 # /static tem o logo usado na tela de login).
-_PUBLICAS = ("/api/auth/login", "/api/auth/setup", "/api/auth/setup-status", "/api/health")
+_PUBLICAS = ("/api/auth/login", "/api/auth/setup", "/api/auth/setup-status",
+             "/api/health",
+             # "Esqueci minha senha": por construcao chega de quem NAO tem
+             # sessao. As duas respondem igual para todo mundo (ver
+             # esqueci_senha) e nao tocam na conta sem o token de uso unico.
+             "/api/auth/esqueci", "/api/auth/redefinir")
 
 # Autoservice de conta: exige sessão válida (checado antes), mas nenhuma tela
 # específica — todo usuário autenticado pode ver o próprio perfil/trocar a
@@ -1235,6 +1240,180 @@ def trocar_senha(payload: dict, request: Request) -> JSONResponse:
     resp = JSONResponse({"ok": True})
     _set_cookie(resp, _emitir_token(sess["id"], nova_ver), _https(request))
     return resp
+
+
+# ============================================================================
+# "Esqueci minha senha" — o unico caminho de conta que comeca SEM sessao.
+# ----------------------------------------------------------------------------
+# TRES DECISOES QUE VALEM MAIS QUE O CODIGO:
+#
+# 1. O PEDIDO NAO MEXE NA CONTA. A tentacao e reusar a senha provisoria que ja
+#    existe (usuario novo, reset do administrador): pediu, gera senha, manda
+#    por e-mail. Isso entregaria a qualquer pessoa que saiba um e-mail da
+#    empresa o poder de DERRUBAR o acesso de quem quiser, quantas vezes
+#    quiser — a senha da vitima para de valer sem que ela peca nada. Aqui o
+#    pedido so cria uma permissao temporaria de trocar; a senha antiga segue
+#    valendo ate alguem abrir o link e escolher a nova.
+#
+# 2. A RESPOSTA E A MESMA PARA E-MAIL QUE EXISTE E PARA E-MAIL QUE NAO EXISTE.
+#    Uma tela publica que responde "e-mail nao cadastrado" e um verificador de
+#    quem trabalha na empresa, aberto na internet. Nem o texto, nem o codigo
+#    HTTP, nem o caminho percorrido mudam — inclusive quando o envio FALHA: o
+#    erro vai para o log e para a trilha do correio, nunca para a tela.
+#
+# 3. O TOKEN VAI NO FRAGMENTO DA URL (`#redefinir=`), nunca em `?query`. O que
+#    vem depois do `#` NAO e enviado ao servidor: nao entra no log do uvicorn
+#    nem no do Cloudflare, que fica entre nos e a internet. O front le o
+#    fragmento e manda o token no CORPO de um POST.
+_RESET_VALIDADE_MIN = 60      # tempo de sobra para achar o e-mail, curto para achado
+_RESET_MAX_POR_HORA = 3       # freio de rajada de e-mail para a MESMA pessoa
+
+
+def _hash_token(token: str) -> str:
+    """SHA-256 do token, que e o que se GRAVA. O token cru so existe no e-mail.
+
+    Nao e Argon2 de proposito: o token e aleatorio de 256 bits gerado por nos,
+    nao uma senha escolhida por gente — nao ha dicionario para atacar, e o
+    custo do Argon2 numa rota publica viraria porta de negacao de servico. O
+    que o SHA-256 resolve e o mesmo que importa: quem le a tabela (backup,
+    dump) nao consegue usar o token.
+    """
+    import hashlib
+    return hashlib.sha256(token.encode("utf-8")).hexdigest()
+
+
+@router_auth.post("/esqueci")
+def esqueci_senha(payload: dict, request: Request) -> JSONResponse:
+    """Pede o link de redefinicao. SEMPRE responde a mesma coisa (ver nota 2)."""
+    email = (payload.get("email") or "").strip().lower()
+
+    def generico(depois=None):
+        """A MESMA resposta em todo caminho — e o mesmo TEMPO.
+
+        Nao basta o texto ser igual: mandar o e-mail antes de responder faria a
+        resposta demorar os segundos do SMTP quando o endereco existe e voltar
+        na hora quando nao existe. O relogio contaria o que o texto cala. Com o
+        envio em `BackgroundTask` o corpo sai primeiro e o SMTP roda depois,
+        fora da conta do cliente. E o mesmo motivo do `_ph.hash(senha)` que o
+        login faz para e-mail inexistente.
+        """
+        from starlette.background import BackgroundTask
+        return JSONResponse(
+            {"ok": True,
+             "mensagem": "Se esse e-mail estiver cadastrado, enviamos as "
+                         "instrucoes para redefinir a senha. Confira a caixa "
+                         "de entrada e o spam."},
+            background=BackgroundTask(depois) if depois else None)
+
+    if not email or "@" not in email:
+        return generico()
+
+    ip = _ip(request)
+    with _conn() as c:
+        u = c.execute("SELECT id, nome, email, ativo FROM usuarios WHERE email=%s",
+                      (email,)).fetchone()
+        if not u or not u["ativo"]:
+            # Usuario inativo tambem cai aqui: reativar e do administrador, e um
+            # link de senha nao pode ser a porta de volta de quem foi tirado.
+            audit(email, "senha_esqueci",
+                  detalhe="pedido para e-mail inexistente ou inativo", ip=ip)
+            return generico()
+        limite = (datetime.now() - timedelta(hours=1)).strftime("%Y-%m-%d %H:%M:%S")
+        recentes = c.execute(
+            "SELECT COUNT(*) AS n FROM senha_reset WHERE usuario_id=%s AND criado_em>=%s",
+            (u["id"], limite)).fetchone()["n"]
+        if recentes >= _RESET_MAX_POR_HORA:
+            # Nao e erro para quem pediu: e freio para o pedido repetido nao
+            # virar rajada de e-mail na caixa de outra pessoa.
+            audit(email, "senha_esqueci",
+                  detalhe=f"freio: {recentes} pedidos na ultima hora", ip=ip)
+            return generico()
+
+        import secrets
+        token = secrets.token_urlsafe(32)
+        expira = (datetime.now() + timedelta(minutes=_RESET_VALIDADE_MIN)
+                  ).strftime("%Y-%m-%d %H:%M:%S")
+        c.execute(
+            """INSERT INTO senha_reset(usuario_id, token_hash, criado_em, expira_em, ip_pedido)
+               VALUES(%s,%s,%s,%s,%s)""",
+            (u["id"], _hash_token(token), _agora(), expira, ip))
+
+    audit(email, "senha_esqueci", alvo=email,
+          detalhe=f"link gerado, valido por {_RESET_VALIDADE_MIN} min", ip=ip)
+
+    base = _url_painel()
+    if not base:
+        # Sem CORTEX_URL nao ha link que leve a lugar nenhum. E instalacao
+        # incompleta, nao falha de quem pediu — e ele nao pode saber disso.
+        log.warning("esqueci-senha: CORTEX_URL ausente; e-mail nao enviado")
+        return generico()
+
+    def mandar():
+        """Roda DEPOIS da resposta. Nunca levanta: excecao aqui viraria 500 no
+        log de uma requisicao que ja foi respondida com 200."""
+        try:
+            from api.correio import redefinir_senha as correio_reset
+            r = correio_reset.enviar(u["email"], u["nome"],
+                                     f"{base}/#redefinir={token}",
+                                     _RESET_VALIDADE_MIN)
+            if not r.get("ok"):
+                log.warning("esqueci-senha: envio falhou: %s", r.get("erro"))
+        except Exception as exc:  # noqa: BLE001
+            log.warning("esqueci-senha: envio falhou: %s", type(exc).__name__)
+
+    return generico(mandar)
+
+
+@router_auth.post("/redefinir")
+def redefinir_senha(payload: dict, request: Request) -> JSONResponse:
+    """Consome o link e grava a senha nova."""
+    token = (payload.get("token") or "").strip()
+    nova = payload.get("senha_nova") or ""
+    ip = _ip(request)
+    # 409, o HTTP_RECUSA da casa (api/main.py): recusa LEGIVEL e 4xx. Em 5xx
+    # o Cloudflare troca o corpo pela pagina dele e a explicacao nunca chega.
+    invalido = JSONResponse(status_code=409, content={
+        "erro": "link_invalido",
+        "mensagem": "Este link nao vale mais — ele expira em uma hora e serve "
+                    "uma vez so. Peca um novo em 'Esqueci minha senha'."})
+    if not token:
+        return invalido
+    # O tamanho da senha e conferido ANTES de gastar o token: errar o minimo
+    # nao pode queimar o link e obrigar a pessoa a pedir outro e-mail.
+    if len(nova) < cfg("senha_min"):
+        return JSONResponse(status_code=422, content={
+            "erro": "senha_fraca",
+            "mensagem": f"A nova senha precisa de ao menos {cfg('senha_min')} caracteres."})
+
+    with _conn() as c:
+        r = c.execute(
+            """SELECT s.id, s.usuario_id, s.expira_em, s.usado_em, u.email, u.ativo
+               FROM senha_reset s JOIN usuarios u ON u.id=s.usuario_id
+               WHERE s.token_hash=%s""", (_hash_token(token),)).fetchone()
+        if not r or r["usado_em"] or not r["ativo"] or r["expira_em"] <= _agora():
+            audit((r or {}).get("email", ""), "senha_redefinir_falha",
+                  detalhe="link invalido, expirado ou ja usado", ip=ip)
+            return invalido
+        # A senha nova invalida TODAS as sessoes (token_ver+1): se a conta foi
+        # perdida, quem estiver dentro com um cookie antigo tem de cair. E
+        # limpa o bloqueio por tentativas — quem acabou de provar que le o
+        # e-mail da conta nao continua trancado do lado de fora.
+        c.execute(
+            """UPDATE usuarios SET senha_hash=%s, deve_trocar_senha=0,
+                      token_ver=token_ver+1, falhas=0, bloqueado_ate=NULL
+               WHERE id=%s""", (_ph.hash(nova), r["usuario_id"]))
+        # Os outros pedidos em aberto morrem junto (este inclusive): dois
+        # e-mails na caixa nao podem virar duas chaves vivas depois que uma foi
+        # usada.
+        c.execute(
+            "UPDATE senha_reset SET usado_em=%s WHERE usuario_id=%s AND usado_em IS NULL",
+            (_agora(), r["usuario_id"]))
+    audit(r["email"], "senha_redefinir", alvo=r["email"],
+          detalhe="senha trocada pelo link de e-mail; sessoes encerradas", ip=ip)
+    # NAO loga a pessoa automaticamente: quem abre o link pode estar num
+    # aparelho emprestado, e o proximo passo natural (digitar a senha que
+    # acabou de escolher) e o que confirma que ela guardou a senha.
+    return JSONResponse({"ok": True, "mensagem": "Senha alterada. Entre com a senha nova."})
 
 
 @router_auth.post("/perfil")

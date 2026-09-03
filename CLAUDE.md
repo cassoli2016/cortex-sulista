@@ -436,6 +436,18 @@ barra empilhada, não donut.
 
 ### Frontend (index.html)
 
+- **A regra de CSS pode existir, estar certa e NÃO VALER** (memória
+  `css-regra-que-perde-a-briga`): só o navegador diz quem venceu a
+  especificidade. No login, `.lg-btn` (0,1,0) perdia para `button.btn` (0,2,1) e
+  `.lg-lembrar` (0,1,0) para `.lg-body label` (0,1,1) — o padding escrito nunca
+  valeu e a linha saía com estilo de rótulo de campo. Regra de componente dentro
+  de um bloco estilizado nasce QUALIFICADA (`.lg-body button.lg-btn`); `!important`
+  ali é remendo que não alcança tudo e ESCONDE a causa. Teste de estilo lê
+  `getComputedStyle`, nunca o texto do CSS.
+- **"Grande demais" quase nunca é altura** — medir o elemento e o vizinho antes
+  de mexer no `padding`: o botão do login era MENOR que o campo (42,6 × 43,5 px);
+  o que desequilibrava era `inline-flex` sem `justify-content` deixando o rótulo
+  colado na esquerda de um bloco de largura inteira.
 - **TDZ mata o script no boot**: `const` de topo não pode ler `CC` (criado no
   fim do arquivo) — cor de paleta se resolve dentro de função. O sintoma é o
   login que não some da tela.
@@ -549,6 +561,17 @@ Regras duráveis — as crônicas (medições, formatos, tetos) estão em
    mágico, que permite o fallback externo do chat.
 6. Senha: hash argon2; provisória só gerada pelo sistema, com troca obrigatória,
    fora da trilha e do log (sem O/0/l/1/I).
+   **"Esqueci minha senha" NÃO reusa a provisória**: pedir o link não pode tocar
+   na conta, senão quem souber um e-mail derruba o acesso de quem quiser. É
+   token de uso único com prazo (`senha_reset`, `sql/cortex/0038_*`), gravado
+   em SHA-256, entregue no **fragmento** da URL (`#redefinir=`, que não chega
+   ao servidor nem ao log do Cloudflare) e apagado da barra de endereço na
+   leitura. Consumir invalida os outros links em aberto, faz `token_ver+1` e
+   limpa o bloqueio por tentativas. **Formulário público responde IGUAL para
+   e-mail que existe e que não existe** — mesmo texto, mesmo código, inclusive
+   quando o envio falha (senão vira lista de quem trabalha aqui); usuário
+   inativo cai no mesmo silêncio, e há freio de 3 pedidos/hora que também não
+   se anuncia.
 7. E-mail de segredo: devolver a senha na resposta só quando o ENVIO falhou;
    ação externa vai DEPOIS do commit e a falha AVISA sem derrubar o cadastro.
 

@@ -1,3 +1,30 @@
+- versao: "0.216.0"
+  data: "2026-09-02"
+  adicionado:
+    - >-
+      A tela de login ganhou ESQUECI MINHA SENHA. Você informa o e-mail e
+      recebe um link para escolher uma senha nova; o link vale uma hora e
+      serve uma vez só. Enquanto ninguém abrir o link, nada muda: a senha
+      atual continua valendo. Isso é de propósito — se o pedido já trocasse a
+      senha, qualquer pessoa que soubesse um e-mail da empresa poderia
+      derrubar o acesso de quem quisesse, quantas vezes quisesse. A tela não
+      diz se o e-mail existe ou não, pela mesma razão: um formulário público
+      que responde "e-mail não cadastrado" vira uma lista de quem trabalha
+      aqui, aberta na internet.
+  corrigido:
+    - >-
+      O botão ENTRAR parecia grande demais no celular. Ele tem a mesma altura
+      dos campos: o que atrapalhava era o rótulo encostado na esquerda de um
+      bloco escuro de largura inteira, que se lia como uma barra vazia. Agora
+      o texto fica centrado e o botão tem a proporção certa.
+    - >-
+      A linha LEMBRAR MEU E-MAIL saía errada no celular: a caixinha vinha do
+      tamanho de um dedo, laranja, com borda de campo de texto, e o texto ao
+      lado em negrito, competindo com os rótulos dos campos. As duas regras de
+      estilo estavam escritas e certas, mas perdiam para regras mais fortes da
+      página. E o texto dizia "neste computador" num telefone — agora diz
+      "neste aparelho".
+
 - versao: "0.215.1"
   data: "2026-09-02"
   alterado:
