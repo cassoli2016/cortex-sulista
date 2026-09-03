@@ -12,6 +12,7 @@ from __future__ import annotations
 from datetime import date, datetime, timedelta
 
 import logging
+import re
 
 from . import agrupador_gerencial as _ag
 from . import db
@@ -749,7 +750,22 @@ JOIN planoconta p ON p.reduzido = l.reduzido AND p.grupo = l.grupo
 {_ag.left_join('ag', 'l')}
 WHERE l.dtlancamento >= %(de)s::date AND l.dtlancamento < %(ate)s::date
   AND coalesce(l.historico, 0) <> 18
-  AND (ag.descricao IS NOT NULL OR p.estrutural ~ '^[34]')
+  -- SÓ CONTA DE RESULTADO ENTRA NA DRE, mesmo que o agrupador diga que sim.
+  -- O filtro era "tem agrupador OU é 3/4", e o OU deixava a classificação do
+  -- mapa passar por cima da natureza da conta. Quatro contas de BALANÇO
+  -- entravam por essa porta — Ticket Car (passivo) somava −1,07 mi em 12
+  -- meses dentro de CV-COMBUSTÍVEL, e Transitória de Ativo Imobilizado mais
+  -- −473 mil dentro de CV-MANUTENÇÃO. Em julho/26 isso fazia a linha de
+  -- combustível mostrar 299.951,18 onde o próprio ERP mostra 485.176,86.
+  --
+  -- O relatório de Lançamentos CTB do AVA monta a linha pela ÁRVORE da conta
+  -- (reduzido mãe 4111) e por isso nunca teve o problema; o CÓRTEX monta pelo
+  -- agrupador, que é mantido à mão pela Contabilidade e erra. A natureza da
+  -- conta é do PLANO, não do mapa — e é ela que manda.
+  --
+  -- As contas assim não somem caladas: `agrupador_gerencial.diagnostico()`
+  -- as lista como achado, e a Saúde do Servidor mostra o cartão.
+  AND p.estrutural ~ '^[34]'
 GROUP BY 1, 2
 """
 
@@ -809,7 +825,22 @@ WITH mov AS (
   {_ag.left_join('ag', 'l', '    ')}
   WHERE l.dtlancamento >= %(de)s::date AND l.dtlancamento < %(ate)s::date
     AND coalesce(l.historico, 0) <> 18
-    AND (ag.descricao IS NOT NULL OR p.estrutural ~ '^[34]')
+  -- SÓ CONTA DE RESULTADO ENTRA NA DRE, mesmo que o agrupador diga que sim.
+    -- O filtro era "tem agrupador OU é 3/4", e o OU deixava a classificação do
+    -- mapa passar por cima da natureza da conta. Quatro contas de BALANÇO
+    -- entravam por essa porta — Ticket Car (passivo) somava −1,07 mi em 12
+    -- meses dentro de CV-COMBUSTÍVEL, e Transitória de Ativo Imobilizado mais
+    -- −473 mil dentro de CV-MANUTENÇÃO. Em julho/26 isso fazia a linha de
+    -- combustível mostrar 299.951,18 onde o próprio ERP mostra 485.176,86.
+    --
+    -- O relatório de Lançamentos CTB do AVA monta a linha pela ÁRVORE da conta
+    -- (reduzido mãe 4111) e por isso nunca teve o problema; o CÓRTEX monta pelo
+    -- agrupador, que é mantido à mão pela Contabilidade e erra. A natureza da
+    -- conta é do PLANO, não do mapa — e é ela que manda.
+    --
+    -- As contas assim não somem caladas: `agrupador_gerencial.diagnostico()`
+    -- as lista como achado, e a Saúde do Servidor mostra o cartão.
+    AND p.estrutural ~ '^[34]'
   GROUP BY 1, 2, 3
 ),
 contas AS (
@@ -846,7 +877,22 @@ JOIN planoconta p ON p.reduzido = l.reduzido AND p.grupo = l.grupo
 {_ag.left_join('ag', 'l')}
 WHERE l.dtlancamento >= %(de)s::date AND l.dtlancamento < %(ate)s::date
   AND coalesce(l.historico, 0) <> 18
-  AND (ag.descricao IS NOT NULL OR p.estrutural ~ '^[34]')
+  -- SÓ CONTA DE RESULTADO ENTRA NA DRE, mesmo que o agrupador diga que sim.
+  -- O filtro era "tem agrupador OU é 3/4", e o OU deixava a classificação do
+  -- mapa passar por cima da natureza da conta. Quatro contas de BALANÇO
+  -- entravam por essa porta — Ticket Car (passivo) somava −1,07 mi em 12
+  -- meses dentro de CV-COMBUSTÍVEL, e Transitória de Ativo Imobilizado mais
+  -- −473 mil dentro de CV-MANUTENÇÃO. Em julho/26 isso fazia a linha de
+  -- combustível mostrar 299.951,18 onde o próprio ERP mostra 485.176,86.
+  --
+  -- O relatório de Lançamentos CTB do AVA monta a linha pela ÁRVORE da conta
+  -- (reduzido mãe 4111) e por isso nunca teve o problema; o CÓRTEX monta pelo
+  -- agrupador, que é mantido à mão pela Contabilidade e erra. A natureza da
+  -- conta é do PLANO, não do mapa — e é ela que manda.
+  --
+  -- As contas assim não somem caladas: `agrupador_gerencial.diagnostico()`
+  -- as lista como achado, e a Saúde do Servidor mostra o cartão.
+  AND p.estrutural ~ '^[34]'
   AND (l.grupo::text || '|' || l.reduzido::text) = ANY(%(chaves)s)
 GROUP BY 1, 2, 3
 """
@@ -1155,13 +1201,57 @@ def _tvcom_faixa(dias) -> str:
     return "mais15"
 
 
+
+
+# ----------------------------------------------------------------------------
+# A FUSÃO. O ERP é UMA fonte de posição, não A fonte — e para as carretas ele é
+# a pior delas: em 03/09/2026, 77 das 142 que ele dava como "nunca
+# comunicaram" tinham reportado à 3S naquele mesmo dia. Ler as duas e vencer a
+# MAIS RECENTE é o mesmo desenho que `api/posicoes.py` usa para Gobrax + ERP.
+#
+# A fusão NUNCA derruba a leitura do ERP: ela só melhora. Se a 3S estiver fora
+# do ar, o painel volta a ser exatamente o que era — pior, e honesto.
+def _fundir_com_3s(linhas: list[dict]) -> tuple[list[dict], dict]:
+    """Devolve as linhas com `ultima` atualizada e o placar de quem venceu."""
+    placar = {"erp": 0, "3s": 0, "so_3s": 0, "indisponivel": False}
+    try:
+        from api.tress import armazenamento as _tress
+        pos = _tress.posicoes_por_placa()
+    except Exception as exc:  # noqa: BLE001 — espelho vazio ou banco fora
+        log.warning("fusao com a 3S indisponivel: %s", type(exc).__name__)
+        placar["indisponivel"] = True
+        return linhas, placar
+    if not pos:
+        return linhas, placar
+    norm = lambda p: _re_placa.sub("", (p or "").upper())
+    for r in linhas:
+        nova = pos.get(norm(r.get("placa")))
+        if not nova:
+            continue
+        atual = r.get("ultima")
+        if atual is None:
+            r["ultima"] = nova
+            placar["so_3s"] += 1
+        elif nova > atual:
+            r["ultima"] = nova
+            placar["3s"] += 1
+        else:
+            placar["erp"] += 1
+    return linhas, placar
+
+
+_re_placa = re.compile(r"[^A-Z0-9]")
+
+
 @cached(ttl=120, velha_ate=2 * 3600)
 def get_tv_comunicacao() -> dict:
     """Comunicação da frota com as rastreadoras, para o painel de TV."""
     hoje = date.today()
     with db.get_conn() as conn, conn.cursor() as cur:
         cur.execute(TVCOM_SQL)
-        linhas = cur.fetchall()
+        linhas = [dict(r) for r in cur.fetchall()]
+    linhas, placar_3s = _fundir_com_3s(linhas)
+    with db.get_conn() as conn, conn.cursor() as cur:
         cur.execute("SELECT current_timestamp AS ts")
         meta = cur.fetchone()
 
@@ -1227,8 +1317,10 @@ def get_tv_comunicacao() -> dict:
         ],
         "mudos": mudos[:14],
         "mudos_total": len(mudos),
-        "fonte": "ERP AVA · veiculo × veiculo_posicao × cadastro (rastreadora); "
-                 "terceiro só em viagem",
+        "fusao_3s": placar_3s,
+        "fonte": ("ERP AVA · veiculo × veiculo_posicao × cadastro (rastreadora)"
+                  + (" + 3S direto" if not placar_3s["indisponivel"] else "")
+                  + "; terceiro só em viagem"),
     }
 
 

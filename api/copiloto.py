@@ -100,6 +100,7 @@ _FONTES_ROTULO = {
     "multas_ano": "Multas",
     "smartec": "Smartec — Infrações e Licenças",
     "comunicacao_rastreadoras": "Comunicação com as Rastreadoras",
+    "rastreamento_3s": "3S — rastreamento das carretas",
     "torre_seguranca": "Torre de Segurança",
     "estradas_transito": "Condição das estradas (TomTom)",
     "programacao_disponibilidade": "Programação Inteligente",
@@ -505,6 +506,10 @@ def _fontes_do_snapshot() -> dict:
             "por_rastreadora": {r["rastreadora"]: r["total"]
                                 for r in d2["rastreadoras"]},
         })(queries.get_tv_comunicacao()),
+        # 3S: só os escalares do espelho (quantos na conta, quantos com
+        # posição de hoje). Placa e coordenada não entram no prompt.
+        "rastreamento_3s": lambda: __import__(
+            "api.tress.armazenamento", fromlist=["estado"]).estado(),
         "torre_seguranca": lambda: queries.get_seguranca(),
         "estradas_transito": _estradas,
         "programacao_disponibilidade": lambda: queries.get_programacao(),

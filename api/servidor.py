@@ -479,22 +479,28 @@ def _servico_agrupador(d: dict) -> dict:
     if d.get("orfaos"):
         achados.append(f"{len(d['orfaos'])} classificação(ões) apontando para "
                        "conta que não existe no plano")
-    # Conta de balanco classificada entra na DRE como custo pela elegibilidade
-    # ("tem agrupador OU e conta de resultado"). A SEM movimento nao aparece em
-    # R$ nenhum hoje, mas esta igualmente mal classificada e dispara sozinha no
-    # dia em que o ERP lancar nela — por isso as DUAS contagens, e nao so a que
-    # ja custa dinheiro.
+    # Conta de BALANCO classificada como custo. Ate 03/09/2026 ela ENTRAVA na
+    # DRE, porque a elegibilidade era "tem agrupador OU e conta de resultado" —
+    # o Ticket Car (passivo) somava -1,07 mi dentro de CV-COMBUSTIVEL e fazia
+    # julho/26 mostrar 299.951,18 onde o proprio ERP mostra 485.176,86.
+    #
+    # A DRE agora EXIGE conta de resultado e nao se deixa mais contaminar. Este
+    # achado mudou de significado por causa disso: ele nao diz mais "o numero
+    # esta errado", diz "o CADASTRO esta errado e a DRE esta se defendendo".
+    # Continua valendo — classificacao errada e trabalho de alguem, e a conta
+    # sem movimento hoje dispara sozinha no dia em que o ERP lancar nela.
     balanco = d.get("balanco") or []
     if balanco:
         com_valor = [x for x in balanco if abs(x["valor"]) > 0.005]
         achados.append(f"{len(balanco)} conta(s) de BALANÇO classificada(s) "
                        f"como custo, {len(com_valor)} com movimento "
-                       f"({_brl_mi(d['balanco_valor'])} em {d['meses']} m) "
-                       "— decisão da Contabilidade")
+                       f"({_brl_mi(d['balanco_valor'])} em {d['meses']} m) — a "
+                       "DRE as IGNORA, mas o mapa da Contabilidade segue errado")
     if abs(d.get("divergencia", 0.0)) > 0.01:
         achados.append(f"o resultado por mapa e por estrutural divergem "
                        f"{_brl_mi(d['divergencia'])} em {d['meses_divergentes']} "
-                       f"de {d['meses']} meses")
+                       f"de {d['meses']} meses — é o tamanho do que o mapa "
+                       "deixaria entrar se a DRE não filtrasse")
 
     if not achados:
         partes.append(f"os dois caminhos do resultado fecham em {d['meses']} meses")
@@ -603,6 +609,60 @@ def _servico_jornada() -> dict:
             "detalhe": (f"{d['jornadas']:,} jornadas · último dado "
                         f"{d.get('ultimo_dado') or '—'}").replace(",", ".")
                        + resto}
+
+
+def _servico_tress() -> dict:
+    """A 3S está chegando? — e o cartão existe por causa de um silêncio caro.
+
+    Antes da leitura direta, 77 carretas que reportavam à 3S todo dia
+    apareciam no painel como "nunca comunicaram", porque o cano do ERP não as
+    trazia. Ninguém viu isso por meses: a ausência de dado não faz barulho.
+    O cartão vigia a leitura NOVA para que o mesmo silêncio não volte por
+    outra porta.
+
+    Vermelho é "não está chegando AGORA" — coleta parada há mais de 3 horas,
+    numa cadência de 30 minutos. Contagem de tropeços não vira alarme.
+    """
+    nome = "3S (rastreamento das carretas)"
+    try:
+        from .tress import armazenamento as tarm
+        from .tress import cliente as tcli
+    except Exception as exc:  # noqa: BLE001
+        log.warning("saude: 3s: %s", exc)
+        return {"nome": nome, "status": "info", "detalhe": "camada indisponível"}
+
+    # SEM CREDENCIAL NÃO É FALHA: é instalação incompleta.
+    if not tcli.configurado():
+        return {"nome": nome, "status": "info",
+                "detalhe": "sem credencial (Gestão › Integrações › 3S) — "
+                           "a coleta fica desligada"}
+    try:
+        e = tarm.estado()
+    except Exception as exc:  # noqa: BLE001
+        log.warning("saude: 3s estado: %s", exc)
+        return {"nome": nome, "status": "info",
+                "detalhe": "banco local indisponível"}
+
+    if not e.get("veiculos"):
+        return {"nome": nome, "status": "info",
+                "detalhe": "credencial cadastrada, nenhuma coleta ainda"}
+
+    lido = e.get("lido_em")
+    horas = ((datetime.now() - lido).total_seconds() / 3600) if lido else None
+    detalhe = ("%d veículos na conta · %d com posição de hoje · última leitura "
+               "%s" % (e["veiculos"], e.get("hoje") or 0,
+                       lido.strftime("%d/%m %H:%M") if lido else "nunca"))
+    if e.get("sumidos"):
+        detalhe += " · %d saíram da conta" % e["sumidos"]
+    if horas is None or horas > 3:
+        return {"nome": nome, "status": "erro",
+                "detalhe": "a coleta não roda há %s — %s" % (
+                    ("%.0f h" % horas) if horas else "muito tempo", detalhe)}
+    if not e.get("hoje"):
+        return {"nome": nome, "status": "alerta",
+                "detalhe": "a coleta roda, mas NENHUM veículo tem posição de "
+                           "hoje — " + detalhe}
+    return {"nome": nome, "status": "ok", "detalhe": detalhe}
 
 
 def _servico_smartec() -> dict:
@@ -1179,6 +1239,10 @@ def _servicos() -> list[dict]:
     # Smartec: infrações e licenças. O cartão vigia DUAS coisas — a coleta
     # e o vencimento do acesso ao SNE, que desliga a integração em silêncio.
     servicos.append(_servico_smartec())
+
+    # 3S: a leitura direta das carretas. O cartão nasceu com a integração
+    # porque a falha dela é MUDA — some posição e o painel só fica pior.
+    servicos.append(_servico_tress())
 
     # Pedágio do tag: a fatura é BAIXADA e ENVIADA por gente, uma vez por mês.
     # O sensor existe porque a parada se disfarça de aba vazia — e o gasto é

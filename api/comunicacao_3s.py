@@ -29,7 +29,8 @@ TRÊS DECISÕES QUE MUDAM O NÚMERO, todas deliberadas:
 from __future__ import annotations
 
 import logging
-from datetime import date, timedelta
+import re
+from datetime import date, datetime, time, timedelta
 
 from . import db, frota_identidade, pglocal
 
@@ -79,13 +80,48 @@ def _esq(esquema: str | None) -> str | None:
     return esquema or ESQUEMA
 
 
-def medir(dia: date | None = None) -> dict:
+def medir(dia: date | None = None, esquema: str | None = None) -> dict:
     """Mede UM dia fechado. `dia` é o dia medido; o padrão é ontem."""
     dia = dia or (date.today() - timedelta(days=1))
     limite = dia + timedelta(days=1)          # exclusivo: < 00:00 do dia seguinte
     with db.get_conn() as conn, conn.cursor() as cur:
         cur.execute(_SQL_DIA, (limite,))
-        linhas = cur.fetchall()
+        linhas = [dict(r) for r in cur.fetchall()]
+
+    # A MESMA FUSÃO DO PAINEL, e pelo mesmo motivo: o ERP é uma fonte de
+    # posição, não A fonte. Sem isto o aviso da 3S mediria o cano do ERP e
+    # chamaria de "3S muda" carreta que reportou àquela mesma 3S no dia.
+    #
+    # DUAS LEITURAS DIFERENTES, e confundi-las foi o primeiro desenho errado:
+    #
+    #   `vistos_no_dia` responde "comunicou NAQUELE dia?" — exato, porque a
+    #   coleta registra o dia de cada posição que leu.
+    #
+    #   `posicoes_por_placa` responde "quando falou pela última vez?" — serve
+    #   para as faixas de silêncio, e NÃO serve para o dia: às 09:00 de hoje a
+    #   última posição da maioria já é de hoje, o que prova que a carreta está
+    #   viva mas não prova que ela falou ontem. Usar isso como "comunicou"
+    #   daria por comunicante justamente a que voltou hoje depois de uma
+    #   semana muda — a única que interessa.
+    vistos, pos3s = set(), {}
+    try:
+        from api.tress import armazenamento as _tress
+        vistos = _tress.vistos_no_dia(dia, esquema=esquema)
+        pos3s = _tress.posicoes_por_placa(esquema=esquema)
+    except Exception as exc:  # noqa: BLE001 — sem espelho o aviso segue com o ERP
+        log.warning("aviso da 3S sem o espelho direto: %s", type(exc).__name__)
+    if vistos or pos3s:
+        limpa = lambda p: re.sub(r"[^A-Z0-9]", "", (p or "").upper())
+        for r in linhas:
+            chave = limpa(r.get("placa"))
+            if chave in vistos:
+                # comunicou NO dia, provado: carimba a data do próprio dia
+                r["ultima"] = datetime.combine(dia, time(23, 59))
+                continue
+            nova = pos3s.get(chave)
+            if nova and nova.date() < dia and (
+                    r["ultima"] is None or nova > r["ultima"]):
+                r["ultima"] = nova
 
     grupos: dict[tuple, dict] = {}
     placas: list[dict] = []
@@ -222,7 +258,7 @@ def status_alerta(dia: date | None = None, alvo: str = ALVO,
     """
     dia = dia or (date.today() - timedelta(days=1))
     try:
-        med = medir(dia)
+        med = medir(dia, esquema=esquema)
     except Exception as exc:  # noqa: BLE001
         return {"erro": "não foi possível ler o ERP (%s)" % type(exc).__name__}
 
@@ -251,6 +287,25 @@ def status_alerta(dia: date | None = None, alvo: str = ALVO,
     serie = historico(30, alvo, esquema=esquema)
     anterior = next((x for x in serie if x["dia"] < dia), None)
     dif = diferenca(dia, anterior["dia"] if anterior else None, alvo, esquema)
+    # A RÉGUA MUDOU NO MEIO? No dia em que a coleta direta da 3S começou, o
+    # número salta — 54 para 128, medido em 03/09/2026 — e isso NÃO é a frota
+    # melhorando: é o CÓRTEX passando a enxergar. Comparar os dois lados dessa
+    # fronteira e chamar de evolução seria a mentira mais fácil deste aviso,
+    # ainda por cima uma que agrada. O aviso diz que a régua mudou e não
+    # apresenta variação nenhuma naquele dia.
+    troca_de_regua = False
+    if anterior:
+        try:
+            from api.tress import armazenamento as _tress
+            # a fronteira é a PRIMEIRA LEITURA nossa, não o dia mais antigo
+            # com registro: a primeira coleta traz posições velhas por
+            # natureza, e uma delas caindo em ontem apagaria o aviso
+            primeira = _tress.primeira_leitura(esquema=esquema)
+            troca_de_regua = bool(primeira and anterior["dia"] < primeira
+                                  and dia >= primeira)
+        except Exception:  # noqa: BLE001
+            troca_de_regua = False
     return {"dia": dia, "alvo": alvo, "hoje": hoje_t, "anterior": anterior,
+            "troca_de_regua": troca_de_regua,
             "com_motor": motor, "diferenca": dif,
             "placas": placas_do_dia(dia, alvo, esquema)}

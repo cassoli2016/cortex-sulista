@@ -1,3 +1,43 @@
+- versao: "0.220.0"
+  data: "2026-09-03"
+  corrigido:
+    - >-
+      A DRE Gerencial estava com contas de BALANÇO dentro de linhas de custo, e
+      isso mexia no resultado. A linha de combustível de julho/26 mostrava
+      R$ 299.951,18 quando o relatório de Lançamentos CTB do próprio ERP mostra
+      R$ 485.176,86 — a diferença era a conta Ticket Car, que é passivo e
+      estava classificada como CV-COMBUSTÍVEL no mapa da Contabilidade. Agora a
+      DRE só aceita conta de resultado, mesmo que o mapa diga outra coisa: a
+      natureza da conta é do plano, não da classificação.
+    - >-
+      O efeito é que o resultado piora R$ 1,47 milhão em 12 meses (R$ 122 mil
+      por mês). Não é uma piora nova: era o resultado sendo embelezado por
+      quatro contas de balanço — Ticket Car em combustível, Transitória de
+      Ativo Imobilizado e Estoque de Manutenção em manutenção, e Estoque de
+      Material de Consumo em despesas administrativas. Os números certos são
+      os de agora.
+    - >-
+      As quatro contas continuam aparecendo como pendência na Saúde do
+      Servidor, porque o cadastro segue errado — o que mudou é que a DRE não se
+      deixa mais contaminar por ele. Corrigir a classificação continua sendo
+      trabalho da Contabilidade.
+  adicionado:
+    - >-
+      Integração direta com a 3S, a rastreadora das carretas. A descoberta que
+      a motivou: das 142 carretas que o painel dava como "nunca comunicaram",
+      77 tinham reportado à 3S naquele mesmo dia — o cano do ERP é que não as
+      trazia. Com a leitura direta, as carretas comunicando no dia saltaram de
+      52 para 128 de 223, e o painel inteiro passou de 51% para 71% da frota.
+    - >-
+      O painel e o aviso diário passaram a fundir as duas fontes, vencendo
+      sempre a leitura mais recente — se a 3S sair do ar, o painel volta a ser
+      o que era, sem piorar. E no dia em que a leitura direta entrou o aviso
+      NÃO anuncia o salto como melhora da frota: ele diz que a régua mudou,
+      porque foi o CÓRTEX que passou a enxergar, não a operação que melhorou.
+    - >-
+      Sobraram 39 carretas que o ERP diz serem da 3S e a 3S não conhece. Essas
+      não são problema de comunicação: é cadastro para a Manutenção conferir.
+
 - versao: "0.219.2"
   data: "2026-09-03"
   corrigido:

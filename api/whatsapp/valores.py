@@ -397,7 +397,14 @@ def comunicacao_3s(dados: dict | None = None) -> dict:
     else:
         lista = "📎 A lista é a mesma de ontem — sem anexo hoje."
 
-    if ant:
+    if ant and dados.get("troca_de_regua"):
+        # Ver a nota em `comunicacao_3s.status_alerta`: no dia em que a leitura
+        # direta da 3S entrou, o salto é de RÉGUA, não de frota. Anunciar "+74
+        # comunicando" seria comemorar o que não aconteceu.
+        evolucao = ("🔎 A partir de hoje o número vem direto da 3S, e não mais "
+                    "só do ERP — por isso o salto. A comparação com ontem "
+                    "recomeça amanhã.")
+    elif ant:
         d_com = comunicou - ant["comunicou"]
         d_nunca = t["nunca"] - ant["nunca"]
         sinal = lambda n: ("+%d" % n) if n > 0 else str(n)

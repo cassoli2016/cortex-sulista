@@ -184,3 +184,47 @@ def test_todo_achado_manda_para_o_conferidor():
 def test_valor_curto_sai_em_pt_br(valor, esperado):
     from api import servidor as sv
     assert sv._brl_mi(valor) == esperado
+
+# --------------------------------------------------------------------------
+# A NATUREZA DA CONTA MANDA, e não o mapa
+
+_DRE = ("DRE_AG_SQL", "DRE_AG_CONTA_SQL", "DRE_AJUSTADAS_SQL")
+
+
+@pytest.mark.parametrize("nome", _DRE)
+def test_a_dre_exige_conta_de_RESULTADO(nome):
+    """O filtro era "tem agrupador OU é conta de resultado", e o OU deixava a
+    classificação passar por cima da natureza da conta.
+
+    Quatro contas de BALANÇO entravam por essa porta: o Ticket Car (passivo)
+    somava −1,07 mi em 12 meses dentro de CV-COMBUSTÍVEL, e em julho/26 fazia
+    a linha mostrar 299.951,18 onde o relatório de Lançamentos CTB do próprio
+    AVA mostra 485.176,86 — o ERP monta a linha pela ÁRVORE da conta (reduzido
+    mãe 4111) e nunca teve o problema.
+    """
+    from api import queries
+
+    sql = " ".join(getattr(queries, nome).split())
+    assert "AND p.estrutural ~ '^[34]'" in sql, nome
+    assert "ag.descricao IS NOT NULL OR" not in sql, (
+        "%s voltou a aceitar conta por classificação, ignorando a natureza"
+        % nome)
+
+
+def test_o_conferidor_CONTINUA_permissivo_de_proposito():
+    """O conferidor mede o que o mapa DEIXARIA entrar — é o alarme de cadastro
+    furado. Apertá-lo junto com a DRE cegaria a medição: os dois caminhos
+    passariam a fechar sempre, e o erro de classificação viraria invisível."""
+    from api import agrupador_gerencial
+
+    sql = " ".join(agrupador_gerencial.DOIS_CAMINHOS_SQL.split())
+    assert "ag.descricao IS NOT NULL OR" in sql
+
+
+def test_a_contabilidade_ainda_MOSTRA_a_conta_mal_classificada():
+    """A tela de Contabilidade existe para classificar. Esconder dela a conta
+    errada tiraria justamente de quem conserta a chance de ver o problema."""
+    from api import queries
+
+    sql = " ".join(queries.CONTAB_CONTAS_SQL.split())
+    assert "ag.descricao IS NOT NULL OR" in sql
