@@ -2512,6 +2512,15 @@ body.tvfull #btnReport,body.tvmode #btnReport{display:none}
         <a href="#people" class="sub" data-view="people" title="People Analytics — afastados, sucessão, dispersão salarial e custo por área"><span class="ic" data-ic="peopleic"></span><span>People Analytics</span></a>
         <a href="#rh" class="sub" data-view="rh" title="RH — vagas e recrutamento"><span class="ic" data-ic="rhic"></span><span>Vagas</span></a>
       </div>
+      <!-- SUPORTE e grupo PROPRIO, nao item de Administracao: e de TODO
+           usuario logado, e dentro de um grupo de administrador nao se acha. -->
+      <button class="group" id="grpSpt" aria-expanded="false" aria-controls="subsSpt" onclick="toggleGroup('grpSpt','subsSpt','cs.spt')">
+        <span class="ic" data-ic="supic"></span><span>Suporte</span><span class="ic chev" data-ic="chev"></span>
+      </button>
+      <div class="subs closed" id="subsSpt">
+        <a href="#supfila" class="sub" data-view="supfila" title="Suporte — Atendimento: fila, respostas, avisos e configuração"><span class="ic" data-ic="supfila"></span><span>Atendimento</span></a>
+        <a href="#sup" class="sub" data-view="sup" title="Suporte — seus chamados: acompanhe, responda e avalie"><span class="ic" data-ic="supic"></span><span>Meus chamados</span></a>
+      </div>
       <button class="group" id="grpSup" aria-expanded="false" aria-controls="subsSup" onclick="toggleGroup('grpSup','subsSup','cs.supGroup')" title="Suprimentos">
         <span class="ic" data-ic="sup"></span><span>Suprimentos</span><span class="ic chev" data-ic="chev"></span>
       </button>
@@ -2529,21 +2538,12 @@ body.tvfull #btnReport,body.tvmode #btnReport{display:none}
         <a href="#telhod" class="sub" data-view="telhod" title="Hodômetro e Rastro — leitura direta do veículo e trajeto no mapa"><span class="ic" data-ic="rastroic"></span><span>Hodômetro e Rastro</span></a>
         <a href="#prem" class="sub" data-view="prem" title="Premiação de Motoristas — nota da Gobrax e km rodado"><span class="ic" data-ic="prem"></span><span>Premiação de Motoristas</span></a>
       </div>
-      <!-- SUPORTE e grupo PROPRIO, nao item de Administracao: e de TODO
-           usuario logado, e dentro de um grupo de administrador nao se acha. -->
-      <button class="group" id="grpSpt" aria-expanded="false" aria-controls="subsSpt" onclick="toggleGroup('grpSpt','subsSpt','cs.spt')">
-        <span class="ic" data-ic="supic"></span><span>Suporte</span><span class="ic chev" data-ic="chev"></span>
-      </button>
-      <div class="subs closed" id="subsSpt">
-        <a href="#sup" class="sub" data-view="sup" title="Suporte — seus chamados: acompanhe, responda e avalie"><span class="ic" data-ic="supic"></span><span>Meus chamados</span></a>
-        <a href="#supfila" class="sub" data-view="supfila" title="Suporte — Atendimento: fila, respostas, avisos e configuração"><span class="ic" data-ic="supfila"></span><span>Atendimento</span></a>
-      </div>
-      <div class="navsep" role="separator"></div>
       <div class="navsep" role="separator"></div>
       <button class="group" id="grpAdm" aria-expanded="false" aria-controls="subsAdm" onclick="toggleGroup('grpAdm','subsAdm','cs.admGroup')" title="Administração">
         <span class="ic" data-ic="cog"></span><span>Administração</span><span class="ic chev" data-ic="chev"></span>
       </button>
       <div class="subs closed" id="subsAdm">
+        <a href="#aud" class="sub" data-view="aud" title="Auditoria e Uso — acessos, tempo de sessão, telas usadas e trilha de ações"><span class="ic" data-ic="audic"></span><span>Auditoria e Uso</span></a>
         <a href="#gestao" class="sub" data-view="gestao" title="Gestão — usuários, perfis e segurança"><span class="ic" data-ic="ges"></span><span>Gestão</span></a>
         <a href="#srv" class="sub" data-view="srv" title="Saúde do Servidor — CPU, memória, disco e serviços"><span class="ic" data-ic="srv"></span><span>Saúde do Servidor</span></a>
       </div>
@@ -7273,6 +7273,78 @@ body.tvfull #btnReport,body.tvmode #btnReport{display:none}
 <div id="jr-avisos"></div>
       </section>
 
+      <section class="view" id="view-aud">
+        <div class="subtabs" role="tablist" data-abas="aud" aria-label="Seções desta tela">
+          <button role="tab" id="tabaud-uso" data-aba="uso" aria-controls="aba-aud-uso"
+                  aria-selected="true" onclick="abaTrocar('aud','uso')">Uso <span class="aban" id="aud-n-uso"></span></button>
+          <button role="tab" id="tabaud-pes" data-aba="pes" aria-controls="aba-aud-pes"
+                  aria-selected="false" onclick="abaTrocar('aud','pes')">Pessoas <span class="aban" id="aud-n-pes"></span></button>
+          <button role="tab" id="tabaud-tel" data-aba="tel" aria-controls="aba-aud-tel"
+                  aria-selected="false" onclick="abaTrocar('aud','tel')">Telas <span class="aban" id="aud-n-tel"></span></button>
+          <button role="tab" id="tabaud-seg" data-aba="seg" aria-controls="aba-aud-seg"
+                  aria-selected="false" onclick="abaTrocar('aud','seg')">Ações e segurança <span class="aban" id="aud-n-seg"></span></button>
+        </div>
+
+        <div class="aba" data-abas="aud" data-aba="uso" id="aba-aud-uso" role="tabpanel" aria-labelledby="tabaud-uso">
+          <div class="kband">
+            <div class="kband-rot">Acesso ao painel
+              <select id="aud-dias" onchange="loadAud()" aria-label="Período do relatório"
+                      style="margin-left:9px;font:inherit;font-size:12px">
+                <option value="7">Últimos 7 dias</option>
+                <option value="30" selected>Últimos 30 dias</option>
+                <option value="90">Últimos 90 dias</option>
+                <option value="365">Últimos 12 meses</option>
+              </select></div>
+            <div class="kpis k4" id="aud-kpis"></div>
+          </div>
+          <div class="card">
+            <div class="head"><h2>Acessos por dia <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="aud_sessoes (banco local do CÓRTEX): uma linha por login. A barra é o número de ACESSOS e a linha é quantas PESSOAS distintas entraram — duas escalas diferentes, por isso a linha vai no eixo da direita com rótulo próprio. Dia sem acesso aparece como zero: o intervalo de dias é gerado, não colhido do banco, senão a linha emendaria por cima do buraco. A duração de uma sessão vai do login até o último sinal de vida (a última tela aberta), nunca até agora — a aba esquecida aberta a noite toda viraria uma sessão de catorze horas e levaria a média junto.">i</span></h2><span class="hint" id="aud-hint">—</span></div>
+            <div id="chartAudDias" style="width:100%;height:260px"></div>
+          </div>
+          <div class="card">
+            <div class="head"><h2>De onde entram <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="Navegador e sistema operacional, reduzidos a duas palavras a partir do user-agent do login. A string inteira do navegador não é guardada: é longa, muda a cada atualização e não responde nada melhor que isto — guardar menos é a escolha certa quando o dado é sobre pessoas.">i</span></h2></div>
+            <div class="tablewrap tabroll"><table><thead><tr><th>Navegador e sistema</th><th class="num">Acessos</th><th class="num">%</th></tr></thead><tbody id="aud-agentes"></tbody></table></div>
+          </div>
+        </div>
+
+        <div class="aba" data-abas="aud" data-aba="pes" id="aba-aud-pes" role="tabpanel" aria-labelledby="tabaud-pes" hidden>
+          <div class="card">
+            <div class="head"><h2>Quem usa o painel <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="Uma linha por pessoa no período. Tempo total é a soma das sessões; a sessão típica é a MEDIANA, não a média — uma tarde inteira esquecida com a aba aberta puxa a média e não muda a mediana. IPs distintos é sinal de contexto (casa, escritório, celular), não de problema por si. Quem não aparece aqui não acessou no período.">i</span></h2><span class="hint" id="aud-pes-hint">—</span></div>
+            <div class="tablewrap tabroll"><table><thead><tr>
+              <th>Pessoa</th><th class="num">Acessos</th><th class="num">Tempo total</th>
+              <th class="num">Sessão típica</th><th class="num">IPs</th><th>Última vez</th>
+            </tr></thead><tbody id="aud-pessoas"></tbody></table></div>
+          </div>
+        </div>
+
+        <div class="aba" data-abas="aud" data-aba="tel" id="aba-aud-tel" role="tabpanel" aria-labelledby="tabaud-tel" hidden>
+          <div class="card">
+            <div class="head"><h2>Telas abertas <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="aud_telas: aberturas agregadas por sessão e tela — quem vai e volta entre duas telas trinta vezes numa tarde gera duas linhas, não trinta. Registra-se a CHAVE da tela e o horário; filtro, parâmetro e conteúdo não são guardados. Auditoria de uso existe para dimensionar o sistema e achar tela morta, não para reconstituir o que cada pessoa leu.">i</span></h2><span class="hint" id="aud-tel-hint">—</span></div>
+            <div class="tablewrap tabroll"><table><thead><tr>
+              <th>Tela</th><th class="num">Aberturas</th><th class="num">Pessoas</th><th>Última vez</th>
+            </tr></thead><tbody id="aud-telas"></tbody></table></div>
+          </div>
+          <div class="card">
+            <div class="head"><h2>Telas que ninguém abriu <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="As telas registradas no sistema que NÃO tiveram nenhuma abertura no período. Vale mais que o ranking das mais usadas: a lista das mais usadas confirma o que já se imagina, e esta é a que muda decisão — tirar do menu, treinar quem deveria usar, ou descobrir que a tela não serve. Tela nova aparece aqui até alguém abri-la pela primeira vez.">i</span></h2><span class="hint" id="aud-semuso-hint">—</span></div>
+            <div class="tablewrap tabroll"><table><thead><tr><th>Tela</th><th>Grupo do menu</th></tr></thead><tbody id="aud-semuso"></tbody></table></div>
+          </div>
+        </div>
+
+        <div class="aba" data-abas="aud" data-aba="seg" id="aba-aud-seg" role="tabpanel" aria-labelledby="tabaud-seg" hidden>
+          <div class="card">
+            <div class="head"><h2>Ações registradas <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="audit_log: toda ESCRITA do sistema passa por aqui (regra da casa). Login, logout e falha de login ficam de fora desta tabela porque já são medidos como acesso nas outras abas. A trilha detalhada, linha a linha e com busca, está em Gestão › Auditoria.">i</span></h2><span class="hint" id="aud-acoes-hint">—</span></div>
+            <div class="tablewrap tabroll"><table><thead><tr>
+              <th>Ação</th><th class="num">Vezes</th><th class="num">Pessoas</th><th>Última vez</th>
+            </tr></thead><tbody id="aud-acoes"></tbody></table></div>
+          </div>
+          <div class="card">
+            <div class="head"><h2>Falhas de login <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="Tentativas recusadas, por e-mail digitado — o e-mail pode nem existir no sistema: é o que foi TENTADO, não uma pessoa confirmada. Depois do limite de tentativas a conta bloqueia sozinha por tempo, e o desbloqueio é em Gestão › Usuários. Muitas tentativas do mesmo e-mail vindas de IPs diferentes é o padrão que merece um telefonema.">i</span></h2><span class="hint" id="aud-falhas-hint">—</span></div>
+            <div class="tablewrap tabroll"><table><thead><tr>
+              <th>E-mail tentado</th><th class="num">Tentativas</th><th class="num">IPs</th><th>Última vez</th>
+            </tr></thead><tbody id="aud-falhas"></tbody></table></div>
+          </div>
+        </div>
+      </section>
       <section class="view" id="view-doc">
         <div class="doc-top">
           <div>
@@ -7679,6 +7751,7 @@ const ICONS = {
   chave:IC('<circle cx="7.5" cy="15.5" r="4.5"/><path d="M10.8 12.2 21 2M15 8l3 3M18.5 4.5l2 2"/>'),
   conta:IC('<circle cx="12" cy="8" r="4"/><path d="M4.5 20a7.5 7.5 0 0 1 15 0"/>'),
   sair: IC('<path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><path d="M16 17l5-5-5-5M21 12H9"/>'),
+  audic: IC('<path d="M4 19V5m0 14h16M8 15V9m4 6V6m4 9v-4"/><circle cx="18" cy="7" r="2.5"/>'),
   srv:  IC('<rect x="3" y="4" width="18" height="7" rx="1.5"/><rect x="3" y="13" width="18" height="7" rx="1.5"/><path d="M7 7.5h.01M7 16.5h.01M11 7.5h5M11 16.5h5"/>'),
   supic: IC('<path d="M4 13a8 8 0 0 1 16 0"/><rect x="3" y="12" width="4" height="6" rx="1.5"/><rect x="17" y="12" width="4" height="6" rx="1.5"/><path d="M19 18v1a2 2 0 0 1-2 2h-4"/>'),
   supfila: IC('<path d="M4 6h16M4 12h9M4 18h6"/><circle cx="18" cy="17" r="3.5"/><path d="M18 15v2l1.5 1"/>'),
@@ -7729,7 +7802,7 @@ const FAIXAS = {
   '4_vencido_91_365':['Vencido 91–365d','b-dang'],
   '5_vencido_mais_365':['Vencido > 365d','b-dang'],
 };
-const VIEWS = { home:'Visão Geral', fluxo:'Fluxo de Caixa e Bancos', receber:'Contas a Receber', pagar:'Contas a Pagar', oc:'Ordens de Compra', custos:'Painel de Custos', pecas:'Preço de Peças', agr:'Agregados e Terceiros', mvb:'Frota Própria × Agregado', pedagio:'Validação de Pedágio', comb:'Combustível', man:'Manutenção', com:'Clientes e RKM', clif:'Consulta de Cliente', crm:'CRM — Funil Comercial', km:'Análise de KM', prodveic:'Produtividade de Veículos', fat:'Faturamento Detalhado', gr:'Gerenciamento de Risco', torre:'Torre de Controle', poli:'Permanência na Planta', ctecp:'CT-e de Contrapartida', veic:'Veículos', veicf:'Consulta de Veículo', mprev:'Manutenção Preventiva', comrast:'Comunicação Rastreadora', mul:'Multas — Smartec', prog:'Programação Inteligente', jorn:'Jornada do Motorista', jornf:'Ficha de Jornada', cex:'Custos Extras', sac:'SAC / Freetime', port:'Portaria', cop:'Copiloto Cortex', cob:'Régua de Cobrança', banc:'Bancos', extb:'Extrato Bancário', lanc:'Lançamentos Bancários', antec:'Antecipação de Recebíveis', antport:'Portais de Antecipação', milkrun:'Operação MWM', rec:'Lançamentos Recorrentes', fluxcon:'Fluxo de Caixa Consolidado', cont:'Contabilidade', qual:'Qualidade e Certidões', orc:'Orçamento', fech:'Fechamento do Mês', prem:'Premiação de Motoristas', dre:'DRE Gerencial', bal:'Balanço Patrimonial', drecli:'DRE por Cliente', tvfat:'Painel TV — Faturamento', tvope:'Painel TV — Operação', tvdir:'Painel TV — Diretoria', rh:'RH — Vagas', hc:'Headcount', folha:'Custo de Folha', folhaind:'Indicadores de Folha', he:'Horas Extras', cnh:'CNH dos Motoristas', ferias:'Férias — Vencimento', people:'People Analytics', pneus:'Pneus', gestao:'Gestão', gesacao:'Planos de Ação', gesata:'Atas de Reunião', srv:'Saúde do Servidor',sup:'Suporte', supfila:'Suporte — Atendimento', doc:'Documentação', anpiso:'Piso Mínimo de Frete', anrntrc:'RNTRC dos Transportadores', telcon:'Consumo e Estatísticas', telcond:'Condução Econômica', telhod:'Hodômetro e Rastro' };
+const VIEWS = { home:'Visão Geral', fluxo:'Fluxo de Caixa e Bancos', receber:'Contas a Receber', pagar:'Contas a Pagar', oc:'Ordens de Compra', custos:'Painel de Custos', pecas:'Preço de Peças', agr:'Agregados e Terceiros', mvb:'Frota Própria × Agregado', pedagio:'Validação de Pedágio', comb:'Combustível', man:'Manutenção', com:'Clientes e RKM', clif:'Consulta de Cliente', crm:'CRM — Funil Comercial', km:'Análise de KM', prodveic:'Produtividade de Veículos', fat:'Faturamento Detalhado', gr:'Gerenciamento de Risco', torre:'Torre de Controle', poli:'Permanência na Planta', ctecp:'CT-e de Contrapartida', veic:'Veículos', veicf:'Consulta de Veículo', mprev:'Manutenção Preventiva', comrast:'Comunicação Rastreadora', mul:'Multas — Smartec', prog:'Programação Inteligente', jorn:'Jornada do Motorista', jornf:'Ficha de Jornada', cex:'Custos Extras', sac:'SAC / Freetime', port:'Portaria', cop:'Copiloto Cortex', cob:'Régua de Cobrança', banc:'Bancos', extb:'Extrato Bancário', lanc:'Lançamentos Bancários', antec:'Antecipação de Recebíveis', antport:'Portais de Antecipação', milkrun:'Operação MWM', rec:'Lançamentos Recorrentes', fluxcon:'Fluxo de Caixa Consolidado', cont:'Contabilidade', qual:'Qualidade e Certidões', orc:'Orçamento', fech:'Fechamento do Mês', prem:'Premiação de Motoristas', dre:'DRE Gerencial', bal:'Balanço Patrimonial', drecli:'DRE por Cliente', tvfat:'Painel TV — Faturamento', tvope:'Painel TV — Operação', tvdir:'Painel TV — Diretoria', rh:'RH — Vagas', hc:'Headcount', folha:'Custo de Folha', folhaind:'Indicadores de Folha', he:'Horas Extras', cnh:'CNH dos Motoristas', ferias:'Férias — Vencimento', people:'People Analytics', pneus:'Pneus', gestao:'Gestão', gesacao:'Planos de Ação', gesata:'Atas de Reunião', srv:'Saúde do Servidor', aud:'Auditoria e Uso',sup:'Suporte', supfila:'Suporte — Atendimento', doc:'Documentação', anpiso:'Piso Mínimo de Frete', anrntrc:'RNTRC dos Transportadores', telcon:'Consumo e Estatísticas', telcond:'Condução Econômica', telhod:'Hodômetro e Rastro' };
 const periodoLabel = p => { if(p==='atrasado') return 'Atrasado'; const [y,m]=p.split('-'); return MES[+m-1]+'/'+y.slice(2); };
 const fmtD = s => { if(!s) return ''; const [y,m,dd]=s.split('-'); return dd+'/'+m+'/'+y; };
 /* Idade da posicao bancaria. Cada conta e lancada num dia diferente: mostrar
@@ -8005,7 +8078,7 @@ const VIEW_GROUP = {home:'',cop:'',
   veic:'Fro',veicf:'Fro',mprev:'Fro',comrast:'Fro',comb:'Fro',man:'Fro',mul:'Fro',pneus:'Fro',
   oc:'Sup',custos:'Sup',pecas:'Sup',
   prodveic:'Bi',fat:'Ctr',gr:'Ope',tvfat:'Bi',tvope:'Bi',tvdir:'Bi',
-  rh:'Rh',hc:'Rh',folha:'Rh',folhaind:'Rh',he:'Rh',cnh:'Rh',ferias:'Rh',people:'Rh',gestao:'Adm',srv:'Adm',sup:'Spt',supfila:'Spt',doc:'Adm',gesacao:'Ges',gesata:'Ges',
+  rh:'Rh',hc:'Rh',folha:'Rh',folhaind:'Rh',he:'Rh',cnh:'Rh',ferias:'Rh',people:'Rh',gestao:'Adm',srv:'Adm',sup:'Spt',supfila:'Spt',doc:'Adm',aud:'Adm',gesacao:'Ges',gesata:'Ges',
   // Telemetria e ANTT tinham grupo na barra lateral mas ficaram de fora deste
   // mapa: o acordeao nao abria sozinho ao navegar para elas (agora a busca
   // global navega, entao isso passou a incomodar de verdade).
@@ -8228,6 +8301,7 @@ function currentView(){
 function router(){
   if(!USER) return;                              // nada roda antes do login
   const v = currentView();
+  audTela(v);          // auditoria de uso: a tela aberta e o sinal de vida
   favBotao();          // a estrela reflete a tela ATUAL, entao muda com ela
   document.querySelectorAll('.view').forEach(s=>s.classList.toggle('on', s.id==='view-'+v));
   window.scrollTo(0,0);
@@ -8334,7 +8408,7 @@ function router(){
   // divergem dos usados na última carga (nunca mostrar dado velho com filtro novo)
   const key=viewKey(v);
   const DATAMAP={fin:DATA,oc:DATAOC,agr:DATAAGR,anpiso:DATAANPISO,anrntrc:DATAANRNTRC,pedagio:DATAPED,telcon:DATATELCON,telcond:DATATELCOND,telhod:DATATELHOD,mvb:DATAMVB,comb:DATACOMB,man:DATAMAN,com:DATACOM,clif:DATACLIF,dre:DATADRE,bal:DATABAL,drecli:DATADRECLI,home:DATAHOME,km:DATAKM,torre:DATATORRE,veic:DATAVEIC,veicf:DATAVEICF,mul:DATASMT,prog:DATAPROG,jorn:DATAJR,jornf:DATAJORNF,cex:DATACEX,sac:DATASAC,mprev:DATAMPREV,comrast:DATACOMRAST,qual:DATAQUAL,port:DATAPORT,crm:DATACRM,rh:DATARH,hc:DATAHC,folha:DATAFOLHA,folhaind:DATAFOLHAIND,he:DATAHE,custos:DATACUSTOS,pecas:DATAPECAS,cob:DATACOB,banc:DATABANC,extb:DATAEXTB,lanc:DATALANC,antec:DATAANTEC,antport:DATAANTPORT,milkrun:DATAMILK,fluxcon:DATAFLUXCON,rec:DATAREC,rent:DATARENT,cont:DATACONT,orc:DATAORC,fech:DATAFECH,fat:DATAFAT,gr:DATAGR,prem:DATAPREM,gestao:DATAGES,srv:DATASRV,doc:DATADOC,tvfat:null,tvope:null,tvdir:null,cop:(COP_MSGS.length?{}:null)};
-  const LOADMAP={fin:load,oc:loadOc,agr:loadAgr,anpiso:loadAnpiso,anrntrc:loadAnrntrc,telcon:loadTelcon,telcond:loadTelcond,telhod:loadTelhod,mvb:loadMvb,pedagio:loadPedagio,comb:loadComb,man:loadMan,com:loadCom,clif:loadClif,dre:loadDre,bal:loadBal,drecli:loadDreCli,home:loadHome,km:loadKm,prodveic:loadProdveic,torre:loadTorre,veic:loadVeic,veicf:loadVeicf,mul:loadSmt,prog:loadProg,jorn:loadJorraster,jornf:loadJornf,cex:loadCex,sac:loadSac,mprev:loadMPrev,comrast:loadComRast,qual:loadQual,port:loadPort,crm:loadCrm,rh:loadRh,hc:loadHc,folha:loadFolha,folhaind:loadFolhaInd,he:loadHe,custos:loadCustos,pecas:loadPecas,cob:loadCob,banc:loadBanc,extb:loadExtb,lanc:loadLanc,antec:loadAntec,antport:loadAntport,milkrun:loadMilkrun,cnh:loadCnh,ferias:loadFerias,people:loadPeople,pneus:loadPneus,poli:loadPoli,ctecp:loadCtecp,fluxcon:loadFluxcon,rec:loadRec,rent:loadRent,cont:loadCont,orc:loadOrc,fech:loadFech,fat:loadFat,gr:loadGr,prem:loadPrem,gesacao:loadGesacao,gesata:loadGesata,gestao:loadGestao,srv:loadSrv,sup:loadSup,supfila:loadSupfila,doc:loadDoc,cop:loadCop,tvfat:loadTvFat,tvope:loadTvOpe,tvdir:loadTvDir};
+  const LOADMAP={fin:load,oc:loadOc,agr:loadAgr,anpiso:loadAnpiso,anrntrc:loadAnrntrc,telcon:loadTelcon,telcond:loadTelcond,telhod:loadTelhod,mvb:loadMvb,pedagio:loadPedagio,comb:loadComb,man:loadMan,com:loadCom,clif:loadClif,dre:loadDre,bal:loadBal,drecli:loadDreCli,home:loadHome,km:loadKm,prodveic:loadProdveic,torre:loadTorre,veic:loadVeic,veicf:loadVeicf,mul:loadSmt,prog:loadProg,jorn:loadJorraster,jornf:loadJornf,cex:loadCex,sac:loadSac,mprev:loadMPrev,comrast:loadComRast,qual:loadQual,port:loadPort,crm:loadCrm,rh:loadRh,hc:loadHc,folha:loadFolha,folhaind:loadFolhaInd,he:loadHe,custos:loadCustos,pecas:loadPecas,cob:loadCob,banc:loadBanc,extb:loadExtb,lanc:loadLanc,antec:loadAntec,antport:loadAntport,milkrun:loadMilkrun,cnh:loadCnh,ferias:loadFerias,people:loadPeople,pneus:loadPneus,poli:loadPoli,ctecp:loadCtecp,fluxcon:loadFluxcon,rec:loadRec,rent:loadRent,cont:loadCont,orc:loadOrc,fech:loadFech,fat:loadFat,gr:loadGr,prem:loadPrem,gesacao:loadGesacao,gesata:loadGesata,gestao:loadGestao,srv:loadSrv,aud:loadAud,sup:loadSup,supfila:loadSupfila,doc:loadDoc,cop:loadCop,tvfat:loadTvFat,tvope:loadTvOpe,tvdir:loadTvDir};
   if(!DATAMAP[key] || (key!=='home' && LOADEDQS[key]!==qsView(key))) LOADMAP[key]();
   // mobile: estado da navegação inferior + fecha gaveta/painel de filtros
   document.querySelectorAll('.bottomnav [data-bview]').forEach(a=>a.classList.toggle('ativo', a.dataset.bview===v));
@@ -8401,6 +8475,7 @@ const NAV_KW={
   srv:'servidor saude infra api banco tunel',
   sup:'suporte chamado ticket reportar bug melhoria duvida ajuda problema resposta',
   supfila:'fila suporte atendimento chamados sla avisos whatsapp email github',
+  aud:'auditoria uso acessos sessao tempo login trilha log seguranca telas',
   doc:'documentacao manual ajuda versao changelog historico novidades glossario mudancas',
 };
 function _kwDe(a){
@@ -10176,7 +10251,7 @@ function reloadCurrent(){
   const M={home:loadHome,fluxo:load,receber:load,pagar:load,dre:loadDre,drecli:loadDreCli,oc:loadOc,
     agr:loadAgr,mvb:loadMvb,pedagio:loadPedagio,comb:loadComb,man:loadMan,com:loadCom,clif:loadClif,km:loadKm,prodveic:loadProdveic,
     torre:loadTorre,veic:loadVeic,veicf:loadVeicf,mul:loadSmt,prog:loadProg,jorn:loadJorraster,jornf:loadJornf,cex:loadCex,sac:loadSac,mprev:loadMPrev,comrast:loadComRast,qual:loadQual,port:loadPort,crm:loadCrm,rh:loadRh,hc:loadHc,folha:loadFolha,folhaind:loadFolhaInd,he:loadHe,custos:loadCustos,pecas:loadPecas,cob:loadCob,banc:loadBanc,extb:loadExtb,rent:loadRent,
-    cont:loadCont,orc:loadOrc,fech:loadFech,fat:loadFat,gr:loadGr,prem:loadPrem,gesacao:loadGesacao,gesata:loadGesata,gestao:loadGestao,srv:loadSrv,sup:loadSup,supfila:loadSupfila,doc:loadDoc,cop:loadCop,tvfat:loadTvFat,tvope:loadTvOpe,tvdir:loadTvDir};
+    cont:loadCont,orc:loadOrc,fech:loadFech,fat:loadFat,gr:loadGr,prem:loadPrem,gesacao:loadGesacao,gesata:loadGesata,gestao:loadGestao,srv:loadSrv,aud:loadAud,sup:loadSup,supfila:loadSupfila,doc:loadDoc,cop:loadCop,tvfat:loadTvFat,tvope:loadTvOpe,tvdir:loadTvDir};
   (M[currentView()]||load)();
 }
 
@@ -28543,6 +28618,9 @@ function pararTimers(){   // sessão caiu: silencia auto-refresh de torre/TV (se
   try{ if(tvTimer){ clearInterval(tvTimer); tvTimer=null; } }catch(e){}
   try{ if(tvClock){ clearInterval(tvClock); tvClock=null; } }catch(e){}
   try{ if(tvTour){ clearInterval(tvTour); tvTour=null; } }catch(e){}
+  // sem sessao nao ha o que auditar, e o ping viraria 401 em laco
+  try{ if(_audTimer){ clearTimeout(_audTimer); _audTimer=null; } }catch(e){}
+  _audUltimaTela = '';
 }
 function podeVer(v){ if(v==='jornf') v='jorn'; if(v==='sup') return !!USER;   // Suporte é de todo usuário logado
   return !!USER && ((v==='gestao'||v==='srv') ? USER.admin : (USER.admin || (USER.telas||[]).includes(v))); }
@@ -28615,6 +28693,7 @@ const BUSCA_SINONIMOS = {
   srv:['servidor','saude','cpu','disco','memoria'],
   sup:['suporte','chamado','ticket','ajuda','reportar'],
   supfila:['suporte','atendimento','fila','chamados','sla'],
+  aud:['auditoria','uso','acessos','log','trilha','sessao'],
   gr:['risco','gerenciamento de risco','rastreamento','panico','evento','macro','monitoramento','sm','escolta'],
   fat:['faturamento','meta','emissao','emissoes','cte','nfse','atingimento','modalidade','cancelado','bi'],
   prodveic:['produtividade','veiculo','veiculos','km por veiculo','ocioso','ociosidade','parado','frota parada','bi'],
@@ -28966,6 +29045,7 @@ async function setupSubmit(){
 }
 function entrar(){
   document.getElementById('loginOverlay').classList.add('oculto');
+  audCicloArmar();  // auditoria de uso: o sinal de vida da sessao comeca aqui
   repIniciar();   // botao de report: so com sessao e so se o servidor tiver a config
   // rótulo do build no rodapé (CX-DD/MM/AAAA-vX.Y.Z): é como se confirma,
   // olhando a tela, que o AutoDeploy do Windows subiu o que se esperava
@@ -29503,6 +29583,168 @@ function srvAgendar(){
     await loadSrv(true);
     if(currentView()==='srv') srvAgendar();
   }, 5000);
+}
+
+
+/* ==================== Auditoria e Uso (#aud) ====================
+   Duas perguntas que o sistema nao respondia: quem USA o painel (o audit_log
+   so sabia quem MEXEU nele) e por quanto tempo. A duracao de uma sessao vai do
+   login ate o ULTIMO SINAL DE VIDA, nunca ate agora — 391 logins para 11
+   logouts mostram que ninguem sai pelo botao, e "ate agora" transformaria a
+   aba esquecida aberta a noite toda numa sessao de catorze horas. */
+function audDur(seg){
+  seg = Math.max(0, Math.round(seg||0));
+  if(seg < 60) return seg + 's';
+  const h = Math.floor(seg/3600), m = Math.round((seg%3600)/60);
+  return h ? (h + 'h' + (m ? ' ' + m + 'min' : '')) : (m + 'min');
+}
+function audQuando(ts){
+  if(!ts) return '—';
+  const d = new Date(String(ts).replace(' ', 'T'));
+  return isNaN(d) ? esc(ts) : d.toLocaleString('pt-BR', {day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'});
+}
+async function loadAud(){
+  const dias = +(document.getElementById('aud-dias')||{}).value || 30;
+  /* `respostaJSON` e nao `r.json()`: e ele que separa sessao expirada, proxy
+     respondendo no lugar da API e erro interno — regra da casa. */
+  const r = await fetch('/api/auditoria?dias=' + dias, {cache:'no-store'});
+  const d = await respostaJSON(r);
+  if(!d.ok){
+    document.getElementById('aud-hint').textContent =
+      (d.dados && d.dados.mensagem) || 'não foi possível ler a trilha de auditoria';
+    return;
+  }
+  const v = d.dados, k = v.kpis;
+
+  /* Sessao ABERTA e calculada na leitura (fim nulo E sinal de vida recente),
+     nunca gravada: status gravado precisa de rotina para virar, e no dia em
+     que ela nao roda a tela mente. */
+  document.getElementById('aud-kpis').innerHTML = [
+    kpi('Acessos', k.acessos.toLocaleString('pt-BR'),
+        k.pessoas + ' pessoa(s) distinta(s)', '',
+        'Cada login conta um acesso. Uma pessoa que entra de manhã e de tarde conta dois.'),
+    kpi('Sessão típica', k.acessos ? audDur(k.dur_mediana) : 'n/d',
+        k.acessos ? ('média ' + audDur(k.dur_media)) : 'nenhum acesso no período', '',
+        'MEDIANA do tempo de sessão. A média vai ao lado porque as duas juntas dizem se há sessões muito longas puxando o número.'),
+    kpi('Tempo no painel', k.acessos ? audDur(k.dur_total) : 'n/d',
+        'somando todas as sessões', '',
+        'Soma do tempo de todas as sessões do período — a ordem de grandeza do uso do sistema.'),
+    kpi('No painel agora', k.abertas.toLocaleString('pt-BR'),
+        k.abertas_pessoas + ' pessoa(s) · sinal nos últimos ' + v.janela_viva_min + ' min', '',
+        'Sessões sem saída explícita e com sinal de vida recente. Quem fecha a aba sem sair some daqui sozinho depois de ' + v.janela_viva_min + ' minutos.'),
+  ].join('');
+
+  document.getElementById('aud-hint').textContent =
+    v.de.split('-').reverse().join('/') + ' a hoje · ' + k.acessos + ' acesso(s) · '
+    + k.escritas + ' ação(ões) de escrita · ' + k.falhas + ' falha(s) de login';
+
+  /* Duas escalas muito diferentes (acessos x pessoas) nao dividem eixo: a
+     menor vira LINHA no eixo secundario, com rotulo proprio. */
+  const S = v.serie || [];
+  ecDesenhar('chartAudDias', S.length && (() => {
+    const rot = S.map(x => x.dia.slice(8,10) + '/' + x.dia.slice(5,7));
+    const maxA = Math.max(1, ...S.map(x => x.acessos));
+    const o = ecOpcoes(rot, maxA, {sombra:true});
+    o.yAxis = [o.yAxis, {type:'value', name:'PESSOAS', position:'right',
+      splitLine:{show:false}, axisLabel:{color:CC.n500, fontSize:11}}];
+    o.series = [
+      ecBarras('Acessos', S.map(x => x.acessos), CC.navy700),
+      /* `rotulo` e a FUNCAO que formata o rotulo direto, nao um booleano — a
+         linha vai em eixo proprio e sem rotulo ninguem sabe a escala dela. */
+      ecLinha('Pessoas distintas', S.map(x => x.pessoas), CC.laranja,
+              {eixo:1, rotulo: v => v || ''}),
+    ];
+    o.legend = {show:true, bottom:0, textStyle:{color:CC.n500, fontSize:11}};
+    o.grid.bottom = 34;
+    return o;
+  }), 'nenhum acesso registrado no período');
+
+  const totA = (v.agentes||[]).reduce((a,x) => a + x.acessos, 0) || 1;
+  document.getElementById('aud-agentes').innerHTML =
+    (v.agentes||[]).map(x => '<tr><td>' + esc(x.agente) + '</td><td class="num">'
+      + x.acessos.toLocaleString('pt-BR') + '</td><td class="num">'
+      + (100*x.acessos/totA).toFixed(0) + '%</td></tr>').join('')
+    || '<tr><td colspan="3">—</td></tr>';
+
+  document.getElementById('aud-pessoas').innerHTML =
+    (v.pessoas||[]).map(x => '<tr><td>' + esc(x.email) + '</td><td class="num">'
+      + x.acessos.toLocaleString('pt-BR') + '</td><td class="num">' + audDur(x.dur_total)
+      + '</td><td class="num">' + audDur(x.dur_mediana) + '</td><td class="num">'
+      + x.ips + '</td><td>' + audQuando(x.ultima_vez) + '</td></tr>').join('')
+    || '<tr><td colspan="6">ninguém acessou no período</td></tr>';
+  document.getElementById('aud-pes-hint').textContent =
+    (v.pessoas||[]).length + ' pessoa(s) com acesso no período';
+
+  /* Top-N leva CONTADOR: a lista sem o total vira total falso. */
+  document.getElementById('aud-telas').innerHTML =
+    (v.telas||[]).map(x => '<tr><td>' + esc((VIEWS[x.tela]||x.tela)) + '</td><td class="num">'
+      + x.aberturas.toLocaleString('pt-BR') + '</td><td class="num">' + x.pessoas
+      + '</td><td>' + audQuando(x.ultima) + '</td></tr>').join('')
+    || '<tr><td colspan="4">nenhuma abertura registrada no período</td></tr>';
+  const nTel = (v.telas||[]).length, nSem = (v.telas_sem_uso||[]).length;
+  document.getElementById('aud-tel-hint').textContent =
+    nTel + ' de ' + (nTel + nSem) + ' telas do sistema foram abertas no período';
+  document.getElementById('aud-semuso').innerHTML =
+    (v.telas_sem_uso||[]).map(x => '<tr><td>' + esc(x.rotulo) + '</td><td>'
+      + esc(x.grupo) + '</td></tr>').join('')
+    || '<tr><td colspan="2">todas as telas do sistema foram abertas no período</td></tr>';
+  document.getElementById('aud-semuso-hint').textContent =
+    nSem + ' de ' + (nTel + nSem) + ' telas sem nenhuma abertura';
+
+  document.getElementById('aud-acoes').innerHTML =
+    (v.acoes||[]).map(x => '<tr><td>' + esc(x.acao) + '</td><td class="num">'
+      + x.n.toLocaleString('pt-BR') + '</td><td class="num">' + x.pessoas
+      + '</td><td>' + audQuando(x.ultima) + '</td></tr>').join('')
+    || '<tr><td colspan="4">nenhuma ação de escrita no período</td></tr>';
+  document.getElementById('aud-acoes-hint').textContent =
+    k.escritas.toLocaleString('pt-BR') + ' escrita(s) em ' + (v.acoes||[]).length + ' tipo(s) de ação';
+
+  document.getElementById('aud-falhas').innerHTML =
+    (v.falhas||[]).map(x => '<tr><td>' + esc(x.email||'—') + '</td><td class="num">'
+      + x.tentativas + '</td><td class="num">' + x.ips + '</td><td>'
+      + audQuando(x.ultima) + '</td></tr>').join('')
+    || '<tr><td colspan="4">nenhuma falha de login no período</td></tr>';
+  document.getElementById('aud-falhas-hint').textContent =
+    k.falhas + ' tentativa(s) recusada(s) no período';
+
+  abaContador('aud-n-pes', (v.pessoas||[]).length);
+  abaContador('aud-n-tel', nTel);
+  abaContador('aud-n-seg', (v.falhas||[]).length);
+}
+
+
+/* ============ Sinal de vida da sessao (auditoria de uso) ============
+   Duas coisas com uma chamada so: registra a TELA que a pessoa abriu e move o
+   "visto por ultimo" da sessao. E dai que sai o tempo de acesso — nao do
+   logout, que quase ninguem usa (391 logins para 11 logouts).
+
+   NAO E `setInterval`: o ciclo se agenda DEPOIS que o anterior termina (regra
+   da casa). Com setInterval, uma resposta lenta empilharia chamadas e a fila
+   cresceria sozinha. E so pinga com a ABA VISIVEL: aba de fundo esquecida a
+   noite toda nao e alguem trabalhando, e contar isso como uso inflaria o
+   indicador justamente com o que ele nao quer medir.
+
+   Falha em silencio de proposito: auditoria que atrapalha o trabalho vira
+   auditoria desligada. */
+const AUD_PING_MIN = 5;
+let _audTimer = null, _audUltimaTela = '';
+function audAvisar(tela){
+  if(!USER) return Promise.resolve();
+  return _fetch0('/api/auth/atividade', {method:'POST',
+    headers:{'Content-Type':'application/json'},
+    body: JSON.stringify(tela ? {tela: tela} : {})}).catch(()=>{});
+}
+function audTela(v){
+  if(!USER || !v || v === _audUltimaTela) return;
+  _audUltimaTela = v;
+  audAvisar(v);
+}
+function audCicloArmar(){
+  clearTimeout(_audTimer);
+  _audTimer = setTimeout(async () => {
+    if(USER && !document.hidden) await audAvisar('');
+    audCicloArmar();                       // ENCADEADO: agenda o proximo depois
+  }, AUD_PING_MIN * 60000);
 }
 
 async function loadSrv(fundo){
@@ -34551,6 +34793,13 @@ boot();
         <a href="#rh" onclick="fecharDrawer()"><span class="ic" data-ic="rhic"></span>Vagas</a>
       </div>
     </div>
+    <div class="dgrp" data-grp="Spt">
+      <button class="dgrp-h" onclick="toggleDGrp(this)"><span>Suporte</span><span class="dchev">›</span></button>
+      <div class="dgrp-b">
+        <a href="#supfila" onclick="fecharDrawer()"><span class="ic" data-ic="supfila"></span>Atendimento</a>
+        <a href="#sup" onclick="fecharDrawer()"><span class="ic" data-ic="supic"></span>Meus chamados</a>
+      </div>
+    </div>
     <div class="dgrp" data-grp="Sup">
       <button class="dgrp-h" onclick="toggleDGrp(this)"><span>Suprimentos</span><span class="dchev">›</span></button>
       <div class="dgrp-b">
@@ -34568,16 +34817,10 @@ boot();
         <a href="#prem" onclick="fecharDrawer()"><span class="ic" data-ic="prem"></span>Premiação de Motoristas</a>
       </div>
     </div>
-    <div class="dgrp" data-grp="Spt">
-      <button class="dgrp-h" onclick="toggleDGrp(this)"><span>Suporte</span><span class="dchev">›</span></button>
-      <div class="dgrp-b">
-        <a href="#sup" onclick="fecharDrawer()"><span class="ic" data-ic="supic"></span>Meus chamados</a>
-        <a href="#supfila" onclick="fecharDrawer()"><span class="ic" data-ic="supfila"></span>Atendimento</a>
-      </div>
-    </div>
     <div class="dgrp" data-grp="Adm">
       <button class="dgrp-h" onclick="toggleDGrp(this)"><span>Administração</span><span class="dchev">›</span></button>
       <div class="dgrp-b">
+        <a href="#aud" onclick="fecharDrawer()"><span class="ic" data-ic="audic"></span>Auditoria e Uso</a>
         <a href="#srv" onclick="fecharDrawer()"><span class="ic" data-ic="srv"></span>Saúde do Servidor</a>
         <a href="#gestao" onclick="fecharDrawer()"><span class="ic" data-ic="ges"></span>Usuários e acesso</a>
       </div>

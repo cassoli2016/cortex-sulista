@@ -89,6 +89,7 @@ _FONTES_ROTULO = {
     "precos_pecas": "Preço de Peças",
     "compras_da_os": "Manutenção — Compras da OS",
     "suporte": "Suporte — chamados",
+    "auditoria_uso": "Auditoria — acessos e uso do painel",
     "financeiro_caixa": "Fluxo de Caixa e Bancos",
     "analise_km_ano": "Análise de KM",
     "agregados_terceiros_ano": "Agregados e Terceiros",
@@ -474,6 +475,10 @@ def _fontes_do_snapshot() -> dict:
             "api.manutencao_compras", fromlist=["snapshot_copiloto"]).snapshot_copiloto(),
         # Suporte: só escalares do banco local (nada de título, nome, e-mail)
         "suporte": lambda: __import__("api.suporte.chamados", fromlist=["resumo"]).resumo(),
+        # Auditoria de uso: contagens e medianas, sem e-mail e sem IP —
+        # o snapshot do Copiloto leva KPI escalar, nunca quem fez o quê.
+        "auditoria_uso": lambda: __import__(
+            "api.auditoria", fromlist=["snapshot_copiloto"]).snapshot_copiloto(),
         "faturamento_detalhado": _faturamento_detalhado,
         "financeiro_caixa": lambda: queries.get_overview(),
         "analise_km_ano": lambda: queries.get_analise_km(None, ini_ano, fim),

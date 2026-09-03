@@ -4,6 +4,18 @@ Gerado de `docs/versoes.yaml` por `scripts/gerar_changelog.py` — não editar �
 Formato [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/),
 versionamento [SemVer](https://semver.org/lang/pt-BR/).
 
+## [0.217.0] — 03/09/2026  ·  CX-03/09/2026-v0.217.0
+
+### Adicionado
+- Tela nova de AUDITORIA E USO. O sistema já registrava quem MEXEU nele — toda escrita entra na trilha desde o começo. O que não havia era quem USA: quantos acessos por dia, de quanta gente, por quanto tempo e em que telas. A tela tem RBAC próprio, então dá para entregá-la a quem audita sem entregar junto a Gestão inteira, com usuários, perfis e senhas.
+- O tempo de sessão é medido do login até o último sinal de vida, e não até o logout. Foi o que os próprios dados mandaram: são 391 logins para 11 logouts — quase ninguém sai pelo botão, fecha a aba. Medir pelo logout daria uma amostra de 3% e sairia na tela com cara de número exato. E quem está no painel agora não é um campo gravado, é calculado na hora da leitura: quem fecha a aba some sozinho da contagem depois de quinze minutos.
+- A tela lista as telas mais abertas e, principalmente, AS QUE NINGUÉM ABRIU no período. O ranking das mais usadas confirma o que você já imagina; a lista das nunca abertas é a que muda decisão — tirar do menu, treinar quem deveria usar, ou admitir que a tela não serve.
+- Também estão lá as falhas de login por e-mail tentado e IPs distintos, e as ações de escrita por tipo. A Saúde do Servidor ganhou uma linha que vigia a própria trilha, porque a falha da coleta é muda por construção — ela nunca derruba o acesso de ninguém, então sem esse cartão o dia em que ela parasse não apareceria em lugar nenhum.
+
+### Alterado
+- Sobre o que fica guardado, já que o dado é sobre pessoas: registra-se a tela aberta e o horário. Filtro, parâmetro e conteúdo de tela não são guardados, e o navegador entra reduzido a duas palavras, como "Chrome · Windows". A auditoria de uso serve para dimensionar o sistema e achar tela morta, não para reconstituir o que cada pessoa leu.
+- O menu do Suporte mudou de lugar mais uma vez, agora para a posição alfabética — entre Recursos Humanos e Suprimentos. O painel mantém os grupos em ordem de dicionário com Administração no fim, e ontem ele tinha entrado colado em Administração, que era de onde vinha.
+
 ## [0.216.3] — 03/09/2026  ·  CX-03/09/2026-v0.216.3
 
 ### Alterado

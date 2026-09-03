@@ -119,7 +119,7 @@ a ACL em vez de afirmar a proteção.
 ## 3. Telas e módulos
 
 **O registro canônico das telas é `api/auth.py`** (`TELAS`, `ROTA_TELAS`,
-`VIEW_GROUP` no `index.html`). Hoje: 71 telas em RBAC + 4 fora
+`VIEW_GROUP` no `index.html`). Hoje: 72 telas em RBAC + 4 fora
 (`srv`, `gestao`, `jornf`, e `sup`, que é de TODO usuário logado —
 `TELAS_TODO_LOGADO`), organizadas assim:
 
@@ -137,9 +137,10 @@ a ACL em vez de afirmar a proteção.
 | ANTT | anpiso, anrntrc | `config/antt_coeficientes.yaml`, `config/antt_cargas.yaml`, `rntrc_*` |
 | Business Intelligence | prodveic, tvfat, tvope, tvdir | AVA (tvdir lê a mesma /api/visao-geral da home) |
 | Gestão | gesacao, gesata | `ges_*` (banco local) |
-| Administração | doc, sup, supfila | `index.html` (doc); `sup_*` no banco local + espelho opcional no GitHub (suporte) |
+| Suporte | sup, supfila | `sup_*` no banco local + espelho opcional no GitHub |
+| Administração | doc, aud | `index.html` (doc); `aud_*` + `audit_log` (auditoria de uso, `api/auditoria.py`) |
 
-As tabelas locais vivem em `sql/cortex/` (38 migrations): auth/usuários/fotos,
+As tabelas locais vivem em `sql/cortex/` (39 migrations): auth/usuários/fotos,
 push, correio, previsão, antecipações, extrato, orçamento, contrapartida,
 WhatsApp (`zap_*`), gestão (`ges_*`), jornada RasterJOR (`jor_*`), premiação,
 favoritos, TomTom (`tt_*`), CRM (`crm_*`), notificações, Smartec (`smt_*`),
@@ -440,6 +441,11 @@ barra empilhada, não donut.
 
 ### Frontend (index.html)
 
+- **O menu é ALFABÉTICO**: miolo em ordem de dicionário (sem acento,
+  minúsculo), Visão Geral e Copiloto no topo, Administração no fim — na barra
+  lateral E na gaveta, grupos e itens. `tests/frontend/test_menu_alfabetico.py`
+  cobra. Tela nova entra "no fim" por inércia; em três telas isso vira ordem de
+  chegada.
 - **A regra de CSS pode existir, estar certa e NÃO VALER** (memória
   `css-regra-que-perde-a-briga`): só o navegador diz quem venceu a
   especificidade. No login, `.lg-btn` (0,1,0) perdia para `button.btn` (0,2,1) e
@@ -558,6 +564,14 @@ Regras duráveis — as crônicas (medições, formatos, tetos) estão em
 2. RBAC fail-closed no middleware (seção 6); `/api/gestao` é só admin; agente
    de IA herda o RBAC do usuário.
 3. Toda escrita entra no `audit_log` — auditoria ANTES da ação externa.
+   **Uso é outra pergunta e outra tabela** (`aud_sessoes`/`aud_telas`, tela
+   `aud`): a trilha de ações é append-only e imutável; a sessão é linha VIVA,
+   com "visto por último". Duração = `coalesce(fim, visto_em) − inicio`, nunca
+   `now()` (391 logins × 11 logouts: ninguém sai pelo botão, e a aba esquecida
+   viraria 14 h). "Aberta agora" é CALCULADO, não coluna. A coleta nunca
+   levanta — e por isso a falha dela é MUDA e tem cartão na Saúde. Grava-se a
+   CHAVE da tela (validada; vem do navegador) e o horário: **nunca** filtro,
+   parâmetro ou conteúdo.
 4. Segredos: cofre/`.env` (nunca versionado) e arquivos protegidos por
    `api/segredo_arquivo.proteger()` com a Saúde MEDINDO a ACL.
 5. PII: CPF não entra em URL nem aparece inteiro; o snapshot do Copiloto leva

@@ -191,10 +191,18 @@ def test_tela_sup_e_de_todo_usuario_e_a_bancada_nao(pagina):
     assert pg.evaluate("podeVer('sup')") is True
     assert pg.evaluate("podeVer('supfila')") is False
     assert pg.evaluate("currentView()") != "supfila"
-    # o menu esconde por style.display (o grupo Administração nasce recolhido,
-    # então is_visible não serve): o link de sup fica, o de supfila some, e o
-    # grupo aparece para quem só tem o Suporte
+    # o menu esconde por style.display (o grupo nasce recolhido, então
+    # is_visible não serve): o link de sup fica e o de supfila some.
+    #
+    # O GRUPO MUDOU EM 03/09/2026. Antes o Suporte vivia dentro de
+    # Administração, e este teste exigia `#grpAdm` visível — o que só
+    # acontecia porque o Suporte estava lá dentro. Na prática ninguém achava a
+    # tela: Administração é o grupo de quem administra, e para o usuário comum
+    # ele fica INTEIRO oculto. O Suporte virou grupo próprio, então agora quem
+    # só tem `sup` vê `#grpSpt` e NÃO vê `#grpAdm` — que é o comportamento que
+    # a tela deveria ter tido desde o começo.
     mostra = lambda sel: pg.eval_on_selector(sel, "e=>e.style.display!=='none'")
     assert mostra("#sidebar a[data-view=sup]") is True
     assert mostra("#sidebar a[data-view=supfila]") is False
-    assert mostra("#grpAdm") is True
+    assert mostra("#grpSpt") is True, "o grupo Suporte tem de aparecer para quem só tem a tela"
+    assert mostra("#grpAdm") is False, "Administração não é para o usuário comum"

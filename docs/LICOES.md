@@ -2863,3 +2863,104 @@ o teste passou a imprimir `res` na asserção. (2) A subconsulta do sino
 misturava `AND`/`OR` sem parênteses e devolvia vazio; o sino da fila só existe
 enquanto há chamado COM o suporte (aberto/em atendimento) — mandar o chamado
 para "aguardando usuário" o tira da fila, e o teste tinha de conferir antes.
+
+## Auditoria de USO: o que 391 logins para 11 logouts obrigam a medir (2026-09-03, v0.217.0)
+
+O pedido foi *"deixar a auditoria mais robusta — quantidade de acessos, tempo
+de acesso, continuar auditando as ações, com indicadores viáveis"*. O
+`audit_log` já respondia **quem MEXEU** no sistema: toda escrita passa por ele
+desde o começo. Não respondia **quem USA**.
+
+### O número que decidiu o desenho
+
+**391 logins para 11 logouts.** Ninguém sai pelo botão — fecha a aba. Isso
+elimina de saída a implementação óbvia: duração de sessão medida por
+`login → logout` teria **3% de amostra** e apareceria na tela como um número
+exato. Foi o dado existente que ditou a arquitetura, não o contrário.
+
+Então a sessão recebe um **"visto por último"** enquanto a pessoa navega, e:
+
+```
+duração = coalesce(fim, visto_em) − inicio
+```
+
+Nunca `now() − inicio`: a aba esquecida aberta a noite toda viraria uma sessão
+de catorze horas e levaria a média junto. O teste que guarda isso é o primeiro
+do arquivo, e sabotá-lo (trocar por `now()`) derruba na hora.
+
+### "Está no painel agora" não é coluna
+
+É `fim IS NULL AND visto_em > agora − 15 min`, calculado na leitura. Status
+gravado precisa de rotina para virar, e no dia em que ela não roda a tela
+mente. Quem fecha a aba some sozinho da contagem — sem nenhum processo.
+
+### O que a coleta NÃO pode fazer
+
+**Não pode levantar.** `abrir_sessao` devolve `None` e o login segue: trilha
+que impede de entrar vira trilha desligada. O preço disso é que a falha da
+coleta é **muda** — e é exatamente por isso que a Saúde do Servidor ganhou a
+linha "Auditoria de uso (trilha)" no mesmo commit. Sem ela, o dia em que a
+gravação parasse não apareceria em lugar nenhum: a tela só ficaria mais vazia a
+cada semana, e ninguém sabe de cor quantos acessos deveria ter.
+
+**Não pode ser gargalo.** O `visto_em` avança de 60 em 60 segundos, não a cada
+clique: duas telas abertas no mesmo minuto não são dois sinais de vida
+diferentes. E as telas entram **agregadas por (sessão, tela)** — quem vai e
+volta entre duas telas trinta vezes numa tarde gera 2 linhas, não 30, e as
+perguntas que a tela faz são as mesmas com um centésimo do volume.
+
+**Não pode confiar no que chega do navegador.** A chave da tela é validada
+contra `^[a-z][a-z0-9_]{0,23}$` antes de entrar. O valor vem do cliente, e o
+que vem do cliente não é dado, é entrada — sem isso a tabela vira depósito de
+qualquer string. Sete casos no teste, de `<script>` a `../../etc`.
+
+### O indicador que ninguém pede e que muda decisão
+
+**As telas que ninguém abriu.** O ranking das mais usadas confirma o que já se
+imagina — home no topo, sempre. A lista das nunca abertas é a que faz alguém
+tirar tela do menu, treinar quem deveria usar, ou admitir que a tela não serve.
+Ela só existe porque alguém cruza o registro de telas (`auth.TELAS`) com o uso;
+não sai de nenhuma consulta sozinha.
+
+### Dado sobre pessoas: o que não se guarda
+
+Filtro, parâmetro, conteúdo de tela, corpo de requisição — nada. Só a chave da
+tela e o horário. O user-agent entra reduzido a `Chrome · Windows`: a string
+inteira é longa, muda a cada atualização do navegador e não responde nada
+melhor que duas palavras. Auditoria de uso serve para dimensionar o sistema e
+achar tela morta, não para reconstituir o que cada pessoa leu. O snapshot do
+Copiloto leva só escalares, com teste garantindo que e-mail e IP não passam.
+
+### O `sid` no token, e a renovação que quase o comeu
+
+A sessão viaja como `sid` no JWT — não é segredo nem permissão, é um número de
+linha de trilha, e o token já é assinado. O que quase estragou tudo: a
+**renovação deslizante** reemite o token a cada meia-vida, e a primeira versão
+não repassava o `sid`. O mesmo acesso viraria várias sessões curtas na trilha,
+e o indicador de "sessão típica" sairia menor quanto mais tempo a pessoa
+ficasse — o inverso do que ele mede. Token antigo, sem `sid`, continua valendo;
+só não alimenta a auditoria até o próximo login.
+
+### O que só a suíte COMPLETA pegou
+
+Três coisas, e as três eram minhas:
+
+- **O menu é alfabético** (miolo em ordem de dicionário, Administração no fim).
+  Eu não sabia. "Suporte" vai **antes** de "Suprimentos" (Supo < Supr), e eu
+  tinha encostado o grupo em Administração só porque foi de lá que ele saiu.
+- **A escala 9/18/25**: a barra de período da tela nova dava 39 px — margem
+  própria somada ao `gap` do container, que é o jeito clássico de sair da
+  escala (memória `escala-de-espacamento`, de novo).
+- Um teste do Suporte exigia `#grpAdm` visível para quem só tem `sup` — o que
+  só era verdade porque o Suporte morava dentro de Administração. Agora quem só
+  tem `sup` vê `#grpSpt` e **não** vê `#grpAdm`, que é o comportamento que
+  deveria existir desde o começo.
+
+E um erro meu de bancada que vale ficar registrado: ao mover o grupo de lugar
+no `index.html`, calculei o destino por `rindex` de uma âncora (`navsep`) que
+**também existe no CSS**, e inseri o bloco inteiro no meio da folha de estilo.
+Só havia dois separadores no menu, não um por grupo — a premissa estava errada
+desde o início. Peguei porque conferi a ordem dos grupos logo depois, restaurei
+do backup e refiz **imprimindo os limites antes de escrever**. É a mesma
+lição que o `CLAUDE.md` já registra para este arquivo (corte por marcador
+DERIVADO, nunca por posição escolhida a olho) e eu tropecei nela mesmo assim.

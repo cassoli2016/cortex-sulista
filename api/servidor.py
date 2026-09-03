@@ -376,6 +376,37 @@ def _servico_pglocal(d: dict) -> dict:
             "detalhe": f"conectado · {d['onde']} · {d['ms']} ms · {versao}"}
 
 
+def _servico_auditoria(d: dict) -> dict:
+    """A trilha de auditoria esta viva?
+
+    Vale a linha porque a falha aqui e MUDA: a coleta nunca levanta (auditoria
+    que impede de entrar vira auditoria desligada), entao o dia em que ela
+    parar de gravar nao aparece em lugar nenhum — a tela de Auditoria so ficaria
+    mais vazia a cada semana, e ninguem sabe de cor quantos acessos deveria ter.
+
+    Funcao PURA sobre o diagnostico.
+    """
+    nome = "Auditoria de uso (trilha)"
+    if not d.get("ok"):
+        return {"nome": nome, "status": "erro",
+                "detalhe": "nao foi possivel ler a trilha (%s) — a tela de "
+                           "Auditoria fica sem dado" % (d.get("erro") or "erro")}
+    partes = ["%s sessao(oes) registrada(s)" % f"{d['sessoes']:,}".replace(",", "."),
+              "%s acao(oes) na trilha" % f"{d['acoes']:,}".replace(",", ".")]
+    if d.get("abertas"):
+        partes.append("%d no painel agora" % d["abertas"])
+    if d.get("ultimo_acesso"):
+        partes.append("ultimo acesso em " + str(d["ultimo_acesso"])[:16])
+    # Sem NENHUMA sessao a coleta pode estar quebrada ou o sistema recem-migrado.
+    # `info` e nao alerta: nao da para separar as duas coisas daqui, e vermelho
+    # que nao distingue treina o operador a ignorar.
+    if not d["sessoes"]:
+        return {"nome": nome, "status": "info",
+                "detalhe": "nenhuma sessao registrada ainda — a coleta comeca "
+                           "no proximo login"}
+    return {"nome": nome, "status": "ok", "detalhe": " · ".join(partes)}
+
+
 def _brl_mi(v: float) -> str:
     """R$ curto, para caber num cartao: milhoes acima de 1 mi, milhares acima
     de mil. Cartao de monitoramento nao e demonstrativo — o centavo exato sai
@@ -1110,6 +1141,15 @@ def _servicos() -> list[dict]:
         servicos.append({"nome": "Banco do CÓRTEX (PostgreSQL local)",
                          "status": "info", "detalhe": "camada indisponível"})
         log.warning("saude: pglocal: %s", exc)
+
+    # AUDITORIA DE USO. Fica junto do banco da casa, que e onde ela grava.
+    try:
+        from . import auditoria as _aud
+        servicos.append(_servico_auditoria(_aud.diagnostico()))
+    except Exception as exc:  # noqa: BLE001
+        servicos.append({"nome": "Auditoria de uso (trilha)", "status": "info",
+                         "detalhe": "camada indisponível"})
+        log.warning("saude: auditoria: %s", exc)
 
     # MAPA CONTÁBIL do ERP. Vem logo depois dos bancos porque é a mesma
     # pergunta um nível acima: o banco responde, mas o que ele responde ainda

@@ -357,6 +357,26 @@ def health() -> JSONResponse:
         return JSONResponse(status_code=503, content={"status": "erro", "db": "sem_conexao"})
 
 
+@app.get("/api/auditoria")
+def auditoria_uso(dias: int = 30) -> JSONResponse:
+    """Indicadores de USO — acessos, tempo de sessao, telas e trilha de acoes.
+
+    Tela `aud`, com RBAC proprio (ver ROTA_TELAS): quem audita nao precisa da
+    Gestao inteira — usuarios, perfis e senhas — para ler a trilha.
+    """
+    from api import auditoria as aud
+    dias = max(1, min(int(dias or 30), 365))
+    try:
+        d = aud.resumo(dias)
+        d["telas_sem_uso"] = aud.telas_sem_uso(auth.TELAS, dias)
+        return JSONResponse(d)
+    except Exception as exc:  # noqa: BLE001
+        log.warning("auditoria de uso falhou: %s", type(exc).__name__)
+        return JSONResponse(status_code=500, content={
+            "erro": "erro_consulta",
+            "mensagem": "Nao foi possivel ler a trilha de auditoria."})
+
+
 @app.get("/api/gestao/servidor")
 def gestao_servidor() -> JSONResponse:
     # /api/gestao/* já é restrito a admin pelo AuthMiddleware

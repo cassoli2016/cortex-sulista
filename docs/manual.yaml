@@ -630,8 +630,12 @@ grupos:
   - sup
   - supfila
 - nome: Administração
-  resumo: Usuários, perfis e permissões por tela, saúde da máquina onde a API roda, e esta documentação.
+  resumo: >-
+    Usuários, perfis e permissões por tela, saúde da máquina onde a API roda, a auditoria de uso
+    (quem entra, por quanto tempo e em que telas, além da trilha de ações que já existia) e esta
+    documentação.
   telas:
   - gestao
   - srv
+  - aud
   - doc

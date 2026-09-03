@@ -121,6 +121,9 @@ TELAS: dict[str, tuple[str, str]] = {  # chave -> (rótulo, grupo do menu)
     "gesacao": ("Planos de Ação", "Gestão"),
     "gesata":  ("Atas de Reunião", "Gestão"),
     "doc":     ("Documentação", "Administração"),
+    # Auditoria e tela PROPRIA, com RBAC proprio: quem audita nao precisa da
+    # Gestao inteira (usuarios, perfis, senhas) para ler a trilha.
+    "aud":     ("Auditoria e Uso", "Administração"),
     "supfila": ("Suporte — Atendimento", "Suporte"),
 }
 
@@ -130,6 +133,7 @@ ROTA_TELAS: list[tuple[str, frozenset[str]]] = [
     # basta ter QUALQUER tela atribuída — nunca fica aberto a usuário sem acesso.
     ("/api/financeiro/filtros",       frozenset(TELAS)),
     # documentação e versão: qualquer usuário logado, com qualquer tela
+    ("/api/auditoria",                frozenset({"aud"})),
     ("/api/documentacao",             frozenset(TELAS)),
     ("/api/versao",                   frozenset(TELAS)),
     ("/api/telemetria/consumo/atualizar", frozenset({"telcon"})),
@@ -270,7 +274,7 @@ _PUBLICAS = ("/api/auth/login", "/api/auth/setup", "/api/auth/setup-status",
 # própria senha/sair. /api/gestao/* não entra aqui: já é checado à parte
 # (admin) antes de chegar em _telas_da_rota.
 _ROTAS_AUTOSERVICO = ("/api/auth/me", "/api/auth/logout", "/api/auth/trocar-senha",
-                      "/api/auth/perfil")
+                      "/api/auth/perfil", "/api/auth/atividade")
 
 # Rotas /api/* que EXIGEM sessão mas não pertencem a tela nenhuma: valem para
 # qualquer usuário logado. Push é assinatura do próprio aparelho; report é
@@ -867,14 +871,22 @@ def _telas_do_perfil(c: psycopg.Connection, perfil_id: int, admin: bool) -> list
 
 # ---------------------------------------------------------------- sessão/JWT
 
-def _emitir_token(usuario_id: int, token_ver: int) -> str:
+def _emitir_token(usuario_id: int, token_ver: int, sessao_id: int | None = None) -> str:
+    """`sessao_id` e a linha de `aud_sessoes` desta entrada.
+
+    Vai DENTRO do token para a rota de atividade — a mais chamada do painel —
+    nao precisar de uma consulta so para descobrir a que sessao ela pertence.
+    Nao e segredo nem permissao: e um numero de linha de trilha, e o token ja e
+    assinado. Token antigo (sem `sid`) continua valendo, so nao alimenta a
+    auditoria de uso ate o proximo login.
+    """
     agora = datetime.now(timezone.utc)
     ttl = max(5, cfg("sessao_ttl_min"))
-    return jwt.encode(
-        {"sub": str(usuario_id), "ver": token_ver,
-         "iat": agora, "exp": agora + timedelta(minutes=ttl)},
-        SECRET, algorithm="HS256",
-    )
+    claims = {"sub": str(usuario_id), "ver": token_ver,
+              "iat": agora, "exp": agora + timedelta(minutes=ttl)}
+    if sessao_id:
+        claims["sid"] = int(sessao_id)
+    return jwt.encode(claims, SECRET, algorithm="HS256")
 
 
 def _cookie_kwargs(https: bool) -> dict:
@@ -918,6 +930,8 @@ def sessao_atual(token: str | None) -> dict | None:
         "setor": u["setor"] or "", "ramal": u["ramal"] or "",
         "foto_em": u["foto_em"],
         "token_ver": u["token_ver"], "exp": claims["exp"], "iat": claims["iat"],
+        "sid": claims.get("sid"),   # sessao da auditoria de uso
+
     }
 
 
@@ -1012,7 +1026,10 @@ class AuthMiddleware:
         iat = datetime.fromtimestamp(sess["iat"], tz=timezone.utc)
         if not path.startswith("/api/auth/") and datetime.now(timezone.utc) > iat + (exp - iat) / 2:
             https = Headers(scope=scope).get("x-forwarded-proto", scope.get("scheme")) == "https"
-            token = _emitir_token(sess["id"], sess["token_ver"])
+            # `sess["sid"]` VAI JUNTO: sem ele a renovacao (a cada meia-vida
+            # do token) perderia a sessao da auditoria, e o mesmo acesso
+            # viraria varias sessoes curtas na trilha.
+            token = _emitir_token(sess["id"], sess["token_ver"], sess.get("sid"))
             tmp = Response()
             _set_cookie(tmp, token, https)
             novo_cookie = tmp.headers["set-cookie"]
@@ -1152,8 +1169,11 @@ def setup(payload: dict, request: Request) -> JSONResponse:
         uid = cur.fetchone()["id"]
     audit(email, "setup_admin", alvo=email, detalhe="primeiro administrador criado",
           ip=_ip(request))
+    from . import auditoria
+    sid = auditoria.abrir_sessao(uid, email, ip=_ip(request),
+                                 agente=request.headers.get("user-agent", ""))
     resp = JSONResponse({"ok": True})
-    _set_cookie(resp, _emitir_token(uid, 0), _https(request))
+    _set_cookie(resp, _emitir_token(uid, 0, sid), _https(request))
     return resp
 
 
@@ -1201,7 +1221,12 @@ def login(payload: dict, request: Request) -> JSONResponse:
         c.execute("UPDATE usuarios SET falhas=0, bloqueado_ate=NULL, ultimo_login=%s WHERE id=%s",
                   (_agora(), u["id"]))
     audit(email, "login_ok", ip=_ip(request))
-    token = _emitir_token(u["id"], u["token_ver"])
+    # AUDITORIA DE USO: a sessao nasce aqui. `abrir_sessao` nunca levanta —
+    # trilha que impede de entrar vira trilha desligada.
+    from . import auditoria
+    sid = auditoria.abrir_sessao(u["id"], email, ip=_ip(request),
+                                 agente=request.headers.get("user-agent", ""))
+    token = _emitir_token(u["id"], u["token_ver"], sid)
     sess = sessao_atual(token)
     resp = JSONResponse(_payload_me(sess))
     _set_cookie(resp, token, _https(request))
@@ -1220,6 +1245,8 @@ def logout(request: Request) -> JSONResponse:
     with _conn() as c:
         c.execute("UPDATE usuarios SET token_ver=token_ver+1 WHERE id=%s", (sess["id"],))
     audit(sess["email"], "logout", ip=_ip(request))
+    from . import auditoria
+    auditoria.fechar_sessao(sess.get("sid"), "logout")
     resp = JSONResponse({"ok": True})
     resp.delete_cookie(COOKIE, path="/")
     return resp
@@ -1245,8 +1272,14 @@ def trocar_senha(payload: dict, request: Request) -> JSONResponse:
         c.execute("UPDATE usuarios SET senha_hash=%s, deve_trocar_senha=0, token_ver=%s WHERE id=%s",
                   (_ph.hash(nova), nova_ver, sess["id"]))
     audit(sess["email"], "trocar_senha", ip=_ip(request))
+    # A troca de senha invalida o token: a sessao anterior ACABOU ali, e a
+    # seguinte e outra. Sem isto a duracao juntaria as duas.
+    from . import auditoria
+    auditoria.fechar_sessao(sess.get("sid"), "troca_senha")
+    sid = auditoria.abrir_sessao(sess["id"], sess["email"], ip=_ip(request),
+                                 agente=request.headers.get("user-agent", ""))
     resp = JSONResponse({"ok": True})
-    _set_cookie(resp, _emitir_token(sess["id"], nova_ver), _https(request))
+    _set_cookie(resp, _emitir_token(sess["id"], nova_ver, sid), _https(request))
     return resp
 
 
@@ -1422,6 +1455,25 @@ def redefinir_senha(payload: dict, request: Request) -> JSONResponse:
     # aparelho emprestado, e o proximo passo natural (digitar a senha que
     # acabou de escolher) e o que confirma que ela guardou a senha.
     return JSONResponse({"ok": True, "mensagem": "Senha alterada. Entre com a senha nova."})
+
+
+@router_auth.post("/atividade")
+def atividade(payload: dict, request: Request) -> JSONResponse:
+    """Sinal de vida da sessao e a tela que a pessoa abriu.
+
+    Chamada pelo roteador do painel a cada troca de tela e por um ping enquanto
+    a aba esta visivel. E a rota mais chamada do sistema, entao ela NAO retorna
+    nada util e nao le nada: so escreve, e a escrita ja vem freada por dentro
+    (`PASSO_VISTO_SEG`).
+
+    O corpo traz APENAS a chave da tela. Nao ha filtro, parametro nem conteudo
+    — auditoria de uso serve para dimensionar e achar tela morta, nao para
+    reconstituir o que cada pessoa leu.
+    """
+    sess = request.state.sessao
+    from . import auditoria
+    auditoria.registrar(sess.get("sid"), (payload or {}).get("tela") or "")
+    return JSONResponse({"ok": True})
 
 
 @router_auth.post("/perfil")
