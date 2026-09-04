@@ -66,9 +66,28 @@ _pool: "ConnectionPool | None" = None
 def _get_pool() -> "ConnectionPool":
     global _pool
     if _pool is None:
+        # MAX_SIZE TEM DE SER MAIOR QUE O MAIOR LEQUE DA CASA, e por muito.
+        #
+        # Era 6. A Visão Geral abre `ThreadPoolExecutor(len(grupos) + 1)` = 5
+        # workers, e cada um segura UMA conexão enquanto roda o grupo dele —
+        # cinco das seis vagas, sobrando UMA para o sistema inteiro. Com o ERP
+        # num dia ruim, cada consulta ocupa a vaga por até os 60 s do
+        # `statement_timeout`, e todo o resto do painel leva `PoolTimeout` em
+        # 15 s. Medido em 04/09/2026: `/api/health` em 503 por ~50 minutos,
+        # enquanto uma conexão NOVA ao mesmo banco respondia em 0,1 s. O banco
+        # estava são o tempo todo; quem estava cheio era o pool.
+        #
+        # 16 cobre a Visão Geral (5) com folga para a navegação de várias
+        # pessoas ao mesmo tempo e para o snapshot do Copiloto, que é
+        # sequencial mas concorre pelas mesmas vagas. O servidor tem
+        # max_connections=800 e o usuário usa ~18 no pico: a folga é nossa,
+        # não dele.
+        #
+        # min_size=2 porque a primeira consulta depois de um período parado
+        # pagava o handshake inteiro com o usuário esperando.
         _pool = ConnectionPool(
             _conninfo(), kwargs={"row_factory": dict_row},
-            min_size=1, max_size=6, max_idle=300, timeout=15,
+            min_size=2, max_size=16, max_idle=300, timeout=15,
             check=ConnectionPool.check_connection, name="ava", open=True)
     return _pool
 

@@ -1,3 +1,19 @@
+- versao: "0.227.1"
+  data: "2026-09-04"
+  corrigido:
+    - >-
+      O painel deixa de se derrubar sozinho quando o ERP fica lento. O pool de
+      conexões tinha 6 vagas e a Visão Geral abre 5 de uma vez — sobrava UMA
+      para o sistema inteiro, e num dia ruim do ERP cada consulta segurava a
+      vaga por até 60 segundos. O resultado era a tela inteira em erro de
+      conexão com o banco SÃO do outro lado: medido em 04/09/2026, a API ficou
+      cerca de 50 minutos recusando enquanto uma conexão nova ao mesmo banco
+      respondia em 0,1 segundo.
+    - >-
+      O cache passou a ter voo único: com o cache frio, várias pessoas abrindo
+      a mesma tela ao mesmo tempo disparavam a mesma consulta várias vezes, e
+      cada uma dessas consultas pedia 5 conexões. Agora a primeira corre e as
+      outras esperam por ela — mesma resposta, uma ida ao ERP.
 - versao: "0.227.0"
   data: "2026-09-04"
   adicionado:

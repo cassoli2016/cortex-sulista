@@ -25,16 +25,38 @@ log = logging.getLogger("cortex.queries")
 # idênticas em sequência (navegação entre telas) saem da memória.
 # ============================================================================
 import time as _time
+import threading as _threading
 
 _RESP_CACHE: dict = {}
 
+# VOO ÚNICO. Uma trava POR CHAVE: com o cache frio, N requisições simultâneas
+# da mesma coisa rodavam a consulta N vezes. Não é desperdício teórico — a
+# Visão Geral abre 5 conexões por chamada, então duas chamadas concorrentes
+# pediam 10 das (então) 6 vagas do pool, e a terceira pessoa a abrir a tela
+# recebia `PoolTimeout`. Com a trava, a primeira consulta e as outras ESPERAM
+# por ela: a mesma resposta, uma ida ao ERP.
+#
+# Ordem de aquisição é sempre a mesma (quem chama segura a própria trava e
+# pede a da dependência — `parecer` → `get_dre`, nunca o contrário), então
+# aninhar não fecha ciclo.
+_RESP_LOCKS: dict = {}
+_RESP_LOCKS_GUARD = _threading.Lock()
+
+
+def _trava_da_chave(key):
+    with _RESP_LOCKS_GUARD:
+        trava = _RESP_LOCKS.get(key)
+        if trava is None:
+            trava = _RESP_LOCKS[key] = _threading.Lock()
+        return trava
+
 
 def cached(ttl: int = 90, velha_ate: int = 0):
-    """Cache com TTL e, opcionalmente, ULTIMA LEITURA BOA para quando falhar.
+    """Cache com TTL, VOO ÚNICO e, opcionalmente, ÚLTIMA LEITURA BOA.
 
-    `velha_ate` (segundos) liga o segundo comportamento: se a consulta falhar e
-    houver uma leitura boa mais nova que isso, ela é devolvida CARIMBADA com a
-    idade em vez de a tela morrer.
+    `velha_ate` (segundos) liga o terceiro comportamento: se a consulta falhar
+    e houver uma leitura boa mais nova que isso, ela é devolvida CARIMBADA com
+    a idade em vez de a tela morrer.
 
     POR QUE ISSO EXISTE. Em 03/09/2026 o ERP — que é réplica de produção de
     TERCEIRO, e portanto fora do nosso controle — degradou entre 05h e 05h40:
@@ -48,6 +70,14 @@ def cached(ttl: int = 90, velha_ate: int = 0):
     trabalhar. Tela em branco não é nenhum dos dois. O que não se faz é servir
     o número velho calado: quem carimba é o `leitura_velha`, e a tela é
     obrigada a mostrar.
+
+    O VOO ÚNICO veio depois, em 04/09/2026, e de um defeito nosso: com o cache
+    frio, N requisições simultâneas da mesma coisa rodavam a consulta N vezes.
+    A Visão Geral abre 5 conexões por chamada, então duas chamadas concorrentes
+    pediam 10 das (então) 6 vagas do pool e quem chegasse depois levava
+    `PoolTimeout` — o painel se derrubava sozinho sempre que o ERP ficava
+    lento. Agora a primeira consulta corre e as outras ESPERAM por ela: mesma
+    resposta, uma ida ao ERP.
     """
     def deco(fn):
         def wrapper(*args, **kwargs):
@@ -56,27 +86,47 @@ def cached(ttl: int = 90, velha_ate: int = 0):
             agora = _time.time()
             if hit and agora - hit[0] < ttl:
                 return hit[1]
-            try:
-                result = fn(*args, **kwargs)
-            except Exception as exc:  # noqa: BLE001
-                idade = agora - hit[0] if hit else None
-                if not (velha_ate and hit and isinstance(hit[1], dict)
-                        and idade <= velha_ate):
-                    raise
-                log.warning("%s falhou (%s); servindo leitura de %d s atras",
-                            fn.__name__, type(exc).__name__, int(idade))
-                # COPIA: carimbar o dicionario guardado deixaria o carimbo lá
-                # para sempre, e a próxima leitura boa sairia marcada de velha.
-                velho = dict(hit[1])
-                velho["leitura_velha"] = True
-                velho["leitura_idade_seg"] = int(idade)
-                velho["leitura_em"] = datetime.fromtimestamp(hit[0]).strftime(
-                    "%Y-%m-%d %H:%M:%S")
-                return velho
-            _RESP_CACHE[key] = (agora, result)
-            if len(_RESP_CACHE) > 200:
-                _RESP_CACHE.clear()
-            return result
+
+            with _trava_da_chave(key):
+                # RECONFERE DENTRO DA TRAVA: enquanto esperávamos, outra thread
+                # pode ter feito a consulta. Sem esta segunda leitura a fila
+                # inteira consultaria em sequência — o mesmo defeito, só que
+                # mais lento.
+                hit = _RESP_CACHE.get(key)
+                agora = _time.time()
+                if hit and agora - hit[0] < ttl:
+                    return hit[1]
+
+                try:
+                    result = fn(*args, **kwargs)
+                except Exception as exc:  # noqa: BLE001
+                    idade = agora - hit[0] if hit else None
+                    if not (velha_ate and hit and isinstance(hit[1], dict)
+                            and idade <= velha_ate):
+                        raise
+                    log.warning(
+                        "%s falhou (%s); servindo leitura de %d s atras",
+                        fn.__name__, type(exc).__name__, int(idade))
+                    # COPIA: carimbar o dicionario guardado deixaria o carimbo
+                    # lá para sempre, e a próxima leitura boa sairia marcada de
+                    # velha.
+                    velho = dict(hit[1])
+                    velho["leitura_velha"] = True
+                    velho["leitura_idade_seg"] = int(idade)
+                    velho["leitura_em"] = datetime.fromtimestamp(
+                        hit[0]).strftime("%Y-%m-%d %H:%M:%S")
+                    return velho
+
+                _RESP_CACHE[key] = (agora, result)
+                if len(_RESP_CACHE) > 200:
+                    # As travas acompanham o cache. Uma trava descartada aqui
+                    # continua viva na thread que a segura (o objeto está no
+                    # frame dela); o pior caso é uma consulta a mais enquanto
+                    # a nova trava daquela chave não existe.
+                    _RESP_CACHE.clear()
+                    with _RESP_LOCKS_GUARD:
+                        _RESP_LOCKS.clear()
+                return result
         wrapper.__name__ = fn.__name__
         return wrapper
     return deco
