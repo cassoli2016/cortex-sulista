@@ -1198,6 +1198,33 @@ tr.dre-conta>td{font-size:11.5px;color:var(--n500)}
    sem isso ele se confunde com a conta irmã de cima, que tem o mesmo recuo. */
 #dre-tab tr.dre-cc>td:first-child{padding-left:64px}
 #dre-tab .ccmarca{color:var(--n400);margin-right:2px}
+/* A MATRIZ. Grade 3x3 com o eixo escrito nas bordas — sem rótulo de eixo
+   ninguém sabe se a linha de cima é potencial alto ou desempenho alto, e as
+   duas leituras levam a decisões opostas sobre a mesma pessoa.
+   `minmax(0,1fr)` e não `1fr`: a trilha tem de encolher abaixo do min-content
+   dos nomes, senão a terceira coluna nasce fora da tela. */
+#des-matriz .nb{display:grid;grid-template-columns:auto repeat(3,minmax(0,1fr));
+  gap:9px;align-items:stretch}
+#des-matriz .nbcx{border:1px solid var(--n200);border-radius:8px;padding:9px;
+  background:var(--n0);min-height:96px;display:flex;flex-direction:column;gap:2px}
+#des-matriz .nbcx.bom{border-color:var(--green);background:var(--green-50,transparent)}
+#des-matriz .nbcx.atencao{border-color:var(--amber)}
+#des-matriz .nbcx.ruim{border-color:var(--red)}
+#des-matriz .nbnome{font-size:11px;font-weight:700;text-transform:uppercase;
+  letter-spacing:.04em;color:var(--n700)}
+#des-matriz .nbn{font:700 20px/1 var(--mono)}
+#des-matriz .nbgente{font-size:11px;color:var(--n600);overflow-y:auto;max-height:86px}
+/* O rotulo do eixo ATRAVESSA as tres linhas. Sem o `span 3` ele ocupa UMA
+   celula e a auto-colocacao empurra a grade inteira: os nove quadros escorrem
+   uma posicao e os rodapes "baixo/medio/alto" sobem para dentro da matriz.
+   Nao da erro nenhum -- so um nine box torto, que e pior que nenhum porque
+   parece certo. Medido no navegador: o rodape sai com 147px de altura, a
+   altura de uma LINHA de quadro, em vez dos 15px de um rotulo. */
+#des-matriz .nbeixo{grid-row:span 3;font-size:10px;text-transform:uppercase;
+  letter-spacing:.05em;color:var(--n500);display:flex;align-items:center;
+  justify-content:center;writing-mode:vertical-rl;transform:rotate(180deg)}
+#des-matriz .nbrod{font-size:10px;text-transform:uppercase;letter-spacing:.05em;
+  color:var(--n500);text-align:center}
 #dre-tab .drebt{background:none;border:0;cursor:pointer;padding:0;width:14px;
   color:var(--n500);font-size:10px;line-height:1}
 #dre-tab .drebt[aria-expanded="true"]{color:var(--orange-500)}
@@ -2560,6 +2587,7 @@ body.tvfull #btnReport,body.tvmode #btnReport{display:none}
         <span class="ic" data-ic="orgp"></span><span>Recursos Humanos</span><span class="ic chev" data-ic="chev"></span>
       </button>
       <div class="subs closed" id="subsRh">
+        <a href="#des" class="sub" data-view="des" title="Avaliação de Desempenho — matriz nine box, desempenho × potencial"><span class="ic" data-ic="desic"></span><span>Avaliação de Desempenho</span></a>
         <a href="#cnh" class="sub" data-view="cnh" title="CNH dos Motoristas — vencimento e cobertura do cadastro"><span class="ic" data-ic="cnhic"></span><span>CNH dos Motoristas</span></a>
         <a href="#folha" class="sub" data-view="folha" title="Custo de Folha (GLOBUS)"><span class="ic" data-ic="folhaic"></span><span>Custo de Folha</span></a>
         <a href="#ferias" class="sub" data-view="ferias" title="Férias — vencimento pela CLT, quem está de férias e quem precisa agendar"><span class="ic" data-ic="feriasic"></span><span>Férias — Vencimento</span></a>
@@ -4442,6 +4470,36 @@ body.tvfull #btnReport,body.tvmode #btnReport{display:none}
       </section>
 
       <!-- ===================== MILK RUN — MWM ===================== -->
+      <section class="view" id="view-des">
+        <div class="kpis k4" id="kpis-des"></div>
+        <div class="subtabs" role="tablist" data-abas="des" aria-label="Seções desta tela">
+          <button role="tab" id="tabdes-mat" data-aba="mat" aria-controls="aba-des-mat" aria-selected="true" onclick="abaTrocar('des','mat')">Matriz</button>
+          <button role="tab" id="tabdes-ava" data-aba="ava" aria-controls="aba-des-ava" aria-selected="false" onclick="abaTrocar('des','ava')">Avaliar <span class="aban" id="des-ava-n"></span></button>
+          <button role="tab" id="tabdes-adm" data-aba="adm" aria-controls="aba-des-adm" aria-selected="false" onclick="abaTrocar('des','adm')" hidden>Ciclos e gestores</button>
+        </div>
+        <div class="aba" data-abas="des" data-aba="mat" id="aba-des-mat" role="tabpanel" aria-labelledby="tabdes-mat">
+          <div class="card">
+            <div class="head"><h2>Nine box <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="Matriz de DESEMPENHO (o que a pessoa entregou) por POTENCIAL (o que ela consegue entregar num papel maior), as duas em escala de 1 a 3, dadas pelo gestor no ciclo aberto. &#10;&#10;Quem NÃO foi avaliado fica FORA da matriz e aparece na aba Avaliar: ausência de avaliação não é desempenho baixo, e aqui essa confusão tem nome e sobrenome. Por isso a cobertura vem sempre junto — uma matriz com 12 de 47 avaliados e uma com 47 de 47 se parecem na tela e dizem coisas muito diferentes. &#10;&#10;O quadro é o ATIVO da folha (Globus), a mesma definição do Headcount. Cada gestor vê as áreas que o RH mapeou para ele.">ⓘ</span></h2><span class="hint" id="des-alcance"></span></div>
+            <div id="des-matriz" style="padding:0 18px 14px"></div>
+          </div>
+        </div>
+        <div class="aba" data-abas="des" data-aba="ava" id="aba-des-ava" role="tabpanel" aria-labelledby="tabdes-ava" hidden>
+          <div class="card">
+            <div class="head"><h2>Quem você avalia <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="O quadro ATIVO das áreas mapeadas para você, direto da folha (Globus) — mesma definição do Headcount. A avaliação exige JUSTIFICATIVA escrita: a nota sem o porquê não sustenta conversa de carreira, e em seis meses ninguém lembra o que 'bom' queria dizer. &#10;&#10;Só se avalia com um ciclo ABERTO. Ciclo fechado não aceita escrita: a avaliação é a foto que explica as decisões tomadas depois dela.">ⓘ</span></h2><span class="hint" id="des-ciclo-hint"></span></div>
+            <div id="des-equipe" style="padding:0 18px 14px"></div>
+          </div>
+        </div>
+        <div class="aba" data-abas="des" data-aba="adm" id="aba-des-adm" role="tabpanel" aria-labelledby="tabdes-adm" hidden>
+          <div class="card">
+            <div class="head"><h2>Ciclos <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="O ciclo é o recorte de tempo da avaliação. UM aberto de cada vez: dois abertos fariam a mesma pessoa aparecer em duas listas de pendência, e a matriz teria de escolher um sem dizer qual. Abrir um ciclo devolve o anterior a rascunho. Fechar congela: nenhuma nota entra ou muda depois.">ⓘ</span></h2></div>
+            <div id="des-ciclos" style="padding:0 18px 14px"></div>
+          </div>
+          <div class="card">
+            <div class="head"><h2>Quem avalia quem <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="A folha do Globus NÃO tem campo de 'a quem responde' — nome, cargo, área, seção, admissão e salário, e nada de hierarquia. Sem este mapa não existe 'cada gestor vê a sua equipe'. Aqui se liga o usuário do CÓRTEX a uma ou mais ÁREAS ou SEÇÕES, que é como a folha já organiza as pessoas. &#10;&#10;Gestor sem mapa vê NINGUÉM, nunca todos: abrir a folha inteira por esquecimento de cadastro é defeito que continua funcionando, e por isso ninguém descobre.">ⓘ</span></h2></div>
+            <div id="des-gestores" style="padding:0 18px 14px"></div>
+          </div>
+        </div>
+      </section>
       <section class="view" id="view-people">
         <div class="ppl-escopo" id="ppl-escopo" role="group" aria-label="Recorte do quadro"></div>
         <div class="hint" id="ppl-escopo-hint"></div>
@@ -7907,6 +7965,7 @@ const ICONS = {
   recorric: IC('<path d="M20 11a8 8 0 0 0-14.3-4.5M4 13a8 8 0 0 0 14.3 4.5"/><path d="M20 5.5V11h-5.5M4 18.5V13h5.5"/>'),
   rastroic: IC('<path d="M12 21s6.5-6.2 6.5-11a6.5 6.5 0 1 0-13 0C5.5 14.8 12 21 12 21z"/><circle cx="12" cy="10" r="2.3"/><path d="M2.5 20.5h2M7.5 20.5h1M16 20.5h1M20 20.5h1.5"/>'),
   telconic: IC('<path d="M12 3.5c3.2 3.6 5 6.1 5 8.3a5 5 0 0 1-10 0c0-2.2 1.8-4.7 5-8.3z"/><path d="M3 21h18M5.5 21v-3.5M9 21v-6"/>'),
+  desic: IC('<rect x="3" y="3" width="18" height="18" rx="2"/><path d="M9 3v18M15 3v18M3 9h18M3 15h18"/>'),
   peopleic: IC('<circle cx="9" cy="7.5" r="3"/><path d="M3.5 19a5.5 5.5 0 0 1 11 0"/><path d="M16.5 3.6a3 3 0 0 1 0 7.8"/><path d="M18 19a5 5 0 0 0-2.6-4.4"/>'),
   poliic: IC('<path d="M4 7.5 12 3l8 4.5v9L12 21l-8-4.5z"/><circle cx="12" cy="11" r="2.2"/><path d="M12 13.2V17"/>'),
   pneuic: IC('<circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="3.6"/><path d="M12 3v5.4M12 15.6V21M3 12h5.4M15.6 12H21"/>'),
@@ -7938,7 +7997,7 @@ const FAIXAS = {
   '4_vencido_91_365':['Vencido 91–365d','b-dang'],
   '5_vencido_mais_365':['Vencido > 365d','b-dang'],
 };
-const VIEWS = { tvcom:'Painel TV — Comunicação', home:'Visão Geral', fluxo:'Fluxo de Caixa e Bancos', receber:'Contas a Receber', pagar:'Contas a Pagar', oc:'Ordens de Compra', custos:'Painel de Custos', pecas:'Preço de Peças', agr:'Agregados e Terceiros', mvb:'Frota Própria × Agregado', pedagio:'Validação de Pedágio', comb:'Combustível', man:'Manutenção', com:'Clientes e RKM', clif:'Consulta de Cliente', crm:'CRM — Funil Comercial', km:'Análise de KM', prodveic:'Produtividade de Veículos', fat:'Faturamento Detalhado', gr:'Gerenciamento de Risco', torre:'Torre de Controle', poli:'Permanência na Planta', ctecp:'CT-e de Contrapartida', veic:'Veículos', veicf:'Consulta de Veículo', mprev:'Manutenção Preventiva', comrast:'Comunicação Rastreadora', mul:'Multas — Smartec', prog:'Programação Inteligente', jorn:'Jornada do Motorista', jornf:'Ficha de Jornada', cex:'Custos Extras', sac:'SAC / Freetime', port:'Portaria', cop:'Copiloto Cortex', cob:'Régua de Cobrança', banc:'Bancos', extb:'Extrato Bancário', lanc:'Lançamentos Bancários', antec:'Antecipação de Recebíveis', antport:'Portais de Antecipação', milkrun:'Operação MWM', rec:'Lançamentos Recorrentes', fluxcon:'Fluxo de Caixa Consolidado', cont:'Contabilidade', qual:'Qualidade e Certidões', orc:'Orçamento', fech:'Fechamento do Mês', prem:'Premiação de Motoristas', dre:'DRE Gerencial', bal:'Balanço Patrimonial', drecli:'DRE por Cliente', tvfat:'Painel TV — Faturamento', tvope:'Painel TV — Operação', tvdir:'Painel TV — Diretoria', rh:'RH — Vagas', hc:'Headcount', folha:'Custo de Folha', folhaind:'Indicadores de Folha', he:'Horas Extras', cnh:'CNH dos Motoristas', ferias:'Férias — Vencimento', people:'People Analytics', pneus:'Pneus', gestao:'Gestão', gesacao:'Planos de Ação', gesata:'Atas de Reunião', srv:'Saúde do Servidor', aud:'Auditoria e Uso',sup:'Suporte', supfila:'Suporte — Atendimento', doc:'Documentação', anpiso:'Piso Mínimo de Frete', anrntrc:'RNTRC dos Transportadores', telcon:'Consumo e Estatísticas', telcond:'Condução Econômica', telhod:'Hodômetro e Rastro' };
+const VIEWS = { tvcom:'Painel TV — Comunicação', home:'Visão Geral', fluxo:'Fluxo de Caixa e Bancos', receber:'Contas a Receber', pagar:'Contas a Pagar', oc:'Ordens de Compra', custos:'Painel de Custos', pecas:'Preço de Peças', agr:'Agregados e Terceiros', mvb:'Frota Própria × Agregado', pedagio:'Validação de Pedágio', comb:'Combustível', man:'Manutenção', com:'Clientes e RKM', clif:'Consulta de Cliente', crm:'CRM — Funil Comercial', km:'Análise de KM', prodveic:'Produtividade de Veículos', fat:'Faturamento Detalhado', gr:'Gerenciamento de Risco', torre:'Torre de Controle', poli:'Permanência na Planta', ctecp:'CT-e de Contrapartida', veic:'Veículos', veicf:'Consulta de Veículo', mprev:'Manutenção Preventiva', comrast:'Comunicação Rastreadora', mul:'Multas — Smartec', prog:'Programação Inteligente', jorn:'Jornada do Motorista', jornf:'Ficha de Jornada', cex:'Custos Extras', sac:'SAC / Freetime', port:'Portaria', cop:'Copiloto Cortex', cob:'Régua de Cobrança', banc:'Bancos', extb:'Extrato Bancário', lanc:'Lançamentos Bancários', antec:'Antecipação de Recebíveis', antport:'Portais de Antecipação', milkrun:'Operação MWM', rec:'Lançamentos Recorrentes', fluxcon:'Fluxo de Caixa Consolidado', cont:'Contabilidade', qual:'Qualidade e Certidões', orc:'Orçamento', fech:'Fechamento do Mês', prem:'Premiação de Motoristas', dre:'DRE Gerencial', bal:'Balanço Patrimonial', drecli:'DRE por Cliente', tvfat:'Painel TV — Faturamento', tvope:'Painel TV — Operação', tvdir:'Painel TV — Diretoria', rh:'RH — Vagas', hc:'Headcount', folha:'Custo de Folha', folhaind:'Indicadores de Folha', he:'Horas Extras', cnh:'CNH dos Motoristas', ferias:'Férias — Vencimento', people:'People Analytics', des:'Avaliação de Desempenho', pneus:'Pneus', gestao:'Gestão', gesacao:'Planos de Ação', gesata:'Atas de Reunião', srv:'Saúde do Servidor', aud:'Auditoria e Uso',sup:'Suporte', supfila:'Suporte — Atendimento', doc:'Documentação', anpiso:'Piso Mínimo de Frete', anrntrc:'RNTRC dos Transportadores', telcon:'Consumo e Estatísticas', telcond:'Condução Econômica', telhod:'Hodômetro e Rastro' };
 const periodoLabel = p => { if(p==='atrasado') return 'Atrasado'; const [y,m]=p.split('-'); return MES[+m-1]+'/'+y.slice(2); };
 const fmtD = s => { if(!s) return ''; const [y,m,dd]=s.split('-'); return dd+'/'+m+'/'+y; };
 /* Idade da posicao bancaria. Cada conta e lancada num dia diferente: mostrar
@@ -8214,7 +8273,7 @@ const VIEW_GROUP = {home:'',cop:'',
   veic:'Fro',veicf:'Fro',mprev:'Fro',comrast:'Fro',comb:'Fro',man:'Fro',mul:'Fro',pneus:'Fro',
   oc:'Sup',custos:'Sup',pecas:'Sup',
   prodveic:'Bi',fat:'Ctr',gr:'Ope',tvfat:'Bi',tvope:'Bi',tvdir:'Bi',tvcom:'Bi',
-  rh:'Rh',hc:'Rh',folha:'Rh',folhaind:'Rh',he:'Rh',cnh:'Rh',ferias:'Rh',people:'Rh',gestao:'Adm',srv:'Adm',sup:'Spt',supfila:'Spt',doc:'Adm',aud:'Adm',gesacao:'Ges',gesata:'Ges',
+  rh:'Rh',hc:'Rh',folha:'Rh',folhaind:'Rh',he:'Rh',cnh:'Rh',ferias:'Rh',people:'Rh',des:'Rh',gestao:'Adm',srv:'Adm',sup:'Spt',supfila:'Spt',doc:'Adm',aud:'Adm',gesacao:'Ges',gesata:'Ges',
   // Telemetria e ANTT tinham grupo na barra lateral mas ficaram de fora deste
   // mapa: o acordeao nao abria sozinho ao navegar para elas (agora a busca
   // global navega, entao isso passou a incomodar de verdade).
@@ -8408,7 +8467,7 @@ function qsView(k){
     if(V('fFechMes'))p.set('mes',V('fFechMes'));
   } else if(k==='fat'){
     if(V('fFatMes'))p.set('mes',V('fFatMes'));
-  } else if(k==='gr'||k==='mprev'||k==='comrast'||k==='qual'||k==='port'||k==='crm'||k==='rh'||k==='hc'||k==='folhaind'||k==='cnh'||k==='ferias'||k==='pneus'||k==='people'||k==='poli'||k==='ctecp'){
+  } else if(k==='gr'||k==='mprev'||k==='comrast'||k==='qual'||k==='port'||k==='crm'||k==='rh'||k==='hc'||k==='folhaind'||k==='cnh'||k==='ferias'||k==='pneus'||k==='people'||k==='des'||k==='poli'||k==='ctecp'){
     // vistas-snapshot sem filtro local: qsView() sempre devolve '' — o
     // loader grava LOADEDQS[k]='' (não '1') para o cache de staleness
     // funcionar (senão nunca bate e cada navegação refaz a consulta).
@@ -8426,7 +8485,7 @@ function semFilterbar(v){
   // filtros", que não tinha o que aplicar.
   return v==='cop'||v==='gestao'||v==='gesacao'||v==='gesata'||v==='srv'||v==='home'||v==='veicf'||v==='clif'||v==='jorn'||v==='jornf'||v==='prog'||
          v==='cex'||v==='sac'||v==='mprev'||v==='comrast'||v==='qual'||v==='port'||v==='crm'||v==='rh'||
-         v==='hc'||v==='folha'||v==='folhaind'||v==='he'||v==='custos'||v==='pecas'||v==='orc'||v==='prem'||v==='banc'||v==='extb'||v==='fech'||v==='fat'||v==='gr'||v==='antport'||v==='doc'||v==='telcon'||v==='telcond'||v==='telhod'||v==='milkrun'||v==='cnh'||v==='ferias'||v==='pneus'||v==='people'||v==='poli'||v==='ctecp'||v==='sup'||v==='supfila';
+         v==='hc'||v==='folha'||v==='folhaind'||v==='he'||v==='custos'||v==='pecas'||v==='orc'||v==='prem'||v==='banc'||v==='extb'||v==='fech'||v==='fat'||v==='gr'||v==='antport'||v==='doc'||v==='telcon'||v==='telcond'||v==='telhod'||v==='milkrun'||v==='cnh'||v==='ferias'||v==='pneus'||v==='people'||v==='des'||v==='poli'||v==='ctecp'||v==='sup'||v==='supfila';
 }
 function currentView(){
   const h = (location.hash||'').replace('#','').split('?')[0];   // `#sup?chamado=12` é a tela sup
@@ -8520,7 +8579,7 @@ function router(){
   document.getElementById('grpFluxcon').style.display = fluxcon ? 'flex' : 'none';
   const ges = (v==='gestao');
   const fbar=document.getElementById('filterbar'); if(fbar) fbar.style.display = semFilterbar(v) ? 'none' : '';
-  const metaEl=document.getElementById('meta'); if(metaEl) metaEl.style.display = (cop||ges||v==='gesacao'||v==='gesata'||v==='srv'||v==='veicf'||v==='clif'||v==='jorn'||v==='jornf'||v==='cex'||v==='sac'||v==='mprev'||v==='comrast'||v==='qual'||v==='port'||v==='crm'||v==='rh'||v==='hc'||v==='folha'||v==='folhaind'||v==='he'||v==='custos'||v==='pecas'||v==='prem'||v==='doc'||v==='poli'||v==='ctecp'||v==='sup'||v==='supfila') ? 'none' : '';
+  const metaEl=document.getElementById('meta'); if(metaEl) metaEl.style.display = (cop||ges||v==='gesacao'||v==='gesata'||v==='srv'||v==='veicf'||v==='clif'||v==='jorn'||v==='jornf'||v==='cex'||v==='sac'||v==='mprev'||v==='comrast'||v==='qual'||v==='port'||v==='crm'||v==='rh'||v==='hc'||v==='folha'||v==='folhaind'||v==='he'||v==='custos'||v==='pecas'||v==='prem'||v==='doc'||v==='des'||v==='poli'||v==='ctecp'||v==='sup'||v==='supfila') ? 'none' : '';
   // classe em vez de style: o CSS mobile usa !important no display
   const bfil=document.getElementById('btnFiltros'); if(bfil){ bfil.classList.toggle('oculto', semFilterbar(v)); bfil.style.display=''; }
   document.getElementById('grpKm').style.display = kmv ? 'flex' : 'none';
@@ -8544,7 +8603,7 @@ function router(){
   // divergem dos usados na última carga (nunca mostrar dado velho com filtro novo)
   const key=viewKey(v);
   const DATAMAP={fin:DATA,oc:DATAOC,agr:DATAAGR,anpiso:DATAANPISO,anrntrc:DATAANRNTRC,pedagio:DATAPED,telcon:DATATELCON,telcond:DATATELCOND,telhod:DATATELHOD,mvb:DATAMVB,comb:DATACOMB,man:DATAMAN,com:DATACOM,clif:DATACLIF,dre:DATADRE,bal:DATABAL,drecli:DATADRECLI,home:DATAHOME,km:DATAKM,torre:DATATORRE,veic:DATAVEIC,veicf:DATAVEICF,mul:DATASMT,prog:DATAPROG,jorn:DATAJR,jornf:DATAJORNF,cex:DATACEX,sac:DATASAC,mprev:DATAMPREV,comrast:DATACOMRAST,qual:DATAQUAL,port:DATAPORT,crm:DATACRM,rh:DATARH,hc:DATAHC,folha:DATAFOLHA,folhaind:DATAFOLHAIND,he:DATAHE,custos:DATACUSTOS,pecas:DATAPECAS,cob:DATACOB,banc:DATABANC,extb:DATAEXTB,lanc:DATALANC,antec:DATAANTEC,antport:DATAANTPORT,milkrun:DATAMILK,fluxcon:DATAFLUXCON,rec:DATAREC,rent:DATARENT,cont:DATACONT,orc:DATAORC,fech:DATAFECH,fat:DATAFAT,gr:DATAGR,prem:DATAPREM,gestao:DATAGES,srv:DATASRV,doc:DATADOC,tvfat:null,tvope:null,tvdir:null,cop:(COP_MSGS.length?{}:null)};
-  const LOADMAP={fin:load,oc:loadOc,agr:loadAgr,anpiso:loadAnpiso,anrntrc:loadAnrntrc,telcon:loadTelcon,telcond:loadTelcond,telhod:loadTelhod,mvb:loadMvb,pedagio:loadPedagio,comb:loadComb,man:loadMan,com:loadCom,clif:loadClif,dre:loadDre,bal:loadBal,drecli:loadDreCli,home:loadHome,km:loadKm,prodveic:loadProdveic,torre:loadTorre,veic:loadVeic,veicf:loadVeicf,mul:loadSmt,prog:loadProg,jorn:loadJorraster,jornf:loadJornf,cex:loadCex,sac:loadSac,mprev:loadMPrev,comrast:loadComRast,qual:loadQual,port:loadPort,crm:loadCrm,rh:loadRh,hc:loadHc,folha:loadFolha,folhaind:loadFolhaInd,he:loadHe,custos:loadCustos,pecas:loadPecas,cob:loadCob,banc:loadBanc,extb:loadExtb,lanc:loadLanc,antec:loadAntec,antport:loadAntport,milkrun:loadMilkrun,cnh:loadCnh,ferias:loadFerias,people:loadPeople,pneus:loadPneus,poli:loadPoli,ctecp:loadCtecp,fluxcon:loadFluxcon,rec:loadRec,rent:loadRent,cont:loadCont,orc:loadOrc,fech:loadFech,fat:loadFat,gr:loadGr,prem:loadPrem,gesacao:loadGesacao,gesata:loadGesata,gestao:loadGestao,srv:loadSrv,aud:loadAud,sup:loadSup,supfila:loadSupfila,doc:loadDoc,cop:loadCop,tvcom:loadTvCom,tvfat:loadTvFat,tvope:loadTvOpe,tvdir:loadTvDir};
+  const LOADMAP={fin:load,oc:loadOc,agr:loadAgr,anpiso:loadAnpiso,anrntrc:loadAnrntrc,telcon:loadTelcon,telcond:loadTelcond,telhod:loadTelhod,mvb:loadMvb,pedagio:loadPedagio,comb:loadComb,man:loadMan,com:loadCom,clif:loadClif,dre:loadDre,bal:loadBal,drecli:loadDreCli,home:loadHome,km:loadKm,prodveic:loadProdveic,torre:loadTorre,veic:loadVeic,veicf:loadVeicf,mul:loadSmt,prog:loadProg,jorn:loadJorraster,jornf:loadJornf,cex:loadCex,sac:loadSac,mprev:loadMPrev,comrast:loadComRast,qual:loadQual,port:loadPort,crm:loadCrm,rh:loadRh,hc:loadHc,folha:loadFolha,folhaind:loadFolhaInd,he:loadHe,custos:loadCustos,pecas:loadPecas,cob:loadCob,banc:loadBanc,extb:loadExtb,lanc:loadLanc,antec:loadAntec,antport:loadAntport,milkrun:loadMilkrun,cnh:loadCnh,ferias:loadFerias,people:loadPeople,des:loadDes,pneus:loadPneus,poli:loadPoli,ctecp:loadCtecp,fluxcon:loadFluxcon,rec:loadRec,rent:loadRent,cont:loadCont,orc:loadOrc,fech:loadFech,fat:loadFat,gr:loadGr,prem:loadPrem,gesacao:loadGesacao,gesata:loadGesata,gestao:loadGestao,srv:loadSrv,aud:loadAud,sup:loadSup,supfila:loadSupfila,doc:loadDoc,cop:loadCop,tvcom:loadTvCom,tvfat:loadTvFat,tvope:loadTvOpe,tvdir:loadTvDir};
   if(!DATAMAP[key] || (key!=='home' && LOADEDQS[key]!==qsView(key))) LOADMAP[key]();
   // mobile: estado da navegação inferior + fecha gaveta/painel de filtros
   document.querySelectorAll('.bottomnav [data-bview]').forEach(a=>a.classList.toggle('ativo', a.dataset.bview===v));
@@ -8611,6 +8670,7 @@ const NAV_KW={
   srv:'servidor saude infra api banco tunel',
   sup:'suporte chamado ticket reportar bug melhoria duvida ajuda problema resposta',
   supfila:'fila suporte atendimento chamados sla avisos whatsapp email github',
+  des:'avaliacao desempenho nine box potencial talento sucessao matriz 9box gestor equipe ciclo',
   aud:'auditoria uso acessos sessao tempo login trilha log seguranca telas',
   doc:'documentacao manual ajuda versao changelog historico novidades glossario mudancas',
 };
@@ -16777,6 +16837,291 @@ function renderPneus(d){
 // AFASTADO NAO ENTRA NO QUADRO ATIVO. Somar inflaria a capacidade; ignorar
 // esconderia o custo e a reposicao. Fica ao lado, sempre.
 let DATAPPL = null, pplSeq = 0, PPL_ESCOPO = 'todos';
+
+/* ==================== Avaliação de Desempenho — nine box ==================
+   DUAS NOTAS DE 1 A 3, do gestor: desempenho (o que a pessoa entregou) e
+   potencial (o que ela consegue entregar num papel maior). Nove caixas, cada
+   uma com um nome e uma CONDUTA — é a conduta que faz a ferramenta valer
+   alguma coisa: matriz que classifica sem dizer o que fazer devolve a decisão
+   inteira para quem já não sabia o que fazer.
+
+   QUEM NÃO FOI AVALIADO NÃO É CAIXA 1. Fica fora da matriz e aparece na aba
+   Avaliar, contado à parte. Ausência de avaliação não é desempenho baixo, e
+   numa avaliação de gente essa confusão tem nome e sobrenome. */
+let DESDADOS = null, DESEQUIPE = null;
+
+/* `V()` e `pct1()` NAO existem no escopo global: `V` e `const` local dentro de
+   meia duzia de outras funcoes e `pct1` nao existe em lugar nenhum. Chama-las
+   aqui daria ReferenceError no CLIQUE — nao no boot, que e onde se acharia. */
+const _dsV = id => { const e = document.getElementById(id); return e ? e.value.trim() : ''; };
+const _dsPct = v => v == null ? 'n/d'
+  : Number(v).toLocaleString('pt-BR', {maximumFractionDigits: 1}) + '%';
+
+async function loadDes(){
+  const podeAdm = podeVer('desrh');
+  const bt = document.getElementById('tabdes-adm');
+  if(bt) bt.hidden = !podeAdm;
+  await loadDesMatriz();
+  await loadDesEquipe();
+  if(podeAdm) loadDesAdm();
+}
+
+async function loadDesMatriz(){
+  const el = document.getElementById('des-matriz');
+  el.innerHTML = '<p class="hint">montando a matriz…</p>';
+  let d;
+  try{
+    const r = await respostaJSON(await fetch('/api/desempenho/matriz',
+      {cache:'no-store'}));
+    if(!r.ok) throw new Error((r.dados||{}).mensagem || 'não foi possível montar');
+    d = DESDADOS = r.dados;
+  }catch(e){
+    el.innerHTML = `<p class="hint">${esc(e.message||'falhou')}</p>`; return;
+  }
+  if(d.sem_ciclo){
+    el.innerHTML = '<p class="hint">Nenhum ciclo de avaliação aberto. '
+      + 'Quem administra o RH abre um em “Ciclos e gestores”.</p>';
+    document.getElementById('kpis-des').innerHTML = '';
+    return;
+  }
+  if(d.sem_escopo){
+    /* MAPA VAZIO É VER NINGUÉM, e a tela DIZ isso. Cair para "vê todos" abriria
+       a folha inteira por esquecimento de cadastro — defeito que continua
+       funcionando, e por isso ninguém descobre. */
+    el.innerHTML = '<div class="avisofaixa">Nenhuma área atribuída a você. '
+      + 'O RH liga cada gestor às áreas que ele avalia em “Ciclos e gestores” — '
+      + 'sem esse mapa a tela não tem como saber quem é a sua equipe.</div>';
+    document.getElementById('kpis-des').innerHTML = '';
+    return;
+  }
+  const k = d.kpis || {};
+  document.getElementById('des-alcance').textContent =
+    (d.ver_tudo ? 'toda a empresa' : d.alcance || '') + ' · quadro ativo da folha';
+  /* A COBERTURA VEM SEMPRE JUNTO: uma matriz com 12 de 47 avaliados e uma com
+     47 de 47 se parecem na tela e dizem coisas muito diferentes. */
+  document.getElementById('kpis-des').innerHTML = [
+    kpi('Pessoas', (k.pessoas||0).toLocaleString('pt-BR'),
+        'quadro ativo no seu alcance', '',
+        'Situação A na folha do Globus — a mesma definição do Headcount.'),
+    kpi('Avaliados', (k.avaliados||0).toLocaleString('pt-BR'),
+        k.pessoas ? ('de ' + k.pessoas) : '', '',
+        'Quem tem as DUAS notas no ciclo aberto.'),
+    kpi('Cobertura', k.cobertura != null ? _dsPct(k.cobertura) : 'n/d',
+        k.cobertura == null ? 'ninguém no alcance' : 'do quadro avaliado',
+        k.cobertura >= 90 ? 'pos' : (k.cobertura >= 50 ? '' : 'neg'),
+        'A matriz só fala de quem foi avaliado. Sem a cobertura ao lado, 12 de 47 se lê como se fossem os 47.'),
+    kpi('Pendentes', (k.pendentes||0).toLocaleString('pt-BR'),
+        'ainda sem as duas notas', k.pendentes ? 'neg' : 'pos',
+        'Pessoa não avaliada fica FORA da matriz: ausência de avaliação não é desempenho baixo.'),
+  ].join('');
+
+  const cx = {};
+  (d.caixas||[]).forEach(c => { cx[c.n] = c; });
+  const cel = n => {
+    const c = cx[n] || {pessoas:[], quantos:0};
+    return `<div class="nbcx ${esc(c.cor||'')}" title="${esc(c.conduta||'')}">`
+      + `<div class="nbnome">${esc(c.nome||'')}</div>`
+      + `<div class="nbn">${c.quantos||0}`
+      + (c.pct != null ? `<span class="hint" style="font:400 11px/1 var(--font)"> · ${_dsPct(c.pct)}</span>` : '')
+      + `</div>`
+      + `<div class="nbgente">${(c.pessoas||[]).map(p =>
+          `<div title="${esc((p.cargo||'') + ' · ' + (p.area||''))}">${esc(p.nome||'?')}</div>`).join('')}</div>`
+      + `</div>`;
+  };
+  /* O EIXO SE ESCREVE. Sem rótulo ninguém sabe se a linha de cima é potencial
+     alto ou desempenho alto — e as duas leituras levam a decisões opostas
+     sobre a mesma pessoa. */
+  el.innerHTML = `<div class="nb">`
+    + `<div class="nbeixo">Potencial</div>`
+    + [3,2,1].map(pot => [1,2,3].map(des => cel((pot-1)*3+des)).join('')).join('')
+    + `<div></div><div class="nbrod">Desempenho baixo</div>`
+    + `<div class="nbrod">médio</div><div class="nbrod">alto</div>`
+    + `</div>`
+    + `<p class="hint" style="margin:12px 0 0">Passe o cursor numa caixa para ler a conduta que ela pede. `
+    + `${esc(d.fonte||'')}</p>`;
+}
+
+async function loadDesEquipe(){
+  const el = document.getElementById('des-equipe');
+  el.innerHTML = '<p class="hint">lendo a folha…</p>';
+  let d;
+  try{
+    const r = await respostaJSON(await fetch('/api/desempenho/equipe',
+      {cache:'no-store'}));
+    if(!r.ok) throw new Error((r.dados||{}).mensagem || 'não foi possível ler');
+    d = DESEQUIPE = r.dados;
+  }catch(e){
+    el.innerHTML = `<p class="hint">${esc(e.message||'falhou')}</p>`; return;
+  }
+  const c = d.ciclo;
+  document.getElementById('des-ciclo-hint').textContent = c
+    ? ('ciclo ' + c.nome + ' · aberto') : 'nenhum ciclo aberto';
+  const ls = d.linhas || [];
+  const faltam = ls.filter(x => x.desempenho == null || x.potencial == null).length;
+  abaContador('des-ava-n', faltam);
+  if(d.sem_escopo){
+    el.innerHTML = '<div class="avisofaixa">Nenhuma área atribuída a você.</div>';
+    return;
+  }
+  if(!ls.length){ el.innerHTML = '<p class="hint">Ninguém no seu alcance.</p>'; return; }
+  el.innerHTML = `<div class="tabroll"><table style="width:100%"><thead><tr>`
+    + `<th>Pessoa</th><th>Cargo</th><th>Área</th><th class="num">Desemp.</th>`
+    + `<th class="num">Potenc.</th><th>Caixa</th><th></th></tr></thead><tbody>`
+    + ls.map(x => {
+        const tem = x.desempenho != null && x.potencial != null;
+        const n = tem ? (x.potencial-1)*3 + x.desempenho : null;
+        return `<tr><td>${esc(x.nomefunc||'?')}<br><span class="hint">${esc(x.chapafunc||'')}</span></td>`
+          + `<td>${esc(x.cargo||'')}</td><td>${esc(x.area||'')}</td>`
+          /* NÃO AVALIADO É "n/d" EM CINZA, jamais zero: zero que é ausência de
+             lançamento não é desempenho. */
+          + `<td class="num">${tem ? x.desempenho : '<span class="zero">n/d</span>'}</td>`
+          + `<td class="num">${tem ? x.potencial : '<span class="zero">n/d</span>'}</td>`
+          + `<td>${tem ? esc(DESCAIXA[n]||'') : '<span class="zero">não avaliado</span>'}</td>`
+          + `<td class="num"><button class="btn" onclick="desAbrir(this)"`
+          + ` data-p="${esc(JSON.stringify({codintfunc:x.codintfunc, chapa:x.chapafunc, nome:x.nomefunc, cargo:x.cargo, area:x.area, secao:x.secao}))}"`
+          + ` data-d="${tem?x.desempenho:''}" data-t="${tem?x.potencial:''}"`
+          + ` data-j="${esc(x.justificativa||'')}"`
+          + `${c ? '' : ' disabled title="sem ciclo aberto"'}>`
+          + `${tem ? 'Rever' : 'Avaliar'}</button></td></tr>`;
+      }).join('')
+    + `</tbody></table></div>`;
+}
+
+/* Os nomes das nove caixas, do lado do navegador. Espelham `api/desempenho.py`
+   — um teste compara as duas listas, porque nome de caixa que diverge entre a
+   matriz e a lista faz a mesma pessoa parecer duas coisas na mesma tela. */
+const DESCAIXA = {1:'Insuficiente', 2:'Eficaz', 3:'Especialista',
+  4:'Em desenvolvimento', 5:'Mantenedor', 6:'Forte desempenho',
+  7:'Enigma', 8:'Alto potencial', 9:'Estrela'};
+
+function desAbrir(bt){
+  /* `JSON.stringify` dentro de atributo HTML quebra a PÁGINA — por isso o
+     `data-*` + `esc()` na escrita e o `dataset` na leitura. */
+  const p = JSON.parse(bt.dataset.p);
+  const nota = (campo, atual) => [1,2,3].map(v =>
+      `<label style="margin-right:14px"><input type="radio" name="${campo}" value="${v}"`
+    + `${String(atual) === String(v) ? ' checked' : ''}> ${v} — ${DESNOTA[v]}</label>`).join('');
+  abrirModal(`<h3 style="margin:0 0 3px">${esc(p.nome||'?')}</h3>`
+    + `<p class="hint" style="margin:0 0 14px">${esc(p.cargo||'')} · ${esc(p.area||'')}</p>`
+    + `<div class="ges-form">`
+    + `<div><label>Desempenho — o que entregou no período</label>${nota('desnota', bt.dataset.d)}</div>`
+    + `<div><label>Potencial — o que consegue entregar num papel maior</label>${nota('despot', bt.dataset.t)}</div>`
+    + `<div><label for="des-just">Justificativa</label>`
+    + `<textarea id="des-just" rows="4" style="width:100%">${esc(bt.dataset.j||'')}</textarea>`
+    + `<p class="hint" style="margin:3px 0 0">Fatos do período, não adjetivos. `
+    + `Em seis meses ninguém lembra o que “bom” queria dizer.</p></div>`
+    + `<p id="m-err" class="hint" style="color:var(--red);margin:0"></p>`
+    + `<div style="display:flex;gap:9px;justify-content:flex-end">`
+    + `<button class="btn" onclick="fecharModal()">Cancelar</button>`
+    + `<button class="btn primary" id="des-gravar">Gravar</button></div></div>`);
+  document.getElementById('des-gravar').onclick = () => desGravar(p);
+}
+
+const DESNOTA = {1:'abaixo', 2:'dentro', 3:'acima'};
+
+async function desGravar(pessoa){
+  const lido = campo => {
+    const el = document.querySelector(`input[name="${campo}"]:checked`);
+    return el ? +el.value : null;
+  };
+  const corpo = {pessoa: pessoa, desempenho: lido('desnota'),
+                 potencial: lido('despot'),
+                 justificativa: (document.getElementById('des-just')||{}).value || ''};
+  if(!corpo.desempenho || !corpo.potencial){
+    mErro('Dê as duas notas.'); return;
+  }
+  const bt = document.getElementById('des-gravar');
+  bt.disabled = true;
+  try{
+    const r = await respostaJSON(await fetch('/api/desempenho/avaliar',
+      {method:'POST', headers:{'Content-Type':'application/json'},
+       body: JSON.stringify(corpo)}));
+    if(!r.ok){ mErro((r.dados||{}).mensagem || 'não foi possível gravar');
+               bt.disabled = false; return; }
+  }catch(e){ mErro(e.message||'erro de rede'); bt.disabled = false; return; }
+  /* Recarregar fica FORA do try da ação: 500 no recarregamento não pode virar
+     "não deu para gravar" numa gravação que deu certo. */
+  fecharModal();
+  await loadDesEquipe();
+  await loadDesMatriz();
+}
+
+// ------------------------------------------------- administração (só `desrh`)
+async function loadDesAdm(){
+  const elc = document.getElementById('des-ciclos');
+  const elg = document.getElementById('des-gestores');
+  elc.innerHTML = '<p class="hint">…</p>';
+  let ciclos = [], gestores = [];
+  try{
+    const a = await respostaJSON(await fetch('/api/desempenho/ciclos', {cache:'no-store'}));
+    const b = await respostaJSON(await fetch('/api/desempenho/gestores', {cache:'no-store'}));
+    ciclos = ((a.dados||{}).linhas) || [];
+    gestores = ((b.dados||{}).linhas) || [];
+  }catch(e){ elc.innerHTML = `<p class="hint">${esc(e.message||'falhou')}</p>`; return; }
+
+  elc.innerHTML = `<div style="display:flex;gap:9px;flex-wrap:wrap;align-items:flex-end;margin:0 0 14px">`
+    + `<div><label class="hint">Nome</label><br><input id="des-c-nome" type="text" placeholder="2º semestre 2026" style="min-width:200px"></div>`
+    + `<div><label class="hint">Início</label><br><input id="des-c-de" type="date"></div>`
+    + `<div><label class="hint">Fim</label><br><input id="des-c-ate" type="date"></div>`
+    + `<button class="btn primary" onclick="desCicloCriar()">Criar ciclo</button></div>`
+    + (ciclos.length
+      ? `<div class="tabroll curta"><table style="width:100%"><thead><tr><th>Ciclo</th><th>Período</th>`
+        + `<th>Estado</th><th></th></tr></thead><tbody>`
+        + ciclos.map(c => `<tr><td>${esc(c.nome)}</td>`
+            + `<td>${esc(fmtD(String(c.inicio).slice(0,10)))} a ${esc(fmtD(String(c.fim).slice(0,10)))}</td>`
+            + `<td>${statChip(c.estado==='aberto'?'good':(c.estado==='fechado'?'flat':'warn'), c.estado, c.estado==='aberto'?'aceita avaliação agora':(c.estado==='fechado'?'congelado: nenhuma nota entra ou muda':'ainda não abriu'))}</td>`
+            + `<td class="num">`
+            + (c.estado !== 'aberto' && c.estado !== 'fechado'
+               ? `<button class="btn" onclick="desCicloEstado(${c.id},'aberto')">Abrir</button> ` : '')
+            + (c.estado === 'aberto'
+               ? `<button class="btn" onclick="desCicloEstado(${c.id},'fechado')">Fechar</button>` : '')
+            + `</td></tr>`).join('')
+        + `</tbody></table></div>`
+      : '<p class="hint">Nenhum ciclo criado.</p>');
+
+  elg.innerHTML = `<div style="display:flex;gap:9px;flex-wrap:wrap;align-items:flex-end;margin:0 0 14px">`
+    + `<div><label class="hint">E-mail do gestor</label><br><input id="des-g-mail" type="text" style="min-width:220px"></div>`
+    + `<div><label class="hint">Recorte</label><br><select id="des-g-tipo"><option value="area">Área</option><option value="secao">Seção</option></select></div>`
+    + `<div><label class="hint">Nome exato na folha</label><br><input id="des-g-valor" type="text" style="min-width:200px"></div>`
+    + `<button class="btn primary" onclick="desMapear()">Ligar</button></div>`
+    + (gestores.length
+      ? `<div class="tabroll curta"><table style="width:100%"><thead><tr><th>Gestor</th><th>Recorte</th>`
+        + `<th>Valor</th><th></th></tr></thead><tbody>`
+        + gestores.map(g => `<tr><td>${esc(g.email)}</td><td>${esc(g.escopo_tipo)}</td>`
+            + `<td>${esc(g.escopo_valor)}</td>`
+            + `<td class="num"><button class="btn" onclick="desDesmapear(${g.id})">Remover</button></td></tr>`).join('')
+        + `</tbody></table></div>`
+      : '<p class="hint">Nenhum gestor mapeado — e por isso ninguém, além de quem vê tudo, enxerga alguém.</p>');
+}
+
+async function desCicloCriar(){
+  const corpo = {nome: _dsV('des-c-nome'), inicio: _dsV('des-c-de'), ate: '',
+                 fim: _dsV('des-c-ate')};
+  await desPost('/api/desempenho/ciclos/gravar', corpo);
+}
+async function desCicloEstado(id, estado){
+  await desPost('/api/desempenho/ciclos/gravar', {id: id, estado: estado});
+}
+async function desMapear(){
+  await desPost('/api/desempenho/gestores/mapear', {
+    email: _dsV('des-g-mail'), escopo_tipo: _dsV('des-g-tipo'),
+    escopo_valor: _dsV('des-g-valor')});
+}
+async function desDesmapear(id){
+  await desPost('/api/desempenho/gestores/mapear', {remover: id});
+}
+async function desPost(url, corpo){
+  try{
+    const r = await respostaJSON(await fetch(url,
+      {method:'POST', headers:{'Content-Type':'application/json'},
+       body: JSON.stringify(corpo)}));
+    if(!r.ok){ showBanner((r.dados||{}).mensagem || 'não foi possível gravar'); return; }
+  }catch(e){ showBanner(e.message||'erro de rede'); return; }
+  hideBanner();
+  await loadDesAdm();
+  await loadDesMatriz();
+  await loadDesEquipe();
+}
 
 async function loadPeople(fundo){
   skelKpis('kpis-people',4); skelKpis('kpis-people2',4);
@@ -29500,6 +29845,7 @@ const BUSCA_SINONIMOS = {
   srv:['servidor','saude','cpu','disco','memoria'],
   sup:['suporte','chamado','ticket','ajuda','reportar'],
   supfila:['suporte','atendimento','fila','chamados','sla'],
+  des:['avaliacao','desempenho','nine box','9box','potencial','talento','sucessao'],
   aud:['auditoria','uso','acessos','log','trilha','sessao'],
   gr:['risco','gerenciamento de risco','rastreamento','panico','evento','macro','monitoramento','sm','escolta'],
   fat:['faturamento','meta','emissao','emissoes','cte','nfse','atingimento','modalidade','cancelado','bi'],
@@ -35598,6 +35944,7 @@ boot();
     <div class="dgrp" data-grp="Rh">
       <button class="dgrp-h" onclick="toggleDGrp(this)"><span>Recursos Humanos</span><span class="dchev">›</span></button>
       <div class="dgrp-b">
+        <a href="#des" onclick="fecharDrawer()"><span class="ic" data-ic="desic"></span>Avaliação de Desempenho</a>
         <a href="#cnh" onclick="fecharDrawer()"><span class="ic" data-ic="cnhic"></span>CNH dos Motoristas</a>
         <a href="#folha" onclick="fecharDrawer()"><span class="ic" data-ic="folhaic"></span>Custo de Folha</a>
         <a href="#ferias" onclick="fecharDrawer()"><span class="ic" data-ic="feriasic"></span>Férias — Vencimento</a>

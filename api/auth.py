@@ -111,6 +111,9 @@ TELAS: dict[str, tuple[str, str]] = {  # chave -> (rótulo, grupo do menu)
     "pneus":   ("Pneus", "Frota"),
     "ferias":  ("Férias — Vencimento", "Recursos Humanos"),
     "people":  ("People Analytics", "Recursos Humanos"),
+    "des":     ("Avaliação de Desempenho", "Recursos Humanos"),
+    "desrh":   ("Desempenho — Administrar (ciclos e gestores)",
+                "Recursos Humanos"),
     "he":      ("Horas Extras", "Recursos Humanos"),
     "poli":    ("Permanência na Planta — Tupy", "Operação"),
     "ctecp":   ("CT-e de Contrapartida", "Controladoria"),
@@ -221,6 +224,13 @@ ROTA_TELAS: list[tuple[str, frozenset[str]]] = [
     # `dreexc`; /api/dre/... e leitura e basta ter a DRE. Invertida a
     # ordem, o prefixo generico engoliria o especifico e qualquer um
     # que abre a DRE poderia excluir.
+    ("/api/desempenho/ciclos/gravar", frozenset({"desrh"})),
+    ("/api/desempenho/gestores/mapear", frozenset({"desrh"})),
+    ("/api/desempenho/gestores",      frozenset({"desrh"})),
+    ("/api/desempenho/ciclos",        frozenset({"des", "desrh"})),
+    ("/api/desempenho/matriz",        frozenset({"des", "desrh"})),
+    ("/api/desempenho/equipe",        frozenset({"des", "desrh"})),
+    ("/api/desempenho/avaliar",       frozenset({"des", "desrh"})),
     ("/api/dre/alavancas",            frozenset({"dre", "dreexc"})),
     ("/api/dre/panorama",             frozenset({"dre", "dreexc"})),
     ("/api/dre/centros",              frozenset({"dre", "dreexc"})),
@@ -326,7 +336,7 @@ _ROTAS_SEM_TELA = ("/api/push/", "/api/report", "/api/auth/foto/",
 #: favoritos exige que toda entrada de TELAS tenha tela no menu, e com razao:
 #: entrada de RBAC sem tela costuma ser tela esquecida, nao permissao. Quem
 #: acrescentar uma aqui esta dizendo "isto e permissao, de proposito".
-TELAS_SEM_MENU = frozenset({"dreexc"})
+TELAS_SEM_MENU = frozenset({"dreexc", "desrh"})
 
 TELAS_TODO_LOGADO = frozenset({"sup"})
 
@@ -427,7 +437,8 @@ _PERFIS_MODELO = [
     ("Painéis TV",  "Apenas os painéis de TV (faturamento e operação) — para telão/quiosque.",
      ["tvfat", "tvope"]),
     ("Recursos Humanos", "Vagas, headcount, custo de folha, indicadores, horas extras e CNH.",
-     ["rh", "hc", "folha", "folhaind", "he", "cnh", "ferias", "people"]),
+     ["rh", "hc", "folha", "folhaind", "he", "cnh", "ferias", "people",
+      "des", "desrh"]),
     ("Diretoria",   "Visão executiva ampla: consolidado, copiloto e principais indicadores.",
      ["home", "cop", "fluxo", "dre", "drecli", "com", "km", "prodveic", "torre", "jorn", "mvb", "veic", "prem", "rh", "hc", "folha", "folhaind", "he", "fech", "anpiso", "anrntrc",
       "telcon", "telcond", "telhod"]),
@@ -867,6 +878,22 @@ def _seed_perfis_modelo(c: psycopg.Connection) -> None:
                   " ON CONFLICT DO NOTHING")
         c.execute("DELETE FROM perfil_telas WHERE tela='tupy'")
         c.execute("INSERT INTO config(chave, valor) VALUES('perfis_modelo_v40', '1') ON CONFLICT(chave) DO NOTHING")
+
+    # v41 (2026-09-04): Avaliacao de Desempenho (nine box). O perfil de RH
+    # ganha a tela E a permissao de administracao ('desrh', sem menu), porque
+    # quem abre o ciclo e mapeia gestor e o RH — nao a TI. Diretoria ganha so
+    # a tela: ve a matriz da propria equipe pelo mapa, como qualquer gestor.
+    if not c.execute("SELECT 1 FROM config WHERE chave='perfis_modelo_v41'").fetchone():
+        for nome_perfil, telas in (("Recursos Humanos", ("des", "desrh")),
+                                   ("Diretoria", ("des",))):
+            row = c.execute("SELECT id FROM perfis WHERE nome=%s",
+                            (nome_perfil,)).fetchone()
+            if row:
+                for t in telas:
+                    c.execute("INSERT INTO perfil_telas(perfil_id, tela)"
+                              " VALUES(%s,%s) ON CONFLICT DO NOTHING",
+                              (row["id"], t))
+        c.execute("INSERT INTO config(chave, valor) VALUES('perfis_modelo_v41', '1') ON CONFLICT(chave) DO NOTHING")
 
 
 def _agora() -> str:

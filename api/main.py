@@ -384,6 +384,204 @@ def dre_panorama(comp_de: str, comp_ate: str,
             "mensagem": "Nao foi possivel montar o panorama."})
 
 
+# ===========================================================================
+# Avaliacao de Desempenho — nine box
+#
+# QUEM VE TUDO tem `desrh` (tela sem menu). Quem tem so `des` ve a propria
+# equipe, e a equipe vem do MAPA do RH — mapa vazio e ver NINGUEM, nunca ver
+# todos: abrir a folha inteira por esquecimento de cadastro e defeito que
+# continua funcionando, e por isso ninguem descobre.
+# ===========================================================================
+def _des_quem(req: Request) -> tuple[str, bool]:
+    """O e-mail de quem pede e se ele enxerga a casa inteira."""
+    sess = getattr(req.state, "sessao", None) or {}
+    telas = set(sess.get("telas") or ())
+    return (sess.get("email") or "",
+            bool(sess.get("admin")) or "desrh" in telas)
+
+
+@app.get("/api/desempenho/ciclos")
+def desempenho_ciclos() -> JSONResponse:
+    from api import desempenho
+    try:
+        return JSONResponse({"linhas": desempenho.ciclos(),
+                             "aberto": desempenho.ciclo_aberto()})
+    except Exception as exc:  # noqa: BLE001
+        log.warning("desempenho ciclos falhou: %s", type(exc).__name__)
+        return JSONResponse(status_code=500, content={
+            "erro": "erro_consulta",
+            "mensagem": "Nao foi possivel ler os ciclos."})
+
+
+@app.get("/api/desempenho/matriz")
+def desempenho_matriz(ciclo_id: int | None = None,
+                      request: Request = None) -> JSONResponse:
+    from api import desempenho
+    email, tudo = _des_quem(request)
+    try:
+        c = (desempenho.ciclo_aberto() if not ciclo_id
+             else {"id": ciclo_id})
+        if not c:
+            return JSONResponse({"sem_ciclo": True, "caixas": [],
+                                 "pendentes": [], "kpis": {}})
+        d = desempenho.matriz(int(c["id"]), email, tudo)
+        d["ver_tudo"] = tudo
+        return JSONResponse(d)
+    except Exception as exc:  # noqa: BLE001
+        log.warning("desempenho matriz falhou: %s", type(exc).__name__)
+        return JSONResponse(status_code=500, content={
+            "erro": "erro_consulta",
+            "mensagem": "Nao foi possivel montar a matriz."})
+
+
+@app.get("/api/desempenho/equipe")
+def desempenho_equipe(request: Request = None) -> JSONResponse:
+    """Quem este usuario avalia, com a avaliacao ja dada (se houver)."""
+    from api import desempenho
+    email, tudo = _des_quem(request)
+    try:
+        c = desempenho.ciclo_aberto()
+        time = desempenho.equipe(email, tudo)
+        feitas = {int(a["codintfunc"]): a
+                  for a in (desempenho.avaliacoes(int(c["id"])) if c else [])}
+        linhas = []
+        for p in time["linhas"]:
+            a = feitas.get(int(p["codintfunc"])) or {}
+            linhas.append({**p, "desempenho": a.get("desempenho"),
+                           "potencial": a.get("potencial"),
+                           "justificativa": a.get("justificativa"),
+                           "avaliador": a.get("avaliador")})
+        return JSONResponse({"linhas": linhas, "ciclo": c,
+                             "alcance": time["alcance"],
+                             "sem_escopo": time.get("sem_escopo", False),
+                             "ver_tudo": tudo})
+    except Exception as exc:  # noqa: BLE001
+        log.warning("desempenho equipe falhou: %s", type(exc).__name__)
+        return JSONResponse(status_code=500, content={
+            "erro": "erro_consulta",
+            "mensagem": "Nao foi possivel ler a equipe."})
+
+
+@app.post("/api/desempenho/avaliar")
+async def desempenho_avaliar(req: Request) -> JSONResponse:
+    """Grava a avaliacao de UMA pessoa.
+
+    A AUDITORIA VEM ANTES da resposta e leva as duas notas: a pergunta que
+    alguem faz depois e "quem deu essa nota, e quando".
+    """
+    from api import desempenho
+    quem = (getattr(req.state, "sessao", None) or {}).get("email") or ""
+    if not quem:
+        return JSONResponse(status_code=401, content={
+            "erro": "sem_sessao",
+            "mensagem": "Sessao sem e-mail: nao da para registrar o avaliador."})
+    try:
+        body = await req.json()
+    except Exception:  # noqa: BLE001
+        body = None
+    if not isinstance(body, dict):
+        return JSONResponse(status_code=422, content={
+            "erro": "parametro_invalido", "mensagem": "Corpo invalido."})
+    try:
+        c = desempenho.ciclo_aberto()
+        if not c:
+            return JSONResponse(status_code=HTTP_RECUSA, content={
+                "erro": "sem_ciclo",
+                "mensagem": "Nao ha ciclo aberto para avaliacao."})
+        pessoa = body.get("pessoa") or {}
+        auth.audit(quem, "desempenho_avaliar",
+                   str(pessoa.get("nome") or pessoa.get("codintfunc") or "?"),
+                   "ciclo %s · desempenho %s · potencial %s" % (
+                       c["nome"], body.get("desempenho"), body.get("potencial")))
+        r = desempenho.avaliar(
+            int(c["id"]), pessoa, int(body.get("desempenho") or 0),
+            int(body.get("potencial") or 0), body.get("justificativa") or "",
+            quem)
+        return JSONResponse({"ok": True, "avaliacao": r})
+    except ValueError as exc:
+        return JSONResponse(status_code=HTTP_RECUSA, content={
+            "erro": "recusado", "mensagem": str(exc)})
+    except Exception as exc:  # noqa: BLE001
+        log.warning("desempenho avaliar falhou: %s", type(exc).__name__)
+        return JSONResponse(status_code=500, content={
+            "erro": "erro_consulta",
+            "mensagem": "Nao foi possivel gravar a avaliacao."})
+
+
+@app.get("/api/desempenho/gestores")
+def desempenho_gestores() -> JSONResponse:
+    from api import desempenho
+    try:
+        return JSONResponse({"linhas": desempenho.mapa_gestores()})
+    except Exception as exc:  # noqa: BLE001
+        log.warning("desempenho gestores falhou: %s", type(exc).__name__)
+        return JSONResponse(status_code=500, content={
+            "erro": "erro_consulta",
+            "mensagem": "Nao foi possivel ler o mapa de gestores."})
+
+
+@app.post("/api/desempenho/gestores/mapear")
+async def desempenho_mapear(req: Request) -> JSONResponse:
+    from api import desempenho
+    quem = (getattr(req.state, "sessao", None) or {}).get("email") or ""
+    try:
+        body = await req.json()
+    except Exception:  # noqa: BLE001
+        body = None
+    if not isinstance(body, dict):
+        return JSONResponse(status_code=422, content={
+            "erro": "parametro_invalido", "mensagem": "Corpo invalido."})
+    try:
+        if body.get("remover"):
+            auth.audit(quem, "desempenho_desmapear", str(body.get("remover")))
+            desempenho.desmapear(int(body["remover"]))
+            return JSONResponse({"ok": True})
+        auth.audit(quem, "desempenho_mapear", str(body.get("email") or ""),
+                   "%s %s" % (body.get("escopo_tipo"), body.get("escopo_valor")))
+        return JSONResponse({"ok": True, "gestor": desempenho.mapear(
+            body.get("email") or "", body.get("escopo_tipo") or "area",
+            body.get("escopo_valor") or "", quem)})
+    except ValueError as exc:
+        return JSONResponse(status_code=HTTP_RECUSA, content={
+            "erro": "recusado", "mensagem": str(exc)})
+    except Exception as exc:  # noqa: BLE001
+        log.warning("desempenho mapear falhou: %s", type(exc).__name__)
+        return JSONResponse(status_code=500, content={
+            "erro": "erro_consulta",
+            "mensagem": "Nao foi possivel gravar o mapa."})
+
+
+@app.post("/api/desempenho/ciclos/gravar")
+async def desempenho_ciclo_gravar(req: Request) -> JSONResponse:
+    from api import desempenho
+    quem = (getattr(req.state, "sessao", None) or {}).get("email") or ""
+    try:
+        body = await req.json()
+    except Exception:  # noqa: BLE001
+        body = None
+    if not isinstance(body, dict):
+        return JSONResponse(status_code=422, content={
+            "erro": "parametro_invalido", "mensagem": "Corpo invalido."})
+    try:
+        if body.get("id") and body.get("estado"):
+            auth.audit(quem, "desempenho_ciclo_estado", str(body["id"]),
+                       str(body["estado"]))
+            return JSONResponse({"ok": True, "ciclo": desempenho.mudar_estado(
+                int(body["id"]), body["estado"], quem)})
+        auth.audit(quem, "desempenho_ciclo_criar", str(body.get("nome") or ""))
+        return JSONResponse({"ok": True, "ciclo": desempenho.criar_ciclo(
+            body.get("nome") or "", body.get("inicio") or "",
+            body.get("fim") or "", quem)})
+    except ValueError as exc:
+        return JSONResponse(status_code=HTTP_RECUSA, content={
+            "erro": "recusado", "mensagem": str(exc)})
+    except Exception as exc:  # noqa: BLE001
+        log.warning("desempenho ciclo falhou: %s", type(exc).__name__)
+        return JSONResponse(status_code=500, content={
+            "erro": "erro_consulta",
+            "mensagem": "Nao foi possivel gravar o ciclo."})
+
+
 @app.get("/api/dre/centros")
 def dre_centros(grupo: int, reduzido: int, de: str, ate: str) -> JSONResponse:
     """Os centros de custo de UMA conta — o nivel abaixo da conta na DRE."""

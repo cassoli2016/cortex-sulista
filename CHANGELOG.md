@@ -4,6 +4,17 @@ Gerado de `docs/versoes.yaml` por `scripts/gerar_changelog.py` — não editar �
 Formato [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/),
 versionamento [SemVer](https://semver.org/lang/pt-BR/).
 
+## [0.226.0] — 04/09/2026  ·  CX-04/09/2026-v0.226.0
+
+### Adicionado
+- Tela nova em Recursos Humanos: AVALIAÇÃO DE DESEMPENHO, pela matriz nine box. O gestor dá duas notas de 1 a 3 — desempenho (o que a pessoa entregou) e potencial (o que ela consegue entregar num papel maior) — e o cruzamento das duas põe cada pessoa numa das nove caixas, de "Insuficiente" a "Estrela".
+- Cada caixa diz o que FAZER, não só o nome. "Enigma" pede um movimento antes de concluir qualquer coisa sobre a pessoa; "Estrela" pede plano de sucessão escrito, com prazo. Matriz que classifica sem dizer o que fazer devolve a decisão inteira para quem já não sabia o que fazer.
+- Quem NÃO foi avaliado fica FORA da matriz e aparece como pendente, com a cobertura sempre no topo ("avaliados 12 de 47"). Ausência de avaliação não é desempenho baixo: numa DRE essa confusão custa um número torto, aqui ela poria alguém no canto de "conversa de desligamento" porque o gestor dela não abriu a tela.
+- A justificativa é obrigatória. A nota sem o porquê não sustenta conversa de carreira, e em seis meses ninguém lembra o que "bom" queria dizer.
+- Ciclos: um recorte de tempo, UM aberto de cada vez, e fechar CONGELA — nenhuma nota entra ou muda depois, porque a avaliação é a foto que explica as decisões tomadas em cima dela. Quem abre e fecha é o RH, com permissão própria, não a TI.
+- "Quem avalia quem": a folha do Globus não tem campo de "a quem responde" — traz nome, cargo, área, seção, admissão e salário, e nada de hierarquia. Sem um mapa próprio não existe "cada gestor vê a sua equipe", então o RH liga cada usuário a uma ou mais ÁREAS ou SEÇÕES. Gestor sem mapa vê NINGUÉM, e a tela diz isso: cair para "vê todos" abriria a folha inteira por esquecimento de cadastro, e é defeito que continua funcionando — por isso ninguém descobre.
+- O Copiloto passou a conhecer o módulo, e leva só a CONTAGEM por caixa. A Saúde do Servidor ganhou o cartão do ciclo aberto, que fica em alerta quando há ciclo aberto e nenhum gestor mapeado — ciclo que não vai receber nota nenhuma.
+
 ## [0.225.0] — 03/09/2026  ·  CX-03/09/2026-v0.225.0
 
 ### Adicionado

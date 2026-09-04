@@ -127,6 +127,7 @@ _FONTES_ROTULO = {
     "jornada_raster": "Jornada do Motorista",
     "crm_funil": "CRM — Funil Comercial",
     "pedagio_tag": "Validação de Pedágio — fatura do tag",
+    "desempenho": "Avaliação de Desempenho — nine box",
 }
 
 
@@ -250,6 +251,11 @@ def _smartec_snapshot() -> dict:
         "acesso_sne_dias_para_vencer": (min(a["dias"] for a in acessos)
                                         if acessos else None),
     }
+
+
+def _desempenho() -> dict:
+    from api import desempenho
+    return desempenho.snapshot()
 
 
 def _fontes_do_snapshot() -> dict:
@@ -595,6 +601,10 @@ def _fontes_do_snapshot() -> dict:
         "jornada_raster": _jornada_raster,
         "crm_funil": _crm,
         "pedagio_tag": _pedagio_tag,
+        # SO A CONTAGEM POR CAIXA. Uma matriz de desempenho com NOMES dentro
+        # de um chat e exatamente o que a regra de PII da casa existe para
+        # impedir -- e e o que permite o fallback externo do Copiloto.
+        "desempenho": _desempenho,
     }
 
 

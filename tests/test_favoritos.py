@@ -215,10 +215,21 @@ def test_a_lista_de_PERMISSOES_SEM_TELA_nao_cresce_sozinha():
     passou: a lista é opt-in explícito, por desenho. Este teste é o que torna
     o opt-in visível — crescer a lista passa a exigir mudar o teste também, e
     isso aparece no diff de quem revisa.
+
+    As duas de hoje, e por quê:
+
+    - `dreexc` — marcar lançamento fora da DRE Gerencial. Quem tem `dre` LÊ a
+      lista e os motivos; tirar um número do resultado publicado é outra
+      permissão.
+    - `desrh` — administrar a Avaliação de Desempenho: abrir e fechar ciclo,
+      mapear quem avalia quem, e ver a matriz da casa inteira. Não vira tela de
+      menu porque não é uma tela: é o que a MESMA tela `des` libera a mais. E
+      não é "admin", porque RH não é TI — quem abre o ciclo não deveria
+      precisar de acesso a servidor para isso.
     """
     from api import auth
 
-    assert set(auth.TELAS_SEM_MENU) == {"dreexc"}, (
+    assert set(auth.TELAS_SEM_MENU) == {"dreexc", "desrh"}, (
         "permissão sem tela é exceção, não padrão: se você acrescentou uma, "
         "atualize este teste dizendo qual e por quê")
     # e ela É uma entrada de RBAC de verdade, não um nome solto

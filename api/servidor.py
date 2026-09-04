@@ -827,6 +827,54 @@ def _servico_gestao() -> dict:
                            else "nenhuma atrasada"))}
 
 
+def _servico_desempenho() -> dict:
+    """Avaliação de Desempenho — o ciclo aberto e a cobertura dele.
+
+    A COBERTURA É O SINAL, não a contagem de avaliações. Um ciclo aberto com
+    três notas dadas e um com o quadro inteiro avaliado têm o mesmo "ok" se o
+    cartão só contar linhas — e é justamente o primeiro que precisa de alguém
+    cobrando gestor.
+
+    E ciclo NENHUM aberto não é falha: é instalação sem uso, ou o intervalo
+    entre dois ciclos. Alarme vermelho aí treinaria a ignorar o cartão.
+    """
+    nome = "Avaliação de Desempenho (nine box)"
+    try:
+        from . import pglocal
+        if not pglocal.configurado():
+            return {"nome": nome, "status": "info",
+                    "detalhe": "banco local não configurado nesta instalação"}
+        r = pglocal.um(
+            "SELECT (SELECT count(*) FROM des_ciclo)::int AS ciclos,"
+            "       (SELECT count(*) FROM des_gestor)::int AS gestores,"
+            "       (SELECT nome FROM des_ciclo WHERE estado='aberto'"
+            "         ORDER BY inicio DESC LIMIT 1) AS aberto,"
+            "       (SELECT count(*) FROM des_avaliacao a"
+            "         JOIN des_ciclo c ON c.id=a.ciclo_id AND c.estado='aberto'"
+            "         WHERE a.desempenho IS NOT NULL"
+            "           AND a.potencial IS NOT NULL)::int AS avaliados")
+    except Exception as exc:  # noqa: BLE001
+        if pglocal.sem_tabela(exc):
+            return {"nome": nome, "status": "erro",
+                    "detalhe": "tabelas ausentes — rode "
+                               "scripts/migrar_schema.py (migration 0045)"}
+        log.warning("saude: desempenho: %s", exc)
+        return {"nome": nome, "status": "info", "detalhe": "módulo indisponível"}
+    if not r["aberto"]:
+        return {"nome": nome, "status": "info",
+                "detalhe": f"nenhum ciclo aberto · {r['ciclos']} ciclo(s) no "
+                           f"histórico, {r['gestores']} gestor(es) mapeado(s)"}
+    # SEM MAPA NINGUÉM VÊ NINGUÉM, e um ciclo aberto nessas condições é um
+    # ciclo que não vai receber nota nenhuma.
+    if not r["gestores"]:
+        return {"nome": nome, "status": "alerta",
+                "detalhe": f"ciclo “{r['aberto']}” aberto e NENHUM gestor "
+                           f"mapeado — ninguém enxerga a própria equipe"}
+    return {"nome": nome, "status": "ok",
+            "detalhe": f"ciclo “{r['aberto']}” aberto · {r['avaliados']} "
+                       f"avaliação(ões) · {r['gestores']} gestor(es) mapeado(s)"}
+
+
 def _servico_crm() -> dict:
     """Módulo de CRM — contas, oportunidades, atividades e contratos.
 
@@ -1226,6 +1274,7 @@ def _servicos() -> list[dict]:
     # migration faltando é indistinguível de tela vazia por falta de uso — esta
     # linha é o que separa as duas.
     servicos.append(_servico_gestao())
+    servicos.append(_servico_desempenho())
     # CRM: mesma razão da Gestão — mora no banco local e a tela vazia por
     # migration faltando é indistinguível de tela vazia por falta de uso.
     servicos.append(_servico_crm())
