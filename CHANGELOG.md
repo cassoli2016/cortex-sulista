@@ -4,6 +4,13 @@ Gerado de `docs/versoes.yaml` por `scripts/gerar_changelog.py` — não editar �
 Formato [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/),
 versionamento [SemVer](https://semver.org/lang/pt-BR/).
 
+## [0.228.0] — 04/09/2026  ·  CX-04/09/2026-v0.228.0
+
+### Alterado
+- A TV de operações passou a mostrar somente veículos COM MOTOR. Quase um terço das posições do mapa era de implemento parado em pátio — 89 de 278 na medição do dia — e o rodapé chegava a acusar excesso de velocidade em carreta rebocada, que reporta a velocidade do cavalo que a puxa.
+- A separação usa o campo do próprio ERP (o mesmo que a tela de Comunicação Veículos x Rastreadora já usa), não o número de frota. A regra "frota começa com S, G ou B" foi medida: pegaria 326 dos 798 implementos e levaria 114 cavalos junto, 71 deles só porque a placa foi copiada no campo de frota.
+- A tela Torre de Controle continua mostrando a frota inteira: quem procura uma carreta específica precisa dela. O corte é só no painel de parede. Veículo fora do cadastro continua aparecendo — sumir com o que não se sabe esconde justamente o cadastro furado.
+
 ## [0.227.3] — 04/09/2026  ·  CX-04/09/2026-v0.227.3
 
 ### Corrigido

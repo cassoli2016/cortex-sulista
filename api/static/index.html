@@ -13134,6 +13134,17 @@ async function loadTvOpe(){
     const t=await rt.json(), p=await rp.json(), s=await rs.json(), km=await rk.json(), cb=await rc.json(), vg=await rv.json();
     if(seq!==tvOpeSeq) return;
     if(!rt.ok||!rp.ok||!rs.ok){ tvErro('tvope-k1', tvOpeOk); return; }
+    /* A TV DE OPERACAO SO MOSTRA QUEM TEM MOTOR. Implemento entra nas
+       posicoes (89 de 278 medidos em 04/09/2026, quase um terco) e enche o
+       mapa de carreta parada em patio. O rodape tambem le `posicoes` para
+       alertar excesso de velocidade, e carreta REBOCADA reporta velocidade
+       do cavalo que a puxa -- na medicao do dia nao havia nenhum caso
+       (2 alertas antes e depois do filtro), mas a exposicao existe e sai
+       junto. A tela `torre` continua vendo a frota inteira:
+       quem procura uma carreta especifica precisa dela.
+       `!== false` de proposito: veiculo fora do cadastro vem com o campo
+       nulo, e sumir com o desconhecido e pior do que mostra-lo. */
+    t.posicoes = (t.posicoes || []).filter(pp => pp.com_motor !== false);
     const tk=t.kpis, pk=p.kpis, sk=s.kpis;
     /* SILÊNCIO DE RASTREADOR EM VIAGEM: caminhão rodando que parou de
        reportar há mais de 6h. É outra coisa do que a cobertura da frota (que

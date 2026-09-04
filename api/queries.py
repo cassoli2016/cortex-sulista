@@ -3479,6 +3479,13 @@ SELECT um.veiculo AS placa, coalesce(u.descricao,'(sem)') AS utilizacao,
        vp.longituderastreadora::float8 AS lng,
        to_char(vp.dt,'YYYY-MM-DD HH24:MI') AS posicao_em,
        greatest(vp.velocidade,0)::int AS velocidade,
+       -- QUEM TEM MOTOR. Campo do proprio ERP, o mesmo que a Comunicacao
+       -- Veiculos x Rastreadora ja usa. NAO se deriva do numero de frota:
+       -- a regra "frota comeca com S, G ou B" foi medida contra este campo
+       -- em 04/09/2026 e pegaria 326 dos 798 implementos, levando 114
+       -- cavalos junto -- 71 deles so porque a PLACA foi copiada no campo
+       -- de frota e comeca com essas letras.
+       (v.possuimotor = 1) AS com_motor,
        (vp.dt >= current_timestamp - interval '24 hours') AS recente
 FROM rastreamento.veiculo_ultimaposicaomacro um
 JOIN veiculo_posicao vp ON vp.veiculo = um.veiculo
