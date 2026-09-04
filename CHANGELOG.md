@@ -4,6 +4,12 @@ Gerado de `docs/versoes.yaml` por `scripts/gerar_changelog.py` — não editar �
 Formato [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/),
 versionamento [SemVer](https://semver.org/lang/pt-BR/).
 
+## [0.228.1] — 04/09/2026  ·  CX-04/09/2026-v0.228.1
+
+### Corrigido
+- As posições da Torre de Controle deixaram de publicar a placa no campo de número de frota. A consulta usava um atalho que devolvia a placa quando o número não estava preenchido — e como em 943 dos 1.857 cadastros preenchidos o campo JÁ CONTÉM a própria placa copiada, metade da frota parecia numerada sem ser. Agora o número de frota só existe quando é número de frota, e a identidade completa (número e placa) passou a acompanhar cada posição.
+- O rodapé do painel de operações passou a mostrar a identidade completa no alerta de velocidade, em vez de um código que podia ser placa disfarçada de número de frota.
+
 ## [0.228.0] — 04/09/2026  ·  CX-04/09/2026-v0.228.0
 
 ### Alterado

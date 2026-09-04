@@ -13334,7 +13334,7 @@ async function loadTvOpe(){
     (t.transito||[]).filter(v=>v.atrasada).slice(0,6).forEach(v=>
       tick.push('⚠️ '+(v.placa||'?')+' atrasada — '+(v.destino||'')));
     (t.posicoes||[]).filter(pp=>pp.velocidade>90).forEach(pp=>
-      tick.push('🚨 '+(pp.frota||pp.placa)+' a '+pp.velocidade+' km/h'));
+      tick.push('🚨 '+(pp.rotulo||pp.frota||pp.placa)+' a '+pp.velocidade+' km/h'));
     if(pk.cnh_vencida_rodando>0) tick.push('🚫 '+pk.cnh_vencida_rodando+' motorista(s) com CNH vencida em viagem');
     if(sk.cercas_24h>0) tick.push('🔔 '+sk.cercas_24h+' violações de cerca nas últimas 24h');
     if(pk.sem_retorno>0) tick.push('🔄 '+pk.sem_retorno+' veículos chegam em 72h sem retorno casado');

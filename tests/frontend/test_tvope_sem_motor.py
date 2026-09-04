@@ -32,24 +32,24 @@ ADMIN = {**USUARIO, "admin": True, "perfil": "Administrador"}
 
 # 3 com motor, 2 sem, 1 fora do cadastro (com_motor nulo)
 POSICOES = [
-    {"placa": "AAA1A11", "frota": "1001", "lat": -23.5, "lng": -46.6,
+    {"placa": "AAA1A11", "frota": "1001", "rotulo": "1001 · AAA1A11", "lat": -23.5, "lng": -46.6,
      "velocidade": 80, "com_motor": True, "recente": True,
      "posicao_em": "2026-09-04 09:00", "utilizacao": "PROPRIO"},
-    {"placa": "BBB2B22", "frota": "1002", "lat": -23.6, "lng": -46.7,
+    {"placa": "BBB2B22", "frota": "1002", "rotulo": "1002 · BBB2B22", "lat": -23.6, "lng": -46.7,
      "velocidade": 95, "com_motor": True, "recente": True,
      "posicao_em": "2026-09-04 09:00", "utilizacao": "PROPRIO"},
-    {"placa": "CCC3C33", "frota": "1003", "lat": -23.7, "lng": -46.8,
+    {"placa": "CCC3C33", "frota": "1003", "rotulo": "1003 · CCC3C33", "lat": -23.7, "lng": -46.8,
      "velocidade": 10, "com_motor": True, "recente": True,
      "posicao_em": "2026-09-04 09:00", "utilizacao": "AGREGADO"},
     # os dois que TEM de sumir da parede
-    {"placa": "SSS4S44", "frota": "S3037", "lat": -23.8, "lng": -46.9,
+    {"placa": "SSS4S44", "frota": "S3037", "rotulo": "S3037 · SSS4S44", "lat": -23.8, "lng": -46.9,
      "velocidade": 97, "com_motor": False, "recente": True,
      "posicao_em": "2026-09-04 09:00", "utilizacao": "PROPRIO"},
-    {"placa": "GGG5G55", "frota": "G2010", "lat": -23.9, "lng": -47.0,
+    {"placa": "GGG5G55", "frota": "G2010", "rotulo": "G2010 · GGG5G55", "lat": -23.9, "lng": -47.0,
      "velocidade": 0, "com_motor": False, "recente": True,
      "posicao_em": "2026-09-04 09:00", "utilizacao": "PROPRIO"},
     # fora do cadastro: FICA. Sumir com o desconhecido é pior que mostrá-lo.
-    {"placa": "ZZZ9Z99", "frota": "?", "lat": -24.0, "lng": -47.1,
+    {"placa": "ZZZ9Z99", "frota": None, "rotulo": "ZZZ9Z99", "lat": -24.0, "lng": -47.1,
      "velocidade": 5, "com_motor": None, "recente": True,
      "posicao_em": "2026-09-04 09:00", "utilizacao": "TERCEIRO"},
 ]

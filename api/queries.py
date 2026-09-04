@@ -3474,7 +3474,12 @@ def get_analise_km(filial: int | None, dt_de: str, dt_ate: str,
 # ============================================================================
 TORRE_POS_SQL = """
 SELECT um.veiculo AS placa, coalesce(u.descricao,'(sem)') AS utilizacao,
-       coalesce(nullif(trim(v.numerofrota),''), um.veiculo) AS frota,
+       -- CRU, nunca coalesce(numerofrota, placa). O coalesce e o pior dos dois
+       -- mundos: a chave MUDA DE NATUREZA conforme o cadastro esteja
+       -- preenchido, e a placa sai no lugar do numero PARECENDO numero. Em 943
+       -- dos 1.857 preenchidos o valor E a propria placa, copiada no campo.
+       -- Quem monta a identidade e frota_identidade.rotulo(), em Python.
+       nullif(trim(v.numerofrota),'') AS numerofrota,
        vp.latituderastreadora::float8 AS lat,
        vp.longituderastreadora::float8 AS lng,
        to_char(vp.dt,'YYYY-MM-DD HH24:MI') AS posicao_em,
@@ -3547,6 +3552,14 @@ def get_torre(filial: int | None = None) -> dict:
         t["velocidade"] = p["velocidade"] if p else None
     for p in posicoes:
         p["em_viagem"] = p["placa"] in em_viagem
+        # IDENTIDADE PELO MODULO DA CASA. `frota` so existe quando e numero de
+        # frota DE VERDADE: vazio ou igual a placa nao e numero, e publicar a
+        # placa nesse campo e o que fazia metade da frota PARECER numerada.
+        # `rotulo` traz a identidade completa para quem precisa das duas.
+        num = (p.pop("numerofrota", None) or "").strip()
+        placa = (p.get("placa") or "").strip()
+        p["frota"] = num if num and num.upper() != placa.upper() else None
+        p["rotulo"] = frota_identidade.rotulo(num, placa)
 
     hoje = str(date.today())
     kpis = {
