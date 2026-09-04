@@ -12968,6 +12968,92 @@ async function loadTvCom(){
     tvComOk=true;
   }catch(e){ tvErro('tvcom-k1', tvComOk); }
 }
+/* RODAPE DE TV (ticker). Um so lugar monta os dois rodapes de painel.
+
+   POR QUE ELE EXISTE, e os dois defeitos que ele conserta (medidos no
+   navegador em 04/09/2026, nao lidos no CSS):
+
+   1. COM `prefers-reduced-motion` LIGADO o rodape CONGELAVA. A regra global
+      `@media (prefers-reduced-motion: reduce){ *{animation-duration:.001ms
+      !important} }` vence o `style.animationDuration` que o JS escreve — o
+      `!important` ganha do estilo inline, sempre. Medido: duracao "1e-06s",
+      transform "none", zero movimento. E congelar AQUI nao e "menos
+      movimento": o conteudo mede 14.653px numa caixa de 1.874px, entao 87%
+      da informacao fica inalcancavel. TV de operacao roda em Windows de
+      quiosque, e "desligar animacoes" e ajuste comum nessas maquinas.
+
+      A correcao NAO e devolver `!important` e atropelar a preferencia. E
+      trocar ROLAGEM CONTINUA por TROCA DISCRETA: um item por vez, sem
+      deslizar. E o que a preferencia pede — ela existe contra movimento
+      continuo, nao contra o conteudo mudar.
+
+   2. COM A LISTA VAZIA o rodape virava uma barra escura vazia, que na parede
+      parece um rodape quebrado. Ausencia de ocorrencia e BOA NOTICIA e
+      merece ser dita.
+
+   A rotacao e ENCADEADA (`setTimeout` depois de cada troca), nunca
+   `setInterval`, e dorme com a aba escondida — a regra da casa para tudo que
+   gira sozinho. */
+const TV_TICKER_PAUSA = 7000;      // ms por item quando nao ha rolagem
+const _tvTickers = {};             // id -> {itens, i, timer}
+
+function tvTickerParar(id){
+  const st = _tvTickers[id];
+  if(st && st.timer){ clearTimeout(st.timer); st.timer = null; }
+}
+
+function tvTickerGirar(id){
+  const st = _tvTickers[id];
+  const el = document.getElementById(id);
+  if(!st || !el || !st.itens.length) return;
+  st.i = (st.i + 1) % st.itens.length;
+  el.innerHTML = '<span>' + esc(st.itens[st.i]) + '</span>';
+  st.timer = setTimeout(() => {
+    // dorme com a aba escondida: girar para ninguem so gasta bateria e
+    // deixa a parede num item aleatorio quando alguem volta
+    if(document.hidden) { st.timer = setTimeout(() => tvTickerGirar(id),
+                                                TV_TICKER_PAUSA); return; }
+    tvTickerGirar(id);
+  }, TV_TICKER_PAUSA);
+}
+
+function tvTicker(id, itens){
+  const el = document.getElementById(id);
+  if(!el) return;
+  tvTickerParar(id);
+  itens = (itens || []).filter(x => x != null && String(x).trim() !== '');
+
+  if(!itens.length){
+    // barra vazia parece defeito; sem ocorrencia e resultado, e se diz
+    el.classList.remove('anda');
+    el.style.animationDuration = '';
+    el.innerHTML = '<span style="color:#8FA6BC">Sem ocorrências na '
+                 + 'operação neste momento</span>';
+    return;
+  }
+
+  const reduzido = window.matchMedia
+    && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+  if(reduzido){
+    // TROCA DISCRETA: um item por vez, sem deslizar. A classe `anda` fica
+    // FORA de proposito — com ela o elemento carrega um transform congelado
+    // pelo `!important` e o texto sai deslocado para fora da caixa.
+    el.classList.remove('anda');
+    el.style.animationDuration = '';
+    _tvTickers[id] = {itens: itens, i: -1, timer: null};
+    tvTickerGirar(id);
+    return;
+  }
+
+  const linha = itens.map(x => '<span>' + esc(x) + '</span>')
+    .join('<span style="color:#3D5A77">•</span>');
+  el.innerHTML = linha + '<span style="color:#3D5A77">•</span>'
+               + linha + '<span style="color:#3D5A77">•</span>';
+  el.classList.add('anda');
+  el.style.animationDuration = Math.max(30, itens.length * 6) + 's';
+}
+
 async function loadTvOpe(){
   const seq=++tvOpeSeq;
   try{
@@ -13177,7 +13263,11 @@ async function loadTvOpe(){
     if(sk.cercas_24h>0) tick.push('🔔 '+sk.cercas_24h+' violações de cerca nas últimas 24h');
     if(pk.sem_retorno>0) tick.push('🔄 '+pk.sem_retorno+' veículos chegam em 72h sem retorno casado');
     if(rv.ok && vg.atingimento_mes!=null) tick.push('🎯 Meta do mês: '+(100*vg.atingimento_mes).toFixed(0)+'%');
-    if(km.kpis) tick.push('🛣️ Mês: '+(km.kpis.km_carregado/1000).toFixed(0)+' mil km carregado · '+(100*km.kpis.km_vazio/Math.max(1,km.kpis.km_total)).toFixed(0)+'% vazio');
+    /* NaN NA PAREDE E PIOR QUE LINHA A MENOS. Com o KPI de km ausente,
+       `undefined/1000` vira NaN e o rodape publicava
+       "NaN mil km carregado - NaN% vazio" para a operacao inteira ler.
+       So entra quando os dois numeros existem de verdade. */
+    if(km.kpis && km.kpis.km_carregado != null && km.kpis.km_total) tick.push('🛣️ Mês: '+(km.kpis.km_carregado/1000).toFixed(0)+' mil km carregado · '+(100*(km.kpis.km_vazio||0)/Math.max(1,km.kpis.km_total)).toFixed(0)+'% vazio');
     (t.transito||[]).filter(v=>!v.atrasada && v.previsao_chegada).slice(0,4).forEach(v=>
       tick.push('🚛 '+(v.placa||'?')+' chega em '+(v.destino||'')+' '+v.previsao_chegada.slice(11,16)));
     try{
@@ -13197,13 +13287,7 @@ async function loadTvOpe(){
         tick.push('🛣️ Estradas livres nos ' + rEst.medidos + ' em viagem');
       }
     }
-    const tkEl=document.getElementById('tvope-ticker');
-    if(tkEl && tick.length){
-      const linha=tick.map(x=>'<span>'+esc(x)+'</span>').join('<span style="color:#3D5A77">•</span>');
-      tkEl.innerHTML=linha+'<span style="color:#3D5A77">•</span>'+linha+'<span style="color:#3D5A77">•</span>';
-      tkEl.classList.add('anda');
-      tkEl.style.animationDuration=Math.max(30, tick.length*6)+'s';
-    }
+    tvTicker('tvope-ticker', tick);
     tvAnimarNums('tvope-k1'); tvAnimarNums('tvope-k2'); tvAnimarNums('tvope-km');
     const cab=document.querySelector('#view-tvope .tv-head');
     if(cab){ cab.classList.add('sync'); setTimeout(()=>cab.classList.remove('sync'), 1200); }

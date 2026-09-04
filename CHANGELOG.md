@@ -4,6 +4,13 @@ Gerado de `docs/versoes.yaml` por `scripts/gerar_changelog.py` — não editar �
 Formato [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/),
 versionamento [SemVer](https://semver.org/lang/pt-BR/).
 
+## [0.227.2] — 04/09/2026  ·  CX-04/09/2026-v0.227.2
+
+### Corrigido
+- O rodapé do painel de TV de operações voltou a andar. Em máquina com "animações reduzidas" ligada — ajuste comum em computador de quiosque — ele congelava, e como o conteúdo é oito vezes mais largo que a faixa, quase toda a informação ficava fora da tela. Agora, quando a máquina pede menos movimento, o rodapé passa a TROCAR de aviso em vez de rolar: um por vez, sem deslizar.
+- Operação sem nenhuma ocorrência deixou de virar uma faixa preta vazia, que parecia rodapé quebrado: agora ela diz que não há ocorrência.
+- O rodapé não publica mais "NaN mil km carregado" quando o indicador de quilometragem do mês ainda não chegou.
+
 ## [0.227.1] — 04/09/2026  ·  CX-04/09/2026-v0.227.1
 
 ### Corrigido
