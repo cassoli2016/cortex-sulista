@@ -1,3 +1,23 @@
+- versao: "0.229.1"
+  data: "2026-09-04"
+  adicionado:
+    - >-
+      Os 8.572 pneus da frota passaram a viver no banco do CÓRTEX, com as
+      13.625 vidas de cada carcaça e a última medição de sulco e pressão. A
+      carga sai do arquivo que a coleta já grava, então não consome nada da
+      cota da Prolog — ela fica inteira para trazer o histórico de
+      movimentação, que é o que só a Prolog tem.
+  corrigido:
+    - >-
+      O sulco passou a ser guardado com as QUATRO medidas que o aparelho tira.
+      A primeira versão previa três e jogaria uma fora em todo pneu da frota —
+      e é justamente na diferença entre os pontos que se lê o desgaste
+      irregular: interno gasto e externo cheio é alinhamento, os dois ombros é
+      pressão.
+    - >-
+      O catálogo de modelos deixou de duplicar a cada carga. Ele nascia com um
+      registro por PNEU em vez de um por modelo, e dobrava a cada nova
+      passagem, em silêncio. São 125 modelos na frota.
 - versao: "0.229.0"
   data: "2026-09-04"
   adicionado:

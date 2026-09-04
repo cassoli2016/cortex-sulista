@@ -4,6 +4,15 @@ Gerado de `docs/versoes.yaml` por `scripts/gerar_changelog.py` — não editar �
 Formato [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/),
 versionamento [SemVer](https://semver.org/lang/pt-BR/).
 
+## [0.229.1] — 04/09/2026  ·  CX-04/09/2026-v0.229.1
+
+### Adicionado
+- Os 8.572 pneus da frota passaram a viver no banco do CÓRTEX, com as 13.625 vidas de cada carcaça e a última medição de sulco e pressão. A carga sai do arquivo que a coleta já grava, então não consome nada da cota da Prolog — ela fica inteira para trazer o histórico de movimentação, que é o que só a Prolog tem.
+
+### Corrigido
+- O sulco passou a ser guardado com as QUATRO medidas que o aparelho tira. A primeira versão previa três e jogaria uma fora em todo pneu da frota — e é justamente na diferença entre os pontos que se lê o desgaste irregular: interno gasto e externo cheio é alinhamento, os dois ombros é pressão.
+- O catálogo de modelos deixou de duplicar a cada carga. Ele nascia com um registro por PNEU em vez de um por modelo, e dobrava a cada nova passagem, em silêncio. São 125 modelos na frota.
+
 ## [0.229.0] — 04/09/2026  ·  CX-04/09/2026-v0.229.0
 
 ### Adicionado
