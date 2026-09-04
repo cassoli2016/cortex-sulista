@@ -4,6 +4,11 @@ Gerado de `docs/versoes.yaml` por `scripts/gerar_changelog.py` — não editar �
 Formato [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/),
 versionamento [SemVer](https://semver.org/lang/pt-BR/).
 
+## [0.227.3] — 04/09/2026  ·  CX-04/09/2026-v0.227.3
+
+### Corrigido
+- O rodapé do painel de TV de operações, em máquina com animações desligadas, passou a usar a faixa INTEIRA e a avançar de página quando o conteúdo não cabe. A correção anterior mostrava um aviso por vez, e com poucos avisos ela parecia travada de novo — além de deixar um texto curto encostado no canto esquerdo de uma faixa larga. Cabendo tudo, agora nada se move e o conteúdo fica centrado.
+
 ## [0.227.2] — 04/09/2026  ·  CX-04/09/2026-v0.227.2
 
 ### Corrigido

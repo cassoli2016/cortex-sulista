@@ -12994,64 +12994,129 @@ async function loadTvCom(){
    A rotacao e ENCADEADA (`setTimeout` depois de cada troca), nunca
    `setInterval`, e dorme com a aba escondida — a regra da casa para tudo que
    gira sozinho. */
-const TV_TICKER_PAUSA = 7000;      // ms por item quando nao ha rolagem
-const _tvTickers = {};             // id -> {itens, i, timer}
+const TV_TICKER_PAUSA = 9000;      // ms por pagina quando nao ha rolagem
+const _tvTickers = {};             // id -> {assinatura, pagina, paginas, timer}
 
 function tvTickerParar(id){
   const st = _tvTickers[id];
   if(st && st.timer){ clearTimeout(st.timer); st.timer = null; }
 }
 
-function tvTickerGirar(id){
+/* Salta UMA PAGINA da faixa. `style.transform` e transform ESTATICO, nao
+   animacao — o `animation-duration:.001ms !important` do prefers-reduced-
+   motion nao alcanca, e o salto acontece de verdade. */
+function tvTickerPagina(id){
   const st = _tvTickers[id];
   const el = document.getElementById(id);
-  if(!st || !el || !st.itens.length) return;
-  st.i = (st.i + 1) % st.itens.length;
-  el.innerHTML = '<span>' + esc(st.itens[st.i]) + '</span>';
+  if(!st || !el || st.paginas < 2) return;
+  st.pagina = (st.pagina + 1) % st.paginas;
+  el.style.transform = 'translateX(' + (-st.pagina * st.largura) + 'px)';
   st.timer = setTimeout(() => {
-    // dorme com a aba escondida: girar para ninguem so gasta bateria e
-    // deixa a parede num item aleatorio quando alguem volta
-    if(document.hidden) { st.timer = setTimeout(() => tvTickerGirar(id),
-                                                TV_TICKER_PAUSA); return; }
-    tvTickerGirar(id);
+    // dorme com a aba escondida: paginar para ninguem so deixa a parede numa
+    // pagina do meio quando alguem volta a olhar
+    if(document.hidden){
+      st.timer = setTimeout(() => tvTickerPagina(id), TV_TICKER_PAUSA);
+      return;
+    }
+    tvTickerPagina(id);
   }, TV_TICKER_PAUSA);
 }
 
+/* RODAPE DE TV. Um so lugar monta os rodapes de painel de parede.
+
+   TRES DEFEITOS MEDIDOS NO NAVEGADOR EM 04/09/2026, nao lidos no CSS:
+
+   1. COM `prefers-reduced-motion` LIGADO o rodape CONGELAVA. A regra global
+      `@media (prefers-reduced-motion: reduce){ *{animation-duration:.001ms
+      !important} }` vence o `style.animationDuration` que o JS escreve — o
+      `!important` ganha do inline, sempre. Medido: duracao "1e-06s",
+      transform "none", zero movimento. E congelar AQUI nao e "menos
+      movimento": o conteudo media 14.653px numa caixa de 1.874px, entao 87%
+      da informacao ficava inalcancavel. TV de operacao roda em Windows de
+      quiosque, onde desligar animacao e ajuste comum.
+
+      A correcao NAO e devolver `!important` e atropelar a preferencia de
+      quem configurou a maquina. E trocar rolagem continua por SALTO DE
+      PAGINA: a faixa inteira preenchida, avancando de uma vez em vez de
+      deslizar. E o que a preferencia pede — ela existe contra movimento
+      continuo, nao contra o conteudo mudar.
+
+   2. O PRIMEIRO desenho deste modo mostrava UM item por vez, e piorou: com
+      poucos avisos `(i+1) % 1` devolve sempre o mesmo, e a barra parecia
+      travada de novo; e um aviso curto encostado a esquerda de uma faixa de
+      1.874px parece defeito. Por isso a faixa agora e usada INTEIRA, e
+      quando tudo cabe nada se move — nao ha o que esconder.
+
+   3. COM A LISTA VAZIA a faixa ficava preta e vazia, que na parede parece
+      rodape quebrado. Ausencia de ocorrencia e boa noticia e se diz.
+
+   A paginacao e ENCADEADA (`setTimeout` depois de cada salto), nunca
+   `setInterval`, e dorme com a aba escondida. */
 function tvTicker(id, itens){
   const el = document.getElementById(id);
   if(!el) return;
-  tvTickerParar(id);
   itens = (itens || []).filter(x => x != null && String(x).trim() !== '');
+  const caixa = el.parentElement;
 
   if(!itens.length){
-    // barra vazia parece defeito; sem ocorrencia e resultado, e se diz
+    tvTickerParar(id);
+    delete _tvTickers[id];
     el.classList.remove('anda');
     el.style.animationDuration = '';
+    el.style.transform = '';
+    caixa.style.justifyContent = 'center';
     el.innerHTML = '<span style="color:#8FA6BC">Sem ocorrências na '
                  + 'operação neste momento</span>';
     return;
   }
 
+  const sep = '<span style="color:#3D5A77">•</span>';
+  const linha = itens.map(x => '<span>' + esc(x) + '</span>').join(sep);
+  const assinatura = itens.join('');
+
   const reduzido = window.matchMedia
     && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 
-  if(reduzido){
-    // TROCA DISCRETA: um item por vez, sem deslizar. A classe `anda` fica
-    // FORA de proposito — com ela o elemento carrega um transform congelado
-    // pelo `!important` e o texto sai deslocado para fora da caixa.
-    el.classList.remove('anda');
-    el.style.animationDuration = '';
-    _tvTickers[id] = {itens: itens, i: -1, timer: null};
-    tvTickerGirar(id);
+  if(!reduzido){
+    tvTickerParar(id);
+    delete _tvTickers[id];
+    el.style.transform = '';
+    caixa.style.justifyContent = '';
+    el.innerHTML = linha + sep + linha + sep;
+    el.classList.add('anda');
+    el.style.animationDuration = Math.max(30, itens.length * 6) + 's';
     return;
   }
 
-  const linha = itens.map(x => '<span>' + esc(x) + '</span>')
-    .join('<span style="color:#3D5A77">•</span>');
-  el.innerHTML = linha + '<span style="color:#3D5A77">•</span>'
-               + linha + '<span style="color:#3D5A77">•</span>';
-  el.classList.add('anda');
-  el.style.animationDuration = Math.max(30, itens.length * 6) + 's';
+  // MESMO CONTEUDO: nao remonta. O painel recarrega a cada 60 s e remontar
+  // jogaria a faixa de volta para a primeira pagina a cada ciclo — quem
+  // estivesse lendo a terceira nunca chegaria ao fim.
+  const st0 = _tvTickers[id];
+  if(st0 && st0.assinatura === assinatura && st0.timer) return;
+
+  tvTickerParar(id);
+  el.classList.remove('anda');
+  el.style.animationDuration = '';
+  el.style.transform = '';
+  caixa.style.justifyContent = '';
+  el.innerHTML = linha;
+
+  const largura = caixa.clientWidth || 1;
+  const total = el.getBoundingClientRect().width;
+  const paginas = Math.max(1, Math.ceil(total / largura));
+
+  // CABE INTEIRO: nada se move, e a faixa fica centrada em vez de encostada
+  // na esquerda de um vao escuro.
+  if(paginas < 2){
+    delete _tvTickers[id];
+    caixa.style.justifyContent = 'center';
+    return;
+  }
+
+  _tvTickers[id] = {assinatura: assinatura, pagina: 0, paginas: paginas,
+                    largura: largura, timer: null};
+  _tvTickers[id].timer = setTimeout(() => tvTickerPagina(id),
+                                    TV_TICKER_PAUSA);
 }
 
 async function loadTvOpe(){

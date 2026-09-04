@@ -1,3 +1,13 @@
+- versao: "0.227.3"
+  data: "2026-09-04"
+  corrigido:
+    - >-
+      O rodapé do painel de TV de operações, em máquina com animações
+      desligadas, passou a usar a faixa INTEIRA e a avançar de página quando o
+      conteúdo não cabe. A correção anterior mostrava um aviso por vez, e com
+      poucos avisos ela parecia travada de novo — além de deixar um texto
+      curto encostado no canto esquerdo de uma faixa larga. Cabendo tudo,
+      agora nada se move e o conteúdo fica centrado.
 - versao: "0.227.2"
   data: "2026-09-04"
   corrigido:
