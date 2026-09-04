@@ -1205,6 +1205,15 @@ tr.dre-conta>td{font-size:11.5px;color:var(--n500)}
   letter-spacing:.05em}
 #dre-tab .drill-t td.num,#dre-tab .drill-t th.num{text-align:right;
   font-family:var(--mono)}
+/* O VALOR ABRE O RAZÃO. Botão de verdade e não `<span onclick>`: quem navega
+   por teclado também confere número. A regra nasce QUALIFICADA (`.drill-t
+   button.drevalor`) porque `button` da casa tem fundo, borda e padding
+   próprios, e uma regra de componente solta perde a briga de especificidade
+   sem dar sinal nenhum. */
+#dre-tab .drill-t button.drevalor{background:none;border:0;padding:0;
+  font:inherit;color:var(--orange-500);cursor:pointer;text-decoration:underline;
+  text-underline-offset:2px}
+#dre-tab .drill-t button.drevalor:hover{color:var(--n900)}
 tr.dre-sobra td{background:var(--yellow-100) !important}
 #dre-tab .exp{display:inline-block;width:14px;transition:transform .15s;color:var(--n400);margin-right:4px}
 tr[data-aberto="1"] .exp{transform:rotate(90deg)}
@@ -28471,58 +28480,90 @@ async function dreDrill(bt){
     faixa.innerHTML = `<td colspan="15">${esc(e.message||'falhou')}</td>`; return;
   }
   const linhas = d.linhas || [];
+  /* O DRILL PARA AQUI. O nível de baixo — o razão, linha a linha — não cabe
+     numa terceira tabela aninhada dentro de uma linha de tabela: são quatro
+     colunas espremidas num `colspan` já recuado 82px, e a lista chega a 500
+     lançamentos. Ele passou para um modal, aberto pelo VALOR: o número é o
+     que se quer conferir, e é nele que se clica. */
+  const conta = (tr.querySelector('td') || {}).textContent || '';
   faixa.innerHTML = '<td colspan="15">' + (linhas.length
     ? `<table class="drill-t"><thead><tr><th>Centro de custo</th>`
-      + `<th class="num">Lançamentos</th><th class="num">Valor</th><th></th></tr></thead><tbody>`
-      + linhas.map(x => `<tr data-g="${tr.dataset.g}" data-r="${tr.dataset.r}"`
+      + `<th class="num">Lançamentos</th><th class="num">Valor</th></tr></thead><tbody>`
+      + linhas.map(x => {
+          const nome = (x.descricao || '?')
+            + (x.centro !== null ? ' · ' + x.centro : '');
+          return `<tr data-g="${tr.dataset.g}" data-r="${tr.dataset.r}"`
           + ` data-c="${x.centro === null ? '' : x.centro}"`
-          + ` data-sem="${x.centro === null ? '1' : ''}">`
-          + `<td><button class="drebt" onclick="dreDrillLanc(this)" aria-expanded="false" title="ver lançamentos">▸</button> `
-          + `${esc(x.descricao || '?')}${x.centro !== null ? ` <span class="ccod">${x.centro}</span>` : ''}</td>`
+          + ` data-sem="${x.centro === null ? '1' : ''}"`
+          + ` data-nome="${esc(nome)}" data-conta="${esc(conta.trim())}">`
+          + `<td>${esc(x.descricao || '?')}${x.centro !== null ? ` <span class="ccod">${x.centro}</span>` : ''}</td>`
           + `<td class="num">${x.lancamentos}</td>`
-          + `<td class="num">${BRL.format(x.valor||0)}</td><td></td></tr>`).join('')
+          + `<td class="num"><button class="drevalor" onclick="dreDrillLanc(this)"`
+          + ` title="ver os ${x.lancamentos} lançamentos deste centro">`
+          + `${BRL.format(x.valor||0)}</button></td></tr>`;
+        }).join('')
       + `</tbody></table>`
     : 'Nenhum lançamento nesta conta no período.') + '</td>';
 }
 
+/* O periodo escrito como a pessoa o escolheu: os filtros sao `YYYY-MM`. */
+function _periodoRotulo(){
+  const v = m => m ? m.slice(5) + '/' + m.slice(0,4) : '?';
+  const de = _dxV('fCompDe'), ate = _dxV('fCompAte');
+  return de === ate ? v(de) : v(de) + ' a ' + v(ate);
+}
+
 async function dreDrillLanc(bt){
+  /* O RAZÃO EM MODAL, não em terceira linha aninhada. A lista tem teto de 500
+     e o teto SE DECLARA: lista cortada em silêncio faz a soma da tela não
+     bater com o total de cima, e quem confere culpa o número certo. */
   const tr = bt.closest('tr');
-  const aberto = bt.getAttribute('aria-expanded') === 'true';
-  const prox = tr.nextElementSibling;
-  if(aberto){
-    bt.setAttribute('aria-expanded','false'); bt.textContent='▸';
-    if(prox && prox.classList.contains('drill-lanc')) prox.remove();
-    return;
-  }
-  bt.setAttribute('aria-expanded','true'); bt.textContent='▾';
-  const linha = document.createElement('tr');
-  linha.className = 'drill-lanc';
-  linha.innerHTML = '<td colspan="4">carregando os lançamentos…</td>';
-  tr.after(linha);
   const p = _drillPeriodo();
   const q = new URLSearchParams({grupo: tr.dataset.g, reduzido: tr.dataset.r,
                                 de: p.de, ate: p.ate});
   if(tr.dataset.sem) q.set('sem_centro','true'); else q.set('centro', tr.dataset.c);
+  abrirModal(`<h3 style="margin:0 0 3px">${esc(tr.dataset.nome||'Centro de custo')}</h3>`
+    + `<p class="hint" style="margin:0 0 12px">${esc(tr.dataset.conta||'')}`
+    + ` · ${esc(_periodoRotulo())}</p>`
+    + `<div id="dre-lanc-corpo">carregando os lançamentos…</div>`
+    + `<div style="margin-top:14px;text-align:right">`
+    + `<button class="btn" onclick="fecharModal()">Fechar</button></div>`);
+  document.getElementById('modalBox').classList.add('larga');
+  const corpo = document.getElementById('dre-lanc-corpo');
   let d;
   try{
     const r = await respostaJSON(await fetch('/api/dre/conta-lancamentos?' + q, {cache:'no-store'}));
     if(!r.ok) throw new Error((r.dados||{}).mensagem || 'não foi possível abrir');
     d = r.dados;
   }catch(e){
-    linha.innerHTML = `<td colspan="4">${esc(e.message||'falhou')}</td>`; return;
+    if(corpo) corpo.innerHTML = `<p class="hint">${esc(e.message||'falhou')}</p>`;
+    return;
   }
+  if(!corpo) return;                       // fecharam o modal enquanto carregava
   const ls = d.linhas || [];
-  linha.innerHTML = '<td colspan="4">'
-    + (d.truncou ? `<p class="hint" style="margin:0 0 6px">Mostrando os primeiros ${d.limite} — a soma abaixo não fecha com o total da conta.</p>` : '')
+  const soma = ls.reduce((a,x) =>
+    a + (+x.valordebito||0) - (+x.valorcredito||0), 0);
+  /* CENTAVOS. O `BRL` da casa arredonda para o real inteiro, e é o certo num
+     KPI — mas este modal existe para CONFERIR o lançamento contra a tela do
+     ERP, e "R$ 369.231" não casa com "369.230,68". Quem confere e não acha o
+     número desconfia do sistema, não do arredondamento. */
+  const RS = v => 'R$ ' + Number(v).toLocaleString('pt-BR',
+    {minimumFractionDigits: 2, maximumFractionDigits: 2});
+  corpo.innerHTML =
+      `<p class="hint" style="margin:0 0 9px">${ls.length} lançamento(s)`
+    + ` · soma ${RS(soma)}</p>`
+    + (d.truncou ? `<div class="avisofaixa" style="margin:0 0 9px">Mostrando os `
+        + `primeiros ${d.limite}: a soma acima NÃO fecha com o total do centro.</div>` : '')
     + (ls.length
-      ? `<table class="drill-t"><thead><tr><th>Data</th><th>Histórico</th>`
+      ? `<div class="tabroll"><table class="drill-t" style="width:100%"><thead><tr>`
+        + `<th>Data</th><th>Histórico</th>`
         + `<th class="num">Débito</th><th class="num">Crédito</th></tr></thead><tbody>`
         + ls.map(x => `<tr><td>${esc(fmtD(String(x.dtlancamento).slice(0,10)))}</td>`
-            + `<td>${esc((x.historicodescricao||'').slice(0,70))}</td>`
-            + `<td class="num">${x.valordebito?BRL.format(+x.valordebito):''}</td>`
-            + `<td class="num">${x.valorcredito?BRL.format(+x.valorcredito):''}</td></tr>`).join('')
-        + `</tbody></table>`
-      : 'Nenhum lançamento.') + '</td>';
+            + `<td style="white-space:normal">${esc(x.historicodescricao||'')}</td>`
+            + `<td class="num">${x.valordebito?RS(+x.valordebito):''}</td>`
+            + `<td class="num">${x.valorcredito?RS(+x.valorcredito):''}</td></tr>`).join('')
+        + `</tbody></table></div>`
+      : '<p class="hint">Nenhum lançamento.</p>');
 }
 
 /* O PANORAMA CONTA A CONTA. Serve para ser cirúrgico: o que atacar, o que

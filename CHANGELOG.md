@@ -4,6 +4,13 @@ Gerado de `docs/versoes.yaml` por `scripts/gerar_changelog.py` — não editar �
 Formato [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/),
 versionamento [SemVer](https://semver.org/lang/pt-BR/).
 
+## [0.224.0] — 03/09/2026  ·  CX-03/09/2026-v0.224.0
+
+### Alterado
+- O drill da DRE agora PARA no centro de custo, e os lançamentos abrem num modal quando se clica no VALOR. O terceiro nível era uma tabela dentro de outra tabela dentro de uma linha de tabela, recuada 82px, para uma lista que vai a 500 lançamentos. O número é o que se quer conferir, e é nele que se clica.
+- O modal mostra CENTAVOS. O formato da casa arredonda para o real inteiro — certo num indicador, errado aqui: este modal existe para casar o lançamento com a tela do ERP, e "R$ 369.231" não bate com "369.230,68". Quem confere e não acha o número desconfia do sistema, não do arredondamento.
+- O modal diz de que conta e de que centro de custo é a lista, o período escolhido, quantos lançamentos são e a soma deles — débito menos crédito, e não a soma dos dois. E quando a lista bate no teto de 500, ele avisa que a soma NÃO fecha com o total do centro: lista cortada em silêncio faz quem confere culpar o número certo.
+
 ## [0.223.0] — 03/09/2026  ·  CX-03/09/2026-v0.223.0
 
 ### Adicionado
