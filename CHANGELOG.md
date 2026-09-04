@@ -4,6 +4,14 @@ Gerado de `docs/versoes.yaml` por `scripts/gerar_changelog.py` — não editar �
 Formato [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/),
 versionamento [SemVer](https://semver.org/lang/pt-BR/).
 
+## [0.230.0] — 04/09/2026  ·  CX-04/09/2026-v0.230.0
+
+### Adicionado
+- O histórico de movimentação dos pneus passou a ser trazido da Prolog para o banco do CÓRTEX: quando cada pneu foi montado, removido, recapado, transferido ou sucateado, com quem fez e com os quatro sulcos e a pressão daquele instante. É a parte que só a Prolog tinha — e os 5.013 pneus já sucateados eram, até aqui, uma lápide sem inscrição.
+- A coleta caminha mês a mês para trás, a partir do mês corrente. Assim os doze meses recentes chegam primeiro, que é o que a análise de custo por quilômetro precisa, e a história antiga vai chegando sozinha nas execuções seguintes. Ela respeita a cota da Prolog: quando a cota acaba, guarda o que trouxe, anota o motivo e continua na próxima passagem.
+- A medida do pneu (295/80 R22.5 e afins), que o retrato não trazia e estava em branco nos 8.572, passou a ser preenchida pela movimentação. O custo e a banda de cada recapagem entram junto, na vida que ela abre.
+- A Saúde do Servidor ganhou o cartão da réplica. Ela é a única parte que poderia parar sem ninguém notar: o painel continuaria mostrando número fresco do retrato enquanto o banco que vai sobreviver ao desligamento da Prolog envelhecia calado.
+
 ## [0.229.1] — 04/09/2026  ·  CX-04/09/2026-v0.229.1
 
 ### Adicionado

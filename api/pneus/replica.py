@@ -130,7 +130,17 @@ def semear(limite: int | None = None) -> dict:
                     numero_fogo   = EXCLUDED.numero_fogo,
                     serie         = EXCLUDED.serie,
                     dot           = EXCLUDED.dot,
-                    modelo_id     = COALESCE(EXCLUDED.modelo_id, pne_pneu.modelo_id),
+                    -- NAO REBAIXA o modelo. A semeadura so conhece o
+                    -- generico (sem medida); se o historico ja descobriu o
+                    -- modelo COM medida, trocar de volta perderia a
+                    -- informacao a cada coleta.
+                    modelo_id     = CASE
+                        WHEN EXISTS (SELECT 1 FROM pne_modelo mm
+                                     WHERE mm.id = pne_pneu.modelo_id
+                                       AND coalesce(mm.medida,'') <> '')
+                        THEN pne_pneu.modelo_id
+                        ELSE COALESCE(EXCLUDED.modelo_id, pne_pneu.modelo_id)
+                    END,
                     filial        = EXCLUDED.filial,
                     status        = EXCLUDED.status,
                     vida_atual    = EXCLUDED.vida_atual,
@@ -140,7 +150,12 @@ def semear(limite: int | None = None) -> dict:
                                                pne_pneu.custo_aquisicao),
                     atualizado_em = now()
                 RETURNING id, (xmax = 0) AS inserido""",
-                (p.get("frota") or None, p.get("serie") or None,
+                # `frota` do instantaneo e o numero do VEICULO, nao a
+                # marcacao da carcaca — mapear um no outro punha "S3044" em 14
+                # pneus, que e a assinatura do erro: numero de fogo nao se
+                # repete, numero de frota do veiculo sim. O instantaneo nao
+                # traz o fogo, entao ele fica NULO ate a operacao informar.
+                (None, p.get("serie") or None,
                  p.get("dot") or None, modelo_id, p.get("filial") or None,
                  status, int(p.get("vida") or 0), placa,
                  (p.get("posicao") or "").strip() or None,

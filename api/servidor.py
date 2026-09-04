@@ -1330,6 +1330,39 @@ def _servicos() -> list[dict]:
                          "detalhe": "integração indisponível"})
         log.warning("saude: prolog: %s", exc)
 
+    # REPLICA DE PNEUS (banco próprio). A Prolog está sendo substituída: ela
+    # alimenta as tabelas `pne_*` até ser desligada. Esta linha existe porque a
+    # replicação é a única parte que pode parar SEM NINGUÉM PERCEBER — o painel
+    # continua lendo o instantâneo e mostrando número fresco enquanto o banco
+    # que vai sobreviver ao desligamento envelhece calado.
+    try:
+        from .pneus import replica as pneus_rep
+        e = pneus_rep.estado()
+        if e.get("erro"):
+            servicos.append({"nome": "Réplica de pneus", "status": "info",
+                             "detalhe": "banco da casa indisponível"})
+        elif not e.get("pneus"):
+            servicos.append({"nome": "Réplica de pneus", "status": "alerta",
+                             "detalhe": "nenhum pneu replicado ainda"})
+        else:
+            falhas = [s for s in (e.get("sync") or []) if s.get("ultimo_erro")]
+            det = (f"{e['pneus']} pneus · {e.get('eventos') or 0} evento(s)")
+            if e.get("mais_antigo"):
+                det += f" desde {str(e['mais_antigo'])[:10]}"
+            if falhas:
+                det += f" · {len(falhas)} rota(s) com erro na última passada"
+            servicos.append({
+                "nome": "Réplica de pneus",
+                # Erro na última passada é INFORMAÇÃO, não alarme: a cota da
+                # Prolog estoura por construção e se recompõe sozinha. O que
+                # seria alarme é ficar sem evento nenhum.
+                "status": "alerta" if not e.get("eventos") else "ok",
+                "detalhe": det})
+    except Exception as exc:  # noqa: BLE001
+        servicos.append({"nome": "Réplica de pneus", "status": "info",
+                         "detalhe": "indisponível"})
+        log.warning("saude: replica de pneus: %s", exc)
+
     # RasterIntegra (Gerenciamento de Risco): sem credencial e instalacao
     # incompleta (info); com credencial, prova de vida com cache de 10 min
     try:
