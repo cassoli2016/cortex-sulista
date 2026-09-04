@@ -51,9 +51,10 @@ def test_sem_centro_de_custo_e_uma_LINHA_e_nao_um_resto(monkeypatch):
     soma dos centros não fecharia com a conta; o buraco teria cara de "esse
     centro custa menos do que eu pensava"."""
     _stub(monkeypatch, [
-        {"centro": 2102, "descricao": "CCO", "valor": -100.0, "lancamentos": 3},
-        {"centro": None, "descricao": dd.SEM_CENTRO, "valor": -40.0,
-         "lancamentos": 2}])
+        {"centro": 2102, "descricao": "CCO", "mes": "2026-08", "valor": -100.0,
+         "lancamentos": 3},
+        {"centro": None, "descricao": dd.SEM_CENTRO, "mes": "2026-08",
+         "valor": -40.0, "lancamentos": 2}])
     monkeypatch.setattr(dd.dre_exclusoes, "chaves", lambda *a, **k: [])
     d = dd.centros(1, 411101, "2026-08-01", "2026-09-01")
     rotulos = [x["descricao"] for x in d["linhas"]]
@@ -64,9 +65,12 @@ def test_sem_centro_de_custo_e_uma_LINHA_e_nao_um_resto(monkeypatch):
 
 def test_a_ordem_e_por_TAMANHO_e_nao_por_codigo(monkeypatch):
     _stub(monkeypatch, [
-        {"centro": 1, "descricao": "A", "valor": -10.0, "lancamentos": 1},
-        {"centro": 2, "descricao": "B", "valor": -900.0, "lancamentos": 1},
-        {"centro": 3, "descricao": "C", "valor": -50.0, "lancamentos": 1}])
+        {"centro": 1, "descricao": "A", "mes": "2026-08", "valor": -10.0,
+         "lancamentos": 1},
+        {"centro": 2, "descricao": "B", "mes": "2026-08", "valor": -900.0,
+         "lancamentos": 1},
+        {"centro": 3, "descricao": "C", "mes": "2026-08", "valor": -50.0,
+         "lancamentos": 1}])
     monkeypatch.setattr(dd.dre_exclusoes, "chaves", lambda *a, **k: [])
     d = dd.centros(1, 411101, "2026-08-01", "2026-09-01")
     assert [x["descricao"] for x in d["linhas"]] == ["B", "C", "A"]
@@ -208,3 +212,61 @@ def test_a_rota_do_drill_esta_no_rbac():
     rotas = dict(auth.ROTA_TELAS)
     assert "dre" in rotas["/api/dre/centros"]
     assert "dre" in rotas["/api/dre/conta-lancamentos"]
+
+
+# ------------------------------------------------------ o pivô mês a mês
+#
+# O centro de custo era o ÚNICO nível com um número só do período inteiro,
+# entre níveis que a tela mostra mês a mês. Quem via "R$ 2,3 mi" num centro
+# não sabia se era um mês fora da curva ou doze meses iguais — que é
+# justamente a pergunta que traz alguém até este nível.
+
+
+def test_o_intervalo_de_meses_e_GERADO_e_nao_colhido(monkeypatch):
+    """`GROUP BY` não devolve o mês SEM lançamento. Colhendo os meses do
+    resultado, uma conta parada em maio e junho emendaria abril em julho, e a
+    linha diria "não mudou nada" onde houve dois meses de nada."""
+    _stub(monkeypatch, [
+        {"centro": 1, "descricao": "A", "mes": "2026-04", "valor": -10.0,
+         "lancamentos": 1},
+        {"centro": 1, "descricao": "A", "mes": "2026-07", "valor": -30.0,
+         "lancamentos": 1}])
+    monkeypatch.setattr(dd.dre_exclusoes, "chaves", lambda *a, **k: [])
+    d = dd.centros(1, 411101, "2026-04-01", "2026-08-01")
+    assert d["meses"] == ["2026-04", "2026-05", "2026-06", "2026-07"]
+    linha = d["linhas"][0]
+    assert linha["meses"]["2026-05"] == 0.0 and linha["meses"]["2026-06"] == 0.0
+    assert linha["meses"]["2026-04"] == pytest.approx(-10.0)
+    assert linha["meses"]["2026-07"] == pytest.approx(-30.0)
+
+
+def test_o_total_do_centro_e_a_soma_dos_meses(monkeypatch):
+    """Total desnormalizado discorda das próprias linhas no primeiro edit."""
+    _stub(monkeypatch, [
+        {"centro": 1, "descricao": "A", "mes": "2026-06", "valor": -10.0,
+         "lancamentos": 2},
+        {"centro": 1, "descricao": "A", "mes": "2026-07", "valor": -30.0,
+         "lancamentos": 5}])
+    monkeypatch.setattr(dd.dre_exclusoes, "chaves", lambda *a, **k: [])
+    d = dd.centros(1, 411101, "2026-06-01", "2026-08-01")
+    linha = d["linhas"][0]
+    assert linha["valor"] == pytest.approx(sum(linha["meses"].values()))
+    assert linha["valor"] == pytest.approx(-40.0)
+    assert linha["lancamentos"] == 7, "a contagem tem de somar os meses também"
+
+
+def test_mes_fora_do_periodo_nao_entra_pela_janela(monkeypatch):
+    """Um mês que o filtro não pediu não pode aparecer na linha só porque a
+    consulta o devolveu — e também não pode sumir da SOMA sem aviso."""
+    _stub(monkeypatch, [
+        {"centro": 1, "descricao": "A", "mes": "2026-06", "valor": -10.0,
+         "lancamentos": 1}])
+    monkeypatch.setattr(dd.dre_exclusoes, "chaves", lambda *a, **k: [])
+    d = dd.centros(1, 411101, "2026-07-01", "2026-08-01")
+    assert d["meses"] == ["2026-07"]
+    assert "2026-06" not in d["linhas"][0]["meses"]
+
+
+def test_a_virada_de_ano_nao_perde_dezembro():
+    assert dd._meses_do_periodo("2025-11-01", "2026-02-01") == [
+        "2025-11", "2025-12", "2026-01"]

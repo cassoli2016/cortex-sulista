@@ -4,6 +4,18 @@ Gerado de `docs/versoes.yaml` por `scripts/gerar_changelog.py` — não editar �
 Formato [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/),
 versionamento [SemVer](https://semver.org/lang/pt-BR/).
 
+## [0.225.0] — 03/09/2026  ·  CX-03/09/2026-v0.225.0
+
+### Adicionado
+- O modal do razão pagina de 30 em 30, com "‹ anterior" e "próxima ›" e a posição escrita ("31–60 de 187"). A contagem e a soma continuam sendo da lista INTEIRA, não da página: são elas que fecham com o número clicado.
+- Botão "Exportar Excel" no modal. Ele leva a lista INTEIRA e não a página visível — planilha com as 30 da tela não soma com o número clicado, e quem exportasse só descobriria isso depois de mandar o arquivo para alguém. Data em dd/mm/aaaa e valor com vírgula decimal, que é o que o Excel em português lê como data e como número; sem isso a coluna entra como texto e a planilha não soma.
+- Quando a lista bate no teto de 500 do servidor, o aviso diz também que a exportação leva os mesmos 500. Teto que se declara só na tela deixa quem exporta mandar planilha incompleta sem saber.
+
+### Alterado
+- O centro de custo virou LINHA da própria tabela da DRE, mês a mês, alinhada com os níveis de cima e usando as mesmas células (R$ mil, seta mensal, % RL e % RB). Ele era o único nível com um número só do período inteiro: quem via "R$ 2,3 mi" num centro não sabia se era um mês fora da curva ou oito meses iguais — que é justamente a pergunta que traz alguém até esse nível.
+- Cada MÊS do centro abre o seu próprio razão. O recorte vem do botão clicado, não do filtro da tela: clicar no valor de julho abre julho, e a soma do modal fecha com o número em que a pessoa clicou. O Total, no fim da linha, abre o período inteiro.
+- O intervalo de meses é GERADO, não colhido do resultado. `GROUP BY` não devolve o mês sem lançamento, e uma conta parada em maio e junho emendaria abril em julho — a linha diria "não mudou nada" onde houve dois meses de nada.
+
 ## [0.224.0] — 03/09/2026  ·  CX-03/09/2026-v0.224.0
 
 ### Alterado

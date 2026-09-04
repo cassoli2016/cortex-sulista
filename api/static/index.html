@@ -1194,6 +1194,10 @@ tr.dre-conta>td{font-size:11.5px;color:var(--n500)}
 :root[data-theme="dark"] .avisofaixa.bom,
 :root:not([data-theme="light"]) .avisofaixa.bom{
   background:#12321F;border-color:#4ADE80;color:#4ADE80}
+/* O quarto nível (centro de custo) recua mais que a conta e leva um traço —
+   sem isso ele se confunde com a conta irmã de cima, que tem o mesmo recuo. */
+#dre-tab tr.dre-cc>td:first-child{padding-left:64px}
+#dre-tab .ccmarca{color:var(--n400);margin-right:2px}
 #dre-tab .drebt{background:none;border:0;cursor:pointer;padding:0;width:14px;
   color:var(--n500);font-size:10px;line-height:1}
 #dre-tab .drebt[aria-expanded="true"]{color:var(--orange-500)}
@@ -28457,113 +28461,212 @@ function _drillPeriodo(){
 async function dreDrill(bt){
   const tr = bt.closest('tr');
   const aberto = bt.getAttribute('aria-expanded') === 'true';
-  const prox = tr.nextElementSibling;
+  /* As linhas de centro são IRMÃS da linha da conta, contíguas logo abaixo —
+     por isso fechar é andar para a frente enquanto for `.dre-cc`, sem
+     precisar de id. */
+  const limpar = () => {
+    let n = tr.nextElementSibling;
+    while(n && n.classList.contains('dre-cc')){
+      const seg = n.nextElementSibling; n.remove(); n = seg;
+    }
+  };
   if(aberto){
-    bt.setAttribute('aria-expanded','false'); bt.textContent='▸';
-    if(prox && prox.classList.contains('dre-drill')) prox.remove();
-    return;
+    bt.setAttribute('aria-expanded','false'); bt.textContent='\u25b8';
+    limpar(); return;
   }
-  bt.setAttribute('aria-expanded','true'); bt.textContent='▾';
-  const faixa = document.createElement('tr');
-  faixa.className = 'dre-drill';
-  faixa.innerHTML = '<td colspan="15">carregando os centros de custo…</td>';
-  tr.after(faixa);
+  bt.setAttribute('aria-expanded','true'); bt.textContent='\u25be';
+  limpar();
+  const espera = document.createElement('tr');
+  espera.className = 'dre-cc';
+  espera.innerHTML = '<td colspan="15">carregando os centros de custo\u2026</td>';
+  tr.after(espera);
   const p = _drillPeriodo();
   const q = new URLSearchParams({grupo: tr.dataset.g, reduzido: tr.dataset.r,
                                 de: p.de, ate: p.ate});
   let d;
   try{
     const r = await respostaJSON(await fetch('/api/dre/centros?' + q, {cache:'no-store'}));
-    if(!r.ok) throw new Error((r.dados||{}).mensagem || 'não foi possível abrir');
+    if(!r.ok) throw new Error((r.dados||{}).mensagem || 'n\u00e3o foi poss\u00edvel abrir');
     d = r.dados;
   }catch(e){
-    faixa.innerHTML = `<td colspan="15">${esc(e.message||'falhou')}</td>`; return;
+    espera.innerHTML = `<td colspan="15">${esc(e.message||'falhou')}</td>`; return;
   }
   const linhas = d.linhas || [];
-  /* O DRILL PARA AQUI. O nível de baixo — o razão, linha a linha — não cabe
-     numa terceira tabela aninhada dentro de uma linha de tabela: são quatro
-     colunas espremidas num `colspan` já recuado 82px, e a lista chega a 500
-     lançamentos. Ele passou para um modal, aberto pelo VALOR: o número é o
-     que se quer conferir, e é nele que se clica. */
-  const conta = (tr.querySelector('td') || {}).textContent || '';
-  faixa.innerHTML = '<td colspan="15">' + (linhas.length
-    ? `<table class="drill-t"><thead><tr><th>Centro de custo</th>`
-      + `<th class="num">Lançamentos</th><th class="num">Valor</th></tr></thead><tbody>`
-      + linhas.map(x => {
-          const nome = (x.descricao || '?')
-            + (x.centro !== null ? ' · ' + x.centro : '');
-          return `<tr data-g="${tr.dataset.g}" data-r="${tr.dataset.r}"`
-          + ` data-c="${x.centro === null ? '' : x.centro}"`
-          + ` data-sem="${x.centro === null ? '1' : ''}"`
-          + ` data-nome="${esc(nome)}" data-conta="${esc(conta.trim())}">`
-          + `<td>${esc(x.descricao || '?')}${x.centro !== null ? ` <span class="ccod">${x.centro}</span>` : ''}</td>`
-          + `<td class="num">${x.lancamentos}</td>`
-          + `<td class="num"><button class="drevalor" onclick="dreDrillLanc(this)"`
-          + ` title="ver os ${x.lancamentos} lançamentos deste centro">`
-          + `${BRL.format(x.valor||0)}</button></td></tr>`;
+  if(!linhas.length){
+    espera.innerHTML = '<td colspan="15">Nenhum lan\u00e7amento nesta conta no per\u00edodo.</td>';
+    return;
+  }
+  const C = DRECEL;
+  const conta = ((tr.querySelector('td')||{}).textContent || '').trim();
+  /* A linha de centro HERDA o grupo de visibilidade da conta (`dre-c-i-j`).
+     Sem isso ela nasce escondida (`.dre-item` só aparece com `.on`) e, pior,
+     continuaria VISÍVEL depois de recolher o agrupador — órfã, embaixo de um
+     nível já fechado. O mesmo defeito que as contas já tiveram. */
+  const cls = 'dre-item dre-cc on '
+    + ((tr.className.match(/dre-c-\d+-\d+/) || [''])[0]);
+  /* O DRILL PARA AQUI. O nível de baixo — o razão, linha a linha — abre em
+     MODAL, pelo VALOR: o número é o que se quer conferir, e é nele que se
+     clica. Cada mês abre o seu; o Total abre o período inteiro. */
+  const valor = (de, ate, txt) =>
+      `<button class="drevalor" onclick="dreDrillLanc(this)"`
+    + ` data-de="${de}" data-ate="${ate}"`
+    + ` title="ver os lan\u00e7amentos deste centro">${txt}</button>`;
+  espera.outerHTML = linhas.map(x => {
+    const nome = (x.descricao || '?') + (x.centro !== null ? ' \u00b7 ' + x.centro : '');
+    const dados = `data-g="${tr.dataset.g}" data-r="${tr.dataset.r}"`
+      + ` data-c="${x.centro === null ? '' : x.centro}"`
+      + ` data-sem="${x.centro === null ? '1' : ''}"`
+      + ` data-nome="${esc(nome)}" data-conta="${esc(conta)}"`;
+    return `<tr class="${cls}" ${dados}>`
+      + `<td title="${esc(nome)}"><span class="ccmarca">\u2514</span> ${esc(x.descricao||'?')}`
+      + (x.centro !== null ? ` <span class="ccod">${x.centro}</span>` : '')
+      + ` <span class="hint">${x.lancamentos} lan\u00e7.</span></td>`
+      + `<td class="num">${C.rlAbs?`<span class="av">${(100*x.valor/C.rlAbs).toFixed(1)}%</span>`:''}</td>`
+      + C.delta(x.meses, true)
+      + C.meses.map((mm,k) => {
+          const cel = C._mes(x.meses, mm, k);
+          // o conteúdo da célula vira botão; a célula em si não muda, para a
+          // coluna continuar alinhada com os níveis de cima
+          const dentro = cel.replace(/^<td class="num">/, '').replace(/<\/td>$/, '');
+          return `<td class="num">`
+            + valor(mm + '-01', mesSeguinte(mm), dentro) + `</td>`;
         }).join('')
-      + `</tbody></table>`
-    : 'Nenhum lançamento nesta conta no período.') + '</td>';
+      + `<td class="num" style="border-left:2px solid var(--n300)">`
+      + valor(p.de, p.ate, C.fm(x.valor)) + `</td>`
+      + `<td class="num" title="${esc(C.SEM_AA_CONTA)}"><span class="zero">n/d</span></td>`
+      + `<td class="num" title="${esc(C.SEM_AA_CONTA)}"><span class="zero">n/d</span></td>`
+      + `<td class="num">${C.rbAbs?`<span class="av">${(100*x.valor/C.rbAbs).toFixed(1)}%</span>`:''}</td>`
+      + `</tr>`;
+  }).join('');
 }
 
 /* O periodo escrito como a pessoa o escolheu: os filtros sao `YYYY-MM`. */
-function _periodoRotulo(){
-  const v = m => m ? m.slice(5) + '/' + m.slice(0,4) : '?';
-  const de = _dxV('fCompDe'), ate = _dxV('fCompAte');
-  return de === ate ? v(de) : v(de) + ' a ' + v(ate);
+function _periodoRotulo(de, ate){
+  /* Recebe as datas do recorte (`YYYY-MM-01`), e `ate` é EXCLUSIVO — o rótulo
+     tem de mostrar o mês anterior a ele, senão maio vira "05/2026 a 06/2026"
+     e quem lê vê dois meses onde há um. */
+  const v = m => m ? m.slice(5,7) + '/' + m.slice(0,4) : '?';
+  const antes = a => { const y = +a.slice(0,4), m = +a.slice(5,7) - 1;
+    return m === 0 ? (y-1) + '-12-01' : y + '-' + String(m).padStart(2,'0') + '-01'; };
+  const fim = antes(ate || '');
+  return v(de) === v(fim) ? v(de) : v(de) + ' a ' + v(fim);
 }
 
+/* O RAZÃO EM MODAL, paginado de 30 em 30.
+
+   A lista chega inteira (teto de 500 no servidor) e a paginação é de tela: o
+   que trava o navegador é DESENHAR 500 linhas, não guardá-las, e ter tudo em
+   memória é o que permite exportar a lista completa sem uma segunda consulta.
+
+   A EXPORTAÇÃO LEVA TUDO, não a página. Exportar só as 30 visíveis produziria
+   uma planilha que não soma com o número em que a pessoa clicou — e ela
+   descobriria isso depois de mandar o arquivo para alguém. */
+const DRELANC_PAG = 30;
+let DRELANC = null;
+
 async function dreDrillLanc(bt){
-  /* O RAZÃO EM MODAL, não em terceira linha aninhada. A lista tem teto de 500
-     e o teto SE DECLARA: lista cortada em silêncio faz a soma da tela não
-     bater com o total de cima, e quem confere culpa o número certo. */
   const tr = bt.closest('tr');
-  const p = _drillPeriodo();
+  /* O RECORTE VEM DO BOTÃO, não da tela. Clicar no valor de maio tem de
+     abrir maio: usar o período do filtro traria os oito meses e a soma do
+     modal não bateria com o número em que a pessoa clicou. */
+  const base = _drillPeriodo();
+  const p = {de: bt.dataset.de || base.de, ate: bt.dataset.ate || base.ate};
   const q = new URLSearchParams({grupo: tr.dataset.g, reduzido: tr.dataset.r,
                                 de: p.de, ate: p.ate});
   if(tr.dataset.sem) q.set('sem_centro','true'); else q.set('centro', tr.dataset.c);
+  const rotulo = _periodoRotulo(p.de, p.ate);
   abrirModal(`<h3 style="margin:0 0 3px">${esc(tr.dataset.nome||'Centro de custo')}</h3>`
     + `<p class="hint" style="margin:0 0 12px">${esc(tr.dataset.conta||'')}`
-    + ` · ${esc(_periodoRotulo())}</p>`
-    + `<div id="dre-lanc-corpo">carregando os lançamentos…</div>`
-    + `<div style="margin-top:14px;text-align:right">`
+    + ` \u00b7 ${esc(rotulo)}</p>`
+    + `<div id="dre-lanc-corpo">carregando os lan\u00e7amentos\u2026</div>`
+    + `<div style="margin-top:14px;display:flex;gap:9px;justify-content:flex-end">`
     + `<button class="btn" onclick="fecharModal()">Fechar</button></div>`);
   document.getElementById('modalBox').classList.add('larga');
   const corpo = document.getElementById('dre-lanc-corpo');
   let d;
   try{
     const r = await respostaJSON(await fetch('/api/dre/conta-lancamentos?' + q, {cache:'no-store'}));
-    if(!r.ok) throw new Error((r.dados||{}).mensagem || 'não foi possível abrir');
+    if(!r.ok) throw new Error((r.dados||{}).mensagem || 'n\u00e3o foi poss\u00edvel abrir');
     d = r.dados;
   }catch(e){
     if(corpo) corpo.innerHTML = `<p class="hint">${esc(e.message||'falhou')}</p>`;
     return;
   }
-  if(!corpo) return;                       // fecharam o modal enquanto carregava
-  const ls = d.linhas || [];
-  const soma = ls.reduce((a,x) =>
-    a + (+x.valordebito||0) - (+x.valorcredito||0), 0);
+  if(!document.getElementById('dre-lanc-corpo')) return;  // fecharam enquanto carregava
+  DRELANC = {linhas: d.linhas || [], truncou: !!d.truncou, limite: d.limite,
+             pag: 0, rotulo: rotulo,
+             nome: tr.dataset.nome || 'centro', conta: tr.dataset.conta || ''};
+  dreLancPintar();
+}
+
+function dreLancPag(n){
+  if(!DRELANC) return;
+  const ult = Math.max(0, Math.ceil(DRELANC.linhas.length / DRELANC_PAG) - 1);
+  DRELANC.pag = Math.min(ult, Math.max(0, DRELANC.pag + n));
+  dreLancPintar();
+}
+
+function dreLancPintar(){
+  const corpo = document.getElementById('dre-lanc-corpo');
+  if(!corpo || !DRELANC) return;
+  const ls = DRELANC.linhas;
   /* CENTAVOS. O `BRL` da casa arredonda para o real inteiro, e é o certo num
-     KPI — mas este modal existe para CONFERIR o lançamento contra a tela do
-     ERP, e "R$ 369.231" não casa com "369.230,68". Quem confere e não acha o
-     número desconfia do sistema, não do arredondamento. */
+     indicador — mas este modal existe para CONFERIR o lançamento contra a
+     tela do ERP, e "R$ 369.231" não casa com "369.230,68". Quem confere e não
+     acha o número desconfia do sistema, não do arredondamento. */
   const RS = v => 'R$ ' + Number(v).toLocaleString('pt-BR',
     {minimumFractionDigits: 2, maximumFractionDigits: 2});
+  const soma = ls.reduce((a,x) => a + (+x.valordebito||0) - (+x.valorcredito||0), 0);
+  const paginas = Math.max(1, Math.ceil(ls.length / DRELANC_PAG));
+  const de = DRELANC.pag * DRELANC_PAG;
+  const pagina = ls.slice(de, de + DRELANC_PAG);
   corpo.innerHTML =
-      `<p class="hint" style="margin:0 0 9px">${ls.length} lançamento(s)`
-    + ` · soma ${RS(soma)}</p>`
-    + (d.truncou ? `<div class="avisofaixa" style="margin:0 0 9px">Mostrando os `
-        + `primeiros ${d.limite}: a soma acima NÃO fecha com o total do centro.</div>` : '')
+      `<div style="display:flex;justify-content:space-between;align-items:center;gap:9px;margin:0 0 9px">`
+    + `<span class="hint">${ls.length} lan\u00e7amento(s) \u00b7 soma ${RS(soma)}</span>`
+    + `<button class="btn" onclick="dreLancExportar()"`
+    + ` title="baixa a lista INTEIRA, n\u00e3o s\u00f3 esta p\u00e1gina">Exportar Excel</button></div>`
+    + (DRELANC.truncou ? `<div class="avisofaixa" style="margin:0 0 9px">Mostrando os `
+        + `primeiros ${DRELANC.limite}: a soma acima N\u00c3O fecha com o total do centro, `
+        + `e a exporta\u00e7\u00e3o leva os mesmos ${DRELANC.limite}.</div>` : '')
     + (ls.length
       ? `<div class="tabroll"><table class="drill-t" style="width:100%"><thead><tr>`
-        + `<th>Data</th><th>Histórico</th>`
-        + `<th class="num">Débito</th><th class="num">Crédito</th></tr></thead><tbody>`
-        + ls.map(x => `<tr><td>${esc(fmtD(String(x.dtlancamento).slice(0,10)))}</td>`
+        + `<th>Data</th><th>Hist\u00f3rico</th>`
+        + `<th class="num">D\u00e9bito</th><th class="num">Cr\u00e9dito</th></tr></thead><tbody>`
+        + pagina.map(x => `<tr><td>${esc(fmtD(String(x.dtlancamento).slice(0,10)))}</td>`
             + `<td style="white-space:normal">${esc(x.historicodescricao||'')}</td>`
             + `<td class="num">${x.valordebito?RS(+x.valordebito):''}</td>`
             + `<td class="num">${x.valorcredito?RS(+x.valorcredito):''}</td></tr>`).join('')
         + `</tbody></table></div>`
-      : '<p class="hint">Nenhum lançamento.</p>');
+        + (paginas > 1
+          ? `<div style="display:flex;justify-content:center;align-items:center;gap:9px;margin-top:9px">`
+            + `<button class="btn" onclick="dreLancPag(-1)"`
+            + `${DRELANC.pag === 0 ? ' disabled' : ''}>\u2039 anterior</button>`
+            + `<span class="hint">${de+1}\u2013${de+pagina.length} de ${ls.length}`
+            + ` \u00b7 p\u00e1gina ${DRELANC.pag+1} de ${paginas}</span>`
+            + `<button class="btn" onclick="dreLancPag(1)"`
+            + `${DRELANC.pag >= paginas-1 ? ' disabled' : ''}>pr\u00f3xima \u203a</button></div>`
+          : '')
+      : '<p class="hint">Nenhum lan\u00e7amento.</p>');
+}
+
+function dreLancExportar(){
+  if(!DRELANC || !DRELANC.linhas.length){
+    showBanner('N\u00e3o h\u00e1 lan\u00e7amento para exportar.'); return;
+  }
+  /* Data e valor saem no formato que o Excel pt-BR LÊ como data e como
+     número: `dd/mm/aaaa` e vírgula decimal. Valor com ponto entraria como
+     texto e a planilha não somaria a coluna — planilha que não soma é a que
+     faz alguém refazer a conta à mão. */
+  const num = v => v ? Number(v).toFixed(2).replace('.', ',') : '';
+  baixarCSV(
+    'dre-lancamentos-' + DRELANC.rotulo.replace(/[^0-9]/g, '') + '.csv',
+    [{rotulo: 'Data', valor: l => fmtD(String(l.dtlancamento).slice(0,10))},
+     {rotulo: 'Conta', valor: () => DRELANC.conta},
+     {rotulo: 'Centro de custo', valor: () => DRELANC.nome},
+     {rotulo: 'Hist\u00f3rico', valor: l => l.historicodescricao || ''},
+     {rotulo: 'D\u00e9bito', valor: l => num(l.valordebito)},
+     {rotulo: 'Cr\u00e9dito', valor: l => num(l.valorcredito)}],
+    DRELANC.linhas);
 }
 
 /* O PANORAMA CONTA A CONTA. Serve para ser cirúrgico: o que atacar, o que
@@ -28914,6 +29017,10 @@ function chartBalRender(serie){
 const compLabel = c => { const [y,m]=c.split('-'); return MES[+m-1]+'/'+y.slice(2); };
 
 
+/* As células da DRE, publicadas por `renderDre` para o drill usar. Ver o
+   comentário no fim daquela função. */
+let DRECEL = null;
+
 function renderDre(d){
   if(!document.getElementById('fCompDe').value) document.getElementById('fCompDe').value=d.comp_de;
   if(!document.getElementById('fCompAte').value) document.getElementById('fCompAte').value=d.comp_ate;
@@ -29091,6 +29198,8 @@ function renderDre(d){
     }
   });
   document.getElementById('dre-corpo').innerHTML=html;
+  DRECEL = {fm, _mes, delta, temDelta, meses: d.meses,
+            rlAbs, rbAbs, SEM_AA_CONTA};
   const ts=new Date(d.atualizado_em);
   document.getElementById('meta').innerHTML='<b>Atualizado '+ts.toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'})+'</b><br>'+ts.toLocaleDateString('pt-BR');
 }
