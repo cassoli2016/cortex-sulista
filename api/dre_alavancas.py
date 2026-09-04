@@ -258,6 +258,156 @@ def calcular(comp_de: str, comp_ate: str) -> dict:
                  "no período escolhido, nada é meta nem projeção",
     }
 
+# ----------------------------------------------------------------------------
+# PANORAMA CONTA A CONTA — o que melhorou, o que piorou, o que só oscila.
+#
+# A pergunta é "onde ser cirúrgico", e ela tem uma armadilha: conta que cresce
+# junto com a receita NÃO piorou — ela acompanhou o volume. Comparar reais
+# contra reais faria a lista mandar atacar o efeito de estar vendendo mais,
+# que foi exatamente o erro que a lista de alavancas já corrigiu um andar
+# acima.
+#
+# Por isso a régua é PERCENTUAL DA RECEITA LÍQUIDA do próprio mês. "Piorou"
+# quer dizer FICOU MAIS CARO POR REAL FATURADO. O valor volta para reais no
+# fim (multiplicado pela receita do último mês) porque ninguém decide sobre
+# ponto percentual — mas a comparação acontece em percentual.
+#
+# E há um TERCEIRO grupo, que é o que torna a tela cirúrgica de verdade: as
+# contas que OSCILAM. Uma conta que salta de mês para mês não é alvo — é
+# medição instável (provisão que entra e sai, competência que atrasa), e
+# atacá-la é perseguir ruído. Ela sai da lista de ataque e vai para a de
+# "olhar antes de concluir".
+
+#: Abaixo disto a variação não paga a conversa, por maior que seja o
+#: percentual. Ranking por percentual sem piso de materialidade mente.
+PISO_MATERIALIDADE = 15000.0
+
+#: Coeficiente de variação (desvio ÷ média) acima do qual a conta é
+#: instável demais para virar alvo. 0,5 = o desvio é metade da média.
+CV_INSTAVEL = 0.5
+
+
+def _desvio(vals: list[float]) -> float:
+    n = len(vals)
+    if n < 2:
+        return 0.0
+    m = sum(vals) / n
+    return (sum((v - m) ** 2 for v in vals) / (n - 1)) ** 0.5
+
+
+def panorama(comp_de: str, comp_ate: str, nivel: str = "conta") -> dict:
+    """Conta a conta: o que melhorou, o que piorou e o que só oscila.
+
+    `nivel` é "conta" (cirúrgico) ou "agrupador" (panorâmico).
+    """
+    dre = queries.get_dre(comp_de, comp_ate)
+    meses = dre["meses"]
+    n = len(meses)
+    # Recusa carrega a MESMA forma do sucesso: quem consome não deve precisar
+    # saber que existem dois formatos de resposta para não quebrar.
+    def _recusa(motivo: str) -> dict:
+        return {"meses": meses, "erro": motivo, "nivel": nivel,
+                "piorou": [], "melhorou": [], "oscila": [],
+                "piso": PISO_MATERIALIDADE, "cv_instavel": CV_INSTAVEL}
+
+    if n < 2:
+        return _recusa("o panorama precisa de ao menos dois meses para comparar")
+
+    receita = {}
+    for l in dre["linhas"]:
+        if l["rotulo"] == "RECEITA LIQUIDA":
+            receita = {m: l["meses"].get(m, 0.0) for m in meses}
+    if not receita or not any(receita.values()):
+        return _recusa("sem receita líquida no período")
+
+    itens: dict = {}
+    for l in dre["linhas"]:
+        for a in (l.get("detalhe") or []):
+            if nivel == "agrupador":
+                itens[a["agrupador"]] = {
+                    "nome": a["agrupador"], "linha": l["rotulo"],
+                    "meses": [a["meses"].get(m, 0.0) for m in meses]}
+                continue
+            for c in (a.get("contas") or []):
+                chave = "%s|%s" % (c["grupo"], c["reduzido"])
+                itens[chave] = {
+                    "nome": c["conta"], "reduzido": c["reduzido"],
+                    "grupo": c["grupo"], "linha": l["rotulo"],
+                    "agrupador": a["agrupador"],
+                    "estrutural": c.get("estrutural") or "",
+                    "meses": [c["meses"].get(m, 0.0) for m in meses]}
+
+    ult_mes = meses[-1]
+    rec_ult = receita.get(ult_mes) or 0.0
+    piorou, melhorou, oscila = [], [], []
+    for x in itens.values():
+        vals = x["meses"]
+        # DUAS RÉGUAS, e misturá-las foi o primeiro erro deste código.
+        #
+        # CUSTO se mede como % da receita líquida: é assim que "ficou mais
+        # caro por real faturado" se separa de "cresceu porque vendemos mais".
+        #
+        # RECEITA medida como % da receita é CIRCULAR — dizia que a receita de
+        # agregados "melhorou R$ 432 mil" quando o que mudou foi o MIX (81%
+        # para 85% do total). Receita se compara com ela mesma, em reais.
+        #
+        # E a conta 3 tem que ENTRAR dinheiro para valer a régua de receita:
+        # "(-) ICMS SOBRE RECEITA DE TRANSPORTE" também é estrutural 3, e
+        # medido em reais contra a própria média ele aparecia como a quarta
+        # maior PIORA do mês (-R$ 75.390) por ter recolhido mais imposto sobre
+        # um faturamento maior. Dedução de receita se comporta como custo: a
+        # pergunta que decide alguma coisa é quanto da receita ela leva.
+        e_receita = sum(vals) > 0 and (
+            str(x.get("estrutural") or "").startswith("3")
+            or nivel == "agrupador")
+        # o mês só entra se houve receita nele — dividir por zero inventaria
+        # percentual infinito no mês em que a competência ainda não fechou
+        if e_receita:
+            antes = vals[:-1]
+            media = sum(antes) / len(antes) if antes else 0.0
+            delta_rs = vals[-1] - media
+            pct_ult = pct_med = delta_pct = None
+        else:
+            pcts = [(vals[i] / receita[meses[i]]) if receita.get(meses[i])
+                    else None for i in range(n)]
+            antes_p = [v for v in pcts[:-1] if v is not None]
+            if pcts[-1] is None or not antes_p:
+                continue
+            media_p = sum(antes_p) / len(antes_p)
+            pct_ult, pct_med = pcts[-1], media_p
+            delta_pct = pcts[-1] - media_p
+            # em reais do ÚLTIMO mês: é a linguagem em que se decide
+            delta_rs = delta_pct * rec_ult
+            antes = vals[:-1]
+            media = sum(antes) / len(antes) if antes else 0.0
+        cv = (_desvio(antes) / abs(media)) if media else 0.0
+        item = {**x, "receita": e_receita, "pct_ultimo": pct_ult,
+                "pct_medio": pct_med, "delta_pct": delta_pct,
+                "delta_rs": delta_rs, "cv": cv, "valor_ultimo": vals[-1],
+                "media_anterior": media,
+                "regua": "reais, contra a própria média" if e_receita
+                else "% da receita líquida do mês"}
+        if abs(delta_rs) < PISO_MATERIALIDADE:
+            continue
+        if cv > CV_INSTAVEL:
+            oscila.append(item)
+        elif delta_rs < 0:          # custo é negativo: mais negativo = piorou
+            piorou.append(item)
+        else:
+            melhorou.append(item)
+
+    piorou.sort(key=lambda x: x["delta_rs"])
+    melhorou.sort(key=lambda x: -x["delta_rs"])
+    oscila.sort(key=lambda x: -x["cv"])
+    return {
+        "meses": meses, "mes_referencia": ult_mes, "nivel": nivel,
+        "receita_ultimo": rec_ult,
+        "piorou": piorou[:12], "melhorou": melhorou[:12], "oscila": oscila[:8],
+        "piso": PISO_MATERIALIDADE, "cv_instavel": CV_INSTAVEL,
+        "fonte": "DRE Gerencial · cada conta medida como % da receita líquida "
+                 "do próprio mês, para volume não virar piora",
+    }
+
 
 def _brl(v, casas: int = 0) -> str:
     try:

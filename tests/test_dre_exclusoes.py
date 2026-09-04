@@ -72,6 +72,35 @@ def test_marcar_duas_vezes_ATUALIZA_e_nao_duplica(esquema_pg):
     assert len(ex.listar(esquema=esquema_pg)) == 1
 
 
+def test_remarcar_REFRESCA_a_foto_e_nao_so_o_motivo(esquema_pg):
+    """Uma exclusão gravada sem a descrição da conta ficava assim para sempre:
+    o `ON CONFLICT` só atualizava motivo/quem/quando. Na tela, a linha
+    aparecia com o NÚMERO do reduzido enquanto as vizinhas mostravam o nome —
+    e remarcar não consertava. Remarcar é ato deliberado, e é o momento certo
+    de reler o lançamento do ERP."""
+    ex.marcar({**LANC, "conta": None, "agrupador": None, "historico": None},
+              "primeiro motivo", "a@b.c", esquema=esquema_pg)
+    assert ex.listar(esquema=esquema_pg)[0]["conta"] is None
+    ex.marcar(LANC, "motivo corrigido", "a@b.c", esquema=esquema_pg)
+    r = ex.listar(esquema=esquema_pg)[0]
+    assert r["conta"] == "DIESEL FROTA"  # marcar grava em CAIXA ALTA, como o ERP
+    assert r["agrupador"] == "CV - COMBUSTÍVEL"
+    assert len(ex.listar(esquema=esquema_pg)) == 1     # e não duplicou
+
+
+def test_remarcar_sem_foto_NAO_apaga_a_que_havia(esquema_pg):
+    """O `coalesce` existe para isto: quem remarca só para trocar o motivo,
+    sem passar a foto, não pode limpar a descrição que já estava lá."""
+    ex.marcar(LANC, "primeiro motivo", "a@b.c", esquema=esquema_pg)
+    ex.marcar({k: v for k, v in LANC.items()
+               if k in ("grupo", "empresa", "reduzido", "sequencia",
+                        "dtlancamento")},
+              "só o motivo mudou", "a@b.c", esquema=esquema_pg)
+    r = ex.listar(esquema=esquema_pg)[0]
+    assert r["conta"] == "DIESEL FROTA"  # marcar grava em CAIXA ALTA, como o ERP
+    assert r["motivo"] == "só o motivo mudou"
+
+
 def test_desmarcar_devolve_o_lancamento(esquema_pg):
     ex.marcar(LANC, "motivo suficiente", "a@b.c", esquema=esquema_pg)
     assert ex.desmarcar(LANC, esquema=esquema_pg) is True

@@ -203,3 +203,186 @@ def test_a_rota_esta_no_rbac():
 
     assert dict(auth.ROTA_TELAS)["/api/dre/alavancas"] == frozenset(
         {"dre", "dreexc"})
+
+
+# ============================================================ o panorama
+#
+# O panorama conta a conta é a parte cirúrgica da aba: o que atacar, o que
+# manter e o que nem olhar ainda. O erro que ele quase cometeu — e que estes
+# guards existem para impedir que volte — foi medir TUDO com a mesma régua.
+
+
+def _dre_contas(receita: list[float], contas: list[dict], meses=None):
+    """DRE com detalhe até a conta, no formato que `panorama` consome."""
+    meses = meses or MESES
+    return {
+        "meses": meses,
+        "linhas": [
+            {"rotulo": "RECEITA LIQUIDA", "nivel": 0,
+             "meses": dict(zip(meses, receita)), "detalhe": []},
+            {"rotulo": "CSP", "nivel": 0,
+             "meses": dict(zip(meses, [0.0] * len(meses))),
+             "detalhe": [{"agrupador": c.get("agrupador", "CV - X"),
+                          "meses": dict(zip(meses, c["vals"])),
+                          "contas": [{"grupo": c.get("grupo", "1"),
+                                      "reduzido": c["reduzido"],
+                                      "conta": c["conta"],
+                                      "estrutural": c["estrutural"],
+                                      "meses": dict(zip(meses, c["vals"]))}]}
+                         for c in contas]},
+        ],
+    }
+
+
+def _pano(monkeypatch, receita, contas, meses=None):
+    monkeypatch.setattr(al.queries, "get_dre",
+                        lambda de, ate: _dre_contas(receita, contas, meses))
+    return al.panorama("2026-01", "2026-08")
+
+
+def _achar(d, nome):
+    for lista in ("piorou", "melhorou", "oscila"):
+        for x in d[lista]:
+            if x["nome"] == nome:
+                return lista, x
+    return None, None
+
+
+def test_receita_NAO_se_mede_como_percentual_da_receita(monkeypatch):
+    """A régua circular dizia que a receita de agregados "melhorou R$ 432 mil".
+
+    O que tinha mudado era o MIX: agregados foram de 81% para 85% do total
+    porque a frota própria encolheu. Medida contra si mesma, em reais, esta
+    conta CAIU — e é isso que quem decide precisa ver.
+    """
+    receita = [8_000_000.0] * 7 + [6_000_000.0]
+    # a conta cai em reais, mas SOBE como fatia da receita
+    conta = {"reduzido": "301", "conta": "RECEITA AGREGADOS",
+             "estrutural": "3.1.1.01", "vals": [4_000_000.0] * 7 + [3_500_000.0]}
+    d = _pano(monkeypatch, receita, [conta])
+    lista, x = _achar(d, "RECEITA AGREGADOS")
+    assert lista == "piorou", "receita que caiu R$ 500 mil não pode ser melhora"
+    assert x["receita"] is True
+    assert x["pct_ultimo"] is None, "receita não carrega régua de percentual"
+    assert round(x["delta_rs"]) == -500_000
+
+
+def test_custo_que_cresce_JUNTO_com_a_receita_nao_move_o_panorama(monkeypatch):
+    """Dobrar o diesel porque dobrou o frete não é piora — é volume."""
+    receita = [4_000_000.0] * 7 + [8_000_000.0]
+    conta = {"reduzido": "401", "conta": "DIESEL", "estrutural": "4.1.1.01",
+             "vals": [-1_000_000.0] * 7 + [-2_000_000.0]}
+    d = _pano(monkeypatch, receita, [conta])
+    lista, _ = _achar(d, "DIESEL")
+    assert lista is None, "custo proporcional à receita apareceu como %s" % lista
+
+
+def test_custo_que_piora_por_real_faturado_aparece(monkeypatch):
+    receita = [4_000_000.0] * 8
+    conta = {"reduzido": "401", "conta": "DIESEL", "estrutural": "4.1.1.01",
+             "vals": [-1_000_000.0] * 7 + [-1_400_000.0]}
+    d = _pano(monkeypatch, receita, [conta])
+    lista, x = _achar(d, "DIESEL")
+    assert lista == "piorou"
+    # 25% -> 35% da receita, sobre R$ 4 mi do último mês = R$ 400 mil
+    assert round(x["delta_rs"]) == -400_000
+    assert round(x["pct_medio"], 4) == -0.25 and round(x["pct_ultimo"], 2) == -0.35
+
+
+def test_conta_que_SO_OSCILA_sai_das_duas_listas(monkeypatch):
+    """Provisão que entra e sai não é alvo: atacá-la é perseguir ruído."""
+    receita = [4_000_000.0] * 8
+    conta = {"reduzido": "409", "conta": "SINISTROS", "estrutural": "4.1.9.01",
+             "vals": [0.0, -400_000.0, 0.0, -350_000.0,
+                      0.0, -420_000.0, 0.0, -500_000.0]}
+    d = _pano(monkeypatch, receita, [conta])
+    lista, x = _achar(d, "SINISTROS")
+    assert lista == "oscila", "conta instável entrou em %s" % lista
+    assert x["cv"] > al.CV_INSTAVEL
+
+
+def test_piso_de_materialidade_corta_o_percentual_gigante(monkeypatch):
+    """Conta de R$ 900 que triplica é +200%, e não é decisão de ninguém."""
+    receita = [4_000_000.0] * 8
+    conta = {"reduzido": "499", "conta": "CAFEZINHO", "estrutural": "4.1.9.99",
+             "vals": [-300.0] * 7 + [-900.0]}
+    d = _pano(monkeypatch, receita, [conta])
+    assert _achar(d, "CAFEZINHO") == (None, None)
+
+
+def test_mes_sem_receita_sai_da_regua_em_vez_de_envenenar_a_media(monkeypatch):
+    """Um mês com receita zero — competência que não fechou, empresa que não
+    faturou — dividido, vira um percentual de milhões por cento. Ele não fica
+    visível: some dentro da MÉDIA e devolve uma "melhora" de bilhões numa
+    conta que não mudou um centavo. O mês sem denominador sai da régua.
+    """
+    receita = [4_000_000.0] * 3 + [0.0] + [4_000_000.0] * 4
+    conta = {"reduzido": "401", "conta": "DIESEL", "estrutural": "4.1.1.01",
+             "vals": [-1_000_000.0] * 8}
+    d = _pano(monkeypatch, receita, [conta])
+    lista, x = _achar(d, "DIESEL")
+    assert lista is None, "conta que não mudou apareceu em %s" % lista
+    for nome in ("piorou", "melhorou", "oscila"):
+        for y in d[nome]:
+            assert abs(y["delta_rs"]) < 1e12, "número absurdo na tela: %r" % y
+
+
+def test_um_mes_so_nao_tem_o_que_comparar(monkeypatch):
+    d = _pano(monkeypatch, [4_000_000.0], [
+        {"reduzido": "401", "conta": "DIESEL", "estrutural": "4.1.1.01",
+         "vals": [-1_000_000.0]}], meses=["2026-08"])
+    assert d["erro"] and not d["piorou"] and not d["melhorou"]
+
+
+def test_sem_receita_liquida_o_panorama_RECUSA(monkeypatch):
+    """Sem denominador não há régua — e devolver lista vazia calada faria a
+    tela dizer "está tudo bem" no dia em que ela parou de enxergar."""
+    d = _pano(monkeypatch, [0.0] * 8, [
+        {"reduzido": "401", "conta": "DIESEL", "estrutural": "4.1.1.01",
+         "vals": [-1_000_000.0] * 8}])
+    assert d["erro"]
+
+
+def test_a_ordem_e_por_dinheiro_dos_dois_lados(monkeypatch):
+    receita = [4_000_000.0] * 8
+    contas = [
+        {"reduzido": "401", "conta": "GRANDE", "estrutural": "4.1.1.01",
+         "vals": [-1_000_000.0] * 7 + [-1_400_000.0]},
+        {"reduzido": "402", "conta": "PEQUENA", "estrutural": "4.1.1.02",
+         "vals": [-100_000.0] * 7 + [-150_000.0]},
+    ]
+    d = _pano(monkeypatch, receita, contas)
+    assert [x["nome"] for x in d["piorou"]] == ["GRANDE", "PEQUENA"]
+
+
+def test_a_tela_mostra_o_panorama_e_declara_as_DUAS_reguas():
+    """Régua escondida vira verdade do sistema: quem lê precisa saber que
+    custo e receita não foram medidos do mesmo jeito."""
+    html = al.__file__  # só para o linter não reclamar do import
+    del html
+    import pathlib
+    s = pathlib.Path("api/static/index.html").read_text(encoding="utf-8")
+    assert 'id="dre-atk-pano"' in s, "o painel não tem onde renderizar"
+    assert 'data-ao-abrir="loadDrePano"' in s, "a aba não chama o panorama"
+    assert "/api/dre/panorama" in s
+    bloco = s[s.index("async function loadDrePano"):]
+    bloco = bloco[:bloco.index("async function loadDreAtk")]
+    for pedaco in ("% da receita", "Piorou", "Melhorou", "Oscila"):
+        assert pedaco in bloco, "a tela não diz %r" % pedaco
+
+
+def test_deducao_de_receita_usa_a_regua_de_CUSTO(monkeypatch):
+    """"(-) ICMS SOBRE RECEITA DE TRANSPORTE" também é estrutural 3.
+
+    Medido em reais contra a própria média, ele aparecia como a quarta maior
+    PIORA do mês (-R$ 75.390) por ter recolhido mais imposto sobre um
+    faturamento maior — exatamente o efeito que a régua de percentual existe
+    para separar. O que decide alguma coisa é quanto da receita a dedução
+    leva, e por isso ela se mede como custo.
+    """
+    receita = [4_000_000.0] * 7 + [8_000_000.0]
+    conta = {"reduzido": "302", "conta": "(-) ICMS SOBRE RECEITA",
+             "estrutural": "3.1.1.09", "vals": [-400_000.0] * 7 + [-800_000.0]}
+    d = _pano(monkeypatch, receita, [conta])
+    lista, x = _achar(d, "(-) ICMS SOBRE RECEITA")
+    assert lista is None, "imposto proporcional à receita apareceu em %s" % lista

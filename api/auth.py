@@ -222,6 +222,7 @@ ROTA_TELAS: list[tuple[str, frozenset[str]]] = [
     # ordem, o prefixo generico engoliria o especifico e qualquer um
     # que abre a DRE poderia excluir.
     ("/api/dre/alavancas",            frozenset({"dre", "dreexc"})),
+    ("/api/dre/panorama",             frozenset({"dre", "dreexc"})),
     ("/api/dre/centros",              frozenset({"dre", "dreexc"})),
     ("/api/dre/conta-lancamentos",    frozenset({"dre", "dreexc"})),
     ("/api/dre/exclusoes/marcar",     frozenset({"dreexc"})),

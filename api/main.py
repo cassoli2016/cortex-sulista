@@ -370,6 +370,20 @@ def dre_alavancas_rota(comp_de: str, comp_ate: str) -> JSONResponse:
             "mensagem": "Nao foi possivel calcular as alavancas."})
 
 
+@app.get("/api/dre/panorama")
+def dre_panorama(comp_de: str, comp_ate: str,
+                 nivel: str = "conta") -> JSONResponse:
+    """Conta a conta: o que melhorou, o que piorou e o que so oscila."""
+    from api import dre_alavancas
+    try:
+        return JSONResponse(dre_alavancas.panorama(comp_de, comp_ate, nivel))
+    except Exception as exc:  # noqa: BLE001
+        log.warning("dre panorama falhou: %s", type(exc).__name__)
+        return JSONResponse(status_code=500, content={
+            "erro": "erro_consulta",
+            "mensagem": "Nao foi possivel montar o panorama."})
+
+
 @app.get("/api/dre/centros")
 def dre_centros(grupo: int, reduzido: int, de: str, ate: str) -> JSONResponse:
     """Os centros de custo de UMA conta — o nivel abaixo da conta na DRE."""

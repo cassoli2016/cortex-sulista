@@ -789,6 +789,9 @@ body.painelfull .content{padding:16px 22px}
    com o teto padrão de 430px a aba dava 1.781px, e painel de BI se lê
    sem rolar. Regra local, e não global: as outras telas têm uma tabela
    só e 430px é o certo lá. */
+/* As tres listas do panorama rolam dentro de si. Elas vem ordenadas por
+   dinheiro: o que decide esta no topo, e o resto rola aqui dentro. */
+#dre-atk-pano .tabroll{max-height:300px}
 #aba-jorn-diaria .tabroll{max-height:320px}
 /* A aba da base do Avacorp rola mais cedo, pelo mesmo motivo: ela herdou a
    tela ANTIGA inteira — banda de KPI, dois gráficos e TRÊS tabelas (leads,
@@ -6697,6 +6700,7 @@ body.tvfull #btnReport,body.tvmode #btnReport{display:none}
         <div class="subtabs" role="tablist" data-abas="dre" aria-label="Seções desta tela">
           <button role="tab" id="tabdre-res" data-aba="res" aria-controls="aba-dre-res" aria-selected="true" onclick="abaTrocar('dre','res')">Resultado</button>
           <button role="tab" id="tabdre-atk" data-aba="atk" aria-controls="aba-dre-atk" aria-selected="false" onclick="abaTrocar('dre','atk')">Onde atacar</button>
+          <button role="tab" id="tabdre-pano" data-aba="pano" aria-controls="aba-dre-pano" aria-selected="false" onclick="abaTrocar('dre','pano')">Conta a conta</button>
           <button role="tab" id="tabdre-exc" data-aba="exc" aria-controls="aba-dre-exc" aria-selected="false" onclick="abaTrocar('dre','exc')">Excluídos <span class="aban" id="dre-exc-n"></span></button>
         </div>
         <div class="aba" data-abas="dre" data-aba="res" id="aba-dre-res" role="tabpanel" aria-labelledby="tabdre-res">
@@ -6720,10 +6724,16 @@ body.tvfull #btnReport,body.tvmode #btnReport{display:none}
                pegaria isto sozinha: a aba só renderiza ao abrir
                (`data-ao-abrir`), então o medidor a vê VAZIA e passa. Falso
                verde encontrado medindo no navegador, não confiando no teste. -->
-          <div id="dre-atk-lista" class="tabroll" style="max-height:560px"></div>
+          <div id="dre-atk-lista" class="tabroll" style="max-height:340px;display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:18px;align-content:start"></div>
           <div class="card" id="dre-atk-naoe-card" hidden>
             <div class="head"><h2>Onde NÃO está o problema</h2></div>
             <div id="dre-atk-naoe" style="padding:0 18px 18px"></div>
+          </div>
+        </div>
+        <div class="aba" data-abas="dre" data-aba="pano" id="aba-dre-pano" role="tabpanel" aria-labelledby="tabdre-pano" data-ao-abrir="loadDrePano" hidden>
+          <div class="card">
+            <div class="head"><h2>Conta a conta, no último mês <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="Cada conta comparada contra a PRÓPRIA média dos meses anteriores. &#10;&#10;CUSTO é medido como percentual da receita líquida do mês: é assim que 'ficou mais caro por real faturado' se separa de 'cresceu porque vendemos mais'. RECEITA é comparada em reais contra a própria média — medir receita como percentual da receita seria circular e diria que a receita de agregados 'melhorou' quando o que mudou foi o mix. &#10;&#10;O que OSCILA sai das duas listas: conta que salta de mês para mês não é alvo, é medição instável, e atacá-la é perseguir ruído. &#10;&#10;Variação abaixo de R$ 15 mil não entra, por maior que seja o percentual.">ⓘ</span></h2></div>
+            <div id="dre-atk-pano" style="padding:0 18px 14px"></div>
           </div>
         </div>
         <div class="aba" data-abas="dre" data-aba="exc" id="aba-dre-exc" role="tabpanel" aria-labelledby="tabdre-exc" data-ao-abrir="loadDreExc" hidden>
@@ -28515,6 +28525,75 @@ async function dreDrillLanc(bt){
       : 'Nenhum lançamento.') + '</td>';
 }
 
+/* O PANORAMA CONTA A CONTA. Serve para ser cirúrgico: o que atacar, o que
+   manter, e o que nem olhar ainda.
+
+   DUAS RÉGUAS, e misturá-las foi o primeiro erro deste código. Custo se mede
+   como % da receita líquida do mês — é assim que "ficou mais caro por real
+   faturado" se separa de "cresceu porque vendemos mais". Receita se compara
+   com ela mesma, em reais: medir receita como % da receita é circular, e
+   dizia que a receita de agregados "melhorou R$ 432 mil" quando o que mudou
+   foi o MIX.
+
+   E há a terceira lista, que é o que torna a tela cirúrgica de verdade: o que
+   OSCILA. Conta que salta de mês para mês não é alvo — é provisão que entra e
+   sai, competência que atrasa. Deixá-la nas outras duas listas faria alguém
+   perseguir ruído com a energia que devia ir para o que anda. */
+function _panoLinhas(itens, positivo){
+  if(!itens || !itens.length)
+    return '<p class="hint" style="margin:0">Nada acima do piso de materialidade.</p>';
+  return `<div class="tabroll curta"><table class="drill-t" style="width:100%"><tbody>`
+    + itens.map(x => {
+    const cor = positivo ? 'var(--green)' : 'var(--red)';
+    const regua = x.receita
+      ? `média dos meses anteriores ${BRL.format(x.media_anterior||0)}`
+      : `${(100*(x.pct_medio||0)).toFixed(2).replace('.',',')}% → `
+        + `${(100*(x.pct_ultimo||0)).toFixed(2).replace('.',',')}% da receita`;
+    return `<tr><td style="white-space:normal"><b>${esc(x.nome||'?')}</b>`
+      + `<br><span class="hint">${esc(x.agrupador||x.linha||'')} · ${regua}</span></td>`
+      + `<td class="num" style="color:${cor};font-weight:700">${BRL.format(x.delta_rs||0)}</td></tr>`;
+  }).join('') + `</tbody></table></div>`;
+}
+
+async function loadDrePano(){
+  const el = document.getElementById('dre-atk-pano');
+  if(!el) return;
+  el.innerHTML = '<p class="hint">medindo conta a conta…</p>';
+  const de = _dxV('fCompDe'), ate = _dxV('fCompAte');
+  let d;
+  try{
+    const r = await respostaJSON(await fetch('/api/dre/panorama?comp_de='
+      + encodeURIComponent(de) + '&comp_ate=' + encodeURIComponent(ate),
+      {cache:'no-store'}));
+    if(!r.ok) throw new Error((r.dados||{}).mensagem || 'não foi possível medir');
+    d = r.dados;
+  }catch(e){ el.innerHTML = `<p class="hint">${esc(e.message||'falhou')}</p>`; return; }
+  if(d.erro){ el.innerHTML = `<p class="hint">${esc(d.erro)}</p>`; return; }
+  const mes = (d.mes_referencia||'').split('-').reverse().join('/');
+  /* TRÊS COLUNAS, e isso não é estética. Empilhadas, as listas levavam a aba
+     de 478px para 1.176 — e a régua da casa NÃO teria pego: `medir_paineis`
+     dubla a API com `{}` e mede a aba vazia, que cabe em qualquer tela. O
+     guard que mede esta aba CHEIA vive em tests/frontend/. */
+  const bloco = (titulo, nota, itens, positivo) =>
+      `<div><h3 style="margin:0 0 3px;font-size:13px">${titulo}</h3>`
+    + `<p class="hint" style="margin:0 0 9px">${nota}</p>`
+    + _panoLinhas(itens, positivo) + `</div>`;
+  el.innerHTML =
+      `<p class="hint" style="margin:0 0 12px">Cada conta contra a própria média `
+    + `dos meses anteriores. Mês de referência: <b>${esc(mes)}</b>. Custo medido `
+    + `como % da receita do mês, receita em reais — variação abaixo de `
+    + `${BRL.format(d.piso||0)} não entra.</p>`
+    + `<div style="display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:18px">`
+    + bloco('Piorou — atacar', 'Leva mais da receita do que levava.',
+            d.piorou, false)
+    + bloco('Melhorou — manter', 'Onde a régua já anda a favor.',
+            d.melhorou, true)
+    + bloco('Oscila — ainda não decide',
+            'Salta de mês para mês: provisão que entra e sai, competência que '
+            + 'atrasa. Fora das outras duas de propósito.', d.oscila, false)
+    + `</div>`;
+}
+
 async function loadDreAtk(){
   const de = _dxV('fCompDe'), ate = _dxV('fCompAte');
   const topo = document.getElementById('dre-atk-topo');
@@ -28544,7 +28623,7 @@ async function loadDreAtk(){
 
   lista.innerHTML = (d.alavancas||[]).map((a, i) => {
     const dubio = a.certeza === 'confirmar';
-    return `<div class="card" style="margin-top:14px">
+    return `<div class="card" style="margin:0">
       <div class="head"><h2>${i+1}. ${esc(a.titulo)}
         <span style="float:right;font:700 18px/1 var(--mono);color:${dubio?'var(--amber)':'var(--n900)'}">${BRL.format(a.valor_mes||0)}<span style="font:400 11px/1 var(--font);color:var(--n500)">/mês em jogo</span></span></h2></div>
       <div style="padding:0 18px 14px">
@@ -30192,7 +30271,14 @@ async function loadAud(){
       (d.dados && d.dados.mensagem) || 'não foi possível ler a trilha de auditoria';
     return;
   }
-  const v = d.dados, k = v.kpis;
+  const v = d.dados || {}, k = v.kpis;
+  /* Payload sem `kpis` derrubava a tela inteira no `k.acessos` — e tela que
+     morre no boot nao mostra erro nenhum, so fica vazia. Falha DITA. */
+  if(!k){
+    document.getElementById('aud-hint').textContent =
+      'a auditoria respondeu sem os indicadores — nada a mostrar neste periodo';
+    return;
+  }
 
   /* Sessao ABERTA e calculada na leitura (fim nulo E sinal de vida recente),
      nunca gravada: status gravado precisa de rotina para virar, e no dia em

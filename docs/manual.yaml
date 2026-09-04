@@ -11,6 +11,18 @@ glossario:
     o que não existe. Uma alavanca marcada como "confirmar antes de decidir"
     depende de uma pergunta ainda sem resposta, e o cartão diz qual — número
     incerto apresentado como certo queima a confiança na tela inteira.
+- termo: Panorama conta a conta (aba "Onde atacar")
+  definicao: >-
+    O que piorou, o que melhorou e o que só oscila no último mês, cada conta
+    contra a própria média dos meses anteriores. Custo e receita usam réguas
+    DIFERENTES, de propósito: custo entra como percentual da receita líquida
+    do mês, porque é assim que "ficou mais caro por real faturado" se separa
+    de "cresceu porque vendemos mais"; receita se compara em reais contra a
+    própria média, já que medir receita como percentual da receita é circular.
+    Dedução de receita (ICMS, COFINS) usa a régua de custo — ela se comporta
+    como custo. O que oscila sai das duas listas: conta que salta de mês para
+    mês não é alvo, é medição instável. Variação abaixo de R$ 15 mil não
+    entra, por maior que seja o percentual.
 - termo: Onde NÃO está o problema
   definicao: >-
     Bloco final da aba "Onde atacar", com o que foi medido e está bom. Não é

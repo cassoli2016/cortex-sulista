@@ -80,6 +80,15 @@ def marcar(dados: dict, motivo: str, quem: str,
     if not quem:
         raise ValueError("exclusão sem autor não entra")
     chave = _chave_de(dados)
+    # CAIXA ALTA NA CONTA E NO AGRUPADOR. A DRE mostra a conta em maiúsculas
+    # (a própria consulta faz `upper()`), e a lista de exclusões vinha de duas
+    # origens: a planilha da Contabilidade, já em caixa alta, e o `planoconta`
+    # do ERP, em caixa mista. O resultado era uma lista com "HONORARIOS
+    # RECUPERACAO" ao lado de "Locacao de Caminhoes" — mesma tela, duas
+    # grafias. Normalizar na ESCRITA, e não na exibição, porque a lista também
+    # é lida por quem exporta.
+    conta = (dados.get("conta") or None)
+    agrupador = (dados.get("agrupador") or None)
     with pglocal.get_conn(_esq(esquema)) as conn, conn.cursor() as cur:
         cur.execute(
             """INSERT INTO dre_excluido
@@ -88,12 +97,27 @@ def marcar(dados: dict, motivo: str, quem: str,
                   motivo, quem)
                VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)
                ON CONFLICT (grupo, empresa, reduzido, sequencia, dtlancamento)
+               -- REMARCAR REFRESCA A FOTO INTEIRA, não só o motivo. A primeira
+               -- versão só atualizava motivo/quem/quando, e uma exclusão
+               -- gravada sem a descrição da conta ficava assim para sempre —
+               -- a tela caía no número do reduzido e a linha aparecia com
+               -- "422613" no lugar de "Locação de Caminhões", enquanto as
+               -- vizinhas mostravam o nome. Remarcar é ato deliberado; é o
+               -- momento certo de reler o lançamento do ERP.
                DO UPDATE SET motivo = EXCLUDED.motivo, quem = EXCLUDED.quem,
-                             quando = now()
+                             quando = now(),
+                             valor_debito = EXCLUDED.valor_debito,
+                             valor_credito = EXCLUDED.valor_credito,
+                             conta = coalesce(EXCLUDED.conta, dre_excluido.conta),
+                             agrupador = coalesce(EXCLUDED.agrupador,
+                                                  dre_excluido.agrupador),
+                             historico = coalesce(EXCLUDED.historico,
+                                                  dre_excluido.historico)
                RETURNING *""",
             (*chave, dados.get("valor_debito"), dados.get("valor_credito"),
-             dados.get("conta"), dados.get("agrupador"), dados.get("historico"),
-             motivo, quem))
+             conta.upper() if conta else None,
+             agrupador.upper() if agrupador else None,
+             dados.get("historico"), motivo, quem))
         r = dict(cur.fetchone())
         conn.commit()
     return r

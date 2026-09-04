@@ -4,6 +4,19 @@ Gerado de `docs/versoes.yaml` por `scripts/gerar_changelog.py` — não editar �
 Formato [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/),
 versionamento [SemVer](https://semver.org/lang/pt-BR/).
 
+## [0.223.0] — 03/09/2026  ·  CX-03/09/2026-v0.223.0
+
+### Adicionado
+- A aba "Onde atacar" ganhou o panorama CONTA A CONTA: o que piorou, o que melhorou e o que só oscila, cada conta medida contra a própria média dos meses anteriores. É a parte cirúrgica da aba — a lista de cima diz onde ir, a do meio diz o que manter, e a de baixo diz o que ainda não dá para concluir.
+- Custo e receita NÃO são medidos com a mesma régua, e a tela diz isso. Custo entra como percentual da receita líquida do mês: é assim que "ficou mais caro por real faturado" se separa de "cresceu porque vendemos mais". Receita se compara em reais contra a própria média — medir receita como percentual da receita é circular, e dizia que a receita de agregados "melhorou R$ 432 mil" quando o que mudou foi o mix.
+- A terceira lista é o que torna a tela cirúrgica: o que OSCILA sai das outras duas. Seguro da frota leve, baixa de ativo e receita de venda de imobilizado saltam de mês para mês (provisão que entra e sai, competência que atrasa) — atacá-las é perseguir ruído com a energia que devia ir para o que anda.
+- "Onde atacar" virou duas abas — as alavancas de um lado, o panorama conta a conta do outro — e os cartões de alavanca passaram a ocupar duas colunas. Não é arranjo: com o dado real a aba media 1.111px, e com o panorama dentro dela chegaria a 1.540. A régua da casa é 900.
+
+### Corrigido
+- Dedução de receita passou a ser medida como custo. ICMS e COFINS sobre a receita são estruturalmente contas de receita e caíam na régua de reais: apareciam entre as maiores PIORAS do mês (-R$ 75.390 e -R$ 78.188) só por ter recolhido mais imposto sobre um faturamento maior. A pergunta que decide algo é quanto da receita a dedução leva. Com a régua certa, o pedágio dos agregados apareceu no lugar delas.
+- A régua de altura media a aba VAZIA e dava verde. `medir_paineis` dubla a API com `{}`, e as abas que montam tudo em JavaScript — "Onde atacar" e "Conta a conta" — mediam 300px sem dado nenhum. A de "Onde atacar" subiu ao ar ontem com 1.111px reais e nenhum teste vermelho. Agora há guard que renderiza as duas abas com o payload CHEIO (seis alavancas, doze contas por lista) e cobra os mesmos 900px.
+- A tela de Auditoria e Uso deixou de morrer calada quando a API responde sem indicadores: ela dizia o erro no console e ficava vazia. Agora diz a falha no próprio cartão.
+
 ## [0.222.0] — 03/09/2026  ·  CX-03/09/2026-v0.222.0
 
 ### Adicionado
